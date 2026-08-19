@@ -5,7 +5,7 @@
 | Proyecto | NEXUS — Renovación de plataforma |
 | Empresa | FACTECH GROUP SAS |
 | Documento | `development-guide.md` |
-| Versión | 0.1.0 |
+| Versión | 0.2.0 |
 | Estado | Borrador |
 | Responsable técnico | Bonilla Diaz William Steven |
 | Fecha de creación | 19-08-2026 |
@@ -65,9 +65,37 @@ mvn test                      # pruebas unitarias
 mvn verify                    # todo, incluidas pruebas de integración
 mvn flyway:info               # estado de las migraciones
 docker compose down -v        # reinicia la base de datos desde cero
+mkdocs serve                  # sitio de documentación en local (ver 2.5)
 ```
 
 Si `mvn verify` falla en tu máquina, **no** abras el Pull Request esperando que CI lo resuelva.
+
+### 2.5 La documentación como sitio
+
+La documentación de `docs/` se publica como sitio navegable con MkDocs y el tema Material. Los archivos Markdown siguen siendo la **fuente de verdad**; el sitio es solo una vista de ellos.
+
+**Con Docker, sin instalar nada** (recomendado, y coherente con el Art. X.1):
+
+```bash
+docker run --rm -it -p 8000:8000 -v "$PWD":/docs squidfunk/mkdocs-material
+```
+
+**Con Python**, si prefieres tenerlo local:
+
+```bash
+pip install -r requirements-docs.txt
+mkdocs serve            # recarga en caliente en http://localhost:8000
+mkdocs build --strict   # construye en site/ y falla ante cualquier advertencia
+```
+
+Reglas al tocar la documentación:
+
+- Todo documento nuevo **DEBE** agregarse a `nav` en `mkdocs.yml`. Con `--strict`, un documento fuera de la navegación o un enlace roto **detiene el pipeline**.
+- Los enlaces entre documentos se escriben como rutas relativas al archivo `.md` (`[Seguridad](security.md)`), no como URLs del sitio publicado. Así funcionan igual en GitHub, en el editor y en el sitio.
+- Los diagramas se escriben en bloques ` ```mermaid `, que se renderizan tanto en GitHub como en el sitio.
+- El directorio `site/` es un artefacto de construcción y no se versiona (Art. XI.5).
+
+El sitio se publica automáticamente en GitHub Pages al integrar en `main`. En Pull Request solo se construye, como verificación de que la documentación sigue siendo válida.
 
 ---
 
@@ -430,3 +458,4 @@ Aplica el Artículo XIII. En términos prácticos:
 | Versión | Fecha | Cambio | Responsable |
 |---|---|---|---|
 | 0.1.0 | 19-08-2026 | Creación inicial. | Responsable técnico |
+| 0.2.0 | 19-08-2026 | Nueva sección 2.5: publicación de la documentación como sitio con MkDocs. | Responsable técnico |

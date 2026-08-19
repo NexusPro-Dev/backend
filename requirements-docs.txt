@@ -1,0 +1,10 @@
+# Dependencias para construir el sitio de documentacion (MkDocs).
+# No forman parte del artefacto de la aplicacion: son exclusivamente
+# herramientas de documentacion.
+#
+# Versiones fijadas de forma explicita (Art. X.3).
+# Uso:  pip install -r requirements-docs.txt
+
+mkdocs~=1.6
+mkdocs-material~=9.5
+pymdown-extensions~=10.11
