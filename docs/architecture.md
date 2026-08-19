@@ -5,12 +5,13 @@
 | Proyecto | NEXUS — Renovación de plataforma |
 | Empresa | FACTECH GROUP SAS |
 | Documento | `architecture.md` |
-| Versión | 0.1.0 |
+| Versión | 0.2.0 |
 | Estado | Borrador |
 | Responsable técnico | Bonilla Diaz William Steven |
 | Fecha de creación | 19-08-2026 |
 | Última actualización | 19-08-2026 |
 | Documento superior | `constitution.md` v0.2.0 |
+| Documento relacionado | `security.md` v0.1.0 |
 
 ---
 
@@ -292,7 +293,7 @@ Los tres comparten el **identificador de correlación**, lo que permite reconstr
 
 ## 10. Seguridad
 
-El modelo de roles, permisos y el mecanismo de autenticación se definen en `security.md`. A nivel arquitectónico se fija lo siguiente:
+El modelo de roles, permisos y el mecanismo de autenticación se definen en `security.md` (decisión D-08, cerrada el 19-08-2026): token de acceso JWT de 15 minutos más refresh token opaco, revocable y con rotación. A nivel arquitectónico se fija lo siguiente:
 
 - La autorización se aplica en la capa `api` mediante filtros y anotaciones declarativas, con **denegar por defecto** (Art. IV.1). Un endpoint sin declaración explícita de permiso queda inaccesible.
 - El backend es stateless: no hay sesión en memoria del servidor.
@@ -368,10 +369,11 @@ Las decisiones D-01 a D-07, cerradas el 19-08-2026, están registradas en `const
 
 | # | Decisión | Bloquea | Responsable |
 |---|---|---|---|
-| D-08 | Mecanismo de autenticación y gestión de sesión (JWT stateless, duración, refresco, revocación) | `security.md`, módulo de usuarios | Responsable técnico |
 | D-09 | Infraestructura de despliegue para `testing` y `production` | Pipeline de despliegue | Responsable del proyecto |
 | D-10 | Retención concreta de `request_log` y `audit_log` (en días) | Migración de observabilidad | Responsable técnico |
 | D-11 | Política de idempotencia en operaciones de escritura expuestas a reintentos | Diseño de endpoints críticos | Responsable técnico |
+
+D-08 quedó cerrada en `security.md` §12, junto con las decisiones D-12 a D-15 del modelo de autorización. Las pendientes propias de seguridad (D-16 a D-19) se registran en ese mismo documento.
 
 ---
 
@@ -380,3 +382,4 @@ Las decisiones D-01 a D-07, cerradas el 19-08-2026, están registradas en `const
 | Versión | Fecha | Cambio | Responsable |
 |---|---|---|---|
 | 0.1.0 | 19-08-2026 | Creación inicial. Incorpora las decisiones D-01 a D-07. | Responsable técnico |
+| 0.2.0 | 19-08-2026 | Cierre de D-08 en `security.md`. Referencia cruzada al modelo de seguridad. | Responsable técnico |
