@@ -1,0 +1,72 @@
+name: Documentación
+
+# Construye el sitio de documentación con MkDocs y lo publica en GitHub Pages.
+# En Pull Request solo construye: sirve de verificación de que la documentación
+# sigue siendo válida (enlaces, navegación, sintaxis) antes de integrar.
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "docs/**"
+      - "mkdocs.yml"
+      - "requirements-docs.txt"
+      - ".github/workflows/docs.yml"
+  pull_request:
+    paths:
+      - "docs/**"
+      - "mkdocs.yml"
+      - "requirements-docs.txt"
+      - ".github/workflows/docs.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+jobs:
+  construir:
+    name: Construir el sitio
+    runs-on: ubuntu-latest
+    steps:
+      - name: Obtener el código
+        uses: actions/checkout@v4
+
+      - name: Preparar Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: requirements-docs.txt
+
+      - name: Instalar dependencias
+        run: pip install -r requirements-docs.txt
+
+      # --strict convierte cualquier advertencia en error: un enlace roto o un
+      # documento fuera de la navegación detiene el pipeline.
+      - name: Construir la documentación
+        run: mkdocs build --strict
+
+      - name: Publicar el artefacto
+        if: github.ref == 'refs/heads/main'
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: site
+
+  desplegar:
+    name: Desplegar en GitHub Pages
+    if: github.ref == 'refs/heads/main'
+    needs: construir
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.despliegue.outputs.page_url }}
+    steps:
+      - name: Desplegar
+        id: despliegue
+        uses: actions/deploy-pages@v4

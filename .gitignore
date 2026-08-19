@@ -1,0 +1,39 @@
+# Artefactos de construcción y archivos locales del entorno de desarrollo.
+# Art. XI.5: no se versionan artefactos generados ni dependencias instaladas.
+
+# --- Maven / Java ---
+target/
+*.class
+*.log
+.mvn/timing.properties
+.mvn/wrapper/maven-wrapper.properties.bak
+
+# --- MkDocs ---
+site/
+.cache/
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+
+# --- Configuración de entorno ---
+# .env.example SÍ se versiona; .env con valores reales, nunca (Art. IV.3).
+.env
+.env.*
+!.env.example
+
+# --- IDE ---
+.idea/
+*.iml
+*.ipr
+*.iws
+.vscode/
+.settings/
+.classpath
+.project
+*.swp
+
+# --- Sistema operativo ---
+.DS_Store
+Thumbs.db
+desktop.ini
