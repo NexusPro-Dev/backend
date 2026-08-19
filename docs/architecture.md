@@ -5,13 +5,13 @@
 | Proyecto | NEXUS — Renovación de plataforma |
 | Empresa | FACTECH GROUP SAS |
 | Documento | `architecture.md` |
-| Versión | 0.2.0 |
+| Versión | 0.3.0 |
 | Estado | Borrador |
 | Responsable técnico | Bonilla Diaz William Steven |
 | Fecha de creación | 19-08-2026 |
 | Última actualización | 19-08-2026 |
-| Documento superior | `constitution.md` v0.2.0 |
-| Documento relacionado | `security.md` v0.1.0 |
+| Documento superior | `constitution.md` v0.3.0 |
+| Documento relacionado | `security.md` v0.2.0 |
 
 ---
 
@@ -165,12 +165,17 @@ Toda tabla de negocio incluye (Art. V.7):
 |---|---|---|
 | `id` | `uuid` | Clave primaria, UUID v7 |
 | `created_at` | `timestamptz` | Fecha de creación |
-| `created_by` | `uuid` | Actor que creó el registro |
 | `updated_at` | `timestamptz` | Fecha de última modificación |
-| `updated_by` | `uuid` | Actor de la última modificación |
 | `deleted_at` | `timestamptz` NULL | Marca de borrado lógico (Art. V.10) |
 
 Las marcas de tiempo se almacenan siempre en `timestamptz` en UTC. La conversión a zona horaria local es responsabilidad del frontend.
+
+**Las tablas no almacenan el actor del cambio** (Art. V.7). Quién creó o modificó un registro se responde consultando `audit_log` por entidad e identificador, que es su única fuente de verdad. Replicar el actor en cada tabla duplicaría un dato que ya existe y que puede quedar desincronizado.
+
+Dos consecuencias que deben asumirse de forma consciente:
+
+1. **Toda operación de escritura DEBE emitir su evento de auditoría.** Es lo que sostiene el modelo: si una operación omite el evento, la autoría de ese cambio se pierde y no hay forma de reconstruirla (Art. V.8).
+2. **Mostrar "creado por" en una vista exige consultar `audit_log`.** Para listados, esa consulta se resuelve con una proyección específica sobre el registro de auditoría, no agregando la columna de vuelta a la tabla de negocio.
 
 ### 6.5 Integridad
 
@@ -383,3 +388,4 @@ D-08 quedó cerrada en `security.md` §12, junto con las decisiones D-12 a D-15 
 |---|---|---|---|
 | 0.1.0 | 19-08-2026 | Creación inicial. Incorpora las decisiones D-01 a D-07. | Responsable técnico |
 | 0.2.0 | 19-08-2026 | Cierre de D-08 en `security.md`. Referencia cruzada al modelo de seguridad. | Responsable técnico |
+| 0.3.0 | 19-08-2026 | Se retiran `created_by` y `updated_by` de las columnas obligatorias: el actor reside solo en `audit_log`. | Responsable técnico |

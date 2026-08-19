@@ -5,13 +5,13 @@
 | Proyecto | NEXUS — Renovación de plataforma |
 | Empresa | FACTECH GROUP SAS |
 | Documento | `security.md` |
-| Versión | 0.1.0 |
+| Versión | 0.2.0 |
 | Estado | Borrador |
 | Responsable técnico | Bonilla Diaz William Steven |
 | Fecha de creación | 19-08-2026 |
 | Última actualización | 19-08-2026 |
-| Documento superior | `constitution.md` v0.2.0 |
-| Documento relacionado | `architecture.md` v0.1.0 |
+| Documento superior | `constitution.md` v0.3.0 |
+| Documento relacionado | `architecture.md` v0.3.0 |
 
 ---
 
@@ -50,7 +50,7 @@ Un usuario es la representación de una persona que accede al sistema. Los proce
 | `BLOQUEADO` | Bloqueado por intentos fallidos | No, hasta que expire el bloqueo o un administrador lo libere |
 | `PENDIENTE` | Creado pero sin activar su credencial | No |
 
-Un usuario **NO DEBE** eliminarse físicamente: se desactiva (Art. V.10). Eliminar el registro rompería la trazabilidad de todo lo que esa persona hizo (`created_by`, `audit_log`).
+Un usuario **NO DEBE** eliminarse físicamente: se desactiva (Art. V.10). Eliminar el registro rompería la trazabilidad de todo lo que esa persona hizo: `audit_log` referencia al actor por su identificador, y ese identificador debe seguir resolviendo a un usuario.
 
 ### 3.2 Credenciales
 
@@ -300,10 +300,10 @@ Estructura lógica. Las columnas exactas se fijan en la migración Flyway corres
 | `roles` | Agrupación de permisos | `code`, `name`, `description`, `parent_role_id`, `status`, `is_system` |
 | `permissions` | Catálogo de permisos | `code`, `resource`, `action`, `name`, `description` |
 | `role_permissions` | Permisos declarados por rol | `role_id`, `permission_id` |
-| `user_roles` | Roles asignados a usuarios | `user_id`, `role_id`, `assigned_at`, `assigned_by` |
+| `user_roles` | Roles asignados a usuarios | `user_id`, `role_id`, `created_at` |
 | `refresh_tokens` | Sesiones revocables | `user_id`, `token_hash`, `expires_at`, `revoked_at`, `replaced_by_id`, `ip`, `user_agent` |
 
-Todas siguen las convenciones de `architecture.md` §6: clave primaria `uuid` v7, columnas de auditoría obligatorias y restricciones declaradas en el esquema.
+Todas siguen las convenciones de `architecture.md` §6: clave primaria `uuid` v7, marcas de tiempo de creación y modificación, y restricciones declaradas en el esquema. Ninguna almacena el actor del cambio: quién asignó un rol o quién modificó un permiso se responde desde `audit_log` (Art. V.7). Por eso los eventos de §8 no son opcionales — son la única fuente de esa información.
 
 **Restricciones que deben existir en la base de datos, no solo en Java** (Art. V.6):
 
@@ -379,3 +379,4 @@ RNF-SEG-002 merece atención: es una prueba que enumera los endpoints registrado
 | Versión | Fecha | Cambio | Responsable |
 |---|---|---|---|
 | 0.1.0 | 19-08-2026 | Creación inicial. Cierra D-08 y define el modelo de contención de privilegios. | Responsable técnico |
+| 0.2.0 | 19-08-2026 | `user_roles` deja de registrar `assigned_by`: el actor de la asignación reside en `audit_log`. | Responsable técnico |

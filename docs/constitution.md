@@ -6,7 +6,7 @@
 | Proyecto             | NEXUS — Renovación de plataforma                                                           |
 | Empresa              | FACTECH GROUP SAS                                                                          |
 | Documento            | `constitution.md`                                                                          |
-| Versión              | 0.2.0                                                                                      |
+| Versión              | 0.3.0                                                                                      |
 | Estado               | Borrador                                                                                   |
 | Responsable técnico  | Bonilla Diaz William Steven                                                                |
 | Fecha de creación    | 19-08-2026                                                                                 |
@@ -140,8 +140,8 @@ Aplica a todo el código, la documentación, las pruebas, la configuración y lo
 - **V.4** Todo cambio de esquema DEBE realizarse mediante una migración versionada, incremental y revisada en Pull Request. NO DEBE modificarse el esquema manualmente en ningún entorno.
 - **V.5** Una migración ya integrada en `main` NO DEBE editarse; las correcciones se hacen con una migración nueva.
 - **V.6** El esquema DEBE aplicar integridad referencial explícita (claves foráneas, restricciones de unicidad, `NOT NULL`) en lugar de delegar la integridad únicamente a la capa de aplicación.
-- **V.7** Toda tabla de negocio DEBE incluir metadatos de auditoría: fecha de creación, fecha de última modificación y actor responsable.
-- **V.8** La auditoría de negocio DEBE resolverse mediante un registro unificado de eventos (entidad, identificador, acción, actor, marca de tiempo y cambio aplicado), NO mediante una tabla por tipo de operación. Este registro se complementa con el registro de peticiones definido en el Art. XV, del cual se mantiene separado y con el cual DEBE poder correlacionarse.
+- **V.7** Toda tabla de negocio DEBE incluir marcas de tiempo de creación y de última modificación. El **actor** responsable de cada cambio NO DEBE duplicarse en la tabla: reside únicamente en el registro de auditoría (V.8), que es su única fuente de verdad.
+- **V.8** La auditoría de negocio DEBE resolverse mediante un registro unificado de eventos (entidad, identificador, acción, actor, marca de tiempo y cambio aplicado), NO mediante una tabla por tipo de operación. Este registro se complementa con el registro de peticiones definido en el Art. XV, del cual se mantiene separado y con el cual DEBE poder correlacionarse. Al ser la única fuente del actor (V.7), toda operación que cree, modifique o elimine información de negocio DEBE producir su evento de auditoría: sin él, la autoría del cambio es irrecuperable.
 - **V.9** Las convenciones de nombres del esquema DEBEN ser uniformes: `snake_case`, tablas en plural, claves foráneas como `<entidad_singular>_id`.
 - **V.10** El borrado de información de negocio DEBERÍA ser lógico y reversible; el borrado físico DEBE justificarse en la especificación.
 - **V.11** Toda clave primaria DEBE ser de tipo `uuid` nativo de PostgreSQL, generada como **UUID v7** (ordenado por tiempo) para preservar la localidad de los índices. NO DEBEN exponerse identificadores secuenciales en la API.
@@ -408,6 +408,7 @@ docs/
 | ------- | ---------- | ---------------------------------------------------- | ------------------- |
 | 0.1.0   | 19-08-2026 | Creación inicial. Derivada del Documento Marco v1.0. | Responsable técnico |
 | 0.2.0   | 19-08-2026 | Cierre de las decisiones D-01 a D-07. Nuevo Art. XV (observabilidad y registro de operación). Nuevas reglas V.11, V.12, VIII.7, X.5, XII.6 y 17.6. | Responsable técnico |
+| 0.3.0   | 19-08-2026 | El actor de cada cambio deja de replicarse en las tablas de negocio y pasa a residir solo en `audit_log` (V.7, V.8). | Responsable técnico |
 
 
 ---
