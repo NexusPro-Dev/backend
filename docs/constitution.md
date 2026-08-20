@@ -6,7 +6,7 @@
 | Proyecto             | NEXUS — Renovación de plataforma                                                           |
 | Empresa              | FACTECH GROUP SAS                                                                          |
 | Documento            | `constitution.md`                                                                          |
-| Versión              | 0.3.0                                                                                      |
+| Versión              | 0.7.0                                                                                      |
 | Estado               | Borrador                                                                                   |
 | Responsable técnico  | Bonilla Diaz William Steven                                                                |
 | Fecha de creación    | 19-08-2026                                                                                 |
@@ -26,7 +26,7 @@ En caso de conflicto, prevalece el documento de mayor jerarquía:
 
 1. **Constitución** (este documento) — principios no negociables.
 2. **Documento Marco** — estándares y metodología.
-3. **Especificación del módulo** (`docs/specs/`) — comportamiento esperado de cada funcionalidad.
+3. **Tripleta de la funcionalidad** (`docs/specs/`) — `spec.md` (qué y por qué), `plan.md` (cómo) y `tasks.md` (en qué pasos).
 4. **Decisiones de arquitectura** (`docs/architecture/`) — decisiones técnicas registradas.
 5. **Implementación** — el código.
 
@@ -58,13 +58,24 @@ Aplica a todo el código, la documentación, las pruebas, la configuración y lo
 
 **Reglas**
 
-- **I.1** Toda funcionalidad DEBE contar con una especificación aprobada en `docs/specs/` antes de iniciar su implementación.
-- **I.2** Toda especificación DEBE originarse en un requerimiento identificado bajo la nomenclatura `RF-[MÓDULO]-NNN`, `RNF-[CATEGORÍA]-NNN` o `RN-[MÓDULO]-NNN`.
-- **I.3** La especificación DEBE contener, como mínimo: objetivo, contexto, requerimiento asociado, reglas de negocio, datos, flujo, validaciones, criterios de aceptación, casos límite, consideraciones técnicas y pruebas.
-- **I.4** Si durante la implementación se descubre que la especificación es incompleta o incorrecta, se DEBE detener el desarrollo, corregir la especificación y luego continuar. NO DEBE resolverse la ambigüedad únicamente en el código.
-- **I.5** Las correcciones triviales sin impacto funcional (formato, typos, comentarios) PUEDEN realizarse sin especificación previa.
+- **I.1** Toda funcionalidad DEBE contar con una **tripleta** aprobada en `docs/specs/` antes de iniciar su implementación: `spec.md`, `plan.md` y `tasks.md`. Los tres son obligatorios; ninguno sustituye a otro.
+- **I.2** Cada tripleta corresponde a **exactamente un** requerimiento funcional identificado como `RF-[MÓDULO]-NNN`, y vive en `docs/specs/<módulo>/<NNN>-<nombre>/`. Si un requerimiento resulta demasiado grande para una tripleta, se divide el **requerimiento**, no la tripleta.
+- **I.3** `spec.md` responde **qué debe pasar y por qué**. DEBE contener, como mínimo: objetivo, contexto, actores, alcance y no alcance, reglas de negocio aplicables, datos de entrada y salida en lenguaje de negocio, precondiciones y postcondiciones, flujo principal, flujos alternativos, excepciones, validaciones, criterios de aceptación y casos límite. **NO DEBE** contener decisiones técnicas: si un cambio de tecnología la invalidaría, ese contenido pertenece a `plan.md`. Una `spec.md` con preguntas abiertas NO DEBE aprobarse.
+- **I.4** `plan.md` responde **cómo se construye**. DEBE contener, como mínimo: enfoque, cambios de esquema, componentes afectados por capa, contrato de API, permisos requeridos, eventos de auditoría a emitir, transaccionalidad, impacto sobre otros módulos, alternativas consideradas y estrategia de prueba.
+- **I.5** `tasks.md` responde **en qué pasos**. DEBE descomponer el plan en tareas ordenadas, con dependencias explícitas, cada una verificable de forma objetiva y del tamaño de un commit. Es la **fuente de verdad** de las tareas: los Issues del repositorio la referencian y NO DEBEN duplicarla. Toda tarea DEBE poder rastrearse a un criterio de aceptación de `spec.md`.
+- **I.6** Los tres documentos se aprueban en **compuertas sucesivas**: `plan.md` NO DEBE escribirse hasta que `spec.md` esté aprobada, y `tasks.md` NO DEBE escribirse hasta que `plan.md` lo esté. Ninguna línea de código se escribe antes de que `tasks.md` esté aprobado. Cada compuerta se tramita en su propio Pull Request.
+- **I.7** Si durante la implementación se descubre que la tripleta es incompleta o incorrecta, se DEBE detener el desarrollo, corregir el documento que corresponda **volviendo a su compuerta** y continuar. NO DEBE resolverse la ambigüedad únicamente en el código.
+- **I.8** Las correcciones triviales sin impacto funcional (formato, typos, comentarios) PUEDEN realizarse sin tripleta previa.
 
-**Verificación:** el Pull Request referencia el identificador del requerimiento y la ruta de su especificación.
+**Verificación:** el Pull Request referencia el identificador del requerimiento y la ruta de su tripleta.
+
+!!! note "Divergencia declarada con el Documento Marco"
+
+    La §22 del Documento Marco describe **una sola** especificación por funcionalidad. Este artículo la sustituye por la tripleta `spec` / `plan` / `tasks`.
+
+    El motivo es que la lista de contenidos que el Documento Marco exige mezcla tres cosas de naturaleza distinta —comportamiento, decisiones técnicas y descomposición del trabajo—, con audiencias y momentos de aprobación distintos. Separarlas permite que el negocio apruebe el qué sin discutir el cómo, y evita planear sobre una especificación que todavía va a cambiar.
+
+    La constitución prevalece sobre el Documento Marco (§0.1). La divergencia se declara aquí para que no quede tácita.
 
 ---
 
@@ -153,7 +164,7 @@ Aplica a todo el código, la documentación, las pruebas, la configuración y lo
 - **V.10** El borrado de información de negocio DEBERÍA ser lógico y reversible; el borrado físico DEBE justificarse en la especificación.
 - **V.11** Toda clave primaria DEBE ser de tipo `uuid` nativo de PostgreSQL, generada como **UUID v7** (ordenado por tiempo) para preservar la localidad de los índices. NO DEBEN exponerse identificadores secuenciales en la API.
 - **V.12** Las migraciones DEBEN gestionarse con **Flyway**, escritas en SQL plano de PostgreSQL, versionadas de forma incremental y almacenadas en el repositorio del backend.
-- **V.13** Toda eliminación —lógica o física— DEBE registrar el **motivo** declarado por quien la ejecuta. El motivo es obligatorio en el esquema y en el contrato de la API: una eliminación sin motivo DEBE rechazarse antes de ejecutarse. NO DEBE suplirse con un valor automático, salvo en procesos internos sin actor humano, que DEBEN declararse en la especificación. La auditoría de eliminación DEBE además conservar el **estado del registro al momento de eliminarse**: saber que algo se borró no sirve si ya no puede saberse qué era.
+- **V.13** Toda eliminación —lógica o física— DEBE registrar el **motivo** declarado por quien la ejecuta. El motivo es obligatorio en el esquema y en el contrato de la API: una eliminación sin motivo DEBE rechazarse antes de ejecutarse. NO DEBE suplirse con un valor automático, salvo en dos casos, que DEBEN declararse en la especificación: los procesos internos sin actor humano, y la eliminación de **asociaciones** —filas de relación cuyo significado se agota en el par que vinculan, como un permiso asignado a un rol—. En una asociación el «por qué» ya está contenido en el propio evento (qué se desvinculó, de qué, quién y cuándo), y exigir un texto libre solo produciría ruido. La excepción NO alcanza a las entidades de negocio. La auditoría de eliminación DEBE además conservar el **estado del registro al momento de eliminarse**: saber que algo se borró no sirve si ya no puede saberse qué era.
 - **V.14** Los registros de auditoría de **cambios** y de **eliminación** DEBEN escribirse en la misma transacción que el cambio que documentan: si el cambio se revierte, su evento también. Los de **error** y **seguridad** DEBEN escribirse en una **transacción independiente**, porque el evento que registran coincide con la reversión de la transacción de negocio; escritos dentro de ella, el rollback borraría precisamente la constancia del fallo.
 - **V.15** Todo registro de auditoría DEBE incluir la **dirección IP de origen** y el identificador de correlación de la operación. Cuando la operación no proviene de una petición HTTP, ambos DEBEN quedar explícitamente ausentes; NO DEBEN sustituirse por un valor ficticio que los haga indistinguibles de un origen real. La IP DEBE obtenerse de la cadena de proxies declarada como confiable, nunca de una cabecera provista por el cliente sin validar: una IP falsificable no es evidencia.
 
@@ -420,6 +431,9 @@ docs/
 | 0.2.0   | 19-08-2026 | Cierre de las decisiones D-01 a D-07. Nuevo Art. XV (observabilidad y registro de operación). Nuevas reglas V.11, V.12, VIII.7, X.5, XII.6 y 17.6. | Responsable técnico |
 | 0.3.0   | 19-08-2026 | El actor de cada cambio deja de replicarse en las tablas de negocio y pasa a residir solo en la auditoría (V.7, V.8). | Responsable técnico |
 | 0.4.0   | 20-08-2026 | La auditoría se separa en cuatro registros especializados: cambios, eliminación, error y seguridad (V.8, enmienda que invierte el sentido de la regla anterior). Nuevas reglas V.13 (motivo de eliminación obligatorio), V.14 (transaccionalidad diferenciada) y V.15 (IP de origen y correlación). Ajustes en IV.7, V.7, XV.3, XV.4 y XV.8. | Responsable técnico |
+| 0.5.0   | 20-08-2026 | El Artículo I adopta la tripleta `spec` / `plan` / `tasks` con compuertas sucesivas de aprobación (I.1 a I.8). Se declara la divergencia con la §22 del Documento Marco. | Responsable técnico |
+| 0.6.0   | 20-08-2026 | I.3 incorpora precondiciones y postcondiciones al contenido mínimo de `spec.md`: la plantilla de requerimientos las exigía y la tripleta no las recogía. | Responsable técnico |
+| 0.7.0   | 20-08-2026 | V.13 admite eliminar asociaciones sin motivo declarado. La excepción queda acotada a las filas de relación y no alcanza a las entidades de negocio. | Responsable técnico |
 
 
 ---

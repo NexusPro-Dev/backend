@@ -85,10 +85,12 @@ Si la implementación necesita contradecir una regla constitucional, **primero s
 El proyecto sigue **Spec-Driven Development**: la especificación es la fuente de verdad y precede a la implementación.
 
 ```
-Requerimiento → Especificación → Issue → Pull Request → Código → Prueba → Resultado
+Requerimiento → spec.md → plan.md → tasks.md → Issue → Pull Request → Código → Prueba
 ```
 
-Toda funcionalidad cuenta con una especificación aprobada antes de que se escriba su primera línea de código (Art. I.1), y todo cambio es reconstruible hasta el requerimiento que lo originó (Art. III.1).
+Cada funcionalidad se documenta en una **tripleta**: `spec.md` responde *qué debe pasar y por qué*, `plan.md` responde *cómo se construye* y `tasks.md` responde *en qué pasos*. Los tres se aprueban en compuertas sucesivas (Art. I.6).
+
+Ninguna línea de código se escribe antes de que la tripleta esté aprobada (Art. I.1), y todo cambio es reconstruible hasta el requerimiento que lo originó (Art. III.1).
 
 ---
 
@@ -100,12 +102,13 @@ Toda funcionalidad cuenta con una especificación aprobada antes de que se escri
 
 | Documento | Versión | Estado |
 |---|---|---|
-| [Constitución](constitution.md) | 0.4.0 | Borrador |
-| [Arquitectura](architecture.md) | 0.4.0 | Borrador |
-| [Seguridad](security.md) | 0.3.0 | Borrador |
-| [Guía de desarrollo](development-guide.md) | 0.3.0 | Borrador |
-| [Mapa modular](modules.md) | 0.2.0 | Borrador |
-| [Requerimientos y trazabilidad](requirements.md) | 0.2.0 | Borrador |
+| [Constitución](constitution.md) | 0.7.0 | Borrador |
+| [Arquitectura](architecture.md) | 0.5.0 | Borrador |
+| [Seguridad](security.md) | 0.7.0 | Borrador |
+| [Mapa modular](modules.md) | 0.7.0 | Borrador |
+| [Requerimientos y trazabilidad](requirements.md) | 0.5.0 | Borrador |
+| [Guía de desarrollo](development-guide.md) | 0.4.0 | Borrador |
+| [Requerimientos de `SP`](requirements/sp.md) | 1.0.0 | **Aprobado** |
 | Estrategia de pruebas | — | Pendiente |
 
 ### Decisiones

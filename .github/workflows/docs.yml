@@ -1,33 +1,49 @@
 name: Documentación
 
 # Construye el sitio de documentación con MkDocs y lo publica en GitHub Pages.
-# En Pull Request solo construye: sirve de verificación de que la documentación
-# sigue siendo válida (enlaces, navegación, sintaxis) antes de integrar.
+#
+# En Pull Request solo construye: verifica que la documentación sigue siendo
+# válida —enlaces, navegación, sintaxis— antes de integrar.
+# En develop construye y publica.
+#
+# Se publica desde develop y no desde main porque la documentación técnica vale
+# por estar al día: con el flujo feature -> develop -> main, main puede llevar
+# semanas de retraso. Es además la rama a la que apunta `edit_uri` en
+# mkdocs.yml. Para publicar desde main, cambiar las tres referencias a develop:
+# el filtro `branches` y los dos `if` de rama.
 
 on:
   push:
-    branches: [main]
+    branches: [develop]
     paths:
       - "docs/**"
+      # Los archivos .pages controlan la navegación del sitio y empiezan por
+      # punto: los patrones glob no los alcanzan, hay que nombrarlos aparte.
+      - "docs/.pages"
+      - "docs/**/.pages"
       - "mkdocs.yml"
       - "requirements-docs.txt"
       - ".github/workflows/docs.yml"
   pull_request:
     paths:
       - "docs/**"
+      - "docs/.pages"
+      - "docs/**/.pages"
       - "mkdocs.yml"
       - "requirements-docs.txt"
       - ".github/workflows/docs.yml"
   workflow_dispatch:
 
+# Permiso mínimo por defecto. Los permisos de publicación se conceden
+# únicamente al job que despliega (Art. IV.2, principio de mínimo privilegio).
 permissions:
   contents: read
-  pages: write
-  id-token: write
 
+# Una ejecución por rama. Los despliegues no se cancelan entre sí para no
+# dejar el sitio a medio publicar; las construcciones de Pull Request sí.
 concurrency:
-  group: pages
-  cancel-in-progress: false
+  group: docs-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:
   construir:
@@ -53,16 +69,19 @@ jobs:
         run: mkdocs build --strict
 
       - name: Publicar el artefacto
-        if: github.ref == 'refs/heads/main'
+        if: github.ref == 'refs/heads/develop'
         uses: actions/upload-pages-artifact@v3
         with:
           path: site
 
   desplegar:
     name: Desplegar en GitHub Pages
-    if: github.ref == 'refs/heads/main'
+    if: github.ref == 'refs/heads/develop'
     needs: construir
     runs-on: ubuntu-latest
+    permissions:
+      pages: write
+      id-token: write
     environment:
       name: github-pages
       url: ${{ steps.despliegue.outputs.page_url }}

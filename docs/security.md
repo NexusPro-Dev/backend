@@ -5,13 +5,13 @@
 | Proyecto | NEXUS — Renovación de plataforma |
 | Empresa | FACTECH GROUP SAS |
 | Documento | `security.md` |
-| Versión | 0.2.0 |
+| Versión | 0.7.0 |
 | Estado | Borrador |
 | Responsable técnico | Bonilla Diaz William Steven |
 | Fecha de creación | 19-08-2026 |
 | Última actualización | 19-08-2026 |
-| Documento superior | `constitution.md` v0.3.0 |
-| Documento relacionado | `architecture.md` v0.3.0 |
+| Documento superior | `constitution.md` v0.5.0 |
+| Documento relacionado | `architecture.md` v0.4.0 |
 
 ---
 
@@ -112,21 +112,23 @@ Lo que el padre impone es un **techo**:
 
 ### 4.3 Reglas de negocio
 
-| ID | Regla |
-|---|---|
-| **RN-SEG-001** | El código y el nombre de un rol son únicos en el sistema. |
-| **RN-SEG-002** | Un rol tiene uno de los estados definidos: `ACTIVO` o `INACTIVO`. Un rol `INACTIVO` no concede permisos, aunque siga asignado. |
-| **RN-SEG-003** | Los permisos de un rol deben ser un subconjunto de los permisos de su rol padre. La operación que viole esta condición se rechaza. |
-| **RN-SEG-004** | La validación de RN-SEG-003 se realiza contra el rol padre inmediato. No se recorre la cadena de ancestros. |
-| **RN-SEG-005** | Al revocar un permiso a un rol, si algún rol descendiente directo lo declara, la operación **se rechaza** e informa qué roles lo impiden. El sistema no revoca permisos en cascada de forma implícita. |
-| **RN-SEG-006** | La cadena de roles padre no puede formar ciclos. Un rol no puede ser ancestro de sí mismo. |
-| **RN-SEG-007** | Existe exactamente un rol raíz sin padre (`SUPERADMIN`), acotado por el catálogo completo de permisos. |
-| **RN-SEG-008** | Un rol no puede eliminarse si tiene roles hijos o usuarios asignados. Debe desactivarse o reasignarse previamente. |
-| **RN-SEG-009** | Los permisos efectivos de un usuario son la **unión** de los permisos de sus roles `ACTIVO`. |
-| **RN-SEG-010** | Un actor no puede asignar a otro usuario un rol cuyos permisos no estén contenidos en sus propios permisos efectivos. |
-| **RN-SEG-011** | Un usuario no puede modificar sus propios roles ni los permisos de los roles que tiene asignados. |
-| **RN-SEG-012** | Los roles marcados como de sistema no pueden modificarse ni eliminarse por la API. |
-| **RN-SEG-013** | Cambiar el rol padre de un rol exige revalidar RN-SEG-003 contra el nuevo padre. Si no se cumple, la operación se rechaza. |
+Cada regla declara cuándo aplica, qué debe ocurrir y su prioridad, conforme a la plantilla de requerimientos por módulo.
+
+| ID | Regla | Cuándo aplica | Qué debe ocurrir | Prioridad |
+|---|---|---|---|---|
+| **RN-SEG-001** | Unicidad de rol | Al crear o editar un rol | El código y el nombre son únicos **entre los roles no eliminados lógicamente**; el duplicado se rechaza. El identificador de un rol eliminado queda liberado para reutilizarse | Alta |
+| **RN-SEG-002** | Estado del rol | Siempre que se resuelvan permisos | Un rol es `ACTIVO` o `INACTIVO`. Un rol `INACTIVO` no concede permisos, aunque siga asignado | Alta |
+| **RN-SEG-003** | Contención de privilegios | Al declarar o modificar los permisos de un rol | Sus permisos deben ser subconjunto de los de su rol padre; en caso contrario la operación se rechaza | **Crítica** |
+| **RN-SEG-004** | Validación de un solo nivel | Al verificar RN-SEG-003 | Se valida contra el padre inmediato, sin recorrer la cadena de ancestros: la contención es transitiva | Alta |
+| **RN-SEG-005** | Revocación sin cascada | Al retirar un permiso a un rol | Si un rol descendiente directo lo declara, la operación se rechaza e informa qué roles lo impiden. No se revoca en cascada de forma implícita | Alta |
+| **RN-SEG-006** | Ausencia de ciclos | Al asignar o cambiar el rol padre | La cadena de roles padre no puede formar ciclos; un rol no puede ser ancestro de sí mismo | **Crítica** |
+| **RN-SEG-007** | Rol raíz único | Al crear un rol sin padre | Existe exactamente un rol raíz (`SUPERADMIN`), acotado por el catálogo completo de permisos | Alta |
+| **RN-SEG-008** | Eliminación restringida | Al eliminar un rol | Se rechaza si tiene roles hijos o usuarios asignados; debe desactivarse o reasignarse antes | Alta |
+| **RN-SEG-009** | Permisos efectivos por unión | Al resolver qué puede hacer un usuario | Sus permisos son la unión de los de sus roles `ACTIVO` | **Crítica** |
+| **RN-SEG-010** | Nadie otorga lo que no tiene | Al asignar un rol a un usuario | Se rechaza si los permisos del rol no están contenidos en los permisos efectivos de quien asigna | **Crítica** |
+| **RN-SEG-011** | Sin autoconcesión | Al modificar roles o permisos | Un usuario no puede modificar sus propios roles, ni los permisos de los roles que tiene asignados | **Crítica** |
+| **RN-SEG-012** | Roles de sistema inmutables | Al modificar o eliminar un rol marcado como de sistema | La operación se rechaza por la API, sin excepción | Alta |
+| **RN-SEG-013** | Revalidación al reubicar | Al cambiar el rol padre de un rol | Se revalida RN-SEG-003 contra el nuevo padre; si no se cumple, la operación se rechaza | Alta |
 
 **Advertencia sobre RN-SEG-009 y RN-SEG-010.** La contención opera **entre roles**, no sobre el conjunto efectivo del usuario. Dos roles individualmente acotados pueden, en unión, otorgar más de lo que cualquiera de ellos concede por separado. Por eso RN-SEG-010 existe: acota la **asignación** al privilegio efectivo de quien asigna. Sin esa regla, el modelo de contención sería evadible asignando varios roles.
 
@@ -245,6 +247,14 @@ Si llega un refresh token **ya revocado**, el sistema asume robo de credenciales
 - La autorización se declara en la capa `api` (`architecture.md` §5.1), mediante anotaciones sobre cada endpoint.
 - Un endpoint **sin declaración explícita** de permiso queda **inaccesible**, no público. La configuración por defecto deniega, y la excepción (endpoints públicos como login o salud) se declara en una lista explícita y corta, revisable de un vistazo.
 - La verificación de propiedad del dato (que un usuario solo acceda a sus propios registros, cuando aplique) es responsabilidad de la capa `application` y **DEBE** especificarse por requerimiento. Un permiso concede la capacidad de ejecutar una acción, no el derecho sobre un registro concreto.
+
+!!! note "El alcance de datos está pendiente de diseño (D-22)"
+
+    Lo anterior basta mientras el alcance sea la excepción, que es la situación actual: los roles, los permisos y los catálogos de `SP` son globales y ningún requerimiento vigente necesita acotar por persona.
+
+    Deja de bastar en cuanto se retome la estructura comercial: manager, director y agente necesitan el **mismo permiso** sobre conjuntos de datos distintos. El alcance es un **eje ortogonal al permiso** y necesita diseño propio —qué lo determina, cómo se declara por requerimiento y cómo se verifica de forma automatizada—, registrado como **D-22**.
+
+    Ningún requerimiento con alcance por persona debe especificarse antes de resolver D-22.
 - Ante falta de permiso se responde `403`; ante ausencia o invalidez del token, `401` (`architecture.md` §7.2).
 - **NO DEBE** usarse `404` para ocultar la existencia de un recurso salvo que la especificación lo exija de forma expresa y justificada.
 
@@ -419,6 +429,7 @@ RNF-SEG-002 merece atención: es una prueba que enumera los endpoints registrado
 | D-17 | Catálogo inicial completo de permisos y roles de sistema | Primera migración de seguridad |
 | D-18 | Política de restablecimiento de contraseña (canal, vigencia del enlace) | Módulo de usuarios |
 | D-19 | Identidad para procesos automáticos e integraciones | Cuando exista la primera integración |
+| **D-22** | **Modelo de alcance de datos**: cómo se determina *de quién* puede ver los datos un usuario, con independencia de qué permisos tenga | Red comercial, comisiones y finanzas; toda consulta con alcance por persona |
 | D-20 | Si el motivo de eliminación debe tipificarse (catálogo de códigos) además del texto libre del actor | Especificación de los endpoints `DELETE` de cada módulo |
 | D-21 | Lista de proxies confiables por entorno, de la que depende la validez de la IP registrada (Art. V.15) | Despliegue en `testing` y `production` |
 
@@ -431,3 +442,7 @@ RNF-SEG-002 merece atención: es una prueba que enumera los endpoints registrado
 | 0.1.0 | 19-08-2026 | Creación inicial. Cierra D-08 y define el modelo de contención de privilegios. | Responsable técnico |
 | 0.2.0 | 19-08-2026 | `user_roles` deja de registrar `assigned_by`: el actor de la asignación reside en la auditoría. | Responsable técnico |
 | 0.3.0 | 20-08-2026 | §8 pasa a definir `audit_security_log` como uno de los cuatro registros del Art. V.8: columnas propias, `target_user_id`, IP de origen y transacción independiente. §4.4 sustituye `audit:read` por cuatro permisos de lectura por tipo. Nuevo RNF-SEG-007 y pendientes D-20 y D-21. | Responsable técnico |
+| 0.4.0 | 20-08-2026 | Las reglas de §4.3 declaran cuándo aplican, qué debe ocurrir y su prioridad, conforme a la plantilla de requerimientos por módulo. | Responsable técnico |
+| 0.5.0 | 20-08-2026 | Se registra D-22: el alcance de datos es un eje ortogonal al permiso y carece de diseño. Lo evidencia la Épica 2, donde cinco de siete roles se definen por el alcance y no por el permiso. | Responsable técnico |
+| 0.6.0 | 20-08-2026 | RN-SEG-001 acota la unicidad de rol a los no eliminados lógicamente, lo que la convierte en un índice único parcial. | Responsable técnico |
+| 0.7.0 | 20-08-2026 | D-22 pasa de aviso de peligro a pendiente registrado: ningún requerimiento vigente necesita alcance por persona. | Responsable técnico |

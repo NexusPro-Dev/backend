@@ -5,13 +5,13 @@
 | Proyecto | NEXUS — Renovación de plataforma |
 | Empresa | FACTECH GROUP SAS |
 | Documento | `development-guide.md` |
-| Versión | 0.2.0 |
+| Versión | 0.4.0 |
 | Estado | Borrador |
 | Responsable técnico | Bonilla Diaz William Steven |
 | Fecha de creación | 19-08-2026 |
 | Última actualización | 19-08-2026 |
-| Documento superior | `constitution.md` v0.3.0 |
-| Documentos relacionados | `architecture.md` v0.3.0, `security.md` v0.2.0 |
+| Documento superior | `constitution.md` v0.5.0 |
+| Documentos relacionados | `architecture.md` v0.4.0, `security.md` v0.3.0 |
 
 ---
 
@@ -90,7 +90,9 @@ mkdocs build --strict   # construye en site/ y falla ante cualquier advertencia
 
 Reglas al tocar la documentación:
 
-- Todo documento nuevo **DEBE** agregarse a `nav` en `mkdocs.yml`. Con `--strict`, un documento fuera de la navegación o un enlace roto **detiene el pipeline**.
+- La navegación **no** se declara en `mkdocs.yml`: la genera `mkdocs-awesome-pages-plugin` a partir de los archivos `.pages` de cada carpeta. Una tripleta nueva aparece sola en el sitio, sin tocar configuración ni provocar conflictos de merge.
+- Para fijar el orden o el título de una sección, se edita el `.pages` de esa carpeta. Lo que no se lista queda recogido por `...` al final, de modo que ningún documento se vuelve invisible por olvido.
+- Con `--strict`, un enlace roto **detiene el pipeline**.
 - Los enlaces entre documentos se escriben como rutas relativas al archivo `.md` (`[Seguridad](security.md)`), no como URLs del sitio publicado. Así funcionan igual en GitHub, en el editor y en el sitio.
 - Los diagramas se escriben en bloques ` ```mermaid `, que se renderizan tanto en GitHub como en el sitio.
 - El directorio `site/` es un artefacto de construcción y no se versiona (Art. XI.5).
@@ -104,19 +106,26 @@ El sitio se publica automáticamente en GitHub Pages al integrar en `main`. En P
 El ciclo completo, en el orden en que ocurre (Art. I, III):
 
 ```
-1. Requerimiento aprobado          docs/requirements/<modulo>.md   → RF-XXX-NNN
-2. Especificación escrita          docs/specs/<modulo>/<caso>.md
-3. Issue creado en GitHub          referencia el RF
-4. Rama de trabajo                 feature/<descripcion-corta>
-5. Implementación + pruebas        en el mismo commit o commits contiguos
-6. mvn verify en verde             local, antes de publicar
-7. Pull Request                    con la plantilla de §12.3
-8. Revisión y aprobación           al menos una persona distinta del autor
-9. Integración                     a develop
-10. Trazabilidad actualizada       matriz en docs/requirements.md
+ 1. Requerimiento aprobado      docs/requirements/<modulo>.md
+ 2. spec.md escrita             docs/specs/<modulo>/<NNN>-<nombre>/spec.md
+ 3. COMPUERTA 1                 spec aprobada — Pull Request propio
+ 4. plan.md escrito             .../plan.md
+ 5. COMPUERTA 2                 plan aprobado — Pull Request propio
+ 6. tasks.md escrito            .../tasks.md
+ 7. COMPUERTA 3                 tasks aprobadas — Pull Request propio
+ 8. Issue creado en GitHub      referencia el RF y enlaza a tasks.md
+ 9. Rama de trabajo             feature/<descripcion-corta>
+10. Implementación + pruebas    en el orden que fija tasks.md
+11. mvn verify en verde         local, antes de publicar
+12. Pull Request                con la plantilla de §12.3
+13. Revisión y aprobación       al menos una persona distinta del autor
+14. Integración                 a develop
+15. Trazabilidad actualizada    matriz en docs/requirements.md
 ```
 
-**No empieces por el paso 5.** Si no existe la especificación, escríbela o pídela; implementar sin ella produce código que nadie puede validar (Art. I.1).
+**No empieces por el paso 10.** Las tres compuertas del Art. I.6 existen para que el negocio apruebe el *qué* sin discutir el *cómo*, y para no planear sobre una especificación que todavía va a cambiar. Son tres Pull Requests pequeños y rápidos de revisar, no tres semanas de espera.
+
+**Los cambios de la tripleta que se descubran implementando** vuelven a su compuerta (Art. I.7): no se resuelven en el código ni se anotan «para después».
 
 ---
 
@@ -180,7 +189,10 @@ El número es estrictamente creciente y **nunca** se reutiliza. Si dos ramas tom
 Archivos que se tocan al implementar `RF-SP-001 — Registrar rol`. Sirve como plantilla mental de lo que un Pull Request debe contener:
 
 ```
-docs/specs/security/create-role.md              Especificación (existe antes del código)
+docs/specs/sp/001-registrar-rol/                Tripleta (aprobada antes del código)
+  spec.md                                       Qué debe pasar y por qué
+  plan.md                                       Cómo se construye
+  tasks.md                                      En qué pasos
 
 src/main/resources/db/migration/
   V2__create_roles.sql                          Esquema
@@ -381,7 +393,7 @@ Contenido obligatorio (Art. III.4):
 ```markdown
 ## Requerimiento
 RF-SP-001 — Registrar rol
-Especificación: docs/specs/security/create-role.md
+Tripleta: docs/specs/sp/001-registrar-rol/
 Issue: #25
 
 ## Descripción del cambio
@@ -470,3 +482,4 @@ Aplica el Artículo XIII. En términos prácticos:
 | 0.1.0 | 19-08-2026 | Creación inicial. | Responsable técnico |
 | 0.2.0 | 19-08-2026 | Nueva sección 2.5: publicación de la documentación como sitio con MkDocs. | Responsable técnico |
 | 0.3.0 | 20-08-2026 | Se ajustan §9.2, §10, §13 y §15 a la separación de la auditoría en cuatro registros: transaccionalidad diferenciada, motivo de eliminación obligatorio e IP de origen. | Responsable técnico |
+| 0.4.0 | 20-08-2026 | Se adopta la tripleta `spec` / `plan` / `tasks`: §3 incorpora las tres compuertas y §5 y §12.3 apuntan a la carpeta de la tripleta. §2.5 pasa a navegación por `.pages`. | Responsable técnico |
