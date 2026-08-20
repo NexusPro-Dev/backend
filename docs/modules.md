@@ -5,13 +5,13 @@
 | Proyecto | NEXUS — Renovación de plataforma |
 | Empresa | FACTECH GROUP SAS |
 | Documento | `modules.md` |
-| Versión | 0.1.0 |
+| Versión | 0.7.0 |
 | Estado | Borrador |
 | Responsable técnico | Bonilla Diaz William Steven |
 | Fecha de creación | 20-08-2026 |
 | Última actualización | 20-08-2026 |
-| Documento superior | `constitution.md` v0.3.0 |
-| Documentos relacionados | `architecture.md` v0.3.0, `requirements.md` v0.2.0 |
+| Documento superior | `constitution.md` v0.5.0 |
+| Documentos relacionados | `architecture.md` v0.4.0, `requirements.md` v0.3.0 |
 
 ---
 
@@ -104,18 +104,18 @@ Las dependencias apuntan **del consumidor al proveedor** y deben ser acíclicas 
 
 Un módulo `Obsoleto` conserva su fila y su código: sus requerimientos siguen referenciados en la historia del proyecto.
 
-### 4.1 Punto abierto: código de módulo frente a nombre de paquete
+### 4.1 Código de módulo y nombre de paquete
 
 Los ejemplos de `architecture.md` y `security.md` usan el paquete `modules/security` para el trabajo de roles y permisos, mientras que el Documento Marco asigna ese alcance al módulo `SP` (Sistema Principal), cuyo paquete natural es `modules/system`.
 
-Hay que resolverlo **antes de escribir la primera clase**: el nombre queda fijado en cientos de archivos y en la ruta de cada especificación.
+Se resolvió el 20-08-2026, antes de redactar el primer requerimiento: el código queda inmutable en cuanto se use en un identificador (§2.1), de modo que no podía postergarse.
 
 | Salida | A favor | En contra |
 |---|---|---|
 | `SP` → `modules/system` | Conserva la nomenclatura del Documento Marco, ya aprobado | `system` describe peor el contenido real del módulo |
 | Renombrar el módulo a `SEG` → `modules/security` | El nombre dice lo que el módulo hace | `SEG` ya se usa como categoría de RNF y como prefijo de las reglas `RN-SEG-…`, lo que genera ambigüedad |
 
-La tabla anterior registra provisionalmente la primera salida. **Requiere confirmación.**
+**Decisión: `SP` → `modules/system`.** Conserva la nomenclatura del Documento Marco, que ya está aprobado y usa `RF-SP-001` como ejemplo. Los ejemplos de `architecture.md` y `security.md` que mencionan `modules/security` deben leerse como `modules/system`.
 
 ---
 
@@ -125,16 +125,20 @@ La tabla anterior registra provisionalmente la primera salida. **Requiere confir
 
 **Propósito.** Gobierna quién puede hacer qué en el sistema y deja constancia de lo que ocurre. Es el módulo del que dependen todos los demás.
 
-**Alcance.** Catálogo de permisos, definición de roles, contención de privilegios entre roles y los cuatro registros de auditoría (`architecture.md` §6.6). La auditoría se **consulta** desde aquí; se **escribe** desde cada módulo, en la operación que la origina.
+**Alcance.** Catálogo de permisos, definición de roles, contención de privilegios entre roles, catálogos transversales (membresías, monedas y países) y los cuatro registros de auditoría (`architecture.md` §6.6). La auditoría se **consulta** desde aquí; se **escribe** desde cada módulo, en la operación que la origina.
 
 **No incluye.** Los usuarios y sus credenciales (eso es `USR`), ni la asignación de roles a personas.
 
 | Submódulo | Responsabilidad | Entidades principales |
 |---|---|---|
+| Roles | Alta, consulta, edición, estado, jerarquía y eliminación lógica | `roles` |
 | Permisos | Catálogo de permisos `recurso:acción`. Solo lectura por API; se pueblan por migración | `permissions` |
-| Roles | Alta, edición, estado y contención de privilegios entre roles | `roles`, `role_permissions` |
+| Roles y permisos | Asociación y revocación de permisos sobre un rol | `role_permissions` |
+| Membresías | Nivel de acceso del consumidor a servicios y contenidos | `memberships` |
+| Monedas | Catálogo de monedas | `currencies` |
+| Países | Catálogo de países | `countries` |
 | Auditoría | Consulta de los cuatro registros de auditoría, por separado o desde la vista transversal | `audit_change_log`, `audit_deletion_log`, `audit_error_log`, `audit_security_log` |
-| Parámetros | Configuración transversal del sistema | *(por definir)* |
+
 
 **Dependencias.** Ninguna. Es la raíz del grafo, y debe seguir siéndolo: si `SP` llegara a depender de otro módulo, aparecería un ciclo.
 
@@ -191,11 +195,29 @@ La tabla anterior registra provisionalmente la primera salida. **Requiere confir
 
 Esta sección es el trabajo pendiente para cerrar el diseño modular.
 
-El Documento Marco no enumera los módulos del producto, pero sus ejemplos apuntan a un dominio de **gestión de activos e inventario**: la plantilla de requerimientos usa como campos de muestra *"nombre del activo"* y *"código interno"*, y los ejemplos de ramas incluyen `feature/registrar-activo` y `fix/error-inventario`.
+La Épica 2 del documento de historias de usuario (HU08–HU14) define siete roles, y de sus alcances se deducen las áreas de negocio del producto:
 
-!!! danger "Estos módulos no están decididos"
+| Candidato | Deducido de | Alcance aparente |
+|---|---|---|
+| Red comercial | HU10, HU11, HU12 | Estructura manager → director → agente y su relación entre personas |
+| Comisiones | HU08, HU10, HU12 | FTDs, cálculo y liquidación de comisiones |
+| Finanzas | HU09 | Retiros, pagos, balances y egresos |
+| Productos y servicios | HU08, HU13 | Catálogo, compras |
+| Academia | HU08, HU13, HU14 | Cursos y sesiones en vivo |
+| Señales | HU14 | Publicación y consumo de señales |
+| Métricas | HU08 | Indicadores y reportes de la plataforma |
 
-    Lo anterior son **indicios**, no decisiones. Se registran aquí para no perderlos, y deben confirmarse, descartarse o completarse con el alcance real del producto antes de avanzar.
+!!! warning "Candidatos, no decisiones"
+
+    Son áreas **deducidas de los roles**, no un inventario aprobado. El documento de origen se está entregando por partes: hasta disponer del alcance completo, ni los límites ni los códigos de estos módulos pueden fijarse.
+
+    Los ejemplos del Documento Marco apuntaban a *gestión de activos e inventario* (*"nombre del activo"*, `feature/registrar-activo`). No aparecen en el alcance conocido hasta ahora: queda por confirmar si siguen vigentes o eran material de plantilla.
+
+!!! note "Las historias de usuario son documento de origen"
+
+    El documento de historias usa épicas e identificadores `HU`; el proyecto usa `RF-[MÓDULO]-NNN`. Una historia **no** equivale a un requerimiento funcional: *«quiero ver mi estructura comercial»* son varios `RF`.
+
+    Las historias sirven para **levantar** requerimientos, pero quedan **fuera de la cadena de trazabilidad**, que es `RF` → tripleta → Pull Request → código → prueba (Art. III.1). Las referencias `HU` que aparecen en esta sección son procedencia del candidato, no trazabilidad.
 
 Para cada área de negocio que se incorpore hay que responder:
 
@@ -224,10 +246,12 @@ Las preguntas 2 y 4 son las que determinan si es realmente un módulo (§2.1).
 2. Registrar la fila en el inventario de §4.
 3. Escribir su ficha en §5, a partir de la plantilla de §5.3.
 4. Crear `docs/requirements/<código en minúscula>.md` con la plantilla de requerimientos por módulo.
-5. Agregarlo a `nav` en `mkdocs.yml`, o la construcción del sitio falla (`development-guide.md` §2.5).
-6. Registrar sus requerimientos en la matriz de `requirements.md`.
+5. Registrar sus requerimientos en la matriz de `requirements.md`.
+6. Crear la carpeta `docs/specs/<código en minúscula>/`, donde vivirá la tripleta de cada requerimiento.
 
-El orden importa: el módulo precede al requerimiento, el requerimiento precede a la especificación y la especificación precede al código (Art. I.1).
+El sitio incorpora el módulo por sí solo: la navegación se genera desde los archivos `.pages` y no requiere tocar `mkdocs.yml`.
+
+El orden importa: el módulo precede al requerimiento, el requerimiento precede a la tripleta, y la tripleta —aprobada en sus tres compuertas— precede al código (Art. I.1, I.6).
 
 ---
 
@@ -237,3 +261,8 @@ El orden importa: el módulo precede al requerimiento, el requerimiento precede 
 |---|---|---|---|
 | 0.1.0 | 20-08-2026 | Creación inicial. Criterios de modularización y fichas de `SP` y `USR`. | Responsable técnico |
 | 0.2.0 | 20-08-2026 | El submódulo de auditoría de `SP` pasa de un registro único a los cuatro registros del Art. V.8. | Responsable técnico |
+| 0.3.0 | 20-08-2026 | §8 se ajusta a la tripleta `spec` / `plan` / `tasks` y a la navegación automática del sitio. | Responsable técnico |
+| 0.4.0 | 20-08-2026 | Se cierra el punto abierto §4.1: el módulo `SP` usa el paquete `modules/system`. | Responsable técnico |
+| 0.5.0 | 20-08-2026 | §6 registra las siete áreas candidatas deducidas de la Épica 2 (HU08–HU14) y el conflicto de nomenclatura entre historias de usuario y requerimientos. | Responsable técnico |
+| 0.6.0 | 20-08-2026 | Los submódulos de `SP` se ajustan a la guía `guides/001-sp.md`: se separan roles y permisos, y se incorporan membresías, monedas y países. Se retira «Parámetros», cubierto por los catálogos. | Responsable técnico |
+| 0.7.0 | 20-08-2026 | Se resuelve la relación entre historias de usuario y requerimientos: las historias son documento de origen y quedan fuera de la trazabilidad. | Responsable técnico |
