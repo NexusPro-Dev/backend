@@ -34,6 +34,14 @@ Esta documentación es parte del repositorio y se versiona junto al código (Art
 
     [:octicons-arrow-right-24: Ver el modelo de seguridad](security.md)
 
+-   :material-view-module:{ .lg .middle } **Módulos y trazabilidad**
+
+    ---
+
+    Catálogo de los módulos que componen el sistema, nomenclatura de identificadores y matriz de trazabilidad de requerimientos.
+
+    [:octicons-arrow-right-24: Ver el catálogo](requirements.md)
+
 -   :material-code-braces:{ .lg .middle } **Guía de desarrollo**
 
     ---
@@ -88,8 +96,8 @@ Toda funcionalidad cuenta con una especificación aprobada antes de que se escri
 | [Arquitectura](architecture.md) | 0.3.0 | Borrador |
 | [Seguridad](security.md) | 0.2.0 | Borrador |
 | [Guía de desarrollo](development-guide.md) | 0.2.0 | Borrador |
+| [Módulos y trazabilidad](requirements.md) | 0.1.0 | Borrador |
 | Estrategia de pruebas | — | Pendiente |
-| Requerimientos y trazabilidad | — | Pendiente |
 
 ### Decisiones
 

@@ -77,6 +77,7 @@ nav:
   - Constitución: constitution.md
   - Arquitectura: architecture.md
   - Seguridad: security.md
+  - Módulos y trazabilidad: requirements.md
   - Guía de desarrollo: development-guide.md
 
 # Al agregar un documento nuevo, incorporarlo a la navegación anterior.
