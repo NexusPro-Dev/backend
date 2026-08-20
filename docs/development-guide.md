@@ -5,7 +5,7 @@
 | Proyecto | NEXUS — Renovación de plataforma |
 | Empresa | FACTECH GROUP SAS |
 | Documento | `development-guide.md` |
-| Versión | 0.4.0 |
+| Versión | 0.5.0 |
 | Estado | Borrador |
 | Responsable técnico | Bonilla Diaz William Steven |
 | Fecha de creación | 19-08-2026 |
@@ -372,7 +372,19 @@ Descripción corta, en minúsculas y con guiones: `feature/registrar-rol`, `fix/
 Requerimiento: RF-SP-001
 ```
 
-Tipos: `feat`, `fix`, `refactor`, `docs`, `test`, `chore`, `perf`.
+| Tipo | Cuándo se usa |
+|---|---|
+| `feat` | Funcionalidad nueva |
+| `fix` | Corrección de un defecto |
+| `refactor` | Cambio interno sin efecto funcional |
+| `perf` | Mejora de rendimiento |
+| `test` | Pruebas, sin cambio de producción |
+| `docs` | Documentación |
+| `build` | Construcción y dependencias: `pom.xml`, `Dockerfile` |
+| `ci` | Flujos de integración continua: `.github/workflows/` |
+| `chore` | Mantenimiento que no encaja en ninguno de los anteriores |
+
+`build` y `ci` existen porque un cambio de pipeline o de construcción no es documentación ni una tarea de mantenimiento: tiene su propio riesgo y su propia revisión.
 
 ```
 feat(security): validar la contencion de permisos al crear un rol
@@ -483,3 +495,4 @@ Aplica el Artículo XIII. En términos prácticos:
 | 0.2.0 | 19-08-2026 | Nueva sección 2.5: publicación de la documentación como sitio con MkDocs. | Responsable técnico |
 | 0.3.0 | 20-08-2026 | Se ajustan §9.2, §10, §13 y §15 a la separación de la auditoría en cuatro registros: transaccionalidad diferenciada, motivo de eliminación obligatorio e IP de origen. | Responsable técnico |
 | 0.4.0 | 20-08-2026 | Se adopta la tripleta `spec` / `plan` / `tasks`: §3 incorpora las tres compuertas y §5 y §12.3 apuntan a la carpeta de la tripleta. §2.5 pasa a navegación por `.pages`. | Responsable técnico |
+| 0.5.0 | 20-08-2026 | §12.2 incorpora los tipos de commit `build` y `ci`, que faltaban, y describe cuándo se usa cada tipo. | Responsable técnico |
