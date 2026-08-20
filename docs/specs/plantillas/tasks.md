@@ -53,7 +53,7 @@ Las tareas sin dependencia entre sí pueden ejecutarse en paralelo.
 
 ## 3. Cobertura de los criterios de aceptación
 
-Toda fila de `spec.md` §11 debe aparecer aquí. Un criterio sin tarea que lo cubra es una funcionalidad que nadie va a implementar.
+Toda fila de `spec.md` §12 debe aparecer aquí. Un criterio sin tarea que lo cubra es una funcionalidad que nadie va a implementar.
 
 | Criterio | Tarea que lo cubre |
 |---|---|

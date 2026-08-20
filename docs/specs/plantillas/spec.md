@@ -69,7 +69,19 @@ Descritos en lenguaje de negocio. El tipo de columna, la longitud y el nombre f�
 |---|---|
 | [Dato] | [Qué significa] |
 
-## 7. Flujo principal
+## 7. Precondiciones y postcondiciones
+
+**Precondiciones** — lo que debe cumplirse **antes** de ejecutar la funcionalidad. Si alguna no se cumple, la funcionalidad no puede iniciarse.
+
+- [Condición]
+
+**Postcondiciones** — el estado en que queda el sistema **después** de una ejecución exitosa.
+
+- [Condición resultante]
+
+> Las precondiciones no son validaciones: una validación rechaza una entrada incorrecta; una precondición describe el estado del sistema que la funcionalidad da por supuesto.
+
+## 8. Flujo principal
 
 1. El actor [acción].
 2. El sistema [respuesta].
@@ -77,7 +89,7 @@ Descritos en lenguaje de negocio. El tipo de columna, la longitud y el nombre f�
 4. El sistema [resultado].
 5. El sistema informa [qué].
 
-## 8. Flujos alternativos
+## 9. Flujos alternativos
 
 ### FA-001 — [Nombre]
 
@@ -86,20 +98,20 @@ Descritos en lenguaje de negocio. El tipo de columna, la longitud y el nombre f�
 1. [Paso]
 2. [Resultado]
 
-## 9. Excepciones
+## 10. Excepciones
 
 ### EX-001 — [Nombre]
 
 **Condición:** [qué la provoca]
 **Respuesta del sistema:** [qué hace y qué informa]
 
-## 10. Validaciones
+## 11. Validaciones
 
 | ID | Validación | Mensaje esperado |
 |---|---|---|
 | `VAL-001` | [Qué se valida] | [Mensaje al usuario, en español] |
 
-## 11. Criterios de aceptación
+## 12. Criterios de aceptación
 
 Cada criterio debe ser observable y verificable. Si contiene «rápido», «fácil» o «intuitivo», no es un criterio (Art. II.2).
 
@@ -111,13 +123,13 @@ Cada criterio debe ser observable y verificable. Si contiene «rápido», «fác
 
 Cada uno tendrá al menos una prueba automatizada asociada (Art. II.4).
 
-## 12. Casos límite
+## 13. Casos límite
 
 - [Qué pasa con el valor vacío, el máximo, la concurrencia, el registro inexistente, el actor sin permiso…]
 
 Los casos límite que no se enumeren aquí se descubrirán en producción.
 
-## 13. Preguntas abiertas
+## 14. Preguntas abiertas
 
 | # | Pregunta | Responsable | Estado |
 |---|---|---|---|

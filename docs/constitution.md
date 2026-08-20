@@ -6,7 +6,7 @@
 | Proyecto             | NEXUS — Renovación de plataforma                                                           |
 | Empresa              | FACTECH GROUP SAS                                                                          |
 | Documento            | `constitution.md`                                                                          |
-| Versión              | 0.5.0                                                                                      |
+| Versión              | 0.6.0                                                                                      |
 | Estado               | Borrador                                                                                   |
 | Responsable técnico  | Bonilla Diaz William Steven                                                                |
 | Fecha de creación    | 19-08-2026                                                                                 |
@@ -60,7 +60,7 @@ Aplica a todo el código, la documentación, las pruebas, la configuración y lo
 
 - **I.1** Toda funcionalidad DEBE contar con una **tripleta** aprobada en `docs/specs/` antes de iniciar su implementación: `spec.md`, `plan.md` y `tasks.md`. Los tres son obligatorios; ninguno sustituye a otro.
 - **I.2** Cada tripleta corresponde a **exactamente un** requerimiento funcional identificado como `RF-[MÓDULO]-NNN`, y vive en `docs/specs/<módulo>/<NNN>-<nombre>/`. Si un requerimiento resulta demasiado grande para una tripleta, se divide el **requerimiento**, no la tripleta.
-- **I.3** `spec.md` responde **qué debe pasar y por qué**. DEBE contener, como mínimo: objetivo, contexto, actores, alcance y no alcance, reglas de negocio aplicables, datos de entrada y salida en lenguaje de negocio, flujo principal, flujos alternativos, excepciones, validaciones, criterios de aceptación y casos límite. **NO DEBE** contener decisiones técnicas: si un cambio de tecnología la invalidaría, ese contenido pertenece a `plan.md`. Una `spec.md` con preguntas abiertas NO DEBE aprobarse.
+- **I.3** `spec.md` responde **qué debe pasar y por qué**. DEBE contener, como mínimo: objetivo, contexto, actores, alcance y no alcance, reglas de negocio aplicables, datos de entrada y salida en lenguaje de negocio, precondiciones y postcondiciones, flujo principal, flujos alternativos, excepciones, validaciones, criterios de aceptación y casos límite. **NO DEBE** contener decisiones técnicas: si un cambio de tecnología la invalidaría, ese contenido pertenece a `plan.md`. Una `spec.md` con preguntas abiertas NO DEBE aprobarse.
 - **I.4** `plan.md` responde **cómo se construye**. DEBE contener, como mínimo: enfoque, cambios de esquema, componentes afectados por capa, contrato de API, permisos requeridos, eventos de auditoría a emitir, transaccionalidad, impacto sobre otros módulos, alternativas consideradas y estrategia de prueba.
 - **I.5** `tasks.md` responde **en qué pasos**. DEBE descomponer el plan en tareas ordenadas, con dependencias explícitas, cada una verificable de forma objetiva y del tamaño de un commit. Es la **fuente de verdad** de las tareas: los Issues del repositorio la referencian y NO DEBEN duplicarla. Toda tarea DEBE poder rastrearse a un criterio de aceptación de `spec.md`.
 - **I.6** Los tres documentos se aprueban en **compuertas sucesivas**: `plan.md` NO DEBE escribirse hasta que `spec.md` esté aprobada, y `tasks.md` NO DEBE escribirse hasta que `plan.md` lo esté. Ninguna línea de código se escribe antes de que `tasks.md` esté aprobado. Cada compuerta se tramita en su propio Pull Request.
@@ -432,6 +432,7 @@ docs/
 | 0.3.0   | 19-08-2026 | El actor de cada cambio deja de replicarse en las tablas de negocio y pasa a residir solo en la auditoría (V.7, V.8). | Responsable técnico |
 | 0.4.0   | 20-08-2026 | La auditoría se separa en cuatro registros especializados: cambios, eliminación, error y seguridad (V.8, enmienda que invierte el sentido de la regla anterior). Nuevas reglas V.13 (motivo de eliminación obligatorio), V.14 (transaccionalidad diferenciada) y V.15 (IP de origen y correlación). Ajustes en IV.7, V.7, XV.3, XV.4 y XV.8. | Responsable técnico |
 | 0.5.0   | 20-08-2026 | El Artículo I adopta la tripleta `spec` / `plan` / `tasks` con compuertas sucesivas de aprobación (I.1 a I.8). Se declara la divergencia con la §22 del Documento Marco. | Responsable técnico |
+| 0.6.0   | 20-08-2026 | I.3 incorpora precondiciones y postcondiciones al contenido mínimo de `spec.md`: la plantilla de requerimientos las exigía y la tripleta no las recogía. | Responsable técnico |
 
 
 ---

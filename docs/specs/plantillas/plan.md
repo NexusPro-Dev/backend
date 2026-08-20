@@ -131,7 +131,7 @@ Esta sección es la que da valor al documento dentro de un año. Una alternativa
 
 ## 11. Estrategia de prueba
 
-Qué nivel cubre cada criterio de aceptación de `spec.md` §11:
+Qué nivel cubre cada criterio de aceptación de `spec.md` §12:
 
 | Criterio | Nivel | Qué verifica |
 |---|---|---|
