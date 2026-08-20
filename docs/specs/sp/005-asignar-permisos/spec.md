@@ -183,6 +183,6 @@ Sin la segunda, un administrador podría ampliar un rol que cuelga de un padre p
 |---|---|---|---|
 | 1 | ¿La operación agrega permisos, o reemplaza la lista completa? Se especifica como *agregar*, que es más seguro: un reemplazo podría borrar permisos sin que nadie lo pidiera | Responsable técnico | Abierta |
 | 2 | ¿Hay un límite de permisos por petición? | Responsable técnico | Abierta |
-| 3 | ¿`RN-SEG-011` alcanza también a los roles ancestros del propio actor? Un administrador podría ampliar el rol padre del suyo y beneficiarse indirectamente | Responsable técnico | Abierta |
+| 3 | ¿`RN-SEG-011` alcanza a los roles ancestros del propio actor? | **Resuelta el 20-08-2026: no**, solo a los asignados directamente. `RN-SEG-010` impide conceder permisos que el actor no posee, de modo que ampliar un rol ancestro no le aporta nada que no tuviera ya |
 
 **Una spec con preguntas abiertas no puede aprobarse.** Esta sección debe quedar vacía antes de pasar la compuerta.

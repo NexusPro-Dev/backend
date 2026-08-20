@@ -4,10 +4,10 @@
 |---|---|
 | Requerimiento | `RF-SP-004` |
 | Módulo | `SP` — Sistema Principal |
-| Estado | **Borrador** |
+| Estado | **Aprobada** |
 | Autor | Responsable técnico |
-| Aprobada por | — |
-| Fecha de aprobación | — |
+| Aprobada por | Responsable técnico |
+| Fecha de aprobación | 20-08-2026 |
 
 ---
 
@@ -40,14 +40,14 @@ Un rol se crea con un nombre que puede quedar desfasado —una reorganización, 
 - Los permisos → `RF-SP-005` y `RF-SP-006`.
 - El estado → `RF-SP-007`.
 - El rol padre → `RF-SP-008`.
-- La clasificación: ver pregunta abierta 1.
+- La clasificación, que es **inmutable**: determina si el rol puede llevar membresía, y cambiarla dejaría membresías colgando de un rol que ya no es consumidor. Un rol mal clasificado se sustituye por otro, no se corrige.
 
 ## 5. Reglas de negocio aplicables
 
 | ID | Regla | Origen |
 |---|---|---|
 | `RN-SEG-001` | Nombre único entre los no eliminados | `security.md` §4.3 |
-| `RN-SEG-011` | Nadie modifica un rol que tiene asignado | `security.md` §4.3 |
+| `RN-SEG-011` | Nadie modifica un rol que tiene asignado **directamente** | `security.md` §4.3 |
 | `RN-SEG-012` | Los roles de sistema no se modifican por la API | `security.md` §4.3 |
 
 ## 6. Datos
@@ -143,21 +143,24 @@ Al menos uno de los dos campos modificables debe venir informado.
 | `CA-SP-028` | El sistema permite el nombre de un rol eliminado lógicamente |
 | `CA-SP-029` | El sistema registra en la auditoría de cambios solo los campos que cambiaron, con su antes y después |
 | `CA-SP-030` | El sistema no registra evento cuando los valores enviados coinciden con los actuales |
+| `CA-SP-151` | El sistema no admite modificar la clasificación del rol |
+| `CA-SP-152` | El sistema permite editar un rol ancestro del que el actor tiene asignado |
 
 ## 13. Casos límite
 
 - **Nombre igual al actual:** no es conflicto consigo mismo; la unicidad se verifica contra los demás roles.
 - **Descripción a vacío:** debe poder borrarse, ya que es opcional.
 - **Rol eliminado lógicamente:** se trata como inexistente.
-- **Edición concurrente:** dos ediciones simultáneas del mismo rol; ver pregunta abierta 2.
+- **Edición concurrente:** gana el último en escribir. El primero cree que su cambio quedó guardado y solo lo descubre si vuelve a mirar. Se acepta de forma consciente: el dato en juego es el nombre o la descripción, y dos administradores editando el mismo rol a la vez es un caso remoto. La auditoría de cambios conserva ambas ediciones, de modo que el cambio perdido es reconstruible.
+- **Rol ancestro del propio:** puede editarse. `RN-SEG-011` solo alcanza a los roles asignados directamente.
 - **Nombre solo con espacios:** se rechaza por validación tras recortar los extremos.
 
 ## 14. Preguntas abiertas
 
-| # | Pregunta | Responsable | Estado |
-|---|---|---|---|
-| 1 | ¿La clasificación (`FUNCIONARIO`, `VENDEDOR`, `CONSUMIDOR`) es editable? Cambiarla altera qué puede hacer el rol —solo los consumidores llevan membresía— así que probablemente merezca su propio requerimiento | Responsable técnico | Abierta |
-| 2 | ¿Se controla la edición concurrente con versión optimista, o gana el último en escribir? | Responsable técnico | Abierta |
-| 3 | `RN-SEG-011` prohíbe modificar un rol propio. ¿Alcanza también a los roles ancestros del propio, o solo a los asignados directamente? | Responsable técnico | Abierta |
+Ninguna. Las tres se resolvieron el 20-08-2026, antes de aprobar la especificación.
 
-**Una spec con preguntas abiertas no puede aprobarse.** Esta sección debe quedar vacía antes de pasar la compuerta.
+| # | Pregunta | Resolución |
+|---|---|---|
+| 1 | ¿La clasificación es editable? | No, es inmutable. Determina si el rol puede llevar membresía, y cambiarla dejaría membresías colgando de un rol que ya no es consumidor. Se asume el coste: un rol mal clasificado con usuarios asignados no puede corregirse ni borrarse (`RN-SEG-008`), y hay que sustituirlo |
+| 2 | ¿Versión optimista o gana el último? | Gana el último. El dato en juego es el nombre o la descripción, y dos administradores editándolo a la vez es remoto. La auditoría de cambios conserva ambas ediciones, así que el cambio perdido queda reconstruible |
+| 3 | ¿`RN-SEG-011` alcanza a los ancestros? | No, solo a los roles asignados directamente. `RN-SEG-010` ya impide conceder permisos que no se poseen, de modo que tocar un ancestro no permite ganar nada, y `RN-SEG-012` ya protege los roles del catálogo. Extenderlo añadiría un recorrido del árbol en cada escritura sin cerrar ningún hueco |

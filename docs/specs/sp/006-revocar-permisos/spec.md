@@ -150,6 +150,7 @@ No se solicita motivo: se trata de una asociación, no de una entidad de negocio
 - **Retirar todos los permisos:** válido. El rol queda existiendo sin conceder nada.
 - **Rol hijo inactivo que declara el permiso:** ver pregunta abierta 1.
 - **Rol hijo eliminado lógicamente que lo declara:** no debería impedir la revocación, ya que el rol no está vigente.
+- **Rol ancestro del propio actor:** puede revocarse. `RN-SEG-011` solo alcanza a los roles asignados directamente.
 - **Nieto que declara el permiso pero el hijo no:** imposible por la transitividad de la contención; si el hijo no lo tiene, el nieto tampoco puede tenerlo.
 - **Revocación concurrente del mismo permiso:** la segunda no encuentra la asociación y se comporta como el flujo alternativo, sin error.
 
