@@ -54,7 +54,7 @@ Ninguna regla de negocio gobierna esta consulta. El alcance de los datos es glob
 | Orden | No | Campo y sentido de ordenamiento | Solo campos del propio rol |
 | Estado | No | Filtro por activo o inactivo | Uno de los estados definidos |
 | Clasificación | No | Filtro por funcionario, vendedor o consumidor | Uno de los valores definidos |
-| Rol padre | No | Filtro por rol padre | Debe existir |
+| Rol padre | No | Filtro por rol padre | Si se indica uno inexistente, el resultado es una colección vacía, no un error |
 | Búsqueda | No | Texto libre sobre código y nombre | Insensible a mayúsculas y a acentos |
 | Incluir eliminados | No | Incorpora los roles con borrado lógico | Por defecto no |
 
@@ -63,6 +63,8 @@ Ninguna regla de negocio gobierna esta consulta. El alcance de los datos es glob
 | Dato | Descripción |
 |---|---|
 | Roles | Código, nombre, descripción, clasificación, rol padre y estado de cada uno |
+| Marca de eliminación | Presente solo cuando se piden los eliminados. Sin ella, el listado mezclaría vigentes y eliminados sin poder distinguirlos (`CA-SP-011`) |
+| Marca de rol de sistema | Permite que la interfaz no ofrezca editar un rol que `RN-SEG-012` va a rechazar |
 | Paginación | Total de elementos, total de páginas y página actual |
 
 ## 7. Precondiciones y postcondiciones
