@@ -50,7 +50,7 @@ Un usuario es la representación de una persona que accede al sistema. Los proce
 | `BLOQUEADO` | Bloqueado por intentos fallidos | No, hasta que expire el bloqueo o un administrador lo libere |
 | `PENDIENTE` | Creado pero sin activar su credencial | No |
 
-Un usuario **NO DEBE** eliminarse físicamente: se desactiva (Art. V.10). Eliminar el registro rompería la trazabilidad de todo lo que esa persona hizo: `audit_log` referencia al actor por su identificador, y ese identificador debe seguir resolviendo a un usuario.
+Un usuario **NO DEBE** eliminarse físicamente: se desactiva (Art. V.10). Eliminar el registro rompería la trazabilidad de todo lo que esa persona hizo: los cuatro registros de auditoría referencian al actor por su identificador, y ese identificador debe seguir resolviendo a un usuario.
 
 ### 3.2 Credenciales
 
@@ -137,8 +137,20 @@ Un permiso se identifica con el formato `<recurso>:<acción>`, en minúsculas:
 ```
 roles:read      roles:create      roles:update      roles:delete
 users:read      users:create      users:update      users:delete
-audit:read
+
+audit:read-changes      audit:read-deletions
+audit:read-errors       audit:read-security
 ```
+
+**La auditoría se lee por tipo, no en bloque.** Los cuatro registros del Art. V.8 responden preguntas distintas y no tienen la misma sensibilidad: quién editó un rol es información de operación; quién intentó entrar y falló es información de seguridad. Un único `audit:read` obligaría a dar acceso a la segunda para conceder la primera. Con permisos separados, soporte técnico puede investigar errores sin ver la actividad de autenticación de nadie:
+
+| Perfil | Permisos de auditoría |
+|---|---|
+| Soporte técnico | `audit:read-errors` |
+| Auditor de negocio | `audit:read-changes`, `audit:read-deletions` |
+| Responsable de seguridad | Los cuatro |
+
+La vista transversal `v_audit_timeline` (`architecture.md` §6.6.6) exige los cuatro permisos: mezcla las cuatro fuentes y no puede concederse parcialmente.
 
 - El **recurso** corresponde a una entidad o agrupación funcional del módulo.
 - La **acción** es una de un conjunto cerrado: `read`, `create`, `update`, `delete`, más acciones específicas del dominio cuando la especificación lo justifique (por ejemplo `users:reset-password`).
@@ -270,23 +282,52 @@ Implementa el Art. XV.5. Antes de persistir cualquier contenido en `request_log`
 
 ## 8. Auditoría de seguridad
 
-Los siguientes eventos **DEBEN** registrarse en `audit_log` (Art. IV.7), además del `request_log` general:
+Es uno de los cuatro registros del Art. V.8, y el único que este documento define en detalle; los otros tres están en `architecture.md` §6.6. Responde **qué ocurrió en el control de acceso**: quién intentó entrar, a quién se le negó qué, y quién cambió los privilegios de quién.
 
-| Evento | Severidad |
-|---|---|
-| Inicio de sesión exitoso | Informativa |
-| Inicio de sesión fallido | Media |
-| Bloqueo de cuenta por intentos fallidos | Alta |
-| Reutilización de un refresh token revocado | **Alta** |
-| Cierre de sesión | Informativa |
-| Denegación de autorización (`403`) | Media |
-| Creación, modificación o eliminación de un rol | Alta |
-| Cambio de permisos de un rol | **Alta** |
-| Asignación o retiro de roles a un usuario | **Alta** |
-| Cambio de estado de un usuario | Alta |
-| Cambio o restablecimiento de contraseña | Alta |
+### 8.1 Eventos
 
-Los registros de auditoría **NO DEBEN** contener contraseñas ni tokens, ni siquiera en su forma hasheada (Art. IV.8). El `audit_log` no se purga sin decisión documentada (Art. XV.8).
+Los siguientes **DEBEN** registrarse en `audit_security_log` (Art. IV.7), además del `request_log` general:
+
+| Evento | Severidad | `outcome` |
+|---|---|---|
+| Inicio de sesión exitoso | Informativa | `SUCCESS` |
+| Inicio de sesión fallido | Media | `FAILURE` |
+| Bloqueo de cuenta por intentos fallidos | Alta | `FAILURE` |
+| Reutilización de un refresh token revocado | **Alta** | `FAILURE` |
+| Cierre de sesión | Informativa | `SUCCESS` |
+| Denegación de autorización (`403`) | Media | `FAILURE` |
+| Creación, modificación o eliminación de un rol | Alta | `SUCCESS` |
+| Cambio de permisos de un rol | **Alta** | `SUCCESS` |
+| Asignación o retiro de roles a un usuario | **Alta** | `SUCCESS` |
+| Cambio de estado de un usuario | Alta | `SUCCESS` |
+| Cambio o restablecimiento de contraseña | Alta | `SUCCESS` |
+
+La denegación de autorización se registra **aquí y no en `audit_error_log`**: un `403` no es un fallo del sistema, es el sistema funcionando. Tratarlo como error contamina la búsqueda de fallos reales (`architecture.md` §6.6.4).
+
+Los cambios de rol, de permisos y de estado producen **dos** eventos, no uno: el de cambio de negocio en `audit_change_log`, con el diff de lo que cambió, y el de seguridad aquí, con su severidad. No es duplicación: responden preguntas distintas y se consultan con permisos distintos.
+
+### 8.2 Columnas propias
+
+Sobre el núcleo común de `architecture.md` §6.6.1 —que ya aporta actor, correlación, **IP de origen** y agente de usuario—, este registro agrega:
+
+| Columna | Tipo | Descripción |
+|---|---|---|
+| `event_type` | `varchar` | Evento de §8.1, con `CHECK` sobre el catálogo cerrado |
+| `severity` | `varchar` | `INFORMATIVA`, `MEDIA` o `ALTA` |
+| `outcome` | `varchar` | `SUCCESS` o `FAILURE` |
+| `target_user_id` | `uuid` NULL | Usuario **objeto** del evento, distinto del actor |
+| `detail` | `jsonb` NULL | Contexto adicional, sujeto al enmascaramiento de §7.3 |
+
+`target_user_id` es la columna que distingue «quién lo hizo» de «a quién se lo hicieron». Sin ella, un bloqueo de cuenta o una asignación de rol no dice sobre quién recayó. En un inicio de sesión fallido, el actor es desconocido —todavía no hay identidad probada— y el usuario que se intentó usar va aquí.
+
+**La IP es especialmente relevante en este registro.** Un intento de fuerza bruta se reconoce por el origen, no por el nombre de usuario: quien lo ejecuta prueba muchos usuarios desde la misma IP, o el mismo usuario desde muchas. Ambas consultas dependen de que la IP esté en cada fila y sea confiable, de ahí la exigencia del Art. V.15 sobre la cadena de proxies.
+
+### 8.3 Garantías
+
+- **Transacción independiente** (Art. V.14). Un inicio de sesión fallido ocurre mientras la transacción se revierte; escrito dentro de ella, el `rollback` borraría exactamente el evento que hay que conservar.
+- **Sin secretos.** Estos registros **NO DEBEN** contener contraseñas ni tokens, ni siquiera hasheados (Art. IV.8). Un evento de reutilización de refresh token identifica el token por su registro, nunca por su valor.
+- **Sin purga silenciosa.** `audit_security_log` no se purga sin decisión documentada en `docs/security/` (Art. XV.8).
+- **Lectura restringida.** Requiere `audit:read-security` (§4.4), que se concede aparte de los demás permisos de auditoría.
 
 ---
 
@@ -302,8 +343,11 @@ Estructura lógica. Las columnas exactas se fijan en la migración Flyway corres
 | `role_permissions` | Permisos declarados por rol | `role_id`, `permission_id` |
 | `user_roles` | Roles asignados a usuarios | `user_id`, `role_id`, `created_at` |
 | `refresh_tokens` | Sesiones revocables | `user_id`, `token_hash`, `expires_at`, `revoked_at`, `replaced_by_id`, `ip`, `user_agent` |
+| `audit_security_log` | Eventos de control de acceso (§8) | `event_type`, `severity`, `outcome`, `target_user_id`, `detail`, más el núcleo común (`actor_id`, `correlation_id`, `ip_address`, `user_agent`) |
 
-Todas siguen las convenciones de `architecture.md` §6: clave primaria `uuid` v7, marcas de tiempo de creación y modificación, y restricciones declaradas en el esquema. Ninguna almacena el actor del cambio: quién asignó un rol o quién modificó un permiso se responde desde `audit_log` (Art. V.7). Por eso los eventos de §8 no son opcionales — son la única fuente de esa información.
+Todas siguen las convenciones de `architecture.md` §6: clave primaria `uuid` v7, marcas de tiempo de creación y modificación, y restricciones declaradas en el esquema. Ninguna almacena el actor del cambio: quién asignó un rol o quién modificó un permiso se responde desde `audit_change_log`, y quién eliminó un rol y por qué, desde `audit_deletion_log` (Art. V.7). Por eso los eventos de §8 no son opcionales — junto con esos dos registros son la única fuente de esa información.
+
+`audit_security_log` es la excepción a la regla anterior: no es una tabla de negocio sino un registro de eventos, por lo que no lleva `updated_at` ni borrado lógico. **Es de solo inserción**: no se actualiza ni se elimina fila alguna, y ese comportamiento debe estar restringido a nivel de privilegios de base de datos, no solo por convención en el código. Un registro de seguridad que la aplicación puede reescribir no prueba nada.
 
 **Restricciones que deben existir en la base de datos, no solo en Java** (Art. V.6):
 
@@ -331,6 +375,9 @@ Todas siguen las convenciones de `architecture.md` §6: clave primaria `uuid` v7
 | Enumeración de usuarios | Respuestas y tiempos indistinguibles |
 | Inyección SQL | Consultas parametrizadas (Art. IV.5) |
 | Fuga de datos por registros | Enmascaramiento por lista de inclusión (§7.3) |
+| IP falsificada en la auditoría | La IP se resuelve contra la lista de proxies confiables, nunca desde una cabecera del cliente (Art. V.15) |
+| Eliminación sin rastro de qué se eliminó | `snapshot` obligatorio en `audit_deletion_log` (Art. V.13) |
+| Reescritura de la evidencia de seguridad | `audit_security_log` es de solo inserción, restringido por privilegios de base de datos (§9) |
 | Secreto filtrado en el repositorio | Prohibición absoluta y política de rotación (§7.1) |
 | Endpoint publicado por olvido | Denegar por defecto; lista explícita de endpoints públicos (§6) |
 
@@ -345,7 +392,8 @@ Todas siguen las convenciones de `architecture.md` §6: clave primaria `uuid` v7
 | **RNF-SEG-003** | Ningún secreto está presente en el repositorio. | Verificación automatizada en CI |
 | **RNF-SEG-004** | Las contraseñas se almacenan con Argon2id. | Revisión de código e inspección de esquema |
 | **RNF-SEG-005** | Ningún registro contiene contraseñas, tokens ni cabeceras de autorización. | Prueba sobre el enmascarador |
-| **RNF-SEG-006** | Los eventos de seguridad de §8 quedan registrados en `audit_log`. | Pruebas de integración por evento |
+| **RNF-SEG-006** | Los eventos de seguridad de §8 quedan registrados en `audit_security_log`, con su IP de origen y en transacción independiente. | Pruebas de integración por evento, incluyendo una que verifica que el evento persiste tras el `rollback` de la operación fallida |
+| **RNF-SEG-007** | Toda eliminación registra un motivo; la API rechaza la eliminación sin él. | Prueba de contrato por cada endpoint `DELETE` |
 
 RNF-SEG-002 merece atención: es una prueba que enumera los endpoints registrados y verifica que cada uno declara su exigencia de permiso. Es la única forma de garantizar que un endpoint nuevo no quede expuesto por descuido.
 
@@ -371,6 +419,8 @@ RNF-SEG-002 merece atención: es una prueba que enumera los endpoints registrado
 | D-17 | Catálogo inicial completo de permisos y roles de sistema | Primera migración de seguridad |
 | D-18 | Política de restablecimiento de contraseña (canal, vigencia del enlace) | Módulo de usuarios |
 | D-19 | Identidad para procesos automáticos e integraciones | Cuando exista la primera integración |
+| D-20 | Si el motivo de eliminación debe tipificarse (catálogo de códigos) además del texto libre del actor | Especificación de los endpoints `DELETE` de cada módulo |
+| D-21 | Lista de proxies confiables por entorno, de la que depende la validez de la IP registrada (Art. V.15) | Despliegue en `testing` y `production` |
 
 ---
 
@@ -379,4 +429,5 @@ RNF-SEG-002 merece atención: es una prueba que enumera los endpoints registrado
 | Versión | Fecha | Cambio | Responsable |
 |---|---|---|---|
 | 0.1.0 | 19-08-2026 | Creación inicial. Cierra D-08 y define el modelo de contención de privilegios. | Responsable técnico |
-| 0.2.0 | 19-08-2026 | `user_roles` deja de registrar `assigned_by`: el actor de la asignación reside en `audit_log`. | Responsable técnico |
+| 0.2.0 | 19-08-2026 | `user_roles` deja de registrar `assigned_by`: el actor de la asignación reside en la auditoría. | Responsable técnico |
+| 0.3.0 | 20-08-2026 | §8 pasa a definir `audit_security_log` como uno de los cuatro registros del Art. V.8: columnas propias, `target_user_id`, IP de origen y transacción independiente. §4.4 sustituye `audit:read` por cuatro permisos de lectura por tipo. Nuevo RNF-SEG-007 y pendientes D-20 y D-21. | Responsable técnico |
