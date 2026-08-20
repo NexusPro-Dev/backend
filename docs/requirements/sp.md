@@ -66,19 +66,20 @@ Ninguna. `SP` es la raíz del grafo y debe seguir siéndolo: si llegara a depend
 
 ## 4. Actores
 
-Los actores de este módulo son los **roles del sistema**, definidos en la Épica 2 del documento de historias de usuario (HU08 a HU14).
+Los actores de este módulo son los **roles del sistema**.
 
-| Actor | Origen | Rol en este módulo | Permisos de `SP` |
-|---|---|---|---|
-| Administrador | HU08 | Define roles, su alcance de permisos y la configuración | `roles:*`, `permissions:read`, los cuatro de auditoría |
-| Contabilidad | HU09 | Consume roles; no los administra | `audit:read-changes`, `audit:read-deletions` |
-| Manager | HU10 | Consume roles; no los administra | — |
-| Director | HU11 | Consume roles; no los administra | — |
-| Agente o vendedor | HU12 | Consume roles; no los administra | — |
-| Estudiante | HU13 | Consume roles; no los administra | — |
-| Líder académico | HU14 | Consume roles; no los administra | — |
+| Actor | Rol en este módulo | Permisos de `SP` |
+|---|---|---|
+| Super Administrador | Tiene acceso completo al sistema | Posee todos los permisos |
+| Administrador | Define roles, su alcance de permisos y la configuración | `roles:*`, `permissions:read`, los cuatro de auditoría |
+| Contabilidad | Consume roles; no los administra | `audit:read-changes`, `audit:read-deletions` |
+| Manager | Consume roles; no los administra | — |
+| Director | Consume roles; no los administra | — |
+| Agente o vendedor | Consume roles; no los administra | — |
+| Estudiante | Consume roles; no los administra | — |
+| Líder académico | Consume roles; no los administra | — |
 
-Solo el **Administrador** opera sobre `SP`. Los demás roles aparecen aquí porque son los sujetos que `SP` define, no porque ejecuten sus requerimientos.
+Solo el **Super Administrador** y **Administrador** operan sobre `SP`. Los demás roles aparecen aquí porque son los sujetos que `SP` define, no porque ejecuten sus requerimientos.
 
 Los permisos de auditoría se conceden por separado: los cuatro registros no tienen la misma sensibilidad y no se leen en bloque ([`security.md` §4.4](../security.md)).
 
@@ -86,16 +87,16 @@ Los permisos de auditoría se conceden por separado: los cuatro registros no tie
 
 Propuesta de códigos y de jerarquía de **contención de privilegios** (`RN-SEG-003`). Cierra parcialmente la decisión D-17.
 
-| Código | Nombre | HU | Rol padre | `is_system` |
-|---|---|---|---|---|
-| `SUPERADMIN` | Superadministrador | — | — | Sí |
-| `ADMIN` | Administrador | HU08 | `SUPERADMIN` | Sí |
-| `CONTABILIDAD` | Contabilidad | HU09 | `ADMIN` | Sí |
-| `LIDER_ACADEMICO` | Líder académico | HU14 | `ADMIN` | Sí |
-| `MANAGER` | Manager | HU10 | `ADMIN` | Sí |
-| `DIRECTOR` | Director | HU11 | `MANAGER` | Sí |
-| `AGENTE` | Agente o vendedor | HU12 | `DIRECTOR` | Sí |
-| `ESTUDIANTE` | Estudiante | HU13 | `ADMIN` | Sí |
+| Código | Nombre | Rol padre | `is_system` |
+|---|---|---|---|
+| `SUPERADMIN` | Superadministrador | — | Sí |
+| `ADMIN` | Administrador | `SUPERADMIN` | Sí |
+| `CONTABILIDAD` | Contabilidad | `ADMIN` | Sí |
+| `LIDER_ACADEMICO` | Líder académico | `ADMIN` | Sí |
+| `MANAGER` | Manager | `ADMIN` | Sí |
+| `DIRECTOR` | Director | `MANAGER` | Sí |
+| `AGENTE` | Agente o vendedor | `DIRECTOR` | Sí |
+| `ESTUDIANTE` | Estudiante | `ADMIN` | Sí |
 
 !!! danger "Dos jerarquías distintas que NO deben confundirse"
 
