@@ -4,10 +4,10 @@
 |---|---|
 | Requerimiento | `RF-SP-002` |
 | Módulo | `SP` — Sistema Principal |
-| Estado | **Borrador** |
+| Estado | **Aprobada** |
 | Autor | Responsable técnico |
-| Aprobada por | — |
-| Fecha de aprobación | — |
+| Aprobada por | Responsable técnico |
+| Fecha de aprobación | 20-08-2026 |
 
 ---
 
@@ -50,12 +50,12 @@ Ninguna regla de negocio gobierna esta consulta. El alcance de los datos es glob
 | Dato | Obligatorio | Descripción | Restricción de negocio |
 |---|---|---|---|
 | Página | No | Página solicitada | Por defecto la primera |
-| Tamaño | No | Elementos por página | Por defecto y máximo definidos en configuración |
+| Tamaño | No | Elementos por página | Por defecto 20, máximo 100 (`architecture.md` §7.4) |
 | Orden | No | Campo y sentido de ordenamiento | Solo campos del propio rol |
 | Estado | No | Filtro por activo o inactivo | Uno de los estados definidos |
 | Clasificación | No | Filtro por funcionario, vendedor o consumidor | Uno de los valores definidos |
 | Rol padre | No | Filtro por rol padre | Debe existir |
-| Búsqueda | No | Texto libre sobre código y nombre | — |
+| Búsqueda | No | Texto libre sobre código y nombre | Insensible a mayúsculas y a acentos |
 | Incluir eliminados | No | Incorpora los roles con borrado lógico | Por defecto no |
 
 ### 6.2 Salida
@@ -123,21 +123,24 @@ Ninguna regla de negocio gobierna esta consulta. El alcance de los datos es glob
 | `CA-SP-013` | El sistema devuelve una colección vacía, y no un error, cuando no hay coincidencias |
 | `CA-SP-014` | El sistema rechaza un tamaño de página superior al máximo configurado |
 | `CA-SP-015` | El sistema rechaza la consulta a un actor sin el permiso de lectura de roles |
+| `CA-SP-147` | La búsqueda encuentra un rol escribiendo su nombre sin acentos y en otra caja |
+| `CA-SP-148` | El listado no incluye el número de usuarios asignados a cada rol |
 
 ## 13. Casos límite
 
 - **Página más allá del último resultado:** devuelve colección vacía, no error.
 - **Búsqueda con caracteres especiales:** no debe alterar la consulta ni provocar error; se trata como texto literal.
+- **Búsqueda sin acentos:** «administracion» debe encontrar «Administración», y «CONTABILIDAD» debe encontrar «Contabilidad».
 - **Búsqueda vacía o solo espacios:** equivale a no filtrar.
 - **Filtro por rol padre inexistente:** devuelve colección vacía; no es un error de la consulta.
 - **Catálogo con un único rol:** el rol raíz aparece con rol padre vacío.
 
 ## 14. Preguntas abiertas
 
-| # | Pregunta | Responsable | Estado |
-|---|---|---|---|
-| 1 | ¿La búsqueda distingue mayúsculas y acentos, o es insensible a ambos? | Responsable técnico | Abierta |
-| 2 | ¿Cuál es el tamaño de página por defecto y el máximo? | Responsable técnico | Abierta |
-| 3 | ¿El listado debe indicar cuántos usuarios tiene asignados cada rol? Sería útil antes de eliminarlo, pero encarece la consulta | Responsable técnico | Abierta |
+Ninguna. Las tres se resolvieron el 20-08-2026, antes de aprobar la especificación.
 
-**Una spec con preguntas abiertas no puede aprobarse.** Esta sección debe quedar vacía antes de pasar la compuerta.
+| # | Pregunta | Resolución |
+|---|---|---|
+| 1 | ¿La búsqueda distingue mayúsculas y acentos? | Insensible a ambos. En español lo normal es teclear sin tildes, y una búsqueda que no las ignora obliga a escribir el término exactamente como se registró. Exige la extensión `unaccent` y un índice funcional |
+| 2 | ¿Tamaño de página por defecto y máximo? | 20 y 100, uniformes para todo el sistema. Fijado en `architecture.md` §7.4 |
+| 3 | ¿El listado indica cuántos usuarios tiene cada rol? | No. La pregunta se hace sobre un rol concreto, no sobre la lista: en el detalle cuesta una consulta, aquí una por fila. Se resuelve en `RF-SP-003` |

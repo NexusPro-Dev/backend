@@ -4,7 +4,7 @@
 |---|---|
 | Módulo | `SP` — Sistema Principal |
 | Paquete | `modules/system` |
-| Versión | 1.0.0 |
+| Versión | 1.1.0 |
 | Estado | **Aprobado** |
 | Responsable | Bonilla Diaz William Steven |
 | Fecha de creación | 20-08-2026 |
@@ -706,6 +706,8 @@ Declaradas en la base de datos, no solo en Java (Art. V.6):
 | `fk_role_permissions_permissions` | `role_permissions(permission_id)` → `permissions(id)` |
 | `fk_memberships_parent` | `memberships(parent_membership_id)` → `memberships(id)` — `RN-SP-006` |
 | `uq_memberships_parent` | `memberships(parent_membership_id)` — garantiza una sola hija por membresía |
+| `ix_roles_busqueda` | Índice funcional sobre `roles` para la búsqueda insensible a mayúsculas y acentos. Requiere la extensión `unaccent` |
+| `ix_countries_busqueda` | Ídem sobre `countries` |
 | `uq_memberships_code` | `memberships(code)` |
 | `uq_currencies_code` | `currencies(code)` |
 | `uq_countries_code` | `countries(code)` |
@@ -740,3 +742,4 @@ Definidos en [`architecture.md` §6.6](../architecture.md), que detalla el núcl
 | 0.6.0 | 20-08-2026 | `role_type` pasa a tres valores con `VENDEDOR`, y los roles vendedores declaran `sales_rank` para ordenar el mando dentro de la fuerza comercial. Nuevas reglas `RN-SP-011` y `RN-SP-012`. | Responsable técnico |
 | 0.7.0 | 20-08-2026 | Se retira `sales_rank`: el orden de mando comercial se expresa con `parent_role_id`, el mismo campo que acota los permisos. `RN-SP-011` se reescribe y `RN-SP-012` queda retirada, con su número consumido. | Responsable técnico |
 | 1.0.0 | 20-08-2026 | Primera versión aprobada. Los 21 requerimientos quedan registrados en la matriz de trazabilidad. | Responsable técnico |
+| 1.1.0 | 20-08-2026 | §10.7 incorpora los índices funcionales de búsqueda insensible a mayúsculas y acentos, que exigen la extensión `unaccent`. | Responsable técnico |

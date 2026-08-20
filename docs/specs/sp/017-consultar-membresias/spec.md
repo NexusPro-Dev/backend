@@ -52,7 +52,7 @@ Es también la consulta previa a `RF-SP-016`: para insertar una membresía hay q
 
 | Dato | Obligatorio | Descripción | Restricción de negocio |
 |---|---|---|---|
-| Página y tamaño | No | Paginación | Máximo definido en configuración |
+| Página y tamaño | No | Paginación | Por defecto 20, máximo 100 (`architecture.md` §7.4) |
 | Búsqueda | No | Texto libre sobre código y nombre | — |
 
 No se admite ordenamiento arbitrario: el orden de la cadena es la información.

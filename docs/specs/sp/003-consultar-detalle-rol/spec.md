@@ -35,10 +35,11 @@ Es la pantalla que responde «¿qué puede hacer alguien con este rol?», y de e
 - Datos del rol: código, nombre, descripción, clasificación y estado.
 - Lista completa de sus permisos declarados.
 - Su rol padre y sus roles hijos directos.
+- El número de usuarios que lo tienen asignado, obtenido de `USR` a través de la interfaz que este publica.
 
 ### 4.2 No incluye
 
-- Los usuarios que tienen el rol asignado → módulo `USR`.
+- El listado de los usuarios que lo tienen asignado → módulo `USR`. Aquí solo se devuelve **cuántos** son.
 - Los permisos efectivos de una persona, que son la unión de sus roles (`RN-SEG-009`) → módulo `USR`.
 
 ## 5. Reglas de negocio aplicables
@@ -136,6 +137,6 @@ Es la pantalla que responde «¿qué puede hacer alguien con este rol?», y de e
 |---|---|---|---|
 | 1 | ¿Debe poder consultarse el detalle de un rol eliminado lógicamente, para auditoría? | Responsable técnico | Abierta |
 | 2 | ¿Los roles hijos se devuelven completos o se acotan? Si un rol tuviera decenas de hijos, el detalle crecería sin control | Responsable técnico | Abierta |
-| 3 | ¿Debe indicarse cuántos usuarios tienen el rol asignado? Es dato de `USR`, pero es lo primero que se pregunta antes de modificarlo | Responsable técnico | Abierta |
+| 3 | ¿Debe indicarse cuántos usuarios tienen el rol asignado? | **Resuelta el 20-08-2026: sí.** Es la pregunta que se hace antes de desactivar o eliminar un rol. Cuesta una consulta, y `RF-SP-009` ya obliga a que `USR` publique esa interfaz, de modo que no añade acoplamiento nuevo |
 
 **Una spec con preguntas abiertas no puede aprobarse.** Esta sección debe quedar vacía antes de pasar la compuerta.

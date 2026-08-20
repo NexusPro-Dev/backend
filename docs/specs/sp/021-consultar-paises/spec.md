@@ -50,8 +50,8 @@ Es una consulta de apoyo: alimenta los selectores de país en el alta de persona
 
 | Dato | Obligatorio | Descripción | Restricción de negocio |
 |---|---|---|---|
-| Página y tamaño | No | Paginación | Máximo definido en configuración |
-| Búsqueda | No | Texto libre sobre código y nombre | — |
+| Página y tamaño | No | Paginación | Por defecto 20, máximo 100 (`architecture.md` §7.4) |
+| Búsqueda | No | Texto libre sobre código y nombre | Insensible a mayúsculas y a acentos |
 
 ### 6.2 Salida
 
@@ -119,7 +119,7 @@ Es una consulta de apoyo: alimenta los selectores de país en el alta de persona
 
 | # | Pregunta | Responsable | Estado |
 |---|---|---|---|
-| 1 | ¿La búsqueda es insensible a acentos y mayúsculas? En un catálogo de países es prácticamente obligatorio | Responsable técnico | Abierta |
+| 1 | ¿La búsqueda es insensible a acentos y mayúsculas? | **Resuelta el 20-08-2026: sí a ambos**, igual que en `RF-SP-002`. Buscar «panama» encuentra «Panamá» |
 | 2 | ¿Tiene sentido paginar un catálogo de menos de doscientos elementos que alimenta un selector? | Responsable técnico | Abierta |
 | 3 | ¿El nombre se devuelve en un solo idioma, o el catálogo contempla traducciones? | Responsable técnico | Abierta |
 

@@ -85,7 +85,7 @@ Implementa el Art. III.1. Se actualiza **como parte del cambio**, no después (A
 | ID | Requerimiento | Módulo | Tripleta | Issue | PR | Pruebas | Estado |
 |---|---|---|---|---|---|---|---|
 | `RF-SP-001` | Registrar rol | `SP` | `specs/sp/001-registrar-rol/` | — | — | — | **Spec aprobada** |
-| `RF-SP-002` | Consultar roles | `SP` | `specs/sp/002-consultar-roles/` | — | — | — | Spec en revisión |
+| `RF-SP-002` | Consultar roles | `SP` | `specs/sp/002-consultar-roles/` | — | — | — | **Spec aprobada** |
 | `RF-SP-003` | Consultar detalle de un rol | `SP` | `specs/sp/003-consultar-detalle-rol/` | — | — | — | Spec en revisión |
 | `RF-SP-004` | Editar rol | `SP` | `specs/sp/004-editar-rol/` | — | — | — | Spec en revisión |
 | `RF-SP-005` | Asignar permisos a un rol | `SP` | `specs/sp/005-asignar-permisos/` | — | — | — | Spec en revisión |

@@ -5,7 +5,7 @@
 | Proyecto | NEXUS — Renovación de plataforma |
 | Empresa | FACTECH GROUP SAS |
 | Documento | `architecture.md` |
-| Versión | 0.5.0 |
+| Versión | 0.6.0 |
 | Estado | Borrador |
 | Responsable técnico | Bonilla Diaz William Steven |
 | Fecha de creación | 19-08-2026 |
@@ -399,7 +399,9 @@ Las colecciones se paginan siempre. Nunca se devuelve una colección completa si
 GET /api/v1/roles?page=0&size=20&sort=name,asc
 ```
 
-`size` tiene un máximo declarado en configuración. La respuesta incluye el total de elementos, el total de páginas y la página actual.
+**Tamaño por defecto 20, máximo 100.** Se declara en configuración y es **uniforme para todo el sistema**, no por endpoint: un techo distinto en cada colección obligaría a consultarlo caso por caso y se volvería inconsistente con el tiempo. El techo acota el coste de una petición sin estorbar a una integración que recorra un catálogo.
+
+La respuesta incluye el total de elementos, el total de páginas y la página actual. Una petición con `size` superior al máximo **se rechaza**; no se recorta en silencio, porque el cliente creería haber recibido lo que pidió.
 
 ---
 
@@ -570,3 +572,4 @@ D-08 quedó cerrada en `security.md` §12, junto con las decisiones D-12 a D-15 
 | 0.3.0 | 19-08-2026 | Se retiran `created_by` y `updated_by` de las columnas obligatorias: el actor reside solo en la auditoría. | Responsable técnico |
 | 0.4.0 | 20-08-2026 | Nueva §6.6: la auditoría se separa en cuatro registros (cambios, eliminación, error y seguridad), con núcleo común, IP de origen y vista de consulta transversal. §8 incorpora la transaccionalidad diferenciada; §9 pasa de tres a seis registros de observabilidad. Enmienda la constitución 0.4.0. | Responsable técnico |
 | 0.5.0 | 20-08-2026 | `audit_deletion_log` admite `deletion_type = ASSOCIATION`, donde el motivo no es exigible (Art. V.13 enmendado). | Responsable técnico |
+| 0.6.0 | 20-08-2026 | §7.4 fija el tamaño de página por defecto en 20 y el máximo en 100, uniformes para todo el sistema. | Responsable técnico |

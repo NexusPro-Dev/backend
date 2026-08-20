@@ -114,7 +114,7 @@ Ninguno. La eliminación no admite variantes: o se cumplen todas las condiciones
 ### EX-003 — El rol tiene usuarios asignados
 
 **Condición:** al menos un usuario tiene el rol.
-**Respuesta del sistema:** rechaza la operación, cita `RN-SEG-008` e informa cuántos usuarios lo tienen. Sugiere desactivarlo con `RF-SP-007` si el objetivo es retirar el acceso.
+**Respuesta del sistema:** rechaza la operación, cita `RN-SEG-008` e informa cuántos usuarios lo tienen, mediante la misma interfaz de `USR` que usa `RF-SP-003`. Sugiere desactivarlo con `RF-SP-007` si el objetivo es retirar el acceso.
 
 ### EX-004 — Rol de sistema o rol raíz
 
