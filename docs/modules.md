@@ -5,7 +5,7 @@
 | Proyecto | NEXUS — Renovación de plataforma |
 | Empresa | FACTECH GROUP SAS |
 | Documento | `modules.md` |
-| Versión | 0.4.0 |
+| Versión | 0.5.0 |
 | Estado | Borrador |
 | Responsable técnico | Bonilla Diaz William Steven |
 | Fecha de creación | 20-08-2026 |
@@ -191,11 +191,27 @@ Se resolvió el 20-08-2026, antes de redactar el primer requerimiento: el códig
 
 Esta sección es el trabajo pendiente para cerrar el diseño modular.
 
-El Documento Marco no enumera los módulos del producto, pero sus ejemplos apuntan a un dominio de **gestión de activos e inventario**: la plantilla de requerimientos usa como campos de muestra *"nombre del activo"* y *"código interno"*, y los ejemplos de ramas incluyen `feature/registrar-activo` y `fix/error-inventario`.
+La Épica 2 del documento de historias de usuario (HU08–HU14) define siete roles, y de sus alcances se deducen las áreas de negocio del producto:
 
-!!! danger "Estos módulos no están decididos"
+| Candidato | Deducido de | Alcance aparente |
+|---|---|---|
+| Red comercial | HU10, HU11, HU12 | Estructura manager → director → agente y su relación entre personas |
+| Comisiones | HU08, HU10, HU12 | FTDs, cálculo y liquidación de comisiones |
+| Finanzas | HU09 | Retiros, pagos, balances y egresos |
+| Productos y servicios | HU08, HU13 | Catálogo, compras |
+| Academia | HU08, HU13, HU14 | Cursos y sesiones en vivo |
+| Señales | HU14 | Publicación y consumo de señales |
+| Métricas | HU08 | Indicadores y reportes de la plataforma |
 
-    Lo anterior son **indicios**, no decisiones. Se registran aquí para no perderlos, y deben confirmarse, descartarse o completarse con el alcance real del producto antes de avanzar.
+!!! danger "Candidatos, no decisiones"
+
+    Son áreas **deducidas de los roles**, no un inventario aprobado. El documento de historias de usuario se está entregando por partes: hasta tener las demás épicas, ni los límites ni los códigos de estos módulos pueden fijarse.
+
+    Los ejemplos del Documento Marco apuntaban a *gestión de activos e inventario* (*"nombre del activo"*, `feature/registrar-activo`). No aparecen en esta épica: hay que confirmar si siguen vigentes o eran material de plantilla.
+
+!!! warning "Nomenclatura por resolver"
+
+    El documento de origen usa épicas e historias `HU08`; el proyecto usa `RF-[MÓDULO]-NNN`. Una historia de usuario **no** equivale a un requerimiento funcional: *«quiero ver mi estructura comercial»* son varios `RF`. Hay que decidir si las historias se convierten en requerimientos, o si conviven ambas nomenclaturas con trazabilidad entre ellas.
 
 Para cada área de negocio que se incorpore hay que responder:
 
@@ -241,3 +257,4 @@ El orden importa: el módulo precede al requerimiento, el requerimiento precede 
 | 0.2.0 | 20-08-2026 | El submódulo de auditoría de `SP` pasa de un registro único a los cuatro registros del Art. V.8. | Responsable técnico |
 | 0.3.0 | 20-08-2026 | §8 se ajusta a la tripleta `spec` / `plan` / `tasks` y a la navegación automática del sitio. | Responsable técnico |
 | 0.4.0 | 20-08-2026 | Se cierra el punto abierto §4.1: el módulo `SP` usa el paquete `modules/system`. | Responsable técnico |
+| 0.5.0 | 20-08-2026 | §6 registra las siete áreas candidatas deducidas de la Épica 2 (HU08–HU14) y el conflicto de nomenclatura entre historias de usuario y requerimientos. | Responsable técnico |

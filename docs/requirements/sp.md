@@ -4,7 +4,7 @@
 |---|---|
 | Módulo | `SP` — Sistema Principal |
 | Paquete | `modules/system` |
-| Versión | 0.2.0 |
+| Versión | 0.3.0 |
 | Estado | **Borrador** |
 | Responsable | Bonilla Diaz William Steven |
 | Fecha de creación | 20-08-2026 |
@@ -66,14 +66,52 @@ Ninguna. `SP` es la raíz del grafo y debe seguir siéndolo: si llegara a depend
 
 ## 4. Actores
 
-| Actor | Rol en el módulo | Permisos típicos |
-|---|---|---|
-| Administrador | Define roles y su alcance de permisos | `roles:*`, `permissions:read` |
-| Auditor de negocio | Revisa qué cambió y qué se eliminó | `audit:read-changes`, `audit:read-deletions` |
-| Soporte técnico | Diagnostica fallos | `audit:read-errors` |
-| Responsable de seguridad | Revisa el control de acceso | los cuatro permisos de auditoría |
+Los actores de este módulo son los **roles del sistema**, definidos en la Épica 2 del documento de historias de usuario (HU08 a HU14).
+
+| Actor | Origen | Rol en este módulo | Permisos de `SP` |
+|---|---|---|---|
+| Administrador | HU08 | Define roles, su alcance de permisos y la configuración | `roles:*`, `permissions:read`, los cuatro de auditoría |
+| Contabilidad | HU09 | Consume roles; no los administra | `audit:read-changes`, `audit:read-deletions` |
+| Manager | HU10 | Consume roles; no los administra | — |
+| Director | HU11 | Consume roles; no los administra | — |
+| Agente o vendedor | HU12 | Consume roles; no los administra | — |
+| Estudiante | HU13 | Consume roles; no los administra | — |
+| Líder académico | HU14 | Consume roles; no los administra | — |
+
+Solo el **Administrador** opera sobre `SP`. Los demás roles aparecen aquí porque son los sujetos que `SP` define, no porque ejecuten sus requerimientos.
 
 Los permisos de auditoría se conceden por separado: los cuatro registros no tienen la misma sensibilidad y no se leen en bloque ([`security.md` §4.4](../security.md)).
+
+### 4.1 Catálogo inicial de roles del sistema
+
+Propuesta de códigos y de jerarquía de **contención de privilegios** (`RN-SEG-003`). Cierra parcialmente la decisión D-17.
+
+| Código | Nombre | HU | Rol padre | `is_system` |
+|---|---|---|---|---|
+| `SUPERADMIN` | Superadministrador | — | — | Sí |
+| `ADMIN` | Administrador | HU08 | `SUPERADMIN` | Sí |
+| `CONTABILIDAD` | Contabilidad | HU09 | `ADMIN` | Sí |
+| `LIDER_ACADEMICO` | Líder académico | HU14 | `ADMIN` | Sí |
+| `MANAGER` | Manager | HU10 | `ADMIN` | Sí |
+| `DIRECTOR` | Director | HU11 | `MANAGER` | Sí |
+| `AGENTE` | Agente o vendedor | HU12 | `DIRECTOR` | Sí |
+| `ESTUDIANTE` | Estudiante | HU13 | `ADMIN` | Sí |
+
+!!! danger "Dos jerarquías distintas que NO deben confundirse"
+
+    La columna «Rol padre» de esta tabla es **contención de privilegios**: acota qué permisos puede declarar cada rol (`RN-SEG-003`). Es una relación **rol → rol**.
+
+    La cadena comercial **manager → director → agente** de HU10, HU11 y HU12 es otra cosa: una relación **persona → persona** que determina **de quién** puede ver los datos cada uno.
+
+    Los tres roles piden el **mismo permiso** (`commissions:read`); lo que cambia es el conjunto de datos. Modelar la red comercial en `roles.parent_role_id` sería un error: esa columna no acota datos, y además relaciona roles, no usuarios. La red comercial necesita su propia estructura, en `USR` o en un módulo de red comercial.
+
+    Que ambas jerarquías coincidan en forma es una casualidad de este dominio, no una equivalencia.
+
+!!! warning "Requiere confirmación"
+
+    - **¿`ADMIN` contiene realmente a `CONTABILIDAD`?** La contención exige que `ADMIN` posea **todos** los permisos financieros. HU08 menciona pagos y comisiones, pero no retiros, balances ni egresos. Si el negocio quiere que Contabilidad pueda algo que Administración no, `CONTABILIDAD` debe colgar de `SUPERADMIN`, no de `ADMIN`.
+    - **¿`ADMIN` es el rol raíz, o existe `SUPERADMIN` por encima?** HU08 dice «acceso completo», y `RN-SEG-007` exige exactamente un rol raíz. Si `ADMIN` fuera la raíz, no habría quién lo cree ni quién lo acote.
+    - **HU14 tiene el actor cambiado:** está redactada desde el administrador que asigna el rol, no desde el líder académico. Esa funcionalidad pertenece a `USR`; falta la historia del líder académico desde su propia perspectiva.
 
 ## 5. Reglas de negocio
 
@@ -460,3 +498,4 @@ Definidos en [`architecture.md` §6.6](../architecture.md), que detalla el núcl
 |---|---|---|---|
 | 0.1.0 | 20-08-2026 | Creación inicial. 14 requerimientos funcionales derivados de `security.md` y `modules.md`. | Responsable técnico |
 | 0.2.0 | 20-08-2026 | §10 incorpora los campos principales y las restricciones del esquema, conforme a la plantilla de requerimientos por módulo. | Responsable técnico |
+| 0.3.0 | 20-08-2026 | §4 registra los siete roles reales de la Épica 2 (HU08–HU14) y propone su jerarquía de contención. Se advierte la distinción entre contención de privilegios y jerarquía comercial. | Responsable técnico |
