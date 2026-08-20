@@ -5,7 +5,7 @@
 | Proyecto | NEXUS — Renovación de plataforma |
 | Empresa | FACTECH GROUP SAS |
 | Documento | `security.md` |
-| Versión | 0.7.0 |
+| Versión | 0.8.0 |
 | Estado | Borrador |
 | Responsable técnico | Bonilla Diaz William Steven |
 | Fecha de creación | 19-08-2026 |
@@ -426,7 +426,7 @@ RNF-SEG-002 merece atención: es una prueba que enumera los endpoints registrado
 | # | Pendiente | Bloquea |
 |---|---|---|
 | D-16 | Parámetros concretos: vida de tokens, N de intentos fallidos, duración del bloqueo, longitud mínima de contraseña | Configuración del módulo de usuarios |
-| D-17 | Catálogo inicial completo de permisos y roles de sistema | Primera migración de seguridad |
+| D-17 | Catálogo inicial completo de **permisos**. Los roles de sistema ya están definidos en [`requirements/sp.md`](requirements/sp.md) §4.1 | Primera migración de seguridad |
 | D-18 | Política de restablecimiento de contraseña (canal, vigencia del enlace) | Módulo de usuarios |
 | D-19 | Identidad para procesos automáticos e integraciones | Cuando exista la primera integración |
 | **D-22** | **Modelo de alcance de datos**: cómo se determina *de quién* puede ver los datos un usuario, con independencia de qué permisos tenga | Red comercial, comisiones y finanzas; toda consulta con alcance por persona |
@@ -446,3 +446,4 @@ RNF-SEG-002 merece atención: es una prueba que enumera los endpoints registrado
 | 0.5.0 | 20-08-2026 | Se registra D-22: el alcance de datos es un eje ortogonal al permiso y carece de diseño. Lo evidencia la Épica 2, donde cinco de siete roles se definen por el alcance y no por el permiso. | Responsable técnico |
 | 0.6.0 | 20-08-2026 | RN-SEG-001 acota la unicidad de rol a los no eliminados lógicamente, lo que la convierte en un índice único parcial. | Responsable técnico |
 | 0.7.0 | 20-08-2026 | D-22 pasa de aviso de peligro a pendiente registrado: ningún requerimiento vigente necesita alcance por persona. | Responsable técnico |
+| 0.8.0 | 20-08-2026 | D-17 se acota al catálogo de permisos: los roles de sistema quedaron definidos al aprobarse los requerimientos de `SP`. | Responsable técnico |
