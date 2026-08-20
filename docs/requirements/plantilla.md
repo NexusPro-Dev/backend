@@ -101,13 +101,7 @@ Si las reglas ya están definidas en otro documento, **se referencian con una co
 | Tripleta | `docs/specs/<mod>/NNN-<nombre>/` |
 | Estado | Pendiente |
 
-[Descripción del requerimiento: qué debe permitir hacer el sistema. Dos o tres frases.]
-
-!!! tip "Dónde va el resto"
-
-    **Precondiciones, postcondiciones, flujo principal, flujos alternativos, excepciones, datos de entrada y salida, validaciones y criterios de aceptación** se documentan en el `spec.md` de la tripleta de este requerimiento.
-
-    Los **datos que el módulo persiste** sí van aquí, en §10: son de alcance modular y no cambian con cada requerimiento.
+[Descripción del requerimiento: qué debe permitir hacer el sistema. Dos o tres frases. El comportamiento detallado va en `spec.md`.]
 
 ## 7. Requerimientos no funcionales
 
