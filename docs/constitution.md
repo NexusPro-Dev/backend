@@ -6,7 +6,7 @@
 | Proyecto             | NEXUS — Renovación de plataforma                                                           |
 | Empresa              | FACTECH GROUP SAS                                                                          |
 | Documento            | `constitution.md`                                                                          |
-| Versión              | 0.6.0                                                                                      |
+| Versión              | 0.7.0                                                                                      |
 | Estado               | Borrador                                                                                   |
 | Responsable técnico  | Bonilla Diaz William Steven                                                                |
 | Fecha de creación    | 19-08-2026                                                                                 |
@@ -164,7 +164,7 @@ Aplica a todo el código, la documentación, las pruebas, la configuración y lo
 - **V.10** El borrado de información de negocio DEBERÍA ser lógico y reversible; el borrado físico DEBE justificarse en la especificación.
 - **V.11** Toda clave primaria DEBE ser de tipo `uuid` nativo de PostgreSQL, generada como **UUID v7** (ordenado por tiempo) para preservar la localidad de los índices. NO DEBEN exponerse identificadores secuenciales en la API.
 - **V.12** Las migraciones DEBEN gestionarse con **Flyway**, escritas en SQL plano de PostgreSQL, versionadas de forma incremental y almacenadas en el repositorio del backend.
-- **V.13** Toda eliminación —lógica o física— DEBE registrar el **motivo** declarado por quien la ejecuta. El motivo es obligatorio en el esquema y en el contrato de la API: una eliminación sin motivo DEBE rechazarse antes de ejecutarse. NO DEBE suplirse con un valor automático, salvo en procesos internos sin actor humano, que DEBEN declararse en la especificación. La auditoría de eliminación DEBE además conservar el **estado del registro al momento de eliminarse**: saber que algo se borró no sirve si ya no puede saberse qué era.
+- **V.13** Toda eliminación —lógica o física— DEBE registrar el **motivo** declarado por quien la ejecuta. El motivo es obligatorio en el esquema y en el contrato de la API: una eliminación sin motivo DEBE rechazarse antes de ejecutarse. NO DEBE suplirse con un valor automático, salvo en dos casos, que DEBEN declararse en la especificación: los procesos internos sin actor humano, y la eliminación de **asociaciones** —filas de relación cuyo significado se agota en el par que vinculan, como un permiso asignado a un rol—. En una asociación el «por qué» ya está contenido en el propio evento (qué se desvinculó, de qué, quién y cuándo), y exigir un texto libre solo produciría ruido. La excepción NO alcanza a las entidades de negocio. La auditoría de eliminación DEBE además conservar el **estado del registro al momento de eliminarse**: saber que algo se borró no sirve si ya no puede saberse qué era.
 - **V.14** Los registros de auditoría de **cambios** y de **eliminación** DEBEN escribirse en la misma transacción que el cambio que documentan: si el cambio se revierte, su evento también. Los de **error** y **seguridad** DEBEN escribirse en una **transacción independiente**, porque el evento que registran coincide con la reversión de la transacción de negocio; escritos dentro de ella, el rollback borraría precisamente la constancia del fallo.
 - **V.15** Todo registro de auditoría DEBE incluir la **dirección IP de origen** y el identificador de correlación de la operación. Cuando la operación no proviene de una petición HTTP, ambos DEBEN quedar explícitamente ausentes; NO DEBEN sustituirse por un valor ficticio que los haga indistinguibles de un origen real. La IP DEBE obtenerse de la cadena de proxies declarada como confiable, nunca de una cabecera provista por el cliente sin validar: una IP falsificable no es evidencia.
 
@@ -433,6 +433,7 @@ docs/
 | 0.4.0   | 20-08-2026 | La auditoría se separa en cuatro registros especializados: cambios, eliminación, error y seguridad (V.8, enmienda que invierte el sentido de la regla anterior). Nuevas reglas V.13 (motivo de eliminación obligatorio), V.14 (transaccionalidad diferenciada) y V.15 (IP de origen y correlación). Ajustes en IV.7, V.7, XV.3, XV.4 y XV.8. | Responsable técnico |
 | 0.5.0   | 20-08-2026 | El Artículo I adopta la tripleta `spec` / `plan` / `tasks` con compuertas sucesivas de aprobación (I.1 a I.8). Se declara la divergencia con la §22 del Documento Marco. | Responsable técnico |
 | 0.6.0   | 20-08-2026 | I.3 incorpora precondiciones y postcondiciones al contenido mínimo de `spec.md`: la plantilla de requerimientos las exigía y la tripleta no las recogía. | Responsable técnico |
+| 0.7.0   | 20-08-2026 | V.13 admite eliminar asociaciones sin motivo declarado. La excepción queda acotada a las filas de relación y no alcanza a las entidades de negocio. | Responsable técnico |
 
 
 ---

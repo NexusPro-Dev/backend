@@ -4,7 +4,7 @@
 |---|---|
 | Módulo | `SP` — Sistema Principal |
 | Paquete | `modules/system` |
-| Versión | 0.3.0 |
+| Versión | 0.4.0 |
 | Estado | **Borrador** |
 | Responsable | Bonilla Diaz William Steven |
 | Fecha de creación | 20-08-2026 |
@@ -51,14 +51,17 @@ Según [`modules.md` §5.1](../modules.md).
 
 | Submódulo | Responsabilidad | Requerimientos |
 |---|---|---|
-| Permisos | Catálogo de permisos. Solo lectura por API; se pueblan por migración | `RF-SP-010` |
-| Roles | Alta, edición, estado, contención de privilegios y jerarquía | `RF-SP-001` a `RF-SP-009` |
+| Roles | Alta, consulta, edición, estado, jerarquía y eliminación | `RF-SP-001` a `RF-SP-004`, `RF-SP-007` a `RF-SP-009` |
+| Permisos | Catálogo de permisos. Solo lectura por API | `RF-SP-010`, `RF-SP-015` |
+| Roles y permisos | Asociación y revocación de permisos sobre un rol | `RF-SP-005`, `RF-SP-006` |
+| Membresías | Nivel de acceso del consumidor a servicios y contenidos | `RF-SP-016` a `RF-SP-018` |
+| Monedas | Catálogo de monedas. Solo lectura por API | `RF-SP-019` |
+| Países | Catálogo de países | `RF-SP-020`, `RF-SP-021` |
 | Auditoría | Consulta de los cuatro registros | `RF-SP-011` a `RF-SP-014` |
-| Parámetros | Configuración transversal del sistema | *(sin requerimientos: alcance por definir)* |
 
-!!! warning "Submódulo Parámetros sin definir"
+!!! note "Sobre el submódulo Parámetros"
 
-    `modules.md` §5.1 registra este submódulo con sus entidades «por definir». Mientras no se le asignen requerimientos, el módulo `SP` no puede darse por completo.
+    `modules.md` §5.1 registraba un submódulo «Parámetros» con alcance por definir. Los catálogos de **Monedas** y **Países** cubren lo que se esperaba de él, de modo que se retira como submódulo propio. Si aparece configuración transversal que no sea un catálogo, deberá registrarse de nuevo con su propio alcance.
 
 ## 3. Dependencias
 
@@ -144,6 +147,29 @@ Las reglas de autorización están definidas en [`security.md` §4.3](../securit
 
     Recomiendo la segunda: son reglas que cruzan módulos por naturaleza, y renombrarlas obligaría a partir tres de ellas.
 
+### 5.1 Reglas propias del módulo
+
+Reglas que no son transversales de seguridad y por tanto sí llevan el prefijo del módulo.
+
+| ID | Regla | Cuándo aplica | Qué debe ocurrir | Prioridad |
+|---|---|---|---|---|
+| `RN-SP-001` | Superadministrador siempre presente | Al eliminar o desactivar un usuario, o al retirarle el rol | Debe existir siempre al menos un usuario con rol `SUPERADMIN`; la operación que dejaría al sistema sin ninguno se rechaza | **Crítica** |
+| `RN-SP-002` | Rol padre obligatorio | Al crear o editar un rol | Todo rol declara un rol padre, salvo `SUPERADMIN`, que es el único sin él | Alta |
+| `RN-SP-003` | Clasificación del rol | Al crear un rol | Todo rol se clasifica como `FUNCIONARIO` (personal de la empresa) o `CONSUMIDOR` (cliente del sistema) | Alta |
+| `RN-SP-004` | Permisos inmutables por API | Siempre | Los permisos no se crean, editan ni eliminan por la API: se pueblan y modifican únicamente por migración | Alta |
+| `RN-SP-005` | Revocación sin motivo | Al retirar un permiso de un rol | La fila de asociación se elimina físicamente y se audita en `audit_deletion_log` sin motivo declarado (Art. V.13, excepción de asociaciones) | Alta |
+| `RN-SP-006` | Membresía acotada por nivel | Al crear una membresía | Toda membresía está sujeta a una de mayor nivel; solo la membresía superior queda libre de ella | Alta |
+| `RN-SP-007` | Inserción en la cadena de membresías | Al crear una membresía | Se indica cuál es su membresía hija y el sistema reordena la jerarquía en consecuencia | Alta |
+| `RN-SP-008` | Membresías inmutables | Al editar o eliminar una membresía | La operación se rechaza. Solo se admite el reordenamiento derivado de `RN-SP-007` | Media |
+| `RN-SP-009` | Países inmutables | Al editar o eliminar un país | La operación se rechaza | Media |
+| `RN-SP-010` | Monedas inmutables por API | Siempre | Las monedas no se crean, editan ni eliminan por la API | Media |
+
+!!! info "Sobre `RN-SP-005`"
+
+    Retirar un permiso de un rol **elimina físicamente** la fila de `role_permissions`, y por tanto se audita en `audit_deletion_log`. No se exige motivo: una asociación rol-permiso no es una entidad de negocio y su «por qué» ya está en el propio evento —qué permiso, de qué rol, quién y cuándo—. Un motivo de texto libre aquí se rellenaría con ruido.
+
+    Esto exigió enmendar el Art. V.13, que prohibía las eliminaciones sin motivo. La excepción quedó acotada a las asociaciones.
+
 ## 6. Requerimientos funcionales
 
 ### 6.1 Resumen
@@ -164,6 +190,13 @@ Las reglas de autorización están definidas en [`security.md` §4.3](../securit
 | `RF-SP-012` | Consultar auditoría de eliminación | Media | `audit:read-deletions` | Pendiente |
 | `RF-SP-013` | Consultar auditoría de error | Media | `audit:read-errors` | Pendiente |
 | `RF-SP-014` | Consultar auditoría de seguridad | Alta | `audit:read-security` | Pendiente |
+| `RF-SP-015` | Consultar detalle de un permiso | Media | `permissions:read` | Pendiente |
+| `RF-SP-016` | Registrar membresía | Alta | `memberships:create` | Pendiente |
+| `RF-SP-017` | Consultar membresías | Alta | `memberships:read` | Pendiente |
+| `RF-SP-018` | Consultar detalle de una membresía | Media | `memberships:read` | Pendiente |
+| `RF-SP-019` | Consultar monedas | Media | `currencies:read` | Pendiente |
+| `RF-SP-020` | Registrar país | Media | `countries:create` | Pendiente |
+| `RF-SP-021` | Consultar países | Media | `countries:read` | Pendiente |
 
 **Orden sugerido de implementación:** `RF-SP-010` → `RF-SP-001` → `RF-SP-002` → `RF-SP-005` → el resto. El catálogo de permisos es prerrequisito de todo lo demás, y sin roles no hay nada que auditar.
 
@@ -379,6 +412,111 @@ Consulta paginada de `audit_error_log`, con filtro por tipo de error, severidad,
 
 Consulta paginada de `audit_security_log`, con filtro por tipo de evento, severidad, resultado y actor. Su permiso se concede aparte de los demás de auditoría (`security.md` §8).
 
+#### `RF-SP-015` — Consultar detalle de un permiso
+
+| Campo | Valor |
+|---|---|
+| Objetivo | Conocer el alcance exacto de un permiso antes de asignarlo a un rol |
+| Actor | Super Administrador, Administrador |
+| Permiso requerido | `permissions:read` |
+| Prioridad | Media |
+| Reglas aplicables | `RN-SP-004` |
+| Depende de | `RF-SP-010` |
+| Tripleta | `docs/specs/sp/015-consultar-detalle-permiso/` |
+| Estado | Pendiente |
+
+Devuelve un permiso con su recurso, acción, nombre y descripción legible.
+
+#### `RF-SP-016` — Registrar membresía
+
+| Campo | Valor |
+|---|---|
+| Objetivo | Definir un nivel de acceso para los consumidores del sistema |
+| Actor | Super Administrador, Administrador |
+| Permiso requerido | `memberships:create` |
+| Prioridad | Alta |
+| Reglas aplicables | `RN-SP-006`, `RN-SP-007` |
+| Depende de | — |
+| Tripleta | `docs/specs/sp/016-registrar-membresia/` |
+| Estado | Pendiente |
+
+Crea una membresía indicando cuál será su membresía hija; el sistema la inserta en la cadena y reordena la jerarquía. La membresía determina a qué servicios y contenidos accede un consumidor: un curso puede estar disponible solo desde cierto nivel.
+
+#### `RF-SP-017` — Consultar membresías
+
+| Campo | Valor |
+|---|---|
+| Objetivo | Ver los niveles definidos y su orden en la jerarquía |
+| Actor | Super Administrador, Administrador |
+| Permiso requerido | `memberships:read` |
+| Prioridad | Alta |
+| Reglas aplicables | — |
+| Depende de | `RF-SP-016` |
+| Tripleta | `docs/specs/sp/017-consultar-membresias/` |
+| Estado | Pendiente |
+
+Listado paginado, presentado según el orden de la jerarquía y no por fecha de creación: el orden es la información relevante.
+
+#### `RF-SP-018` — Consultar detalle de una membresía
+
+| Campo | Valor |
+|---|---|
+| Objetivo | Conocer el nivel de una membresía y su posición en la cadena |
+| Actor | Super Administrador, Administrador |
+| Permiso requerido | `memberships:read` |
+| Prioridad | Media |
+| Reglas aplicables | — |
+| Depende de | `RF-SP-016` |
+| Tripleta | `docs/specs/sp/018-consultar-detalle-membresia/` |
+| Estado | Pendiente |
+
+Devuelve la membresía con su membresía superior y su membresía hija.
+
+#### `RF-SP-019` — Consultar monedas
+
+| Campo | Valor |
+|---|---|
+| Objetivo | Disponer del catálogo de monedas para las operaciones financieras |
+| Actor | Cualquier rol autenticado con el permiso |
+| Permiso requerido | `currencies:read` |
+| Prioridad | Media |
+| Reglas aplicables | `RN-SP-010` |
+| Depende de | — |
+| Tripleta | `docs/specs/sp/019-consultar-monedas/` |
+| Estado | Pendiente |
+
+Listado de monedas. Hoy contiene únicamente `USD`; el catálogo existe para que incorporar otra moneda no exija cambiar el modelo de datos más adelante.
+
+#### `RF-SP-020` — Registrar país
+
+| Campo | Valor |
+|---|---|
+| Objetivo | Incorporar un país al catálogo |
+| Actor | Super Administrador, Administrador |
+| Permiso requerido | `countries:create` |
+| Prioridad | Media |
+| Reglas aplicables | `RN-SP-009` |
+| Depende de | — |
+| Tripleta | `docs/specs/sp/020-registrar-pais/` |
+| Estado | Pendiente |
+
+Crea un país. Una vez creado no puede editarse ni eliminarse, de modo que la validación en el alta es la única oportunidad de evitar un dato incorrecto.
+
+#### `RF-SP-021` — Consultar países
+
+| Campo | Valor |
+|---|---|
+| Objetivo | Disponer del catálogo de países |
+| Actor | Cualquier rol autenticado con el permiso |
+| Permiso requerido | `countries:read` |
+| Prioridad | Media |
+| Reglas aplicables | — |
+| Depende de | `RF-SP-020` |
+| Tripleta | `docs/specs/sp/021-consultar-paises/` |
+| Estado | Pendiente |
+
+Listado de países.
+
 ## 7. Requerimientos no funcionales
 
 Definidos en [`security.md` §11](../security.md) y en la constitución. Los que este módulo debe satisfacer:
@@ -412,6 +550,13 @@ Ninguna con sistemas externos. Internamente, `USR` consume de este módulo el ca
 | `GET` | `/api/v1/audit/deletions` | `RF-SP-012` | `audit:read-deletions` |
 | `GET` | `/api/v1/audit/errors` | `RF-SP-013` | `audit:read-errors` |
 | `GET` | `/api/v1/audit/security` | `RF-SP-014` | `audit:read-security` |
+| `GET` | `/api/v1/permissions/{id}` | `RF-SP-015` | `permissions:read` |
+| `POST` | `/api/v1/memberships` | `RF-SP-016` | `memberships:create` |
+| `GET` | `/api/v1/memberships` | `RF-SP-017` | `memberships:read` |
+| `GET` | `/api/v1/memberships/{id}` | `RF-SP-018` | `memberships:read` |
+| `GET` | `/api/v1/currencies` | `RF-SP-019` | `currencies:read` |
+| `POST` | `/api/v1/countries` | `RF-SP-020` | `countries:create` |
+| `GET` | `/api/v1/countries` | `RF-SP-021` | `countries:read` |
 
 Rutas propuestas. El contrato exacto de cada una se fija en el `plan.md` de su tripleta.
 
@@ -422,6 +567,9 @@ Rutas propuestas. El contrato exacto de cada una se fija en el `plan.md` de su t
 | `permissions` | Catálogo de permisos `recurso:acción` | `SP` |
 | `roles` | Roles, su estado y su rol padre | `SP` |
 | `role_permissions` | Permisos declarados por cada rol | `SP` |
+| `memberships` | Niveles de acceso del consumidor | `SP` |
+| `currencies` | Catálogo de monedas | `SP` |
+| `countries` | Catálogo de países | `SP` |
 | `audit_change_log` | Auditoría de creación y edición | `SP` |
 | `audit_deletion_log` | Auditoría de eliminación | `SP` |
 | `audit_error_log` | Auditoría de fallos | `SP` |
@@ -454,6 +602,7 @@ Estructura lógica en [`security.md` §9](../security.md) y [`architecture.md` �
 | `code` | `varchar(50)` | No | No | No | — | — |
 | `name` | `varchar(100)` | No | No | No | — | — |
 | `description` | `text` | No | No | Sí | — | — |
+| `role_type` | `varchar(20)` | No | No | No | — | — |
 | `parent_role_id` | `uuid` | No | Sí | Sí | — | `roles` |
 | `status` | `varchar(20)` | No | No | No | `ACTIVO` | — |
 | `is_system` | `boolean` | No | No | No | `false` | — |
@@ -461,7 +610,9 @@ Estructura lógica en [`security.md` §9](../security.md) y [`architecture.md` �
 | `updated_at` | `timestamptz` | No | No | No | `now()` | — |
 | `deleted_at` | `timestamptz` | No | No | Sí | — | — |
 
-`parent_role_id` es nulo **únicamente** en el rol raíz (`RN-SEG-007`). No implica herencia: acota los privilegios del rol hijo (`security.md` §4.2).
+`parent_role_id` es nulo **únicamente** en el rol raíz (`RN-SEG-007`, `RN-SP-002`). No implica herencia: acota los privilegios del rol hijo (`security.md` §4.2).
+
+`role_type` distingue al personal de la empresa del cliente del sistema (`RN-SP-003`), con dominio cerrado `FUNCIONARIO` o `CONSUMIDOR`. De él depende, entre otras cosas, qué roles pueden asociarse a una membresía.
 
 ### 10.3 Campos principales — `role_permissions`
 
@@ -473,21 +624,82 @@ Estructura lógica en [`security.md` §9](../security.md) y [`architecture.md` �
 
 Su clave primaria es **compuesta** (`role_id`, `permission_id`), y es la excepción declarada al Art. V.11: la unicidad del par es la restricción que importa, y una clave sustituta añadiría una columna sin significado.
 
-### 10.4 Restricciones exigidas en el esquema
+### 10.4 Campos principales — `memberships`
+
+| Campo | Tipo | PK | FK | Nullable | Default | Entidad relacional |
+|---|---|---|---|---|---|---|
+| `id` | `uuid` | Sí | No | No | — | — |
+| `code` | `varchar(50)` | No | No | No | — | — |
+| `name` | `varchar(100)` | No | No | No | — | — |
+| `description` | `text` | No | No | Sí | — | — |
+| `parent_membership_id` | `uuid` | No | Sí | Sí | — | `memberships` |
+| `level` | `smallint` | No | No | No | — | — |
+| `created_at` | `timestamptz` | No | No | No | `now()` | — |
+| `updated_at` | `timestamptz` | No | No | No | `now()` | — |
+
+`parent_membership_id` apunta a la membresía **de mayor nivel** y es nulo solo en la superior (`RN-SP-006`). `level` materializa el orden para poder consultarlo y ordenarlo sin recorrer la cadena; se recalcula al insertar una membresía nueva (`RN-SP-007`).
+
+!!! warning "La cadena de membresías no es un árbol"
+
+    Cada membresía tiene **una sola** hija: es una lista ordenada, no una jerarquía ramificada. Insertar una membresía en medio reencadena a su hija y desplaza los niveles siguientes.
+
+    Conviene decidir en la especificación si la unicidad de hija se garantiza en el esquema —restricción única sobre `parent_membership_id`— o solo en el dominio. Sin ella, nada impide que dos membresías declaren la misma superior y la cadena se bifurque.
+
+### 10.5 Campos principales — `currencies`
+
+| Campo | Tipo | PK | FK | Nullable | Default | Entidad relacional |
+|---|---|---|---|---|---|---|
+| `id` | `uuid` | Sí | No | No | — | — |
+| `code` | `char(3)` | No | No | No | — | — |
+| `name` | `varchar(100)` | No | No | No | — | — |
+| `symbol` | `varchar(10)` | No | No | Sí | — | — |
+| `created_at` | `timestamptz` | No | No | No | `now()` | — |
+
+`code` sigue ISO 4217 (`USD`). Se puebla por migración y no se modifica por API (`RN-SP-010`).
+
+### 10.6 Campos principales — `countries`
+
+| Campo | Tipo | PK | FK | Nullable | Default | Entidad relacional |
+|---|---|---|---|---|---|---|
+| `id` | `uuid` | Sí | No | No | — | — |
+| `code` | `char(2)` | No | No | No | — | — |
+| `name` | `varchar(100)` | No | No | No | — | — |
+| `created_at` | `timestamptz` | No | No | No | `now()` | — |
+
+`code` sigue ISO 3166-1 alfa-2 (`CO`, `US`). No se edita ni elimina (`RN-SP-009`).
+
+### 10.7 Restricciones exigidas en el esquema
 
 Declaradas en la base de datos, no solo en Java (Art. V.6):
 
 | Restricción | Sobre |
 |---|---|
 | `uq_permissions_code` | `permissions(code)` |
-| `uq_roles_code` | `roles(code)` — `RN-SEG-001` |
-| `uq_roles_name` | `roles(name)` — `RN-SEG-001` |
+| `uq_roles_code` | **Índice único parcial**: `roles(code) WHERE deleted_at IS NULL` — `RN-SEG-001` |
+| `uq_roles_name` | **Índice único parcial**: `roles(name) WHERE deleted_at IS NULL` — `RN-SEG-001` |
 | `fk_roles_parent` | `roles(parent_role_id)` → `roles(id)`, con restricción de eliminación — `RN-SEG-008` |
 | `ck_roles_status` | `roles(status)` en (`ACTIVO`, `INACTIVO`) — `RN-SEG-002` |
+| `ck_roles_type` | `roles(role_type)` en (`FUNCIONARIO`, `CONSUMIDOR`) — `RN-SP-003` |
 | `fk_role_permissions_roles` | `role_permissions(role_id)` → `roles(id)` |
 | `fk_role_permissions_permissions` | `role_permissions(permission_id)` → `permissions(id)` |
+| `fk_memberships_parent` | `memberships(parent_membership_id)` → `memberships(id)` — `RN-SP-006` |
+| `uq_memberships_code` | `memberships(code)` |
+| `uq_currencies_code` | `currencies(code)` |
+| `uq_countries_code` | `countries(code)` |
 
-`RN-SEG-006` (ausencia de ciclos) y `RN-SEG-003` (contención) **no** son expresables como restricción declarativa: se verifican en el dominio, y por eso exigen prueba unitaria propia.
+!!! important "La unicidad de rol es parcial, no total"
+
+    `RN-SEG-001` exige que el nombre y el código de un rol sean únicos **entre los no eliminados lógicamente**. Una restricción única corriente lo impediría: el nombre de un rol borrado quedaría bloqueado para siempre.
+
+    PostgreSQL lo resuelve con un índice único parcial:
+
+    ```sql
+    CREATE UNIQUE INDEX uq_roles_name ON roles (name) WHERE deleted_at IS NULL;
+    ```
+
+    Descubrirlo después de tener datos obliga a migrar la restricción con la tabla en uso.
+
+`RN-SEG-006` (ausencia de ciclos), `RN-SEG-003` (contención) y `RN-SP-001` (superadministrador siempre presente) **no** son expresables como restricción declarativa: se verifican en el dominio, y por eso exigen prueba unitaria propia.
 
 ### 10.5 Campos de los registros de auditoría
 
@@ -500,3 +712,4 @@ Definidos en [`architecture.md` §6.6](../architecture.md), que detalla el núcl
 | 0.1.0 | 20-08-2026 | Creación inicial. 14 requerimientos funcionales derivados de `security.md` y `modules.md`. | Responsable técnico |
 | 0.2.0 | 20-08-2026 | §10 incorpora los campos principales y las restricciones del esquema, conforme a la plantilla de requerimientos por módulo. | Responsable técnico |
 | 0.3.0 | 20-08-2026 | §4 registra los siete roles reales de la Épica 2 (HU08–HU14) y propone su jerarquía de contención. Se advierte la distinción entre contención de privilegios y jerarquía comercial. | Responsable técnico |
+| 0.4.0 | 20-08-2026 | Se complementa con la guía `guides/001-sp.md`: tres submódulos nuevos (membresías, monedas, países), siete requerimientos, diez reglas propias `RN-SP-` y las consecuencias de esquema derivadas (unicidad parcial por borrado lógico y clasificación del rol). | Responsable técnico |

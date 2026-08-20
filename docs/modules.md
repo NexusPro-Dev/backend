@@ -5,7 +5,7 @@
 | Proyecto | NEXUS — Renovación de plataforma |
 | Empresa | FACTECH GROUP SAS |
 | Documento | `modules.md` |
-| Versión | 0.5.0 |
+| Versión | 0.6.0 |
 | Estado | Borrador |
 | Responsable técnico | Bonilla Diaz William Steven |
 | Fecha de creación | 20-08-2026 |
@@ -125,16 +125,20 @@ Se resolvió el 20-08-2026, antes de redactar el primer requerimiento: el códig
 
 **Propósito.** Gobierna quién puede hacer qué en el sistema y deja constancia de lo que ocurre. Es el módulo del que dependen todos los demás.
 
-**Alcance.** Catálogo de permisos, definición de roles, contención de privilegios entre roles y los cuatro registros de auditoría (`architecture.md` §6.6). La auditoría se **consulta** desde aquí; se **escribe** desde cada módulo, en la operación que la origina.
+**Alcance.** Catálogo de permisos, definición de roles, contención de privilegios entre roles, catálogos transversales (membresías, monedas y países) y los cuatro registros de auditoría (`architecture.md` §6.6). La auditoría se **consulta** desde aquí; se **escribe** desde cada módulo, en la operación que la origina.
 
 **No incluye.** Los usuarios y sus credenciales (eso es `USR`), ni la asignación de roles a personas.
 
 | Submódulo | Responsabilidad | Entidades principales |
 |---|---|---|
+| Roles | Alta, consulta, edición, estado, jerarquía y eliminación lógica | `roles` |
 | Permisos | Catálogo de permisos `recurso:acción`. Solo lectura por API; se pueblan por migración | `permissions` |
-| Roles | Alta, edición, estado y contención de privilegios entre roles | `roles`, `role_permissions` |
+| Roles y permisos | Asociación y revocación de permisos sobre un rol | `role_permissions` |
+| Membresías | Nivel de acceso del consumidor a servicios y contenidos | `memberships` |
+| Monedas | Catálogo de monedas | `currencies` |
+| Países | Catálogo de países | `countries` |
 | Auditoría | Consulta de los cuatro registros de auditoría, por separado o desde la vista transversal | `audit_change_log`, `audit_deletion_log`, `audit_error_log`, `audit_security_log` |
-| Parámetros | Configuración transversal del sistema | *(por definir)* |
+
 
 **Dependencias.** Ninguna. Es la raíz del grafo, y debe seguir siéndolo: si `SP` llegara a depender de otro módulo, aparecería un ciclo.
 
@@ -258,3 +262,4 @@ El orden importa: el módulo precede al requerimiento, el requerimiento precede 
 | 0.3.0 | 20-08-2026 | §8 se ajusta a la tripleta `spec` / `plan` / `tasks` y a la navegación automática del sitio. | Responsable técnico |
 | 0.4.0 | 20-08-2026 | Se cierra el punto abierto §4.1: el módulo `SP` usa el paquete `modules/system`. | Responsable técnico |
 | 0.5.0 | 20-08-2026 | §6 registra las siete áreas candidatas deducidas de la Épica 2 (HU08–HU14) y el conflicto de nomenclatura entre historias de usuario y requerimientos. | Responsable técnico |
+| 0.6.0 | 20-08-2026 | Los submódulos de `SP` se ajustan a la guía `guides/001-sp.md`: se separan roles y permisos, y se incorporan membresías, monedas y países. Se retira «Parámetros», cubierto por los catálogos. | Responsable técnico |

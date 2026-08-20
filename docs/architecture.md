@@ -5,7 +5,7 @@
 | Proyecto | NEXUS — Renovación de plataforma |
 | Empresa | FACTECH GROUP SAS |
 | Documento | `architecture.md` |
-| Versión | 0.4.0 |
+| Versión | 0.5.0 |
 | Estado | Borrador |
 | Responsable técnico | Bonilla Diaz William Steven |
 | Fecha de creación | 19-08-2026 |
@@ -254,14 +254,17 @@ Tres reglas que evitan huecos y ruido:
 | Columna | Tipo | Descripción |
 |---|---|---|
 | `module`, `entity`, `entity_id` | | Igual que en `audit_change_log` |
-| `deletion_type` | `varchar` | `LOGICAL` o `PHYSICAL` |
-| `reason` | `text` **NOT NULL** | Motivo declarado por el actor (Art. V.13) |
+| `deletion_type` | `varchar` | `LOGICAL`, `PHYSICAL` o `ASSOCIATION` |
+| `reason` | `text` | Motivo declarado por el actor. Obligatorio salvo en `ASSOCIATION` (Art. V.13) |
 | `snapshot` | `jsonb` **NOT NULL** | Estado completo del registro al momento de eliminarse |
 
-El motivo es obligatorio en el esquema, y el esquema exige además que diga algo:
+El motivo es obligatorio en el esquema para las entidades de negocio, y el esquema exige además que diga algo:
 
 ```sql
-CONSTRAINT ck_deletion_reason CHECK (char_length(btrim(reason)) >= 10)
+CONSTRAINT ck_deletion_reason CHECK (
+    deletion_type = 'ASSOCIATION'
+ OR char_length(btrim(reason)) >= 10
+)
 ```
 
 **Consecuencia sobre la API, que debe asumirse de forma consciente:** si el motivo es obligatorio, hay que pedirlo. Todo `DELETE` recibe un cuerpo JSON con el motivo y responde `400` si falta o no alcanza el mínimo:
@@ -566,3 +569,4 @@ D-08 quedó cerrada en `security.md` §12, junto con las decisiones D-12 a D-15 
 | 0.2.0 | 19-08-2026 | Cierre de D-08 en `security.md`. Referencia cruzada al modelo de seguridad. | Responsable técnico |
 | 0.3.0 | 19-08-2026 | Se retiran `created_by` y `updated_by` de las columnas obligatorias: el actor reside solo en la auditoría. | Responsable técnico |
 | 0.4.0 | 20-08-2026 | Nueva §6.6: la auditoría se separa en cuatro registros (cambios, eliminación, error y seguridad), con núcleo común, IP de origen y vista de consulta transversal. §8 incorpora la transaccionalidad diferenciada; §9 pasa de tres a seis registros de observabilidad. Enmienda la constitución 0.4.0. | Responsable técnico |
+| 0.5.0 | 20-08-2026 | `audit_deletion_log` admite `deletion_type = ASSOCIATION`, donde el motivo no es exigible (Art. V.13 enmendado). | Responsable técnico |
