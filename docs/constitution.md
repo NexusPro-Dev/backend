@@ -118,7 +118,7 @@ Aplica a todo el código, la documentación, las pruebas, la configuración y lo
 - **IV.4** Toda entrada proveniente del exterior DEBE validarse y sanearse antes de utilizarse.
 - **IV.5** Las consultas a base de datos DEBEN usar sentencias parametrizadas. NO DEBE construirse SQL por concatenación de cadenas.
 - **IV.6** Las comunicaciones DEBEN cifrarse en tránsito en los entornos de *testing* y *production*.
-- **IV.7** Los eventos relevantes de seguridad (autenticación, autorización denegada, cambios de permisos, operaciones sobre datos sensibles) DEBEN registrarse en la auditoría.
+- **IV.7** Los eventos relevantes de seguridad (autenticación, autorización denegada, cambios de permisos, operaciones sobre datos sensibles) DEBEN registrarse en la **auditoría de seguridad** definida en V.8.
 - **IV.8** Los registros de log NO DEBEN contener contraseñas, tokens ni datos personales sensibles.
 - **IV.9** Toda decisión que relaje un control de seguridad DEBE documentarse en `docs/security/` con su justificación y responsable.
 
@@ -140,14 +140,24 @@ Aplica a todo el código, la documentación, las pruebas, la configuración y lo
 - **V.4** Todo cambio de esquema DEBE realizarse mediante una migración versionada, incremental y revisada en Pull Request. NO DEBE modificarse el esquema manualmente en ningún entorno.
 - **V.5** Una migración ya integrada en `main` NO DEBE editarse; las correcciones se hacen con una migración nueva.
 - **V.6** El esquema DEBE aplicar integridad referencial explícita (claves foráneas, restricciones de unicidad, `NOT NULL`) en lugar de delegar la integridad únicamente a la capa de aplicación.
-- **V.7** Toda tabla de negocio DEBE incluir marcas de tiempo de creación y de última modificación. El **actor** responsable de cada cambio NO DEBE duplicarse en la tabla: reside únicamente en el registro de auditoría (V.8), que es su única fuente de verdad.
-- **V.8** La auditoría de negocio DEBE resolverse mediante un registro unificado de eventos (entidad, identificador, acción, actor, marca de tiempo y cambio aplicado), NO mediante una tabla por tipo de operación. Este registro se complementa con el registro de peticiones definido en el Art. XV, del cual se mantiene separado y con el cual DEBE poder correlacionarse. Al ser la única fuente del actor (V.7), toda operación que cree, modifique o elimine información de negocio DEBE producir su evento de auditoría: sin él, la autoría del cambio es irrecuperable.
+- **V.7** Toda tabla de negocio DEBE incluir marcas de tiempo de creación y de última modificación. El **actor** responsable de cada cambio NO DEBE duplicarse en la tabla: reside únicamente en los registros de auditoría (V.8), única fuente de verdad sobre quién hizo qué.
+- **V.8** La auditoría DEBE resolverse mediante **registros especializados por naturaleza del evento**, NO mediante un registro único genérico ni mediante una tabla por entidad. Se definen cuatro, y solo cuatro:
+
+    1. Auditoría de **cambios** — quién creó qué, y quién editó qué.
+    2. Auditoría de **eliminación** — quién eliminó qué, y **por qué** lo eliminó.
+    3. Auditoría de **error** — quién sufrió el fallo, sobre qué recurso, y qué error fue.
+    4. Auditoría de **seguridad** — autenticación, autorización y cambios de privilegio (Art. IV.7).
+
+    La separación es **física**: cada registro es su propia tabla con sus propias columnas obligatorias. La razón es que cada uno responde una pregunta distinta y exige un dato que a los demás no aplica —el motivo de una eliminación, el código de un error, la severidad de un evento de seguridad—; un registro único obliga a dejar opcional en el esquema lo que en su propio contexto es obligatorio, y la obligatoriedad deja de poder verificarse. Estos registros se complementan con el registro de peticiones del Art. XV, del cual se mantienen separados y con el cual DEBEN poder correlacionarse. Al ser la única fuente del actor (V.7), toda operación que cree, modifique o elimine información de negocio DEBE producir su evento: sin él, la autoría del cambio es irrecuperable.
 - **V.9** Las convenciones de nombres del esquema DEBEN ser uniformes: `snake_case`, tablas en plural, claves foráneas como `<entidad_singular>_id`.
 - **V.10** El borrado de información de negocio DEBERÍA ser lógico y reversible; el borrado físico DEBE justificarse en la especificación.
 - **V.11** Toda clave primaria DEBE ser de tipo `uuid` nativo de PostgreSQL, generada como **UUID v7** (ordenado por tiempo) para preservar la localidad de los índices. NO DEBEN exponerse identificadores secuenciales en la API.
 - **V.12** Las migraciones DEBEN gestionarse con **Flyway**, escritas en SQL plano de PostgreSQL, versionadas de forma incremental y almacenadas en el repositorio del backend.
+- **V.13** Toda eliminación —lógica o física— DEBE registrar el **motivo** declarado por quien la ejecuta. El motivo es obligatorio en el esquema y en el contrato de la API: una eliminación sin motivo DEBE rechazarse antes de ejecutarse. NO DEBE suplirse con un valor automático, salvo en procesos internos sin actor humano, que DEBEN declararse en la especificación. La auditoría de eliminación DEBE además conservar el **estado del registro al momento de eliminarse**: saber que algo se borró no sirve si ya no puede saberse qué era.
+- **V.14** Los registros de auditoría de **cambios** y de **eliminación** DEBEN escribirse en la misma transacción que el cambio que documentan: si el cambio se revierte, su evento también. Los de **error** y **seguridad** DEBEN escribirse en una **transacción independiente**, porque el evento que registran coincide con la reversión de la transacción de negocio; escritos dentro de ella, el rollback borraría precisamente la constancia del fallo.
+- **V.15** Todo registro de auditoría DEBE incluir la **dirección IP de origen** y el identificador de correlación de la operación. Cuando la operación no proviene de una petición HTTP, ambos DEBEN quedar explícitamente ausentes; NO DEBEN sustituirse por un valor ficticio que los haga indistinguibles de un origen real. La IP DEBE obtenerse de la cadena de proxies declarada como confiable, nunca de una cabecera provista por el cliente sin validar: una IP falsificable no es evidencia.
 
-**Verificación:** una base de datos vacía puede reconstruirse íntegramente ejecutando las migraciones del repositorio, en orden y sin intervención manual.
+**Verificación:** una base de datos vacía puede reconstruirse íntegramente ejecutando las migraciones del repositorio, en orden y sin intervención manual; y dada una entidad y su identificador, puede responderse quién la creó, quién la editó, quién la eliminó, por qué, y desde qué dirección IP.
 
 ---
 
@@ -332,16 +342,16 @@ Aplica a todo el código, la documentación, las pruebas, la configuración y lo
 
 - **XV.1** Toda petición HTTP DEBE recibir un **identificador de correlación** único, generado por el sistema si el cliente no lo provee, propagado a todo log y evento derivado, y devuelto al cliente en la respuesta.
 - **XV.2** El sistema DEBE mantener un **registro de peticiones** (`request_log`) que contenga como mínimo: identificador de correlación, actor autenticado (o su condición de anónimo), método HTTP, ruta, parámetros, código de estado, duración en milisegundos, origen (IP y agente de usuario), marca de tiempo y resultado de la respuesta.
-- **XV.3** El `request_log` y el `audit_log` son registros distintos y DEBEN mantenerse separados: el primero responde **qué se le pidió al sistema y qué respondió**; el segundo, **qué cambió en el negocio y quién lo cambió**. Ambos DEBEN poder correlacionarse mediante el identificador de correlación.
-- **XV.4** Las peticiones fallidas (`4xx` y `5xx`) DEBEN registrarse con el detalle del error, incluyendo el motivo del rechazo cuando se trate de una denegación de autenticación o autorización.
+- **XV.3** El `request_log` y los registros de auditoría del Art. V.8 son registros distintos y DEBEN mantenerse separados: el primero responde **qué se le pidió al sistema y qué respondió**; los segundos, **qué cambió en el negocio, quién lo cambió y por qué**. Todos DEBEN poder correlacionarse mediante el identificador de correlación.
+- **XV.4** Las peticiones fallidas (`4xx` y `5xx`) DEBEN registrarse con el detalle del error, incluyendo el motivo del rechazo cuando se trate de una denegación de autenticación o autorización. Los fallos no controlados y las violaciones de regla de negocio DEBEN además emitir su evento en la **auditoría de error** (V.8), que a diferencia del `request_log` es de retención prolongada y no es *best effort*.
 - **XV.5** El contenido de peticiones y respuestas DEBE enmascararse antes de persistirse: contraseñas, tokens, cabeceras de autorización y datos personales sensibles NO DEBEN quedar almacenados en ningún registro (Art. IV.8). Los cuerpos que superen el tamaño máximo definido DEBEN truncarse de forma explícita.
 - **XV.6** Los logs de aplicación DEBEN emitirse en formato estructurado, con nivel explícito y el identificador de correlación incorporado.
 - **XV.7** El registro de peticiones NO DEBE alterar el resultado ni el contrato de la operación: un fallo al registrar NO DEBE provocar el fallo de la petición de negocio, salvo en operaciones donde la auditoría constituya un requisito legal declarado en la especificación.
-- **XV.8** `request_log` y `audit_log` DEBEN tener una política de retención definida y automatizada. El `audit_log` NO DEBE purgarse sin una decisión documentada en `docs/security/`.
+- **XV.8** El `request_log` y cada registro de auditoría DEBEN tener una política de retención definida y automatizada, **propia de cada uno**: poder retenerlos de forma distinta es una de las razones de la separación del Art. V.8. Los registros de auditoría de cambios, de eliminación y de seguridad NO DEBEN purgarse sin una decisión documentada en `docs/security/`.
 - **XV.9** Umbrales de rendimiento del sistema (RNF): operaciones de lectura **p95 < 500 ms**; operaciones de escritura **p95 < 1 s**. El límite de 5 s del Documento Marco se interpreta como **techo absoluto**, nunca como objetivo. Toda operación que no pueda cumplir estos umbrales DEBE justificarlo y declarar su propio umbral en la especificación correspondiente.
 - **XV.10** El sistema DEBE exponer un endpoint de estado de salud, sin información sensible y sin requerir autenticación de negocio.
 
-**Verificación:** dado un identificador de correlación es posible reconstruir la petición completa, quién la ejecutó, qué respondió el sistema y qué cambió en el negocio.
+**Verificación:** dado un identificador de correlación es posible reconstruir la petición completa, quién la ejecutó, desde qué dirección IP, qué respondió el sistema, qué cambió en el negocio y —si falló— qué error se produjo.
 
 ---
 
@@ -408,7 +418,8 @@ docs/
 | ------- | ---------- | ---------------------------------------------------- | ------------------- |
 | 0.1.0   | 19-08-2026 | Creación inicial. Derivada del Documento Marco v1.0. | Responsable técnico |
 | 0.2.0   | 19-08-2026 | Cierre de las decisiones D-01 a D-07. Nuevo Art. XV (observabilidad y registro de operación). Nuevas reglas V.11, V.12, VIII.7, X.5, XII.6 y 17.6. | Responsable técnico |
-| 0.3.0   | 19-08-2026 | El actor de cada cambio deja de replicarse en las tablas de negocio y pasa a residir solo en `audit_log` (V.7, V.8). | Responsable técnico |
+| 0.3.0   | 19-08-2026 | El actor de cada cambio deja de replicarse en las tablas de negocio y pasa a residir solo en la auditoría (V.7, V.8). | Responsable técnico |
+| 0.4.0   | 20-08-2026 | La auditoría se separa en cuatro registros especializados: cambios, eliminación, error y seguridad (V.8, enmienda que invierte el sentido de la regla anterior). Nuevas reglas V.13 (motivo de eliminación obligatorio), V.14 (transaccionalidad diferenciada) y V.15 (IP de origen y correlación). Ajustes en IV.7, V.7, XV.3, XV.4 y XV.8. | Responsable técnico |
 
 
 ---
@@ -425,7 +436,7 @@ Registro de las decisiones técnicas resueltas. Cada una está incorporada como 
 | D-02 | Herramienta de construcción | Maven | POM declarativo y de convención estricta: legible y auditable en revisión de PR. | X.5 |
 | D-03 | Migraciones | Flyway con SQL plano de PostgreSQL | Migraciones versionadas e inmutables, sin capa de abstracción sobre un motor único. | V.12 |
 | D-04 | Clave primaria | `uuid` nativo generado como UUID v7 | Identificadores opacos como exige la plantilla, pero ordenados por tiempo para no fragmentar los índices. | V.11 |
-| D-05 | Auditoría | `audit_log` de eventos de negocio más `request_log` de peticiones, correlacionados | Separa el cambio de negocio de la actividad sobre la API: permite responder quién pidió qué, qué respondió el sistema y qué cambió. | V.8, Art. XV |
+| D-05 | Auditoría | Cuatro registros especializados —cambios, eliminación, error y seguridad— más el `request_log` de peticiones; todos correlacionados y con IP de origen | Separa el cambio de negocio de la actividad sobre la API, y separa entre sí preguntas que exigen campos distintos: «quién editó» no necesita un motivo, «por qué se eliminó» sí; «qué falló» necesita un código de error que a un alta no aplica. Un registro único los mezcla y vuelve opcional lo que en cada caso es obligatorio. | V.8, V.13–V.15, Art. XV |
 | D-06 | Rendimiento | p95 < 500 ms en lectura y p95 < 1 s en escritura; 5 s como techo absoluto | Convierte el RNF en una métrica verificable (Art. II.3) sin contradecir el Documento Marco. | XV.9 |
 | D-07 | Repositorios | Separados, sincronizados por contrato OpenAPI | Conserva los repositorios existentes, con ciclos de vida, CI y permisos independientes. | VIII.7, XII.6 |
 

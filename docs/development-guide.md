@@ -304,7 +304,7 @@ Toda validación produce un código `VAL-NNN` declarado en la especificación, q
 
 - **Nunca** registres contraseñas, tokens, cabeceras `Authorization` ni datos personales sensibles (Art. IV.8, `security.md` §7.3).
 - Logs estructurados, con el identificador de correlación incorporado (Art. XV.6). Llega solo por el contexto de logging; no lo pases a mano.
-- **No uses el log como auditoría.** La auditoría es `audit_log` y tiene garantías transaccionales; el log no.
+- **No uses el log como auditoría.** La auditoría son los cuatro registros de `architecture.md` §6.6 y tiene garantías transaccionales; el log no. Escribir «usuario X eliminó el rol Y» en el log no sustituye la fila de `audit_deletion_log`: el log se purga, no se consulta por entidad y no exige el motivo.
 - **No registres una excepción y además la relances.** Produce el mismo error duplicado en el log. Relanza, y que la maneje quien corresponda.
 - Nada de `System.out.println`.
 
@@ -314,7 +314,8 @@ Toda validación produce un código `VAL-NNN` declarado en la especificación, q
 
 - `@Transactional` vive en la capa **`application`**, sobre el caso de uso. No en controladores ni en repositorios.
 - Una operación de negocio es **una** transacción. Si necesitas dos, probablemente son dos casos de uso.
-- **El evento de `audit_log` se escribe dentro de la misma transacción** que el cambio (`architecture.md` §8). Es obligatorio: es la única fuente del actor del cambio (Art. V.7, V.8).
+- **El evento de `audit_change_log` o `audit_deletion_log` se escribe dentro de la misma transacción** que el cambio (`architecture.md` §8). Es obligatorio: son la única fuente del actor del cambio (Art. V.7, V.8).
+- **La auditoría de error y la de seguridad van en transacción propia** (`@Transactional(propagation = REQUIRES_NEW)`). No es una preferencia: se emiten mientras la transacción de negocio se revierte, y escritas dentro de ella el `rollback` se lleva el evento (Art. V.14). Si escribes un evento de error en la transacción que acaba de fallar, no queda constancia de nada.
 - El `request_log` se escribe fuera de la transacción de negocio; de eso se encarga la infraestructura y no es responsabilidad del caso de uso.
 - Las consultas usan `@Transactional(readOnly = true)`.
 - **Nunca** ejecutes llamadas a sistemas externos dentro de una transacción abierta.
@@ -414,7 +415,11 @@ Reglas:
 - [ ] `mvn verify` pasa en local.
 - [ ] Hay pruebas para cada criterio de aceptación del requerimiento.
 - [ ] Las reglas de negocio están en `domain`, no en el controlador.
-- [ ] Toda escritura emite su evento de `audit_log`.
+- [ ] Toda creación y edición emite su evento en `audit_change_log`, con el diff de lo que cambió.
+- [ ] Toda eliminación emite su evento en `audit_deletion_log`, con motivo y `snapshot`; el endpoint rechaza la eliminación sin motivo.
+- [ ] Los fallos no controlados y los rechazos por regla de negocio emiten su evento en `audit_error_log`, en transacción independiente.
+- [ ] Los eventos de seguridad que toque el cambio están en `audit_security_log` (`security.md` §8).
+- [ ] Ningún evento de auditoría quedó sin IP de origen habiendo llegado por HTTP (Art. V.15).
 - [ ] Los endpoints nuevos declaran su permiso; ninguno quedó sin declaración.
 - [ ] La API nueva está documentada en OpenAPI y coincide con el comportamiento real.
 - [ ] No hay secretos, credenciales ni datos reales en el cambio.
@@ -446,7 +451,12 @@ Aplica el Artículo XIII. En términos prácticos:
 | `catch (Exception e) { log.error(...) }` y continuar | Convierte un fallo en un dato corrupto silencioso | Relanzar o manejar de verdad |
 | Regla de negocio como `@NotNull` en el DTO | Queda fuera del dominio y sin prueba unitaria | Validar en `domain` |
 | Consultar por otro módulo su repositorio | Rompe el límite del módulo | Usar la interfaz publicada (`architecture.md` §5.3) |
-| Agregar `created_by` a una tabla "por comodidad" | Duplica el actor que ya vive en `audit_log` y se desincroniza | Proyección sobre `audit_log` (Art. V.7) |
+| Agregar `created_by` a una tabla "por comodidad" | Duplica el actor que ya vive en la auditoría y se desincroniza | Proyección sobre `audit_change_log` (Art. V.7) |
+| Auditar el error dentro de la transacción que falló | El `rollback` borra el evento: el fallo ocurre y no queda rastro | Transacción independiente (Art. V.14) |
+| Rellenar el motivo de eliminación desde el código | El campo cumple el `NOT NULL` y no informa nada; "eliminado por el sistema" no es un motivo | Pedirlo en el contrato y rechazar la eliminación sin él (Art. V.13) |
+| Auditar un `UPDATE` con el registro completo | Multiplica el volumen y no responde qué cambió | Guardar solo el diff (`architecture.md` §6.6.2) |
+| Tomar la IP de `X-Forwarded-For` sin validar | Es una cabecera del cliente: cualquiera escribe su propia coartada | Resolverla contra la lista de proxies confiables (Art. V.15) |
+| Un solo evento para un cambio de rol | El cambio de negocio y el evento de seguridad se consultan con permisos distintos | Emitir ambos (`security.md` §8.1) |
 | Migración editada tras integrarse | Los entornos ya aplicados quedan divergentes | Migración nueva (Art. V.5) |
 | Prueba que solo verifica el mock | Pasa siempre, no prueba nada | Probar comportamiento observable |
 | `TODO` sin issue asociado | Nadie lo va a atender | Crear el issue o resolverlo |
@@ -459,3 +469,4 @@ Aplica el Artículo XIII. En términos prácticos:
 |---|---|---|---|
 | 0.1.0 | 19-08-2026 | Creación inicial. | Responsable técnico |
 | 0.2.0 | 19-08-2026 | Nueva sección 2.5: publicación de la documentación como sitio con MkDocs. | Responsable técnico |
+| 0.3.0 | 20-08-2026 | Se ajustan §9.2, §10, §13 y §15 a la separación de la auditoría en cuatro registros: transaccionalidad diferenciada, motivo de eliminación obligatorio e IP de origen. | Responsable técnico |
