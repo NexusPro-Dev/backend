@@ -4,7 +4,7 @@
 |---|---|
 | Módulo | `SP` — Sistema Principal |
 | Paquete | `modules/system` |
-| Versión | 0.5.0 |
+| Versión | 0.6.0 |
 | Estado | **Borrador** |
 | Responsable | Bonilla Diaz William Steven |
 | Fecha de creación | 20-08-2026 |
@@ -153,7 +153,9 @@ Reglas que no son transversales de seguridad y por tanto sí llevan el prefijo d
 |---|---|---|---|---|
 | `RN-SP-001` | Superadministrador siempre presente | Al eliminar o desactivar un usuario, o al retirarle el rol | Debe existir siempre al menos un usuario con rol `SUPERADMIN`; la operación que dejaría al sistema sin ninguno se rechaza | **Crítica** |
 | `RN-SP-002` | Rol padre obligatorio | Al crear o editar un rol | Todo rol declara un rol padre, salvo `SUPERADMIN`, que es el único sin él | Alta |
-| `RN-SP-003` | Clasificación del rol | Al crear un rol | Todo rol se clasifica como `FUNCIONARIO` (personal de la empresa) o `CONSUMIDOR` (cliente del sistema) | Alta |
+| `RN-SP-003` | Clasificación del rol | Al crear un rol | Todo rol se clasifica como `FUNCIONARIO` (personal interno), `VENDEDOR` (personal de la fuerza comercial) o `CONSUMIDOR` (cliente del sistema) | Alta |
+| `RN-SP-011` | Rango solo para vendedores | Al crear un rol | Un rol `VENDEDOR` declara obligatoriamente su rango dentro de la fuerza comercial; los roles `FUNCIONARIO` y `CONSUMIDOR` no lo declaran, y hacerlo se rechaza | Alta |
+| `RN-SP-012` | Rango único | Al crear un rol `VENDEDOR` | Dos roles vendedores no pueden compartir el mismo rango: el orden de mando debe quedar sin ambigüedad | Alta |
 | `RN-SP-004` | Permisos inmutables por API | Siempre | Los permisos no se crean, editan ni eliminan por la API: se pueblan y modifican únicamente por migración | Alta |
 | `RN-SP-005` | Revocación sin motivo | Al retirar un permiso de un rol | La fila de asociación se elimina físicamente y se audita en `audit_deletion_log` sin motivo declarado (Art. V.13, excepción de asociaciones) | Alta |
 | `RN-SP-006` | Membresía acotada por nivel | Al crear una membresía | Toda membresía está sujeta a una de mayor nivel; solo la membresía superior queda libre de ella | Alta |
@@ -208,12 +210,14 @@ Reglas que no son transversales de seguridad y por tanto sí llevan el prefijo d
 | Actor | Administrador |
 | Permiso requerido | `roles:create` |
 | Prioridad | Crítica |
-| Reglas aplicables | `RN-SEG-001`, `RN-SEG-003`, `RN-SEG-007`, `RN-SEG-010` |
+| Reglas aplicables | `RN-SEG-001`, `RN-SEG-003`, `RN-SEG-007`, `RN-SEG-010`, `RN-SP-002`, `RN-SP-003`, `RN-SP-011`, `RN-SP-012` |
 | Depende de | `RF-SP-010` |
 | Tripleta | `docs/specs/sp/001-registrar-rol/` |
 | Estado | Pendiente |
 
-El sistema debe permitir a un usuario autorizado registrar un rol con su código, nombre, descripción, rol padre y conjunto inicial de permisos. Los permisos declarados quedan acotados por los del rol padre y por los del propio actor que lo crea.
+El sistema debe permitir a un usuario autorizado registrar un rol con su código, nombre, descripción, clasificación, rol padre y conjunto inicial de permisos. Los permisos declarados quedan acotados por los del rol padre y por los del propio actor que lo crea.
+
+Si la clasificación es `VENDEDOR`, el alta exige además su **rango** dentro de la fuerza comercial, único entre los roles vendedores (`RN-SP-011`, `RN-SP-012`).
 
 #### `RF-SP-002` — Consultar roles
 
@@ -601,6 +605,7 @@ Estructura lógica en [`security.md` §9](../security.md) y [`architecture.md` �
 | `name` | `varchar(100)` | No | No | No | — | — |
 | `description` | `text` | No | No | Sí | — | — |
 | `role_type` | `varchar(20)` | No | No | No | — | — |
+| `sales_rank` | `smallint` | No | No | Sí | — | — |
 | `parent_role_id` | `uuid` | No | Sí | Sí | — | `roles` |
 | `status` | `varchar(20)` | No | No | No | `ACTIVO` | — |
 | `is_system` | `boolean` | No | No | No | `false` | — |
@@ -610,7 +615,33 @@ Estructura lógica en [`security.md` §9](../security.md) y [`architecture.md` �
 
 `parent_role_id` es nulo **únicamente** en el rol raíz (`RN-SEG-007`, `RN-SP-002`). No implica herencia: acota los privilegios del rol hijo (`security.md` §4.2).
 
-`role_type` distingue al personal de la empresa del cliente del sistema (`RN-SP-003`), con dominio cerrado `FUNCIONARIO` o `CONSUMIDOR`. De él depende, entre otras cosas, qué roles pueden asociarse a una membresía.
+`role_type` clasifica el rol con dominio cerrado (`RN-SP-003`):
+
+| Valor | Quién es |
+|---|---|
+| `FUNCIONARIO` | Personal interno de la empresa |
+| `VENDEDOR` | Personal de la fuerza comercial |
+| `CONSUMIDOR` | Cliente del sistema |
+
+De él depende, entre otras cosas, qué roles pueden asociarse a una membresía —solo los `CONSUMIDOR`— y cuáles declaran rango comercial.
+
+`sales_rank` ordena los roles de la fuerza comercial: menor valor, mayor mando. Es **obligatorio y único** en los roles `VENDEDOR` y **nulo** en los demás (`RN-SP-011`, `RN-SP-012`).
+
+!!! important "Por qué el rango es un campo aparte y no `parent_role_id`"
+
+    `parent_role_id` acota **permisos** (`RN-SEG-003`). `sales_rank` ordena **el mando**. Hoy coinciden —el agente tiene menos permisos *y* está más abajo—, pero son cosas distintas.
+
+    Si el mando se dedujera de `parent_role_id`, cambiar el alcance de permisos de un rol movería en silencio la cadena de mando, y al revés. El día que un rol comercial necesite un permiso que su superior no tenga, ambos usos quedarían enfrentados y no habría forma de expresarlo.
+
+    Un entero da además **orden total**, que es exactamente lo que «quién está por encima de quién» necesita, y deja a `parent_role_id` haciendo una sola cosa.
+
+!!! note "El rango ordena roles, no personas"
+
+    `sales_rank` establece que un director está por encima de un agente. **No** dice qué agentes tiene un director concreto: esa es una relación entre personas y forma parte de la estructura comercial, hoy aparcada.
+
+    Tampoco determina el alcance de datos, que sigue pendiente como **D-22**.
+
+    Queda además sin cubrir el **reordenamiento**: insertar un rango intermedio obligaría a desplazar los existentes, y ningún requerimiento lo contempla todavía.
 
 ### 10.3 Campos principales — `role_permissions`
 
@@ -677,7 +708,9 @@ Declaradas en la base de datos, no solo en Java (Art. V.6):
 | `uq_roles_name` | **Índice único parcial**: `roles(name) WHERE deleted_at IS NULL` — `RN-SEG-001` |
 | `fk_roles_parent` | `roles(parent_role_id)` → `roles(id)`, con restricción de eliminación — `RN-SEG-008` |
 | `ck_roles_status` | `roles(status)` en (`ACTIVO`, `INACTIVO`) — `RN-SEG-002` |
-| `ck_roles_type` | `roles(role_type)` en (`FUNCIONARIO`, `CONSUMIDOR`) — `RN-SP-003` |
+| `ck_roles_type` | `roles(role_type)` en (`FUNCIONARIO`, `VENDEDOR`, `CONSUMIDOR`) — `RN-SP-003` |
+| `ck_roles_sales_rank` | `(role_type = 'VENDEDOR') = (sales_rank IS NOT NULL)` — `RN-SP-011` |
+| `uq_roles_sales_rank` | **Índice único parcial**: `roles(sales_rank) WHERE sales_rank IS NOT NULL` — `RN-SP-012` |
 | `fk_role_permissions_roles` | `role_permissions(role_id)` → `roles(id)` |
 | `fk_role_permissions_permissions` | `role_permissions(permission_id)` → `permissions(id)` |
 | `fk_memberships_parent` | `memberships(parent_membership_id)` → `memberships(id)` — `RN-SP-006` |
@@ -713,3 +746,4 @@ Definidos en [`architecture.md` §6.6](../architecture.md), que detalla el núcl
 | 0.3.0 | 20-08-2026 | §4 registra los siete roles reales de la Épica 2 (HU08–HU14) y propone su jerarquía de contención. Se advierte la distinción entre contención de privilegios y jerarquía comercial. | Responsable técnico |
 | 0.4.0 | 20-08-2026 | Se complementa con la guía `guides/001-sp.md`: tres submódulos nuevos (membresías, monedas, países), siete requerimientos, diez reglas propias `RN-SP-` y las consecuencias de esquema derivadas (unicidad parcial por borrado lógico y clasificación del rol). | Responsable técnico |
 | 0.5.0 | 20-08-2026 | Se cierran los puntos abiertos: `SUPERADMIN` queda documentado como rol técnico y `ADMIN` como máximo rol de negocio, la convención `RN-SEG` frente a `RN-SP` queda resuelta, y la unicidad de hija de las membresías se garantiza en el esquema. | Responsable técnico |
+| 0.6.0 | 20-08-2026 | `role_type` pasa a tres valores con `VENDEDOR`, y los roles vendedores declaran `sales_rank` para ordenar el mando dentro de la fuerza comercial. Nuevas reglas `RN-SP-011` y `RN-SP-012`. | Responsable técnico |
