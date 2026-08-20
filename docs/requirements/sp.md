@@ -4,7 +4,7 @@
 |---|---|
 | Módulo | `SP` — Sistema Principal |
 | Paquete | `modules/system` |
-| Versión | 0.1.0 |
+| Versión | 0.2.0 |
 | Estado | **Borrador** |
 | Responsable | Bonilla Diaz William Steven |
 | Fecha de creación | 20-08-2026 |
@@ -77,7 +77,7 @@ Los permisos de auditoría se conceden por separado: los cuatro registros no tie
 
 ## 5. Reglas de negocio
 
-Las reglas de autorización están definidas en [`security.md` §4.3](../security.md) y **no se redefinen aquí**.
+Las reglas de autorización están definidas en [`security.md` §4.3](../security.md), donde cada una declara cuándo aplica, qué debe ocurrir y su prioridad. **No se redefinen aquí**: esta tabla solo indica a qué requerimiento afecta cada una.
 
 | ID | Regla | Aplica a |
 |---|---|---|
@@ -392,8 +392,71 @@ Estructura lógica en [`security.md` §9](../security.md) y [`architecture.md` �
 
 `SP` es dueño de las cuatro tablas de auditoría, pero **no es quien las escribe**: cada módulo emite sus propios eventos al ejecutar sus operaciones. `SP` publica la interfaz de escritura y es el único que las consulta por API.
 
+### 10.1 Campos principales — `permissions`
+
+| Campo | Tipo | PK | FK | Nullable | Default | Entidad relacional |
+|---|---|---|---|---|---|---|
+| `id` | `uuid` | Sí | No | No | — | — |
+| `code` | `varchar(100)` | No | No | No | — | — |
+| `resource` | `varchar(50)` | No | No | No | — | — |
+| `action` | `varchar(50)` | No | No | No | — | — |
+| `name` | `varchar(100)` | No | No | No | — | — |
+| `description` | `text` | No | No | Sí | — | — |
+| `created_at` | `timestamptz` | No | No | No | `now()` | — |
+| `updated_at` | `timestamptz` | No | No | No | `now()` | — |
+
+`code` es la concatenación `resource:action` y es único (`uq_permissions_code`). Se mantiene como columna propia para poder consultarlo y referenciarlo directamente.
+
+### 10.2 Campos principales — `roles`
+
+| Campo | Tipo | PK | FK | Nullable | Default | Entidad relacional |
+|---|---|---|---|---|---|---|
+| `id` | `uuid` | Sí | No | No | — | — |
+| `code` | `varchar(50)` | No | No | No | — | — |
+| `name` | `varchar(100)` | No | No | No | — | — |
+| `description` | `text` | No | No | Sí | — | — |
+| `parent_role_id` | `uuid` | No | Sí | Sí | — | `roles` |
+| `status` | `varchar(20)` | No | No | No | `ACTIVO` | — |
+| `is_system` | `boolean` | No | No | No | `false` | — |
+| `created_at` | `timestamptz` | No | No | No | `now()` | — |
+| `updated_at` | `timestamptz` | No | No | No | `now()` | — |
+| `deleted_at` | `timestamptz` | No | No | Sí | — | — |
+
+`parent_role_id` es nulo **únicamente** en el rol raíz (`RN-SEG-007`). No implica herencia: acota los privilegios del rol hijo (`security.md` §4.2).
+
+### 10.3 Campos principales — `role_permissions`
+
+| Campo | Tipo | PK | FK | Nullable | Default | Entidad relacional |
+|---|---|---|---|---|---|---|
+| `role_id` | `uuid` | Sí | Sí | No | — | `roles` |
+| `permission_id` | `uuid` | Sí | Sí | No | — | `permissions` |
+| `created_at` | `timestamptz` | No | No | No | `now()` | — |
+
+Su clave primaria es **compuesta** (`role_id`, `permission_id`), y es la excepción declarada al Art. V.11: la unicidad del par es la restricción que importa, y una clave sustituta añadiría una columna sin significado.
+
+### 10.4 Restricciones exigidas en el esquema
+
+Declaradas en la base de datos, no solo en Java (Art. V.6):
+
+| Restricción | Sobre |
+|---|---|
+| `uq_permissions_code` | `permissions(code)` |
+| `uq_roles_code` | `roles(code)` — `RN-SEG-001` |
+| `uq_roles_name` | `roles(name)` — `RN-SEG-001` |
+| `fk_roles_parent` | `roles(parent_role_id)` → `roles(id)`, con restricción de eliminación — `RN-SEG-008` |
+| `ck_roles_status` | `roles(status)` en (`ACTIVO`, `INACTIVO`) — `RN-SEG-002` |
+| `fk_role_permissions_roles` | `role_permissions(role_id)` → `roles(id)` |
+| `fk_role_permissions_permissions` | `role_permissions(permission_id)` → `permissions(id)` |
+
+`RN-SEG-006` (ausencia de ciclos) y `RN-SEG-003` (contención) **no** son expresables como restricción declarativa: se verifican en el dominio, y por eso exigen prueba unitaria propia.
+
+### 10.5 Campos de los registros de auditoría
+
+Definidos en [`architecture.md` §6.6](../architecture.md), que detalla el núcleo común de las cuatro tablas y las columnas propias de cada una. No se repiten aquí.
+
 ## 11. Control de cambios
 
 | Versión | Fecha | Cambio | Responsable |
 |---|---|---|---|
 | 0.1.0 | 20-08-2026 | Creación inicial. 14 requerimientos funcionales derivados de `security.md` y `modules.md`. | Responsable técnico |
+| 0.2.0 | 20-08-2026 | §10 incorpora los campos principales y las restricciones del esquema, conforme a la plantilla de requerimientos por módulo. | Responsable técnico |

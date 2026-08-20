@@ -17,6 +17,14 @@
 
     Este documento responde *«qué requerimientos tiene el módulo»*; la tripleta responde *«cómo se comporta cada uno»*.
 
+!!! abstract "Secciones que migraron a la tripleta"
+
+    Esta plantilla sustituye a `PlantillaRequerimientos_Modulo.docx`, escrita cuando cada funcionalidad tenía una sola especificación. Al adoptarse la tripleta (Art. I), las siguientes secciones se trasladaron a `spec.md`, donde se documentan **por requerimiento**:
+
+    Precondiciones · Postcondiciones · Flujo principal · Flujos alternativos (`FA-`) · Excepciones (`EX-`) · Datos de entrada y salida · Validaciones (`VAL-`) · Criterios de aceptación (`CA-`)
+
+    Todo lo demás de la plantilla original se conserva aquí, porque es de alcance modular y no cabe en una tripleta.
+
 ---
 
 ## 1. Información del módulo
@@ -61,9 +69,11 @@ Según [`modules.md` §5](../modules.md).
 
 ## 5. Reglas de negocio
 
-| ID | Regla | Detalle en |
-|---|---|---|
-| `RN-COD-001` | [Enunciado] | [Documento] |
+| ID | Regla | Cuándo aplica | Qué debe ocurrir | Prioridad |
+|---|---|---|---|---|
+| `RN-COD-001` | [Nombre corto] | [Condición que la dispara] | [Comportamiento exigido] | Crítica / Alta / Media / Baja |
+
+Si las reglas ya están definidas en otro documento, **se referencian con una columna «aplica a»** en lugar de repetirlas. Dos copias de una regla acaban divergiendo.
 
 ## 6. Requerimientos funcionales
 
@@ -118,6 +128,25 @@ El contrato detallado de cada endpoint se define en el `plan.md` de su tripleta.
 | Entidad | Descripción | Dueño |
 |---|---|---|
 | `tabla` | [Qué guarda] | Este módulo |
+
+### 10.1 Campos principales — `tabla`
+
+| Campo | Tipo | PK | FK | Nullable | Default | Entidad relacional |
+|---|---|---|---|---|---|---|
+| `id` | `uuid` | Sí | No | No | — | — |
+| `[campo]` | `[tipo]` | No | No | Sí / No | `[default]` | `[entidad]` |
+| `created_at` | `timestamptz` | No | No | No | `now()` | — |
+| `updated_at` | `timestamptz` | No | No | No | `now()` | — |
+
+Sin columnas de actor: quién creó o editó el registro reside en la auditoría (Art. V.7).
+
+### 10.2 Restricciones exigidas en el esquema
+
+| Restricción | Sobre | Regla que implementa |
+|---|---|---|
+| `uq_<tabla>_<columna>` | `tabla(columna)` | `RN-COD-NNN` |
+
+Se declaran en la base de datos, no solo en Java (Art. V.6). Las reglas que no sean expresables de forma declarativa se verifican en el dominio y exigen prueba unitaria propia; conviene decirlo explícitamente.
 
 El esquema exacto vive en las migraciones Flyway, que son su fuente de verdad (Art. V.3).
 
