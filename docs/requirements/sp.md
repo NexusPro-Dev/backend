@@ -4,11 +4,12 @@
 |---|---|
 | Módulo | `SP` — Sistema Principal |
 | Paquete | `modules/system` |
-| Versión | 0.7.0 |
-| Estado | **Borrador** |
+| Versión | 1.0.0 |
+| Estado | **Aprobado** |
 | Responsable | Bonilla Diaz William Steven |
 | Fecha de creación | 20-08-2026 |
 | Última actualización | 20-08-2026 |
+| Fecha de aprobación | 20-08-2026 |
 
 !!! info "Qué va en este documento"
 
@@ -738,3 +739,4 @@ Definidos en [`architecture.md` §6.6](../architecture.md), que detalla el núcl
 | 0.5.0 | 20-08-2026 | Se cierran los puntos abiertos: `SUPERADMIN` queda documentado como rol técnico y `ADMIN` como máximo rol de negocio, la convención `RN-SEG` frente a `RN-SP` queda resuelta, y la unicidad de hija de las membresías se garantiza en el esquema. | Responsable técnico |
 | 0.6.0 | 20-08-2026 | `role_type` pasa a tres valores con `VENDEDOR`, y los roles vendedores declaran `sales_rank` para ordenar el mando dentro de la fuerza comercial. Nuevas reglas `RN-SP-011` y `RN-SP-012`. | Responsable técnico |
 | 0.7.0 | 20-08-2026 | Se retira `sales_rank`: el orden de mando comercial se expresa con `parent_role_id`, el mismo campo que acota los permisos. `RN-SP-011` se reescribe y `RN-SP-012` queda retirada, con su número consumido. | Responsable técnico |
+| 1.0.0 | 20-08-2026 | Primera versión aprobada. Los 21 requerimientos quedan registrados en la matriz de trazabilidad. | Responsable técnico |

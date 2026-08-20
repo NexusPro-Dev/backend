@@ -102,12 +102,13 @@ Ninguna línea de código se escribe antes de que la tripleta esté aprobada (Ar
 
 | Documento | Versión | Estado |
 |---|---|---|
-| [Constitución](constitution.md) | 0.5.0 | Borrador |
-| [Arquitectura](architecture.md) | 0.4.0 | Borrador |
-| [Seguridad](security.md) | 0.3.0 | Borrador |
+| [Constitución](constitution.md) | 0.7.0 | Borrador |
+| [Arquitectura](architecture.md) | 0.5.0 | Borrador |
+| [Seguridad](security.md) | 0.7.0 | Borrador |
+| [Mapa modular](modules.md) | 0.7.0 | Borrador |
+| [Requerimientos y trazabilidad](requirements.md) | 0.5.0 | Borrador |
 | [Guía de desarrollo](development-guide.md) | 0.4.0 | Borrador |
-| [Mapa modular](modules.md) | 0.3.0 | Borrador |
-| [Requerimientos y trazabilidad](requirements.md) | 0.3.0 | Borrador |
+| [Requerimientos de `SP`](requirements/sp.md) | 1.0.0 | **Aprobado** |
 | Estrategia de pruebas | — | Pendiente |
 
 ### Decisiones
