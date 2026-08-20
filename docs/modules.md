@@ -1,0 +1,238 @@
+# Mapa Modular del Sistema — NEXUS
+
+| Campo | Valor |
+|---|---|
+| Proyecto | NEXUS — Renovación de plataforma |
+| Empresa | FACTECH GROUP SAS |
+| Documento | `modules.md` |
+| Versión | 0.1.0 |
+| Estado | Borrador |
+| Responsable técnico | Bonilla Diaz William Steven |
+| Fecha de creación | 20-08-2026 |
+| Última actualización | 20-08-2026 |
+| Documento superior | `constitution.md` v0.3.0 |
+| Documentos relacionados | `architecture.md` v0.3.0, `requirements.md` v0.2.0 |
+
+---
+
+## 1. Propósito
+
+Este documento es la **autoridad única sobre qué módulos y submódulos componen NEXUS**. Define el inventario, la descomposición interna de cada módulo y las dependencias entre ellos.
+
+Es el punto de partida del diseño: antes de especificar un requerimiento hay que saber a qué módulo pertenece, y antes de crear un módulo hay que saber por qué no es un submódulo de otro.
+
+**Reparto de responsabilidades entre documentos:**
+
+| Documento | Es la autoridad sobre |
+|---|---|
+| `modules.md` (este) | Qué módulos y submódulos existen, y cómo dependen entre sí |
+| `requirements.md` | Qué requerimientos existen, su nomenclatura y su estado |
+| `architecture.md` | Cómo se estructura internamente un módulo (capas, reglas de dependencia) |
+
+---
+
+## 2. Qué es un módulo y qué es un submódulo
+
+La distinción no es de tamaño, es de **propiedad de los datos**.
+
+| | Módulo | Submódulo |
+|---|---|---|
+| Define | Un área de negocio con identidad propia | Una agrupación funcional dentro de un módulo |
+| Datos | **Es dueño** de sus tablas | Comparte las tablas de su módulo |
+| Acceso | Otros módulos lo consumen por interfaz publicada | No es visible desde fuera del módulo |
+| Código | `modules/<modulo>/` | Subpaquete dentro del módulo |
+| Identificadores | Tiene código propio (`SP`, `USR`) | **No tiene código propio** |
+| Requerimientos | `RF-[MÓDULO]-NNN` | Usa el código de su módulo |
+
+### 2.1 Regla de decisión
+
+> Si una funcionalidad **es dueña de tablas propias** y **otros módulos necesitan consumirla**, es un **módulo**.
+> Si opera sobre las tablas de un módulo existente y solo lo usa ese módulo, es un **submódulo**.
+
+### 2.2 Por qué los submódulos no llevan código propio
+
+El Documento Marco define los identificadores como `RF-[MÓDULO]-NNN`. Introducir un nivel más (`RF-SP.ROL-001`) obligaría a enmendarlo y haría los identificadores frágiles: mover una funcionalidad entre submódulos cambiaría su identificador y rompería la trazabilidad.
+
+La numeración es **correlativa dentro del módulo**, sin importar el submódulo. Los submódulos sirven para **organizar** el documento de requerimientos y el código, no para identificar.
+
+### 2.3 Promoción de submódulo a módulo
+
+Un submódulo se promueve a módulo cuando ocurre cualquiera de estas dos cosas:
+
+1. Necesita tablas propias que ningún otro submódulo del módulo usa.
+2. Otro módulo necesita consumirlo directamente.
+
+La promoción es una decisión de arquitectura: se registra en `docs/architecture/` con su justificación (Art. XII.4). El submódulo promovido **recibe un código nuevo**; los requerimientos ya escritos conservan el identificador original y se anota la migración en la matriz de trazabilidad.
+
+**No se promueve por tamaño.** Un submódulo grande sigue siendo submódulo si no cumple ninguna de las dos condiciones.
+
+---
+
+## 3. Mapa modular
+
+```mermaid
+graph TD
+    SP["<b>SP</b> — Sistema Principal<br/><i>roles, permisos, auditoría</i>"]
+    USR["<b>USR</b> — Usuarios<br/><i>identidad, autenticación</i>"]
+
+    USR -->|consume el catálogo de roles| SP
+
+    C1["<b>?</b> — por inventariar"]:::pend
+    C2["<b>?</b> — por inventariar"]:::pend
+    C1 -.-> SP
+    C2 -.-> SP
+
+    classDef pend stroke-dasharray: 5 5,opacity:0.6
+```
+
+Las dependencias apuntan **del consumidor al proveedor** y deben ser acíclicas (`architecture.md` §5.3).
+
+---
+
+## 4. Inventario de módulos
+
+!!! warning "Inventario incompleto"
+
+    Solo están registrados los dos módulos que el Documento Marco nombra de forma explícita. **El resto del alcance del producto está por inventariar** (ver §6). Este documento no puede considerarse cerrado hasta que el inventario esté completo.
+
+| Código | Módulo | Paquete Java | Prefijo de permisos | Depende de | Estado |
+|---|---|---|---|---|---|
+| `SP` | Sistema Principal | `modules/system` | `roles:`, `permissions:`, `audit:` | — | En diseño |
+| `USR` | Usuarios | `modules/users` | `users:` | `SP` | En diseño |
+
+**Estados:** `Propuesto` · `En diseño` · `En desarrollo` · `Implementado` · `Obsoleto`.
+
+Un módulo `Obsoleto` conserva su fila y su código: sus requerimientos siguen referenciados en la historia del proyecto.
+
+### 4.1 Punto abierto: código de módulo frente a nombre de paquete
+
+Los ejemplos de `architecture.md` y `security.md` usan el paquete `modules/security` para el trabajo de roles y permisos, mientras que el Documento Marco asigna ese alcance al módulo `SP` (Sistema Principal), cuyo paquete natural es `modules/system`.
+
+Hay que resolverlo **antes de escribir la primera clase**: el nombre queda fijado en cientos de archivos y en la ruta de cada especificación.
+
+| Salida | A favor | En contra |
+|---|---|---|
+| `SP` → `modules/system` | Conserva la nomenclatura del Documento Marco, ya aprobado | `system` describe peor el contenido real del módulo |
+| Renombrar el módulo a `SEG` → `modules/security` | El nombre dice lo que el módulo hace | `SEG` ya se usa como categoría de RNF y como prefijo de las reglas `RN-SEG-…`, lo que genera ambigüedad |
+
+La tabla anterior registra provisionalmente la primera salida. **Requiere confirmación.**
+
+---
+
+## 5. Fichas de módulo
+
+### 5.1 `SP` — Sistema Principal
+
+**Propósito.** Gobierna quién puede hacer qué en el sistema y deja constancia de lo que ocurre. Es el módulo del que dependen todos los demás.
+
+**Alcance.** Catálogo de permisos, definición de roles, contención de privilegios entre roles y registro de auditoría.
+
+**No incluye.** Los usuarios y sus credenciales (eso es `USR`), ni la asignación de roles a personas.
+
+| Submódulo | Responsabilidad | Entidades principales |
+|---|---|---|
+| Permisos | Catálogo de permisos `recurso:acción`. Solo lectura por API; se pueblan por migración | `permissions` |
+| Roles | Alta, edición, estado y contención de privilegios entre roles | `roles`, `role_permissions` |
+| Auditoría | Consulta del registro de eventos de negocio | `audit_log` |
+| Parámetros | Configuración transversal del sistema | *(por definir)* |
+
+**Dependencias.** Ninguna. Es la raíz del grafo, y debe seguir siéndolo: si `SP` llegara a depender de otro módulo, aparecería un ciclo.
+
+**Diseño detallado.** `security.md` §4 (modelo de autorización y reglas `RN-SEG-…`).
+
+---
+
+### 5.2 `USR` — Usuarios
+
+**Propósito.** Representa a las personas que acceden al sistema, gestiona sus credenciales y les asigna roles.
+
+**Alcance.** Alta y estados de usuario, autenticación, sesiones revocables, restablecimiento de contraseña y asignación de roles.
+
+**No incluye.** La definición de los roles ni de los permisos: los consume de `SP`.
+
+| Submódulo | Responsabilidad | Entidades principales |
+|---|---|---|
+| Usuarios | Alta, edición, estados (`ACTIVO`, `INACTIVO`, `BLOQUEADO`, `PENDIENTE`) | `users` |
+| Autenticación | Inicio y cierre de sesión, refresco con rotación, bloqueo por intentos fallidos | `refresh_tokens` |
+| Credenciales | Cambio y restablecimiento de contraseña | `users` |
+| Asignación de roles | Vincular usuarios con roles, acotado por RN-SEG-010 | `user_roles` |
+
+**Dependencias.** `SP`, para leer el catálogo de roles y resolver permisos efectivos.
+
+**Nota de diseño.** La asignación de roles vive en `USR` y no en `SP` porque su sujeto es el usuario: responde *"qué es esta persona"*, no *"qué es este rol"*. Es también la razón por la que `USR` depende de `SP` y no al revés.
+
+**Diseño detallado.** `security.md` §3 (identidad) y §5 (autenticación).
+
+---
+
+### 5.3 Plantilla para un módulo nuevo
+
+```markdown
+### `COD` — Nombre del módulo
+
+**Propósito.** [Una frase: qué problema de negocio resuelve.]
+
+**Alcance.** [Qué cubre.]
+
+**No incluye.** [Qué queda deliberadamente fuera y a qué módulo pertenece.]
+
+| Submódulo | Responsabilidad | Entidades principales |
+|---|---|---|
+| | | |
+
+**Dependencias.** [Módulos que consume, y para qué.]
+
+**Diseño detallado.** [Documento donde se desarrolla.]
+```
+
+---
+
+## 6. Alcance por inventariar
+
+Esta sección es el trabajo pendiente para cerrar el diseño modular.
+
+El Documento Marco no enumera los módulos del producto, pero sus ejemplos apuntan a un dominio de **gestión de activos e inventario**: la plantilla de requerimientos usa como campos de muestra *"nombre del activo"* y *"código interno"*, y los ejemplos de ramas incluyen `feature/registrar-activo` y `fix/error-inventario`.
+
+!!! danger "Estos módulos no están decididos"
+
+    Lo anterior son **indicios**, no decisiones. Se registran aquí para no perderlos, y deben confirmarse, descartarse o completarse con el alcance real del producto antes de avanzar.
+
+Para cada área de negocio que se incorpore hay que responder:
+
+1. ¿Cuál es su código, corto y estable?
+2. ¿De qué tablas es dueña?
+3. ¿Qué submódulos la componen?
+4. ¿Qué otros módulos necesita consumir, y para qué?
+5. ¿Qué queda explícitamente fuera de su alcance?
+
+Las preguntas 2 y 4 son las que determinan si es realmente un módulo (§2.1).
+
+---
+
+## 7. Reglas de dependencia
+
+- Las dependencias entre módulos **DEBEN** ser acíclicas. Si dos módulos se necesitan mutuamente, o son un solo módulo o falta extraer un tercero que ambos consuman.
+- Un módulo **NO DEBE** acceder a las tablas ni a los repositorios de otro (`architecture.md` §5.3). La comunicación ocurre por la interfaz que publica la capa `application` del módulo propietario.
+- Toda dependencia nueva **DEBE** quedar registrada en el inventario de §4 antes de escribirse en el código.
+- Un módulo sin dependientes ni dependencias declaradas es sospechoso: o está mal delimitado, o no pertenece a este sistema.
+
+---
+
+## 8. Cómo se incorpora un módulo
+
+1. Verificar contra §2.1 que es un módulo y no un submódulo de uno existente.
+2. Registrar la fila en el inventario de §4.
+3. Escribir su ficha en §5, a partir de la plantilla de §5.3.
+4. Crear `docs/requirements/<código en minúscula>.md` con la plantilla de requerimientos por módulo.
+5. Agregarlo a `nav` en `mkdocs.yml`, o la construcción del sitio falla (`development-guide.md` §2.5).
+6. Registrar sus requerimientos en la matriz de `requirements.md`.
+
+El orden importa: el módulo precede al requerimiento, el requerimiento precede a la especificación y la especificación precede al código (Art. I.1).
+
+---
+
+## 9. Control de cambios
+
+| Versión | Fecha | Cambio | Responsable |
+|---|---|---|---|
+| 0.1.0 | 20-08-2026 | Creación inicial. Criterios de modularización y fichas de `SP` y `USR`. | Responsable técnico |

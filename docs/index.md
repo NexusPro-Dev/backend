@@ -34,13 +34,21 @@ Esta documentación es parte del repositorio y se versiona junto al código (Art
 
     [:octicons-arrow-right-24: Ver el modelo de seguridad](security.md)
 
--   :material-view-module:{ .lg .middle } **Módulos y trazabilidad**
+-   :material-view-module:{ .lg .middle } **Mapa modular**
 
     ---
 
-    Catálogo de los módulos que componen el sistema, nomenclatura de identificadores y matriz de trazabilidad de requerimientos.
+    Qué módulos y submódulos componen el sistema, cómo se decide si algo es módulo o submódulo, y cómo dependen entre sí.
 
-    [:octicons-arrow-right-24: Ver el catálogo](requirements.md)
+    [:octicons-arrow-right-24: Ver el mapa modular](modules.md)
+
+-   :material-format-list-numbered:{ .lg .middle } **Requerimientos y trazabilidad**
+
+    ---
+
+    Índice de requerimientos por módulo, nomenclatura de identificadores y matriz de trazabilidad.
+
+    [:octicons-arrow-right-24: Ver la trazabilidad](requirements.md)
 
 -   :material-code-braces:{ .lg .middle } **Guía de desarrollo**
 
@@ -96,7 +104,8 @@ Toda funcionalidad cuenta con una especificación aprobada antes de que se escri
 | [Arquitectura](architecture.md) | 0.3.0 | Borrador |
 | [Seguridad](security.md) | 0.2.0 | Borrador |
 | [Guía de desarrollo](development-guide.md) | 0.2.0 | Borrador |
-| [Módulos y trazabilidad](requirements.md) | 0.1.0 | Borrador |
+| [Mapa modular](modules.md) | 0.1.0 | Borrador |
+| [Requerimientos y trazabilidad](requirements.md) | 0.2.0 | Borrador |
 | Estrategia de pruebas | — | Pendiente |
 
 ### Decisiones

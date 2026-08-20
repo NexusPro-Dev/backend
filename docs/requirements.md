@@ -1,64 +1,38 @@
-# Catálogo de Módulos y Trazabilidad — NEXUS
+# Requerimientos y Trazabilidad — NEXUS
 
 | Campo | Valor |
 |---|---|
 | Proyecto | NEXUS — Renovación de plataforma |
 | Empresa | FACTECH GROUP SAS |
 | Documento | `requirements.md` |
-| Versión | 0.1.0 |
+| Versión | 0.2.0 |
 | Estado | Borrador |
 | Responsable técnico | Bonilla Diaz William Steven |
 | Fecha de creación | 20-08-2026 |
 | Última actualización | 20-08-2026 |
 | Documento superior | `constitution.md` v0.3.0 |
+| Documentos relacionados | `modules.md` v0.1.0 |
 
 ---
 
 ## 1. Propósito
 
-Este documento es el **registro central de módulos** del sistema y la **matriz de trazabilidad** de sus requerimientos.
+Este documento es el **índice de los requerimientos** del sistema y su **matriz de trazabilidad**. Responde en qué estado está cada requerimiento y qué elementos técnicos lo implementan.
 
-Responde tres preguntas:
-
-1. ¿Qué módulos componen NEXUS y qué hace cada uno?
-2. ¿Dónde vive cada módulo — su documento de requerimientos, su paquete de código, sus permisos?
-3. ¿En qué estado está cada requerimiento y qué lo implementa?
-
-Es el punto de entrada obligado antes de crear un módulo o un requerimiento nuevo. **Un módulo que no está en §2 no existe** para efectos del proyecto.
+**No es el inventario de módulos.** Ese vive en [`modules.md`](modules.md), que es su autoridad única. Aquí se registran los requerimientos **de** esos módulos.
 
 ---
 
-## 2. Catálogo de módulos
+## 2. Documentos de requerimientos por módulo
 
-!!! warning "Catálogo incompleto"
+Cada módulo del inventario tiene su documento en `docs/requirements/`, redactado con la plantilla de requerimientos por módulo.
 
-    Solo están registrados los módulos que el Documento Marco nombra de forma explícita. **Falta inventariar el resto del alcance del producto.** Cada fila nueva debe completarse antes de iniciar el desarrollo del módulo correspondiente.
+| Módulo | Documento | Estado |
+|---|---|---|
+| `SP` — Sistema Principal | `requirements/sp.md` | Pendiente de redactar |
+| `USR` — Usuarios | `requirements/usr.md` | Pendiente de redactar |
 
-| Código | Módulo | Propósito | Paquete Java | Prefijo de permisos | Depende de | Estado | Documento |
-|---|---|---|---|---|---|---|---|
-| `SP` | Sistema Principal | Roles, permisos y configuración transversal del sistema | `modules/system` | `roles:`, `permissions:` | — | En diseño | `requirements/sp.md` |
-| `USR` | Usuarios | Identidad, credenciales y asignación de roles | `modules/users` | `users:` | `SP` | En diseño | `requirements/usr.md` |
-| | | *(pendiente de inventariar)* | | | | | |
-
-**Estados posibles de un módulo:** `Propuesto` · `En diseño` · `En desarrollo` · `Implementado` · `Obsoleto`.
-
-### 2.1 Reglas del catálogo
-
-- El **código** es corto, en mayúsculas, único y estable. Una vez usado en un identificador de requerimiento, **no se cambia nunca**: rompería la trazabilidad de todo lo ya escrito.
-- El **paquete Java** y el **prefijo de permisos** se declaran aquí y son la referencia para el código. Nadie los elige al momento de programar.
-- Las **dependencias** entre módulos deben ser acíclicas (`architecture.md` §5.3). Si dos módulos se necesitan mutuamente, o son un solo módulo o falta extraer un tercero.
-- Un módulo `Obsoleto` conserva su fila y su código; no se borra, porque sus requerimientos siguen referenciados en la historia.
-
-### 2.2 Punto abierto: código de módulo frente a nombre de paquete
-
-Los ejemplos de `architecture.md` y `security.md` usan el paquete `modules/security` para el trabajo de roles y permisos, mientras que el Documento Marco asigna ese alcance al módulo `SP` (Sistema Principal), cuyo paquete natural sería `modules/system`.
-
-Hay que resolverlo antes de escribir la primera clase, porque el nombre queda fijado en cientos de archivos. Dos salidas:
-
-- **Alinear el paquete al código:** `SP` → `modules/system`. Conserva la nomenclatura del Documento Marco, ya aprobado.
-- **Alinear el código al paquete:** renombrar el módulo a `SEG`/`security`. Más descriptivo, pero `SEG` ya se usa como categoría de requerimiento no funcional (§3.2) y como prefijo de las reglas `RN-SEG-…` de `security.md`, lo que genera ambigüedad.
-
-Esta tabla registra provisionalmente la primera opción. **Requiere confirmación.**
+Para agregar un módulo nuevo, seguir el procedimiento de [`modules.md` §8](modules.md#8-como-se-incorpora-un-modulo).
 
 ---
 
@@ -76,11 +50,15 @@ Esta tabla registra provisionalmente la primera opción. **Requiere confirmació
 | Especificación | `SPEC-[MÓDULO]-NNN` | `SPEC-SP-001` |
 | Prueba | `T-[MÓDULO]-NNN` | `T-SP-001` |
 
-La numeración es correlativa **dentro de cada módulo** y nunca se reutiliza, ni siquiera si el requerimiento se descarta. Un identificador retirado se marca como tal en la matriz.
+Reglas:
+
+- La numeración es correlativa **dentro de cada módulo** y **nunca se reutiliza**, ni siquiera si el requerimiento se descarta. Un identificador retirado se marca como `Descartado` en la matriz y su número queda consumido.
+- Los submódulos **no** intervienen en el identificador ([`modules.md` §2.2](modules.md#22-por-que-los-submodulos-no-llevan-codigo-propio)): mover una funcionalidad entre submódulos no debe cambiar su identificador.
+- El código de módulo, una vez usado en un identificador, **no se cambia jamás**.
 
 ### 3.2 Categorías de requerimientos no funcionales
 
-Las categorías **no son módulos**: comparten el espacio de nombres pero clasifican atributos de calidad.
+Las categorías **no son módulos**: comparten el espacio de nombres pero clasifican atributos de calidad según ISO/IEC 25010.
 
 | Categoría | Atributo |
 |---|---|
@@ -92,22 +70,13 @@ Las categorías **no son módulos**: comparten el espacio de nombres pero clasif
 | `FIA` | Fiabilidad |
 | `COMP` | Compatibilidad |
 
----
+!!! note "Sobre `SEG`"
 
-## 4. Cómo se incorpora un módulo
-
-1. Registrar la fila en el catálogo de §2, con código, propósito, paquete, prefijo de permisos y dependencias.
-2. Crear `docs/requirements/<código en minúscula>.md` a partir de la plantilla de requerimientos por módulo.
-3. Documentar en él: descripción, objetivo, alcance y **no alcance**, dependencias, reglas de negocio, requerimientos funcionales, integraciones, API y persistencia.
-4. Agregar el documento a `nav` en `mkdocs.yml`. Sin esto, la construcción del sitio falla (`development-guide.md` §2.5).
-5. Registrar sus requerimientos en la matriz de §5.
-6. Solo entonces comienza la especificación de cada funcionalidad en `docs/specs/<módulo>/`.
-
-El orden importa: la especificación precede a la implementación (Art. I.1), y el catálogo precede a la especificación.
+    `SEG` se usa como categoría de requerimiento no funcional (`RNF-SEG-001`) y también como prefijo de las reglas de negocio de seguridad en `security.md` (`RN-SEG-003`). Son espacios distintos y el prefijo `RNF-` o `RN-` los desambigua, pero conviene tenerlo presente al buscar.
 
 ---
 
-## 5. Matriz de trazabilidad
+## 4. Matriz de trazabilidad
 
 Implementa el Art. III.1. Se actualiza **como parte del cambio**, no después (Art. III.6).
 
@@ -117,23 +86,25 @@ Implementa el Art. III.1. Se actualiza **como parte del cambio**, no después (A
 
 **Estados:** `Pendiente` · `Especificado` · `En desarrollo` · `En revisión` · `Implementado` · `Descartado`.
 
-Un requerimiento solo pasa a `Implementado` cuando cumple **todas** las condiciones de la definición de terminado (Art. §16 de la constitución).
+Un requerimiento solo pasa a `Implementado` cuando cumple **todas** las condiciones de la definición de terminado (§16 de la constitución).
 
 ---
 
-## 6. Estado general
+## 5. Estado general
 
 | Indicador | Valor |
 |---|---|
-| Módulos registrados | 2 |
-| Módulos implementados | 0 |
 | Requerimientos registrados | 0 |
+| Requerimientos especificados | 0 |
 | Requerimientos implementados | 0 |
+
+El inventario y el estado de los módulos se consultan en [`modules.md` §4](modules.md#4-inventario-de-modulos).
 
 ---
 
-## 7. Control de cambios
+## 6. Control de cambios
 
 | Versión | Fecha | Cambio | Responsable |
 |---|---|---|---|
-| 0.1.0 | 20-08-2026 | Creación inicial. Catálogo con los módulos nombrados por el Documento Marco. | Responsable técnico |
+| 0.1.0 | 20-08-2026 | Creación inicial con catálogo de módulos y matriz de trazabilidad. | Responsable técnico |
+| 0.2.0 | 20-08-2026 | El inventario de módulos se traslada a `modules.md`, que pasa a ser su autoridad única. Este documento conserva nomenclatura y trazabilidad. | Responsable técnico |
