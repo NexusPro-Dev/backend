@@ -88,7 +88,7 @@ Implementa el Art. III.1. Se actualiza **como parte del cambio**, no después (A
 | `RF-SP-002` | Consultar roles | `SP` | `specs/sp/002-consultar-roles/` | — | — | — | **Spec aprobada** |
 | `RF-SP-003` | Consultar detalle de un rol | `SP` | `specs/sp/003-consultar-detalle-rol/` | — | — | — | **Spec aprobada** |
 | `RF-SP-004` | Editar rol | `SP` | `specs/sp/004-editar-rol/` | — | — | — | **Spec aprobada** |
-| `RF-SP-005` | Asignar permisos a un rol | `SP` | `specs/sp/005-asignar-permisos/` | — | — | — | Spec en revisión |
+| `RF-SP-005` | Asignar permisos a un rol | `SP` | `specs/sp/005-asignar-permisos/` | — | — | — | **Spec aprobada** |
 | `RF-SP-006` | Revocar permisos de un rol | `SP` | `specs/sp/006-revocar-permisos/` | — | — | — | Spec en revisión |
 | `RF-SP-007` | Cambiar el estado de un rol | `SP` | `specs/sp/007-cambiar-estado-rol/` | — | — | — | Spec en revisión |
 | `RF-SP-008` | Cambiar el rol padre de un rol | `SP` | `specs/sp/008-cambiar-rol-padre/` | — | — | — | Spec en revisión |

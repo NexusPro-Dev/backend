@@ -4,10 +4,10 @@
 |---|---|
 | Requerimiento | `RF-SP-005` |
 | Módulo | `SP` — Sistema Principal |
-| Estado | **Borrador** |
+| Estado | **Aprobada** |
 | Autor | Responsable técnico |
-| Aprobada por | — |
-| Fecha de aprobación | — |
+| Aprobada por | Responsable técnico |
+| Fecha de aprobación | 20-08-2026 |
 
 ---
 
@@ -37,12 +37,12 @@ Sin la segunda, un administrador podría ampliar un rol que cuelga de un padre p
 
 ### 4.1 Incluye
 
-- Agregar uno o varios permisos a un rol existente.
+- Agregar uno o varios permisos a un rol existente. La operación **solo agrega**: nunca retira ninguno.
 - Verificación de contención respecto del rol padre y del actor.
 
 ### 4.2 No incluye
 
-- Retirar permisos → `RF-SP-006`.
+- Retirar permisos → `RF-SP-006`. Esta operación no puede usarse para reemplazar la lista: un reemplazo haría revocaciones implícitas, y revocar tiene reglas propias que `RN-SEG-005` impone.
 - Crear permisos: el catálogo solo se modifica por migración (`RN-SP-004`).
 - Propagar el permiso a los roles hijos: cada rol declara los suyos de forma explícita.
 
@@ -63,7 +63,7 @@ Sin la segunda, un administrador podría ampliar un rol que cuelga de un padre p
 | Dato | Obligatorio | Descripción | Restricción de negocio |
 |---|---|---|---|
 | Identificador del rol | Sí | Rol al que se agregan permisos | Debe existir y no ser de sistema |
-| Permisos | Sí | Permisos a agregar | Al menos uno; cada uno debe existir en el catálogo |
+| Permisos | Sí | Permisos a agregar | Entre 1 y 100 por petición; cada uno debe existir en el catálogo |
 
 ### 6.2 Salida
 
@@ -152,6 +152,7 @@ Sin la segunda, un administrador podría ampliar un rol que cuelga de un padre p
 | `VAL-003` | Los permisos existen en el catálogo | Uno o más permisos no existen. |
 | `VAL-004` | Los permisos están contenidos en el rol padre | El rol padre no concede uno o más de los permisos indicados. |
 | `VAL-005` | Los permisos están contenidos en los del actor | No puede conceder permisos que usted no posee. |
+| `VAL-006` | Como máximo 100 permisos por petición | No es posible asignar más de 100 permisos en una sola solicitud. |
 
 ## 12. Criterios de aceptación
 
@@ -167,6 +168,8 @@ Sin la segunda, un administrador podría ampliar un rol que cuelga de un padre p
 | `CA-SP-038` | El sistema deja sin efecto la caché de permisos del rol, de modo que el cambio aplica de inmediato |
 | `CA-SP-039` | El sistema registra el evento en la auditoría de cambios y en la de seguridad |
 | `CA-SP-040` | El sistema valida contra el rol padre inmediato, sin recorrer ancestros |
+| `CA-SP-153` | El sistema conserva los permisos que el rol ya declaraba: la operación nunca retira ninguno |
+| `CA-SP-154` | El sistema rechaza una petición con más de 100 permisos |
 
 ## 13. Casos límite
 
@@ -176,13 +179,14 @@ Sin la segunda, un administrador podría ampliar un rol que cuelga de un padre p
 - **El actor es superadministrador:** posee todo el catálogo, de modo que `RN-SEG-010` nunca lo bloquea.
 - **Cadena profunda de roles:** la validación sigue siendo de un solo nivel; la contención es transitiva.
 - **Asignación concurrente del mismo permiso:** la clave primaria compuesta debe absorber el empate sin error interno.
+- **Rol que necesita más de 100 permisos:** se resuelve en varias peticiones. Al ser la operación idempotente y aditiva, partirla no produce efectos distintos de hacerla de una vez.
 
 ## 14. Preguntas abiertas
 
-| # | Pregunta | Responsable | Estado |
-|---|---|---|---|
-| 1 | ¿La operación agrega permisos, o reemplaza la lista completa? Se especifica como *agregar*, que es más seguro: un reemplazo podría borrar permisos sin que nadie lo pidiera | Responsable técnico | Abierta |
-| 2 | ¿Hay un límite de permisos por petición? | Responsable técnico | Abierta |
-| 3 | ¿`RN-SEG-011` alcanza a los roles ancestros del propio actor? | **Resuelta el 20-08-2026: no**, solo a los asignados directamente. `RN-SEG-010` impide conceder permisos que el actor no posee, de modo que ampliar un rol ancestro no le aporta nada que no tuviera ya |
+Ninguna. Las tres se resolvieron el 20-08-2026, antes de aprobar la especificación.
 
-**Una spec con preguntas abiertas no puede aprobarse.** Esta sección debe quedar vacía antes de pasar la compuerta.
+| # | Pregunta | Resolución |
+|---|---|---|
+| 1 | ¿Agrega o reemplaza la lista completa? | **Agrega, sin retirar nada.** Un reemplazo haría revocaciones implícitas, y revocar tiene reglas propias: `RN-SEG-005` rechaza retirar un permiso que un rol hijo declara. Reemplazar obligaría a reimplementar esa verificación aquí, o la saltaría en silencio. El coste asumido es que una interfaz de casillas debe calcular la diferencia y hacer dos llamadas |
+| 2 | ¿Hay límite de permisos por petición? | **Sí, 100**, el mismo techo que el tamaño máximo de página, para no arrastrar dos límites distintos. Un rol que necesite más se resuelve en varias peticiones, sin riesgo por ser la operación idempotente y aditiva |
+| 3 | ¿`RN-SEG-011` alcanza a los roles ancestros del actor? | **No**, solo a los asignados directamente. `RN-SEG-010` impide conceder permisos que el actor no posee, de modo que ampliar un rol ancestro no le aporta nada que no tuviera ya |
