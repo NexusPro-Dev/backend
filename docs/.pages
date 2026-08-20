@@ -1,0 +1,14 @@
+# Orden y títulos de la navegación. Gestionado por mkdocs-awesome-pages-plugin.
+# Las carpetas de especificaciones se incorporan solas: no hay que tocar
+# mkdocs.yml al crear una tripleta nueva.
+# "..." recoge cualquier documento no listado, para que nada quede invisible.
+nav:
+  - Inicio: index.md
+  - Constitución: constitution.md
+  - Arquitectura: architecture.md
+  - Seguridad: security.md
+  - Mapa modular: modules.md
+  - Requerimientos y trazabilidad: requirements.md
+  - Guía de desarrollo: development-guide.md
+  - specs
+  - ...

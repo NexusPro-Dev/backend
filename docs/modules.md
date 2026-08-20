@@ -5,13 +5,13 @@
 | Proyecto | NEXUS — Renovación de plataforma |
 | Empresa | FACTECH GROUP SAS |
 | Documento | `modules.md` |
-| Versión | 0.1.0 |
+| Versión | 0.3.0 |
 | Estado | Borrador |
 | Responsable técnico | Bonilla Diaz William Steven |
 | Fecha de creación | 20-08-2026 |
 | Última actualización | 20-08-2026 |
-| Documento superior | `constitution.md` v0.3.0 |
-| Documentos relacionados | `architecture.md` v0.3.0, `requirements.md` v0.2.0 |
+| Documento superior | `constitution.md` v0.5.0 |
+| Documentos relacionados | `architecture.md` v0.4.0, `requirements.md` v0.3.0 |
 
 ---
 
@@ -224,10 +224,12 @@ Las preguntas 2 y 4 son las que determinan si es realmente un módulo (§2.1).
 2. Registrar la fila en el inventario de §4.
 3. Escribir su ficha en §5, a partir de la plantilla de §5.3.
 4. Crear `docs/requirements/<código en minúscula>.md` con la plantilla de requerimientos por módulo.
-5. Agregarlo a `nav` en `mkdocs.yml`, o la construcción del sitio falla (`development-guide.md` §2.5).
-6. Registrar sus requerimientos en la matriz de `requirements.md`.
+5. Registrar sus requerimientos en la matriz de `requirements.md`.
+6. Crear la carpeta `docs/specs/<código en minúscula>/`, donde vivirá la tripleta de cada requerimiento.
 
-El orden importa: el módulo precede al requerimiento, el requerimiento precede a la especificación y la especificación precede al código (Art. I.1).
+El sitio incorpora el módulo por sí solo: la navegación se genera desde los archivos `.pages` y no requiere tocar `mkdocs.yml`.
+
+El orden importa: el módulo precede al requerimiento, el requerimiento precede a la tripleta, y la tripleta —aprobada en sus tres compuertas— precede al código (Art. I.1, I.6).
 
 ---
 
@@ -237,3 +239,4 @@ El orden importa: el módulo precede al requerimiento, el requerimiento precede 
 |---|---|---|---|
 | 0.1.0 | 20-08-2026 | Creación inicial. Criterios de modularización y fichas de `SP` y `USR`. | Responsable técnico |
 | 0.2.0 | 20-08-2026 | El submódulo de auditoría de `SP` pasa de un registro único a los cuatro registros del Art. V.8. | Responsable técnico |
+| 0.3.0 | 20-08-2026 | §8 se ajusta a la tripleta `spec` / `plan` / `tasks` y a la navegación automática del sitio. | Responsable técnico |

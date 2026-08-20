@@ -5,13 +5,13 @@
 | Proyecto | NEXUS — Renovación de plataforma |
 | Empresa | FACTECH GROUP SAS |
 | Documento | `architecture.md` |
-| Versión | 0.3.0 |
+| Versión | 0.4.0 |
 | Estado | Borrador |
 | Responsable técnico | Bonilla Diaz William Steven |
 | Fecha de creación | 19-08-2026 |
 | Última actualización | 19-08-2026 |
-| Documento superior | `constitution.md` v0.3.0 |
-| Documento relacionado | `security.md` v0.2.0 |
+| Documento superior | `constitution.md` v0.5.0 |
+| Documento relacionado | `security.md` v0.3.0 |
 
 ---
 

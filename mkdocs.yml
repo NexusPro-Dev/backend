@@ -44,6 +44,7 @@ theme:
 plugins:
   - search:
       lang: es
+  - awesome-pages
 
 markdown_extensions:
   - abbr
@@ -72,14 +73,7 @@ markdown_extensions:
           class: mermaid
           format: !!python/name:pymdownx.superfences.fence_code_format
 
-nav:
-  - Inicio: index.md
-  - Constitución: constitution.md
-  - Arquitectura: architecture.md
-  - Seguridad: security.md
-  - Mapa modular: modules.md
-  - Requerimientos y trazabilidad: requirements.md
-  - Guía de desarrollo: development-guide.md
-
-# Al agregar un documento nuevo, incorporarlo a la navegación anterior.
-# La construccion se ejecuta con --strict: un enlace roto detiene el pipeline.
+# La navegación NO se declara aquí: la gestiona mkdocs-awesome-pages-plugin
+# a partir de los archivos .pages de cada carpeta. Ver docs/.pages.
+#
+# La construcción se ejecuta con --strict: un enlace roto detiene el pipeline.

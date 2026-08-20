@@ -5,13 +5,13 @@
 | Proyecto | NEXUS — Renovación de plataforma |
 | Empresa | FACTECH GROUP SAS |
 | Documento | `requirements.md` |
-| Versión | 0.2.0 |
+| Versión | 0.3.0 |
 | Estado | Borrador |
 | Responsable técnico | Bonilla Diaz William Steven |
 | Fecha de creación | 20-08-2026 |
 | Última actualización | 20-08-2026 |
-| Documento superior | `constitution.md` v0.3.0 |
-| Documentos relacionados | `modules.md` v0.1.0 |
+| Documento superior | `constitution.md` v0.5.0 |
+| Documentos relacionados | `modules.md` v0.3.0 |
 
 ---
 
@@ -47,7 +47,6 @@ Para agregar un módulo nuevo, seguir el procedimiento de [`modules.md` §8](mod
 | Regla de negocio | `RN-[MÓDULO]-NNN` | `RN-SP-003` |
 | Criterio de aceptación | `CA-[MÓDULO]-NNN` | `CA-SP-001` |
 | Validación | `VAL-NNN` | `VAL-001` |
-| Especificación | `SPEC-[MÓDULO]-NNN` | `SPEC-SP-001` |
 | Prueba | `T-[MÓDULO]-NNN` | `T-SP-001` |
 
 Reglas:
@@ -55,6 +54,7 @@ Reglas:
 - La numeración es correlativa **dentro de cada módulo** y **nunca se reutiliza**, ni siquiera si el requerimiento se descarta. Un identificador retirado se marca como `Descartado` en la matriz y su número queda consumido.
 - Los submódulos **no** intervienen en el identificador ([`modules.md` §2.2](modules.md#22-por-que-los-submodulos-no-llevan-codigo-propio)): mover una funcionalidad entre submódulos no debe cambiar su identificador.
 - El código de módulo, una vez usado en un identificador, **no se cambia jamás**.
+- **No existe un identificador de especificación.** Al corresponder cada tripleta a exactamente un requerimiento (Art. I.2), un `SPEC-SP-001` solo podría referirse a `RF-SP-001`: serían dos identificadores para la misma cosa, y el segundo acabaría desincronizándose. La tripleta se referencia por su ruta: `docs/specs/sp/001-registrar-rol/`.
 
 ### 3.2 Categorías de requerimientos no funcionales
 
@@ -80,11 +80,22 @@ Las categorías **no son módulos**: comparten el espacio de nombres pero clasif
 
 Implementa el Art. III.1. Se actualiza **como parte del cambio**, no después (Art. III.6).
 
-| ID | Requerimiento | Módulo | Especificación | Issue | PR | Pruebas | Estado |
+| ID | Requerimiento | Módulo | Tripleta | Issue | PR | Pruebas | Estado |
 |---|---|---|---|---|---|---|---|
 | — | *(sin requerimientos registrados)* | — | — | — | — | — | — |
 
-**Estados:** `Pendiente` · `Especificado` · `En desarrollo` · `En revisión` · `Implementado` · `Descartado`.
+**Estados**, que reflejan las tres compuertas del Art. I.6:
+
+| Estado | Significa |
+|---|---|
+| `Pendiente` | Registrado, sin `spec.md` |
+| `Spec en revisión` | `spec.md` escrita, en su Pull Request |
+| `Spec aprobada` | Compuerta 1 superada; puede escribirse `plan.md` |
+| `Plan aprobado` | Compuerta 2 superada; pueden escribirse las tareas |
+| `Tasks aprobadas` | Compuerta 3 superada; puede escribirse código |
+| `En desarrollo` | Implementación en curso |
+| `Implementado` | Integrado y con la definición de terminado cumplida |
+| `Descartado` | Retirado; su número queda consumido |
 
 Un requerimiento solo pasa a `Implementado` cuando cumple **todas** las condiciones de la definición de terminado (§16 de la constitución).
 
@@ -108,3 +119,4 @@ El inventario y el estado de los módulos se consultan en [`modules.md` §4](mod
 |---|---|---|---|
 | 0.1.0 | 20-08-2026 | Creación inicial con catálogo de módulos y matriz de trazabilidad. | Responsable técnico |
 | 0.2.0 | 20-08-2026 | El inventario de módulos se traslada a `modules.md`, que pasa a ser su autoridad única. Este documento conserva nomenclatura y trazabilidad. | Responsable técnico |
+| 0.3.0 | 20-08-2026 | Se retira el identificador `SPEC-[MÓDULO]-NNN` por redundante con el `RF`. La matriz refleja las tres compuertas de aprobación de la tripleta. | Responsable técnico |
