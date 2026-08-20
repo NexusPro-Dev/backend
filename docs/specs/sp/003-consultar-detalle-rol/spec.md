@@ -4,10 +4,10 @@
 |---|---|
 | Requerimiento | `RF-SP-003` |
 | Módulo | `SP` — Sistema Principal |
-| Estado | **Borrador** |
+| Estado | **Aprobada** |
 | Autor | Responsable técnico |
-| Aprobada por | — |
-| Fecha de aprobación | — |
+| Aprobada por | Responsable técnico |
+| Fecha de aprobación | 20-08-2026 |
 
 ---
 
@@ -34,13 +34,14 @@ Es la pantalla que responde «¿qué puede hacer alguien con este rol?», y de e
 
 - Datos del rol: código, nombre, descripción, clasificación y estado.
 - Lista completa de sus permisos declarados.
-- Su rol padre y sus roles hijos directos.
+- Su rol padre, y **cuántos** roles hijos directos tiene.
 - El número de usuarios que lo tienen asignado, obtenido de `USR` a través de la interfaz que este publica.
 
 ### 4.2 No incluye
 
 - El listado de los usuarios que lo tienen asignado → módulo `USR`. Aquí solo se devuelve **cuántos** son.
 - Los permisos efectivos de una persona, que son la unión de sus roles (`RN-SEG-009`) → módulo `USR`.
+- El **listado** de roles hijos: se obtiene con `RF-SP-002` filtrando por rol padre, que ya existe y ya está paginado.
 
 ## 5. Reglas de negocio aplicables
 
@@ -63,7 +64,8 @@ Es la pantalla que responde «¿qué puede hacer alguien con este rol?», y de e
 | Rol | Código, nombre, descripción, clasificación y estado |
 | Permisos | Lista explícita de los permisos que declara |
 | Rol padre | Rol que acota sus privilegios, vacío en el rol raíz |
-| Roles hijos | Roles cuyos privilegios acota este, si los tiene |
+| Roles hijos | **Cuántos** roles cuelgan de este. El listado se obtiene con `RF-SP-002` filtrando por rol padre |
+| Usuarios asignados | Cuántos usuarios tienen el rol, obtenido de la interfaz que publica `USR` |
 
 ## 7. Precondiciones y postcondiciones
 
@@ -80,7 +82,7 @@ Es la pantalla que responde «¿qué puede hacer alguien con este rol?», y de e
 
 1. El actor solicita el detalle de un rol.
 2. El sistema recupera el rol y su lista de permisos declarados.
-3. El sistema recupera su rol padre y sus roles hijos directos.
+3. El sistema recupera su rol padre, cuenta sus roles hijos directos y consulta a `USR` cuántos usuarios lo tienen asignado.
 4. El sistema devuelve el detalle completo.
 
 ## 9. Flujos alternativos
@@ -117,26 +119,29 @@ Es la pantalla que responde «¿qué puede hacer alguien con este rol?», y de e
 | ID | Criterio |
 |---|---|
 | `CA-SP-016` | El sistema devuelve el rol con su lista completa de permisos declarados |
-| `CA-SP-017` | El sistema devuelve el rol padre y los roles hijos directos |
+| `CA-SP-017` | El sistema devuelve el rol padre y el **número** de roles hijos directos |
 | `CA-SP-018` | El sistema devuelve la lista de permisos vacía cuando el rol no declara ninguno |
 | `CA-SP-019` | El sistema devuelve el rol padre vacío al consultar el rol raíz |
 | `CA-SP-020` | El sistema informa que el rol no existe cuando está eliminado lógicamente |
 | `CA-SP-021` | El sistema resuelve los permisos sin recorrer la cadena de ancestros |
 | `CA-SP-022` | El sistema rechaza la consulta a un actor sin el permiso de lectura de roles |
+| `CA-SP-149` | El sistema devuelve el número de usuarios que tienen el rol asignado |
+| `CA-SP-150` | El tamaño de la respuesta no depende de cuántos roles hijos tenga el rol |
 
 ## 13. Casos límite
 
-- **Rol eliminado lógicamente:** se trata como inexistente, salvo que la pregunta abierta 1 decida lo contrario.
+- **Rol eliminado lógicamente:** se trata como inexistente. Reconstruir qué era corresponde a la auditoría de eliminación, que conserva su estado (Art. V.13).
 - **Rol con muchos permisos:** la lista se devuelve completa y sin paginar; los permisos de un rol son decenas, no miles.
-- **Rol con muchos hijos:** conviene acotar o paginar; ver pregunta abierta 2.
+- **Rol con muchos hijos:** no afecta al tamaño de la respuesta, porque solo se devuelve el conteo.
+- **`USR` no disponible:** el conteo de usuarios depende de otro módulo. Hay que decidir en el plan si el detalle falla o si devuelve el conteo vacío indicando que no pudo obtenerse; degradar es preferible a que una consulta de roles caiga por un módulo ajeno.
 - **Identificador con formato incorrecto:** se rechaza por validación, no se trata como rol inexistente.
 
 ## 14. Preguntas abiertas
 
-| # | Pregunta | Responsable | Estado |
-|---|---|---|---|
-| 1 | ¿Debe poder consultarse el detalle de un rol eliminado lógicamente, para auditoría? | Responsable técnico | Abierta |
-| 2 | ¿Los roles hijos se devuelven completos o se acotan? Si un rol tuviera decenas de hijos, el detalle crecería sin control | Responsable técnico | Abierta |
-| 3 | ¿Debe indicarse cuántos usuarios tienen el rol asignado? | **Resuelta el 20-08-2026: sí.** Es la pregunta que se hace antes de desactivar o eliminar un rol. Cuesta una consulta, y `RF-SP-009` ya obliga a que `USR` publique esa interfaz, de modo que no añade acoplamiento nuevo |
+Ninguna. Las tres se resolvieron el 20-08-2026, antes de aprobar la especificación.
 
-**Una spec con preguntas abiertas no puede aprobarse.** Esta sección debe quedar vacía antes de pasar la compuerta.
+| # | Pregunta | Resolución |
+|---|---|---|
+| 1 | ¿Se consulta el detalle de un rol eliminado? | No, se trata como inexistente. La auditoría de eliminación ya conserva el estado del rol al borrarse (Art. V.13), que es el mecanismo diseñado para reconstruir qué era. Duplicarlo aquí añadiría una rama al endpoint y una segunda fuente del mismo dato |
+| 2 | ¿Los roles hijos se devuelven completos? | No, solo el conteo. El listado se obtiene con `RF-SP-002` filtrando por rol padre, que ya existe y ya está paginado. Así el tamaño de la respuesta no depende de cuántos hijos tenga el rol |
+| 3 | ¿Se indica cuántos usuarios tienen el rol? | Sí. Es la pregunta que se hace antes de desactivar o eliminar un rol. Cuesta una consulta, y `RF-SP-009` ya obliga a que `USR` publique esa interfaz |
