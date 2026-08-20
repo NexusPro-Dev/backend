@@ -4,10 +4,10 @@
 |---|---|
 | Requerimiento | `RF-SP-001` |
 | Módulo | `SP` — Sistema Principal |
-| Estado | **Borrador** |
+| Estado | **Aprobada** |
 | Autor | Responsable técnico |
-| Aprobada por | — |
-| Fecha de aprobación | — |
+| Aprobada por | Responsable técnico |
+| Fecha de aprobación | 20-08-2026 |
 
 ---
 
@@ -35,6 +35,8 @@ Sin esta funcionalidad, todo rol nuevo exigiría una migración y un despliegue,
 - Alta de un rol con código, nombre, descripción, clasificación, rol padre y conjunto inicial de permisos.
 - Validación de la contención de privilegios respecto del rol padre y del actor.
 
+El rol **nace siempre activo**: el alta no recibe el estado. Desactivarlo es una operación distinta, con sus propias reglas (`RF-SP-007`), lo que deja un único camino hacia el estado inactivo y un solo lugar donde auditarlo.
+
 ### 4.2 No incluye
 
 - Modificar los permisos de un rol ya creado → `RF-SP-005` y `RF-SP-006`.
@@ -60,10 +62,10 @@ Sin esta funcionalidad, todo rol nuevo exigiría una migración y un despliegue,
 
 | Dato | Obligatorio | Descripción | Restricción de negocio |
 |---|---|---|---|
-| Código | Sí | Identificador corto y estable del rol | Único entre los roles no eliminados; no se modifica después |
+| Código | Sí | Identificador corto y estable del rol | Lo escribe el actor. Mayúsculas, dígitos y guion bajo, empezando por letra, hasta 50 caracteres. Único entre los roles no eliminados. No se modifica después |
 | Nombre | Sí | Nombre legible | Único entre los roles no eliminados |
 | Descripción | No | Para qué existe el rol | — |
-| Clasificación | Sí | Funcionario, vendedor o consumidor | Uno de los tres valores definidos |
+| Clasificación | Sí | Funcionario, vendedor o consumidor | Uno de los tres valores definidos. **Independiente** de la clasificación del rol padre |
 | Rol padre | Sí | Rol que acota sus privilegios | Debe existir y estar activo |
 | Permisos | No | Permisos que el rol declara | Cada uno debe existir, estar contenido en el padre y en el actor |
 
@@ -147,6 +149,7 @@ Sin esta funcionalidad, todo rol nuevo exigiría una migración y un despliegue,
 | `VAL-005` | Código único entre no eliminados | Ya existe un rol con ese código. |
 | `VAL-006` | Nombre único entre no eliminados | Ya existe un rol con ese nombre. |
 | `VAL-007` | Longitud máxima de código, nombre y descripción | El campo excede la longitud permitida. |
+| `VAL-008` | Formato del código | El código solo admite letras mayúsculas, dígitos y guion bajo, y debe empezar por letra. |
 
 ## 12. Criterios de aceptación
 
@@ -160,6 +163,9 @@ Sin esta funcionalidad, todo rol nuevo exigiría una migración y un despliegue,
 | `CA-SP-006` | El sistema permite reutilizar el código de un rol eliminado lógicamente |
 | `CA-SP-007` | El sistema registra el alta en la auditoría de cambios y en la de seguridad |
 | `CA-SP-008` | El sistema rechaza el alta a un actor sin el permiso de creación de roles |
+| `CA-SP-144` | El sistema rechaza un código que no cumpla el formato de mayúsculas, dígitos y guion bajo |
+| `CA-SP-145` | El sistema registra un rol cuya clasificación difiere de la de su rol padre |
+| `CA-SP-146` | El rol registrado queda siempre en estado activo, sin que el alta lo reciba como dato |
 
 ## 13. Casos límite
 
@@ -169,14 +175,16 @@ Sin esta funcionalidad, todo rol nuevo exigiría una migración y un despliegue,
 - **Rol padre igual al rol que se crea:** imposible, el rol aún no existe; queda cubierto en `RF-SP-008`.
 - **Alta concurrente con el mismo código:** la restricción única del esquema debe resolver el empate; el segundo intento recibe el error de duplicado, no un error interno.
 - **Rol raíz:** no se crea por esta funcionalidad. Se puebla por migración, porque `RN-SP-002` exige rol padre y `RN-SEG-007` admite uno solo sin él.
+- **Código en minúsculas:** se rechaza por formato. No se normaliza en silencio, para que el actor vea exactamente qué código quedó registrado.
+- **Rol consumidor bajo un padre funcionario:** válido. Es el caso de `ESTUDIANTE` bajo `ADMIN` en el catálogo aprobado.
 
 ## 14. Preguntas abiertas
 
-| # | Pregunta | Responsable | Estado |
-|---|---|---|---|
-| 1 | ¿El código lo escribe el actor o lo deriva el sistema del nombre? | Responsable técnico | Abierta |
-| 2 | ¿Qué formato y longitud admite el código? Se propone mayúsculas, dígitos y guion bajo, hasta 50 caracteres | Responsable técnico | Abierta |
-| 3 | ¿Un rol `CONSUMIDOR` puede tener como padre uno `FUNCIONARIO`, o la clasificación debe coincidir con la del padre? | Responsable técnico | Abierta |
-| 4 | ¿El alta puede crear un rol ya inactivo, o siempre nace activo? | Responsable técnico | Abierta |
+Ninguna. Las cuatro se resolvieron el 20-08-2026, antes de aprobar la especificación.
 
-**Una spec con preguntas abiertas no puede aprobarse.** Esta sección debe quedar vacía antes de pasar la compuerta.
+| # | Pregunta | Resolución |
+|---|---|---|
+| 1 | ¿El código lo escribe el actor o lo deriva el sistema? | Lo escribe el actor. El código es inmutable y el nombre no: derivarlo ataría un dato estable a uno que `RF-SP-004` permite cambiar |
+| 2 | ¿Qué formato admite el código? | Mayúsculas, dígitos y guion bajo, empezando por letra, hasta 50 caracteres. Es el formato del catálogo ya aprobado |
+| 3 | ¿La clasificación debe coincidir con la del padre? | No, es independiente. El catálogo aprobado ya lo exige: `ESTUDIANTE` es consumidor y cuelga de `ADMIN`, que es funcionario |
+| 4 | ¿Puede crearse un rol inactivo? | No, nace siempre activo. Deja un único camino hacia inactivo, `RF-SP-007`, y un solo lugar donde auditarlo |
