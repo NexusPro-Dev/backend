@@ -4,7 +4,7 @@ name: Documentación
 #
 # En Pull Request solo construye: verifica que la documentación sigue siendo
 # válida —enlaces, navegación, sintaxis— antes de integrar.
-# En develop construye y publica.
+# En main construye y publica.
 #
 # Se publica desde develop y no desde main porque la documentación técnica vale
 # por estar al día: con el flujo feature -> develop -> main, main puede llevar
@@ -14,7 +14,7 @@ name: Documentación
 
 on:
   push:
-    branches: [develop]
+    branches: [main]
     paths:
       - "docs/**"
       # Los archivos .pages controlan la navegación del sitio y empiezan por
@@ -69,14 +69,14 @@ jobs:
         run: mkdocs build --strict
 
       - name: Publicar el artefacto
-        if: github.ref == 'refs/heads/develop'
+        if: github.ref == 'refs/heads/main'
         uses: actions/upload-pages-artifact@v3
         with:
           path: site
 
   desplegar:
     name: Desplegar en GitHub Pages
-    if: github.ref == 'refs/heads/develop'
+    if: github.ref == 'refs/heads/main'
     needs: construir
     runs-on: ubuntu-latest
     permissions:
