@@ -107,7 +107,7 @@ Ninguna línea de código se escribe antes de que la tripleta esté aprobada (Ar
 | [Seguridad](security.md) | 0.8.0 | Borrador |
 | [Mapa modular](modules.md) | 0.8.0 | Borrador |
 | [Requerimientos y trazabilidad](requirements.md) | 0.5.0 | Borrador |
-| [Guía de desarrollo](development-guide.md) | 0.4.0 | Borrador |
+| [Guía de desarrollo](development-guide.md) | 0.5.0 | Borrador |
 | [Requerimientos de `SP`](requirements/sp.md) | 1.0.0 | **Aprobado** |
 | Estrategia de pruebas | — | Pendiente |
 
