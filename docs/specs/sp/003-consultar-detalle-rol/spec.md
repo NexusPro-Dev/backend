@@ -62,6 +62,8 @@ Es la pantalla que responde «¿qué puede hacer alguien con este rol?», y de e
 | Dato | Descripción |
 |---|---|
 | Rol | Código, nombre, descripción, clasificación y estado |
+| Marca de rol de sistema | Permite que la interfaz no ofrezca editar un rol que `RN-SEG-012` va a rechazar |
+| Fechas de creación y modificación | Contexto mínimo sobre la antigüedad del rol. El **actor** de esos cambios no se devuelve: reside en la auditoría (Art. V.7) |
 | Permisos | Lista explícita de los permisos que declara |
 | Rol padre | Rol que acota sus privilegios, vacío en el rol raíz |
 | Roles hijos | **Cuántos** roles cuelgan de este. El listado se obtiene con `RF-SP-002` filtrando por rol padre |
