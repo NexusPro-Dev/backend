@@ -125,7 +125,7 @@ La tabla anterior registra provisionalmente la primera salida. **Requiere confir
 
 **Propósito.** Gobierna quién puede hacer qué en el sistema y deja constancia de lo que ocurre. Es el módulo del que dependen todos los demás.
 
-**Alcance.** Catálogo de permisos, definición de roles, contención de privilegios entre roles y registro de auditoría.
+**Alcance.** Catálogo de permisos, definición de roles, contención de privilegios entre roles y los cuatro registros de auditoría (`architecture.md` §6.6). La auditoría se **consulta** desde aquí; se **escribe** desde cada módulo, en la operación que la origina.
 
 **No incluye.** Los usuarios y sus credenciales (eso es `USR`), ni la asignación de roles a personas.
 
@@ -133,7 +133,7 @@ La tabla anterior registra provisionalmente la primera salida. **Requiere confir
 |---|---|---|
 | Permisos | Catálogo de permisos `recurso:acción`. Solo lectura por API; se pueblan por migración | `permissions` |
 | Roles | Alta, edición, estado y contención de privilegios entre roles | `roles`, `role_permissions` |
-| Auditoría | Consulta del registro de eventos de negocio | `audit_log` |
+| Auditoría | Consulta de los cuatro registros de auditoría, por separado o desde la vista transversal | `audit_change_log`, `audit_deletion_log`, `audit_error_log`, `audit_security_log` |
 | Parámetros | Configuración transversal del sistema | *(por definir)* |
 
 **Dependencias.** Ninguna. Es la raíz del grafo, y debe seguir siéndolo: si `SP` llegara a depender de otro módulo, aparecería un ciclo.
@@ -236,3 +236,4 @@ El orden importa: el módulo precede al requerimiento, el requerimiento precede 
 | Versión | Fecha | Cambio | Responsable |
 |---|---|---|---|
 | 0.1.0 | 20-08-2026 | Creación inicial. Criterios de modularización y fichas de `SP` y `USR`. | Responsable técnico |
+| 0.2.0 | 20-08-2026 | El submódulo de auditoría de `SP` pasa de un registro único a los cuatro registros del Art. V.8. | Responsable técnico |
