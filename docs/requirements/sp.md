@@ -4,7 +4,7 @@
 |---|---|
 | Módulo | `SP` — Sistema Principal |
 | Paquete | `modules/system` |
-| Versión | 0.4.0 |
+| Versión | 0.5.0 |
 | Estado | **Borrador** |
 | Responsable | Bonilla Diaz William Steven |
 | Fecha de creación | 20-08-2026 |
@@ -99,23 +99,26 @@ Propuesta de códigos y de jerarquía de **contención de privilegios** (`RN-SEG
 | `MANAGER` | Manager | `ADMIN` | Sí |
 | `DIRECTOR` | Director | `MANAGER` | Sí |
 | `AGENTE` | Agente o vendedor | `DIRECTOR` | Sí |
-| `ESTUDIANTE` | Estudiante | `ADMIN` | Sí |
+| `ESTUDIANTE` | Estudiante | `ADMIN` | No |
+| `Cliente` | Cliente | `ADMIN` | No |
 
-!!! danger "Dos jerarquías distintas que NO deben confundirse"
+!!! important "Qué acota `parent_role_id`, y qué no"
 
-    La columna «Rol padre» de esta tabla es **contención de privilegios**: acota qué permisos puede declarar cada rol (`RN-SEG-003`). Es una relación **rol → rol**.
+    La columna «Rol padre» es **contención de privilegios**: acota qué permisos puede declarar cada rol (`RN-SEG-003`). Es una relación **rol → rol** y no dice nada sobre los datos.
 
-    La cadena comercial **manager → director → agente** de HU10, HU11 y HU12 es otra cosa: una relación **persona → persona** que determina **de quién** puede ver los datos cada uno.
+    La estructura comercial —manager, director y agente— es otra cosa: una relación **persona → persona** que determina **de quién** puede ver los datos cada uno. Los tres roles necesitan el mismo permiso sobre comisiones; lo que cambia es el conjunto de registros.
 
-    Los tres roles piden el **mismo permiso** (`commissions:read`); lo que cambia es el conjunto de datos. Modelar la red comercial en `roles.parent_role_id` sería un error: esa columna no acota datos, y además relaciona roles, no usuarios. La red comercial necesita su propia estructura, en `USR` o en un módulo de red comercial.
+    Modelar esa estructura en `roles.parent_role_id` sería un error: esa columna no acota datos y relaciona roles, no usuarios. Cuando el alcance comercial se retome, necesitará su propia estructura y su propio modelo de alcance (D-22).
 
     Que ambas jerarquías coincidan en forma es una casualidad de este dominio, no una equivalencia.
 
-!!! warning "Requiere confirmación"
+!!! note "Por qué `SUPERADMIN` está por encima de `ADMIN`"
 
-    - **¿`ADMIN` contiene realmente a `CONTABILIDAD`?** La contención exige que `ADMIN` posea **todos** los permisos financieros. HU08 menciona pagos y comisiones, pero no retiros, balances ni egresos. Si el negocio quiere que Contabilidad pueda algo que Administración no, `CONTABILIDAD` debe colgar de `SUPERADMIN`, no de `ADMIN`.
-    - **¿`ADMIN` es el rol raíz, o existe `SUPERADMIN` por encima?** HU08 dice «acceso completo», y `RN-SEG-007` exige exactamente un rol raíz. Si `ADMIN` fuera la raíz, no habría quién lo cree ni quién lo acote.
-    - **HU14 tiene el actor cambiado:** está redactada desde el administrador que asigna el rol, no desde el líder académico. Esa funcionalidad pertenece a `USR`; falta la historia del líder académico desde su propia perspectiva.
+    `SUPERADMIN` es el **rol técnico del responsable del software**, no un rol de negocio. Existe para las funcionalidades reservadas a quien desarrolla y mantiene la plataforma, que se irán definiendo, y para satisfacer `RN-SEG-007`: alguien tiene que poder crear y acotar al administrador.
+
+    `ADMIN` es el **máximo rol de negocio**: tiene acceso completo a la operación, y por eso todos los roles funcionales cuelgan de él. La contención (`RN-SEG-003`) obliga entonces a que `ADMIN` posea todo permiso que cualquier rol de negocio declare, incluidos los financieros de `CONTABILIDAD`.
+
+    **Consecuencia a tener presente:** con este diseño no hay separación entre quien configura el sistema y quien controla el dinero. Si en algún momento se quiere que Contabilidad pueda aprobar algo que Administración no, habrá que colgarla de `SUPERADMIN`.
 
 ## 5. Reglas de negocio
 
@@ -136,16 +139,11 @@ Las reglas de autorización están definidas en [`security.md` §4.3](../securit
 | `RN-SEG-012` | Los roles de sistema no se modifican ni eliminan por la API | `RF-SP-004` a `RF-SP-009` |
 | `RN-SEG-013` | Cambiar el rol padre revalida `RN-SEG-003` contra el nuevo padre | `RF-SP-008` |
 
-!!! danger "Punto abierto: prefijo de las reglas"
+!!! note "Por qué estas reglas llevan `SEG` y no `SP`"
 
-    La nomenclatura de [`requirements.md` §3.1](../requirements.md) define las reglas de negocio como `RN-[MÓDULO]-NNN`, pero estas usan `RN-SEG-…`, y `SEG` **no es un código de módulo**: es una categoría de requerimiento no funcional.
+    `RN-SEG-…` es el espacio de las **reglas transversales de seguridad**: gobiernan la autorización en todo el sistema y varias de ellas —`RN-SEG-009`, `010` y `011`— alcanzan también a `USR`. Renombrarlas al código de un módulo obligaría a partirlas.
 
-    Hay que decidir antes de que las reglas se referencien desde el código:
-
-    - **Renombrar** a `RN-SP-…` las que pertenecen a este módulo. Cumple la nomenclatura, pero `RN-SEG-009`, `010` y `011` abarcan también a `USR`, así que ninguna asignación es limpia.
-    - **Declarar `SEG` como espacio de reglas transversales de seguridad**, documentando la excepción en `requirements.md` §3.1.
-
-    Recomiendo la segunda: son reglas que cruzan módulos por naturaleza, y renombrarlas obligaría a partir tres de ellas.
+    Las reglas propias de este módulo sí llevan su prefijo y están en §5.1 como `RN-SP-…`. La convención completa está en [`requirements.md` §3.1](../requirements.md).
 
 ### 5.1 Reglas propias del módulo
 
@@ -639,11 +637,11 @@ Su clave primaria es **compuesta** (`role_id`, `permission_id`), y es la excepci
 
 `parent_membership_id` apunta a la membresía **de mayor nivel** y es nulo solo en la superior (`RN-SP-006`). `level` materializa el orden para poder consultarlo y ordenarlo sin recorrer la cadena; se recalcula al insertar una membresía nueva (`RN-SP-007`).
 
-!!! warning "La cadena de membresías no es un árbol"
+!!! important "La cadena de membresías no es un árbol"
 
     Cada membresía tiene **una sola** hija: es una lista ordenada, no una jerarquía ramificada. Insertar una membresía en medio reencadena a su hija y desplaza los niveles siguientes.
 
-    Conviene decidir en la especificación si la unicidad de hija se garantiza en el esquema —restricción única sobre `parent_membership_id`— o solo en el dominio. Sin ella, nada impide que dos membresías declaren la misma superior y la cadena se bifurque.
+    Que dos membresías no puedan declarar la misma superior se garantiza **en el esquema**, con una restricción única sobre `parent_membership_id` (`uq_memberships_parent`), no solo en el dominio: el Art. V.6 exige declarar la integridad en la base de datos. Sin ella, la cadena podría bifurcarse y el orden dejaría de estar definido.
 
 ### 10.5 Campos principales — `currencies`
 
@@ -683,6 +681,7 @@ Declaradas en la base de datos, no solo en Java (Art. V.6):
 | `fk_role_permissions_roles` | `role_permissions(role_id)` → `roles(id)` |
 | `fk_role_permissions_permissions` | `role_permissions(permission_id)` → `permissions(id)` |
 | `fk_memberships_parent` | `memberships(parent_membership_id)` → `memberships(id)` — `RN-SP-006` |
+| `uq_memberships_parent` | `memberships(parent_membership_id)` — garantiza una sola hija por membresía |
 | `uq_memberships_code` | `memberships(code)` |
 | `uq_currencies_code` | `currencies(code)` |
 | `uq_countries_code` | `countries(code)` |
@@ -713,3 +712,4 @@ Definidos en [`architecture.md` §6.6](../architecture.md), que detalla el núcl
 | 0.2.0 | 20-08-2026 | §10 incorpora los campos principales y las restricciones del esquema, conforme a la plantilla de requerimientos por módulo. | Responsable técnico |
 | 0.3.0 | 20-08-2026 | §4 registra los siete roles reales de la Épica 2 (HU08–HU14) y propone su jerarquía de contención. Se advierte la distinción entre contención de privilegios y jerarquía comercial. | Responsable técnico |
 | 0.4.0 | 20-08-2026 | Se complementa con la guía `guides/001-sp.md`: tres submódulos nuevos (membresías, monedas, países), siete requerimientos, diez reglas propias `RN-SP-` y las consecuencias de esquema derivadas (unicidad parcial por borrado lógico y clasificación del rol). | Responsable técnico |
+| 0.5.0 | 20-08-2026 | Se cierran los puntos abiertos: `SUPERADMIN` queda documentado como rol técnico y `ADMIN` como máximo rol de negocio, la convención `RN-SEG` frente a `RN-SP` queda resuelta, y la unicidad de hija de las membresías se garantiza en el esquema. | Responsable técnico |

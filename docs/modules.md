@@ -5,7 +5,7 @@
 | Proyecto | NEXUS — Renovación de plataforma |
 | Empresa | FACTECH GROUP SAS |
 | Documento | `modules.md` |
-| Versión | 0.6.0 |
+| Versión | 0.7.0 |
 | Estado | Borrador |
 | Responsable técnico | Bonilla Diaz William Steven |
 | Fecha de creación | 20-08-2026 |
@@ -207,15 +207,17 @@ La Épica 2 del documento de historias de usuario (HU08–HU14) define siete rol
 | Señales | HU14 | Publicación y consumo de señales |
 | Métricas | HU08 | Indicadores y reportes de la plataforma |
 
-!!! danger "Candidatos, no decisiones"
+!!! warning "Candidatos, no decisiones"
 
-    Son áreas **deducidas de los roles**, no un inventario aprobado. El documento de historias de usuario se está entregando por partes: hasta tener las demás épicas, ni los límites ni los códigos de estos módulos pueden fijarse.
+    Son áreas **deducidas de los roles**, no un inventario aprobado. El documento de origen se está entregando por partes: hasta disponer del alcance completo, ni los límites ni los códigos de estos módulos pueden fijarse.
 
-    Los ejemplos del Documento Marco apuntaban a *gestión de activos e inventario* (*"nombre del activo"*, `feature/registrar-activo`). No aparecen en esta épica: hay que confirmar si siguen vigentes o eran material de plantilla.
+    Los ejemplos del Documento Marco apuntaban a *gestión de activos e inventario* (*"nombre del activo"*, `feature/registrar-activo`). No aparecen en el alcance conocido hasta ahora: queda por confirmar si siguen vigentes o eran material de plantilla.
 
-!!! warning "Nomenclatura por resolver"
+!!! note "Las historias de usuario son documento de origen"
 
-    El documento de origen usa épicas e historias `HU08`; el proyecto usa `RF-[MÓDULO]-NNN`. Una historia de usuario **no** equivale a un requerimiento funcional: *«quiero ver mi estructura comercial»* son varios `RF`. Hay que decidir si las historias se convierten en requerimientos, o si conviven ambas nomenclaturas con trazabilidad entre ellas.
+    El documento de historias usa épicas e identificadores `HU`; el proyecto usa `RF-[MÓDULO]-NNN`. Una historia **no** equivale a un requerimiento funcional: *«quiero ver mi estructura comercial»* son varios `RF`.
+
+    Las historias sirven para **levantar** requerimientos, pero quedan **fuera de la cadena de trazabilidad**, que es `RF` → tripleta → Pull Request → código → prueba (Art. III.1). Las referencias `HU` que aparecen en esta sección son procedencia del candidato, no trazabilidad.
 
 Para cada área de negocio que se incorpore hay que responder:
 
@@ -263,3 +265,4 @@ El orden importa: el módulo precede al requerimiento, el requerimiento precede 
 | 0.4.0 | 20-08-2026 | Se cierra el punto abierto §4.1: el módulo `SP` usa el paquete `modules/system`. | Responsable técnico |
 | 0.5.0 | 20-08-2026 | §6 registra las siete áreas candidatas deducidas de la Épica 2 (HU08–HU14) y el conflicto de nomenclatura entre historias de usuario y requerimientos. | Responsable técnico |
 | 0.6.0 | 20-08-2026 | Los submódulos de `SP` se ajustan a la guía `guides/001-sp.md`: se separan roles y permisos, y se incorporan membresías, monedas y países. Se retira «Parámetros», cubierto por los catálogos. | Responsable técnico |
+| 0.7.0 | 20-08-2026 | Se resuelve la relación entre historias de usuario y requerimientos: las historias son documento de origen y quedan fuera de la trazabilidad. | Responsable técnico |

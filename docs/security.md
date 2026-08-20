@@ -5,7 +5,7 @@
 | Proyecto | NEXUS — Renovación de plataforma |
 | Empresa | FACTECH GROUP SAS |
 | Documento | `security.md` |
-| Versión | 0.6.0 |
+| Versión | 0.7.0 |
 | Estado | Borrador |
 | Responsable técnico | Bonilla Diaz William Steven |
 | Fecha de creación | 19-08-2026 |
@@ -248,13 +248,13 @@ Si llega un refresh token **ya revocado**, el sistema asume robo de credenciales
 - Un endpoint **sin declaración explícita** de permiso queda **inaccesible**, no público. La configuración por defecto deniega, y la excepción (endpoints públicos como login o salud) se declara en una lista explícita y corta, revisable de un vistazo.
 - La verificación de propiedad del dato (que un usuario solo acceda a sus propios registros, cuando aplique) es responsabilidad de la capa `application` y **DEBE** especificarse por requerimiento. Un permiso concede la capacidad de ejecutar una acción, no el derecho sobre un registro concreto.
 
-!!! danger "El alcance de datos no está diseñado"
+!!! note "El alcance de datos está pendiente de diseño (D-22)"
 
-    Lo anterior basta cuando el alcance es la excepción. Deja de bastar en este producto: de los siete roles de la Épica 2, cinco se definen precisamente por **de quién** ven los datos, no por qué pueden hacer. Manager, director y agente piden el mismo permiso sobre conjuntos distintos.
+    Lo anterior basta mientras el alcance sea la excepción, que es la situación actual: los roles, los permisos y los catálogos de `SP` son globales y ningún requerimiento vigente necesita acotar por persona.
 
-    El alcance de datos es un **eje ortogonal al permiso** y necesita diseño propio: qué lo determina, cómo se declara por requerimiento y cómo se verifica de forma automatizada. Registrado como **D-22**.
+    Deja de bastar en cuanto se retome la estructura comercial: manager, director y agente necesitan el **mismo permiso** sobre conjuntos de datos distintos. El alcance es un **eje ortogonal al permiso** y necesita diseño propio —qué lo determina, cómo se declara por requerimiento y cómo se verifica de forma automatizada—, registrado como **D-22**.
 
-    Hasta resolverlo, ninguna consulta con alcance por persona puede especificarse de forma completa.
+    Ningún requerimiento con alcance por persona debe especificarse antes de resolver D-22.
 - Ante falta de permiso se responde `403`; ante ausencia o invalidez del token, `401` (`architecture.md` §7.2).
 - **NO DEBE** usarse `404` para ocultar la existencia de un recurso salvo que la especificación lo exija de forma expresa y justificada.
 
@@ -445,3 +445,4 @@ RNF-SEG-002 merece atención: es una prueba que enumera los endpoints registrado
 | 0.4.0 | 20-08-2026 | Las reglas de §4.3 declaran cuándo aplican, qué debe ocurrir y su prioridad, conforme a la plantilla de requerimientos por módulo. | Responsable técnico |
 | 0.5.0 | 20-08-2026 | Se registra D-22: el alcance de datos es un eje ortogonal al permiso y carece de diseño. Lo evidencia la Épica 2, donde cinco de siete roles se definen por el alcance y no por el permiso. | Responsable técnico |
 | 0.6.0 | 20-08-2026 | RN-SEG-001 acota la unicidad de rol a los no eliminados lógicamente, lo que la convierte en un índice único parcial. | Responsable técnico |
+| 0.7.0 | 20-08-2026 | D-22 pasa de aviso de peligro a pendiente registrado: ningún requerimiento vigente necesita alcance por persona. | Responsable técnico |
