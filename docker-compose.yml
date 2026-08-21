@@ -1,0 +1,52 @@
+# Entorno local completo (Art. X.2).
+#
+#   docker compose up -d db     solo la base de datos, para `mvn spring-boot:run`
+#   docker compose up           todo, con la aplicación en contenedor
+#
+# Los valores de este archivo son de desarrollo y no deben usarse en ningún
+# otro entorno.
+
+services:
+
+  db:
+    image: postgres:17-alpine
+    container_name: nexus-db
+    environment:
+      POSTGRES_DB: nexus
+      POSTGRES_USER: nexus
+      POSTGRES_PASSWORD: nexus
+    ports:
+      - "5432:5432"
+    volumes:
+      - nexus-db-data:/var/lib/postgresql/data
+    healthcheck:
+      # La aplicación no debe arrancar antes de que PostgreSQL acepte
+      # conexiones: Flyway corre al inicio y fallaría.
+      test: ["CMD-SHELL", "pg_isready -U nexus -d nexus"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: nexus-app
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      ENVIRONMENT: development
+      DATABASE_URL: jdbc:postgresql://db:5432/nexus
+      DATABASE_USER: nexus
+      DATABASE_PASSWORD: nexus
+      API_URL: http://localhost:8080
+      LOG_LEVEL: INFO
+      # Secreto de desarrollo. En cualquier otro entorno llega por variable
+      # de entorno y nunca desde un archivo versionado (Art. IV.3).
+      JWT_SECRET: desarrollo-no-usar-fuera-de-local
+    ports:
+      - "8080:8080"
+
+volumes:
+  nexus-db-data:

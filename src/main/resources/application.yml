@@ -1,0 +1,84 @@
+# Configuración base. Todo lo que depende del entorno llega por variable de
+# entorno (Art. IX.1) y no tiene valor por defecto cuando es obligatorio:
+# la aplicación debe fallar al arrancar si falta, no asumir algo inseguro
+# (Art. IX.5). Por eso ${VAR} sin valor tras los dos puntos.
+
+spring:
+  application:
+    name: nexus-backend
+
+  datasource:
+    url: ${DATABASE_URL}
+    username: ${DATABASE_USER}
+    password: ${DATABASE_PASSWORD}
+
+  jpa:
+    hibernate:
+      # Las migraciones son la fuente de verdad del esquema (Art. V.3).
+      # `validate` y nunca `update` ni `create`: Hibernate comprueba que el
+      # esquema coincide con el mapeo, y no lo modifica jamás.
+      ddl-auto: validate
+    open-in-view: false
+    properties:
+      hibernate:
+        jdbc:
+          time_zone: UTC
+
+  flyway:
+    enabled: true
+    locations: classpath:db/migration
+    # Sin `baseline-on-migrate`: una base de datos con tablas y sin historial
+    # de Flyway es un estado que debe fallar, no que deba asumirse.
+    validate-on-migrate: true
+
+  jackson:
+    # Un campo desconocido en el cuerpo se rechaza, no se ignora. Varios
+    # criterios de aceptación dependen de ello: sin esto, enviar un campo que
+    # el endpoint no admite pasaría en silencio y el criterio no comprobaría
+    # nada (por ejemplo CA-SP-151 y CA-SP-159).
+    deserialization:
+      fail-on-unknown-properties: true
+    default-property-inclusion: non_null
+
+server:
+  port: 8080
+  error:
+    # El detalle interno no sale al cliente (Art. VI.5). El formato de error
+    # es RFC 9457, producido por el manejador global.
+    include-message: never
+    include-stacktrace: never
+
+management:
+  endpoints:
+    web:
+      exposure:
+        # Solo salud, sin información sensible y sin autenticación de negocio
+        # (Art. XV.10).
+        include: health
+  endpoint:
+    health:
+      show-details: never
+
+springdoc:
+  api-docs:
+    path: /v3/api-docs
+  swagger-ui:
+    path: /swagger-ui.html
+
+nexus:
+  # Uniforme para todo el sistema, no por endpoint (architecture.md §7.4).
+  # Una petición que exceda el máximo se rechaza, no se recorta.
+  pagination:
+    default-size: 20
+    max-size: 100
+
+  audit:
+    request-log-retention-days: ${REQUEST_LOG_RETENTION_DAYS:}
+
+  security:
+    jwt-secret: ${JWT_SECRET}
+    trusted-proxies: ${TRUSTED_PROXIES:}
+
+logging:
+  level:
+    root: ${LOG_LEVEL:INFO}
