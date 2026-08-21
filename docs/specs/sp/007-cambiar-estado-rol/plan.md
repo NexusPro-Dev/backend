@@ -61,7 +61,7 @@ Subrecurso propio, y no un campo dentro de `PATCH /roles/{id}`, por dos razones:
 
 Se envía el **estado destino** y no una acción (`activate` / `deactivate`) porque hace la operación idempotente por construcción: repetir la misma petición deja el mismo resultado, que es lo que `FA-001` describe.
 
-**Respuesta `200`** — `RoleResponse`, definido en `RF-SP-001`, con el estado ya actualizado. No se devuelve `RoleDetailResponse`, que arrastraría una llamada a `USR` a un camino de escritura (`RF-SP-004` §4).
+**Respuesta `200`** — `RoleResponse`, definido en `RF-SP-001`, con el estado ya actualizado. No se devuelve `RoleDetailResponse`, que arrastraría sus dos subconsultas de conteo a un camino de escritura que no las necesita (`RF-SP-004` §4).
 
 **Errores**
 
@@ -114,7 +114,7 @@ La severidad es Alta y no Media porque desactivar un rol retira acceso a todos s
 
 ## 8. Impacto sobre otros módulos
 
-**`shared/security`** es donde este requerimiento tiene su efecto real. La resolución de permisos consulta el estado del rol, de modo que la invalidación debe alcanzar **la entrada de ese rol**, que es lo único que la caché guarda: `security.md` §4.5 describe una caché de `rol → permisos`, y los permisos efectivos de una persona se calculan como unión de sus roles activos en cada petición. No existe, por tanto, un resultado derivado por usuario que haya que invalidar aparte, y el puerto `RolePermissionCacheInvalidator` tiene un solo método: invalidar por rol. Si algún día se cachease `usuario → permisos efectivos`, invalidar por rol exigiría saber quién lo porta —es decir, preguntar a `USR` desde `SP` en cada escritura— y habría que revisar esta decisión junto con `security.md` §4.5.
+**`shared/security`** es donde este requerimiento tiene su efecto real. La resolución de permisos consulta el estado del rol, de modo que la invalidación debe alcanzar **la entrada de ese rol**, que es lo único que la caché guarda: `security.md` §4.5 describe una caché de `rol → permisos`, y los permisos efectivos de una persona se calculan como unión de sus roles activos en cada petición. No existe, por tanto, un resultado derivado por usuario que haya que invalidar aparte, y el puerto `RolePermissionCacheInvalidator` tiene un solo método: invalidar por rol. Si algún día se cachease `usuario → permisos efectivos`, invalidar por rol exigiría saber quién lo porta —es decir, resolver quién lo porta en cada escritura— y habría que revisar esta decisión junto con `security.md` §4.5.
 
 **Alcance del despliegue.** La caché es en memoria del proceso. Con más de una instancia del backend, invalidar tras el commit la vacía solo en la que atendió la petición, y las demás seguirían concediendo el permiso de un rol ya desactivado hasta que su entrada caducara. Queda registrado como riesgo (§10); no altera este plan, porque la corrección sería un adaptador distinto del mismo puerto, no un cambio en el caso de uso.
 

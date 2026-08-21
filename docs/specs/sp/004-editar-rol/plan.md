@@ -76,7 +76,7 @@ Se usa `PATCH` y no `PUT` porque la operación es explícitamente parcial: `PUT`
 
 Como la ausencia de una propiedad y su presencia con valor nulo son indistinguibles en un objeto Java corriente, los campos opcionales se modelan con `Patchable<T>`, el envoltorio de tres estados que este requerimiento estrena en `shared/api` (§3). Sin él, `{"name":"X"}` borraría la descripción, que es exactamente lo que `CA-SP-024` prohíbe. Se descarta `JsonNullable` de `jackson-databind-nullable`, que resolvería lo mismo a cambio de meter una dependencia de terceros en el contrato de la API por un tipo de tres estados; y se descarta deserializar a `JsonNode` y preguntar qué claves llegaron, que renuncia a Bean Validation sobre los campos y deja la validación de formato escrita a mano.
 
-**Respuesta `200`** — `RoleResponse`, el mismo cuerpo que devuelve el alta en `RF-SP-001`: el rol con sus permisos y su rol padre. **No** se devuelve `RoleDetailResponse` de `RF-SP-003`: arrastraría `assignedUsers`, es decir, una llamada a `USR` en un camino de escritura que hoy no la tiene, con la pregunta añadida de qué responder cuando ese módulo está indisponible (advertido en el plan de `RF-SP-003` §8). El mismo criterio rige en `RF-SP-005` a `RF-SP-008`.
+**Respuesta `200`** — `RoleResponse`, el mismo cuerpo que devuelve el alta en `RF-SP-001`: el rol con sus permisos y su rol padre. **No** se devuelve `RoleDetailResponse` de `RF-SP-003`: arrastraría sus dos subconsultas de conteo —hijos y usuarios asignados— a un camino de escritura que no las necesita. El mismo criterio rige en `RF-SP-005` a `RF-SP-008`.
 
 **Errores**
 

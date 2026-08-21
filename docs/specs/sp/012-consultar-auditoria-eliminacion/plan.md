@@ -232,7 +232,7 @@ La de `RF-SP-011` §7, sin variaciones: una sola transacción `readOnly = true` 
 | `shared/persistence` | `f_unaccent` gana un tercer consumidor. Quien modifique el diccionario `unaccent` debe reindexar también `ix_audit_deletion_log_reason_busqueda` |
 | `SP` (`RF-SP-013`, `RF-SP-014`) | Heredan lo mismo que este de `RF-SP-011`, y **cada uno debe añadir su propio índice de línea de tiempo**: `V10` solo cubre `audit_deletion_log` |
 | `SP` (todo el esquema) | Queda establecido que **ninguna migración puede declarar `ON DELETE CASCADE` ni `ON DELETE SET NULL`**, y hay una prueba que lo verifica (§2, §11). No es una preferencia de estilo: una cascada borra sin pasar por la aplicación y por tanto sin emitir evento |
-| `USR` | Cuando exista, sus claves foráneas quedan sujetas a la misma restricción, y la prueba la aplicará también a sus tablas por recorrer el esquema completo |
+| Usuarios (`RF-SP-024` a `RF-SP-033`) | Sus claves foráneas quedan sujetas a la misma restricción, y la prueba la aplica también a sus tablas por recorrer el esquema completo. `user_roles` es el caso a vigilar: una cascada desde `users` o desde `roles` borraría asignaciones sin dejar evento |
 | `RF-SP-006` y `RF-SP-009` | Son los dos únicos que escriben hoy en esta tabla. Lo que devuelva `snapshot` depende de lo que ellos guarden: si `RF-SP-006` omitiera los códigos legibles, `CA-SP-093` fallaría aquí sin que este requerimiento tuviera nada que corregir |
 
 ## 9. Alternativas consideradas

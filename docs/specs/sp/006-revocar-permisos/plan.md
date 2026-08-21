@@ -67,7 +67,7 @@ La verificación de descendencia consulta los hijos de un rol en cada revocació
 
 **No se solicita motivo.** Es una asociación, no una entidad de negocio.
 
-**Respuesta `200`** — `RoleResponse`, definido en `RF-SP-001`: el rol con su lista de permisos actualizada y su rol padre. No se devuelve `RoleDetailResponse`, que arrastraría una llamada a `USR` a un camino de escritura (`RF-SP-004` §4).
+**Respuesta `200`** — `RoleResponse`, definido en `RF-SP-001`: el rol con su lista de permisos actualizada y su rol padre. No se devuelve `RoleDetailResponse`, que arrastraría sus dos subconsultas de conteo a un camino de escritura que no las necesita (`RF-SP-004` §4).
 
 **Errores**
 

@@ -96,8 +96,9 @@ Reúne dos clases de evento que conviene no separar: los de **autenticación** �
 **Cuándo ocurre:** se sospecha del uso indebido de una cuenta.
 
 1. El actor filtra por el usuario afectado y un rango de fechas.
-2. El sistema devuelve toda la actividad de control de acceso relativa a esa cuenta: entradas, fallos, bloqueos y cambios de sus privilegios.
-3. Es el flujo para el que existe esta consulta.
+2. El sistema devuelve la actividad de privilegio relativa a esa cuenta: entradas, bloqueos, cambios de sus roles y de su estado, y cierres de sesión.
+3. Los **intentos de acceso fallidos no llevan usuario afectado**, porque `CA-SP-109` lo prohíbe: la presencia de ese campo delataría que la cuenta existe. Se localizan filtrando por tipo de evento y rango de fechas, y leyendo el identificador intentado en el detalle de cada evento.
+4. Es el flujo para el que existe esta consulta.
 
 ### FA-002 — Sin resultados
 
@@ -130,7 +131,7 @@ Reúne dos clases de evento que conviene no separar: los de **autenticación** �
 | ID | Criterio |
 |---|---|
 | `CA-SP-103` | El sistema devuelve los eventos de seguridad paginados, del más reciente al más antiguo |
-| `CA-SP-104` | El sistema devuelve toda la actividad relativa a un usuario afectado en un rango de fechas |
+| `CA-SP-104` | El sistema devuelve la actividad de privilegio relativa a un usuario afectado en un rango de fechas: entradas, bloqueos, cambios de sus roles y de su estado, y cierres de sesión |
 | `CA-SP-105` | El sistema filtra por tipo de evento, severidad, resultado, actor y dirección de red |
 | `CA-SP-106` | Ningún evento contiene contraseñas ni tokens, en ninguna forma |
 | `CA-SP-107` | Los intentos de acceso fallidos aparecen con resultado de fallo y su severidad |
@@ -158,3 +159,11 @@ Ninguna. Las cuatro se resolvieron el 21-08-2026, antes de aprobar la especifica
 | 2 | ¿La consulta de este registro se audita a su vez? | **Sí, y es el único de los cuatro que lo hace.** En una auditoría de acceso, quién revisó los accesos ajenos es en sí mismo información de seguridad. Se añade como postcondición y como `CA-SP-167`. Los otros tres registros se conforman con el rastro del registro de peticiones (`RF-SP-011` §14) |
 | 3 | ¿La lista de proxies confiables? (D-21) | **No bloquea esta especificación.** El sistema registra la dirección resuelta contra la lista configurada por entorno; cuál es esa lista en `testing` y en `production` es una decisión de despliegue, y D-21 queda abierta en `security.md`. El caso límite ya advierte que una dirección falsificable no sirve como evidencia |
 | 4 | ¿Se conserva más tiempo que los demás? | **No pertenece a esta especificación**, igual que en `RF-SP-013`. Que este registro sea el que más valor tiene a largo plazo es un argumento para D-10, no un comportamiento de la consulta, que se comporta igual con cualquier retención |
+
+### Corrección posterior a la aprobación
+
+Aplicada el 21-08-2026 al aprobar el `plan.md`, conforme al Art. I.7: la especificación vuelve a su compuerta, se corrige y se deja constancia.
+
+| # | Defecto | Corrección |
+|---|---|---|
+| 1 | `CA-SP-104` pedía «**toda** la actividad relativa a un usuario afectado» y `CA-SP-109` prohíbe que un intento fallido lleve ese campo, porque delataría que la cuenta existe. Los dos criterios no podían cumplirse a la vez, y el `FA-001` arrastraba el mismo defecto al enumerar «fallos» entre lo que devuelve el filtro | Gana `CA-SP-109`, que es la garantía de que el registro no se convierta en un medio de enumeración de cuentas. `CA-SP-104` pasa a decir **actividad de privilegio** y enumera qué incluye; el `FA-001` gana un paso que explica cómo se localizan los intentos fallidos: por tipo de evento y rango, leyendo el identificador intentado en el detalle. La asimetría queda además declarada en `plan.md` §4 y como riesgo en §10, con su corrección si llegara a ser un uso habitual |

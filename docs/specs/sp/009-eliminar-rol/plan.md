@@ -10,16 +10,22 @@
 | Aprobado por | Responsable técnico |
 | Fecha de aprobación | 21-08-2026 |
 
+!!! warning "Revisado el 21-08-2026"
+
+    Este plan se aprobó por la mañana con el conteo de usuarios obtenido de `USR` a través del puerto `RoleAssignmentCounter`. Un conteo indisponible se rechazaba con `503`, y la consecuencia aceptada era que **ninguna eliminación pudiera completarse** hasta que ese módulo existiera.
+
+    Al retirarse `USR` y absorber `SP` los usuarios (`modules.md` v0.9.0), `user_roles` pasó a ser una tabla propia. El conteo es ahora una subconsulta dentro de la misma transacción, «no se pudo saber» deja de ser un estado posible, y desaparecen el `503`, el `INT-001` y la inoperancia. El bloqueo compartido que `RF-SP-030` debe tomar deja además de ser un contrato que había que confiar, y pasa a ser algo que una prueba concurrente verifica.
+
 ---
 
 ## 1. Enfoque
 
-Una eliminación lógica con dos verificaciones que miran hacia fuera del rol: no puede tener roles hijos vigentes, y no puede tener usuarios asignados. La segunda cruza el límite del módulo, porque ese dato pertenece a `USR`.
+Una eliminación lógica con dos verificaciones que miran hacia fuera del rol: no puede tener roles hijos vigentes, y no puede tener usuarios asignados. Las dos se resuelven con una subconsulta sobre tablas del propio módulo.
 
 Eso convierte lo que parece un `UPDATE` de una columna en la operación con más superficie de fallo del submódulo:
 
-1. **La verificación de usuarios depende de otro módulo** que todavía no existe, y una respuesta indisponible **no puede tratarse como cero**.
-2. **La verificación y la escritura tienen que ser atómicas frente a una asignación concurrente**, o el rol se elimina mientras alguien se lo asigna.
+1. **La verificación y la escritura tienen que ser atómicas frente a una asignación concurrente**, o el rol se elimina mientras alguien se lo asigna. Es lo que obliga al bloqueo de fila de §5, y lo único de este requerimiento que no se resuelve con una consulta bien escrita.
+2. **La verificación de usuarios depende de un esquema que otro requerimiento crea.** `user_roles` la declara `RF-SP-030`, que por eso se adelanta en el orden de `requirements/sp.md` §6.1.
 3. **El motivo es obligatorio** y debe rechazarse *antes* de ejecutar nada (Art. V.13).
 
 No hay operación de restauración. El borrado lógico existe para que la auditoría resuelva qué rol era, no como papelera.
@@ -35,9 +41,8 @@ Sí hay un ajuste **fuera** de este requerimiento: `architecture.md` §6.6.3 rel
 | Capa | Componente | Nuevo / Modificado | Responsabilidad |
 |---|---|---|---|
 | `domain` | `Role` | Modificado | Método `delete(String motivo)`, que valida el motivo y marca el borrado. Devuelve el estado previo para el registro de eliminación |
-| `domain` | `RoleRepository` | Modificado | Puerto definido en `RF-SP-001`, que vive en `domain` porque devuelve el agregado. Añade el bloqueo exclusivo de la fila del rol y la búsqueda de hijos vigentes |
+| `domain` | `RoleRepository` | Modificado | Puerto definido en `RF-SP-001`, que vive en `domain` porque devuelve el agregado. Añade el bloqueo exclusivo de la fila del rol, la búsqueda de hijos vigentes y el conteo de usuarios asignados (§5) |
 | `application` | `DeleteRoleService` | Nuevo | Caso de uso. `@Transactional`, toma el bloqueo, verifica hijos y usuarios, y emite la auditoría |
-| `application` | `RoleAssignmentCounter` | Sin cambios | Puerto hacia `USR` definido en `RF-SP-003`. Aquí es donde su tipo de retorno importa (§5) |
 | `application` | `RoleDeletionAuditor` | Sin cambios | Puerto definido en `RF-SP-006` |
 | `application` | `RolePermissionCacheInvalidator` | Sin cambios | Puerto definido en `RF-SP-005`. El rol eliminado deja de conceder, y su entrada en la caché queda obsoleta (§8) |
 | `infrastructure` | `JpaRoleRepository` | Modificado | Implementa el bloqueo exclusivo sobre la fila |
@@ -75,13 +80,10 @@ Sí hay un ajuste **fuera** de este requerimiento: `architecture.md` §6.6.3 rel
 | `409` | El rol tiene roles hijos vigentes (`EX-002`) | `RN-SEG-008` |
 | `409` | El rol tiene usuarios asignados (`EX-003`) | `RN-SEG-008` |
 | `500` | Fallo no controlado | `ERR-500` |
-| `503` | No se pudo determinar si tiene usuarios (§5) | `INT-001` |
 
 `EX-006` se añadió a `spec.md` el 21-08-2026, al aprobar este plan: la especificación no declaraba la excepción del rol inexistente y este documento la referenciaba con `EX-004`, que es el rol de sistema o el rol raíz —el mismo código que la fila de `409`— (Art. I.7).
 
 Los dos `403` son distintos y no deben fusionarse: el primero lo produce la capa de seguridad compartida antes de entrar al caso de uso; el segundo, el caso de uso con el rol ya cargado.
-
-`INT-001` pertenece a la serie de fallos de integración que `architecture.md` §7.3 abrió el 21-08-2026 y que estrena `RF-SP-003`. Allí acompaña a una respuesta degradada con `200`; aquí, a un rechazo con `503`, porque una eliminación no puede degradarse (§5).
 
 Los cuerpos de `409` por `RN-SEG-008` deben decir **cuántos** y **cuáles**: los roles hijos por su código, y los usuarios por su número. Sin ese detalle el actor no sabe si le faltan dos reasignaciones o doscientas.
 
@@ -94,27 +96,33 @@ Los cuerpos de `409` por `RN-SEG-008` deben decir **cuántos** y **cuáles**: lo
 5. Sin roles hijos vigentes.
 6. Sin usuarios asignados.
 
-## 5. Autorización y coordinación con `USR`
+## 5. Autorización y serialización
 
 | Endpoint | Permiso requerido |
 |---|---|
 | `POST /api/v1/roles/{id}/deletion` | `roles:delete` |
 
-**El bloqueo de fila** resuelve la carrera entre eliminar y asignar. La eliminación toma un bloqueo exclusivo sobre la fila de `roles`; la asignación en `USR` debe tomar uno compartido sobre la misma fila antes de insertar en `user_roles`. Así ambas se serializan sobre ese registro y sobre nada más.
+**El bloqueo de fila** resuelve la carrera entre eliminar un rol y asignárselo a alguien. La eliminación toma un bloqueo exclusivo sobre la fila de `roles` (`SELECT … FOR UPDATE`); la asignación de `RF-SP-030` debe tomar uno compartido sobre esa misma fila (`FOR SHARE`) antes de insertar en `user_roles`. Así ambas se serializan sobre ese registro y sobre nada más: dos asignaciones a roles distintos no se estorban, y dos asignaciones al mismo rol tampoco, porque comparten un bloqueo compartido.
 
-Es un contrato que `SP` **publica y `USR` debe respetar**, y no puede garantizarse desde aquí. Debe quedar escrito en la interfaz que `SP` expone, junto al conteo de `RF-SP-003`: una asignación que no tome el bloqueo puede insertar mientras la eliminación decide, y el rol quedaría eliminado con usuarios apuntando a él.
+Sin esa disciplina, la secuencia que rompe `RN-SEG-008` es corta: la eliminación cuenta cero usuarios, la asignación inserta una fila, la eliminación confirma. El rol queda borrado con alguien apuntando a él.
 
-**El conteo indisponible no es cero.** El puerto `RoleAssignmentCounter` de `RF-SP-003` devuelve `Known` o `Unavailable`, y este requerimiento es la razón por la que se diseñó así:
+**Es un contrato que `RF-SP-030` debe cumplir, y ahora sí es verificable.** Mientras los usuarios vivían en `USR`, `SP` solo podía publicarlo y confiar; con ambos requerimientos en el mismo módulo, la prueba concurrente de §11 lo ejercita de verdad, y una asignación que olvide el bloqueo hace fallar esa prueba en CI.
 
-| Respuesta de `USR` | Qué hace la eliminación |
+**El conteo de usuarios es una subconsulta, no una llamada externa.** Es la misma que fija `RF-SP-003` §4, con su misma semántica —usuarios distintos, en cualquier estado, sin los eliminados lógicamente—, y se ejecuta **dentro** de la transacción y **después** de tomar el bloqueo:
+
+```sql
+SELECT count(DISTINCT ur.user_id)
+  FROM user_roles ur
+  JOIN users u ON u.id = ur.user_id AND u.deleted_at IS NULL
+ WHERE ur.role_id = :id;
+```
+
+| Resultado | Qué hace la eliminación |
 |---|---|
-| `Known(0)` | Continúa |
-| `Known(n > 0)` | Rechaza con `409` |
-| `Unavailable(...)` | **Rechaza con `503`** |
+| `0` | Continúa |
+| `n > 0` | Rechaza con `409` e informa cuántos |
 
-Degradar aquí como hace `RF-SP-003` sería incorrecto: allí se devuelve una consulta incompleta, aquí se borraría un rol sin saber a quién afecta. Un `orElse(0L)` en este punto incumple `RN-SEG-008` sin que nada falle, y el tipo sellado existe precisamente para que ese descuido no compile.
-
-**Mientras `USR` no exista**, el adaptador nulo responde `Unavailable(NOT_IMPLEMENTED)` y la eliminación **siempre se rechaza** con `503`. Es lo correcto —sin poder saber si un rol tiene usuarios, no se puede eliminar— y se aceptó de forma explícita el 21-08-2026 con su consecuencia declarada: **`RF-SP-009` queda implementado, probado y desplegado, pero inoperante hasta que exista `USR`**. Se prefiere a las dos alternativas: reordenar la implementación para construirlo después de `USR` rompería el orden aprobado en `requirements/sp.md` §6.1 por un requerimiento que sí puede escribirse ya; y permitir el borrado cuando el adaptador nulo está activo incumpliría `RN-SEG-008` en cuanto `USR` existiera y alguien desplegara mal la configuración, que es justo el fallo que `nexus.usr.assignment-counter.required` (`RF-SP-003` §10) está puesto para evitar.
+**No hay tercer caso.** El borrador de este plan tenía uno —`Unavailable`, que rechazaba con `503`— porque el dato venía de otro módulo que podía no responder o no existir todavía. Con `user_roles` en el mismo esquema y en la misma transacción, «no se pudo saber» deja de ser un estado posible: la subconsulta devuelve un número o la transacción entera falla y no se borra nada. Desaparece por tanto el `503`, y con él la consecuencia que se había aceptado por la mañana —que ninguna eliminación pudiera completarse hasta que existiera `USR`—.
 
 **`RN-SEG-011`** se verifica contra los **roles vigentes del actor leídos de la base de datos**, no contra los códigos del token, igual que en `RF-SP-004` a `RF-SP-008` (`RF-SP-004` §5).
 
@@ -125,7 +133,6 @@ Degradar aquí como hace `RF-SP-003` sería incorrecto: allí se devuelve una co
 | Eliminación | `audit_deletion_log` | `deletion_type = LOGICAL`, `reason` declarado por el actor, estado conservado con el rol completo: código, nombre, descripción, clasificación, rol padre, estado y sus permisos declarados |
 | Eliminación | `audit_security_log` | Eliminación de rol, severidad **Alta** |
 | Rechazo por `EX-002` a `EX-006` | `audit_error_log` | `resource = 'roles'`, `operation` con método y ruta, `error_code` de la tabla de §4, `error_type = 'BUSINESS_RULE'`, `http_status`, `severity` y `message` saneado. Severidad **Alta** para `RN-SEG-008` y `RN-SEG-011`; **Media** para el resto |
-| Rechazo `503` por conteo indisponible | `audit_error_log` | `error_code = 'INT-001'`, `error_type = 'INTEGRATION'`, `http_status = 503`, `severity = 'ALTA'`. **Solo cuando `USR` existe y falla**: que no esté construido es un hecho de despliegue y no se audita, con el mismo criterio de `RF-SP-003` §6 |
 | Rechazo `400` de formato | — | **No se audita** (`architecture.md` §6.6.4). El motivo ausente entra aquí: es validación, no regla incumplida |
 | Denegación `403` por `AUTH-002` | `audit_security_log` | `event_type` de denegación de autorización, `severity = 'MEDIA'`, `outcome = 'FAILURE'`. Lo emite la capa de seguridad compartida |
 | Fallo no controlado `5xx` | `audit_error_log` | `error_type = 'UNHANDLED'`, `severity = 'ALTA'` |
@@ -140,15 +147,15 @@ Pasa por el mismo enmascaramiento que cualquier contenido persistido (Art. XV.5)
 |---|---|
 | Bloqueo de la fila del rol | Adquirido dentro de la transacción, liberado al terminarla |
 | Marca de borrado y su evento en `audit_deletion_log` | **La misma** (Art. V.14) |
-| Consulta a `USR` | **Fuera** de la transacción de escritura |
+| Conteo de usuarios asignados | **Dentro** de la transacción, después de tomar el bloqueo (§5) |
 | Invalidación de la caché de permisos | Tras el commit |
 | Evento en `audit_security_log` | **Independiente**, `REQUIRES_NEW`, enganchada al commit |
 
-Hay una tensión que conviene declarar: el conteo de usuarios se consulta fuera de la transacción para que un fallo de `USR` no la marque para revertir, pero el bloqueo debe estar tomado antes de decidir. La secuencia es adquirir el bloqueo, consultar a `USR`, y confirmar o revertir según la respuesta. El bloqueo se mantiene durante la llamada externa, de modo que **una indisponibilidad de `USR` retiene la fila** el tiempo del intento. Es aceptable porque el bloqueo afecta a una sola fila y la operación es rara, pero exige un tiempo de espera acotado en la llamada.
+El conteo va dentro de la transacción y después del bloqueo, que es lo que lo hace correcto: entre contar y confirmar no puede colarse una asignación, porque quien asigne tendrá que esperar el bloqueo compartido sobre la misma fila. El borrador sacaba el conteo fuera de la transacción para que un fallo del módulo de usuarios no la marcara para revertir; sin llamada externa, esa precaución perdió su objeto y su coste —una ventana entre contar y escribir— dejó de estar justificado.
 
 ## 8. Impacto sobre otros módulos
 
-- **`USR`** debe tomar el bloqueo compartido al asignar un rol. Es el contrato que hace correcta esta operación y no puede imponerse desde `SP`.
+- **`RF-SP-030`** debe tomar el bloqueo compartido al asignar un rol. Es el contrato que hace correcta esta operación, y con ambos requerimientos en el mismo módulo **es verificable con una prueba concurrente** (§11), no solo declarable.
 - **`shared/security`**: se invalida la resolución del rol eliminado, que deja de conceder.
 - **`RF-SP-001`** puede reutilizar el código y el nombre liberados, gracias a los índices únicos parciales. Es la contrapartida deliberada de no tener restauración.
 
@@ -160,7 +167,7 @@ Hay una tensión que conviene declarar: el conteo de usuarios se consulta fuera 
 | Tratar el conteo indisponible como cero | Elimina un rol sin saber a quién afecta, incumpliendo `RN-SEG-008` sin que nada falle. El tipo sellado del puerto existe para impedir precisamente este descuido |
 | Ignorar a los usuarios inactivos | Reactivar a esa persona la dejaría con un rol inexistente. Mismo criterio que en `RF-SP-006` con los roles hijos inactivos |
 | Eliminación física | Perdería el estado del rol para la auditoría, y las filas de `audit_change_log` anteriores quedarían apuntando a un identificador irresoluble |
-| Reasignar automáticamente los usuarios a otro rol | Concede accesos que nadie decidió conceder. Reasignar es una operación de `USR` y debe hacerse antes, de forma explícita |
+| Reasignar automáticamente los usuarios a otro rol | Concede accesos que nadie decidió conceder. Reasignar es una operación de `RF-SP-030` y `RF-SP-031`, y debe hacerse antes, de forma explícita |
 | Aceptar la carrera y detectarla luego | Dejaría usuarios apuntando a un rol eliminado hasta que una revisión lo detecte, y alguien tendría que decidir entonces qué hacer con ellos |
 | Reutilizar el bloqueo global de `RF-SP-008` | Serializaría también las asignaciones de rol a usuario, que son mucho más frecuentes que las reubicaciones y no tienen por qué esperarse entre sí |
 | Usar `DELETE` con el motivo en el cuerpo | RFC 9110 no define semántica para el cuerpo de un `DELETE` y un intermediario puede descartarlo sin avisar; el actor recibiría entonces un rechazo por motivo ausente que él sí escribió, y no tendría forma de corregirlo. Pasarlo por *query string* lo dejaría escrito en los logs de acceso |
@@ -170,11 +177,9 @@ Hay una tensión que conviene declarar: el conteo de usuarios se consulta fuera 
 
 | Riesgo | Impacto | Mitigación |
 |---|---|---|
-| `USR` asigna el rol sin tomar el bloqueo compartido | **Alto** | Contrato publicado junto a la interfaz de conteo. No es verificable desde `SP`, de modo que debe probarse al implementar `USR` |
-| El conteo indisponible se trata como cero | **Crítico** | El tipo sellado obliga a distinguirlo. `CA-SP-067` debe incluir un caso con `USR` sin responder |
-| El bloqueo retiene la fila durante una indisponibilidad de `USR` | Medio | Tiempo de espera acotado en la llamada externa |
+| `RF-SP-030` asigna el rol sin tomar el bloqueo compartido | **Alto** | Contrato declarado en §5 y **verificado** por la prueba concurrente de §11, que falla en CI si esa asignación no lo toma |
+| El conteo se ejecuta fuera de la transacción o antes del bloqueo | **Crítico** | Abriría la ventana que el bloqueo existe para cerrar. `CA-SP-165` lo detecta: es una prueba con dos transacciones reales compitiendo |
 | ~~El cuerpo del `DELETE` lo descarta un intermediario~~ | — | **Resuelto el 21-08-2026:** el contrato pasó a `POST /roles/{id}/deletion` (§4). Sin cuerpo en `DELETE` no hay ambigüedad de transporte ni prueba pendiente contra el proxy |
-| Ninguna eliminación puede completarse hasta que exista `USR` | Medio | **Aceptado el 21-08-2026** con su consecuencia declarada (§5): el endpoint responde `503` a toda petición mientras el adaptador nulo esté activo. Es preferible a borrar sin saber a quién afecta. El frontend debe mostrar ese `503` como «no disponible todavía», no como fallo del sistema |
 | El estado conservado omite los permisos declarados | Medio | Sin ellos no puede responderse qué concedía el rol eliminado, que es la pregunta habitual en una revisión de accesos |
 
 ## 11. Estrategia de prueba
@@ -184,7 +189,7 @@ Hay una tensión que conviene declarar: el conteo de usuarios se consulta fuera 
 | `CA-SP-064` | Integración | `deleted_at` queda informado y el rol desaparece de las consultas |
 | `CA-SP-065` | API | Motivo ausente o en blanco devuelve `400` **sin haber tocado la fila** |
 | `CA-SP-066` | Integración | Con un rol hijo vigente, devuelve `409` citándolo |
-| `CA-SP-067` | Integración | Con usuarios asignados devuelve `409`; con `USR` indisponible devuelve `503`, **nunca** elimina |
+| `CA-SP-067` | Integración | Con usuarios asignados devuelve `409` e informa cuántos; con un usuario bloqueado también, y con uno eliminado lógicamente no |
 | `CA-SP-068` | API | Rol raíz y rol de sistema devuelven `409` |
 | `CA-SP-069` | Integración | Tras eliminar, `RF-SP-001` admite crear un rol con el mismo código y nombre |
 | `CA-SP-070` | Integración | El rol no aparece en el listado por defecto |
@@ -195,4 +200,4 @@ Hay una tensión que conviene declarar: el conteo de usuarios se consulta fuera 
 | `CA-SP-165` | **Integración concurrente** | Eliminar y asignar a la vez: una de las dos falla y no queda usuario apuntando a un rol eliminado |
 | `CA-SP-176` | API | Eliminar un rol inexistente o ya eliminado devuelve `404` con `EX-006`, distinto del `409` con `RN-SEG-012` de un rol de sistema |
 
-`CA-SP-067` es la prueba que protege el invariante más importante de este requerimiento. Debe incluir explícitamente el caso de `USR` indisponible, porque es el único en el que una implementación descuidada elimina un rol que sí tenía usuarios.
+`CA-SP-067` y `CA-SP-165` son las dos pruebas que protegen el invariante de este requerimiento. La primera fija la semántica del conteo —quién cuenta y quién no—; la segunda comprueba que el bloqueo cierra de verdad la carrera, con dos transacciones compitiendo y no con dos llamadas seguidas.

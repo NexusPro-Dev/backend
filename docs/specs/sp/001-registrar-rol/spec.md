@@ -40,7 +40,7 @@ El rol **nace siempre activo**: el alta no recibe el estado. Desactivarlo es una
 ### 4.2 No incluye
 
 - Modificar los permisos de un rol ya creado → `RF-SP-005` y `RF-SP-006`.
-- Asignar el rol a usuarios → módulo `USR`.
+- Asignar el rol a usuarios → `RF-SP-030`.
 - Crear permisos: el catálogo solo se modifica por migración (`RN-SP-004`).
 
 ## 5. Reglas de negocio aplicables

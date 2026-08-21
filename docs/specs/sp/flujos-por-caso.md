@@ -98,7 +98,7 @@ flowchart TD
     A --> V1{"¿el rol existe y<br/>no está eliminado?"}
     V1 -->|no| E1["EX-001 · el rol no existe"]
     V1 -->|sí| P1["Recupera el rol y sus<br/>permisos declarados"]
-    P1 --> P2["Recupera el rol padre, cuenta sus hijos<br/>directos y consulta a USR cuántos<br/>usuarios lo tienen asignado"]
+    P1 --> P2["Recupera el rol padre y cuenta sus hijos<br/>directos y los usuarios que lo<br/>tienen asignado"]
     P2 --> FIN(["Devuelve el detalle completo"])
     P1 -.-> N1["FA-001 · sin permisos declarados<br/>lista vacía · estado válido"]
     P2 -.-> N2["FA-002 · rol raíz<br/>rol padre vacío"]

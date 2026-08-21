@@ -63,7 +63,7 @@ CONSTRAINT ck_audit_error_log_status CHECK (http_status NOT IN (400, 401, 403, 4
 Tres consecuencias:
 
 - **`CA-SP-100` y `CA-SP-101` dejan de ser criterios que solo se pueden comprobar por ausencia.** Un `403` escrito por descuido en el registro de errores ya no es un dato incorrecto que nadie nota: es un `INSERT` que falla, en el momento y en el lugar del error.
-- **Los estados admitidos no se enumeran a propósito.** Se admite todo lo que no está prohibido: `409` y `422` de regla de negocio, `5xx` no controlados, y el `200` o el `503` de un fallo de integración, según se degrade la respuesta (`RF-SP-003` §6) o se rechace la operación (`RF-SP-009` §4). Una lista blanca obligaría a alterar la restricción cada vez que un requerimiento estrenara un estado legítimo.
+- **Los estados admitidos no se enumeran a propósito.** Se admite todo lo que no está prohibido: `409` y `422` de regla de negocio, `5xx` no controlados, y los de un eventual fallo de integración con un sistema externo, que puede acompañar tanto a una respuesta degradada como a un rechazo (`architecture.md` §7.3). Una lista blanca obligaría a alterar la restricción cada vez que un requerimiento estrenara un estado legítimo.
 - **Tenía que declararse ahora.** Va en `V4`, la migración que crea la tabla, no en esta: añadir una restricción a una tabla en uso obliga a validar todas las filas existentes y a decidir qué hacer con las que no cumplen. Los planes de `RF-SP-001` y `architecture.md` §6.6.4 quedaron actualizados el 21-08-2026.
 
 **Lo que la restricción no cubre.** `CA-SP-101` menciona también los recursos inexistentes; el `404` está en la lista, así que queda cubierto. Pero un rechazo de negocio que devolviera `409` con un mensaje de validación de formato sí cabría en la tabla: la restricción acota por estado, no por intención. Esa parte sigue siendo convención de quien escribe, y se verifica de extremo a extremo en §11.
@@ -257,7 +257,7 @@ Casos límite de `spec.md` §13 y decisiones de este plan que exigen prueba prop
 
 | Caso | Nivel | Qué verifica |
 |---|---|---|
-| Estados admitidos | Integración | `ck_audit_error_log_status` **acepta** `200`, `409`, `422`, `500` y `503`. Sin esta prueba, una restricción demasiado estrecha se descubriría en producción al degradar una consulta de `RF-SP-003` |
+| Estados admitidos | Integración | `ck_audit_error_log_status` **acepta** `200`, `409`, `422`, `500` y `503`. Sin esta prueba, una restricción demasiado estrecha se descubriría en producción, al rechazar el registro de un fallo legítimo |
 | Fallo sin actor | Integración | Un evento emitido por un proceso interno devuelve `actorId` nulo, con el campo presente y no omitido |
 | Fallo sin registro concreto | Integración | Un evento con `entityId` nulo se devuelve sin omitir el campo |
 | Ráfaga de fallos idénticos | Integración | Mil eventos con el mismo `errorCode` se devuelven como mil filas, no agrupadas ni con contador, y conservan sus instantes distintos |

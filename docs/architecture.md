@@ -226,7 +226,7 @@ Con esa restricción, una fila sin IP significa inequívocamente «no vino de la
 
 | Columna | Tipo | Descripción |
 |---|---|---|
-| `module` | `varchar` | Código del módulo (`SP`, `USR`, …) |
+| `module` | `varchar` | Código del módulo que originó el evento (`SP`, y los que se incorporen) |
 | `entity` | `varchar` | Nombre lógico de la entidad (`roles`, `users`) |
 | `entity_id` | `uuid` | Identificador del registro afectado |
 | `action` | `varchar` | `CREATE` o `UPDATE`, con `CHECK` sobre el dominio cerrado |
@@ -414,13 +414,15 @@ Los mensajes nunca exponen trazas, consultas SQL, rutas de archivos ni versiones
 | `INT-nnn` | **Fallo de integración entre módulos**: un módulo no responde o no está disponible. Se corresponde con `error_type = 'INTEGRATION'` en `audit_error_log` (§6.6.4) | `INT-001` |
 | `ERR-nnn` | Fallo no controlado | `ERR-500` |
 
-La serie `INT-nnn` se abre el 21-08-2026 al aprobar el plan de `RF-SP-003`, que la estrena:
+La serie `INT-nnn` se abre el 21-08-2026, al completar esta tabla: `error_type = 'INTEGRATION'` existía en el `CHECK` de `audit_error_log` desde el principio (§6.6.4) sin ningún código que lo acompañara.
 
 | Código | Significado |
 |---|---|
-| `INT-001` | El módulo consultado no está disponible y la respuesta no puede completarse con su dato |
+| `INT-001` | El sistema consultado no está disponible y la respuesta no puede completarse con su dato |
 
-Un `INT-nnn` puede quedar registrado en `audit_error_log` con `http_status = 200` cuando la respuesta se degradó en lugar de fallar: esa columna registra lo que el cliente recibió, no la gravedad del fallo interno.
+**Todavía no tiene consumidor.** El primero previsto era la degradación del detalle de rol cuando el módulo de usuarios no respondía; al absorberse los usuarios en `SP` (`modules.md` v0.9.0) esa integración dejó de existir. La serie se conserva porque el primer sistema externo real la necesitará, y porque tenerla declarada evita que ese requerimiento improvise un código propio.
+
+Un `INT-nnn` puede quedar registrado con un `http_status` de éxito cuando la respuesta se degradó en lugar de fallar: esa columna registra lo que el cliente recibió, no la gravedad del fallo interno.
 
 ### 7.4 Paginación y ordenamiento
 

@@ -239,7 +239,7 @@ Un matiz que suele darse por sentado y es falso: **envolver el conteo y la lectu
 | `shared/config` | Declara `nexus.pagination.default-size: 20` y `nexus.pagination.max-size: 100`, un solo lugar para todo el sistema (`architecture.md` §7.4). **No se usa `spring.data.web.pageable.max-page-size`**: ese ajuste **recorta en silencio** el tamaño excedido, que es justo lo que §7.4 prohíbe y lo que `CA-SP-014` verifica que no ocurre |
 | `shared/persistence` | La función `f_unaccent` es un recurso compartido y la crea `V1__create_shared_functions.sql` (`RF-SP-010`), no esta migración. La reutilizan la búsqueda del catálogo de permisos y `ix_countries_busqueda` (`RF-SP-021`). Ningún requerimiento posterior debe volver a crearla, y quien la modifique debe reindexar todo lo que dependa de ella |
 | `SP` (resto del módulo) | `RF-SP-003` construye el detalle sobre este listado y es quien aporta permisos y número de usuarios. `RF-SP-011` a `RF-SP-014` heredan la envoltura y la lista blanca de ordenamiento, pero **no deben heredar el conteo exacto sin revisarlo** (§4) |
-| `USR` | Consume el catálogo de roles por la interfaz publicada de `SP`, nunca por sus tablas (`architecture.md` §5.3). Este endpoint es el que alimenta la selección de rol al asignarlo a un usuario |
+| Usuarios (`RF-SP-030`) | Este endpoint es el que alimenta la selección de rol al asignarlo a una persona |
 
 ## 9. Alternativas consideradas
 

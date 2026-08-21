@@ -2,7 +2,7 @@
 
 | Campo | Valor |
 |---|---|
-| Versión | 0.1.0 |
+| Versión | 0.5.0 |
 | Estado | **Borrador** |
 | Responsable | Bonilla Diaz William Steven |
 | Fecha de creación | 21-08-2026 |
@@ -22,7 +22,7 @@
 
 ## 1. Control de acceso
 
-El núcleo del módulo `SP`, más las tablas de `USR` que lo consumen. Es la única zona del modelo con relaciones densas.
+El núcleo del módulo `SP`, incluidas las tablas de usuarios que lo consumen. Es la única zona del modelo con relaciones densas.
 
 ```mermaid
 erDiagram
@@ -65,13 +65,16 @@ erDiagram
     }
 
     users {
-        uuid id PK "módulo USR"
-        varchar username UK "—"
-        varchar email UK "—"
+        uuid id PK "usuarios"
+        varchar username UK "inmutable · sin @ · único incluidos los eliminados"
+        varchar email UK "corregible · único incluidos los eliminados"
+        varchar first_name "—"
+        varchar last_name "—"
         varchar password_hash "Argon2id"
-        varchar status "CHECK sobre dominio cerrado"
+        boolean must_change_password "default false · lo fijan RF-SP-024 y RF-SP-038"
+        varchar status "CHECK sobre dominio cerrado · PENDIENTE sin uso"
         int failed_attempts "control de bloqueo"
-        timestamptz locked_until "NULL"
+        timestamptz locked_until "NULL · nulo también en el bloqueo manual, que no expira"
         timestamptz last_login_at "NULL"
     }
 
@@ -87,16 +90,19 @@ erDiagram
         varchar token_hash UK "nunca el valor en claro"
         timestamptz expires_at "—"
         timestamptz revoked_at "NULL"
+        varchar revoked_reason "NULL · ROTACION CIERRE ACCESO_RETIRADO · solo ROTACION alerta"
         uuid replaced_by_id FK "NULL · rotación"
         inet ip "—"
         text user_agent "—"
     }
 ```
 
-Tres decisiones que el dibujo no explica solo:
+Cinco decisiones que el dibujo no explica solo:
 
 - **`parent_role_id` hace dos trabajos**: acota los privilegios del hijo y expresa el orden de mando comercial (`RN-SP-011`). La consecuencia es permanente: un rol `VENDEDOR` nunca podrá tener un permiso que su superior no tenga, porque `RN-SEG-003` lo rechazaría.
 - **La unicidad de `roles` es parcial**, no total: `WHERE deleted_at IS NULL`. Una restricción única corriente bloquearía para siempre el nombre de un rol borrado.
+- **La de `users` es justo la contraria: total.** `username` y `email` son únicos entre **todos** los usuarios, incluidos los eliminados (`RN-SP-016`). Reutilizarlos permitiría que la actividad de dos personas distintas quedara bajo la misma etiqueta en la auditoría. La asimetría con `roles` es deliberada: un rol es una etiqueta, un usuario es una persona.
+- **`username` y `email` sirven ambos para iniciar sesión**, y lo que impide que se confundan es que `username` no admite el carácter `@` (`RF-SP-024`). Sin esa restricción, las dos columnas necesitarían compartir un espacio de unicidad común.
 - **`role_permissions` y `user_roles` no llevan clave sustituta.** La unicidad del par es la restricción que importa, y una columna sin significado no aportaría nada.
 
 ---
@@ -134,15 +140,18 @@ erDiagram
     countries {
         uuid id PK "v7"
         char code UK "2 · ISO 3166-1 alfa-2"
-        varchar name "100"
+        varchar name "100 · UK funcional sobre f_unaccent(lower(name))"
         boolean is_active "default true · lo cambia RF-SP-022"
         timestamptz created_at "now"
+        timestamptz updated_at "now · lo mueve RF-SP-022"
     }
 ```
 
 - **`memberships` es una lista, no un árbol.** El índice único sobre `parent_membership_id` es lo que lo garantiza: sin él la cadena podría bifurcarse y el orden dejaría de estar definido.
 - **`currencies.is_default`** exige un índice único parcial: exactamente una fila en `true`, declarado en el esquema y no solo en el dominio (Art. V.6).
-- Ninguna de las tres lleva `updated_at` completo ni borrado lógico. `memberships` no tiene **ninguna** salida —ni baja ni indicador de activo— y `RN-SP-008` lo justifica: desactivar un eslabón dejaría un hueco en un orden lineal.
+- **`countries` sí lleva `updated_at`**, incorporado el 21-08-2026 al aprobar el `plan.md` de `RF-SP-020`: el Art. V.7 lo obliga y `RF-SP-022` mueve la fila. `currencies` lo necesitará por el mismo motivo cuando se escriba el plan de `RF-SP-023`. Ninguna de las tres lleva borrado lógico.
+- **La unicidad del nombre de `countries` es funcional**, sobre `f_unaccent(lower(name))` y no sobre `name` literal, porque `RN-SP-009` no admite edición y un `Panamá`/`Panama` duplicado sería permanente. Es la asimetría deliberada con `uq_roles_name`.
+- `memberships` no tiene **ninguna** salida —ni baja ni indicador de activo— y `RN-SP-008` lo justifica: desactivar un eslabón dejaría un hueco en un orden lineal.
 
 ---
 
@@ -168,7 +177,7 @@ erDiagram
         uuid correlation_id "núcleo · NULL"
         inet ip_address "núcleo · NULL"
         text user_agent "núcleo · NULL"
-        varchar module "SP USR"
+        varchar module "SP"
         varchar entity "roles users"
         uuid entity_id "registro afectado"
         varchar action "CREATE UPDATE · CHECK"
@@ -257,7 +266,7 @@ flowchart TB
         B4["audit_security_log"]
     end
 
-    subgraph USR["Módulo USR · sin especificar"]
+    subgraph USRS["Usuarios · RF-SP-024 a RF-SP-033"]
         direction LR
         C1["users"]
         C2["user_roles"]
@@ -272,7 +281,7 @@ flowchart TB
     A1 --> C2
     C1 --> C3
     SP -.->|"emiten eventos"| AUD
-    USR -.->|"emiten eventos"| AUD
+    USRS -.->|"emiten eventos"| AUD
     AUD -.->|"correlation_id"| OBS
 
     A4 -.->|"¿quién apunta aquí?"| Q1["∅"]
@@ -291,7 +300,7 @@ flowchart TB
 
 | # | Punto | Dónde se resuelve |
 |---|---|---|
-| 1 | **`memberships` no tiene vínculo con nada.** `sp.md` §10.2 dice que solo los roles `CONSUMIDOR` pueden asociarse a una membresía, pero ninguna tabla tiene la columna que exprese esa asociación. Falta decidir dónde vive: ¿`users.membership_id`, una tabla puente, o una columna en `roles`? | `requirements/sp.md` §10, o el módulo `USR` |
+| 1 | **`memberships` no tiene vínculo con nada.** `sp.md` §10.2 dice que solo los roles `CONSUMIDOR` pueden asociarse a una membresía, pero ninguna tabla tiene la columna que exprese esa asociación. Falta decidir dónde vive: ¿`users.membership_id`, una tabla puente, o una columna en `roles`? | `requirements/sp.md` §10, junto con las entidades de usuario |
 | 2 | **`countries` y `currencies` son islas.** Existen sin una sola clave foránea entrante. Su razón de ser es futura —importes con moneda, direcciones con país—, pero conviene dejar escrito quién los referenciará. | `modules.md` §6, alcance por inventariar |
 | 3 | **`request_log` no tiene esquema.** Las cuatro tablas de auditoría lo referencian por `correlation_id` y `RF-SP-011` lo menciona en su postcondición, pero no hay columnas descritas en ningún documento. | `architecture.md` §9 |
 | 4 | **`audit_*.actor_id` no declara clave foránea a `users`.** Está documentado como `uuid NULL` sin relación. Si es deliberado —para que eliminar un usuario no arrastre ni bloquee su auditoría— conviene decirlo; si no, falta la restricción. | `architecture.md` §6.6.1 |
@@ -305,3 +314,7 @@ flowchart TB
 | Versión | Fecha | Cambio | Responsable |
 |---|---|---|---|
 | 0.1.0 | 21-08-2026 | Creación inicial. Cuatro diagramas derivados de `requirements/sp.md` §10, `security.md` §9 y `architecture.md` §6.6, y seis puntos pendientes que el modelo deja a la vista. | Responsable técnico |
+| 0.2.0 | 21-08-2026 | Consecuencias de aprobar `RF-SP-024`. `users` incorpora `first_name`, `last_name` y `must_change_password`; se anota que `username` es inmutable y sin `@`, que ambos identificadores sirven para iniciar sesión, y que su unicidad es **total** —incluidos los eliminados—, al contrario que la de `roles`. | Responsable técnico |
+| 0.3.0 | 21-08-2026 | Consecuencias de aprobar `RF-SP-028`. `locked_until` queda nulo también en el bloqueo manual, que no expira y solo se levanta reactivando la cuenta. | Responsable técnico |
+| 0.4.0 | 21-08-2026 | Consecuencias de aprobar el `plan.md` de `RF-SP-020`. `countries` gana `updated_at` y su unicidad de nombre pasa a ser funcional sobre `f_unaccent(lower(name))`. | Responsable técnico |
+| 0.5.0 | 21-08-2026 | Consecuencias de aprobar `RF-SP-035`. `refresh_tokens` gana `revoked_reason`: solo la revocación por rotación indica robo, y sin ese dato cerrar sesión sería indistinguible de una reutilización. | Responsable técnico |

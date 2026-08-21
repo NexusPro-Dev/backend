@@ -36,7 +36,7 @@ Antes de insertar una membresía nueva hay que saber entre qué dos niveles va a
 ### 4.2 No incluye
 
 - Modificarla: las membresías son inmutables (`RN-SP-008`).
-- Las personas que la tienen → módulo `USR`.
+- Las personas que la tienen → `RF-SP-025`, filtrando por membresía.
 
 ## 5. Reglas de negocio aplicables
 

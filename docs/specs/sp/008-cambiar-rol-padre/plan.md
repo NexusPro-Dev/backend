@@ -61,7 +61,7 @@ Subrecurso propio, como el estado en `RF-SP-007`, y por la misma razón: sus reg
 { "parentRoleId": "018f3a2b-7c41-7000-9a3d-1f2e5b8c9d01" }
 ```
 
-**Respuesta `200`** — `RoleResponse`, definido en `RF-SP-001`, con el nuevo rol padre. No se devuelve `RoleDetailResponse`, que arrastraría una llamada a `USR` a un camino de escritura (`RF-SP-004` §4).
+**Respuesta `200`** — `RoleResponse`, definido en `RF-SP-001`, con el nuevo rol padre. No se devuelve `RoleDetailResponse`, que arrastraría sus dos subconsultas de conteo a un camino de escritura que no las necesita (`RF-SP-004` §4).
 
 **Errores**
 

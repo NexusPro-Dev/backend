@@ -5,7 +5,7 @@
 | Proyecto | NEXUS — Renovación de plataforma |
 | Empresa | FACTECH GROUP SAS |
 | Documento | `security.md` |
-| Versión | 0.10.0 |
+| Versión | 0.16.0 |
 | Estado | Borrador |
 | Responsable técnico | Bonilla Diaz William Steven |
 | Fecha de creación | 19-08-2026 |
@@ -46,9 +46,33 @@ Un usuario es la representación de una persona que accede al sistema. Los proce
 | Estado | Significado | ¿Puede autenticarse? |
 |---|---|---|
 | `ACTIVO` | Operativo | Sí |
-| `INACTIVO` | Deshabilitado administrativamente | No |
-| `BLOQUEADO` | Bloqueado por intentos fallidos | No, hasta que expire el bloqueo o un administrador lo libere |
+| `INACTIVO` | Decisión **organizativa**: la persona ya no debe operar | No |
+| `BLOQUEADO` | Respuesta de **seguridad**: hay sospecha sobre la cuenta | No, hasta que un actor la reactive o —si el bloqueo lo puso el sistema— expire |
 | `PENDIENTE` | Creado pero sin activar su credencial | No |
+
+!!! important "`INACTIVO` y `BLOQUEADO` no son lo mismo, y la diferencia no es el mecanismo"
+
+    Los dos impiden autenticarse y los dos revocan todas las sesiones de la persona (§5.5). Lo que los separa es **por qué** se retiró el acceso, y esa distinción se sostiene deliberadamente para que la auditoría y el filtro por estado de `RF-SP-025` signifiquen algo: una cuenta inactiva cuenta una historia de recursos humanos, una bloqueada cuenta una historia de seguridad.
+
+    `BLOQUEADO` tiene **dos orígenes**, fijado el 21-08-2026 al aprobar `RF-SP-028`:
+
+    - **Automático**, por intentos fallidos: lleva momento de expiración (`locked_until`) y se levanta solo.
+    - **Manual**, por decisión de un actor con `users:update`: **no lleva expiración** y solo se levanta reactivando la cuenta.
+
+    Retirar el acceso —por cualquiera de las dos vías— exige declarar un **motivo**, que se conserva en el detalle del evento de seguridad. Devolverlo no lo exige y no lo admite.
+
+!!! warning "`PENDIENTE` está declarado y hoy no se usa"
+
+    Ningún requerimiento produce ese estado. `RF-SP-024` resolvió el 21-08-2026 que **el actor fija la contraseña inicial y la cuenta nace `ACTIVO`**, porque el camino de `PENDIENTE` exige un canal de correo y un flujo de activación que no existen en ningún requerimiento. `RF-SP-028` no lo admite en el dominio de su operación.
+
+    Se conserva en el catálogo porque el flujo de activación acabará existiendo. Hasta entonces, la ventana en que un administrador conoce la credencial de otra persona se acota con el **indicador de cambio obligatorio de contraseña** (§3.2), no con este estado.
+
+**Identidad de la persona.** Cada usuario lleva dos identidades y con cualquiera de las dos inicia sesión (`RF-SP-024`):
+
+- **`username`** — inmutable, único entre **todos** los usuarios incluidos los eliminados, y **no admite el carácter `@`**. Es el dato que la auditoría referencia, y por eso no cambia nunca.
+- **`email`** — único en las mismas condiciones, pero **sí corregible** (`RF-SP-027`). Justamente porque cambia no puede ser la única identidad.
+
+La prohibición del `@` en `username` es lo que permite que `RF-SP-034` acepte ambos sin ambigüedad: ningún nombre de usuario puede parecerse a un correo, de modo que las dos columnas no necesitan compartir un espacio de unicidad común.
 
 Un usuario **NO DEBE** eliminarse físicamente: se desactiva (Art. V.10). Eliminar el registro rompería la trazabilidad de todo lo que esa persona hizo: los cuatro registros de auditoría referencian al actor por su identificador, y ese identificador debe seguir resolviendo a un usuario.
 
@@ -61,7 +85,15 @@ Un usuario **NO DEBE** eliminarse físicamente: se desactiva (Art. V.10). Elimin
 
 **Política mínima de contraseña:** longitud mínima declarada en configuración, verificación contra una lista de contraseñas comunes, y prohibición de reutilizar la contraseña vigente. Reglas adicionales se definirán en la especificación del módulo de usuarios.
 
-**Bloqueo por intentos fallidos:** tras N intentos fallidos consecutivos (N configurable), la cuenta pasa a `BLOQUEADO` por un tiempo creciente. Cada intento fallido se audita.
+**Cambio obligatorio de contraseña.** La cuenta lleva un indicador (`must_change_password`) que se activa cuando **alguien que no es su titular fija la credencial**: al registrarla (`RF-SP-024`) y al restablecerla (`RF-SP-038`). Mientras esté activo, `RF-SP-034` **autentica y advierte** —no rechaza, porque la persona necesita una sesión para poder cambiarla— y el resto de endpoints se le niegan hasta que ejecute `RF-SP-037`, que es quien limpia el indicador.
+
+Su razón de ser es acotar a un solo inicio de sesión la ventana en que dos personas conocen la misma credencial. Sin él, la auditoría no puede atribuir con certeza lo que ocurra en esa cuenta.
+
+**Bloqueo por intentos fallidos:** tras **cinco** intentos fallidos consecutivos —umbral configurable, fijado el 21-08-2026 al aprobar `RF-SP-034`—, la cuenta pasa a `BLOQUEADO` por un tiempo **creciente y con techo declarado**. Cada intento fallido se audita.
+
+El **techo no es opcional**: sin él, alguien puede mantener la cuenta de otra persona bloqueada indefinidamente provocando fallos a propósito, que es una denegación de servicio contra su titular.
+
+**Excepción al mensaje genérico.** El cuarto punto de esta sección exige que el error ante credenciales inválidas no revele si el usuario existe. La **cuenta bloqueada** se exceptúa de forma consciente y se identifica como tal: quien provocó un bloqueo por fuerza bruta ya sabe que la cuenta existe —fue él quien la bloqueó—, de modo que callarlo solo perjudica al titular legítimo. En el bloqueo **manual** el argumento es más fuerte todavía, porque esa cuenta no se desbloquea sola. La contraseña **no se comprueba** antes de rechazar por bloqueo, para no filtrar por tiempo de respuesta lo que el mensaje no dice.
 
 ---
 
@@ -147,9 +179,10 @@ audit:read-changes      audit:read-deletions
 audit:read-errors       audit:read-security
 
 users:read       users:create       users:update       users:delete
+users:assign-roles      users:assign-membership      users:reset-password
 ```
 
-**Cada módulo siembra sus propios permisos.** La tabla `permissions` pertenece a `SP` (`requirements/sp.md` §10), pero su contenido no: `V3__seed_permissions.sql` puebla los dieciséis permisos de `SP` —los tres primeros bloques— y `USR` sembrará `users:*` en su propia migración cuando se construya. Decidido el 21-08-2026 al aprobar el plan de `RF-SP-010`, que hasta entonces omitía `permissions:read`, `memberships:*`, `countries:*` y `currencies:*` de esta lista.
+**El catálogo completo lo siembra `SP` en una sola migración.** `V3__seed_permissions.sql` puebla los veintitrés permisos, incluidos los de `users:`. Al retirarse el módulo `USR` y absorber `SP` los usuarios (`modules.md` v0.9.0), no hay otro módulo que pudiera sembrarlos: la tabla y su contenido pertenecen al mismo sitio. Esta lista se completó el 21-08-2026 al aprobar el plan de `RF-SP-010`, que hasta entonces omitía `permissions:read`, `memberships:*`, `countries:*` y `currencies:*`.
 
 !!! warning "Obligación de toda migración que siembre permisos"
 
@@ -185,10 +218,13 @@ La vista transversal `v_audit_timeline` (`architecture.md` §6.6.6) exige los cu
 |---|---|
 | Se modifican los permisos de un rol | **Inmediato**, por invalidación de caché |
 | Se activa o desactiva un rol | **Inmediato**, por invalidación de caché |
-| Se asignan o quitan roles a un usuario | Hasta la expiración del token de acceso (máx. 15 min) |
+| Se **asignan** roles a un usuario | Hasta la expiración del token de acceso (máx. 15 min) |
+| Se **retiran** roles a un usuario | **Inmediato**: se revocan sus refresh tokens y se rechaza su token de acceso |
 | Se desactiva o bloquea un usuario | **Inmediato**: se revocan sus refresh tokens y se rechaza su token de acceso |
 
 El último caso es el crítico y por eso se resuelve de forma explícita: la desactivación de un usuario **DEBE** verificarse contra el estado vigente, no confiar únicamente en la expiración del token.
+
+**Asignar y retirar roles no son simétricos**, y la tabla lo refleja desde el 21-08-2026, al aprobarse `RF-SP-030` y `RF-SP-031`. Conceder puede esperar: la latencia solo retrasa un permiso nuevo, y forzar la renovación expulsaría a alguien de su sesión por haberle **dado** algo. Retirar no puede esperar: la ventana se abriría justo cuando alguien decidió que esa persona dejara de poder hacer algo, de modo que el retiro revoca sus sesiones igual que la desactivación. El coste asumido es que la persona vuelve a autenticarse cada vez que se le retira un rol.
 
 ---
 
@@ -244,12 +280,17 @@ sequenceDiagram
 
 Cada uso de un refresh token lo **revoca** y emite uno nuevo (rotación). Se conserva el vínculo con el token que lo reemplazó.
 
-Si llega un refresh token **ya revocado**, el sistema asume robo de credenciales: **revoca toda la familia de tokens de esa sesión**, obliga a autenticarse de nuevo y registra un evento de seguridad de severidad alta. Sin esta regla, la rotación no aporta protección real.
+Si llega un refresh token revocado **por rotación**, el sistema asume robo de credenciales: **revoca toda la familia de tokens de esa sesión**, obliga a autenticarse de nuevo y registra un evento de seguridad de severidad alta. Sin esta regla, la rotación no aporta protección real.
+
+**Cada revocación DEBE registrar su motivo**, y solo el motivo «rotación» dispara esa respuesta. Un token revocado por cierre de sesión, por retiro del acceso o por cambio de contraseña se rechaza con la respuesta genérica, **sin revocar familia y sin evento de severidad alta**: no hay dos copias en circulación, solo un cliente que reintenta con una credencial que el sistema retiró a propósito. Sin ese dato, cerrar sesión y reintentar sería indistinguible de un robo, y el registro de seguridad se llenaría de incidentes falsos hasta volverse inútil. Fijado el 21-08-2026 al aprobar `RF-SP-035`.
+
+**La familia tiene una duración máxima de sesión**, declarada en configuración y contada **desde el inicio de sesión**, no desde el último refresco. Al agotarse hay que autenticarse de nuevo aunque la cadena siga viva y sin revocar. Sin ese techo, una sesión que se refresque sola no caduca nunca y la contraseña deja de tener efecto sobre ella. Agotarlo **no es un incidente** y se registra como un cierre, no como un robo.
 
 ### 5.5 Reglas adicionales
 
 - Al desactivar, bloquear o cambiar la contraseña de un usuario, **DEBEN** revocarse todos sus refresh tokens.
 - El endpoint de login **DEBE** tener limitación de tasa por credencial y por origen.
+- El endpoint de **refresco DEBE** tener limitación de tasa por origen, más holgada que la del login: es igualmente público y consulta la base de datos en cada llamada, mientras que un cliente legítimo refresca cada quince minutos. Añadido el 21-08-2026 al aprobar `RF-SP-035`.
 - Los endpoints de autenticación **NO DEBEN** revelar si un usuario existe, ni en el mensaje ni en el tiempo de respuesta.
 - Los refresh tokens expirados o revocados se purgan según la política de retención.
 
@@ -263,7 +304,7 @@ Si llega un refresh token **ya revocado**, el sistema asume robo de credenciales
 | Ruta | Por qué es pública | Condición |
 |---|---|---|
 | `/actuator/health` | El Art. XV.10 lo exige sin autenticación de negocio, y sin detalle interno | Siempre |
-| `/api/v1/auth/login` y `/api/v1/auth/refresh` | No puede exigirse credencial para obtener una credencial | Siempre, cuando exista `USR` |
+| `/api/v1/auth/login` y `/api/v1/auth/refresh` | No puede exigirse credencial para obtener una credencial | Siempre. Los implementan `RF-SP-034` y `RF-SP-035` |
 | `/swagger-ui.html`, `/v3/api-docs` | Consultar el contrato durante el desarrollo | **Solo donde se habilite de forma explícita.** Por defecto no: el contrato describe cada endpoint y cada permiso del sistema |
 
     Cualquier ruta fuera de esa lista exige autenticación. La configuración de seguridad **no** debe traer formulario de acceso, sesión ni autenticación básica: sin credencial válida se responde `401`, no se redirige.
@@ -324,6 +365,7 @@ Los siguientes **DEBEN** registrarse en `audit_security_log` (Art. IV.7), ademá
 | Inicio de sesión exitoso | Informativa | `SUCCESS` |
 | Inicio de sesión fallido | Media | `FAILURE` |
 | Bloqueo de cuenta por intentos fallidos | Alta | `FAILURE` |
+| **Bloqueo manual de una cuenta** | Alta | `SUCCESS` |
 | Reutilización de un refresh token revocado | **Alta** | `FAILURE` |
 | Cierre de sesión | Informativa | `SUCCESS` |
 | Denegación de autorización (`403`) | Media | `FAILURE` |
@@ -332,6 +374,9 @@ Los siguientes **DEBEN** registrarse en `audit_security_log` (Art. IV.7), ademá
 | Asignación o retiro de roles a un usuario | **Alta** | `SUCCESS` |
 | Cambio de estado de un usuario | Alta | `SUCCESS` |
 | Cambio o restablecimiento de contraseña | Alta | `SUCCESS` |
+| **Cambio del correo de un usuario** | Alta | `SUCCESS` |
+
+El **cambio de correo** entró en este catálogo el 21-08-2026, al aprobarse `RF-SP-027`, y conviene entender por qué: desde `RF-SP-024` el correo es una de las dos formas de iniciar sesión, de modo que modificar el de una cuenta ajena altera **cómo esa persona entra en el sistema**. Es el patrón clásico de apropiación de cuentas, y por eso pesa distinto que corregirle el apellido, que **no** emite evento aquí.
 
 La denegación de autorización se registra **aquí y no en `audit_error_log`**: un `403` no es un fallo del sistema, es el sistema funcionando. Tratarlo como error contamina la búsqueda de fallos reales (`architecture.md` §6.6.4).
 
@@ -368,12 +413,12 @@ Estructura lógica. Las columnas exactas se fijan en la migración Flyway corres
 
 | Tabla | Propósito | Campos distintivos |
 |---|---|---|
-| `users` | Identidad y credencial | `username`, `email`, `password_hash`, `status`, `failed_attempts`, `locked_until`, `last_login_at` |
+| `users` | Identidad y credencial | `username`, `email`, `first_name`, `last_name`, `password_hash`, `must_change_password`, `status`, `failed_attempts`, `locked_until`, `last_login_at` |
 | `roles` | Agrupación de permisos | `code`, `name`, `description`, `parent_role_id`, `status`, `is_system` |
 | `permissions` | Catálogo de permisos | `code`, `resource`, `action`, `name`, `description` |
 | `role_permissions` | Permisos declarados por rol | `role_id`, `permission_id` |
 | `user_roles` | Roles asignados a usuarios | `user_id`, `role_id`, `created_at` |
-| `refresh_tokens` | Sesiones revocables | `user_id`, `token_hash`, `expires_at`, `revoked_at`, `replaced_by_id`, `ip`, `user_agent` |
+| `refresh_tokens` | Sesiones revocables | `user_id`, `token_hash`, `expires_at`, `revoked_at`, `revoked_reason`, `replaced_by_id`, `ip`, `user_agent`, más el origen de la familia para medir la duración máxima de sesión |
 | `audit_security_log` | Eventos de control de acceso (§8) | `event_type`, `severity`, `outcome`, `target_user_id`, `detail`, más el núcleo común (`actor_id`, `correlation_id`, `ip_address`, `user_agent`) |
 
 Todas siguen las convenciones de `architecture.md` §6: clave primaria `uuid` v7, marcas de tiempo de creación y modificación, y restricciones declaradas en el esquema. Ninguna almacena el actor del cambio: quién asignó un rol o quién modificó un permiso se responde desde `audit_change_log`, y quién eliminó un rol y por qué, desde `audit_deletion_log` (Art. V.7). Por eso los eventos de §8 no son opcionales — junto con esos dos registros son la única fuente de esa información.
@@ -470,3 +515,9 @@ RNF-SEG-002 merece atención: es una prueba que enumera los endpoints registrado
 | 0.8.0 | 20-08-2026 | D-17 se acota al catálogo de permisos: los roles de sistema quedaron definidos al aprobarse los requerimientos de `SP`. | Responsable técnico |
 | 0.9.0 | 20-08-2026 | RN-SEG-011 precisa su alcance: solo los roles asignados directamente, no los ancestros ni los descendientes. | Responsable técnico |
 | 0.10.0 | 21-08-2026 | D-20 queda cerrada al aprobarse `RF-SP-012`: el motivo de eliminación no se tipifica y sigue siendo texto libre, con búsqueda por texto sobre él. D-21 sigue abierta, y `RF-SP-014` documenta que no bloquea la consulta de auditoría de seguridad. | Responsable técnico |
+| 0.11.0 | 21-08-2026 | Consecuencias de aprobar `RF-SP-024`. §3.1 declara la doble identidad —`username` inmutable y sin `@`, `email` corregible, ambos válidos para iniciar sesión— y deja constancia de que `PENDIENTE` está declarado y sin usar. §3.2 incorpora el indicador de cambio obligatorio de contraseña, que acota la ventana en que un administrador conoce una credencial ajena. §9 añade `first_name`, `last_name` y `must_change_password` a `users`. | Responsable técnico |
+| 0.12.0 | 21-08-2026 | Consecuencias de aprobar `RF-SP-027`. §8.1 incorpora al catálogo cerrado el evento **cambio del correo de un usuario**, con severidad alta: desde `RF-SP-024` el correo es una vía de acceso, y modificar el de una cuenta ajena altera cómo esa persona entra. El cambio de nombre o apellidos no emite evento. | Responsable técnico |
+| 0.13.0 | 21-08-2026 | Consecuencias de aprobar `RF-SP-028`. §3.1 separa el significado de `INACTIVO` \(organizativo\) y `BLOQUEADO` \(seguridad\), y declara los dos orígenes del bloqueo: automático con expiración y **manual sin ella**. Retirar el acceso exige motivo, que se conserva en el detalle del evento de seguridad; devolverlo no lo admite. §8.1 incorpora el bloqueo manual al catálogo cerrado. | Responsable técnico |
+| 0.14.0 | 21-08-2026 | Consecuencias de aprobar `RF-SP-030` y `RF-SP-031`. §4.5 separa la latencia de **asignar** roles \(hasta 15 min\) de la de **retirarlos** \(inmediata, revocando sesiones\), que la tabla trataba como el mismo caso. `RN-SEG-010` se declara aplicable también al retiro. | Responsable técnico |
+| 0.15.0 | 21-08-2026 | Consecuencias de aprobar `RF-SP-034`. §3.2 fija el umbral de bloqueo en **cinco** intentos consecutivos, con progresión y **techo declarado** —sin techo, provocar fallos ajenos es una denegación de servicio—, y declara la **cuenta bloqueada como excepción consciente** al mensaje genérico, sin comprobar la contraseña antes de rechazar. El inicio de sesión admite nombre de usuario o correo, y no hay tope de sesiones simultáneas. | Responsable técnico |
+| 0.16.0 | 21-08-2026 | Consecuencias de aprobar `RF-SP-035`. §5.4 exige registrar el **motivo de cada revocación** —solo «rotación» dispara la revocación de familia y el evento de severidad alta— y declara una **duración máxima de sesión** contada desde el inicio, sin la cual una sesión refrescada no caduca nunca. §5.5 extiende la limitación de tasa al endpoint de refresco. §9 incorpora `revoked_reason` a `refresh_tokens`. | Responsable técnico |

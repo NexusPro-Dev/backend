@@ -71,7 +71,7 @@ Se usa `POST` sobre una subruta y no `PUT` sobre la lista, precisamente porque l
 
 Los permisos van por identificador y no por código, igual que en `RF-SP-001`, para no mezclar dos espacios de identificación en el mismo cuerpo.
 
-**Respuesta `200`** — `RoleResponse`, definido en `RF-SP-001`: el rol con su lista de permisos actualizada y su rol padre. No se devuelve `RoleDetailResponse`, que arrastraría una llamada a `USR` a un camino de escritura (`RF-SP-004` §4).
+**Respuesta `200`** — `RoleResponse`, definido en `RF-SP-001`: el rol con su lista de permisos actualizada y su rol padre. No se devuelve `RoleDetailResponse`, que arrastraría sus dos subconsultas de conteo a un camino de escritura que no las necesita (`RF-SP-004` §4).
 
 **Errores**
 
