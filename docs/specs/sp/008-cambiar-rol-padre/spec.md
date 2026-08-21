@@ -4,10 +4,10 @@
 |---|---|
 | Requerimiento | `RF-SP-008` |
 | Módulo | `SP` — Sistema Principal |
-| Estado | **Borrador** |
+| Estado | **Aprobada** |
 | Autor | Responsable técnico |
-| Aprobada por | — |
-| Fecha de aprobación | — |
+| Aprobada por | Responsable técnico |
+| Fecha de aprobación | 21-08-2026 |
 
 ---
 
@@ -38,7 +38,8 @@ Es la operación más peligrosa del módulo, porque puede romper un invariante e
 
 ### 4.2 No incluye
 
-- Ajustar automáticamente los permisos del rol para que quepan en el nuevo padre: si no caben, la operación se rechaza.
+- Ajustar automáticamente los permisos del rol para que quepan en el nuevo padre: si no caben, la operación se rechaza. Retirarlos sería una revocación implícita, y revocar tiene reglas propias (`RN-SEG-005`).
+- Exigir que el nuevo padre sea del mismo tipo que el rol movido: el tipo del padre es indiferente.
 - Dejar un rol sin padre: solo el rol raíz carece de él (`RN-SEG-007`, `RN-SP-002`).
 
 ## 5. Reglas de negocio aplicables
@@ -60,7 +61,7 @@ Es la operación más peligrosa del módulo, porque puede romper un invariante e
 | Dato | Obligatorio | Descripción | Restricción de negocio |
 |---|---|---|---|
 | Identificador del rol | Sí | Rol que se reubica | Debe existir, no ser de sistema y no ser el rol raíz |
-| Nuevo rol padre | Sí | Rol que pasará a acotarlo | Debe existir, estar activo y no ser descendiente del rol que se mueve |
+| Nuevo rol padre | Sí | Rol que pasará a acotarlo | Debe existir, estar activo y no ser descendiente del rol que se mueve. Su clasificación es indiferente: un rol comercial puede colgar de uno funcionario |
 
 ### 6.2 Salida
 
@@ -161,21 +162,24 @@ Es la operación más peligrosa del módulo, porque puede romper un invariante e
 | `CA-SP-061` | El sistema mueve el rol junto con sus hijos, que siguen cumpliendo la contención |
 | `CA-SP-062` | El sistema no registra evento cuando el nuevo padre coincide con el actual |
 | `CA-SP-063` | El sistema registra el cambio en la auditoría de cambios y en la de seguridad |
+| `CA-SP-160` | El sistema admite reubicar un rol comercial bajo un rol funcionario |
+| `CA-SP-161` | Dos reubicaciones simultáneas que formarían un ciclo no llegan a producirlo |
+| `CA-SP-162` | El sistema no retira permisos del rol al reubicarlo, ni siquiera los que sobran |
 
 ## 13. Casos límite
 
 - **Cadena profunda:** la detección de ciclos recorre la descendencia; conviene acotar la profundidad para que una jerarquía corrupta no provoque un recorrido infinito.
 - **Rol con hijos que exceden al nuevo abuelo:** imposible por transitividad. Si el rol cabe en el nuevo padre, sus hijos también.
-- **Mover un rol comercial:** altera además el orden de mando (`RN-SP-011`). Ver pregunta abierta 2.
+- **Mover un rol comercial:** altera además su posición en el orden de mando (`RN-SP-011`), que se lee entre los roles comerciales de la cadena. El tipo del nuevo padre no se verifica.
 - **Nuevo padre eliminado lógicamente:** se trata como inexistente.
-- **Reubicación concurrente que formaría ciclo entre dos ramas:** dos operaciones simultáneas podrían validarse por separado y crear el ciclo al aplicarse. Ver pregunta abierta 3.
+- **Reubicación concurrente que formaría ciclo entre dos ramas:** imposible, porque las reubicaciones se serializan. Sin esa serialización, dos operaciones podrían validarse por separado y cerrar el ciclo al aplicarse, cada una correcta en aislamiento.
 
 ## 14. Preguntas abiertas
 
-| # | Pregunta | Responsable | Estado |
-|---|---|---|---|
-| 1 | ¿Debe ofrecerse retirar automáticamente los permisos sobrantes al reubicar, previa confirmación? Hoy solo se rechaza | Responsable técnico | Abierta |
-| 2 | Al mover un rol comercial cambia también su posición de mando. ¿Debe exigirse que el nuevo padre sea también comercial, o puede colgar de uno funcionario? | Responsable técnico | Abierta |
-| 3 | ¿Cómo se evita el ciclo por concurrencia? Bloqueo sobre la rama, verificación al confirmar la transacción, o una restricción en la base de datos | Responsable técnico | Abierta |
+Ninguna. Las tres se resolvieron el 21-08-2026, antes de aprobar la especificación.
 
-**Una spec con preguntas abiertas no puede aprobarse.** Esta sección debe quedar vacía antes de pasar la compuerta.
+| # | Pregunta | Resolución |
+|---|---|---|
+| 1 | ¿Se retiran los permisos sobrantes? | **No, solo se rechaza.** Retirarlos sería una revocación implícita, y revocar tiene reglas propias: `RN-SEG-005` rechaza retirar un permiso que un rol hijo declara. Es el mismo criterio con el que se descartó el reemplazo en `RF-SP-005` y la cascada en `RF-SP-006`. El rechazo ya enumera qué permisos sobran |
+| 2 | ¿Puede un rol comercial colgar de uno funcionario? | **Sí, el tipo del padre es indiferente.** El catálogo aprobado ya lo exige: `MANAGER` es comercial y cuelga de `ADMIN`, que es funcionario. La cabeza de la cadena comercial tiene que colgar de algo, y es coherente con `RF-SP-001`, donde la clasificación es independiente de la del padre |
+| 3 | ¿Cómo se evita el ciclo por concurrencia? | **Serializando las reubicaciones** con un bloqueo aplicativo único para toda mutación de la jerarquía. Dos reubicaciones nunca se solapan y el ciclo es imposible por construcción. Reubicar un rol es una operación rara, de modo que serializarla no cuesta nada |
