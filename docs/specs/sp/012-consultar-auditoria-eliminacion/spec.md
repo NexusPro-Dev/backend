@@ -8,6 +8,7 @@
 | Autor | Responsable técnico |
 | Aprobada por | Responsable técnico |
 | Fecha de aprobación | 21-08-2026 |
+| Enmendada | 21-08-2026 — filtro y salida de correlación, y `CA-SP-177`, al aprobar `plan.md` (Art. I.7) |
 
 ---
 
@@ -60,6 +61,7 @@ Ese segundo dato es lo que da valor al registro. Sin él, la fila diría que el 
 | Tipo de eliminación | No | Lógica, física o de asociación | Uno de los tres valores |
 | Desde y hasta | No | Rango de fechas | La fecha inicial no puede ser posterior a la final |
 | Motivo | No | Búsqueda por texto sobre el motivo declarado | Insensible a mayúsculas y a acentos |
+| Identificador de correlación | No | Filtro por petición concreta | — |
 
 ### 6.2 Salida
 
@@ -67,6 +69,7 @@ Ese segundo dato es lo que da valor al registro. Sin él, la fila diría que el 
 |---|---|
 | Eventos | Momento, actor, módulo, entidad, registro, tipo de eliminación, motivo y estado del registro |
 | Origen | Dirección de red y cliente, cuando la operación vino de una petición |
+| Correlación | Identificador que enlaza el evento con la petición que lo produjo, y con lo que esa misma petición dejó en los otros tres registros |
 | Paginación | Total de elementos, total de páginas y página actual |
 
 ## 7. Precondiciones y postcondiciones
@@ -133,6 +136,7 @@ Ese segundo dato es lo que da valor al registro. Sin él, la fila diría que el 
 | `CA-SP-093` | El estado conservado permite reconstruir qué era el registro eliminado |
 | `CA-SP-094` | El estado conservado no contiene contraseñas, tokens ni datos personales sensibles |
 | `CA-SP-095` | El sistema rechaza la consulta a un actor sin el permiso de lectura de auditoría de eliminación |
+| `CA-SP-177` | El sistema permite recuperar las eliminaciones de una misma petición por su identificador de correlación |
 
 ## 13. Casos límite
 

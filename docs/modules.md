@@ -5,7 +5,7 @@
 | Proyecto | NEXUS — Renovación de plataforma |
 | Empresa | FACTECH GROUP SAS |
 | Documento | `modules.md` |
-| Versión | 0.8.0 |
+| Versión | 0.9.0 |
 | Estado | Borrador |
 | Responsable técnico | Bonilla Diaz William Steven |
 | Fecha de creación | 20-08-2026 |
@@ -41,7 +41,7 @@ La distinción no es de tamaño, es de **propiedad de los datos**.
 | Datos | **Es dueño** de sus tablas | Comparte las tablas de su módulo |
 | Acceso | Otros módulos lo consumen por interfaz publicada | No es visible desde fuera del módulo |
 | Código | `modules/<modulo>/` | Subpaquete dentro del módulo |
-| Identificadores | Tiene código propio (`SP`, `USR`) | **No tiene código propio** |
+| Identificadores | Tiene código propio (`SP`) | **No tiene código propio** |
 | Requerimientos | `RF-[MÓDULO]-NNN` | Usa el código de su módulo |
 
 ### 2.1 Regla de decisión
@@ -73,9 +73,6 @@ La promoción es una decisión de arquitectura: se registra en `docs/architectur
 ```mermaid
 graph TD
     SP["<b>SP</b> — Sistema Principal<br/><i>roles, permisos, auditoría</i>"]
-    USR["<b>USR</b> — Usuarios<br/><i>identidad, autenticación</i>"]
-
-    USR -->|consume el catálogo de roles| SP
 
     C1["<b>?</b> — por inventariar"]:::pend
     C2["<b>?</b> — por inventariar"]:::pend
@@ -97,8 +94,8 @@ Las dependencias apuntan **del consumidor al proveedor** y deben ser acíclicas 
 
 | Código | Módulo | Paquete Java | Prefijo de permisos | Depende de | Estado |
 |---|---|---|---|---|---|
-| `SP` | Sistema Principal | `modules/system` | `roles:`, `permissions:`, `audit:`, `memberships:`, `currencies:`, `countries:` | — | En diseño |
-| `USR` | Usuarios | `modules/users` | `users:` | `SP` | En diseño |
+| `SP` | Sistema Principal | `modules/system` | `roles:`, `permissions:`, `audit:`, `memberships:`, `currencies:`, `countries:`, `users:` | — | En diseño |
+
 
 **Estados:** `Propuesto` · `En diseño` · `En desarrollo` · `Implementado` · `Obsoleto`.
 
@@ -125,9 +122,9 @@ Se resolvió el 20-08-2026, antes de redactar el primer requerimiento: el códig
 
 **Propósito.** Gobierna quién puede hacer qué en el sistema y deja constancia de lo que ocurre. Es el módulo del que dependen todos los demás.
 
-**Alcance.** Catálogo de permisos, definición de roles, contención de privilegios entre roles, catálogos transversales (membresías, monedas y países) y los cuatro registros de auditoría (`architecture.md` §6.6). La auditoría se **consulta** desde aquí; se **escribe** desde cada módulo, en la operación que la origina.
+**Alcance.** Catálogo de permisos, definición de roles, contención de privilegios entre roles, usuarios con sus roles y su membresía, credenciales y acceso, catálogos transversales (membresías, monedas y países) y los cuatro registros de auditoría (`architecture.md` §6.6). La auditoría se **consulta** desde aquí; se **escribe** desde cada módulo, en la operación que la origina.
 
-**No incluye.** Los usuarios y sus credenciales (eso es `USR`), ni la asignación de roles a personas.
+**No incluye.** La definición de qué contenidos exige cada nivel de membresía, que corresponde a los módulos de academia y productos.
 
 | Submódulo | Responsabilidad | Entidades principales |
 |---|---|---|
@@ -137,39 +134,21 @@ Se resolvió el 20-08-2026, antes de redactar el primer requerimiento: el códig
 | Membresías | Nivel de acceso del consumidor a servicios y contenidos | `memberships` |
 | Monedas | Catálogo de monedas | `currencies` |
 | Países | Catálogo de países | `countries` |
+| Usuarios | Alta, consulta, edición, estado y baja de las personas que acceden | `users` |
+| Roles de usuario | Asignación y retiro de roles sobre una persona | `user_roles` |
+| Membresía del usuario | Nivel del consumidor, acotado por `RN-SP-013` | `user_memberships` |
+| Credenciales y acceso | Inicio y cierre de sesión, refresco con rotación, y gestión de la contraseña | `users`, `refresh_tokens` |
 | Auditoría | Consulta de los cuatro registros de auditoría, por separado o desde la vista transversal | `audit_change_log`, `audit_deletion_log`, `audit_error_log`, `audit_security_log` |
 
 
-**Dependencias.** Ninguna. Es la raíz del grafo, y debe seguir siéndolo: si `SP` llegara a depender de otro módulo, aparecería un ciclo.
+**Dependencias.** Ninguna, y ahora en un sentido más fuerte que antes: al absorber los usuarios, sus roles y su acceso, `SP` es **autocontenido**. No necesita que ningún otro módulo exista para funcionar, lo que además elimina el arranque en frío que existía mientras la identidad vivía fuera.
 
 **Diseño detallado.** `security.md` §4 (modelo de autorización y reglas `RN-SEG-…`).
 
 ---
 
-### 5.2 `USR` — Usuarios
 
-**Propósito.** Representa a las personas que acceden al sistema, gestiona sus credenciales y les asigna roles.
-
-**Alcance.** Alta y estados de usuario, autenticación, sesiones revocables, restablecimiento de contraseña y asignación de roles.
-
-**No incluye.** La definición de los roles ni de los permisos: los consume de `SP`.
-
-| Submódulo | Responsabilidad | Entidades principales |
-|---|---|---|
-| Usuarios | Alta, edición, estados (`ACTIVO`, `INACTIVO`, `BLOQUEADO`, `PENDIENTE`) | `users` |
-| Autenticación | Inicio y cierre de sesión, refresco con rotación, bloqueo por intentos fallidos | `refresh_tokens` |
-| Credenciales | Cambio y restablecimiento de contraseña | `users` |
-| Asignación de roles | Vincular usuarios con roles, acotado por RN-SEG-010 | `user_roles` |
-
-**Dependencias.** `SP`, para leer el catálogo de roles y resolver permisos efectivos.
-
-**Nota de diseño.** La asignación de roles vive en `USR` y no en `SP` porque su sujeto es el usuario: responde *"qué es esta persona"*, no *"qué es este rol"*. Es también la razón por la que `USR` depende de `SP` y no al revés.
-
-**Diseño detallado.** `security.md` §3 (identidad) y §5 (autenticación).
-
----
-
-### 5.3 Plantilla para un módulo nuevo
+### 5.2 Plantilla para un módulo nuevo
 
 ```markdown
 ### `COD` — Nombre del módulo
@@ -267,3 +246,4 @@ El orden importa: el módulo precede al requerimiento, el requerimiento precede 
 | 0.6.0 | 20-08-2026 | Los submódulos de `SP` se ajustan a la guía `guides/001-sp.md`: se separan roles y permisos, y se incorporan membresías, monedas y países. Se retira «Parámetros», cubierto por los catálogos. | Responsable técnico |
 | 0.7.0 | 20-08-2026 | Se resuelve la relación entre historias de usuario y requerimientos: las historias son documento de origen y quedan fuera de la trazabilidad. | Responsable técnico |
 | 0.8.0 | 20-08-2026 | Se actualizan los prefijos de permisos de `SP` con los catálogos incorporados: membresías, monedas y países. | Responsable técnico |
+| 0.9.0 | 21-08-2026 | El módulo `USR` se retira: usuarios, roles de usuario, membresía del usuario y acceso pasan a `SP`, que queda autocontenido. | Responsable técnico |

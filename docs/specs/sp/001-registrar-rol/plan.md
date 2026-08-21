@@ -5,10 +5,10 @@
 | Requerimiento | `RF-SP-001` |
 | Especificación | [`spec.md`](spec.md) |
 | `spec.md` aprobada el | 20-08-2026 |
-| Estado | **Borrador** |
+| Estado | **Aprobado** |
 | Autor | Responsable técnico |
-| Aprobado por | — |
-| Fecha de aprobación | — |
+| Aprobado por | Responsable técnico |
+| Fecha de aprobación | 21-08-2026 |
 
 !!! info "Qué va en este documento"
 
@@ -22,7 +22,7 @@ El comportamiento —flujos, excepciones, validaciones y criterios de aceptació
 
 ## 1. Enfoque
 
-`RF-SP-001` es el primer requerimiento que escribe en base de datos, de modo que su alcance técnico excede al del caso de uso: crea el esquema de los cuatro registros de auditoría (`V3`), el de roles (`V4`), el de la asociación rol–permiso (`V5`) y el poblado de los roles de sistema (`V6`), incluido el rol raíz que la API no puede crear.
+`RF-SP-001` es el primer requerimiento que escribe en base de datos, de modo que su alcance técnico excede al del caso de uso: crea el esquema de los cuatro registros de auditoría (`V4`), el de roles (`V5`), el de la asociación rol–permiso (`V6`) y el poblado de los roles de sistema (`V7`), incluido el rol raíz que la API no puede crear.
 
 El caso de uso se implementa como un servicio transaccional en `application` que orquesta: resolución del rol padre y del catálogo de permisos por sus puertos, construcción del agregado `Role` en `domain` —donde viven `RN-SEG-003`, `RN-SEG-010`, `RN-SP-002` y `RN-SP-003`, verificables sin Spring ni base de datos—, persistencia por el adaptador JPA y emisión del evento de `audit_change_log` en la misma transacción. El evento de `audit_security_log` se emite en transacción independiente, después del commit.
 
@@ -30,17 +30,17 @@ Todo lo que puede declararse en el esquema se declara en el esquema (Art. V.6): 
 
 ## 2. Cambios de esquema
 
-Cuatro migraciones. `V1__create_permissions.sql` y `V2__seed_permissions.sql` pertenecen a `RF-SP-010` y son prerrequisito: se dan por aplicadas.
+Cuatro migraciones. `V2__create_permissions.sql` y `V3__seed_permissions.sql` pertenecen a `RF-SP-010` y son prerrequisito: se dan por aplicadas.
 
-### `V3__create_audit_logs.sql`
+### `V4__create_audit_logs.sql`
 
-Crea los cuatro registros del Art. V.8 conforme a `architecture.md` §6.6 y `security.md` §8.2. Va primero porque `V6` ya debe poder auditar el poblado de los roles de sistema.
+Crea los cuatro registros del Art. V.8 conforme a `architecture.md` §6.6 y `security.md` §8.2. Va primero porque `V7` ya debe poder auditar el poblado de los roles de sistema.
 
 | Tabla | Cambio | Detalle |
 |---|---|---|
 | `audit_change_log` | Crea | Núcleo común + `module varchar(10) NOT NULL`, `entity varchar(50) NOT NULL`, `entity_id uuid NOT NULL`, `action varchar(20) NOT NULL`, `changes jsonb NOT NULL`. `ck_audit_change_log_action CHECK (action IN ('CREATE','UPDATE'))` |
 | `audit_deletion_log` | Crea | Núcleo común + `module`, `entity`, `entity_id`, `deletion_type varchar(20) NOT NULL`, `reason text NULL`, `snapshot jsonb NOT NULL`. `ck_audit_deletion_log_type CHECK (deletion_type IN ('LOGICAL','PHYSICAL','ASSOCIATION'))` y `ck_deletion_reason` según `architecture.md` §6.6.3 |
-| `audit_error_log` | Crea | Núcleo común + `resource varchar(100) NOT NULL`, `entity_id uuid NULL`, `operation varchar(100) NOT NULL`, `error_code varchar(50) NOT NULL`, `error_type varchar(20) NOT NULL`, `http_status smallint NOT NULL`, `severity varchar(20) NOT NULL`, `message text NOT NULL`. `CHECK` sobre `error_type` (`BUSINESS_RULE`, `INTEGRATION`, `UNHANDLED`) y sobre `severity` (`MEDIA`, `ALTA`) |
+| `audit_error_log` | Crea | Núcleo común + `resource varchar(100) NOT NULL`, `entity_id uuid NULL`, `operation varchar(100) NOT NULL`, `error_code varchar(50) NOT NULL`, `error_type varchar(20) NOT NULL`, `http_status smallint NOT NULL`, `severity varchar(20) NOT NULL`, `message text NOT NULL`. `CHECK` sobre `error_type` (`BUSINESS_RULE`, `INTEGRATION`, `UNHANDLED`), sobre `severity` (`MEDIA`, `ALTA`) y `ck_audit_error_log_status` (ver abajo) |
 | `audit_security_log` | Crea | Núcleo común + `event_type varchar(50) NOT NULL`, `severity varchar(20) NOT NULL`, `outcome varchar(10) NOT NULL`, `target_user_id uuid NULL`, `detail jsonb NULL`. `CHECK` sobre el catálogo cerrado de `security.md` §8.1, sobre `severity` (`INFORMATIVA`, `MEDIA`, `ALTA`) y sobre `outcome` (`SUCCESS`, `FAILURE`) |
 | `v_audit_timeline` | Crea | Vista de solo lectura de `architecture.md` §6.6.6 |
 
@@ -48,13 +48,21 @@ Núcleo común de las cuatro (`architecture.md` §6.6.1): `id uuid PRIMARY KEY`,
 
 Índices en cada tabla, según `architecture.md` §6.6.6: `(entity, entity_id, occurred_at DESC)` —en `audit_error_log`, `(resource, entity_id, occurred_at DESC)`; en `audit_security_log`, `(target_user_id, occurred_at DESC)`—, `(actor_id, occurred_at DESC)`, `(correlation_id)` e `(ip_address)`.
 
-Tres decisiones sobre estas tablas:
+Cuatro decisiones sobre estas tablas:
 
-- **`actor_id` no lleva clave foránea a `users`.** La tabla es propiedad de `USR` y todavía no existe; además, una clave foránea impediría conservar el evento si el usuario se elimina, que es justo lo contrario de lo que se busca. La integridad referencial se sacrifica aquí de forma consciente y documentada.
+- **`audit_error_log` declara qué estados HTTP no puede registrar.** `architecture.md` §6.6.4 fija una tabla de qué entra y qué no: quedan fuera la validación de formato (`400`), el `401`, el `404` y —la frontera que más importa— la denegación de autorización (`403`), que va a `audit_security_log` porque no es un fallo del sistema sino el sistema funcionando. Eso es expresable en el esquema y se declara así, añadido el 21-08-2026 al aprobar el plan de `RF-SP-013`:
+
+    ```sql
+    CONSTRAINT ck_audit_error_log_status CHECK (http_status NOT IN (400, 401, 403, 404))
+    ```
+
+    Con ella, escribir por descuido un `403` en el registro de errores deja de producir un dato incorrecto que nadie nota y pasa a ser un `INSERT` que falla. Es lo que convierte `CA-SP-100` y `CA-SP-101` de convención en garantía. **Tenía que declararse ahora**: alterar una restricción con la tabla en uso es mucho más caro que escribirla al crearla. Los estados que sí admite quedan abiertos a propósito —`409` y `422` de regla de negocio, `5xx` no controlados, y los de un eventual fallo de integración con un sistema externo (`architecture.md` §7.3)—, porque enumerarlos obligaría a alterar la restricción cada vez que un requerimiento estrenara un estado legítimo.
+
+- **`actor_id` no lleva clave foránea a `users`.** Una clave foránea impediría conservar el evento si el usuario se elimina, que es justo lo contrario de lo que se busca: el registro debe seguir diciendo quién hizo algo aunque esa persona ya no esté. La integridad referencial se sacrifica aquí de forma consciente y documentada. (Cuando este plan se aprobó, `users` pertenecía además a otro módulo; ese motivo desapareció el 21-08-2026 y el principal sigue en pie.)
 - **No hay `created_at`, `updated_at` ni `deleted_at`.** No son tablas de negocio: son append-only y `occurred_at` es su única marca temporal.
 - **El carácter append-only no se fuerza todavía en la base de datos.** Revocar `UPDATE` y `DELETE` al usuario de la aplicación exige un modelo de usuarios de base de datos por entorno que hoy no está definido. Queda pendiente y se anota en §10.
 
-### `V4__create_roles.sql`
+### `V5__create_roles.sql`
 
 Campos tomados de `requirements/sp.md` §10.2, restricciones de §10.7.
 
@@ -72,13 +80,14 @@ Restricciones e índices:
 | `ck_roles_status` | `CHECK (status IN ('ACTIVO','INACTIVO'))` | `RN-SEG-002` |
 | `ck_roles_type` | `CHECK (role_type IN ('FUNCIONARIO','VENDEDOR','CONSUMIDOR'))` | `RN-SP-003` |
 | `ck_roles_code_format` | `CHECK (code ~ '^[A-Z][A-Z0-9_]*$')` | `VAL-008`. En el esquema, la garantía vale también para las migraciones de poblado y para cualquier punto de entrada futuro; en Java la validación solo cubre la API |
+| `ck_roles_description_length` | `CHECK (description IS NULL OR length(description) <= 500)` | `VAL-007`. La longitud máxima de `description` se fijó en 500 caracteres el 21-08-2026 y se declaró en `requirements/sp.md` §10.2. Va en el esquema y no solo en el DTO, por la misma razón que el formato del código: la columna es `text` y sin `CHECK` cualquier otro punto de entrada la deja sin acotar |
 | `ck_roles_parent_not_self` | `CHECK (parent_role_id IS NULL OR parent_role_id <> id)` | Ciclo de longitud uno. No lo ejercita este requerimiento —el rol aún no existe— pero sí `RF-SP-008`, y cuesta una línea declararlo junto con la tabla |
-| `uq_roles_single_root` | `CREATE UNIQUE INDEX … ON roles ((parent_role_id IS NULL)) WHERE parent_role_id IS NULL AND deleted_at IS NULL` | `RN-SEG-007`. Garantiza **como máximo** un rol raíz; el «exactamente uno» lo aporta `V6`. La API siempre exige padre (`VAL-004`), así que es defensa en profundidad |
+| `uq_roles_single_root` | `CREATE UNIQUE INDEX … ON roles ((parent_role_id IS NULL)) WHERE parent_role_id IS NULL AND deleted_at IS NULL` | `RN-SEG-007`. Garantiza **como máximo** un rol raíz; el «exactamente uno» lo aporta `V7`. La API siempre exige padre (`VAL-004`), así que es defensa en profundidad |
 | `ix_roles_parent_role_id` | `(parent_role_id)` | PostgreSQL no indexa las columnas de clave foránea por su cuenta, y la verificación de `ON DELETE RESTRICT` y los filtros de `RF-SP-002` la recorren |
 
 `RN-SEG-003`, `RN-SEG-006` y `RN-SEG-010` no son expresables como restricción declarativa (`requirements/sp.md` §10.7) y se verifican en `domain`.
 
-### `V5__create_role_permissions.sql`
+### `V6__create_role_permissions.sql`
 
 Campos de `requirements/sp.md` §10.3.
 
@@ -92,14 +101,21 @@ Campos de `requirements/sp.md` §10.3.
 - `ix_role_permissions_permission_id` sobre `(permission_id)`: la clave primaria compuesta solo sirve consultas que empiezan por `role_id`; la pregunta inversa —«qué roles declaran este permiso»— la necesita `RN-SEG-005` en `RF-SP-006`.
 - Sin `updated_at` ni `deleted_at`: la asociación no se edita y su retiro es físico (`RN-SP-005`).
 
-### `V6__seed_system_roles.sql`
+### `V7__seed_system_roles.sql`
 
 Puebla el catálogo aprobado de `requirements/sp.md` §4.1 para los roles con `is_system = true`: `SUPERADMIN` (raíz, `parent_role_id NULL`), `ADMIN`, `CONTABILIDAD`, `LIDER_ACADEMICO`, `MANAGER`, `DIRECTOR` y `AGENTE`, con la jerarquía que allí se declara. `ESTUDIANTE` y `Cliente` quedan fuera: están marcados `is_system = false`, es decir, son roles de negocio que se crean por la API, que es precisamente lo que este requerimiento habilita.
 
 Decisiones de esta migración:
 
 - **Identificadores UUID v7 literales**, escritos en el propio SQL y generados una sola vez al redactar la migración. Ni `gen_random_uuid()` ni ninguna generación en base de datos: el Art. V.11 lo prohíbe y, además, el identificador de `SUPERADMIN` debe ser el mismo en todos los entornos para que las pruebas y las migraciones posteriores puedan referenciarlo por constante.
-- **Permisos sembrados.** `SUPERADMIN` recibe el catálogo completo (`INSERT … SELECT id FROM permissions`), como exige `RN-SEG-007`. `CONTABILIDAD` recibe `audit:read-changes` y `audit:read-deletions`, lo único que `requirements/sp.md` §4 documenta para él. **El conjunto de `ADMIN` no puede decidirse con la información disponible**: `security.md` §4.1 obliga a que posea todo permiso que cualquier rol de negocio declare, pero ningún documento aprobado dice qué permisos quedan reservados a `SUPERADMIN`. La migración lo siembra con el catálogo completo salvo la lectura de auditoría de seguridad, y el punto queda abierto en §10. `LIDER_ACADEMICO`, `MANAGER`, `DIRECTOR` y `AGENTE` se siembran **sin permisos**, a la espera de `RF-SP-005`: sembrarlos a ojo produciría un catálogo que nadie aprobó y que quedaría como referencia.
+- **Permisos sembrados.** `SUPERADMIN` recibe el catálogo completo (`INSERT … SELECT id FROM permissions`), como exige `RN-SEG-007`. `CONTABILIDAD` recibe `audit:read-changes` y `audit:read-deletions`, lo único que `requirements/sp.md` §4 documenta para él. **`ADMIN` recibe el catálogo completo salvo dos permisos**, decidido el 21-08-2026: cumple la obligación de `security.md` §4.1 —poseer todo permiso que cualquier rol de negocio declare, que es lo que hace viable `RN-SEG-003` en toda la jerarquía que cuelga de él— y deja a `SUPERADMIN` una reserva propia. Sin esa reserva, `ADMIN` y `SUPERADMIN` serían indistinguibles salvo por ser uno la raíz.
+
+| Permiso reservado a `SUPERADMIN` | Lo decide | Por qué |
+|---|---|---|
+| `audit:read-security` | Este plan, y lo confirma `RF-SP-014` §5 | Es el registro donde quedan los intentos de escalada de privilegios. Un `ADMIN` que pudiera leerlo comprobaría si su propio intento quedó registrado |
+| `currencies:update` | `RF-SP-023` §5 | `spec.md` de aquel requerimiento declara un único actor, el Super Administrador: el estado de una moneda condiciona todo cálculo financiero y el catálogo se puebla por migración |
+
+La consecuencia se acepta en ambos casos: **`ADMIN` no puede crear un rol que declare un permiso que él no tiene**, porque `RN-SEG-003` lo rechazaría. Quien no puede hacer algo tampoco debería poder delegarlo. `LIDER_ACADEMICO`, `MANAGER`, `DIRECTOR` y `AGENTE` se siembran **sin permisos**, a la espera de `RF-SP-005`: sembrarlos a ojo produciría un catálogo que nadie aprobó y que quedaría como referencia.
 - **La migración emite sus propias filas de `audit_change_log`**, una por rol, con `action = 'CREATE'` y `actor_id`, `correlation_id` e `ip_address` en `NULL`. Es la forma correcta de decir «lo creó el sistema, no una persona» (Art. V.15) y evita que los únicos roles del sistema sean también los únicos sin respuesta a «quién los creó» (Art. V.7, V.8).
 
 ## 3. Componentes afectados
@@ -126,7 +142,7 @@ Paquete raíz del módulo: `com.factech.nexus.modules.system`. Reglas de depende
 | `infrastructure` | `SecurityContextActorAdapter` | Nuevo | Adaptador de `AuthenticatedActor` sobre `shared/security` |
 | `api` | `RoleController` | Nuevo | `POST /api/v1/roles`. Declara el permiso, valida el DTO y devuelve `201` con `Location` |
 | `api` | `CreateRoleRequest` | Nuevo | DTO de entrada con Bean Validation (`VAL-001` a `VAL-004`, `VAL-007`, `VAL-008`) |
-| `api` | `RoleResponse`, `RoleSummaryResponse`, `PermissionResponse` | Nuevo | DTOs de salida. Ninguna entidad JPA cruza la frontera |
+| `api` | `RoleResponse`, `RoleSummaryResponse`, `PermissionResponse` | Nuevo | DTOs de salida. Ninguna entidad JPA cruza la frontera. `PermissionResponse` se amplía el 21-08-2026 con `resource`, `action` y `description` al aprobar el plan de `RF-SP-010`: es un solo tipo para el concepto de permiso en toda la API |
 | `shared/audit` | `AuditWriter` y sus adaptadores | Nuevo | Escritura de los cuatro registros. Vive en `shared` porque **todos** los módulos emiten eventos y ninguno puede depender de la infraestructura de otro (`architecture.md` §5.1, §5.3) |
 | `shared/error` | `GlobalExceptionHandler` y la jerarquía de `development-guide.md` §7.1 | Nuevo | Traducción a Problem Details. Único lugar del código que decide códigos de estado |
 | `shared/persistence` | `UuidV7Generator` | Nuevo | Generación de la clave primaria en la aplicación (`architecture.md` §6.3) |
@@ -158,7 +174,7 @@ Los enumerados usan como constantes exactamente los valores persistidos (`ACTIVO
 ```
 
 - **No existe el campo `status`.** El rol nace activo (`spec.md` §4.1) y el DTO se deserializa con `FAIL_ON_UNKNOWN_PROPERTIES` activo: enviar `"status": "INACTIVO"` devuelve `400` y no se ignora en silencio. Es lo que hace verificable a `CA-SP-146`.
-- **No existe `isSystem`.** Un rol creado por la API nunca es de sistema; el valor lo fija el `DEFAULT false` del esquema y solo `V6` lo pone en `true`.
+- **No existe `isSystem`.** Un rol creado por la API nunca es de sistema; el valor lo fija el `DEFAULT false` del esquema y solo `V7` lo pone en `true`.
 - **Los permisos se declaran por identificador, no por código.** El resto del contrato ya referencia entidades por UUID (`parentRoleId`), y mezclar dos espacios de identificación en el mismo cuerpo obliga al cliente a decidir cuál usar. El catálogo se consulta antes con `RF-SP-010`, que devuelve ambos.
 - `permissionIds` admite ausencia, `null` y lista vacía, los tres con el mismo significado: alta sin permisos (`FA-001`). Los duplicados se colapsan a una sola ocurrencia antes de validar (`spec.md` §13).
 - `name` y `description` se recortan de espacios al inicio y al final antes de validar y persistir. Sin ese recorte, `"Contabilidad "` y `"Contabilidad"` serían dos nombres distintos para `uq_roles_name` y la unicidad se burlaría con un espacio. `code` no se toca: se rechaza si no cumple el formato, para que el actor vea exactamente qué código quedó registrado.
@@ -219,7 +235,7 @@ La respuesta **no** incluye `createdBy` ni equivalente: el actor no vive en la t
 Criterios detrás de esa tabla:
 
 - **El `error_code` es el identificador de la regla incumplida cuando existe una**, y el de la excepción de la especificación cuando no la hay. Es la convención de `development-guide.md` §7.2 y de `architecture.md` §6.6.4, y es lo que permite ir del error devuelto al requerimiento sin intermediarios. `VAL-005` y `VAL-006` enuncian como validación lo mismo que `EX-001`; no producen un tercer código.
-- **`422` y no `404` para el padre o los permisos inexistentes.** El recurso de la petición es la colección `/api/v1/roles`, que existe; un `404` diría que el endpoint no está. La petición es sintácticamente válida y semánticamente rechazada, que es la definición de `422` en `architecture.md` §7.2. Exige añadir una excepción a la jerarquía de `development-guide.md` §7.1, que hoy no cubre `422`; se anota en §8.
+- **`422` y no `404` para el padre o los permisos inexistentes.** El recurso de la petición es la colección `/api/v1/roles`, que existe; un `404` diría que el endpoint no está. La petición es sintácticamente válida y semánticamente rechazada, que es la definición de `422` en `architecture.md` §7.2. Exigió añadir `UnprocessableEntityException` a la jerarquía de `development-guide.md` §7.1, enmendada el 21-08-2026 con el criterio que separa `422` de `404` y de `409`; el impacto se detalla en §8.
 - **`409` para `EX-003` y `EX-004`**, porque son violaciones de regla de negocio y esa es la traducción declarada de `BusinessRuleException`.
 - **`EX-003`, `EX-004` y `EX-005` enumeran todos los permisos infractores de una vez**, no el primero: la especificación exige informar *qué* permisos lo incumplen, y devolverlos de a uno convierte una corrección en varias vueltas.
 - El formato es el de `architecture.md` §7.3, con `correlationId` siempre presente. Los `type` que este requerimiento estrena en el módulo son `…/errors/validacion`, `…/errors/regla-de-negocio`, `…/errors/entidad-no-procesable`, `…/errors/no-autenticado`, `…/errors/sin-permiso` y `…/errors/interno`.
@@ -231,7 +247,7 @@ Criterios detrás de esa tabla:
 |---|---|
 | `POST /api/v1/roles` | `roles:create` |
 
-- El permiso **ya existe** en el catálogo: lo crea `V2__seed_permissions.sql` (`RF-SP-010`), prerrequisito de este requerimiento. No hace falta migración de permisos aquí.
+- El permiso **ya existe** en el catálogo: lo crea `V3__seed_permissions.sql` (`RF-SP-010`), prerrequisito de este requerimiento. No hace falta migración de permisos aquí.
 - Se declara sobre el método del controlador (`security.md` §6). Un endpoint sin declaración queda inaccesible, no público.
 - El `403` por falta de permiso lo produce la capa de seguridad compartida antes de entrar al caso de uso, y es ella la que emite el evento de `audit_security_log` (§6). `CA-SP-008` se satisface ahí, no en `CreateRoleService`.
 - `RN-SEG-010` no se resuelve con el permiso de acceso: `roles:create` habilita a crear roles, no a decidir con qué alcance. El techo lo pone el conjunto de permisos efectivos del actor, y se verifica en `domain`.
@@ -278,10 +294,10 @@ La inversión no aplica a `audit_error_log` ni a la denegación `403`: ahí el e
 | Módulo | Impacto |
 |---|---|
 | `shared/audit` | Se crea con este requerimiento: las cuatro tablas, el puerto de escritura y la mecánica transaccional. Todo módulo posterior que escriba depende de él |
-| `shared/error` | Se estrena la jerarquía de excepciones y el manejador global. Requiere **añadir** un tipo para `422`, que `development-guide.md` §7.1 no contempla; conviene enmendar ese documento en el mismo Pull Request para que código y documentación no diverjan (Art. XII.3) |
+| `shared/error` | Se estrena la jerarquía de excepciones y el manejador global, incluida `UnprocessableEntityException` → `422`. `development-guide.md` §7.1 se enmendó el 21-08-2026 para recogerla, junto con el criterio que la separa de `404` y de `409`; el tipo debe implementarse tal como allí queda descrito |
 | `shared/security` | Debe publicar hacia `application` el actor autenticado y sus permisos efectivos. Es la primera vez que se necesita: hasta ahora la seguridad solo decidía acceso, no alimentaba una regla de negocio |
-| `SP` (resto del módulo) | `RF-SP-002` a `RF-SP-009` operan sobre el esquema creado aquí; `RF-SP-011` a `RF-SP-014` leen las tablas de `V3` |
-| `USR` | Consume el catálogo de roles por la interfaz publicada de `SP`, nunca por sus tablas (`architecture.md` §5.3). Un rol nuevo es asignable de inmediato. La caché de `security.md` §4.5 no necesita invalidarse por un alta —no hay entrada previa que quede obsoleta—, pero **no debe cachear la ausencia** de un rol, o el recién creado sería invisible hasta que expire la entrada negativa |
+| `SP` (resto del módulo) | `RF-SP-002` a `RF-SP-009` operan sobre el esquema creado aquí; `RF-SP-011` a `RF-SP-014` leen las tablas de `V4` |
+| Usuarios (`RF-SP-024` a `RF-SP-033`) | Consumen el catálogo de roles para asignarlos a personas. Un rol nuevo es asignable de inmediato. La caché de `security.md` §4.5 no necesita invalidarse por un alta —no hay entrada previa que quede obsoleta—, pero **no debe cachear la ausencia** de un rol, o el recién creado sería invisible hasta que expire la entrada negativa |
 
 ## 9. Alternativas consideradas
 
@@ -301,11 +317,11 @@ La inversión no aplica a `audit_error_log` ni a la denegación `403`: ahí el e
 |---|---|---|
 | El evento de `audit_security_log` falla después del commit: el rol existe sin constancia de seguridad | Medio | El fallo no se propaga (`architecture.md` §8), pero se registra como `ERROR` en el log de aplicación con su `correlation_id`, y la ausencia de eventos de seguridad se monitorea. Es la contrapartida consciente de no producir eventos fantasma |
 | La traducción de la violación de índice único mapea el error equivocado —código por nombre— | Bajo | El adaptador decide por el **nombre** de la restricción (`uq_roles_code` / `uq_roles_name`), nunca por el texto del mensaje del driver, que cambia entre versiones |
-| El conjunto de permisos de `ADMIN` en `V6` no está aprobado por ningún documento | Alto | Se siembra el mínimo defendible y se marca como punto abierto. Corregirlo después es una migración de datos, no de esquema; peor sería sembrar un catálogo inventado que nadie revise y que quede como referencia |
-| El código `Cliente` de `requirements/sp.md` §4.1 no cumple el formato de `VAL-008` ni `ck_roles_code_format` | Medio | No afecta a `V6` —no se siembra, por no ser rol de sistema—, pero **impedirá crearlo por la API**. O el catálogo tiene una errata por `CLIENTE`, o el formato aprobado es más estrecho de lo que el catálogo asume. Debe resolverse antes de implementar; no se decide aquí |
+| ~~El conjunto de permisos de `ADMIN` en `V7` no está aprobado~~ | — | **Resuelto el 21-08-2026:** catálogo completo salvo `audit:read-security` (§2, `V7`). Si más adelante se reservan más permisos a `SUPERADMIN`, la corrección es una migración de datos, no de esquema |
+| ~~El código `Cliente` de `requirements/sp.md` §4.1 no cumple `VAL-008`~~ | — | **Resuelto el 21-08-2026:** era una errata. `requirements/sp.md` §4.1 pasa a declarar `CLIENTE`, y el formato aprobado no se toca |
 | Las tablas de auditoría admiten `UPDATE` y `DELETE` desde la aplicación | Medio | Revocar esos privilegios exige un modelo de usuarios de base de datos por entorno que no está definido. Queda pendiente y debe resolverse antes del primer despliegue productivo: una auditoría modificable no es evidencia |
 | La consulta de eventos de seguridad por rol depende de un filtro sobre `detail` (`jsonb`) | Bajo | Se acepta mientras el volumen sea bajo. Si `RF-SP-014` necesita ese filtro de forma habitual, se resuelve con un índice GIN, no añadiendo columnas al esquema de `security.md` §8.2 |
-| La longitud máxima de `description` no está definida en ningún documento aprobado: la columna es `text`, sin límite | Bajo | **No se decide aquí.** Se propone 500 caracteres para poder implementar `VAL-007`; si se confirma, la restricción debe declararse también en el esquema con un `CHECK`, no solo en el DTO |
+| ~~La longitud máxima de `description` no está definida~~ | — | **Resuelto el 21-08-2026:** 500 caracteres, declarados en `requirements/sp.md` §10.2 y en el esquema con `ck_roles_description_length` (§2, `V5`), además del DTO |
 | `uq_roles_name` distingue mayúsculas: `Contabilidad` y `contabilidad` podrían coexistir | Bajo | El índice está fijado por `requirements/sp.md` §10.7 y no se reabre aquí. Se deja constancia de que `RN-SEG-001` no impide variantes de capitalización; si el negocio las considera duplicados, la corrección es un índice sobre `lower(name)` y una migración con la tabla ya en uso |
 
 ## 11. Estrategia de prueba
@@ -333,6 +349,6 @@ Casos límite de `spec.md` §13 que exigen prueba propia (Art. VII.3):
 | Rol padre eliminado lógicamente | API | Se trata como inexistente: `422` con `EX-002`, no `201` |
 | Permisos duplicados en la petición | API | Se normalizan a una ocurrencia sin error, y `role_permissions` recibe una sola fila por permiso |
 | Alta concurrente con el mismo código | Integración | Dos altas simultáneas: una `201`, la otra `409` con `RN-SEG-001`. Nunca `500` |
-| Rol raíz | Integración | `uq_roles_single_root` impide una segunda raíz; tras `V6` existe exactamente una |
+| Rol raíz | Integración | `uq_roles_single_root` impide una segunda raíz; tras `V7` existe exactamente una |
 
 Además, una prueba de ArchUnit verifica que `domain` no importa Spring, JPA ni `jakarta.servlet`, y que `api` no accede a `infrastructure` (`architecture.md` §5.2, `development-guide.md` §6.3). Sin ella, las reglas de capa dependen de la disciplina de cada revisión.

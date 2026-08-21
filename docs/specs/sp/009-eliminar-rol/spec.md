@@ -7,7 +7,9 @@
 | Estado | **Aprobada** |
 | Autor | Responsable técnico |
 | Aprobada por | Responsable técnico |
+| Enmendada | 21-08-2026 — la verificación de usuarios deja de depender de `USR`, retirado como módulo (Art. I.7) |
 | Fecha de aprobación | 21-08-2026 |
+| Enmendada | 21-08-2026 — `EX-006` y `CA-SP-176`, al aprobar `plan.md` (Art. I.7) |
 
 ---
 
@@ -38,7 +40,7 @@ A diferencia de la revocación de un permiso, aquí sí se elimina una entidad d
 ### 4.2 No incluye
 
 - Eliminación física.
-- Reasignar los usuarios del rol a otro: debe hacerse antes, desde `USR`.
+- Reasignar los usuarios del rol a otro: debe hacerse antes, con `RF-SP-030` y `RF-SP-031`.
 - Reubicar los roles hijos: debe hacerse antes, con `RF-SP-008`.
 - Restaurar un rol eliminado. El borrado lógico existe para que la auditoría pueda resolver qué rol era, no como papelera: al eliminarlo se libera su código y su nombre, y su rol padre pudo cambiar o desaparecer. Si el rol vuelve a hacer falta, se crea otro.
 
@@ -114,7 +116,7 @@ Ninguno. La eliminación no admite variantes: o se cumplen todas las condiciones
 ### EX-003 — El rol tiene usuarios asignados
 
 **Condición:** al menos un usuario tiene el rol, **activo o inactivo**.
-**Respuesta del sistema:** rechaza la operación, cita `RN-SEG-008` e informa cuántos usuarios lo tienen, mediante la misma interfaz de `USR` que usa `RF-SP-003`. Sugiere desactivarlo con `RF-SP-007` si el objetivo es retirar el acceso.
+**Respuesta del sistema:** rechaza la operación, cita `RN-SEG-008` e informa cuántos usuarios lo tienen. Sugiere desactivarlo con `RF-SP-007` si el objetivo es retirar el acceso.
 
 ### EX-004 — Rol de sistema o rol raíz
 
@@ -125,6 +127,11 @@ Ninguno. La eliminación no admite variantes: o se cumplen todas las condiciones
 
 **Condición:** el rol está entre los del actor.
 **Respuesta del sistema:** rechaza la operación y cita `RN-SEG-011`.
+
+### EX-006 — Rol inexistente
+
+**Condición:** no existe un rol vigente con el identificador indicado, o ya está eliminado lógicamente.
+**Respuesta del sistema:** rechaza la operación e informa que el rol no existe, sin distinguir entre nunca haber existido y haber sido eliminado (Art. V.13). No debe confundirse con `EX-004`, que es el rol de sistema o el rol raíz. Añadida el 21-08-2026 al aprobar el `plan.md` (Art. I.7).
 
 ## 11. Validaciones
 
@@ -151,6 +158,7 @@ Ninguno. La eliminación no admite variantes: o se cumplen todas las condiciones
 | `CA-SP-163` | El sistema rechaza la eliminación cuando el usuario que tiene el rol está **inactivo** |
 | `CA-SP-164` | El sistema no expone ninguna operación de restauración |
 | `CA-SP-165` | Eliminar el rol y asignárselo a alguien de forma simultánea no deja usuarios apuntando a un rol eliminado |
+| `CA-SP-176` | El sistema rechaza la eliminación de un rol inexistente o ya eliminado, con un error distinto del de rol de sistema |
 
 ## 13. Casos límite
 
@@ -158,7 +166,7 @@ Ninguno. La eliminación no admite variantes: o se cumplen todas las condiciones
 - **Rol asignado solo a usuarios inactivos:** impide la eliminación igual que si estuvieran activos. Reactivar a esa persona la dejaría con un rol inexistente.
 - **Eliminar un rol ya eliminado:** se trata como inexistente.
 - **Motivo con solo espacios:** se rechaza tras recortar los extremos.
-- **Eliminación concurrente con una asignación de usuario:** ambas se serializan sobre la fila del rol, de modo que la carrera no llega a producirse. Exige que `USR` respete ese contrato al asignar.
+- **Eliminación concurrente con una asignación de usuario:** ambas se serializan sobre la fila del rol, de modo que la carrera no llega a producirse. Exige que `RF-SP-030` respete ese contrato al asignar.
 - **Rol eliminado que aparece en auditoría antigua:** su identificador debe seguir resolviendo al registro conservado.
 
 ## 14. Preguntas abiertas

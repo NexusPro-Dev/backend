@@ -1,0 +1,67 @@
+name: Integración continua
+
+# Verifica cada Pull Request y cada integración en develop y main.
+# La integración exige el pipeline en verde (Art. XI, verificación).
+#
+# El flujo de documentación va aparte, en docs.yml.
+
+on:
+  push:
+    branches: [main, develop]
+    paths-ignore:
+      - "docs/**"
+      - "mkdocs.yml"
+      - "requirements-docs.txt"
+      - "**.md"
+  pull_request:
+    paths-ignore:
+      - "docs/**"
+      - "mkdocs.yml"
+      - "requirements-docs.txt"
+      - "**.md"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+jobs:
+  verificar:
+    name: Compilar, formatear y probar
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Obtener el código
+        uses: actions/checkout@v4
+
+      - name: Preparar Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "21"
+          cache: maven
+
+      # `verify` encadena todo lo que exige la constitución:
+      #   - compilación
+      #   - Spotless: formato aplicado (Art. VI.6)
+      #   - pruebas unitarias (*Test)
+      #   - pruebas de integración con Testcontainers (*IT)
+      #   - ArchUnit: reglas de dependencia entre capas (§5.2)
+      #   - JaCoCo: cobertura como indicador (Art. VII.7)
+      #
+      # Testcontainers levanta PostgreSQL por su cuenta: el ejecutor de
+      # GitHub trae Docker, de modo que no hace falta un servicio aparte.
+      - name: Verificar
+        run: mvn -B verify
+
+      - name: Publicar el informe de cobertura
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: jacoco
+          path: target/site/jacoco/
+          if-no-files-found: ignore
+          retention-days: 7

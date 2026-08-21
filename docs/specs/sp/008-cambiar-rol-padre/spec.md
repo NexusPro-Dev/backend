@@ -8,6 +8,7 @@
 | Autor | Responsable técnico |
 | Aprobada por | Responsable técnico |
 | Fecha de aprobación | 21-08-2026 |
+| Enmendada | 21-08-2026 — `EX-006` y `CA-SP-175`, al aprobar `plan.md` (Art. I.7) |
 
 ---
 
@@ -141,6 +142,11 @@ Es la operación más peligrosa del módulo, porque puede romper un invariante e
 **Condición:** el rol es de sistema, o el actor lo tiene asignado.
 **Respuesta del sistema:** rechaza la operación y cita `RN-SEG-012` o `RN-SEG-011`.
 
+### EX-006 — Rol inexistente
+
+**Condición:** no existe un rol vigente con el identificador del rol que se mueve, o está eliminado lógicamente.
+**Respuesta del sistema:** rechaza la operación e informa que el rol no existe, sin distinguir entre nunca haber existido y haber sido eliminado (Art. V.13). No debe confundirse con `EX-004`, que es el nuevo rol padre inexistente o inactivo. Añadida el 21-08-2026 al aprobar el `plan.md` (Art. I.7).
+
 ## 11. Validaciones
 
 | ID | Validación | Mensaje esperado |
@@ -165,6 +171,7 @@ Es la operación más peligrosa del módulo, porque puede romper un invariante e
 | `CA-SP-160` | El sistema admite reubicar un rol comercial bajo un rol funcionario |
 | `CA-SP-161` | Dos reubicaciones simultáneas que formarían un ciclo no llegan a producirlo |
 | `CA-SP-162` | El sistema no retira permisos del rol al reubicarlo, ni siquiera los que sobran |
+| `CA-SP-175` | El sistema rechaza la operación cuando el rol que se mueve no existe o está eliminado, con un error distinto del de nuevo padre inexistente |
 
 ## 13. Casos límite
 

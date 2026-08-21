@@ -92,12 +92,11 @@ flowchart LR
     F016 -->|"la hija indicada existe"| MEM
     F020 --> PAIS
 
-    USR{{"Módulo USR<br/>sin usuarios asignados"}} -->|"condición de borrado"| F009
+    UR{{"user_roles<br/>sin usuarios asignados"}} -->|"condición de borrado"| F009
 
     classDef cat fill:#e7eef0,stroke:#2d5a6b,stroke-width:1px,color:#151b1e
     classDef ext fill:#f6e6e2,stroke:#a33b2a,stroke-dasharray:4 3,color:#151b1e
     class PERM,MON,RAIZ,ROL,MEM,PAIS cat
-    class USR ext
 ```
 
 El encadenamiento `RF-SP-008 → RF-SP-009` es el único no evidente: como no se elimina un rol con hijos vigentes, borrar un nodo intermedio de la jerarquía obliga a **reubicar antes** cada hijo con `RF-SP-008`. Ninguna de las dos specs lo dice; se deduce cruzándolas.

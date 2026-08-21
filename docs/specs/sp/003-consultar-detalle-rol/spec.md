@@ -7,6 +7,7 @@
 | Estado | **Aprobada** |
 | Autor | Responsable técnico |
 | Aprobada por | Responsable técnico |
+| Enmendada | 21-08-2026 — el conteo de usuarios deja de depender de `USR`, retirado como módulo (Art. I.7) |
 | Fecha de aprobación | 20-08-2026 |
 
 ---
@@ -35,12 +36,12 @@ Es la pantalla que responde «¿qué puede hacer alguien con este rol?», y de e
 - Datos del rol: código, nombre, descripción, clasificación y estado.
 - Lista completa de sus permisos declarados.
 - Su rol padre, y **cuántos** roles hijos directos tiene.
-- El número de usuarios que lo tienen asignado, obtenido de `USR` a través de la interfaz que este publica.
+- El número de usuarios que lo tienen asignado, leído de `user_roles`.
 
 ### 4.2 No incluye
 
-- El listado de los usuarios que lo tienen asignado → módulo `USR`. Aquí solo se devuelve **cuántos** son.
-- Los permisos efectivos de una persona, que son la unión de sus roles (`RN-SEG-009`) → módulo `USR`.
+- El listado de los usuarios que lo tienen asignado → `RF-SP-025`. Aquí solo se devuelve **cuántos** son.
+- Los permisos efectivos de una persona, que son la unión de sus roles (`RN-SEG-009`).
 - El **listado** de roles hijos: se obtiene con `RF-SP-002` filtrando por rol padre, que ya existe y ya está paginado.
 
 ## 5. Reglas de negocio aplicables
@@ -67,7 +68,7 @@ Es la pantalla que responde «¿qué puede hacer alguien con este rol?», y de e
 | Permisos | Lista explícita de los permisos que declara |
 | Rol padre | Rol que acota sus privilegios, vacío en el rol raíz |
 | Roles hijos | **Cuántos** roles cuelgan de este. El listado se obtiene con `RF-SP-002` filtrando por rol padre |
-| Usuarios asignados | Cuántos usuarios tienen el rol, obtenido de la interfaz que publica `USR` |
+| Usuarios asignados | Cuántos usuarios tienen el rol asignado |
 
 ## 7. Precondiciones y postcondiciones
 
@@ -84,7 +85,7 @@ Es la pantalla que responde «¿qué puede hacer alguien con este rol?», y de e
 
 1. El actor solicita el detalle de un rol.
 2. El sistema recupera el rol y su lista de permisos declarados.
-3. El sistema recupera su rol padre, cuenta sus roles hijos directos y consulta a `USR` cuántos usuarios lo tienen asignado.
+3. El sistema recupera su rol padre, cuenta sus roles hijos directos y cuenta cuántos usuarios lo tienen asignado.
 4. El sistema devuelve el detalle completo.
 
 ## 9. Flujos alternativos
@@ -135,7 +136,7 @@ Es la pantalla que responde «¿qué puede hacer alguien con este rol?», y de e
 - **Rol eliminado lógicamente:** se trata como inexistente. Reconstruir qué era corresponde a la auditoría de eliminación, que conserva su estado (Art. V.13).
 - **Rol con muchos permisos:** la lista se devuelve completa y sin paginar; los permisos de un rol son decenas, no miles.
 - **Rol con muchos hijos:** no afecta al tamaño de la respuesta, porque solo se devuelve el conteo.
-- **`USR` no disponible:** el conteo de usuarios depende de otro módulo. Hay que decidir en el plan si el detalle falla o si devuelve el conteo vacío indicando que no pudo obtenerse; degradar es preferible a que una consulta de roles caiga por un módulo ajeno.
+- **Rol sin usuarios asignados:** el conteo vale cero, que es un dato y no una ausencia.
 - **Identificador con formato incorrecto:** se rechaza por validación, no se trata como rol inexistente.
 
 ## 14. Preguntas abiertas
@@ -146,4 +147,4 @@ Ninguna. Las tres se resolvieron el 20-08-2026, antes de aprobar la especificaci
 |---|---|---|
 | 1 | ¿Se consulta el detalle de un rol eliminado? | No, se trata como inexistente. La auditoría de eliminación ya conserva el estado del rol al borrarse (Art. V.13), que es el mecanismo diseñado para reconstruir qué era. Duplicarlo aquí añadiría una rama al endpoint y una segunda fuente del mismo dato |
 | 2 | ¿Los roles hijos se devuelven completos? | No, solo el conteo. El listado se obtiene con `RF-SP-002` filtrando por rol padre, que ya existe y ya está paginado. Así el tamaño de la respuesta no depende de cuántos hijos tenga el rol |
-| 3 | ¿Se indica cuántos usuarios tienen el rol? | Sí. Es la pregunta que se hace antes de desactivar o eliminar un rol. Cuesta una consulta, y `RF-SP-009` ya obliga a que `USR` publique esa interfaz |
+| 3 | ¿Se indica cuántos usuarios tienen el rol? | Sí. Es la pregunta que se hace antes de desactivar o eliminar un rol, y cuesta una subconsulta sobre `user_roles`. Con el módulo `USR` retirado (`modules.md` v0.9.0), esa tabla pertenece a `SP` y no hace falta interfaz publicada alguna |

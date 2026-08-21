@@ -38,7 +38,7 @@ Es también la consulta previa a `RF-SP-016`: para insertar una membresía hay q
 ### 4.2 No incluye
 
 - Qué contenidos habilita cada nivel: corresponde a los módulos de academia y productos.
-- Cuántas personas tienen cada membresía → módulo `USR`.
+- Cuántas personas tienen cada membresía → se responde desde el lado del usuario, con `RF-SP-025`.
 
 ## 5. Reglas de negocio aplicables
 
@@ -119,4 +119,4 @@ Ninguna. Las dos se resolvieron el 21-08-2026, antes de aprobar la especificaci�
 | # | Pregunta | Resolución |
 |---|---|---|
 | 1 | ¿Tiene sentido paginar? | **No se pagina.** Es el caso más claro de los tres catálogos que se decidieron a la vez —con `RF-SP-010` y `RF-SP-021`—: aquí la información *es* el orden, y partirlo entre páginas destruye lo que se viene a consultar. Los niveles de membresía son unos pocos y la respuesta completa es pequeña |
-| 2 | ¿Cuántas personas tienen cada membresía? | **No.** En `RF-SP-003` sí se aceptó el conteo de usuarios por rol, porque allí decidía si el rol podía desactivarse o eliminarse. Una membresía ni se elimina ni se desactiva (`RN-SP-008`), de modo que el conteo no condiciona ninguna decisión que se pueda tomar desde aquí. Es dato de `USR` y lo pedirá quien lo necesite |
+| 2 | ¿Cuántas personas tienen cada membresía? | **No.** En `RF-SP-003` sí se aceptó el conteo de usuarios por rol, porque allí decidía si el rol podía desactivarse o eliminarse. Una membresía ni se elimina ni se desactiva (`RN-SP-008`), de modo que el conteo no condiciona ninguna decisión que se pueda tomar desde aquí. Se responde desde el lado del usuario y lo pedirá el requerimiento que lo necesite |

@@ -42,7 +42,7 @@ La cadena es **única para todo el sistema**: no hay una cadena por rol ni membr
 ### 4.2 No incluye
 
 - Editar o eliminar membresías: son inmutables una vez creadas (`RN-SP-008`).
-- Asignar membresías a personas → módulo `USR`.
+- Asignar membresías a personas → `RF-SP-032` y `RF-SP-033`.
 - Definir qué contenido exige qué nivel: corresponde a los módulos de academia y productos.
 - Cadenas distintas por rol: la cadena es única y alcanza a cualquier consumidor.
 
@@ -126,6 +126,11 @@ Si no se indica membresía hija, la nueva se sitúa en el extremo inferior de la
 **Condición:** la membresía hija indicada no existe.
 **Respuesta del sistema:** rechaza el alta e informa que la membresía indicada no es válida.
 
+### EX-003 — La cadena cambió durante la operación
+
+**Condición:** otra alta simultánea reordenó la cadena mientras esta se resolvía, de modo que la posición calculada ya no es válida.
+**Respuesta del sistema:** rechaza el alta sin escribir nada e informa que debe reintentarse. No es un dato inválido: la misma petición, repetida, es correcta.
+
 ## 11. Validaciones
 
 | ID | Validación | Mensaje esperado |
@@ -133,8 +138,9 @@ Si no se indica membresía hija, la nueva se sitúa en el extremo inferior de la
 | `VAL-001` | Código obligatorio | El código de la membresía es obligatorio. |
 | `VAL-002` | Nombre obligatorio | El nombre de la membresía es obligatorio. |
 | `VAL-003` | Código único | Ya existe una membresía con ese código. |
-| `VAL-004` | Nombre único | Ya existe una membresía con ese nombre. |
+| `VAL-004` | Nombre único, **sin distinguir mayúsculas ni acentos** | Ya existe una membresía con ese nombre. |
 | `VAL-005` | Membresía hija existente | La membresía indicada no existe. |
+| `VAL-006` | Formato del código | El código solo admite letras mayúsculas, dígitos y guion bajo, y debe empezar por letra. |
 
 ## 12. Criterios de aceptación
 
@@ -149,6 +155,9 @@ Si no se indica membresía hija, la nueva se sitúa en el extremo inferior de la
 | `CA-SP-117` | El sistema rechaza el alta con una membresía hija inexistente |
 | `CA-SP-118` | El sistema registra en la auditoría de cambios un evento por la membresía creada y uno por cada membresía que el reordenamiento haya modificado, todos con el mismo identificador de correlación |
 | `CA-SP-119` | El sistema rechaza el alta a un actor sin el permiso de creación de membresías |
+| `CA-SP-347` | El sistema rechaza un código que no cumpla el formato de mayúsculas, dígitos y guion bajo |
+| `CA-SP-348` | El sistema rechaza el nombre que solo difiere de otro existente en mayúsculas o acentos |
+| `CA-SP-349` | El sistema informa el empate concurrente con un error propio, distinto del de membresía hija inexistente |
 
 ## 13. Casos límite
 
@@ -169,3 +178,12 @@ Ninguna. Las cuatro se resolvieron el 21-08-2026, antes de aprobar la especifica
 | 2 | ¿Se audita cada membresía afectada por el reordenamiento? | **Cada una por separado**, todas bajo el mismo identificador de correlación. Es la única forma de que la auditoría de cambios responda «quién cambió el nivel de esta membresía», que es como se pregunta en la práctica: un único evento sobre la creada dejaría los cambios de las demás sin autor, y `RF-SP-011` es la única fuente de esa autoría |
 | 3 | ¿Se recalcula el acceso de quienes ya tenían membresía? | **No: conservan la suya.** El acceso se evalúa siempre por nivel, de modo que insertar un intermedio cambia el alcance relativo de los ya asignados. Eso no es un efecto secundario, es para lo que sirve insertar: si el alcance de cada persona se congelara, la cadena dejaría de significar nada |
 | 4 | ¿Cada membresía se asocia a roles concretos? | **No: la cadena es única y global.** «Crear nuevas membresías para ciertos roles» de la guía describe a quién alcanzan —a los consumidores—, no que cada membresía se declare para un rol. Varias cadenas obligarían a comparar niveles entre cadenas distintas, que es una comparación sin significado, y `RN-SP-006` presupone una sola |
+
+### Corrección posterior a la aprobación
+
+Aplicada el 21-08-2026 al aprobar el `plan.md`, conforme al Art. I.7: la especificación vuelve a su compuerta, se corrige y se deja constancia.
+
+| # | Defecto | Corrección |
+|---|---|---|
+| 1 | El empate concurrente del tercer caso límite de §13 no tenía excepción propia, y el plan lo referenciaba con `EX-002`, que es la membresía hija inexistente. Dos hechos distintos con un solo código, y con estados HTTP distintos | Se añade `EX-003` con su condición y su respuesta, y `CA-SP-349` para que la distinción quede verificada. Es la misma corrección que se aplicó en `RF-SP-008` y `RF-SP-009` |
+| 2 | `VAL-004` exigía nombre único sin decir cómo se compara, y no había validación de formato para el código. Con `RN-SP-008` haciendo la membresía inmutable, `Plata` y `plata` habrían podido convivir para siempre, y un código en minúsculas habría quedado sin corrección posible | `VAL-004` pasa a comparar **sin distinguir mayúsculas ni acentos**, y se añade `VAL-006` con el formato de código ya aprobado para los roles. Se añaden `CA-SP-347` y `CA-SP-348`. Tenía que decidirse ahora: después de la primera membresía, la corrección exige migrar datos |

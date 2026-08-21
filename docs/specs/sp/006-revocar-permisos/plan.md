@@ -5,10 +5,10 @@
 | Requerimiento | `RF-SP-006` |
 | Especificación | [`spec.md`](spec.md) |
 | `spec.md` aprobada el | 21-08-2026 |
-| Estado | **Borrador** |
+| Estado | **Aprobado** |
 | Autor | Responsable técnico |
-| Aprobado por | — |
-| Fecha de aprobación | — |
+| Aprobado por | Responsable técnico |
+| Fecha de aprobación | 21-08-2026 |
 
 ---
 
@@ -26,9 +26,9 @@ Tres decisiones dan forma al plan:
 
 ## 2. Cambios de esquema
 
-**Ninguno.** `role_permissions` se crea en `V5__create_role_permissions.sql` (`RF-SP-001`).
+**Ninguno.** `role_permissions` se crea en `V6__create_role_permissions.sql` (`RF-SP-001`).
 
-Conviene comprobar, sin embargo, que existe índice sobre `roles(parent_role_id)`: la verificación de descendencia consulta los hijos de un rol en cada revocación, y sin ese índice es un recorrido completo de la tabla. El plan de `RF-SP-003` ya lo asume para contar hijos; si no estuviera en `V4`, hay que añadirlo allí antes del primer despliegue.
+La verificación de descendencia consulta los hijos de un rol en cada revocación, y se apoya en `ix_roles_parent_role_id`, que `V5__create_roles.sql` sí crea (plan de `RF-SP-001` §2, verificado el 21-08-2026). Sin ese índice cada revocación sería un recorrido completo de la tabla de roles.
 
 ## 3. Componentes afectados
 
@@ -36,12 +36,12 @@ Conviene comprobar, sin embargo, que existe índice sobre `roles(parent_role_id)
 |---|---|---|---|
 | `domain` | `Role` | Modificado | Método `revokePermissions(Set<PermissionCode>, List<Role> children)`. Contiene `RN-SEG-005` y devuelve qué permisos se retiraron realmente |
 | `domain` | `PermissionRevocationBlocked` | Nuevo | Resultado del rechazo: qué roles hijos lo impiden y con qué permisos. Es lo que permite a la API decir **cuáles** |
+| `domain` | `RoleRepository` | Modificado | Puerto definido en `RF-SP-001`, que vive en `domain` porque devuelve el agregado. Añade la búsqueda de hijos directos de un rol, **sin filtrar por estado** |
 | `application` | `RevokeRolePermissionsService` | Nuevo | Caso de uso. `@Transactional`, carga la descendencia directa y emite la auditoría |
-| `application` | `RoleRepository` | Modificado | Añade la búsqueda de hijos directos de un rol, **sin filtrar por estado** |
 | `application` | `RoleDeletionAuditor` | Nuevo | Puerto hacia `shared/audit` para el registro de eliminación |
 | `application` | `RolePermissionCacheInvalidator` | Sin cambios | Puerto definido en `RF-SP-005` |
 | `infrastructure` | `JpaRoleRepository` | Modificado | Elimina físicamente las filas de `role_permissions` |
-| `api` | `RoleController` | Modificado | Añade `DELETE /api/v1/roles/{id}/permissions` |
+| `api` | `RoleController` | Modificado | Añade `POST /api/v1/roles/{id}/permissions/revocations` |
 | `api` | `RevokePermissionsRequest` | Nuevo | DTO de entrada. **No lleva motivo** |
 | `api` | `RoleResponse` | Sin cambios | Definido en `RF-SP-001` |
 
@@ -49,9 +49,9 @@ Conviene comprobar, sin embargo, que existe índice sobre `roles(parent_role_id)
 
 | Método | Ruta | Descripción |
 |---|---|---|
-| `DELETE` | `/api/v1/roles/{id}/permissions` | Retira permisos del rol |
+| `POST` | `/api/v1/roles/{id}/permissions/revocations` | Retira permisos del rol |
 
-**Petición** — un `DELETE` con cuerpo, porque hay que indicar qué permisos se retiran:
+**Petición** — el cuerpo indica qué permisos se retiran:
 
 ```json
 {
@@ -61,35 +61,43 @@ Conviene comprobar, sin embargo, que existe índice sobre `roles(parent_role_id)
 }
 ```
 
-Aplica aquí la advertencia ya registrada en `architecture.md` §6.6.3: el cuerpo en `DELETE` es admisible en OpenAPI 3.1 y Spring lo soporta, pero RFC 9110 no le define semántica y un intermediario podría descartarlo. **Debe probarse contra el proxy real antes de darlo por bueno.** Si resultara inviable, la alternativa es `POST /roles/{id}/permissions/revocations`, menos elegante pero sin ambigüedad de transporte.
+**Por qué `POST` sobre una subruta y no `DELETE` con cuerpo.** El borrador de este plan proponía `DELETE /api/v1/roles/{id}/permissions` con la lista en el cuerpo, que es la forma más expresiva. Se descartó el 21-08-2026: el cuerpo en `DELETE` es admisible en OpenAPI 3.1 y Spring lo soporta, pero RFC 9110 no le define semántica y un intermediario puede descartarlo sin avisar —la advertencia ya estaba registrada en `architecture.md` §6.6.3—. La revocación llegaría entonces sin permisos, y el fallo sería silencioso. La alternativa de pasarlos por *query string* tampoco sirve: con cien UUID la URL supera los límites habituales de longitud de proxies y servidores.
+
+`revocations` es un subrecurso: cada petición **crea** una revocación sobre el rol, que es exactamente lo que `POST` significa. El precio es un contrato menos elegante como REST; la ganancia es que no depende de qué haya delante en cada entorno y no deja una prueba pendiente antes de implementar.
 
 **No se solicita motivo.** Es una asociación, no una entidad de negocio.
 
-**Respuesta `200`** — el rol con su lista de permisos actualizada.
+**Respuesta `200`** — `RoleResponse`, definido en `RF-SP-001`: el rol con su lista de permisos actualizada y su rol padre. No se devuelve `RoleDetailResponse`, que arrastraría sus dos subconsultas de conteo a un camino de escritura que no las necesita (`RF-SP-004` §4).
 
 **Errores**
 
 | Código | Cuándo | `error_code` |
 |---|---|---|
-| `400` | Lista vacía, identificador malformado o más de 100 elementos | `VAL-001`, `VAL-002` |
-| `403` | Sin `roles:update`, o el rol está entre los del actor (`EX-003`) | `RN-SEG-011` |
+| `400` | Lista vacía o identificador malformado | `VAL-001`, `VAL-002` |
+| `400` | Más de 100 permisos en la petición | `VAL-004` |
+| `401` | Token ausente o inválido | `AUTH-001` |
+| `403` | El actor no posee `roles:update` | `AUTH-002` |
+| `403` | El rol está entre los del actor (`EX-003`) | `RN-SEG-011` |
 | `404` | El rol no existe o está eliminado (`EX-004`) | `EX-004` |
-| `409` | Un rol hijo declara el permiso (`EX-001`) | `RN-SEG-005` |
 | `409` | El rol es de sistema (`EX-002`) | `RN-SEG-012` |
+| `409` | Un rol hijo declara el permiso (`EX-001`) | `RN-SEG-005` |
+| `500` | Fallo no controlado | `ERR-500` |
+
+Los dos `403` son distintos y no deben fusionarse: el primero lo produce la capa de seguridad compartida antes de entrar al caso de uso; el segundo, el caso de uso con el rol ya cargado.
 
 El cuerpo del `409` por `RN-SEG-005` **debe enumerar qué roles lo impiden y con qué permisos**. Sin ese detalle el actor no sabe qué corregir, y como no hay cascada, corregirlo a mano es el único camino que le queda.
 
-El límite de 100 se hereda de `RF-SP-005` por coherencia, aunque la spec no lo exija: dos operaciones sobre el mismo recurso con límites distintos serían una trampa.
+El límite de 100 es el mismo que en `RF-SP-005`: dos operaciones sobre el mismo recurso con límites distintos serían una trampa. El borrador lo aplicaba sin respaldo en la especificación; el 21-08-2026 se añadió a `spec.md` como `VAL-004`, con su mensaje y su criterio `CA-SP-174` (Art. I.7).
 
 ## 5. Autorización
 
 | Endpoint | Permiso requerido |
 |---|---|
-| `DELETE /api/v1/roles/{id}/permissions` | `roles:update` |
+| `POST /api/v1/roles/{id}/permissions/revocations` | `roles:update` |
 
 Retirar permisos exige el mismo permiso que concederlos. No se define uno propio: quien puede ampliar un rol puede reducirlo, y separarlos crearía un rol capaz de conceder pero no de corregirse.
 
-`RN-SEG-011` se verifica igual que en `RF-SP-004` y `RF-SP-005`: contra los códigos de rol del token, solo los asignados directamente.
+`RN-SEG-011` se verifica igual que en `RF-SP-004` y `RF-SP-005`: contra los **roles vigentes del actor leídos de la base de datos**, no contra los códigos del token, y solo sobre los asignados directamente. La justificación está en `RF-SP-004` §5.
 
 ## 6. Auditoría
 
@@ -98,6 +106,12 @@ Retirar permisos exige el mismo permiso que concederlos. No se define uno propio
 | Permisos retirados | `audit_deletion_log` | `deletion_type = ASSOCIATION`, `reason` **vacío**, estado conservado con los identificadores **y los códigos** de rol y permiso |
 | Permisos retirados | `audit_security_log` | Cambio de permisos de un rol, severidad **Alta** |
 | Ninguno retirado | — | **Ningún evento**: si ninguno estaba asociado, nada cambió |
+| Rechazo por `EX-001` a `EX-004` | `audit_error_log` | `resource = 'roles'`, `operation` con método y ruta, `error_code` de la tabla de §4, `error_type = 'BUSINESS_RULE'`, `http_status`, `severity` y `message` saneado. Severidad **Alta** para `RN-SEG-005` y `RN-SEG-011`; **Media** para el resto |
+| Rechazo `400` de formato | — | **No se audita** (`architecture.md` §6.6.4) |
+| Denegación `403` por `AUTH-002` | `audit_security_log` | `event_type` de denegación de autorización, `severity = 'MEDIA'`, `outcome = 'FAILURE'`. Lo emite la capa de seguridad compartida |
+| Fallo no controlado `5xx` | `audit_error_log` | `error_type = 'UNHANDLED'`, `severity = 'ALTA'` |
+
+`RN-SEG-005` se audita con severidad Alta aunque no sea una escalada: un intento de retirar un permiso que un rol hijo declara indica que alguien está reorganizando privilegios sin ver la jerarquía completa, y esa es una señal que conviene poder buscar.
 
 El estado conservado lleva los códigos legibles y no solo los identificadores. Es lo que resolvió la spec, y la razón es la misma que sostiene el Art. V.13: dentro de un año, resolver dos referencias puede ser imposible si el rol o el permiso ya no existen.
 
@@ -140,8 +154,8 @@ El estado conservado lleva los códigos legibles y no solo los identificadores. 
 | Riesgo | Impacto | Mitigación |
 |---|---|---|
 | La caché conserva un permiso ya revocado | **Alto** | Invalidación enganchada al commit. Es más grave que en `RF-SP-005`: mantiene vivo un privilegio retirado |
-| El cuerpo del `DELETE` lo descarta un intermediario | Medio | Probar contra el proxy real antes de dar el contrato por bueno. Alternativa ya identificada en §4 |
-| Falta índice en `roles(parent_role_id)` | Medio | Verificar en `V4`. Sin él, cada revocación recorre la tabla de roles entera |
+| ~~El cuerpo del `DELETE` lo descarta un intermediario~~ | — | **Resuelto el 21-08-2026:** el contrato pasó a `POST /roles/{id}/permissions/revocations` (§4). Sin cuerpo en `DELETE` no hay ambigüedad de transporte ni prueba pendiente contra el proxy |
+| ~~Falta índice en `roles(parent_role_id)`~~ | — | **Verificado el 21-08-2026:** `ix_roles_parent_role_id` sí se crea en `V5__create_roles.sql` (plan de `RF-SP-001` §2). No hay nada que añadir |
 | El rechazo no dice qué roles bloquean | Medio | Sin cascada, es la única información con la que el actor puede avanzar. Cubierto por `CA-SP-042` |
 | Se copia de `RF-SP-005` y se omite la verificación de descendencia | **Alto** | Es la diferencia esencial entre ambos requerimientos, señalada en §1 y en el plan de `RF-SP-005` |
 
@@ -159,5 +173,6 @@ El estado conservado lleva los códigos legibles y no solo los identificadores. 
 | `CA-SP-048` | Integración | Una resolución de permisos posterior ya no concede el permiso retirado |
 | `CA-SP-155` | Integración | Con un rol hijo **inactivo** que declara el permiso, la revocación se rechaza |
 | `CA-SP-156` | Integración | El estado conservado contiene los códigos de rol y permiso, no solo los identificadores |
+| `CA-SP-174` | API | Una petición con 101 permisos devuelve `400` con `VAL-004` |
 
 `CA-SP-155` y `CA-SP-048` son las dos pruebas que no deben faltar. La primera protege el invariante de contención en el estado donde es más fácil olvidarlo; la segunda es la que distingue un permiso revocado de uno que sigue concediéndose desde la caché.
