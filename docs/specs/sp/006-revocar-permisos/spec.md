@@ -4,10 +4,10 @@
 |---|---|
 | Requerimiento | `RF-SP-006` |
 | Módulo | `SP` — Sistema Principal |
-| Estado | **Borrador** |
+| Estado | **Aprobada** |
 | Autor | Responsable técnico |
-| Aprobada por | — |
-| Fecha de aprobación | — |
+| Aprobada por | Responsable técnico |
+| Fecha de aprobación | 21-08-2026 |
 
 ---
 
@@ -33,12 +33,12 @@ El sistema **rechaza** la operación en ese caso, en lugar de revocar en cascada
 ### 4.1 Incluye
 
 - Retirar uno o varios permisos de un rol.
-- Verificación de que ningún rol hijo directo declara el permiso que se retira.
+- Verificación de que ningún rol hijo directo declara el permiso que se retira, **esté activo o inactivo**.
 
 ### 4.2 No incluye
 
 - Agregar permisos → `RF-SP-005`.
-- Revocación en cascada sobre los roles descendientes.
+- Revocación en cascada sobre los roles descendientes. Si alguna vez se ofreciera, sería un requerimiento propio: cada rol afectado necesitaría su evento de auditoría y su verificación de contención.
 - Eliminar el permiso del catálogo, que es inmutable (`RN-SP-004`).
 
 ## 5. Reglas de negocio aplicables
@@ -79,14 +79,14 @@ No se solicita motivo: se trata de una asociación, no de una entidad de negocio
 
 - Los permisos quedan desasociados del rol, con eliminación física de la asociación.
 - Ningún rol descendiente queda excediendo a su padre.
-- Queda constancia en la auditoría de eliminación, sin motivo, y en la de seguridad.
+- Queda constancia en la auditoría de eliminación, sin motivo y con los códigos de rol y de permiso legibles, y en la de seguridad.
 
 ## 8. Flujo principal
 
 1. El actor solicita retirar permisos de un rol.
 2. El sistema verifica que el rol exista y no sea de sistema.
 3. El sistema verifica que el actor no tenga ese rol asignado.
-4. El sistema verifica que ningún rol hijo directo declare alguno de los permisos que se retiran.
+4. El sistema verifica que ningún rol hijo directo, activo o inactivo, declare alguno de los permisos que se retiran.
 5. El sistema elimina las asociaciones.
 6. El sistema invalida la caché de resolución de permisos del rol.
 7. El sistema registra el evento en la auditoría de eliminación y en la de seguridad.
@@ -105,7 +105,7 @@ No se solicita motivo: se trata de una asociación, no de una entidad de negocio
 
 ### EX-001 — Un rol descendiente declara el permiso
 
-**Condición:** algún rol hijo directo declara alguno de los permisos que se retiran.
+**Condición:** algún rol hijo directo declara alguno de los permisos que se retiran, con independencia de su estado.
 **Respuesta del sistema:** rechaza la operación completa, cita `RN-SEG-005` e informa **qué roles** lo impiden y **qué permisos** son. Sin ese detalle, el actor no sabría qué corregir.
 
 ### EX-002 — Rol de sistema
@@ -143,12 +143,14 @@ No se solicita motivo: se trata de una asociación, no de una entidad de negocio
 | `CA-SP-046` | El sistema elimina físicamente la asociación, no de forma lógica |
 | `CA-SP-047` | El sistema rechaza la operación sobre un rol de sistema o sobre un rol propio del actor |
 | `CA-SP-048` | El sistema deja sin efecto la caché de permisos, de modo que el cambio aplica de inmediato |
+| `CA-SP-155` | El sistema rechaza la revocación cuando el rol hijo que declara el permiso está **inactivo** |
+| `CA-SP-156` | El estado conservado en la auditoría incluye los códigos de rol y de permiso, legibles sin resolver referencias |
 
 ## 13. Casos límite
 
 - **Operación parcialmente válida:** se rechaza entera, igual que en `RF-SP-005`.
 - **Retirar todos los permisos:** válido. El rol queda existiendo sin conceder nada.
-- **Rol hijo inactivo que declara el permiso:** ver pregunta abierta 1.
+- **Rol hijo inactivo que declara el permiso:** impide la revocación igual que uno activo. El invariante de contención vale siempre, no solo mientras el rol concede permisos.
 - **Rol hijo eliminado lógicamente que lo declara:** no debería impedir la revocación, ya que el rol no está vigente.
 - **Rol ancestro del propio actor:** puede revocarse. `RN-SEG-011` solo alcanza a los roles asignados directamente.
 - **Nieto que declara el permiso pero el hijo no:** imposible por la transitividad de la contención; si el hijo no lo tiene, el nieto tampoco puede tenerlo.
@@ -156,10 +158,10 @@ No se solicita motivo: se trata de una asociación, no de una entidad de negocio
 
 ## 14. Preguntas abiertas
 
-| # | Pregunta | Responsable | Estado |
-|---|---|---|---|
-| 1 | ¿Un rol hijo **inactivo** que declara el permiso impide la revocación? No concede permisos (`RN-SEG-002`), pero volvería a hacerlo al reactivarse, y entonces excedería a su padre | Responsable técnico | Abierta |
-| 2 | ¿Debe ofrecerse una revocación en cascada explícita, que el actor confirme tras ver los roles afectados? Hoy solo se rechaza | Responsable técnico | Abierta |
-| 3 | La auditoría de eliminación exige conservar el estado del registro eliminado. Para una asociación son dos identificadores. ¿Basta con eso o debe guardarse el código del rol y del permiso, legibles sin resolver referencias? | Responsable técnico | Abierta |
+Ninguna. Las tres se resolvieron el 21-08-2026, antes de aprobar la especificación.
 
-**Una spec con preguntas abiertas no puede aprobarse.** Esta sección debe quedar vacía antes de pasar la compuerta.
+| # | Pregunta | Resolución |
+|---|---|---|
+| 1 | ¿Un rol hijo inactivo impide la revocación? | **Sí.** El invariante `permisos(hijo) ⊆ permisos(padre)` vale siempre, no solo mientras el rol concede permisos. Si un hijo inactivo no bloqueara, reactivarlo con `RF-SP-007` produciría un rol que excede a su padre sin que ninguna operación hubiera violado `RN-SEG-003`, y habría que añadir esa verificación a la reactivación |
+| 2 | ¿Se ofrece revocación en cascada? | **No**, solo el rechazo. Ya informa qué roles lo impiden, de modo que el actor sabe qué corregir. Una cascada es un cambio masivo de privilegios y merece requerimiento propio: cada rol afectado necesitaría su evento de auditoría y su verificación de contención |
+| 3 | ¿Basta con los dos identificadores en la auditoría? | **No**, se guardan también los códigos de rol y de permiso. El Art. V.13 existe porque saber que algo se borró no sirve si ya no puede saberse qué era, y dos identificadores obligan a resolver referencias que pueden haber desaparecido |
