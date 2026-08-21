@@ -5,7 +5,7 @@
 | Proyecto | NEXUS — Renovación de plataforma |
 | Empresa | FACTECH GROUP SAS |
 | Documento | `architecture.md` |
-| Versión | 0.5.0 |
+| Versión | 0.8.0 |
 | Estado | Borrador |
 | Responsable técnico | Bonilla Diaz William Steven |
 | Fecha de creación | 19-08-2026 |
@@ -258,16 +258,18 @@ Tres reglas que evitan huecos y ruido:
 | `reason` | `text` | Motivo declarado por el actor. Obligatorio salvo en `ASSOCIATION` (Art. V.13) |
 | `snapshot` | `jsonb` **NOT NULL** | Estado completo del registro al momento de eliminarse |
 
-El motivo es obligatorio en el esquema para las entidades de negocio, y el esquema exige además que diga algo:
+El motivo es obligatorio en el esquema para las entidades de negocio, y no basta con enviarlo en blanco:
 
 ```sql
 CONSTRAINT ck_deletion_reason CHECK (
     deletion_type = 'ASSOCIATION'
- OR char_length(btrim(reason)) >= 10
+ OR char_length(btrim(reason)) > 0
 )
 ```
 
-**Consecuencia sobre la API, que debe asumirse de forma consciente:** si el motivo es obligatorio, hay que pedirlo. Todo `DELETE` recibe un cuerpo JSON con el motivo y responde `400` si falta o no alcanza el mínimo:
+La restricción exige contenido, no longitud. Un motivo de un solo carácter la satisface, de modo que la garantía es formal: obliga a escribir algo, no a que ese algo informe. Se decidió no elevar el mínimo para no imponer fricción a quien sí redacta un motivo útil.
+
+**Consecuencia sobre la API, que debe asumirse de forma consciente:** si el motivo es obligatorio, hay que pedirlo. Todo `DELETE` recibe un cuerpo JSON con el motivo y responde `400` si llega vacío:
 
 ```
 DELETE /api/v1/roles/{id}
@@ -276,6 +278,8 @@ DELETE /api/v1/roles/{id}
 ```
 
 El cuerpo en `DELETE` es admisible en OpenAPI 3.1 y Spring lo soporta sin artificios, pero RFC 9110 no le define semántica y un intermediario podría descartarlo. Si eso llegara a ocurrir en el despliegue real, la alternativa declarada es la cabecera `X-Deletion-Reason`. **No** se usa parámetro de consulta: el motivo terminaría en la URL, y con ella en las trazas de acceso del proxy y en `request_log`.
+
+**En una asociación**, el estado conservado no se limita a los dos identificadores que la componen: incluye también sus **códigos legibles** —el del rol y el del permiso—. Con solo los identificadores habría que resolver dos referencias que pueden haber desaparecido, y el evento dejaría de responder qué se desvinculó.
 
 El `snapshot` es lo que vuelve útil a este registro. Sin él, la fila dice que el rol `018f3a…` fue eliminado y ya nadie recuerda qué rol era. Pasa por el mismo enmascarador que el resto: el estado de un usuario eliminado se conserva sin su `password_hash`.
 
@@ -399,7 +403,9 @@ Las colecciones se paginan siempre. Nunca se devuelve una colección completa si
 GET /api/v1/roles?page=0&size=20&sort=name,asc
 ```
 
-`size` tiene un máximo declarado en configuración. La respuesta incluye el total de elementos, el total de páginas y la página actual.
+**Tamaño por defecto 20, máximo 100.** Se declara en configuración y es **uniforme para todo el sistema**, no por endpoint: un techo distinto en cada colección obligaría a consultarlo caso por caso y se volvería inconsistente con el tiempo. El techo acota el coste de una petición sin estorbar a una integración que recorra un catálogo.
+
+La respuesta incluye el total de elementos, el total de páginas y la página actual. Una petición con `size` superior al máximo **se rechaza**; no se recorta en silencio, porque el cliente creería haber recibido lo que pidió.
 
 ---
 
@@ -570,3 +576,6 @@ D-08 quedó cerrada en `security.md` §12, junto con las decisiones D-12 a D-15 
 | 0.3.0 | 19-08-2026 | Se retiran `created_by` y `updated_by` de las columnas obligatorias: el actor reside solo en la auditoría. | Responsable técnico |
 | 0.4.0 | 20-08-2026 | Nueva §6.6: la auditoría se separa en cuatro registros (cambios, eliminación, error y seguridad), con núcleo común, IP de origen y vista de consulta transversal. §8 incorpora la transaccionalidad diferenciada; §9 pasa de tres a seis registros de observabilidad. Enmienda la constitución 0.4.0. | Responsable técnico |
 | 0.5.0 | 20-08-2026 | `audit_deletion_log` admite `deletion_type = ASSOCIATION`, donde el motivo no es exigible (Art. V.13 enmendado). | Responsable técnico |
+| 0.6.0 | 20-08-2026 | §7.4 fija el tamaño de página por defecto en 20 y el máximo en 100, uniformes para todo el sistema. | Responsable técnico |
+| 0.7.0 | 21-08-2026 | El estado conservado de una eliminación de asociación incluye los códigos legibles de ambos extremos, no solo sus identificadores. | Responsable técnico |
+| 0.8.0 | 21-08-2026 | La restricción del motivo de eliminación pasa de exigir diez caracteres a exigir solo contenido no vacío. | Responsable técnico |

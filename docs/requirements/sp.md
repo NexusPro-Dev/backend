@@ -4,7 +4,7 @@
 |---|---|
 | Módulo | `SP` — Sistema Principal |
 | Paquete | `modules/system` |
-| Versión | 1.0.0 |
+| Versión | 1.2.0 |
 | Estado | **Aprobado** |
 | Responsable | Bonilla Diaz William Steven |
 | Fecha de creación | 20-08-2026 |
@@ -159,10 +159,16 @@ Reglas que no son transversales de seguridad y por tanto sí llevan el prefijo d
 | `RN-SP-004` | Permisos inmutables por API | Siempre | Los permisos no se crean, editan ni eliminan por la API: se pueblan y modifican únicamente por migración | Alta |
 | `RN-SP-005` | Revocación sin motivo | Al retirar un permiso de un rol | La fila de asociación se elimina físicamente y se audita en `audit_deletion_log` sin motivo declarado (Art. V.13, excepción de asociaciones) | Alta |
 | `RN-SP-006` | Membresía acotada por nivel | Al crear una membresía | Toda membresía está sujeta a una de mayor nivel; solo la membresía superior queda libre de ella | Alta |
-| `RN-SP-007` | Inserción en la cadena de membresías | Al crear una membresía | Se indica cuál es su membresía hija y el sistema reordena la jerarquía en consecuencia | Alta |
-| `RN-SP-008` | Membresías inmutables | Al editar o eliminar una membresía | La operación se rechaza. Solo se admite el reordenamiento derivado de `RN-SP-007` | Media |
-| `RN-SP-009` | Países inmutables | Al editar o eliminar un país | La operación se rechaza | Media |
-| `RN-SP-010` | Monedas inmutables por API | Siempre | Las monedas no se crean, editan ni eliminan por la API | Media |
+| `RN-SP-007` | Inserción en la cadena de membresías | Al crear una membresía | Se indica cuál es su membresía hija, si la hay, y el sistema reordena la jerarquía en consecuencia. Si no se indica ninguna, la nueva membresía queda en el extremo inferior de la cadena | Alta |
+| `RN-SP-008` | Membresías inmutables | Al editar o eliminar una membresía | La operación se rechaza. Solo se admite el reordenamiento derivado de `RN-SP-007`. **No llevan indicador de activo**: desactivar un eslabón dejaría un hueco en un orden lineal | Media |
+| `RN-SP-009` | Países inmutables salvo su estado | Al editar o eliminar un país | La operación se rechaza. Lo único modificable es el indicador de país activo (`RF-SP-022`), que permite retirar de la circulación un alta equivocada sin borrar el registro | Media |
+| `RN-SP-010` | Monedas inmutables por API salvo su estado | Siempre | Las monedas no se crean, editan ni eliminan por la API. Lo único modificable es el indicador de moneda activa (`RF-SP-023`), y la moneda por defecto no puede desactivarse | Media |
+
+!!! info "Sobre la inmutabilidad de los catálogos"
+
+    Países y monedas **sí** llevan indicador de activo; las membresías **no**. La diferencia no es de criterio sino de estructura: un catálogo plano admite que un elemento deje de ofrecerse sin que los demás se enteren, mientras que la cadena de membresías es un orden lineal en el que retirar un eslabón obliga a decidir qué pasa con el hueco y con quien lo tenía asignado.
+
+    Desactivar **no es corregir**: el código y el nombre erróneos permanecen, y los datos que ya los referencian siguen resolviéndolos. Es lo que evita que el error se propague a partir de ese momento, no lo que lo repara.
 
 !!! info "Sobre `RN-SP-005`"
 
@@ -197,6 +203,8 @@ Reglas que no son transversales de seguridad y por tanto sí llevan el prefijo d
 | `RF-SP-019` | Consultar monedas | Media | `currencies:read` | Pendiente |
 | `RF-SP-020` | Registrar país | Media | `countries:create` | Pendiente |
 | `RF-SP-021` | Consultar países | Media | `countries:read` | Pendiente |
+| `RF-SP-022` | Cambiar el estado de un país | Media | `countries:update` | Pendiente |
+| `RF-SP-023` | Cambiar el estado de una moneda | Baja | `currencies:update` | Pendiente |
 
 **Orden sugerido de implementación:** `RF-SP-010` → `RF-SP-001` → `RF-SP-002` → `RF-SP-005` → el resto. El catálogo de permisos es prerrequisito de todo lo demás, y sin roles no hay nada que auditar.
 
@@ -517,6 +525,36 @@ Crea un país. Una vez creado no puede editarse ni eliminarse, de modo que la va
 
 Listado de países.
 
+#### `RF-SP-022` — Cambiar el estado de un país
+
+| Campo | Valor |
+|---|---|
+| Objetivo | Retirar de la circulación un país registrado por error, o reincorporarlo |
+| Actor | Super Administrador, Administrador |
+| Permiso requerido | `countries:update` |
+| Prioridad | Media |
+| Reglas aplicables | `RN-SP-009` |
+| Depende de | `RF-SP-020` |
+| Tripleta | Pendiente de redactar |
+| Estado | Pendiente |
+
+Activa o desactiva un país. Un país inactivo deja de ofrecerse en `RF-SP-021`, pero su registro permanece y los datos que ya lo referencian siguen resolviéndolo. Es la única modificación admitida sobre el catálogo, y nace de la aprobación de `RF-SP-020` el 21-08-2026.
+
+#### `RF-SP-023` — Cambiar el estado de una moneda
+
+| Campo | Valor |
+|---|---|
+| Objetivo | Incorporar una moneda sin habilitarla todavía, o retirar una que deja de usarse |
+| Actor | Super Administrador |
+| Permiso requerido | `currencies:update` |
+| Prioridad | Baja |
+| Reglas aplicables | `RN-SP-010` |
+| Depende de | `RF-SP-019` |
+| Tripleta | Pendiente de redactar |
+| Estado | Pendiente |
+
+Activa o desactiva una moneda. **La moneda por defecto no puede desactivarse**: dejaría los importes del sistema sin referencia válida. Nace de la aprobación de `RF-SP-019` el 21-08-2026.
+
 ## 7. Requerimientos no funcionales
 
 Definidos en [`security.md` §11](../security.md) y en la constitución. Los que este módulo debe satisfacer:
@@ -557,6 +595,8 @@ Ninguna con sistemas externos. Internamente, `USR` consume de este módulo el ca
 | `GET` | `/api/v1/currencies` | `RF-SP-019` | `currencies:read` |
 | `POST` | `/api/v1/countries` | `RF-SP-020` | `countries:create` |
 | `GET` | `/api/v1/countries` | `RF-SP-021` | `countries:read` |
+| `PATCH` | `/api/v1/countries/{id}/status` | `RF-SP-022` | `countries:update` |
+| `PATCH` | `/api/v1/currencies/{id}/status` | `RF-SP-023` | `currencies:update` |
 
 Rutas propuestas. El contrato exacto de cada una se fija en el `plan.md` de su tripleta.
 
@@ -675,9 +715,14 @@ Su clave primaria es **compuesta** (`role_id`, `permission_id`), y es la excepci
 | `code` | `char(3)` | No | No | No | — | — |
 | `name` | `varchar(100)` | No | No | No | — | — |
 | `symbol` | `varchar(10)` | No | No | Sí | — | — |
+| `decimal_places` | `smallint` | No | No | No | `2` | — |
+| `is_default` | `boolean` | No | No | No | `false` | — |
+| `is_active` | `boolean` | No | No | No | `true` | — |
 | `created_at` | `timestamptz` | No | No | No | `now()` | — |
 
-`code` sigue ISO 4217 (`USD`). Se puebla por migración y no se modifica por API (`RN-SP-010`).
+`code` sigue ISO 4217 (`USD`). Se puebla por migración y no se modifica por API (`RN-SP-010`), salvo `is_active` a través de `RF-SP-023`.
+
+`decimal_places` condiciona el redondeo de todo cálculo financiero y no siempre vale dos: hay monedas sin fracción, en las que cero es un valor legítimo. `is_default` marca la moneda con la que opera el sistema, y **exactamente una fila la lleva a `true`**: la restricción se declara en el esquema con un índice único parcial, no solo en el dominio (Art. V.6). La moneda por defecto no puede desactivarse.
 
 ### 10.6 Campos principales — `countries`
 
@@ -686,9 +731,10 @@ Su clave primaria es **compuesta** (`role_id`, `permission_id`), y es la excepci
 | `id` | `uuid` | Sí | No | No | — | — |
 | `code` | `char(2)` | No | No | No | — | — |
 | `name` | `varchar(100)` | No | No | No | — | — |
+| `is_active` | `boolean` | No | No | No | `true` | — |
 | `created_at` | `timestamptz` | No | No | No | `now()` | — |
 
-`code` sigue ISO 3166-1 alfa-2 (`CO`, `US`). No se edita ni elimina (`RN-SP-009`).
+`code` sigue ISO 3166-1 alfa-2 (`CO`, `US`). No se edita ni elimina (`RN-SP-009`); lo único modificable es `is_active`, a través de `RF-SP-022`. El catálogo **no se siembra** con la lista internacional completa: los países se dan de alta por la API a medida que la plataforma llega a ellos.
 
 ### 10.7 Restricciones exigidas en el esquema
 
@@ -706,6 +752,8 @@ Declaradas en la base de datos, no solo en Java (Art. V.6):
 | `fk_role_permissions_permissions` | `role_permissions(permission_id)` → `permissions(id)` |
 | `fk_memberships_parent` | `memberships(parent_membership_id)` → `memberships(id)` — `RN-SP-006` |
 | `uq_memberships_parent` | `memberships(parent_membership_id)` — garantiza una sola hija por membresía |
+| `ix_roles_busqueda` | Índice de trigramas sobre `roles` para la búsqueda insensible a mayúsculas y acentos. Requiere las extensiones `unaccent` y `pg_trgm`: la coincidencia es por contención, y un índice B-tree corriente no la sostiene |
+| `ix_countries_busqueda` | Ídem sobre `countries` |
 | `uq_memberships_code` | `memberships(code)` |
 | `uq_currencies_code` | `currencies(code)` |
 | `uq_countries_code` | `countries(code)` |
@@ -740,3 +788,6 @@ Definidos en [`architecture.md` §6.6](../architecture.md), que detalla el núcl
 | 0.6.0 | 20-08-2026 | `role_type` pasa a tres valores con `VENDEDOR`, y los roles vendedores declaran `sales_rank` para ordenar el mando dentro de la fuerza comercial. Nuevas reglas `RN-SP-011` y `RN-SP-012`. | Responsable técnico |
 | 0.7.0 | 20-08-2026 | Se retira `sales_rank`: el orden de mando comercial se expresa con `parent_role_id`, el mismo campo que acota los permisos. `RN-SP-011` se reescribe y `RN-SP-012` queda retirada, con su número consumido. | Responsable técnico |
 | 1.0.0 | 20-08-2026 | Primera versión aprobada. Los 21 requerimientos quedan registrados en la matriz de trazabilidad. | Responsable técnico |
+| 1.1.0 | 20-08-2026 | §10.7 incorpora los índices funcionales de búsqueda insensible a mayúsculas y acentos, que exigen la extensión `unaccent`. | Responsable técnico |
+| 1.2.0 | 20-08-2026 | Los índices de búsqueda pasan a ser de trigramas y exigen también la extensión `pg_trgm`: la coincidencia es por contención y un B-tree no la sostiene. | Responsable técnico |
+| 1.3.0 | 21-08-2026 | Consecuencias de aprobar las specs de `RF-SP-010` a `RF-SP-021`. `RN-SP-007` admite crear una membresía sin indicar hija; `RN-SP-009` y `RN-SP-010` admiten cambiar el estado de países y monedas, y `RN-SP-008` deja constancia de que las membresías no lo llevan. Dos requerimientos nuevos, `RF-SP-022` y `RF-SP-023`. `currencies` incorpora `decimal_places`, `is_default` e `is_active`, y `countries` incorpora `is_active`. | Responsable técnico |
