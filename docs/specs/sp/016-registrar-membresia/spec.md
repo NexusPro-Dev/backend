@@ -4,10 +4,10 @@
 |---|---|
 | Requerimiento | `RF-SP-016` |
 | Módulo | `SP` — Sistema Principal |
-| Estado | **Borrador** |
+| Estado | **Aprobada** |
 | Autor | Responsable técnico |
-| Aprobada por | — |
-| Fecha de aprobación | — |
+| Aprobada por | Responsable técnico |
+| Fecha de aprobación | 21-08-2026 |
 
 ---
 
@@ -22,6 +22,8 @@ La membresía determina a qué servicios y contenidos llega un cliente: hay curs
 Las membresías forman una **cadena ordenada, no un árbol**: cada una está sujeta a una de mayor nivel y solo la superior queda libre. Al crear una se indica cuál será su **hija**, de modo que la nueva membresía se **inserta en medio** y la cadena se reordena.
 
 Esa mecánica de inserción es lo que distingue este requerimiento de un alta corriente: no añade un elemento al final, lo intercala.
+
+La cadena es **única para todo el sistema**: no hay una cadena por rol ni membresías reservadas a roles concretos. Es lo que hace que «nivel 3» signifique lo mismo dicho desde cualquier parte del sistema, y lo que permite que un módulo de contenidos exija un nivel mínimo sin preguntar además de qué rol se trata.
 
 ## 3. Actores
 
@@ -42,13 +44,14 @@ Esa mecánica de inserción es lo que distingue este requerimiento de un alta co
 - Editar o eliminar membresías: son inmutables una vez creadas (`RN-SP-008`).
 - Asignar membresías a personas → módulo `USR`.
 - Definir qué contenido exige qué nivel: corresponde a los módulos de academia y productos.
+- Cadenas distintas por rol: la cadena es única y alcanza a cualquier consumidor.
 
 ## 5. Reglas de negocio aplicables
 
 | ID | Regla | Origen |
 |---|---|---|
 | `RN-SP-006` | Toda membresía está sujeta a una de mayor nivel, salvo la superior | `requirements/sp.md` §5.1 |
-| `RN-SP-007` | Al crear se indica la membresía hija y se reordena la jerarquía | `requirements/sp.md` §5.1 |
+| `RN-SP-007` | Al crear se indica la membresía hija, si la hay, y el sistema reordena la jerarquía | `requirements/sp.md` §5.1 |
 | `RN-SP-008` | Las membresías no se editan ni eliminan | `requirements/sp.md` §5.1 |
 
 ## 6. Datos
@@ -82,7 +85,7 @@ Si no se indica membresía hija, la nueva se sitúa en el extremo inferior de la
 - La membresía queda insertada en la posición correspondiente.
 - La cadena sigue siendo lineal: cada membresía tiene como mucho una hija.
 - Los niveles de las membresías afectadas quedan recalculados.
-- Queda constancia en la auditoría de cambios.
+- Queda constancia en la auditoría de cambios de la membresía creada **y de cada membresía que el reordenamiento haya modificado**, todos los eventos bajo el mismo identificador de correlación.
 
 ## 8. Flujo principal
 
@@ -92,7 +95,7 @@ Si no se indica membresía hija, la nueva se sitúa en el extremo inferior de la
 4. El sistema verifica que la membresía hija indicada exista.
 5. El sistema sitúa la nueva membresía por encima de la hija indicada y por debajo de la superior actual de esa hija.
 6. El sistema recalcula los niveles de las membresías afectadas.
-7. El sistema registra el evento en la auditoría de cambios.
+7. El sistema registra en la auditoría de cambios el alta de la nueva membresía y la modificación de cada membresía afectada por el reordenamiento.
 8. El sistema informa la membresía creada.
 
 ## 9. Flujos alternativos
@@ -123,11 +126,6 @@ Si no se indica membresía hija, la nueva se sitúa en el extremo inferior de la
 **Condición:** la membresía hija indicada no existe.
 **Respuesta del sistema:** rechaza el alta e informa que la membresía indicada no es válida.
 
-### EX-003 — La hija indicada ya tiene otra superior distinta de la nueva
-
-**Condición:** insertar la nueva membresía dejaría a dos membresías compartiendo la misma superior.
-**Respuesta del sistema:** este caso no debe darse: la inserción reasigna la superior de la hija. Si la restricción del esquema lo rechazara, se trata como error del sistema y no como validación de negocio.
-
 ## 11. Validaciones
 
 | ID | Validación | Mensaje esperado |
@@ -149,24 +147,25 @@ Si no se indica membresía hija, la nueva se sitúa en el extremo inferior de la
 | `CA-SP-115` | El sistema recalcula los niveles de las membresías afectadas |
 | `CA-SP-116` | El sistema rechaza el alta con código o nombre ya en uso |
 | `CA-SP-117` | El sistema rechaza el alta con una membresía hija inexistente |
-| `CA-SP-118` | El sistema registra el alta y el reordenamiento en la auditoría de cambios |
+| `CA-SP-118` | El sistema registra en la auditoría de cambios un evento por la membresía creada y uno por cada membresía que el reordenamiento haya modificado, todos con el mismo identificador de correlación |
 | `CA-SP-119` | El sistema rechaza el alta a un actor sin el permiso de creación de membresías |
 
 ## 13. Casos límite
 
 - **Insertar por encima de la membresía superior:** convierte a la nueva en la superior. Debe admitirse.
-- **Reordenamiento y auditoría:** la inserción modifica otras membresías. Ver pregunta abierta 2.
+- **La hija indicada ya tiene otra superior:** es el caso normal, no un error. La inserción reasigna la superior de esa hija; por eso la operación se llama insertar y no añadir. Si la restricción única del esquema llegara a rechazarlo, sería un defecto del sistema y no una validación de negocio.
 - **Inserción concurrente sobre la misma hija:** ambas pretenderían ser su superior. La restricción única debe resolver el empate sin dejar la cadena bifurcada.
 - **Cadena con una sola membresía:** insertar por encima o por debajo son las dos únicas posibilidades.
-- **Consumidores ya asignados:** insertar un nivel intermedio cambia el orden relativo. Ver pregunta abierta 3.
+- **Consumidores ya asignados:** insertar un nivel intermedio cambia el alcance relativo de quienes ya tenían membresía, y eso es deliberado: conservan la suya y el acceso se sigue evaluando por nivel.
+- **Nombre mal escrito:** no hay corrección posible. Es la consecuencia asumida de `RN-SP-008`, y toda la defensa está en el momento del alta.
 
 ## 14. Preguntas abiertas
 
-| # | Pregunta | Responsable | Estado |
-|---|---|---|---|
-| 1 | Al no poder editarse ni eliminarse, un error de escritura en el nombre queda para siempre. ¿Se admite alguna corrección, o es deliberado? | Responsable técnico | Abierta |
-| 2 | El reordenamiento modifica membresías que el actor no tocó. ¿Se audita cada una por separado, o basta un evento sobre la creada? | Responsable técnico | Abierta |
-| 3 | Insertar un nivel intermedio altera el alcance efectivo de quienes ya tenían membresía. ¿Se recalcula su acceso, o conservan el que tenían? | Responsable técnico | Abierta |
-| 4 | ¿Toda membresía aplica a cualquier rol de tipo consumidor, o cada una se asocia a roles concretos? La guía dice «crear nuevas membresías para ciertos roles» | Responsable técnico | Abierta |
+Ninguna. Las cuatro se resolvieron el 21-08-2026, antes de aprobar la especificación.
 
-**Una spec con preguntas abiertas no puede aprobarse.** Esta sección debe quedar vacía antes de pasar la compuerta.
+| # | Pregunta | Resolución |
+|---|---|---|
+| 1 | ¿Se admite alguna corrección de un nombre mal escrito? | **No: la membresía sigue siendo inmutable.** Se estudió darle un indicador de activo, como el que sí reciben países y monedas, y se descartó por el efecto sobre la cadena: desactivar un eslabón intermedio deja un hueco en un orden lineal y obliga a decidir qué le pasa a quien lo tenía asignado. Una membresía mal escrita se corrige por migración, que es una operación excepcional y trazable |
+| 2 | ¿Se audita cada membresía afectada por el reordenamiento? | **Cada una por separado**, todas bajo el mismo identificador de correlación. Es la única forma de que la auditoría de cambios responda «quién cambió el nivel de esta membresía», que es como se pregunta en la práctica: un único evento sobre la creada dejaría los cambios de las demás sin autor, y `RF-SP-011` es la única fuente de esa autoría |
+| 3 | ¿Se recalcula el acceso de quienes ya tenían membresía? | **No: conservan la suya.** El acceso se evalúa siempre por nivel, de modo que insertar un intermedio cambia el alcance relativo de los ya asignados. Eso no es un efecto secundario, es para lo que sirve insertar: si el alcance de cada persona se congelara, la cadena dejaría de significar nada |
+| 4 | ¿Cada membresía se asocia a roles concretos? | **No: la cadena es única y global.** «Crear nuevas membresías para ciertos roles» de la guía describe a quién alcanzan —a los consumidores—, no que cada membresía se declare para un rol. Varias cadenas obligarían a comparar niveles entre cadenas distintas, que es una comparación sin significado, y `RN-SP-006` presupone una sola |

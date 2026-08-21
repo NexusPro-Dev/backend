@@ -4,10 +4,10 @@
 |---|---|
 | Requerimiento | `RF-SP-015` |
 | Módulo | `SP` — Sistema Principal |
-| Estado | **Borrador** |
+| Estado | **Aprobada** |
 | Autor | Responsable técnico |
-| Aprobada por | — |
-| Fecha de aprobación | — |
+| Aprobada por | Responsable técnico |
+| Fecha de aprobación | 21-08-2026 |
 
 ---
 
@@ -37,7 +37,7 @@ Es una consulta de apoyo a `RF-SP-005`: se llega a ella desde el catálogo.
 ### 4.2 No incluye
 
 - Modificarlo: el catálogo es inmutable por API (`RN-SP-004`).
-- Los roles que lo declaran: ver pregunta abierta 1.
+- Los roles que lo declaran: es el recorrido inverso del catálogo y corresponde a una consulta propia, igual que en `RF-SP-010`.
 
 ## 5. Reglas de negocio aplicables
 
@@ -51,7 +51,7 @@ Es una consulta de apoyo a `RF-SP-005`: se llega a ella desde el catálogo.
 
 | Dato | Obligatorio | Descripción | Restricción de negocio |
 |---|---|---|---|
-| Identificador | Sí | Permiso que se consulta | Debe existir |
+| Identificador | Sí | Permiso que se consulta | Debe existir. Se accede por identificador, no por código |
 
 ### 6.2 Salida
 
@@ -109,9 +109,9 @@ Ninguno.
 
 ## 14. Preguntas abiertas
 
-| # | Pregunta | Responsable | Estado |
-|---|---|---|---|
-| 1 | ¿Debe devolver qué roles declaran el permiso? Sería lo más útil antes de reorganizar accesos, pero convierte una consulta trivial en una con recorrido | Responsable técnico | Abierta |
-| 2 | ¿Se accede por identificador o también por código, que es más legible en una URL? | Responsable técnico | Abierta |
+Ninguna. Las dos se resolvieron el 21-08-2026, antes de aprobar la especificación.
 
-**Una spec con preguntas abiertas no puede aprobarse.** Esta sección debe quedar vacía antes de pasar la compuerta.
+| # | Pregunta | Resolución |
+|---|---|---|
+| 1 | ¿Debe devolver qué roles declaran el permiso? | **No.** Misma resolución y mismo motivo que la pregunta 2 de `RF-SP-010`: es el recorrido inverso del catálogo, encarece una consulta trivial y la relación se consulta desde el lado que ya la tiene. Si hace falta, será una consulta propia con su requerimiento |
+| 2 | ¿Se accede por identificador o también por código? | **Solo por identificador**, como en `RF-SP-003`. Admitir dos formas de direccionar el mismo recurso obliga a distinguir en cada petición si lo recibido es un identificador o un código, y a decidir qué ocurre cuando un código parece un identificador. El código sigue siendo la vía legible para *encontrar* el permiso: es filtro y búsqueda en `RF-SP-010` |

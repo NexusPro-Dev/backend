@@ -4,10 +4,10 @@
 |---|---|
 | Requerimiento | `RF-SP-017` |
 | Módulo | `SP` — Sistema Principal |
-| Estado | **Borrador** |
+| Estado | **Aprobada** |
 | Autor | Responsable técnico |
-| Aprobada por | — |
-| Fecha de aprobación | — |
+| Aprobada por | Responsable técnico |
+| Fecha de aprobación | 21-08-2026 |
 
 ---
 
@@ -32,7 +32,7 @@ Es también la consulta previa a `RF-SP-016`: para insertar una membresía hay q
 
 ### 4.1 Incluye
 
-- Listado de membresías en el orden de la cadena, del nivel superior al inferior.
+- Listado completo de membresías, sin paginar, en el orden de la cadena, del nivel superior al inferior.
 - Datos de identificación de cada una y su posición.
 
 ### 4.2 No incluye
@@ -52,17 +52,17 @@ Es también la consulta previa a `RF-SP-016`: para insertar una membresía hay q
 
 | Dato | Obligatorio | Descripción | Restricción de negocio |
 |---|---|---|---|
-| Página y tamaño | No | Paginación | Por defecto 20, máximo 100 (`architecture.md` §7.4) |
-| Búsqueda | No | Texto libre sobre código y nombre | — |
+| Búsqueda | No | Texto libre sobre código y nombre | Insensible a mayúsculas y a acentos |
 
 No se admite ordenamiento arbitrario: el orden de la cadena es la información.
+
+La cadena **no se pagina**. Partir un orden lineal entre páginas destruye justamente lo que se viene a ver, y los niveles de membresía son unos pocos.
 
 ### 6.2 Salida
 
 | Dato | Descripción |
 |---|---|
-| Membresías | Código, nombre, descripción y nivel de cada una, en orden de jerarquía |
-| Paginación | Total de elementos, total de páginas y página actual |
+| Membresías | Código, nombre, descripción y nivel de cada una, en orden de jerarquía, en una única colección |
 
 ## 7. Precondiciones y postcondiciones
 
@@ -77,9 +77,8 @@ No se admite ordenamiento arbitrario: el orden de la cadena es la información.
 ## 8. Flujo principal
 
 1. El actor solicita el listado de membresías.
-2. El sistema valida los parámetros de paginación.
-3. El sistema recupera las membresías ordenadas por su nivel, de mayor a menor.
-4. El sistema devuelve la página solicitada con su información de paginación.
+2. El sistema recupera las membresías ordenadas por su nivel, de mayor a menor.
+3. El sistema devuelve la cadena completa.
 
 ## 9. Flujos alternativos
 
@@ -91,23 +90,17 @@ No se admite ordenamiento arbitrario: el orden de la cadena es la información.
 
 ## 10. Excepciones
 
-### EX-001 — Parámetro de paginación inválido
-
-**Condición:** la página es negativa o el tamaño excede el máximo configurado.
-**Respuesta del sistema:** rechaza la consulta e informa el límite aplicable.
+Ninguna propia. Los fallos de autenticación y de autorización se resuelven en el borde, como en cualquier endpoint.
 
 ## 11. Validaciones
 
-| ID | Validación | Mensaje esperado |
-|---|---|---|
-| `VAL-001` | Página no negativa | La página solicitada no es válida. |
-| `VAL-002` | Tamaño dentro del máximo configurado | El tamaño de página excede el máximo permitido. |
+Ninguna. La búsqueda es opcional y un texto sin coincidencias produce una colección vacía, que no es un error.
 
 ## 12. Criterios de aceptación
 
 | ID | Criterio |
 |---|---|
-| `CA-SP-120` | El sistema devuelve las membresías en el orden de la cadena, del nivel superior al inferior |
+| `CA-SP-120` | El sistema devuelve la cadena completa, sin paginar, en orden del nivel superior al inferior |
 | `CA-SP-121` | El sistema devuelve el nivel de cada membresía |
 | `CA-SP-122` | El sistema devuelve una colección vacía, y no un error, cuando no hay membresías |
 | `CA-SP-123` | El orden devuelto refleja el reordenamiento tras insertar una membresía intermedia |
@@ -117,13 +110,13 @@ No se admite ordenamiento arbitrario: el orden de la cadena es la información.
 
 - **Una sola membresía:** se devuelve como superior, sin membresía por encima ni por debajo.
 - **Cadena rota por un fallo de datos:** una membresía huérfana no debe romper el listado; conviene que se devuelva igualmente y que la incoherencia sea detectable.
-- **Paginación sobre una cadena:** paginar un orden lineal parte la cadena entre páginas. Ver pregunta abierta 1.
+- **Búsqueda sobre una cadena:** filtrar por texto devuelve membresías sueltas y no una cadena continua. Es correcto —se está buscando, no recorriendo— pero el consumidor no debe suponer que lo devuelto sea contiguo.
 
 ## 14. Preguntas abiertas
 
-| # | Pregunta | Responsable | Estado |
-|---|---|---|---|
-| 1 | ¿Tiene sentido paginar? Los niveles de membresía son pocos, y paginarlos parte la cadena, que es justo lo que se quiere ver de una vez | Responsable técnico | Abierta |
-| 2 | ¿Debe indicarse cuántas personas tienen cada membresía? Es dato de `USR`, pero es la primera pregunta antes de reorganizar niveles | Responsable técnico | Abierta |
+Ninguna. Las dos se resolvieron el 21-08-2026, antes de aprobar la especificación.
 
-**Una spec con preguntas abiertas no puede aprobarse.** Esta sección debe quedar vacía antes de pasar la compuerta.
+| # | Pregunta | Resolución |
+|---|---|---|
+| 1 | ¿Tiene sentido paginar? | **No se pagina.** Es el caso más claro de los tres catálogos que se decidieron a la vez —con `RF-SP-010` y `RF-SP-021`—: aquí la información *es* el orden, y partirlo entre páginas destruye lo que se viene a consultar. Los niveles de membresía son unos pocos y la respuesta completa es pequeña |
+| 2 | ¿Cuántas personas tienen cada membresía? | **No.** En `RF-SP-003` sí se aceptó el conteo de usuarios por rol, porque allí decidía si el rol podía desactivarse o eliminarse. Una membresía ni se elimina ni se desactiva (`RN-SP-008`), de modo que el conteo no condiciona ninguna decisión que se pueda tomar desde aquí. Es dato de `USR` y lo pedirá quien lo necesite |

@@ -4,10 +4,10 @@
 |---|---|
 | Requerimiento | `RF-SP-011` |
 | Módulo | `SP` — Sistema Principal |
-| Estado | **Borrador** |
+| Estado | **Aprobada** |
 | Autor | Responsable técnico |
-| Aprobada por | — |
-| Fecha de aprobación | — |
+| Aprobada por | Responsable técnico |
+| Fecha de aprobación | 21-08-2026 |
 
 ---
 
@@ -54,7 +54,7 @@ Ninguna regla de negocio gobierna esta consulta. Su acceso lo controla el permis
 
 | Dato | Obligatorio | Descripción | Restricción de negocio |
 |---|---|---|---|
-| Página y tamaño | No | Paginación | Máximo definido en configuración |
+| Página y tamaño | No | Paginación | Por defecto 20, máximo 100 (`architecture.md` §7.4) |
 | Módulo | No | Filtro por módulo de origen | Código de módulo existente |
 | Entidad | No | Filtro por tipo de registro | — |
 | Identificador de registro | No | Filtro por un registro concreto | — |
@@ -141,17 +141,17 @@ Ninguna regla de negocio gobierna esta consulta. Su acceso lo controla el permis
 
 - **Registro que ya no existe:** el evento se conserva aunque su entidad se haya eliminado. Es su razón de ser.
 - **Actor eliminado:** el identificador debe seguir resolviendo a un usuario, motivo por el cual los usuarios no se borran físicamente.
-- **Rango muy amplio:** la paginación acota la respuesta, pero la consulta puede degradarse. Ver pregunta abierta 2.
+- **Rango muy amplio:** el rango consultable no se limita, y la paginación ya acota la respuesta; lo que puede degradarse es la consulta. Sostenerla es cuestión de índices, y eso se resuelve en `plan.md`.
 - **Detalle del cambio con datos sensibles:** debe salir enmascarado, igual que al escribirse.
 - **Fechas en zona horaria distinta:** los eventos se almacenan en tiempo universal; la conversión es del cliente.
 
 ## 14. Preguntas abiertas
 
-| # | Pregunta | Responsable | Estado |
-|---|---|---|---|
-| 1 | ¿Debe existir una vista transversal que combine los cuatro registros por correlación, o se consultan siempre por separado? | Responsable técnico | Abierta |
-| 2 | ¿Se limita el rango de fechas consultable de una sola vez? | Responsable técnico | Abierta |
-| 3 | ¿La consulta de auditoría se registra a su vez como evento? Saber quién revisó la auditoría puede ser tan relevante como la auditoría misma | Responsable técnico | Abierta |
-| 4 | ¿Debe poder exportarse el resultado? | Responsable técnico | Abierta |
+Ninguna. Las cuatro se resolvieron el 21-08-2026, antes de aprobar la especificación.
 
-**Una spec con preguntas abiertas no puede aprobarse.** Esta sección debe quedar vacía antes de pasar la compuerta.
+| # | Pregunta | Resolución |
+|---|---|---|
+| 1 | ¿Vista transversal que combine los cuatro registros? | **No como requerimiento.** Los cuatro registros se consultan por separado, y el identificador de correlación ya permite cruzarlos con dos consultas. La vista `v_audit_timeline` de `architecture.md` §6.6.6 existe en el modelo de datos para el diagnóstico directo sobre la base, y exige los cuatro permisos; no se expone como consulta de la API en este alcance |
+| 2 | ¿Se limita el rango de fechas consultable? | **No.** La paginación ya acota el tamaño de la respuesta, y limitar el rango obligaría a trocear justo la consulta que más valor tiene: la línea de tiempo completa de un registro. Que la consulta se sostenga es cuestión de índices, no de negocio |
+| 3 | ¿La consulta de auditoría se audita a su vez? | **No este registro.** Toda consulta deja rastro en el registro de peticiones, que basta para saber quién la hizo. Solo `RF-SP-014` genera además un evento propio, porque ahí el acto de mirar es en sí mismo información de seguridad |
+| 4 | ¿Debe poder exportarse el resultado? | **No.** Exportar tiene reglas propias —formato, tamaño, retención del fichero generado y quién puede llevarse un volcado de la auditoría fuera del sistema— y no cabe como opción de esta consulta |

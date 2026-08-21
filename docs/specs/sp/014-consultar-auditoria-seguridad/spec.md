@@ -4,10 +4,10 @@
 |---|---|
 | Requerimiento | `RF-SP-014` |
 | Módulo | `SP` — Sistema Principal |
-| Estado | **Borrador** |
+| Estado | **Aprobada** |
 | Autor | Responsable técnico |
-| Aprobada por | — |
-| Fecha de aprobación | — |
+| Aprobada por | Responsable técnico |
+| Fecha de aprobación | 21-08-2026 |
 
 ---
 
@@ -33,6 +33,7 @@ Reúne dos clases de evento que conviene no separar: los de **autenticación** �
 
 - Listado paginado de eventos de autenticación, autorización y cambio de privilegios.
 - Filtro por tipo de evento, severidad, resultado, actor, usuario afectado y rango de fechas.
+- Registro de la propia consulta como evento de seguridad: aquí, mirar también deja rastro.
 
 ### 4.2 No incluye
 
@@ -51,7 +52,7 @@ Reúne dos clases de evento que conviene no separar: los de **autenticación** �
 
 | Dato | Obligatorio | Descripción | Restricción de negocio |
 |---|---|---|---|
-| Página y tamaño | No | Paginación | Máximo definido en configuración |
+| Página y tamaño | No | Paginación | Por defecto 20, máximo 100 (`architecture.md` §7.4) |
 | Tipo de evento | No | Filtro por evento del catálogo cerrado | Uno de los definidos |
 | Severidad | No | Informativa, media o alta | Uno de los valores definidos |
 | Resultado | No | Éxito o fallo | Uno de los dos valores |
@@ -78,13 +79,15 @@ Reúne dos clases de evento que conviene no separar: los de **autenticación** �
 **Postcondiciones**
 
 - Ninguna sobre los datos consultados.
+- La consulta queda registrada como un evento de seguridad más: quién la hizo, cuándo y con qué filtros.
 
 ## 8. Flujo principal
 
 1. El actor solicita el registro de seguridad, con o sin filtros.
 2. El sistema valida la paginación, el rango de fechas y los filtros.
 3. El sistema recupera los eventos que cumplen los filtros, del más reciente al más antiguo.
-4. El sistema devuelve la página solicitada con su información de paginación.
+4. El sistema registra la consulta como evento de seguridad.
+5. El sistema devuelve la página solicitada con su información de paginación.
 
 ## 9. Flujos alternativos
 
@@ -132,12 +135,14 @@ Reúne dos clases de evento que conviene no separar: los de **autenticación** �
 | `CA-SP-106` | Ningún evento contiene contraseñas ni tokens, en ninguna forma |
 | `CA-SP-107` | Los intentos de acceso fallidos aparecen con resultado de fallo y su severidad |
 | `CA-SP-108` | Las denegaciones de autorización aparecen aquí y no en la auditoría de error |
-| `CA-SP-109` | El permiso de este registro se concede por separado de los otros tres |
+| `CA-SP-109` | El intento de acceso con un usuario inexistente aparece en el registro sin revelar si la cuenta existía |
 | `CA-SP-110` | Un actor con permiso sobre los otros registros no puede consultar este |
+| `CA-SP-167` | Cada consulta de este registro genera a su vez un evento de seguridad con el actor, el momento y los filtros usados |
 
 ## 13. Casos límite
 
 - **Intento de acceso con un usuario inexistente:** debe registrarse, pero sin revelar si el usuario existía. El evento no puede convertirse en un medio de enumeración de cuentas.
+- **El evento que genera la propia consulta:** aparece en el registro que se está consultando. Es correcto y deliberado, pero conviene que no se confunda con actividad de acceso: se distingue por su tipo de evento.
 - **Reutilización de una credencial de refresco revocada:** es el evento de mayor severidad y debe destacarse; indica robo de credenciales.
 - **Ráfaga de intentos fallidos:** cada intento es un evento; el bloqueo genera uno propio.
 - **Actor sin autenticar:** un fallo de acceso no tiene actor resuelto; el campo queda vacío, y la dirección de red pasa a ser el único identificador disponible.
@@ -145,11 +150,11 @@ Reúne dos clases de evento que conviene no separar: los de **autenticación** �
 
 ## 14. Preguntas abiertas
 
-| # | Pregunta | Responsable | Estado |
-|---|---|---|---|
-| 1 | ¿Debe existir alerta automática ante eventos de severidad alta, o la revisión es siempre manual? | Responsable técnico | Abierta |
-| 2 | ¿La consulta de este registro se audita a su vez? Es lo habitual en auditorías de acceso | Responsable técnico | Abierta |
-| 3 | Relacionado con D-21: sin la lista de proxies confiables definida, la dirección de red registrada no es fiable, y este registro depende de ella | Responsable técnico | Abierta |
-| 4 | ¿Se conserva este registro más tiempo que los demás? Es el que más valor tiene a largo plazo | Responsable técnico | Abierta |
+Ninguna. Las cuatro se resolvieron el 21-08-2026, antes de aprobar la especificación.
 
-**Una spec con preguntas abiertas no puede aprobarse.** Esta sección debe quedar vacía antes de pasar la compuerta.
+| # | Pregunta | Resolución |
+|---|---|---|
+| 1 | ¿Alerta automática ante severidad alta? | **No en este alcance: la revisión es manual.** Alertar exige decidir a quién se avisa, por qué canal y con qué umbral antes de que el ruido lo vuelva inútil, y eso es un requerimiento de observabilidad con reglas propias. Este registro debe primero existir y consultarse bien |
+| 2 | ¿La consulta de este registro se audita a su vez? | **Sí, y es el único de los cuatro que lo hace.** En una auditoría de acceso, quién revisó los accesos ajenos es en sí mismo información de seguridad. Se añade como postcondición y como `CA-SP-167`. Los otros tres registros se conforman con el rastro del registro de peticiones (`RF-SP-011` §14) |
+| 3 | ¿La lista de proxies confiables? (D-21) | **No bloquea esta especificación.** El sistema registra la dirección resuelta contra la lista configurada por entorno; cuál es esa lista en `testing` y en `production` es una decisión de despliegue, y D-21 queda abierta en `security.md`. El caso límite ya advierte que una dirección falsificable no sirve como evidencia |
+| 4 | ¿Se conserva más tiempo que los demás? | **No pertenece a esta especificación**, igual que en `RF-SP-013`. Que este registro sea el que más valor tiene a largo plazo es un argumento para D-10, no un comportamiento de la consulta, que se comporta igual con cualquier retención |

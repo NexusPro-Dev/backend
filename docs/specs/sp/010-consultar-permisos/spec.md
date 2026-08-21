@@ -4,10 +4,10 @@
 |---|---|
 | Requerimiento | `RF-SP-010` |
 | Módulo | `SP` — Sistema Principal |
-| Estado | **Borrador** |
+| Estado | **Aprobada** |
 | Autor | Responsable técnico |
-| Aprobada por | — |
-| Fecha de aprobación | — |
+| Aprobada por | Responsable técnico |
+| Fecha de aprobación | 21-08-2026 |
 
 ---
 
@@ -32,14 +32,14 @@ Es prerrequisito de `RF-SP-001` y de `RF-SP-005`: sin catálogo visible, compone
 
 ### 4.1 Incluye
 
-- Listado paginado de permisos con su código, recurso, acción y descripción legible.
+- Catálogo completo de permisos, sin paginar, con su código, recurso, acción y descripción legible.
 - Filtro por recurso y por acción.
 - Búsqueda por código o descripción.
 
 ### 4.2 No incluye
 
 - Crear, editar o eliminar permisos: el catálogo es inmutable por API (`RN-SP-004`).
-- Qué roles declaran cada permiso: ver pregunta abierta 2.
+- Qué roles declaran cada permiso: es el recorrido inverso del catálogo y corresponde a una consulta propia, no a esta.
 
 ## 5. Reglas de negocio aplicables
 
@@ -53,18 +53,19 @@ Es prerrequisito de `RF-SP-001` y de `RF-SP-005`: sin catálogo visible, compone
 
 | Dato | Obligatorio | Descripción | Restricción de negocio |
 |---|---|---|---|
-| Página | No | Página solicitada | Por defecto la primera |
-| Tamaño | No | Elementos por página | Máximo definido en configuración |
-| Recurso | No | Filtro por recurso | — |
-| Acción | No | Filtro por acción | — |
-| Búsqueda | No | Texto libre sobre código y descripción | — |
+| Recurso | No | Filtro por recurso | Si se indica uno que no existe, el resultado es una colección vacía, no un error |
+| Acción | No | Filtro por acción | Ídem |
+| Búsqueda | No | Texto libre sobre código y descripción | Insensible a mayúsculas y a acentos |
+
+El catálogo **no se pagina**. Son decenas de elementos y su uso es componer un rol de una sola vez: paginarlo convierte «qué permisos hay» en un recorrido de páginas.
 
 ### 6.2 Salida
 
 | Dato | Descripción |
 |---|---|
-| Permisos | Código, recurso, acción, nombre y descripción de cada uno |
-| Paginación | Total de elementos, total de páginas y página actual |
+| Permisos | Código, recurso, acción, nombre y descripción de cada uno, en una única colección |
+
+Los permisos se devuelven **planos**, no agrupados por recurso: agrupar es una decisión de presentación, y el filtro por recurso ya cubre la necesidad de acotar.
 
 ## 7. Precondiciones y postcondiciones
 
@@ -79,9 +80,8 @@ Es prerrequisito de `RF-SP-001` y de `RF-SP-005`: sin catálogo visible, compone
 ## 8. Flujo principal
 
 1. El actor solicita el catálogo, con o sin filtros.
-2. El sistema valida los parámetros de paginación y los filtros.
-3. El sistema recupera los permisos que cumplen los filtros.
-4. El sistema devuelve la página solicitada con su información de paginación.
+2. El sistema recupera los permisos que cumplen los filtros.
+3. El sistema devuelve el catálogo completo resultante.
 
 ## 9. Flujos alternativos
 
@@ -93,23 +93,17 @@ Es prerrequisito de `RF-SP-001` y de `RF-SP-005`: sin catálogo visible, compone
 
 ## 10. Excepciones
 
-### EX-001 — Parámetro de paginación inválido
-
-**Condición:** la página es negativa o el tamaño excede el máximo configurado.
-**Respuesta del sistema:** rechaza la consulta e informa el límite aplicable.
+Ninguna propia. Los fallos de autenticación y de autorización se resuelven en el borde, como en cualquier endpoint.
 
 ## 11. Validaciones
 
-| ID | Validación | Mensaje esperado |
-|---|---|---|
-| `VAL-001` | Página no negativa | La página solicitada no es válida. |
-| `VAL-002` | Tamaño dentro del máximo configurado | El tamaño de página excede el máximo permitido. |
+Ninguna. Los tres filtros son opcionales, y un valor que no corresponda a ningún permiso produce una colección vacía, que no es un error.
 
 ## 12. Criterios de aceptación
 
 | ID | Criterio |
 |---|---|
-| `CA-SP-073` | El sistema devuelve el catálogo paginado con código, recurso, acción y descripción |
+| `CA-SP-073` | El sistema devuelve el catálogo completo, sin paginar y sin agrupar, con código, recurso, acción y descripción |
 | `CA-SP-074` | El sistema filtra por recurso y por acción |
 | `CA-SP-075` | El sistema devuelve una colección vacía, y no un error, cuando no hay coincidencias |
 | `CA-SP-076` | El sistema no expone ninguna operación de escritura sobre el catálogo |
@@ -120,13 +114,14 @@ Es prerrequisito de `RF-SP-001` y de `RF-SP-005`: sin catálogo visible, compone
 - **Catálogo vacío:** solo ocurriría si faltara la migración de siembra; devuelve colección vacía, y conviene que el sistema lo detecte al arrancar.
 - **Permiso sin descripción:** la descripción es opcional; se devuelve vacía sin error.
 - **Búsqueda con caracteres especiales:** se trata como texto literal.
+- **Crecimiento del catálogo:** al devolverse entero, la respuesta crece con el sistema. Conviene medir su tamaño; si dejara de ser razonable, la decisión de no paginar habría que revisarla.
 
 ## 14. Preguntas abiertas
 
-| # | Pregunta | Responsable | Estado |
-|---|---|---|---|
-| 1 | ¿El catálogo debe poder consultarse sin paginar? Al ser decenas de elementos y usarse para componer un rol, paginar puede estorbar más que ayudar | Responsable técnico | Abierta |
-| 2 | ¿Debe indicarse cuántos roles declaran cada permiso? Es útil antes de reorganizar, pero encarece la consulta | Responsable técnico | Abierta |
-| 3 | ¿Se agrupan los permisos por recurso en la respuesta, o se devuelven planos? | Responsable técnico | Abierta |
+Ninguna. Las tres se resolvieron el 21-08-2026, antes de aprobar la especificación.
 
-**Una spec con preguntas abiertas no puede aprobarse.** Esta sección debe quedar vacía antes de pasar la compuerta.
+| # | Pregunta | Resolución |
+|---|---|---|
+| 1 | ¿El catálogo debe poder consultarse sin paginar? | **No se pagina en absoluto.** El catálogo alimenta la composición de un rol, y esa tarea necesita verlo entero. Se conservan el filtro y la búsqueda, que son lo que de verdad acota. La misma decisión se tomó en `RF-SP-017` y `RF-SP-021`, por el mismo motivo: son catálogos que alimentan un selector |
+| 2 | ¿Debe indicarse cuántos roles declaran cada permiso? | **No.** Es el recorrido inverso del catálogo y encarece una consulta hoy trivial. Es el criterio con el que `RF-SP-003` dejó fuera el listado de roles hijos: la relación se consulta desde el lado que ya la tiene. Si hace falta, será una consulta propia con su requerimiento |
+| 3 | ¿Se agrupan los permisos por recurso? | **Se devuelven planos.** Agrupar es presentación, y el filtro por recurso ya permite acotar. Una respuesta plana es además la que menos supone sobre cómo se pinta |

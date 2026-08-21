@@ -5,11 +5,11 @@
 | Proyecto | NEXUS — Renovación de plataforma |
 | Empresa | FACTECH GROUP SAS |
 | Documento | `requirements.md` |
-| Versión | 0.6.0 |
+| Versión | 0.7.0 |
 | Estado | Borrador |
 | Responsable técnico | Bonilla Diaz William Steven |
 | Fecha de creación | 20-08-2026 |
-| Última actualización | 20-08-2026 |
+| Última actualización | 21-08-2026 |
 | Documento superior | `constitution.md` v0.5.0 |
 | Documentos relacionados | `modules.md` v0.3.0 |
 
@@ -92,19 +92,21 @@ Implementa el Art. III.1. Se actualiza **como parte del cambio**, no después (A
 | `RF-SP-006` | Revocar permisos de un rol | `SP` | `specs/sp/006-revocar-permisos/` | — | — | — | **Spec aprobada** |
 | `RF-SP-007` | Cambiar el estado de un rol | `SP` | `specs/sp/007-cambiar-estado-rol/` | — | — | — | **Spec aprobada** |
 | `RF-SP-008` | Cambiar el rol padre de un rol | `SP` | `specs/sp/008-cambiar-rol-padre/` | — | — | — | **Spec aprobada** |
-| `RF-SP-009` | Eliminar rol | `SP` | `specs/sp/009-eliminar-rol/` | — | — | — | **Spec aprobada** |
-| `RF-SP-010` | Consultar catálogo de permisos | `SP` | `specs/sp/010-consultar-permisos/` | — | — | — | Spec en revisión |
-| `RF-SP-011` | Consultar auditoría de cambios | `SP` | `specs/sp/011-consultar-auditoria-cambios/` | — | — | — | Spec en revisión |
-| `RF-SP-012` | Consultar auditoría de eliminación | `SP` | `specs/sp/012-consultar-auditoria-eliminacion/` | — | — | — | Spec en revisión |
-| `RF-SP-013` | Consultar auditoría de error | `SP` | `specs/sp/013-consultar-auditoria-error/` | — | — | — | Spec en revisión |
-| `RF-SP-014` | Consultar auditoría de seguridad | `SP` | `specs/sp/014-consultar-auditoria-seguridad/` | — | — | — | Spec en revisión |
-| `RF-SP-015` | Consultar detalle de un permiso | `SP` | `specs/sp/015-consultar-detalle-permiso/` | — | — | — | Spec en revisión |
-| `RF-SP-016` | Registrar membresía | `SP` | `specs/sp/016-registrar-membresia/` | — | — | — | Spec en revisión |
-| `RF-SP-017` | Consultar membresías | `SP` | `specs/sp/017-consultar-membresias/` | — | — | — | Spec en revisión |
-| `RF-SP-018` | Consultar detalle de una membresía | `SP` | `specs/sp/018-consultar-detalle-membresia/` | — | — | — | Spec en revisión |
-| `RF-SP-019` | Consultar monedas | `SP` | `specs/sp/019-consultar-monedas/` | — | — | — | Spec en revisión |
-| `RF-SP-020` | Registrar país | `SP` | `specs/sp/020-registrar-pais/` | — | — | — | Spec en revisión |
-| `RF-SP-021` | Consultar países | `SP` | `specs/sp/021-consultar-paises/` | — | — | — | Spec en revisión |
+| `RF-SP-009` | Eliminar rol | `SP` | `specs/sp/009-eliminar-rol/` | — | — | — | Spec en revisión |
+| `RF-SP-010` | Consultar catálogo de permisos | `SP` | `specs/sp/010-consultar-permisos/` | — | — | — | **Spec aprobada** |
+| `RF-SP-011` | Consultar auditoría de cambios | `SP` | `specs/sp/011-consultar-auditoria-cambios/` | — | — | — | **Spec aprobada** |
+| `RF-SP-012` | Consultar auditoría de eliminación | `SP` | `specs/sp/012-consultar-auditoria-eliminacion/` | — | — | — | **Spec aprobada** |
+| `RF-SP-013` | Consultar auditoría de error | `SP` | `specs/sp/013-consultar-auditoria-error/` | — | — | — | **Spec aprobada** |
+| `RF-SP-014` | Consultar auditoría de seguridad | `SP` | `specs/sp/014-consultar-auditoria-seguridad/` | — | — | — | **Spec aprobada** |
+| `RF-SP-015` | Consultar detalle de un permiso | `SP` | `specs/sp/015-consultar-detalle-permiso/` | — | — | — | **Spec aprobada** |
+| `RF-SP-016` | Registrar membresía | `SP` | `specs/sp/016-registrar-membresia/` | — | — | — | **Spec aprobada** |
+| `RF-SP-017` | Consultar membresías | `SP` | `specs/sp/017-consultar-membresias/` | — | — | — | **Spec aprobada** |
+| `RF-SP-018` | Consultar detalle de una membresía | `SP` | `specs/sp/018-consultar-detalle-membresia/` | — | — | — | **Spec aprobada** |
+| `RF-SP-019` | Consultar monedas | `SP` | `specs/sp/019-consultar-monedas/` | — | — | — | **Spec aprobada** |
+| `RF-SP-020` | Registrar país | `SP` | `specs/sp/020-registrar-pais/` | — | — | — | **Spec aprobada** |
+| `RF-SP-021` | Consultar países | `SP` | `specs/sp/021-consultar-paises/` | — | — | — | **Spec aprobada** |
+| `RF-SP-022` | Cambiar el estado de un país | `SP` | Pendiente de redactar | — | — | — | Pendiente |
+| `RF-SP-023` | Cambiar el estado de una moneda | `SP` | Pendiente de redactar | — | — | — | Pendiente |
 
 
 **Estados**, que reflejan las tres compuertas del Art. I.6:
@@ -128,12 +130,12 @@ Un requerimiento solo pasa a `Implementado` cuando cumple **todas** las condicio
 
 | Indicador | Valor |
 |---|---|
-| Requerimientos registrados | 21 |
+| Requerimientos registrados | 23 |
 | Requerimientos con `spec.md` redactada | 21 |
-| Requerimientos con `spec.md` aprobada | 0 |
+| Requerimientos con `spec.md` aprobada | 20 |
 | Requerimientos implementados | 0 |
 
-Los 21 corresponden al módulo `SP` y tienen su `spec.md` redactada. Ninguno ha superado todavía la primera compuerta del Art. I.6: todas contienen preguntas abiertas, y una especificación con preguntas abiertas no puede aprobarse.
+Los 23 corresponden al módulo `SP`. Veinte han superado la primera compuerta del Art. I.6 y pueden pasar a `plan.md`. Queda `RF-SP-009`, cuya especificación conserva cuatro preguntas abiertas, y `RF-SP-022` y `RF-SP-023`, nacidos de la aprobación de `RF-SP-020` y `RF-SP-019` y todavía sin especificación.
 
 El inventario y el estado de los módulos se consultan en [`modules.md` §4](modules.md#4-inventario-de-modulos).
 
@@ -149,3 +151,4 @@ El inventario y el estado de los módulos se consultan en [`modules.md` §4](mod
 | 0.4.0 | 20-08-2026 | §3.1 documenta el espacio de reglas transversales `RN-SEG` y deja las historias de usuario fuera de la cadena de trazabilidad. | Responsable técnico |
 | 0.5.0 | 20-08-2026 | Se registran en la matriz los 21 requerimientos del módulo `SP`, cuyo documento queda aprobado. | Responsable técnico |
 | 0.6.0 | 20-08-2026 | Los 21 requerimientos de `SP` pasan a estado «Spec en revisión»: su especificación está redactada y pendiente de la primera compuerta. | Responsable técnico |
+| 0.7.0 | 21-08-2026 | De `RF-SP-010` a `RF-SP-021` superan la primera compuerta: sus 35 preguntas abiertas quedan resueltas y sus especificaciones aprobadas. Se registran `RF-SP-022` y `RF-SP-023`, derivados de esas resoluciones. | Responsable técnico |

@@ -4,10 +4,10 @@
 |---|---|
 | Requerimiento | `RF-SP-012` |
 | Módulo | `SP` — Sistema Principal |
-| Estado | **Borrador** |
+| Estado | **Aprobada** |
 | Autor | Responsable técnico |
-| Aprobada por | — |
-| Fecha de aprobación | — |
+| Aprobada por | Responsable técnico |
+| Fecha de aprobación | 21-08-2026 |
 
 ---
 
@@ -35,6 +35,7 @@ Ese segundo dato es lo que da valor al registro. Sin él, la fila diría que el 
 - Listado paginado de eliminaciones, lógicas y físicas.
 - El motivo declarado y el estado del registro al eliminarse.
 - Filtro por módulo, entidad, registro, actor, tipo de eliminación y rango de fechas.
+- Búsqueda por texto sobre el motivo declarado.
 
 ### 4.2 No incluye
 
@@ -53,11 +54,12 @@ Ese segundo dato es lo que da valor al registro. Sin él, la fila diría que el 
 
 | Dato | Obligatorio | Descripción | Restricción de negocio |
 |---|---|---|---|
-| Página y tamaño | No | Paginación | Máximo definido en configuración |
+| Página y tamaño | No | Paginación | Por defecto 20, máximo 100 (`architecture.md` §7.4) |
 | Módulo, entidad, registro | No | Filtros de procedencia | — |
 | Actor | No | Quien ejecutó la eliminación | — |
 | Tipo de eliminación | No | Lógica, física o de asociación | Uno de los tres valores |
 | Desde y hasta | No | Rango de fechas | La fecha inicial no puede ser posterior a la final |
+| Motivo | No | Búsqueda por texto sobre el motivo declarado | Insensible a mayúsculas y a acentos |
 
 ### 6.2 Salida
 
@@ -127,6 +129,7 @@ Ese segundo dato es lo que da valor al registro. Sin él, la fila diría que el 
 | `CA-SP-090` | Los eventos de eliminación de entidades de negocio siempre traen motivo |
 | `CA-SP-091` | Los eventos de eliminación de asociaciones traen el motivo vacío, sin que se considere un defecto |
 | `CA-SP-092` | El sistema filtra por tipo de eliminación, módulo, entidad, actor y rango de fechas |
+| `CA-SP-166` | El sistema busca por texto sobre el motivo declarado |
 | `CA-SP-093` | El estado conservado permite reconstruir qué era el registro eliminado |
 | `CA-SP-094` | El estado conservado no contiene contraseñas, tokens ni datos personales sensibles |
 | `CA-SP-095` | El sistema rechaza la consulta a un actor sin el permiso de lectura de auditoría de eliminación |
@@ -136,14 +139,14 @@ Ese segundo dato es lo que da valor al registro. Sin él, la fila diría que el 
 - **Registro eliminado y su código reutilizado:** el evento conserva el estado original, de modo que la reutilización no lo corrompe.
 - **Estado voluminoso:** un registro con muchos campos genera un estado grande; conviene medir el crecimiento del registro.
 - **Actor eliminado:** su identificador debe seguir resolviendo a un usuario.
-- **Eliminación en cascada desde la base de datos:** no produciría evento. Ver pregunta abierta 2.
+- **Eliminación en cascada desde la base de datos:** no produciría evento, y por eso no se admite ninguna. El esquema no declara `ON DELETE CASCADE` en ninguna relación; toda eliminación pasa por la aplicación, que es donde se emite el evento.
 
 ## 14. Preguntas abiertas
 
-| # | Pregunta | Responsable | Estado |
-|---|---|---|---|
-| 1 | ¿El motivo debe poder buscarse por texto? Es la pregunta más frecuente en una auditoría real | Responsable técnico | Abierta |
-| 2 | ¿Se admite alguna eliminación en cascada desde la base de datos? Quedaría sin evento y rompería la garantía del registro | Responsable técnico | Abierta |
-| 3 | Relacionado con D-20: ¿el motivo se tipifica con un catálogo de códigos además del texto libre? Permitiría filtrar sin buscar por texto | Responsable técnico | Abierta |
+Ninguna. Las tres se resolvieron el 21-08-2026, antes de aprobar la especificación.
 
-**Una spec con preguntas abiertas no puede aprobarse.** Esta sección debe quedar vacía antes de pasar la compuerta.
+| # | Pregunta | Resolución |
+|---|---|---|
+| 1 | ¿El motivo debe poder buscarse por texto? | **Sí.** Es la pregunta con la que empieza cualquier auditoría real —«enséñame todo lo que se borró alegando tal cosa»— y sin ella el motivo queda como un campo que solo se lee de uno en uno. Se añade como filtro y como `CA-SP-166` |
+| 2 | ¿Se admite alguna eliminación en cascada desde la base de datos? | **Ninguna.** Una cascada declarada en el esquema borra filas sin pasar por la aplicación y por tanto sin emitir evento, lo que rompe la garantía que sostiene todo este registro. El esquema no declara `ON DELETE CASCADE` en ninguna relación, y `plan.md` debe verificarlo |
+| 3 | ¿El motivo se tipifica con un catálogo de códigos? (D-20) | **No: texto libre con búsqueda.** Un catálogo obliga a prever hoy las razones por las que algo se borrará dentro de dos años, y el resultado previsible es que casi todo acabe bajo «Otro», que no informa de nada. La búsqueda por texto de la pregunta 1 cubre la necesidad de filtrar. **Cierra D-20** en `security.md` |

@@ -4,10 +4,10 @@
 |---|---|
 | Requerimiento | `RF-SP-018` |
 | Módulo | `SP` — Sistema Principal |
-| Estado | **Borrador** |
+| Estado | **Aprobada** |
 | Autor | Responsable técnico |
-| Aprobada por | — |
-| Fecha de aprobación | — |
+| Aprobada por | Responsable técnico |
+| Fecha de aprobación | 21-08-2026 |
 
 ---
 
@@ -31,7 +31,7 @@ Antes de insertar una membresía nueva hay que saber entre qué dos niveles va a
 ### 4.1 Incluye
 
 - Datos de la membresía: código, nombre, descripción y nivel.
-- Su membresía superior y su membresía hija.
+- Su membresía superior y su membresía hija, es decir, sus dos vecinos inmediatos.
 
 ### 4.2 No incluye
 
@@ -50,7 +50,7 @@ Antes de insertar una membresía nueva hay que saber entre qué dos niveles va a
 
 | Dato | Obligatorio | Descripción | Restricción de negocio |
 |---|---|---|---|
-| Identificador | Sí | Membresía que se consulta | Debe existir |
+| Identificador | Sí | Membresía que se consulta | Debe existir. Se accede por identificador, no por código |
 
 ### 6.2 Salida
 
@@ -123,9 +123,9 @@ Antes de insertar una membresía nueva hay que saber entre qué dos niveles va a
 
 ## 14. Preguntas abiertas
 
-| # | Pregunta | Responsable | Estado |
-|---|---|---|---|
-| 1 | ¿Debe devolver la cadena completa por encima y por debajo, o solo el vecino inmediato? Lo segundo basta para insertar; lo primero evita varias consultas para pintar la jerarquía | Responsable técnico | Abierta |
-| 2 | ¿Se accede por identificador o también por código? | Responsable técnico | Abierta |
+Ninguna. Las dos se resolvieron el 21-08-2026, antes de aprobar la especificación.
 
-**Una spec con preguntas abiertas no puede aprobarse.** Esta sección debe quedar vacía antes de pasar la compuerta.
+| # | Pregunta | Resolución |
+|---|---|---|
+| 1 | ¿Cadena completa o solo el vecino inmediato? | **Solo los vecinos inmediatos.** Pintar la jerarquía entera ya no cuesta varias consultas: al resolverse que `RF-SP-017` devuelve la cadena completa sin paginar, una sola llamada la trae toda. Este detalle responde la otra pregunta, la de un punto concreto —entre qué dos niveles va a quedar la nueva—, y para eso bastan los dos vecinos |
+| 2 | ¿Se accede por identificador o también por código? | **Solo por identificador**, misma resolución y mismo motivo que en `RF-SP-015` y `RF-SP-003`: dos formas de direccionar el mismo recurso obligan a distinguir en cada petición cuál es cuál. El código es la vía para *encontrar* la membresía, mediante la búsqueda de `RF-SP-017` |

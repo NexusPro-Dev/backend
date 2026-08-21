@@ -4,10 +4,10 @@
 |---|---|
 | Requerimiento | `RF-SP-013` |
 | Módulo | `SP` — Sistema Principal |
-| Estado | **Borrador** |
+| Estado | **Aprobada** |
 | Autor | Responsable técnico |
-| Aprobada por | — |
-| Fecha de aprobación | — |
+| Aprobada por | Responsable técnico |
+| Fecha de aprobación | 21-08-2026 |
 
 ---
 
@@ -53,7 +53,7 @@ Ninguna. Su acceso lo controla el permiso de lectura de auditoría de error, que
 
 | Dato | Obligatorio | Descripción | Restricción de negocio |
 |---|---|---|---|
-| Página y tamaño | No | Paginación | Máximo definido en configuración |
+| Página y tamaño | No | Paginación | Por defecto 20, máximo 100 (`architecture.md` §7.4) |
 | Tipo de error | No | Regla de negocio, integración o no controlado | Uno de los valores definidos |
 | Severidad | No | Media o alta | Uno de los valores definidos |
 | Código de error | No | Código del contrato o de la regla incumplida | — |
@@ -140,15 +140,15 @@ Ninguna. Su acceso lo controla el permiso de lectura de auditoría de error, que
 
 - **Fallo sin actor:** un error en un proceso interno no tiene actor; el campo queda explícitamente vacío.
 - **Fallo al escribir la propia auditoría:** no debe provocar una cadena de eventos. El registro se escribe en transacción independiente precisamente para no arrastrar el fallo del negocio.
-- **Ráfaga de fallos idénticos:** una caída de un tercero puede generar miles de eventos iguales. Ver pregunta abierta 1.
+- **Ráfaga de fallos idénticos:** una caída de un tercero puede generar miles de eventos iguales. Se registra cada ocurrencia por separado: agrupar borraría cuándo empezó y cuándo terminó, que es justo lo que se necesita saber.
 - **Mensaje con datos de la petición:** debe salir enmascarado, igual que al escribirse.
 
 ## 14. Preguntas abiertas
 
-| # | Pregunta | Responsable | Estado |
-|---|---|---|---|
-| 1 | ¿Se agrupan los fallos repetidos, o se registra cada ocurrencia? Sin agrupación, una caída de un tercero puede inundar el registro | Responsable técnico | Abierta |
-| 2 | ¿Debe poder consultarse el conteo por tipo y severidad, para detectar una degradación sin leer evento por evento? | Responsable técnico | Abierta |
-| 3 | ¿Cuál es la retención de este registro? Es el de mayor volumen y el de menor valor a largo plazo. Relacionado con D-10 | Responsable técnico | Abierta |
+Ninguna. Las tres se resolvieron el 21-08-2026, antes de aprobar la especificación.
 
-**Una spec con preguntas abiertas no puede aprobarse.** Esta sección debe quedar vacía antes de pasar la compuerta.
+| # | Pregunta | Resolución |
+|---|---|---|
+| 1 | ¿Se agrupan los fallos repetidos? | **No: cada ocurrencia es un evento.** Agrupar convierte mil fallos en una fila con un contador y borra cuándo empezó la caída y cuándo terminó, que es lo primero que se pregunta al diagnosticarla. El volumen se acota con la retención, no falseando el registro |
+| 2 | ¿Debe consultarse el conteo por tipo y severidad? | **No aquí.** Detectar una degradación en curso es observabilidad —métricas y alertas sobre la serie temporal—, y este registro sirve para reconstruir un fallo concreto ya ocurrido. Añadirle agregados lo convertiría en un panel de métricas peor que el panel de métricas |
+| 3 | ¿Cuál es la retención de este registro? (D-10) | **No pertenece a esta especificación.** La consulta se comporta igual con noventa días de historia que con dos años: la retención es una decisión de infraestructura, y D-10 queda abierta en `architecture.md` hasta la migración de observabilidad. Lo único que la spec fija es que el rango consultable no se limita |
