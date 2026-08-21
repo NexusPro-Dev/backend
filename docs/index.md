@@ -42,6 +42,14 @@ Esta documentación es parte del repositorio y se versiona junto al código (Art
 
     [:octicons-arrow-right-24: Ver el mapa modular](modules.md)
 
+-   :material-database:{ .lg .middle } **Modelo de datos**
+
+    ---
+
+    Las entidades del sistema y sus relaciones. El esquema exacto vive en las migraciones Flyway, que son su fuente de verdad (Art. V.3).
+
+    [:octicons-arrow-right-24: Ver el modelo de datos](modelo-datos.md)
+
 -   :material-format-list-numbered:{ .lg .middle } **Requerimientos y trazabilidad**
 
     ---
@@ -103,19 +111,23 @@ Ninguna línea de código se escribe antes de que la tripleta esté aprobada (Ar
 | Documento | Versión | Estado |
 |---|---|---|
 | [Constitución](constitution.md) | 0.7.0 | Borrador |
-| [Arquitectura](architecture.md) | 0.5.0 | Borrador |
-| [Seguridad](security.md) | 0.8.0 | Borrador |
-| [Mapa modular](modules.md) | 0.8.0 | Borrador |
-| [Requerimientos y trazabilidad](requirements.md) | 0.5.0 | Borrador |
+| [Arquitectura](architecture.md) | 0.8.0 | Borrador |
+| [Seguridad](security.md) | 0.14.0 | Borrador |
+| [Mapa modular](modules.md) | 0.9.0 | Borrador |
+| [Modelo de datos](modelo-datos.md) | 0.4.0 | Borrador |
+| [Requerimientos y trazabilidad](requirements.md) | 0.17.0 | Borrador |
 | [Guía de desarrollo](development-guide.md) | 0.5.0 | Borrador |
-| [Requerimientos de `SP`](requirements/sp.md) | 1.0.0 | **Aprobado** |
+| [Requerimientos de `SP`](requirements/sp.md) | 1.10.0 | **Aprobado** |
+| [Flujos de `SP`](requirements/sp-flujos.md) | 0.1.0 | Borrador |
 | Estrategia de pruebas | — | Pendiente |
 
 ### Decisiones
 
-**Cerradas:** PostgreSQL como único motor · claves `uuid` v7 · Java 21 LTS con Spring Boot 3 y Maven · migraciones Flyway · auditoría separada en cuatro registros —cambios, eliminación, error y seguridad— más `request_log`, todos con IP de origen · motivo obligatorio en toda eliminación · umbrales p95 de rendimiento · repositorios separados con contrato OpenAPI · autenticación JWT con refresh revocable · contención de privilegios entre roles · permisos `recurso:acción` · Argon2id.
+**Cerradas:** PostgreSQL como único motor · claves `uuid` v7 · Java 21 LTS con Spring Boot 3 y Maven · migraciones Flyway · auditoría separada en cuatro registros —cambios, eliminación, error y seguridad— más `request_log`, todos con IP de origen · motivo obligatorio en toda eliminación, en **texto libre y sin catálogo de códigos** (D-20) · umbrales p95 de rendimiento · repositorios separados con contrato OpenAPI · autenticación JWT con refresh revocable · contención de privilegios entre roles · permisos `recurso:acción` · Argon2id.
 
-**Pendientes:** infraestructura de despliegue · retención por registro · política de idempotencia · parámetros concretos de seguridad · catálogo inicial de permisos · restablecimiento de contraseña · identidad para procesos automáticos · tipificación del motivo de eliminación · lista de proxies confiables por entorno.
+**Pendientes:** infraestructura de despliegue · retención por registro · política de idempotencia · parámetros concretos de seguridad · catálogo inicial de permisos · restablecimiento de contraseña · identidad para procesos automáticos · lista de proxies confiables por entorno · **modelo de alcance de datos** (D-22), del que dependen la red comercial, las comisiones y toda consulta con alcance por persona.
+
+El detalle de cada decisión, con su responsable y qué bloquea, está en [`architecture.md` §15 y §16](architecture.md#16-decisiones-pendientes) y en [`security.md` §12](security.md#12-decisiones-y-pendientes), que son su autoridad.
 
 ---
 

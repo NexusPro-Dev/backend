@@ -5,7 +5,7 @@
 | Proyecto | NEXUS — Renovación de plataforma |
 | Empresa | FACTECH GROUP SAS |
 | Documento | `architecture.md` |
-| Versión | 0.5.0 |
+| Versión | 0.8.0 |
 | Estado | Borrador |
 | Responsable técnico | Bonilla Diaz William Steven |
 | Fecha de creación | 19-08-2026 |
@@ -226,7 +226,7 @@ Con esa restricción, una fila sin IP significa inequívocamente «no vino de la
 
 | Columna | Tipo | Descripción |
 |---|---|---|
-| `module` | `varchar` | Código del módulo (`SP`, `USR`, …) |
+| `module` | `varchar` | Código del módulo que originó el evento (`SP`, y los que se incorporen) |
 | `entity` | `varchar` | Nombre lógico de la entidad (`roles`, `users`) |
 | `entity_id` | `uuid` | Identificador del registro afectado |
 | `action` | `varchar` | `CREATE` o `UPDATE`, con `CHECK` sobre el dominio cerrado |
@@ -258,16 +258,18 @@ Tres reglas que evitan huecos y ruido:
 | `reason` | `text` | Motivo declarado por el actor. Obligatorio salvo en `ASSOCIATION` (Art. V.13) |
 | `snapshot` | `jsonb` **NOT NULL** | Estado completo del registro al momento de eliminarse |
 
-El motivo es obligatorio en el esquema para las entidades de negocio, y el esquema exige además que diga algo:
+El motivo es obligatorio en el esquema para las entidades de negocio, y no basta con enviarlo en blanco:
 
 ```sql
 CONSTRAINT ck_deletion_reason CHECK (
     deletion_type = 'ASSOCIATION'
- OR char_length(btrim(reason)) >= 10
+ OR char_length(btrim(reason)) > 0
 )
 ```
 
-**Consecuencia sobre la API, que debe asumirse de forma consciente:** si el motivo es obligatorio, hay que pedirlo. Todo `DELETE` recibe un cuerpo JSON con el motivo y responde `400` si falta o no alcanza el mínimo:
+La restricción exige contenido, no longitud. Un motivo de un solo carácter la satisface, de modo que la garantía es formal: obliga a escribir algo, no a que ese algo informe. Se decidió no elevar el mínimo para no imponer fricción a quien sí redacta un motivo útil.
+
+**Consecuencia sobre la API, que debe asumirse de forma consciente:** si el motivo es obligatorio, hay que pedirlo. Todo `DELETE` recibe un cuerpo JSON con el motivo y responde `400` si llega vacío:
 
 ```
 DELETE /api/v1/roles/{id}
@@ -276,6 +278,8 @@ DELETE /api/v1/roles/{id}
 ```
 
 El cuerpo en `DELETE` es admisible en OpenAPI 3.1 y Spring lo soporta sin artificios, pero RFC 9110 no le define semántica y un intermediario podría descartarlo. Si eso llegara a ocurrir en el despliegue real, la alternativa declarada es la cabecera `X-Deletion-Reason`. **No** se usa parámetro de consulta: el motivo terminaría en la URL, y con ella en las trazas de acceso del proxy y en `request_log`.
+
+**En una asociación**, el estado conservado no se limita a los dos identificadores que la componen: incluye también sus **códigos legibles** —el del rol y el del permiso—. Con solo los identificadores habría que resolver dos referencias que pueden haber desaparecido, y el evento dejaría de responder qué se desvinculó.
 
 El `snapshot` es lo que vuelve útil a este registro. Sin él, la fila dice que el rol `018f3a…` fue eliminado y ya nadie recuerda qué rol era. Pasa por el mismo enmascarador que el resto: el estado de un usuario eliminado se conserva sin su `password_hash`.
 
@@ -304,6 +308,14 @@ El `snapshot` es lo que vuelve útil a este registro. Sin él, la fila dice que 
 | Denegación de autorización (`403`) | No — va a `audit_security_log` | Es un evento de control de acceso, no un fallo del sistema |
 
 La última fila es la frontera que importa: una denegación no es un error del sistema, es el sistema funcionando. Registrarla como error contamina la búsqueda de fallos reales.
+
+**Esa tabla se declara en el esquema, no solo aquí.** Desde el 21-08-2026, al aprobar el plan de `RF-SP-013`:
+
+```sql
+CONSTRAINT ck_audit_error_log_status CHECK (http_status NOT IN (400, 401, 403, 404))
+```
+
+Escribir por descuido una denegación en el registro de errores deja así de producir un dato incorrecto que nadie nota, y pasa a ser un `INSERT` que falla. Los estados admitidos no se enumeran a propósito: `409` y `422` de regla de negocio, `5xx` no controlados, y el `200` o el `503` con que puede resolverse un fallo de integración según se degrade o se rechace la operación.
 
 **El detalle técnico completo no vive aquí.** La traza va al log de aplicación, alcanzable por `correlation_id`. Esta tabla responde «a quién le falló qué», no «en qué línea».
 
@@ -391,6 +403,27 @@ Uniforme en toda la API (Art. VIII.4), basado en **RFC 9457 Problem Details**:
 
 Los mensajes nunca exponen trazas, consultas SQL, rutas de archivos ni versiones (Art. VI.5). El `correlationId` siempre viaja en la respuesta, para que un usuario pueda reportar un error y el equipo pueda localizarlo en `request_log` (Art. XV.1).
 
+**Series de `code`.** El campo `code` identifica la causa concreta, y su prefijo dice de qué naturaleza es:
+
+| Serie | Qué identifica | Ejemplo |
+|---|---|---|
+| `VAL-nnn` | Validación de formato u obligatoriedad, declarada en la `spec.md` del requerimiento | `VAL-001` |
+| `RN-XXX-nnn` | Regla de negocio incumplida. El código **es** el identificador de la regla, para poder ir del error al requerimiento sin intermediarios | `RN-SEG-003` |
+| `EX-nnn` | Excepción declarada en la `spec.md` que no corresponde a una regla con identificador propio | `EX-002` |
+| `AUTH-nnn` | Autenticación y autorización | `AUTH-001`, `AUTH-002` |
+| `INT-nnn` | **Fallo de integración entre módulos**: un módulo no responde o no está disponible. Se corresponde con `error_type = 'INTEGRATION'` en `audit_error_log` (§6.6.4) | `INT-001` |
+| `ERR-nnn` | Fallo no controlado | `ERR-500` |
+
+La serie `INT-nnn` se abre el 21-08-2026, al completar esta tabla: `error_type = 'INTEGRATION'` existía en el `CHECK` de `audit_error_log` desde el principio (§6.6.4) sin ningún código que lo acompañara.
+
+| Código | Significado |
+|---|---|
+| `INT-001` | El sistema consultado no está disponible y la respuesta no puede completarse con su dato |
+
+**Todavía no tiene consumidor.** El primero previsto era la degradación del detalle de rol cuando el módulo de usuarios no respondía; al absorberse los usuarios en `SP` (`modules.md` v0.9.0) esa integración dejó de existir. La serie se conserva porque el primer sistema externo real la necesitará, y porque tenerla declarada evita que ese requerimiento improvise un código propio.
+
+Un `INT-nnn` puede quedar registrado con un `http_status` de éxito cuando la respuesta se degradó en lugar de fallar: esa columna registra lo que el cliente recibió, no la gravedad del fallo interno.
+
 ### 7.4 Paginación y ordenamiento
 
 Las colecciones se paginan siempre. Nunca se devuelve una colección completa sin límite.
@@ -399,7 +432,9 @@ Las colecciones se paginan siempre. Nunca se devuelve una colección completa si
 GET /api/v1/roles?page=0&size=20&sort=name,asc
 ```
 
-`size` tiene un máximo declarado en configuración. La respuesta incluye el total de elementos, el total de páginas y la página actual.
+**Tamaño por defecto 20, máximo 100.** Se declara en configuración y es **uniforme para todo el sistema**, no por endpoint: un techo distinto en cada colección obligaría a consultarlo caso por caso y se volvería inconsistente con el tiempo. El techo acota el coste de una petición sin estorbar a una integración que recorra un catálogo.
+
+La respuesta incluye el total de elementos, el total de páginas y la página actual. Una petición con `size` superior al máximo **se rechaza**; no se recorta en silencio, porque el cliente creería haber recibido lo que pidió.
 
 ---
 
@@ -570,3 +605,6 @@ D-08 quedó cerrada en `security.md` §12, junto con las decisiones D-12 a D-15 
 | 0.3.0 | 19-08-2026 | Se retiran `created_by` y `updated_by` de las columnas obligatorias: el actor reside solo en la auditoría. | Responsable técnico |
 | 0.4.0 | 20-08-2026 | Nueva §6.6: la auditoría se separa en cuatro registros (cambios, eliminación, error y seguridad), con núcleo común, IP de origen y vista de consulta transversal. §8 incorpora la transaccionalidad diferenciada; §9 pasa de tres a seis registros de observabilidad. Enmienda la constitución 0.4.0. | Responsable técnico |
 | 0.5.0 | 20-08-2026 | `audit_deletion_log` admite `deletion_type = ASSOCIATION`, donde el motivo no es exigible (Art. V.13 enmendado). | Responsable técnico |
+| 0.6.0 | 20-08-2026 | §7.4 fija el tamaño de página por defecto en 20 y el máximo en 100, uniformes para todo el sistema. | Responsable técnico |
+| 0.7.0 | 21-08-2026 | El estado conservado de una eliminación de asociación incluye los códigos legibles de ambos extremos, no solo sus identificadores. | Responsable técnico |
+| 0.8.0 | 21-08-2026 | La restricción del motivo de eliminación pasa de exigir diez caracteres a exigir solo contenido no vacío. | Responsable técnico |

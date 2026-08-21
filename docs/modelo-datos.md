@@ -1,0 +1,320 @@
+# Modelo de Datos — Estado actual
+
+| Campo | Valor |
+|---|---|
+| Versión | 0.5.0 |
+| Estado | **Borrador** |
+| Responsable | Bonilla Diaz William Steven |
+| Fecha de creación | 21-08-2026 |
+| Última actualización | 21-08-2026 |
+
+!!! info "Qué va en este documento"
+
+    Cómo va quedando el esquema con lo que hay especificado hoy: las tablas, sus columnas y las relaciones entre ellas, agrupadas por lo que resuelven.
+
+    Es una **vista derivada**, no normativa. Sale de [`requirements/sp.md` §10](requirements/sp.md), [`security.md` §9](security.md) y [`architecture.md` §6.6](architecture.md). La fuente de verdad del esquema son las **migraciones Flyway** (Art. V.3), que todavía no existen.
+
+!!! warning "Nada de esto está implementado"
+
+    No hay ni una migración escrita. Lo que sigue es el esquema que las specs aprobadas **exigen**, útil para revisarlo antes de que exista y sea caro cambiarlo.
+
+---
+
+## 1. Control de acceso
+
+El núcleo del módulo `SP`, incluidas las tablas de usuarios que lo consumen. Es la única zona del modelo con relaciones densas.
+
+```mermaid
+erDiagram
+    roles ||--o{ roles : "parent_role_id · acota privilegios"
+    roles ||--o{ role_permissions : "declara"
+    permissions ||--o{ role_permissions : "se declara en"
+    users ||--o{ user_roles : "porta"
+    roles ||--o{ user_roles : "se asigna a"
+    users ||--o{ refresh_tokens : "abre sesión"
+
+    permissions {
+        uuid id PK "v7"
+        varchar code UK "100 · resource:action"
+        varchar resource "50"
+        varchar action "50"
+        varchar name "100"
+        text description "NULL"
+        timestamptz created_at "now"
+        timestamptz updated_at "now"
+    }
+
+    roles {
+        uuid id PK "v7"
+        varchar code "50 · único entre los no eliminados"
+        varchar name "100 · único entre los no eliminados"
+        text description "NULL · CHECK 500 caracteres"
+        varchar role_type "20 · FUNCIONARIO VENDEDOR CONSUMIDOR"
+        uuid parent_role_id FK "NULL solo en el rol raíz"
+        varchar status "20 · ACTIVO INACTIVO · default ACTIVO"
+        boolean is_system "default false · bloquea toda edición"
+        timestamptz created_at "now"
+        timestamptz updated_at "now"
+        timestamptz deleted_at "NULL · borrado lógico"
+    }
+
+    role_permissions {
+        uuid role_id PK,FK "PK compuesta · excepción al Art. V.11"
+        uuid permission_id PK,FK "PK compuesta"
+        timestamptz created_at "now"
+    }
+
+    users {
+        uuid id PK "usuarios"
+        varchar username UK "inmutable · sin @ · único incluidos los eliminados"
+        varchar email UK "corregible · único incluidos los eliminados"
+        varchar first_name "—"
+        varchar last_name "—"
+        varchar password_hash "Argon2id"
+        boolean must_change_password "default false · lo fijan RF-SP-024 y RF-SP-038"
+        varchar status "CHECK sobre dominio cerrado · PENDIENTE sin uso"
+        int failed_attempts "control de bloqueo"
+        timestamptz locked_until "NULL · nulo también en el bloqueo manual, que no expira"
+        timestamptz last_login_at "NULL"
+    }
+
+    user_roles {
+        uuid user_id PK,FK "PK compuesta"
+        uuid role_id PK,FK "PK compuesta"
+        timestamptz created_at "now"
+    }
+
+    refresh_tokens {
+        uuid id PK "sesiones revocables"
+        uuid user_id FK "—"
+        varchar token_hash UK "nunca el valor en claro"
+        timestamptz expires_at "—"
+        timestamptz revoked_at "NULL"
+        varchar revoked_reason "NULL · ROTACION CIERRE ACCESO_RETIRADO · solo ROTACION alerta"
+        uuid replaced_by_id FK "NULL · rotación"
+        inet ip "—"
+        text user_agent "—"
+    }
+```
+
+Cinco decisiones que el dibujo no explica solo:
+
+- **`parent_role_id` hace dos trabajos**: acota los privilegios del hijo y expresa el orden de mando comercial (`RN-SP-011`). La consecuencia es permanente: un rol `VENDEDOR` nunca podrá tener un permiso que su superior no tenga, porque `RN-SEG-003` lo rechazaría.
+- **La unicidad de `roles` es parcial**, no total: `WHERE deleted_at IS NULL`. Una restricción única corriente bloquearía para siempre el nombre de un rol borrado.
+- **La de `users` es justo la contraria: total.** `username` y `email` son únicos entre **todos** los usuarios, incluidos los eliminados (`RN-SP-016`). Reutilizarlos permitiría que la actividad de dos personas distintas quedara bajo la misma etiqueta en la auditoría. La asimetría con `roles` es deliberada: un rol es una etiqueta, un usuario es una persona.
+- **`username` y `email` sirven ambos para iniciar sesión**, y lo que impide que se confundan es que `username` no admite el carácter `@` (`RF-SP-024`). Sin esa restricción, las dos columnas necesitarían compartir un espacio de unicidad común.
+- **`role_permissions` y `user_roles` no llevan clave sustituta.** La unicidad del par es la restricción que importa, y una columna sin significado no aportaría nada.
+
+---
+
+## 2. Catálogos
+
+Tres tablas que hoy **no tienen ninguna clave foránea entrante**: nada en el modelo las referencia todavía.
+
+```mermaid
+erDiagram
+    memberships ||--o| memberships : "parent_membership_id · una sola hija"
+
+    memberships {
+        uuid id PK "v7"
+        varchar code UK "50"
+        varchar name "100"
+        text description "NULL"
+        uuid parent_membership_id FK,UK "NULL en la superior · UK impide bifurcar"
+        smallint level "orden materializado · se recalcula al insertar"
+        timestamptz created_at "now"
+        timestamptz updated_at "now"
+    }
+
+    currencies {
+        uuid id PK "v7"
+        char code UK "3 · ISO 4217"
+        varchar name "100"
+        varchar symbol "10 · NULL"
+        smallint decimal_places "default 2 · cero es legítimo"
+        boolean is_default "índice único parcial · exactamente una en true"
+        boolean is_active "default true · lo cambia RF-SP-023"
+        timestamptz created_at "now"
+    }
+
+    countries {
+        uuid id PK "v7"
+        char code UK "2 · ISO 3166-1 alfa-2"
+        varchar name "100 · UK funcional sobre f_unaccent(lower(name))"
+        boolean is_active "default true · lo cambia RF-SP-022"
+        timestamptz created_at "now"
+        timestamptz updated_at "now · lo mueve RF-SP-022"
+    }
+```
+
+- **`memberships` es una lista, no un árbol.** El índice único sobre `parent_membership_id` es lo que lo garantiza: sin él la cadena podría bifurcarse y el orden dejaría de estar definido.
+- **`currencies.is_default`** exige un índice único parcial: exactamente una fila en `true`, declarado en el esquema y no solo en el dominio (Art. V.6).
+- **`countries` sí lleva `updated_at`**, incorporado el 21-08-2026 al aprobar el `plan.md` de `RF-SP-020`: el Art. V.7 lo obliga y `RF-SP-022` mueve la fila. `currencies` lo necesitará por el mismo motivo cuando se escriba el plan de `RF-SP-023`. Ninguna de las tres lleva borrado lógico.
+- **La unicidad del nombre de `countries` es funcional**, sobre `f_unaccent(lower(name))` y no sobre `name` literal, porque `RN-SP-009` no admite edición y un `Panamá`/`Panama` duplicado sería permanente. Es la asimetría deliberada con `uq_roles_name`.
+- `memberships` no tiene **ninguna** salida —ni baja ni indicador de activo— y `RN-SP-008` lo justifica: desactivar un eslabón dejaría un hueco en un orden lineal.
+
+---
+
+## 3. Auditoría
+
+Cuatro tablas, no una. Cada una declara `NOT NULL` lo que en su contexto es obligatorio, algo que un registro único no permite. Comparten un núcleo común de seis columnas, repetido aquí en cada tabla porque así estará en el esquema.
+
+```mermaid
+erDiagram
+    users |o..o{ audit_change_log : "actor_id · sin FK declarada"
+    users |o..o{ audit_deletion_log : "actor_id · sin FK declarada"
+    users |o..o{ audit_error_log : "actor_id · sin FK declarada"
+    users |o..o{ audit_security_log : "actor_id y target_user_id"
+    request_log |o..o{ audit_change_log : "correlation_id"
+    request_log |o..o{ audit_deletion_log : "correlation_id"
+    request_log |o..o{ audit_error_log : "correlation_id"
+    request_log |o..o{ audit_security_log : "correlation_id"
+
+    audit_change_log {
+        uuid id PK "núcleo común"
+        timestamptz occurred_at "núcleo · UTC"
+        uuid actor_id "núcleo · NULL si es proceso"
+        uuid correlation_id "núcleo · NULL"
+        inet ip_address "núcleo · NULL"
+        text user_agent "núcleo · NULL"
+        varchar module "SP"
+        varchar entity "roles users"
+        uuid entity_id "registro afectado"
+        varchar action "CREATE UPDATE · CHECK"
+        jsonb changes "antes y después de lo que cambió"
+    }
+
+    audit_deletion_log {
+        uuid id PK "núcleo común"
+        timestamptz occurred_at "núcleo · UTC"
+        uuid actor_id "núcleo · NULL"
+        uuid correlation_id "núcleo · NULL"
+        inet ip_address "núcleo · NULL"
+        text user_agent "núcleo · NULL"
+        varchar module "—"
+        varchar entity "—"
+        uuid entity_id "—"
+        varchar deletion_type "LOGICAL PHYSICAL ASSOCIATION"
+        text reason "obligatorio salvo en ASSOCIATION"
+        jsonb snapshot "NOT NULL · estado completo al eliminar"
+    }
+
+    audit_error_log {
+        uuid id PK "núcleo común"
+        timestamptz occurred_at "núcleo · UTC"
+        uuid actor_id "núcleo · NULL"
+        uuid correlation_id "núcleo · NULL"
+        inet ip_address "núcleo · NULL"
+        text user_agent "núcleo · NULL"
+        varchar resource "entidad o ruta"
+        uuid entity_id "NULL"
+        varchar operation "caso de uso o método y ruta"
+        varchar error_code "del contrato o de la regla incumplida"
+        varchar error_type "BUSINESS_RULE INTEGRATION UNHANDLED"
+        smallint http_status "—"
+        varchar severity "MEDIA ALTA"
+        text message "saneado · sin trazas ni SQL"
+    }
+
+    audit_security_log {
+        uuid id PK "núcleo común · solo inserción"
+        timestamptz occurred_at "núcleo · UTC"
+        uuid actor_id "núcleo · NULL si aún no hay identidad"
+        uuid correlation_id "núcleo · NULL"
+        inet ip_address "núcleo · clave para detectar fuerza bruta"
+        text user_agent "núcleo · NULL"
+        varchar event_type "CHECK sobre el catálogo de security.md 8.1"
+        varchar severity "INFORMATIVA MEDIA ALTA"
+        varchar outcome "SUCCESS FAILURE"
+        uuid target_user_id "NULL · a quién se lo hicieron"
+        jsonb detail "NULL · sujeto a enmascaramiento"
+    }
+
+    request_log {
+        uuid id PK "esquema sin definir"
+        uuid correlation_id "referenciado por las cuatro"
+    }
+```
+
+- **Las tres columnas de origen son nulables a la vez**, con un `CHECK` que lo impone: `correlation_id` e `ip_address` van juntas. Una fila sin IP significa «no vino de la red», nunca «se olvidó registrarla».
+- **`audit_security_log` es de solo inserción**, restringido a nivel de privilegios de base de datos y no por convención en el código. Un registro que la aplicación puede reescribir no prueba nada.
+- Las cuatro se leen en conjunto por una **vista de solo lectura** sobre el núcleo común, que exige los cuatro permisos de lectura.
+
+---
+
+## 4. Cómo queda el mapa
+
+Qué existe, quién es dueño y qué falta:
+
+```mermaid
+flowchart TB
+    subgraph SP["Módulo SP · dueño"]
+        direction LR
+        A1["roles"]
+        A2["permissions"]
+        A3["role_permissions"]
+        A4["memberships"]
+        A5["currencies"]
+        A6["countries"]
+    end
+
+    subgraph AUD["Auditoría · SP es dueño, todos escriben"]
+        direction LR
+        B1["audit_change_log"]
+        B2["audit_deletion_log"]
+        B3["audit_error_log"]
+        B4["audit_security_log"]
+    end
+
+    subgraph USRS["Usuarios · RF-SP-024 a RF-SP-033"]
+        direction LR
+        C1["users"]
+        C2["user_roles"]
+        C3["refresh_tokens"]
+    end
+
+    OBS["request_log<br/>esquema sin definir"]
+
+    A1 --> A3
+    A2 --> A3
+    C1 --> C2
+    A1 --> C2
+    C1 --> C3
+    SP -.->|"emiten eventos"| AUD
+    USRS -.->|"emiten eventos"| AUD
+    AUD -.->|"correlation_id"| OBS
+
+    A4 -.->|"¿quién apunta aquí?"| Q1["∅"]
+    A5 -.->|"¿quién apunta aquí?"| Q2["∅"]
+    A6 -.->|"¿quién apunta aquí?"| Q3["∅"]
+
+    classDef sp fill:#e7eef0,stroke:#2d5a6b,color:#151b1e
+    classDef pend fill:#f6e6e2,stroke:#a33b2a,stroke-dasharray:3 3,color:#a33b2a
+    class A1,A2,A3,A4,A5,A6,B1,B2,B3,B4 sp
+    class Q1,Q2,Q3,OBS,C1,C2,C3 pend
+```
+
+---
+
+## 5. Lo que el modelo deja pendiente
+
+| # | Punto | Dónde se resuelve |
+|---|---|---|
+| 1 | **`memberships` no tiene vínculo con nada.** `sp.md` §10.2 dice que solo los roles `CONSUMIDOR` pueden asociarse a una membresía, pero ninguna tabla tiene la columna que exprese esa asociación. Falta decidir dónde vive: ¿`users.membership_id`, una tabla puente, o una columna en `roles`? | `requirements/sp.md` §10, junto con las entidades de usuario |
+| 2 | **`countries` y `currencies` son islas.** Existen sin una sola clave foránea entrante. Su razón de ser es futura —importes con moneda, direcciones con país—, pero conviene dejar escrito quién los referenciará. | `modules.md` §6, alcance por inventariar |
+| 3 | **`request_log` no tiene esquema.** Las cuatro tablas de auditoría lo referencian por `correlation_id` y `RF-SP-011` lo menciona en su postcondición, pero no hay columnas descritas en ningún documento. | `architecture.md` §9 |
+| 4 | **`audit_*.actor_id` no declara clave foránea a `users`.** Está documentado como `uuid NULL` sin relación. Si es deliberado —para que eliminar un usuario no arrastre ni bloquee su auditoría— conviene decirlo; si no, falta la restricción. | `architecture.md` §6.6.1 |
+| 5 | **Tres estrategias de baja distintas**: `roles` con `deleted_at`, `countries` y `currencies` con `is_active`, `memberships` con ninguna. Cada caso está justificado por separado, pero no hay una regla que diga cuándo se usa cada una. | `architecture.md` §6.4 |
+| 6 | **`modelo_v1.mwb` está desactualizado.** Trae `roles.assigned_role_id`, que `security.md` §9 renombra a `parent_role_id`. El modelo gráfico es material de referencia, no autoridad sobre el esquema (Art. V.3). | `DB/modelo_v1.mwb` |
+
+---
+
+## 6. Control de cambios
+
+| Versión | Fecha | Cambio | Responsable |
+|---|---|---|---|
+| 0.1.0 | 21-08-2026 | Creación inicial. Cuatro diagramas derivados de `requirements/sp.md` §10, `security.md` §9 y `architecture.md` §6.6, y seis puntos pendientes que el modelo deja a la vista. | Responsable técnico |
+| 0.2.0 | 21-08-2026 | Consecuencias de aprobar `RF-SP-024`. `users` incorpora `first_name`, `last_name` y `must_change_password`; se anota que `username` es inmutable y sin `@`, que ambos identificadores sirven para iniciar sesión, y que su unicidad es **total** —incluidos los eliminados—, al contrario que la de `roles`. | Responsable técnico |
+| 0.3.0 | 21-08-2026 | Consecuencias de aprobar `RF-SP-028`. `locked_until` queda nulo también en el bloqueo manual, que no expira y solo se levanta reactivando la cuenta. | Responsable técnico |
+| 0.4.0 | 21-08-2026 | Consecuencias de aprobar el `plan.md` de `RF-SP-020`. `countries` gana `updated_at` y su unicidad de nombre pasa a ser funcional sobre `f_unaccent(lower(name))`. | Responsable técnico |
+| 0.5.0 | 21-08-2026 | Consecuencias de aprobar `RF-SP-035`. `refresh_tokens` gana `revoked_reason`: solo la revocación por rotación indica robo, y sin ese dato cerrar sesión sería indistinguible de una reutilización. | Responsable técnico |
