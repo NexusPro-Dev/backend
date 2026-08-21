@@ -45,6 +45,8 @@ services:
       # Secreto de desarrollo. En cualquier otro entorno llega por variable
       # de entorno y nunca desde un archivo versionado (Art. IV.3).
       JWT_SECRET: desarrollo-no-usar-fuera-de-local
+      # Swagger y el contrato OpenAPI, accesibles sin autenticar. Solo local.
+      EXPOSE_API_DOCS: "true"
     ports:
       - "8080:8080"
 

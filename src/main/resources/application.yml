@@ -77,6 +77,11 @@ nexus:
 
   security:
     jwt-secret: ${JWT_SECRET}
+    # Documentación de la API accesible sin autenticar. Por defecto NO, que
+    # es lo seguro: el contrato describe cada endpoint y cada permiso del
+    # sistema. Se habilita de forma explícita donde interese.
+    expose-api-docs: ${EXPOSE_API_DOCS:false}
+
     trusted-proxies: ${TRUSTED_PROXIES:}
 
 logging:

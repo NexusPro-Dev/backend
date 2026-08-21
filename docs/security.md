@@ -137,12 +137,25 @@ Cada regla declara cuándo aplica, qué debe ocurrir y su prioridad, conforme a 
 Un permiso se identifica con el formato `<recurso>:<acción>`, en minúsculas:
 
 ```
-roles:read      roles:create      roles:update      roles:delete
-users:read      users:create      users:update      users:delete
+roles:read       roles:create       roles:update       roles:delete
+permissions:read
+memberships:read memberships:create
+countries:read   countries:create   countries:update
+currencies:read  currencies:update
 
 audit:read-changes      audit:read-deletions
 audit:read-errors       audit:read-security
+
+users:read       users:create       users:update       users:delete
 ```
+
+**Cada módulo siembra sus propios permisos.** La tabla `permissions` pertenece a `SP` (`requirements/sp.md` §10), pero su contenido no: `V3__seed_permissions.sql` puebla los dieciséis permisos de `SP` —los tres primeros bloques— y `USR` sembrará `users:*` en su propia migración cuando se construya. Decidido el 21-08-2026 al aprobar el plan de `RF-SP-010`, que hasta entonces omitía `permissions:read`, `memberships:*`, `countries:*` y `currencies:*` de esta lista.
+
+!!! warning "Obligación de toda migración que siembre permisos"
+
+    Sembrar un permiso nuevo **no basta**: la misma migración DEBE asociarlo a `SUPERADMIN` y a `ADMIN`, o incumplirá §4.1 desde el momento en que se aplique. `V7__seed_system_roles.sql` no puede hacerlo por ella, porque asocia el catálogo existente en su momento y un permiso posterior todavía no estará.
+
+    El síntoma de olvidarlo no es evidente: `ADMIN` quedaría incapaz de crear un rol que declare ese permiso, y `RN-SEG-003` rechazaría la operación sin decir que lo que falta es una siembra.
 
 **La auditoría se lee por tipo, no en bloque.** Los cuatro registros del Art. V.8 responden preguntas distintas y no tienen la misma sensibilidad: quién editó un rol es información de operación; quién intentó entrar y falló es información de seguridad. Un único `audit:read` obligaría a dar acceso a la segunda para conceder la primera. Con permisos separados, soporte técnico puede investigar errores sin ver la actividad de autenticación de nadie:
 
@@ -245,7 +258,15 @@ Si llega un refresh token **ya revocado**, el sistema asume robo de credenciales
 ## 6. Aplicación de la autorización
 
 - La autorización se declara en la capa `api` (`architecture.md` §5.1), mediante anotaciones sobre cada endpoint.
-- Un endpoint **sin declaración explícita** de permiso queda **inaccesible**, no público. La configuración por defecto deniega, y la excepción (endpoints públicos como login o salud) se declara en una lista explícita y corta, revisable de un vistazo.
+- Un endpoint **sin declaración explícita** de permiso queda **inaccesible**, no público. La configuración por defecto deniega, y la excepción se declara en una lista explícita y corta, revisable de un vistazo:
+
+| Ruta | Por qué es pública | Condición |
+|---|---|---|
+| `/actuator/health` | El Art. XV.10 lo exige sin autenticación de negocio, y sin detalle interno | Siempre |
+| `/api/v1/auth/login` y `/api/v1/auth/refresh` | No puede exigirse credencial para obtener una credencial | Siempre, cuando exista `USR` |
+| `/swagger-ui.html`, `/v3/api-docs` | Consultar el contrato durante el desarrollo | **Solo donde se habilite de forma explícita.** Por defecto no: el contrato describe cada endpoint y cada permiso del sistema |
+
+    Cualquier ruta fuera de esa lista exige autenticación. La configuración de seguridad **no** debe traer formulario de acceso, sesión ni autenticación básica: sin credencial válida se responde `401`, no se redirige.
 - La verificación de propiedad del dato (que un usuario solo acceda a sus propios registros, cuando aplique) es responsabilidad de la capa `application` y **DEBE** especificarse por requerimiento. Un permiso concede la capacidad de ejecutar una acción, no el derecho sobre un registro concreto.
 
 !!! note "El alcance de datos está pendiente de diseño (D-22)"
