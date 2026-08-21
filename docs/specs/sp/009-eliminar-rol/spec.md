@@ -8,6 +8,7 @@
 | Autor | Responsable técnico |
 | Aprobada por | Responsable técnico |
 | Fecha de aprobación | 21-08-2026 |
+| Enmendada | 21-08-2026 — `EX-006` y `CA-SP-176`, al aprobar `plan.md` (Art. I.7) |
 
 ---
 
@@ -126,6 +127,11 @@ Ninguno. La eliminación no admite variantes: o se cumplen todas las condiciones
 **Condición:** el rol está entre los del actor.
 **Respuesta del sistema:** rechaza la operación y cita `RN-SEG-011`.
 
+### EX-006 — Rol inexistente
+
+**Condición:** no existe un rol vigente con el identificador indicado, o ya está eliminado lógicamente.
+**Respuesta del sistema:** rechaza la operación e informa que el rol no existe, sin distinguir entre nunca haber existido y haber sido eliminado (Art. V.13). No debe confundirse con `EX-004`, que es el rol de sistema o el rol raíz. Añadida el 21-08-2026 al aprobar el `plan.md` (Art. I.7).
+
 ## 11. Validaciones
 
 | ID | Validación | Mensaje esperado |
@@ -151,6 +157,7 @@ Ninguno. La eliminación no admite variantes: o se cumplen todas las condiciones
 | `CA-SP-163` | El sistema rechaza la eliminación cuando el usuario que tiene el rol está **inactivo** |
 | `CA-SP-164` | El sistema no expone ninguna operación de restauración |
 | `CA-SP-165` | Eliminar el rol y asignárselo a alguien de forma simultánea no deja usuarios apuntando a un rol eliminado |
+| `CA-SP-176` | El sistema rechaza la eliminación de un rol inexistente o ya eliminado, con un error distinto del de rol de sistema |
 
 ## 13. Casos límite
 

@@ -143,6 +143,10 @@ El ciclo completo, en el orden en que ocurre (Art. I, III):
 
 Los términos del dominio tienen equivalencia directa (rol → `Role`, permiso → `Permission`, usuario → `User`), por lo que esta separación no genera ambigüedad. Si algún día aparece un término del negocio **sin** equivalente natural en inglés, se conserva en español y se documenta en el glosario del módulo.
 
+**Excepción declarada.** Los nombres de objetos de base de datos que un documento de requerimientos ya fijó se conservan tal cual, aunque estén en español: es el caso de `ix_roles_busqueda` e `ix_countries_busqueda`, declarados en `requirements/sp.md` §10.7. Renombrarlos obligaría a enmendar un documento aprobado para ganar coherencia ortográfica, no corrección.
+
+**Funciones de base de datos.** Llevan el prefijo `f_` (por ejemplo `f_unaccent`). La convención se adopta el 21-08-2026 al aprobar el plan de `RF-SP-002`, que crea la primera; sin ella cada requerimiento inventaría la suya.
+
 ### 4.2 Java
 
 | Elemento | Convención | Ejemplo |
@@ -253,14 +257,17 @@ El repositorio incluye `.editorconfig` para que los editores respeten indentaci�
 
 ```
 DomainException (abstracta)
-├── ValidationException          → 400
-├── BusinessRuleException        → 409  (viola una RN-…)
-├── ResourceNotFoundException    → 404
-├── UnauthorizedException        → 401
-└── ForbiddenException           → 403
+├── ValidationException           → 400
+├── BusinessRuleException         → 409  (viola una RN-…)
+├── UnprocessableEntityException  → 422  (referencia inexistente en el cuerpo)
+├── ResourceNotFoundException     → 404
+├── UnauthorizedException         → 401
+└── ForbiddenException            → 403
 ```
 
 - El dominio y la capa `application` lanzan estas excepciones. **No conocen HTTP.**
+- **`422` frente a `404`:** el `404` se reserva para cuando el recurso *de la ruta* no existe. Cuando lo que no existe es una entidad **referenciada desde el cuerpo** —un rol padre, un permiso del catálogo—, la ruta sí existe y la petición es sintácticamente válida pero semánticamente irrealizable: eso es `422` (`architecture.md` §7.2). Devolver `404` en ese caso diría que el endpoint no está.
+- **`422` frente a `409`:** `409` es una regla de negocio violada sobre datos que existen; `422` es una referencia que no resuelve. Añadido el 21-08-2026 al aprobar el plan de `RF-SP-001`, que lo estrena, y usado también por `RF-SP-005` y `RF-SP-008`.
 - Un único `@RestControllerAdvice` las traduce al formato `ProblemDetail` (`architecture.md` §7.3). Es el **único** lugar del código que decide códigos de estado.
 
 ### 7.2 Reglas

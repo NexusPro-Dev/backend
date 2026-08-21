@@ -8,6 +8,7 @@ nav:
   - Arquitectura: architecture.md
   - Seguridad: security.md
   - Mapa modular: modules.md
+  - Modelo de datos: modelo-datos.md
   - Requerimientos y trazabilidad: requirements.md
   - Guía de desarrollo: development-guide.md
   - specs

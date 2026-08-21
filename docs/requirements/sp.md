@@ -4,7 +4,8 @@
 |---|---|
 | Módulo | `SP` — Sistema Principal |
 | Paquete | `modules/system` |
-| Versión | 1.2.0 |
+| Prefijos de permiso | `roles:`, `permissions:`, `audit:`, `memberships:`, `currencies:`, `countries:`, `users:` |
+| Versión | 1.3.0 |
 | Estado | **Aprobado** |
 | Responsable | Bonilla Diaz William Steven |
 | Fecha de creación | 20-08-2026 |
@@ -39,11 +40,14 @@ Permitir que la organización defina su estructura de autorización sin interven
 - Alta, consulta, edición, cambio de estado y eliminación de roles.
 - Asignación y revocación de permisos sobre un rol, con la contención respecto de su rol padre.
 - Consulta de los cuatro registros de auditoría, por separado y con permisos diferenciados.
+- Alta, consulta, edición, estado y baja de usuarios.
+- Asignación y retiro de roles sobre una persona.
+- Asignación y retiro de la membresía de un consumidor.
+- Inicio y cierre de sesión, refresco de token y gestión de la contraseña.
 
 **No incluye**
 
-- Los usuarios, sus credenciales y su autenticación → módulo `USR`.
-- La asignación de roles a personas → módulo `USR`, porque su sujeto es el usuario y no el rol.
+- La definición de qué contenidos exige cada nivel de membresía: corresponde a los módulos de academia y productos.
 - La **escritura** de los registros de auditoría: la emite cada módulo al ejecutar su operación. `SP` solo los consulta.
 
 ## 2. Submódulos
@@ -58,6 +62,10 @@ Según [`modules.md` §5.1](../modules.md).
 | Membresías | Nivel de acceso del consumidor a servicios y contenidos | `RF-SP-016` a `RF-SP-018` |
 | Monedas | Catálogo de monedas. Solo lectura por API | `RF-SP-019` |
 | Países | Catálogo de países | `RF-SP-020`, `RF-SP-021` |
+| **Usuarios** | Alta, consulta, edición, estado y baja de las personas que acceden al sistema | `RF-SP-024` a `RF-SP-029` |
+| **Roles de usuario** | Asignación y retiro de roles sobre una persona | `RF-SP-030`, `RF-SP-031` |
+| **Membresía del usuario** | Asignación y retiro del nivel de acceso de un consumidor | `RF-SP-032`, `RF-SP-033` |
+| **Credenciales y acceso** | Inicio y cierre de sesión, refresco, y gestión de la contraseña | `RF-SP-034` a `RF-SP-038` |
 | Auditoría | Consulta de los cuatro registros | `RF-SP-011` a `RF-SP-014` |
 
 !!! note "Sobre el submódulo Parámetros"
@@ -101,7 +109,7 @@ Propuesta de códigos y de jerarquía de **contención de privilegios** (`RN-SEG
 | `DIRECTOR` | Director | `MANAGER` | Sí |
 | `AGENTE` | Agente o vendedor | `DIRECTOR` | Sí |
 | `ESTUDIANTE` | Estudiante | `ADMIN` | No |
-| `Cliente` | Cliente | `ADMIN` | No |
+| `CLIENTE` | Cliente | `ADMIN` | No |
 
 !!! important "Qué acota `parent_role_id`, y qué no"
 
@@ -155,6 +163,11 @@ Reglas que no son transversales de seguridad y por tanto sí llevan el prefijo d
 | `RN-SP-001` | Superadministrador siempre presente | Al eliminar o desactivar un usuario, o al retirarle el rol | Debe existir siempre al menos un usuario con rol `SUPERADMIN`; la operación que dejaría al sistema sin ninguno se rechaza | **Crítica** |
 | `RN-SP-002` | Rol padre obligatorio | Al crear o editar un rol | Todo rol declara un rol padre, salvo `SUPERADMIN`, que es el único sin él | Alta |
 | `RN-SP-003` | Clasificación del rol | Al crear un rol | Todo rol se clasifica como `FUNCIONARIO` (personal interno), `VENDEDOR` (personal de la fuerza comercial) o `CONSUMIDOR` (cliente del sistema) | Alta |
+| `RN-SP-013` | Membresía solo para consumidores | Al asignar una membresía a un usuario | El usuario debe tener al menos un rol de clasificación `CONSUMIDOR`. Si no lo tiene, la asignación se rechaza | **Crítica** |
+| `RN-SP-014` | Una membresía por usuario | Al asignar una membresía | Un usuario tiene como mucho una membresía vigente. Asignar otra sustituye la anterior, y el cambio queda auditado | Alta |
+| `RN-SP-015` | Retiro del último rol consumidor | Al retirar roles de un usuario | Si el usuario tiene membresía y el retiro lo dejaría sin ningún rol `CONSUMIDOR`, la operación se rechaza: quedaría con un nivel de acceso que ya no le corresponde | Alta |
+| `RN-SP-016` | Identidad no reutilizable | Al registrar o editar un usuario | El nombre de acceso y el correo son únicos entre los usuarios no eliminados. A diferencia del rol, **no se liberan al eliminar**: reutilizarlos permitiría que la actividad de dos personas distintas se confundiera en la auditoría | **Crítica** |
+| `RN-SP-017` | Un usuario no se elimina a sí mismo | Al eliminar o desactivar un usuario | El actor no puede aplicar la operación sobre su propia cuenta | Alta |
 | `RN-SP-011` | Orden de mando comercial | Al crear o reubicar un rol `VENDEDOR` | El orden de mando de la fuerza comercial se expresa con `parent_role_id`: el rol superior es el rol padre. No existe un campo de rango aparte | Alta |
 | `RN-SP-004` | Permisos inmutables por API | Siempre | Los permisos no se crean, editan ni eliminan por la API: se pueblan y modifican únicamente por migración | Alta |
 | `RN-SP-005` | Revocación sin motivo | Al retirar un permiso de un rol | La fila de asociación se elimina físicamente y se audita en `audit_deletion_log` sin motivo declarado (Art. V.13, excepción de asociaciones) | Alta |
@@ -205,6 +218,21 @@ Reglas que no son transversales de seguridad y por tanto sí llevan el prefijo d
 | `RF-SP-021` | Consultar países | Media | `countries:read` | Pendiente |
 | `RF-SP-022` | Cambiar el estado de un país | Media | `countries:update` | Pendiente |
 | `RF-SP-023` | Cambiar el estado de una moneda | Baja | `currencies:update` | Pendiente |
+| `RF-SP-024` | Registrar usuario | **Crítica** | `users:create` | Pendiente |
+| `RF-SP-025` | Consultar usuarios | **Crítica** | `users:read` | Pendiente |
+| `RF-SP-026` | Consultar detalle de un usuario | Alta | `users:read` | Pendiente |
+| `RF-SP-027` | Editar usuario | Alta | `users:update` | Pendiente |
+| `RF-SP-028` | Cambiar el estado de un usuario | Alta | `users:update` | Pendiente |
+| `RF-SP-029` | Eliminar usuario | Media | `users:delete` | Pendiente |
+| `RF-SP-030` | Asignar roles a un usuario | **Crítica** | `users:assign-roles` | Pendiente |
+| `RF-SP-031` | Retirar roles de un usuario | Alta | `users:assign-roles` | Pendiente |
+| `RF-SP-032` | Asignar membresía a un usuario | Alta | `users:assign-membership` | Pendiente |
+| `RF-SP-033` | Retirar la membresía de un usuario | Media | `users:assign-membership` | Pendiente |
+| `RF-SP-034` | Iniciar sesión | **Crítica** | — (público) | Pendiente |
+| `RF-SP-035` | Refrescar el token de acceso | **Crítica** | — (público) | Pendiente |
+| `RF-SP-036` | Cerrar sesión | Alta | Autenticado | Pendiente |
+| `RF-SP-037` | Cambiar la propia contraseña | Alta | Autenticado | Pendiente |
+| `RF-SP-038` | Restablecer la contraseña de un usuario | Media | `users:reset-password` | Pendiente |
 
 **Orden sugerido de implementación:** `RF-SP-010` → `RF-SP-001` → `RF-SP-002` → `RF-SP-005` → el resto. El catálogo de permisos es prerrequisito de todo lo demás, y sin roles no hay nada que auditar.
 
@@ -568,7 +596,7 @@ Definidos en [`security.md` §11](../security.md) y en la constitución. Los que
 
 ## 8. Integraciones
 
-Ninguna con sistemas externos. Internamente, `USR` consume de este módulo el catálogo de roles y la resolución de permisos efectivos, a través de la interfaz publicada por su capa `application` (`architecture.md` §5.3).
+Ninguna con sistemas externos ni con otros módulos. Al absorber los usuarios, sus roles y su acceso, `SP` deja de tener dependencias: es autocontenido y no necesita que ningún otro módulo exista para funcionar.
 
 ## 9. API
 
@@ -597,6 +625,21 @@ Ninguna con sistemas externos. Internamente, `USR` consume de este módulo el ca
 | `GET` | `/api/v1/countries` | `RF-SP-021` | `countries:read` |
 | `PATCH` | `/api/v1/countries/{id}/status` | `RF-SP-022` | `countries:update` |
 | `PATCH` | `/api/v1/currencies/{id}/status` | `RF-SP-023` | `currencies:update` |
+| `POST` | `/api/v1/users` | `RF-SP-024` | `users:create` |
+| `GET` | `/api/v1/users` | `RF-SP-025` | `users:read` |
+| `GET` | `/api/v1/users/{id}` | `RF-SP-026` | `users:read` |
+| `PATCH` | `/api/v1/users/{id}` | `RF-SP-027` | `users:update` |
+| `PATCH` | `/api/v1/users/{id}/status` | `RF-SP-028` | `users:update` |
+| `POST` | `/api/v1/users/{id}/deletion` | `RF-SP-029` | `users:delete` |
+| `POST` | `/api/v1/users/{id}/roles` | `RF-SP-030` | `users:assign-roles` |
+| `DELETE` | `/api/v1/users/{id}/roles` | `RF-SP-031` | `users:assign-roles` |
+| `PUT` | `/api/v1/users/{id}/membership` | `RF-SP-032` | `users:assign-membership` |
+| `DELETE` | `/api/v1/users/{id}/membership` | `RF-SP-033` | `users:assign-membership` |
+| `POST` | `/api/v1/auth/login` | `RF-SP-034` | — |
+| `POST` | `/api/v1/auth/refresh` | `RF-SP-035` | — |
+| `POST` | `/api/v1/auth/logout` | `RF-SP-036` | Autenticado |
+| `POST` | `/api/v1/auth/password` | `RF-SP-037` | Autenticado |
+| `POST` | `/api/v1/users/{id}/password-reset` | `RF-SP-038` | `users:reset-password` |
 
 Rutas propuestas. El contrato exacto de cada una se fija en el `plan.md` de su tripleta.
 
@@ -610,6 +653,10 @@ Rutas propuestas. El contrato exacto de cada una se fija en el `plan.md` de su t
 | `memberships` | Niveles de acceso del consumidor | `SP` |
 | `currencies` | Catálogo de monedas | `SP` |
 | `countries` | Catálogo de países | `SP` |
+| `users` | Personas que acceden al sistema, con su credencial y su estado | `SP` |
+| `user_roles` | Roles asignados a cada usuario | `SP` |
+| `user_memberships` | Membresía vigente de cada usuario consumidor | `SP` |
+| `refresh_tokens` | Sesiones revocables | `SP` |
 | `audit_change_log` | Auditoría de creación y edición | `SP` |
 | `audit_deletion_log` | Auditoría de eliminación | `SP` |
 | `audit_error_log` | Auditoría de fallos | `SP` |
@@ -649,6 +696,8 @@ Estructura lógica en [`security.md` §9](../security.md) y [`architecture.md` �
 | `created_at` | `timestamptz` | No | No | No | `now()` | — |
 | `updated_at` | `timestamptz` | No | No | No | `now()` | — |
 | `deleted_at` | `timestamptz` | No | No | Sí | — | — |
+
+`description` lleva un `CHECK` de **500 caracteres** como longitud máxima (`ck_roles_description_length`). El límite se declara en el esquema, no solo en el DTO de entrada: sin un número, `VAL-007` de `RF-SP-001` no es implementable, y el listado de `RF-SP-002` devolvería respuestas de tamaño impredecible con hasta cien filas por página. Resuelto el 21-08-2026, al aprobar el plan de `RF-SP-001`.
 
 `parent_role_id` es nulo **únicamente** en el rol raíz (`RN-SEG-007`, `RN-SP-002`). No implica herencia: acota los privilegios del rol hijo (`security.md` §4.2).
 
@@ -790,4 +839,5 @@ Definidos en [`architecture.md` §6.6](../architecture.md), que detalla el núcl
 | 1.0.0 | 20-08-2026 | Primera versión aprobada. Los 21 requerimientos quedan registrados en la matriz de trazabilidad. | Responsable técnico |
 | 1.1.0 | 20-08-2026 | §10.7 incorpora los índices funcionales de búsqueda insensible a mayúsculas y acentos, que exigen la extensión `unaccent`. | Responsable técnico |
 | 1.2.0 | 20-08-2026 | Los índices de búsqueda pasan a ser de trigramas y exigen también la extensión `pg_trgm`: la coincidencia es por contención y un B-tree no la sostiene. | Responsable técnico |
+| 1.3.0 | 21-08-2026 | El módulo absorbe los usuarios: cuatro submódulos nuevos, quince requerimientos (`RF-SP-024` a `RF-SP-038`), cinco reglas (`RN-SP-013` a `RN-SP-017`) y cuatro entidades. `SP` deja de depender de `USR`, que desaparece. | Responsable técnico |
 | 1.3.0 | 21-08-2026 | Consecuencias de aprobar las specs de `RF-SP-010` a `RF-SP-021`. `RN-SP-007` admite crear una membresía sin indicar hija; `RN-SP-009` y `RN-SP-010` admiten cambiar el estado de países y monedas, y `RN-SP-008` deja constancia de que las membresías no lo llevan. Dos requerimientos nuevos, `RF-SP-022` y `RF-SP-023`. `currencies` incorpora `decimal_places`, `is_default` e `is_active`, y `countries` incorpora `is_active`. | Responsable técnico |

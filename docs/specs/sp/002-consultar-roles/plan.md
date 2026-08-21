@@ -5,10 +5,10 @@
 | Requerimiento | `RF-SP-002` |
 | Especificación | [`spec.md`](spec.md) |
 | `spec.md` aprobada el | 20-08-2026 |
-| Estado | **Borrador** |
+| Estado | **Aprobado** |
 | Autor | Responsable técnico |
-| Aprobado por | — |
-| Fecha de aprobación | — |
+| Aprobado por | Responsable técnico |
+| Fecha de aprobación | 21-08-2026 |
 
 !!! info "Qué va en este documento"
 
@@ -24,41 +24,30 @@ El comportamiento —flujos, excepciones, validaciones y criterios de aceptació
 
 La consulta se resuelve con **una sola sentencia de lectura sobre una proyección**, no cargando el agregado `Role`. La capa `infrastructure` construye la consulta con la API de criterios de JPA a partir de los filtros presentes —solo los presentes— y la materializa directamente en un registro plano de lectura, con un `LEFT JOIN` al rol padre en la misma sentencia. No hay entidades JPA en el camino de esta funcionalidad y, por tanto, no hay colección perezosa que pueda dispararse ni `role_permissions` que se lea sin que nadie lo haya pedido.
 
-La búsqueda insensible a mayúsculas y acentos se apoya en una función `IMMUTABLE` que envuelve a `unaccent` y en un índice GIN de trigramas sobre esa expresión (`V7`). Sin ese envoltorio no hay índice posible, y sin trigramas no hay índice que sirva a una coincidencia por contención; ambos puntos se justifican en §2.
+La búsqueda insensible a mayúsculas y acentos se apoya en la función `IMMUTABLE` que envuelve a `unaccent` —creada en `V1` por `RF-SP-010`, que la necesita antes— y en un índice GIN de trigramas sobre esa expresión, que sí es de este requerimiento (`V8`). Sin ese envoltorio no hay índice posible, y sin trigramas no hay índice que sirva a una coincidencia por contención; ambos puntos se justifican en §2.
 
 `domain` no participa: `spec.md` §5 declara que ninguna regla de negocio gobierna esta consulta y que el alcance de los datos es global. El caso de uso vive íntegro en `application` como servicio de solo lectura, y todo lo que la especificación llama validación (`VAL-001` a `VAL-004`) es formato de parámetros y se resuelve en `api` antes de construir consulta alguna. Este requerimiento también estrena la mecánica de paginación del sistema: la envoltura de respuesta, el rechazo del tamaño excesivo y la lista blanca de ordenamiento nacen aquí y los heredan todos los listados posteriores.
 
 ## 2. Cambios de esquema
 
-**Migración:** `V7__create_role_search_index.sql`
+**Migración:** `V8__create_role_search_index.sql`
 
-La tabla `roles` ya existe: la crea `V4__create_roles.sql` (`RF-SP-001`), junto con `ix_roles_parent_role_id`, que este requerimiento aprovecha para el filtro por rol padre. `V1` a `V6` pertenecen a `RF-SP-010` y `RF-SP-001` y se dan por aplicadas. **No hay cambios de columnas ni de restricciones**: la consulta no modifica la forma de los datos, solo añade la estructura de acceso que la búsqueda exige.
+La tabla `roles` ya existe: la crea `V5__create_roles.sql` (`RF-SP-001`), junto con `ix_roles_parent_role_id`, que este requerimiento aprovecha para el filtro por rol padre. `V2` a `V7` pertenecen a `RF-SP-010` y `RF-SP-001` y se dan por aplicadas. **No hay cambios de columnas ni de restricciones**: la consulta no modifica la forma de los datos, solo añade la estructura de acceso que la búsqueda exige.
 
 | Tabla | Cambio | Detalle |
 |---|---|---|
-| — | Extensiones | `CREATE EXTENSION IF NOT EXISTS unaccent` y `CREATE EXTENSION IF NOT EXISTS pg_trgm` |
-| — | Función | `f_unaccent(text)`, envoltorio `IMMUTABLE` de `unaccent` |
 | `roles` | Altera (índice) | `ix_roles_busqueda`, GIN de trigramas sobre `f_unaccent(lower(code))` y `f_unaccent(lower(name))` |
 
 ```sql
-CREATE EXTENSION IF NOT EXISTS unaccent;
-CREATE EXTENSION IF NOT EXISTS pg_trgm;
-
-CREATE FUNCTION f_unaccent(text) RETURNS text
-    LANGUAGE sql IMMUTABLE STRICT PARALLEL SAFE
-    RETURN public.unaccent('public.unaccent'::regdictionary, $1);
-
 CREATE INDEX ix_roles_busqueda ON roles USING gin (
     f_unaccent(lower(code)) gin_trgm_ops,
     f_unaccent(lower(name)) gin_trgm_ops
 );
 ```
 
-Cuatro decisiones sostienen esas trece líneas.
+**Las extensiones y la función no se crean aquí.** El borrador de este plan las creaba en esta misma migración. Se movieron el 21-08-2026 a `V1__create_shared_functions.sql`, al redactar el plan de `RF-SP-010`: ese requerimiento se implementa **antes** que este —es el primero del orden aprobado en `requirements/sp.md` §6.1— y su búsqueda del catálogo de permisos también es insensible a acentos, de modo que necesita `f_unaccent` desde el primer día. Dejarla aquí habría dejado el catálogo de permisos con la búsqueda rota hasta implementar `RF-SP-002`. `V1` es también donde vive la justificación de por qué `unaccent` no es indexable directamente y por qué hay que envolverla; no se repite aquí.
 
-**Por qué `unaccent` no se puede indexar directamente.** La función `unaccent(text)` que instala la extensión está declarada `STABLE`, no `IMMUTABLE`, porque resuelve el diccionario a través del `search_path` de la sesión. PostgreSQL rechaza cualquier índice de expresión que invoque una función no inmutable, de modo que `CREATE INDEX … ON roles (unaccent(lower(name)))` falla. La forma admitida es la variante de dos argumentos, que recibe el diccionario explícito y es determinista; envolverla en `f_unaccent` y declararla `IMMUTABLE` es lo que la vuelve indexable. El diccionario se escribe cualificado (`'public.unaccent'::regdictionary`) para que la función no dependa del `search_path` de quien la llame.
-
-**Esa declaración `IMMUTABLE` es una promesa que la base de datos no verifica.** Si alguien redefine el diccionario `unaccent`, el índice conserva los valores calculados con el diccionario anterior y devuelve resultados incorrectos sin error. Es la contrapartida conocida de esta técnica: se acepta, se anota en §10 y la consecuencia operativa es que **tocar el diccionario obliga a `REINDEX`**.
+Tres decisiones sostienen las cuatro líneas que sí quedan.
 
 **Por qué GIN de trigramas y no un B-tree.** Un `LIKE '%termino%'` no puede usar un B-tree en ningún caso: el B-tree ordena por prefijo y una coincidencia que puede empezar en cualquier posición no acota el rango a recorrer. Un B-tree funcional con `text_pattern_ops` serviría solo a la búsqueda por prefijo (`'termino%'`), y el prefijo no basta aquí: códigos como `LIDER_ACADEMICO` obligan a que teclear «academico» encuentre el rol, y ningún prefijo lo consigue. El índice de trigramas descompone cada valor en secuencias de tres caracteres y responde a la contención, que es la semántica que este listado necesita. Ese es también el motivo de la extensión adicional: `unaccent` resuelve los acentos, pero no aporta operador de índice alguno; el índice lo aporta `pg_trgm`.
 
@@ -66,7 +55,7 @@ Cuatro decisiones sostienen esas trece líneas.
 
 El índice **no es parcial**: no lleva `WHERE deleted_at IS NULL`. Excluir los eliminados lo haría marginalmente más pequeño, pero dejaría sin cobertura la consulta que sí los incluye (`CA-SP-011`), y a este volumen —decenas de roles— el ahorro no existe. La distinción se deja al predicado, no al índice.
 
-**Recordatorios de la plantilla que no aplican a esta migración:** no crea tablas, así que no hay clave primaria UUID v7, ni `created_at`/`updated_at`, ni columnas de actor que omitir, ni integridad declarativa que añadir. La convención de nombre de `architecture.md` §6.2 se respeta en el índice; el nombre `ix_roles_busqueda` viene fijado en español por `requirements/sp.md` §10.7 y se conserva tal cual, aunque discrepe del inglés que `development-guide.md` §4.1 exige a los objetos de base de datos. Las funciones de base de datos no tienen convención declarada en ningún documento: se adopta el prefijo `f_`.
+**Recordatorios de la plantilla que no aplican a esta migración:** no crea tablas, así que no hay clave primaria UUID v7, ni `created_at`/`updated_at`, ni columnas de actor que omitir, ni integridad declarativa que añadir. La convención de nombre de `architecture.md` §6.2 se respeta en el índice; el nombre `ix_roles_busqueda` viene fijado en español por `requirements/sp.md` §10.7 y se conserva tal cual. La discrepancia con el inglés que `development-guide.md` §4.1 exige a los objetos de base de datos se cerró el 21-08-2026: ese documento pasa a declarar como excepción los nombres que un requerimiento ya fijó, y adopta el prefijo `f_` para funciones de base de datos, que hasta entonces no tenía convención.
 
 ## 3. Componentes afectados
 
@@ -87,7 +76,7 @@ Paquete raíz del módulo: `com.factech.nexus.modules.system`. Reglas de depende
 | `api` | `ListRolesRequest` | Nuevo | Parámetros de consulta con Bean Validation (`VAL-001` a `VAL-004`) |
 | `api` | `RoleListItemResponse` | Nuevo | DTO de salida de cada fila. Reutiliza `RoleSummaryResponse` para el rol padre |
 | `api` | `RoleSummaryResponse` | Sin cambios | Definido en `RF-SP-001` (`id`, `code`, `name`). Se reutiliza tal cual |
-| `shared/api` | `PageResponse<T>` | Nuevo | Envoltura de colección paginada, uniforme para todo el sistema (`architecture.md` §7.4) |
+| `shared/api` | `PageResponse<T>` | Nuevo | Envoltura de colección paginada, uniforme para todo el sistema (`architecture.md` §7.4). Ampliada el 21-08-2026 por `RF-SP-011` con `totalIsExact`, que aquí vale siempre `true` |
 | `shared/api` | `PageRequestFactory` | Nuevo | Valida `page` y `size` contra el máximo configurado y produce el `Pageable`. Único lugar donde vive el techo |
 | `shared/error` | `GlobalExceptionHandler` | Sin cambios | Ya traduce `ValidationException` a `400`; esta funcionalidad no estrena ningún tipo de error |
 
@@ -153,10 +142,10 @@ GET /api/v1/roles?page=0&size=20&sort=name,asc
 
 Decisiones del contrato:
 
-- **La envoltura de paginación se fija aquí para todo el sistema.** `architecture.md` §7.4 exige total de elementos, total de páginas y página actual, pero no nombra los campos, y este es el primer listado que se implementa. Se declara `PageResponse<T>` en `shared/api` con esos nombres más `size`, y **no se serializa el `Page` de Spring Data**: su forma JSON no es contrato estable —Spring Boot 3.3 en adelante lo advierte de forma explícita— y publicarla ataría el contrato de la API a la versión del framework.
+- **La envoltura de paginación se fija aquí para todo el sistema.** `architecture.md` §7.4 exige total de elementos, total de páginas y página actual, pero no nombra los campos, y este es el primer listado que se implementa. Se declara `PageResponse<T>` en `shared/api` con esos nombres más `size`, y **no se serializa el `Page` de Spring Data**: su forma JSON no es contrato estable —Spring Boot 3.3 en adelante lo advierte de forma explícita— y publicarla ataría el contrato de la API a la versión del framework. El 21-08-2026, al aprobar el plan de `RF-SP-011`, la envoltura ganó un campo más, `totalIsExact`: los cuatro listados de auditoría cuentan hasta un techo y necesitan poder decir que el total no es exacto. Este endpoint lo devuelve **siempre `true`**, porque su conteo sí lo es.
 - **No existe `permissions`** (`spec.md` §4.2) **ni ningún campo con el número de usuarios asignados** (`CA-SP-148`). Este último no es una omisión de redacción: no hay `JOIN` a la tabla de asignación ni subconsulta correlacionada en la sentencia, que es lo único que hace verificable el criterio. La pregunta se responde en `RF-SP-003`.
 - **`parentRole` es nulo en el rol raíz**, y por eso la sentencia usa `LEFT JOIN`. Con `JOIN` interno el rol raíz desaparecería del listado sin error visible, y el catálogo de un sistema recién instalado se vería incompleto (`spec.md` §13).
-- **`deletedAt` e `isSystem` van en la respuesta aunque `spec.md` §6.2 no los enumere.** Sin `deletedAt`, `includeDeleted=true` devuelve una mezcla en la que el cliente no puede distinguir qué está eliminado, y `CA-SP-011` quedaría satisfecho con una respuesta inútil. Sin `isSystem`, el listado —que es la entrada natural a editar, cambiar de estado y eliminar— no permite saber qué filas admiten esas acciones. Ninguno de los dos contradice la especificación, pero **exceden lo que aprobó**: se anotan en §10 para confirmación.
+- **`deletedAt` e `isSystem` van en la respuesta**, y `spec.md` §6.2 los declara como «marca de eliminación» y «marca de rol de sistema». Sin el primero, `includeDeleted=true` devuelve una mezcla en la que el cliente no puede distinguir qué está eliminado, y `CA-SP-011` quedaría satisfecho con una respuesta inútil. Sin el segundo, el listado —que es la entrada natural a editar, cambiar de estado y eliminar— no permite saber qué filas admiten esas acciones.
 - **`sort` admite un solo criterio.** El ordenamiento múltiple no lo pide la especificación y multiplica la superficie de validación. Se añadirá cuando algún requerimiento lo justifique.
 - **A todo ordenamiento se le añade `id` como desempate**, sin declararlo el cliente. Ordenar por `status` en una tabla donde muchos roles comparten valor deja el orden de las filas empatadas a criterio del plan de ejecución, y ese orden puede cambiar entre la página 1 y la página 2: filas repetidas en una y ausentes en la otra. El desempate por clave primaria es lo que hace determinista el recorrido de páginas.
 
@@ -208,7 +197,7 @@ Dos detalles no obvios. El primero: la normalización del término la hace **la 
 |---|---|
 | `GET /api/v1/roles` | `roles:read` |
 
-- El permiso **ya existe** en el catálogo: lo crea `V2__seed_permissions.sql` (`RF-SP-010`). No hace falta migración de permisos.
+- El permiso **ya existe** en el catálogo: lo crea `V3__seed_permissions.sql` (`RF-SP-010`). No hace falta migración de permisos.
 - Se declara sobre el método del controlador (`security.md` §6). Un endpoint sin declaración queda inaccesible, no público (Art. IV.1).
 - **No hay filtrado por alcance de datos.** `spec.md` §5 lo dice de forma explícita: quien tiene el permiso ve todos los roles. La consulta no recibe el actor ni lo usa en el predicado. Si alguna vez se resuelve **D-22** (`requirements/sp.md` §10.2), este endpoint es de los primeros que habrá que revisar, porque hoy no tiene ningún punto donde insertar esa restricción.
 - La resolución del permiso en tiempo de autorización sí puede usar la caché de `security.md` §4.5: aquí solo se decide acceso, no un techo de privilegios. Es la situación inversa a la de `RF-SP-001` §5, y por eso la conclusión es la contraria.
@@ -248,7 +237,7 @@ Un matiz que suele darse por sentado y es falso: **envolver el conteo y la lectu
 |---|---|
 | `shared/api` | Se crea con este requerimiento: `PageResponse<T>` y `PageRequestFactory`. **Todo listado posterior del sistema los usa**, y cambiar después la forma de la envoltura sería un cambio de contrato en todos los endpoints a la vez. Es la decisión de este plan con mayor alcance fuera de él |
 | `shared/config` | Declara `nexus.pagination.default-size: 20` y `nexus.pagination.max-size: 100`, un solo lugar para todo el sistema (`architecture.md` §7.4). **No se usa `spring.data.web.pageable.max-page-size`**: ese ajuste **recorta en silencio** el tamaño excedido, que es justo lo que §7.4 prohíbe y lo que `CA-SP-014` verifica que no ocurre |
-| `shared/persistence` | La función `f_unaccent` que crea `V7` es un recurso compartido, no de `SP`: `ix_countries_busqueda` (`RF-SP-021`) la reutiliza. Ningún requerimiento posterior debe volver a crearla, y quien la modifique debe reindexar todo lo que dependa de ella |
+| `shared/persistence` | La función `f_unaccent` es un recurso compartido y la crea `V1__create_shared_functions.sql` (`RF-SP-010`), no esta migración. La reutilizan la búsqueda del catálogo de permisos y `ix_countries_busqueda` (`RF-SP-021`). Ningún requerimiento posterior debe volver a crearla, y quien la modifique debe reindexar todo lo que dependa de ella |
 | `SP` (resto del módulo) | `RF-SP-003` construye el detalle sobre este listado y es quien aporta permisos y número de usuarios. `RF-SP-011` a `RF-SP-014` heredan la envoltura y la lista blanca de ordenamiento, pero **no deben heredar el conteo exacto sin revisarlo** (§4) |
 | `USR` | Consume el catálogo de roles por la interfaz publicada de `SP`, nunca por sus tablas (`architecture.md` §5.3). Este endpoint es el que alimenta la selección de rol al asignarlo a un usuario |
 
@@ -274,19 +263,19 @@ Un matiz que suele darse por sentado y es falso: **envolver el conteo y la lectu
 
 | Riesgo | Impacto | Mitigación |
 |---|---|---|
-| `CREATE EXTENSION` requiere privilegios que el usuario de la aplicación puede no tener en un PostgreSQL administrado | Alto | Se comprueba en cada entorno **antes** de desplegar `V7`; si el usuario de migración no puede crearlas, las instala el administrador de base de datos como paso previo y la migración las encuentra por el `IF NOT EXISTS`. Es un fallo de despliegue, no de ejecución: se manifiesta al arrancar, no en producción con tráfico |
-| `f_unaccent` se declara `IMMUTABLE` sin serlo del todo: si el diccionario `unaccent` cambia, `ix_roles_busqueda` conserva valores obsoletos y devuelve resultados incorrectos **sin error** | Medio | El diccionario se referencia cualificado y no se personaliza. Queda registrado que cualquier cambio en él obliga a `REINDEX` de todos los índices que usen la función, en `roles` y en `countries` |
+| ~~`CREATE EXTENSION` requiere privilegios que el usuario de la aplicación puede no tener~~ | — | **Trasladado el 21-08-2026 a `RF-SP-010`**, que es quien crea las extensiones en `V1`. El riesgo sigue existiendo y se gestiona allí; aquí solo se hereda la dependencia: si `V1` no llegó a aplicarse, `V8` falla al crear el índice, que es el momento correcto para enterarse |
+| `f_unaccent` se declara `IMMUTABLE` sin serlo del todo: si el diccionario `unaccent` cambia, `ix_roles_busqueda` conserva valores obsoletos y devuelve resultados incorrectos **sin error** | Medio | El diccionario se referencia cualificado y no se personaliza (`V1`, `RF-SP-010`). Queda registrado que cualquier cambio en él obliga a `REINDEX` de todos los índices que usen la función, en `roles` y en `countries` |
 | Un término de búsqueda de menos de tres caracteres no puede usar el índice de trigramas y degrada a recorrido secuencial | Bajo | Irrelevante en `roles`, cuyo volumen es de decenas. **Debe reconsiderarse en `RF-SP-021`**, donde `countries` tiene cientos de filas y el mismo patrón, y donde puede convenir exigir una longitud mínima al término |
 | La búsqueda ignora los acentos pero el ordenamiento no: `Álvarez` y `Alvarez` se encuentran igual y se ordenan según la colación de la base de datos | Bajo | Se acepta. Ordenar por la forma sin acentos exigiría un segundo índice funcional y haría que el orden mostrado no coincidiera con el texto mostrado. Si el negocio lo pide, es un cambio localizado en `RoleSortField` |
-| `deletedAt` e `isSystem` en la respuesta exceden los campos que `spec.md` §6.2 enumera | Bajo | **No se decide unilateralmente.** Se proponen con la justificación de §4 y debe confirmarse antes de implementar; quitarlos después es un cambio de contrato, y `CA-SP-011` queda sin utilidad práctica sin el primero |
-| `spec.md` §6.1 exige que el rol padre del filtro «deba existir» y §13 dice que un padre inexistente devuelve colección vacía | Bajo | Se resuelve a favor de §13, que describe el comportamiento observable; §6.1 se lee como descripción del dato, no como validación. **Debe confirmarse al aprobar este plan**, porque las dos lecturas producen respuestas distintas ante la misma petición |
+| ~~`deletedAt` e `isSystem` exceden los campos de `spec.md` §6.2~~ | — | **Resuelto el 21-08-2026:** confirmados al aprobar este plan. `spec.md` §6.2 los declara como «marca de eliminación» y «marca de rol de sistema» |
+| ~~Tensión entre `spec.md` §6.1 y §13 sobre el rol padre inexistente~~ | — | **Resuelto el 21-08-2026:** gana §13. Un `parentRoleId` inexistente devuelve colección vacía y **no se valida**; §6.1 se lee como descripción del dato, no como validación. Evita una consulta por petición cuyo único fin sería producir un error que nadie pidió |
 | `totalElements` puede no corresponder exactamente a la página bajo escrituras concurrentes (§7) | Bajo | Se acepta de forma consciente. Elevar el aislamiento a `REPEATABLE READ` en todo listado cuesta más que el desfase que evita |
-| El listado devuelve `description` completa, de tipo `text` sin límite declarado, para hasta cien filas | Bajo | La longitud máxima de `description` sigue sin definirse en ningún documento aprobado —ya se señaló en el plan de `RF-SP-001`—. Mientras no se acote, una página de cien roles con descripciones largas produce una respuesta de tamaño impredecible. Si se confirma el límite de 500 caracteres allí propuesto, el problema desaparece sin tocar este endpoint |
+| ~~El listado devuelve `description` sin límite declarado, para hasta cien filas~~ | — | **Resuelto el 21-08-2026:** `description` queda acotada a 500 caracteres en `requirements/sp.md` §10.2 y en el esquema (`ck_roles_description_length`, `V5`). Una página de cien roles tiene ahora un tamaño máximo predecible, sin tocar este endpoint |
 | Un listado posterior copia esta estrategia de conteo sobre una tabla que crece sin límite | Medio | Anotado en §4 y en §8. La revisión de `RF-SP-011` a `RF-SP-014` debe decidir su propia paginación, no heredar esta |
 
 ## 11. Estrategia de prueba
 
-Niveles: **Unitaria** (sin Spring ni base de datos), **Integración** (Testcontainers sobre PostgreSQL real, con `V7` aplicada) y **API** (extremo a extremo por HTTP, con autenticación).
+Niveles: **Unitaria** (sin Spring ni base de datos), **Integración** (Testcontainers sobre PostgreSQL real, con `V8` aplicada) y **API** (extremo a extremo por HTTP, con autenticación).
 
 | Criterio | Nivel | Qué verifica |
 |---|---|---|

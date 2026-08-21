@@ -309,6 +309,14 @@ El `snapshot` es lo que vuelve útil a este registro. Sin él, la fila dice que 
 
 La última fila es la frontera que importa: una denegación no es un error del sistema, es el sistema funcionando. Registrarla como error contamina la búsqueda de fallos reales.
 
+**Esa tabla se declara en el esquema, no solo aquí.** Desde el 21-08-2026, al aprobar el plan de `RF-SP-013`:
+
+```sql
+CONSTRAINT ck_audit_error_log_status CHECK (http_status NOT IN (400, 401, 403, 404))
+```
+
+Escribir por descuido una denegación en el registro de errores deja así de producir un dato incorrecto que nadie nota, y pasa a ser un `INSERT` que falla. Los estados admitidos no se enumeran a propósito: `409` y `422` de regla de negocio, `5xx` no controlados, y el `200` o el `503` con que puede resolverse un fallo de integración según se degrade o se rechace la operación.
+
 **El detalle técnico completo no vive aquí.** La traza va al log de aplicación, alcanzable por `correlation_id`. Esta tabla responde «a quién le falló qué», no «en qué línea».
 
 #### 6.6.5 `audit_security_log` — control de acceso
@@ -394,6 +402,25 @@ Uniforme en toda la API (Art. VIII.4), basado en **RFC 9457 Problem Details**:
 ```
 
 Los mensajes nunca exponen trazas, consultas SQL, rutas de archivos ni versiones (Art. VI.5). El `correlationId` siempre viaja en la respuesta, para que un usuario pueda reportar un error y el equipo pueda localizarlo en `request_log` (Art. XV.1).
+
+**Series de `code`.** El campo `code` identifica la causa concreta, y su prefijo dice de qué naturaleza es:
+
+| Serie | Qué identifica | Ejemplo |
+|---|---|---|
+| `VAL-nnn` | Validación de formato u obligatoriedad, declarada en la `spec.md` del requerimiento | `VAL-001` |
+| `RN-XXX-nnn` | Regla de negocio incumplida. El código **es** el identificador de la regla, para poder ir del error al requerimiento sin intermediarios | `RN-SEG-003` |
+| `EX-nnn` | Excepción declarada en la `spec.md` que no corresponde a una regla con identificador propio | `EX-002` |
+| `AUTH-nnn` | Autenticación y autorización | `AUTH-001`, `AUTH-002` |
+| `INT-nnn` | **Fallo de integración entre módulos**: un módulo no responde o no está disponible. Se corresponde con `error_type = 'INTEGRATION'` en `audit_error_log` (§6.6.4) | `INT-001` |
+| `ERR-nnn` | Fallo no controlado | `ERR-500` |
+
+La serie `INT-nnn` se abre el 21-08-2026 al aprobar el plan de `RF-SP-003`, que la estrena:
+
+| Código | Significado |
+|---|---|
+| `INT-001` | El módulo consultado no está disponible y la respuesta no puede completarse con su dato |
+
+Un `INT-nnn` puede quedar registrado en `audit_error_log` con `http_status = 200` cuando la respuesta se degradó en lugar de fallar: esa columna registra lo que el cliente recibió, no la gravedad del fallo interno.
 
 ### 7.4 Paginación y ordenamiento
 

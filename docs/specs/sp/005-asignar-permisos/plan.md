@@ -5,10 +5,10 @@
 | Requerimiento | `RF-SP-005` |
 | Especificación | [`spec.md`](spec.md) |
 | `spec.md` aprobada el | 20-08-2026 |
-| Estado | **Borrador** |
+| Estado | **Aprobado** |
 | Autor | Responsable técnico |
-| Aprobado por | — |
-| Fecha de aprobación | — |
+| Aprobado por | Responsable técnico |
+| Fecha de aprobación | 21-08-2026 |
 
 ---
 
@@ -29,7 +29,7 @@ La operación se aplica **entera o no se aplica**. Un rechazo parcial dejaría e
 
 ## 2. Cambios de esquema
 
-**Ninguno.** `role_permissions` y su clave primaria compuesta se crean en `V5__create_role_permissions.sql` (`RF-SP-001`).
+**Ninguno.** `role_permissions` y su clave primaria compuesta se crean en `V6__create_role_permissions.sql` (`RF-SP-001`).
 
 La clave primaria compuesta `(role_id, permission_id)` es además el mecanismo que absorbe la asignación concurrente del mismo permiso: dos peticiones simultáneas no producen fila duplicada ni error interno, porque la segunda encuentra la fila ya presente y el caso queda cubierto por el flujo alternativo de la spec.
 
@@ -42,7 +42,7 @@ La clave primaria compuesta `(role_id, permission_id)` es además el mecanismo q
 | `domain` | `RoleRepository` | Sin cambios | Puerto de `RF-SP-001` |
 | `application` | `GrantRolePermissionsService` | Nuevo | Caso de uso. `@Transactional`, resuelve las cotas y emite la auditoría |
 | `application` | `PermissionCatalog` | Sin cambios | Puerto de `RF-SP-001`. Verifica que los permisos existan |
-| `application` | `AuthenticatedActor` | Modificado | Añade la obtención de los permisos efectivos del actor para `RN-SEG-010` |
+| `application` | `AuthenticatedActor` | Modificado | Puerto de `RF-SP-001`, que ya declara los permisos efectivos del actor para `RN-SEG-010`. `RF-SP-004` lo amplió con los **roles vigentes** del actor, leídos de la base de datos, y aquí se usan para `RN-SEG-011` (§5) |
 | `application` | `RolePermissionCacheInvalidator` | Nuevo | Puerto hacia `shared/security` para dejar sin efecto la resolución de permisos del rol |
 | `infrastructure` | `JpaRoleRepository` | Modificado | Persiste las nuevas filas de `role_permissions` |
 | `infrastructure` | `SecurityContextActorAdapter` | Modificado | Resuelve los permisos efectivos del actor **desde la base de datos** (§5) |
@@ -71,19 +71,26 @@ Se usa `POST` sobre una subruta y no `PUT` sobre la lista, precisamente porque l
 
 Los permisos van por identificador y no por código, igual que en `RF-SP-001`, para no mezclar dos espacios de identificación en el mismo cuerpo.
 
-**Respuesta `200`** — el rol con su lista de permisos actualizada.
+**Respuesta `200`** — `RoleResponse`, definido en `RF-SP-001`: el rol con su lista de permisos actualizada y su rol padre. No se devuelve `RoleDetailResponse`, que arrastraría una llamada a `USR` a un camino de escritura (`RF-SP-004` §4).
 
 **Errores**
 
 | Código | Cuándo | `error_code` |
 |---|---|---|
 | `400` | Lista vacía, identificador malformado o más de 100 elementos | `VAL-001`, `VAL-002`, `VAL-006` |
-| `403` | Sin `roles:update`, o el rol está entre los del actor (`EX-005`) | `RN-SEG-011` |
-| `404` | El rol no existe o está eliminado | `EX-004` |
+| `401` | Token ausente o inválido | `AUTH-001` |
+| `403` | El actor no posee `roles:update` | `AUTH-002` |
+| `403` | El rol está entre los del actor (`EX-005`) | `RN-SEG-011` |
+| `404` | El rol no existe o está eliminado (`EX-006`) | `EX-006` |
+| `409` | El rol es de sistema (`EX-004`) | `RN-SEG-012` |
 | `409` | Algún permiso excede al rol padre (`EX-001`) | `RN-SEG-003` |
 | `409` | Algún permiso excede al actor (`EX-002`) | `RN-SEG-010` |
-| `409` | El rol es de sistema (`EX-004`) | `RN-SEG-012` |
 | `422` | Algún permiso no existe en el catálogo (`EX-003`) | `EX-003` |
+| `500` | Fallo no controlado | `ERR-500` |
+
+`EX-006` se añadió a `spec.md` el 21-08-2026, al aprobar este plan: la especificación no declaraba la excepción del rol inexistente y este documento la referenciaba con el código de otra —`EX-004`, que es el rol de sistema— (Art. I.7).
+
+Los dos `403` son distintos y no deben fusionarse: el primero lo produce la capa de seguridad compartida antes de entrar al caso de uso, y es ella quien emite su evento de seguridad; el segundo lo produce el caso de uso con el rol ya cargado.
 
 Los cuerpos de `409` por contención **deben enumerar los permisos que incumplen**. Sin ese detalle el actor no puede corregir su petición, y la spec lo exige de forma explícita en `EX-001` y `EX-002`.
 
@@ -109,7 +116,7 @@ Los pasos 6 y 7 no son evaluables sin haber resuelto antes el catálogo: el orde
 
 Es la misma decisión que tomó el plan de `RF-SP-001` y conviene mantenerla por la misma razón: esta es una operación de escritura poco frecuente, y una entrada de caché obsoleta aquí no se traduce en una lectura desactualizada sino en **una concesión indebida y permanente**. El ahorro no compensa.
 
-**`RN-SEG-011`** se verifica con el código del rol ya cargado contra los códigos que transporta el token, sin consulta adicional, y solo sobre los roles asignados directamente.
+**`RN-SEG-011`** se verifica contra los **roles vigentes del actor leídos de la base de datos**, no contra los códigos que transporta el token, y solo sobre los roles asignados directamente. La justificación completa está en `RF-SP-004` §5 y es la misma que sostiene el párrafo anterior: un token vive hasta quince minutos y no refleja un rol que se le asignó al actor después de emitirse. Aquí la consecuencia es más grave que en la edición, porque lo que estaría permitiendo es ampliar los permisos de un rol propio.
 
 ## 6. Auditoría
 
@@ -118,6 +125,10 @@ Es la misma decisión que tomó el plan de `RF-SP-001` y conviene mantenerla por
 | Permisos agregados | `audit_change_log` | `action = UPDATE` sobre la entidad `roles`, con `changes` conteniendo **solo los permisos realmente agregados** |
 | Permisos agregados | `audit_security_log` | Cambio de permisos de un rol, severidad **Alta** |
 | Ninguno agregado | — | **Ningún evento**: si todos los permisos ya estaban, nada cambió |
+| Rechazo por `EX-001` a `EX-006` | `audit_error_log` | `resource = 'roles'`, `operation` con método y ruta, `error_code` de la tabla de §4, `error_type = 'BUSINESS_RULE'`, `http_status`, `severity` y `message` saneado. Severidad **Alta** para `RN-SEG-003`, `RN-SEG-010` y `RN-SEG-011` —los tres son intentos de escalada de privilegios y deben poder encontrarse buscando por severidad—; **Media** para el resto |
+| Rechazo `400` de formato | — | **No se audita** (`architecture.md` §6.6.4) |
+| Denegación `403` por `AUTH-002` | `audit_security_log` | `event_type` de denegación de autorización, `severity = 'MEDIA'`, `outcome = 'FAILURE'`. Lo emite la capa de seguridad compartida |
+| Fallo no controlado `5xx` | `audit_error_log` | `error_type = 'UNHANDLED'`, `severity = 'ALTA'` |
 
 Un solo evento de cambio por operación, no uno por fila de `role_permissions`. El evento documenta una decisión de negocio —«se amplió este rol»—, no tres inserciones.
 

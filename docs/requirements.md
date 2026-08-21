@@ -5,7 +5,7 @@
 | Proyecto | NEXUS — Renovación de plataforma |
 | Empresa | FACTECH GROUP SAS |
 | Documento | `requirements.md` |
-| Versión | 0.7.0 |
+| Versión | 0.8.0 |
 | Estado | Borrador |
 | Responsable técnico | Bonilla Diaz William Steven |
 | Fecha de creación | 20-08-2026 |
@@ -30,7 +30,7 @@ Cada módulo del inventario tiene su documento en `docs/requirements/`, redactad
 | Módulo | Documento | Estado |
 |---|---|---|
 | `SP` — Sistema Principal | [`requirements/sp.md`](requirements/sp.md) | **Aprobado** |
-| `USR` — Usuarios | `requirements/usr.md` | Pendiente de redactar |
+
 
 Para agregar un módulo nuevo, seguir el procedimiento de [`modules.md` §8](modules.md#8-como-se-incorpora-un-modulo).
 
@@ -84,19 +84,19 @@ Implementa el Art. III.1. Se actualiza **como parte del cambio**, no después (A
 
 | ID | Requerimiento | Módulo | Tripleta | Issue | PR | Pruebas | Estado |
 |---|---|---|---|---|---|---|---|
-| `RF-SP-001` | Registrar rol | `SP` | `specs/sp/001-registrar-rol/` | — | — | — | **Spec aprobada** |
-| `RF-SP-002` | Consultar roles | `SP` | `specs/sp/002-consultar-roles/` | — | — | — | **Spec aprobada** |
-| `RF-SP-003` | Consultar detalle de un rol | `SP` | `specs/sp/003-consultar-detalle-rol/` | — | — | — | **Spec aprobada** |
-| `RF-SP-004` | Editar rol | `SP` | `specs/sp/004-editar-rol/` | — | — | — | **Spec aprobada** |
-| `RF-SP-005` | Asignar permisos a un rol | `SP` | `specs/sp/005-asignar-permisos/` | — | — | — | **Spec aprobada** |
-| `RF-SP-006` | Revocar permisos de un rol | `SP` | `specs/sp/006-revocar-permisos/` | — | — | — | **Spec aprobada** |
-| `RF-SP-007` | Cambiar el estado de un rol | `SP` | `specs/sp/007-cambiar-estado-rol/` | — | — | — | **Spec aprobada** |
-| `RF-SP-008` | Cambiar el rol padre de un rol | `SP` | `specs/sp/008-cambiar-rol-padre/` | — | — | — | **Spec aprobada** |
-| `RF-SP-009` | Eliminar rol | `SP` | `specs/sp/009-eliminar-rol/` | — | — | — | Spec en revisión |
-| `RF-SP-010` | Consultar catálogo de permisos | `SP` | `specs/sp/010-consultar-permisos/` | — | — | — | **Spec aprobada** |
-| `RF-SP-011` | Consultar auditoría de cambios | `SP` | `specs/sp/011-consultar-auditoria-cambios/` | — | — | — | **Spec aprobada** |
-| `RF-SP-012` | Consultar auditoría de eliminación | `SP` | `specs/sp/012-consultar-auditoria-eliminacion/` | — | — | — | **Spec aprobada** |
-| `RF-SP-013` | Consultar auditoría de error | `SP` | `specs/sp/013-consultar-auditoria-error/` | — | — | — | **Spec aprobada** |
+| `RF-SP-001` | Registrar rol | `SP` | `specs/sp/001-registrar-rol/` | — | — | — | **Plan aprobado** |
+| `RF-SP-002` | Consultar roles | `SP` | `specs/sp/002-consultar-roles/` | — | — | — | **Plan aprobado** |
+| `RF-SP-003` | Consultar detalle de un rol | `SP` | `specs/sp/003-consultar-detalle-rol/` | — | — | — | **Plan aprobado** |
+| `RF-SP-004` | Editar rol | `SP` | `specs/sp/004-editar-rol/` | — | — | — | **Plan aprobado** |
+| `RF-SP-005` | Asignar permisos a un rol | `SP` | `specs/sp/005-asignar-permisos/` | — | — | — | **Plan aprobado** |
+| `RF-SP-006` | Revocar permisos de un rol | `SP` | `specs/sp/006-revocar-permisos/` | — | — | — | **Plan aprobado** |
+| `RF-SP-007` | Cambiar el estado de un rol | `SP` | `specs/sp/007-cambiar-estado-rol/` | — | — | — | **Plan aprobado** |
+| `RF-SP-008` | Cambiar el rol padre de un rol | `SP` | `specs/sp/008-cambiar-rol-padre/` | — | — | — | **Plan aprobado** |
+| `RF-SP-009` | Eliminar rol | `SP` | `specs/sp/009-eliminar-rol/` | — | — | — | **Plan aprobado** |
+| `RF-SP-010` | Consultar catálogo de permisos | `SP` | `specs/sp/010-consultar-permisos/` | — | — | — | **Plan aprobado** |
+| `RF-SP-011` | Consultar auditoría de cambios | `SP` | `specs/sp/011-consultar-auditoria-cambios/` | — | — | — | **Plan aprobado** |
+| `RF-SP-012` | Consultar auditoría de eliminación | `SP` | `specs/sp/012-consultar-auditoria-eliminacion/` | — | — | — | **Plan aprobado** |
+| `RF-SP-013` | Consultar auditoría de error | `SP` | `specs/sp/013-consultar-auditoria-error/` | — | — | — | **Plan aprobado** |
 | `RF-SP-014` | Consultar auditoría de seguridad | `SP` | `specs/sp/014-consultar-auditoria-seguridad/` | — | — | — | **Spec aprobada** |
 | `RF-SP-015` | Consultar detalle de un permiso | `SP` | `specs/sp/015-consultar-detalle-permiso/` | — | — | — | **Spec aprobada** |
 | `RF-SP-016` | Registrar membresía | `SP` | `specs/sp/016-registrar-membresia/` | — | — | — | **Spec aprobada** |
@@ -107,6 +107,21 @@ Implementa el Art. III.1. Se actualiza **como parte del cambio**, no después (A
 | `RF-SP-021` | Consultar países | `SP` | `specs/sp/021-consultar-paises/` | — | — | — | **Spec aprobada** |
 | `RF-SP-022` | Cambiar el estado de un país | `SP` | Pendiente de redactar | — | — | — | Pendiente |
 | `RF-SP-023` | Cambiar el estado de una moneda | `SP` | Pendiente de redactar | — | — | — | Pendiente |
+| `RF-SP-024` | Registrar usuario | `SP` | Pendiente de redactar | — | — | — | Pendiente |
+| `RF-SP-025` | Consultar usuarios | `SP` | Pendiente de redactar | — | — | — | Pendiente |
+| `RF-SP-026` | Consultar detalle de un usuario | `SP` | Pendiente de redactar | — | — | — | Pendiente |
+| `RF-SP-027` | Editar usuario | `SP` | Pendiente de redactar | — | — | — | Pendiente |
+| `RF-SP-028` | Cambiar el estado de un usuario | `SP` | Pendiente de redactar | — | — | — | Pendiente |
+| `RF-SP-029` | Eliminar usuario | `SP` | Pendiente de redactar | — | — | — | Pendiente |
+| `RF-SP-030` | Asignar roles a un usuario | `SP` | Pendiente de redactar | — | — | — | Pendiente |
+| `RF-SP-031` | Retirar roles de un usuario | `SP` | Pendiente de redactar | — | — | — | Pendiente |
+| `RF-SP-032` | Asignar membresía a un usuario | `SP` | Pendiente de redactar | — | — | — | Pendiente |
+| `RF-SP-033` | Retirar la membresía de un usuario | `SP` | Pendiente de redactar | — | — | — | Pendiente |
+| `RF-SP-034` | Iniciar sesión | `SP` | Pendiente de redactar | — | — | — | Pendiente |
+| `RF-SP-035` | Refrescar el token de acceso | `SP` | Pendiente de redactar | — | — | — | Pendiente |
+| `RF-SP-036` | Cerrar sesión | `SP` | Pendiente de redactar | — | — | — | Pendiente |
+| `RF-SP-037` | Cambiar la propia contraseña | `SP` | Pendiente de redactar | — | — | — | Pendiente |
+| `RF-SP-038` | Restablecer la contraseña de un usuario | `SP` | Pendiente de redactar | — | — | — | Pendiente |
 
 
 **Estados**, que reflejan las tres compuertas del Art. I.6:
@@ -135,7 +150,11 @@ Un requerimiento solo pasa a `Implementado` cuando cumple **todas** las condicio
 | Requerimientos con `spec.md` aprobada | 20 |
 | Requerimientos implementados | 0 |
 
-Los 23 corresponden al módulo `SP`. Veinte han superado la primera compuerta del Art. I.6 y pueden pasar a `plan.md`. Queda `RF-SP-009`, cuya especificación conserva cuatro preguntas abiertas, y `RF-SP-022` y `RF-SP-023`, nacidos de la aprobación de `RF-SP-020` y `RF-SP-019` y todavía sin especificación.
+Los 23 corresponden al módulo `SP`. Veintiuno han superado la primera compuerta del Art. I.6; quedan fuera `RF-SP-022` y `RF-SP-023`, nacidos de la aprobación de `RF-SP-020` y `RF-SP-019` y todavía sin especificación.
+
+De `RF-SP-001` a `RF-SP-013` han superado además la **segunda** compuerta: sus `plan.md` se aprobaron el 21-08-2026 y pueden pasar a `tasks.md`. El de `RF-SP-011` amplió `PageResponse<T>` con `totalIsExact`, porque los cuatro listados de auditoría cuentan hasta un techo configurable en lugar de recorrer una tabla que crece sin límite; los listados de conteo exacto lo devuelven siempre en `true`. La aprobación del plan de `RF-SP-010` corrió la numeración de las migraciones —`V1` pasa a ser las funciones compartidas y todas las demás avanzan un número—, porque ese requerimiento se implementa primero y necesita `f_unaccent` antes que `RF-SP-002`, que era quien la creaba. Enmendó también `security.md` §4.4, cuyo catálogo omitía cuatro bloques de permisos, y fijó que cada módulo siembra los suyos.
+
+La aprobación de los nueve primeros devolvió además cinco especificaciones a su compuerta (Art. I.7): `RF-SP-005`, `RF-SP-008` y `RF-SP-009` ganaron `EX-006` —ninguna declaraba la excepción del rol inexistente, que los planes referenciaban con el código de otra— y `RF-SP-006` ganó `VAL-004`, el límite de cien permisos por petición que su plan aplicaba sin respaldo. Enmendaron también `requirements/sp.md` (`CLIENTE` y la longitud de `description`), `architecture.md` (serie `INT-nnn`) y `development-guide.md` (`422` y convención `f_`).
 
 El inventario y el estado de los módulos se consultan en [`modules.md` §4](modules.md#4-inventario-de-modulos).
 
@@ -152,3 +171,4 @@ El inventario y el estado de los módulos se consultan en [`modules.md` §4](mod
 | 0.5.0 | 20-08-2026 | Se registran en la matriz los 21 requerimientos del módulo `SP`, cuyo documento queda aprobado. | Responsable técnico |
 | 0.6.0 | 20-08-2026 | Los 21 requerimientos de `SP` pasan a estado «Spec en revisión»: su especificación está redactada y pendiente de la primera compuerta. | Responsable técnico |
 | 0.7.0 | 21-08-2026 | De `RF-SP-010` a `RF-SP-021` superan la primera compuerta: sus 35 preguntas abiertas quedan resueltas y sus especificaciones aprobadas. Se registran `RF-SP-022` y `RF-SP-023`, derivados de esas resoluciones. | Responsable técnico |
+| 0.8.0 | 21-08-2026 | Se registran los quince requerimientos que `SP` absorbe al desaparecer `USR`. | Responsable técnico |

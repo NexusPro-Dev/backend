@@ -8,6 +8,7 @@
 | Autor | Responsable técnico |
 | Aprobada por | Responsable técnico |
 | Fecha de aprobación | 20-08-2026 |
+| Enmendada | 21-08-2026 — `EX-006` y `CA-SP-173`, al aprobar `plan.md` (Art. I.7) |
 
 ---
 
@@ -143,6 +144,11 @@ Sin la segunda, un administrador podría ampliar un rol que cuelga de un padre p
 **Condición:** el rol está entre los del actor.
 **Respuesta del sistema:** rechaza la operación y cita `RN-SEG-011`.
 
+### EX-006 — Rol inexistente
+
+**Condición:** no existe un rol vigente con el identificador indicado, o está eliminado lógicamente.
+**Respuesta del sistema:** rechaza la operación e informa que el rol no existe, sin distinguir entre nunca haber existido y haber sido eliminado (Art. V.13). Añadida el 21-08-2026 al aprobar el `plan.md`: la especificación no declaraba la excepción del rol inexistente y el plan la referenciaba con el código de otra (Art. I.7).
+
 ## 11. Validaciones
 
 | ID | Validación | Mensaje esperado |
@@ -170,6 +176,7 @@ Sin la segunda, un administrador podría ampliar un rol que cuelga de un padre p
 | `CA-SP-040` | El sistema valida contra el rol padre inmediato, sin recorrer ancestros |
 | `CA-SP-153` | El sistema conserva los permisos que el rol ya declaraba: la operación nunca retira ninguno |
 | `CA-SP-154` | El sistema rechaza una petición con más de 100 permisos |
+| `CA-SP-173` | El sistema rechaza la operación sobre un rol inexistente o eliminado, sin distinguir ambos casos |
 
 ## 13. Casos límite
 

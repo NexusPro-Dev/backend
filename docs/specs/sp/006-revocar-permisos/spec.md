@@ -8,6 +8,7 @@
 | Autor | Responsable técnico |
 | Aprobada por | Responsable técnico |
 | Fecha de aprobación | 21-08-2026 |
+| Enmendada | 21-08-2026 — `VAL-004` y `CA-SP-174`, al aprobar `plan.md` (Art. I.7) |
 
 ---
 
@@ -130,6 +131,7 @@ No se solicita motivo: se trata de una asociación, no de una entidad de negocio
 | `VAL-001` | Al menos un permiso informado | Debe indicar al menos un permiso. |
 | `VAL-002` | Identificadores de permiso con formato válido | El identificador de permiso no es válido. |
 | `VAL-003` | Ningún rol descendiente declara el permiso | No es posible retirar el permiso: lo declaran uno o más roles dependientes. |
+| `VAL-004` | Como máximo 100 permisos por petición | No es posible retirar más de 100 permisos en una sola solicitud. |
 
 ## 12. Criterios de aceptación
 
@@ -145,6 +147,7 @@ No se solicita motivo: se trata de una asociación, no de una entidad de negocio
 | `CA-SP-048` | El sistema deja sin efecto la caché de permisos, de modo que el cambio aplica de inmediato |
 | `CA-SP-155` | El sistema rechaza la revocación cuando el rol hijo que declara el permiso está **inactivo** |
 | `CA-SP-156` | El estado conservado en la auditoría incluye los códigos de rol y de permiso, legibles sin resolver referencias |
+| `CA-SP-174` | El sistema rechaza una petición con más de 100 permisos |
 
 ## 13. Casos límite
 
@@ -155,6 +158,7 @@ No se solicita motivo: se trata de una asociación, no de una entidad de negocio
 - **Rol ancestro del propio actor:** puede revocarse. `RN-SEG-011` solo alcanza a los roles asignados directamente.
 - **Nieto que declara el permiso pero el hijo no:** imposible por la transitividad de la contención; si el hijo no lo tiene, el nieto tampoco puede tenerlo.
 - **Revocación concurrente del mismo permiso:** la segunda no encuentra la asociación y se comporta como el flujo alternativo, sin error.
+- **Rol del que hay que retirar más de 100 permisos:** se resuelve en varias peticiones, igual que en `RF-SP-005`. El límite es el mismo en las dos operaciones a propósito: dos límites distintos sobre el mismo recurso serían una trampa.
 
 ## 14. Preguntas abiertas
 

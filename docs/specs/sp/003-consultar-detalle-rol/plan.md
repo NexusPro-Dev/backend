@@ -5,10 +5,10 @@
 | Requerimiento | `RF-SP-003` |
 | Especificación | [`spec.md`](spec.md) |
 | `spec.md` aprobada el | 20-08-2026 |
-| Estado | **Borrador** |
+| Estado | **Aprobado** |
 | Autor | Responsable técnico |
-| Aprobado por | — |
-| Fecha de aprobación | — |
+| Aprobado por | Responsable técnico |
+| Fecha de aprobación | 21-08-2026 |
 
 !!! info "Qué va en este documento"
 
@@ -36,15 +36,15 @@ Todo lo que necesita ya existe y se da por aplicado:
 
 | Objeto | De dónde viene | Para qué lo usa este requerimiento |
 |---|---|---|
-| `roles` | `V4__create_roles.sql` (`RF-SP-001`) | Fila del rol y del padre |
-| `role_permissions` | `V5__create_role_permissions.sql` (`RF-SP-001`) | Permisos declarados. Su clave primaria compuesta `(role_id, permission_id)` sirve directamente la consulta, que filtra por el prefijo `role_id` |
-| `permissions` | `V1__create_permissions.sql` (`RF-SP-010`) | Código y nombre de cada permiso |
-| `ix_roles_parent_role_id` | `V4__create_roles.sql` | Conteo de hijos directos sin recorrerlos |
-| `roles_pkey` | `V4__create_roles.sql` | Acceso por identificador |
+| `roles` | `V5__create_roles.sql` (`RF-SP-001`) | Fila del rol y del padre |
+| `role_permissions` | `V6__create_role_permissions.sql` (`RF-SP-001`) | Permisos declarados. Su clave primaria compuesta `(role_id, permission_id)` sirve directamente la consulta, que filtra por el prefijo `role_id` |
+| `permissions` | `V2__create_permissions.sql` (`RF-SP-010`) | Código y nombre de cada permiso |
+| `ix_roles_parent_role_id` | `V5__create_roles.sql` | Conteo de hijos directos sin recorrerlos |
+| `roles_pkey` | `V5__create_roles.sql` | Acceso por identificador |
 
-Tampoco hay migración de permisos: `roles:read` lo crea `V2__seed_permissions.sql` (`RF-SP-010`) y ya lo usa `RF-SP-002` (§5).
+Tampoco hay migración de permisos: `roles:read` lo crea `V3__seed_permissions.sql` (`RF-SP-010`) y ya lo usa `RF-SP-002` (§5).
 
-`ix_roles_busqueda` y la función `f_unaccent` que crea `V7` (`RF-SP-002`) **no intervienen**: aquí no hay búsqueda por texto.
+`ix_roles_busqueda` y la función `f_unaccent` que crea `V8` (`RF-SP-002`) **no intervienen**: aquí no hay búsqueda por texto.
 
 Un índice que sí hará falta, pero **no en este esquema**: el conteo de usuarios asignados exige que `USR` indexe `user_roles(role_id)`. Es responsabilidad suya y se anota en §8; declararlo desde aquí sería exactamente la intromisión que §5.3 prohíbe.
 
@@ -71,7 +71,8 @@ Paquete raíz del módulo: `com.factech.nexus.modules.system`. Reglas de depende
 | `api` | `RoleController` | Modificado | Añade `GET /api/v1/roles/{id}`. Declara el permiso y delega |
 | `api` | `RoleDetailResponse` | Nuevo | DTO de salida del detalle. Reutiliza `RoleSummaryResponse` y `PermissionResponse` |
 | `api` | `AssignedUsersResponse` | Nuevo | Objeto anidado con `count` y `available` (§4) |
-| `api` | `RoleSummaryResponse`, `PermissionResponse` | Sin cambios | Definidos en `RF-SP-001`. Se reutilizan tal cual |
+| `api` | `RoleSummaryResponse` | Sin cambios | Definido en `RF-SP-001`. Se reutiliza tal cual |
+| `api` | `PermissionResponse` | Modificado | Definido en `RF-SP-001` y ampliado el 21-08-2026 por `RF-SP-010` con `resource`, `action` y `description`, que el detalle del rol devuelve también. La `spec.md` de este requerimiento pide en §6.2 «lista explícita de los permisos que declara», sin enumerar campos |
 | `shared/api` | `CanonicalUuidConverter` | Nuevo | `Converter<String, UUID>` que exige la forma canónica de 36 caracteres. Es lo que hace que un identificador malformado sea `400` y no `404` (§4) |
 | `shared/error` | `GlobalExceptionHandler` | Modificado | Traduce `ResourceNotFoundException` a `404` y el fallo de conversión del identificador a `400` con `VAL-001` |
 
@@ -132,7 +133,7 @@ Decisiones del contrato:
 - **El conteo de hijos excluye los eliminados lógicamente** e incluye los inactivos. Un rol eliminado es inexistente en todo este requerimiento —es el criterio que la especificación fija para el propio rol consultado— y un rol inactivo sigue existiendo y sigue colgando de su padre. El número coincide así con el `totalElements` de `GET /api/v1/roles?parentRoleId={id}` con el `includeDeleted=false` que trae por defecto; con `includeDeleted=true` no coincidirá, y eso es correcto, no un defecto.
 - **`permissions` va completa y sin paginar**, ordenada por `code` para que la respuesta sea estable entre llamadas. `architecture.md` §7.4 exige paginar «las colecciones», y aquí se aparta de forma consciente: los permisos declarados de un rol son decenas (`spec.md` §13), no constituyen un recurso navegable por sí mismos y paginarlos obligaría a un segundo endpoint para responder «qué puede hacer este rol», que es la única pregunta del requerimiento. El orden por `code` no es decorativo: sin `ORDER BY` explícito PostgreSQL no garantiza orden alguno, y una lista que cambia de orden entre dos llamadas hace inútil cualquier comparación entre roles.
 - **`assignedUsers` es un objeto, no un número.** Es la decisión central de este plan y se desarrolla abajo.
-- **`isSystem`, `createdAt` y `updatedAt` no están enumerados en `spec.md` §6.2.** Se incluyen porque `RoleResponse` de `RF-SP-001` ya los devuelve y porque el detalle es la pantalla desde la que se edita, se cambia de estado y se elimina un rol: sin `isSystem`, el cliente no puede saber qué acciones le están vedadas. **Exceden lo aprobado** y se anotan en §10 para confirmación.
+- **`isSystem`, `createdAt` y `updatedAt`** los declara `spec.md` §6.2 como «marca de rol de sistema» y «fechas de creación y modificación». Se incluyen además porque `RoleResponse` de `RF-SP-001` ya los devuelve y porque el detalle es la pantalla desde la que se edita, se cambia de estado y se elimina un rol: sin `isSystem`, el cliente no puede saber qué acciones le están vedadas. El **actor** de esas fechas no se devuelve: reside en la auditoría (Art. V.7).
 - **No existe `deletedAt`.** Un rol eliminado devuelve `404`, de modo que el campo sería siempre nulo.
 - **No existe `createdBy`** ni equivalente: el actor no vive en la tabla de negocio (Art. V.7). Quién creó o modificó el rol se responde con `RF-SP-011`.
 
@@ -237,7 +238,7 @@ SELECT pe.id, pe.code, pe.name
 |---|---|
 | `GET /api/v1/roles/{id}` | `roles:read` |
 
-- El permiso **ya existe**: lo crea `V2__seed_permissions.sql` (`RF-SP-010`). No hace falta migración.
+- El permiso **ya existe**: lo crea `V3__seed_permissions.sql` (`RF-SP-010`). No hace falta migración.
 - Se declara sobre el método del controlador (`security.md` §6). Un endpoint sin declaración queda inaccesible, no público (Art. IV.1).
 - **Es el mismo permiso que `RF-SP-002`.** Detalle y listado responden la misma pregunta con distinto grano; exigir un permiso propio obligaría a concederlos siempre juntos.
 - **El conteo de usuarios no exige un permiso de `USR`.** Se consideró pedir además `users:read`: se descarta porque el dato es un agregado sin identidad —el puerto no devuelve personas— y porque haría que la forma de la respuesta dependiera de quién pregunta, obligando al cliente a tratar el campo ausente y el campo indisponible como casos distintos.
@@ -263,8 +264,8 @@ Cuatro decisiones, porque la ausencia de auditoría es tan decisión como su pre
 
 - **Una consulta exitosa no produce evento.** El catálogo de `security.md` §8.1 es cerrado y no incluye la lectura de roles. Auditar cada detalle añadiría una fila por pulsación de un administrador. La trazabilidad de quién consultó qué la aporta `request_log`. Es la misma conclusión de `RF-SP-002` §6.
 - **El `404` tampoco se audita.** No hay regla de negocio incumplida ni cambio de estado: es un identificador que no encuentra fila, y en un endpoint de consulta eso es navegación, no incidente. Registrarlo como `BUSINESS_RULE` llenaría el registro de errores con enlaces caducados. Difiere de `RF-SP-001`, que sí audita sus rechazos, porque allí cada uno corresponde a una regla identificada.
-- **La degradación sí se audita, y solo cuando `USR` existe y falla.** `error_type = 'INTEGRATION'` es exactamente el caso para el que ese valor está en el `CHECK` de `V3`. Que `USR` no esté construido no es un fallo de integración sino un hecho conocido del despliegue, y auditarlo produciría una fila por consulta durante meses sin informar de nada nuevo. **Detalle incómodo:** la fila queda con `http_status = 200`, porque eso es lo que el cliente recibió. La columna registra lo que se respondió, no la gravedad del fallo interno; la alternativa sería anotar un `503` que nadie envió.
-- **`INT-001` no está en ningún catálogo aprobado.** No existe un catálogo de códigos de error de integración en la documentación vigente. Se propone `INT-001` para poder implementar y **debe confirmarse**; se anota en §10.
+- **La degradación sí se audita, y solo cuando `USR` existe y falla.** `error_type = 'INTEGRATION'` es exactamente el caso para el que ese valor está en el `CHECK` de `V4`. Que `USR` no esté construido no es un fallo de integración sino un hecho conocido del despliegue, y auditarlo produciría una fila por consulta durante meses sin informar de nada nuevo. **Detalle incómodo:** la fila queda con `http_status = 200`, porque eso es lo que el cliente recibió. La columna registra lo que se respondió, no la gravedad del fallo interno; la alternativa sería anotar un `503` que nadie envió.
+- **`INT-001` es el primer código de la serie de integración.** Esa serie no existía: se abrió en `architecture.md` §7.3 el 21-08-2026, al aprobar este plan, junto al resto de series de `code` (`VAL-`, `RN-`, `EX-`, `AUTH-`, `ERR-`). `INT-001` significa «el módulo consultado no está disponible y la respuesta no puede completarse con su dato», y es también el código que `RF-SP-009` usa para rechazar una eliminación que no puede verificar.
 
 ## 7. Transaccionalidad
 
@@ -290,7 +291,7 @@ Como contrapartida menor: bajo `READ COMMITTED`, cada sentencia toma su propia i
 | `SP` (resto del módulo) | `RF-SP-009` reutiliza el mismo puerto para `RN-SEG-008` y **no debe degradar**: sin conteo no hay verificación (§4). `RF-SP-004` a `RF-SP-008` pueden devolver `RoleDetailResponse` tras modificar un rol; si lo hacen, heredan la dependencia de `USR` en un camino de escritura y deben decidir explícitamente qué hacen con la indisponibilidad, en lugar de dar por buena esta decisión |
 | `shared/api` | `CanonicalUuidConverter` se registra de forma global: **cambia el comportamiento de todo endpoint con un UUID en la ruta**, presente y futuro. Un identificador no canónico pasa de `404` a `400` en todo el sistema. Es lo correcto y es uniforme, pero es un cambio de mayor alcance que este requerimiento |
 | `shared/error` | Estrena la traducción de `ResourceNotFoundException` a `404` y del fallo de conversión del identificador a `VAL-001`. La jerarquía de `development-guide.md` §7.1 ya la contempla: a diferencia del `422` de `RF-SP-001`, no hay que enmendar ese documento |
-| `shared/audit` | Estrena `error_type = 'INTEGRATION'`, previsto en el `CHECK` de `V3` pero sin uso hasta ahora |
+| `shared/audit` | Estrena `error_type = 'INTEGRATION'`, previsto en el `CHECK` de `V4` pero sin uso hasta ahora |
 
 ## 9. Alternativas consideradas
 
@@ -325,9 +326,9 @@ Como contrapartida menor: bajo `READ COMMITTED`, cada sentencia toma su propia i
 | `assignedUsers` viene vacío durante todo el tiempo que `USR` tarde en existir | Medio | Es la consecuencia aceptada de no bloquear este requerimiento. El cliente debe pintar «no disponible», no un cero. **Debe acordarse con el frontend antes de implementar**: si la pantalla no distingue ambos casos, la degradación se vuelve engañosa justo donde importa |
 | `@ConditionalOnMissingBean` enmascara un fallo de configuración: `USR` existe, su adaptador no se registra —paquete fuera del escaneo, perfil equivocado— y el sistema degrada en silencio; `RF-SP-009` rechazaría entonces toda eliminación | Alto | El adaptador nulo emite `WARN` al arrancar indicando qué bean está supliendo. Además se declara la propiedad `nexus.usr.assignment-counter.required`, activa en producción, que hace **fallar el arranque** si no hay implementación real. Un fallo de despliegue es preferible a un dato falso en dos requerimientos |
 | Con `USR` caído, cada consulta de detalle escribe una fila en `audit_error_log` | Medio | Aceptable al volumen de esta pantalla. Si se manifestara, la corrección es un cortacircuitos que emita el evento al abrirse y al cerrarse, no una fila por petición. **No se implementa ahora**: sería infraestructura sin un fallo observado que la justifique |
-| `INT-001`, y el uso de `error_type = 'INTEGRATION'` con `http_status = 200`, no están respaldados por ningún documento aprobado | Bajo | Se proponen aquí y **deben confirmarse**. Si se define un catálogo de códigos de integración, este es el primer caso que debe recoger |
+| ~~`INT-001` y el uso de `error_type = 'INTEGRATION'` con `http_status = 200` no están respaldados~~ | — | **Resuelto el 21-08-2026:** `architecture.md` §7.3 abre la serie `INT-nnn`, declara `INT-001` y recoge de forma explícita que un código de esa serie puede quedar registrado con `http_status = 200` cuando la respuesta se degradó en lugar de fallar |
 | `CanonicalUuidConverter` cambia de `404` a `400` el comportamiento de todo endpoint con UUID en la ruta | Bajo | Es el comportamiento correcto y no hay endpoints publicados que dependan del anterior. Se registra porque el alcance excede a este requerimiento |
-| `isSystem`, `createdAt` y `updatedAt` exceden los campos que `spec.md` §6.2 enumera | Bajo | **No se decide unilateralmente**: se proponen con la justificación de §4 y deben confirmarse. Quitarlos después es un cambio de contrato |
+| ~~`isSystem`, `createdAt` y `updatedAt` exceden los campos de `spec.md` §6.2~~ | — | **Resuelto el 21-08-2026:** confirmados al aprobar este plan. `spec.md` §6.2 los declara como «marca de rol de sistema» y «fechas de creación y modificación», esta última con la aclaración de que el actor no se devuelve (Art. V.7) |
 | El conteo de hijos excluye los eliminados y no coincidirá con `RF-SP-002?includeDeleted=true` | Bajo | Documentado en §4 y probado en §11. La correspondencia declarada es con el listado por defecto |
 | Un padre eliminado lógicamente haría aparecer el rol con `parentRole` nulo, indistinguible del rol raíz | Bajo | No debería ocurrir: `RF-SP-009` impide eliminar un rol con hijos (`RN-SEG-008`). Se acepta como estado imposible; si llegara a darse, es un defecto de `RF-SP-009`, no de esta consulta |
 | `description` es `text` sin longitud declarada | Bajo | Heredado de `RF-SP-001` §10 y sin resolver. Aquí el impacto es menor que en el listado: una sola fila por respuesta |
