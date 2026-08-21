@@ -31,7 +31,7 @@ import org.springframework.security.web.authentication.HttpStatusEntryPoint;
 public class SecurityConfig {
 
   /** Salud del sistema: público siempre, sin detalle interno (Art. XV.10). */
-  private static final String[] RUTAS_PUBLICAS = {"/actuator/health"};
+  private static final String[] RUTAS_PUBLICAS = {"/actuator/health", "/api/v1/auth/login"};
 
   /** Documentación de la API: pública solo donde se habilite de forma explícita. */
   private static final String[] RUTAS_DOCUMENTACION = {
