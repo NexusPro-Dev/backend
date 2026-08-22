@@ -10,6 +10,7 @@
 | Fecha de aprobación | 21-08-2026 |
 | Enmendada | 21-08-2026 — `RN-SP-018` obliga a indicar la membresía al asignar el primer rol `CONSUMIDOR`, al aprobar `RF-SP-033` (Art. I.7) |
 | Enmendada | 22-08-2026 — `RN-SP-019` obliga a indicar el superior comercial al asignar el primer rol `VENDEDOR`, al registrarse `RF-SP-041` (Art. I.7) |
+| Enmendada | 22-08-2026 — §11: los cuatro casos condicionales de `EX-005` a `EX-008` responden `422` y no `400`, al aprobarse el [`plan.md`](plan.md) §4 (Art. I.7) |
 
 ---
 
