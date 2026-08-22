@@ -3,8 +3,15 @@ site_description: Documentación técnica del backend de NEXUS — FACTECH GROUP
 site_author: FACTECH GROUP SAS
 copyright: FACTECH GROUP SAS
 
+# Obligatorio, no decorativo: sin él, `navigation.instant` no se activa, las
+# etiquetas canónicas salen vacías y el sitemap.xml se genera con rutas
+# relativas. Debe apuntar a la URL publicada en GitHub Pages.
+site_url: https://nexuspro-dev.github.io/backend/
+
 repo_url: https://github.com/NexusPro-Dev/backend
 repo_name: NexusPro-Dev/backend
+# La documentación se publica desde develop (ver .github/workflows/docs.yml),
+# de modo que el botón de edición debe apuntar a esa misma rama.
 edit_uri: edit/develop/docs/
 
 docs_dir: docs
@@ -17,14 +24,22 @@ theme:
     repo: fontawesome/brands/github
   features:
     - navigation.instant
+    - navigation.instant.progress
     - navigation.tracking
     - navigation.top
     - navigation.indexes
+    # El módulo SP tiene 42 tripletas: sin poda, el árbol completo de la
+    # navegación se repite dentro del HTML de cada una de las 130 páginas.
+    # Con ella solo viaja la rama visible.
+    - navigation.prune
+    - navigation.footer
     - toc.follow
     - search.suggest
     - search.highlight
+    - search.share
     - content.code.copy
     - content.action.edit
+    - content.action.view
   palette:
     - media: "(prefers-color-scheme: light)"
       scheme: default
@@ -46,34 +61,31 @@ plugins:
       lang: es
   - awesome-pages
 
+# Solo las extensiones que la documentación usa. Una extensión declarada y no
+# usada no es gratis: se ejecuta en cada página y hace creer que hay una
+# convención que nadie sigue.
 markdown_extensions:
-  - abbr
-  - admonition
-  - attr_list
-  - def_list
-  - footnotes
-  - md_in_html
-  - tables
+  - admonition                # notas y avisos: 73 documentos
+  - tables                    # tablas de trazabilidad y de decisiones
+  - attr_list                 # tarjetas de la portada
+  - md_in_html                # idem
   - toc:
       permalink: true
       permalink_title: Enlace a esta sección
-  - pymdownx.details
   - pymdownx.highlight:
       anchor_linenums: true
-  - pymdownx.inlinehilite
-  - pymdownx.snippets
-  - pymdownx.tasklist:
+  - pymdownx.tasklist:        # listas de tareas de las tripletas: 32 documentos
       custom_checkbox: true
-  - pymdownx.emoji:
+  - pymdownx.emoji:           # iconos de las tarjetas de la portada
       emoji_index: !!python/name:material.extensions.emoji.twemoji
       emoji_generator: !!python/name:material.extensions.emoji.to_svg
-  - pymdownx.superfences:
+  - pymdownx.superfences:     # diagramas Mermaid: 38 documentos
       custom_fences:
         - name: mermaid
           class: mermaid
           format: !!python/name:pymdownx.superfences.fence_code_format
 
-# La navegación NO se declara aquí: la gestiona mkdocs-awesome-pages-plugin
-# a partir de los archivos .pages de cada carpeta. Ver docs/.pages.
+# La navegación NO se declara aquí: la gestiona mkdocs-awesome-pages-plugin a
+# partir de los archivos .pages de cada carpeta. Ver docs/.pages.
 #
 # La construcción se ejecuta con --strict: un enlace roto detiene el pipeline.
