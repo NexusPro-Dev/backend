@@ -122,11 +122,11 @@ Ninguna línea de código se escribe antes de que la tripleta esté aprobada (Ar
 | [Arquitectura](architecture.md) | 0.8.0 | Borrador |
 | [Seguridad](security.md) | 0.14.0 | Borrador |
 | [Mapa modular](modules.md) | 0.9.0 | Borrador |
-| [Modelo de datos](modelo-datos.md) | 0.4.0 | Borrador |
+| [Modelo de datos](modelo-datos.md) | 0.8.0 | Borrador |
 | [Requerimientos y trazabilidad](requirements.md) | 0.17.0 | Borrador |
 | [Guía de desarrollo](development-guide.md) | 0.5.0 | Borrador |
 | [Requerimientos de `SP`](requirements/sp.md) | 1.10.0 | **Aprobado** |
-| [Flujos de `SP` · del módulo](flujos/sp/flujos-del-modulo.md) | 0.2.0 | Borrador |
+| [Flujos de `SP` · del módulo](flujos/sp/flujos-del-modulo.md) | 0.3.0 | Borrador |
 | [Flujos de `SP` · por caso](flujos/sp/flujos-por-caso.md) | 0.2.0 | Borrador |
 | Estrategia de pruebas | — | Pendiente |
 

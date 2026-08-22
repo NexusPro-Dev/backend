@@ -2,7 +2,7 @@
 
 | Campo | Valor |
 |---|---|
-| Versión | 0.7.0 |
+| Versión | 0.8.0 |
 | Estado | **Borrador** |
 | Responsable | Bonilla Diaz William Steven |
 | Fecha de creación | 21-08-2026 |
@@ -12,11 +12,11 @@
 
     Cómo va quedando el esquema con lo que hay especificado hoy: las tablas, sus columnas y las relaciones entre ellas, agrupadas por lo que resuelven.
 
-    Es una **vista derivada**, no normativa. Sale de [`requirements/sp.md` §10](requirements/sp.md), [`security.md` §9](security.md) y [`architecture.md` §6.6](architecture.md). La fuente de verdad del esquema son las **migraciones Flyway** (Art. V.3), que todavía no existen.
+    Es una **vista derivada**, no normativa. Sale de [`requirements/sp.md` §10](requirements/sp.md), [`security.md` §9](security.md) y [`architecture.md` §6.6](architecture.md). La fuente de verdad del esquema son las **migraciones Flyway** (Art. V.3), y donde ya existen mandan ellas.
 
-!!! warning "Nada de esto está implementado"
+!!! warning "Siete tablas existen; el resto es esquema exigido y no escrito"
 
-    No hay ni una migración escrita. Lo que sigue es el esquema que las specs aprobadas **exigen**, útil para revisarlo antes de que exista y sea caro cambiarlo.
+    De `V1` a `V7` están escritas: `permissions` y su siembra, las cuatro tablas de auditoría, `roles`, `role_permissions` y la siembra de roles de sistema. **Todo lo demás —`memberships`, `currencies`, `countries`, `users` y las cinco tablas que cuelgan de ella— sigue siendo el esquema que las specs aprobadas exigen y nadie ha migrado todavía**, útil para revisarlo antes de que exista y sea caro cambiarlo.
 
 ---
 
@@ -32,10 +32,22 @@ erDiagram
     users ||--o{ user_roles : "porta"
     roles ||--o{ user_roles : "se asigna a"
     users ||--o{ refresh_tokens : "abre sesión"
+    users ||--o{ password_reset_tokens : "pide restablecer · RF-SP-040"
     users ||--o{ user_supervisors : "está a cargo de alguien"
     users ||--o{ user_supervisors : "tiene gente a cargo"
     users ||--o| user_memberships : "tiene a lo sumo una"
     memberships ||--o{ user_memberships : "se asigna a"
+
+    memberships {
+        uuid id PK "v7"
+        varchar code UK "50"
+        varchar name "100"
+        text description "NULL"
+        uuid parent_membership_id FK,UK "NULL en la superior · UK impide bifurcar"
+        smallint level "orden materializado · se recalcula al insertar"
+        timestamptz created_at "now"
+        timestamptz updated_at "now"
+    }
 
     permissions {
         uuid id PK "v7"
@@ -76,6 +88,7 @@ erDiagram
         varchar last_name "—"
         varchar password_hash "Argon2id"
         boolean must_change_password "default false · lo fijan RF-SP-024 y RF-SP-038"
+        timestamptz password_expires_at "NULL · caducidad de la credencial provisional · la exige RF-SP-038"
         varchar status "CHECK sobre dominio cerrado · PENDIENTE sin uso"
         int failed_attempts "control de bloqueo · la crea RF-SP-034"
         timestamptz locked_until "NULL · nulo también en el bloqueo manual, que no expira · la crea RF-SP-034"
@@ -110,6 +123,17 @@ erDiagram
         text user_agent "—"
     }
 
+    password_reset_tokens {
+        uuid id PK "permiso temporal de RF-SP-040 · sin plan.md"
+        uuid user_id FK "—"
+        varchar token_hash UK "nunca el valor en claro, como refresh_tokens"
+        timestamptz expires_at "vigencia corta"
+        timestamptz used_at "NULL · de un solo uso"
+        timestamptz invalidated_at "NULL · FA-002 · lo invalida el siguiente"
+        inet ip "—"
+        timestamptz created_at "now"
+    }
+
     user_supervisors {
         uuid id PK "estructura comercial"
         uuid user_id FK "subordinado · uno vigente por persona"
@@ -121,7 +145,7 @@ erDiagram
     }
 ```
 
-Seis decisiones que el dibujo no explica solo:
+Ocho decisiones que el dibujo no explica solo:
 
 - **`parent_role_id` hace dos trabajos**: acota los privilegios del hijo y expresa el orden de mando comercial (`RN-SP-011`). La consecuencia es permanente: un rol `VENDEDOR` nunca podrá tener un permiso que su superior no tenga, porque `RN-SEG-003` lo rechazaría.
 - **`user_supervisors` es la única tabla que relaciona dos usuarios entre sí**, y responde a una pregunta que `parent_role_id` no puede responder: no *qué rol manda sobre qué rol*, sino **qué persona está a cargo de qué persona**. Lleva clave sustituta —al contrario que `user_roles`— porque el mismo par puede repetirse en el tiempo y lo que distingue una fila de otra es el periodo. Su unicidad es parcial, `WHERE ended_at IS NULL`: un solo superior vigente, historial ilimitado. **No concede acceso a ningún dato**; el modelo de alcance sigue pendiente como D-22.
@@ -129,6 +153,8 @@ Seis decisiones que el dibujo no explica solo:
 - **La de `users` es justo la contraria: total.** `username` y `email` son únicos entre **todos** los usuarios, incluidos los eliminados (`RN-SP-016`). Reutilizarlos permitiría que la actividad de dos personas distintas quedara bajo la misma etiqueta en la auditoría. La asimetría con `roles` es deliberada: un rol es una etiqueta, un usuario es una persona.
 - **`username` y `email` sirven ambos para iniciar sesión**, y lo que impide que se confundan es que `username` no admite el carácter `@` (`RF-SP-024`). Sin esa restricción, las dos columnas necesitarían compartir un espacio de unicidad común.
 - **`role_permissions` y `user_roles` no llevan clave sustituta.** La unicidad del par es la restricción que importa, y una columna sin significado no aportaría nada.
+- **La credencial provisional necesita dos columnas, no una.** `must_change_password` dice *que* hay que cambiarla; `password_expires_at` dice *hasta cuándo sirve*. `RF-SP-038` §7 exige ambas cosas —fija la marca y «el momento en que la credencial provisional caduca», superado el cual hay que restablecerla de nuevo— y hasta ahora el modelo solo declaraba la primera. La columna es nulable porque solo tiene sentido mientras la credencial sea provisional, y deja de tenerlo en cuanto la persona elige la suya: que `RF-SP-037` y `RF-SP-040` la limpien junto con la marca es la lectura natural, pero **ninguna de las dos lo dice** y es parte de lo que sus `plan.md` tendrán que fijar.
+- **El permiso temporal de `RF-SP-040` es una tabla, no una columna.** Tiene vigencia propia, se consume de un solo uso y una solicitud nueva invalida la anterior (`FA-002`), de modo que necesita filas con estado y no un campo en `users`. Su forma copia la de `refresh_tokens` por el mismo motivo: **nunca se guarda el valor en claro**, solo su hash, porque quien leyera la tabla podría entrar como cualquiera. Es la tabla más provisional del modelo —`RF-SP-040` todavía no tiene `plan.md`—, y los nombres de sus columnas quedan sujetos a él.
 
 ---
 
@@ -291,12 +317,14 @@ flowchart TB
         B4["audit_security_log"]
     end
 
-    subgraph USRS["Usuarios · RF-SP-024 a RF-SP-033, RF-SP-041, RF-SP-042"]
+    subgraph USRS["Usuarios y acceso · RF-SP-024 a RF-SP-042"]
         direction LR
         C1["users"]
         C2["user_roles"]
         C3["refresh_tokens"]
         C4["user_supervisors"]
+        C5["password_reset_tokens"]
+        C6["user_memberships"]
     end
 
     OBS["request_log<br/>esquema sin definir"]
@@ -306,21 +334,25 @@ flowchart TB
     C1 --> C2
     A1 --> C2
     C1 --> C3
+    C1 --> C5
+    C1 --> C6
+    A4 --> C6
     C1 -->|"subordinado"| C4
     C1 -->|"superior"| C4
     SP -.->|"emiten eventos"| AUD
     USRS -.->|"emiten eventos"| AUD
     AUD -.->|"correlation_id"| OBS
 
-    A4 -.->|"¿quién apunta aquí?"| Q1["∅"]
     A5 -.->|"¿quién apunta aquí?"| Q2["∅"]
     A6 -.->|"¿quién apunta aquí?"| Q3["∅"]
 
     classDef sp fill:#e7eef0,stroke:#2d5a6b,color:#151b1e
     classDef pend fill:#f6e6e2,stroke:#a33b2a,stroke-dasharray:3 3,color:#a33b2a
     class A1,A2,A3,A4,A5,A6,B1,B2,B3,B4 sp
-    class Q1,Q2,Q3,OBS,C1,C2,C3,C4 pend
+    class Q2,Q3,OBS,C1,C2,C3,C4,C5,C6 pend
 ```
+
+De las dieciséis tablas del dibujo, **siete están escritas** —`permissions`, las cuatro de auditoría, `roles` y `role_permissions`, en `V1` a `V7`—. De las nueve restantes, siete tienen migración declarada en algún `plan.md`, de `V13` a `V21`. Las dos que no: **`refresh_tokens`**, que crea `RF-SP-034`, y **`password_reset_tokens`**, que crea `RF-SP-040`. Ninguno de esos dos requerimientos tiene `plan.md` todavía, de modo que son las únicas tablas del modelo sin sitio asignado en la secuencia de migraciones.
 
 ---
 
@@ -334,6 +366,10 @@ flowchart TB
 | 4 | **`audit_*.actor_id` no declara clave foránea a `users`.** Está documentado como `uuid NULL` sin relación. Si es deliberado —para que eliminar un usuario no arrastre ni bloquee su auditoría— conviene decirlo; si no, falta la restricción. | `architecture.md` §6.6.1 |
 | 5 | **Tres estrategias de baja distintas**: `roles` con `deleted_at`, `countries` y `currencies` con `is_active`, `memberships` con ninguna. Cada caso está justificado por separado, pero no hay una regla que diga cuándo se usa cada una. | `architecture.md` §6.4 |
 | 6 | **`modelo_v1.mwb` está desactualizado.** Trae `roles.assigned_role_id`, que `security.md` §9 renombra a `parent_role_id`. El modelo gráfico es material de referencia, no autoridad sobre el esquema (Art. V.3). | `DB/modelo_v1.mwb` |
+| 7 | **Qué ocurre con `role_permissions` cuando se elimina un rol.** El borrado de `roles` es lógico, y `RF-SP-009` §7 solo dice que sus asociaciones con permisos «dejan de tener efecto»: no declara si las filas se borran o sobreviven. `RF-SP-029` sí lo declara para las suyas —las de `user_roles` y `user_memberships` **desaparecen**—, de modo que dos eliminaciones del mismo módulo resuelven distinto la misma pregunta. Reutilizar el código de un rol eliminado con sus filas de permisos vivas dejaría un vínculo apuntando a un rol que ya no existe para nadie | `RF-SP-009` §7, migración de `roles` |
+| 8 | **`refresh_tokens` y `password_reset_tokens` no tienen migración declarada.** Las crean `RF-SP-034` y `RF-SP-040`, que todavía no tienen `plan.md`; hasta que lo tengan, sus columnas son derivación de la spec y no esquema fijado. Es también donde se decidirá dónde vive la **caducidad de la credencial provisional**, que aquí figura como `users.password_expires_at` | `plan.md` de `RF-SP-034` y `RF-SP-040` |
+| 9 | **Nadie purga los tokens.** `security.md` §5.5 sujeta los refresh tokens expirados o revocados a la política de retención, y ninguna spec de `SP` la ejecuta ni declara quién lo hará. Lo mismo vale para los permisos temporales consumidos. Sin ese proceso, dos tablas de la zona de acceso crecen sin techo | `security.md` §5.5, retención por registro |
+| 10 | **`users.status` declara `PENDIENTE` y ninguna operación entra ni sale de él.** `security.md` §3.1 lo conserva para un flujo de activación que no existe, y el `CHECK` del dominio cerrado lo admitirá igual. O se retira del dominio hasta que ese flujo se especifique, o se declara qué requerimiento lo poblará | `security.md` §3.1 |
 
 ---
 
@@ -348,3 +384,4 @@ flowchart TB
 | 0.5.0 | 21-08-2026 | Consecuencias de aprobar `RF-SP-035`. `refresh_tokens` gana `revoked_reason`: solo la revocación por rotación indica robo, y sin ese dato cerrar sesión sería indistinguible de una reutilización. | Responsable técnico |
 | 0.6.0 | 22-08-2026 | Entidad nueva `user_supervisors`, derivada de registrar `RF-SP-041` y `RF-SP-042`: la estructura comercial **persona → persona**, con historial y un solo superior vigente por persona. Es la primera tabla del modelo que relaciona dos usuarios entre sí. Se anota por qué lleva clave sustituta cuando las demás asociaciones no la llevan, y que **no concede alcance sobre los datos** —D-22 sigue abierta—. | Responsable técnico |
 | 0.7.0 | 22-08-2026 | Consecuencias de aprobar los `plan.md` de `RF-SP-025` a `RF-SP-029`. `users` incorpora **`deleted_at`**, que nace con la tabla en `V18` y no con `RF-SP-029` —`architecture.md` §6.4 la declara obligatoria en toda tabla de negocio y diez requerimientos la leen antes de que alguien la escriba—, y se anota qué requerimiento crea cada una de las tres columnas de control de acceso: las tres son de `RF-SP-034`. §1 incorpora **`user_memberships`**, que faltaba en el diagrama pese a haberla creado `RF-SP-024` \(`V20`\), y con ella queda **cerrado el hueco 1** de §5: la asociación entre una persona y su nivel vive en esa tabla puente, con `user_id` como clave primaria. | Responsable técnico |
+| 0.8.0 | 22-08-2026 | Revisión de completitud disparada por los flujos del módulo v0.3.0. §1 incorpora **`users.password_expires_at`** —`RF-SP-038` §7 exige fijar cuándo caduca la credencial provisional y el modelo solo declaraba la marca— y la tabla **`password_reset_tokens`**, que el permiso temporal de un solo uso de `RF-SP-040` exige y que no puede ser una columna porque tiene vigencia, consumo e invalidación propios. §4 añade `user_memberships`, que faltaba en el mapa, retira la pregunta «¿quién apunta aquí?» de `memberships` —`user_memberships` la responde desde la v0.7.0— y anota qué tablas están escritas y cuáles no tienen sitio en la secuencia de migraciones. La advertencia de cabecera deja de decir que no hay ninguna migración escrita: de `V1` a `V7` lo están. §5 suma cuatro pendientes: `role_permissions` ante el borrado lógico de un rol, las dos tablas sin migración declarada, la purga que nadie ejecuta y `PENDIENTE` sin transiciones. | Responsable técnico |
