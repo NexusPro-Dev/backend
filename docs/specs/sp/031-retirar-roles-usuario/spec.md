@@ -9,6 +9,7 @@
 | Aprobada por | Responsable técnico |
 | Fecha de aprobación | 21-08-2026 |
 | Enmendada | 21-08-2026 — `RN-SP-015` pasa de rechazar a **retirar la membresía en cascada**, al aprobar `RF-SP-033` (Art. I.7) |
+| Enmendada | 22-08-2026 — `RN-SP-019` cierra el superior comercial al retirar el último rol `VENDEDOR`, y `RN-SP-022` rechaza el retiro de quien tiene equipo a cargo, al registrarse `RF-SP-041` (Art. I.7) |
 
 ---
 
@@ -46,6 +47,8 @@ Esa es la asimetría deliberada con `RF-SP-030`, que **no** las revoca. Conceder
 - Retirar uno o varios roles a una persona. La operación **solo retira**: nunca asigna ninguno.
 - Verificación de que el retiro no deja al sistema sin superadministrador activo.
 - **Retiro de la membresía en cascada** cuando el último rol `CONSUMIDOR` desaparece (`RN-SP-015`).
+- **Cierre del superior comercial** cuando el último rol `VENDEDOR` desaparece (`RN-SP-019`).
+- Verificación de que la persona **no tiene a nadie a cargo** antes de retirarle su último rol `VENDEDOR` (`RN-SP-022`).
 
 ### 4.2 No incluye
 
@@ -53,6 +56,7 @@ Esa es la asimetría deliberada con `RF-SP-030`, que **no** las revoca. Conceder
 - Retirar la membresía **sin retirar el rol de consumidor** → `RF-SP-033`, que es una operación correctiva. Lo que sí hace esta operación es retirar la membresía **como consecuencia** de quitar el último rol `CONSUMIDOR` (`RN-SP-015`), y eso no es deshacer en silencio nada: es la única forma de que el estado de consumidor tenga salida.
 - Eliminar el rol del catálogo → `RF-SP-009`.
 - Retirar el acceso completo de una persona → `RF-SP-028`, que es lo que se busca cuando el objetivo es que alguien deje de entrar.
+- **Reasignar el equipo** de quien pierde su rol comercial → `RF-SP-041`, una persona a una. Esta operación no lo hace ni lo ofrece: se limita a rechazar el retiro mientras el equipo siga a su cargo (`EX-005`).
 
 ## 5. Reglas de negocio aplicables
 
@@ -63,6 +67,8 @@ Esa es la asimetría deliberada con `RF-SP-030`, que **no** las revoca. Conceder
 | `RN-SP-018` | Todo consumidor tiene membresía: el rol y el nivel son inseparables | `requirements/sp.md` §5.1 |
 | `RN-SEG-010` | Nadie manipula privilegios que no posee | `security.md` §4.3 |
 | `RN-SP-005` | La eliminación de una asociación se audita sin motivo declarado | `requirements/sp.md` §5.1 |
+| `RN-SP-019` | Todo vendedor tiene superior: retirar el último rol `VENDEDOR` cierra su asignación | `requirements/sp.md` §5.1 |
+| `RN-SP-022` | Ningún equipo se queda sin superior: no se retira el rol comercial a quien tiene gente a cargo | `requirements/sp.md` §5.1 |
 
 ## 6. Datos
 
@@ -89,11 +95,13 @@ No se declara motivo: es la eliminación de una asociación (Art. V.13).
 - El usuario existe y no está eliminado.
 - Los permisos de los roles que se retiran están contenidos en los permisos efectivos del actor.
 - El retiro no deja al sistema sin ningún usuario activo con el rol raíz.
+- Si el retiro dejaría a la persona sin ningún rol `VENDEDOR`, no tiene a nadie a cargo (`RN-SP-022`).
 
 **Postcondiciones**
 
 - Los roles quedan desasociados del usuario, y los que no se pidieron se conservan.
 - Si la persona queda sin ningún rol `CONSUMIDOR`, **su membresía queda retirada con ellos**, en la misma transacción y bajo el mismo identificador de correlación (`RN-SP-015`).
+- Si la persona queda sin ningún rol `VENDEDOR`, **su asignación de superior queda cerrada** con la fecha de fin de esta operación, en la misma transacción y con la misma correlación (`RN-SP-019`). La fila **no se borra**: quién estuvo a cargo de quién, y hasta cuándo, es historial de negocio (`RN-SP-021`).
 - Sus permisos efectivos dejan de incluir los de esos roles, **salvo los que otro de sus roles siga concediendo**.
 - **Todos sus refresh tokens quedan revocados y sus tokens de acceso vigentes dejan de admitirse**, de modo que el retiro tiene efecto de inmediato y no en quince minutos. La persona debe autenticarse de nuevo.
 - Queda constancia en la auditoría de eliminación, sin motivo declarado, y en la de seguridad con severidad alta y el usuario afectado como objeto del evento.
@@ -104,11 +112,13 @@ No se declara motivo: es la eliminación de una asociación (Art. V.13).
 2. El sistema verifica que el usuario exista y no esté eliminado.
 3. El sistema verifica que los permisos de los roles a retirar estén contenidos en los del actor.
 4. El sistema verifica que el retiro no deje al sistema sin ningún usuario activo con el rol raíz.
-5. El sistema desasocia los roles que el usuario tenía.
-6. Si con ello la persona queda sin ningún rol `CONSUMIDOR`, el sistema retira también su membresía.
-7. El sistema revoca todos los refresh tokens de la persona, de modo que el retiro aplique de inmediato.
-8. El sistema registra el evento en la auditoría de eliminación y en la de seguridad.
-9. El sistema informa el usuario con sus roles actualizados.
+5. Si el retiro dejaría a la persona sin ningún rol `VENDEDOR`, el sistema verifica que no tenga a nadie a cargo.
+6. El sistema desasocia los roles que el usuario tenía.
+7. Si con ello la persona queda sin ningún rol `CONSUMIDOR`, el sistema retira también su membresía.
+8. Si con ello la persona queda sin ningún rol `VENDEDOR`, el sistema cierra su asignación de superior con la fecha de esta operación.
+9. El sistema revoca todos los refresh tokens de la persona, de modo que el retiro aplique de inmediato.
+10. El sistema registra el evento en la auditoría de eliminación y en la de seguridad.
+11. El sistema informa el usuario con sus roles actualizados.
 
 ## 9. Flujos alternativos
 
@@ -124,7 +134,7 @@ No se declara motivo: es la eliminación de una asociación (Art. V.13).
 
 **Cuándo ocurre:** el retiro deja a la persona sin ningún rol.
 
-1. Se admite, siempre que no incumpla `RN-SP-001` ni `RN-SP-015`.
+1. Se admite, siempre que no incumpla `RN-SP-001`, `RN-SP-015` ni `RN-SP-022`.
 2. La persona queda autenticable pero sin permiso efectivo alguno, el mismo estado en que `RF-SP-024` permite crearla.
 
 ### FA-003 — Retiro del último rol consumidor
@@ -134,6 +144,15 @@ No se declara motivo: es la eliminación de una asociación (Art. V.13).
 1. El sistema retira **también su membresía**, en la misma transacción (`RN-SP-015`).
 2. Ambos hechos se auditan por separado y bajo el **mismo identificador de correlación**, de modo que la operación completa pueda recuperarse entera.
 3. **No es un rechazo.** Es la única salida del estado de consumidor, y por eso esta operación es la puerta.
+
+### FA-004 — Retiro del último rol vendedor
+
+**Cuándo ocurre:** el retiro deja a la persona sin ningún rol de clasificación `VENDEDOR`, y no tiene a nadie a cargo.
+
+1. El sistema **cierra su asignación de superior** con la fecha de esta operación, en la misma transacción (`RN-SP-019`).
+2. Ambos hechos se auditan bajo el **mismo identificador de correlación**.
+3. La fila de la asignación **no se elimina**: se cierra. A diferencia de la membresía, aquí el pasado importa —quién tenía a cargo a quién y hasta cuándo—, y `RN-SP-021` obliga a conservarlo.
+4. Si además tiene gente a cargo, esto no ocurre: la operación se rechaza antes, en `EX-005`.
 
 ## 10. Excepciones
 
@@ -154,6 +173,13 @@ No se declara motivo: es la eliminación de una asociación (Art. V.13).
 **Condición:** el identificador no corresponde a ningún usuario vigente.
 **Respuesta del sistema:** rechaza la operación e informa que el usuario no existe.
 
+### EX-005 — La persona tiene equipo a cargo
+
+**Condición:** el retiro dejaría a la persona sin ningún rol `VENDEDOR` y hay al menos una asignación vigente que la declara superior.
+**Respuesta del sistema:** rechaza la operación completa, cita `RN-SP-022` e informa **cuántas** personas tiene a cargo, sin listarlas: quién forma ese equipo se consulta con `RF-SP-042`, que tiene su propio permiso.
+
+No se reasignan solas al superior del superior. La estructura comercial decidirá atribución de negocio, y moverla en silencio como efecto secundario de retirar un rol cambiaría a quién pertenece un resultado sin que nadie lo haya decidido. Es la misma postura que `RN-SEG-008` toma con un rol que tiene hijos, y la asimetría con la membresía de `FA-003` es deliberada: allí la cascada solo afecta a la persona misma, aquí afectaría a terceros.
+
 ## 11. Validaciones
 
 | ID | Validación | Mensaje esperado |
@@ -164,6 +190,7 @@ No se declara motivo: es la eliminación de una asociación (Art. V.13).
 | `VAL-004` | — | *(Retirada el 21-08-2026: el caso dejó de ser un rechazo y pasó a ser la cascada de `FA-003`.)* |
 | `VAL-005` | Como máximo 100 roles por petición | No es posible retirar más de 100 roles en una sola solicitud. |
 | `VAL-006` | Usuario existente y no eliminado | El usuario solicitado no existe. |
+| `VAL-007` | El retiro del último rol `VENDEDOR` exige que la persona no tenga a nadie a cargo | Esta persona tiene personas a su cargo; reasígnelas antes de retirarle el rol. |
 
 ## 12. Criterios de aceptación
 
@@ -174,6 +201,9 @@ No se declara motivo: es la eliminación de una asociación (Art. V.13).
 | `CA-SP-264` | El sistema rechaza el retiro que dejaría al sistema sin ningún usuario activo con el rol raíz |
 | `CA-SP-265` | El retiro del último rol consumidor **retira también la membresía**, en la misma transacción y bajo el mismo identificador de correlación |
 | `CA-SP-371` | Tras ese retiro, la persona no conserva ni rol de consumidor ni membresía, y la operación completa se recupera filtrando por su identificador de correlación |
+| `CA-SP-405` | El retiro del último rol `VENDEDOR` **cierra** la asignación de superior con la fecha de la operación, bajo el mismo identificador de correlación, y **no borra** la fila |
+| `CA-SP-406` | El sistema rechaza el retiro del último rol `VENDEDOR` a quien tiene al menos una persona a cargo, e informa cuántas sin listarlas |
+| `CA-SP-407` | Retirar un rol `VENDEDOR` a quien conserva otro **no** cierra su asignación de superior |
 | `CA-SP-266` | El sistema rechaza el retiro de un rol cuyos permisos exceden los del actor |
 | `CA-SP-267` | El sistema ignora los roles que el usuario no tenía, sin producir error |
 | `CA-SP-268` | El sistema no registra evento cuando ninguno de los roles indicados estaba asignado |

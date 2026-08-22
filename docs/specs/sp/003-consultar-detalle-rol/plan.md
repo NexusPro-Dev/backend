@@ -54,13 +54,13 @@ Tampoco hay migración de permisos: `roles:read` lo crea `V3__seed_permissions.s
 
 `ix_roles_busqueda` y la función `f_unaccent` que crea `V8` (`RF-SP-002`) **no intervienen**: aquí no hay búsqueda por texto.
 
-**Dependencia de esquema con los usuarios.** El conteo de usuarios asignados lee `user_roles`, que crea `RF-SP-030`; esa tabla referencia a `users`, que crea `RF-SP-024`. Ninguna de las dos pertenece a este requerimiento y ninguna se declara aquí: diseñar su esquema sin sus especificaciones sería exactamente lo que el Art. I.6 impide. Lo que sí impone este plan es el **orden**: ambas tripletas se adelantan por delante de esta en `requirements/sp.md` §6.1, fijado el 21-08-2026.
+**Dependencia de esquema con los usuarios.** El conteo de usuarios asignados lee `user_roles`, que crea `RF-SP-024` —**corregido el 22-08-2026 al aprobar su plan**: este documento decía `RF-SP-030`, pero el alta de un usuario ya escribe asignaciones y no puede esperar a que otra tripleta cree la tabla; de `RF-SP-030` sigue siendo el índice `ix_user_roles_role_id`, que es lo que este requerimiento necesita de verdad—; esa tabla referencia a `users`, que crea también `RF-SP-024`. Ninguna de las dos pertenece a este requerimiento y ninguna se declara aquí: diseñar su esquema sin sus especificaciones sería exactamente lo que el Art. I.6 impide. Lo que sí impone este plan es el **orden**: ambas tripletas se adelantan por delante de esta en `requirements/sp.md` §6.1, fijado el 21-08-2026.
 
 Dos cosas que esas migraciones deben traer, y que se declaran aquí porque es este requerimiento quien las necesita:
 
 | Objeto | De quién | Para qué |
 |---|---|---|
-| `ix_user_roles_role_id` sobre `user_roles(role_id)` | `RF-SP-030` | Es la columna por la que se cuenta. Sin índice, cada detalle de rol recorre la tabla entera de asignaciones |
+| `ix_user_roles_role_id` sobre `user_roles(role_id)` | `RF-SP-030` (la tabla, `RF-SP-024`) | Es la columna por la que se cuenta. Sin índice, cada detalle de rol recorre la tabla entera de asignaciones |
 | Borrado lógico en `users` | `RF-SP-024` | El conteo excluye a los usuarios eliminados (§4). Si `users` no tuviera `deleted_at`, la semántica del conteo tendría que cambiar |
 
 Los recordatorios de la plantilla no aplican: no se crea ninguna tabla, así que no hay clave primaria UUID v7, ni `created_at`/`updated_at`, ni columnas de actor que omitir, ni integridad declarativa que añadir.
@@ -272,7 +272,7 @@ Como contrapartida menor: bajo `READ COMMITTED`, cada sentencia toma su propia i
 
 | Módulo | Impacto |
 |---|---|
-| `RF-SP-024` y `RF-SP-030` | Se adelantan en el orden de implementación de `requirements/sp.md` §6.1, porque crean `users` y `user_roles`. `RF-SP-030` debe además declarar `ix_user_roles_role_id`: es la columna por la que se cuenta, y sin índice cada detalle de rol recorre la tabla entera de asignaciones (§2) |
+| `RF-SP-024` y `RF-SP-030` | Se adelantan en el orden de implementación de `requirements/sp.md` §6.1. **`RF-SP-024` crea `users` y `user_roles`** —corregido el 22-08-2026 al aprobar su plan— y `RF-SP-030` debe declarar `ix_user_roles_role_id`: es la columna por la que se cuenta, y sin índice cada detalle de rol recorre la tabla entera de asignaciones (§2) |
 | `SP` (resto del módulo) | `RF-SP-009` reutiliza la misma semántica de conteo para `RN-SEG-008` (§4). `RF-SP-004` a `RF-SP-008` devuelven `RoleResponse` y no este detalle, de modo que ninguna escritura paga las dos subconsultas |
 | `shared/api` | `CanonicalUuidConverter` se registra de forma global: **cambia el comportamiento de todo endpoint con un UUID en la ruta**, presente y futuro. Un identificador no canónico pasa de `404` a `400` en todo el sistema. Es lo correcto y es uniforme, pero es un cambio de mayor alcance que este requerimiento |
 | `shared/error` | Estrena la traducción de `ResourceNotFoundException` a `404` y del fallo de conversión del identificador a `VAL-001`. La jerarquía de `development-guide.md` §7.1 ya la contempla: a diferencia del `422` de `RF-SP-001`, no hay que enmendar ese documento |

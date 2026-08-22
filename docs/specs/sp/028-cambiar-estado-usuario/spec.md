@@ -8,6 +8,7 @@
 | Autor | Responsable técnico |
 | Aprobada por | Responsable técnico |
 | Fecha de aprobación | 21-08-2026 |
+| Enmendada | 22-08-2026 — `RN-SP-022` rechaza retirar el acceso a quien tiene equipo a cargo, al registrarse `RF-SP-041` (Art. I.7) |
 
 ---
 
@@ -70,6 +71,7 @@ Nadie se retira el acceso a sí mismo (`RN-SP-017`) y el sistema no puede quedar
 |---|---|---|
 | `RN-SP-001` | Debe existir siempre al menos un usuario **activo** con el rol raíz | `requirements/sp.md` §5.1 |
 | `RN-SP-017` | El actor no aplica la operación sobre su propia cuenta | `requirements/sp.md` §5.1 |
+| `RN-SP-022` | No se retira el acceso a quien tiene personas a su cargo | `requirements/sp.md` §5.1 |
 
 ## 6. Datos
 
@@ -96,6 +98,7 @@ Nadie se retira el acceso a sí mismo (`RN-SP-017`) y el sistema no puede quedar
 - El usuario no es el propio actor.
 - Si se le retira el acceso, viene informado el motivo.
 - Si se le retira el acceso y porta el rol raíz, existe otro usuario **activo** que también lo porta.
+- Si se le retira el acceso, **no tiene a nadie a cargo** (`RN-SP-022`).
 
 **Postcondiciones**
 
@@ -113,10 +116,11 @@ Nadie se retira el acceso a sí mismo (`RN-SP-017`) y el sistema no puede quedar
 3. El sistema verifica que el usuario no sea el propio actor.
 4. Si el estado solicitado retira el acceso, el sistema verifica que venga informado el motivo.
 5. Si el estado solicitado retira el acceso, el sistema verifica que el usuario no sea el último **activo** con el rol raíz.
-6. El sistema aplica el nuevo estado. Si la cuenta queda activa, pone a cero su contador de intentos fallidos y levanta cualquier bloqueo vigente; si queda bloqueada por decisión del actor, la deja sin momento de expiración.
-7. Si el usuario deja de poder entrar, el sistema revoca todos sus refresh tokens.
-8. El sistema registra el evento en la auditoría de cambios y en la de seguridad.
-9. El sistema informa el usuario actualizado.
+6. Si el estado solicitado retira el acceso, el sistema verifica que el usuario no tenga a nadie a cargo.
+7. El sistema aplica el nuevo estado. Si la cuenta queda activa, pone a cero su contador de intentos fallidos y levanta cualquier bloqueo vigente; si queda bloqueada por decisión del actor, la deja sin momento de expiración.
+8. Si el usuario deja de poder entrar, el sistema revoca todos sus refresh tokens.
+9. El sistema registra el evento en la auditoría de cambios y en la de seguridad.
+10. El sistema informa el usuario actualizado.
 
 ## 9. Flujos alternativos
 
@@ -171,6 +175,13 @@ Nadie se retira el acceso a sí mismo (`RN-SP-017`) y el sistema no puede quedar
 **Condición:** el identificador no corresponde a ningún usuario vigente, o el usuario está eliminado.
 **Respuesta del sistema:** informa que el usuario no existe, sin distinguir ambos casos.
 
+### EX-006 — La persona tiene equipo a cargo
+
+**Condición:** el estado solicitado le retira el acceso —`INACTIVO` o `BLOQUEADO`— y hay al menos una asignación vigente que la declara superior.
+**Respuesta del sistema:** rechaza la operación, cita `RN-SP-022` e informa cuántas personas tiene a cargo, sin listarlas. Se reasignan con `RF-SP-041` antes de retirarle el acceso.
+
+**No alcanza a devolver el acceso**, que nunca deja a nadie huérfano. Y la asimetría con el bloqueo **automático** por intentos fallidos es deliberada: aquel es una respuesta de seguridad que no puede quedar supeditada a que alguien reorganice un equipo primero. Esta excepción solo alcanza al cambio de estado **por decisión de un actor**, que es el que esta especificación gobierna.
+
 ## 11. Validaciones
 
 | ID | Validación | Mensaje esperado |
@@ -181,6 +192,7 @@ Nadie se retira el acceso a sí mismo (`RN-SP-017`) y el sistema no puede quedar
 | `VAL-004` | No es el último superadministrador activo | No es posible retirar el acceso al último administrador del sistema. |
 | `VAL-005` | Motivo obligatorio al desactivar o bloquear, no vacío tras recortar | Debe indicar el motivo por el que retira el acceso. |
 | `VAL-006` | Motivo no admitido al activar | No es posible indicar un motivo al reactivar una cuenta. |
+| `VAL-007` | Al retirar el acceso, la persona no tiene a nadie a cargo | Esta persona tiene personas a su cargo; reasígnelas antes de retirarle el acceso. |
 
 ## 12. Criterios de aceptación
 
@@ -198,6 +210,8 @@ Nadie se retira el acceso a sí mismo (`RN-SP-017`) y el sistema no puede quedar
 | `CA-SP-352` | El sistema rechaza desactivar o bloquear sin motivo, antes de ejecutar la operación |
 | `CA-SP-353` | El sistema rechaza un motivo enviado al reactivar una cuenta |
 | `CA-SP-354` | La auditoría de seguridad conserva el motivo por el que se retiró el acceso |
+| `CA-SP-410` | El sistema rechaza desactivar o bloquear a quien tiene al menos una persona a cargo, e informa cuántas sin listarlas |
+| `CA-SP-411` | El bloqueo **automático** por intentos fallidos se aplica aunque la persona tenga equipo a cargo, y la reactivación nunca se rechaza por ese motivo |
 | `CA-SP-237` | El sistema rechaza que el actor cambie el estado de su propia cuenta |
 | `CA-SP-238` | El sistema rechaza retirar el acceso al último usuario **activo** con el rol raíz, aunque existan otros inactivos que lo porten |
 | `CA-SP-239` | El sistema no registra evento cuando el usuario ya estaba en el estado solicitado |

@@ -9,6 +9,8 @@
 | Autor | Responsable técnico |
 | Aprobado por | Responsable técnico |
 | Fecha de aprobación | 21-08-2026 |
+| Reabierto el | 22-08-2026 — corrección de §6, ver la nota al final de esa sección (Art. I.7) |
+| Reaprobado el | 22-08-2026 — Responsable del proyecto, verificada la corrección contra `ck_audit_error_log_status` |
 
 !!! warning "Revisado el 21-08-2026"
 
@@ -25,7 +27,7 @@ Una eliminación lógica con dos verificaciones que miran hacia fuera del rol: n
 Eso convierte lo que parece un `UPDATE` de una columna en la operación con más superficie de fallo del submódulo:
 
 1. **La verificación y la escritura tienen que ser atómicas frente a una asignación concurrente**, o el rol se elimina mientras alguien se lo asigna. Es lo que obliga al bloqueo de fila de §5, y lo único de este requerimiento que no se resuelve con una consulta bien escrita.
-2. **La verificación de usuarios depende de un esquema que otro requerimiento crea.** `user_roles` la declara `RF-SP-030`, que por eso se adelanta en el orden de `requirements/sp.md` §6.1.
+2. **La verificación de usuarios depende de un esquema que otro requerimiento crea.** `user_roles` la declara `RF-SP-024` —corregido el 22-08-2026 al aprobar su plan; este documento decía `RF-SP-030`, que es quien añade el índice `ix_user_roles_role_id` pero no la tabla—, y por eso ambos se adelantan en el orden de `requirements/sp.md` §6.1.
 3. **El motivo es obligatorio** y debe rechazarse *antes* de ejecutar nada (Art. V.13).
 
 No hay operación de restauración. El borrado lógico existe para que la auditoría resuelva qué rol era, no como papelera.
@@ -132,10 +134,20 @@ SELECT count(DISTINCT ur.user_id)
 |---|---|---|
 | Eliminación | `audit_deletion_log` | `deletion_type = LOGICAL`, `reason` declarado por el actor, estado conservado con el rol completo: código, nombre, descripción, clasificación, rol padre, estado y sus permisos declarados |
 | Eliminación | `audit_security_log` | Eliminación de rol, severidad **Alta** |
-| Rechazo por `EX-002` a `EX-006` | `audit_error_log` | `resource = 'roles'`, `operation` con método y ruta, `error_code` de la tabla de §4, `error_type = 'BUSINESS_RULE'`, `http_status`, `severity` y `message` saneado. Severidad **Alta** para `RN-SEG-008` y `RN-SEG-011`; **Media** para el resto |
+| Rechazo `409` por `EX-002` a `EX-004` | `audit_error_log` | `resource = 'roles'`, `operation` con método y ruta, `error_code` de la tabla de §4, `error_type = 'BUSINESS_RULE'`, `http_status`, `severity` y `message` saneado. Severidad **Alta** para `RN-SEG-008` —las dos formas, hijos vigentes y usuarios asignados—; **Media** para `EX-004` |
+| Rechazo `403` por `EX-005` (`RN-SEG-011`) | `audit_security_log` | `event_type = 'AUTHORIZATION_DENIED'`, `severity = 'ALTA'`, `outcome = 'FAILURE'`, `entity_id` del rol. **No** va a `audit_error_log` |
+| Rechazo `404` por `EX-006` | — | **No se audita** en la auditoría de error (`architecture.md` §6.6.4) |
 | Rechazo `400` de formato | — | **No se audita** (`architecture.md` §6.6.4). El motivo ausente entra aquí: es validación, no regla incumplida |
-| Denegación `403` por `AUTH-002` | `audit_security_log` | `event_type` de denegación de autorización, `severity = 'MEDIA'`, `outcome = 'FAILURE'`. Lo emite la capa de seguridad compartida |
+| Denegación `403` por `AUTH-002` | `audit_security_log` | `event_type = 'AUTHORIZATION_DENIED'`, `severity = 'MEDIA'`, `outcome = 'FAILURE'`. Lo emite la capa de seguridad compartida |
 | Fallo no controlado `5xx` | `audit_error_log` | `error_type = 'UNHANDLED'`, `severity = 'ALTA'` |
+
+!!! warning "Corrección del 22-08-2026 — el `403` y el `404` no caben en `audit_error_log`"
+
+    Este plan llevaba los rechazos de `EX-002` a `EX-006` a `audit_error_log`, y `ck_audit_error_log_status` —`CHECK (http_status NOT IN (400, 401, 403, 404))`, de `RF-SP-013` §2— rechaza dos de ellos: el `403` de `EX-005` y el `404` de `EX-006`. El razonamiento completo, la frontera de `architecture.md` §6.6.4 y por qué la severidad se mantiene Alta están en **`RF-SP-004` §6**, que corrige lo mismo.
+
+    Conviene notar que la corrección **no toca `ck_deletion_reason`** ni nada de `audit_deletion_log`: la eliminación efectiva sigue registrándose igual. Solo cambia dónde se anotan los intentos rechazados.
+
+    El evento lo emite el caso de uso y no la capa de seguridad, porque `RN-SEG-011` no puede verificarse antes de leer el rol. Impacto sobre `RF-SP-014` declarado en §8.
 
 El estado conservado incluye **los permisos declarados**, no solo los campos de la fila. Es lo que permite responder qué concedía ese rol, que es la pregunta que se hace al revisar por qué alguien tenía cierto acceso. Sin ellos, las filas de `role_permissions` siguen existiendo pero apuntan a un rol que ya no aparece en ninguna consulta.
 
@@ -149,7 +161,8 @@ Pasa por el mismo enmascaramiento que cualquier contenido persistido (Art. XV.5)
 | Marca de borrado y su evento en `audit_deletion_log` | **La misma** (Art. V.14) |
 | Conteo de usuarios asignados | **Dentro** de la transacción, después de tomar el bloqueo (§5) |
 | Invalidación de la caché de permisos | Tras el commit |
-| Evento en `audit_security_log` | **Independiente**, `REQUIRES_NEW`, enganchada al commit |
+| Evento de éxito en `audit_security_log` | **Independiente**, `REQUIRES_NEW`, enganchada al commit |
+| Evento `AUTHORIZATION_DENIED` de `RN-SEG-011` | **Independiente**, `REQUIRES_NEW`, emitido **sin esperar al commit**: se escribe mientras la transacción se revierte (`RF-SP-004` §7) |
 
 El conteo va dentro de la transacción y después del bloqueo, que es lo que lo hace correcto: entre contar y confirmar no puede colarse una asignación, porque quien asigne tendrá que esperar el bloqueo compartido sobre la misma fila. El borrador sacaba el conteo fuera de la transacción para que un fallo del módulo de usuarios no la marcara para revertir; sin llamada externa, esa precaución perdió su objeto y su coste —una ventana entre contar y escribir— dejó de estar justificado.
 
@@ -158,6 +171,7 @@ El conteo va dentro de la transacción y después del bloqueo, que es lo que lo 
 - **`RF-SP-030`** debe tomar el bloqueo compartido al asignar un rol. Es el contrato que hace correcta esta operación, y con ambos requerimientos en el mismo módulo **es verificable con una prueba concurrente** (§11), no solo declarable.
 - **`shared/security`**: se invalida la resolución del rol eliminado, que deja de conceder.
 - **`RF-SP-001`** puede reutilizar el código y el nombre liberados, gracias a los índices únicos parciales. Es la contrapartida deliberada de no tener restauración.
+- **`RF-SP-014` §2** atribuye `AUTHORIZATION_DENIED` a la «capa de seguridad» como emisor único y con severidad `MEDIA`. Desde la corrección de §6, este caso de uso también lo emite, con severidad `ALTA`, para `RN-SEG-011`. No invalida aquel plan: le falta una fila en su columna de emisores, y esa compuerta se tramita aparte (`RF-SP-004` §8).
 
 ## 9. Alternativas consideradas
 

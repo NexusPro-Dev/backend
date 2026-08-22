@@ -9,6 +9,7 @@
 | Autor | Responsable técnico |
 | Aprobado por | Responsable técnico |
 | Fecha de aprobación | 21-08-2026 |
+| Enmendado el | 22-08-2026 — vigesimocuarto permiso en §2, reaprobado por el Responsable técnico. 22-08-2026 — §3 se reparte según la disposición por agregado de `architecture.md` §5.1 |
 
 !!! info "Qué va en este documento"
 
@@ -85,7 +86,7 @@ Restricciones:
 
 ### `V3__seed_permissions.sql`
 
-Puebla los **veintitrés permisos del módulo**, tomados de la tabla de API de `requirements/sp.md` §9:
+Puebla los **veinticuatro permisos del módulo**, tomados de la tabla de API de `requirements/sp.md` §9:
 
 | Recurso | Acciones | De dónde sale |
 |---|---|---|
@@ -95,35 +96,44 @@ Puebla los **veintitrés permisos del módulo**, tomados de la tabla de API de `
 | `memberships` | `read`, `create` | `RF-SP-016` a `RF-SP-018` |
 | `countries` | `read`, `create`, `update` | `RF-SP-020`, `RF-SP-021`, `RF-SP-022` |
 | `currencies` | `read`, `update` | `RF-SP-019`, `RF-SP-023` |
-| `users` | `read`, `create`, `update`, `delete`, `assign-roles`, `assign-membership`, `reset-password` | `RF-SP-024` a `RF-SP-038` |
+| `users` | `read`, `create`, `update`, `delete`, `assign-roles`, `assign-membership`, `reset-password`, `assign-supervisor` | `RF-SP-024` a `RF-SP-038`, y `RF-SP-041` |
 
 Cada fila lleva su `name` y su `description` legibles, que es lo que hace útil el catálogo en una pantalla de composición de roles (`security.md` §4.4).
 
 Cuatro decisiones sobre esta migración:
 
-- **El catálogo completo se siembra aquí, incluidos los siete permisos de `users:`.** El borrador de este plan los dejaba fuera, porque pertenecían a `USR` y ese módulo los sembraría en su propia migración. Al retirarse `USR` y absorber `SP` los usuarios (`modules.md` v0.9.0), no queda otro módulo que pudiera hacerlo: la tabla y su contenido pertenecen al mismo sitio. `V3` siembra por tanto veintitrés permisos, y `V7__seed_system_roles.sql` los asocia a `SUPERADMIN` y a `ADMIN` sin que haga falta ninguna migración de datos posterior.
+- **El catálogo completo se siembra aquí, incluidos los ocho permisos de `users:`.** El borrador de este plan los dejaba fuera, porque pertenecían a `USR` y ese módulo los sembraría en su propia migración. Al retirarse `USR` y absorber `SP` los usuarios (`modules.md` v0.9.0), no queda otro módulo que pudiera hacerlo: la tabla y su contenido pertenecen al mismo sitio. `V3` siembra por tanto veinticuatro permisos, y `V7__seed_system_roles.sql` los asocia a `SUPERADMIN` y a `ADMIN` sin que haga falta ninguna migración de datos posterior.
 - **Se siembran también los permisos de requerimientos aún sin especificación**, `countries:update` y `currencies:update` (`RF-SP-022` y `RF-SP-023`). El coste de sembrarlos hoy es cero —un permiso que ningún endpoint declara no concede nada— y el de no hacerlo es una migración de datos por cada requerimiento que llegue. Lo que **no** se hace es inventar permisos que ningún documento aprobado declare.
+
+!!! warning "Corrección del 22-08-2026 — el vigesimocuarto permiso"
+
+    Este plan enumeraba **veintitrés** permisos y siete acciones de `users:`. Falta `users:assign-supervisor`, que `requirements/sp.md` §9 declara para `RF-SP-041` desde el **22-08-2026**, al desaparcar la estructura comercial. Este plan se aprobó el 21, un día antes, y la fila quedó atrás.
+
+    Entra por el mismo criterio que ya aplicaba el punto anterior a `countries:update` y `currencies:update`, y con más razón: `RF-SP-041` es de prioridad **Crítica**, su `spec.md` está **Aprobada** y el orden de `requirements/sp.md` §6.1 lo coloca inmediatamente después de `RF-SP-030`. No es un permiso inventado, es uno declarado en documento aprobado.
+
+    Dejarlo fuera costaría exactamente lo que este plan dice querer evitar: una migración de datos para el permiso y otra para asociarlo a `SUPERADMIN` y a `ADMIN` en `V7`. Hoy cuesta una fila.
 - **Identificadores UUID v7 literales**, escritos en el propio SQL y generados una sola vez al redactar la migración. Ni `gen_random_uuid()` ni ninguna generación en base de datos: el Art. V.11 lo prohíbe, y además el identificador de cada permiso debe ser el mismo en todos los entornos para que las pruebas de `RF-SP-001` y `RF-SP-005` puedan referenciarlos por constante y para que `V7__seed_system_roles.sql` pueda asociarlos. Es el mismo criterio con el que `RF-SP-001` siembra sus roles de sistema.
-- **La siembra del catálogo no emite eventos de auditoría**, y aquí está la diferencia con `V7__seed_system_roles.sql`, que sí los emite. No es solo que `audit_change_log` todavía no exista en `V3` —se crea en `V4`—: es que **no debería existir un evento de cambio para una entidad que nunca cambia por la API**. Un rol de sistema sí se consulta en `RF-SP-011` preguntando quién lo creó, y su línea de tiempo quedaría coja sin la fila del poblado. Un permiso no tiene línea de tiempo: `RN-SP-004` lo hace inmutable por API, de modo que su único historial posible es el de las migraciones, y ese lo lleva `flyway_schema_history`. Auditar la siembra produciría veintitrés filas que nunca tendrían una vigesimocuarta.
+- **La siembra del catálogo no emite eventos de auditoría**, y aquí está la diferencia con `V7__seed_system_roles.sql`, que sí los emite. No es solo que `audit_change_log` todavía no exista en `V3` —se crea en `V4`—: es que **no debería existir un evento de cambio para una entidad que nunca cambia por la API**. Un rol de sistema sí se consulta en `RF-SP-011` preguntando quién lo creó, y su línea de tiempo quedaría coja sin la fila del poblado. Un permiso no tiene línea de tiempo: `RN-SP-004` lo hace inmutable por API, de modo que su único historial posible es el de las migraciones, y ese lo lleva `flyway_schema_history`. Auditar la siembra produciría veinticuatro filas que nunca tendrían una vigesimoquinta.
 
 ## 3. Componentes afectados
 
-Paquete raíz del módulo: `com.factech.nexus.modules.system`. Reglas de dependencia de `architecture.md` §5.2.
+Paquete raíz del agregado: `com.factech.nexus.modules.system.permissions`. Reglas de dependencia de `architecture.md` §5.2.
 
 | Capa | Componente | Nuevo / Modificado | Responsabilidad |
 |---|---|---|---|
-| `domain` | — | — | Sin participación: `RN-SP-004` se cumple por ausencia de endpoint, no por código (§11) |
-| `application` | `ListPermissionsService` | Nuevo | Caso de uso. `@Transactional(readOnly = true)`. Traduce la consulta al puerto y devuelve la colección |
+| `domain/models` | `Permission` | Nuevo | Mapeo JPA de `permissions`. Se usa como metamodelo para nombrar columnas; la consulta no lo instancia |
+| `domain/repository` | `PermissionQueryRepository` | Nuevo | Puerto de consulta: recibe `ListPermissionsQuery`, devuelve la lista completa de `PermissionItem` |
+| `domain/repository` | `JpaPermissionQueryRepository` | Nuevo | Adaptador. Construye predicado y proyección con la API de criterios |
+| `domain/repository` | `PermissionCatalog` | Sin cambios | Puerto de `RF-SP-001`, para resolver identificadores a permisos. **No se reutiliza aquí** (§3, abajo) |
+| `domain/service` | `ListPermissionsService` | Nuevo | Caso de uso. `@Transactional(readOnly = true)`. Traduce la consulta al puerto y devuelve la colección |
 | `application` | `ListPermissionsQuery` | Nuevo | Criterios ya validados y normalizados: recurso, acción y término de búsqueda. Sin tipos de HTTP |
 | `application` | `PermissionItem` | Sin cambios | Modelo de lectura definido en `RF-SP-003`. Se **amplía** con `resource`, `action` y `description`, que el detalle del rol no usaba (§4) |
-| `application` | `PermissionQueryRepository` | Nuevo | Puerto de consulta: recibe `ListPermissionsQuery`, devuelve la lista completa de `PermissionItem` |
-| `application` | `PermissionCatalog` | Sin cambios | Puerto de `RF-SP-001`, para resolver identificadores a permisos. **No se reutiliza aquí** (§3, abajo) |
-| `infrastructure` | `JpaPermissionQueryRepository` | Nuevo | Adaptador. Construye predicado y proyección con la API de criterios |
-| `infrastructure` | `PermissionEntity` | Nuevo | Mapeo JPA de `permissions`. Se usa como metamodelo para nombrar columnas; la consulta no lo instancia |
-| `api` | `PermissionController` | Nuevo | `GET /api/v1/permissions`. Declara el permiso y delega |
-| `api` | `ListPermissionsRequest` | Nuevo | Parámetros de consulta. Sin Bean Validation: `spec.md` §11 no declara ninguna validación |
-| `api` | `PermissionResponse` | Modificado | DTO definido en `RF-SP-001`. Se amplía con `resource`, `action` y `description` (§4) |
+| `application` | `ListPermissionsRequest` | Nuevo | Parámetros de consulta. Sin Bean Validation: `spec.md` §11 no declara ninguna validación |
+| `application` | `PermissionResponse` | Modificado | DTO definido en `RF-SP-001`. Se amplía con `resource`, `action` y `description` (§4) |
+| `interfaces` | `PermissionController` | Nuevo | `GET /api/v1/permissions`. Declara el permiso y delega |
 | `shared/api` | `PageResponse<T>` | Sin cambios | **No se usa**: este catálogo no se pagina (§4) |
+
+`RN-SP-004` no ocupa fila en esta tabla: se cumple por ausencia de manejador de escritura, no por código (§11).
 
 Tres decisiones de reparto:
 
@@ -270,7 +280,7 @@ No hay aquí el matiz de consistencia entre sentencias que registraron `RF-SP-00
 | Filtrar `resource` y `action` por contención | `role` devolvería también los permisos de `roles`, y el cliente no tendría forma de pedir solo uno. La contención ya la ofrece `search` |
 | Ampliar `PermissionCatalog` con un método de listado | Mezcla resolución y consulta en un puerto que el dominio usa para decidir. Mismo criterio con el que `RF-SP-002` separó `RoleQueryRepository` de `RoleRepository` |
 | Un segundo par de tipos para el catálogo, distinto del de `RF-SP-001` | Dos representaciones del mismo concepto que hay que mantener en paralelo, y una decisión que tomar en cada endpoint futuro sobre cuál usar |
-| Auditar la siembra del catálogo como hace `V7` con los roles | Un permiso no tiene línea de tiempo que reconstruir: `RN-SP-004` lo hace inmutable por API, así que serían veintitrés filas que nunca tendrían una vigesimocuarta. El historial de una tabla que solo cambia por migración lo lleva `flyway_schema_history` |
+| Auditar la siembra del catálogo como hace `V7` con los roles | Un permiso no tiene línea de tiempo que reconstruir: `RN-SP-004` lo hace inmutable por API, así que serían veinticuatro filas que nunca tendrían una vigesimoquinta. El historial de una tabla que solo cambia por migración lo lleva `flyway_schema_history` |
 
 ## 10. Riesgos
 
@@ -280,7 +290,7 @@ No hay aquí el matiz de consistencia entre sentencias que registraron `RF-SP-00
 | `f_unaccent` se declara `IMMUTABLE` sin serlo del todo: si el diccionario `unaccent` cambia, los índices que la usan conservan valores obsoletos y devuelven resultados incorrectos **sin error** | Medio | El diccionario se referencia cualificado y no se personaliza. Queda registrado que cualquier cambio en él obliga a `REINDEX` de todo lo que dependa de la función: hoy `ix_roles_busqueda`, mañana `ix_countries_busqueda` |
 | Una migración futura siembra permisos y olvida asociarlos a `SUPERADMIN` y `ADMIN` | Alto | Declarado en `security.md` §4.4 como obligación de toda migración que siembre permisos. El síntoma no es evidente: `ADMIN` quedaría incapaz de crear un rol que declare ese permiso, y `RN-SEG-003` rechazaría la operación sin decir que lo que falta es una siembra |
 | ~~Ampliar `PermissionResponse` cambia una respuesta ya aprobada en `RF-SP-001` y `RF-SP-003`~~ | — | **Resuelto el 21-08-2026:** se amplía el tipo existente. Añadir campos no rompe a ningún cliente, y mantener dos representaciones del mismo concepto habría obligado a decidir cuál usar en cada endpoint futuro. Los planes de `RF-SP-001` y `RF-SP-003` quedan anotados |
-| El catálogo crece y devolverlo entero deja de ser razonable (`spec.md` §13) | Bajo | Con veintitrés permisos la respuesta ronda los pocos kilobytes. El `CHECK` de 500 caracteres sobre `description` acota el peor caso. Si llegara a crecer en un orden de magnitud, la decisión de no paginar habría que revisarla en la especificación, no aquí |
+| El catálogo crece y devolverlo entero deja de ser razonable (`spec.md` §13) | Bajo | Con veinticuatro permisos la respuesta ronda los pocos kilobytes. El `CHECK` de 500 caracteres sobre `description` acota el peor caso. Si llegara a crecer en un orden de magnitud, la decisión de no paginar habría que revisarla en la especificación, no aquí |
 | Una migración futura deja `code` incoherente con `resource` y `action` | Bajo | `ck_permissions_code_matches` lo hace imposible en base de datos. Es la restricción que convierte un error silencioso —filtro por recurso que no encuentra lo que el código dice— en un fallo de migración |
 | Un permiso sin descripción desaparece de la búsqueda | Medio | `coalesce(description, '')` en el predicado (§4), con prueba propia en §11. Es el defecto más fácil de introducir y el más difícil de notar: el permiso existe, se lista sin filtros y solo falta cuando alguien busca |
 
@@ -290,7 +300,7 @@ Niveles: **Integración** (Testcontainers sobre PostgreSQL real, con `V1` a `V3`
 
 | Criterio | Nivel | Qué verifica |
 |---|---|---|
-| `CA-SP-073` | Integración + API | La respuesta trae los veintitrés permisos sembrados, con `code`, `resource`, `action`, `name` y `description`; el cuerpo **no** contiene `page`, `size`, `totalElements` ni `totalPages`, y las filas no vienen anidadas por recurso |
+| `CA-SP-073` | Integración + API | La respuesta trae los veinticuatro permisos sembrados, con `code`, `resource`, `action`, `name` y `description`; el cuerpo **no** contiene `page`, `size`, `totalElements` ni `totalPages`, y las filas no vienen anidadas por recurso |
 | `CA-SP-074` | Integración + API | `resource=audit` devuelve los cuatro de auditoría y ninguno más; `action=read` devuelve los de lectura de todos los recursos; combinados, la intersección |
 | `CA-SP-075` | API | `resource=inexistente` devuelve `200` con `content` vacío. Nunca `404` ni `204` |
 | `CA-SP-076` | API | No existe manejador para `POST`, `PUT`, `PATCH` ni `DELETE` sobre `/api/v1/permissions` ni sobre `/api/v1/permissions/{id}`: las cuatro devuelven `405`. Es la única forma de verificar `RN-SP-004`, que no tiene código que la implemente |
@@ -309,6 +319,6 @@ Casos límite de `spec.md` §13 y decisiones de este plan que exigen prueba prop
 | Número de sentencias por petición | Integración | **Una**, con y sin filtros, y ninguna sobre `role_permissions`. Es lo que hace verificable que el catálogo no cuenta roles |
 | Coherencia de `code` | Integración | Un `INSERT` con `code = 'roles:read'`, `resource = 'role'` y `action = 'read'` es rechazado por `ck_permissions_code_matches` |
 | Formato del código | Integración | `ck_permissions_code_format` rechaza `Roles:Read`, `roles read` y `roles:`; acepta `audit:read-changes` |
-| Catálogo completo tras la siembra | Integración | Tras `V3`, la tabla tiene exactamente veintitrés filas, incluidas las siete de recurso `users` |
+| Catálogo completo tras la siembra | Integración | Tras `V3`, la tabla tiene exactamente veinticuatro filas, incluidas las ocho de recurso `users` |
 
 Las reglas de ArchUnit introducidas en `RF-SP-001` y `RF-SP-003` cubren también este requerimiento. No se añade ninguna nueva: no toca `domain` y no introduce dependencias entre módulos.

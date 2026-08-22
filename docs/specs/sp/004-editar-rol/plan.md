@@ -9,6 +9,8 @@
 | Autor | Responsable técnico |
 | Aprobado por | Responsable técnico |
 | Fecha de aprobación | 21-08-2026 |
+| Reabierto el | 22-08-2026 — corrección de §6, ver la nota al final de esa sección (Art. I.7) |
+| Reaprobado el | 22-08-2026 — Responsable del proyecto, verificada la corrección contra `ck_audit_error_log_status` |
 
 ---
 
@@ -126,12 +128,26 @@ No se recorre la jerarquía. Es lo que la spec resolvió, y evita un recorrido d
 | Edición efectiva | `audit_change_log` | `action = UPDATE`, con `changes` conteniendo **solo** los campos que mutaron, cada uno con su antes y su después |
 | Edición efectiva | `audit_security_log` | Evento de modificación de rol, severidad Alta |
 | Edición sin cambio | — | **Ningún evento**, en ninguno de los dos registros |
-| Rechazo por `EX-001` a `EX-004` | `audit_error_log` | `resource = 'roles'`, `operation` con método y ruta, `error_code` de la tabla de §4, `error_type = 'BUSINESS_RULE'`, `http_status`, `severity` y `message` saneado. Severidad **Alta** para `RN-SEG-011`, que es un intento de eludir una prohibición sobre el propio actor; **Media** para el resto, que son errores de operación |
+| Rechazo `409` por `EX-001` y `EX-003` | `audit_error_log` | `resource = 'roles'`, `operation` con método y ruta, `error_code` de la tabla de §4, `error_type = 'BUSINESS_RULE'`, `http_status`, `severity = 'MEDIA'` y `message` saneado. Son errores de operación |
+| Rechazo `403` por `EX-002` (`RN-SEG-011`) | `audit_security_log` | `event_type = 'AUTHORIZATION_DENIED'`, `severity = 'ALTA'`, `outcome = 'FAILURE'`, `entity_id` del rol. **No** va a `audit_error_log` |
+| Rechazo `404` por `EX-004` | — | **No se audita** en la auditoría de error (`architecture.md` §6.6.4). `request_log` lo cubre |
 | Rechazo `400` de formato | — | **No se audita** (`architecture.md` §6.6.4): es ruido de formulario y `request_log` ya lo cubre |
-| Denegación `403` por `AUTH-002` | `audit_security_log` | `event_type` de denegación de autorización, `severity = 'MEDIA'`, `outcome = 'FAILURE'`. Lo emite la capa de seguridad compartida |
+| Denegación `403` por `AUTH-002` | `audit_security_log` | `event_type = 'AUTHORIZATION_DENIED'`, `severity = 'MEDIA'`, `outcome = 'FAILURE'`. Lo emite la capa de seguridad compartida |
 | Fallo no controlado `5xx` | `audit_error_log` | `error_type = 'UNHANDLED'`, `severity = 'ALTA'` |
 
 La convención de auditar los rechazos de regla de negocio es la que fijó `RF-SP-001` §6 y rige en todo el módulo; se explicita aquí para que las tablas de los nueve requerimientos se lean igual.
+
+!!! warning "Corrección del 22-08-2026 — el `403` y el `404` no caben en `audit_error_log`"
+
+    Este plan ordenaba llevar **todos** los rechazos, de `EX-001` a `EX-004`, a `audit_error_log`. Dos de ellos no pueden ir ahí:
+
+    `V4__create_audit_logs.sql` declara `ck_audit_error_log_status CHECK (http_status NOT IN (400, 401, 403, 404))`, añadido al aprobarse el plan de `RF-SP-013` (§2 de aquel) el mismo 21-08-2026 en que se aprobó este. `EX-002` responde `403` y `EX-004` responde `404`: escribir su fila habría producido una **violación de integridad al atender un rechazo legítimo**, y además dentro de la transacción `REQUIRES_NEW` que emite la auditoría de error, de modo que el fallo secundario habría aparecido justo cuando la transacción de negocio ya se estaba revirtiendo.
+
+    La frontera correcta la fija `architecture.md` §6.6.4 y la repite `security.md` §8.1: **un `403` no es un fallo del sistema, es el sistema funcionando**, y va a `audit_security_log`; un `404` no deja rastro en la auditoría de error. `RF-SP-001` §2 y §6 y `RF-SP-002` §6 ya lo aplicaban bien; los planes de `RF-SP-004` a `RF-SP-009` no. Se corrigen los seis a la vez.
+
+    **La severidad se mantiene Alta.** `RF-SP-014` §2 asigna `MEDIA` por omisión a `AUTHORIZATION_DENIED`, y aquí se emite con `ALTA`. El esquema no liga `event_type` con `severity` precisamente para permitirlo (`RF-SP-014` §9), y la distinción importa: `AUTH-002` es alguien tropezando con un permiso que no tiene; `RN-SEG-011` es alguien intentando operar sobre su propio rol, que es la prohibición que este módulo más necesita poder buscar.
+
+    **Lo emite el caso de uso, no la capa de seguridad.** `RN-SEG-011` no puede verificarse antes de leer el rol, de modo que el evento sale de `application` y no del filtro de autorización. Es una ampliación del emisor que `RF-SP-014` §2 atribuye hoy en exclusiva a la «capa de seguridad»; queda declarada en §8.
 
 El diff lo produce el dominio, no la capa de persistencia: `Role.rename` devuelve qué campos mutaron. Un listener de JPA registraría la fila entera y no sabría distinguir un cambio efectivo de una escritura idéntica.
 
@@ -146,15 +162,20 @@ Ejemplo de `changes`:
 | Elemento | Transacción |
 |---|---|
 | Actualización del rol y su evento en `audit_change_log` | **La misma** (Art. V.14) |
-| Evento en `audit_security_log` | **Independiente**, `REQUIRES_NEW`, enganchada al commit |
+| Evento de éxito en `audit_security_log` | **Independiente**, `REQUIRES_NEW`, enganchada al commit |
+| Evento `AUTHORIZATION_DENIED` de `RN-SEG-011` | **Independiente**, `REQUIRES_NEW`, emitido **sin esperar al commit** |
 
 El evento de seguridad se emite **después** de que la transacción de negocio confirme, igual que en `RF-SP-001`. Emitirlo antes dejaría constancia de una edición que pudo revertirse.
+
+El del rechazo es el caso contrario y por eso no se engancha al commit: se emite mientras la transacción de negocio se revierte, que es exactamente para lo que `RF-SP-001` §7 reserva `REQUIRES_NEW`. Enganchado al commit no se escribiría nunca, porque commit no hay.
 
 ## 8. Impacto sobre otros módulos
 
 Ninguno. La edición no altera permisos ni estado, de modo que **no invalida la caché de resolución** de `security.md` §4.5: el nombre de un rol no interviene en la autorización.
 
 Es la diferencia con `RF-SP-005`, `RF-SP-006` y `RF-SP-007`, que sí deben invalidarla. Conviene no copiar de aquí a esos.
+
+**Sobre `RF-SP-014`, una anotación pendiente.** Su §2 atribuye `AUTHORIZATION_DENIED` a la «capa de seguridad» como emisor único y le asigna severidad `MEDIA`. Desde la corrección de §6, los casos de uso de `RF-SP-004` a `RF-SP-009` también lo emiten, con severidad `ALTA`, para `RN-SEG-011`. No cambia ni el literal ni el esquema —`ck_audit_security_log_event_type` ya lo admite y la severidad no está ligada al tipo—, de modo que no invalida nada de aquel plan: le falta una fila en la columna de emisores, y su compuerta se tramita aparte.
 
 ## 9. Alternativas consideradas
 

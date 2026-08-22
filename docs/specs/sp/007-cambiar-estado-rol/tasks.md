@@ -5,7 +5,7 @@
 | Requerimiento | `RF-SP-007` |
 | Especificación | [`spec.md`](spec.md) |
 | Plan | [`plan.md`](plan.md) |
-| `plan.md` aprobado el | 21-08-2026 |
+| `plan.md` aprobado el | 21-08-2026, **reabierto el 22-08-2026** por la corrección de su §6 |
 | Estado | **En revisión** |
 | Issue | Pendiente de crear |
 | Rama | `feature/cambiar-estado-rol` |
@@ -33,7 +33,7 @@ Sin migración: `status` y `ck_roles_status` los crea `V5__create_roles.sql` (`R
 | `T-02` | `application/ChangeRoleStatusService` con `@Transactional` y el orden de verificación —existencia, rol de sistema o raíz, `RN-SEG-011`— reutilizando `RoleChangeAuditor` y `RolePermissionCacheInvalidator` | `T-01` | Pruebas con dobles: cada excepción en su orden; sin cambio efectivo no se invoca ni el auditor ni el invalidador | Pendiente |
 | `T-03` | Auditoría del cambio: `audit_change_log` con `action = UPDATE` y solo `status` en el diff, evento de seguridad de severidad **Alta** tras el commit, y ningún evento si no hubo cambio | `T-02` | Prueba de integración: desactivar deja una fila en cada registro; repetir la petición no deja ninguna | Pendiente |
 | `T-04` | Invalidación de la caché de permisos del rol **después** del commit, por el único método del puerto: invalidar por rol | `T-02` | Prueba de integración: la invalidación ocurre tras confirmar, nunca antes | Pendiente |
-| `T-05` | Auditoría de los rechazos: severidad **Alta** para `RN-SEG-011` y para el intento sobre el rol raíz, **Media** para el resto; los `400` de formato no se auditan | `T-02` | Prueba de integración: cada rechazo deja su fila con su `error_code`, y el del rol raíz cita `RN-SEG-007` | Pendiente |
+| `T-05` | Auditoría de los rechazos, **cada uno en el registro que le corresponde** (`plan.md` §6): `EX-001` en `audit_error_log`, con severidad **Alta** para el intento sobre el rol raíz y Media para el rol de sistema; `EX-002` —el `403` de `RN-SEG-011`— en `audit_security_log` con `event_type = 'AUTHORIZATION_DENIED'` y severidad **Alta**, en transacción independiente y sin esperar a un commit que no llega; `EX-003` (`404`) y los `400` de formato no se auditan | `T-02` | Prueba de integración: `EX-001` deja su fila en `audit_error_log` con su `error_code`, y la del rol raíz cita `RN-SEG-007`; `EX-002` deja la suya en `audit_security_log` y **ninguna** en `audit_error_log`; `EX-003` y un `400` no dejan ninguna en ninguno de los dos registros | Pendiente |
 | `T-06` | `api/ChangeRoleStatusRequest`: **estado destino**, no acción; sin campo de motivo y con rechazo de propiedades desconocidas | `T-02` | Prueba de API: un cuerpo con motivo devuelve `400`, no se ignora; un estado fuera del dominio devuelve `400` con `VAL-001` | Pendiente |
 | `T-07` | `api/RoleController`: añade `PATCH /api/v1/roles/{id}/status` con el permiso `roles:update`, devolviendo `RoleResponse` | `T-04`, `T-06` | Prueba de API: `200` con el estado actualizado; el `409` del rol de sistema cita `RN-SEG-012` y el del raíz, `RN-SEG-007` | Pendiente |
 | `T-08` | Prueba de que un rol inactivo deja de conceder permisos **de inmediato**, resolviendo los permisos de un portador real con su token aún vigente | `T-07` | Tras desactivar, la resolución de permisos de ese portador ya no incluye los del rol. No vale leer la columna `status` | Pendiente |
@@ -85,6 +85,7 @@ graph LR
 | 1 | `T-08` exige un portador real del rol, lo que depende de `user_roles` (`RF-SP-030`). Sin esa tabla, `CA-SP-050` no es verificable como el plan exige | 21-08-2026 | Responsable técnico | Abierto |
 | 2 | `T-04` reutiliza el puerto de invalidación que estrena `RF-SP-005`: ese requerimiento debe integrarse antes | 21-08-2026 | Responsable técnico | Abierto |
 | 3 | La caché es en memoria del proceso: con más de una instancia del backend, la invalidación solo alcanza a la que atendió la petición (`plan.md` §10, aceptado). No bloquea estas tareas; se dispara el día que se despliegue una segunda instancia, y afecta igual a `RF-SP-005`, `RF-SP-006` y `RF-SP-009` | 21-08-2026 | Responsable técnico | Abierto |
+| 4 | `plan.md` §6 se corrigió el 22-08-2026 —el `403` de `RN-SEG-011` y el `404` no caben en `audit_error_log`— y volvió a **En revisión**. Ninguna tarea se ejecuta hasta que ese plan se apruebe de nuevo (Art. I.6) | 22-08-2026 | Responsable técnico | Abierto |
 
 ## 5. Definición de terminado
 

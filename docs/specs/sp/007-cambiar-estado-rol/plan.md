@@ -9,6 +9,8 @@
 | Autor | Responsable técnico |
 | Aprobado por | Responsable técnico |
 | Fecha de aprobación | 21-08-2026 |
+| Reabierto el | 22-08-2026 — corrección de §6, ver la nota al final de esa sección (Art. I.7) |
+| Reaprobado el | 22-08-2026 — Responsable del proyecto, verificada la corrección contra `ck_audit_error_log_status` |
 
 ---
 
@@ -97,12 +99,22 @@ El rechazo de un campo desconocido es lo que hace verificable `CA-SP-159`: sin �
 | Cambio efectivo | `audit_change_log` | `action = UPDATE`, con `changes` conteniendo solo `status`, con su antes y su después |
 | Cambio efectivo | `audit_security_log` | Cambio de estado de un rol, severidad **Alta** |
 | Sin cambio efectivo | — | **Ningún evento** |
-| Rechazo por `EX-001` a `EX-003` | `audit_error_log` | `resource = 'roles'`, `operation` con método y ruta, `error_code` de la tabla de §4, `error_type = 'BUSINESS_RULE'`, `http_status`, `severity` y `message` saneado. Severidad **Alta** para `RN-SEG-011` y para el intento sobre el rol raíz; **Media** para el resto |
+| Rechazo `409` por `EX-001` | `audit_error_log` | `resource = 'roles'`, `operation` con método y ruta, `error_code` de la tabla de §4, `error_type = 'BUSINESS_RULE'`, `http_status`, `severity` y `message` saneado. Severidad **Alta** para el intento sobre el **rol raíz** (`RN-SEG-007`); **Media** para el rol de sistema (`RN-SEG-012`) |
+| Rechazo `403` por `EX-002` (`RN-SEG-011`) | `audit_security_log` | `event_type = 'AUTHORIZATION_DENIED'`, `severity = 'ALTA'`, `outcome = 'FAILURE'`, `entity_id` del rol. **No** va a `audit_error_log` |
+| Rechazo `404` por `EX-003` | — | **No se audita** en la auditoría de error (`architecture.md` §6.6.4) |
 | Rechazo `400` de formato | — | **No se audita** (`architecture.md` §6.6.4) |
-| Denegación `403` por `AUTH-002` | `audit_security_log` | `event_type` de denegación de autorización, `severity = 'MEDIA'`, `outcome = 'FAILURE'`. Lo emite la capa de seguridad compartida |
+| Denegación `403` por `AUTH-002` | `audit_security_log` | `event_type = 'AUTHORIZATION_DENIED'`, `severity = 'MEDIA'`, `outcome = 'FAILURE'`. Lo emite la capa de seguridad compartida |
 | Fallo no controlado `5xx` | `audit_error_log` | `error_type = 'UNHANDLED'`, `severity = 'ALTA'` |
 
-La severidad es Alta y no Media porque desactivar un rol retira acceso a todos sus portadores a la vez. Es, en efecto, una revocación masiva, aunque el mecanismo sea distinto.
+La severidad del **cambio efectivo** es Alta y no Media porque desactivar un rol retira acceso a todos sus portadores a la vez. Es, en efecto, una revocación masiva, aunque el mecanismo sea distinto.
+
+!!! warning "Corrección del 22-08-2026 — el `403` y el `404` no caben en `audit_error_log`"
+
+    Este plan llevaba los tres rechazos a `audit_error_log`, y `ck_audit_error_log_status` —`CHECK (http_status NOT IN (400, 401, 403, 404))`, de `RF-SP-013` §2— rechaza dos de ellos: el `403` de `EX-002` y el `404` de `EX-003`. El razonamiento completo, la frontera de `architecture.md` §6.6.4 y por qué la severidad se mantiene Alta están en **`RF-SP-004` §6**, que corrige lo mismo.
+
+    Aquí `RN-SEG-011` evita que alguien se desactive su propio acceso (§5), de modo que el rechazo que la tabla ordenaba registrar —y que la restricción habría impedido escribir— es precisamente el que delata a quien lo intenta.
+
+    El evento lo emite el caso de uso y no la capa de seguridad, porque `RN-SEG-011` no puede verificarse antes de leer el rol. Impacto sobre `RF-SP-014` declarado en §8.
 
 ## 7. Transaccionalidad
 
@@ -110,7 +122,8 @@ La severidad es Alta y no Media porque desactivar un rol retira acceso a todos s
 |---|---|
 | Actualización de `status` y su evento en `audit_change_log` | **La misma** (Art. V.14) |
 | Invalidación de la caché de permisos | Tras el commit, nunca antes |
-| Evento en `audit_security_log` | **Independiente**, `REQUIRES_NEW`, enganchada al commit |
+| Evento de éxito en `audit_security_log` | **Independiente**, `REQUIRES_NEW`, enganchada al commit |
+| Evento `AUTHORIZATION_DENIED` de `RN-SEG-011` | **Independiente**, `REQUIRES_NEW`, emitido **sin esperar al commit**: se escribe mientras la transacción se revierte (`RF-SP-004` §7) |
 
 ## 8. Impacto sobre otros módulos
 
@@ -123,6 +136,8 @@ Es la diferencia con `RF-SP-005` y `RF-SP-006`, donde cambia **qué** concede el
 **Ningún rol hijo se ve afectado**, y el plan lo hace explícito porque es la suposición contraria la que resulta intuitiva.
 
 **`RF-SP-005` no debe verificar el estado del rol padre.** Su contención se mide sobre permisos declarados, que no cambian al desactivar. Añadir una comprobación de estado allí sería una regla que nadie pidió y que impediría reorganizar un área suspendida.
+
+**`RF-SP-014` §2** atribuye `AUTHORIZATION_DENIED` a la «capa de seguridad» como emisor único y con severidad `MEDIA`. Desde la corrección de §6, este caso de uso también lo emite, con severidad `ALTA`, para `RN-SEG-011`. No invalida aquel plan: le falta una fila en su columna de emisores, y esa compuerta se tramita aparte (`RF-SP-004` §8).
 
 ## 9. Alternativas consideradas
 

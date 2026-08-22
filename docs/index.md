@@ -58,6 +58,14 @@ Esta documentación es parte del repositorio y se versiona junto al código (Art
 
     [:octicons-arrow-right-24: Ver la trazabilidad](requirements.md)
 
+-   :material-arrow-decision:{ .lg .middle } **Flujos**
+
+    ---
+
+    Los flujos de cada módulo, dibujados: cómo se encadenan sus requerimientos entre sí y, caso por caso, por dónde sale la operación cuando una verificación falla.
+
+    [:octicons-arrow-right-24: Ver los flujos](flujos/sp/flujos-del-modulo.md)
+
 -   :material-code-braces:{ .lg .middle } **Guía de desarrollo**
 
     ---
@@ -118,7 +126,8 @@ Ninguna línea de código se escribe antes de que la tripleta esté aprobada (Ar
 | [Requerimientos y trazabilidad](requirements.md) | 0.17.0 | Borrador |
 | [Guía de desarrollo](development-guide.md) | 0.5.0 | Borrador |
 | [Requerimientos de `SP`](requirements/sp.md) | 1.10.0 | **Aprobado** |
-| [Flujos de `SP`](requirements/sp-flujos.md) | 0.1.0 | Borrador |
+| [Flujos de `SP` · del módulo](flujos/sp/flujos-del-modulo.md) | 0.2.0 | Borrador |
+| [Flujos de `SP` · por caso](flujos/sp/flujos-por-caso.md) | 0.2.0 | Borrador |
 | Estrategia de pruebas | — | Pendiente |
 
 ### Decisiones

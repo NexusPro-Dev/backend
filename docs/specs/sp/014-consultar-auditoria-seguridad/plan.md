@@ -9,6 +9,9 @@
 | Autor | Responsable técnico |
 | Aprobado por | Responsable técnico |
 | Fecha de aprobación | 21-08-2026 |
+| Reabierto el | 22-08-2026 — §2 gana `USER_CREATED` y `EMAIL_CHANGED`, y `AUTHORIZATION_DENIED` pasa a tener dos emisores (Art. I.7) |
+| Reabierto el | 22-08-2026 — §2 gana `USER_DELETED` al aprobarse el plan de `RF-SP-029`, y `AUTHORIZATION_DENIED` suma los emisores de `RN-SP-017` (Art. I.7) |
+| Reaprobado el | 22-08-2026 — Responsable del proyecto |
 
 !!! info "Qué va en este documento"
 
@@ -47,7 +50,7 @@ CREATE INDEX ix_audit_security_log_occurred_at
 
 **Es el mismo caso de `RF-SP-011` §2**, por las mismas razones y sin repetir el argumento: ninguno de los cuatro índices mínimos de `architecture.md` §6.6.6 sirve al listado sin filtros ordenado por fecha, y el desempate por `id` es gratis y sigue siendo cronológico por ser UUID v7.
 
-**Qué índices no se crean.** `event_type` tiene dieciséis valores, pero su distribución está muy sesgada —`LOGIN_SUCCESS` será con holgura el más numeroso— y filtrar por el valor dominante no acota nada; `severity` tiene tres valores y `outcome` dos. Los tres se aplican barato sobre el conjunto que ya redujeron el rango de fechas, el actor o el usuario afectado. El criterio sigue siendo el de `RF-SP-011` §2: el mínimo que sostiene las consultas reales, porque cada índice de una tabla de auditoría se paga en la transacción que emite el evento.
+**Qué índices no se crean.** `event_type` tiene diecinueve valores, pero su distribución está muy sesgada —`LOGIN_SUCCESS` será con holgura el más numeroso— y filtrar por el valor dominante no acota nada; `severity` tiene tres valores y `outcome` dos. Los tres se aplican barato sobre el conjunto que ya redujeron el rango de fechas, el actor o el usuario afectado. El criterio sigue siendo el de `RF-SP-011` §2: el mínimo que sostiene las consultas reales, porque cada índice de una tabla de auditoría se paga en la transacción que emite el evento.
 
 `FA-001` —la investigación de una cuenta, que es el flujo para el que existe esta consulta— **ya está sostenido**: `ix_audit_security_log_target_user_id` sobre `(target_user_id, occurred_at DESC)` lo crea `V4` y resuelve entero el filtro por usuario afectado más rango, sin paso de ordenamiento.
 
@@ -64,7 +67,7 @@ CREATE INDEX ix_audit_security_log_ip_address
 
 `security.md` §8.2 explica por qué aquí y no en las otras tres: «un intento de fuerza bruta se reconoce por el origen, no por el nombre de usuario». Esa investigación **siempre** lleva rango de fechas —interesa la ráfaga, no todo lo que esa dirección hizo en dos años—, y el índice compuesto la resuelve ya ordenada. Sigue sirviendo la consulta por IP a secas, porque `ip_address` es su columna de prefijo, de modo que el mínimo de `architecture.md` §6.6.6 se cumple; ese documento pasa a recoger el refinamiento (§8).
 
-**2. El `CHECK` de `event_type` enumera los dieciséis códigos.** `V4` lo declaraba por referencia a `security.md` §8.1, que está escrito en prosa. Un dominio cerrado que ningún literal fija no es un dominio cerrado: cada requerimiento que emitiera un evento inventaría su propia forma de escribirlo —`LOGIN_FAILED`, `login_failure`, `FALLO_LOGIN`— y el filtro de este endpoint devolvería resultados incompletos sin que nada fallara.
+**2. El `CHECK` de `event_type` enumera los diecinueve códigos.** `V4` lo declaraba por referencia a `security.md` §8.1, que está escrito en prosa. Un dominio cerrado que ningún literal fija no es un dominio cerrado: cada requerimiento que emitiera un evento inventaría su propia forma de escribirlo —`LOGIN_FAILED`, `login_failure`, `FALLO_LOGIN`— y el filtro de este endpoint devolvería resultados incompletos sin que nada fallara.
 
 | Código | Evento de `security.md` §8.1 | Severidad | `outcome` | Lo emite |
 |---|---|---|---|---|
@@ -73,16 +76,19 @@ CREATE INDEX ix_audit_security_log_ip_address
 | `ACCOUNT_LOCKED` | Bloqueo de cuenta por intentos fallidos | `ALTA` | `FAILURE` | `RF-SP-034` |
 | `REFRESH_TOKEN_REUSE` | Reutilización de un refresh token revocado | `ALTA` | `FAILURE` | `RF-SP-035` |
 | `LOGOUT` | Cierre de sesión | `INFORMATIVA` | `SUCCESS` | `RF-SP-036` |
-| `AUTHORIZATION_DENIED` | Denegación de autorización (`403`) | `MEDIA` | `FAILURE` | Capa de seguridad |
+| `AUTHORIZATION_DENIED` | Denegación de autorización (`403`) | `MEDIA` **o** `ALTA` | `FAILURE` | Capa de seguridad **y** los casos de uso de `RF-SP-004` a `RF-SP-009` (`RN-SEG-011`) y de `RF-SP-028`, `RF-SP-029`, `RF-SP-038` y `RF-SP-041` (`RN-SP-017`) |
 | `ROLE_CREATED` | Creación de un rol | `ALTA` | `SUCCESS` | `RF-SP-001` |
 | `ROLE_UPDATED` | Modificación de un rol | `ALTA` | `SUCCESS` | `RF-SP-004`, `RF-SP-007`, `RF-SP-008` |
 | `ROLE_DELETED` | Eliminación de un rol | `ALTA` | `SUCCESS` | `RF-SP-009` |
 | `ROLE_PERMISSIONS_CHANGED` | Cambio de permisos de un rol | `ALTA` | `SUCCESS` | `RF-SP-005`, `RF-SP-006` |
 | `USER_ROLES_ASSIGNED` | Asignación de roles a un usuario | `ALTA` | `SUCCESS` | `RF-SP-030` |
 | `USER_ROLES_REVOKED` | Retiro de roles a un usuario | `ALTA` | `SUCCESS` | `RF-SP-031` |
-| `USER_STATUS_CHANGED` | Cambio de estado de un usuario | `ALTA` | `SUCCESS` | `RF-SP-028`, `RF-SP-029` |
+| `USER_STATUS_CHANGED` | Cambio de estado de un usuario | `ALTA` | `SUCCESS` | `RF-SP-028` |
+| `USER_DELETED` | **Nuevo** — baja de un usuario | `ALTA` | `SUCCESS` | `RF-SP-029` |
 | `PASSWORD_CHANGED` | Cambio de contraseña | `ALTA` | `SUCCESS` | `RF-SP-037` |
 | `PASSWORD_RESET` | Restablecimiento de contraseña | `ALTA` | `SUCCESS` | `RF-SP-038` |
+| `USER_CREATED` | Alta de un usuario | `ALTA` | `SUCCESS` | `RF-SP-024` |
+| `EMAIL_CHANGED` | Cambio del correo de un usuario | `ALTA` | `SUCCESS` | `RF-SP-027` |
 | `SECURITY_AUDIT_READ` | **Nuevo** — consulta de este registro | `INFORMATIVA` | `SUCCESS` | `RF-SP-014` |
 
 ```sql
@@ -90,11 +96,29 @@ CONSTRAINT ck_audit_security_log_event_type CHECK (event_type IN (
     'LOGIN_SUCCESS', 'LOGIN_FAILURE', 'ACCOUNT_LOCKED', 'REFRESH_TOKEN_REUSE',
     'LOGOUT', 'AUTHORIZATION_DENIED',
     'ROLE_CREATED', 'ROLE_UPDATED', 'ROLE_DELETED', 'ROLE_PERMISSIONS_CHANGED',
-    'USER_ROLES_ASSIGNED', 'USER_ROLES_REVOKED', 'USER_STATUS_CHANGED',
+    'USER_CREATED', 'EMAIL_CHANGED',
+    'USER_ROLES_ASSIGNED', 'USER_ROLES_REVOKED', 'USER_STATUS_CHANGED', 'USER_DELETED',
     'PASSWORD_CHANGED', 'PASSWORD_RESET',
     'SECURITY_AUDIT_READ'
 ))
 ```
+
+!!! warning "Ampliación del 22-08-2026 — `USER_DELETED`, y el `CHECK` pasa a diecinueve"
+
+    Al aprobarse el `plan.md` de `RF-SP-029` se detectó que **la baja de una persona no tenía código**, y que esta tabla la resolvía atribuyéndole `USER_STATUS_CHANGED`. Es incorrecto por dos motivos, y ambos salen de criterios que este mismo plan declara:
+
+    - **«Quién eliminó usuarios» es una pregunta que se hace al filtrar**, y el criterio de abajo dice que las operaciones que se preguntan por separado se desdoblan. Con un código compartido, responderla exigiría filtrar sobre `jsonb`.
+    - **La eliminación ni siquiera cambia el estado.** `RF-SP-029` §4 conserva `status` tal como estaba, para que el registro de eliminación diga en qué situación estaba la persona; llamar «cambio de estado» a una operación que no lo toca describiría mal el hecho.
+
+    Y quedaba una asimetría: existe `ROLE_DELETED` y no existía su equivalente para las personas. `security.md` §8.1 gana la fila «Baja de un usuario — Alta — `SUCCESS`» en la misma compuerta.
+
+!!! warning "Ampliación del 22-08-2026 — dos códigos que faltaban y un emisor que no era único"
+
+    **`USER_CREATED` y `EMAIL_CHANGED` se añaden al dominio cerrado.** Los dieciséis originales reflejaban `security.md` §8.1 tal como estaba el 21-08-2026 por la mañana. Ese catálogo ganó después «cambio del correo de un usuario» —al aprobarse `RF-SP-027`, el mismo 21— y «alta de un usuario» —al aprobarse el plan de `RF-SP-024`, el 22—, y este `CHECK` no se movió. La consecuencia no era teórica: `RF-SP-024` §6 ordena emitir `USER_CREATED`, y **la restricción lo habría rechazado en la transacción `REQUIRES_NEW` de la auditoría**, justo después de un alta correcta. Se aplica aquí el criterio que este mismo plan declara dos párrafos más abajo: se codifican también los eventos de requerimientos aún sin plan, porque un valor que nadie escribe es inerte y una migración por requerimiento no lo es.
+
+    **El bloqueo manual de una cuenta no gana código propio.** `security.md` §8.1 lo lista como fila aparte desde `RF-SP-028`, pero es un cambio de estado y `USER_STATUS_CHANGED` lo cubre con la misma severidad y el mismo `outcome`; qué clase de bloqueo fue vive en `detail`, junto con su motivo obligatorio. Desdoblarlo solo tendría sentido si alguien fuera a filtrar «bloqueos manuales» sin filtrar cambios de estado, y esa pregunta no aparece en `spec.md`.
+
+    **`AUTHORIZATION_DENIED` tiene dos emisores y dos severidades.** La capa de seguridad lo emite con `MEDIA` cuando alguien tropieza con un permiso que no tiene; los casos de uso de `RF-SP-004` a `RF-SP-009` lo emiten con `ALTA` cuando salta `RN-SEG-011` —alguien operando sobre su propio rol—, porque esa regla **no puede verificarse antes de leer el rol** y porque es la prohibición que este módulo más necesita poder buscar. Que el esquema no ligue `event_type` con `severity` es justo lo que lo permite, y esa decisión ya estaba tomada abajo: aquí queda su primer caso real.
 
 Cuatro decisiones sobre esa tabla:
 
@@ -116,7 +140,7 @@ Paquete raíz: `com.factech.nexus.modules.system`. El reparto es el de `RF-SP-01
 | `application` | `SecurityAuditQuery` | Nuevo | Criterios ya validados y normalizados |
 | `application` | `SecurityAuditItem` | Nuevo | Modelo de lectura |
 | `application` | `SecurityAuditQueryRepository` | Nuevo | Puerto de consulta |
-| `application` | `SecurityEventType` | Nuevo | Enum cerrado con los dieciséis códigos de §2 |
+| `application` | `SecurityEventType` | Nuevo | Enum cerrado con los diecinueve códigos de §2 |
 | `application` | `SecuritySeverity` | Nuevo | Enum cerrado `INFORMATIVA`, `MEDIA`, `ALTA` |
 | `application` | `SecurityOutcome` | Nuevo | Enum cerrado `SUCCESS`, `FAILURE` |
 | `infrastructure` | `JpaSecurityAuditQueryRepository` | Nuevo | Adaptador. Predicado, proyección y conteo acotado |
@@ -157,7 +181,7 @@ GET /api/v1/audit/security?page=0&size=20
 | Parámetro | Tipo | Por defecto | Notas |
 |---|---|---|---|
 | `page`, `size` | entero | `0`, `20` | Igual que en `RF-SP-011` §4 |
-| `eventType` | enum | — | Uno de los dieciséis de §2. Otro → `VAL-003` |
+| `eventType` | enum | — | Uno de los diecinueve de §2. Otro → `VAL-003` |
 | `severity` | enum | — | `INFORMATIVA`, `MEDIA` o `ALTA`. Otro → `VAL-003` |
 | `outcome` | enum | — | `SUCCESS` o `FAILURE`. Otro → `VAL-003` |
 | `actorId` | UUID | — | Quien ejecutó la acción. No se valida que exista |
@@ -288,11 +312,13 @@ Dos matices que este requerimiento estrena y que ningún otro de los cuatro tien
 
 | Módulo | Impacto |
 |---|---|
-| `RF-SP-001` | Su `V4__create_audit_logs.sql` gana los dieciséis literales de `ck_audit_security_log_event_type` y el índice compuesto por origen. **Además, su evento de alta de rol pasa a llamarse `ROLE_CREATED`**, que hasta ahora era «`event_type` de creación de rol» sin literal. El plan queda anotado |
+| `RF-SP-001` | Su `V4__create_audit_logs.sql` gana los diecinueve literales de `ck_audit_security_log_event_type` y el índice compuesto por origen. **Además, su evento de alta de rol pasa a llamarse `ROLE_CREATED`**, que hasta ahora era «`event_type` de creación de rol» sin literal. El plan queda anotado |
 | `security.md` | §8.1 incorpora la columna de código y la fila de `SECURITY_AUDIT_READ`, para que documento y esquema no diverjan (Art. XII.3). §8.2 recoge que el índice por origen de esta tabla es compuesto |
 | `architecture.md` | §6.6.6 declara que el índice mínimo `(ip_address)` se refina a `(ip_address, occurred_at DESC)` en `audit_security_log` |
 | **`RF-SP-034`** | Obligación declarada: `LOGIN_FAILURE` lleva `target_user_id` **siempre nulo**, exista o no la cuenta, y el identificador intentado en `detail`. Es lo que hace cumplible `CA-SP-109`, y no puede decidirse allí sin contradecir este plan |
 | `RF-SP-035` a `RF-SP-038` | Emiten los códigos que §2 les asigna. Ninguno inventa el suyo |
+| **`RF-SP-024` y `RF-SP-027`** | Emiten `USER_CREATED` y `EMAIL_CHANGED`, añadidos al dominio cerrado el 22-08-2026. Sin esa ampliación, el evento del alta lo habría rechazado `ck_audit_security_log_event_type` **dentro de la transacción `REQUIRES_NEW` de la auditoría**, justo después de un alta correcta: el síntoma habría sido un fallo secundario sin relación aparente con la operación que lo produjo |
+| **`RF-SP-004` a `RF-SP-009`** | Emiten `AUTHORIZATION_DENIED` con severidad **`ALTA`** desde el caso de uso cuando salta `RN-SEG-011`, y no desde la capa de seguridad. Quien implemente el filtro de este endpoint debe saber que ese código llega con dos severidades y dos orígenes: filtrar solo por `MEDIA` dejaría fuera precisamente los intentos de operar sobre el propio rol |
 | `RF-SP-004` a `RF-SP-009`, `RF-SP-028` a `RF-SP-031` | Ídem. `ROLE_UPDATED` cubre la edición, el cambio de estado y el cambio de padre: los tres son «modificación de un rol» en `security.md` §8.1, y qué cambió se responde en `audit_change_log`, no aquí |
 | `shared/audit` | Recibe el enum de tipos de evento como valor y gana un cliente más. Sin cambios estructurales |
 | `shared/api` | Ninguno. `PageResponse<T>` y `BoundedCount` se reutilizan tal cual |
@@ -353,7 +379,7 @@ Casos límite de `spec.md` §13 y decisiones de este plan que exigen prueba prop
 |---|---|---|
 | El evento de la consulta no aparece en su propia respuesta | Integración | Dos consultas consecutivas: la primera no contiene su propio evento; la segunda sí contiene el de la primera. Es lo que verifica que se emite fuera de la transacción de lectura |
 | Fallo al escribir el evento de la consulta | Integración | Con el escritor forzado a fallar, la consulta **responde `200` igual** y queda constancia del fallo en el log de aplicación |
-| Catálogo de tipos de evento | Integración | `ck_audit_security_log_event_type` acepta los dieciséis literales de §2 y rechaza cualquier otro, incluidas variantes de capitalización |
+| Catálogo de tipos de evento | Integración | `ck_audit_security_log_event_type` acepta los diecinueve literales de §2 y rechaza cualquier otro, incluidas variantes de capitalización |
 | Correspondencia de severidad | Integración | Cada evento que el sistema emite lleva la severidad y el `outcome` que §2 le asigna. Sin esta prueba, la correspondencia queda solo en la documentación |
 | Reutilización de refresh token revocado | Integración | Se registra con `REFRESH_TOKEN_REUSE` y `severity = 'ALTA'`, y se localiza filtrando por severidad. Es el caso límite de mayor gravedad de `spec.md` §13 |
 | Ráfaga de intentos fallidos | Integración | Cien intentos producen cien eventos, no uno agrupado; el bloqueo produce uno propio, y todos se recuperan filtrando por `ipAddress` y rango |

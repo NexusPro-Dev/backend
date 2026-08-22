@@ -8,6 +8,7 @@
 | Autor | Responsable técnico |
 | Aprobada por | Responsable técnico |
 | Fecha de aprobación | 21-08-2026 |
+| Enmendada | 22-08-2026 — `RN-SP-022` rechaza eliminar a quien tiene equipo a cargo, y la asignación de superior se cierra en lugar de desaparecer, al registrarse `RF-SP-041` (Art. I.7) |
 
 ---
 
@@ -64,6 +65,7 @@ Eso resuelve de paso una pregunta que quedaba colgando: `RN-SEG-008` impide elim
 | `RN-SP-001` | Debe existir siempre al menos un usuario activo con el rol raíz | `requirements/sp.md` §5.1 |
 | `RN-SP-016` | El nombre de usuario y el correo **no se liberan al eliminar** | `requirements/sp.md` §5.1 |
 | `RN-SP-017` | El actor no aplica la operación sobre su propia cuenta | `requirements/sp.md` §5.1 |
+| `RN-SP-022` | No se elimina a quien tiene personas a su cargo | `requirements/sp.md` §5.1 |
 
 ## 6. Datos
 
@@ -88,11 +90,13 @@ Eso resuelve de paso una pregunta que quedaba colgando: `RN-SEG-008` impide elim
 - El usuario existe y no está eliminado.
 - El usuario no es el propio actor.
 - Si el usuario porta el rol raíz, existe otro usuario activo que también lo porta.
+- El usuario **no tiene a nadie a cargo** (`RN-SP-022`).
 
 **Postcondiciones**
 
 - El usuario queda marcado como eliminado y deja de aparecer en las consultas por defecto.
 - **Sus roles y su membresía quedan retirados**: esas filas desaparecen, y con ellas deja de contar para `RN-SEG-008`.
+- Su asignación de superior comercial, si la tenía, **se cierra con la fecha de la eliminación en lugar de desaparecer**. La asimetría con los roles y la membresía es deliberada: aquellos dicen qué podía hacer hoy y no significan nada una vez la persona se va; el historial de mando dice **a quién se atribuía su producción**, y eso lo necesitarán las comisiones mucho después de la baja (`RN-SP-021`).
 - No puede autenticarse, y todos sus refresh tokens quedan revocados.
 - Su nombre de usuario y su correo **siguen reservados**: ningún alta posterior puede tomarlos.
 - Su identificador sigue resolviendo a un usuario, de modo que los eventos de auditoría que lo referencian siguen siendo legibles.
@@ -105,13 +109,14 @@ Eso resuelve de paso una pregunta que quedaba colgando: `RN-SEG-008` impide elim
 3. El sistema verifica que el usuario exista y no esté ya eliminado.
 4. El sistema verifica que el usuario no sea el propio actor.
 5. Si el usuario porta el rol raíz, el sistema verifica que no sea el último activo que lo porta.
-6. El sistema registra el estado del usuario al momento de eliminarse, **incluidos sus roles y su membresía**, antes de tocar nada.
-7. El sistema marca el usuario como eliminado y **retira sus roles y su membresía**.
-8. El sistema revoca todos sus refresh tokens.
-9. El sistema registra el evento en la auditoría de eliminación, con el motivo y ese estado, y en la de seguridad.
-10. El sistema confirma la eliminación.
+6. El sistema verifica que el usuario no tenga a nadie a cargo.
+7. El sistema registra el estado del usuario al momento de eliminarse, **incluidos sus roles, su membresía y su superior comercial**, antes de tocar nada.
+8. El sistema marca el usuario como eliminado, **retira sus roles y su membresía** y **cierra su asignación de superior**.
+9. El sistema revoca todos sus refresh tokens.
+10. El sistema registra el evento en la auditoría de eliminación, con el motivo y ese estado, y en la de seguridad.
+11. El sistema confirma la eliminación.
 
-El orden de los pasos 6 y 7 no es indiferente: si las asignaciones se borraran antes de capturar el estado, el evento de auditoría quedaría sin ellas y la información se perdería sin que nada fallara.
+El orden de los pasos 7 y 8 no es indiferente: si las asignaciones se borraran antes de capturar el estado, el evento de auditoría quedaría sin ellas y la información se perdería sin que nada fallara.
 
 ## 9. Flujos alternativos
 
@@ -139,6 +144,13 @@ Ninguno. La eliminación no admite variantes: o se cumplen todas las condiciones
 **Condición:** el identificador no corresponde a ningún usuario, o el usuario ya está eliminado.
 **Respuesta del sistema:** rechaza la operación e informa que el usuario no existe, sin distinguir entre nunca haber existido y haber sido eliminado (Art. V.13).
 
+### EX-005 — La persona tiene equipo a cargo
+
+**Condición:** hay al menos una asignación vigente que declara superior a esta persona.
+**Respuesta del sistema:** rechaza la eliminación, cita `RN-SP-022` e informa cuántas personas tiene a cargo, sin listarlas. Se reasignan una a una con `RF-SP-041` antes de poder eliminarla.
+
+Es la misma protección que `RN-SEG-008` da a un rol con hijos, y por el mismo motivo: la baja de una persona no puede decidir en silencio a quién pasa a reportar el equipo que dependía de ella.
+
 ## 11. Validaciones
 
 | ID | Validación | Mensaje esperado |
@@ -147,6 +159,7 @@ Ninguno. La eliminación no admite variantes: o se cumplen todas las condiciones
 | `VAL-002` | Motivo no vacío tras recortar los extremos | Debe indicar el motivo de la eliminación. |
 | `VAL-003` | El actor no es el usuario afectado | No es posible eliminar su propia cuenta. |
 | `VAL-004` | No es el último superadministrador activo | No es posible eliminar al último administrador del sistema. |
+| `VAL-005` | La persona no tiene a nadie a cargo | Esta persona tiene personas a su cargo; reasígnelas antes de eliminarla. |
 
 ## 12. Criterios de aceptación
 
@@ -161,6 +174,8 @@ Ninguno. La eliminación no admite variantes: o se cumplen todas las condiciones
 | `CA-SP-358` | Al eliminar al usuario, sus filas de roles y de membresía **desaparecen** |
 | `CA-SP-359` | Un rol que solo portaba un usuario eliminado **puede eliminarse** con `RF-SP-009`, sin que `RN-SEG-008` lo impida |
 | `CA-SP-360` | El estado guardado en la auditoría de eliminación es anterior al retiro de las asignaciones, de modo que las conserva |
+| `CA-SP-408` | El sistema rechaza eliminar a quien tiene al menos una persona a cargo, e informa cuántas sin listarlas |
+| `CA-SP-409` | Al eliminar a un vendedor sin equipo, su asignación de superior **se cierra con fecha de fin** y su fila **permanece**, a diferencia de las de rol y membresía |
 | `CA-SP-247` | El sistema rechaza que el actor elimine su propia cuenta |
 | `CA-SP-248` | El sistema rechaza eliminar al último usuario activo con el rol raíz |
 | `CA-SP-249` | El sistema no expone ninguna operación de restauración |

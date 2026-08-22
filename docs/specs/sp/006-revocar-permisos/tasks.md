@@ -5,7 +5,7 @@
 | Requerimiento | `RF-SP-006` |
 | Especificación | [`spec.md`](spec.md) |
 | Plan | [`plan.md`](plan.md) |
-| `plan.md` aprobado el | 21-08-2026 |
+| `plan.md` aprobado el | 21-08-2026, **reabierto el 22-08-2026** por la corrección de su §6 |
 | Estado | **En revisión** |
 | Issue | Pendiente de crear |
 | Rama | `feature/revocar-permisos` |
@@ -35,7 +35,7 @@ Sin migración. La diferencia esencial con `RF-SP-005` está en `T-01` y `T-02`:
 | `T-04` | `application/RevokeRolePermissionsService` con `@Transactional`, que carga la descendencia directa antes de aplicar y reutiliza `RolePermissionCacheInvalidator` de `RF-SP-005` | `T-02`, `T-03` | Pruebas con dobles: cada excepción se lanza en su orden; tras un rechazo no se escribe nada | Pendiente |
 | `T-05` | `infrastructure/JpaRoleRepository`: eliminación **física** de las filas de `role_permissions` | `T-04` | Prueba de integración: la fila desaparece de la tabla, no queda marcada | Pendiente |
 | `T-06` | Auditoría: una fila de `audit_deletion_log` **por permiso retirado**, con `deletion_type = ASSOCIATION`, `reason` vacío y el estado conservado con identificadores **y códigos** de rol y permiso; evento de seguridad de severidad Alta tras el commit | `T-04` | Prueba de integración: `reason` vacío no viola la restricción del esquema, y el estado conservado se lee sin resolver ninguna referencia | Pendiente |
-| `T-07` | Auditoría de los rechazos: severidad **Alta** para `RN-SEG-005` y `RN-SEG-011`, **Media** para el resto; los `400` de formato no se auditan | `T-04` | Prueba de integración: cada rechazo deja su fila con su `error_code` | Pendiente |
+| `T-07` | Auditoría de los rechazos, **cada uno en el registro que le corresponde** (`plan.md` §6): `EX-001` y `EX-002` en `audit_error_log`, con severidad **Alta** para `RN-SEG-005` y Media para `EX-002`; `EX-003` —el `403` de `RN-SEG-011`— en `audit_security_log` con `event_type = 'AUTHORIZATION_DENIED'` y severidad **Alta**, en transacción independiente y sin esperar a un commit que no llega; `EX-004` (`404`) y los `400` de formato no se auditan | `T-04` | Prueba de integración: `EX-001` y `EX-002` dejan su fila en `audit_error_log` con su `error_code`; `EX-003` deja la suya en `audit_security_log` y **ninguna** en `audit_error_log`; `EX-004` y un `400` no dejan ninguna en ninguno de los dos registros | Pendiente |
 | `T-08` | Invalidación de la caché de permisos del rol **después** del commit | `T-05`, `T-06` | Prueba de integración: una resolución de permisos posterior ya no concede el permiso retirado | Pendiente |
 | `T-09` | `api/RevokePermissionsRequest`: lista de identificadores, **sin motivo**, con Bean Validation (`VAL-001`, `VAL-002`) y el límite de 100 de `VAL-004` | `T-04` | Prueba de API: lista vacía y lista de 101 devuelven `400`; el cuerpo no admite campo de motivo | Pendiente |
 | `T-10` | `api/RoleController`: añade `POST /api/v1/roles/{id}/permissions/revocations` con el permiso `roles:update`, devolviendo `RoleResponse`, y con el `409` de `RN-SEG-005` enumerando roles y permisos bloqueantes | `T-08`, `T-09` | Prueba de API: `200` con la lista actualizada; el cuerpo del `409` cita **qué roles** lo impiden y **con qué permisos** | Pendiente |
@@ -88,6 +88,7 @@ graph LR
 |---|---|---|---|---|
 | 1 | `RN-SEG-011` exige leer los roles vigentes del actor, lo que depende de `user_roles` (`RF-SP-030`). Misma dependencia que `RF-SP-004` y `RF-SP-005` | 21-08-2026 | Responsable técnico | Abierto |
 | 2 | `T-08` reutiliza el puerto de invalidación que estrena `RF-SP-005`: ese requerimiento debe integrarse antes | 21-08-2026 | Responsable técnico | Abierto |
+| 3 | `plan.md` §6 se corrigió el 22-08-2026 —el `403` de `RN-SEG-011` y el `404` no caben en `audit_error_log`— y volvió a **En revisión**. Ninguna tarea se ejecuta hasta que ese plan se apruebe de nuevo (Art. I.6) | 22-08-2026 | Responsable técnico | Abierto |
 
 ## 5. Definición de terminado
 
