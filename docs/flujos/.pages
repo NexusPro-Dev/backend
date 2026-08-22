@@ -1,0 +1,7 @@
+# Los flujos se agrupan por módulo: una carpeta por módulo, con su propio
+# .pages que ordena sus documentos. Al incorporar un módulo nuevo basta con
+# crear su carpeta aquí; "..." la recoge sin tocar este archivo.
+title: Flujos
+nav:
+  - sp
+  - ...

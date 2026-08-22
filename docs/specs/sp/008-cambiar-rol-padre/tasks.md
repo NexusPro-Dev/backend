@@ -5,7 +5,7 @@
 | Requerimiento | `RF-SP-008` |
 | Especificación | [`spec.md`](spec.md) |
 | Plan | [`plan.md`](plan.md) |
-| `plan.md` aprobado el | 21-08-2026 |
+| `plan.md` aprobado el | 21-08-2026, **reabierto el 22-08-2026** por la corrección de su §6 |
 | Estado | **En revisión** |
 | Issue | Pendiente de crear |
 | Rama | `feature/cambiar-rol-padre` |
@@ -35,7 +35,7 @@ Sin migración. Es la única operación del módulo capaz de dejar la estructura
 | `T-04` | `infrastructure/AdvisoryRoleHierarchyLock`: bloqueo consultivo de PostgreSQL sobre una clave fija con `pg_try_advisory_xact_lock`, ligado a la transacción | `T-03` | Prueba de integración: una segunda transacción que lo intenta recibe la negativa **de inmediato**, no se encola; el bloqueo se libera también cuando la transacción falla | Pendiente |
 | `T-05` | `application/ChangeRoleParentService` con `@Transactional` y el orden de verificación de `plan.md` §4: el bloqueo se toma **antes** de las dos verificaciones estructurales y **después** de las de formato, permiso y existencia | `T-02`, `T-04` | Pruebas con dobles: un rechazo por formato o por permiso no llega a tomar el bloqueo | Pendiente |
 | `T-06` | Auditoría del cambio: `audit_change_log` con solo `parent_role_id` en el diff, incluidos los **códigos** del padre anterior y el nuevo; evento de seguridad de severidad Alta tras el commit; ningún evento si el padre no cambia | `T-05` | Prueba de integración: el diff se lee sin resolver referencias; enviar el padre actual no deja fila en ninguno de los dos registros | Pendiente |
-| `T-07` | Auditoría de los rechazos: severidad **Alta** para `RN-SEG-006`, `RN-SEG-013` y `RN-SEG-011`; **Media** para el resto, incluido el `409` por bloqueo no obtenido, que se audita para poder contar con qué frecuencia ocurre | `T-05` | Prueba de integración: el rechazo por bloqueo deja fila con `error_type = 'BUSINESS_RULE'` y severidad Media | Pendiente |
+| `T-07` | Auditoría de los rechazos, **cada uno en el registro que le corresponde** (`plan.md` §6): `EX-001` a `EX-004` y la rama de **rol de sistema** de `EX-005` en `audit_error_log`, con severidad **Alta** para `RN-SEG-006` y `RN-SEG-013` y Media para el resto, incluido el `409` por bloqueo no obtenido, que se audita para poder contar con qué frecuencia ocurre; la rama de **rol propio del actor** de `EX-005` —el `403` de `RN-SEG-011`— en `audit_security_log` con `event_type = 'AUTHORIZATION_DENIED'` y severidad **Alta**, en transacción independiente y sin esperar a un commit que no llega; `EX-006` (`404`) y los `400` de formato no se auditan | `T-05` | Prueba de integración: el rechazo por bloqueo deja fila en `audit_error_log` con `error_type = 'BUSINESS_RULE'` y severidad Media; las **dos ramas de `EX-005`** dejan su fila en registros distintos —el `409` en `audit_error_log`, el `403` en `audit_security_log` y **ninguna** en el de error—; `EX-006` y un `400` no dejan ninguna en ninguno de los dos | Pendiente |
 | `T-08` | `api/ChangeRoleParentRequest` y `RoleController`: añade `PATCH /api/v1/roles/{id}/parent` con el permiso `roles:update`, devolviendo `RoleResponse` | `T-05` | Prueba de API: `200` con el nuevo padre; el `409` de contención enumera los permisos sobrantes; el `404` del rol movido y el `422` del nuevo padre inexistente llevan códigos distintos | Pendiente |
 | `T-09` | Pruebas de API e integración de los criterios de aceptación de `spec.md` §12, salvo el concurrente | `T-08` | La suite cubre `CA-SP-056` a `CA-SP-063`, `CA-SP-160`, `CA-SP-162` y `CA-SP-175` | Pendiente |
 | `T-10` | Prueba **concurrente** de `CA-SP-161`: dos transacciones reales que intentan `B → D` y `D → B` a la vez | `T-08` | Una tiene éxito y la otra recibe `409`; la jerarquía final no contiene ciclo. Dos llamadas secuenciales no sirven como prueba | Pendiente |
@@ -88,6 +88,7 @@ Los casos límite de `spec.md` §13 los cubre `T-11`.
 | 1 | `RN-SEG-011` exige leer los roles vigentes del actor, lo que depende de `user_roles` (`RF-SP-030`). Misma dependencia que `RF-SP-004` a `RF-SP-007` | 21-08-2026 | Responsable técnico | Abierto |
 | 2 | `T-10` necesita infraestructura de prueba concurrente con dos transacciones reales sobre Testcontainers. No existe en el proyecto y hay que montarla; también la usa `CA-SP-027` de `RF-SP-004` y el alta concurrente de `RF-SP-001` | 21-08-2026 | Responsable técnico | Abierto |
 | 3 | Si `RF-SP-005` o `RF-SP-006` llegaran a modificar la estructura de la jerarquía, deben tomar el mismo bloqueo (`plan.md` §8). Hoy no lo hacen | 21-08-2026 | Responsable técnico | Abierto |
+| 4 | `plan.md` §6 se corrigió el 22-08-2026 —el `403` de `RN-SEG-011` y el `404` no caben en `audit_error_log`, y `EX-005` se parte en dos ramas— y volvió a **En revisión**. Ninguna tarea se ejecuta hasta que ese plan se apruebe de nuevo (Art. I.6) | 22-08-2026 | Responsable técnico | Abierto |
 
 ## 5. Definición de terminado
 

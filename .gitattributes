@@ -1,0 +1,17 @@
+# Normalización de finales de línea (Art. XI.5: el repositorio es la fuente,
+# no el sistema de archivos de quien clona).
+
+# Por defecto, Git decide y normaliza a LF en el repositorio.
+* text=auto
+
+# El envoltorio de Maven es un script POSIX: con CRLF, el intérprete de una
+# máquina Unix o de CI falla al arrancarlo. Debe salir siempre con LF.
+mvnw text eol=lf
+.mvn/wrapper/maven-wrapper.properties text eol=lf
+
+# Scripts de shell y ficheros de contenedor, por el mismo motivo.
+*.sh text eol=lf
+Dockerfile text eol=lf
+
+# El envoltorio de Windows necesita CRLF.
+mvnw.cmd text eol=crlf

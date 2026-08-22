@@ -10,6 +10,7 @@ nav:
   - Mapa modular: modules.md
   - Modelo de datos: modelo-datos.md
   - Requerimientos y trazabilidad: requirements.md
+  - flujos
   - Guía de desarrollo: development-guide.md
   - specs
   - ...

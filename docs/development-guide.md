@@ -5,11 +5,11 @@
 | Proyecto | NEXUS — Renovación de plataforma |
 | Empresa | FACTECH GROUP SAS |
 | Documento | `development-guide.md` |
-| Versión | 0.5.0 |
+| Versión | 0.6.0 |
 | Estado | Borrador |
 | Responsable técnico | Bonilla Diaz William Steven |
 | Fecha de creación | 19-08-2026 |
-| Última actualización | 19-08-2026 |
+| Última actualización | 22-08-2026 |
 | Documento superior | `constitution.md` v0.5.0 |
 | Documentos relacionados | `architecture.md` v0.4.0, `security.md` v0.3.0 |
 
@@ -151,7 +151,7 @@ Los términos del dominio tienen equivalencia directa (rol → `Role`, permiso �
 
 | Elemento | Convención | Ejemplo |
 |---|---|---|
-| Paquete | minúsculas, sin guiones | `com.factech.nexus.modules.security` |
+| Paquete | minúsculas, sin guiones | `com.factech.nexus.modules.system.permissions` |
 | Clase | `PascalCase`, sustantivo | `RoleService` |
 | Interfaz | `PascalCase`, sin prefijo `I` | `RoleRepository` |
 | Método | `camelCase`, verbo | `createRole()` |
@@ -165,10 +165,13 @@ Los términos del dominio tienen equivalencia directa (rol → `Role`, permiso �
 
 | Capa | Sufijo | Ejemplo |
 |---|---|---|
-| `api` | `Controller`, `Request`, `Response` | `RoleController`, `CreateRoleRequest` |
-| `application` | `Service` o `UseCase` | `CreateRoleService` |
-| `domain` | Sin sufijo técnico | `Role`, `PermissionCode` |
-| `infrastructure` | `Repository`, `Adapter`, `Entity` | `JpaRoleRepository` |
+| `interfaces` | `Controller` | `PermissionController` |
+| `application` | `Request`, `Response`, `Query`, `Command`, o sin sufijo para los modelos de lectura | `ListPermissionsRequest`, `PermissionResponse`, `ListPermissionsQuery`, `PermissionItem` |
+| `domain/service` | `Service` o `UseCase` | `ListPermissionsService` |
+| `domain/repository` | `Repository`, `Adapter` | `PermissionQueryRepository`, `JpaPermissionQueryRepository` |
+| `domain/models` | Sin sufijo técnico | `Permission`, `Role`, `PermissionCode` |
+
+**La entidad JPA no lleva sufijo `Entity`.** Vive en `domain/models` y es la representación del concepto, no un tipo técnico paralelo a él: la clase es `Permission`, no `PermissionEntity`. La disposición y su consecuencia están en `architecture.md` §5.1 y §5.2 (divergencia declarada el 22-08-2026).
 
 **Prohibido:** nombres genéricos sin significado (`data`, `info`, `manager`, `util`, `helper`, `process`, `handle`). Si una clase solo puede llamarse `RoleManager`, probablemente tiene más de una responsabilidad.
 
@@ -199,23 +202,25 @@ docs/specs/sp/001-registrar-rol/                Tripleta (aprobada antes del có
   tasks.md                                      En qué pasos
 
 src/main/resources/db/migration/
-  V2__create_roles.sql                          Esquema
+  V5__create_roles.sql                          Esquema
 
-src/main/java/com/factech/nexus/modules/security/
-  domain/Role.java                              Entidad de dominio y reglas RN-SEG-…
-  domain/RoleStatus.java
-  domain/RoleRepository.java                    Puerto (interfaz)
-  application/CreateRoleService.java            Caso de uso, transaccional
-  infrastructure/JpaRoleRepository.java         Adaptador
-  api/RoleController.java                       Endpoint
-  api/dto/CreateRoleRequest.java                DTO de entrada, con validaciones
-  api/dto/RoleResponse.java                     DTO de salida
+src/main/java/com/factech/nexus/modules/system/roles/
+  domain/models/Role.java                       Entidad y reglas RN-SEG-…
+  domain/models/RoleStatus.java
+  domain/repository/RoleRepository.java         Puerto (interfaz)
+  domain/repository/JpaRoleRepository.java      Adaptador
+  domain/service/CreateRoleService.java         Caso de uso, transaccional
+  application/CreateRoleRequest.java            DTO de entrada, con validaciones
+  application/RoleResponse.java                 DTO de salida
+  interfaces/RoleController.java                Endpoint
 
-src/test/java/.../security/
-  domain/RoleTest.java                          Reglas de negocio, sin Spring
-  application/CreateRoleServiceTest.java        Caso de uso, con dobles
-  api/RoleControllerIT.java                     Extremo a extremo con Testcontainers
+src/test/java/.../system/roles/
+  domain/models/RoleIT.java                     Reglas de negocio
+  domain/service/CreateRoleServiceTest.java     Caso de uso, con dobles
+  interfaces/RoleControllerIT.java              Extremo a extremo con Testcontainers
 ```
+
+La estructura real de `RF-SP-010`, ya implementada, sirve de referencia viva: `modules/system/permissions/`.
 
 Si un Pull Request no incluye pruebas, está incompleto (Art. VII.1).
 
@@ -247,7 +252,7 @@ El repositorio incluye `.editorconfig` para que los editores respeten indentaci�
 | ArchUnit | Reglas de dependencia entre capas (`architecture.md` §5.2) | Suite de pruebas |
 | JaCoCo | Cobertura, como indicador | `mvn verify` |
 
-**ArchUnit merece atención:** las reglas de capas no se sostienen por disciplina, se sostienen porque una prueba falla. Como mínimo debe verificar que `domain` no importa Spring, JPA ni nada de `jakarta.servlet`, y que `api` no accede a `infrastructure`.
+**ArchUnit merece atención:** las reglas de capas no se sostienen por disciplina, se sostienen porque una prueba falla. Sobre la disposición vigente (`architecture.md` §5.1) debe verificar, como mínimo, que `application` no dependa de nada fuera del JDK, que `domain` no importe HTTP ni `jakarta.servlet`, y que `interfaces` no acceda a `domain/repository`. **Lo que ya no puede exigir es que `domain` ignore JPA:** §5.2 declara esa divergencia el 22-08-2026, y la prueba `T-20` de `RF-SP-001` está escrita sobre el criterio anterior.
 
 ---
 
@@ -265,7 +270,7 @@ DomainException (abstracta)
 └── ForbiddenException            → 403
 ```
 
-- El dominio y la capa `application` lanzan estas excepciones. **No conocen HTTP.**
+- Las lanza el dominio, desde `domain/service` o `domain/models`. **No conocen HTTP.**
 - **`422` frente a `404`:** el `404` se reserva para cuando el recurso *de la ruta* no existe. Cuando lo que no existe es una entidad **referenciada desde el cuerpo** —un rol padre, un permiso del catálogo—, la ruta sí existe y la petición es sintácticamente válida pero semánticamente irrealizable: eso es `422` (`architecture.md` §7.2). Devolver `404` en ese caso diría que el endpoint no está.
 - **`422` frente a `409`:** `409` es una regla de negocio violada sobre datos que existen; `422` es una referencia que no resuelve. Añadido el 21-08-2026 al aprobar el plan de `RF-SP-001`, que lo estrena, y usado también por `RF-SP-005` y `RF-SP-008`.
 - Un único `@RestControllerAdvice` las traduce al formato `ProblemDetail` (`architecture.md` §7.3). Es el **único** lugar del código que decide códigos de estado.
@@ -299,8 +304,8 @@ Dos niveles, con responsabilidades distintas y sin superposición:
 
 | Nivel | Dónde | Qué valida | Herramienta |
 |---|---|---|---|
-| Formato | `api`, sobre el DTO | Obligatoriedad, longitud, tipo, patrón | Bean Validation (`@NotBlank`, `@Size`) |
-| Negocio | `domain` / `application` | Reglas `RN-…`, unicidad, coherencia de estados | Código propio |
+| Formato | `interfaces`, sobre el DTO de `application` | Obligatoriedad, longitud, tipo, patrón | Bean Validation (`@NotBlank`, `@Size`) |
+| Negocio | `domain` | Reglas `RN-…`, unicidad, coherencia de estados | Código propio |
 
 Una regla de negocio **NO DEBE** implementarse con anotaciones sobre el DTO: quedaría fuera del dominio y sin poder probarse de forma aislada (Art. VI.3).
 
@@ -331,7 +336,7 @@ Toda validación produce un código `VAL-NNN` declarado en la especificación, q
 
 ## 10. Transacciones
 
-- `@Transactional` vive en la capa **`application`**, sobre el caso de uso. No en controladores ni en repositorios.
+- `@Transactional` vive en **`domain/service`**, sobre el caso de uso. No en controladores ni en repositorios.
 - Una operación de negocio es **una** transacción. Si necesitas dos, probablemente son dos casos de uso.
 - **El evento de `audit_change_log` o `audit_deletion_log` se escribe dentro de la misma transacción** que el cambio (`architecture.md` §8). Es obligatorio: son la única fuente del actor del cambio (Art. V.7, V.8).
 - **La auditoría de error y la de seguridad van en transacción propia** (`@Transactional(propagation = REQUIRES_NEW)`). No es una preferencia: se emiten mientras la transacción de negocio se revierte, y escritas dentro de ella el `rollback` se lleva el evento (Art. V.14). Si escribes un evento de error en la transacción que acaba de fallar, no queda constancia de nada.
@@ -503,3 +508,4 @@ Aplica el Artículo XIII. En términos prácticos:
 | 0.3.0 | 20-08-2026 | Se ajustan §9.2, §10, §13 y §15 a la separación de la auditoría en cuatro registros: transaccionalidad diferenciada, motivo de eliminación obligatorio e IP de origen. | Responsable técnico |
 | 0.4.0 | 20-08-2026 | Se adopta la tripleta `spec` / `plan` / `tasks`: §3 incorpora las tres compuertas y §5 y §12.3 apuntan a la carpeta de la tripleta. §2.5 pasa a navegación por `.pages`. | Responsable técnico |
 | 0.5.0 | 20-08-2026 | §12.2 incorpora los tipos de commit `build` y `ci`, que faltaban, y describe cuándo se usa cada tipo. | Responsable técnico |
+| 0.6.0 | 22-08-2026 | §4.2 y §5 se ajustan a la disposición por agregado de `architecture.md` §5.1: sufijos por capa reescritos, la entidad JPA deja de llevar sufijo `Entity` y la anatomía de una funcionalidad refleja la estructura real de `RF-SP-010`. | Responsable técnico |

@@ -5,7 +5,7 @@
 | Requerimiento | `RF-SP-005` |
 | Especificación | [`spec.md`](spec.md) |
 | Plan | [`plan.md`](plan.md) |
-| `plan.md` aprobado el | 21-08-2026 |
+| `plan.md` aprobado el | 21-08-2026, **reabierto el 22-08-2026** por la corrección de su §6 |
 | Estado | **En revisión** |
 | Issue | Pendiente de crear |
 | Rama | `feature/asignar-permisos` |
@@ -33,9 +33,9 @@ Sin migración: `role_permissions` la crea `V6__create_role_permissions.sql` (`R
 | `T-02` | `application/RolePermissionCacheInvalidator`: puerto hacia `shared/security` para dejar sin efecto la resolución de permisos del rol | — | Prueba con dobles: el puerto se invoca una vez por operación efectiva | Pendiente |
 | `T-03` | `infrastructure/SecurityContextActorAdapter`: resuelve los permisos efectivos del actor **desde la base de datos**, no desde la caché de resolución | — | Prueba de integración: un permiso revocado al actor deja de estar disponible en la siguiente petición, sin esperar a la expiración de ninguna caché | Pendiente |
 | `T-04` | `application/GrantRolePermissionsService` con `@Transactional` y el orden de verificación de `plan.md` §4, de la existencia del rol a la contención en el actor | `T-01`, `T-02`, `T-03` | Pruebas con dobles: cada excepción se lanza en el orden declarado; los pasos 6 y 7 nunca se evalúan antes de resolver el catálogo | Pendiente |
-| `T-05` | Persistencia de las filas nuevas en `role_permissions` desde `JpaRoleRepository`, con la clave primaria compuesta absorbiendo el empate concurrente | `T-04` | Prueba de integración: dos peticiones simultáneas con el mismo permiso no producen fila duplicada ni error interno | Pendiente |
+| `T-05` | Persistencia de las filas nuevas en `role_permissions` desde `JpaRoleRepository`, con **`INSERT … ON CONFLICT DO NOTHING`** en sentencia nativa (`plan.md` §2): la clave primaria compuesta impide el duplicado, pero es la cláusula la que absorbe el empate concurrente sin `23505` | `T-04` | Prueba de integración: dos peticiones simultáneas con el mismo permiso terminan ambas con `200`, dejan **una** fila y **ninguna** produce `500` | Pendiente |
 | `T-06` | Auditoría: `audit_change_log` con **solo los permisos realmente agregados**, evento de seguridad de severidad Alta tras el commit, y ningún evento cuando no se agregó ninguno | `T-04` | Prueba de integración: una operación efectiva deja **una** fila en cada registro; repetirla no deja ninguna | Pendiente |
-| `T-07` | Auditoría de los rechazos: severidad **Alta** para `RN-SEG-003`, `RN-SEG-010` y `RN-SEG-011`; **Media** para el resto; los `400` de formato no se auditan | `T-04` | Prueba de integración: cada rechazo deja su fila con su `error_code`, y los tres de escalada se encuentran filtrando por severidad Alta | Pendiente |
+| `T-07` | Auditoría de los rechazos, **cada uno en el registro que le corresponde** (`plan.md` §6): `EX-001` a `EX-004` en `audit_error_log`, con severidad **Alta** para `RN-SEG-003` y `RN-SEG-010` y Media para el resto; `EX-005` —el `403` de `RN-SEG-011`— en `audit_security_log` con `event_type = 'AUTHORIZATION_DENIED'` y severidad **Alta**, en transacción independiente y sin esperar a un commit que no llega; `EX-006` (`404`) y los `400` de formato no se auditan | `T-04` | Prueba de integración: `EX-001` a `EX-004` dejan su fila en `audit_error_log` con su `error_code`; `EX-005` deja la suya en `audit_security_log` y **ninguna** en `audit_error_log`; `EX-006` y un `400` no dejan ninguna. Los **tres** intentos de escalada se encuentran filtrando por severidad Alta, dos en un registro y uno en el otro | Pendiente |
 | `T-08` | Invalidación de la caché de permisos del rol **después** del commit, nunca antes | `T-05`, `T-06` | Prueba de integración: tras la operación, una resolución de permisos refleja el cambio de inmediato, y una petición concurrente no repuebla la caché con el estado antiguo | Pendiente |
 | `T-09` | `api/GrantPermissionsRequest` con Bean Validation (`VAL-001`, `VAL-002`, `VAL-006`), colapso de duplicados y límite de 100 elementos | `T-04` | Prueba de API: lista vacía y lista de 101 elementos devuelven `400`; los duplicados se colapsan sin error | Pendiente |
 | `T-10` | `api/RoleController`: añade `POST /api/v1/roles/{id}/permissions` con el permiso `roles:update`, devolviendo `RoleResponse`, y con los `409` de contención enumerando los permisos infractores | `T-08`, `T-09` | Prueba de API: `200` con la lista actualizada; los cuerpos de `409` citan **cuáles** permisos incumplen; los dos `403` llevan `error_code` distinto | Pendiente |
@@ -93,6 +93,7 @@ graph LR
 |---|---|---|---|---|
 | 1 | `RN-SEG-011` exige leer los roles vigentes del actor, lo que depende de `user_roles` (`RF-SP-030`). Es la misma dependencia que registró `RF-SP-004` | 21-08-2026 | Responsable técnico | Abierto |
 | 2 | `T-02` y `T-08` dependen de que `shared/security` exponga la invalidación de la resolución de permisos. Es la primera vez que se necesita; `RF-SP-006` y `RF-SP-007` reutilizan el mismo puerto | 21-08-2026 | Responsable técnico | Abierto |
+| 3 | `plan.md` §6 se corrigió el 22-08-2026 —el `403` de `RN-SEG-011` y el `404` no caben en `audit_error_log`— y volvió a **En revisión**. Ninguna tarea se ejecuta hasta que ese plan se apruebe de nuevo (Art. I.6) | 22-08-2026 | Responsable técnico | Abierto |
 
 ## 5. Definición de terminado
 

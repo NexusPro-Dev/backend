@@ -9,6 +9,8 @@
 | Autor | Responsable técnico |
 | Aprobado por | Responsable técnico |
 | Fecha de aprobación | 21-08-2026 |
+| Reabierto el | 22-08-2026 — corrección de §6, ver la nota al final de esa sección (Art. I.7) |
+| Reaprobado el | 22-08-2026 — Responsable del proyecto, verificada la corrección contra `ck_audit_error_log_status` |
 
 ---
 
@@ -31,7 +33,19 @@ La operación se aplica **entera o no se aplica**. Un rechazo parcial dejaría e
 
 **Ninguno.** `role_permissions` y su clave primaria compuesta se crean en `V6__create_role_permissions.sql` (`RF-SP-001`).
 
-La clave primaria compuesta `(role_id, permission_id)` es además el mecanismo que absorbe la asignación concurrente del mismo permiso: dos peticiones simultáneas no producen fila duplicada ni error interno, porque la segunda encuentra la fila ya presente y el caso queda cubierto por el flujo alternativo de la spec.
+La clave primaria compuesta `(role_id, permission_id)` es el mecanismo que impide la fila duplicada, pero **por sí sola no absorbe el empate concurrente**, y esto se corrigió el 22-08-2026 al revisar este plan. La redacción anterior decía que la segunda petición «encuentra la fila ya presente»: no es lo que ocurre. Con las dos transacciones abiertas a la vez, la segunda inserción **espera** al desenlace de la primera y, cuando esta confirma, PostgreSQL lanza `23505` —violación de unicidad—, que sin tratamiento sale como `500`. El caso límite de `spec.md` §13 exige exactamente lo contrario.
+
+**La inserción declara el conflicto como esperado:**
+
+```sql
+INSERT INTO role_permissions (role_id, permission_id)
+VALUES (?, ?)
+ON CONFLICT (role_id, permission_id) DO NOTHING
+```
+
+`ON CONFLICT DO NOTHING` descarta la fila en conflicto sin lanzar error, de modo que el resultado concurrente es idéntico al secuencial y la operación sigue siendo aditiva e idempotente sin depender de una excepción. Se descartó capturar el `23505` en el adaptador (§9): usar una excepción para un caso normal obliga además a distinguir esa violación de cualquier otra que pudiera venir de la misma transacción.
+
+**Consecuencia sobre el adaptador:** esa inserción se escribe como sentencia nativa y no con el `persist` de JPA, que no sabe expresar `ON CONFLICT`. Es la única escritura del requerimiento que baja a SQL.
 
 ## 3. Componentes afectados
 
@@ -44,7 +58,7 @@ La clave primaria compuesta `(role_id, permission_id)` es además el mecanismo q
 | `application` | `PermissionCatalog` | Sin cambios | Puerto de `RF-SP-001`. Verifica que los permisos existan |
 | `application` | `AuthenticatedActor` | Modificado | Puerto de `RF-SP-001`, que ya declara los permisos efectivos del actor para `RN-SEG-010`. `RF-SP-004` lo amplió con los **roles vigentes** del actor, leídos de la base de datos, y aquí se usan para `RN-SEG-011` (§5) |
 | `application` | `RolePermissionCacheInvalidator` | Nuevo | Puerto hacia `shared/security` para dejar sin efecto la resolución de permisos del rol |
-| `infrastructure` | `JpaRoleRepository` | Modificado | Persiste las nuevas filas de `role_permissions` |
+| `infrastructure` | `JpaRoleRepository` | Modificado | Persiste las nuevas filas de `role_permissions` con **`INSERT … ON CONFLICT DO NOTHING`** en sentencia nativa (§2), que es lo que hace inocua la asignación concurrente del mismo permiso |
 | `infrastructure` | `SecurityContextActorAdapter` | Modificado | Resuelve los permisos efectivos del actor **desde la base de datos** (§5) |
 | `api` | `RoleController` | Modificado | Añade `POST /api/v1/roles/{id}/permissions` |
 | `api` | `GrantPermissionsRequest` | Nuevo | DTO de entrada con Bean Validation (`VAL-001`, `VAL-002`, `VAL-006`) |
@@ -125,12 +139,20 @@ Es la misma decisión que tomó el plan de `RF-SP-001` y conviene mantenerla por
 | Permisos agregados | `audit_change_log` | `action = UPDATE` sobre la entidad `roles`, con `changes` conteniendo **solo los permisos realmente agregados** |
 | Permisos agregados | `audit_security_log` | Cambio de permisos de un rol, severidad **Alta** |
 | Ninguno agregado | — | **Ningún evento**: si todos los permisos ya estaban, nada cambió |
-| Rechazo por `EX-001` a `EX-006` | `audit_error_log` | `resource = 'roles'`, `operation` con método y ruta, `error_code` de la tabla de §4, `error_type = 'BUSINESS_RULE'`, `http_status`, `severity` y `message` saneado. Severidad **Alta** para `RN-SEG-003`, `RN-SEG-010` y `RN-SEG-011` —los tres son intentos de escalada de privilegios y deben poder encontrarse buscando por severidad—; **Media** para el resto |
+| Rechazo por `EX-001` a `EX-004` (`409` y `422`) | `audit_error_log` | `resource = 'roles'`, `operation` con método y ruta, `error_code` de la tabla de §4, `error_type = 'BUSINESS_RULE'`, `http_status`, `severity` y `message` saneado. Severidad **Alta** para `RN-SEG-003` y `RN-SEG-010` —los dos son intentos de escalada de privilegios y deben poder encontrarse buscando por severidad—; **Media** para `EX-003` y `EX-004` |
+| Rechazo `403` por `EX-005` (`RN-SEG-011`) | `audit_security_log` | `event_type = 'AUTHORIZATION_DENIED'`, `severity = 'ALTA'`, `outcome = 'FAILURE'`, `entity_id` del rol. **No** va a `audit_error_log`, y es el tercer intento de escalada: se encuentra por severidad igual que los otros dos, en el registro contiguo |
+| Rechazo `404` por `EX-006` | — | **No se audita** en la auditoría de error (`architecture.md` §6.6.4) |
 | Rechazo `400` de formato | — | **No se audita** (`architecture.md` §6.6.4) |
-| Denegación `403` por `AUTH-002` | `audit_security_log` | `event_type` de denegación de autorización, `severity = 'MEDIA'`, `outcome = 'FAILURE'`. Lo emite la capa de seguridad compartida |
+| Denegación `403` por `AUTH-002` | `audit_security_log` | `event_type = 'AUTHORIZATION_DENIED'`, `severity = 'MEDIA'`, `outcome = 'FAILURE'`. Lo emite la capa de seguridad compartida |
 | Fallo no controlado `5xx` | `audit_error_log` | `error_type = 'UNHANDLED'`, `severity = 'ALTA'` |
 
 Un solo evento de cambio por operación, no uno por fila de `role_permissions`. El evento documenta una decisión de negocio —«se amplió este rol»—, no tres inserciones.
+
+!!! warning "Corrección del 22-08-2026 — el `403` y el `404` no caben en `audit_error_log`"
+
+    Este plan llevaba los seis rechazos a `audit_error_log`, y `ck_audit_error_log_status` —`CHECK (http_status NOT IN (400, 401, 403, 404))`, de `RF-SP-013` §2— rechaza dos de ellos: el `403` de `EX-005` y el `404` de `EX-006`. El razonamiento completo, la frontera de `architecture.md` §6.6.4 y por qué la severidad se mantiene Alta están en **`RF-SP-004` §6**, que corrige lo mismo. Aquí la consecuencia es peor que allí: `RN-SEG-011` protege contra ampliarse los permisos del propio rol, de modo que el intento que más importa registrar es justo el que la restricción habría impedido escribir.
+
+    El evento lo emite el caso de uso y no la capa de seguridad, porque `RN-SEG-011` no puede verificarse antes de leer el rol. Impacto sobre `RF-SP-014` declarado en §8.
 
 ## 7. Transaccionalidad
 
@@ -138,7 +160,8 @@ Un solo evento de cambio por operación, no uno por fila de `role_permissions`. 
 |---|---|
 | Inserción en `role_permissions` y su evento en `audit_change_log` | **La misma** (Art. V.14) |
 | Invalidación de la caché de permisos | Tras el commit, nunca antes |
-| Evento en `audit_security_log` | **Independiente**, `REQUIRES_NEW`, enganchada al commit |
+| Evento de éxito en `audit_security_log` | **Independiente**, `REQUIRES_NEW`, enganchada al commit |
+| Evento `AUTHORIZATION_DENIED` de `RN-SEG-011` | **Independiente**, `REQUIRES_NEW`, emitido **sin esperar al commit**: se escribe mientras la transacción se revierte (`RF-SP-004` §7) |
 
 La caché se invalida **después** de confirmar. Invalidarla antes abriría una ventana en la que una petición concurrente la repuebla con el estado antiguo y el cambio no tendría efecto, que es justo lo que `CA-SP-038` verifica.
 
@@ -146,6 +169,7 @@ La caché se invalida **después** de confirmar. Invalidarla antes abriría una 
 
 - **`shared/security`** expone la invalidación de la resolución de permisos. Es la primera vez que se necesita; `RF-SP-006` y `RF-SP-007` usarán el mismo puerto.
 - **Ningún rol hijo se modifica.** Su contención sigue siendo válida porque el conjunto del padre solo creció. Esta es la asimetría con `RF-SP-006`, donde el conjunto encoge y sí hay que mirar hacia abajo.
+- **`RF-SP-014` §2** atribuye `AUTHORIZATION_DENIED` a la «capa de seguridad» como emisor único y con severidad `MEDIA`. Desde la corrección de §6, este caso de uso también lo emite, con severidad `ALTA`, para `RN-SEG-011`. No invalida aquel plan —ni el literal ni el esquema cambian—: le falta una fila en su columna de emisores, y esa compuerta se tramita aparte (`RF-SP-004` §8).
 
 ## 9. Alternativas consideradas
 
@@ -158,6 +182,8 @@ La caché se invalida **después** de confirmar. Invalidarla antes abriría una 
 | Propagar el permiso a los roles hijos | Contradice el modelo: cada rol declara sus permisos de forma explícita, y es lo que permite responder qué puede hacer alguien leyendo una sola lista (`RN-SEG-004`) |
 | Verificar la descendencia como hace `RF-SP-006` | Innecesario. Al no retirar nada, ningún descendiente puede quedar fuera de su cota. Añadirlo sería coste sin garantía adicional |
 | Emitir un evento de auditoría por permiso agregado | Multiplica las filas sin añadir información: la operación es una decisión de negocio, no tres |
+| Confiar el empate concurrente a la clave primaria compuesta, sin más | Es lo que decía este plan hasta el 22-08-2026, y no funciona: la segunda inserción no «encuentra la fila», recibe `23505` al confirmar la primera y sale como `500`. La clave primaria garantiza que no haya duplicado; **no** convierte el choque en un no-evento |
+| Capturar el `23505` en el adaptador y tratarlo como éxito | Funciona, pero usa una excepción para un caso normal y obliga a distinguir esa violación de cualquier otra de la misma transacción. `ON CONFLICT DO NOTHING` lo dice en la propia sentencia, que es donde se lee |
 
 ## 10. Riesgos
 
@@ -184,5 +210,11 @@ La caché se invalida **después** de confirmar. Invalidarla antes abriría una 
 | `CA-SP-040` | Unitaria | La verificación consulta solo el padre inmediato, sin recorrer ancestros |
 | `CA-SP-153` | Integración | Los permisos previos siguen presentes tras la operación |
 | `CA-SP-154` | API | Una petición con 101 permisos devuelve `400` |
+
+Caso límite de `spec.md` §13 que este plan no probaba y ahora sí (Art. VII.3):
+
+| Caso | Nivel | Qué verifica |
+|---|---|---|
+| Asignación concurrente del mismo permiso | **Integración concurrente** | Dos transacciones asignan a la vez el mismo permiso al mismo rol: **ambas terminan con `200`**, queda **una** fila en `role_permissions` y **ninguna** produce `500`. Sin `ON CONFLICT DO NOTHING` esta prueba falla con `23505`, que es justo lo que la hace valer |
 
 `CA-SP-040` merece una prueba propia y no derivada: con una cadena de tres roles, se verifica que la operación consulta al padre y **no** al abuelo. Es la garantía de que la contención sigue siendo de un solo nivel, que es lo que hace viable el modelo.

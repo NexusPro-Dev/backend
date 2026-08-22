@@ -9,6 +9,8 @@
 | Autor | Responsable técnico |
 | Aprobado por | Responsable técnico |
 | Fecha de aprobación | 21-08-2026 |
+| Reabierto el | 22-08-2026 — corrección de §6, ver la nota al final de esa sección (Art. I.7) |
+| Reaprobado el | 22-08-2026 — Responsable del proyecto, verificada la corrección contra `ck_audit_error_log_status` |
 
 ---
 
@@ -126,13 +128,23 @@ El coste es que las reubicaciones no se solapan. Es aceptable porque reubicar un
 | Reubicación efectiva | `audit_change_log` | `action = UPDATE`, con `changes` conteniendo solo `parent_role_id`, con su antes y su después |
 | Reubicación efectiva | `audit_security_log` | Modificación de rol, severidad **Alta** |
 | Nuevo padre igual al actual | — | **Ningún evento** |
-| Rechazo por `EX-001` a `EX-006` | `audit_error_log` | `resource = 'roles'`, `operation` con método y ruta, `error_code` de la tabla de §4, `error_type = 'BUSINESS_RULE'`, `http_status`, `severity` y `message` saneado. Severidad **Alta** para `RN-SEG-006` y `RN-SEG-013` —un ciclo corrompe la estructura y un exceso de contención es escalada— y para `RN-SEG-011`; **Media** para el resto |
+| Rechazo `409` y `422` por `EX-001` a `EX-004`, y por la rama de **rol de sistema** de `EX-005` | `audit_error_log` | `resource = 'roles'`, `operation` con método y ruta, `error_code` de la tabla de §4, `error_type = 'BUSINESS_RULE'`, `http_status`, `severity` y `message` saneado. Severidad **Alta** para `RN-SEG-006` y `RN-SEG-013` —un ciclo corrompe la estructura y un exceso de contención es escalada—; **Media** para el resto |
+| Rechazo `403` por la rama de **rol propio del actor** de `EX-005` (`RN-SEG-011`) | `audit_security_log` | `event_type = 'AUTHORIZATION_DENIED'`, `severity = 'ALTA'`, `outcome = 'FAILURE'`, `entity_id` del rol. **No** va a `audit_error_log` |
+| Rechazo `404` por `EX-006` | — | **No se audita** en la auditoría de error (`architecture.md` §6.6.4) |
 | Rechazo `409` por bloqueo no obtenido | `audit_error_log` | `error_type = 'BUSINESS_RULE'`, `severity = 'MEDIA'`. No es un fallo: es la serialización funcionando, y conviene poder contar con qué frecuencia ocurre |
 | Rechazo `400` de formato | — | **No se audita** (`architecture.md` §6.6.4) |
-| Denegación `403` por `AUTH-002` | `audit_security_log` | `event_type` de denegación de autorización, `severity = 'MEDIA'`, `outcome = 'FAILURE'`. Lo emite la capa de seguridad compartida |
+| Denegación `403` por `AUTH-002` | `audit_security_log` | `event_type = 'AUTHORIZATION_DENIED'`, `severity = 'MEDIA'`, `outcome = 'FAILURE'`. Lo emite la capa de seguridad compartida |
 | Fallo no controlado `5xx` | `audit_error_log` | `error_type = 'UNHANDLED'`, `severity = 'ALTA'` |
 
 El diff registra los identificadores, pero conviene incluir también los **códigos** del padre anterior y del nuevo, por la misma razón que en `RF-SP-006`: dentro de un año, resolver dos referencias puede ser imposible.
+
+!!! warning "Corrección del 22-08-2026 — el `403` y el `404` no caben en `audit_error_log`"
+
+    Este plan llevaba los seis rechazos a `audit_error_log`, y `ck_audit_error_log_status` —`CHECK (http_status NOT IN (400, 401, 403, 404))`, de `RF-SP-013` §2— rechaza dos de ellos: el `403` de `RN-SEG-011` y el `404` de `EX-006`. El razonamiento completo, la frontera de `architecture.md` §6.6.4 y por qué la severidad se mantiene Alta están en **`RF-SP-004` §6**, que corrige lo mismo.
+
+    **`EX-005` se parte en dos filas y no es un detalle de redacción.** `spec.md` §10 la enuncia como «rol de sistema **o** rol propio del actor», y §4 le asigna dos estados distintos: `409` con `RN-SEG-012` y `403` con `RN-SEG-011`. Cada rama va a un registro distinto, de modo que quien implemente `T-07` no puede tratar la excepción como una sola.
+
+    El evento lo emite el caso de uso y no la capa de seguridad, porque `RN-SEG-011` no puede verificarse antes de leer el rol. Impacto sobre `RF-SP-014` declarado en §8.
 
 Solo se audita el rol movido. Los roles hijos lo acompañan sin que ninguno cambie: su `parent_role_id` sigue apuntando al mismo sitio.
 
@@ -142,7 +154,8 @@ Solo se audita el rol movido. Los roles hijos lo acompañan sin que ninguno camb
 |---|---|
 | Bloqueo de jerarquía | Adquirido dentro de la transacción, liberado al terminarla |
 | Actualización de `parent_role_id` y su evento en `audit_change_log` | **La misma** (Art. V.14) |
-| Evento en `audit_security_log` | **Independiente**, `REQUIRES_NEW`, enganchada al commit |
+| Evento de éxito en `audit_security_log` | **Independiente**, `REQUIRES_NEW`, enganchada al commit |
+| Evento `AUTHORIZATION_DENIED` de `RN-SEG-011` | **Independiente**, `REQUIRES_NEW`, emitido **sin esperar al commit**: se escribe mientras la transacción se revierte (`RF-SP-004` §7) |
 
 El bloqueo consultivo ligado a la transacción se libera solo, también si la transacción falla. Un bloqueo de sesión exigiría liberarlo a mano y dejaría la jerarquía inmovilizada ante cualquier excepción no prevista.
 
@@ -151,6 +164,7 @@ El bloqueo consultivo ligado a la transacción se libera solo, también si la tr
 - **`shared/security`: no se invalida nada, y conviene entender por qué.** La caché de `security.md` §4.5 guarda `rol → permisos declarados`, y reubicar un rol no cambia ni uno solo de ellos: cambia de quién cuelga, no qué concede. Tampoco cambia nada para sus portadores, porque `RN-SEG-004` obliga a que cada rol declare sus permisos de forma explícita y los efectivos son la unión de los roles activos, sin herencia. Lo que sí cambia es la **cota** —el nuevo padre es otro techo—, pero esa cota solo se consulta al conceder permisos (`RN-SEG-003`, en `RF-SP-005`), y allí se lee de la base de datos y nunca de la caché, por la decisión de `RF-SP-001` §5. Invalidar aquí no refrescaría nada y dejaría escrito que la caché guarda algo relacionado con la jerarquía, que es lo que llevaría a diseñar mal el día que alguien lea este documento. El borrador sí invalidaba; se retiró el 21-08-2026.
 - **Los roles hijos no se tocan.** Su contención sigue siendo válida por transitividad: si el rol cabe en el nuevo padre, sus hijos —que ya cabían en él— también.
 - **`RF-SP-005` y `RF-SP-006`** deben tomar el mismo bloqueo si alguna vez modifican la estructura. Hoy no lo hacen: cambian permisos, no relaciones.
+- **`RF-SP-014` §2** atribuye `AUTHORIZATION_DENIED` a la «capa de seguridad» como emisor único y con severidad `MEDIA`. Desde la corrección de §6, este caso de uso también lo emite, con severidad `ALTA`, para `RN-SEG-011`. No invalida aquel plan: le falta una fila en su columna de emisores, y esa compuerta se tramita aparte (`RF-SP-004` §8).
 
 ## 9. Alternativas consideradas
 

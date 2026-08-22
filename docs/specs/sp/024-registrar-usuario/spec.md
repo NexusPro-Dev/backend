@@ -9,6 +9,7 @@
 | Aprobada por | Responsable técnico |
 | Fecha de aprobación | 21-08-2026 |
 | Enmendada | 21-08-2026 — `RN-SP-018` obliga a indicar la membresía si el alta concede un rol `CONSUMIDOR`, al aprobar `RF-SP-033` (Art. I.7) |
+| Enmendada | 22-08-2026 — `RN-SP-019` obliga a indicar el superior comercial si el alta concede un rol `VENDEDOR`, al registrarse `RF-SP-041` (Art. I.7) |
 
 ---
 
@@ -47,6 +48,7 @@ Que ambas sirvan para iniciar sesión obliga a una condición sobre el formato: 
 
 - Asignar o retirar roles después del alta → `RF-SP-030` y `RF-SP-031`.
 - Cambiar o renovar la membresía después del alta → `RF-SP-032`. El alta solo la establece cuando concede un rol `CONSUMIDOR`, porque `RN-SP-018` no admite el estado intermedio.
+- Cambiar el superior comercial después del alta → `RF-SP-041`. El alta solo lo establece cuando concede un rol `VENDEDOR`, y por el mismo motivo: `RN-SP-019` no admite el estado intermedio de un vendedor sin superior.
 - Cambiar el estado del usuario → `RF-SP-028`.
 - Cambiar la contraseña → `RF-SP-037` y `RF-SP-038`.
 - El auto-registro de un consumidor desde la aplicación pública: esta funcionalidad es administrativa y exige `users:create`.
@@ -57,6 +59,9 @@ Que ambas sirvan para iniciar sesión obliga a una condición sobre el formato: 
 |---|---|---|
 | `RN-SP-016` | El nombre de usuario y el correo son únicos y **no se liberan al eliminar** | `requirements/sp.md` §5.1 |
 | `RN-SEG-010` | Nadie concede privilegios que no posee | `security.md` §4.3 |
+| `RN-SP-018` | Todo consumidor tiene membresía; el rol y el nivel se conceden juntos | `requirements/sp.md` §5.1 |
+| `RN-SP-019` | Todo vendedor tiene superior comercial, salvo la cúspide de la fuerza comercial | `requirements/sp.md` §5.1 |
+| `RN-SP-020` | El superior porta el rol padre inmediato del rol del subordinado | `requirements/sp.md` §5.1 |
 
 ## 6. Datos
 
@@ -70,6 +75,7 @@ Que ambas sirvan para iniciar sesión obliga a una condición sobre el formato: 
 | Contraseña inicial | Sí | Credencial con la que la persona entra por primera vez | Debe cumplir la política mínima de contraseña (`security.md` §3.2). Nunca se devuelve ni se registra. **La persona deberá cambiarla en su primer inicio de sesión** |
 | Roles | No | Roles que se le asignan al crearlo | Cada uno debe existir, estar activo y no exceder los privilegios del actor |
 | Membresía | **Condicional** | Nivel de acceso de la persona | **Obligatoria** si alguno de los roles indicados es de clasificación `CONSUMIDOR` (`RN-SP-018`). No se admite en ningún otro caso |
+| Superior comercial | **Condicional** | Persona a cargo de la cual queda el nuevo usuario | **Obligatorio** si alguno de los roles indicados es de clasificación `VENDEDOR` (`RN-SP-019`), salvo que ese rol sea la cúspide de la fuerza comercial —aquel cuyo rol padre no es `VENDEDOR`—, donde no se admite. Debe existir, estar `ACTIVO` y portar el rol padre inmediato del rol vendedor concedido (`RN-SP-020`) |
 
 ### 6.2 Salida
 
@@ -94,6 +100,7 @@ La contraseña **no forma parte de la salida** en ninguna forma, ni siquiera tra
 - Queda **marcado para cambio obligatorio de contraseña**: `RF-SP-034` lo autentica y le advierte, y la marca se limpia cuando ejecuta `RF-SP-037`.
 - Su nombre de usuario y su correo quedan reservados de forma permanente: no volverán a estar disponibles ni siquiera si el usuario se elimina.
 - Sus roles quedan asignados y sus permisos efectivos son la unión de los permisos de esos roles (`RN-SEG-009`).
+- Si el alta concedió un rol `VENDEDOR`, queda **a cargo del superior indicado**, con la asignación vigente y sin fecha de fin. La escritura ocurre en la misma transacción que el alta: no existe un instante en que el vendedor esté creado y sin superior.
 - La contraseña queda almacenada con Argon2id y no es recuperable (`security.md` §3.2).
 - Queda constancia en la auditoría de cambios y en la de seguridad, sin ningún dato de la credencial (Art. IV.8).
 
@@ -105,9 +112,10 @@ La contraseña **no forma parte de la salida** en ninguna forma, ni siquiera tra
 4. El sistema verifica que el nombre de usuario y el correo no estén en uso por ningún usuario, incluidos los eliminados.
 5. El sistema verifica que los roles indicados existan y estén activos.
 6. El sistema verifica que los roles indicados no excedan los privilegios del actor.
-7. El sistema registra al usuario con su credencial protegida y sus roles, y lo marca para cambio obligatorio de contraseña.
-8. El sistema registra el evento en la auditoría de cambios y en la de seguridad.
-9. El sistema informa el usuario creado, sin dato alguno de la credencial.
+7. Si alguno de los roles indicados es de clasificación `VENDEDOR`, el sistema verifica que se haya indicado un superior comercial —salvo que el rol sea la cúspide de la fuerza comercial— y que ese superior exista, esté `ACTIVO` y porte el rol padre inmediato de ese rol.
+8. El sistema registra al usuario con su credencial protegida y sus roles, lo marca para cambio obligatorio de contraseña y, cuando procede, escribe su superior comercial en la misma transacción.
+9. El sistema registra el evento en la auditoría de cambios y en la de seguridad.
+10. El sistema informa el usuario creado, sin dato alguno de la credencial.
 
 ## 9. Flujos alternativos
 
@@ -140,6 +148,16 @@ La contraseña **no forma parte de la salida** en ninguna forma, ni siquiera tra
 **Condición:** el alta incluye un rol de clasificación `CONSUMIDOR` y no indica membresía, o indica membresía sin que ningún rol sea de consumidor.
 **Respuesta del sistema:** rechaza el alta completa y cita `RN-SP-018`. El rol de consumidor y el nivel de acceso son inseparables: se conceden juntos o no se concede ninguno.
 
+### EX-006 — Rol vendedor sin superior, o superior sin rol vendedor
+
+**Condición:** el alta incluye un rol de clasificación `VENDEDOR` que no es la cúspide y no indica superior comercial, o indica superior sin que ningún rol concedido sea de vendedor.
+**Respuesta del sistema:** rechaza el alta completa y cita `RN-SP-019`. Es el mismo trato que `EX-005` da al par consumidor-membresía: el rol comercial y el sitio que se ocupa en la estructura se conceden juntos o no se concede ninguno.
+
+### EX-007 — Superior que no corresponde al rol concedido
+
+**Condición:** el superior indicado no existe, no está `ACTIVO`, o no porta el rol padre inmediato del rol vendedor que se concede —por ejemplo, se registra un agente a cargo de otro agente, o directamente a cargo de un manager—.
+**Respuesta del sistema:** rechaza el alta completa, cita `RN-SP-020` e informa qué rol debería portar el superior. Admitirlo dejaría la estructura de personas contradiciendo el orden de mando que declaran los roles, y ninguna de las dos serviría después para decidir nada.
+
 ### EX-004 — Rol fuera del alcance del actor
 
 **Condición:** alguno de los roles indicados concede permisos que el actor no posee.
@@ -159,6 +177,8 @@ La contraseña **no forma parte de la salida** en ninguna forma, ni siquiera tra
 | `VAL-008` | Longitud máxima de los campos de texto | El campo excede la longitud permitida. |
 | `VAL-009` | Los roles indicados existen y están activos | Uno o más roles no son válidos. |
 | `VAL-010` | El nombre de usuario no contiene arroba | El nombre de usuario no puede contener el carácter «@». |
+| `VAL-011` | Superior comercial obligatorio si se concede un rol `VENDEDOR` que no es la cúspide, y no admitido en cualquier otro caso | Indique quién estará a cargo de esta persona. |
+| `VAL-012` | El superior indicado existe, está `ACTIVO` y porta el rol padre inmediato del rol vendedor concedido | El superior indicado no puede estar a cargo de este rol. |
 
 ## 12. Criterios de aceptación
 
@@ -178,6 +198,10 @@ La contraseña **no forma parte de la salida** en ninguna forma, ni siquiera tra
 | `CA-SP-201` | El alta concurrente del mismo nombre de usuario produce un error de duplicado, no un error interno |
 | `CA-SP-372` | El sistema rechaza el alta que concede un rol `CONSUMIDOR` sin indicar membresía, y la que indica membresía sin rol de consumidor |
 | `CA-SP-373` | El alta que concede un rol `CONSUMIDOR` con su membresía deja ambas cosas escritas en la misma transacción |
+| `CA-SP-395` | El sistema rechaza el alta que concede un rol `VENDEDOR` sin indicar superior comercial, y la que indica superior sin conceder ningún rol de vendedor |
+| `CA-SP-396` | El sistema rechaza el alta cuyo superior no porta el rol padre inmediato del rol vendedor concedido, y la que lo indica inactivo o inexistente |
+| `CA-SP-397` | El alta que concede un rol `VENDEDOR` con su superior deja ambas cosas escritas en la misma transacción, sin instante intermedio en que el vendedor exista sin superior |
+| `CA-SP-398` | El alta que concede el rol vendedor de mayor rango se acepta **sin** superior, y lo rechaza si se indica uno |
 | `CA-SP-202` | El sistema rechaza el alta a un actor sin el permiso de creación de usuarios |
 
 ## 13. Casos límite
@@ -189,6 +213,9 @@ La contraseña **no forma parte de la salida** en ninguna forma, ni siquiera tra
 - **Alta con un rol que se desactiva a la vez:** ambas operaciones se serializan sobre la fila del rol, igual que exige `RF-SP-009`. El alta o ve el rol activo o lo rechaza, pero no crea un usuario con un rol inactivo.
 - **Usuario sin ningún rol:** puede autenticarse y recibirá un token sin códigos de rol. Toda petición posterior será denegada por autorización. No es un error, pero la interfaz debería hacerlo evidente.
 - **Contraseña igual al nombre de usuario o al correo:** la política mínima de `security.md` §3.2 no lo cubre explícitamente. Conviene que la política declarada lo incluya, o el alta admitirá credenciales triviales que cumplen la longitud.
+- **Alta del primer manager, cúspide de la fuerza comercial:** se acepta sin superior, porque su rol no tiene un rol padre `VENDEDOR`. Es la única excepción de `RN-SP-019`, y funciona igual que `RN-SEG-007` con el rol raíz: la cadena tiene que empezar en algún sitio.
+- **Superior que se desactiva durante el alta:** ambas operaciones se serializan sobre la fila del superior, igual que ocurre con el rol en el caso anterior. El alta o lo ve `ACTIVO` o rechaza, pero no deja a nadie a cargo de una cuenta que acaba de perder el acceso.
+- **Alta que concede a la vez un rol `VENDEDOR` y uno `CONSUMIDOR`:** exige indicar superior **y** membresía; ninguna de las dos reglas releva a la otra. Es un caso poco probable —un vendedor que además compra— pero admitido: nada en el modelo prohíbe portar ambas clasificaciones.
 - **Primer usuario del sistema:** no se crea por esta funcionalidad. El superadministrador inicial se siembra por migración, porque esta operación exige un actor autenticado con `users:create` y no habría ninguno.
 
 ## 14. Preguntas abiertas
