@@ -5,6 +5,7 @@ import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.http.HttpStatus;
 import org.springframework.security.config.Customizer;
+import org.springframework.security.config.annotation.method.configuration.EnableMethodSecurity;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
 import org.springframework.security.config.http.SessionCreationPolicy;
@@ -22,12 +23,19 @@ import org.springframework.security.web.authentication.HttpStatusEntryPoint;
  * lista de rutas públicas exige autenticación. La lista se mantiene corta a propósito, para que
  * pueda revisarse de un vistazo (security.md §6).
  *
+ * <p><b>La seguridad de método queda habilitada</b> con {@code @EnableMethodSecurity}. Sin ella,
+ * las anotaciones {@code @PreAuthorize} de los controladores son decorativas: el endpoint quedaría
+ * accesible a cualquier autenticado y `CA-SP-008` y `CA-SP-077` no comprobarían nada. Se habilita
+ * al implementarse `RF-SP-001` · `T-09`, que es el primero que declara un permiso sobre un método
+ * de escritura.
+ *
  * <p><b>Todavía no hay mecanismo de autenticación.</b> El inicio de sesión pertenece al módulo
  * {@code USR}, que no existe: hasta entonces, cualquier ruta no pública responde {@code 401}. Es lo
  * correcto, y no un defecto de esta configuración.
  */
 @Configuration
 @EnableWebSecurity
+@EnableMethodSecurity
 public class SecurityConfig {
 
   /** Salud del sistema: público siempre, sin detalle interno (Art. XV.10). */
