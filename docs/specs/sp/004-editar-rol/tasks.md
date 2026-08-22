@@ -5,7 +5,7 @@
 | Requerimiento | `RF-SP-004` |
 | Especificación | [`spec.md`](spec.md) |
 | Plan | [`plan.md`](plan.md) |
-| `plan.md` aprobado el | 21-08-2026 |
+| `plan.md` aprobado el | 21-08-2026, **reabierto el 22-08-2026** por la corrección de su §6 |
 | Estado | **En revisión** |
 | Issue | Pendiente de crear |
 | Rama | `feature/editar-rol` |
@@ -35,7 +35,7 @@ Sin migración: la tabla y sus restricciones las crea `V5__create_roles.sql` (`R
 | `T-04` | `infrastructure/JpaRoleRepository`: traducción de la violación de `uq_roles_name` a la excepción de duplicado, por nombre de restricción | — | Prueba de integración: el nombre duplicado produce la excepción de negocio, nunca un error de integridad sin traducir | Pendiente |
 | `T-05` | `application`: `UpdateRoleCommand` y `UpdateRoleService` con `@Transactional` y el orden de verificación de `plan.md` §4 —formato, existencia, rol de sistema, `RN-SEG-011`, unicidad— | `T-02`, `T-03`, `T-04` | Pruebas con dobles: cada excepción se lanza en el orden declarado, y la unicidad es la última porque es la única que consulta otra fila | Pendiente |
 | `T-06` | Auditoría de la edición: `audit_change_log` con `action = UPDATE` y **solo** los campos mutados, evento de seguridad tras el commit, y **ningún** evento cuando no hubo cambio efectivo | `T-05` | Prueba de integración: una edición efectiva deja una fila con el diff; enviar los valores actuales no deja fila en ninguno de los dos registros | Pendiente |
-| `T-07` | Auditoría de los rechazos: `audit_error_log` con `error_type = 'BUSINESS_RULE'`, severidad **Alta** para `RN-SEG-011` y **Media** para el resto; los `400` de formato no se auditan | `T-05` | Prueba de integración: cada rechazo de `EX-001` a `EX-004` deja su fila con su `error_code`; un `400` de formato no deja ninguna | Pendiente |
+| `T-07` | Auditoría de los rechazos, **cada uno en el registro que le corresponde** (`plan.md` §6): `EX-001` y `EX-003` —los dos `409`— en `audit_error_log` con `error_type = 'BUSINESS_RULE'` y severidad Media; `EX-002` —el `403` de `RN-SEG-011`— en `audit_security_log` con `event_type = 'AUTHORIZATION_DENIED'` y severidad **Alta**, en transacción independiente y sin esperar a un commit que no llega; `EX-004` (`404`) y los `400` de formato no se auditan | `T-05` | Prueba de integración: `EX-001` y `EX-003` dejan su fila en `audit_error_log` con su `error_code`; `EX-002` deja la suya en `audit_security_log` y **ninguna** en `audit_error_log`; `EX-004` y un `400` de formato no dejan ninguna en ninguno de los dos registros | Pendiente |
 | `T-08` | `api/UpdateRoleRequest` con `Patchable<T>` y Bean Validation (`VAL-002`, `VAL-004`), y rechazo de propiedades desconocidas | `T-01`, `T-05` | Prueba de API: un cuerpo con `roleType` es **rechazado**, no ignorado; `{}` devuelve `400` con `VAL-001` | Pendiente |
 | `T-09` | `api/RoleController`: añade `PATCH /api/v1/roles/{id}` con el permiso `roles:update`, devolviendo `RoleResponse` y no el detalle de `RF-SP-003` | `T-08` | Prueba de API: `200` con el rol editado, y la traza de sentencias no incluye las subconsultas de conteo del detalle | Pendiente |
 | `T-10` | Pruebas de API e integración de los criterios de aceptación de `spec.md` §12 | `T-09` | La suite cubre `CA-SP-023` a `CA-SP-030`, `CA-SP-151` y `CA-SP-152` | Pendiente |
@@ -86,6 +86,7 @@ Los casos límite de `spec.md` §13 y el añadido en `plan.md` §11 los cubre `T
 |---|---|---|---|---|
 | 1 | `T-03` exige poder leer los roles asignados al actor, lo que depende de `user_roles` (`RF-SP-030`). Mientras esa tabla no exista, `RN-SEG-011` no es verificable | 21-08-2026 | Responsable técnico | Abierto |
 | 2 | La decisión de no usar bloqueo optimista es firme, pero si se revirtiera, la columna de versión debe añadirse a `V5` **antes** del primer despliegue (`plan.md` §2) | 21-08-2026 | Responsable técnico | Abierto |
+| 3 | `plan.md` §6 se corrigió el 22-08-2026 —el `403` de `RN-SEG-011` y el `404` no caben en `audit_error_log`— y volvió a **En revisión**. Ninguna tarea se ejecuta hasta que ese plan se apruebe de nuevo (Art. I.6) | 22-08-2026 | Responsable técnico | Abierto |
 
 ## 5. Definición de terminado
 

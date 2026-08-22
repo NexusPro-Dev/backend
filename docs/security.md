@@ -5,11 +5,11 @@
 | Proyecto | NEXUS — Renovación de plataforma |
 | Empresa | FACTECH GROUP SAS |
 | Documento | `security.md` |
-| Versión | 0.16.0 |
+| Versión | 0.20.0 |
 | Estado | Borrador |
 | Responsable técnico | Bonilla Diaz William Steven |
 | Fecha de creación | 19-08-2026 |
-| Última actualización | 21-08-2026 |
+| Última actualización | 22-08-2026 |
 | Documento superior | `constitution.md` v0.5.0 |
 | Documento relacionado | `architecture.md` v0.4.0 |
 
@@ -80,10 +80,11 @@ Un usuario **NO DEBE** eliminarse físicamente: se desactiva (Art. V.10). Elimin
 
 - Las contraseñas se almacenan con **Argon2id**, nunca en texto plano ni con hash reversible. Los parámetros de costo se declaran en configuración y se revisan periódicamente.
 - El sistema **NO DEBE** poder recuperar una contraseña; solo restablecerla.
+- El **permiso temporal de restablecimiento** que emite `RF-SP-040` es de **un solo uso** y su vigencia es de **treinta minutos**, declarada en configuración: acota la ventana en que un correo interceptado sigue sirviendo para entrar, sin que caduque mientras la persona busca el mensaje en su carpeta de correo no deseado. Se descartaron quince minutos —coherentes con el token de acceso de §4.5, pero generadores de solicitudes repetidas, y cada repetición es otro correo— y sesenta, que es lo habitual en la industria y deja una hora de exposición por solicitud sobre un permiso que basta para tomar la cuenta. Emitir uno nuevo invalida el anterior de esa misma persona, de modo que nunca hay más de uno vivo. El valor concreto se fija aquí y no en el requerimiento, junto al resto de parámetros de credenciales, para poder ajustarlo sin enmendar una spec. Añadido el 22-08-2026 al aprobar `RF-SP-040`.
 - La comparación de credenciales debe ser resistente a ataques de temporización.
 - El mensaje de error ante credenciales inválidas **NO DEBE** revelar si el usuario existe.
 
-**Política mínima de contraseña:** longitud mínima declarada en configuración, verificación contra una lista de contraseñas comunes, y prohibición de reutilizar la contraseña vigente. Reglas adicionales se definirán en la especificación del módulo de usuarios.
+**Política mínima de contraseña:** longitud mínima declarada en configuración, verificación contra una lista de contraseñas comunes, prohibición de reutilizar la contraseña vigente, y **prohibición de que la contraseña contenga el nombre de usuario o la parte local del correo**, sin distinguir mayúsculas. La última se añadió el 22-08-2026 al aprobar el plan de `RF-SP-024`: sin ella, `jperez2026` era una credencial válida para `jperez` con solo cumplir la longitud, y es la contraseña que un atacante prueba primero. Se declara **aquí y no en cada requerimiento** para que `RF-SP-024`, `RF-SP-037`, `RF-SP-038` y `RF-SP-040` verifiquen exactamente lo mismo. Reglas adicionales se definirán en la especificación del módulo de usuarios.
 
 **Cambio obligatorio de contraseña.** La cuenta lleva un indicador (`must_change_password`) que se activa cuando **alguien que no es su titular fija la credencial**: al registrarla (`RF-SP-024`) y al restablecerla (`RF-SP-038`). Mientras esté activo, `RF-SP-034` **autentica y advierte** —no rechaza, porque la persona necesita una sesión para poder cambiarla— y el resto de endpoints se le niegan hasta que ejecute `RF-SP-037`, que es quien limpia el indicador.
 
@@ -180,9 +181,10 @@ audit:read-errors       audit:read-security
 
 users:read       users:create       users:update       users:delete
 users:assign-roles      users:assign-membership      users:reset-password
+users:assign-supervisor
 ```
 
-**El catálogo completo lo siembra `SP` en una sola migración.** `V3__seed_permissions.sql` puebla los veintitrés permisos, incluidos los de `users:`. Al retirarse el módulo `USR` y absorber `SP` los usuarios (`modules.md` v0.9.0), no hay otro módulo que pudiera sembrarlos: la tabla y su contenido pertenecen al mismo sitio. Esta lista se completó el 21-08-2026 al aprobar el plan de `RF-SP-010`, que hasta entonces omitía `permissions:read`, `memberships:*`, `countries:*` y `currencies:*`.
+**El catálogo completo lo siembra `SP` en una sola migración.** `V3__seed_permissions.sql` puebla los veinticuatro permisos, incluidos los de `users:`. Al retirarse el módulo `USR` y absorber `SP` los usuarios (`modules.md` v0.9.0), no hay otro módulo que pudiera sembrarlos: la tabla y su contenido pertenecen al mismo sitio. Esta lista se completó el 21-08-2026 al aprobar el plan de `RF-SP-010`, que hasta entonces omitía `permissions:read`, `memberships:*`, `countries:*` y `currencies:*`. El 22-08-2026 se añadió `users:assign-supervisor`, al registrarse `RF-SP-041`.
 
 !!! warning "Obligación de toda migración que siembre permisos"
 
@@ -317,6 +319,14 @@ Si llega un refresh token revocado **por rotación**, el sistema asume robo de c
     Deja de bastar en cuanto se retome la estructura comercial: manager, director y agente necesitan el **mismo permiso** sobre conjuntos de datos distintos. El alcance es un **eje ortogonal al permiso** y necesita diseño propio —qué lo determina, cómo se declara por requerimiento y cómo se verifica de forma automatizada—, registrado como **D-22**.
 
     Ningún requerimiento con alcance por persona debe especificarse antes de resolver D-22.
+
+    **Actualización del 22-08-2026.** La estructura comercial ya está registrada: `RF-SP-041` y `RF-SP-042` la guardan en `user_supervisors` (`requirements/sp.md` §10.7). Eso **no cierra D-22 ni la relaja**, y conviene ser explícito sobre por qué no la infringe:
+
+    - Ambos requerimientos se autorizan por **permiso**, como el resto del módulo: `users:assign-supervisor` para escribir y `users:read` para consultar. Quien los tiene los ejerce sobre cualquier persona.
+    - Ninguno se resuelve **contra el actor**. No existe todavía un «mi equipo», y por eso no hay alcance por persona que declarar.
+    - Lo que sí queda disponible es el **dato** que D-22 necesitará para decidir de quién ve los registros cada uno.
+
+    El riesgo se desplaza, no desaparece: existiendo la tabla, es fácil que un requerimiento futuro resuelva su alcance consultándola por su cuenta. Eso dejaría el modelo de alcance repartido en lugar de definido, que es justo lo que D-22 debe evitar. La misma advertencia está anotada en `requirements/sp.md` §10.7.
 - Ante falta de permiso se responde `403`; ante ausencia o invalidez del token, `401` (`architecture.md` §7.2).
 - **NO DEBE** usarse `404` para ocultar la existencia de un recurso salvo que la especificación lo exija de forma expresa y justificada.
 
@@ -370,11 +380,17 @@ Los siguientes **DEBEN** registrarse en `audit_security_log` (Art. IV.7), ademá
 | Cierre de sesión | Informativa | `SUCCESS` |
 | Denegación de autorización (`403`) | Media | `FAILURE` |
 | Creación, modificación o eliminación de un rol | Alta | `SUCCESS` |
+| **Alta de un usuario** | Alta | `SUCCESS` |
 | Cambio de permisos de un rol | **Alta** | `SUCCESS` |
 | Asignación o retiro de roles a un usuario | **Alta** | `SUCCESS` |
 | Cambio de estado de un usuario | Alta | `SUCCESS` |
+| **Baja de un usuario** | Alta | `SUCCESS` |
 | Cambio o restablecimiento de contraseña | Alta | `SUCCESS` |
 | **Cambio del correo de un usuario** | Alta | `SUCCESS` |
+
+El **alta de un usuario** entró el 22-08-2026, al aprobarse el plan de `RF-SP-024`. Faltaba por cuándo se escribió este documento —antes de que `SP` absorbiera los usuarios—, y su ausencia era contradictoria: la creación de un **rol** sí estaba en el catálogo, y crear a la persona que porta ese rol pesa al menos igual. `CA-SP-200` lo exige, y el evento lleva en su detalle los roles concedidos en el alta. **Es un solo evento, no dos**: aunque el alta conceda roles, no emite además el de «asignación o retiro de roles», porque una sola operación produciría dos hechos y cualquier recuento de asignaciones contaría de más.
+
+La **baja de un usuario** entró el 22-08-2026, al aprobarse el plan de `RF-SP-029`, y su ausencia era la misma asimetría que la del alta: la **eliminación de un rol** sí estaba en el catálogo, y la de la persona que lo portaba no. `RF-SP-014` §2 había resuelto el hueco provisionalmente asignándole `USER_STATUS_CHANGED`; se corrige con código propio, `USER_DELETED`, aplicando el criterio que aquel mismo plan declara: se desdobla lo que se pregunta por separado, y «quién eliminó usuarios» es exactamente esa clase de pregunta. **No es un cambio de estado**: la eliminación ni siquiera toca `status`, que se conserva tal como estaba para que el registro de eliminación diga en qué situación estaba la persona al eliminarse.
 
 El **cambio de correo** entró en este catálogo el 21-08-2026, al aprobarse `RF-SP-027`, y conviene entender por qué: desde `RF-SP-024` el correo es una de las dos formas de iniciar sesión, de modo que modificar el de una cuenta ajena altera **cómo esa persona entra en el sistema**. Es el patrón clásico de apropiación de cuentas, y por eso pesa distinto que corregirle el apellido, que **no** emite evento aquí.
 
@@ -413,13 +429,23 @@ Estructura lógica. Las columnas exactas se fijan en la migración Flyway corres
 
 | Tabla | Propósito | Campos distintivos |
 |---|---|---|
-| `users` | Identidad y credencial | `username`, `email`, `first_name`, `last_name`, `password_hash`, `must_change_password`, `status`, `failed_attempts`, `locked_until`, `last_login_at` |
+| `users` | Identidad y credencial | `username`, `email`, `first_name`, `last_name`, `password_hash`, `must_change_password`, `status`, `deleted_at`, `failed_attempts`, `locked_until`, `last_login_at` |
 | `roles` | Agrupación de permisos | `code`, `name`, `description`, `parent_role_id`, `status`, `is_system` |
 | `permissions` | Catálogo de permisos | `code`, `resource`, `action`, `name`, `description` |
 | `role_permissions` | Permisos declarados por rol | `role_id`, `permission_id` |
 | `user_roles` | Roles asignados a usuarios | `user_id`, `role_id`, `created_at` |
 | `refresh_tokens` | Sesiones revocables | `user_id`, `token_hash`, `expires_at`, `revoked_at`, `revoked_reason`, `replaced_by_id`, `ip`, `user_agent`, más el origen de la familia para medir la duración máxima de sesión |
 | `audit_security_log` | Eventos de control de acceso (§8) | `event_type`, `severity`, `outcome`, `target_user_id`, `detail`, más el núcleo común (`actor_id`, `correlation_id`, `ip_address`, `user_agent`) |
+
+!!! note "Qué requerimiento crea cada columna de `users`"
+
+    Esta tabla es el **modelo lógico**, no el esquema inicial: las columnas exactas las fija la migración (Art. V.3). El reparto quedó cerrado el 22-08-2026, al aprobarse los planes de `RF-SP-026`, `RF-SP-028` y `RF-SP-029`:
+
+    - **`RF-SP-024`** crea la tabla en `V18` con la identidad, la credencial, el estado y **`deleted_at`**, que `architecture.md` §6.4 declara obligatoria en toda tabla de negocio y que diez requerimientos leen antes de que ninguno la escriba.
+    - **`RF-SP-034`** crea las **tres** columnas de control de acceso —`failed_attempts`, `locked_until` y `last_login_at`— y la tabla `refresh_tokens`. Es quien las escribe todas.
+    - **`RF-SP-028`** no crea ninguna: **lee `locked_until` y limpia ambas** al reactivar una cuenta. **`RF-SP-029`** escribe `deleted_at` y no crea nada.
+
+    Hasta esta precisión, este documento atribuía las tres columnas a `RF-SP-034` y `RF-SP-028` sin repartirlas, y la migración habría quedado a criterio de quien llegara primero.
 
 Todas siguen las convenciones de `architecture.md` §6: clave primaria `uuid` v7, marcas de tiempo de creación y modificación, y restricciones declaradas en el esquema. Ninguna almacena el actor del cambio: quién asignó un rol o quién modificó un permiso se responde desde `audit_change_log`, y quién eliminó un rol y por qué, desde `audit_deletion_log` (Art. V.7). Por eso los eventos de §8 no son opcionales — junto con esos dos registros son la única fuente de esa información.
 
@@ -495,7 +521,7 @@ RNF-SEG-002 merece atención: es una prueba que enumera los endpoints registrado
 | D-17 | Catálogo inicial completo de **permisos**. Los roles de sistema ya están definidos en [`requirements/sp.md`](requirements/sp.md) §4.1 | Primera migración de seguridad |
 | D-18 | Política de restablecimiento de contraseña (canal, vigencia del enlace) | Módulo de usuarios |
 | D-19 | Identidad para procesos automáticos e integraciones | Cuando exista la primera integración |
-| **D-22** | **Modelo de alcance de datos**: cómo se determina *de quién* puede ver los datos un usuario, con independencia de qué permisos tenga | Red comercial, comisiones y finanzas; toda consulta con alcance por persona |
+| **D-22** | **Modelo de alcance de datos**: cómo se determina *de quién* puede ver los datos un usuario, con independencia de qué permisos tenga. Desde el 22-08-2026 cuenta con el dato de partida —`user_supervisors`, la estructura persona → persona—, pero **sigue sin diseño**: falta cómo se declara el alcance por requerimiento y cómo se verifica | Comisiones y finanzas; la consulta de la propia red descendente; toda consulta con alcance por persona |
 | ~~D-20~~ | ~~Si el motivo de eliminación debe tipificarse (catálogo de códigos) además del texto libre del actor~~ · **Cerrada el 21-08-2026 al aprobar `RF-SP-012`: no se tipifica.** Un catálogo obligaría a prever hoy las razones por las que algo se borrará dentro de dos años, y casi todo acabaría bajo «Otro». El motivo sigue siendo texto libre, y la búsqueda por texto sobre él (`CA-SP-166`) cubre la necesidad de filtrar | — |
 | D-21 | Lista de proxies confiables por entorno, de la que depende la validez de la IP registrada (Art. V.15) | Despliegue en `testing` y `production` |
 
@@ -521,3 +547,7 @@ RNF-SEG-002 merece atención: es una prueba que enumera los endpoints registrado
 | 0.14.0 | 21-08-2026 | Consecuencias de aprobar `RF-SP-030` y `RF-SP-031`. §4.5 separa la latencia de **asignar** roles \(hasta 15 min\) de la de **retirarlos** \(inmediata, revocando sesiones\), que la tabla trataba como el mismo caso. `RN-SEG-010` se declara aplicable también al retiro. | Responsable técnico |
 | 0.15.0 | 21-08-2026 | Consecuencias de aprobar `RF-SP-034`. §3.2 fija el umbral de bloqueo en **cinco** intentos consecutivos, con progresión y **techo declarado** —sin techo, provocar fallos ajenos es una denegación de servicio—, y declara la **cuenta bloqueada como excepción consciente** al mensaje genérico, sin comprobar la contraseña antes de rechazar. El inicio de sesión admite nombre de usuario o correo, y no hay tope de sesiones simultáneas. | Responsable técnico |
 | 0.16.0 | 21-08-2026 | Consecuencias de aprobar `RF-SP-035`. §5.4 exige registrar el **motivo de cada revocación** —solo «rotación» dispara la revocación de familia y el evento de severidad alta— y declara una **duración máxima de sesión** contada desde el inicio, sin la cual una sesión refrescada no caduca nunca. §5.5 extiende la limitación de tasa al endpoint de refresco. §9 incorpora `revoked_reason` a `refresh_tokens`. | Responsable técnico |
+| 0.17.0 | 22-08-2026 | Se registra la estructura comercial persona → persona \(`RF-SP-041`, `RF-SP-042`\). §4.4 incorpora el permiso `users:assign-supervisor` —el catálogo pasa de veintitrés a veinticuatro— y §6 precisa por qué registrar la estructura **no infringe la reserva de D-22** ni la cierra: ambos requerimientos se autorizan por permiso y ninguno se resuelve contra el actor. D-22 se reformula: ya tiene su dato de partida, le sigue faltando el diseño. | Responsable técnico |
+| 0.18.0 | 22-08-2026 | Consecuencias de aprobar `RF-SP-040`. §3.2 incorpora el **permiso temporal de restablecimiento**: de un solo uso, con vigencia de **treinta minutos** declarada en configuración, e invalidado al emitirse otro para la misma persona. El valor vive aquí y no en el requerimiento para poder ajustarlo sin enmendar una spec. | Responsable técnico |
+| 0.19.0 | 22-08-2026 | Consecuencias de aprobar el **plan** de `RF-SP-024`. §3.2 amplía la política mínima de contraseña: la credencial **no puede contener el nombre de usuario ni la parte local del correo**, sin distinguir mayúsculas —`jperez2026` era válida para `jperez` con solo cumplir la longitud—, y se declara aquí para que `RF-SP-024`, `RF-SP-037`, `RF-SP-038` y `RF-SP-040` verifiquen lo mismo. §8.1 incorpora el **alta de un usuario** al catálogo cerrado de eventos, con severidad Alta y en **un solo evento** aunque el alta conceda roles. §9 se precisa: las columnas que enumera para `users` son el modelo lógico, no el esquema inicial —`failed_attempts`, `locked_until`, `last_login_at` y `deleted_at` las crean `RF-SP-034`, `RF-SP-028` y `RF-SP-029`—. | Responsable técnico |
+| 0.20.0 | 22-08-2026 | Consecuencias de aprobar los **planes** de `RF-SP-025` a `RF-SP-029`. §8.1 incorpora la **baja de un usuario** al catálogo cerrado, con severidad Alta: la eliminación de un **rol** ya estaba y la de la persona que lo portaba no, y `RF-SP-014` §2 había tapado el hueco reutilizando `USER_STATUS_CHANGED`; pasa a tener código propio, `USER_DELETED`. §9 incorpora `deleted_at` al modelo lógico de `users` y **reparte por requerimiento** qué columna crea cada uno: `RF-SP-024` la tabla y `deleted_at`, `RF-SP-034` las tres de control de acceso y `refresh_tokens`, y `RF-SP-028` **ninguna** —solo las lee y las limpia—. Hasta ahora la migración de esas tres columnas quedaba a criterio de quien llegara primero. | Responsable técnico |

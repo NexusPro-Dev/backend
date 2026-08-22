@@ -2,11 +2,11 @@
 
 | Campo | Valor |
 |---|---|
-| Versión | 0.5.0 |
+| Versión | 0.7.0 |
 | Estado | **Borrador** |
 | Responsable | Bonilla Diaz William Steven |
 | Fecha de creación | 21-08-2026 |
-| Última actualización | 21-08-2026 |
+| Última actualización | 22-08-2026 |
 
 !!! info "Qué va en este documento"
 
@@ -32,6 +32,10 @@ erDiagram
     users ||--o{ user_roles : "porta"
     roles ||--o{ user_roles : "se asigna a"
     users ||--o{ refresh_tokens : "abre sesión"
+    users ||--o{ user_supervisors : "está a cargo de alguien"
+    users ||--o{ user_supervisors : "tiene gente a cargo"
+    users ||--o| user_memberships : "tiene a lo sumo una"
+    memberships ||--o{ user_memberships : "se asigna a"
 
     permissions {
         uuid id PK "v7"
@@ -73,15 +77,25 @@ erDiagram
         varchar password_hash "Argon2id"
         boolean must_change_password "default false · lo fijan RF-SP-024 y RF-SP-038"
         varchar status "CHECK sobre dominio cerrado · PENDIENTE sin uso"
-        int failed_attempts "control de bloqueo"
-        timestamptz locked_until "NULL · nulo también en el bloqueo manual, que no expira"
-        timestamptz last_login_at "NULL"
+        int failed_attempts "control de bloqueo · la crea RF-SP-034"
+        timestamptz locked_until "NULL · nulo también en el bloqueo manual, que no expira · la crea RF-SP-034"
+        timestamptz last_login_at "NULL · la crea RF-SP-034"
+        timestamptz deleted_at "NULL · nace con la tabla en V18 · solo la escribe RF-SP-029"
     }
 
     user_roles {
         uuid user_id PK,FK "PK compuesta"
         uuid role_id PK,FK "PK compuesta"
         timestamptz created_at "now"
+    }
+
+    user_memberships {
+        uuid user_id PK,FK "PK sobre user_id · RN-SP-014 en el esquema"
+        uuid membership_id FK "—"
+        timestamptz started_at "now"
+        timestamptz ends_at "NULL · indefinida · la vigencia se evalúa al consultar"
+        timestamptz created_at "now"
+        timestamptz updated_at "now · RF-SP-032 sustituye con UPDATE"
     }
 
     refresh_tokens {
@@ -95,11 +109,22 @@ erDiagram
         inet ip "—"
         text user_agent "—"
     }
+
+    user_supervisors {
+        uuid id PK "estructura comercial"
+        uuid user_id FK "subordinado · uno vigente por persona"
+        uuid supervisor_id FK "superior · porta el rol padre · RN-SP-020"
+        timestamptz started_at "now"
+        timestamptz ended_at "NULL mientras esté vigente"
+        timestamptz created_at "now"
+        timestamptz updated_at "now"
+    }
 ```
 
-Cinco decisiones que el dibujo no explica solo:
+Seis decisiones que el dibujo no explica solo:
 
 - **`parent_role_id` hace dos trabajos**: acota los privilegios del hijo y expresa el orden de mando comercial (`RN-SP-011`). La consecuencia es permanente: un rol `VENDEDOR` nunca podrá tener un permiso que su superior no tenga, porque `RN-SEG-003` lo rechazaría.
+- **`user_supervisors` es la única tabla que relaciona dos usuarios entre sí**, y responde a una pregunta que `parent_role_id` no puede responder: no *qué rol manda sobre qué rol*, sino **qué persona está a cargo de qué persona**. Lleva clave sustituta —al contrario que `user_roles`— porque el mismo par puede repetirse en el tiempo y lo que distingue una fila de otra es el periodo. Su unicidad es parcial, `WHERE ended_at IS NULL`: un solo superior vigente, historial ilimitado. **No concede acceso a ningún dato**; el modelo de alcance sigue pendiente como D-22.
 - **La unicidad de `roles` es parcial**, no total: `WHERE deleted_at IS NULL`. Una restricción única corriente bloquearía para siempre el nombre de un rol borrado.
 - **La de `users` es justo la contraria: total.** `username` y `email` son únicos entre **todos** los usuarios, incluidos los eliminados (`RN-SP-016`). Reutilizarlos permitiría que la actividad de dos personas distintas quedara bajo la misma etiqueta en la auditoría. La asimetría con `roles` es deliberada: un rol es una etiqueta, un usuario es una persona.
 - **`username` y `email` sirven ambos para iniciar sesión**, y lo que impide que se confundan es que `username` no admite el carácter `@` (`RF-SP-024`). Sin esa restricción, las dos columnas necesitarían compartir un espacio de unicidad común.
@@ -266,11 +291,12 @@ flowchart TB
         B4["audit_security_log"]
     end
 
-    subgraph USRS["Usuarios · RF-SP-024 a RF-SP-033"]
+    subgraph USRS["Usuarios · RF-SP-024 a RF-SP-033, RF-SP-041, RF-SP-042"]
         direction LR
         C1["users"]
         C2["user_roles"]
         C3["refresh_tokens"]
+        C4["user_supervisors"]
     end
 
     OBS["request_log<br/>esquema sin definir"]
@@ -280,6 +306,8 @@ flowchart TB
     C1 --> C2
     A1 --> C2
     C1 --> C3
+    C1 -->|"subordinado"| C4
+    C1 -->|"superior"| C4
     SP -.->|"emiten eventos"| AUD
     USRS -.->|"emiten eventos"| AUD
     AUD -.->|"correlation_id"| OBS
@@ -291,7 +319,7 @@ flowchart TB
     classDef sp fill:#e7eef0,stroke:#2d5a6b,color:#151b1e
     classDef pend fill:#f6e6e2,stroke:#a33b2a,stroke-dasharray:3 3,color:#a33b2a
     class A1,A2,A3,A4,A5,A6,B1,B2,B3,B4 sp
-    class Q1,Q2,Q3,OBS,C1,C2,C3 pend
+    class Q1,Q2,Q3,OBS,C1,C2,C3,C4 pend
 ```
 
 ---
@@ -300,7 +328,7 @@ flowchart TB
 
 | # | Punto | Dónde se resuelve |
 |---|---|---|
-| 1 | **`memberships` no tiene vínculo con nada.** `sp.md` §10.2 dice que solo los roles `CONSUMIDOR` pueden asociarse a una membresía, pero ninguna tabla tiene la columna que exprese esa asociación. Falta decidir dónde vive: ¿`users.membership_id`, una tabla puente, o una columna en `roles`? | `requirements/sp.md` §10, junto con las entidades de usuario |
+| ~~1~~ | ~~**`memberships` no tiene vínculo con nada.**~~ **Resuelto el 22-08-2026 al aprobar el `plan.md` de `RF-SP-024`:** la asociación vive en **`user_memberships`**, tabla puente con `user_id` como **clave primaria** —que es `RN-SP-014` declarada en el esquema: una membresía por persona—. No es `users.membership_id` porque la asignación lleva vigencia propia, ni una columna en `roles` porque el nivel es de la persona y no del rol. La restricción de que solo los consumidores la tengan (`RN-SP-013`, `RN-SP-018`) **no** es expresable en el esquema: depende de `user_roles` y `roles.role_type`, y PostgreSQL no admite subconsultas en `CHECK` | — |
 | 2 | **`countries` y `currencies` son islas.** Existen sin una sola clave foránea entrante. Su razón de ser es futura —importes con moneda, direcciones con país—, pero conviene dejar escrito quién los referenciará. | `modules.md` §6, alcance por inventariar |
 | 3 | **`request_log` no tiene esquema.** Las cuatro tablas de auditoría lo referencian por `correlation_id` y `RF-SP-011` lo menciona en su postcondición, pero no hay columnas descritas en ningún documento. | `architecture.md` §9 |
 | 4 | **`audit_*.actor_id` no declara clave foránea a `users`.** Está documentado como `uuid NULL` sin relación. Si es deliberado —para que eliminar un usuario no arrastre ni bloquee su auditoría— conviene decirlo; si no, falta la restricción. | `architecture.md` §6.6.1 |
@@ -318,3 +346,5 @@ flowchart TB
 | 0.3.0 | 21-08-2026 | Consecuencias de aprobar `RF-SP-028`. `locked_until` queda nulo también en el bloqueo manual, que no expira y solo se levanta reactivando la cuenta. | Responsable técnico |
 | 0.4.0 | 21-08-2026 | Consecuencias de aprobar el `plan.md` de `RF-SP-020`. `countries` gana `updated_at` y su unicidad de nombre pasa a ser funcional sobre `f_unaccent(lower(name))`. | Responsable técnico |
 | 0.5.0 | 21-08-2026 | Consecuencias de aprobar `RF-SP-035`. `refresh_tokens` gana `revoked_reason`: solo la revocación por rotación indica robo, y sin ese dato cerrar sesión sería indistinguible de una reutilización. | Responsable técnico |
+| 0.6.0 | 22-08-2026 | Entidad nueva `user_supervisors`, derivada de registrar `RF-SP-041` y `RF-SP-042`: la estructura comercial **persona → persona**, con historial y un solo superior vigente por persona. Es la primera tabla del modelo que relaciona dos usuarios entre sí. Se anota por qué lleva clave sustituta cuando las demás asociaciones no la llevan, y que **no concede alcance sobre los datos** —D-22 sigue abierta—. | Responsable técnico |
+| 0.7.0 | 22-08-2026 | Consecuencias de aprobar los `plan.md` de `RF-SP-025` a `RF-SP-029`. `users` incorpora **`deleted_at`**, que nace con la tabla en `V18` y no con `RF-SP-029` —`architecture.md` §6.4 la declara obligatoria en toda tabla de negocio y diez requerimientos la leen antes de que alguien la escriba—, y se anota qué requerimiento crea cada una de las tres columnas de control de acceso: las tres son de `RF-SP-034`. §1 incorpora **`user_memberships`**, que faltaba en el diagrama pese a haberla creado `RF-SP-024` \(`V20`\), y con ella queda **cerrado el hueco 1** de §5: la asociación entre una persona y su nivel vive en esa tabla puente, con `user_id` como clave primaria. | Responsable técnico |

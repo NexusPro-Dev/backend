@@ -5,11 +5,11 @@
 | Proyecto | NEXUS — Renovación de plataforma |
 | Empresa | FACTECH GROUP SAS |
 | Documento | `architecture.md` |
-| Versión | 0.8.0 |
+| Versión | 0.10.0 |
 | Estado | Borrador |
 | Responsable técnico | Bonilla Diaz William Steven |
 | Fecha de creación | 19-08-2026 |
-| Última actualización | 19-08-2026 |
+| Última actualización | 22-08-2026 |
 | Documento superior | `constitution.md` v0.5.0 |
 | Documento relacionado | `security.md` v0.3.0 |
 
@@ -103,31 +103,49 @@ src/main/java/com/factech/nexus/
 │
 └── modules/
     └── <modulo>/               Un paquete por módulo (COD-MODULO del requerimiento)
-        ├── api/                Controladores REST y DTOs de entrada/salida
-        ├── application/        Casos de uso y orquestación transaccional
-        ├── domain/             Entidades, objetos de valor y reglas de negocio (RN-…)
-        └── infrastructure/     Repositorios y adaptadores hacia el exterior
+        └── <agregado>/         Un paquete por agregado: permissions, roles, users…
+            ├── domain/
+            │   ├── models/     Entidades JPA, objetos de valor y reglas de negocio (RN-…)
+            │   ├── repository/ Puertos de persistencia y sus adaptadores JPA
+            │   └── service/    Casos de uso y orquestación transaccional
+            ├── application/    Consultas, comandos, modelos de lectura y DTO de la API
+            └── interfaces/     Controladores REST
 
 src/main/resources/
 ├── application.yml             Configuración base (sin valores de entorno)
 └── db/migration/               Migraciones Flyway
 ```
 
+**Un paquete por agregado dentro del módulo.** `SP` reúne cuarenta y dos requerimientos sobre siete agregados distintos —permisos, roles, membresías, países, monedas, auditoría y usuarios—, y un único `domain/` para todos ellos sería un paquete de decenas de clases sin más relación entre sí que pertenecer al mismo módulo. La subdivisión por agregado mantiene junto lo que cambia junto.
+
 ### 5.2 Reglas de dependencia entre capas
 
 | Capa | PUEDE depender de | NO DEBE depender de |
 |---|---|---|
-| `api` | `application`, DTOs propios | `infrastructure`, entidades de otros módulos |
-| `application` | `domain`, puertos de `infrastructure` | `api` |
-| `domain` | Solo de sí mismo y del JDK | Spring, JPA, HTTP, cualquier framework |
-| `infrastructure` | `domain` | `api` |
+| `interfaces` | `application`, `domain/service` | `domain/repository`, agregados de otros módulos |
+| `domain/service` | `domain/models`, `domain/repository`, `application` | `interfaces` |
+| `domain/repository` | `domain/models`, `application` | `interfaces` |
+| `domain/models` | JPA, y el JDK | Spring, HTTP, `interfaces` |
+| `application` | El JDK | Todo lo demás |
 
-La regla crítica es la de `domain`: **las reglas de negocio no conocen el framework** (Art. VI.3). Una regla `RN-…` debe poder probarse con una prueba unitaria pura, sin levantar Spring ni base de datos.
+`application` es la capa **sin dependencias**: consultas, comandos, modelos de lectura y DTO de la API. Que no dependa de nada es lo que le permite ser el lenguaje común entre `interfaces` y `domain`.
+
+!!! warning "Divergencia declarada con la arquitectura hexagonal — 22-08-2026"
+
+    Hasta esta fecha, §5.1 prescribía `api` / `application` / `domain` / `infrastructure` y §5.2 exigía que **`domain` no conociera ningún framework**, de modo que toda regla `RN-…` pudiera probarse sin levantar Spring ni base de datos (Art. VI.3).
+
+    La disposición adoptada **renuncia a esa propiedad**: las entidades JPA viven en `domain/models` y los adaptadores de persistencia en `domain/repository`, de modo que `domain` depende de JPA. Conviene que la consecuencia esté escrita y no se descubra al tropezar con ella:
+
+    - Una regla de negocio que viva en una entidad anotada **no se puede probar sin base de datos**. Las pruebas que `Art. VI.3` describe como unitarias puras pasan a ser de integración, más lentas y con más superficie de fallo.
+    - **Los planes de `RF-SP-001` a `RF-SP-009` están escritos sobre la disposición anterior.** Varios exigen de forma explícita lo contrario de lo que esta sección ahora admite: `RF-SP-001` `T-11` pide probar el agregado `Role` «sin Spring ni base de datos», `T-12` pide «el agregado sin anotaciones de JPA», y `T-20` es una prueba de ArchUnit que **falla** si `domain` importa JPA. Los cuatro puntos deben resolverse al aprobar sus tareas: o se reescriben esas tareas, o la regla de ArchUnit se acota a lo que esta sección permite.
+    - El aislamiento que se pierde es real, pero también lo es el coste que evita: mantener un agregado de dominio y una entidad de persistencia separadas exige un `mapper` por agregado y una prueba de ida y vuelta por cada uno.
+
+    La divergencia se declara aquí para que no quede tácita y para que quien la revise tenga delante lo que se gana y lo que se paga.
 
 ### 5.3 Comunicación entre módulos
 
 - Un módulo **NO DEBE** acceder a las tablas ni a los repositorios de otro módulo.
-- La comunicación ocurre a través de la capa `application` del módulo propietario, mediante una interfaz publicada por él.
+- La comunicación ocurre a través de un servicio del módulo propietario (`domain/service`), mediante una interfaz publicada por él. Los tipos que cruzan la frontera son los de su `application`, nunca sus entidades.
 - Las dependencias entre módulos deben ser acíclicas y quedar declaradas en el documento de requerimientos del módulo.
 
 ---
@@ -445,8 +463,8 @@ sequenceDiagram
     participant C as Cliente
     participant F as Filtro correlación
     participant S as Filtro seguridad
-    participant A as Controlador (api)
-    participant U as Caso de uso (application)
+    participant A as Controlador (interfaces)
+    participant U as Servicio (domain/service)
     participant D as Dominio
     participant R as Repositorio
     participant P as PostgreSQL
@@ -514,9 +532,9 @@ Que la retención sea distinta por registro es una consecuencia buscada de la se
 
 El modelo de roles, permisos y el mecanismo de autenticación se definen en `security.md` (decisión D-08, cerrada el 19-08-2026): token de acceso JWT de 15 minutos más refresh token opaco, revocable y con rotación. A nivel arquitectónico se fija lo siguiente:
 
-- La autorización se aplica en la capa `api` mediante filtros y anotaciones declarativas, con **denegar por defecto** (Art. IV.1). Un endpoint sin declaración explícita de permiso queda inaccesible.
+- La autorización se aplica en la capa `interfaces` mediante filtros y anotaciones declarativas, con **denegar por defecto** (Art. IV.1). Un endpoint sin declaración explícita de permiso queda inaccesible.
 - El backend es stateless: no hay sesión en memoria del servidor.
-- Toda entrada externa se valida en el borde, antes de llegar a `application` (Art. IV.4).
+- Toda entrada externa se valida en el borde, antes de llegar a `domain/service` (Art. IV.4).
 - El acceso a datos usa exclusivamente consultas parametrizadas (Art. IV.5).
 - Las credenciales de base de datos y los secretos llegan por variable de entorno (Art. IX.1).
 
@@ -584,11 +602,25 @@ Las decisiones D-01 a D-07, cerradas el 19-08-2026, están registradas en `const
 
 ---
 
+## 15.1 Envío de notificaciones salientes
+
+**Decidido el 22-08-2026**, al aprobar `RF-SP-040`. Hasta entonces el sistema no tenía ninguna forma de hacer llegar nada a una persona que no puede entrar, y de ese hueco colgaban tres cosas: el restablecimiento autónomo de la contraseña (`RF-SP-040`), la verificación del correo al cambiarlo (`RF-SP-027`) y el aviso a quien le restablecen la credencial (`RF-SP-038`).
+
+**El envío es infraestructura transversal, no un módulo ni un submódulo.** Se publica como un **puerto** en la capa compartida, y cada módulo que necesite enviar algo lo consume declarando en su propio requerimiento **qué** envía y **cuándo**. Ningún módulo es dueño de las notificaciones de otro.
+
+| Salida considerada | Por qué se descartó |
+|---|---|
+| Submódulo «Notificaciones» de `SP` | Haría a `SP` dueño de los envíos de academia, productos y comisiones, que no son suyos, y obligaría a migrar sus requerimientos al promoverlo |
+| Módulo propio con código nuevo | Fijaría un código inmutable sobre un alcance que [`modules.md` §6](modules.md) declara expresamente que **no puede fijarse** hasta conocer el producto completo. Es el mismo error que se evitó con la red comercial |
+
+**El envío NO forma parte de la respuesta HTTP que lo origina.** Se ejecuta desacoplado, y esa no es una decisión de rendimiento sino de seguridad: `RF-SP-040` responde de forma indistinguible exista o no la identidad solicitada, y si la respuesta esperase al envío, el tiempo delataría cuál de los dos casos ocurrió. La consecuencia a asumir es que **un fallo de envío no se refleja en la respuesta** y necesita su propio tratamiento —reintentos y registro—, que forma parte de D-23.
+
 ## 16. Decisiones pendientes
 
 | # | Decisión | Bloquea | Responsable |
 |---|---|---|---|
 | D-09 | Infraestructura de despliegue para `testing` y `production` | Pipeline de despliegue | Responsable del proyecto |
+| **D-23** | **Mecanismo concreto de envío**: proveedor, cola o mecanismo de desacople, política de reintentos y tratamiento de rebotes. La **forma** quedó decidida en §15.1; falta el cómo | Implementación de `RF-SP-040`, `RF-SP-027` y el aviso de `RF-SP-038` | Responsable del proyecto |
 | D-10 | Retención concreta, en días, de `request_log` y de cada registro de auditoría por separado | Migración de observabilidad | Responsable técnico |
 | D-11 | Política de idempotencia en operaciones de escritura expuestas a reintentos | Diseño de endpoints críticos | Responsable técnico |
 
@@ -608,3 +640,5 @@ D-08 quedó cerrada en `security.md` §12, junto con las decisiones D-12 a D-15 
 | 0.6.0 | 20-08-2026 | §7.4 fija el tamaño de página por defecto en 20 y el máximo en 100, uniformes para todo el sistema. | Responsable técnico |
 | 0.7.0 | 21-08-2026 | El estado conservado de una eliminación de asociación incluye los códigos legibles de ambos extremos, no solo sus identificadores. | Responsable técnico |
 | 0.8.0 | 21-08-2026 | La restricción del motivo de eliminación pasa de exigir diez caracteres a exigir solo contenido no vacío. | Responsable técnico |
+| 0.9.0 | 22-08-2026 | Nueva §15.1: el **envío de notificaciones salientes** queda decidido como **infraestructura transversal con puerto publicado**, no como módulo ni submódulo, y cada módulo declara en su requerimiento qué envía y cuándo. El envío es **desacoplado de la respuesta**, por seguridad y no por rendimiento: `RF-SP-040` responde de forma indistinguible y esperar al envío delataría el caso por el tiempo. Se registra **D-23** para el mecanismo concreto —proveedor, desacople, reintentos y rebotes—. | Responsable técnico |
+| 0.10.0 | 22-08-2026 | §5.1 y §5.2 adoptan la disposición **por agregado dentro del módulo** —`domain/models`, `domain/repository`, `domain/service`, `application` e `interfaces`— y la tabla de dependencias se reescribe en consecuencia. La divergencia con la arquitectura hexagonal queda **declarada**: `domain` pasa a depender de JPA y las reglas de negocio dejan de ser probables sin base de datos. Se registran los cuatro puntos de `RF-SP-001` que la contradicen y que deben resolverse al aprobar sus tareas. | Responsable técnico |

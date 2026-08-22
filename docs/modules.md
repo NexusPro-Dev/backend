@@ -5,11 +5,11 @@
 | Proyecto | NEXUS — Renovación de plataforma |
 | Empresa | FACTECH GROUP SAS |
 | Documento | `modules.md` |
-| Versión | 0.9.0 |
+| Versión | 0.10.0 |
 | Estado | Borrador |
 | Responsable técnico | Bonilla Diaz William Steven |
 | Fecha de creación | 20-08-2026 |
-| Última actualización | 20-08-2026 |
+| Última actualización | 22-08-2026 |
 | Documento superior | `constitution.md` v0.5.0 |
 | Documentos relacionados | `architecture.md` v0.4.0, `requirements.md` v0.3.0 |
 
@@ -122,7 +122,7 @@ Se resolvió el 20-08-2026, antes de redactar el primer requerimiento: el códig
 
 **Propósito.** Gobierna quién puede hacer qué en el sistema y deja constancia de lo que ocurre. Es el módulo del que dependen todos los demás.
 
-**Alcance.** Catálogo de permisos, definición de roles, contención de privilegios entre roles, usuarios con sus roles y su membresía, credenciales y acceso, catálogos transversales (membresías, monedas y países) y los cuatro registros de auditoría (`architecture.md` §6.6). La auditoría se **consulta** desde aquí; se **escribe** desde cada módulo, en la operación que la origina.
+**Alcance.** Catálogo de permisos, definición de roles, contención de privilegios entre roles, usuarios con sus roles y su membresía, la estructura de mando de la fuerza comercial, credenciales y acceso, catálogos transversales (membresías, monedas y países) y los cuatro registros de auditoría (`architecture.md` §6.6). La auditoría se **consulta** desde aquí; se **escribe** desde cada módulo, en la operación que la origina.
 
 **No incluye.** La definición de qué contenidos exige cada nivel de membresía, que corresponde a los módulos de academia y productos.
 
@@ -137,6 +137,7 @@ Se resolvió el 20-08-2026, antes de redactar el primer requerimiento: el códig
 | Usuarios | Alta, consulta, edición, estado y baja de las personas que acceden | `users` |
 | Roles de usuario | Asignación y retiro de roles sobre una persona | `user_roles` |
 | Membresía del usuario | Nivel del consumidor, acotado por `RN-SP-013` | `user_memberships` |
+| Estructura comercial | Quién está a cargo de quién dentro de la fuerza comercial, con historial | `user_supervisors` |
 | Credenciales y acceso | Inicio y cierre de sesión, refresco con rotación, y gestión de la contraseña | `users`, `refresh_tokens` |
 | Auditoría | Consulta de los cuatro registros de auditoría, por separado o desde la vista transversal | `audit_change_log`, `audit_deletion_log`, `audit_error_log`, `audit_security_log` |
 
@@ -178,7 +179,7 @@ La Épica 2 del documento de historias de usuario (HU08–HU14) define siete rol
 
 | Candidato | Deducido de | Alcance aparente |
 |---|---|---|
-| Red comercial | HU10, HU11, HU12 | Estructura manager → director → agente y su relación entre personas |
+| Red comercial | HU10, HU11, HU12 | Estructura manager → director → agente y su relación entre personas. **Su primera pieza ya está construida dentro de `SP`** — ver la nota que sigue a esta tabla |
 | Comisiones | HU08, HU10, HU12 | FTDs, cálculo y liquidación de comisiones |
 | Finanzas | HU09 | Retiros, pagos, balances y egresos |
 | Productos y servicios | HU08, HU13 | Catálogo, compras |
@@ -191,6 +192,19 @@ La Épica 2 del documento de historias de usuario (HU08–HU14) define siete rol
     Son áreas **deducidas de los roles**, no un inventario aprobado. El documento de origen se está entregando por partes: hasta disponer del alcance completo, ni los límites ni los códigos de estos módulos pueden fijarse.
 
     Los ejemplos del Documento Marco apuntaban a *gestión de activos e inventario* (*"nombre del activo"*, `feature/registrar-activo`). No aparecen en el alcance conocido hasta ahora: queda por confirmar si siguen vigentes o eran material de plantilla.
+
+!!! info "La red comercial empieza dentro de `SP`, no como módulo propio"
+
+    El 22-08-2026 se registró la relación **persona → persona** de la fuerza comercial: quién está a cargo de quién. Vive en el submódulo «Estructura comercial» de `SP` (§5.1), sobre la tabla `user_supervisors`, con los requerimientos `RF-SP-041` y `RF-SP-042`.
+
+    **Por qué no se creó `RC` en ese momento.** Esta misma sección advierte que los códigos de los módulos candidatos no pueden fijarse hasta conocer el alcance completo, y un código, una vez usado en un identificador, no se cambia jamás (§2.1). Crear el módulo para alojar una sola relación habría fijado su código y su límite antes de saber qué más contiene.
+
+    **Cuándo se promueve** (§2.3). En cuanto se cumpla cualquiera de las dos condiciones, que aquí se anticipan con nombre propio:
+
+    1. Aparece una tabla de red comercial que `SP` no necesita para autorizar —territorios, cuotas, jerarquías paralelas—.
+    2. Otro módulo, y **Comisiones es el candidato inmediato**, necesita consumir la estructura directamente.
+
+    La promoción se llevará `user_supervisors` y recibirá un código nuevo; `RF-SP-041` y `RF-SP-042` **conservan su identificador**, y la migración se anota en la matriz de trazabilidad (§2.3).
 
 !!! note "Las historias de usuario son documento de origen"
 
@@ -247,3 +261,4 @@ El orden importa: el módulo precede al requerimiento, el requerimiento precede 
 | 0.7.0 | 20-08-2026 | Se resuelve la relación entre historias de usuario y requerimientos: las historias son documento de origen y quedan fuera de la trazabilidad. | Responsable técnico |
 | 0.8.0 | 20-08-2026 | Se actualizan los prefijos de permisos de `SP` con los catálogos incorporados: membresías, monedas y países. | Responsable técnico |
 | 0.9.0 | 21-08-2026 | El módulo `USR` se retira: usuarios, roles de usuario, membresía del usuario y acceso pasan a `SP`, que queda autocontenido. | Responsable técnico |
+| 0.10.0 | 22-08-2026 | Submódulo nuevo en `SP`: «Estructura comercial», dueño de `user_supervisors`. §6 deja escrito por qué la red comercial empieza dentro de `SP` en lugar de estrenar el código `RC` —los códigos de los candidatos no pueden fijarse hasta conocer el alcance, y no se cambian jamás— y con qué dos condiciones se promueve, siendo Comisiones el consumidor que las disparará. | Responsable técnico |
