@@ -132,19 +132,30 @@ class PermissionsSeedIT extends IntegrationTestBase {
   @DisplayName("la siembra del catálogo no deja rastro en ninguna auditoría")
   void laSiembraNoSeAudita() {
     // RN-SP-004 hace el permiso inmutable por API: no tiene línea de tiempo
-    // que reconstruir. Cuando V4 cree las tablas de auditoría, esta prueba
-    // pasará a comprobar que siguen vacías tras la siembra.
-    Integer tablasDeAuditoria =
-        jdbc.queryForObject(
-            """
-            SELECT count(*)
-              FROM information_schema.tables
-             WHERE table_name LIKE 'audit\\_%'
-            """,
-            Integer.class);
+    // que reconstruir. Desde que V4 crea las cuatro tablas, la comprobación ya
+    // no es que no existan —existen— sino que ninguna fila se refiere al
+    // catálogo.
+    //
+    // La comprobación va ACOTADA a `permissions` y no exige las tablas vacías:
+    // V7 audita los siete roles que siembra, y eso es exactamente lo que debe
+    // hacer. Una prueba que exigiera cero filas en total estaría afirmando lo
+    // contrario de lo que dice V4.
+    assertThat(
+            jdbc.queryForObject(
+                """
+                SELECT (SELECT count(*) FROM audit_change_log   WHERE entity   = 'permissions')
+                     + (SELECT count(*) FROM audit_deletion_log WHERE entity   = 'permissions')
+                     + (SELECT count(*) FROM audit_error_log    WHERE resource = 'permissions')
+                """,
+                Integer.class))
+        .as("la siembra del catálogo dejó rastro en la auditoría")
+        .isZero();
 
-    assertThat(tablasDeAuditoria)
-        .as("V4 todavía no existe; cuando exista, esta prueba debe verificarlas vacías")
+    // El registro de seguridad no tiene columna de entidad: ninguna migración
+    // emite eventos de control de acceso, de modo que aquí sí corresponde el
+    // total.
+    assertThat(jdbc.queryForObject("SELECT count(*) FROM audit_security_log", Integer.class))
+        .as("una migración emitió un evento de seguridad")
         .isZero();
   }
 }

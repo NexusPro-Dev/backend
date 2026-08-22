@@ -5,7 +5,7 @@
 | Proyecto | NEXUS — Renovación de plataforma |
 | Empresa | FACTECH GROUP SAS |
 | Documento | `architecture.md` |
-| Versión | 0.10.0 |
+| Versión | 0.11.0 |
 | Estado | Borrador |
 | Responsable técnico | Bonilla Diaz William Steven |
 | Fecha de creación | 19-08-2026 |
@@ -281,11 +281,13 @@ El motivo es obligatorio en el esquema para las entidades de negocio, y no basta
 ```sql
 CONSTRAINT ck_deletion_reason CHECK (
     deletion_type = 'ASSOCIATION'
- OR char_length(btrim(reason)) > 0
+ OR (reason IS NOT NULL AND char_length(btrim(reason)) > 0)
 )
 ```
 
 La restricción exige contenido, no longitud. Un motivo de un solo carácter la satisface, de modo que la garantía es formal: obliga a escribir algo, no a que ese algo informe. Se decidió no elevar el mínimo para no imponer fricción a quien sí redacta un motivo útil.
+
+**El `reason IS NOT NULL` no es redundante, y su ausencia era un defecto.** Hasta el 22-08-2026 esta restricción se escribía solo con la comparación de longitud, y con el motivo en nulo esa comparación da `NULL`: `FALSE OR NULL` es `NULL`, y un `CHECK` que evalúa a `NULL` **acepta la fila**. Es decir, la obligación del Art. V.13 podía saltarse sin más que omitir el campo — exactamente lo contrario de lo que la restricción existe para impedir. Se detectó al implementar `RF-SP-001` · `T-01`, que es quien crea la tabla, y su prueba de integración ejercita hoy los tres casos: en blanco, solo espacios y nulo.
 
 **Consecuencia sobre la API, que debe asumirse de forma consciente:** si el motivo es obligatorio, hay que pedirlo. Todo `DELETE` recibe un cuerpo JSON con el motivo y responde `400` si llega vacío:
 
@@ -642,3 +644,4 @@ D-08 quedó cerrada en `security.md` §12, junto con las decisiones D-12 a D-15 
 | 0.8.0 | 21-08-2026 | La restricción del motivo de eliminación pasa de exigir diez caracteres a exigir solo contenido no vacío. | Responsable técnico |
 | 0.9.0 | 22-08-2026 | Nueva §15.1: el **envío de notificaciones salientes** queda decidido como **infraestructura transversal con puerto publicado**, no como módulo ni submódulo, y cada módulo declara en su requerimiento qué envía y cuándo. El envío es **desacoplado de la respuesta**, por seguridad y no por rendimiento: `RF-SP-040` responde de forma indistinguible y esperar al envío delataría el caso por el tiempo. Se registra **D-23** para el mecanismo concreto —proveedor, desacople, reintentos y rebotes—. | Responsable técnico |
 | 0.10.0 | 22-08-2026 | §5.1 y §5.2 adoptan la disposición **por agregado dentro del módulo** —`domain/models`, `domain/repository`, `domain/service`, `application` e `interfaces`— y la tabla de dependencias se reescribe en consecuencia. La divergencia con la arquitectura hexagonal queda **declarada**: `domain` pasa a depender de JPA y las reglas de negocio dejan de ser probables sin base de datos. Se registran los cuatro puntos de `RF-SP-001` que la contradicen y que deben resolverse al aprobar sus tareas. | Responsable técnico |
+| 0.11.0 | 22-08-2026 | **Corrección de `ck_deletion_reason` (§6.6.3)**, detectada al implementar `RF-SP-001` · `T-01`. La restricción se transcribía sin comprobar la presencia del motivo, y con `reason` en nulo la comparación de longitud da `NULL`: `FALSE OR NULL` es `NULL`, y un `CHECK` que evalúa a `NULL` **acepta la fila**. La obligación del Art. V.13 podía saltarse omitiendo el campo. Gana `reason IS NOT NULL`, y `V4__create_audit_logs.sql` la declara así con prueba de integración para los tres casos —en blanco, solo espacios y nulo—. | Responsable técnico |
