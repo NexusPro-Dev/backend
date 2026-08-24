@@ -15,13 +15,13 @@
 
 ## 1. Tareas
 
-La migración es lo más pequeño del requerimiento —un índice— y el peso está repartido entre dos componentes de dominio que **no existen todavía y que otros requerimientos van a consumir**: `RoleGrantPolicy` y `CommercialRank`. Los dos deben poder probarse sin Spring ni base de datos, porque los dos son reglas de negocio (Art. VI.3), y los dos son la causa probable de que este requerimiento salga mal si se escriben pegados al caso de uso.
+La migración es lo más pequeño del requerimiento —un índice— y **este requerimiento no crea ningún componente de dominio**: `PrivilegeContainment` y `CommercialStructure` los extrajo `RF-SP-024` al aprobarse su plan el 22-08-2026 (`plan.md` §3). `T-02` y `T-03` no los escriben: verifican que se consumen y les añaden lo único que el alta no puede tener —la comparación de rango **antes y después**, que es lo que distingue un ascenso—. Escribirlos de nuevo aquí es el error que este bloque tiene que evitar, y no falla: concede.
 
 | # | Tarea | Depende de | Verificación | Estado |
 |---|---|---|---|---|
 | `T-01` | Migración `V25__create_user_roles_role_index.sql`: `ix_user_roles_role_id` sobre `user_roles (role_id)` | — | `mvn flyway:info` la lista aplicada; un `EXPLAIN` del conteo de portadores de un rol usa el índice y no recorre la tabla | Pendiente |
-| `T-02` | `domain/RoleGrantPolicy`: `RN-SEG-010` en un solo componente compartido, que recibe los permisos declarados por cada rol y los efectivos del actor y devuelve **qué roles exceden** | — | Pruebas unitarias sin Spring: el rechazo es completo y enumera los infractores; un actor con el catálogo entero no rechaza nada; la comparación es por **permisos** y no por posición en la jerarquía de roles | Pendiente |
-| `T-03` | `domain/CommercialRank`: resuelve el rol vendedor de **mayor rango** de un conjunto y su rol padre inmediato; distingue ascenso, asignación lateral y cúspide | — | Pruebas unitarias sin Spring: sobre `AGENTE` + `DIRECTOR` devuelve `DIRECTOR`; añadir `AGENTE` a un `DIRECTOR` **no** cambia el rango; el rol cuyo padre no es `VENDEDOR` se declara cúspide | Pendiente |
+| `T-02` | Consumir `domain/security/PrivilegeContainment` de `RF-SP-024` para `RN-SEG-010`, **sin reimplantarlo** | — | Pruebas unitarias sin Spring: el rechazo es completo y enumera los infractores; la comparación es por **permisos** y no por posición en la jerarquía de roles. Una prueba de ArchUnit verifica que este módulo no declara una segunda comprobación de `RN-SEG-010` | Pendiente |
+| `T-03` | Ampliar `domain/CommercialStructure` de `RF-SP-024` con la **comparación de rango antes y después**: ascenso, asignación lateral y cúspide | — | Pruebas unitarias sin Spring: sobre `AGENTE` + `DIRECTOR` devuelve `DIRECTOR`; añadir `AGENTE` a un `DIRECTOR` **no** cambia el rango; el rol cuyo padre no es `VENDEDOR` se declara cúspide | Pendiente |
 | `T-04` | `domain/User.assignRoles(...)`: agrega los roles que faltan, devuelve **cuáles se agregaron realmente** y expone si la operación produce el primer rol `CONSUMIDOR` y si cambia el rango comercial | `T-02`, `T-03` | Pruebas unitarias: la operación es aditiva e idempotente; repetirla no agrega nada; los roles duplicados en la entrada se colapsan | Pendiente |
 | `T-05` | `domain/UserRepository`: carga del usuario con sus roles, su membresía y su superior vigente en **una sola** lectura | — | Prueba de integración: una sola consulta, verificada con el contador de sentencias | Pendiente |
 | `T-06` | `application/AssignUserRolesService` con `@Transactional` y el orden de verificación de `plan.md` §4, del usuario a `RN-SP-020` | `T-04`, `T-05` | Pruebas con dobles: cada excepción se lanza en el orden declarado; los pasos 6 a 8 nunca se evalúan antes de resolver los roles; el paso 5 va siempre antes que ellos | Pendiente |
@@ -90,7 +90,7 @@ graph LR
 | # | Bloqueo | Desde | Responsable | Estado |
 |---|---|---|---|---|
 | 1 | Ninguna tarea es ejecutable hasta que `RF-SP-024` cree `users` (`V18`), `user_roles` (`V19`), `user_memberships` (`V20`) y `user_supervisors` (`V21`). Este requerimiento no crea ninguna tabla: solo añade un índice sobre una que aún no existe | 22-08-2026 | Responsable técnico | Abierto |
-| 2 | `T-02` y `T-03` producen componentes que `RF-SP-024` también necesita. Si aquel se implementa primero, los crea él y aquí se consumen; **no deben escribirse dos veces**, y quien llegue segundo debe verificar que reutiliza y no duplica (`plan.md` §8) | 22-08-2026 | Responsable técnico | Abierto |
+| 2 | `T-02` y `T-03` consumen `PrivilegeContainment` y `CommercialStructure`, que **crea `RF-SP-024`**. Ninguna de las dos es ejecutable hasta que aquel requerimiento esté implementado, y **ninguna de las dos los escribe** (`plan.md` §3) | 22-08-2026 | Responsable técnico | Abierto |
 | 3 | `T-13` no puede cubrir `CA-SP-258` —los permisos efectivos incluyen los del rol nuevo al renovar el token— hasta que `RF-SP-034` emita tokens. Hasta entonces la prueba verifica la resolución de permisos, no el ciclo completo del token | 22-08-2026 | Responsable técnico | Abierto |
 
 ## 5. Definición de terminado

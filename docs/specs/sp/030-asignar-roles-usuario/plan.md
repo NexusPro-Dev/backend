@@ -61,8 +61,8 @@ Es la misma solución, por la misma razón y con la misma consecuencia: esa escr
 | Capa | Componente | Nuevo / Modificado | Responsabilidad |
 |---|---|---|---|
 | `domain` | `User` | Modificado | `assignRoles(...)`: agrega los roles que faltan y devuelve **cuáles se agregaron realmente**. Decide si la operación produce el primer rol `CONSUMIDOR` y si cambia el rol vendedor de mayor rango |
-| `domain` | `RoleGrantPolicy` | **Nuevo, compartido** | `RN-SEG-010` en un solo sitio. Recibe los permisos que declara cada rol y los permisos efectivos del actor, y devuelve qué roles exceden. Lo consumen `RF-SP-024`, `RF-SP-030` y —por la vía de los permisos— `RF-SP-005` |
-| `domain` | `CommercialRank` | **Nuevo** | Resuelve cuál es el rol vendedor de **mayor rango** de un conjunto de roles y cuál es su rol padre inmediato. Es el cálculo del que dependen `RN-SP-019` y `RN-SP-020`, y el que distingue un ascenso de una asignación lateral |
+| `domain` | `PrivilegeContainment` | Sin cambios | `RN-SEG-010` en un solo sitio. Lo **extrajo `RF-SP-024`** a `domain/security` al aprobarse su plan el 22-08-2026, precisamente para que este requerimiento no lo reimplante. Recibe los permisos que se conceden y los efectivos del actor, y devuelve `PermissionContainmentViolation` |
+| `domain` | `CommercialStructure` | **Modificado** | Componente de `RF-SP-024`, que ya decide `RN-SP-019` y `RN-SP-020` sobre el conjunto de roles de un alta. Aquí gana el caso que aquel no tiene: **comparar el rango antes y después**, que es lo único que distingue un ascenso de una asignación lateral |
 | `domain` | `UserRepository` | Modificado | Puerto de `RF-SP-024`. Añade la carga del usuario con sus roles, su membresía y su superior vigente en una sola lectura |
 | `domain` | `RoleRepository` | Sin cambios | Puerto de `RF-SP-001` |
 | `application` | `AssignUserRolesService` | Nuevo | Caso de uso. `@Transactional`, resuelve las cotas, escribe los tres hechos y emite la auditoría |
@@ -74,7 +74,7 @@ Es la misma solución, por la misma razón y con la misma consecuencia: esa escr
 | `api` | `AssignRolesRequest` | Nuevo | DTO de entrada con Bean Validation (`VAL-001`, `VAL-002`, `VAL-005`) |
 | `api` | `UserResponse` | Sin cambios | Definido en `RF-SP-024` |
 
-`RoleGrantPolicy` vive en `domain` y no en `application` porque es una regla de negocio y debe poder probarse sin Spring ni base de datos (Art. VI.3). Que sea **un solo componente** es lo que resolvió la pregunta 1 de `spec.md` §14: tres comprobaciones idénticas escritas en tres sitios divergen, y la que se quede atrás no falla — concede.
+**Este requerimiento no crea ni un componente de dominio nuevo**, y conviene que sea así. `PrivilegeContainment` y `CommercialStructure` los extrajo `RF-SP-024` al aprobarse su plan, y la pregunta 1 de `spec.md` §14 exigía exactamente eso: tres comprobaciones idénticas escritas en tres sitios divergen, y la que se quede atrás no falla — concede. Lo único que aquí se añade es el caso del **ascenso**, que el alta de un usuario no puede tener porque no hay estado anterior con el que comparar.
 
 ## 4. Contrato de API
 
@@ -191,8 +191,8 @@ El evento de seguridad espera al commit por el motivo de `RF-SP-001` §7: emitid
 ## 8. Impacto sobre otros módulos
 
 - **`RF-SP-003` y `RF-SP-009`** dependen de `ix_user_roles_role_id` (§2) para contar cuántas personas portan un rol sin recorrer la tabla. Sus planes ya lo dan por existente; esta migración es quien lo crea.
-- **`RF-SP-024`** comparte con este requerimiento `RoleGrantPolicy` y `CommercialRank`. El alta de usuario resuelve exactamente el mismo problema —primer rol de consumidor, primer rol de vendedor— sobre una persona que aún no existe, y debe hacerlo con los mismos componentes. Si se implementa antes, los crea él y este requerimiento los consume.
-- **`RF-SP-031`** es la operación inversa y **no** es su simétrica. Comparte `CommercialRank` para decidir si el retiro deja a la persona sin rol vendedor.
+- **`RF-SP-024`** es quien **crea** `PrivilegeContainment` y `CommercialStructure`, extraídos al aprobarse su plan el 22-08-2026. El alta de usuario resuelve el mismo problema —primer rol de consumidor, primer rol de vendedor— sobre una persona que aún no existe. Este requerimiento los **consume**, y lo único que aporta es el caso del ascenso.
+- **`RF-SP-031`** es la operación inversa y **no** es su simétrica. Comparte `CommercialStructure` para decidir si el retiro deja a la persona sin rol vendedor.
 - **`RF-SP-032`** no cambia. Esta operación establece la membresía **solo** en el caso del primer rol `CONSUMIDOR`; cualquier otro cambio de nivel es suyo, y `EX-006` existe para que esta vía no se convierta en una segunda puerta con reglas distintas.
 - **`RF-SP-041`** ídem con el superior comercial.
 - **`security.md` §8.1** ya enumera `USER_ROLES_ASSIGNED` y `ck_audit_security_log_event_type` ya lo admite (`V4__create_audit_logs.sql`). No hay enmienda que tramitar.
@@ -220,8 +220,8 @@ El evento de seguridad espera al commit por el motivo de `RF-SP-001` §7: emitid
 |---|---|---|
 | Los tres hechos no comparten transacción y la persona queda como consumidor sin membresía o vendedor sin superior | **Alto** | `@Transactional` único en el caso de uso; `CA-SP-259` y `CA-SP-401` verifican además el `correlation_id` compartido |
 | `RN-SEG-010` se implementa contra la caché de permisos por eficiencia | **Alto** | Anotado aquí, en `RF-SP-001` y en `RF-SP-005`. Es una concesión indebida sobre una persona, no una lectura desactualizada |
-| `RoleGrantPolicy` se duplica en `RF-SP-024` en lugar de compartirse | **Alto** | §3 y §8 lo declaran compartido; `T-02` de `tasks.md` lo exige como componente propio con sus pruebas |
-| El ascenso no se detecta y se acepta sin superior nuevo | **Alto** | `CommercialRank` calcula el rol de mayor rango **resultante**, no el actual. `CA-SP-403` y `CA-SP-404` cubren las dos direcciones |
+| `PrivilegeContainment` o `CommercialStructure` se reimplantan aquí en lugar de consumirse | **Alto** | §3 y §8 declaran que **los crea `RF-SP-024`**. `T-02` y `T-03` de `tasks.md` son de verificación y ampliación, no de creación |
+| El ascenso no se detecta y se acepta sin superior nuevo | **Alto** | `CommercialStructure` calcula el rol de mayor rango **resultante**, no el actual. `CA-SP-403` y `CA-SP-404` cubren las dos direcciones |
 | El token crece hasta superar el tamaño razonable de una cabecera HTTP | Medio | **Condición de disparo declarada** (`spec.md` §14, pregunta 4). La corrección no sería un tope de roles sino dejar de transportar los códigos de rol en el token, que es un cambio de `security.md` §4.5 y no de este requerimiento |
 | El superior asciende y su subordinado no, dejando `RN-SP-020` incumplida | Medio | Hueco conocido y declarado en `spec.md` §13: se valida al escribir, no de forma continua. La corrección es `RF-SP-041` sobre cada subordinado. Si aparece con frecuencia, la salida es una comprobación periódica de consistencia, no una cascada automática |
 | Se espera que la asignación tenga efecto inmediato | Medio | Declarado en `spec.md` §2 y §13. La vía inmediata es ampliar un rol que la persona **ya porta** con `RF-SP-005` |
@@ -232,7 +232,7 @@ El evento de seguridad espera al commit por el motivo de `RF-SP-001` §7: emitid
 |---|---|---|
 | `CA-SP-251` | Integración | Las filas quedan en `user_roles` |
 | `CA-SP-252` | Integración | Los roles previos siguen presentes tras la operación |
-| `CA-SP-253` | Unitaria + API | `RoleGrantPolicy` rechaza y enumera; la API devuelve `409` con los roles citados |
+| `CA-SP-253` | Unitaria + API | `PrivilegeContainment` rechaza y enumera; la API devuelve `409` con los roles citados |
 | `CA-SP-254` | API | Un rol inactivo devuelve `422` indicando cuál |
 | `CA-SP-255` | API | Rol inexistente y rol eliminado devuelven el **mismo** cuerpo |
 | `CA-SP-256` | Integración | Repetir la petición no produce error ni filas duplicadas |
@@ -260,4 +260,4 @@ Casos límite de `spec.md` §13 con prueba propia (Art. VII.3):
 | Usuario inactivo o bloqueado | Integración | Recibe roles sin error: `RN-SEG-002` afecta al estado del rol, no al de la persona |
 | El actor se asigna roles a sí mismo | API | Se admite, y `RN-SEG-010` lo acota a lo que ya posee |
 
-`CA-SP-403` y `CA-SP-404` merecen prueba unitaria propia sobre `CommercialRank`, y no solo de API: son las dos direcciones del mismo cálculo —el rango sube, el rango no sube— y confundirlas es el defecto más probable de todo el requerimiento.
+`CA-SP-403` y `CA-SP-404` merecen prueba unitaria propia sobre `CommercialStructure`, y no solo de API: son las dos direcciones del mismo cálculo —el rango sube, el rango no sube— y confundirlas es el defecto más probable de todo el requerimiento.

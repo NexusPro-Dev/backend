@@ -15,14 +15,14 @@
 
 ## 1. Tareas
 
-Sin migración: este requerimiento no crea ni altera nada (`plan.md` §2). El peso está en dos piezas que se implementan mal con facilidad y cuyo modo de fallo es **silencioso** en ambos casos: `RootRoleGuard`, que si no serializa deja pasar dos retiros concurrentes sin error visible, y la revocación de sesiones, que si se saca de la transacción deja vivo el acceso que se acaba de retirar.
+Sin migración y **sin ningún componente de dominio propio**: los cinco que necesita los crean `RF-SP-024` y `RF-SP-028` (`plan.md` §3). El peso está en dos comportamientos que se implementan mal con facilidad y cuyo modo de fallo es **silencioso** en ambos casos: la comprobación de `RN-SP-001`, que si no serializa deja pasar dos retiros concurrentes sin error visible, y la revocación de sesiones, que si se saca de la transacción deja vivo el acceso que se acaba de retirar.
 
 | # | Tarea | Depende de | Verificación | Estado |
 |---|---|---|---|---|
-| `T-01` | `domain/RootRoleGuard`: `RN-SP-001` en un componente compartido, que cuenta los portadores **activos** del rol raíz **bajo bloqueo** sobre ese conjunto, no sobre la fila del usuario | — | Prueba de integración concurrente: dos retiros simultáneos sobre el último superadministrador terminan uno en `200` y otro en `409`. Sin el bloqueo la prueba falla dejando el sistema sin administración, que es lo que la hace valer | Pendiente |
+| `T-01` | Consumir `RootAdministratorPresence` y `RootRoleHolderRepository` de `RF-SP-028` para `RN-SP-001`, **con el bloqueo sobre el conjunto de portadores activos** y no sobre la fila del usuario | — | Prueba de integración concurrente: dos retiros simultáneos sobre el último superadministrador terminan uno en `200` y otro en `409`. Sin el bloqueo la prueba falla dejando el sistema sin administración, que es lo que la hace valer | Pendiente |
 | `T-02` | `domain/User.revokeRoles(...)`: retira los presentes, devuelve **cuáles se retiraron realmente**, y si la persona queda sin rol `CONSUMIDOR` y sin rol `VENDEDOR` | — | Pruebas unitarias sin Spring: sustractiva e idempotente; los roles que no tenía se ignoran; los duplicados de la entrada se colapsan | Pendiente |
-| `T-03` | `application/SessionRevoker`: puerto hacia `shared/security` para revocar los refresh tokens de una persona | — | Prueba con dobles: el puerto se invoca una vez por operación efectiva y **nunca** cuando ningún rol se retiró | Pendiente |
-| `T-04` | `domain/UserRepository`: conteo de subordinados vigentes —`user_supervisors` con `ended_at` nulo— y cierre de la asignación de superior | — | Prueba de integración: el conteo usa `ix_user_supervisors_supervisor_vigente` (`V24`) y no recorre la tabla | Pendiente |
+| `T-03` | Consumir `SessionRevoker`, el puerto de `RF-SP-028` que **implementa** `RF-SP-034` | — | Prueba con dobles: el puerto se invoca una vez por operación efectiva y **nunca** cuando ningún rol se retiró | Pendiente |
+| `T-04` | Cierre de la asignación de superior en `UserRepository`, y **consumo** de `SupervisedTeamCounter` de `RF-SP-028` para `EX-005` | — | Prueba de integración: el conteo usa `ix_user_supervisors_supervisor_vigente` (`V24`) y no recorre la tabla; el conteo **no se reimplanta** en este módulo | Pendiente |
 | `T-05` | `application/RevokeUserRolesService` con `@Transactional` y el orden de verificación de `plan.md` §4 | `T-01`, `T-02`, `T-04` | Pruebas con dobles: cada excepción en el orden declarado; los pasos 4 y 5 nunca se evalúan antes de resolver qué roles se retiran de verdad; **no** se verifica que los roles existan en el catálogo | Pendiente |
 | `T-06` | `DELETE` de las filas de `user_roles` desde `JpaUserRepository` | `T-05` | Prueba de integración: retirar un rol que la persona no tiene afecta cero filas y no produce error | Pendiente |
 | `T-07` | Cascada de `RN-SP-015`: `DELETE` de `user_memberships` cuando la persona queda sin ningún rol `CONSUMIDOR`, en la misma transacción | `T-06` | Prueba de integración: tras el retiro no queda ni rol de consumidor ni membresía; con otro rol consumidor vigente la membresía **permanece** | Pendiente |
@@ -93,7 +93,7 @@ graph LR
 | 1 | Ninguna tarea es ejecutable hasta que `RF-SP-024` cree `users`, `user_roles`, `user_memberships` y `user_supervisors` (`V18` a `V21`) | 22-08-2026 | Responsable técnico | Abierto |
 | 2 | `T-03` y `T-09` no pueden implementarse hasta que exista el almacén de refresh tokens, que crea `RF-SP-035`. **Es el bloqueo que decide el orden del bloque B**: sin él, `CA-SP-361` a `CA-SP-363` no son verificables y el requerimiento no puede darse por terminado | 22-08-2026 | Responsable técnico | Abierto |
 | 3 | `T-04` depende de `ix_user_supervisors_supervisor_vigente`, que crea `RF-SP-028` en `V24`. Si aquel se implementa después, esta tripleta debe crear el índice en su lugar y `RF-SP-028` consumirlo | 22-08-2026 | Responsable técnico | Abierto |
-| 4 | `T-01` produce `RootRoleGuard`, que `RF-SP-028` y `RF-SP-029` también necesitan. Quien llegue segundo **reutiliza y no duplica** (`plan.md` §3) | 22-08-2026 | Responsable técnico | Abierto |
+| 4 | `T-01`, `T-03` y `T-04` **consumen** componentes de `RF-SP-028` —`RootAdministratorPresence`, `RootRoleHolderRepository`, `SessionRevoker` y `SupervisedTeamCounter`— y ninguna es ejecutable hasta que aquel requerimiento esté implementado. **Ninguna los escribe** (`plan.md` §3) | 22-08-2026 | Responsable técnico | Abierto |
 
 ## 5. Definición de terminado
 

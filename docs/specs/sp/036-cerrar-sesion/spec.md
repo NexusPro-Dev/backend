@@ -8,6 +8,7 @@
 | Autor | Responsable técnico |
 | Aprobada por | Responsable técnico |
 | Fecha de aprobación | 21-08-2026 |
+| Enmendada | 24-08-2026 — §10: `EX-001` queda absorbido por `FA-001`; un token no reconocido devuelve `204` y no un rechazo, porque distinguirlos reintroducía el oráculo que la pregunta 3 de §14 evita. Al aprobarse el [`plan.md`](plan.md) §4 (Art. I.7) |
 
 ---
 
