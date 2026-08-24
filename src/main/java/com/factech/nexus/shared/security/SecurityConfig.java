@@ -41,9 +41,18 @@ public class SecurityConfig {
   /** Salud del sistema: público siempre, sin detalle interno (Art. XV.10). */
   private static final String[] RUTAS_PUBLICAS = {"/actuator/health", "/api/v1/auth/login"};
 
-  /** Documentación de la API: pública solo donde se habilite de forma explícita. */
+  /**
+   * Documentación de la API: pública solo donde se habilite de forma explícita.
+   *
+   * <p><b>{@code /v3/api-docs.yaml} se declara aparte y no sobra.</b> No casa con el literal exacto
+   * ni con {@code /v3/api-docs/**}, que exige una barra a continuación, de modo que sin esta
+   * entrada el contrato en YAML responde {@code 401} mientras el JSON responde {@code 200}. Varias
+   * herramientas de generación de cliente piden el YAML por defecto, y el síntoma que ve quien lo
+   * consume es «la documentación está cerrada» y no «falta un patrón» — que es la clase de fallo
+   * que cuesta media tarde encontrar.
+   */
   private static final String[] RUTAS_DOCUMENTACION = {
-    "/v3/api-docs", "/v3/api-docs/**", "/swagger-ui.html", "/swagger-ui/**"
+    "/v3/api-docs", "/v3/api-docs.yaml", "/v3/api-docs/**", "/swagger-ui.html", "/swagger-ui/**"
   };
 
   private final boolean documentacionPublica;
