@@ -11,6 +11,7 @@ services:
   db:
     image: postgres:17-alpine
     container_name: nexus-db
+    restart: unless-stopped
     environment:
       POSTGRES_DB: nexus
       POSTGRES_USER: nexus
@@ -32,6 +33,7 @@ services:
       context: .
       dockerfile: Dockerfile
     container_name: nexus-app
+    restart: unless-stopped
     depends_on:
       db:
         condition: service_healthy
@@ -49,15 +51,34 @@ services:
       EXPOSE_API_DOCS: "true"
       # Credencial inicial del superadministrador (V22). Local y solo local:
       # en cualquier otro entorno llega por el gestor de secretos.
+      #
+      # SIN `:?` a proposito. El fallo rapido que exige el Art. IX.5 ya lo hace
+      # la aplicacion: `application.yml` declara la variable sin valor por
+      # defecto y el contenedor muere al arrancar con un error de Spring.
+      # Ponerlo aqui tumbaba el archivo ENTERO —Compose interpola antes de
+      # elegir servicio—, de modo que `docker compose up -d db` y hasta
+      # `docker compose ps` fallaban sin que nada estuviera mal.
+      #
+      # El hash lleva los `$` DUPLICADOS en el `.env`. Ver `.env.example`.
       SUPERADMIN_EMAIL: "superadmin@factech.co"
-      SUPERADMIN_PASSWORD_HASH: ${SUPERADMIN_PASSWORD_HASH:?define el hash en tu .env}
+      SUPERADMIN_PASSWORD_HASH: ${SUPERADMIN_PASSWORD_HASH}
     ports:
       - "8080:8080"
+    healthcheck:
+      # El endpoint de salud es público (Art. XV.10) y la imagen alpine trae
+      # el `wget` de busybox, de modo que no hace falta añadir nada.
+      # `start_period` es holgado a propósito: Flyway aplica las migraciones
+      # antes de que el puerto responda, y en el primer arranque son varias.
+      test: ["CMD-SHELL", "wget --spider -q http://localhost:8080/actuator/health"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+      start_period: 60s
 
   adminer:
     image: adminer
     container_name: backend-adminer
-    restart: always
+    restart: unless-stopped
     ports:
       - "8081:8080"
     environment:

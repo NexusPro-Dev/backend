@@ -8,10 +8,9 @@
 --
 -- LA CREDENCIAL ENTRA POR MARCADOR DE POSICIÓN DE FLYWAY, no como literal en el
 -- archivo: un hash escrito en el repositorio es una credencial en el
--- repositorio, y `RNF-SEG-003` lo prohíbe. Si el marcador no tiene valor, la
--- aplicación no arranca —`application.yml` lo declara sin valor por omisión—, y
--- eso es exactamente lo que se busca: un despliegue sin credencial inicial
--- declarada falla, en lugar de arrancar con una conocida.
+-- repositorio, y `RNF-SEG-003` lo prohíbe. Un despliegue sin credencial inicial
+-- declarada debe fallar, en lugar de arrancar con una conocida (Art. IX.5), y de
+-- eso se encarga la guarda que abre este archivo.
 --
 -- EL IDENTIFICADOR ES FIJO y está escrito aquí. Es la única fila de `users` que
 -- puede tener un identificador conocido, y hace falta que lo sea: las pruebas de
@@ -19,6 +18,51 @@
 -- `users:create` y deben poder referirlo sin consultarlo. UUID v7 con marca de
 -- tiempo 2026-08-24T12:00:00Z (01a033a4-4a00).
 -- =============================================================================
+
+-- -----------------------------------------------------------------------------
+-- Guarda de la credencial
+--
+-- «Si el marcador no tiene valor, la aplicación no arranca» es falso cuando la
+-- variable está declarada y **vacía**: la sustitución de una variable de entorno
+-- vacía en `application.yml` resuelve a cadena vacía sin error, `password_hash`
+-- es `NOT NULL` y la cadena vacía lo satisface. La siembra terminaba con éxito y
+-- el superadministrador no podía entrar nunca, sin que nada fallara. Lo tapaba
+-- el `:?` de `docker-compose.yml`, que además tumbaba el archivo entero e
+-- impedía levantar la base de datos sola.
+--
+-- (Y una advertencia para quien edite este archivo: Flyway sustituye los
+-- marcadores **también dentro de los comentarios**. Escribir aquí un ejemplo de
+-- marcador con una variable que no exista aborta la migración antes de
+-- ejecutarla. Este comentario ya costó una vez.)
+--
+-- La comprobación vive aquí porque es el único punto por el que pasan **todos**
+-- los caminos: contenedor, `mvn spring-boot:run`, integración continua y
+-- cualquier despliegue futuro.
+--
+-- La segunda condición no es celo. Docker Compose interpola los valores del
+-- `.env` y convierte `$argon2id$v=19$…` en un resto irreconocible sin avisar;
+-- exigir el prefijo transforma ese estropicio silencioso en un fallo de
+-- migración inmediato, que es donde se puede leer.
+-- -----------------------------------------------------------------------------
+DO $guarda$
+BEGIN
+    IF btrim('${superadmin_password_hash}') = '' THEN
+        RAISE EXCEPTION
+            'SUPERADMIN_PASSWORD_HASH no está declarado. Un despliegue sin credencial inicial debe fallar, no arrancar con una conocida (Art. IX.5).';
+    END IF;
+
+    IF left('${superadmin_password_hash}', 9) <> '$argon2id' THEN
+        RAISE EXCEPTION
+            'SUPERADMIN_PASSWORD_HASH no parece un hash Argon2id. Si viene de un archivo .env, sus $ deben ir DUPLICADOS: Docker Compose los interpola y destruye el valor (ver .env.example).';
+    END IF;
+
+    IF btrim('${superadmin_email}') = '' THEN
+        RAISE EXCEPTION
+            'SUPERADMIN_EMAIL no está declarado.';
+    END IF;
+END
+$guarda$;
+
 
 INSERT INTO users (
     id, username, email, first_name, last_name,
