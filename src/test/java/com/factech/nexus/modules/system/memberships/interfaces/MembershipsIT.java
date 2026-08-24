@@ -575,24 +575,21 @@ class MembershipsIT extends IntegrationTestBase {
   }
 
   @Test
-  @DisplayName("HUECO DECLARADO — un UUID no canónico se acepta y devuelve 404 en lugar de 400")
-  void identificadorNoCanonicoTodaviaNoSeRechaza() throws Exception {
-    // `RF-SP-018` plan.md §4 exige 400 con `VAL-001` cuando el identificador no
-    // está en forma canónica. `UUID.fromString` del JDK es laxo y acepta
-    // `1-1-1-1-1` como `00000001-0001-0001-0001-000000000001`, de modo que la
-    // conversión no falla y la respuesta acaba siendo 404.
+  @DisplayName("VAL-001 — un UUID no canónico se rechaza con 400, no con 404")
+  void identificadorNoCanonico() throws Exception {
+    // `UUID.fromString` del JDK acepta `1-1-1-1-1` y lo expande, de modo que la
+    // conversión no fallaba y la respuesta acababa siendo un 404 — la respuesta
+    // de «no existe» ante algo que nunca pudo existir.
     //
-    // Se intentó desplazar el convertidor por omisión de dos formas —un bean
-    // `Converter<String, UUID>` y un `WebMvcConfigurer` que lo registra en el
-    // `FormatterRegistry`— y NINGUNA de las dos surtió efecto; el código no
-    // demostrado se retiró en lugar de dejarlo inerte. Queda como bloqueo en
-    // `tasks.md` de `RF-SP-018`.
-    //
-    // Esta prueba fija el comportamiento REAL de hoy: cuando alguien lo corrija,
-    // fallará, y eso es exactamente lo que debe hacer — es el recordatorio de
-    // que hay una decisión pendiente, no la aprobación de este comportamiento.
+    // Fue un hueco declarado durante dos intentos fallidos: un `Converter`
+    // suelto y otro registrado en el `FormatterRegistry`, y ninguno surtió
+    // efecto porque `TypeConverterDelegate` captura el fallo del convertidor y
+    // reintenta con el editor permisivo por omisión. Se cerró el 24-08-2026 con
+    // un editor PERSONALIZADO, que se localiza antes y cortocircuita ese
+    // reintento (`CanonicalUuidConverter`).
     mvc.perform(get("/api/v1/memberships/1-1-1-1-1").with(lector()))
-        .andExpect(status().isNotFound());
+        .andExpect(status().isBadRequest())
+        .andExpect(jsonPath("$.errors[0].code").value("VAL-001"));
   }
 
   // ---------------------------------------------------------------------------

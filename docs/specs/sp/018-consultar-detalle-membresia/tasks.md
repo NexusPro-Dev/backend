@@ -36,7 +36,7 @@ Sin migración, sin `domain` y sin excepciones nuevas: una sentencia por clave p
 | `T-05` | `api/MembershipController`: añade `GET /api/v1/memberships/{id}` con el permiso `memberships:read`, **sin** declarar restricción de patrón sobre el identificador | `T-04` | Prueba de API: `200` con el detalle; `404` con `EX-001` para un UUID canónico inexistente; `403` sin el permiso | Hecha |
 | `T-06` | Aserción de esquema: una consulta sobre `pg_constraint` que falla si `uq_memberships_parent` desaparece o pierde `NULLS NOT DISTINCT` | — | La prueba falla al relajar la restricción a propósito. Es lo que sostiene que el contrato prometa un objeto y no una lista | Hecha |
 | `T-07` | Pruebas de los criterios de aceptación de `spec.md` §12 | `T-05` | La suite cubre `CA-SP-125` a `CA-SP-129`; los vecinos nulos se verifican **presentes**, no omitidos | Hecha |
-| `T-08` | Prueba de las tres formas de identificador inválido: `abc`, `1-1-1-1-1` y un UUID de 35 caracteres | `T-05` | Las tres devuelven `400` con `VAL-001` y campo `id`, **nunca `404`**. La segunda es la que el JDK convertiría sin error | En curso |
+| `T-08` | Prueba de las tres formas de identificador inválido: `abc`, `1-1-1-1-1` y un UUID de 35 caracteres | `T-05` | Las tres devuelven `400` con `VAL-001` y campo `id`, **nunca `404`**. La segunda es la que el JDK convertiría sin error | **Hecha** — cerrada el 24-08-2026 con `CanonicalUuidConverter`: un editor personalizado, tras fallar dos veces con un `Converter` |
 | `T-09` | Pruebas del resto de casos límite de `spec.md` §13 y de `plan.md` §11: única membresía del sistema, membresía recién insertada, coherencia con el listado de `RF-SP-017`, ausencia de marcas temporales y de conteos, y `405` en `PUT`, `PATCH` y `DELETE` | `T-05` | Tras insertar una intermedia con `RF-SP-016`, los detalles de las tres membresías implicadas son coherentes entre sí y con el listado | En curso |
 | `T-10` | Documentación OpenAPI del endpoint: respuesta `200` con los dos vecinos y los estados `400`, `401`, `403`, `404` y `500` | `T-07` | El contrato publicado coincide con el comportamiento real (Art. VIII.6), y documenta que la expansión llega a **un solo grado** | Hecha |
 | `T-11` | Actualizar la matriz de trazabilidad de `docs/requirements.md` | `T-07` | La fila de `RF-SP-018` refleja el estado y enlaza esta tripleta | Hecha |
@@ -83,7 +83,7 @@ graph LR
 |---|---|---|---|---|
 | 1 | `T-01` amplía el puerto de `RF-SP-017` y `T-05` añade un método a `MembershipController`, que crea `RF-SP-016`: ambos requerimientos deben integrarse antes | 21-08-2026 | Responsable técnico | Abierto |
 | 2 | El `LEFT JOIN` a la hija **solo es legal mientras exista `uq_memberships_parent`** con `NULLS NOT DISTINCT` (`RF-SP-016`). `T-06` es la guarda de esa dependencia | 21-08-2026 | Responsable técnico | Abierto |
-| 3 | `T-05` y `T-08` dependen de `CanonicalUuidConverter`, que estrena `RF-SP-003`. Sin él, un identificador no canónico devuelve `404` en lugar del `400` que `spec.md` §13 exige | 21-08-2026 | Responsable técnico | Abierto |
+| 3 | `T-05` y `T-08` dependen de `CanonicalUuidConverter`, que estrena `RF-SP-003`. Sin él, un identificador no canónico devuelve `404` en lugar del `400` que `spec.md` §13 exige | 21-08-2026 | Responsable técnico | **Cerrado** — 24-08-2026. Los dos intentos con un `Converter` fallaban porque `TypeConverterDelegate` captura la excepción del convertidor y reintenta con el editor permisivo por omisión; un editor PERSONALIZADO se localiza antes y cortocircuita ese reintento |
 
 ## 5. Definición de terminado
 

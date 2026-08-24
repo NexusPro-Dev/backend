@@ -94,6 +94,38 @@ nexus:
 
     trusted-proxies: ${TRUSTED_PROXIES:}
 
+    # Token de acceso y sesión (security.md §5.2).
+    jwt:
+      issuer: nexus
+      # Quince minutos: corto a propósito, porque el token de acceso NO es
+      # revocable — solo expira. Cuanto más vive, más dura un token robado.
+      access-token-ttl: PT15M
+      refresh-token-ttl: P7D
+      # Duración máxima de sesión, medida desde el INICIO y no desde el último
+      # refresco: sin ella, quien rota con disciplina no caduca nunca.
+      session-max-duration: P30D
+
+    # Bloqueo por intentos fallidos (security.md §3.2).
+    lockout:
+      max-attempts: 5
+      base-delay: PT1M
+      # El techo NO es opcional: sin él, alguien mantiene bloqueada la cuenta de
+      # otra persona provocando fallos a propósito, que es una denegación de
+      # servicio contra su titular.
+      max-delay: PT1H
+
+    # Política de contraseña (security.md §3.2).
+    password:
+      min-length: 12
+      # Cuánto vale la credencial que OTRA PERSONA fija (RF-SP-038). Sin plazo,
+      # una cuenta restablecida y nunca usada conserva indefinidamente una
+      # contraseña que alguien más conoce, y nadie se entera porque no falla nada.
+      provisional-ttl: PT48H
+      argon2:
+        memory-kb: 16384
+        iterations: 2
+        parallelism: 1
+
 logging:
   level:
     root: ${LOG_LEVEL:INFO}

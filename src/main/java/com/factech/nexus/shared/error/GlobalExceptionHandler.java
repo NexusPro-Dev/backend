@@ -131,6 +131,16 @@ public class GlobalExceptionHandler {
   }
 
   /**
+   * {@code 423}. Tampoco se audita como error: una cuenta bloqueada no es un fallo del sistema, y
+   * el bloqueo ya dejó su propio evento en el registro de seguridad cuando se produjo.
+   */
+  @ExceptionHandler(BlockedAccountException.class)
+  public ProblemDetail deCuentaBloqueada(
+      BlockedAccountException fallo, HttpServletRequest peticion) {
+    return problema(ProblemKind.CUENTA_BLOQUEADA, fallo, peticion);
+  }
+
+  /**
    * {@code 403} lanzado por un <b>caso de uso</b>.
    *
    * <p>Se audita con severidad {@code ALTA} y no {@code MEDIA}: cuando quien deniega es el caso de

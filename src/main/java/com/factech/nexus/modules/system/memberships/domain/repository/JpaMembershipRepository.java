@@ -21,6 +21,15 @@ import org.springframework.stereotype.Repository;
 @Repository
 public class JpaMembershipRepository implements MembershipRepository {
 
+  /**
+   * Clave del bloqueo consultivo que serializa el registro de membresías.
+   *
+   * <p>Arbitraria y fija: identifica «la cadena de membresías» y nada más. Cualquier otro recurso
+   * que necesite un bloqueo consultivo debe usar una clave distinta, y por eso vive declarada con
+   * nombre en lugar de escrita en la sentencia.
+   */
+  private static final long CANDADO_DE_LA_CADENA = 716_016L;
+
   private static final String UQ_CODIGO = "uq_memberships_code";
   private static final String UQ_NOMBRE = "uq_memberships_name";
 
@@ -32,6 +41,23 @@ public class JpaMembershipRepository implements MembershipRepository {
 
   @Override
   public List<ChainLink> loadChainForUpdate() {
+    // EL BLOQUEO CONSULTIVO VA ANTES, y no es redundante con el `FOR UPDATE` de
+    // abajo: `FOR UPDATE` bloquea LAS FILAS QUE ENCUENTRA, y sobre una cadena
+    // VACÍA no encuentra ninguna. Dos registros simultáneos de la primera
+    // membresía no se serializaban en absoluto, y el desenlace dependía de qué
+    // restricción mordiera antes — a veces un 409 correcto, a veces un
+    // interbloqueo que sale como 500. La prueba concurrente falló así dos veces
+    // en la suite completa y nunca en aislamiento, que es la firma de este
+    // defecto.
+    //
+    // La clave es fija y arbitraria: identifica «la cadena de membresías» y nada
+    // más. El bloqueo se suelta solo al terminar la transacción —`_xact_`— de
+    // modo que no hay forma de olvidarse de liberarlo, y no cuesta nada cuando
+    // no hay contención.
+    em.createNativeQuery("SELECT pg_advisory_xact_lock(:clave)")
+        .setParameter("clave", CANDADO_DE_LA_CADENA)
+        .getSingleResult();
+
     // Nativa y no JPQL porque `FOR UPDATE` sobre una proyección no tiene
     // equivalente limpio en JPQL, y porque proyectar evita traer entidades
     // gestionadas que el UPDATE masivo posterior dejaría obsoletas en el

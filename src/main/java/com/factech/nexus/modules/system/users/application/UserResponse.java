@@ -8,20 +8,21 @@ import java.util.List;
 import java.util.UUID;
 
 /**
- * Una persona en el contrato de la API (`RF-SP-024`).
+ * La persona tal como la devuelven el alta y las operaciones sobre su estructura.
  *
- * <p><b>No existe la contraseña ni ningún campo derivado de ella</b>, ni siquiera su longitud
- * (`CA-SP-196`). La forma más segura de no filtrar un dato es no tener dónde ponerlo.
+ * <p><b>{@code membership} y {@code supervisor} se añadieron el 24-08-2026</b>, al implementar
+ * `RF-SP-030` y `RF-SP-031`: los dos planes describen su respuesta como «la persona con su lista de
+ * roles actualizada, <b>su membresía y su superior vigente</b>», y el registro original —definido
+ * por `RF-SP-024`— no los llevaba. Sin ellos, la respuesta de un retiro no puede mostrar el efecto
+ * más importante de la operación, que es la <b>cascada</b>: retirar el último rol de consumidor
+ * borra la membresía, y retirar el último de vendedor cierra la asignación de superior. Quien
+ * recibiera solo la lista de roles no vería que además perdió otras dos cosas.
  *
- * <p><b>El correo va normalizado y el nombre de usuario tal como se escribió.</b> Es la única forma
- * de que el actor vea qué quedó registrado, y refleja la asimetría deliberada entre las dos
- * identidades.
+ * <p>Ambos son <b>nulos y presentes</b>, no ausentes: {@code ALWAYS} está puesto justamente para
+ * que «no tiene membresía» se distinga de «este endpoint no informa de la membresía».
  *
- * <p><b>No se devuelven la membresía ni el superior</b>, aunque el alta los haya escrito: `spec.md`
- * §6.2 fija la salida y no los incluye. Añadirlos crearía dos formas del mismo recurso que habría
- * que mantener sincronizadas; quien los necesite tiene `RF-SP-026`.
- *
- * <p><b>No existe {@code createdBy}</b>: el actor no vive en la tabla de negocio (Art. V.7).
+ * <p>Del superior se devuelve su nombre y su nombre de usuario, y nada más. No es un perfil: es lo
+ * justo para nombrarlo en una interfaz sin obligar a una segunda consulta.
  */
 @JsonInclude(JsonInclude.Include.ALWAYS)
 public record UserResponse(
@@ -33,14 +34,23 @@ public record UserResponse(
     String status,
     boolean mustChangePassword,
     List<RoleRef> roles,
+    MembershipRef membership,
+    SupervisorRef supervisor,
     OffsetDateTime createdAt,
     OffsetDateTime updatedAt) {
 
-  /** Un rol referenciado desde una persona: identificador, código y nombre. */
   @JsonInclude(JsonInclude.Include.ALWAYS)
   public record RoleRef(UUID id, String code, String name) {}
 
-  public static UserResponse from(User usuario, List<RoleRef> roles) {
+  /** {@code endsAt} nulo significa <b>indefinida</b>, no «sin fecha conocida». */
+  @JsonInclude(JsonInclude.Include.ALWAYS)
+  public record MembershipRef(UUID id, String code, String name, OffsetDateTime endsAt) {}
+
+  @JsonInclude(JsonInclude.Include.ALWAYS)
+  public record SupervisorRef(UUID id, String username, String firstName, String lastName) {}
+
+  public static UserResponse from(
+      User usuario, List<RoleRef> roles, MembershipRef membresia, SupervisorRef superior) {
     return new UserResponse(
         usuario.getId(),
         usuario.getUsername(),
@@ -50,6 +60,8 @@ public record UserResponse(
         usuario.getStatus().name(),
         usuario.isMustChangePassword(),
         roles,
+        membresia,
+        superior,
         enUtc(usuario.getCreatedAt()),
         enUtc(usuario.getUpdatedAt()));
   }

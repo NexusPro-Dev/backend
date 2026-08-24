@@ -5,24 +5,35 @@ import java.util.Set;
 import java.util.UUID;
 
 /**
- * Un rol visto desde el alta de una persona: lo justo para decidir si puede concederse.
+ * Un rol del catálogo, con lo que hace falta para decidir si puede asignarse.
  *
- * <p>No es la entidad {@code Role}: el alta necesita saber si el rol <b>sirve</b>, de qué
- * clasificación es, de quién cuelga y qué permisos declara — y nada más. Traer el agregado entero
- * acoplaría este caso de uso a los cambios del otro.
+ * <p><b>{@code deleted} y {@code active} van por separado</b> desde el 24-08-2026. Antes existía un
+ * solo {@code usable} que los fundía, porque `RF-SP-024` §4 los trata igual a propósito: al dar de
+ * alta a una persona, distinguir «ese rol no existe» de «ese rol está inactivo» le diría a quien
+ * pregunta qué roles hay y en qué estado están.
  *
- * @param usable activo y no eliminado; los dos casos comparten respuesta porque distinguirlos le
- *     diría a quien pregunta qué roles existen y en qué estado están
- * @param permissionCodes lo que el rol concede, para verificar `RN-SEG-010` contra el actor
+ * <p>`RF-SP-030` §4 los separa: su tabla de errores asigna `EX-002` al rol inexistente o eliminado
+ * y `EX-003` al inactivo, con códigos distintos en la respuesta. El contexto es otro —quien asigna
+ * roles a alguien que ya existe porta {@code users:assign-roles} y ya puede consultar el catálogo—,
+ * y sin la distinción no puede saber si debe corregir el identificador o activar el rol.
+ *
+ * <p>{@code usable()} se conserva como derivada para que quien no necesite la distinción no tenga
+ * que reconstruirla.
  */
 public record AssignableRole(
     UUID id,
     String code,
     String name,
     RoleType type,
-    boolean usable,
+    boolean deleted,
+    boolean active,
     UUID parentRoleId,
     Set<String> permissionCodes) {
+
+  /** Existe, no está eliminado y está activo: se puede conceder. */
+  public boolean usable() {
+    return !deleted && active;
+  }
 
   public boolean esVendedor() {
     return type == RoleType.VENDEDOR;

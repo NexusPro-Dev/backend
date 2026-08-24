@@ -69,6 +69,16 @@
             <artifactId>spring-boot-starter-security</artifactId>
         </dependency>
 
+        <!-- Emisión y verificación del token de acceso JWT (decisión D-08,
+             security.md §5.2). Trae Nimbus JOSE, que es lo que Spring Security
+             usa para firmar y validar; el filtro de servidor de recursos que
+             incluye es además quien convierte el token en el actor autenticado
+             sin escribir un filtro propio. -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-oauth2-resource-server</artifactId>
+        </dependency>
+
         <!-- Argon2id para el hash de contraseñas (security.md §3.2, decisión
              D-15). Spring Security delega en Bouncy Castle para Argon2. -->
         <dependency>

@@ -27,6 +27,8 @@ public enum ProblemKind {
 
   NO_ENCONTRADO(HttpStatus.NOT_FOUND, "no-encontrado", "El recurso solicitado no existe"),
 
+  CUENTA_BLOQUEADA(HttpStatus.LOCKED, "cuenta-bloqueada", "La cuenta está bloqueada"),
+
   METODO_NO_PERMITIDO(
       HttpStatus.METHOD_NOT_ALLOWED, "metodo-no-permitido", "El recurso no admite ese método"),
 

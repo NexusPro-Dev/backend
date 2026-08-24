@@ -39,7 +39,17 @@ import org.springframework.security.web.authentication.HttpStatusEntryPoint;
 public class SecurityConfig {
 
   /** Salud del sistema: público siempre, sin detalle interno (Art. XV.10). */
-  private static final String[] RUTAS_PUBLICAS = {"/actuator/health", "/api/v1/auth/login"};
+  private static final String[] RUTAS_PUBLICAS = {
+    "/actuator/health",
+    // Los tres endpoints de sesión son públicos por definición: quien inicia
+    // sesión, renueva o cierra no puede portar todavía —o ya no porta— un token
+    // de acceso válido. `RF-SP-036` lo declara de forma explícita para el
+    // cierre: exigir un token vigente impediría cerrar la sesión justo cuando
+    // más falta hace, que es cuando se sospecha que la robaron.
+    "/api/v1/auth/login",
+    "/api/v1/auth/refresh",
+    "/api/v1/auth/logout"
+  };
 
   /**
    * Documentación de la API: pública solo donde se habilite de forma explícita.
@@ -56,9 +66,12 @@ public class SecurityConfig {
   };
 
   private final boolean documentacionPublica;
+  private final JwtActorConverter actorDesdeElToken;
 
   public SecurityConfig(
+      JwtActorConverter actorDesdeElToken,
       @Value("${nexus.security.expose-api-docs:false}") boolean documentacionPublica) {
+    this.actorDesdeElToken = actorDesdeElToken;
     this.documentacionPublica = documentacionPublica;
   }
 
@@ -90,6 +103,12 @@ public class SecurityConfig {
               }
               auth.anyRequest().authenticated();
             })
+        // El token de acceso se valida aquí, y las autoridades del actor NO
+        // salen de él: las resuelve `JwtActorConverter` contra la base, para que
+        // retirar un rol surta efecto de inmediato en lugar de esperar a que el
+        // token expire (`security.md` §4.5).
+        .oauth2ResourceServer(
+            oauth2 -> oauth2.jwt(jwt -> jwt.jwtAuthenticationConverter(actorDesdeElToken)))
         .headers(Customizer.withDefaults());
 
     return http.build();

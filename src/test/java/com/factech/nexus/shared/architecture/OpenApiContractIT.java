@@ -6,6 +6,11 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import com.factech.nexus.IntegrationTestBase;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.SerializationFeature;
+import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -26,7 +31,45 @@ import org.springframework.test.web.servlet.MockMvc;
 @AutoConfigureMockMvc
 class OpenApiContractIT extends IntegrationTestBase {
 
+  /** Destino del contrato publicado. Relativo a la raíz del proyecto (ADR-001). */
+  private static final Path DESTINO = Path.of("docs", "api", "openapi.json");
+
   @Autowired private MockMvc mvc;
+  @Autowired private ObjectMapper json;
+
+  @Test
+  @DisplayName("el contrato declara CÓMO se autentica, o la documentación es inutilizable")
+  void elContratoDeclaraElEsquemaDeSeguridad() throws Exception {
+    // Sin esto, Swagger UI no muestra el botón «Authorize» y no hay forma de
+    // adjuntar la cabecera desde la interfaz: TODA operación protegida responde
+    // 401 y quien explora la API concluye que está rota. El contrato describía
+    // cada endpoint y cada permiso, y callaba lo único que hacía falta para
+    // probarlos.
+    mvc.perform(get("/v3/api-docs").with(user("doc")))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.components.securitySchemes.bearerAuth.type").value("http"))
+        .andExpect(jsonPath("$.components.securitySchemes.bearerAuth.scheme").value("bearer"))
+        .andExpect(jsonPath("$.components.securitySchemes.bearerAuth.bearerFormat").value("JWT"))
+        // Global y no por operación: la regla del sistema es que todo exige
+        // token salvo tres rutas, de modo que declararlo endpoint por endpoint
+        // haría que cada uno nuevo naciera sin ella sin romper nada.
+        .andExpect(jsonPath("$.security[0].bearerAuth").exists());
+  }
+
+  @Test
+  @DisplayName("los tres endpoints de sesión NO heredan el esquema: pedirían el token para darlo")
+  void laSesionNoExigeToken() throws Exception {
+    mvc.perform(get("/v3/api-docs").with(user("doc")))
+        .andExpect(status().isOk())
+        .andExpect(
+            jsonPath("$.paths['/api/v1/auth/login'].post.security", org.hamcrest.Matchers.empty()))
+        .andExpect(
+            jsonPath(
+                "$.paths['/api/v1/auth/refresh'].post.security", org.hamcrest.Matchers.empty()))
+        .andExpect(
+            jsonPath(
+                "$.paths['/api/v1/auth/logout'].post.security", org.hamcrest.Matchers.empty()));
+  }
 
   @Test
   @DisplayName("el contrato publica POST /api/v1/roles con su permiso y sus estados")
@@ -118,6 +161,216 @@ class OpenApiContractIT extends IntegrationTestBase {
   }
 
   @Test
+  @DisplayName("el listado y el detalle de personas están publicados con sus parámetros")
+  void lasConsultasDePersonasEstanDocumentadas() throws Exception {
+    mvc.perform(get("/v3/api-docs").with(user("doc")))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.paths['/api/v1/users'].get").exists())
+        .andExpect(
+            jsonPath("$.paths['/api/v1/users'].get.parameters[?(@.name == 'search')]").exists())
+        .andExpect(
+            jsonPath("$.paths['/api/v1/users'].get.parameters[?(@.name == 'includeDeleted')]")
+                .exists())
+        .andExpect(jsonPath("$.paths['/api/v1/users/{id}'].get").exists())
+        .andExpect(jsonPath("$.paths['/api/v1/users/{id}'].get.responses.404").exists());
+  }
+
+  @Test
+  @DisplayName("el listado NO publica ningún parámetro derivado de la credencial")
+  void elListadoNoOfreceOrdenarPorLaCredencial() throws Exception {
+    // El contrato es lo que la gente lee para saber qué puede pedir. Publicar un
+    // parámetro que ordena por la marca de cambio obligatorio invitaría a pedir
+    // la lista de quien no ha cambiado su contraseña inicial, y el rechazo
+    // llegaría después de haberlo sugerido.
+    mvc.perform(get("/v3/api-docs").with(user("doc")))
+        .andExpect(status().isOk())
+        .andExpect(
+            jsonPath("$.paths['/api/v1/users'].get.parameters[?(@.name == 'mustChangePassword')]")
+                .doesNotExist())
+        .andExpect(
+            jsonPath("$.paths['/api/v1/users'].get.parameters[?(@.name == 'failedAttempts')]")
+                .doesNotExist());
+  }
+
+  @Test
+  @DisplayName("el ciclo de vida de una persona: PATCH para editar, subrecurso para estado y baja")
+  void elCicloDeVidaEstaDocumentado() throws Exception {
+    mvc.perform(get("/v3/api-docs").with(user("doc")))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.paths['/api/v1/users/{id}'].patch").exists())
+        .andExpect(jsonPath("$.paths['/api/v1/users/{id}'].patch.responses.409").exists())
+        .andExpect(jsonPath("$.paths['/api/v1/users/{id}/status'].patch").exists())
+        .andExpect(jsonPath("$.paths['/api/v1/users/{id}/deletion'].post").exists())
+        .andExpect(jsonPath("$.paths['/api/v1/users/{id}/deletion'].post.responses.204").exists());
+  }
+
+  @Test
+  @DisplayName("una persona NO se elimina con DELETE ni se reemplaza con PUT")
+  void laBajaNoEsUnDelete() throws Exception {
+    // `DELETE` con cuerpo lo puede descartar un intermediario, y la petición se
+    // convertiría en un rechazo por motivo ausente que el actor no entiende ni
+    // puede corregir. `PUT` obligaría a enviar el recurso completo, incluidos el
+    // nombre de usuario, el estado y los roles, que la edición no puede tocar.
+    mvc.perform(get("/v3/api-docs").with(user("doc")))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.paths['/api/v1/users/{id}'].delete").doesNotExist())
+        .andExpect(jsonPath("$.paths['/api/v1/users/{id}'].put").doesNotExist())
+        .andExpect(jsonPath("$.paths['/api/v1/users/{id}/deletion'].delete").doesNotExist());
+  }
+
+  @Test
+  @DisplayName("los roles de una persona se asignan por POST y se retiran por un subrecurso")
+  void losRolesDeUnaPersonaEstanDocumentados() throws Exception {
+    mvc.perform(get("/v3/api-docs").with(user("doc")))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.paths['/api/v1/users/{id}/roles'].post").exists())
+        .andExpect(jsonPath("$.paths['/api/v1/users/{id}/roles'].post.responses.409").exists())
+        .andExpect(jsonPath("$.paths['/api/v1/users/{id}/roles'].post.responses.422").exists())
+        .andExpect(jsonPath("$.paths['/api/v1/users/{id}/roles/revocations'].post").exists());
+  }
+
+  @Test
+  @DisplayName("el retiro de roles NO se publica como DELETE ni como PUT sobre la lista")
+  void elRetiroNoEsUnDelete() throws Exception {
+    // `PUT` invitaría a leer la asignación como un reemplazo, y un reemplazo
+    // haría retiros implícitos que se saltarían `RN-SP-001`, `RN-SP-015` y
+    // `RN-SP-022`. `DELETE` con cuerpo lo puede descartar un intermediario sin
+    // avisar, y el retiro llegaría sin roles: un fallo silencioso en la
+    // operación que revoca sesiones.
+    mvc.perform(get("/v3/api-docs").with(user("doc")))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.paths['/api/v1/users/{id}/roles'].put").doesNotExist())
+        .andExpect(jsonPath("$.paths['/api/v1/users/{id}/roles'].delete").doesNotExist())
+        .andExpect(
+            jsonPath("$.paths['/api/v1/users/{id}/roles/revocations'].delete").doesNotExist());
+  }
+
+  @Test
+  @DisplayName("la membresía de una persona se fija con PUT y se retira con DELETE")
+  void laMembresiaDeUnaPersonaEstaDocumentada() throws Exception {
+    // `PUT` y no `POST` porque el cuerpo **sí** representa el estado final: la
+    // persona tiene una membresía o ninguna. Y `DELETE` se conserva porque esta
+    // operación no lleva cuerpo, de modo que el problema que obligó a cambiarlo
+    // en el retiro de roles no existe aquí.
+    mvc.perform(get("/v3/api-docs").with(user("doc")))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.paths['/api/v1/users/{id}/membership'].put").exists())
+        .andExpect(jsonPath("$.paths['/api/v1/users/{id}/membership'].put.responses.409").exists())
+        .andExpect(jsonPath("$.paths['/api/v1/users/{id}/membership'].put.responses.422").exists())
+        .andExpect(jsonPath("$.paths['/api/v1/users/{id}/membership'].delete").exists())
+        .andExpect(
+            jsonPath("$.paths['/api/v1/users/{id}/membership'].delete.responses.204").exists());
+  }
+
+  @Test
+  @DisplayName("el retiro de membresía NO declara cuerpo de petición ni POST")
+  void elRetiroDeMembresiaNoLlevaCuerpo() throws Exception {
+    // Que no lleve cuerpo es justo lo que le permite seguir siendo un `DELETE`;
+    // si algún día apareciera aquí un `requestBody`, esa justificación dejaría
+    // de valer y habría que convertirlo en un subrecurso.
+    mvc.perform(get("/v3/api-docs").with(user("doc")))
+        .andExpect(status().isOk())
+        .andExpect(
+            jsonPath("$.paths['/api/v1/users/{id}/membership'].delete.requestBody").doesNotExist())
+        .andExpect(jsonPath("$.paths['/api/v1/users/{id}/membership'].post").doesNotExist());
+  }
+
+  @Test
+  @DisplayName("la estructura comercial publica el PATCH del superior y el GET del equipo")
+  void laEstructuraComercialEstaDocumentada() throws Exception {
+    mvc.perform(get("/v3/api-docs").with(user("doc")))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.paths['/api/v1/users/{id}/supervisor'].patch").exists())
+        .andExpect(
+            jsonPath("$.paths['/api/v1/users/{id}/supervisor'].patch.responses.409").exists())
+        .andExpect(jsonPath("$.paths['/api/v1/users/{id}/team'].get").exists());
+  }
+
+  @Test
+  @DisplayName("el superior NO se puede retirar ni fijar con PUT, y el equipo NO admite filtros")
+  void losLimitesDeLaEstructuraComercial() throws Exception {
+    // `PUT` invitaría a pensar que se puede enviar el periodo, que lo fija el
+    // sistema. Un `DELETE` publicaría un «vendedor sin superior» que no existe.
+    // Y un filtro sobre el equipo replicaría la semántica de `RF-SP-025` sobre un
+    // subconjunto, obligando a mantener dos filtrados sincronizados.
+    mvc.perform(get("/v3/api-docs").with(user("doc")))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.paths['/api/v1/users/{id}/supervisor'].put").doesNotExist())
+        .andExpect(jsonPath("$.paths['/api/v1/users/{id}/supervisor'].delete").doesNotExist())
+        .andExpect(
+            jsonPath("$.paths['/api/v1/users/{id}/team'].get.parameters[?(@.name == 'search')]")
+                .doesNotExist())
+        .andExpect(
+            jsonPath("$.paths['/api/v1/users/{id}/team'].get.parameters[?(@.name == 'status')]")
+                .doesNotExist());
+  }
+
+  @Test
+  @DisplayName("las contraseñas y el perfil propio están publicados, cada uno en su sitio")
+  void lasCredencialesPropiasEstanDocumentadas() throws Exception {
+    mvc.perform(get("/v3/api-docs").with(user("doc")))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.paths['/api/v1/auth/password'].post").exists())
+        .andExpect(jsonPath("$.paths['/api/v1/auth/password'].post.responses.422").exists())
+        .andExpect(jsonPath("$.paths['/api/v1/auth/password'].post.responses.423").exists())
+        .andExpect(jsonPath("$.paths['/api/v1/users/{id}/password-reset'].post").exists())
+        .andExpect(jsonPath("$.paths['/api/v1/users/me'].get").exists());
+  }
+
+  @Test
+  @DisplayName("cambiar la propia contraseña SÍ exige token, aunque cuelgue de /auth")
+  void elCambioDeContrasenaExigeToken() throws Exception {
+    // Es el único de esa sección que lo exige, y por eso reintroduce el esquema
+    // que la clase desheredó: sin alguien autenticado no hay sujeto.
+    mvc.perform(get("/v3/api-docs").with(user("doc")))
+        .andExpect(status().isOk())
+        .andExpect(
+            jsonPath("$.paths['/api/v1/auth/password'].post.security[0].bearerAuth").exists());
+  }
+
+  @Test
+  @DisplayName("el perfil propio NO declara parámetros de ningún tipo")
+  void elPerfilPropioNoAdmiteParametros() throws Exception {
+    // `me` es un literal, no un identificador: admitir uno lo convertiría en la
+    // consulta de detalle sin su permiso.
+    mvc.perform(get("/v3/api-docs").with(user("doc")))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.paths['/api/v1/users/me'].get.parameters").doesNotExist())
+        .andExpect(jsonPath("$.paths['/api/v1/users/me'].get.requestBody").doesNotExist())
+        // Y ninguno de los tres estados que no le corresponden.
+        .andExpect(jsonPath("$.paths['/api/v1/users/me'].get.responses.403").doesNotExist())
+        .andExpect(jsonPath("$.paths['/api/v1/users/me'].get.responses.404").doesNotExist())
+        .andExpect(jsonPath("$.paths['/api/v1/users/me'].get.responses.400").doesNotExist());
+  }
+
+  @Test
+  @DisplayName("la sesión publica sus tres endpoints con los estados que la distinguen")
+  void laSesionEstaDocumentada() throws Exception {
+    mvc.perform(get("/v3/api-docs").with(user("doc")))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.paths['/api/v1/auth/login'].post").exists())
+        .andExpect(jsonPath("$.paths['/api/v1/auth/login'].post.responses.401").exists())
+        // El 423 es lo que hace visible en el contrato la única excepción
+        // consciente al mensaje genérico de credenciales.
+        .andExpect(jsonPath("$.paths['/api/v1/auth/login'].post.responses.423").exists())
+        .andExpect(jsonPath("$.paths['/api/v1/auth/refresh'].post").exists())
+        .andExpect(jsonPath("$.paths['/api/v1/auth/refresh'].post.responses.401").exists())
+        .andExpect(jsonPath("$.paths['/api/v1/auth/logout'].post").exists())
+        .andExpect(jsonPath("$.paths['/api/v1/auth/logout'].post.responses.204").exists());
+  }
+
+  @Test
+  @DisplayName("el cierre de sesión NO declara 401 ni 404: no distingue tokens")
+  void elCierreNoDeclaraOraculo() throws Exception {
+    // Que estos estados no existan en el contrato es la forma comprobable de
+    // decir que el cierre no revela si un token es del sistema.
+    mvc.perform(get("/v3/api-docs").with(user("doc")))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.paths['/api/v1/auth/logout'].post.responses.401").doesNotExist())
+        .andExpect(jsonPath("$.paths['/api/v1/auth/logout'].post.responses.404").doesNotExist());
+  }
+
+  @Test
   @DisplayName("el alta de rol NO declara manejadores que el requerimiento no tiene")
   void sinVerbosNoDeclarados() throws Exception {
     // `RF-SP-001` solo declara el POST. Si algún día aparece aquí un PUT o un
@@ -128,5 +381,41 @@ class OpenApiContractIT extends IntegrationTestBase {
         .andExpect(jsonPath("$.paths['/api/v1/roles'].put").doesNotExist())
         .andExpect(jsonPath("$.paths['/api/v1/roles'].delete").doesNotExist())
         .andExpect(jsonPath("$.paths['/api/v1/roles'].patch").doesNotExist());
+  }
+
+  @Test
+  @DisplayName("publica el contrato en docs/api/openapi.json, para que el frontend lo consuma")
+  void publicaElContratoComoArchivoVersionado() throws Exception {
+    // ADR-001. Hasta hoy el contrato no se publicaba en ninguna parte:
+    // `/v3/api-docs` responde solo con `EXPOSE_API_DOCS` en verdadero y
+    // `docs/api/` estaba vacío. El frontend no puede generar su cliente sin él,
+    // y escribir sus tipos a mano infringe su propia constitución.
+    //
+    // Esta prueba NO falla si el contrato cambia: lo reescribe. Quien falla es
+    // CI, al comprobar que lo comprometido coincide con lo generado. Así,
+    // ejecutar la suite en local deja el archivo listo para commitear en lugar
+    // de romper con un mensaje que no dice qué hacer.
+    var cuerpo =
+        mvc.perform(get("/v3/api-docs").with(user("doc")))
+            .andExpect(status().isOk())
+            .andReturn()
+            .getResponse()
+            .getContentAsString(StandardCharsets.UTF_8);
+
+    // Se reescribe con las claves ordenadas. Sin eso, el orden que produzca
+    // springdoc puede variar entre ejecuciones y cada regeneración ensuciaría
+    // el diff con cientos de líneas movidas, que es justo lo que impide revisar
+    // un cambio de contrato.
+    //
+    // Se lee como estructura de mapas y no como árbol de nodos porque
+    // ORDER_MAP_ENTRIES_BY_KEYS ordena mapas, no `ObjectNode`.
+    var ordenado = json.copy().enable(SerializationFeature.ORDER_MAP_ENTRIES_BY_KEYS);
+    Object contenido = ordenado.readValue(cuerpo, Object.class);
+
+    Files.createDirectories(DESTINO.getParent());
+    Files.writeString(
+        DESTINO,
+        ordenado.writerWithDefaultPrettyPrinter().writeValueAsString(contenido) + "\n",
+        StandardCharsets.UTF_8);
   }
 }

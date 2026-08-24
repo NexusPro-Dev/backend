@@ -78,7 +78,8 @@ public class JpaRoleCatalog implements RoleCatalog {
       r.code                                      AS code,
       r.name                                      AS name,
       r.role_type                                 AS role_type,
-      (r.deleted_at IS NULL AND r.status = 'ACTIVO') AS usable,
+      (r.deleted_at IS NOT NULL)                  AS deleted,
+      (r.status = 'ACTIVO')                       AS active,
       r.parent_role_id                            AS parent_role_id,
       COALESCE(
         (SELECT jsonb_agg(p.code ORDER BY p.code)
@@ -99,7 +100,8 @@ public class JpaRoleCatalog implements RoleCatalog {
               (String) fila.get("code"),
               (String) fila.get("name"),
               RoleType.valueOf((String) fila.get("role_type")),
-              Boolean.TRUE.equals(fila.get("usable")),
+              Boolean.TRUE.equals(fila.get("deleted")),
+              Boolean.TRUE.equals(fila.get("active")),
               (UUID) fila.get("parent_role_id"),
               codigos((String) fila.get("permisos"))));
     }

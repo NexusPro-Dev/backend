@@ -1,0 +1,2425 @@
+{
+  "components" : {
+    "schemas" : {
+      "AssignMembershipRequest" : {
+        "properties" : {
+          "endsAt" : {
+            "format" : "date-time",
+            "type" : "string"
+          },
+          "membershipId" : {
+            "format" : "uuid",
+            "type" : "string"
+          }
+        },
+        "required" : [ "membershipId" ],
+        "type" : "object"
+      },
+      "AssignRolesRequest" : {
+        "properties" : {
+          "membershipEndsAt" : {
+            "format" : "date-time",
+            "type" : "string"
+          },
+          "membershipId" : {
+            "format" : "uuid",
+            "type" : "string"
+          },
+          "roleIds" : {
+            "items" : {
+              "format" : "uuid",
+              "type" : "string"
+            },
+            "maxItems" : 100,
+            "minItems" : 0,
+            "type" : "array"
+          },
+          "supervisorId" : {
+            "format" : "uuid",
+            "type" : "string"
+          }
+        },
+        "required" : [ "roleIds" ],
+        "type" : "object"
+      },
+      "AssignSupervisorRequest" : {
+        "properties" : {
+          "reason" : {
+            "type" : "string"
+          },
+          "supervisorId" : {
+            "format" : "uuid",
+            "type" : "string"
+          }
+        },
+        "required" : [ "supervisorId" ],
+        "type" : "object"
+      },
+      "ChangeCountryStatusRequest" : {
+        "properties" : {
+          "isActive" : {
+            "type" : "boolean"
+          }
+        },
+        "required" : [ "isActive" ],
+        "type" : "object"
+      },
+      "ChangeCurrencyStatusRequest" : {
+        "properties" : {
+          "isActive" : {
+            "type" : "boolean"
+          }
+        },
+        "required" : [ "isActive" ],
+        "type" : "object"
+      },
+      "ChangePasswordRequest" : {
+        "properties" : {
+          "currentPassword" : {
+            "type" : "string"
+          },
+          "newPassword" : {
+            "type" : "string"
+          }
+        },
+        "type" : "object"
+      },
+      "ChangeUserStatusRequest" : {
+        "properties" : {
+          "reason" : {
+            "type" : "string"
+          },
+          "status" : {
+            "type" : "string"
+          }
+        },
+        "type" : "object"
+      },
+      "CommercialStructureResponse" : {
+        "properties" : {
+          "previousSupervisor" : {
+            "$ref" : "#/components/schemas/Person"
+          },
+          "previousSupervisorEndedAt" : {
+            "format" : "date-time",
+            "type" : "string"
+          },
+          "supervisor" : {
+            "$ref" : "#/components/schemas/Person"
+          },
+          "team" : {
+            "$ref" : "#/components/schemas/PageResponsePerson"
+          },
+          "user" : {
+            "$ref" : "#/components/schemas/Person"
+          }
+        },
+        "type" : "object"
+      },
+      "CountryCatalogResponse" : {
+        "properties" : {
+          "content" : {
+            "items" : {
+              "$ref" : "#/components/schemas/CountryResponse"
+            },
+            "type" : "array"
+          }
+        },
+        "type" : "object"
+      },
+      "CountryResponse" : {
+        "properties" : {
+          "code" : {
+            "type" : "string"
+          },
+          "id" : {
+            "format" : "uuid",
+            "type" : "string"
+          },
+          "isActive" : {
+            "type" : "boolean"
+          },
+          "name" : {
+            "type" : "string"
+          }
+        },
+        "type" : "object"
+      },
+      "CreateRoleRequest" : {
+        "properties" : {
+          "code" : {
+            "maxLength" : 50,
+            "minLength" : 0,
+            "pattern" : "^[A-Z][A-Z0-9_]*$",
+            "type" : "string"
+          },
+          "description" : {
+            "maxLength" : 500,
+            "minLength" : 0,
+            "type" : "string"
+          },
+          "name" : {
+            "maxLength" : 100,
+            "minLength" : 0,
+            "type" : "string"
+          },
+          "parentRoleId" : {
+            "format" : "uuid",
+            "type" : "string"
+          },
+          "permissionIds" : {
+            "items" : {
+              "format" : "uuid",
+              "type" : "string"
+            },
+            "type" : "array"
+          },
+          "roleType" : {
+            "enum" : [ "FUNCIONARIO", "VENDEDOR", "CONSUMIDOR" ],
+            "type" : "string"
+          }
+        },
+        "required" : [ "code", "name", "parentRoleId", "roleType" ],
+        "type" : "object"
+      },
+      "CurrencyCatalogResponse" : {
+        "properties" : {
+          "content" : {
+            "items" : {
+              "$ref" : "#/components/schemas/CurrencyResponse"
+            },
+            "type" : "array"
+          }
+        },
+        "type" : "object"
+      },
+      "CurrencyResponse" : {
+        "properties" : {
+          "code" : {
+            "type" : "string"
+          },
+          "decimalPlaces" : {
+            "format" : "int32",
+            "type" : "integer"
+          },
+          "id" : {
+            "format" : "uuid",
+            "type" : "string"
+          },
+          "isActive" : {
+            "type" : "boolean"
+          },
+          "isDefault" : {
+            "type" : "boolean"
+          },
+          "name" : {
+            "type" : "string"
+          },
+          "symbol" : {
+            "type" : "string"
+          }
+        },
+        "type" : "object"
+      },
+      "DeleteUserRequest" : {
+        "properties" : {
+          "reason" : {
+            "type" : "string"
+          }
+        },
+        "type" : "object"
+      },
+      "Item" : {
+        "properties" : {
+          "childMembershipId" : {
+            "format" : "uuid",
+            "type" : "string"
+          },
+          "code" : {
+            "type" : "string"
+          },
+          "description" : {
+            "type" : "string"
+          },
+          "id" : {
+            "format" : "uuid",
+            "type" : "string"
+          },
+          "level" : {
+            "format" : "int32",
+            "type" : "integer"
+          },
+          "name" : {
+            "type" : "string"
+          },
+          "parentMembershipId" : {
+            "format" : "uuid",
+            "type" : "string"
+          }
+        },
+        "type" : "object"
+      },
+      "ListCountriesRequest" : {
+        "properties" : {
+          "includeInactive" : {
+            "type" : "boolean"
+          },
+          "search" : {
+            "type" : "string"
+          }
+        },
+        "type" : "object"
+      },
+      "ListCurrenciesRequest" : {
+        "properties" : {
+          "includeInactive" : {
+            "type" : "boolean"
+          }
+        },
+        "type" : "object"
+      },
+      "ListMembershipsRequest" : {
+        "properties" : {
+          "search" : {
+            "type" : "string"
+          }
+        },
+        "type" : "object"
+      },
+      "ListPermissionsRequest" : {
+        "properties" : {
+          "action" : {
+            "type" : "string"
+          },
+          "resource" : {
+            "type" : "string"
+          },
+          "search" : {
+            "type" : "string"
+          }
+        },
+        "type" : "object"
+      },
+      "LoginRequest" : {
+        "properties" : {
+          "identifier" : {
+            "minLength" : 1,
+            "type" : "string"
+          },
+          "password" : {
+            "minLength" : 1,
+            "type" : "string"
+          }
+        },
+        "required" : [ "identifier", "password" ],
+        "type" : "object"
+      },
+      "LogoutRequest" : {
+        "properties" : {
+          "allSessions" : {
+            "type" : "boolean"
+          },
+          "refreshToken" : {
+            "minLength" : 1,
+            "type" : "string"
+          }
+        },
+        "required" : [ "refreshToken" ],
+        "type" : "object"
+      },
+      "MembershipChainResponse" : {
+        "properties" : {
+          "content" : {
+            "items" : {
+              "$ref" : "#/components/schemas/Item"
+            },
+            "type" : "array"
+          }
+        },
+        "type" : "object"
+      },
+      "MembershipDetailResponse" : {
+        "properties" : {
+          "childMembership" : {
+            "$ref" : "#/components/schemas/Neighbor"
+          },
+          "code" : {
+            "type" : "string"
+          },
+          "description" : {
+            "type" : "string"
+          },
+          "id" : {
+            "format" : "uuid",
+            "type" : "string"
+          },
+          "level" : {
+            "format" : "int32",
+            "type" : "integer"
+          },
+          "name" : {
+            "type" : "string"
+          },
+          "parentMembership" : {
+            "$ref" : "#/components/schemas/Neighbor"
+          }
+        },
+        "type" : "object"
+      },
+      "MembershipRef" : {
+        "properties" : {
+          "code" : {
+            "type" : "string"
+          },
+          "endsAt" : {
+            "format" : "date-time",
+            "type" : "string"
+          },
+          "level" : {
+            "format" : "int32",
+            "type" : "integer"
+          }
+        },
+        "type" : "object"
+      },
+      "MembershipResponse" : {
+        "properties" : {
+          "childMembershipId" : {
+            "format" : "uuid",
+            "type" : "string"
+          },
+          "code" : {
+            "type" : "string"
+          },
+          "createdAt" : {
+            "format" : "date-time",
+            "type" : "string"
+          },
+          "description" : {
+            "type" : "string"
+          },
+          "id" : {
+            "format" : "uuid",
+            "type" : "string"
+          },
+          "level" : {
+            "format" : "int32",
+            "type" : "integer"
+          },
+          "name" : {
+            "type" : "string"
+          },
+          "parentMembershipId" : {
+            "format" : "uuid",
+            "type" : "string"
+          },
+          "updatedAt" : {
+            "format" : "date-time",
+            "type" : "string"
+          }
+        },
+        "type" : "object"
+      },
+      "Neighbor" : {
+        "properties" : {
+          "code" : {
+            "type" : "string"
+          },
+          "id" : {
+            "format" : "uuid",
+            "type" : "string"
+          },
+          "level" : {
+            "format" : "int32",
+            "type" : "integer"
+          },
+          "name" : {
+            "type" : "string"
+          }
+        },
+        "type" : "object"
+      },
+      "OwnProfileResponse" : {
+        "properties" : {
+          "email" : {
+            "type" : "string"
+          },
+          "firstName" : {
+            "type" : "string"
+          },
+          "lastLoginAt" : {
+            "format" : "date-time",
+            "type" : "string"
+          },
+          "lastName" : {
+            "type" : "string"
+          },
+          "membership" : {
+            "$ref" : "#/components/schemas/MembershipRef"
+          },
+          "mustChangePassword" : {
+            "type" : "boolean"
+          },
+          "permissions" : {
+            "items" : {
+              "type" : "string"
+            },
+            "type" : "array"
+          },
+          "roles" : {
+            "items" : {
+              "$ref" : "#/components/schemas/RoleRef"
+            },
+            "type" : "array"
+          },
+          "status" : {
+            "type" : "string"
+          },
+          "supervisor" : {
+            "$ref" : "#/components/schemas/SupervisorRef"
+          },
+          "username" : {
+            "type" : "string"
+          }
+        },
+        "type" : "object"
+      },
+      "PageResponse" : {
+        "properties" : {
+          "content" : {
+            "items" : { },
+            "type" : "array"
+          },
+          "page" : {
+            "format" : "int32",
+            "type" : "integer"
+          },
+          "size" : {
+            "format" : "int32",
+            "type" : "integer"
+          },
+          "totalElements" : {
+            "format" : "int64",
+            "type" : "integer"
+          },
+          "totalIsExact" : {
+            "type" : "boolean"
+          },
+          "totalPages" : {
+            "format" : "int32",
+            "type" : "integer"
+          }
+        },
+        "type" : "object"
+      },
+      "PageResponsePerson" : {
+        "properties" : {
+          "content" : {
+            "items" : {
+              "$ref" : "#/components/schemas/Person"
+            },
+            "type" : "array"
+          },
+          "page" : {
+            "format" : "int32",
+            "type" : "integer"
+          },
+          "size" : {
+            "format" : "int32",
+            "type" : "integer"
+          },
+          "totalElements" : {
+            "format" : "int64",
+            "type" : "integer"
+          },
+          "totalIsExact" : {
+            "type" : "boolean"
+          },
+          "totalPages" : {
+            "format" : "int32",
+            "type" : "integer"
+          }
+        },
+        "type" : "object"
+      },
+      "PatchableString" : { },
+      "PermissionCatalogResponse" : {
+        "properties" : {
+          "content" : {
+            "items" : {
+              "$ref" : "#/components/schemas/PermissionResponse"
+            },
+            "type" : "array"
+          }
+        },
+        "type" : "object"
+      },
+      "PermissionResponse" : {
+        "properties" : {
+          "action" : {
+            "type" : "string"
+          },
+          "code" : {
+            "type" : "string"
+          },
+          "description" : {
+            "type" : "string"
+          },
+          "id" : {
+            "format" : "uuid",
+            "type" : "string"
+          },
+          "name" : {
+            "type" : "string"
+          },
+          "resource" : {
+            "type" : "string"
+          }
+        },
+        "type" : "object"
+      },
+      "Person" : {
+        "properties" : {
+          "firstName" : {
+            "type" : "string"
+          },
+          "id" : {
+            "format" : "uuid",
+            "type" : "string"
+          },
+          "lastName" : {
+            "type" : "string"
+          },
+          "roleCode" : {
+            "type" : "string"
+          },
+          "since" : {
+            "format" : "date-time",
+            "type" : "string"
+          },
+          "status" : {
+            "type" : "string"
+          },
+          "username" : {
+            "type" : "string"
+          }
+        },
+        "type" : "object"
+      },
+      "RefreshRequest" : {
+        "properties" : {
+          "refreshToken" : {
+            "minLength" : 1,
+            "type" : "string"
+          }
+        },
+        "required" : [ "refreshToken" ],
+        "type" : "object"
+      },
+      "RegisterCountryRequest" : {
+        "properties" : {
+          "code" : {
+            "maxLength" : 10,
+            "minLength" : 0,
+            "type" : "string"
+          },
+          "name" : {
+            "maxLength" : 100,
+            "minLength" : 0,
+            "type" : "string"
+          }
+        },
+        "required" : [ "code", "name" ],
+        "type" : "object"
+      },
+      "RegisterMembershipRequest" : {
+        "properties" : {
+          "childMembershipId" : {
+            "format" : "uuid",
+            "type" : "string"
+          },
+          "code" : {
+            "maxLength" : 50,
+            "minLength" : 0,
+            "pattern" : "^[A-Z][A-Z0-9_]*$",
+            "type" : "string"
+          },
+          "description" : {
+            "maxLength" : 500,
+            "minLength" : 0,
+            "type" : "string"
+          },
+          "name" : {
+            "maxLength" : 100,
+            "minLength" : 0,
+            "type" : "string"
+          }
+        },
+        "required" : [ "code", "name" ],
+        "type" : "object"
+      },
+      "RegisterUserRequest" : {
+        "properties" : {
+          "email" : {
+            "minLength" : 1,
+            "type" : "string"
+          },
+          "firstName" : {
+            "maxLength" : 100,
+            "minLength" : 0,
+            "type" : "string"
+          },
+          "lastName" : {
+            "maxLength" : 100,
+            "minLength" : 0,
+            "type" : "string"
+          },
+          "membershipId" : {
+            "format" : "uuid",
+            "type" : "string"
+          },
+          "password" : {
+            "minLength" : 1,
+            "type" : "string"
+          },
+          "roleIds" : {
+            "items" : {
+              "format" : "uuid",
+              "type" : "string"
+            },
+            "maxItems" : 100,
+            "minItems" : 0,
+            "type" : "array"
+          },
+          "supervisorId" : {
+            "format" : "uuid",
+            "type" : "string"
+          },
+          "username" : {
+            "minLength" : 1,
+            "type" : "string"
+          }
+        },
+        "required" : [ "email", "firstName", "lastName", "password", "roleIds", "username" ],
+        "type" : "object"
+      },
+      "ResetPasswordRequest" : {
+        "properties" : {
+          "newPassword" : {
+            "type" : "string"
+          }
+        },
+        "type" : "object"
+      },
+      "RevokeRolesRequest" : {
+        "properties" : {
+          "roleIds" : {
+            "items" : {
+              "format" : "uuid",
+              "type" : "string"
+            },
+            "maxItems" : 100,
+            "minItems" : 0,
+            "type" : "array"
+          }
+        },
+        "required" : [ "roleIds" ],
+        "type" : "object"
+      },
+      "RoleRef" : {
+        "properties" : {
+          "code" : {
+            "type" : "string"
+          },
+          "name" : {
+            "type" : "string"
+          },
+          "status" : {
+            "type" : "string"
+          }
+        },
+        "type" : "object"
+      },
+      "RoleResponse" : {
+        "properties" : {
+          "code" : {
+            "type" : "string"
+          },
+          "createdAt" : {
+            "format" : "date-time",
+            "type" : "string"
+          },
+          "description" : {
+            "type" : "string"
+          },
+          "id" : {
+            "format" : "uuid",
+            "type" : "string"
+          },
+          "isSystem" : {
+            "type" : "boolean"
+          },
+          "name" : {
+            "type" : "string"
+          },
+          "parentRole" : {
+            "$ref" : "#/components/schemas/RoleSummaryResponse"
+          },
+          "permissions" : {
+            "items" : {
+              "$ref" : "#/components/schemas/PermissionResponse"
+            },
+            "type" : "array"
+          },
+          "roleType" : {
+            "type" : "string"
+          },
+          "status" : {
+            "type" : "string"
+          },
+          "updatedAt" : {
+            "format" : "date-time",
+            "type" : "string"
+          }
+        },
+        "type" : "object"
+      },
+      "RoleSummaryResponse" : {
+        "properties" : {
+          "code" : {
+            "type" : "string"
+          },
+          "id" : {
+            "format" : "uuid",
+            "type" : "string"
+          },
+          "name" : {
+            "type" : "string"
+          }
+        },
+        "type" : "object"
+      },
+      "SessionResponse" : {
+        "properties" : {
+          "accessToken" : {
+            "type" : "string"
+          },
+          "expiresIn" : {
+            "format" : "int64",
+            "type" : "integer"
+          },
+          "mustChangePassword" : {
+            "type" : "boolean"
+          },
+          "refreshToken" : {
+            "type" : "string"
+          },
+          "tokenType" : {
+            "type" : "string"
+          }
+        },
+        "type" : "object"
+      },
+      "SupervisorRef" : {
+        "properties" : {
+          "firstName" : {
+            "type" : "string"
+          },
+          "lastName" : {
+            "type" : "string"
+          },
+          "roleCode" : {
+            "type" : "string"
+          },
+          "username" : {
+            "type" : "string"
+          }
+        },
+        "type" : "object"
+      },
+      "UpdateUserRequest" : {
+        "properties" : {
+          "email" : {
+            "$ref" : "#/components/schemas/PatchableString"
+          },
+          "firstName" : {
+            "$ref" : "#/components/schemas/PatchableString"
+          },
+          "lastName" : {
+            "$ref" : "#/components/schemas/PatchableString"
+          }
+        },
+        "type" : "object"
+      },
+      "UserDetailResponse" : {
+        "properties" : {
+          "createdAt" : {
+            "format" : "date-time",
+            "type" : "string"
+          },
+          "effectivePermissions" : {
+            "items" : {
+              "type" : "string"
+            },
+            "type" : "array"
+          },
+          "email" : {
+            "type" : "string"
+          },
+          "firstName" : {
+            "type" : "string"
+          },
+          "id" : {
+            "format" : "uuid",
+            "type" : "string"
+          },
+          "lastLoginAt" : {
+            "format" : "date-time",
+            "type" : "string"
+          },
+          "lastName" : {
+            "type" : "string"
+          },
+          "lockedUntil" : {
+            "format" : "date-time",
+            "type" : "string"
+          },
+          "membership" : {
+            "$ref" : "#/components/schemas/MembershipRef"
+          },
+          "roles" : {
+            "items" : {
+              "$ref" : "#/components/schemas/RoleRef"
+            },
+            "type" : "array"
+          },
+          "status" : {
+            "type" : "string"
+          },
+          "updatedAt" : {
+            "format" : "date-time",
+            "type" : "string"
+          },
+          "username" : {
+            "type" : "string"
+          }
+        },
+        "type" : "object"
+      },
+      "UserMembershipResponse" : {
+        "properties" : {
+          "code" : {
+            "type" : "string"
+          },
+          "endsAt" : {
+            "format" : "date-time",
+            "type" : "string"
+          },
+          "id" : {
+            "format" : "uuid",
+            "type" : "string"
+          },
+          "level" : {
+            "format" : "int32",
+            "type" : "integer"
+          },
+          "name" : {
+            "type" : "string"
+          }
+        },
+        "type" : "object"
+      },
+      "UserResponse" : {
+        "properties" : {
+          "createdAt" : {
+            "format" : "date-time",
+            "type" : "string"
+          },
+          "email" : {
+            "type" : "string"
+          },
+          "firstName" : {
+            "type" : "string"
+          },
+          "id" : {
+            "format" : "uuid",
+            "type" : "string"
+          },
+          "lastName" : {
+            "type" : "string"
+          },
+          "membership" : {
+            "$ref" : "#/components/schemas/MembershipRef"
+          },
+          "mustChangePassword" : {
+            "type" : "boolean"
+          },
+          "roles" : {
+            "items" : {
+              "$ref" : "#/components/schemas/RoleRef"
+            },
+            "type" : "array"
+          },
+          "status" : {
+            "type" : "string"
+          },
+          "supervisor" : {
+            "$ref" : "#/components/schemas/SupervisorRef"
+          },
+          "updatedAt" : {
+            "format" : "date-time",
+            "type" : "string"
+          },
+          "username" : {
+            "type" : "string"
+          }
+        },
+        "type" : "object"
+      },
+      "UserStatusResponse" : {
+        "properties" : {
+          "id" : {
+            "format" : "uuid",
+            "type" : "string"
+          },
+          "lockedUntil" : {
+            "format" : "date-time",
+            "type" : "string"
+          },
+          "status" : {
+            "type" : "string"
+          },
+          "updatedAt" : {
+            "format" : "date-time",
+            "type" : "string"
+          },
+          "username" : {
+            "type" : "string"
+          }
+        },
+        "type" : "object"
+      }
+    },
+    "securitySchemes" : {
+      "bearerAuth" : {
+        "bearerFormat" : "JWT",
+        "description" : "Token de acceso emitido por `POST /api/v1/auth/login`. Pegue solo el valor de `accessToken`: el prefijo `Bearer` lo añade la interfaz.",
+        "in" : "header",
+        "scheme" : "bearer",
+        "type" : "http"
+      }
+    }
+  },
+  "info" : {
+    "description" : "API del módulo `SP`. **Toda operación exige un token de acceso**\nsalvo el inicio, la renovación y el cierre de sesión.\n\nPara probar cualquier endpoint: obtenga el token con\n`POST /api/v1/auth/login`, pulse **Authorize** y pegue el valor de\n`accessToken` — sin el prefijo `Bearer`, que Swagger añade solo.\n\nEl token vive **quince minutos** y no es revocable: cuando expire,\nrenuévelo con `POST /api/v1/auth/refresh` y vuelva a autorizar.\n",
+    "title" : "NEXUS — API del Sistema Principal",
+    "version" : "v1"
+  },
+  "openapi" : "3.1.0",
+  "paths" : {
+    "/api/v1/auth/login" : {
+      "post" : {
+        "description" : "Autentica con **nombre de usuario o correo** —el mismo campo para los\ndos— y entrega las credenciales de sesión.\n\nLa cuenta bloqueada recibe `423` y un mensaje que la identifica como\ntal: es una excepción consciente al mensaje genérico, porque quien\nprovocó el bloqueo ya sabe que la cuenta existe.\n\nSi la contraseña la fijó otra persona, la respuesta autentica **y\nadvierte** con `mustChangePassword`: hace falta una sesión para poder\ncambiarla.\n",
+        "operationId" : "login",
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/LoginRequest"
+              }
+            }
+          },
+          "required" : true
+        },
+        "responses" : {
+          "200" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/SessionResponse"
+                }
+              }
+            },
+            "description" : "Credenciales de sesión."
+          },
+          "400" : {
+            "description" : "Identificador o contraseña ausentes"
+          },
+          "401" : {
+            "description" : "Credenciales inválidas, cuenta inexistente, inactiva o eliminada — los cuatro casos comparten cuerpo y mensaje, sin una sola diferencia observable"
+          },
+          "423" : {
+            "description" : "Cuenta bloqueada"
+          },
+          "500" : {
+            "description" : "Fallo no controlado (`ERR-500`)"
+          }
+        },
+        "security" : [ ],
+        "summary" : "Iniciar sesión",
+        "tags" : [ "Sesión" ]
+      }
+    },
+    "/api/v1/auth/logout" : {
+      "post" : {
+        "description" : "Revoca el refresh token de la sesión, o **todos** los de la persona si\nse pide.\n\nResponde `204` para **cualquier** token sintácticamente válido, exista o\nno, esté vigente o revocado. Distinguirlos permitiría comprobar con dos\npeticiones si una cadena de texto es un refresh token del sistema, y el\nresultado prometido —que ese token no sirva— se cumple igual.\n",
+        "operationId" : "logout",
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/LogoutRequest"
+              }
+            }
+          },
+          "required" : true
+        },
+        "responses" : {
+          "204" : {
+            "description" : "Sesión cerrada."
+          },
+          "400" : {
+            "description" : "Refresh token ausente o con formato imposible"
+          },
+          "500" : {
+            "description" : "Fallo no controlado (`ERR-500`)"
+          }
+        },
+        "security" : [ ],
+        "summary" : "Cerrar sesión",
+        "tags" : [ "Sesión" ]
+      }
+    },
+    "/api/v1/auth/password" : {
+      "post" : {
+        "description" : "Sustituye la contraseña de **quien porta el token**.\n\n**No lleva identificador de usuario**, y esa ausencia es la\nimplementación de la regla: no hay campo por el que dirigir la\noperación a un tercero. Restablecer la contraseña de otra persona es\notra operación, con su propio permiso.\n\nLa contraseña actual se comprueba **la última**, después del formato, de\nque la nueva sea distinta y de la política. Es el único paso que consume\nel contador de intentos: ponerlo antes haría que cinco peticiones\ndescuidadas de un cliente propio bloquearan la cuenta de su titular.\n\nLa contraseña actual incorrecta devuelve `422` y **no `401`**: un `401`\nle diría al cliente que su sesión ya no vale y lo mandaría a iniciar\nsesión, cuando lo único que ocurrió es que escribió mal su contraseña.\n\n**Aquí sí se dice qué falló**, al revés que al iniciar sesión: quien\nhace esta petición ya está autenticado y no se le revela nada que no\nsupiera.\n\nAl cambiarla, **todas las sesiones se revocan**, incluida la que ejecutó\nel cambio.\n",
+        "operationId" : "cambiarContrasena",
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/ChangePasswordRequest"
+              }
+            }
+          },
+          "required" : true
+        },
+        "responses" : {
+          "204" : {
+            "description" : "Contraseña sustituida."
+          },
+          "400" : {
+            "description" : "Falta alguna de las dos (`VAL-001`, `VAL-002`), la nueva no cumple la política (`VAL-004`) o es igual a la actual (`VAL-005`)"
+          },
+          "401" : {
+            "description" : "Token ausente o inválido (`AUTH-001`)"
+          },
+          "422" : {
+            "description" : "La contraseña actual no es correcta (`VAL-003`). Consume un intento"
+          },
+          "423" : {
+            "description" : "La cuenta quedó bloqueada al alcanzar el umbral de fallos"
+          },
+          "500" : {
+            "description" : "Fallo no controlado (`ERR-500`)"
+          }
+        },
+        "security" : [ {
+          "bearerAuth" : [ ]
+        } ],
+        "summary" : "Cambiar la propia contraseña",
+        "tags" : [ "Sesión" ]
+      }
+    },
+    "/api/v1/auth/refresh" : {
+      "post" : {
+        "description" : "Rota el refresh token y entrega credenciales nuevas.\n\n**La rotación es la defensa:** el token entregado deja de servir, de\nmodo que presentarlo de nuevo significa que existe una copia. En ese\ncaso se revoca la **familia entera** de la sesión y se emite la alarma.\n\nLas cinco condiciones de rechazo devuelven la **misma** respuesta: el\ncliente no debe poder deducir si el token fue robado, si expiró o si la\ncuenta fue desactivada.\n",
+        "operationId" : "refresh",
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/RefreshRequest"
+              }
+            }
+          },
+          "required" : true
+        },
+        "responses" : {
+          "200" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/SessionResponse"
+                }
+              }
+            },
+            "description" : "Credenciales renovadas."
+          },
+          "400" : {
+            "description" : "Refresh token ausente"
+          },
+          "401" : {
+            "description" : "La sesión no es válida — cinco causas posibles, una sola respuesta"
+          },
+          "500" : {
+            "description" : "Fallo no controlado (`ERR-500`)"
+          }
+        },
+        "security" : [ ],
+        "summary" : "Renovar la sesión",
+        "tags" : [ "Sesión" ]
+      }
+    },
+    "/api/v1/countries" : {
+      "get" : {
+        "description" : "Devuelve el catálogo completo, sin paginar, **ordenado alfabéticamente\npor nombre** según la intercalación del español — no por orden de bytes.\n\nLa búsqueda actúa sobre código y nombre, ignorando mayúsculas y acentos.\nSin coincidencias devuelve una colección vacía, no un error.\n\nLos países inactivos no aparecen salvo que se pidan, y entonces se\n**añaden** a los activos. La búsqueda y el estado son independientes.\n",
+        "operationId" : "consultar_1",
+        "parameters" : [ {
+          "in" : "query",
+          "name" : "peticion",
+          "required" : true,
+          "schema" : {
+            "$ref" : "#/components/schemas/ListCountriesRequest"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/CountryCatalogResponse"
+                }
+              }
+            },
+            "description" : "Catálogo devuelto. Puede venir vacío."
+          },
+          "400" : {
+            "description" : "El parámetro de inclusión no es booleano"
+          },
+          "401" : {
+            "description" : "Token ausente o inválido (`AUTH-001`)"
+          },
+          "403" : {
+            "description" : "Autenticado sin el permiso de lectura de países (`AUTH-002`)"
+          },
+          "500" : {
+            "description" : "Fallo no controlado (`ERR-500`)"
+          }
+        },
+        "summary" : "Consultar el catálogo de países",
+        "tags" : [ "Países" ]
+      },
+      "post" : {
+        "description" : "Registra un país en el catálogo. Queda **activo** siempre: el estado no\nse envía y enviarlo devuelve `400`.\n\nEl código se normaliza a mayúsculas y se recorta, porque lo fija\nISO 3166-1 y no lo inventa nadie: `co`, ` CO` y `CO` son el mismo país.\n\nEl nombre admite acentos y caracteres no latinos sin transformación\nalguna, pero **no puede coincidir** con otro ya registrado ignorando\nmayúsculas y acentos: el catálogo no se edita, y el duplicado sería\npermanente.\n",
+        "operationId" : "registrar_3",
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/RegisterCountryRequest"
+              }
+            }
+          },
+          "required" : true
+        },
+        "responses" : {
+          "201" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/CountryResponse"
+                }
+              }
+            },
+            "description" : "País registrado, con su código ya normalizado."
+          },
+          "400" : {
+            "description" : "Código o nombre inválidos, o campo no admitido en el cuerpo"
+          },
+          "401" : {
+            "description" : "Token ausente o inválido (`AUTH-001`)"
+          },
+          "403" : {
+            "description" : "Autenticado sin el permiso de creación de países (`AUTH-002`)"
+          },
+          "409" : {
+            "description" : "Código o nombre ya presentes en el catálogo (`EX-001`)"
+          },
+          "500" : {
+            "description" : "Fallo no controlado (`ERR-500`)"
+          }
+        },
+        "summary" : "Registrar un país",
+        "tags" : [ "Países" ]
+      }
+    },
+    "/api/v1/countries/{id}/status" : {
+      "patch" : {
+        "description" : "Cambia el estado de un país. Es lo **único** que la API puede modificar\nde un país.\n\nSe envía el estado destino, no una acción: pedir dos veces lo mismo deja\nel mismo estado y **no** registra un segundo evento.\n\n**Desactivar no es corregir**: el código y el nombre permanecen, y los\ndatos que ya los referencian siguen resolviéndolos. Evita que el error se\npropague desde ese momento, no lo repara.\n\nEl cuerpo no admite ningún otro campo ni motivo alguno.\n",
+        "operationId" : "cambiarEstado_2",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "id",
+          "required" : true,
+          "schema" : {
+            "format" : "uuid",
+            "type" : "string"
+          }
+        } ],
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/ChangeCountryStatusRequest"
+              }
+            }
+          },
+          "required" : true
+        },
+        "responses" : {
+          "200" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/CountryResponse"
+                }
+              }
+            },
+            "description" : "Estado aplicado. Devuelve el país tal como quedó."
+          },
+          "400" : {
+            "description" : "Identificador o cuerpo inválidos, o campo no admitido (`VAL-001`)"
+          },
+          "401" : {
+            "description" : "Token ausente o inválido (`AUTH-001`)"
+          },
+          "403" : {
+            "description" : "Autenticado sin el permiso de modificación de países (`AUTH-002`)"
+          },
+          "404" : {
+            "description" : "No existe país con ese identificador (`EX-001`)"
+          },
+          "500" : {
+            "description" : "Fallo no controlado (`ERR-500`)"
+          }
+        },
+        "summary" : "Activar o desactivar un país",
+        "tags" : [ "Países" ]
+      }
+    },
+    "/api/v1/currencies" : {
+      "get" : {
+        "description" : "Devuelve el catálogo completo, sin paginar, ordenado por código.\n\n`decimalPlaces` es el campo del que depende el redondeo de todo cálculo\nfinanciero: cero es un valor legítimo y el campo nunca es nulo.\n\nLas monedas inactivas no aparecen salvo que se pidan con\n`includeInactive=true`, que **añade** a las activas en lugar de\nsustituirlas.\n",
+        "operationId" : "consultar_2",
+        "parameters" : [ {
+          "in" : "query",
+          "name" : "peticion",
+          "required" : true,
+          "schema" : {
+            "$ref" : "#/components/schemas/ListCurrenciesRequest"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/CurrencyCatalogResponse"
+                }
+              }
+            },
+            "description" : "Catálogo devuelto. Siempre es una colección, aunque tenga un solo elemento."
+          },
+          "400" : {
+            "description" : "El parámetro de inclusión no es booleano"
+          },
+          "401" : {
+            "description" : "Token ausente o inválido (`AUTH-001`)"
+          },
+          "403" : {
+            "description" : "Autenticado sin el permiso de lectura de monedas (`AUTH-002`)"
+          },
+          "500" : {
+            "description" : "Fallo no controlado (`ERR-500`)"
+          }
+        },
+        "summary" : "Consultar el catálogo de monedas",
+        "tags" : [ "Monedas" ]
+      }
+    },
+    "/api/v1/currencies/{id}/status" : {
+      "patch" : {
+        "description" : "Cambia el estado de una moneda del catálogo. Es lo **único** que la API\npuede modificar de una moneda.\n\nSe envía el estado destino, no una acción: pedir dos veces lo mismo deja\nel mismo estado y **no** registra un segundo evento.\n\nLa moneda por defecto **no puede desactivarse**: los importes del sistema\nquedarían sin referencia válida. Cambiar cuál es la moneda por defecto es\nuna operación de migración, no de API.\n\nEl cuerpo no admite ningún otro campo ni motivo alguno.\n",
+        "operationId" : "cambiarEstado_1",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "id",
+          "required" : true,
+          "schema" : {
+            "format" : "uuid",
+            "type" : "string"
+          }
+        } ],
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/ChangeCurrencyStatusRequest"
+              }
+            }
+          },
+          "required" : true
+        },
+        "responses" : {
+          "200" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/CurrencyResponse"
+                }
+              }
+            },
+            "description" : "Estado aplicado. Devuelve la moneda completa, con su definición sin cambios."
+          },
+          "400" : {
+            "description" : "Identificador o cuerpo inválidos, o campo no admitido (`VAL-001`)"
+          },
+          "401" : {
+            "description" : "Token ausente o inválido (`AUTH-001`)"
+          },
+          "403" : {
+            "description" : "Autenticado sin el permiso de modificación de monedas (`AUTH-002`)"
+          },
+          "404" : {
+            "description" : "No existe moneda con ese identificador (`EX-002`)"
+          },
+          "409" : {
+            "description" : "Se intenta desactivar la moneda por defecto (`RN-SP-010`)"
+          },
+          "500" : {
+            "description" : "Fallo no controlado (`ERR-500`)"
+          }
+        },
+        "summary" : "Activar o desactivar una moneda",
+        "tags" : [ "Monedas" ]
+      }
+    },
+    "/api/v1/memberships" : {
+      "get" : {
+        "description" : "Devuelve la cadena completa, de la superior al extremo inferior, sin paginar.\n\n`level` es la distancia hasta la cima: `1` es la superior. El orden de la\ncolección lo refleja.\n\nNo se admite paginación ni ordenamiento: el orden **es** la información.\nLos parámetros de paginación se ignoran y devuelven la cadena entera.\n",
+        "operationId" : "consultar",
+        "parameters" : [ {
+          "in" : "query",
+          "name" : "peticion",
+          "required" : true,
+          "schema" : {
+            "$ref" : "#/components/schemas/ListMembershipsRequest"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/MembershipChainResponse"
+                }
+              }
+            },
+            "description" : "Cadena devuelta. Puede venir vacía si aún no hay membresías."
+          },
+          "401" : {
+            "description" : "Token ausente o inválido (`AUTH-001`)"
+          },
+          "403" : {
+            "description" : "Autenticado sin `memberships:read` (`AUTH-002`)"
+          },
+          "500" : {
+            "description" : "Fallo no controlado (`ERR-500`)"
+          }
+        },
+        "summary" : "Consultar la cadena de membresías",
+        "tags" : [ "Membresías" ]
+      },
+      "post" : {
+        "description" : "Inserta una membresía en la cadena, por encima de la hija indicada.\n\nSi no se indica hija, la membresía queda en el extremo inferior y no se\nreordena nada. Si se indica, la nueva ocupa su nivel, hereda su superior\ny todo lo que estaba en ese nivel o por debajo baja uno.\n\nEl nivel y la superior **no se envían**: los calcula el sistema. Enviar\n`level` o `parentMembershipId` devuelve `400`.\n",
+        "operationId" : "registrar_2",
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/RegisterMembershipRequest"
+              }
+            }
+          },
+          "required" : true
+        },
+        "responses" : {
+          "201" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/MembershipResponse"
+                }
+              }
+            },
+            "description" : "Membresía registrada, con la posición que ocupó."
+          },
+          "400" : {
+            "description" : "Formato u obligatoriedad incumplidos, o campo no admitido en el cuerpo"
+          },
+          "401" : {
+            "description" : "Token ausente o inválido (`AUTH-001`)"
+          },
+          "403" : {
+            "description" : "Autenticado sin `memberships:create` (`AUTH-002`)"
+          },
+          "409" : {
+            "description" : "Código o nombre ya en uso (`EX-001`), o la cadena cambió durante la operación (`EX-003`) y debe reintentarse"
+          },
+          "422" : {
+            "description" : "La membresía hija indicada no existe (`EX-002`)"
+          },
+          "500" : {
+            "description" : "Fallo no controlado (`ERR-500`)"
+          }
+        },
+        "summary" : "Registrar una membresía",
+        "tags" : [ "Membresías" ]
+      }
+    },
+    "/api/v1/memberships/{id}" : {
+      "get" : {
+        "description" : "Devuelve la membresía con sus dos vecinos inmediatos, expandidos.\n\nLos vecinos llegan solo hasta el primer grado y no traen los suyos: la\ncadena entera se obtiene con el listado.\n",
+        "operationId" : "consultarDetalle",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "id",
+          "required" : true,
+          "schema" : {
+            "format" : "uuid",
+            "type" : "string"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/MembershipDetailResponse"
+                }
+              }
+            },
+            "description" : "Detalle devuelto."
+          },
+          "400" : {
+            "description" : "El identificador no es un UUID (`VAL-001`)"
+          },
+          "401" : {
+            "description" : "Token ausente o inválido (`AUTH-001`)"
+          },
+          "403" : {
+            "description" : "Autenticado sin `memberships:read` (`AUTH-002`)"
+          },
+          "404" : {
+            "description" : "No existe membresía con ese identificador (`EX-001`)"
+          },
+          "500" : {
+            "description" : "Fallo no controlado (`ERR-500`)"
+          }
+        },
+        "summary" : "Consultar el detalle de una membresía",
+        "tags" : [ "Membresías" ]
+      }
+    },
+    "/api/v1/permissions" : {
+      "get" : {
+        "description" : "Devuelve el catálogo completo, sin paginar, ordenado por recurso y acción.\n\nLos tres filtros son opcionales y ninguno se valida: un valor que no\ncorresponda a ningún permiso produce una colección vacía, no un error.\nLos parámetros de paginación no se admiten y se ignoran.\n",
+        "operationId" : "list",
+        "parameters" : [ {
+          "description" : "Filtro por recurso. Coincidencia exacta.",
+          "in" : "query",
+          "name" : "request",
+          "required" : true,
+          "schema" : {
+            "$ref" : "#/components/schemas/ListPermissionsRequest"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/PermissionCatalogResponse"
+                }
+              }
+            },
+            "description" : "Catálogo devuelto. La colección puede venir vacía."
+          },
+          "401" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/PermissionCatalogResponse"
+                }
+              }
+            },
+            "description" : "Token ausente o inválido (`AUTH-001`)"
+          },
+          "403" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/PermissionCatalogResponse"
+                }
+              }
+            },
+            "description" : "Autenticado sin el permiso `permissions:read` (`AUTH-002`)"
+          },
+          "500" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/PermissionCatalogResponse"
+                }
+              }
+            },
+            "description" : "Fallo no controlado (`ERR-500`)"
+          }
+        },
+        "summary" : "Consultar el catálogo de permisos",
+        "tags" : [ "Permisos" ]
+      }
+    },
+    "/api/v1/roles" : {
+      "post" : {
+        "description" : "Registra un rol bajo un rol padre existente y activo, con los permisos que\nse declaren.\n\nLos permisos deben estar contenidos en los del rol padre (`RN-SEG-003`) y en\nlos permisos efectivos de quien ejecuta el alta (`RN-SEG-010`). Declararlos es\nopcional: sin ellos el rol queda registrado y a la espera de `RF-SP-005`.\n\nEl rol nace siempre **activo** y nunca de sistema. Ni `status` ni `isSystem`\nse admiten en el cuerpo: enviarlos devuelve `400`.\n",
+        "operationId" : "registrar_1",
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/CreateRoleRequest"
+              }
+            }
+          },
+          "required" : true
+        },
+        "responses" : {
+          "201" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/RoleResponse"
+                }
+              }
+            },
+            "description" : "Rol registrado. La cabecera `Location` lleva su dirección."
+          },
+          "400" : {
+            "description" : "Formato u obligatoriedad incumplidos (`VAL-001` a `VAL-004`, `VAL-007`, `VAL-008`), o el cuerpo trae un campo que este endpoint no admite"
+          },
+          "401" : {
+            "description" : "Token ausente o inválido (`AUTH-001`)"
+          },
+          "403" : {
+            "description" : "Autenticado sin `roles:create` (`AUTH-002`)"
+          },
+          "409" : {
+            "description" : "Código o nombre ya en uso (`RN-SEG-001`), permiso fuera del rol padre (`RN-SEG-003`) o fuera del alcance del actor (`RN-SEG-010`)"
+          },
+          "422" : {
+            "description" : "El rol padre no existe o no está activo (`EX-002`), o algún permiso no está en el catálogo (`EX-005`)"
+          },
+          "500" : {
+            "description" : "Fallo no controlado (`ERR-500`)"
+          }
+        },
+        "summary" : "Registrar un rol",
+        "tags" : [ "Roles" ]
+      }
+    },
+    "/api/v1/users" : {
+      "get" : {
+        "description" : "Listado paginado con filtros, búsqueda y ordenamiento.\n\n**El orden por defecto es `lastName,asc`** y no el nombre de usuario:\nesta es la lista desde la que se administra el acceso, y quien la mira\nbusca a alguien por su apellido.\n\nSolo se puede ordenar por la lista blanca —`username`, `email`,\n`firstName`, `lastName`, `status`, `createdAt`, `updatedAt`—. **No se\nadmite ordenar por ningún campo de la credencial**: ordenar por la marca\nde cambio obligatorio produciría la lista de quien no ha cambiado su\ncontraseña inicial.\n\n**`roleId` y `membershipId` no se validan contra su catálogo.** Un\nfiltro por algo inexistente devuelve la colección vacía y no es un\nerror.\n\nLa búsqueda va sobre nombre de usuario, correo y nombre completo,\n**sin distinguir acentos ni mayúsculas**, y por fragmento.\n\n`membership` **no es nula cuando está vencida**: vencer no es lo mismo\nque no tener. `current` dice cuál de los dos casos es.\n\nUn filtro sin coincidencias devuelve `200` con la colección vacía. No\nhay `404` ni `422`.\n",
+        "operationId" : "listar",
+        "parameters" : [ {
+          "in" : "query",
+          "name" : "page",
+          "required" : false,
+          "schema" : {
+            "format" : "int32",
+            "type" : "integer"
+          }
+        }, {
+          "in" : "query",
+          "name" : "size",
+          "required" : false,
+          "schema" : {
+            "format" : "int32",
+            "type" : "integer"
+          }
+        }, {
+          "in" : "query",
+          "name" : "sort",
+          "required" : false,
+          "schema" : {
+            "type" : "string"
+          }
+        }, {
+          "in" : "query",
+          "name" : "status",
+          "required" : false,
+          "schema" : {
+            "type" : "string"
+          }
+        }, {
+          "in" : "query",
+          "name" : "roleId",
+          "required" : false,
+          "schema" : {
+            "format" : "uuid",
+            "type" : "string"
+          }
+        }, {
+          "in" : "query",
+          "name" : "membershipId",
+          "required" : false,
+          "schema" : {
+            "format" : "uuid",
+            "type" : "string"
+          }
+        }, {
+          "in" : "query",
+          "name" : "search",
+          "required" : false,
+          "schema" : {
+            "type" : "string"
+          }
+        }, {
+          "in" : "query",
+          "name" : "includeDeleted",
+          "required" : false,
+          "schema" : {
+            "type" : "boolean"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/PageResponse"
+                }
+              }
+            },
+            "description" : "Página de personas."
+          },
+          "400" : {
+            "description" : "Paginación fuera de límites (`VAL-001`, `VAL-002`), campo de ordenamiento no admitido (`VAL-003`), o estado fuera de su dominio (`VAL-004`). Se devuelven **juntos**"
+          },
+          "401" : {
+            "description" : "Token ausente o inválido (`AUTH-001`)"
+          },
+          "403" : {
+            "description" : "Autenticado sin `users:read` (`AUTH-002`)"
+          },
+          "500" : {
+            "description" : "Fallo no controlado (`ERR-500`)"
+          }
+        },
+        "summary" : "Consultar personas",
+        "tags" : [ "Usuarios" ]
+      },
+      "post" : {
+        "description" : "Registra una persona con sus roles iniciales.\n\nLa cuenta nace **activa** y **marcada para cambio obligatorio de\ncontraseña**: quien prepara el alta conoce la credencial, y esa ventana\nse cierra en el primer inicio de sesión. Ni el estado ni la marca se\nenvían; enviarlos devuelve `400`.\n\n**La membresía y el superior son condicionales en los dos sentidos.**\nUn rol de consumidor exige membresía y la membresía exige un rol de\nconsumidor; lo mismo con el rol de vendedor y el superior comercial.\nIndicar uno sin el otro devuelve `409`, no se ignora.\n\nEl superior debe portar el **rol padre inmediato** del rol vendedor de\nmayor rango de la persona, y estar activo.\n\nLa contraseña no se recorta: un espacio al principio o al final es parte\nde ella.\n",
+        "operationId" : "registrar",
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/RegisterUserRequest"
+              }
+            }
+          },
+          "required" : true
+        },
+        "responses" : {
+          "201" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/UserResponse"
+                }
+              }
+            },
+            "description" : "Persona registrada. `Location` apunta a su detalle."
+          },
+          "400" : {
+            "description" : "Formato u obligatoriedad incumplidos, contraseña que no cumple la política, o campo no admitido en el cuerpo"
+          },
+          "401" : {
+            "description" : "Token ausente o inválido (`AUTH-001`)"
+          },
+          "403" : {
+            "description" : "Autenticado sin el permiso de creación de usuarios (`AUTH-002`)"
+          },
+          "409" : {
+            "description" : "Identidad ya en uso (`RN-SP-016`), rol que excede los privilegios del actor (`RN-SEG-010`), consumidor sin membresía o al revés (`RN-SP-018`), vendedor sin superior o al revés (`RN-SP-019`), o superior que no porta el rol padre (`RN-SP-020`)"
+          },
+          "422" : {
+            "description" : "Algún rol no existe o no está activo (`EX-003`)"
+          },
+          "500" : {
+            "description" : "Fallo no controlado (`ERR-500`)"
+          }
+        },
+        "summary" : "Registrar una persona",
+        "tags" : [ "Usuarios" ]
+      }
+    },
+    "/api/v1/users/me" : {
+      "get" : {
+        "description" : "Devuelve el perfil de **quien porta el token**, con sus **permisos\nefectivos**.\n\n`me` es un **literal**, no un identificador: no se admite pedir el\npropio detalle por la ruta con identificador, que es otra operación y\nexige permiso de lectura de usuarios.\n\n**Sin parámetros de ningún tipo** — ni de ruta, ni de consulta, ni de\ncuerpo.\n\nLos permisos salen del **mismo componente que autoriza**, de modo que lo\nque esta pantalla dice que la persona puede hacer es exactamente lo que\nel sistema le dejará hacer. Es lo que permite a una interfaz decidir qué\nmostrar sin duplicar en el navegador una regla que vive en el servidor.\n\n**No exige permiso alguno**, solo estar autenticado: no hay recurso\najeno que proteger.\n\nDevuelve **solo el superior comercial, nunca el equipo**: a quién\nreporta uno es un dato del actor; quiénes dependen de uno es un conjunto\nde terceros.\n\n`lastLoginAt` es un dato **informativo de la sesión en curso**, no una\nseñal de intrusión: el inicio de sesión sobrescribe ese valor al entrar.\n",
+        "operationId" : "miPerfil",
+        "responses" : {
+          "200" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/OwnProfileResponse"
+                }
+              }
+            },
+            "description" : "El perfil."
+          },
+          "401" : {
+            "description" : "Sin credencial válida, o la cuenta fue eliminada tras emitirse el token (`AUTH-001`) — lo que dejó de valer es la sesión, no la ruta, y por eso no es `404`"
+          },
+          "500" : {
+            "description" : "Fallo no controlado (`ERR-500`)"
+          }
+        },
+        "summary" : "Consultar el propio perfil",
+        "tags" : [ "Usuarios" ]
+      }
+    },
+    "/api/v1/users/{id}" : {
+      "get" : {
+        "description" : "Sus roles **con el estado de cada uno**, sus permisos efectivos, su\nmembresía y el contexto de su acceso.\n\nLas dos primeras juntas son lo único que explica por qué una persona\n**con roles** no puede hacer nada: porque todos están inactivos y la\nlista de permisos llega vacía.\n\nLos permisos efectivos salen del **mismo componente que autoriza**, de\nmodo que esta respuesta no puede contradecir a lo que el sistema hará\ncon la siguiente petición de esa persona.\n\n`lockedUntil` nulo significa dos cosas distintas y eso es información:\nla cuenta no está bloqueada, o lo está **por decisión de un actor** y\npor tanto sin expiración. El estado desambigua.\n\n**No devuelve intentos fallidos** —diría cuántos le quedan a una cuenta\nantes de bloquearse—, **ni dato alguno de la credencial**, **ni el\nsuperior comercial**, que tiene su propio endpoint.\n\nUna persona eliminada devuelve el **mismo** `404` que una inexistente,\nsin ninguna pista de que existió.\n",
+        "operationId" : "detalle",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "id",
+          "required" : true,
+          "schema" : {
+            "format" : "uuid",
+            "type" : "string"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/UserDetailResponse"
+                }
+              }
+            },
+            "description" : "La persona."
+          },
+          "400" : {
+            "description" : "El identificador no es un UUID en forma canónica (`VAL-001`)"
+          },
+          "401" : {
+            "description" : "Token ausente o inválido (`AUTH-001`)"
+          },
+          "403" : {
+            "description" : "Autenticado sin `users:read` (`AUTH-002`)"
+          },
+          "404" : {
+            "description" : "No existe, o está eliminada (`EX-001`)"
+          },
+          "500" : {
+            "description" : "Fallo no controlado (`ERR-500`)"
+          }
+        },
+        "summary" : "Consultar el detalle de una persona",
+        "tags" : [ "Usuarios" ]
+      },
+      "patch" : {
+        "description" : "Modifica el nombre, los apellidos y el correo. `PATCH` y no `PUT`:\n`PUT` obligaría a enviar el recurso completo —incluidos el nombre de\nusuario, el estado y los roles, que esta operación **no** puede\nmodificar— y habría que decidir qué hacer si llegaran con otros valores.\n\n**Los tres campos son opcionales y ninguno admite vaciarse.** El campo\nausente no se toca; el campo con nulo explícito o en blanco devuelve\n`400`. Es la diferencia con la edición de un rol, donde el nulo sí era\nuna orden: aquí las columnas son `NOT NULL` y aceptarlo produciría un\n`500` en lugar del `400` que corresponde.\n\n**El nombre de usuario no se puede cambiar**, y enviarlo devuelve `400`\npor propiedad desconocida en lugar de ignorarse en silencio. Lo mismo\ncon el estado, los roles, la membresía y la contraseña: cada uno tiene\nsu operación.\n\nEl correo se normaliza —recorte y minúsculas— **antes** de compararse,\nde modo que reenviar el propio en mayúsculas es un cambio sin efecto y\nno un conflicto consigo mismo.\n\n**El actor sí puede editarse a sí mismo**: corregir el propio apellido\nno concede ningún privilegio.\n",
+        "operationId" : "editar",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "id",
+          "required" : true,
+          "schema" : {
+            "format" : "uuid",
+            "type" : "string"
+          }
+        } ],
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/UpdateUserRequest"
+              }
+            }
+          },
+          "required" : true
+        },
+        "responses" : {
+          "200" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/UserResponse"
+                }
+              }
+            },
+            "description" : "La persona, con los datos actualizados."
+          },
+          "400" : {
+            "description" : "Ningún campo informado (`VAL-001`), campo vaciado (`VAL-002`), correo inválido (`VAL-003`), longitud excedida (`VAL-005`) o campo desconocido"
+          },
+          "401" : {
+            "description" : "Token ausente o inválido (`AUTH-001`)"
+          },
+          "403" : {
+            "description" : "Autenticado sin `users:update` (`AUTH-002`)"
+          },
+          "404" : {
+            "description" : "No existe, o está eliminada (`EX-002`)"
+          },
+          "409" : {
+            "description" : "El correo ya está en uso (`RN-SP-016`). **El mensaje no dice de quién es**: puede ser de alguien eliminado, y decirlo revelaría una cuenta"
+          },
+          "500" : {
+            "description" : "Fallo no controlado (`ERR-500`)"
+          }
+        },
+        "summary" : "Editar los datos de una persona",
+        "tags" : [ "Usuarios" ]
+      }
+    },
+    "/api/v1/users/{id}/deletion" : {
+      "post" : {
+        "description" : "Eliminación **lógica** y con motivo declarado. `POST` sobre un\nsubrecurso y no `DELETE` con cuerpo: RFC 9110 no define semántica para\nel cuerpo de un `DELETE` y un intermediario puede descartarlo,\nconvirtiendo la petición en un rechazo por motivo ausente que el actor\nno puede entender. Y tampoco por *query string*, o el motivo acabaría en\nlos registros de acceso de los proxies.\n\n**El motivo se verifica el primero de todo**, antes incluso de saber si\nla persona existe.\n\nLa operación **retira sus roles y su membresía**, **cierra** su\nasignación de superior —cerrarla, nunca borrarla: es historial de\nmando— y **revoca sus sesiones**, todo en la misma transacción y con la\nmisma marca de tiempo.\n\n**El estado NO se toca**: se conserva como estaba para que el registro\nde eliminación diga en qué situación estaba la persona cuando se la\neliminó.\n\nEl `404` **no distingue** «nunca existió» de «ya estaba eliminada».\n",
+        "operationId" : "eliminar",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "id",
+          "required" : true,
+          "schema" : {
+            "format" : "uuid",
+            "type" : "string"
+          }
+        } ],
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/DeleteUserRequest"
+              }
+            }
+          },
+          "required" : true
+        },
+        "responses" : {
+          "204" : {
+            "description" : "Persona eliminada."
+          },
+          "400" : {
+            "description" : "Motivo ausente o vacío (`VAL-001`), o campo desconocido"
+          },
+          "401" : {
+            "description" : "Token ausente o inválido (`AUTH-001`)"
+          },
+          "403" : {
+            "description" : "Autenticado sin `users:delete` (`AUTH-002`), o es la cuenta del propio actor (`RN-SP-017`)"
+          },
+          "404" : {
+            "description" : "No existe, o ya estaba eliminada (`EX-004`)"
+          },
+          "409" : {
+            "description" : "Es el último superadministrador activo (`RN-SP-001`), o tiene personas a cargo (`RN-SP-022`)"
+          },
+          "500" : {
+            "description" : "Fallo no controlado (`ERR-500`)"
+          }
+        },
+        "summary" : "Eliminar a una persona",
+        "tags" : [ "Usuarios" ]
+      }
+    },
+    "/api/v1/users/{id}/membership" : {
+      "delete" : {
+        "description" : "**Rechaza a quien SÍ es consumidor**, que es lo contrario de lo que\nsugiere el nombre. No existe el estado «consumidor sin nivel», de modo\nque esta operación solo sirve para **corregir un estado incoherente**:\nalguien con membresía que ya no porta ningún rol de consumidor.\n\nLas dos salidas reales para un consumidor en activo son bajarlo de nivel\ncon la operación de membresía, o retirarle el rol — el retiro arrastra la\nmembresía por su cuenta. El cuerpo del `409` las cita.\n\nSin membresía previa devuelve `204` igual: la operación es idempotente y\nsu resultado ya se cumplía.\n\n**Conserva el `DELETE`** y no le alcanza la enmienda del retiro de\nroles: esta operación no lleva cuerpo, de modo que el problema que\naquella evitaba no existe aquí.\n",
+        "operationId" : "retirarMembresia",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "id",
+          "required" : true,
+          "schema" : {
+            "format" : "uuid",
+            "type" : "string"
+          }
+        } ],
+        "responses" : {
+          "204" : {
+            "description" : "Membresía retirada."
+          },
+          "400" : {
+            "description" : "Identificador malformado (`VAL-001`)"
+          },
+          "401" : {
+            "description" : "Token ausente o inválido (`AUTH-001`)"
+          },
+          "403" : {
+            "description" : "Autenticado sin `users:assign-membership` (`AUTH-002`)"
+          },
+          "404" : {
+            "description" : "La persona no existe o está eliminada (`VAL-002`)"
+          },
+          "409" : {
+            "description" : "La persona porta al menos un rol de consumidor (`RN-SP-018`)"
+          },
+          "500" : {
+            "description" : "Fallo no controlado (`ERR-500`)"
+          }
+        },
+        "summary" : "Retirar la membresía de una persona",
+        "tags" : [ "Usuarios" ]
+      },
+      "put" : {
+        "description" : "**`PUT` y no `POST`**, al revés que la asignación de roles, y la\ndiferencia no es de gusto: aquí el cuerpo **sí** representa el estado\nfinal. La persona tiene una membresía o ninguna, de modo que enviar una\nla deja como la única — y de ahí sale gratis la idempotencia.\n\n`endsAt` es opcional. **Ausente significa indefinida**: enviarlo ausente\nsobre una membresía que tenía fecha la convierte en indefinida, y es un\ncaso normal, no un olvido que haya que interpretar. Presente, la\nmembresía deja de estar vigente **al llegar** ese instante, no después.\n\nRepetir la petición idéntica no escribe ni deja auditoría. Cambiar solo\nla fecha sí es un cambio y sí se registra.\n\nDevuelve `200` incluso la primera vez: `PUT` sobre una ruta fija no crea\nun recurso direccionable nuevo.\n",
+        "operationId" : "fijarMembresia",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "id",
+          "required" : true,
+          "schema" : {
+            "format" : "uuid",
+            "type" : "string"
+          }
+        } ],
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/AssignMembershipRequest"
+              }
+            }
+          },
+          "required" : true
+        },
+        "responses" : {
+          "200" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/UserMembershipResponse"
+                }
+              }
+            },
+            "description" : "La membresía, con su nivel y su vigencia."
+          },
+          "400" : {
+            "description" : "Membresía ausente o malformada (`VAL-001`), o fecha de fin igual o anterior al momento de la asignación (`VAL-005`)"
+          },
+          "401" : {
+            "description" : "Token ausente o inválido (`AUTH-001`)"
+          },
+          "403" : {
+            "description" : "Autenticado sin `users:assign-membership` (`AUTH-002`)"
+          },
+          "404" : {
+            "description" : "La persona no existe o está eliminada (`VAL-004`)"
+          },
+          "409" : {
+            "description" : "La persona no porta ningún rol de consumidor (`RN-SP-013`). El cuerpo indica que primero corresponde asignarle uno"
+          },
+          "422" : {
+            "description" : "La membresía indicada no existe en la cadena (`VAL-002`)"
+          },
+          "500" : {
+            "description" : "Fallo no controlado (`ERR-500`)"
+          }
+        },
+        "summary" : "Fijar la membresía de una persona",
+        "tags" : [ "Usuarios" ]
+      }
+    },
+    "/api/v1/users/{id}/password-reset" : {
+      "post" : {
+        "description" : "Fija una credencial **provisional** sobre la cuenta indicada. `POST`\nsobre un subrecurso y no `PATCH` sobre el usuario: cada petición **crea**\nun restablecimiento, que es un hecho con fecha y con caducidad propia.\n\n**La credencial CADUCA.** Sin plazo, una cuenta restablecida y nunca\nusada conserva indefinidamente una contraseña que otra persona conoce, y\nnadie se entera porque no falla nada. Quien comprueba el plazo es el\ninicio de sesión.\n\nLa cuenta queda marcada para **cambio obligatorio**: la ventana en que\ndos personas conocen la misma contraseña se cierra en el primer inicio\nde sesión.\n\n**No toca el estado ni el bloqueo**: restablecer no es reactivar. Una\ncuenta desactivada sigue desactivada.\n\n**La contraseña asignada no se devuelve**: la conoce quien la escribió, y\nrepetirla la expondría a cualquier registro de la operación. Tampoco la\nfecha de caducidad — quien la necesite consulta el detalle.\n\nRevoca **todas** las sesiones de la persona.\n",
+        "operationId" : "restablecerContrasena",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "id",
+          "required" : true,
+          "schema" : {
+            "format" : "uuid",
+            "type" : "string"
+          }
+        } ],
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/ResetPasswordRequest"
+              }
+            }
+          },
+          "required" : true
+        },
+        "responses" : {
+          "204" : {
+            "description" : "Credencial fijada."
+          },
+          "400" : {
+            "description" : "Contraseña ausente (`VAL-001`) o que no cumple la política (`VAL-002`)"
+          },
+          "401" : {
+            "description" : "Token ausente o inválido (`AUTH-001`)"
+          },
+          "403" : {
+            "description" : "Autenticado sin `users:reset-password` (`AUTH-002`)"
+          },
+          "404" : {
+            "description" : "La persona no existe o está eliminada (`VAL-004`)"
+          },
+          "409" : {
+            "description" : "Es la cuenta del propio actor (`RN-SP-017`). El mensaje indica cuál es la operación correcta: cambiar la propia contraseña, que exige conocer la actual"
+          },
+          "500" : {
+            "description" : "Fallo no controlado (`ERR-500`)"
+          }
+        },
+        "summary" : "Restablecer la contraseña de una persona",
+        "tags" : [ "Usuarios" ]
+      }
+    },
+    "/api/v1/users/{id}/roles" : {
+      "post" : {
+        "description" : "Agrega roles. **No reemplaza la lista**: por eso es un `POST` sobre un\nsubrecurso y no un `PUT`. Un reemplazo haría retiros implícitos que se\nsaltarían tres reglas cuyo incumplimiento nadie vería.\n\nPedir un rol que la persona ya tiene no es un error: no cambia nada y\nno deja rastro en la auditoría.\n\n`membershipId`, `membershipEndsAt` y `supervisorId` son\n**condicionales**: obligatorios exactamente cuando la operación\nconvierte a la persona en consumidor o cambia su rango comercial, y no\nadmitidos en cualquier otro caso. Su admisibilidad depende del estado\nde la persona y no del cuerpo, de modo que su incumplimiento es `422` y\nnunca `400`.\n\nUn **ascenso** —que cambia el rol vendedor de mayor rango— exige\ndeclarar de nuevo el superior: el anterior puede haber dejado de ser\nadmisible sin que nadie tocara esa fila.\n",
+        "operationId" : "asignarRoles",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "id",
+          "required" : true,
+          "schema" : {
+            "format" : "uuid",
+            "type" : "string"
+          }
+        } ],
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/AssignRolesRequest"
+              }
+            }
+          },
+          "required" : true
+        },
+        "responses" : {
+          "200" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/UserResponse"
+                }
+              }
+            },
+            "description" : "La persona con su estructura actualizada."
+          },
+          "400" : {
+            "description" : "Lista vacía, identificador malformado o más de 100 elementos"
+          },
+          "401" : {
+            "description" : "Token ausente o inválido (`AUTH-001`)"
+          },
+          "403" : {
+            "description" : "Autenticado sin `users:assign-roles` (`AUTH-002`)"
+          },
+          "404" : {
+            "description" : "La persona no existe o está eliminada (`VAL-006`)"
+          },
+          "409" : {
+            "description" : "Algún rol concede permisos que el actor no posee (`RN-SEG-010`). El cuerpo enumera cuáles"
+          },
+          "422" : {
+            "description" : "Rol inexistente (`EX-002`), rol inactivo (`EX-003`), consumidor sin membresía (`RN-SP-018`), membresía indicada sin que corresponda (`EX-006`), vendedor sin superior (`RN-SP-019`), o superior inadmisible (`VAL-007`, `RN-SP-020`)"
+          },
+          "500" : {
+            "description" : "Fallo no controlado (`ERR-500`)"
+          }
+        },
+        "summary" : "Asignar roles a una persona",
+        "tags" : [ "Usuarios" ]
+      }
+    },
+    "/api/v1/users/{id}/roles/revocations" : {
+      "post" : {
+        "description" : "Retira roles y **arrastra las cascadas**: quedarse sin ningún rol de\nconsumidor borra la membresía, y quedarse sin ningún rol de vendedor\ncierra la asignación de superior comercial —cerrarla, nunca borrarla:\nesa fila dice a quién se atribuía cada resultado—.\n\n**Revoca todas las sesiones de la persona.** Asignar no lo hace;\nretirar sí, porque el refresh token sobrevive al cambio de permisos y\ndejaría vivo hasta siete días el acceso que se acaba de quitar.\n\nEs un `POST` sobre un subrecurso y no un `DELETE`: la lista viaja en el\ncuerpo, y RFC 9110 no define semántica para el cuerpo de un `DELETE` —\nun intermediario puede descartarlo sin avisar, y el retiro llegaría sin\nroles.\n\n**No se pide motivo** y **no se comprueba que los roles existan**:\nretirar un rol eliminado del catálogo es legítimo, porque la asignación\nsigue ahí y debe poder soltarse.\n",
+        "operationId" : "retirarRoles",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "id",
+          "required" : true,
+          "schema" : {
+            "format" : "uuid",
+            "type" : "string"
+          }
+        } ],
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/RevokeRolesRequest"
+              }
+            }
+          },
+          "required" : true
+        },
+        "responses" : {
+          "200" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/UserResponse"
+                }
+              }
+            },
+            "description" : "La persona con su estructura actualizada."
+          },
+          "400" : {
+            "description" : "Lista vacía, identificador malformado o más de 100 elementos"
+          },
+          "401" : {
+            "description" : "Token ausente o inválido (`AUTH-001`)"
+          },
+          "403" : {
+            "description" : "Autenticado sin `users:assign-roles` (`AUTH-002`)"
+          },
+          "404" : {
+            "description" : "La persona no existe o está eliminada (`VAL-006`)"
+          },
+          "409" : {
+            "description" : "El retiro dejaría al sistema sin superadministrador activo (`RN-SP-001`), algún rol excede los permisos del actor (`RN-SEG-010`), o la persona tiene equipo a cargo (`RN-SP-022`) — este último informa cuántas personas, nunca quiénes"
+          },
+          "500" : {
+            "description" : "Fallo no controlado (`ERR-500`)"
+          }
+        },
+        "summary" : "Retirar roles de una persona",
+        "tags" : [ "Usuarios" ]
+      }
+    },
+    "/api/v1/users/{id}/status" : {
+      "patch" : {
+        "description" : "Subrecurso propio y no un campo de la edición: el estado tiene reglas de\nrechazo que la edición no tiene y exige un motivo que la edición no\nadmite.\n\n**Se envía el estado destino y no una acción**, lo que hace la operación\nidempotente por construcción. Pedir el estado que ya se tiene no cambia\nnada y no deja evento.\n\n**Salvo en un caso, y es el que da sentido al requerimiento:** pasar de\nbloqueo **automático** a bloqueo **manual** sí es un cambio aunque el\nestado sea el mismo — `lockedUntil` pasa de informado a nulo, y con ello\nel bloqueo deja de levantarse solo.\n\n**El motivo es condicional en los dos sentidos:** obligatorio al retirar\nel acceso, **rechazado** al devolverlo.\n\n**`PENDIENTE` no se admite**, aunque el esquema lo acepte: ningún\nrequerimiento lo produce y sería el único camino hacia un estado del que\nnadie sabe salir.\n\n**Reactivar nunca falla por regla.** Devolver el acceso no puede dejar a\nnadie sin administración ni a ningún equipo huérfano.\n\nRetirar el acceso **revoca todas las sesiones** de la persona.\n",
+        "operationId" : "cambiarEstado",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "id",
+          "required" : true,
+          "schema" : {
+            "format" : "uuid",
+            "type" : "string"
+          }
+        } ],
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/ChangeUserStatusRequest"
+              }
+            }
+          },
+          "required" : true
+        },
+        "responses" : {
+          "200" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/UserStatusResponse"
+                }
+              }
+            },
+            "description" : "El estado resultante. `lockedUntil` nulo con BLOQUEADO significa manual."
+          },
+          "400" : {
+            "description" : "Estado ausente, fuera del dominio o `PENDIENTE` (`VAL-001`); motivo ausente al retirar (`VAL-005`) o presente al devolver (`VAL-006`)"
+          },
+          "401" : {
+            "description" : "Token ausente o inválido (`AUTH-001`)"
+          },
+          "403" : {
+            "description" : "Autenticado sin `users:update` (`AUTH-002`), o es la cuenta del propio actor (`RN-SP-017`) — dos casos distintos con `error_code` distinto"
+          },
+          "404" : {
+            "description" : "No existe, o está eliminada (`EX-005`)"
+          },
+          "409" : {
+            "description" : "Es el último superadministrador activo (`RN-SP-001`), o tiene personas a cargo (`RN-SP-022`) — este último dice **cuántas**, nunca quiénes"
+          },
+          "500" : {
+            "description" : "Fallo no controlado (`ERR-500`)"
+          }
+        },
+        "summary" : "Retirar o devolver el acceso de una persona",
+        "tags" : [ "Usuarios" ]
+      }
+    },
+    "/api/v1/users/{id}/supervisor" : {
+      "patch" : {
+        "description" : "`PATCH` sobre el subrecurso y no `PUT`: el cuerpo no representa el\nestado completo —falta el periodo, que lo fija el sistema— y `PUT`\ninvitaría a pensar que se puede enviar.\n\n**No admite fecha de inicio.** La asignación rige desde que se ejecuta,\nsiempre. Declararla obligaría a especificar solapamientos, huecos entre\ntramos y correcciones retroactivas sobre periodos ya liquidados.\n\n**No admite retirar el superior.** El estado «vendedor sin superior» no\nexiste: la única salida es dejar de portar rol comercial retirándolo.\n\nCada cambio **cierra** el tramo vigente con su fecha y **abre** otro:\nnunca se sobrescribe el superior de una fila. La respuesta devuelve el\n**anterior con su fecha de cierre**, que es lo que permite confirmar de\nun vistazo que se cerró el tramo que se creía cerrar.\n\n**El equipo se mueve con el reasignado**: sus subordinados conservan su\nsuperior y solo cambia de quién depende la rama.\n\nRepetir la operación con el mismo superior no cierra ni abre nada y no\ndeja auditoría — pero el motivo se exige igual, antes de saberlo.\n",
+        "operationId" : "asignarSuperior",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "id",
+          "required" : true,
+          "schema" : {
+            "format" : "uuid",
+            "type" : "string"
+          }
+        } ],
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/AssignSupervisorRequest"
+              }
+            }
+          },
+          "required" : true
+        },
+        "responses" : {
+          "200" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/CommercialStructureResponse"
+                }
+              }
+            },
+            "description" : "La estructura, con el superior nuevo y el anterior."
+          },
+          "400" : {
+            "description" : "Identificador malformado, o motivo ausente o vacío (`VAL-001`, `VAL-008`)"
+          },
+          "401" : {
+            "description" : "Token ausente o inválido (`AUTH-001`)"
+          },
+          "403" : {
+            "description" : "Autenticado sin `users:assign-supervisor` (`AUTH-002`)"
+          },
+          "404" : {
+            "description" : "Alguna de las dos personas no existe o está eliminada (`VAL-002`)"
+          },
+          "409" : {
+            "description" : "El actor es el propio subordinado (`RN-SP-017`), el subordinado no pertenece a la fuerza comercial (`VAL-003`) o es la cúspide (`VAL-004`), el superior no porta el rol que exige el orden de mando (`RN-SP-020`) —el mensaje dice cuál—, no está activo (`VAL-006`), o sería su propio superior (`VAL-007`)"
+          },
+          "500" : {
+            "description" : "Fallo no controlado (`ERR-500`)"
+          }
+        },
+        "summary" : "Establecer o cambiar el superior comercial",
+        "tags" : [ "Usuarios" ]
+      }
+    },
+    "/api/v1/users/{id}/team" : {
+      "get" : {
+        "description" : "Devuelve el superior inmediato y el **equipo directo** de la persona,\npaginado.\n\n**Un solo nivel, nunca el árbol descendente**, y **sin conteo\nindirecto**: `totalElements` cuenta a quienes reportan directamente.\nDevolver la rama completa publicaría de una vez la estructura de la\nempresa por un permiso de lectura de usuarios.\n\n**Sin filtros.** El listado general de usuarios ya filtra; replicar esa\nsemántica sobre un subconjunto que cabe en una o dos páginas obligaría\na mantener dos filtrados sincronizados sin responder nada nuevo.\n\n**Sin historial de superiores.**\n\n`supervisor` va **ausente**, no en nulo, cuando la persona es la cúspide\ncomercial: es lo que distingue «no depende de nadie» de «no se pudo\nresolver».\n\nQuien no pertenece a la fuerza comercial recibe `200` con la estructura\nvacía, no `404` ni `409`.\n\n**El alcance es global** mientras la decisión D-22 siga abierta: quien\nposea el permiso ve el equipo de cualquiera, no solo el suyo.\n",
+        "operationId" : "equipo",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "id",
+          "required" : true,
+          "schema" : {
+            "format" : "uuid",
+            "type" : "string"
+          }
+        }, {
+          "in" : "query",
+          "name" : "page",
+          "required" : false,
+          "schema" : {
+            "format" : "int32",
+            "type" : "integer"
+          }
+        }, {
+          "in" : "query",
+          "name" : "size",
+          "required" : false,
+          "schema" : {
+            "format" : "int32",
+            "type" : "integer"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/CommercialStructureResponse"
+                }
+              }
+            },
+            "description" : "La estructura, con el equipo paginado."
+          },
+          "400" : {
+            "description" : "Identificador malformado o paginación fuera de límites (`VAL-003`)"
+          },
+          "401" : {
+            "description" : "Token ausente o inválido (`AUTH-001`)"
+          },
+          "403" : {
+            "description" : "Autenticado sin `users:read` (`AUTH-002`)"
+          },
+          "404" : {
+            "description" : "La persona no existe o está eliminada (`VAL-002`)"
+          },
+          "500" : {
+            "description" : "Fallo no controlado (`ERR-500`)"
+          }
+        },
+        "summary" : "Consultar el superior y el equipo a cargo",
+        "tags" : [ "Usuarios" ]
+      }
+    }
+  },
+  "security" : [ {
+    "bearerAuth" : [ ]
+  } ],
+  "servers" : [ {
+    "description" : "Este mismo servidor",
+    "url" : "/"
+  } ],
+  "tags" : [ {
+    "description" : "Registro y administración de los roles del sistema.",
+    "name" : "Roles"
+  }, {
+    "description" : "Alta y administración de las personas del sistema.",
+    "name" : "Usuarios"
+  }, {
+    "description" : "Catálogo de permisos del sistema. Solo lectura.",
+    "name" : "Permisos"
+  }, {
+    "description" : "Catálogo de países. Inmutable salvo su estado.",
+    "name" : "Países"
+  }, {
+    "description" : "Cadena lineal de niveles de consumidor. Inmutable salvo el reordenamiento.",
+    "name" : "Membresías"
+  }, {
+    "description" : "Catálogo de monedas. Inmutable por API salvo su estado.",
+    "name" : "Monedas"
+  }, {
+    "description" : "Inicio, renovación y cierre de sesión.",
+    "name" : "Sesión"
+  } ]
+}

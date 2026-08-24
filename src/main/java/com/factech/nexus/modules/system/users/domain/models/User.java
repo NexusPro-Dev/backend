@@ -75,6 +75,16 @@ public class User {
   private OffsetDateTime deletedAt;
 
   /**
+   * Hasta cuándo vale la credencial que <b>otra persona</b> fijó (`RF-SP-038`).
+   *
+   * <p>Va atada a {@code mustChangePassword} por {@code ck_users_provisional_expiry}: las dos
+   * describen el mismo hecho —«esta contraseña no es suya»— y separarlas admitiría dos estados que
+   * no significan nada.
+   */
+  @Column(name = "provisional_password_expires_at")
+  private OffsetDateTime provisionalPasswordExpiresAt;
+
+  /**
    * Roles que porta, como colección de identificadores.
    *
    * <p>{@code @ElementCollection} y no una asociación hacia {@code Role}: la asignación pertenece a
@@ -169,6 +179,72 @@ public class User {
   /** Copia defensiva: el conjunto de roles solo cambia por las operaciones del agregado. */
   public Set<UUID> getRoleIds() {
     return Set.copyOf(roleIds);
+  }
+
+  /**
+   * Cambia el nombre y los apellidos (`RF-SP-027`).
+   *
+   * <p>Recibe los valores <b>ya normalizados</b> —recortados— y devuelve si hubo cambio de verdad.
+   * Que lo decida el agregado y no el caso de uso es lo que hace que `FA-001` —reenviar lo mismo—
+   * no pueda dejar un evento de auditoría describiendo algo que no ocurrió.
+   *
+   * <p>Un argumento nulo significa «no se envió», no «bórralo»: la columna es {@code NOT NULL} y
+   * `ck_users_names_not_blank` impide además el blanco, de modo que el nulo explícito del cuerpo se
+   * rechaza antes de llegar aquí.
+   */
+  public boolean rename(String nombre, String apellido, OffsetDateTime ahora) {
+    boolean cambiaNombre = nombre != null && !nombre.equals(firstName);
+    boolean cambiaApellido = apellido != null && !apellido.equals(lastName);
+
+    if (!cambiaNombre && !cambiaApellido) {
+      return false;
+    }
+    if (cambiaNombre) {
+      this.firstName = nombre;
+    }
+    if (cambiaApellido) {
+      this.lastName = apellido;
+    }
+    this.updatedAt = ahora;
+    return true;
+  }
+
+  /**
+   * Cambia el correo (`RF-SP-027`).
+   *
+   * <p>Compara contra el valor <b>ya normalizado</b>. Sin eso, enviar el correo propio en
+   * mayúsculas parecería un cambio: dispararía la consulta de unicidad y produciría un conflicto de
+   * la persona consigo misma, además de un evento de auditoría de algo que no cambió.
+   */
+  public boolean changeEmail(String correo, OffsetDateTime ahora) {
+    if (correo == null || correo.equals(email)) {
+      return false;
+    }
+    this.email = correo;
+    this.updatedAt = ahora;
+    return true;
+  }
+
+  /**
+   * Otra persona fija la credencial (`RF-SP-038`).
+   *
+   * <p><b>No toca el estado ni el bloqueo.</b> Restablecer no es reactivar: una cuenta desactivada
+   * sigue desactivada después de que le fijen una contraseña nueva, y una bloqueada sigue
+   * bloqueada. Confundirlos convertiría esta operación en una vía lateral para devolver el acceso
+   * sin pasar por la que existe para eso — y sin su motivo obligatorio.
+   *
+   * <p>La marca de cambio obligatorio y la caducidad se ponen <b>juntas</b>: describen el mismo
+   * hecho, y el esquema rechaza una sin la otra.
+   */
+  public void resetPasswordBy(String passwordHash, OffsetDateTime caduca, OffsetDateTime ahora) {
+    this.passwordHash = passwordHash;
+    this.mustChangePassword = true;
+    this.provisionalPasswordExpiresAt = caduca;
+    this.updatedAt = ahora;
+  }
+
+  public OffsetDateTime getProvisionalPasswordExpiresAt() {
+    return provisionalPasswordExpiresAt;
   }
 
   /**
