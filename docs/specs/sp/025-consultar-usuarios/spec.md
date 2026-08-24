@@ -143,7 +143,7 @@ Conviene dejarlo dicho de forma explícita, porque **el día que exista alcance 
 - **Búsqueda sin acentos:** «peres» no debe encontrar «Pérez», pero «perez» sí. Es el mismo criterio de `RF-SP-002` y exige el mismo índice funcional.
 - **Búsqueda vacía o solo espacios:** equivale a no filtrar.
 - **Filtro por rol inexistente:** devuelve colección vacía; no es un error de la consulta.
-- **Usuario sin roles:** aparece en el listado con la lista de roles vacía. Es un estado válido tras `RF-SP-024`.
+- **Usuario sin permisos efectivos:** aparece en el listado con sus roles, todos inactivos. Desde `RN-SP-023` (24-08-2026) la lista de roles **vacía** ya no es alcanzable por la API.
 - **Usuario con muchos roles:** la lista de roles se devuelve completa por fila. Los roles de una persona son unos pocos, no decenas; si dejaran de serlo, esta decisión habría que revisarla.
 - **Búsqueda por correo parcial:** encuentra por fragmento, lo que convierte el listado en una forma de comprobar si un correo está registrado. Es aceptable porque el endpoint exige `users:read`, a diferencia de los de autenticación, que no deben revelarlo (`security.md` §5.5).
 

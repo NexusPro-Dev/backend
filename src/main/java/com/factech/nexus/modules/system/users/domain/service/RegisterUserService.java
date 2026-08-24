@@ -9,6 +9,9 @@ import com.factech.nexus.modules.system.users.domain.models.Username;
 import com.factech.nexus.modules.system.users.domain.repository.AssignableRole;
 import com.factech.nexus.modules.system.users.domain.repository.RoleCatalog;
 import com.factech.nexus.modules.system.users.domain.repository.UserRepository;
+import com.factech.nexus.modules.system.users.domain.security.CommercialStructure;
+import com.factech.nexus.modules.system.users.domain.security.ConsumerStatus;
+import com.factech.nexus.modules.system.users.domain.security.PrivilegeContainment;
 import com.factech.nexus.shared.audit.AuditEnums.ChangeAction;
 import com.factech.nexus.shared.audit.AuditEnums.Outcome;
 import com.factech.nexus.shared.audit.AuditEnums.SecurityEventType;
@@ -42,6 +45,7 @@ import org.springframework.transaction.annotation.Transactional;
  * contrato: determina qué error recibe una petición que incumple varias cosas a la vez.
  *
  * <ol>
+ *   <li>Al menos un rol informado (`RN-SP-023` → {@code 400}, en el DTO).
  *   <li>Unicidad de nombre de usuario y correo (`RN-SP-016` → {@code 409}).
  *   <li>Los roles existen y sirven (`EX-003` → {@code 422}).
  *   <li>Ningún rol excede los privilegios del actor (`RN-SEG-010` → {@code 409}).
@@ -63,18 +67,9 @@ public class RegisterUserService {
   private static final String MODULO = "SP";
   private static final String ENTIDAD = "users";
 
-  /**
-   * Tope de saltos al buscar el rol vendedor de mayor rango.
-   *
-   * <p>La jerarquía de roles es acíclica por `RN-SEG-006` y {@code ck_roles_parent_not_self`}, de
-   * modo que este límite no debería alcanzarse nunca. Existe porque un recorrido de punteros sin
-   * tope convierte un defecto de datos en un cuelgue del servidor, y prefiero un rechazo a un hilo
-   * bloqueado.
-   */
-  private static final int SALTOS_MAXIMOS = 32;
-
   private final UserRepository usuarios;
   private final RoleCatalog roles;
+  private final CommercialStructure estructura;
   private final AuthenticatedActor actor;
   private final PasswordPolicy politica;
   private final PasswordHasher hasher;
@@ -87,17 +82,19 @@ public class RegisterUserService {
   public RegisterUserService(
       UserRepository usuarios,
       RoleCatalog roles,
+      CommercialStructure estructura,
       AuthenticatedActor actor,
       PasswordPolicy politica,
       PasswordHasher hasher,
       AuditWriter auditoria,
       UuidV7Generator ids) {
-    this(usuarios, roles, actor, politica, hasher, auditoria, ids, Clock.systemUTC());
+    this(usuarios, roles, estructura, actor, politica, hasher, auditoria, ids, Clock.systemUTC());
   }
 
   RegisterUserService(
       UserRepository usuarios,
       RoleCatalog roles,
+      CommercialStructure estructura,
       AuthenticatedActor actor,
       PasswordPolicy politica,
       PasswordHasher hasher,
@@ -106,6 +103,7 @@ public class RegisterUserService {
       Clock reloj) {
     this.usuarios = usuarios;
     this.roles = roles;
+    this.estructura = estructura;
     this.actor = actor;
     this.politica = politica;
     this.hasher = hasher;
@@ -145,7 +143,7 @@ public class RegisterUserService {
                 ahora));
 
     if (comando.membershipId() != null) {
-      usuarios.assignMembership(usuario.getId(), comando.membershipId(), ahora);
+      usuarios.assignMembership(usuario.getId(), comando.membershipId(), null, ahora);
     }
     if (superior != null) {
       usuarios.assignSupervisor(ids.next(), usuario.getId(), superior, ahora);
@@ -153,7 +151,7 @@ public class RegisterUserService {
 
     auditar(usuario, concedidos, comando.membershipId(), superior);
 
-    return UserResponse.from(usuario, referencias(concedidos));
+    return UserResponses.de(usuario, concedidos, usuarios, usuario.getId());
   }
 
   // ---------------------------------------------------------------------------
@@ -212,11 +210,8 @@ public class RegisterUserService {
    * conceder `CONTABILIDAD` sin ser contable, siempre que posea todo lo que ese rol declara.
    */
   private void verificarAlcanceDelActor(List<AssignableRole> concedidos) {
-    Set<String> delActor = actor.permissions();
-
     List<FieldError> excedidos =
-        concedidos.stream()
-            .filter(rol -> !delActor.containsAll(rol.permissionCodes()))
+        PrivilegeContainment.excesos(concedidos, actor.permissions()).stream()
             .map(
                 rol ->
                     new FieldError(
@@ -240,7 +235,7 @@ public class RegisterUserService {
    * membresía colgando de quien no es consumidor.
    */
   private void verificarMembresia(List<AssignableRole> concedidos, UUID membresia) {
-    boolean hayConsumidor = concedidos.stream().anyMatch(AssignableRole::esConsumidor);
+    boolean hayConsumidor = ConsumerStatus.esConsumidor(concedidos);
 
     if (hayConsumidor && membresia == null) {
       throw conflicto(
@@ -267,7 +262,7 @@ public class RegisterUserService {
    * @return el superior que hay que registrar, o {@code null} si no corresponde ninguno
    */
   private UUID verificarSuperior(List<AssignableRole> concedidos, UUID supervisorId) {
-    Optional<AssignableRole> mayorRango = rolVendedorDeMayorRango(concedidos);
+    Optional<AssignableRole> mayorRango = estructura.rolDeMayorRango(concedidos);
 
     if (mayorRango.isEmpty()) {
       if (supervisorId != null) {
@@ -280,10 +275,9 @@ public class RegisterUserService {
     }
 
     AssignableRole rol = mayorRango.get();
-    Optional<AssignableRole> padre = roles.findById(rol.parentRoleId());
-    boolean esCuspide = padre.isEmpty() || !padre.get().esVendedor();
+    Optional<AssignableRole> padre = estructura.rolExigidoAlSuperior(rol);
 
-    if (esCuspide) {
+    if (padre.isEmpty()) {
       // La cúspide de la fuerza comercial no reporta a nadie. Indicar superior
       // aquí es tan incorrecto como omitirlo abajo.
       if (supervisorId != null) {
@@ -323,51 +317,6 @@ public class RegisterUserService {
               + "'.");
     }
     return supervisorId;
-  }
-
-  /**
-   * El rol vendedor de mayor rango entre los concedidos.
-   *
-   * <p>Es aquel que <b>no desciende de ningún otro</b> de los roles vendedores de la misma persona.
-   * Se mira así y no «el primero» porque <b>un ascenso cambia con quién debe cumplirse la
-   * regla</b>: quien pasa de agente a director deja de poder estar a cargo de un director.
-   *
-   * <p><b>Hueco declarado:</b> si la persona portara dos roles vendedores en ramas distintas
-   * —ninguno ancestro del otro— habría dos candidatos y las reglas no dicen cuál manda. Se toma el
-   * primero por código para que el resultado sea determinista, y queda anotado en `tasks.md`: el
-   * catálogo aprobado es una cadena lineal, de modo que hoy el caso no puede darse.
-   */
-  private Optional<AssignableRole> rolVendedorDeMayorRango(List<AssignableRole> concedidos) {
-    List<AssignableRole> vendedores =
-        concedidos.stream().filter(AssignableRole::esVendedor).sorted(porCodigo()).toList();
-
-    if (vendedores.size() <= 1) {
-      return vendedores.stream().findFirst();
-    }
-    Set<UUID> deLaPersona =
-        new LinkedHashSet<>(vendedores.stream().map(AssignableRole::id).toList());
-
-    return vendedores.stream().filter(rol -> !desciendeDeAlguno(rol, deLaPersona)).findFirst();
-  }
-
-  /** Recorre el árbol hacia arriba con tope: un dato corrupto no debe colgar un hilo. */
-  private boolean desciendeDeAlguno(AssignableRole rol, Set<UUID> candidatos) {
-    UUID actualPadre = rol.parentRoleId();
-    for (int salto = 0; salto < SALTOS_MAXIMOS && actualPadre != null; salto++) {
-      if (candidatos.contains(actualPadre)) {
-        return true;
-      }
-      Optional<AssignableRole> padre = roles.findById(actualPadre);
-      if (padre.isEmpty()) {
-        return false;
-      }
-      actualPadre = padre.get().parentRoleId();
-    }
-    return false;
-  }
-
-  private static java.util.Comparator<AssignableRole> porCodigo() {
-    return java.util.Comparator.comparing(AssignableRole::code);
   }
 
   // ---------------------------------------------------------------------------
@@ -415,13 +364,6 @@ public class RegisterUserService {
 
   private static List<String> codigos(List<AssignableRole> roles) {
     return roles.stream().map(AssignableRole::code).sorted().toList();
-  }
-
-  private static List<UserResponse.RoleRef> referencias(List<AssignableRole> roles) {
-    return roles.stream()
-        .sorted(porCodigo())
-        .map(rol -> new UserResponse.RoleRef(rol.id(), rol.code(), rol.name()))
-        .toList();
   }
 
   private static BusinessRuleException conflicto(String codigo, String campo, String mensaje) {

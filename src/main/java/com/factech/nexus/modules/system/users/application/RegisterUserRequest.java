@@ -1,6 +1,7 @@
 package com.factech.nexus.modules.system.users.application;
 
 import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.NotEmpty;
 import jakarta.validation.constraints.Size;
 import java.util.LinkedHashSet;
 import java.util.List;
@@ -23,8 +24,10 @@ import java.util.UUID;
  * duplicaría la regla en dos sitios que divergirían, y el correo debe validarse <b>después</b> de
  * pasar a minúsculas, no antes.
  *
- * @param roleIds admite entre 0 y 100. Cero es válido —`FA-001`— y el techo acota el coste de una
- *     petición que dispara una verificación por elemento
+ * @param roleIds admite entre 1 y 100. <b>Al menos uno es obligatorio</b> desde `RN-SP-023`
+ *     (24-08-2026): un usuario sin roles se autentica y no puede hacer nada, de modo que
+ *     registrarlo así solo reservaría un nombre de usuario y un correo que `RN-SP-016` no libera
+ *     nunca. El techo acota el coste de una petición que dispara una verificación por elemento
  */
 public record RegisterUserRequest(
     @NotBlank(message = "VAL-001: El nombre de usuario es obligatorio.") String username,
@@ -36,7 +39,8 @@ public record RegisterUserRequest(
         @Size(max = 100, message = "VAL-003: El apellido no puede exceder 100 caracteres.")
         String lastName,
     @NotBlank(message = "VAL-008: La contraseña es obligatoria.") String password,
-    @Size(max = 100, message = "VAL-004: No se admiten más de 100 roles en una sola petición.")
+    @NotEmpty(message = "VAL-013: Debe indicar al menos un rol.")
+        @Size(max = 100, message = "VAL-004: No se admiten más de 100 roles en una sola petición.")
         List<UUID> roleIds,
     UUID membershipId,
     UUID supervisorId) {

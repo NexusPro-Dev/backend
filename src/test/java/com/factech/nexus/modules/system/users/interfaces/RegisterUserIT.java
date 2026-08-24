@@ -45,6 +45,10 @@ class RegisterUserIT extends IntegrationTestBase {
 
   @BeforeEach
   void dejarSoloAlSuperadministrador() {
+    // Las sesiones cuelgan de `users` por clave foránea: borrarlas antes no es
+    // celo, es lo que permite que este preparativo siga funcionando cuando otra
+    // prueba de la suite haya iniciado sesión.
+    jdbc.update("DELETE FROM refresh_tokens");
     jdbc.update("DELETE FROM user_supervisors");
     jdbc.update("DELETE FROM user_memberships");
     jdbc.update("DELETE FROM user_roles WHERE user_id <> ?", SUPERADMIN);
@@ -88,15 +92,24 @@ class RegisterUserIT extends IntegrationTestBase {
   }
 
   @Test
-  @DisplayName("FA-001 — se admite el alta sin roles")
-  void sinRoles() throws Exception {
+  @DisplayName("CA-SP-197 — el alta SIN ningún rol se rechaza (RN-SP-023)")
+  void altaSinRolesSeRechaza() throws Exception {
+    // Hasta el 24-08-2026 esta prueba comprobaba lo contrario: `FA-001` admitía
+    // el alta sin roles. `RN-SP-023` eliminó ese estado — una cuenta sin roles se
+    // autentica y no puede hacer nada, de modo que solo reservaba un nombre de
+    // usuario y un correo que `RN-SP-016` no libera nunca.
     mvc.perform(
             post("/api/v1/users")
                 .with(superadmin())
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(cuerpo("sinroles", "sinroles@factech.co", "")))
-        .andExpect(status().isCreated())
-        .andExpect(jsonPath("$.roles").isEmpty());
+        .andExpect(status().isBadRequest());
+
+    assertThat(
+            jdbc.queryForObject(
+                "SELECT count(*) FROM users WHERE username = 'sinroles'", Integer.class))
+        .as("el rechazo no debe dejar la cuenta creada")
+        .isZero();
   }
 
   // ---------------------------------------------------------------------------
@@ -393,7 +406,7 @@ class RegisterUserIT extends IntegrationTestBase {
             post("/api/v1/users")
                 .with(user(SUPERADMIN.toString()).authorities(() -> "users:read"))
                 .contentType(MediaType.APPLICATION_JSON)
-                .content(cuerpo("jperez", "jperez@factech.co", "")))
+                .content(cuerpo("jperez", "jperez@factech.co", "\"" + CONTABILIDAD + "\"")))
         .andExpect(status().isForbidden());
 
     Integer filas =
@@ -455,8 +468,12 @@ class RegisterUserIT extends IntegrationTestBase {
               post("/api/v1/users")
                   .with(user(contable.toString()).authorities(() -> "users:create"))
                   .contentType(MediaType.APPLICATION_JSON)
-                  .content(cuerpo("tercero", "tercero@factech.co", "")))
-          .andExpect(status().isCreated());
+                  .content(cuerpo("tercero", "tercero@factech.co", "\"" + CONTABILIDAD + "\"")))
+          // Desde `RN-SP-023` toda alta concede roles, de modo que la
+          // consecuencia observable de desactivar el rol es que deja de poder
+          // concederse. Antes esta rama hacía un alta SIN roles, que ya no
+          // existe como operación.
+          .andExpect(status().isUnprocessableEntity());
     } finally {
       jdbc.update("UPDATE roles SET status = 'ACTIVO' WHERE id = ?::uuid", CONTABILIDAD);
     }

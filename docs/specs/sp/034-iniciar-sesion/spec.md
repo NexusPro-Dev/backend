@@ -109,9 +109,9 @@ Estas precondiciones **no se comunican por separado**, con una excepción: su in
 
 ## 9. Flujos alternativos
 
-### FA-001 — Persona sin roles o con todos sus roles inactivos
+### FA-001 — Persona sin ningún rol activo
 
-**Cuándo ocurre:** la cuenta es válida pero no porta ningún rol activo.
+**Cuándo ocurre:** la cuenta es válida y todos sus roles están inactivos. Desde `RN-SP-023` (24-08-2026) esta es la **única** forma de llegar aquí: nadie puede quedarse sin roles.
 
 1. La autenticación **tiene éxito**: la identidad quedó probada, que es lo que este requerimiento decide.
 2. El token de acceso se emite sin códigos de rol, o solo con los de roles inactivos, que no conceden nada (`RN-SEG-002`).

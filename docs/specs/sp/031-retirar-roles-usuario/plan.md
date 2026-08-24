@@ -102,6 +102,7 @@ Merece subrayarse por qué `RN-SP-001` está partida en dos piezas y no en una: 
 | `409` | El retiro dejaría al sistema sin superadministrador activo (`EX-001`) | `RN-SP-001` |
 | `409` | Algún rol declara permisos que el actor no posee (`EX-003`) | `RN-SEG-010` |
 | `409` | La persona tiene equipo a cargo (`EX-005`) | `RN-SP-022` |
+| `409` | El retiro dejaría a la persona sin ningún rol (`EX-006`) | `RN-SP-023` |
 | `500` | Fallo no controlado | `ERR-500` |
 
 Los tres `409` son reglas de negocio violadas **sobre datos que existen**, que es exactamente la frontera que `RF-SP-001` fijó frente al `422`. Aquí no hay ninguna referencia del cuerpo que no resuelva: un rol que la persona no tiene no es un error, es `FA-001`.
@@ -115,6 +116,7 @@ Los tres `409` son reglas de negocio violadas **sobre datos que existen**, que e
 3. Contención en el actor (`RN-SEG-010`).
 4. El retiro no deja al sistema sin superadministrador activo (`RN-SP-001`), bajo el bloqueo de `RootAdministratorPresence`.
 5. Si el retiro dejaría a la persona sin ningún rol `VENDEDOR`, no tiene a nadie a cargo (`RN-SP-022`).
+6. El retiro **no deja a la persona sin ningún rol** (`RN-SP-023`).
 
 Los pasos 4 y 5 no son evaluables sin haber resuelto antes qué roles se retiran de verdad —los que la persona no tenía no cuentan—, y el paso 5 necesita además el cálculo de `CommercialStructure`. El orden es dependencia.
 
