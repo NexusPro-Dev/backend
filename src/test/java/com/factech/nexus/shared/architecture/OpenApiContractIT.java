@@ -49,6 +49,75 @@ class OpenApiContractIT extends IntegrationTestBase {
   }
 
   @Test
+  @DisplayName("el contrato publica los tres endpoints de membresías")
+  void lasMembresiasEstanDocumentadas() throws Exception {
+    mvc.perform(get("/v3/api-docs").with(user("doc")))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.paths['/api/v1/memberships'].post").exists())
+        .andExpect(jsonPath("$.paths['/api/v1/memberships'].get").exists())
+        .andExpect(jsonPath("$.paths['/api/v1/memberships/{id}'].get").exists());
+  }
+
+  @Test
+  @DisplayName("membresías NO declara edición ni eliminación: RN-SP-008 las prohíbe")
+  void lasMembresiasNoSeEditanNiSeEliminan() throws Exception {
+    // La ausencia es la implementación: no se cumple con código que rechace, se
+    // cumple porque no hay a qué llamar. Si algún día apareciera aquí un PUT,
+    // sería que alguien lo añadió sin pasar por la compuerta.
+    mvc.perform(get("/v3/api-docs").with(user("doc")))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.paths['/api/v1/memberships'].put").doesNotExist())
+        .andExpect(jsonPath("$.paths['/api/v1/memberships'].delete").doesNotExist())
+        .andExpect(jsonPath("$.paths['/api/v1/memberships/{id}'].put").doesNotExist())
+        .andExpect(jsonPath("$.paths['/api/v1/memberships/{id}'].patch").doesNotExist())
+        .andExpect(jsonPath("$.paths['/api/v1/memberships/{id}'].delete").doesNotExist());
+  }
+
+  @Test
+  @DisplayName("el contrato publica los dos endpoints de monedas")
+  void lasMonedasEstanDocumentadas() throws Exception {
+    mvc.perform(get("/v3/api-docs").with(user("doc")))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.paths['/api/v1/currencies'].get").exists())
+        .andExpect(jsonPath("$.paths['/api/v1/currencies/{id}/status'].patch").exists());
+  }
+
+  @Test
+  @DisplayName("monedas NO declara alta, edición ni eliminación: RN-SP-010 las prohíbe")
+  void elCatalogoDeMonedasEsInmutable() throws Exception {
+    // El estado se cambia sobre el subrecurso `/status`; el recurso completo no
+    // está mapeado para ningún método, y esa ausencia ES la implementación.
+    mvc.perform(get("/v3/api-docs").with(user("doc")))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.paths['/api/v1/currencies'].post").doesNotExist())
+        .andExpect(jsonPath("$.paths['/api/v1/currencies'].put").doesNotExist())
+        .andExpect(jsonPath("$.paths['/api/v1/currencies'].delete").doesNotExist())
+        .andExpect(jsonPath("$.paths['/api/v1/currencies/{id}']").doesNotExist());
+  }
+
+  @Test
+  @DisplayName("el contrato publica los tres endpoints de países")
+  void losPaisesEstanDocumentados() throws Exception {
+    mvc.perform(get("/v3/api-docs").with(user("doc")))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.paths['/api/v1/countries'].post").exists())
+        .andExpect(jsonPath("$.paths['/api/v1/countries'].get").exists())
+        .andExpect(jsonPath("$.paths['/api/v1/countries/{id}/status'].patch").exists());
+  }
+
+  @Test
+  @DisplayName("países NO declara edición ni eliminación: RN-SP-009 las prohíbe")
+  void elCatalogoDePaisesEsInmutable() throws Exception {
+    // Ni siquiera existe la ruta del país individual: el estado se cambia sobre
+    // el subrecurso, y por eso un PATCH sobre `/{id}` devuelve 404 y no 405.
+    mvc.perform(get("/v3/api-docs").with(user("doc")))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.paths['/api/v1/countries'].put").doesNotExist())
+        .andExpect(jsonPath("$.paths['/api/v1/countries'].delete").doesNotExist())
+        .andExpect(jsonPath("$.paths['/api/v1/countries/{id}']").doesNotExist());
+  }
+
+  @Test
   @DisplayName("el alta de rol NO declara manejadores que el requerimiento no tiene")
   void sinVerbosNoDeclarados() throws Exception {
     // `RF-SP-001` solo declara el POST. Si algún día aparece aquí un PUT o un

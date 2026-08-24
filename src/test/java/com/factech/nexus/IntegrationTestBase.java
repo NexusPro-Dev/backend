@@ -58,5 +58,29 @@ public abstract class IntegrationTestBase {
     // Secreto de prueba. No es el de ningún entorno y no concede nada:
     // ninguna prueba lo comparte con otro proceso.
     registry.add("JWT_SECRET", () -> "secreto-de-prueba-solo-para-la-suite-automatizada");
+
+    // Credencial inicial del superadministrador, que `V22__seed_superadmin.sql`
+    // exige como marcador de posición. Se declara aquí y no en un archivo de
+    // propiedades de prueba por lo mismo que las anteriores: lo que se prueba es
+    // la configuración real, y solo se le da el origen de los datos.
+    //
+    // El hash es de una contraseña que ninguna prueba conoce ni necesita: las
+    // que autentican como superadministrador lo hacen por su identificador, que
+    // la migración fija. Ponerlo aquí en claro sería una credencial en el
+    // repositorio aunque fuera de mentira, y el hábito es lo que se rompe.
+    registry.add("SUPERADMIN_EMAIL", () -> "superadmin@factech.co");
+    registry.add(
+        "SUPERADMIN_PASSWORD_HASH",
+        () -> "$argon2id$v=19$m=16384,t=2,p=1$c3VpdGVkZXBydWViYQ$8mQ0kM1e3xLQz1sT0cVQ0aQm0Q9nQpVQ");
   }
+
+  /**
+   * Identificador del superadministrador sembrado por {@code V22__seed_superadmin.sql}.
+   *
+   * <p>Es fijo a propósito: toda prueba de integración que necesite un actor con permisos reales lo
+   * refiere por esta constante en lugar de consultarlo, que es la razón por la que aquella
+   * migración escribe el identificador en lugar de generarlo.
+   */
+  protected static final java.util.UUID SUPERADMIN =
+      java.util.UUID.fromString("01a033a4-4a00-7001-9c4f-5e7ad4000001");
 }

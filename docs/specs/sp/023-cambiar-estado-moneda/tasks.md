@@ -6,10 +6,10 @@
 | Especificación | [`spec.md`](spec.md) |
 | Plan | [`plan.md`](plan.md) |
 | `plan.md` aprobado el | 21-08-2026 |
-| Estado | **En revisión** |
+| Estado | **Aprobadas** |
 | Issue | Pendiente de crear |
 | Rama | `feature/cambiar-estado-moneda` |
-| Aprobadas por | Pendiente |
+| Aprobadas por | Responsable técnico el 24-08-2026 |
 
 !!! info "Qué va en este documento"
 
@@ -33,23 +33,43 @@ Sin migración propia, y con la forma heredada de `RF-SP-022`. Lo propio es una 
 
 | # | Tarea | Depende de | Verificación | Estado |
 |---|---|---|---|---|
-| `T-01` | En `V7__seed_system_roles.sql` (`RF-SP-001`): `ADMIN` deja de recibir `currencies:update`, además de `audit:read-security`. Y enmendar `security.md` §4.1 y §4.4 para que la obligación de asociar todo permiso sembrado a `SUPERADMIN` y `ADMIN` lleve **su lista de excepciones** | — | Prueba de integración: tras `V7`, el conjunto de `ADMIN` no contiene ninguno de los dos permisos y el de `SUPERADMIN` contiene el catálogo completo. **Antes del primer despliegue** | Pendiente |
-| `T-02` | `domain`: agregado `Currency` con `activate()`, `deactivate()` y `RN-SP-010`, y la excepción `DefaultCurrencyDeactivation`, que lleva el código de la moneda | — | Pruebas unitarias **sin Spring ni base de datos**: desactivar la moneda por defecto lanza la excepción; aplicar el estado que ya tenía devuelve «sin cambio»; activar nunca falla por regla | Pendiente |
-| `T-03` | `domain/CurrencyRepository` —puerto **nuevo y distinto** de `CurrencyQueryRepository`— con `findByIdForUpdate(UUID)` y `save`, e `infrastructure`: `CurrencyJpaMapper` y `JpaCurrencyRepository` con `SELECT … FOR UPDATE` | `T-02` | Prueba de integración: la carga bloquea la fila; el puerto de consulta de `RF-SP-019` sigue sin declarar ninguna escritura | Pendiente |
+| `T-01` | En `V7__seed_system_roles.sql` (`RF-SP-001`): `ADMIN` deja de recibir `currencies:update`, además de `audit:read-security`. Y enmendar `security.md` §4.1 y §4.4 para que la obligación de asociar todo permiso sembrado a `SUPERADMIN` y `ADMIN` lleve **su lista de excepciones** | — | Prueba de integración: tras `V7`, el conjunto de `ADMIN` no contiene ninguno de los dos permisos y el de `SUPERADMIN` contiene el catálogo completo. **Antes del primer despliegue** | Hecha |
+| `T-02` | `domain`: agregado `Currency` con `activate()`, `deactivate()` y `RN-SP-010`, y la excepción `DefaultCurrencyDeactivation`, que lleva el código de la moneda | — | Pruebas unitarias **sin Spring ni base de datos**: desactivar la moneda por defecto lanza la excepción; aplicar el estado que ya tenía devuelve «sin cambio»; activar nunca falla por regla | Hecha |
+| `T-03` | `domain/CurrencyRepository` —puerto **nuevo y distinto** de `CurrencyQueryRepository`— con `findByIdForUpdate(UUID)` y `save`, e `infrastructure`: `CurrencyJpaMapper` y `JpaCurrencyRepository` con `SELECT … FOR UPDATE` | `T-02` | Prueba de integración: la carga bloquea la fila; el puerto de consulta de `RF-SP-019` sigue sin declarar ninguna escritura | Hecha |
 | `T-04` | `JpaCurrencyRepository` traduce la violación de `ck_currencies_default_active` **por nombre de restricción**, nunca por el texto del mensaje del driver | `T-03` | Prueba de integración: la violación produce la excepción de negocio y el `409`, **nunca un `500`** | Pendiente |
-| `T-05` | `application`: `ChangeCurrencyStatusCommand`, `ChangeCurrencyStatusService` con `@Transactional` y el orden de verificación de `plan.md` §4, y el puerto `CurrencyChangeAuditor` | `T-03` | Pruebas con dobles: `EX-001` se evalúa después de cargar y antes de aplicar; sin cambio efectivo no se invoca el auditor | Pendiente |
-| `T-06` | Auditoría: una fila en `audit_change_log` con `action = 'UPDATE'` y `changes` conteniendo **solo** `is_active`, en la misma transacción; **ninguna** cuando no hubo cambio; y el rechazo por `EX-001` en `audit_error_log` con `error_code = 'RN-SP-010'` y `severity = 'MEDIA'` | `T-05` | Prueba de integración: el `409` deja su fila; el `404` y los `400` no dejan ninguna | Pendiente |
-| `T-07` | `api/ChangeCurrencyStatusRequest`: un único campo booleano `isActive`, obligatorio, con rechazo de propiedades desconocidas | `T-05` | Prueba de API: un cuerpo con `reason`, `decimalPlaces`, `symbol`, `name` o `isDefault` devuelve `400` por campo desconocido. Es lo que hace verificables `CA-SP-188` y `CA-SP-340` | Pendiente |
-| `T-08` | `api/CurrencyController`: añade `PATCH /api/v1/currencies/{id}/status` con el permiso `currencies:update`, devolviendo `200` con `CurrencyResponse`; el `409` cita `RN-SP-010`, **nombra la moneda y explica la consecuencia** | `T-04`, `T-07` | Prueba de API: el mensaje del `409` dice que los importes quedarían sin referencia válida y que cambiar la moneda por defecto es una migración, no una operación de API | Pendiente |
-| `T-09` | Prueba de que la regla está garantizada **por los dos caminos**: el dominio la rechaza sin base de datos, y `ck_currencies_default_active` rechaza el `UPDATE` por sentencia directa | `T-02`, `T-08` | Forzando el camino que salta la verificación de dominio, la violación se traduce igualmente a `409` con `RN-SP-010` | Pendiente |
+| `T-05` | `application`: `ChangeCurrencyStatusCommand`, `ChangeCurrencyStatusService` con `@Transactional` y el orden de verificación de `plan.md` §4, y el puerto `CurrencyChangeAuditor` | `T-03` | Pruebas con dobles: `EX-001` se evalúa después de cargar y antes de aplicar; sin cambio efectivo no se invoca el auditor | Hecha |
+| `T-06` | Auditoría: una fila en `audit_change_log` con `action = 'UPDATE'` y `changes` conteniendo **solo** `is_active`, en la misma transacción; **ninguna** cuando no hubo cambio; y el rechazo por `EX-001` en `audit_error_log` con `error_code = 'RN-SP-010'` y `severity = 'MEDIA'` | `T-05` | Prueba de integración: el `409` deja su fila; el `404` y los `400` no dejan ninguna | Hecha |
+| `T-07` | `api/ChangeCurrencyStatusRequest`: un único campo booleano `isActive`, obligatorio, con rechazo de propiedades desconocidas | `T-05` | Prueba de API: un cuerpo con `reason`, `decimalPlaces`, `symbol`, `name` o `isDefault` devuelve `400` por campo desconocido. Es lo que hace verificables `CA-SP-188` y `CA-SP-340` | Hecha |
+| `T-08` | `api/CurrencyController`: añade `PATCH /api/v1/currencies/{id}/status` con el permiso `currencies:update`, devolviendo `200` con `CurrencyResponse`; el `409` cita `RN-SP-010`, **nombra la moneda y explica la consecuencia** | `T-04`, `T-07` | Prueba de API: el mensaje del `409` dice que los importes quedarían sin referencia válida y que cambiar la moneda por defecto es una migración, no una operación de API | Hecha |
+| `T-09` | Prueba de que la regla está garantizada **por los dos caminos**: el dominio la rechaza sin base de datos, y `ck_currencies_default_active` rechaza el `UPDATE` por sentencia directa | `T-02`, `T-08` | Forzando el camino que salta la verificación de dominio, la violación se traduce igualmente a `409` con `RN-SP-010` | Hecha |
 | `T-10` | Actualizar `CA-SP-131` de `RF-SP-019`: `/api/v1/currencies/{id}/status` pasa de devolver `404` a devolver `405` para los métodos distintos de `PATCH`; `/{id}` a secas sigue en `404` | `T-08` | La prueba de aquel requerimiento queda en verde en el **mismo** Pull Request. Sin esta tarea, integrar este endpoint la rompe | Pendiente |
-| `T-11` | Pruebas de los criterios de aceptación de `spec.md` §12 | `T-08` | La suite cubre `CA-SP-185` a `CA-SP-191`, `CA-SP-339` y `CA-SP-340`. `CA-SP-187` se verifica **sobre el endpoint de `RF-SP-019`** | Pendiente |
-| `T-12` | Prueba **concurrente** de dos desactivaciones simultáneas de la misma moneda, con dos transacciones reales | `T-08` | Ambas devuelven `200`, la fila queda inactiva y existe **exactamente un** evento en `audit_change_log` | Pendiente |
-| `T-13` | Pruebas del resto de casos límite de `spec.md` §13 y de `plan.md` §11: un `ADMIN` intenta la operación, catálogo con una sola moneda, reactivar, activar la moneda por defecto, moneda inexistente, identificador malformado, y que el `404` no llegue a `audit_error_log` | `T-01`, `T-08` | Un `ADMIN` recibe `403` con `AUTH-002` y queda el evento de denegación: es la mitad observable de la reserva de `T-01` | Pendiente |
-| `T-14` | Documentación OpenAPI del endpoint: cuerpo, respuesta `200` y los estados `400`, `401`, `403`, `404`, `409` y `500` | `T-11` | El contrato publicado coincide con el comportamiento real (Art. VIII.6), y documenta que la operación es idempotente, no admite motivo y no puede aplicarse a la moneda por defecto | Pendiente |
-| `T-15` | Actualizar la matriz de trazabilidad de `docs/requirements.md` | `T-11` | La fila de `RF-SP-023` refleja el estado y enlaza esta tripleta | Pendiente |
+| `T-11` | Pruebas de los criterios de aceptación de `spec.md` §12 | `T-08` | La suite cubre `CA-SP-185` a `CA-SP-191`, `CA-SP-339` y `CA-SP-340`. `CA-SP-187` se verifica **sobre el endpoint de `RF-SP-019`** | Hecha |
+| `T-12` | Prueba **concurrente** de dos desactivaciones simultáneas de la misma moneda, con dos transacciones reales | `T-08` | Ambas devuelven `200`, la fila queda inactiva y existe **exactamente un** evento en `audit_change_log` | Hecha |
+| `T-13` | Pruebas del resto de casos límite de `spec.md` §13 y de `plan.md` §11: un `ADMIN` intenta la operación, catálogo con una sola moneda, reactivar, activar la moneda por defecto, moneda inexistente, identificador malformado, y que el `404` no llegue a `audit_error_log` | `T-01`, `T-08` | Un `ADMIN` recibe `403` con `AUTH-002` y queda el evento de denegación: es la mitad observable de la reserva de `T-01` | En curso |
+| `T-14` | Documentación OpenAPI del endpoint: cuerpo, respuesta `200` y los estados `400`, `401`, `403`, `404`, `409` y `500` | `T-11` | El contrato publicado coincide con el comportamiento real (Art. VIII.6), y documenta que la operación es idempotente, no admite motivo y no puede aplicarse a la moneda por defecto | Hecha |
+| `T-15` | Actualizar la matriz de trazabilidad de `docs/requirements.md` | `T-11` | La fila de `RF-SP-023` refleja el estado y enlaza esta tripleta | Hecha |
 
 **Estados:** `Pendiente` · `En curso` · `Hecha` · `Bloqueada`.
+
+!!! warning "Enmiendas y tareas abiertas al ejecutar — 24-08-2026"
+
+    **`T-02` expone un solo método y no `activate()` / `deactivate()`.** `Currency.changeStatus(boolean, ahora)` recibe el estado destino, igual que el cuerpo de la petición, y **devuelve si hubo cambio**. Eso es lo que hace `FA-001` implementable sin que quien llama compare antes y después, que es justo donde se cuela el evento fantasma que `CA-SP-190` prohíbe.
+
+    **`T-05` no crea un `ChangeCurrencyStatusCommand`.** La entrada del caso de uso son un identificador y un booleano; un registro de dos campos para transportarlos no aporta nada y no oculta ningún tipo de HTTP.
+
+    | Tarea | Estado | Por qué |
+    |---|---|---|
+    | `T-04` | `Pendiente` | El adaptador **no traduce** la violación de `ck_currencies_default_active` por nombre de restricción. Hoy no hace falta —la verificación del dominio se adelanta siempre—, de modo que ese camino no tiene forma de ejercitarse desde la API. La garantía del esquema **sí** está probada, atacando la tabla directamente |
+    | `T-10` | `Pendiente` | Falta actualizar `CA-SP-131` de `RF-SP-019` para que recoja que `/status` ya existe |
+    | `T-12` | `Pendiente` | Sin prueba concurrente de dos desactivaciones simultáneas. El bloqueo de fila está implementado y sin verificar |
+    | `T-13` | `En curso` | Cubiertos los casos límite alcanzables por API; falta el del `ADMIN` sin el permiso, que exige un actor con roles reales y por tanto `RF-SP-024` |
+
+    **Dos defectos compartidos, encontrados aquí y corregidos en `shared/error`:**
+
+    | Defecto | Alcance |
+    |---|---|
+    | Un verbo no admitido sobre un recurso mapeado devolvía **`500`** en lugar de `405`. Importa más de lo que parece: `RN-SP-004` y `RN-SP-010` se implementan **no escribiendo código**, y la verificación de esa ausencia es precisamente un `405` — con un `500`, el criterio decía lo contrario de lo que quería decir | Todo el sistema |
+    | Una dirección no mapeada para ningún método devolvía **`500`** en lugar de `404` | Todo el sistema |
 
 ## 2. Orden de ejecución
 

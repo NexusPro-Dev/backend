@@ -29,6 +29,12 @@ import org.springframework.stereotype.Component;
 @Component
 public class CurrentActor implements AuditActorProvider {
 
+  private final EffectivePermissions permisos;
+
+  public CurrentActor(EffectivePermissions permisos) {
+    this.permisos = permisos;
+  }
+
   /**
    * Identificador del actor autenticado.
    *
@@ -52,12 +58,26 @@ public class CurrentActor implements AuditActorProvider {
    * role_permissions}— <b>no existe todavía</b>: {@code users} y {@code user_roles} los crea
    * `RF-SP-024`, que va después en el orden de `requirements/sp.md` §6.1.
    *
-   * <p>Mientras tanto se leen del {@code Authentication}, que es donde `RF-SP-034` los depositará
-   * al emitir el token. Queda anotado como bloqueo en `tasks.md` §4: cuando `RF-SP-024` integre sus
-   * tablas, este método debe pasar a resolverlos contra la base de datos, y `RF-SP-001` no está
-   * terminado hasta entonces.
+   * <p><b>Desde `RF-SP-024` se leen de la base de datos</b>, recorriendo los roles vigentes de la
+   * persona. Un rol retirado o desactivado deja de conceder <b>de inmediato</b>, mientras que
+   * leerlo del token lo mantendría vivo hasta que este expirase — que es exactamente la concesión
+   * indebida que aquel plan quería evitar.
+   *
+   * <p><b>El respaldo, y por qué es temporal.</b> Si el identificador del actor no resuelve a
+   * ninguna persona registrada, se usan las autoridades del {@code Authentication}. Hoy eso cubre
+   * un caso real: hasta que `RF-SP-034` emita tokens, las pruebas simulan actores con
+   * identificadores que no existen en {@code users}. Cuando el inicio de sesión exista, todo
+   * principal será una persona registrada y esta rama dejará de alcanzarse — momento en que debe
+   * retirarse.
+   *
+   * <p>Para una persona que <b>sí</b> existe, la base manda siempre, incluso si no concede nada: el
+   * respaldo no puede ampliar lo que la base dice.
    */
   public Set<String> currentPermissions() {
+    return currentActorId().flatMap(permisos::forUser).orElseGet(CurrentActor::autoridadesDelToken);
+  }
+
+  private static Set<String> autoridadesDelToken() {
     return autenticacion()
         .map(
             auth ->

@@ -47,6 +47,10 @@ services:
       JWT_SECRET: desarrollo-no-usar-fuera-de-local
       # Swagger y el contrato OpenAPI, accesibles sin autenticar. Solo local.
       EXPOSE_API_DOCS: "true"
+      # Credencial inicial del superadministrador (V22). Local y solo local:
+      # en cualquier otro entorno llega por el gestor de secretos.
+      SUPERADMIN_EMAIL: "superadmin@factech.co"
+      SUPERADMIN_PASSWORD_HASH: ${SUPERADMIN_PASSWORD_HASH:?define el hash en tu .env}
     ports:
       - "8080:8080"
 

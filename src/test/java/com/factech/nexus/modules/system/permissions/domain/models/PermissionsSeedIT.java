@@ -151,11 +151,46 @@ class PermissionsSeedIT extends IntegrationTestBase {
         .as("la siembra del catálogo dejó rastro en la auditoría")
         .isZero();
 
-    // El registro de seguridad no tiene columna de entidad: ninguna migración
-    // emite eventos de control de acceso, de modo que aquí sí corresponde el
-    // total.
-    assertThat(jdbc.queryForObject("SELECT count(*) FROM audit_security_log", Integer.class))
-        .as("una migración emitió un evento de seguridad")
-        .isZero();
+    // Que NINGUNA migración emita un evento de control de acceso se comprueba
+    // sobre los propios guiones y no contando filas.
+    //
+    // La comprobación anterior era `SELECT count(*) FROM audit_security_log`
+    // sobre el total, y solo pasaba por el orden en que Failsafe ejecutaba las
+    // clases: en cuanto otra prueba de integración ejercita un `403` —y varias
+    // lo hacen, porque `CA-SP-008` y `CA-SP-119` lo exigen— la tabla deja de
+    // estar vacía y esta prueba falla sin que nada esté mal. Se detectó al
+    // incorporar el submódulo de membresías, cuyo paquete ordena antes.
+    //
+    // Leer las migraciones es además más fuerte: comprueba las de hoy y las que
+    // se añadan, no el estado de la base en un instante concreto.
+    assertThat(migracionesQueEscribenEventosDeSeguridad())
+        .as("una migración emite eventos de control de acceso")
+        .isEmpty();
+  }
+
+  /**
+   * Migraciones cuyo texto inserta en {@code audit_security_log}.
+   *
+   * <p>Se buscan por el nombre de la tabla precedido de {@code INTO}: mencionarla en un comentario
+   * —como hace {@code V4}, que la crea— no debe contar como escribirla.
+   */
+  private static java.util.List<String> migracionesQueEscribenEventosDeSeguridad() {
+    try {
+      var resolver = new org.springframework.core.io.support.PathMatchingResourcePatternResolver();
+      java.util.List<String> culpables = new java.util.ArrayList<>();
+      for (var recurso : resolver.getResources("classpath:db/migration/*.sql")) {
+        String guion =
+            new String(
+                recurso.getInputStream().readAllBytes(), java.nio.charset.StandardCharsets.UTF_8);
+        String sinComentarios =
+            guion.replaceAll("--[^\r\n]*", " ").toLowerCase(java.util.Locale.ROOT);
+        if (sinComentarios.contains("into audit_security_log")) {
+          culpables.add(recurso.getFilename());
+        }
+      }
+      return culpables;
+    } catch (java.io.IOException fallo) {
+      throw new IllegalStateException("No se pudieron leer las migraciones", fallo);
+    }
   }
 }

@@ -6,10 +6,10 @@
 | Especificación | [`spec.md`](spec.md) |
 | Plan | [`plan.md`](plan.md) |
 | `plan.md` aprobado el | 21-08-2026 |
-| Estado | **En revisión** |
+| Estado | **Aprobadas** |
 | Issue | Pendiente de crear |
 | Rama | `feature/consultar-detalle-membresia` |
-| Aprobadas por | Pendiente |
+| Aprobadas por | Responsable técnico el 24-08-2026 |
 
 !!! info "Qué va en este documento"
 
@@ -29,19 +29,27 @@ Sin migración, sin `domain` y sin excepciones nuevas: una sentencia por clave p
 
 | # | Tarea | Depende de | Verificación | Estado |
 |---|---|---|---|---|
-| `T-01` | `application`: modelo de lectura `MembershipDetail` —la membresía más sus dos vecinos ya resueltos— y `MembershipQueryRepository` gana `findDetailById(UUID): Optional<MembershipDetail>` | — | Compila; devuelve `Optional`, nunca `null`, y no ejecuta ninguna consulta previa de existencia | Pendiente |
-| `T-02` | `infrastructure/JpaMembershipQueryRepository`: la sentencia de `plan.md` §4 con los dos `LEFT JOIN` —al padre por clave foránea y a la hija por `parent_membership_id`— y proyección con `cb.construct`, **sin** filtrar por `deleted_at`, que esta tabla no tiene | `T-01` | Prueba de integración: **una** sentencia por petición, ninguna sobre `user_memberships`, y el mapeo no multiplica filas | Pendiente |
-| `T-03` | `application/GetMembershipService` con `@Transactional(readOnly = true)`, que lanza `ResourceNotFoundException` cuando la sentencia no devuelve filas | `T-02` | Prueba de integración: la membresía y sus dos vecinos se leen de **la misma instantánea**, de modo que un alta concurrente no produce una mezcla de dos estados | Pendiente |
-| `T-04` | `api`: `MembershipSummaryResponse` con `id`, `code`, `name` y `level`, y `MembershipDetailResponse` que lo usa para cada vecino. **No** se reutiliza `MembershipResponse` de `RF-SP-016` | `T-03` | Prueba de API: el objeto de `parentMembership` **no** contiene a su vez `parentMembership` ni `childMembership`, ni `description`, ni marcas temporales | Pendiente |
-| `T-05` | `api/MembershipController`: añade `GET /api/v1/memberships/{id}` con el permiso `memberships:read`, **sin** declarar restricción de patrón sobre el identificador | `T-04` | Prueba de API: `200` con el detalle; `404` con `EX-001` para un UUID canónico inexistente; `403` sin el permiso | Pendiente |
-| `T-06` | Aserción de esquema: una consulta sobre `pg_constraint` que falla si `uq_memberships_parent` desaparece o pierde `NULLS NOT DISTINCT` | — | La prueba falla al relajar la restricción a propósito. Es lo que sostiene que el contrato prometa un objeto y no una lista | Pendiente |
-| `T-07` | Pruebas de los criterios de aceptación de `spec.md` §12 | `T-05` | La suite cubre `CA-SP-125` a `CA-SP-129`; los vecinos nulos se verifican **presentes**, no omitidos | Pendiente |
-| `T-08` | Prueba de las tres formas de identificador inválido: `abc`, `1-1-1-1-1` y un UUID de 35 caracteres | `T-05` | Las tres devuelven `400` con `VAL-001` y campo `id`, **nunca `404`**. La segunda es la que el JDK convertiría sin error | Pendiente |
-| `T-09` | Pruebas del resto de casos límite de `spec.md` §13 y de `plan.md` §11: única membresía del sistema, membresía recién insertada, coherencia con el listado de `RF-SP-017`, ausencia de marcas temporales y de conteos, y `405` en `PUT`, `PATCH` y `DELETE` | `T-05` | Tras insertar una intermedia con `RF-SP-016`, los detalles de las tres membresías implicadas son coherentes entre sí y con el listado | Pendiente |
-| `T-10` | Documentación OpenAPI del endpoint: respuesta `200` con los dos vecinos y los estados `400`, `401`, `403`, `404` y `500` | `T-07` | El contrato publicado coincide con el comportamiento real (Art. VIII.6), y documenta que la expansión llega a **un solo grado** | Pendiente |
-| `T-11` | Actualizar la matriz de trazabilidad de `docs/requirements.md` | `T-07` | La fila de `RF-SP-018` refleja el estado y enlaza esta tripleta | Pendiente |
+| `T-01` | `application`: modelo de lectura `MembershipDetail` —la membresía más sus dos vecinos ya resueltos— y `MembershipQueryRepository` gana `findDetailById(UUID): Optional<MembershipDetail>` | — | Compila; devuelve `Optional`, nunca `null`, y no ejecuta ninguna consulta previa de existencia | Hecha |
+| `T-02` | `infrastructure/JpaMembershipQueryRepository`: la sentencia de `plan.md` §4 con los dos `LEFT JOIN` —al padre por clave foránea y a la hija por `parent_membership_id`— y proyección con `cb.construct`, **sin** filtrar por `deleted_at`, que esta tabla no tiene | `T-01` | Prueba de integración: **una** sentencia por petición, ninguna sobre `user_memberships`, y el mapeo no multiplica filas | Hecha |
+| `T-03` | `application/GetMembershipService` con `@Transactional(readOnly = true)`, que lanza `ResourceNotFoundException` cuando la sentencia no devuelve filas | `T-02` | Prueba de integración: la membresía y sus dos vecinos se leen de **la misma instantánea**, de modo que un alta concurrente no produce una mezcla de dos estados | Hecha |
+| `T-04` | `api`: `MembershipSummaryResponse` con `id`, `code`, `name` y `level`, y `MembershipDetailResponse` que lo usa para cada vecino. **No** se reutiliza `MembershipResponse` de `RF-SP-016` | `T-03` | Prueba de API: el objeto de `parentMembership` **no** contiene a su vez `parentMembership` ni `childMembership`, ni `description`, ni marcas temporales | Hecha |
+| `T-05` | `api/MembershipController`: añade `GET /api/v1/memberships/{id}` con el permiso `memberships:read`, **sin** declarar restricción de patrón sobre el identificador | `T-04` | Prueba de API: `200` con el detalle; `404` con `EX-001` para un UUID canónico inexistente; `403` sin el permiso | Hecha |
+| `T-06` | Aserción de esquema: una consulta sobre `pg_constraint` que falla si `uq_memberships_parent` desaparece o pierde `NULLS NOT DISTINCT` | — | La prueba falla al relajar la restricción a propósito. Es lo que sostiene que el contrato prometa un objeto y no una lista | Hecha |
+| `T-07` | Pruebas de los criterios de aceptación de `spec.md` §12 | `T-05` | La suite cubre `CA-SP-125` a `CA-SP-129`; los vecinos nulos se verifican **presentes**, no omitidos | Hecha |
+| `T-08` | Prueba de las tres formas de identificador inválido: `abc`, `1-1-1-1-1` y un UUID de 35 caracteres | `T-05` | Las tres devuelven `400` con `VAL-001` y campo `id`, **nunca `404`**. La segunda es la que el JDK convertiría sin error | En curso |
+| `T-09` | Pruebas del resto de casos límite de `spec.md` §13 y de `plan.md` §11: única membresía del sistema, membresía recién insertada, coherencia con el listado de `RF-SP-017`, ausencia de marcas temporales y de conteos, y `405` en `PUT`, `PATCH` y `DELETE` | `T-05` | Tras insertar una intermedia con `RF-SP-016`, los detalles de las tres membresías implicadas son coherentes entre sí y con el listado | En curso |
+| `T-10` | Documentación OpenAPI del endpoint: respuesta `200` con los dos vecinos y los estados `400`, `401`, `403`, `404` y `500` | `T-07` | El contrato publicado coincide con el comportamiento real (Art. VIII.6), y documenta que la expansión llega a **un solo grado** | Hecha |
+| `T-11` | Actualizar la matriz de trazabilidad de `docs/requirements.md` | `T-07` | La fila de `RF-SP-018` refleja el estado y enlaza esta tripleta | Hecha |
 
 **Estados:** `Pendiente` · `En curso` · `Hecha` · `Bloqueada`.
+
+!!! warning "Hueco declarado al ejecutar estas tareas — 24-08-2026"
+
+    **`T-08` queda `En curso`: un UUID no canónico no se rechaza.** `plan.md` §4 exige `400` con `VAL-001` cuando el identificador «no es un UUID en forma canónica». `UUID.fromString` del JDK es **laxo** y acepta `1-1-1-1-1` como `00000001-0001-0001-0001-000000000001`, de modo que la conversión no falla y la respuesta acaba siendo `404`.
+
+    Las otras dos formas —`abc` y un UUID sin guiones— **sí** devuelven `400`, y ese arreglo es nuevo: antes devolvían `500`.
+
+    Se intentó desplazar el convertidor por omisión de dos maneras —un bean `Converter<String, UUID>` y un `WebMvcConfigurer` que lo registra en el `FormatterRegistry`— y **ninguna surtió efecto**. El código no demostrado se retiró en lugar de dejarlo inerte. `MembershipsIT` fija el comportamiento real de hoy con una prueba marcada como hueco: cuando alguien lo corrija, esa prueba fallará, que es exactamente lo que debe hacer.
 
 ## 2. Orden de ejecución
 
