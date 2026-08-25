@@ -82,6 +82,10 @@ Se aprueban en ese orden, y **no se escribe código antes de que las tres estén
 
 ## Estado
 
-En construcción. La documentación del módulo `SP` (Sistema Principal) está completa; la implementación no ha comenzado.
+En construcción. La documentación del módulo `SP` (Sistema Principal) está completa —sus cuarenta y dos tripletas aprobadas— y la implementación cubre **cuarenta y uno de los cuarenta y dos requerimientos con endpoint funcionando**. El único sin él es `RF-SP-040` (restablecer la propia contraseña olvidada), bloqueado por la decisión **D-23**: la forma del canal de envío está decidida, el mecanismo no.
+
+**Ningún requerimiento figura todavía como `Implementado`**, y no es un descuido: la definición de terminado (constitución §16) exige además Issue, Pull Request aprobado por alguien distinto del autor e integración.
+
+Lo que falta no son funcionalidades sino comportamientos declarados y aún no implementados —límite de tasa, aplicación del cambio obligatorio de contraseña, `request_log`— y las decisiones que siguen abiertas. Están registrados como issues del repositorio.
 
 Consultar la matriz de trazabilidad en [`docs/requirements.md`](docs/requirements.md) para el estado de cada requerimiento.
