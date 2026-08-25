@@ -57,7 +57,9 @@ jobs:
       - name: Verificar
         run: mvn -B verify
 
-      # `OpenApiContractIT` reescribe docs/api/openapi.json durante `verify`.
+      # `OpenApiContractIT` reescribe docs/api/openapi.json y openapi.yaml
+      # durante `verify`. Los dos: el JSON se lee, y el YAML es lo que piden por
+      # defecto los generadores de cliente del frontend.
       # Si lo que acaba de generarse no coincide con lo comprometido, es que
       # alguien cambió un endpoint y no regeneró el contrato: el Art. VIII.6
       # trata esa divergencia como defecto, y aquí es donde se convierte en
@@ -69,9 +71,9 @@ jobs:
       # comprobado nada.
       - name: El contrato publicado está al día
         run: |
-          git add -N docs/api/openapi.json
-          git diff --exit-code -- docs/api/openapi.json \
-            || { echo "::error::El contrato ha cambiado. Ejecuta 'mvn verify' y commitea docs/api/openapi.json."; exit 1; }
+          git add -N docs/api/openapi.json docs/api/openapi.yaml
+          git diff --exit-code -- docs/api/openapi.json docs/api/openapi.yaml \
+            || { echo "::error::El contrato ha cambiado. Ejecuta 'mvn verify' y commitea docs/api/."; exit 1; }
 
       - name: Publicar el informe de cobertura
         if: always()
