@@ -94,12 +94,14 @@ Es también la pantalla a la que se acude cuando alguien no puede entrar, de mod
 
 ## 9. Flujos alternativos
 
-### FA-001 — Usuario sin roles
+### FA-001 — Usuario sin permisos efectivos
 
-**Cuándo ocurre:** la persona se creó sin roles o se le retiraron todos.
+**Cuándo ocurre:** todos los roles de la persona están inactivos.
 
-1. El sistema devuelve las listas de roles y de permisos efectivos vacías.
-2. Es un estado válido: la persona puede autenticarse pero no puede hacer nada.
+1. El sistema devuelve la lista de roles con su estado, y la de permisos efectivos **vacía**.
+2. Es un estado válido: la persona puede autenticarse pero no puede hacer nada (`RN-SEG-002`).
+
+*(Hasta el 24-08-2026 este flujo cubría también «la persona se creó sin roles o se le retiraron todos». `RN-SP-023` eliminó ese estado: el alta exige al menos un rol y el retiro no admite quitar el último. La lista de roles **vacía** ya no es alcanzable por la API; si aparece, es un dato incoherente anterior a la regla.)*
 
 ### FA-002 — Usuario con todos sus roles inactivos
 

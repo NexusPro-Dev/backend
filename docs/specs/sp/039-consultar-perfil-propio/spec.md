@@ -101,12 +101,14 @@ Ninguna. La identidad del actor se resuelve a partir de su autenticación, y **n
 
 ## 9. Flujos alternativos
 
-### FA-001 — Persona sin roles
+### FA-001 — Persona sin permisos efectivos
 
-**Cuándo ocurre:** el actor no tiene ningún rol, o todos están inactivos.
+**Cuándo ocurre:** todos los roles del actor están inactivos.
 
 1. El sistema devuelve la lista de permisos efectivos **vacía**.
-2. No es un error: es el estado en que `RF-SP-024` permite crear a alguien, y esta consulta es lo que permite a la interfaz explicarlo en lugar de mostrar una pantalla rota.
+2. No es un error, y esta consulta es lo que permite a la interfaz explicarlo en lugar de mostrar una pantalla rota.
+
+*(Hasta el 24-08-2026 este flujo cubría también «el actor no tiene ningún rol». `RN-SP-023` eliminó ese estado.)*
 
 ### FA-002 — Persona con cambio de contraseña pendiente
 

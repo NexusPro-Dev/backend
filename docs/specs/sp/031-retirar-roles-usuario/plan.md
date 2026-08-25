@@ -45,17 +45,21 @@ Tres consecuencias del esquema existente que este plan da por sentadas y que con
 | Capa | Componente | Nuevo / Modificado | Responsabilidad |
 |---|---|---|---|
 | `domain` | `User` | Modificado | `revokeRoles(...)`: retira los roles presentes y devuelve **cuáles se retiraron realmente**, si la persona queda sin rol `CONSUMIDOR` y si queda sin rol `VENDEDOR` |
-| `domain` | `RoleGrantPolicy` | Sin cambios | Componente compartido de `RF-SP-030`. `RN-SEG-010` aplica igual al retiro (`spec.md` §14, pregunta 2) |
-| `domain` | `CommercialRank` | Sin cambios | Componente compartido de `RF-SP-030`. Aquí decide si el retiro deja a la persona sin ningún rol de clasificación `VENDEDOR` |
-| `domain` | `RootRoleGuard` | **Nuevo, compartido** | `RN-SP-001` en un solo sitio: cuenta los portadores **activos** del rol raíz bajo el bloqueo que serializa la comprobación. Lo consumen `RF-SP-028`, `RF-SP-029` y este requerimiento |
-| `domain` | `UserRepository` | Modificado | Añade el conteo de subordinados vigentes y el cierre de la asignación de superior |
+| `domain` | `PrivilegeContainment` | Sin cambios | Componente de `RF-SP-024`. `RN-SEG-010` aplica igual al retiro (`spec.md` §14, pregunta 2) |
+| `domain` | `CommercialStructure` | Sin cambios | Componente de `RF-SP-024`, ampliado por `RF-SP-030`. Aquí decide si el retiro deja a la persona sin ningún rol de clasificación `VENDEDOR` |
+| `domain` | `RootAdministratorPresence` | Sin cambios | `RN-SP-001` como regla pura, creada por `RF-SP-028`. Recibe si el afectado porta el rol raíz y cuántos **otros** portadores activos quedan, y decide |
+| `application` | `RootRoleHolderRepository` | Sin cambios | Puerto de `RF-SP-028`: **bloquea y cuenta** los portadores activos del rol raíz. Es la mitad que serializa la comprobación |
+| `application` | `SupervisedTeamCounter` | Sin cambios | Puerto de `RF-SP-028`: cuántas personas tiene a cargo alguien hoy. Es lo que `EX-005` necesita |
+| `domain` | `UserRepository` | Modificado | Añade el cierre de la asignación de superior. **El conteo de subordinados no se añade aquí**: lo aporta `SupervisedTeamCounter` |
 | `application` | `RevokeUserRolesService` | Nuevo | Caso de uso. `@Transactional`, aplica el orden de `plan.md` §4, escribe la cascada y emite la auditoría |
-| `application` | `SessionRevoker` | **Nuevo** | Puerto hacia `shared/security` para revocar los refresh tokens de una persona. Lo estrena este requerimiento; `RF-SP-028` y `RF-SP-029` usan el mismo |
+| `application` | `SessionRevoker` | Sin cambios | Puerto de `RF-SP-028` hacia `shared/security`. Lo **implementa** `RF-SP-034`, que es quien crea `refresh_tokens` |
 | `infrastructure` | `JpaUserRepository` | Modificado | `DELETE` sobre `user_roles` y `user_memberships`, `UPDATE` de `ended_at` sobre `user_supervisors` |
 | `api` | `UserController` | Modificado | Añade `POST /api/v1/users/{id}/roles/revocations` |
 | `api` | `RevokeRolesRequest` | Nuevo | DTO de entrada con Bean Validation (`VAL-001`, `VAL-002`, `VAL-005`) |
 
-`RootRoleGuard` se declara compartido por el mismo motivo que `RoleGrantPolicy` en `RF-SP-030`: `RN-SP-001` la comprueban tres requerimientos, y `requirements/sp.md` §5.1 exige que la comprobación **se serialice sobre el conjunto de portadores activos del rol raíz**, no sobre la fila del usuario afectado. Esa es la parte que se implementa mal si se escribe tres veces — y el modo de fallo no es un error visible, es que dos retiros concurrentes pasen los dos.
+**Este requerimiento tampoco crea ningún componente de dominio.** Los cinco que necesita —`PrivilegeContainment`, `CommercialStructure`, `RootAdministratorPresence`, `RootRoleHolderRepository` y `SupervisedTeamCounter`— los declararon `RF-SP-024` y `RF-SP-028` al aprobarse sus planes el 22-08-2026, y `SessionRevoker` también.
+
+Merece subrayarse por qué `RN-SP-001` está partida en dos piezas y no en una: `requirements/sp.md` §5.1 exige que la comprobación **se serialice sobre el conjunto de portadores activos del rol raíz**, no sobre la fila del usuario afectado. La regla pura decide; el puerto **bloquea y cuenta**. Escribirla como una sola función que lee sin bloquear es el error, y su modo de fallo no es un error visible: es que dos retiros concurrentes pasen los dos.
 
 ## 4. Contrato de API
 
@@ -98,6 +102,7 @@ Tres consecuencias del esquema existente que este plan da por sentadas y que con
 | `409` | El retiro dejaría al sistema sin superadministrador activo (`EX-001`) | `RN-SP-001` |
 | `409` | Algún rol declara permisos que el actor no posee (`EX-003`) | `RN-SEG-010` |
 | `409` | La persona tiene equipo a cargo (`EX-005`) | `RN-SP-022` |
+| `409` | El retiro dejaría a la persona sin ningún rol (`EX-006`) | `RN-SP-023` |
 | `500` | Fallo no controlado | `ERR-500` |
 
 Los tres `409` son reglas de negocio violadas **sobre datos que existen**, que es exactamente la frontera que `RF-SP-001` fijó frente al `422`. Aquí no hay ninguna referencia del cuerpo que no resuelva: un rol que la persona no tiene no es un error, es `FA-001`.
@@ -109,10 +114,11 @@ Los tres `409` son reglas de negocio violadas **sobre datos que existen**, que e
 1. Formato, obligatoriedad y límite de 100, todas juntas.
 2. Usuario existente y no eliminado.
 3. Contención en el actor (`RN-SEG-010`).
-4. El retiro no deja al sistema sin superadministrador activo (`RN-SP-001`), bajo el bloqueo de `RootRoleGuard`.
+4. El retiro no deja al sistema sin superadministrador activo (`RN-SP-001`), bajo el bloqueo de `RootAdministratorPresence`.
 5. Si el retiro dejaría a la persona sin ningún rol `VENDEDOR`, no tiene a nadie a cargo (`RN-SP-022`).
+6. El retiro **no deja a la persona sin ningún rol** (`RN-SP-023`).
 
-Los pasos 4 y 5 no son evaluables sin haber resuelto antes qué roles se retiran de verdad —los que la persona no tenía no cuentan—, y el paso 5 necesita además el cálculo de `CommercialRank`. El orden es dependencia.
+Los pasos 4 y 5 no son evaluables sin haber resuelto antes qué roles se retiran de verdad —los que la persona no tenía no cuentan—, y el paso 5 necesita además el cálculo de `CommercialStructure`. El orden es dependencia.
 
 **No se verifica que los roles existan.** Es la asimetría con `RF-SP-030` que más fácilmente se implementa de más: retirar un rol eliminado del catálogo es legítimo, porque la asignación sigue ahí y debe poder soltarse. Lo que se comprueba es la contención en el actor, que se evalúa sobre los permisos que el rol declara, exista o no en el catálogo vigente.
 
@@ -164,7 +170,7 @@ La comprobación de `RN-SP-001` debe serializarse, no basta con leer y contar: d
 ## 8. Impacto sobre otros módulos
 
 - **`shared/security`** expone `SessionRevoker`, el puerto de revocación de refresh tokens. Es la primera vez que se necesita; `RF-SP-028` —desactivar— y `RF-SP-029` —eliminar— usan el mismo. Su implementación depende de que exista el almacén de refresh tokens, que crea `RF-SP-035`.
-- **`RF-SP-030`** comparte `RoleGrantPolicy` y `CommercialRank`, y aporta `RootRoleGuard` a `RF-SP-028` y `RF-SP-029`.
+- **`RF-SP-030`** comparte `PrivilegeContainment` y `CommercialStructure`, y aporta `RootAdministratorPresence` a `RF-SP-028` y `RF-SP-029`.
 - **`RF-SP-033`** queda como operación **correctiva** y no como la salida del estado de consumidor: esa salida es este requerimiento. Su `EX-001` rechaza justo lo que aquí ocurre en cascada, y las dos cosas son coherentes porque allí el rol permanece y aquí desaparece.
 - **`RF-SP-041`** es la única vía para reasignar el equipo que `EX-005` bloquea. Esta operación no lo ofrece ni lo insinúa.
 - **`RF-SP-042`** es donde se consulta quién forma ese equipo, y por eso el `409` informa cuántos sin listarlos (§4).
@@ -191,7 +197,7 @@ La comprobación de `RN-SP-001` debe serializarse, no basta con leer y contar: d
 
 | Riesgo | Impacto | Mitigación |
 |---|---|---|
-| `RN-SP-001` se implementa sin serializar y dos retiros concurrentes dejan el sistema sin superadministrador | **Alto** | `RootRoleGuard` compartido con el bloqueo dentro; prueba de integración concurrente en `T-13` |
+| `RN-SP-001` se implementa sin serializar y dos retiros concurrentes dejan el sistema sin superadministrador | **Alto** | `RootAdministratorPresence` compartido con el bloqueo dentro; prueba de integración concurrente en `T-13` |
 | La revocación de sesiones se mueve fuera de la transacción «para no alargarla» | **Alto** | Declarado en §7 y en §9. Si falla, el retiro debe fallar |
 | El cierre del superior se implementa como `DELETE` | **Alto** | `RN-SP-021` y `CA-SP-405` exigen que la fila permanezca con su `ended_at` |
 | La cascada de la membresía se olvida y queda huérfana | **Alto** | `CA-SP-265` y `CA-SP-371` verifican el estado final y la recuperación por `correlation_id` |
@@ -211,7 +217,7 @@ La comprobación de `RN-SP-001` debe serializarse, no basta con leer y contar: d
 | `CA-SP-405` | Integración | El retiro del último rol `VENDEDOR` **cierra** la asignación con su `ended_at` y **no borra** la fila |
 | `CA-SP-406` | API | Quien tiene equipo a cargo recibe `409` con **cuántas** personas, sin listarlas |
 | `CA-SP-407` | Integración | Retirar un rol `VENDEDOR` a quien conserva otro **no** cierra su asignación de superior |
-| `CA-SP-266` | Unitaria + API | `RoleGrantPolicy` rechaza y la API devuelve `409` con `RN-SEG-010` |
+| `CA-SP-266` | Unitaria + API | `PrivilegeContainment` rechaza y la API devuelve `409` con `RN-SEG-010` |
 | `CA-SP-267` | Integración | Los roles que la persona no tenía se ignoran sin error |
 | `CA-SP-268` | Integración | Ninguna fila de auditoría cuando ninguno estaba asignado |
 | `CA-SP-269` | Integración | Se admite dejar a la persona sin ningún rol cuando ninguna regla lo impide |
@@ -225,7 +231,7 @@ Casos límite de `spec.md` §13 con prueba propia (Art. VII.3):
 
 | Caso | Nivel | Qué verifica |
 |---|---|---|
-| Dos retiros concurrentes sobre el último superadministrador | **Integración concurrente** | Uno termina con `200` y el otro con `409`. Sin el bloqueo de `RootRoleGuard` ambos pasan, que es justo lo que hace valer la prueba |
+| Dos retiros concurrentes sobre el último superadministrador | **Integración concurrente** | Uno termina con `200` y el otro con `409`. Sin el bloqueo de `RootAdministratorPresence` ambos pasan, que es justo lo que hace valer la prueba |
 | Permiso concedido por dos roles | Integración | Retirar uno no lo quita — es `CA-SP-263` desde el otro lado |
 | Retirar un rol inactivo | Integración | Se admite, no cambia los permisos efectivos y **sí** produce evento: la asignación desaparece |
 | Retirar un rol eliminado del catálogo | Integración | Se admite: la asignación existe y debe poder soltarse (§4) |

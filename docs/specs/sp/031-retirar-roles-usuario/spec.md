@@ -10,6 +10,7 @@
 | Fecha de aprobación | 21-08-2026 |
 | Enmendada | 21-08-2026 — `RN-SP-015` pasa de rechazar a **retirar la membresía en cascada**, al aprobar `RF-SP-033` (Art. I.7) |
 | Enmendada | 22-08-2026 — `RN-SP-019` cierra el superior comercial al retirar el último rol `VENDEDOR`, y `RN-SP-022` rechaza el retiro de quien tiene equipo a cargo, al registrarse `RF-SP-041` (Art. I.7) |
+| Enmendada | 24-08-2026 — `RN-SP-023` impide dejar a la persona sin ningún rol: `FA-002` se retira, nace `EX-006` y `CA-SP-269` se invierte (Art. I.7) |
 
 ---
 
@@ -96,6 +97,7 @@ No se declara motivo: es la eliminación de una asociación (Art. V.13).
 - Los permisos de los roles que se retiran están contenidos en los permisos efectivos del actor.
 - El retiro no deja al sistema sin ningún usuario activo con el rol raíz.
 - Si el retiro dejaría a la persona sin ningún rol `VENDEDOR`, no tiene a nadie a cargo (`RN-SP-022`).
+- El retiro **no deja a la persona sin ningún rol** (`RN-SP-023`).
 
 **Postcondiciones**
 
@@ -130,12 +132,7 @@ No se declara motivo: es la eliminación de una asociación (Art. V.13).
 2. La operación es **idempotente**: repetirla no produce error.
 3. Si **ninguno** de los roles estaba asignado, no se registra evento: nada cambió.
 
-### FA-002 — Retiro de todos los roles
-
-**Cuándo ocurre:** el retiro deja a la persona sin ningún rol.
-
-1. Se admite, siempre que no incumpla `RN-SP-001`, `RN-SP-015` ni `RN-SP-022`.
-2. La persona queda autenticable pero sin permiso efectivo alguno, el mismo estado en que `RF-SP-024` permite crearla.
+*(El flujo «Retiro de todos los roles» que aquí figuraba se retiró el 24-08-2026 al nacer `RN-SP-023`: dejar a alguien sin ningún rol dejó de ser un resultado admisible y pasó a ser la excepción `EX-006`.)*
 
 ### FA-003 — Retiro del último rol consumidor
 
@@ -180,6 +177,15 @@ No se declara motivo: es la eliminación de una asociación (Art. V.13).
 
 No se reasignan solas al superior del superior. La estructura comercial decidirá atribución de negocio, y moverla en silencio como efecto secundario de retirar un rol cambiaría a quién pertenece un resultado sin que nadie lo haya decidido. Es la misma postura que `RN-SEG-008` toma con un rol que tiene hijos, y la asimetría con la membresía de `FA-003` es deliberada: allí la cascada solo afecta a la persona misma, aquí afectaría a terceros.
 
+### EX-006 — El retiro dejaría a la persona sin ningún rol
+
+**Condición:** los roles a retirar son todos los que la persona tiene.
+**Respuesta del sistema:** rechaza la operación completa y cita `RN-SP-023`.
+
+Nació el 24-08-2026 y **sustituye al flujo `FA-002`**, que admitía este caso. La salida para quien ya no debe operar no es dejarlo sin roles —eso produce una cuenta que se autentica y no puede hacer nada— sino retirarle el acceso con `RF-SP-028` o eliminarlo con `RF-SP-029`, que son las operaciones que existen para eso y que además dejan constancia del motivo.
+
+Es además la razón por la que este rechazo no puede resolverse «retirando todos menos uno» de forma automática: cuál conservar es una decisión de negocio que el sistema no puede tomar.
+
 ## 11. Validaciones
 
 | ID | Validación | Mensaje esperado |
@@ -191,6 +197,7 @@ No se reasignan solas al superior del superior. La estructura comercial decidir�
 | `VAL-005` | Como máximo 100 roles por petición | No es posible retirar más de 100 roles en una sola solicitud. |
 | `VAL-006` | Usuario existente y no eliminado | El usuario solicitado no existe. |
 | `VAL-007` | El retiro del último rol `VENDEDOR` exige que la persona no tenga a nadie a cargo | Esta persona tiene personas a su cargo; reasígnelas antes de retirarle el rol. |
+| `VAL-008` | El retiro no deja a la persona sin ningún rol (`RN-SP-023`) | Una persona debe conservar al menos un rol. Para retirarle el acceso, desactive su cuenta. |
 
 ## 12. Criterios de aceptación
 
@@ -207,7 +214,7 @@ No se reasignan solas al superior del superior. La estructura comercial decidir�
 | `CA-SP-266` | El sistema rechaza el retiro de un rol cuyos permisos exceden los del actor |
 | `CA-SP-267` | El sistema ignora los roles que el usuario no tenía, sin producir error |
 | `CA-SP-268` | El sistema no registra evento cuando ninguno de los roles indicados estaba asignado |
-| `CA-SP-269` | El sistema permite dejar a una persona sin ningún rol cuando no lo impide ninguna regla |
+| `CA-SP-269` | El sistema **rechaza** el retiro que dejaría a la persona sin ningún rol, citando `RN-SP-023` |
 | `CA-SP-270` | La operación no solicita ni admite un motivo, y la auditoría de eliminación conserva el evento sin él |
 | `CA-SP-271` | El sistema registra el evento en la auditoría de eliminación y en la de seguridad, con severidad alta y el usuario afectado como objeto |
 | `CA-SP-361` | Tras el retiro, los refresh tokens de la persona quedan revocados y su token de acceso vigente deja de admitirse |

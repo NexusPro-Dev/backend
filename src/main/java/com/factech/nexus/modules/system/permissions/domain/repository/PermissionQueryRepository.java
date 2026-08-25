@@ -3,6 +3,8 @@ package com.factech.nexus.modules.system.permissions.domain.repository;
 import com.factech.nexus.modules.system.permissions.application.ListPermissionsQuery;
 import com.factech.nexus.modules.system.permissions.application.PermissionItem;
 import java.util.List;
+import java.util.Optional;
+import java.util.UUID;
 
 /**
  * Puerto de consulta del catálogo de permisos (`RF-SP-010` · `T-05`).
@@ -26,4 +28,22 @@ public interface PermissionQueryRepository {
    * @return la lista, posiblemente vacía. Nunca {@code null}
    */
   List<PermissionItem> find(ListPermissionsQuery query);
+
+  /**
+   * Un permiso del catálogo por su identificador (`RF-SP-015`).
+   *
+   * <p><b>Solo por identificador y nunca por código</b> (`spec.md` §14, pregunta 2): admitir dos
+   * formas de direccionar el mismo recurso obliga a distinguir en cada petición cuál de las dos
+   * llegó, y a decidir qué ocurre cuando un código parece un identificador. El código sigue siendo
+   * la vía legible para <b>encontrarlo</b>, y de eso se encarga el filtro del catálogo.
+   *
+   * <p>Devuelve <b>la misma proyección</b> que el listado: `spec.md` §6.2 pide exactamente los seis
+   * campos de {@link PermissionItem}, de modo que un tipo propio para el detalle sería una segunda
+   * representación del mismo concepto sin un solo campo de diferencia.
+   *
+   * @return vacío si el identificador no corresponde a ningún permiso. El catálogo <b>no tiene
+   *     borrado lógico</b>: cambia solo por migración (`RN-SP-004`), de modo que aquí no hay
+   *     eliminados que excluir
+   */
+  Optional<PermissionItem> findById(UUID id);
 }

@@ -6,10 +6,10 @@
 | Especificación | [`spec.md`](spec.md) |
 | Plan | [`plan.md`](plan.md) |
 | `plan.md` aprobado el | 21-08-2026 |
-| Estado | **En revisión** |
+| Estado | **Aprobadas** — 25-08-2026 |
 | Issue | Pendiente de crear |
 | Rama | `feature/consultar-detalle-permiso` |
-| Aprobadas por | Pendiente |
+| Aprobadas por | Responsable técnico el 25-08-2026 |
 
 !!! info "Qué va en este documento"
 
@@ -29,16 +29,16 @@ Es el requerimiento más pequeño del módulo: sin migración, sin `domain`, sin
 
 | # | Tarea | Depende de | Verificación | Estado |
 |---|---|---|---|---|
-| `T-01` | `application/PermissionQueryRepository` gana `findById(UUID): Optional<PermissionItem>`, y `infrastructure/JpaPermissionQueryRepository` lo implementa con **la misma proyección** que el listado | — | Prueba de integración: devuelve `Optional` vacío para un identificador inexistente, nunca `null`; la consulta es **una** sentencia sin `JOIN` ni subconsultas | Pendiente |
-| `T-02` | `application/GetPermissionService` con `@Transactional(readOnly = true)`, que lanza `ResourceNotFoundException` cuando no hay permiso | `T-01` | Prueba de integración: la transacción de solo lectura impide escribir en `permissions` desde este camino, que es la garantía de `RN-SP-004` | Pendiente |
-| `T-03` | `api/PermissionController`: añade `GET /api/v1/permissions/{id}` con el permiso `permissions:read`, reutilizando `PermissionResponse` y **sin** declarar restricción de patrón sobre el identificador | `T-02` | Prueba de API: `200` con los cinco campos de `spec.md` §6.2; `404` con `EX-001` para un UUID canónico inexistente; `403` sin el permiso | Pendiente |
-| `T-04` | Pruebas de los criterios de aceptación de `spec.md` §12 | `T-03` | La suite cubre `CA-SP-078`, `CA-SP-079` y `CA-SP-080`, con sus estados y sus `error_code` | Pendiente |
-| `T-05` | Prueba de las tres formas de identificador inválido: `abc`, `1-1-1-1-1` y un UUID de 35 caracteres | `T-03` | Las tres devuelven `400` con `VAL-001` y campo `id`, **nunca `404`**. La segunda es la que el JDK convertiría sin error, y la que delata una restricción de patrón mal puesta | Pendiente |
-| `T-06` | Prueba de coherencia con el listado: el objeto del detalle es **campo por campo idéntico** al elemento correspondiente de `GET /api/v1/permissions` | `T-03` | Una divergencia entre ambos endpoints rompe la construcción. Es lo que sostiene la decisión de compartir tipo en vez de duplicarlo | Pendiente |
-| `T-07` | Pruebas de lo que el endpoint **no** hace: sin `createdAt` ni `updatedAt` en el cuerpo, sin sentencias sobre `role_permissions` ni sobre `roles`, y `405` en los cuatro verbos de escritura | `T-03` | El conteo de sentencias vale **una**; junto con `CA-SP-076` de `RF-SP-010`, el `405` es la única forma de verificar `RN-SP-004` | Pendiente |
-| `T-08` | Prueba del permiso sin descripción: se devuelve como `null`, con el campo presente | `T-03` | Un campo omitido es indistinguible de uno que el cliente no conoce | Pendiente |
-| `T-09` | Documentación OpenAPI del endpoint: respuesta `200` y los estados `400`, `401`, `403`, `404` y `500` | `T-04` | El contrato publicado coincide con el comportamiento real (Art. VIII.6) | Pendiente |
-| `T-10` | Actualizar la matriz de trazabilidad de `docs/requirements.md` | `T-04` | La fila de `RF-SP-015` refleja el estado y enlaza esta tripleta | Pendiente |
+| `T-01` | `application/PermissionQueryRepository` gana `findById(UUID): Optional<PermissionItem>`, y `infrastructure/JpaPermissionQueryRepository` lo implementa con **la misma proyección** que el listado | — | Prueba de integración: devuelve `Optional` vacío para un identificador inexistente, nunca `null`; la consulta es **una** sentencia sin `JOIN` ni subconsultas | Hecha |
+| `T-02` | `application/GetPermissionService` con `@Transactional(readOnly = true)`, que lanza `ResourceNotFoundException` cuando no hay permiso | `T-01` | Prueba de integración: la transacción de solo lectura impide escribir en `permissions` desde este camino, que es la garantía de `RN-SP-004` | Hecha |
+| `T-03` | `api/PermissionController`: añade `GET /api/v1/permissions/{id}` con el permiso `permissions:read`, reutilizando `PermissionResponse` y **sin** declarar restricción de patrón sobre el identificador | `T-02` | Prueba de API: `200` con los cinco campos de `spec.md` §6.2; `404` con `EX-001` para un UUID canónico inexistente; `403` sin el permiso | Hecha |
+| `T-04` | Pruebas de los criterios de aceptación de `spec.md` §12 | `T-03` | La suite cubre `CA-SP-078`, `CA-SP-079` y `CA-SP-080`, con sus estados y sus `error_code` | Hecha |
+| `T-05` | Prueba de las tres formas de identificador inválido: `abc`, `1-1-1-1-1` y un UUID de 35 caracteres | `T-03` | Las tres devuelven `400` con `VAL-001` y campo `id`, **nunca `404`**. La segunda es la que el JDK convertiría sin error, y la que delata una restricción de patrón mal puesta | Hecha |
+| `T-06` | Prueba de coherencia con el listado: el objeto del detalle es **campo por campo idéntico** al elemento correspondiente de `GET /api/v1/permissions` | `T-03` | Una divergencia entre ambos endpoints rompe la construcción. Es lo que sostiene la decisión de compartir tipo en vez de duplicarlo | Hecha |
+| `T-07` | Pruebas de lo que el endpoint **no** hace: sin `createdAt` ni `updatedAt` en el cuerpo, sin sentencias sobre `role_permissions` ni sobre `roles`, y `405` en los cuatro verbos de escritura | `T-03` | El conteo de sentencias vale **una**; junto con `CA-SP-076` de `RF-SP-010`, el `405` es la única forma de verificar `RN-SP-004` | Hecha |
+| `T-08` | Prueba del permiso sin descripción: se devuelve como `null`, con el campo presente | `T-03` | Un campo omitido es indistinguible de uno que el cliente no conoce | Hecha |
+| `T-09` | Documentación OpenAPI del endpoint: respuesta `200` y los estados `400`, `401`, `403`, `404` y `500` | `T-04` | El contrato publicado coincide con el comportamiento real (Art. VIII.6) | Hecha |
+| `T-10` | Actualizar la matriz de trazabilidad de `docs/requirements.md` | `T-04` | La fila de `RF-SP-015` refleja el estado y enlaza esta tripleta | Hecha |
 
 **Estados:** `Pendiente` · `En curso` · `Hecha` · `Bloqueada`.
 
@@ -78,12 +78,12 @@ Las cinco tareas de prueba no dependen entre sí y pueden repartirse.
 
 El requerimiento no está terminado hasta cumplir **todas** las condiciones de la constitución §16:
 
-- [ ] Todas las tareas en estado `Hecha`.
-- [ ] Todos los criterios de aceptación con prueba automatizada en verde.
-- [ ] `mvn verify` en verde en local.
+- [x] Todas las tareas en estado `Hecha`.
+- [x] Todos los criterios de aceptación con prueba automatizada en verde.
+- [x] `mvn verify` en verde en local (25-08-2026: 123 unitarias y 448 de integración).
 - [ ] Toda escritura emite su evento de auditoría, en la transacción que corresponde.
-- [ ] Los endpoints nuevos declaran su permiso.
-- [ ] El contrato OpenAPI coincide con el comportamiento real.
+- [x] Los endpoints nuevos declaran su permiso.
+- [x] El contrato OpenAPI coincide con el comportamiento real (`OpenApiContractIT` regenera `docs/api/openapi.json`).
 - [ ] Documentación afectada actualizada en el mismo Pull Request.
-- [ ] Matriz de trazabilidad actualizada.
+- [x] Matriz de trazabilidad actualizada.
 - [ ] Pull Request aprobado por alguien distinto del autor e integrado.

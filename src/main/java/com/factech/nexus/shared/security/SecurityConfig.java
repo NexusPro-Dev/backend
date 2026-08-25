@@ -39,23 +39,52 @@ import org.springframework.security.web.authentication.HttpStatusEntryPoint;
 public class SecurityConfig {
 
   /** Salud del sistema: público siempre, sin detalle interno (Art. XV.10). */
-  private static final String[] RUTAS_PUBLICAS = {"/actuator/health", "/api/v1/auth/login"};
+  private static final String[] RUTAS_PUBLICAS = {
+    "/actuator/health",
+    // Los tres endpoints de sesión son públicos por definición: quien inicia
+    // sesión, renueva o cierra no puede portar todavía —o ya no porta— un token
+    // de acceso válido. `RF-SP-036` lo declara de forma explícita para el
+    // cierre: exigir un token vigente impediría cerrar la sesión justo cuando
+    // más falta hace, que es cuando se sospecha que la robaron.
+    "/api/v1/auth/login",
+    "/api/v1/auth/refresh",
+    "/api/v1/auth/logout"
+  };
 
-  /** Documentación de la API: pública solo donde se habilite de forma explícita. */
+  /**
+   * Documentación de la API: pública solo donde se habilite de forma explícita.
+   *
+   * <p><b>{@code /v3/api-docs.yaml} se declara aparte y no sobra.</b> No casa con el literal exacto
+   * ni con {@code /v3/api-docs/**}, que exige una barra a continuación, de modo que sin esta
+   * entrada el contrato en YAML responde {@code 401} mientras el JSON responde {@code 200}. Varias
+   * herramientas de generación de cliente piden el YAML por defecto, y el síntoma que ve quien lo
+   * consume es «la documentación está cerrada» y no «falta un patrón» — que es la clase de fallo
+   * que cuesta media tarde encontrar.
+   */
   private static final String[] RUTAS_DOCUMENTACION = {
-    "/v3/api-docs", "/v3/api-docs/**", "/swagger-ui.html", "/swagger-ui/**"
+    "/v3/api-docs", "/v3/api-docs.yaml", "/v3/api-docs/**", "/swagger-ui.html", "/swagger-ui/**"
   };
 
   private final boolean documentacionPublica;
+  private final JwtActorConverter actorDesdeElToken;
 
   public SecurityConfig(
+      JwtActorConverter actorDesdeElToken,
       @Value("${nexus.security.expose-api-docs:false}") boolean documentacionPublica) {
+    this.actorDesdeElToken = actorDesdeElToken;
     this.documentacionPublica = documentacionPublica;
   }
 
   @Bean
   public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
     http
+        // Orígenes autorizados para el navegador. La política la define
+        // `CorsConfig` a partir de configuración —nunca de literales— y este
+        // filtro corre ANTES de la autorización: la comprobación previa
+        // (`OPTIONS`), que el navegador emite sin cabecera `Authorization`, se
+        // responde aquí y no necesita figurar entre las rutas públicas.
+        .cors(Customizer.withDefaults())
+
         // Sin protección CSRF: la API no usa cookies de sesión, de modo que
         // no hay credencial que el navegador adjunte de forma automática.
         .csrf(csrf -> csrf.disable())
@@ -81,6 +110,12 @@ public class SecurityConfig {
               }
               auth.anyRequest().authenticated();
             })
+        // El token de acceso se valida aquí, y las autoridades del actor NO
+        // salen de él: las resuelve `JwtActorConverter` contra la base, para que
+        // retirar un rol surta efecto de inmediato en lugar de esperar a que el
+        // token expire (`security.md` §4.5).
+        .oauth2ResourceServer(
+            oauth2 -> oauth2.jwt(jwt -> jwt.jwtAuthenticationConverter(actorDesdeElToken)))
         .headers(Customizer.withDefaults());
 
     return http.build();

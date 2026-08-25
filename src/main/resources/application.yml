@@ -31,6 +31,16 @@ spring:
     # de Flyway es un estado que debe fallar, no que deba asumirse.
     validate-on-migrate: true
 
+    # Credencial inicial del superadministrador (`V22__seed_superadmin.sql`).
+    #
+    # Entra por marcador de posición y no como literal en la migración: un hash
+    # escrito en el repositorio es una credencial en el repositorio (RNF-SEG-003).
+    # Sin valor por omisión a propósito — un despliegue que no la declare debe
+    # FALLAR AL ARRANCAR, no arrancar con una credencial conocida (Art. IX.5).
+    placeholders:
+      superadmin_email: ${SUPERADMIN_EMAIL}
+      superadmin_password_hash: ${SUPERADMIN_PASSWORD_HASH}
+
   jackson:
     # Un campo desconocido en el cuerpo se rechaza, no se ignora. Varios
     # criterios de aceptación dependen de ello: sin esto, enviar un campo que
@@ -83,6 +93,51 @@ nexus:
     expose-api-docs: ${EXPOSE_API_DOCS:false}
 
     trusted-proxies: ${TRUSTED_PROXIES:}
+
+    # Orígenes que el navegador puede usar para llamar a esta API, separados
+    # por coma y con la forma esquema://host[:puerto]. Cambian por entorno, de
+    # modo que llegan por variable y NO se escriben en el código (Art. IX.1).
+    # Vacío = ningún origen autorizado, que es lo seguro: un backend consumido
+    # de servidor a servidor no necesita CORS. El comodín `*` se rechaza al
+    # arrancar. Ver `CorsConfig` y `security.md` §6.1.
+    cors:
+      allowed-origins: ${CORS_ALLOWED_ORIGINS:}
+      # Cuánto puede el navegador reutilizar la comprobación previa antes de
+      # repetirla. Media hora ahorra un viaje por petición sin retrasar de más
+      # un cambio de política.
+      max-age: ${CORS_MAX_AGE:PT30M}
+
+    # Token de acceso y sesión (security.md §5.2).
+    jwt:
+      issuer: nexus
+      # Quince minutos: corto a propósito, porque el token de acceso NO es
+      # revocable — solo expira. Cuanto más vive, más dura un token robado.
+      access-token-ttl: PT15M
+      refresh-token-ttl: P7D
+      # Duración máxima de sesión, medida desde el INICIO y no desde el último
+      # refresco: sin ella, quien rota con disciplina no caduca nunca.
+      session-max-duration: P30D
+
+    # Bloqueo por intentos fallidos (security.md §3.2).
+    lockout:
+      max-attempts: 5
+      base-delay: PT1M
+      # El techo NO es opcional: sin él, alguien mantiene bloqueada la cuenta de
+      # otra persona provocando fallos a propósito, que es una denegación de
+      # servicio contra su titular.
+      max-delay: PT1H
+
+    # Política de contraseña (security.md §3.2).
+    password:
+      min-length: 12
+      # Cuánto vale la credencial que OTRA PERSONA fija (RF-SP-038). Sin plazo,
+      # una cuenta restablecida y nunca usada conserva indefinidamente una
+      # contraseña que alguien más conoce, y nadie se entera porque no falla nada.
+      provisional-ttl: PT48H
+      argon2:
+        memory-kb: 16384
+        iterations: 2
+        parallelism: 1
 
 logging:
   level:

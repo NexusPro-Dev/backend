@@ -5,7 +5,7 @@
 | Proyecto | NEXUS — Renovación de plataforma |
 | Empresa | FACTECH GROUP SAS |
 | Documento | `architecture.md` |
-| Versión | 0.11.0 |
+| Versión | 0.12.0 |
 | Estado | Borrador |
 | Responsable técnico | Bonilla Diaz William Steven |
 | Fecha de creación | 19-08-2026 |
@@ -600,6 +600,10 @@ Las decisiones relevantes se registran individualmente en `docs/architecture/` (
 
 Nomenclatura: `ADR-NNN-<titulo-en-kebab-case>.md`
 
+| # | Decisión | Fecha |
+|---|---|---|
+| [`ADR-001`](architecture/ADR-001-publicacion-del-contrato-openapi.md) | **Publicación del contrato OpenAPI** como archivo versionado en `docs/api/openapi.json`, generado por una prueba de integración y verificado en CI. Desbloquea al frontend, que no podía generar su cliente. Su consecuencia sobre `security.md` §6 está declarada: el contrato deja de ser reservado, aunque `EXPOSE_API_DOCS` siga en `false` | 24-08-2026 |
+
 Las decisiones D-01 a D-07, cerradas el 19-08-2026, están registradas en `constitution.md` §20.
 
 ---
@@ -625,6 +629,7 @@ Las decisiones D-01 a D-07, cerradas el 19-08-2026, están registradas en `const
 | **D-23** | **Mecanismo concreto de envío**: proveedor, cola o mecanismo de desacople, política de reintentos y tratamiento de rebotes. La **forma** quedó decidida en §15.1; falta el cómo | Implementación de `RF-SP-040`, `RF-SP-027` y el aviso de `RF-SP-038` | Responsable del proyecto |
 | D-10 | Retención concreta, en días, de `request_log` y de cada registro de auditoría por separado | Migración de observabilidad | Responsable técnico |
 | D-11 | Política de idempotencia en operaciones de escritura expuestas a reintentos | Diseño de endpoints críticos | Responsable técnico |
+| **D-24** | **Publicación del contrato OpenAPI hacia el frontend**: dónde se publica el `.json`/`.yaml` generado y por qué vía. El Art. VIII.7 lo declara **único contrato** entre los dos repositorios, y hoy solo es obtenible de una instancia con `EXPOSE_API_DOCS` en `true` — es decir, en local y en ningún entorno desplegado. La salida previsible es generarlo en `verify` con `springdoc-openapi-maven-plugin` y publicarlo como artefacto de CI o en un repositorio compartido, para que el frontend consuma un archivo versionado sin depender de que alguien tenga el backend levantado ni de abrir la documentación en producción | Que el frontend pueda cumplir el Art. VIII.7 fuera de local | Responsable del proyecto |
 
 D-08 quedó cerrada en `security.md` §12, junto con las decisiones D-12 a D-15 del modelo de autorización. Las pendientes propias de seguridad (D-16 a D-19) se registran en ese mismo documento.
 
@@ -645,3 +650,5 @@ D-08 quedó cerrada en `security.md` §12, junto con las decisiones D-12 a D-15 
 | 0.9.0 | 22-08-2026 | Nueva §15.1: el **envío de notificaciones salientes** queda decidido como **infraestructura transversal con puerto publicado**, no como módulo ni submódulo, y cada módulo declara en su requerimiento qué envía y cuándo. El envío es **desacoplado de la respuesta**, por seguridad y no por rendimiento: `RF-SP-040` responde de forma indistinguible y esperar al envío delataría el caso por el tiempo. Se registra **D-23** para el mecanismo concreto —proveedor, desacople, reintentos y rebotes—. | Responsable técnico |
 | 0.10.0 | 22-08-2026 | §5.1 y §5.2 adoptan la disposición **por agregado dentro del módulo** —`domain/models`, `domain/repository`, `domain/service`, `application` e `interfaces`— y la tabla de dependencias se reescribe en consecuencia. La divergencia con la arquitectura hexagonal queda **declarada**: `domain` pasa a depender de JPA y las reglas de negocio dejan de ser probables sin base de datos. Se registran los cuatro puntos de `RF-SP-001` que la contradicen y que deben resolverse al aprobar sus tareas. | Responsable técnico |
 | 0.11.0 | 22-08-2026 | **Corrección de `ck_deletion_reason` (§6.6.3)**, detectada al implementar `RF-SP-001` · `T-01`. La restricción se transcribía sin comprobar la presencia del motivo, y con `reason` en nulo la comparación de longitud da `NULL`: `FALSE OR NULL` es `NULL`, y un `CHECK` que evalúa a `NULL` **acepta la fila**. La obligación del Art. V.13 podía saltarse omitiendo el campo. Gana `reason IS NOT NULL`, y `V4__create_audit_logs.sql` la declara así con prueba de integración para los tres casos —en blanco, solo espacios y nulo—. | Responsable técnico |
+| 0.12.0 | 24-08-2026 | Se registra **D-24**: **publicación del contrato OpenAPI hacia el frontend**. El Art. VIII.7 declara la especificación publicada como el **único** contrato entre los dos repositorios, y hasta ahora nadie había decidido **por dónde llega**: solo es obtenible de una instancia con `EXPOSE_API_DOCS` en `true`, lo que hoy significa en local y en ningún entorno desplegado. Sin resolverlo, el frontend acaba transcribiendo rutas de la tabla de `requirements/sp.md` §9 —que declara ser propuesta, no contrato— o de los `plan.md`, que es exactamente el acuerdo por fuera del contrato que VIII.7 prohíbe. Se detectó al preguntar de dónde debía el frontend obtener las rutas, junto con un defecto de `SecurityConfig` corregido en el mismo pase: `/v3/api-docs.yaml` respondía `401` porque no casa con el literal exacto ni con `/v3/api-docs/**`, y varias herramientas de generación de cliente piden el YAML por defecto. | Responsable técnico |
+| 0.12.0 | 24-08-2026 | Nueva tabla en §15 con [`ADR-001`](architecture/ADR-001-publicacion-del-contrato-openapi.md): el **contrato OpenAPI pasa a publicarse** como archivo versionado en `docs/api/openapi.json`, generado por `OpenApiContractIT` durante `mvn verify` y verificado en CI, que falla si lo comprometido no coincide con lo generado —el Art. VIII.6 hecho verificable—. Se descartó `springdoc-openapi-maven-plugin`, que arrancaría la aplicación una segunda vez cuando la suite ya la levanta con Testcontainers. Desbloquea `R-01` del frontend, que tenía cuarenta y dos de sus cuarenta y cuatro requerimientos detenidos. La consecuencia sobre `security.md` §6 se declara y se acepta: la reserva del contrato nunca fue un control, sino defensa en profundidad. | Responsable técnico |

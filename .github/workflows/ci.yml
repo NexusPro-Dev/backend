@@ -57,6 +57,22 @@ jobs:
       - name: Verificar
         run: mvn -B verify
 
+      # `OpenApiContractIT` reescribe docs/api/openapi.json durante `verify`.
+      # Si lo que acaba de generarse no coincide con lo comprometido, es que
+      # alguien cambió un endpoint y no regeneró el contrato: el Art. VIII.6
+      # trata esa divergencia como defecto, y aquí es donde se convierte en
+      # pipeline en rojo.
+      #
+      # `git add -N` marca el archivo como pendiente de añadir para que
+      # `git diff` lo vea también la primera vez, cuando todavía no está
+      # versionado. Sin eso, la primera ejecución pasaría en verde sin haber
+      # comprobado nada.
+      - name: El contrato publicado está al día
+        run: |
+          git add -N docs/api/openapi.json
+          git diff --exit-code -- docs/api/openapi.json \
+            || { echo "::error::El contrato ha cambiado. Ejecuta 'mvn verify' y commitea docs/api/openapi.json."; exit 1; }
+
       - name: Publicar el informe de cobertura
         if: always()
         uses: actions/upload-artifact@v4
