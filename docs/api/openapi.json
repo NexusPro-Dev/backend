@@ -55,6 +55,49 @@
         "required" : [ "supervisorId" ],
         "type" : "object"
       },
+      "ChangeAuditItem" : {
+        "properties" : {
+          "action" : {
+            "type" : "string"
+          },
+          "actorId" : {
+            "format" : "uuid",
+            "type" : "string"
+          },
+          "changes" : {
+            "$ref" : "#/components/schemas/JsonNode"
+          },
+          "correlationId" : {
+            "format" : "uuid",
+            "type" : "string"
+          },
+          "entity" : {
+            "type" : "string"
+          },
+          "entityId" : {
+            "format" : "uuid",
+            "type" : "string"
+          },
+          "id" : {
+            "format" : "uuid",
+            "type" : "string"
+          },
+          "ipAddress" : {
+            "type" : "string"
+          },
+          "module" : {
+            "type" : "string"
+          },
+          "occurredAt" : {
+            "format" : "date-time",
+            "type" : "string"
+          },
+          "userAgent" : {
+            "type" : "string"
+          }
+        },
+        "type" : "object"
+      },
       "ChangeCountryStatusRequest" : {
         "properties" : {
           "isActive" : {
@@ -82,6 +125,26 @@
             "type" : "string"
           }
         },
+        "type" : "object"
+      },
+      "ChangeRoleParentRequest" : {
+        "properties" : {
+          "parentRoleId" : {
+            "format" : "uuid",
+            "type" : "string"
+          }
+        },
+        "required" : [ "parentRoleId" ],
+        "type" : "object"
+      },
+      "ChangeRoleStatusRequest" : {
+        "properties" : {
+          "status" : {
+            "minLength" : 1,
+            "type" : "string"
+          }
+        },
+        "required" : [ "status" ],
         "type" : "object"
       },
       "ChangeUserStatusRequest" : {
@@ -221,9 +284,116 @@
         },
         "type" : "object"
       },
+      "DeleteRoleRequest" : {
+        "properties" : {
+          "reason" : {
+            "type" : "string"
+          }
+        },
+        "type" : "object"
+      },
       "DeleteUserRequest" : {
         "properties" : {
           "reason" : {
+            "type" : "string"
+          }
+        },
+        "type" : "object"
+      },
+      "DeletionAuditItem" : {
+        "properties" : {
+          "actorId" : {
+            "format" : "uuid",
+            "type" : "string"
+          },
+          "correlationId" : {
+            "format" : "uuid",
+            "type" : "string"
+          },
+          "deletionType" : {
+            "type" : "string"
+          },
+          "entity" : {
+            "type" : "string"
+          },
+          "entityId" : {
+            "format" : "uuid",
+            "type" : "string"
+          },
+          "id" : {
+            "format" : "uuid",
+            "type" : "string"
+          },
+          "ipAddress" : {
+            "type" : "string"
+          },
+          "module" : {
+            "type" : "string"
+          },
+          "occurredAt" : {
+            "format" : "date-time",
+            "type" : "string"
+          },
+          "reason" : {
+            "type" : "string"
+          },
+          "snapshot" : {
+            "$ref" : "#/components/schemas/JsonNode"
+          },
+          "userAgent" : {
+            "type" : "string"
+          }
+        },
+        "type" : "object"
+      },
+      "ErrorAuditItem" : {
+        "properties" : {
+          "actorId" : {
+            "format" : "uuid",
+            "type" : "string"
+          },
+          "correlationId" : {
+            "format" : "uuid",
+            "type" : "string"
+          },
+          "entityId" : {
+            "format" : "uuid",
+            "type" : "string"
+          },
+          "errorCode" : {
+            "type" : "string"
+          },
+          "errorType" : {
+            "type" : "string"
+          },
+          "httpStatus" : {
+            "format" : "int32",
+            "type" : "integer"
+          },
+          "id" : {
+            "format" : "uuid",
+            "type" : "string"
+          },
+          "ipAddress" : {
+            "type" : "string"
+          },
+          "message" : {
+            "type" : "string"
+          },
+          "occurredAt" : {
+            "format" : "date-time",
+            "type" : "string"
+          },
+          "operation" : {
+            "type" : "string"
+          },
+          "resource" : {
+            "type" : "string"
+          },
+          "severity" : {
+            "type" : "string"
+          },
+          "userAgent" : {
             "type" : "string"
           }
         },
@@ -259,6 +429,7 @@
         },
         "type" : "object"
       },
+      "JsonNode" : { },
       "ListCountriesRequest" : {
         "properties" : {
           "includeInactive" : {
@@ -512,11 +683,131 @@
         },
         "type" : "object"
       },
+      "PageResponseChangeAuditItem" : {
+        "properties" : {
+          "content" : {
+            "items" : {
+              "$ref" : "#/components/schemas/ChangeAuditItem"
+            },
+            "type" : "array"
+          },
+          "page" : {
+            "format" : "int32",
+            "type" : "integer"
+          },
+          "size" : {
+            "format" : "int32",
+            "type" : "integer"
+          },
+          "totalElements" : {
+            "format" : "int64",
+            "type" : "integer"
+          },
+          "totalIsExact" : {
+            "type" : "boolean"
+          },
+          "totalPages" : {
+            "format" : "int32",
+            "type" : "integer"
+          }
+        },
+        "type" : "object"
+      },
+      "PageResponseDeletionAuditItem" : {
+        "properties" : {
+          "content" : {
+            "items" : {
+              "$ref" : "#/components/schemas/DeletionAuditItem"
+            },
+            "type" : "array"
+          },
+          "page" : {
+            "format" : "int32",
+            "type" : "integer"
+          },
+          "size" : {
+            "format" : "int32",
+            "type" : "integer"
+          },
+          "totalElements" : {
+            "format" : "int64",
+            "type" : "integer"
+          },
+          "totalIsExact" : {
+            "type" : "boolean"
+          },
+          "totalPages" : {
+            "format" : "int32",
+            "type" : "integer"
+          }
+        },
+        "type" : "object"
+      },
+      "PageResponseErrorAuditItem" : {
+        "properties" : {
+          "content" : {
+            "items" : {
+              "$ref" : "#/components/schemas/ErrorAuditItem"
+            },
+            "type" : "array"
+          },
+          "page" : {
+            "format" : "int32",
+            "type" : "integer"
+          },
+          "size" : {
+            "format" : "int32",
+            "type" : "integer"
+          },
+          "totalElements" : {
+            "format" : "int64",
+            "type" : "integer"
+          },
+          "totalIsExact" : {
+            "type" : "boolean"
+          },
+          "totalPages" : {
+            "format" : "int32",
+            "type" : "integer"
+          }
+        },
+        "type" : "object"
+      },
       "PageResponsePerson" : {
         "properties" : {
           "content" : {
             "items" : {
               "$ref" : "#/components/schemas/Person"
+            },
+            "type" : "array"
+          },
+          "page" : {
+            "format" : "int32",
+            "type" : "integer"
+          },
+          "size" : {
+            "format" : "int32",
+            "type" : "integer"
+          },
+          "totalElements" : {
+            "format" : "int64",
+            "type" : "integer"
+          },
+          "totalIsExact" : {
+            "type" : "boolean"
+          },
+          "totalPages" : {
+            "format" : "int32",
+            "type" : "integer"
+          }
+        },
+        "type" : "object"
+      },
+      "PageResponseSecurityAuditItem" : {
+        "properties" : {
+          "content" : {
+            "items" : {
+              "$ref" : "#/components/schemas/SecurityAuditItem"
             },
             "type" : "array"
           },
@@ -778,6 +1069,22 @@
         },
         "type" : "object"
       },
+      "RolePermissionsRequest" : {
+        "properties" : {
+          "permissionIds" : {
+            "items" : {
+              "format" : "uuid",
+              "type" : "string"
+            },
+            "maxItems" : 100,
+            "minItems" : 0,
+            "type" : "array",
+            "uniqueItems" : true
+          }
+        },
+        "required" : [ "permissionIds" ],
+        "type" : "object"
+      },
       "RoleRef" : {
         "properties" : {
           "code" : {
@@ -851,6 +1158,49 @@
         },
         "type" : "object"
       },
+      "SecurityAuditItem" : {
+        "properties" : {
+          "actorId" : {
+            "format" : "uuid",
+            "type" : "string"
+          },
+          "correlationId" : {
+            "format" : "uuid",
+            "type" : "string"
+          },
+          "detail" : {
+            "$ref" : "#/components/schemas/JsonNode"
+          },
+          "eventType" : {
+            "type" : "string"
+          },
+          "id" : {
+            "format" : "uuid",
+            "type" : "string"
+          },
+          "ipAddress" : {
+            "type" : "string"
+          },
+          "occurredAt" : {
+            "format" : "date-time",
+            "type" : "string"
+          },
+          "outcome" : {
+            "type" : "string"
+          },
+          "severity" : {
+            "type" : "string"
+          },
+          "targetUserId" : {
+            "format" : "uuid",
+            "type" : "string"
+          },
+          "userAgent" : {
+            "type" : "string"
+          }
+        },
+        "type" : "object"
+      },
       "SessionResponse" : {
         "properties" : {
           "accessToken" : {
@@ -885,6 +1235,17 @@
           },
           "username" : {
             "type" : "string"
+          }
+        },
+        "type" : "object"
+      },
+      "UpdateRoleRequest" : {
+        "properties" : {
+          "description" : {
+            "$ref" : "#/components/schemas/PatchableString"
+          },
+          "name" : {
+            "$ref" : "#/components/schemas/PatchableString"
           }
         },
         "type" : "object"
@@ -1069,6 +1430,535 @@
   },
   "openapi" : "3.1.0",
   "paths" : {
+    "/api/v1/audit/changes" : {
+      "get" : {
+        "description" : "Altas y ediciones de todo el sistema, **del más reciente al más\nantiguo**. El orden no se puede cambiar: es parte del significado de un\nregistro cronológico.\n\n**`changes` se devuelve tal como se escribió**, sin interpretar: en un\n`CREATE` es el estado inicial del registro y en un `UPDATE` solo los\ncampos que cambiaron, cada uno con su `before` y su `after`.\n\n**`correlationId` enlaza con la petición** que produjo el evento, y con\nlo que esa misma petición dejó en los otros tres registros. Cuando son\nnulos, `correlationId` e `ipAddress` lo son **a la vez**: significa que\nel cambio no vino de la red —una migración, una tarea programada—, y\nnunca que se olvidara registrarlo. `actorId` nulo se lee igual: lo hizo\nel sistema.\n\n**Ningún filtro es obligatorio**, ni siquiera el rango de fechas: la\nconsulta que más valor tiene es la línea de tiempo completa de un\nregistro. `from` y `to` son **instantes** con zona horaria, no fechas\nsueltas, y el rango es **semiabierto** —incluye `from`, excluye `to`—\npara que dos rangos consecutivos no devuelvan dos veces el evento de la\nfrontera.\n\n**`entityId` y `actorId` no se validan contra nada**: la auditoría\nconserva eventos de registros que ya no existen, que es su razón de ser.\n",
+        "operationId" : "cambios",
+        "parameters" : [ {
+          "in" : "query",
+          "name" : "page",
+          "required" : false,
+          "schema" : {
+            "format" : "int32",
+            "type" : "integer"
+          }
+        }, {
+          "in" : "query",
+          "name" : "size",
+          "required" : false,
+          "schema" : {
+            "format" : "int32",
+            "type" : "integer"
+          }
+        }, {
+          "in" : "query",
+          "name" : "module",
+          "required" : false,
+          "schema" : {
+            "type" : "string"
+          }
+        }, {
+          "in" : "query",
+          "name" : "entity",
+          "required" : false,
+          "schema" : {
+            "type" : "string"
+          }
+        }, {
+          "in" : "query",
+          "name" : "entityId",
+          "required" : false,
+          "schema" : {
+            "format" : "uuid",
+            "type" : "string"
+          }
+        }, {
+          "in" : "query",
+          "name" : "actorId",
+          "required" : false,
+          "schema" : {
+            "format" : "uuid",
+            "type" : "string"
+          }
+        }, {
+          "in" : "query",
+          "name" : "action",
+          "required" : false,
+          "schema" : {
+            "type" : "string"
+          }
+        }, {
+          "in" : "query",
+          "name" : "from",
+          "required" : false,
+          "schema" : {
+            "format" : "date-time",
+            "type" : "string"
+          }
+        }, {
+          "in" : "query",
+          "name" : "to",
+          "required" : false,
+          "schema" : {
+            "format" : "date-time",
+            "type" : "string"
+          }
+        }, {
+          "in" : "query",
+          "name" : "correlationId",
+          "required" : false,
+          "schema" : {
+            "format" : "uuid",
+            "type" : "string"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/PageResponse"
+                }
+              }
+            },
+            "description" : "Página de eventos de cambio."
+          },
+          "400" : {
+            "description" : "Rango de fechas incoherente (`VAL-001`), paginación fuera de límites (`VAL-002`) o filtro fuera de su dominio (`VAL-003`). Se devuelven **juntos**"
+          },
+          "401" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/PageResponseChangeAuditItem"
+                }
+              }
+            },
+            "description" : "Token ausente o inválido (`AUTH-001`)"
+          },
+          "403" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/PageResponseChangeAuditItem"
+                }
+              }
+            },
+            "description" : "Autenticado sin `audit:read-changes` (`AUTH-002`)"
+          },
+          "500" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/PageResponseChangeAuditItem"
+                }
+              }
+            },
+            "description" : "Fallo no controlado (`ERR-500`)"
+          }
+        },
+        "summary" : "Consultar la auditoría de cambios",
+        "tags" : [ "Auditoría" ]
+      }
+    },
+    "/api/v1/audit/deletions" : {
+      "get" : {
+        "description" : "Qué se eliminó, quién lo eliminó y **por qué**, del más reciente al más\nantiguo.\n\n**`snapshot` es lo que hace útil a este registro**: el estado completo\ndel registro en el momento de borrarse. Sin él, la fila diría que un\nidentificador fue eliminado y nadie recordaría qué era.\n\n**`reason` va vacío en las eliminaciones de asociación** —retirar un\npermiso de un rol, por ejemplo—, y es correcto: lo que desaparece es una\nasociación y no una entidad de negocio, de modo que no exige motivo.\n\nEl filtro `reason` **busca por texto** dentro del motivo, sin distinguir\nacentos ni mayúsculas: es prosa que escribió una persona y nadie\nrecuerda cómo la redactó. Por lo mismo, buscar por motivo deja fuera las\neliminaciones de asociación, que no lo llevan.\n",
+        "operationId" : "eliminaciones",
+        "parameters" : [ {
+          "in" : "query",
+          "name" : "page",
+          "required" : false,
+          "schema" : {
+            "format" : "int32",
+            "type" : "integer"
+          }
+        }, {
+          "in" : "query",
+          "name" : "size",
+          "required" : false,
+          "schema" : {
+            "format" : "int32",
+            "type" : "integer"
+          }
+        }, {
+          "in" : "query",
+          "name" : "module",
+          "required" : false,
+          "schema" : {
+            "type" : "string"
+          }
+        }, {
+          "in" : "query",
+          "name" : "entity",
+          "required" : false,
+          "schema" : {
+            "type" : "string"
+          }
+        }, {
+          "in" : "query",
+          "name" : "entityId",
+          "required" : false,
+          "schema" : {
+            "format" : "uuid",
+            "type" : "string"
+          }
+        }, {
+          "in" : "query",
+          "name" : "actorId",
+          "required" : false,
+          "schema" : {
+            "format" : "uuid",
+            "type" : "string"
+          }
+        }, {
+          "in" : "query",
+          "name" : "deletionType",
+          "required" : false,
+          "schema" : {
+            "type" : "string"
+          }
+        }, {
+          "in" : "query",
+          "name" : "reason",
+          "required" : false,
+          "schema" : {
+            "type" : "string"
+          }
+        }, {
+          "in" : "query",
+          "name" : "from",
+          "required" : false,
+          "schema" : {
+            "format" : "date-time",
+            "type" : "string"
+          }
+        }, {
+          "in" : "query",
+          "name" : "to",
+          "required" : false,
+          "schema" : {
+            "format" : "date-time",
+            "type" : "string"
+          }
+        }, {
+          "in" : "query",
+          "name" : "correlationId",
+          "required" : false,
+          "schema" : {
+            "format" : "uuid",
+            "type" : "string"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/PageResponse"
+                }
+              }
+            },
+            "description" : "Página de eventos de eliminación."
+          },
+          "400" : {
+            "description" : "Rango incoherente (`VAL-001`), paginación fuera de límites (`VAL-002`) o tipo de eliminación fuera de su dominio (`VAL-003`)"
+          },
+          "401" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/PageResponseDeletionAuditItem"
+                }
+              }
+            },
+            "description" : "Token ausente o inválido (`AUTH-001`)"
+          },
+          "403" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/PageResponseDeletionAuditItem"
+                }
+              }
+            },
+            "description" : "Autenticado sin `audit:read-deletions` (`AUTH-002`)"
+          },
+          "500" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/PageResponseDeletionAuditItem"
+                }
+              }
+            },
+            "description" : "Fallo no controlado (`ERR-500`)"
+          }
+        },
+        "summary" : "Consultar la auditoría de eliminación",
+        "tags" : [ "Auditoría" ]
+      }
+    },
+    "/api/v1/audit/errors" : {
+      "get" : {
+        "description" : "Fallos no controlados y rechazos por regla de negocio, del más reciente\nal más antiguo.\n\n**El filtro para el que existe esta consulta es `correlationId`**:\nalguien reporta un error citando el identificador que la respuesta le\ndevolvió, y con él se llega al fallo concreto y a la traza técnica que\nlo acompaña.\n\n**Qué NO aparece aquí, y es la frontera que más importa:** la denegación\nde autorización (`403`) vive en la auditoría de **seguridad**, porque no\nes un fallo del sistema sino el sistema funcionando. Tampoco la\nvalidación de formato, el `401` ni el `404` — esos los cubre el registro\nde peticiones.\n\n`message` viene **ya saneado** desde que se escribió: sin trazas, sin\nSQL, sin rutas y sin versiones.\n",
+        "operationId" : "errores",
+        "parameters" : [ {
+          "in" : "query",
+          "name" : "page",
+          "required" : false,
+          "schema" : {
+            "format" : "int32",
+            "type" : "integer"
+          }
+        }, {
+          "in" : "query",
+          "name" : "size",
+          "required" : false,
+          "schema" : {
+            "format" : "int32",
+            "type" : "integer"
+          }
+        }, {
+          "in" : "query",
+          "name" : "errorType",
+          "required" : false,
+          "schema" : {
+            "type" : "string"
+          }
+        }, {
+          "in" : "query",
+          "name" : "severity",
+          "required" : false,
+          "schema" : {
+            "type" : "string"
+          }
+        }, {
+          "in" : "query",
+          "name" : "errorCode",
+          "required" : false,
+          "schema" : {
+            "type" : "string"
+          }
+        }, {
+          "in" : "query",
+          "name" : "resource",
+          "required" : false,
+          "schema" : {
+            "type" : "string"
+          }
+        }, {
+          "in" : "query",
+          "name" : "actorId",
+          "required" : false,
+          "schema" : {
+            "format" : "uuid",
+            "type" : "string"
+          }
+        }, {
+          "in" : "query",
+          "name" : "from",
+          "required" : false,
+          "schema" : {
+            "format" : "date-time",
+            "type" : "string"
+          }
+        }, {
+          "in" : "query",
+          "name" : "to",
+          "required" : false,
+          "schema" : {
+            "format" : "date-time",
+            "type" : "string"
+          }
+        }, {
+          "in" : "query",
+          "name" : "correlationId",
+          "required" : false,
+          "schema" : {
+            "format" : "uuid",
+            "type" : "string"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/PageResponse"
+                }
+              }
+            },
+            "description" : "Página de fallos registrados."
+          },
+          "400" : {
+            "description" : "Rango incoherente (`VAL-001`), paginación fuera de límites (`VAL-002`) o tipo o severidad fuera de su dominio (`VAL-003`)"
+          },
+          "401" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/PageResponseErrorAuditItem"
+                }
+              }
+            },
+            "description" : "Token ausente o inválido (`AUTH-001`)"
+          },
+          "403" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/PageResponseErrorAuditItem"
+                }
+              }
+            },
+            "description" : "Autenticado sin `audit:read-errors` (`AUTH-002`)"
+          },
+          "500" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/PageResponseErrorAuditItem"
+                }
+              }
+            },
+            "description" : "Fallo no controlado (`ERR-500`)"
+          }
+        },
+        "summary" : "Consultar la auditoría de error",
+        "tags" : [ "Auditoría" ]
+      }
+    },
+    "/api/v1/audit/security" : {
+      "get" : {
+        "description" : "Entradas, bloqueos, cambios de privilegio y denegaciones de\nautorización, del más reciente al más antiguo.\n\n**Esta consulta se registra a sí misma.** Cada llamada deja un evento\nde seguridad con quién la hizo, cuándo y **con qué filtros**: en este\nregistro, el acto de mirar es en sí mismo información de seguridad — y\nquién revisó los accesos de una cuenta ajena es exactamente la clase de\nhecho que conviene conservar. Es la diferencia con los otros tres, que\nse conforman con el registro de peticiones.\n\n**`targetUserId` es el filtro de la investigación de una cuenta**: qué\nle pasó a esta persona en estas fechas. Los **intentos de acceso\nfallidos no llevan usuario afectado** y por tanto no aparecen ahí: la\npresencia de ese campo delataría que la cuenta existe. Se localizan por\ntipo de evento y rango, leyendo el identificador intentado en `detail`.\n\n**`detail` no contiene credenciales en ninguna forma** —ni contraseñas,\nni resúmenes, ni tokens—, y eso se garantiza al escribir.\n",
+        "operationId" : "seguridad",
+        "parameters" : [ {
+          "in" : "query",
+          "name" : "page",
+          "required" : false,
+          "schema" : {
+            "format" : "int32",
+            "type" : "integer"
+          }
+        }, {
+          "in" : "query",
+          "name" : "size",
+          "required" : false,
+          "schema" : {
+            "format" : "int32",
+            "type" : "integer"
+          }
+        }, {
+          "in" : "query",
+          "name" : "eventType",
+          "required" : false,
+          "schema" : {
+            "type" : "string"
+          }
+        }, {
+          "in" : "query",
+          "name" : "severity",
+          "required" : false,
+          "schema" : {
+            "type" : "string"
+          }
+        }, {
+          "in" : "query",
+          "name" : "outcome",
+          "required" : false,
+          "schema" : {
+            "type" : "string"
+          }
+        }, {
+          "in" : "query",
+          "name" : "actorId",
+          "required" : false,
+          "schema" : {
+            "format" : "uuid",
+            "type" : "string"
+          }
+        }, {
+          "in" : "query",
+          "name" : "targetUserId",
+          "required" : false,
+          "schema" : {
+            "format" : "uuid",
+            "type" : "string"
+          }
+        }, {
+          "in" : "query",
+          "name" : "ipAddress",
+          "required" : false,
+          "schema" : {
+            "type" : "string"
+          }
+        }, {
+          "in" : "query",
+          "name" : "from",
+          "required" : false,
+          "schema" : {
+            "format" : "date-time",
+            "type" : "string"
+          }
+        }, {
+          "in" : "query",
+          "name" : "to",
+          "required" : false,
+          "schema" : {
+            "format" : "date-time",
+            "type" : "string"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/PageResponse"
+                }
+              }
+            },
+            "description" : "Página de eventos de seguridad."
+          },
+          "400" : {
+            "description" : "Rango incoherente (`VAL-001`), paginación fuera de límites (`VAL-002`) o tipo de evento, severidad o resultado fuera de su dominio (`VAL-003`)"
+          },
+          "401" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/PageResponseSecurityAuditItem"
+                }
+              }
+            },
+            "description" : "Token ausente o inválido (`AUTH-001`)"
+          },
+          "403" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/PageResponseSecurityAuditItem"
+                }
+              }
+            },
+            "description" : "Autenticado sin `audit:read-security` (`AUTH-002`)"
+          },
+          "500" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/PageResponseSecurityAuditItem"
+                }
+              }
+            },
+            "description" : "Fallo no controlado (`ERR-500`)"
+          }
+        },
+        "summary" : "Consultar la auditoría de seguridad",
+        "tags" : [ "Auditoría" ]
+      }
+    },
     "/api/v1/auth/login" : {
       "post" : {
         "description" : "Autentica con **nombre de usuario o correo** —el mismo campo para los\ndos— y entrega las credenciales de sesión.\n\nLa cuenta bloqueada recibe `423` y un mensaje que la identifica como\ntal: es una excepción consciente al mensaje genérico, porque quien\nprovocó el bloqueo ya sabe que la cuenta existe.\n\nSi la contraseña la fijó otra persona, la respuesta autentica **y\nadvierte** con `mustChangePassword`: hace falta una sesión para poder\ncambiarla.\n",
@@ -1309,7 +2199,7 @@
     "/api/v1/countries/{id}/status" : {
       "patch" : {
         "description" : "Cambia el estado de un país. Es lo **único** que la API puede modificar\nde un país.\n\nSe envía el estado destino, no una acción: pedir dos veces lo mismo deja\nel mismo estado y **no** registra un segundo evento.\n\n**Desactivar no es corregir**: el código y el nombre permanecen, y los\ndatos que ya los referencian siguen resolviéndolos. Evita que el error se\npropague desde ese momento, no lo repara.\n\nEl cuerpo no admite ningún otro campo ni motivo alguno.\n",
-        "operationId" : "cambiarEstado_2",
+        "operationId" : "cambiarEstado_3",
         "parameters" : [ {
           "in" : "path",
           "name" : "id",
@@ -1403,7 +2293,7 @@
     "/api/v1/currencies/{id}/status" : {
       "patch" : {
         "description" : "Cambia el estado de una moneda del catálogo. Es lo **único** que la API\npuede modificar de una moneda.\n\nSe envía el estado destino, no una acción: pedir dos veces lo mismo deja\nel mismo estado y **no** registra un segundo evento.\n\nLa moneda por defecto **no puede desactivarse**: los importes del sistema\nquedarían sin referencia válida. Cambiar cuál es la moneda por defecto es\nuna operación de migración, no de API.\n\nEl cuerpo no admite ningún otro campo ni motivo alguno.\n",
-        "operationId" : "cambiarEstado_1",
+        "operationId" : "cambiarEstado_2",
         "parameters" : [ {
           "in" : "path",
           "name" : "id",
@@ -1901,6 +2791,534 @@
           }
         },
         "summary" : "Consultar el detalle de un rol",
+        "tags" : [ "Roles" ]
+      },
+      "patch" : {
+        "description" : "Modifica el **nombre** y la **descripción**. Nada más: el código es\nestable por diseño —cambiarlo rompería cualquier referencia externa— y\nla clasificación es **inmutable**, porque determina si el rol puede\nllevar membresía y cambiarla dejaría membresías colgando de un rol que\nya no es consumidor. Los permisos, el estado y el rol padre tienen cada\nuno su operación.\n\nAl menos uno de los dos campos debe venir informado. `description`\nadmite `null` explícito —borrarla es una orden legítima—; `name` no,\nporque un rol sin nombre no existe.\n\n**Reenviar los valores actuales no es un error ni registra evento**: si\nnada cambió, no hay nada que auditar.\n\n**Un rol de sistema devuelve `409` y un rol que usted tiene asignado,\n`403`**. Lo segundo impide ampliar el alcance del rol con el que se\nestá entrando; alcanza solo a los roles asignados **directamente**, de\nmodo que un ancestro del propio sí puede editarse.\n",
+        "operationId" : "editar_1",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "id",
+          "required" : true,
+          "schema" : {
+            "format" : "uuid",
+            "type" : "string"
+          }
+        } ],
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/UpdateRoleRequest"
+              }
+            }
+          },
+          "required" : true
+        },
+        "responses" : {
+          "200" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/RoleResponse"
+                }
+              }
+            },
+            "description" : "Rol actualizado."
+          },
+          "400" : {
+            "description" : "Ningún campo informado (`VAL-001`), nombre vacío (`VAL-002`) o longitud excedida (`VAL-004`)"
+          },
+          "401" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/RoleResponse"
+                }
+              }
+            },
+            "description" : "Token ausente o inválido (`AUTH-001`)"
+          },
+          "403" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/RoleResponse"
+                }
+              }
+            },
+            "description" : "Sin `roles:update` (`AUTH-002`), o el rol está asignado al propio actor (`RN-SEG-011`)"
+          },
+          "404" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/RoleResponse"
+                }
+              }
+            },
+            "description" : "El rol no existe o está eliminado (`EX-004`)"
+          },
+          "409" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/RoleResponse"
+                }
+              }
+            },
+            "description" : "Rol de sistema (`RN-SEG-012`) o nombre ya en uso (`RN-SEG-001`)"
+          },
+          "500" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/RoleResponse"
+                }
+              }
+            },
+            "description" : "Fallo no controlado (`ERR-500`)"
+          }
+        },
+        "summary" : "Editar un rol",
+        "tags" : [ "Roles" ]
+      }
+    },
+    "/api/v1/roles/{id}/deletion" : {
+      "post" : {
+        "description" : "Elimina lógicamente el rol. **El motivo es obligatorio** y se verifica\n**antes de ejecutar nada** (Art. V.13); no se admite un valor generado\npor el sistema.\n\n**Se rechaza si el rol tiene roles hijos vigentes** —diciendo cuáles— o\n**personas asignadas** —diciendo cuántas— (`RN-SEG-008`). En el segundo\ncaso la respuesta sugiere **desactivar** el rol, que suele ser lo que\nen realidad se quería: retirar el acceso sin perder el rol. El conteo\nincluye a las personas inactivas y bloqueadas, y excluye a las\neliminadas.\n\nTras eliminarlo, **su código y su nombre quedan libres** para un rol\nnuevo, y el rol deja de aparecer en el listado por defecto. La\nauditoría de eliminación conserva el motivo y el rol completo —con sus\npermisos por código— para poder reconstruir qué era.\n\n**`POST` sobre un subrecurso y no `DELETE`**: el motivo viaja en el\ncuerpo, y un intermediario puede descartar el cuerpo de un `DELETE`.\n",
+        "operationId" : "eliminar_1",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "id",
+          "required" : true,
+          "schema" : {
+            "format" : "uuid",
+            "type" : "string"
+          }
+        } ],
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/DeleteRoleRequest"
+              }
+            }
+          },
+          "required" : true
+        },
+        "responses" : {
+          "204" : {
+            "description" : "Rol eliminado. Sin cuerpo."
+          },
+          "400" : {
+            "description" : "Motivo ausente o vacío (`VAL-001`, `VAL-002`)"
+          },
+          "401" : {
+            "description" : "Token ausente o inválido (`AUTH-001`)"
+          },
+          "403" : {
+            "description" : "Sin `roles:delete`, o el rol está asignado al propio actor (`RN-SEG-011`)"
+          },
+          "404" : {
+            "description" : "El rol no existe o ya está eliminado (`EX-006`)"
+          },
+          "409" : {
+            "description" : "Rol de sistema (`RN-SEG-012`), rol raíz (`RN-SEG-007`), o el rol tiene hijos o personas asignadas (`RN-SEG-008`)"
+          },
+          "500" : {
+            "description" : "Fallo no controlado (`ERR-500`)"
+          }
+        },
+        "summary" : "Eliminar un rol",
+        "tags" : [ "Roles" ]
+      }
+    },
+    "/api/v1/roles/{id}/parent" : {
+      "patch" : {
+        "description" : "Reubica el rol bajo otro padre y **revalida la contención contra el\nnuevo** (`RN-SEG-013`): si el rol declara permisos que el nuevo padre\nno posee, la operación se rechaza **entera** enumerándolos, para que\nusted decida cuáles retirar. **Nunca se recorta nada en silencio.**\n\n**Los hijos acompañan al rol** y no hay que revisarlos: si este cabe en\nel nuevo padre, ellos caben en este por transitividad.\n\nEl nuevo padre debe existir y estar **activo**, y no puede ser el\npropio rol ni uno de sus descendientes —eso formaría un ciclo—. Su\nclasificación es indiferente: un rol comercial puede colgar de uno\nfuncionario, porque el padre acota privilegios, no clasifica.\n\n**El rol raíz no admite padre** y ningún rol puede quedarse sin él:\n`RN-SEG-007` exige exactamente una cima.\n",
+        "operationId" : "cambiarPadre",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "id",
+          "required" : true,
+          "schema" : {
+            "format" : "uuid",
+            "type" : "string"
+          }
+        } ],
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/ChangeRoleParentRequest"
+              }
+            }
+          },
+          "required" : true
+        },
+        "responses" : {
+          "200" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/RoleResponse"
+                }
+              }
+            },
+            "description" : "Rol con su nuevo rol padre."
+          },
+          "400" : {
+            "description" : "Rol padre ausente o mal formado (`VAL-001`)"
+          },
+          "401" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/RoleResponse"
+                }
+              }
+            },
+            "description" : "Token ausente o inválido (`AUTH-001`)"
+          },
+          "403" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/RoleResponse"
+                }
+              }
+            },
+            "description" : "Sin `roles:update`, o el rol está asignado al propio actor (`RN-SEG-011`)"
+          },
+          "404" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/RoleResponse"
+                }
+              }
+            },
+            "description" : "El rol no existe o está eliminado (`EX-006`)"
+          },
+          "409" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/RoleResponse"
+                }
+              }
+            },
+            "description" : "Rol de sistema (`RN-SEG-012`), rol raíz (`RN-SEG-007`), ciclo en la jerarquía (`RN-SEG-006`) o permisos que el nuevo padre no concede (`RN-SEG-013`)"
+          },
+          "422" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/RoleResponse"
+                }
+              }
+            },
+            "description" : "El rol padre indicado no existe o no está activo (`EX-004`)"
+          },
+          "500" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/RoleResponse"
+                }
+              }
+            },
+            "description" : "Fallo no controlado (`ERR-500`)"
+          }
+        },
+        "summary" : "Cambiar el rol padre",
+        "tags" : [ "Roles" ]
+      }
+    },
+    "/api/v1/roles/{id}/permissions" : {
+      "post" : {
+        "description" : "Asocia permisos al rol. **La operación se aplica entera o no se\naplica**: un solo permiso que incumpla la contención rechaza la\npetición completa, porque aplicar los válidos dejaría el rol en un\nestado que nadie pidió.\n\nCada permiso debe estar **contenido en los del rol padre**\n(`RN-SEG-003`) y **en los permisos efectivos de quien ejecuta la\noperación** (`RN-SEG-010`). Lo segundo no lo concede `roles:update`:\nese permiso habilita a modificar roles, no a decidir con qué alcance.\n\n**El rol raíz omite la primera comprobación** —no tiene cota superior—\ny conserva la segunda.\n\n**Es idempotente y nunca retira nada**: los permisos ya declarados se\nignoran sin error, y si no queda ninguno por agregar no se registra\nevento. Hasta 100 por petición.\n",
+        "operationId" : "agregarPermisos",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "id",
+          "required" : true,
+          "schema" : {
+            "format" : "uuid",
+            "type" : "string"
+          }
+        } ],
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/RolePermissionsRequest"
+              }
+            }
+          },
+          "required" : true
+        },
+        "responses" : {
+          "200" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/RoleResponse"
+                }
+              }
+            },
+            "description" : "Rol con sus permisos actualizados."
+          },
+          "400" : {
+            "description" : "Sin permisos (`VAL-001`) o más de 100 (`VAL-006`)"
+          },
+          "401" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/RoleResponse"
+                }
+              }
+            },
+            "description" : "Token ausente o inválido (`AUTH-001`)"
+          },
+          "403" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/RoleResponse"
+                }
+              }
+            },
+            "description" : "Sin `roles:update`, o el rol está asignado al propio actor (`RN-SEG-011`)"
+          },
+          "404" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/RoleResponse"
+                }
+              }
+            },
+            "description" : "El rol no existe o está eliminado (`EX-006`)"
+          },
+          "409" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/RoleResponse"
+                }
+              }
+            },
+            "description" : "Rol de sistema (`RN-SEG-012`), permiso fuera del rol padre (`RN-SEG-003`) o fuera del alcance del actor (`RN-SEG-010`)"
+          },
+          "422" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/RoleResponse"
+                }
+              }
+            },
+            "description" : "Uno o más permisos no existen en el catálogo (`EX-003`)"
+          },
+          "500" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/RoleResponse"
+                }
+              }
+            },
+            "description" : "Fallo no controlado (`ERR-500`)"
+          }
+        },
+        "summary" : "Agregar permisos a un rol",
+        "tags" : [ "Roles" ]
+      }
+    },
+    "/api/v1/roles/{id}/permissions/revocations" : {
+      "post" : {
+        "description" : "Desasocia permisos del rol, con **eliminación física** de la asociación\ny **sin exigir motivo**: es una asociación y no una entidad de negocio.\n\n**Se rechaza si un rol hijo directo declara alguno de los permisos que\nse retiran** (`RN-SEG-005`), y el error dice **qué rol** declara **qué\npermiso**: sin ese detalle no habría forma de saber qué corregir. Los\nhijos **inactivos cuentan igual** que los activos —el invariante vale\nsiempre—, y los eliminados no.\n\n**No hay cascada**: nunca se retiran permisos de los descendientes.\nUsted decide en qué orden hacerlo.\n\n**Es idempotente**: los permisos que el rol no declaraba se ignoran sin\nerror. Hasta 100 por petición, el mismo límite que al agregarlos.\n\n**`POST` sobre un subrecurso y no `DELETE`**: la operación recibe una\nlista en el cuerpo, y RFC 9110 no define semántica para el cuerpo de un\n`DELETE`.\n",
+        "operationId" : "retirarPermisos",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "id",
+          "required" : true,
+          "schema" : {
+            "format" : "uuid",
+            "type" : "string"
+          }
+        } ],
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/RolePermissionsRequest"
+              }
+            }
+          },
+          "required" : true
+        },
+        "responses" : {
+          "200" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/RoleResponse"
+                }
+              }
+            },
+            "description" : "Rol con sus permisos actualizados."
+          },
+          "400" : {
+            "description" : "Sin permisos (`VAL-001`) o más de 100 (`VAL-004`)"
+          },
+          "401" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/RoleResponse"
+                }
+              }
+            },
+            "description" : "Token ausente o inválido (`AUTH-001`)"
+          },
+          "403" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/RoleResponse"
+                }
+              }
+            },
+            "description" : "Sin `roles:update`, o el rol está asignado al propio actor (`RN-SEG-011`)"
+          },
+          "404" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/RoleResponse"
+                }
+              }
+            },
+            "description" : "El rol no existe o está eliminado (`EX-004`)"
+          },
+          "409" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/RoleResponse"
+                }
+              }
+            },
+            "description" : "Rol de sistema (`RN-SEG-012`), o un rol dependiente declara el permiso (`RN-SEG-005`)"
+          },
+          "500" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/RoleResponse"
+                }
+              }
+            },
+            "description" : "Fallo no controlado (`ERR-500`)"
+          }
+        },
+        "summary" : "Retirar permisos de un rol",
+        "tags" : [ "Roles" ]
+      }
+    },
+    "/api/v1/roles/{id}/status" : {
+      "patch" : {
+        "description" : "**Desactivar no es retirar.** Las asignaciones a personas se conservan\nintactas; lo que cambia es que el rol **deja de conceder permisos de\ninmediato**, sin esperar a que ningún token expire.\n\nSe pide el **estado destino** —`ACTIVO` o `INACTIVO`— y no una acción,\nde modo que repetir la petición deja el mismo resultado y no registra\nevento.\n\n**El rol raíz no admite esta operación**, aparte de la prohibición\ngeneral sobre los roles de sistema: un rol raíz inactivo no concede\nnada, y eso dejaría al sistema sin su última vía de administración.\n\nEl cuerpo no admite motivo: el Art. V.13 lo exige solo en las\neliminaciones.\n",
+        "operationId" : "cambiarEstado_1",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "id",
+          "required" : true,
+          "schema" : {
+            "format" : "uuid",
+            "type" : "string"
+          }
+        } ],
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/ChangeRoleStatusRequest"
+              }
+            }
+          },
+          "required" : true
+        },
+        "responses" : {
+          "200" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/RoleResponse"
+                }
+              }
+            },
+            "description" : "Rol con su estado actualizado."
+          },
+          "400" : {
+            "description" : "Estado ausente o fuera del dominio (`VAL-001`)"
+          },
+          "401" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/RoleResponse"
+                }
+              }
+            },
+            "description" : "Token ausente o inválido (`AUTH-001`)"
+          },
+          "403" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/RoleResponse"
+                }
+              }
+            },
+            "description" : "Sin `roles:update`, o el rol está asignado al propio actor (`RN-SEG-011`)"
+          },
+          "404" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/RoleResponse"
+                }
+              }
+            },
+            "description" : "El rol no existe o está eliminado (`EX-003`)"
+          },
+          "409" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/RoleResponse"
+                }
+              }
+            },
+            "description" : "Rol de sistema (`RN-SEG-012`) o rol raíz (`RN-SEG-007`)"
+          },
+          "500" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/RoleResponse"
+                }
+              }
+            },
+            "description" : "Fallo no controlado (`ERR-500`)"
+          }
+        },
+        "summary" : "Activar o desactivar un rol",
         "tags" : [ "Roles" ]
       }
     },
@@ -2674,6 +4092,9 @@
   }, {
     "description" : "Catálogo de permisos del sistema. Solo lectura.",
     "name" : "Permisos"
+  }, {
+    "description" : "Los cuatro registros de auditoría del sistema. Solo lectura, y cada uno con su permiso.",
+    "name" : "Auditoría"
   }, {
     "description" : "Catálogo de países. Inmutable salvo su estado.",
     "name" : "Países"
