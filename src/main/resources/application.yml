@@ -89,6 +89,10 @@ nexus:
     count-limit: 10000
 
   audit:
+    # Retención del `request_log`. HOY NO LA LEE NADIE, y decirlo aquí evita la
+    # peor confusión posible: creer que la purga está activa porque el valor
+    # está puesto. La tabla existe desde `V35` (issue #23) y crece sin techo
+    # hasta que D-10 fije los días y alguien escriba el proceso que los aplica.
     request-log-retention-days: ${REQUEST_LOG_RETENTION_DAYS:}
 
   security:

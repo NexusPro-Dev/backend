@@ -5,7 +5,7 @@
 | Proyecto | NEXUS — Renovación de plataforma |
 | Empresa | FACTECH GROUP SAS |
 | Documento | `architecture.md` |
-| Versión | 0.14.0 |
+| Versión | 0.15.0 |
 | Estado | Borrador |
 | Responsable técnico | Bonilla Diaz William Steven |
 | Fecha de creación | 19-08-2026 |
@@ -398,6 +398,36 @@ Incluye `id` porque dos eventos pueden compartir instante, y sin desempate el or
 
 ---
 
+### 6.7 Registro de peticiones (`request_log`)
+
+**Existe desde `V35`, y hasta entonces era un hueco con forma de párrafo.** Cinco secciones de este documento lo daban por escrito —§6.6.1 lo cita como el otro extremo de `correlation_id`, §6.6.3 justifica en él la decisión de no llevar el motivo de eliminación en la URL, §8 dibuja su escritura fuera de la transacción, §9 le asigna la retención más corta y §11 su variable de entorno—, y la tabla no existía. La consecuencia no era teórica: §6.6.4 decide **no** auditar los `404`, los `400` de formato ni las peticiones mal dirigidas «porque `request_log` ya lo cubre», de modo que un **barrido de rutas** —el reconocimiento previo a un ataque— no dejaba rastro en ninguna parte del sistema.
+
+| Columna | Tipo | Por qué |
+|---|---|---|
+| `id` | `uuid` PK | `uuid` v7: ordenable por generación (§6.3) |
+| `occurred_at` | `timestamptz` NOT NULL | En UTC, como todo el sistema |
+| `correlation_id` | `uuid` NOT NULL | **Aquí no es nulable**, al contrario que en los cuatro registros de auditoría: aquellos admiten eventos de procesos internos, y esto solo lo escribe una petición HTTP |
+| `actor_id` | `uuid` NULL | **Nulo significa anónimo**, y es un dato. Sin clave foránea a `users`: la fila debe sobrevivir a la eliminación de la persona (§6.6.1) |
+| `method`, `path` | `varchar` NOT NULL | Qué se pidió |
+| `query_string` | `text` NULL | Los parámetros, tal como llegaron |
+| `status` | `smallint` NULL | **Nulo cuando la petición se abortó sin respuesta.** Un cero fingido diría que el sistema respondió cero |
+| `duration_ms` | `integer` NOT NULL | Lo que hace **verificables** los umbrales p95 del Art. XV.9, que hasta ahora no se podían medir porque no había de dónde |
+| `ip_address`, `user_agent` | `inet` / `text` NULL | El origen (Art. V.15) |
+
+**Ni cuerpo ni cabeceras, y no es una omisión.** Por ahí viajan contraseñas y tokens, y ningún saneador es de fiar sobre un contenido arbitrario: la única forma segura de no registrar un secreto es no registrar el cuerpo (Art. VI.5). El Art. XV.2 pide «parámetros», y eso es `query_string`.
+
+**Dónde se escribe.** En un filtro de servlet que **envuelve** al del límite de tasa y va **después** del de correlación: lo primero, para que un rechazo por ráfaga también quede registrado —si fuera al revés, el ataque más ruidoso sería el único invisible—; lo segundo, para que la fila lleve la misma correlación que el cliente recibe en su respuesta, que es lo que vuelve útil el identificador que se le muestra a quien reporta un error.
+
+**Fuera de la transacción de negocio y *best effort*** (Art. XV.7, §8): se escribe en una transacción propia una vez emitida la respuesta, y un fallo al registrar se anota en el log de aplicación sin alterar el resultado. Una operación revertida deja su fila igual — que el negocio fallara no significa que nadie llamara. Es la diferencia con los cuatro registros de auditoría, que se unen a la transacción de negocio y desaparecen con ella a propósito.
+
+**Qué queda fuera:** `/actuator/health`. La sonda del contenedor la llama cada diez segundos —unas ocho mil filas diarias en la tabla que más crece del sistema— y no responde ninguna pregunta: no es la petición de nadie, es el orquestador comprobando que el proceso vive.
+
+**El actor se apunta dentro de la cadena de seguridad**, no al escribir. Spring Security limpia su contexto en su propio `finally`, que corre **antes** que el de cualquier filtro que la envuelva: preguntándole al escribir, toda petición del sistema quedaría registrada como anónima, con filas que existen y parecen correctas. Lo copia un filtro colocado detrás de la autorización, mientras el dato todavía está.
+
+**Índices:** `(occurred_at DESC, id DESC)` para el listado cronológico, `(correlation_id)` para reconstruir una operación completa a partir del identificador que reportó el usuario, y `(actor_id, occurred_at DESC)` para «qué hizo esta persona». La purga sigue pendiente de **D-10**, que es quien fija los días.
+
+---
+
 ## 7. API
 
 ### 7.1 Convenciones
@@ -691,3 +721,4 @@ D-08 quedó cerrada en `security.md` §12, junto con las decisiones D-12 a D-15 
 | 0.12.0 | 24-08-2026 | Nueva tabla en §15 con [`ADR-001`](architecture/ADR-001-publicacion-del-contrato-openapi.md): el **contrato OpenAPI pasa a publicarse** como archivo versionado en `docs/api/openapi.json`, generado por `OpenApiContractIT` durante `mvn verify` y verificado en CI, que falla si lo comprometido no coincide con lo generado —el Art. VIII.6 hecho verificable—. Se descartó `springdoc-openapi-maven-plugin`, que arrancaría la aplicación una segunda vez cuando la suite ya la levanta con Testcontainers. Desbloquea `R-01` del frontend, que tenía cuarenta y dos de sus cuarenta y cuatro requerimientos detenidos. La consecuencia sobre `security.md` §6 se declara y se acepta: la reserva del contrato nunca fue un control, sino defensa en profundidad. | Responsable técnico |
 | 0.13.0 | 25-08-2026 | **Consecuencias de implementar los trece endpoints que faltaban del módulo** —`RF-SP-002` a `RF-SP-015`—. §7.4 declara que **`totalIsExact` deja de valer siempre verdadero**: sobre las tablas que crecen sin purga —los cuatro registros de auditoría— el conteo es **exacto hasta un techo** y aproximado por encima, contando sobre una subconsulta con `LIMIT techo + 1` que **nunca examina más filas que ese techo**, tenga la tabla mil o cien millones. El `COUNT(*)` exacto obliga a recorrer todas las filas que cumplen el predicado aunque solo se devuelvan veinte, y lo hace en cada página: con las tablas vacías no se nota y con dos años de operación son segundos por petición. Se declara además que **`totalPages` es una cota inferior** cuando el total no es exacto y que **pedir una página más allá sigue funcionando**, que es lo que impide que el techo se convierta en un muro; y que el ordenamiento **no siempre lo elige el cliente** —los listados de auditoría lo tienen fijo porque el orden es parte del significado de un registro cronológico—, que donde sí lo elige se resuelve contra una **lista blanca cerrada** antes de construir la consulta, y que a todo ordenamiento se le añade el identificador como **desempate**. §6.6.6 incorpora el **quinto índice mínimo**, `(occurred_at DESC, id DESC)`: los cuatro anteriores responden preguntas que empiezan por un filtro y **ninguno responde la del listado sin filtros**, que es la primera pantalla de los cuatro registros. Queda escrito por qué **no** se indexan `module`, `action`, `severity`, `outcome` ni `error_type` —columnas de dos o tres valores, que el planificador descarta— y que el coste no es neutro: **cada índice de estas tablas se paga en cada operación de negocio del sistema**. §6.6.4 fija por fin **cuándo la severidad de un rechazo es `ALTA`**: siete reglas que atacan la estructura del control de accesos, cada una con su motivo, frente al `MEDIA` por omisión de un duplicado o un padre inválido. | Responsable técnico |
 | 0.14.0 | 25-08-2026 | §7.2 declara por fin los dos códigos que la API ya devolvía sin estar en la tabla: **`423`** —la cuenta bloqueada, que `RF-SP-034` estrenó— y **`429`**, que entra con el límite de tasa (issue #21) y **lleva `Retry-After`**. Una tabla de códigos incompleta no es un detalle de redacción: es el documento al que se acude para saber qué puede recibir un cliente, y lo que no está en ella acaba tratándose como un error del servidor. | Responsable técnico |
+| 0.15.0 | 25-08-2026 | Nueva **§6.7: `request_log` existe** (issue #23, `V35`). Cinco secciones lo daban por escrito y la tabla no estaba, y el hueco no era teórico: §6.6.4 decide **no** auditar los `404`, los `400` de formato ni las peticiones mal dirigidas «porque `request_log` ya lo cubre», de modo que un **barrido de rutas** —el reconocimiento previo a un ataque— no dejaba rastro en ninguna parte. Se declaran las columnas y tres cosas que no se deducen del esquema: que `correlation_id` **no** es nulable aquí al contrario que en los cuatro registros de auditoría —aquellos admiten procesos internos, esto solo lo escribe una petición HTTP—; que **`status` nulo** significa que la petición se abortó sin respuesta, porque un cero fingido diría que el sistema respondió cero; y que el actor se apunta **dentro de la cadena de seguridad** y no al escribir, porque Spring Security limpia su contexto antes que el filtro que la envuelve y toda petición quedaría registrada como anónima — con filas que existen y parecen correctas. `duration_ms` vuelve **verificables** los umbrales p95 del Art. XV.9, que hasta ahora no se podían medir porque no había de dónde. La purga sigue pendiente de **D-10**. | Responsable técnico |

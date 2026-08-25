@@ -2,11 +2,11 @@
 
 | Campo | Valor |
 |---|---|
-| Versión | 0.8.0 |
+| Versión | 0.9.0 |
 | Estado | **Borrador** |
 | Responsable | Bonilla Diaz William Steven |
 | Fecha de creación | 21-08-2026 |
-| Última actualización | 22-08-2026 |
+| Última actualización | 25-08-2026 |
 
 !!! info "Qué va en este documento"
 
@@ -282,14 +282,24 @@ erDiagram
     }
 
     request_log {
-        uuid id PK "esquema sin definir"
-        uuid correlation_id "referenciado por las cuatro"
+        uuid id PK "uuid v7"
+        timestamptz occurred_at "UTC"
+        uuid correlation_id "NOT NULL · aquí no es nulable"
+        uuid actor_id "NULL = anónimo · sin FK"
+        varchar method "GET POST PUT PATCH DELETE"
+        varchar path "ruta sin cuerpo ni cabeceras"
+        text query_string "NULL · los parámetros"
+        smallint status "NULL = abortada sin respuesta"
+        integer duration_ms "umbrales p95 del Art XV.9"
+        inet ip_address "NULL"
+        text user_agent "NULL"
     }
 ```
 
 - **Las tres columnas de origen son nulables a la vez**, con un `CHECK` que lo impone: `correlation_id` e `ip_address` van juntas. Una fila sin IP significa «no vino de la red», nunca «se olvidó registrarla».
 - **`audit_security_log` es de solo inserción**, restringido a nivel de privilegios de base de datos y no por convención en el código. Un registro que la aplicación puede reescribir no prueba nada.
 - Las cuatro se leen en conjunto por una **vista de solo lectura** sobre el núcleo común, que exige los cuatro permisos de lectura.
+- **`request_log` ya no es un hueco**: existe desde `V35` (issue #23) y `architecture.md` §6.7 declara el porqué de cada columna. Dos diferencias con las cuatro de arriba, y ninguna es de estilo: su `correlation_id` **no** es nulable —aquellas admiten eventos de procesos internos, esto solo lo escribe una petición HTTP— y **no participa en la transacción de negocio**, de modo que una operación revertida deja su fila igual: que el negocio fallara no significa que nadie llamara.
 
 ---
 
@@ -327,7 +337,7 @@ flowchart TB
         C6["user_memberships"]
     end
 
-    OBS["request_log<br/>esquema sin definir"]
+    OBS["request_log<br/>V35 · escrita"]
 
     A1 --> A3
     A2 --> A3
@@ -352,7 +362,9 @@ flowchart TB
     class Q2,Q3,OBS,C1,C2,C3,C4,C5,C6 pend
 ```
 
-De las dieciséis tablas del dibujo, **siete están escritas** —`permissions`, las cuatro de auditoría, `roles` y `role_permissions`, en `V1` a `V7`—. De las nueve restantes, siete tienen migración declarada en algún `plan.md`, de `V13` a `V21`. Las dos que no: **`refresh_tokens`**, que crea `RF-SP-034`, y **`password_reset_tokens`**, que crea `RF-SP-040`. Ninguno de esos dos requerimientos tiene `plan.md` todavía, de modo que son las únicas tablas del modelo sin sitio asignado en la secuencia de migraciones.
+**Actualizado el 25-08-2026:** de las dieciséis tablas del dibujo **quince están escritas**, de `V1` a `V35`. La que falta es **`password_reset_tokens`**, que crea `RF-SP-040` —el único requerimiento del grupo sin `plan.md`—, y es por tanto la única tabla del modelo sin sitio asignado en la secuencia de migraciones. `refresh_tokens` dejó de estarlo al implementarse `RF-SP-034`, y `request_log` al cerrarse el issue #23 en `V35`.
+
+**Sobre la numeración de las migraciones.** La secuencia no es continua —falta el tramo `V8` a `V12`— y no es un descuido: esos números quedaron reservados en `plan.md` que se escribieron antes y se implementaron después, y Flyway **aborta el arranque** ante una migración fuera de orden sobre una base ya migrada. Cada archivo afectado lo explica en su cabecera.
 
 ---
 
@@ -362,7 +374,7 @@ De las dieciséis tablas del dibujo, **siete están escritas** —`permissions`,
 |---|---|---|
 | ~~1~~ | ~~**`memberships` no tiene vínculo con nada.**~~ **Resuelto el 22-08-2026 al aprobar el `plan.md` de `RF-SP-024`:** la asociación vive en **`user_memberships`**, tabla puente con `user_id` como **clave primaria** —que es `RN-SP-014` declarada en el esquema: una membresía por persona—. No es `users.membership_id` porque la asignación lleva vigencia propia, ni una columna en `roles` porque el nivel es de la persona y no del rol. La restricción de que solo los consumidores la tengan (`RN-SP-013`, `RN-SP-018`) **no** es expresable en el esquema: depende de `user_roles` y `roles.role_type`, y PostgreSQL no admite subconsultas en `CHECK` | — |
 | 2 | **`countries` y `currencies` son islas.** Existen sin una sola clave foránea entrante. Su razón de ser es futura —importes con moneda, direcciones con país—, pero conviene dejar escrito quién los referenciará. | `modules.md` §6, alcance por inventariar |
-| 3 | **`request_log` no tiene esquema.** Las cuatro tablas de auditoría lo referencian por `correlation_id` y `RF-SP-011` lo menciona en su postcondición, pero no hay columnas descritas en ningún documento. | `architecture.md` §9 |
+| ~~3~~ | ~~**`request_log` no tiene esquema.**~~ **Resuelto el 25-08-2026 (issue #23):** la tabla se crea en `V35` y sus columnas quedan declaradas en `architecture.md` §6.7 y en §3 de este documento. El hueco no era de documentación: la tabla **no existía**, y cinco secciones de la arquitectura la daban por escrita. Lo que se perdía mientras tanto era todo lo que el manejador global decide no auditar «porque `request_log` ya lo cubre» — los `404`, los `400` de formato y el barrido de rutas | `architecture.md` §6.7 |
 | 4 | **`audit_*.actor_id` no declara clave foránea a `users`.** Está documentado como `uuid NULL` sin relación. Si es deliberado —para que eliminar un usuario no arrastre ni bloquee su auditoría— conviene decirlo; si no, falta la restricción. | `architecture.md` §6.6.1 |
 | 5 | **Tres estrategias de baja distintas**: `roles` con `deleted_at`, `countries` y `currencies` con `is_active`, `memberships` con ninguna. Cada caso está justificado por separado, pero no hay una regla que diga cuándo se usa cada una. | `architecture.md` §6.4 |
 | 6 | **`modelo_v1.mwb` está desactualizado.** Trae `roles.assigned_role_id`, que `security.md` §9 renombra a `parent_role_id`. El modelo gráfico es material de referencia, no autoridad sobre el esquema (Art. V.3). | `DB/modelo_v1.mwb` |
@@ -385,3 +397,4 @@ De las dieciséis tablas del dibujo, **siete están escritas** —`permissions`,
 | 0.6.0 | 22-08-2026 | Entidad nueva `user_supervisors`, derivada de registrar `RF-SP-041` y `RF-SP-042`: la estructura comercial **persona → persona**, con historial y un solo superior vigente por persona. Es la primera tabla del modelo que relaciona dos usuarios entre sí. Se anota por qué lleva clave sustituta cuando las demás asociaciones no la llevan, y que **no concede alcance sobre los datos** —D-22 sigue abierta—. | Responsable técnico |
 | 0.7.0 | 22-08-2026 | Consecuencias de aprobar los `plan.md` de `RF-SP-025` a `RF-SP-029`. `users` incorpora **`deleted_at`**, que nace con la tabla en `V18` y no con `RF-SP-029` —`architecture.md` §6.4 la declara obligatoria en toda tabla de negocio y diez requerimientos la leen antes de que alguien la escriba—, y se anota qué requerimiento crea cada una de las tres columnas de control de acceso: las tres son de `RF-SP-034`. §1 incorpora **`user_memberships`**, que faltaba en el diagrama pese a haberla creado `RF-SP-024` \(`V20`\), y con ella queda **cerrado el hueco 1** de §5: la asociación entre una persona y su nivel vive en esa tabla puente, con `user_id` como clave primaria. | Responsable técnico |
 | 0.8.0 | 22-08-2026 | Revisión de completitud disparada por los flujos del módulo v0.3.0. §1 incorpora **`users.password_expires_at`** —`RF-SP-038` §7 exige fijar cuándo caduca la credencial provisional y el modelo solo declaraba la marca— y la tabla **`password_reset_tokens`**, que el permiso temporal de un solo uso de `RF-SP-040` exige y que no puede ser una columna porque tiene vigencia, consumo e invalidación propios. §4 añade `user_memberships`, que faltaba en el mapa, retira la pregunta «¿quién apunta aquí?» de `memberships` —`user_memberships` la responde desde la v0.7.0— y anota qué tablas están escritas y cuáles no tienen sitio en la secuencia de migraciones. La advertencia de cabecera deja de decir que no hay ninguna migración escrita: de `V1` a `V7` lo están. §5 suma cuatro pendientes: `role_permissions` ante el borrado lógico de un rol, las dos tablas sin migración declarada, la purga que nadie ejecuta y `PENDIENTE` sin transiciones. | Responsable técnico |
+| 0.9.0 | 25-08-2026 | **`request_log` deja de ser un hueco** (issue #23). §3 sustituye el marcador «esquema sin definir» por las once columnas reales que crea `V35`, §4 la marca como escrita en el mapa y §5 cierra el **pendiente 3**. Se anota lo que no se deduce del esquema: su `correlation_id` **no** es nulable al contrario que en las cuatro de auditoría —aquellas admiten eventos de procesos internos, esto solo lo escribe una petición HTTP—, un `status` nulo significa que la petición se abortó sin respuesta, y **no participa en la transacción de negocio**, de modo que una operación revertida deja su fila igual. Sigue faltando la purga, que depende de **D-10** (pendiente 9). | Responsable técnico |
