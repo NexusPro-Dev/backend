@@ -52,15 +52,35 @@ public class GlobalExceptionHandler {
   private static final Logger LOG = LoggerFactory.getLogger(GlobalExceptionHandler.class);
 
   /**
-   * Reglas cuya violación es un <b>intento de escalada de privilegios</b> y no un error de
-   * operación.
+   * Reglas cuya violación <b>ataca la estructura del control de accesos</b>, y no un error de
+   * operación cualquiera.
    *
-   * <p>Declarar permisos por encima del rol padre (`RN-SEG-003`) o por encima de los del propio
-   * actor (`RN-SEG-010`) debe poder encontrarse buscando por severidad, de ahí {@code ALTA}. El
-   * resto de los rechazos de negocio —duplicado, padre inválido, permiso inexistente— son {@code
-   * MEDIA} (`plan.md` §6).
+   * <p>Todas se registran con severidad {@code ALTA} para que puedan encontrarse buscando por
+   * severidad; el resto de los rechazos de negocio —duplicado, padre inválido, permiso inexistente—
+   * son {@code MEDIA}. Cada una está aquí por un motivo distinto:
+   *
+   * <ul>
+   *   <li>`RN-SEG-003` y `RN-SEG-010` — declarar permisos por encima del rol padre o de los del
+   *       propio actor es un intento de <b>escalada de privilegios</b> (`RF-SP-001` §6).
+   *   <li>`RN-SEG-013` — lo mismo, por la puerta de atrás: reubicar un rol bajo un padre que no
+   *       concede sus permisos (`RF-SP-008` §6).
+   *   <li>`RN-SEG-005` — retirarle a un padre un permiso que un hijo declara rompe el invariante de
+   *       contención en sentido inverso (`RF-SP-006` §6).
+   *   <li>`RN-SEG-006` y `RN-SEG-007` — un ciclo o una segunda raíz <b>corrompen la jerarquía
+   *       entera</b>, no un rol (`RF-SP-008` §6, `RF-SP-007` §6).
+   *   <li>`RN-SEG-008` — intentar eliminar un rol con hijos o con personas asignadas es un intento
+   *       de retirar accesos en bloque sin dejar rastro de a quién (`RF-SP-009` §6).
+   * </ul>
    */
-  private static final Set<String> REGLAS_DE_ESCALADA = Set.of("RN-SEG-003", "RN-SEG-010");
+  private static final Set<String> REGLAS_DE_ESCALADA =
+      Set.of(
+          "RN-SEG-003",
+          "RN-SEG-005",
+          "RN-SEG-006",
+          "RN-SEG-007",
+          "RN-SEG-008",
+          "RN-SEG-010",
+          "RN-SEG-013");
 
   /**
    * Restricciones declaradas {@code DEFERRABLE INITIALLY DEFERRED} cuya violación es un <b>empate
