@@ -2,6 +2,8 @@ package com.factech.nexus.modules.system.permissions.interfaces;
 
 import com.factech.nexus.modules.system.permissions.application.ListPermissionsRequest;
 import com.factech.nexus.modules.system.permissions.application.PermissionCatalogResponse;
+import com.factech.nexus.modules.system.permissions.application.PermissionResponse;
+import com.factech.nexus.modules.system.permissions.domain.service.GetPermissionService;
 import com.factech.nexus.modules.system.permissions.domain.service.ListPermissionsService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
@@ -10,9 +12,11 @@ import io.swagger.v3.oas.annotations.media.Schema;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.tags.Tag;
+import java.util.UUID;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.ModelAttribute;
+import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
@@ -35,9 +39,11 @@ import org.springframework.web.bind.annotation.RestController;
 public class PermissionController {
 
   private final ListPermissionsService permissions;
+  private final GetPermissionService detalle;
 
-  public PermissionController(ListPermissionsService permissions) {
+  public PermissionController(ListPermissionsService permissions, GetPermissionService detalle) {
     this.permissions = permissions;
+    this.detalle = detalle;
   }
 
   @GetMapping
@@ -69,5 +75,57 @@ public class PermissionController {
           ListPermissionsRequest request) {
 
     return PermissionCatalogResponse.from(permissions.list(request.toQuery()));
+  }
+
+  /**
+   * Detalle de un permiso (`RF-SP-015`).
+   *
+   * <p><b>La ruta no lleva restricción de patrón</b>, y es deliberado: declararla como {@code
+   * /{id:[0-9a-fA-F-]{36}}} haría que un identificador mal formado no encontrara manejador y Spring
+   * respondiera {@code 404} — precisamente el error que `spec.md` §13 prohíbe. La forma canónica la
+   * exige {@code CanonicalUuidConverter}, cuyo fallo se traduce a {@code 400}.
+   */
+  @GetMapping("/{id}")
+  @PreAuthorize("hasAuthority('permissions:read')")
+  @Operation(
+      summary = "Consultar el detalle de un permiso",
+      description =
+          """
+          Devuelve qué habilita un permiso concreto: código, recurso, acción,
+          nombre y descripción. Es la consulta de apoyo a la asignación de
+          permisos a un rol, y se llega a ella desde el catálogo.
+
+          **Se accede solo por identificador, nunca por código**: admitir dos
+          formas de direccionar el mismo recurso obliga a distinguir en cada
+          petición cuál llegó. El código es la vía para *encontrar* el permiso, y
+          para eso está el filtro del catálogo.
+
+          **No devuelve los roles que lo declaran** —es el recorrido inverso y
+          corresponde a una consulta propia— ni marcas temporales: en una tabla
+          que solo cambia por migración, esas fechas dicen cuándo se desplegó una
+          migración y no cuándo ocurrió algo de negocio.
+
+          `description` puede venir vacía, y entonces se devuelve como `null`,
+          nunca omitida.
+          """)
+  @ApiResponses({
+    @ApiResponse(
+        responseCode = "200",
+        description = "Detalle del permiso.",
+        content = @Content(schema = @Schema(implementation = PermissionResponse.class))),
+    @ApiResponse(
+        responseCode = "400",
+        description = "El identificador no es un UUID en forma canónica (`VAL-001`)"),
+    @ApiResponse(responseCode = "401", description = "Token ausente o inválido (`AUTH-001`)"),
+    @ApiResponse(
+        responseCode = "403",
+        description = "Autenticado sin el permiso `permissions:read` (`AUTH-002`)"),
+    @ApiResponse(
+        responseCode = "404",
+        description = "No existe un permiso con ese identificador (`EX-001`)"),
+    @ApiResponse(responseCode = "500", description = "Fallo no controlado (`ERR-500`)")
+  })
+  public PermissionResponse detail(@PathVariable UUID id) {
+    return detalle.detail(id);
   }
 }

@@ -726,6 +726,58 @@
         "required" : [ "roleIds" ],
         "type" : "object"
       },
+      "RoleDetailResponse" : {
+        "properties" : {
+          "assignedUserCount" : {
+            "format" : "int64",
+            "type" : "integer"
+          },
+          "childRoleCount" : {
+            "format" : "int64",
+            "type" : "integer"
+          },
+          "code" : {
+            "type" : "string"
+          },
+          "createdAt" : {
+            "format" : "date-time",
+            "type" : "string"
+          },
+          "description" : {
+            "type" : "string"
+          },
+          "id" : {
+            "format" : "uuid",
+            "type" : "string"
+          },
+          "isSystem" : {
+            "type" : "boolean"
+          },
+          "name" : {
+            "type" : "string"
+          },
+          "parentRole" : {
+            "$ref" : "#/components/schemas/RoleSummaryResponse"
+          },
+          "permissions" : {
+            "items" : {
+              "$ref" : "#/components/schemas/PermissionResponse"
+            },
+            "type" : "array"
+          },
+          "roleType" : {
+            "type" : "string"
+          },
+          "status" : {
+            "type" : "string"
+          },
+          "updatedAt" : {
+            "format" : "date-time",
+            "type" : "string"
+          }
+        },
+        "type" : "object"
+      },
       "RoleRef" : {
         "properties" : {
           "code" : {
@@ -1591,7 +1643,176 @@
         "tags" : [ "Permisos" ]
       }
     },
+    "/api/v1/permissions/{id}" : {
+      "get" : {
+        "description" : "Devuelve qué habilita un permiso concreto: código, recurso, acción,\nnombre y descripción. Es la consulta de apoyo a la asignación de\npermisos a un rol, y se llega a ella desde el catálogo.\n\n**Se accede solo por identificador, nunca por código**: admitir dos\nformas de direccionar el mismo recurso obliga a distinguir en cada\npetición cuál llegó. El código es la vía para *encontrar* el permiso, y\npara eso está el filtro del catálogo.\n\n**No devuelve los roles que lo declaran** —es el recorrido inverso y\ncorresponde a una consulta propia— ni marcas temporales: en una tabla\nque solo cambia por migración, esas fechas dicen cuándo se desplegó una\nmigración y no cuándo ocurrió algo de negocio.\n\n`description` puede venir vacía, y entonces se devuelve como `null`,\nnunca omitida.\n",
+        "operationId" : "detail",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "id",
+          "required" : true,
+          "schema" : {
+            "format" : "uuid",
+            "type" : "string"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/PermissionResponse"
+                }
+              }
+            },
+            "description" : "Detalle del permiso."
+          },
+          "400" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/PermissionResponse"
+                }
+              }
+            },
+            "description" : "El identificador no es un UUID en forma canónica (`VAL-001`)"
+          },
+          "401" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/PermissionResponse"
+                }
+              }
+            },
+            "description" : "Token ausente o inválido (`AUTH-001`)"
+          },
+          "403" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/PermissionResponse"
+                }
+              }
+            },
+            "description" : "Autenticado sin el permiso `permissions:read` (`AUTH-002`)"
+          },
+          "404" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/PermissionResponse"
+                }
+              }
+            },
+            "description" : "No existe un permiso con ese identificador (`EX-001`)"
+          },
+          "500" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/PermissionResponse"
+                }
+              }
+            },
+            "description" : "Fallo no controlado (`ERR-500`)"
+          }
+        },
+        "summary" : "Consultar el detalle de un permiso",
+        "tags" : [ "Permisos" ]
+      }
+    },
     "/api/v1/roles" : {
+      "get" : {
+        "description" : "Listado paginado con filtros, búsqueda y ordenamiento. Es la entrada\nnatural a la administración de accesos: de aquí se navega al detalle de\ncada rol.\n\n**El orden por defecto es `code,asc`**: el código es el identificador\ncon el que se habla de un rol en la documentación y en la auditoría.\nSolo se puede ordenar por la lista blanca —`code`, `name`, `roleType`,\n`status`, `createdAt`, `updatedAt`—; cualquier otro campo devuelve\n`400` y **no llega a la base de datos**.\n\n**No incluye los permisos de cada rol** ni el número de usuarios\nasignados: la primera pregunta la responde el detalle\n(`GET /api/v1/roles/{id}`) y la segunda se hace sobre un rol concreto,\nno sobre la lista.\n\n**`parentRoleId` no se valida contra el catálogo.** Filtra por el padre\n**directo** —no por el subárbol— y uno inexistente devuelve la\ncolección vacía, que no es un error.\n\nLa búsqueda va sobre código y nombre, **sin distinguir acentos ni\nmayúsculas**, y por fragmento: `academico` encuentra\n`LIDER_ACADEMICO`. Un término en blanco equivale a no filtrar.\n\n**Los eliminados quedan fuera salvo que se pidan** con\n`includeDeleted=true`; cuando se piden, `deletedAt` es lo que permite\ndistinguirlos.\n",
+        "operationId" : "listar_1",
+        "parameters" : [ {
+          "in" : "query",
+          "name" : "page",
+          "required" : false,
+          "schema" : {
+            "format" : "int32",
+            "type" : "integer"
+          }
+        }, {
+          "in" : "query",
+          "name" : "size",
+          "required" : false,
+          "schema" : {
+            "format" : "int32",
+            "type" : "integer"
+          }
+        }, {
+          "in" : "query",
+          "name" : "sort",
+          "required" : false,
+          "schema" : {
+            "type" : "string"
+          }
+        }, {
+          "in" : "query",
+          "name" : "status",
+          "required" : false,
+          "schema" : {
+            "type" : "string"
+          }
+        }, {
+          "in" : "query",
+          "name" : "roleType",
+          "required" : false,
+          "schema" : {
+            "type" : "string"
+          }
+        }, {
+          "in" : "query",
+          "name" : "parentRoleId",
+          "required" : false,
+          "schema" : {
+            "format" : "uuid",
+            "type" : "string"
+          }
+        }, {
+          "in" : "query",
+          "name" : "search",
+          "required" : false,
+          "schema" : {
+            "type" : "string"
+          }
+        }, {
+          "in" : "query",
+          "name" : "includeDeleted",
+          "required" : false,
+          "schema" : {
+            "type" : "boolean"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/PageResponse"
+                }
+              }
+            },
+            "description" : "Página de roles."
+          },
+          "400" : {
+            "description" : "Paginación fuera de límites, campo de ordenamiento no admitido (`VAL-003`), o `status`/`roleType` fuera de su dominio (`VAL-004`). Se evalúan y se devuelven **juntos** en `errors`"
+          },
+          "401" : {
+            "description" : "Token ausente o inválido (`AUTH-001`)"
+          },
+          "403" : {
+            "description" : "Autenticado sin `roles:read` (`AUTH-002`)"
+          },
+          "500" : {
+            "description" : "Fallo no controlado (`ERR-500`)"
+          }
+        },
+        "summary" : "Consultar roles",
+        "tags" : [ "Roles" ]
+      },
       "post" : {
         "description" : "Registra un rol bajo un rol padre existente y activo, con los permisos que\nse declaren.\n\nLos permisos deben estar contenidos en los del rol padre (`RN-SEG-003`) y en\nlos permisos efectivos de quien ejecuta el alta (`RN-SEG-010`). Declararlos es\nopcional: sin ellos el rol queda registrado y a la espera de `RF-SP-005`.\n\nEl rol nace siempre **activo** y nunca de sistema. Ni `status` ni `isSystem`\nse admiten en el cuerpo: enviarlos devuelve `400`.\n",
         "operationId" : "registrar_1",
@@ -1636,6 +1857,50 @@
           }
         },
         "summary" : "Registrar un rol",
+        "tags" : [ "Roles" ]
+      }
+    },
+    "/api/v1/roles/{id}" : {
+      "get" : {
+        "description" : "Devuelve el alcance exacto de un rol: **la lista completa de los\npermisos que declara**, su rol padre, **cuántos** roles cuelgan de él y\n**cuántas** personas lo tienen asignado.\n\n**Los permisos son los declarados, sin recorrer la cadena de\nancestros** (`RN-SEG-004`): el modelo no usa herencia, y esa decisión\nexiste precisamente para que esta pregunta se responda leyendo una sola\nlista. Van completos y sin paginar, ordenados por código.\n\n**`childRoleCount` es un número, nunca una lista**: el listado de hijos\nse obtiene con `GET /api/v1/roles?parentRoleId={id}`, que ya está\npaginado. Así el tamaño de la respuesta no depende de cuántos hijos\ntenga el rol.\n\n**`assignedUserCount` cuenta personas distintas**, en cualquier estado\n—incluidas las inactivas y las bloqueadas— y **excluyendo las\neliminadas**: alguien bloqueado sigue portando el rol, y su existencia\nes lo que impide borrarlo. Cero es un dato, no una ausencia. **No exige\n`users:read`**: es un agregado sin identidad, y quien quiera saber\nquiénes son usa `GET /api/v1/users?roleId={id}`.\n\nUn rol **eliminado devuelve el mismo `404`** que uno inexistente, sin\nninguna pista de que existió.\n",
+        "operationId" : "detalle_1",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "id",
+          "required" : true,
+          "schema" : {
+            "format" : "uuid",
+            "type" : "string"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/RoleDetailResponse"
+                }
+              }
+            },
+            "description" : "Detalle del rol."
+          },
+          "400" : {
+            "description" : "El identificador no es un UUID en forma canónica (`VAL-001`)"
+          },
+          "401" : {
+            "description" : "Token ausente o inválido (`AUTH-001`)"
+          },
+          "403" : {
+            "description" : "Autenticado sin `roles:read` (`AUTH-002`)"
+          },
+          "404" : {
+            "description" : "No existe el rol, o está eliminado lógicamente (`EX-001`)"
+          },
+          "500" : {
+            "description" : "Fallo no controlado (`ERR-500`)"
+          }
+        },
+        "summary" : "Consultar el detalle de un rol",
         "tags" : [ "Roles" ]
       }
     },
