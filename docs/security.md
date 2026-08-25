@@ -5,7 +5,7 @@
 | Proyecto | NEXUS — Renovación de plataforma |
 | Empresa | FACTECH GROUP SAS |
 | Documento | `security.md` |
-| Versión | 0.24.0 |
+| Versión | 0.27.0 |
 | Estado | Borrador |
 | Responsable técnico | Bonilla Diaz William Steven |
 | Fecha de creación | 19-08-2026 |
@@ -299,6 +299,28 @@ Si llega un refresh token revocado **por rotación**, el sistema asume robo de c
 - Los endpoints de autenticación **NO DEBEN** revelar si un usuario existe, ni en el mensaje ni en el tiempo de respuesta.
 - Los refresh tokens expirados o revocados se purgan según la política de retención.
 
+#### 5.5.1 Las cotas concretas, y por qué esas
+
+Implantadas el 25-08-2026. Los números viven en configuración —`nexus.security.rate-limit`— y no en el código, porque un despliegue detrás de una pasarela corporativa, donde miles de personas comparten dirección de salida, necesita otros:
+
+| Endpoint | Por origen | Por identidad | Ventana |
+|---|---|---|---|
+| Inicio de sesión | 10 | 5 | 1 minuto |
+| Refresco | 60 | — | 1 minuto |
+| Recuperación de contraseña | 10 | 3 | 1 hora |
+
+Quien teclea mal su contraseña reintenta dos o tres veces; diez por minuto desde una misma dirección ya es una herramienta. La cota **por credencial es más estricta que la del origen** a propósito, y la del origen es la que de verdad importa: el rociado de contraseñas reparte los intentos entre muchas cuentas y **no dispara el bloqueo de ninguna**, porque deja un solo fallo en cada una.
+
+En el refresco el margen es enorme porque una interfaz con varias pestañas refresca en ráfaga; lo que se corta es el bucle. Y la de recuperación es la más estricta por lo que ya dice la regla de arriba: tres al día bastan para quien de verdad olvidó su contraseña.
+
+**Esto no sustituye al bloqueo por intentos fallidos de §3.2, ni al revés.** Aquel cuenta fallos de credencial contra **una cuenta** y la protege; este cuenta **peticiones**, acierten o fallen, y protege al sistema —incluido el caso en que provocar bloqueos ajenos sea el ataque—.
+
+Tres consecuencias declaradas:
+
+- **El rechazo es `429`** con `Retry-After` y un miembro `retryAfterSeconds` que el cliente **descuenta**: un mensaje que diga «vuelva en dos minutos» es cierto al serializarse y deja de serlo enseguida.
+- **La cuenta vive en memoria del proceso**, de modo que **el límite es por instancia**: con tres réplicas el techo real se triplica. Es aceptable con una sola instancia y deja de serlo al escalar; compartirlo exige almacenamiento común, que hoy no existe (**D-09**).
+- **La cota de recuperación está declarada y todavía no se aplica**, porque su endpoint no existe: `RF-SP-040` sigue bloqueado por **D-23**. La regla está registrada para que el día que exista no dependa de que alguien la recuerde.
+
 ---
 
 ## 6. Aplicación de la autorización
@@ -412,12 +434,21 @@ Los siguientes **DEBEN** registrarse en `audit_security_log` (Art. IV.7), ademá
 | **Baja de un usuario** | Alta | `SUCCESS` |
 | Cambio o restablecimiento de contraseña | Alta | `SUCCESS` |
 | **Cambio del correo de un usuario** | Alta | `SUCCESS` |
+| **Ráfaga que topa con el límite de tasa** | Alta | `FAILURE` |
 
 El **alta de un usuario** entró el 22-08-2026, al aprobarse el plan de `RF-SP-024`. Faltaba por cuándo se escribió este documento —antes de que `SP` absorbiera los usuarios—, y su ausencia era contradictoria: la creación de un **rol** sí estaba en el catálogo, y crear a la persona que porta ese rol pesa al menos igual. `CA-SP-200` lo exige, y el evento lleva en su detalle los roles concedidos en el alta. **Es un solo evento, no dos**: aunque el alta conceda roles, no emite además el de «asignación o retiro de roles», porque una sola operación produciría dos hechos y cualquier recuento de asignaciones contaría de más.
 
 La **baja de un usuario** entró el 22-08-2026, al aprobarse el plan de `RF-SP-029`, y su ausencia era la misma asimetría que la del alta: la **eliminación de un rol** sí estaba en el catálogo, y la de la persona que lo portaba no. `RF-SP-014` §2 había resuelto el hueco provisionalmente asignándole `USER_STATUS_CHANGED`; se corrige con código propio, `USER_DELETED`, aplicando el criterio que aquel mismo plan declara: se desdobla lo que se pregunta por separado, y «quién eliminó usuarios» es exactamente esa clase de pregunta. **No es un cambio de estado**: la eliminación ni siquiera toca `status`, que se conserva tal como estaba para que el registro de eliminación diga en qué situación estaba la persona al eliminarse.
 
 El **cambio de correo** entró en este catálogo el 21-08-2026, al aprobarse `RF-SP-027`, y conviene entender por qué: desde `RF-SP-024` el correo es una de las dos formas de iniciar sesión, de modo que modificar el de una cuenta ajena altera **cómo esa persona entra en el sistema**. Es el patrón clásico de apropiación de cuentas, y por eso pesa distinto que corregirle el apellido, que **no** emite evento aquí.
+
+El **rechazo por límite de tasa** entró el 25-08-2026, con `V34`, y el catálogo pasa de diecinueve a **veinte** códigos. Tres cosas conviene que queden escritas:
+
+- **No reutiliza «inicio de sesión fallido»**, y no por pulcritud: en un rechazo por tasa la credencial **ni siquiera llega a comprobarse**. Mezclarlos corrompería las dos lecturas que este registro sirve —el contador de intentos de una cuenta y la investigación de un acceso—, porque una ráfaga bloqueada inflaría el primero sin que nadie haya fallado una contraseña.
+- **Severidad alta**, aunque el sistema esté funcionando: quien topa con el límite hace algo que ningún cliente legítimo hace, y debe poder encontrarse buscando por severidad junto a los intentos de escalada.
+- **Se emite una vez por ventana y por eje**, no una por petición rechazada. Una ráfaga de mil peticiones por segundo escribiría mil filas por segundo: la defensa se convertiría en el ataque, y el registro quedaría sepultado justo cuando hace falta leerlo. Sí se emite **uno por cada eje** —origen e identidad—, porque son dos hechos distintos y los dos interesan.
+
+Su detalle lleva la operación y el eje que se agotó, **nunca la identidad**: decir «esta cuenta está limitada» confirmaría que existe.
 
 La denegación de autorización se registra **aquí y no en `audit_error_log`**: un `403` no es un fallo del sistema, es el sistema funcionando. Tratarlo como error contamina la búsqueda de fallos reales (`architecture.md` §6.6.4).
 
@@ -580,3 +611,4 @@ RNF-SEG-002 merece atención: es una prueba que enumera los endpoints registrado
 | 0.22.0 | 24-08-2026 | Consecuencias de aprobar los **planes** de `RF-SP-037` a `RF-SP-042`. §3.2 incorpora la **caducidad de la credencial provisional** que fija `RF-SP-038`: sin ella, una cuenta restablecida y nunca usada conserva indefinidamente una credencial conocida por otra persona, y nadie se entera porque no falla nada; se persiste en `users.provisional_password_expires_at` y la comprueba `RF-SP-034` al autenticar. §5.5 incorpora la **limitación de tasa de la recuperación de contraseña**, por identidad y por origen y más estricta que todas las demás: es la única operación pública que provoca un envío saliente, y sin cota permite inundar de correos a una persona real y sondear identidades en masa. Ningún cambio en el **catálogo cerrado** de §8.1 pese a los seis requerimientos: el intento fallido de cambio de contraseña, la sesión agotada y las dos etapas de la recuperación se distinguen con la columna `outcome` y con `detail`, en lugar de añadir literales que obligarían a alterar `ck_audit_security_log_event_type` para separar lo que dos columnas ya separan. | Responsable técnico |
 | 0.23.0 | 24-08-2026 | Consecuencia de [`ADR-001`](architecture/ADR-001-publicacion-del-contrato-openapi.md). El contrato OpenAPI pasa a **publicarse como archivo versionado** en `docs/api/openapi.json`, de modo que la reserva en que §6 apoyaba el cierre de `/v3/api-docs` —«describe cada endpoint y cada permiso del sistema»— **deja de existir**. Se acepta a conciencia y con el argumento escrito: esa reserva nunca fue un control, sino defensa en profundidad, porque todo endpoint deniega por defecto y exige su permiso (Art. IV.1); lo que se pierde es encarecer el reconocimiento. **`EXPOSE_API_DOCS` no cambia** y sigue en `false`: que el contrato sea legible en el repositorio no autoriza a dejar Swagger abierto en un entorno en ejecución. La decisión se reabre si el repositorio pasa a ser privado. | Responsable técnico |
 | 0.24.0 | 25-08-2026 | Nueva **§6.1: orígenes autorizados del navegador (CORS)**, que cierra el pendiente n.º 2 de [`ADR-001`](architecture/ADR-001-publicacion-del-contrato-openapi.md). Publicar el contrato no bastaba: sin autorización de origen, toda llamada del frontend fallaba en el navegador aunque la petición fuera correcta, estuviera autenticada y el backend respondiera `200` — y el síntoma no menciona nunca al backend. Lo que la sección fija es **dónde vive la lista y qué no se admite**: los orígenes llegan por `CORS_ALLOWED_ORIGINS` y **no se escriben en el código** (Art. IX.1) —uno quemado obliga a recompilar para desplegar bajo otro dominio y acaba autorizando en producción el `localhost` de alguien—; **vacío es ningún origen autorizado**, que es el valor seguro y no rompe a quien consume la API de servidor a servidor; y el comodín `*`, junto con todo origen que no casaría nunca —sin esquema, con barra final o con ruta—, **tumba el arranque** (Art. IX.5) en lugar de fallar semanas después en el navegador de quien consume. `allowCredentials` queda en `false` porque no hay cookie de sesión (D-08). La comprobación previa `OPTIONS` se resuelve **antes de la autorización** y por eso no entra en la lista de rutas públicas: el navegador nunca le adjunta `Authorization`, y exigir credencial ahí cerraría toda ruta protegida al frontend. La lista concreta por entorno desplegado queda pendiente junto con **D-21**. | Responsable técnico |
+| 0.27.0 | 25-08-2026 | **El límite de tasa deja de ser una obligación escrita y pasa a existir** (issue #21). §5.5 gana el apartado **5.5.1** con las cotas concretas —10/min por origen y 5/min por credencial en el inicio de sesión, 60/min en el refresco, 10/hora y 3/hora en la recuperación— y con el motivo de cada una. Lo que estas cotas cubren y el bloqueo de §3.2 no: el **rociado de contraseñas** reparte los intentos entre muchas cuentas y no dispara el bloqueo de ninguna, porque deja un solo fallo en cada una; y provocar bloqueos ajenos a propósito era hasta hoy una denegación de servicio gratuita contra sus titulares. Los números **viven en configuración y no en el código**, porque un despliegue detrás de una pasarela corporativa —miles de personas compartiendo dirección de salida— necesita otros. Se declaran tres consecuencias: el rechazo es `429` con `Retry-After` y un `retryAfterSeconds` que el cliente **descuenta** —un texto con «vuelva en dos minutos» es cierto al serializarse y deja de serlo enseguida—; la cuenta vive **en memoria del proceso**, de modo que el límite es **por instancia** y deja de bastar al escalar (**D-09**); y la cota de recuperación está **declarada y sin aplicar**, porque su endpoint sigue bloqueado por **D-23**. §8.1 incorpora el vigésimo evento del catálogo cerrado, **la ráfaga que topa con el límite**, con severidad **Alta**: no reutiliza «inicio de sesión fallido» porque en un rechazo por tasa **la credencial ni siquiera llega a comprobarse**, y mezclarlos inflaría el contador de intentos de una cuenta sin que nadie haya fallado una contraseña. Se emite **una vez por ventana y por eje** —origen e identidad—, no una por petición rechazada: mil peticiones por segundo serían mil filas por segundo, y la defensa se convertiría en el ataque. Su detalle **nunca lleva la identidad**: decir «esta cuenta está limitada» confirmaría que existe. | Responsable técnico |

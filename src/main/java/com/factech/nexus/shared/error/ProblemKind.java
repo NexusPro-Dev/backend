@@ -34,6 +34,22 @@ public enum ProblemKind {
 
   NO_AUTENTICADO(HttpStatus.UNAUTHORIZED, "no-autenticado", "Se requiere autenticación"),
 
+  /**
+   * Demasiadas peticiones en poco tiempo (`security.md` §5.5).
+   *
+   * <p>Lo produce el filtro de límite de tasa, <b>antes</b> de la cadena de seguridad y por tanto
+   * fuera del alcance de {@link GlobalExceptionHandler}: la respuesta la escribe el propio filtro,
+   * con esta misma forma para que el cliente no tenga que distinguir dos formatos de error.
+   *
+   * <p>Acompaña al estado la cabecera {@code Retry-After} y el miembro {@code retryAfterSeconds}:
+   * un mensaje que dijera «vuelva en dos minutos» es cierto al serializarse y deja de serlo
+   * enseguida, mientras que un número de segundos el cliente lo <b>descuenta</b>.
+   */
+  DEMASIADAS_PETICIONES(
+      HttpStatus.TOO_MANY_REQUESTS,
+      "demasiadas-peticiones",
+      "Demasiadas peticiones en poco tiempo"),
+
   SIN_PERMISO(HttpStatus.FORBIDDEN, "sin-permiso", "No tiene permiso para ejecutar esta operación"),
 
   INTERNO(HttpStatus.INTERNAL_SERVER_ERROR, "interno", "Error interno");

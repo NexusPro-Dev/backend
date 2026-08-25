@@ -100,6 +100,46 @@ nexus:
 
     trusted-proxies: ${TRUSTED_PROXIES:}
 
+    # Límite de tasa de los endpoints públicos de autenticación (`security.md`
+    # §5.5). NO es el bloqueo por intentos fallidos: aquel cuenta fallos de
+    # credencial contra UNA cuenta y la protege; este cuenta PETICIONES, acierten
+    # o fallen, y protege al sistema del rociado de contraseñas —que no dispara
+    # ningún bloqueo— y de que provocar bloqueos ajenos sea gratis.
+    #
+    # `capacity` acota cuántas llaves distintas se recuerdan a la vez: la llave
+    # la elige quien llama —su IP, el identificador que teclea—, de modo que un
+    # mapa sin tope es memoria que el atacante controla.
+    rate-limit:
+      # Apagable SOLO para pruebas de otros requerimientos, que emiten ráfagas
+      # contra el login a propósito. En un entorno real no debería tocarse.
+      enabled: ${RATE_LIMIT_ENABLED:true}
+      capacity: 20000
+
+      # Quien teclea mal su contraseña reintenta dos o tres veces; diez por
+      # minuto desde una misma IP ya es una herramienta. La cota por credencial
+      # es más estricta a propósito, y aun así quien ataca una cuenta concreta
+      # topa antes con los cinco intentos del bloqueo.
+      login:
+        por-origen: 10
+        por-identidad: 5
+        ventana: PT1M
+
+      # Un cliente legítimo refresca cada quince minutos: el margen es enorme a
+      # propósito, porque una interfaz con varias pestañas refresca en ráfaga.
+      # Lo que se corta es el bucle, que consulta la base en cada llamada.
+      refresh:
+        por-origen: 60
+        ventana: PT1M
+
+      # La cota más estricta de las tres, y no por prudencia: es la única
+      # operación pública que provoca un ENVÍO SALIENTE. Sin ella se puede
+      # inundar de correos a una persona real y sondear identidades en masa.
+      # Declarada aunque su endpoint no exista todavía (`RF-SP-040`, D-23).
+      recovery:
+        por-origen: 10
+        por-identidad: 3
+        ventana: PT1H
+
     # Orígenes que el navegador puede usar para llamar a esta API, separados
     # por coma y con la forma esquema://host[:puerto]. Cambian por entorno, de
     # modo que llegan por variable y NO se escriben en el código (Art. IX.1).
