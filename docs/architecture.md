@@ -5,11 +5,11 @@
 | Proyecto | NEXUS — Renovación de plataforma |
 | Empresa | FACTECH GROUP SAS |
 | Documento | `architecture.md` |
-| Versión | 0.12.0 |
+| Versión | 0.13.0 |
 | Estado | Borrador |
 | Responsable técnico | Bonilla Diaz William Steven |
 | Fecha de creación | 19-08-2026 |
-| Última actualización | 22-08-2026 |
+| Última actualización | 25-08-2026 |
 | Documento superior | `constitution.md` v0.5.0 |
 | Documento relacionado | `security.md` v0.3.0 |
 
@@ -329,6 +329,18 @@ El `snapshot` es lo que vuelve útil a este registro. Sin él, la fila dice que 
 
 La última fila es la frontera que importa: una denegación no es un error del sistema, es el sistema funcionando. Registrarla como error contamina la búsqueda de fallos reales.
 
+**Cuándo la severidad es `ALTA`.** Un rechazo de negocio es `MEDIA` por omisión —un duplicado, un padre inválido, un permiso inexistente—, y sube a `ALTA` cuando **ataca la estructura del control de accesos**, para que esos casos puedan encontrarse buscando por severidad. Son siete reglas, y cada una está ahí por un motivo distinto:
+
+| Regla | Por qué es `ALTA` |
+|---|---|
+| `RN-SEG-003`, `RN-SEG-010` | Declarar permisos por encima del rol padre o de los del propio actor: **escalada de privilegios** |
+| `RN-SEG-013` | Lo mismo por la puerta de atrás: reubicar un rol bajo un padre que no concede sus permisos |
+| `RN-SEG-005` | Retirarle a un padre un permiso que un hijo declara rompe la contención **en sentido inverso** |
+| `RN-SEG-006`, `RN-SEG-007` | Un ciclo o una segunda raíz **corrompen la jerarquía entera**, no un rol |
+| `RN-SEG-008` | Eliminar un rol con hijos o con personas asignadas es retirar accesos en bloque sin dejar rastro de a quién |
+
+La lista vive en un solo sitio del código —`GlobalExceptionHandler`— y cada requerimiento que declare una regla con esta naturaleza añade la suya ahí.
+
 **Esa tabla se declara en el esquema, no solo aquí.** Desde el 21-08-2026, al aprobar el plan de `RF-SP-013`:
 
 ```sql
@@ -376,6 +388,13 @@ La vista es **solo de lectura**: nada se escribe a través de ella. Cada tabla s
 | `(actor_id, occurred_at DESC)` | Todo lo que hizo una persona |
 | `(correlation_id)` | El enlace con `request_log` |
 | `(ip_address)` | Investigación por origen |
+| `(occurred_at DESC, id DESC)` | **Los últimos eventos de todo el sistema** — añadido en `V33` |
+
+**Por qué el quinto no estaba y hace falta.** Los cuatro primeros responden preguntas que **empiezan por un filtro**. Ninguno responde la del listado **sin filtros**, que es la primera pantalla de `RF-SP-011` a `RF-SP-014`: un B-tree sobre `(entity, entity_id, occurred_at DESC)` no sirve para ordenar por `occurred_at` a secas, porque sus dos primeras columnas mandan en el orden. Sin él, devolver veinte filas obliga a ordenar la tabla entera.
+
+Incluye `id` porque dos eventos pueden compartir instante, y sin desempate el orden de las empatadas queda a criterio del plan de ejecución — que puede cambiar entre la página 1 y la 2. Al ser `id` un **UUID v7**, cuya marca temporal vive en los bits altos (Art. V.11), ese desempate sigue siendo orden cronológico y no arbitrario.
+
+**Qué índices NO se crean, y es tan decisión como los que sí.** Ninguno por `module`, `action`, `severity`, `outcome` ni `error_type`: son columnas de dos o tres valores, y un índice que parte la tabla en mitades no acota nada — el planificador lo descarta. Y el coste no es neutro: **cada índice de estas tablas se paga en cada operación de negocio del sistema**, porque cada una emite su evento dentro de la misma transacción (Art. V.14). En una tabla *append-only* de alto volumen el criterio es el mínimo que sostiene las consultas reales, no el máximo que podría servir. Las dos excepciones, ambas en `V33`, tienen cardinalidad de verdad: `(error_code, occurred_at DESC)` —«cuántas veces falló esto»— y el índice GIN de trigramas sobre el motivo de eliminación, **parcial** porque las asociaciones no llevan motivo.
 
 ---
 
@@ -455,6 +474,22 @@ GET /api/v1/roles?page=0&size=20&sort=name,asc
 **Tamaño por defecto 20, máximo 100.** Se declara en configuración y es **uniforme para todo el sistema**, no por endpoint: un techo distinto en cada colección obligaría a consultarlo caso por caso y se volvería inconsistente con el tiempo. El techo acota el coste de una petición sin estorbar a una integración que recorra un catálogo.
 
 La respuesta incluye el total de elementos, el total de páginas y la página actual. Una petición con `size` superior al máximo **se rechaza**; no se recorta en silencio, porque el cliente creería haber recibido lo que pidió.
+
+#### El total puede no ser exacto, y la respuesta lo declara
+
+La envoltura lleva además **`totalIsExact`**, y desde `RF-SP-011` significa algo:
+
+- **Sobre tablas acotadas** —roles, permisos, catálogos, personas— el total es el número real y la marca vale `true` siempre. Nada cambia para sus clientes.
+- **Sobre tablas que crecen sin purga** —los cuatro registros de auditoría— el conteo es **exacto hasta un techo** y aproximado por encima. La sentencia cuenta sobre una subconsulta con `LIMIT techo + 1`, de modo que **nunca examina más filas que ese techo**, tenga la tabla mil o cien millones. Superado, el total publicado **es** el techo y la marca vale `false`.
+
+El motivo es que un `COUNT(*)` exacto obliga a recorrer todas las filas que cumplen el predicado aunque solo se devuelvan veinte, y lo hace en cada página: con las tablas vacías no se nota y con dos años de operación son segundos por petición. La inmensa mayoría de las consultas siguen dando el número real, porque quien audita llega con un filtro; el techo lo toca sobre todo el listado sin filtros, que es justo donde el total exacto menos informa.
+
+Dos consecuencias que conviene tener presentes:
+
+- **`totalPages` es una cota inferior** cuando el total no es exacto, y **pedir una página más allá de esa cota sigue funcionando**: devuelve contenido si lo hay y colección vacía si no. Es lo que impide que el techo se convierta en un muro.
+- **El techo es configuración** —`nexus.pagination.count-limit`, junto a los otros dos valores— y no una constante. Subirlo recupera el total exacto siempre; quitarlo devuelve el recorrido completo.
+
+**El ordenamiento no siempre lo elige el cliente.** Los listados de auditoría ordenan de forma fija por `occurred_at DESC, id DESC`, porque el orden es parte del significado de un registro cronológico: uno que pudiera ordenarse por módulo respondería otra pregunta. Donde sí es configurable —`sort=campo,sentido`— el campo se resuelve contra una **lista blanca cerrada** antes de construir la consulta, de modo que la cadena del cliente nunca llega al `ORDER BY`; y a todo ordenamiento se le añade el identificador como **desempate**, sin declararlo el cliente, o dos páginas consecutivas pueden repetir una fila y omitir otra.
 
 ---
 
@@ -652,3 +687,4 @@ D-08 quedó cerrada en `security.md` §12, junto con las decisiones D-12 a D-15 
 | 0.11.0 | 22-08-2026 | **Corrección de `ck_deletion_reason` (§6.6.3)**, detectada al implementar `RF-SP-001` · `T-01`. La restricción se transcribía sin comprobar la presencia del motivo, y con `reason` en nulo la comparación de longitud da `NULL`: `FALSE OR NULL` es `NULL`, y un `CHECK` que evalúa a `NULL` **acepta la fila**. La obligación del Art. V.13 podía saltarse omitiendo el campo. Gana `reason IS NOT NULL`, y `V4__create_audit_logs.sql` la declara así con prueba de integración para los tres casos —en blanco, solo espacios y nulo—. | Responsable técnico |
 | 0.12.0 | 24-08-2026 | Se registra **D-24**: **publicación del contrato OpenAPI hacia el frontend**. El Art. VIII.7 declara la especificación publicada como el **único** contrato entre los dos repositorios, y hasta ahora nadie había decidido **por dónde llega**: solo es obtenible de una instancia con `EXPOSE_API_DOCS` en `true`, lo que hoy significa en local y en ningún entorno desplegado. Sin resolverlo, el frontend acaba transcribiendo rutas de la tabla de `requirements/sp.md` §9 —que declara ser propuesta, no contrato— o de los `plan.md`, que es exactamente el acuerdo por fuera del contrato que VIII.7 prohíbe. Se detectó al preguntar de dónde debía el frontend obtener las rutas, junto con un defecto de `SecurityConfig` corregido en el mismo pase: `/v3/api-docs.yaml` respondía `401` porque no casa con el literal exacto ni con `/v3/api-docs/**`, y varias herramientas de generación de cliente piden el YAML por defecto. | Responsable técnico |
 | 0.12.0 | 24-08-2026 | Nueva tabla en §15 con [`ADR-001`](architecture/ADR-001-publicacion-del-contrato-openapi.md): el **contrato OpenAPI pasa a publicarse** como archivo versionado en `docs/api/openapi.json`, generado por `OpenApiContractIT` durante `mvn verify` y verificado en CI, que falla si lo comprometido no coincide con lo generado —el Art. VIII.6 hecho verificable—. Se descartó `springdoc-openapi-maven-plugin`, que arrancaría la aplicación una segunda vez cuando la suite ya la levanta con Testcontainers. Desbloquea `R-01` del frontend, que tenía cuarenta y dos de sus cuarenta y cuatro requerimientos detenidos. La consecuencia sobre `security.md` §6 se declara y se acepta: la reserva del contrato nunca fue un control, sino defensa en profundidad. | Responsable técnico |
+| 0.13.0 | 25-08-2026 | **Consecuencias de implementar los trece endpoints que faltaban del módulo** —`RF-SP-002` a `RF-SP-015`—. §7.4 declara que **`totalIsExact` deja de valer siempre verdadero**: sobre las tablas que crecen sin purga —los cuatro registros de auditoría— el conteo es **exacto hasta un techo** y aproximado por encima, contando sobre una subconsulta con `LIMIT techo + 1` que **nunca examina más filas que ese techo**, tenga la tabla mil o cien millones. El `COUNT(*)` exacto obliga a recorrer todas las filas que cumplen el predicado aunque solo se devuelvan veinte, y lo hace en cada página: con las tablas vacías no se nota y con dos años de operación son segundos por petición. Se declara además que **`totalPages` es una cota inferior** cuando el total no es exacto y que **pedir una página más allá sigue funcionando**, que es lo que impide que el techo se convierta en un muro; y que el ordenamiento **no siempre lo elige el cliente** —los listados de auditoría lo tienen fijo porque el orden es parte del significado de un registro cronológico—, que donde sí lo elige se resuelve contra una **lista blanca cerrada** antes de construir la consulta, y que a todo ordenamiento se le añade el identificador como **desempate**. §6.6.6 incorpora el **quinto índice mínimo**, `(occurred_at DESC, id DESC)`: los cuatro anteriores responden preguntas que empiezan por un filtro y **ninguno responde la del listado sin filtros**, que es la primera pantalla de los cuatro registros. Queda escrito por qué **no** se indexan `module`, `action`, `severity`, `outcome` ni `error_type` —columnas de dos o tres valores, que el planificador descarta— y que el coste no es neutro: **cada índice de estas tablas se paga en cada operación de negocio del sistema**. §6.6.4 fija por fin **cuándo la severidad de un rechazo es `ALTA`**: siete reglas que atacan la estructura del control de accesos, cada una con su motivo, frente al `MEDIA` por omisión de un duplicado o un padre inválido. | Responsable técnico |

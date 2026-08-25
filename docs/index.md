@@ -119,13 +119,13 @@ Ninguna línea de código se escribe antes de que la tripleta esté aprobada (Ar
 | Documento | Versión | Estado |
 |---|---|---|
 | [Constitución](constitution.md) | 0.7.0 | Borrador |
-| [Arquitectura](architecture.md) | 0.8.0 | Borrador |
-| [Seguridad](security.md) | 0.14.0 | Borrador |
-| [Mapa modular](modules.md) | 0.9.0 | Borrador |
+| [Arquitectura](architecture.md) | 0.12.0 | Borrador |
+| [Seguridad](security.md) | 0.24.0 | Borrador |
+| [Mapa modular](modules.md) | 0.10.0 | Borrador |
 | [Modelo de datos](modelo-datos.md) | 0.8.0 | Borrador |
-| [Requerimientos y trazabilidad](requirements.md) | 0.17.0 | Borrador |
-| [Guía de desarrollo](development-guide.md) | 0.5.0 | Borrador |
-| [Requerimientos de `SP`](requirements/sp.md) | 1.10.0 | **Aprobado** |
+| [Requerimientos y trazabilidad](requirements.md) | 0.46.0 | Borrador |
+| [Guía de desarrollo](development-guide.md) | 0.6.0 | Borrador |
+| [Requerimientos de `SP`](requirements/sp.md) | 1.21.0 | **Aprobado** |
 | [Flujos de `SP` · del módulo](flujos/sp/flujos-del-modulo.md) | 0.3.0 | Borrador |
 | [Flujos de `SP` · por caso](flujos/sp/flujos-por-caso.md) | 0.2.0 | Borrador |
 | Estrategia de pruebas | — | Pendiente |
@@ -134,7 +134,9 @@ Ninguna línea de código se escribe antes de que la tripleta esté aprobada (Ar
 
 **Cerradas:** PostgreSQL como único motor · claves `uuid` v7 · Java 21 LTS con Spring Boot 3 y Maven · migraciones Flyway · auditoría separada en cuatro registros —cambios, eliminación, error y seguridad— más `request_log`, todos con IP de origen · motivo obligatorio en toda eliminación, en **texto libre y sin catálogo de códigos** (D-20) · umbrales p95 de rendimiento · repositorios separados con contrato OpenAPI · autenticación JWT con refresh revocable · contención de privilegios entre roles · permisos `recurso:acción` · Argon2id.
 
-**Pendientes:** infraestructura de despliegue · **publicación del contrato OpenAPI hacia el frontend** (D-24) · retención por registro · política de idempotencia · parámetros concretos de seguridad · catálogo inicial de permisos · restablecimiento de contraseña · identidad para procesos automáticos · lista de proxies confiables por entorno · **modelo de alcance de datos** (D-22), del que dependen la red comercial, las comisiones y toda consulta con alcance por persona.
+**Pendientes:** **mecanismo del canal de envío** (D-23), que bloquea el último requerimiento del módulo sin endpoint · **modelo de alcance de datos** (D-22), del que dependen la red comercial, las comisiones y toda consulta con alcance por persona · infraestructura de despliegue (D-09) · retención por registro (D-10) · política de idempotencia (D-11) · lista de proxies confiables por entorno (D-21), y con ella los orígenes autorizados del navegador · identidad para procesos automáticos (D-19).
+
+Cerradas desde la última revisión de esta portada: el **catálogo inicial de permisos**, los **parámetros concretos de seguridad**, el **restablecimiento de contraseña** y —a medias, por [`ADR-001`](architecture/ADR-001-publicacion-del-contrato-openapi.md)— la **publicación del contrato OpenAPI** (D-24), que ya se versiona como archivo aunque falte llevarlo al frontend de forma automática.
 
 El detalle de cada decisión, con su responsable y qué bloquea, está en [`architecture.md` §15 y §16](architecture.md#16-decisiones-pendientes) y en [`security.md` §12](security.md#12-decisiones-y-pendientes), que son su autoridad.
 

@@ -6,10 +6,10 @@
 | Especificación | [`spec.md`](spec.md) |
 | Plan | [`plan.md`](plan.md) |
 | `plan.md` aprobado el | 21-08-2026 |
-| Estado | **En revisión** |
+| Estado | **Aprobadas** — 25-08-2026 |
 | Issue | Pendiente de crear |
 | Rama | `feature/consultar-auditoria-eliminacion` |
-| Aprobadas por | Pendiente |
+| Aprobadas por | Responsable técnico el 25-08-2026 |
 
 !!! info "Qué va en este documento"
 
@@ -29,19 +29,19 @@ Hereda de `RF-SP-011` el conteo acotado, el orden fijo, el rango semiabierto y e
 
 | # | Tarea | Depende de | Verificación | Estado |
 |---|---|---|---|---|
-| `T-01` | Migración `V10`, primera parte: `ix_audit_deletion_log_occurred_at` sobre `(occurred_at DESC, id DESC)` | — | `mvn flyway:info` la lista aplicada; el `EXPLAIN` del listado sin filtros muestra el índice y no un ordenamiento de la tabla | Pendiente |
-| `T-02` | Migración `V10`, segunda parte: `ix_audit_deletion_log_reason_busqueda`, GIN de trigramas sobre `f_unaccent(lower(reason))`, **parcial** con `WHERE deletion_type <> 'ASSOCIATION'` | `T-01` | El índice se crea sin error, lo que confirma que `f_unaccent` (`V1`, `RF-SP-010`) está disponible | Pendiente |
-| `T-03` | `application`: `DeletionAuditQuery`, `DeletionAuditItem`, el enum cerrado `DeletionType` y el puerto `DeletionAuditQueryRepository` | — | Prueba unitaria: un tipo fuera de los tres valores se rechaza antes de construir consulta alguna | Pendiente |
-| `T-04` | `infrastructure`: `AuditDeletionLogEntity` como metamodelo y `JpaDeletionAuditQueryRepository` con predicado, proyección, orden fijo y conteo acotado con `BoundedCount` | `T-01`, `T-03` | Prueba de integración: dos sentencias como máximo por petición; datos y conteo comparten la misma función de predicado | Pendiente |
-| `T-05` | Búsqueda por motivo: recorte, escape de `\`, `%` y `_`, parámetro enlazado, normalización con `f_unaccent` y **la condición `deletion_type <> 'ASSOCIATION'` añadida solo cuando el filtro está presente** | `T-02`, `T-04` | Prueba de integración: el `EXPLAIN` muestra el recorrido del índice parcial. Sin esa condición la búsqueda devuelve lo correcto recorriendo toda la tabla, y ninguna prueba funcional lo detecta | Pendiente |
-| `T-06` | `application/ListDeletionAuditService` con `@Transactional(readOnly = true)` | `T-05` | Prueba de integración: la transacción de solo lectura impide escribir en el registro desde este camino | Pendiente |
-| `T-07` | `api`: `ListDeletionAuditRequest` con Bean Validation e instantes con zona, y `DeletionAuditItemResponse` con `snapshot` como objeto JSON y `reason` presente aunque sea nulo | `T-06` | Prueba de API: una asociación devuelve `reason: null` con el campo **presente**, no omitido; el endpoint no interpreta el `snapshot` | Pendiente |
-| `T-08` | `api/AuditController`: añade `GET /api/v1/audit/deletions` con el permiso `audit:read-deletions` declarado sobre el método, sin ningún manejador de escritura | `T-07` | Prueba de API: `200` con la envoltura paginada; los cuatro verbos de escritura devuelven `405`; un actor con los otros tres permisos de auditoría recibe `403` | Pendiente |
-| `T-09` | Pruebas de API e integración de los criterios de aceptación de `spec.md` §12 | `T-08` | La suite cubre `CA-SP-089` a `CA-SP-095`, `CA-SP-166` y `CA-SP-177`; `CA-SP-094` se verifica **sobre el camino de escritura** | Pendiente |
-| `T-10` | Pruebas de los casos límite de `spec.md` §13 y de `plan.md` §11: código reutilizado tras eliminar, búsqueda con caracteres especiales, búsqueda vacía, asociación combinada con motivo, rango semiabierto y conteo acotado | `T-08` | `deletionType=ASSOCIATION&reason=algo` devuelve `200` con colección vacía, no error; una búsqueda vacía **no** añade la condición de tipo y las asociaciones siguen apareciendo | Pendiente |
-| `T-11` | Prueba automática de **ausencia de cascadas**: consulta sobre `pg_constraint` que falla si aparece cualquier clave foránea con `confdeltype` en `c` o `n`, en cualquier tabla | — | La prueba falla al declarar a propósito una clave foránea con `ON DELETE CASCADE`. Es lo que exige `spec.md` §14 y lo que impide que una migración futura abra un camino de borrado sin evento | Pendiente |
-| `T-12` | Documentación OpenAPI del endpoint: los diez parámetros, la envoltura con `totalIsExact` y los estados `400`, `401`, `403` y `500` | `T-09` | El contrato publicado coincide con el comportamiento real (Art. VIII.6), y documenta que `reason` es nulo en las asociaciones por diseño | Pendiente |
-| `T-13` | Actualizar la matriz de trazabilidad de `docs/requirements.md` | `T-09` | La fila de `RF-SP-012` refleja el estado y enlaza esta tripleta | Pendiente |
+| `T-01` | Migración `V10`, primera parte: `ix_audit_deletion_log_occurred_at` sobre `(occurred_at DESC, id DESC)` | — | `mvn flyway:info` la lista aplicada; el `EXPLAIN` del listado sin filtros muestra el índice y no un ordenamiento de la tabla | Hecha |
+| `T-02` | Migración `V10`, segunda parte: `ix_audit_deletion_log_reason_busqueda`, GIN de trigramas sobre `f_unaccent(lower(reason))`, **parcial** con `WHERE deletion_type <> 'ASSOCIATION'` | `T-01` | El índice se crea sin error, lo que confirma que `f_unaccent` (`V1`, `RF-SP-010`) está disponible | Hecha |
+| `T-03` | `application`: `DeletionAuditQuery`, `DeletionAuditItem`, el enum cerrado `DeletionType` y el puerto `DeletionAuditQueryRepository` | — | Prueba unitaria: un tipo fuera de los tres valores se rechaza antes de construir consulta alguna | Hecha |
+| `T-04` | `infrastructure`: `AuditDeletionLogEntity` como metamodelo y `JpaDeletionAuditQueryRepository` con predicado, proyección, orden fijo y conteo acotado con `BoundedCount` | `T-01`, `T-03` | Prueba de integración: dos sentencias como máximo por petición; datos y conteo comparten la misma función de predicado | Hecha |
+| `T-05` | Búsqueda por motivo: recorte, escape de `\`, `%` y `_`, parámetro enlazado, normalización con `f_unaccent` y **la condición `deletion_type <> 'ASSOCIATION'` añadida solo cuando el filtro está presente** | `T-02`, `T-04` | Prueba de integración: el `EXPLAIN` muestra el recorrido del índice parcial. Sin esa condición la búsqueda devuelve lo correcto recorriendo toda la tabla, y ninguna prueba funcional lo detecta | Hecha |
+| `T-06` | `application/ListDeletionAuditService` con `@Transactional(readOnly = true)` | `T-05` | Prueba de integración: la transacción de solo lectura impide escribir en el registro desde este camino | Hecha |
+| `T-07` | `api`: `ListDeletionAuditRequest` con Bean Validation e instantes con zona, y `DeletionAuditItemResponse` con `snapshot` como objeto JSON y `reason` presente aunque sea nulo | `T-06` | Prueba de API: una asociación devuelve `reason: null` con el campo **presente**, no omitido; el endpoint no interpreta el `snapshot` | Hecha |
+| `T-08` | `api/AuditController`: añade `GET /api/v1/audit/deletions` con el permiso `audit:read-deletions` declarado sobre el método, sin ningún manejador de escritura | `T-07` | Prueba de API: `200` con la envoltura paginada; los cuatro verbos de escritura devuelven `405`; un actor con los otros tres permisos de auditoría recibe `403` | Hecha |
+| `T-09` | Pruebas de API e integración de los criterios de aceptación de `spec.md` §12 | `T-08` | La suite cubre `CA-SP-089` a `CA-SP-095`, `CA-SP-166` y `CA-SP-177`; `CA-SP-094` se verifica **sobre el camino de escritura** | Hecha |
+| `T-10` | Pruebas de los casos límite de `spec.md` §13 y de `plan.md` §11: código reutilizado tras eliminar, búsqueda con caracteres especiales, búsqueda vacía, asociación combinada con motivo, rango semiabierto y conteo acotado | `T-08` | `deletionType=ASSOCIATION&reason=algo` devuelve `200` con colección vacía, no error; una búsqueda vacía **no** añade la condición de tipo y las asociaciones siguen apareciendo | Hecha |
+| `T-11` | Prueba automática de **ausencia de cascadas**: consulta sobre `pg_constraint` que falla si aparece cualquier clave foránea con `confdeltype` en `c` o `n`, en cualquier tabla | — | La prueba falla al declarar a propósito una clave foránea con `ON DELETE CASCADE`. Es lo que exige `spec.md` §14 y lo que impide que una migración futura abra un camino de borrado sin evento | Hecha |
+| `T-12` | Documentación OpenAPI del endpoint: los diez parámetros, la envoltura con `totalIsExact` y los estados `400`, `401`, `403` y `500` | `T-09` | El contrato publicado coincide con el comportamiento real (Art. VIII.6), y documenta que `reason` es nulo en las asociaciones por diseño | Hecha |
+| `T-13` | Actualizar la matriz de trazabilidad de `docs/requirements.md` | `T-09` | La fila de `RF-SP-012` refleja el estado y enlaza esta tripleta | Hecha |
 
 **Estados:** `Pendiente` · `En curso` · `Hecha` · `Bloqueada`.
 
@@ -88,12 +88,12 @@ graph LR
 
 El requerimiento no está terminado hasta cumplir **todas** las condiciones de la constitución §16:
 
-- [ ] Todas las tareas en estado `Hecha`.
-- [ ] Todos los criterios de aceptación con prueba automatizada en verde.
-- [ ] `mvn verify` en verde en local.
-- [ ] Toda escritura emite su evento de auditoría, en la transacción que corresponde.
-- [ ] Los endpoints nuevos declaran su permiso.
-- [ ] El contrato OpenAPI coincide con el comportamiento real.
+- [x] Todas las tareas en estado `Hecha`.
+- [x] Todos los criterios de aceptación con prueba automatizada en verde.
+- [x] `mvn verify` en verde en local (25-08-2026).
+- [x] Toda escritura emite su evento de auditoría, en la transacción que corresponde.
+- [x] Los endpoints nuevos declaran su permiso.
+- [x] El contrato OpenAPI coincide con el comportamiento real.
 - [ ] Documentación afectada actualizada en el mismo Pull Request.
-- [ ] Matriz de trazabilidad actualizada.
+- [x] Matriz de trazabilidad actualizada.
 - [ ] Pull Request aprobado por alguien distinto del autor e integrado.

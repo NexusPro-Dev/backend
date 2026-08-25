@@ -168,6 +168,184 @@ public class Role {
     return rol;
   }
 
+  // ---------------------------------------------------------------------------
+  // Escrituras posteriores al alta (`RF-SP-004` a `RF-SP-009`)
+  //
+  // Todas devuelven SI HUBO CAMBIO EFECTIVO, y ninguna toca `updatedAt` cuando
+  // no lo hay: `FA-001` de cuatro requerimientos exige que reenviar el valor
+  // actual no registre evento, y una marca de modificación movida sin cambio
+  // dejaría la auditoría diciendo que alguien tocó algo que nadie tocó.
+  // ---------------------------------------------------------------------------
+
+  /**
+   * Cambia el nombre (`RF-SP-004`).
+   *
+   * <p>El código NO se toca y no hay método para ello: es estable por diseño, porque cambiarlo
+   * rompería cualquier referencia externa. Tampoco la clasificación, que determina si el rol puede
+   * llevar membresía: cambiarla dejaría membresías colgando de un rol que ya no es consumidor
+   * (`CA-SP-151`). Un rol mal clasificado se sustituye, no se corrige.
+   */
+  public boolean rename(String nuevo, OffsetDateTime ahora) {
+    String recortado = recortar(nuevo);
+    if (recortado == null || recortado.equals(name)) {
+      return false;
+    }
+    name = recortado;
+    updatedAt = ahora;
+    return true;
+  }
+
+  /**
+   * Cambia la descripción (`RF-SP-004`).
+   *
+   * <p><b>Admite dejarla en nulo</b>, y por eso quien llama debe haber distinguido antes «no la
+   * envié» de «bórrala»: la columna es nulable y vaciarla es una orden legítima (`spec.md` §13). Es
+   * la diferencia con el nombre, que no puede quedar vacío.
+   */
+  public boolean redescribe(String nueva, OffsetDateTime ahora) {
+    String recortada = recortar(nueva);
+    if (java.util.Objects.equals(recortada, description)) {
+      return false;
+    }
+    description = recortada;
+    updatedAt = ahora;
+    return true;
+  }
+
+  /**
+   * Activa o desactiva el rol (`RF-SP-007`).
+   *
+   * <p><b>Las asignaciones a personas se conservan intactas</b> (`CA-SP-051`): desactivar no es
+   * retirar. Lo que cambia es que un rol inactivo deja de conceder permisos de inmediato
+   * (`RN-SEG-002`), y eso ocurre solo, sin tocar nada más, porque los permisos efectivos se
+   * resuelven contra los roles vigentes en cada petición.
+   */
+  public boolean changeStatus(RoleStatus nuevo, OffsetDateTime ahora) {
+    if (nuevo == status) {
+      return false;
+    }
+    status = nuevo;
+    updatedAt = ahora;
+    return true;
+  }
+
+  /**
+   * Reubica el rol bajo otro padre (`RF-SP-008`, `RN-SEG-013`).
+   *
+   * <p><b>Revalida la contención contra el nuevo padre y NO retira nada</b> (`CA-SP-162`): si el
+   * rol declara permisos que el nuevo padre no posee, la operación se rechaza entera enumerándolos,
+   * para que el actor pueda retirarlos con `RF-SP-006` y reintentar. Recortarlos en silencio
+   * dejaría al rol concediendo menos de lo que su titular cree.
+   *
+   * <p><b>Los hijos acompañan al rol y no hay que revisarlos</b>: si este cabe en el nuevo padre,
+   * ellos caben en este por transitividad. Ese es exactamente el motivo por el que la contención se
+   * valida contra el padre inmediato y nunca recorriendo la cadena (`RN-SEG-004`).
+   *
+   * <p>El ciclo (`RN-SEG-006`) no se comprueba aquí: exige recorrer la descendencia, que es una
+   * consulta y no un invariante del agregado cargado.
+   */
+  public boolean changeParent(Role nuevoPadre, OffsetDateTime ahora) {
+    if (nuevoPadre == null) {
+      throw new IllegalArgumentException("El rol padre es obligatorio (RN-SP-002).");
+    }
+    if (nuevoPadre.getId().equals(parentRoleId)) {
+      return false;
+    }
+
+    List<UUID> fuera =
+        permissionIds.stream().filter(id -> !nuevoPadre.permissionIds.contains(id)).toList();
+
+    if (!fuera.isEmpty()) {
+      throw new BusinessRuleException(
+          "RN-SEG-013",
+          "El rol padre indicado no concede uno o más de los permisos del rol.",
+          fuera.stream()
+              .map(
+                  id ->
+                      new FieldError(
+                          "parentRoleId",
+                          "RN-SEG-013",
+                          "El nuevo rol padre no posee el permiso '" + id + "'."))
+              .toList());
+    }
+
+    parentRoleId = nuevoPadre.getId();
+    updatedAt = ahora;
+    return true;
+  }
+
+  /**
+   * Agrega permisos (`RF-SP-005`).
+   *
+   * <p><b>La operación es idempotente y nunca retira nada</b> (`CA-SP-034`, `CA-SP-153`): los que
+   * el rol ya declaraba se ignoran, y lo que devuelve es <b>lo realmente agregado</b>, que es lo
+   * que la auditoría debe registrar. Si no queda nada por agregar, no hay cambio y no hay evento.
+   *
+   * <p><b>Sin rol padre no hay cota superior</b> (`CA-SP-035`, `FA-002`): el rol raíz omite
+   * `RN-SEG-003` y conserva `RN-SEG-010`. Nadie otorga lo que no posee, ni siquiera en la raíz.
+   *
+   * @param padre rol padre inmediato, o {@code null} si es la raíz
+   */
+  public List<PermissionItem> grant(
+      Collection<PermissionItem> solicitados,
+      Role padre,
+      Set<String> permisosDelActor,
+      OffsetDateTime ahora) {
+
+    if (padre != null) {
+      verificarContencionEnElPadre(solicitados, padre);
+    }
+    verificarContencionEnElActor(solicitados, permisosDelActor);
+
+    List<PermissionItem> agregados =
+        solicitados.stream().filter(p -> !permissionIds.contains(p.id())).toList();
+
+    if (agregados.isEmpty()) {
+      return List.of();
+    }
+    agregados.forEach(p -> permissionIds.add(p.id()));
+    updatedAt = ahora;
+    return agregados;
+  }
+
+  /**
+   * Retira permisos (`RF-SP-006`).
+   *
+   * <p>Idempotente igual que {@link #grant}: los que el rol no declaraba se ignoran, y devuelve
+   * <b>lo realmente retirado</b>. La asociación se elimina <b>físicamente</b> (`RN-SP-005`,
+   * `CA-SP-046`): no es una entidad de negocio y no lleva borrado lógico ni motivo.
+   *
+   * <p>`RN-SEG-005` —ningún rol hijo puede quedar declarando lo que el padre pierde— no se
+   * comprueba aquí: exige consultar la descendencia.
+   */
+  public List<PermissionItem> revoke(Collection<PermissionItem> solicitados, OffsetDateTime ahora) {
+    List<PermissionItem> retirados =
+        solicitados.stream().filter(p -> permissionIds.contains(p.id())).toList();
+
+    if (retirados.isEmpty()) {
+      return List.of();
+    }
+    retirados.forEach(p -> permissionIds.remove(p.id()));
+    updatedAt = ahora;
+    return retirados;
+  }
+
+  /**
+   * Marca el rol como eliminado (`RF-SP-009`).
+   *
+   * <p><b>Lógico y no físico</b>: el rol desaparece de las consultas y deja de poder asignarse,
+   * pero la auditoría conserva qué era. Sus índices únicos son parciales sobre {@code deleted_at IS
+   * NULL}, de modo que el código y el nombre quedan libres para un rol nuevo (`CA-SP-069`).
+   *
+   * <p><b>Los permisos declarados NO se borran de la fila</b>: dejan de tener efecto porque el rol
+   * no está vigente, y conservarlos es lo que permite que el estado guardado en la auditoría de
+   * eliminación diga qué concedía el rol en el momento de borrarse.
+   */
+  public void delete(OffsetDateTime ahora) {
+    deletedAt = ahora;
+    updatedAt = ahora;
+  }
+
   /**
    * `RN-SEG-003`: los permisos son un subconjunto de los del rol padre.
    *
@@ -302,5 +480,17 @@ public class Role {
   /** Activo y no eliminado: es lo que `EX-002` exige de un rol para poder ser padre. */
   public boolean isUsableAsParent() {
     return !isDeleted() && status == RoleStatus.ACTIVO;
+  }
+
+  /**
+   * El rol raíz es el único sin padre (`RN-SEG-007`).
+   *
+   * <p>Se pregunta por la ausencia de padre y no por el código: la raíz se nombra de forma
+   * explícita en las prohibiciones de `RF-SP-007` y `RF-SP-009` <b>aunque hoy sea de sistema</b>,
+   * porque un rol raíz inactivo o eliminado dejaría al sistema sin su última vía de administración
+   * — y esa protección no debe depender de que alguien recuerde marcarlo como de sistema.
+   */
+  public boolean isRoot() {
+    return parentRoleId == null;
   }
 }

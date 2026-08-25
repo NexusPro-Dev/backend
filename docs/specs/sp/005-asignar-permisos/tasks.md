@@ -6,10 +6,10 @@
 | Especificación | [`spec.md`](spec.md) |
 | Plan | [`plan.md`](plan.md) |
 | `plan.md` aprobado el | 21-08-2026, **reabierto el 22-08-2026** por la corrección de su §6 |
-| Estado | **En revisión** |
+| Estado | **Aprobadas** — 25-08-2026 |
 | Issue | Pendiente de crear |
 | Rama | `feature/asignar-permisos` |
-| Aprobadas por | Pendiente |
+| Aprobadas por | Responsable técnico el 25-08-2026 |
 
 !!! info "Qué va en este documento"
 
@@ -29,20 +29,20 @@ Sin migración: `role_permissions` la crea `V6__create_role_permissions.sql` (`R
 
 | # | Tarea | Depende de | Verificación | Estado |
 |---|---|---|---|---|
-| `T-01` | `domain`: `Role.grantPermissions(...)` con `RN-SEG-003` y `RN-SEG-010`, aditivo e idempotente, que devuelve **qué permisos se agregaron realmente**, y `PermissionContainmentViolation` con qué permisos incumplen y contra qué cota | — | Pruebas unitarias sin Spring: el rechazo es completo y enumera los infractores; un rol sin padre omite `RN-SEG-003` y conserva `RN-SEG-010`; repetir la operación no agrega nada | Pendiente |
-| `T-02` | `application/RolePermissionCacheInvalidator`: puerto hacia `shared/security` para dejar sin efecto la resolución de permisos del rol | — | Prueba con dobles: el puerto se invoca una vez por operación efectiva | Pendiente |
-| `T-03` | `infrastructure/SecurityContextActorAdapter`: resuelve los permisos efectivos del actor **desde la base de datos**, no desde la caché de resolución | — | Prueba de integración: un permiso revocado al actor deja de estar disponible en la siguiente petición, sin esperar a la expiración de ninguna caché | Pendiente |
-| `T-04` | `application/GrantRolePermissionsService` con `@Transactional` y el orden de verificación de `plan.md` §4, de la existencia del rol a la contención en el actor | `T-01`, `T-02`, `T-03` | Pruebas con dobles: cada excepción se lanza en el orden declarado; los pasos 6 y 7 nunca se evalúan antes de resolver el catálogo | Pendiente |
-| `T-05` | Persistencia de las filas nuevas en `role_permissions` desde `JpaRoleRepository`, con **`INSERT … ON CONFLICT DO NOTHING`** en sentencia nativa (`plan.md` §2): la clave primaria compuesta impide el duplicado, pero es la cláusula la que absorbe el empate concurrente sin `23505` | `T-04` | Prueba de integración: dos peticiones simultáneas con el mismo permiso terminan ambas con `200`, dejan **una** fila y **ninguna** produce `500` | Pendiente |
-| `T-06` | Auditoría: `audit_change_log` con **solo los permisos realmente agregados**, evento de seguridad de severidad Alta tras el commit, y ningún evento cuando no se agregó ninguno | `T-04` | Prueba de integración: una operación efectiva deja **una** fila en cada registro; repetirla no deja ninguna | Pendiente |
-| `T-07` | Auditoría de los rechazos, **cada uno en el registro que le corresponde** (`plan.md` §6): `EX-001` a `EX-004` en `audit_error_log`, con severidad **Alta** para `RN-SEG-003` y `RN-SEG-010` y Media para el resto; `EX-005` —el `403` de `RN-SEG-011`— en `audit_security_log` con `event_type = 'AUTHORIZATION_DENIED'` y severidad **Alta**, en transacción independiente y sin esperar a un commit que no llega; `EX-006` (`404`) y los `400` de formato no se auditan | `T-04` | Prueba de integración: `EX-001` a `EX-004` dejan su fila en `audit_error_log` con su `error_code`; `EX-005` deja la suya en `audit_security_log` y **ninguna** en `audit_error_log`; `EX-006` y un `400` no dejan ninguna. Los **tres** intentos de escalada se encuentran filtrando por severidad Alta, dos en un registro y uno en el otro | Pendiente |
-| `T-08` | Invalidación de la caché de permisos del rol **después** del commit, nunca antes | `T-05`, `T-06` | Prueba de integración: tras la operación, una resolución de permisos refleja el cambio de inmediato, y una petición concurrente no repuebla la caché con el estado antiguo | Pendiente |
-| `T-09` | `api/GrantPermissionsRequest` con Bean Validation (`VAL-001`, `VAL-002`, `VAL-006`), colapso de duplicados y límite de 100 elementos | `T-04` | Prueba de API: lista vacía y lista de 101 elementos devuelven `400`; los duplicados se colapsan sin error | Pendiente |
-| `T-10` | `api/RoleController`: añade `POST /api/v1/roles/{id}/permissions` con el permiso `roles:update`, devolviendo `RoleResponse`, y con los `409` de contención enumerando los permisos infractores | `T-08`, `T-09` | Prueba de API: `200` con la lista actualizada; los cuerpos de `409` citan **cuáles** permisos incumplen; los dos `403` llevan `error_code` distinto | Pendiente |
-| `T-11` | Pruebas de API e integración de los criterios de aceptación de `spec.md` §12 | `T-10` | La suite cubre `CA-SP-031` a `CA-SP-040`, `CA-SP-153`, `CA-SP-154` y `CA-SP-173` | Pendiente |
-| `T-12` | Pruebas de los casos límite de `spec.md` §13: rechazo parcial, duplicados, cadena profunda, actor superadministrador y reparto en varias peticiones | `T-10` | Con una cadena de tres roles, la operación consulta al padre y **no** al abuelo; partir la petición en dos produce el mismo estado final | Pendiente |
-| `T-13` | Documentación OpenAPI del endpoint: cuerpo, respuesta `200` y los estados `400`, `401`, `403`, `404`, `409`, `422` y `500` | `T-11` | El contrato publicado coincide con el comportamiento real (Art. VIII.6) | Pendiente |
-| `T-14` | Actualizar la matriz de trazabilidad de `docs/requirements.md` | `T-11` | La fila de `RF-SP-005` refleja el estado y enlaza esta tripleta | Pendiente |
+| `T-01` | `domain`: `Role.grantPermissions(...)` con `RN-SEG-003` y `RN-SEG-010`, aditivo e idempotente, que devuelve **qué permisos se agregaron realmente**, y `PermissionContainmentViolation` con qué permisos incumplen y contra qué cota | — | Pruebas unitarias sin Spring: el rechazo es completo y enumera los infractores; un rol sin padre omite `RN-SEG-003` y conserva `RN-SEG-010`; repetir la operación no agrega nada | Hecha |
+| `T-02` | `application/RolePermissionCacheInvalidator`: puerto hacia `shared/security` para dejar sin efecto la resolución de permisos del rol | — | Prueba con dobles: el puerto se invoca una vez por operación efectiva | Hecha |
+| `T-03` | `infrastructure/SecurityContextActorAdapter`: resuelve los permisos efectivos del actor **desde la base de datos**, no desde la caché de resolución | — | Prueba de integración: un permiso revocado al actor deja de estar disponible en la siguiente petición, sin esperar a la expiración de ninguna caché | Hecha |
+| `T-04` | `application/GrantRolePermissionsService` con `@Transactional` y el orden de verificación de `plan.md` §4, de la existencia del rol a la contención en el actor | `T-01`, `T-02`, `T-03` | Pruebas con dobles: cada excepción se lanza en el orden declarado; los pasos 6 y 7 nunca se evalúan antes de resolver el catálogo | Hecha |
+| `T-05` | Persistencia de las filas nuevas en `role_permissions` desde `JpaRoleRepository`, con **`INSERT … ON CONFLICT DO NOTHING`** en sentencia nativa (`plan.md` §2): la clave primaria compuesta impide el duplicado, pero es la cláusula la que absorbe el empate concurrente sin `23505` | `T-04` | Prueba de integración: dos peticiones simultáneas con el mismo permiso terminan ambas con `200`, dejan **una** fila y **ninguna** produce `500` | Hecha |
+| `T-06` | Auditoría: `audit_change_log` con **solo los permisos realmente agregados**, evento de seguridad de severidad Alta tras el commit, y ningún evento cuando no se agregó ninguno | `T-04` | Prueba de integración: una operación efectiva deja **una** fila en cada registro; repetirla no deja ninguna | Hecha |
+| `T-07` | Auditoría de los rechazos, **cada uno en el registro que le corresponde** (`plan.md` §6): `EX-001` a `EX-004` en `audit_error_log`, con severidad **Alta** para `RN-SEG-003` y `RN-SEG-010` y Media para el resto; `EX-005` —el `403` de `RN-SEG-011`— en `audit_security_log` con `event_type = 'AUTHORIZATION_DENIED'` y severidad **Alta**, en transacción independiente y sin esperar a un commit que no llega; `EX-006` (`404`) y los `400` de formato no se auditan | `T-04` | Prueba de integración: `EX-001` a `EX-004` dejan su fila en `audit_error_log` con su `error_code`; `EX-005` deja la suya en `audit_security_log` y **ninguna** en `audit_error_log`; `EX-006` y un `400` no dejan ninguna. Los **tres** intentos de escalada se encuentran filtrando por severidad Alta, dos en un registro y uno en el otro | Hecha |
+| `T-08` | Invalidación de la caché de permisos del rol **después** del commit, nunca antes | `T-05`, `T-06` | Prueba de integración: tras la operación, una resolución de permisos refleja el cambio de inmediato, y una petición concurrente no repuebla la caché con el estado antiguo | Hecha |
+| `T-09` | `api/GrantPermissionsRequest` con Bean Validation (`VAL-001`, `VAL-002`, `VAL-006`), colapso de duplicados y límite de 100 elementos | `T-04` | Prueba de API: lista vacía y lista de 101 elementos devuelven `400`; los duplicados se colapsan sin error | Hecha |
+| `T-10` | `api/RoleController`: añade `POST /api/v1/roles/{id}/permissions` con el permiso `roles:update`, devolviendo `RoleResponse`, y con los `409` de contención enumerando los permisos infractores | `T-08`, `T-09` | Prueba de API: `200` con la lista actualizada; los cuerpos de `409` citan **cuáles** permisos incumplen; los dos `403` llevan `error_code` distinto | Hecha |
+| `T-11` | Pruebas de API e integración de los criterios de aceptación de `spec.md` §12 | `T-10` | La suite cubre `CA-SP-031` a `CA-SP-040`, `CA-SP-153`, `CA-SP-154` y `CA-SP-173` | Hecha |
+| `T-12` | Pruebas de los casos límite de `spec.md` §13: rechazo parcial, duplicados, cadena profunda, actor superadministrador y reparto en varias peticiones | `T-10` | Con una cadena de tres roles, la operación consulta al padre y **no** al abuelo; partir la petición en dos produce el mismo estado final | Hecha |
+| `T-13` | Documentación OpenAPI del endpoint: cuerpo, respuesta `200` y los estados `400`, `401`, `403`, `404`, `409`, `422` y `500` | `T-11` | El contrato publicado coincide con el comportamiento real (Art. VIII.6) | Hecha |
+| `T-14` | Actualizar la matriz de trazabilidad de `docs/requirements.md` | `T-11` | La fila de `RF-SP-005` refleja el estado y enlaza esta tripleta | Hecha |
 
 **Estados:** `Pendiente` · `En curso` · `Hecha` · `Bloqueada`.
 
@@ -99,12 +99,12 @@ graph LR
 
 El requerimiento no está terminado hasta cumplir **todas** las condiciones de la constitución §16:
 
-- [ ] Todas las tareas en estado `Hecha`.
-- [ ] Todos los criterios de aceptación con prueba automatizada en verde.
-- [ ] `mvn verify` en verde en local.
-- [ ] Toda escritura emite su evento de auditoría, en la transacción que corresponde.
-- [ ] Los endpoints nuevos declaran su permiso.
-- [ ] El contrato OpenAPI coincide con el comportamiento real.
+- [x] Todas las tareas en estado `Hecha`.
+- [x] Todos los criterios de aceptación con prueba automatizada en verde.
+- [x] `mvn verify` en verde en local (25-08-2026).
+- [x] Toda escritura emite su evento de auditoría, en la transacción que corresponde.
+- [x] Los endpoints nuevos declaran su permiso.
+- [x] El contrato OpenAPI coincide con el comportamiento real.
 - [ ] Documentación afectada actualizada en el mismo Pull Request.
-- [ ] Matriz de trazabilidad actualizada.
+- [x] Matriz de trazabilidad actualizada.
 - [ ] Pull Request aprobado por alguien distinto del autor e integrado.
