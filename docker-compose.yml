@@ -70,11 +70,18 @@ services:
     ports:
       - "8080:8080"
     healthcheck:
-      # El endpoint de salud es público (Art. XV.10) y la imagen alpine trae
-      # el `wget` de busybox, de modo que no hace falta añadir nada.
-      # `start_period` es holgado a propósito: Flyway aplica las migraciones
-      # antes de que el puerto responda, y en el primer arranque son varias.
-      test: ["CMD-SHELL", "wget --spider -q http://localhost:8080/actuator/health"]
+      # DISPONIBILIDAD, no vida (issue #31). `/readiness` responde «puedo
+      # atender» y es lo que decide si al contenedor se le manda tráfico;
+      # `/actuator/health` a secas mezclaba esa pregunta con «¿arrancó?», que
+      # es la que responde `/liveness` y la que Docker no usa aquí.
+      #
+      # Sigue siendo público (Art. XV.10) y la imagen alpine trae el `wget` de
+      # busybox, de modo que no hace falta añadir nada.
+      #
+      # `start_period` sigue holgado, y ahora por un motivo más pequeño: en el
+      # primer arranque Flyway aplica las migraciones antes de que el puerto
+      # responda, y hasta que responde no hay sonda que valga.
+      test: ["CMD-SHELL", "wget --spider -q http://localhost:8080/actuator/health/readiness"]
       interval: 10s
       timeout: 3s
       retries: 5
