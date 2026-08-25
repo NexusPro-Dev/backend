@@ -11,6 +11,7 @@ import org.springframework.boot.autoconfigure.SpringBootApplication;
  * {@code docs/architecture.md} §5.2 y las verifica una prueba de ArchUnit, no la disciplina.
  */
 @SpringBootApplication
+@org.springframework.boot.context.properties.ConfigurationPropertiesScan
 public class NexusApplication {
 
   public static void main(String[] args) {

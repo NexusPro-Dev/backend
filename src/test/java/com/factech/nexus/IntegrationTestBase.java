@@ -59,6 +59,17 @@ public abstract class IntegrationTestBase {
     // ninguna prueba lo comparte con otro proceso.
     registry.add("JWT_SECRET", () -> "secreto-de-prueba-solo-para-la-suite-automatizada");
 
+    // El límite de tasa queda APAGADO para la suite general, y es deliberado:
+    // varias clases provocan ráfagas contra el inicio de sesión a propósito
+    // —`RF-SP-034` comprueba el bloqueo a los cinco intentos—, y con el límite
+    // activo recibirían `429` antes de llegar a lo que están comprobando. El
+    // fallo sería además intermitente, porque depende de cuántas pruebas de esa
+    // clase hayan corrido antes dentro de la misma ventana.
+    //
+    // Quien prueba el límite lo enciende para su clase (`RateLimitIT`), que es
+    // donde tiene sentido.
+    registry.add("RATE_LIMIT_ENABLED", () -> "false");
+
     // Credencial inicial del superadministrador, que `V22__seed_superadmin.sql`
     // exige como marcador de posición. Se declara aquí y no en un archivo de
     // propiedades de prueba por lo mismo que las anteriores: lo que se prueba es
