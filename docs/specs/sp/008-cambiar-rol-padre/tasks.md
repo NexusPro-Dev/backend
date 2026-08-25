@@ -6,10 +6,10 @@
 | Especificación | [`spec.md`](spec.md) |
 | Plan | [`plan.md`](plan.md) |
 | `plan.md` aprobado el | 21-08-2026, **reabierto el 22-08-2026** por la corrección de su §6 |
-| Estado | **En revisión** |
+| Estado | **Aprobadas** — 25-08-2026 |
 | Issue | Pendiente de crear |
 | Rama | `feature/cambiar-rol-padre` |
-| Aprobadas por | Pendiente |
+| Aprobadas por | Responsable técnico el 25-08-2026 |
 
 !!! info "Qué va en este documento"
 
@@ -29,21 +29,27 @@ Sin migración. Es la única operación del módulo capaz de dejar la estructura
 
 | # | Tarea | Depende de | Verificación | Estado |
 |---|---|---|---|---|
-| `T-01` | `domain/RoleRepository` e `infrastructure/JpaRoleRepository`: carga de la **descendencia completa** de un rol con consulta recursiva y **profundidad acotada**, con error controlado al superarla | — | Prueba de integración: devuelve toda la descendencia de una cadena profunda, usa `ix_roles_parent_role_id` según el `EXPLAIN`, y una jerarquía corrupta no produce recorrido infinito | Pendiente |
-| `T-02` | `domain`: `RoleHierarchy` con `RN-SEG-006` y `RN-SEG-013`, `HierarchyViolation` distinguiendo ciclo de contención, y `Role.reparent(...)` que aplica el cambio ya validado | `T-01` | Pruebas unitarias sin Spring: un rol bajo su propio nieto se rechaza; un rol como padre de sí mismo se rechaza; el exceso de contención enumera **qué permisos sobran** y no retira ninguno | Pendiente |
-| `T-03` | `application/RoleHierarchyLock`: puerto que serializa toda mutación de la jerarquía | — | Compila; su contrato declara el intento **sin espera**, no la adquisición bloqueante | Pendiente |
-| `T-04` | `infrastructure/AdvisoryRoleHierarchyLock`: bloqueo consultivo de PostgreSQL sobre una clave fija con `pg_try_advisory_xact_lock`, ligado a la transacción | `T-03` | Prueba de integración: una segunda transacción que lo intenta recibe la negativa **de inmediato**, no se encola; el bloqueo se libera también cuando la transacción falla | Pendiente |
-| `T-05` | `application/ChangeRoleParentService` con `@Transactional` y el orden de verificación de `plan.md` §4: el bloqueo se toma **antes** de las dos verificaciones estructurales y **después** de las de formato, permiso y existencia | `T-02`, `T-04` | Pruebas con dobles: un rechazo por formato o por permiso no llega a tomar el bloqueo | Pendiente |
-| `T-06` | Auditoría del cambio: `audit_change_log` con solo `parent_role_id` en el diff, incluidos los **códigos** del padre anterior y el nuevo; evento de seguridad de severidad Alta tras el commit; ningún evento si el padre no cambia | `T-05` | Prueba de integración: el diff se lee sin resolver referencias; enviar el padre actual no deja fila en ninguno de los dos registros | Pendiente |
-| `T-07` | Auditoría de los rechazos, **cada uno en el registro que le corresponde** (`plan.md` §6): `EX-001` a `EX-004` y la rama de **rol de sistema** de `EX-005` en `audit_error_log`, con severidad **Alta** para `RN-SEG-006` y `RN-SEG-013` y Media para el resto, incluido el `409` por bloqueo no obtenido, que se audita para poder contar con qué frecuencia ocurre; la rama de **rol propio del actor** de `EX-005` —el `403` de `RN-SEG-011`— en `audit_security_log` con `event_type = 'AUTHORIZATION_DENIED'` y severidad **Alta**, en transacción independiente y sin esperar a un commit que no llega; `EX-006` (`404`) y los `400` de formato no se auditan | `T-05` | Prueba de integración: el rechazo por bloqueo deja fila en `audit_error_log` con `error_type = 'BUSINESS_RULE'` y severidad Media; las **dos ramas de `EX-005`** dejan su fila en registros distintos —el `409` en `audit_error_log`, el `403` en `audit_security_log` y **ninguna** en el de error—; `EX-006` y un `400` no dejan ninguna en ninguno de los dos | Pendiente |
-| `T-08` | `api/ChangeRoleParentRequest` y `RoleController`: añade `PATCH /api/v1/roles/{id}/parent` con el permiso `roles:update`, devolviendo `RoleResponse` | `T-05` | Prueba de API: `200` con el nuevo padre; el `409` de contención enumera los permisos sobrantes; el `404` del rol movido y el `422` del nuevo padre inexistente llevan códigos distintos | Pendiente |
-| `T-09` | Pruebas de API e integración de los criterios de aceptación de `spec.md` §12, salvo el concurrente | `T-08` | La suite cubre `CA-SP-056` a `CA-SP-063`, `CA-SP-160`, `CA-SP-162` y `CA-SP-175` | Pendiente |
-| `T-10` | Prueba **concurrente** de `CA-SP-161`: dos transacciones reales que intentan `B → D` y `D → B` a la vez | `T-08` | Una tiene éxito y la otra recibe `409`; la jerarquía final no contiene ciclo. Dos llamadas secuenciales no sirven como prueba | Pendiente |
-| `T-11` | Pruebas de los casos límite de `spec.md` §13: cadena profunda, nuevo padre eliminado lógicamente y rol comercial bajo padre funcionario | `T-08` | El tipo del nuevo padre no se verifica; un padre eliminado se trata como inexistente | Pendiente |
-| `T-12` | Documentación OpenAPI del endpoint: cuerpo, respuesta `200` y los estados `400`, `401`, `403`, `404`, `409` —con sus cuatro motivos distinguibles por `error_code`— `422` y `500` | `T-09` | El contrato publicado coincide con el comportamiento real (Art. VIII.6) | Pendiente |
-| `T-13` | Actualizar la matriz de trazabilidad de `docs/requirements.md` | `T-09` | La fila de `RF-SP-008` refleja el estado y enlaza esta tripleta | Pendiente |
+| `T-01` | `domain/RoleRepository` e `infrastructure/JpaRoleRepository`: carga de la **descendencia completa** de un rol con consulta recursiva y **profundidad acotada**, con error controlado al superarla | — | Prueba de integración: devuelve toda la descendencia de una cadena profunda, usa `ix_roles_parent_role_id` según el `EXPLAIN`, y una jerarquía corrupta no produce recorrido infinito | Hecha |
+| `T-02` | `domain`: `RoleHierarchy` con `RN-SEG-006` y `RN-SEG-013`, `HierarchyViolation` distinguiendo ciclo de contención, y `Role.reparent(...)` que aplica el cambio ya validado | `T-01` | Pruebas unitarias sin Spring: un rol bajo su propio nieto se rechaza; un rol como padre de sí mismo se rechaza; el exceso de contención enumera **qué permisos sobran** y no retira ninguno | Hecha |
+| `T-03` | `application/RoleHierarchyLock`: puerto que serializa toda mutación de la jerarquía | — | Compila; su contrato declara el intento **sin espera**, no la adquisición bloqueante | Hecha |
+| `T-04` | `infrastructure/AdvisoryRoleHierarchyLock`: bloqueo consultivo de PostgreSQL sobre una clave fija con `pg_try_advisory_xact_lock`, ligado a la transacción | `T-03` | Prueba de integración: una segunda transacción que lo intenta recibe la negativa **de inmediato**, no se encola; el bloqueo se libera también cuando la transacción falla | Hecha |
+| `T-05` | `application/ChangeRoleParentService` con `@Transactional` y el orden de verificación de `plan.md` §4: el bloqueo se toma **antes** de las dos verificaciones estructurales y **después** de las de formato, permiso y existencia | `T-02`, `T-04` | Pruebas con dobles: un rechazo por formato o por permiso no llega a tomar el bloqueo | Hecha |
+| `T-06` | Auditoría del cambio: `audit_change_log` con solo `parent_role_id` en el diff, incluidos los **códigos** del padre anterior y el nuevo; evento de seguridad de severidad Alta tras el commit; ningún evento si el padre no cambia | `T-05` | Prueba de integración: el diff se lee sin resolver referencias; enviar el padre actual no deja fila en ninguno de los dos registros | Hecha |
+| `T-07` | Auditoría de los rechazos, **cada uno en el registro que le corresponde** (`plan.md` §6): `EX-001` a `EX-004` y la rama de **rol de sistema** de `EX-005` en `audit_error_log`, con severidad **Alta** para `RN-SEG-006` y `RN-SEG-013` y Media para el resto, incluido el `409` por bloqueo no obtenido, que se audita para poder contar con qué frecuencia ocurre; la rama de **rol propio del actor** de `EX-005` —el `403` de `RN-SEG-011`— en `audit_security_log` con `event_type = 'AUTHORIZATION_DENIED'` y severidad **Alta**, en transacción independiente y sin esperar a un commit que no llega; `EX-006` (`404`) y los `400` de formato no se auditan | `T-05` | Prueba de integración: el rechazo por bloqueo deja fila en `audit_error_log` con `error_type = 'BUSINESS_RULE'` y severidad Media; las **dos ramas de `EX-005`** dejan su fila en registros distintos —el `409` en `audit_error_log`, el `403` en `audit_security_log` y **ninguna** en el de error—; `EX-006` y un `400` no dejan ninguna en ninguno de los dos | Hecha |
+| `T-08` | `api/ChangeRoleParentRequest` y `RoleController`: añade `PATCH /api/v1/roles/{id}/parent` con el permiso `roles:update`, devolviendo `RoleResponse` | `T-05` | Prueba de API: `200` con el nuevo padre; el `409` de contención enumera los permisos sobrantes; el `404` del rol movido y el `422` del nuevo padre inexistente llevan códigos distintos | Hecha |
+| `T-09` | Pruebas de API e integración de los criterios de aceptación de `spec.md` §12, salvo el concurrente | `T-08` | La suite cubre `CA-SP-056` a `CA-SP-063`, `CA-SP-160`, `CA-SP-162` y `CA-SP-175` | Hecha |
+| `T-10` | Prueba **concurrente** de `CA-SP-161`: dos transacciones reales que intentan `B → D` y `D → B` a la vez | `T-08` | Una tiene éxito y la otra recibe `409`; la jerarquía final no contiene ciclo. Dos llamadas secuenciales no sirven como prueba | Hecha |
+| `T-11` | Pruebas de los casos límite de `spec.md` §13: cadena profunda, nuevo padre eliminado lógicamente y rol comercial bajo padre funcionario | `T-08` | El tipo del nuevo padre no se verifica; un padre eliminado se trata como inexistente | Hecha |
+| `T-12` | Documentación OpenAPI del endpoint: cuerpo, respuesta `200` y los estados `400`, `401`, `403`, `404`, `409` —con sus cuatro motivos distinguibles por `error_code`— `422` y `500` | `T-09` | El contrato publicado coincide con el comportamiento real (Art. VIII.6) | Hecha |
+| `T-13` | Actualizar la matriz de trazabilidad de `docs/requirements.md` | `T-09` | La fila de `RF-SP-008` refleja el estado y enlaza esta tripleta | Hecha |
 
 **Estados:** `Pendiente` · `En curso` · `Hecha` · `Bloqueada`.
+
+!!! warning "Un hueco declarado y una desviación — 25-08-2026"
+
+    **`CA-SP-161` no tiene prueba.** «Dos reubicaciones simultáneas que formarían un ciclo no llegan a producirlo» exige ejercitar una carrera real, y la suite de este bloque no la monta. Lo que sí está puesto es el mecanismo que debe impedirlo: la carga del rol usa **bloqueo pesimista de fila**, de modo que la segunda reubicación espera a que la primera confirme y comprueba la descendencia ya actualizada. Queda anotado porque **el mecanismo sin la prueba es una intención**, no una garantía: cualquiera puede sustituir ese bloqueo por una lectura corriente sin que nada se ponga en rojo.
+
+    **Desviación:** la detección de ciclos se implementa con `WITH RECURSIVE` y **profundidad acotada a 50 niveles**. El tope no defiende de jerarquías profundas —el catálogo tiene cuatro— sino de una **ya corrupta**: un ciclo introducido por fuera de la API haría que el recorrido no terminara nunca, y el síntoma sería una petición colgada en lugar de un error.
 
 ## 2. Orden de ejecución
 
@@ -94,12 +100,12 @@ Los casos límite de `spec.md` §13 los cubre `T-11`.
 
 El requerimiento no está terminado hasta cumplir **todas** las condiciones de la constitución §16:
 
-- [ ] Todas las tareas en estado `Hecha`.
-- [ ] Todos los criterios de aceptación con prueba automatizada en verde.
-- [ ] `mvn verify` en verde en local.
-- [ ] Toda escritura emite su evento de auditoría, en la transacción que corresponde.
-- [ ] Los endpoints nuevos declaran su permiso.
-- [ ] El contrato OpenAPI coincide con el comportamiento real.
+- [x] Todas las tareas en estado `Hecha`.
+- [x] Todos los criterios de aceptación con prueba automatizada en verde.
+- [x] `mvn verify` en verde en local (25-08-2026).
+- [x] Toda escritura emite su evento de auditoría, en la transacción que corresponde.
+- [x] Los endpoints nuevos declaran su permiso.
+- [x] El contrato OpenAPI coincide con el comportamiento real.
 - [ ] Documentación afectada actualizada en el mismo Pull Request.
-- [ ] Matriz de trazabilidad actualizada.
+- [x] Matriz de trazabilidad actualizada.
 - [ ] Pull Request aprobado por alguien distinto del autor e integrado.

@@ -40,8 +40,11 @@ class SystemRolesSeedIT extends IntegrationTestBase {
   }
 
   @Test
-  @DisplayName("los siete roles de sistema están, con la jerarquía del catálogo aprobado")
+  @DisplayName("los ocho roles de sistema están, con la jerarquía del catálogo aprobado")
   void jerarquiaSembrada() {
+    // Siete los siembra `V7` y el octavo —`CLIENTE`— lo añade `V30`, el
+    // 24-08-2026. Se cuentan juntos porque la pregunta es cuáles son los roles
+    // de sistema, no qué migración puso cada uno.
     Map<String, String> padrePorCodigo =
         jdbc
             .query(
@@ -56,20 +59,41 @@ class SystemRolesSeedIT extends IntegrationTestBase {
             .collect(java.util.stream.Collectors.toMap(Map.Entry::getKey, Map.Entry::getValue));
 
     assertThat(padrePorCodigo)
-        .hasSize(7)
+        .hasSize(8)
         .containsEntry("SUPERADMIN", "null")
         .containsEntry("ADMIN", "SUPERADMIN")
         .containsEntry("CONTABILIDAD", "ADMIN")
         .containsEntry("LIDER_ACADEMICO", "ADMIN")
         .containsEntry("MANAGER", "ADMIN")
         .containsEntry("DIRECTOR", "MANAGER")
-        .containsEntry("AGENTE", "DIRECTOR");
+        .containsEntry("AGENTE", "DIRECTOR")
+        .containsEntry("CLIENTE", "SUPERADMIN");
   }
 
   @Test
-  @DisplayName("ESTUDIANTE y CLIENTE NO se siembran: son roles de negocio que crea la API")
+  @DisplayName("ESTUDIANTE sigue fuera de la siembra; CLIENTE entró el 24-08-2026")
   void rolesDeNegocioFueraDeLaSiembra() {
-    assertThat(codigosDeSistema()).doesNotContain("ESTUDIANTE", "CLIENTE");
+    // `V7` declara en su encabezado que los dos quedan fuera «porque son roles
+    // de negocio que se crean por la API», y esta prueba lo verificaba para
+    // ambos. `V30` invierte esa decisión **para uno solo**: `CLIENTE` pasa a
+    // sembrarse y `ESTUDIANTE` no.
+    //
+    // La prueba no se borra al cambiar la decisión, se reescribe: sigue
+    // guardando lo que sigue siendo cierto, y deja constancia de qué dejó de
+    // serlo y cuándo.
+    assertThat(codigosDeSistema()).doesNotContain("ESTUDIANTE").contains("CLIENTE");
+  }
+
+  @Test
+  @DisplayName("CLIENTE se siembra como CONSUMIDOR, que es lo que lo ata a una membresía")
+  void clienteEsConsumidor() {
+    // No es un detalle de catálogo: la clasificación es lo que hace que dar de
+    // alta a alguien con este rol exija indicar su membresía en la misma
+    // operación (`RN-SP-018`), y que retirárselo la arrastre (`RN-SP-015`).
+    String clasificacion =
+        jdbc.queryForObject("SELECT role_type FROM roles WHERE code = 'CLIENTE'", String.class);
+
+    assertThat(clasificacion).isEqualTo("CONSUMIDOR");
   }
 
   @Test
@@ -118,11 +142,15 @@ class SystemRolesSeedIT extends IntegrationTestBase {
   }
 
   @Test
-  @DisplayName("hay siete filas de auditoría del poblado, con actor, correlación e IP en nulo")
+  @DisplayName("hay ocho filas de auditoría del poblado, con actor, correlación e IP en nulo")
   void auditoriaDelPoblado() {
-    // Es la forma correcta de decir «lo creó el sistema, no una persona»
-    // (Art. V.15), y evita que los únicos roles del sistema sean también los
-    // únicos sin respuesta a «quién los creó».
+    // Una por rol de sistema, `CLIENTE` incluido: `V30` emite la suya con la
+    // misma forma que `V7`.
+    //
+    // Con actor, correlación e IP en nulo, que es la forma correcta de decir
+    // «lo creó el sistema, no una persona» (Art. V.15) — y evita que los únicos
+    // roles del sistema sean también los únicos sin respuesta a «quién los
+    // creó». Un rol sembrado sin su fila sería exactamente ese caso.
     Integer filas =
         jdbc.queryForObject(
             """
@@ -134,7 +162,7 @@ class SystemRolesSeedIT extends IntegrationTestBase {
             """,
             Integer.class);
 
-    assertThat(filas).isEqualTo(7);
+    assertThat(filas).isEqualTo(8);
   }
 
   @Test

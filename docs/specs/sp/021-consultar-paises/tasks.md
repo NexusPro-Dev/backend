@@ -6,10 +6,10 @@
 | Especificación | [`spec.md`](spec.md) |
 | Plan | [`plan.md`](plan.md) |
 | `plan.md` aprobado el | 21-08-2026 |
-| Estado | **En revisión** |
+| Estado | **Aprobadas** |
 | Issue | Pendiente de crear |
 | Rama | `feature/consultar-paises` |
-| Aprobadas por | Pendiente |
+| Aprobadas por | Responsable técnico el 24-08-2026 |
 
 !!! info "Qué va en este documento"
 
@@ -31,21 +31,27 @@ El mismo molde de `RF-SP-010` y `RF-SP-017`: una sentencia, colección entera en
 
 | # | Tarea | Depende de | Verificación | Estado |
 |---|---|---|---|---|
-| `T-01` | En `V16__create_countries.sql`: declarar `name varchar(100) COLLATE "es-x-icu" NOT NULL` | — | Prueba de integración: con «Panamá», «Perú» y «Paraguay» insertados, un `ORDER BY name` **sin `COLLATE`** devuelve Panamá, Paraguay, Perú. **Antes del primer despliegue** | Pendiente |
-| `T-02` | Migración `V17__create_country_search_index.sql`: `ix_countries_busqueda`, GIN de trigramas multicolumna sobre `f_unaccent(lower(code))` y `f_unaccent(lower(name))`, **no parcial** | `T-01` | `mvn flyway:info` la lista aplicada; el índice se crea sin error | Pendiente |
-| `T-03` | `application`: `ListCountriesQuery` con el término recortado y el indicador de inactivos, el modelo de lectura `CountryItem` y el puerto `CountryQueryRepository` | — | Prueba unitaria: un término vacío o solo con espacios equivale a ausente | Pendiente |
-| `T-04` | `infrastructure/JpaCountryQueryRepository`: proyección con `cb.construct`, predicados **añadidos solo cuando su criterio está presente** —nunca neutralizados con guardas— y `ORDER BY name, id` corriente | `T-01`, `T-02`, `T-03` | Prueba de integración: **una** sentencia con y sin búsqueda; el plan de ejecución sin filtros no arrastra el predicado de búsqueda | Pendiente |
-| `T-05` | Búsqueda: escape de `\`, `%` y `_`, parámetro enlazado y normalización con `f_unaccent` sobre `code` y `name`, **sin `coalesce`** porque ambas columnas son `NOT NULL` | `T-04` | Pruebas de integración: `panama`, `PANAMÁ` y `Panamà` encuentran «Panamá»; `search=co` encuentra «Colombia» por su código; un término con `%` no devuelve el catálogo entero | Pendiente |
-| `T-06` | `application/ListCountriesService` con `@Transactional(readOnly = true)` | `T-05` | Prueba de integración: una sola instantánea, y la transacción de solo lectura impide escribir desde este camino | Pendiente |
-| `T-07` | `api`: `ListCountriesRequest` con **dos** campos y `CountryController` gana `GET /api/v1/countries` con el permiso `countries:read`, envolviendo la colección en `content` y **sin** usar `PageResponse`, reutilizando `CountryResponse` de `RF-SP-020` | `T-06` | Prueba de API: `?page=2&size=5` devuelve el catálogo completo; `includeInactive=quizas` devuelve `400`; `isActive` viene en cada elemento también cuando todos valen `true` | Pendiente |
-| `T-08` | Prueba del **orden alfabético del español**: con «Panamá», «Perú», «Paraguay», «España» y «Estonia» registrados, el orden devuelto sigue la intercalación del español y no la de bytes | `T-07` | Panamá antes que Paraguay y este antes que Perú. Con la intercalación `C` sería Paraguay, Perú, Panamá. **Exige PostgreSQL real**, y falla si una migración futura recrea la columna perdiendo su intercalación | Pendiente |
-| `T-09` | Pruebas de los criterios de aceptación de `spec.md` §12 | `T-07` | La suite cubre `CA-SP-140` a `CA-SP-143` y `CA-SP-172`; el catálogo vacío devuelve `200` con `content` vacío, que es el estado real al arrancar y **no** un error | Pendiente |
-| `T-10` | Pruebas del resto de casos límite de `spec.md` §13 y de `plan.md` §11: búsqueda vacía, país inactivo ya referenciado, orden estable, presencia de `isActive`, número de sentencias y coherencia con el alta | `T-07` | Un país desactivado desaparece del listado por defecto **y sigue existiendo en la tabla** con su identificador intacto; el elemento del listado es campo por campo idéntico al que devolvió `RF-SP-020` | Pendiente |
+| `T-01` | En `V16__create_countries.sql`: declarar `name varchar(100) COLLATE "es-x-icu" NOT NULL` | — | Prueba de integración: con «Panamá», «Perú» y «Paraguay» insertados, un `ORDER BY name` **sin `COLLATE`** devuelve Panamá, Paraguay, Perú. **Antes del primer despliegue** | Hecha |
+| `T-02` | Migración `V17__create_country_search_index.sql`: `ix_countries_busqueda`, GIN de trigramas multicolumna sobre `f_unaccent(lower(code))` y `f_unaccent(lower(name))`, **no parcial** | `T-01` | `mvn flyway:info` la lista aplicada; el índice se crea sin error | Hecha |
+| `T-03` | `application`: `ListCountriesQuery` con el término recortado y el indicador de inactivos, el modelo de lectura `CountryItem` y el puerto `CountryQueryRepository` | — | Prueba unitaria: un término vacío o solo con espacios equivale a ausente | Hecha |
+| `T-04` | `infrastructure/JpaCountryQueryRepository`: proyección con `cb.construct`, predicados **añadidos solo cuando su criterio está presente** —nunca neutralizados con guardas— y `ORDER BY name, id` corriente | `T-01`, `T-02`, `T-03` | Prueba de integración: **una** sentencia con y sin búsqueda; el plan de ejecución sin filtros no arrastra el predicado de búsqueda | Hecha |
+| `T-05` | Búsqueda: escape de `\`, `%` y `_`, parámetro enlazado y normalización con `f_unaccent` sobre `code` y `name`, **sin `coalesce`** porque ambas columnas son `NOT NULL` | `T-04` | Pruebas de integración: `panama`, `PANAMÁ` y `Panamà` encuentran «Panamá»; `search=co` encuentra «Colombia» por su código; un término con `%` no devuelve el catálogo entero | Hecha |
+| `T-06` | `application/ListCountriesService` con `@Transactional(readOnly = true)` | `T-05` | Prueba de integración: una sola instantánea, y la transacción de solo lectura impide escribir desde este camino | Hecha |
+| `T-07` | `api`: `ListCountriesRequest` con **dos** campos y `CountryController` gana `GET /api/v1/countries` con el permiso `countries:read`, envolviendo la colección en `content` y **sin** usar `PageResponse`, reutilizando `CountryResponse` de `RF-SP-020` | `T-06` | Prueba de API: `?page=2&size=5` devuelve el catálogo completo; `includeInactive=quizas` devuelve `400`; `isActive` viene en cada elemento también cuando todos valen `true` | Hecha |
+| `T-08` | Prueba del **orden alfabético del español**: con «Panamá», «Perú», «Paraguay», «España» y «Estonia» registrados, el orden devuelto sigue la intercalación del español y no la de bytes | `T-07` | Panamá antes que Paraguay y este antes que Perú. Con la intercalación `C` sería Paraguay, Perú, Panamá. **Exige PostgreSQL real**, y falla si una migración futura recrea la columna perdiendo su intercalación | Hecha |
+| `T-09` | Pruebas de los criterios de aceptación de `spec.md` §12 | `T-07` | La suite cubre `CA-SP-140` a `CA-SP-143` y `CA-SP-172`; el catálogo vacío devuelve `200` con `content` vacío, que es el estado real al arrancar y **no** un error | Hecha |
+| `T-10` | Pruebas del resto de casos límite de `spec.md` §13 y de `plan.md` §11: búsqueda vacía, país inactivo ya referenciado, orden estable, presencia de `isActive`, número de sentencias y coherencia con el alta | `T-07` | Un país desactivado desaparece del listado por defecto **y sigue existiendo en la tabla** con su identificador intacto; el elemento del listado es campo por campo idéntico al que devolvió `RF-SP-020` | En curso |
 | `T-11` | Prueba del uso efectivo del índice: con doscientos países sembrados en la prueba, el `EXPLAIN` de una búsqueda muestra el recorrido de `ix_countries_busqueda` | `T-05` | La prueba **siembra volumen a propósito**: con pocas filas el planificador prefiere el recorrido secuencial, y eso no es un fallo del índice | Pendiente |
-| `T-12` | Documentación OpenAPI del endpoint: los dos parámetros, la respuesta `200` con `content` y los estados `400`, `401`, `403` y `500` | `T-09` | El contrato publicado coincide con el comportamiento real (Art. VIII.6), y documenta que `includeInactive` **añade** en lugar de sustituir | Pendiente |
-| `T-13` | Actualizar la matriz de trazabilidad de `docs/requirements.md` | `T-09` | La fila de `RF-SP-021` refleja el estado y enlaza esta tripleta | Pendiente |
+| `T-12` | Documentación OpenAPI del endpoint: los dos parámetros, la respuesta `200` con `content` y los estados `400`, `401`, `403` y `500` | `T-09` | El contrato publicado coincide con el comportamiento real (Art. VIII.6), y documenta que `includeInactive` **añade** en lugar de sustituir | Hecha |
+| `T-13` | Actualizar la matriz de trazabilidad de `docs/requirements.md` | `T-09` | La fila de `RF-SP-021` refleja el estado y enlaza esta tripleta | Hecha |
 
 **Estados:** `Pendiente` · `En curso` · `Hecha` · `Bloqueada`.
+
+!!! note "Tarea abierta al ejecutar — 24-08-2026"
+
+    **`T-11` queda `Pendiente`: no se comprueba el uso efectivo del índice.** `ix_countries_busqueda` existe y una prueba verifica que está declarado como GIN de trigramas sobre la forma normalizada, pero **no se ha comprobado con `EXPLAIN` que el planificador lo use** sembrando doscientos países. Conviene recordar lo que el propio plan advierte: con pocas decenas de filas el planificador preferirá el recorrido secuencial, y eso **no** sería un defecto — el índice existe para cuando el catálogo se pueble de verdad. La prueba, cuando se escriba, tiene que sembrar lo suficiente para que la comparación signifique algo.
+
+    **`T-10` queda `En curso`:** cubiertos los casos límite alcanzables por API —búsqueda vacía, sin coincidencias, comodín, independencia entre búsqueda y estado—, falta el resto.
 
 ## 2. Orden de ejecución
 

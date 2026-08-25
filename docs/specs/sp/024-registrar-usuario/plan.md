@@ -268,6 +268,7 @@ Con cabecera `Location: /api/v1/users/{id}`, que **sí resuelve**: `RF-SP-026` p
 |---|---|---|
 | `400` | Campo obligatorio ausente, formato inválido o longitud excedida (`VAL-001` a `VAL-004`, `VAL-008`) | El `VAL-…` correspondiente |
 | `400` | Nombre de usuario con arroba o fuera del alfabeto (`VAL-010`) | `VAL-010` |
+| `400` | Ningún rol informado (`EX-008`, `RN-SP-023`) | `VAL-013` |
 | `400` | Cuerpo con campo desconocido, incluidos `status` y `mustChangePassword` | `VAL-001` |
 | `401` | Token ausente o inválido | `AUTH-001` |
 | `403` | El actor no posee `users:create` | `AUTH-002` |

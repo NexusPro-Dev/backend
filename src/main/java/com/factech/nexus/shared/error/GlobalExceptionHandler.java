@@ -52,15 +52,47 @@ public class GlobalExceptionHandler {
   private static final Logger LOG = LoggerFactory.getLogger(GlobalExceptionHandler.class);
 
   /**
-   * Reglas cuya violación es un <b>intento de escalada de privilegios</b> y no un error de
-   * operación.
+   * Reglas cuya violación <b>ataca la estructura del control de accesos</b>, y no un error de
+   * operación cualquiera.
    *
-   * <p>Declarar permisos por encima del rol padre (`RN-SEG-003`) o por encima de los del propio
-   * actor (`RN-SEG-010`) debe poder encontrarse buscando por severidad, de ahí {@code ALTA}. El
-   * resto de los rechazos de negocio —duplicado, padre inválido, permiso inexistente— son {@code
-   * MEDIA} (`plan.md` §6).
+   * <p>Todas se registran con severidad {@code ALTA} para que puedan encontrarse buscando por
+   * severidad; el resto de los rechazos de negocio —duplicado, padre inválido, permiso inexistente—
+   * son {@code MEDIA}. Cada una está aquí por un motivo distinto:
+   *
+   * <ul>
+   *   <li>`RN-SEG-003` y `RN-SEG-010` — declarar permisos por encima del rol padre o de los del
+   *       propio actor es un intento de <b>escalada de privilegios</b> (`RF-SP-001` §6).
+   *   <li>`RN-SEG-013` — lo mismo, por la puerta de atrás: reubicar un rol bajo un padre que no
+   *       concede sus permisos (`RF-SP-008` §6).
+   *   <li>`RN-SEG-005` — retirarle a un padre un permiso que un hijo declara rompe el invariante de
+   *       contención en sentido inverso (`RF-SP-006` §6).
+   *   <li>`RN-SEG-006` y `RN-SEG-007` — un ciclo o una segunda raíz <b>corrompen la jerarquía
+   *       entera</b>, no un rol (`RF-SP-008` §6, `RF-SP-007` §6).
+   *   <li>`RN-SEG-008` — intentar eliminar un rol con hijos o con personas asignadas es un intento
+   *       de retirar accesos en bloque sin dejar rastro de a quién (`RF-SP-009` §6).
+   * </ul>
    */
-  private static final Set<String> REGLAS_DE_ESCALADA = Set.of("RN-SEG-003", "RN-SEG-010");
+  private static final Set<String> REGLAS_DE_ESCALADA =
+      Set.of(
+          "RN-SEG-003",
+          "RN-SEG-005",
+          "RN-SEG-006",
+          "RN-SEG-007",
+          "RN-SEG-008",
+          "RN-SEG-010",
+          "RN-SEG-013");
+
+  /**
+   * Restricciones declaradas {@code DEFERRABLE INITIALLY DEFERRED} cuya violación es un <b>empate
+   * concurrente</b> y no un dato inválido.
+   *
+   * <p>Se enumeran a propósito en lugar de tratar toda confirmación fallida como un empate:
+   * cualquier otro fallo al confirmar es un defecto, y darle esta respuesta lo escondería. Cada
+   * requerimiento que declare una restricción diferida con semántica de reintento añade aquí su
+   * nombre.
+   */
+  private static final Set<String> RESTRICCIONES_DIFERIDAS =
+      Set.of("uq_memberships_parent", "uq_memberships_level");
 
   /**
    * Separador del código dentro del mensaje de una restricción de Bean Validation.
@@ -116,6 +148,16 @@ public class GlobalExceptionHandler {
   @ExceptionHandler(UnauthorizedException.class)
   public ProblemDetail deNoAutenticado(UnauthorizedException fallo, HttpServletRequest peticion) {
     return problema(ProblemKind.NO_AUTENTICADO, fallo, peticion);
+  }
+
+  /**
+   * {@code 423}. Tampoco se audita como error: una cuenta bloqueada no es un fallo del sistema, y
+   * el bloqueo ya dejó su propio evento en el registro de seguridad cuando se produjo.
+   */
+  @ExceptionHandler(BlockedAccountException.class)
+  public ProblemDetail deCuentaBloqueada(
+      BlockedAccountException fallo, HttpServletRequest peticion) {
+    return problema(ProblemKind.CUENTA_BLOQUEADA, fallo, peticion);
   }
 
   /**
@@ -204,6 +246,157 @@ public class GlobalExceptionHandler {
     detalle.setProperty("errors", List.of());
     auditarDenegacion(Severity.MEDIA, "AUTH-002", peticion);
     return detalle;
+  }
+
+  /**
+   * El recurso existe pero no admite ese método: {@code 405}.
+   *
+   * <p><b>Sin este manejador el caso salía como {@code 500}</b>, y es el mismo defecto de forma que
+   * el del argumento no convertible: Spring lanza la excepción antes de que exista un controlador
+   * que la atienda, de modo que caía en el {@code catch} genérico.
+   *
+   * <p>Importa más de lo que parece, porque <b>varios requerimientos cumplen una regla no
+   * escribiendo código</b>: `RN-SP-004` hace el catálogo de permisos inmutable por API y
+   * `RN-SP-010` el de monedas, y ninguno de los dos se implementa con una validación que rechace —
+   * se implementan porque no hay manejador que llamar. La verificación de esa ausencia es
+   * precisamente un {@code 405}, y con un {@code 500} el criterio decía lo contrario de lo que
+   * quería decir.
+   *
+   * <p>No se audita: no es un fallo del sistema ni una regla de negocio violada, sino una petición
+   * mal dirigida. {@code request_log} ya la cubre.
+   */
+  @ExceptionHandler(org.springframework.web.HttpRequestMethodNotSupportedException.class)
+  public ProblemDetail deMetodoNoPermitido(
+      org.springframework.web.HttpRequestMethodNotSupportedException fallo,
+      HttpServletRequest peticion) {
+
+    ProblemDetail detalle =
+        base(
+            ProblemKind.METODO_NO_PERMITIDO,
+            "El recurso no admite el método " + fallo.getMethod() + ".",
+            peticion);
+    detalle.setProperty("errors", List.of());
+    return detalle;
+  }
+
+  /**
+   * Ninguna ruta atiende esa dirección: {@code 404}.
+   *
+   * <p>Mismo motivo que el anterior — se lanza antes de llegar a un controlador— y misma
+   * consecuencia si falta: un {@code 500} donde corresponde un {@code 404}. Es lo que responde, por
+   * ejemplo, un {@code PATCH} sobre el recurso completo de una moneda, cuya ruta no está mapeada
+   * para ningún método porque el estado se cambia sobre el subrecurso.
+   */
+  @ExceptionHandler(org.springframework.web.servlet.resource.NoResourceFoundException.class)
+  public ProblemDetail deRutaInexistente(
+      org.springframework.web.servlet.resource.NoResourceFoundException fallo,
+      HttpServletRequest peticion) {
+
+    LOG.debug("Ruta no mapeada: {} {}", peticion.getMethod(), peticion.getRequestURI(), fallo);
+    ProblemDetail detalle =
+        base(ProblemKind.NO_ENCONTRADO, "La dirección solicitada no existe.", peticion);
+    detalle.setProperty("errors", List.of());
+    return detalle;
+  }
+
+  /**
+   * Un valor de la ruta o de la consulta que no se puede convertir al tipo declarado: {@code 400}.
+   *
+   * <p><b>Sin este manejador el caso salía como {@code 500}</b>, y no es un matiz: {@code GET
+   * /api/v1/memberships/abc} es una petición mal formada, no un fallo del sistema. Spring lanza la
+   * excepción al convertir el argumento —antes de entrar al controlador—, de modo que ningún caso
+   * de uso puede atraparla y sin esto caía en el {@code catch} genérico. El síntoma era doble: el
+   * cliente recibía un {@code 500} por un dedazo, y {@code audit_error_log} acumulaba fallos {@code
+   * UNHANDLED} de severidad {@code ALTA} que no eran fallos de nada.
+   *
+   * <p>Se detectó al implementar `RF-SP-018` · `T-08`, pero <b>alcanza a todo endpoint con una
+   * variable de ruta tipada</b>, presentes y futuros.
+   *
+   * <p>No se audita, por lo mismo que el resto de las validaciones de formato: es ruido de
+   * formulario y {@code request_log} ya lo cubre. El esquema lo respalda —{@code
+   * ck_audit_error_log_status} rechaza el {@code 400}—.
+   */
+  @ExceptionHandler(
+      org.springframework.web.method.annotation.MethodArgumentTypeMismatchException.class)
+  public ProblemDetail deTipoIncorrecto(
+      org.springframework.web.method.annotation.MethodArgumentTypeMismatchException fallo,
+      HttpServletRequest peticion) {
+
+    // El mensaje NO menciona el tipo esperado ni la excepción de conversión:
+    // ambos nombran clases y paquetes internos (Art. VI.5).
+    String mensaje = "El valor de '" + fallo.getName() + "' no tiene el formato esperado.";
+
+    ProblemDetail detalle = base(ProblemKind.VALIDACION, mensaje, peticion);
+    detalle.setProperty("errors", List.of(new FieldError(fallo.getName(), "VAL-001", mensaje)));
+    return detalle;
+  }
+
+  /**
+   * Violación de una restricción <b>diferida</b>, que salta al confirmar la transacción.
+   *
+   * <p><b>Por qué necesita un manejador propio.</b> Una restricción {@code DEFERRABLE INITIALLY
+   * DEFERRED} se evalúa en el {@code COMMIT}, es decir, cuando el interceptor transaccional cierra
+   * — <b>fuera</b> del caso de uso y fuera del adaptador. Ningún {@code try} del repositorio puede
+   * capturarla, de modo que sin esto llegaría como fallo no controlado y el cliente recibiría un
+   * {@code 500} por un empate que tiene respuesta de negocio.
+   *
+   * <p>Hoy la usan las dos restricciones de la cadena de membresías. Que dos altas simultáneas
+   * pretendan ser la superior de la misma hija no es un dato inválido: es que la cadena cambió
+   * mientras esta operación se resolvía, y <b>la misma petición repetida es correcta</b>. De ahí
+   * que `EX-003` diga que se reintente y no que algo esté mal.
+   *
+   * <p>Se distingue por el <b>nombre de la restricción</b>, nunca por el texto del mensaje del
+   * driver, que cambia entre versiones. Una violación diferida que no reconozcamos se relanza:
+   * darle a todo fallo de confirmación la respuesta de un empate escondería defectos reales.
+   */
+  @ExceptionHandler(org.springframework.transaction.TransactionSystemException.class)
+  public ProblemDetail deConfirmacionFallida(
+      org.springframework.transaction.TransactionSystemException fallo,
+      HttpServletRequest peticion) {
+
+    String restriccion = nombreDeRestriccion(fallo);
+
+    // El nulo se comprueba aparte: `Set.of(...)` es un conjunto inmutable del
+    // JDK y su `contains(null)` lanza NullPointerException en lugar de devolver
+    // false. Sin esta guarda, un fallo al confirmar que no venga de una
+    // restricción —el caso más común de todos— reventaría DENTRO del manejador
+    // de excepciones, que es el peor sitio posible para que algo falle.
+    if (restriccion == null || !RESTRICCIONES_DIFERIDAS.contains(restriccion)) {
+      return deFalloNoControlado(fallo, peticion);
+    }
+
+    LOG.info(
+        "Empate concurrente sobre la restricción diferida {}. correlationId={}",
+        restriccion,
+        correlacion());
+
+    ProblemDetail detalle =
+        base(
+            ProblemKind.REGLA_DE_NEGOCIO,
+            "La cadena cambió durante la operación. Vuelva a intentarlo.",
+            peticion);
+    detalle.setProperty("errors", List.of());
+
+    auditar(
+        new ErrorEvent(
+            recurso(peticion),
+            null,
+            operacion(peticion),
+            "EX-003",
+            ErrorType.BUSINESS_RULE,
+            ProblemKind.REGLA_DE_NEGOCIO.status().value(),
+            Severity.MEDIA,
+            "Empate concurrente al reordenar la cadena."));
+    return detalle;
+  }
+
+  private static String nombreDeRestriccion(Throwable fallo) {
+    for (Throwable causa = fallo; causa != null; causa = causa.getCause()) {
+      if (causa instanceof org.hibernate.exception.ConstraintViolationException violacion) {
+        return violacion.getConstraintName();
+      }
+    }
+    return null;
   }
 
   /**

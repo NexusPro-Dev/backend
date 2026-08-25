@@ -114,6 +114,28 @@ class LayerRulesTest {
   }
 
   @Test
+  @DisplayName("RN-SEG-010 se comprueba en UN solo sitio")
+  void laContencionDePrivilegiosNoSeReimplanta() {
+    // `RF-SP-030` · `T-02` lo exige, y el motivo es el modo de fallo: tres
+    // comprobaciones idénticas escritas en tres sitios divergen, y la que se
+    // queda atrás **no falla — concede**. La regla se ancla en lo único que la
+    // comprobación necesita, que son los permisos que un rol declara: quien lea
+    // `permissionCodes()` fuera de `domain/security` está a un paso de escribir
+    // la segunda copia.
+    noClasses()
+        .that()
+        .resideOutsideOfPackage("..users.domain.security..")
+        .and()
+        .resideOutsideOfPackage("..users.domain.repository..")
+        .should()
+        .callMethod(
+            com.factech.nexus.modules.system.users.domain.repository.AssignableRole.class,
+            "permissionCodes")
+        .because("`RN-SEG-010` vive en PrivilegeContainment y en ningún otro sitio (RF-SP-030 §3)")
+        .check(clases);
+  }
+
+  @Test
   @DisplayName("shared no depende de ningún módulo de negocio")
   void loCompartidoNoConoceALosModulos() {
     // Si `shared` conociera un módulo, dejaría de ser transversal: el módulo

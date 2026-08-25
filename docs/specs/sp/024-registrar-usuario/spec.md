@@ -10,6 +10,7 @@
 | Fecha de aprobación | 21-08-2026 |
 | Enmendada | 21-08-2026 — `RN-SP-018` obliga a indicar la membresía si el alta concede un rol `CONSUMIDOR`, al aprobar `RF-SP-033` (Art. I.7) |
 | Enmendada | 22-08-2026 — `RN-SP-019` obliga a indicar el superior comercial si el alta concede un rol `VENDEDOR`, al registrarse `RF-SP-041` (Art. I.7) |
+| Enmendada | 24-08-2026 — `RN-SP-023` hace **obligatorio** al menos un rol: `FA-001` se retira, nace `EX-008` y `CA-SP-197` se invierte (Art. I.7) |
 
 ---
 
@@ -73,7 +74,7 @@ Que ambas sirvan para iniciar sesión obliga a una condición sobre el formato: 
 | Correo | Sí | Correo de la persona, y la otra forma de iniciar sesión | Único entre todos los usuarios, incluidos los eliminados. Formato de correo válido |
 | Nombre y apellidos | Sí | Cómo se llama la persona | Es lo que la interfaz y la auditoría muestran cuando hay que decir quién hizo algo |
 | Contraseña inicial | Sí | Credencial con la que la persona entra por primera vez | Debe cumplir la política mínima de contraseña (`security.md` §3.2). Nunca se devuelve ni se registra. **La persona deberá cambiarla en su primer inicio de sesión** |
-| Roles | No | Roles que se le asignan al crearlo | Cada uno debe existir, estar activo y no exceder los privilegios del actor |
+| Roles | **Sí** | Roles que se le asignan al crearlo | **Al menos uno** (`RN-SP-023`). Cada uno debe existir, estar activo y no exceder los privilegios del actor |
 | Membresía | **Condicional** | Nivel de acceso de la persona | **Obligatoria** si alguno de los roles indicados es de clasificación `CONSUMIDOR` (`RN-SP-018`). No se admite en ningún otro caso |
 | Superior comercial | **Condicional** | Persona a cargo de la cual queda el nuevo usuario | **Obligatorio** si alguno de los roles indicados es de clasificación `VENDEDOR` (`RN-SP-019`), salvo que ese rol sea la cúspide de la fuerza comercial —aquel cuyo rol padre no es `VENDEDOR`—, donde no se admite. Debe existir, estar `ACTIVO` y portar el rol padre inmediato del rol vendedor concedido (`RN-SP-020`) |
 
@@ -119,12 +120,7 @@ La contraseña **no forma parte de la salida** en ninguna forma, ni siquiera tra
 
 ## 9. Flujos alternativos
 
-### FA-001 — Alta sin roles
-
-**Cuándo ocurre:** el actor no indica ningún rol.
-
-1. El sistema omite las verificaciones de rol.
-2. El usuario queda registrado sin ningún rol y, por tanto, **sin permiso efectivo alguno**: puede autenticarse, pero no puede hacer nada. Es un estado válido y transitorio, a la espera de `RF-SP-030`.
+*(El flujo «Alta sin roles» que aquí figuraba se retiró el 24-08-2026 al nacer `RN-SP-023`: dejar de indicar roles pasó de ser un flujo alternativo a una excepción, `EX-008`.)*
 
 ## 10. Excepciones
 
@@ -158,6 +154,13 @@ La contraseña **no forma parte de la salida** en ninguna forma, ni siquiera tra
 **Condición:** el superior indicado no existe, no está `ACTIVO`, o no porta el rol padre inmediato del rol vendedor que se concede —por ejemplo, se registra un agente a cargo de otro agente, o directamente a cargo de un manager—.
 **Respuesta del sistema:** rechaza el alta completa, cita `RN-SP-020` e informa qué rol debería portar el superior. Admitirlo dejaría la estructura de personas contradiciendo el orden de mando que declaran los roles, y ninguna de las dos serviría después para decidir nada.
 
+### EX-008 — Alta sin ningún rol
+
+**Condición:** no se indica ningún rol, o la lista llega vacía.
+**Respuesta del sistema:** rechaza el alta y cita `RN-SP-023`. Un usuario sin roles puede autenticarse y no puede hacer absolutamente nada, de modo que registrarlo así crea una cuenta que solo sirve para ocupar un nombre de usuario y un correo — que además quedan reservados para siempre (`RN-SP-016`).
+
+Es la excepción que nació el 24-08-2026 al establecerse `RN-SP-023`, y sustituye al flujo `FA-001` que admitía este caso.
+
 ### EX-004 — Rol fuera del alcance del actor
 
 **Condición:** alguno de los roles indicados concede permisos que el actor no posee.
@@ -179,6 +182,7 @@ La contraseña **no forma parte de la salida** en ninguna forma, ni siquiera tra
 | `VAL-010` | El nombre de usuario no contiene arroba | El nombre de usuario no puede contener el carácter «@». |
 | `VAL-011` | Superior comercial obligatorio si se concede un rol `VENDEDOR` que no es la cúspide, y no admitido en cualquier otro caso | Indique quién estará a cargo de esta persona. |
 | `VAL-012` | El superior indicado existe, está `ACTIVO` y porta el rol padre inmediato del rol vendedor concedido | El superior indicado no puede estar a cargo de este rol. |
+| `VAL-013` | Al menos un rol informado (`RN-SP-023`) | Debe indicar al menos un rol. |
 
 ## 12. Criterios de aceptación
 
@@ -191,7 +195,7 @@ La contraseña **no forma parte de la salida** en ninguna forma, ni siquiera tra
 | `CA-SP-194` | El sistema rechaza el alta cuando el nombre de usuario o el correo pertenecen a un usuario **eliminado**, con la misma respuesta que en el caso vigente |
 | `CA-SP-195` | El sistema rechaza una contraseña que no cumple la política mínima, indicando qué regla incumple |
 | `CA-SP-196` | La contraseña no aparece en la respuesta, ni en los registros de operación, ni en los de auditoría |
-| `CA-SP-197` | El sistema permite registrar un usuario sin roles, y ese usuario queda sin permiso efectivo alguno |
+| `CA-SP-197` | El sistema **rechaza** registrar un usuario sin ningún rol, citando `RN-SP-023` |
 | `CA-SP-198` | El sistema rechaza el alta completa cuando alguno de los roles indicados no existe o está inactivo |
 | `CA-SP-199` | El sistema rechaza el alta cuando algún rol indicado excede los privilegios del actor |
 | `CA-SP-200` | El sistema registra el alta en la auditoría de cambios y en la de seguridad |
@@ -211,7 +215,7 @@ La contraseña **no forma parte de la salida** en ninguna forma, ni siquiera tra
 - **Nombre de usuario que coincide con el correo de otra persona:** imposible por construcción, porque `VAL-010` prohíbe la arroba. Es lo que permite que el inicio de sesión acepte ambos sin espacio de unicidad común.
 - **Alta concurrente del mismo nombre de usuario:** la restricción única del esquema resuelve el empate; el segundo intento recibe el error de duplicado.
 - **Alta con un rol que se desactiva a la vez:** ambas operaciones se serializan sobre la fila del rol, igual que exige `RF-SP-009`. El alta o ve el rol activo o lo rechaza, pero no crea un usuario con un rol inactivo.
-- **Usuario sin ningún rol:** puede autenticarse y recibirá un token sin códigos de rol. Toda petición posterior será denegada por autorización. No es un error, pero la interfaz debería hacerlo evidente.
+- **Usuario sin ningún rol:** ya no existe como estado (`RN-SP-023`). Un alta sin roles se rechaza con `EX-008`. Lo que sí sigue siendo posible es un usuario cuyos roles estén **todos inactivos**: se autentica, recibe un token que no concede nada y toda petición posterior se le deniega por autorización. La regla mira la asignación, no el estado del rol.
 - **Contraseña igual al nombre de usuario o al correo:** la política mínima de `security.md` §3.2 no lo cubre explícitamente. Conviene que la política declarada lo incluya, o el alta admitirá credenciales triviales que cumplen la longitud.
 - **Alta del primer manager, cúspide de la fuerza comercial:** se acepta sin superior, porque su rol no tiene un rol padre `VENDEDOR`. Es la única excepción de `RN-SP-019`, y funciona igual que `RN-SEG-007` con el rol raíz: la cadena tiene que empezar en algún sitio.
 - **Superior que se desactiva durante el alta:** ambas operaciones se serializan sobre la fila del superior, igual que ocurre con el rol en el caso anterior. El alta o lo ve `ACTIVO` o rechaza, pero no deja a nadie a cargo de una cuenta que acaba de perder el acceso.

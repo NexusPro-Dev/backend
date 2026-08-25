@@ -86,6 +86,32 @@ public class JpaPermissionQueryRepository implements PermissionQueryRepository {
     return typed.getResultList();
   }
 
+  @Override
+  public java.util.Optional<PermissionItem> findById(java.util.UUID id) {
+    CriteriaBuilder cb = entityManager.getCriteriaBuilder();
+    CriteriaQuery<PermissionItem> criteria = cb.createQuery(PermissionItem.class);
+    Root<Permission> permission = criteria.from(Permission.class);
+
+    // La MISMA proyección que el listado, y no la entidad: el detalle devuelve
+    // los mismos seis campos, y leer el agregado para responder una consulta es
+    // lo que abre la puerta a que alguien recorra una asociación desde el
+    // mapeador. En particular, aquí NO se toca `role_permissions`: `spec.md`
+    // §4.2 excluye los roles que declaran el permiso, y no tener la subconsulta
+    // es lo único que lo hace verificable.
+    criteria.select(
+        cb.construct(
+            PermissionItem.class,
+            permission.get("id"),
+            permission.get("code"),
+            permission.get("resource"),
+            permission.get("action"),
+            permission.get("name"),
+            permission.get("description")));
+    criteria.where(cb.equal(permission.get("id"), id));
+
+    return entityManager.createQuery(criteria).getResultList().stream().findFirst();
+  }
+
   /**
    * Búsqueda insensible a mayúsculas y a acentos sobre el código y la descripción.
    *

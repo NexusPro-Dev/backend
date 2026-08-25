@@ -1,0 +1,39 @@
+# Qué NO viaja al demonio de Docker en cada construcción.
+#
+# El Dockerfile solo copia `pom.xml` y `src`, de modo que todo lo demás se
+# envía para nada. Sin este archivo el contexto arrastraba unos 100 MB —80 de
+# `target/` y 18 de `site/`— en cada `docker compose up --build`.
+#
+# La regla es la inversa de `.gitignore`: aquí se excluye lo que no hace falta
+# para CONSTRUIR, aunque esté versionado.
+
+# Artefactos de construcción
+target/
+site/
+
+# Historia y metadatos del repositorio
+.git/
+.gitignore
+.gitattributes
+.github/
+
+# Documentación: no interviene en la construcción del backend
+docs/
+mkdocs.yml
+requirements-docs.txt
+README.md
+
+# Entorno local y del editor
+.env
+.env.example
+docker-compose.yml
+.editorconfig
+.idea/
+.vscode/
+*.iml
+
+# El envoltorio de Maven no se usa dentro de la imagen: la etapa de
+# construcción parte de `maven:3.9-eclipse-temurin-21`, que ya lo trae.
+mvnw
+mvnw.cmd
+.mvn/
