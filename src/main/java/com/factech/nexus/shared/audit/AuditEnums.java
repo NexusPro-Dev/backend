@@ -53,8 +53,8 @@ public final class AuditEnums {
   }
 
   /**
-   * Catálogo cerrado de eventos de seguridad: los <b>diecinueve</b> códigos que fija `RF-SP-014` §2
-   * y que replica el {@code CHECK} de {@code ck_audit_security_log_event_type}.
+   * Catálogo cerrado de eventos de seguridad: los <b>veinte</b> códigos que fija `RF-SP-014` §2 y
+   * que replica el {@code CHECK} de {@code ck_audit_security_log_event_type}.
    *
    * <p>Están todos, incluidos los de requerimientos que aún no tienen plan, y es deliberado: un
    * valor que nadie escribe es inerte, mientras que una migración de alteración por requerimiento
@@ -84,6 +84,18 @@ public final class AuditEnums {
     USER_DELETED,
     PASSWORD_CHANGED,
     PASSWORD_RESET,
-    SECURITY_AUDIT_READ
+    SECURITY_AUDIT_READ,
+
+    /**
+     * Una ráfaga topó con el límite de tasa (`security.md` §5.5).
+     *
+     * <p><b>No es un intento de acceso fallido</b>, y por eso no reutiliza {@link #LOGIN_FAILURE}:
+     * la credencial ni siquiera llega a comprobarse. Mezclarlos corrompería las dos lecturas que
+     * ese registro sirve —el contador de intentos de una cuenta y la investigación de un acceso—,
+     * porque una ráfaga bloqueada inflaría el primero sin que nadie haya fallado una contraseña.
+     *
+     * <p>Añadido el 25-08-2026 con {@code V34}; el catálogo pasa de diecinueve a <b>veinte</b>.
+     */
+    RATE_LIMIT_EXCEEDED
   }
 }
