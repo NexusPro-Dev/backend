@@ -34,6 +34,9 @@ class OpenApiContractIT extends IntegrationTestBase {
   /** Destino del contrato publicado. Relativo a la raíz del proyecto (ADR-001). */
   private static final Path DESTINO = Path.of("docs", "api", "openapi.json");
 
+  /** El mismo contrato en YAML, que es el formato que asumen los generadores de cliente. */
+  private static final Path DESTINO_YAML = Path.of("docs", "api", "openapi.yaml");
+
   @Autowired private MockMvc mvc;
   @Autowired private ObjectMapper json;
 
@@ -417,5 +420,33 @@ class OpenApiContractIT extends IntegrationTestBase {
         DESTINO,
         ordenado.writerWithDefaultPrettyPrinter().writeValueAsString(contenido) + "\n",
         StandardCharsets.UTF_8);
+  }
+
+  @Test
+  @DisplayName("publica también el YAML, que es lo que piden por defecto los generadores")
+  void publicaElContratoTambienEnYaml() throws Exception {
+    // El JSON basta para leerlo; el YAML es lo que la mayoría de los
+    // generadores de cliente asume cuando se les da una URL. Publicar solo uno
+    // obliga a cada consumidor a convertirlo, y una conversión hecha a mano en
+    // el lado del cliente es una copia del contrato que envejece por su cuenta.
+    //
+    // Se pide a springdoc en lugar de convertir el JSON aquí: así el YAML lo
+    // produce el mismo componente que sirve `/v3/api-docs.yaml` en ejecución, y
+    // no una traducción propia que pudiera diferir de lo que ve quien consulta
+    // la API en vivo.
+    String cuerpo =
+        mvc.perform(get("/v3/api-docs.yaml").with(user("doc")))
+            .andExpect(status().isOk())
+            .andReturn()
+            .getResponse()
+            .getContentAsString(StandardCharsets.UTF_8);
+
+    Files.createDirectories(DESTINO_YAML.getParent());
+    Files.writeString(DESTINO_YAML, cuerpo, StandardCharsets.UTF_8);
+
+    // Que no salga vacío es lo único que esta prueba puede afirmar por su
+    // cuenta: la coincidencia con el JSON la garantiza el propio springdoc, y
+    // que lo comprometido esté al día lo comprueba CI.
+    org.assertj.core.api.Assertions.assertThat(cuerpo).contains("openapi:").contains("/api/v1/");
   }
 }

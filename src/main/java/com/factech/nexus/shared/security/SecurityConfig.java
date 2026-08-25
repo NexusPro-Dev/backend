@@ -10,6 +10,7 @@ import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
 import org.springframework.security.config.http.SessionCreationPolicy;
 import org.springframework.security.web.SecurityFilterChain;
+import org.springframework.security.web.access.intercept.AuthorizationFilter;
 import org.springframework.security.web.authentication.HttpStatusEntryPoint;
 
 /**
@@ -67,11 +68,14 @@ public class SecurityConfig {
 
   private final boolean documentacionPublica;
   private final JwtActorConverter actorDesdeElToken;
+  private final ActorCaptureFilter actorParaElRegistro;
 
   public SecurityConfig(
       JwtActorConverter actorDesdeElToken,
+      ActorCaptureFilter actorParaElRegistro,
       @Value("${nexus.security.expose-api-docs:false}") boolean documentacionPublica) {
     this.actorDesdeElToken = actorDesdeElToken;
+    this.actorParaElRegistro = actorParaElRegistro;
     this.documentacionPublica = documentacionPublica;
   }
 
@@ -116,6 +120,13 @@ public class SecurityConfig {
         // token expire (`security.md` §4.5).
         .oauth2ResourceServer(
             oauth2 -> oauth2.jwt(jwt -> jwt.jwtAuthenticationConverter(actorDesdeElToken)))
+
+        // Apunta el actor DENTRO de esta cadena, que es el único sitio donde
+        // todavía existe: Spring Security limpia su contexto en su propio
+        // `finally`, antes que el de cualquier filtro que la envuelva. Sin esto,
+        // `request_log` registraría toda petición como anónima — con filas que
+        // existen y parecen correctas, que es la peor forma de equivocarse.
+        .addFilterAfter(actorParaElRegistro, AuthorizationFilter.class)
         .headers(Customizer.withDefaults());
 
     return http.build();
