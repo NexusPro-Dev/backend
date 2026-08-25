@@ -39,9 +39,17 @@ import org.springframework.security.web.authentication.HttpStatusEntryPoint;
 @EnableMethodSecurity
 public class SecurityConfig {
 
-  /** Salud del sistema: público siempre, sin detalle interno (Art. XV.10). */
+  /**
+   * Salud del sistema: público siempre, sin detalle interno (Art. XV.10).
+   *
+   * <p><b>El comodín no sobra</b>: desde el issue #31 la salud son <b>tres</b> rutas —la general,
+   * {@code /liveness} y {@code /readiness}—, y quien las consulta es el orquestador, que no porta
+   * credencial ninguna. Sin el comodín, las dos sondas nuevas responden {@code 401} y el contenedor
+   * concluye que la aplicación está enferma justo cuando está sana.
+   */
   private static final String[] RUTAS_PUBLICAS = {
     "/actuator/health",
+    "/actuator/health/**",
     // Los tres endpoints de sesión son públicos por definición: quien inicia
     // sesión, renueva o cierra no puede portar todavía —o ya no porta— un token
     // de acceso válido. `RF-SP-036` lo declara de forma explícita para el

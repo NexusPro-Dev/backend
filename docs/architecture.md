@@ -5,7 +5,7 @@
 | Proyecto | NEXUS — Renovación de plataforma |
 | Empresa | FACTECH GROUP SAS |
 | Documento | `architecture.md` |
-| Versión | 0.15.0 |
+| Versión | 0.16.0 |
 | Estado | Borrador |
 | Responsable técnico | Bonilla Diaz William Steven |
 | Fecha de creación | 19-08-2026 |
@@ -591,9 +591,36 @@ Que la retención sea distinta por registro es una consecuencia buscada de la se
 
 **Enmascaramiento (Art. XV.5):** antes de persistir cualquier cuerpo de petición o respuesta se aplica una lista de campos sensibles (contraseñas, tokens, cabeceras `Authorization`, datos personales). El enmascaramiento es por lista de inclusión de lo que sí puede registrarse, no por lista de exclusión: un campo nuevo no declarado se enmascara por defecto.
 
-**Salud:** `/actuator/health` expuesto sin autenticación de negocio y sin detalle interno (Art. XV.10).
+**Salud:** tres rutas públicas y sin detalle interno —la general y las dos sondas separadas— más las métricas detrás de autenticación. Ver §9.1.
 
 **Rendimiento (Art. XV.9):** la duración de cada petición queda en `request_log`, lo que permite medir el p95 real por endpoint y verificar los umbrales (<500 ms lectura, <1 s escritura) sin instrumentación adicional.
+
+---
+
+### 9.1 Salud, sondas y métricas
+
+**Tres rutas de salud, y no una** (issue #31). `/actuator/health` respondía a la vez a dos preguntas que no son la misma:
+
+| Ruta | Responde | Quién la usa |
+|---|---|---|
+| `/actuator/health` | ¿El sistema está bien? | Cualquiera; es la de siempre |
+| `/actuator/health/liveness` | **¿Hay que reiniciarlo?** | El orquestador, para decidir un reinicio |
+| `/actuator/health/readiness` | **¿Le mando tráfico?** | El balanceador y el `healthcheck` del contenedor |
+
+La distinción no es de estilo. En el primer arranque Flyway aplica las migraciones y la aplicación está **viva sin poder atender**: con una sola sonda, quien pregunta lo primero interpreta lo segundo y reinicia un proceso perfectamente sano, justo cuando más caro es. El `start_period` holgado del `docker-compose.yml` era el parche que lo tapaba.
+
+**Las tres son públicas** (Art. XV.10) y **sin detalle** (`show-details: never`): quien las consulta es el orquestador, que no porta credencial, y el detalle de salud —componentes, versiones, la URL de la base— es un mapa del sistema para quien lo sondee (Art. VI.5).
+
+**Las métricas no son públicas.** `/actuator/metrics` se expone pero queda **detrás de la autenticación**, porque el Art. XV.10 abre la salud y nada más. Con `http.server.requests` los umbrales p95 del Art. XV.9 pasan a ser medibles por dos vías independientes: la métrica agregada y la duración por petición de `request_log` (§6.7).
+
+**Lo que sigue sin resolverse, y conviene no confundirlo con lo hecho:**
+
+- **Nadie raspa esas métricas.** Un raspador no porta un JWT, de modo que hace falta un permiso propio o una red de administración que las aísle. Llega con la infraestructura de despliegue (**D-09**).
+- **Nadie alerta.** Una métrica que nadie mira es una métrica que no existe. En particular sigue sin vigilarse la **ausencia de eventos de auditoría**, que `RF-SP-001` §10 declara que debería: `recordSecurityAfterCommit` acepta a conciencia que una escritura fallida tras el `commit` deje la operación sin evento **a cambio de que esa ausencia se vigile**.
+- **Ningún otro endpoint de actuator se expone.** `env` y `beans` publican configuración y estructura interna; no están en la lista y una prueba impide que entren «para depurar» y se queden.
+
+---
+
 
 ---
 
@@ -722,3 +749,4 @@ D-08 quedó cerrada en `security.md` §12, junto con las decisiones D-12 a D-15 
 | 0.13.0 | 25-08-2026 | **Consecuencias de implementar los trece endpoints que faltaban del módulo** —`RF-SP-002` a `RF-SP-015`—. §7.4 declara que **`totalIsExact` deja de valer siempre verdadero**: sobre las tablas que crecen sin purga —los cuatro registros de auditoría— el conteo es **exacto hasta un techo** y aproximado por encima, contando sobre una subconsulta con `LIMIT techo + 1` que **nunca examina más filas que ese techo**, tenga la tabla mil o cien millones. El `COUNT(*)` exacto obliga a recorrer todas las filas que cumplen el predicado aunque solo se devuelvan veinte, y lo hace en cada página: con las tablas vacías no se nota y con dos años de operación son segundos por petición. Se declara además que **`totalPages` es una cota inferior** cuando el total no es exacto y que **pedir una página más allá sigue funcionando**, que es lo que impide que el techo se convierta en un muro; y que el ordenamiento **no siempre lo elige el cliente** —los listados de auditoría lo tienen fijo porque el orden es parte del significado de un registro cronológico—, que donde sí lo elige se resuelve contra una **lista blanca cerrada** antes de construir la consulta, y que a todo ordenamiento se le añade el identificador como **desempate**. §6.6.6 incorpora el **quinto índice mínimo**, `(occurred_at DESC, id DESC)`: los cuatro anteriores responden preguntas que empiezan por un filtro y **ninguno responde la del listado sin filtros**, que es la primera pantalla de los cuatro registros. Queda escrito por qué **no** se indexan `module`, `action`, `severity`, `outcome` ni `error_type` —columnas de dos o tres valores, que el planificador descarta— y que el coste no es neutro: **cada índice de estas tablas se paga en cada operación de negocio del sistema**. §6.6.4 fija por fin **cuándo la severidad de un rechazo es `ALTA`**: siete reglas que atacan la estructura del control de accesos, cada una con su motivo, frente al `MEDIA` por omisión de un duplicado o un padre inválido. | Responsable técnico |
 | 0.14.0 | 25-08-2026 | §7.2 declara por fin los dos códigos que la API ya devolvía sin estar en la tabla: **`423`** —la cuenta bloqueada, que `RF-SP-034` estrenó— y **`429`**, que entra con el límite de tasa (issue #21) y **lleva `Retry-After`**. Una tabla de códigos incompleta no es un detalle de redacción: es el documento al que se acude para saber qué puede recibir un cliente, y lo que no está en ella acaba tratándose como un error del servidor. | Responsable técnico |
 | 0.15.0 | 25-08-2026 | Nueva **§6.7: `request_log` existe** (issue #23, `V35`). Cinco secciones lo daban por escrito y la tabla no estaba, y el hueco no era teórico: §6.6.4 decide **no** auditar los `404`, los `400` de formato ni las peticiones mal dirigidas «porque `request_log` ya lo cubre», de modo que un **barrido de rutas** —el reconocimiento previo a un ataque— no dejaba rastro en ninguna parte. Se declaran las columnas y tres cosas que no se deducen del esquema: que `correlation_id` **no** es nulable aquí al contrario que en los cuatro registros de auditoría —aquellos admiten procesos internos, esto solo lo escribe una petición HTTP—; que **`status` nulo** significa que la petición se abortó sin respuesta, porque un cero fingido diría que el sistema respondió cero; y que el actor se apunta **dentro de la cadena de seguridad** y no al escribir, porque Spring Security limpia su contexto antes que el filtro que la envuelve y toda petición quedaría registrada como anónima — con filas que existen y parecen correctas. `duration_ms` vuelve **verificables** los umbrales p95 del Art. XV.9, que hasta ahora no se podían medir porque no había de dónde. La purga sigue pendiente de **D-10**. | Responsable técnico |
+| 0.16.0 | 25-08-2026 | Nueva **§9.1: sondas separadas y métricas** (issue #31). `/actuator/health` respondía a la vez a **dos preguntas distintas** —«¿arrancó?» y «¿puede atender?»—, y confundirlas no es teórico: en el primer arranque Flyway aplica las migraciones y la aplicación está **viva sin poder atender**, de modo que quien pregunta lo primero interpreta lo segundo y reinicia un proceso sano; el `start_period` holgado del `docker-compose.yml` era el parche que lo tapaba. Se separan en `/liveness` y `/readiness`, **las tres públicas y sin detalle** —quien las consulta es el orquestador, que no porta credencial, y el detalle de salud es un mapa del sistema (Art. VI.5)—, y el `healthcheck` del contenedor pasa a preguntar por **disponibilidad**, que es lo que decide si se le manda tráfico. Se exponen además las **métricas**, y **no son públicas**: el Art. XV.10 abre la salud y nada más. Con ellas y con `request_log` (§6.7), los umbrales p95 del Art. XV.9 pasan a ser medibles por dos vías independientes. Queda declarado lo que **no** se resuelve: nadie raspa esas métricas —un raspador no porta un JWT, y el permiso propio o la red que las aísle llegan con **D-09**— y **nadie alerta**, en particular sobre la **ausencia de eventos de auditoría** que `RF-SP-001` §10 declara que debe vigilarse. Una métrica que nadie mira es una métrica que no existe. | Responsable técnico |
