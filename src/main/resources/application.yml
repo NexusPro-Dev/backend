@@ -62,12 +62,37 @@ management:
   endpoints:
     web:
       exposure:
-        # Solo salud, sin información sensible y sin autenticación de negocio
-        # (Art. XV.10).
-        include: health
+        # `health` es público por el Art. XV.10; `metrics` NO lo es y no hace
+        # falta declararlo en ningún sitio para que deje de serlo: la cadena de
+        # seguridad deniega por defecto todo lo que no figure entre las rutas
+        # públicas, de modo que exponerlo aquí solo lo hace alcanzable para
+        # quien ya se autenticó.
+        #
+        # Qué falta para que sirva de verdad: un raspador no porta un JWT. El
+        # permiso propio —o la red de administración que lo aísle— llega con la
+        # infraestructura de despliegue (D-09). Hasta entonces las métricas se
+        # consultan a mano, que es infinitamente mejor que no tenerlas.
+        include: health,metrics
   endpoint:
     health:
+      # Ni versiones, ni URLs de base de datos, ni nombres de componentes: el
+      # detalle de salud es un mapa del sistema para quien lo sondea sin
+      # credenciales (Art. VI.5).
       show-details: never
+
+      # DOS PREGUNTAS DISTINTAS, DOS SONDAS (issue #31). `/actuator/health`
+      # respondía a la vez «¿arrancó?» y «¿puede atender?», y no son lo mismo:
+      # en el primer arranque Flyway aplica las migraciones y la aplicación
+      # está VIVA sin poder recibir tráfico. Con una sola sonda, el orquestador
+      # que pregunta lo primero interpreta lo segundo y reinicia un proceso
+      # perfectamente sano — y el `start_period` holgado del compose es el
+      # parche que hoy lo tapa.
+      #
+      # `liveness`  -> ¿hay que reiniciarlo? Solo dice que no vive si el
+      #               proceso está roto sin remedio.
+      # `readiness` -> ¿le mando tráfico? Es la que mira las dependencias.
+      probes:
+        enabled: true
 
 springdoc:
   api-docs:
