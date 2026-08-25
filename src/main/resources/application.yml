@@ -104,6 +104,31 @@ nexus:
 
     trusted-proxies: ${TRUSTED_PROXIES:}
 
+    # Purga de sesiones caducadas (issue #25). `refresh_tokens` crece de forma
+    # monótona por diseño: `RF-SP-035` rota el token en cada refresco y revocar
+    # es marcar, no eliminar, de modo que una sesión de siete días renovando
+    # cada quince minutos deja cientos de filas que nadie retira.
+    token-purge:
+      # Apagable, y la suite lo apaga: con la purga corriendo por su cuenta, una
+      # prueba podría encontrarse retiradas las sesiones que acababa de crear.
+      enabled: ${TOKEN_PURGE_ENABLED:true}
+
+      # De madrugada y en UTC. Nada de esto urge: lo que se retira lleva días
+      # sin autenticar a nadie, y el borrado en bloque toca la tabla que
+      # sostiene la autenticación de todo el sistema.
+      cron: ${TOKEN_PURGE_CRON:0 30 3 * * *}
+
+      # CUÁNTO SE ESPERA DESPUÉS DE QUE LA FAMILIA ENTERA CADUQUE, y el número
+      # no es arbitrario: `RF-SP-035` detecta el robo cuando alguien presenta un
+      # token ya rotado, y esa detección vive en las filas revocadas. Purgar
+      # demasiado pronto APAGA UNA ALARMA. Treinta días dejan un mes de margen
+      # para investigar una sesión que ya no puede autenticar a nadie.
+      #
+      # El plazo se cuenta desde que TODA la familia dejó de servir —el mayor
+      # `expires_at` del grupo—, nunca desde la revocación: una rotación revoca
+      # su token a los quince minutos de nacer.
+      retention: ${TOKEN_PURGE_RETENTION:P30D}
+
     # Límite de tasa de los endpoints públicos de autenticación (`security.md`
     # §5.5). NO es el bloqueo por intentos fallidos: aquel cuenta fallos de
     # credencial contra UNA cuenta y la protege; este cuenta PETICIONES, acierten
