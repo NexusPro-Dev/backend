@@ -43,6 +43,11 @@ services:
       DATABASE_USER: nexus
       DATABASE_PASSWORD: nexus
       API_URL: http://localhost:8080
+      # Orígenes del navegador autorizados (CORS). Estos son los puertos
+      # habituales de un frontend en desarrollo —Vite, Next/CRA, Angular— y
+      # valen SOLO para local: en cualquier entorno desplegado la lista es el
+      # dominio real y llega por variable de entorno, nunca desde este archivo.
+      CORS_ALLOWED_ORIGINS: "http://localhost:5173,http://localhost:3000,http://localhost:4200"
       LOG_LEVEL: INFO
       # Secreto de desarrollo. En cualquier otro entorno llega por variable
       # de entorno y nunca desde un archivo versionado (Art. IV.3).

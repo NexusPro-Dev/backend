@@ -5,11 +5,11 @@
 | Proyecto | NEXUS — Renovación de plataforma |
 | Empresa | FACTECH GROUP SAS |
 | Documento | `security.md` |
-| Versión | 0.23.0 |
+| Versión | 0.24.0 |
 | Estado | Borrador |
 | Responsable técnico | Bonilla Diaz William Steven |
 | Fecha de creación | 19-08-2026 |
-| Última actualización | 24-08-2026 |
+| Última actualización | 25-08-2026 |
 | Documento superior | `constitution.md` v0.5.0 |
 | Documento relacionado | `architecture.md` v0.4.0 |
 
@@ -341,6 +341,20 @@ Si llega un refresh token revocado **por rotación**, el sistema asume robo de c
 - Ante falta de permiso se responde `403`; ante ausencia o invalidez del token, `401` (`architecture.md` §7.2).
 - **NO DEBE** usarse `404` para ocultar la existencia de un recurso salvo que la especificación lo exija de forma expresa y justificada.
 
+### 6.1 Orígenes autorizados del navegador (CORS)
+
+CORS **no es autorización**: no decide quién puede llamar, sino desde qué página web puede el navegador leer la respuesta. Un origen autorizado no obtiene nada que no obtuviera ya con `curl`; lo que se protege es a la persona que visita otro sitio mientras tiene sesión abierta aquí.
+
+- La política vive en `CorsConfig` y se aplica a toda la API. Se declara **una vez** y no por endpoint.
+- **Los orígenes NO se escriben en el código.** Cambian por entorno y llegan por `CORS_ALLOWED_ORIGINS`, separados por coma y con la forma `esquema://host[:puerto]` (Art. IX.1). La lista concreta de cada entorno desplegado es configuración de despliegue y queda pendiente junto con **D-21**.
+- **Vacío = ningún origen autorizado**, que es el valor seguro por defecto (Art. IV.1). No rompe nada que no sea un navegador: quien consume la API de servidor a servidor no pasa por CORS.
+- **El comodín `*` no se admite y la aplicación falla al arrancar con él** (Art. IX.5), igual que ante un origen sin esquema, con barra final o con ruta. Estos últimos no casarían jamás y el fallo aparecería como un error de CORS en el navegador —lejos, tarde y sin mencionar la variable mal puesta—.
+- **Sin credenciales de navegador.** `allowCredentials` queda en `false`: el sistema no usa cookies de sesión (D-08) y el token viaja en `Authorization`, que el navegador no adjunta por su cuenta.
+- Los **métodos y las cabeceras sí se declaran en el código**, porque dependen del contrato y no del entorno. Se exponen `Location` —sin ella, quien registra un recurso no puede leer la dirección del que acaba de crear— y `X-Correlation-Id`, para que la interfaz pueda citarlo al reportar un error (Art. XV.1).
+- La comprobación previa (`OPTIONS`) se responde **antes de la autorización** y por eso **no** figura entre las rutas públicas de la tabla anterior: el navegador nunca le adjunta `Authorization`, de modo que exigir credencial ahí cerraría toda ruta protegida al frontend.
+
+Cierra el pendiente n.º 2 de [`ADR-001`](architecture/ADR-001-publicacion-del-contrato-openapi.md): publicar el contrato no bastaba, porque el navegador seguía sin poder llamar.
+
 ---
 
 ## 7. Protección de datos
@@ -565,3 +579,4 @@ RNF-SEG-002 merece atención: es una prueba que enumera los endpoints registrado
 | 0.21.0 | 24-08-2026 | Consecuencias de aprobar los **planes** de `RF-SP-034` a `RF-SP-036`, el bloque de autenticación y sesión. §5.2 incorpora el claim **`mcp`** al token de acceso: sin él, aplicar el cambio obligatorio de contraseña en el resto de endpoints exige leer `users.must_change_password` **en cada petición**, que es la consulta por petición que D-08 existe para evitar. No contradice la prohibición de datos sensibles del mismo párrafo — no identifica a nadie y su único lector es el titular del token. El resto del bloque **no necesitó enmienda**: la rotación, el motivo obligatorio de revocación, el techo de sesión y los límites de tasa ya se habían incorporado a §5.4 y §5.5 el 21-08-2026, al aprobarse las propias especificaciones, y los cuatro eventos que el bloque emite —`LOGIN_SUCCESS`, `LOGIN_FAILURE`, `ACCOUNT_LOCKED`, `REFRESH_TOKEN_REUSE` y `LOGOUT`— ya estaban en el catálogo cerrado de §8.1 y en el `CHECK` del esquema. Queda declarado un **hueco del módulo**: la **purga** de tokens expirados y revocados que §5.5 exige no tiene requerimiento que la cubra, y una familia de siete días encadenando refrescos cada quince minutos deja cientos de filas por sesión. | Responsable técnico |
 | 0.22.0 | 24-08-2026 | Consecuencias de aprobar los **planes** de `RF-SP-037` a `RF-SP-042`. §3.2 incorpora la **caducidad de la credencial provisional** que fija `RF-SP-038`: sin ella, una cuenta restablecida y nunca usada conserva indefinidamente una credencial conocida por otra persona, y nadie se entera porque no falla nada; se persiste en `users.provisional_password_expires_at` y la comprueba `RF-SP-034` al autenticar. §5.5 incorpora la **limitación de tasa de la recuperación de contraseña**, por identidad y por origen y más estricta que todas las demás: es la única operación pública que provoca un envío saliente, y sin cota permite inundar de correos a una persona real y sondear identidades en masa. Ningún cambio en el **catálogo cerrado** de §8.1 pese a los seis requerimientos: el intento fallido de cambio de contraseña, la sesión agotada y las dos etapas de la recuperación se distinguen con la columna `outcome` y con `detail`, en lugar de añadir literales que obligarían a alterar `ck_audit_security_log_event_type` para separar lo que dos columnas ya separan. | Responsable técnico |
 | 0.23.0 | 24-08-2026 | Consecuencia de [`ADR-001`](architecture/ADR-001-publicacion-del-contrato-openapi.md). El contrato OpenAPI pasa a **publicarse como archivo versionado** en `docs/api/openapi.json`, de modo que la reserva en que §6 apoyaba el cierre de `/v3/api-docs` —«describe cada endpoint y cada permiso del sistema»— **deja de existir**. Se acepta a conciencia y con el argumento escrito: esa reserva nunca fue un control, sino defensa en profundidad, porque todo endpoint deniega por defecto y exige su permiso (Art. IV.1); lo que se pierde es encarecer el reconocimiento. **`EXPOSE_API_DOCS` no cambia** y sigue en `false`: que el contrato sea legible en el repositorio no autoriza a dejar Swagger abierto en un entorno en ejecución. La decisión se reabre si el repositorio pasa a ser privado. | Responsable técnico |
+| 0.24.0 | 25-08-2026 | Nueva **§6.1: orígenes autorizados del navegador (CORS)**, que cierra el pendiente n.º 2 de [`ADR-001`](architecture/ADR-001-publicacion-del-contrato-openapi.md). Publicar el contrato no bastaba: sin autorización de origen, toda llamada del frontend fallaba en el navegador aunque la petición fuera correcta, estuviera autenticada y el backend respondiera `200` — y el síntoma no menciona nunca al backend. Lo que la sección fija es **dónde vive la lista y qué no se admite**: los orígenes llegan por `CORS_ALLOWED_ORIGINS` y **no se escriben en el código** (Art. IX.1) —uno quemado obliga a recompilar para desplegar bajo otro dominio y acaba autorizando en producción el `localhost` de alguien—; **vacío es ningún origen autorizado**, que es el valor seguro y no rompe a quien consume la API de servidor a servidor; y el comodín `*`, junto con todo origen que no casaría nunca —sin esquema, con barra final o con ruta—, **tumba el arranque** (Art. IX.5) en lugar de fallar semanas después en el navegador de quien consume. `allowCredentials` queda en `false` porque no hay cookie de sesión (D-08). La comprobación previa `OPTIONS` se resuelve **antes de la autorización** y por eso no entra en la lista de rutas públicas: el navegador nunca le adjunta `Authorization`, y exigir credencial ahí cerraría toda ruta protegida al frontend. La lista concreta por entorno desplegado queda pendiente junto con **D-21**. | Responsable técnico |

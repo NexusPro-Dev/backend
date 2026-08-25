@@ -79,5 +79,5 @@ Se acepta a conciencia, y conviene que el argumento quede escrito y no se dé po
 | # | Pendiente | Dónde |
 |---|---|---|
 | 1 | Llevar el contrato al frontend de forma automática, en lugar de copiarlo | Un flujo que abra Pull Request en `NexusPro-Dev/frontend` al cambiar el archivo |
-| 2 | **CORS no está declarado** en ninguna parte de este repositorio | `R-02` del frontend. Sin él, publicar el contrato no basta: el navegador seguirá sin poder llamar |
+| 2 | ~~**CORS no está declarado** en ninguna parte de este repositorio~~ · **Resuelto el 25-08-2026.** La política vive en `CorsConfig` y la lista de orígenes llega por `CORS_ALLOWED_ORIGINS`, nunca escrita en el código (`security.md` §6.1). Vacío = ningún origen autorizado; el comodín `*` tumba el arranque. Falta fijar la lista de cada entorno desplegado, que es configuración de despliegue (**D-21**) | `R-02` del frontend |
 | 3 | El `423` y el `429` de `RF-SP-034` **no declaran el cuerpo** de su respuesta, y la interfaz necesita el momento de expiración y el de espera como dato | `R-07` del frontend. Requiere requerimiento propio aquí |

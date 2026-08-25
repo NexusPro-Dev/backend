@@ -78,6 +78,13 @@ public class SecurityConfig {
   @Bean
   public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
     http
+        // Orígenes autorizados para el navegador. La política la define
+        // `CorsConfig` a partir de configuración —nunca de literales— y este
+        // filtro corre ANTES de la autorización: la comprobación previa
+        // (`OPTIONS`), que el navegador emite sin cabecera `Authorization`, se
+        // responde aquí y no necesita figurar entre las rutas públicas.
+        .cors(Customizer.withDefaults())
+
         // Sin protección CSRF: la API no usa cookies de sesión, de modo que
         // no hay credencial que el navegador adjunte de forma automática.
         .csrf(csrf -> csrf.disable())
