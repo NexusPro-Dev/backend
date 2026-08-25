@@ -1,0 +1,3578 @@
+openapi: 3.1.0
+info:
+  title: NEXUS — API del Sistema Principal
+  description: |
+    API del módulo `SP`. **Toda operación exige un token de acceso**
+    salvo el inicio, la renovación y el cierre de sesión.
+
+    Para probar cualquier endpoint: obtenga el token con
+    `POST /api/v1/auth/login`, pulse **Authorize** y pegue el valor de
+    `accessToken` — sin el prefijo `Bearer`, que Swagger añade solo.
+
+    El token vive **quince minutos** y no es revocable: cuando expire,
+    renuévelo con `POST /api/v1/auth/refresh` y vuelva a autorizar.
+  version: v1
+servers:
+- url: /
+  description: Este mismo servidor
+security:
+- bearerAuth: []
+tags:
+- name: Roles
+  description: Registro y administración de los roles del sistema.
+- name: Usuarios
+  description: Alta y administración de las personas del sistema.
+- name: Permisos
+  description: Catálogo de permisos del sistema. Solo lectura.
+- name: Auditoría
+  description: "Los cuatro registros de auditoría del sistema. Solo lectura, y cada\
+    \ uno con su permiso."
+- name: Países
+  description: Catálogo de países. Inmutable salvo su estado.
+- name: Membresías
+  description: Cadena lineal de niveles de consumidor. Inmutable salvo el reordenamiento.
+- name: Monedas
+  description: Catálogo de monedas. Inmutable por API salvo su estado.
+- name: Sesión
+  description: "Inicio, renovación y cierre de sesión."
+paths:
+  /api/v1/users/{id}/membership:
+    put:
+      tags:
+      - Usuarios
+      summary: Fijar la membresía de una persona
+      description: |
+        **`PUT` y no `POST`**, al revés que la asignación de roles, y la
+        diferencia no es de gusto: aquí el cuerpo **sí** representa el estado
+        final. La persona tiene una membresía o ninguna, de modo que enviar una
+        la deja como la única — y de ahí sale gratis la idempotencia.
+
+        `endsAt` es opcional. **Ausente significa indefinida**: enviarlo ausente
+        sobre una membresía que tenía fecha la convierte en indefinida, y es un
+        caso normal, no un olvido que haya que interpretar. Presente, la
+        membresía deja de estar vigente **al llegar** ese instante, no después.
+
+        Repetir la petición idéntica no escribe ni deja auditoría. Cambiar solo
+        la fecha sí es un cambio y sí se registra.
+
+        Devuelve `200` incluso la primera vez: `PUT` sobre una ruta fija no crea
+        un recurso direccionable nuevo.
+      operationId: fijarMembresia
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AssignMembershipRequest"
+        required: true
+      responses:
+        "200":
+          description: "La membresía, con su nivel y su vigencia."
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/UserMembershipResponse"
+        "400":
+          description: "Membresía ausente o malformada (`VAL-001`), o fecha de fin\
+            \ igual o anterior al momento de la asignación (`VAL-005`)"
+        "401":
+          description: Token ausente o inválido (`AUTH-001`)
+        "403":
+          description: Autenticado sin `users:assign-membership` (`AUTH-002`)
+        "404":
+          description: La persona no existe o está eliminada (`VAL-004`)
+        "409":
+          description: La persona no porta ningún rol de consumidor (`RN-SP-013`).
+            El cuerpo indica que primero corresponde asignarle uno
+        "422":
+          description: La membresía indicada no existe en la cadena (`VAL-002`)
+        "500":
+          description: Fallo no controlado (`ERR-500`)
+    delete:
+      tags:
+      - Usuarios
+      summary: Retirar la membresía de una persona
+      description: |
+        **Rechaza a quien SÍ es consumidor**, que es lo contrario de lo que
+        sugiere el nombre. No existe el estado «consumidor sin nivel», de modo
+        que esta operación solo sirve para **corregir un estado incoherente**:
+        alguien con membresía que ya no porta ningún rol de consumidor.
+
+        Las dos salidas reales para un consumidor en activo son bajarlo de nivel
+        con la operación de membresía, o retirarle el rol — el retiro arrastra la
+        membresía por su cuenta. El cuerpo del `409` las cita.
+
+        Sin membresía previa devuelve `204` igual: la operación es idempotente y
+        su resultado ya se cumplía.
+
+        **Conserva el `DELETE`** y no le alcanza la enmienda del retiro de
+        roles: esta operación no lleva cuerpo, de modo que el problema que
+        aquella evitaba no existe aquí.
+      operationId: retirarMembresia
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      responses:
+        "204":
+          description: Membresía retirada.
+        "400":
+          description: Identificador malformado (`VAL-001`)
+        "401":
+          description: Token ausente o inválido (`AUTH-001`)
+        "403":
+          description: Autenticado sin `users:assign-membership` (`AUTH-002`)
+        "404":
+          description: La persona no existe o está eliminada (`VAL-002`)
+        "409":
+          description: La persona porta al menos un rol de consumidor (`RN-SP-018`)
+        "500":
+          description: Fallo no controlado (`ERR-500`)
+  /api/v1/users:
+    get:
+      tags:
+      - Usuarios
+      summary: Consultar personas
+      description: |
+        Listado paginado con filtros, búsqueda y ordenamiento.
+
+        **El orden por defecto es `lastName,asc`** y no el nombre de usuario:
+        esta es la lista desde la que se administra el acceso, y quien la mira
+        busca a alguien por su apellido.
+
+        Solo se puede ordenar por la lista blanca —`username`, `email`,
+        `firstName`, `lastName`, `status`, `createdAt`, `updatedAt`—. **No se
+        admite ordenar por ningún campo de la credencial**: ordenar por la marca
+        de cambio obligatorio produciría la lista de quien no ha cambiado su
+        contraseña inicial.
+
+        **`roleId` y `membershipId` no se validan contra su catálogo.** Un
+        filtro por algo inexistente devuelve la colección vacía y no es un
+        error.
+
+        La búsqueda va sobre nombre de usuario, correo y nombre completo,
+        **sin distinguir acentos ni mayúsculas**, y por fragmento.
+
+        `membership` **no es nula cuando está vencida**: vencer no es lo mismo
+        que no tener. `current` dice cuál de los dos casos es.
+
+        Un filtro sin coincidencias devuelve `200` con la colección vacía. No
+        hay `404` ni `422`.
+      operationId: listar
+      parameters:
+      - name: page
+        in: query
+        required: false
+        schema:
+          type: integer
+          format: int32
+      - name: size
+        in: query
+        required: false
+        schema:
+          type: integer
+          format: int32
+      - name: sort
+        in: query
+        required: false
+        schema:
+          type: string
+      - name: status
+        in: query
+        required: false
+        schema:
+          type: string
+      - name: roleId
+        in: query
+        required: false
+        schema:
+          type: string
+          format: uuid
+      - name: membershipId
+        in: query
+        required: false
+        schema:
+          type: string
+          format: uuid
+      - name: search
+        in: query
+        required: false
+        schema:
+          type: string
+      - name: includeDeleted
+        in: query
+        required: false
+        schema:
+          type: boolean
+      responses:
+        "200":
+          description: Página de personas.
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/PageResponse"
+        "400":
+          description: "Paginación fuera de límites (`VAL-001`, `VAL-002`), campo\
+            \ de ordenamiento no admitido (`VAL-003`), o estado fuera de su dominio\
+            \ (`VAL-004`). Se devuelven **juntos**"
+        "401":
+          description: Token ausente o inválido (`AUTH-001`)
+        "403":
+          description: Autenticado sin `users:read` (`AUTH-002`)
+        "500":
+          description: Fallo no controlado (`ERR-500`)
+    post:
+      tags:
+      - Usuarios
+      summary: Registrar una persona
+      description: |
+        Registra una persona con sus roles iniciales.
+
+        La cuenta nace **activa** y **marcada para cambio obligatorio de
+        contraseña**: quien prepara el alta conoce la credencial, y esa ventana
+        se cierra en el primer inicio de sesión. Ni el estado ni la marca se
+        envían; enviarlos devuelve `400`.
+
+        **La membresía y el superior son condicionales en los dos sentidos.**
+        Un rol de consumidor exige membresía y la membresía exige un rol de
+        consumidor; lo mismo con el rol de vendedor y el superior comercial.
+        Indicar uno sin el otro devuelve `409`, no se ignora.
+
+        El superior debe portar el **rol padre inmediato** del rol vendedor de
+        mayor rango de la persona, y estar activo.
+
+        La contraseña no se recorta: un espacio al principio o al final es parte
+        de ella.
+      operationId: registrar
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/RegisterUserRequest"
+        required: true
+      responses:
+        "201":
+          description: Persona registrada. `Location` apunta a su detalle.
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/UserResponse"
+        "400":
+          description: "Formato u obligatoriedad incumplidos, contraseña que no cumple\
+            \ la política, o campo no admitido en el cuerpo"
+        "401":
+          description: Token ausente o inválido (`AUTH-001`)
+        "403":
+          description: Autenticado sin el permiso de creación de usuarios (`AUTH-002`)
+        "409":
+          description: "Identidad ya en uso (`RN-SP-016`), rol que excede los privilegios\
+            \ del actor (`RN-SEG-010`), consumidor sin membresía o al revés (`RN-SP-018`),\
+            \ vendedor sin superior o al revés (`RN-SP-019`), o superior que no porta\
+            \ el rol padre (`RN-SP-020`)"
+        "422":
+          description: Algún rol no existe o no está activo (`EX-003`)
+        "500":
+          description: Fallo no controlado (`ERR-500`)
+  /api/v1/users/{id}/roles:
+    post:
+      tags:
+      - Usuarios
+      summary: Asignar roles a una persona
+      description: |
+        Agrega roles. **No reemplaza la lista**: por eso es un `POST` sobre un
+        subrecurso y no un `PUT`. Un reemplazo haría retiros implícitos que se
+        saltarían tres reglas cuyo incumplimiento nadie vería.
+
+        Pedir un rol que la persona ya tiene no es un error: no cambia nada y
+        no deja rastro en la auditoría.
+
+        `membershipId`, `membershipEndsAt` y `supervisorId` son
+        **condicionales**: obligatorios exactamente cuando la operación
+        convierte a la persona en consumidor o cambia su rango comercial, y no
+        admitidos en cualquier otro caso. Su admisibilidad depende del estado
+        de la persona y no del cuerpo, de modo que su incumplimiento es `422` y
+        nunca `400`.
+
+        Un **ascenso** —que cambia el rol vendedor de mayor rango— exige
+        declarar de nuevo el superior: el anterior puede haber dejado de ser
+        admisible sin que nadie tocara esa fila.
+      operationId: asignarRoles
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AssignRolesRequest"
+        required: true
+      responses:
+        "200":
+          description: La persona con su estructura actualizada.
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/UserResponse"
+        "400":
+          description: "Lista vacía, identificador malformado o más de 100 elementos"
+        "401":
+          description: Token ausente o inválido (`AUTH-001`)
+        "403":
+          description: Autenticado sin `users:assign-roles` (`AUTH-002`)
+        "404":
+          description: La persona no existe o está eliminada (`VAL-006`)
+        "409":
+          description: Algún rol concede permisos que el actor no posee (`RN-SEG-010`).
+            El cuerpo enumera cuáles
+        "422":
+          description: "Rol inexistente (`EX-002`), rol inactivo (`EX-003`), consumidor\
+            \ sin membresía (`RN-SP-018`), membresía indicada sin que corresponda\
+            \ (`EX-006`), vendedor sin superior (`RN-SP-019`), o superior inadmisible\
+            \ (`VAL-007`, `RN-SP-020`)"
+        "500":
+          description: Fallo no controlado (`ERR-500`)
+  /api/v1/users/{id}/roles/revocations:
+    post:
+      tags:
+      - Usuarios
+      summary: Retirar roles de una persona
+      description: |
+        Retira roles y **arrastra las cascadas**: quedarse sin ningún rol de
+        consumidor borra la membresía, y quedarse sin ningún rol de vendedor
+        cierra la asignación de superior comercial —cerrarla, nunca borrarla:
+        esa fila dice a quién se atribuía cada resultado—.
+
+        **Revoca todas las sesiones de la persona.** Asignar no lo hace;
+        retirar sí, porque el refresh token sobrevive al cambio de permisos y
+        dejaría vivo hasta siete días el acceso que se acaba de quitar.
+
+        Es un `POST` sobre un subrecurso y no un `DELETE`: la lista viaja en el
+        cuerpo, y RFC 9110 no define semántica para el cuerpo de un `DELETE` —
+        un intermediario puede descartarlo sin avisar, y el retiro llegaría sin
+        roles.
+
+        **No se pide motivo** y **no se comprueba que los roles existan**:
+        retirar un rol eliminado del catálogo es legítimo, porque la asignación
+        sigue ahí y debe poder soltarse.
+      operationId: retirarRoles
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/RevokeRolesRequest"
+        required: true
+      responses:
+        "200":
+          description: La persona con su estructura actualizada.
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/UserResponse"
+        "400":
+          description: "Lista vacía, identificador malformado o más de 100 elementos"
+        "401":
+          description: Token ausente o inválido (`AUTH-001`)
+        "403":
+          description: Autenticado sin `users:assign-roles` (`AUTH-002`)
+        "404":
+          description: La persona no existe o está eliminada (`VAL-006`)
+        "409":
+          description: "El retiro dejaría al sistema sin superadministrador activo\
+            \ (`RN-SP-001`), algún rol excede los permisos del actor (`RN-SEG-010`),\
+            \ o la persona tiene equipo a cargo (`RN-SP-022`) — este último informa\
+            \ cuántas personas, nunca quiénes"
+        "500":
+          description: Fallo no controlado (`ERR-500`)
+  /api/v1/users/{id}/password-reset:
+    post:
+      tags:
+      - Usuarios
+      summary: Restablecer la contraseña de una persona
+      description: |
+        Fija una credencial **provisional** sobre la cuenta indicada. `POST`
+        sobre un subrecurso y no `PATCH` sobre el usuario: cada petición **crea**
+        un restablecimiento, que es un hecho con fecha y con caducidad propia.
+
+        **La credencial CADUCA.** Sin plazo, una cuenta restablecida y nunca
+        usada conserva indefinidamente una contraseña que otra persona conoce, y
+        nadie se entera porque no falla nada. Quien comprueba el plazo es el
+        inicio de sesión.
+
+        La cuenta queda marcada para **cambio obligatorio**: la ventana en que
+        dos personas conocen la misma contraseña se cierra en el primer inicio
+        de sesión.
+
+        **No toca el estado ni el bloqueo**: restablecer no es reactivar. Una
+        cuenta desactivada sigue desactivada.
+
+        **La contraseña asignada no se devuelve**: la conoce quien la escribió, y
+        repetirla la expondría a cualquier registro de la operación. Tampoco la
+        fecha de caducidad — quien la necesite consulta el detalle.
+
+        Revoca **todas** las sesiones de la persona.
+      operationId: restablecerContrasena
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ResetPasswordRequest"
+        required: true
+      responses:
+        "204":
+          description: Credencial fijada.
+        "400":
+          description: Contraseña ausente (`VAL-001`) o que no cumple la política
+            (`VAL-002`)
+        "401":
+          description: Token ausente o inválido (`AUTH-001`)
+        "403":
+          description: Autenticado sin `users:reset-password` (`AUTH-002`)
+        "404":
+          description: La persona no existe o está eliminada (`VAL-004`)
+        "409":
+          description: "Es la cuenta del propio actor (`RN-SP-017`). El mensaje indica\
+            \ cuál es la operación correcta: cambiar la propia contraseña, que exige\
+            \ conocer la actual"
+        "500":
+          description: Fallo no controlado (`ERR-500`)
+  /api/v1/users/{id}/deletion:
+    post:
+      tags:
+      - Usuarios
+      summary: Eliminar a una persona
+      description: |
+        Eliminación **lógica** y con motivo declarado. `POST` sobre un
+        subrecurso y no `DELETE` con cuerpo: RFC 9110 no define semántica para
+        el cuerpo de un `DELETE` y un intermediario puede descartarlo,
+        convirtiendo la petición en un rechazo por motivo ausente que el actor
+        no puede entender. Y tampoco por *query string*, o el motivo acabaría en
+        los registros de acceso de los proxies.
+
+        **El motivo se verifica el primero de todo**, antes incluso de saber si
+        la persona existe.
+
+        La operación **retira sus roles y su membresía**, **cierra** su
+        asignación de superior —cerrarla, nunca borrarla: es historial de
+        mando— y **revoca sus sesiones**, todo en la misma transacción y con la
+        misma marca de tiempo.
+
+        **El estado NO se toca**: se conserva como estaba para que el registro
+        de eliminación diga en qué situación estaba la persona cuando se la
+        eliminó.
+
+        El `404` **no distingue** «nunca existió» de «ya estaba eliminada».
+      operationId: eliminar
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/DeleteUserRequest"
+        required: true
+      responses:
+        "204":
+          description: Persona eliminada.
+        "400":
+          description: "Motivo ausente o vacío (`VAL-001`), o campo desconocido"
+        "401":
+          description: Token ausente o inválido (`AUTH-001`)
+        "403":
+          description: "Autenticado sin `users:delete` (`AUTH-002`), o es la cuenta\
+            \ del propio actor (`RN-SP-017`)"
+        "404":
+          description: "No existe, o ya estaba eliminada (`EX-004`)"
+        "409":
+          description: "Es el último superadministrador activo (`RN-SP-001`), o tiene\
+            \ personas a cargo (`RN-SP-022`)"
+        "500":
+          description: Fallo no controlado (`ERR-500`)
+  /api/v1/roles:
+    get:
+      tags:
+      - Roles
+      summary: Consultar roles
+      description: |
+        Listado paginado con filtros, búsqueda y ordenamiento. Es la entrada
+        natural a la administración de accesos: de aquí se navega al detalle de
+        cada rol.
+
+        **El orden por defecto es `code,asc`**: el código es el identificador
+        con el que se habla de un rol en la documentación y en la auditoría.
+        Solo se puede ordenar por la lista blanca —`code`, `name`, `roleType`,
+        `status`, `createdAt`, `updatedAt`—; cualquier otro campo devuelve
+        `400` y **no llega a la base de datos**.
+
+        **No incluye los permisos de cada rol** ni el número de usuarios
+        asignados: la primera pregunta la responde el detalle
+        (`GET /api/v1/roles/{id}`) y la segunda se hace sobre un rol concreto,
+        no sobre la lista.
+
+        **`parentRoleId` no se valida contra el catálogo.** Filtra por el padre
+        **directo** —no por el subárbol— y uno inexistente devuelve la
+        colección vacía, que no es un error.
+
+        La búsqueda va sobre código y nombre, **sin distinguir acentos ni
+        mayúsculas**, y por fragmento: `academico` encuentra
+        `LIDER_ACADEMICO`. Un término en blanco equivale a no filtrar.
+
+        **Los eliminados quedan fuera salvo que se pidan** con
+        `includeDeleted=true`; cuando se piden, `deletedAt` es lo que permite
+        distinguirlos.
+      operationId: listar_1
+      parameters:
+      - name: page
+        in: query
+        required: false
+        schema:
+          type: integer
+          format: int32
+      - name: size
+        in: query
+        required: false
+        schema:
+          type: integer
+          format: int32
+      - name: sort
+        in: query
+        required: false
+        schema:
+          type: string
+      - name: status
+        in: query
+        required: false
+        schema:
+          type: string
+      - name: roleType
+        in: query
+        required: false
+        schema:
+          type: string
+      - name: parentRoleId
+        in: query
+        required: false
+        schema:
+          type: string
+          format: uuid
+      - name: search
+        in: query
+        required: false
+        schema:
+          type: string
+      - name: includeDeleted
+        in: query
+        required: false
+        schema:
+          type: boolean
+      responses:
+        "200":
+          description: Página de roles.
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/PageResponse"
+        "400":
+          description: "Paginación fuera de límites, campo de ordenamiento no admitido\
+            \ (`VAL-003`), o `status`/`roleType` fuera de su dominio (`VAL-004`).\
+            \ Se evalúan y se devuelven **juntos** en `errors`"
+        "401":
+          description: Token ausente o inválido (`AUTH-001`)
+        "403":
+          description: Autenticado sin `roles:read` (`AUTH-002`)
+        "500":
+          description: Fallo no controlado (`ERR-500`)
+    post:
+      tags:
+      - Roles
+      summary: Registrar un rol
+      description: |
+        Registra un rol bajo un rol padre existente y activo, con los permisos que
+        se declaren.
+
+        Los permisos deben estar contenidos en los del rol padre (`RN-SEG-003`) y en
+        los permisos efectivos de quien ejecuta el alta (`RN-SEG-010`). Declararlos es
+        opcional: sin ellos el rol queda registrado y a la espera de `RF-SP-005`.
+
+        El rol nace siempre **activo** y nunca de sistema. Ni `status` ni `isSystem`
+        se admiten en el cuerpo: enviarlos devuelve `400`.
+      operationId: registrar_1
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateRoleRequest"
+        required: true
+      responses:
+        "201":
+          description: Rol registrado. La cabecera `Location` lleva su dirección.
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/RoleResponse"
+        "400":
+          description: "Formato u obligatoriedad incumplidos (`VAL-001` a `VAL-004`,\
+            \ `VAL-007`, `VAL-008`), o el cuerpo trae un campo que este endpoint no\
+            \ admite"
+        "401":
+          description: Token ausente o inválido (`AUTH-001`)
+        "403":
+          description: Autenticado sin `roles:create` (`AUTH-002`)
+        "409":
+          description: "Código o nombre ya en uso (`RN-SEG-001`), permiso fuera del\
+            \ rol padre (`RN-SEG-003`) o fuera del alcance del actor (`RN-SEG-010`)"
+        "422":
+          description: "El rol padre no existe o no está activo (`EX-002`), o algú\
+            n permiso no está en el catálogo (`EX-005`)"
+        "500":
+          description: Fallo no controlado (`ERR-500`)
+  /api/v1/roles/{id}/permissions:
+    post:
+      tags:
+      - Roles
+      summary: Agregar permisos a un rol
+      description: |
+        Asocia permisos al rol. **La operación se aplica entera o no se
+        aplica**: un solo permiso que incumpla la contención rechaza la
+        petición completa, porque aplicar los válidos dejaría el rol en un
+        estado que nadie pidió.
+
+        Cada permiso debe estar **contenido en los del rol padre**
+        (`RN-SEG-003`) y **en los permisos efectivos de quien ejecuta la
+        operación** (`RN-SEG-010`). Lo segundo no lo concede `roles:update`:
+        ese permiso habilita a modificar roles, no a decidir con qué alcance.
+
+        **El rol raíz omite la primera comprobación** —no tiene cota superior—
+        y conserva la segunda.
+
+        **Es idempotente y nunca retira nada**: los permisos ya declarados se
+        ignoran sin error, y si no queda ninguno por agregar no se registra
+        evento. Hasta 100 por petición.
+      operationId: agregarPermisos
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/RolePermissionsRequest"
+        required: true
+      responses:
+        "200":
+          description: Rol con sus permisos actualizados.
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/RoleResponse"
+        "400":
+          description: Sin permisos (`VAL-001`) o más de 100 (`VAL-006`)
+        "401":
+          description: Token ausente o inválido (`AUTH-001`)
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/RoleResponse"
+        "403":
+          description: "Sin `roles:update`, o el rol está asignado al propio actor\
+            \ (`RN-SEG-011`)"
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/RoleResponse"
+        "404":
+          description: El rol no existe o está eliminado (`EX-006`)
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/RoleResponse"
+        "409":
+          description: "Rol de sistema (`RN-SEG-012`), permiso fuera del rol padre\
+            \ (`RN-SEG-003`) o fuera del alcance del actor (`RN-SEG-010`)"
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/RoleResponse"
+        "422":
+          description: Uno o más permisos no existen en el catálogo (`EX-003`)
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/RoleResponse"
+        "500":
+          description: Fallo no controlado (`ERR-500`)
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/RoleResponse"
+  /api/v1/roles/{id}/permissions/revocations:
+    post:
+      tags:
+      - Roles
+      summary: Retirar permisos de un rol
+      description: |
+        Desasocia permisos del rol, con **eliminación física** de la asociación
+        y **sin exigir motivo**: es una asociación y no una entidad de negocio.
+
+        **Se rechaza si un rol hijo directo declara alguno de los permisos que
+        se retiran** (`RN-SEG-005`), y el error dice **qué rol** declara **qué
+        permiso**: sin ese detalle no habría forma de saber qué corregir. Los
+        hijos **inactivos cuentan igual** que los activos —el invariante vale
+        siempre—, y los eliminados no.
+
+        **No hay cascada**: nunca se retiran permisos de los descendientes.
+        Usted decide en qué orden hacerlo.
+
+        **Es idempotente**: los permisos que el rol no declaraba se ignoran sin
+        error. Hasta 100 por petición, el mismo límite que al agregarlos.
+
+        **`POST` sobre un subrecurso y no `DELETE`**: la operación recibe una
+        lista en el cuerpo, y RFC 9110 no define semántica para el cuerpo de un
+        `DELETE`.
+      operationId: retirarPermisos
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/RolePermissionsRequest"
+        required: true
+      responses:
+        "200":
+          description: Rol con sus permisos actualizados.
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/RoleResponse"
+        "400":
+          description: Sin permisos (`VAL-001`) o más de 100 (`VAL-004`)
+        "401":
+          description: Token ausente o inválido (`AUTH-001`)
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/RoleResponse"
+        "403":
+          description: "Sin `roles:update`, o el rol está asignado al propio actor\
+            \ (`RN-SEG-011`)"
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/RoleResponse"
+        "404":
+          description: El rol no existe o está eliminado (`EX-004`)
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/RoleResponse"
+        "409":
+          description: "Rol de sistema (`RN-SEG-012`), o un rol dependiente declara\
+            \ el permiso (`RN-SEG-005`)"
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/RoleResponse"
+        "500":
+          description: Fallo no controlado (`ERR-500`)
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/RoleResponse"
+  /api/v1/roles/{id}/deletion:
+    post:
+      tags:
+      - Roles
+      summary: Eliminar un rol
+      description: |
+        Elimina lógicamente el rol. **El motivo es obligatorio** y se verifica
+        **antes de ejecutar nada** (Art. V.13); no se admite un valor generado
+        por el sistema.
+
+        **Se rechaza si el rol tiene roles hijos vigentes** —diciendo cuáles— o
+        **personas asignadas** —diciendo cuántas— (`RN-SEG-008`). En el segundo
+        caso la respuesta sugiere **desactivar** el rol, que suele ser lo que
+        en realidad se quería: retirar el acceso sin perder el rol. El conteo
+        incluye a las personas inactivas y bloqueadas, y excluye a las
+        eliminadas.
+
+        Tras eliminarlo, **su código y su nombre quedan libres** para un rol
+        nuevo, y el rol deja de aparecer en el listado por defecto. La
+        auditoría de eliminación conserva el motivo y el rol completo —con sus
+        permisos por código— para poder reconstruir qué era.
+
+        **`POST` sobre un subrecurso y no `DELETE`**: el motivo viaja en el
+        cuerpo, y un intermediario puede descartar el cuerpo de un `DELETE`.
+      operationId: eliminar_1
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/DeleteRoleRequest"
+        required: true
+      responses:
+        "204":
+          description: Rol eliminado. Sin cuerpo.
+        "400":
+          description: "Motivo ausente o vacío (`VAL-001`, `VAL-002`)"
+        "401":
+          description: Token ausente o inválido (`AUTH-001`)
+        "403":
+          description: "Sin `roles:delete`, o el rol está asignado al propio actor\
+            \ (`RN-SEG-011`)"
+        "404":
+          description: El rol no existe o ya está eliminado (`EX-006`)
+        "409":
+          description: "Rol de sistema (`RN-SEG-012`), rol raíz (`RN-SEG-007`), o\
+            \ el rol tiene hijos o personas asignadas (`RN-SEG-008`)"
+        "500":
+          description: Fallo no controlado (`ERR-500`)
+  /api/v1/memberships:
+    get:
+      tags:
+      - Membresías
+      summary: Consultar la cadena de membresías
+      description: |
+        Devuelve la cadena completa, de la superior al extremo inferior, sin paginar.
+
+        `level` es la distancia hasta la cima: `1` es la superior. El orden de la
+        colección lo refleja.
+
+        No se admite paginación ni ordenamiento: el orden **es** la información.
+        Los parámetros de paginación se ignoran y devuelven la cadena entera.
+      operationId: consultar
+      parameters:
+      - name: peticion
+        in: query
+        required: true
+        schema:
+          $ref: "#/components/schemas/ListMembershipsRequest"
+      responses:
+        "200":
+          description: Cadena devuelta. Puede venir vacía si aún no hay membresías.
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/MembershipChainResponse"
+        "401":
+          description: Token ausente o inválido (`AUTH-001`)
+        "403":
+          description: Autenticado sin `memberships:read` (`AUTH-002`)
+        "500":
+          description: Fallo no controlado (`ERR-500`)
+    post:
+      tags:
+      - Membresías
+      summary: Registrar una membresía
+      description: |
+        Inserta una membresía en la cadena, por encima de la hija indicada.
+
+        Si no se indica hija, la membresía queda en el extremo inferior y no se
+        reordena nada. Si se indica, la nueva ocupa su nivel, hereda su superior
+        y todo lo que estaba en ese nivel o por debajo baja uno.
+
+        El nivel y la superior **no se envían**: los calcula el sistema. Enviar
+        `level` o `parentMembershipId` devuelve `400`.
+      operationId: registrar_2
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/RegisterMembershipRequest"
+        required: true
+      responses:
+        "201":
+          description: "Membresía registrada, con la posición que ocupó."
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/MembershipResponse"
+        "400":
+          description: "Formato u obligatoriedad incumplidos, o campo no admitido\
+            \ en el cuerpo"
+        "401":
+          description: Token ausente o inválido (`AUTH-001`)
+        "403":
+          description: Autenticado sin `memberships:create` (`AUTH-002`)
+        "409":
+          description: "Código o nombre ya en uso (`EX-001`), o la cadena cambió durante\
+            \ la operación (`EX-003`) y debe reintentarse"
+        "422":
+          description: La membresía hija indicada no existe (`EX-002`)
+        "500":
+          description: Fallo no controlado (`ERR-500`)
+  /api/v1/countries:
+    get:
+      tags:
+      - Países
+      summary: Consultar el catálogo de países
+      description: |
+        Devuelve el catálogo completo, sin paginar, **ordenado alfabéticamente
+        por nombre** según la intercalación del español — no por orden de bytes.
+
+        La búsqueda actúa sobre código y nombre, ignorando mayúsculas y acentos.
+        Sin coincidencias devuelve una colección vacía, no un error.
+
+        Los países inactivos no aparecen salvo que se pidan, y entonces se
+        **añaden** a los activos. La búsqueda y el estado son independientes.
+      operationId: consultar_1
+      parameters:
+      - name: peticion
+        in: query
+        required: true
+        schema:
+          $ref: "#/components/schemas/ListCountriesRequest"
+      responses:
+        "200":
+          description: Catálogo devuelto. Puede venir vacío.
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/CountryCatalogResponse"
+        "400":
+          description: El parámetro de inclusión no es booleano
+        "401":
+          description: Token ausente o inválido (`AUTH-001`)
+        "403":
+          description: Autenticado sin el permiso de lectura de países (`AUTH-002`)
+        "500":
+          description: Fallo no controlado (`ERR-500`)
+    post:
+      tags:
+      - Países
+      summary: Registrar un país
+      description: |
+        Registra un país en el catálogo. Queda **activo** siempre: el estado no
+        se envía y enviarlo devuelve `400`.
+
+        El código se normaliza a mayúsculas y se recorta, porque lo fija
+        ISO 3166-1 y no lo inventa nadie: `co`, ` CO` y `CO` son el mismo país.
+
+        El nombre admite acentos y caracteres no latinos sin transformación
+        alguna, pero **no puede coincidir** con otro ya registrado ignorando
+        mayúsculas y acentos: el catálogo no se edita, y el duplicado sería
+        permanente.
+      operationId: registrar_3
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/RegisterCountryRequest"
+        required: true
+      responses:
+        "201":
+          description: "País registrado, con su código ya normalizado."
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/CountryResponse"
+        "400":
+          description: "Código o nombre inválidos, o campo no admitido en el cuerpo"
+        "401":
+          description: Token ausente o inválido (`AUTH-001`)
+        "403":
+          description: Autenticado sin el permiso de creación de países (`AUTH-002`)
+        "409":
+          description: Código o nombre ya presentes en el catálogo (`EX-001`)
+        "500":
+          description: Fallo no controlado (`ERR-500`)
+  /api/v1/auth/refresh:
+    post:
+      tags:
+      - Sesión
+      summary: Renovar la sesión
+      description: |
+        Rota el refresh token y entrega credenciales nuevas.
+
+        **La rotación es la defensa:** el token entregado deja de servir, de
+        modo que presentarlo de nuevo significa que existe una copia. En ese
+        caso se revoca la **familia entera** de la sesión y se emite la alarma.
+
+        Las cinco condiciones de rechazo devuelven la **misma** respuesta: el
+        cliente no debe poder deducir si el token fue robado, si expiró o si la
+        cuenta fue desactivada.
+      operationId: refresh
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/RefreshRequest"
+        required: true
+      responses:
+        "200":
+          description: Credenciales renovadas.
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/SessionResponse"
+        "400":
+          description: Refresh token ausente
+        "401":
+          description: "La sesión no es válida — cinco causas posibles, una sola respuesta"
+        "500":
+          description: Fallo no controlado (`ERR-500`)
+      security: []
+  /api/v1/auth/password:
+    post:
+      tags:
+      - Sesión
+      summary: Cambiar la propia contraseña
+      description: |
+        Sustituye la contraseña de **quien porta el token**.
+
+        **No lleva identificador de usuario**, y esa ausencia es la
+        implementación de la regla: no hay campo por el que dirigir la
+        operación a un tercero. Restablecer la contraseña de otra persona es
+        otra operación, con su propio permiso.
+
+        La contraseña actual se comprueba **la última**, después del formato, de
+        que la nueva sea distinta y de la política. Es el único paso que consume
+        el contador de intentos: ponerlo antes haría que cinco peticiones
+        descuidadas de un cliente propio bloquearan la cuenta de su titular.
+
+        La contraseña actual incorrecta devuelve `422` y **no `401`**: un `401`
+        le diría al cliente que su sesión ya no vale y lo mandaría a iniciar
+        sesión, cuando lo único que ocurrió es que escribió mal su contraseña.
+
+        **Aquí sí se dice qué falló**, al revés que al iniciar sesión: quien
+        hace esta petición ya está autenticado y no se le revela nada que no
+        supiera.
+
+        Al cambiarla, **todas las sesiones se revocan**, incluida la que ejecutó
+        el cambio.
+      operationId: cambiarContrasena
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ChangePasswordRequest"
+        required: true
+      responses:
+        "204":
+          description: Contraseña sustituida.
+        "400":
+          description: "Falta alguna de las dos (`VAL-001`, `VAL-002`), la nueva no\
+            \ cumple la política (`VAL-004`) o es igual a la actual (`VAL-005`)"
+        "401":
+          description: Token ausente o inválido (`AUTH-001`)
+        "422":
+          description: La contraseña actual no es correcta (`VAL-003`). Consume un
+            intento
+        "423":
+          description: La cuenta quedó bloqueada al alcanzar el umbral de fallos
+        "500":
+          description: Fallo no controlado (`ERR-500`)
+      security:
+      - bearerAuth: []
+  /api/v1/auth/logout:
+    post:
+      tags:
+      - Sesión
+      summary: Cerrar sesión
+      description: |
+        Revoca el refresh token de la sesión, o **todos** los de la persona si
+        se pide.
+
+        Responde `204` para **cualquier** token sintácticamente válido, exista o
+        no, esté vigente o revocado. Distinguirlos permitiría comprobar con dos
+        peticiones si una cadena de texto es un refresh token del sistema, y el
+        resultado prometido —que ese token no sirva— se cumple igual.
+      operationId: logout
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/LogoutRequest"
+        required: true
+      responses:
+        "204":
+          description: Sesión cerrada.
+        "400":
+          description: Refresh token ausente o con formato imposible
+        "500":
+          description: Fallo no controlado (`ERR-500`)
+      security: []
+  /api/v1/auth/login:
+    post:
+      tags:
+      - Sesión
+      summary: Iniciar sesión
+      description: |
+        Autentica con **nombre de usuario o correo** —el mismo campo para los
+        dos— y entrega las credenciales de sesión.
+
+        La cuenta bloqueada recibe `423` y un mensaje que la identifica como
+        tal: es una excepción consciente al mensaje genérico, porque quien
+        provocó el bloqueo ya sabe que la cuenta existe.
+
+        Si la contraseña la fijó otra persona, la respuesta autentica **y
+        advierte** con `mustChangePassword`: hace falta una sesión para poder
+        cambiarla.
+      operationId: login
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/LoginRequest"
+        required: true
+      responses:
+        "200":
+          description: Credenciales de sesión.
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/SessionResponse"
+        "400":
+          description: Identificador o contraseña ausentes
+        "401":
+          description: "Credenciales inválidas, cuenta inexistente, inactiva o eliminada\
+            \ — los cuatro casos comparten cuerpo y mensaje, sin una sola diferencia\
+            \ observable"
+        "423":
+          description: Cuenta bloqueada
+        "500":
+          description: Fallo no controlado (`ERR-500`)
+      security: []
+  /api/v1/users/{id}:
+    get:
+      tags:
+      - Usuarios
+      summary: Consultar el detalle de una persona
+      description: |
+        Sus roles **con el estado de cada uno**, sus permisos efectivos, su
+        membresía y el contexto de su acceso.
+
+        Las dos primeras juntas son lo único que explica por qué una persona
+        **con roles** no puede hacer nada: porque todos están inactivos y la
+        lista de permisos llega vacía.
+
+        Los permisos efectivos salen del **mismo componente que autoriza**, de
+        modo que esta respuesta no puede contradecir a lo que el sistema hará
+        con la siguiente petición de esa persona.
+
+        `lockedUntil` nulo significa dos cosas distintas y eso es información:
+        la cuenta no está bloqueada, o lo está **por decisión de un actor** y
+        por tanto sin expiración. El estado desambigua.
+
+        **No devuelve intentos fallidos** —diría cuántos le quedan a una cuenta
+        antes de bloquearse—, **ni dato alguno de la credencial**, **ni el
+        superior comercial**, que tiene su propio endpoint.
+
+        Una persona eliminada devuelve el **mismo** `404` que una inexistente,
+        sin ninguna pista de que existió.
+      operationId: detalle
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      responses:
+        "200":
+          description: La persona.
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/UserDetailResponse"
+        "400":
+          description: El identificador no es un UUID en forma canónica (`VAL-001`)
+        "401":
+          description: Token ausente o inválido (`AUTH-001`)
+        "403":
+          description: Autenticado sin `users:read` (`AUTH-002`)
+        "404":
+          description: "No existe, o está eliminada (`EX-001`)"
+        "500":
+          description: Fallo no controlado (`ERR-500`)
+    patch:
+      tags:
+      - Usuarios
+      summary: Editar los datos de una persona
+      description: |
+        Modifica el nombre, los apellidos y el correo. `PATCH` y no `PUT`:
+        `PUT` obligaría a enviar el recurso completo —incluidos el nombre de
+        usuario, el estado y los roles, que esta operación **no** puede
+        modificar— y habría que decidir qué hacer si llegaran con otros valores.
+
+        **Los tres campos son opcionales y ninguno admite vaciarse.** El campo
+        ausente no se toca; el campo con nulo explícito o en blanco devuelve
+        `400`. Es la diferencia con la edición de un rol, donde el nulo sí era
+        una orden: aquí las columnas son `NOT NULL` y aceptarlo produciría un
+        `500` en lugar del `400` que corresponde.
+
+        **El nombre de usuario no se puede cambiar**, y enviarlo devuelve `400`
+        por propiedad desconocida en lugar de ignorarse en silencio. Lo mismo
+        con el estado, los roles, la membresía y la contraseña: cada uno tiene
+        su operación.
+
+        El correo se normaliza —recorte y minúsculas— **antes** de compararse,
+        de modo que reenviar el propio en mayúsculas es un cambio sin efecto y
+        no un conflicto consigo mismo.
+
+        **El actor sí puede editarse a sí mismo**: corregir el propio apellido
+        no concede ningún privilegio.
+      operationId: editar
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateUserRequest"
+        required: true
+      responses:
+        "200":
+          description: "La persona, con los datos actualizados."
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/UserResponse"
+        "400":
+          description: "Ningún campo informado (`VAL-001`), campo vaciado (`VAL-002`),\
+            \ correo inválido (`VAL-003`), longitud excedida (`VAL-005`) o campo desconocido"
+        "401":
+          description: Token ausente o inválido (`AUTH-001`)
+        "403":
+          description: Autenticado sin `users:update` (`AUTH-002`)
+        "404":
+          description: "No existe, o está eliminada (`EX-002`)"
+        "409":
+          description: "El correo ya está en uso (`RN-SP-016`). **El mensaje no dice\
+            \ de quién es**: puede ser de alguien eliminado, y decirlo revelaría una\
+            \ cuenta"
+        "500":
+          description: Fallo no controlado (`ERR-500`)
+  /api/v1/users/{id}/supervisor:
+    patch:
+      tags:
+      - Usuarios
+      summary: Establecer o cambiar el superior comercial
+      description: |
+        `PATCH` sobre el subrecurso y no `PUT`: el cuerpo no representa el
+        estado completo —falta el periodo, que lo fija el sistema— y `PUT`
+        invitaría a pensar que se puede enviar.
+
+        **No admite fecha de inicio.** La asignación rige desde que se ejecuta,
+        siempre. Declararla obligaría a especificar solapamientos, huecos entre
+        tramos y correcciones retroactivas sobre periodos ya liquidados.
+
+        **No admite retirar el superior.** El estado «vendedor sin superior» no
+        existe: la única salida es dejar de portar rol comercial retirándolo.
+
+        Cada cambio **cierra** el tramo vigente con su fecha y **abre** otro:
+        nunca se sobrescribe el superior de una fila. La respuesta devuelve el
+        **anterior con su fecha de cierre**, que es lo que permite confirmar de
+        un vistazo que se cerró el tramo que se creía cerrar.
+
+        **El equipo se mueve con el reasignado**: sus subordinados conservan su
+        superior y solo cambia de quién depende la rama.
+
+        Repetir la operación con el mismo superior no cierra ni abre nada y no
+        deja auditoría — pero el motivo se exige igual, antes de saberlo.
+      operationId: asignarSuperior
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AssignSupervisorRequest"
+        required: true
+      responses:
+        "200":
+          description: "La estructura, con el superior nuevo y el anterior."
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/CommercialStructureResponse"
+        "400":
+          description: "Identificador malformado, o motivo ausente o vacío (`VAL-001`,\
+            \ `VAL-008`)"
+        "401":
+          description: Token ausente o inválido (`AUTH-001`)
+        "403":
+          description: Autenticado sin `users:assign-supervisor` (`AUTH-002`)
+        "404":
+          description: Alguna de las dos personas no existe o está eliminada (`VAL-002`)
+        "409":
+          description: "El actor es el propio subordinado (`RN-SP-017`), el subordinado\
+            \ no pertenece a la fuerza comercial (`VAL-003`) o es la cúspide (`VAL-004`),\
+            \ el superior no porta el rol que exige el orden de mando (`RN-SP-020`)\
+            \ —el mensaje dice cuál—, no está activo (`VAL-006`), o sería su propio\
+            \ superior (`VAL-007`)"
+        "500":
+          description: Fallo no controlado (`ERR-500`)
+  /api/v1/users/{id}/status:
+    patch:
+      tags:
+      - Usuarios
+      summary: Retirar o devolver el acceso de una persona
+      description: |
+        Subrecurso propio y no un campo de la edición: el estado tiene reglas de
+        rechazo que la edición no tiene y exige un motivo que la edición no
+        admite.
+
+        **Se envía el estado destino y no una acción**, lo que hace la operación
+        idempotente por construcción. Pedir el estado que ya se tiene no cambia
+        nada y no deja evento.
+
+        **Salvo en un caso, y es el que da sentido al requerimiento:** pasar de
+        bloqueo **automático** a bloqueo **manual** sí es un cambio aunque el
+        estado sea el mismo — `lockedUntil` pasa de informado a nulo, y con ello
+        el bloqueo deja de levantarse solo.
+
+        **El motivo es condicional en los dos sentidos:** obligatorio al retirar
+        el acceso, **rechazado** al devolverlo.
+
+        **`PENDIENTE` no se admite**, aunque el esquema lo acepte: ningún
+        requerimiento lo produce y sería el único camino hacia un estado del que
+        nadie sabe salir.
+
+        **Reactivar nunca falla por regla.** Devolver el acceso no puede dejar a
+        nadie sin administración ni a ningún equipo huérfano.
+
+        Retirar el acceso **revoca todas las sesiones** de la persona.
+      operationId: cambiarEstado
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ChangeUserStatusRequest"
+        required: true
+      responses:
+        "200":
+          description: El estado resultante. `lockedUntil` nulo con BLOQUEADO significa
+            manual.
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/UserStatusResponse"
+        "400":
+          description: "Estado ausente, fuera del dominio o `PENDIENTE` (`VAL-001`);\
+            \ motivo ausente al retirar (`VAL-005`) o presente al devolver (`VAL-006`)"
+        "401":
+          description: Token ausente o inválido (`AUTH-001`)
+        "403":
+          description: "Autenticado sin `users:update` (`AUTH-002`), o es la cuenta\
+            \ del propio actor (`RN-SP-017`) — dos casos distintos con `error_code`\
+            \ distinto"
+        "404":
+          description: "No existe, o está eliminada (`EX-005`)"
+        "409":
+          description: "Es el último superadministrador activo (`RN-SP-001`), o tiene\
+            \ personas a cargo (`RN-SP-022`) — este último dice **cuántas**, nunca\
+            \ quiénes"
+        "500":
+          description: Fallo no controlado (`ERR-500`)
+  /api/v1/roles/{id}:
+    get:
+      tags:
+      - Roles
+      summary: Consultar el detalle de un rol
+      description: |
+        Devuelve el alcance exacto de un rol: **la lista completa de los
+        permisos que declara**, su rol padre, **cuántos** roles cuelgan de él y
+        **cuántas** personas lo tienen asignado.
+
+        **Los permisos son los declarados, sin recorrer la cadena de
+        ancestros** (`RN-SEG-004`): el modelo no usa herencia, y esa decisión
+        existe precisamente para que esta pregunta se responda leyendo una sola
+        lista. Van completos y sin paginar, ordenados por código.
+
+        **`childRoleCount` es un número, nunca una lista**: el listado de hijos
+        se obtiene con `GET /api/v1/roles?parentRoleId={id}`, que ya está
+        paginado. Así el tamaño de la respuesta no depende de cuántos hijos
+        tenga el rol.
+
+        **`assignedUserCount` cuenta personas distintas**, en cualquier estado
+        —incluidas las inactivas y las bloqueadas— y **excluyendo las
+        eliminadas**: alguien bloqueado sigue portando el rol, y su existencia
+        es lo que impide borrarlo. Cero es un dato, no una ausencia. **No exige
+        `users:read`**: es un agregado sin identidad, y quien quiera saber
+        quiénes son usa `GET /api/v1/users?roleId={id}`.
+
+        Un rol **eliminado devuelve el mismo `404`** que uno inexistente, sin
+        ninguna pista de que existió.
+      operationId: detalle_1
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      responses:
+        "200":
+          description: Detalle del rol.
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/RoleDetailResponse"
+        "400":
+          description: El identificador no es un UUID en forma canónica (`VAL-001`)
+        "401":
+          description: Token ausente o inválido (`AUTH-001`)
+        "403":
+          description: Autenticado sin `roles:read` (`AUTH-002`)
+        "404":
+          description: "No existe el rol, o está eliminado lógicamente (`EX-001`)"
+        "500":
+          description: Fallo no controlado (`ERR-500`)
+    patch:
+      tags:
+      - Roles
+      summary: Editar un rol
+      description: |
+        Modifica el **nombre** y la **descripción**. Nada más: el código es
+        estable por diseño —cambiarlo rompería cualquier referencia externa— y
+        la clasificación es **inmutable**, porque determina si el rol puede
+        llevar membresía y cambiarla dejaría membresías colgando de un rol que
+        ya no es consumidor. Los permisos, el estado y el rol padre tienen cada
+        uno su operación.
+
+        Al menos uno de los dos campos debe venir informado. `description`
+        admite `null` explícito —borrarla es una orden legítima—; `name` no,
+        porque un rol sin nombre no existe.
+
+        **Reenviar los valores actuales no es un error ni registra evento**: si
+        nada cambió, no hay nada que auditar.
+
+        **Un rol de sistema devuelve `409` y un rol que usted tiene asignado,
+        `403`**. Lo segundo impide ampliar el alcance del rol con el que se
+        está entrando; alcanza solo a los roles asignados **directamente**, de
+        modo que un ancestro del propio sí puede editarse.
+      operationId: editar_1
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateRoleRequest"
+        required: true
+      responses:
+        "200":
+          description: Rol actualizado.
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/RoleResponse"
+        "400":
+          description: "Ningún campo informado (`VAL-001`), nombre vacío (`VAL-002`)\
+            \ o longitud excedida (`VAL-004`)"
+        "401":
+          description: Token ausente o inválido (`AUTH-001`)
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/RoleResponse"
+        "403":
+          description: "Sin `roles:update` (`AUTH-002`), o el rol está asignado al\
+            \ propio actor (`RN-SEG-011`)"
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/RoleResponse"
+        "404":
+          description: El rol no existe o está eliminado (`EX-004`)
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/RoleResponse"
+        "409":
+          description: Rol de sistema (`RN-SEG-012`) o nombre ya en uso (`RN-SEG-001`)
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/RoleResponse"
+        "500":
+          description: Fallo no controlado (`ERR-500`)
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/RoleResponse"
+  /api/v1/roles/{id}/status:
+    patch:
+      tags:
+      - Roles
+      summary: Activar o desactivar un rol
+      description: |
+        **Desactivar no es retirar.** Las asignaciones a personas se conservan
+        intactas; lo que cambia es que el rol **deja de conceder permisos de
+        inmediato**, sin esperar a que ningún token expire.
+
+        Se pide el **estado destino** —`ACTIVO` o `INACTIVO`— y no una acción,
+        de modo que repetir la petición deja el mismo resultado y no registra
+        evento.
+
+        **El rol raíz no admite esta operación**, aparte de la prohibición
+        general sobre los roles de sistema: un rol raíz inactivo no concede
+        nada, y eso dejaría al sistema sin su última vía de administración.
+
+        El cuerpo no admite motivo: el Art. V.13 lo exige solo en las
+        eliminaciones.
+      operationId: cambiarEstado_1
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ChangeRoleStatusRequest"
+        required: true
+      responses:
+        "200":
+          description: Rol con su estado actualizado.
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/RoleResponse"
+        "400":
+          description: Estado ausente o fuera del dominio (`VAL-001`)
+        "401":
+          description: Token ausente o inválido (`AUTH-001`)
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/RoleResponse"
+        "403":
+          description: "Sin `roles:update`, o el rol está asignado al propio actor\
+            \ (`RN-SEG-011`)"
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/RoleResponse"
+        "404":
+          description: El rol no existe o está eliminado (`EX-003`)
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/RoleResponse"
+        "409":
+          description: Rol de sistema (`RN-SEG-012`) o rol raíz (`RN-SEG-007`)
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/RoleResponse"
+        "500":
+          description: Fallo no controlado (`ERR-500`)
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/RoleResponse"
+  /api/v1/roles/{id}/parent:
+    patch:
+      tags:
+      - Roles
+      summary: Cambiar el rol padre
+      description: |
+        Reubica el rol bajo otro padre y **revalida la contención contra el
+        nuevo** (`RN-SEG-013`): si el rol declara permisos que el nuevo padre
+        no posee, la operación se rechaza **entera** enumerándolos, para que
+        usted decida cuáles retirar. **Nunca se recorta nada en silencio.**
+
+        **Los hijos acompañan al rol** y no hay que revisarlos: si este cabe en
+        el nuevo padre, ellos caben en este por transitividad.
+
+        El nuevo padre debe existir y estar **activo**, y no puede ser el
+        propio rol ni uno de sus descendientes —eso formaría un ciclo—. Su
+        clasificación es indiferente: un rol comercial puede colgar de uno
+        funcionario, porque el padre acota privilegios, no clasifica.
+
+        **El rol raíz no admite padre** y ningún rol puede quedarse sin él:
+        `RN-SEG-007` exige exactamente una cima.
+      operationId: cambiarPadre
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ChangeRoleParentRequest"
+        required: true
+      responses:
+        "200":
+          description: Rol con su nuevo rol padre.
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/RoleResponse"
+        "400":
+          description: Rol padre ausente o mal formado (`VAL-001`)
+        "401":
+          description: Token ausente o inválido (`AUTH-001`)
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/RoleResponse"
+        "403":
+          description: "Sin `roles:update`, o el rol está asignado al propio actor\
+            \ (`RN-SEG-011`)"
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/RoleResponse"
+        "404":
+          description: El rol no existe o está eliminado (`EX-006`)
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/RoleResponse"
+        "409":
+          description: "Rol de sistema (`RN-SEG-012`), rol raíz (`RN-SEG-007`), ciclo\
+            \ en la jerarquía (`RN-SEG-006`) o permisos que el nuevo padre no concede\
+            \ (`RN-SEG-013`)"
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/RoleResponse"
+        "422":
+          description: El rol padre indicado no existe o no está activo (`EX-004`)
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/RoleResponse"
+        "500":
+          description: Fallo no controlado (`ERR-500`)
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/RoleResponse"
+  /api/v1/currencies/{id}/status:
+    patch:
+      tags:
+      - Monedas
+      summary: Activar o desactivar una moneda
+      description: |
+        Cambia el estado de una moneda del catálogo. Es lo **único** que la API
+        puede modificar de una moneda.
+
+        Se envía el estado destino, no una acción: pedir dos veces lo mismo deja
+        el mismo estado y **no** registra un segundo evento.
+
+        La moneda por defecto **no puede desactivarse**: los importes del sistema
+        quedarían sin referencia válida. Cambiar cuál es la moneda por defecto es
+        una operación de migración, no de API.
+
+        El cuerpo no admite ningún otro campo ni motivo alguno.
+      operationId: cambiarEstado_2
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ChangeCurrencyStatusRequest"
+        required: true
+      responses:
+        "200":
+          description: "Estado aplicado. Devuelve la moneda completa, con su definició\
+            n sin cambios."
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/CurrencyResponse"
+        "400":
+          description: "Identificador o cuerpo inválidos, o campo no admitido (`VAL-001`)"
+        "401":
+          description: Token ausente o inválido (`AUTH-001`)
+        "403":
+          description: Autenticado sin el permiso de modificación de monedas (`AUTH-002`)
+        "404":
+          description: No existe moneda con ese identificador (`EX-002`)
+        "409":
+          description: Se intenta desactivar la moneda por defecto (`RN-SP-010`)
+        "500":
+          description: Fallo no controlado (`ERR-500`)
+  /api/v1/countries/{id}/status:
+    patch:
+      tags:
+      - Países
+      summary: Activar o desactivar un país
+      description: |
+        Cambia el estado de un país. Es lo **único** que la API puede modificar
+        de un país.
+
+        Se envía el estado destino, no una acción: pedir dos veces lo mismo deja
+        el mismo estado y **no** registra un segundo evento.
+
+        **Desactivar no es corregir**: el código y el nombre permanecen, y los
+        datos que ya los referencian siguen resolviéndolos. Evita que el error se
+        propague desde ese momento, no lo repara.
+
+        El cuerpo no admite ningún otro campo ni motivo alguno.
+      operationId: cambiarEstado_3
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ChangeCountryStatusRequest"
+        required: true
+      responses:
+        "200":
+          description: Estado aplicado. Devuelve el país tal como quedó.
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/CountryResponse"
+        "400":
+          description: "Identificador o cuerpo inválidos, o campo no admitido (`VAL-001`)"
+        "401":
+          description: Token ausente o inválido (`AUTH-001`)
+        "403":
+          description: Autenticado sin el permiso de modificación de países (`AUTH-002`)
+        "404":
+          description: No existe país con ese identificador (`EX-001`)
+        "500":
+          description: Fallo no controlado (`ERR-500`)
+  /api/v1/users/{id}/team:
+    get:
+      tags:
+      - Usuarios
+      summary: Consultar el superior y el equipo a cargo
+      description: |
+        Devuelve el superior inmediato y el **equipo directo** de la persona,
+        paginado.
+
+        **Un solo nivel, nunca el árbol descendente**, y **sin conteo
+        indirecto**: `totalElements` cuenta a quienes reportan directamente.
+        Devolver la rama completa publicaría de una vez la estructura de la
+        empresa por un permiso de lectura de usuarios.
+
+        **Sin filtros.** El listado general de usuarios ya filtra; replicar esa
+        semántica sobre un subconjunto que cabe en una o dos páginas obligaría
+        a mantener dos filtrados sincronizados sin responder nada nuevo.
+
+        **Sin historial de superiores.**
+
+        `supervisor` va **ausente**, no en nulo, cuando la persona es la cúspide
+        comercial: es lo que distingue «no depende de nadie» de «no se pudo
+        resolver».
+
+        Quien no pertenece a la fuerza comercial recibe `200` con la estructura
+        vacía, no `404` ni `409`.
+
+        **El alcance es global** mientras la decisión D-22 siga abierta: quien
+        posea el permiso ve el equipo de cualquiera, no solo el suyo.
+      operationId: equipo
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      - name: page
+        in: query
+        required: false
+        schema:
+          type: integer
+          format: int32
+      - name: size
+        in: query
+        required: false
+        schema:
+          type: integer
+          format: int32
+      responses:
+        "200":
+          description: "La estructura, con el equipo paginado."
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/CommercialStructureResponse"
+        "400":
+          description: Identificador malformado o paginación fuera de límites (`VAL-003`)
+        "401":
+          description: Token ausente o inválido (`AUTH-001`)
+        "403":
+          description: Autenticado sin `users:read` (`AUTH-002`)
+        "404":
+          description: La persona no existe o está eliminada (`VAL-002`)
+        "500":
+          description: Fallo no controlado (`ERR-500`)
+  /api/v1/users/me:
+    get:
+      tags:
+      - Usuarios
+      summary: Consultar el propio perfil
+      description: |
+        Devuelve el perfil de **quien porta el token**, con sus **permisos
+        efectivos**.
+
+        `me` es un **literal**, no un identificador: no se admite pedir el
+        propio detalle por la ruta con identificador, que es otra operación y
+        exige permiso de lectura de usuarios.
+
+        **Sin parámetros de ningún tipo** — ni de ruta, ni de consulta, ni de
+        cuerpo.
+
+        Los permisos salen del **mismo componente que autoriza**, de modo que lo
+        que esta pantalla dice que la persona puede hacer es exactamente lo que
+        el sistema le dejará hacer. Es lo que permite a una interfaz decidir qué
+        mostrar sin duplicar en el navegador una regla que vive en el servidor.
+
+        **No exige permiso alguno**, solo estar autenticado: no hay recurso
+        ajeno que proteger.
+
+        Devuelve **solo el superior comercial, nunca el equipo**: a quién
+        reporta uno es un dato del actor; quiénes dependen de uno es un conjunto
+        de terceros.
+
+        `lastLoginAt` es un dato **informativo de la sesión en curso**, no una
+        señal de intrusión: el inicio de sesión sobrescribe ese valor al entrar.
+      operationId: miPerfil
+      responses:
+        "200":
+          description: El perfil.
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/OwnProfileResponse"
+        "401":
+          description: "Sin credencial válida, o la cuenta fue eliminada tras emitirse\
+            \ el token (`AUTH-001`) — lo que dejó de valer es la sesión, no la ruta,\
+            \ y por eso no es `404`"
+        "500":
+          description: Fallo no controlado (`ERR-500`)
+  /api/v1/permissions:
+    get:
+      tags:
+      - Permisos
+      summary: Consultar el catálogo de permisos
+      description: |
+        Devuelve el catálogo completo, sin paginar, ordenado por recurso y acción.
+
+        Los tres filtros son opcionales y ninguno se valida: un valor que no
+        corresponda a ningún permiso produce una colección vacía, no un error.
+        Los parámetros de paginación no se admiten y se ignoran.
+      operationId: list
+      parameters:
+      - name: request
+        in: query
+        description: Filtro por recurso. Coincidencia exacta.
+        required: true
+        schema:
+          $ref: "#/components/schemas/ListPermissionsRequest"
+      responses:
+        "200":
+          description: Catálogo devuelto. La colección puede venir vacía.
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/PermissionCatalogResponse"
+        "401":
+          description: Token ausente o inválido (`AUTH-001`)
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/PermissionCatalogResponse"
+        "403":
+          description: Autenticado sin el permiso `permissions:read` (`AUTH-002`)
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/PermissionCatalogResponse"
+        "500":
+          description: Fallo no controlado (`ERR-500`)
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/PermissionCatalogResponse"
+  /api/v1/permissions/{id}:
+    get:
+      tags:
+      - Permisos
+      summary: Consultar el detalle de un permiso
+      description: |
+        Devuelve qué habilita un permiso concreto: código, recurso, acción,
+        nombre y descripción. Es la consulta de apoyo a la asignación de
+        permisos a un rol, y se llega a ella desde el catálogo.
+
+        **Se accede solo por identificador, nunca por código**: admitir dos
+        formas de direccionar el mismo recurso obliga a distinguir en cada
+        petición cuál llegó. El código es la vía para *encontrar* el permiso, y
+        para eso está el filtro del catálogo.
+
+        **No devuelve los roles que lo declaran** —es el recorrido inverso y
+        corresponde a una consulta propia— ni marcas temporales: en una tabla
+        que solo cambia por migración, esas fechas dicen cuándo se desplegó una
+        migración y no cuándo ocurrió algo de negocio.
+
+        `description` puede venir vacía, y entonces se devuelve como `null`,
+        nunca omitida.
+      operationId: detail
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      responses:
+        "200":
+          description: Detalle del permiso.
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/PermissionResponse"
+        "400":
+          description: El identificador no es un UUID en forma canónica (`VAL-001`)
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/PermissionResponse"
+        "401":
+          description: Token ausente o inválido (`AUTH-001`)
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/PermissionResponse"
+        "403":
+          description: Autenticado sin el permiso `permissions:read` (`AUTH-002`)
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/PermissionResponse"
+        "404":
+          description: No existe un permiso con ese identificador (`EX-001`)
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/PermissionResponse"
+        "500":
+          description: Fallo no controlado (`ERR-500`)
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/PermissionResponse"
+  /api/v1/memberships/{id}:
+    get:
+      tags:
+      - Membresías
+      summary: Consultar el detalle de una membresía
+      description: |
+        Devuelve la membresía con sus dos vecinos inmediatos, expandidos.
+
+        Los vecinos llegan solo hasta el primer grado y no traen los suyos: la
+        cadena entera se obtiene con el listado.
+      operationId: consultarDetalle
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      responses:
+        "200":
+          description: Detalle devuelto.
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/MembershipDetailResponse"
+        "400":
+          description: El identificador no es un UUID (`VAL-001`)
+        "401":
+          description: Token ausente o inválido (`AUTH-001`)
+        "403":
+          description: Autenticado sin `memberships:read` (`AUTH-002`)
+        "404":
+          description: No existe membresía con ese identificador (`EX-001`)
+        "500":
+          description: Fallo no controlado (`ERR-500`)
+  /api/v1/currencies:
+    get:
+      tags:
+      - Monedas
+      summary: Consultar el catálogo de monedas
+      description: |
+        Devuelve el catálogo completo, sin paginar, ordenado por código.
+
+        `decimalPlaces` es el campo del que depende el redondeo de todo cálculo
+        financiero: cero es un valor legítimo y el campo nunca es nulo.
+
+        Las monedas inactivas no aparecen salvo que se pidan con
+        `includeInactive=true`, que **añade** a las activas en lugar de
+        sustituirlas.
+      operationId: consultar_2
+      parameters:
+      - name: peticion
+        in: query
+        required: true
+        schema:
+          $ref: "#/components/schemas/ListCurrenciesRequest"
+      responses:
+        "200":
+          description: "Catálogo devuelto. Siempre es una colección, aunque tenga\
+            \ un solo elemento."
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/CurrencyCatalogResponse"
+        "400":
+          description: El parámetro de inclusión no es booleano
+        "401":
+          description: Token ausente o inválido (`AUTH-001`)
+        "403":
+          description: Autenticado sin el permiso de lectura de monedas (`AUTH-002`)
+        "500":
+          description: Fallo no controlado (`ERR-500`)
+  /api/v1/audit/security:
+    get:
+      tags:
+      - Auditoría
+      summary: Consultar la auditoría de seguridad
+      description: |
+        Entradas, bloqueos, cambios de privilegio y denegaciones de
+        autorización, del más reciente al más antiguo.
+
+        **Esta consulta se registra a sí misma.** Cada llamada deja un evento
+        de seguridad con quién la hizo, cuándo y **con qué filtros**: en este
+        registro, el acto de mirar es en sí mismo información de seguridad — y
+        quién revisó los accesos de una cuenta ajena es exactamente la clase de
+        hecho que conviene conservar. Es la diferencia con los otros tres, que
+        se conforman con el registro de peticiones.
+
+        **`targetUserId` es el filtro de la investigación de una cuenta**: qué
+        le pasó a esta persona en estas fechas. Los **intentos de acceso
+        fallidos no llevan usuario afectado** y por tanto no aparecen ahí: la
+        presencia de ese campo delataría que la cuenta existe. Se localizan por
+        tipo de evento y rango, leyendo el identificador intentado en `detail`.
+
+        **`detail` no contiene credenciales en ninguna forma** —ni contraseñas,
+        ni resúmenes, ni tokens—, y eso se garantiza al escribir.
+      operationId: seguridad
+      parameters:
+      - name: page
+        in: query
+        required: false
+        schema:
+          type: integer
+          format: int32
+      - name: size
+        in: query
+        required: false
+        schema:
+          type: integer
+          format: int32
+      - name: eventType
+        in: query
+        required: false
+        schema:
+          type: string
+      - name: severity
+        in: query
+        required: false
+        schema:
+          type: string
+      - name: outcome
+        in: query
+        required: false
+        schema:
+          type: string
+      - name: actorId
+        in: query
+        required: false
+        schema:
+          type: string
+          format: uuid
+      - name: targetUserId
+        in: query
+        required: false
+        schema:
+          type: string
+          format: uuid
+      - name: ipAddress
+        in: query
+        required: false
+        schema:
+          type: string
+      - name: from
+        in: query
+        required: false
+        schema:
+          type: string
+          format: date-time
+      - name: to
+        in: query
+        required: false
+        schema:
+          type: string
+          format: date-time
+      responses:
+        "200":
+          description: Página de eventos de seguridad.
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/PageResponse"
+        "400":
+          description: "Rango incoherente (`VAL-001`), paginación fuera de límites\
+            \ (`VAL-002`) o tipo de evento, severidad o resultado fuera de su dominio\
+            \ (`VAL-003`)"
+        "401":
+          description: Token ausente o inválido (`AUTH-001`)
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/PageResponseSecurityAuditItem"
+        "403":
+          description: Autenticado sin `audit:read-security` (`AUTH-002`)
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/PageResponseSecurityAuditItem"
+        "500":
+          description: Fallo no controlado (`ERR-500`)
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/PageResponseSecurityAuditItem"
+  /api/v1/audit/errors:
+    get:
+      tags:
+      - Auditoría
+      summary: Consultar la auditoría de error
+      description: |
+        Fallos no controlados y rechazos por regla de negocio, del más reciente
+        al más antiguo.
+
+        **El filtro para el que existe esta consulta es `correlationId`**:
+        alguien reporta un error citando el identificador que la respuesta le
+        devolvió, y con él se llega al fallo concreto y a la traza técnica que
+        lo acompaña.
+
+        **Qué NO aparece aquí, y es la frontera que más importa:** la denegación
+        de autorización (`403`) vive en la auditoría de **seguridad**, porque no
+        es un fallo del sistema sino el sistema funcionando. Tampoco la
+        validación de formato, el `401` ni el `404` — esos los cubre el registro
+        de peticiones.
+
+        `message` viene **ya saneado** desde que se escribió: sin trazas, sin
+        SQL, sin rutas y sin versiones.
+      operationId: errores
+      parameters:
+      - name: page
+        in: query
+        required: false
+        schema:
+          type: integer
+          format: int32
+      - name: size
+        in: query
+        required: false
+        schema:
+          type: integer
+          format: int32
+      - name: errorType
+        in: query
+        required: false
+        schema:
+          type: string
+      - name: severity
+        in: query
+        required: false
+        schema:
+          type: string
+      - name: errorCode
+        in: query
+        required: false
+        schema:
+          type: string
+      - name: resource
+        in: query
+        required: false
+        schema:
+          type: string
+      - name: actorId
+        in: query
+        required: false
+        schema:
+          type: string
+          format: uuid
+      - name: from
+        in: query
+        required: false
+        schema:
+          type: string
+          format: date-time
+      - name: to
+        in: query
+        required: false
+        schema:
+          type: string
+          format: date-time
+      - name: correlationId
+        in: query
+        required: false
+        schema:
+          type: string
+          format: uuid
+      responses:
+        "200":
+          description: Página de fallos registrados.
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/PageResponse"
+        "400":
+          description: "Rango incoherente (`VAL-001`), paginación fuera de límites\
+            \ (`VAL-002`) o tipo o severidad fuera de su dominio (`VAL-003`)"
+        "401":
+          description: Token ausente o inválido (`AUTH-001`)
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/PageResponseErrorAuditItem"
+        "403":
+          description: Autenticado sin `audit:read-errors` (`AUTH-002`)
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/PageResponseErrorAuditItem"
+        "500":
+          description: Fallo no controlado (`ERR-500`)
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/PageResponseErrorAuditItem"
+  /api/v1/audit/deletions:
+    get:
+      tags:
+      - Auditoría
+      summary: Consultar la auditoría de eliminación
+      description: |
+        Qué se eliminó, quién lo eliminó y **por qué**, del más reciente al más
+        antiguo.
+
+        **`snapshot` es lo que hace útil a este registro**: el estado completo
+        del registro en el momento de borrarse. Sin él, la fila diría que un
+        identificador fue eliminado y nadie recordaría qué era.
+
+        **`reason` va vacío en las eliminaciones de asociación** —retirar un
+        permiso de un rol, por ejemplo—, y es correcto: lo que desaparece es una
+        asociación y no una entidad de negocio, de modo que no exige motivo.
+
+        El filtro `reason` **busca por texto** dentro del motivo, sin distinguir
+        acentos ni mayúsculas: es prosa que escribió una persona y nadie
+        recuerda cómo la redactó. Por lo mismo, buscar por motivo deja fuera las
+        eliminaciones de asociación, que no lo llevan.
+      operationId: eliminaciones
+      parameters:
+      - name: page
+        in: query
+        required: false
+        schema:
+          type: integer
+          format: int32
+      - name: size
+        in: query
+        required: false
+        schema:
+          type: integer
+          format: int32
+      - name: module
+        in: query
+        required: false
+        schema:
+          type: string
+      - name: entity
+        in: query
+        required: false
+        schema:
+          type: string
+      - name: entityId
+        in: query
+        required: false
+        schema:
+          type: string
+          format: uuid
+      - name: actorId
+        in: query
+        required: false
+        schema:
+          type: string
+          format: uuid
+      - name: deletionType
+        in: query
+        required: false
+        schema:
+          type: string
+      - name: reason
+        in: query
+        required: false
+        schema:
+          type: string
+      - name: from
+        in: query
+        required: false
+        schema:
+          type: string
+          format: date-time
+      - name: to
+        in: query
+        required: false
+        schema:
+          type: string
+          format: date-time
+      - name: correlationId
+        in: query
+        required: false
+        schema:
+          type: string
+          format: uuid
+      responses:
+        "200":
+          description: Página de eventos de eliminación.
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/PageResponse"
+        "400":
+          description: "Rango incoherente (`VAL-001`), paginación fuera de límites\
+            \ (`VAL-002`) o tipo de eliminación fuera de su dominio (`VAL-003`)"
+        "401":
+          description: Token ausente o inválido (`AUTH-001`)
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/PageResponseDeletionAuditItem"
+        "403":
+          description: Autenticado sin `audit:read-deletions` (`AUTH-002`)
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/PageResponseDeletionAuditItem"
+        "500":
+          description: Fallo no controlado (`ERR-500`)
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/PageResponseDeletionAuditItem"
+  /api/v1/audit/changes:
+    get:
+      tags:
+      - Auditoría
+      summary: Consultar la auditoría de cambios
+      description: |
+        Altas y ediciones de todo el sistema, **del más reciente al más
+        antiguo**. El orden no se puede cambiar: es parte del significado de un
+        registro cronológico.
+
+        **`changes` se devuelve tal como se escribió**, sin interpretar: en un
+        `CREATE` es el estado inicial del registro y en un `UPDATE` solo los
+        campos que cambiaron, cada uno con su `before` y su `after`.
+
+        **`correlationId` enlaza con la petición** que produjo el evento, y con
+        lo que esa misma petición dejó en los otros tres registros. Cuando son
+        nulos, `correlationId` e `ipAddress` lo son **a la vez**: significa que
+        el cambio no vino de la red —una migración, una tarea programada—, y
+        nunca que se olvidara registrarlo. `actorId` nulo se lee igual: lo hizo
+        el sistema.
+
+        **Ningún filtro es obligatorio**, ni siquiera el rango de fechas: la
+        consulta que más valor tiene es la línea de tiempo completa de un
+        registro. `from` y `to` son **instantes** con zona horaria, no fechas
+        sueltas, y el rango es **semiabierto** —incluye `from`, excluye `to`—
+        para que dos rangos consecutivos no devuelvan dos veces el evento de la
+        frontera.
+
+        **`entityId` y `actorId` no se validan contra nada**: la auditoría
+        conserva eventos de registros que ya no existen, que es su razón de ser.
+      operationId: cambios
+      parameters:
+      - name: page
+        in: query
+        required: false
+        schema:
+          type: integer
+          format: int32
+      - name: size
+        in: query
+        required: false
+        schema:
+          type: integer
+          format: int32
+      - name: module
+        in: query
+        required: false
+        schema:
+          type: string
+      - name: entity
+        in: query
+        required: false
+        schema:
+          type: string
+      - name: entityId
+        in: query
+        required: false
+        schema:
+          type: string
+          format: uuid
+      - name: actorId
+        in: query
+        required: false
+        schema:
+          type: string
+          format: uuid
+      - name: action
+        in: query
+        required: false
+        schema:
+          type: string
+      - name: from
+        in: query
+        required: false
+        schema:
+          type: string
+          format: date-time
+      - name: to
+        in: query
+        required: false
+        schema:
+          type: string
+          format: date-time
+      - name: correlationId
+        in: query
+        required: false
+        schema:
+          type: string
+          format: uuid
+      responses:
+        "200":
+          description: Página de eventos de cambio.
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/PageResponse"
+        "400":
+          description: "Rango de fechas incoherente (`VAL-001`), paginación fuera\
+            \ de límites (`VAL-002`) o filtro fuera de su dominio (`VAL-003`). Se\
+            \ devuelven **juntos**"
+        "401":
+          description: Token ausente o inválido (`AUTH-001`)
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/PageResponseChangeAuditItem"
+        "403":
+          description: Autenticado sin `audit:read-changes` (`AUTH-002`)
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/PageResponseChangeAuditItem"
+        "500":
+          description: Fallo no controlado (`ERR-500`)
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/PageResponseChangeAuditItem"
+components:
+  schemas:
+    AssignMembershipRequest:
+      type: object
+      properties:
+        membershipId:
+          type: string
+          format: uuid
+        endsAt:
+          type: string
+          format: date-time
+      required:
+      - membershipId
+    UserMembershipResponse:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        code:
+          type: string
+        name:
+          type: string
+        level:
+          type: integer
+          format: int32
+        endsAt:
+          type: string
+          format: date-time
+    RegisterUserRequest:
+      type: object
+      properties:
+        username:
+          type: string
+          minLength: 1
+        email:
+          type: string
+          minLength: 1
+        firstName:
+          type: string
+          maxLength: 100
+          minLength: 0
+        lastName:
+          type: string
+          maxLength: 100
+          minLength: 0
+        password:
+          type: string
+          minLength: 1
+        roleIds:
+          type: array
+          items:
+            type: string
+            format: uuid
+          maxItems: 100
+          minItems: 0
+        membershipId:
+          type: string
+          format: uuid
+        supervisorId:
+          type: string
+          format: uuid
+      required:
+      - email
+      - firstName
+      - lastName
+      - password
+      - roleIds
+      - username
+    MembershipRef:
+      type: object
+      properties:
+        code:
+          type: string
+        level:
+          type: integer
+          format: int32
+        endsAt:
+          type: string
+          format: date-time
+    RoleRef:
+      type: object
+      properties:
+        code:
+          type: string
+        name:
+          type: string
+        status:
+          type: string
+    SupervisorRef:
+      type: object
+      properties:
+        username:
+          type: string
+        firstName:
+          type: string
+        lastName:
+          type: string
+        roleCode:
+          type: string
+    UserResponse:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        username:
+          type: string
+        email:
+          type: string
+        firstName:
+          type: string
+        lastName:
+          type: string
+        status:
+          type: string
+        mustChangePassword:
+          type: boolean
+        roles:
+          type: array
+          items:
+            $ref: "#/components/schemas/RoleRef"
+        membership:
+          $ref: "#/components/schemas/MembershipRef"
+        supervisor:
+          $ref: "#/components/schemas/SupervisorRef"
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+    AssignRolesRequest:
+      type: object
+      properties:
+        roleIds:
+          type: array
+          items:
+            type: string
+            format: uuid
+          maxItems: 100
+          minItems: 0
+        membershipId:
+          type: string
+          format: uuid
+        membershipEndsAt:
+          type: string
+          format: date-time
+        supervisorId:
+          type: string
+          format: uuid
+      required:
+      - roleIds
+    RevokeRolesRequest:
+      type: object
+      properties:
+        roleIds:
+          type: array
+          items:
+            type: string
+            format: uuid
+          maxItems: 100
+          minItems: 0
+      required:
+      - roleIds
+    ResetPasswordRequest:
+      type: object
+      properties:
+        newPassword:
+          type: string
+    DeleteUserRequest:
+      type: object
+      properties:
+        reason:
+          type: string
+    CreateRoleRequest:
+      type: object
+      properties:
+        code:
+          type: string
+          maxLength: 50
+          minLength: 0
+          pattern: "^[A-Z][A-Z0-9_]*$"
+        name:
+          type: string
+          maxLength: 100
+          minLength: 0
+        description:
+          type: string
+          maxLength: 500
+          minLength: 0
+        roleType:
+          type: string
+          enum:
+          - FUNCIONARIO
+          - VENDEDOR
+          - CONSUMIDOR
+        parentRoleId:
+          type: string
+          format: uuid
+        permissionIds:
+          type: array
+          items:
+            type: string
+            format: uuid
+      required:
+      - code
+      - name
+      - parentRoleId
+      - roleType
+    PermissionResponse:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        code:
+          type: string
+        resource:
+          type: string
+        action:
+          type: string
+        name:
+          type: string
+        description:
+          type: string
+    RoleResponse:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        code:
+          type: string
+        name:
+          type: string
+        description:
+          type: string
+        roleType:
+          type: string
+        status:
+          type: string
+        isSystem:
+          type: boolean
+        parentRole:
+          $ref: "#/components/schemas/RoleSummaryResponse"
+        permissions:
+          type: array
+          items:
+            $ref: "#/components/schemas/PermissionResponse"
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+    RoleSummaryResponse:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        code:
+          type: string
+        name:
+          type: string
+    RolePermissionsRequest:
+      type: object
+      properties:
+        permissionIds:
+          type: array
+          items:
+            type: string
+            format: uuid
+          maxItems: 100
+          minItems: 0
+          uniqueItems: true
+      required:
+      - permissionIds
+    DeleteRoleRequest:
+      type: object
+      properties:
+        reason:
+          type: string
+    RegisterMembershipRequest:
+      type: object
+      properties:
+        code:
+          type: string
+          maxLength: 50
+          minLength: 0
+          pattern: "^[A-Z][A-Z0-9_]*$"
+        name:
+          type: string
+          maxLength: 100
+          minLength: 0
+        description:
+          type: string
+          maxLength: 500
+          minLength: 0
+        childMembershipId:
+          type: string
+          format: uuid
+      required:
+      - code
+      - name
+    MembershipResponse:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        code:
+          type: string
+        name:
+          type: string
+        description:
+          type: string
+        level:
+          type: integer
+          format: int32
+        parentMembershipId:
+          type: string
+          format: uuid
+        childMembershipId:
+          type: string
+          format: uuid
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+    RegisterCountryRequest:
+      type: object
+      properties:
+        code:
+          type: string
+          maxLength: 10
+          minLength: 0
+        name:
+          type: string
+          maxLength: 100
+          minLength: 0
+      required:
+      - code
+      - name
+    CountryResponse:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        code:
+          type: string
+        name:
+          type: string
+        isActive:
+          type: boolean
+    RefreshRequest:
+      type: object
+      properties:
+        refreshToken:
+          type: string
+          minLength: 1
+      required:
+      - refreshToken
+    SessionResponse:
+      type: object
+      properties:
+        accessToken:
+          type: string
+        refreshToken:
+          type: string
+        tokenType:
+          type: string
+        expiresIn:
+          type: integer
+          format: int64
+        mustChangePassword:
+          type: boolean
+    ChangePasswordRequest:
+      type: object
+      properties:
+        currentPassword:
+          type: string
+        newPassword:
+          type: string
+    LogoutRequest:
+      type: object
+      properties:
+        refreshToken:
+          type: string
+          minLength: 1
+        allSessions:
+          type: boolean
+      required:
+      - refreshToken
+    LoginRequest:
+      type: object
+      properties:
+        identifier:
+          type: string
+          minLength: 1
+        password:
+          type: string
+          minLength: 1
+      required:
+      - identifier
+      - password
+    PatchableString: {}
+    UpdateUserRequest:
+      type: object
+      properties:
+        firstName:
+          $ref: "#/components/schemas/PatchableString"
+        lastName:
+          $ref: "#/components/schemas/PatchableString"
+        email:
+          $ref: "#/components/schemas/PatchableString"
+    AssignSupervisorRequest:
+      type: object
+      properties:
+        supervisorId:
+          type: string
+          format: uuid
+        reason:
+          type: string
+      required:
+      - supervisorId
+    CommercialStructureResponse:
+      type: object
+      properties:
+        user:
+          $ref: "#/components/schemas/Person"
+        supervisor:
+          $ref: "#/components/schemas/Person"
+        previousSupervisor:
+          $ref: "#/components/schemas/Person"
+        previousSupervisorEndedAt:
+          type: string
+          format: date-time
+        team:
+          $ref: "#/components/schemas/PageResponsePerson"
+    PageResponsePerson:
+      type: object
+      properties:
+        content:
+          type: array
+          items:
+            $ref: "#/components/schemas/Person"
+        totalElements:
+          type: integer
+          format: int64
+        totalPages:
+          type: integer
+          format: int32
+        page:
+          type: integer
+          format: int32
+        size:
+          type: integer
+          format: int32
+        totalIsExact:
+          type: boolean
+    Person:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        username:
+          type: string
+        firstName:
+          type: string
+        lastName:
+          type: string
+        roleCode:
+          type: string
+        status:
+          type: string
+        since:
+          type: string
+          format: date-time
+    ChangeUserStatusRequest:
+      type: object
+      properties:
+        status:
+          type: string
+        reason:
+          type: string
+    UserStatusResponse:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        username:
+          type: string
+        status:
+          type: string
+        lockedUntil:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+    UpdateRoleRequest:
+      type: object
+      properties:
+        name:
+          $ref: "#/components/schemas/PatchableString"
+        description:
+          $ref: "#/components/schemas/PatchableString"
+    ChangeRoleStatusRequest:
+      type: object
+      properties:
+        status:
+          type: string
+          minLength: 1
+      required:
+      - status
+    ChangeRoleParentRequest:
+      type: object
+      properties:
+        parentRoleId:
+          type: string
+          format: uuid
+      required:
+      - parentRoleId
+    ChangeCurrencyStatusRequest:
+      type: object
+      properties:
+        isActive:
+          type: boolean
+      required:
+      - isActive
+    CurrencyResponse:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        code:
+          type: string
+        name:
+          type: string
+        symbol:
+          type: string
+        decimalPlaces:
+          type: integer
+          format: int32
+        isDefault:
+          type: boolean
+        isActive:
+          type: boolean
+    ChangeCountryStatusRequest:
+      type: object
+      properties:
+        isActive:
+          type: boolean
+      required:
+      - isActive
+    PageResponse:
+      type: object
+      properties:
+        content:
+          type: array
+          items: {}
+        totalElements:
+          type: integer
+          format: int64
+        totalPages:
+          type: integer
+          format: int32
+        page:
+          type: integer
+          format: int32
+        size:
+          type: integer
+          format: int32
+        totalIsExact:
+          type: boolean
+    UserDetailResponse:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        username:
+          type: string
+        email:
+          type: string
+        firstName:
+          type: string
+        lastName:
+          type: string
+        status:
+          type: string
+        roles:
+          type: array
+          items:
+            $ref: "#/components/schemas/RoleRef"
+        effectivePermissions:
+          type: array
+          items:
+            type: string
+        membership:
+          $ref: "#/components/schemas/MembershipRef"
+        lastLoginAt:
+          type: string
+          format: date-time
+        lockedUntil:
+          type: string
+          format: date-time
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+    OwnProfileResponse:
+      type: object
+      properties:
+        username:
+          type: string
+        email:
+          type: string
+        firstName:
+          type: string
+        lastName:
+          type: string
+        status:
+          type: string
+        roles:
+          type: array
+          items:
+            $ref: "#/components/schemas/RoleRef"
+        permissions:
+          type: array
+          items:
+            type: string
+        membership:
+          $ref: "#/components/schemas/MembershipRef"
+        lastLoginAt:
+          type: string
+          format: date-time
+        supervisor:
+          $ref: "#/components/schemas/SupervisorRef"
+        mustChangePassword:
+          type: boolean
+    RoleDetailResponse:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        code:
+          type: string
+        name:
+          type: string
+        description:
+          type: string
+        roleType:
+          type: string
+        status:
+          type: string
+        isSystem:
+          type: boolean
+        parentRole:
+          $ref: "#/components/schemas/RoleSummaryResponse"
+        permissions:
+          type: array
+          items:
+            $ref: "#/components/schemas/PermissionResponse"
+        childRoleCount:
+          type: integer
+          format: int64
+        assignedUserCount:
+          type: integer
+          format: int64
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+    ListPermissionsRequest:
+      type: object
+      properties:
+        resource:
+          type: string
+        action:
+          type: string
+        search:
+          type: string
+    PermissionCatalogResponse:
+      type: object
+      properties:
+        content:
+          type: array
+          items:
+            $ref: "#/components/schemas/PermissionResponse"
+    ListMembershipsRequest:
+      type: object
+      properties:
+        search:
+          type: string
+    Item:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        code:
+          type: string
+        name:
+          type: string
+        description:
+          type: string
+        level:
+          type: integer
+          format: int32
+        parentMembershipId:
+          type: string
+          format: uuid
+        childMembershipId:
+          type: string
+          format: uuid
+    MembershipChainResponse:
+      type: object
+      properties:
+        content:
+          type: array
+          items:
+            $ref: "#/components/schemas/Item"
+    MembershipDetailResponse:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        code:
+          type: string
+        name:
+          type: string
+        description:
+          type: string
+        level:
+          type: integer
+          format: int32
+        parentMembership:
+          $ref: "#/components/schemas/Neighbor"
+        childMembership:
+          $ref: "#/components/schemas/Neighbor"
+    Neighbor:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        code:
+          type: string
+        name:
+          type: string
+        level:
+          type: integer
+          format: int32
+    ListCurrenciesRequest:
+      type: object
+      properties:
+        includeInactive:
+          type: boolean
+    CurrencyCatalogResponse:
+      type: object
+      properties:
+        content:
+          type: array
+          items:
+            $ref: "#/components/schemas/CurrencyResponse"
+    ListCountriesRequest:
+      type: object
+      properties:
+        search:
+          type: string
+        includeInactive:
+          type: boolean
+    CountryCatalogResponse:
+      type: object
+      properties:
+        content:
+          type: array
+          items:
+            $ref: "#/components/schemas/CountryResponse"
+    JsonNode: {}
+    PageResponseSecurityAuditItem:
+      type: object
+      properties:
+        content:
+          type: array
+          items:
+            $ref: "#/components/schemas/SecurityAuditItem"
+        totalElements:
+          type: integer
+          format: int64
+        totalPages:
+          type: integer
+          format: int32
+        page:
+          type: integer
+          format: int32
+        size:
+          type: integer
+          format: int32
+        totalIsExact:
+          type: boolean
+    SecurityAuditItem:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        occurredAt:
+          type: string
+          format: date-time
+        actorId:
+          type: string
+          format: uuid
+        eventType:
+          type: string
+        severity:
+          type: string
+        outcome:
+          type: string
+        targetUserId:
+          type: string
+          format: uuid
+        detail:
+          $ref: "#/components/schemas/JsonNode"
+        correlationId:
+          type: string
+          format: uuid
+        ipAddress:
+          type: string
+        userAgent:
+          type: string
+    ErrorAuditItem:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        occurredAt:
+          type: string
+          format: date-time
+        actorId:
+          type: string
+          format: uuid
+        resource:
+          type: string
+        entityId:
+          type: string
+          format: uuid
+        operation:
+          type: string
+        errorCode:
+          type: string
+        errorType:
+          type: string
+        httpStatus:
+          type: integer
+          format: int32
+        severity:
+          type: string
+        message:
+          type: string
+        correlationId:
+          type: string
+          format: uuid
+        ipAddress:
+          type: string
+        userAgent:
+          type: string
+    PageResponseErrorAuditItem:
+      type: object
+      properties:
+        content:
+          type: array
+          items:
+            $ref: "#/components/schemas/ErrorAuditItem"
+        totalElements:
+          type: integer
+          format: int64
+        totalPages:
+          type: integer
+          format: int32
+        page:
+          type: integer
+          format: int32
+        size:
+          type: integer
+          format: int32
+        totalIsExact:
+          type: boolean
+    DeletionAuditItem:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        occurredAt:
+          type: string
+          format: date-time
+        actorId:
+          type: string
+          format: uuid
+        module:
+          type: string
+        entity:
+          type: string
+        entityId:
+          type: string
+          format: uuid
+        deletionType:
+          type: string
+        reason:
+          type: string
+        snapshot:
+          $ref: "#/components/schemas/JsonNode"
+        correlationId:
+          type: string
+          format: uuid
+        ipAddress:
+          type: string
+        userAgent:
+          type: string
+    PageResponseDeletionAuditItem:
+      type: object
+      properties:
+        content:
+          type: array
+          items:
+            $ref: "#/components/schemas/DeletionAuditItem"
+        totalElements:
+          type: integer
+          format: int64
+        totalPages:
+          type: integer
+          format: int32
+        page:
+          type: integer
+          format: int32
+        size:
+          type: integer
+          format: int32
+        totalIsExact:
+          type: boolean
+    ChangeAuditItem:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        occurredAt:
+          type: string
+          format: date-time
+        actorId:
+          type: string
+          format: uuid
+        module:
+          type: string
+        entity:
+          type: string
+        entityId:
+          type: string
+          format: uuid
+        action:
+          type: string
+        changes:
+          $ref: "#/components/schemas/JsonNode"
+        correlationId:
+          type: string
+          format: uuid
+        ipAddress:
+          type: string
+        userAgent:
+          type: string
+    PageResponseChangeAuditItem:
+      type: object
+      properties:
+        content:
+          type: array
+          items:
+            $ref: "#/components/schemas/ChangeAuditItem"
+        totalElements:
+          type: integer
+          format: int64
+        totalPages:
+          type: integer
+          format: int32
+        page:
+          type: integer
+          format: int32
+        size:
+          type: integer
+          format: int32
+        totalIsExact:
+          type: boolean
+  securitySchemes:
+    bearerAuth:
+      type: http
+      description: "Token de acceso emitido por `POST /api/v1/auth/login`. Pegue solo\
+        \ el valor de `accessToken`: el prefijo `Bearer` lo añade la interfaz."
+      in: header
+      scheme: bearer
+      bearerFormat: JWT
