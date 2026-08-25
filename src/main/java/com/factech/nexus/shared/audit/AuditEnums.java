@@ -96,6 +96,23 @@ public final class AuditEnums {
      *
      * <p>Añadido el 25-08-2026 con {@code V34}; el catálogo pasa de diecinueve a <b>veinte</b>.
      */
-    RATE_LIMIT_EXCEEDED
+    RATE_LIMIT_EXCEEDED,
+
+    /**
+     * La purga retiró familias de sesión ya caducadas (`security.md` §5.5, issue #25).
+     *
+     * <p><b>Una purga que borra evidencia sin dejar constancia de cuánta borró no es auditable</b>,
+     * y esa es toda la razón de este código. La fila que se elimina es la que sostenía la detección
+     * de robo por reutilización de `RF-SP-035`: el evento deja escrito cuántas se retiraron, con
+     * qué plazo de retención y hasta qué fecha de corte, que es lo que permite responder después
+     * «por qué esta sesión ya no está».
+     *
+     * <p>Su actor es <b>nulo</b>, y no es un dato que falte: no lo hizo nadie, lo hizo el sistema.
+     * Su severidad es {@code INFORMATIVA} porque una purga que ocurre a su hora es rutina; lo que
+     * merece atención es que <b>deje</b> de ocurrir, y eso no lo cuenta un evento sino su ausencia.
+     *
+     * <p>Añadido el 25-08-2026 con {@code V36}; el catálogo pasa de veinte a <b>veintiuno</b>.
+     */
+    SESSION_TOKENS_PURGED
   }
 }

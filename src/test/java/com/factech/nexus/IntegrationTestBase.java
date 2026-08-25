@@ -70,6 +70,13 @@ public abstract class IntegrationTestBase {
     // donde tiene sentido.
     registry.add("RATE_LIMIT_ENABLED", () -> "false");
 
+    // La purga de sesiones caducadas queda APAGADA por lo mismo: corre por su
+    // cuenta cada madrugada, y una prueba que crea sesiones no debe competir
+    // con una tarea que las borra. El fallo sería intermitente y no se
+    // parecería en nada a su causa. `RefreshTokenPurgeIT` invoca el servicio
+    // directamente, que es como se prueba lo que hace y no cuándo lo hace.
+    registry.add("TOKEN_PURGE_ENABLED", () -> "false");
+
     // Credencial inicial del superadministrador, que `V22__seed_superadmin.sql`
     // exige como marcador de posición. Se declara aquí y no en un archivo de
     // propiedades de prueba por lo mismo que las anteriores: lo que se prueba es
