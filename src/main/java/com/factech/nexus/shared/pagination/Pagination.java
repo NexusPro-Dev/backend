@@ -23,12 +23,26 @@ public class Pagination {
 
   private final int tamanoPorOmision;
   private final int tamanoMaximo;
+  private final int techoDelConteo;
 
   public Pagination(
       @Value("${nexus.pagination.default-size:20}") int tamanoPorOmision,
-      @Value("${nexus.pagination.max-size:100}") int tamanoMaximo) {
+      @Value("${nexus.pagination.max-size:100}") int tamanoMaximo,
+      @Value("${nexus.pagination.count-limit:10000}") int techoDelConteo) {
     this.tamanoPorOmision = tamanoPorOmision;
     this.tamanoMaximo = tamanoMaximo;
+    this.techoDelConteo = techoDelConteo;
+  }
+
+  /**
+   * Hasta dónde cuenta un listado sobre una tabla que crece sin límite ({@link BoundedCount}).
+   *
+   * <p><b>Es configuración y no una constante</b>: un despliegue con poco volumen puede subirlo y
+   * recuperar el total exacto siempre; uno grande puede bajarlo. Lo que no puede es desaparecer,
+   * porque entonces vuelve el recorrido completo de la tabla en cada página.
+   */
+  public int techoDelConteo() {
+    return techoDelConteo;
   }
 
   /**

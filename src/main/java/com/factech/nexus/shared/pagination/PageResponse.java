@@ -23,7 +23,21 @@ public record PageResponse<T>(
     List<T> content, long totalElements, int totalPages, int page, int size, boolean totalIsExact) {
 
   public static <T> PageResponse<T> de(List<T> contenido, long total, int pagina, int tamano) {
-    int paginas = tamano <= 0 ? 0 : (int) Math.ceil((double) total / tamano);
-    return new PageResponse<>(contenido, total, paginas, pagina, tamano, true);
+    return de(contenido, BoundedCount.exacto(total), pagina, tamano);
+  }
+
+  /**
+   * Página cuyo total puede no ser exacto (`RF-SP-011`).
+   *
+   * <p><b>{@code totalPages} es una cota inferior cuando el total no es exacto</b>, y se calcula
+   * igual sobre lo devuelto. Pedir una página más allá de esa cota <b>sigue funcionando</b>:
+   * devuelve contenido si lo hay y colección vacía si no. Es lo que impide que el techo del conteo
+   * se convierta en un muro.
+   */
+  public static <T> PageResponse<T> de(
+      List<T> contenido, BoundedCount total, int pagina, int tamano) {
+
+    int paginas = tamano <= 0 ? 0 : (int) Math.ceil((double) total.total() / tamano);
+    return new PageResponse<>(contenido, total.total(), paginas, pagina, tamano, total.exact());
   }
 }

@@ -81,6 +81,12 @@ nexus:
   pagination:
     default-size: 20
     max-size: 100
+    # Hasta dónde cuenta un listado sobre una tabla que crece sin purga —los
+    # cuatro registros de auditoría—. Por encima del techo la respuesta dice
+    # «hay más de esto» con `totalIsExact` en falso, en lugar de recorrer la
+    # tabla entera en cada página. Es configuración y no constante: subirlo
+    # recupera el total exacto siempre; quitarlo devuelve el recorrido completo.
+    count-limit: 10000
 
   audit:
     request-log-retention-days: ${REQUEST_LOG_RETENTION_DAYS:}
