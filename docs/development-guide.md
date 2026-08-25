@@ -5,11 +5,11 @@
 | Proyecto | NEXUS — Renovación de plataforma |
 | Empresa | FACTECH GROUP SAS |
 | Documento | `development-guide.md` |
-| Versión | 0.6.0 |
+| Versión | 0.7.0 |
 | Estado | Borrador |
 | Responsable técnico | Bonilla Diaz William Steven |
 | Fecha de creación | 19-08-2026 |
-| Última actualización | 22-08-2026 |
+| Última actualización | 25-08-2026 |
 | Documento superior | `constitution.md` v0.5.0 |
 | Documentos relacionados | `architecture.md` v0.4.0, `security.md` v0.3.0 |
 
@@ -443,6 +443,19 @@ Reglas:
 - Requiere aprobación de alguien distinto del autor y CI en verde (Art. III.5).
 - Si tu PR supera unos cientos de líneas de cambio funcional, considera dividirlo.
 
+#### 12.3.1 Cómo se integran hoy, y en qué se aparta de la regla
+
+**La práctica vigente es la integración automática.** El equipo es hoy una sola persona con asistencia automatizada, de modo que los Pull Requests se mezclan con el botón de GitHub —o con la fusión automática en cuanto CI queda en verde— **sin una segunda persona que apruebe**.
+
+Conviene que esté escrito y no se descubra leyendo el historial:
+
+- **Se aparta del Art. III.5 y de la definición de terminado** (constitución §16), que exigen aprobación de alguien distinto del autor. No se declara resuelto: se declara **asumido mientras el equipo sea de uno**.
+- **Lo que sí se conserva es lo verificable por máquina**: CI en verde es condición para integrar, y ahí entra la suite completa, el formato y la comprobación de que el contrato publicado coincide con el generado (Art. VIII.6). Esa parte no depende de que alguien mire.
+- **Ningún requerimiento pasa por eso a `Implementado`.** La matriz de trazabilidad los deja en `Tasks aprobadas`, y esa es la forma honesta de reflejar que la revisión por pares no ocurrió — no un descuido al actualizarla.
+- **La condición de revisión de esta práctica es que entre una segunda persona al repositorio.** Ese día la aprobación deja de ser opcional, y este apartado se retira en lugar de reinterpretarse.
+
+El flujo de ramas no cambia: `feature/<descripcion>` → `develop` → `main`, con un Pull Request en cada salto.
+
 ---
 
 ## 13. Antes de abrir un Pull Request
@@ -509,3 +522,4 @@ Aplica el Artículo XIII. En términos prácticos:
 | 0.4.0 | 20-08-2026 | Se adopta la tripleta `spec` / `plan` / `tasks`: §3 incorpora las tres compuertas y §5 y §12.3 apuntan a la carpeta de la tripleta. §2.5 pasa a navegación por `.pages`. | Responsable técnico |
 | 0.5.0 | 20-08-2026 | §12.2 incorpora los tipos de commit `build` y `ci`, que faltaban, y describe cuándo se usa cada tipo. | Responsable técnico |
 | 0.6.0 | 22-08-2026 | §4.2 y §5 se ajustan a la disposición por agregado de `architecture.md` §5.1: sufijos por capa reescritos, la entidad JPA deja de llevar sufijo `Entity` y la anatomía de una funcionalidad refleja la estructura real de `RF-SP-010`. | Responsable técnico |
+| 0.7.0 | 25-08-2026 | Nuevo §12.3.1: **cómo se integran hoy los Pull Requests**. La práctica vigente es la **integración automática** —el botón de GitHub, o la fusión automática en cuanto CI queda en verde— **sin una segunda persona que apruebe**, porque el equipo es hoy una sola persona con asistencia automatizada. Se declara en lugar de dejarlo al historial, y se declara como **desviación asumida** del Art. III.5 y de la definición de terminado, no como regla nueva: lo que se conserva es lo verificable por máquina —CI en verde como condición para integrar, con la suite completa, el formato y la comprobación del contrato publicado—, y lo que se pierde es la revisión por pares. De ahí que **ningún requerimiento pase a `Implementado`** por integrarse: la matriz los deja en `Tasks aprobadas`, que es la forma honesta de reflejar que esa revisión no ocurrió. Queda escrita su condición de revisión: el día que entre una segunda persona al repositorio, el apartado se retira en lugar de reinterpretarse. | Responsable técnico |
