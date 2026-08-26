@@ -165,7 +165,12 @@ public class MustChangePasswordFilter extends OncePerRequestFilter {
         "Su contraseña la fijó otra persona. Cámbiela antes de usar el resto de la aplicación.");
     problema.put("instance", peticion.getRequestURI());
     problema.put("correlationId", correlacion());
-    problema.put("errorCode", "PASSWORD_CHANGE_REQUIRED");
+    // NO hay campo `errorCode` de primer nivel, y no es un olvido: el formato de
+    // `architecture.md` §7.3 no lo tiene, y quien distingue este rechazo del de
+    // la falta de permiso es el `type` — que es distinto y para eso está. Añadir
+    // aquí un campo que ningún otro error de la API lleva obligaría a quien
+    // consume a tratar dos formatos.
+    //
     // La ruta que resuelve el bloqueo viaja en la respuesta y no en el mensaje:
     // quien la lee es la interfaz, para llevar a la persona allí sin tener que
     // llevar esa ruta escrita a mano en su propio código.

@@ -60,7 +60,12 @@ public class SecurityConfig {
     // más falta hace, que es cuando se sospecha que la robaron.
     "/api/v1/auth/login",
     "/api/v1/auth/refresh",
-    "/api/v1/auth/logout"
+    "/api/v1/auth/logout",
+    // Y las dos de la recuperación (`RF-SP-040`), por definición: quien olvidó
+    // su contraseña no puede autenticarse para pedir recuperarla. La segunda la
+    // autoriza el permiso temporal que la primera envía, no un token.
+    "/api/v1/auth/password-recovery",
+    "/api/v1/auth/password-recovery/confirmation"
   };
 
   /**

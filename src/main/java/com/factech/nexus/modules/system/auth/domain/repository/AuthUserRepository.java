@@ -41,4 +41,34 @@ public interface AuthUserRepository {
    * rechazaría además una caducidad sin la marca.
    */
   void cambiarContrasena(UUID userId, String passwordHash, OffsetDateTime ahora);
+
+  /**
+   * Sustituye la credencial de quien la recuperó por su cuenta (`RF-SP-040`).
+   *
+   * <p><b>No es {@link #cambiarContrasena} con otro nombre</b>, y la diferencia importa: aquel
+   * <b>levanta el bloqueo automático</b> —tiene sentido, porque quien acierta su contraseña actual
+   * demuestra ser el titular ante el sistema—, y este <b>no debe hacerlo</b> (`CA-SP-464`).
+   *
+   * <p>Recuperar la contraseña prueba que se tiene acceso al <b>correo</b>, no que alguien haya
+   * decidido devolver el acceso a la cuenta. Devolverlo es `RF-SP-028` y exige un actor con
+   * permiso. Si esta operación levantara el bloqueo, quien tuviera el correo de una cuenta
+   * bloqueada a mano podría desbloquearla sola — y el bloqueo manual, que por diseño no expira,
+   * dejaría de significar nada.
+   *
+   * <p>Sí limpia el <b>contador</b> de fallos consecutivos: cuenta intentos contra una contraseña
+   * que ya no existe. Y limpia la marca de cambio obligatorio con su caducidad, porque quien
+   * recibió una credencial provisional y la olvidó antes de usarla llega por aquí, y su cuenta debe
+   * quedar tan libre como si hubiera ejecutado `RF-SP-037`.
+   */
+  void recuperarContrasena(UUID userId, String passwordHash, OffsetDateTime ahora);
+
+  /**
+   * El correo al que se le escribe a esa persona (`RF-SP-040`).
+   *
+   * <p><b>Va aparte de {@link AuthUser} a propósito.</b> Esa proyección es la del control de acceso
+   * y no lleva ningún dato personal: se lee en cada inicio de sesión y en cada refresco, y añadirle
+   * el correo lo haría viajar por todos esos caminos para servir a una operación que ocurre unas
+   * pocas veces al día. Se pide solo cuando hay algo que enviar.
+   */
+  Optional<String> correoDe(UUID userId);
 }

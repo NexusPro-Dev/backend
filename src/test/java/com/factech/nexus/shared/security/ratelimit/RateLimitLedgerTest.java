@@ -125,7 +125,8 @@ class RateLimitLedgerTest {
   }
 
   private static RateLimitLedger ledger(Clock reloj, int capacidad) {
-    return new RateLimitLedger(new RateLimitSettings(true, capacidad, null, null, null), reloj);
+    return new RateLimitLedger(
+        new RateLimitSettings(true, capacidad, null, null, null, null), reloj);
   }
 
   /** Reloj que avanza cuando la prueba lo dice, y no cuando pasa el tiempo. */

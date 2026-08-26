@@ -185,13 +185,21 @@ nexus:
         por-origen: 60
         ventana: PT1M
 
-      # La cota más estricta de las tres, y no por prudencia: es la única
+      # La cota más estricta de las cuatro, y no por prudencia: es la única
       # operación pública que provoca un ENVÍO SALIENTE. Sin ella se puede
       # inundar de correos a una persona real y sondear identidades en masa.
-      # Declarada aunque su endpoint no exista todavía (`RF-SP-040`, D-23).
       recovery:
         por-origen: 10
         por-identidad: 3
+        ventana: PT1H
+
+      # La confirmación se acota SOLO POR ORIGEN, y no es un descuido: su cuerpo
+      # no lleva identidad ninguna —lleva un permiso—, de modo que no hay nada
+      # por lo que acotar por credencial. Lo que se corta aquí es probar
+      # permisos al azar, y treinta por hora deja margen a quien se equivoca al
+      # copiar el código del correo sin dejar sitio a una búsqueda.
+      recovery-confirmation:
+        por-origen: 30
         ventana: PT1H
 
     # Orígenes que el navegador puede usar para llamar a esta API, separados
@@ -244,10 +252,30 @@ nexus:
       # una cuenta restablecida y nunca usada conserva indefinidamente una
       # contraseña que alguien más conoce, y nadie se entera porque no falla nada.
       provisional-ttl: PT48H
+      # Cuánto vive el permiso de recuperación (RF-SP-040, security.md §3.2).
+      # Treinta minutos: acota la ventana en que un correo interceptado sirve
+      # para entrar, sin caducar mientras la persona busca el mensaje en su
+      # carpeta de correo no deseado —y cada repetición es otro correo—.
+      recovery-ttl: PT30M
       argon2:
         memory-kb: 16384
         iterations: 2
         parallelism: 1
+
+  # Envío saliente (architecture.md §15.1, D-23 cerrada el 26-08-2026 con Resend).
+  #
+  # La clave llega por variable y NO tiene valor por omisión (Art. IX.1, IX.5).
+  # Sin ella el envío queda APAGADO y se avisa al arrancar, en lugar de fallar
+  # en silencio la primera vez que alguien olvide su contraseña.
+  #
+  # El remitente debe pertenecer a un dominio verificado en Resend, o el
+  # proveedor rechaza el envío con un 403 que no se descubre hasta producción.
+  notification:
+    enabled: ${NOTIFICATION_ENABLED:false}
+    api-key: ${RESEND_API_KEY:}
+    from: ${NOTIFICATION_FROM:}
+    base-url: ${RESEND_BASE_URL:https://api.resend.com}
+    timeout: PT10S
 
 logging:
   level:

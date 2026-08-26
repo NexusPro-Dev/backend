@@ -68,6 +68,7 @@ public class RateLimitFilter extends OncePerRequestFilter {
   private static final String LOGIN = "/api/v1/auth/login";
   private static final String REFRESH = "/api/v1/auth/refresh";
   private static final String RECOVERY = "/api/v1/auth/password-recovery";
+  private static final String RECOVERY_CONFIRMATION = "/api/v1/auth/password-recovery/confirmation";
 
   /** Un cuerpo de autenticación son decenas de bytes; esto es holgura, no un límite funcional. */
   private static final int TOPE_DEL_CUERPO = 8 * 1024;
@@ -144,9 +145,11 @@ public class RateLimitFilter extends OncePerRequestFilter {
   /**
    * Qué política aplica a esta petición.
    *
-   * <p>La de recuperación está declarada y hoy no casa con nada: su endpoint no existe todavía
-   * (`RF-SP-040`, bloqueado por **D-23**). Se deja escrita para que el día que exista no dependa de
-   * que alguien recuerde añadirla.
+   * <p><b>La recuperación tiene dos cotas y no una, y no son iguales.</b> La solicitud se acota por
+   * identidad <b>y</b> por origen: es la única operación pública que provoca un envío saliente, y
+   * sin cota permite inundar de correos a una persona real. La confirmación se acota <b>solo por
+   * origen</b>, porque su cuerpo no lleva identidad ninguna —lleva un permiso— y lo que hay que
+   * cortar ahí es probar permisos al azar.
    */
   private Politica politicaDe(HttpServletRequest peticion) {
     if (!"POST".equalsIgnoreCase(peticion.getMethod())) {
@@ -158,6 +161,11 @@ public class RateLimitFilter extends OncePerRequestFilter {
     }
     if (REFRESH.equals(ruta)) {
       return ajustes.refresh();
+    }
+    // El literal más largo primero: la confirmación cuelga de la ruta de
+    // solicitud, y comparar al revés le aplicaría la cota equivocada.
+    if (RECOVERY_CONFIRMATION.equals(ruta)) {
+      return ajustes.recoveryConfirmation();
     }
     if (RECOVERY.equals(ruta)) {
       return ajustes.recovery();

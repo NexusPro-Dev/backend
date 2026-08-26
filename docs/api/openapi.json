@@ -833,6 +833,33 @@
         },
         "type" : "object"
       },
+      "PasswordRecoveryConfirmation" : {
+        "properties" : {
+          "newPassword" : {
+            "type" : "string"
+          },
+          "permit" : {
+            "type" : "string"
+          }
+        },
+        "type" : "object"
+      },
+      "PasswordRecoveryRequest" : {
+        "properties" : {
+          "identifier" : {
+            "type" : "string"
+          }
+        },
+        "type" : "object"
+      },
+      "PasswordRecoveryResponse" : {
+        "properties" : {
+          "message" : {
+            "type" : "string"
+          }
+        },
+        "type" : "object"
+      },
       "PatchableString" : { },
       "PermissionCatalogResponse" : {
         "properties" : {
@@ -2070,6 +2097,82 @@
           "bearerAuth" : [ ]
         } ],
         "summary" : "Cambiar la propia contraseña",
+        "tags" : [ "Sesión" ]
+      }
+    },
+    "/api/v1/auth/password-recovery" : {
+      "post" : {
+        "description" : "Emite un permiso temporal de un solo uso y lo envía al correo de la\ncuenta. Público: quien olvidó su contraseña no puede autenticarse.\n\n**La respuesta es idéntica exista o no la identidad**, en el cuerpo y\nen el estado. No hay forma de usar este endpoint para averiguar qué\ncuentas existen, que es exactamente para lo que se usaría si\ndistinguiera.\n\nY lo es **también en el tiempo**: el envío ocurre después de responder\ny por otro camino. Igualar solo el mensaje dejaría la defensa\ndeclarada y no real — emitir y enviar cuesta cientos de milisegundos\nque se miden desde fuera con un cronómetro.\n\n**Tampoco rechaza nada más.** Ni la cuenta bloqueada, ni la inactiva:\ncualquiera de esos rechazos diría algo. El `202` es además el estado\nhonesto — el sistema no puede afirmar que algo se entregó.\n\n**Emitir uno invalida el anterior**, de modo que nunca hay dos puertas\nabiertas a la vez sobre la misma cuenta.\n",
+        "operationId" : "solicitarRecuperacion",
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/PasswordRecoveryRequest"
+              }
+            }
+          },
+          "required" : true
+        },
+        "responses" : {
+          "202" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/PasswordRecoveryResponse"
+                }
+              }
+            },
+            "description" : "Solicitud aceptada. **La misma respuesta exista o no la identidad**"
+          },
+          "400" : {
+            "description" : "Falta el identificador (`VAL-001`)"
+          },
+          "429" : {
+            "description" : "Demasiadas solicitudes, por identidad o por origen (`ERR-429`)"
+          },
+          "500" : {
+            "description" : "Fallo no controlado (`ERR-500`)"
+          }
+        },
+        "security" : [ ],
+        "summary" : "Solicitar la recuperación de la propia contraseña",
+        "tags" : [ "Sesión" ]
+      }
+    },
+    "/api/v1/auth/password-recovery/confirmation" : {
+      "post" : {
+        "description" : "Consume el permiso y fija la contraseña nueva. Público: lo que\nautoriza es el permiso, no un token.\n\n**La política se comprueba antes de tocar el permiso.** Una contraseña\nque no la cumple es un error de la persona legítima, y consumir su\npermiso por ello la obligaría a pedir otro —y a esperar otro correo—\npor haber escrito una contraseña corta.\n\n**El `422` no distingue sus cuatro causas** —permiso inexistente,\ncaducado, ya usado o sustituido—: hacerlo le diría a quien prueba\npermisos al azar cuál estuvo a punto de acertar.\n\nLa contraseña que se fija aquí **no es provisional**: la eligió su\ntitular y nadie más la conoce, de modo que la cuenta no queda marcada\npara cambio obligatorio. Es la diferencia deliberada con el\nrestablecimiento por un administrador.\n\n**No levanta el bloqueo ni cambia el estado de la cuenta.** Recuperar\nla contraseña prueba que se tiene el correo, no que alguien decidiera\ndevolver el acceso.\n\nAl completarse, **todas las sesiones se revocan** y los tokens de\nacceso ya emitidos dejan de admitirse.\n",
+        "operationId" : "confirmarRecuperacion",
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/PasswordRecoveryConfirmation"
+              }
+            }
+          },
+          "required" : true
+        },
+        "responses" : {
+          "204" : {
+            "description" : "Contraseña sustituida."
+          },
+          "400" : {
+            "description" : "Falta el permiso (`VAL-002`) o la contraseña (`VAL-003`), o esta no cumple la política (`VAL-004`). **No consume el permiso**"
+          },
+          "422" : {
+            "description" : "El permiso no es válido (`VAL-005`): inexistente, caducado, ya usado o sustituido. **Los cuatro casos comparten respuesta**"
+          },
+          "429" : {
+            "description" : "Demasiadas confirmaciones desde el mismo origen (`ERR-429`)"
+          },
+          "500" : {
+            "description" : "Fallo no controlado (`ERR-500`)"
+          }
+        },
+        "security" : [ ],
+        "summary" : "Confirmar la recuperación con el permiso recibido",
         "tags" : [ "Sesión" ]
       }
     },

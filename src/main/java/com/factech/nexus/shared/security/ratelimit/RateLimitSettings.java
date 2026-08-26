@@ -42,7 +42,12 @@ import org.springframework.boot.context.properties.ConfigurationProperties;
  */
 @ConfigurationProperties(prefix = "nexus.security.rate-limit")
 public record RateLimitSettings(
-    boolean enabled, int capacity, Politica login, Politica refresh, Politica recovery) {
+    boolean enabled,
+    int capacity,
+    Politica login,
+    Politica refresh,
+    Politica recovery,
+    Politica recoveryConfirmation) {
 
   /**
    * Una política: cuántas peticiones por ventana, por origen y por identidad.

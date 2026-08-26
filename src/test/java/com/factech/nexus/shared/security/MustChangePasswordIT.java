@@ -105,7 +105,6 @@ class MustChangePasswordIT extends IntegrationTestBase {
     mvc.perform(get(CUALQUIERA).header("Authorization", "Bearer " + token))
         .andExpect(status().isForbidden())
         .andExpect(jsonPath("$.type").value(TIPO_RETENIDA))
-        .andExpect(jsonPath("$.errorCode").value("PASSWORD_CHANGE_REQUIRED"))
         .andExpect(jsonPath("$.changePasswordPath").value("/api/v1/auth/password"))
         .andExpect(jsonPath("$.correlationId").isNotEmpty());
   }

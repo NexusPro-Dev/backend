@@ -5,11 +5,11 @@
 | Módulo | `SP` — Sistema Principal |
 | Paquete | `modules/system` |
 | Prefijos de permiso | `roles:`, `permissions:`, `audit:`, `memberships:`, `currencies:`, `countries:`, `users:` |
-| Versión | 1.21.0 |
+| Versión | 1.23.0 |
 | Estado | **Aprobado** |
 | Responsable | Bonilla Diaz William Steven |
 | Fecha de creación | 20-08-2026 |
-| Última actualización | 22-08-2026 |
+| Última actualización | 26-08-2026 |
 | Fecha de aprobación | 20-08-2026 |
 
 !!! info "Qué va en este documento"
@@ -773,6 +773,7 @@ Rutas propuestas. El contrato exacto de cada una se fija en el `plan.md` de su t
 | `user_memberships` | Membresía vigente de cada usuario consumidor | `SP` |
 | `user_supervisors` | Superior comercial de cada vendedor, con su historial | `SP` |
 | `refresh_tokens` | Sesiones revocables | `SP` |
+| `password_reset_permits` | Permisos de un solo uso para recuperar la contraseña olvidada | `SP` |
 | `audit_change_log` | Auditoría de creación y edición | `SP` |
 | `audit_deletion_log` | Auditoría de eliminación | `SP` |
 | `audit_error_log` | Auditoría de fallos | `SP` |
@@ -1073,6 +1074,30 @@ La crea `RF-SP-024` (`V19__create_user_roles.sql`), porque el alta ya escribe as
 
     Las subsecciones de §10 se numeran **por orden de incorporación**, no por dependencia. Insertarlas entre las existentes obligaría a renumerar `user_supervisors`, las restricciones y la auditoría, y ocho `plan.md` ya aprobados referencian esos números. La legibilidad del orden vale menos que la estabilidad de las referencias.
 
+
+### 10.13 Campos principales — `password_reset_permits`
+
+| Campo | Tipo | PK | FK | Nullable | Default | Entidad relacional |
+|---|---|---|---|---|---|---|
+| `id` | `uuid` | Sí | No | No | — | — |
+| `user_id` | `uuid` | No | Sí | No | — | `users` |
+| `permit_hash` | `varchar(255)` | No | No | No | — | — |
+| `expires_at` | `timestamptz` | No | No | No | — | — |
+| `consumed_at` | `timestamptz` | No | No | Sí | — | — |
+| `superseded_at` | `timestamptz` | No | No | Sí | — | — |
+| `requested_ip` | `inet` | No | No | Sí | — | — |
+| `created_at` | `timestamptz` | No | No | No | `now()` | — |
+
+**Solo el hash del permiso, nunca su valor.** Mismo criterio que `refresh_tokens`: quien lea esta tabla no puede tomar la cuenta de nadie. El valor no existe en el servidor más allá del instante en que se entrega al canal de envío.
+
+**Dos columnas de invalidez y no un estado**, porque las dos razones se investigan distinto: `consumed_at` dice que alguien **completó** el flujo y `superseded_at` que **pidió otro**. Una sola columna las haría indistinguibles.
+
+**`uq_password_reset_permits_vigente` —único parcial sobre `user_id` donde ambas son nulas— declara en el esquema que solo vive un permiso a la vez.** Escrito únicamente en el caso de uso, dos solicitudes concurrentes dejarían dos permisos vivos y con ellos **dos vías de entrada abiertas** a la misma cuenta.
+
+**No es una tabla de negocio**: sin `updated_at` ni `deleted_at`. La caducidad se evalúa al consultarla y **ningún proceso la limpia**, igual que `refresh_tokens` antes de su purga — y con el mismo hueco declarado: la purga de permisos consumidos y caducados no tiene requerimiento que la cubra.
+
+`RF-SP-040` la crea (`V37__create_password_reset_permits.sql`). El plan la numeraba `V29`, número que quedó tomado al aplicarse `V13` a `V36` mientras la tripleta esperaba a **D-23**.
+
 ## 11. Control de cambios
 
 | Versión | Fecha | Cambio | Responsable |
@@ -1107,4 +1132,5 @@ La crea `RF-SP-024` (`V19__create_user_roles.sql`), porque el alta ya escribe as
 | 1.19.0 | 24-08-2026 | Consecuencias de aprobar los `plan.md` de **`RF-SP-034` a `RF-SP-042`**, con lo que **las cuarenta y dos tripletas del módulo quedan completas**. §9 gana la **segunda ruta de `RF-SP-040`** —`POST /api/v1/auth/password-recovery/confirmation`—, que este documento anticipaba desde la v1.14.0: el requerimiento comprende dos operaciones públicas encadenadas con reglas opuestas, y fundirlas en una habría hecho imposible declarar sus excepciones. §10.10 gana **`provisional_password_expires_at`** en `users`: la credencial que fija `RF-SP-038` **caduca**, y sin esa columna una cuenta restablecida y nunca usada queda indefinidamente con una credencial conocida por otra persona sin que nada falle; va con un `CHECK` que la ata a `must_change_password`, porque una credencial provisional sin caducidad es justo la ventana que el requerimiento existe para cerrar. Se corrige además la atribución de tres componentes compartidos en los planes de `RF-SP-030` y `RF-SP-031`, que los declaraban nuevos: `PrivilegeContainment` y `CommercialStructure` los **crea `RF-SP-024`**, y `RootAdministratorPresence` junto con `RootRoleHolderRepository`, `SessionRevoker` y `SupervisedTeamCounter`, **`RF-SP-028`** — que es exactamente el error que esos mismos planes advertían. | Responsable técnico |
 | 1.20.0 | 24-08-2026 | **Enmienda de §10.8 al implementar el submódulo de membresías** (`RF-SP-016` · `T-16`). `uq_memberships_parent` gana **`NULLS NOT DISTINCT`** y pasa a declararse **diferida**: escrita como restricción única corriente no garantizaba lo que §10.4 afirma, porque PostgreSQL trata los nulos como distintos y admitiría varias membresías sin superior —varias cimas—, que es la bifurcación que existe para impedir. Se incorporan además cuatro restricciones que el esquema declara y este documento omitía: `uq_memberships_name` sobre `f_unaccent(lower(name))` —`RN-SP-008` no admite edición y `Plata` junto a `plata` convivirían para siempre—, `ck_memberships_code_format`, `uq_memberships_level` diferida y `ck_memberships_level_positive`. | Responsable técnico |
 | 1.21.0 | 24-08-2026 | **Enmienda de §10.5 y §10.8 al implementar el catálogo de monedas** (`RF-SP-019` · `T-10`). `currencies` gana **`updated_at`**, que este documento omitía pese al Art. V.7: la omisión venía de suponer que el catálogo no cambia, pero sí cambia —`RF-SP-023` modifica `is_active`— y sin esa marca no habría forma de saber cuándo se dio de baja una moneda sin recorrer la auditoría. §10.8 incorpora las cinco restricciones que el esquema declara y el documento no listaba, entre ellas **`ck_currencies_default_active`**, que impide dejar inactiva la moneda por defecto por cualquiera de sus dos caminos de escritura —la API y una migración—. | Responsable técnico |
-| 1.20.0 | 24-08-2026 | **Regla nueva `RN-SP-023`: todo usuario tiene al menos un rol.** El estado «usuario sin ningún rol» deja de existir: una cuenta así puede autenticarse y no puede hacer absolutamente nada, de modo que solo servía para reservar un nombre de usuario y un correo — que `RN-SP-016` no libera nunca. Se exige en **las dos puertas**, porque cerrar solo una deja el invariante sin sostener: `RF-SP-024` pasa `roles` de opcional a **obligatorio** y `RF-SP-031` rechaza quitar el último. **La regla mira la asignación, no el estado del rol**, y esa acotación es deliberada: exigir un rol *activo* haría que desactivar o eliminar un rol \(`RF-SP-007`, `RF-SP-009`\) pudiera violarla **a distancia**, sobre personas que nadie estaba tocando, y dejaría operaciones del catálogo bloqueadas por el estado de terceros; que un rol inactivo no conceda nada ya lo resuelve `RN-SEG-002`. **No es expresable en el esquema** —«al menos una fila en `user_roles`» exige disparador o restricción diferida—, de modo que vive en el dominio y se verifica dentro de la transacción, igual que `RN-SP-001`. **Enmienda seis especificaciones aprobadas** \(Art. I.7\): `RF-SP-024` retira `FA-001`, estrena `EX-008` e invierte `CA-SP-197`; `RF-SP-031` retira `FA-002`, estrena `EX-006` e invierte `CA-SP-269`; y `RF-SP-025`, `RF-SP-026`, `RF-SP-034` y `RF-SP-039` reencuadran su flujo de «sin roles» como «sin **permisos efectivos**», que sigue siendo alcanzable con todos los roles inactivos y es lo único que queda de aquel caso. | Responsable técnico |
+| 1.22.0 | 24-08-2026 | **Regla nueva `RN-SP-023`: todo usuario tiene al menos un rol.** El estado «usuario sin ningún rol» deja de existir: una cuenta así puede autenticarse y no puede hacer absolutamente nada, de modo que solo servía para reservar un nombre de usuario y un correo — que `RN-SP-016` no libera nunca. Se exige en **las dos puertas**, porque cerrar solo una deja el invariante sin sostener: `RF-SP-024` pasa `roles` de opcional a **obligatorio** y `RF-SP-031` rechaza quitar el último. **La regla mira la asignación, no el estado del rol**, y esa acotación es deliberada: exigir un rol *activo* haría que desactivar o eliminar un rol \(`RF-SP-007`, `RF-SP-009`\) pudiera violarla **a distancia**, sobre personas que nadie estaba tocando, y dejaría operaciones del catálogo bloqueadas por el estado de terceros; que un rol inactivo no conceda nada ya lo resuelve `RN-SEG-002`. **No es expresable en el esquema** —«al menos una fila en `user_roles`» exige disparador o restricción diferida—, de modo que vive en el dominio y se verifica dentro de la transacción, igual que `RN-SP-001`. **Enmienda seis especificaciones aprobadas** \(Art. I.7\): `RF-SP-024` retira `FA-001`, estrena `EX-008` e invierte `CA-SP-197`; `RF-SP-031` retira `FA-002`, estrena `EX-006` e invierte `CA-SP-269`; y `RF-SP-025`, `RF-SP-026`, `RF-SP-034` y `RF-SP-039` reencuadran su flujo de «sin roles» como «sin **permisos efectivos**», que sigue siendo alcanzable con todos los roles inactivos y es lo único que queda de aquel caso. | Responsable técnico |
+| 1.23.0 | 26-08-2026 | **`RF-SP-040` deja de ser el requerimiento sin implementar del módulo**, al cerrarse **D-23** con Resend. §10 gana `password_reset_permits` en la tabla de entidades y **§10.13** con sus campos. Tres cosas quedan escritas ahí porque el esquema las sostiene y el dominio no podría: **solo el hash del permiso**, nunca su valor, igual que `refresh_tokens`; **dos columnas de invalidez y no un estado** —`consumed_at` dice que alguien completó el flujo y `superseded_at` que pidió otro, y una sola columna las haría indistinguibles justo donde la auditoría necesita separarlas—; y el **único parcial `uq_password_reset_permits_vigente`**, que declara en el esquema que solo vive un permiso a la vez: escrito únicamente en el caso de uso, dos solicitudes concurrentes dejarían **dos vías de entrada abiertas** a la misma cuenta. La migración es **`V37` y no `V29`** como decía el plan: ese número quedó tomado al aplicarse `V13` a `V36` mientras la tripleta esperaba la decisión. Se corrige además la numeración duplicada de esta misma tabla: la fila de `RN-SP-023` figuraba como `1.20.0`, número que ya usaba la enmienda de membresías, y pasa a `1.22.0`. | Responsable técnico |

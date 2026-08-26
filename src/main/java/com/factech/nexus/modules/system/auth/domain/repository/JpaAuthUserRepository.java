@@ -111,6 +111,47 @@ public class JpaAuthUserRepository implements AuthUserRepository {
         .executeUpdate();
   }
 
+  /**
+   * Como {@code cambiarContrasena} <b>menos {@code locked_until}</b>, y esa omisión es la regla.
+   *
+   * <p>Ver {@link AuthUserRepository#recuperarContrasena}: recuperar prueba que se tiene el correo,
+   * no que alguien decidiera devolver el acceso. {@code status} tampoco se toca.
+   */
+  @Override
+  public void recuperarContrasena(UUID userId, String passwordHash, OffsetDateTime ahora) {
+    em.createNativeQuery(
+            """
+            UPDATE users
+               SET password_hash = :resumen,
+                   must_change_password = false,
+                   provisional_password_expires_at = NULL,
+                   failed_attempts = 0,
+                   updated_at = :ahora
+             WHERE id = :id
+            """)
+        .setParameter("resumen", passwordHash)
+        .setParameter("ahora", ahora)
+        .setParameter("id", userId)
+        .executeUpdate();
+  }
+
+  @Override
+  @Transactional(readOnly = true)
+  public Optional<String> correoDe(UUID userId) {
+    if (userId == null) {
+      return Optional.empty();
+    }
+    // Las eliminadas no tienen a quién escribirle: la cuenta ya no existe para
+    // nadie, y su correo pudo haberlo tomado otra persona (`RF-SP-027`).
+    List<?> filas =
+        em.createNativeQuery("SELECT email FROM users WHERE id = :id AND deleted_at IS NULL")
+            .setParameter("id", userId)
+            .setMaxResults(1)
+            .getResultList();
+
+    return filas.stream().findFirst().map(String.class::cast);
+  }
+
   private Optional<AuthUser> primero(String sql, String parametro, Object valor) {
     List<Tuple> filas =
         em.createNativeQuery(sql, Tuple.class)

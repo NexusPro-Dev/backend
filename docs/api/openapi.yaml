@@ -1111,6 +1111,102 @@ paths:
           description: Fallo no controlado (`ERR-500`)
       security:
       - bearerAuth: []
+  /api/v1/auth/password-recovery:
+    post:
+      tags:
+      - Sesión
+      summary: Solicitar la recuperación de la propia contraseña
+      description: |
+        Emite un permiso temporal de un solo uso y lo envía al correo de la
+        cuenta. Público: quien olvidó su contraseña no puede autenticarse.
+
+        **La respuesta es idéntica exista o no la identidad**, en el cuerpo y
+        en el estado. No hay forma de usar este endpoint para averiguar qué
+        cuentas existen, que es exactamente para lo que se usaría si
+        distinguiera.
+
+        Y lo es **también en el tiempo**: el envío ocurre después de responder
+        y por otro camino. Igualar solo el mensaje dejaría la defensa
+        declarada y no real — emitir y enviar cuesta cientos de milisegundos
+        que se miden desde fuera con un cronómetro.
+
+        **Tampoco rechaza nada más.** Ni la cuenta bloqueada, ni la inactiva:
+        cualquiera de esos rechazos diría algo. El `202` es además el estado
+        honesto — el sistema no puede afirmar que algo se entregó.
+
+        **Emitir uno invalida el anterior**, de modo que nunca hay dos puertas
+        abiertas a la vez sobre la misma cuenta.
+      operationId: solicitarRecuperacion
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/PasswordRecoveryRequest"
+        required: true
+      responses:
+        "202":
+          description: Solicitud aceptada. **La misma respuesta exista o no la identidad**
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/PasswordRecoveryResponse"
+        "400":
+          description: Falta el identificador (`VAL-001`)
+        "429":
+          description: "Demasiadas solicitudes, por identidad o por origen (`ERR-429`)"
+        "500":
+          description: Fallo no controlado (`ERR-500`)
+      security: []
+  /api/v1/auth/password-recovery/confirmation:
+    post:
+      tags:
+      - Sesión
+      summary: Confirmar la recuperación con el permiso recibido
+      description: |
+        Consume el permiso y fija la contraseña nueva. Público: lo que
+        autoriza es el permiso, no un token.
+
+        **La política se comprueba antes de tocar el permiso.** Una contraseña
+        que no la cumple es un error de la persona legítima, y consumir su
+        permiso por ello la obligaría a pedir otro —y a esperar otro correo—
+        por haber escrito una contraseña corta.
+
+        **El `422` no distingue sus cuatro causas** —permiso inexistente,
+        caducado, ya usado o sustituido—: hacerlo le diría a quien prueba
+        permisos al azar cuál estuvo a punto de acertar.
+
+        La contraseña que se fija aquí **no es provisional**: la eligió su
+        titular y nadie más la conoce, de modo que la cuenta no queda marcada
+        para cambio obligatorio. Es la diferencia deliberada con el
+        restablecimiento por un administrador.
+
+        **No levanta el bloqueo ni cambia el estado de la cuenta.** Recuperar
+        la contraseña prueba que se tiene el correo, no que alguien decidiera
+        devolver el acceso.
+
+        Al completarse, **todas las sesiones se revocan** y los tokens de
+        acceso ya emitidos dejan de admitirse.
+      operationId: confirmarRecuperacion
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/PasswordRecoveryConfirmation"
+        required: true
+      responses:
+        "204":
+          description: Contraseña sustituida.
+        "400":
+          description: "Falta el permiso (`VAL-002`) o la contraseña (`VAL-003`),\
+            \ o esta no cumple la política (`VAL-004`). **No consume el permiso**"
+        "422":
+          description: "El permiso no es válido (`VAL-005`): inexistente, caducado,\
+            \ ya usado o sustituido. **Los cuatro casos comparten respuesta**"
+        "429":
+          description: Demasiadas confirmaciones desde el mismo origen (`ERR-429`)
+        "500":
+          description: Fallo no controlado (`ERR-500`)
+      security: []
   /api/v1/auth/logout:
     post:
       tags:
@@ -2962,6 +3058,23 @@ components:
       type: object
       properties:
         currentPassword:
+          type: string
+        newPassword:
+          type: string
+    PasswordRecoveryRequest:
+      type: object
+      properties:
+        identifier:
+          type: string
+    PasswordRecoveryResponse:
+      type: object
+      properties:
+        message:
+          type: string
+    PasswordRecoveryConfirmation:
+      type: object
+      properties:
+        permit:
           type: string
         newPassword:
           type: string
