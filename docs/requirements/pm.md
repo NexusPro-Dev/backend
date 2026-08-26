@@ -1,0 +1,416 @@
+# Requerimientos del Módulo — `PM` Productos y Mercadeo
+
+| Campo | Valor |
+|---|---|
+| Módulo | `PM` — Productos y Mercadeo |
+| Paquete | `modules/products` |
+| Prefijos de permiso | `products:` |
+| Versión | 0.2.0 |
+| Estado | **Borrador** |
+| Responsable | Bonilla Diaz William Steven |
+| Fecha de creación | 26-08-2026 |
+| Última actualización | 26-08-2026 |
+
+!!! info "Qué va en este documento"
+
+    El catálogo de requerimientos del módulo: qué debe hacer, bajo qué reglas y con qué permisos.
+
+    El comportamiento detallado de cada requerimiento —flujos, validaciones, criterios de aceptación y casos límite— vive en su tripleta, en `docs/specs/pm/`. Aquí no se repite.
+
+!!! warning "Documento en Borrador: tres decisiones lo condicionan"
+
+    Este documento se redacta antes de su primera compuerta y contiene **tres propuestas que necesitan aprobación explícita**, porque una vez usadas no se deshacen o cuestan caro:
+
+    1. **El código `PM`.** Un código, en cuanto aparece en un identificador, no se cambia jamás ([`modules.md` §2.1](../modules.md#21-regla-de-decision)). En cuanto exista `RF-PM-001`, esta letra queda fijada para siempre.
+    2. **La frontera del alcance** (§1.3): este módulo **define y publica** el catálogo; **no cobra ni entrega**. El motivo, en §1.4.
+    3. **Cómo lee este módulo las membresías y monedas de `SP`** (§3), que no tiene hoy una respuesta construida y queda registrada como **D-25**.
+
+    `modules.md` §6 advierte además que los códigos de los módulos candidatos no deberían fijarse hasta conocer el alcance completo del producto. Se procede igualmente por decisión del responsable del proyecto, y queda escrito que se procedió sabiéndolo.
+
+---
+
+## 1. Información del módulo
+
+### 1.1 Descripción
+
+`PM` es dueño de **lo que la plataforma vende**. Un producto es una unidad de venta con nombre, precio y moneda, y existe en **dos tipos que no se mezclan**: el **upgrade de membresía**, que da derecho a pasar al nivel de acceso que declara, y el **servicio del sistema**, que da derecho a una prestación de la plataforma.
+
+El módulo gobierna ese catálogo —lo crea, lo consulta, lo corrige, lo activa y lo retira— y **publica a cada persona lo que puede comprar**, que no es lo mismo que el catálogo completo.
+
+### 1.2 Objetivo
+
+Hoy la membresía de una persona solo cambia porque un administrador se la asigna (`RF-SP-032`). No existe **nada que comprar**: ni un precio, ni una oferta, ni un lugar donde diga qué cuesta subir de nivel. Este módulo pone ese objeto en el sistema, que es el paso sin el cual la venta —y con ella las comisiones y la facturación— no tiene sobre qué operar.
+
+### 1.3 Alcance
+
+**Incluye**
+
+- Registrar un producto de cualquiera de los dos tipos, con su precio y su moneda.
+- Consultar el catálogo completo, en lista y en detalle, con filtros por tipo, estado y membresía destino.
+- Corregir un producto: nombre, descripción, precio y moneda.
+- Activar y desactivar un producto, que es lo que decide si se ofrece.
+- Retirar un producto por eliminación lógica y con motivo.
+- **Publicar a cada persona la oferta que le aplica**, que en los upgrades depende de su nivel actual.
+
+**No incluye**
+
+- **La compra y el cobro.** Ni orden, ni estado de pago, ni pasarela. Corresponde al área de **Finanzas** del inventario ([`modules.md` §6](../modules.md#6-alcance-por-inventariar)), todavía por definir.
+- **La aplicación del upgrade sobre la persona.** Cambiar el nivel de alguien es escribir en `user_memberships`, que es tabla de `SP` y tiene su propio requerimiento (`RF-SP-032`). Ver §1.4.
+- **El contenido de lo que se vende.** Qué cursos o qué sesiones incluye un nivel pertenece a **Academia**; qué señales, a **Señales**. Este módulo vende el derecho, no lo entrega.
+- **Comisiones y atribución de la venta.** A quién se le paga por vender un producto es del área de **Comisiones**.
+- **Promociones, descuentos y campañas.** El nombre del módulo las anticipa y su alcance las admite, pero no se registran todavía: un precio promocional con vigencia es un requerimiento con su propia tabla, y escribirlo hoy sería adelantarlo sin necesidad.
+
+### 1.4 La frontera, y por qué está donde está
+
+**Un producto de upgrade no cambia la membresía de nadie.** Declara un derecho y su precio; quien lo ejerce es la operación de compra, que no existe todavía. La tentación es cerrar el círculo aquí mismo —comprar y aplicar en un solo paso— y hay dos razones para no hacerlo:
+
+1. **`user_memberships` es de `SP`.** Un módulo no accede a las tablas ni a los repositorios de otro ([`modules.md` §7](../modules.md#7-reglas-de-dependencia)). Aplicar el upgrade desde aquí obliga a que `SP` **publique** esa escritura como interfaz de aplicación, con sus reglas intactas —`RN-SP-018` incluida—, y eso es una ampliación de `SP`, no de este módulo.
+2. **Comprar sin cobrar es una venta que no ocurrió.** Registrar la compra antes de que exista el cobro produce un objeto que dice que alguien pagó cuando nadie verificó que pagara. Es peor que no tenerlo, porque parece que se tiene.
+
+Lo que este documento sí deja resuelto es que **el catálogo esté diseñado para esa continuación**: el producto no desaparece nunca (`RN-PM-010`), de modo que una compra futura siempre podrá resolver qué se compró y a qué precio.
+
+---
+
+## 2. Submódulos
+
+Según [`modules.md` §5](../modules.md#5-fichas-de-modulo).
+
+| Submódulo | Responsabilidad | Requerimientos |
+|---|---|---|
+| Productos | Alta, consulta, edición, estado y retiro del catálogo | `RF-PM-001` a `RF-PM-006` |
+| Oferta | Qué puede comprar quien mira, que no es el catálogo completo | `RF-PM-007` |
+
+**Por qué la oferta es un submódulo y no una consulta más.** Responde una pregunta distinta y a otro actor: el catálogo lo lee quien administra y contiene todo —lo inactivo, lo retirado, el motivo del retiro—; la oferta la lee el cliente y contiene **solo lo que le aplica a él**. Separarlas evita el error que consiste en filtrar la respuesta en el navegador.
+
+---
+
+## 3. Dependencias
+
+| Módulo | Tipo | Para qué |
+|---|---|---|
+| `SP` | Consume | **Membresías** (`RN-PM-003`): validar que el destino de un upgrade existe, y conocer su nivel para decidir la oferta |
+| `SP` | Consume | **Monedas** (`RN-PM-008`): validar que la moneda existe, está activa, y con cuántos decimales se expresa su importe |
+| `SP` | Consume | **Membresía vigente del actor** (`RN-PM-011`): sin ella no puede decidirse qué upgrades ofrecerle |
+| `SP` | Consume | Autorización, auditoría, paginación y jerarquía de errores, que son infraestructura compartida y no una dependencia de negocio |
+
+La dependencia es **acíclica**: `PM` consume `SP` y `SP` no consume nada ([`modules.md` §7](../modules.md#7-reglas-de-dependencia)).
+
+!!! danger "D-25 — `SP` no publica hoy nada que `PM` pueda consumir"
+
+    Las tres primeras filas de esta tabla **no tienen implementación posible todavía**. `SP` expone sus membresías y sus monedas como **endpoints REST** (`RF-SP-017`, `RF-SP-018`, `RF-SP-019`) y como tablas, y ninguna de las dos vías sirve: llamarse por HTTP a sí mismo es absurdo dentro del mismo proceso, y leer `memberships`, `currencies` o `user_memberships` directamente lo prohíbe `modules.md` §7.
+
+    Lo que falta es que `SP` **publique interfaces de aplicación** para tres lecturas: que una membresía existe y qué nivel tiene, que una moneda está activa y cuántos decimales declara, y cuál es la membresía vigente de una persona. Es una ampliación de `SP` —sus requerimientos ya leen esos datos, pero para sí mismos— y **no puede escribirse desde este módulo**.
+
+    Queda registrada como **D-25** en [`architecture.md` §16](../architecture.md#16-decisiones-pendientes). **Bloquea el `plan.md` de `RF-PM-001` y de `RF-PM-007`**, no sus especificaciones: qué debe pasar se puede decidir hoy; por dónde entra el dato, no.
+
+---
+
+## 4. Actores
+
+| Actor | Rol en el módulo | Permisos típicos |
+|---|---|---|
+| Administrador | Define y gobierna el catálogo entero | `products:create`, `products:read`, `products:update`, `products:delete` |
+| Funcionario · fuerza comercial | Consulta el catálogo para vender o para atender a un cliente | `products:read` |
+| Consumidor | Ve lo que puede comprar. **Sin permiso**: le basta estar autenticado | — |
+
+**El consumidor no lleva `products:read`, y es a propósito.** Ese permiso abre el catálogo completo, con lo inactivo y lo retirado dentro. `RF-PM-007` responde con lo suyo y solo con lo suyo, de modo que exigirlo obligaría a conceder a cada cliente la lectura de todo el catálogo para que pudiera ver tres líneas. Es la misma decisión que `RF-SP-039` tomó con el perfil propio.
+
+---
+
+## 5. Reglas de negocio
+
+### 5.1 Reglas propias del módulo
+
+| ID | Regla | Cuándo aplica | Qué debe ocurrir | Prioridad |
+|---|---|---|---|---|
+| `RN-PM-001` | Dos tipos, y el tipo es inmutable | Al registrar y en toda edición | El producto es `UPGRADE_MEMBRESIA` o `SERVICIO`. El tipo se fija al crear y **ninguna operación lo cambia** | Crítica |
+| `RN-PM-002` | Destino obligatorio en el upgrade, prohibido en el servicio | Al registrar | Un `UPGRADE_MEMBRESIA` declara **una** membresía destino; un `SERVICIO` **no puede** declararla. La condición se exige en los dos sentidos | Crítica |
+| `RN-PM-003` | El destino es una membresía real de la cadena | Al registrar un upgrade | La membresía destino debe existir en `SP`. Se declara además como clave foránea | Crítica |
+| `RN-PM-004` | Un solo upgrade activo por destino | Al registrar y al activar | No pueden coexistir **dos productos de upgrade activos hacia la misma membresía** | Crítica |
+| `RN-PM-005` | Nombre único entre los vivos | Al registrar y al editar | El nombre no se repite entre los productos no eliminados, **sin distinguir mayúsculas ni acentos** | Alta |
+| `RN-PM-006` | El precio es mayor que cero | Al registrar y al editar | Un precio de cero o negativo se rechaza. Lo gratuito no se vende: se concede | Alta |
+| `RN-PM-007` | El precio respeta los decimales de su moneda | Al registrar y al editar | El importe no puede tener más decimales que los que declara su moneda (`currencies.decimal_places`) | Media |
+| `RN-PM-008` | La moneda debe estar activa al declararla | Al registrar y al editar el precio | Se rechaza una moneda inexistente o inactiva. Que **después** se desactive no invalida lo ya registrado | Media |
+| `RN-PM-009` | Solo se ofrece lo activo | Siempre que se publique la oferta | Un producto inactivo o eliminado no aparece en `RF-PM-007`, aunque siga siendo visible en el catálogo administrativo | Alta |
+| `RN-PM-010` | El producto no desaparece | Al eliminar | La eliminación es **lógica y con motivo** (Art. V.13). La fila permanece para que lo que se venda siga resolviendo qué era y cuánto costaba | Alta |
+| `RN-PM-011` | Un upgrade se ofrece solo hacia arriba | Al publicar la oferta | A una persona se le ofrece un upgrade **solo si su membresía vigente es de nivel inferior al destino**. Quien no tiene membresía no ve upgrades | Alta |
+
+### 5.2 Por qué las cuatro críticas son críticas
+
+**`RN-PM-001` — el tipo no cambia.** Convertir un `SERVICIO` en `UPGRADE_MEMBRESIA` después de venderlo reescribe qué compró quien lo compró. El campo no es una etiqueta: decide qué otras columnas son obligatorias y qué derecho se adquiere.
+
+**`RN-PM-002` — la condición va en los dos sentidos.** Un upgrade sin destino no dice a qué nivel lleva y es inservible; un servicio **con** destino promete un cambio de membresía que nadie va a aplicar. La segunda mitad es la que se olvida, y es la peligrosa: no falla, promete.
+
+**`RN-PM-003` — el destino existe.** Sin esta regla un upgrade puede apuntar a un identificador que no es nada, y el defecto solo se ve al intentar aplicarlo: con el cobro ya hecho.
+
+**`RN-PM-004` — un solo upgrade activo por destino.** Dos productos activos hacia el mismo nivel son **dos precios simultáneos para exactamente lo mismo**, y quien compre pagará el que la interfaz liste primero. Esto no se descubre como un error: se descubre como una discrepancia de facturación meses después.
+
+### 5.3 Reglas de otros documentos que este módulo aplica
+
+No se copian: se referencian, porque dos copias de una regla acaban divergiendo.
+
+| Regla | Dónde vive | Cómo alcanza a este módulo |
+|---|---|---|
+| `RN-SP-006`, `RN-SP-007` | [`requirements/sp.md` §5.1](sp.md#51-reglas-propias-del-modulo) | La cadena de membresías es **lineal y ordenada por `level`**. `RN-PM-011` se apoya en ese orden: sin él, «nivel superior» no significa nada |
+| `RN-SP-018` | [`requirements/sp.md` §5.1](sp.md#51-reglas-propias-del-modulo) | Consumidor ⟺ membresía. Es lo que garantiza que todo cliente tenga un nivel del que partir, y por tanto que `RF-PM-007` pueda decidir su oferta |
+| `RN-SP-010` | [`requirements/sp.md` §5.1](sp.md#51-reglas-propias-del-modulo) | El catálogo de monedas no se edita por API. Este módulo lo **lee**, nunca lo toca |
+| `RN-SEG-003` | [`security.md` §4](../security.md) | Los cuatro permisos `products:` se conceden por rol como cualquier otro, y ningún rol puede conceder lo que su padre no tiene |
+| Art. V.13 | [`constitution.md`](../constitution.md) | Toda eliminación exige motivo, que viaja al registro de eliminación con la instantánea de lo borrado |
+
+---
+
+## 6. Requerimientos funcionales
+
+### 6.1 Resumen
+
+| ID | Requerimiento | Prioridad | Permiso | Estado |
+|---|---|---|---|---|
+| `RF-PM-001` | Registrar producto | **Crítica** | `products:create` | **Spec en revisión** |
+| `RF-PM-002` | Consultar productos | **Crítica** | `products:read` | **Spec en revisión** |
+| `RF-PM-003` | Consultar el detalle de un producto | Alta | `products:read` | **Spec en revisión** |
+| `RF-PM-004` | Editar producto | Alta | `products:update` | **Spec en revisión** |
+| `RF-PM-005` | Cambiar el estado de un producto | Alta | `products:update` | **Spec en revisión** |
+| `RF-PM-006` | Eliminar producto | Media | `products:delete` | **Spec en revisión** |
+| `RF-PM-007` | Consultar la oferta disponible para uno mismo | Alta | Autenticado | **Spec en revisión** |
+
+**Prioridades:** Crítica · Alta · Media · Baja.
+**Estados:** los de [`requirements.md` §4](../requirements.md#4-matriz-de-trazabilidad), que es su autoridad.
+
+!!! note "Un solo requerimiento de alta para los dos tipos"
+
+    Podría haber dos —«registrar upgrade» y «registrar servicio»—, y se decidió que no: es **un endpoint, un caso de uso y una tabla**, con una validación condicional según el tipo. Partirlo obligaría a dos tripletas que describen la misma operación y a dos Pull Requests sobre el mismo controlador, lo que choca con el Art. XIV.2 en lugar de servirlo.
+
+    El precedente es `RF-SP-024`, que aplica tres reglas condicionales en los dos sentidos —consumidor ⟺ membresía, vendedor ⟺ superior— dentro de un solo requerimiento de alta.
+
+**Orden sugerido de implementación:** `RF-PM-001` → `RF-PM-002` → `RF-PM-003` → `RF-PM-005` → `RF-PM-004` → `RF-PM-006` → `RF-PM-007`.
+
+El alta crea la tabla y el catálogo, y sin catálogo no hay nada que consultar. `RF-PM-007` va **al final** porque es el único que necesita la membresía vigente del actor, que es la mitad de **D-25** que más tarda: las otras dos lecturas —membresía y moneda— las necesita ya `RF-PM-001`.
+
+### 6.2 Fichas
+
+#### `RF-PM-001` — Registrar producto
+
+| Campo | Valor |
+|---|---|
+| Objetivo | Poner en el sistema algo que se puede vender, con su precio |
+| Actor | Administrador |
+| Permiso requerido | `products:create` |
+| Prioridad | **Crítica** |
+| Reglas aplicables | `RN-PM-001` a `RN-PM-008` |
+| Depende de | **D-25** para su `plan.md` |
+| Tripleta | `docs/specs/pm/001-registrar-producto/` |
+| Estado | **Spec en revisión** |
+
+Registra un producto declarando su **tipo**, su nombre, su precio y su moneda; si el tipo es `UPGRADE_MEMBRESIA`, además su membresía destino, que es obligatoria ahí y está prohibida en el otro tipo. Es el requerimiento que crea la tabla del módulo y **siembra sus cuatro permisos**, con la obligación de asociarlos a `SUPERADMIN` y `ADMIN` en la misma migración ([`security.md` §4.4](../security.md#44-catalogo-de-permisos)): olvidarlo no falla al aplicar la migración, deja a `ADMIN` incapaz de conceder lo que no tiene.
+
+#### `RF-PM-002` — Consultar productos
+
+| Campo | Valor |
+|---|---|
+| Objetivo | Ver y encontrar lo que hay en el catálogo, incluido lo que no se ofrece |
+| Actor | Administrador · fuerza comercial |
+| Permiso requerido | `products:read` |
+| Prioridad | **Crítica** |
+| Reglas aplicables | — |
+| Depende de | `RF-PM-001` |
+| Tripleta | `docs/specs/pm/002-consultar-productos/` |
+| Estado | **Spec en revisión** |
+
+Devuelve el catálogo **paginado**, con filtros por tipo, estado y membresía destino, y búsqueda por nombre. Incluye lo inactivo y **excluye lo eliminado salvo que se pida expresamente**, porque un catálogo que oculta lo retirado impide entender por qué un producto dejó de venderse.
+
+#### `RF-PM-003` — Consultar el detalle de un producto
+
+| Campo | Valor |
+|---|---|
+| Objetivo | Ver todo lo que se sabe de un producto, incluido su retiro |
+| Actor | Administrador · fuerza comercial |
+| Permiso requerido | `products:read` |
+| Prioridad | Alta |
+| Reglas aplicables | — |
+| Depende de | `RF-PM-001` |
+| Tripleta | `docs/specs/pm/003-consultar-detalle-producto/` |
+| Estado | **Spec en revisión** |
+
+Devuelve un producto por su identificador con sus datos completos y, cuando es un upgrade, **la membresía destino resuelta** —su código, su nombre y su nivel— y no solo su identificador: un detalle que obliga a una segunda llamada para ser legible no es un detalle.
+
+#### `RF-PM-004` — Editar producto
+
+| Campo | Valor |
+|---|---|
+| Objetivo | Corregir lo que se puede corregir sin reescribir lo vendido |
+| Actor | Administrador |
+| Permiso requerido | `products:update` |
+| Prioridad | Alta |
+| Reglas aplicables | `RN-PM-001`, `RN-PM-005` a `RN-PM-008` |
+| Depende de | `RF-PM-001` |
+| Tripleta | `docs/specs/pm/004-editar-producto/` |
+| Estado | **Spec en revisión** |
+
+Permite corregir **nombre, descripción, precio y moneda**. **No permite cambiar el tipo** (`RN-PM-001`) **ni la membresía destino**: las dos definen qué derecho otorga el producto, y cambiarlas convierte lo comprado en otra cosa. Quien necesite otro destino registra otro producto y retira el anterior.
+
+#### `RF-PM-005` — Cambiar el estado de un producto
+
+| Campo | Valor |
+|---|---|
+| Objetivo | Decidir si el producto se ofrece, sin borrarlo |
+| Actor | Administrador |
+| Permiso requerido | `products:update` |
+| Prioridad | Alta |
+| Reglas aplicables | `RN-PM-004`, `RN-PM-009` |
+| Depende de | `RF-PM-001` |
+| Tripleta | `docs/specs/pm/005-cambiar-estado-producto/` |
+| Estado | **Spec en revisión** |
+
+Activa o desactiva un producto. Es la operación que gobierna la oferta en el día a día: desactivar lo retira de la venta **sin tocar nada de lo ya vendido**. Reactivar un upgrade vuelve a exigir `RN-PM-004`, porque en el intervalo puede haberse activado otro hacia el mismo destino.
+
+#### `RF-PM-006` — Eliminar producto
+
+| Campo | Valor |
+|---|---|
+| Objetivo | Retirar del catálogo lo que fue un error o ya no existe |
+| Actor | Administrador |
+| Permiso requerido | `products:delete` |
+| Prioridad | Media |
+| Reglas aplicables | `RN-PM-009`, `RN-PM-010` |
+| Depende de | `RF-PM-001` |
+| Tripleta | `docs/specs/pm/006-eliminar-producto/` |
+| Estado | **Spec en revisión** |
+
+Elimina lógicamente un producto **exigiendo motivo** (Art. V.13), que viaja al registro de eliminación con la instantánea de lo retirado. El producto deja de ofrecerse y deja de contar para `RN-PM-004`, pero **su fila permanece**: el día que existan compras, cada una tendrá que poder decir qué compró.
+
+#### `RF-PM-007` — Consultar la oferta disponible para uno mismo
+
+| Campo | Valor |
+|---|---|
+| Objetivo | Que un cliente vea qué puede comprar, sin que el navegador decida la regla |
+| Actor | Cualquier persona autenticada |
+| Permiso requerido | — (autenticado) |
+| Prioridad | Alta |
+| Reglas aplicables | `RN-PM-009`, `RN-PM-011` |
+| Depende de | `RF-PM-001`, **D-25** |
+| Tripleta | `docs/specs/pm/007-consultar-oferta-propia/` |
+| Estado | **Spec en revisión** |
+
+Devuelve **solo productos activos**, y de los de tipo upgrade **solo los que llevan a un nivel superior al que el actor tiene hoy**. No admite parámetro de persona: responde sobre quien llama y sobre nadie más, como `RF-SP-039`. Nunca devuelve el motivo de retiro, ni lo inactivo, ni la membresía de terceros.
+
+---
+
+## 7. Requerimientos no funcionales
+
+Definidos en [`security.md` §11](../security.md) y en la constitución. Los que este módulo debe satisfacer:
+
+| ID | Requerimiento |
+|---|---|
+| `RNF-SEG-001` | Autenticación y autorización basada en roles y permisos |
+| `RNF-SEG-002` | Todo endpoint no declarado como público exige autenticación. **Este módulo no publica ninguno público** |
+| `RNF-PERF-001` | Lectura p95 < 500 ms, escritura p95 < 1 s (Art. XV.9) |
+| `RNF-MAN-001` | Ninguna regla de negocio del módulo vive en el controlador (`architecture.md` §5) |
+
+---
+
+## 8. Integraciones
+
+| Sistema o módulo | Tipo | Dirección | Descripción |
+|---|---|---|---|
+| `SP` | Interfaz de aplicación | Entrada | Membresías, monedas y la membresía vigente del actor. **No existe todavía: D-25** |
+
+Ninguna con sistemas externos. La pasarela de pago, que sería la primera, pertenece al alcance que §1.3 deja fuera.
+
+---
+
+## 9. API
+
+| Método | Ruta | Requerimiento | Permiso |
+|---|---|---|---|
+| `POST` | `/api/v1/products` | `RF-PM-001` | `products:create` |
+| `GET` | `/api/v1/products` | `RF-PM-002` | `products:read` |
+| `GET` | `/api/v1/products/available` | `RF-PM-007` | Autenticado |
+| `GET` | `/api/v1/products/{id}` | `RF-PM-003` | `products:read` |
+| `PATCH` | `/api/v1/products/{id}` | `RF-PM-004` | `products:update` |
+| `PATCH` | `/api/v1/products/{id}/status` | `RF-PM-005` | `products:update` |
+| `DELETE` | `/api/v1/products/{id}` | `RF-PM-006` | `products:delete` |
+
+El contrato detallado de cada endpoint se define en el `plan.md` de su tripleta.
+
+!!! warning "`/products/available` compite con `/products/{id}`, y el orden importa"
+
+    Las dos rutas coinciden en forma. Spring resuelve primero el patrón **más específico** —el segmento literal gana a la variable de ruta—, de modo que `/products/available` no se interpreta como un identificador. Es correcto, y **por eso mismo debe tener prueba**: si alguien reordena o renombra, el síntoma sería un `400` por identificador inválido en la única ruta que un cliente usa a diario.
+
+    La alternativa era colgarla de otro recurso (`/me/products`). Se descartó para que los endpoints del módulo vivan bajo su propio recurso, y la decisión se anota aquí para que el `plan.md` de `RF-PM-007` no la vuelva a abrir sin motivo.
+
+---
+
+## 10. Persistencia
+
+| Entidad | Descripción | Dueño |
+|---|---|---|
+| `products` | El catálogo: qué se vende, de qué tipo, a qué precio | Este módulo |
+
+Ninguna otra. `memberships` y `currencies` se **referencian** por clave foránea y pertenecen a `SP`.
+
+### 10.1 Campos principales — `products`
+
+| Campo | Tipo | PK | FK | Nullable | Default | Entidad relacional |
+|---|---|---|---|---|---|---|
+| `id` | `uuid` | Sí | No | No | — | — |
+| `type` | `varchar(30)` | No | No | No | — | — |
+| `name` | `varchar(150)` | No | No | No | — | — |
+| `description` | `text` | No | No | Sí | — | — |
+| `target_membership_id` | `uuid` | No | Sí | Sí | — | `memberships` |
+| `price` | `numeric(14,4)` | No | No | No | — | — |
+| `currency_id` | `uuid` | No | Sí | No | — | `currencies` |
+| `status` | `varchar(20)` | No | No | No | `ACTIVO` | — |
+| `created_at` | `timestamptz` | No | No | No | `now()` | — |
+| `updated_at` | `timestamptz` | No | No | No | `now()` | — |
+| `deleted_at` | `timestamptz` | No | No | Sí | — | — |
+
+Sin columnas de actor, y **sin columna de motivo**: quién retiró el producto y por qué residen en `audit_deletion_log`, con la instantánea de la fila (Art. V.7 y V.13). Es lo que hacen `roles` y `users`.
+
+`type` tiene dominio cerrado:
+
+| Valor | Qué derecho otorga |
+|---|---|
+| `UPGRADE_MEMBRESIA` | Pasar a la membresía que declara `target_membership_id` |
+| `SERVICIO` | Una prestación del sistema, sin efecto sobre el nivel de acceso |
+
+`status` tiene dominio cerrado —`ACTIVO`, `INACTIVO`— y decide si el producto se ofrece (`RN-PM-009`). **No se usa `boolean`**, al revés que los catálogos de `SP`: el dominio es candidato a crecer —un `BORRADOR` que permita preparar un producto sin publicarlo es previsible— y añadir un valor a un `varchar` con `CHECK` es una migración, mientras que convertir un `boolean` en tres estados es una reescritura de todo lo que lo consulta.
+
+**`price` se declara `numeric(14,4)` y no `numeric(12,2)`.** La escala no puede fijarse en dos porque `currencies.decimal_places` no siempre vale dos, y el sistema declara ese campo precisamente para no asumirlo. Cuatro decimales cubren toda moneda ISO 4217 en circulación. La escala **efectiva** de cada producto la decide su moneda, y esa es `RN-PM-007`.
+
+### 10.2 Restricciones exigidas en el esquema
+
+| Restricción | Sobre | Regla que implementa |
+|---|---|---|
+| `ck_products_type` | `type IN ('UPGRADE_MEMBRESIA','SERVICIO')` | `RN-PM-001` |
+| `ck_products_status` | `status IN ('ACTIVO','INACTIVO')` | `RN-PM-009` |
+| `ck_products_type_target` | `(type = 'UPGRADE_MEMBRESIA' AND target_membership_id IS NOT NULL) OR (type = 'SERVICIO' AND target_membership_id IS NULL)` | `RN-PM-002` |
+| `ck_products_price_positive` | `price > 0` | `RN-PM-006` |
+| `fk_products_target_membership` | `target_membership_id` → `memberships(id)` | `RN-PM-003` |
+| `fk_products_currency` | `currency_id` → `currencies(id)` | `RN-PM-008` |
+| `uq_products_name` | Índice único sobre `f_unaccent(lower(name))`, **parcial**: `WHERE deleted_at IS NULL` | `RN-PM-005` |
+| `uq_products_upgrade_target` | Índice único sobre `target_membership_id`, **parcial**: `WHERE type = 'UPGRADE_MEMBRESIA' AND status = 'ACTIVO' AND deleted_at IS NULL` | `RN-PM-004` |
+
+Se declaran en la base de datos, no solo en Java (Art. V.6).
+
+!!! important "Dos advertencias que este proyecto ya pagó una vez"
+
+    **`ck_products_type_target` no puede evaluar a `NULL`.** Sus dos ramas son predicados `IS NULL` / `IS NOT NULL`, que devuelven siempre verdadero o falso. La precaución no es teórica: `ck_deletion_reason` se escribió con un `OR` cuyo lado nulo evaluaba a `NULL`, y un `CHECK` que devuelve `NULL` **acepta la fila** — la restricción existía y no restringía nada (`requirements.md` v0.31.0).
+
+    **Los dos índices únicos son parciales, y un índice parcial no admite `DEFERRABLE`**, que es propiedad de una *restricción* y no de un índice. Ninguna de estas dos unicidades podrá comprobarse al confirmar la transacción: morderán en el `INSERT` o el `UPDATE` que las viole, y el plan debe traducirlas ahí en lugar de proponer diferirlas (hallazgo de `RF-SP-019`, `requirements.md` v0.31.0).
+
+### 10.3 Lo que no se declara en el esquema
+
+| Regla | Por qué no | Cómo se verifica |
+|---|---|---|
+| `RN-PM-007` — decimales según la moneda | Un `CHECK` no puede consultar otra tabla, y la escala admisible depende de `currencies.decimal_places` | En el dominio, con prueba unitaria propia sobre una moneda de dos decimales y otra de cero |
+| `RN-PM-008` — la moneda debe estar **activa** | La clave foránea garantiza que existe, no que esté vigente | En el caso de uso, contra la interfaz que `SP` publique (**D-25**) |
+| `RN-PM-011` — la oferta va hacia arriba | Es una consulta, no una restricción de integridad | En el caso de uso de `RF-PM-007`, con prueba sobre los tres casos: nivel inferior, igual y superior |
+
+---
+
+## 11. Control de cambios
+
+| Versión | Fecha | Cambio | Responsable |
+|---|---|---|---|
+| 0.1.0 | 26-08-2026 | Creación del módulo `PM` con sus **siete requerimientos** y **once reglas propias**. Registra los **dos tipos de producto** —upgrade de membresía y servicio del sistema— con la condición cruzada que los separa (`RN-PM-002`), la unicidad de un solo upgrade activo por destino (`RN-PM-004`) y la oferta que solo mira hacia arriba (`RN-PM-011`). Deja **fuera del alcance la compra y el cobro**, con el motivo escrito en §1.4, y registra **D-25**: `SP` no publica hoy ninguna interfaz de aplicación que este módulo pueda consumir para leer membresías, monedas y la membresía vigente del actor, de modo que la decisión bloquea los `plan.md` de `RF-PM-001` y `RF-PM-007` pero no sus especificaciones. | Responsable técnico |
+| 0.2.0 | 26-08-2026 | **Las siete `spec.md` quedan redactadas** y los siete requerimientos pasan a `Spec en revisión`. Traen **veintisiete preguntas abiertas** que hay que resolver antes de aprobarlas, y ninguna es de trámite: qué estado tiene un producto recién creado, si lleva código estable además del nombre, qué orden trae el catálogo, si se puede cambiar el precio de algo ya vendido, si retirar exige desactivar primero, y qué ve en su oferta quien no es consumidor. Las cinco de `RF-PM-007` son las que más lejos llegan: **qué se le ofrece a quien no tiene membresía**, si los servicios dependen del nivel, si el precio se ajusta por nivel —que es la puerta de entrada de las promociones—, si se ofrecen todos los upgrades superiores o solo el siguiente, y si la oferta se pagina. Las especificaciones **no** dependen de **D-25**: qué debe pasar está decidido; por dónde entra el dato de `SP` sigue abierto y bloquea los planes de `RF-PM-001` y `RF-PM-007`. | Responsable técnico |
