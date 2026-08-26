@@ -5,7 +5,7 @@
 | Proyecto | NEXUS — Renovación de plataforma |
 | Empresa | FACTECH GROUP SAS |
 | Documento | `modules.md` |
-| Versión | 0.12.0 |
+| Versión | 0.13.0 |
 | Estado | Borrador |
 | Responsable técnico | Bonilla Diaz William Steven |
 | Fecha de creación | 20-08-2026 |
@@ -168,11 +168,11 @@ Se resolvió el 20-08-2026, antes de redactar el primer requerimiento: el códig
 
 **Dependencias.** `SP`, y solo `SP`: valida contra sus **membresías** el destino de un upgrade, contra sus **monedas** el precio, y necesita la **membresía vigente del actor** para decidir la oferta. La dependencia es acíclica, porque `SP` no consume a nadie.
 
-!!! danger "La dependencia está declarada y no es consumible todavía — D-25"
+!!! success "Cómo la consume — D-25, cerrada el 26-08-2026"
 
-    `SP` publica esas tres lecturas como **endpoints REST** y como tablas, y ninguna de las dos vías vale desde otro módulo del mismo proceso: llamarse por HTTP a sí mismo es absurdo, y leer sus tablas lo prohíbe §7. Falta que `SP` las publique como **interfaz de aplicación**.
+    **El módulo dueño del dato publica interfaces de aplicación de solo lectura, y el consumidor las importa.** Es la norma para cualquier par de módulos, no solo para estos dos: la dependencia sigue apuntando del consumidor al proveedor, y `SP` no se entera de que `PM` existe. Se descartó la inversión de dependencia, que aquí haría que el módulo raíz importara una interfaz del que depende de él — el ciclo de §7 disfrazado.
 
-    Es una ampliación de `SP` y no puede escribirse desde `PM`. Bloquea los `plan.md` de `RF-PM-001` y `RF-PM-007`, no sus especificaciones. Registrada como **D-25** en `architecture.md` §16.
+    Una interfaz por lectura y no una fachada, modelos de lectura y nunca entidades, la ausencia como valor vacío, y una regla de **ArchUnit** que impide importar repositorios o entidades ajenos. El desarrollo, en [`architecture.md` §15.2](architecture.md#152-como-consume-un-modulo-los-datos-de-otro-cierre-de-d-25).
 
 **Diseño detallado.** [`requirements/pm.md`](requirements/pm.md).
 
@@ -311,3 +311,4 @@ El orden importa: el módulo precede al requerimiento, el requerimiento precede 
 | 0.10.0 | 22-08-2026 | Submódulo nuevo en `SP`: «Estructura comercial», dueño de `user_supervisors`. §6 deja escrito por qué la red comercial empieza dentro de `SP` en lugar de estrenar el código `RC` —los códigos de los candidatos no pueden fijarse hasta conocer el alcance, y no se cambian jamás— y con qué dos condiciones se promueve, siendo Comisiones el consumidor que las disparará. | Responsable técnico |
 | 0.11.0 | 26-08-2026 | **`SP` pasa de `En diseño` a `En desarrollo`.** El estado llevaba sin tocarse desde el 20-08-2026, cuando el módulo era exactamente eso: un diseño. Hoy sus cuarenta y dos requerimientos tienen tripleta aprobada y endpoint funcionando, veintinueve migraciones aplicadas y una suite de 137 pruebas unitarias y 595 de integración en verde. **No pasa a `Implementado`**, y la distinción importa: ese estado exige que sus requerimientos lo estén, y ninguno lo está mientras no haya Pull Request aprobado e integrado (Art. XVI). El detalle, requerimiento a requerimiento, en [`requirements.md` §4 y §5](requirements.md#4-matriz-de-trazabilidad). | Responsable técnico |
 | 0.12.0 | 26-08-2026 | **Se incorpora el módulo `PM` — Productos y Mercadeo**, el segundo del sistema y el primero que depende de otro. Es dueño de `products` y cumple las dos condiciones de §2.1: tabla propia que `SP` no necesita, y consumidores previsibles —Finanzas para cobrar, Comisiones para saber sobre qué importe se comisiona, Academia para saber qué nivel da acceso a qué—. Trae **dos tipos de producto que no se mezclan**: el **upgrade de membresía**, que da derecho a pasar al nivel que declara, y el **servicio del sistema**. §5.2.1 fija el desajuste entre código y paquete —`PM` → `modules/products`— por el mismo criterio que §4.1 aplicó a `SP`: el código nombra el área de negocio y es irreversible, el paquete nombra su contenido y es renombrable. **Lo que el módulo NO hace queda escrito**: no cobra, no entrega y **no aplica el upgrade sobre la persona**, porque `user_memberships` es de `SP` y §7 prohíbe que otro módulo la escriba. De ahí sale **D-25**: `SP` no publica hoy ninguna interfaz de aplicación para las tres lecturas que `PM` necesita —una membresía y su nivel, una moneda y sus decimales, la membresía vigente de alguien—, de modo que la dependencia está declarada y **no es consumible todavía**. §6 marca el candidato «Productos y servicios» como incorporado en su mitad de catálogo. Se procede pese a la advertencia de esa misma sección sobre fijar códigos antes de conocer el alcance completo, por decisión del responsable del proyecto, y queda escrito que se procedió sabiéndolo. | Responsable técnico |
+| 0.13.0 | 26-08-2026 | **D-25 cerrada**, y la ficha de `PM` deja de declarar su dependencia como no consumible. La respuesta vale para cualquier par de módulos y vive en `architecture.md` §15.2: **el dueño del dato publica interfaces de aplicación de solo lectura y el consumidor las importa**, una por lectura, devolviendo modelos de lectura y nunca entidades, con la ausencia como valor vacío y una regla de ArchUnit que impide importar repositorios o entidades ajenos. Es la primera vez que §7 —«un módulo NO DEBE acceder a las tablas ni a los repositorios de otro»— dice también **por dónde sí**. | Responsable del proyecto |

@@ -5,7 +5,7 @@
 | Proyecto | NEXUS — Renovación de plataforma |
 | Empresa | FACTECH GROUP SAS |
 | Documento | `architecture.md` |
-| Versión | 0.18.0 |
+| Versión | 0.19.0 |
 | Estado | Borrador |
 | Responsable técnico | Bonilla Diaz William Steven |
 | Fecha de creación | 19-08-2026 |
@@ -728,6 +728,43 @@ Las decisiones D-01 a D-07, cerradas el 19-08-2026, están registradas en `const
 
 **Tres restos declarados.** El remitente debe pertenecer a un **dominio verificado** en Resend, o el proveedor rechaza el envío con un `403` que no se descubre hasta producción. Sin credencial el envío queda **apagado** y se avisa al arrancar, no al primer envío. Y **no hay reintento propio**: si la llamada al proveedor falla, ese mensaje se pierde y solo queda el registro del fallo.
 
+## 15.2 Cómo consume un módulo los datos de otro (cierre de D-25)
+
+**Decidido el 26-08-2026.** `PM` necesita tres lecturas que viven dentro de `SP` —que una membresía existe y qué nivel tiene, que una moneda está activa y cuántos decimales declara, y cuál es la membresía vigente de una persona—, y las dos vías que `SP` ofrecía no servían: llamarse por HTTP a sí mismo dentro del mismo proceso paga serialización, red y autenticación para leer una fila que está a un método de distancia, y leer sus tablas lo prohíbe [`modules.md` §7](modules.md#7-reglas-de-dependencia) — ataría `PM` al esquema de `SP`, de modo que un cambio allí lo rompería **en silencio**, sin fallar al compilar.
+
+**`SP` publica interfaces de aplicación de solo lectura, y `PM` las consume.** Lo que sigue vale para cualquier par de módulos, no solo para estos dos.
+
+### La dirección del contrato
+
+**La interfaz la declara el módulo dueño del dato**, y el consumidor la importa. Es lo que dice `modules.md` §2 —«otros módulos lo consumen por interfaz publicada»— y deja la dependencia apuntando del consumidor al proveedor: `PM` → `SP`, acíclica, con `SP` sin enterarse de que `PM` existe.
+
+Se descartó la inversión de dependencia —que `PM` declarase el puerto y `SP` lo implementara—, que es el patrón habitual dentro de un módulo y **aquí produce lo contrario de lo que promete**: `SP` tendría que importar una interfaz que vive en `PM` para implementarla, y el módulo raíz pasaría a conocer al que depende de él. Es el ciclo que §7 prohíbe, disfrazado de buena práctica.
+
+### Qué se publica
+
+**Una interfaz por lectura, no una fachada con todo dentro.** Cada consumidor depende solo de lo que usa —`RF-PM-007` no necesita saber nada de monedas— y una prueba puede doblar una sin arrastrar las otras dos. Con una fachada única, añadir un método cambiaría el contrato de todos los que ya la usan, incluidos sus dobles.
+
+| Interfaz | Responde | Consumida por |
+|---|---|---|
+| Catálogo de membresías | Si una membresía existe, y su código, nombre y **nivel** | `RF-PM-001`, `RF-PM-002`, `RF-PM-003` |
+| Catálogo de monedas | Si una moneda existe, si está **activa** y cuántos **decimales** declara | `RF-PM-001`, `RF-PM-004` |
+| Membresía vigente de una persona | Cuál es su nivel **hoy**, o que no tiene | `RF-PM-007` |
+
+### Cuatro reglas que hacen que la frontera se sostenga
+
+1. **Devuelven modelos de lectura, nunca entidades.** Devolver el agregado de `SP` filtraría JPA al otro módulo y le daría, de paso, con qué escribir. Lo que cruza la frontera son registros planos sin comportamiento.
+2. **La regla se queda con su dueño.** «Vigente» lo calcula `SP`, que es donde esa definición vive **en un solo sitio** y con su borde fijado por prueba —una fecha igual al instante consultado ya no está vigente—. Que `PM` reimplemente esa comparación es el defecto que no falla: devuelve un resultado plausible durante meses.
+3. **La ausencia es un valor vacío, no una excepción.** Que un dato no exista es una respuesta legítima a una consulta, y qué `4xx` produce lo decide quien tiene el contrato HTTP, que es el consumidor. Una excepción lanzada desde `SP` obligaría a `PM` a capturarla para traducirla, o se le escaparía como `500`.
+4. **Una regla de ArchUnit ancla la frontera.** Nadie fuera de `SP` importa sus repositorios ni sus entidades. Sin ella esto es una convención, y las convenciones se saltan **sin que nada falle** — es el mismo mecanismo con el que se sujeta `RN-SEG-010`.
+
+### De quién es la tarea
+
+El código vive en paquetes de `SP`, y las tareas que lo escriben pertenecen a **`RF-PM-001` y `RF-PM-007`**: los puertos existen porque `PM` los necesita, y ningún actor pide «publicar una interfaz» como comportamiento observable. No se abre un requerimiento nuevo en `SP` para alojarlos; `requirements/sp.md` se limita a anotar que esa interfaz queda publicada.
+
+**Lo que esto NO habilita.** Son lecturas. Aplicar un upgrade sobre la membresía de una persona es una **escritura** sobre `user_memberships`, con `RN-SP-018` de por medio, y sigue sin existir: `requirements/pm.md` §1.4 lo deja fuera del alcance, y el día que la compra lo necesite será otra decisión y otro puerto.
+
+---
+
 ## 16. Decisiones pendientes
 
 | # | Decisión | Bloquea | Responsable |
@@ -736,7 +773,6 @@ Las decisiones D-01 a D-07, cerradas el 19-08-2026, están registradas en `const
 | D-10 | Retención concreta, en días, de `request_log` y de cada registro de auditoría por separado | Migración de observabilidad | Responsable técnico |
 | D-11 | Política de idempotencia en operaciones de escritura expuestas a reintentos | Diseño de endpoints críticos | Responsable técnico |
 | **D-24** | **Publicación del contrato OpenAPI hacia el frontend**: dónde se publica el `.json`/`.yaml` generado y por qué vía. El Art. VIII.7 lo declara **único contrato** entre los dos repositorios, y hoy solo es obtenible de una instancia con `EXPOSE_API_DOCS` en `true` — es decir, en local y en ningún entorno desplegado. La salida previsible es generarlo en `verify` con `springdoc-openapi-maven-plugin` y publicarlo como artefacto de CI o en un repositorio compartido, para que el frontend consuma un archivo versionado sin depender de que alguien tenga el backend levantado ni de abrir la documentación en producción | Que el frontend pueda cumplir el Art. VIII.7 fuera de local | Responsable del proyecto |
-| **D-25** | **Cómo consume `PM` los datos de `SP`.** El módulo de productos necesita tres lecturas que hoy solo existen dentro de `SP`: que una **membresía** existe y qué `level` tiene, que una **moneda** está activa y cuántos decimales declara, y cuál es la **membresía vigente** de una persona. `SP` las expone como endpoints REST y como tablas, y ninguna de las dos vías sirve desde otro módulo del mismo proceso: llamarse por HTTP a sí mismo es absurdo, y leer sus tablas lo prohíbe `modules.md` §7. La salida previsible es que `SP` **publique interfaces de aplicación** de solo lectura —un puerto por dato, consumido por `PM` e implementado por el propio `SP`—, que es una ampliación de `SP` y no puede escribirse desde `PM`. Decidirlo incluye qué devuelve cada una y qué pasa cuando el dato no existe | Los `plan.md` de `RF-PM-001` y `RF-PM-007`; **no** sus `spec.md` | Responsable técnico |
 
 D-08 quedó cerrada en `security.md` §12, junto con las decisiones D-12 a D-15 del modelo de autorización. Las pendientes propias de seguridad (D-16 a D-19) se registran en ese mismo documento.
 
@@ -765,3 +801,4 @@ D-08 quedó cerrada en `security.md` §12, junto con las decisiones D-12 a D-15 
 | 0.16.0 | 25-08-2026 | Nueva **§9.1: sondas separadas y métricas** (issue #31). `/actuator/health` respondía a la vez a **dos preguntas distintas** —«¿arrancó?» y «¿puede atender?»—, y confundirlas no es teórico: en el primer arranque Flyway aplica las migraciones y la aplicación está **viva sin poder atender**, de modo que quien pregunta lo primero interpreta lo segundo y reinicia un proceso sano; el `start_period` holgado del `docker-compose.yml` era el parche que lo tapaba. Se separan en `/liveness` y `/readiness`, **las tres públicas y sin detalle** —quien las consulta es el orquestador, que no porta credencial, y el detalle de salud es un mapa del sistema (Art. VI.5)—, y el `healthcheck` del contenedor pasa a preguntar por **disponibilidad**, que es lo que decide si se le manda tráfico. Se exponen además las **métricas**, y **no son públicas**: el Art. XV.10 abre la salud y nada más. Con ellas y con `request_log` (§6.7), los umbrales p95 del Art. XV.9 pasan a ser medibles por dos vías independientes. Queda declarado lo que **no** se resuelve: nadie raspa esas métricas —un raspador no porta un JWT, y el permiso propio o la red que las aísle llegan con **D-09**— y **nadie alerta**, en particular sobre la **ausencia de eventos de auditoría** que `RF-SP-001` §10 declara que debe vigilarse. Una métrica que nadie mira es una métrica que no existe. | Responsable técnico |
 | 0.17.0 | 26-08-2026 | **D-23 se cierra**, y con ella el último requerimiento del módulo sin implementar. §15.1 gana el mecanismo: **Resend por su API HTTP y no SMTP**, porque SMTP obliga a gestionar credenciales, puertos salientes que muchas redes bloquean y **una cola propia para los reintentos**, mientras que con el API la entrega, los reintentos y los rebotes los lleva el proveedor. Lo que queda escrito con más cuidado es **el desacople, que son dos mitades y ninguna cubre a la otra**: después del commit —para no enviar sobre una transacción que puede revertirse— **y fuera del hilo de la petición**. La segunda es fácil de dar por resuelta y no lo está: `afterCommit` corre *en* el hilo de la petición, de modo que saca el envío de la transacción y **no de la respuesta** — con él ahí dentro, `RF-SP-040` vuelve a tardar distinto según exista la identidad, que es justo la fuga que esta sección existe para cerrar. Se declaran tres restos: el remitente debe pertenecer a un **dominio verificado** o el proveedor responde `403` que no se ve hasta producción; sin credencial el envío queda **apagado** y se avisa **al arrancar**, no al primer envío; y **no hay reintento propio**, de modo que un fallo de la llamada pierde ese mensaje y solo deja su registro. El adaptador **no lanza nunca** y **nada del contenido llega al registro** —ni el cuerpo, ni el permiso, ni el destinatario—, porque un mensaje de recuperación lleva la llave de una cuenta y los registros se copian a sitios que quien los escribe no controla. | Responsable técnico |
 | 0.18.0 | 26-08-2026 | **§16 registra D-25, la primera decisión que nace de tener un segundo módulo.** `PM` —Productos y Mercadeo, incorporado ese día— necesita tres lecturas de `SP`: una membresía y su nivel, una moneda y sus decimales, y la membresía vigente de una persona. `SP` las expone como **endpoints REST y como tablas**, y ninguna de las dos vías sirve desde otro módulo del mismo proceso — llamarse por HTTP a sí mismo es absurdo, y leer sus tablas lo prohíbe `modules.md` §7. Lo que falta es que `SP` las publique como **interfaz de aplicación**, y eso es una ampliación de `SP` que no puede escribirse desde `PM`. La decisión bloquea los `plan.md` de `RF-PM-001` y `RF-PM-007` y **no sus especificaciones**: qué debe pasar se puede decidir hoy; por dónde entra el dato, no. | Responsable técnico |
+| 0.19.0 | 26-08-2026 | **D-25 se cierra**, y §15.2 recoge la respuesta como norma para cualquier par de módulos y no solo para `PM` y `SP`: **el módulo dueño del dato publica interfaces de aplicación de solo lectura, y el consumidor las importa**. Se descartó la inversión de dependencia —que el consumidor declarase el puerto y el dueño lo implementara—, que es el patrón habitual dentro de un módulo y **aquí produce lo contrario de lo que promete**: el módulo raíz pasaría a importar una interfaz del que depende de él, que es el ciclo de §7 disfrazado. **Una interfaz por lectura y no una fachada**: con una sola, añadir un método cambia el contrato de todos los que ya la usan, incluidos sus dobles de prueba. Cuatro reglas sostienen la frontera: se devuelven **modelos de lectura y nunca entidades** —el agregado filtraría JPA y daría con qué escribir—, **la regla se queda con su dueño** —«vigente» lo calcula `SP`, porque reimplementar esa comparación es el defecto que devuelve resultados plausibles durante meses—, **la ausencia es un valor vacío y no una excepción** —qué `4xx` produce lo decide quien tiene el contrato HTTP—, y **una regla de ArchUnit** impide importar repositorios o entidades de otro módulo, porque sin ella esto es una convención y las convenciones se saltan sin que nada falle. Las tareas que escriben esos puertos pertenecen a **`RF-PM-001` y `RF-PM-007`**, no a un requerimiento nuevo de `SP`: ningún actor pide «publicar una interfaz» como comportamiento. Queda declarado lo que **no** habilita: son lecturas, y aplicar un upgrade sigue siendo una escritura sobre `user_memberships` que nadie ha decidido. | Responsable del proyecto |
