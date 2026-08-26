@@ -121,7 +121,7 @@ Al **26-08-2026**. Cada cifra se cuenta sobre el documento que es su autoridad y
 | Módulos registrados | 2 | [`modules.md` §4](modules.md#4-inventario-de-modulos) |
 | Módulos implementados | 0 | [`modules.md` §4](modules.md#4-inventario-de-modulos) |
 | Requerimientos registrados | 49 | [`requirements.md` §4](requirements.md#4-matriz-de-trazabilidad) |
-| Requerimientos con **tripleta aprobada** | 42 | [`requirements.md` §5](requirements.md#5-estado-general) |
+| Requerimientos con **tripleta aprobada** | 49 | [`requirements.md` §5](requirements.md#5-estado-general) |
 | Requerimientos con **endpoint funcionando** | 42 | [`requirements.md` §5](requirements.md#5-estado-general) |
 | Requerimientos **implementados** | 0 | [`requirements.md` §4](requirements.md#4-matriz-de-trazabilidad) |
 
@@ -130,8 +130,8 @@ Al **26-08-2026**. Cada cifra se cuenta sobre el documento que es su autoridad y
 | Módulo | Estado | Requerimientos | Con tripleta aprobada | Con endpoint | Implementados |
 |---|---|---|---|---|---|
 | [`SP` — Sistema Principal](requirements/sp.md) | En desarrollo | 42 | 42 | 42 | 0 |
-| [`PM` — Productos y Mercadeo](requirements/pm.md) | En diseño | 7 | 0 | 0 | 0 |
-| **Total** | — | **49** | **42** | **42** | **0** |
+| [`PM` — Productos y Mercadeo](requirements/pm.md) | En diseño | 7 | 7 | 0 | 0 |
+| **Total** | — | **49** | **49** | **42** | **0** |
 
 El inventario de módulos está **incompleto a propósito** y así está declarado: figuran `SP`, que el Documento Marco nombra, y `PM`, incorporado el 26-08-2026; el resto del alcance del producto sigue por inventariar ([`modules.md` §6](modules.md#6-alcance-por-inventariar)). Esta tabla crece con él, no lo sustituye.
 
@@ -165,10 +165,10 @@ Son las que sus `tasks.md` declaran `Pendiente`, verificadas contra el código u
 | [Seguridad](security.md) | 0.33.0 | Borrador |
 | [Mapa modular](modules.md) | 0.13.0 | Borrador |
 | [Modelo de datos](modelo-datos.md) | 0.11.0 | Borrador |
-| [Requerimientos y trazabilidad](requirements.md) | 0.65.0 | Borrador |
+| [Requerimientos y trazabilidad](requirements.md) | 0.67.0 | Borrador |
 | [Guía de desarrollo](development-guide.md) | 0.7.0 | Borrador |
 | [Requerimientos de `SP`](requirements/sp.md) | 1.25.0 | **Aprobado** |
-| [Requerimientos de `PM`](requirements/pm.md) | 0.9.0 | Borrador |
+| [Requerimientos de `PM`](requirements/pm.md) | 0.11.0 | Borrador |
 | [Flujos de `SP` · del módulo](flujos/sp/flujos-del-modulo.md) | 0.3.0 | Borrador |
 | [Flujos de `SP` · por caso](flujos/sp/flujos-por-caso.md) | 0.2.0 | Borrador |
 | Estrategia de pruebas | — | Pendiente |

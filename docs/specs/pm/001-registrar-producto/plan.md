@@ -5,10 +5,10 @@
 | Requerimiento | `RF-PM-001` |
 | Especificación | [`spec.md`](spec.md) v0.2.0 |
 | `spec.md` aprobada el | 26-08-2026 |
-| Estado | **Borrador** |
+| Estado | **Aprobado** |
 | Autor | Responsable técnico |
-| Aprobado por | — |
-| Fecha de aprobación | — |
+| Aprobado por | Responsable del proyecto |
+| Fecha de aprobación | 26-08-2026 |
 
 !!! info "Qué va en este documento"
 

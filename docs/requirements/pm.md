@@ -5,7 +5,7 @@
 | Módulo | `PM` — Productos y Mercadeo |
 | Paquete | `modules/products` |
 | Prefijos de permiso | `products:` |
-| Versión | 0.9.0 |
+| Versión | 0.11.0 |
 | Estado | **Borrador** |
 | Responsable | Bonilla Diaz William Steven |
 | Fecha de creación | 26-08-2026 |
@@ -168,13 +168,13 @@ No se copian: se referencian, porque dos copias de una regla acaban divergiendo.
 
 | ID | Requerimiento | Prioridad | Permiso | Estado |
 |---|---|---|---|---|
-| `RF-PM-001` | Registrar producto | **Crítica** | `products:create` | **Spec aprobada** |
-| `RF-PM-002` | Consultar productos | **Crítica** | `products:read` | **Spec aprobada** |
-| `RF-PM-003` | Consultar el detalle de un producto | Alta | `products:read` | **Spec aprobada** |
-| `RF-PM-004` | Editar producto | Alta | `products:update` | **Spec aprobada** |
-| `RF-PM-005` | Cambiar el estado de un producto | Alta | `products:update` | **Spec aprobada** |
-| `RF-PM-006` | Eliminar producto | Media | `products:delete` | **Spec aprobada** |
-| `RF-PM-007` | Consultar la oferta disponible para uno mismo | Alta | Autenticado | **Spec aprobada** |
+| `RF-PM-001` | Registrar producto | **Crítica** | `products:create` | **Tasks aprobadas** |
+| `RF-PM-002` | Consultar productos | **Crítica** | `products:read` | **Tasks aprobadas** |
+| `RF-PM-003` | Consultar el detalle de un producto | Alta | `products:read` | **Tasks aprobadas** |
+| `RF-PM-004` | Editar producto | Alta | `products:update` | **Tasks aprobadas** |
+| `RF-PM-005` | Cambiar el estado de un producto | Alta | `products:update` | **Tasks aprobadas** |
+| `RF-PM-006` | Eliminar producto | Media | `products:delete` | **Tasks aprobadas** |
+| `RF-PM-007` | Consultar la oferta disponible para uno mismo | Alta | Autenticado | **Tasks aprobadas** |
 
 **Prioridades:** Crítica · Alta · Media · Baja.
 **Estados:** los de [`requirements.md` §4](../requirements.md#4-matriz-de-trazabilidad), que es su autoridad.
@@ -202,7 +202,7 @@ El alta crea la tabla y el catálogo, y sin catálogo no hay nada que consultar.
 | Reglas aplicables | `RN-PM-001` a `RN-PM-008`, `RN-PM-012`, `RN-PM-013` |
 | Depende de | — |
 | Tripleta | `docs/specs/pm/001-registrar-producto/` |
-| Estado | **Spec aprobada** (26-08-2026) |
+| Estado | **Tasks aprobadas** (26-08-2026) |
 
 Registra un producto declarando su **tipo**, su nombre, su precio y su moneda; si el tipo es `UPGRADE_MEMBRESIA`, además su membresía destino, que es obligatoria ahí y está prohibida en el otro tipo. Es el requerimiento que crea la tabla del módulo y **siembra sus cuatro permisos**, con la obligación de asociarlos a `SUPERADMIN` y `ADMIN` en la misma migración ([`security.md` §4.4](../security.md#44-catalogo-de-permisos)): olvidarlo no falla al aplicar la migración, deja a `ADMIN` incapaz de conceder lo que no tiene.
 
@@ -217,7 +217,7 @@ Registra un producto declarando su **tipo**, su nombre, su precio y su moneda; s
 | Reglas aplicables | — |
 | Depende de | `RF-PM-001` |
 | Tripleta | `docs/specs/pm/002-consultar-productos/` |
-| Estado | **Spec aprobada** (26-08-2026) |
+| Estado | **Tasks aprobadas** (26-08-2026) |
 
 Devuelve el catálogo **paginado**, con filtros por tipo, estado y membresía destino, y búsqueda por nombre. Incluye lo inactivo y **excluye lo eliminado salvo que se pida expresamente**, porque un catálogo que oculta lo retirado impide entender por qué un producto dejó de venderse.
 
@@ -232,7 +232,7 @@ Devuelve el catálogo **paginado**, con filtros por tipo, estado y membresía de
 | Reglas aplicables | — |
 | Depende de | `RF-PM-001` |
 | Tripleta | `docs/specs/pm/003-consultar-detalle-producto/` |
-| Estado | **Spec aprobada** (26-08-2026) |
+| Estado | **Tasks aprobadas** (26-08-2026) |
 
 Devuelve un producto por su identificador con sus datos completos y, cuando es un upgrade, **la membresía destino resuelta** —su código, su nombre y su nivel— y no solo su identificador: un detalle que obliga a una segunda llamada para ser legible no es un detalle.
 
@@ -247,7 +247,7 @@ Devuelve un producto por su identificador con sus datos completos y, cuando es u
 | Reglas aplicables | `RN-PM-001`, `RN-PM-005` a `RN-PM-008` |
 | Depende de | `RF-PM-001` |
 | Tripleta | `docs/specs/pm/004-editar-producto/` |
-| Estado | **Spec aprobada** (26-08-2026) |
+| Estado | **Tasks aprobadas** (26-08-2026) |
 
 Permite corregir **nombre, descripción, precio y moneda**. **No permite cambiar el tipo** (`RN-PM-001`) **ni la membresía destino**: las dos definen qué derecho otorga el producto, y cambiarlas convierte lo comprado en otra cosa. Quien necesite otro destino registra otro producto y retira el anterior.
 
@@ -262,7 +262,7 @@ Permite corregir **nombre, descripción, precio y moneda**. **No permite cambiar
 | Reglas aplicables | `RN-PM-004`, `RN-PM-009` |
 | Depende de | `RF-PM-001` |
 | Tripleta | `docs/specs/pm/005-cambiar-estado-producto/` |
-| Estado | **Spec aprobada** (26-08-2026) |
+| Estado | **Tasks aprobadas** (26-08-2026) |
 
 Activa o desactiva un producto. Es la operación que gobierna la oferta en el día a día: desactivar lo retira de la venta **sin tocar nada de lo ya vendido**. Reactivar un upgrade vuelve a exigir `RN-PM-004`, porque en el intervalo puede haberse activado otro hacia el mismo destino.
 
@@ -277,7 +277,7 @@ Activa o desactiva un producto. Es la operación que gobierna la oferta en el d�
 | Reglas aplicables | `RN-PM-009`, `RN-PM-010` |
 | Depende de | `RF-PM-001` |
 | Tripleta | `docs/specs/pm/006-eliminar-producto/` |
-| Estado | **Spec aprobada** (26-08-2026) |
+| Estado | **Tasks aprobadas** (26-08-2026) |
 
 Elimina lógicamente un producto **exigiendo motivo** (Art. V.13), que viaja al registro de eliminación con la instantánea de lo retirado. El producto deja de ofrecerse y deja de contar para `RN-PM-004`, pero **su fila permanece**: el día que existan compras, cada una tendrá que poder decir qué compró.
 
@@ -292,7 +292,7 @@ Elimina lógicamente un producto **exigiendo motivo** (Art. V.13), que viaja al 
 | Reglas aplicables | `RN-PM-009`, `RN-PM-011` |
 | Depende de | `RF-PM-001` |
 | Tripleta | `docs/specs/pm/007-consultar-oferta-propia/` |
-| Estado | **Spec aprobada** (26-08-2026) |
+| Estado | **Tasks aprobadas** (26-08-2026) |
 
 Devuelve **solo productos activos**, y de los de tipo upgrade **solo los que llevan a un nivel superior al que el actor tiene hoy**. No admite parámetro de persona: responde sobre quien llama y sobre nadie más, como `RF-SP-039`. Nunca devuelve el motivo de retiro, ni lo inactivo, ni la membresía de terceros.
 
@@ -429,3 +429,5 @@ Se declaran en la base de datos, no solo en Java (Art. V.6).
 | 0.7.0 | 26-08-2026 | **`RF-PM-005` y `RF-PM-006` cruzan su primera compuerta**, y con ellas quedan aprobadas seis de las siete. **Ninguna de las dos exige motivo para cambiar el estado**, por coherencia con `RF-PM-004` y con los catálogos de `SP`; el retiro sí lo exige, porque lo obliga el Art. V.13. **Un producto se retira en cualquier estado**, sin desactivarlo antes: el motivo obligatorio ya es la barrera, y exigir el paso previo haría que **todos** los registros de eliminación dijeran «inactivo», destruyendo el dato que `CA-PM-052` conserva para saber si el producto estaba a la venta. **Un producto vendido se podrá retirar** —la fila permanece y la compra guardará su propio importe—, con la consecuencia declarada de que quien consulte su compra verá el producto retirado. **Ningún evento de seguridad** en el retiro, igual que en el alta: un producto no concede privilegios. La pregunta del carrito se traslada a quien escriba la compra, con lo único que hoy puede afirmarse: aquí no se reserva nada. | Responsable del proyecto |
 | 0.8.0 | 26-08-2026 | **`RF-PM-007` cruza su primera compuerta, y con ella las siete del módulo.** Quien no tiene nivel **ve los servicios y ningún upgrade**: ofrecerle el primero sería venderle una membresía, y un nivel no se obtiene comprando un salto sino recibiendo un rol de consumidor (`RN-SP-018`). Los **servicios no dependen del nivel**, y queda escrito lo que costaría que dependieran — una **relación nueva entre producto y membresía**, con su tabla y una enmienda de `RN-PM-002`, no un filtro más—. El **precio no se ajusta** por quién mira, porque un precio distinto según el actor es un descuento y los descuentos son promociones, que §1.3 deja fuera: admitirlo aquí las colaría sin tabla donde vivir ni vigencia que las acote. Se ofrecen **todos los upgrades superiores** y no solo el siguiente. La paginación se resolvió **sin decidirla**: hoy no se pagina, y las dos colecciones viajan **envueltas en un objeto** —como `RF-SP-017` hizo con la cadena de membresías— para que el día que los servicios crezcan, añadirla no rompa a ningún cliente. | Responsable del proyecto |
 | 0.9.0 | 26-08-2026 | **D-25 cerrada**, y con ella la tercera de las tres decisiones que este documento declaraba pendientes al nacer. `SP` publica **tres interfaces de aplicación de solo lectura** —membresía y su nivel, moneda y sus decimales, membresía vigente de una persona— y `PM` las importa; el desarrollo está en `architecture.md` §15.2 y vale para cualquier par de módulos. Las fichas de `RF-PM-001` y `RF-PM-007` **dejan de depender de una decisión pendiente**: los siete requerimientos tienen ya spec aprobada y ninguno tiene bloqueada su segunda compuerta. Las tareas que escriben esos puertos pertenecen a esos dos requerimientos aunque el código viva en paquetes de `SP`. | Responsable del proyecto |
+| 0.10.0 | 26-08-2026 | **Los siete `plan.md` aprobados**: el módulo cruza entero la segunda compuerta el mismo día que la primera. Dos decisiones de los planes quedan firmes y alcanzan más allá de su requerimiento: la **lectura estrecha del motivo de eliminación en `shared/audit`**, que es de donde `RF-PM-003` toma el motivo que devuelve, y el **`JOIN` a `memberships`** con el que `RF-PM-002` resuelve el destino de cada upgrade en lugar de llamar al puerto fila a fila. Lo que sigue es la tercera compuerta: las `tasks.md`. | Responsable del proyecto |
+| 0.11.0 | 26-08-2026 | **Las siete `tasks.md` aprobadas**: la tripleta del módulo está completa y el código puede escribirse (Art. I.1). **95 tareas**, con el orden de implementación fijado por una dependencia que no es la de los identificadores: `RF-PM-003` necesita una eliminación registrada, que escribe `RF-PM-006`, de modo que la secuencia es `001 → 002 → 005 → 006 → 003 → 004 → 007`. Tres tareas escriben **fuera de `PM`** —dos interfaces en `SP`, una tercera para la membresía vigente, y la lectura estrecha del motivo en `shared/audit`— y son las de mayor riesgo: una regresión ahí alcanza a `SP` entero, y por eso su definición de terminado exige que su suite siga en verde sin cambios. | Responsable del proyecto |
