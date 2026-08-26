@@ -63,9 +63,24 @@ public class AuthController {
           Autentica con **nombre de usuario o correo** —el mismo campo para los
           dos— y entrega las credenciales de sesión.
 
+          El rechazo por credenciales lleva `remainingAttempts`: **cuántos
+          intentos quedan** antes del bloqueo. El identificador que no
+          corresponde a ninguna cuenta los gasta igual, de modo que el número no
+          permite averiguar qué cuentas existen.
+
           La cuenta bloqueada recibe `423` y un mensaje que la identifica como
           tal: es una excepción consciente al mensaje genérico, porque quien
-          provocó el bloqueo ya sabe que la cuenta existe.
+          provocó el bloqueo ya sabe que la cuenta existe. Si el bloqueo es
+          **automático**, la respuesta añade `unlockAt` —el instante en que se
+          levanta— y `retryAfterSeconds` —lo que falta—. El bloqueo **manual**
+          no los lleva: esa cuenta no se desbloquea sola.
+
+          **La espera no va escrita en el mensaje, y es deliberado.** Un texto
+          con «vuelva en dos minutos» es cierto al serializarse y deja de serlo
+          enseguida. Con `retryAfterSeconds` el cliente **descuenta** —una
+          cuenta regresiva no envejece— sin depender de que su reloj coincida
+          con el del servidor, que es lo que sí ocurriría calculándola a partir
+          de `unlockAt`.
 
           Si la contraseña la fijó otra persona, la respuesta autentica **y
           advierte** con `mustChangePassword`: hace falta una sesión para poder
@@ -84,9 +99,16 @@ public class AuthController {
         responseCode = "401",
         description =
             "Credenciales inválidas, cuenta inexistente, inactiva o eliminada — los cuatro casos"
-                + " comparten cuerpo y mensaje, sin una sola diferencia observable",
+                + " comparten cuerpo y mensaje, sin una sola diferencia observable. Lleva"
+                + " `remainingAttempts`; el intento que agota el contador añade además `unlockAt`"
+                + " y `retryAfterSeconds`",
         content = @Content),
-    @ApiResponse(responseCode = "423", description = "Cuenta bloqueada", content = @Content),
+    @ApiResponse(
+        responseCode = "423",
+        description =
+            "Cuenta bloqueada. El bloqueo automático lleva `unlockAt` y `retryAfterSeconds`; el"
+                + " manual no los lleva, porque no expira solo",
+        content = @Content),
     @ApiResponse(
         responseCode = "500",
         description = "Fallo no controlado (`ERR-500`)",

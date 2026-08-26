@@ -23,7 +23,7 @@ Sin migración y sin componentes de dominio: es una consulta (`plan.md` §3). La
 | `T-02` | Resolución de permisos efectivos **con el mismo componente que autoriza**, reutilizando el de `RF-SP-026` | `T-01` | Prueba de integración: los permisos del perfil coinciden exactamente con los que el sistema aplica al autorizar una petición del mismo actor | **Hecha** |
 | `T-03` | Reutilizar `UserDetailQueryRepository` de `RF-SP-026` para los datos, **sin escribir una consulta paralela** | `T-01` | Prueba de integración: una sola consulta; el conteo de sentencias no crece respecto de `RF-SP-026` | **Hecha** |
 | `T-04` | `api/OwnProfileResponse`: DTO **propio**, sin fechas de creación ni modificación, sin expiración de bloqueo y sin equipo a cargo | `T-02`, `T-03` | Prueba de API sobre el JSON: los campos prohibidos por `CA-SP-470` y `CA-SP-471` **no aparecen**; `membership` y `supervisor` van **ausentes**, no en nulo, cuando no aplican | **Hecha** |
-| `T-05` | **Exceptuar esta ruta en `MustChangePasswordFilter`** de `RF-SP-034`, junto con `RF-SP-037` | — | Prueba de API: con `mcp` en verdadero, el perfil responde y el indicador llega activo. Sin la excepción la interfaz no sabe por qué la rechazan | **Pendiente** |
+| `T-05` | **Exceptuar esta ruta en `MustChangePasswordFilter`** de `RF-SP-034`, junto con `RF-SP-037` | — | Prueba de API: con `mcp` en verdadero, el perfil responde y el indicador llega activo. Sin la excepción la interfaz no sabe por qué la rechazan | **Hecha** — 26-08-2026, en `MustChangePasswordIT` |
 | `T-06` | `api/UserController`: `GET /api/v1/users/me`, autenticado y sin permiso, **sin parámetros de ruta, consulta ni cuerpo** | `T-04`, `T-05` | Prueba de API: `200` con el perfil; ningún método de escritura sobre la ruta; `401` sin credencial y con cuenta eliminada | **Hecha** |
 | `T-07` | Pruebas de API e integración de los criterios de aceptación de `spec.md` §12 | `T-06` | La suite cubre `CA-SP-430` a `CA-SP-441` y `CA-SP-470` a `CA-SP-472` | **En curso** |
 | `T-08` | Pruebas de los casos límite de `spec.md` §13, con la del **rol retirado con la sesión abierta** documentando la asimetría | `T-06` | El perfil refleja el estado real aunque el token siga transportando el rol retirado. Sin esta prueba, alguien «arreglará» la consulta para que lea del token | **En curso** |
@@ -80,7 +80,7 @@ graph LR
 
 | # | Desviación | Motivo | Consecuencia |
 |---|---|---|---|
-| 1 | `T-05` —exceptuar esta ruta en el filtro de cambio obligatorio— queda **Pendiente** | Ese filtro no existe: `RF-SP-034` · `T-12` sigue abierta | Hoy no hay nada que exceptuar. Cuando el filtro exista, esta ruta y la del cambio de contraseña son sus **dos** excepciones: sin ellas, quien tiene la marca puesta no podría ni ver que la tiene ni quitársela |
+| 1 | ~~`T-05` —exceptuar esta ruta en el filtro de cambio obligatorio— queda **Pendiente**~~ — **cerrada el 26-08-2026** | El filtro ya existe: `RF-SP-034` · `T-12` se implementó ese día | Esta ruta y la del cambio de contraseña son sus dos excepciones de negocio; resultaron ser siete en total, porque las tres rutas públicas de sesión también hubo que exceptuarlas (`RF-SP-034` `plan.md` §5.1). `MustChangePasswordIT` comprueba que el perfil responde con el indicador activo |
 | 2 | La marca de cambio obligatorio se lee del agregado y no de la proyección | La proyección de detalle **no la selecciona a propósito**: un tercero con permiso de lectura no debe verla. Aquí sí, porque al titular le dice que tiene que actuar | Una consulta más en este endpoint. La alternativa —añadirla a la proyección compartida— habría filtrado el dato al detalle de terceros |
 | 3 | `T-07` y `T-08` quedan **En curso** | Falta el caso del rol retirado con la sesión abierta, que documenta la asimetría entre lo que el perfil dice y lo que el token lleva | Los permisos se resuelven contra la base en cada petición, de modo que el perfil ya refleja el retiro; lo que no está fijado por prueba es esa asimetría |
 
@@ -101,7 +101,7 @@ Y el <b>recorrido completo</b>, que ninguno de los tres requerimientos verifica 
 
 El requerimiento no está terminado hasta cumplir **todas** las condiciones de la constitución §16:
 
-- [ ] Todas las tareas en estado `Hecha`. — falta `T-05` (el filtro de cambio obligatorio no existe) y dos en curso.
+- [ ] Todas las tareas en estado `Hecha`. — `T-05` quedó hecha el 26-08-2026, al existir el filtro. Quedan dos en curso.
 - [ ] Todos los criterios de aceptación con prueba automatizada en verde. — falta el rol retirado con la sesión abierta.
 - [x] `mvn verify` en verde en local. — 103 unitarias y 407 de integración, 24-08-2026.
 - [x] Toda escritura emite su evento de auditoría, en la transacción que corresponde. — no escribe: es una consulta.

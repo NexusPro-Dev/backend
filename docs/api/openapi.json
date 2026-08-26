@@ -1961,7 +1961,7 @@
     },
     "/api/v1/auth/login" : {
       "post" : {
-        "description" : "Autentica con **nombre de usuario o correo** —el mismo campo para los\ndos— y entrega las credenciales de sesión.\n\nLa cuenta bloqueada recibe `423` y un mensaje que la identifica como\ntal: es una excepción consciente al mensaje genérico, porque quien\nprovocó el bloqueo ya sabe que la cuenta existe.\n\nSi la contraseña la fijó otra persona, la respuesta autentica **y\nadvierte** con `mustChangePassword`: hace falta una sesión para poder\ncambiarla.\n",
+        "description" : "Autentica con **nombre de usuario o correo** —el mismo campo para los\ndos— y entrega las credenciales de sesión.\n\nEl rechazo por credenciales lleva `remainingAttempts`: **cuántos\nintentos quedan** antes del bloqueo. El identificador que no\ncorresponde a ninguna cuenta los gasta igual, de modo que el número no\npermite averiguar qué cuentas existen.\n\nLa cuenta bloqueada recibe `423` y un mensaje que la identifica como\ntal: es una excepción consciente al mensaje genérico, porque quien\nprovocó el bloqueo ya sabe que la cuenta existe. Si el bloqueo es\n**automático**, la respuesta añade `unlockAt` —el instante en que se\nlevanta— y `retryAfterSeconds` —lo que falta—. El bloqueo **manual**\nno los lleva: esa cuenta no se desbloquea sola.\n\n**La espera no va escrita en el mensaje, y es deliberado.** Un texto\ncon «vuelva en dos minutos» es cierto al serializarse y deja de serlo\nenseguida. Con `retryAfterSeconds` el cliente **descuenta** —una\ncuenta regresiva no envejece— sin depender de que su reloj coincida\ncon el del servidor, que es lo que sí ocurriría calculándola a partir\nde `unlockAt`.\n\nSi la contraseña la fijó otra persona, la respuesta autentica **y\nadvierte** con `mustChangePassword`: hace falta una sesión para poder\ncambiarla.\n",
         "operationId" : "login",
         "requestBody" : {
           "content" : {
@@ -1988,10 +1988,10 @@
             "description" : "Identificador o contraseña ausentes"
           },
           "401" : {
-            "description" : "Credenciales inválidas, cuenta inexistente, inactiva o eliminada — los cuatro casos comparten cuerpo y mensaje, sin una sola diferencia observable"
+            "description" : "Credenciales inválidas, cuenta inexistente, inactiva o eliminada — los cuatro casos comparten cuerpo y mensaje, sin una sola diferencia observable. Lleva `remainingAttempts`; el intento que agota el contador añade además `unlockAt` y `retryAfterSeconds`"
           },
           "423" : {
-            "description" : "Cuenta bloqueada"
+            "description" : "Cuenta bloqueada. El bloqueo automático lleva `unlockAt` y `retryAfterSeconds`; el manual no los lleva, porque no expira solo"
           },
           "500" : {
             "description" : "Fallo no controlado (`ERR-500`)"

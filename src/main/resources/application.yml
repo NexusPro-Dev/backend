@@ -227,6 +227,16 @@ nexus:
       # servicio contra su titular.
       max-delay: PT1H
 
+      # Los dos siguientes NO defienden de la fuerza bruta: existen para que el
+      # identificador SIN cuenta cuente sus fallos igual que uno real y la
+      # respuesta no delate cuáles existen (ver `FailedAttemptLedger`).
+      #
+      # La ventana se recuerda en memoria y nunca baja del techo del bloqueo.
+      # La capacidad la impone que la clave llega de fuera: un mapa sin tope
+      # crece hasta donde quiera quien ataca.
+      identifier-window: PT1H
+      identifier-capacity: 10000
+
     # Política de contraseña (security.md §3.2).
     password:
       min-length: 12

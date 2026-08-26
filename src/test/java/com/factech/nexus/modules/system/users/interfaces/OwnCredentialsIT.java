@@ -311,23 +311,30 @@ class OwnCredentialsIT extends IntegrationTestBase {
   // ---------------------------------------------------------------------------
   // La caducidad, que es lo que ata las dos operaciones
   // ---------------------------------------------------------------------------
-
   @Test
-  @DisplayName("la credencial provisional CADUCA: pasado el plazo deja de autenticar")
-  void laCredencialProvisionalCaduca() throws Exception {
+  @DisplayName("la credencial provisional VENCIDA ya no corta el acceso: entra y le toca cambiarla")
+  void laCredencialProvisionalVencidaAutenticaYObliga() throws Exception {
     mvc.perform(restablecer(juan, NUEVA)).andExpect(status().isNoContent());
 
-    // Recién fijada, entra.
-    mvc.perform(login("jperez", NUEVA)).andExpect(status().isOk());
+    // Recién fijada, entra y le toca cambiarla.
+    mvc.perform(login("jperez", NUEVA))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.mustChangePassword").value(true));
 
     jdbc.update(
         "UPDATE users SET provisional_password_expires_at = now() - interval '1 hour' WHERE id = ?",
         juan);
 
-    // Sin esta comprobación, una cuenta restablecida y nunca usada conserva
-    // indefinidamente una contraseña que otra persona conoce, y nadie se entera
-    // porque no falla nada.
-    mvc.perform(login("jperez", NUEVA)).andExpect(status().isUnauthorized());
+    // Hasta el 25-08-2026 esto respondía `401`: la credencial provisional moría
+    // pasado el plazo y había que restablecerla. La decisión de ese día es que
+    // la fecha SOLO marca, de modo que vencida y por vencer valen igual.
+    //
+    // Su coste queda fijado aquí para que nadie lo descubra por sorpresa: la
+    // contraseña que fijó otra persona **ya no expira**, y sigue abriendo la
+    // puerta mientras nadie entre a cambiarla.
+    mvc.perform(login("jperez", NUEVA))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.mustChangePassword").value(true));
   }
 
   @Test
@@ -358,7 +365,10 @@ class OwnCredentialsIT extends IntegrationTestBase {
         // Es la razón de que este endpoint exista: sin él la interfaz tenía que
         // deducir del listado de roles qué puede hacer la persona.
         .andExpect(jsonPath("$.permissions[0]").value("audit:read-changes"))
-        .andExpect(jsonPath("$.mustChangePassword").value(true));
+        // FALSO, y esto es la regla del 25-08-2026 en su forma más visible:
+        // `juan` se creó con `must_change_password = true` y **sin caducidad**,
+        // como cualquier alta. Quien decide es la fecha, y no la hay.
+        .andExpect(jsonPath("$.mustChangePassword").value(false));
   }
 
   @Test

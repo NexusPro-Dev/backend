@@ -435,10 +435,18 @@ public class GlobalExceptionHandler {
   // Construcción de la respuesta
   // ---------------------------------------------------------------------------
 
+  /**
+   * Los miembros de extensión se vuelcan tal cual (RFC 9457 §3.2).
+   *
+   * <p>El manejador NO decide cuáles hay ni los interpreta: el dominio ya eligió qué acompaña a
+   * cada rechazo, y filtrarlos aquí obligaría a mantener en dos sitios la lista de lo que la API
+   * publica.
+   */
   private ProblemDetail problema(
       ProblemKind forma, DomainException fallo, HttpServletRequest peticion) {
     ProblemDetail detalle = base(forma, fallo.getMessage(), peticion);
     detalle.setProperty("errors", fallo.errors());
+    fallo.extensions().forEach(detalle::setProperty);
     return detalle;
   }
 

@@ -9,6 +9,7 @@
 | Autor | Responsable técnico |
 | Aprobado por | Responsable del proyecto |
 | Fecha de aprobación | 24-08-2026 |
+| Enmendado el | 25-08-2026 — ver §12 |
 
 ---
 
@@ -75,6 +76,9 @@ Decisiones del esquema que este plan fija y de las que dependen `RF-SP-035` y `R
 | `shared/security` | `SecurityConfig` | Modificado | Registra los dos filtros. `/api/v1/auth/login` ya figura como ruta pública |
 | `api` | `AuthController` | Nuevo | `POST /api/v1/auth/login` |
 | `api` | `LoginRequest` / `LoginResponse` | Nuevos | DTO de entrada y salida |
+| `domain` | `FailedAttemptLedger` | **Nuevo** (25-08-2026) | Contador de fallos de los identificadores **sin cuenta**. No defiende de nada: existe para que la respuesta a un identificador inventado sea indistinguible de la de uno real (§9) |
+| `shared/error` | `DomainException` | **Modificado** (25-08-2026) | Transporta miembros de extensión de RFC 9457 §3.2, que es como viajan `remainingAttempts`, `unlockAt` y `retryAfterSeconds` |
+| `shared/error` | `GlobalExceptionHandler` | **Modificado** (25-08-2026) | Vuelca esos miembros en el `ProblemDetail` sin filtrarlos: la lista de lo que la API publica vive en el dominio y no en dos sitios |
 
 `LockoutPolicy` se extrae a un componente propio porque es la única parte del requerimiento que tiene **aritmética**, y la aritmética es lo que se prueba barato y se equivoca caro: sin techo, la progresión convierte un ataque en una denegación de servicio contra el titular de la cuenta (`security.md` §3.2).
 
@@ -119,6 +123,47 @@ Un solo campo para el identificador y no dos, porque **el cliente no tiene que d
 | `429` | Límite de intentos por credencial u origen superado (`EX-004`) | `ERR-429` |
 | `500` | Fallo no controlado | `ERR-500` |
 
+**Cuerpo de los errores**
+
+Los dos rechazos de este endpoint llevan, además de los cinco miembros de RFC 9457, **miembros de extensión** (§3.2 de la propia norma). No es un formato paralelo: es el sitio que la norma reserva para exactamente esto.
+
+```json
+{
+  "type": "https://nexus.factech.co/errors/no-autenticado",
+  "title": "Se requiere autenticación",
+  "status": 401,
+  "detail": "Las credenciales no son válidas. Le quedan 3 intentos antes de que la cuenta se bloquee.",
+  "correlationId": "…",
+  "errors": [],
+  "remainingAttempts": 3
+}
+```
+
+```json
+{
+  "type": "https://nexus.factech.co/errors/cuenta-bloqueada",
+  "title": "La cuenta está bloqueada",
+  "status": 423,
+  "detail": "La cuenta está bloqueada temporalmente por intentos fallidos.",
+  "correlationId": "…",
+  "errors": [],
+  "unlockAt": "2026-08-25T14:32:00Z",
+  "retryAfterSeconds": 174
+}
+```
+
+| Miembro | En qué respuestas | Qué es |
+|---|---|---|
+| `remainingAttempts` | **Todo** `401` de este endpoint | Intentos que quedan antes del bloqueo. Cero significa que este mismo intento lo provocó |
+| `unlockAt` | `423` automático, y el `401` que agota el contador | Instante en que el bloqueo se levanta solo |
+| `retryAfterSeconds` | Los mismos | Lo que falta, medido por el servidor |
+
+**El bloqueo manual no lleva ninguno de los dos**, y su ausencia es la información: esa cuenta no expira sola. Se **omiten**, no viajan nulos — con las dos formas admitidas, el cliente acabaría comprobando solo una.
+
+**La espera no va escrita en el `detail`, y es una decisión.** «Vuelva a intentarlo en dos minutos» es cierto en el instante en que se serializa y deja de serlo enseguida: la respuesta viaja, el cliente la conserva, la persona lee el aviso un minuto después y el número le miente. Entregada como valor, el cliente la **descuenta**, y una cuenta regresiva no envejece. Van los dos valores porque sirven a dos cosas: el instante permite decir «hasta las 14:32» y sobrevive a que la respuesta se guarde; la duración permite la cuenta regresiva **sin depender del reloj del cliente**, que es lo que sí ocurriría derivándola del instante.
+
+**Los cuatro casos de `EX-001` comparten también el número.** Eso obliga a dos cosas que no son obvias: que los rechazos con la contraseña correcta —cuenta no habilitada, credencial provisional caducada— consuman intento, y que el identificador **sin cuenta** tenga su propio contador (§3). Sin la segunda, `remainingAttempts` sería el verificador de cuentas que todo el orden de verificación existe para impedir.
+
 **Los cuatro casos de `EX-001` comparten código, cuerpo y mensaje**, sin una sola diferencia observable. El `401` no lleva detalle por campo: un `errors` que señalara `identifier` frente a `password` reintroduciría por la puerta de atrás justo lo que el mensaje único evita.
 
 **`423 Locked` y no `401` para la cuenta bloqueada.** La spec exige una respuesta **distinta** y distinguible (`CA-SP-377`), y hacerlo solo en el mensaje dejaría a un cliente decidiendo por el texto. `423` está definido en RFC 4918 y es el estado que expresa que el recurso existe y está bloqueado, que es exactamente lo que aquí se comunica a conciencia.
@@ -154,6 +199,35 @@ Ya figura en `RUTAS_PUBLICAS` de `SecurityConfig` desde el 22-08-2026. Este requ
     No contradice la prohibición de §5.2, que veta datos personales, correo e información sensible. `mcp` no identifica a nadie ni dice nada de la persona más allá de que le toca cambiar la contraseña, y su único lector posible es quien ya porta el token — su propio titular.
 
     La contrapartida está declarada y es la de todo el diseño: quien cambia la contraseña con `RF-SP-037` conserva un token de acceso con `mcp` en verdadero hasta quince minutos. Se resuelve como el resto —`RF-SP-037` revoca todas las sesiones y obliga a autenticarse de nuevo— y por eso no queda ventana real.
+
+### 5.1 `MustChangePasswordFilter` — dónde va y qué deja pasar
+
+Escrito el 26-08-2026 al ejecutar `T-12`, que era lo único que faltaba para que el claim `mcp` restringiera algo en lugar de solo viajar.
+
+**Dónde va.** Dentro de la cadena de seguridad, **después** de la autorización y **después** de `ActorCaptureFilter`. Las tres posiciones importan y ninguna es indiferente:
+
+| Si fuera… | Qué pasaría |
+|---|---|
+| Fuera de la cadena, en la del servlet | El contexto de seguridad está vacío: no hay token validado y por tanto **no hay claim que leer**. Dejaría pasar todo |
+| Antes de la autorización | Quien además carece del permiso recibiría un rechazo que le cuenta algo de **su cuenta** en lugar de algo de **lo que intentaba hacer** |
+| Antes de `ActorCaptureFilter` | La petición retenida quedaría en `request_log` como **anónima**, que es la peor forma de registrar algo: la fila existe y parece correcta |
+
+**No se anota `@Component`**, a diferencia de `ActorCaptureFilter`. Spring Boot registra todo bean de tipo `Filter` también en la cadena del servlet, y ahí este correría antes de la autenticación —dejando pasar toda petición— para volver a correr después dentro de la cadena. Un filtro que **deniega** ejecutándose dos veces por petición, una siempre en vano, se lee mal en un volcado de pila meses después. Lo construye `SecurityConfig`, que es quien lo coloca.
+
+**Qué deja pasar, y por qué son siete y no dos.** La lista lleva el motivo escrito al lado, con la misma forma que la lista blanca de `EndpointPermissionsIT`, porque es lo mismo: una excepción declarada, no un olvido.
+
+| Ruta | Por qué |
+|---|---|
+| `POST /api/v1/auth/password` | `RF-SP-037` es quien limpia la marca. **Sin esta entrada la cuenta no tiene salida** |
+| `GET /api/v1/users/me` | `RF-SP-039`: quien no puede leer su perfil no puede saber **por qué** lo rechazan |
+| `POST /api/v1/auth/login` | Pública: obtener una credencial no puede exigir haber usado la anterior |
+| `POST /api/v1/auth/refresh` | Pública, y el refresco **recalcula** la marca (`FA-002` punto 4) |
+| `POST /api/v1/auth/logout` | Pública (`RF-SP-036`): retener a alguien **en** una sesión que quiere cerrar es lo contrario de lo que ese requerimiento persigue |
+| Las dos de `RF-SP-040` | Declaradas por adelantado, igual que su política de límite de tasa. Una prueba las señala como futuras, y es lo que obligará a revisarlas el día que existan |
+
+**Las tres públicas no sobran.** Sin token no llegarían marcadas… salvo que el cliente adjunte igualmente su `Authorization`, que es lo que hace todo cliente que guarda el token y lo pone en cada petición. Sin exceptuarlas, quien tiene la marca puesta **no podría cerrar su propia sesión**.
+
+**No audita.** Ver `spec.md` `FA-002`: no es un intento de saltarse un permiso, y un evento por rechazo sepultaría `audit_security_log` bajo el ruido de cualquier interfaz que reintente en bucle.
 
 ## 6. Auditoría
 
@@ -207,6 +281,12 @@ El inicio exitoso **tampoco espera al commit**, al contrario que los eventos de 
 | Limitación de tasa distribuida, en base de datos o en un almacén externo | No hay almacén compartido en la plataforma y añadirlo es una decisión de infraestructura que este requerimiento no puede tomar. La ventana en memoria protege lo que hay hoy —un proceso— y su límite queda declarado en §10 |
 | Auditar el `429` de exceso de peticiones | Convertiría el registro de seguridad en el amplificador del ataque: un atacante escribiría tantas filas como peticiones enviara |
 | Registrar el identificador probado cuando la cuenta no existe | El registro de seguridad pasaría a ser la lista de nombres que alguien está probando, legible por quien tenga `audit:read-security` |
+| Devolver los intentos restantes **solo cuando la cuenta existe** | Es lo directo y es un oráculo: con una contraseña cualquiera y mirando si el campo aparece se averigua qué correos están registrados. Deshace de un plumazo el orden de verificación entero, que existe para impedir exactamente eso |
+| No devolver los intentos restantes en absoluto | Era el estado anterior y tiene una víctima concreta: quien no recuerda cuál de sus contraseñas usó se queda bloqueado sin previo aviso, y su primera noticia es no poder entrar |
+| Contar los fallos de los identificadores sin cuenta **en la base de datos** | Cerraría el resto de §10 —la ventana efímera frente al contador persistente—, pero la clave la elige quien ataca: una fila por identificador inventado convierte la defensa en el amplificador del ataque, que es lo mismo que se rechazó para el `429` |
+| Desalojar entradas del contador en memoria al llenarse, en vez de dejar de anotar | Desalojando, quien inunda el registro **elige** qué entradas se olvidan. Dejando de anotar, el único perjudicado es quien lo llenó |
+| Escribir la duración de la espera en el mensaje | El texto es cierto al serializarse y deja de serlo enseguida: viaja, se guarda y se lee minutos después. La duración va como valor para que el cliente la descuente |
+| Derivar la cuenta regresiva de `unlockAt` en el cliente, sin enviar la duración | Ataría la cuenta atrás a que el reloj del navegador coincida con el del servidor. Uno adelantado cinco minutos daría el bloqueo por terminado antes de tiempo |
 
 ## 10. Riesgos
 
@@ -220,6 +300,9 @@ El inicio exitoso **tampoco espera al commit**, al contrario que los eventos de 
 | La limitación de tasa en memoria no cubre varias instancias | Medio | **Declarado**: hoy la plataforma corre un proceso. Condición de disparo: el día que haya más de una instancia detrás de un balanceador, el `RateLimiter` cambia de adaptador sin tocar el caso de uso |
 | El claim `mcp` se olvida y el cambio obligatorio no se aplica | Medio | `MustChangePasswordFilter` con prueba de API sobre un endpoint cualquiera |
 | El reloj del servidor se desajusta y la vigencia deja de valer | Bajo | Riesgo de operación, declarado en `spec.md` §13. Fuera del alcance del requerimiento |
+| El contador de un identificador sin cuenta caduca y el de una cuenta real no | Medio | **Declarado y aceptado** (`spec.md` §13): quien pruebe, espere a que cierre la ventana y repita, nota la diferencia. La señal que obtiene es la misma que el `423` ya entrega por diseño, y cerrarla exige persistir fallos de identificadores inventados. Se acota con una ventana no menor que el techo del bloqueo |
+| El contador en memoria no se comparte entre instancias | Medio | **Declarado**, y con la misma raíz que la limitación de tasa: hoy la plataforma corre un proceso. Con varias, cada una contaría por su cuenta y el aviso sería inexacto para los identificadores sin cuenta — nunca para las cuentas reales, cuyo contador vive en la base. Se mueve con el almacén compartido de `T-08` |
+| Un cliente presenta la duración leyéndola del texto del mensaje | Medio | El mensaje **no la lleva**, precisamente para que no pueda hacerse. `CA-SP-478` lo fija como comprobable |
 
 ## 11. Estrategia de prueba
 
@@ -256,3 +339,12 @@ Casos límite de `spec.md` §13 con prueba propia (Art. VII.3):
 | Contraseña correcta sobre cuenta eliminada | API | Se rechaza como `EX-001`, con el cuerpo genérico |
 
 **`CA-SP-293` y `CA-SP-377` son pruebas de temporización y hay que escribirlas con cuidado**, porque una prueba de tiempo mal hecha es intermitente y acaba desactivada — y desactivarla deja el requerimiento sin su defensa principal. Se miden medianas sobre repeticiones, no una sola medición, y el margen se declara en la prueba con su justificación. Si resultara inestable en CI, la salida es subir las repeticiones o afinar el margen, **nunca** eliminarla.
+
+---
+
+## 12. Control de cambios
+
+| Versión | Fecha | Cambio | Responsable |
+|---|---|---|---|
+| 0.2.0 | 25-08-2026 | Reconciliado con `spec.md` v0.2.0. Tres componentes: `FailedAttemptLedger` —contador efímero de los identificadores sin cuenta, que **no defiende de nada** y existe solo para que la respuesta no delate—, y las dos piezas de `shared/error` que hacen viajar los miembros de extensión de RFC 9457 §3.2. §4 gana el **cuerpo** de los dos errores, que hasta ahora el contrato declaraba sin él. Seis alternativas descartadas y tres riesgos nuevos, uno de ellos —la ventana efímera frente al contador persistente— es un resto que **no se cierra** y se declara. | Responsable técnico |
+| 0.1.0 | 24-08-2026 | Redacción inicial sobre `spec.md` v0.1.0. | Responsable técnico |
