@@ -118,6 +118,17 @@ graph LR
 - Roles, membresía y superior se escriben en **una sola transacción**: un superior inadmisible no deja ni un rol suelto.
 - Una cuenta **inactiva sí se puede administrar**: exigir `ACTIVO` la volvería inadministrable.
 
+
+### Defecto de concurrencia corregido el 26-08-2026
+
+**`RN-SP-018` no se sostenía bajo carrera, y ninguna de las dos operaciones fallaba.** `RF-SP-033` —retirar la membresía— y `RF-SP-030` —asignar el rol de consumidor— leían la persona **sin bloqueo**, de modo que cada una validaba contra el estado que la otra estaba a punto de cambiar: las dos concluían que podían proceder y la persona acababa **portando un rol de consumidor sin nivel**. Es una escritura sesgada de manual, y en `READ COMMITTED` nada la impide.
+
+**Lo que lo destapó fue `RF-SP-024` · `T-21`**, la prueba concurrente del par en los dos órdenes, y lo hizo de forma **intermitente**: falló en CI, pasó en la ejecución siguiente y volvió a fallar dos veces más. Esa intermitencia es la firma del defecto, no una prueba inestable.
+
+**La corrección:** las **cuatro** operaciones que cambian roles o membresía de una persona —`RF-SP-030`, `RF-SP-031`, `RF-SP-032` y `RF-SP-033`— pasan a tomar el bloqueo pesimista sobre su fila (`findNotDeletedByIdForUpdate`), que las otras cinco operaciones sobre una persona ya tomaban. Dos cosas la hacen suficiente: las cuatro bloquean **la misma fila**, de modo que se serializan sin riesgo de abrazo mortal —a diferencia del caso que `RF-SP-028` descartó, donde el bloqueo caía sobre filas de terceros—, y el bloqueo se toma **antes** de leer roles y membresía, porque en `READ COMMITTED` cada sentencia posterior toma instantánea nueva y ve lo que la otra transacción confirmó.
+
+La obligación queda escrita en el puerto, que es donde la encontrará quien añada la décima operación sobre una persona.
+
 ## 5. Definición de terminado
 
 El requerimiento no está terminado hasta cumplir **todas** las condiciones de la constitución §16:

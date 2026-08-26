@@ -133,6 +133,19 @@ public interface UserRepository {
    * <p>Es lo que serializa dos reasignaciones simultáneas del mismo subordinado. Sin él, la
    * unicidad parcial {@code uq_user_supervisors_vigente} hace fallar a la segunda con {@code 23505}
    * — un {@code 500} en lugar de una espera (`RF-SP-041` · `T-05`).
+   *
+   * <p><b>Toda operación que cambie los roles o la membresía de una persona DEBE tomarlo</b>, y no
+   * solo las que reescriben su fila. `RN-SP-018` —consumidor ⟺ membresía— es un invariante que
+   * abarca {@code user_roles} y {@code user_memberships}, y las cuatro operaciones que lo pueden
+   * romper leían sin bloqueo: en {@code READ COMMITTED} cada una validaba contra el estado que la
+   * otra estaba a punto de cambiar, las dos concluían que podían proceder, y la persona acababa
+   * <b>portando un rol de consumidor sin nivel</b>. No falla ninguna de las dos: el invariante se
+   * rompe en silencio. Corregido el 26-08-2026, tras tres apariciones intermitentes en CI.
+   *
+   * <p>Las cuatro bloquean <b>la misma fila</b> —la de la persona—, de modo que se serializan sin
+   * riesgo de abrazo mortal. Tomarlo <b>antes</b> de leer roles y membresía es la otra mitad: en
+   * {@code READ COMMITTED} cada sentencia posterior toma instantánea nueva y ve lo que la
+   * transacción anterior confirmó.
    */
   Optional<User> findNotDeletedByIdForUpdate(UUID id);
 
