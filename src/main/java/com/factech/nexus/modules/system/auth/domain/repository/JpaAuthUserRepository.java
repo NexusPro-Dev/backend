@@ -63,6 +63,19 @@ public class JpaAuthUserRepository implements AuthUserRepository {
         : primero(PROYECCION + " WHERE u.id = :valor", "valor", id);
   }
 
+  /**
+   * Como {@link #findById}, pero tomando el bloqueo de la fila.
+   *
+   * <p>Al soltarse, PostgreSQL reevalúa la fila sobre la versión ya confirmada: si otra transacción
+   * la eliminó o la desactivó mientras tanto, la proyección lo refleja. Ver el javadoc del puerto.
+   */
+  @Override
+  public Optional<AuthUser> findByIdForUpdate(UUID id) {
+    return id == null
+        ? Optional.empty()
+        : primero(PROYECCION + " WHERE u.id = :valor FOR UPDATE OF u", "valor", id);
+  }
+
   @Override
   public void registrarFallo(UUID userId, int intentos, OffsetDateTime bloquearHasta) {
     em.createNativeQuery(

@@ -209,7 +209,25 @@ public class LoginService {
     // Se deja escrito porque su ausencia es una decisión y no un olvido, y
     // porque `RF-SP-038` la había pedido de forma expresa.
 
-    cuentas.registrarEntrada(cuenta.id(), ahora);
+    // Paso 5: se vuelve a leer la cuenta CON SU FILA BLOQUEADA, y solo aquí.
+    //
+    // Lo que esto cierra es la carrera de `RF-SP-029` · `T-12`: si mientras se
+    // comprobaba la contraseña un actor eliminó o desactivó la cuenta, el paso 4
+    // lo decidió sobre una instantánea donde seguía viva. Aquel barrió las
+    // sesiones vigentes y confirmó; la que estamos a punto de insertar nacería
+    // DESPUÉS de ese barrido y sobreviviría a la eliminación.
+    //
+    // Va después de comprobar la contraseña y no antes: tomar el bloqueo al
+    // principio le añadiría al rechazo un tiempo que depende de si la cuenta
+    // existe, que es la fuga que `EX-001` existe para cerrar.
+    AuthUser confirmada =
+        cuentas
+            .findByIdForUpdate(cuenta.id())
+            .filter(AuthUser::puedeEntrar)
+            .orElseThrow(
+                () -> rechazar(encontrada, anonimos, identificador, "cuenta no habilitada", ahora));
+
+    cuentas.registrarEntrada(confirmada.id(), ahora);
 
     String refresco = OpaqueToken.generar();
     sesiones.save(
@@ -229,7 +247,7 @@ public class LoginService {
             Map.of("roles", cuenta.roleCodes())));
 
     // Lo decide la CADUCIDAD y no la marca: nula, navega; con fecha, la cambia.
-    boolean debeCambiarla = cuenta.credencialAjena();
+    boolean debeCambiarla = confirmada.credencialAjena();
 
     return SessionResponse.de(
         tokens.emitir(cuenta.id(), cuenta.roleCodes(), debeCambiarla, ahora.toInstant()),

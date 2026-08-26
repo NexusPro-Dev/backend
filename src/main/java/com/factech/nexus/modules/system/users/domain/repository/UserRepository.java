@@ -17,6 +17,25 @@ public interface UserRepository {
 
   User save(User usuario);
 
+  /**
+   * Vuelca los cambios pendientes del agregado, <b>traduciendo la violación de unicidad</b>.
+   *
+   * <p><b>Hace falta porque {@link #save} no cubre la edición.</b> Al modificar una persona ya
+   * cargada no se llama a {@code save}: el agregado está gestionado y el {@code UPDATE} sale solo,
+   * <b>en el commit</b> — es decir, fuera de cualquier {@code try} del adaptador. Una violación de
+   * {@code uq_users_email} escapaba entonces sin traducir y llegaba al cliente como {@code 500} en
+   * lugar de como el {@code 409} de `RN-SP-016`.
+   *
+   * <p>La comprobación previa de `RF-SP-027` no lo evita: <b>existe para el mensaje</b>, y entre
+   * leerla y escribir hay una ventana que dos ediciones simultáneas hacia el mismo correo
+   * atraviesan las dos. La garantía la da el índice único; esto es lo que la convierte en una
+   * respuesta que quien consume la API pueda entender.
+   *
+   * <p>Se llama de forma explícita y no se confía al commit por eso mismo: dentro del caso de uso
+   * hay quien traduzca, y después ya no.
+   */
+  void flushChanges();
+
   boolean existsUsername(Username username);
 
   boolean existsEmail(Email email);

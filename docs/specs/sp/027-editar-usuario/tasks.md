@@ -45,7 +45,7 @@ Sin migración. La forma la hereda de `RF-SP-004` —`PATCH` parcial, `Patchable
 | `T-08` | `JpaUserRepository` traduce la violación de `uq_users_email` **por nombre de restricción**, nunca por el texto del mensaje del driver, a `409` con `RN-SP-016` y un mensaje que **no nombra** a nadie | `T-03` | Prueba de integración forzando el camino que salta la verificación previa: la violación produce `409`, **nunca `500`** | **Hecha** |
 | `T-09` | Prueba de que el silencio del `409` es completo: el correo de una persona **eliminada** produce el mismo cuerpo que el de una vigente | `T-08` | `RN-SP-016` reserva el correo de los eliminados para siempre; la respuesta no puede delatar que esa cuenta existió | **En curso** |
 | `T-10` | Pruebas de los criterios de aceptación de `spec.md` §12 | `T-07`, `T-08` | La suite cubre `CA-SP-221` a `CA-SP-229`, `CA-SP-355` y `CA-SP-356`. `CA-SP-227` y `CA-SP-357` quedan **parciales** hasta `RF-SP-034` | **En curso** |
-| `T-11` | Pruebas **concurrentes** con transacciones reales: dos ediciones de la misma persona, y dos ediciones distintas hacia **el mismo correo** | `T-07`, `T-08` | En la primera, dos eventos cuyos diffs encadenan; en la segunda, una `200` y una `409`, **nunca `500`** | **Pendiente** |
+| `T-11` | Pruebas **concurrentes** con transacciones reales: dos ediciones de la misma persona, y dos ediciones distintas hacia **el mismo correo** | `T-07`, `T-08` | En la primera, dos eventos cuyos diffs encadenan; en la segunda, una `200` y una `409`, **nunca `500`** | **Hecha** — 26-08-2026, en `UserConcurrencyIT`. **Destapó un `500`**: ver §4.bis |
 | `T-12` | Pruebas del resto de casos límite de `spec.md` §13 y de `plan.md` §11: correo igual con otra caja, `INSERT` directo sin normalizar, el actor editándose a sí mismo, persona inactiva, límites de longitud e identificador no canónico | `T-07` | El actor se edita a sí mismo y recibe `200`: no hay regla equivalente a `RN-SEG-011` para las personas | **En curso** |
 | `T-13` | Prueba de **número de sentencias**: bloqueo, unicidad **solo si el correo cambió**, `UPDATE` y evento; **ninguna escritura** en `FA-001` | `T-07` | Es lo que hace verificable que el orden de `plan.md` §4 se respeta | **Pendiente** |
 | `T-14` | Completar `CA-SP-357` y `CA-SP-227` de extremo a extremo | `RF-SP-034` | Tras cambiar el correo, la persona autentica con el nuevo y **no** con el anterior; su nombre de usuario funciona en ambos momentos; y sus sesiones **siguen abiertas**. En el mismo Pull Request en que `RF-SP-034` se integre | **En curso** |
@@ -115,6 +115,16 @@ graph LR
 | 2 | `T-03` no produjo `existsEmailOfOther(Email, UUID)`: se reutiliza `existsEmail(...)` de `RF-SP-024` | La consulta se ejecuta **solo si el correo cambió**, de modo que la persona nunca puede chocar consigo misma y la exclusión por identificador sobra. Un método más específico habría sido correcto y más difícil de justificar | Ninguna: el orden de verificación hace innecesaria la exclusión, y la prueba de «reenviar el propio correo en mayúsculas» lo fija |
 | 3 | `T-11` y `T-13` quedan **Pendientes** | La primera exige dos transacciones reales simultáneas sobre la misma persona; la segunda, un contador de sentencias que la suite no tiene montado | Que el bloqueo de fila serialice dos ediciones simultáneas está **construido y no verificado**. Es el hueco de esta tripleta |
 | 4 | `T-09`, `T-10`, `T-12` y `T-14` quedan **En curso** | El silencio del `409` se comprueba contra una persona vigente, no contra una **eliminada** —que es el caso que más importa, porque `RN-SP-016` reserva su correo para siempre— y faltan casos límite menores | El `409` no revela de quién es el correo, pero que tampoco lo revele cuando el titular ya no existe no está fijado por prueba |
+
+### `T-11` destapó un `500` — 26-08-2026
+
+Dos ediciones simultáneas hacia **el mismo correo** devolvían una `200` y un **`500`**, donde la tarea exige una `200` y una `409`.
+
+**Por qué.** `JpaUserRepository` traduce la violación de `uq_users_email` al `409` de `RN-SP-016` **por nombre de restricción**, y lo hace dentro de `save(...)`. Pero la edición **no llama a `save`**: el agregado está gestionado y el `UPDATE` sale solo, **en el commit** — es decir, fuera de cualquier `try` del adaptador. La violación escapaba sin traducir.
+
+**El comentario de `verificarCorreoLibre` ya decía lo correcto** —«la garantía la da `uq_users_email` … y el adaptador traduce esa violación al mismo `409`»— y describía algo que solo era cierto en el alta. Es la clase de comentario que envejece sin que nadie lo note, porque describe una intención que en su día se cumplía.
+
+**Cómo se corrigió.** `UserRepository` gana `flushChanges()`, que vuelca dentro del mismo `try` que traduce, y `UpdateUserService` lo llama **en cuanto cambia el correo** en lugar de dejarlo al commit. La comprobación previa se conserva: existe para el mensaje, y entre leerla y escribir hay una ventana que dos ediciones simultáneas atraviesan las dos.
 
 ### Lo que sí quedó verificado
 

@@ -44,6 +44,15 @@ public class JpaUserRepository implements UserRepository {
   }
 
   @Override
+  public void flushChanges() {
+    try {
+      em.flush();
+    } catch (PersistenceException fallo) {
+      throw traducir(fallo);
+    }
+  }
+
+  @Override
   public boolean existsUsername(Username username) {
     return !em.createQuery(
             "SELECT 1 FROM User u WHERE lower(u.username) = lower(:username)", Integer.class)

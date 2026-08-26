@@ -23,6 +23,22 @@ public interface AuthUserRepository {
   Optional<AuthUser> findById(UUID id);
 
   /**
+   * La cuenta, <b>con su fila bloqueada</b>, para confirmar que sigue pudiendo entrar.
+   *
+   * <p><b>Existe por una carrera concreta</b>, la que `RF-SP-029` · `T-12` destapó: mientras
+   * alguien inicia sesión, un actor elimina esa cuenta. El inicio comprueba el estado sobre <b>su
+   * instantánea</b>, donde la cuenta sigue viva; la eliminación revoca las sesiones vigentes y
+   * confirma; y la sesión que el inicio inserta <b>después</b> nace ya fuera de ese barrido. Queda
+   * una sesión viva sobre una cuenta que no existe — y `RF-SP-029` declara justamente que eso no
+   * puede pasar.
+   *
+   * <p><b>Se pide solo en el camino de éxito y no en el de rechazo</b>, y esa asimetría es
+   * deliberada: tomar el bloqueo antes de comprobar la contraseña añadiría al rechazo un tiempo que
+   * depende de si la cuenta existe, que es exactamente la fuga que `EX-001` existe para cerrar.
+   */
+  Optional<AuthUser> findByIdForUpdate(UUID id);
+
+  /**
    * Anota un intento fallido y bloquea si toca.
    *
    * @param bloquearHasta instante hasta el que queda bloqueada, o {@code null} si aún no toca
