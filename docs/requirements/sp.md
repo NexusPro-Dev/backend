@@ -5,7 +5,7 @@
 | Módulo | `SP` — Sistema Principal |
 | Paquete | `modules/system` |
 | Prefijos de permiso | `roles:`, `permissions:`, `audit:`, `memberships:`, `currencies:`, `countries:`, `users:` |
-| Versión | 1.23.0 |
+| Versión | 1.24.0 |
 | Estado | **Aprobado** |
 | Responsable | Bonilla Diaz William Steven |
 | Fecha de creación | 20-08-2026 |
@@ -205,48 +205,54 @@ Reglas que no son transversales de seguridad y por tanto sí llevan el prefijo d
 
 | ID | Requerimiento | Prioridad | Permiso | Estado |
 |---|---|---|---|---|
-| `RF-SP-001` | Registrar rol | Crítica | `roles:create` | Pendiente |
-| `RF-SP-002` | Consultar roles | Crítica | `roles:read` | Pendiente |
-| `RF-SP-003` | Consultar detalle de un rol | Alta | `roles:read` | Pendiente |
-| `RF-SP-004` | Editar rol | Alta | `roles:update` | Pendiente |
-| `RF-SP-005` | Asignar permisos a un rol | Crítica | `roles:update` | Pendiente |
-| `RF-SP-006` | Revocar permisos de un rol | Alta | `roles:update` | Pendiente |
-| `RF-SP-007` | Cambiar el estado de un rol | Alta | `roles:update` | Pendiente |
-| `RF-SP-008` | Cambiar el rol padre de un rol | Media | `roles:update` | Pendiente |
-| `RF-SP-009` | Eliminar rol | Media | `roles:delete` | Pendiente |
-| `RF-SP-010` | Consultar catálogo de permisos | Crítica | `permissions:read` | Pendiente |
-| `RF-SP-011` | Consultar auditoría de cambios | Media | `audit:read-changes` | Pendiente |
-| `RF-SP-012` | Consultar auditoría de eliminación | Media | `audit:read-deletions` | Pendiente |
-| `RF-SP-013` | Consultar auditoría de error | Media | `audit:read-errors` | Pendiente |
-| `RF-SP-014` | Consultar auditoría de seguridad | Alta | `audit:read-security` | Pendiente |
-| `RF-SP-015` | Consultar detalle de un permiso | Media | `permissions:read` | Pendiente |
-| `RF-SP-016` | Registrar membresía | Alta | `memberships:create` | Pendiente |
-| `RF-SP-017` | Consultar membresías | Alta | `memberships:read` | Pendiente |
-| `RF-SP-018` | Consultar detalle de una membresía | Media | `memberships:read` | Pendiente |
-| `RF-SP-019` | Consultar monedas | Media | `currencies:read` | Pendiente |
-| `RF-SP-020` | Registrar país | Media | `countries:create` | Pendiente |
-| `RF-SP-021` | Consultar países | Media | `countries:read` | Pendiente |
-| `RF-SP-022` | Cambiar el estado de un país | Media | `countries:update` | Pendiente |
-| `RF-SP-023` | Cambiar el estado de una moneda | Baja | `currencies:update` | Pendiente |
-| `RF-SP-024` | Registrar usuario | **Crítica** | `users:create` | Pendiente |
-| `RF-SP-025` | Consultar usuarios | **Crítica** | `users:read` | Pendiente |
-| `RF-SP-026` | Consultar detalle de un usuario | Alta | `users:read` | Pendiente |
-| `RF-SP-027` | Editar usuario | Alta | `users:update` | Pendiente |
-| `RF-SP-028` | Cambiar el estado de un usuario | Alta | `users:update` | Pendiente |
-| `RF-SP-029` | Eliminar usuario | Media | `users:delete` | Pendiente |
-| `RF-SP-030` | Asignar roles a un usuario | **Crítica** | `users:assign-roles` | Pendiente |
-| `RF-SP-031` | Retirar roles de un usuario | Alta | `users:assign-roles` | Pendiente |
-| `RF-SP-032` | Asignar membresía a un usuario | Alta | `users:assign-membership` | Pendiente |
-| `RF-SP-033` | Retirar la membresía de un usuario | Media | `users:assign-membership` | Pendiente |
-| `RF-SP-034` | Iniciar sesión | **Crítica** | — (público) | Pendiente |
-| `RF-SP-035` | Refrescar el token de acceso | **Crítica** | — (público) | Pendiente |
-| `RF-SP-036` | Cerrar sesión | Alta | — (público) | Pendiente |
-| `RF-SP-037` | Cambiar la propia contraseña | Alta | Autenticado | Pendiente |
-| `RF-SP-038` | Restablecer la contraseña de un usuario | Media | `users:reset-password` | Pendiente |
-| `RF-SP-039` | Consultar el propio perfil | Alta | Autenticado | Pendiente |
-| `RF-SP-040` | Restablecer la propia contraseña olvidada | Alta | — (público) | Pendiente |
-| `RF-SP-041` | Asignar o cambiar el superior comercial de un usuario | **Crítica** | `users:assign-supervisor` | Pendiente |
-| `RF-SP-042` | Consultar el equipo a cargo de un usuario | Media | `users:read` | Pendiente |
+| `RF-SP-001` | Registrar rol | Crítica | `roles:create` | En desarrollo |
+| `RF-SP-002` | Consultar roles | Crítica | `roles:read` | En desarrollo |
+| `RF-SP-003` | Consultar detalle de un rol | Alta | `roles:read` | En desarrollo |
+| `RF-SP-004` | Editar rol | Alta | `roles:update` | En desarrollo |
+| `RF-SP-005` | Asignar permisos a un rol | Crítica | `roles:update` | En desarrollo |
+| `RF-SP-006` | Revocar permisos de un rol | Alta | `roles:update` | En desarrollo |
+| `RF-SP-007` | Cambiar el estado de un rol | Alta | `roles:update` | En desarrollo |
+| `RF-SP-008` | Cambiar el rol padre de un rol | Media | `roles:update` | En desarrollo |
+| `RF-SP-009` | Eliminar rol | Media | `roles:delete` | En desarrollo |
+| `RF-SP-010` | Consultar catálogo de permisos | Crítica | `permissions:read` | En desarrollo |
+| `RF-SP-011` | Consultar auditoría de cambios | Media | `audit:read-changes` | En desarrollo |
+| `RF-SP-012` | Consultar auditoría de eliminación | Media | `audit:read-deletions` | En desarrollo |
+| `RF-SP-013` | Consultar auditoría de error | Media | `audit:read-errors` | En desarrollo |
+| `RF-SP-014` | Consultar auditoría de seguridad | Alta | `audit:read-security` | En desarrollo |
+| `RF-SP-015` | Consultar detalle de un permiso | Media | `permissions:read` | En desarrollo |
+| `RF-SP-016` | Registrar membresía | Alta | `memberships:create` | En desarrollo |
+| `RF-SP-017` | Consultar membresías | Alta | `memberships:read` | En desarrollo |
+| `RF-SP-018` | Consultar detalle de una membresía | Media | `memberships:read` | En desarrollo |
+| `RF-SP-019` | Consultar monedas | Media | `currencies:read` | En desarrollo |
+| `RF-SP-020` | Registrar país | Media | `countries:create` | En desarrollo |
+| `RF-SP-021` | Consultar países | Media | `countries:read` | En desarrollo |
+| `RF-SP-022` | Cambiar el estado de un país | Media | `countries:update` | En desarrollo |
+| `RF-SP-023` | Cambiar el estado de una moneda | Baja | `currencies:update` | En desarrollo |
+| `RF-SP-024` | Registrar usuario | **Crítica** | `users:create` | En desarrollo |
+| `RF-SP-025` | Consultar usuarios | **Crítica** | `users:read` | En desarrollo |
+| `RF-SP-026` | Consultar detalle de un usuario | Alta | `users:read` | En desarrollo |
+| `RF-SP-027` | Editar usuario | Alta | `users:update` | En desarrollo |
+| `RF-SP-028` | Cambiar el estado de un usuario | Alta | `users:update` | En desarrollo |
+| `RF-SP-029` | Eliminar usuario | Media | `users:delete` | En desarrollo |
+| `RF-SP-030` | Asignar roles a un usuario | **Crítica** | `users:assign-roles` | En desarrollo |
+| `RF-SP-031` | Retirar roles de un usuario | Alta | `users:assign-roles` | En desarrollo |
+| `RF-SP-032` | Asignar membresía a un usuario | Alta | `users:assign-membership` | En desarrollo |
+| `RF-SP-033` | Retirar la membresía de un usuario | Media | `users:assign-membership` | En desarrollo |
+| `RF-SP-034` | Iniciar sesión | **Crítica** | — (público) | En desarrollo |
+| `RF-SP-035` | Refrescar el token de acceso | **Crítica** | — (público) | En desarrollo |
+| `RF-SP-036` | Cerrar sesión | Alta | — (público) | En desarrollo |
+| `RF-SP-037` | Cambiar la propia contraseña | Alta | Autenticado | En desarrollo |
+| `RF-SP-038` | Restablecer la contraseña de un usuario | Media | `users:reset-password` | En desarrollo |
+| `RF-SP-039` | Consultar el propio perfil | Alta | Autenticado | En desarrollo |
+| `RF-SP-040` | Restablecer la propia contraseña olvidada | Alta | — (público) | En desarrollo |
+| `RF-SP-041` | Asignar o cambiar el superior comercial de un usuario | **Crítica** | `users:assign-supervisor` | En desarrollo |
+| `RF-SP-042` | Consultar el equipo a cargo de un usuario | Media | `users:read` | En desarrollo |
+
+!!! info "Dónde vive el estado de un requerimiento"
+
+    Esta columna es un **resumen**. La autoridad es la matriz de trazabilidad de [`requirements.md` §4](../requirements.md#4-matriz-de-trazabilidad), que registra además la tripleta, el Issue, el Pull Request y las pruebas de cada fila; aquí se copia el estado para que el catálogo del módulo se lea de un vistazo, y se actualiza **con el mismo cambio** (Art. III.6).
+
+    Al 26-08-2026 los cuarenta y dos están **`En desarrollo`**: los cuarenta y dos tienen tripleta aprobada y endpoint funcionando, y ninguno pasa a `Implementado` porque eso exige Pull Request aprobado e integrado (Art. XVI).
 
 **Orden sugerido de implementación:** `RF-SP-010` → `RF-SP-001` → `RF-SP-002` → `RF-SP-005` → `RF-SP-024` → `RF-SP-030` → `RF-SP-041` → `RF-SP-003` → `RF-SP-009` → el resto.
 
@@ -1134,3 +1140,4 @@ La crea `RF-SP-024` (`V19__create_user_roles.sql`), porque el alta ya escribe as
 | 1.21.0 | 24-08-2026 | **Enmienda de §10.5 y §10.8 al implementar el catálogo de monedas** (`RF-SP-019` · `T-10`). `currencies` gana **`updated_at`**, que este documento omitía pese al Art. V.7: la omisión venía de suponer que el catálogo no cambia, pero sí cambia —`RF-SP-023` modifica `is_active`— y sin esa marca no habría forma de saber cuándo se dio de baja una moneda sin recorrer la auditoría. §10.8 incorpora las cinco restricciones que el esquema declara y el documento no listaba, entre ellas **`ck_currencies_default_active`**, que impide dejar inactiva la moneda por defecto por cualquiera de sus dos caminos de escritura —la API y una migración—. | Responsable técnico |
 | 1.22.0 | 24-08-2026 | **Regla nueva `RN-SP-023`: todo usuario tiene al menos un rol.** El estado «usuario sin ningún rol» deja de existir: una cuenta así puede autenticarse y no puede hacer absolutamente nada, de modo que solo servía para reservar un nombre de usuario y un correo — que `RN-SP-016` no libera nunca. Se exige en **las dos puertas**, porque cerrar solo una deja el invariante sin sostener: `RF-SP-024` pasa `roles` de opcional a **obligatorio** y `RF-SP-031` rechaza quitar el último. **La regla mira la asignación, no el estado del rol**, y esa acotación es deliberada: exigir un rol *activo* haría que desactivar o eliminar un rol \(`RF-SP-007`, `RF-SP-009`\) pudiera violarla **a distancia**, sobre personas que nadie estaba tocando, y dejaría operaciones del catálogo bloqueadas por el estado de terceros; que un rol inactivo no conceda nada ya lo resuelve `RN-SEG-002`. **No es expresable en el esquema** —«al menos una fila en `user_roles`» exige disparador o restricción diferida—, de modo que vive en el dominio y se verifica dentro de la transacción, igual que `RN-SP-001`. **Enmienda seis especificaciones aprobadas** \(Art. I.7\): `RF-SP-024` retira `FA-001`, estrena `EX-008` e invierte `CA-SP-197`; `RF-SP-031` retira `FA-002`, estrena `EX-006` e invierte `CA-SP-269`; y `RF-SP-025`, `RF-SP-026`, `RF-SP-034` y `RF-SP-039` reencuadran su flujo de «sin roles» como «sin **permisos efectivos**», que sigue siendo alcanzable con todos los roles inactivos y es lo único que queda de aquel caso. | Responsable técnico |
 | 1.23.0 | 26-08-2026 | **`RF-SP-040` deja de ser el requerimiento sin implementar del módulo**, al cerrarse **D-23** con Resend. §10 gana `password_reset_permits` en la tabla de entidades y **§10.13** con sus campos. Tres cosas quedan escritas ahí porque el esquema las sostiene y el dominio no podría: **solo el hash del permiso**, nunca su valor, igual que `refresh_tokens`; **dos columnas de invalidez y no un estado** —`consumed_at` dice que alguien completó el flujo y `superseded_at` que pidió otro, y una sola columna las haría indistinguibles justo donde la auditoría necesita separarlas—; y el **único parcial `uq_password_reset_permits_vigente`**, que declara en el esquema que solo vive un permiso a la vez: escrito únicamente en el caso de uso, dos solicitudes concurrentes dejarían **dos vías de entrada abiertas** a la misma cuenta. La migración es **`V37` y no `V29`** como decía el plan: ese número quedó tomado al aplicarse `V13` a `V36` mientras la tripleta esperaba la decisión. Se corrige además la numeración duplicada de esta misma tabla: la fila de `RN-SP-023` figuraba como `1.20.0`, número que ya usaba la enmienda de membresías, y pasa a `1.22.0`. | Responsable técnico |
+| 1.24.0 | 26-08-2026 | **§6.1 se sincroniza con la matriz de trazabilidad.** Las cuarenta y dos filas figuraban en `Pendiente` —el estado de «registrado, sin `spec.md`»— cuando los cuarenta y dos tienen tripleta aprobada y endpoint funcionando desde el 26-08-2026: pasan a **`En desarrollo`**. La columna llevaba desde el 20-08-2026 sin tocarse, de modo que el catálogo del módulo afirmaba que no existía nada de lo que ya estaba construido. Se añade además de dónde sale ese dato: la **autoridad es [`requirements.md` §4](../requirements.md#4-matriz-de-trazabilidad)** y aquí se copia, para que la próxima divergencia se resuelva sin tener que averiguar cuál de las dos tablas manda. Ninguno pasa a `Implementado`: el Art. XVI exige Pull Request aprobado e integrado y no hay ninguno. | Responsable técnico |
