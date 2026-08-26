@@ -165,7 +165,7 @@ Son las que sus `tasks.md` declaran `Pendiente`, verificadas contra el código u
 | [Seguridad](security.md) | 0.33.0 | Borrador |
 | [Mapa modular](modules.md) | 0.13.0 | Borrador |
 | [Modelo de datos](modelo-datos.md) | 0.11.0 | Borrador |
-| [Requerimientos y trazabilidad](requirements.md) | 0.63.0 | Borrador |
+| [Requerimientos y trazabilidad](requirements.md) | 0.65.0 | Borrador |
 | [Guía de desarrollo](development-guide.md) | 0.7.0 | Borrador |
 | [Requerimientos de `SP`](requirements/sp.md) | 1.25.0 | **Aprobado** |
 | [Requerimientos de `PM`](requirements/pm.md) | 0.9.0 | Borrador |
