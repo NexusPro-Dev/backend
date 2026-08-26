@@ -35,6 +35,20 @@ import org.springframework.test.web.servlet.request.RequestPostProcessor;
 @AutoConfigureMockMvc
 class MembershipsIT extends IntegrationTestBase {
 
+  /**
+   * Un color distinto en cada alta: `uq_memberships_color` no admite repetidos, y varias pruebas
+   * crean tres o cuatro membresías seguidas.
+   *
+   * <p>Sin esto, el segundo alta de cada prueba fallaría con un `409` de color y la prueba diría
+   * que falla lo que en realidad funciona.
+   */
+  private static final java.util.concurrent.atomic.AtomicInteger SECUENCIA_DE_COLOR =
+      new java.util.concurrent.atomic.AtomicInteger();
+
+  private static String colorNuevo() {
+    return String.format("%06X", SECUENCIA_DE_COLOR.incrementAndGet());
+  }
+
   @Autowired private MockMvc mvc;
   @Autowired private JdbcTemplate jdbc;
   @Autowired private ObjectMapper json;
@@ -197,7 +211,7 @@ class MembershipsIT extends IntegrationTestBase {
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(
                     """
-                    {"code":"ORO","name":"Oro","level":1}
+                    {"code":"ORO","name":"Oro","color":"D4AF37","level":1}
                     """))
         .andExpect(status().isBadRequest());
 
@@ -207,7 +221,7 @@ class MembershipsIT extends IntegrationTestBase {
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(
                     """
-                    {"code":"ORO","name":"Oro","parentMembershipId":"%s"}
+                    {"code":"ORO","name":"Oro","color":"D4AF37","parentMembershipId":"%s"}
                     """
                         .formatted(UUID.randomUUID())))
         .andExpect(status().isBadRequest());
@@ -224,7 +238,7 @@ class MembershipsIT extends IntegrationTestBase {
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(
                     """
-                    {"code":"ORO","name":"Oro"}
+                    {"code":"ORO","name":"Oro","color":"D4AF37"}
                     """))
         .andExpect(status().isForbidden());
 
@@ -245,7 +259,7 @@ class MembershipsIT extends IntegrationTestBase {
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(
                     """
-                    {"code":"PLATA","name":"Plata","childMembershipId":"%s"}
+                    {"code":"PLATA","name":"Plata","color":"C0C0C0","childMembershipId":"%s"}
                     """
                         .formatted(bronce)))
         .andExpect(status().isCreated());
@@ -291,7 +305,7 @@ class MembershipsIT extends IntegrationTestBase {
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(
                     """
-                    {"code":"ORO","name":"Oro"}
+                    {"code":"ORO","name":"Oro","color":"D4AF37"}
                     """))
         .andExpect(status().isCreated());
 
@@ -593,6 +607,136 @@ class MembershipsIT extends IntegrationTestBase {
   }
 
   // ---------------------------------------------------------------------------
+  // `RN-SP-024` — el color del nivel
+  // ---------------------------------------------------------------------------
+
+  @Test
+  @DisplayName("CA-SP-487 — sin color, mal formado o con `#` delante, el alta se rechaza con 400")
+  void colorObligatorioYConFormato() throws Exception {
+    // Sin color.
+    mvc.perform(altaCruda("{\"code\":\"ORO\",\"name\":\"Oro\"}"))
+        .andExpect(status().isBadRequest())
+        .andExpect(jsonPath("$.errors[0].field").value("color"));
+
+    // El `#` NO se recorta: se rechaza. Aceptarlo y quitarlo pondría en el
+    // servidor la decisión de un detalle de notación de CSS.
+    mvc.perform(altaCruda("{\"code\":\"ORO\",\"name\":\"Oro\",\"color\":\"#1E88E5\"}"))
+        .andExpect(status().isBadRequest())
+        .andExpect(jsonPath("$.errors[0].code").value("VAL-008"));
+
+    // Cinco dígitos, siete dígitos y un carácter no hexadecimal.
+    for (String malo : new String[] {"1E88E", "1E88E5F", "1E88EZ", "azulon"}) {
+      mvc.perform(altaCruda("{\"code\":\"ORO\",\"name\":\"Oro\",\"color\":\"%s\"}".formatted(malo)))
+          .andExpect(status().isBadRequest())
+          .andExpect(jsonPath("$.errors[0].code").value("VAL-008"));
+    }
+
+    assertThat(existe("ORO")).isFalse();
+  }
+
+  @Test
+  @DisplayName("CA-SP-488 — el color se almacena y se devuelve en mayúsculas, se envíe como sea")
+  void colorNormalizadoAMayusculas() throws Exception {
+    String cuerpo =
+        mvc.perform(altaCruda("{\"code\":\"ORO\",\"name\":\"Oro\",\"color\":\"1e88e5\"}"))
+            .andExpect(status().isCreated())
+            // La respuesta del alta muestra lo GUARDADO, no lo enviado.
+            .andExpect(jsonPath("$.color").value("1E88E5"))
+            .andReturn()
+            .getResponse()
+            .getContentAsString();
+
+    String id = json.readTree(cuerpo).get("id").asText();
+
+    // Y en la base, que es donde la unicidad lo compara.
+    String almacenado =
+        jdbc.queryForObject("SELECT color FROM memberships WHERE id = ?::uuid", String.class, id);
+    assertThat(almacenado).isEqualTo("1E88E5");
+
+    mvc.perform(get("/api/v1/memberships/" + id).with(lector()))
+        .andExpect(jsonPath("$.color").value("1E88E5"));
+  }
+
+  @Test
+  @DisplayName("CA-SP-489 — el color repetido devuelve 409 y se distingue del código y del nombre")
+  void colorDuplicado() throws Exception {
+    mvc.perform(altaCruda("{\"code\":\"ORO\",\"name\":\"Oro\",\"color\":\"1E88E5\"}"))
+        .andExpect(status().isCreated());
+
+    // Mismo color, con código y nombre distintos: el rechazo tiene que señalar
+    // el color y no cualquiera de los otros dos.
+    mvc.perform(altaCruda("{\"code\":\"PLATA\",\"name\":\"Plata\",\"color\":\"1E88E5\"}"))
+        .andExpect(status().isConflict())
+        .andExpect(jsonPath("$.errors[0].code").value("EX-001"))
+        .andExpect(jsonPath("$.errors[0].field").value("color"));
+
+    // La caja no salva el duplicado: la unicidad se compara sobre el valor
+    // normalizado, no sobre el texto tal como se envió.
+    mvc.perform(altaCruda("{\"code\":\"BRONCE\",\"name\":\"Bronce\",\"color\":\"1e88e5\"}"))
+        .andExpect(status().isConflict())
+        .andExpect(jsonPath("$.errors[0].field").value("color"));
+
+    assertThat(existe("PLATA")).isFalse();
+    assertThat(existe("BRONCE")).isFalse();
+  }
+
+  @Test
+  @DisplayName("CA-SP-490 — el listado trae el color de cada membresía en una sola llamada")
+  void listadoConColor() throws Exception {
+    mvc.perform(altaCruda("{\"code\":\"ORO\",\"name\":\"Oro\",\"color\":\"D4AF37\"}"))
+        .andExpect(status().isCreated());
+    mvc.perform(altaCruda("{\"code\":\"PLATA\",\"name\":\"Plata\",\"color\":\"C0C0C0\"}"))
+        .andExpect(status().isCreated());
+
+    mvc.perform(get("/api/v1/memberships").with(lector()))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.content[0].color").value("D4AF37"))
+        .andExpect(jsonPath("$.content[1].color").value("C0C0C0"));
+  }
+
+  @Test
+  @DisplayName("CA-SP-491 — el detalle trae el color de la consultada, de su superior y de su hija")
+  void detalleConColorDeLosTres() throws Exception {
+    mvc.perform(altaCruda("{\"code\":\"ORO\",\"name\":\"Oro\",\"color\":\"D4AF37\"}"))
+        .andExpect(status().isCreated());
+    String plata =
+        json.readTree(
+                mvc.perform(
+                        altaCruda("{\"code\":\"PLATA\",\"name\":\"Plata\",\"color\":\"C0C0C0\"}"))
+                    .andExpect(status().isCreated())
+                    .andReturn()
+                    .getResponse()
+                    .getContentAsString())
+            .get("id")
+            .asText();
+    mvc.perform(altaCruda("{\"code\":\"BRONCE\",\"name\":\"Bronce\",\"color\":\"CD7F32\"}"))
+        .andExpect(status().isCreated());
+
+    // Las tres a la vez: la pantalla de detalle las pinta juntas, y traer solo
+    // la consultada obligaría a pedir el listado entero para colorear dos
+    // vecinas que ya venían en la respuesta.
+    mvc.perform(get("/api/v1/memberships/" + plata).with(lector()))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.color").value("C0C0C0"))
+        .andExpect(jsonPath("$.parentMembership.color").value("D4AF37"))
+        .andExpect(jsonPath("$.childMembership.color").value("CD7F32"));
+  }
+
+  // ---------------------------------------------------------------------------
+
+  /**
+   * Alta con el cuerpo escrito a mano, sin pasar por {@link #alta}.
+   *
+   * <p>Las pruebas del color necesitan controlar el valor exacto que viaja —o su ausencia—, y el
+   * helper general lo genera por su cuenta para no chocar con {@code uq_memberships_color}.
+   */
+  private org.springframework.test.web.servlet.request.MockHttpServletRequestBuilder altaCruda(
+      String cuerpo) {
+    return post("/api/v1/memberships")
+        .with(admin())
+        .contentType(MediaType.APPLICATION_JSON)
+        .content(cuerpo);
+  }
 
   private RequestPostProcessor admin() {
     return user(UUID.randomUUID().toString())
@@ -605,16 +749,17 @@ class MembershipsIT extends IntegrationTestBase {
 
   private org.springframework.test.web.servlet.request.MockHttpServletRequestBuilder alta(
       String code, String name, String hija) {
+    String color = colorNuevo();
     String cuerpo =
         hija == null
             ? """
-              {"code":"%s","name":"%s"}
+              {"code":"%s","name":"%s","color":"%s"}
               """
-                .formatted(code, name)
+                .formatted(code, name, color)
             : """
-              {"code":"%s","name":"%s","childMembershipId":"%s"}
+              {"code":"%s","name":"%s","color":"%s","childMembershipId":"%s"}
               """
-                .formatted(code, name, hija);
+                .formatted(code, name, color, hija);
     return post("/api/v1/memberships")
         .with(admin())
         .contentType(MediaType.APPLICATION_JSON)

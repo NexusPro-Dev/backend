@@ -571,8 +571,8 @@ class UserConcurrencyIT extends IntegrationTestBase {
     UUID id = UUID.randomUUID();
     jdbc.update(
         """
-        INSERT INTO memberships (id, code, name, level, parent_membership_id)
-        VALUES (?, 'BRONCE', 'Bronce', 1, NULL)
+        INSERT INTO memberships (id, code, name, level, parent_membership_id, color)
+        VALUES (?, 'BRONCE', 'Bronce', 1, NULL, 'CD7F32')
         """,
         id);
     return id.toString();

@@ -8,6 +8,7 @@
 | Autor | Responsable técnico |
 | Aprobada por | Responsable técnico |
 | Fecha de aprobación | 21-08-2026 |
+| Enmendada el | 26-08-2026 — ver §15 |
 
 ---
 
@@ -62,7 +63,7 @@ La cadena **no se pagina**. Partir un orden lineal entre páginas destruye justa
 
 | Dato | Descripción |
 |---|---|
-| Membresías | Código, nombre, descripción y nivel de cada una, en orden de jerarquía, en una única colección |
+| Membresías | Código, nombre, descripción, **color** y nivel de cada una, en orden de jerarquía, en una única colección |
 
 ## 7. Precondiciones y postcondiciones
 
@@ -105,6 +106,7 @@ Ninguna. La búsqueda es opcional y un texto sin coincidencias produce una colec
 | `CA-SP-122` | El sistema devuelve una colección vacía, y no un error, cuando no hay membresías |
 | `CA-SP-123` | El orden devuelto refleja el reordenamiento tras insertar una membresía intermedia |
 | `CA-SP-124` | El sistema rechaza la consulta a un actor sin el permiso de lectura de membresías |
+| `CA-SP-490` | Cada membresía del listado trae su `color`, en mayúsculas y sin `#`, de modo que la interfaz pueda pintar la cadena entera con una sola llamada |
 
 ## 13. Casos límite
 
@@ -120,3 +122,12 @@ Ninguna. Las dos se resolvieron el 21-08-2026, antes de aprobar la especificaci�
 |---|---|---|
 | 1 | ¿Tiene sentido paginar? | **No se pagina.** Es el caso más claro de los tres catálogos que se decidieron a la vez —con `RF-SP-010` y `RF-SP-021`—: aquí la información *es* el orden, y partirlo entre páginas destruye lo que se viene a consultar. Los niveles de membresía son unos pocos y la respuesta completa es pequeña |
 | 2 | ¿Cuántas personas tienen cada membresía? | **No.** En `RF-SP-003` sí se aceptó el conteo de usuarios por rol, porque allí decidía si el rol podía desactivarse o eliminarse. Una membresía ni se elimina ni se desactiva (`RN-SP-008`), de modo que el conteo no condiciona ninguna decisión que se pueda tomar desde aquí. Se responde desde el lado del usuario y lo pedirá el requerimiento que lo necesite |
+
+---
+
+## 15. Control de cambios
+
+| Versión | Fecha | Cambio | Responsable |
+|---|---|---|---|
+| 0.2.0 | 26-08-2026 | **El listado devuelve el `color` de cada membresía** (`RN-SP-024`), con `CA-SP-490`. Es el endpoint que hace útil al campo: con la cadena completa en una sola llamada, la interfaz pinta cualquier nivel sin volver a preguntar, y ninguna pantalla necesita inventarse un color de reserva. | Responsable técnico |
+| 0.1.0 | 21-08-2026 | Redacción inicial, aprobada en su compuerta. | Responsable técnico |

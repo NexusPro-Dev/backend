@@ -408,6 +408,9 @@
           "code" : {
             "type" : "string"
           },
+          "color" : {
+            "type" : "string"
+          },
           "description" : {
             "type" : "string"
           },
@@ -517,6 +520,9 @@
           "code" : {
             "type" : "string"
           },
+          "color" : {
+            "type" : "string"
+          },
           "description" : {
             "type" : "string"
           },
@@ -562,6 +568,9 @@
           "code" : {
             "type" : "string"
           },
+          "color" : {
+            "type" : "string"
+          },
           "createdAt" : {
             "format" : "date-time",
             "type" : "string"
@@ -594,6 +603,9 @@
       "Neighbor" : {
         "properties" : {
           "code" : {
+            "type" : "string"
+          },
+          "color" : {
             "type" : "string"
           },
           "id" : {
@@ -962,6 +974,11 @@
             "pattern" : "^[A-Z][A-Z0-9_]*$",
             "type" : "string"
           },
+          "color" : {
+            "minLength" : 1,
+            "pattern" : "^[0-9a-fA-F]{6}$",
+            "type" : "string"
+          },
           "description" : {
             "maxLength" : 500,
             "minLength" : 0,
@@ -973,7 +990,7 @@
             "type" : "string"
           }
         },
-        "required" : [ "code", "name" ],
+        "required" : [ "code", "color", "name" ],
         "type" : "object"
       },
       "RegisterUserRequest" : {

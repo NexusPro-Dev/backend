@@ -511,12 +511,13 @@ class UserMembershipIT extends IntegrationTestBase {
   private String crearMembresia(String codigo, String nombre, int nivel, String superior) {
     UUID id = UUID.randomUUID();
     jdbc.update(
-        "INSERT INTO memberships (id, code, name, parent_membership_id, level)"
-            + " VALUES (?, ?, ?, ?::uuid, ?)",
+        "INSERT INTO memberships (id, code, name, parent_membership_id, level, color)"
+            + " VALUES (?, ?, ?, ?::uuid, ?, upper(lpad(to_hex(? * 4919), 6, '0')))",
         id,
         codigo,
         nombre,
         superior,
+        nivel,
         nivel);
     return id.toString();
   }

@@ -773,7 +773,8 @@ class UserRolesIT extends IntegrationTestBase {
   private String crearMembresia() {
     UUID id = UUID.randomUUID();
     jdbc.update(
-        "INSERT INTO memberships (id, code, name, parent_membership_id, level) VALUES (?, 'ORO', 'Oro', NULL, 1)",
+        "INSERT INTO memberships (id, code, name, parent_membership_id, level, color)"
+            + " VALUES (?, 'ORO', 'Oro', NULL, 1, 'D4AF37')",
         id);
     return id.toString();
   }

@@ -13,4 +13,4 @@ import java.util.UUID;
  * una cadena bien formada el de la superior es siempre {@code level - 1} y el de la hija {@code
  * level + 1}; devolverlos igualmente es lo que hace la incoherencia visible en lugar de invisible.
  */
-public record MembershipNeighborItem(UUID id, String code, String name, int level) {}
+public record MembershipNeighborItem(UUID id, String code, String name, int level, String color) {}

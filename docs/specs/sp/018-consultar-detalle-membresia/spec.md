@@ -8,6 +8,7 @@
 | Autor | Responsable técnico |
 | Aprobada por | Responsable técnico |
 | Fecha de aprobación | 21-08-2026 |
+| Enmendada el | 26-08-2026 — ver §15 |
 
 ---
 
@@ -56,7 +57,7 @@ Antes de insertar una membresía nueva hay que saber entre qué dos niveles va a
 
 | Dato | Descripción |
 |---|---|
-| Membresía | Código, nombre, descripción y nivel |
+| Membresía | Código, nombre, descripción, **color** y nivel |
 | Membresía superior | La de mayor nivel a la que está sujeta, vacía en la superior |
 | Membresía hija | La que queda inmediatamente por debajo, vacía en la inferior |
 
@@ -114,6 +115,7 @@ Antes de insertar una membresía nueva hay que saber entre qué dos niveles va a
 | `CA-SP-127` | El sistema devuelve la hija vacía al consultar la membresía inferior |
 | `CA-SP-128` | El sistema informa que la membresía no existe cuando el identificador no corresponde a ninguna |
 | `CA-SP-129` | El sistema rechaza la consulta a un actor sin el permiso de lectura de membresías |
+| `CA-SP-491` | El detalle trae el `color` de la membresía consultada, y **también el de su superior y el de su hija**: son las tres que la pantalla de detalle pinta a la vez |
 
 ## 13. Casos límite
 
@@ -129,3 +131,12 @@ Ninguna. Las dos se resolvieron el 21-08-2026, antes de aprobar la especificaci�
 |---|---|---|
 | 1 | ¿Cadena completa o solo el vecino inmediato? | **Solo los vecinos inmediatos.** Pintar la jerarquía entera ya no cuesta varias consultas: al resolverse que `RF-SP-017` devuelve la cadena completa sin paginar, una sola llamada la trae toda. Este detalle responde la otra pregunta, la de un punto concreto —entre qué dos niveles va a quedar la nueva—, y para eso bastan los dos vecinos |
 | 2 | ¿Se accede por identificador o también por código? | **Solo por identificador**, misma resolución y mismo motivo que en `RF-SP-015` y `RF-SP-003`: dos formas de direccionar el mismo recurso obligan a distinguir en cada petición cuál es cuál. El código es la vía para *encontrar* la membresía, mediante la búsqueda de `RF-SP-017` |
+
+---
+
+## 15. Control de cambios
+
+| Versión | Fecha | Cambio | Responsable |
+|---|---|---|---|
+| 0.2.0 | 26-08-2026 | **El detalle devuelve el `color`** (`RN-SP-024`), con `CA-SP-491`. Lo devuelve para las tres membresías que la respuesta ya trae —la consultada, su superior y su hija—, y no solo para la consultada: la pantalla de detalle las pinta juntas, y traer una sola obligaría a pedir el listado entero para colorear dos vecinas que ya venían en la respuesta. | Responsable técnico |
+| 0.1.0 | 21-08-2026 | Redacción inicial, aprobada en su compuerta. | Responsable técnico |

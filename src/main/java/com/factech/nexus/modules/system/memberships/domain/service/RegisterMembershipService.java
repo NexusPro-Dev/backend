@@ -77,7 +77,7 @@ public class RegisterMembershipService {
   public MembershipResponse register(RegisterMembershipCommand comando) {
     List<ChainLink> vigente = membresias.loadChainForUpdate();
 
-    verificarUnicidad(comando.code(), comando.name());
+    verificarUnicidad(comando.code(), comando.name(), comando.color());
 
     MembershipInsertion posicion =
         MembershipChain.of(vigente).insertAbove(comando.childMembershipId());
@@ -96,6 +96,7 @@ public class RegisterMembershipService {
                 comando.code(),
                 comando.name(),
                 comando.description(),
+                comando.color(),
                 posicion,
                 OffsetDateTime.now(reloj)));
 
@@ -114,7 +115,7 @@ public class RegisterMembershipService {
    * uq_memberships_name}, y su violación la traduce el adaptador. La restricción decide; esto solo
    * redacta.
    */
-  private void verificarUnicidad(String code, String name) {
+  private void verificarUnicidad(String code, String name, String color) {
     if (membresias.existsCode(code)) {
       throw new BusinessRuleException(
           "EX-001",
@@ -126,6 +127,16 @@ public class RegisterMembershipService {
           "EX-001",
           "Ya existe una membresía con ese nombre.",
           List.of(new FieldError("name", "EX-001", "Ya existe una membresía con ese nombre.")));
+    }
+    // El color se compara ya normalizado, igual que lo hará `uq_memberships_color`:
+    // el dominio lo pasa a mayúsculas al escribir, y comparar aquí el texto en
+    // crudo dejaría pasar `1e88e5` contra un `1E88E5` existente para que el
+    // índice lo rechazara después como fallo de integridad.
+    if (color != null && membresias.existsColor(color.trim().toUpperCase(java.util.Locale.ROOT))) {
+      throw new BusinessRuleException(
+          "EX-001",
+          "Ya existe una membresía con ese color.",
+          List.of(new FieldError("color", "EX-001", "Ya existe una membresía con ese color.")));
     }
   }
 
@@ -150,6 +161,7 @@ public class RegisterMembershipService {
     estadoInicial.put("code", nueva.getCode());
     estadoInicial.put("name", nueva.getName());
     estadoInicial.put("description", nueva.getDescription());
+    estadoInicial.put("color", nueva.getColor());
     estadoInicial.put(
         "parent_membership_id",
         nueva.getParentMembershipId() == null ? null : nueva.getParentMembershipId().toString());

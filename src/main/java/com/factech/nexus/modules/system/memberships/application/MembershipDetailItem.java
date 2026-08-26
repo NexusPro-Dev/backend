@@ -14,6 +14,7 @@ public record MembershipDetailItem(
     String code,
     String name,
     String description,
+    String color,
     int level,
     MembershipNeighborItem parent,
     MembershipNeighborItem child) {}

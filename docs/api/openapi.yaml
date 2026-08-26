@@ -2973,11 +2973,16 @@ components:
           type: string
           maxLength: 500
           minLength: 0
+        color:
+          type: string
+          minLength: 1
+          pattern: "^[0-9a-fA-F]{6}$"
         childMembershipId:
           type: string
           format: uuid
       required:
       - code
+      - color
       - name
     MembershipResponse:
       type: object
@@ -2990,6 +2995,8 @@ components:
         name:
           type: string
         description:
+          type: string
+        color:
           type: string
         level:
           type: integer
@@ -3410,6 +3417,8 @@ components:
           type: string
         description:
           type: string
+        color:
+          type: string
         level:
           type: integer
           format: int32
@@ -3438,6 +3447,8 @@ components:
           type: string
         description:
           type: string
+        color:
+          type: string
         level:
           type: integer
           format: int32
@@ -3458,6 +3469,8 @@ components:
         level:
           type: integer
           format: int32
+        color:
+          type: string
     ListCurrenciesRequest:
       type: object
       properties:

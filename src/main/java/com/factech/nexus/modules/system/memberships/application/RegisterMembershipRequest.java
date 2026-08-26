@@ -33,6 +33,13 @@ public record RegisterMembershipRequest(
         String name,
     @Size(max = 500, message = "VAL-002: La descripción no puede exceder 500 caracteres.")
         String description,
+    @NotBlank(message = "VAL-007: El color de la membresía es obligatorio.")
+        @Pattern(
+            regexp = "^[0-9a-fA-F]{6}$",
+            message =
+                "VAL-008: El color admite exactamente seis dígitos hexadecimales, sin el carácter"
+                    + " #.")
+        String color,
     UUID childMembershipId) {
 
   /**
@@ -45,9 +52,14 @@ public record RegisterMembershipRequest(
   public RegisterMembershipRequest {
     name = name == null ? null : name.trim();
     description = description == null ? null : description.trim();
+    // El color se recorta y se pasa a mayúsculas antes de validar: sin el recorte,
+    // un espacio al final haría fallar el patrón por un motivo que el mensaje no
+    // explica, y sin las mayúsculas el `@Pattern` tendría que admitir las dos cajas
+    // y la unicidad dependería de cuál escribiera cada quien.
+    color = color == null ? null : color.trim().toUpperCase(java.util.Locale.ROOT);
   }
 
   public RegisterMembershipCommand toCommand() {
-    return new RegisterMembershipCommand(code, name, description, childMembershipId);
+    return new RegisterMembershipCommand(code, name, description, color, childMembershipId);
   }
 }

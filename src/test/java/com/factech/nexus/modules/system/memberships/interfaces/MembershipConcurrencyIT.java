@@ -53,6 +53,20 @@ import org.springframework.test.web.servlet.request.RequestPostProcessor;
 @AutoConfigureMockMvc
 class MembershipConcurrencyIT extends IntegrationTestBase {
 
+  /**
+   * Un color distinto en cada alta, porque `uq_memberships_color` no admite repetidos.
+   *
+   * <p>Importa especialmente aquí: la prueba del empate lanza dos altas con el MISMO código y
+   * nombre a la vez, y si compartieran color el `409` podría venir del color en lugar de venir de
+   * lo que se está probando.
+   */
+  private static final java.util.concurrent.atomic.AtomicInteger SECUENCIA_DE_COLOR =
+      new java.util.concurrent.atomic.AtomicInteger();
+
+  private static String colorNuevo() {
+    return String.format("%06X", SECUENCIA_DE_COLOR.incrementAndGet());
+  }
+
   @Autowired private MockMvc mvc;
   @Autowired private JdbcTemplate jdbc;
   @Autowired private ObjectMapper json;
@@ -182,8 +196,8 @@ class MembershipConcurrencyIT extends IntegrationTestBase {
                     () ->
                         jdbc.update(
                             """
-                            INSERT INTO memberships (id, code, name, parent_membership_id, level)
-                            VALUES (gen_random_uuid(), 'SEGUNDA_CIMA', 'Segunda cima', NULL, 99)
+                            INSERT INTO memberships (id, code, name, parent_membership_id, level, color)
+                            VALUES (gen_random_uuid(), 'SEGUNDA_CIMA', 'Segunda cima', NULL, 99, 'FF00FF')
                             """)))
         .as("se admitió una segunda membresía superior")
         .isInstanceOf(org.springframework.dao.DataIntegrityViolationException.class);
@@ -266,11 +280,12 @@ class MembershipConcurrencyIT extends IntegrationTestBase {
 
   private org.springframework.test.web.servlet.request.MockHttpServletRequestBuilder alta(
       String code, String name, String hija) {
+    String color = colorNuevo();
     String cuerpo =
         hija == null
-            ? "{\"code\":\"%s\",\"name\":\"%s\"}".formatted(code, name)
-            : "{\"code\":\"%s\",\"name\":\"%s\",\"childMembershipId\":\"%s\"}"
-                .formatted(code, name, hija);
+            ? "{\"code\":\"%s\",\"name\":\"%s\",\"color\":\"%s\"}".formatted(code, name, color)
+            : "{\"code\":\"%s\",\"name\":\"%s\",\"color\":\"%s\",\"childMembershipId\":\"%s\"}"
+                .formatted(code, name, color, hija);
     return post("/api/v1/memberships")
         .with(admin())
         .contentType(MediaType.APPLICATION_JSON)

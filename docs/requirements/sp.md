@@ -5,7 +5,7 @@
 | Módulo | `SP` — Sistema Principal |
 | Paquete | `modules/system` |
 | Prefijos de permiso | `roles:`, `permissions:`, `audit:`, `memberships:`, `currencies:`, `countries:`, `users:` |
-| Versión | 1.24.0 |
+| Versión | 1.25.0 |
 | Estado | **Aprobado** |
 | Responsable | Bonilla Diaz William Steven |
 | Fecha de creación | 20-08-2026 |
@@ -184,8 +184,15 @@ Reglas que no son transversales de seguridad y por tanto sí llevan el prefijo d
 | `RN-SP-006` | Membresía acotada por nivel | Al crear una membresía | Toda membresía está sujeta a una de mayor nivel; solo la membresía superior queda libre de ella | Alta |
 | `RN-SP-007` | Inserción en la cadena de membresías | Al crear una membresía | Se indica cuál es su membresía hija, si la hay, y el sistema reordena la jerarquía en consecuencia. Si no se indica ninguna, la nueva membresía queda en el extremo inferior de la cadena | Alta |
 | `RN-SP-008` | Membresías inmutables | Al editar o eliminar una membresía | La operación se rechaza. Solo se admite el reordenamiento derivado de `RN-SP-007`. **No llevan indicador de activo**: desactivar un eslabón dejaría un hueco en un orden lineal | Media |
+| `RN-SP-024` | La membresía declara su color | Al registrar una membresía | Toda membresía declara el **color con el que el frontend la pinta**: seis dígitos **hexadecimales sin `#`**, normalizados a mayúsculas. Es **obligatorio** y **único entre las membresías**. Obligatorio porque un color opcional obliga al navegador a inventarse uno de reserva, que es exactamente la decisión que este campo saca del frontend —y con dos pantallas eligiendo por su cuenta, el mismo nivel acaba pintado de dos maneras sin que nadie lo note hasta verlas juntas—. Único porque dos niveles del mismo color son indistinguibles justo en lo que el campo existe para distinguir; la unicidad atrapa el valor repetido y **no** dos tonos que un ojo humano no separa, y eso no lo arregla ninguna regla. **Consecuencia declarada:** `RN-SP-008` mantiene la membresía inmutable, de modo que **un color mal elegido no se puede corregir** — ver la nota que sigue a esta tabla | Media |
 | `RN-SP-009` | Países inmutables salvo su estado | Al editar o eliminar un país | La operación se rechaza. Lo único modificable es el indicador de país activo (`RF-SP-022`), que permite retirar de la circulación un alta equivocada sin borrar el registro | Media |
 | `RN-SP-010` | Monedas inmutables por API salvo su estado | Siempre | Las monedas no se crean, editan ni eliminan por la API. Lo único modificable es el indicador de moneda activa (`RF-SP-023`), y la moneda por defecto no puede desactivarse | Media |
+
+!!! warning "El color se elige una vez y no se corrige — hueco aceptado el 26-08-2026"
+
+    `RN-SP-024` añade a la membresía el primer campo **puramente estético** del módulo, y `RN-SP-008` la mantiene inmutable. La combinación tiene una consecuencia que conviene ver escrita antes de que la descubra alguien mirando la interfaz: **un color mal elegido —o simplemente feo— es permanente**, y la única salida es crear otra membresía, que reordena la cadena entera.
+
+    Se acepta a conciencia y **no** se abre hoy un requerimiento de corrección, por la misma razón que lo demás de la membresía es inmutable. Lo que sí queda fijada es **la condición para reabrirlo**: en cuanto haya que cambiar un color en un entorno con datos —un cambio de identidad visual, un color que no cumpla contraste, o una carga inicial hecha con valores de relleno—, se registra `RF-SP-043` «cambiar el color de una membresía» y con él la **primera excepción** a `RN-SP-008`, acotada a este campo por ser el único que no participa en ninguna regla del backend.
 
 !!! info "Sobre la inmutabilidad de los catálogos"
 
@@ -509,7 +516,7 @@ Devuelve un permiso con su recurso, acción, nombre y descripción legible.
 | Actor | Super Administrador, Administrador |
 | Permiso requerido | `memberships:create` |
 | Prioridad | Alta |
-| Reglas aplicables | `RN-SP-006`, `RN-SP-007` |
+| Reglas aplicables | `RN-SP-006`, `RN-SP-007`, `RN-SP-024` |
 | Depende de | — |
 | Tripleta | `docs/specs/sp/016-registrar-membresia/` |
 | Estado | Pendiente |
@@ -866,12 +873,17 @@ Su clave primaria es **compuesta** (`role_id`, `permission_id`), y es la excepci
 | `code` | `varchar(50)` | No | No | No | — | — |
 | `name` | `varchar(100)` | No | No | No | — | — |
 | `description` | `text` | No | No | Sí | — | — |
+| `color` | `varchar(6)` | No | No | No | — | — |
 | `parent_membership_id` | `uuid` | No | Sí | Sí | — | `memberships` |
 | `level` | `smallint` | No | No | No | — | — |
 | `created_at` | `timestamptz` | No | No | No | `now()` | — |
 | `updated_at` | `timestamptz` | No | No | No | `now()` | — |
 
 `parent_membership_id` apunta a la membresía **de mayor nivel** y es nulo solo en la superior (`RN-SP-006`). `level` materializa el orden para poder consultarlo y ordenarlo sin recorrer la cadena; se recalcula al insertar una membresía nueva (`RN-SP-007`).
+
+`color` es el color con el que el frontend pinta el nivel: **seis dígitos hexadecimales, sin `#` y en mayúsculas** (`RN-SP-024`). El `#` no se guarda porque es notación de CSS y no parte del valor; devolverlo obligaría a todo consumidor que no sea una hoja de estilos —una app móvil, un informe— a quitárselo. La normalización a mayúsculas ocurre **al escribir**, de modo que `1e88e5` y `1E88E5` no puedan convivir como dos filas distintas y la unicidad signifique algo.
+
+Se declara `varchar(6)` y no `char(6)` porque `char(n)` **rellena con espacios**: un valor de cinco dígitos quedaría almacenado con seis caracteres, y toda la comprobación pasaría a depender de la expresión regular en lugar de apoyarse también en la longitud.
 
 !!! important "La cadena de membresías no es un árbol"
 
@@ -964,6 +976,8 @@ Declaradas en la base de datos, no solo en Java (Art. V.6):
 | `uq_memberships_level` | `memberships(level)` **diferida** — en un orden lineal cada posición es única. Diferida porque `SET level = level + 1` colisiona consigo mismo dentro de la misma sentencia |
 | `ck_memberships_level_positive` | `memberships(level >= 1)` — el nivel `1` es la cima |
 | `ck_memberships_parent_not_self` | `memberships(parent_membership_id <> id)` |
+| `ck_memberships_color_format` | `memberships(color ~ '^[0-9A-F]{6}$')` — seis dígitos hexadecimales en mayúsculas, sin `#` (`RN-SP-024`). La normalización a mayúsculas la hace el dominio **antes** de escribir; la restricción rechaza lo que llegue por cualquier otra vía, incluida una migración |
+| `uq_memberships_color` | `memberships(color)` — dos niveles del mismo color son indistinguibles justo en lo que el campo existe para distinguir (`RN-SP-024`). Atrapa el valor repetido y **no** dos tonos que un ojo humano no separa |
 | `uq_currencies_code` | `currencies(code)` |
 | `uq_currencies_name` | `currencies(name)` — dos filas con el mismo nombre y distinto código serían indistinguibles en cualquier selector |
 | `ck_currencies_code_format` | `currencies(code ~ '^[A-Z]{3}$')` — ISO 4217. En el esquema y no en el DTO, porque el único punto de entrada de esta tabla es una migración |
@@ -1141,3 +1155,4 @@ La crea `RF-SP-024` (`V19__create_user_roles.sql`), porque el alta ya escribe as
 | 1.22.0 | 24-08-2026 | **Regla nueva `RN-SP-023`: todo usuario tiene al menos un rol.** El estado «usuario sin ningún rol» deja de existir: una cuenta así puede autenticarse y no puede hacer absolutamente nada, de modo que solo servía para reservar un nombre de usuario y un correo — que `RN-SP-016` no libera nunca. Se exige en **las dos puertas**, porque cerrar solo una deja el invariante sin sostener: `RF-SP-024` pasa `roles` de opcional a **obligatorio** y `RF-SP-031` rechaza quitar el último. **La regla mira la asignación, no el estado del rol**, y esa acotación es deliberada: exigir un rol *activo* haría que desactivar o eliminar un rol \(`RF-SP-007`, `RF-SP-009`\) pudiera violarla **a distancia**, sobre personas que nadie estaba tocando, y dejaría operaciones del catálogo bloqueadas por el estado de terceros; que un rol inactivo no conceda nada ya lo resuelve `RN-SEG-002`. **No es expresable en el esquema** —«al menos una fila en `user_roles`» exige disparador o restricción diferida—, de modo que vive en el dominio y se verifica dentro de la transacción, igual que `RN-SP-001`. **Enmienda seis especificaciones aprobadas** \(Art. I.7\): `RF-SP-024` retira `FA-001`, estrena `EX-008` e invierte `CA-SP-197`; `RF-SP-031` retira `FA-002`, estrena `EX-006` e invierte `CA-SP-269`; y `RF-SP-025`, `RF-SP-026`, `RF-SP-034` y `RF-SP-039` reencuadran su flujo de «sin roles» como «sin **permisos efectivos**», que sigue siendo alcanzable con todos los roles inactivos y es lo único que queda de aquel caso. | Responsable técnico |
 | 1.23.0 | 26-08-2026 | **`RF-SP-040` deja de ser el requerimiento sin implementar del módulo**, al cerrarse **D-23** con Resend. §10 gana `password_reset_permits` en la tabla de entidades y **§10.13** con sus campos. Tres cosas quedan escritas ahí porque el esquema las sostiene y el dominio no podría: **solo el hash del permiso**, nunca su valor, igual que `refresh_tokens`; **dos columnas de invalidez y no un estado** —`consumed_at` dice que alguien completó el flujo y `superseded_at` que pidió otro, y una sola columna las haría indistinguibles justo donde la auditoría necesita separarlas—; y el **único parcial `uq_password_reset_permits_vigente`**, que declara en el esquema que solo vive un permiso a la vez: escrito únicamente en el caso de uso, dos solicitudes concurrentes dejarían **dos vías de entrada abiertas** a la misma cuenta. La migración es **`V37` y no `V29`** como decía el plan: ese número quedó tomado al aplicarse `V13` a `V36` mientras la tripleta esperaba la decisión. Se corrige además la numeración duplicada de esta misma tabla: la fila de `RN-SP-023` figuraba como `1.20.0`, número que ya usaba la enmienda de membresías, y pasa a `1.22.0`. | Responsable técnico |
 | 1.24.0 | 26-08-2026 | **§6.1 se sincroniza con la matriz de trazabilidad.** Las cuarenta y dos filas figuraban en `Pendiente` —el estado de «registrado, sin `spec.md`»— cuando los cuarenta y dos tienen tripleta aprobada y endpoint funcionando desde el 26-08-2026: pasan a **`En desarrollo`**. La columna llevaba desde el 20-08-2026 sin tocarse, de modo que el catálogo del módulo afirmaba que no existía nada de lo que ya estaba construido. Se añade además de dónde sale ese dato: la **autoridad es [`requirements.md` §4](../requirements.md#4-matriz-de-trazabilidad)** y aquí se copia, para que la próxima divergencia se resuelva sin tener que averiguar cuál de las dos tablas manda. Ninguno pasa a `Implementado`: el Art. XVI exige Pull Request aprobado e integrado y no hay ninguno. | Responsable técnico |
+| 1.25.0 | 26-08-2026 | **La membresía gana su color** (`RN-SP-024`), por decisión del responsable del proyecto: seis dígitos **hexadecimales sin `#`**, normalizados a mayúsculas, con los que el frontend pinta el nivel. §10.4 incorpora la columna `color` —`varchar(6)` y no `char(6)`, porque `char(n)` rellena con espacios y dejaría toda la comprobación en manos de la expresión regular— y §10.8 sus dos restricciones: `ck_memberships_color_format` y `uq_memberships_color`. Es **obligatorio**, porque un color opcional obliga al navegador a inventarse uno de reserva, que es exactamente la decisión que este campo saca del frontend; y **único**, porque dos niveles del mismo color son indistinguibles justo en lo que el campo existe para distinguir — con la salvedad escrita de que la unicidad atrapa el valor repetido y no dos tonos que un ojo humano no separa. **Queda declarado un hueco que se acepta a conciencia**: `RN-SP-008` mantiene la membresía inmutable, de modo que **un color mal elegido no se corrige**, y §5.1 fija la condición para reabrirlo como `RF-SP-043`. Enmienda las tripletas de `RF-SP-016`, `RF-SP-017` y `RF-SP-018`, ya aprobadas e implementadas (Art. I.7), y obliga a la migración `V38`. | Responsable técnico |
