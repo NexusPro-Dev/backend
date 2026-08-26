@@ -4,10 +4,10 @@
 |---|---|
 | Requerimiento | `RF-PM-006` |
 | Módulo | `PM` — Productos y Mercadeo |
-| Estado | **Borrador** |
+| Estado | **Aprobada** |
 | Autor | Responsable técnico |
-| Aprobada por | — |
-| Fecha de aprobación | — |
+| Aprobada por | Responsable del proyecto |
+| Fecha de aprobación | 26-08-2026 |
 
 ---
 
@@ -32,6 +32,7 @@ Desactivar sirve para dejar de vender algo temporalmente (`RF-PM-005`). Eliminar
 ### 4.1 Incluye
 
 - Retirar un producto exigiendo un motivo escrito.
+- Retirar un producto **en cualquier estado**, activo o inactivo, sin exigir desactivarlo antes.
 - Dejarlo fuera de la oferta y fuera del cómputo de `RN-PM-004`, liberando su destino.
 - Registrar la eliminación con el motivo y el estado completo de lo retirado.
 
@@ -133,6 +134,8 @@ Desactivar sirve para dejar de vender algo temporalmente (`RF-PM-005`). Eliminar
 | `CA-PM-055` | El sistema rechaza retirar un producto ya retirado |
 | `CA-PM-056` | El sistema responde que el recurso no existe ante un identificador que no corresponde a ningún producto |
 | `CA-PM-057` | El sistema rechaza el retiro a un actor sin el permiso de eliminación de productos |
+| `CA-PM-086` | El sistema retira un producto **activo** sin exigir desactivarlo antes, y el registro de eliminación conserva que estaba activo |
+| `CA-PM-087` | El sistema **no emite evento de seguridad** al retirar: un producto no concede privilegios, y el catálogo de `security.md` §8.1 es cerrado |
 
 ## 13. Casos límite
 
@@ -144,10 +147,19 @@ Desactivar sirve para dejar de vender algo temporalmente (`RF-PM-005`). Eliminar
 
 ## 14. Preguntas abiertas
 
-| # | Pregunta | Responsable | Estado |
-|---|---|---|---|
-| 1 | **¿Se puede retirar un producto activo, o hay que desactivarlo primero?** Exigir desactivar primero convierte un descuido en dos pasos deliberados —y retirar es irreversible—. Permitirlo directo evita una fricción que nadie agradece cuando el producto es un duplicado creado hace un minuto | Responsable del proyecto | **Abierta** |
-| 2 | **El día que existan compras, ¿se podrá retirar un producto ya vendido?** Retirarlo no borra lo vendido, pero sí cambia lo que ve quien consulte su compra. La alternativa —prohibirlo— dejaría el catálogo lleno de productos que nadie puede quitar | Responsable del proyecto | **Abierta** |
-| 3 | **¿El retiro emite además evento de seguridad?** No concede ni quita privilegios, de modo que por el catálogo de `security.md` §8.1 no correspondería. Se registra porque retirar algo del catálogo comercial es la operación más destructiva del módulo | Responsable técnico | **Abierta** |
+Ninguna. Las tres se cerraron el 26-08-2026: dos por decisión y una por coherencia con lo ya resuelto.
 
-**Una spec con preguntas abiertas no puede aprobarse.** Esta sección debe quedar vacía antes de pasar la compuerta.
+| # | Pregunta | Resolución |
+|---|---|---|
+| 1 | ¿Se puede retirar un producto activo, o hay que desactivarlo primero? | **Se retira directamente.** El motivo obligatorio ya obliga a detenerse y escribir por qué, que es la barrera que se buscaba. Y hay una razón más fuerte para no exigir el paso previo: `CA-PM-052` conserva el estado que el producto tenía al retirarse, para que el registro diga **si estaba a la venta**. Exigir desactivar antes haría que **todos** los retiros dijeran «inactivo», y ese dato dejaría de significar nada — la salvaguarda habría destruido la evidencia que protege |
+| 2 | El día que existan compras, ¿se podrá retirar un producto ya vendido? | **Sí.** `RN-PM-010` mantiene la fila y `RF-PM-004` dejó decidido que **cada compra guarda el importe que pagó**, de modo que retirar no rompe ninguna factura. **Lo que sí cambia queda declarado**: quien consulte una compra suya verá que el producto está retirado. La alternativa —prohibirlo— llenaría el catálogo de productos que nadie puede quitar en cuanto se venda uno solo, y difuminaría la diferencia entre desactivado y retirado |
+| 3 | ¿El retiro emite además evento de seguridad? | **No**, por coherencia con lo ya resuelto: `RF-PM-001` decidió que el alta tampoco lo emite, porque un producto **no concede privilegios sobre el sistema** y el catálogo de `security.md` §8.1 es cerrado. Es la misma postura que `RF-SP-016` tomó con las membresías. Lo que sí queda —y es lo que se consultará— es el **registro de eliminación** con su motivo y la instantánea completa, que es evidencia más específica que un evento de seguridad genérico |
+
+---
+
+## 15. Control de cambios
+
+| Versión | Fecha | Cambio | Responsable |
+|---|---|---|---|
+| 0.2.0 | 26-08-2026 | **Aprobada.** Un producto se retira **en cualquier estado**, sin exigir desactivarlo antes: el motivo obligatorio ya es la barrera, y exigir el paso previo haría que todos los registros de eliminación dijeran «inactivo», destruyendo justo el dato que `CA-PM-052` conserva. **Un producto vendido sí se podrá retirar**, porque la fila permanece y la compra guardará su propio importe; queda declarado que quien consulte su compra verá el producto retirado. **No hay evento de seguridad**, por coherencia con `RF-PM-001`. Dos criterios nuevos, `CA-PM-086` y `CA-PM-087`. | Responsable del proyecto |
+| 0.1.0 | 26-08-2026 | Redacción inicial, con tres preguntas abiertas. | Responsable técnico |

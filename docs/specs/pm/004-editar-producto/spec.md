@@ -4,10 +4,10 @@
 |---|---|
 | Requerimiento | `RF-PM-004` |
 | Módulo | `PM` — Productos y Mercadeo |
-| Estado | **Borrador** |
+| Estado | **Aprobada** |
 | Autor | Responsable técnico |
-| Aprobada por | — |
-| Fecha de aprobación | — |
+| Aprobada por | Responsable del proyecto |
+| Fecha de aprobación | 26-08-2026 |
 
 ---
 
@@ -19,9 +19,9 @@ Corregir lo que se puede corregir de un producto, sin reescribir lo que ya se ve
 
 Un producto se equivoca de nombre, se le escapa una falta en la descripción o cambia de precio. Sin este requerimiento la única salida sería retirarlo y crear otro, lo que rompe la referencia de todo lo que apunte al producto anterior.
 
-**Lo que no se puede corregir es lo que define qué se compró.** El **tipo** y la **membresía destino** quedan fuera: cambiarlos convierte lo comprado en otra cosa, y quien pagó por subir a un nivel se encontraría con un derecho distinto del que adquirió. Quien necesite otro destino registra otro producto y retira el anterior.
+**Lo que no se puede corregir es lo que define qué se compró.** El **tipo**, el **código** y la **membresía destino** quedan fuera: cambiarlos convierte lo comprado en otra cosa, y quien pagó por subir a un nivel se encontraría con un derecho distinto del que adquirió. Quien necesite otro destino registra otro producto y retira el anterior.
 
-**El precio es el caso delicado.** Cambiarlo no reescribe nada mientras no existan ventas, y el día que existan tendrá que decidirse qué precio recuerda cada una. Este requerimiento no lo resuelve: lo declara.
+**El precio se puede cambiar siempre, y eso obliga a la compra futura.** Resuelto el 26-08-2026: corregir el precio nunca reescribe lo vendido, porque **cada compra guardará el importe que se pagó** en el momento de comprar. Es una condición que este requerimiento **impone a un módulo que todavía no existe**, y por eso queda escrita aquí y en `requirements/pm.md` §1.4: si la compra leyera el precio del producto, esta operación pasaría a reescribir el pasado sin que nadie la hubiera tocado.
 
 ## 3. Actores
 
@@ -39,7 +39,8 @@ Un producto se equivoca de nombre, se le escapa una falta en la descripción o c
 
 ### 4.2 No incluye
 
-- **Cambiar el tipo** (`RN-PM-001`) ni **la membresía destino**. Ver §2.
+- **Cambiar el tipo** (`RN-PM-001`), **el código** (`RN-PM-013`) ni **la membresía destino**. Ver §2.
+- **Exigir un motivo del cambio.** El Art. V.13 solo lo obliga en las eliminaciones, y la auditoría ya registra qué cambió, de cuánto a cuánto, quién y cuándo. Resuelto el 26-08-2026.
 - **Activar o desactivar**, que es `RF-PM-005`: el estado no es un dato comercial, es una decisión de publicación.
 - **Retirar el producto**, que es `RF-PM-006`.
 
@@ -48,6 +49,7 @@ Un producto se equivoca de nombre, se le escapa una falta en la descripción o c
 | ID | Regla | Origen |
 |---|---|---|
 | `RN-PM-001` | Dos tipos, y el tipo es inmutable | `requirements/pm.md` §5.1 |
+| `RN-PM-013` | El código no se libera nunca, y es inmutable | `requirements/pm.md` §5.1 |
 | `RN-PM-005` | Nombre único entre los vivos | `requirements/pm.md` §5.1 |
 | `RN-PM-006` | El precio es mayor que cero | `requirements/pm.md` §5.1 |
 | `RN-PM-007` | El precio respeta los decimales de su moneda | `requirements/pm.md` §5.1 |
@@ -128,9 +130,9 @@ Un producto se equivoca de nombre, se le escapa una falta en la descripción o c
 **Condición:** la moneda nueva no existe o está desactivada.
 **Respuesta del sistema:** rechaza la corrección entera.
 
-### EX-004 — Se intenta cambiar el tipo o el destino
+### EX-004 — Se intenta cambiar el tipo, el código o el destino
 
-**Condición:** la petición trae el tipo o la membresía destino.
+**Condición:** la petición trae el tipo, el código o la membresía destino.
 **Respuesta del sistema:** **rechaza la petición**, y no ignora los campos en silencio. Ignorarlos haría creer al actor que el cambio se aplicó.
 
 ## 11. Validaciones
@@ -142,7 +144,7 @@ Un producto se equivoca de nombre, se le escapa una falta en la descripción o c
 | `VAL-003` | Longitud del nombre y de la descripción | El valor excede la longitud admitida. |
 | `VAL-004` | Precio mayor que cero | El precio debe ser mayor que cero. |
 | `VAL-005` | Decimales del precio según su moneda | El precio no admite más decimales que los de su moneda. |
-| `VAL-006` | El tipo y el destino no se admiten | El tipo y la membresía destino no se pueden modificar. |
+| `VAL-006` | El tipo, el código y el destino no se admiten | El tipo, el código y la membresía destino no se pueden modificar. |
 
 ## 12. Criterios de aceptación
 
@@ -151,13 +153,15 @@ Un producto se equivoca de nombre, se le escapa una falta en la descripción o c
 | `CA-PM-030` | El sistema corrige el nombre, la descripción, el precio y la moneda, y conserva el identificador, el tipo y el destino |
 | `CA-PM-031` | El sistema aplica **solo los campos enviados** y deja intactos los ausentes |
 | `CA-PM-032` | El sistema distingue un campo **ausente** de uno enviado **vacío**: vaciar la descripción la borra, y enviar el nombre vacío se rechaza |
-| `CA-PM-033` | El sistema rechaza la petición que trae el tipo o la membresía destino, en lugar de ignorarlos |
+| `CA-PM-033` | El sistema rechaza la petición que trae el tipo, el código o la membresía destino, en lugar de ignorarlos |
 | `CA-PM-034` | El sistema rechaza un nombre que ya tiene otro producto vivo, y **no aplica ninguno** de los demás cambios enviados |
 | `CA-PM-035` | El sistema rechaza una moneda inactiva y no aplica ningún cambio |
 | `CA-PM-036` | El sistema rechaza corregir un producto retirado |
 | `CA-PM-037` | El sistema registra en la auditoría de cambios **solo los campos que cambiaron**, cada uno con su valor anterior y el nuevo |
 | `CA-PM-038` | El sistema **no registra evento** cuando la petición no cambia nada |
 | `CA-PM-039` | El sistema rechaza la corrección a un actor sin el permiso de modificación de productos |
+| `CA-PM-083` | El sistema **corrige un producto inactivo**, que es el estado en el que nace: sin esto no habría forma de ponerle la descripción que `RF-PM-005` exige para publicarlo |
+| `CA-PM-084` | El sistema **no exige motivo** para corregir, ni siquiera al cambiar el precio |
 
 ## 13. Casos límite
 
@@ -169,11 +173,20 @@ Un producto se equivoca de nombre, se le escapa una falta en la descripción o c
 
 ## 14. Preguntas abiertas
 
-| # | Pregunta | Responsable | Estado |
-|---|---|---|---|
-| 1 | **¿Se puede cambiar el precio de un producto que ya se vendió?** Hoy no hay ventas y la respuesta es «sí, sin consecuencias». El día que existan, o la venta guarda el precio que pagó —y entonces esto sigue siendo libre— o lo lee del producto —y entonces cambiar el precio reescribe el pasado—. Decidirlo ahora es lo que evita tener que migrar datos después | Responsable del proyecto | **Abierta** |
-| 2 | **¿Cambiar el precio exige motivo?** El Art. V.13 solo lo obliga en las eliminaciones. Un precio es una decisión comercial que alguien querrá poder explicar; exigirlo en cada corrección de una coma sería ruido | Responsable del proyecto | **Abierta** |
-| 3 | **¿Se puede corregir un producto inactivo?** Parece que sí —es justo cuando conviene prepararlo—, pero conviene confirmarlo, porque también permite cambiarle el precio a algo que estuvo publicado y volverlo a publicar como si fuera lo mismo | Responsable del proyecto | **Abierta** |
-| 4 | **Si la pregunta 2 de `RF-PM-001` se resuelve con código, ¿el código se puede corregir?** En `SP` el código de un rol se corrige y el de una membresía no. Aquí el código sería la referencia estable desde facturación, y corregirlo rompería justo eso | Responsable del proyecto | **Abierta** |
+Ninguna. Dos se resolvieron el 26-08-2026 y **las otras dos quedaron respondidas por la aprobación de `RF-PM-001`**, que es lo que ocurre cuando una decisión anterior alcanza a una spec posterior: no se vuelven a preguntar, se anotan con lo que las cerró.
 
-**Una spec con preguntas abiertas no puede aprobarse.** Esta sección debe quedar vacía antes de pasar la compuerta.
+| # | Pregunta | Resolución |
+|---|---|---|
+| 1 | ¿Se puede cambiar el precio de un producto ya vendido? | **Sí, y la compra guardará el precio que se pagó.** Cada venta copiará el importe en el momento de comprar, de modo que corregir el catálogo **nunca reescribe el pasado** y esta operación sigue siendo una corrección de verdad. Es una **condición impuesta a un módulo que todavía no existe**, y por eso queda escrita también en `requirements/pm.md` §1.4: si la compra leyera el precio del producto, `RF-PM-004` pasaría a reescribir facturas sin que nadie la hubiera tocado. Se descartaron congelar el precio de lo vendido —llena el catálogo de productos casi idénticos y convierte cada cambio de precio en un alta y un retiro— y versionar el precio con vigencia, que es una tabla más y la puerta de entrada de las promociones que §1.3 deja fuera |
+| 2 | ¿Cambiar el precio exige motivo? | **No.** El Art. V.13 solo lo obliga en las eliminaciones, y la auditoría de cambios ya registra **qué** cambió, **de cuánto a cuánto**, **quién** y **cuándo**. Lo único que falta es el «por qué», y exigirlo en cada corrección de una coma es el camino más corto para que ese campo se llene de «ajuste» y deje de significar nada |
+| 3 | ¿Se puede corregir un producto inactivo? | **Sí, y no era opcional.** Lo cerró `RN-PM-012` al aprobarse `RF-PM-001`: si el producto **nace inactivo**, prohibir corregirlo en ese estado dejaría a todo producto nuevo sin forma de recibir la descripción que `RN-PM-014` exige para publicarlo. La pregunta se hizo cuando el estado inicial todavía estaba abierto; al cerrarse aquel, esta dejó de tener dos salidas |
+| 4 | Si el producto lleva código, ¿se puede corregir? | **No: es inmutable** (`RN-PM-013`, aprobada con `RF-PM-001`). El código es la referencia desde la que una factura dirá qué se vendió; corregirlo rompería exactamente aquello para lo que existe. Se suma al tipo y al destino en `EX-004`, `VAL-006` y `CA-PM-033`: la petición que lo traiga **se rechaza**, no se ignora |
+
+---
+
+## 15. Control de cambios
+
+| Versión | Fecha | Cambio | Responsable |
+|---|---|---|---|
+| 0.2.0 | 26-08-2026 | **Aprobada.** El precio se puede corregir siempre, y eso **impone una condición a la compra futura**: cada venta guardará el importe que se pagó, o esta operación pasaría a reescribir el pasado. **No se exige motivo** para corregir. Las otras dos preguntas las cerró la aprobación de `RF-PM-001`: corregir un producto inactivo no solo se admite —es imprescindible, porque es el estado en el que nace—, y el **código es inmutable**, de modo que se suma al tipo y al destino entre lo que la petición no puede traer. Dos criterios nuevos, `CA-PM-083` y `CA-PM-084`. | Responsable del proyecto |
+| 0.1.0 | 26-08-2026 | Redacción inicial, con cuatro preguntas abiertas. | Responsable técnico |

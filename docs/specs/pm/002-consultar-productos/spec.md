@@ -4,10 +4,10 @@
 |---|---|
 | Requerimiento | `RF-PM-002` |
 | Módulo | `PM` — Productos y Mercadeo |
-| Estado | **Borrador** |
+| Estado | **Aprobada** |
 | Autor | Responsable técnico |
-| Aprobada por | — |
-| Fecha de aprobación | — |
+| Aprobada por | Responsable del proyecto |
+| Fecha de aprobación | 26-08-2026 |
 
 ---
 
@@ -36,12 +36,14 @@ Con `RF-PM-001` se puede **crear** un producto y no **verlo**: quien administra 
 - Filtrar por tipo, por estado y por membresía destino.
 - Buscar por nombre, sin distinguir mayúsculas ni acentos.
 - Incluir o excluir los productos retirados.
+- Ordenar por **fecha de alta** salvo que el actor pida otro orden de la lista admitida.
 
 ### 4.2 No incluye
 
 - **El detalle de un producto**, que es `RF-PM-003`.
 - **La oferta de un cliente**, que es `RF-PM-007` y depende de su nivel.
 - **Cuántas veces se ha vendido cada producto.** No existen las ventas todavía, y cuando existan será una pregunta de su módulo.
+- **El filtro por rango de precio.** No es lo que necesita quien administra, y añadirlo después es un parámetro opcional más: no rompe a ningún cliente. Resuelto el 26-08-2026.
 
 ## 5. Reglas de negocio aplicables
 
@@ -61,6 +63,7 @@ Con `RF-PM-001` se puede **crear** un producto y no **verlo**: quien administra 
 | Membresía destino | No | Filtra los upgrades que llevan a ese nivel | Un destino que no existe devuelve una colección vacía, no un error |
 | Búsqueda | No | Coincidencia parcial sobre el nombre | En blanco equivale a ausente |
 | Incluir retirados | No | Si se devuelven también los productos eliminados | Por omisión **no** se devuelven |
+| Orden | No | Por qué campo se ordena y en qué sentido | **Lista cerrada**: nombre, precio o fecha de alta. Cualquier otro valor se rechaza |
 
 ### 6.2 Salida
 
@@ -69,6 +72,7 @@ Con `RF-PM-001` se puede **crear** un producto y no **verlo**: quien administra 
 | Productos | Identificador, tipo, nombre, descripción, precio con su moneda, estado y —en los upgrades— la membresía destino con su nombre y su nivel |
 | Marca de retiro | En los retirados, que lo están y desde cuándo |
 | Total | Cuántos productos cumplen el filtro |
+| Orden | El aplicado, para que quien recibe la página sepa sobre qué está paginando |
 
 ## 7. Precondiciones y postcondiciones
 
@@ -84,7 +88,8 @@ Con `RF-PM-001` se puede **crear** un producto y no **verlo**: quien administra 
 
 1. El actor pide el catálogo, con los filtros que quiera.
 2. El sistema valida los parámetros de paginación y los valores de los filtros.
-3. El sistema devuelve la página pedida y el total que cumple el filtro.
+3. El sistema aplica el orden pedido, o el de alta si no se pidió ninguno.
+4. El sistema devuelve la página pedida y el total que cumple el filtro.
 
 ## 9. Flujos alternativos
 
@@ -115,6 +120,7 @@ Con `RF-PM-001` se puede **crear** un producto y no **verlo**: quien administra 
 | `VAL-002` | Tipo dentro del dominio | El tipo indicado no es válido. |
 | `VAL-003` | Estado dentro del dominio | El estado indicado no es válido. |
 | `VAL-004` | Identificador de membresía con formato válido | El identificador indicado no tiene un formato válido. |
+| `VAL-005` | Campo de ordenamiento dentro de la lista admitida | El campo de ordenamiento indicado no es válido. |
 
 ## 12. Criterios de aceptación
 
@@ -130,6 +136,10 @@ Con `RF-PM-001` se puede **crear** un producto y no **verlo**: quien administra 
 | `CA-PM-020` | El sistema rechaza los parámetros inválidos **enumerándolos todos juntos** |
 | `CA-PM-021` | El sistema devuelve una colección vacía y total cero cuando ningún producto cumple el filtro |
 | `CA-PM-022` | El sistema rechaza la consulta a un actor sin el permiso de lectura de productos |
+| `CA-PM-074` | El sistema devuelve el catálogo **en orden de alta** cuando nadie pide otro |
+| `CA-PM-075` | El sistema ordena por nombre, por precio y por fecha de alta cuando se le pide, y **rechaza cualquier otro campo** en lugar de ignorarlo |
+| `CA-PM-076` | El sistema devuelve las mismas filas sin repetir ni saltarse ninguna al recorrer todas las páginas, aunque varios productos compartan el valor por el que se ordena |
+| `CA-PM-077` | El sistema devuelve los retirados a cualquier actor con el permiso de lectura, **sin exigir uno propio**, y **sin incluir el motivo del retiro** — que sí devuelve el detalle de `RF-PM-003`, uno a uno |
 
 ## 13. Casos límite
 
@@ -140,11 +150,21 @@ Con `RF-PM-001` se puede **crear** un producto y no **verlo**: quien administra 
 
 ## 14. Preguntas abiertas
 
-| # | Pregunta | Responsable | Estado |
-|---|---|---|---|
-| 1 | **¿Cuál es el orden por omisión?** Por nombre es lo previsible; por fecha de alta pone arriba lo último publicado; por nivel destino agrupa los upgrades en el orden de la cadena, que es como se leen. El orden importa porque es lo primero que ve quien abre el catálogo | Responsable del proyecto | **Abierta** |
-| 2 | **¿El orden es configurable por el actor?** `RF-SP-002` lo permite en roles y `RF-SP-011` no lo permite en la auditoría, y en cada caso hay un motivo. Aquí no hay uno evidente | Responsable del proyecto | **Abierta** |
-| 3 | **¿Ver los retirados exige un permiso aparte?** Hoy basta con el de lectura. Un producto retirado lleva su motivo en la auditoría, no en el catálogo, de modo que no expone nada sensible — pero sí revela decisiones comerciales pasadas a cualquiera que tenga lectura | Responsable del proyecto | **Abierta** |
-| 4 | **¿Se puede filtrar por rango de precio?** No es lo que necesita quien administra, y sí lo que acabará necesitando una interfaz de venta. Añadirlo después es barato; escribirlo ahora sin que nadie lo pida es alcance que crece solo | Responsable del proyecto | **Abierta** |
+Ninguna. Las cuatro se resolvieron el 26-08-2026, antes de aprobar la especificación.
 
-**Una spec con preguntas abiertas no puede aprobarse.** Esta sección debe quedar vacía antes de pasar la compuerta.
+| # | Pregunta | Resolución |
+|---|---|---|
+| 1 | ¿Cuál es el orden por omisión? | **Por fecha de alta.** Y con ello quedó dicho algo que esta spec no preguntaba: **hay dos formas de consulta y cada una tiene su orden**. Esta —la del administrador— va en orden de alta, porque quien gobierna el catálogo trabaja sobre lo último que entró. La del cliente (`RF-PM-007`) va **agrupada por tipo**, con los upgrades por **nivel** —que es el orden de la cadena, y el único en que «subir» significa algo— y los servicios por fecha. Se enmienda `RF-PM-007` en consecuencia. **El desempate es el identificador**, y no es cosmético: sin un orden total, dos productos que compartan el valor ordenado pueden repetirse o saltarse entre páginas, y eso se descubre como «faltan productos» sin ningún error de por medio. Sale gratis, porque el identificador es un UUID v7 y su orden **es** el cronológico |
+| 2 | ¿El orden es configurable por el actor? | **Sí, sobre una lista cerrada**: nombre, precio y fecha de alta. Cerrada y no abierta por el mismo motivo que en `RF-SP-025`: admitir un campo cualquiera deja ordenar por lo que a nadie se le ocurrió revisar. Un campo fuera de la lista se **rechaza**, no se ignora — ignorarlo devolvería un orden distinto del pedido sin decirlo |
+| 3 | ¿Ver los retirados exige un permiso aparte? | **No: basta el de lectura.** La decisión se mantiene; **su motivo se enmendó el mismo día** (Art. I.7). Se aprobó diciendo que el motivo del retiro no viajaba en el catálogo, y horas después `RF-PM-003` resolvió que **el detalle sí lo devuelve** a quien tenga `products:read`. Lo que sigue siendo cierto —y sostiene la decisión— es que **el listado no lo lleva**: uno a uno es una consulta, en bloque sería una exportación de decisiones comerciales. Lo que se asume es que `products:read` alcanza al motivo de un producto, que en la auditoría acota `audit:read-deletions` |
+| 4 | ¿Se puede filtrar por rango de precio? | **No por ahora**, y pasa a §4.2. No es lo que necesita quien administra, y añadirlo después es un parámetro opcional más que no rompe a ningún cliente. Escribirlo hoy traería sus casos límite —mínimo mayor que máximo, monedas distintas en el mismo filtro— sin que nadie los esté esperando |
+
+---
+
+## 15. Control de cambios
+
+| Versión | Fecha | Cambio | Responsable |
+|---|---|---|---|
+| 0.3.0 | 26-08-2026 | **Enmienda del motivo de la resolución 3**, el mismo día y por el Art. I.7: `RF-PM-003` resolvió que el detalle **sí devuelve el motivo del retiro**, de modo que el argumento con el que se aprobó —«el motivo no viaja en el catálogo»— dejó de ser cierto. La decisión no cambia: los retirados siguen sin exigir permiso propio, y lo que la sostiene ahora es que **el listado no lleva el motivo** aunque el detalle sí. `CA-PM-077` lo dice explícitamente. | Responsable del proyecto |
+| 0.2.0 | 26-08-2026 | **Aprobada.** El orden por omisión es el de **alta**, configurable sobre una **lista cerrada** —nombre, precio, fecha—, con el identificador como desempate para que la paginación no repita ni salte filas. Los retirados **no exigen permiso propio**, y el filtro por rango de precio pasa a lo que no se incluye. Una de las resoluciones alcanza a otra spec: la consulta del cliente tiene **su propio orden**, agrupado por tipo, y `RF-PM-007` se enmienda con él. Cuatro criterios nuevos, `CA-PM-074` a `CA-PM-077`, y `VAL-005`. | Responsable del proyecto |
+| 0.1.0 | 26-08-2026 | Redacción inicial, con cuatro preguntas abiertas. | Responsable técnico |

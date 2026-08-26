@@ -4,10 +4,10 @@
 |---|---|
 | Requerimiento | `RF-PM-003` |
 | Módulo | `PM` — Productos y Mercadeo |
-| Estado | **Borrador** |
+| Estado | **Aprobada** |
 | Autor | Responsable técnico |
-| Aprobada por | — |
-| Fecha de aprobación | — |
+| Aprobada por | Responsable del proyecto |
+| Fecha de aprobación | 26-08-2026 |
 
 ---
 
@@ -35,10 +35,11 @@ El listado de `RF-PM-002` responde «qué hay»; esta consulta responde «qué e
 - Devolver un producto por su identificador, con todos sus datos.
 - Resolver la membresía destino de los upgrades, con su nivel.
 - Indicar si el producto está retirado y desde cuándo.
+- Devolver **el motivo por el que se retiró**, cuando el producto está retirado.
 
 ### 4.2 No incluye
 
-- **El historial de cambios del producto.** Quién cambió qué y cuándo vive en la auditoría, que tiene sus propias consultas (`RF-SP-011`).
+- **El historial de cambios del producto, y quién hizo cada uno.** Qué cambió, cuándo y **a manos de quién** vive en la auditoría, que tiene sus propias consultas (`RF-SP-011`). El Art. V.7 mantiene las columnas de actor fuera de la tabla a propósito, y traer ese dato aquí obligaría a duplicarlo o a leer el almacén de evidencia de otro módulo.
 - **Cuántas veces se ha vendido.** No existen las ventas.
 - **Los otros productos que llevan al mismo destino.** El detalle habla de un producto, no del catálogo; esa pregunta la responde el filtro de `RF-PM-002`.
 
@@ -60,10 +61,10 @@ El listado de `RF-PM-002` responde «qué hay»; esta consulta responde «qué e
 
 | Dato | Descripción |
 |---|---|
-| Producto | Identificador, tipo, nombre, descripción, precio con su moneda y estado |
+| Producto | Identificador, código, tipo, nombre, descripción, precio con su moneda y estado |
 | Membresía destino | En los upgrades: código, nombre y **nivel**. Vacía en los servicios |
-| Marca de retiro | Si está retirado y desde cuándo |
-| Marcas temporales | Cuándo se creó y cuándo se modificó por última vez |
+| Marca de retiro | Si está retirado, desde cuándo y **con qué motivo** |
+| Marcas temporales | Cuándo se creó y cuándo se modificó por última vez. **Sin actor**: quién lo hizo vive en la auditoría |
 
 ## 7. Precondiciones y postcondiciones
 
@@ -120,6 +121,9 @@ El listado de `RF-PM-002` responde «qué hay»; esta consulta responde «qué e
 | `CA-PM-027` | El sistema responde que el recurso no existe ante un identificador que no corresponde a ningún producto |
 | `CA-PM-028` | El sistema rechaza un identificador con formato inválido como dato inválido, y no como recurso no encontrado |
 | `CA-PM-029` | El sistema rechaza la consulta a un actor sin el permiso de lectura de productos |
+| `CA-PM-080` | El sistema devuelve el **motivo del retiro** de un producto retirado a cualquier actor con `products:read`, sin exigir permiso de auditoría |
+| `CA-PM-081` | El sistema **no devuelve quién** creó, corrigió ni retiró el producto, ni siquiera resuelto desde la auditoría |
+| `CA-PM-082` | El sistema devuelve el precio como **número**, con los decimales que declara su moneda y no con la escala de la columna: `49.99` en una moneda de dos decimales, no `49.9900` |
 
 ## 13. Casos límite
 
@@ -127,13 +131,23 @@ El listado de `RF-PM-002` responde «qué hay»; esta consulta responde «qué e
 - **Identificador no canónico:** una forma laxa del identificador debe rechazarse como dato inválido y no resolverse en silencio. Es el mismo hueco que `RF-SP-018` tuvo abierto durante dos días.
 - **Upgrade cuyo destino cambió de nivel:** la cadena de membresías se reordena al insertar un eslabón (`RN-SP-007`), de modo que el nivel del destino **no es estable en el tiempo**. El detalle devuelve el nivel **actual**, no el que tenía cuando se creó el producto.
 - **Producto retirado cuyo destino sigue vivo:** se devuelve con normalidad; retirar el producto no toca la membresía.
+- **Precio con cuatro decimales en una moneda de dos:** no puede ocurrir, porque `RN-PM-007` lo impide al escribir. Si ocurriera —una carga directa en la base—, el detalle devuelve **lo almacenado** y no lo redondea: redondear aquí escondería el dato inválido en lugar de mostrarlo.
 
 ## 14. Preguntas abiertas
 
-| # | Pregunta | Responsable | Estado |
-|---|---|---|---|
-| 1 | **¿El detalle devuelve el motivo del retiro?** El motivo se exige al eliminar (Art. V.13) y vive en la auditoría de eliminación, que tiene su propio permiso (`audit:read-deletions`). Traerlo aquí lo pone al alcance de cualquiera con lectura de productos; no traerlo obliga a ir a otra pantalla para saber por qué se retiró algo | Responsable del proyecto | **Abierta** |
-| 2 | **¿Devuelve quién lo creó y quién lo retiró?** Mismo dilema, y con la particularidad de que el Art. V.7 mantiene esos datos **fuera** de la tabla a propósito: viven en la auditoría | Responsable técnico | **Abierta** |
-| 3 | **¿El precio viaja como número o como texto ya formateado?** Como número deja el formato al cliente, que es lo correcto; como texto evita que dos interfaces redondeen distinto un importe de cuatro decimales. Afecta a todo lo que después muestre precios | Responsable técnico | **Abierta** |
+Ninguna. Las tres se resolvieron el 26-08-2026, antes de aprobar la especificación.
 
-**Una spec con preguntas abiertas no puede aprobarse.** Esta sección debe quedar vacía antes de pasar la compuerta.
+| # | Pregunta | Resolución |
+|---|---|---|
+| 1 | ¿El detalle devuelve el motivo del retiro? | **Sí, a quien tenga `products:read`.** Delante de un producto retirado, «por qué» es la pregunta que se hace todo el mundo, y obligar a cambiar de pantalla para responderla convierte la auditoría en un trámite. **La consecuencia se asume y queda escrita**: `products:read` alcanza así a un dato que en la auditoría acota `audit:read-deletions`, de modo que ese permiso deja de acotar el motivo **de un producto** —sigue acotando el de todo lo demás y la línea de tiempo completa—. **El listado no lo lleva** (`CA-PM-077`): uno a uno es una consulta, en bloque es una exportación de decisiones comerciales. Esta resolución **enmienda el motivo** con el que se aprobó la resolución 3 de `RF-PM-002`, que decía que el motivo no viajaba en el catálogo; la decisión de aquella —los retirados no exigen permiso propio— no cambia, su justificación sí |
+| 2 | ¿Devuelve quién lo creó y quién lo retiró? | **No.** El Art. V.7 mantiene las columnas de actor fuera de las tablas a propósito: quién hizo qué es evidencia y vive en los registros de auditoría. Traerlo aquí obligaría a duplicar el dato en `products` —y entonces habría dos verdades— o a que este módulo consulte el almacén de evidencia de otro, que es justo lo que `modules.md` §7 impide. El motivo sí viaja porque **es un dato del retiro**, no del actor |
+| 3 | ¿El precio viaja como número o como texto formateado? | **Como número.** El formato lo decide quien lo muestra, y un importe formateado no se puede sumar: facturación y comisiones tendrían que deshacerlo para operar. **Con los decimales de su moneda, no con la escala de la columna**: `49.99` en una moneda de dos decimales y no `49.9900`, porque la escala de `numeric(14,4)` es una decisión de almacenamiento y no algo que el contrato deba exponer. **Consecuencia asumida y declarada**: un número JSON pasa por coma flotante de doble precisión en cualquier cliente JavaScript, de modo que sumar importes en el navegador puede desviarse un céntimo. El importe que cuenta es siempre el del servidor; el día que exista facturación, ningún total calculado en el cliente puede ser el que se cobre |
+
+---
+
+## 15. Control de cambios
+
+| Versión | Fecha | Cambio | Responsable |
+|---|---|---|---|
+| 0.2.0 | 26-08-2026 | **Aprobada.** El detalle devuelve el **motivo del retiro** a quien tenga `products:read` —con la consecuencia declarada de que ese permiso alcanza a un dato que la auditoría acota, y con el listado quedando fuera—, **no devuelve autoría** —el Art. V.7 la mantiene en la auditoría a propósito— y el **precio viaja como número**, con los decimales de su moneda y no con la escala de la columna. Tres criterios nuevos, `CA-PM-080` a `CA-PM-082`, y un caso límite sobre el precio que no se redondea al leer. | Responsable del proyecto |
+| 0.1.0 | 26-08-2026 | Redacción inicial, con tres preguntas abiertas. | Responsable técnico |

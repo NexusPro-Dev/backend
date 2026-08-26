@@ -4,10 +4,10 @@
 |---|---|
 | Requerimiento | `RF-PM-001` |
 | Módulo | `PM` — Productos y Mercadeo |
-| Estado | **Borrador** |
+| Estado | **Aprobada** |
 | Autor | Responsable técnico |
-| Aprobada por | — |
-| Fecha de aprobación | — |
+| Aprobada por | Responsable del proyecto |
+| Fecha de aprobación | 26-08-2026 |
 
 ---
 
@@ -33,8 +33,9 @@ Hoy la plataforma no tiene **nada que vender**. La membresía de una persona sol
 
 - Registrar un producto de tipo **upgrade de membresía**, declarando su membresía destino.
 - Registrar un producto de tipo **servicio del sistema**, sin membresía destino.
-- Verificar que el destino existe, que la moneda existe y está activa, y que el nombre y el color de la oferta no chocan con los de otro producto vivo.
+- Verificar que el destino existe, que la moneda existe y está activa, y que ni el nombre ni el código chocan con los de otro producto.
 - Dejar constancia del alta en la auditoría de cambios.
+- **Registrarlo `INACTIVO`**: existe, y no se ofrece hasta que alguien lo publique con `RF-PM-005`.
 
 ### 4.2 No incluye
 
@@ -50,11 +51,12 @@ Hoy la plataforma no tiene **nada que vender**. La membresía de una persona sol
 | `RN-PM-001` | Dos tipos, y el tipo es inmutable | `requirements/pm.md` §5.1 |
 | `RN-PM-002` | Destino obligatorio en el upgrade, prohibido en el servicio | `requirements/pm.md` §5.1 |
 | `RN-PM-003` | El destino es una membresía real de la cadena | `requirements/pm.md` §5.1 |
-| `RN-PM-004` | Un solo upgrade activo por destino | `requirements/pm.md` §5.1 |
 | `RN-PM-005` | Nombre único entre los vivos | `requirements/pm.md` §5.1 |
 | `RN-PM-006` | El precio es mayor que cero | `requirements/pm.md` §5.1 |
 | `RN-PM-007` | El precio respeta los decimales de su moneda | `requirements/pm.md` §5.1 |
 | `RN-PM-008` | La moneda debe estar activa al declararla | `requirements/pm.md` §5.1 |
+| `RN-PM-012` | El producto nace inactivo | `requirements/pm.md` §5.1 |
+| `RN-PM-013` | El código no se libera nunca | `requirements/pm.md` §5.1 |
 
 ## 6. Datos
 
@@ -62,9 +64,10 @@ Hoy la plataforma no tiene **nada que vender**. La membresía de una persona sol
 
 | Dato | Obligatorio | Descripción | Restricción de negocio |
 |---|---|---|---|
+| Código | Sí | Referencia corta y estable del producto | Letras mayúsculas, dígitos y guion bajo, empezando por letra. **Único para siempre**, incluso frente a los eliminados, e **inmutable** (`RN-PM-013`) |
 | Tipo | Sí | Upgrade de membresía o servicio del sistema | Uno de los dos, y **no se podrá cambiar después** (`RN-PM-001`) |
 | Nombre | Sí | Cómo se llama el producto de cara a quien lo compra | Único entre los productos vivos, sin distinguir mayúsculas ni acentos (`RN-PM-005`) |
-| Descripción | No | Qué se lleva quien lo compra | Con longitud acotada |
+| Descripción | No | Qué se lleva quien lo compra | Con longitud acotada. Opcional al registrar; **sin ella el producto no podrá publicarse** (`RN-PM-014`) |
 | Membresía destino | **Depende del tipo** | Nivel al que lleva el upgrade | **Obligatoria** si el tipo es upgrade, **prohibida** si es servicio (`RN-PM-002`). Debe existir (`RN-PM-003`) |
 | Precio | Sí | Cuánto cuesta | Mayor que cero (`RN-PM-006`), con los decimales que admita su moneda (`RN-PM-007`) |
 | Moneda | Sí | En qué moneda se expresa el precio | Debe existir y estar **activa** (`RN-PM-008`) |
@@ -73,7 +76,7 @@ Hoy la plataforma no tiene **nada que vender**. La membresía de una persona sol
 
 | Dato | Descripción |
 |---|---|
-| Producto | El producto registrado, con su identificador, su tipo, su estado inicial y su precio **tal como quedó almacenado** |
+| Producto | El producto registrado, con su identificador, su código, su tipo, su precio **tal como quedó almacenado** y su estado, que es siempre `INACTIVO` |
 | Membresía destino resuelta | Cuando es un upgrade: el código, el nombre y el nivel del destino, y no solo su identificador |
 
 ## 7. Precondiciones y postcondiciones
@@ -86,20 +89,19 @@ Hoy la plataforma no tiene **nada que vender**. La membresía de una persona sol
 
 **Postcondiciones**
 
-- El producto queda registrado con su tipo fijado para siempre.
+- El producto queda registrado **`INACTIVO`**, con su tipo y su código fijados para siempre.
 - La auditoría de cambios contiene un evento de creación con el estado inicial completo del producto.
-- Si el producto es un upgrade y queda activo, ningún otro upgrade activo apunta a la misma membresía destino.
+- **Ningún producto queda a la venta por haberse registrado.** Ponerlo a la venta es `RF-PM-005`, y es allí donde se comprueba que ningún otro upgrade activo apunta a su destino (`RN-PM-004`).
 
 ## 8. Flujo principal
 
-1. El actor envía el tipo, el nombre, el precio, la moneda y —si es un upgrade— la membresía destino.
+1. El actor envía el código, el tipo, el nombre, el precio, la moneda y —si es un upgrade— la membresía destino.
 2. El sistema comprueba que los datos obligatorios de **ese tipo** están presentes y que no llegan los que ese tipo prohíbe.
 3. El sistema comprueba que la moneda existe y está activa, y que el precio es mayor que cero y no tiene más decimales que los que esa moneda admite.
 4. Si es un upgrade, el sistema comprueba que la membresía destino existe.
-5. El sistema comprueba que el nombre no lo tiene ya otro producto vivo.
-6. Si es un upgrade y el producto va a quedar activo, el sistema comprueba que ningún otro upgrade activo apunta a ese mismo destino.
-7. El sistema registra el producto y emite el evento de auditoría de creación.
-8. El sistema devuelve el producto registrado.
+5. El sistema comprueba que el código no lo ha tenido nunca otro producto, y que el nombre no lo tiene ya otro producto vivo.
+6. El sistema registra el producto **inactivo** y emite el evento de auditoría de creación.
+7. El sistema devuelve el producto registrado.
 
 ## 9. Flujos alternativos
 
@@ -108,7 +110,7 @@ Hoy la plataforma no tiene **nada que vender**. La membresía de una persona sol
 **Cuándo ocurre:** el tipo es servicio del sistema.
 
 1. El sistema **exige que no llegue** membresía destino.
-2. Se omiten los pasos 4 y 6 del flujo principal: no hay destino que validar ni unicidad de destino que comprobar.
+2. Se omite el paso 4 del flujo principal: no hay destino que validar.
 3. El resto del flujo es idéntico.
 
 ### FA-002 — Primer producto del sistema
@@ -135,10 +137,14 @@ Hoy la plataforma no tiene **nada que vender**. La membresía de una persona sol
 **Condición:** la moneda no existe, o existe y está desactivada.
 **Respuesta del sistema:** rechaza el alta. El mensaje distingue los dos casos: una moneda que no existe es un dato equivocado; una desactivada es una decisión del sistema que el actor no puede saltarse.
 
-### EX-004 — Ya hay un upgrade activo hacia ese destino
+### ~~EX-004 — Ya hay un upgrade activo hacia ese destino~~
 
-**Condición:** el tipo es upgrade, el producto quedaría activo y otro upgrade activo apunta a la misma membresía.
-**Respuesta del sistema:** rechaza el alta **nombrando el producto que ya ocupa ese destino**, para que el actor sepa cuál desactivar si de verdad quiere sustituirlo.
+**Retirada el 26-08-2026 al aprobar la spec.** El producto nace inactivo (`RN-PM-012`), de modo que registrarlo no puede chocar con ningún upgrade activo. La excepción **existe, pero en `RF-PM-005`**, que es donde el producto se pone a la venta. El identificador no se reutiliza para otra cosa.
+
+### EX-005 — Código ya usado
+
+**Condición:** otro producto lleva ese código, esté vivo o eliminado.
+**Respuesta del sistema:** rechaza el alta señalando el código. **No se libera al eliminar**, al revés que el nombre: el código es la referencia desde la que una factura dirá qué se vendió, y reutilizarlo haría que dos facturas de años distintos apuntaran a cosas distintas con la misma palabra.
 
 ## 11. Validaciones
 
@@ -152,6 +158,8 @@ Hoy la plataforma no tiene **nada que vender**. La membresía de una persona sol
 | `VAL-006` | Moneda obligatoria | La moneda es obligatoria. |
 | `VAL-007` | Destino obligatorio en el upgrade | Un producto de upgrade debe declarar su membresía destino. |
 | `VAL-008` | Destino prohibido en el servicio | Un producto de servicio no puede declarar membresía destino. |
+| `VAL-009` | Código obligatorio | El código del producto es obligatorio. |
+| `VAL-010` | Formato del código | El código solo admite letras mayúsculas, dígitos y guion bajo, y debe empezar por letra. |
 
 ## 12. Criterios de aceptación
 
@@ -165,10 +173,14 @@ Hoy la plataforma no tiene **nada que vender**. La membresía de una persona sol
 | `CA-PM-006` | El sistema rechaza un precio con más decimales de los que admite su moneda, y acepta el mismo importe con los decimales correctos |
 | `CA-PM-007` | El sistema rechaza una moneda inactiva, y lo distingue de una moneda inexistente |
 | `CA-PM-008` | El sistema rechaza un nombre que solo difiere de otro existente en mayúsculas o acentos |
-| `CA-PM-009` | El sistema rechaza un upgrade hacia un destino que ya tiene otro upgrade activo, y el mensaje nombra al producto que lo ocupa |
+| ~~`CA-PM-009`~~ | **Retirado el 26-08-2026**: el producto nace inactivo, de modo que el alta no puede chocar con un upgrade activo. El criterio vive en `RF-PM-005` con número propio. El identificador no se reutiliza |
 | `CA-PM-010` | El sistema rechaza un upgrade cuya membresía destino no existe, y lo hace como dato inválido y no como recurso no encontrado |
 | `CA-PM-011` | El sistema registra en la auditoría de cambios un evento de creación con el estado inicial completo del producto |
 | `CA-PM-012` | El sistema rechaza el alta a un actor sin el permiso de creación de productos, y no registra nada |
+| `CA-PM-068` | El sistema registra todo producto **`INACTIVO`**, sea cual sea el tipo, y enviar un estado en la petición devuelve `400` en lugar de ignorarse |
+| `CA-PM-069` | El sistema rechaza un código que ya usó otro producto, **incluido uno eliminado**, y lo distingue del nombre duplicado |
+| `CA-PM-070` | El sistema rechaza un código que no cumple el formato de mayúsculas, dígitos y guion bajo |
+| `CA-PM-071` | El sistema **admite registrar sin descripción**, y el producto queda inactivo a la espera de que `RF-PM-005` la exija para publicarlo |
 
 ## 13. Casos límite
 
@@ -181,12 +193,21 @@ Hoy la plataforma no tiene **nada que vender**. La membresía de una persona sol
 
 ## 14. Preguntas abiertas
 
-| # | Pregunta | Responsable | Estado |
-|---|---|---|---|
-| 1 | **¿El producto nace `ACTIVO` o `INACTIVO`?** Nacer activo lo pone a la venta en el mismo instante en que se crea, y hace que `RN-PM-004` muerda ya en el alta. Nacer inactivo permite prepararlo —revisar precio y texto— y publicarlo después con `RF-PM-005`, a costa de que quien registre un producto y no vuelva a entrar crea que lo publicó | Responsable del proyecto | **Abierta** |
-| 2 | **¿El producto lleva un código corto y estable además del nombre?** Los roles, las membresías, los países y las monedas lo llevan. Aquí importa para lo que viene: una factura, una comisión o un informe necesitan referirse a «qué se vendió» sin depender de un nombre que `RF-PM-004` permite corregir | Responsable del proyecto | **Abierta** |
-| 3 | **¿La descripción es obligatoria?** Es lo que verá quien compra. Opcional deja publicar un producto sin explicar qué es; obligatoria fuerza a escribir algo que quizá se rellene con ruido | Responsable del proyecto | **Abierta** |
-| 4 | **¿Puede el mismo destino tener un upgrade activo y varios inactivos?** `RN-PM-004` solo acota los activos, de modo que sí. Conviene confirmarlo: es lo que permite preparar el precio nuevo antes de retirar el viejo, y también lo que llena el catálogo de borradores olvidados | Responsable del proyecto | **Abierta** |
-| 5 | **¿El alta emite evento de seguridad además del de cambios?** Un producto no concede privilegios sobre el sistema —es la misma postura que `RF-SP-016` tomó con las membresías—, pero **sí fija un precio**, y quién puso un precio es una pregunta que alguien acabará haciendo | Responsable técnico | **Abierta** |
+Ninguna. Las cinco se resolvieron el 26-08-2026, antes de aprobar la especificación. Se conservan con su resolución y su motivo, porque el motivo es lo que impide volver a abrirlas por olvido.
 
-**Una spec con preguntas abiertas no puede aprobarse.** Esta sección debe quedar vacía antes de pasar la compuerta.
+| # | Pregunta | Resolución |
+|---|---|---|
+| 1 | ¿El producto nace `ACTIVO` o `INACTIVO`? | **`INACTIVO`** (`RN-PM-012`). El motivo no es la prudencia sino dónde vive `RN-PM-004`: naciendo activo, «un solo upgrade activo por destino» habría que comprobarla **en dos sitios** —el alta y la activación—, y dos copias de una regla acaban divergiendo; la que se quedara atrás no fallaría, **admitiría**. Naciendo inactivo, la comprobación vive solo en `RF-PM-005`. Se acepta el coste declarado: quien registre un producto y no vuelva a entrar creerá que lo publicó, y lo único que lo acota es que el catálogo muestre el estado. **Se descartó por ahora el tercer valor `BORRADOR`**: la distinción entre «nunca publicado» y «retirado de la venta» es fina, no urge, y añadirla después es una migración sobre un `varchar` con `CHECK` |
+| 2 | ¿El producto lleva un código corto y estable además del nombre? | **Sí** (`RN-PM-013`), con el formato de `roles` y `memberships`, **inmutable** y **único incluso frente a los eliminados** — al revés que el nombre, que sí se libera al retirar un producto. La asimetría es deliberada: el nombre es una etiqueta comercial y `RF-PM-004` lo deja corregir, de modo que no puede ser la referencia desde la que una factura o una comisión digan qué se vendió. El día que una factura diga `UPGRADE_ORO`, esa palabra tiene que resolver a un solo producto para siempre |
+| 3 | ¿La descripción es obligatoria? | **Opcional al registrar, obligatoria para publicar** (`RN-PM-014`). Exigirla en el alta la llena de ruido, porque en ese momento el producto se está preparando; no exigirla nunca deja publicar algo que el cliente no entiende. La regla se apoya en la resolución 1: si el producto nace inactivo, hay un momento posterior donde exigirla, y ese momento es `RF-PM-005` |
+| 4 | ¿Puede el mismo destino tener un upgrade activo y varios inactivos? | **Sí.** Es lo que `RN-PM-004` ya dice al acotar **solo los activos**, y lo que permite preparar el precio nuevo antes de retirar el viejo. El coste declarado es que el catálogo se llena de borradores olvidados, y lo acota el filtro por estado de `RF-PM-002` |
+| 5 | ¿El alta emite evento de seguridad además del de cambios? | **No.** Un producto no concede privilegios sobre el sistema, y el catálogo de `security.md` §8.1 es cerrado: es la misma postura que `RF-SP-016` tomó con las membresías. La pregunta que motivaba la duda —quién puso este precio— **ya la responde la auditoría de cambios**, que registra la creación con el estado inicial completo, precio incluido |
+
+---
+
+## 15. Control de cambios
+
+| Versión | Fecha | Cambio | Responsable |
+|---|---|---|---|
+| 0.2.0 | 26-08-2026 | **Aprobada.** Las cinco preguntas abiertas se resuelven y la spec cruza su primera compuerta. Entran tres reglas nuevas al documento del módulo: `RN-PM-012` —el producto nace inactivo—, `RN-PM-013` —el código no se libera nunca— y `RN-PM-014` —no se publica lo que no se explica—. El **código** aparece en §6.1 y trae `VAL-009`, `VAL-010` y `EX-005`. Se **retira `EX-004`** y con él `CA-PM-009`: registrar ya no puede chocar con un upgrade activo, porque el producto nace inactivo, y esa excepción pasa a `RF-PM-005` con identificadores propios — los retirados no se reutilizan. Cuatro criterios nuevos, `CA-PM-068` a `CA-PM-071`. | Responsable del proyecto |
+| 0.1.0 | 26-08-2026 | Redacción inicial, con cinco preguntas abiertas. | Responsable técnico |
