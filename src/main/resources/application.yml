@@ -185,13 +185,20 @@ nexus:
         por-origen: 60
         ventana: PT1M
 
-      # La cota más estricta de las cuatro, y no por prudencia: es la única
-      # operación pública que provoca un ENVÍO SALIENTE. Sin ella se puede
-      # inundar de correos a una persona real y sondear identidades en masa.
+      # Cinco por minuto, y quien los supera espera cinco minutos. Decisión del
+      # responsable del proyecto, 26-08-2026, sobre la advertencia de que es la
+      # única operación pública que provoca un ENVÍO SALIENTE: la cota pasa de
+      # tres correos POR HORA a una persona real a unos sesenta.
+      #
+      # La PENALIZACIÓN es lo que hace que el número siga sirviendo de algo. Sin
+      # ella, cinco por minuto son setenta y dos mil correos al día; con ella,
+      # superar la cota cuesta una espera fija y el ritmo sostenido baja a cinco
+      # cada cinco minutos.
       recovery:
-        por-origen: 10
-        por-identidad: 3
-        ventana: PT1H
+        por-origen: 5
+        por-identidad: 5
+        ventana: PT1M
+        penalizacion: PT5M
 
       # La confirmación se acota SOLO POR ORIGEN, y no es un descuido: su cuerpo
       # no lleva identidad ninguna —lleva un permiso—, de modo que no hay nada

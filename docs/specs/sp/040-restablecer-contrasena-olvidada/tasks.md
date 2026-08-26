@@ -35,6 +35,7 @@ Se construyó en el orden que el plan previó —todo contra el puerto `Notifica
 | `T-12` | Pruebas de API e integración de los criterios de aceptación de `spec.md` §12 | `T-11` | La suite cubre `CA-SP-456` a `CA-SP-469`, `CA-SP-473` y `CA-SP-475`. **`CA-SP-474` queda pendiente de `T-09`** | **Hecha** — 26-08-2026 |
 | `T-13` | Pruebas de los casos límite de `spec.md` §13, con las **dos concurrentes** como las más importantes | `T-11` | Dos confirmaciones simultáneas: una consume y otra se rechaza. Dos solicitudes simultáneas: queda **un** permiso vivo | **Hecha** — 26-08-2026 |
 | `T-14` | Documentación OpenAPI de las dos rutas, y aplicar las enmiendas de `plan.md` §8: `requirements/sp.md` §9 gana la segunda ruta y `security.md` §5.5 los dos límites de tasa. Actualizar la matriz | `T-12` | Ambos documentos con su fila de control de cambios; la fila de `RF-SP-040` en la matriz enlaza esta tripleta | **Hecha** — 26-08-2026 |
+| `T-15` | La cota de recuperación pasa a **cinco por minuto con cinco de espera** al superarla: la política gana `penalizacion`, el contador la aplica y la olvida al cumplirse, y el filtro la propaga | `T-14` | Unitarias con el reloj en la mano: superar la cota devuelve la espera fija y no la de la ventana, insistir no la alarga, y cumplida vuelve la cota entera. De API: la sexta solicitud del minuto responde `429` con esa espera (`CA-SP-492`, `CA-SP-493`) | Hecha |
 
 **Estados:** `Pendiente` · `En curso` · `Hecha` · `Bloqueada`.
 

@@ -185,6 +185,63 @@ class RateLimitIT extends IntegrationTestBase {
     assertThat(estado).isNotEqualTo(429);
   }
 
+  @Test
+  @DisplayName("recuperación — cinco por minuto, y la sexta cuesta cinco minutos de espera")
+  void recuperacionPenalizaAlSuperarLaCota() throws Exception {
+    for (int i = 1; i <= 5; i++) {
+      atendida(recuperar("olvidadiza@factech.co"));
+    }
+
+    // La sexta topa. Lo que se afirma es la ESPERA: sin penalización sería la
+    // que le quede a la ventana —a lo sumo sesenta segundos—, y con ella son
+    // los trescientos del castigo.
+    recuperar("olvidadiza@factech.co")
+        .andExpect(status().isTooManyRequests())
+        .andExpect(header().exists("Retry-After"))
+        .andExpect(jsonPath("$.retryAfterSeconds").value(org.hamcrest.Matchers.greaterThan(60)))
+        .andExpect(
+            jsonPath("$.retryAfterSeconds").value(org.hamcrest.Matchers.lessThanOrEqualTo(300)));
+  }
+
+  @Test
+  @DisplayName("insistir durante el castigo no lo alarga: la espera decrece, no vuelve a empezar")
+  void insistirNoReiniciaElCastigo() throws Exception {
+    for (int i = 1; i <= 5; i++) {
+      atendida(recuperar("insistente@factech.co"));
+    }
+
+    int primera = esperaDe(recuperar("insistente@factech.co"));
+    int segunda = esperaDe(recuperar("insistente@factech.co"));
+    int tercera = esperaDe(recuperar("insistente@factech.co"));
+
+    // No se puede adelantar el reloj de un contexto real, de modo que lo que se
+    // comprueba es que la espera NO CRECE: si cada intento renovara el castigo,
+    // las tres dirían trescientos y quien reintenta solo quedaría encerrado.
+    // El caso con el reloj en la mano está en `RateLimitLedgerTest`.
+    assertThat(segunda).isLessThanOrEqualTo(primera);
+    assertThat(tercera).isLessThanOrEqualTo(segunda);
+  }
+
+  private org.springframework.test.web.servlet.ResultActions recuperar(String identidad)
+      throws Exception {
+    return mvc.perform(
+        post("/api/v1/auth/password-recovery")
+            .contentType(MediaType.APPLICATION_JSON)
+            .content("{\"identifier\":\"%s\"}".formatted(identidad)));
+  }
+
+  /** Los segundos que el rechazo dice que hay que esperar. */
+  private int esperaDe(org.springframework.test.web.servlet.ResultActions resultado)
+      throws Exception {
+    String cuerpo =
+        resultado
+            .andExpect(status().isTooManyRequests())
+            .andReturn()
+            .getResponse()
+            .getContentAsString();
+    return com.jayway.jsonpath.JsonPath.read(cuerpo, "$.retryAfterSeconds");
+  }
+
   /**
    * Una peticion atendida: lo unico que se afirma es que NO la corto el limite.
    *

@@ -114,7 +114,11 @@ public class RateLimitFilter extends OncePerRequestFilter {
     // no exige leer el cuerpo.
     if (politica.acotaPorOrigen() && origen != null) {
       RateLimitLedger.Veredicto veredicto =
-          contador.registrar(llave(ruta, "ip", origen), politica.porOrigen(), politica.ventana());
+          contador.registrar(
+              llave(ruta, "ip", origen),
+              politica.porOrigen(),
+              politica.ventana(),
+              politica.penalizacion());
 
       if (!veredicto.admitida()) {
         rechazar(envuelta, respuesta, veredicto, ruta, "origen", origen, politica.ventana());
@@ -127,7 +131,10 @@ public class RateLimitFilter extends OncePerRequestFilter {
       if (identidad != null) {
         RateLimitLedger.Veredicto veredicto =
             contador.registrar(
-                llave(ruta, "id", identidad), politica.porIdentidad(), politica.ventana());
+                llave(ruta, "id", identidad),
+                politica.porIdentidad(),
+                politica.ventana(),
+                politica.penalizacion());
 
         if (!veredicto.admitida()) {
           // La identidad NO viaja al registro ni a la respuesta: decir «esta
