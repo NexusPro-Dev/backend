@@ -29,6 +29,8 @@ tags:
     \ uno con su permiso."
 - name: Países
   description: Catálogo de países. Inmutable salvo su estado.
+- name: Productos
+  description: "Catálogo de venta: upgrades de membresía y servicios."
 - name: Membresías
   description: Cadena lineal de niveles de consumidor. Inmutable salvo el reordenamiento.
 - name: Monedas
@@ -874,6 +876,64 @@ paths:
             \ el rol tiene hijos o personas asignadas (`RN-SEG-008`)"
         "500":
           description: Fallo no controlado (`ERR-500`)
+  /api/v1/products:
+    post:
+      tags:
+      - Productos
+      summary: Registrar un producto
+      description: |
+        Registra un producto del catálogo, **siempre inactivo**: publicarlo es otra
+        operación (`RF-PM-005`).
+
+        El tipo decide qué campos son obligatorios: un `UPGRADE_MEMBRESIA` debe
+        declarar su membresía destino y un `SERVICIO` no puede declararla.
+
+        La vigencia es opcional en los dos tipos: sin ella, lo adquirido no caduca.
+      operationId: register
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/RegisterProductRequest"
+        required: true
+      responses:
+        "201":
+          description: "Producto registrado, en estado `INACTIVO`."
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/ProductResponse"
+        "400":
+          description: Datos inválidos (serie `VAL-nnn`)
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/ProductResponse"
+        "401":
+          description: Token ausente o inválido (`AUTH-001`)
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/ProductResponse"
+        "403":
+          description: Autenticado sin el permiso `products:create` (`AUTH-002`)
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/ProductResponse"
+        "409":
+          description: "Código o nombre ya en uso (`EX-005`, `EX-001`)"
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/ProductResponse"
+        "422":
+          description: "Membresía destino o moneda inexistente o inactiva (`EX-002`,\
+            \ `EX-003`)"
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/ProductResponse"
   /api/v1/memberships:
     get:
       tags:
@@ -2957,6 +3017,94 @@ components:
       properties:
         reason:
           type: string
+    RegisterProductRequest:
+      type: object
+      properties:
+        code:
+          type: string
+          maxLength: 50
+          minLength: 0
+          pattern: "^[A-Za-z][A-Za-z0-9_]*$"
+        type:
+          type: string
+          enum:
+          - UPGRADE_MEMBRESIA
+          - SERVICIO
+        name:
+          type: string
+          maxLength: 150
+          minLength: 0
+        description:
+          type: string
+          maxLength: 1000
+          minLength: 0
+        targetMembershipId:
+          type: string
+          format: uuid
+        price:
+          type: number
+          minimum: 0.0
+        currencyId:
+          type: string
+          format: uuid
+        validityDays:
+          type: integer
+          format: int32
+          minimum: 1
+      required:
+      - code
+      - currencyId
+      - name
+      - price
+      - type
+    CurrencyRef:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        code:
+          type: string
+        decimalPlaces:
+          type: integer
+          format: int32
+    ProductResponse:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        code:
+          type: string
+        type:
+          type: string
+          enum:
+          - UPGRADE_MEMBRESIA
+          - SERVICIO
+        name:
+          type: string
+        description:
+          type: string
+        targetMembership:
+          $ref: "#/components/schemas/MembershipRef"
+        price:
+          type: number
+        currency:
+          $ref: "#/components/schemas/CurrencyRef"
+        validityDays:
+          type: integer
+          format: int32
+        status:
+          type: string
+          enum:
+          - ACTIVO
+          - INACTIVO
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
     RegisterMembershipRequest:
       type: object
       properties:

@@ -67,6 +67,18 @@ services:
       # El hash lleva los `$` DUPLICADOS en el `.env`. Ver `.env.example`.
       SUPERADMIN_EMAIL: "superadmin@factech.co"
       SUPERADMIN_PASSWORD_HASH: ${SUPERADMIN_PASSWORD_HASH}
+
+      # Canal de envio saliente (RF-SP-040, D-23). Los valores viven en `.env`,
+      # que NO se versiona: aqui solo se interpolan. Sin ellos el adaptador
+      # queda APAGADO y lo avisa al arrancar, en lugar de fallar la primera vez
+      # que alguien olvide su contrasena.
+      #
+      # SIN `:?`, por lo mismo que el hash de arriba: Compose interpola el
+      # archivo ENTERO antes de elegir servicio, y un `:?` aqui tumbaria hasta
+      # `docker compose ps`. El fallo rapido ya lo da la aplicacion.
+      NOTIFICATION_ENABLED: ${NOTIFICATION_ENABLED}
+      RESEND_API_KEY: ${RESEND_API_KEY}
+      NOTIFICATION_FROM: ${NOTIFICATION_FROM}
     ports:
       - "8080:8080"
     healthcheck:

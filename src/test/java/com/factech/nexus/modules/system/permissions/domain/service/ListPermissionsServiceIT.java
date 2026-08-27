@@ -79,6 +79,6 @@ class ListPermissionsServiceIT extends IntegrationTestBase {
   @Test
   @DisplayName("el servicio devuelve el catálogo completo, no una página")
   void devuelveElCatalogoCompleto() {
-    assertThat(service.list(ListPermissionsQuery.all())).hasSize(24);
+    assertThat(service.list(ListPermissionsQuery.all())).hasSize(28);
   }
 }

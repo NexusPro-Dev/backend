@@ -5,7 +5,7 @@
 | Proyecto | NEXUS — Renovación de plataforma |
 | Empresa | FACTECH GROUP SAS |
 | Documento | `modules.md` |
-| Versión | 0.13.0 |
+| Versión | 0.14.0 |
 | Estado | Borrador |
 | Responsable técnico | Bonilla Diaz William Steven |
 | Fecha de creación | 20-08-2026 |
@@ -98,7 +98,7 @@ Las dependencias apuntan **del consumidor al proveedor** y deben ser acíclicas 
 | Código | Módulo | Paquete Java | Prefijo de permisos | Depende de | Estado |
 |---|---|---|---|---|---|
 | `SP` | Sistema Principal | `modules/system` | `roles:`, `permissions:`, `audit:`, `memberships:`, `currencies:`, `countries:`, `users:` | — | En desarrollo |
-| `PM` | Productos y Mercadeo | `modules/products` | `products:` | `SP` | En diseño |
+| `PM` | Productos y Mercadeo | `modules/products` | `products:` | `SP` | En desarrollo |
 
 
 **Estados:** `Propuesto` · `En diseño` · `En desarrollo` · `Implementado` · `Obsoleto`.
@@ -312,3 +312,4 @@ El orden importa: el módulo precede al requerimiento, el requerimiento precede 
 | 0.11.0 | 26-08-2026 | **`SP` pasa de `En diseño` a `En desarrollo`.** El estado llevaba sin tocarse desde el 20-08-2026, cuando el módulo era exactamente eso: un diseño. Hoy sus cuarenta y dos requerimientos tienen tripleta aprobada y endpoint funcionando, veintinueve migraciones aplicadas y una suite de 137 pruebas unitarias y 595 de integración en verde. **No pasa a `Implementado`**, y la distinción importa: ese estado exige que sus requerimientos lo estén, y ninguno lo está mientras no haya Pull Request aprobado e integrado (Art. XVI). El detalle, requerimiento a requerimiento, en [`requirements.md` §4 y §5](requirements.md#4-matriz-de-trazabilidad). | Responsable técnico |
 | 0.12.0 | 26-08-2026 | **Se incorpora el módulo `PM` — Productos y Mercadeo**, el segundo del sistema y el primero que depende de otro. Es dueño de `products` y cumple las dos condiciones de §2.1: tabla propia que `SP` no necesita, y consumidores previsibles —Finanzas para cobrar, Comisiones para saber sobre qué importe se comisiona, Academia para saber qué nivel da acceso a qué—. Trae **dos tipos de producto que no se mezclan**: el **upgrade de membresía**, que da derecho a pasar al nivel que declara, y el **servicio del sistema**. §5.2.1 fija el desajuste entre código y paquete —`PM` → `modules/products`— por el mismo criterio que §4.1 aplicó a `SP`: el código nombra el área de negocio y es irreversible, el paquete nombra su contenido y es renombrable. **Lo que el módulo NO hace queda escrito**: no cobra, no entrega y **no aplica el upgrade sobre la persona**, porque `user_memberships` es de `SP` y §7 prohíbe que otro módulo la escriba. De ahí sale **D-25**: `SP` no publica hoy ninguna interfaz de aplicación para las tres lecturas que `PM` necesita —una membresía y su nivel, una moneda y sus decimales, la membresía vigente de alguien—, de modo que la dependencia está declarada y **no es consumible todavía**. §6 marca el candidato «Productos y servicios» como incorporado en su mitad de catálogo. Se procede pese a la advertencia de esa misma sección sobre fijar códigos antes de conocer el alcance completo, por decisión del responsable del proyecto, y queda escrito que se procedió sabiéndolo. | Responsable técnico |
 | 0.13.0 | 26-08-2026 | **D-25 cerrada**, y la ficha de `PM` deja de declarar su dependencia como no consumible. La respuesta vale para cualquier par de módulos y vive en `architecture.md` §15.2: **el dueño del dato publica interfaces de aplicación de solo lectura y el consumidor las importa**, una por lectura, devolviendo modelos de lectura y nunca entidades, con la ausencia como valor vacío y una regla de ArchUnit que impide importar repositorios o entidades ajenos. Es la primera vez que §7 —«un módulo NO DEBE acceder a las tablas ni a los repositorios de otro»— dice también **por dónde sí**. | Responsable del proyecto |
+| 0.14.0 | 27-08-2026 | **`PM` pasa de `En diseño` a `En desarrollo`**: su primer requerimiento está implementado, con tabla propia, permisos sembrados y endpoint funcionando. Con él, la norma de §15.2 de `architecture.md` deja de ser papel: `SP` publica sus dos primeras interfaces hacia otro módulo y una regla de ArchUnit impide que `PM` importe nada de su dominio. | Responsable técnico |

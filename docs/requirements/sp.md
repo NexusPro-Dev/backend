@@ -5,11 +5,11 @@
 | Módulo | `SP` — Sistema Principal |
 | Paquete | `modules/system` |
 | Prefijos de permiso | `roles:`, `permissions:`, `audit:`, `memberships:`, `currencies:`, `countries:`, `users:` |
-| Versión | 1.25.0 |
+| Versión | 1.26.0 |
 | Estado | **Aprobado** |
 | Responsable | Bonilla Diaz William Steven |
 | Fecha de creación | 20-08-2026 |
-| Última actualización | 26-08-2026 |
+| Última actualización | 27-08-2026 |
 | Fecha de aprobación | 20-08-2026 |
 
 !!! info "Qué va en este documento"
@@ -721,6 +721,10 @@ Definidos en [`security.md` §11](../security.md) y en la constitución. Los que
 
 Ninguna con sistemas externos ni con otros módulos. Al absorber los usuarios, sus roles y su acceso, `SP` deja de tener dependencias: es autocontenido y no necesita que ningún otro módulo exista para funcionar.
 
+**Publica dos lecturas hacia otros módulos desde el 27-08-2026** (**D-25**, `architecture.md` §15.2): el **catálogo de membresías** —si una existe y qué nivel tiene— y el **catálogo de monedas** —si existe, si está activa y cuántos decimales declara—. Las consume `PM`, y las escribió `RF-PM-001`: `SP` no gana ningún requerimiento por ello, porque ningún actor pide «publicar una interfaz» como comportamiento.
+
+**Sigue sin depender de nadie.** Publicar no es depender: la dirección de la dependencia es `PM` → `SP`, y una regla de ArchUnit impide que `modules/products` importe repositorios o entidades de `modules/system`.
+
 ## 9. API
 
 | Método | Ruta | Requerimiento | Permiso |
@@ -1156,3 +1160,4 @@ La crea `RF-SP-024` (`V19__create_user_roles.sql`), porque el alta ya escribe as
 | 1.23.0 | 26-08-2026 | **`RF-SP-040` deja de ser el requerimiento sin implementar del módulo**, al cerrarse **D-23** con Resend. §10 gana `password_reset_permits` en la tabla de entidades y **§10.13** con sus campos. Tres cosas quedan escritas ahí porque el esquema las sostiene y el dominio no podría: **solo el hash del permiso**, nunca su valor, igual que `refresh_tokens`; **dos columnas de invalidez y no un estado** —`consumed_at` dice que alguien completó el flujo y `superseded_at` que pidió otro, y una sola columna las haría indistinguibles justo donde la auditoría necesita separarlas—; y el **único parcial `uq_password_reset_permits_vigente`**, que declara en el esquema que solo vive un permiso a la vez: escrito únicamente en el caso de uso, dos solicitudes concurrentes dejarían **dos vías de entrada abiertas** a la misma cuenta. La migración es **`V37` y no `V29`** como decía el plan: ese número quedó tomado al aplicarse `V13` a `V36` mientras la tripleta esperaba la decisión. Se corrige además la numeración duplicada de esta misma tabla: la fila de `RN-SP-023` figuraba como `1.20.0`, número que ya usaba la enmienda de membresías, y pasa a `1.22.0`. | Responsable técnico |
 | 1.24.0 | 26-08-2026 | **§6.1 se sincroniza con la matriz de trazabilidad.** Las cuarenta y dos filas figuraban en `Pendiente` —el estado de «registrado, sin `spec.md`»— cuando los cuarenta y dos tienen tripleta aprobada y endpoint funcionando desde el 26-08-2026: pasan a **`En desarrollo`**. La columna llevaba desde el 20-08-2026 sin tocarse, de modo que el catálogo del módulo afirmaba que no existía nada de lo que ya estaba construido. Se añade además de dónde sale ese dato: la **autoridad es [`requirements.md` §4](../requirements.md#4-matriz-de-trazabilidad)** y aquí se copia, para que la próxima divergencia se resuelva sin tener que averiguar cuál de las dos tablas manda. Ninguno pasa a `Implementado`: el Art. XVI exige Pull Request aprobado e integrado y no hay ninguno. | Responsable técnico |
 | 1.25.0 | 26-08-2026 | **La membresía gana su color** (`RN-SP-024`), por decisión del responsable del proyecto: seis dígitos **hexadecimales sin `#`**, normalizados a mayúsculas, con los que el frontend pinta el nivel. §10.4 incorpora la columna `color` —`varchar(6)` y no `char(6)`, porque `char(n)` rellena con espacios y dejaría toda la comprobación en manos de la expresión regular— y §10.8 sus dos restricciones: `ck_memberships_color_format` y `uq_memberships_color`. Es **obligatorio**, porque un color opcional obliga al navegador a inventarse uno de reserva, que es exactamente la decisión que este campo saca del frontend; y **único**, porque dos niveles del mismo color son indistinguibles justo en lo que el campo existe para distinguir — con la salvedad escrita de que la unicidad atrapa el valor repetido y no dos tonos que un ojo humano no separa. **Queda declarado un hueco que se acepta a conciencia**: `RN-SP-008` mantiene la membresía inmutable, de modo que **un color mal elegido no se corrige**, y §5.1 fija la condición para reabrirlo como `RF-SP-043`. Enmienda las tripletas de `RF-SP-016`, `RF-SP-017` y `RF-SP-018`, ya aprobadas e implementadas (Art. I.7), y obliga a la migración `V38`. | Responsable técnico |
+| 1.26.0 | 27-08-2026 | **`SP` publica sus dos primeras interfaces hacia otro módulo** (§8): el catálogo de membresías y el de monedas, que consume `PM` al registrar un producto. Las escribió `RF-PM-001` y **no abren requerimiento nuevo aquí**: ningún actor pide «publicar una interfaz» como comportamiento observable. Publicar no es depender —la dirección sigue siendo `PM` → `SP`— y una regla de ArchUnit lo ancla. Queda anotado que el submódulo de usuarios ya tenía su propio `MembershipCatalog` interno para lo que él necesita al asignar una membresía: **son la misma lectura declarada dos veces**, y consolidarlas es deuda pendiente que toca código ya implementado. | Responsable técnico |

@@ -130,7 +130,7 @@ Al **26-08-2026**. Cada cifra se cuenta sobre el documento que es su autoridad y
 | Módulos implementados | 0 | [`modules.md` §4](modules.md#4-inventario-de-modulos) |
 | Requerimientos registrados | 49 | [`requirements.md` §4](requirements.md#4-matriz-de-trazabilidad) |
 | Requerimientos con **tripleta aprobada** | 49 | [`requirements.md` §5](requirements.md#5-estado-general) |
-| Requerimientos con **endpoint funcionando** | 42 | [`requirements.md` §5](requirements.md#5-estado-general) |
+| Requerimientos con **endpoint funcionando** | 43 | [`requirements.md` §5](requirements.md#5-estado-general) |
 | Requerimientos **implementados** | 0 | [`requirements.md` §4](requirements.md#4-matriz-de-trazabilidad) |
 
 #### Por módulo
@@ -138,14 +138,14 @@ Al **26-08-2026**. Cada cifra se cuenta sobre el documento que es su autoridad y
 | Módulo | Estado | Requerimientos | Con tripleta aprobada | Con endpoint | Implementados |
 |---|---|---|---|---|---|
 | [`SP` — Sistema Principal](requirements/sp.md) | En desarrollo | 42 | 42 | 42 | 0 |
-| [`PM` — Productos y Mercadeo](requirements/pm.md) | En diseño | 7 | 7 | 0 | 0 |
-| **Total** | — | **49** | **49** | **42** | **0** |
+| [`PM` — Productos y Mercadeo](requirements/pm.md) | En desarrollo | 7 | 7 | 1 | 0 |
+| **Total** | — | **49** | **49** | **43** | **0** |
 
 El inventario de módulos está **incompleto a propósito** y así está declarado: figuran `SP`, que el Documento Marco nombra, y `PM`, incorporado el 26-08-2026; el resto del alcance del producto sigue por inventariar ([`modules.md` §6](modules.md#6-alcance-por-inventariar)). Esta tabla crece con él, no lo sustituye.
 
 !!! warning "«Implementados: 0» no significa «no hay código»"
 
-    `Implementado` es el estado que exige la **definición de terminado** (constitución §16 y Art. XVI): entre otras condiciones, **Pull Request aprobado por alguien distinto del autor e integrado**. Hoy los cuarenta y dos requerimientos están construidos y su suite pasa en verde, pero el trabajo vive en ramas `feature/…` sin fusionar y sus Issues están por crear, de modo que **ninguno** cumple esa definición.
+    `Implementado` es el estado que exige la **definición de terminado** (constitución §16 y Art. XVI): entre otras condiciones, **Pull Request aprobado por alguien distinto del autor e integrado**. Hoy hay cuarenta y tres requerimientos construidos —los cuarenta y dos de `SP` y el primero de `PM`— y su suite pasa en verde, pero el trabajo vive en ramas `feature/…` sin fusionar y sus Issues están por crear, de modo que **ninguno** cumple esa definición.
 
     La fila que dice cuánto hay **construido** es «requerimientos con endpoint funcionando». La que dice cuánto está **cerrado** es «implementados». Leer la segunda como si fuera la primera es la confusión que este panel existe para evitar.
 
@@ -153,9 +153,9 @@ El inventario de módulos está **incompleto a propósito** y así está declara
 
 | Indicador | Valor | De dónde sale |
 |---|---|---|
-| Migraciones Flyway | 30 | `src/main/resources/db/migration` |
-| Pruebas unitarias en verde | 154 | `./mvnw clean verify` |
-| Pruebas de integración en verde | 602 | `./mvnw clean verify` |
+| Migraciones Flyway | 32 | `src/main/resources/db/migration` |
+| Pruebas unitarias en verde | 170 | `./mvnw clean verify` |
+| Pruebas de integración en verde | 616 | `./mvnw clean verify` |
 | Tareas de tripleta abiertas | 14 | [`requirements.md` §5](requirements.md#5-estado-general) |
 
 Son las que sus `tasks.md` declaran `Pendiente`, verificadas contra el código una a una. Hay además **ochenta y siete filas en `En curso`** cuyo estado va por detrás de lo construido y que no se han revisado todavía: mientras esa revisión no se haga, el estado de una tarea no es fuente fiable, y sí lo son la matriz de trazabilidad y la suite.
@@ -171,12 +171,12 @@ Son las que sus `tasks.md` declaran `Pendiente`, verificadas contra el código u
 | [Constitución](constitution.md) | 0.7.0 | Borrador |
 | [Arquitectura](architecture.md) | 0.21.0 | Borrador |
 | [Seguridad](security.md) | 0.35.0 | Borrador |
-| [Mapa modular](modules.md) | 0.13.0 | Borrador |
+| [Mapa modular](modules.md) | 0.14.0 | Borrador |
 | [Modelo de datos](modelo-datos.md) | 0.11.0 | Borrador |
-| [Requerimientos y trazabilidad](requirements.md) | 0.68.0 | Borrador |
+| [Requerimientos y trazabilidad](requirements.md) | 0.69.0 | Borrador |
 | [Guía de desarrollo](development-guide.md) | 0.7.0 | Borrador |
 | [Despliegue](deployment.md) | 0.2.0 | Borrador |
-| [Requerimientos de `SP`](requirements/sp.md) | 1.25.0 | **Aprobado** |
+| [Requerimientos de `SP`](requirements/sp.md) | 1.26.0 | **Aprobado** |
 | [Requerimientos de `PM`](requirements/pm.md) | 0.12.0 | Borrador |
 | [Flujos de `SP` · del módulo](flujos/sp/flujos-del-modulo.md) | 0.3.0 | Borrador |
 | [Flujos de `SP` · por caso](flujos/sp/flujos-por-caso.md) | 0.2.0 | Borrador |

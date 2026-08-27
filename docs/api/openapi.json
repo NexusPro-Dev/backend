@@ -256,6 +256,22 @@
         },
         "type" : "object"
       },
+      "CurrencyRef" : {
+        "properties" : {
+          "code" : {
+            "type" : "string"
+          },
+          "decimalPlaces" : {
+            "format" : "int32",
+            "type" : "integer"
+          },
+          "id" : {
+            "format" : "uuid",
+            "type" : "string"
+          }
+        },
+        "type" : "object"
+      },
       "CurrencyResponse" : {
         "properties" : {
           "code" : {
@@ -936,6 +952,53 @@
         },
         "type" : "object"
       },
+      "ProductResponse" : {
+        "properties" : {
+          "code" : {
+            "type" : "string"
+          },
+          "createdAt" : {
+            "format" : "date-time",
+            "type" : "string"
+          },
+          "currency" : {
+            "$ref" : "#/components/schemas/CurrencyRef"
+          },
+          "description" : {
+            "type" : "string"
+          },
+          "id" : {
+            "format" : "uuid",
+            "type" : "string"
+          },
+          "name" : {
+            "type" : "string"
+          },
+          "price" : {
+            "type" : "number"
+          },
+          "status" : {
+            "enum" : [ "ACTIVO", "INACTIVO" ],
+            "type" : "string"
+          },
+          "targetMembership" : {
+            "$ref" : "#/components/schemas/MembershipRef"
+          },
+          "type" : {
+            "enum" : [ "UPGRADE_MEMBRESIA", "SERVICIO" ],
+            "type" : "string"
+          },
+          "updatedAt" : {
+            "format" : "date-time",
+            "type" : "string"
+          },
+          "validityDays" : {
+            "format" : "int32",
+            "type" : "integer"
+          }
+        },
+        "type" : "object"
+      },
       "RefreshRequest" : {
         "properties" : {
           "refreshToken" : {
@@ -991,6 +1054,49 @@
           }
         },
         "required" : [ "code", "color", "name" ],
+        "type" : "object"
+      },
+      "RegisterProductRequest" : {
+        "properties" : {
+          "code" : {
+            "maxLength" : 50,
+            "minLength" : 0,
+            "pattern" : "^[A-Za-z][A-Za-z0-9_]*$",
+            "type" : "string"
+          },
+          "currencyId" : {
+            "format" : "uuid",
+            "type" : "string"
+          },
+          "description" : {
+            "maxLength" : 1000,
+            "minLength" : 0,
+            "type" : "string"
+          },
+          "name" : {
+            "maxLength" : 150,
+            "minLength" : 0,
+            "type" : "string"
+          },
+          "price" : {
+            "minimum" : 0.0,
+            "type" : "number"
+          },
+          "targetMembershipId" : {
+            "format" : "uuid",
+            "type" : "string"
+          },
+          "type" : {
+            "enum" : [ "UPGRADE_MEMBRESIA", "SERVICIO" ],
+            "type" : "string"
+          },
+          "validityDays" : {
+            "format" : "int32",
+            "minimum" : 1,
+            "type" : "integer"
+          }
+        },
+        "required" : [ "code", "currencyId", "name", "price", "type" ],
         "type" : "object"
       },
       "RegisterUserRequest" : {
@@ -2732,6 +2838,86 @@
         "tags" : [ "Permisos" ]
       }
     },
+    "/api/v1/products" : {
+      "post" : {
+        "description" : "Registra un producto del catálogo, **siempre inactivo**: publicarlo es otra\noperación (`RF-PM-005`).\n\nEl tipo decide qué campos son obligatorios: un `UPGRADE_MEMBRESIA` debe\ndeclarar su membresía destino y un `SERVICIO` no puede declararla.\n\nLa vigencia es opcional en los dos tipos: sin ella, lo adquirido no caduca.\n",
+        "operationId" : "register",
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/RegisterProductRequest"
+              }
+            }
+          },
+          "required" : true
+        },
+        "responses" : {
+          "201" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ProductResponse"
+                }
+              }
+            },
+            "description" : "Producto registrado, en estado `INACTIVO`."
+          },
+          "400" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ProductResponse"
+                }
+              }
+            },
+            "description" : "Datos inválidos (serie `VAL-nnn`)"
+          },
+          "401" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ProductResponse"
+                }
+              }
+            },
+            "description" : "Token ausente o inválido (`AUTH-001`)"
+          },
+          "403" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ProductResponse"
+                }
+              }
+            },
+            "description" : "Autenticado sin el permiso `products:create` (`AUTH-002`)"
+          },
+          "409" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ProductResponse"
+                }
+              }
+            },
+            "description" : "Código o nombre ya en uso (`EX-005`, `EX-001`)"
+          },
+          "422" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ProductResponse"
+                }
+              }
+            },
+            "description" : "Membresía destino o moneda inexistente o inactiva (`EX-002`, `EX-003`)"
+          }
+        },
+        "summary" : "Registrar un producto",
+        "tags" : [ "Productos" ]
+      }
+    },
     "/api/v1/roles" : {
       "get" : {
         "description" : "Listado paginado con filtros, búsqueda y ordenamiento. Es la entrada\nnatural a la administración de accesos: de aquí se navega al detalle de\ncada rol.\n\n**El orden por defecto es `code,asc`**: el código es el identificador\ncon el que se habla de un rol en la documentación y en la auditoría.\nSolo se puede ordenar por la lista blanca —`code`, `name`, `roleType`,\n`status`, `createdAt`, `updatedAt`—; cualquier otro campo devuelve\n`400` y **no llega a la base de datos**.\n\n**No incluye los permisos de cada rol** ni el número de usuarios\nasignados: la primera pregunta la responde el detalle\n(`GET /api/v1/roles/{id}`) y la segunda se hace sobre un rol concreto,\nno sobre la lista.\n\n**`parentRoleId` no se valida contra el catálogo.** Filtra por el padre\n**directo** —no por el subárbol— y uno inexistente devuelve la\ncolección vacía, que no es un error.\n\nLa búsqueda va sobre código y nombre, **sin distinguir acentos ni\nmayúsculas**, y por fragmento: `academico` encuentra\n`LIDER_ACADEMICO`. Un término en blanco equivale a no filtrar.\n\n**Los eliminados quedan fuera salvo que se pidan** con\n`includeDeleted=true`; cuando se piden, `deletedAt` es lo que permite\ndistinguirlos.\n",
@@ -4218,6 +4404,9 @@
   }, {
     "description" : "Catálogo de países. Inmutable salvo su estado.",
     "name" : "Países"
+  }, {
+    "description" : "Catálogo de venta: upgrades de membresía y servicios.",
+    "name" : "Productos"
   }, {
     "description" : "Cadena lineal de niveles de consumidor. Inmutable salvo el reordenamiento.",
     "name" : "Membresías"
