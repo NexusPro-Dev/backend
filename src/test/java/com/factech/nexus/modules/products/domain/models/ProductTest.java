@@ -8,6 +8,7 @@ import com.factech.nexus.shared.error.ValidationException;
 import java.math.BigDecimal;
 import java.time.OffsetDateTime;
 import java.time.ZoneOffset;
+import java.util.Map;
 import java.util.UUID;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -205,6 +206,86 @@ class ProductTest {
             AHORA);
 
     assertThat(conDescripcion.tieneDescripcion()).isTrue();
+  }
+
+  @Test
+  @DisplayName("`RF-PM-006` · `T-02` — retirar NO toca el estado: un activo retirado sigue activo")
+  void elRetiroNoTocaElEstado() {
+    Product producto = servicio("ASESORIA");
+    producto.activate(AHORA);
+
+    producto.delete(AHORA.plusDays(1));
+
+    // `CA-PM-052`: el registro tiene que poder decir si el producto ESTABA A LA
+    // VENTA cuando se retiró. Desactivarlo «de paso» haría que todos los
+    // registros dijeran «inactivo» y ese dato dejaría de significar nada — la
+    // salvaguarda habría destruido la evidencia que protege.
+    assertThat(producto.getStatus()).isEqualTo(ProductStatus.ACTIVO);
+    assertThat(producto.getDeletedAt()).isEqualTo(AHORA.plusDays(1));
+    assertThat(producto.estaRetirado()).isTrue();
+  }
+
+  @Test
+  @DisplayName("`RF-PM-006` — retirar dos veces devuelve «sin cambio» y no pisa la primera fecha")
+  void elSegundoRetiroNoPisaAlPrimero() {
+    Product producto = servicio("ASESORIA");
+    producto.delete(AHORA);
+
+    assertThat(producto.delete(AHORA.plusDays(5))).isFalse();
+    // La fecha del retiro es la del hecho real, no la del último intento.
+    assertThat(producto.getDeletedAt()).isEqualTo(AHORA);
+  }
+
+  @Test
+  @DisplayName("`RF-PM-006` · `T-03` — la instantánea describe el estado ANTERIOR al retiro")
+  void laInstantaneaEsLaDelEstadoAnterior() {
+    Product producto =
+        Product.create(
+            UUID.randomUUID(),
+            "UPGRADE_ORO",
+            ProductType.UPGRADE_MEMBRESIA,
+            "Ascenso a Oro",
+            "Sube al nivel oro.",
+            DESTINO,
+            new BigDecimal("49.99"),
+            MONEDA,
+            30,
+            AHORA);
+    producto.activate(AHORA);
+
+    // Se captura ANTES de tocar nada, que es el orden que el caso de uso sigue.
+    Map<String, Object> antes = producto.instantanea();
+    producto.delete(AHORA.plusDays(1));
+
+    // Capturarla después dejaría el registro diciendo qué QUEDÓ del producto y
+    // no qué ERA. La diferencia no se ve —el registro «tiene datos» igual— y
+    // por eso se comprueba contra el valor anterior y no contra el resultado.
+    assertThat(antes.get("status")).isEqualTo("ACTIVO");
+    assertThat(antes.get("code")).isEqualTo("UPGRADE_ORO");
+    assertThat(antes.get("name")).isEqualTo("Ascenso a Oro");
+    assertThat(antes.get("description")).isEqualTo("Sube al nivel oro.");
+    assertThat(antes.get("type")).isEqualTo("UPGRADE_MEMBRESIA");
+    assertThat(antes.get("target_membership_id")).isEqualTo(DESTINO.toString());
+    assertThat(antes.get("currency_id")).isEqualTo(MONEDA.toString());
+    assertThat(antes.get("validity_days")).isEqualTo(30);
+    // El precio va como TEXTO: `BigDecimal` serializado a JSON puede perder la
+    // escala, y en un registro de auditoría `49.99` y `49.990` no son lo mismo.
+    assertThat(antes.get("price")).isEqualTo("49.99");
+  }
+
+  @Test
+  @DisplayName("la instantánea del alta y la del retiro tienen LAS MISMAS claves")
+  void lasDosInstantaneasHablanElMismoIdioma() {
+    // Si cada caso de uso armara su mapa, el registro de creación y el de
+    // eliminación describirían el mismo producto con claves distintas, y
+    // comparar los dos —que es para lo que existen— dejaría de ser posible.
+    Product producto = servicio("ASESORIA");
+    Map<String, Object> alNacer = producto.instantanea();
+
+    producto.activate(AHORA);
+    producto.delete(AHORA.plusDays(1));
+
+    assertThat(producto.instantanea()).containsOnlyKeys(alNacer.keySet().toArray(String[]::new));
   }
 
   private static Product upgrade(String codigo, UUID destino) {

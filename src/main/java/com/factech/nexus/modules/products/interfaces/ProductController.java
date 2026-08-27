@@ -1,12 +1,14 @@
 package com.factech.nexus.modules.products.interfaces;
 
 import com.factech.nexus.modules.products.application.ChangeProductStatusRequest;
+import com.factech.nexus.modules.products.application.DeleteProductRequest;
 import com.factech.nexus.modules.products.application.ListProductsRequest;
 import com.factech.nexus.modules.products.application.ProductDetailResponse;
 import com.factech.nexus.modules.products.application.ProductPageResponse;
 import com.factech.nexus.modules.products.application.ProductResponse;
 import com.factech.nexus.modules.products.application.RegisterProductRequest;
 import com.factech.nexus.modules.products.domain.service.ChangeProductStatusService;
+import com.factech.nexus.modules.products.domain.service.DeleteProductService;
 import com.factech.nexus.modules.products.domain.service.GetProductService;
 import com.factech.nexus.modules.products.domain.service.ListProductsService;
 import com.factech.nexus.modules.products.domain.service.RegisterProductService;
@@ -19,6 +21,7 @@ import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import java.net.URI;
 import java.util.UUID;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -28,13 +31,14 @@ import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
 
 /**
  * El catálogo de productos (`PM`).
  *
- * <p>El alta, el listado, el detalle y el cambio de estado; el resto llega con `RF-PM-004`,
- * `RF-PM-006` y `RF-PM-007`.
+ * <p>El alta, el listado, el detalle, el cambio de estado y el retiro; falta la edición
+ * (`RF-PM-004`) y la oferta del cliente (`RF-PM-007`).
  *
  * <p><b>Este listado no es la oferta.</b> Devuelve el catálogo completo —lo activo, lo inactivo y,
  * si se pide, lo retirado— y lo lee quien administra o vende. Lo que un cliente puede comprar es
@@ -49,16 +53,19 @@ public class ProductController {
   private final ListProductsService listado;
   private final GetProductService detalle;
   private final ChangeProductStatusService estado;
+  private final DeleteProductService retiro;
 
   public ProductController(
       RegisterProductService alta,
       ListProductsService listado,
       GetProductService detalle,
-      ChangeProductStatusService estado) {
+      ChangeProductStatusService estado,
+      DeleteProductService retiro) {
     this.alta = alta;
     this.listado = listado;
     this.detalle = detalle;
     this.estado = estado;
+    this.retiro = retiro;
   }
 
   @PostMapping
@@ -289,5 +296,76 @@ public class ProductController {
   public ProductDetailResponse cambiarEstado(
       @PathVariable UUID id, @Valid @RequestBody ChangeProductStatusRequest peticion) {
     return estado.change(id, peticion);
+  }
+
+  @PostMapping("/{id}/deletion")
+  @ResponseStatus(HttpStatus.NO_CONTENT)
+  @PreAuthorize("hasAuthority('products:delete')")
+  @Operation(
+      summary = "Retirar un producto del catálogo",
+      description =
+          """
+          Retira el producto: **eliminación lógica y con motivo** (Art. V.13).
+          La fila se conserva —lo vendido tiene que seguir resolviendo a lo que
+          se vendió— y el producto deja de ofrecerse.
+
+          **`POST` sobre un subrecurso y no `DELETE` con cuerpo**, igual que al
+          eliminar un rol o una persona: RFC 9110 no define semántica para el
+          cuerpo de un `DELETE` y un intermediario puede descartarlo, con lo que
+          la petición se convertiría en un rechazo por motivo ausente que quien
+          la envió no puede entender ni corregir. Y tampoco en la URL, donde el
+          motivo quedaría escrito en los registros de acceso de cualquier proxy.
+
+          **El motivo es obligatorio** y se comprueba lo primero de todo, antes
+          de tocar la base.
+
+          **El estado no se modifica al retirar.** El registro de eliminación
+          conserva si el producto **estaba a la venta**: desactivarlo «de paso»
+          haría que todos los registros dijeran «inactivo» y ese dato dejaría de
+          significar nada.
+
+          **Qué libera el retiro y qué no**: el **destino** del upgrade queda
+          libre para que otro se active, y el **nombre** queda libre para otro
+          producto. El **código no se libera nunca** — el día que una factura
+          diga `UPGRADE_ORO` tiene que resolver a un solo producto para siempre.
+
+          **No es idempotente a propósito**: retirar uno ya retirado devuelve
+          `409`. Dos motivos sobre un solo hecho es evidencia contradictoria.
+
+          No devuelve el producto: lo que se acaba de retirar no es algo que el
+          sistema deba seguir ofreciendo a quien lo pidió.
+          """)
+  @ApiResponses({
+    @ApiResponse(responseCode = "204", description = "Producto retirado.", content = @Content),
+    @ApiResponse(
+        responseCode = "400",
+        description =
+            "Identificador sin forma canónica (`VAL-001`), motivo ausente o en blanco (`VAL-002`)"
+                + " o demasiado largo (`VAL-003`)",
+        content = @Content),
+    @ApiResponse(
+        responseCode = "401",
+        description = "Token ausente o inválido (`AUTH-001`)",
+        content = @Content),
+    @ApiResponse(
+        responseCode = "403",
+        description = "Autenticado sin el permiso `products:delete` (`AUTH-002`)",
+        content = @Content),
+    @ApiResponse(
+        responseCode = "404",
+        description = "No existe un producto con ese identificador (`EX-001`)",
+        content = @Content),
+    @ApiResponse(
+        responseCode = "409",
+        description = "El producto ya estaba retirado (`EX-002`)",
+        content = @Content),
+    @ApiResponse(
+        responseCode = "500",
+        description = "Fallo no controlado (`ERR-500`)",
+        content = @Content)
+  })
+  public void retirar(
+      @PathVariable UUID id, @RequestBody(required = false) DeleteProductRequest peticion) {
+    retiro.delete(id, peticion);
   }
 }

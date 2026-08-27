@@ -6,6 +6,7 @@
 | Especificación | [`spec.md`](spec.md) v0.2.0 |
 | `spec.md` aprobada el | 26-08-2026 |
 | Estado | **Aprobado** |
+| Enmendado el | 27-08-2026 — Art. I.7: el verbo del endpoint, ver §4 |
 | Autor | Responsable técnico |
 | Aprobado por | Responsable del proyecto |
 | Fecha de aprobación | 26-08-2026 |
@@ -27,15 +28,21 @@ Eliminación **lógica y con motivo** (Art. V.13). Lo que define esta operación
 | `domain/models` | `Product.delete(ahora)` | Marca la fila. **No toca `status`** |
 | `domain/models` | `DeletionReason` | Recorta y exige contenido |
 | `domain/service` | `DeleteProductService` | Orden de §5 |
-| `interfaces` | `ProductController` | `DELETE /api/v1/products/{id}` con motivo en el cuerpo |
+| `interfaces` | `ProductController` | `POST /api/v1/products/{id}/deletion` con motivo en el cuerpo |
 
 **`DeletionReason` se escribe aquí y no se reutiliza el de `SP`**: el de `RF-SP-029` vive en `modules/system/users/domain` y traerlo cruzaría la frontera que D-25 acaba de fijar. Son diez líneas de recorte y validación; compartirlas exigiría promoverlas a `shared/`, y eso se hace cuando haya un tercer cliente, no antes.
 
 ## 4. Contrato de API
 
-`DELETE /api/v1/products/{id}` con `{"reason": "…"}` y respuesta `204`.
+`POST /api/v1/products/{id}/deletion` con `{"reason": "…"}` y respuesta `204`.
 
-**`DELETE` con cuerpo**, como `RF-SP-009` y `RF-SP-029`. Está permitido por la especificación de HTTP y es lo que el Art. V.13 obliga a transportar; la alternativa —el motivo en la URL— lo dejaría escrito en los registros de acceso de cualquier proxy.
+!!! warning "Corregido el 27-08-2026 (Art. I.7): este plan decía `DELETE` con cuerpo, y su justificación era falsa"
+
+    Se aprobó diciendo **«`DELETE` con cuerpo, como `RF-SP-009` y `RF-SP-029`»**. Al implementarlo se comprobó contra el código: **ninguno de los dos hace eso**. Los dos exponen `POST /{id}/deletion`, y el motivo está escrito en `DeleteUserRequest` — RFC 9110 **no define semántica para el cuerpo de un `DELETE`** y un intermediario puede descartarlo, con lo que la petición llegaría sin motivo y se convertiría en un rechazo que quien la envió no puede entender ni corregir.
+
+    El argumento sigue valiendo aquí, de modo que **se corrige el plan y no el sistema**: `PM` usa la misma forma que el resto de la API. Lo que el plan sí decía bien es lo otro: el motivo **no va en la URL**, donde quedaría escrito en los registros de acceso de cualquier proxy.
+
+    La `spec.md` **no se toca**: no menciona ningún verbo. Era una decisión de plan, y el defecto era del plan.
 
 **No devuelve el producto** (`spec.md` §6.2): lo que se acaba de retirar no es algo que el sistema deba seguir ofreciendo a quien lo pidió.
 

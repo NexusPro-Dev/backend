@@ -10,8 +10,10 @@ import jakarta.persistence.Id;
 import jakarta.persistence.Table;
 import java.math.BigDecimal;
 import java.time.OffsetDateTime;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
+import java.util.Map;
 import java.util.UUID;
 import java.util.regex.Pattern;
 
@@ -172,6 +174,66 @@ public class Product {
     status = destino;
     updatedAt = ahora;
     return true;
+  }
+
+  /**
+   * Retira el producto del catálogo (`RF-PM-006`, `RN-PM-010`).
+   *
+   * <p><b>El estado NO se toca</b>, y no es un olvido: `CA-PM-052` exige que el registro de
+   * eliminación diga si el producto <b>estaba a la venta</b> cuando se retiró. Desactivarlo «de
+   * paso» haría que todos los registros dijeran «inactivo» y ese dato dejaría de significar nada —
+   * la salvaguarda habría destruido justo la evidencia que protege.
+   *
+   * <p><b>Lo que sí se mueve es {@code updatedAt}</b>: la fila cambió, y la marca de modificación
+   * es de la fila y no del estado comercial del producto.
+   *
+   * <p><b>No es idempotente</b>: retirar dos veces con dos motivos distintos dejaría el segundo
+   * escrito sobre un hecho que ocurrió antes y por otra razón. Quien lo llama comprueba antes que
+   * no esté ya retirado; aquí se devuelve si hubo cambio para que ese fallo no dependa de recordar
+   * comprobarlo.
+   *
+   * @return {@code true} si el producto pasó de vivo a retirado
+   */
+  public boolean delete(OffsetDateTime ahora) {
+    if (deletedAt != null) {
+      return false;
+    }
+    deletedAt = ahora;
+    updatedAt = ahora;
+    return true;
+  }
+
+  public boolean estaRetirado() {
+    return deletedAt != null;
+  }
+
+  /**
+   * El estado completo del producto, para el registro de auditoría (Art. V.13).
+   *
+   * <p><b>Vive aquí y no en cada caso de uso</b> porque los dos que la usan —el alta y el retiro—
+   * tienen que decir lo mismo: si cada uno armara su mapa, el registro de creación y el de
+   * eliminación describirían el mismo producto con claves distintas, y comparar los dos —que es
+   * para lo que existen— dejaría de ser posible.
+   *
+   * <p><b>Las claves usan el nombre de la columna</b> y no el del campo Java: el registro se lee
+   * contra el esquema, no contra el código, y quien lo consulte años después tendrá lo primero.
+   *
+   * <p>El precio va como texto y no como número: {@code BigDecimal} serializado a JSON puede perder
+   * la escala, y en un registro de auditoría {@code 49.99} y {@code 49.990} no son lo mismo.
+   */
+  public Map<String, Object> instantanea() {
+    Map<String, Object> estado = new LinkedHashMap<>();
+    estado.put("code", code);
+    estado.put("type", type.name());
+    estado.put("name", name);
+    estado.put("description", description);
+    estado.put(
+        "target_membership_id", targetMembershipId == null ? null : targetMembershipId.toString());
+    estado.put("price", price.toPlainString());
+    estado.put("currency_id", currencyId.toString());
+    estado.put("validity_days", validityDays);
+    estado.put("status", status.name());
+    return estado;
   }
 
   /**

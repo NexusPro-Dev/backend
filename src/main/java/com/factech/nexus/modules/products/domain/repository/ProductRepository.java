@@ -51,6 +51,20 @@ public interface ProductRepository {
   Optional<Product> findAliveByIdForUpdate(UUID id);
 
   /**
+   * El producto <b>en cualquier estado</b>, bloqueado para escritura (`RF-PM-006`).
+   *
+   * <p>Al contrario que {@link #findAliveByIdForUpdate}, <b>incluye los retirados</b>, y esa es la
+   * diferencia que permite distinguir «no existe» de «ya está retirado». `RF-PM-005` no necesita
+   * distinguirlos —su `EX-001` cubre los dos casos con la misma respuesta— y el retiro sí: quien
+   * intenta retirar dos veces merece saber que su primera petición ya funcionó.
+   *
+   * <p><b>Aquí no hay nada que ocultar</b>, al revés que al eliminar una persona: el catálogo
+   * <b>devuelve</b> los productos retirados a cualquiera con {@code products:read} (`CA-PM-018`),
+   * de modo que responder «ya estaba retirado» no revela nada que el actor no pueda consultar.
+   */
+  Optional<Product> findByIdForUpdate(UUID id);
+
+  /**
    * El upgrade <b>activo</b> que ocupa ese destino, si lo hay (`RN-PM-004`).
    *
    * <p>Existe para <b>redactar</b> el rechazo —nombrar cuál desactivar, que es lo único

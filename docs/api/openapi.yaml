@@ -1028,6 +1028,70 @@ paths:
             '*/*':
               schema:
                 $ref: "#/components/schemas/ProductResponse"
+  /api/v1/products/{id}/deletion:
+    post:
+      tags:
+      - Productos
+      summary: Retirar un producto del catálogo
+      description: |
+        Retira el producto: **eliminación lógica y con motivo** (Art. V.13).
+        La fila se conserva —lo vendido tiene que seguir resolviendo a lo que
+        se vendió— y el producto deja de ofrecerse.
+
+        **`POST` sobre un subrecurso y no `DELETE` con cuerpo**, igual que al
+        eliminar un rol o una persona: RFC 9110 no define semántica para el
+        cuerpo de un `DELETE` y un intermediario puede descartarlo, con lo que
+        la petición se convertiría en un rechazo por motivo ausente que quien
+        la envió no puede entender ni corregir. Y tampoco en la URL, donde el
+        motivo quedaría escrito en los registros de acceso de cualquier proxy.
+
+        **El motivo es obligatorio** y se comprueba lo primero de todo, antes
+        de tocar la base.
+
+        **El estado no se modifica al retirar.** El registro de eliminación
+        conserva si el producto **estaba a la venta**: desactivarlo «de paso»
+        haría que todos los registros dijeran «inactivo» y ese dato dejaría de
+        significar nada.
+
+        **Qué libera el retiro y qué no**: el **destino** del upgrade queda
+        libre para que otro se active, y el **nombre** queda libre para otro
+        producto. El **código no se libera nunca** — el día que una factura
+        diga `UPGRADE_ORO` tiene que resolver a un solo producto para siempre.
+
+        **No es idempotente a propósito**: retirar uno ya retirado devuelve
+        `409`. Dos motivos sobre un solo hecho es evidencia contradictoria.
+
+        No devuelve el producto: lo que se acaba de retirar no es algo que el
+        sistema deba seguir ofreciendo a quien lo pidió.
+      operationId: retirar
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/DeleteProductRequest"
+      responses:
+        "204":
+          description: Producto retirado.
+        "400":
+          description: "Identificador sin forma canónica (`VAL-001`), motivo ausente\
+            \ o en blanco (`VAL-002`) o demasiado largo (`VAL-003`)"
+        "401":
+          description: Token ausente o inválido (`AUTH-001`)
+        "403":
+          description: Autenticado sin el permiso `products:delete` (`AUTH-002`)
+        "404":
+          description: No existe un producto con ese identificador (`EX-001`)
+        "409":
+          description: El producto ya estaba retirado (`EX-002`)
+        "500":
+          description: Fallo no controlado (`ERR-500`)
   /api/v1/memberships:
     get:
       tags:
@@ -3321,6 +3385,11 @@ components:
         updatedAt:
           type: string
           format: date-time
+    DeleteProductRequest:
+      type: object
+      properties:
+        reason:
+          type: string
     RegisterMembershipRequest:
       type: object
       properties:

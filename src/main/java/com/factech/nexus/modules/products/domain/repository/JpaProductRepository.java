@@ -89,6 +89,21 @@ public class JpaProductRepository implements ProductRepository {
   }
 
   @Override
+  public Optional<Product> findByIdForUpdate(UUID id) {
+    if (id == null) {
+      return Optional.empty();
+    }
+    return em
+        .createQuery("SELECT p FROM Product p WHERE p.id = :id", Product.class)
+        .setParameter("id", id)
+        .setLockMode(LockModeType.PESSIMISTIC_WRITE)
+        .setMaxResults(1)
+        .getResultList()
+        .stream()
+        .findFirst();
+  }
+
+  @Override
   public Optional<Product> findActiveUpgradeFor(UUID targetMembershipId, UUID excluido) {
     if (targetMembershipId == null) {
       return Optional.empty();

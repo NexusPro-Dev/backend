@@ -18,9 +18,7 @@ import com.factech.nexus.shared.error.ValidationException;
 import com.factech.nexus.shared.persistence.UuidV7Generator;
 import java.time.Clock;
 import java.time.OffsetDateTime;
-import java.util.HashMap;
 import java.util.List;
-import java.util.Map;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -213,20 +211,12 @@ public class RegisterProductService {
    * `RF-SP-016` tomó con las membresías. Quién puso un precio lo responde este mismo evento.
    */
   private void auditar(Product nuevo) {
-    Map<String, Object> estadoInicial = new HashMap<>();
-    estadoInicial.put("code", nuevo.getCode());
-    estadoInicial.put("type", nuevo.getType().name());
-    estadoInicial.put("name", nuevo.getName());
-    estadoInicial.put("description", nuevo.getDescription());
-    estadoInicial.put(
-        "target_membership_id",
-        nuevo.getTargetMembershipId() == null ? null : nuevo.getTargetMembershipId().toString());
-    estadoInicial.put("price", nuevo.getPrice().toPlainString());
-    estadoInicial.put("currency_id", nuevo.getCurrencyId().toString());
-    estadoInicial.put("validity_days", nuevo.getValidityDays());
-    estadoInicial.put("status", nuevo.getStatus().name());
-
+    // La instantánea la arma el agregado, y la misma que usa el retiro
+    // (`RF-PM-006`): si cada caso de uso armara su mapa, el registro de
+    // creación y el de eliminación describirían el mismo producto con claves
+    // distintas, y compararlos —que es para lo que existen— dejaría de ser
+    // posible.
     auditoria.recordChange(
-        new ChangeEvent(MODULO, ENTIDAD, nuevo.getId(), ChangeAction.CREATE, estadoInicial));
+        new ChangeEvent(MODULO, ENTIDAD, nuevo.getId(), ChangeAction.CREATE, nuevo.instantanea()));
   }
 }
