@@ -14,5 +14,6 @@ nav:
   - Contrato de la API: api/index.md
   - Guía de desarrollo: development-guide.md
   - Despliegue: deployment.md
+  - Manual de despliegue: manual-de-despliegue.md
   - specs
   - ...

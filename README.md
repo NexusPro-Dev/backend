@@ -17,6 +17,7 @@ Toda la documentación técnica vive en [`docs/`](docs/) y se publica como sitio
 | [`docs/development-guide.md`](docs/development-guide.md) | Cómo se escribe código aquí, día a día |
 | [`docs/security.md`](docs/security.md) | Roles, permisos, autenticación |
 | [`docs/deployment.md`](docs/deployment.md) | Cómo se despliega, en Railway, y qué variable va en cada entorno |
+| [`docs/manual-de-despliegue.md`](docs/manual-de-despliegue.md) | El paso a paso para hacerlo, con Railway abierto delante |
 
 ## Puesta en marcha
 
@@ -58,7 +59,9 @@ Si `mvn verify` falla en tu máquina, **no** abras el Pull Request esperando que
 
 Los entornos `testing` y `production` corren en **Railway**, uno por rama (`develop` y `main`), construidos desde este mismo `Dockerfile`. **Desplegar es integrar**: no hay una acción manual aparte.
 
-El procedimiento completo —variables de cada entorno, generación de los dos secretos, primer arranque, verificación y operación— está en [`docs/deployment.md`](docs/deployment.md), y la decisión de plataforma en [`ADR-002`](docs/architecture/ADR-002-plataforma-de-despliegue-railway.md).
+Para **hacerlo**, el paso a paso está en [`docs/manual-de-despliegue.md`](docs/manual-de-despliegue.md): once pasos en orden, con los comandos exactos y el bloque de variables listo para pegar.
+
+Para **entenderlo**, la referencia es [`docs/deployment.md`](docs/deployment.md) —qué es cada cosa y por qué—, y la decisión de plataforma, [`ADR-002`](docs/architecture/ADR-002-plataforma-de-despliegue-railway.md).
 
 Nada del `docker-compose.yml` viaja a un entorno desplegado: sus valores son de desarrollo y están versionados.
 
