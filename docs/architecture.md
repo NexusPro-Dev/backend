@@ -5,11 +5,11 @@
 | Proyecto | NEXUS — Renovación de plataforma |
 | Empresa | FACTECH GROUP SAS |
 | Documento | `architecture.md` |
-| Versión | 0.19.0 |
+| Versión | 0.20.0 |
 | Estado | Borrador |
 | Responsable técnico | Bonilla Diaz William Steven |
 | Fecha de creación | 19-08-2026 |
-| Última actualización | 26-08-2026 |
+| Última actualización | 27-08-2026 |
 | Documento superior | `constitution.md` v0.5.0 |
 | Documento relacionado | `security.md` v0.3.0 |
 
@@ -615,7 +615,7 @@ La distinción no es de estilo. En el primer arranque Flyway aplica las migracio
 
 **Lo que sigue sin resolverse, y conviene no confundirlo con lo hecho:**
 
-- **Nadie raspa esas métricas.** Un raspador no porta un JWT, de modo que hace falta un permiso propio o una red de administración que las aísle. Llega con la infraestructura de despliegue (**D-09**).
+- **Nadie raspa esas métricas.** Un raspador no porta un JWT, de modo que hace falta un permiso propio o una red de administración que las aísle. Se esperaba de la infraestructura de despliegue, y **[`ADR-002`](architecture/ADR-002-plataforma-de-despliegue-railway.md) cierra D-09 sin resolverlo**: Railway no aporta ni lo uno ni lo otro. Sigue haciendo falta uno de los dos, y ya no hay decisión pendiente tras la que esperar.
 - **Nadie alerta.** Una métrica que nadie mira es una métrica que no existe. En particular sigue sin vigilarse la **ausencia de eventos de auditoría**, que `RF-SP-001` §10 declara que debería: `recordSecurityAfterCommit` acepta a conciencia que una escritura fallida tras el `commit` deje la operación sin evento **a cambio de que esa ausencia se vigile**.
 - **Ningún otro endpoint de actuator se expone.** `env` y `beans` publican configuración y estructura interna; no están en la lista y una prueba impide que entren «para depurar» y se queden.
 
@@ -642,16 +642,26 @@ Toda configuración dependiente del entorno se inyecta por variable de entorno (
 
 | Variable | Obligatoria | Descripción |
 |---|---|---|
-| `DATABASE_URL` | Sí | Cadena de conexión a PostgreSQL |
+| `DATABASE_URL` | Sí | Cadena de conexión JDBC a PostgreSQL, **sin credenciales dentro** |
 | `DATABASE_USER` | Sí | Usuario de base de datos |
 | `DATABASE_PASSWORD` | Sí | Contraseña de base de datos |
 | `JWT_SECRET` | Sí | Secreto de firma de tokens |
-| `API_URL` | Sí | URL pública del backend |
-| `ENVIRONMENT` | Sí | `development` \| `testing` \| `production` |
+| `SUPERADMIN_EMAIL` | Sí | Correo del superadministrador inicial. Solo actúa en el primer arranque |
+| `SUPERADMIN_PASSWORD_HASH` | Sí | Su contraseña, ya cifrada con Argon2id. Ídem |
+| `API_URL` | Sí | URL pública del backend. **Declarada y todavía sin lector** |
+| `ENVIRONMENT` | Sí | `development` \| `testing` \| `production`. **Declarada y todavía sin lector** |
+| `CORS_ALLOWED_ORIGINS` | No | Orígenes del navegador autorizados. Vacío = ninguno; `*` tumba el arranque (§6.1 de `security.md`) |
+| `EXPOSE_API_DOCS` | No | Swagger y el contrato sin autenticar. Por defecto `false`, y así debe quedarse fuera de local |
+| `TRUSTED_PROXIES` | No | Proxies confiables, por **coincidencia exacta**. Vacío = no se confía en `X-Forwarded-For` |
 | `LOG_LEVEL` | No | Nivel de log; por defecto `INFO` |
-| `REQUEST_LOG_RETENTION_DAYS` | No | Retención del `request_log` |
+| `RATE_LIMIT_ENABLED` | No | Límite de tasa; por defecto `true`. Solo la suite lo apaga |
+| `TOKEN_PURGE_ENABLED` · `TOKEN_PURGE_CRON` · `TOKEN_PURGE_RETENTION` | No | Purga de sesiones caducadas; por defecto activa, `0 30 3 * * *` UTC y `P30D` |
+| `REQUEST_LOG_RETENTION_DAYS` | No | Retención del `request_log`. **Hoy no la lee nadie**: la purga sigue pendiente de D-10 |
+| `NOTIFICATION_ENABLED` · `RESEND_API_KEY` · `NOTIFICATION_FROM` | No | Envío saliente (§15.1). Sin clave queda apagado y se avisa al arrancar |
 
-El repositorio mantiene `.env.example` con todas las variables y **sin valores reales** (Art. IX.3).
+**Dos de las obligatorias no las consulta hoy ninguna clase**: `API_URL` y `ENVIRONMENT`. Se declaran porque el Art. IX.4 las exige como parte del contrato de configuración y porque el día que algo las lea no debe descubrirse que faltaban en producción — pero **cambiar `ENVIRONMENT` no cambia hoy ningún comportamiento**, y conviene que esté escrito antes que supuesto.
+
+El repositorio mantiene `.env.example` con todas las variables y **sin valores reales** (Art. IX.3). El valor concreto que va en cada una por entorno desplegado está en [`deployment.md` §6](deployment.md#6-variables-de-entorno).
 
 ---
 
@@ -659,8 +669,16 @@ El repositorio mantiene `.env.example` con todas las variables y **sin valores r
 
 - El backend se empaqueta como imagen Docker, construida en múltiples etapas: una etapa compila con Maven, la etapa final contiene solo el JRE y el JAR.
 - El contenedor se ejecuta con un usuario sin privilegios.
-- `docker-compose.yml` levanta backend y PostgreSQL para desarrollo local.
+- `docker-compose.yml` levanta backend y PostgreSQL para desarrollo local, **y no interviene en ningún despliegue**.
 - GitHub Actions ejecuta, en cada Pull Request: compilación, linting, pruebas unitarias y pruebas de integración con Testcontainers. La integración a `main` requiere pipeline en verde (Art. XI, verificación).
+
+**La plataforma de los entornos desplegados es Railway** ([`ADR-002`](architecture/ADR-002-plataforma-de-despliegue-railway.md), que cierra **D-09** el 27-08-2026): un servicio por entorno construido desde este mismo `Dockerfile`, con PostgreSQL 17 gestionado, y **desplegar es integrar** — cada entorno vigila una rama y no hay acción manual que alguien pueda olvidar. La configuración del servicio se versiona en `railway.json`; los secretos, no (Art. IV.3).
+
+El procedimiento completo —variables por entorno, primer arranque, verificación y operación— vive en [`deployment.md`](deployment.md). Tres restricciones de esa decisión son arquitectónicas y se declaran aquí:
+
+- **Una sola réplica.** No es un ajuste de coste: `AccessRevocationRegistry`, `RateLimitLedger` y `FailedAttemptLedger` guardan estado **en memoria del proceso**, y con dos instancias los tres degradan **sin fallar de forma visible**. Escalar exige antes el canal compartido detrás de `AccessRevocationPublisher`.
+- **Las migraciones llegan con el artefacto.** Flyway corre dentro del proceso al arrancar; no hay paso de despliegue que las aplique aparte, y no debe haberlo (Art. V.3). De ahí que toda migración deba **poder convivir con la versión anterior del código** durante el relevo de un redespliegue, en el que hay dos procesos vivos.
+- **La IP de la auditoría es la del borde**, no la de quien llamó. Ver §16, D-21.
 
 ---
 
@@ -697,6 +715,7 @@ Nomenclatura: `ADR-NNN-<titulo-en-kebab-case>.md`
 | # | Decisión | Fecha |
 |---|---|---|
 | [`ADR-001`](architecture/ADR-001-publicacion-del-contrato-openapi.md) | **Publicación del contrato OpenAPI** como archivo versionado en `docs/api/openapi.json`, generado por una prueba de integración y verificado en CI. Desbloquea al frontend, que no podía generar su cliente. Su consecuencia sobre `security.md` §6 está declarada: el contrato deja de ser reservado, aunque `EXPOSE_API_DOCS` siga en `false` | 24-08-2026 |
+| [`ADR-002`](architecture/ADR-002-plataforma-de-despliegue-railway.md) | **Plataforma de despliegue: Railway**, un servicio por entorno construido desde este `Dockerfile`, con PostgreSQL gestionado y despliegue por integración de rama. Cierra **D-09**, que se había convertido en el aparcadero de cinco pendientes distintos. Declara la **réplica única** como restricción de diseño y deja **D-21 reabierta con otra forma**: en Railway no hay IP de proxy que poner, y el arreglo es que `ClientIpResolver` admita rangos | 27-08-2026 |
 
 Las decisiones D-01 a D-07, cerradas el 19-08-2026, están registradas en `constitution.md` §20.
 
@@ -769,7 +788,7 @@ El código vive en paquetes de `SP`, y las tareas que lo escriben pertenecen a *
 
 | # | Decisión | Bloquea | Responsable |
 |---|---|---|---|
-| D-09 | Infraestructura de despliegue para `testing` y `production` | Pipeline de despliegue | Responsable del proyecto |
+| ~~D-09~~ | ~~Infraestructura de despliegue para `testing` y `production`~~ · **Cerrada el 27-08-2026 por [`ADR-002`](architecture/ADR-002-plataforma-de-despliegue-railway.md): Railway.** Lo que **no** resuelve queda declarado allí y en [`deployment.md` §13](deployment.md#13-lo-que-este-despliegue-no-resuelve), y no debe volver a colgarse de esta fila: el **raspado de métricas** y las **alertas** siguen sin dueño —la plataforma no aporta permiso ni red de administración—, y el **canal compartido** para el corte de tokens sigue siendo condición previa a una segunda instancia | — | — |
 | D-10 | Retención concreta, en días, de `request_log` y de cada registro de auditoría por separado | Migración de observabilidad | Responsable técnico |
 | D-11 | Política de idempotencia en operaciones de escritura expuestas a reintentos | Diseño de endpoints críticos | Responsable técnico |
 | **D-24** | **Publicación del contrato OpenAPI hacia el frontend**: dónde se publica el `.json`/`.yaml` generado y por qué vía. El Art. VIII.7 lo declara **único contrato** entre los dos repositorios, y hoy solo es obtenible de una instancia con `EXPOSE_API_DOCS` en `true` — es decir, en local y en ningún entorno desplegado. La salida previsible es generarlo en `verify` con `springdoc-openapi-maven-plugin` y publicarlo como artefacto de CI o en un repositorio compartido, para que el frontend consuma un archivo versionado sin depender de que alguien tenga el backend levantado ni de abrir la documentación en producción | Que el frontend pueda cumplir el Art. VIII.7 fuera de local | Responsable del proyecto |
@@ -802,3 +821,4 @@ D-08 quedó cerrada en `security.md` §12, junto con las decisiones D-12 a D-15 
 | 0.17.0 | 26-08-2026 | **D-23 se cierra**, y con ella el último requerimiento del módulo sin implementar. §15.1 gana el mecanismo: **Resend por su API HTTP y no SMTP**, porque SMTP obliga a gestionar credenciales, puertos salientes que muchas redes bloquean y **una cola propia para los reintentos**, mientras que con el API la entrega, los reintentos y los rebotes los lleva el proveedor. Lo que queda escrito con más cuidado es **el desacople, que son dos mitades y ninguna cubre a la otra**: después del commit —para no enviar sobre una transacción que puede revertirse— **y fuera del hilo de la petición**. La segunda es fácil de dar por resuelta y no lo está: `afterCommit` corre *en* el hilo de la petición, de modo que saca el envío de la transacción y **no de la respuesta** — con él ahí dentro, `RF-SP-040` vuelve a tardar distinto según exista la identidad, que es justo la fuga que esta sección existe para cerrar. Se declaran tres restos: el remitente debe pertenecer a un **dominio verificado** o el proveedor responde `403` que no se ve hasta producción; sin credencial el envío queda **apagado** y se avisa **al arrancar**, no al primer envío; y **no hay reintento propio**, de modo que un fallo de la llamada pierde ese mensaje y solo deja su registro. El adaptador **no lanza nunca** y **nada del contenido llega al registro** —ni el cuerpo, ni el permiso, ni el destinatario—, porque un mensaje de recuperación lleva la llave de una cuenta y los registros se copian a sitios que quien los escribe no controla. | Responsable técnico |
 | 0.18.0 | 26-08-2026 | **§16 registra D-25, la primera decisión que nace de tener un segundo módulo.** `PM` —Productos y Mercadeo, incorporado ese día— necesita tres lecturas de `SP`: una membresía y su nivel, una moneda y sus decimales, y la membresía vigente de una persona. `SP` las expone como **endpoints REST y como tablas**, y ninguna de las dos vías sirve desde otro módulo del mismo proceso — llamarse por HTTP a sí mismo es absurdo, y leer sus tablas lo prohíbe `modules.md` §7. Lo que falta es que `SP` las publique como **interfaz de aplicación**, y eso es una ampliación de `SP` que no puede escribirse desde `PM`. La decisión bloquea los `plan.md` de `RF-PM-001` y `RF-PM-007` y **no sus especificaciones**: qué debe pasar se puede decidir hoy; por dónde entra el dato, no. | Responsable técnico |
 | 0.19.0 | 26-08-2026 | **D-25 se cierra**, y §15.2 recoge la respuesta como norma para cualquier par de módulos y no solo para `PM` y `SP`: **el módulo dueño del dato publica interfaces de aplicación de solo lectura, y el consumidor las importa**. Se descartó la inversión de dependencia —que el consumidor declarase el puerto y el dueño lo implementara—, que es el patrón habitual dentro de un módulo y **aquí produce lo contrario de lo que promete**: el módulo raíz pasaría a importar una interfaz del que depende de él, que es el ciclo de §7 disfrazado. **Una interfaz por lectura y no una fachada**: con una sola, añadir un método cambia el contrato de todos los que ya la usan, incluidos sus dobles de prueba. Cuatro reglas sostienen la frontera: se devuelven **modelos de lectura y nunca entidades** —el agregado filtraría JPA y daría con qué escribir—, **la regla se queda con su dueño** —«vigente» lo calcula `SP`, porque reimplementar esa comparación es el defecto que devuelve resultados plausibles durante meses—, **la ausencia es un valor vacío y no una excepción** —qué `4xx` produce lo decide quien tiene el contrato HTTP—, y **una regla de ArchUnit** impide importar repositorios o entidades de otro módulo, porque sin ella esto es una convención y las convenciones se saltan sin que nada falle. Las tareas que escriben esos puertos pertenecen a **`RF-PM-001` y `RF-PM-007`**, no a un requerimiento nuevo de `SP`: ningún actor pide «publicar una interfaz» como comportamiento. Queda declarado lo que **no** habilita: son lecturas, y aplicar un upgrade sigue siendo una escritura sobre `user_memberships` que nadie ha decidido. | Responsable del proyecto |
+| 0.20.0 | 27-08-2026 | **D-09 se cierra y el proyecto pasa a tener dónde correr**, con [`ADR-002`](architecture/ADR-002-plataforma-de-despliegue-railway.md): **Railway**, un servicio por entorno construido desde este mismo `Dockerfile`, con PostgreSQL gestionado y **desplegar es integrar** —cada entorno vigila una rama, y el Art. XI.2 deja de ser una convención—. La decisión llevaba abierta desde el 19-08-2026 y se había convertido en **el aparcadero de cinco pendientes distintos**: el corte de tokens entre instancias, el techo del límite de tasa, el raspado de métricas, la lista de proxies y los orígenes del navegador colgaban todos de ella, mientras cuarenta y dos requerimientos con endpoint funcionando no existían en ninguna dirección. §12 se reescribe con la plataforma y con **tres restricciones que son arquitectónicas y no de operación**: **una sola réplica** —`AccessRevocationRegistry`, `RateLimitLedger` y `FailedAttemptLedger` guardan estado en memoria del proceso y con dos instancias los tres degradan **sin fallar de forma visible**—; que **las migraciones llegan con el artefacto**, de donde se sigue que toda migración debe poder convivir con la versión anterior del código durante el relevo, en el que hay dos procesos vivos; y que **la IP de la auditoría es la del borde**. §11 completa por fin la tabla de variables —faltaban diez— y declara que **`API_URL` y `ENVIRONMENT` no las lee hoy ninguna clase**, de modo que cambiar `ENVIRONMENT` a `production` no cambia ningún comportamiento; darlas por operativas era el supuesto que este párrafo existe para impedir. §9.1 corrige a quién esperaba el raspado de métricas: **D-09 se cierra sin resolverlo**, porque la plataforma no aporta ni permiso propio ni red de administración, y ya no hay decisión pendiente tras la que esperar. El procedimiento operativo completo estrena documento, [`deployment.md`](deployment.md), y la configuración del servicio se versiona en `railway.json` — los secretos no (Art. IV.3). | Responsable del proyecto |

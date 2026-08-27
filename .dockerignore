@@ -37,3 +37,7 @@ docker-compose.yml
 mvnw
 mvnw.cmd
 .mvn/
+
+# Configuración del servicio desplegado. La lee la plataforma, no el demonio de
+# Docker: no interviene en la construcción de la imagen (`deployment.md` §5.3).
+railway.json

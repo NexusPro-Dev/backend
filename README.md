@@ -16,6 +16,7 @@ Toda la documentación técnica vive en [`docs/`](docs/) y se publica como sitio
 | [`docs/architecture.md`](docs/architecture.md) | Estructura del código, esquema, contrato de API, auditoría |
 | [`docs/development-guide.md`](docs/development-guide.md) | Cómo se escribe código aquí, día a día |
 | [`docs/security.md`](docs/security.md) | Roles, permisos, autenticación |
+| [`docs/deployment.md`](docs/deployment.md) | Cómo se despliega, en Railway, y qué variable va en cada entorno |
 
 ## Puesta en marcha
 
@@ -52,6 +53,14 @@ docker compose down -v # reinicia la base de datos desde cero
 ```
 
 Si `mvn verify` falla en tu máquina, **no** abras el Pull Request esperando que CI lo resuelva.
+
+## Despliegue
+
+Los entornos `testing` y `production` corren en **Railway**, uno por rama (`develop` y `main`), construidos desde este mismo `Dockerfile`. **Desplegar es integrar**: no hay una acción manual aparte.
+
+El procedimiento completo —variables de cada entorno, generación de los dos secretos, primer arranque, verificación y operación— está en [`docs/deployment.md`](docs/deployment.md), y la decisión de plataforma en [`ADR-002`](docs/architecture/ADR-002-plataforma-de-despliegue-railway.md).
+
+Nada del `docker-compose.yml` viaja a un entorno desplegado: sus valores son de desarrollo y están versionados.
 
 ## Estructura
 
