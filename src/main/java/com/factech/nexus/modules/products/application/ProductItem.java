@@ -5,7 +5,6 @@ import com.factech.nexus.modules.products.domain.models.ProductType;
 import com.factech.nexus.modules.products.domain.repository.ProductQueryRepository.ProductRow;
 import com.fasterxml.jackson.annotation.JsonInclude;
 import java.math.BigDecimal;
-import java.math.RoundingMode;
 import java.time.OffsetDateTime;
 import java.time.ZoneOffset;
 import java.util.UUID;
@@ -66,30 +65,13 @@ public record ProductItem(
                 fila.targetMembershipCode(),
                 fila.targetMembershipName(),
                 fila.targetMembershipLevel()),
-        enLaEscalaDe(fila.price(), fila.currencyDecimalPlaces()),
+        ProductPrice.enLaEscalaDe(fila.price(), fila.currencyDecimalPlaces()),
         new ProductResponse.CurrencyRef(
             fila.currencyId(), fila.currencyCode(), fila.currencyDecimalPlaces()),
         fila.validityDays(),
         ProductStatus.valueOf(fila.status()),
         enUtc(fila.createdAt()),
         enUtc(fila.deletedAt()));
-  }
-
-  /**
-   * El precio con los decimales que declara su moneda, no con la escala de la columna: {@code
-   * 49.99} y no {@code 49.9900}.
-   *
-   * <p>Es la misma regla que aplica {@link ProductResponse}, y aplicarla <b>también</b> aquí no es
-   * duplicar por gusto: si el listado devolviera la escala de almacenamiento, el mismo producto
-   * llegaría con dos precios distintos según por dónde se pidiera.
-   *
-   * <p>Se redondea a la baja: `RN-PM-007` impide al escribir que un precio tenga más decimales de
-   * los que su moneda admite, de modo que aquí solo se recorta la cola de ceros. Si algún día
-   * llegara un valor con más decimales —una carga directa en la base—, redondear al alza cobraría
-   * de más.
-   */
-  private static BigDecimal enLaEscalaDe(BigDecimal precio, int decimales) {
-    return precio.setScale(decimales, RoundingMode.DOWN);
   }
 
   private static OffsetDateTime enUtc(OffsetDateTime instante) {

@@ -46,12 +46,17 @@ class ListProductsServiceIT extends IntegrationTestBase {
    * haber comprobado que el índice existe y sirve. Es el mismo hueco que `SP` lleva abierto desde
    * `RF-SP-021` · `T-11`.
    *
-   * <p>Doscientos es el número que fija `T-12`, y basta: con él el planificador elige el índice en
-   * las dos consultas. <b>Si alguna de las dos pruebas de plan empezara a fallar, la primera
-   * sospecha es este número</b> —una versión distinta del motor puede mover el umbral— y no el
-   * índice: súbase antes de darlo por perdido.
+   * <p><b>`T-12` fija doscientos y doscientos NO bastan.</b> Con esa cifra la prueba pasa aislada y
+   * falla dentro de la suite completa: el recorrido secuencial de doscientas filas cuesta {@code
+   * 57.00} y el planificador lo prefiere al índice, con razón. No es que el índice no sirva — es
+   * que a ese tamaño no hace falta, y una prueba que dependa de qué más corrió antes no comprueba
+   * nada. Con dos mil, el recorrido cuesta diez veces más y el índice gana de forma estable.
+   *
+   * <p><b>Si alguna de las dos pruebas de plan empezara a fallar, la primera sospecha es este
+   * número</b> —otra versión del motor puede mover el umbral— y no el índice: súbase antes de darlo
+   * por perdido.
    */
-  private static final int VOLUMEN = 200;
+  private static final int VOLUMEN = 2000;
 
   @Autowired private ListProductsService service;
   @Autowired private JdbcTemplate jdbc;

@@ -5,7 +5,7 @@
 | Proyecto | NEXUS — Renovación de plataforma |
 | Empresa | FACTECH GROUP SAS |
 | Documento | `architecture.md` |
-| Versión | 0.21.0 |
+| Versión | 0.22.0 |
 | Estado | Borrador |
 | Responsable técnico | Bonilla Diaz William Steven |
 | Fecha de creación | 19-08-2026 |
@@ -785,6 +785,39 @@ El código vive en paquetes de `SP`, y las tareas que lo escriben pertenecen a *
 
 ---
 
+## 15.3 Leer el motivo de una eliminación desde el módulo dueño de la entidad
+
+**Decidido el 27-08-2026**, con `RF-PM-003`. El caso es general aunque lo destape `PM`: **el detalle de una entidad retirada quiere decir por qué lo está, y el motivo no vive en su tabla**. El Art. V.13 lo manda al registro de eliminación junto con la instantánea de lo retirado, que es lo correcto — y deja al módulo dueño sin forma de leer un dato que él mismo escribió.
+
+**`shared/audit` publica una lectura estrecha**: dado el módulo, la entidad y su identificador, devuelve el motivo registrado. Nada más.
+
+### Por qué ahí y no en `SP`
+
+La auditoría es **infraestructura compartida, no una funcionalidad de `SP`**. Cada módulo **escribe** en ella a través de `shared/audit`, y lo que `SP` posee es **consultarla como producto** —`RF-SP-011` a `RF-SP-014`, con sus filtros, su paginación y su permiso `audit:read-deletions`—, que es otra cosa. Leer el motivo de la eliminación de **una entidad propia** es simétrico de escribirlo, y por eso vive junto al escritor.
+
+Las dos alternativas se descartaron por lo que crean, no por lo que cuestan:
+
+| Alternativa | Qué crea |
+|---|---|
+| Una columna `deletion_reason` en la tabla de la entidad | **Dos verdades del mismo hecho**, que divergen en cuanto una se corrija |
+| Que el módulo una `audit_deletion_log` desde su propia consulta | Lo ata al **esquema de un almacén que no gobierna** |
+
+### El riesgo, y lo que lo contiene
+
+**Un puerto de lectura sobre la auditoría puede convertirse en su puerta trasera.** Lo que lo impide no es una comprobación de permisos —no la hay— sino tres propiedades del propio contrato:
+
+1. **Devuelve un texto, no una fila.** Ni el actor, ni la instantánea, ni el instante. El adaptador selecciona **una sola columna**, y eso no es una optimización: es la frontera. Traer la fila entera dejaría lo demás al alcance de quien luego quisiera «aprovechar que ya está».
+2. **Pregunta por una entidad concreta.** Sin filtros, sin paginación, sin rango de fechas: **no se puede recorrer el registro con esto**.
+3. **El módulo y la entidad son parte de la clave.** Preguntar por lo ajeno no devuelve nada, y una prueba lo comprueba pidiendo desde `PM` el motivo de una entidad de `SP`.
+
+**Ampliarlo exige decidirlo.** Añadir un método a esta interfaz es cambiar lo que un módulo puede saber de la auditoría sin su permiso, y esa es una decisión de arquitectura — no una tarea de implementación.
+
+### Lo que se acepta a cambio
+
+El motivo del retiro llega con el permiso de lectura del módulo —`products:read`, en el caso de `PM`— y **no con `audit:read-deletions`**. Es una consecuencia asumida y acotada: la resolvió `RF-PM-003` §14 para **la consulta individual**, y el listado sigue sin llevarlo. Uno a uno el motivo es una consulta; en bloque sería una exportación de decisiones comerciales.
+
+---
+
 ## 16. Decisiones pendientes
 
 | # | Decisión | Bloquea | Responsable |
@@ -824,3 +857,4 @@ D-08 quedó cerrada en `security.md` §12, junto con las decisiones D-12 a D-15 
 | 0.19.0 | 26-08-2026 | **D-25 se cierra**, y §15.2 recoge la respuesta como norma para cualquier par de módulos y no solo para `PM` y `SP`: **el módulo dueño del dato publica interfaces de aplicación de solo lectura, y el consumidor las importa**. Se descartó la inversión de dependencia —que el consumidor declarase el puerto y el dueño lo implementara—, que es el patrón habitual dentro de un módulo y **aquí produce lo contrario de lo que promete**: el módulo raíz pasaría a importar una interfaz del que depende de él, que es el ciclo de §7 disfrazado. **Una interfaz por lectura y no una fachada**: con una sola, añadir un método cambia el contrato de todos los que ya la usan, incluidos sus dobles de prueba. Cuatro reglas sostienen la frontera: se devuelven **modelos de lectura y nunca entidades** —el agregado filtraría JPA y daría con qué escribir—, **la regla se queda con su dueño** —«vigente» lo calcula `SP`, porque reimplementar esa comparación es el defecto que devuelve resultados plausibles durante meses—, **la ausencia es un valor vacío y no una excepción** —qué `4xx` produce lo decide quien tiene el contrato HTTP—, y **una regla de ArchUnit** impide importar repositorios o entidades de otro módulo, porque sin ella esto es una convención y las convenciones se saltan sin que nada falle. Las tareas que escriben esos puertos pertenecen a **`RF-PM-001` y `RF-PM-007`**, no a un requerimiento nuevo de `SP`: ningún actor pide «publicar una interfaz» como comportamiento. Queda declarado lo que **no** habilita: son lecturas, y aplicar un upgrade sigue siendo una escritura sobre `user_memberships` que nadie ha decidido. | Responsable del proyecto |
 | 0.20.0 | 27-08-2026 | **D-09 se cierra y el proyecto pasa a tener dónde correr**, con [`ADR-002`](architecture/ADR-002-plataforma-de-despliegue-railway.md): **Railway**, un servicio por entorno construido desde este mismo `Dockerfile`, con PostgreSQL gestionado y **desplegar es integrar** —cada entorno vigila una rama, y el Art. XI.2 deja de ser una convención—. La decisión llevaba abierta desde el 19-08-2026 y se había convertido en **el aparcadero de cinco pendientes distintos**: el corte de tokens entre instancias, el techo del límite de tasa, el raspado de métricas, la lista de proxies y los orígenes del navegador colgaban todos de ella, mientras cuarenta y dos requerimientos con endpoint funcionando no existían en ninguna dirección. §12 se reescribe con la plataforma y con **tres restricciones que son arquitectónicas y no de operación**: **una sola réplica** —`AccessRevocationRegistry`, `RateLimitLedger` y `FailedAttemptLedger` guardan estado en memoria del proceso y con dos instancias los tres degradan **sin fallar de forma visible**—; que **las migraciones llegan con el artefacto**, de donde se sigue que toda migración debe poder convivir con la versión anterior del código durante el relevo, en el que hay dos procesos vivos; y que **la IP de la auditoría es la del borde**. §11 completa por fin la tabla de variables —faltaban diez— y declara que **`API_URL` y `ENVIRONMENT` no las lee hoy ninguna clase**, de modo que cambiar `ENVIRONMENT` a `production` no cambia ningún comportamiento; darlas por operativas era el supuesto que este párrafo existe para impedir. §9.1 corrige a quién esperaba el raspado de métricas: **D-09 se cierra sin resolverlo**, porque la plataforma no aporta ni permiso propio ni red de administración, y ya no hay decisión pendiente tras la que esperar. El procedimiento operativo completo estrena documento, [`deployment.md`](deployment.md), y la configuración del servicio se versiona en `railway.json` — los secretos no (Art. IV.3). | Responsable del proyecto |
 | 0.21.0 | 27-08-2026 | **El puerto deja de estar escrito en el repositorio y el apagado ordenado pasa a existir**, que son los dos pendientes que [`ADR-002`](architecture/ADR-002-plataforma-de-despliegue-railway.md) dejó abiertos el mismo día. §11 incorpora `PORT` a la tabla: `server.port` era el literal `8080` y obligaba a fijar la variable a mano en la plataforma para que los dos lados coincidieran — un acoplamiento cuyo fallo se manifestaba como **una sonda de salud en rojo sobre un arranque impecable en los logs**, es decir, en el sitio donde nadie mira el puerto. Ahora la declara quien ejecuta (Art. IX.1) y en local siguen valiendo los 8080 del `Dockerfile`. El **apagado ordenado** —`server.shutdown: graceful` con treinta segundos— es lo que hace tolerable el relevo que §12 declara: hay dos procesos vivos y al viejo se le manda parar con peticiones en curso; sin esto las corta en seco, y para quien estaba escribiendo una conexión caída es indistinguible de un sistema roto. El plazo sobra frente a los umbrales de menos de un segundo del Art. XV.9 y queda por debajo del que usa la plataforma para matar el proceso a la fuerza. | Responsable técnico |
+| 0.22.0 | 27-08-2026 | **Nueva §15.3: cómo lee un módulo el motivo con el que se eliminó una entidad suya.** Lo destapa `RF-PM-003` y el caso es general: el detalle de algo retirado quiere decir **por qué** lo está, y el Art. V.13 manda ese motivo al registro de eliminación —correctamente—, dejando al módulo dueño sin forma de leer un dato que él mismo escribió. Se decide que **`shared/audit` publique una lectura estrecha** —módulo, entidad, identificador, devuelve un texto— y no que cada tabla duplique el motivo en una columna, que crearía **dos verdades del mismo hecho** divergiendo en cuanto una se corrija, ni que el módulo una `audit_deletion_log` desde su propia consulta, que lo ataría al esquema de un almacén que no gobierna. Vive en `shared` y no en `SP` porque **la auditoría es infraestructura compartida**: todos escriben en ella, y lo que `SP` posee es consultarla como producto, que es otra cosa. Queda escrito el riesgo —un puerto de lectura sobre la auditoría puede convertirse en su puerta trasera— y las tres propiedades que lo contienen: devuelve **una sola columna** y no una fila, pregunta por **una entidad concreta** sin filtros ni paginación, y **el módulo es parte de la clave**, de modo que preguntar por lo ajeno no devuelve nada. **Ampliar esa interfaz es una decisión de arquitectura, no una tarea.** Se acepta a cambio que el motivo llegue con el permiso de lectura del módulo y no con `audit:read-deletions`, acotado a la consulta individual. | Responsable técnico |

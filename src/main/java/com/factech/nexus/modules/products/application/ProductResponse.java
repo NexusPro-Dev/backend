@@ -7,7 +7,6 @@ import com.factech.nexus.modules.system.currencies.application.CurrencyCatalog.C
 import com.factech.nexus.modules.system.memberships.application.MembershipCatalog.MembershipView;
 import com.fasterxml.jackson.annotation.JsonInclude;
 import java.math.BigDecimal;
-import java.math.RoundingMode;
 import java.time.OffsetDateTime;
 import java.time.ZoneOffset;
 import java.util.UUID;
@@ -65,19 +64,12 @@ public record ProductResponse(
   }
 
   /**
-   * El precio con los decimales que declara su moneda, no con la escala de la columna
-   * (`CA-PM-082`): {@code 49.99} en una moneda de dos decimales y no {@code 49.9900}.
-   *
-   * <p>La escala de {@code numeric(14,4)} es una decisión de almacenamiento —existe para admitir
-   * monedas de más de dos decimales— y no algo que el contrato deba exponer.
-   *
-   * <p><b>Se redondea a la baja y no hacia arriba</b>, y en la práctica no redondea nada:
-   * `RN-PM-007` impide al escribir que un precio tenga más decimales de los que su moneda admite,
-   * de modo que aquí solo se recorta la cola de ceros. Si algún día llegara un valor con más
-   * decimales —una carga directa en la base—, redondear al alza cobraría de más.
+   * El precio en la escala de su moneda. La regla vive en {@link ProductPrice}, compartida por las
+   * tres respuestas del módulo: escrita aquí y repetida en las otras dos, el mismo producto
+   * llegaría con dos precios distintos según por dónde se pidiera.
    */
   private static BigDecimal enLaEscalaDe(BigDecimal precio, CurrencyView moneda) {
-    return precio.setScale(moneda.decimalPlaces(), RoundingMode.DOWN);
+    return ProductPrice.enLaEscalaDe(precio, moneda.decimalPlaces());
   }
 
   private static OffsetDateTime enUtc(OffsetDateTime instante) {

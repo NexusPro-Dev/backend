@@ -11,6 +11,7 @@ import java.time.OffsetDateTime;
 import java.time.ZoneOffset;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Optional;
 import java.util.UUID;
 import org.springframework.stereotype.Repository;
 import org.springframework.transaction.annotation.Transactional;
@@ -94,6 +95,9 @@ public class JpaProductQueryRepository implements ProductQueryRepository {
               entero(fila.get("validity_days")),
               (String) fila.get("status"),
               momento(fila.get("created_at")),
+              // El listado no selecciona `updated_at`: nadie pregunta a una
+              // lista cuándo se tocó cada fila por última vez.
+              null,
               momento(fila.get("deleted_at"))));
     }
     return resultado;
@@ -108,6 +112,62 @@ public class JpaProductQueryRepository implements ProductQueryRepository {
         em.createNativeQuery("SELECT count(*) FROM products p WHERE " + predicado(filtros));
     enlazar(consulta, filtros);
     return ((Number) consulta.getSingleResult()).longValue();
+  }
+
+  @Override
+  @Transactional(readOnly = true)
+  public Optional<ProductRow> findDetail(UUID id) {
+    if (id == null) {
+      return Optional.empty();
+    }
+
+    // UNA sentencia con las dos uniones externas. Sin `deleted_at IS NULL`: un
+    // producto retirado se devuelve marcado como tal (`CA-PM-026`), no como
+    // inexistente.
+    List<Tuple> filas =
+        em.createNativeQuery(
+                """
+                SELECT p.id AS id, p.code AS code, p.type AS type, p.name AS name,
+                       p.description AS description,
+                       p.target_membership_id AS m_id, m.code AS m_code, m.name AS m_name,
+                       m.level AS m_level,
+                       p.price AS price, p.currency_id AS c_id, c.code AS c_code,
+                       c.decimal_places AS c_decimales,
+                       p.validity_days AS validity_days, p.status AS status,
+                       p.created_at AS created_at, p.updated_at AS updated_at,
+                       p.deleted_at AS deleted_at
+                  FROM products p
+                  LEFT JOIN memberships m ON m.id = p.target_membership_id
+                  LEFT JOIN currencies  c ON c.id = p.currency_id
+                 WHERE p.id = :id
+                """,
+                Tuple.class)
+            .setParameter("id", id)
+            .getResultList();
+
+    return filas.stream()
+        .findFirst()
+        .map(
+            fila ->
+                new ProductRow(
+                    (UUID) fila.get("id"),
+                    (String) fila.get("code"),
+                    (String) fila.get("type"),
+                    (String) fila.get("name"),
+                    (String) fila.get("description"),
+                    (UUID) fila.get("m_id"),
+                    (String) fila.get("m_code"),
+                    (String) fila.get("m_name"),
+                    entero(fila.get("m_level")),
+                    (BigDecimal) fila.get("price"),
+                    (UUID) fila.get("c_id"),
+                    (String) fila.get("c_code"),
+                    ((Number) fila.get("c_decimales")).intValue(),
+                    entero(fila.get("validity_days")),
+                    (String) fila.get("status"),
+                    momento(fila.get("created_at")),
+                    momento(fila.get("updated_at")),
+                    momento(fila.get("deleted_at"))));
   }
 
   // ---------------------------------------------------------------------------

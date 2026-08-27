@@ -1,9 +1,11 @@
 package com.factech.nexus.modules.products.interfaces;
 
 import com.factech.nexus.modules.products.application.ListProductsRequest;
+import com.factech.nexus.modules.products.application.ProductDetailResponse;
 import com.factech.nexus.modules.products.application.ProductPageResponse;
 import com.factech.nexus.modules.products.application.ProductResponse;
 import com.factech.nexus.modules.products.application.RegisterProductRequest;
+import com.factech.nexus.modules.products.domain.service.GetProductService;
 import com.factech.nexus.modules.products.domain.service.ListProductsService;
 import com.factech.nexus.modules.products.domain.service.RegisterProductService;
 import io.swagger.v3.oas.annotations.Operation;
@@ -14,10 +16,12 @@ import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import java.net.URI;
+import java.util.UUID;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.ModelAttribute;
+import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -26,7 +30,8 @@ import org.springframework.web.bind.annotation.RestController;
 /**
  * El catálogo de productos (`PM`).
  *
- * <p>El alta y el listado; el resto de operaciones llegan con `RF-PM-003` a `RF-PM-007`.
+ * <p>El alta, el listado y el detalle; el resto de operaciones llegan con `RF-PM-004` a
+ * `RF-PM-007`.
  *
  * <p><b>Este listado no es la oferta.</b> Devuelve el catálogo completo —lo activo, lo inactivo y,
  * si se pide, lo retirado— y lo lee quien administra o vende. Lo que un cliente puede comprar es
@@ -39,10 +44,13 @@ public class ProductController {
 
   private final RegisterProductService alta;
   private final ListProductsService listado;
+  private final GetProductService detalle;
 
-  public ProductController(RegisterProductService alta, ListProductsService listado) {
+  public ProductController(
+      RegisterProductService alta, ListProductsService listado, GetProductService detalle) {
     this.alta = alta;
     this.listado = listado;
+    this.detalle = detalle;
   }
 
   @PostMapping
@@ -144,5 +152,67 @@ public class ProductController {
   public ProductPageResponse listar(
       @org.springdoc.core.annotations.ParameterObject @ModelAttribute ListProductsRequest filtros) {
     return listado.list(filtros);
+  }
+
+  @GetMapping("/{id}")
+  @PreAuthorize("hasAuthority('products:read')")
+  @Operation(
+      summary = "Consultar el detalle de un producto",
+      description =
+          """
+          Devuelve el producto con su membresía destino y su moneda **resueltas**,
+          sin exigir una segunda consulta.
+
+          **Un producto retirado se devuelve marcado como tal**, no como
+          inexistente: `deletedAt` dice desde cuándo y `deletionReason` **por
+          qué**. Los dos campos **solo aparecen si el producto está retirado** —
+          su ausencia significa que sigue vivo—. El motivo llega con
+          `products:read` y **sin exigir permiso de auditoría**; es la
+          contrapartida asumida de que el detalle lo devuelva.
+
+          **No devuelve autoría en ninguna forma**: ni quién lo creó, ni quién lo
+          corrigió, ni quién lo retiró. Eso vive en la auditoría y tiene su
+          propio permiso.
+
+          `targetMembership` y `validityDays` viajan **presentes en nulo** cuando
+          no aplican: un servicio no tiene destino y un producto puede no
+          caducar, y un campo ausente es indistinguible de uno que el cliente no
+          conoce.
+
+          El **nivel** del destino es el **actual**, no el que tenía cuando se
+          creó el producto: la cadena de membresías se reordena al insertar un
+          eslabón.
+
+          Un identificador con forma laxa se rechaza como **dato inválido**
+          (`400`), no como recurso no encontrado.
+          """)
+  @ApiResponses({
+    @ApiResponse(
+        responseCode = "200",
+        description = "El producto, con su destino y su moneda resueltos.",
+        content = @Content(schema = @Schema(implementation = ProductDetailResponse.class))),
+    @ApiResponse(
+        responseCode = "400",
+        description = "Identificador sin forma canónica (`VAL-001`)",
+        content = @Content),
+    @ApiResponse(
+        responseCode = "401",
+        description = "Token ausente o inválido (`AUTH-001`)",
+        content = @Content),
+    @ApiResponse(
+        responseCode = "403",
+        description = "Autenticado sin el permiso `products:read` (`AUTH-002`)",
+        content = @Content),
+    @ApiResponse(
+        responseCode = "404",
+        description = "No existe un producto con ese identificador (`EX-001`)",
+        content = @Content),
+    @ApiResponse(
+        responseCode = "500",
+        description = "Fallo no controlado (`ERR-500`)",
+        content = @Content)
+  })
+  public ProductDetailResponse detalle(@PathVariable UUID id) {
+    return detalle.detail(id);
   }
 }
