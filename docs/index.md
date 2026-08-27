@@ -183,8 +183,8 @@ Son las que sus `tasks.md` declaran `Pendiente`, verificadas contra el código u
 | [Modelo de datos](modelo-datos.md) | 0.11.0 | Borrador |
 | [Requerimientos y trazabilidad](requirements.md) | 0.71.0 | Borrador |
 | [Guía de desarrollo](development-guide.md) | 0.7.0 | Borrador |
-| [Despliegue](deployment.md) | 0.3.0 | Borrador |
-| [Manual de despliegue](manual-de-despliegue.md) | 0.1.0 | Borrador |
+| [Despliegue](deployment.md) | 0.4.0 | Borrador |
+| [Manual de despliegue](manual-de-despliegue.md) | 0.2.0 | Borrador |
 | [Requerimientos de `SP`](requirements/sp.md) | 1.26.0 | **Aprobado** |
 | [Requerimientos de `PM`](requirements/pm.md) | 0.12.0 | Borrador |
 | [Flujos de `SP` · del módulo](flujos/sp/flujos-del-modulo.md) | 0.3.0 | Borrador |

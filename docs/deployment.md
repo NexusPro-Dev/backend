@@ -5,14 +5,14 @@
 | Proyecto | NEXUS — Renovación de plataforma |
 | Empresa | FACTECH GROUP SAS |
 | Documento | `deployment.md` |
-| Versión | 0.3.0 |
+| Versión | 0.4.0 |
 | Estado | Borrador |
 | Responsable técnico | Bonilla Diaz William Steven |
 | Fecha de creación | 27-08-2026 |
 | Última actualización | 27-08-2026 |
 | Documento superior | `constitution.md` v0.7.0 |
 | Documentos relacionados | `architecture.md` v0.21.0 · `security.md` v0.35.0 · [`ADR-002`](architecture/ADR-002-plataforma-de-despliegue-railway.md) |
-| Documento derivado | [`manual-de-despliegue.md`](manual-de-despliegue.md) v0.1.0 — el paso a paso |
+| Documento derivado | [`manual-de-despliegue.md`](manual-de-despliegue.md) v0.2.0 — el paso a paso |
 
 ---
 
@@ -345,6 +345,14 @@ Un `production` cuyo frontend viva en `https://app.nexus.co` lleva exactamente e
 | `testing` | `testing` | `develop` | Verificar lo integrado antes de que llegue a `main` |
 | `production` | `production` | `main` | El sistema real |
 
+!!! danger "Esta tabla describe el destino, y a 27-08-2026 todavía no es cierta"
+
+    Todo el trabajo vive en `feature/esqueleto-del-proyecto`, sin fusionar: `develop` y `main` van **veintitrés commits por detrás** y **no llevan ni `railway.json` ni el `server.port: ${PORT:8080}`**. Desplegar cualquiera de las dos produce «Application failed to respond» con un arranque impecable en los logs, por lo que dice §7.1.
+
+    Hasta que se fusione, el servicio apunta a la rama de trabajo. **La comprobación de una línea:** una rama es desplegable si contiene `railway.json`.
+
+    Es la misma advertencia que la portada de la documentación lleva desde el principio —«el trabajo vive en ramas `feature/…` sin fusionar»— vista desde el despliegue, que es donde muerde.
+
 Cada entorno tiene **su propio servicio Postgres y su propio juego completo de variables**. No se comparte la base, ni el `JWT_SECRET`, ni la clave de Resend.
 
 El flujo es el del Art. XI.1 y `development-guide.md` §12, sin nada añadido: `feature/*` → `develop` → `main`. **Desplegar es integrar**; no hay una acción de despliegue separada que alguien pueda olvidar o disparar por su cuenta.
@@ -438,3 +446,4 @@ Ninguno de estos puntos impide desplegar. Todos están declarados para que no se
 | 0.1.0 | 27-08-2026 | Creación inicial. Recoge el procedimiento de despliegue sobre Railway que [`ADR-002`](architecture/ADR-002-plataforma-de-despliegue-railway.md) decide al cerrar **D-09**: topología de dos servicios, mapa completo de variables con su valor literal, los tres detalles de plataforma que rompen el arranque —el puerto, la red privada IPv6 y el relevo con dos instancias vivas—, la verificación posterior y la operación. Declara **una sola réplica** como restricción de diseño y no de coste, con los tres componentes en memoria que la imponen; declara que **`TRUSTED_PROXIES` no tiene hoy valor correcto** en Railway, lo que reabre **D-21** con otra forma; y separa lo desplegado de lo pendiente en §13. | Responsable técnico |
 | 0.2.0 | 27-08-2026 | **Dos de los pendientes de §13 dejan de serlo, y con código y no con prosa.** El **puerto** deja de fijarse a mano: `application.yml` declara `server.port: ${PORT:8080}`, de modo que en un entorno desplegado manda la plataforma y en local siguen valiendo los 8080 del `Dockerfile`. El literal anterior obligaba a declarar `PORT=8080` en Railway para que los dos lados coincidieran, y el día que dejaran de hacerlo el síntoma era **una sonda en rojo sobre un arranque impecable en los logs** — el puerto es lo último que uno mira. Y el **apagado ordenado** pasa a existir: `server.shutdown: graceful` con treinta segundos, que es lo que hace tolerable el relevo de §7.3 —hay dos procesos vivos y al viejo se le manda parar con peticiones en curso; sin esto las corta en seco, y una conexión caída es indistinguible de un sistema roto para quien estaba escribiendo—. El plazo sobra para cualquier operación de este sistema —los umbrales del Art. XV.9 son de menos de un segundo— y queda por debajo del que usa la plataforma para matar el proceso a la fuerza. §6.2 pasa a decir que `PORT` **no se declara**, §7.1 y §7.3 se reescriben, y la tabla de §13 baja de ocho filas a seis. | Responsable técnico |
 | 0.3.0 | 27-08-2026 | Este documento gana un **complemento y una frontera**: nace [`manual-de-despliegue.md`](manual-de-despliegue.md), que es **qué se teclea y en qué orden**, y esta pasa a ser la **referencia** —qué es cada cosa y por qué—. La separación no es de gusto: quien despliega por primera vez tenía que saltar entre §4, §5, §6, §7, §8 y §11 para reunir una secuencia que ninguna sección contenía entera, y quien viene a entender una decisión tropezaba con instrucciones. §1 declara cuál manda cuando se contradigan: **este**. | Responsable técnico |
+| 0.4.0 | 27-08-2026 | **Corrige un defecto de este documento que costó un despliegue caído.** §10 daba `develop` y `main` como las ramas de cada entorno sin decir que **hoy ninguna de las dos es desplegable**: todo el trabajo vive en `feature/esqueleto-del-proyecto` sin fusionar, y a `develop` y `main` les faltan **veintitrés commits**, entre ellos `railway.json` y el `server.port: ${PORT:8080}`. Desplegar una de ellas da «Application failed to respond» **con un arranque impecable en los logs** — el fallo que §7.1 describe y que este documento mandaba a reproducir. La portada de la documentación ya avisaba de que el trabajo estaba sin fusionar; lo que faltaba era leerlo desde el despliegue. §10 y el paso 4 del manual ganan el aviso y una comprobación de una línea: **una rama es desplegable si contiene `railway.json`**. | Responsable técnico |

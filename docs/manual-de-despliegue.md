@@ -5,12 +5,12 @@
 | Proyecto | NEXUS — Renovación de plataforma |
 | Empresa | FACTECH GROUP SAS |
 | Documento | `manual-de-despliegue.md` |
-| Versión | 0.1.0 |
+| Versión | 0.2.0 |
 | Estado | Borrador |
 | Responsable técnico | Bonilla Diaz William Steven |
 | Fecha de creación | 27-08-2026 |
 | Última actualización | 27-08-2026 |
-| Documento superior | [`deployment.md`](deployment.md) v0.2.0 |
+| Documento superior | [`deployment.md`](deployment.md) v0.4.0 |
 
 ---
 
@@ -35,7 +35,7 @@ Ten esto a mano **antes** de abrir Railway. Ir a buscarlo a mitad de camino es d
 - [ ] JDK 21 en el `PATH` — hace falta `jshell` para el paso 2.
 - [ ] Una cuenta de Railway con acceso a `NexusPro-Dev/backend`.
 - [ ] **Decidido** el correo real del superadministrador y su contraseña.
-- [ ] **Decidido** qué entorno vas a montar primero: `testing` (rama `develop`) o `production` (rama `main`).
+- [ ] **Decidido** qué entorno vas a montar primero, y **de qué rama sale**. Hoy no es `develop` ni `main`: ver el aviso del paso 4.
 
 !!! warning "Elige la contraseña del superadministrador antes de empezar"
 
@@ -113,12 +113,25 @@ En el mismo proyecto:
 
 1. **New** → *GitHub Repo* → `NexusPro-Dev/backend`. Autoriza a Railway si te lo pide.
 2. Clic en el servicio nuevo → *Settings* → renómbralo a **`backend`**.
-3. *Settings → Source → Branch*: pon `develop` si estás montando `testing`, o `main` si es `production`.
+3. *Settings → Source → Branch*: **la rama que tenga el trabajo**. Ver el aviso de abajo antes de elegir.
 4. Comprueba en *Settings → Build* que el constructor es **Dockerfile**. Railway lo detecta solo; si no lo hizo, `railway.json` del repositorio lo fuerza.
+
+!!! danger "A 27-08-2026, `main` y `develop` NO son desplegables"
+
+    El destino final es `develop` para `testing` y `main` para `production` (§10). **Hoy ninguna de las dos sirve**: van veintitrés commits por detrás de `feature/esqueleto-del-proyecto`, donde vive todo el trabajo sin fusionar — y entre lo que les falta están **`railway.json`** y el **`server.port: ${PORT:8080}`**.
+
+    Desplegar una de ellas da exactamente **«Application failed to respond»**: con el puerto cocido en `8080`, Railway encamina al puerto que él eligió, no hay nadie escuchando ahí, y **los logs muestran un arranque impecable** (§7.1).
+
+    Dos salidas, y la segunda es la buena:
+
+    - **Ahora:** apunta el servicio a `feature/esqueleto-del-proyecto`.
+    - **Cuando cierre la tanda en curso:** fusiona a `develop` y a `main`, y devuelve el servicio a su rama. A partir de ahí, la tabla de §10 vuelve a ser cierta.
+
+    Comprobar antes de dudar: `git rev-list --count origin/main..origin/feature/esqueleto-del-proyecto`. Si no da `0`, `main` no lleva el trabajo.
 
 **Va a intentar desplegar y va a fallar.** Es lo correcto: todavía no tiene variables y la aplicación se niega a arrancar sin ellas. Déjalo fallar y sigue.
 
-- [ ] El servicio se llama `backend` y apunta a la rama correcta.
+- [ ] El servicio se llama `backend` y apunta a una rama que **contiene `railway.json`**. Si no lo contiene, no es la rama.
 
 ---
 
@@ -336,3 +349,4 @@ A partir de aquí, **desplegar es integrar**: lo que entre en `develop` está en
 | Versión | Fecha | Cambio | Responsable |
 |---|---|---|---|
 | 0.1.0 | 27-08-2026 | Creación inicial. Manual paso a paso del despliegue en Railway, complementario de [`deployment.md`](deployment.md): once pasos en orden, con los comandos exactos, el bloque de variables listo para pegar en el editor en crudo, las comprobaciones de cada paso y una tabla de síntoma → causa → arreglo. Separa lo que se teclea de lo que se razona: el porqué de cada decisión sigue viviendo en `deployment.md`, que manda si los dos se contradicen. | Responsable técnico |
+| 0.2.0 | 27-08-2026 | **El paso 4 mandaba desplegar una rama que no es desplegable, y eso tumbó un despliegue.** Decía «`develop` para `testing`, `main` para `production`» —que es el destino— sin comprobar que **hoy ninguna de las dos lleva el trabajo**: van veintitrés commits por detrás de `feature/esqueleto-del-proyecto` y les faltan `railway.json` y el `server.port: ${PORT:8080}`. El resultado es «Application failed to respond» **con un arranque impecable en los logs**, que es el fallo que `deployment.md` §7.1 describe y que este manual mandaba a reproducir. Gana el aviso, las dos salidas —apuntar a la rama de trabajo ahora, fusionar después— y una comprobación que no depende de acordarse: **una rama es desplegable si contiene `railway.json`**. | Responsable técnico |
