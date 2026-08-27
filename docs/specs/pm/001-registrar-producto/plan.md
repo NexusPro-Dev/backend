@@ -8,6 +8,7 @@
 | Estado | **Aprobado** |
 | Autor | Responsable técnico |
 | Aprobado por | Responsable del proyecto |
+| Enmendado el | 27-08-2026 — `RN-PM-015` |
 | Fecha de aprobación | 26-08-2026 |
 
 !!! info "Qué va en este documento"
@@ -42,6 +43,7 @@ name                  varchar(150)  NOT NULL
 description           text          NULL
 target_membership_id  uuid          NULL  → memberships(id)
 price                 numeric(14,4) NOT NULL
+validity_days         integer       NULL
 currency_id           uuid          NOT NULL → currencies(id)
 status                varchar(20)   NOT NULL DEFAULT 'INACTIVO'
 created_at            timestamptz   NOT NULL DEFAULT now()
@@ -60,6 +62,7 @@ Restricciones e índices:
 | `ck_products_status` | `status IN ('ACTIVO','INACTIVO')` | `RN-PM-009` |
 | `ck_products_type_target` | `(type = 'UPGRADE_MEMBRESIA' AND target_membership_id IS NOT NULL) OR (type = 'SERVICIO' AND target_membership_id IS NULL)` | `RN-PM-002`, en los dos sentidos |
 | `ck_products_price_positive` | `price > 0` | `RN-PM-006` |
+| `ck_products_validity_positive` | `validity_days IS NULL OR validity_days > 0` | `RN-PM-015`. La rama `IS NULL` va **explícita**: la comparación sola también admitiría el nulo —un `CHECK` que evalúa a `NULL` acepta la fila—, y se escribe para que ese permiso sea deliberado |
 | `ck_products_name_length` | `length(name) <= 150` implícito en el tipo; `description` con `CHECK` de 1000 | Sin cota, el listado de `RF-PM-002` devolvería respuestas de tamaño impredecible |
 | `uq_products_upgrade_target` | `CREATE UNIQUE INDEX … ON products (target_membership_id) WHERE type = 'UPGRADE_MEMBRESIA' AND status = 'ACTIVO' AND deleted_at IS NULL` | `RN-PM-004`. Se declara **aquí**, con la tabla, aunque **solo `RF-PM-005` pueda violarla**: el esquema es de quien crea la tabla |
 | `fk_products_target_membership` | `target_membership_id → memberships(id)` | `RN-PM-003` |
@@ -132,6 +135,7 @@ Se añade a `LayerRulesTest`: **ninguna clase de `..modules.products..` depende 
   "description": "Acceso a los contenidos de nivel oro.",
   "targetMembershipId": "018f3a2b-7c41-7000-9a3d-1f2e5b8c9d20",
   "price": 49.99,
+  "validityDays": 30,
   "currencyId": "01a03336-6d00-7001-9c4f-5e7ad3000001"
 }
 ```
@@ -139,6 +143,7 @@ Se añade a `LayerRulesTest`: **ninguna clase de `..modules.products..` depende 
 - **No existe campo `status`**, y el DTO se deserializa con `FAIL_ON_UNKNOWN_PROPERTIES` activo: enviarlo devuelve `400` y no se ignora en silencio (`CA-PM-068`). Es lo mismo que `RF-SP-001` hizo con `status` e `isSystem`, y es lo que hace verificable que **el estado inicial no se pueda forzar desde fuera**.
 - `code` se **recorta y se pasa a mayúsculas** antes de validar; `name` y `description` se recortan. Sin el recorte, `"Ascenso "` y `"Ascenso"` serían dos nombres distintos para `uq_products_name`.
 - `price` llega como **número**. La escala admisible **no la fija el DTO**, la fija la moneda (`RN-PM-007`), y por eso se valida en el caso de uso y no con una anotación.
+- **`validityDays` es opcional en los dos tipos.** Ausente o `null` significa lo mismo: el producto no caduca. Se valida en el DTO —entero mayor que cero— porque su regla no depende de ningún otro campo, al revés que el precio.
 - `targetMembershipId` es obligatorio o prohibido según `type`, y **la condición se comprueba en el caso de uso y no con validación declarativa**: una anotación de Bean Validation no puede expresar «obligatorio si otro campo vale X» sin un validador de clase, y el mensaje que produce no distingue cuál de las dos mitades se incumplió.
 
 **Respuesta `201`**, con cabecera `Location: /api/v1/products/{id}`:
@@ -152,6 +157,7 @@ Se añade a `LayerRulesTest`: **ninguna clase de `..modules.products..` depende 
   "description": "Acceso a los contenidos de nivel oro.",
   "targetMembership": { "id": "018f3a2b-…", "code": "ORO", "name": "Oro", "level": 1 },
   "price": 49.99,
+  "validityDays": 30,
   "currency": { "id": "01a03336-…", "code": "USD", "decimalPlaces": 2 },
   "status": "INACTIVO",
   "createdAt": "2026-08-26T14:32:11Z",

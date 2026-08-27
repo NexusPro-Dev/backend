@@ -19,7 +19,7 @@
 
 | ID | Tarea | Depende de | Verificación | Estado |
 |---|---|---|---|---|
-| `T-01` | Migración `V39__create_products.sql`: la tabla con sus once columnas, los cuatro `CHECK`, las dos claves foráneas y los tres índices únicos de `plan.md` §2.1 | — | `mvn flyway:info` la lista aplicada; una prueba comprueba que `ck_products_type_target` **rechaza las dos mitades** —upgrade sin destino y servicio con destino— y que `status` toma `INACTIVO` por omisión | Pendiente |
+| `T-01` | Migración `V39__create_products.sql`: la tabla con sus doce columnas, los cinco `CHECK`, las dos claves foráneas y los tres índices únicos de `plan.md` §2.1 | — | `mvn flyway:info` la lista aplicada; una prueba comprueba que `ck_products_type_target` **rechaza las dos mitades** —upgrade sin destino y servicio con destino— y que `status` toma `INACTIVO` por omisión | Pendiente |
 | `T-02` | Migración `V40__seed_products_permissions.sql`: los cuatro permisos con UUID v7 literales, **y su asociación a `SUPERADMIN` y `ADMIN` en la misma migración** | `T-01` | Prueba de integración: los cuatro permisos existen y **los dos roles los tienen**. Sin esta segunda mitad, `ADMIN` no podría conceder `products:create` y el rechazo no diría que falta una siembra | Pendiente |
 | `T-03` | `domain/models/Product`: agregado y modelo persistente. Normaliza el código a mayúsculas, recorta nombre y descripción, y valida el formato del código en el dominio | `T-01` | Unitaria sin Spring: `upgrade_oro` se guarda `UPGRADE_ORO`; `1ORO`, `ORO-PLUS` y el vacío se rechazan con `VAL-010` | Pendiente |
 | `T-04` | `domain/models/ProductType` y `ProductStatus`: dominios cerrados | — | Compila; un valor fuera del dominio no es representable | Pendiente |
@@ -36,6 +36,7 @@
 | `T-15` | Prueba concurrente: **dos altas simultáneas con el mismo código** | `T-13` | Una queda y la otra recibe `409`. **No basta la verificación previa**: la garantía es el índice único | Pendiente |
 | `T-16` | Documentación OpenAPI del endpoint, con los ocho campos, el `201` y los estados `400`, `403`, `409` y `422` | `T-14` | `OpenApiContractIT` regenera el contrato y la prueba comprueba que declara el endpoint | Pendiente |
 | `T-17` | Actualizar la matriz de `docs/requirements.md` y anotar en `requirements/sp.md` que `SP` publica las dos interfaces | `T-14` | La fila de `RF-PM-001` refleja el estado y `SP` deja constancia de lo que publica | Pendiente |
+| `T-18` | **Vigencia**: la columna en `T-01`, el campo opcional en el DTO, en el agregado y en la respuesta | `T-08`, `T-13` | Registrar **sin** vigencia deja un producto que no caduca (`CA-PM-092`); cero, negativa o no entera se rechazan con `VAL-011` (`CA-PM-093`) | Pendiente |
 
 ## 2. Orden de ejecución
 

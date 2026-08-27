@@ -8,6 +8,7 @@
 | Estado | **Aprobado** |
 | Autor | Responsable técnico |
 | Aprobado por | Responsable del proyecto |
+| Enmendado el | 27-08-2026 — `RN-PM-015` |
 | Fecha de aprobación | 26-08-2026 |
 
 ---

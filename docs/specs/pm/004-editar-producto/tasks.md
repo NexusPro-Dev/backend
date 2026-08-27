@@ -29,6 +29,7 @@
 | `T-12` | Prueba concurrente: dos correcciones simultáneas del mismo producto | `T-09` | La última queda **entera**, no una mezcla de las dos | Pendiente |
 | `T-13` | Documentación OpenAPI, declarando qué campos admite y **cuáles rechaza** | `T-10` | El contrato no lista `type`, `code` ni `targetMembershipId` como corregibles | Pendiente |
 | `T-14` | Actualizar la matriz de trazabilidad | `T-10` | La fila refleja el estado | Pendiente |
+| `T-15` | La **vigencia** se suma a lo corregible, con `Patchable` | `T-01`, `T-03` | Corregirla la cambia; **vaciarla** convierte el producto en uno que no caduca (`CA-PM-094`) | Pendiente |
 
 ## 2. Orden de ejecución
 

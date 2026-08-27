@@ -8,6 +8,7 @@
 | Autor | Responsable técnico |
 | Aprobada por | Responsable del proyecto |
 | Fecha de aprobación | 26-08-2026 |
+| Enmendada el | 27-08-2026 — ver §15 |
 
 ---
 
@@ -69,7 +70,7 @@ Con `RF-PM-001` se puede **crear** un producto y no **verlo**: quien administra 
 
 | Dato | Descripción |
 |---|---|
-| Productos | Identificador, tipo, nombre, descripción, precio con su moneda, estado y —en los upgrades— la membresía destino con su nombre y su nivel |
+| Productos | Identificador, tipo, nombre, descripción, precio con su moneda, **vigencia en días**, estado y —en los upgrades— la membresía destino con su nombre y su nivel |
 | Marca de retiro | En los retirados, que lo están y desde cuándo |
 | Total | Cuántos productos cumplen el filtro |
 | Orden | El aplicado, para que quien recibe la página sepa sobre qué está paginando |
@@ -168,3 +169,4 @@ Ninguna. Las cuatro se resolvieron el 26-08-2026, antes de aprobar la especifica
 | 0.3.0 | 26-08-2026 | **Enmienda del motivo de la resolución 3**, el mismo día y por el Art. I.7: `RF-PM-003` resolvió que el detalle **sí devuelve el motivo del retiro**, de modo que el argumento con el que se aprobó —«el motivo no viaja en el catálogo»— dejó de ser cierto. La decisión no cambia: los retirados siguen sin exigir permiso propio, y lo que la sostiene ahora es que **el listado no lleva el motivo** aunque el detalle sí. `CA-PM-077` lo dice explícitamente. | Responsable del proyecto |
 | 0.2.0 | 26-08-2026 | **Aprobada.** El orden por omisión es el de **alta**, configurable sobre una **lista cerrada** —nombre, precio, fecha—, con el identificador como desempate para que la paginación no repita ni salte filas. Los retirados **no exigen permiso propio**, y el filtro por rango de precio pasa a lo que no se incluye. Una de las resoluciones alcanza a otra spec: la consulta del cliente tiene **su propio orden**, agrupado por tipo, y `RF-PM-007` se enmienda con él. Cuatro criterios nuevos, `CA-PM-074` a `CA-PM-077`, y `VAL-005`. | Responsable del proyecto |
 | 0.1.0 | 26-08-2026 | Redacción inicial, con cuatro preguntas abiertas. | Responsable técnico |
+| 0.4.0 | 27-08-2026 | El listado devuelve la **vigencia en días** de cada producto (`RN-PM-015`). Sin ella, quien administra no distingue en la lista un upgrade permanente de uno de treinta días, que es la diferencia comercial más importante entre dos filas por lo demás idénticas. | Responsable del proyecto |

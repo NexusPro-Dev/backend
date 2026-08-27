@@ -26,6 +26,7 @@
 | `T-09` | Prueba de que la respuesta **no lleva autoría** en ninguna forma | `T-07` | `CA-PM-081`. Ni `createdBy`, ni resuelto desde la auditoría | Pendiente |
 | `T-10` | Documentación OpenAPI del endpoint | `T-07` | El contrato declara el `200`, el `404` y el `400` | Pendiente |
 | `T-11` | Actualizar la matriz de trazabilidad | `T-07` | La fila refleja el estado | Pendiente |
+| `T-12` | La **vigencia** viaja en el detalle | `T-03` | Vacía y presente en los productos que no caducan | Pendiente |
 
 ## 2. Orden de ejecución
 

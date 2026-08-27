@@ -165,10 +165,10 @@ Son las que sus `tasks.md` declaran `Pendiente`, verificadas contra el código u
 | [Seguridad](security.md) | 0.33.0 | Borrador |
 | [Mapa modular](modules.md) | 0.13.0 | Borrador |
 | [Modelo de datos](modelo-datos.md) | 0.11.0 | Borrador |
-| [Requerimientos y trazabilidad](requirements.md) | 0.67.0 | Borrador |
+| [Requerimientos y trazabilidad](requirements.md) | 0.68.0 | Borrador |
 | [Guía de desarrollo](development-guide.md) | 0.7.0 | Borrador |
 | [Requerimientos de `SP`](requirements/sp.md) | 1.25.0 | **Aprobado** |
-| [Requerimientos de `PM`](requirements/pm.md) | 0.11.0 | Borrador |
+| [Requerimientos de `PM`](requirements/pm.md) | 0.12.0 | Borrador |
 | [Flujos de `SP` · del módulo](flujos/sp/flujos-del-modulo.md) | 0.3.0 | Borrador |
 | [Flujos de `SP` · por caso](flujos/sp/flujos-por-caso.md) | 0.2.0 | Borrador |
 | Estrategia de pruebas | — | Pendiente |

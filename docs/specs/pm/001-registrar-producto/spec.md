@@ -8,6 +8,7 @@
 | Autor | Responsable técnico |
 | Aprobada por | Responsable del proyecto |
 | Fecha de aprobación | 26-08-2026 |
+| Enmendada el | 27-08-2026 — ver §15 |
 
 ---
 
@@ -57,6 +58,7 @@ Hoy la plataforma no tiene **nada que vender**. La membresía de una persona sol
 | `RN-PM-008` | La moneda debe estar activa al declararla | `requirements/pm.md` §5.1 |
 | `RN-PM-012` | El producto nace inactivo | `requirements/pm.md` §5.1 |
 | `RN-PM-013` | El código no se libera nunca | `requirements/pm.md` §5.1 |
+| `RN-PM-015` | La vigencia se mide en días y es opcional | `requirements/pm.md` §5.1 |
 
 ## 6. Datos
 
@@ -71,6 +73,7 @@ Hoy la plataforma no tiene **nada que vender**. La membresía de una persona sol
 | Membresía destino | **Depende del tipo** | Nivel al que lleva el upgrade | **Obligatoria** si el tipo es upgrade, **prohibida** si es servicio (`RN-PM-002`). Debe existir (`RN-PM-003`) |
 | Precio | Sí | Cuánto cuesta | Mayor que cero (`RN-PM-006`), con los decimales que admita su moneda (`RN-PM-007`) |
 | Moneda | Sí | En qué moneda se expresa el precio | Debe existir y estar **activa** (`RN-PM-008`) |
+| Vigencia | No | Cuántos días dura lo que el producto otorga, contados desde la compra | Entero mayor que cero. **Sin ella, lo adquirido no caduca** (`RN-PM-015`) |
 
 ### 6.2 Salida
 
@@ -160,6 +163,7 @@ Hoy la plataforma no tiene **nada que vender**. La membresía de una persona sol
 | `VAL-008` | Destino prohibido en el servicio | Un producto de servicio no puede declarar membresía destino. |
 | `VAL-009` | Código obligatorio | El código del producto es obligatorio. |
 | `VAL-010` | Formato del código | El código solo admite letras mayúsculas, dígitos y guion bajo, y debe empezar por letra. |
+| `VAL-011` | Vigencia mayor que cero | La vigencia debe ser un número de días mayor que cero. |
 
 ## 12. Criterios de aceptación
 
@@ -181,6 +185,8 @@ Hoy la plataforma no tiene **nada que vender**. La membresía de una persona sol
 | `CA-PM-069` | El sistema rechaza un código que ya usó otro producto, **incluido uno eliminado**, y lo distingue del nombre duplicado |
 | `CA-PM-070` | El sistema rechaza un código que no cumple el formato de mayúsculas, dígitos y guion bajo |
 | `CA-PM-071` | El sistema **admite registrar sin descripción**, y el producto queda inactivo a la espera de que `RF-PM-005` la exija para publicarlo |
+| `CA-PM-092` | El sistema **admite registrar sin vigencia**, y ese producto otorga su derecho sin caducidad |
+| `CA-PM-093` | El sistema rechaza una vigencia de cero, negativa o no entera, en cualquiera de los dos tipos |
 
 ## 13. Casos límite
 
@@ -211,3 +217,4 @@ Ninguna. Las cinco se resolvieron el 26-08-2026, antes de aprobar la especificac
 |---|---|---|---|
 | 0.2.0 | 26-08-2026 | **Aprobada.** Las cinco preguntas abiertas se resuelven y la spec cruza su primera compuerta. Entran tres reglas nuevas al documento del módulo: `RN-PM-012` —el producto nace inactivo—, `RN-PM-013` —el código no se libera nunca— y `RN-PM-014` —no se publica lo que no se explica—. El **código** aparece en §6.1 y trae `VAL-009`, `VAL-010` y `EX-005`. Se **retira `EX-004`** y con él `CA-PM-009`: registrar ya no puede chocar con un upgrade activo, porque el producto nace inactivo, y esa excepción pasa a `RF-PM-005` con identificadores propios — los retirados no se reutilizan. Cuatro criterios nuevos, `CA-PM-068` a `CA-PM-071`. | Responsable del proyecto |
 | 0.1.0 | 26-08-2026 | Redacción inicial, con cinco preguntas abiertas. | Responsable técnico |
+| 0.3.0 | 27-08-2026 | **El producto gana vigencia de adquisición** (`RN-PM-015`), medida en días y **opcional**: sin ella, lo adquirido no caduca. Entra como dato de entrada, sale en la respuesta, y trae `VAL-011`, `CA-PM-092` y `CA-PM-093`. La spec vuelve a su compuerta y se reaprueba el mismo día (Art. I.7); no había código escrito, de modo que el cambio costó una edición y no una migración. | Responsable del proyecto |

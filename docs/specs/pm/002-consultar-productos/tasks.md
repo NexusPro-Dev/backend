@@ -29,6 +29,7 @@
 | `T-12` | Prueba de `EXPLAIN`: con doscientos productos sembrados, la búsqueda usa `ix_products_busqueda` | `T-06` | La prueba **siembra volumen a propósito**: con pocas filas el planificador elige recorrido secuencial y la prueba no probaría nada | Pendiente |
 | `T-13` | Documentación OpenAPI del endpoint con sus siete parámetros | `T-10` | El contrato declara los filtros y los estados | Pendiente |
 | `T-14` | Actualizar la matriz de trazabilidad | `T-10` | La fila refleja el estado | Pendiente |
+| `T-15` | La **vigencia** viaja en cada fila del listado | `T-05` | Un producto sin vigencia llega con el campo **vacío y presente**, no ausente |  Pendiente |
 
 ## 2. Orden de ejecución
 

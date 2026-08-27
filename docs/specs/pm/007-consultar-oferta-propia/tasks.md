@@ -28,6 +28,7 @@
 | `T-11` | Prueba de quien está **en la cima**: lista de upgrades vacía, sin error | `T-09` | No es un mensaje especial: es una lista vacía | Pendiente |
 | `T-12` | Documentación OpenAPI del endpoint, **declarando que no admite parámetros** | `T-09` | El contrato no lista ninguno | Pendiente |
 | `T-13` | Actualizar la matriz de trazabilidad | `T-09` | La fila refleja el estado | Pendiente |
+| `T-14` | La **vigencia** viaja en cada producto ofrecido | `T-02`, `T-03` | Vacía en los que no caducan (`CA-PM-095`) | Pendiente |
 
 ## 2. Orden de ejecución
 
