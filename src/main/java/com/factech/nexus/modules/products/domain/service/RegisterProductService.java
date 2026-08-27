@@ -1,5 +1,6 @@
 package com.factech.nexus.modules.products.domain.service;
 
+import com.factech.nexus.modules.products.application.ProductPrice;
 import com.factech.nexus.modules.products.application.ProductResponse;
 import com.factech.nexus.modules.products.application.RegisterProductCommand;
 import com.factech.nexus.modules.products.domain.models.Product;
@@ -147,7 +148,7 @@ public class RegisterProductService {
 
     // `RN-PM-007`. No lo puede comprobar un CHECK: la escala admisible vive en
     // otra tabla, y PostgreSQL no admite subconsultas en una restricción.
-    if (comando.price().scale() > moneda.decimalPlaces()) {
+    if (!ProductPrice.cabeEn(comando.price(), moneda.decimalPlaces())) {
       String mensaje =
           "El precio no admite más de %d decimales en %s."
               .formatted(moneda.decimalPlaces(), moneda.code());

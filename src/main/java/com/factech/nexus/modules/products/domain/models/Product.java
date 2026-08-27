@@ -2,6 +2,7 @@ package com.factech.nexus.modules.products.domain.models;
 
 import com.factech.nexus.shared.error.FieldError;
 import com.factech.nexus.shared.error.ValidationException;
+import com.factech.nexus.shared.patch.Patchable;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.EnumType;
@@ -174,6 +175,97 @@ public class Product {
     status = destino;
     updatedAt = ahora;
     return true;
+  }
+
+  /**
+   * Corrige lo corregible y <b>devuelve qué cambió de verdad</b> (`RF-PM-004`).
+   *
+   * <p><b>El diff lo devuelve quien aplica el cambio</b>, y no el caso de uso comparando antes y
+   * después: reconstruirlo fuera obliga a copiar cinco valores previos y a acordarse de cada campo
+   * nuevo que se añada. Aquí, un campo que no entre en el diff es un campo que no se auditará, y
+   * eso se ve en la misma línea en que se asigna.
+   *
+   * <p><b>Los campos ausentes no se tocan</b> y los presentes con nulo se aplican <b>donde el nulo
+   * es una orden</b>: la descripción y la vigencia admiten vaciarse; el nombre no, y su nulo lo
+   * rechaza el caso de uso antes de llegar aquí.
+   *
+   * <p><b>{@code updatedAt} solo se mueve si algo cambió</b>: una petición que no cambia nada no es
+   * un cambio, y moverla haría creer que alguien tocó el producto.
+   *
+   * @return los campos que cambiaron, cada uno con {@code before} y {@code after}. Vacío si la
+   *     petición no cambió nada
+   */
+  public Map<String, Object> update(
+      Patchable<String> nuevoNombre,
+      Patchable<String> nuevaDescripcion,
+      Patchable<BigDecimal> nuevoPrecio,
+      Patchable<UUID> nuevaMoneda,
+      Patchable<Integer> nuevaVigencia,
+      OffsetDateTime ahora) {
+
+    Map<String, Object> cambios = new LinkedHashMap<>();
+
+    if (nuevoNombre.presente()) {
+      String valor = recortar(nuevoNombre.valor());
+      if (!java.util.Objects.equals(valor, name)) {
+        cambios.put("name", Map.of("before", texto(name), "after", texto(valor)));
+        name = valor;
+      }
+    }
+    if (nuevaDescripcion.presente()) {
+      String valor = recortar(nuevaDescripcion.valor());
+      if (!java.util.Objects.equals(valor, description)) {
+        cambios.put("description", Map.of("before", texto(description), "after", texto(valor)));
+        description = valor;
+      }
+    }
+    if (nuevoPrecio.presente() && nuevoPrecio.valor() != null) {
+      BigDecimal valor = nuevoPrecio.valor();
+      // `compareTo` y no `equals`: `10.00` y `10.0000` son el mismo precio con
+      // distinta escala, y `equals` los daría por distintos — el registro se
+      // llenaría de cambios que no cambian nada.
+      if (price.compareTo(valor) != 0) {
+        cambios.put(
+            "price", Map.of("before", price.toPlainString(), "after", valor.toPlainString()));
+        price = valor;
+      }
+    }
+    if (nuevaMoneda.presente() && nuevaMoneda.valor() != null) {
+      UUID valor = nuevaMoneda.valor();
+      if (!valor.equals(currencyId)) {
+        cambios.put(
+            "currency_id", Map.of("before", currencyId.toString(), "after", valor.toString()));
+        currencyId = valor;
+      }
+    }
+    if (nuevaVigencia.presente()) {
+      Integer valor = nuevaVigencia.valor();
+      if (!java.util.Objects.equals(valor, validityDays)) {
+        cambios.put(
+            "validity_days", Map.of("before", numero(validityDays), "after", numero(valor)));
+        validityDays = valor;
+      }
+    }
+
+    if (!cambios.isEmpty()) {
+      updatedAt = ahora;
+    }
+    return cambios;
+  }
+
+  /**
+   * El nulo en el registro de auditoría va como texto y no como ausencia.
+   *
+   * <p>{@code Map.of} <b>rechaza los nulos</b>, y aunque los admitiera, una clave que desaparece
+   * del JSON haría indistinguible «se vació la descripción» de «no se tocó la descripción» — que es
+   * justo la distinción que este requerimiento existe para conservar.
+   */
+  private static String texto(String valor) {
+    return valor == null ? "" : valor;
+  }
+
+  private static Object numero(Integer valor) {
+    return valor == null ? "" : valor;
   }
 
   /**

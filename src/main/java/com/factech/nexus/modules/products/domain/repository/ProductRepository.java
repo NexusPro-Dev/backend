@@ -32,6 +32,18 @@ public interface ProductRepository {
    */
   boolean existsAliveName(String name);
 
+  /**
+   * ¿Hay <b>otro</b> producto vivo con ese nombre? (`RF-PM-004`, `EX-002`)
+   *
+   * <p><b>Excluye al propio producto</b>, y sin eso la corrección sería inusable: enviar el nombre
+   * actual junto con una descripción nueva se rechazaría como duplicado <b>consigo mismo</b>.
+   *
+   * <p>Compara sobre la forma normalizada, igual que {@code uq_products_name}, de modo que cambiar
+   * {@code Plan Oro} por {@code Plan oro} <b>sí</b> es un cambio válido para el propio producto y
+   * <b>sí</b> choca contra otro que se llame así.
+   */
+  boolean existsAliveNameForOther(String name, UUID productId);
+
   /** Persiste el producto nuevo y fuerza el volcado para poder traducir el duplicado. */
   Product save(Product producto);
 

@@ -909,7 +909,11 @@
         },
         "type" : "object"
       },
+      "PatchableBigDecimal" : { },
+      "PatchableInteger" : { },
+      "PatchableObject" : { },
       "PatchableString" : { },
+      "PatchableUUID" : { },
       "PermissionCatalogResponse" : {
         "properties" : {
           "content" : {
@@ -1540,6 +1544,35 @@
           },
           "username" : {
             "type" : "string"
+          }
+        },
+        "type" : "object"
+      },
+      "UpdateProductRequest" : {
+        "properties" : {
+          "code" : {
+            "$ref" : "#/components/schemas/PatchableObject"
+          },
+          "currencyId" : {
+            "$ref" : "#/components/schemas/PatchableUUID"
+          },
+          "description" : {
+            "$ref" : "#/components/schemas/PatchableString"
+          },
+          "name" : {
+            "$ref" : "#/components/schemas/PatchableString"
+          },
+          "price" : {
+            "$ref" : "#/components/schemas/PatchableBigDecimal"
+          },
+          "targetMembershipId" : {
+            "$ref" : "#/components/schemas/PatchableObject"
+          },
+          "type" : {
+            "$ref" : "#/components/schemas/PatchableObject"
+          },
+          "validityDays" : {
+            "$ref" : "#/components/schemas/PatchableInteger"
           }
         },
         "type" : "object"
@@ -3204,6 +3237,64 @@
           }
         },
         "summary" : "Consultar el detalle de un producto",
+        "tags" : [ "Productos" ]
+      },
+      "patch" : {
+        "description" : "Corrige el **nombre**, la **descripción**, el **precio**, la **moneda**\ny la **vigencia**. Se aplica lo que llega y se deja intacto lo que no.\n\n**Distingue el campo ausente del enviado vacío**, y de ahí salen dos\ncomportamientos opuestos: `description: null` y `validityDays: null`\n**vacían** el campo —el producto pasa a no caducar—, mientras que\n`name: null` se **rechaza**, porque un producto sin nombre no puede\nexistir.\n\n**El tipo, el código y la membresía destino NO se pueden corregir**, y\nenviarlos devuelve `400` con `VAL-006`. Se rechazan y no se ignoran:\nignorarlos haría creer que el cambio se aplicó. Definen qué derecho\notorga el producto, y cambiarlos convertiría lo comprado en otra cosa.\n\n**El precio se valida contra la moneda NUEVA** cuando llegan las dos.\nY el importe **no se convierte**: el sistema no hace conversión de\ndivisa — cambiar de moneda es declarar que ese número siempre estuvo\nen la otra.\n\n**Un producto retirado no se corrige**: lo que se retiró debe quedar\ncomo estaba para que lo que lo referencie siga diciendo la verdad.\n\n**No se exige motivo**, ni siquiera al cambiar el precio. Una petición\nque no cambia nada devuelve `200` y **no registra evento**.\n",
+        "operationId" : "corregir",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "id",
+          "required" : true,
+          "schema" : {
+            "format" : "uuid",
+            "type" : "string"
+          }
+        } ],
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/UpdateProductRequest"
+              }
+            }
+          },
+          "required" : true
+        },
+        "responses" : {
+          "200" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ProductDetailResponse"
+                }
+              }
+            },
+            "description" : "El producto, ya corregido."
+          },
+          "400" : {
+            "description" : "Identificador sin forma canónica (`VAL-001`), nombre vacío o ningún campo informado (`VAL-002`), longitud excedida (`VAL-003`), precio no positivo (`VAL-004`), decimales que la moneda no admite (`VAL-005`), campos inmutables en la petición (`VAL-006`) o vigencia no positiva (`VAL-011`)"
+          },
+          "401" : {
+            "description" : "Token ausente o inválido (`AUTH-001`)"
+          },
+          "403" : {
+            "description" : "Autenticado sin el permiso `products:update` (`AUTH-002`)"
+          },
+          "404" : {
+            "description" : "No existe un producto vivo con ese identificador (`EX-001`)"
+          },
+          "409" : {
+            "description" : "El nombre ya lo tiene otro producto vivo (`EX-002`)"
+          },
+          "422" : {
+            "description" : "La moneda no existe o está desactivada (`EX-003`)"
+          },
+          "500" : {
+            "description" : "Fallo no controlado (`ERR-500`)"
+          }
+        },
+        "summary" : "Corregir un producto",
         "tags" : [ "Productos" ]
       }
     },

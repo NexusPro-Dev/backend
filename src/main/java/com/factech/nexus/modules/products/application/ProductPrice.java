@@ -33,6 +33,23 @@ public final class ProductPrice {
    * escala de la moneda: {@code 49.9900} sale {@code 49.99} con dos decimales y {@code 50} con
    * cero.
    */
+  /**
+   * ¿Cabe este importe en una moneda de {@code decimales} decimales? (`RN-PM-007`)
+   *
+   * <p><b>Se mide sobre la escala significativa</b>, no sobre la que traiga el número. Y no es una
+   * sutileza: el precio <b>leído de la base</b> viene con la escala de la columna —{@code
+   * numeric(14,4)}, de modo que {@code 49.99} llega como {@code 49.9900}—, y compararlo en crudo
+   * daría cuatro decimales contra los dos de la moneda. El síntoma fue exacto: cambiar <b>solo</b>
+   * la moneda de un producto, sin tocar su precio, se rechazaba por decimales que ese precio no
+   * tiene.
+   *
+   * <p>Con la escala significativa, {@code 10.005} sigue sin caber en una moneda de dos decimales
+   * —que es lo que `RN-PM-007` impide— y {@code 10.000} sí cabe, porque <b>es</b> {@code 10}.
+   */
+  public static boolean cabeEn(BigDecimal precio, int decimales) {
+    return precio.stripTrailingZeros().scale() <= decimales;
+  }
+
   public static BigDecimal enLaEscalaDe(BigDecimal precio, int decimales) {
     // `stripTrailingZeros` deja la escala MÍNIMA que representa el mismo
     // número, que es la que dice cuántos decimales tiene el dato de verdad.

@@ -54,6 +54,22 @@ public class JpaProductRepository implements ProductRepository {
         .isEmpty();
   }
 
+  @Override
+  public boolean existsAliveNameForOther(String name, UUID productId) {
+    return !em.createNativeQuery(
+            """
+            SELECT 1 FROM products
+             WHERE deleted_at IS NULL
+               AND id <> CAST(:id AS uuid)
+               AND f_unaccent(lower(name)) = f_unaccent(lower(CAST(:name AS text)))
+             LIMIT 1
+            """)
+        .setParameter("name", name)
+        .setParameter("id", productId == null ? null : productId.toString())
+        .getResultList()
+        .isEmpty();
+  }
+
   /**
    * Persiste y fuerza el volcado.
    *

@@ -5,6 +5,7 @@ import static org.assertj.core.api.Assertions.assertThatCode;
 import static org.assertj.core.api.Assertions.catchThrowableOfType;
 
 import com.factech.nexus.shared.error.ValidationException;
+import com.factech.nexus.shared.patch.Patchable;
 import java.math.BigDecimal;
 import java.time.OffsetDateTime;
 import java.time.ZoneOffset;
@@ -286,6 +287,137 @@ class ProductTest {
     producto.delete(AHORA.plusDays(1));
 
     assertThat(producto.instantanea()).containsOnlyKeys(alNacer.keySet().toArray(String[]::new));
+  }
+
+  @Test
+  @DisplayName("`RF-PM-004` · `T-03` — enviar los MISMOS valores devuelve un diff vacío")
+  void elDiffVacioCuandoNadaCambia() {
+    Product producto = servicio("ASESORIA");
+    OffsetDateTime antes = producto.getUpdatedAt();
+
+    Map<String, Object> cambios =
+        producto.update(
+            Patchable.de("Asesoría"),
+            Patchable.ausente(),
+            Patchable.de(new BigDecimal("49.9900")),
+            Patchable.ausente(),
+            Patchable.ausente(),
+            AHORA.plusDays(1));
+
+    // El precio se compara por VALOR y no por `equals`: `49.99` y `49.9900` son
+    // el mismo precio con distinta escala, y `equals` los daría por distintos —
+    // el registro se llenaría de cambios que no cambian nada.
+    assertThat(cambios).isEmpty();
+    // Y `updatedAt` no se mueve: moverla haría creer que alguien tocó el
+    // producto.
+    assertThat(producto.getUpdatedAt()).isEqualTo(antes);
+  }
+
+  @Test
+  @DisplayName("`RF-PM-004` — el diff trae SOLO lo que cambió, con su valor anterior y el nuevo")
+  void elDiffTraeSoloLoQueCambio() {
+    Product producto = servicio("ASESORIA");
+
+    Map<String, Object> cambios =
+        producto.update(
+            Patchable.de("Asesoría premium"),
+            Patchable.ausente(),
+            Patchable.ausente(),
+            Patchable.ausente(),
+            Patchable.ausente(),
+            AHORA.plusDays(1));
+
+    assertThat(cambios).containsOnlyKeys("name");
+    assertThat(cambios.get("name"))
+        .isEqualTo(Map.of("before", "Asesoría", "after", "Asesoría premium"));
+    assertThat(producto.getName()).isEqualTo("Asesoría premium");
+    assertThat(producto.getUpdatedAt()).isEqualTo(AHORA.plusDays(1));
+  }
+
+  @Test
+  @DisplayName("`CA-PM-031` — los campos AUSENTES no se tocan")
+  void losAusentesNoSeTocan() {
+    Product producto =
+        Product.create(
+            UUID.randomUUID(),
+            "ASESORIA",
+            ProductType.SERVICIO,
+            "Asesoría",
+            "Una hora con un asesor.",
+            null,
+            new BigDecimal("49.99"),
+            MONEDA,
+            30,
+            AHORA);
+
+    producto.update(
+        Patchable.de("Asesoría premium"),
+        Patchable.ausente(),
+        Patchable.ausente(),
+        Patchable.ausente(),
+        Patchable.ausente(),
+        AHORA.plusDays(1));
+
+    assertThat(producto.getDescription()).isEqualTo("Una hora con un asesor.");
+    assertThat(producto.getPrice()).isEqualByComparingTo(new BigDecimal("49.99"));
+    assertThat(producto.getValidityDays()).isEqualTo(30);
+  }
+
+  @Test
+  @DisplayName("`CA-PM-032` · `CA-PM-094` — el nulo VACÍA la descripción y la vigencia")
+  void elNuloVaciaLoQueAdmiteVaciarse() {
+    Product producto =
+        Product.create(
+            UUID.randomUUID(),
+            "ASESORIA",
+            ProductType.SERVICIO,
+            "Asesoría",
+            "Una hora con un asesor.",
+            null,
+            new BigDecimal("49.99"),
+            MONEDA,
+            30,
+            AHORA);
+
+    Map<String, Object> cambios =
+        producto.update(
+            Patchable.ausente(),
+            Patchable.de(null),
+            Patchable.ausente(),
+            Patchable.ausente(),
+            Patchable.de(null),
+            AHORA.plusDays(1));
+
+    assertThat(producto.getDescription()).isNull();
+    // Vaciar la vigencia convierte el producto en uno que NO CADUCA, que es un
+    // cambio comercial y no una omisión.
+    assertThat(producto.getValidityDays()).isNull();
+    assertThat(cambios).containsOnlyKeys("description", "validity_days");
+    // El nulo viaja al registro como cadena vacía y no como ausencia: `Map.of`
+    // rechaza los nulos, y una clave que desaparece haría indistinguible «se
+    // vació» de «no se tocó».
+    assertThat(cambios.get("description"))
+        .isEqualTo(Map.of("before", "Una hora con un asesor.", "after", ""));
+  }
+
+  @Test
+  @DisplayName("cambiar el nombre solo en mayúsculas o acentos SÍ es un cambio")
+  void laCajaYLosAcentosSonUnCambio() {
+    Product producto = servicio("ASESORIA");
+
+    Map<String, Object> cambios =
+        producto.update(
+            Patchable.de("ASESORIA"),
+            Patchable.ausente(),
+            Patchable.ausente(),
+            Patchable.ausente(),
+            Patchable.ausente(),
+            AHORA.plusDays(1));
+
+    // La unicidad ignora caja y acentos, pero el VALOR guardado no: `Plan Oro`
+    // y `Plan oro` son dos textos distintos y el actor pidió el segundo.
+    assertThat(cambios).containsOnlyKeys("name");
+    assertThat(producto.getName()).isEqualTo("ASESORIA");
   }
 
   private static Product upgrade(String codigo, UUID destino) {

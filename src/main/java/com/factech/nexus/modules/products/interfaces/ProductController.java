@@ -7,11 +7,13 @@ import com.factech.nexus.modules.products.application.ProductDetailResponse;
 import com.factech.nexus.modules.products.application.ProductPageResponse;
 import com.factech.nexus.modules.products.application.ProductResponse;
 import com.factech.nexus.modules.products.application.RegisterProductRequest;
+import com.factech.nexus.modules.products.application.UpdateProductRequest;
 import com.factech.nexus.modules.products.domain.service.ChangeProductStatusService;
 import com.factech.nexus.modules.products.domain.service.DeleteProductService;
 import com.factech.nexus.modules.products.domain.service.GetProductService;
 import com.factech.nexus.modules.products.domain.service.ListProductsService;
 import com.factech.nexus.modules.products.domain.service.RegisterProductService;
+import com.factech.nexus.modules.products.domain.service.UpdateProductService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.media.Content;
 import io.swagger.v3.oas.annotations.media.Schema;
@@ -37,8 +39,8 @@ import org.springframework.web.bind.annotation.RestController;
 /**
  * El catálogo de productos (`PM`).
  *
- * <p>El alta, el listado, el detalle, el cambio de estado y el retiro; falta la edición
- * (`RF-PM-004`) y la oferta del cliente (`RF-PM-007`).
+ * <p>Las seis operaciones del catálogo: alta, listado, detalle, corrección, cambio de estado y
+ * retiro. Falta la oferta del cliente (`RF-PM-007`).
  *
  * <p><b>Este listado no es la oferta.</b> Devuelve el catálogo completo —lo activo, lo inactivo y,
  * si se pide, lo retirado— y lo lee quien administra o vende. Lo que un cliente puede comprar es
@@ -54,18 +56,21 @@ public class ProductController {
   private final GetProductService detalle;
   private final ChangeProductStatusService estado;
   private final DeleteProductService retiro;
+  private final UpdateProductService correccion;
 
   public ProductController(
       RegisterProductService alta,
       ListProductsService listado,
       GetProductService detalle,
       ChangeProductStatusService estado,
-      DeleteProductService retiro) {
+      DeleteProductService retiro,
+      UpdateProductService correccion) {
     this.alta = alta;
     this.listado = listado;
     this.detalle = detalle;
     this.estado = estado;
     this.retiro = retiro;
+    this.correccion = correccion;
   }
 
   @PostMapping
@@ -229,6 +234,80 @@ public class ProductController {
   })
   public ProductDetailResponse detalle(@PathVariable UUID id) {
     return detalle.detail(id);
+  }
+
+  @PatchMapping("/{id}")
+  @PreAuthorize("hasAuthority('products:update')")
+  @Operation(
+      summary = "Corregir un producto",
+      description =
+          """
+          Corrige el **nombre**, la **descripción**, el **precio**, la **moneda**
+          y la **vigencia**. Se aplica lo que llega y se deja intacto lo que no.
+
+          **Distingue el campo ausente del enviado vacío**, y de ahí salen dos
+          comportamientos opuestos: `description: null` y `validityDays: null`
+          **vacían** el campo —el producto pasa a no caducar—, mientras que
+          `name: null` se **rechaza**, porque un producto sin nombre no puede
+          existir.
+
+          **El tipo, el código y la membresía destino NO se pueden corregir**, y
+          enviarlos devuelve `400` con `VAL-006`. Se rechazan y no se ignoran:
+          ignorarlos haría creer que el cambio se aplicó. Definen qué derecho
+          otorga el producto, y cambiarlos convertiría lo comprado en otra cosa.
+
+          **El precio se valida contra la moneda NUEVA** cuando llegan las dos.
+          Y el importe **no se convierte**: el sistema no hace conversión de
+          divisa — cambiar de moneda es declarar que ese número siempre estuvo
+          en la otra.
+
+          **Un producto retirado no se corrige**: lo que se retiró debe quedar
+          como estaba para que lo que lo referencie siga diciendo la verdad.
+
+          **No se exige motivo**, ni siquiera al cambiar el precio. Una petición
+          que no cambia nada devuelve `200` y **no registra evento**.
+          """)
+  @ApiResponses({
+    @ApiResponse(
+        responseCode = "200",
+        description = "El producto, ya corregido.",
+        content = @Content(schema = @Schema(implementation = ProductDetailResponse.class))),
+    @ApiResponse(
+        responseCode = "400",
+        description =
+            "Identificador sin forma canónica (`VAL-001`), nombre vacío o ningún campo informado"
+                + " (`VAL-002`), longitud excedida (`VAL-003`), precio no positivo (`VAL-004`),"
+                + " decimales que la moneda no admite (`VAL-005`), campos inmutables en la"
+                + " petición (`VAL-006`) o vigencia no positiva (`VAL-011`)",
+        content = @Content),
+    @ApiResponse(
+        responseCode = "401",
+        description = "Token ausente o inválido (`AUTH-001`)",
+        content = @Content),
+    @ApiResponse(
+        responseCode = "403",
+        description = "Autenticado sin el permiso `products:update` (`AUTH-002`)",
+        content = @Content),
+    @ApiResponse(
+        responseCode = "404",
+        description = "No existe un producto vivo con ese identificador (`EX-001`)",
+        content = @Content),
+    @ApiResponse(
+        responseCode = "409",
+        description = "El nombre ya lo tiene otro producto vivo (`EX-002`)",
+        content = @Content),
+    @ApiResponse(
+        responseCode = "422",
+        description = "La moneda no existe o está desactivada (`EX-003`)",
+        content = @Content),
+    @ApiResponse(
+        responseCode = "500",
+        description = "Fallo no controlado (`ERR-500`)",
+        content = @Content)
+  })
+  public ProductDetailResponse corregir(
+      @PathVariable UUID id, @RequestBody UpdateProductRequest peticion) {
+    return correccion.update(id, peticion);
   }
 
   @PatchMapping("/{id}/status")
