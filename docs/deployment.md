@@ -5,7 +5,7 @@
 | Proyecto | NEXUS — Renovación de plataforma |
 | Empresa | FACTECH GROUP SAS |
 | Documento | `deployment.md` |
-| Versión | 0.1.0 |
+| Versión | 0.2.0 |
 | Estado | Borrador |
 | Responsable técnico | Bonilla Diaz William Steven |
 | Fecha de creación | 27-08-2026 |
@@ -202,7 +202,7 @@ Se cargan en el servicio **`backend`**. La columna «Valor en Railway» es liter
 
 | Variable | Valor en Railway | Por qué |
 |---|---|---|
-| `PORT` | `8080` | Ver §7.1. **Fijarla explícitamente**, no dejar que la plataforma la elija |
+| `PORT` | **No declararla** | La inyecta Railway y la aplicación la obedece (§7.1). Declararla a mano solo tiene sentido para forzar un puerto concreto |
 | `ENVIRONMENT` | `production` o `testing` | Art. IX.4. Ver la nota de §6.6 |
 | `API_URL` | La URL pública del servicio, sin barra final | Art. IX.1. Ver la nota de §6.6 |
 
@@ -258,13 +258,11 @@ Ninguno de los tres es un error de la aplicación, y los tres producen síntomas
 
 ### 7.1 El puerto
 
-`application.yml` fija `server.port: 8080` como literal, y el `Dockerfile` declara `EXPOSE 8080`. Railway, por su parte, inyecta una variable `PORT` y encamina el tráfico al puerto que cree que la aplicación escucha.
+Railway inyecta una variable `PORT` y encamina el tráfico al puerto que cree que la aplicación escucha. **La aplicación la obedece**: `application.yml` declara `server.port: ${PORT:8080}`, de modo que en un entorno desplegado manda la plataforma y en local siguen valiendo los 8080 de siempre —los que declara el `Dockerfile` y espera el `docker-compose.yml`—.
 
-La aplicación **no lee `PORT`**. Si la plataforma elige otro número, el borde encamina a un puerto donde no hay nadie: la sonda de salud falla, el despliegue se marca como caído y los logs de la aplicación muestran un arranque perfectamente correcto.
+**No hay que declarar `PORT` en Railway** (§6.2). Hacerlo solo tiene sentido para forzar un puerto concreto, y no hace falta.
 
-**La solución es declarar `PORT=8080` de forma explícita** (§6.2). Con eso los dos lados coinciden y no hay ambigüedad.
-
-La corrección de fondo —que `application.yml` diga `server.port: ${PORT:8080}` y la aplicación obedezca a la plataforma— está registrada como pendiente en §13. No se ha aplicado aquí porque este documento no toca código.
+Lo que había antes, por si alguien se lo encuentra en una rama vieja: `server.port` era el literal `8080` y obligaba a fijar `PORT=8080` a mano para que los dos lados coincidieran. El día que dejaran de coincidir, el síntoma era **una sonda de salud en rojo sobre un arranque impecable en los logs** — es decir, el puerto es lo último que uno mira.
 
 ### 7.2 La red privada es solo IPv6
 
@@ -287,7 +285,9 @@ Qué implica, dicho sin adornos:
 - **El estado en memoria se pierde.** Los cortes de acceso, las cuentas de límite de tasa y los fallos por identificador **empiezan de cero** en la instancia nueva. Los cortes sí se resiembran al arrancar; las otras dos cuentas, no. Es aceptable —la ventana es de segundos— y conviene saberlo antes de investigar por qué un contador se reinició solo.
 - **Una migración incompatible hacia atrás rompe la instancia vieja** mientras siga sirviendo. Toda migración debe poder convivir con la versión anterior del código durante el relevo: añadir columnas anulables antes de usarlas, y separar en dos despliegues el «dejar de escribir» del «eliminar».
 
-El **apagado ordenado** de Spring Boot no está habilitado, de modo que el relevo puede cortar una petición en curso. Está registrado en §13.
+**El apagado ordenado sí está habilitado**, y es lo que hace tolerable el relevo: `server.shutdown: graceful` con treinta segundos de plazo (`spring.lifecycle.timeout-per-shutdown-phase`). Al recibir la orden de parar, la instancia vieja deja de aceptar peticiones nuevas y termina las que tiene, en lugar de cortarlas en seco — que para quien estaba escribiendo es una conexión caída, indistinguible de que el sistema esté roto.
+
+Treinta segundos sobran para cualquier operación de este sistema —los umbrales del Art. XV.9 son de menos de un segundo— y quedan por debajo del plazo con el que la plataforma mata el proceso a la fuerza.
 
 ---
 
@@ -415,14 +415,12 @@ Ninguno de estos puntos impide desplegar. Todos están declarados para que no se
 
 | # | Pendiente | Consecuencia hoy | Dónde se corrige |
 |---|---|---|---|
-| 1 | **La aplicación no lee `PORT`** | El puerto se hace coincidir a mano con una variable (§7.1). Un cambio de la plataforma lo rompería sin avisar | `application.yml`, una línea |
-| 2 | **Una sola réplica** | No hay escalado horizontal ni tolerancia a la caída del único proceso | Canal compartido detrás de `AccessRevocationPublisher` (§2.1) |
-| 3 | **La IP de auditoría es la del proxy** | El Art. V.15 no se cumple en Railway | `ClientIpResolver` debe admitir rangos. **D-21** |
-| 4 | **Nadie raspa las métricas** | `/actuator/metrics` exige un JWT y un raspador no lo porta. Se consultan a mano | Permiso propio o red de administración |
-| 5 | **Nadie alerta** | En particular, sigue sin vigilarse la **ausencia de eventos de auditoría**, que `RF-SP-001` §10 declara que debería. Una métrica que nadie mira es una métrica que no existe | — |
-| 6 | **`request_log` crece sin techo** | La tabla existe desde `V35` y **ningún proceso la purga**, aunque la variable exista | **D-10** |
-| 7 | **Sin apagado ordenado** | Un relevo puede cortar una petición en curso (§7.3) | `server.shutdown: graceful` más el drenaje de la plataforma |
-| 8 | **El contrato no llega solo al frontend** | Sigue siendo un archivo que alguien copia | Pendiente n.º 1 de [`ADR-001`](architecture/ADR-001-publicacion-del-contrato-openapi.md) |
+| 1 | **Una sola réplica** | No hay escalado horizontal ni tolerancia a la caída del único proceso | Canal compartido detrás de `AccessRevocationPublisher` (§2.1) |
+| 2 | **La IP de auditoría es la del proxy** | El Art. V.15 no se cumple en Railway | `ClientIpResolver` debe admitir rangos. **D-21** |
+| 3 | **Nadie raspa las métricas** | `/actuator/metrics` exige un JWT y un raspador no lo porta. Se consultan a mano | Permiso propio o red de administración |
+| 4 | **Nadie alerta** | En particular, sigue sin vigilarse la **ausencia de eventos de auditoría**, que `RF-SP-001` §10 declara que debería. Una métrica que nadie mira es una métrica que no existe | — |
+| 5 | **`request_log` crece sin techo** | La tabla existe desde `V35` y **ningún proceso la purga**, aunque la variable exista | **D-10** |
+| 6 | **El contrato no llega solo al frontend** | Sigue siendo un archivo que alguien copia | Pendiente n.º 1 de [`ADR-001`](architecture/ADR-001-publicacion-del-contrato-openapi.md) |
 
 ---
 
@@ -431,3 +429,4 @@ Ninguno de estos puntos impide desplegar. Todos están declarados para que no se
 | Versión | Fecha | Cambio | Responsable |
 |---|---|---|---|
 | 0.1.0 | 27-08-2026 | Creación inicial. Recoge el procedimiento de despliegue sobre Railway que [`ADR-002`](architecture/ADR-002-plataforma-de-despliegue-railway.md) decide al cerrar **D-09**: topología de dos servicios, mapa completo de variables con su valor literal, los tres detalles de plataforma que rompen el arranque —el puerto, la red privada IPv6 y el relevo con dos instancias vivas—, la verificación posterior y la operación. Declara **una sola réplica** como restricción de diseño y no de coste, con los tres componentes en memoria que la imponen; declara que **`TRUSTED_PROXIES` no tiene hoy valor correcto** en Railway, lo que reabre **D-21** con otra forma; y separa lo desplegado de lo pendiente en §13. | Responsable técnico |
+| 0.2.0 | 27-08-2026 | **Dos de los pendientes de §13 dejan de serlo, y con código y no con prosa.** El **puerto** deja de fijarse a mano: `application.yml` declara `server.port: ${PORT:8080}`, de modo que en un entorno desplegado manda la plataforma y en local siguen valiendo los 8080 del `Dockerfile`. El literal anterior obligaba a declarar `PORT=8080` en Railway para que los dos lados coincidieran, y el día que dejaran de hacerlo el síntoma era **una sonda en rojo sobre un arranque impecable en los logs** — el puerto es lo último que uno mira. Y el **apagado ordenado** pasa a existir: `server.shutdown: graceful` con treinta segundos, que es lo que hace tolerable el relevo de §7.3 —hay dos procesos vivos y al viejo se le manda parar con peticiones en curso; sin esto las corta en seco, y una conexión caída es indistinguible de un sistema roto para quien estaba escribiendo—. El plazo sobra para cualquier operación de este sistema —los umbrales del Art. XV.9 son de menos de un segundo— y queda por debajo del que usa la plataforma para matar el proceso a la fuerza. §6.2 pasa a decir que `PORT` **no se declara**, §7.1 y §7.3 se reescriben, y la tabla de §13 baja de ocho filas a seis. | Responsable técnico |

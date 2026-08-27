@@ -7,6 +7,14 @@ spring:
   application:
     name: nexus-backend
 
+  lifecycle:
+    # Cuánto se espera a las peticiones en curso durante un apagado ordenado
+    # (`server.shutdown`). Treinta segundos sobran para cualquier operación de
+    # este sistema —los umbrales del Art. XV.9 son de menos de un segundo— y
+    # quedan por debajo del plazo con el que una plataforma de despliegue mata
+    # el proceso a la fuerza.
+    timeout-per-shutdown-phase: 30s
+
   datasource:
     url: ${DATABASE_URL}
     username: ${DATABASE_USER}
@@ -51,7 +59,26 @@ spring:
     default-property-inclusion: non_null
 
 server:
-  port: 8080
+  # EL PUERTO LO ELIGE QUIEN EJECUTA, no este archivo (Art. IX.1). La plataforma
+  # de despliegue lo anuncia en `PORT`; en local no hay quien lo anuncie y valen
+  # los 8080 de siempre, que son los que declara el `Dockerfile` y los que espera
+  # el `docker-compose.yml`.
+  #
+  # El literal que había aquí obligaba a fijar `PORT=8080` a mano en Railway para
+  # que el borde encaminara al puerto correcto, y el día que no coincidieran el
+  # síntoma sería una sonda de salud en rojo sobre un arranque IMPECABLE en los
+  # logs — es decir, el puerto es lo último que uno mira. Ver `deployment.md` §7.1.
+  port: ${PORT:8080}
+
+  # RELEVAR UNA VERSIÓN POR OTRA DEJA DOS PROCESOS VIVOS, y al viejo se le manda
+  # parar con peticiones en curso (`deployment.md` §7.3). Sin esto las corta en
+  # seco: quien estaba escribiendo recibe una conexión caída y no un error, que
+  # es indistinguible de que el sistema esté roto.
+  #
+  # Con esto deja de aceptar nuevas y termina las que tiene, hasta el plazo de
+  # `spring.lifecycle.timeout-per-shutdown-phase`.
+  shutdown: graceful
+
   error:
     # El detalle interno no sale al cliente (Art. VI.5). El formato de error
     # es RFC 9457, producido por el manejador global.

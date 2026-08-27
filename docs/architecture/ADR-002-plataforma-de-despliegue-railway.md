@@ -65,7 +65,7 @@ Cinco piezas:
 
 - **Dependencia de un proveedor para la base de datos.** La copia de seguridad, la versión del motor y la restauración las gobierna Railway. Se acepta con una obligación explícita en `deployment.md` §12: **verificar que una restauración funciona antes de que haya datos reales**. Una copia que nadie ha restaurado nunca no es una copia.
 - **La red privada de Railway es solo IPv6**, y eso tiene consecuencias para una JVM que hay que conocer antes de que fallen (`deployment.md` §7.2).
-- **La plataforma inyecta `PORT` y la aplicación no lo lee.** Hoy se resuelve fijando la variable a `8080` a mano. Es un acoplamiento frágil y queda registrado como pendiente.
+- **La plataforma elige el puerto.** Se resolvió el mismo día haciendo que la aplicación lo obedezca (`server.port: ${PORT:8080}`) en lugar de fijar la variable a mano, que era un acoplamiento frágil. El coste que queda es el de siempre: el puerto ya no está escrito en ninguna parte del repositorio, y hay que ir a `deployment.md` §7.1 para saber de dónde sale.
 - **`main` en producción en minutos.** Con auto-despliegue, un merge equivocado es un despliegue equivocado. Es la contrapartida honesta de no tener un botón que alguien olvide pulsar.
 
 ### La consecuencia que hay que mirar de frente
@@ -97,8 +97,8 @@ La salida prevista en los cuatro casos es la de §Alternativas: **AWS con ECS/Fa
 
 | # | Pendiente | Dónde |
 |---|---|---|
-| 1 | **`application.yml` debe leer `PORT`** (`server.port: ${PORT:8080}`), en lugar de que la variable se fije a mano para que coincida | Una línea. `deployment.md` §7.1 |
+| ~~1~~ | ~~**`application.yml` debe leer `PORT`**~~ · **Hecho el 27-08-2026.** `server.port: ${PORT:8080}`: en un entorno desplegado manda la plataforma y en local siguen valiendo los 8080 del `Dockerfile` | `deployment.md` §7.1 |
 | 2 | **Canal compartido detrás de `AccessRevocationPublisher`**, condición previa a cualquier segunda instancia | `security.md` §4.5 |
 | 3 | **`ClientIpResolver` debe admitir rangos**, sin lo cual **D-21** no puede cerrarse en esta plataforma | `security.md` §12 |
-| 4 | **Apagado ordenado** (`server.shutdown: graceful`) más el drenaje de la plataforma: hoy un relevo puede cortar una petición en curso | `deployment.md` §7.3 |
+| ~~4~~ | ~~**Apagado ordenado**~~ · **Hecho el 27-08-2026.** `server.shutdown: graceful` con treinta segundos de plazo. El relevo deja de cortar peticiones en curso, que para quien estaba escribiendo era una conexión caída y no un error | `deployment.md` §7.3 |
 | 5 | **Raspado de métricas y alertas.** D-09 se cierra sin resolverlo: la plataforma no aporta permiso ni red de administración, y sigue haciendo falta uno de los dos | `architecture.md` §9.1 |
