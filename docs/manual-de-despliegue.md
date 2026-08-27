@@ -1,36 +1,30 @@
 # Manual de despliegue — Backend NEXUS
 
-
-| Campo                | Valor                                   |
-| -------------------- | --------------------------------------- |
-| Proyecto             | NEXUS — Renovación de plataforma        |
-| Empresa              | FACTECH GROUP SAS                       |
-| Documento            | `manual-de-despliegue.md`               |
-| Versión              | 0.1.0                                   |
-| Estado               | Borrador                                |
-| Responsable técnico  | Bonilla Diaz William Steven             |
-| Fecha de creación    | 27-08-2026                              |
-| Última actualización | 27-08-2026                              |
-| Documento superior   | `[deployment.md](deployment.md)` v0.2.0 |
-
+| Campo | Valor |
+|---|---|
+| Proyecto | NEXUS — Renovación de plataforma |
+| Empresa | FACTECH GROUP SAS |
+| Documento | `manual-de-despliegue.md` |
+| Versión | 0.1.0 |
+| Estado | Borrador |
+| Responsable técnico | Bonilla Diaz William Steven |
+| Fecha de creación | 27-08-2026 |
+| Última actualización | 27-08-2026 |
+| Documento superior | [`deployment.md`](deployment.md) v0.2.0 |
 
 ---
 
-!!! info "Este documento es el **manual**; `[deployment.md](deployment.md)` es la **referencia**"
+!!! info "Este documento es el **manual**; [`deployment.md`](deployment.md) es la **referencia**"
 
-```
-Aquí está **qué tecleas y en qué orden**, la primera vez, con Railway abierto delante. Nada de por qué.
+    Aquí está **qué tecleas y en qué orden**, la primera vez, con Railway abierto delante. Nada de por qué.
 
-El **por qué** de cada decisión —por qué una sola réplica, por qué `EXPOSE_API_DOCS` va en `false`, por qué la IP de la auditoría es la del proxy— está en `[deployment.md](deployment.md)`, y cada paso enlaza a su sección.
+    El **por qué** de cada decisión —por qué una sola réplica, por qué `EXPOSE_API_DOCS` va en `false`, por qué la IP de la auditoría es la del proxy— está en [`deployment.md`](deployment.md), y cada paso enlaza a su sección.
 
-Si algo de aquí contradice a `deployment.md`, manda `deployment.md`.
-```
+    Si algo de aquí contradice a `deployment.md`, manda `deployment.md`.
 
 **Tiempo estimado:** 30–40 minutos el primer entorno, 15 el segundo.
 
 ---
-
-
 
 ## Antes de empezar
 
@@ -45,22 +39,18 @@ Ten esto a mano **antes** de abrir Railway. Ir a buscarlo a mitad de camino es d
 
 !!! warning "Elige la contraseña del superadministrador antes de empezar"
 
-```
-No es una contraseña de prueba. Es **la única llave de entrada** al sistema recién desplegado: el primer superadministrador no puede crearse por la API. Mínimo 12 caracteres.
+    No es una contraseña de prueba. Es **la única llave de entrada** al sistema recién desplegado: el primer superadministrador no puede crearse por la API. Mínimo 12 caracteres.
 
-La vas a cambiar en el paso 8, pero hasta entonces es la que hay.
-```
+    La vas a cambiar en el paso 8, pero hasta entonces es la que hay.
 
 ---
-
-
 
 ## Paso 1 — Generar el secreto de firma
 
 En una terminal, en cualquier carpeta:
 
 ```bash
-openssl rand -base64 48op
+openssl rand -base64 48
 ```
 
 Copia la salida completa. Ese es tu `JWT_SECRET`.
@@ -69,8 +59,6 @@ Copia la salida completa. Ese es tu `JWT_SECRET`.
 - [ ] Si vas a montar los dos entornos, **genera uno distinto para cada uno**. Compartirlo significa que un token de pruebas vale en producción.
 
 ---
-
-
 
 ## Paso 2 — Generar el hash de la contraseña
 
@@ -101,18 +89,16 @@ $argon2id$v=19$m=16384,t=2,p=1$c29tZXNhbHQ$H2f4...
 ```
 
 - [ ] Empieza por `$argon2id`. Si no, algo salió mal — repite.
-- [ ] **Los** `$` **van tal cual.** No los dupliques. La duplicación es solo para el archivo `.env` local, y hacerla aquí deja al superadministrador sin poder entrar nunca, con la migración en verde y sin ningún error. Ver `deployment.md` [§4.2](deployment.md#42-superadmin_password_hash).
+- [ ] **Los `$` van tal cual.** No los dupliques. La duplicación es solo para el archivo `.env` local, y hacerla aquí deja al superadministrador sin poder entrar nunca, con la migración en verde y sin ningún error. Ver [`deployment.md` §4.2](deployment.md#42-superadmin_password_hash).
 
 ---
-
-
 
 ## Paso 3 — Crear el proyecto y la base de datos
 
 En Railway:
 
 1. **New Project** → *Deploy PostgreSQL*.
-2. Clic en el servicio → *Settings* → renómbralo a `Postgres`, exactamente así.
+2. Clic en el servicio → *Settings* → renómbralo a **`Postgres`**, exactamente así.
 3. En *Variables* del servicio, comprueba que la versión es **PostgreSQL 17**.
 
 - [ ] El servicio se llama `Postgres`. **El nombre importa**: las referencias del paso 5 lo usan literalmente.
@@ -121,14 +107,12 @@ En Railway:
 
 ---
 
-
-
 ## Paso 4 — Crear el servicio del backend
 
 En el mismo proyecto:
 
 1. **New** → *GitHub Repo* → `NexusPro-Dev/backend`. Autoriza a Railway si te lo pide.
-2. Clic en el servicio nuevo → *Settings* → renómbralo a `backend`.
+2. Clic en el servicio nuevo → *Settings* → renómbralo a **`backend`**.
 3. *Settings → Source → Branch*: pon `develop` si estás montando `testing`, o `main` si es `production`.
 4. Comprueba en *Settings → Build* que el constructor es **Dockerfile**. Railway lo detecta solo; si no lo hizo, `railway.json` del repositorio lo fuerza.
 
@@ -138,11 +122,9 @@ En el mismo proyecto:
 
 ---
 
-
-
 ## Paso 5 — Cargar las variables
 
-Ve a *Variables* del servicio `backend` → botón **Raw Editor** → pega esto tal cual y sustituye los tres valores marcados:
+Ve a *Variables* del servicio **`backend`** → botón **Raw Editor** → pega esto tal cual y sustituye los tres valores marcados:
 
 ```bash
 DATABASE_URL=jdbc:postgresql://${{Postgres.RAILWAY_PRIVATE_DOMAIN}}:5432/${{Postgres.PGDATABASE}}
@@ -172,28 +154,24 @@ Las líneas con `${{Postgres...}}` **se pegan literalmente**, con las llaves dob
 
 !!! danger "Los cuatro errores que cuestan una tarde"
 
-```
-| No hagas esto | Qué pasa |
-|---|---|
-| Referenciar `${{Postgres.DATABASE_URL}}` | Es una URI, no una URL de JDBC. El arranque muere con un error de driver que no menciona nada de esto |
-| Duplicar los `$` del hash | La migración pasa en verde y el superadministrador **no puede entrar nunca** |
-| Poner `*` en `CORS_ALLOWED_ORIGINS` | La aplicación **no arranca**, a propósito |
-| Poner `localhost` en `CORS_ALLOWED_ORIGINS` | Abre la API al navegador de cualquiera que corra un frontend en su máquina |
-```
+    | No hagas esto | Qué pasa |
+    |---|---|
+    | Referenciar `${{Postgres.DATABASE_URL}}` | Es una URI, no una URL de JDBC. El arranque muere con un error de driver que no menciona nada de esto |
+    | Duplicar los `$` del hash | La migración pasa en verde y el superadministrador **no puede entrar nunca** |
+    | Poner `*` en `CORS_ALLOWED_ORIGINS` | La aplicación **no arranca**, a propósito |
+    | Poner `localhost` en `CORS_ALLOWED_ORIGINS` | Abre la API al navegador de cualquiera que corra un frontend en su máquina |
 
 **Tres notas sobre lo que dejaste vacío**, y no es un olvido:
 
 - `CORS_ALLOWED_ORIGINS` vacío = ningún navegador autorizado. La API funciona igual de servidor a servidor. Lo llenas en el paso 9, cuando exista el frontend.
-- `TRUSTED_PROXIES` vacío es lo correcto **hoy en Railway**: no hay valor bueno que poner. Ver `deployment.md` [§11.2](deployment.md#112-lo-que-la-verificacion-no-puede-comprobar-hoy).
+- `TRUSTED_PROXIES` vacío es lo correcto **hoy en Railway**: no hay valor bueno que poner. Ver [`deployment.md` §11.2](deployment.md#112-lo-que-la-verificacion-no-puede-comprobar-hoy).
 - `REQUEST_LOG_RETENTION_DAYS` vacío porque **hoy no lo lee nadie**. Ponerle un número no purga nada y hace creer que sí.
 
-**No declares** `PORT`**.** Railway lo inyecta y la aplicación lo obedece.
+**No declares `PORT`.** Railway lo inyecta y la aplicación lo obedece.
 
 Al guardar, Railway redespliega solo.
 
 ---
-
-
 
 ## Paso 6 — El primer arranque
 
@@ -218,11 +196,9 @@ Started NexusApplication in XX.XXX seconds
 - [ ] `Started NexusApplication` — arrancó.
 - [ ] El despliegue queda en verde (**Active**) tras pasar la sonda de salud.
 
-Si en lugar de eso ves un error, salta a **[Cuando algo falla](#cuando-algo-falla)** al final.
+Si en lugar de eso ves un error, salta a [**Cuando algo falla**](#cuando-algo-falla) al final.
 
 ---
-
-
 
 ## Paso 7 — Comprobar que quedó bien
 
@@ -238,22 +214,18 @@ curl -s -o /dev/null -w '%{http_code}\n' $BASE/actuator/metrics
 curl -s -o /dev/null -w '%{http_code}\n' $BASE/api/v1/roles
 ```
 
-
-| #   | Debe responder    | Si responde otra cosa                                                                     |
-| --- | ----------------- | ----------------------------------------------------------------------------------------- |
-| 1   | `{"status":"UP"}` | No arrancó. Mira los logs                                                                 |
-| 2   | `{"status":"UP"}` | Arrancó pero no puede atender: casi siempre la base de datos                              |
-| 3   | `401`             | **Un** `200` **aquí es un despliegue mal configurado.** `EXPOSE_API_DOCS` quedó en `true` |
-| 4   | `401`             | **Un** `200` **aquí es lo mismo.** No debería poder pasar; avisa                          |
-| 5   | `401`             | Un `500` significa que algo del arranque quedó a medias                                   |
-
+| # | Debe responder | Si responde otra cosa |
+|---|---|---|
+| 1 | `{"status":"UP"}` | No arrancó. Mira los logs |
+| 2 | `{"status":"UP"}` | Arrancó pero no puede atender: casi siempre la base de datos |
+| 3 | `401` | **Un `200` aquí es un despliegue mal configurado.** `EXPOSE_API_DOCS` quedó en `true` |
+| 4 | `401` | **Un `200` aquí es lo mismo.** No debería poder pasar; avisa |
+| 5 | `401` | Un `500` significa que algo del arranque quedó a medias |
 
 - [ ] Los cinco responden lo esperado.
 - [ ] La respuesta de salud es `{"status":"UP"}` **y nada más**. Si trae componentes o versiones, algo cambió `show-details` y hay que corregirlo.
 
 ---
-
-
 
 ## Paso 8 — Entrar y cambiar la contraseña
 
@@ -270,8 +242,6 @@ curl -s -X POST $BASE/api/v1/auth/login \
 - [ ] Crea desde ahí las cuentas reales. La del superadministrador es la llave del sistema, no una cuenta de trabajo.
 
 ---
-
-
 
 ## Paso 9 — Dominio y CORS
 
@@ -295,8 +265,6 @@ Reglas de `CORS_ALLOWED_ORIGINS`, que la aplicación verifica al arrancar:
 
 ---
 
-
-
 ## Paso 10 — El correo saliente
 
 **Solo si quieres que funcione la recuperación de contraseña.** Con `NOTIFICATION_ENABLED=false`, quien olvide su contraseña recibe una respuesta normal y **ningún correo**.
@@ -316,26 +284,20 @@ NOTIFICATION_FROM=NEXUS <no-responder@tu-dominio-verificado>
 
 !!! warning "Verifica el dominio antes, no después"
 
-```
-Si el remitente no pertenece a un dominio verificado, Resend responde `403` — y **eso no se ve al arrancar**. La aplicación levanta con normalidad y el fallo aparece la primera vez que alguien olvide su contraseña, que es cuando nadie está mirando. No hay reintento: ese mensaje se pierde.
-```
+    Si el remitente no pertenece a un dominio verificado, Resend responde `403` — y **eso no se ve al arrancar**. La aplicación levanta con normalidad y el fallo aparece la primera vez que alguien olvide su contraseña, que es cuando nadie está mirando. No hay reintento: ese mensaje se pierde.
 
 ---
-
-
 
 ## Paso 11 — El segundo entorno
 
 Repite del paso 1 al 7 en un **entorno de Railway distinto**, cambiando:
 
-
-|               | `testing`  | `production`      |
-| ------------- | ---------- | ----------------- |
-| Rama          | `develop`  | `main`            |
-| `ENVIRONMENT` | `testing`  | `production`      |
-| `JWT_SECRET`  | Uno propio | **Otro distinto** |
-| Base de datos | La suya    | La suya           |
-
+| | `testing` | `production` |
+|---|---|---|
+| Rama | `develop` | `main` |
+| `ENVIRONMENT` | `testing` | `production` |
+| `JWT_SECRET` | Uno propio | **Otro distinto** |
+| Base de datos | La suya | La suya |
 
 - [ ] **No comparten nada**: ni base de datos, ni secreto de firma, ni clave de Resend.
 
@@ -343,45 +305,34 @@ A partir de aquí, **desplegar es integrar**: lo que entre en `develop` está en
 
 ---
 
-
-
 ## Después de esto
 
 - **Verifica las copias de seguridad** del servicio Postgres, y **restaura una** antes de que haya datos reales. Una copia que nadie ha restaurado nunca no es una copia.
-- **Nadie vigila el sistema todavía.** Las métricas se consultan a mano y no hay alertas. Está declarado en `deployment.md` [§13](deployment.md#13-lo-que-este-despliegue-no-resuelve), con lo demás que este despliegue no resuelve.
+- **Nadie vigila el sistema todavía.** Las métricas se consultan a mano y no hay alertas. Está declarado en [`deployment.md` §13](deployment.md#13-lo-que-este-despliegue-no-resuelve), con lo demás que este despliegue no resuelve.
 
 ---
 
-
-
 ## Cuando algo falla
 
-
-| Síntoma                                                         | Causa casi segura                          | Arreglo                                                                                                      |
-| --------------------------------------------------------------- | ------------------------------------------ | ------------------------------------------------------------------------------------------------------------ |
-| `Driver claims to not accept jdbcUrl`                           | Referenciaste `${{Postgres.DATABASE_URL}}` | Constrúyela como en el paso 5: `jdbc:postgresql://...`                                                       |
-| `Could not resolve placeholder 'JWT_SECRET'` (o cualquier otra) | Falta esa variable                         | Cárgala. La aplicación se niega a arrancar sin ella a propósito                                              |
-| `SUPERADMIN_PASSWORD_HASH no parece un hash Argon2id`           | El valor llegó destrozado                  | Pégalo de nuevo **sin duplicar los** `$`                                                                     |
-| Migración en verde pero **el superadministrador no entra**      | Duplicaste los `$`                         | Ese hash ya está sembrado: hay que restablecer la contraseña en la base, o borrar la base y volver a empezar |
-| `El origen '*' no se admite` y no arranca                       | `CORS_ALLOWED_ORIGINS=*`                   | Pon el dominio real, o déjalo vacío                                                                          |
-| Arranque impecable en los logs pero la **sonda en rojo**        | Puerto                                     | No debería pasar ya. Comprueba que no declaraste `PORT` con otro valor                                       |
-| Error de red hacia `*.railway.internal`                         | La red privada es solo IPv6                | Añade `JAVA_TOOL_OPTIONS=-Djava.net.preferIPv6Addresses=true` y redespliega                                  |
-| Falla el **primer** intento y el segundo arranca solo           | La red privada tarda unos segundos         | Ninguno. Es lo previsto, la política de reinicio lo cubre                                                    |
-| `Validate failed: migration checksum mismatch`                  | Alguien editó una migración ya aplicada    | **Nunca se edita una migración aplicada.** Se escribe otra que corrija                                       |
-| `Schema-validation: missing table`                              | El esquema no coincide con el mapeo        | Falta una migración. No lo tapes con `ddl-auto`: es la comprobación funcionando                              |
-
+| Síntoma | Causa casi segura | Arreglo |
+|---|---|---|
+| `Driver claims to not accept jdbcUrl` | Referenciaste `${{Postgres.DATABASE_URL}}` | Constrúyela como en el paso 5: `jdbc:postgresql://...` |
+| `Could not resolve placeholder 'JWT_SECRET'` (o cualquier otra) | Falta esa variable | Cárgala. La aplicación se niega a arrancar sin ella a propósito |
+| `SUPERADMIN_PASSWORD_HASH no parece un hash Argon2id` | El valor llegó destrozado | Pégalo de nuevo **sin duplicar los `$`** |
+| Migración en verde pero **el superadministrador no entra** | Duplicaste los `$` | Ese hash ya está sembrado: hay que restablecer la contraseña en la base, o borrar la base y volver a empezar |
+| `El origen '*' no se admite` y no arranca | `CORS_ALLOWED_ORIGINS=*` | Pon el dominio real, o déjalo vacío |
+| Arranque impecable en los logs pero la **sonda en rojo** | Puerto | No debería pasar ya. Comprueba que no declaraste `PORT` con otro valor |
+| Error de red hacia `*.railway.internal` | La red privada es solo IPv6 | Añade `JAVA_TOOL_OPTIONS=-Djava.net.preferIPv6Addresses=true` y redespliega |
+| Falla el **primer** intento y el segundo arranca solo | La red privada tarda unos segundos | Ninguno. Es lo previsto, la política de reinicio lo cubre |
+| `Validate failed: migration checksum mismatch` | Alguien editó una migración ya aplicada | **Nunca se edita una migración aplicada.** Se escribe otra que corrija |
+| `Schema-validation: missing table` | El esquema no coincide con el mapeo | Falta una migración. No lo tapes con `ddl-auto`: es la comprobación funcionando |
 
 **Si tienes que empezar de cero con la base de datos:** borra el servicio `Postgres`, créalo otra vez y redespliega el backend. Las variables del paso 5 lo reconectan solas. Esto **destruye todos los datos** — comprueba dos veces en qué entorno estás.
 
 ---
 
-
-
 ## Control de cambios
 
-
-| Versión | Fecha      | Cambio                                                                                                                                                                                                                                                                                                                                                                                                                                                      | Responsable         |
-| ------- | ---------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------- |
-| 0.1.0   | 27-08-2026 | Creación inicial. Manual paso a paso del despliegue en Railway, complementario de `[deployment.md](deployment.md)`: once pasos en orden, con los comandos exactos, el bloque de variables listo para pegar en el editor en crudo, las comprobaciones de cada paso y una tabla de síntoma → causa → arreglo. Separa lo que se teclea de lo que se razona: el porqué de cada decisión sigue viviendo en `deployment.md`, que manda si los dos se contradicen. | Responsable técnico |
-
-
+| Versión | Fecha | Cambio | Responsable |
+|---|---|---|---|
+| 0.1.0 | 27-08-2026 | Creación inicial. Manual paso a paso del despliegue en Railway, complementario de [`deployment.md`](deployment.md): once pasos en orden, con los comandos exactos, el bloque de variables listo para pegar en el editor en crudo, las comprobaciones de cada paso y una tabla de síntoma → causa → arreglo. Separa lo que se teclea de lo que se razona: el porqué de cada decisión sigue viviendo en `deployment.md`, que manda si los dos se contradicen. | Responsable técnico |
