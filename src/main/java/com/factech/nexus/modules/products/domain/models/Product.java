@@ -136,6 +136,56 @@ public class Product {
   }
 
   /**
+   * Publica el producto (`RF-PM-005`).
+   *
+   * <p><b>Devuelve si hubo cambio, y no lanza si ya estaba activo</b> (`FA-001`): quien pulsa dos
+   * veces el mismo botón no ha hecho nada malo, y rechazarlo obligaría a la interfaz a consultar el
+   * estado antes de cada pulsación. El valor devuelto es lo que decide si se audita — un evento por
+   * una petición que no cambió nada convertiría el registro en ruido.
+   *
+   * <p><b>Aquí no se comprueba `RN-PM-004`</b> —un solo upgrade activo por destino—: eso mira a
+   * <b>otras</b> filas y el agregado solo conoce la suya. Vive en el caso de uso y, sobre todo, en
+   * {@code uq_products_upgrade_target}.
+   *
+   * @return {@code true} si el producto pasó de inactivo a activo
+   */
+  public boolean activate(OffsetDateTime ahora) {
+    return cambiarEstado(ProductStatus.ACTIVO, ahora);
+  }
+
+  /**
+   * Retira el producto de la oferta sin sacarlo del catálogo (`RF-PM-005`).
+   *
+   * <p><b>Desactivar no es eliminar</b>: la fila sigue viva, sigue apareciendo en el catálogo y
+   * puede volver a publicarse. Lo que cambia es que deja de ofrecerse.
+   *
+   * @return {@code true} si el producto pasó de activo a inactivo
+   */
+  public boolean deactivate(OffsetDateTime ahora) {
+    return cambiarEstado(ProductStatus.INACTIVO, ahora);
+  }
+
+  private boolean cambiarEstado(ProductStatus destino, OffsetDateTime ahora) {
+    if (status == destino) {
+      return false;
+    }
+    status = destino;
+    updatedAt = ahora;
+    return true;
+  }
+
+  /**
+   * ¿Tiene descripción con la que publicarse? (`RN-PM-014`)
+   *
+   * <p>Vive en el agregado y no en el caso de uso porque la respuesta depende de cómo se normaliza
+   * la descripción al escribirla: {@link #recortar} deja en nulo la que solo trae espacios, de modo
+   * que preguntar por el nulo aquí es preguntar por lo mismo que se guardó.
+   */
+  public boolean tieneDescripcion() {
+    return description != null && !description.isBlank();
+  }
+
+  /**
    * Recorta el código y lo pasa a mayúsculas, y rechaza lo que no cumpla el formato.
    *
    * <p><b>Valida en el dominio y no solo en el DTO.</b> El {@code @Pattern} del DTO atiende a quien

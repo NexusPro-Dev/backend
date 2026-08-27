@@ -141,6 +141,72 @@ class ProductTest {
     assertThatCode(() -> upgrade("UPGRADE_ORO", DESTINO)).doesNotThrowAnyException();
   }
 
+  @Test
+  @DisplayName("`RF-PM-005` · `T-01` — activar devuelve SI HUBO CAMBIO, y no lanza si ya estaba")
+  void activarDevuelveSiHuboCambio() {
+    Product producto = servicio("ASESORIA");
+
+    assertThat(producto.activate(AHORA)).as("de inactivo a activo, sí hubo cambio").isTrue();
+    assertThat(producto.getStatus()).isEqualTo(ProductStatus.ACTIVO);
+
+    // Y la segunda vez NO es un error: quien pulsa dos veces el mismo botón no
+    // ha hecho nada malo. El valor devuelto es lo que decide si se audita, y un
+    // evento por una petición que no cambió nada convierte el registro en ruido.
+    assertThat(producto.activate(AHORA)).as("ya estaba activo, no hubo cambio").isFalse();
+    assertThat(producto.getStatus()).isEqualTo(ProductStatus.ACTIVO);
+  }
+
+  @Test
+  @DisplayName("`RF-PM-005` · `T-01` — y desactivar hace lo simétrico")
+  void desactivarDevuelveSiHuboCambio() {
+    Product producto = servicio("ASESORIA");
+
+    // Nace inactivo, de modo que desactivarlo no cambia nada.
+    assertThat(producto.deactivate(AHORA)).isFalse();
+
+    producto.activate(AHORA);
+    assertThat(producto.deactivate(AHORA)).isTrue();
+    assertThat(producto.getStatus()).isEqualTo(ProductStatus.INACTIVO);
+  }
+
+  @Test
+  @DisplayName("el cambio de estado mueve `updatedAt`, y no moverlo cuando no hay cambio")
+  void elCambioMueveLaMarcaDeModificacion() {
+    Product producto = servicio("ASESORIA");
+    OffsetDateTime despues = AHORA.plusDays(1);
+
+    producto.activate(despues);
+    assertThat(producto.getUpdatedAt()).isEqualTo(despues);
+
+    // Sin cambio, la marca se queda donde estaba: mover `updatedAt` sin que
+    // nada cambie haría creer que alguien tocó el producto.
+    producto.activate(despues.plusDays(1));
+    assertThat(producto.getUpdatedAt()).isEqualTo(despues);
+  }
+
+  @Test
+  @DisplayName("`RN-PM-014` — la descripción en blanco NO cuenta como descripción")
+  void laDescripcionEnBlancoNoCuenta() {
+    // `create` deja en nulo la que solo trae espacios, de modo que preguntar
+    // por el nulo aquí es preguntar por lo mismo que se guardó.
+    assertThat(servicio("ASESORIA").tieneDescripcion()).isFalse();
+
+    Product conDescripcion =
+        Product.create(
+            UUID.randomUUID(),
+            "ASESORIA",
+            ProductType.SERVICIO,
+            "Asesoría",
+            "  Una hora con un asesor.  ",
+            null,
+            new BigDecimal("49.99"),
+            MONEDA,
+            null,
+            AHORA);
+
+    assertThat(conDescripcion.tieneDescripcion()).isTrue();
+  }
+
   private static Product upgrade(String codigo, UUID destino) {
     return Product.create(
         UUID.randomUUID(),

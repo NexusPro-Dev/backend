@@ -1,10 +1,12 @@
 package com.factech.nexus.modules.products.interfaces;
 
+import com.factech.nexus.modules.products.application.ChangeProductStatusRequest;
 import com.factech.nexus.modules.products.application.ListProductsRequest;
 import com.factech.nexus.modules.products.application.ProductDetailResponse;
 import com.factech.nexus.modules.products.application.ProductPageResponse;
 import com.factech.nexus.modules.products.application.ProductResponse;
 import com.factech.nexus.modules.products.application.RegisterProductRequest;
+import com.factech.nexus.modules.products.domain.service.ChangeProductStatusService;
 import com.factech.nexus.modules.products.domain.service.GetProductService;
 import com.factech.nexus.modules.products.domain.service.ListProductsService;
 import com.factech.nexus.modules.products.domain.service.RegisterProductService;
@@ -21,6 +23,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.ModelAttribute;
+import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
@@ -30,8 +33,8 @@ import org.springframework.web.bind.annotation.RestController;
 /**
  * El catálogo de productos (`PM`).
  *
- * <p>El alta, el listado y el detalle; el resto de operaciones llegan con `RF-PM-004` a
- * `RF-PM-007`.
+ * <p>El alta, el listado, el detalle y el cambio de estado; el resto llega con `RF-PM-004`,
+ * `RF-PM-006` y `RF-PM-007`.
  *
  * <p><b>Este listado no es la oferta.</b> Devuelve el catálogo completo —lo activo, lo inactivo y,
  * si se pide, lo retirado— y lo lee quien administra o vende. Lo que un cliente puede comprar es
@@ -45,12 +48,17 @@ public class ProductController {
   private final RegisterProductService alta;
   private final ListProductsService listado;
   private final GetProductService detalle;
+  private final ChangeProductStatusService estado;
 
   public ProductController(
-      RegisterProductService alta, ListProductsService listado, GetProductService detalle) {
+      RegisterProductService alta,
+      ListProductsService listado,
+      GetProductService detalle,
+      ChangeProductStatusService estado) {
     this.alta = alta;
     this.listado = listado;
     this.detalle = detalle;
+    this.estado = estado;
   }
 
   @PostMapping
@@ -214,5 +222,72 @@ public class ProductController {
   })
   public ProductDetailResponse detalle(@PathVariable UUID id) {
     return detalle.detail(id);
+  }
+
+  @PatchMapping("/{id}/status")
+  @PreAuthorize("hasAuthority('products:update')")
+  @Operation(
+      summary = "Publicar o retirar de la oferta un producto",
+      description =
+          """
+          Cambia el estado del producto entre `ACTIVO` e `INACTIVO`. **Es un
+          recurso propio y no un campo de la edición**: publicar y corregir son
+          decisiones distintas, y mezclarlas haría que una corrección de texto
+          pudiera poner algo a la venta.
+
+          **Pedir el estado que el producto ya tiene devuelve `200` sin cambiar
+          nada y sin registrar evento.** No es un error: quien pulsa dos veces el
+          mismo botón no ha hecho nada malo.
+
+          **No se publica un producto sin descripción** (`RN-PM-014`). Sí se
+          permite **desactivarlo** sin ella: la regla acota lo que se ofrece, no
+          lo que se retira.
+
+          **Solo puede haber un upgrade activo hacia cada membresía destino**
+          (`RN-PM-004`). Al activar uno cuyo destino ya está ocupado, el rechazo
+          **nombra el producto que lo ocupa**, para que se sepa cuál desactivar.
+          Desactivar no comprueba nada: liberar un destino nunca produce
+          conflicto.
+
+          **Un producto retirado no vuelve a la venta por aquí**: responde que no
+          existe.
+
+          No se exige motivo para activar ni para desactivar.
+          """)
+  @ApiResponses({
+    @ApiResponse(
+        responseCode = "200",
+        description = "El producto, con su estado ya aplicado.",
+        content = @Content(schema = @Schema(implementation = ProductDetailResponse.class))),
+    @ApiResponse(
+        responseCode = "400",
+        description =
+            "Identificador sin forma canónica (`VAL-001`), estado ausente o fuera de su dominio"
+                + " (`VAL-002`), o activación de un producto sin descripción (`VAL-003`)",
+        content = @Content),
+    @ApiResponse(
+        responseCode = "401",
+        description = "Token ausente o inválido (`AUTH-001`)",
+        content = @Content),
+    @ApiResponse(
+        responseCode = "403",
+        description = "Autenticado sin el permiso `products:update` (`AUTH-002`)",
+        content = @Content),
+    @ApiResponse(
+        responseCode = "404",
+        description = "No existe un producto vivo con ese identificador (`EX-001`)",
+        content = @Content),
+    @ApiResponse(
+        responseCode = "409",
+        description = "Ya hay otro upgrade activo hacia esa membresía destino (`EX-002`)",
+        content = @Content),
+    @ApiResponse(
+        responseCode = "500",
+        description = "Fallo no controlado (`ERR-500`)",
+        content = @Content)
+  })
+  public ProductDetailResponse cambiarEstado(
+      @PathVariable UUID id, @Valid @RequestBody ChangeProductStatusRequest peticion) {
+    return estado.change(id, peticion);
   }
 }

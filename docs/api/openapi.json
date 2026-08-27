@@ -127,6 +127,16 @@
         },
         "type" : "object"
       },
+      "ChangeProductStatusRequest" : {
+        "properties" : {
+          "status" : {
+            "minLength" : 1,
+            "type" : "string"
+          }
+        },
+        "required" : [ "status" ],
+        "type" : "object"
+      },
       "ChangeRoleParentRequest" : {
         "properties" : {
           "parentRoleId" : {
@@ -2562,7 +2572,7 @@
     "/api/v1/countries/{id}/status" : {
       "patch" : {
         "description" : "Cambia el estado de un país. Es lo **único** que la API puede modificar\nde un país.\n\nSe envía el estado destino, no una acción: pedir dos veces lo mismo deja\nel mismo estado y **no** registra un segundo evento.\n\n**Desactivar no es corregir**: el código y el nombre permanecen, y los\ndatos que ya los referencian siguen resolviéndolos. Evita que el error se\npropague desde ese momento, no lo repara.\n\nEl cuerpo no admite ningún otro campo ni motivo alguno.\n",
-        "operationId" : "cambiarEstado_3",
+        "operationId" : "cambiarEstado_4",
         "parameters" : [ {
           "in" : "path",
           "name" : "id",
@@ -2656,7 +2666,7 @@
     "/api/v1/currencies/{id}/status" : {
       "patch" : {
         "description" : "Cambia el estado de una moneda del catálogo. Es lo **único** que la API\npuede modificar de una moneda.\n\nSe envía el estado destino, no una acción: pedir dos veces lo mismo deja\nel mismo estado y **no** registra un segundo evento.\n\nLa moneda por defecto **no puede desactivarse**: los importes del sistema\nquedarían sin referencia válida. Cambiar cuál es la moneda por defecto es\nuna operación de migración, no de API.\n\nEl cuerpo no admite ningún otro campo ni motivo alguno.\n",
-        "operationId" : "cambiarEstado_2",
+        "operationId" : "cambiarEstado_3",
         "parameters" : [ {
           "in" : "path",
           "name" : "id",
@@ -3186,6 +3196,63 @@
           }
         },
         "summary" : "Consultar el detalle de un producto",
+        "tags" : [ "Productos" ]
+      }
+    },
+    "/api/v1/products/{id}/status" : {
+      "patch" : {
+        "description" : "Cambia el estado del producto entre `ACTIVO` e `INACTIVO`. **Es un\nrecurso propio y no un campo de la edición**: publicar y corregir son\ndecisiones distintas, y mezclarlas haría que una corrección de texto\npudiera poner algo a la venta.\n\n**Pedir el estado que el producto ya tiene devuelve `200` sin cambiar\nnada y sin registrar evento.** No es un error: quien pulsa dos veces el\nmismo botón no ha hecho nada malo.\n\n**No se publica un producto sin descripción** (`RN-PM-014`). Sí se\npermite **desactivarlo** sin ella: la regla acota lo que se ofrece, no\nlo que se retira.\n\n**Solo puede haber un upgrade activo hacia cada membresía destino**\n(`RN-PM-004`). Al activar uno cuyo destino ya está ocupado, el rechazo\n**nombra el producto que lo ocupa**, para que se sepa cuál desactivar.\nDesactivar no comprueba nada: liberar un destino nunca produce\nconflicto.\n\n**Un producto retirado no vuelve a la venta por aquí**: responde que no\nexiste.\n\nNo se exige motivo para activar ni para desactivar.\n",
+        "operationId" : "cambiarEstado_2",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "id",
+          "required" : true,
+          "schema" : {
+            "format" : "uuid",
+            "type" : "string"
+          }
+        } ],
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/ChangeProductStatusRequest"
+              }
+            }
+          },
+          "required" : true
+        },
+        "responses" : {
+          "200" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ProductDetailResponse"
+                }
+              }
+            },
+            "description" : "El producto, con su estado ya aplicado."
+          },
+          "400" : {
+            "description" : "Identificador sin forma canónica (`VAL-001`), estado ausente o fuera de su dominio (`VAL-002`), o activación de un producto sin descripción (`VAL-003`)"
+          },
+          "401" : {
+            "description" : "Token ausente o inválido (`AUTH-001`)"
+          },
+          "403" : {
+            "description" : "Autenticado sin el permiso `products:update` (`AUTH-002`)"
+          },
+          "404" : {
+            "description" : "No existe un producto vivo con ese identificador (`EX-001`)"
+          },
+          "409" : {
+            "description" : "Ya hay otro upgrade activo hacia esa membresía destino (`EX-002`)"
+          },
+          "500" : {
+            "description" : "Fallo no controlado (`ERR-500`)"
+          }
+        },
+        "summary" : "Publicar o retirar de la oferta un producto",
         "tags" : [ "Productos" ]
       }
     },
