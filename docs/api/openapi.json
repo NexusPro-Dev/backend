@@ -564,13 +564,16 @@
           "code" : {
             "type" : "string"
           },
-          "endsAt" : {
-            "format" : "date-time",
+          "id" : {
+            "format" : "uuid",
             "type" : "string"
           },
           "level" : {
             "format" : "int32",
             "type" : "integer"
+          },
+          "name" : {
+            "type" : "string"
           }
         },
         "type" : "object"
@@ -948,6 +951,86 @@
           },
           "username" : {
             "type" : "string"
+          }
+        },
+        "type" : "object"
+      },
+      "ProductItem" : {
+        "properties" : {
+          "code" : {
+            "type" : "string"
+          },
+          "createdAt" : {
+            "format" : "date-time",
+            "type" : "string"
+          },
+          "currency" : {
+            "$ref" : "#/components/schemas/CurrencyRef"
+          },
+          "deletedAt" : {
+            "format" : "date-time",
+            "type" : "string"
+          },
+          "description" : {
+            "type" : "string"
+          },
+          "id" : {
+            "format" : "uuid",
+            "type" : "string"
+          },
+          "name" : {
+            "type" : "string"
+          },
+          "price" : {
+            "type" : "number"
+          },
+          "status" : {
+            "enum" : [ "ACTIVO", "INACTIVO" ],
+            "type" : "string"
+          },
+          "targetMembership" : {
+            "$ref" : "#/components/schemas/MembershipRef"
+          },
+          "type" : {
+            "enum" : [ "UPGRADE_MEMBRESIA", "SERVICIO" ],
+            "type" : "string"
+          },
+          "validityDays" : {
+            "format" : "int32",
+            "type" : "integer"
+          }
+        },
+        "type" : "object"
+      },
+      "ProductPageResponse" : {
+        "properties" : {
+          "content" : {
+            "items" : {
+              "$ref" : "#/components/schemas/ProductItem"
+            },
+            "type" : "array"
+          },
+          "page" : {
+            "format" : "int32",
+            "type" : "integer"
+          },
+          "size" : {
+            "format" : "int32",
+            "type" : "integer"
+          },
+          "sort" : {
+            "type" : "string"
+          },
+          "totalElements" : {
+            "format" : "int64",
+            "type" : "integer"
+          },
+          "totalIsExact" : {
+            "type" : "boolean"
+          },
+          "totalPages" : {
+            "format" : "int32",
+            "type" : "integer"
           }
         },
         "type" : "object"
@@ -2839,6 +2922,96 @@
       }
     },
     "/api/v1/products" : {
+      "get" : {
+        "description" : "Devuelve el catálogo **paginado**, con el destino de cada upgrade y la\nmoneda de cada precio ya resueltos: no hace falta una segunda consulta.\n\n**Los retirados quedan fuera salvo que se pidan** con `includeDeleted`.\nAl pedirlos se indica **desde cuándo** lo están; el **motivo** no viaja\nen el listado —uno a uno lo devuelve el detalle (`RF-PM-003`), en\nbloque sería una exportación de decisiones comerciales—. Verlos **no\nexige un permiso propio**: basta `products:read`.\n\nSolo se puede ordenar por la lista blanca —`name`, `price`,\n`createdAt`—, con `,asc` o `,desc`. **Un campo fuera de ella se\nrechaza y no se ignora**: ignorarlo devolvería un orden distinto del\npedido sin decirlo. Por omisión se ordena por **fecha de alta\ndescendente**, y el orden aplicado viaja en la respuesta.\n\n**`targetMembershipId` no se valida contra el catálogo de membresías.**\nFiltrar por un destino inexistente devuelve la colección vacía y no es\nun error; combinarlo con `type=SERVICIO` también, porque ningún\nservicio tiene destino.\n\nLa búsqueda va sobre el nombre, **sin distinguir acentos ni\nmayúsculas** y por fragmento. En blanco equivale a no filtrar.\n\nUn filtro sin coincidencias devuelve `200` con la colección vacía, y\nuna página más allá de la última hace lo mismo **con el total real**.\nNo hay `404` ni `422`.\n",
+        "operationId" : "listar_2",
+        "parameters" : [ {
+          "in" : "query",
+          "name" : "page",
+          "required" : false,
+          "schema" : {
+            "format" : "int32",
+            "type" : "integer"
+          }
+        }, {
+          "in" : "query",
+          "name" : "size",
+          "required" : false,
+          "schema" : {
+            "format" : "int32",
+            "type" : "integer"
+          }
+        }, {
+          "in" : "query",
+          "name" : "sort",
+          "required" : false,
+          "schema" : {
+            "type" : "string"
+          }
+        }, {
+          "in" : "query",
+          "name" : "type",
+          "required" : false,
+          "schema" : {
+            "type" : "string"
+          }
+        }, {
+          "in" : "query",
+          "name" : "status",
+          "required" : false,
+          "schema" : {
+            "type" : "string"
+          }
+        }, {
+          "in" : "query",
+          "name" : "targetMembershipId",
+          "required" : false,
+          "schema" : {
+            "format" : "uuid",
+            "type" : "string"
+          }
+        }, {
+          "in" : "query",
+          "name" : "search",
+          "required" : false,
+          "schema" : {
+            "type" : "string"
+          }
+        }, {
+          "in" : "query",
+          "name" : "includeDeleted",
+          "required" : false,
+          "schema" : {
+            "type" : "boolean"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ProductPageResponse"
+                }
+              }
+            },
+            "description" : "Página del catálogo, con el orden aplicado."
+          },
+          "400" : {
+            "description" : "Paginación fuera de rango (`VAL-001`), tipo (`VAL-002`) o estado (`VAL-003`) fuera de su dominio, identificador mal formado (`VAL-004`) o campo de ordenamiento no admitido (`VAL-005`). Los cuatro primeros se devuelven **juntos**"
+          },
+          "401" : {
+            "description" : "Token ausente o inválido (`AUTH-001`)"
+          },
+          "403" : {
+            "description" : "Autenticado sin el permiso `products:read` (`AUTH-002`)"
+          },
+          "500" : {
+            "description" : "Fallo no controlado (`ERR-500`)"
+          }
+        },
+        "summary" : "Consultar el catálogo de productos",
+        "tags" : [ "Productos" ]
+      },
       "post" : {
         "description" : "Registra un producto del catálogo, **siempre inactivo**: publicarlo es otra\noperación (`RF-PM-005`).\n\nEl tipo decide qué campos son obligatorios: un `UPGRADE_MEMBRESIA` debe\ndeclarar su membresía destino y un `SERVICIO` no puede declararla.\n\nLa vigencia es opcional en los dos tipos: sin ella, lo adquirido no caduca.\n",
         "operationId" : "register",

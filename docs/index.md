@@ -163,7 +163,7 @@ El inventario de módulos está **incompleto a propósito** y así está declara
 |---|---|---|
 | Migraciones Flyway | 33 | `src/main/resources/db/migration` |
 | Pruebas unitarias en verde | 186 | `./mvnw clean verify` |
-| Pruebas de integración en verde | 645 | `./mvnw clean verify` |
+| Pruebas de integración en verde | 647 | `./mvnw clean verify` |
 | Tareas de tripleta abiertas | 14 | [`requirements.md` §5](requirements.md#5-estado-general) |
 
 Son las que sus `tasks.md` declaran `Pendiente`, verificadas contra el código una a una. Hay además **ochenta y siete filas en `En curso`** cuyo estado va por detrás de lo construido y que no se han revisado todavía: mientras esa revisión no se haga, el estado de una tarea no es fuente fiable, y sí lo son la matriz de trazabilidad y la suite.

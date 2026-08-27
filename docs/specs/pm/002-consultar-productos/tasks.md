@@ -15,21 +15,21 @@
 
 | ID | Tarea | Depende de | Verificación | Estado |
 |---|---|---|---|---|
-| `T-01` | Migración `V41__create_products_search_index.sql`: índice de trigramas sobre `f_unaccent(lower(name))` e índice de listado sobre `(created_at DESC, id DESC)` | `RF-PM-001 · T-01` | `mvn flyway:info` los lista. **No se indexan `type` ni `status`**: dos y tres valores no dan selectividad | Pendiente |
-| `T-02` | `application/ProductSortField`: dominio **cerrado** con `name`, `price` y `createdAt` | — | Unitaria: un campo fuera de la lista no es representable, y el analizador devuelve el error de `VAL-005` en lugar de un valor por omisión | Pendiente |
-| `T-03` | `application/ListProductsRequest`: los cinco filtros, la paginación y el orden, con `includeDeleted` en `false` por omisión | `T-02` | Los cuatro `400` se devuelven **juntos**, no de uno en uno | Pendiente |
-| `T-04` | `application`: `ProductItem` y la envoltura `PageResponse<ProductItem>` con `totalIsExact` en `true` | — | Compila y serializa | Pendiente |
-| `T-05` | `domain/repository/ProductQueryRepository` y su adaptador: **una sentencia**, predicado dinámico, `LEFT JOIN` a `memberships` y a `currencies`, y **orden total** con `id` de desempate | `T-01`, `T-04` | Integración: la consulta cuesta **una** sentencia con y sin filtros, y el plan usa el índice | Pendiente |
-| `T-06` | Búsqueda: recorte del término, **escape de `\`, `%` y `_`**, parámetro enlazado y `f_unaccent` aplicado **a los dos lados** | `T-05` | Buscar «membresia» encuentra «Membresía»; un término con `%` no devuelve el catálogo entero | Pendiente |
-| `T-07` | Conteo **exacto**, sin el atajo de omitirlo cuando la página no se llena | `T-05` | La página vacía más allá de la última devuelve el **total real**, no uno deducido del desplazamiento (`FA-002`) | Pendiente |
-| `T-08` | `domain/service/ListProductsService` con `@Transactional(readOnly = true)` | `T-05`, `T-07` | La transacción se declara de solo lectura | Pendiente |
-| `T-09` | `interfaces`: `GET /api/v1/products` con `products:read` sobre el método | `T-08` | `403` sin el permiso | Pendiente |
-| `T-10` | Pruebas de API de los criterios de `spec.md` §12 | `T-09` | La suite cubre `CA-PM-013` a `CA-PM-022` y `CA-PM-074`, `CA-PM-075`, `CA-PM-077` | Pendiente |
-| `T-11` | **Prueba de paginación estable**: se recorren todas las páginas con varios productos del mismo instante de alta y no falta ni se repite ninguno | `T-05` | `CA-PM-076`. Sin el desempate por `id` esta prueba falla, y es la única que lo detecta | Pendiente |
-| `T-12` | Prueba de `EXPLAIN`: con doscientos productos sembrados, la búsqueda usa `ix_products_busqueda` | `T-06` | La prueba **siembra volumen a propósito**: con pocas filas el planificador elige recorrido secuencial y la prueba no probaría nada | Pendiente |
-| `T-13` | Documentación OpenAPI del endpoint con sus siete parámetros | `T-10` | El contrato declara los filtros y los estados | Pendiente |
-| `T-14` | Actualizar la matriz de trazabilidad | `T-10` | La fila refleja el estado | Pendiente |
-| `T-15` | La **vigencia** viaja en cada fila del listado | `T-05` | Un producto sin vigencia llega con el campo **vacío y presente**, no ausente |  Pendiente |
+| `T-01` | Migración `V41__create_products_search_index.sql`: índice de trigramas sobre `f_unaccent(lower(name))` e índice de listado sobre `(created_at DESC, id DESC)` | `RF-PM-001 · T-01` | `mvn flyway:info` los lista. **No se indexan `type` ni `status`**: dos y tres valores no dan selectividad | Hecha |
+| `T-02` | `application/ProductSortField`: dominio **cerrado** con `name`, `price` y `createdAt` | — | Unitaria: un campo fuera de la lista no es representable, y el analizador devuelve el error de `VAL-005` en lugar de un valor por omisión | Hecha |
+| `T-03` | `application/ListProductsRequest`: los cinco filtros, la paginación y el orden, con `includeDeleted` en `false` por omisión | `T-02` | Los cuatro `400` se devuelven **juntos**, no de uno en uno | Hecha |
+| `T-04` | `application`: `ProductItem` y la envoltura `PageResponse<ProductItem>` con `totalIsExact` en `true` | — | Compila y serializa | Hecha |
+| `T-05` | `domain/repository/ProductQueryRepository` y su adaptador: **una sentencia**, predicado dinámico, `LEFT JOIN` a `memberships` y a `currencies`, y **orden total** con `id` de desempate | `T-01`, `T-04` | Integración: la consulta cuesta **una** sentencia con y sin filtros, y el plan usa el índice | Hecha |
+| `T-06` | Búsqueda: recorte del término, **escape de `\`, `%` y `_`**, parámetro enlazado y `f_unaccent` aplicado **a los dos lados** | `T-05` | Buscar «membresia» encuentra «Membresía»; un término con `%` no devuelve el catálogo entero | Hecha |
+| `T-07` | Conteo **exacto**, sin el atajo de omitirlo cuando la página no se llena | `T-05` | La página vacía más allá de la última devuelve el **total real**, no uno deducido del desplazamiento (`FA-002`) | Hecha |
+| `T-08` | `domain/service/ListProductsService` con `@Transactional(readOnly = true)` | `T-05`, `T-07` | La transacción se declara de solo lectura | Hecha |
+| `T-09` | `interfaces`: `GET /api/v1/products` con `products:read` sobre el método | `T-08` | `403` sin el permiso | Hecha |
+| `T-10` | Pruebas de API de los criterios de `spec.md` §12 | `T-09` | La suite cubre `CA-PM-013` a `CA-PM-022` y `CA-PM-074`, `CA-PM-075`, `CA-PM-077` | Hecha |
+| `T-11` | **Prueba de paginación estable**: se recorren todas las páginas con varios productos del mismo instante de alta y no falta ni se repite ninguno | `T-05` | `CA-PM-076`. Sin el desempate por `id` esta prueba falla, y es la única que lo detecta | Hecha |
+| `T-12` | Prueba de `EXPLAIN`: con doscientos productos sembrados, la búsqueda usa `ix_products_busqueda` | `T-06` | La prueba **siembra volumen a propósito**: con pocas filas el planificador elige recorrido secuencial y la prueba no probaría nada | Hecha |
+| `T-13` | Documentación OpenAPI del endpoint con sus siete parámetros | `T-10` | El contrato declara los filtros y los estados | Hecha |
+| `T-14` | Actualizar la matriz de trazabilidad | `T-10` | La fila refleja el estado | Hecha |
+| `T-15` | La **vigencia** viaja en cada fila del listado | `T-05` | Un producto sin vigencia llega con el campo **vacío y presente**, no ausente | Hecha |
 
 ## 2. Orden de ejecución
 
@@ -71,3 +71,15 @@ El requerimiento no está terminado hasta cumplir **todas** las condiciones de l
 - [ ] Documentación afectada actualizada en el mismo Pull Request.
 - [ ] Matriz de trazabilidad actualizada.
 - [ ] Pull Request aprobado por alguien distinto del autor e integrado.
+
+## 6. Notas de implementación
+
+Tres desvíos respecto de lo aprobado, ninguno de comportamiento. Se anotan aquí para que se lean junto a las tareas y no haya que deducirlos del código.
+
+| # | Qué se hizo distinto | Por qué |
+|---|---|---|
+| 1 | La envoltura es **`ProductPageResponse`** —`plan.md` §3— y no el `PageResponse<ProductItem>` que nombra `T-04` | `spec.md` §6.2 pide devolver **el orden aplicado**, y la envoltura uniforme no tiene dónde ponerlo. `ProductPageResponse` es un **superconjunto**: los seis campos de `PageResponse` con su mismo nombre y su mismo significado, más `sort`. Quien lee la forma uniforme del sistema lee esta igual, y añadir el campo a `PageResponse` habría obligado a todos los listados de `SP` a declarar un orden que la mitad no tiene |
+| 2 | Los fallos de paginación se reetiquetan a **`VAL-001`** | `Pagination` vive en `shared` y numera con su propia serie: emite `VAL-003`, que en `spec.md` §11 significa «estado fuera de dominio». Sin reetiquetar, dos parámetros distintos llegarían al cliente con el mismo código. Se cambia la etiqueta, no el campo ni el mensaje |
+| 3 | `T-12` siembra **doscientos** productos, y se comprobó que basta | Con ese volumen el planificador elige `ix_products_busqueda` y no el recorrido secuencial. Si la prueba empezara a fallar, **la primera sospecha es el número** —otra versión del motor puede mover el umbral— y no el índice |
+
+Y una tarea que creció: `T-01` acabó con **dos** pruebas de plan y no una. La segunda comprueba que el orden por omisión usa `ix_products_listado`; sin ella, ese índice podría desaparecer sin que nada se pusiera rojo, y el síntoma sería lentitud en el caso más frecuente.
