@@ -9,6 +9,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
 import com.factech.nexus.IntegrationTestBase;
 import java.util.UUID;
+import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -412,5 +413,19 @@ class ProductsIT extends IntegrationTestBase {
   private int cuantosProductos() {
     Integer filas = jdbc.queryForObject("SELECT count(*) FROM products", Integer.class);
     return filas == null ? 0 : filas;
+  }
+
+  /**
+   * Deja `products` vacía al terminar CADA prueba.
+   *
+   * <p><b>No es higiene: es lo que impide romper a otras clases.</b> Un producto que sobreviva a
+   * esta clase mantiene una clave foránea sobre `memberships`, y varias pruebas de `SP` empiezan
+   * con `DELETE FROM memberships WHERE level > 0`. Ese borrado falla con violación de integridad, y
+   * el fallo aparece <b>lejos de aquí</b> —en la clase que borra— y solo cuando el orden de
+   * ejecución las pone en ese orden, que es la peor forma de romper una suite.
+   */
+  @AfterEach
+  void vaciarCatalogo() {
+    jdbc.update("DELETE FROM products");
   }
 }
