@@ -11,6 +11,7 @@
 | Fecha de aprobación | 21-08-2026 |
 | Reabierto el | 22-08-2026 — corrección de §6, ver la nota al final de esa sección (Art. I.7) |
 | Reaprobado el | 22-08-2026 — Responsable del proyecto, verificada la corrección contra `ck_audit_error_log_status` |
+| Reabierto el | **27-08-2026** — al construirse por fin el bloqueo de §5, que este plan fija desde el 21-08-2026 y **no existía**. Queda además declarada una contradicción abierta entre §4 y §6 (nota al final de §6) |
 
 ---
 
@@ -78,7 +79,7 @@ Subrecurso propio, como el estado en `RF-SP-007`, y por la misma razón: sus reg
 | `409` | Se intenta reubicar el rol raíz (`EX-003`) | `RN-SEG-007` |
 | `409` | El movimiento formaría un ciclo (`EX-002`) | `RN-SEG-006` |
 | `409` | El rol excede al nuevo padre (`EX-001`) | `RN-SEG-013` |
-| `409` | Hay otra reubicación en curso: no se pudo tomar el bloqueo (§5) | `RN-SEG-006` |
+| `409` | Hay otra reubicación en curso: no se pudo tomar el bloqueo (§5) | `RN-SEG-006` · **ver la nota de §6 sobre su severidad** |
 | `422` | El nuevo padre no existe o está inactivo (`EX-004`) | `EX-004` |
 | `500` | Fallo no controlado | `ERR-500` |
 
@@ -119,6 +120,8 @@ Cada operación es correcta contra la jerarquía que ve. Aplicadas a la vez, `B`
 
 El coste es que las reubicaciones no se solapan. Es aceptable porque reubicar un rol es una operación excepcional; no lo sería si el bloqueo alcanzara también a las lecturas, que no es el caso.
 
+**El bloqueo se construyó el 27-08-2026, seis días después de decidirse.** Hasta entonces no había ni puerto ni adaptador, y lo único que serializaba era el bloqueo pesimista **de fila** que toma la carga del rol — que no cubre este caso, porque las dos reubicaciones que cierran un ciclo mueven roles distintos y no comparten ninguna fila. Ver la nota de `tasks.md`.
+
 **El bloqueo se intenta sin esperar.** Se usa `pg_try_advisory_xact_lock`, no `pg_advisory_xact_lock`: si otra petición lo tiene tomado, esta se rechaza de inmediato con `409` —«hay otra reubicación en curso, reintente»— en lugar de quedarse esperando. Decidido el 21-08-2026, por dos razones. La primera es operativa: una espera indefinida encadena peticiones colgadas, cada una ocupando una conexión del pool, y basta una transacción lenta para agotarlo. La segunda es de verificación: con espera, `CA-SP-161` depende de la temporización de dos transacciones y se vuelve intermitente; sin espera, el resultado es determinista —una tiene éxito, la otra recibe `409`— y la prueba deja de ser frágil. El precio es que el actor puede recibir un rechazo espurio, algo tolerable en una operación que ocurre muy de vez en cuando y cuyo reintento es inmediato.
 
 ## 6. Auditoría
@@ -131,7 +134,15 @@ El coste es que las reubicaciones no se solapan. Es aceptable porque reubicar un
 | Rechazo `409` y `422` por `EX-001` a `EX-004`, y por la rama de **rol de sistema** de `EX-005` | `audit_error_log` | `resource = 'roles'`, `operation` con método y ruta, `error_code` de la tabla de §4, `error_type = 'BUSINESS_RULE'`, `http_status`, `severity` y `message` saneado. Severidad **Alta** para `RN-SEG-006` y `RN-SEG-013` —un ciclo corrompe la estructura y un exceso de contención es escalada—; **Media** para el resto |
 | Rechazo `403` por la rama de **rol propio del actor** de `EX-005` (`RN-SEG-011`) | `audit_security_log` | `event_type = 'AUTHORIZATION_DENIED'`, `severity = 'ALTA'`, `outcome = 'FAILURE'`, `entity_id` del rol. **No** va a `audit_error_log` |
 | Rechazo `404` por `EX-006` | — | **No se audita** en la auditoría de error (`architecture.md` §6.6.4) |
-| Rechazo `409` por bloqueo no obtenido | `audit_error_log` | `error_type = 'BUSINESS_RULE'`, `severity = 'MEDIA'`. No es un fallo: es la serialización funcionando, y conviene poder contar con qué frecuencia ocurre |
+| Rechazo `409` por bloqueo no obtenido | `audit_error_log` | `error_type = 'BUSINESS_RULE'`. **La severidad que aquí se declara es `MEDIA` y la implementada es `ALTA`: ver la nota.** No es un fallo: es la serialización funcionando, y conviene poder contar con qué frecuencia ocurre |
+
+!!! warning "§4 y §6 se contradicen sobre la severidad de este rechazo — abierta el 27-08-2026"
+
+    §4 le asigna el `error_code` **`RN-SEG-006`** y §6 la severidad **Media**. No pueden ser ciertas las dos: `GlobalExceptionHandler` deriva la severidad **del código**, y `RN-SEG-006` está en `REGLAS_DE_ESCALADA`, que es **Alta**.
+
+    Se implementó **§4**, porque el código es lo que ve el cliente y lo que documenta el contrato publicado. El argumento de §6 sigue siendo bueno: un rechazo por bloqueo **no es un intento de escalada** —es la serialización funcionando— y meterlo en el mismo cajón que un ciclo real ensucia la búsqueda por severidad, que es justo para lo que sirve.
+
+    **Las dos salidas, para que decida quien corresponda:** darle un código propio —distinguible además para el cliente, que aquí puede reintentar de inmediato y ante un ciclo no puede— o aceptar `ALTA` y corregir §6. La primera cambia el contrato publicado; la segunda, un párrafo.
 | Rechazo `400` de formato | — | **No se audita** (`architecture.md` §6.6.4) |
 | Denegación `403` por `AUTH-002` | `audit_security_log` | `event_type = 'AUTHORIZATION_DENIED'`, `severity = 'MEDIA'`, `outcome = 'FAILURE'`. Lo emite la capa de seguridad compartida |
 | Fallo no controlado `5xx` | `audit_error_log` | `error_type = 'UNHANDLED'`, `severity = 'ALTA'` |

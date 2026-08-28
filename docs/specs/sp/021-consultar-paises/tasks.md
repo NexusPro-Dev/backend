@@ -41,11 +41,21 @@ El mismo molde de `RF-SP-010` y `RF-SP-017`: una sentencia, colección entera en
 | `T-08` | Prueba del **orden alfabético del español**: con «Panamá», «Perú», «Paraguay», «España» y «Estonia» registrados, el orden devuelto sigue la intercalación del español y no la de bytes | `T-07` | Panamá antes que Paraguay y este antes que Perú. Con la intercalación `C` sería Paraguay, Perú, Panamá. **Exige PostgreSQL real**, y falla si una migración futura recrea la columna perdiendo su intercalación | Hecha |
 | `T-09` | Pruebas de los criterios de aceptación de `spec.md` §12 | `T-07` | La suite cubre `CA-SP-140` a `CA-SP-143` y `CA-SP-172`; el catálogo vacío devuelve `200` con `content` vacío, que es el estado real al arrancar y **no** un error | Hecha |
 | `T-10` | Pruebas del resto de casos límite de `spec.md` §13 y de `plan.md` §11: búsqueda vacía, país inactivo ya referenciado, orden estable, presencia de `isActive`, número de sentencias y coherencia con el alta | `T-07` | Un país desactivado desaparece del listado por defecto **y sigue existiendo en la tabla** con su identificador intacto; el elemento del listado es campo por campo idéntico al que devolvió `RF-SP-020` | En curso |
-| `T-11` | Prueba del uso efectivo del índice: con doscientos países sembrados en la prueba, el `EXPLAIN` de una búsqueda muestra el recorrido de `ix_countries_busqueda` | `T-05` | La prueba **siembra volumen a propósito**: con pocas filas el planificador prefiere el recorrido secuencial, y eso no es un fallo del índice | Pendiente |
+| `T-11` | Prueba del uso efectivo del índice: con doscientos países sembrados en la prueba, el `EXPLAIN` de una búsqueda muestra el recorrido de `ix_countries_busqueda` | `T-05` | La prueba **siembra volumen a propósito**: con pocas filas el planificador prefiere el recorrido secuencial, y eso no es un fallo del índice | **Hecha el 27-08-2026** — `CountrySearchIndexIT`, con una salvedad: ver la nota |
 | `T-12` | Documentación OpenAPI del endpoint: los dos parámetros, la respuesta `200` con `content` y los estados `400`, `401`, `403` y `500` | `T-09` | El contrato publicado coincide con el comportamiento real (Art. VIII.6), y documenta que `includeInactive` **añade** en lugar de sustituir | Hecha |
 | `T-13` | Actualizar la matriz de trazabilidad de `docs/requirements.md` | `T-09` | La fila de `RF-SP-021` refleja el estado y enlaza esta tripleta | Hecha |
 
 **Estados:** `Pendiente` · `En curso` · `Hecha` · `Bloqueada`.
+
+!!! note "`T-11` se hizo, y lo que verifica no es lo que la tarea pedía literalmente — 27-08-2026"
+
+    La tarea decía «el `EXPLAIN` de una búsqueda **muestra** el recorrido de `ix_countries_busqueda`», sembrando doscientos países. **Eso no se puede afirmar sin mentir**, y al escribir la prueba se vio por qué: con seiscientas setenta y cinco filas PostgreSQL sigue prefiriendo el recorrido secuencial, y **acierta**. El catálogo real tiene del orden de doscientas cincuenta.
+
+    Una prueba que exigiera la preferencia obligaría a sembrar un volumen que este catálogo no va a tener nunca, o a bajar `random_page_cost` hasta hacer cierto un plan que nadie necesita. Las dos cosas verificarían un escenario inventado.
+
+    Lo que la prueba afirma es que **el predicado se puede resolver con el índice**, con `enable_seqscan = off` — que no fuerza a usar *ese* índice, solo quita la salida fácil. Si alguien cambia la forma del predicado, cambia la clase de operadores o recrea el índice mal, PostgreSQL preferiría un recorrido completo aun penalizado y la prueba lo vería. Y hay una segunda prueba que **afirma la preferencia por el recorrido secuencial**, para dejar escrito en la suite que eso no es un defecto que alguien deba «arreglar».
+
+    **Limitación declarada:** el `EXPLAIN` corre sobre el predicado escrito en la clase de prueba, no sobre el que Hibernate genera desde la API de criterios. Si el repositorio cambia su forma, la prueba seguirá en verde.
 
 !!! note "Tarea abierta al ejecutar — 24-08-2026"
 
