@@ -55,10 +55,24 @@
         "required" : [ "supervisorId" ],
         "type" : "object"
       },
+      "AuditActor" : {
+        "properties" : {
+          "fullName" : {
+            "type" : "string"
+          },
+          "username" : {
+            "type" : "string"
+          }
+        },
+        "type" : "object"
+      },
       "ChangeAuditItem" : {
         "properties" : {
           "action" : {
             "type" : "string"
+          },
+          "actor" : {
+            "$ref" : "#/components/schemas/AuditActor"
           },
           "actorId" : {
             "format" : "uuid",
@@ -336,6 +350,9 @@
       },
       "DeletionAuditItem" : {
         "properties" : {
+          "actor" : {
+            "$ref" : "#/components/schemas/AuditActor"
+          },
           "actorId" : {
             "format" : "uuid",
             "type" : "string"
@@ -382,6 +399,9 @@
       },
       "ErrorAuditItem" : {
         "properties" : {
+          "actor" : {
+            "$ref" : "#/components/schemas/AuditActor"
+          },
           "actorId" : {
             "format" : "uuid",
             "type" : "string"
@@ -1469,6 +1489,9 @@
       },
       "SecurityAuditItem" : {
         "properties" : {
+          "actor" : {
+            "$ref" : "#/components/schemas/AuditActor"
+          },
           "actorId" : {
             "format" : "uuid",
             "type" : "string"
@@ -1499,6 +1522,9 @@
           },
           "severity" : {
             "type" : "string"
+          },
+          "targetUser" : {
+            "$ref" : "#/components/schemas/AuditActor"
           },
           "targetUserId" : {
             "format" : "uuid",
