@@ -201,14 +201,14 @@ Mismo desajuste que §4.1 resolvió para `SP`, y por el mismo motivo: **el códi
 
 **Propósito.** Es dueño de **cuánto se le paga a quien vende**: qué porcentaje gana cada rol de tipo vendedor por cada producto, y qué excepciones tiene una persona concreta.
 
-**Alcance.** El **catálogo de tarifas de comisión** y su gobierno: alta, consulta, corrección y retiro. Una tarifa asocia un **rol de tipo `VENDEDOR`** con un **porcentaje**, opcionalmente acotada a un **producto** y opcionalmente acotada a una **persona**. Publica además la **resolución**: dada una persona y un producto, qué porcentaje le corresponde.
+**Alcance.** El **catálogo de tarifas de comisión** y su gobierno: alta, consulta, corrección y retiro. Una tarifa asocia un **rol de tipo `VENDEDOR`** con un **porcentaje** y una **vigencia**, opcionalmente acotada a un **producto** y opcionalmente acotada a una **persona**. Publica además la **resolución**: dada una persona, un producto y una fecha, qué porcentaje le corresponde.
 
 **No incluye.** **El cálculo y la liquidación**, que son la otra mitad del área de §6 y **no se pueden construir todavía**: no existe ninguna tabla de ventas a la que aplicar un porcentaje. Tampoco el **pago** de lo liquidado, que es de Finanzas, ni los **FTDs**. Este módulo nace deliberadamente con la mitad configurable del área, por el mismo camino que `PM`: el catálogo existió antes que la compra.
 
 | Submódulo | Responsabilidad | Entidades principales |
 |---|---|---|
 | Tarifas | Alta, consulta, corrección y retiro de las tarifas de comisión | `commission_rates` |
-| Resolución | Qué porcentaje le corresponde a una persona por un producto | `commission_rates`, y el rol vigente que `SP` publique |
+| Resolución | Qué porcentaje le corresponde a una persona por un producto **en una fecha** | `commission_rates`, y el rol vigente que `SP` publique |
 
 **Dependencias.** `SP` y `PM`, y es el **primer módulo que depende de dos**. De `SP` necesita el **rol** —para exigir que sea de tipo `VENDEDOR`— y la **persona** de una tarifa especial; de `PM`, el **producto** al que la tarifa se acota. La dependencia sigue siendo acíclica: `CM` → `PM` → `SP`, y ninguno de los dos consume a `CM`.
 

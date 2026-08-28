@@ -5,7 +5,7 @@
 | Módulo | `CM` — Comisiones |
 | Paquete | `modules/commissions` |
 | Prefijos de permiso | `commissions:` |
-| Versión | 0.1.0 |
+| Versión | 0.2.0 |
 | Estado | **Borrador** |
 | Responsable | Bonilla Diaz William Steven |
 | Fecha de creación | 28-08-2026 |
@@ -41,6 +41,10 @@ De ahí salen los cuatro grados de precisión con los que se puede declarar una 
 
 **La ausencia es la que da el alcance, y por eso no hay un campo que diga «para todos»:** una tarifa sin persona es la de todos los de ese rol, y una sin producto es la de todo el catálogo. Un campo aparte podría contradecir a la clave —«para todos» con una persona declarada— y esa contradicción no la detecta nada.
 
+**Y toda tarifa rige durante un periodo**, por decisión del responsable del proyecto: declara **desde cuándo** y opcionalmente **hasta cuándo**. Sin fin, rige indefinidamente. Eso convierte a esta tabla en el **historial de lo que se pagó**, y no solo en la foto de lo que se paga hoy: se puede reconstruir qué porcentaje regía en cualquier fecha pasada, y se puede **programar** un cambio con antelación en lugar de tener que hacerlo el día que entra en vigor.
+
+**Cambiar una comisión no es corregirla, y la diferencia importa.** Corregir es arreglar lo que se declaró mal —un 12 donde iba un 2—: reescribe lo que esa tarifa dice que rigió. Cambiar la comisión a partir de una fecha es **cerrar la vigente y registrar otra**, y entonces las dos siguen contando su parte de la historia. Confundirlas es lo que borra el pasado sin querer.
+
 ### 1.2 Objetivo
 
 Hoy el sistema sabe **qué se vende** (`PM`) y **quién vende** —los roles de tipo `VENDEDOR` y la estructura comercial de `SP`—, y **no sabe cuánto se le paga a quien vende**. Ese dato no existe en ningún sitio: ni un porcentaje, ni una excepción, ni un lugar donde declararlos. Este módulo pone ese objeto en el sistema, que es el paso sin el cual el cálculo de comisiones —cuando exista la venta— no tiene sobre qué operar.
@@ -49,11 +53,11 @@ Hoy el sistema sabe **qué se vende** (`PM`) y **quién vende** —los roles de 
 
 **Incluye**
 
-- Registrar una tarifa de comisión, en cualquiera de los cuatro grados de §1.1.
-- Consultar las tarifas, con filtros por rol, producto y persona.
-- Corregir el porcentaje de una tarifa.
+- Registrar una tarifa de comisión, en cualquiera de los cuatro grados de §1.1, con su vigencia.
+- Consultar las tarifas, con filtros por rol, producto, persona y fecha.
+- Corregir el **porcentaje** y el **fin de vigencia** de una tarifa.
 - Retirar una tarifa por eliminación lógica y con motivo.
-- **Resolver la comisión efectiva**: dada una persona y un producto, qué porcentaje le corresponde y **por qué tarifa**.
+- **Resolver la comisión efectiva**: dada una persona, un producto y una **fecha**, qué porcentaje le corresponde y **por qué tarifa**.
 
 **No incluye**
 
@@ -81,7 +85,7 @@ Según [`modules.md` §5](../modules.md#5-fichas-de-modulo).
 | Submódulo | Responsabilidad | Requerimientos |
 |---|---|---|
 | Tarifas | Alta, consulta, corrección y retiro de las tarifas | `RF-CM-001` a `RF-CM-004` |
-| Resolución | Qué porcentaje le corresponde a una persona por un producto | `RF-CM-005` |
+| Resolución | Qué porcentaje le corresponde a una persona por un producto **en una fecha** | `RF-CM-005` |
 
 **Por qué la resolución es un submódulo y no una consulta más.** Responde una pregunta distinta y con otra mecánica: el listado devuelve **filas tal como se declararon**; la resolución devuelve **una** tarifa que puede no existir como fila pensada para ese caso, elegida por el orden de precedencia de `RN-CM-004`. Separarlas evita el error que consiste en que cada consumidor reimplemente la precedencia por su cuenta — que es el defecto que `architecture.md` §15.2 llama «la regla se queda con su dueño».
 
@@ -112,13 +116,15 @@ La dependencia es **acíclica**: `CM` → `PM` → `SP`, y ninguno de los dos co
 |---|---|---|---|
 | `RF-CM-001` | Registrar una tarifa de comisión | Tarifas | `commissions:create` |
 | `RF-CM-002` | Consultar las tarifas de comisión | Tarifas | `commissions:read` |
-| `RF-CM-003` | Corregir el porcentaje de una tarifa | Tarifas | `commissions:update` |
+| `RF-CM-003` | Corregir una tarifa: su porcentaje y su fin de vigencia | Tarifas | `commissions:update` |
 | `RF-CM-004` | Retirar una tarifa de comisión | Tarifas | `commissions:delete` |
-| `RF-CM-005` | Consultar la comisión efectiva de una persona sobre un producto | Resolución | `commissions:read` |
+| `RF-CM-005` | Consultar la comisión efectiva de una persona sobre un producto en una fecha | Resolución | `commissions:read` |
 
 **Cinco y no seis: el alta es UNA, no dos.** Registrar la tarifa de un rol y registrar la excepción de una persona son el mismo caso de uso con un campo más, exactamente como `PM` decidió que registrar un upgrade y registrar un bot fueran un solo endpoint. Dos endpoints serían dos sitios donde la unicidad de `RN-CM-006` podría comprobarse distinto.
 
-**No hay requerimiento para cambiar el rol o el producto de una tarifa.** Cambiarlos no corrige una tarifa: crea otra. Lo corregible es el porcentaje, que es lo único que responde a «nos equivocamos al declararlo» — el mismo criterio con el que `RF-PM-004` dejó fuera el tipo y el código de un producto.
+**No hay requerimiento para cambiar el rol, el producto o la persona de una tarifa.** Cambiarlos no corrige una tarifa: crea otra. Lo corregible es el **porcentaje** —«nos equivocamos al declararlo»— y el **fin de vigencia** —«esta tarifa deja de regir tal día»—, que es el mismo criterio con el que `RF-PM-004` dejó fuera el tipo y el código de un producto.
+
+**Tampoco hay requerimiento para «cambiar la comisión a partir de una fecha»**, y no es un olvido: eso son **dos operaciones que ya existen** —cerrar la vigente con `RF-CM-003` y registrar la nueva con `RF-CM-001`—, y `RN-CM-006` obliga a hacerlas en ese orden porque no admite solapamiento. Un endpoint que hiciera las dos ahorraría una llamada y escondería que la primera es la que decide **hasta cuándo rigió lo anterior**, que es el dato que la liquidación va a leer.
 
 ---
 
@@ -131,11 +137,13 @@ La dependencia es **acíclica**: `CM` → `PM` → `SP`, y ninguno de los dos co
 | `RN-CM-001` | Solo comisionan los roles vendedores | Al registrar | El rol de una tarifa debe existir y ser de tipo **`VENDEDOR`** (`ck_roles_type`). Un rol funcionario o consumidor se rechaza | Crítica |
 | `RN-CM-002` | El producto acotado debe existir | Al registrar una tarifa con producto | El producto debe existir en `PM`. Se declara además como clave foránea | Alta |
 | `RN-CM-003` | La persona de una excepción debe existir y portar el rol | Al registrar una tarifa con persona | La persona debe existir y **tener asignado el rol de la tarifa**. Sin esa comprobación, una excepción puede declararse sobre un rol que esa persona no ejerce, y no se aplicaría nunca | Crítica |
-| `RN-CM-004` | Gana la tarifa más específica | Al resolver | El orden es **persona + producto**, luego **persona**, luego **rol + producto**, luego **rol**. La primera que exista es la que se aplica | Crítica |
-| `RN-CM-005` | La tarifa no desaparece | Al retirar | La eliminación es **lógica y con motivo** (Art. V.13). La fila permanece para que una liquidación pasada siga resolviendo con qué porcentaje se pagó | Crítica |
-| `RN-CM-006` | Una sola tarifa viva por combinación | Al registrar | No pueden coexistir dos tarifas vivas con el **mismo rol, el mismo producto y la misma persona**, contando la ausencia de producto o de persona como un valor más | Crítica |
-| `RN-CM-007` | El porcentaje es mayor que cero y como mucho cien | Al registrar y al corregir | Cero o negativo se rechaza —una comisión de cero es no comisionar, y eso se declara **no registrando** la tarifa—; por encima de cien también, porque pagaría más de lo vendido | Alta |
-| `RN-CM-008` | Corregir una tarifa no reescribe lo liquidado | Siempre | Una corrección rige **desde que se hace**. Lo ya liquidado conserva el porcentaje con el que se pagó, y garantizarlo es obligación de la liquidación futura, no de esta tabla (§1.4) | Crítica |
+| `RN-CM-004` | Gana la tarifa más específica **vigente en la fecha** | Al resolver | Entre las que rigen esa fecha, el orden es **persona + producto**, luego **persona**, luego **rol + producto**, luego **rol**. La primera que exista es la que se aplica | Crítica |
+| `RN-CM-005` | La tarifa no desaparece | Al retirar | La eliminación es **lógica y con motivo** (Art. V.13). La fila permanece para que una liquidación pasada siga resolviendo con qué porcentaje se pagó. **Retirar no es cerrar la vigencia**: se retira lo que no debió existir, se cierra lo que dejó de regir | Crítica |
+| `RN-CM-006` | Dos tarifas del mismo caso no se solapan en el tiempo | Al registrar y al corregir la vigencia | Para una misma combinación de **rol, producto y persona** —contando la ausencia de cualquiera de los dos últimos como un valor más—, **ningún día puede estar cubierto por dos tarifas vivas**. Sí pueden existir varias consecutivas: son el historial | Crítica |
+| `RN-CM-007` | El porcentaje va de cero a cien | Al registrar y al corregir | Se admite el **cero**, que significa «esto no comisiona» y **no es lo mismo que no tener tarifa**: es la única forma de exceptuar un producto a un rol que sí tiene tarifa por omisión. Por encima de cien se rechaza, porque pagaría más de lo vendido; por debajo de cero, porque no es una comisión | Alta |
+| `RN-CM-008` | Corregir una tarifa no reescribe lo liquidado | Siempre | Corregir el porcentaje **reescribe lo que esa tarifa dice que rigió**. Lo ya liquidado conserva el porcentaje con el que se pagó, y garantizarlo es obligación de la liquidación futura, no de esta tabla (§1.4) | Crítica |
+| `RN-CM-009` | Toda tarifa declara desde cuándo rige | Al registrar | El inicio de vigencia es **obligatorio**; el fin es opcional y su ausencia significa **indefinidamente**. Un fin anterior al inicio se rechaza | Alta |
+| `RN-CM-010` | No se configura lo que ya no se vende | Al registrar una tarifa con producto | No se admite una tarifa **nueva** sobre un producto **retirado**: sería configurar algo que nadie puede vender. Las que ya existían **permanecen**, por `RN-CM-005` | Media |
 
 ### 5.2 Por qué las críticas son críticas
 
@@ -147,7 +155,16 @@ La dependencia es **acíclica**: `CM` → `PM` → `SP`, y ninguno de los dos co
 
 **`RN-CM-005` — la tarifa no desaparece.** Lo mismo que `RN-PM-010` para el producto, y por lo mismo: lo que se pagó tiene que seguir explicándose.
 
-**`RN-CM-006` — una sola viva por combinación.** Dos tarifas vivas para el mismo caso hacen que `RN-CM-004` deje de ser determinista, y la elección quedaría a criterio del plan de ejecución. **Es la regla que más cuesta declarar en el esquema**, porque en PostgreSQL dos `NULL` no son iguales y un `UNIQUE` corriente admitiría dos veces la misma tarifa por omisión. Cómo se declara es decisión del `plan.md`.
+**`RN-CM-006` — sin solapamiento.** Es la regla que sostiene a `RN-CM-004`: si dos tarifas del mismo caso cubrieran el mismo día, la resolución dejaría de ser determinista y la elección quedaría a criterio del plan de ejecución. **Y es la más difícil de declarar de todo el módulo**, por dos motivos que se suman:
+
+1. **En PostgreSQL dos `NULL` no son iguales**, de modo que un `UNIQUE` corriente admitiría dos veces la misma tarifa por omisión — el producto y la persona son nulables por diseño (§1.1).
+2. **Lo que no debe repetirse no es un valor, es un intervalo.** «No dos iguales» es una unicidad; «ningún día cubierto dos veces» es una **exclusión**, que es otra restricción y otro índice.
+
+La salida previsible es una restricción `EXCLUDE` con `btree_gist` sobre la combinación y el rango de fechas, normalizando las ausencias. El proyecto ya declara extensiones en `V1` —`unaccent` y `pg_trgm`—, así que no es un precedente nuevo. **La forma concreta la decide el `plan.md`**, y lo que este documento fija es que **tiene que estar en el motor**: comprobarlo solo en el caso de uso lo dejaría a merced de dos peticiones simultáneas, que es el defecto que `RN-SP-018` ya tuvo.
+
+**`RN-CM-007` — el cero es un valor, no la ausencia.** Sin él quedaba un hueco real: un rol con 10% por omisión no podía exceptuar un producto sin enumerar todos los demás. Con él, **«tarifa de cero» y «sin tarifa» dejan de ser lo mismo** y hay que tratarlas distinto en la resolución: la primera es una respuesta —no comisiona—, la segunda es la ausencia de respuesta, y `RF-CM-005` tiene que poder decir cuál de las dos ocurrió.
+
+**`RN-CM-010` — no se configura lo que ya no se vende.** Es la mitad prohibitiva; la permisiva es `RN-CM-005`, que conserva las tarifas que ya existían. Las dos juntas dicen lo mismo desde los dos lados: **el pasado se conserva y el futuro no se configura**.
 
 **`RN-CM-008` — no reescribir lo liquidado.** Es la condición que este módulo impone al que todavía no existe. Se escribe hoy porque el día que se escriba la liquidación será tarde: quien la construya leerá el porcentaje de la tarifa si nadie le dijo que no.
 
@@ -183,6 +200,8 @@ Cuatro permisos y no uno por grado: el grado —rol, producto, persona— es un 
 | `product_id` | `uuid` | No | Sí | **Sí** | — | `products` |
 | `user_id` | `uuid` | No | Sí | **Sí** | — | `users` |
 | `percentage` | `numeric(5,2)` | No | No | No | — | — |
+| `valid_from` | `date` | No | No | No | — | — |
+| `valid_to` | `date` | No | No | **Sí** | — | — |
 | `created_at` | `timestamptz` | No | No | No | `now()` | — |
 | `updated_at` | `timestamptz` | No | No | No | `now()` | — |
 | `deleted_at` | `timestamptz` | No | No | Sí | — | — |
@@ -191,19 +210,26 @@ Cuatro permisos y no uno por grado: el grado —rol, producto, persona— es un 
 
 **`percentage` se declara `numeric(5,2)`**: hasta `999.99` por la precisión, y `RN-CM-007` lo acota a `(0, 100]`. No se usa un entero de puntos básicos —que es la otra forma habitual— porque el dato que el negocio declara y lee es un porcentaje, y convertirlo en las dos direcciones es una fuente de errores de escala que ninguna prueba de camino feliz detecta.
 
-**Sin columna de estado.** Una tarifa está viva o retirada, y eso lo dice `deleted_at`. No hay un caso intermedio como el de `products`, donde `INACTIVO` significa «existe y no se ofrece»: una tarifa que no se aplica es una tarifa que no debería estar.
+**La vigencia se mide en `date` y no en `timestamptz`.** Una comisión cambia «a partir del día 1», no a partir de las 00:00:00.000 de una zona horaria concreta; declararla con instante obligaría a decidir en qué zona se corta el día, y esa decisión no la tiene que tomar quien declara una tarifa. Es la excepción justificada al criterio general del proyecto, que persiste instantes con zona.
+
+**`valid_to` nulo significa «indefinidamente», no «se desconoce».** Es el estado normal de la tarifa que rige hoy.
+
+**Sin columna de estado.** Una tarifa está viva o retirada, y eso lo dice `deleted_at`. No hay un caso intermedio como el de `products`, donde `INACTIVO` significa «existe y no se ofrece». **Y una tarifa vencida tampoco es un estado**: es una fila con `valid_to` en el pasado, que sigue viva porque sigue explicando lo que se pagó entonces.
 
 ### 7.2 Restricciones exigidas en el esquema
 
 | Restricción | Sobre | Regla que implementa |
 |---|---|---|
-| `ck_commission_rates_percentage` | `percentage > 0 AND percentage <= 100` | `RN-CM-007` |
+| `ck_commission_rates_percentage` | `percentage >= 0 AND percentage <= 100` | `RN-CM-007`. El cero **se admite**: es «no comisiona», y no lo mismo que no tener tarifa |
+| `ck_commission_rates_vigencia` | `valid_to IS NULL OR valid_to >= valid_from` | `RN-CM-009`. La rama `IS NULL` va **delante y explícita**: un `CHECK` que evalúa a `NULL` **acepta** la fila |
 | `fk_commission_rates_role` | `role_id` → `roles(id)` | `RN-CM-001` |
 | `fk_commission_rates_product` | `product_id` → `products(id)` | `RN-CM-002` |
 | `fk_commission_rates_user` | `user_id` → `users(id)` | `RN-CM-003` |
-| Unicidad de `RN-CM-006` | Rol, producto y persona, con la ausencia contando como valor | `RN-CM-006` — **la forma concreta la decide el `plan.md`**: un `UNIQUE` corriente no sirve, porque en PostgreSQL dos `NULL` no son iguales y admitiría dos tarifas por omisión idénticas |
+| No solapamiento de `RN-CM-006` | Rol, producto y persona —con la ausencia contando como valor— **y el rango de fechas** | `RN-CM-006`. **Tiene que estar en el motor**, y la forma concreta la decide el `plan.md`: la salida previsible es un `EXCLUDE` con `btree_gist`, porque lo que no debe repetirse no es un valor sino un **intervalo**, y porque un `UNIQUE` corriente admitiría dos tarifas por omisión idénticas —en PostgreSQL dos `NULL` no son iguales— |
 
-**Lo que NO se puede declarar en el esquema, y por eso vive en el dominio:** que el rol sea de tipo `VENDEDOR` (`RN-CM-001`) y que la persona porte ese rol (`RN-CM-003`). Un `CHECK` no consulta otra tabla — el mismo límite que `PM` encontró con los decimales de la moneda.
+**Lo que NO se puede declarar en el esquema, y por eso vive en el dominio:** que el rol sea de tipo `VENDEDOR` (`RN-CM-001`), que la persona porte ese rol (`RN-CM-003`) y que el producto no esté retirado (`RN-CM-010`). Un `CHECK` no consulta otra tabla — el mismo límite que `PM` encontró con los decimales de la moneda.
+
+**Por qué el no solapamiento sí y las otras tres no.** No es incoherencia: `RN-CM-006` se puede declarar porque solo mira **esta** tabla, y **debe** declararse porque es la única de las cuatro que dos peticiones simultáneas pueden burlar — es exactamente el defecto que `RN-SP-018` tuvo y que se corrigió el 26-08-2026. Las otras tres miran filas de otras tablas que no cambian durante la operación.
 
 ---
 
@@ -212,3 +238,4 @@ Cuatro permisos y no uno por grado: el grado —rol, producto, persona— es un 
 | Versión | Fecha | Cambio | Responsable |
 |---|---|---|---|
 | 0.1.0 | 28-08-2026 | Creación del módulo `CM` con sus **cinco requerimientos** y **ocho reglas propias**. Registra los **cuatro grados** con los que se declara una comisión y su orden de precedencia, y deja fuera el **cálculo y la liquidación**, que no se aplazan por reparto sino porque no existe ninguna tabla de ventas sobre la que calcular. Nace con **dos condiciones declaradas hacia fuera**: `PM` deberá publicar una interfaz de lectura de productos que hoy no tiene, y la liquidación futura deberá **guardar el porcentaje que aplicó** en lugar de leerlo de la tarifa. Y con **una imposición sobre `SP`** que se registra allí: una persona no puede tener dos roles de tipo `VENDEDOR` (`RN-SP-025`). | Responsable del proyecto |
+| 0.2.0 | 28-08-2026 | **Cuatro decisiones del responsable del proyecto, y una va contra la recomendación escrita.** (1) **La tarifa gana vigencia** —`valid_from` obligatorio y `valid_to` opcional—, y con ella la tabla deja de ser la foto de lo que se paga hoy para ser **el historial de lo que se pagó**: se puede reconstruir qué regía en cualquier fecha y programar un cambio con antelación. Se había recomendado no ponerla todavía, por no predecir cómo se liquidará; se pone. El precio es `RN-CM-006`, que pasa de «una viva por combinación» a **«ningún día cubierto dos veces»** — de una unicidad a una **exclusión**, que es otra restricción y otro índice, y la más difícil de declarar del módulo. Nace además `RN-CM-009`, y `RF-CM-003` pasa a corregir también el fin de vigencia. (2) **El cero pasa a ser un porcentaje válido**: era la única forma de exceptuar un producto a un rol con tarifa por omisión sin enumerar todos los demás. La consecuencia es que **«tarifa de cero» y «sin tarifa» dejan de ser lo mismo**, y `RF-CM-005` tiene que poder distinguirlas. (3) **La resolución es solo administrativa** por ahora: que un vendedor consulte la suya es otro actor y depende de D-22. (4) Nace **`RN-CM-010`**: no se registran tarifas nuevas sobre un producto retirado, y las que existían permanecen — el pasado se conserva y el futuro no se configura. | Responsable del proyecto |
