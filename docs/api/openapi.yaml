@@ -31,6 +31,9 @@ tags:
   description: Catálogo de países. Inmutable salvo su estado.
 - name: Productos
   description: "Catálogo de venta: upgrades de membresía y servicios."
+- name: Comisiones
+  description: "Tarifas de comisión: cuánto gana un rol vendedor, por producto y por\
+    \ persona."
 - name: Membresías
   description: Cadena lineal de niveles de consumidor. Inmutable salvo el reordenamiento.
 - name: Monedas
@@ -1242,6 +1245,143 @@ paths:
           description: Código o nombre ya presentes en el catálogo (`EX-001`)
         "500":
           description: Fallo no controlado (`ERR-500`)
+  /api/v1/commission-rates:
+    get:
+      tags:
+      - Comisiones
+      summary: Consultar las tarifas de comisión
+      description: |
+        Devuelve las tarifas **tal como se declararon**, y no resuelve cuál se
+        aplica: para eso está `GET /api/v1/commissions/effective`.
+
+        **Incluye el historial**: las vencidas viajan junto a las vigentes salvo
+        que se filtre por fecha con `onDate`.
+
+        **Filtrar por persona devuelve las declaradas PARA esa persona**, no las
+        que le aplican.
+      operationId: listar_3
+      parameters:
+      - name: filtros
+        in: query
+        required: true
+        schema:
+          $ref: "#/components/schemas/ListCommissionRatesRequest"
+      responses:
+        "200":
+          description: Página de tarifas
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/CommissionRatePageResponse"
+        "400":
+          description: Parámetros inválidos
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/CommissionRatePageResponse"
+        "403":
+          description: Sin permiso
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/CommissionRatePageResponse"
+    post:
+      tags:
+      - Comisiones
+      summary: Registrar una tarifa de comisión
+      description: |
+        Declara cuánto gana un rol de tipo **vendedor** por vender.
+
+        **La ausencia es la que da el alcance**: sin `userId` la tarifa rige para
+        todos los del rol, y sin `productId` para todo el catálogo. No hay ningún
+        campo que diga «para todos».
+
+        **Toda tarifa rige durante un periodo**: `validFrom` es obligatorio y
+        `validTo` opcional — sin él, rige indefinidamente.
+
+        **El porcentaje cero es válido** y significa «esto no comisiona», que **no
+        es lo mismo** que no declarar la tarifa.
+
+        Dos tarifas del mismo rol, producto y persona **no pueden solaparse** en el
+        tiempo. Si una termina el 31, la siguiente empieza el 1.
+      operationId: registrar_4
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/RegisterCommissionRateRequest"
+        required: true
+      responses:
+        "201":
+          description: Tarifa registrada
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/CommissionRateResponse"
+        "400":
+          description: "Datos inválidos, o el rol no es vendedor"
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/CommissionRateResponse"
+        "403":
+          description: Sin permiso
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/CommissionRateResponse"
+        "409":
+          description: Se solapa con otra tarifa viva
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/CommissionRateResponse"
+        "422":
+          description: "El rol, el producto o la persona no resuelven"
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/CommissionRateResponse"
+  /api/v1/commission-rates/{id}/deletion:
+    post:
+      tags:
+      - Comisiones
+      summary: Retirar una tarifa de comisión
+      description: |
+        Retira una tarifa que **no debió existir**, con **motivo obligatorio**.
+
+        **Retirar no es cerrar la vigencia**: se cierra lo que dejó de regir, se
+        retira lo que fue un error. Por eso el retiro **no toca la vigencia** — el
+        registro de eliminación debe poder decir qué periodo cubría lo retirado.
+
+        **No es idempotente**: retirar dos veces devuelve `409`.
+
+        Los días que ocupaba **quedan libres**, de modo que puede declararse otra
+        tarifa que los cubra.
+      operationId: retirar_1
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/DeleteCommissionRateRequest"
+      responses:
+        "204":
+          description: Tarifa retirada
+        "400":
+          description: "Motivo ausente, en blanco o demasiado largo"
+        "403":
+          description: Sin permiso
+        "404":
+          description: La tarifa no existe
+        "409":
+          description: Ya estaba retirada
   /api/v1/auth/refresh:
     post:
       tags:
@@ -2337,6 +2477,70 @@ paths:
           description: No existe país con ese identificador (`EX-001`)
         "500":
           description: Fallo no controlado (`ERR-500`)
+  /api/v1/commission-rates/{id}:
+    patch:
+      tags:
+      - Comisiones
+      summary: Corregir una tarifa de comisión
+      description: |
+        Corrige el **porcentaje** y el **fin de vigencia**. Se aplica lo que llega
+        y se deja intacto lo que no.
+
+        **Corregir no es cambiar**: corregir arregla un error y reescribe lo que
+        esa tarifa dice que rigió. Cambiar la comisión a partir de una fecha es
+        **cerrar la vigente y registrar otra**, que son dos operaciones.
+
+        `validTo: null` **vacía** el fin de vigencia y la tarifa vuelve a regir
+        indefinidamente; `percentage: null` se **rechaza**.
+
+        **El rol, el producto, la persona y el inicio de vigencia no se corrigen**,
+        y enviarlos devuelve `400`. Se rechazan y no se ignoran: ignorarlos haría
+        creer que el cambio se aplicó.
+      operationId: corregir_1
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateCommissionRateRequest"
+        required: true
+      responses:
+        "200":
+          description: Tarifa corregida
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/CommissionRateResponse"
+        "400":
+          description: Datos inválidos o campos no corregibles
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/CommissionRateResponse"
+        "403":
+          description: Sin permiso
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/CommissionRateResponse"
+        "404":
+          description: "No existe, o está retirada"
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/CommissionRateResponse"
+        "409":
+          description: La vigencia resultante se solapa
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/CommissionRateResponse"
   /api/v1/users/{id}/team:
     get:
       tags:
@@ -2630,6 +2834,75 @@ paths:
           description: Autenticado sin el permiso de lectura de monedas (`AUTH-002`)
         "500":
           description: Fallo no controlado (`ERR-500`)
+  /api/v1/commissions/effective:
+    get:
+      tags:
+      - Comisiones
+      summary: Consultar la comisión efectiva
+      description: |
+        Responde **cuánto le corresponde a una persona por vender un producto un
+        día concreto**, y **por qué**: devuelve la tarifa que ganó y en qué grado
+        estaba declarada.
+
+        **Tres desenlaces, y ninguno es un error:**
+
+        - `RESUELTA`: hay tarifa. El porcentaje puede ser **cero**, y eso significa
+          «no comisiona» — es una decisión declarada.
+        - `SIN_TARIFA`: la persona vende y **nadie declaró** tarifa aplicable. El
+          porcentaje llega **nulo y presente**, nunca cero.
+        - `NO_COMISIONA`: la persona **no porta ningún rol vendedor**.
+
+        **Nulo y cero no son lo mismo**, y quien consuma esto va a pagar con esa
+        cifra.
+
+        Sin `onDate`, se resuelve con la fecha de hoy. Un producto **retirado** se
+        resuelve con normalidad: preguntar qué se pagaba por algo que ya no se
+        vende es legítimo.
+      operationId: efectiva
+      parameters:
+      - name: userId
+        in: query
+        required: true
+        schema:
+          type: string
+          format: uuid
+      - name: productId
+        in: query
+        required: true
+        schema:
+          type: string
+          format: uuid
+      - name: onDate
+        in: query
+        required: false
+        schema:
+          type: string
+          format: date
+      responses:
+        "200":
+          description: Cualquiera de los tres desenlaces
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/EffectiveCommissionResponse"
+        "400":
+          description: Parámetros inválidos
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/EffectiveCommissionResponse"
+        "403":
+          description: Sin permiso
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/EffectiveCommissionResponse"
+        "422":
+          description: La persona o el producto no existen
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/EffectiveCommissionResponse"
   /api/v1/audit/security:
     get:
       tags:
@@ -3541,6 +3814,84 @@ components:
           type: string
         isActive:
           type: boolean
+    RegisterCommissionRateRequest:
+      type: object
+      properties:
+        roleId:
+          type: string
+          format: uuid
+        productId:
+          type: string
+          format: uuid
+        userId:
+          type: string
+          format: uuid
+        percentage:
+          type: number
+          maximum: 100.00
+          minimum: 0.00
+        validFrom:
+          type: string
+          format: date
+        validTo:
+          type: string
+          format: date
+      required:
+      - percentage
+      - roleId
+      - validFrom
+    CommissionRateResponse:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        role:
+          $ref: "#/components/schemas/RoleRef"
+        product:
+          $ref: "#/components/schemas/ProductRef"
+        user:
+          $ref: "#/components/schemas/UserRef"
+        scope:
+          type: string
+          enum:
+          - PERSONA_Y_PRODUCTO
+          - PERSONA
+          - PRODUCTO
+          - ROL
+        percentage:
+          type: number
+        validFrom:
+          type: string
+          format: date
+        validTo:
+          type: string
+          format: date
+    ProductRef:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        code:
+          type: string
+        name:
+          type: string
+    UserRef:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        username:
+          type: string
+        fullName:
+          type: string
+    DeleteCommissionRateRequest:
+      type: object
+      properties:
+        reason:
+          type: string
     RefreshRequest:
       type: object
       properties:
@@ -3835,6 +4186,22 @@ components:
           type: boolean
       required:
       - isActive
+    PatchableLocalDate: {}
+    UpdateCommissionRateRequest:
+      type: object
+      properties:
+        percentage:
+          $ref: "#/components/schemas/PatchableBigDecimal"
+        validTo:
+          $ref: "#/components/schemas/PatchableLocalDate"
+        roleId:
+          $ref: "#/components/schemas/PatchableObject"
+        productId:
+          $ref: "#/components/schemas/PatchableObject"
+        userId:
+          $ref: "#/components/schemas/PatchableObject"
+        validFrom:
+          $ref: "#/components/schemas/PatchableObject"
     PageResponse:
       type: object
       properties:
@@ -4132,6 +4499,115 @@ components:
           type: array
           items:
             $ref: "#/components/schemas/CountryResponse"
+    EffectiveCommissionResponse:
+      type: object
+      properties:
+        outcome:
+          type: string
+          enum:
+          - RESUELTA
+          - SIN_TARIFA
+          - NO_COMISIONA
+        percentage:
+          type: number
+        rateId:
+          type: string
+          format: uuid
+        scope:
+          type: string
+          enum:
+          - PERSONA_Y_PRODUCTO
+          - PERSONA
+          - PRODUCTO
+          - ROL
+        validFrom:
+          type: string
+          format: date
+        validTo:
+          type: string
+          format: date
+        roleId:
+          type: string
+          format: uuid
+        onDate:
+          type: string
+          format: date
+    ListCommissionRatesRequest:
+      type: object
+      properties:
+        page:
+          type: integer
+          format: int32
+        size:
+          type: integer
+          format: int32
+        roleId:
+          type: string
+          format: uuid
+        productId:
+          type: string
+          format: uuid
+        userId:
+          type: string
+          format: uuid
+        onDate:
+          type: string
+          format: date
+        includeDeleted:
+          type: boolean
+    CommissionRateItem:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        role:
+          $ref: "#/components/schemas/RoleRef"
+        product:
+          $ref: "#/components/schemas/ProductRef"
+        user:
+          $ref: "#/components/schemas/UserRef"
+        scope:
+          type: string
+          enum:
+          - PERSONA_Y_PRODUCTO
+          - PERSONA
+          - PRODUCTO
+          - ROL
+        percentage:
+          type: number
+        validFrom:
+          type: string
+          format: date
+        validTo:
+          type: string
+          format: date
+        deletedAt:
+          type: string
+          format: date-time
+    CommissionRatePageResponse:
+      type: object
+      properties:
+        content:
+          type: array
+          items:
+            $ref: "#/components/schemas/CommissionRateItem"
+        totalElements:
+          type: integer
+          format: int64
+        totalPages:
+          type: integer
+          format: int32
+        page:
+          type: integer
+          format: int32
+        size:
+          type: integer
+          format: int32
+        totalIsExact:
+          type: boolean
+        sort:
+          type: string
     JsonNode: {}
     PageResponseSecurityAuditItem:
       type: object

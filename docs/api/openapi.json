@@ -189,6 +189,109 @@
         },
         "type" : "object"
       },
+      "CommissionRateItem" : {
+        "properties" : {
+          "deletedAt" : {
+            "format" : "date-time",
+            "type" : "string"
+          },
+          "id" : {
+            "format" : "uuid",
+            "type" : "string"
+          },
+          "percentage" : {
+            "type" : "number"
+          },
+          "product" : {
+            "$ref" : "#/components/schemas/ProductRef"
+          },
+          "role" : {
+            "$ref" : "#/components/schemas/RoleRef"
+          },
+          "scope" : {
+            "enum" : [ "PERSONA_Y_PRODUCTO", "PERSONA", "PRODUCTO", "ROL" ],
+            "type" : "string"
+          },
+          "user" : {
+            "$ref" : "#/components/schemas/UserRef"
+          },
+          "validFrom" : {
+            "format" : "date",
+            "type" : "string"
+          },
+          "validTo" : {
+            "format" : "date",
+            "type" : "string"
+          }
+        },
+        "type" : "object"
+      },
+      "CommissionRatePageResponse" : {
+        "properties" : {
+          "content" : {
+            "items" : {
+              "$ref" : "#/components/schemas/CommissionRateItem"
+            },
+            "type" : "array"
+          },
+          "page" : {
+            "format" : "int32",
+            "type" : "integer"
+          },
+          "size" : {
+            "format" : "int32",
+            "type" : "integer"
+          },
+          "sort" : {
+            "type" : "string"
+          },
+          "totalElements" : {
+            "format" : "int64",
+            "type" : "integer"
+          },
+          "totalIsExact" : {
+            "type" : "boolean"
+          },
+          "totalPages" : {
+            "format" : "int32",
+            "type" : "integer"
+          }
+        },
+        "type" : "object"
+      },
+      "CommissionRateResponse" : {
+        "properties" : {
+          "id" : {
+            "format" : "uuid",
+            "type" : "string"
+          },
+          "percentage" : {
+            "type" : "number"
+          },
+          "product" : {
+            "$ref" : "#/components/schemas/ProductRef"
+          },
+          "role" : {
+            "$ref" : "#/components/schemas/RoleRef"
+          },
+          "scope" : {
+            "enum" : [ "PERSONA_Y_PRODUCTO", "PERSONA", "PRODUCTO", "ROL" ],
+            "type" : "string"
+          },
+          "user" : {
+            "$ref" : "#/components/schemas/UserRef"
+          },
+          "validFrom" : {
+            "format" : "date",
+            "type" : "string"
+          },
+          "validTo" : {
+            "format" : "date",
+            "type" : "string"
+          }
+        },
+        "type" : "object"
+      },
       "CountryCatalogResponse" : {
         "properties" : {
           "content" : {
@@ -310,6 +413,14 @@
         },
         "type" : "object"
       },
+      "DeleteCommissionRateRequest" : {
+        "properties" : {
+          "reason" : {
+            "type" : "string"
+          }
+        },
+        "type" : "object"
+      },
       "DeleteProductRequest" : {
         "properties" : {
           "reason" : {
@@ -375,6 +486,42 @@
             "$ref" : "#/components/schemas/JsonNode"
           },
           "userAgent" : {
+            "type" : "string"
+          }
+        },
+        "type" : "object"
+      },
+      "EffectiveCommissionResponse" : {
+        "properties" : {
+          "onDate" : {
+            "format" : "date",
+            "type" : "string"
+          },
+          "outcome" : {
+            "enum" : [ "RESUELTA", "SIN_TARIFA", "NO_COMISIONA" ],
+            "type" : "string"
+          },
+          "percentage" : {
+            "type" : "number"
+          },
+          "rateId" : {
+            "format" : "uuid",
+            "type" : "string"
+          },
+          "roleId" : {
+            "format" : "uuid",
+            "type" : "string"
+          },
+          "scope" : {
+            "enum" : [ "PERSONA_Y_PRODUCTO", "PERSONA", "PRODUCTO", "ROL" ],
+            "type" : "string"
+          },
+          "validFrom" : {
+            "format" : "date",
+            "type" : "string"
+          },
+          "validTo" : {
+            "format" : "date",
             "type" : "string"
           }
         },
@@ -467,6 +614,38 @@
         "type" : "object"
       },
       "JsonNode" : { },
+      "ListCommissionRatesRequest" : {
+        "properties" : {
+          "includeDeleted" : {
+            "type" : "boolean"
+          },
+          "onDate" : {
+            "format" : "date",
+            "type" : "string"
+          },
+          "page" : {
+            "format" : "int32",
+            "type" : "integer"
+          },
+          "productId" : {
+            "format" : "uuid",
+            "type" : "string"
+          },
+          "roleId" : {
+            "format" : "uuid",
+            "type" : "string"
+          },
+          "size" : {
+            "format" : "int32",
+            "type" : "integer"
+          },
+          "userId" : {
+            "format" : "uuid",
+            "type" : "string"
+          }
+        },
+        "type" : "object"
+      },
       "ListCountriesRequest" : {
         "properties" : {
           "includeInactive" : {
@@ -911,6 +1090,7 @@
       },
       "PatchableBigDecimal" : { },
       "PatchableInteger" : { },
+      "PatchableLocalDate" : { },
       "PatchableObject" : { },
       "PatchableString" : { },
       "PatchableUUID" : { },
@@ -1111,6 +1291,21 @@
         },
         "type" : "object"
       },
+      "ProductRef" : {
+        "properties" : {
+          "code" : {
+            "type" : "string"
+          },
+          "id" : {
+            "format" : "uuid",
+            "type" : "string"
+          },
+          "name" : {
+            "type" : "string"
+          }
+        },
+        "type" : "object"
+      },
       "ProductResponse" : {
         "properties" : {
           "code" : {
@@ -1166,6 +1361,37 @@
           }
         },
         "required" : [ "refreshToken" ],
+        "type" : "object"
+      },
+      "RegisterCommissionRateRequest" : {
+        "properties" : {
+          "percentage" : {
+            "maximum" : 100.0,
+            "minimum" : 0.0,
+            "type" : "number"
+          },
+          "productId" : {
+            "format" : "uuid",
+            "type" : "string"
+          },
+          "roleId" : {
+            "format" : "uuid",
+            "type" : "string"
+          },
+          "userId" : {
+            "format" : "uuid",
+            "type" : "string"
+          },
+          "validFrom" : {
+            "format" : "date",
+            "type" : "string"
+          },
+          "validTo" : {
+            "format" : "date",
+            "type" : "string"
+          }
+        },
+        "required" : [ "percentage", "roleId", "validFrom" ],
         "type" : "object"
       },
       "RegisterCountryRequest" : {
@@ -1548,6 +1774,29 @@
         },
         "type" : "object"
       },
+      "UpdateCommissionRateRequest" : {
+        "properties" : {
+          "percentage" : {
+            "$ref" : "#/components/schemas/PatchableBigDecimal"
+          },
+          "productId" : {
+            "$ref" : "#/components/schemas/PatchableObject"
+          },
+          "roleId" : {
+            "$ref" : "#/components/schemas/PatchableObject"
+          },
+          "userId" : {
+            "$ref" : "#/components/schemas/PatchableObject"
+          },
+          "validFrom" : {
+            "$ref" : "#/components/schemas/PatchableObject"
+          },
+          "validTo" : {
+            "$ref" : "#/components/schemas/PatchableLocalDate"
+          }
+        },
+        "type" : "object"
+      },
       "UpdateProductRequest" : {
         "properties" : {
           "code" : {
@@ -1675,6 +1924,21 @@
             "type" : "integer"
           },
           "name" : {
+            "type" : "string"
+          }
+        },
+        "type" : "object"
+      },
+      "UserRef" : {
+        "properties" : {
+          "fullName" : {
+            "type" : "string"
+          },
+          "id" : {
+            "format" : "uuid",
+            "type" : "string"
+          },
+          "username" : {
             "type" : "string"
           }
         },
@@ -2525,6 +2789,319 @@
         "security" : [ ],
         "summary" : "Renovar la sesión",
         "tags" : [ "Sesión" ]
+      }
+    },
+    "/api/v1/commission-rates" : {
+      "get" : {
+        "description" : "Devuelve las tarifas **tal como se declararon**, y no resuelve cuál se\naplica: para eso está `GET /api/v1/commissions/effective`.\n\n**Incluye el historial**: las vencidas viajan junto a las vigentes salvo\nque se filtre por fecha con `onDate`.\n\n**Filtrar por persona devuelve las declaradas PARA esa persona**, no las\nque le aplican.\n",
+        "operationId" : "listar_3",
+        "parameters" : [ {
+          "in" : "query",
+          "name" : "filtros",
+          "required" : true,
+          "schema" : {
+            "$ref" : "#/components/schemas/ListCommissionRatesRequest"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/CommissionRatePageResponse"
+                }
+              }
+            },
+            "description" : "Página de tarifas"
+          },
+          "400" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/CommissionRatePageResponse"
+                }
+              }
+            },
+            "description" : "Parámetros inválidos"
+          },
+          "403" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/CommissionRatePageResponse"
+                }
+              }
+            },
+            "description" : "Sin permiso"
+          }
+        },
+        "summary" : "Consultar las tarifas de comisión",
+        "tags" : [ "Comisiones" ]
+      },
+      "post" : {
+        "description" : "Declara cuánto gana un rol de tipo **vendedor** por vender.\n\n**La ausencia es la que da el alcance**: sin `userId` la tarifa rige para\ntodos los del rol, y sin `productId` para todo el catálogo. No hay ningún\ncampo que diga «para todos».\n\n**Toda tarifa rige durante un periodo**: `validFrom` es obligatorio y\n`validTo` opcional — sin él, rige indefinidamente.\n\n**El porcentaje cero es válido** y significa «esto no comisiona», que **no\nes lo mismo** que no declarar la tarifa.\n\nDos tarifas del mismo rol, producto y persona **no pueden solaparse** en el\ntiempo. Si una termina el 31, la siguiente empieza el 1.\n",
+        "operationId" : "registrar_4",
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/RegisterCommissionRateRequest"
+              }
+            }
+          },
+          "required" : true
+        },
+        "responses" : {
+          "201" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/CommissionRateResponse"
+                }
+              }
+            },
+            "description" : "Tarifa registrada"
+          },
+          "400" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/CommissionRateResponse"
+                }
+              }
+            },
+            "description" : "Datos inválidos, o el rol no es vendedor"
+          },
+          "403" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/CommissionRateResponse"
+                }
+              }
+            },
+            "description" : "Sin permiso"
+          },
+          "409" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/CommissionRateResponse"
+                }
+              }
+            },
+            "description" : "Se solapa con otra tarifa viva"
+          },
+          "422" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/CommissionRateResponse"
+                }
+              }
+            },
+            "description" : "El rol, el producto o la persona no resuelven"
+          }
+        },
+        "summary" : "Registrar una tarifa de comisión",
+        "tags" : [ "Comisiones" ]
+      }
+    },
+    "/api/v1/commission-rates/{id}" : {
+      "patch" : {
+        "description" : "Corrige el **porcentaje** y el **fin de vigencia**. Se aplica lo que llega\ny se deja intacto lo que no.\n\n**Corregir no es cambiar**: corregir arregla un error y reescribe lo que\nesa tarifa dice que rigió. Cambiar la comisión a partir de una fecha es\n**cerrar la vigente y registrar otra**, que son dos operaciones.\n\n`validTo: null` **vacía** el fin de vigencia y la tarifa vuelve a regir\nindefinidamente; `percentage: null` se **rechaza**.\n\n**El rol, el producto, la persona y el inicio de vigencia no se corrigen**,\ny enviarlos devuelve `400`. Se rechazan y no se ignoran: ignorarlos haría\ncreer que el cambio se aplicó.\n",
+        "operationId" : "corregir_1",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "id",
+          "required" : true,
+          "schema" : {
+            "format" : "uuid",
+            "type" : "string"
+          }
+        } ],
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/UpdateCommissionRateRequest"
+              }
+            }
+          },
+          "required" : true
+        },
+        "responses" : {
+          "200" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/CommissionRateResponse"
+                }
+              }
+            },
+            "description" : "Tarifa corregida"
+          },
+          "400" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/CommissionRateResponse"
+                }
+              }
+            },
+            "description" : "Datos inválidos o campos no corregibles"
+          },
+          "403" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/CommissionRateResponse"
+                }
+              }
+            },
+            "description" : "Sin permiso"
+          },
+          "404" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/CommissionRateResponse"
+                }
+              }
+            },
+            "description" : "No existe, o está retirada"
+          },
+          "409" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/CommissionRateResponse"
+                }
+              }
+            },
+            "description" : "La vigencia resultante se solapa"
+          }
+        },
+        "summary" : "Corregir una tarifa de comisión",
+        "tags" : [ "Comisiones" ]
+      }
+    },
+    "/api/v1/commission-rates/{id}/deletion" : {
+      "post" : {
+        "description" : "Retira una tarifa que **no debió existir**, con **motivo obligatorio**.\n\n**Retirar no es cerrar la vigencia**: se cierra lo que dejó de regir, se\nretira lo que fue un error. Por eso el retiro **no toca la vigencia** — el\nregistro de eliminación debe poder decir qué periodo cubría lo retirado.\n\n**No es idempotente**: retirar dos veces devuelve `409`.\n\nLos días que ocupaba **quedan libres**, de modo que puede declararse otra\ntarifa que los cubra.\n",
+        "operationId" : "retirar_1",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "id",
+          "required" : true,
+          "schema" : {
+            "format" : "uuid",
+            "type" : "string"
+          }
+        } ],
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/DeleteCommissionRateRequest"
+              }
+            }
+          }
+        },
+        "responses" : {
+          "204" : {
+            "description" : "Tarifa retirada"
+          },
+          "400" : {
+            "description" : "Motivo ausente, en blanco o demasiado largo"
+          },
+          "403" : {
+            "description" : "Sin permiso"
+          },
+          "404" : {
+            "description" : "La tarifa no existe"
+          },
+          "409" : {
+            "description" : "Ya estaba retirada"
+          }
+        },
+        "summary" : "Retirar una tarifa de comisión",
+        "tags" : [ "Comisiones" ]
+      }
+    },
+    "/api/v1/commissions/effective" : {
+      "get" : {
+        "description" : "Responde **cuánto le corresponde a una persona por vender un producto un\ndía concreto**, y **por qué**: devuelve la tarifa que ganó y en qué grado\nestaba declarada.\n\n**Tres desenlaces, y ninguno es un error:**\n\n- `RESUELTA`: hay tarifa. El porcentaje puede ser **cero**, y eso significa\n  «no comisiona» — es una decisión declarada.\n- `SIN_TARIFA`: la persona vende y **nadie declaró** tarifa aplicable. El\n  porcentaje llega **nulo y presente**, nunca cero.\n- `NO_COMISIONA`: la persona **no porta ningún rol vendedor**.\n\n**Nulo y cero no son lo mismo**, y quien consuma esto va a pagar con esa\ncifra.\n\nSin `onDate`, se resuelve con la fecha de hoy. Un producto **retirado** se\nresuelve con normalidad: preguntar qué se pagaba por algo que ya no se\nvende es legítimo.\n",
+        "operationId" : "efectiva",
+        "parameters" : [ {
+          "in" : "query",
+          "name" : "userId",
+          "required" : true,
+          "schema" : {
+            "format" : "uuid",
+            "type" : "string"
+          }
+        }, {
+          "in" : "query",
+          "name" : "productId",
+          "required" : true,
+          "schema" : {
+            "format" : "uuid",
+            "type" : "string"
+          }
+        }, {
+          "in" : "query",
+          "name" : "onDate",
+          "required" : false,
+          "schema" : {
+            "format" : "date",
+            "type" : "string"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/EffectiveCommissionResponse"
+                }
+              }
+            },
+            "description" : "Cualquiera de los tres desenlaces"
+          },
+          "400" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/EffectiveCommissionResponse"
+                }
+              }
+            },
+            "description" : "Parámetros inválidos"
+          },
+          "403" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/EffectiveCommissionResponse"
+                }
+              }
+            },
+            "description" : "Sin permiso"
+          },
+          "422" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/EffectiveCommissionResponse"
+                }
+              }
+            },
+            "description" : "La persona o el producto no existen"
+          }
+        },
+        "summary" : "Consultar la comisión efectiva",
+        "tags" : [ "Comisiones" ]
       }
     },
     "/api/v1/countries" : {
@@ -4893,6 +5470,9 @@
   }, {
     "description" : "Catálogo de venta: upgrades de membresía y servicios.",
     "name" : "Productos"
+  }, {
+    "description" : "Tarifas de comisión: cuánto gana un rol vendedor, por producto y por persona.",
+    "name" : "Comisiones"
   }, {
     "description" : "Cadena lineal de niveles de consumidor. Inmutable salvo el reordenamiento.",
     "name" : "Membresías"

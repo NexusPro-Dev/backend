@@ -138,7 +138,7 @@ Al **27-08-2026**. Cada cifra se cuenta sobre el documento que es su autoridad y
 | Módulos implementados | 0 | [`modules.md` §4](modules.md#4-inventario-de-modulos) |
 | Requerimientos registrados | 54 | [`requirements.md` §4](requirements.md#4-matriz-de-trazabilidad) |
 | Requerimientos con **tripleta aprobada** | 49 | [`requirements.md` §5](requirements.md#5-estado-general) |
-| Requerimientos con **endpoint funcionando** | 48 | [`requirements.md` §5](requirements.md#5-estado-general) |
+| Requerimientos con **endpoint funcionando** | 53 | [`requirements.md` §5](requirements.md#5-estado-general) |
 | Requerimientos **implementados** | 0 | [`requirements.md` §4](requirements.md#4-matriz-de-trazabilidad) |
 
 #### Por módulo
@@ -147,8 +147,8 @@ Al **27-08-2026**. Cada cifra se cuenta sobre el documento que es su autoridad y
 |---|---|---|---|---|---|
 | [`SP` — Sistema Principal](requirements/sp.md) | En desarrollo | 42 | 42 | 42 | 0 |
 | [`PM` — Productos y Mercadeo](requirements/pm.md) | En desarrollo | 7 | 7 | 6 | 0 |
-| [`CM` — Comisiones](requirements/cm.md) | En diseño | 5 | 0 | 0 | 0 |
-| **Total** | — | **54** | **49** | **48** | **0** |
+| [`CM` — Comisiones](requirements/cm.md) | En desarrollo | 5 | 0 | 5 | 0 |
+| **Total** | — | **54** | **49** | **53** | **0** |
 
 El inventario de módulos está **incompleto a propósito** y así está declarado: figuran `SP`, que el Documento Marco nombra, y `PM`, incorporado el 26-08-2026; el resto del alcance del producto sigue por inventariar ([`modules.md` §6](modules.md#6-alcance-por-inventariar)). Esta tabla crece con él, no lo sustituye.
 
