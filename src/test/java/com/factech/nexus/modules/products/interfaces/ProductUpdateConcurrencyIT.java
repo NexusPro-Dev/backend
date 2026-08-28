@@ -51,7 +51,7 @@ class ProductUpdateConcurrencyIT extends IntegrationTestBase {
   @BeforeEach
   void sembrar() {
     jdbc.update("DELETE FROM products");
-    producto = servicio("SOPORTE", "Soporte prioritario");
+    producto = bot("SOPORTE", "Soporte prioritario");
   }
 
   @AfterEach
@@ -92,7 +92,7 @@ class ProductUpdateConcurrencyIT extends IntegrationTestBase {
   @Test
   @DisplayName("dos correcciones simultáneas a NOMBRES distintos no dejan dos productos iguales")
   void dosCorreccionesHaciaElMismoNombre() {
-    UUID otro = servicio("ASESORIA", "Asesoría");
+    UUID otro = bot("ASESORIA", "Asesoría");
 
     // Los dos productos intentan llamarse igual a la vez. La unicidad del
     // nombre es del índice parcial, no de la comprobación previa.
@@ -132,12 +132,12 @@ class ProductUpdateConcurrencyIT extends IntegrationTestBase {
     return filas == null ? 0 : filas;
   }
 
-  private UUID servicio(String codigo, String nombre) {
+  private UUID bot(String codigo, String nombre) {
     UUID id = UUID.randomUUID();
     jdbc.update(
         "INSERT INTO products (id, code, type, name, description, target_membership_id, price,"
             + " currency_id, validity_days, status, created_at, updated_at)"
-            + " VALUES (CAST(? AS uuid), ?, 'SERVICIO', ?, 'Atención prioritaria.', NULL, 49.99,"
+            + " VALUES (CAST(? AS uuid), ?, 'BOT', ?, 'Atención prioritaria.', NULL, 49.99,"
             + " CAST(? AS uuid), NULL, 'INACTIVO', ?, ?)",
         id.toString(),
         codigo,

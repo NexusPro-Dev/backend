@@ -114,6 +114,7 @@ public class UpdateProductService {
         producto.update(
             peticion.name(),
             peticion.description(),
+            peticion.icon(),
             peticion.price(),
             peticion.currencyId(),
             peticion.validityDays(),

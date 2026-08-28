@@ -58,6 +58,7 @@ public interface ProductQueryRepository {
       String type,
       String name,
       String description,
+      String icon,
       UUID targetMembershipId,
       String targetMembershipCode,
       String targetMembershipName,

@@ -463,6 +463,123 @@ class AuditQueryIT extends IntegrationTestBase {
   // Utilidades
   // ---------------------------------------------------------------------------
 
+  // ---------------------------------------------------------------------------
+  // El actor resuelto (28-08-2026)
+  // ---------------------------------------------------------------------------
+
+  @Test
+  @DisplayName("`CA-SP-471` — el actor llega resuelto, y el identificador sigue estando")
+  void elActorLlegaResuelto() throws Exception {
+    crearRolPorApi("PRIMERO", "Rol primero");
+
+    mvc.perform(cambios())
+        .andExpect(status().isOk())
+        // El identificador NO se va: la adición es aditiva y quien ya lo
+        // consumía no se entera del cambio.
+        .andExpect(jsonPath("$.content[0].actorId").value(SUPERADMIN.toString()))
+        .andExpect(jsonPath("$.content[0].actor.username").value("superadmin"))
+        .andExpect(jsonPath("$.content[0].actor.fullName").value("Super Administrador"));
+  }
+
+  @Test
+  @DisplayName("lo que hizo el SISTEMA trae actorId nulo y actor nulo, y eso lo distingue")
+  void elEventoDelSistemaNoTieneActor() throws Exception {
+    sembrarCambio(null);
+
+    mvc.perform(cambios())
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.content[0].actorId").value(org.hamcrest.Matchers.nullValue()))
+        // Presente y nulo, no ausente: el campo se declara siempre.
+        .andExpect(jsonPath("$.content[0].actor").value(org.hamcrest.Matchers.nullValue()));
+  }
+
+  @Test
+  @DisplayName("un actor ELIMINADO sigue resolviendo: la auditoría no pierde el quién")
+  void elActorEliminadoSigueResolviendo() throws Exception {
+    UUID id = sembrarPersona("retirada", "Persona", "Retirada", true);
+    sembrarCambio(id);
+
+    mvc.perform(cambios())
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.content[0].actor.username").value("retirada"))
+        .andExpect(jsonPath("$.content[0].actor.fullName").value("Persona Retirada"));
+  }
+
+  @Test
+  @DisplayName("un actor que ya NO está en la tabla deja el identificador y el actor nulo")
+  void elActorInexistenteDejaElIdentificador() throws Exception {
+    UUID fantasma = UUID.randomUUID();
+    sembrarCambio(fantasma);
+
+    // Las dos ausencias se distinguen sin un campo que lo diga: aquí hay
+    // identificador y no hay actor; en el evento del sistema no hay ninguno.
+    mvc.perform(cambios())
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.content[0].actorId").value(fantasma.toString()))
+        .andExpect(jsonPath("$.content[0].actor").value(org.hamcrest.Matchers.nullValue()));
+  }
+
+  @Test
+  @DisplayName(
+      "`CA-SP-472` — en seguridad se resuelven los DOS: quién lo hizo y sobre quién recayó")
+  void seguridadResuelveActorYObjetivo() throws Exception {
+    UUID afectada = sembrarPersona("bloqueada", "Persona", "Bloqueada", false);
+    jdbc.update(
+        "INSERT INTO audit_security_log (id, occurred_at, actor_id, event_type, severity,"
+            + " outcome, target_user_id) VALUES (CAST(? AS uuid), now(), CAST(? AS uuid),"
+            + " 'ACCOUNT_LOCKED', 'ALTA', 'SUCCESS', CAST(? AS uuid))",
+        UUID.randomUUID().toString(),
+        SUPERADMIN.toString(),
+        afectada.toString());
+
+    mvc.perform(seguridad())
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.content[0].actor.username").value("superadmin"))
+        .andExpect(jsonPath("$.content[0].targetUserId").value(afectada.toString()))
+        .andExpect(jsonPath("$.content[0].targetUser.username").value("bloqueada"))
+        .andExpect(jsonPath("$.content[0].targetUser.fullName").value("Persona Bloqueada"));
+  }
+
+  @Test
+  @DisplayName("el filtro por actor sigue funcionando con el JOIN puesto")
+  void elFiltroPorActorSobreviveAlJoin() throws Exception {
+    crearRolPorApi("PRIMERO", "Rol primero");
+    UUID otro = UUID.randomUUID();
+    sembrarCambio(otro);
+
+    mvc.perform(cambios().param("actorId", otro.toString()))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.content.length()").value(1))
+        .andExpect(jsonPath("$.content[0].actorId").value(otro.toString()));
+  }
+
+  /** Una fila de cambio con el actor que se le indique. {@code null} es el sistema. */
+  private void sembrarCambio(UUID actor) {
+    jdbc.update(
+        "INSERT INTO audit_change_log (id, occurred_at, actor_id, module, entity, entity_id,"
+            + " action, changes) VALUES (CAST(? AS uuid), now(), CAST(? AS uuid), 'SP', 'prueba',"
+            + " CAST(? AS uuid), 'CREATE', CAST('{}' AS jsonb))",
+        UUID.randomUUID().toString(),
+        actor == null ? null : actor.toString(),
+        UUID.randomUUID().toString());
+  }
+
+  /** Una persona sembrada a mano, opcionalmente ya retirada. */
+  private UUID sembrarPersona(String usuario, String nombre, String apellido, boolean retirada) {
+    UUID id = UUID.randomUUID();
+    jdbc.update(
+        "INSERT INTO users (id, username, email, first_name, last_name, password_hash, status,"
+            + " deleted_at) VALUES (CAST(? AS uuid), ?, ?, ?, ?, 'x', 'ACTIVO', "
+            + (retirada ? "now()" : "NULL")
+            + ")",
+        id.toString(),
+        usuario,
+        usuario + "@factech.co",
+        nombre,
+        apellido);
+    return id;
+  }
+
   private MockHttpServletRequestBuilder cambios() {
     return get("/api/v1/audit/changes")
         .with(user(SUPERADMIN.toString()).authorities(() -> "audit:read-changes"));
@@ -547,6 +664,10 @@ class AuditQueryIT extends IntegrationTestBase {
    * clases es ruido para las cuentas de esta.
    */
   private void limpiar() {
+    // Las filas sembradas por las pruebas del actor: la de un evento del sistema
+    // lleva `actor_id` nulo y no la barre el DELETE de la línea siguiente.
+    jdbc.update("DELETE FROM audit_change_log WHERE entity = 'prueba'");
+    jdbc.update("DELETE FROM users WHERE username IN ('retirada', 'bloqueada')");
     jdbc.update("DELETE FROM audit_change_log WHERE actor_id IS NOT NULL OR entity = 'migracion'");
     jdbc.update("DELETE FROM audit_deletion_log WHERE actor_id IS NOT NULL");
     jdbc.update("DELETE FROM audit_error_log");
