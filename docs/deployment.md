@@ -5,7 +5,7 @@
 | Proyecto | NEXUS — Renovación de plataforma |
 | Empresa | FACTECH GROUP SAS |
 | Documento | `deployment.md` |
-| Versión | 0.4.0 |
+| Versión | 0.5.0 |
 | Estado | Borrador |
 | Responsable técnico | Bonilla Diaz William Steven |
 | Fecha de creación | 27-08-2026 |
@@ -222,7 +222,7 @@ Se cargan en el servicio **`backend`**. La columna «Valor en Railway» es liter
 | `SUPERADMIN_PASSWORD_HASH` | El resumen de §4.2, con los `$` **sin duplicar** | Ídem |
 | `CORS_ALLOWED_ORIGINS` | El dominio del frontend, o **vacío** | Ver §9. El comodín `*` tumba el arranque |
 | `EXPOSE_API_DOCS` | **`false`** en los dos entornos | Ver el aviso de abajo |
-| `TRUSTED_PROXIES` | **Vacío** | Ver §11.2. Hoy no hay un valor correcto que poner |
+| `TRUSTED_PROXIES` | **Vacío** | Ver §11.2. El resolvedor ya admite rangos; falta **decidir cuál** declarar (D-21) |
 | `RATE_LIMIT_ENABLED` | `true`, o no declararla | Su valor por defecto ya es `true`. **Solo la suite la apaga** |
 
 !!! warning "`EXPOSE_API_DOCS` va en `false`, y el contrato publicado no es razón para cambiarlo"
@@ -394,13 +394,15 @@ curl -s -o /dev/null -w '%{http_code}\n' $BASE/api/v1/roles
 
 ### 11.2 Lo que la verificación NO puede comprobar hoy
 
-**La IP que queda en la auditoría es la del borde de Railway, no la de quien llamó.**
+**La IP que queda en la auditoría es la del borde de Railway, no la de quien llamó — mientras `TRUSTED_PROXIES` siga vacía.**
 
-`ClientIpResolver` solo confía en `X-Forwarded-For` si la IP del par inmediato figura en `TRUSTED_PROXIES`, y esa lista es de **coincidencia exacta**: no admite rangos ni CIDR. La IP con la que el borde de Railway habla con el contenedor no es un valor fijo ni publicado, de modo que **hoy no existe un valor correcto que poner en esa variable**.
+`ClientIpResolver` solo confía en `X-Forwarded-For` si la IP del par inmediato figura en `TRUSTED_PROXIES`. Desde el 27-08-2026 esa lista **admite rangos CIDR** además de direcciones sueltas, que es lo que faltaba: la dirección con la que el borde de Railway habla con el contenedor no es fija ni publicada, pero **la red de la que sale sí se puede declarar**.
 
-La consecuencia está acotada y hay que conocerla: los cinco registros que viven en PostgreSQL apuntan a la dirección del proxy —un dato incompleto pero **cierto**— en lugar de a una que el atacante elige escribiendo una cabecera. Es exactamente el comportamiento que ese componente busca cuando no hay lista, y por eso `TRUSTED_PROXIES` va **vacía** (§6.3).
+Lo que queda es **elegir ese rango**, y no es un trámite. Confiar en un bloque es confiar en todo lo que salga de él: quien pueda emitir peticiones desde dentro escribe en la auditoría la IP que quiera. La declaración debe ser la más estrecha que la plataforma permita, y hasta que se decida cuál es, la variable va **vacía** (§6.3).
 
-Lo que no está resuelto es el Art. V.15 en su totalidad: **desde dónde se hizo cada operación no se responde en Railway hoy**. Eso reabre **D-21** con una forma nueva —no es «qué IPs poner» sino «el resolvedor necesita admitir rangos»— y queda registrado en §13 y en `security.md` §12.
+Con ella vacía la consecuencia está acotada y hay que conocerla: los cinco registros que viven en PostgreSQL apuntan a la dirección del proxy —un dato incompleto pero **cierto**— en lugar de a una que el atacante elige escribiendo una cabecera. Es exactamente el comportamiento que ese componente busca cuando no hay lista.
+
+De modo que el Art. V.15 sigue sin responderse en Railway **hoy**, pero ya no por falta de mecanismo: **D-21 vuelve a ser una decisión de configuración**, registrada en §13 y en `security.md` §12.
 
 ---
 
@@ -431,7 +433,7 @@ Ninguno de estos puntos impide desplegar. Todos están declarados para que no se
 | # | Pendiente | Consecuencia hoy | Dónde se corrige |
 |---|---|---|---|
 | 1 | **Una sola réplica** | No hay escalado horizontal ni tolerancia a la caída del único proceso | Canal compartido detrás de `AccessRevocationPublisher` (§2.1) |
-| 2 | **La IP de auditoría es la del proxy** | El Art. V.15 no se cumple en Railway | `ClientIpResolver` debe admitir rangos. **D-21** |
+| 2 | **La IP de auditoría es la del proxy** | El Art. V.15 no se cumple en Railway **mientras `TRUSTED_PROXIES` siga vacía** | El resolvedor ya admite rangos (27-08-2026). Falta **decidir qué rango** declarar: **D-21** |
 | 3 | **Nadie raspa las métricas** | `/actuator/metrics` exige un JWT y un raspador no lo porta. Se consultan a mano | Permiso propio o red de administración |
 | 4 | **Nadie alerta** | En particular, sigue sin vigilarse la **ausencia de eventos de auditoría**, que `RF-SP-001` §10 declara que debería. Una métrica que nadie mira es una métrica que no existe | — |
 | 5 | **`request_log` crece sin techo** | La tabla existe desde `V35` y **ningún proceso la purga**, aunque la variable exista | **D-10** |
@@ -443,6 +445,7 @@ Ninguno de estos puntos impide desplegar. Todos están declarados para que no se
 
 | Versión | Fecha | Cambio | Responsable |
 |---|---|---|---|
+| 0.5.0 | 27-08-2026 | §11.2 y §13 se corrigen: `ClientIpResolver` **ya admite rangos CIDR**, de modo que el obstáculo deja de ser el mecanismo y pasa a ser el valor. Lo que falta de **D-21** es elegir qué rango declarar, con el precio dicho: confiar en un bloque es confiar en todo lo que salga de él. Mientras la variable siga vacía el comportamiento no cambia — la auditoría apunta al proxy, que es un dato incompleto pero cierto. | Responsable técnico |
 | 0.1.0 | 27-08-2026 | Creación inicial. Recoge el procedimiento de despliegue sobre Railway que [`ADR-002`](architecture/ADR-002-plataforma-de-despliegue-railway.md) decide al cerrar **D-09**: topología de dos servicios, mapa completo de variables con su valor literal, los tres detalles de plataforma que rompen el arranque —el puerto, la red privada IPv6 y el relevo con dos instancias vivas—, la verificación posterior y la operación. Declara **una sola réplica** como restricción de diseño y no de coste, con los tres componentes en memoria que la imponen; declara que **`TRUSTED_PROXIES` no tiene hoy valor correcto** en Railway, lo que reabre **D-21** con otra forma; y separa lo desplegado de lo pendiente en §13. | Responsable técnico |
 | 0.2.0 | 27-08-2026 | **Dos de los pendientes de §13 dejan de serlo, y con código y no con prosa.** El **puerto** deja de fijarse a mano: `application.yml` declara `server.port: ${PORT:8080}`, de modo que en un entorno desplegado manda la plataforma y en local siguen valiendo los 8080 del `Dockerfile`. El literal anterior obligaba a declarar `PORT=8080` en Railway para que los dos lados coincidieran, y el día que dejaran de hacerlo el síntoma era **una sonda en rojo sobre un arranque impecable en los logs** — el puerto es lo último que uno mira. Y el **apagado ordenado** pasa a existir: `server.shutdown: graceful` con treinta segundos, que es lo que hace tolerable el relevo de §7.3 —hay dos procesos vivos y al viejo se le manda parar con peticiones en curso; sin esto las corta en seco, y una conexión caída es indistinguible de un sistema roto para quien estaba escribiendo—. El plazo sobra para cualquier operación de este sistema —los umbrales del Art. XV.9 son de menos de un segundo— y queda por debajo del que usa la plataforma para matar el proceso a la fuerza. §6.2 pasa a decir que `PORT` **no se declara**, §7.1 y §7.3 se reescriben, y la tabla de §13 baja de ocho filas a seis. | Responsable técnico |
 | 0.3.0 | 27-08-2026 | Este documento gana un **complemento y una frontera**: nace [`manual-de-despliegue.md`](manual-de-despliegue.md), que es **qué se teclea y en qué orden**, y esta pasa a ser la **referencia** —qué es cada cosa y por qué—. La separación no es de gusto: quien despliega por primera vez tenía que saltar entre §4, §5, §6, §7, §8 y §11 para reunir una secuencia que ninguna sección contenía entera, y quien viene a entender una decisión tropezaba con instrucciones. §1 declara cuál manda cuando se contradigan: **este**. | Responsable técnico |

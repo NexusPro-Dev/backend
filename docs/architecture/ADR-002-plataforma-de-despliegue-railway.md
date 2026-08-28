@@ -99,6 +99,6 @@ La salida prevista en los cuatro casos es la de §Alternativas: **AWS con ECS/Fa
 |---|---|---|
 | ~~1~~ | ~~**`application.yml` debe leer `PORT`**~~ · **Hecho el 27-08-2026.** `server.port: ${PORT:8080}`: en un entorno desplegado manda la plataforma y en local siguen valiendo los 8080 del `Dockerfile` | `deployment.md` §7.1 |
 | 2 | **Canal compartido detrás de `AccessRevocationPublisher`**, condición previa a cualquier segunda instancia | `security.md` §4.5 |
-| 3 | **`ClientIpResolver` debe admitir rangos**, sin lo cual **D-21** no puede cerrarse en esta plataforma | `security.md` §12 |
+| 3 | ~~**`ClientIpResolver` debe admitir rangos**~~ · **Hecho el 27-08-2026.** Admite direcciones y bloques CIDR, en las dos familias. Lo que queda de **D-21** ya no es mecanismo sino valor: qué rango declarar por entorno | `security.md` §12 |
 | ~~4~~ | ~~**Apagado ordenado**~~ · **Hecho el 27-08-2026.** `server.shutdown: graceful` con treinta segundos de plazo. El relevo deja de cortar peticiones en curso, que para quien estaba escribiendo era una conexión caída y no un error | `deployment.md` §7.3 |
 | 5 | **Raspado de métricas y alertas.** D-09 se cierra sin resolverlo: la plataforma no aporta permiso ni red de administración, y sigue haciendo falta uno de los dos | `architecture.md` §9.1 |
