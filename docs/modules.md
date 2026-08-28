@@ -5,11 +5,11 @@
 | Proyecto | NEXUS — Renovación de plataforma |
 | Empresa | FACTECH GROUP SAS |
 | Documento | `modules.md` |
-| Versión | 0.14.0 |
+| Versión | 0.15.0 |
 | Estado | Borrador |
 | Responsable técnico | Bonilla Diaz William Steven |
 | Fecha de creación | 20-08-2026 |
-| Última actualización | 26-08-2026 |
+| Última actualización | 28-08-2026 |
 | Documento superior | `constitution.md` v0.7.0 |
 | Documentos relacionados | `architecture.md` v0.17.0, `requirements.md` v0.51.0 |
 
@@ -99,6 +99,7 @@ Las dependencias apuntan **del consumidor al proveedor** y deben ser acíclicas 
 |---|---|---|---|---|---|
 | `SP` | Sistema Principal | `modules/system` | `roles:`, `permissions:`, `audit:`, `memberships:`, `currencies:`, `countries:`, `users:` | — | En desarrollo |
 | `PM` | Productos y Mercadeo | `modules/products` | `products:` | `SP` | En desarrollo |
+| `CM` | Comisiones | `modules/commissions` | `commissions:` | `SP`, `PM` | En diseño |
 
 
 **Estados:** `Propuesto` · `En diseño` · `En desarrollo` · `Implementado` · `Obsoleto`.
@@ -196,7 +197,48 @@ Mismo desajuste que §4.1 resolvió para `SP`, y por el mismo motivo: **el códi
 
 ---
 
-### 5.3 Plantilla para un módulo nuevo
+### 5.3 `CM` — Comisiones
+
+**Propósito.** Es dueño de **cuánto se le paga a quien vende**: qué porcentaje gana cada rol de tipo vendedor por cada producto, y qué excepciones tiene una persona concreta.
+
+**Alcance.** El **catálogo de tarifas de comisión** y su gobierno: alta, consulta, corrección y retiro. Una tarifa asocia un **rol de tipo `VENDEDOR`** con un **porcentaje** y una **vigencia**, opcionalmente acotada a un **producto** y opcionalmente acotada a una **persona**. Publica además la **resolución**: dada una persona, un producto y una fecha, qué porcentaje le corresponde.
+
+**No incluye.** **El cálculo y la liquidación**, que son la otra mitad del área de §6 y **no se pueden construir todavía**: no existe ninguna tabla de ventas a la que aplicar un porcentaje. Tampoco el **pago** de lo liquidado, que es de Finanzas, ni los **FTDs**. Este módulo nace deliberadamente con la mitad configurable del área, por el mismo camino que `PM`: el catálogo existió antes que la compra.
+
+| Submódulo | Responsabilidad | Entidades principales |
+|---|---|---|
+| Tarifas | Alta, consulta, corrección y retiro de las tarifas de comisión | `commission_rates` |
+| Resolución | Qué porcentaje le corresponde a una persona por un producto **en una fecha** | `commission_rates`, y el rol vigente que `SP` publique |
+
+**Dependencias.** `SP` y `PM`, y es el **primer módulo que depende de dos**. De `SP` necesita el **rol** —para exigir que sea de tipo `VENDEDOR`— y la **persona** de una tarifa especial; de `PM`, el **producto** al que la tarifa se acota. La dependencia sigue siendo acíclica: `CM` → `PM` → `SP`, y ninguno de los dos consume a `CM`.
+
+!!! success "Cómo los consume — la norma de D-25"
+
+    Sin excepción ni caso nuevo: **cada módulo dueño del dato publica interfaces de aplicación de solo lectura, y `CM` las importa** ([`architecture.md` §15.2](architecture.md#152-como-consume-un-modulo-los-datos-de-otro-cierre-de-d-25)). `PM` tendrá que publicar la suya —hoy no la tiene, porque nadie lo consumía todavía—, y esa ampliación pertenece a los requerimientos de `CM` que la necesiten, no a un requerimiento nuevo de `PM`: es el mismo reparto que se decidió al cerrar D-25.
+
+    Las claves foráneas a `roles`, `users` y `products` **sí** se declaran, por lo mismo que `PM` las declara hacia `SP`: la frontera que §7 defiende es la del **código**, y una clave foránea es integridad declarada en el motor (Art. V.6).
+
+**Diseño detallado.** [`requirements/cm.md`](requirements/cm.md).
+
+!!! info "Por qué `CM` es un módulo y no un submódulo de `PM`"
+
+    Cumple las dos condiciones de §2.1. **Es dueño de una tabla propia**, `commission_rates`, que `PM` no necesita para nada: el catálogo se publica igual exista o no una tarifa. Y **otros van a consumirlo**: la liquidación, cuando exista, y Finanzas para pagar lo liquidado.
+
+    **Se consideró y se descartó que fuera un submódulo de `PM`**, que es como se pidió. La razón para no hacerlo es de §2.1 y no de gusto: la comisión no opera sobre `products`, opera sobre `roles` y `users`, que son de `SP`. Un submódulo de `PM` cuyas dos claves foráneas principales apuntan a `SP` no está en su módulo. Pesó además que **el identificador es irreversible** (§2.1): `RF-PM-008` se habría quedado en `PM` para siempre el día que Comisiones creciera hacia el cálculo y la liquidación, que es lo que §6 ya anticipa.
+
+!!! warning "El código se fija sabiendo lo que §6 advierte"
+
+    Esta misma sección advierte que los códigos de los módulos candidatos **no deberían fijarse hasta conocer el alcance completo** del producto. Se procede igualmente **por decisión del responsable del proyecto**, como ya se hizo con `PM` el 26-08-2026, y queda escrito que se procedió sabiéndolo. El riesgo concreto que se asume: si el área acaba llamándose de otro modo —«Ventas», «Compensación»— el código `CM` no se cambia jamás.
+
+#### 5.3.1 Lo que este módulo le impone a `SP`
+
+**Una persona no puede tener dos roles de tipo `VENDEDOR`**, por decisión del responsable del proyecto. No es una regla de `CM` aunque nazca por él: gobierna la **asignación de roles**, que es `RF-SP-030`, y por eso se registra como `RN-SP-025` en [`requirements/sp.md`](requirements/sp.md) y no aquí.
+
+Nace por una pregunta que este módulo no puede responder solo: si alguien tuviera dos roles vendedores con tarifas distintas y ninguna tarifa propia, **no habría forma no arbitraria de elegir**. Las tres salidas eran adivinar —el porcentaje mayor—, exigir tarifa propia, o impedir el caso. Se eligió impedirlo, que es la única que no deja la ambigüedad viva en el sistema.
+
+**No se puede declarar en el esquema.** Un `CHECK` no consulta otra tabla y un índice único no puede unir `user_roles` con `roles` para mirar `role_type`. La regla vive en el caso de uso de `RF-SP-030`, y necesita el mismo bloqueo pesimista que `RN-SP-018` —cuya versión sin bloqueo no se sostuvo bajo concurrencia y se corrigió el 26-08-2026—, porque dos asignaciones simultáneas la burlarían igual.
+
+### 5.4 Plantilla para un módulo nuevo
 
 ```markdown
 ### `COD` — Nombre del módulo
@@ -227,7 +269,7 @@ La Épica 2 del documento de historias de usuario (HU08–HU14) define siete rol
 | Candidato | Deducido de | Alcance aparente |
 |---|---|---|
 | Red comercial | HU10, HU11, HU12 | Estructura manager → director → agente y su relación entre personas. **Su primera pieza ya está construida dentro de `SP`** — ver la nota que sigue a esta tabla |
-| Comisiones | HU08, HU10, HU12 | FTDs, cálculo y liquidación de comisiones |
+| ~~Comisiones~~ | HU08, HU10, HU12 | **Incorporado el 28-08-2026 como `CM`** (§5.3), con las **tarifas**: qué porcentaje gana cada rol vendedor por cada producto, y las excepciones por persona. El **cálculo, la liquidación y los FTDs** siguen fuera, y no por reparto sino porque **no hay sobre qué calcular**: ninguna tabla de ventas existe todavía |
 | Finanzas | HU09 | Retiros, pagos, balances y egresos |
 | ~~Productos y servicios~~ | HU08, HU13 | **Incorporado el 26-08-2026 como `PM`** (§5.2), con el **catálogo**. Las **compras** siguen fuera: pertenecen a Finanzas junto con el cobro |
 | Academia | HU08, HU13, HU14 | Cursos y sesiones en vivo |
@@ -313,3 +355,4 @@ El orden importa: el módulo precede al requerimiento, el requerimiento precede 
 | 0.12.0 | 26-08-2026 | **Se incorpora el módulo `PM` — Productos y Mercadeo**, el segundo del sistema y el primero que depende de otro. Es dueño de `products` y cumple las dos condiciones de §2.1: tabla propia que `SP` no necesita, y consumidores previsibles —Finanzas para cobrar, Comisiones para saber sobre qué importe se comisiona, Academia para saber qué nivel da acceso a qué—. Trae **dos tipos de producto que no se mezclan**: el **upgrade de membresía**, que da derecho a pasar al nivel que declara, y el **servicio del sistema**. §5.2.1 fija el desajuste entre código y paquete —`PM` → `modules/products`— por el mismo criterio que §4.1 aplicó a `SP`: el código nombra el área de negocio y es irreversible, el paquete nombra su contenido y es renombrable. **Lo que el módulo NO hace queda escrito**: no cobra, no entrega y **no aplica el upgrade sobre la persona**, porque `user_memberships` es de `SP` y §7 prohíbe que otro módulo la escriba. De ahí sale **D-25**: `SP` no publica hoy ninguna interfaz de aplicación para las tres lecturas que `PM` necesita —una membresía y su nivel, una moneda y sus decimales, la membresía vigente de alguien—, de modo que la dependencia está declarada y **no es consumible todavía**. §6 marca el candidato «Productos y servicios» como incorporado en su mitad de catálogo. Se procede pese a la advertencia de esa misma sección sobre fijar códigos antes de conocer el alcance completo, por decisión del responsable del proyecto, y queda escrito que se procedió sabiéndolo. | Responsable técnico |
 | 0.13.0 | 26-08-2026 | **D-25 cerrada**, y la ficha de `PM` deja de declarar su dependencia como no consumible. La respuesta vale para cualquier par de módulos y vive en `architecture.md` §15.2: **el dueño del dato publica interfaces de aplicación de solo lectura y el consumidor las importa**, una por lectura, devolviendo modelos de lectura y nunca entidades, con la ausencia como valor vacío y una regla de ArchUnit que impide importar repositorios o entidades ajenos. Es la primera vez que §7 —«un módulo NO DEBE acceder a las tablas ni a los repositorios de otro»— dice también **por dónde sí**. | Responsable del proyecto |
 | 0.14.0 | 27-08-2026 | **`PM` pasa de `En diseño` a `En desarrollo`**: su primer requerimiento está implementado, con tabla propia, permisos sembrados y endpoint funcionando. Con él, la norma de §15.2 de `architecture.md` deja de ser papel: `SP` publica sus dos primeras interfaces hacia otro módulo y una regla de ArchUnit impide que `PM` importe nada de su dominio. | Responsable técnico |
+| 0.15.0 | 28-08-2026 | **Se incorpora el módulo `CM` — Comisiones**, el tercero del sistema y el **primero que depende de dos**: `SP` le da el rol y la persona, `PM` el producto. La dependencia sigue siendo acíclica —`CM` → `PM` → `SP`— y la norma de consumo es la de D-25 sin excepción, con una consecuencia declarada: **`PM` tendrá que publicar una interfaz de lectura de productos que hoy no tiene**, y esa ampliación pertenece a los requerimientos de `CM` que la necesiten. Nace con **las tarifas y no con el cálculo**: el cálculo y la liquidación no se aplazan por reparto sino porque **no hay sobre qué calcular** mientras no exista una tabla de ventas — el mismo camino que siguió `PM`, cuyo catálogo existió antes que la compra. **Se pidió como submódulo de `PM` y se decidió que no**, por §2.1: la comisión no opera sobre `products`, opera sobre `roles` y `users`; un submódulo de `PM` con sus dos claves foráneas principales apuntando a `SP` no está en su módulo, y el identificador es irreversible. El código se fija **sabiendo lo que §6 advierte**, igual que con `PM`. Queda además una imposición sobre `SP` que se registra allí y no aquí: **una persona no puede tener dos roles de tipo `VENDEDOR`** (`RN-SP-025`), porque con dos tarifas distintas y ninguna propia no habría forma no arbitraria de elegir. | Responsable del proyecto |
