@@ -4,10 +4,10 @@
 |---|---|
 | Requerimiento | `RF-CM-001` |
 | Módulo | `CM` — Comisiones |
-| Estado | **En revisión** |
+| Estado | **Aprobada** |
 | Autor | Responsable técnico |
-| Aprobada por | Pendiente |
-| Fecha de aprobación | Pendiente |
+| Aprobada por | Responsable del proyecto |
+| Fecha de aprobación | 28-08-2026 |
 
 !!! info "Qué va en este documento"
 
