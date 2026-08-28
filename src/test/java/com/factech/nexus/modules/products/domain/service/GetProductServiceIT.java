@@ -134,7 +134,7 @@ class GetProductServiceIT extends IntegrationTestBase {
     jdbc.update(
         "INSERT INTO products (id, code, type, name, target_membership_id, price, currency_id,"
             + " validity_days, status, created_at, updated_at)"
-            + " VALUES (CAST(? AS uuid), ?, 'SERVICIO', ?, NULL, 10.00, CAST(? AS uuid), NULL,"
+            + " VALUES (CAST(? AS uuid), ?, 'BOT', ?, NULL, 10.00, CAST(? AS uuid), NULL,"
             + " 'INACTIVO', ?, ?)",
         id.toString(),
         codigo,

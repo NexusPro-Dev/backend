@@ -43,7 +43,7 @@ class UpdateProductServiceIT extends IntegrationTestBase {
   @BeforeEach
   void sembrar() {
     jdbc.update("DELETE FROM products");
-    producto = servicio("SOPORTE", "Soporte prioritario", "Atención prioritaria.");
+    producto = bot("SOPORTE", "Soporte prioritario", "Atención prioritaria.");
 
     estadisticas = sessionFactory.getStatistics();
     estadisticas.setStatisticsEnabled(true);
@@ -93,6 +93,7 @@ class UpdateProductServiceIT extends IntegrationTestBase {
             Patchable.ausente(),
             Patchable.ausente(),
             Patchable.ausente(),
+            Patchable.ausente(),
             Patchable.ausente()));
 
     // El nombre llega, pero es el mismo: no hay nada contra lo que chocar, y no
@@ -137,6 +138,7 @@ class UpdateProductServiceIT extends IntegrationTestBase {
         new UpdateProductRequest(
             Patchable.ausente(),
             Patchable.ausente(),
+            Patchable.ausente(),
             Patchable.de(new BigDecimal("99.99")),
             Patchable.ausente(),
             Patchable.ausente(),
@@ -160,6 +162,7 @@ class UpdateProductServiceIT extends IntegrationTestBase {
         Patchable.ausente(),
         Patchable.ausente(),
         Patchable.ausente(),
+        Patchable.ausente(),
         Patchable.ausente());
   }
 
@@ -167,6 +170,7 @@ class UpdateProductServiceIT extends IntegrationTestBase {
     return new UpdateProductRequest(
         Patchable.ausente(),
         Patchable.de(descripcion),
+        Patchable.ausente(),
         Patchable.ausente(),
         Patchable.ausente(),
         Patchable.ausente(),
@@ -182,12 +186,12 @@ class UpdateProductServiceIT extends IntegrationTestBase {
     return filas == null ? 0 : filas;
   }
 
-  private UUID servicio(String codigo, String nombre, String descripcion) {
+  private UUID bot(String codigo, String nombre, String descripcion) {
     UUID id = UUID.randomUUID();
     jdbc.update(
         "INSERT INTO products (id, code, type, name, description, target_membership_id, price,"
             + " currency_id, validity_days, status, created_at, updated_at)"
-            + " VALUES (CAST(? AS uuid), ?, 'SERVICIO', ?, ?, NULL, 49.99, CAST(? AS uuid), NULL,"
+            + " VALUES (CAST(? AS uuid), ?, 'BOT', ?, ?, NULL, 49.99, CAST(? AS uuid), NULL,"
             + " 'INACTIVO', ?, ?)",
         id.toString(),
         codigo,

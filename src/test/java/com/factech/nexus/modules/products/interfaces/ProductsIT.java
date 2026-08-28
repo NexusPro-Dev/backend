@@ -69,13 +69,12 @@ class ProductsIT extends IntegrationTestBase {
   }
 
   @Test
-  @DisplayName(
-      "`CA-PM-002` — registra un servicio sin membresía destino, que llega null y presente")
-  void altaDeServicio() throws Exception {
+  @DisplayName("`CA-PM-002` — registra un bot sin membresía destino, que llega null y presente")
+  void altaDeBot() throws Exception {
     mvc.perform(
             alta(
                 """
-                {"code":"ASESORIA","type":"SERVICIO","name":"Asesoría",
+                {"code":"ASESORIA","type":"BOT","name":"Asesoría",
                  "price":10.00,"currencyId":"%s"}
                 """
                     .formatted(USD)))
@@ -87,12 +86,69 @@ class ProductsIT extends IntegrationTestBase {
   }
 
   @Test
+  @DisplayName("`CA-PM-096` — un upgrade registra su icono, normalizado a minúsculas")
+  void altaDeUpgradeConIcono() throws Exception {
+    mvc.perform(
+            alta(
+                """
+                {"code":"UPGRADE_ORO","type":"UPGRADE_MEMBRESIA","name":"Ascenso a Oro",
+                 "icon":"  CROWN  ","targetMembershipId":"%s","price":49.99,"currencyId":"%s"}
+                """
+                    .formatted(oro, USD)))
+        .andExpect(status().isCreated())
+        .andExpect(jsonPath("$.icon").value("crown"));
+  }
+
+  @Test
+  @DisplayName("`CA-PM-097` — `RN-PM-016`: un bot con icono se rechaza con 400 y VAL-013")
+  void altaDeBotConIconoSeRechaza() throws Exception {
+    mvc.perform(
+            alta(
+                """
+                {"code":"ASESORIA","type":"BOT","name":"Asesoría","icon":"crown",
+                 "price":10.00,"currencyId":"%s"}
+                """
+                    .formatted(USD)))
+        .andExpect(status().isBadRequest())
+        .andExpect(jsonPath("$.errors[0].code").value("VAL-013"))
+        .andExpect(jsonPath("$.errors[0].field").value("icon"));
+  }
+
+  @Test
+  @DisplayName("`CA-PM-098` — el icono es opcional: un upgrade sin él llega null y presente")
+  void elIconoEsOpcional() throws Exception {
+    mvc.perform(
+            alta(
+                """
+                {"code":"UPGRADE_ORO","type":"UPGRADE_MEMBRESIA","name":"Ascenso a Oro",
+                 "targetMembershipId":"%s","price":49.99,"currencyId":"%s"}
+                """
+                    .formatted(oro, USD)))
+        .andExpect(status().isCreated())
+        .andExpect(jsonPath("$.icon").value(org.hamcrest.Matchers.nullValue()));
+  }
+
+  @Test
+  @DisplayName("`VAL-012` — el icono con forma inválida se rechaza")
+  void iconoConFormaInvalida() throws Exception {
+    mvc.perform(
+            alta(
+                """
+                {"code":"UPGRADE_ORO","type":"UPGRADE_MEMBRESIA","name":"Ascenso a Oro",
+                 "icon":"Crown Oro","targetMembershipId":"%s","price":49.99,"currencyId":"%s"}
+                """
+                    .formatted(oro, USD)))
+        .andExpect(status().isBadRequest())
+        .andExpect(jsonPath("$.errors[0].code").value("VAL-012"));
+  }
+
+  @Test
   @DisplayName("`CA-PM-068` — el producto nace INACTIVO, y enviar `status` devuelve 400")
   void naceInactivoYNoSePuedeForzar() throws Exception {
     mvc.perform(
             alta(
                 """
-                {"code":"ASESORIA","type":"SERVICIO","name":"Asesoría","price":10.00,
+                {"code":"ASESORIA","type":"BOT","name":"Asesoría","price":10.00,
                  "currencyId":"%s"}
                 """
                     .formatted(USD)))
@@ -104,7 +160,7 @@ class ProductsIT extends IntegrationTestBase {
     mvc.perform(
             alta(
                 """
-                {"code":"OTRO","type":"SERVICIO","name":"Otro","price":10.00,
+                {"code":"OTRO","type":"BOT","name":"Otro","price":10.00,
                  "currencyId":"%s","status":"ACTIVO"}
                 """
                     .formatted(USD)))
@@ -128,7 +184,7 @@ class ProductsIT extends IntegrationTestBase {
     mvc.perform(
             alta(
                 """
-                {"code":"ASESORIA","type":"SERVICIO","name":"Asesoría","targetMembershipId":"%s",
+                {"code":"ASESORIA","type":"BOT","name":"Asesoría","targetMembershipId":"%s",
                  "price":10.00,"currencyId":"%s"}
                 """
                     .formatted(oro, USD)))
@@ -145,7 +201,7 @@ class ProductsIT extends IntegrationTestBase {
       mvc.perform(
               alta(
                   """
-                  {"code":"ASESORIA","type":"SERVICIO","name":"Asesoría","price":%s,
+                  {"code":"ASESORIA","type":"BOT","name":"Asesoría","price":%s,
                    "currencyId":"%s"}
                   """
                       .formatted(precio, USD)))
@@ -162,7 +218,7 @@ class ProductsIT extends IntegrationTestBase {
     mvc.perform(
             alta(
                 """
-                {"code":"ASESORIA","type":"SERVICIO","name":"Asesoría","price":10.005,
+                {"code":"ASESORIA","type":"BOT","name":"Asesoría","price":10.005,
                  "currencyId":"%s"}
                 """
                     .formatted(USD)))
@@ -172,7 +228,7 @@ class ProductsIT extends IntegrationTestBase {
     mvc.perform(
             alta(
                 """
-                {"code":"ASESORIA","type":"SERVICIO","name":"Asesoría","price":10.00,
+                {"code":"ASESORIA","type":"BOT","name":"Asesoría","price":10.00,
                  "currencyId":"%s"}
                 """
                     .formatted(USD)))
@@ -201,7 +257,7 @@ class ProductsIT extends IntegrationTestBase {
     mvc.perform(
             alta(
                 """
-                {"code":"ASESORIA","type":"SERVICIO","name":"Asesoría","price":10.00,
+                {"code":"ASESORIA","type":"BOT","name":"Asesoría","price":10.00,
                  "currencyId":"%s"}
                 """
                     .formatted(UUID.randomUUID())))
@@ -215,7 +271,7 @@ class ProductsIT extends IntegrationTestBase {
     mvc.perform(
             alta(
                 """
-                {"code":"ASESORIA","type":"SERVICIO","name":"Asesoría","price":10.00,
+                {"code":"ASESORIA","type":"BOT","name":"Asesoría","price":10.00,
                  "currencyId":"%s"}
                 """
                     .formatted(euro)))
@@ -229,7 +285,7 @@ class ProductsIT extends IntegrationTestBase {
     mvc.perform(
             alta(
                 """
-                {"code":"ASESORIA","type":"SERVICIO","name":"Asesoría","price":10.00,
+                {"code":"ASESORIA","type":"BOT","name":"Asesoría","price":10.00,
                  "currencyId":"%s"}
                 """
                     .formatted(USD)))
@@ -238,7 +294,7 @@ class ProductsIT extends IntegrationTestBase {
     mvc.perform(
             alta(
                 """
-                {"code":"OTRO","type":"SERVICIO","name":"asesoria","price":10.00,
+                {"code":"OTRO","type":"BOT","name":"asesoria","price":10.00,
                  "currencyId":"%s"}
                 """
                     .formatted(USD)))
@@ -252,7 +308,7 @@ class ProductsIT extends IntegrationTestBase {
     mvc.perform(
             alta(
                 """
-                {"code":"ASESORIA","type":"SERVICIO","name":"Asesoría","price":10.00,
+                {"code":"ASESORIA","type":"BOT","name":"Asesoría","price":10.00,
                  "currencyId":"%s"}
                 """
                     .formatted(USD)))
@@ -261,7 +317,7 @@ class ProductsIT extends IntegrationTestBase {
     mvc.perform(
             alta(
                 """
-                {"code":"asesoria","type":"SERVICIO","name":"Otro nombre","price":10.00,
+                {"code":"asesoria","type":"BOT","name":"Otro nombre","price":10.00,
                  "currencyId":"%s"}
                 """
                     .formatted(USD)))
@@ -275,7 +331,7 @@ class ProductsIT extends IntegrationTestBase {
     mvc.perform(
             alta(
                 """
-                {"code":"PERMANENTE","type":"SERVICIO","name":"Permanente","price":10.00,
+                {"code":"PERMANENTE","type":"BOT","name":"Permanente","price":10.00,
                  "currencyId":"%s"}
                 """
                     .formatted(USD)))
@@ -286,7 +342,7 @@ class ProductsIT extends IntegrationTestBase {
       mvc.perform(
               alta(
                   """
-                  {"code":"OTRO","type":"SERVICIO","name":"Otro","price":10.00,
+                  {"code":"OTRO","type":"BOT","name":"Otro","price":10.00,
                    "currencyId":"%s","validityDays":%s}
                   """
                       .formatted(USD, vigencia)))
@@ -341,7 +397,7 @@ class ProductsIT extends IntegrationTestBase {
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(
                     """
-                    {"code":"ASESORIA","type":"SERVICIO","name":"Asesoría","price":10.00,
+                    {"code":"ASESORIA","type":"BOT","name":"Asesoría","price":10.00,
                      "currencyId":"%s"}
                     """
                         .formatted(USD)))
@@ -365,7 +421,7 @@ class ProductsIT extends IntegrationTestBase {
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(
                     """
-                    {"code":"ASESORIA","type":"SERVICIO","name":"Asesoría","price":10.00,
+                    {"code":"ASESORIA","type":"BOT","name":"Asesoría","price":10.00,
                      "currencyId":"%s"}
                     """
                         .formatted(USD)))

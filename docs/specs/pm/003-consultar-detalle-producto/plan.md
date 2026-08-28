@@ -54,7 +54,7 @@ Si esta salida no se aprueba, la alternativa es **añadir `deletion_reason` a `p
 `GET /api/v1/products/{id}` → `200` con el detalle; `404` si no existe; `400` si el identificador no es canónico.
 
 - **El destino y la moneda llegan resueltos** con `LEFT JOIN`, en la misma sentencia. Mismo criterio y misma justificación que `RF-PM-002` §8.
-- **`targetMembership` viaja como `null` presente** en los servicios, no ausente.
+- **`targetMembership` viaja como `null` presente** en los bots, no ausente.
 - **El precio va como número, con los decimales de su moneda** y no con la escala de la columna (`CA-PM-082`): `49.99`, no `49.9900`. La escala se aplica al serializar, leyendo `decimalPlaces` de la moneda que ya viene en la misma fila.
 - **`deletedAt` y `deletionReason` solo aparecen si el producto está retirado**, y `deletionReason` se pide al puerto **solo entonces**: en un producto vivo esa consulta no se ejecuta.
 - **No devuelve autoría** (`CA-PM-081`), ni siquiera resuelta desde la auditoría.
@@ -95,7 +95,7 @@ Ninguna.
 
 | Qué se prueba | Nivel | Cómo |
 |---|---|---|
-| Los siete criterios de `spec.md` §12 | API | Producto vivo, retirado, upgrade y servicio |
+| Los siete criterios de `spec.md` §12 | API | Producto vivo, retirado, upgrade y bot |
 | El motivo del retiro | API | Se retira con un motivo conocido y el detalle lo devuelve **literal** |
 | El producto vivo **no** consulta el registro de eliminación | Integración | Número de sentencias: una, no dos |
 | Sin autoría en la respuesta | API | Ni `createdBy` ni nada equivalente, ni resuelto |

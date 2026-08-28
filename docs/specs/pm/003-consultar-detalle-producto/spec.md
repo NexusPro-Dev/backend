@@ -8,7 +8,7 @@
 | Autor | Responsable técnico |
 | Aprobada por | Responsable del proyecto |
 | Fecha de aprobación | 26-08-2026 |
-| Enmendada el | 27-08-2026 — ver §15 |
+| Enmendada el | 28-08-2026 — ver §15 |
 
 ---
 
@@ -62,8 +62,8 @@ El listado de `RF-PM-002` responde «qué hay»; esta consulta responde «qué e
 
 | Dato | Descripción |
 |---|---|
-| Producto | Identificador, código, tipo, nombre, descripción, precio con su moneda, **vigencia en días** y estado |
-| Membresía destino | En los upgrades: código, nombre y **nivel**. Vacía en los servicios |
+| Producto | Identificador, código, tipo, nombre, descripción, **icono**, precio con su moneda, **vigencia en días** y estado |
+| Membresía destino | En los upgrades: código, nombre y **nivel**. Vacía en los bots |
 | Marca de retiro | Si está retirado, desde cuándo y **con qué motivo** |
 | Marcas temporales | Cuándo se creó y cuándo se modificó por última vez. **Sin actor**: quién lo hizo vive en la auditoría |
 
@@ -92,7 +92,7 @@ El listado de `RF-PM-002` responde «qué hay»; esta consulta responde «qué e
 1. El sistema **lo devuelve igual**, marcado como retirado y con la fecha.
 2. No responde «no existe»: existió, se vendió quizá, y ocultarlo impediría entender qué era.
 
-### FA-002 — Producto de servicio
+### FA-002 — Producto de bot
 
 **Cuándo ocurre:** el producto no es un upgrade.
 
@@ -117,7 +117,7 @@ El listado de `RF-PM-002` responde «qué hay»; esta consulta responde «qué e
 |---|---|
 | `CA-PM-023` | El sistema devuelve el producto con todos sus datos y su precio con la moneda en que está expresado |
 | `CA-PM-024` | El sistema resuelve la membresía destino de un upgrade con su código, su nombre y su nivel |
-| `CA-PM-025` | El sistema devuelve la membresía destino **vacía y presente** en un producto de servicio |
+| `CA-PM-025` | El sistema devuelve la membresía destino **vacía y presente** en un producto de bot |
 | `CA-PM-026` | El sistema devuelve un producto retirado marcándolo como tal y con su fecha de retiro, en lugar de responder que no existe |
 | `CA-PM-027` | El sistema responde que el recurso no existe ante un identificador que no corresponde a ningún producto |
 | `CA-PM-028` | El sistema rechaza un identificador con formato inválido como dato inválido, y no como recurso no encontrado |
@@ -153,3 +153,4 @@ Ninguna. Las tres se resolvieron el 26-08-2026, antes de aprobar la especificaci
 | 0.2.0 | 26-08-2026 | **Aprobada.** El detalle devuelve el **motivo del retiro** a quien tenga `products:read` —con la consecuencia declarada de que ese permiso alcanza a un dato que la auditoría acota, y con el listado quedando fuera—, **no devuelve autoría** —el Art. V.7 la mantiene en la auditoría a propósito— y el **precio viaja como número**, con los decimales de su moneda y no con la escala de la columna. Tres criterios nuevos, `CA-PM-080` a `CA-PM-082`, y un caso límite sobre el precio que no se redondea al leer. | Responsable del proyecto |
 | 0.1.0 | 26-08-2026 | Redacción inicial, con tres preguntas abiertas. | Responsable técnico |
 | 0.3.0 | 27-08-2026 | El detalle devuelve la **vigencia en días** (`RN-PM-015`), y **vacía y presente** cuando el producto no caduca — un campo ausente sería indistinguible de uno que el cliente no conoce. | Responsable del proyecto |
+| 0.3.0 | 28-08-2026 | **La respuesta gana el icono** (`RN-PM-016`) y el tipo `SERVICIO` pasa a llamarse `BOT`. Ninguna de las dos cosas cambia el comportamiento de esta consulta: el icono viaja como un campo más —nulo y presente cuando no lo hay, por el mismo criterio que el destino y la vigencia— y el renombrado solo cambia el valor que se lee y por el que se filtra. **El contrato publicado cambia**, de modo que la copia del frontend queda vieja. | Responsable técnico |

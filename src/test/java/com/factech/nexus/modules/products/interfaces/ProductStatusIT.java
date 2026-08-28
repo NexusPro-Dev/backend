@@ -59,36 +59,36 @@ class ProductStatusIT extends IntegrationTestBase {
   @Test
   @DisplayName("`CA-PM-041` — activa un producto inactivo")
   void activa() throws Exception {
-    UUID servicio = servicio("SOPORTE", "Soporte", "Atención prioritaria.");
+    UUID bot = bot("SOPORTE", "Soporte", "Atención prioritaria.");
 
-    mvc.perform(cambiar(servicio, "ACTIVO"))
+    mvc.perform(cambiar(bot, "ACTIVO"))
         .andExpect(status().isOk())
         .andExpect(jsonPath("$.status").value("ACTIVO"));
 
-    assertThat(estadoDe(servicio)).isEqualTo("ACTIVO");
+    assertThat(estadoDe(bot)).isEqualTo("ACTIVO");
   }
 
   @Test
   @DisplayName("`CA-PM-040` — desactiva un producto activo, y sigue en el catálogo")
   void desactiva() throws Exception {
-    UUID servicio = servicio("SOPORTE", "Soporte", "Atención prioritaria.");
-    mvc.perform(cambiar(servicio, "ACTIVO")).andExpect(status().isOk());
+    UUID bot = bot("SOPORTE", "Soporte", "Atención prioritaria.");
+    mvc.perform(cambiar(bot, "ACTIVO")).andExpect(status().isOk());
 
-    mvc.perform(cambiar(servicio, "INACTIVO"))
+    mvc.perform(cambiar(bot, "INACTIVO"))
         .andExpect(status().isOk())
         .andExpect(jsonPath("$.status").value("INACTIVO"))
         // Desactivar NO es retirar: la fila sigue viva y sin marca de retiro.
         .andExpect(jsonPath("$.deletedAt").doesNotExist());
 
-    assertThat(sigueEnElCatalogo(servicio)).isTrue();
+    assertThat(sigueEnElCatalogo(bot)).isTrue();
   }
 
   @Test
   @DisplayName("el estado se admite en cualquier caja: `activo` es la misma petición")
   void elEstadoEnCualquierCaja() throws Exception {
-    UUID servicio = servicio("SOPORTE", "Soporte", "Atención prioritaria.");
+    UUID bot = bot("SOPORTE", "Soporte", "Atención prioritaria.");
 
-    mvc.perform(cambiar(servicio, "activo"))
+    mvc.perform(cambiar(bot, "activo"))
         .andExpect(status().isOk())
         .andExpect(jsonPath("$.status").value("ACTIVO"));
   }
@@ -96,16 +96,16 @@ class ProductStatusIT extends IntegrationTestBase {
   @Test
   @DisplayName("`VAL-002` — un estado fuera del dominio se rechaza enumerando los admitidos")
   void estadoInvalido() throws Exception {
-    UUID servicio = servicio("SOPORTE", "Soporte", "Atención prioritaria.");
+    UUID bot = bot("SOPORTE", "Soporte", "Atención prioritaria.");
 
-    mvc.perform(cambiar(servicio, "PUBLICADO"))
+    mvc.perform(cambiar(bot, "PUBLICADO"))
         .andExpect(status().isBadRequest())
         .andExpect(jsonPath("$.errors[0].code").value("VAL-002"))
         .andExpect(jsonPath("$.detail").value(Matchers.containsString("ACTIVO")));
 
     // Y el estado obligatorio, que es otra validación y otro camino.
     mvc.perform(
-            patch("/api/v1/products/{id}/status", servicio)
+            patch("/api/v1/products/{id}/status", bot)
                 .with(admin())
                 .contentType(MediaType.APPLICATION_JSON)
                 .content("{}"))
@@ -115,29 +115,29 @@ class ProductStatusIT extends IntegrationTestBase {
   @Test
   @DisplayName("`CA-PM-072` — no se publica un producto SIN descripción")
   void sinDescripcionNoSePublica() throws Exception {
-    UUID servicio = servicio("SOPORTE", "Soporte", null);
+    UUID bot = bot("SOPORTE", "Soporte", null);
 
-    mvc.perform(cambiar(servicio, "ACTIVO"))
+    mvc.perform(cambiar(bot, "ACTIVO"))
         .andExpect(status().isBadRequest())
         .andExpect(jsonPath("$.errors[0].code").value("VAL-003"))
         .andExpect(jsonPath("$.errors[0].field").value("description"));
 
-    assertThat(estadoDe(servicio)).isEqualTo("INACTIVO");
+    assertThat(estadoDe(bot)).isEqualTo("INACTIVO");
   }
 
   @Test
   @DisplayName("`CA-PM-072` — y se publica en cuanto la descripción está puesta")
   void conDescripcionSiSePublica() throws Exception {
-    UUID servicio = servicio("SOPORTE", "Soporte", null);
-    mvc.perform(cambiar(servicio, "ACTIVO")).andExpect(status().isBadRequest());
+    UUID bot = bot("SOPORTE", "Soporte", null);
+    mvc.perform(cambiar(bot, "ACTIVO")).andExpect(status().isBadRequest());
 
     // La descripción la pondrá `RF-PM-004`, que todavía no existe; lo que esta
     // prueba comprueba es que la regla NO es una puerta cerrada para siempre.
     jdbc.update(
         "UPDATE products SET description = 'Atención prioritaria.' WHERE id = CAST(? AS uuid)",
-        servicio.toString());
+        bot.toString());
 
-    mvc.perform(cambiar(servicio, "ACTIVO"))
+    mvc.perform(cambiar(bot, "ACTIVO"))
         .andExpect(status().isOk())
         .andExpect(jsonPath("$.status").value("ACTIVO"));
   }
@@ -145,14 +145,13 @@ class ProductStatusIT extends IntegrationTestBase {
   @Test
   @DisplayName("`CA-PM-073` — SÍ se desactiva un producto sin descripción")
   void sinDescripcionSiSeDesactiva() throws Exception {
-    UUID servicio = servicio("SOPORTE", "Soporte", null);
-    jdbc.update(
-        "UPDATE products SET status = 'ACTIVO' WHERE id = CAST(? AS uuid)", servicio.toString());
+    UUID bot = bot("SOPORTE", "Soporte", null);
+    jdbc.update("UPDATE products SET status = 'ACTIVO' WHERE id = CAST(? AS uuid)", bot.toString());
 
     // La regla acota lo que se OFRECE, no lo que se retira. Exigir descripción
     // para desactivar dejaría atrapado en la oferta al producto peor
     // documentado, que es justo el que más urge quitar.
-    mvc.perform(cambiar(servicio, "INACTIVO"))
+    mvc.perform(cambiar(bot, "INACTIVO"))
         .andExpect(status().isOk())
         .andExpect(jsonPath("$.status").value("INACTIVO"));
   }
@@ -214,10 +213,10 @@ class ProductStatusIT extends IntegrationTestBase {
   }
 
   @Test
-  @DisplayName("varios SERVICIOS activos a la vez: la regla del destino no les alcanza")
-  void losServiciosNoCompiten() throws Exception {
-    UUID uno = servicio("SOPORTE", "Soporte", "Atención prioritaria.");
-    UUID otro = servicio("ASESORIA", "Asesoría", "Una hora con un asesor.");
+  @DisplayName("varios BOTS activos a la vez: la regla del destino no les alcanza")
+  void losBotsNoCompiten() throws Exception {
+    UUID uno = bot("SOPORTE", "Soporte", "Atención prioritaria.");
+    UUID otro = bot("ASESORIA", "Asesoría", "Una hora con un asesor.");
 
     mvc.perform(cambiar(uno, "ACTIVO")).andExpect(status().isOk());
     mvc.perform(cambiar(otro, "ACTIVO")).andExpect(status().isOk());
@@ -226,42 +225,41 @@ class ProductStatusIT extends IntegrationTestBase {
   @Test
   @DisplayName("`CA-PM-044` — pedir el estado que ya tiene es `200`, sin cambio y SIN evento")
   void sinCambioNoRegistraEvento() throws Exception {
-    UUID servicio = servicio("SOPORTE", "Soporte", "Atención prioritaria.");
-    long antes = eventosDe(servicio);
+    UUID bot = bot("SOPORTE", "Soporte", "Atención prioritaria.");
+    long antes = eventosDe(bot);
 
     // Nace INACTIVO: pedir INACTIVO no cambia nada y no es un error.
-    mvc.perform(cambiar(servicio, "INACTIVO"))
+    mvc.perform(cambiar(bot, "INACTIVO"))
         .andExpect(status().isOk())
         .andExpect(jsonPath("$.status").value("INACTIVO"));
 
-    assertThat(eventosDe(servicio)).as("no debía registrarse ningún evento").isEqualTo(antes);
+    assertThat(eventosDe(bot)).as("no debía registrarse ningún evento").isEqualTo(antes);
   }
 
   @Test
   @DisplayName("`CA-PM-072` — y sin cambio TAMPOCO exige descripción: no hay nada que publicar")
   void sinCambioNoExigeDescripcion() throws Exception {
-    UUID servicio = servicio("SOPORTE", "Soporte", null);
-    jdbc.update(
-        "UPDATE products SET status = 'ACTIVO' WHERE id = CAST(? AS uuid)", servicio.toString());
+    UUID bot = bot("SOPORTE", "Soporte", null);
+    jdbc.update("UPDATE products SET status = 'ACTIVO' WHERE id = CAST(? AS uuid)", bot.toString());
 
     // Ya está activo: pedir ACTIVO no publica nada, de modo que exigir la
     // descripción aquí rechazaría una petición que no cambia el estado.
-    mvc.perform(cambiar(servicio, "ACTIVO")).andExpect(status().isOk());
+    mvc.perform(cambiar(bot, "ACTIVO")).andExpect(status().isOk());
   }
 
   @Test
   @DisplayName("`CA-PM-046` — el cambio se registra con su valor anterior y el nuevo")
   void registraElCambio() throws Exception {
-    UUID servicio = servicio("SOPORTE", "Soporte", "Atención prioritaria.");
+    UUID bot = bot("SOPORTE", "Soporte", "Atención prioritaria.");
 
-    mvc.perform(cambiar(servicio, "ACTIVO")).andExpect(status().isOk());
+    mvc.perform(cambiar(bot, "ACTIVO")).andExpect(status().isOk());
 
     String cambios =
         jdbc.queryForObject(
             "SELECT changes::text FROM audit_change_log WHERE entity_id = CAST(? AS uuid)"
                 + " ORDER BY occurred_at DESC LIMIT 1",
             String.class,
-            servicio.toString());
+            bot.toString());
 
     assertThat(cambios).contains("status").contains("INACTIVO").contains("ACTIVO");
   }
@@ -269,15 +267,15 @@ class ProductStatusIT extends IntegrationTestBase {
   @Test
   @DisplayName("`CA-PM-045` — no se cambia el estado de un producto retirado")
   void elRetiradoNoVuelve() throws Exception {
-    UUID servicio = servicio("SOPORTE", "Soporte", "Atención prioritaria.");
+    UUID bot = bot("SOPORTE", "Soporte", "Atención prioritaria.");
     jdbc.update(
         "UPDATE products SET deleted_at = ? WHERE id = CAST(? AS uuid)",
         BASE.plusDays(1),
-        servicio.toString());
+        bot.toString());
 
     // Un producto retirado no vuelve a la venta cambiándole el estado, y se
     // responde lo mismo que ante uno inexistente.
-    mvc.perform(cambiar(servicio, "ACTIVO")).andExpect(status().isNotFound());
+    mvc.perform(cambiar(bot, "ACTIVO")).andExpect(status().isNotFound());
   }
 
   @Test
@@ -300,28 +298,28 @@ class ProductStatusIT extends IntegrationTestBase {
   @Test
   @DisplayName("`CA-PM-047` — sin `products:update`, la operación se rechaza")
   void sinPermiso() throws Exception {
-    UUID servicio = servicio("SOPORTE", "Soporte", "Atención prioritaria.");
+    UUID bot = bot("SOPORTE", "Soporte", "Atención prioritaria.");
 
     // `products:read` no basta: leer y publicar son decisiones distintas.
     mvc.perform(
-            patch("/api/v1/products/{id}/status", servicio)
+            patch("/api/v1/products/{id}/status", bot)
                 .with(user(UUID.randomUUID().toString()).authorities(() -> "products:read"))
                 .contentType(MediaType.APPLICATION_JSON)
                 .content("{\"status\":\"ACTIVO\"}"))
         .andExpect(status().isForbidden());
 
-    assertThat(estadoDe(servicio)).isEqualTo("INACTIVO");
+    assertThat(estadoDe(bot)).isEqualTo("INACTIVO");
   }
 
   @Test
   @DisplayName("`CA-PM-085` — no se exige motivo ni para activar ni para desactivar")
   void sinMotivo() throws Exception {
-    UUID servicio = servicio("SOPORTE", "Soporte", "Atención prioritaria.");
+    UUID bot = bot("SOPORTE", "Soporte", "Atención prioritaria.");
 
     // El cuerpo lleva SOLO el estado. El Art. V.13 exige motivo en las
     // eliminaciones, y cambiar de estado no lo es.
-    mvc.perform(cambiar(servicio, "ACTIVO")).andExpect(status().isOk());
-    mvc.perform(cambiar(servicio, "INACTIVO")).andExpect(status().isOk());
+    mvc.perform(cambiar(bot, "ACTIVO")).andExpect(status().isOk());
+    mvc.perform(cambiar(bot, "INACTIVO")).andExpect(status().isOk());
   }
 
   // ---------------------------------------------------------------------------
@@ -389,8 +387,8 @@ class ProductStatusIT extends IntegrationTestBase {
     return id;
   }
 
-  private UUID servicio(String codigo, String nombre, String descripcion) {
-    return producto(codigo, "SERVICIO", nombre, descripcion, null);
+  private UUID bot(String codigo, String nombre, String descripcion) {
+    return producto(codigo, "BOT", nombre, descripcion, null);
   }
 
   private UUID upgrade(String codigo, String nombre, UUID destino, String descripcion) {

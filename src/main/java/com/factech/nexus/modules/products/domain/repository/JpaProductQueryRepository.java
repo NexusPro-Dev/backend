@@ -51,7 +51,7 @@ public class JpaProductQueryRepository implements ProductQueryRepository {
     String sql =
         """
         SELECT p.id AS id, p.code AS code, p.type AS type, p.name AS name,
-               p.description AS description,
+               p.description AS description, p.icon AS icon,
                p.target_membership_id AS m_id, m.code AS m_code, m.name AS m_name,
                m.level AS m_level,
                p.price AS price, p.currency_id AS c_id, c.code AS c_code,
@@ -84,6 +84,7 @@ public class JpaProductQueryRepository implements ProductQueryRepository {
               (String) fila.get("type"),
               (String) fila.get("name"),
               (String) fila.get("description"),
+              (String) fila.get("icon"),
               (UUID) fila.get("m_id"),
               (String) fila.get("m_code"),
               (String) fila.get("m_name"),
@@ -128,7 +129,7 @@ public class JpaProductQueryRepository implements ProductQueryRepository {
         em.createNativeQuery(
                 """
                 SELECT p.id AS id, p.code AS code, p.type AS type, p.name AS name,
-                       p.description AS description,
+                       p.description AS description, p.icon AS icon,
                        p.target_membership_id AS m_id, m.code AS m_code, m.name AS m_name,
                        m.level AS m_level,
                        p.price AS price, p.currency_id AS c_id, c.code AS c_code,
@@ -155,6 +156,7 @@ public class JpaProductQueryRepository implements ProductQueryRepository {
                     (String) fila.get("type"),
                     (String) fila.get("name"),
                     (String) fila.get("description"),
+                    (String) fila.get("icon"),
                     (UUID) fila.get("m_id"),
                     (String) fila.get("m_code"),
                     (String) fila.get("m_name"),
@@ -182,9 +184,9 @@ public class JpaProductQueryRepository implements ProductQueryRepository {
    * colecciones. El día que se filtre por algo que sí lo sea, el conteo empezaría a contar
    * asignaciones en lugar de productos.
    *
-   * <p>El filtro por destino combinado con {@code type=SERVICIO} devuelve vacío y <b>no se
-   * rechaza</b> (`spec.md` §13): la combinación es coherente aunque sea inútil, y rechazarla
-   * obligaría a explicar por qué dos filtros válidos por separado no lo son juntos.
+   * <p>El filtro por destino combinado con {@code type=BOT} devuelve vacío y <b>no se rechaza</b>
+   * (`spec.md` §13): la combinación es coherente aunque sea inútil, y rechazarla obligaría a
+   * explicar por qué dos filtros válidos por separado no lo son juntos.
    */
   private static String predicado(ListProductsRequest filtros) {
     StringBuilder donde = new StringBuilder();

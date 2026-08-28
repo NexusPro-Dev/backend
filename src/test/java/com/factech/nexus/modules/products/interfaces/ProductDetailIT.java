@@ -49,7 +49,7 @@ class ProductDetailIT extends IntegrationTestBase {
 
   private UUID oro;
   private UUID upgrade;
-  private UUID servicio;
+  private UUID bot;
 
   @BeforeEach
   void sembrarCatalogo() {
@@ -59,7 +59,7 @@ class ProductDetailIT extends IntegrationTestBase {
     oro = membresia("ORO", "Oro", 1);
 
     upgrade = producto("UPGRADE_ORO", "UPGRADE_MEMBRESIA", "Ascenso a Oro", oro, "49.99", 30, USD);
-    servicio = producto("SOPORTE", "SERVICIO", "Soporte prioritario", null, "99.50", null, USD);
+    bot = producto("SOPORTE", "BOT", "Soporte prioritario", null, "99.50", null, USD);
   }
 
   @AfterEach
@@ -108,9 +108,9 @@ class ProductDetailIT extends IntegrationTestBase {
   }
 
   @Test
-  @DisplayName("`CA-PM-025` — un servicio trae el destino VACÍO Y PRESENTE, no ausente")
-  void servicioSinDestino() throws Exception {
-    mvc.perform(detalle(servicio))
+  @DisplayName("`CA-PM-025` — un bot trae el destino VACÍO Y PRESENTE, no ausente")
+  void botSinDestino() throws Exception {
+    mvc.perform(detalle(bot))
         .andExpect(status().isOk())
         .andExpect(jsonPath("$.targetMembership").value(Matchers.nullValue()))
         .andExpect(jsonPath("$.targetMembership").hasJsonPath());
@@ -121,7 +121,7 @@ class ProductDetailIT extends IntegrationTestBase {
   void vigencia() throws Exception {
     mvc.perform(detalle(upgrade)).andExpect(jsonPath("$.validityDays").value(30));
 
-    mvc.perform(detalle(servicio))
+    mvc.perform(detalle(bot))
         .andExpect(jsonPath("$.validityDays").value(Matchers.nullValue()))
         .andExpect(jsonPath("$.validityDays").hasJsonPath());
   }
@@ -130,9 +130,9 @@ class ProductDetailIT extends IntegrationTestBase {
   @DisplayName(
       "`CA-PM-026` — un producto retirado se devuelve marcado, en lugar de decir que no existe")
   void productoRetirado() throws Exception {
-    retirar(servicio, "Se descontinuó la línea de soporte.");
+    retirar(bot, "Se descontinuó la línea de soporte.");
 
-    mvc.perform(detalle(servicio))
+    mvc.perform(detalle(bot))
         .andExpect(status().isOk())
         .andExpect(jsonPath("$.code").value("SOPORTE"))
         .andExpect(jsonPath("$.deletedAt").exists());
@@ -141,9 +141,9 @@ class ProductDetailIT extends IntegrationTestBase {
   @Test
   @DisplayName("`CA-PM-080` — el motivo del retiro llega LITERAL, y con solo `products:read`")
   void motivoDelRetiro() throws Exception {
-    retirar(servicio, "Se descontinuó la línea de soporte.");
+    retirar(bot, "Se descontinuó la línea de soporte.");
 
-    mvc.perform(detalle(servicio))
+    mvc.perform(detalle(bot))
         .andExpect(status().isOk())
         // Con `products:read` y sin `audit:read-deletions`: es la consecuencia
         // asumida de que el detalle lo devuelva.
@@ -163,10 +163,10 @@ class ProductDetailIT extends IntegrationTestBase {
   @Test
   @DisplayName("`CA-PM-081` — la respuesta no lleva autoría en NINGUNA forma")
   void sinAutoria() throws Exception {
-    retirar(servicio, "Se descontinuó la línea de soporte.");
+    retirar(bot, "Se descontinuó la línea de soporte.");
 
     String cuerpo =
-        mvc.perform(detalle(servicio))
+        mvc.perform(detalle(bot))
             .andExpect(status().isOk())
             .andReturn()
             .getResponse()
@@ -195,7 +195,7 @@ class ProductDetailIT extends IntegrationTestBase {
   @DisplayName("el precio de una moneda de CERO decimales llega sin parte decimal")
   void precioEnMonedaSinDecimales() throws Exception {
     String pesos = monedaSinDecimales();
-    UUID conPesos = producto("SERVICIO_COP", "SERVICIO", "Asesoría", null, "50.0000", null, pesos);
+    UUID conPesos = producto("BOT_COP", "BOT", "Asesoría", null, "50.0000", null, pesos);
 
     mvc.perform(detalle(conPesos))
         .andExpect(jsonPath("$.currency.decimalPlaces").value(0))

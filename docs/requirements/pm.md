@@ -5,11 +5,11 @@
 | Módulo | `PM` — Productos y Mercadeo |
 | Paquete | `modules/products` |
 | Prefijos de permiso | `products:` |
-| Versión | 0.12.0 |
+| Versión | 0.13.0 |
 | Estado | **Borrador** |
 | Responsable | Bonilla Diaz William Steven |
 | Fecha de creación | 26-08-2026 |
-| Última actualización | 27-08-2026 |
+| Última actualización | 28-08-2026 |
 
 !!! info "Qué va en este documento"
 
@@ -33,7 +33,7 @@
 
 ### 1.1 Descripción
 
-`PM` es dueño de **lo que la plataforma vende**. Un producto es una unidad de venta con nombre, precio y moneda, y existe en **dos tipos que no se mezclan**: el **upgrade de membresía**, que da derecho a pasar al nivel de acceso que declara, y el **servicio del sistema**, que da derecho a una prestación de la plataforma.
+`PM` es dueño de **lo que la plataforma vende**. Un producto es una unidad de venta con nombre, precio y moneda, y existe en **dos tipos que no se mezclan**: el **upgrade de membresía**, que da derecho a pasar al nivel de acceso que declara, y el **bot del sistema**, que da derecho a una prestación de la plataforma.
 
 El módulo gobierna ese catálogo —lo crea, lo consulta, lo corrige, lo activa y lo retira— y **publica a cada persona lo que puede comprar**, que no es lo mismo que el catálogo completo.
 
@@ -47,7 +47,7 @@ Hoy la membresía de una persona solo cambia porque un administrador se la asign
 
 - Registrar un producto de cualquiera de los dos tipos, con su precio y su moneda.
 - Consultar el catálogo completo, en lista y en detalle, con filtros por tipo, estado y membresía destino.
-- Corregir un producto: nombre, descripción, precio y moneda.
+- Corregir un producto: nombre, descripción, icono, precio y moneda.
 - Activar y desactivar un producto, que es lo que decide si se ofrece.
 - Retirar un producto por eliminación lógica y con motivo.
 - **Publicar a cada persona la oferta que le aplica**, que en los upgrades depende de su nivel actual.
@@ -125,8 +125,8 @@ La dependencia es **acíclica**: `PM` consume `SP` y `SP` no consume nada ([`mod
 
 | ID | Regla | Cuándo aplica | Qué debe ocurrir | Prioridad |
 |---|---|---|---|---|
-| `RN-PM-001` | Dos tipos, y el tipo es inmutable | Al registrar y en toda edición | El producto es `UPGRADE_MEMBRESIA` o `SERVICIO`. El tipo se fija al crear y **ninguna operación lo cambia** | Crítica |
-| `RN-PM-002` | Destino obligatorio en el upgrade, prohibido en el servicio | Al registrar | Un `UPGRADE_MEMBRESIA` declara **una** membresía destino; un `SERVICIO` **no puede** declararla. La condición se exige en los dos sentidos | Crítica |
+| `RN-PM-001` | Dos tipos, y el tipo es inmutable | Al registrar y en toda edición | El producto es `UPGRADE_MEMBRESIA` o `BOT`. El tipo se fija al crear y **ninguna operación lo cambia** | Crítica |
+| `RN-PM-002` | Destino obligatorio en el upgrade, prohibido en el bot | Al registrar | Un `UPGRADE_MEMBRESIA` declara **una** membresía destino; un `BOT` **no puede** declararla. La condición se exige en los dos sentidos | Crítica |
 | `RN-PM-003` | El destino es una membresía real de la cadena | Al registrar un upgrade | La membresía destino debe existir en `SP`. Se declara además como clave foránea | Crítica |
 | `RN-PM-004` | Un solo upgrade activo por destino | **Al activar**, y no al registrar | No pueden coexistir **dos productos de upgrade activos hacia la misma membresía**. Se comprueba en un solo sitio porque el producto **nace inactivo** (`RN-PM-012`): dos copias de esta regla —una en el alta y otra en la activación— acabarían divergiendo, y la que se quedara atrás no fallaría, admitiría | Crítica |
 | `RN-PM-005` | Nombre único entre los vivos | Al registrar y al editar | El nombre no se repite entre los productos no eliminados, **sin distinguir mayúsculas ni acentos** | Alta |
@@ -140,12 +140,15 @@ La dependencia es **acíclica**: `PM` consume `SP` y `SP` no consume nada ([`mod
 | `RN-PM-013` | El código no se libera nunca | Siempre | Todo producto lleva un **código corto, estable e inmutable**, único **incluso frente a los eliminados** — al revés que el nombre. Es la referencia desde la que una factura o una comisión dirán qué se vendió, y el nombre no sirve porque `RF-PM-004` lo deja corregir | **Crítica** |
 | `RN-PM-014` | No se publica lo que no se explica | Al activar | Un producto **sin descripción no puede activarse**. Registrarlo sin ella es legítimo —está preparándose—; ofrecérselo a un cliente sin decirle qué se lleva, no | Media |
 | `RN-PM-015` | La vigencia se mide en días y es opcional | Al registrar y al editar | Un producto puede declarar **cuántos días dura lo que otorga**, contados desde la compra. Es **opcional en los dos tipos**: sin ella, lo adquirido **no caduca**. Si se declara, es un entero **mayor que cero** | Alta |
+| `RN-PM-016` | El icono solo existe en el upgrade | Al registrar y al editar | Un `UPGRADE_MEMBRESIA` **puede** declarar el icono con el que el frontend lo pinta; un `BOT` **no puede**. Es un **identificador**, no una imagen, y es **opcional** incluso donde se admite | Media |
 
 ### 5.2 Por qué las cuatro críticas son críticas
 
-**`RN-PM-001` — el tipo no cambia.** Convertir un `SERVICIO` en `UPGRADE_MEMBRESIA` después de venderlo reescribe qué compró quien lo compró. El campo no es una etiqueta: decide qué otras columnas son obligatorias y qué derecho se adquiere.
+**`RN-PM-001` — el tipo no cambia.** Convertir un `BOT` en `UPGRADE_MEMBRESIA` después de venderlo reescribe qué compró quien lo compró. El campo no es una etiqueta: decide qué otras columnas son obligatorias y qué derecho se adquiere.
 
-**`RN-PM-002` — la condición va en los dos sentidos.** Un upgrade sin destino no dice a qué nivel lleva y es inservible; un servicio **con** destino promete un cambio de membresía que nadie va a aplicar. La segunda mitad es la que se olvida, y es la peligrosa: no falla, promete.
+**`RN-PM-002` — la condición va en los dos sentidos.** Un upgrade sin destino no dice a qué nivel lleva y es inservible; un bot **con** destino promete un cambio de membresía que nadie va a aplicar. La segunda mitad es la que se olvida, y es la peligrosa: no falla, promete.
+
+**`RN-PM-016` — el icono tiene una sola mitad, y es la contraria de la anterior.** `RN-PM-002` obliga y prohíbe; esta solo prohíbe. Un upgrade **sin** icono es un producto normal, de modo que no hay nada que exigir; lo que se rechaza es el icono **de más** en un bot, que sería un dato que el frontend pintaría en un sitio donde nadie ha decidido que vaya un icono. **Y es un identificador, no una imagen**: el backend guarda el nombre —`crown`, `arrow-up-circle`— y no sabe pintarlo, igual que con el color de la membresía (`RN-SP-024`). El sistema no almacena binarios, y dónde vivirían es una decisión que esta regla no necesita abrir.
 
 **`RN-PM-003` — el destino existe.** Sin esta regla un upgrade puede apuntar a un identificador que no es nada, y el defecto solo se ve al intentar aplicarlo: con el cobro ya hecho.
 
@@ -184,7 +187,7 @@ No se copian: se referencian, porque dos copias de una regla acaban divergiendo.
 
 !!! note "Un solo requerimiento de alta para los dos tipos"
 
-    Podría haber dos —«registrar upgrade» y «registrar servicio»—, y se decidió que no: es **un endpoint, un caso de uso y una tabla**, con una validación condicional según el tipo. Partirlo obligaría a dos tripletas que describen la misma operación y a dos Pull Requests sobre el mismo controlador, lo que choca con el Art. XIV.2 en lugar de servirlo.
+    Podría haber dos —«registrar upgrade» y «registrar bot»—, y se decidió que no: es **un endpoint, un caso de uso y una tabla**, con una validación condicional según el tipo. Partirlo obligaría a dos tripletas que describen la misma operación y a dos Pull Requests sobre el mismo controlador, lo que choca con el Art. XIV.2 en lugar de servirlo.
 
     El precedente es `RF-SP-024`, que aplica tres reglas condicionales en los dos sentidos —consumidor ⟺ membresía, vendedor ⟺ superior— dentro de un solo requerimiento de alta.
 
@@ -364,6 +367,7 @@ Ninguna otra. `memberships` y `currencies` se **referencian** por clave foránea
 | `type` | `varchar(30)` | No | No | No | — | — |
 | `name` | `varchar(150)` | No | No | No | — | — |
 | `description` | `text` | No | No | Sí | — | — |
+| `icon` | `varchar(50)` | No | No | Sí | — | — |
 | `target_membership_id` | `uuid` | No | Sí | Sí | — | `memberships` |
 | `price` | `numeric(14,4)` | No | No | No | — | — |
 | `currency_id` | `uuid` | No | Sí | No | — | `currencies` |
@@ -379,7 +383,7 @@ Sin columnas de actor, y **sin columna de motivo**: quién retiró el producto y
 | Valor | Qué derecho otorga |
 |---|---|
 | `UPGRADE_MEMBRESIA` | Pasar a la membresía que declara `target_membership_id` |
-| `SERVICIO` | Una prestación del sistema, sin efecto sobre el nivel de acceso |
+| `BOT` | Una prestación del sistema, sin efecto sobre el nivel de acceso |
 
 `status` tiene dominio cerrado —`ACTIVO`, `INACTIVO`— y decide si el producto se ofrece (`RN-PM-009`). **No se usa `boolean`**, al revés que los catálogos de `SP`: el dominio es candidato a crecer —un `BORRADOR` que permita preparar un producto sin publicarlo es previsible— y añadir un valor a un `varchar` con `CHECK` es una migración, mientras que convertir un `boolean` en tres estados es una reescritura de todo lo que lo consulta.
 
@@ -391,9 +395,11 @@ Sin columnas de actor, y **sin columna de motivo**: quién retiró el producto y
 
 | Restricción | Sobre | Regla que implementa |
 |---|---|---|
-| `ck_products_type` | `type IN ('UPGRADE_MEMBRESIA','SERVICIO')` | `RN-PM-001` |
+| `ck_products_type` | `type IN ('UPGRADE_MEMBRESIA','BOT')` | `RN-PM-001` |
 | `ck_products_status` | `status IN ('ACTIVO','INACTIVO')`, con `DEFAULT 'INACTIVO'` | `RN-PM-009`, `RN-PM-012` |
-| `ck_products_type_target` | `(type = 'UPGRADE_MEMBRESIA' AND target_membership_id IS NOT NULL) OR (type = 'SERVICIO' AND target_membership_id IS NULL)` | `RN-PM-002` |
+| `ck_products_type_target` | `(type = 'UPGRADE_MEMBRESIA' AND target_membership_id IS NOT NULL) OR (type = 'BOT' AND target_membership_id IS NULL)` | `RN-PM-002` |
+| `ck_products_icon_solo_upgrade` | `icon IS NULL OR type = 'UPGRADE_MEMBRESIA'` | `RN-PM-016`. La rama `IS NULL` va **delante y explícita** por lo mismo que en la vigencia: un `CHECK` que evalúa a `NULL` **acepta** la fila |
+| `ck_products_icon_format` | `icon IS NULL OR icon ~ '^[a-z][a-z0-9-]*$'` | `RN-PM-016`. El valor se guarda ya normalizado, de modo que el `CHECK` puede ser una comprobación de forma corriente |
 | `ck_products_price_positive` | `price > 0` | `RN-PM-006` |
 | `ck_products_validity_positive` | `validity_days IS NULL OR validity_days > 0` | `RN-PM-015`. La rama `IS NULL` se escribe **explícita** aunque `validity_days > 0` sola también admitiría el nulo —un `CHECK` que evalúa a `NULL` acepta la fila—: así el permiso es deliberado y no accidental, y el día que la vigencia se vuelva obligatoria basta con quitar esa rama |
 | `fk_products_target_membership` | `target_membership_id` → `memberships(id)` | `RN-PM-003` |
@@ -437,3 +443,4 @@ Se declaran en la base de datos, no solo en Java (Art. V.6).
 | 0.10.0 | 26-08-2026 | **Los siete `plan.md` aprobados**: el módulo cruza entero la segunda compuerta el mismo día que la primera. Dos decisiones de los planes quedan firmes y alcanzan más allá de su requerimiento: la **lectura estrecha del motivo de eliminación en `shared/audit`**, que es de donde `RF-PM-003` toma el motivo que devuelve, y el **`JOIN` a `memberships`** con el que `RF-PM-002` resuelve el destino de cada upgrade en lugar de llamar al puerto fila a fila. Lo que sigue es la tercera compuerta: las `tasks.md`. | Responsable del proyecto |
 | 0.11.0 | 26-08-2026 | **Las siete `tasks.md` aprobadas**: la tripleta del módulo está completa y el código puede escribirse (Art. I.1). **95 tareas**, con el orden de implementación fijado por una dependencia que no es la de los identificadores: `RF-PM-003` necesita una eliminación registrada, que escribe `RF-PM-006`, de modo que la secuencia es `001 → 002 → 005 → 006 → 003 → 004 → 007`. Tres tareas escriben **fuera de `PM`** —dos interfaces en `SP`, una tercera para la membresía vigente, y la lectura estrecha del motivo en `shared/audit`— y son las de mayor riesgo: una regresión ahí alcanza a `SP` entero, y por eso su definición de terminado exige que su suite siga en verde sin cambios. | Responsable del proyecto |
 | 0.12.0 | 27-08-2026 | **Los productos ganan vigencia de adquisición, medida en días** (`RN-PM-015`), por decisión del responsable del proyecto. Es **opcional y en los dos tipos**: sin ella, lo adquirido **no caduca** —comprar Oro y quedarse en Oro—; con ella, el derecho dura los días que declare, contados desde la compra. Se descartó hacerla obligatoria porque vender algo permanente habría exigido un valor de relleno —mil años— que ningún `CHECK` distingue de un error de tecleo. §10 incorpora `validity_days` y `ck_products_validity_positive`, cuya rama `IS NULL` se escribe **explícita** aunque la comparación sola también admitiría el nulo: así el permiso es deliberado y no accidental. **Dos condiciones más sobre la compra futura**, en §1.4: cada compra guardará **la vigencia que compró** además del importe —o corregir una vigencia reescribiría lo ya vendido—, y **al vencer, la persona se queda sin nivel vigente**: no vuelve al que tenía antes, porque eso habría exigido que la compra guardase cuál era, ni baja al más bajo, que castigaría a quien ya estaba arriba. Enmienda las siete tripletas, aprobadas el día anterior (Art. I.7). | Responsable del proyecto |
+| 0.13.0 | 28-08-2026 | **Dos cambios pedidos por el responsable del proyecto.** (1) **El tipo `SERVICIO` pasa a llamarse `BOT`**. Es un **renombrado y no un cambio de semántica**: sigue siendo el producto que da derecho a una prestación y no toca el nivel de acceso de nadie. Se pudo hacer hoy porque **todavía no existe ninguna tabla de compras** que apunte a un producto; el día que exista, un renombrado de este valor tendrá que arrastrar también lo vendido, y por eso queda escrito. (2) **Nace `RN-PM-016`: el icono, solo en el upgrade.** Un `UPGRADE_MEMBRESIA` puede declarar el icono con el que el frontend lo pinta y un `BOT` no puede, y **es opcional incluso donde se admite**. Es un **identificador y no una imagen** —`crown`, `arrow-up-circle`—, por el mismo camino que el color de la membresía (`RN-SP-024`): el sistema no almacena binarios, y dónde vivirían es una decisión abierta que este cambio no necesitaba abrir. La regla tiene **una sola mitad** —prohíbe, no obliga—, que es lo que la distingue de `RN-PM-002`. Migración **`V43`**: `V39` no se edita, que está aplicada y Flyway valida por suma de comprobación; los dos `CHECK` que nombraban el literal viejo caen primero, porque mientras exijan `SERVICIO` ningún `UPDATE` puede escribir `BOT`. **El contrato publicado cambia**, de modo que la copia del frontend queda vieja: `docs/api/openapi.json` es la autoridad. Enmienda las tripletas de `RF-PM-001` a `RF-PM-004` (Art. I.7). | Responsable técnico |
