@@ -22,6 +22,7 @@ public record ErrorAuditItem(
     UUID id,
     OffsetDateTime occurredAt,
     UUID actorId,
+    AuditActor actor,
     String resource,
     UUID entityId,
     String operation,

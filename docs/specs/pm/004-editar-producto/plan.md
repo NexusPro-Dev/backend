@@ -60,7 +60,7 @@ Es el contrato de esta operación, y por eso se escribe:
 
 ## 6. Auditoría
 
-Un evento `UPDATE` con **solo los campos que cambiaron**, cada uno con su valor anterior y el nuevo. `Product.update(...)` devuelve el diff en lugar de que el servicio lo reconstruya comparando: quien aplica el cambio es quien sabe qué cambió.
+Un evento `UPDATE` con **solo los campos que cambiaron**, cada uno con su valor anterior y el nuevo. `Product.update(...)` devuelve el diff en lugar de que el bot lo reconstruya comparando: quien aplica el cambio es quien sabe qué cambió.
 
 **Sin evento cuando nada cambió** (`CA-PM-038`): un cambio que no cambió nada no es un cambio, y registrarlo llena la línea de tiempo de ruido que oculta lo que sí ocurrió.
 

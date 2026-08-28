@@ -86,7 +86,7 @@ class UpdateProductRequestTest {
   @Test
   @DisplayName("`VAL-006` — los tres inmutables se detectan aunque lleguen en nulo")
   void detectaLosInmutables() throws Exception {
-    assertThat(leer("{\"type\":\"SERVICIO\"}").traeInmutables()).isTrue();
+    assertThat(leer("{\"type\":\"BOT\"}").traeInmutables()).isTrue();
     assertThat(leer("{\"code\":\"OTRO\"}").traeInmutables()).isTrue();
     assertThat(leer("{\"targetMembershipId\":null}").traeInmutables())
         .as("enviarlo en nulo también es intentar cambiarlo")

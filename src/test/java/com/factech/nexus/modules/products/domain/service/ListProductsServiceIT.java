@@ -281,7 +281,7 @@ class ListProductsServiceIT extends IntegrationTestBase {
     jdbc.batchUpdate(
         "INSERT INTO products (id, code, type, name, target_membership_id, price, currency_id,"
             + " status, created_at, updated_at)"
-            + " VALUES (CAST(? AS uuid), ?, 'SERVICIO', ?, NULL, ?, CAST(? AS uuid), 'ACTIVO',"
+            + " VALUES (CAST(? AS uuid), ?, 'BOT', ?, NULL, ?, CAST(? AS uuid), 'ACTIVO',"
             + " ?, ?)",
         filas);
   }

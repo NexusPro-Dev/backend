@@ -55,10 +55,24 @@
         "required" : [ "supervisorId" ],
         "type" : "object"
       },
+      "AuditActor" : {
+        "properties" : {
+          "fullName" : {
+            "type" : "string"
+          },
+          "username" : {
+            "type" : "string"
+          }
+        },
+        "type" : "object"
+      },
       "ChangeAuditItem" : {
         "properties" : {
           "action" : {
             "type" : "string"
+          },
+          "actor" : {
+            "$ref" : "#/components/schemas/AuditActor"
           },
           "actorId" : {
             "format" : "uuid",
@@ -336,6 +350,9 @@
       },
       "DeletionAuditItem" : {
         "properties" : {
+          "actor" : {
+            "$ref" : "#/components/schemas/AuditActor"
+          },
           "actorId" : {
             "format" : "uuid",
             "type" : "string"
@@ -382,6 +399,9 @@
       },
       "ErrorAuditItem" : {
         "properties" : {
+          "actor" : {
+            "$ref" : "#/components/schemas/AuditActor"
+          },
           "actorId" : {
             "format" : "uuid",
             "type" : "string"
@@ -999,6 +1019,9 @@
           "description" : {
             "type" : "string"
           },
+          "icon" : {
+            "type" : "string"
+          },
           "id" : {
             "format" : "uuid",
             "type" : "string"
@@ -1017,7 +1040,7 @@
             "$ref" : "#/components/schemas/MembershipRef"
           },
           "type" : {
-            "enum" : [ "UPGRADE_MEMBRESIA", "SERVICIO" ],
+            "enum" : [ "UPGRADE_MEMBRESIA", "BOT" ],
             "type" : "string"
           },
           "updatedAt" : {
@@ -1050,6 +1073,9 @@
           "description" : {
             "type" : "string"
           },
+          "icon" : {
+            "type" : "string"
+          },
           "id" : {
             "format" : "uuid",
             "type" : "string"
@@ -1068,7 +1094,7 @@
             "$ref" : "#/components/schemas/MembershipRef"
           },
           "type" : {
-            "enum" : [ "UPGRADE_MEMBRESIA", "SERVICIO" ],
+            "enum" : [ "UPGRADE_MEMBRESIA", "BOT" ],
             "type" : "string"
           },
           "validityDays" : {
@@ -1126,6 +1152,9 @@
           "description" : {
             "type" : "string"
           },
+          "icon" : {
+            "type" : "string"
+          },
           "id" : {
             "format" : "uuid",
             "type" : "string"
@@ -1144,7 +1173,7 @@
             "$ref" : "#/components/schemas/MembershipRef"
           },
           "type" : {
-            "enum" : [ "UPGRADE_MEMBRESIA", "SERVICIO" ],
+            "enum" : [ "UPGRADE_MEMBRESIA", "BOT" ],
             "type" : "string"
           },
           "updatedAt" : {
@@ -1232,6 +1261,11 @@
             "minLength" : 0,
             "type" : "string"
           },
+          "icon" : {
+            "maxLength" : 50,
+            "minLength" : 0,
+            "type" : "string"
+          },
           "name" : {
             "maxLength" : 150,
             "minLength" : 0,
@@ -1246,7 +1280,7 @@
             "type" : "string"
           },
           "type" : {
-            "enum" : [ "UPGRADE_MEMBRESIA", "SERVICIO" ],
+            "enum" : [ "UPGRADE_MEMBRESIA", "BOT" ],
             "type" : "string"
           },
           "validityDays" : {
@@ -1469,6 +1503,9 @@
       },
       "SecurityAuditItem" : {
         "properties" : {
+          "actor" : {
+            "$ref" : "#/components/schemas/AuditActor"
+          },
           "actorId" : {
             "format" : "uuid",
             "type" : "string"
@@ -1499,6 +1536,9 @@
           },
           "severity" : {
             "type" : "string"
+          },
+          "targetUser" : {
+            "$ref" : "#/components/schemas/AuditActor"
           },
           "targetUserId" : {
             "format" : "uuid",
@@ -1557,6 +1597,9 @@
             "$ref" : "#/components/schemas/PatchableUUID"
           },
           "description" : {
+            "$ref" : "#/components/schemas/PatchableString"
+          },
+          "icon" : {
             "$ref" : "#/components/schemas/PatchableString"
           },
           "name" : {
@@ -3028,7 +3071,7 @@
     },
     "/api/v1/products" : {
       "get" : {
-        "description" : "Devuelve el catálogo **paginado**, con el destino de cada upgrade y la\nmoneda de cada precio ya resueltos: no hace falta una segunda consulta.\n\n**Los retirados quedan fuera salvo que se pidan** con `includeDeleted`.\nAl pedirlos se indica **desde cuándo** lo están; el **motivo** no viaja\nen el listado —uno a uno lo devuelve el detalle (`RF-PM-003`), en\nbloque sería una exportación de decisiones comerciales—. Verlos **no\nexige un permiso propio**: basta `products:read`.\n\nSolo se puede ordenar por la lista blanca —`name`, `price`,\n`createdAt`—, con `,asc` o `,desc`. **Un campo fuera de ella se\nrechaza y no se ignora**: ignorarlo devolvería un orden distinto del\npedido sin decirlo. Por omisión se ordena por **fecha de alta\ndescendente**, y el orden aplicado viaja en la respuesta.\n\n**`targetMembershipId` no se valida contra el catálogo de membresías.**\nFiltrar por un destino inexistente devuelve la colección vacía y no es\nun error; combinarlo con `type=SERVICIO` también, porque ningún\nservicio tiene destino.\n\nLa búsqueda va sobre el nombre, **sin distinguir acentos ni\nmayúsculas** y por fragmento. En blanco equivale a no filtrar.\n\nUn filtro sin coincidencias devuelve `200` con la colección vacía, y\nuna página más allá de la última hace lo mismo **con el total real**.\nNo hay `404` ni `422`.\n",
+        "description" : "Devuelve el catálogo **paginado**, con el destino de cada upgrade y la\nmoneda de cada precio ya resueltos: no hace falta una segunda consulta.\n\n**Los retirados quedan fuera salvo que se pidan** con `includeDeleted`.\nAl pedirlos se indica **desde cuándo** lo están; el **motivo** no viaja\nen el listado —uno a uno lo devuelve el detalle (`RF-PM-003`), en\nbloque sería una exportación de decisiones comerciales—. Verlos **no\nexige un permiso propio**: basta `products:read`.\n\nSolo se puede ordenar por la lista blanca —`name`, `price`,\n`createdAt`—, con `,asc` o `,desc`. **Un campo fuera de ella se\nrechaza y no se ignora**: ignorarlo devolvería un orden distinto del\npedido sin decirlo. Por omisión se ordena por **fecha de alta\ndescendente**, y el orden aplicado viaja en la respuesta.\n\n**`targetMembershipId` no se valida contra el catálogo de membresías.**\nFiltrar por un destino inexistente devuelve la colección vacía y no es\nun error; combinarlo con `type=BOT` también, porque ningún\nbot tiene destino.\n\nLa búsqueda va sobre el nombre, **sin distinguir acentos ni\nmayúsculas** y por fragmento. En blanco equivale a no filtrar.\n\nUn filtro sin coincidencias devuelve `200` con la colección vacía, y\nuna página más allá de la última hace lo mismo **con el total real**.\nNo hay `404` ni `422`.\n",
         "operationId" : "listar_2",
         "parameters" : [ {
           "in" : "query",
@@ -3118,7 +3161,7 @@
         "tags" : [ "Productos" ]
       },
       "post" : {
-        "description" : "Registra un producto del catálogo, **siempre inactivo**: publicarlo es otra\noperación (`RF-PM-005`).\n\nEl tipo decide qué campos son obligatorios: un `UPGRADE_MEMBRESIA` debe\ndeclarar su membresía destino y un `SERVICIO` no puede declararla.\n\nLa vigencia es opcional en los dos tipos: sin ella, lo adquirido no caduca.\n",
+        "description" : "Registra un producto del catálogo, **siempre inactivo**: publicarlo es otra\noperación (`RF-PM-005`).\n\nEl tipo decide qué campos son obligatorios: un `UPGRADE_MEMBRESIA` debe\ndeclarar su membresía destino y un `BOT` no puede declararla.\n\n`icon` es el **nombre** del icono con el que el frontend pinta el producto\n—no una imagen—, en minúsculas y guion medio. Es **opcional**, y solo un\n`UPGRADE_MEMBRESIA` puede llevarlo: en un `BOT` se rechaza (`RN-PM-016`).\n\nLa vigencia es opcional en los dos tipos: sin ella, lo adquirido no caduca.\n",
         "operationId" : "register",
         "requestBody" : {
           "content" : {
@@ -3198,7 +3241,7 @@
     },
     "/api/v1/products/{id}" : {
       "get" : {
-        "description" : "Devuelve el producto con su membresía destino y su moneda **resueltas**,\nsin exigir una segunda consulta.\n\n**Un producto retirado se devuelve marcado como tal**, no como\ninexistente: `deletedAt` dice desde cuándo y `deletionReason` **por\nqué**. Los dos campos **solo aparecen si el producto está retirado** —\nsu ausencia significa que sigue vivo—. El motivo llega con\n`products:read` y **sin exigir permiso de auditoría**; es la\ncontrapartida asumida de que el detalle lo devuelva.\n\n**No devuelve autoría en ninguna forma**: ni quién lo creó, ni quién lo\ncorrigió, ni quién lo retiró. Eso vive en la auditoría y tiene su\npropio permiso.\n\n`targetMembership` y `validityDays` viajan **presentes en nulo** cuando\nno aplican: un servicio no tiene destino y un producto puede no\ncaducar, y un campo ausente es indistinguible de uno que el cliente no\nconoce.\n\nEl **nivel** del destino es el **actual**, no el que tenía cuando se\ncreó el producto: la cadena de membresías se reordena al insertar un\neslabón.\n\nUn identificador con forma laxa se rechaza como **dato inválido**\n(`400`), no como recurso no encontrado.\n",
+        "description" : "Devuelve el producto con su membresía destino y su moneda **resueltas**,\nsin exigir una segunda consulta.\n\n**Un producto retirado se devuelve marcado como tal**, no como\ninexistente: `deletedAt` dice desde cuándo y `deletionReason` **por\nqué**. Los dos campos **solo aparecen si el producto está retirado** —\nsu ausencia significa que sigue vivo—. El motivo llega con\n`products:read` y **sin exigir permiso de auditoría**; es la\ncontrapartida asumida de que el detalle lo devuelva.\n\n**No devuelve autoría en ninguna forma**: ni quién lo creó, ni quién lo\ncorrigió, ni quién lo retiró. Eso vive en la auditoría y tiene su\npropio permiso.\n\n`targetMembership` y `validityDays` viajan **presentes en nulo** cuando\nno aplican: un bot no tiene destino y un producto puede no\ncaducar, y un campo ausente es indistinguible de uno que el cliente no\nconoce.\n\nEl **nivel** del destino es el **actual**, no el que tenía cuando se\ncreó el producto: la cadena de membresías se reordena al insertar un\neslabón.\n\nUn identificador con forma laxa se rechaza como **dato inválido**\n(`400`), no como recurso no encontrado.\n",
         "operationId" : "detalle_2",
         "parameters" : [ {
           "in" : "path",
@@ -3240,7 +3283,7 @@
         "tags" : [ "Productos" ]
       },
       "patch" : {
-        "description" : "Corrige el **nombre**, la **descripción**, el **precio**, la **moneda**\ny la **vigencia**. Se aplica lo que llega y se deja intacto lo que no.\n\n**Distingue el campo ausente del enviado vacío**, y de ahí salen dos\ncomportamientos opuestos: `description: null` y `validityDays: null`\n**vacían** el campo —el producto pasa a no caducar—, mientras que\n`name: null` se **rechaza**, porque un producto sin nombre no puede\nexistir.\n\n**El tipo, el código y la membresía destino NO se pueden corregir**, y\nenviarlos devuelve `400` con `VAL-006`. Se rechazan y no se ignoran:\nignorarlos haría creer que el cambio se aplicó. Definen qué derecho\notorga el producto, y cambiarlos convertiría lo comprado en otra cosa.\n\n**El precio se valida contra la moneda NUEVA** cuando llegan las dos.\nY el importe **no se convierte**: el sistema no hace conversión de\ndivisa — cambiar de moneda es declarar que ese número siempre estuvo\nen la otra.\n\n**Un producto retirado no se corrige**: lo que se retiró debe quedar\ncomo estaba para que lo que lo referencie siga diciendo la verdad.\n\n**No se exige motivo**, ni siquiera al cambiar el precio. Una petición\nque no cambia nada devuelve `200` y **no registra evento**.\n",
+        "description" : "Corrige el **nombre**, la **descripción**, el **icono**, el **precio**,\nla **moneda** y la **vigencia**. Se aplica lo que llega y se deja\nintacto lo que no.\n\n**Distingue el campo ausente del enviado vacío**, y de ahí salen dos\ncomportamientos opuestos: `description: null`, `icon: null` y\n`validityDays: null` **vacían** el campo —el producto pasa a no\ncaducar—, mientras que `name: null` se **rechaza**, porque un producto\nsin nombre no puede existir.\n\n**El icono sí se corrige, aunque el tipo no**: es el aspecto del\nproducto y no lo que otorga. En un `BOT`, cualquier valor distinto de\nnulo se rechaza con `VAL-013` (`RN-PM-016`).\n\n**El tipo, el código y la membresía destino NO se pueden corregir**, y\nenviarlos devuelve `400` con `VAL-006`. Se rechazan y no se ignoran:\nignorarlos haría creer que el cambio se aplicó. Definen qué derecho\notorga el producto, y cambiarlos convertiría lo comprado en otra cosa.\n\n**El precio se valida contra la moneda NUEVA** cuando llegan las dos.\nY el importe **no se convierte**: el sistema no hace conversión de\ndivisa — cambiar de moneda es declarar que ese número siempre estuvo\nen la otra.\n\n**Un producto retirado no se corrige**: lo que se retiró debe quedar\ncomo estaba para que lo que lo referencie siga diciendo la verdad.\n\n**No se exige motivo**, ni siquiera al cambiar el precio. Una petición\nque no cambia nada devuelve `200` y **no registra evento**.\n",
         "operationId" : "corregir",
         "parameters" : [ {
           "in" : "path",
@@ -4876,6 +4919,9 @@
     "url" : "/"
   } ],
   "tags" : [ {
+    "description" : "Catálogo de venta: upgrades de membresía y bots.",
+    "name" : "Productos"
+  }, {
     "description" : "Registro y administración de los roles del sistema.",
     "name" : "Roles"
   }, {
@@ -4890,9 +4936,6 @@
   }, {
     "description" : "Catálogo de países. Inmutable salvo su estado.",
     "name" : "Países"
-  }, {
-    "description" : "Catálogo de venta: upgrades de membresía y servicios.",
-    "name" : "Productos"
   }, {
     "description" : "Cadena lineal de niveles de consumidor. Inmutable salvo el reordenamiento.",
     "name" : "Membresías"

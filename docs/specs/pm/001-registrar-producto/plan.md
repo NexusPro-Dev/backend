@@ -58,9 +58,9 @@ Restricciones e índices:
 | `ck_products_code_format` | `code ~ '^[A-Z][A-Z0-9_]*$'` | `RN-PM-013`, `VAL-010`. Mismo formato que `roles` y `memberships` |
 | `uq_products_code` | `UNIQUE (code)` — **restricción de tabla, total** | `RN-PM-013`. **No es un índice parcial**, al revés que el nombre: el código no se libera al eliminar |
 | `uq_products_name` | `CREATE UNIQUE INDEX … ON products (f_unaccent(lower(name))) WHERE deleted_at IS NULL` | `RN-PM-005`. Índice **funcional y parcial**: una restricción de tabla no admite expresión ni condición. `f_unaccent` existe desde `V1` y está declarada `IMMUTABLE` precisamente para poder indexarse |
-| `ck_products_type` | `type IN ('UPGRADE_MEMBRESIA','SERVICIO')` | `RN-PM-001` |
+| `ck_products_type` | `type IN ('UPGRADE_MEMBRESIA','BOT')` | `RN-PM-001` |
 | `ck_products_status` | `status IN ('ACTIVO','INACTIVO')` | `RN-PM-009` |
-| `ck_products_type_target` | `(type = 'UPGRADE_MEMBRESIA' AND target_membership_id IS NOT NULL) OR (type = 'SERVICIO' AND target_membership_id IS NULL)` | `RN-PM-002`, en los dos sentidos |
+| `ck_products_type_target` | `(type = 'UPGRADE_MEMBRESIA' AND target_membership_id IS NOT NULL) OR (type = 'BOT' AND target_membership_id IS NULL)` | `RN-PM-002`, en los dos sentidos |
 | `ck_products_price_positive` | `price > 0` | `RN-PM-006` |
 | `ck_products_validity_positive` | `validity_days IS NULL OR validity_days > 0` | `RN-PM-015`. La rama `IS NULL` va **explícita**: la comparación sola también admitiría el nulo —un `CHECK` que evalúa a `NULL` acepta la fila—, y se escribe para que ese permiso sea deliberado |
 | `ck_products_name_length` | `length(name) <= 150` implícito en el tipo; `description` con `CHECK` de 1000 | Sin cota, el listado de `RF-PM-002` devolvería respuestas de tamaño impredecible |
@@ -166,7 +166,7 @@ Se añade a `LayerRulesTest`: **ninguna clase de `..modules.products..` depende 
 ```
 
 - **El destino llega resuelto** y no como identificador suelto, con los datos que el puerto ya devolvió: resolverlo cuesta cero consultas extra porque la validación ya lo trajo.
-- **`targetMembership` viaja como `null` presente** en los servicios, no ausente: un campo que falta es indistinguible de uno que el cliente no conoce.
+- **`targetMembership` viaja como `null` presente** en los bots, no ausente: un campo que falta es indistinguible de uno que el cliente no conoce.
 - **El precio se serializa con los decimales de su moneda** y no con la escala de la columna (`CA-PM-082`): `49.99`, no `49.9900`.
 
 ## 5. Autorización
@@ -218,7 +218,7 @@ Una sola transacción para el `INSERT` y su evento de auditoría. Las lecturas c
 | Normalización y formato del código, y del nombre | Unitaria | Sobre `Product`, sin Spring |
 | Decimales del precio según la moneda | Unitaria | Dos monedas: una de dos decimales y otra de **cero** |
 | Los once criterios de `spec.md` §12 | API | `MockMvc` con permiso concedido |
-| La condición cruzada de `RN-PM-002` | API | **En los dos sentidos**: upgrade sin destino y servicio con destino |
+| La condición cruzada de `RN-PM-002` | API | **En los dos sentidos**: upgrade sin destino y bot con destino |
 | El producto nace `INACTIVO` | API | Y enviar `status` devuelve `400`, no se ignora |
 | Código único **incluso contra eliminados** | Integración | Se retira un producto y se intenta reutilizar su código |
 | Traducción por nombre de restricción | Integración | El duplicado produce `409` con el campo correcto, distinguiendo código de nombre |

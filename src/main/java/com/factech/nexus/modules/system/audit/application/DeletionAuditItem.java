@@ -23,6 +23,7 @@ public record DeletionAuditItem(
     UUID id,
     OffsetDateTime occurredAt,
     UUID actorId,
+    AuditActor actor,
     String module,
     String entity,
     UUID entityId,

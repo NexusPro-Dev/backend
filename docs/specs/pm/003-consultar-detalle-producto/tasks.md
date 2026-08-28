@@ -17,7 +17,7 @@
 |---|---|---|---|---|
 | `T-01` | **En `shared/audit`**: puerto `DeletionReasonReader` y su adaptador. Recibe módulo, entidad e identificador, y devuelve el motivo o vacío | `RF-PM-006 · T-05` | Integración: devuelve el motivo literal de una eliminación registrada y **vacío** si no hay ninguna. **No devuelve actor ni instantánea** | Hecha |
 | `T-02` | Prueba de que ese puerto **no alcanza lo ajeno**: pedir el motivo de una entidad de otro módulo no devuelve nada | `T-01` | Es lo que impide que la lectura estrecha se convierta en la puerta trasera de la auditoría | Hecha |
-| `T-03` | `application/ProductDetailResponse`: producto, destino y moneda resueltos, y marca de retiro **con motivo** | `RF-PM-001 · T-12` | El destino llega **vacío y presente** en los servicios, no ausente | Hecha |
+| `T-03` | `application/ProductDetailResponse`: producto, destino y moneda resueltos, y marca de retiro **con motivo** | `RF-PM-001 · T-12` | El destino llega **vacío y presente** en los bots, no ausente | Hecha |
 | `T-04` | `ProductQueryRepository.findDetail(UUID)`: una sentencia con dos uniones externas | `RF-PM-002 · T-05` | Integración: **una** sentencia, y el nivel del destino es el **actual** | Hecha |
 | `T-05` | `domain/service/GetProductService`: pide el motivo al puerto **solo si el producto está retirado** | `T-01`, `T-04` | Prueba de número de sentencias: un producto vivo cuesta **una**, no dos | Hecha |
 | `T-06` | `interfaces`: `GET /api/v1/products/{id}` con `products:read` | `T-05` | `404` ante identificador inexistente; `403` sin permiso | Hecha |

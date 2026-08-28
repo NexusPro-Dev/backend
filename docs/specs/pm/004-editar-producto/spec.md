@@ -8,7 +8,7 @@
 | Autor | Responsable técnico |
 | Aprobada por | Responsable del proyecto |
 | Fecha de aprobación | 26-08-2026 |
-| Enmendada el | 27-08-2026 — ver §15 |
+| Enmendada el | 28-08-2026 — ver §15 |
 
 ---
 
@@ -66,6 +66,7 @@ Un producto se equivoca de nombre, se le escapa una falta en la descripción o c
 | Identificador del producto | Sí | Cuál se corrige | Debe existir y no estar retirado |
 | Nombre | No | Nombre nuevo | Único entre los vivos (`RN-PM-005`); **no admite vaciarse** |
 | Descripción | No | Descripción nueva | **Sí admite vaciarse**, porque es opcional |
+| Icono | No | Nombre del icono nuevo | **Sí admite vaciarse.** Solo en el upgrade: en un producto de tipo bot, cualquier valor distinto de nulo se rechaza (`RN-PM-016`) |
 | Precio | No | Precio nuevo | Mayor que cero y con los decimales de su moneda |
 | Moneda | No | Moneda nueva | Debe existir y estar activa |
 | Vigencia | No | Vigencia nueva, en días | Mayor que cero. **Sí admite vaciarse**, y hacerlo convierte el producto en uno que no caduca |
@@ -166,6 +167,8 @@ Un producto se equivoca de nombre, se le escapa una falta en la descripción o c
 | `CA-PM-083` | El sistema **corrige un producto inactivo**, que es el estado en el que nace: sin esto no habría forma de ponerle la descripción que `RF-PM-005` exige para publicarlo |
 | `CA-PM-084` | El sistema **no exige motivo** para corregir, ni siquiera al cambiar el precio |
 | `CA-PM-094` | El sistema corrige la **vigencia**, y **vaciarla** convierte el producto en uno que no caduca |
+| `CA-PM-099` | El sistema corrige el **icono**, y **vaciarlo** con nulo explícito lo deja sin icono |
+| `CA-PM-100` | El sistema rechaza el icono en un producto de tipo bot, también cuando llega en una corrección |
 
 ## 13. Casos límite
 
@@ -195,3 +198,4 @@ Ninguna. Dos se resolvieron el 26-08-2026 y **las otras dos quedaron respondidas
 | 0.2.0 | 26-08-2026 | **Aprobada.** El precio se puede corregir siempre, y eso **impone una condición a la compra futura**: cada venta guardará el importe que se pagó, o esta operación pasaría a reescribir el pasado. **No se exige motivo** para corregir. Las otras dos preguntas las cerró la aprobación de `RF-PM-001`: corregir un producto inactivo no solo se admite —es imprescindible, porque es el estado en el que nace—, y el **código es inmutable**, de modo que se suma al tipo y al destino entre lo que la petición no puede traer. Dos criterios nuevos, `CA-PM-083` y `CA-PM-084`. | Responsable del proyecto |
 | 0.1.0 | 26-08-2026 | Redacción inicial, con cuatro preguntas abiertas. | Responsable técnico |
 | 0.3.0 | 27-08-2026 | La **vigencia** se suma a lo corregible (`RN-PM-015`), con el mismo criterio que el precio: corregirla no reescribe lo vendido **porque cada compra guardará la vigencia que compró**. Es el tercer campo que admite vaciarse —junto con la descripción—, y vaciarlo convierte el producto en uno que no caduca. `CA-PM-094`. | Responsable del proyecto |
+| 0.4.0 | 28-08-2026 | **El icono se suma a lo corregible** (`RN-PM-016`), y con el criterio opuesto al del tipo: el tipo no se corrige porque define qué otorga el producto, mientras que el icono es su **aspecto** y cambiarlo no reescribe lo comprado. Admite vaciarse con nulo explícito, como la descripción y la vigencia. Lo que **no** admite excepción es la regla: en un producto de tipo bot el icono se rechaza con `VAL-013` aunque llegue en un `PATCH`. Entran `CA-PM-099` y `CA-PM-100`. | Responsable técnico |

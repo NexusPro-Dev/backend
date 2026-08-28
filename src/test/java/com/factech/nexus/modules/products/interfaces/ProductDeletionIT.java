@@ -63,14 +63,14 @@ class ProductDeletionIT extends IntegrationTestBase {
   @Test
   @DisplayName("`CA-PM-048` — retira el producto y este deja de ofrecerse, conservando su fila")
   void retira() throws Exception {
-    UUID servicio = servicio("SOPORTE", "Soporte", "Atención prioritaria.");
+    UUID bot = bot("SOPORTE", "Soporte", "Atención prioritaria.");
 
-    mvc.perform(retirar(servicio, "Se descontinuó la línea.")).andExpect(status().isNoContent());
+    mvc.perform(retirar(bot, "Se descontinuó la línea.")).andExpect(status().isNoContent());
 
     // La fila sigue ahí: lo vendido tiene que seguir resolviendo a lo que se
     // vendió (`RN-PM-010`).
-    assertThat(sigueLaFila(servicio)).isTrue();
-    assertThat(fechaDeRetiro(servicio)).isNotNull();
+    assertThat(sigueLaFila(bot)).isTrue();
+    assertThat(fechaDeRetiro(bot)).isNotNull();
 
     // Y deja de aparecer en el catálogo salvo que se pidan los retirados.
     mvc.perform(listado("")).andExpect(jsonPath("$.totalElements").value(0));
@@ -80,10 +80,10 @@ class ProductDeletionIT extends IntegrationTestBase {
   @Test
   @DisplayName("`CA-PM-049` — sin motivo se rechaza, y NO retira nada")
   void sinMotivoNoRetiraNada() throws Exception {
-    UUID servicio = servicio("SOPORTE", "Soporte", "Atención prioritaria.");
+    UUID bot = bot("SOPORTE", "Soporte", "Atención prioritaria.");
 
     mvc.perform(
-            post("/api/v1/products/{id}/deletion", servicio)
+            post("/api/v1/products/{id}/deletion", bot)
                 .with(admin())
                 .contentType(MediaType.APPLICATION_JSON)
                 .content("{}"))
@@ -91,31 +91,31 @@ class ProductDeletionIT extends IntegrationTestBase {
         .andExpect(jsonPath("$.errors[0].code").value("VAL-002"))
         .andExpect(jsonPath("$.errors[0].field").value("reason"));
 
-    assertThat(fechaDeRetiro(servicio)).isNull();
+    assertThat(fechaDeRetiro(bot)).isNull();
   }
 
   @Test
   @DisplayName("`CA-PM-050` — un motivo de solo espacios se rechaza igual que uno ausente")
   void motivoEnBlanco() throws Exception {
-    UUID servicio = servicio("SOPORTE", "Soporte", "Atención prioritaria.");
+    UUID bot = bot("SOPORTE", "Soporte", "Atención prioritaria.");
 
-    mvc.perform(retirar(servicio, "     "))
+    mvc.perform(retirar(bot, "     "))
         .andExpect(status().isBadRequest())
         .andExpect(jsonPath("$.errors[0].code").value("VAL-002"));
 
-    assertThat(fechaDeRetiro(servicio)).isNull();
+    assertThat(fechaDeRetiro(bot)).isNull();
   }
 
   @Test
   @DisplayName("`VAL-003` — el motivo demasiado largo se rechaza y tampoco retira nada")
   void motivoDemasiadoLargo() throws Exception {
-    UUID servicio = servicio("SOPORTE", "Soporte", "Atención prioritaria.");
+    UUID bot = bot("SOPORTE", "Soporte", "Atención prioritaria.");
 
-    mvc.perform(retirar(servicio, "x".repeat(501)))
+    mvc.perform(retirar(bot, "x".repeat(501)))
         .andExpect(status().isBadRequest())
         .andExpect(jsonPath("$.errors[0].code").value("VAL-003"));
 
-    assertThat(fechaDeRetiro(servicio)).isNull();
+    assertThat(fechaDeRetiro(bot)).isNull();
   }
 
   @Test
@@ -142,24 +142,24 @@ class ProductDeletionIT extends IntegrationTestBase {
   @DisplayName(
       "`CA-PM-052` · `CA-PM-086` — retira un ACTIVO sin exigir desactivarlo, y lo conserva")
   void elRegistroConservaQueEstabaActivo() throws Exception {
-    UUID servicio = servicio("SOPORTE", "Soporte", "Atención prioritaria.");
-    mvc.perform(activar(servicio)).andExpect(status().isOk());
+    UUID bot = bot("SOPORTE", "Soporte", "Atención prioritaria.");
+    mvc.perform(activar(bot)).andExpect(status().isOk());
 
-    mvc.perform(retirar(servicio, "Se descontinuó la línea.")).andExpect(status().isNoContent());
+    mvc.perform(retirar(bot, "Se descontinuó la línea.")).andExpect(status().isNoContent());
 
     // El estado NO se toca al retirar: si se desactivara «de paso», todos los
     // registros dirían «inactivo» y ese dato dejaría de significar nada.
-    assertThat(estadoDe(servicio)).isEqualTo("ACTIVO");
-    assertThat(instantaneaRegistrada(servicio)).contains("ACTIVO");
+    assertThat(estadoDe(bot)).isEqualTo("ACTIVO");
+    assertThat(instantaneaRegistrada(bot)).contains("ACTIVO");
   }
 
   @Test
   @DisplayName("`CA-PM-087` — retirar NO emite evento de seguridad")
   void sinEventoDeSeguridad() throws Exception {
-    UUID servicio = servicio("SOPORTE", "Soporte", "Atención prioritaria.");
+    UUID bot = bot("SOPORTE", "Soporte", "Atención prioritaria.");
     long antes = eventosDeSeguridad();
 
-    mvc.perform(retirar(servicio, "Se descontinuó la línea.")).andExpect(status().isNoContent());
+    mvc.perform(retirar(bot, "Se descontinuó la línea.")).andExpect(status().isNoContent());
 
     // Un producto no concede privilegios sobre el sistema, y el catálogo de
     // `security.md` §8.1 es cerrado: no hay código que emitir.
@@ -193,17 +193,17 @@ class ProductDeletionIT extends IntegrationTestBase {
   @Test
   @DisplayName("`CA-PM-055` — retirar uno YA retirado devuelve 409: no es idempotente a propósito")
   void elSegundoRetiroSeRechaza() throws Exception {
-    UUID servicio = servicio("SOPORTE", "Soporte", "Atención prioritaria.");
-    mvc.perform(retirar(servicio, "El primer motivo.")).andExpect(status().isNoContent());
+    UUID bot = bot("SOPORTE", "Soporte", "Atención prioritaria.");
+    mvc.perform(retirar(bot, "El primer motivo.")).andExpect(status().isNoContent());
 
-    mvc.perform(retirar(servicio, "Un motivo distinto."))
+    mvc.perform(retirar(bot, "Un motivo distinto."))
         .andExpect(status().isConflict())
         .andExpect(jsonPath("$.errors[0].code").value("EX-002"));
 
     // UN SOLO registro, con el motivo del hecho real. Dos motivos sobre un solo
     // hecho es evidencia contradictoria.
-    assertThat(cuantosRegistros(servicio)).isEqualTo(1);
-    assertThat(motivoRegistrado(servicio)).isEqualTo("El primer motivo.");
+    assertThat(cuantosRegistros(bot)).isEqualTo(1);
+    assertThat(motivoRegistrado(bot)).isEqualTo("El primer motivo.");
   }
 
   @Test
@@ -226,25 +226,25 @@ class ProductDeletionIT extends IntegrationTestBase {
   @Test
   @DisplayName("`CA-PM-057` — sin `products:delete`, el retiro se rechaza y no retira nada")
   void sinPermiso() throws Exception {
-    UUID servicio = servicio("SOPORTE", "Soporte", "Atención prioritaria.");
+    UUID bot = bot("SOPORTE", "Soporte", "Atención prioritaria.");
 
     // `products:update` no basta: retirar y corregir son decisiones distintas.
     mvc.perform(
-            post("/api/v1/products/{id}/deletion", servicio)
+            post("/api/v1/products/{id}/deletion", bot)
                 .with(user(UUID.randomUUID().toString()).authorities(() -> "products:update"))
                 .contentType(MediaType.APPLICATION_JSON)
                 .content("{\"reason\":\"Se descontinuó.\"}"))
         .andExpect(status().isForbidden());
 
-    assertThat(fechaDeRetiro(servicio)).isNull();
+    assertThat(fechaDeRetiro(bot)).isNull();
   }
 
   @Test
   @DisplayName("el detalle de un producto retirado devuelve el motivo que se escribió aquí")
   void elDetalleDevuelveElMotivoDeEsteRetiro() throws Exception {
-    UUID servicio = servicio("SOPORTE", "Soporte", "Atención prioritaria.");
+    UUID bot = bot("SOPORTE", "Soporte", "Atención prioritaria.");
 
-    mvc.perform(retirar(servicio, "Se descontinuó la línea de soporte."))
+    mvc.perform(retirar(bot, "Se descontinuó la línea de soporte."))
         .andExpect(status().isNoContent());
 
     // ESTE ES EL RECORRIDO COMPLETO que `RF-PM-003` no pudo escribir: allí el
@@ -252,7 +252,7 @@ class ProductDeletionIT extends IntegrationTestBase {
     // retira por su endpoint y el detalle lee el motivo por el puerto de
     // `shared/audit`.
     mvc.perform(
-            get("/api/v1/products/{id}", servicio)
+            get("/api/v1/products/{id}", bot)
                 .with(user(UUID.randomUUID().toString()).authorities(() -> "products:read")))
         .andExpect(status().isOk())
         .andExpect(jsonPath("$.deletedAt").exists())
@@ -283,7 +283,7 @@ class ProductDeletionIT extends IntegrationTestBase {
         .contentType(MediaType.APPLICATION_JSON)
         .content(
             """
-            {"code":"%s","type":"SERVICIO","name":"%s","price":10.00,"currencyId":"%s"}
+            {"code":"%s","type":"BOT","name":"%s","price":10.00,"currencyId":"%s"}
             """
                 .formatted(codigo, nombre, USD));
   }
@@ -361,8 +361,8 @@ class ProductDeletionIT extends IntegrationTestBase {
     return id;
   }
 
-  private UUID servicio(String codigo, String nombre, String descripcion) {
-    return producto(codigo, "SERVICIO", nombre, descripcion, null, "10.00");
+  private UUID bot(String codigo, String nombre, String descripcion) {
+    return producto(codigo, "BOT", nombre, descripcion, null, "10.00");
   }
 
   private UUID upgrade(String codigo, String nombre, UUID destino, String descripcion) {

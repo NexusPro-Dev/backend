@@ -8,6 +8,7 @@
 | Autor | Responsable técnico |
 | Aprobada por | Responsable técnico |
 | Fecha de aprobación | 21-08-2026 |
+| Enmendada el | 28-08-2026 — ver el control de cambios |
 | Enmendada | 21-08-2026 — filtro y salida de correlación, y `CA-SP-177`, al aprobar `plan.md` (Art. I.7) |
 
 ---
@@ -68,6 +69,7 @@ Ese segundo dato es lo que da valor al registro. Sin él, la fila diría que el 
 | Dato | Descripción |
 |---|---|
 | Eventos | Momento, actor, módulo, entidad, registro, tipo de eliminación, motivo y estado del registro |
+| Actor resuelto | De cada evento, el **nombre de usuario** de quien lo hizo —inmutable (`RN-SP-016`)— y su nombre completo **actual**. El identificador sigue viajando y es el dato probatorio |
 | Origen | Dirección de red y cliente, cuando la operación vino de una petición |
 | Correlación | Identificador que enlaza el evento con la petición que lo produjo, y con lo que esa misma petición dejó en los otros tres registros |
 | Paginación | Total de elementos, total de páginas y página actual |
@@ -154,3 +156,4 @@ Ninguna. Las tres se resolvieron el 21-08-2026, antes de aprobar la especificaci
 | 1 | ¿El motivo debe poder buscarse por texto? | **Sí.** Es la pregunta con la que empieza cualquier auditoría real —«enséñame todo lo que se borró alegando tal cosa»— y sin ella el motivo queda como un campo que solo se lee de uno en uno. Se añade como filtro y como `CA-SP-166` |
 | 2 | ¿Se admite alguna eliminación en cascada desde la base de datos? | **Ninguna.** Una cascada declarada en el esquema borra filas sin pasar por la aplicación y por tanto sin emitir evento, lo que rompe la garantía que sostiene todo este registro. El esquema no declara `ON DELETE CASCADE` en ninguna relación, y `plan.md` debe verificarlo |
 | 3 | ¿El motivo se tipifica con un catálogo de códigos? (D-20) | **No: texto libre con búsqueda.** Un catálogo obliga a prever hoy las razones por las que algo se borrará dentro de dos años, y el resultado previsible es que casi todo acabe bajo «Otro», que no informa de nada. La búsqueda por texto de la pregunta 1 cubre la necesidad de filtrar. **Cierra D-20** en `security.md` |
+| 0.3.0 | 28-08-2026 | **El actor llega resuelto**, por decisión del responsable del proyecto. Hasta hoy la respuesta traía solo `actorId`, y el motivo escrito era que un nombre es una foto del momento en que se **consulta** y no del momento en que **ocurrió** el evento. Ese argumento no se descarta, se acota: la identidad que se devuelve es el **`username`**, que es **inmutable** (`RN-SP-016`) y dice hoy lo mismo que decía entonces; el nombre completo se devuelve **declarado como actual** y por comodidad, no como evidencia. `actorId` sigue viajando y sigue siendo el dato probatorio, de modo que el cambio es **aditivo**. Se resuelve con un `LEFT JOIN` en la **misma** sentencia —una consulta por fila serían cien consultas por página— que **no filtra por `deleted_at`**: una auditoría que dejara de decir quién hizo algo porque esa persona fue dada de baja perdería su valor justo donde más se consulta. | Responsable técnico |

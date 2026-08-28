@@ -51,9 +51,9 @@ Es la tercera y última lectura de D-25, y la única que este requerimiento estr
 }
 ```
 
-- **Las dos colecciones van envueltas en un objeto**, no como arreglos desnudos (`CA-PM-091`). Es la decisión que `RF-SP-017` tomó con la cadena de membresías, y aquí resuelve la quinta pregunta de la spec: hoy no se pagina, y el día que los servicios crezcan, añadir paginación **no rompe a ningún cliente**.
+- **Las dos colecciones van envueltas en un objeto**, no como arreglos desnudos (`CA-PM-091`). Es la decisión que `RF-SP-017` tomó con la cadena de membresías, y aquí resuelve la quinta pregunta de la spec: hoy no se pagina, y el día que los bots crezcan, añadir paginación **no rompe a ningún cliente**.
 - **`currentMembership` es `null` presente** en quien no tiene nivel, no ausente.
-- **Los upgrades ordenados por nivel destino; los servicios por fecha de alta** (`CA-PM-078`).
+- **Los upgrades ordenados por nivel destino; los bots por fecha de alta** (`CA-PM-078`).
 
 !!! warning "`/products/available` compite con `/products/{id}`"
 
@@ -65,8 +65,8 @@ Una sola sentencia, con el nivel del actor como parámetro:
 
 - **Productos activos y no retirados**, siempre.
 - **Upgrades**: solo aquellos cuyo destino tiene `level` **estrictamente menor** que el del actor. El orden de la cadena crece hacia abajo —`1` es la cima (`requirements/sp.md` §10.4)—, de modo que **«nivel superior» es número menor**. Escribirlo al revés es el error que pasaría todas las pruebas de camino feliz y ofrecería exactamente lo contrario.
-- **Sin nivel** —el actor no tiene membresía vigente—: **cero upgrades** y todos los servicios (`FA-001`).
-- **Servicios**: todos los activos, sin filtro (`spec.md` §14, resolución 2).
+- **Sin nivel** —el actor no tiene membresía vigente—: **cero upgrades** y todos los bots (`FA-001`).
+- **Bots**: todos los activos, sin filtro (`spec.md` §14, resolución 2).
 
 ## 6. Autorización
 
@@ -98,7 +98,7 @@ Ninguna.
 |---|---|---|
 | 1 | **La comparación de niveles se escribe al revés** y ofrece bajadas en lugar de subidas | Pruebas sobre los **tres** casos —inferior, igual y superior—, no solo el feliz |
 | 2 | La cadena se reordena entre dos consultas y la oferta cambia sin que nadie tocara productos | Es correcto y está en `spec.md` §13. La prueba lo fija para que nadie lo «arregle» |
-| 3 | Los servicios crecen y la respuesta se vuelve grande | La envoltura permite paginar después sin romper el contrato; el disparador es que los servicios activos pasen de unas decenas |
+| 3 | Los bots crecen y la respuesta se vuelve grande | La envoltura permite paginar después sin romper el contrato; el disparador es que los bots activos pasen de unas decenas |
 
 ## 11. Estrategia de prueba
 
@@ -107,7 +107,7 @@ Ninguna.
 | Los doce criterios de `spec.md` §12 | API | |
 | **Los tres casos de nivel** | API | Destino inferior, igual y superior al del actor |
 | Todos los superiores, no solo el siguiente | API | Actor en el nivel más bajo de una cadena de cuatro |
-| Quien no tiene membresía | API | Cero upgrades, todos los servicios |
+| Quien no tiene membresía | API | Cero upgrades, todos los bots |
 | **Membresía vencida** | API | Se comporta como quien no tiene nivel (`FA-003`) |
 | Quien está en la cima | API | Lista de upgrades vacía, sin error |
 | Sin permiso alguno | API | Responde a un actor autenticado sin autoridades |

@@ -43,6 +43,7 @@ Es el más simple de los cuatro en cuanto a consulta: hereda íntegro el §4 y e
 | `T-12` | Actualizar `architecture.md` §6.6.4 para que declare `ck_audit_error_log_status` junto a la tabla de qué entra y qué no (Art. XII.3) | `T-01` | Documento y esquema dicen lo mismo | Hecha |
 | `T-13` | Documentación OpenAPI del endpoint: los nueve parámetros, la envoltura con `totalIsExact` y los estados `400`, `401`, `403` y `500` | `T-08` | El contrato publicado coincide con el comportamiento real (Art. VIII.6) | Hecha |
 | `T-14` | Actualizar la matriz de trazabilidad de `docs/requirements.md` | `T-08` | La fila de `RF-SP-013` refleja el estado y enlaza esta tripleta | Hecha |
+| `T-15` | El actor resuelto, con el mismo `LEFT JOIN` que `RF-SP-011` · `T-14` | — | Cubierto por la suite de auditoría | **Hecha el 28-08-2026** |
 
 **Estados:** `Pendiente` · `En curso` · `Hecha` · `Bloqueada`.
 

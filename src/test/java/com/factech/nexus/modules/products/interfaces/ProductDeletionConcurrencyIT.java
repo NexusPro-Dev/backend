@@ -58,16 +58,16 @@ class ProductDeletionConcurrencyIT extends IntegrationTestBase {
   @Test
   @DisplayName("`T-10` — dos retiros simultáneos dejan UN SOLO registro de eliminación")
   void dosRetirosSimultaneos() {
-    UUID servicio = servicio("SOPORTE", "Soporte prioritario");
+    UUID bot = bot("SOPORTE", "Soporte prioritario");
 
     List<Outcome<Integer>> resultados =
-        runTogether(2, indice -> estadoDe(retirar(servicio, "Motivo número " + indice + ".")));
+        runTogether(2, indice -> estadoDe(retirar(bot, "Motivo número " + indice + ".")));
 
     assertThat(resultados).noneMatch(r -> r.succeeded() && r.value() >= 500);
 
     // LO QUE DECIDE LA PRUEBA. Los dos `204` darían el mismo recuento de éxitos
     // que uno solo si únicamente se mirara el estado HTTP.
-    assertThat(cuantosRegistros(servicio))
+    assertThat(cuantosRegistros(bot))
         .as("dos motivos sobre un solo hecho es evidencia contradictoria")
         .isEqualTo(1);
 
@@ -82,7 +82,7 @@ class ProductDeletionConcurrencyIT extends IntegrationTestBase {
   @Test
   @DisplayName("`T-11` — retirar y dar de alta otro con el MISMO nombre a la vez")
   void retirarYRegistrarElMismoNombre() {
-    UUID vivo = servicio("SOPORTE", "Soporte prioritario");
+    UUID vivo = bot("SOPORTE", "Soporte prioritario");
 
     List<Callable<Integer>> carrera =
         List.of(
@@ -117,7 +117,7 @@ class ProductDeletionConcurrencyIT extends IntegrationTestBase {
         .contentType(MediaType.APPLICATION_JSON)
         .content(
             """
-            {"code":"%s","type":"SERVICIO","name":"%s","price":10.00,"currencyId":"%s"}
+            {"code":"%s","type":"BOT","name":"%s","price":10.00,"currencyId":"%s"}
             """
                 .formatted(codigo, nombre, USD));
   }
@@ -145,12 +145,12 @@ class ProductDeletionConcurrencyIT extends IntegrationTestBase {
     return filas == null ? 0 : filas;
   }
 
-  private UUID servicio(String codigo, String nombre) {
+  private UUID bot(String codigo, String nombre) {
     UUID id = UUID.randomUUID();
     jdbc.update(
         "INSERT INTO products (id, code, type, name, description, target_membership_id, price,"
             + " currency_id, validity_days, status, created_at, updated_at)"
-            + " VALUES (CAST(? AS uuid), ?, 'SERVICIO', ?, 'Atención prioritaria.', NULL, 10.00,"
+            + " VALUES (CAST(? AS uuid), ?, 'BOT', ?, 'Atención prioritaria.', NULL, 10.00,"
             + " CAST(? AS uuid), NULL, 'INACTIVO', ?, ?)",
         id.toString(),
         codigo,
