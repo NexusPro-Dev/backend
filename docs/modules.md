@@ -157,7 +157,7 @@ Se resolvió el 20-08-2026, antes de redactar el primer requerimiento: el códig
 
 **Propósito.** Es dueño de **lo que la plataforma vende**: qué productos existen, de qué tipo son, cuánto cuestan y a quién se le ofrecen.
 
-**Alcance.** El catálogo de productos y su gobierno —alta, consulta, corrección, activación y retiro— en **dos tipos que no se mezclan**: el **upgrade de membresía**, que da derecho a pasar al nivel que declara, y el **servicio del sistema**, que da derecho a una prestación. Publica además la **oferta propia**: qué puede comprar quien mira, que en los upgrades depende de su nivel actual.
+**Alcance.** El catálogo de productos y su gobierno —alta, consulta, corrección, activación y retiro— en **dos tipos que no se mezclan**: el **upgrade de membresía**, que da derecho a pasar al nivel que declara, y el **bot del sistema**, que da derecho a una prestación. Publica además la **oferta propia**: qué puede comprar quien mira, que en los upgrades depende de su nivel actual.
 
 **No incluye.** **La compra y el cobro** —orden, estado de pago y pasarela—, que corresponden al área de Finanzas. Tampoco la **aplicación** del upgrade sobre la persona: cambiar su nivel es escribir en `user_memberships`, tabla de `SP` (`RF-SP-032`). Ni el **contenido** de lo que se vende —cursos y sesiones son de Academia; señales, de Señales—, ni la **atribución de la venta**, que es de Comisiones. Las **promociones y campañas** caben en su nombre y no se han registrado todavía.
 
