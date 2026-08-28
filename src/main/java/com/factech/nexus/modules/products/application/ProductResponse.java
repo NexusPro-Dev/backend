@@ -14,7 +14,7 @@ import java.util.UUID;
 /**
  * El producto tal como sale de la API.
  *
- * <p><b>{@code JsonInclude.ALWAYS} no es decorativo</b>: sin él, el destino de un servicio llegaría
+ * <p><b>{@code JsonInclude.ALWAYS} no es decorativo</b>: sin él, el destino de un bot llegaría
  * <b>ausente</b> en lugar de {@code null}, y un campo que falta es indistinguible de uno que el
  * cliente no conoce (`CA-PM-025`). Lo mismo vale para la vigencia de un producto que no caduca.
  *
@@ -28,6 +28,7 @@ public record ProductResponse(
     ProductType type,
     String name,
     String description,
+    String icon,
     MembershipRef targetMembership,
     BigDecimal price,
     CurrencyRef currency,
@@ -36,7 +37,7 @@ public record ProductResponse(
     OffsetDateTime createdAt,
     OffsetDateTime updatedAt) {
 
-  /** La membresía destino, resuelta. Nula y presente en los servicios. */
+  /** La membresía destino, resuelta. Nula y presente en los bots. */
   @JsonInclude(JsonInclude.Include.ALWAYS)
   public record MembershipRef(UUID id, String code, String name, int level) {}
 
@@ -52,6 +53,7 @@ public record ProductResponse(
         producto.getType(),
         producto.getName(),
         producto.getDescription(),
+        producto.getIcon(),
         destino == null
             ? null
             : new MembershipRef(destino.id(), destino.code(), destino.name(), destino.level()),

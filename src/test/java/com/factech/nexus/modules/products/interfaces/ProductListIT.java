@@ -62,9 +62,9 @@ class ProductListIT extends IntegrationTestBase {
     upgrade("UPGRADE_ORO", "Ascenso a Oro", oro, "49.99", 30, "ACTIVO", BASE);
     upgrade(
         "UPGRADE_PLATA", "Ascenso a Plata", plata, "19.99", null, "INACTIVO", BASE.plusHours(1));
-    servicio("ASESORIA", "Asesoría personalizada", "10.00", null, "ACTIVO", BASE.plusHours(2));
-    servicio("MEMBRESIA_EXTRA", "Membresía de cortesía", "5.00", 7, "INACTIVO", BASE.plusHours(3));
-    servicio("SOPORTE", "Soporte prioritario", "99.50", null, "ACTIVO", BASE.plusHours(4));
+    bot("ASESORIA", "Asesoría personalizada", "10.00", null, "ACTIVO", BASE.plusHours(2));
+    bot("MEMBRESIA_EXTRA", "Membresía de cortesía", "5.00", 7, "INACTIVO", BASE.plusHours(3));
+    bot("SOPORTE", "Soporte prioritario", "99.50", null, "ACTIVO", BASE.plusHours(4));
   }
 
   @Test
@@ -93,7 +93,7 @@ class ProductListIT extends IntegrationTestBase {
     // En minúsculas es la MISMA pregunta. Validar sin normalizar la aceptaría y
     // devolvería la colección vacía, que es el peor de los dos resultados: un
     // `200` que miente en lugar de un `400` que corrige.
-    mvc.perform(listado().param("type", "servicio"))
+    mvc.perform(listado().param("type", "bot"))
         .andExpect(status().isOk())
         .andExpect(jsonPath("$.totalElements").value(3));
   }
@@ -129,9 +129,9 @@ class ProductListIT extends IntegrationTestBase {
         .andExpect(status().isOk())
         .andExpect(jsonPath("$.totalElements").value(0));
 
-    // Y la combinación inútil tampoco se rechaza: ningún servicio tiene
+    // Y la combinación inútil tampoco se rechaza: ningún bot tiene
     // destino, de modo que el resultado es siempre vacío y eso es coherente.
-    mvc.perform(listado().param("type", "SERVICIO").param("targetMembershipId", oro.toString()))
+    mvc.perform(listado().param("type", "BOT").param("targetMembershipId", oro.toString()))
         .andExpect(status().isOk())
         .andExpect(jsonPath("$.totalElements").value(0));
   }
@@ -197,7 +197,7 @@ class ProductListIT extends IntegrationTestBase {
   void retiradoYVivoConElMismoNombre() throws Exception {
     // La unicidad del nombre es entre los VIVOS: `uq_products_name` es parcial.
     retirar("SOPORTE");
-    servicio("SOPORTE_2", "Soporte prioritario", "120.00", null, "ACTIVO", BASE.plusHours(5));
+    bot("SOPORTE_2", "Soporte prioritario", "120.00", null, "ACTIVO", BASE.plusHours(5));
 
     mvc.perform(listado().param("includeDeleted", "true").param("search", "Soporte"))
         .andExpect(status().isOk())
@@ -237,8 +237,8 @@ class ProductListIT extends IntegrationTestBase {
   }
 
   @Test
-  @DisplayName("un servicio trae el destino NULO Y PRESENTE, no ausente")
-  void servicioSinDestino() throws Exception {
+  @DisplayName("un bot trae el destino NULO Y PRESENTE, no ausente")
+  void botSinDestino() throws Exception {
     mvc.perform(listado().param("search", "Soporte"))
         .andExpect(status().isOk())
         .andExpect(jsonPath("$.content[0].targetMembership").value(Matchers.nullValue()))
@@ -400,14 +400,14 @@ class ProductListIT extends IntegrationTestBase {
     insertar(codigo, "UPGRADE_MEMBRESIA", nombre, destino, precio, vigencia, estado, creado);
   }
 
-  private void servicio(
+  private void bot(
       String codigo,
       String nombre,
       String precio,
       Integer vigencia,
       String estado,
       OffsetDateTime creado) {
-    insertar(codigo, "SERVICIO", nombre, null, precio, vigencia, estado, creado);
+    insertar(codigo, "BOT", nombre, null, precio, vigencia, estado, creado);
   }
 
   /**

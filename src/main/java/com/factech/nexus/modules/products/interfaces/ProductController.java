@@ -48,7 +48,7 @@ import org.springframework.web.bind.annotation.RestController;
  */
 @RestController
 @RequestMapping("/api/v1/products")
-@Tag(name = "Productos", description = "Catálogo de venta: upgrades de membresía y servicios.")
+@Tag(name = "Productos", description = "Catálogo de venta: upgrades de membresía y bots.")
 public class ProductController {
 
   private final RegisterProductService alta;
@@ -83,7 +83,11 @@ public class ProductController {
           operación (`RF-PM-005`).
 
           El tipo decide qué campos son obligatorios: un `UPGRADE_MEMBRESIA` debe
-          declarar su membresía destino y un `SERVICIO` no puede declararla.
+          declarar su membresía destino y un `BOT` no puede declararla.
+
+          `icon` es el **nombre** del icono con el que el frontend pinta el producto
+          —no una imagen—, en minúsculas y guion medio. Es **opcional**, y solo un
+          `UPGRADE_MEMBRESIA` puede llevarlo: en un `BOT` se rechaza (`RN-PM-016`).
 
           La vigencia es opcional en los dos tipos: sin ella, lo adquirido no caduca.
           """)
@@ -134,8 +138,8 @@ public class ProductController {
 
           **`targetMembershipId` no se valida contra el catálogo de membresías.**
           Filtrar por un destino inexistente devuelve la colección vacía y no es
-          un error; combinarlo con `type=SERVICIO` también, porque ningún
-          servicio tiene destino.
+          un error; combinarlo con `type=BOT` también, porque ningún
+          bot tiene destino.
 
           La búsqueda va sobre el nombre, **sin distinguir acentos ni
           mayúsculas** y por fragmento. En blanco equivale a no filtrar.
@@ -195,7 +199,7 @@ public class ProductController {
           propio permiso.
 
           `targetMembership` y `validityDays` viajan **presentes en nulo** cuando
-          no aplican: un servicio no tiene destino y un producto puede no
+          no aplican: un bot no tiene destino y un producto puede no
           caducar, y un campo ausente es indistinguible de uno que el cliente no
           conoce.
 
@@ -242,14 +246,19 @@ public class ProductController {
       summary = "Corregir un producto",
       description =
           """
-          Corrige el **nombre**, la **descripción**, el **precio**, la **moneda**
-          y la **vigencia**. Se aplica lo que llega y se deja intacto lo que no.
+          Corrige el **nombre**, la **descripción**, el **icono**, el **precio**,
+          la **moneda** y la **vigencia**. Se aplica lo que llega y se deja
+          intacto lo que no.
 
           **Distingue el campo ausente del enviado vacío**, y de ahí salen dos
-          comportamientos opuestos: `description: null` y `validityDays: null`
-          **vacían** el campo —el producto pasa a no caducar—, mientras que
-          `name: null` se **rechaza**, porque un producto sin nombre no puede
-          existir.
+          comportamientos opuestos: `description: null`, `icon: null` y
+          `validityDays: null` **vacían** el campo —el producto pasa a no
+          caducar—, mientras que `name: null` se **rechaza**, porque un producto
+          sin nombre no puede existir.
+
+          **El icono sí se corrige, aunque el tipo no**: es el aspecto del
+          producto y no lo que otorga. En un `BOT`, cualquier valor distinto de
+          nulo se rechaza con `VAL-013` (`RN-PM-016`).
 
           **El tipo, el código y la membresía destino NO se pueden corregir**, y
           enviarlos devuelve `400` con `VAL-006`. Se rechazan y no se ignoran:

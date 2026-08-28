@@ -18,13 +18,13 @@
 | `T-01` | **En `SP`**: `CurrentMembershipLookup` con su adaptador, en `modules/system/users/application`. Devuelve la membresía **vigente** ya evaluada, o vacío | `RF-PM-001 · T-07` | Integración: una membresía con fecha de fin **pasada** devuelve vacío, y una con fecha **igual al instante consultado** también — ese borde ya está fijado en `SP` y aquí se hereda, no se reimplementa | Pendiente |
 | `T-02` | `application/OfferResponse`: `currentMembership` más **dos colecciones envueltas** | — | La respuesta tiene `upgrades.content` y `services.content`, **no arreglos en la raíz** (`CA-PM-091`) | Pendiente |
 | `T-03` | `ProductQueryRepository.findOffer(Integer nivel)`: una sentencia, solo activos, upgrades con `level` **estrictamente menor** que el del actor | `RF-PM-002 · T-05` | Integración: **una** sentencia. La comparación es la mitad del requerimiento y se prueba en `T-06` | Pendiente |
-| `T-04` | Orden: upgrades por nivel destino, servicios por fecha de alta | `T-03` | `CA-PM-078`, `CA-PM-079` | Pendiente |
+| `T-04` | Orden: upgrades por nivel destino, bots por fecha de alta | `T-03` | `CA-PM-078`, `CA-PM-079` | Pendiente |
 | `T-05` | `domain/service/GetOwnOfferService`: el actor sale del token, nunca de un parámetro | `T-01`, `T-03` | Enviar `userId` no cambia la respuesta (`CA-PM-066`) | Pendiente |
 | `T-06` | **Prueba de los tres casos de nivel**: destino inferior, igual y superior al del actor | `T-05` | Es la que detecta la comparación escrita al revés, que **pasaría todas las pruebas de camino feliz** ofreciendo exactamente lo contrario | Pendiente |
 | `T-07` | `interfaces`: `GET /api/v1/products/available`, **sin permiso**, solo autenticado | `T-05` | Responde a un actor autenticado sin ninguna autoridad (`CA-PM-065`) | Pendiente |
 | `T-08` | Prueba de que la ruta literal **no se confunde** con `/products/{id}` | `T-07` | `available` responde `200` y no `400` por identificador inválido. Spring resuelve antes el segmento literal, y esta prueba es lo que impide que un renombrado lo rompa en silencio | Pendiente |
 | `T-09` | Pruebas de API del resto de criterios de `spec.md` §12 | `T-07` | Cubre `CA-PM-058` a `CA-PM-067`, `CA-PM-078`, `CA-PM-079`, `CA-PM-088` a `CA-PM-091` | Pendiente |
-| `T-10` | Prueba de quien **no tiene membresía** y de quien la tiene **vencida** | `T-09` | Cero upgrades y todos los servicios, en los dos casos (`FA-001`, `FA-003`) | Pendiente |
+| `T-10` | Prueba de quien **no tiene membresía** y de quien la tiene **vencida** | `T-09` | Cero upgrades y todos los bots, en los dos casos (`FA-001`, `FA-003`) | Pendiente |
 | `T-11` | Prueba de quien está **en la cima**: lista de upgrades vacía, sin error | `T-09` | No es un mensaje especial: es una lista vacía | Pendiente |
 | `T-12` | Documentación OpenAPI del endpoint, **declarando que no admite parámetros** | `T-09` | El contrato no lista ninguno | Pendiente |
 | `T-13` | Actualizar la matriz de trazabilidad | `T-09` | La fila refleja el estado | Pendiente |

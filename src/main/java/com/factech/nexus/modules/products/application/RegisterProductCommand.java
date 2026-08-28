@@ -10,7 +10,8 @@ import java.util.UUID;
  * <p><b>Sin {@code status}.</b> Todo producto nace {@code INACTIVO} (`RN-PM-012`), y no admitirlo
  * como argumento es lo que hace verificable que el estado inicial no se pueda forzar desde fuera.
  *
- * @param targetMembershipId obligatorio si el tipo es upgrade, prohibido si es servicio
+ * @param targetMembershipId obligatorio si el tipo es upgrade, prohibido si es bot
+ * @param icon identificador del icono; opcional en el upgrade y prohibido en el bot (`RN-PM-016`)
  * @param validityDays días que dura lo adquirido; {@code null} significa que no caduca
  */
 public record RegisterProductCommand(
@@ -18,6 +19,7 @@ public record RegisterProductCommand(
     ProductType type,
     String name,
     String description,
+    String icon,
     UUID targetMembershipId,
     BigDecimal price,
     UUID currencyId,

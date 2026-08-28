@@ -8,7 +8,7 @@
 | Autor | Responsable técnico |
 | Aprobada por | Responsable del proyecto |
 | Fecha de aprobación | 26-08-2026 |
-| Enmendada el | 27-08-2026 — ver §15 |
+| Enmendada el | 28-08-2026 — ver §15 |
 
 ---
 
@@ -59,7 +59,7 @@ Con `RF-PM-001` se puede **crear** un producto y no **verlo**: quien administra 
 | Dato | Obligatorio | Descripción | Restricción de negocio |
 |---|---|---|---|
 | Página y tamaño | No | Qué porción del catálogo se pide | Con un tamaño máximo; pedir más se **rechaza**, no se recorta |
-| Tipo | No | Filtra por upgrade o por servicio | Uno de los dos valores admitidos |
+| Tipo | No | Filtra por upgrade o por bot | Uno de los dos valores admitidos |
 | Estado | No | Filtra por activo o inactivo | Uno de los valores admitidos |
 | Membresía destino | No | Filtra los upgrades que llevan a ese nivel | Un destino que no existe devuelve una colección vacía, no un error |
 | Búsqueda | No | Coincidencia parcial sobre el nombre | En blanco equivale a ausente |
@@ -70,7 +70,7 @@ Con `RF-PM-001` se puede **crear** un producto y no **verlo**: quien administra 
 
 | Dato | Descripción |
 |---|---|
-| Productos | Identificador, tipo, nombre, descripción, precio con su moneda, **vigencia en días**, estado y —en los upgrades— la membresía destino con su nombre y su nivel |
+| Productos | Identificador, tipo, nombre, descripción, **icono**, precio con su moneda, **vigencia en días**, estado y —en los upgrades— la membresía destino con su nombre y su nivel |
 | Marca de retiro | En los retirados, que lo están y desde cuándo |
 | Total | Cuántos productos cumplen el filtro |
 | Orden | El aplicado, para que quien recibe la página sepa sobre qué está paginando |
@@ -128,7 +128,7 @@ Con `RF-PM-001` se puede **crear** un producto y no **verlo**: quien administra 
 | ID | Criterio |
 |---|---|
 | `CA-PM-013` | El sistema devuelve el catálogo paginado con el total de productos que cumplen el filtro |
-| `CA-PM-014` | El sistema filtra por tipo y devuelve solo los upgrades o solo los servicios |
+| `CA-PM-014` | El sistema filtra por tipo y devuelve solo los upgrades o solo los bots |
 | `CA-PM-015` | El sistema filtra por estado y devuelve también los inactivos cuando se piden |
 | `CA-PM-016` | El sistema filtra los upgrades por su membresía destino |
 | `CA-PM-017` | El sistema busca por nombre sin distinguir mayúsculas ni acentos, y la búsqueda en blanco equivale a no filtrar |
@@ -145,7 +145,7 @@ Con `RF-PM-001` se puede **crear** un producto y no **verlo**: quien administra 
 ## 13. Casos límite
 
 - **Filtro por un destino que no existe:** colección vacía, no error. El actor filtró por algo que no está, y eso no es una entrada inválida.
-- **Filtro por destino combinado con tipo servicio:** ningún servicio tiene destino, de modo que el resultado es siempre vacío. Debe devolverse vacío y no rechazarse: la combinación es coherente aunque sea inútil.
+- **Filtro por destino combinado con tipo bot:** ningún bot tiene destino, de modo que el resultado es siempre vacío. Debe devolverse vacío y no rechazarse: la combinación es coherente aunque sea inútil.
 - **Búsqueda con comodines del motor de búsqueda:** un nombre que contenga los caracteres de comodín no debe ampliar la búsqueda a todo el catálogo.
 - **Un producto retirado y uno vivo con el mismo nombre:** es posible, porque la unicidad es entre los vivos. El listado debe mostrarlos como dos filas distintas y no colapsarlos.
 
@@ -155,7 +155,7 @@ Ninguna. Las cuatro se resolvieron el 26-08-2026, antes de aprobar la especifica
 
 | # | Pregunta | Resolución |
 |---|---|---|
-| 1 | ¿Cuál es el orden por omisión? | **Por fecha de alta.** Y con ello quedó dicho algo que esta spec no preguntaba: **hay dos formas de consulta y cada una tiene su orden**. Esta —la del administrador— va en orden de alta, porque quien gobierna el catálogo trabaja sobre lo último que entró. La del cliente (`RF-PM-007`) va **agrupada por tipo**, con los upgrades por **nivel** —que es el orden de la cadena, y el único en que «subir» significa algo— y los servicios por fecha. Se enmienda `RF-PM-007` en consecuencia. **El desempate es el identificador**, y no es cosmético: sin un orden total, dos productos que compartan el valor ordenado pueden repetirse o saltarse entre páginas, y eso se descubre como «faltan productos» sin ningún error de por medio. Sale gratis, porque el identificador es un UUID v7 y su orden **es** el cronológico |
+| 1 | ¿Cuál es el orden por omisión? | **Por fecha de alta.** Y con ello quedó dicho algo que esta spec no preguntaba: **hay dos formas de consulta y cada una tiene su orden**. Esta —la del administrador— va en orden de alta, porque quien gobierna el catálogo trabaja sobre lo último que entró. La del cliente (`RF-PM-007`) va **agrupada por tipo**, con los upgrades por **nivel** —que es el orden de la cadena, y el único en que «subir» significa algo— y los bots por fecha. Se enmienda `RF-PM-007` en consecuencia. **El desempate es el identificador**, y no es cosmético: sin un orden total, dos productos que compartan el valor ordenado pueden repetirse o saltarse entre páginas, y eso se descubre como «faltan productos» sin ningún error de por medio. Sale gratis, porque el identificador es un UUID v7 y su orden **es** el cronológico |
 | 2 | ¿El orden es configurable por el actor? | **Sí, sobre una lista cerrada**: nombre, precio y fecha de alta. Cerrada y no abierta por el mismo motivo que en `RF-SP-025`: admitir un campo cualquiera deja ordenar por lo que a nadie se le ocurrió revisar. Un campo fuera de la lista se **rechaza**, no se ignora — ignorarlo devolvería un orden distinto del pedido sin decirlo |
 | 3 | ¿Ver los retirados exige un permiso aparte? | **No: basta el de lectura.** La decisión se mantiene; **su motivo se enmendó el mismo día** (Art. I.7). Se aprobó diciendo que el motivo del retiro no viajaba en el catálogo, y horas después `RF-PM-003` resolvió que **el detalle sí lo devuelve** a quien tenga `products:read`. Lo que sigue siendo cierto —y sostiene la decisión— es que **el listado no lo lleva**: uno a uno es una consulta, en bloque sería una exportación de decisiones comerciales. Lo que se asume es que `products:read` alcanza al motivo de un producto, que en la auditoría acota `audit:read-deletions` |
 | 4 | ¿Se puede filtrar por rango de precio? | **No por ahora**, y pasa a §4.2. No es lo que necesita quien administra, y añadirlo después es un parámetro opcional más que no rompe a ningún cliente. Escribirlo hoy traería sus casos límite —mínimo mayor que máximo, monedas distintas en el mismo filtro— sin que nadie los esté esperando |
@@ -170,3 +170,4 @@ Ninguna. Las cuatro se resolvieron el 26-08-2026, antes de aprobar la especifica
 | 0.2.0 | 26-08-2026 | **Aprobada.** El orden por omisión es el de **alta**, configurable sobre una **lista cerrada** —nombre, precio, fecha—, con el identificador como desempate para que la paginación no repita ni salte filas. Los retirados **no exigen permiso propio**, y el filtro por rango de precio pasa a lo que no se incluye. Una de las resoluciones alcanza a otra spec: la consulta del cliente tiene **su propio orden**, agrupado por tipo, y `RF-PM-007` se enmienda con él. Cuatro criterios nuevos, `CA-PM-074` a `CA-PM-077`, y `VAL-005`. | Responsable del proyecto |
 | 0.1.0 | 26-08-2026 | Redacción inicial, con cuatro preguntas abiertas. | Responsable técnico |
 | 0.4.0 | 27-08-2026 | El listado devuelve la **vigencia en días** de cada producto (`RN-PM-015`). Sin ella, quien administra no distingue en la lista un upgrade permanente de uno de treinta días, que es la diferencia comercial más importante entre dos filas por lo demás idénticas. | Responsable del proyecto |
+| 0.3.0 | 28-08-2026 | **La respuesta gana el icono** (`RN-PM-016`) y el tipo `SERVICIO` pasa a llamarse `BOT`. Ninguna de las dos cosas cambia el comportamiento de esta consulta: el icono viaja como un campo más —nulo y presente cuando no lo hay, por el mismo criterio que el destino y la vigencia— y el renombrado solo cambia el valor que se lee y por el que se filtra. **El contrato publicado cambia**, de modo que la copia del frontend queda vieja. | Responsable técnico |

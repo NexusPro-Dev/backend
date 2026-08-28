@@ -44,7 +44,7 @@ La operación más corta del módulo y la que concentra su invariante más caro.
 5. Si se activa **y es un upgrade**: ningún otro upgrade activo apunta a su destino (`EX-002`), y el mensaje **nombra al producto que lo ocupa** para que el actor sepa cuál desactivar.
 6. Se aplica y se audita.
 
-**Desactivar no comprueba nada del destino** (`FA-002`): liberarlo nunca produce conflicto. Y en un servicio, el paso 5 **no se ejecuta** — la prueba comprueba la ausencia, no solo que no falle.
+**Desactivar no comprueba nada del destino** (`FA-002`): liberarlo nunca produce conflicto. Y en un bot, el paso 5 **no se ejecuta** — la prueba comprueba la ausencia, no solo que no falle.
 
 ## 6. La concurrencia es el requisito, no un detalle
 
@@ -93,6 +93,6 @@ Una transacción con bloqueo pesimista sobre la fila. El bloqueo serializa dos p
 | Desactivar sin descripción | API | **Se admite**: la regla acota lo que se publica |
 | Reactivar tras liberar el destino | API | Desactivar el que lo ocupa y activar el otro |
 | Petición que no cambia el estado | Integración | `200` y `audit_change_log` no crece |
-| Servicio: el paso del destino **no se ejecuta** | Integración | Número de sentencias |
+| Bot: el paso del destino **no se ejecuta** | Integración | Número de sentencias |
 | **Dos activaciones simultáneas hacia el mismo destino** | Concurrencia | Exactamente uno queda activo; el otro recibe `409` con el nombre del que ocupa |
 | Desactivar y activar en carrera | Concurrencia | Cualquiera de los dos desenlaces vale; lo que no vale es que no quede ninguno activo |

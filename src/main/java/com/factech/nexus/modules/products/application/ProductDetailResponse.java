@@ -30,8 +30,8 @@ import java.util.UUID;
  *
  * <ul>
  *   <li>{@code targetMembership} y {@code validityDays} van <b>presentes en nulo</b> (`CA-PM-025`):
- *       un servicio sin destino y un producto que no caduca son estados normales, y un campo que
- *       falta es indistinguible de uno que el cliente no conoce.
+ *       un bot sin destino y un producto que no caduca son estados normales, y un campo que falta
+ *       es indistinguible de uno que el cliente no conoce.
  *   <li>{@code deletedAt} y {@code deletionReason} <b>no aparecen</b> si el producto está vivo
  *       (`plan.md` §5). Ahí sí: su ausencia <b>significa</b> que el producto no está retirado, y
  *       enviarlos en nulo obligaría a comprobar dos cosas para saber una.
@@ -44,6 +44,7 @@ public record ProductDetailResponse(
     ProductType type,
     String name,
     String description,
+    String icon,
     ProductResponse.MembershipRef targetMembership,
     BigDecimal price,
     ProductResponse.CurrencyRef currency,
@@ -70,6 +71,7 @@ public record ProductDetailResponse(
         ProductType.valueOf(fila.type()),
         fila.name(),
         fila.description(),
+        fila.icon(),
         fila.targetMembershipId() == null
             ? null
             : new ProductResponse.MembershipRef(

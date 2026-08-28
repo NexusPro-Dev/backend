@@ -8,6 +8,7 @@
 | Autor | Responsable técnico |
 | Aprobadas por | Responsable del proyecto |
 | Fecha de aprobación | 26-08-2026 |
+| Enmendadas | 28-08-2026 — `T-16` por el icono corregible |
 
 ---
 
@@ -30,6 +31,7 @@
 | `T-13` | Documentación OpenAPI, declarando qué campos admite y **cuáles rechaza** | `T-10` | El contrato no lista `type`, `code` ni `targetMembershipId` como corregibles | Hecha |
 | `T-14` | Actualizar la matriz de trazabilidad | `T-10` | La fila refleja el estado | Hecha |
 | `T-15` | La **vigencia** se suma a lo corregible, con `Patchable` | `T-01`, `T-03` | Corregirla la cambia; **vaciarla** convierte el producto en uno que no caduca (`CA-PM-094`) | Hecha |
+| `T-16` | El icono, corregible y vaciable: `Patchable<String>` en el DTO, en `Product.update` y en el diff de auditoría. La comprobación de `RN-PM-016` se hace **antes** de asignar, para que el rechazo no deje el producto a medias | — | `CA-PM-099` y `CA-PM-100` en `ProductUpdateIT`, y el vaciado con nulo explícito en `ProductTest` | **Hecha el 28-08-2026** |
 
 ## 2. Orden de ejecución
 

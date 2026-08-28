@@ -97,6 +97,10 @@ public class RegisterProductService {
     // le corresponde. Lo destapó la prueba de la condición cruzada.
     Product.verificarTipoYDestino(comando.type(), comando.targetMembershipId());
 
+    // `RN-PM-016` —el icono solo en el upgrade— NO se sube aquí, al revés que
+    // `RN-PM-002`: el motivo de subir aquella es que su incumplimiento se
+    // reportaría como «la membresía no existe», y el icono no interviene en esa
+    // búsqueda. Lo comprueba `Product.create`, que es donde vive la regla.
     CurrencyView moneda = verificarMoneda(comando);
     MembershipView destino = verificarDestino(comando);
     verificarUnicidad(comando);
@@ -109,6 +113,7 @@ public class RegisterProductService {
                 comando.type(),
                 comando.name(),
                 comando.description(),
+                comando.icon(),
                 comando.targetMembershipId(),
                 comando.price(),
                 comando.currencyId(),
