@@ -27,8 +27,8 @@ import org.springframework.web.servlet.mvc.method.annotation.RequestMappingHandl
  * pruebas del propio endpoint se escriben con un actor que tiene permisos, así que pasan.
  *
  * <p>`security.md` §11 la describe como <b>«la única forma de garantizar que un endpoint nuevo no
- * quede expuesto por descuido»</b>. Con cuarenta y un endpoints publicados, es lo que impide que el
- * cuarenta y dos nazca abierto.
+ * quede expuesto por descuido»</b>. Con cuarenta y tres endpoints publicados, es lo que impide que
+ * el cuarenta y cuatro nazca abierto.
  *
  * <p><b>La lista blanca es la parte que importa.</b> No está para hacer pasar la prueba: está para
  * que añadir un endpoint sin permiso <b>obligue a escribir por qué</b>, en una revisión que alguien
@@ -45,6 +45,12 @@ class EndpointPermissionsIT extends IntegrationTestBase {
    */
   private static final Map<String, String> SIN_PERMISO_A_PROPOSITO =
       Map.of(
+          "POST /api/v1/auth/password-recovery",
+          "Público por definición (`RF-SP-040`): quien olvidó su contraseña no puede"
+              + " autenticarse para pedir recuperarla",
+          "POST /api/v1/auth/password-recovery/confirmation",
+          "Público a propósito (`RF-SP-040`): lo que autoriza es el permiso temporal que la"
+              + " solicitud envió al correo de la cuenta, no un token",
           "POST /api/v1/auth/login",
           "Público por definición: no puede exigirse credencial para obtener una credencial",
           "POST /api/v1/auth/refresh",

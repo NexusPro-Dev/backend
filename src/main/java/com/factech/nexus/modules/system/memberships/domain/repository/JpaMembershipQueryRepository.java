@@ -56,6 +56,7 @@ public class JpaMembershipQueryRepository implements MembershipQueryRepository {
                m.code          AS code,
                m.name          AS name,
                m.description   AS description,
+               m.color         AS color,
                m.level         AS level,
                m.parent_membership_id AS parent_id,
                h.id            AS child_id
@@ -89,6 +90,7 @@ public class JpaMembershipQueryRepository implements MembershipQueryRepository {
                     (String) fila.get("code"),
                     (String) fila.get("name"),
                     (String) fila.get("description"),
+                    (String) fila.get("color"),
                     ((Number) fila.get("level")).intValue(),
                     (UUID) fila.get("parent_id"),
                     (UUID) fila.get("child_id")))
@@ -109,14 +111,17 @@ public class JpaMembershipQueryRepository implements MembershipQueryRepository {
                        m.code        AS code,
                        m.name        AS name,
                        m.description AS description,
+                       m.color       AS color,
                        m.level       AS level,
                        p.id          AS parent_id,
                        p.code        AS parent_code,
                        p.name        AS parent_name,
+                       p.color       AS parent_color,
                        p.level       AS parent_level,
                        h.id          AS child_id,
                        h.code        AS child_code,
                        h.name        AS child_name,
+                       h.color       AS child_color,
                        h.level       AS child_level
                   FROM memberships m
                   LEFT JOIN memberships p ON p.id = m.parent_membership_id
@@ -138,6 +143,7 @@ public class JpaMembershipQueryRepository implements MembershipQueryRepository {
             (String) fila.get("code"),
             (String) fila.get("name"),
             (String) fila.get("description"),
+            (String) fila.get("color"),
             ((Number) fila.get("level")).intValue(),
             vecino(fila, "parent"),
             vecino(fila, "child")));
@@ -156,7 +162,8 @@ public class JpaMembershipQueryRepository implements MembershipQueryRepository {
         id,
         (String) fila.get(prefijo + "_code"),
         (String) fila.get(prefijo + "_name"),
-        ((Number) fila.get(prefijo + "_level")).intValue());
+        ((Number) fila.get(prefijo + "_level")).intValue(),
+        (String) fila.get(prefijo + "_color"));
   }
 
   /**

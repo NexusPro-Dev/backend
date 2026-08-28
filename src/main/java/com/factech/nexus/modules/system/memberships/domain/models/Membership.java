@@ -1,11 +1,16 @@
 package com.factech.nexus.modules.system.memberships.domain.models;
 
+import com.factech.nexus.shared.error.FieldError;
+import com.factech.nexus.shared.error.ValidationException;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.Id;
 import jakarta.persistence.Table;
 import java.time.OffsetDateTime;
+import java.util.List;
+import java.util.Locale;
 import java.util.UUID;
+import java.util.regex.Pattern;
 
 /**
  * Un eslabón de la cadena de membresías (`RF-SP-016`).
@@ -29,6 +34,13 @@ import java.util.UUID;
 @Table(name = "memberships")
 public class Membership {
 
+  /**
+   * Seis dígitos hexadecimales en mayúsculas (`VAL-008`).
+   *
+   * <p>Compilado una sola vez: {@code String.matches} recompila el patrón en cada llamada.
+   */
+  private static final Pattern PATRON_COLOR = Pattern.compile("^[0-9A-F]{6}$");
+
   @Id
   @Column(name = "id", nullable = false, updatable = false)
   private UUID id;
@@ -41,6 +53,17 @@ public class Membership {
 
   @Column(name = "description", updatable = false)
   private String description;
+
+  /**
+   * Color del nivel para el frontend: seis dígitos hexadecimales en mayúsculas y sin {@code #}
+   * (`RN-SP-024`).
+   *
+   * <p><b>{@code updatable = false}, como todo lo demás salvo el reordenamiento.</b> `RN-SP-008`
+   * mantiene la membresía inmutable, de modo que un color mal elegido no se corrige; el hueco está
+   * declarado a conciencia en `requirements/sp.md` §5.1, con su condición de reapertura.
+   */
+  @Column(name = "color", nullable = false, length = 6, updatable = false)
+  private String color;
 
   /**
    * Identificador y no una asociación {@code @ManyToOne}: la cadena se recorre entera de una vez
@@ -78,6 +101,7 @@ public class Membership {
       String code,
       String name,
       String description,
+      String color,
       MembershipInsertion posicion,
       OffsetDateTime ahora) {
 
@@ -88,6 +112,7 @@ public class Membership {
     membresia.code = code;
     membresia.name = recortar(name);
     membresia.description = recortar(description);
+    membresia.color = normalizarColor(color);
     membresia.parentMembershipId = posicion.parentId();
     membresia.level = (short) posicion.level();
     membresia.createdAt = ahora;
@@ -110,6 +135,37 @@ public class Membership {
     return recortado.isEmpty() ? null : recortado;
   }
 
+  /**
+   * Recorta el color y lo pasa a mayúsculas, y rechaza lo que no sean seis dígitos hexadecimales
+   * (`VAL-007`, `VAL-008`).
+   *
+   * <p><b>Valida en el dominio y no solo en el DTO de entrada.</b> El {@code @Pattern} del DTO
+   * atiende a quien llega por HTTP; esta comprobación atiende a cualquier otro camino —una siembra,
+   * una migración de datos, otro caso de uso— y es la que hace que {@code color} no pueda existir
+   * mal formado dentro del modelo.
+   *
+   * <p><b>La normalización a mayúsculas ocurre AL ESCRIBIR</b>, y es lo que da sentido a {@code
+   * uq_memberships_color}: sin ella {@code 1e88e5} y {@code 1E88E5} serían dos filas distintas para
+   * la unicidad y el mismo color para el ojo.
+   *
+   * <p><b>El {@code #} no se recorta, se rechaza.</b> Aceptarlo y quitarlo pondría en el servidor
+   * la decisión de un detalle de notación de CSS.
+   */
+  private static String normalizarColor(String valor) {
+    String normalizado = valor == null ? null : valor.trim().toUpperCase(Locale.ROOT);
+    if (normalizado == null || !PATRON_COLOR.matcher(normalizado).matches()) {
+      throw new ValidationException(
+          "VAL-008",
+          "El color admite exactamente seis dígitos hexadecimales, sin el carácter #.",
+          List.of(
+              new FieldError(
+                  "color",
+                  "VAL-008",
+                  "El color admite exactamente seis dígitos hexadecimales, sin el carácter #.")));
+    }
+    return normalizado;
+  }
+
   public UUID getId() {
     return id;
   }
@@ -124,6 +180,10 @@ public class Membership {
 
   public String getDescription() {
     return description;
+  }
+
+  public String getColor() {
+    return color;
   }
 
   public UUID getParentMembershipId() {

@@ -22,6 +22,7 @@ import com.factech.nexus.shared.error.BusinessRuleException;
 import com.factech.nexus.shared.error.FieldError;
 import com.factech.nexus.shared.error.ForbiddenException;
 import com.factech.nexus.shared.error.ResourceNotFoundException;
+import com.factech.nexus.shared.security.AccessRevocationPublisher;
 import com.factech.nexus.shared.security.SessionRevoker;
 import java.time.Clock;
 import java.time.OffsetDateTime;
@@ -69,6 +70,7 @@ public class DeleteUserService {
   private final RoleCatalog roles;
   private final RootAdministratorPresence raiz;
   private final SessionRevoker sesiones;
+  private final AccessRevocationPublisher cortes;
   private final AuthenticatedActor actor;
   private final AuditWriter auditoria;
   private final Clock reloj;
@@ -79,9 +81,10 @@ public class DeleteUserService {
       RoleCatalog roles,
       RootAdministratorPresence raiz,
       SessionRevoker sesiones,
+      AccessRevocationPublisher cortes,
       AuthenticatedActor actor,
       AuditWriter auditoria) {
-    this(usuarios, roles, raiz, sesiones, actor, auditoria, Clock.systemUTC());
+    this(usuarios, roles, raiz, sesiones, cortes, actor, auditoria, Clock.systemUTC());
   }
 
   DeleteUserService(
@@ -89,6 +92,7 @@ public class DeleteUserService {
       RoleCatalog roles,
       RootAdministratorPresence raiz,
       SessionRevoker sesiones,
+      AccessRevocationPublisher cortes,
       AuthenticatedActor actor,
       AuditWriter auditoria,
       Clock reloj) {
@@ -96,6 +100,7 @@ public class DeleteUserService {
     this.roles = roles;
     this.raiz = raiz;
     this.sesiones = sesiones;
+    this.cortes = cortes;
     this.actor = actor;
     this.auditoria = auditoria;
     this.reloj = reloj;
@@ -159,6 +164,12 @@ public class DeleteUserService {
     superior.ifPresent(sinUsar -> usuarios.endSupervisor(userId, ahora));
 
     sesiones.revokeAllForAccessChange(userId);
+
+    // El corte del token de acceso va por fuera y DESPUÉS del commit
+    // (`RF-SP-028` `plan.md` §7). Sin él, quien acaba de ser eliminado conserva
+    // hasta quince minutos de acceso con el token que ya tenía — y aquí importa
+    // más que en ninguna otra parte, porque no hay reactivación posible.
+    cortes.publicarCorte(userId);
 
     auditar(
         usuario,

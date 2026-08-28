@@ -7,6 +7,14 @@ spring:
   application:
     name: nexus-backend
 
+  lifecycle:
+    # Cuánto se espera a las peticiones en curso durante un apagado ordenado
+    # (`server.shutdown`). Treinta segundos sobran para cualquier operación de
+    # este sistema —los umbrales del Art. XV.9 son de menos de un segundo— y
+    # quedan por debajo del plazo con el que una plataforma de despliegue mata
+    # el proceso a la fuerza.
+    timeout-per-shutdown-phase: 30s
+
   datasource:
     url: ${DATABASE_URL}
     username: ${DATABASE_USER}
@@ -51,7 +59,26 @@ spring:
     default-property-inclusion: non_null
 
 server:
-  port: 8080
+  # EL PUERTO LO ELIGE QUIEN EJECUTA, no este archivo (Art. IX.1). La plataforma
+  # de despliegue lo anuncia en `PORT`; en local no hay quien lo anuncie y valen
+  # los 8080 de siempre, que son los que declara el `Dockerfile` y los que espera
+  # el `docker-compose.yml`.
+  #
+  # El literal que había aquí obligaba a fijar `PORT=8080` a mano en Railway para
+  # que el borde encaminara al puerto correcto, y el día que no coincidieran el
+  # síntoma sería una sonda de salud en rojo sobre un arranque IMPECABLE en los
+  # logs — es decir, el puerto es lo último que uno mira. Ver `deployment.md` §7.1.
+  port: ${PORT:8080}
+
+  # RELEVAR UNA VERSIÓN POR OTRA DEJA DOS PROCESOS VIVOS, y al viejo se le manda
+  # parar con peticiones en curso (`deployment.md` §7.3). Sin esto las corta en
+  # seco: quien estaba escribiendo recibe una conexión caída y no un error, que
+  # es indistinguible de que el sistema esté roto.
+  #
+  # Con esto deja de aceptar nuevas y termina las que tiene, hasta el plazo de
+  # `spring.lifecycle.timeout-per-shutdown-phase`.
+  shutdown: graceful
+
   error:
     # El detalle interno no sale al cliente (Art. VI.5). El formato de error
     # es RFC 9457, producido por el manejador global.
@@ -185,13 +212,28 @@ nexus:
         por-origen: 60
         ventana: PT1M
 
-      # La cota más estricta de las tres, y no por prudencia: es la única
-      # operación pública que provoca un ENVÍO SALIENTE. Sin ella se puede
-      # inundar de correos a una persona real y sondear identidades en masa.
-      # Declarada aunque su endpoint no exista todavía (`RF-SP-040`, D-23).
+      # Cinco por minuto, y quien los supera espera cinco minutos. Decisión del
+      # responsable del proyecto, 26-08-2026, sobre la advertencia de que es la
+      # única operación pública que provoca un ENVÍO SALIENTE: la cota pasa de
+      # tres correos POR HORA a una persona real a unos sesenta.
+      #
+      # La PENALIZACIÓN es lo que hace que el número siga sirviendo de algo. Sin
+      # ella, cinco por minuto son setenta y dos mil correos al día; con ella,
+      # superar la cota cuesta una espera fija y el ritmo sostenido baja a cinco
+      # cada cinco minutos.
       recovery:
-        por-origen: 10
-        por-identidad: 3
+        por-origen: 5
+        por-identidad: 5
+        ventana: PT1M
+        penalizacion: PT5M
+
+      # La confirmación se acota SOLO POR ORIGEN, y no es un descuido: su cuerpo
+      # no lleva identidad ninguna —lleva un permiso—, de modo que no hay nada
+      # por lo que acotar por credencial. Lo que se corta aquí es probar
+      # permisos al azar, y treinta por hora deja margen a quien se equivoca al
+      # copiar el código del correo sin dejar sitio a una búsqueda.
+      recovery-confirmation:
+        por-origen: 30
         ventana: PT1H
 
     # Orígenes que el navegador puede usar para llamar a esta API, separados
@@ -227,6 +269,16 @@ nexus:
       # servicio contra su titular.
       max-delay: PT1H
 
+      # Los dos siguientes NO defienden de la fuerza bruta: existen para que el
+      # identificador SIN cuenta cuente sus fallos igual que uno real y la
+      # respuesta no delate cuáles existen (ver `FailedAttemptLedger`).
+      #
+      # La ventana se recuerda en memoria y nunca baja del techo del bloqueo.
+      # La capacidad la impone que la clave llega de fuera: un mapa sin tope
+      # crece hasta donde quiera quien ataca.
+      identifier-window: PT1H
+      identifier-capacity: 10000
+
     # Política de contraseña (security.md §3.2).
     password:
       min-length: 12
@@ -234,10 +286,30 @@ nexus:
       # una cuenta restablecida y nunca usada conserva indefinidamente una
       # contraseña que alguien más conoce, y nadie se entera porque no falla nada.
       provisional-ttl: PT48H
+      # Cuánto vive el permiso de recuperación (RF-SP-040, security.md §3.2).
+      # Treinta minutos: acota la ventana en que un correo interceptado sirve
+      # para entrar, sin caducar mientras la persona busca el mensaje en su
+      # carpeta de correo no deseado —y cada repetición es otro correo—.
+      recovery-ttl: PT30M
       argon2:
         memory-kb: 16384
         iterations: 2
         parallelism: 1
+
+  # Envío saliente (architecture.md §15.1, D-23 cerrada el 26-08-2026 con Resend).
+  #
+  # La clave llega por variable y NO tiene valor por omisión (Art. IX.1, IX.5).
+  # Sin ella el envío queda APAGADO y se avisa al arrancar, en lugar de fallar
+  # en silencio la primera vez que alguien olvide su contraseña.
+  #
+  # El remitente debe pertenecer a un dominio verificado en Resend, o el
+  # proveedor rechaza el envío con un 403 que no se descubre hasta producción.
+  notification:
+    enabled: ${NOTIFICATION_ENABLED:false}
+    api-key: ${RESEND_API_KEY:}
+    from: ${NOTIFICATION_FROM:}
+    base-url: ${RESEND_BASE_URL:https://api.resend.com}
+    timeout: PT10S
 
 logging:
   level:

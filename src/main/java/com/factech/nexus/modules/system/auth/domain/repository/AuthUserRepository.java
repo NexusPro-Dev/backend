@@ -23,6 +23,22 @@ public interface AuthUserRepository {
   Optional<AuthUser> findById(UUID id);
 
   /**
+   * La cuenta, <b>con su fila bloqueada</b>, para confirmar que sigue pudiendo entrar.
+   *
+   * <p><b>Existe por una carrera concreta</b>, la que `RF-SP-029` · `T-12` destapó: mientras
+   * alguien inicia sesión, un actor elimina esa cuenta. El inicio comprueba el estado sobre <b>su
+   * instantánea</b>, donde la cuenta sigue viva; la eliminación revoca las sesiones vigentes y
+   * confirma; y la sesión que el inicio inserta <b>después</b> nace ya fuera de ese barrido. Queda
+   * una sesión viva sobre una cuenta que no existe — y `RF-SP-029` declara justamente que eso no
+   * puede pasar.
+   *
+   * <p><b>Se pide solo en el camino de éxito y no en el de rechazo</b>, y esa asimetría es
+   * deliberada: tomar el bloqueo antes de comprobar la contraseña añadiría al rechazo un tiempo que
+   * depende de si la cuenta existe, que es exactamente la fuga que `EX-001` existe para cerrar.
+   */
+  Optional<AuthUser> findByIdForUpdate(UUID id);
+
+  /**
    * Anota un intento fallido y bloquea si toca.
    *
    * @param bloquearHasta instante hasta el que queda bloqueada, o {@code null} si aún no toca
@@ -41,4 +57,34 @@ public interface AuthUserRepository {
    * rechazaría además una caducidad sin la marca.
    */
   void cambiarContrasena(UUID userId, String passwordHash, OffsetDateTime ahora);
+
+  /**
+   * Sustituye la credencial de quien la recuperó por su cuenta (`RF-SP-040`).
+   *
+   * <p><b>No es {@link #cambiarContrasena} con otro nombre</b>, y la diferencia importa: aquel
+   * <b>levanta el bloqueo automático</b> —tiene sentido, porque quien acierta su contraseña actual
+   * demuestra ser el titular ante el sistema—, y este <b>no debe hacerlo</b> (`CA-SP-464`).
+   *
+   * <p>Recuperar la contraseña prueba que se tiene acceso al <b>correo</b>, no que alguien haya
+   * decidido devolver el acceso a la cuenta. Devolverlo es `RF-SP-028` y exige un actor con
+   * permiso. Si esta operación levantara el bloqueo, quien tuviera el correo de una cuenta
+   * bloqueada a mano podría desbloquearla sola — y el bloqueo manual, que por diseño no expira,
+   * dejaría de significar nada.
+   *
+   * <p>Sí limpia el <b>contador</b> de fallos consecutivos: cuenta intentos contra una contraseña
+   * que ya no existe. Y limpia la marca de cambio obligatorio con su caducidad, porque quien
+   * recibió una credencial provisional y la olvidó antes de usarla llega por aquí, y su cuenta debe
+   * quedar tan libre como si hubiera ejecutado `RF-SP-037`.
+   */
+  void recuperarContrasena(UUID userId, String passwordHash, OffsetDateTime ahora);
+
+  /**
+   * El correo al que se le escribe a esa persona (`RF-SP-040`).
+   *
+   * <p><b>Va aparte de {@link AuthUser} a propósito.</b> Esa proyección es la del control de acceso
+   * y no lleva ningún dato personal: se lee en cada inicio de sesión y en cada refresco, y añadirle
+   * el correo lo haría viajar por todos esos caminos para servir a una operación que ocurre unas
+   * pocas veces al día. Se pide solo cuando hay algo que enviar.
+   */
+  Optional<String> correoDe(UUID userId);
 }

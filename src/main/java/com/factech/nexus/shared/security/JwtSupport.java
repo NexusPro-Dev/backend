@@ -7,9 +7,11 @@ import javax.crypto.spec.SecretKeySpec;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.security.oauth2.core.DelegatingOAuth2TokenValidator;
 import org.springframework.security.oauth2.jose.jws.MacAlgorithm;
 import org.springframework.security.oauth2.jwt.JwtDecoder;
 import org.springframework.security.oauth2.jwt.JwtEncoder;
+import org.springframework.security.oauth2.jwt.JwtValidators;
 import org.springframework.security.oauth2.jwt.NimbusJwtDecoder;
 import org.springframework.security.oauth2.jwt.NimbusJwtEncoder;
 
@@ -51,13 +53,29 @@ public class JwtSupport {
   }
 
   /**
-   * Verifica firma y vigencia.
+   * Verifica firma, vigencia y <b>revocación</b>.
    *
    * <p>No hay margen de tolerancia sobre la expiración: quince minutos ya son un margen, y aceptar
    * un token vencido «por poco» convierte una vida declarada en una vida aproximada.
+   *
+   * <p><b>La revocación se comprueba aquí y no en un filtro aparte</b> (`RF-SP-028` `plan.md` §7).
+   * Un token cuya persona perdió el acceso no vale, igual que uno caducado, y decidirlo en el mismo
+   * sitio produce el mismo {@code 401} por el mismo camino. Además corta <b>antes</b> de que se
+   * resuelvan los permisos contra la base, en lugar de pagar esa consulta para descartar la
+   * petición justo después.
+   *
+   * <p>El validador por defecto —{@code JwtTimestampValidator}, que {@code build()} instala— se
+   * conserva: se delega en los dos y no se sustituye uno por el otro.
    */
   @Bean
-  public JwtDecoder jwtDecoder() {
-    return NimbusJwtDecoder.withSecretKey(clave).macAlgorithm(MacAlgorithm.HS256).build();
+  public JwtDecoder jwtDecoder(AccessRevocationRegistry cortes) {
+    NimbusJwtDecoder decoder =
+        NimbusJwtDecoder.withSecretKey(clave).macAlgorithm(MacAlgorithm.HS256).build();
+
+    decoder.setJwtValidator(
+        new DelegatingOAuth2TokenValidator<>(
+            JwtValidators.createDefault(), new AccessRevocationValidator(cortes)));
+
+    return decoder;
   }
 }

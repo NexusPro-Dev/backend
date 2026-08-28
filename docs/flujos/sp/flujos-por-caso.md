@@ -3,11 +3,11 @@
 | Campo | Valor |
 |---|---|
 | Módulo | `SP` — Sistema Principal |
-| Versión | 0.2.0 |
+| Versión | 0.3.0 |
 | Estado | **Borrador** |
 | Responsable | Bonilla Diaz William Steven |
 | Fecha de creación | 21-08-2026 |
-| Última actualización | 22-08-2026 |
+| Última actualización | 28-08-2026 |
 
 !!! info "Qué va en este documento"
 
@@ -550,7 +550,7 @@ Sin flujos alternativos. El código y el nombre son **definitivos**: no hay edic
 ```mermaid
 flowchart TD
     A(["Actor · solicita registrar un país<br/>con su código y su nombre"])
-    A --> V1{"¿el código tiene el formato<br/>internacional de dos letras?"}
+    A --> V1{"¿el código tiene el formato<br/>internacional de tres letras?"}
     V1 -->|no| E2["EX-002 · informa el<br/>formato esperado"]
     V1 -->|sí| V2{"¿código y nombre<br/>libres en el catálogo?"}
     V2 -->|no| E1["EX-001 · informa cuál está duplicado<br/>al no existir edición ni borrado,<br/>el duplicado sería permanente"]

@@ -127,6 +127,16 @@
         },
         "type" : "object"
       },
+      "ChangeProductStatusRequest" : {
+        "properties" : {
+          "status" : {
+            "minLength" : 1,
+            "type" : "string"
+          }
+        },
+        "required" : [ "status" ],
+        "type" : "object"
+      },
       "ChangeRoleParentRequest" : {
         "properties" : {
           "parentRoleId" : {
@@ -256,6 +266,22 @@
         },
         "type" : "object"
       },
+      "CurrencyRef" : {
+        "properties" : {
+          "code" : {
+            "type" : "string"
+          },
+          "decimalPlaces" : {
+            "format" : "int32",
+            "type" : "integer"
+          },
+          "id" : {
+            "format" : "uuid",
+            "type" : "string"
+          }
+        },
+        "type" : "object"
+      },
       "CurrencyResponse" : {
         "properties" : {
           "code" : {
@@ -279,6 +305,14 @@
             "type" : "string"
           },
           "symbol" : {
+            "type" : "string"
+          }
+        },
+        "type" : "object"
+      },
+      "DeleteProductRequest" : {
+        "properties" : {
+          "reason" : {
             "type" : "string"
           }
         },
@@ -408,6 +442,9 @@
           "code" : {
             "type" : "string"
           },
+          "color" : {
+            "type" : "string"
+          },
           "description" : {
             "type" : "string"
           },
@@ -517,6 +554,9 @@
           "code" : {
             "type" : "string"
           },
+          "color" : {
+            "type" : "string"
+          },
           "description" : {
             "type" : "string"
           },
@@ -542,13 +582,16 @@
           "code" : {
             "type" : "string"
           },
-          "endsAt" : {
-            "format" : "date-time",
+          "id" : {
+            "format" : "uuid",
             "type" : "string"
           },
           "level" : {
             "format" : "int32",
             "type" : "integer"
+          },
+          "name" : {
+            "type" : "string"
           }
         },
         "type" : "object"
@@ -560,6 +603,9 @@
             "type" : "string"
           },
           "code" : {
+            "type" : "string"
+          },
+          "color" : {
             "type" : "string"
           },
           "createdAt" : {
@@ -594,6 +640,9 @@
       "Neighbor" : {
         "properties" : {
           "code" : {
+            "type" : "string"
+          },
+          "color" : {
             "type" : "string"
           },
           "id" : {
@@ -833,7 +882,38 @@
         },
         "type" : "object"
       },
+      "PasswordRecoveryConfirmation" : {
+        "properties" : {
+          "newPassword" : {
+            "type" : "string"
+          },
+          "permit" : {
+            "type" : "string"
+          }
+        },
+        "type" : "object"
+      },
+      "PasswordRecoveryRequest" : {
+        "properties" : {
+          "identifier" : {
+            "type" : "string"
+          }
+        },
+        "type" : "object"
+      },
+      "PasswordRecoveryResponse" : {
+        "properties" : {
+          "message" : {
+            "type" : "string"
+          }
+        },
+        "type" : "object"
+      },
+      "PatchableBigDecimal" : { },
+      "PatchableInteger" : { },
+      "PatchableObject" : { },
       "PatchableString" : { },
+      "PatchableUUID" : { },
       "PermissionCatalogResponse" : {
         "properties" : {
           "content" : {
@@ -897,6 +977,187 @@
         },
         "type" : "object"
       },
+      "ProductDetailResponse" : {
+        "properties" : {
+          "code" : {
+            "type" : "string"
+          },
+          "createdAt" : {
+            "format" : "date-time",
+            "type" : "string"
+          },
+          "currency" : {
+            "$ref" : "#/components/schemas/CurrencyRef"
+          },
+          "deletedAt" : {
+            "format" : "date-time",
+            "type" : "string"
+          },
+          "deletionReason" : {
+            "type" : "string"
+          },
+          "description" : {
+            "type" : "string"
+          },
+          "id" : {
+            "format" : "uuid",
+            "type" : "string"
+          },
+          "name" : {
+            "type" : "string"
+          },
+          "price" : {
+            "type" : "number"
+          },
+          "status" : {
+            "enum" : [ "ACTIVO", "INACTIVO" ],
+            "type" : "string"
+          },
+          "targetMembership" : {
+            "$ref" : "#/components/schemas/MembershipRef"
+          },
+          "type" : {
+            "enum" : [ "UPGRADE_MEMBRESIA", "SERVICIO" ],
+            "type" : "string"
+          },
+          "updatedAt" : {
+            "format" : "date-time",
+            "type" : "string"
+          },
+          "validityDays" : {
+            "format" : "int32",
+            "type" : "integer"
+          }
+        },
+        "type" : "object"
+      },
+      "ProductItem" : {
+        "properties" : {
+          "code" : {
+            "type" : "string"
+          },
+          "createdAt" : {
+            "format" : "date-time",
+            "type" : "string"
+          },
+          "currency" : {
+            "$ref" : "#/components/schemas/CurrencyRef"
+          },
+          "deletedAt" : {
+            "format" : "date-time",
+            "type" : "string"
+          },
+          "description" : {
+            "type" : "string"
+          },
+          "id" : {
+            "format" : "uuid",
+            "type" : "string"
+          },
+          "name" : {
+            "type" : "string"
+          },
+          "price" : {
+            "type" : "number"
+          },
+          "status" : {
+            "enum" : [ "ACTIVO", "INACTIVO" ],
+            "type" : "string"
+          },
+          "targetMembership" : {
+            "$ref" : "#/components/schemas/MembershipRef"
+          },
+          "type" : {
+            "enum" : [ "UPGRADE_MEMBRESIA", "SERVICIO" ],
+            "type" : "string"
+          },
+          "validityDays" : {
+            "format" : "int32",
+            "type" : "integer"
+          }
+        },
+        "type" : "object"
+      },
+      "ProductPageResponse" : {
+        "properties" : {
+          "content" : {
+            "items" : {
+              "$ref" : "#/components/schemas/ProductItem"
+            },
+            "type" : "array"
+          },
+          "page" : {
+            "format" : "int32",
+            "type" : "integer"
+          },
+          "size" : {
+            "format" : "int32",
+            "type" : "integer"
+          },
+          "sort" : {
+            "type" : "string"
+          },
+          "totalElements" : {
+            "format" : "int64",
+            "type" : "integer"
+          },
+          "totalIsExact" : {
+            "type" : "boolean"
+          },
+          "totalPages" : {
+            "format" : "int32",
+            "type" : "integer"
+          }
+        },
+        "type" : "object"
+      },
+      "ProductResponse" : {
+        "properties" : {
+          "code" : {
+            "type" : "string"
+          },
+          "createdAt" : {
+            "format" : "date-time",
+            "type" : "string"
+          },
+          "currency" : {
+            "$ref" : "#/components/schemas/CurrencyRef"
+          },
+          "description" : {
+            "type" : "string"
+          },
+          "id" : {
+            "format" : "uuid",
+            "type" : "string"
+          },
+          "name" : {
+            "type" : "string"
+          },
+          "price" : {
+            "type" : "number"
+          },
+          "status" : {
+            "enum" : [ "ACTIVO", "INACTIVO" ],
+            "type" : "string"
+          },
+          "targetMembership" : {
+            "$ref" : "#/components/schemas/MembershipRef"
+          },
+          "type" : {
+            "enum" : [ "UPGRADE_MEMBRESIA", "SERVICIO" ],
+            "type" : "string"
+          },
+          "updatedAt" : {
+            "format" : "date-time",
+            "type" : "string"
+          },
+          "validityDays" : {
+            "format" : "int32",
+            "type" : "integer"
+          }
+        },
+        "type" : "object"
+      },
       "RefreshRequest" : {
         "properties" : {
           "refreshToken" : {
@@ -935,6 +1196,11 @@
             "pattern" : "^[A-Z][A-Z0-9_]*$",
             "type" : "string"
           },
+          "color" : {
+            "minLength" : 1,
+            "pattern" : "^[0-9a-fA-F]{6}$",
+            "type" : "string"
+          },
           "description" : {
             "maxLength" : 500,
             "minLength" : 0,
@@ -946,7 +1212,50 @@
             "type" : "string"
           }
         },
-        "required" : [ "code", "name" ],
+        "required" : [ "code", "color", "name" ],
+        "type" : "object"
+      },
+      "RegisterProductRequest" : {
+        "properties" : {
+          "code" : {
+            "maxLength" : 50,
+            "minLength" : 0,
+            "pattern" : "^[A-Za-z][A-Za-z0-9_]*$",
+            "type" : "string"
+          },
+          "currencyId" : {
+            "format" : "uuid",
+            "type" : "string"
+          },
+          "description" : {
+            "maxLength" : 1000,
+            "minLength" : 0,
+            "type" : "string"
+          },
+          "name" : {
+            "maxLength" : 150,
+            "minLength" : 0,
+            "type" : "string"
+          },
+          "price" : {
+            "minimum" : 0.0,
+            "type" : "number"
+          },
+          "targetMembershipId" : {
+            "format" : "uuid",
+            "type" : "string"
+          },
+          "type" : {
+            "enum" : [ "UPGRADE_MEMBRESIA", "SERVICIO" ],
+            "type" : "string"
+          },
+          "validityDays" : {
+            "format" : "int32",
+            "minimum" : 1,
+            "type" : "integer"
+          }
+        },
+        "required" : [ "code", "currencyId", "name", "price", "type" ],
         "type" : "object"
       },
       "RegisterUserRequest" : {
@@ -1235,6 +1544,35 @@
           },
           "username" : {
             "type" : "string"
+          }
+        },
+        "type" : "object"
+      },
+      "UpdateProductRequest" : {
+        "properties" : {
+          "code" : {
+            "$ref" : "#/components/schemas/PatchableObject"
+          },
+          "currencyId" : {
+            "$ref" : "#/components/schemas/PatchableUUID"
+          },
+          "description" : {
+            "$ref" : "#/components/schemas/PatchableString"
+          },
+          "name" : {
+            "$ref" : "#/components/schemas/PatchableString"
+          },
+          "price" : {
+            "$ref" : "#/components/schemas/PatchableBigDecimal"
+          },
+          "targetMembershipId" : {
+            "$ref" : "#/components/schemas/PatchableObject"
+          },
+          "type" : {
+            "$ref" : "#/components/schemas/PatchableObject"
+          },
+          "validityDays" : {
+            "$ref" : "#/components/schemas/PatchableInteger"
           }
         },
         "type" : "object"
@@ -1961,7 +2299,7 @@
     },
     "/api/v1/auth/login" : {
       "post" : {
-        "description" : "Autentica con **nombre de usuario o correo** —el mismo campo para los\ndos— y entrega las credenciales de sesión.\n\nLa cuenta bloqueada recibe `423` y un mensaje que la identifica como\ntal: es una excepción consciente al mensaje genérico, porque quien\nprovocó el bloqueo ya sabe que la cuenta existe.\n\nSi la contraseña la fijó otra persona, la respuesta autentica **y\nadvierte** con `mustChangePassword`: hace falta una sesión para poder\ncambiarla.\n",
+        "description" : "Autentica con **nombre de usuario o correo** —el mismo campo para los\ndos— y entrega las credenciales de sesión.\n\nEl rechazo por credenciales lleva `remainingAttempts`: **cuántos\nintentos quedan** antes del bloqueo. El identificador que no\ncorresponde a ninguna cuenta los gasta igual, de modo que el número no\npermite averiguar qué cuentas existen.\n\nLa cuenta bloqueada recibe `423` y un mensaje que la identifica como\ntal: es una excepción consciente al mensaje genérico, porque quien\nprovocó el bloqueo ya sabe que la cuenta existe. Si el bloqueo es\n**automático**, la respuesta añade `unlockAt` —el instante en que se\nlevanta— y `retryAfterSeconds` —lo que falta—. El bloqueo **manual**\nno los lleva: esa cuenta no se desbloquea sola.\n\n**La espera no va escrita en el mensaje, y es deliberado.** Un texto\ncon «vuelva en dos minutos» es cierto al serializarse y deja de serlo\nenseguida. Con `retryAfterSeconds` el cliente **descuenta** —una\ncuenta regresiva no envejece— sin depender de que su reloj coincida\ncon el del servidor, que es lo que sí ocurriría calculándola a partir\nde `unlockAt`.\n\nSi la contraseña la fijó otra persona, la respuesta autentica **y\nadvierte** con `mustChangePassword`: hace falta una sesión para poder\ncambiarla.\n",
         "operationId" : "login",
         "requestBody" : {
           "content" : {
@@ -1988,10 +2326,10 @@
             "description" : "Identificador o contraseña ausentes"
           },
           "401" : {
-            "description" : "Credenciales inválidas, cuenta inexistente, inactiva o eliminada — los cuatro casos comparten cuerpo y mensaje, sin una sola diferencia observable"
+            "description" : "Credenciales inválidas, cuenta inexistente, inactiva o eliminada — los cuatro casos comparten cuerpo y mensaje, sin una sola diferencia observable. Lleva `remainingAttempts`; el intento que agota el contador añade además `unlockAt` y `retryAfterSeconds`"
           },
           "423" : {
-            "description" : "Cuenta bloqueada"
+            "description" : "Cuenta bloqueada. El bloqueo automático lleva `unlockAt` y `retryAfterSeconds`; el manual no los lleva, porque no expira solo"
           },
           "500" : {
             "description" : "Fallo no controlado (`ERR-500`)"
@@ -2070,6 +2408,82 @@
           "bearerAuth" : [ ]
         } ],
         "summary" : "Cambiar la propia contraseña",
+        "tags" : [ "Sesión" ]
+      }
+    },
+    "/api/v1/auth/password-recovery" : {
+      "post" : {
+        "description" : "Emite un permiso temporal de un solo uso y lo envía al correo de la\ncuenta. Público: quien olvidó su contraseña no puede autenticarse.\n\n**La respuesta es idéntica exista o no la identidad**, en el cuerpo y\nen el estado. No hay forma de usar este endpoint para averiguar qué\ncuentas existen, que es exactamente para lo que se usaría si\ndistinguiera.\n\nY lo es **también en el tiempo**: el envío ocurre después de responder\ny por otro camino. Igualar solo el mensaje dejaría la defensa\ndeclarada y no real — emitir y enviar cuesta cientos de milisegundos\nque se miden desde fuera con un cronómetro.\n\n**Tampoco rechaza nada más.** Ni la cuenta bloqueada, ni la inactiva:\ncualquiera de esos rechazos diría algo. El `202` es además el estado\nhonesto — el sistema no puede afirmar que algo se entregó.\n\n**Emitir uno invalida el anterior**, de modo que nunca hay dos puertas\nabiertas a la vez sobre la misma cuenta.\n",
+        "operationId" : "solicitarRecuperacion",
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/PasswordRecoveryRequest"
+              }
+            }
+          },
+          "required" : true
+        },
+        "responses" : {
+          "202" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/PasswordRecoveryResponse"
+                }
+              }
+            },
+            "description" : "Solicitud aceptada. **La misma respuesta exista o no la identidad**"
+          },
+          "400" : {
+            "description" : "Falta el identificador (`VAL-001`)"
+          },
+          "429" : {
+            "description" : "Demasiadas solicitudes, por identidad o por origen (`ERR-429`)"
+          },
+          "500" : {
+            "description" : "Fallo no controlado (`ERR-500`)"
+          }
+        },
+        "security" : [ ],
+        "summary" : "Solicitar la recuperación de la propia contraseña",
+        "tags" : [ "Sesión" ]
+      }
+    },
+    "/api/v1/auth/password-recovery/confirmation" : {
+      "post" : {
+        "description" : "Consume el permiso y fija la contraseña nueva. Público: lo que\nautoriza es el permiso, no un token.\n\n**La política se comprueba antes de tocar el permiso.** Una contraseña\nque no la cumple es un error de la persona legítima, y consumir su\npermiso por ello la obligaría a pedir otro —y a esperar otro correo—\npor haber escrito una contraseña corta.\n\n**El `422` no distingue sus cuatro causas** —permiso inexistente,\ncaducado, ya usado o sustituido—: hacerlo le diría a quien prueba\npermisos al azar cuál estuvo a punto de acertar.\n\nLa contraseña que se fija aquí **no es provisional**: la eligió su\ntitular y nadie más la conoce, de modo que la cuenta no queda marcada\npara cambio obligatorio. Es la diferencia deliberada con el\nrestablecimiento por un administrador.\n\n**No levanta el bloqueo ni cambia el estado de la cuenta.** Recuperar\nla contraseña prueba que se tiene el correo, no que alguien decidiera\ndevolver el acceso.\n\nAl completarse, **todas las sesiones se revocan** y los tokens de\nacceso ya emitidos dejan de admitirse.\n",
+        "operationId" : "confirmarRecuperacion",
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/PasswordRecoveryConfirmation"
+              }
+            }
+          },
+          "required" : true
+        },
+        "responses" : {
+          "204" : {
+            "description" : "Contraseña sustituida."
+          },
+          "400" : {
+            "description" : "Falta el permiso (`VAL-002`) o la contraseña (`VAL-003`), o esta no cumple la política (`VAL-004`). **No consume el permiso**"
+          },
+          "422" : {
+            "description" : "El permiso no es válido (`VAL-005`): inexistente, caducado, ya usado o sustituido. **Los cuatro casos comparten respuesta**"
+          },
+          "429" : {
+            "description" : "Demasiadas confirmaciones desde el mismo origen (`ERR-429`)"
+          },
+          "500" : {
+            "description" : "Fallo no controlado (`ERR-500`)"
+          }
+        },
+        "security" : [ ],
+        "summary" : "Confirmar la recuperación con el permiso recibido",
         "tags" : [ "Sesión" ]
       }
     },
@@ -2153,7 +2567,7 @@
         "tags" : [ "Países" ]
       },
       "post" : {
-        "description" : "Registra un país en el catálogo. Queda **activo** siempre: el estado no\nse envía y enviarlo devuelve `400`.\n\nEl código se normaliza a mayúsculas y se recorta, porque lo fija\nISO 3166-1 y no lo inventa nadie: `co`, ` CO` y `CO` son el mismo país.\n\nEl nombre admite acentos y caracteres no latinos sin transformación\nalguna, pero **no puede coincidir** con otro ya registrado ignorando\nmayúsculas y acentos: el catálogo no se edita, y el duplicado sería\npermanente.\n",
+        "description" : "Registra un país en el catálogo. Queda **activo** siempre: el estado no\nse envía y enviarlo devuelve `400`.\n\nEl código se normaliza a mayúsculas y se recorta, porque lo fija\nISO 3166-1 alfa-3 y no lo inventa nadie: `col`, ` COL` y `COL` son el\nmismo país. Son tres letras y no dos.\n\nEl nombre admite acentos y caracteres no latinos sin transformación\nalguna, pero **no puede coincidir** con otro ya registrado ignorando\nmayúsculas y acentos: el catálogo no se edita, y el duplicado sería\npermanente.\n",
         "operationId" : "registrar_3",
         "requestBody" : {
           "content" : {
@@ -2199,7 +2613,7 @@
     "/api/v1/countries/{id}/status" : {
       "patch" : {
         "description" : "Cambia el estado de un país. Es lo **único** que la API puede modificar\nde un país.\n\nSe envía el estado destino, no una acción: pedir dos veces lo mismo deja\nel mismo estado y **no** registra un segundo evento.\n\n**Desactivar no es corregir**: el código y el nombre permanecen, y los\ndatos que ya los referencian siguen resolviéndolos. Evita que el error se\npropague desde ese momento, no lo repara.\n\nEl cuerpo no admite ningún otro campo ni motivo alguno.\n",
-        "operationId" : "cambiarEstado_3",
+        "operationId" : "cambiarEstado_4",
         "parameters" : [ {
           "in" : "path",
           "name" : "id",
@@ -2293,7 +2707,7 @@
     "/api/v1/currencies/{id}/status" : {
       "patch" : {
         "description" : "Cambia el estado de una moneda del catálogo. Es lo **único** que la API\npuede modificar de una moneda.\n\nSe envía el estado destino, no una acción: pedir dos veces lo mismo deja\nel mismo estado y **no** registra un segundo evento.\n\nLa moneda por defecto **no puede desactivarse**: los importes del sistema\nquedarían sin referencia válida. Cambiar cuál es la moneda por defecto es\nuna operación de migración, no de API.\n\nEl cuerpo no admite ningún otro campo ni motivo alguno.\n",
-        "operationId" : "cambiarEstado_2",
+        "operationId" : "cambiarEstado_3",
         "parameters" : [ {
           "in" : "path",
           "name" : "id",
@@ -2610,6 +3024,384 @@
         },
         "summary" : "Consultar el detalle de un permiso",
         "tags" : [ "Permisos" ]
+      }
+    },
+    "/api/v1/products" : {
+      "get" : {
+        "description" : "Devuelve el catálogo **paginado**, con el destino de cada upgrade y la\nmoneda de cada precio ya resueltos: no hace falta una segunda consulta.\n\n**Los retirados quedan fuera salvo que se pidan** con `includeDeleted`.\nAl pedirlos se indica **desde cuándo** lo están; el **motivo** no viaja\nen el listado —uno a uno lo devuelve el detalle (`RF-PM-003`), en\nbloque sería una exportación de decisiones comerciales—. Verlos **no\nexige un permiso propio**: basta `products:read`.\n\nSolo se puede ordenar por la lista blanca —`name`, `price`,\n`createdAt`—, con `,asc` o `,desc`. **Un campo fuera de ella se\nrechaza y no se ignora**: ignorarlo devolvería un orden distinto del\npedido sin decirlo. Por omisión se ordena por **fecha de alta\ndescendente**, y el orden aplicado viaja en la respuesta.\n\n**`targetMembershipId` no se valida contra el catálogo de membresías.**\nFiltrar por un destino inexistente devuelve la colección vacía y no es\nun error; combinarlo con `type=SERVICIO` también, porque ningún\nservicio tiene destino.\n\nLa búsqueda va sobre el nombre, **sin distinguir acentos ni\nmayúsculas** y por fragmento. En blanco equivale a no filtrar.\n\nUn filtro sin coincidencias devuelve `200` con la colección vacía, y\nuna página más allá de la última hace lo mismo **con el total real**.\nNo hay `404` ni `422`.\n",
+        "operationId" : "listar_2",
+        "parameters" : [ {
+          "in" : "query",
+          "name" : "page",
+          "required" : false,
+          "schema" : {
+            "format" : "int32",
+            "type" : "integer"
+          }
+        }, {
+          "in" : "query",
+          "name" : "size",
+          "required" : false,
+          "schema" : {
+            "format" : "int32",
+            "type" : "integer"
+          }
+        }, {
+          "in" : "query",
+          "name" : "sort",
+          "required" : false,
+          "schema" : {
+            "type" : "string"
+          }
+        }, {
+          "in" : "query",
+          "name" : "type",
+          "required" : false,
+          "schema" : {
+            "type" : "string"
+          }
+        }, {
+          "in" : "query",
+          "name" : "status",
+          "required" : false,
+          "schema" : {
+            "type" : "string"
+          }
+        }, {
+          "in" : "query",
+          "name" : "targetMembershipId",
+          "required" : false,
+          "schema" : {
+            "format" : "uuid",
+            "type" : "string"
+          }
+        }, {
+          "in" : "query",
+          "name" : "search",
+          "required" : false,
+          "schema" : {
+            "type" : "string"
+          }
+        }, {
+          "in" : "query",
+          "name" : "includeDeleted",
+          "required" : false,
+          "schema" : {
+            "type" : "boolean"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ProductPageResponse"
+                }
+              }
+            },
+            "description" : "Página del catálogo, con el orden aplicado."
+          },
+          "400" : {
+            "description" : "Paginación fuera de rango (`VAL-001`), tipo (`VAL-002`) o estado (`VAL-003`) fuera de su dominio, identificador mal formado (`VAL-004`) o campo de ordenamiento no admitido (`VAL-005`). Los cuatro primeros se devuelven **juntos**"
+          },
+          "401" : {
+            "description" : "Token ausente o inválido (`AUTH-001`)"
+          },
+          "403" : {
+            "description" : "Autenticado sin el permiso `products:read` (`AUTH-002`)"
+          },
+          "500" : {
+            "description" : "Fallo no controlado (`ERR-500`)"
+          }
+        },
+        "summary" : "Consultar el catálogo de productos",
+        "tags" : [ "Productos" ]
+      },
+      "post" : {
+        "description" : "Registra un producto del catálogo, **siempre inactivo**: publicarlo es otra\noperación (`RF-PM-005`).\n\nEl tipo decide qué campos son obligatorios: un `UPGRADE_MEMBRESIA` debe\ndeclarar su membresía destino y un `SERVICIO` no puede declararla.\n\nLa vigencia es opcional en los dos tipos: sin ella, lo adquirido no caduca.\n",
+        "operationId" : "register",
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/RegisterProductRequest"
+              }
+            }
+          },
+          "required" : true
+        },
+        "responses" : {
+          "201" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ProductResponse"
+                }
+              }
+            },
+            "description" : "Producto registrado, en estado `INACTIVO`."
+          },
+          "400" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ProductResponse"
+                }
+              }
+            },
+            "description" : "Datos inválidos (serie `VAL-nnn`)"
+          },
+          "401" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ProductResponse"
+                }
+              }
+            },
+            "description" : "Token ausente o inválido (`AUTH-001`)"
+          },
+          "403" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ProductResponse"
+                }
+              }
+            },
+            "description" : "Autenticado sin el permiso `products:create` (`AUTH-002`)"
+          },
+          "409" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ProductResponse"
+                }
+              }
+            },
+            "description" : "Código o nombre ya en uso (`EX-005`, `EX-001`)"
+          },
+          "422" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ProductResponse"
+                }
+              }
+            },
+            "description" : "Membresía destino o moneda inexistente o inactiva (`EX-002`, `EX-003`)"
+          }
+        },
+        "summary" : "Registrar un producto",
+        "tags" : [ "Productos" ]
+      }
+    },
+    "/api/v1/products/{id}" : {
+      "get" : {
+        "description" : "Devuelve el producto con su membresía destino y su moneda **resueltas**,\nsin exigir una segunda consulta.\n\n**Un producto retirado se devuelve marcado como tal**, no como\ninexistente: `deletedAt` dice desde cuándo y `deletionReason` **por\nqué**. Los dos campos **solo aparecen si el producto está retirado** —\nsu ausencia significa que sigue vivo—. El motivo llega con\n`products:read` y **sin exigir permiso de auditoría**; es la\ncontrapartida asumida de que el detalle lo devuelva.\n\n**No devuelve autoría en ninguna forma**: ni quién lo creó, ni quién lo\ncorrigió, ni quién lo retiró. Eso vive en la auditoría y tiene su\npropio permiso.\n\n`targetMembership` y `validityDays` viajan **presentes en nulo** cuando\nno aplican: un servicio no tiene destino y un producto puede no\ncaducar, y un campo ausente es indistinguible de uno que el cliente no\nconoce.\n\nEl **nivel** del destino es el **actual**, no el que tenía cuando se\ncreó el producto: la cadena de membresías se reordena al insertar un\neslabón.\n\nUn identificador con forma laxa se rechaza como **dato inválido**\n(`400`), no como recurso no encontrado.\n",
+        "operationId" : "detalle_2",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "id",
+          "required" : true,
+          "schema" : {
+            "format" : "uuid",
+            "type" : "string"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ProductDetailResponse"
+                }
+              }
+            },
+            "description" : "El producto, con su destino y su moneda resueltos."
+          },
+          "400" : {
+            "description" : "Identificador sin forma canónica (`VAL-001`)"
+          },
+          "401" : {
+            "description" : "Token ausente o inválido (`AUTH-001`)"
+          },
+          "403" : {
+            "description" : "Autenticado sin el permiso `products:read` (`AUTH-002`)"
+          },
+          "404" : {
+            "description" : "No existe un producto con ese identificador (`EX-001`)"
+          },
+          "500" : {
+            "description" : "Fallo no controlado (`ERR-500`)"
+          }
+        },
+        "summary" : "Consultar el detalle de un producto",
+        "tags" : [ "Productos" ]
+      },
+      "patch" : {
+        "description" : "Corrige el **nombre**, la **descripción**, el **precio**, la **moneda**\ny la **vigencia**. Se aplica lo que llega y se deja intacto lo que no.\n\n**Distingue el campo ausente del enviado vacío**, y de ahí salen dos\ncomportamientos opuestos: `description: null` y `validityDays: null`\n**vacían** el campo —el producto pasa a no caducar—, mientras que\n`name: null` se **rechaza**, porque un producto sin nombre no puede\nexistir.\n\n**El tipo, el código y la membresía destino NO se pueden corregir**, y\nenviarlos devuelve `400` con `VAL-006`. Se rechazan y no se ignoran:\nignorarlos haría creer que el cambio se aplicó. Definen qué derecho\notorga el producto, y cambiarlos convertiría lo comprado en otra cosa.\n\n**El precio se valida contra la moneda NUEVA** cuando llegan las dos.\nY el importe **no se convierte**: el sistema no hace conversión de\ndivisa — cambiar de moneda es declarar que ese número siempre estuvo\nen la otra.\n\n**Un producto retirado no se corrige**: lo que se retiró debe quedar\ncomo estaba para que lo que lo referencie siga diciendo la verdad.\n\n**No se exige motivo**, ni siquiera al cambiar el precio. Una petición\nque no cambia nada devuelve `200` y **no registra evento**.\n",
+        "operationId" : "corregir",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "id",
+          "required" : true,
+          "schema" : {
+            "format" : "uuid",
+            "type" : "string"
+          }
+        } ],
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/UpdateProductRequest"
+              }
+            }
+          },
+          "required" : true
+        },
+        "responses" : {
+          "200" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ProductDetailResponse"
+                }
+              }
+            },
+            "description" : "El producto, ya corregido."
+          },
+          "400" : {
+            "description" : "Identificador sin forma canónica (`VAL-001`), nombre vacío o ningún campo informado (`VAL-002`), longitud excedida (`VAL-003`), precio no positivo (`VAL-004`), decimales que la moneda no admite (`VAL-005`), campos inmutables en la petición (`VAL-006`) o vigencia no positiva (`VAL-011`)"
+          },
+          "401" : {
+            "description" : "Token ausente o inválido (`AUTH-001`)"
+          },
+          "403" : {
+            "description" : "Autenticado sin el permiso `products:update` (`AUTH-002`)"
+          },
+          "404" : {
+            "description" : "No existe un producto vivo con ese identificador (`EX-001`)"
+          },
+          "409" : {
+            "description" : "El nombre ya lo tiene otro producto vivo (`EX-002`)"
+          },
+          "422" : {
+            "description" : "La moneda no existe o está desactivada (`EX-003`)"
+          },
+          "500" : {
+            "description" : "Fallo no controlado (`ERR-500`)"
+          }
+        },
+        "summary" : "Corregir un producto",
+        "tags" : [ "Productos" ]
+      }
+    },
+    "/api/v1/products/{id}/deletion" : {
+      "post" : {
+        "description" : "Retira el producto: **eliminación lógica y con motivo** (Art. V.13).\nLa fila se conserva —lo vendido tiene que seguir resolviendo a lo que\nse vendió— y el producto deja de ofrecerse.\n\n**`POST` sobre un subrecurso y no `DELETE` con cuerpo**, igual que al\neliminar un rol o una persona: RFC 9110 no define semántica para el\ncuerpo de un `DELETE` y un intermediario puede descartarlo, con lo que\nla petición se convertiría en un rechazo por motivo ausente que quien\nla envió no puede entender ni corregir. Y tampoco en la URL, donde el\nmotivo quedaría escrito en los registros de acceso de cualquier proxy.\n\n**El motivo es obligatorio** y se comprueba lo primero de todo, antes\nde tocar la base.\n\n**El estado no se modifica al retirar.** El registro de eliminación\nconserva si el producto **estaba a la venta**: desactivarlo «de paso»\nharía que todos los registros dijeran «inactivo» y ese dato dejaría de\nsignificar nada.\n\n**Qué libera el retiro y qué no**: el **destino** del upgrade queda\nlibre para que otro se active, y el **nombre** queda libre para otro\nproducto. El **código no se libera nunca** — el día que una factura\ndiga `UPGRADE_ORO` tiene que resolver a un solo producto para siempre.\n\n**No es idempotente a propósito**: retirar uno ya retirado devuelve\n`409`. Dos motivos sobre un solo hecho es evidencia contradictoria.\n\nNo devuelve el producto: lo que se acaba de retirar no es algo que el\nsistema deba seguir ofreciendo a quien lo pidió.\n",
+        "operationId" : "retirar",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "id",
+          "required" : true,
+          "schema" : {
+            "format" : "uuid",
+            "type" : "string"
+          }
+        } ],
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/DeleteProductRequest"
+              }
+            }
+          }
+        },
+        "responses" : {
+          "204" : {
+            "description" : "Producto retirado."
+          },
+          "400" : {
+            "description" : "Identificador sin forma canónica (`VAL-001`), motivo ausente o en blanco (`VAL-002`) o demasiado largo (`VAL-003`)"
+          },
+          "401" : {
+            "description" : "Token ausente o inválido (`AUTH-001`)"
+          },
+          "403" : {
+            "description" : "Autenticado sin el permiso `products:delete` (`AUTH-002`)"
+          },
+          "404" : {
+            "description" : "No existe un producto con ese identificador (`EX-001`)"
+          },
+          "409" : {
+            "description" : "El producto ya estaba retirado (`EX-002`)"
+          },
+          "500" : {
+            "description" : "Fallo no controlado (`ERR-500`)"
+          }
+        },
+        "summary" : "Retirar un producto del catálogo",
+        "tags" : [ "Productos" ]
+      }
+    },
+    "/api/v1/products/{id}/status" : {
+      "patch" : {
+        "description" : "Cambia el estado del producto entre `ACTIVO` e `INACTIVO`. **Es un\nrecurso propio y no un campo de la edición**: publicar y corregir son\ndecisiones distintas, y mezclarlas haría que una corrección de texto\npudiera poner algo a la venta.\n\n**Pedir el estado que el producto ya tiene devuelve `200` sin cambiar\nnada y sin registrar evento.** No es un error: quien pulsa dos veces el\nmismo botón no ha hecho nada malo.\n\n**No se publica un producto sin descripción** (`RN-PM-014`). Sí se\npermite **desactivarlo** sin ella: la regla acota lo que se ofrece, no\nlo que se retira.\n\n**Solo puede haber un upgrade activo hacia cada membresía destino**\n(`RN-PM-004`). Al activar uno cuyo destino ya está ocupado, el rechazo\n**nombra el producto que lo ocupa**, para que se sepa cuál desactivar.\nDesactivar no comprueba nada: liberar un destino nunca produce\nconflicto.\n\n**Un producto retirado no vuelve a la venta por aquí**: responde que no\nexiste.\n\nNo se exige motivo para activar ni para desactivar.\n",
+        "operationId" : "cambiarEstado_2",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "id",
+          "required" : true,
+          "schema" : {
+            "format" : "uuid",
+            "type" : "string"
+          }
+        } ],
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/ChangeProductStatusRequest"
+              }
+            }
+          },
+          "required" : true
+        },
+        "responses" : {
+          "200" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ProductDetailResponse"
+                }
+              }
+            },
+            "description" : "El producto, con su estado ya aplicado."
+          },
+          "400" : {
+            "description" : "Identificador sin forma canónica (`VAL-001`), estado ausente o fuera de su dominio (`VAL-002`), o activación de un producto sin descripción (`VAL-003`)"
+          },
+          "401" : {
+            "description" : "Token ausente o inválido (`AUTH-001`)"
+          },
+          "403" : {
+            "description" : "Autenticado sin el permiso `products:update` (`AUTH-002`)"
+          },
+          "404" : {
+            "description" : "No existe un producto vivo con ese identificador (`EX-001`)"
+          },
+          "409" : {
+            "description" : "Ya hay otro upgrade activo hacia esa membresía destino (`EX-002`)"
+          },
+          "500" : {
+            "description" : "Fallo no controlado (`ERR-500`)"
+          }
+        },
+        "summary" : "Publicar o retirar de la oferta un producto",
+        "tags" : [ "Productos" ]
       }
     },
     "/api/v1/roles" : {
@@ -4098,6 +4890,9 @@
   }, {
     "description" : "Catálogo de países. Inmutable salvo su estado.",
     "name" : "Países"
+  }, {
+    "description" : "Catálogo de venta: upgrades de membresía y servicios.",
+    "name" : "Productos"
   }, {
     "description" : "Cadena lineal de niveles de consumidor. Inmutable salvo el reordenamiento.",
     "name" : "Membresías"

@@ -118,7 +118,7 @@ public class AssignUserRolesService {
     //    cuenta suspendida es legítimo, y exigirlo la volvería inadministrable.
     User usuario =
         usuarios
-            .findNotDeletedById(userId)
+            .findNotDeletedByIdForUpdate(userId)
             .orElseThrow(
                 () ->
                     new ResourceNotFoundException(

@@ -8,6 +8,7 @@
 | Estado | **Aprobado** |
 | Autor | Responsable técnico |
 | Aprobado por | Responsable técnico |
+| Enmendado el | 26-08-2026 — ver §12 |
 | Fecha de aprobación | 21-08-2026 |
 
 !!! info "Qué va en este documento"
@@ -35,6 +36,16 @@ El caso de uso vive en `application` y orquesta: verificación de unicidad, reso
 ## 2. Cambios de esquema
 
 **Migración:** `V13__create_memberships.sql`
+
+!!! warning "Enmienda del 26-08-2026 — la columna `color` llega en `V38`, no en `V13`"
+
+    `V13` **ya está aplicada**, y Flyway valida por suma de comprobación: editarla haría fallar el arranque de toda base que la tenga, con un mensaje que no dice «alguien editó `V13`» sino «validación fallida». El color entra por eso en una migración propia, `V38__add_membership_color.sql`, con tres pasos en este orden:
+
+    1. `ALTER TABLE memberships ADD COLUMN color varchar(6)` — **nullable de momento**.
+    2. **Relleno de las filas existentes** con valores distintos entre sí, porque `uq_memberships_color` no admite repetidos. En una base sin membresías no hace nada; en una que las tenga, deja un color de relleno que —con `RN-SP-008` vigente— **nadie podrá corregir después**, y es la condición de reapertura que `requirements/sp.md` §5.1 declara para `RF-SP-043`.
+    3. `SET NOT NULL`, más `ck_memberships_color_format` y `uq_memberships_color`.
+
+    El orden importa por dos motivos distintos. `ADD COLUMN … NOT NULL` **sin `DEFAULT`** falla en cuanto la tabla tenga una sola fila, de modo que el `NOT NULL` tiene que ir detrás del relleno. Y poner `ck_memberships_color_format` antes del relleno **no** fallaría —un `CHECK` sobre `NULL` evalúa a `NULL`, y una fila que evalúa a `NULL` se acepta—, que es peor que fallar: la restricción quedaría declarada sin haber comprobado nada, que es exactamente el defecto de `ck_deletion_reason` (`requirements.md` v0.31.0).
 
 Campos tomados de `requirements/sp.md` §10.4, restricciones de §10.7 más las cuatro que este plan añade.
 
@@ -161,6 +172,7 @@ Tres decisiones de reparto:
   "code": "PLATA",
   "name": "Plata",
   "description": "Acceso a los cursos de nivel intermedio.",
+  "color": "1e88e5",
   "childMembershipId": "018f3a2b-7c41-7000-9a3d-1f2e5b8c9d20"
 }
 ```
@@ -169,6 +181,7 @@ Tres decisiones de reparto:
 - **No existe campo `level` ni `parentMembershipId`.** El nivel lo calcula el sistema (`CA-SP-115`) y la superior se deduce de la hija indicada; el DTO se deserializa con `FAIL_ON_UNKNOWN_PROPERTIES` activo, de modo que enviar cualquiera de los dos devuelve `400` y no se ignora en silencio. Es lo mismo que `RF-SP-001` §4 hizo con `status` e `isSystem`, y es lo que hace verificable que la posición no se pueda forzar desde fuera.
 - **La membresía se indica por su hija y no por su superior**, porque así lo fija `RN-SP-007`. La razón se lee mejor desde el negocio: al crear un nivel intermedio se sabe a quién quiere uno dejar por debajo.
 - `name` y `description` se recortan de espacios al inicio y al final antes de validar y persistir; sin ese recorte, `"Plata "` y `"Plata"` serían dos nombres distintos para `uq_memberships_name` y la unicidad se burlaría con un espacio. **`code` no se toca**: se persiste tal como llegó, igual que en `RF-SP-001` §4, para que el actor vea exactamente qué código quedó registrado.
+- **`color` se recorta y se normaliza a mayúsculas antes de validar y persistir**, y por eso el ejemplo entra como `1e88e5` y sale como `1E88E5` (`CA-SP-488`). Es lo contrario de lo que se hace con `code` —que se guarda tal cual—, y el motivo es que aquí el valor no lo lee una persona sino una hoja de estilos: dos cajas distintas del mismo color serían dos filas distintas para `uq_memberships_color`, y la unicidad dejaría de significar nada. **El `#` no se admite ni se recorta**: llega o no llega, y si llega es `400` (`VAL-008`). Aceptarlo y quitarlo convertiría al servidor en el sitio donde se decide un detalle de notación de CSS.
 
 **Respuesta `201`**
 
@@ -180,6 +193,7 @@ Con cabecera `Location: /api/v1/memberships/{id}`.
   "code": "PLATA",
   "name": "Plata",
   "description": "Acceso a los cursos de nivel intermedio.",
+  "color": "1E88E5",
   "level": 2,
   "parentMembershipId": "018f3a2b-7c41-7000-9a3d-1f2e5b8c9d10",
   "childMembershipId": "018f3a2b-7c41-7000-9a3d-1f2e5b8c9d20",
@@ -373,3 +387,12 @@ Casos límite de `spec.md` §13 y decisiones de este plan que exigen prueba prop
 | Ausencia de edición y eliminación | API | `PUT`, `PATCH` y `DELETE` sobre `/api/v1/memberships/{id}` devuelven `405`. Es la única forma de verificar `RN-SP-008`, que no tiene código que la implemente |
 
 Las reglas de ArchUnit introducidas en `RF-SP-001` y `RF-SP-003` cubren también este requerimiento, y la prueba de ausencia de cascadas de `RF-SP-012` §11 se ejecuta sobre el esquema completo, incluida `fk_memberships_parent`.
+
+---
+
+## 12. Control de cambios
+
+| Versión | Fecha | Cambio | Responsable |
+|---|---|---|---|
+| 0.2.0 | 26-08-2026 | **Enmienda por `RN-SP-024`, el color de la membresía.** §2 declara la migración **`V38__add_membership_color.sql`** y por qué no se toca `V13` —ya aplicada, y Flyway valida por suma de comprobación—, con los tres pasos en el único orden que funciona. §4 incorpora `color` a la petición y a la respuesta, y deja escrito que **se normaliza a mayúsculas y el `#` no se admite ni se recorta**: aceptarlo y quitarlo pondría en el servidor la decisión de un detalle de notación de CSS. | Responsable técnico |
+| 0.1.0 | 21-08-2026 | Redacción inicial, aprobada en su compuerta. | Responsable técnico |

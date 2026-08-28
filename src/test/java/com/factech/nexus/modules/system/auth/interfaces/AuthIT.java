@@ -7,6 +7,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import com.factech.nexus.IntegrationTestBase;
+import com.factech.nexus.modules.system.auth.domain.service.FailedAttemptLedger;
 import com.factech.nexus.shared.security.PasswordHasher;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -39,11 +40,17 @@ class AuthIT extends IntegrationTestBase {
   @Autowired private JdbcTemplate jdbc;
   @Autowired private ObjectMapper json;
   @Autowired private PasswordHasher hasher;
+  @Autowired private FailedAttemptLedger sinCuenta;
 
   private UUID persona;
 
   @BeforeEach
   void prepararCuenta() {
+    // El contador de los identificadores SIN cuenta vive en memoria y NO en la
+    // base: sin esta limpieza, `nadie` llega a una prueba con los fallos que le
+    // dejó la anterior, y la comparación de respuestas pasa a depender del
+    // orden de ejecución -- que es la peor clase de prueba intermitente.
+    sinCuenta.limpiar();
     jdbc.update("DELETE FROM refresh_tokens");
     jdbc.update("DELETE FROM user_roles WHERE user_id <> ?", SUPERADMIN);
     jdbc.update("DELETE FROM users WHERE id <> ?", SUPERADMIN);
@@ -178,6 +185,157 @@ class AuthIT extends IntegrationTestBase {
     mvc.perform(login("JPerez", CLAVE))
         .andExpect(status().isLocked())
         .andExpect(jsonPath("$.detail", org.hamcrest.Matchers.containsString("administra")));
+  }
+
+  @Test
+  @DisplayName("cada rechazo dice cuántos intentos quedan, y el último cuánto durará el bloqueo")
+  void elRechazoDiceLosIntentosQueQuedan() throws Exception {
+    for (int restantes = 4; restantes > 0; restantes--) {
+      mvc.perform(login("JPerez", "ClaveEquivocadaLarga"))
+          .andExpect(status().isUnauthorized())
+          .andExpect(jsonPath("$.remainingAttempts").value(restantes))
+          // Mientras queden intentos NO hay bloqueo del que informar. El campo
+          // se omite en lugar de viajar nulo: dos formas de decir «no aplica»
+          // acaban con el cliente comprobando solo una.
+          .andExpect(jsonPath("$.unlockAt").doesNotExist())
+          .andExpect(jsonPath("$.retryAfterSeconds").doesNotExist());
+    }
+
+    // El quinto agota el contador. Sigue siendo `401` —`EX-003` dice que la
+    // respuesta es la de `EX-001`—, pero ya anuncia el bloqueo en lugar de
+    // dejar que la persona lo descubra reintentando.
+    mvc.perform(login("JPerez", "ClaveEquivocadaLarga"))
+        .andExpect(status().isUnauthorized())
+        .andExpect(jsonPath("$.remainingAttempts").value(0))
+        .andExpect(jsonPath("$.unlockAt").exists())
+        .andExpect(jsonPath("$.retryAfterSeconds").value(60))
+        .andExpect(
+            jsonPath("$.detail", org.hamcrest.Matchers.containsString("bloqueada temporalmente")))
+        // Y NO lleva la duración escrita. Un texto con «1 minuto» es cierto al
+        // serializarse y deja de serlo enseguida; el cliente descuenta
+        // `retryAfterSeconds`, que no envejece.
+        .andExpect(
+            jsonPath(
+                "$.detail",
+                org.hamcrest.Matchers.not(org.hamcrest.Matchers.containsString("minuto"))));
+  }
+
+  @Test
+  @DisplayName("el identificador SIN cuenta gasta intentos igual: el número no delata quién existe")
+  void elIdentificadorSinCuentaGastaIntentosIgual() throws Exception {
+    // Es la prueba de que devolver los intentos restantes no reabre la
+    // enumeración que `CA-SP-292` cierra. Se comparan las respuestas ENTERAS,
+    // no solo el contador: cualquier campo que apareciera en una y no en la
+    // otra volvería a distinguirlas.
+    for (int intento = 0; intento < 5; intento++) {
+      String real = respuesta(login("JPerez", "ClaveEquivocadaLarga"));
+      String inventado = respuesta(login("nadie", "ClaveEquivocadaLarga"));
+      assertThat(comparable(real)).isEqualTo(comparable(inventado));
+    }
+
+    // Y el sexto responde `423` en los dos casos. Sin esta parte, el `401`
+    // habría dejado de delatar la cuenta y el `423` habría seguido haciéndolo:
+    // bastaba con gastar cinco intentos y mirar el estado.
+    mvc.perform(login("JPerez", CLAVE)).andExpect(status().isLocked());
+    mvc.perform(login("nadie", CLAVE)).andExpect(status().isLocked());
+  }
+
+  @Test
+  @DisplayName("la cuenta inactiva gasta intento aunque la contraseña sea CORRECTA")
+  void laCuentaNoHabilitadaTambienGastaIntento() throws Exception {
+    // Si no lo gastara, su respuesta llevaría un número de intentos distinto
+    // del de una contraseña incorrecta y `EX-001` volvería a tener cuatro
+    // respuestas distinguibles, por el sitio menos visible de los cuatro.
+    jdbc.update("UPDATE users SET status = 'INACTIVO' WHERE id = ?", persona);
+
+    mvc.perform(login("JPerez", CLAVE))
+        .andExpect(status().isUnauthorized())
+        .andExpect(jsonPath("$.remainingAttempts").value(4));
+    mvc.perform(login("JPerez", CLAVE))
+        .andExpect(status().isUnauthorized())
+        .andExpect(jsonPath("$.remainingAttempts").value(3));
+  }
+
+  @Test
+  @DisplayName("el 423 automático entrega la espera como DATO, no escrita en el mensaje")
+  void elBloqueoEntregaLaEsperaComoDato() throws Exception {
+    for (int intento = 0; intento < 5; intento++) {
+      mvc.perform(login("JPerez", "ClaveEquivocadaLarga")).andExpect(status().isUnauthorized());
+    }
+
+    mvc.perform(login("JPerez", CLAVE))
+        .andExpect(status().isLocked())
+        .andExpect(jsonPath("$.unlockAt").exists())
+        // El instante sirve para decir «hasta las 14:32»; los segundos, para la
+        // cuenta regresiva, que NO puede depender de que el reloj del navegador
+        // coincida con el del servidor. Por eso viajan los dos.
+        .andExpect(jsonPath("$.retryAfterSeconds").isNumber())
+        // El texto NO lleva la duración. La lleva el campo, para que el cliente
+        // pueda descontarla; un número escrito en el mensaje se queda congelado
+        // en el instante en que se serializó y miente en cuanto pasa un minuto.
+        .andExpect(
+            jsonPath(
+                "$.detail",
+                org.hamcrest.Matchers.not(org.hamcrest.Matchers.containsString("minuto"))))
+        .andExpect(
+            jsonPath(
+                "$.detail",
+                org.hamcrest.Matchers.not(org.hamcrest.Matchers.containsString("segundo"))));
+  }
+
+  @Test
+  @DisplayName("el bloqueo MANUAL no anuncia expiración, porque esa cuenta no expira sola")
+  void elBloqueoManualNoAnunciaExpiracion() throws Exception {
+    jdbc.update("UPDATE users SET status = 'BLOQUEADO' WHERE id = ?", persona);
+
+    mvc.perform(login("JPerez", CLAVE))
+        .andExpect(status().isLocked())
+        .andExpect(jsonPath("$.unlockAt").doesNotExist())
+        .andExpect(jsonPath("$.retryAfterSeconds").doesNotExist());
+  }
+
+  @Test
+  @DisplayName("la CADUCIDAD manda: nula navega, con fecha obliga — aunque la marca diga otra cosa")
+  void laCaducidadDecideYNoLaMarca() throws Exception {
+    // El estado del alta y el del superadministrador sembrado: la marca puesta y
+    // ninguna caducidad. Desde el 25-08-2026 **navega**.
+    jdbc.update(
+        "UPDATE users SET must_change_password = true, provisional_password_expires_at = NULL"
+            + " WHERE id = ?",
+        persona);
+
+    mvc.perform(login("JPerez", CLAVE))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.mustChangePassword").value(false));
+
+    // Y con fecha, obliga. `ck_users_provisional_expiry` exige que la marca
+    // siga puesta, de modo que este es el único estado en que puede haber fecha.
+    jdbc.update(
+        "UPDATE users SET provisional_password_expires_at = now() + interval '48 hours'"
+            + " WHERE id = ?",
+        persona);
+
+    mvc.perform(login("JPerez", CLAVE))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.mustChangePassword").value(true));
+  }
+
+  @Test
+  @DisplayName("el refresco recalcula la marca, y no la arrastra del token anterior")
+  void elRefrescoRecalculaLaMarca() throws Exception {
+    // Sin esto, restablecer la contraseña de alguien con la sesión ya abierta no
+    // surtiría efecto hasta que volviera a entrar: seguiría renovando un token
+    // sin marca durante los siete días del refresh token.
+    String refresco = refreshToken(login("JPerez", CLAVE));
+
+    jdbc.update(
+        "UPDATE users SET must_change_password = true,"
+            + " provisional_password_expires_at = now() + interval '48 hours' WHERE id = ?",
+        persona);
+
+    mvc.perform(refresh(refresco))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.mustChangePassword").value(true));
   }
 
   @Test
@@ -479,6 +637,22 @@ class AuthIT extends IntegrationTestBase {
   private String campo(String cuerpo, String nombre) throws Exception {
     JsonNode arbol = json.readTree(cuerpo);
     return arbol.get(nombre).asText();
+  }
+
+  private String respuesta(MockHttpServletRequestBuilder peticion) throws Exception {
+    return mvc.perform(peticion).andReturn().getResponse().getContentAsString();
+  }
+
+  /**
+   * Sin lo que cambia entre dos peticiones equivalentes.
+   *
+   * <p>La correlación y el instante de desbloqueo difieren por construcción —una es única por
+   * petición y el otro se calcula con el reloj—, y compararlos convertiría la prueba de
+   * indistinguibilidad en una carrera contra los milisegundos. Todo lo demás SÍ tiene que
+   * coincidir.
+   */
+  private static String comparable(String cuerpo) {
+    return sinCorrelacion(cuerpo).replaceAll("\"unlockAt\":\"[^\"]*\"", "\"unlockAt\":\"\"");
   }
 
   /** El identificador de correlación cambia en cada petición y no forma parte del contrato. */

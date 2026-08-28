@@ -117,7 +117,7 @@ public class RevokeUserRolesService {
   public UserResponse revoke(UUID userId, RevokeRolesRequest peticion) {
     User usuario =
         usuarios
-            .findNotDeletedById(userId)
+            .findNotDeletedByIdForUpdate(userId)
             .orElseThrow(
                 () ->
                     new ResourceNotFoundException(

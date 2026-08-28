@@ -32,6 +32,7 @@ public class JpaMembershipRepository implements MembershipRepository {
 
   private static final String UQ_CODIGO = "uq_memberships_code";
   private static final String UQ_NOMBRE = "uq_memberships_name";
+  private static final String UQ_COLOR = "uq_memberships_color";
 
   private final EntityManager em;
 
@@ -113,6 +114,15 @@ public class JpaMembershipRepository implements MembershipRepository {
   }
 
   @Override
+  public boolean existsColor(String color) {
+    return !em.createQuery("SELECT 1 FROM Membership m WHERE m.color = :color", Integer.class)
+        .setParameter("color", color)
+        .setMaxResults(1)
+        .getResultList()
+        .isEmpty();
+  }
+
+  @Override
   public int shiftLevelsFrom(int nivel) {
     // `updated_at` no es decorativo aquí: el reordenamiento es lo único que
     // puede cambiar en una fila ya escrita (`RN-SP-008`).
@@ -182,6 +192,12 @@ public class JpaMembershipRepository implements MembershipRepository {
           "EX-001",
           "Ya existe una membresía con ese nombre.",
           List.of(new FieldError("name", "EX-001", "Ya existe una membresía con ese nombre.")));
+    }
+    if (UQ_COLOR.equals(restriccion)) {
+      return new BusinessRuleException(
+          "EX-001",
+          "Ya existe una membresía con ese color.",
+          List.of(new FieldError("color", "EX-001", "Ya existe una membresía con ese color.")));
     }
     return fallo;
   }

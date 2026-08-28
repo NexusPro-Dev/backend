@@ -29,6 +29,8 @@ tags:
     \ uno con su permiso."
 - name: Países
   description: Catálogo de países. Inmutable salvo su estado.
+- name: Productos
+  description: "Catálogo de venta: upgrades de membresía y servicios."
 - name: Membresías
   description: Cadena lineal de niveles de consumidor. Inmutable salvo el reordenamiento.
 - name: Monedas
@@ -874,6 +876,222 @@ paths:
             \ el rol tiene hijos o personas asignadas (`RN-SEG-008`)"
         "500":
           description: Fallo no controlado (`ERR-500`)
+  /api/v1/products:
+    get:
+      tags:
+      - Productos
+      summary: Consultar el catálogo de productos
+      description: |
+        Devuelve el catálogo **paginado**, con el destino de cada upgrade y la
+        moneda de cada precio ya resueltos: no hace falta una segunda consulta.
+
+        **Los retirados quedan fuera salvo que se pidan** con `includeDeleted`.
+        Al pedirlos se indica **desde cuándo** lo están; el **motivo** no viaja
+        en el listado —uno a uno lo devuelve el detalle (`RF-PM-003`), en
+        bloque sería una exportación de decisiones comerciales—. Verlos **no
+        exige un permiso propio**: basta `products:read`.
+
+        Solo se puede ordenar por la lista blanca —`name`, `price`,
+        `createdAt`—, con `,asc` o `,desc`. **Un campo fuera de ella se
+        rechaza y no se ignora**: ignorarlo devolvería un orden distinto del
+        pedido sin decirlo. Por omisión se ordena por **fecha de alta
+        descendente**, y el orden aplicado viaja en la respuesta.
+
+        **`targetMembershipId` no se valida contra el catálogo de membresías.**
+        Filtrar por un destino inexistente devuelve la colección vacía y no es
+        un error; combinarlo con `type=SERVICIO` también, porque ningún
+        servicio tiene destino.
+
+        La búsqueda va sobre el nombre, **sin distinguir acentos ni
+        mayúsculas** y por fragmento. En blanco equivale a no filtrar.
+
+        Un filtro sin coincidencias devuelve `200` con la colección vacía, y
+        una página más allá de la última hace lo mismo **con el total real**.
+        No hay `404` ni `422`.
+      operationId: listar_2
+      parameters:
+      - name: page
+        in: query
+        required: false
+        schema:
+          type: integer
+          format: int32
+      - name: size
+        in: query
+        required: false
+        schema:
+          type: integer
+          format: int32
+      - name: sort
+        in: query
+        required: false
+        schema:
+          type: string
+      - name: type
+        in: query
+        required: false
+        schema:
+          type: string
+      - name: status
+        in: query
+        required: false
+        schema:
+          type: string
+      - name: targetMembershipId
+        in: query
+        required: false
+        schema:
+          type: string
+          format: uuid
+      - name: search
+        in: query
+        required: false
+        schema:
+          type: string
+      - name: includeDeleted
+        in: query
+        required: false
+        schema:
+          type: boolean
+      responses:
+        "200":
+          description: "Página del catálogo, con el orden aplicado."
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/ProductPageResponse"
+        "400":
+          description: "Paginación fuera de rango (`VAL-001`), tipo (`VAL-002`) o\
+            \ estado (`VAL-003`) fuera de su dominio, identificador mal formado (`VAL-004`)\
+            \ o campo de ordenamiento no admitido (`VAL-005`). Los cuatro primeros\
+            \ se devuelven **juntos**"
+        "401":
+          description: Token ausente o inválido (`AUTH-001`)
+        "403":
+          description: Autenticado sin el permiso `products:read` (`AUTH-002`)
+        "500":
+          description: Fallo no controlado (`ERR-500`)
+    post:
+      tags:
+      - Productos
+      summary: Registrar un producto
+      description: |
+        Registra un producto del catálogo, **siempre inactivo**: publicarlo es otra
+        operación (`RF-PM-005`).
+
+        El tipo decide qué campos son obligatorios: un `UPGRADE_MEMBRESIA` debe
+        declarar su membresía destino y un `SERVICIO` no puede declararla.
+
+        La vigencia es opcional en los dos tipos: sin ella, lo adquirido no caduca.
+      operationId: register
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/RegisterProductRequest"
+        required: true
+      responses:
+        "201":
+          description: "Producto registrado, en estado `INACTIVO`."
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/ProductResponse"
+        "400":
+          description: Datos inválidos (serie `VAL-nnn`)
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/ProductResponse"
+        "401":
+          description: Token ausente o inválido (`AUTH-001`)
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/ProductResponse"
+        "403":
+          description: Autenticado sin el permiso `products:create` (`AUTH-002`)
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/ProductResponse"
+        "409":
+          description: "Código o nombre ya en uso (`EX-005`, `EX-001`)"
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/ProductResponse"
+        "422":
+          description: "Membresía destino o moneda inexistente o inactiva (`EX-002`,\
+            \ `EX-003`)"
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/ProductResponse"
+  /api/v1/products/{id}/deletion:
+    post:
+      tags:
+      - Productos
+      summary: Retirar un producto del catálogo
+      description: |
+        Retira el producto: **eliminación lógica y con motivo** (Art. V.13).
+        La fila se conserva —lo vendido tiene que seguir resolviendo a lo que
+        se vendió— y el producto deja de ofrecerse.
+
+        **`POST` sobre un subrecurso y no `DELETE` con cuerpo**, igual que al
+        eliminar un rol o una persona: RFC 9110 no define semántica para el
+        cuerpo de un `DELETE` y un intermediario puede descartarlo, con lo que
+        la petición se convertiría en un rechazo por motivo ausente que quien
+        la envió no puede entender ni corregir. Y tampoco en la URL, donde el
+        motivo quedaría escrito en los registros de acceso de cualquier proxy.
+
+        **El motivo es obligatorio** y se comprueba lo primero de todo, antes
+        de tocar la base.
+
+        **El estado no se modifica al retirar.** El registro de eliminación
+        conserva si el producto **estaba a la venta**: desactivarlo «de paso»
+        haría que todos los registros dijeran «inactivo» y ese dato dejaría de
+        significar nada.
+
+        **Qué libera el retiro y qué no**: el **destino** del upgrade queda
+        libre para que otro se active, y el **nombre** queda libre para otro
+        producto. El **código no se libera nunca** — el día que una factura
+        diga `UPGRADE_ORO` tiene que resolver a un solo producto para siempre.
+
+        **No es idempotente a propósito**: retirar uno ya retirado devuelve
+        `409`. Dos motivos sobre un solo hecho es evidencia contradictoria.
+
+        No devuelve el producto: lo que se acaba de retirar no es algo que el
+        sistema deba seguir ofreciendo a quien lo pidió.
+      operationId: retirar
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/DeleteProductRequest"
+      responses:
+        "204":
+          description: Producto retirado.
+        "400":
+          description: "Identificador sin forma canónica (`VAL-001`), motivo ausente\
+            \ o en blanco (`VAL-002`) o demasiado largo (`VAL-003`)"
+        "401":
+          description: Token ausente o inválido (`AUTH-001`)
+        "403":
+          description: Autenticado sin el permiso `products:delete` (`AUTH-002`)
+        "404":
+          description: No existe un producto con ese identificador (`EX-001`)
+        "409":
+          description: El producto ya estaba retirado (`EX-002`)
+        "500":
+          description: Fallo no controlado (`ERR-500`)
   /api/v1/memberships:
     get:
       tags:
@@ -993,7 +1211,8 @@ paths:
         se envía y enviarlo devuelve `400`.
 
         El código se normaliza a mayúsculas y se recorta, porque lo fija
-        ISO 3166-1 y no lo inventa nadie: `co`, ` CO` y `CO` son el mismo país.
+        ISO 3166-1 alfa-3 y no lo inventa nadie: `col`, ` COL` y `COL` son el
+        mismo país. Son tres letras y no dos.
 
         El nombre admite acentos y caracteres no latinos sin transformación
         alguna, pero **no puede coincidir** con otro ya registrado ignorando
@@ -1111,6 +1330,102 @@ paths:
           description: Fallo no controlado (`ERR-500`)
       security:
       - bearerAuth: []
+  /api/v1/auth/password-recovery:
+    post:
+      tags:
+      - Sesión
+      summary: Solicitar la recuperación de la propia contraseña
+      description: |
+        Emite un permiso temporal de un solo uso y lo envía al correo de la
+        cuenta. Público: quien olvidó su contraseña no puede autenticarse.
+
+        **La respuesta es idéntica exista o no la identidad**, en el cuerpo y
+        en el estado. No hay forma de usar este endpoint para averiguar qué
+        cuentas existen, que es exactamente para lo que se usaría si
+        distinguiera.
+
+        Y lo es **también en el tiempo**: el envío ocurre después de responder
+        y por otro camino. Igualar solo el mensaje dejaría la defensa
+        declarada y no real — emitir y enviar cuesta cientos de milisegundos
+        que se miden desde fuera con un cronómetro.
+
+        **Tampoco rechaza nada más.** Ni la cuenta bloqueada, ni la inactiva:
+        cualquiera de esos rechazos diría algo. El `202` es además el estado
+        honesto — el sistema no puede afirmar que algo se entregó.
+
+        **Emitir uno invalida el anterior**, de modo que nunca hay dos puertas
+        abiertas a la vez sobre la misma cuenta.
+      operationId: solicitarRecuperacion
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/PasswordRecoveryRequest"
+        required: true
+      responses:
+        "202":
+          description: Solicitud aceptada. **La misma respuesta exista o no la identidad**
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/PasswordRecoveryResponse"
+        "400":
+          description: Falta el identificador (`VAL-001`)
+        "429":
+          description: "Demasiadas solicitudes, por identidad o por origen (`ERR-429`)"
+        "500":
+          description: Fallo no controlado (`ERR-500`)
+      security: []
+  /api/v1/auth/password-recovery/confirmation:
+    post:
+      tags:
+      - Sesión
+      summary: Confirmar la recuperación con el permiso recibido
+      description: |
+        Consume el permiso y fija la contraseña nueva. Público: lo que
+        autoriza es el permiso, no un token.
+
+        **La política se comprueba antes de tocar el permiso.** Una contraseña
+        que no la cumple es un error de la persona legítima, y consumir su
+        permiso por ello la obligaría a pedir otro —y a esperar otro correo—
+        por haber escrito una contraseña corta.
+
+        **El `422` no distingue sus cuatro causas** —permiso inexistente,
+        caducado, ya usado o sustituido—: hacerlo le diría a quien prueba
+        permisos al azar cuál estuvo a punto de acertar.
+
+        La contraseña que se fija aquí **no es provisional**: la eligió su
+        titular y nadie más la conoce, de modo que la cuenta no queda marcada
+        para cambio obligatorio. Es la diferencia deliberada con el
+        restablecimiento por un administrador.
+
+        **No levanta el bloqueo ni cambia el estado de la cuenta.** Recuperar
+        la contraseña prueba que se tiene el correo, no que alguien decidiera
+        devolver el acceso.
+
+        Al completarse, **todas las sesiones se revocan** y los tokens de
+        acceso ya emitidos dejan de admitirse.
+      operationId: confirmarRecuperacion
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/PasswordRecoveryConfirmation"
+        required: true
+      responses:
+        "204":
+          description: Contraseña sustituida.
+        "400":
+          description: "Falta el permiso (`VAL-002`) o la contraseña (`VAL-003`),\
+            \ o esta no cumple la política (`VAL-004`). **No consume el permiso**"
+        "422":
+          description: "El permiso no es válido (`VAL-005`): inexistente, caducado,\
+            \ ya usado o sustituido. **Los cuatro casos comparten respuesta**"
+        "429":
+          description: Demasiadas confirmaciones desde el mismo origen (`ERR-429`)
+        "500":
+          description: Fallo no controlado (`ERR-500`)
+      security: []
   /api/v1/auth/logout:
     post:
       tags:
@@ -1148,9 +1463,24 @@ paths:
         Autentica con **nombre de usuario o correo** —el mismo campo para los
         dos— y entrega las credenciales de sesión.
 
+        El rechazo por credenciales lleva `remainingAttempts`: **cuántos
+        intentos quedan** antes del bloqueo. El identificador que no
+        corresponde a ninguna cuenta los gasta igual, de modo que el número no
+        permite averiguar qué cuentas existen.
+
         La cuenta bloqueada recibe `423` y un mensaje que la identifica como
         tal: es una excepción consciente al mensaje genérico, porque quien
-        provocó el bloqueo ya sabe que la cuenta existe.
+        provocó el bloqueo ya sabe que la cuenta existe. Si el bloqueo es
+        **automático**, la respuesta añade `unlockAt` —el instante en que se
+        levanta— y `retryAfterSeconds` —lo que falta—. El bloqueo **manual**
+        no los lleva: esa cuenta no se desbloquea sola.
+
+        **La espera no va escrita en el mensaje, y es deliberado.** Un texto
+        con «vuelva en dos minutos» es cierto al serializarse y deja de serlo
+        enseguida. Con `retryAfterSeconds` el cliente **descuenta** —una
+        cuenta regresiva no envejece— sin depender de que su reloj coincida
+        con el del servidor, que es lo que sí ocurriría calculándola a partir
+        de `unlockAt`.
 
         Si la contraseña la fijó otra persona, la respuesta autentica **y
         advierte** con `mustChangePassword`: hace falta una sesión para poder
@@ -1174,9 +1504,11 @@ paths:
         "401":
           description: "Credenciales inválidas, cuenta inexistente, inactiva o eliminada\
             \ — los cuatro casos comparten cuerpo y mensaje, sin una sola diferencia\
-            \ observable"
+            \ observable. Lleva `remainingAttempts`; el intento que agota el contador\
+            \ añade además `unlockAt` y `retryAfterSeconds`"
         "423":
-          description: Cuenta bloqueada
+          description: "Cuenta bloqueada. El bloqueo automático lleva `unlockAt` y\
+            \ `retryAfterSeconds`; el manual no los lleva, porque no expira solo"
         "500":
           description: Fallo no controlado (`ERR-500`)
       security: []
@@ -1718,6 +2050,194 @@ paths:
             '*/*':
               schema:
                 $ref: "#/components/schemas/RoleResponse"
+  /api/v1/products/{id}:
+    get:
+      tags:
+      - Productos
+      summary: Consultar el detalle de un producto
+      description: |
+        Devuelve el producto con su membresía destino y su moneda **resueltas**,
+        sin exigir una segunda consulta.
+
+        **Un producto retirado se devuelve marcado como tal**, no como
+        inexistente: `deletedAt` dice desde cuándo y `deletionReason` **por
+        qué**. Los dos campos **solo aparecen si el producto está retirado** —
+        su ausencia significa que sigue vivo—. El motivo llega con
+        `products:read` y **sin exigir permiso de auditoría**; es la
+        contrapartida asumida de que el detalle lo devuelva.
+
+        **No devuelve autoría en ninguna forma**: ni quién lo creó, ni quién lo
+        corrigió, ni quién lo retiró. Eso vive en la auditoría y tiene su
+        propio permiso.
+
+        `targetMembership` y `validityDays` viajan **presentes en nulo** cuando
+        no aplican: un servicio no tiene destino y un producto puede no
+        caducar, y un campo ausente es indistinguible de uno que el cliente no
+        conoce.
+
+        El **nivel** del destino es el **actual**, no el que tenía cuando se
+        creó el producto: la cadena de membresías se reordena al insertar un
+        eslabón.
+
+        Un identificador con forma laxa se rechaza como **dato inválido**
+        (`400`), no como recurso no encontrado.
+      operationId: detalle_2
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      responses:
+        "200":
+          description: "El producto, con su destino y su moneda resueltos."
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/ProductDetailResponse"
+        "400":
+          description: Identificador sin forma canónica (`VAL-001`)
+        "401":
+          description: Token ausente o inválido (`AUTH-001`)
+        "403":
+          description: Autenticado sin el permiso `products:read` (`AUTH-002`)
+        "404":
+          description: No existe un producto con ese identificador (`EX-001`)
+        "500":
+          description: Fallo no controlado (`ERR-500`)
+    patch:
+      tags:
+      - Productos
+      summary: Corregir un producto
+      description: |
+        Corrige el **nombre**, la **descripción**, el **precio**, la **moneda**
+        y la **vigencia**. Se aplica lo que llega y se deja intacto lo que no.
+
+        **Distingue el campo ausente del enviado vacío**, y de ahí salen dos
+        comportamientos opuestos: `description: null` y `validityDays: null`
+        **vacían** el campo —el producto pasa a no caducar—, mientras que
+        `name: null` se **rechaza**, porque un producto sin nombre no puede
+        existir.
+
+        **El tipo, el código y la membresía destino NO se pueden corregir**, y
+        enviarlos devuelve `400` con `VAL-006`. Se rechazan y no se ignoran:
+        ignorarlos haría creer que el cambio se aplicó. Definen qué derecho
+        otorga el producto, y cambiarlos convertiría lo comprado en otra cosa.
+
+        **El precio se valida contra la moneda NUEVA** cuando llegan las dos.
+        Y el importe **no se convierte**: el sistema no hace conversión de
+        divisa — cambiar de moneda es declarar que ese número siempre estuvo
+        en la otra.
+
+        **Un producto retirado no se corrige**: lo que se retiró debe quedar
+        como estaba para que lo que lo referencie siga diciendo la verdad.
+
+        **No se exige motivo**, ni siquiera al cambiar el precio. Una petición
+        que no cambia nada devuelve `200` y **no registra evento**.
+      operationId: corregir
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateProductRequest"
+        required: true
+      responses:
+        "200":
+          description: "El producto, ya corregido."
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/ProductDetailResponse"
+        "400":
+          description: "Identificador sin forma canónica (`VAL-001`), nombre vací\
+            o o ningún campo informado (`VAL-002`), longitud excedida (`VAL-003`),\
+            \ precio no positivo (`VAL-004`), decimales que la moneda no admite (`VAL-005`),\
+            \ campos inmutables en la petición (`VAL-006`) o vigencia no positiva\
+            \ (`VAL-011`)"
+        "401":
+          description: Token ausente o inválido (`AUTH-001`)
+        "403":
+          description: Autenticado sin el permiso `products:update` (`AUTH-002`)
+        "404":
+          description: No existe un producto vivo con ese identificador (`EX-001`)
+        "409":
+          description: El nombre ya lo tiene otro producto vivo (`EX-002`)
+        "422":
+          description: La moneda no existe o está desactivada (`EX-003`)
+        "500":
+          description: Fallo no controlado (`ERR-500`)
+  /api/v1/products/{id}/status:
+    patch:
+      tags:
+      - Productos
+      summary: Publicar o retirar de la oferta un producto
+      description: |
+        Cambia el estado del producto entre `ACTIVO` e `INACTIVO`. **Es un
+        recurso propio y no un campo de la edición**: publicar y corregir son
+        decisiones distintas, y mezclarlas haría que una corrección de texto
+        pudiera poner algo a la venta.
+
+        **Pedir el estado que el producto ya tiene devuelve `200` sin cambiar
+        nada y sin registrar evento.** No es un error: quien pulsa dos veces el
+        mismo botón no ha hecho nada malo.
+
+        **No se publica un producto sin descripción** (`RN-PM-014`). Sí se
+        permite **desactivarlo** sin ella: la regla acota lo que se ofrece, no
+        lo que se retira.
+
+        **Solo puede haber un upgrade activo hacia cada membresía destino**
+        (`RN-PM-004`). Al activar uno cuyo destino ya está ocupado, el rechazo
+        **nombra el producto que lo ocupa**, para que se sepa cuál desactivar.
+        Desactivar no comprueba nada: liberar un destino nunca produce
+        conflicto.
+
+        **Un producto retirado no vuelve a la venta por aquí**: responde que no
+        existe.
+
+        No se exige motivo para activar ni para desactivar.
+      operationId: cambiarEstado_2
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ChangeProductStatusRequest"
+        required: true
+      responses:
+        "200":
+          description: "El producto, con su estado ya aplicado."
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/ProductDetailResponse"
+        "400":
+          description: "Identificador sin forma canónica (`VAL-001`), estado ausente\
+            \ o fuera de su dominio (`VAL-002`), o activación de un producto sin descripció\
+            n (`VAL-003`)"
+        "401":
+          description: Token ausente o inválido (`AUTH-001`)
+        "403":
+          description: Autenticado sin el permiso `products:update` (`AUTH-002`)
+        "404":
+          description: No existe un producto vivo con ese identificador (`EX-001`)
+        "409":
+          description: Ya hay otro upgrade activo hacia esa membresía destino (`EX-002`)
+        "500":
+          description: Fallo no controlado (`ERR-500`)
   /api/v1/currencies/{id}/status:
     patch:
       tags:
@@ -1735,7 +2255,7 @@ paths:
         una operación de migración, no de API.
 
         El cuerpo no admite ningún otro campo ni motivo alguno.
-      operationId: cambiarEstado_2
+      operationId: cambiarEstado_3
       parameters:
       - name: id
         in: path
@@ -1786,7 +2306,7 @@ paths:
         propague desde ese momento, no lo repara.
 
         El cuerpo no admite ningún otro campo ni motivo alguno.
-      operationId: cambiarEstado_3
+      operationId: cambiarEstado_4
       parameters:
       - name: id
         in: path
@@ -2632,14 +3152,16 @@ components:
     MembershipRef:
       type: object
       properties:
+        id:
+          type: string
+          format: uuid
         code:
+          type: string
+        name:
           type: string
         level:
           type: integer
           format: int32
-        endsAt:
-          type: string
-          format: date-time
     RoleRef:
       type: object
       properties:
@@ -2844,6 +3366,99 @@ components:
       properties:
         reason:
           type: string
+    RegisterProductRequest:
+      type: object
+      properties:
+        code:
+          type: string
+          maxLength: 50
+          minLength: 0
+          pattern: "^[A-Za-z][A-Za-z0-9_]*$"
+        type:
+          type: string
+          enum:
+          - UPGRADE_MEMBRESIA
+          - SERVICIO
+        name:
+          type: string
+          maxLength: 150
+          minLength: 0
+        description:
+          type: string
+          maxLength: 1000
+          minLength: 0
+        targetMembershipId:
+          type: string
+          format: uuid
+        price:
+          type: number
+          minimum: 0.0
+        currencyId:
+          type: string
+          format: uuid
+        validityDays:
+          type: integer
+          format: int32
+          minimum: 1
+      required:
+      - code
+      - currencyId
+      - name
+      - price
+      - type
+    CurrencyRef:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        code:
+          type: string
+        decimalPlaces:
+          type: integer
+          format: int32
+    ProductResponse:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        code:
+          type: string
+        type:
+          type: string
+          enum:
+          - UPGRADE_MEMBRESIA
+          - SERVICIO
+        name:
+          type: string
+        description:
+          type: string
+        targetMembership:
+          $ref: "#/components/schemas/MembershipRef"
+        price:
+          type: number
+        currency:
+          $ref: "#/components/schemas/CurrencyRef"
+        validityDays:
+          type: integer
+          format: int32
+        status:
+          type: string
+          enum:
+          - ACTIVO
+          - INACTIVO
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+    DeleteProductRequest:
+      type: object
+      properties:
+        reason:
+          type: string
     RegisterMembershipRequest:
       type: object
       properties:
@@ -2860,11 +3475,16 @@ components:
           type: string
           maxLength: 500
           minLength: 0
+        color:
+          type: string
+          minLength: 1
+          pattern: "^[0-9a-fA-F]{6}$"
         childMembershipId:
           type: string
           format: uuid
       required:
       - code
+      - color
       - name
     MembershipResponse:
       type: object
@@ -2877,6 +3497,8 @@ components:
         name:
           type: string
         description:
+          type: string
+        color:
           type: string
         level:
           type: integer
@@ -2945,6 +3567,23 @@ components:
       type: object
       properties:
         currentPassword:
+          type: string
+        newPassword:
+          type: string
+    PasswordRecoveryRequest:
+      type: object
+      properties:
+        identifier:
+          type: string
+    PasswordRecoveryResponse:
+      type: object
+      properties:
+        message:
+          type: string
+    PasswordRecoveryConfirmation:
+      type: object
+      properties:
+        permit:
           type: string
         newPassword:
           type: string
@@ -3090,6 +3729,79 @@ components:
           format: uuid
       required:
       - parentRoleId
+    PatchableBigDecimal: {}
+    PatchableInteger: {}
+    PatchableObject: {}
+    PatchableUUID: {}
+    UpdateProductRequest:
+      type: object
+      properties:
+        name:
+          $ref: "#/components/schemas/PatchableString"
+        description:
+          $ref: "#/components/schemas/PatchableString"
+        price:
+          $ref: "#/components/schemas/PatchableBigDecimal"
+        currencyId:
+          $ref: "#/components/schemas/PatchableUUID"
+        validityDays:
+          $ref: "#/components/schemas/PatchableInteger"
+        type:
+          $ref: "#/components/schemas/PatchableObject"
+        code:
+          $ref: "#/components/schemas/PatchableObject"
+        targetMembershipId:
+          $ref: "#/components/schemas/PatchableObject"
+    ProductDetailResponse:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        code:
+          type: string
+        type:
+          type: string
+          enum:
+          - UPGRADE_MEMBRESIA
+          - SERVICIO
+        name:
+          type: string
+        description:
+          type: string
+        targetMembership:
+          $ref: "#/components/schemas/MembershipRef"
+        price:
+          type: number
+        currency:
+          $ref: "#/components/schemas/CurrencyRef"
+        validityDays:
+          type: integer
+          format: int32
+        status:
+          type: string
+          enum:
+          - ACTIVO
+          - INACTIVO
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+        deletedAt:
+          type: string
+          format: date-time
+        deletionReason:
+          type: string
+    ChangeProductStatusRequest:
+      type: object
+      properties:
+        status:
+          type: string
+          minLength: 1
+      required:
+      - status
     ChangeCurrencyStatusRequest:
       type: object
       properties:
@@ -3247,6 +3959,66 @@ components:
         updatedAt:
           type: string
           format: date-time
+    ProductItem:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        code:
+          type: string
+        type:
+          type: string
+          enum:
+          - UPGRADE_MEMBRESIA
+          - SERVICIO
+        name:
+          type: string
+        description:
+          type: string
+        targetMembership:
+          $ref: "#/components/schemas/MembershipRef"
+        price:
+          type: number
+        currency:
+          $ref: "#/components/schemas/CurrencyRef"
+        validityDays:
+          type: integer
+          format: int32
+        status:
+          type: string
+          enum:
+          - ACTIVO
+          - INACTIVO
+        createdAt:
+          type: string
+          format: date-time
+        deletedAt:
+          type: string
+          format: date-time
+    ProductPageResponse:
+      type: object
+      properties:
+        content:
+          type: array
+          items:
+            $ref: "#/components/schemas/ProductItem"
+        totalElements:
+          type: integer
+          format: int64
+        totalPages:
+          type: integer
+          format: int32
+        page:
+          type: integer
+          format: int32
+        size:
+          type: integer
+          format: int32
+        totalIsExact:
+          type: boolean
+        sort:
+          type: string
     ListPermissionsRequest:
       type: object
       properties:
@@ -3280,6 +4052,8 @@ components:
           type: string
         description:
           type: string
+        color:
+          type: string
         level:
           type: integer
           format: int32
@@ -3308,6 +4082,8 @@ components:
           type: string
         description:
           type: string
+        color:
+          type: string
         level:
           type: integer
           format: int32
@@ -3328,6 +4104,8 @@ components:
         level:
           type: integer
           format: int32
+        color:
+          type: string
     ListCurrenciesRequest:
       type: object
       properties:

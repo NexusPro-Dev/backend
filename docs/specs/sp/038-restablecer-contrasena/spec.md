@@ -8,6 +8,7 @@
 | Autor | Responsable técnico |
 | Aprobada por | Responsable técnico |
 | Fecha de aprobación | 21-08-2026 |
+| Enmendada el | 25-08-2026 — ver §15 |
 
 ---
 
@@ -146,7 +147,8 @@ Ninguno. La operación no admite variantes: o se cumplen todas las condiciones, 
 | `CA-SP-334` | La respuesta no contiene la contraseña asignada |
 | `CA-SP-335` | El estado, los roles y la membresía de la persona no cambian; una cuenta bloqueada sigue bloqueada |
 | `CA-SP-336` | El sistema registra el restablecimiento en la auditoría de seguridad con severidad alta y con el usuario afectado como objeto |
-| `CA-SP-392` | La credencial provisional **caduca** pasado el plazo configurado: superado, la persona ya no puede autenticarse con ella y hay que restablecerla de nuevo |
+| ~~`CA-SP-392`~~ | ~~La credencial provisional **caduca** pasado el plazo configurado: superado, la persona ya no puede autenticarse con ella y hay que restablecerla de nuevo~~ **Retirado el 25-08-2026** por decisión del responsable del proyecto: la caducidad dejó de cortar el acceso y ahora **solo marca** la sesión para cambio obligatorio. Lo sustituye `CA-SP-479` |
+| `CA-SP-479` | La caducidad **marca y no caduca**: con fecha —vencida o no— la persona autentica y queda obligada a cambiar la contraseña; sin fecha, navega |
 | `CA-SP-393` | El sistema no devuelve la contraseña asignada en la respuesta, y ningún registro la contiene |
 | `CA-SP-394` | Restablecer la contraseña **no** levanta un bloqueo vigente, ni automático ni manual |
 | `CA-SP-337` | El sistema rechaza la operación a un actor que posee `users:update` pero no `users:reset-password` |
@@ -157,7 +159,7 @@ Ninguno. La operación no admite variantes: o se cumplen todas las condiciones, 
 - **Usuario inactivo:** puede restablecerse su contraseña. Seguirá sin poder entrar hasta que se le reactive, y ese es el orden correcto: preparar la credencial no concede acceso.
 - **Restablecer la contraseña del último superadministrador:** se admite. No hay riesgo de dejar al sistema sin administración: la cuenta sigue activa y conserva su rol. Es distinto de desactivarla o eliminarla.
 - **Restablecimiento sobre alguien con sesión abierta:** cae de inmediato, igual que en `RF-SP-028`. Si la cuenta estaba comprometida, esperar quince minutos sería justo lo contrario de lo que se busca.
-- **La persona nunca inicia sesión tras el restablecimiento:** la credencial provisional caduca por sí sola pasado el plazo, de modo que la ventana en que el administrador conoce una credencial válida queda acotada sin depender de que nadie lo revise. Superado el plazo hay que restablecerla de nuevo.
+- **La persona nunca inicia sesión tras el restablecimiento:** desde el 25-08-2026, **nada lo acota**. La credencial provisional ya no caduca: pasado el plazo sigue autenticando, y lo único que hace la fecha es obligar a cambiarla cuando por fin entre. La ventana en que el administrador conoce una credencial válida queda **abierta indefinidamente**, y solo la cierra que su titular entre o que alguien la restablezca otra vez. Es el coste declarado de la decisión de ese día.
 - **Dos restablecimientos concurrentes sobre la misma cuenta:** ambos se serializan sobre la fila; prevalece el último, y ambos quedan registrados en la auditoría de seguridad.
 - **Restablecimiento seguido de un cambio propio:** es el recorrido esperado. La marca se limpia y las sesiones se revocan por segunda vez, sin efecto adverso.
 
@@ -171,3 +173,12 @@ Ninguna. Las cuatro se resolvieron el 21-08-2026, antes de aprobar la especifica
 | 2 | ¿La marca de cambio obligatorio debe caducar? | **Sí: la credencial provisional caduca** pasado el plazo configurado. Sin caducidad, una cuenta restablecida y nunca usada queda indefinidamente con una credencial conocida por otra persona, y nadie se entera porque no falla nada. Con ella, la ventana se cierra sola: superado el plazo, la credencial deja de servir y hay que restablecerla de nuevo. Añade a la cuenta un dato de vigencia que hoy no existe, y ese es el coste. `CA-SP-392` lo verifica |
 | 3 | ¿Debe notificarse a la persona afectada que su contraseña fue restablecida? | **Anotado como riesgo, sin resolverlo aquí.** Es la única forma de que se entere si el restablecimiento **no lo pidió ella**, que es precisamente el caso de abuso contra el que valen poco las demás defensas. Exige el mismo canal de correo que `RF-SP-040` necesita, de modo que resolverlo aquí dejaría este requerimiento bloqueado — y con él bloqueado, quien olvida su contraseña se queda sin ninguna vía de vuelta. Se anota con su condición de disparo: el día que exista canal de notificación, deja de ser opcional |
 | 4 | ¿Restablecer y desbloquear deben ser la misma operación? | **Separadas.** Restablecer una credencial **no debe levantar en silencio un bloqueo** que el sistema puso por sospecha, ni uno que un actor puso deliberadamente (`RF-SP-028`). Son dos problemas distintos que a menudo aparecen juntos, y la objeción es real: quien atiende a la persona tendrá que hacer dos llamadas con dos permisos distintos. Se acepta, porque la alternativa es que una operación sobre la credencial deshaga una decisión de seguridad sin que nadie lo haya pedido. La interfaz de soporte puede ofrecer ambas contiguas sin que el sistema las funda. `CA-SP-394` lo verifica |
+
+---
+
+## 15. Control de cambios
+
+| Versión | Fecha | Cambio | Responsable |
+|---|---|---|---|
+| 0.2.0 | 25-08-2026 | **La caducidad deja de caducar.** Por decisión del responsable del proyecto, `provisional_password_expires_at` pasa a ser lo único que decide el cambio obligatorio —nula, navega; con fecha, la cambia— y **deja de cortar el acceso**: una credencial provisional vencida ya no rechaza, autentica y obliga a cambiarla. `CA-SP-392` queda **retirado** y lo sustituye `CA-SP-479`. El coste está declarado en §13 y no se disimula: la ventana en que el administrador conoce una credencial válida queda **abierta indefinidamente**, que es justo lo que este requerimiento había acotado el 24-08-2026. El plazo de `nexus.security.password.provisional-ttl` sigue escribiéndose y ya no tiene efecto sobre el acceso. | Responsable técnico |
+| 0.1.0 | 21-08-2026 | Redacción inicial. | Responsable técnico |

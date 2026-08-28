@@ -120,6 +120,15 @@ public class UpdateUserService {
     if (cambiaCorreo) {
       verificarCorreoLibre(correo);
       usuario.changeEmail(correo, ahora);
+
+      // El volcado se pide AQUÍ y no se deja al commit, y esa es la diferencia
+      // entre un `409` y un `500`. `verificarCorreoLibre` existe para el
+      // mensaje; entre su lectura y esta escritura hay una ventana que dos
+      // ediciones simultáneas hacia el mismo correo atraviesan las dos. La
+      // segunda la rechaza `uq_users_email`, y esa violación solo puede
+      // traducirse mientras siga habiendo alguien escuchando — en el commit ya
+      // no lo hay.
+      usuarios.flushChanges();
     }
 
     if (cambiaNombre || cambiaCorreo) {

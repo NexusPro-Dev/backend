@@ -5,11 +5,11 @@
 | Proyecto | NEXUS — Renovación de plataforma |
 | Empresa | FACTECH GROUP SAS |
 | Documento | `architecture.md` |
-| Versión | 0.16.0 |
+| Versión | 0.24.0 |
 | Estado | Borrador |
 | Responsable técnico | Bonilla Diaz William Steven |
 | Fecha de creación | 19-08-2026 |
-| Última actualización | 25-08-2026 |
+| Última actualización | 27-08-2026 |
 | Documento superior | `constitution.md` v0.5.0 |
 | Documento relacionado | `security.md` v0.3.0 |
 
@@ -615,7 +615,7 @@ La distinción no es de estilo. En el primer arranque Flyway aplica las migracio
 
 **Lo que sigue sin resolverse, y conviene no confundirlo con lo hecho:**
 
-- **Nadie raspa esas métricas.** Un raspador no porta un JWT, de modo que hace falta un permiso propio o una red de administración que las aísle. Llega con la infraestructura de despliegue (**D-09**).
+- **Nadie raspa esas métricas.** Un raspador no porta un JWT, de modo que hace falta un permiso propio o una red de administración que las aísle. Se esperaba de la infraestructura de despliegue, y **[`ADR-002`](architecture/ADR-002-plataforma-de-despliegue-railway.md) cierra D-09 sin resolverlo**: Railway no aporta ni lo uno ni lo otro. Sigue haciendo falta uno de los dos, y ya no hay decisión pendiente tras la que esperar.
 - **Nadie alerta.** Una métrica que nadie mira es una métrica que no existe. En particular sigue sin vigilarse la **ausencia de eventos de auditoría**, que `RF-SP-001` §10 declara que debería: `recordSecurityAfterCommit` acepta a conciencia que una escritura fallida tras el `commit` deje la operación sin evento **a cambio de que esa ausencia se vigile**.
 - **Ningún otro endpoint de actuator se expone.** `env` y `beans` publican configuración y estructura interna; no están en la lista y una prueba impide que entren «para depurar» y se queden.
 
@@ -642,16 +642,27 @@ Toda configuración dependiente del entorno se inyecta por variable de entorno (
 
 | Variable | Obligatoria | Descripción |
 |---|---|---|
-| `DATABASE_URL` | Sí | Cadena de conexión a PostgreSQL |
+| `DATABASE_URL` | Sí | Cadena de conexión JDBC a PostgreSQL, **sin credenciales dentro** |
 | `DATABASE_USER` | Sí | Usuario de base de datos |
 | `DATABASE_PASSWORD` | Sí | Contraseña de base de datos |
 | `JWT_SECRET` | Sí | Secreto de firma de tokens |
-| `API_URL` | Sí | URL pública del backend |
-| `ENVIRONMENT` | Sí | `development` \| `testing` \| `production` |
+| `SUPERADMIN_EMAIL` | Sí | Correo del superadministrador inicial. Solo actúa en el primer arranque |
+| `SUPERADMIN_PASSWORD_HASH` | Sí | Su contraseña, ya cifrada con Argon2id. Ídem |
+| `API_URL` | Sí | URL pública del backend. **Declarada y todavía sin lector** |
+| `ENVIRONMENT` | Sí | `development` \| `testing` \| `production`. **Declarada y todavía sin lector** |
+| `CORS_ALLOWED_ORIGINS` | No | Orígenes del navegador autorizados. Vacío = ninguno; `*` tumba el arranque (§6.1 de `security.md`) |
+| `EXPOSE_API_DOCS` | No | Swagger y el contrato sin autenticar. Por defecto `false`, y así debe quedarse fuera de local |
+| `TRUSTED_PROXIES` | No | Proxies confiables: direcciones o **bloques CIDR** —`10.0.0.0/8`, `fd00::/8`—, separados por coma. Vacío = no se confía en `X-Forwarded-For`. Una entrada malformada **tumba el arranque** |
+| `PORT` | No | Puerto de escucha; por defecto `8080`. La declara la plataforma de despliegue, no una persona |
 | `LOG_LEVEL` | No | Nivel de log; por defecto `INFO` |
-| `REQUEST_LOG_RETENTION_DAYS` | No | Retención del `request_log` |
+| `RATE_LIMIT_ENABLED` | No | Límite de tasa; por defecto `true`. Solo la suite lo apaga |
+| `TOKEN_PURGE_ENABLED` · `TOKEN_PURGE_CRON` · `TOKEN_PURGE_RETENTION` | No | Purga de sesiones caducadas; por defecto activa, `0 30 3 * * *` UTC y `P30D` |
+| `REQUEST_LOG_RETENTION_DAYS` | No | Retención del `request_log`. **Hoy no la lee nadie**: la purga sigue pendiente de D-10 |
+| `NOTIFICATION_ENABLED` · `RESEND_API_KEY` · `NOTIFICATION_FROM` | No | Envío saliente (§15.1). Sin clave queda apagado y se avisa al arrancar |
 
-El repositorio mantiene `.env.example` con todas las variables y **sin valores reales** (Art. IX.3).
+**Dos de las obligatorias no las consulta hoy ninguna clase**: `API_URL` y `ENVIRONMENT`. Se declaran porque el Art. IX.4 las exige como parte del contrato de configuración y porque el día que algo las lea no debe descubrirse que faltaban en producción — pero **cambiar `ENVIRONMENT` no cambia hoy ningún comportamiento**, y conviene que esté escrito antes que supuesto.
+
+El repositorio mantiene `.env.example` con todas las variables y **sin valores reales** (Art. IX.3). El valor concreto que va en cada una por entorno desplegado está en [`deployment.md` §6](deployment.md#6-variables-de-entorno).
 
 ---
 
@@ -659,8 +670,16 @@ El repositorio mantiene `.env.example` con todas las variables y **sin valores r
 
 - El backend se empaqueta como imagen Docker, construida en múltiples etapas: una etapa compila con Maven, la etapa final contiene solo el JRE y el JAR.
 - El contenedor se ejecuta con un usuario sin privilegios.
-- `docker-compose.yml` levanta backend y PostgreSQL para desarrollo local.
+- `docker-compose.yml` levanta backend y PostgreSQL para desarrollo local, **y no interviene en ningún despliegue**.
 - GitHub Actions ejecuta, en cada Pull Request: compilación, linting, pruebas unitarias y pruebas de integración con Testcontainers. La integración a `main` requiere pipeline en verde (Art. XI, verificación).
+
+**La plataforma de los entornos desplegados es Railway** ([`ADR-002`](architecture/ADR-002-plataforma-de-despliegue-railway.md), que cierra **D-09** el 27-08-2026): un servicio por entorno construido desde este mismo `Dockerfile`, con PostgreSQL 17 gestionado, y **desplegar es integrar** — cada entorno vigila una rama y no hay acción manual que alguien pueda olvidar. La configuración del servicio se versiona en `railway.json`; los secretos, no (Art. IV.3).
+
+El procedimiento completo —variables por entorno, primer arranque, verificación y operación— vive en [`deployment.md`](deployment.md). Tres restricciones de esa decisión son arquitectónicas y se declaran aquí:
+
+- **Una sola réplica.** No es un ajuste de coste: `AccessRevocationRegistry`, `RateLimitLedger` y `FailedAttemptLedger` guardan estado **en memoria del proceso**, y con dos instancias los tres degradan **sin fallar de forma visible**. Escalar exige antes el canal compartido detrás de `AccessRevocationPublisher`.
+- **Las migraciones llegan con el artefacto.** Flyway corre dentro del proceso al arrancar; no hay paso de despliegue que las aplique aparte, y no debe haberlo (Art. V.3). De ahí que toda migración deba **poder convivir con la versión anterior del código** durante el relevo de un redespliegue, en el que hay dos procesos vivos.
+- **La IP de la auditoría es la del borde**, no la de quien llamó. Ver §16, D-21.
 
 ---
 
@@ -697,6 +716,10 @@ Nomenclatura: `ADR-NNN-<titulo-en-kebab-case>.md`
 | # | Decisión | Fecha |
 |---|---|---|
 | [`ADR-001`](architecture/ADR-001-publicacion-del-contrato-openapi.md) | **Publicación del contrato OpenAPI** como archivo versionado en `docs/api/openapi.json`, generado por una prueba de integración y verificado en CI. Desbloquea al frontend, que no podía generar su cliente. Su consecuencia sobre `security.md` §6 está declarada: el contrato deja de ser reservado, aunque `EXPOSE_API_DOCS` siga en `false` | 24-08-2026 |
+| [`ADR-002`](architecture/ADR-002-plataforma-de-despliegue-railway.md) | **Plataforma de despliegue: Railway**, un servicio por entorno construido desde este `Dockerfile`, con PostgreSQL gestionado y despliegue por integración de rama. Cierra **D-09**, que se había convertido en el aparcadero de cinco pendientes distintos. Declara la **réplica única** como restricción de diseño y deja **D-21 reabierta con otra forma**: en Railway no hay IP de proxy que poner, y el arreglo es que `ClientIpResolver` admita rangos | 27-08-2026 |
+| [`ADR-003`](architecture/ADR-003-retencion-de-los-registros.md) | **Propuesta, sin decidir.** Retención de `request_log` y de los cuatro registros de auditoría (**D-10**). Presenta las tres opciones con su coste y recomienda **cinco plazos por separado con purga por borrado**, dejando tres tablas sin purgar a conciencia. Lo que falta es de negocio, no técnico: cuánto tiempo el sistema debe poder responder «quién hizo esto» | 27-08-2026 |
+| [`ADR-004`](architecture/ADR-004-raspado-de-metricas-y-alertas.md) | **Propuesta, sin decidir.** Quién raspa las métricas y a quién se le avisa (issue #43). Recomienda **puerto de administración separado** —cero código, sin tocar el modelo de permisos y sin esperar a D-19— y construir **primero** la vigilancia de la ausencia de eventos de auditoría, que es la mitad que `RF-SP-001` §10 prometió y no cumple | 27-08-2026 |
+| [`ADR-005`](architecture/ADR-005-modelo-de-alcance-de-datos.md) | **Propuesta, sin decidir.** Modelo de alcance de datos (**D-22**). Recomienda un `ScopeResolver` con el alcance **declarado por requerimiento**, y sobre todo un orden: primero la comprobación de arquitectura que obliga a declararlo —incluido `GLOBAL` explícito—, porque es lo que convierte los cuarenta y dos endpoints ya publicados en una lista que el compilador mantiene | 27-08-2026 |
 
 Las decisiones D-01 a D-07, cerradas el 19-08-2026, están registradas en `constitution.md` §20.
 
@@ -715,12 +738,94 @@ Las decisiones D-01 a D-07, cerradas el 19-08-2026, están registradas en `const
 
 **El envío NO forma parte de la respuesta HTTP que lo origina.** Se ejecuta desacoplado, y esa no es una decisión de rendimiento sino de seguridad: `RF-SP-040` responde de forma indistinguible exista o no la identidad solicitada, y si la respuesta esperase al envío, el tiempo delataría cuál de los dos casos ocurrió. La consecuencia a asumir es que **un fallo de envío no se refleja en la respuesta** y necesita su propio tratamiento —reintentos y registro—, que forma parte de D-23.
 
+### El mecanismo, decidido el 26-08-2026 (cierre de D-23)
+
+**El proveedor es Resend**, por su API HTTP y no por SMTP, y la diferencia está en lo que se paga por operar cada uno: SMTP obliga a gestionar credenciales, puertos salientes que muchas redes corporativas bloquean, y **una cola propia para los reintentos**; con el API la entrega, los reintentos y los rebotes los lleva el proveedor, y lo que queda de este lado es una petición HTTP. Se implementa en `shared/notification` como `ResendNotificationSender`, detrás del puerto `NotificationSender`.
+
+**El desacople son dos mitades y ninguna cubre a la otra**, y conviene que esté escrito porque la segunda es fácil de dar por resuelta:
+
+- **Después del commit**, para no enviar sobre una transacción que puede revertirse — un permiso enviado que la base de datos no conoce.
+- **Y fuera del hilo de la petición.** La devolución de llamada `afterCommit` corre *en* ese hilo, justo antes de que el controlador devuelva: saca el envío de la transacción y **no** de la respuesta. Con el envío ahí dentro, la respuesta de `RF-SP-040` vuelve a tardar distinto según exista la identidad, que es exactamente la fuga que esta sección existe para cerrar.
+
+**El adaptador no lanza nunca.** Para cuando se ejecuta, la respuesta ya viajó: propagar el fallo no lo desharía y solo rompería el hilo que lo intentó. Lo que sí hace es **dejar constancia** —un envío que no ocurre y no se registra es indistinguible de uno que sí—, y **nada del contenido llega al registro**: ni el cuerpo, ni el permiso, ni el destinatario.
+
+**Tres restos declarados.** El remitente debe pertenecer a un **dominio verificado** en Resend, o el proveedor rechaza el envío con un `403` que no se descubre hasta producción. Sin credencial el envío queda **apagado** y se avisa al arrancar, no al primer envío. Y **no hay reintento propio**: si la llamada al proveedor falla, ese mensaje se pierde y solo queda el registro del fallo.
+
+## 15.2 Cómo consume un módulo los datos de otro (cierre de D-25)
+
+**Decidido el 26-08-2026.** `PM` necesita tres lecturas que viven dentro de `SP` —que una membresía existe y qué nivel tiene, que una moneda está activa y cuántos decimales declara, y cuál es la membresía vigente de una persona—, y las dos vías que `SP` ofrecía no servían: llamarse por HTTP a sí mismo dentro del mismo proceso paga serialización, red y autenticación para leer una fila que está a un método de distancia, y leer sus tablas lo prohíbe [`modules.md` §7](modules.md#7-reglas-de-dependencia) — ataría `PM` al esquema de `SP`, de modo que un cambio allí lo rompería **en silencio**, sin fallar al compilar.
+
+**`SP` publica interfaces de aplicación de solo lectura, y `PM` las consume.** Lo que sigue vale para cualquier par de módulos, no solo para estos dos.
+
+### La dirección del contrato
+
+**La interfaz la declara el módulo dueño del dato**, y el consumidor la importa. Es lo que dice `modules.md` §2 —«otros módulos lo consumen por interfaz publicada»— y deja la dependencia apuntando del consumidor al proveedor: `PM` → `SP`, acíclica, con `SP` sin enterarse de que `PM` existe.
+
+Se descartó la inversión de dependencia —que `PM` declarase el puerto y `SP` lo implementara—, que es el patrón habitual dentro de un módulo y **aquí produce lo contrario de lo que promete**: `SP` tendría que importar una interfaz que vive en `PM` para implementarla, y el módulo raíz pasaría a conocer al que depende de él. Es el ciclo que §7 prohíbe, disfrazado de buena práctica.
+
+### Qué se publica
+
+**Una interfaz por lectura, no una fachada con todo dentro.** Cada consumidor depende solo de lo que usa —`RF-PM-007` no necesita saber nada de monedas— y una prueba puede doblar una sin arrastrar las otras dos. Con una fachada única, añadir un método cambiaría el contrato de todos los que ya la usan, incluidos sus dobles.
+
+| Interfaz | Responde | Consumida por |
+|---|---|---|
+| Catálogo de membresías | Si una membresía existe, y su código, nombre y **nivel** | `RF-PM-001`, `RF-PM-002`, `RF-PM-003` |
+| Catálogo de monedas | Si una moneda existe, si está **activa** y cuántos **decimales** declara | `RF-PM-001`, `RF-PM-004` |
+| Membresía vigente de una persona | Cuál es su nivel **hoy**, o que no tiene | `RF-PM-007` |
+
+### Cuatro reglas que hacen que la frontera se sostenga
+
+1. **Devuelven modelos de lectura, nunca entidades.** Devolver el agregado de `SP` filtraría JPA al otro módulo y le daría, de paso, con qué escribir. Lo que cruza la frontera son registros planos sin comportamiento.
+2. **La regla se queda con su dueño.** «Vigente» lo calcula `SP`, que es donde esa definición vive **en un solo sitio** y con su borde fijado por prueba —una fecha igual al instante consultado ya no está vigente—. Que `PM` reimplemente esa comparación es el defecto que no falla: devuelve un resultado plausible durante meses.
+3. **La ausencia es un valor vacío, no una excepción.** Que un dato no exista es una respuesta legítima a una consulta, y qué `4xx` produce lo decide quien tiene el contrato HTTP, que es el consumidor. Una excepción lanzada desde `SP` obligaría a `PM` a capturarla para traducirla, o se le escaparía como `500`.
+4. **Una regla de ArchUnit ancla la frontera.** Nadie fuera de `SP` importa sus repositorios ni sus entidades. Sin ella esto es una convención, y las convenciones se saltan **sin que nada falle** — es el mismo mecanismo con el que se sujeta `RN-SEG-010`.
+
+### De quién es la tarea
+
+El código vive en paquetes de `SP`, y las tareas que lo escriben pertenecen a **`RF-PM-001` y `RF-PM-007`**: los puertos existen porque `PM` los necesita, y ningún actor pide «publicar una interfaz» como comportamiento observable. No se abre un requerimiento nuevo en `SP` para alojarlos; `requirements/sp.md` se limita a anotar que esa interfaz queda publicada.
+
+**Lo que esto NO habilita.** Son lecturas. Aplicar un upgrade sobre la membresía de una persona es una **escritura** sobre `user_memberships`, con `RN-SP-018` de por medio, y sigue sin existir: `requirements/pm.md` §1.4 lo deja fuera del alcance, y el día que la compra lo necesite será otra decisión y otro puerto.
+
+---
+
+## 15.3 Leer el motivo de una eliminación desde el módulo dueño de la entidad
+
+**Decidido el 27-08-2026**, con `RF-PM-003`. El caso es general aunque lo destape `PM`: **el detalle de una entidad retirada quiere decir por qué lo está, y el motivo no vive en su tabla**. El Art. V.13 lo manda al registro de eliminación junto con la instantánea de lo retirado, que es lo correcto — y deja al módulo dueño sin forma de leer un dato que él mismo escribió.
+
+**`shared/audit` publica una lectura estrecha**: dado el módulo, la entidad y su identificador, devuelve el motivo registrado. Nada más.
+
+### Por qué ahí y no en `SP`
+
+La auditoría es **infraestructura compartida, no una funcionalidad de `SP`**. Cada módulo **escribe** en ella a través de `shared/audit`, y lo que `SP` posee es **consultarla como producto** —`RF-SP-011` a `RF-SP-014`, con sus filtros, su paginación y su permiso `audit:read-deletions`—, que es otra cosa. Leer el motivo de la eliminación de **una entidad propia** es simétrico de escribirlo, y por eso vive junto al escritor.
+
+Las dos alternativas se descartaron por lo que crean, no por lo que cuestan:
+
+| Alternativa | Qué crea |
+|---|---|
+| Una columna `deletion_reason` en la tabla de la entidad | **Dos verdades del mismo hecho**, que divergen en cuanto una se corrija |
+| Que el módulo una `audit_deletion_log` desde su propia consulta | Lo ata al **esquema de un almacén que no gobierna** |
+
+### El riesgo, y lo que lo contiene
+
+**Un puerto de lectura sobre la auditoría puede convertirse en su puerta trasera.** Lo que lo impide no es una comprobación de permisos —no la hay— sino tres propiedades del propio contrato:
+
+1. **Devuelve un texto, no una fila.** Ni el actor, ni la instantánea, ni el instante. El adaptador selecciona **una sola columna**, y eso no es una optimización: es la frontera. Traer la fila entera dejaría lo demás al alcance de quien luego quisiera «aprovechar que ya está».
+2. **Pregunta por una entidad concreta.** Sin filtros, sin paginación, sin rango de fechas: **no se puede recorrer el registro con esto**.
+3. **El módulo y la entidad son parte de la clave.** Preguntar por lo ajeno no devuelve nada, y una prueba lo comprueba pidiendo desde `PM` el motivo de una entidad de `SP`.
+
+**Ampliarlo exige decidirlo.** Añadir un método a esta interfaz es cambiar lo que un módulo puede saber de la auditoría sin su permiso, y esa es una decisión de arquitectura — no una tarea de implementación.
+
+### Lo que se acepta a cambio
+
+El motivo del retiro llega con el permiso de lectura del módulo —`products:read`, en el caso de `PM`— y **no con `audit:read-deletions`**. Es una consecuencia asumida y acotada: la resolvió `RF-PM-003` §14 para **la consulta individual**, y el listado sigue sin llevarlo. Uno a uno el motivo es una consulta; en bloque sería una exportación de decisiones comerciales.
+
+---
+
 ## 16. Decisiones pendientes
 
 | # | Decisión | Bloquea | Responsable |
 |---|---|---|---|
-| D-09 | Infraestructura de despliegue para `testing` y `production` | Pipeline de despliegue | Responsable del proyecto |
-| **D-23** | **Mecanismo concreto de envío**: proveedor, cola o mecanismo de desacople, política de reintentos y tratamiento de rebotes. La **forma** quedó decidida en §15.1; falta el cómo | Implementación de `RF-SP-040`, `RF-SP-027` y el aviso de `RF-SP-038` | Responsable del proyecto |
+| ~~D-09~~ | ~~Infraestructura de despliegue para `testing` y `production`~~ · **Cerrada el 27-08-2026 por [`ADR-002`](architecture/ADR-002-plataforma-de-despliegue-railway.md): Railway.** Lo que **no** resuelve queda declarado allí y en [`deployment.md` §13](deployment.md#13-lo-que-este-despliegue-no-resuelve), y no debe volver a colgarse de esta fila: el **raspado de métricas** y las **alertas** siguen sin dueño —la plataforma no aporta permiso ni red de administración—, y el **canal compartido** para el corte de tokens sigue siendo condición previa a una segunda instancia | — | — |
 | D-10 | Retención concreta, en días, de `request_log` y de cada registro de auditoría por separado | Migración de observabilidad | Responsable técnico |
 | D-11 | Política de idempotencia en operaciones de escritura expuestas a reintentos | Diseño de endpoints críticos | Responsable técnico |
 | **D-24** | **Publicación del contrato OpenAPI hacia el frontend**: dónde se publica el `.json`/`.yaml` generado y por qué vía. El Art. VIII.7 lo declara **único contrato** entre los dos repositorios, y hoy solo es obtenible de una instancia con `EXPOSE_API_DOCS` en `true` — es decir, en local y en ningún entorno desplegado. La salida previsible es generarlo en `verify` con `springdoc-openapi-maven-plugin` y publicarlo como artefacto de CI o en un repositorio compartido, para que el frontend consuma un archivo versionado sin depender de que alguien tenga el backend levantado ni de abrir la documentación en producción | Que el frontend pueda cumplir el Art. VIII.7 fuera de local | Responsable del proyecto |
@@ -733,6 +838,8 @@ D-08 quedó cerrada en `security.md` §12, junto con las decisiones D-12 a D-15 
 
 | Versión | Fecha | Cambio | Responsable |
 |---|---|---|---|
+| 0.24.0 | 27-08-2026 | Tres **ADR nuevos, los tres en propuesta**, que sacan de la lista de pendientes lo que llevaba meses descrito como problema y nunca como opciones: [`ADR-003`](architecture/ADR-003-retencion-de-los-registros.md) la retención de los cinco registros (**D-10**), [`ADR-004`](architecture/ADR-004-raspado-de-metricas-y-alertas.md) el raspado de métricas y las alertas (issue #43), y [`ADR-005`](architecture/ADR-005-modelo-de-alcance-de-datos.md) el modelo de alcance (**D-22**). Ninguno decide nada: cada uno enumera las opciones **con su coste**, recomienda una y dice qué hace falta para cerrarla, porque en los tres lo que falta es una decisión que no puede tomar quien implementa. | Responsable técnico |
+| 0.23.0 | 27-08-2026 | `TRUSTED_PROXIES` pasa a admitir **bloques CIDR** y no solo direcciones sueltas (D-21). Era la única salida que [`ADR-002`](architecture/ADR-002-plataforma-de-despliegue-railway.md) dejaba abierta para el Art. V.15 en esta plataforma: la IP con la que el borde habla con el contenedor no es fija, pero la red de la que sale sí se puede declarar. Una entrada que no se entienda **tumba el arranque** en lugar de ignorarse, por lo mismo que el comodín de CORS: un despliegue que cree tener configurada la confianza y no la tiene no da ningún síntoma que mencione la variable. | Responsable técnico |
 | 0.1.0 | 19-08-2026 | Creación inicial. Incorpora las decisiones D-01 a D-07. | Responsable técnico |
 | 0.2.0 | 19-08-2026 | Cierre de D-08 en `security.md`. Referencia cruzada al modelo de seguridad. | Responsable técnico |
 | 0.3.0 | 19-08-2026 | Se retiran `created_by` y `updated_by` de las columnas obligatorias: el actor reside solo en la auditoría. | Responsable técnico |
@@ -750,3 +857,9 @@ D-08 quedó cerrada en `security.md` §12, junto con las decisiones D-12 a D-15 
 | 0.14.0 | 25-08-2026 | §7.2 declara por fin los dos códigos que la API ya devolvía sin estar en la tabla: **`423`** —la cuenta bloqueada, que `RF-SP-034` estrenó— y **`429`**, que entra con el límite de tasa (issue #21) y **lleva `Retry-After`**. Una tabla de códigos incompleta no es un detalle de redacción: es el documento al que se acude para saber qué puede recibir un cliente, y lo que no está en ella acaba tratándose como un error del servidor. | Responsable técnico |
 | 0.15.0 | 25-08-2026 | Nueva **§6.7: `request_log` existe** (issue #23, `V35`). Cinco secciones lo daban por escrito y la tabla no estaba, y el hueco no era teórico: §6.6.4 decide **no** auditar los `404`, los `400` de formato ni las peticiones mal dirigidas «porque `request_log` ya lo cubre», de modo que un **barrido de rutas** —el reconocimiento previo a un ataque— no dejaba rastro en ninguna parte. Se declaran las columnas y tres cosas que no se deducen del esquema: que `correlation_id` **no** es nulable aquí al contrario que en los cuatro registros de auditoría —aquellos admiten procesos internos, esto solo lo escribe una petición HTTP—; que **`status` nulo** significa que la petición se abortó sin respuesta, porque un cero fingido diría que el sistema respondió cero; y que el actor se apunta **dentro de la cadena de seguridad** y no al escribir, porque Spring Security limpia su contexto antes que el filtro que la envuelve y toda petición quedaría registrada como anónima — con filas que existen y parecen correctas. `duration_ms` vuelve **verificables** los umbrales p95 del Art. XV.9, que hasta ahora no se podían medir porque no había de dónde. La purga sigue pendiente de **D-10**. | Responsable técnico |
 | 0.16.0 | 25-08-2026 | Nueva **§9.1: sondas separadas y métricas** (issue #31). `/actuator/health` respondía a la vez a **dos preguntas distintas** —«¿arrancó?» y «¿puede atender?»—, y confundirlas no es teórico: en el primer arranque Flyway aplica las migraciones y la aplicación está **viva sin poder atender**, de modo que quien pregunta lo primero interpreta lo segundo y reinicia un proceso sano; el `start_period` holgado del `docker-compose.yml` era el parche que lo tapaba. Se separan en `/liveness` y `/readiness`, **las tres públicas y sin detalle** —quien las consulta es el orquestador, que no porta credencial, y el detalle de salud es un mapa del sistema (Art. VI.5)—, y el `healthcheck` del contenedor pasa a preguntar por **disponibilidad**, que es lo que decide si se le manda tráfico. Se exponen además las **métricas**, y **no son públicas**: el Art. XV.10 abre la salud y nada más. Con ellas y con `request_log` (§6.7), los umbrales p95 del Art. XV.9 pasan a ser medibles por dos vías independientes. Queda declarado lo que **no** se resuelve: nadie raspa esas métricas —un raspador no porta un JWT, y el permiso propio o la red que las aísle llegan con **D-09**— y **nadie alerta**, en particular sobre la **ausencia de eventos de auditoría** que `RF-SP-001` §10 declara que debe vigilarse. Una métrica que nadie mira es una métrica que no existe. | Responsable técnico |
+| 0.17.0 | 26-08-2026 | **D-23 se cierra**, y con ella el último requerimiento del módulo sin implementar. §15.1 gana el mecanismo: **Resend por su API HTTP y no SMTP**, porque SMTP obliga a gestionar credenciales, puertos salientes que muchas redes bloquean y **una cola propia para los reintentos**, mientras que con el API la entrega, los reintentos y los rebotes los lleva el proveedor. Lo que queda escrito con más cuidado es **el desacople, que son dos mitades y ninguna cubre a la otra**: después del commit —para no enviar sobre una transacción que puede revertirse— **y fuera del hilo de la petición**. La segunda es fácil de dar por resuelta y no lo está: `afterCommit` corre *en* el hilo de la petición, de modo que saca el envío de la transacción y **no de la respuesta** — con él ahí dentro, `RF-SP-040` vuelve a tardar distinto según exista la identidad, que es justo la fuga que esta sección existe para cerrar. Se declaran tres restos: el remitente debe pertenecer a un **dominio verificado** o el proveedor responde `403` que no se ve hasta producción; sin credencial el envío queda **apagado** y se avisa **al arrancar**, no al primer envío; y **no hay reintento propio**, de modo que un fallo de la llamada pierde ese mensaje y solo deja su registro. El adaptador **no lanza nunca** y **nada del contenido llega al registro** —ni el cuerpo, ni el permiso, ni el destinatario—, porque un mensaje de recuperación lleva la llave de una cuenta y los registros se copian a sitios que quien los escribe no controla. | Responsable técnico |
+| 0.18.0 | 26-08-2026 | **§16 registra D-25, la primera decisión que nace de tener un segundo módulo.** `PM` —Productos y Mercadeo, incorporado ese día— necesita tres lecturas de `SP`: una membresía y su nivel, una moneda y sus decimales, y la membresía vigente de una persona. `SP` las expone como **endpoints REST y como tablas**, y ninguna de las dos vías sirve desde otro módulo del mismo proceso — llamarse por HTTP a sí mismo es absurdo, y leer sus tablas lo prohíbe `modules.md` §7. Lo que falta es que `SP` las publique como **interfaz de aplicación**, y eso es una ampliación de `SP` que no puede escribirse desde `PM`. La decisión bloquea los `plan.md` de `RF-PM-001` y `RF-PM-007` y **no sus especificaciones**: qué debe pasar se puede decidir hoy; por dónde entra el dato, no. | Responsable técnico |
+| 0.19.0 | 26-08-2026 | **D-25 se cierra**, y §15.2 recoge la respuesta como norma para cualquier par de módulos y no solo para `PM` y `SP`: **el módulo dueño del dato publica interfaces de aplicación de solo lectura, y el consumidor las importa**. Se descartó la inversión de dependencia —que el consumidor declarase el puerto y el dueño lo implementara—, que es el patrón habitual dentro de un módulo y **aquí produce lo contrario de lo que promete**: el módulo raíz pasaría a importar una interfaz del que depende de él, que es el ciclo de §7 disfrazado. **Una interfaz por lectura y no una fachada**: con una sola, añadir un método cambia el contrato de todos los que ya la usan, incluidos sus dobles de prueba. Cuatro reglas sostienen la frontera: se devuelven **modelos de lectura y nunca entidades** —el agregado filtraría JPA y daría con qué escribir—, **la regla se queda con su dueño** —«vigente» lo calcula `SP`, porque reimplementar esa comparación es el defecto que devuelve resultados plausibles durante meses—, **la ausencia es un valor vacío y no una excepción** —qué `4xx` produce lo decide quien tiene el contrato HTTP—, y **una regla de ArchUnit** impide importar repositorios o entidades de otro módulo, porque sin ella esto es una convención y las convenciones se saltan sin que nada falle. Las tareas que escriben esos puertos pertenecen a **`RF-PM-001` y `RF-PM-007`**, no a un requerimiento nuevo de `SP`: ningún actor pide «publicar una interfaz» como comportamiento. Queda declarado lo que **no** habilita: son lecturas, y aplicar un upgrade sigue siendo una escritura sobre `user_memberships` que nadie ha decidido. | Responsable del proyecto |
+| 0.20.0 | 27-08-2026 | **D-09 se cierra y el proyecto pasa a tener dónde correr**, con [`ADR-002`](architecture/ADR-002-plataforma-de-despliegue-railway.md): **Railway**, un servicio por entorno construido desde este mismo `Dockerfile`, con PostgreSQL gestionado y **desplegar es integrar** —cada entorno vigila una rama, y el Art. XI.2 deja de ser una convención—. La decisión llevaba abierta desde el 19-08-2026 y se había convertido en **el aparcadero de cinco pendientes distintos**: el corte de tokens entre instancias, el techo del límite de tasa, el raspado de métricas, la lista de proxies y los orígenes del navegador colgaban todos de ella, mientras cuarenta y dos requerimientos con endpoint funcionando no existían en ninguna dirección. §12 se reescribe con la plataforma y con **tres restricciones que son arquitectónicas y no de operación**: **una sola réplica** —`AccessRevocationRegistry`, `RateLimitLedger` y `FailedAttemptLedger` guardan estado en memoria del proceso y con dos instancias los tres degradan **sin fallar de forma visible**—; que **las migraciones llegan con el artefacto**, de donde se sigue que toda migración debe poder convivir con la versión anterior del código durante el relevo, en el que hay dos procesos vivos; y que **la IP de la auditoría es la del borde**. §11 completa por fin la tabla de variables —faltaban diez— y declara que **`API_URL` y `ENVIRONMENT` no las lee hoy ninguna clase**, de modo que cambiar `ENVIRONMENT` a `production` no cambia ningún comportamiento; darlas por operativas era el supuesto que este párrafo existe para impedir. §9.1 corrige a quién esperaba el raspado de métricas: **D-09 se cierra sin resolverlo**, porque la plataforma no aporta ni permiso propio ni red de administración, y ya no hay decisión pendiente tras la que esperar. El procedimiento operativo completo estrena documento, [`deployment.md`](deployment.md), y la configuración del servicio se versiona en `railway.json` — los secretos no (Art. IV.3). | Responsable del proyecto |
+| 0.21.0 | 27-08-2026 | **El puerto deja de estar escrito en el repositorio y el apagado ordenado pasa a existir**, que son los dos pendientes que [`ADR-002`](architecture/ADR-002-plataforma-de-despliegue-railway.md) dejó abiertos el mismo día. §11 incorpora `PORT` a la tabla: `server.port` era el literal `8080` y obligaba a fijar la variable a mano en la plataforma para que los dos lados coincidieran — un acoplamiento cuyo fallo se manifestaba como **una sonda de salud en rojo sobre un arranque impecable en los logs**, es decir, en el sitio donde nadie mira el puerto. Ahora la declara quien ejecuta (Art. IX.1) y en local siguen valiendo los 8080 del `Dockerfile`. El **apagado ordenado** —`server.shutdown: graceful` con treinta segundos— es lo que hace tolerable el relevo que §12 declara: hay dos procesos vivos y al viejo se le manda parar con peticiones en curso; sin esto las corta en seco, y para quien estaba escribiendo una conexión caída es indistinguible de un sistema roto. El plazo sobra frente a los umbrales de menos de un segundo del Art. XV.9 y queda por debajo del que usa la plataforma para matar el proceso a la fuerza. | Responsable técnico |
+| 0.22.0 | 27-08-2026 | **Nueva §15.3: cómo lee un módulo el motivo con el que se eliminó una entidad suya.** Lo destapa `RF-PM-003` y el caso es general: el detalle de algo retirado quiere decir **por qué** lo está, y el Art. V.13 manda ese motivo al registro de eliminación —correctamente—, dejando al módulo dueño sin forma de leer un dato que él mismo escribió. Se decide que **`shared/audit` publique una lectura estrecha** —módulo, entidad, identificador, devuelve un texto— y no que cada tabla duplique el motivo en una columna, que crearía **dos verdades del mismo hecho** divergiendo en cuanto una se corrija, ni que el módulo una `audit_deletion_log` desde su propia consulta, que lo ataría al esquema de un almacén que no gobierna. Vive en `shared` y no en `SP` porque **la auditoría es infraestructura compartida**: todos escriben en ella, y lo que `SP` posee es consultarla como producto, que es otra cosa. Queda escrito el riesgo —un puerto de lectura sobre la auditoría puede convertirse en su puerta trasera— y las tres propiedades que lo contienen: devuelve **una sola columna** y no una fila, pregunta por **una entidad concreta** sin filtros ni paginación, y **el módulo es parte de la clave**, de modo que preguntar por lo ajeno no devuelve nada. **Ampliar esa interfaz es una decisión de arquitectura, no una tarea.** Se acepta a cambio que el motivo llegue con el permiso de lectura del módulo y no con `audit:read-deletions`, acotado a la consulta individual. | Responsable técnico |

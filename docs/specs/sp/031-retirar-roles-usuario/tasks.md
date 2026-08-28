@@ -27,7 +27,7 @@ Sin migración y **sin ningún componente de dominio propio**: los cinco que nec
 | `T-06` | `DELETE` de las filas de `user_roles` desde `JpaUserRepository` | `T-05` | Prueba de integración: retirar un rol que la persona no tiene afecta cero filas y no produce error | **Hecha** |
 | `T-07` | Cascada de `RN-SP-015`: `DELETE` de `user_memberships` cuando la persona queda sin ningún rol `CONSUMIDOR`, en la misma transacción | `T-06` | Prueba de integración: tras el retiro no queda ni rol de consumidor ni membresía; con otro rol consumidor vigente la membresía **permanece** | **Hecha** |
 | `T-08` | Cascada de `RN-SP-019`: `UPDATE` de `ended_at` sobre `user_supervisors` cuando la persona queda sin ningún rol `VENDEDOR`. **Nunca `DELETE`** | `T-06` | Prueba de integración: la fila sigue existiendo con su `ended_at` poblado; conservando otro rol vendedor, la asignación **no** se cierra | **Hecha** |
-| `T-09` | Revocación de los refresh tokens **dentro** de la transacción, antes del commit | `T-03`, `T-06` | Prueba de integración: si la revocación falla, el retiro se revierte entero y la persona conserva sus roles | **En curso** |
+| `T-09` | Revocación de los refresh tokens **dentro** de la transacción, antes del commit | `T-03`, `T-06` | Prueba de integración: si la revocación falla, el retiro se revierte entero y la persona conserva sus roles | **Hecha el 27-08-2026** — `RevokeUserRolesSessionFailureIT` |
 | `T-10` | Auditoría de éxito: `audit_deletion_log` para los roles y para la membresía, `audit_change_log` para el cierre del superior, los tres bajo el **mismo** `correlation_id`, más `USER_ROLES_REVOKED` en `audit_security_log` tras el commit | `T-07`, `T-08`, `T-09` | Prueba de integración: la operación se recupera entera filtrando por `correlation_id`; ninguna fila cuando ningún rol estaba asignado; la de eliminación queda **sin motivo** | **Hecha** |
 | `T-11` | Auditoría de los rechazos (`plan.md` §6): `EX-003` en `audit_error_log` con severidad **Alta**, `EX-001` y `EX-005` con Media, `EX-004` y los `400` sin auditar | `T-05` | Prueba de integración: cada rechazo deja su fila con su `error_code`; el `404` y el `400` no dejan ninguna | **En curso** |
 | `T-12` | `api/RevokeRolesRequest` y `api/UserController`: `POST /api/v1/users/{id}/roles/revocations` con el permiso `users:assign-roles`, devolviendo `UserResponse` | `T-10`, `T-11` | Prueba de API: `200` con la lista actualizada; el `409` de `RN-SP-022` informa **cuántas** personas y **ninguna** identidad; el endpoint no admite motivo | **Hecha** |
@@ -38,6 +38,14 @@ Sin migración y **sin ningún componente de dominio propio**: los cinco que nec
 | `T-17` | Aplicar la enmienda de `plan.md` §4 sobre `requirements/sp.md` §9 —`DELETE` pasa a `POST …/revocations`— y actualizar la matriz de trazabilidad de `docs/requirements.md` | `T-13` | La tabla de API de §9 refleja la ruta real, con su fila de control de cambios; la fila de `RF-SP-031` en la matriz enlaza esta tripleta | **Hecha** |
 
 **Estados:** `Pendiente` · `En curso` · `Hecha` · `Bloqueada`.
+
+!!! note "Cómo se ejercita el fallo de la revocación — 27-08-2026"
+
+    No hay entrada que haga fallar a `RefreshTokenSessionRevoker`, de modo que la rama solo se alcanza **sustituyendo el puerto por un doble que revienta**. La prueba tiene por eso su propio contexto.
+
+    Lo que se afirma es el estado de la base **después** del fallo: la persona conserva sus dos roles. Si la revocación viviera fuera de la transacción, ahí habría uno — el retiro confirmado y las sesiones vivas, que es la peor combinación posible porque la respuesta diría `200` y el acceso seguiría abierto quince minutos.
+
+    Va acompañada de su pareja —con la revocación en pie, el retiro sí se aplica—, sin la cual la primera pasaría igual con el endpoint roto por cualquier otro motivo.
 
 ## 2. Orden de ejecución
 
@@ -117,6 +125,17 @@ Es la mitad que importa, porque el modo de fallo de todo lo de abajo es **silenc
 - **La asimetría de `CA-SP-363`**, en una sola prueba: asignar no revoca sesiones, retirar sí, y el motivo registrado es `ACCESO_RETIRADO` — no `ROTACION`, que es la única que `RF-SP-035` trata como robo.
 - **Un rol eliminado del catálogo se puede retirar.** Comprobar aquí que el rol existe dejaría la asignación atrapada para siempre.
 - **`RN-SEG-010` gobierna también el retiro**: quien no posee el permiso no puede quitar el rol que lo concede.
+
+
+### Defecto de concurrencia corregido el 26-08-2026
+
+**`RN-SP-018` no se sostenía bajo carrera, y ninguna de las dos operaciones fallaba.** `RF-SP-033` —retirar la membresía— y `RF-SP-030` —asignar el rol de consumidor— leían la persona **sin bloqueo**, de modo que cada una validaba contra el estado que la otra estaba a punto de cambiar: las dos concluían que podían proceder y la persona acababa **portando un rol de consumidor sin nivel**. Es una escritura sesgada de manual, y en `READ COMMITTED` nada la impide.
+
+**Lo que lo destapó fue `RF-SP-024` · `T-21`**, la prueba concurrente del par en los dos órdenes, y lo hizo de forma **intermitente**: falló en CI, pasó en la ejecución siguiente y volvió a fallar dos veces más. Esa intermitencia es la firma del defecto, no una prueba inestable.
+
+**La corrección:** las **cuatro** operaciones que cambian roles o membresía de una persona —`RF-SP-030`, `RF-SP-031`, `RF-SP-032` y `RF-SP-033`— pasan a tomar el bloqueo pesimista sobre su fila (`findNotDeletedByIdForUpdate`), que las otras cinco operaciones sobre una persona ya tomaban. Dos cosas la hacen suficiente: las cuatro bloquean **la misma fila**, de modo que se serializan sin riesgo de abrazo mortal —a diferencia del caso que `RF-SP-028` descartó, donde el bloqueo caía sobre filas de terceros—, y el bloqueo se toma **antes** de leer roles y membresía, porque en `READ COMMITTED` cada sentencia posterior toma instantánea nueva y ve lo que la otra transacción confirmó.
+
+La obligación queda escrita en el puerto, que es donde la encontrará quien añada la décima operación sobre una persona.
 
 ## 5. Definición de terminado
 

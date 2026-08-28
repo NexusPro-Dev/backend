@@ -17,6 +17,25 @@ public interface UserRepository {
 
   User save(User usuario);
 
+  /**
+   * Vuelca los cambios pendientes del agregado, <b>traduciendo la violación de unicidad</b>.
+   *
+   * <p><b>Hace falta porque {@link #save} no cubre la edición.</b> Al modificar una persona ya
+   * cargada no se llama a {@code save}: el agregado está gestionado y el {@code UPDATE} sale solo,
+   * <b>en el commit</b> — es decir, fuera de cualquier {@code try} del adaptador. Una violación de
+   * {@code uq_users_email} escapaba entonces sin traducir y llegaba al cliente como {@code 500} en
+   * lugar de como el {@code 409} de `RN-SP-016`.
+   *
+   * <p>La comprobación previa de `RF-SP-027` no lo evita: <b>existe para el mensaje</b>, y entre
+   * leerla y escribir hay una ventana que dos ediciones simultáneas hacia el mismo correo
+   * atraviesan las dos. La garantía la da el índice único; esto es lo que la convierte en una
+   * respuesta que quien consume la API pueda entender.
+   *
+   * <p>Se llama de forma explícita y no se confía al commit por eso mismo: dentro del caso de uso
+   * hay quien traduzca, y después ya no.
+   */
+  void flushChanges();
+
   boolean existsUsername(Username username);
 
   boolean existsEmail(Email email);
@@ -114,6 +133,19 @@ public interface UserRepository {
    * <p>Es lo que serializa dos reasignaciones simultáneas del mismo subordinado. Sin él, la
    * unicidad parcial {@code uq_user_supervisors_vigente} hace fallar a la segunda con {@code 23505}
    * — un {@code 500} en lugar de una espera (`RF-SP-041` · `T-05`).
+   *
+   * <p><b>Toda operación que cambie los roles o la membresía de una persona DEBE tomarlo</b>, y no
+   * solo las que reescriben su fila. `RN-SP-018` —consumidor ⟺ membresía— es un invariante que
+   * abarca {@code user_roles} y {@code user_memberships}, y las cuatro operaciones que lo pueden
+   * romper leían sin bloqueo: en {@code READ COMMITTED} cada una validaba contra el estado que la
+   * otra estaba a punto de cambiar, las dos concluían que podían proceder, y la persona acababa
+   * <b>portando un rol de consumidor sin nivel</b>. No falla ninguna de las dos: el invariante se
+   * rompe en silencio. Corregido el 26-08-2026, tras tres apariciones intermitentes en CI.
+   *
+   * <p>Las cuatro bloquean <b>la misma fila</b> —la de la persona—, de modo que se serializan sin
+   * riesgo de abrazo mortal. Tomarlo <b>antes</b> de leer roles y membresía es la otra mitad: en
+   * {@code READ COMMITTED} cada sentencia posterior toma instantánea nueva y ve lo que la
+   * transacción anterior confirmó.
    */
   Optional<User> findNotDeletedByIdForUpdate(UUID id);
 

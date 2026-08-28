@@ -5,11 +5,11 @@
 | Módulo | `SP` — Sistema Principal |
 | Paquete | `modules/system` |
 | Prefijos de permiso | `roles:`, `permissions:`, `audit:`, `memberships:`, `currencies:`, `countries:`, `users:` |
-| Versión | 1.21.0 |
+| Versión | 1.27.0 |
 | Estado | **Aprobado** |
 | Responsable | Bonilla Diaz William Steven |
 | Fecha de creación | 20-08-2026 |
-| Última actualización | 22-08-2026 |
+| Última actualización | 28-08-2026 |
 | Fecha de aprobación | 20-08-2026 |
 
 !!! info "Qué va en este documento"
@@ -184,8 +184,15 @@ Reglas que no son transversales de seguridad y por tanto sí llevan el prefijo d
 | `RN-SP-006` | Membresía acotada por nivel | Al crear una membresía | Toda membresía está sujeta a una de mayor nivel; solo la membresía superior queda libre de ella | Alta |
 | `RN-SP-007` | Inserción en la cadena de membresías | Al crear una membresía | Se indica cuál es su membresía hija, si la hay, y el sistema reordena la jerarquía en consecuencia. Si no se indica ninguna, la nueva membresía queda en el extremo inferior de la cadena | Alta |
 | `RN-SP-008` | Membresías inmutables | Al editar o eliminar una membresía | La operación se rechaza. Solo se admite el reordenamiento derivado de `RN-SP-007`. **No llevan indicador de activo**: desactivar un eslabón dejaría un hueco en un orden lineal | Media |
+| `RN-SP-024` | La membresía declara su color | Al registrar una membresía | Toda membresía declara el **color con el que el frontend la pinta**: seis dígitos **hexadecimales sin `#`**, normalizados a mayúsculas. Es **obligatorio** y **único entre las membresías**. Obligatorio porque un color opcional obliga al navegador a inventarse uno de reserva, que es exactamente la decisión que este campo saca del frontend —y con dos pantallas eligiendo por su cuenta, el mismo nivel acaba pintado de dos maneras sin que nadie lo note hasta verlas juntas—. Único porque dos niveles del mismo color son indistinguibles justo en lo que el campo existe para distinguir; la unicidad atrapa el valor repetido y **no** dos tonos que un ojo humano no separa, y eso no lo arregla ninguna regla. **Consecuencia declarada:** `RN-SP-008` mantiene la membresía inmutable, de modo que **un color mal elegido no se puede corregir** — ver la nota que sigue a esta tabla | Media |
 | `RN-SP-009` | Países inmutables salvo su estado | Al editar o eliminar un país | La operación se rechaza. Lo único modificable es el indicador de país activo (`RF-SP-022`), que permite retirar de la circulación un alta equivocada sin borrar el registro | Media |
 | `RN-SP-010` | Monedas inmutables por API salvo su estado | Siempre | Las monedas no se crean, editan ni eliminan por la API. Lo único modificable es el indicador de moneda activa (`RF-SP-023`), y la moneda por defecto no puede desactivarse | Media |
+
+!!! warning "El color se elige una vez y no se corrige — hueco aceptado el 26-08-2026"
+
+    `RN-SP-024` añade a la membresía el primer campo **puramente estético** del módulo, y `RN-SP-008` la mantiene inmutable. La combinación tiene una consecuencia que conviene ver escrita antes de que la descubra alguien mirando la interfaz: **un color mal elegido —o simplemente feo— es permanente**, y la única salida es crear otra membresía, que reordena la cadena entera.
+
+    Se acepta a conciencia y **no** se abre hoy un requerimiento de corrección, por la misma razón que lo demás de la membresía es inmutable. Lo que sí queda fijada es **la condición para reabrirlo**: en cuanto haya que cambiar un color en un entorno con datos —un cambio de identidad visual, un color que no cumpla contraste, o una carga inicial hecha con valores de relleno—, se registra `RF-SP-043` «cambiar el color de una membresía» y con él la **primera excepción** a `RN-SP-008`, acotada a este campo por ser el único que no participa en ninguna regla del backend.
 
 !!! info "Sobre la inmutabilidad de los catálogos"
 
@@ -205,48 +212,54 @@ Reglas que no son transversales de seguridad y por tanto sí llevan el prefijo d
 
 | ID | Requerimiento | Prioridad | Permiso | Estado |
 |---|---|---|---|---|
-| `RF-SP-001` | Registrar rol | Crítica | `roles:create` | Pendiente |
-| `RF-SP-002` | Consultar roles | Crítica | `roles:read` | Pendiente |
-| `RF-SP-003` | Consultar detalle de un rol | Alta | `roles:read` | Pendiente |
-| `RF-SP-004` | Editar rol | Alta | `roles:update` | Pendiente |
-| `RF-SP-005` | Asignar permisos a un rol | Crítica | `roles:update` | Pendiente |
-| `RF-SP-006` | Revocar permisos de un rol | Alta | `roles:update` | Pendiente |
-| `RF-SP-007` | Cambiar el estado de un rol | Alta | `roles:update` | Pendiente |
-| `RF-SP-008` | Cambiar el rol padre de un rol | Media | `roles:update` | Pendiente |
-| `RF-SP-009` | Eliminar rol | Media | `roles:delete` | Pendiente |
-| `RF-SP-010` | Consultar catálogo de permisos | Crítica | `permissions:read` | Pendiente |
-| `RF-SP-011` | Consultar auditoría de cambios | Media | `audit:read-changes` | Pendiente |
-| `RF-SP-012` | Consultar auditoría de eliminación | Media | `audit:read-deletions` | Pendiente |
-| `RF-SP-013` | Consultar auditoría de error | Media | `audit:read-errors` | Pendiente |
-| `RF-SP-014` | Consultar auditoría de seguridad | Alta | `audit:read-security` | Pendiente |
-| `RF-SP-015` | Consultar detalle de un permiso | Media | `permissions:read` | Pendiente |
-| `RF-SP-016` | Registrar membresía | Alta | `memberships:create` | Pendiente |
-| `RF-SP-017` | Consultar membresías | Alta | `memberships:read` | Pendiente |
-| `RF-SP-018` | Consultar detalle de una membresía | Media | `memberships:read` | Pendiente |
-| `RF-SP-019` | Consultar monedas | Media | `currencies:read` | Pendiente |
-| `RF-SP-020` | Registrar país | Media | `countries:create` | Pendiente |
-| `RF-SP-021` | Consultar países | Media | `countries:read` | Pendiente |
-| `RF-SP-022` | Cambiar el estado de un país | Media | `countries:update` | Pendiente |
-| `RF-SP-023` | Cambiar el estado de una moneda | Baja | `currencies:update` | Pendiente |
-| `RF-SP-024` | Registrar usuario | **Crítica** | `users:create` | Pendiente |
-| `RF-SP-025` | Consultar usuarios | **Crítica** | `users:read` | Pendiente |
-| `RF-SP-026` | Consultar detalle de un usuario | Alta | `users:read` | Pendiente |
-| `RF-SP-027` | Editar usuario | Alta | `users:update` | Pendiente |
-| `RF-SP-028` | Cambiar el estado de un usuario | Alta | `users:update` | Pendiente |
-| `RF-SP-029` | Eliminar usuario | Media | `users:delete` | Pendiente |
-| `RF-SP-030` | Asignar roles a un usuario | **Crítica** | `users:assign-roles` | Pendiente |
-| `RF-SP-031` | Retirar roles de un usuario | Alta | `users:assign-roles` | Pendiente |
-| `RF-SP-032` | Asignar membresía a un usuario | Alta | `users:assign-membership` | Pendiente |
-| `RF-SP-033` | Retirar la membresía de un usuario | Media | `users:assign-membership` | Pendiente |
-| `RF-SP-034` | Iniciar sesión | **Crítica** | — (público) | Pendiente |
-| `RF-SP-035` | Refrescar el token de acceso | **Crítica** | — (público) | Pendiente |
-| `RF-SP-036` | Cerrar sesión | Alta | — (público) | Pendiente |
-| `RF-SP-037` | Cambiar la propia contraseña | Alta | Autenticado | Pendiente |
-| `RF-SP-038` | Restablecer la contraseña de un usuario | Media | `users:reset-password` | Pendiente |
-| `RF-SP-039` | Consultar el propio perfil | Alta | Autenticado | Pendiente |
-| `RF-SP-040` | Restablecer la propia contraseña olvidada | Alta | — (público) | Pendiente |
-| `RF-SP-041` | Asignar o cambiar el superior comercial de un usuario | **Crítica** | `users:assign-supervisor` | Pendiente |
-| `RF-SP-042` | Consultar el equipo a cargo de un usuario | Media | `users:read` | Pendiente |
+| `RF-SP-001` | Registrar rol | Crítica | `roles:create` | En desarrollo |
+| `RF-SP-002` | Consultar roles | Crítica | `roles:read` | En desarrollo |
+| `RF-SP-003` | Consultar detalle de un rol | Alta | `roles:read` | En desarrollo |
+| `RF-SP-004` | Editar rol | Alta | `roles:update` | En desarrollo |
+| `RF-SP-005` | Asignar permisos a un rol | Crítica | `roles:update` | En desarrollo |
+| `RF-SP-006` | Revocar permisos de un rol | Alta | `roles:update` | En desarrollo |
+| `RF-SP-007` | Cambiar el estado de un rol | Alta | `roles:update` | En desarrollo |
+| `RF-SP-008` | Cambiar el rol padre de un rol | Media | `roles:update` | En desarrollo |
+| `RF-SP-009` | Eliminar rol | Media | `roles:delete` | En desarrollo |
+| `RF-SP-010` | Consultar catálogo de permisos | Crítica | `permissions:read` | En desarrollo |
+| `RF-SP-011` | Consultar auditoría de cambios | Media | `audit:read-changes` | En desarrollo |
+| `RF-SP-012` | Consultar auditoría de eliminación | Media | `audit:read-deletions` | En desarrollo |
+| `RF-SP-013` | Consultar auditoría de error | Media | `audit:read-errors` | En desarrollo |
+| `RF-SP-014` | Consultar auditoría de seguridad | Alta | `audit:read-security` | En desarrollo |
+| `RF-SP-015` | Consultar detalle de un permiso | Media | `permissions:read` | En desarrollo |
+| `RF-SP-016` | Registrar membresía | Alta | `memberships:create` | En desarrollo |
+| `RF-SP-017` | Consultar membresías | Alta | `memberships:read` | En desarrollo |
+| `RF-SP-018` | Consultar detalle de una membresía | Media | `memberships:read` | En desarrollo |
+| `RF-SP-019` | Consultar monedas | Media | `currencies:read` | En desarrollo |
+| `RF-SP-020` | Registrar país | Media | `countries:create` | En desarrollo |
+| `RF-SP-021` | Consultar países | Media | `countries:read` | En desarrollo |
+| `RF-SP-022` | Cambiar el estado de un país | Media | `countries:update` | En desarrollo |
+| `RF-SP-023` | Cambiar el estado de una moneda | Baja | `currencies:update` | En desarrollo |
+| `RF-SP-024` | Registrar usuario | **Crítica** | `users:create` | En desarrollo |
+| `RF-SP-025` | Consultar usuarios | **Crítica** | `users:read` | En desarrollo |
+| `RF-SP-026` | Consultar detalle de un usuario | Alta | `users:read` | En desarrollo |
+| `RF-SP-027` | Editar usuario | Alta | `users:update` | En desarrollo |
+| `RF-SP-028` | Cambiar el estado de un usuario | Alta | `users:update` | En desarrollo |
+| `RF-SP-029` | Eliminar usuario | Media | `users:delete` | En desarrollo |
+| `RF-SP-030` | Asignar roles a un usuario | **Crítica** | `users:assign-roles` | En desarrollo |
+| `RF-SP-031` | Retirar roles de un usuario | Alta | `users:assign-roles` | En desarrollo |
+| `RF-SP-032` | Asignar membresía a un usuario | Alta | `users:assign-membership` | En desarrollo |
+| `RF-SP-033` | Retirar la membresía de un usuario | Media | `users:assign-membership` | En desarrollo |
+| `RF-SP-034` | Iniciar sesión | **Crítica** | — (público) | En desarrollo |
+| `RF-SP-035` | Refrescar el token de acceso | **Crítica** | — (público) | En desarrollo |
+| `RF-SP-036` | Cerrar sesión | Alta | — (público) | En desarrollo |
+| `RF-SP-037` | Cambiar la propia contraseña | Alta | Autenticado | En desarrollo |
+| `RF-SP-038` | Restablecer la contraseña de un usuario | Media | `users:reset-password` | En desarrollo |
+| `RF-SP-039` | Consultar el propio perfil | Alta | Autenticado | En desarrollo |
+| `RF-SP-040` | Restablecer la propia contraseña olvidada | Alta | — (público) | En desarrollo |
+| `RF-SP-041` | Asignar o cambiar el superior comercial de un usuario | **Crítica** | `users:assign-supervisor` | En desarrollo |
+| `RF-SP-042` | Consultar el equipo a cargo de un usuario | Media | `users:read` | En desarrollo |
+
+!!! info "Dónde vive el estado de un requerimiento"
+
+    Esta columna es un **resumen**. La autoridad es la matriz de trazabilidad de [`requirements.md` §4](../requirements.md#4-matriz-de-trazabilidad), que registra además la tripleta, el Issue, el Pull Request y las pruebas de cada fila; aquí se copia el estado para que el catálogo del módulo se lea de un vistazo, y se actualiza **con el mismo cambio** (Art. III.6).
+
+    Al 26-08-2026 los cuarenta y dos están **`En desarrollo`**: los cuarenta y dos tienen tripleta aprobada y endpoint funcionando, y ninguno pasa a `Implementado` porque eso exige Pull Request aprobado e integrado (Art. XVI).
 
 **Orden sugerido de implementación:** `RF-SP-010` → `RF-SP-001` → `RF-SP-002` → `RF-SP-005` → `RF-SP-024` → `RF-SP-030` → `RF-SP-041` → `RF-SP-003` → `RF-SP-009` → el resto.
 
@@ -503,7 +516,7 @@ Devuelve un permiso con su recurso, acción, nombre y descripción legible.
 | Actor | Super Administrador, Administrador |
 | Permiso requerido | `memberships:create` |
 | Prioridad | Alta |
-| Reglas aplicables | `RN-SP-006`, `RN-SP-007` |
+| Reglas aplicables | `RN-SP-006`, `RN-SP-007`, `RN-SP-024` |
 | Depende de | — |
 | Tripleta | `docs/specs/sp/016-registrar-membresia/` |
 | Estado | Pendiente |
@@ -708,6 +721,10 @@ Definidos en [`security.md` §11](../security.md) y en la constitución. Los que
 
 Ninguna con sistemas externos ni con otros módulos. Al absorber los usuarios, sus roles y su acceso, `SP` deja de tener dependencias: es autocontenido y no necesita que ningún otro módulo exista para funcionar.
 
+**Publica dos lecturas hacia otros módulos desde el 27-08-2026** (**D-25**, `architecture.md` §15.2): el **catálogo de membresías** —si una existe y qué nivel tiene— y el **catálogo de monedas** —si existe, si está activa y cuántos decimales declara—. Las consume `PM`, y las escribió `RF-PM-001`: `SP` no gana ningún requerimiento por ello, porque ningún actor pide «publicar una interfaz» como comportamiento.
+
+**Sigue sin depender de nadie.** Publicar no es depender: la dirección de la dependencia es `PM` → `SP`, y una regla de ArchUnit impide que `modules/products` importe repositorios o entidades de `modules/system`.
+
 ## 9. API
 
 | Método | Ruta | Requerimiento | Permiso |
@@ -773,6 +790,7 @@ Rutas propuestas. El contrato exacto de cada una se fija en el `plan.md` de su t
 | `user_memberships` | Membresía vigente de cada usuario consumidor | `SP` |
 | `user_supervisors` | Superior comercial de cada vendedor, con su historial | `SP` |
 | `refresh_tokens` | Sesiones revocables | `SP` |
+| `password_reset_permits` | Permisos de un solo uso para recuperar la contraseña olvidada | `SP` |
 | `audit_change_log` | Auditoría de creación y edición | `SP` |
 | `audit_deletion_log` | Auditoría de eliminación | `SP` |
 | `audit_error_log` | Auditoría de fallos | `SP` |
@@ -859,12 +877,17 @@ Su clave primaria es **compuesta** (`role_id`, `permission_id`), y es la excepci
 | `code` | `varchar(50)` | No | No | No | — | — |
 | `name` | `varchar(100)` | No | No | No | — | — |
 | `description` | `text` | No | No | Sí | — | — |
+| `color` | `varchar(6)` | No | No | No | — | — |
 | `parent_membership_id` | `uuid` | No | Sí | Sí | — | `memberships` |
 | `level` | `smallint` | No | No | No | — | — |
 | `created_at` | `timestamptz` | No | No | No | `now()` | — |
 | `updated_at` | `timestamptz` | No | No | No | `now()` | — |
 
 `parent_membership_id` apunta a la membresía **de mayor nivel** y es nulo solo en la superior (`RN-SP-006`). `level` materializa el orden para poder consultarlo y ordenarlo sin recorrer la cadena; se recalcula al insertar una membresía nueva (`RN-SP-007`).
+
+`color` es el color con el que el frontend pinta el nivel: **seis dígitos hexadecimales, sin `#` y en mayúsculas** (`RN-SP-024`). El `#` no se guarda porque es notación de CSS y no parte del valor; devolverlo obligaría a todo consumidor que no sea una hoja de estilos —una app móvil, un informe— a quitárselo. La normalización a mayúsculas ocurre **al escribir**, de modo que `1e88e5` y `1E88E5` no puedan convivir como dos filas distintas y la unicidad signifique algo.
+
+Se declara `varchar(6)` y no `char(6)` porque `char(n)` **rellena con espacios**: un valor de cinco dígitos quedaría almacenado con seis caracteres, y toda la comprobación pasaría a depender de la expresión regular en lugar de apoyarse también en la longitud.
 
 !!! important "La cadena de membresías no es un árbol"
 
@@ -895,7 +918,7 @@ Su clave primaria es **compuesta** (`role_id`, `permission_id`), y es la excepci
 | Campo | Tipo | PK | FK | Nullable | Default | Entidad relacional |
 |---|---|---|---|---|---|---|
 | `id` | `uuid` | Sí | No | No | — | — |
-| `code` | `char(2)` | No | No | No | — | — |
+| `code` | `char(3)` | No | No | No | — | — |
 | `name` | `varchar(100)` | No | No | No | — | — |
 | `is_active` | `boolean` | No | No | No | `true` | — |
 | `created_at` | `timestamptz` | No | No | No | `now()` | — |
@@ -903,7 +926,7 @@ Su clave primaria es **compuesta** (`role_id`, `permission_id`), y es la excepci
 
 `updated_at` se incorporó el 21-08-2026 al aprobar el `plan.md` de `RF-SP-020`: el Art. V.7 lo obliga en toda tabla de negocio, y aquí además hay algo que modificar —`RF-SP-022` cambia `is_active`—, de modo que sin la columna no habría forma de saber cuándo se retiró un país de la circulación salvo recorriendo la auditoría.
 
-`code` sigue ISO 3166-1 alfa-2 (`CO`, `US`). No se edita ni elimina (`RN-SP-009`); lo único modificable es `is_active`, a través de `RF-SP-022`. El catálogo **no se siembra** con la lista internacional completa: los países se dan de alta por la API a medida que la plataforma llega a ellos.
+`code` sigue ISO 3166-1 alfa-3 (`COL`, `USA`). No se edita ni elimina (`RN-SP-009`); lo único modificable es `is_active`, a través de `RF-SP-022`. El catálogo **no se siembra** con la lista internacional completa: los países se dan de alta por la API a medida que la plataforma llega a ellos.
 
 ### 10.7 Campos principales — `user_supervisors`
 
@@ -957,6 +980,8 @@ Declaradas en la base de datos, no solo en Java (Art. V.6):
 | `uq_memberships_level` | `memberships(level)` **diferida** — en un orden lineal cada posición es única. Diferida porque `SET level = level + 1` colisiona consigo mismo dentro de la misma sentencia |
 | `ck_memberships_level_positive` | `memberships(level >= 1)` — el nivel `1` es la cima |
 | `ck_memberships_parent_not_self` | `memberships(parent_membership_id <> id)` |
+| `ck_memberships_color_format` | `memberships(color ~ '^[0-9A-F]{6}$')` — seis dígitos hexadecimales en mayúsculas, sin `#` (`RN-SP-024`). La normalización a mayúsculas la hace el dominio **antes** de escribir; la restricción rechaza lo que llegue por cualquier otra vía, incluida una migración |
+| `uq_memberships_color` | `memberships(color)` — dos niveles del mismo color son indistinguibles justo en lo que el campo existe para distinguir (`RN-SP-024`). Atrapa el valor repetido y **no** dos tonos que un ojo humano no separa |
 | `uq_currencies_code` | `currencies(code)` |
 | `uq_currencies_name` | `currencies(name)` — dos filas con el mismo nombre y distinto código serían indistinguibles en cualquier selector |
 | `ck_currencies_code_format` | `currencies(code ~ '^[A-Z]{3}$')` — ISO 4217. En el esquema y no en el DTO, porque el único punto de entrada de esta tabla es una migración |
@@ -965,7 +990,7 @@ Declaradas en la base de datos, no solo en Java (Art. V.6):
 | `ck_currencies_default_active` | `currencies(NOT is_default OR is_active)` — dar de baja la moneda con la que opera el sistema dejaría los importes sin referencia válida. Hace que `RF-SP-023` nazca con la mitad de su trabajo hecho, y protege también contra una migración descuidada |
 | `uq_countries_code` | `countries(code)` |
 | `uq_countries_name` | **Índice único funcional**: `countries (f_unaccent(lower(name)))` — no sobre `name` literal. `RN-SP-009` no admite edición, de modo que `Panamá` y `Panama` conviviendo serían dos opciones indistinguibles **para siempre**. Es la asimetría deliberada con `uq_roles_name`, que sí es literal porque allí `RF-SP-004` permite renombrar |
-| `ck_countries_code_format` | `countries(code ~ '^[A-Z]{2}$')` — `char(2)` acota la longitud pero admitiría `1`, `-` o un espacio de relleno |
+| `ck_countries_code_format` | `countries(code ~ '^[A-Z]{3}$')` — `char(3)` acota la longitud pero admitiría `1`, `-` o un espacio de relleno. **Tres letras y no dos** desde la v1.27.0: el código es ISO 3166-1 alfa-3, como el de una moneda lo es de ISO 4217 |
 | `ck_countries_name_not_blank` | `countries(length(btrim(name)) > 0)` |
 | `uq_users_username` | **Índice único funcional total**: `users (lower(username))` — `RN-SP-016`. Va sobre la forma en minúsculas para que `JPerez` y `jperez` no puedan coexistir, y es **total** y no parcial porque eliminar a alguien **no libera** su nombre de usuario. Es la asimetría deliberada con `uq_roles_code`, que sí es parcial. **Obliga a `RF-SP-034` a comparar el nombre de usuario sin distinguir mayúsculas** |
 | `uq_users_email` | `UNIQUE (email)` — `RN-SP-016`. Restricción corriente y no índice funcional, porque el correo se persiste ya normalizado. Total por el mismo motivo que la anterior |
@@ -1073,6 +1098,30 @@ La crea `RF-SP-024` (`V19__create_user_roles.sql`), porque el alta ya escribe as
 
     Las subsecciones de §10 se numeran **por orden de incorporación**, no por dependencia. Insertarlas entre las existentes obligaría a renumerar `user_supervisors`, las restricciones y la auditoría, y ocho `plan.md` ya aprobados referencian esos números. La legibilidad del orden vale menos que la estabilidad de las referencias.
 
+
+### 10.13 Campos principales — `password_reset_permits`
+
+| Campo | Tipo | PK | FK | Nullable | Default | Entidad relacional |
+|---|---|---|---|---|---|---|
+| `id` | `uuid` | Sí | No | No | — | — |
+| `user_id` | `uuid` | No | Sí | No | — | `users` |
+| `permit_hash` | `varchar(255)` | No | No | No | — | — |
+| `expires_at` | `timestamptz` | No | No | No | — | — |
+| `consumed_at` | `timestamptz` | No | No | Sí | — | — |
+| `superseded_at` | `timestamptz` | No | No | Sí | — | — |
+| `requested_ip` | `inet` | No | No | Sí | — | — |
+| `created_at` | `timestamptz` | No | No | No | `now()` | — |
+
+**Solo el hash del permiso, nunca su valor.** Mismo criterio que `refresh_tokens`: quien lea esta tabla no puede tomar la cuenta de nadie. El valor no existe en el servidor más allá del instante en que se entrega al canal de envío.
+
+**Dos columnas de invalidez y no un estado**, porque las dos razones se investigan distinto: `consumed_at` dice que alguien **completó** el flujo y `superseded_at` que **pidió otro**. Una sola columna las haría indistinguibles.
+
+**`uq_password_reset_permits_vigente` —único parcial sobre `user_id` donde ambas son nulas— declara en el esquema que solo vive un permiso a la vez.** Escrito únicamente en el caso de uso, dos solicitudes concurrentes dejarían dos permisos vivos y con ellos **dos vías de entrada abiertas** a la misma cuenta.
+
+**No es una tabla de negocio**: sin `updated_at` ni `deleted_at`. La caducidad se evalúa al consultarla y **ningún proceso la limpia**, igual que `refresh_tokens` antes de su purga — y con el mismo hueco declarado: la purga de permisos consumidos y caducados no tiene requerimiento que la cubra.
+
+`RF-SP-040` la crea (`V37__create_password_reset_permits.sql`). El plan la numeraba `V29`, número que quedó tomado al aplicarse `V13` a `V36` mientras la tripleta esperaba a **D-23**.
+
 ## 11. Control de cambios
 
 | Versión | Fecha | Cambio | Responsable |
@@ -1107,4 +1156,9 @@ La crea `RF-SP-024` (`V19__create_user_roles.sql`), porque el alta ya escribe as
 | 1.19.0 | 24-08-2026 | Consecuencias de aprobar los `plan.md` de **`RF-SP-034` a `RF-SP-042`**, con lo que **las cuarenta y dos tripletas del módulo quedan completas**. §9 gana la **segunda ruta de `RF-SP-040`** —`POST /api/v1/auth/password-recovery/confirmation`—, que este documento anticipaba desde la v1.14.0: el requerimiento comprende dos operaciones públicas encadenadas con reglas opuestas, y fundirlas en una habría hecho imposible declarar sus excepciones. §10.10 gana **`provisional_password_expires_at`** en `users`: la credencial que fija `RF-SP-038` **caduca**, y sin esa columna una cuenta restablecida y nunca usada queda indefinidamente con una credencial conocida por otra persona sin que nada falle; va con un `CHECK` que la ata a `must_change_password`, porque una credencial provisional sin caducidad es justo la ventana que el requerimiento existe para cerrar. Se corrige además la atribución de tres componentes compartidos en los planes de `RF-SP-030` y `RF-SP-031`, que los declaraban nuevos: `PrivilegeContainment` y `CommercialStructure` los **crea `RF-SP-024`**, y `RootAdministratorPresence` junto con `RootRoleHolderRepository`, `SessionRevoker` y `SupervisedTeamCounter`, **`RF-SP-028`** — que es exactamente el error que esos mismos planes advertían. | Responsable técnico |
 | 1.20.0 | 24-08-2026 | **Enmienda de §10.8 al implementar el submódulo de membresías** (`RF-SP-016` · `T-16`). `uq_memberships_parent` gana **`NULLS NOT DISTINCT`** y pasa a declararse **diferida**: escrita como restricción única corriente no garantizaba lo que §10.4 afirma, porque PostgreSQL trata los nulos como distintos y admitiría varias membresías sin superior —varias cimas—, que es la bifurcación que existe para impedir. Se incorporan además cuatro restricciones que el esquema declara y este documento omitía: `uq_memberships_name` sobre `f_unaccent(lower(name))` —`RN-SP-008` no admite edición y `Plata` junto a `plata` convivirían para siempre—, `ck_memberships_code_format`, `uq_memberships_level` diferida y `ck_memberships_level_positive`. | Responsable técnico |
 | 1.21.0 | 24-08-2026 | **Enmienda de §10.5 y §10.8 al implementar el catálogo de monedas** (`RF-SP-019` · `T-10`). `currencies` gana **`updated_at`**, que este documento omitía pese al Art. V.7: la omisión venía de suponer que el catálogo no cambia, pero sí cambia —`RF-SP-023` modifica `is_active`— y sin esa marca no habría forma de saber cuándo se dio de baja una moneda sin recorrer la auditoría. §10.8 incorpora las cinco restricciones que el esquema declara y el documento no listaba, entre ellas **`ck_currencies_default_active`**, que impide dejar inactiva la moneda por defecto por cualquiera de sus dos caminos de escritura —la API y una migración—. | Responsable técnico |
-| 1.20.0 | 24-08-2026 | **Regla nueva `RN-SP-023`: todo usuario tiene al menos un rol.** El estado «usuario sin ningún rol» deja de existir: una cuenta así puede autenticarse y no puede hacer absolutamente nada, de modo que solo servía para reservar un nombre de usuario y un correo — que `RN-SP-016` no libera nunca. Se exige en **las dos puertas**, porque cerrar solo una deja el invariante sin sostener: `RF-SP-024` pasa `roles` de opcional a **obligatorio** y `RF-SP-031` rechaza quitar el último. **La regla mira la asignación, no el estado del rol**, y esa acotación es deliberada: exigir un rol *activo* haría que desactivar o eliminar un rol \(`RF-SP-007`, `RF-SP-009`\) pudiera violarla **a distancia**, sobre personas que nadie estaba tocando, y dejaría operaciones del catálogo bloqueadas por el estado de terceros; que un rol inactivo no conceda nada ya lo resuelve `RN-SEG-002`. **No es expresable en el esquema** —«al menos una fila en `user_roles`» exige disparador o restricción diferida—, de modo que vive en el dominio y se verifica dentro de la transacción, igual que `RN-SP-001`. **Enmienda seis especificaciones aprobadas** \(Art. I.7\): `RF-SP-024` retira `FA-001`, estrena `EX-008` e invierte `CA-SP-197`; `RF-SP-031` retira `FA-002`, estrena `EX-006` e invierte `CA-SP-269`; y `RF-SP-025`, `RF-SP-026`, `RF-SP-034` y `RF-SP-039` reencuadran su flujo de «sin roles» como «sin **permisos efectivos**», que sigue siendo alcanzable con todos los roles inactivos y es lo único que queda de aquel caso. | Responsable técnico |
+| 1.22.0 | 24-08-2026 | **Regla nueva `RN-SP-023`: todo usuario tiene al menos un rol.** El estado «usuario sin ningún rol» deja de existir: una cuenta así puede autenticarse y no puede hacer absolutamente nada, de modo que solo servía para reservar un nombre de usuario y un correo — que `RN-SP-016` no libera nunca. Se exige en **las dos puertas**, porque cerrar solo una deja el invariante sin sostener: `RF-SP-024` pasa `roles` de opcional a **obligatorio** y `RF-SP-031` rechaza quitar el último. **La regla mira la asignación, no el estado del rol**, y esa acotación es deliberada: exigir un rol *activo* haría que desactivar o eliminar un rol \(`RF-SP-007`, `RF-SP-009`\) pudiera violarla **a distancia**, sobre personas que nadie estaba tocando, y dejaría operaciones del catálogo bloqueadas por el estado de terceros; que un rol inactivo no conceda nada ya lo resuelve `RN-SEG-002`. **No es expresable en el esquema** —«al menos una fila en `user_roles`» exige disparador o restricción diferida—, de modo que vive en el dominio y se verifica dentro de la transacción, igual que `RN-SP-001`. **Enmienda seis especificaciones aprobadas** \(Art. I.7\): `RF-SP-024` retira `FA-001`, estrena `EX-008` e invierte `CA-SP-197`; `RF-SP-031` retira `FA-002`, estrena `EX-006` e invierte `CA-SP-269`; y `RF-SP-025`, `RF-SP-026`, `RF-SP-034` y `RF-SP-039` reencuadran su flujo de «sin roles» como «sin **permisos efectivos**», que sigue siendo alcanzable con todos los roles inactivos y es lo único que queda de aquel caso. | Responsable técnico |
+| 1.23.0 | 26-08-2026 | **`RF-SP-040` deja de ser el requerimiento sin implementar del módulo**, al cerrarse **D-23** con Resend. §10 gana `password_reset_permits` en la tabla de entidades y **§10.13** con sus campos. Tres cosas quedan escritas ahí porque el esquema las sostiene y el dominio no podría: **solo el hash del permiso**, nunca su valor, igual que `refresh_tokens`; **dos columnas de invalidez y no un estado** —`consumed_at` dice que alguien completó el flujo y `superseded_at` que pidió otro, y una sola columna las haría indistinguibles justo donde la auditoría necesita separarlas—; y el **único parcial `uq_password_reset_permits_vigente`**, que declara en el esquema que solo vive un permiso a la vez: escrito únicamente en el caso de uso, dos solicitudes concurrentes dejarían **dos vías de entrada abiertas** a la misma cuenta. La migración es **`V37` y no `V29`** como decía el plan: ese número quedó tomado al aplicarse `V13` a `V36` mientras la tripleta esperaba la decisión. Se corrige además la numeración duplicada de esta misma tabla: la fila de `RN-SP-023` figuraba como `1.20.0`, número que ya usaba la enmienda de membresías, y pasa a `1.22.0`. | Responsable técnico |
+| 1.24.0 | 26-08-2026 | **§6.1 se sincroniza con la matriz de trazabilidad.** Las cuarenta y dos filas figuraban en `Pendiente` —el estado de «registrado, sin `spec.md`»— cuando los cuarenta y dos tienen tripleta aprobada y endpoint funcionando desde el 26-08-2026: pasan a **`En desarrollo`**. La columna llevaba desde el 20-08-2026 sin tocarse, de modo que el catálogo del módulo afirmaba que no existía nada de lo que ya estaba construido. Se añade además de dónde sale ese dato: la **autoridad es [`requirements.md` §4](../requirements.md#4-matriz-de-trazabilidad)** y aquí se copia, para que la próxima divergencia se resuelva sin tener que averiguar cuál de las dos tablas manda. Ninguno pasa a `Implementado`: el Art. XVI exige Pull Request aprobado e integrado y no hay ninguno. | Responsable técnico |
+| 1.25.0 | 26-08-2026 | **La membresía gana su color** (`RN-SP-024`), por decisión del responsable del proyecto: seis dígitos **hexadecimales sin `#`**, normalizados a mayúsculas, con los que el frontend pinta el nivel. §10.4 incorpora la columna `color` —`varchar(6)` y no `char(6)`, porque `char(n)` rellena con espacios y dejaría toda la comprobación en manos de la expresión regular— y §10.8 sus dos restricciones: `ck_memberships_color_format` y `uq_memberships_color`. Es **obligatorio**, porque un color opcional obliga al navegador a inventarse uno de reserva, que es exactamente la decisión que este campo saca del frontend; y **único**, porque dos niveles del mismo color son indistinguibles justo en lo que el campo existe para distinguir — con la salvedad escrita de que la unicidad atrapa el valor repetido y no dos tonos que un ojo humano no separa. **Queda declarado un hueco que se acepta a conciencia**: `RN-SP-008` mantiene la membresía inmutable, de modo que **un color mal elegido no se corrige**, y §5.1 fija la condición para reabrirlo como `RF-SP-043`. Enmienda las tripletas de `RF-SP-016`, `RF-SP-017` y `RF-SP-018`, ya aprobadas e implementadas (Art. I.7), y obliga a la migración `V38`. | Responsable técnico |
+| 1.26.0 | 27-08-2026 | **`SP` publica sus dos primeras interfaces hacia otro módulo** (§8): el catálogo de membresías y el de monedas, que consume `PM` al registrar un producto. Las escribió `RF-PM-001` y **no abren requerimiento nuevo aquí**: ningún actor pide «publicar una interfaz» como comportamiento observable. Publicar no es depender —la dirección sigue siendo `PM` → `SP`— y una regla de ArchUnit lo ancla. Queda anotado que el submódulo de usuarios ya tenía su propio `MembershipCatalog` interno para lo que él necesita al asignar una membresía: **son la misma lectura declarada dos veces**, y consolidarlas es deuda pendiente que toca código ya implementado. | Responsable técnico |
+| 1.27.0 | 28-08-2026 | **El código de un país pasa de dos letras a tres** —ISO 3166-1 **alfa-3**: `COL`, `USA`—, por decisión del responsable del proyecto. §10.6 declara `code` como `char(3)` y §10.8 su `CHECK` sobre `'^[A-Z]{3}$'`. El catálogo queda además alineado con `currencies.code`, que ya era de tres por ISO 4217. **Lo que no es un `ALTER` inofensivo es la migración**: ensanchar `char(2)` a `char(3)` convierte `CO` en `'CO '` —`char` rellena con espacios—, no en `COL`, y esa fila pasa el `NOT NULL` y el `UNIQUE`; solo la caza el `CHECK` nuevo, cuyo mensaje habla de una restricción y no del país. `V42` ensancha, **traduce con una tabla de equivalencias explícita** y **levanta excepción nombrando los códigos que no sabe traducir** en lugar de adivinarlos: `RN-SP-009` prohíbe editar un país, de modo que una equivalencia equivocada no tendría corrección posible. `V16` no se toca, que está aplicada. Enmienda la tripleta de `RF-SP-020`, aprobada e implementada (Art. I.7): §6.1, `EX-002`, `VAL-002` y `CA-SP-135`. | Responsable técnico |

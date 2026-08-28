@@ -8,6 +8,7 @@
 | Autor | Responsable técnico |
 | Aprobada por | Responsable del proyecto |
 | Fecha de aprobación | 22-08-2026 |
+| Enmendada el | 26-08-2026 — ver §15 |
 
 ---
 
@@ -168,7 +169,9 @@ Los pasos 3 y 9 **no bloquean la respuesta**: el envío ocurre desacoplado (`RNF
 ### EX-003 — Demasiadas solicitudes
 
 **Condición:** se supera el límite de tasa configurado, por identidad o por origen.
-**Respuesta del sistema:** rechaza la solicitud sin revelar si la identidad existe. Sin este límite, la operación permite inundar de correos a una persona real, que es acoso, y sondear identidades en masa.
+**Respuesta del sistema:** rechaza la solicitud sin revelar si la identidad existe, y **dice cuántos segundos hay que esperar**. Sin este límite, la operación permite inundar de correos a una persona real, que es acoso, y sondear identidades en masa.
+
+**Superar la cota cuesta una espera fija** y no solo aguardar a que la ventana deslice: es lo único que impide que quien la supera siga pidiendo al ritmo que la ventana le vaya dejando. La espera **no se alarga al insistir** —se fija una vez, en la petición que cruza la cota—, porque renovarla convertiría unas cuantas peticiones de más en un bloqueo indefinido para quien tenga un cliente que reintenta solo. Los números viven en configuración y no en esta spec ([`security.md` §5.5.1](../../../security.md)): desde el 26-08-2026, **cinco por minuto y cinco minutos de espera**.
 
 ## 11. Validaciones
 
@@ -196,6 +199,8 @@ Los pasos 3 y 9 **no bloquean la respuesta**: el envío ocurre desacoplado (`RNF
 | `CA-SP-465` | El restablecimiento **no** cambia el estado de la cuenta: una cuenta inactiva sigue inactiva |
 | `CA-SP-466` | Ni la contraseña ni el permiso temporal aparecen en ninguna respuesta ni en ningún registro |
 | `CA-SP-467` | El sistema rechaza la solicitud al superar el límite de tasa, sin revelar si la identidad existe |
+| `CA-SP-492` | El sistema, al superar la cota, responde con la **espera fija** configurada y no con lo que le quede a la ventana |
+| `CA-SP-493` | El sistema **no alarga la espera** cuando se insiste durante ella: el número que devuelve decrece |
 | `CA-SP-468` | El sistema registra en la auditoría de seguridad, con severidad alta, tanto la solicitud como el restablecimiento |
 | `CA-SP-469` | La auditoría de seguridad registra también las solicitudes sobre identidades inexistentes |
 | `CA-SP-473` | El **tiempo de respuesta** a la solicitud no permite distinguir una identidad existente de una inexistente: la respuesta no espera al envío |
@@ -225,3 +230,12 @@ Ninguna. Las cinco se resolvieron el 22-08-2026, antes de aprobar la especificac
 | 3 | ¿Se notifica al titular de que su contraseña cambió? | **Sí.** Es la única forma de que se entere si no fue él quien lo pidió, que es exactamente el caso de abuso contra el que las demás defensas valen poco: quien completa el flujo con un correo ajeno ya tiene la cuenta. Cierra la condición de disparo que `RF-SP-038` dejó anotada en su resolución 3. El coste —que el aviso puede usarse para molestar— lo acota el mismo límite de tasa de `EX-003`, y queda declarado en §13 |
 | 4 | ¿Se admite para cuentas bloqueadas? | **Sí, sin levantar el bloqueo** (`FA-003`), por coherencia con `CA-SP-394` de `RF-SP-038`. Rechazarlo revelaría que la cuenta está bloqueada, y esa fuga rompería la defensa central de esta operación. El riesgo residual es acotado: fijar una contraseña sobre una cuenta que no puede autenticarse **no concede acceso**, y el bloqueo solo lo levanta `RF-SP-028` |
 | 5 | ¿La respuesta indistinguible se sostiene en el tiempo de respuesta? | **Sí, y por eso el envío es desacoplado** (`RNF-FIA-001`). Igualar solo el mensaje dejaría la defensa declarada pero no real: emitir el permiso y enviar cuesta cientos de milisegundos más que no hacer nada, y eso se mide desde fuera con un cronómetro. Se descartó el retardo uniforme porque penaliza a todo el mundo y vuelve a filtrar en cuanto el envío se ralentiza por encima del retardo elegido. La consecuencia asumida —un fallo de envío no se refleja en la respuesta— está en §13 y su tratamiento forma parte de D-23 |
+
+---
+
+## 15. Control de cambios
+
+| Versión | Fecha | Cambio | Responsable |
+|---|---|---|---|
+| 0.2.0 | 26-08-2026 | **`EX-003` gana la espera fija.** Por decisión del responsable del proyecto, superar la cota de solicitudes deja de significar «aguarde a que la ventana deslice» y pasa a costar una espera declarada, que el rechazo comunica. La spec fija **lo que no es negociable** —que la espera exista, que se comunique y que **no se alargue al insistir**— y deja los números en configuración (`security.md` §5.5.1), donde el 26-08-2026 quedan en **cinco por minuto y cinco minutos de espera**, frente a las tres por hora anteriores. Dos criterios nuevos, `CA-SP-492` y `CA-SP-493`. **Consecuencia declarada y no resuelta**: la cota sube unas veinte veces, y lo que se multiplica por veinte es cuántos correos puede provocar un desconocido en la bandeja de una persona real — §13 ya anotaba ese abuso como acotado por este mismo límite. | Responsable técnico |
+| 0.1.0 | 22-08-2026 | Redacción inicial, aprobada en su compuerta. Las preguntas abiertas se resolvieron antes de aprobar; ver §14. | Responsable técnico |

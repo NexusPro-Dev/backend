@@ -13,4 +13,4 @@ import java.util.UUID;
  *     extremo inferior (`FA-002`)
  */
 public record RegisterMembershipCommand(
-    String code, String name, String description, UUID childMembershipId) {}
+    String code, String name, String description, String color, UUID childMembershipId) {}

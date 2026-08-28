@@ -108,11 +108,17 @@ public class GetOwnProfileService {
    *
    * <p>La diferencia es a quién le sirve: al titular le dice que tiene que actuar; a un tercero con
    * permiso de lectura solo le diría que esa cuenta arrastra una contraseña que otra persona fijó.
+   *
+   * <p><b>Se lee de la caducidad y no de {@code must_change_password}</b>, por la decisión del
+   * 25-08-2026. Leer de la columna dejaría al perfil diciendo una cosa y al token otra sobre la
+   * misma persona — y es el perfil el que la interfaz usa para explicárselo, de modo que la
+   * contradicción la vería ella: retenida en la pantalla de cambiar la contraseña por el token,
+   * leyendo en su perfil que no le toca.
    */
   private boolean mustChangePassword(UUID quien) {
     return usuarios
         .findNotDeletedById(quien)
-        .map(usuario -> usuario.isMustChangePassword())
+        .map(usuario -> usuario.getProvisionalPasswordExpiresAt() != null)
         .orElse(false);
   }
 }

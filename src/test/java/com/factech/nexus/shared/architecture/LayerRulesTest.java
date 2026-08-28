@@ -150,4 +150,25 @@ class LayerRulesTest {
         .because("la infraestructura transversal no puede depender de quien la usa")
         .check(clases);
   }
+
+  @Test
+  @DisplayName("un módulo no entra en el dominio de otro: PM no conoce el interior de SP (D-25)")
+  void unModuloNoEntraEnElDominioDeOtro() {
+    // La frontera de `modules.md` §7 la fija **el código**, y sin esta regla es
+    // una convención — y las convenciones se saltan SIN QUE NADA FALLE.
+    //
+    // Lo que `PM` puede importar de `SP` son las interfaces que este publica en
+    // su capa `application` (`MembershipCatalog`, `CurrencyCatalog`). Lo que no
+    // puede tocar es su `domain`: entidades y repositorios. Importarlos lo
+    // ataría al esquema ajeno, y un cambio allí lo rompería en silencio, sin
+    // fallar al compilar (`architecture.md` §15.2).
+    noClasses()
+        .that()
+        .resideInAPackage("com.factech.nexus.modules.products..")
+        .should()
+        .dependOnClassesThat()
+        .resideInAPackage("com.factech.nexus.modules.system..domain..")
+        .because("D-25: PM consume SP por sus interfaces publicadas, nunca por sus tablas")
+        .check(clases);
+  }
 }

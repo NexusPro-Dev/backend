@@ -101,7 +101,7 @@ public class AssignUserMembershipService {
     // 2. La persona. No se exige ACTIVA, por lo mismo que en `RF-SP-030`.
     User usuario =
         usuarios
-            .findNotDeletedById(userId)
+            .findNotDeletedByIdForUpdate(userId)
             .orElseThrow(
                 () ->
                     new ResourceNotFoundException(

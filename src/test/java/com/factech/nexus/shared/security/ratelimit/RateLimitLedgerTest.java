@@ -18,6 +18,7 @@ import org.junit.jupiter.api.Test;
 class RateLimitLedgerTest {
 
   private static final Duration MINUTO = Duration.ofMinutes(1);
+  private static final Duration CINCO_MINUTOS = Duration.ofMinutes(5);
 
   @Test
   @DisplayName("admite hasta el máximo y rechaza el siguiente")
@@ -124,8 +125,107 @@ class RateLimitLedgerTest {
     assertThat(contador.registrar("ip|10.0.0.999", 1, MINUTO).admitida()).isFalse();
   }
 
+  // ---------------------------------------------------------------------------
+  // La penalización (`RF-SP-040`, 26-08-2026)
+  // ---------------------------------------------------------------------------
+
+  @Test
+  @DisplayName("superar la cota con penalización cuesta la espera fija, no la de la ventana")
+  void penalizacionAlSuperarLaCota() {
+    Reloj reloj = new Reloj(Instant.parse("2026-08-26T10:00:00Z"));
+    RateLimitLedger contador = ledger(reloj, 1000);
+
+    for (int i = 0; i < 5; i++) {
+      assertThat(contador.registrar("id|ana", 5, MINUTO, CINCO_MINUTOS).admitida()).isTrue();
+    }
+
+    RateLimitLedger.Veredicto sexta = contador.registrar("id|ana", 5, MINUTO, CINCO_MINUTOS);
+
+    assertThat(sexta.admitida()).isFalse();
+    // Sin penalización esperaría lo que le quede a la ventana —sesenta
+    // segundos—; con ella espera el castigo entero.
+    assertThat(sexta.esperaSegundos()).isEqualTo(300);
+  }
+
+  @Test
+  @DisplayName("la penalización NO se renueva al insistir: cinco de más no son un bloqueo perpetuo")
+  void insistirNoAlargaElCastigo() {
+    Reloj reloj = new Reloj(Instant.parse("2026-08-26T10:00:00Z"));
+    RateLimitLedger contador = ledger(reloj, 1000);
+
+    for (int i = 0; i < 5; i++) {
+      contador.registrar("id|ana", 5, MINUTO, CINCO_MINUTOS);
+    }
+    contador.registrar("id|ana", 5, MINUTO, CINCO_MINUTOS); // cruza la cota
+
+    // Insiste durante el castigo, que es lo que hace un cliente que reintenta
+    // solo. La espera que se le devuelve DECRECE en lugar de volver a 300.
+    reloj.avanzar(Duration.ofMinutes(2));
+    assertThat(contador.registrar("id|ana", 5, MINUTO, CINCO_MINUTOS).esperaSegundos())
+        .isEqualTo(180);
+
+    reloj.avanzar(Duration.ofMinutes(2));
+    assertThat(contador.registrar("id|ana", 5, MINUTO, CINCO_MINUTOS).esperaSegundos())
+        .isEqualTo(60);
+  }
+
+  @Test
+  @DisplayName("cumplida la penalización, la cota vuelve ENTERA y no de una en una")
+  void cumplidoElCastigoLaCotaVuelveEntera() {
+    Reloj reloj = new Reloj(Instant.parse("2026-08-26T10:00:00Z"));
+    RateLimitLedger contador = ledger(reloj, 1000);
+
+    for (int i = 0; i < 5; i++) {
+      contador.registrar("id|ana", 5, MINUTO, CINCO_MINUTOS);
+    }
+    contador.registrar("id|ana", 5, MINUTO, CINCO_MINUTOS);
+
+    reloj.avanzar(Duration.ofMinutes(5));
+
+    // Las cinco otra vez. Si el historial se hubiera conservado, la primera de
+    // estas volvería a topar y el castigo se encadenaría solo.
+    for (int i = 0; i < 5; i++) {
+      assertThat(contador.registrar("id|ana", 5, MINUTO, CINCO_MINUTOS).admitida())
+          .as("petición %d tras cumplir la penalización", i + 1)
+          .isTrue();
+    }
+    assertThat(contador.registrar("id|ana", 5, MINUTO, CINCO_MINUTOS).admitida()).isFalse();
+  }
+
+  @Test
+  @DisplayName("sin penalización el comportamiento no cambia: se espera a que deslice la ventana")
+  void sinPenalizacionTodoSigueIgual() {
+    Reloj reloj = new Reloj(Instant.parse("2026-08-26T10:00:00Z"));
+    RateLimitLedger contador = ledger(reloj, 1000);
+
+    for (int i = 0; i < 5; i++) {
+      contador.registrar("ip|1.1.1.1", 5, MINUTO, null);
+    }
+
+    assertThat(contador.registrar("ip|1.1.1.1", 5, MINUTO, null).esperaSegundos()).isEqualTo(60);
+
+    // Y basta con que la ventana deslice para volver a caber.
+    reloj.avanzar(Duration.ofSeconds(61));
+    assertThat(contador.registrar("ip|1.1.1.1", 5, MINUTO, null).admitida()).isTrue();
+  }
+
+  @Test
+  @DisplayName("la penalización es por llave: castigar a una no castiga a las demás")
+  void elCastigoNoAlcanzaAOtrasLlaves() {
+    Reloj reloj = new Reloj(Instant.parse("2026-08-26T10:00:00Z"));
+    RateLimitLedger contador = ledger(reloj, 1000);
+
+    for (int i = 0; i < 6; i++) {
+      contador.registrar("id|ana", 5, MINUTO, CINCO_MINUTOS);
+    }
+
+    assertThat(contador.registrar("id|ana", 5, MINUTO, CINCO_MINUTOS).admitida()).isFalse();
+    assertThat(contador.registrar("id|beto", 5, MINUTO, CINCO_MINUTOS).admitida()).isTrue();
+  }
+
   private static RateLimitLedger ledger(Clock reloj, int capacidad) {
-    return new RateLimitLedger(new RateLimitSettings(true, capacidad, null, null, null), reloj);
+    return new RateLimitLedger(
+        new RateLimitSettings(true, capacidad, null, null, null, null), reloj);
   }
 
   /** Reloj que avanza cuando la prueba lo dice, y no cuando pasa el tiempo. */

@@ -25,7 +25,7 @@ Sin migración: `user_memberships` la crea `V20__create_user_memberships.sql` (`
 | `T-04` | Escritura en `user_memberships` desde `JpaUserRepository` con **`INSERT … ON CONFLICT (user_id) DO UPDATE`** en sentencia nativa (`plan.md` §2) | `T-03` | Prueba de integración concurrente: dos asignaciones simultáneas terminan sin `500`, dejan **una** fila y el resultado es una de las dos, nunca una mezcla | **Hecha** |
 | `T-05` | Detección de «sin cambio» (`FA-002`) frente a renovación (`FA-003`): misma membresía y misma vigencia no escribe ni audita; misma membresía con fecha distinta sí | `T-01`, `T-03` | Prueba de integración: repetir la petición idéntica no deja fila de auditoría; cambiar solo `endsAt` deja una | **Hecha** |
 | `T-06` | Auditoría de éxito: un evento en `audit_change_log` con `before` y `after` del nivel **y** de la fecha, con `before` nulo en `FA-001`. **Ningún evento de seguridad** | `T-04`, `T-05` | Prueba de integración: el evento conserva ambos niveles; `audit_security_log` queda **vacío** tras la operación | **Hecha** |
-| `T-07` | Auditoría de los rechazos (`plan.md` §6): `EX-001` y `EX-002` en `audit_error_log` con severidad Media; `EX-003` (`404`) y `EX-004` (`400`) sin auditar | `T-03` | Prueba de integración: los dos primeros dejan su fila con su `error_code`; los dos últimos no dejan ninguna | **En curso** |
+| `T-07` | Auditoría de los rechazos (`plan.md` §6): `EX-001` y `EX-002` en `audit_error_log` con severidad Media; `EX-003` (`404`) y `EX-004` (`400`) sin auditar | `T-03` | Prueba de integración: los dos primeros dejan su fila con su `error_code`; los dos últimos no dejan ninguna | **Hecha el 27-08-2026** — `UserMembershipRejectionAuditIT`, cuatro pruebas |
 | `T-08` | `api/AssignMembershipRequest` con Bean Validation (`VAL-001`, `VAL-002`) y la comprobación de `VAL-005` —fecha posterior al momento de la asignación— contra un `Clock` inyectado | `T-03` | Prueba de API: fecha pasada e igual al instante devuelven `400`; el `Clock` fijado hace la prueba determinista | **Hecha** |
 | `T-09` | `api/UserMembershipResponse` y `api/UserController`: `PUT /api/v1/users/{id}/membership` con el permiso `users:assign-membership` | `T-06`, `T-08` | Prueba de API: `200` con la membresía, su nivel y su fecha; el `409` indica que primero corresponde `RF-SP-030` | **Hecha** |
 | `T-10` | Pruebas de API e integración de los criterios de aceptación de `spec.md` §12 | `T-09` | La suite cubre `CA-SP-272` a `CA-SP-280` y `CA-SP-364` a `CA-SP-368` | **En curso** |
@@ -34,6 +34,12 @@ Sin migración: `user_memberships` la crea `V20__create_user_memberships.sql` (`
 | `T-13` | Actualizar la matriz de trazabilidad de `docs/requirements.md` | `T-10` | La fila de `RF-SP-032` refleja el estado y enlaza esta tripleta | **Hecha** |
 
 **Estados:** `Pendiente` · `En curso` · `Hecha` · `Bloqueada`.
+
+!!! note "Se cuenta por diferencia, y las dos mitades importan igual — 27-08-2026"
+
+    Las tablas de auditoría **no se vacían** entre pruebas: la semilla escribe en ellas y otras clases verifican esas filas. Se cuenta antes y después de cada petición, de modo que la afirmación es «esta petición dejó exactamente una fila» y no «hay una fila».
+
+    **La mitad negativa no es un extra.** `ck_audit_error_log_status` rechaza en el esquema los estados `400`, `401`, `403` y `404`: escribir uno no produce una fila fea, produce una violación de integridad dentro de la transacción de auditoría. Y al revés, un rechazo de negocio que dejara de registrarse no rompe nada visible — la respuesta al cliente es idéntica, y lo único que ocurre es que ese intento deja de poder contarse.
 
 ## 2. Orden de ejecución
 
@@ -101,6 +107,17 @@ graph LR
 - Dos asignaciones simultáneas dejan **una** fila, ninguna produce `500`, y el resultado es una de las dos y nunca una mezcla.
 - Los tres rechazos caen en sus **tres categorías** —`400`, `422` y `409`— y la membresía se comprueba **antes** que el rol de consumidor.
 - La operación **no deja evento de seguridad**: la membresía es un dato comercial, no un permiso.
+
+
+### Defecto de concurrencia corregido el 26-08-2026
+
+**`RN-SP-018` no se sostenía bajo carrera, y ninguna de las dos operaciones fallaba.** `RF-SP-033` —retirar la membresía— y `RF-SP-030` —asignar el rol de consumidor— leían la persona **sin bloqueo**, de modo que cada una validaba contra el estado que la otra estaba a punto de cambiar: las dos concluían que podían proceder y la persona acababa **portando un rol de consumidor sin nivel**. Es una escritura sesgada de manual, y en `READ COMMITTED` nada la impide.
+
+**Lo que lo destapó fue `RF-SP-024` · `T-21`**, la prueba concurrente del par en los dos órdenes, y lo hizo de forma **intermitente**: falló en CI, pasó en la ejecución siguiente y volvió a fallar dos veces más. Esa intermitencia es la firma del defecto, no una prueba inestable.
+
+**La corrección:** las **cuatro** operaciones que cambian roles o membresía de una persona —`RF-SP-030`, `RF-SP-031`, `RF-SP-032` y `RF-SP-033`— pasan a tomar el bloqueo pesimista sobre su fila (`findNotDeletedByIdForUpdate`), que las otras cinco operaciones sobre una persona ya tomaban. Dos cosas la hacen suficiente: las cuatro bloquean **la misma fila**, de modo que se serializan sin riesgo de abrazo mortal —a diferencia del caso que `RF-SP-028` descartó, donde el bloqueo caía sobre filas de terceros—, y el bloqueo se toma **antes** de leer roles y membresía, porque en `READ COMMITTED` cada sentencia posterior toma instantánea nueva y ve lo que la otra transacción confirmó.
+
+La obligación queda escrita en el puerto, que es donde la encontrará quien añada la décima operación sobre una persona.
 
 ## 5. Definición de terminado
 

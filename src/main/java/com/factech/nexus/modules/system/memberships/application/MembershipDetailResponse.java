@@ -15,6 +15,7 @@ public record MembershipDetailResponse(
     String code,
     String name,
     String description,
+    String color,
     int level,
     Neighbor parentMembership,
     Neighbor childMembership) {
@@ -25,6 +26,7 @@ public record MembershipDetailResponse(
         detalle.code(),
         detalle.name(),
         detalle.description(),
+        detalle.color(),
         detalle.level(),
         Neighbor.from(detalle.parent()),
         Neighbor.from(detalle.child()));
@@ -32,12 +34,12 @@ public record MembershipDetailResponse(
 
   /** Un vecino: sus datos, <b>no</b> sus propios vecinos. */
   @JsonInclude(JsonInclude.Include.ALWAYS)
-  public record Neighbor(UUID id, String code, String name, int level) {
+  public record Neighbor(UUID id, String code, String name, int level, String color) {
 
     static Neighbor from(MembershipNeighborItem vecino) {
       return vecino == null
           ? null
-          : new Neighbor(vecino.id(), vecino.code(), vecino.name(), vecino.level());
+          : new Neighbor(vecino.id(), vecino.code(), vecino.name(), vecino.level(), vecino.color());
     }
   }
 }

@@ -1,5 +1,6 @@
 package com.factech.nexus.shared.security;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -30,9 +31,11 @@ import org.springframework.security.web.authentication.HttpStatusEntryPoint;
  * al implementarse `RF-SP-001` · `T-09`, que es el primero que declara un permiso sobre un método
  * de escritura.
  *
- * <p><b>Todavía no hay mecanismo de autenticación.</b> El inicio de sesión pertenece al módulo
- * {@code USR}, que no existe: hasta entonces, cualquier ruta no pública responde {@code 401}. Es lo
- * correcto, y no un defecto de esta configuración.
+ * <p><b>La cadena termina con dos filtros propios</b>, los dos después de la autorización y en este
+ * orden: {@link ActorCaptureFilter} apunta quién hizo la petición mientras el contexto todavía
+ * existe, y {@link MustChangePasswordFilter} retiene a quien tiene el cambio obligatorio pendiente
+ * (`RF-SP-034` · `FA-002`). El orden no es indiferente: al revés, la petición retenida quedaría
+ * registrada como anónima.
  */
 @Configuration
 @EnableWebSecurity
@@ -57,7 +60,12 @@ public class SecurityConfig {
     // más falta hace, que es cuando se sospecha que la robaron.
     "/api/v1/auth/login",
     "/api/v1/auth/refresh",
-    "/api/v1/auth/logout"
+    "/api/v1/auth/logout",
+    // Y las dos de la recuperación (`RF-SP-040`), por definición: quien olvidó
+    // su contraseña no puede autenticarse para pedir recuperarla. La segunda la
+    // autoriza el permiso temporal que la primera envía, no un token.
+    "/api/v1/auth/password-recovery",
+    "/api/v1/auth/password-recovery/confirmation"
   };
 
   /**
@@ -77,13 +85,16 @@ public class SecurityConfig {
   private final boolean documentacionPublica;
   private final JwtActorConverter actorDesdeElToken;
   private final ActorCaptureFilter actorParaElRegistro;
+  private final ObjectMapper json;
 
   public SecurityConfig(
       JwtActorConverter actorDesdeElToken,
       ActorCaptureFilter actorParaElRegistro,
+      ObjectMapper json,
       @Value("${nexus.security.expose-api-docs:false}") boolean documentacionPublica) {
     this.actorDesdeElToken = actorDesdeElToken;
     this.actorParaElRegistro = actorParaElRegistro;
+    this.json = json;
     this.documentacionPublica = documentacionPublica;
   }
 
@@ -135,6 +146,14 @@ public class SecurityConfig {
         // `request_log` registraría toda petición como anónima — con filas que
         // existen y parecen correctas, que es la peor forma de equivocarse.
         .addFilterAfter(actorParaElRegistro, AuthorizationFilter.class)
+
+        // Retiene a quien tiene el cambio obligatorio pendiente (`RF-SP-034`
+        // `FA-002`). Va DESPUÉS del filtro anterior a propósito: la petición
+        // rechazada también debe quedar en `request_log` con su actor, y no
+        // como anónima. Y después de la autorización, para que quien además
+        // carece del permiso reciba el 403 que le corresponde por lo que
+        // intentaba hacer, no uno que le cuente algo de su cuenta.
+        .addFilterAfter(new MustChangePasswordFilter(json), ActorCaptureFilter.class)
         .headers(Customizer.withDefaults());
 
     return http.build();

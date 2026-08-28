@@ -57,7 +57,7 @@ Tres tareas no parecen de aquí y lo son:
 | `T-18` | Rechazos con detalle: los cuerpos de `409` enumeran **qué** elemento incumple —cuál identidad, qué roles, qué rol debería portar el superior—, y el de `EX-001` **no distingue** si el conflicto es con un usuario vigente o eliminado | `T-17` | Prueba de API: el `409` de un nombre de usuario tomado por un eliminado tiene **el mismo cuerpo** que el de uno vigente | Hecha |
 | `T-19` | Verificar que `V4__create_audit_logs.sql` (`RF-SP-001`) incluye `USER_CREATED` en `ck_audit_security_log_event_type`, conforme a la ampliación de `RF-SP-014` §2. **Antes del primer despliegue** | — | Prueba de integración: la restricción acepta `USER_CREATED`. Sin ella, el alta correcta falla en su transacción de auditoría, con un síntoma que no apunta al alta | Hecha |
 | `T-20` | Pruebas de los criterios de aceptación de `spec.md` §12 | `T-17`, `T-19` | La suite cubre `CA-SP-192` a `CA-SP-202`, `CA-SP-341`, `CA-SP-342`, `CA-SP-372`, `CA-SP-373` y `CA-SP-395` a `CA-SP-398` | Hecha |
-| `T-21` | Pruebas **concurrentes**, con transacciones reales: dos altas con la misma identidad; alta con un rol que se desactiva a la vez; alta con un superior que se desactiva a la vez; y dos altas que conceden los mismos dos roles | `T-15`, `T-17` | Una `201` y una `409`, **nunca `500`**; jamás queda un usuario con un rol inactivo ni a cargo de una cuenta sin acceso; **no se produce interbloqueo** | Pendiente |
+| `T-21` | Pruebas **concurrentes**, con transacciones reales: dos altas con la misma identidad; alta con un rol que se desactiva a la vez; alta con un superior que se desactiva a la vez; y dos altas que conceden los mismos dos roles | `T-15`, `T-17` | Una `201` y una `409`, **nunca `500`**; jamás queda un usuario con un rol inactivo ni a cargo de una cuenta sin acceso; **no se produce interbloqueo** | **Hecha** — 26-08-2026, en `UserConcurrencyIT`. **Su verificación se corrige**: ver §4.bis |
 | `T-22` | Pruebas de los casos límite de `spec.md` §13 y de `plan.md` §11: caja del correo y del nombre de usuario, `INSERT` directo sin normalizar, contraseña con espacios, vendedor y consumidor a la vez, límites de longitud, y ausencia de las columnas no creadas | `T-17` | `" Juan.Perez@X.CO "` queda como `juan.perez@x.co`; `JPerez` se conserva tal cual y `jperez` devuelve `409`; la contraseña con espacios autentica con el mismo literal | En curso |
 | `T-23` | Documentación OpenAPI del endpoint: cuerpo, `201` con `Location`, y los estados `400`, `401`, `403`, `409`, `422` y `500` | `T-20` | El contrato publicado coincide con el comportamiento real (Art. VIII.6), y documenta que la respuesta **nunca** devuelve la credencial | Hecha |
 | `T-24` | Actualizar la matriz de trazabilidad de `docs/requirements.md` | `T-20` | La fila de `RF-SP-024` refleja el estado y enlaza esta tripleta | Hecha |
@@ -148,6 +148,20 @@ Las cinco migraciones y los objetos de valor de `domain` no se estorban: `T-01` 
 | 4 | `T-01` incorpora `deleted_at`, que `plan.md` §2 asignaba a `RF-SP-029`. Es una **corrección del plan** (Art. I.7) motivada por `architecture.md` §6.4 y por la dependencia que `RF-SP-003` §2 ya declaraba. `RF-SP-029` conserva su escritura | 22-08-2026 | Responsable técnico | Abierto |
 | 5 | Obligación declarada sobre `RF-SP-034` (`plan.md` §8): el inicio de sesión compara el nombre de usuario **sin distinguir mayúsculas** y el correo por igualdad directa. Si se implementa por igualdad exacta, quien se registró como `JPerez` no entrará escribiendo `jperez` | 22-08-2026 | Responsable técnico | Abierto |
 | 6 | Obligación sobre **todo módulo futuro**: quien referencie `users(id)` declara su clave foránea `ON DELETE RESTRICT`. Un `SET NULL` dejaría auditoría sin sujeto | 22-08-2026 | Responsable técnico | Abierto |
+
+## 4.bis La verificación de `T-21` se corrige — 26-08-2026
+
+`T-21` exige que «jamás queda un usuario con un rol inactivo», y **eso no es un invariante de este sistema**. `RF-SP-007` desactiva un rol sin preguntar por sus portadores, de modo que en cuanto alguien desactiva `CONTABILIDAD` todos los que lo llevan pasan a portar un rol inactivo. `RN-SEG-002` existe precisamente para decir qué significa ese estado: **el rol sigue asignado y no concede nada**.
+
+Exigirlo aquí sería exigir que no ocurra algo que el requerimiento de al lado produce a diario, y la prueba solo pasaría por casualidad — cuando el alta ganase la carrera.
+
+**Lo que la prueba fija en su lugar**, que es lo que la carrera sí puede romper:
+
+- **El alta es atómica**: o nació con su rol, o no nació. Nunca una persona a medio escribir, que `RN-SP-023` prohíbe.
+- **Si se rechazó, fue con `422`** —el rol ya estaba inactivo— y no con otra cosa.
+- **Ningún `500` y ningún interbloqueo**, que es lo que la tarea pide y sí es exigible.
+
+Las otras dos afirmaciones de `T-21` se conservan tal cual y sí se comprueban: la identidad duplicada produce una `201` y una `409`, y nadie queda a cargo de una cuenta sin acceso.
 
 ## 5. Definición de terminado
 

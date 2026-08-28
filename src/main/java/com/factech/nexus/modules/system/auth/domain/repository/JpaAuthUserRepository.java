@@ -22,7 +22,6 @@ public class JpaAuthUserRepository implements AuthUserRepository {
              u.password_hash        AS password_hash,
              u.status               AS status,
              (u.deleted_at IS NOT NULL) AS deleted,
-             u.must_change_password AS mcp,
              u.failed_attempts      AS failed_attempts,
              u.locked_until         AS locked_until,
              u.provisional_password_expires_at AS provisional_expires_at,
@@ -62,6 +61,19 @@ public class JpaAuthUserRepository implements AuthUserRepository {
     return id == null
         ? Optional.empty()
         : primero(PROYECCION + " WHERE u.id = :valor", "valor", id);
+  }
+
+  /**
+   * Como {@link #findById}, pero tomando el bloqueo de la fila.
+   *
+   * <p>Al soltarse, PostgreSQL reevalúa la fila sobre la versión ya confirmada: si otra transacción
+   * la eliminó o la desactivó mientras tanto, la proyección lo refleja. Ver el javadoc del puerto.
+   */
+  @Override
+  public Optional<AuthUser> findByIdForUpdate(UUID id) {
+    return id == null
+        ? Optional.empty()
+        : primero(PROYECCION + " WHERE u.id = :valor FOR UPDATE OF u", "valor", id);
   }
 
   @Override
@@ -112,6 +124,47 @@ public class JpaAuthUserRepository implements AuthUserRepository {
         .executeUpdate();
   }
 
+  /**
+   * Como {@code cambiarContrasena} <b>menos {@code locked_until}</b>, y esa omisión es la regla.
+   *
+   * <p>Ver {@link AuthUserRepository#recuperarContrasena}: recuperar prueba que se tiene el correo,
+   * no que alguien decidiera devolver el acceso. {@code status} tampoco se toca.
+   */
+  @Override
+  public void recuperarContrasena(UUID userId, String passwordHash, OffsetDateTime ahora) {
+    em.createNativeQuery(
+            """
+            UPDATE users
+               SET password_hash = :resumen,
+                   must_change_password = false,
+                   provisional_password_expires_at = NULL,
+                   failed_attempts = 0,
+                   updated_at = :ahora
+             WHERE id = :id
+            """)
+        .setParameter("resumen", passwordHash)
+        .setParameter("ahora", ahora)
+        .setParameter("id", userId)
+        .executeUpdate();
+  }
+
+  @Override
+  @Transactional(readOnly = true)
+  public Optional<String> correoDe(UUID userId) {
+    if (userId == null) {
+      return Optional.empty();
+    }
+    // Las eliminadas no tienen a quién escribirle: la cuenta ya no existe para
+    // nadie, y su correo pudo haberlo tomado otra persona (`RF-SP-027`).
+    List<?> filas =
+        em.createNativeQuery("SELECT email FROM users WHERE id = :id AND deleted_at IS NULL")
+            .setParameter("id", userId)
+            .setMaxResults(1)
+            .getResultList();
+
+    return filas.stream().findFirst().map(String.class::cast);
+  }
+
   private Optional<AuthUser> primero(String sql, String parametro, Object valor) {
     List<Tuple> filas =
         em.createNativeQuery(sql, Tuple.class)
@@ -127,7 +180,6 @@ public class JpaAuthUserRepository implements AuthUserRepository {
                     (String) fila.get("password_hash"),
                     (String) fila.get("status"),
                     Boolean.TRUE.equals(fila.get("deleted")),
-                    Boolean.TRUE.equals(fila.get("mcp")),
                     ((Number) fila.get("failed_attempts")).intValue(),
                     momento(fila.get("locked_until")),
                     momento(fila.get("provisional_expires_at")),

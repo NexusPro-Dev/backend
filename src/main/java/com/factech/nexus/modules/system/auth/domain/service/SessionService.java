@@ -176,12 +176,18 @@ public class SessionService {
     token.revocar(RevokedReason.ROTACION, ahora);
     token.sustituidoPor(rotado.getId());
 
+    // La misma regla que al entrar, y leída del MISMO sitio: lo decide la
+    // caducidad y no la marca. Que el refresco la recalcule en cada rotación es
+    // lo que hace que restablecer la contraseña de alguien con la sesión ya
+    // abierta lo lleve a cambiarla en cuanto renueve, sin esperar a que vuelva
+    // a entrar.
+    boolean debeCambiarla = cuenta.credencialAjena();
+
     return SessionResponse.de(
-        tokens.emitir(
-            cuenta.id(), cuenta.roleCodes(), cuenta.mustChangePassword(), ahora.toInstant()),
+        tokens.emitir(cuenta.id(), cuenta.roleCodes(), debeCambiarla, ahora.toInstant()),
         siguiente,
         tokens.vidaEnSegundos(),
-        cuenta.mustChangePassword());
+        debeCambiarla);
   }
 
   /**
