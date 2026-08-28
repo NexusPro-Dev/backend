@@ -11,8 +11,13 @@ import java.util.UUID;
  *
  * <p>{@link Patchable} distingue los <b>tres</b> estados que un `PATCH` necesita: campo ausente,
  * campo presente con nulo explícito, y campo con valor. Aquí la distinción no es teórica: decide
- * dos comportamientos <b>opuestos</b> — la descripción y la vigencia <b>admiten vaciarse</b>, y el
- * nombre <b>no</b>.
+ * dos comportamientos <b>opuestos</b> — la descripción, el icono y la vigencia <b>admiten
+ * vaciarse</b>, y el nombre <b>no</b>.
+ *
+ * <p><b>El icono se corrige aunque el tipo no</b>: es el aspecto del producto y no lo que otorga,
+ * de modo que cambiarlo no reescribe lo comprado. En un producto de tipo bot, en cambio, cualquier
+ * valor distinto de nulo se rechaza con `VAL-013` — `RN-PM-016` no admite excepción por venir en un
+ * `PATCH`.
  *
  * <p><b>No se vuelve a intentar con {@code Optional}</b>: falló en `RF-SP-027` y falló en silencio,
  * porque Jackson entrega {@code Optional.empty()} tanto para el campo ausente como para el nulo
@@ -33,6 +38,7 @@ import java.util.UUID;
 public record UpdateProductRequest(
     @JsonDeserialize(using = PatchableDeserializer.class) Patchable<String> name,
     @JsonDeserialize(using = PatchableDeserializer.class) Patchable<String> description,
+    @JsonDeserialize(using = PatchableDeserializer.class) Patchable<String> icon,
     @JsonDeserialize(using = PatchableDeserializer.class) Patchable<BigDecimal> price,
     @JsonDeserialize(using = PatchableDeserializer.class) Patchable<UUID> currencyId,
     @JsonDeserialize(using = PatchableDeserializer.class) Patchable<Integer> validityDays,
@@ -49,6 +55,7 @@ public record UpdateProductRequest(
   public UpdateProductRequest {
     name = name == null ? Patchable.ausente() : name;
     description = description == null ? Patchable.ausente() : description;
+    icon = icon == null ? Patchable.ausente() : icon;
     price = price == null ? Patchable.ausente() : price;
     currencyId = currencyId == null ? Patchable.ausente() : currencyId;
     validityDays = validityDays == null ? Patchable.ausente() : validityDays;
@@ -66,6 +73,7 @@ public record UpdateProductRequest(
   public boolean informaAlgo() {
     return name.presente()
         || description.presente()
+        || icon.presente()
         || price.presente()
         || currencyId.presente()
         || validityDays.presente();

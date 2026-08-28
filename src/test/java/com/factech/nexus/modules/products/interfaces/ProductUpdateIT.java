@@ -115,6 +115,33 @@ class ProductUpdateIT extends IntegrationTestBase {
   }
 
   @Test
+  @DisplayName("`CA-PM-099` — el icono se corrige y se vacía con nulo explícito")
+  void corregirElIcono() throws Exception {
+    mvc.perform(corregir(producto, "{\"icon\":\"  CROWN  \"}"))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.icon").value("crown"));
+
+    mvc.perform(corregir(producto, "{\"icon\":null}"))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.icon").value(Matchers.nullValue()));
+  }
+
+  @Test
+  @DisplayName("`CA-PM-100` — `RN-PM-016` no admite excepción por venir en un PATCH")
+  void elBotSigueSinPoderLlevarIcono() throws Exception {
+    UUID asesoria = bot("ASESORIA", "Asesoría", null);
+
+    mvc.perform(corregir(asesoria, "{\"icon\":\"crown\"}"))
+        .andExpect(status().isBadRequest())
+        .andExpect(jsonPath("$.errors[0].code").value("VAL-013"))
+        .andExpect(jsonPath("$.errors[0].field").value("icon"));
+
+    // Vaciar el que nunca tuvo no es un cambio, y no es un error: el nulo es el
+    // único valor que un bot puede llevar.
+    mvc.perform(corregir(asesoria, "{\"icon\":null}")).andExpect(status().isOk());
+  }
+
+  @Test
   @DisplayName("`CA-PM-094` — vaciar la vigencia convierte el producto en uno que no caduca")
   void vaciarLaVigencia() throws Exception {
     mvc.perform(corregir(producto, "{\"validityDays\":null}"))
@@ -142,7 +169,7 @@ class ProductUpdateIT extends IntegrationTestBase {
         .andExpect(jsonPath("$.errors[0].code").value("VAL-006"))
         .andExpect(jsonPath("$.errors[0].field").value("code"));
 
-    mvc.perform(corregir(producto, "{\"type\":\"SERVICIO\"}")).andExpect(status().isBadRequest());
+    mvc.perform(corregir(producto, "{\"type\":\"BOT\"}")).andExpect(status().isBadRequest());
     mvc.perform(corregir(producto, "{\"targetMembershipId\":\"" + UUID.randomUUID() + "\"}"))
         .andExpect(status().isBadRequest());
 
@@ -159,7 +186,7 @@ class ProductUpdateIT extends IntegrationTestBase {
             corregir(
                 producto,
                 """
-                {"type":"SERVICIO","code":"OTRO","targetMembershipId":"%s"}
+                {"type":"BOT","code":"OTRO","targetMembershipId":"%s"}
                 """
                     .formatted(UUID.randomUUID())))
         .andExpect(status().isBadRequest())
@@ -169,7 +196,7 @@ class ProductUpdateIT extends IntegrationTestBase {
   @Test
   @DisplayName("`CA-PM-034` — el nombre de OTRO producto vivo se rechaza, y no aplica nada más")
   void nombreDuplicado() throws Exception {
-    servicio("SOPORTE", "Soporte prioritario", "Atención prioritaria.");
+    bot("SOPORTE", "Soporte prioritario", "Atención prioritaria.");
 
     mvc.perform(
             corregir(producto, "{\"name\":\"Soporte prioritario\",\"description\":\"Otra cosa.\"}"))
@@ -464,8 +491,8 @@ class ProductUpdateIT extends IntegrationTestBase {
     return crear(codigo, "UPGRADE_MEMBRESIA", nombre, descripcion, destino, vigencia);
   }
 
-  private UUID servicio(String codigo, String nombre, String descripcion) {
-    return crear(codigo, "SERVICIO", nombre, descripcion, null, null);
+  private UUID bot(String codigo, String nombre, String descripcion) {
+    return crear(codigo, "BOT", nombre, descripcion, null, null);
   }
 
   private UUID crear(

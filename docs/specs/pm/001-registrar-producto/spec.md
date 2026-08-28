@@ -8,7 +8,7 @@
 | Autor | Responsable técnico |
 | Aprobada por | Responsable del proyecto |
 | Fecha de aprobación | 26-08-2026 |
-| Enmendada el | 27-08-2026 — ver §15 |
+| Enmendada el | 28-08-2026 — ver §15 |
 
 ---
 
@@ -18,9 +18,9 @@ Poner en el sistema algo que se puede vender, con su precio, para que exista un 
 
 ## 2. Contexto
 
-Hoy la plataforma no tiene **nada que vender**. La membresía de una persona solo cambia porque un administrador se la asigna (`RF-SP-032`), y no existe ningún sitio donde diga cuánto cuesta subir de nivel ni qué servicios se ofrecen. Este es el primer requerimiento del módulo y el que crea el objeto del que dependerán después la compra, el cobro y las comisiones.
+Hoy la plataforma no tiene **nada que vender**. La membresía de una persona solo cambia porque un administrador se la asigna (`RF-SP-032`), y no existe ningún sitio donde diga cuánto cuesta subir de nivel ni qué bots se ofrecen. Este es el primer requerimiento del módulo y el que crea el objeto del que dependerán después la compra, el cobro y las comisiones.
 
-**Los dos tipos no se mezclan.** Un producto de **upgrade de membresía** da derecho a pasar al nivel que declara; un producto de **servicio del sistema** da derecho a una prestación y no toca el nivel de acceso de nadie. La diferencia no es una etiqueta: decide qué datos son obligatorios y qué se adquiere al comprarlo.
+**Los dos tipos no se mezclan.** Un producto de **upgrade de membresía** da derecho a pasar al nivel que declara; un producto de **bot del sistema** da derecho a una prestación y no toca el nivel de acceso de nadie. La diferencia no es una etiqueta: decide qué datos son obligatorios y qué se adquiere al comprarlo.
 
 ## 3. Actores
 
@@ -33,7 +33,7 @@ Hoy la plataforma no tiene **nada que vender**. La membresía de una persona sol
 ### 4.1 Incluye
 
 - Registrar un producto de tipo **upgrade de membresía**, declarando su membresía destino.
-- Registrar un producto de tipo **servicio del sistema**, sin membresía destino.
+- Registrar un producto de tipo **bot del sistema**, sin membresía destino.
 - Verificar que el destino existe, que la moneda existe y está activa, y que ni el nombre ni el código chocan con los de otro producto.
 - Dejar constancia del alta en la auditoría de cambios.
 - **Registrarlo `INACTIVO`**: existe, y no se ofrece hasta que alguien lo publique con `RF-PM-005`.
@@ -43,14 +43,14 @@ Hoy la plataforma no tiene **nada que vender**. La membresía de una persona sol
 - **Comprar el producto ni cobrarlo.** No hay orden, ni pago, ni pasarela (`requirements/pm.md` §1.4).
 - **Aplicar el upgrade sobre una persona.** Cambiar el nivel de alguien es escribir en la membresía del usuario, que pertenece a `SP` (`RF-SP-032`).
 - **Corregir un producto ya registrado**, que es `RF-PM-004`, ni activarlo o desactivarlo, que es `RF-PM-005`.
-- **Definir qué incluye el servicio que se vende.** Este módulo vende el derecho; el contenido pertenece a Academia o a Señales.
+- **Definir qué incluye el bot que se vende.** Este módulo vende el derecho; el contenido pertenece a Academia o a Señales.
 
 ## 5. Reglas de negocio aplicables
 
 | ID | Regla | Origen |
 |---|---|---|
 | `RN-PM-001` | Dos tipos, y el tipo es inmutable | `requirements/pm.md` §5.1 |
-| `RN-PM-002` | Destino obligatorio en el upgrade, prohibido en el servicio | `requirements/pm.md` §5.1 |
+| `RN-PM-002` | Destino obligatorio en el upgrade, prohibido en el bot | `requirements/pm.md` §5.1 |
 | `RN-PM-003` | El destino es una membresía real de la cadena | `requirements/pm.md` §5.1 |
 | `RN-PM-005` | Nombre único entre los vivos | `requirements/pm.md` §5.1 |
 | `RN-PM-006` | El precio es mayor que cero | `requirements/pm.md` §5.1 |
@@ -59,6 +59,7 @@ Hoy la plataforma no tiene **nada que vender**. La membresía de una persona sol
 | `RN-PM-012` | El producto nace inactivo | `requirements/pm.md` §5.1 |
 | `RN-PM-013` | El código no se libera nunca | `requirements/pm.md` §5.1 |
 | `RN-PM-015` | La vigencia se mide en días y es opcional | `requirements/pm.md` §5.1 |
+| `RN-PM-016` | El icono solo existe en el upgrade | `requirements/pm.md` §5.1 |
 
 ## 6. Datos
 
@@ -67,10 +68,11 @@ Hoy la plataforma no tiene **nada que vender**. La membresía de una persona sol
 | Dato | Obligatorio | Descripción | Restricción de negocio |
 |---|---|---|---|
 | Código | Sí | Referencia corta y estable del producto | Letras mayúsculas, dígitos y guion bajo, empezando por letra. **Único para siempre**, incluso frente a los eliminados, e **inmutable** (`RN-PM-013`) |
-| Tipo | Sí | Upgrade de membresía o servicio del sistema | Uno de los dos, y **no se podrá cambiar después** (`RN-PM-001`) |
+| Tipo | Sí | Upgrade de membresía o bot del sistema | Uno de los dos, y **no se podrá cambiar después** (`RN-PM-001`) |
 | Nombre | Sí | Cómo se llama el producto de cara a quien lo compra | Único entre los productos vivos, sin distinguir mayúsculas ni acentos (`RN-PM-005`) |
 | Descripción | No | Qué se lleva quien lo compra | Con longitud acotada. Opcional al registrar; **sin ella el producto no podrá publicarse** (`RN-PM-014`) |
-| Membresía destino | **Depende del tipo** | Nivel al que lleva el upgrade | **Obligatoria** si el tipo es upgrade, **prohibida** si es servicio (`RN-PM-002`). Debe existir (`RN-PM-003`) |
+| Membresía destino | **Depende del tipo** | Nivel al que lleva el upgrade | **Obligatoria** si el tipo es upgrade, **prohibida** si es bot (`RN-PM-002`). Debe existir (`RN-PM-003`) |
+| Icono | No | **Nombre** del icono con el que el frontend pinta el producto, no una imagen | Minúsculas, dígitos y guion medio, empezando por letra, hasta 50 caracteres. **Solo en el upgrade**, y opcional incluso ahí (`RN-PM-016`) |
 | Precio | Sí | Cuánto cuesta | Mayor que cero (`RN-PM-006`), con los decimales que admita su moneda (`RN-PM-007`) |
 | Moneda | Sí | En qué moneda se expresa el precio | Debe existir y estar **activa** (`RN-PM-008`) |
 | Vigencia | No | Cuántos días dura lo que el producto otorga, contados desde la compra | Entero mayor que cero. **Sin ella, lo adquirido no caduca** (`RN-PM-015`) |
@@ -108,9 +110,9 @@ Hoy la plataforma no tiene **nada que vender**. La membresía de una persona sol
 
 ## 9. Flujos alternativos
 
-### FA-001 — Producto de servicio
+### FA-001 — Producto de bot
 
-**Cuándo ocurre:** el tipo es servicio del sistema.
+**Cuándo ocurre:** el tipo es bot del sistema.
 
 1. El sistema **exige que no llegue** membresía destino.
 2. Se omite el paso 4 del flujo principal: no hay destino que validar.
@@ -160,23 +162,28 @@ Hoy la plataforma no tiene **nada que vender**. La membresía de una persona sol
 | `VAL-005` | Decimales del precio según su moneda | El precio no admite más decimales que los de su moneda. |
 | `VAL-006` | Moneda obligatoria | La moneda es obligatoria. |
 | `VAL-007` | Destino obligatorio en el upgrade | Un producto de upgrade debe declarar su membresía destino. |
-| `VAL-008` | Destino prohibido en el servicio | Un producto de servicio no puede declarar membresía destino. |
+| `VAL-008` | Destino prohibido en el bot | Un producto de bot no puede declarar membresía destino. |
 | `VAL-009` | Código obligatorio | El código del producto es obligatorio. |
 | `VAL-010` | Formato del código | El código solo admite letras mayúsculas, dígitos y guion bajo, y debe empezar por letra. |
 | `VAL-011` | Vigencia mayor que cero | La vigencia debe ser un número de días mayor que cero. |
+| `VAL-012` | Formato del icono | El icono solo admite minúsculas, dígitos y guion medio, debe empezar por letra y no puede exceder 50 caracteres. |
+| `VAL-013` | Icono prohibido en el bot | Un producto de tipo bot no puede declarar icono. |
 
 ## 12. Criterios de aceptación
 
 | ID | Criterio |
 |---|---|
 | `CA-PM-001` | El sistema registra un producto de upgrade con su membresía destino y devuelve el destino resuelto con su nivel |
-| `CA-PM-002` | El sistema registra un producto de servicio sin membresía destino |
+| `CA-PM-002` | El sistema registra un producto de bot sin membresía destino |
 | `CA-PM-003` | El sistema rechaza un upgrade **sin** membresía destino |
-| `CA-PM-004` | El sistema rechaza un servicio **con** membresía destino |
+| `CA-PM-004` | El sistema rechaza un bot **con** membresía destino |
 | `CA-PM-005` | El sistema rechaza un precio de cero o negativo |
 | `CA-PM-006` | El sistema rechaza un precio con más decimales de los que admite su moneda, y acepta el mismo importe con los decimales correctos |
 | `CA-PM-007` | El sistema rechaza una moneda inactiva, y lo distingue de una moneda inexistente |
 | `CA-PM-008` | El sistema rechaza un nombre que solo difiere de otro existente en mayúsculas o acentos |
+| `CA-PM-096` | El sistema registra un upgrade con su icono, **normalizado a minúsculas** |
+| `CA-PM-097` | El sistema rechaza un producto de tipo bot **con** icono |
+| `CA-PM-098` | El sistema registra un upgrade **sin** icono, que llega nulo y presente |
 | ~~`CA-PM-009`~~ | **Retirado el 26-08-2026**: el producto nace inactivo, de modo que el alta no puede chocar con un upgrade activo. El criterio vive en `RF-PM-005` con número propio. El identificador no se reutiliza |
 | `CA-PM-010` | El sistema rechaza un upgrade cuya membresía destino no existe, y lo hace como dato inválido y no como recurso no encontrado |
 | `CA-PM-011` | El sistema registra en la auditoría de cambios un evento de creación con el estado inicial completo del producto |
@@ -195,7 +202,7 @@ Hoy la plataforma no tiene **nada que vender**. La membresía de una persona sol
 - **Dos altas simultáneas del mismo upgrade:** dos administradores registran a la vez un upgrade hacia el mismo destino. Una debe quedar y la otra ser rechazada; que las dos queden activas es el desenlace que `RN-PM-004` existe para impedir.
 - **Dos altas simultáneas con el mismo nombre:** mismo caso sobre la unicidad de nombre.
 - **La membresía destino se elimina mientras se registra:** las membresías no se eliminan (`RN-SP-008`), de modo que este caso no existe. Se escribe para que nadie lo busque.
-- **Producto de servicio con nombre de un upgrade retirado:** el nombre de un producto eliminado **queda libre**, porque la unicidad es entre los vivos.
+- **Producto de bot con nombre de un upgrade retirado:** el nombre de un producto eliminado **queda libre**, porque la unicidad es entre los vivos.
 
 ## 14. Preguntas abiertas
 
@@ -218,3 +225,4 @@ Ninguna. Las cinco se resolvieron el 26-08-2026, antes de aprobar la especificac
 | 0.2.0 | 26-08-2026 | **Aprobada.** Las cinco preguntas abiertas se resuelven y la spec cruza su primera compuerta. Entran tres reglas nuevas al documento del módulo: `RN-PM-012` —el producto nace inactivo—, `RN-PM-013` —el código no se libera nunca— y `RN-PM-014` —no se publica lo que no se explica—. El **código** aparece en §6.1 y trae `VAL-009`, `VAL-010` y `EX-005`. Se **retira `EX-004`** y con él `CA-PM-009`: registrar ya no puede chocar con un upgrade activo, porque el producto nace inactivo, y esa excepción pasa a `RF-PM-005` con identificadores propios — los retirados no se reutilizan. Cuatro criterios nuevos, `CA-PM-068` a `CA-PM-071`. | Responsable del proyecto |
 | 0.1.0 | 26-08-2026 | Redacción inicial, con cinco preguntas abiertas. | Responsable técnico |
 | 0.3.0 | 27-08-2026 | **El producto gana vigencia de adquisición** (`RN-PM-015`), medida en días y **opcional**: sin ella, lo adquirido no caduca. Entra como dato de entrada, sale en la respuesta, y trae `VAL-011`, `CA-PM-092` y `CA-PM-093`. La spec vuelve a su compuerta y se reaprueba el mismo día (Art. I.7); no había código escrito, de modo que el cambio costó una edición y no una migración. | Responsable del proyecto |
+| 0.4.0 | 28-08-2026 | **El tipo `SERVICIO` pasa a llamarse `BOT`, y el upgrade gana icono** (`RN-PM-016`), por decisión del responsable del proyecto. El renombrado **no cambia la semántica** del tipo —sigue siendo el producto que no toca el nivel de acceso de nadie— y fue posible porque todavía no existe ninguna tabla de compras que apunte a un producto. El icono es un **identificador y no una imagen**, es **opcional** y **solo el upgrade puede llevarlo**: `RN-PM-016` tiene una sola mitad, al revés que `RN-PM-002`, y lo que rechaza es el icono de más. Entran `VAL-012`, `VAL-013` y `CA-PM-096` a `CA-PM-098`, y la tabla de §6.1 gana la fila del icono. | Responsable técnico |

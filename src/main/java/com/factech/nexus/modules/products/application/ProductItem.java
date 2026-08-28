@@ -25,9 +25,9 @@ import java.util.UUID;
  *   <li><b>{@code updatedAt}</b> — no responde ninguna pregunta que se le haga a una lista.
  * </ul>
  *
- * <p>{@code JsonInclude.ALWAYS} no es decorativo: sin él, el destino de un servicio y la vigencia
- * de un producto que no caduca llegarían <b>ausentes</b> en lugar de {@code null}, y un campo que
- * falta es indistinguible de uno que el cliente no conoce.
+ * <p>{@code JsonInclude.ALWAYS} no es decorativo: sin él, el destino de un bot y la vigencia de un
+ * producto que no caduca llegarían <b>ausentes</b> en lugar de {@code null}, y un campo que falta
+ * es indistinguible de uno que el cliente no conoce.
  */
 @JsonInclude(JsonInclude.Include.ALWAYS)
 public record ProductItem(
@@ -36,6 +36,7 @@ public record ProductItem(
     ProductType type,
     String name,
     String description,
+    String icon,
     ProductResponse.MembershipRef targetMembership,
     BigDecimal price,
     ProductResponse.CurrencyRef currency,
@@ -58,6 +59,7 @@ public record ProductItem(
         ProductType.valueOf(fila.type()),
         fila.name(),
         fila.description(),
+        fila.icon(),
         fila.targetMembershipId() == null
             ? null
             : new ProductResponse.MembershipRef(

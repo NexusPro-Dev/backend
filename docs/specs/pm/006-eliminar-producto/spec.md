@@ -17,7 +17,7 @@ Retirar del catálogo lo que fue un error o ya no existe, sin perder la constanc
 
 ## 2. Contexto
 
-Desactivar sirve para dejar de vender algo temporalmente (`RF-PM-005`). Eliminar es otra cosa: es decir que ese producto **no debió estar ahí** o que ya no forma parte de la oferta de la empresa. Un producto duplicado por error, un servicio que se dejó de prestar, un upgrade creado con el destino equivocado.
+Desactivar sirve para dejar de vender algo temporalmente (`RF-PM-005`). Eliminar es otra cosa: es decir que ese producto **no debió estar ahí** o que ya no forma parte de la oferta de la empresa. Un producto duplicado por error, un bot que se dejó de prestar, un upgrade creado con el destino equivocado.
 
 **La fila no desaparece** (`RN-PM-010`). El día que existan compras, cada una tendrá que poder decir qué se compró y a qué precio, y eso es imposible si el producto se borró de verdad. Por eso el retiro es lógico y **exige motivo** (Art. V.13): el motivo, con el estado completo de lo retirado, viaja al registro de eliminación.
 

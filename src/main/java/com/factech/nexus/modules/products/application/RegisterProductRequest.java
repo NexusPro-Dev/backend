@@ -24,6 +24,10 @@ import java.util.UUID;
  * distingue si sobró el destino o si faltó — y `VAL-007` y `VAL-008` son dos mensajes distintos. La
  * comprueba el dominio.
  *
+ * <p><b>Y `RN-PM-016` tampoco</b>, por lo mismo: que el icono solo valga en el upgrade depende del
+ * tipo, no del icono. Aquí solo se acota su longitud, que es cierta para cualquier tipo; la forma
+ * del identificador y la condición cruzada las comprueba el dominio.
+ *
  * <p><b>La escala del precio tampoco.</b> No la fija este DTO sino la moneda (`RN-PM-007`), de modo
  * que aquí solo se acota lo que es cierto para cualquiera: hasta cuatro decimales, que es lo que la
  * columna admite. Los de verdad los decide el caso de uso.
@@ -45,6 +49,7 @@ public record RegisterProductRequest(
         String name,
     @Size(max = 1000, message = "VAL-003: La descripción no puede exceder 1000 caracteres.")
         String description,
+    @Size(max = 50, message = "VAL-012: El icono no puede exceder 50 caracteres.") String icon,
     UUID targetMembershipId,
     @NotNull(message = "VAL-004: El precio es obligatorio.")
         @DecimalMin(
@@ -71,10 +76,11 @@ public record RegisterProductRequest(
     code = code == null ? null : code.trim();
     name = name == null ? null : name.trim();
     description = description == null ? null : description.trim();
+    icon = icon == null ? null : icon.trim();
   }
 
   public RegisterProductCommand toCommand() {
     return new RegisterProductCommand(
-        code, type, name, description, targetMembershipId, price, currencyId, validityDays);
+        code, type, name, description, icon, targetMembershipId, price, currencyId, validityDays);
   }
 }

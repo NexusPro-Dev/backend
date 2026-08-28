@@ -17,7 +17,7 @@ Decidir si un producto se ofrece, sin borrarlo.
 
 ## 2. Contexto
 
-Es la operación del día a día del catálogo: se deja de vender algo por una temporada, se prepara una oferta nueva antes de publicarla, se retira un servicio mientras se rehace. Sin ella la única forma de dejar de ofrecer un producto sería eliminarlo, y eliminar es definitivo.
+Es la operación del día a día del catálogo: se deja de vender algo por una temporada, se prepara una oferta nueva antes de publicarla, se retira un bot mientras se rehace. Sin ella la única forma de dejar de ofrecer un producto sería eliminarlo, y eliminar es definitivo.
 
 **Desactivar no toca nada de lo ya vendido.** El producto sigue existiendo, sigue apareciendo en el catálogo administrativo y sigue pudiendo explicarse; lo único que cambia es que deja de ofrecerse (`RN-PM-009`).
 
@@ -148,7 +148,7 @@ Es la operación del día a día del catálogo: se deja de vender algo por una t
 
 - **Dos activaciones simultáneas hacia el mismo destino:** dos upgrades inactivos hacia el mismo nivel se activan a la vez. Uno debe quedar y el otro ser rechazado; que queden los dos es exactamente el desenlace que `RN-PM-004` existe para impedir, y no basta con comprobarlo antes de escribir.
 - **Desactivar y activar en carrera:** uno desactiva el upgrade que ocupa el destino mientras otro activa el suyo. Cualquiera de los dos desenlaces es correcto; lo que no puede quedar es ninguno activo por un rechazo mal ordenado.
-- **Activar un producto de servicio:** no comprueba destino, porque no lo tiene. Debe probarse que la comprobación **no se ejecuta**, no solo que no falla.
+- **Activar un producto de bot:** no comprueba destino, porque no lo tiene. Debe probarse que la comprobación **no se ejecuta**, no solo que no falla.
 - **Desactivar el único upgrade hacia el nivel más alto:** se admite. El sistema no exige que todo nivel tenga upgrade: que no se pueda comprar el ascenso a un nivel es una decisión comercial legítima.
 
 ## 14. Preguntas abiertas

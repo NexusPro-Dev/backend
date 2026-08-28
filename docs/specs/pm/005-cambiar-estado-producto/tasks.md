@@ -23,7 +23,7 @@
 | `T-06` | Auditoría: evento `UPDATE` con `status` y su valor anterior; **ninguno** si no hubo cambio | `T-05` | `audit_change_log` no crece con una petición que no cambia nada (`CA-PM-044`) | Hecha |
 | `T-07` | `interfaces`: `PATCH /api/v1/products/{id}/status` con `products:update` | `T-05`, `T-06` | Recurso propio, no un campo del `PATCH` general | Hecha |
 | `T-08` | Pruebas de API de los criterios de `spec.md` §12 | `T-07` | Cubre `CA-PM-040` a `CA-PM-047`, `CA-PM-072`, `CA-PM-073` y `CA-PM-085` | Hecha |
-| `T-09` | Prueba de que en un **servicio** la comprobación del destino **no se ejecuta** | `T-07` | Número de sentencias: se comprueba la ausencia, no solo que no falle | Hecha |
+| `T-09` | Prueba de que en un **bot** la comprobación del destino **no se ejecuta** | `T-07` | Número de sentencias: se comprueba la ausencia, no solo que no falle | Hecha |
 | `T-10` | **Prueba concurrente: dos activaciones simultáneas hacia el mismo destino** | `T-07` | **Exactamente uno** queda activo y el otro recibe `409`. No basta con que hubiera un `409`: hay que contar cuántos quedaron activos | Hecha |
 | `T-11` | Prueba concurrente: desactivar el que ocupa el destino mientras otro se activa | `T-07` | Cualquiera de los dos desenlaces vale; lo que no vale es que no quede **ninguno** activo | Hecha |
 | `T-12` | Documentación OpenAPI del endpoint | `T-08` | El contrato declara el `200`, el `400` y el `409` | Hecha |
@@ -83,6 +83,6 @@ Es la prueba de que las dos piezas hacen cosas distintas: **la restricción deci
 | # | Qué se hizo distinto | Por qué |
 |---|---|---|
 | 1 | La respuesta es `ProductDetailResponse`, la misma que devuelve `RF-PM-003` | `plan.md` §4 dice «devuelve `200` con el producto» sin fijar la forma. Sale de **una** consulta —el destino y la moneda resueltos en la misma sentencia— en lugar de dos llamadas a los puertos de `SP`, y el mismo recurso se lee igual por donde se pida |
-| 2 | `T-09` se comprueba como **diferencia** entre activar un servicio y activar un upgrade, no como número absoluto | Un número absoluto obligaría a reescribir la prueba cada vez que cambie cuánto cuesta el resto de la operación, y lo que se quiere afirmar es solo que **la comprobación del destino no se ejecuta** cuando no hay destino. Se añadió además la simétrica: desactivar cuesta lo mismo en los dos tipos |
+| 2 | `T-09` se comprueba como **diferencia** entre activar un bot y activar un upgrade, no como número absoluto | Un número absoluto obligaría a reescribir la prueba cada vez que cambie cuánto cuesta el resto de la operación, y lo que se quiere afirmar es solo que **la comprobación del destino no se ejecuta** cuando no hay destino. Se añadió además la simétrica: desactivar cuesta lo mismo en los dos tipos |
 | 3 | La traducción de `uq_products_upgrade_target` **no nombra** al producto que ocupa el destino | Es inevitable y está acotado: por ese camino se llega solo en la **carrera**, donde la comprobación previa no vio a nadie. Averiguarlo entonces exigiría una consulta dentro del fallo. El mensaje accionable lo da el camino normal |
 | 4 | Una petición **sin cambio** no exige descripción | Si ya está activo, pedir `ACTIVO` no publica nada. Exigirla ahí rechazaría una petición que no cambia el estado, y `FA-001` dice que eso responde `200` |

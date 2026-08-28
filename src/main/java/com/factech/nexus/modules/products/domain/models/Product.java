@@ -44,6 +44,14 @@ public class Product {
    */
   private static final Pattern PATRON_CODIGO = Pattern.compile("^[A-Z][A-Z0-9_]*$");
 
+  /**
+   * Kebab-case en minúsculas, empezando por letra (`VAL-012`).
+   *
+   * <p>Es como nombran sus iconos los sets al uso —{@code arrow-up-circle}, {@code crown}—, y el
+   * backend no conoce ninguno: guarda el nombre y el frontend lo traduce al suyo.
+   */
+  private static final Pattern PATRON_ICONO = Pattern.compile("^[a-z][a-z0-9-]*$");
+
   @Id
   @Column(name = "id", nullable = false, updatable = false)
   private UUID id;
@@ -60,6 +68,19 @@ public class Product {
 
   @Column(name = "description")
   private String description;
+
+  /**
+   * El icono con el que el frontend pinta el producto (`RN-PM-016`).
+   *
+   * <p><b>Es un identificador, no una imagen.</b> El backend guarda el nombre y no sabe pintarlo,
+   * igual que con {@code memberships.color}: el sistema no almacena binarios, y dónde vivirían es
+   * una decisión que este campo no necesita abrir.
+   *
+   * <p><b>Solo existe en el upgrade, y ni siquiera ahí es obligatorio.</b> Nulo significa «sin
+   * icono» y es un estado normal; en un {@link ProductType#BOT} el nulo es el único valor posible.
+   */
+  @Column(name = "icon", length = 50)
+  private String icon;
 
   /**
    * Identificador y no una asociación {@code @ManyToOne}: apunta a una tabla de otro módulo, y una
@@ -103,9 +124,12 @@ public class Product {
    * verificable.
    *
    * <p><b>La condición cruzada de `RN-PM-002` se comprueba aquí, en los dos sentidos</b>, y no solo
-   * en el esquema: un upgrade sin destino es inservible, y un servicio <b>con</b> destino promete
-   * un cambio de nivel que nadie va a aplicar. La segunda mitad es la que se olvida, y es la
-   * peligrosa — no falla, promete.
+   * en el esquema: un upgrade sin destino es inservible, y un bot <b>con</b> destino promete un
+   * cambio de nivel que nadie va a aplicar. La segunda mitad es la que se olvida, y es la peligrosa
+   * — no falla, promete.
+   *
+   * <p><b>`RN-PM-016` se comprueba igual pero tiene una sola mitad</b>: el icono sobra en un bot y
+   * no falta nunca en un upgrade.
    *
    * @param ahora instante del alta, inyectado para que la prueba pueda fijarlo
    */
@@ -115,6 +139,7 @@ public class Product {
       ProductType type,
       String name,
       String description,
+      String icon,
       UUID targetMembershipId,
       BigDecimal price,
       UUID currencyId,
@@ -128,6 +153,8 @@ public class Product {
     producto.name = recortar(name);
     producto.description = recortar(description);
     verificarTipoYDestino(type, targetMembershipId);
+    producto.icon = normalizarIcono(icon);
+    verificarTipoEIcono(type, producto.icon);
     producto.targetMembershipId = targetMembershipId;
     producto.price = price;
     producto.currencyId = currencyId;
@@ -198,6 +225,7 @@ public class Product {
   public Map<String, Object> update(
       Patchable<String> nuevoNombre,
       Patchable<String> nuevaDescripcion,
+      Patchable<String> nuevoIcono,
       Patchable<BigDecimal> nuevoPrecio,
       Patchable<UUID> nuevaMoneda,
       Patchable<Integer> nuevaVigencia,
@@ -217,6 +245,17 @@ public class Product {
       if (!java.util.Objects.equals(valor, description)) {
         cambios.put("description", Map.of("before", texto(description), "after", texto(valor)));
         description = valor;
+      }
+    }
+    if (nuevoIcono.presente()) {
+      // El nulo explícito ES una orden: vacía el icono, como en la descripción.
+      // Por eso se normaliza y se comprueba ANTES de mirar si cambió — un
+      // `" "` que llega como icono es un vaciado, no un valor con formato malo.
+      String valor = normalizarIcono(nuevoIcono.valor());
+      verificarTipoEIcono(type, valor);
+      if (!java.util.Objects.equals(valor, icon)) {
+        cambios.put("icon", Map.of("before", texto(icon), "after", texto(valor)));
+        icon = valor;
       }
     }
     if (nuevoPrecio.presente() && nuevoPrecio.valor() != null) {
@@ -377,10 +416,64 @@ public class Product {
           "VAL-007", mensaje, List.of(new FieldError("targetMembershipId", "VAL-007", mensaje)));
     }
     if (!tipo.exigeDestino() && destino != null) {
-      String mensaje = "Un producto de servicio no puede declarar membresía destino.";
+      String mensaje = "Un producto de tipo bot no puede declarar membresía destino.";
       throw new ValidationException(
           "VAL-008", mensaje, List.of(new FieldError("targetMembershipId", "VAL-008", mensaje)));
     }
+  }
+
+  /**
+   * `RN-PM-016`: el icono solo existe en el upgrade.
+   *
+   * <p><b>Tiene una sola mitad</b>, y ahí se aparta de {@link #verificarTipoYDestino}: un upgrade
+   * sin icono es un producto normal, de modo que no hay nada que exigir. Lo que se rechaza es el
+   * icono <b>de más</b> — un dato que el frontend pintaría en un sitio donde nadie ha decidido que
+   * vaya un icono.
+   *
+   * <p><b>Es pública por lo mismo que su hermana</b>: el caso de uso del alta la ejecuta antes de
+   * buscar el destino en el catálogo de `SP`, para que un icono sobrante no se reporte como «la
+   * membresía no existe».
+   *
+   * <p>El {@code CHECK} del esquema dice lo mismo, y esta comprobación no es redundante: la
+   * restricción produciría un fallo de integridad —un {@code 500}— donde corresponde un {@code 400}
+   * que nombre el campo.
+   *
+   * @param icono ya normalizado; el nulo es siempre válido
+   */
+  public static void verificarTipoEIcono(ProductType tipo, String icono) {
+    if (icono != null && !tipo.admiteIcono()) {
+      String mensaje = "Un producto de tipo bot no puede declarar icono.";
+      throw new ValidationException(
+          "VAL-013", mensaje, List.of(new FieldError("icon", "VAL-013", mensaje)));
+    }
+  }
+
+  /**
+   * Recorta, pasa a minúsculas y comprueba la forma (`VAL-012`).
+   *
+   * <p><b>El vacío se convierte en nulo y no se rechaza</b>, igual que en {@link #recortar}: quien
+   * envía {@code ""} está vaciando el icono, y tratarlo como un formato inválido obligaría a
+   * distinguir dos formas de borrar lo mismo.
+   *
+   * <p>Se guarda ya normalizado por lo mismo que el correo en `RF-SP-024`: el dato almacenado es el
+   * comparable, y el {@code CHECK} del esquema puede ser una comprobación de forma corriente.
+   */
+  private static String normalizarIcono(String valor) {
+    if (valor == null) {
+      return null;
+    }
+    String normalizado = valor.trim().toLowerCase(Locale.ROOT);
+    if (normalizado.isEmpty()) {
+      return null;
+    }
+    if (normalizado.length() > 50 || !PATRON_ICONO.matcher(normalizado).matches()) {
+      String mensaje =
+          "El icono solo admite minúsculas, dígitos y guion medio, debe empezar por letra y no"
+              + " puede exceder 50 caracteres.";
+      throw new ValidationException(
+          "VAL-012", mensaje, List.of(new FieldError("icon", "VAL-012", mensaje)));
+    }
+    return normalizado;
   }
 
   /**
@@ -415,6 +508,10 @@ public class Product {
 
   public String getDescription() {
     return description;
+  }
+
+  public String getIcon() {
+    return icon;
   }
 
   public UUID getTargetMembershipId() {

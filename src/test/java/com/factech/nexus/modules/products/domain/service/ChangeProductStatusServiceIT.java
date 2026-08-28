@@ -20,8 +20,8 @@ import org.springframework.jdbc.core.JdbcTemplate;
  * Lo que el cambio de estado hace <b>y lo que no ejecuta</b> (`RF-PM-005` · `T-06` y `T-09`).
  *
  * <p><b>`T-09` pide comprobar una ausencia</b>, y una ausencia no se ve en la respuesta: activar un
- * servicio y activar un upgrade devuelven el mismo `200`, tanto si la comprobación del destino se
- * saltó como si se ejecutó y no encontró nada. La diferencia solo aparece contando sentencias.
+ * bot y activar un upgrade devuelven el mismo `200`, tanto si la comprobación del destino se saltó
+ * como si se ejecutó y no encontró nada. La diferencia solo aparece contando sentencias.
  */
 class ChangeProductStatusServiceIT extends IntegrationTestBase {
 
@@ -55,13 +55,13 @@ class ChangeProductStatusServiceIT extends IntegrationTestBase {
   }
 
   @Test
-  @DisplayName("`T-09` — activar un UPGRADE cuesta una sentencia MÁS que activar un servicio")
+  @DisplayName("`T-09` — activar un UPGRADE cuesta una sentencia MÁS que activar un bot")
   void elUpgradeCuestaLaComprobacionDelDestino() {
-    UUID servicio = producto("SOPORTE", "SERVICIO", "Soporte", "Atención prioritaria.", null);
+    UUID bot = producto("SOPORTE", "BOT", "Soporte", "Atención prioritaria.", null);
     UUID upgrade = producto("UPGRADE_ORO", "UPGRADE_MEMBRESIA", "Ascenso", "Sube de nivel.", oro);
 
     estadisticas.clear();
-    service.change(servicio, new ChangeProductStatusRequest("ACTIVO"));
+    service.change(bot, new ChangeProductStatusRequest("ACTIVO"));
     long delServicio = estadisticas.getPrepareStatementCount();
 
     estadisticas.clear();
@@ -72,20 +72,20 @@ class ChangeProductStatusServiceIT extends IntegrationTestBase {
     // no como número absoluto a propósito: así la prueba sigue diciendo lo
     // mismo si algún día cambia cuánto cuesta el resto de la operación.
     assertThat(delUpgrade - delServicio)
-        .as("activar un servicio no debe consultar quién ocupa un destino que no tiene")
+        .as("activar un bot no debe consultar quién ocupa un destino que no tiene")
         .isEqualTo(1);
   }
 
   @Test
-  @DisplayName("`T-09` — y desactivar un upgrade cuesta lo mismo que desactivar un servicio")
+  @DisplayName("`T-09` — y desactivar un upgrade cuesta lo mismo que desactivar un bot")
   void desactivarNoComprobaraNunca() {
-    UUID servicio = producto("SOPORTE", "SERVICIO", "Soporte", "Atención prioritaria.", null);
+    UUID bot = producto("SOPORTE", "BOT", "Soporte", "Atención prioritaria.", null);
     UUID upgrade = producto("UPGRADE_ORO", "UPGRADE_MEMBRESIA", "Ascenso", "Sube de nivel.", oro);
-    service.change(servicio, new ChangeProductStatusRequest("ACTIVO"));
+    service.change(bot, new ChangeProductStatusRequest("ACTIVO"));
     service.change(upgrade, new ChangeProductStatusRequest("ACTIVO"));
 
     estadisticas.clear();
-    service.change(servicio, new ChangeProductStatusRequest("INACTIVO"));
+    service.change(bot, new ChangeProductStatusRequest("INACTIVO"));
     long delServicio = estadisticas.getPrepareStatementCount();
 
     estadisticas.clear();
@@ -101,11 +101,11 @@ class ChangeProductStatusServiceIT extends IntegrationTestBase {
   @Test
   @DisplayName("`CA-PM-044` — la petición sin cambio no escribe: ni la fila ni el registro")
   void sinCambioNoEscribeNada() {
-    UUID servicio = producto("SOPORTE", "SERVICIO", "Soporte", "Atención prioritaria.", null);
+    UUID bot = producto("SOPORTE", "BOT", "Soporte", "Atención prioritaria.", null);
     long eventosAntes = eventos();
 
     estadisticas.clear();
-    service.change(servicio, new ChangeProductStatusRequest("INACTIVO"));
+    service.change(bot, new ChangeProductStatusRequest("INACTIVO"));
 
     assertThat(eventos()).as("`audit_change_log` no debía crecer").isEqualTo(eventosAntes);
     // Cero escrituras: sin `UPDATE` y sin `INSERT`. Un `updatedAt` movido por
@@ -117,10 +117,10 @@ class ChangeProductStatusServiceIT extends IntegrationTestBase {
   @Test
   @DisplayName("el cambio real sí escribe una fila y un evento, y ni uno más")
   void elCambioRealEscribeUnaVez() {
-    UUID servicio = producto("SOPORTE", "SERVICIO", "Soporte", "Atención prioritaria.", null);
+    UUID bot = producto("SOPORTE", "BOT", "Soporte", "Atención prioritaria.", null);
 
     estadisticas.clear();
-    service.change(servicio, new ChangeProductStatusRequest("ACTIVO"));
+    service.change(bot, new ChangeProductStatusRequest("ACTIVO"));
 
     assertThat(estadisticas.getEntityUpdateCount()).isEqualTo(1);
     assertThat(estadisticas.getEntityInsertCount()).as("el evento de auditoría").isEqualTo(1);
