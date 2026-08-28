@@ -5,11 +5,11 @@
 | Módulo | `SP` — Sistema Principal |
 | Paquete | `modules/system` |
 | Prefijos de permiso | `roles:`, `permissions:`, `audit:`, `memberships:`, `currencies:`, `countries:`, `users:` |
-| Versión | 1.26.0 |
+| Versión | 1.27.0 |
 | Estado | **Aprobado** |
 | Responsable | Bonilla Diaz William Steven |
 | Fecha de creación | 20-08-2026 |
-| Última actualización | 27-08-2026 |
+| Última actualización | 28-08-2026 |
 | Fecha de aprobación | 20-08-2026 |
 
 !!! info "Qué va en este documento"
@@ -918,7 +918,7 @@ Se declara `varchar(6)` y no `char(6)` porque `char(n)` **rellena con espacios**
 | Campo | Tipo | PK | FK | Nullable | Default | Entidad relacional |
 |---|---|---|---|---|---|---|
 | `id` | `uuid` | Sí | No | No | — | — |
-| `code` | `char(2)` | No | No | No | — | — |
+| `code` | `char(3)` | No | No | No | — | — |
 | `name` | `varchar(100)` | No | No | No | — | — |
 | `is_active` | `boolean` | No | No | No | `true` | — |
 | `created_at` | `timestamptz` | No | No | No | `now()` | — |
@@ -926,7 +926,7 @@ Se declara `varchar(6)` y no `char(6)` porque `char(n)` **rellena con espacios**
 
 `updated_at` se incorporó el 21-08-2026 al aprobar el `plan.md` de `RF-SP-020`: el Art. V.7 lo obliga en toda tabla de negocio, y aquí además hay algo que modificar —`RF-SP-022` cambia `is_active`—, de modo que sin la columna no habría forma de saber cuándo se retiró un país de la circulación salvo recorriendo la auditoría.
 
-`code` sigue ISO 3166-1 alfa-2 (`CO`, `US`). No se edita ni elimina (`RN-SP-009`); lo único modificable es `is_active`, a través de `RF-SP-022`. El catálogo **no se siembra** con la lista internacional completa: los países se dan de alta por la API a medida que la plataforma llega a ellos.
+`code` sigue ISO 3166-1 alfa-3 (`COL`, `USA`). No se edita ni elimina (`RN-SP-009`); lo único modificable es `is_active`, a través de `RF-SP-022`. El catálogo **no se siembra** con la lista internacional completa: los países se dan de alta por la API a medida que la plataforma llega a ellos.
 
 ### 10.7 Campos principales — `user_supervisors`
 
@@ -990,7 +990,7 @@ Declaradas en la base de datos, no solo en Java (Art. V.6):
 | `ck_currencies_default_active` | `currencies(NOT is_default OR is_active)` — dar de baja la moneda con la que opera el sistema dejaría los importes sin referencia válida. Hace que `RF-SP-023` nazca con la mitad de su trabajo hecho, y protege también contra una migración descuidada |
 | `uq_countries_code` | `countries(code)` |
 | `uq_countries_name` | **Índice único funcional**: `countries (f_unaccent(lower(name)))` — no sobre `name` literal. `RN-SP-009` no admite edición, de modo que `Panamá` y `Panama` conviviendo serían dos opciones indistinguibles **para siempre**. Es la asimetría deliberada con `uq_roles_name`, que sí es literal porque allí `RF-SP-004` permite renombrar |
-| `ck_countries_code_format` | `countries(code ~ '^[A-Z]{2}$')` — `char(2)` acota la longitud pero admitiría `1`, `-` o un espacio de relleno |
+| `ck_countries_code_format` | `countries(code ~ '^[A-Z]{3}$')` — `char(3)` acota la longitud pero admitiría `1`, `-` o un espacio de relleno. **Tres letras y no dos** desde la v1.27.0: el código es ISO 3166-1 alfa-3, como el de una moneda lo es de ISO 4217 |
 | `ck_countries_name_not_blank` | `countries(length(btrim(name)) > 0)` |
 | `uq_users_username` | **Índice único funcional total**: `users (lower(username))` — `RN-SP-016`. Va sobre la forma en minúsculas para que `JPerez` y `jperez` no puedan coexistir, y es **total** y no parcial porque eliminar a alguien **no libera** su nombre de usuario. Es la asimetría deliberada con `uq_roles_code`, que sí es parcial. **Obliga a `RF-SP-034` a comparar el nombre de usuario sin distinguir mayúsculas** |
 | `uq_users_email` | `UNIQUE (email)` — `RN-SP-016`. Restricción corriente y no índice funcional, porque el correo se persiste ya normalizado. Total por el mismo motivo que la anterior |
@@ -1161,3 +1161,4 @@ La crea `RF-SP-024` (`V19__create_user_roles.sql`), porque el alta ya escribe as
 | 1.24.0 | 26-08-2026 | **§6.1 se sincroniza con la matriz de trazabilidad.** Las cuarenta y dos filas figuraban en `Pendiente` —el estado de «registrado, sin `spec.md`»— cuando los cuarenta y dos tienen tripleta aprobada y endpoint funcionando desde el 26-08-2026: pasan a **`En desarrollo`**. La columna llevaba desde el 20-08-2026 sin tocarse, de modo que el catálogo del módulo afirmaba que no existía nada de lo que ya estaba construido. Se añade además de dónde sale ese dato: la **autoridad es [`requirements.md` §4](../requirements.md#4-matriz-de-trazabilidad)** y aquí se copia, para que la próxima divergencia se resuelva sin tener que averiguar cuál de las dos tablas manda. Ninguno pasa a `Implementado`: el Art. XVI exige Pull Request aprobado e integrado y no hay ninguno. | Responsable técnico |
 | 1.25.0 | 26-08-2026 | **La membresía gana su color** (`RN-SP-024`), por decisión del responsable del proyecto: seis dígitos **hexadecimales sin `#`**, normalizados a mayúsculas, con los que el frontend pinta el nivel. §10.4 incorpora la columna `color` —`varchar(6)` y no `char(6)`, porque `char(n)` rellena con espacios y dejaría toda la comprobación en manos de la expresión regular— y §10.8 sus dos restricciones: `ck_memberships_color_format` y `uq_memberships_color`. Es **obligatorio**, porque un color opcional obliga al navegador a inventarse uno de reserva, que es exactamente la decisión que este campo saca del frontend; y **único**, porque dos niveles del mismo color son indistinguibles justo en lo que el campo existe para distinguir — con la salvedad escrita de que la unicidad atrapa el valor repetido y no dos tonos que un ojo humano no separa. **Queda declarado un hueco que se acepta a conciencia**: `RN-SP-008` mantiene la membresía inmutable, de modo que **un color mal elegido no se corrige**, y §5.1 fija la condición para reabrirlo como `RF-SP-043`. Enmienda las tripletas de `RF-SP-016`, `RF-SP-017` y `RF-SP-018`, ya aprobadas e implementadas (Art. I.7), y obliga a la migración `V38`. | Responsable técnico |
 | 1.26.0 | 27-08-2026 | **`SP` publica sus dos primeras interfaces hacia otro módulo** (§8): el catálogo de membresías y el de monedas, que consume `PM` al registrar un producto. Las escribió `RF-PM-001` y **no abren requerimiento nuevo aquí**: ningún actor pide «publicar una interfaz» como comportamiento observable. Publicar no es depender —la dirección sigue siendo `PM` → `SP`— y una regla de ArchUnit lo ancla. Queda anotado que el submódulo de usuarios ya tenía su propio `MembershipCatalog` interno para lo que él necesita al asignar una membresía: **son la misma lectura declarada dos veces**, y consolidarlas es deuda pendiente que toca código ya implementado. | Responsable técnico |
+| 1.27.0 | 28-08-2026 | **El código de un país pasa de dos letras a tres** —ISO 3166-1 **alfa-3**: `COL`, `USA`—, por decisión del responsable del proyecto. §10.6 declara `code` como `char(3)` y §10.8 su `CHECK` sobre `'^[A-Z]{3}$'`. El catálogo queda además alineado con `currencies.code`, que ya era de tres por ISO 4217. **Lo que no es un `ALTER` inofensivo es la migración**: ensanchar `char(2)` a `char(3)` convierte `CO` en `'CO '` —`char` rellena con espacios—, no en `COL`, y esa fila pasa el `NOT NULL` y el `UNIQUE`; solo la caza el `CHECK` nuevo, cuyo mensaje habla de una restricción y no del país. `V42` ensancha, **traduce con una tabla de equivalencias explícita** y **levanta excepción nombrando los códigos que no sabe traducir** en lugar de adivinarlos: `RN-SP-009` prohíbe editar un país, de modo que una equivalencia equivocada no tendría corrección posible. `V16` no se toca, que está aplicada. Enmienda la tripleta de `RF-SP-020`, aprobada e implementada (Art. I.7): §6.1, `EX-002`, `VAL-002` y `CA-SP-135`. | Responsable técnico |

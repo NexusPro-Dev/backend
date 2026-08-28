@@ -50,11 +50,11 @@ class CountryConcurrencyIT extends IntegrationTestBase {
   @DisplayName("dos altas simultáneas con el mismo código producen un 201 y un 409, nunca un 500")
   void mismoCodigo() {
     List<Outcome<Integer>> resultados =
-        runTogether(2, indice -> estadoDe(alta("PA", "Panamá " + indice)));
+        runTogether(2, indice -> estadoDe(alta("PAN", "Panamá " + indice)));
 
     assertThat(resultados).allMatch(Outcome::succeeded);
     assertThat(resultados).extracting(Outcome::value).containsExactlyInAnyOrder(201, 409);
-    assertThat(cuantos("PA")).isEqualTo(1);
+    assertThat(cuantos("PAN")).isEqualTo(1);
   }
 
   @Test
@@ -66,7 +66,8 @@ class CountryConcurrencyIT extends IntegrationTestBase {
     List<Outcome<Integer>> resultados =
         runTogether(
             2,
-            indice -> estadoDe(alta(indice == 0 ? "PA" : "PX", indice == 0 ? "Panamá" : "Panama")));
+            indice ->
+                estadoDe(alta(indice == 0 ? "PAN" : "PAX", indice == 0 ? "Panamá" : "Panama")));
 
     assertThat(resultados).allMatch(Outcome::succeeded);
     assertThat(resultados).extracting(Outcome::value).containsExactlyInAnyOrder(201, 409);
@@ -82,19 +83,19 @@ class CountryConcurrencyIT extends IntegrationTestBase {
     // lea es frecuente y la restricción no llega a intervenir. Con seis, alguna
     // llega necesariamente al INSERT.
     List<Outcome<Integer>> resultados =
-        runTogether(6, indice -> estadoDe(alta("CO", "Colombia " + indice)));
+        runTogether(6, indice -> estadoDe(alta("COL", "Colombia " + indice)));
 
     assertThat(resultados)
         .as("un alta concurrente produjo un fallo del sistema")
         .noneMatch(r -> r.succeeded() && r.value() >= 500);
     assertThat(resultados).filteredOn(r -> r.value() == 201).hasSize(1);
-    assertThat(cuantos("CO")).isEqualTo(1);
+    assertThat(cuantos("COL")).isEqualTo(1);
   }
 
   @Test
   @DisplayName("dos desactivaciones simultáneas del mismo país dejan UN solo evento")
   void dosDesactivacionesSimultaneas() throws Exception {
-    String pa = crear("PA", "Panamá");
+    String pa = crear("PAN", "Panamá");
     UUID correlacion = UUID.randomUUID();
 
     List<Outcome<Integer>> resultados =
@@ -126,12 +127,12 @@ class CountryConcurrencyIT extends IntegrationTestBase {
   void altaYCambioDeEstadoNoSeEstorban() throws Exception {
     // Bloquean cosas distintas —una inserta, la otra bloquea una fila ajena—, de
     // modo que ninguna debe esperar a la otra ni fallar por su causa.
-    String pa = crear("PA", "Panamá");
+    String pa = crear("PAN", "Panamá");
 
     List<Outcome<Integer>> resultados =
         runTogether(
             List.of(
-                () -> estadoDe(alta("CO", "Colombia")),
+                () -> estadoDe(alta("COL", "Colombia")),
                 () -> estadoDe(cambio(pa, false, UUID.randomUUID()))));
 
     assertThat(resultados).extracting(Outcome::value).containsExactly(201, 200);

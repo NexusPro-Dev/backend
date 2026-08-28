@@ -10,6 +10,7 @@
 | Issue | Pendiente de crear |
 | Rama | `feature/registrar-pais` |
 | Aprobadas por | Responsable técnico el 24-08-2026 |
+| Enmendadas | 28-08-2026 — tres tareas nuevas por el paso a ISO 3166-1 alfa-3: `T-18`, `T-19` y `T-20` |
 
 !!! info "Qué va en este documento"
 
@@ -30,7 +31,7 @@
 | # | Tarea | Depende de | Verificación | Estado |
 |---|---|---|---|---|
 | `T-01` | Migración `V16__create_countries.sql`: tabla `countries` con `name` declarado `COLLATE "es-x-icu"`, `uq_countries_code`, el índice único funcional `uq_countries_name` sobre `f_unaccent(lower(name))`, `ck_countries_code_format` y `ck_countries_name_not_blank`. **Sin `deleted_at`** y **con `updated_at`** | — | `mvn flyway:info` la lista aplicada; pruebas de integración: `'1A'`, `'c'` y `'CO '` se rechazan; un nombre de un solo espacio también; `updated_at` arranca igual a `created_at`; y un `ORDER BY name` **sin `COLLATE`** devuelve Panamá, Paraguay, Perú | Hecha |
-| `T-02` | `domain/CountryCode`: objeto de valor que **normaliza a mayúsculas, recorta y valida el formato de dos letras, en ese orden y en un solo sitio** | — | Prueba unitaria sin Spring: `"co"`, `" CO"` y `"CO"` producen el mismo valor; `"C"`, `"COL"`, `"C1"`, `"--"` y la cadena vacía se rechazan | Hecha |
+| `T-02` | `domain/CountryCode`: objeto de valor que **normaliza a mayúsculas, recorta y valida el formato de tres letras, en ese orden y en un solo sitio** | — | Prueba unitaria sin Spring: `"col"`, `" COL"` y `"COL"` producen el mismo valor; `"CO"`, `"COLO"`, `"C1X"`, `"---"` y la cadena vacía se rechazan | Hecha |
 | `T-03` | `domain`: agregado `Country`, que **nace siempre activo** y cuyo constructor no recibe el estado, y el puerto `CountryRepository` con `save`, `existsCode` y `existsName` | `T-02` | Prueba unitaria: no existe forma de construir un `Country` inactivo | Hecha |
 | `T-04` | `infrastructure`: `CountryEntity`, `CountryJpaMapper` y `JpaCountryRepository`, que traduce la violación de índice único distinguiendo **por nombre de restricción** cuál de los dos se violó | `T-01`, `T-03` | Prueba de integración: `uq_countries_code` y `uq_countries_name` producen excepciones distinguibles, y ninguna se decide por el texto del mensaje del driver | Hecha |
 | `T-05` | `application`: `RegisterCountryCommand`, `RegisterCountryService` con `@Transactional` y el orden de verificación de `plan.md` §4 —formato, **normalización**, unicidad—, y el puerto `CountryChangeAuditor` | `T-04` | Pruebas con dobles: la unicidad se comprueba **después** de normalizar; la comprobación previa existe para redactar el mensaje, no para garantizar nada | Hecha |
@@ -46,6 +47,9 @@
 | `T-15` | Enmendar `requirements/sp.md` y `modelo-datos.md`: §10.6 gana `updated_at`; §10.7 gana `uq_countries_name` —sobre la forma normalizada—, `ck_countries_code_format` y `ck_countries_name_not_blank`; `modelo-datos.md` §2 deja de afirmar que los tres catálogos carecen de `updated_at` | `T-01` | Documento y esquema declaran las mismas restricciones (Art. XII.3). La afirmación sigue valiendo para `memberships` | Hecha |
 | `T-16` | Documentación OpenAPI del endpoint: cuerpo, respuesta `201` **sin `Location`** y los estados `400`, `401`, `403`, `409` y `500` | `T-11` | El contrato publicado coincide con el comportamiento real (Art. VIII.6) | Hecha |
 | `T-17` | Actualizar la matriz de trazabilidad de `docs/requirements.md` | `T-11` | La fila de `RF-SP-020` refleja el estado y enlaza esta tripleta | Hecha |
+| `T-18` | Migración `V42__widen_country_code_to_alpha3.sql`: retira el `CHECK`, ensancha `code` a `char(3)`, **traduce los códigos ya registrados** con una tabla de equivalencias explícita, **levanta excepción nombrando los que no sabe traducir** y vuelve a declarar el `CHECK` sobre `^[A-Z]{3}$` | `T-01` | Sobre una base con `CO` registrado, queda `COL` y no `'CO '`; sobre una con `ZW`, la migración **falla nombrando `ZW`** y Flyway revierte también la traducción, porque PostgreSQL ejecuta la migración entera en una transacción; `'CO '`, `'c1x'` y `'COLO'` siguen rechazados. `V16` **no se toca**: está aplicada y Flyway valida por suma de comprobación | Hecha |
+| `T-19` | `CountryCode`, `Country` y `RegisterCountryRequest` pasan a tres letras: el patrón, el `length` de la columna y los tres mensajes de `VAL-002` | `T-18` | `"col"`, `" COL"` y `"COL"` producen el mismo valor; `"CO"`, `"COLO"` y `"C1X"` devuelven `400` con `VAL-002`; `ddl-auto: validate` **arranca**, que es lo que comprueba que la entidad y el esquema dicen lo mismo | Hecha |
+| `T-20` | Contrato y documentación: `openapi.json` y `openapi.yaml` regenerados, `requirements/sp.md` §10.6 y §10.8, `modelo-datos.md` §2 y el diagrama de `flujos-por-caso.md` | `T-19` | El contrato publicado dice **alfa-3** y coincide con el comportamiento real (Art. VIII.6); ningún documento sigue afirmando dos letras | Hecha |
 
 **Estados:** `Pendiente` · `En curso` · `Hecha` · `Bloqueada`.
 
@@ -58,6 +62,16 @@
     **`T-15` no requirió cambios:** las enmiendas de `requirements/sp.md` §10.6 y de `modelo-datos.md` ya se habían aplicado al aprobarse este `plan.md` el 21-08-2026. Se verificó antes de darla por hecha.
 
     **`T-12` queda `Pendiente`: no hay prueba de concurrencia real.** Los dos índices únicos garantizan el empate y el adaptador traduce su violación por nombre de restricción, pero **ninguna prueba lanza dos altas simultáneas**: eso exige dos transacciones a la vez, que no se montan con `MockMvc`. La traducción sí está ejercitada por la vía secuencial.
+
+!!! note "El código pasa a tres letras — 28-08-2026"
+
+    Por decisión del responsable del proyecto, el código de un país deja de ser ISO 3166-1 **alfa-2** y pasa a **alfa-3**: `COL` donde antes iba `CO`. `spec.md` §6.1, `EX-002`, `VAL-002` y `CA-SP-135` quedan enmendados (Art. I.7), y `T-18` a `T-20` recogen el trabajo.
+
+    **Lo que no es evidente y por eso se escribe aquí: ensanchar la columna no traduce nada.** `ALTER COLUMN code TYPE char(3)` convierte `CO` en `'CO '` —`char` rellena con espacios—, no en `COL`. Esa fila pasa el `NOT NULL` y pasa `uq_countries_code`; lo único que la caza es el `CHECK` nuevo, y su mensaje habla de una restricción violada, no del país que hay que resolver. De ahí el orden de `V42`: ensanchar, traducir, comprobar con un mensaje propio, y solo entonces volver a poner el `CHECK`.
+
+    **La tabla de equivalencias no adivina, y eso es deliberado.** Lleva América —el mercado de la plataforma— y los mercados que ya se documentan; no lleva la lista ISO completa. Una equivalencia escrita de memoria y equivocada no da error: da un país mal codificado, y `RN-SP-009` no admite corregirlo. Lo que no está en la lista detiene la migración diciendo su código, que es una decisión humana barata comparada con el dato incorregible.
+
+    **En una base vacía —el caso normal— la traducción no toca nada:** `V16` no siembra el catálogo y los países se dan de alta por la API (`spec.md` §14, pregunta 2).
 
 ## 2. Orden de ejecución
 

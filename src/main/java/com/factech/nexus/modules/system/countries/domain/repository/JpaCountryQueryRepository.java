@@ -91,7 +91,7 @@ public class JpaCountryQueryRepository implements CountryQueryRepository {
     }
 
     return consulta.getResultList().stream()
-        // `char(2)` rellena con espacios al leerse; se recorta en el único punto
+        // `char(3)` rellena con espacios al leerse; se recorta en el único punto
         // por el que el código sale hacia la API.
         .map(
             item ->

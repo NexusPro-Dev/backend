@@ -2567,7 +2567,7 @@
         "tags" : [ "Países" ]
       },
       "post" : {
-        "description" : "Registra un país en el catálogo. Queda **activo** siempre: el estado no\nse envía y enviarlo devuelve `400`.\n\nEl código se normaliza a mayúsculas y se recorta, porque lo fija\nISO 3166-1 y no lo inventa nadie: `co`, ` CO` y `CO` son el mismo país.\n\nEl nombre admite acentos y caracteres no latinos sin transformación\nalguna, pero **no puede coincidir** con otro ya registrado ignorando\nmayúsculas y acentos: el catálogo no se edita, y el duplicado sería\npermanente.\n",
+        "description" : "Registra un país en el catálogo. Queda **activo** siempre: el estado no\nse envía y enviarlo devuelve `400`.\n\nEl código se normaliza a mayúsculas y se recorta, porque lo fija\nISO 3166-1 alfa-3 y no lo inventa nadie: `col`, ` COL` y `COL` son el\nmismo país. Son tres letras y no dos.\n\nEl nombre admite acentos y caracteres no latinos sin transformación\nalguna, pero **no puede coincidir** con otro ya registrado ignorando\nmayúsculas y acentos: el catálogo no se edita, y el duplicado sería\npermanente.\n",
         "operationId" : "registrar_3",
         "requestBody" : {
           "content" : {

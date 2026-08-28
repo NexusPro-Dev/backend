@@ -2,11 +2,11 @@
 
 | Campo | Valor |
 |---|---|
-| Versión | 0.11.0 |
+| Versión | 0.12.0 |
 | Estado | **Borrador** |
 | Responsable | Bonilla Diaz William Steven |
 | Fecha de creación | 21-08-2026 |
-| Última actualización | 25-08-2026 |
+| Última actualización | 28-08-2026 |
 
 !!! info "Qué va en este documento"
 
@@ -192,7 +192,7 @@ erDiagram
 
     countries {
         uuid id PK "v7"
-        char code UK "2 · ISO 3166-1 alfa-2"
+        char code UK "3 · ISO 3166-1 alfa-3"
         varchar name "100 · UK funcional sobre f_unaccent(lower(name))"
         boolean is_active "default true · lo cambia RF-SP-022"
         timestamptz created_at "now"

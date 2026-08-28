@@ -88,7 +88,8 @@ public class CountryController {
           se envía y enviarlo devuelve `400`.
 
           El código se normaliza a mayúsculas y se recorta, porque lo fija
-          ISO 3166-1 y no lo inventa nadie: `co`, ` CO` y `CO` son el mismo país.
+          ISO 3166-1 alfa-3 y no lo inventa nadie: `col`, ` COL` y `COL` son el
+          mismo país. Son tres letras y no dos.
 
           El nombre admite acentos y caracteres no latinos sin transformación
           alguna, pero **no puede coincidir** con otro ya registrado ignorando
