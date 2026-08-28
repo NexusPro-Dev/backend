@@ -5,7 +5,7 @@
 | Proyecto | NEXUS — Renovación de plataforma |
 | Empresa | FACTECH GROUP SAS |
 | Documento | `architecture.md` |
-| Versión | 0.22.0 |
+| Versión | 0.24.0 |
 | Estado | Borrador |
 | Responsable técnico | Bonilla Diaz William Steven |
 | Fecha de creación | 19-08-2026 |
@@ -652,7 +652,7 @@ Toda configuración dependiente del entorno se inyecta por variable de entorno (
 | `ENVIRONMENT` | Sí | `development` \| `testing` \| `production`. **Declarada y todavía sin lector** |
 | `CORS_ALLOWED_ORIGINS` | No | Orígenes del navegador autorizados. Vacío = ninguno; `*` tumba el arranque (§6.1 de `security.md`) |
 | `EXPOSE_API_DOCS` | No | Swagger y el contrato sin autenticar. Por defecto `false`, y así debe quedarse fuera de local |
-| `TRUSTED_PROXIES` | No | Proxies confiables, por **coincidencia exacta**. Vacío = no se confía en `X-Forwarded-For` |
+| `TRUSTED_PROXIES` | No | Proxies confiables: direcciones o **bloques CIDR** —`10.0.0.0/8`, `fd00::/8`—, separados por coma. Vacío = no se confía en `X-Forwarded-For`. Una entrada malformada **tumba el arranque** |
 | `PORT` | No | Puerto de escucha; por defecto `8080`. La declara la plataforma de despliegue, no una persona |
 | `LOG_LEVEL` | No | Nivel de log; por defecto `INFO` |
 | `RATE_LIMIT_ENABLED` | No | Límite de tasa; por defecto `true`. Solo la suite lo apaga |
@@ -717,6 +717,9 @@ Nomenclatura: `ADR-NNN-<titulo-en-kebab-case>.md`
 |---|---|---|
 | [`ADR-001`](architecture/ADR-001-publicacion-del-contrato-openapi.md) | **Publicación del contrato OpenAPI** como archivo versionado en `docs/api/openapi.json`, generado por una prueba de integración y verificado en CI. Desbloquea al frontend, que no podía generar su cliente. Su consecuencia sobre `security.md` §6 está declarada: el contrato deja de ser reservado, aunque `EXPOSE_API_DOCS` siga en `false` | 24-08-2026 |
 | [`ADR-002`](architecture/ADR-002-plataforma-de-despliegue-railway.md) | **Plataforma de despliegue: Railway**, un servicio por entorno construido desde este `Dockerfile`, con PostgreSQL gestionado y despliegue por integración de rama. Cierra **D-09**, que se había convertido en el aparcadero de cinco pendientes distintos. Declara la **réplica única** como restricción de diseño y deja **D-21 reabierta con otra forma**: en Railway no hay IP de proxy que poner, y el arreglo es que `ClientIpResolver` admita rangos | 27-08-2026 |
+| [`ADR-003`](architecture/ADR-003-retencion-de-los-registros.md) | **Propuesta, sin decidir.** Retención de `request_log` y de los cuatro registros de auditoría (**D-10**). Presenta las tres opciones con su coste y recomienda **cinco plazos por separado con purga por borrado**, dejando tres tablas sin purgar a conciencia. Lo que falta es de negocio, no técnico: cuánto tiempo el sistema debe poder responder «quién hizo esto» | 27-08-2026 |
+| [`ADR-004`](architecture/ADR-004-raspado-de-metricas-y-alertas.md) | **Propuesta, sin decidir.** Quién raspa las métricas y a quién se le avisa (issue #43). Recomienda **puerto de administración separado** —cero código, sin tocar el modelo de permisos y sin esperar a D-19— y construir **primero** la vigilancia de la ausencia de eventos de auditoría, que es la mitad que `RF-SP-001` §10 prometió y no cumple | 27-08-2026 |
+| [`ADR-005`](architecture/ADR-005-modelo-de-alcance-de-datos.md) | **Propuesta, sin decidir.** Modelo de alcance de datos (**D-22**). Recomienda un `ScopeResolver` con el alcance **declarado por requerimiento**, y sobre todo un orden: primero la comprobación de arquitectura que obliga a declararlo —incluido `GLOBAL` explícito—, porque es lo que convierte los cuarenta y dos endpoints ya publicados en una lista que el compilador mantiene | 27-08-2026 |
 
 Las decisiones D-01 a D-07, cerradas el 19-08-2026, están registradas en `constitution.md` §20.
 
@@ -835,6 +838,8 @@ D-08 quedó cerrada en `security.md` §12, junto con las decisiones D-12 a D-15 
 
 | Versión | Fecha | Cambio | Responsable |
 |---|---|---|---|
+| 0.24.0 | 27-08-2026 | Tres **ADR nuevos, los tres en propuesta**, que sacan de la lista de pendientes lo que llevaba meses descrito como problema y nunca como opciones: [`ADR-003`](architecture/ADR-003-retencion-de-los-registros.md) la retención de los cinco registros (**D-10**), [`ADR-004`](architecture/ADR-004-raspado-de-metricas-y-alertas.md) el raspado de métricas y las alertas (issue #43), y [`ADR-005`](architecture/ADR-005-modelo-de-alcance-de-datos.md) el modelo de alcance (**D-22**). Ninguno decide nada: cada uno enumera las opciones **con su coste**, recomienda una y dice qué hace falta para cerrarla, porque en los tres lo que falta es una decisión que no puede tomar quien implementa. | Responsable técnico |
+| 0.23.0 | 27-08-2026 | `TRUSTED_PROXIES` pasa a admitir **bloques CIDR** y no solo direcciones sueltas (D-21). Era la única salida que [`ADR-002`](architecture/ADR-002-plataforma-de-despliegue-railway.md) dejaba abierta para el Art. V.15 en esta plataforma: la IP con la que el borde habla con el contenedor no es fija, pero la red de la que sale sí se puede declarar. Una entrada que no se entienda **tumba el arranque** en lugar de ignorarse, por lo mismo que el comodín de CORS: un despliegue que cree tener configurada la confianza y no la tiene no da ningún síntoma que mencione la variable. | Responsable técnico |
 | 0.1.0 | 19-08-2026 | Creación inicial. Incorpora las decisiones D-01 a D-07. | Responsable técnico |
 | 0.2.0 | 19-08-2026 | Cierre de D-08 en `security.md`. Referencia cruzada al modelo de seguridad. | Responsable técnico |
 | 0.3.0 | 19-08-2026 | Se retiran `created_by` y `updated_by` de las columnas obligatorias: el actor reside solo en la auditoría. | Responsable técnico |
