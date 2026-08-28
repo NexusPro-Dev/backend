@@ -24,16 +24,18 @@ import java.util.UUID;
  * <p><b>{@code actorId} nulo significa «lo hizo el sistema»</b> —una migración, una tarea
  * programada—, no «se perdió el dato» (Art. V.15).
  *
- * <p><b>No se devuelve el nombre del actor.</b> El valor probatorio del registro está en el
- * identificador, que no cambia nunca; un nombre es una foto del momento en que se consulta y no del
- * momento en que ocurrió el evento, y en una auditoría esa diferencia importa. Añadirlo más
- * adelante es aditivo y no rompe a ningún cliente.
+ * <p><b>{@code actor} se añadió el 28-08-2026</b>, y este documento decía hasta entonces que el
+ * nombre <b>no</b> se devolvía. El argumento de entonces no se descarta, se acota: sigue siendo
+ * cierto que un nombre es una foto del momento en que se consulta, y por eso {@link AuditActor}
+ * declara cuál de sus dos campos es evidencia y cuál es comodidad. El {@code actorId} sigue siendo
+ * el que manda, y la adición es aditiva — no rompe a ningún cliente, tal como aquella nota preveía.
  */
 @JsonInclude(JsonInclude.Include.ALWAYS)
 public record ChangeAuditItem(
     UUID id,
     OffsetDateTime occurredAt,
     UUID actorId,
+    AuditActor actor,
     String module,
     String entity,
     UUID entityId,

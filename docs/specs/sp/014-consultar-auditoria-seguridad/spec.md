@@ -8,6 +8,7 @@
 | Autor | Responsable técnico |
 | Aprobada por | Responsable técnico |
 | Fecha de aprobación | 21-08-2026 |
+| Enmendada el | 28-08-2026 — ver el control de cambios |
 
 ---
 
@@ -66,6 +67,8 @@ Reúne dos clases de evento que conviene no separar: los de **autenticación** �
 | Dato | Descripción |
 |---|---|
 | Eventos | Momento, tipo de evento, severidad, resultado, actor y usuario afectado |
+| Actor resuelto | De cada evento, el **nombre de usuario** de quien lo hizo —inmutable (`RN-SP-016`)— y su nombre completo **actual**. El identificador sigue viajando y es el dato probatorio |
+| Usuario afectado resuelto | La persona **sobre la que recayó** el evento, con el mismo trato. Sin ella, un `ACCOUNT_LOCKED` dice quién bloqueó y no a quién |
 | Origen | Dirección de red y cliente desde el que se originó |
 | Correlación | Identificador que enlaza con la petición |
 | Paginación | Total de elementos, total de páginas y página actual |
@@ -167,3 +170,4 @@ Aplicada el 21-08-2026 al aprobar el `plan.md`, conforme al Art. I.7: la especif
 | # | Defecto | Corrección |
 |---|---|---|
 | 1 | `CA-SP-104` pedía «**toda** la actividad relativa a un usuario afectado» y `CA-SP-109` prohíbe que un intento fallido lleve ese campo, porque delataría que la cuenta existe. Los dos criterios no podían cumplirse a la vez, y el `FA-001` arrastraba el mismo defecto al enumerar «fallos» entre lo que devuelve el filtro | Gana `CA-SP-109`, que es la garantía de que el registro no se convierta en un medio de enumeración de cuentas. `CA-SP-104` pasa a decir **actividad de privilegio** y enumera qué incluye; el `FA-001` gana un paso que explica cómo se localizan los intentos fallidos: por tipo de evento y rango, leyendo el identificador intentado en el detalle. La asimetría queda además declarada en `plan.md` §4 y como riesgo en §10, con su corrección si llegara a ser un uso habitual |
+| 0.3.0 | 28-08-2026 | **El actor llega resuelto**, por decisión del responsable del proyecto. Hasta hoy la respuesta traía solo `actorId`, y el motivo escrito era que un nombre es una foto del momento en que se **consulta** y no del momento en que **ocurrió** el evento. Ese argumento no se descarta, se acota: la identidad que se devuelve es el **`username`**, que es **inmutable** (`RN-SP-016`) y dice hoy lo mismo que decía entonces; el nombre completo se devuelve **declarado como actual** y por comodidad, no como evidencia. `actorId` sigue viajando y sigue siendo el dato probatorio, de modo que el cambio es **aditivo**. Se resuelve con un `LEFT JOIN` en la **misma** sentencia —una consulta por fila serían cien consultas por página— que **no filtra por `deleted_at`**: una auditoría que dejara de decir quién hizo algo porque esa persona fue dada de baja perdería su valor justo donde más se consulta. **Y aquí se resuelven los DOS**: el actor y el **usuario afectado**, con un segundo `LEFT JOIN` a la misma tabla. Sin él, un `ACCOUNT_LOCKED` seguía diciendo quién bloqueó y no sobre quién recayó, que es la mitad de la frase que este registro existe para conservar. | Responsable técnico |

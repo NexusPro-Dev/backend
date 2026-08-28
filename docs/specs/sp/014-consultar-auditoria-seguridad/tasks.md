@@ -45,6 +45,7 @@ Hereda de `RF-SP-011` la proyección única, el conteo acotado, el orden fijo y 
 | `T-14` | Enmendar `architecture.md` §6.6.6: el índice mínimo `(ip_address)` se refina a `(ip_address, occurred_at DESC)` en `audit_security_log` | `T-01` | Documento y esquema dicen lo mismo (Art. XII.3) | Hecha |
 | `T-15` | Documentación OpenAPI del endpoint: los diez parámetros, la envoltura con `totalIsExact` y los estados `400`, `401`, `403` y `500` | `T-11` | El contrato publicado coincide con el comportamiento real (Art. VIII.6), y documenta que la consulta deja su propio evento | Hecha |
 | `T-16` | Actualizar la matriz de trazabilidad de `docs/requirements.md` | `T-11` | La fila de `RF-SP-014` refleja el estado y enlaza esta tripleta | Hecha |
+| `T-17` | El actor **y el usuario afectado** resueltos: dos `LEFT JOIN` a `users` con alias distintos, porque son dos personas distintas | — | `CA-SP-472`: un `ACCOUNT_LOCKED` dice quién bloqueó **y sobre quién recayó** | **Hecha el 28-08-2026** |
 
 **Estados:** `Pendiente` · `En curso` · `Hecha` · `Bloqueada`.
 

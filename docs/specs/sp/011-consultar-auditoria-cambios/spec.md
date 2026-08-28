@@ -8,6 +8,7 @@
 | Autor | Responsable técnico |
 | Aprobada por | Responsable técnico |
 | Fecha de aprobación | 21-08-2026 |
+| Enmendada el | 28-08-2026 — ver el control de cambios |
 
 ---
 
@@ -68,6 +69,7 @@ Ninguna regla de negocio gobierna esta consulta. Su acceso lo controla el permis
 | Dato | Descripción |
 |---|---|
 | Eventos | Momento, actor, módulo, entidad, registro afectado, acción y detalle del cambio |
+| Actor resuelto | De cada evento, el **nombre de usuario** de quien lo hizo —inmutable (`RN-SP-016`)— y su nombre completo **actual**. El identificador sigue viajando y es el dato probatorio |
 | Origen | Dirección de red y cliente desde el que se originó, cuando la operación vino de una petición |
 | Correlación | Identificador que enlaza el evento con la petición que lo produjo |
 | Paginación | Total de elementos, total de páginas y página actual |
@@ -155,3 +157,4 @@ Ninguna. Las cuatro se resolvieron el 21-08-2026, antes de aprobar la especifica
 | 2 | ¿Se limita el rango de fechas consultable? | **No.** La paginación ya acota el tamaño de la respuesta, y limitar el rango obligaría a trocear justo la consulta que más valor tiene: la línea de tiempo completa de un registro. Que la consulta se sostenga es cuestión de índices, no de negocio |
 | 3 | ¿La consulta de auditoría se audita a su vez? | **No este registro.** Toda consulta deja rastro en el registro de peticiones, que basta para saber quién la hizo. Solo `RF-SP-014` genera además un evento propio, porque ahí el acto de mirar es en sí mismo información de seguridad |
 | 4 | ¿Debe poder exportarse el resultado? | **No.** Exportar tiene reglas propias —formato, tamaño, retención del fichero generado y quién puede llevarse un volcado de la auditoría fuera del sistema— y no cabe como opción de esta consulta |
+| 0.3.0 | 28-08-2026 | **El actor llega resuelto**, por decisión del responsable del proyecto. Hasta hoy la respuesta traía solo `actorId`, y el motivo escrito era que un nombre es una foto del momento en que se **consulta** y no del momento en que **ocurrió** el evento. Ese argumento no se descarta, se acota: la identidad que se devuelve es el **`username`**, que es **inmutable** (`RN-SP-016`) y dice hoy lo mismo que decía entonces; el nombre completo se devuelve **declarado como actual** y por comodidad, no como evidencia. `actorId` sigue viajando y sigue siendo el dato probatorio, de modo que el cambio es **aditivo**. Se resuelve con un `LEFT JOIN` en la **misma** sentencia —una consulta por fila serían cien consultas por página— que **no filtra por `deleted_at`**: una auditoría que dejara de decir quién hizo algo porque esa persona fue dada de baja perdería su valor justo donde más se consulta. | Responsable técnico |

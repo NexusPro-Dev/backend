@@ -1,5 +1,6 @@
 package com.factech.nexus.modules.system.audit.domain.repository;
 
+import com.factech.nexus.modules.system.audit.application.AuditActor;
 import com.factech.nexus.modules.system.audit.application.ChangeAuditItem;
 import com.factech.nexus.modules.system.audit.application.DeletionAuditItem;
 import com.factech.nexus.modules.system.audit.application.ErrorAuditItem;
@@ -49,6 +50,38 @@ import org.springframework.transaction.annotation.Transactional;
 @Repository
 public class JpaAuditQueryRepository implements AuditQueryRepository {
 
+  /**
+   * El actor, resuelto en la MISMA sentencia (`RN-SP-016`).
+   *
+   * <p><b>Es un {@code LEFT JOIN} y no una consulta por fila</b>, por lo mismo que el destino de un
+   * producto: resolver cien actores de una página son cien consultas, que es el problema de las
+   * {@code N+1} con otro nombre. El {@code LEFT} no es opcional — con un {@code JOIN} corriente
+   * desaparecerían de la página los eventos <b>del sistema</b>, que son justo los que no tienen
+   * actor.
+   *
+   * <p><b>NO filtra por {@code deleted_at}</b>, y es deliberado: `RF-SP-029` elimina de forma
+   * lógica, la fila permanece, y una auditoría que dejara de decir quién hizo algo porque esa
+   * persona fue dada de baja perdería su valor justo en el caso en que más se consulta.
+   */
+  private static final String ACTOR_JOIN = " LEFT JOIN users ua ON ua.id = a.actor_id";
+
+  private static final String ACTOR_COLS =
+      ", ua.username AS actor_username, ua.first_name AS actor_nombre,"
+          + " ua.last_name AS actor_apellido";
+
+  /**
+   * La persona SOBRE la que recayó el evento, solo en el registro de seguridad.
+   *
+   * <p>Es un segundo {@code LEFT JOIN} a la misma tabla y con otro alias, porque es <b>otra</b>
+   * persona: un bloqueo lo ejecuta un administrador y recae sobre otro. Sin resolverlo, la mitad de
+   * la frase seguiría siendo un identificador justo en el registro donde más importa.
+   */
+  private static final String OBJETIVO_JOIN = " LEFT JOIN users ut ON ut.id = a.target_user_id";
+
+  private static final String OBJETIVO_COLS =
+      ", ut.username AS objetivo_username, ut.first_name AS objetivo_nombre,"
+          + " ut.last_name AS objetivo_apellido";
+
   private final EntityManager em;
   private final ObjectMapper json;
 
@@ -65,9 +98,11 @@ public class JpaAuditQueryRepository implements AuditQueryRepository {
   @Transactional(readOnly = true)
   public List<ChangeAuditItem> changes(ListChangeAuditRequest f, int offset, int limit) {
     return pagina(
-        "audit_change_log",
-        "id, occurred_at, actor_id, module, entity, entity_id, action, changes,"
-            + " correlation_id, ip_address, user_agent",
+        "audit_change_log a" + ACTOR_JOIN,
+        deLaTabla(
+                "id, occurred_at, actor_id, module, entity, entity_id, action, changes,"
+                    + " correlation_id, ip_address, user_agent")
+            + ACTOR_COLS,
         predicadoDeCambios(f),
         offset,
         limit,
@@ -76,6 +111,7 @@ public class JpaAuditQueryRepository implements AuditQueryRepository {
                 (UUID) fila.get("id"),
                 momento(fila.get("occurred_at")),
                 (UUID) fila.get("actor_id"),
+                actorDe(fila),
                 (String) fila.get("module"),
                 (String) fila.get("entity"),
                 (UUID) fila.get("entity_id"),
@@ -89,16 +125,16 @@ public class JpaAuditQueryRepository implements AuditQueryRepository {
   @Override
   @Transactional(readOnly = true)
   public BoundedCount countChanges(ListChangeAuditRequest f, int techo) {
-    return conteo("audit_change_log", predicadoDeCambios(f), techo);
+    return conteo("audit_change_log a", predicadoDeCambios(f), techo);
   }
 
   private static Filtro predicadoDeCambios(ListChangeAuditRequest f) {
     Filtro filtro = comun(f);
-    filtro.igual("module", "modulo", f.module());
-    filtro.igual("entity", "entidad", f.entity());
-    filtro.igual("entity_id", "registro", f.entityId());
-    filtro.igual("actor_id", "actor", f.actorId());
-    filtro.igual("action", "accion", f.action() == null ? null : f.action().toUpperCase());
+    filtro.igual("a.module", "modulo", f.module());
+    filtro.igual("a.entity", "entidad", f.entity());
+    filtro.igual("a.entity_id", "registro", f.entityId());
+    filtro.igual("a.actor_id", "actor", f.actorId());
+    filtro.igual("a.action", "accion", f.action() == null ? null : f.action().toUpperCase());
     return filtro;
   }
 
@@ -110,9 +146,11 @@ public class JpaAuditQueryRepository implements AuditQueryRepository {
   @Transactional(readOnly = true)
   public List<DeletionAuditItem> deletions(ListDeletionAuditRequest f, int offset, int limit) {
     return pagina(
-        "audit_deletion_log",
-        "id, occurred_at, actor_id, module, entity, entity_id, deletion_type, reason,"
-            + " snapshot, correlation_id, ip_address, user_agent",
+        "audit_deletion_log a" + ACTOR_JOIN,
+        deLaTabla(
+                "id, occurred_at, actor_id, module, entity, entity_id, deletion_type, reason,"
+                    + " snapshot, correlation_id, ip_address, user_agent")
+            + ACTOR_COLS,
         predicadoDeEliminaciones(f),
         offset,
         limit,
@@ -121,6 +159,7 @@ public class JpaAuditQueryRepository implements AuditQueryRepository {
                 (UUID) fila.get("id"),
                 momento(fila.get("occurred_at")),
                 (UUID) fila.get("actor_id"),
+                actorDe(fila),
                 (String) fila.get("module"),
                 (String) fila.get("entity"),
                 (UUID) fila.get("entity_id"),
@@ -135,17 +174,19 @@ public class JpaAuditQueryRepository implements AuditQueryRepository {
   @Override
   @Transactional(readOnly = true)
   public BoundedCount countDeletions(ListDeletionAuditRequest f, int techo) {
-    return conteo("audit_deletion_log", predicadoDeEliminaciones(f), techo);
+    return conteo("audit_deletion_log a", predicadoDeEliminaciones(f), techo);
   }
 
   private static Filtro predicadoDeEliminaciones(ListDeletionAuditRequest f) {
     Filtro filtro = comun(f);
-    filtro.igual("module", "modulo", f.module());
-    filtro.igual("entity", "entidad", f.entity());
-    filtro.igual("entity_id", "registro", f.entityId());
-    filtro.igual("actor_id", "actor", f.actorId());
+    filtro.igual("a.module", "modulo", f.module());
+    filtro.igual("a.entity", "entidad", f.entity());
+    filtro.igual("a.entity_id", "registro", f.entityId());
+    filtro.igual("a.actor_id", "actor", f.actorId());
     filtro.igual(
-        "deletion_type", "tipo", f.deletionType() == null ? null : f.deletionType().toUpperCase());
+        "a.deletion_type",
+        "tipo",
+        f.deletionType() == null ? null : f.deletionType().toUpperCase());
 
     if (f.reason() != null) {
       // La normalización la hace LA BASE DE DATOS con la misma función que
@@ -153,7 +194,7 @@ public class JpaAuditQueryRepository implements AuditQueryRepository {
       // parecido y no idéntico al del diccionario `unaccent`, y la divergencia
       // se manifiesta como una fila indexada que no aparece en su búsqueda.
       filtro.condicion(
-          "f_unaccent(lower(reason)) LIKE f_unaccent(lower(:motivo)) ESCAPE '\\'",
+          "f_unaccent(lower(a.reason)) LIKE f_unaccent(lower(:motivo)) ESCAPE '\\'",
           "motivo",
           "%" + escapar(f.reason()) + "%");
     }
@@ -168,9 +209,12 @@ public class JpaAuditQueryRepository implements AuditQueryRepository {
   @Transactional(readOnly = true)
   public List<ErrorAuditItem> errors(ListErrorAuditRequest f, int offset, int limit) {
     return pagina(
-        "audit_error_log",
-        "id, occurred_at, actor_id, resource, entity_id, operation, error_code, error_type,"
-            + " http_status, severity, message, correlation_id, ip_address, user_agent",
+        "audit_error_log a" + ACTOR_JOIN,
+        deLaTabla(
+                "id, occurred_at, actor_id, resource, entity_id, operation, error_code,"
+                    + " error_type, http_status, severity, message, correlation_id, ip_address,"
+                    + " user_agent")
+            + ACTOR_COLS,
         predicadoDeErrores(f),
         offset,
         limit,
@@ -179,6 +223,7 @@ public class JpaAuditQueryRepository implements AuditQueryRepository {
                 (UUID) fila.get("id"),
                 momento(fila.get("occurred_at")),
                 (UUID) fila.get("actor_id"),
+                actorDe(fila),
                 (String) fila.get("resource"),
                 (UUID) fila.get("entity_id"),
                 (String) fila.get("operation"),
@@ -195,16 +240,18 @@ public class JpaAuditQueryRepository implements AuditQueryRepository {
   @Override
   @Transactional(readOnly = true)
   public BoundedCount countErrors(ListErrorAuditRequest f, int techo) {
-    return conteo("audit_error_log", predicadoDeErrores(f), techo);
+    return conteo("audit_error_log a", predicadoDeErrores(f), techo);
   }
 
   private static Filtro predicadoDeErrores(ListErrorAuditRequest f) {
     Filtro filtro = comun(f);
-    filtro.igual("error_type", "tipo", f.errorType() == null ? null : f.errorType().toUpperCase());
-    filtro.igual("severity", "severidad", f.severity() == null ? null : f.severity().toUpperCase());
-    filtro.igual("error_code", "codigo", f.errorCode());
-    filtro.igual("resource", "recurso", f.resource());
-    filtro.igual("actor_id", "actor", f.actorId());
+    filtro.igual(
+        "a.error_type", "tipo", f.errorType() == null ? null : f.errorType().toUpperCase());
+    filtro.igual(
+        "a.severity", "severidad", f.severity() == null ? null : f.severity().toUpperCase());
+    filtro.igual("a.error_code", "codigo", f.errorCode());
+    filtro.igual("a.resource", "recurso", f.resource());
+    filtro.igual("a.actor_id", "actor", f.actorId());
     return filtro;
   }
 
@@ -216,9 +263,12 @@ public class JpaAuditQueryRepository implements AuditQueryRepository {
   @Transactional(readOnly = true)
   public List<SecurityAuditItem> security(ListSecurityAuditRequest f, int offset, int limit) {
     return pagina(
-        "audit_security_log",
-        "id, occurred_at, actor_id, event_type, severity, outcome, target_user_id, detail,"
-            + " correlation_id, ip_address, user_agent",
+        "audit_security_log a" + ACTOR_JOIN + OBJETIVO_JOIN,
+        deLaTabla(
+                "id, occurred_at, actor_id, event_type, severity, outcome, target_user_id,"
+                    + " detail, correlation_id, ip_address, user_agent")
+            + ACTOR_COLS
+            + OBJETIVO_COLS,
         predicadoDeSeguridad(f),
         offset,
         limit,
@@ -227,10 +277,12 @@ public class JpaAuditQueryRepository implements AuditQueryRepository {
                 (UUID) fila.get("id"),
                 momento(fila.get("occurred_at")),
                 (UUID) fila.get("actor_id"),
+                actorDe(fila),
                 (String) fila.get("event_type"),
                 (String) fila.get("severity"),
                 (String) fila.get("outcome"),
                 (UUID) fila.get("target_user_id"),
+                objetivoDe(fila),
                 comoJson(fila.get("detail")),
                 (UUID) fila.get("correlation_id"),
                 texto(fila.get("ip_address")),
@@ -240,23 +292,24 @@ public class JpaAuditQueryRepository implements AuditQueryRepository {
   @Override
   @Transactional(readOnly = true)
   public BoundedCount countSecurity(ListSecurityAuditRequest f, int techo) {
-    return conteo("audit_security_log", predicadoDeSeguridad(f), techo);
+    return conteo("audit_security_log a", predicadoDeSeguridad(f), techo);
   }
 
   private static Filtro predicadoDeSeguridad(ListSecurityAuditRequest f) {
     Filtro filtro = comun(f);
     filtro.igual(
-        "event_type", "evento", f.eventType() == null ? null : f.eventType().toUpperCase());
-    filtro.igual("severity", "severidad", f.severity() == null ? null : f.severity().toUpperCase());
-    filtro.igual("outcome", "resultado", f.outcome() == null ? null : f.outcome().toUpperCase());
-    filtro.igual("actor_id", "actor", f.actorId());
-    filtro.igual("target_user_id", "afectado", f.targetUserId());
+        "a.event_type", "evento", f.eventType() == null ? null : f.eventType().toUpperCase());
+    filtro.igual(
+        "a.severity", "severidad", f.severity() == null ? null : f.severity().toUpperCase());
+    filtro.igual("a.outcome", "resultado", f.outcome() == null ? null : f.outcome().toUpperCase());
+    filtro.igual("a.actor_id", "actor", f.actorId());
+    filtro.igual("a.target_user_id", "afectado", f.targetUserId());
 
     if (f.ipAddress() != null) {
       // La columna es `inet`: el parámetro se convierte de forma explícita en
       // lugar de comparar textos, porque `inet` normaliza —`010.1.1.1` y
       // `10.1.1.1` son la misma dirección— y la comparación textual no.
-      filtro.condicion("ip_address = cast(:origen AS inet)", "origen", f.ipAddress());
+      filtro.condicion("a.ip_address = cast(:origen AS inet)", "origen", f.ipAddress());
     }
     return filtro;
   }
@@ -276,12 +329,12 @@ public class JpaAuditQueryRepository implements AuditQueryRepository {
 
     Filtro filtro = new Filtro();
     if (f.from() != null) {
-      filtro.condicion("occurred_at >= :desde", "desde", f.from());
+      filtro.condicion("a.occurred_at >= :desde", "desde", f.from());
     }
     if (f.to() != null) {
-      filtro.condicion("occurred_at < :hasta", "hasta", f.to());
+      filtro.condicion("a.occurred_at < :hasta", "hasta", f.to());
     }
-    filtro.igual("correlation_id", "correlacion", f.correlationId());
+    filtro.igual("a.correlation_id", "correlacion", f.correlationId());
     return filtro;
   }
 
@@ -301,7 +354,7 @@ public class JpaAuditQueryRepository implements AuditQueryRepository {
                 + tabla
                 + " WHERE "
                 + filtro.sql()
-                + " ORDER BY occurred_at DESC, id DESC"
+                + " ORDER BY a.occurred_at DESC, a.id DESC"
                 + " OFFSET :salto LIMIT :tope",
             Tuple.class);
 
@@ -336,6 +389,37 @@ public class JpaAuditQueryRepository implements AuditQueryRepository {
     consulta.setParameter("techo", (long) techo + 1);
 
     return BoundedCount.de(((Number) consulta.getSingleResult()).longValue(), techo);
+  }
+
+  /**
+   * Cualifica con el alias de la tabla auditada y conserva el nombre como etiqueta.
+   *
+   * <p>Existe desde que hay un {@code JOIN}: {@code id} lo tienen las dos tablas, y sin cualificar
+   * la sentencia no compila —ni el {@code SELECT} ni el {@code ORDER BY}—. Escribirlo así deja las
+   * listas de columnas de cada consulta tal como estaban, legibles y sin repetir el alias catorce
+   * veces.
+   */
+  private static String deLaTabla(String columnas) {
+    return java.util.Arrays.stream(columnas.split(","))
+        .map(String::trim)
+        .map(columna -> "a." + columna + " AS " + columna)
+        .collect(java.util.stream.Collectors.joining(", "));
+  }
+
+  /** El actor de la fila, o nulo si el {@code LEFT JOIN} no encontró a nadie. */
+  private static AuditActor actorDe(Tuple fila) {
+    return AuditActor.de(
+        (String) fila.get("actor_username"),
+        (String) fila.get("actor_nombre"),
+        (String) fila.get("actor_apellido"));
+  }
+
+  /** La persona sobre la que recayó el evento de seguridad, con el mismo trato. */
+  private static AuditActor objetivoDe(Tuple fila) {
+    return AuditActor.de(
+        (String) fila.get("objetivo_username"),
+        (String) fila.get("objetivo_nombre"),
+        (String) fila.get("objetivo_apellido"));
   }
 
   /**

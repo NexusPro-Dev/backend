@@ -4153,6 +4153,13 @@ components:
           type: array
           items:
             $ref: "#/components/schemas/CountryResponse"
+    AuditActor:
+      type: object
+      properties:
+        username:
+          type: string
+        fullName:
+          type: string
     JsonNode: {}
     PageResponseSecurityAuditItem:
       type: object
@@ -4187,6 +4194,8 @@ components:
         actorId:
           type: string
           format: uuid
+        actor:
+          $ref: "#/components/schemas/AuditActor"
         eventType:
           type: string
         severity:
@@ -4196,6 +4205,8 @@ components:
         targetUserId:
           type: string
           format: uuid
+        targetUser:
+          $ref: "#/components/schemas/AuditActor"
         detail:
           $ref: "#/components/schemas/JsonNode"
         correlationId:
@@ -4217,6 +4228,8 @@ components:
         actorId:
           type: string
           format: uuid
+        actor:
+          $ref: "#/components/schemas/AuditActor"
         resource:
           type: string
         entityId:
@@ -4275,6 +4288,8 @@ components:
         actorId:
           type: string
           format: uuid
+        actor:
+          $ref: "#/components/schemas/AuditActor"
         module:
           type: string
         entity:
@@ -4328,6 +4343,8 @@ components:
         actorId:
           type: string
           format: uuid
+        actor:
+          $ref: "#/components/schemas/AuditActor"
         module:
           type: string
         entity:
