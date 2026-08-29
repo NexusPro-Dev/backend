@@ -244,7 +244,7 @@ class EffectiveCommissionIT extends IntegrationTestBase {
         jdbc.queryForObject("SELECT CAST(id AS text) FROM currencies LIMIT 1", String.class);
     jdbc.update(
         "INSERT INTO products (id, code, type, name, price, currency_id, status)"
-            + " VALUES (CAST(? AS uuid), ?, 'SERVICIO', ?, 10.00, CAST(? AS uuid), 'INACTIVO')",
+            + " VALUES (CAST(? AS uuid), ?, 'BOT', ?, 10.00, CAST(? AS uuid), 'INACTIVO')",
         id.toString(),
         codigo,
         "Producto " + codigo,
