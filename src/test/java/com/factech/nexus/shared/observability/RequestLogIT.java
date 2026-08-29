@@ -154,7 +154,9 @@ class RequestLogIT extends IntegrationTestBase {
                 .with(user(SUPERADMIN.toString()).authorities(() -> "roles:create"))
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(
-                    "{\"code\":\"CONTABILIDAD\",\"name\":\"Duplicado\",\"roleType\":\"FUNCIONARIO\","
+                    // `ADMIN` ya existe en la siembra: el alta muere con 409 y
+                    // la transacción de negocio se revierte entera.
+                    "{\"code\":\"ADMIN\",\"name\":\"Duplicado\",\"roleType\":\"FUNCIONARIO\","
                         + "\"parentRoleId\":\"01a02a33-4c00-7002-9c4f-5e7ad1000002\"}"))
         .andExpect(status().isConflict());
 

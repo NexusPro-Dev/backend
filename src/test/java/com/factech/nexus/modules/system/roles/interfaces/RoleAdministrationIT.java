@@ -36,13 +36,23 @@ class RoleAdministrationIT extends IntegrationTestBase {
 
   private static final String ADMIN = "01a02a33-4c00-7002-9c4f-5e7ad1000002";
   private static final String SUPERADMIN_ROL = "01a02a33-4c00-7001-9c4f-5e7ad1000001";
-  private static final String CONTABILIDAD = "01a02a33-4c00-7003-9c4f-5e7ad1000003";
-  private static final String MANAGER = "01a02a33-4c00-7005-9c4f-5e7ad1000005";
+  private static final String MANAGER = "01a02a33-4c00-7005-9c4f-5e7ad1000003";
 
   @Autowired private MockMvc mvc;
   @Autowired private JdbcTemplate jdbc;
 
-  /** Cuelga de CONTABILIDAD y hereda dos de sus permisos. */
+  /**
+   * Padre INTERMEDIO entre ADMIN y el rol bajo prueba, con los mismos dos permisos que él.
+   *
+   * <p>Existe para que reubicar el rol sea un cambio real y no un no-op. Hasta el 29-08-2026 ese
+   * papel lo hacía {@code CONTABILIDAD}, un rol sembrado que se retiró de `V7`; colgar el rol
+   * directamente de ADMIN habría dejado a `reubicacion` moviéndolo al padre que ya tenía —200 sin
+   * haber movido nada— y a `reubicacionSinCambio` verificando lo mismo dos veces. Se crea aquí, de
+   * modo que la prueba no vuelva a depender de qué roles siembre el sistema.
+   */
+  private UUID padreIntermedio;
+
+  /** Cuelga de {@link #padreIntermedio} y declara sus mismos dos permisos. */
   private UUID rol;
 
   private UUID hijo;
@@ -50,7 +60,8 @@ class RoleAdministrationIT extends IntegrationTestBase {
   @BeforeEach
   void preparar() {
     limpiar();
-    rol = crearRol("AUXILIAR", "Auxiliar contable", CONTABILIDAD);
+    padreIntermedio = crearRol("CONTADURIA", "Contaduría", ADMIN);
+    rol = crearRol("AUXILIAR", "Auxiliar contable", padreIntermedio.toString());
     hijo = crearRol("PRACTICANTE", "Practicante", rol.toString());
   }
 
@@ -75,7 +86,7 @@ class RoleAdministrationIT extends IntegrationTestBase {
         .andExpect(jsonPath("$.code").value("AUXILIAR"))
         .andExpect(jsonPath("$.roleType").value("FUNCIONARIO"))
         .andExpect(jsonPath("$.status").value("ACTIVO"))
-        .andExpect(jsonPath("$.parentRole.code").value("CONTABILIDAD"))
+        .andExpect(jsonPath("$.parentRole.code").value("CONTADURIA"))
         .andExpect(jsonPath("$.permissions.length()").value(2));
   }
 
@@ -117,7 +128,10 @@ class RoleAdministrationIT extends IntegrationTestBase {
   @Test
   @DisplayName("CA-SP-027 y CA-SP-028 — el nombre en uso se rechaza; el de un eliminado se admite")
   void unicidadDelNombre() throws Exception {
-    mvc.perform(editar(rol, "{\"name\":\"Contabilidad\"}"))
+    // El nombre en uso es el de `hijo`, que crea esta misma clase: hasta el
+    // 29-08-2026 se tomaba el de un rol sembrado que ya no existe, y sin él la
+    // edición pasaba a ser válida y devolvía 200.
+    mvc.perform(editar(rol, "{\"name\":\"Practicante\"}"))
         .andExpect(status().isConflict())
         .andExpect(jsonPath("$.errors[0].code").value("RN-SEG-001"));
 
@@ -203,8 +217,8 @@ class RoleAdministrationIT extends IntegrationTestBase {
   @Test
   @DisplayName("CA-SP-056 y CA-SP-061 — reubica el rol, y sus hijos lo acompañan")
   void reubicacion() throws Exception {
-    // ADMIN posee todo lo que CONTABILIDAD posee, de modo que la contención se
-    // cumple y el cambio procede.
+    // ADMIN posee todo lo que el padre intermedio posee, de modo que la
+    // contención se cumple y el cambio procede.
     mvc.perform(cambiarPadre(rol, ADMIN))
         .andExpect(status().isOk())
         .andExpect(jsonPath("$.parentRole.code").value("ADMIN"));
@@ -225,7 +239,7 @@ class RoleAdministrationIT extends IntegrationTestBase {
         .andExpect(jsonPath("$.errors[0].code").value("RN-SEG-013"));
 
     // Ni el padre ni los permisos se tocaron.
-    assertThat(padreDe(rol)).isEqualTo(UUID.fromString(CONTABILIDAD));
+    assertThat(padreDe(rol)).isEqualTo(padreIntermedio);
     assertThat(permisosDe(rol)).isEqualTo(2);
   }
 
@@ -246,7 +260,7 @@ class RoleAdministrationIT extends IntegrationTestBase {
   void reubicacionSinCambio() throws Exception {
     long antes = eventosDeCambio(rol);
 
-    mvc.perform(cambiarPadre(rol, CONTABILIDAD)).andExpect(status().isOk());
+    mvc.perform(cambiarPadre(rol, padreIntermedio.toString())).andExpect(status().isOk());
 
     assertThat(eventosDeCambio(rol)).isEqualTo(antes);
   }
@@ -260,7 +274,7 @@ class RoleAdministrationIT extends IntegrationTestBase {
         .andExpect(status().isUnprocessableEntity())
         .andExpect(jsonPath("$.errors[0].code").value("EX-004"));
 
-    UUID inactivo = crearRol("ARCHIVO", "Archivo", CONTABILIDAD);
+    UUID inactivo = crearRol("ARCHIVO", "Archivo", ADMIN);
     jdbc.update("UPDATE roles SET status = 'INACTIVO' WHERE id = ?", inactivo);
 
     mvc.perform(cambiarPadre(rol, inactivo.toString())).andExpect(status().isUnprocessableEntity());
@@ -346,15 +360,16 @@ class RoleAdministrationIT extends IntegrationTestBase {
   @Test
   @DisplayName("CA-SP-025, CA-SP-053 y CA-SP-068 — ninguna operación toca un rol de sistema")
   void rolDeSistema() throws Exception {
-    mvc.perform(editar(UUID.fromString(CONTABILIDAD), "{\"name\":\"Otra cosa\"}"))
+    mvc.perform(editar(UUID.fromString(ADMIN), "{\"name\":\"Otra cosa\"}"))
         .andExpect(status().isConflict())
         .andExpect(jsonPath("$.errors[0].code").value("RN-SEG-012"));
 
-    mvc.perform(cambiarEstado(UUID.fromString(CONTABILIDAD), "INACTIVO"))
+    mvc.perform(cambiarEstado(UUID.fromString(ADMIN), "INACTIVO")).andExpect(status().isConflict());
+    // Se pide un padre DISTINTO del que ya tiene: si se pidiera el mismo, el
+    // 409 podría venir de que no hay nada que cambiar y no de la protección.
+    mvc.perform(cambiarPadre(UUID.fromString(ADMIN), rol.toString()))
         .andExpect(status().isConflict());
-    mvc.perform(cambiarPadre(UUID.fromString(CONTABILIDAD), ADMIN))
-        .andExpect(status().isConflict());
-    mvc.perform(eliminar(UUID.fromString(CONTABILIDAD), "{\"reason\":\"No.\"}"))
+    mvc.perform(eliminar(UUID.fromString(ADMIN), "{\"reason\":\"No.\"}"))
         .andExpect(status().isConflict());
   }
 
@@ -481,7 +496,7 @@ class RoleAdministrationIT extends IntegrationTestBase {
     return jdbc.queryForObject("SELECT parent_role_id FROM roles WHERE id = ?", UUID.class, roleId);
   }
 
-  /** Crea un rol con dos permisos que su padre —CONTABILIDAD— también declara. */
+  /** Crea un rol con dos permisos que su padre —ADMIN— también declara. */
   private UUID crearRol(String codigo, String nombre, String padre) {
     UUID id = UUID.randomUUID();
     jdbc.update(
@@ -500,7 +515,7 @@ class RoleAdministrationIT extends IntegrationTestBase {
             "SELECT permission_id FROM role_permissions WHERE role_id = ?::uuid"
                 + " ORDER BY permission_id LIMIT 2",
             UUID.class,
-            CONTABILIDAD);
+            ADMIN);
     heredables.forEach(
         permiso ->
             jdbc.update(

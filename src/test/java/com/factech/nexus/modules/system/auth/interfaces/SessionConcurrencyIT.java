@@ -50,7 +50,7 @@ import org.springframework.test.web.servlet.request.MockHttpServletRequestBuilde
 @AutoConfigureMockMvc
 class SessionConcurrencyIT extends IntegrationTestBase {
 
-  private static final String CONTABILIDAD = "01a02a33-4c00-7003-9c4f-5e7ad1000003";
+  private static final String ADMIN_ROL = "01a02a33-4c00-7002-9c4f-5e7ad1000002";
   private static final String CLAVE = "ClaveLargaYSegura2026";
 
   /**
@@ -80,7 +80,7 @@ class SessionConcurrencyIT extends IntegrationTestBase {
         persona,
         hasher.hash(CLAVE));
     jdbc.update(
-        "INSERT INTO user_roles (user_id, role_id) VALUES (?, ?::uuid)", persona, CONTABILIDAD);
+        "INSERT INTO user_roles (user_id, role_id) VALUES (?, ?::uuid)", persona, ADMIN_ROL);
   }
 
   @AfterEach

@@ -48,7 +48,7 @@ import org.springframework.test.web.servlet.request.RequestPostProcessor;
 @AutoConfigureMockMvc
 class RevokeUserRolesSessionFailureIT extends IntegrationTestBase {
 
-  private static final String CONTABILIDAD = "01a02a33-4c00-7003-9c4f-5e7ad1000003";
+  private static final String ADMIN_ROL = "01a02a33-4c00-7002-9c4f-5e7ad1000002";
 
   /**
    * La persona lleva DOS roles y solo se le retira uno.
@@ -57,7 +57,7 @@ class RevokeUserRolesSessionFailureIT extends IntegrationTestBase {
    * que con un solo rol la petición se rechazaría con `409` antes de llegar a la revocación de
    * sesiones, que es lo que esta clase quiere ejercitar.
    */
-  private static final String AGENTE = "01a02a33-4c00-7007-9c4f-5e7ad1000007";
+  private static final String AGENTE = "01a02a33-4c00-7007-9c4f-5e7ad1000005";
 
   @Autowired private MockMvc mvc;
   @Autowired private JdbcTemplate jdbc;
@@ -79,7 +79,7 @@ class RevokeUserRolesSessionFailureIT extends IntegrationTestBase {
         """,
         persona);
     jdbc.update(
-        "INSERT INTO user_roles (user_id, role_id) VALUES (?, ?::uuid)", persona, CONTABILIDAD);
+        "INSERT INTO user_roles (user_id, role_id) VALUES (?, ?::uuid)", persona, ADMIN_ROL);
     jdbc.update("INSERT INTO user_roles (user_id, role_id) VALUES (?, ?::uuid)", persona, AGENTE);
   }
 
@@ -121,7 +121,7 @@ class RevokeUserRolesSessionFailureIT extends IntegrationTestBase {
     return post("/api/v1/users/{id}/roles/revocations", persona)
         .with(administrador())
         .contentType(MediaType.APPLICATION_JSON)
-        .content("{\"roleIds\":[\"" + CONTABILIDAD + "\"]}");
+        .content("{\"roleIds\":[\"" + ADMIN_ROL + "\"]}");
   }
 
   private RequestPostProcessor administrador() {

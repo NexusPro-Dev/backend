@@ -60,7 +60,7 @@ import org.springframework.test.web.servlet.request.RequestPostProcessor;
 @AutoConfigureMockMvc
 class RoleParentConcurrencyIT extends IntegrationTestBase {
 
-  private static final String CONTABILIDAD = "01a02a33-4c00-7003-9c4f-5e7ad1000003";
+  private static final String ADMIN_ROL = "01a02a33-4c00-7002-9c4f-5e7ad1000002";
 
   /**
    * Cuántas veces se intenta la carrera.
@@ -87,8 +87,8 @@ class RoleParentConcurrencyIT extends IntegrationTestBase {
   @DisplayName("dos reubicaciones que formarían un ciclo: una gana, la otra se rechaza")
   void cicloConcurrente() {
     for (int ronda = 0; ronda < RONDAS; ronda++) {
-      UUID a = crearRol("A" + ronda, CONTABILIDAD);
-      UUID c = crearRol("C" + ronda, CONTABILIDAD);
+      UUID a = crearRol("A" + ronda, ADMIN_ROL);
+      UUID c = crearRol("C" + ronda, ADMIN_ROL);
       UUID b = crearRol("B" + ronda, a.toString());
       UUID d = crearRol("D" + ronda, c.toString());
 
@@ -164,7 +164,7 @@ class RoleParentConcurrencyIT extends IntegrationTestBase {
             "SELECT permission_id FROM role_permissions WHERE role_id = ?::uuid"
                 + " ORDER BY permission_id LIMIT 2",
             UUID.class,
-            CONTABILIDAD);
+            ADMIN_ROL);
     heredables.forEach(
         permiso ->
             jdbc.update(

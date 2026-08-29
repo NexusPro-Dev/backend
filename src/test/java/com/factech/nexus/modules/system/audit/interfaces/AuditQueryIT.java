@@ -36,7 +36,7 @@ import org.springframework.test.web.servlet.request.RequestPostProcessor;
 class AuditQueryIT extends IntegrationTestBase {
 
   private static final String SUPERADMIN_ROL = "01a02a33-4c00-7001-9c4f-5e7ad1000001";
-  private static final String CONTABILIDAD = "01a02a33-4c00-7003-9c4f-5e7ad1000003";
+  private static final String ADMIN = "01a02a33-4c00-7002-9c4f-5e7ad1000002";
 
   @Autowired private MockMvc mvc;
   @Autowired private JdbcTemplate jdbc;
@@ -222,7 +222,7 @@ class AuditQueryIT extends IntegrationTestBase {
   @DisplayName("FA-001 — la eliminación de una asociación va SIN motivo, y es correcto")
   void eliminacionDeAsociacion() throws Exception {
     UUID rol = crearRolPorApi("CON_PERMISOS", "Rol con permisos");
-    UUID permiso = permisoDeContabilidad();
+    UUID permiso = permisoDelAdministrador();
 
     mvc.perform(
             post("/api/v1/roles/{id}/permissions", rol)
@@ -623,14 +623,14 @@ class AuditQueryIT extends IntegrationTestBase {
 
   private String cuerpoDeAlta(String codigo, String nombre) {
     return "{\"code\":\"%s\",\"name\":\"%s\",\"roleType\":\"FUNCIONARIO\",\"parentRoleId\":\"%s\"}"
-        .formatted(codigo, nombre, CONTABILIDAD);
+        .formatted(codigo, nombre, ADMIN);
   }
 
-  private UUID permisoDeContabilidad() {
+  private UUID permisoDelAdministrador() {
     return jdbc.queryForObject(
         "SELECT permission_id FROM role_permissions WHERE role_id = ?::uuid LIMIT 1",
         UUID.class,
-        CONTABILIDAD);
+        ADMIN);
   }
 
   /** Un evento escrito sin petición HTTP detrás, como el de una migración. */

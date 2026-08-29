@@ -29,8 +29,7 @@ class RoleDetailIT extends IntegrationTestBase {
 
   private static final String SUPERADMIN_ROL = "01a02a33-4c00-7001-9c4f-5e7ad1000001";
   private static final String ADMIN = "01a02a33-4c00-7002-9c4f-5e7ad1000002";
-  private static final String CONTABILIDAD = "01a02a33-4c00-7003-9c4f-5e7ad1000003";
-  private static final String LIDER_ACADEMICO = "01a02a33-4c00-7004-9c4f-5e7ad1000004";
+  private static final String AGENTE = "01a02a33-4c00-7007-9c4f-5e7ad1000005";
 
   @Autowired private MockMvc mvc;
   @Autowired private JdbcTemplate jdbc;
@@ -41,9 +40,9 @@ class RoleDetailIT extends IntegrationTestBase {
   void preparar() {
     limpiar();
 
-    // Cuelga de CONTABILIDAD, que SÍ declara permisos, y no declara ninguno
+    // Cuelga de ADMIN, que SÍ declara permisos, y no declara ninguno
     // propio: es lo que hace verificable `RN-SEG-004`.
-    hijoSinPermisos = crearRol("AUXILIAR_CONTABLE", "Auxiliar contable", CONTABILIDAD);
+    hijoSinPermisos = crearRol("AUXILIAR_CONTABLE", "Auxiliar contable", ADMIN);
   }
 
   @AfterEach
@@ -56,13 +55,11 @@ class RoleDetailIT extends IntegrationTestBase {
   void permisosDeclarados() throws Exception {
     long declarados =
         jdbc.queryForObject(
-            "SELECT count(*) FROM role_permissions WHERE role_id = ?::uuid",
-            Long.class,
-            CONTABILIDAD);
+            "SELECT count(*) FROM role_permissions WHERE role_id = ?::uuid", Long.class, ADMIN);
 
-    mvc.perform(detalle(CONTABILIDAD))
+    mvc.perform(detalle(ADMIN))
         .andExpect(status().isOk())
-        .andExpect(jsonPath("$.code").value("CONTABILIDAD"))
+        .andExpect(jsonPath("$.code").value("ADMIN"))
         .andExpect(jsonPath("$.permissions.length()").value((int) declarados))
         // Cada permiso llega completo: sin `resource` y `action`, el cliente
         // tendría que partir el código por los dos puntos.
@@ -74,15 +71,25 @@ class RoleDetailIT extends IntegrationTestBase {
   @Test
   @DisplayName("CA-SP-017 — devuelve el rol padre y el NÚMERO de hijos directos")
   void padreYNumeroDeHijos() throws Exception {
-    // Hijos directos de ADMIN: CONTABILIDAD, LIDER_ACADEMICO y MANAGER. DIRECTOR
-    // y AGENTE son descendientes y no cuentan.
+    // DOS hijos directos de ADMIN: MANAGER, que cuelga de él en la siembra, y
+    // AUXILIAR_CONTABLE, que crea esta clase. DIRECTOR y AGENTE cuelgan más
+    // abajo en la cadena comercial: son descendientes y NO cuentan, que es
+    // exactamente lo que este campo tiene que distinguir.
     mvc.perform(detalle(ADMIN))
         .andExpect(status().isOk())
         .andExpect(jsonPath("$.parentRole.code").value("SUPERADMIN"))
-        .andExpect(jsonPath("$.childRoleCount").value(3));
+        .andExpect(jsonPath("$.childRoleCount").value(2));
 
-    // CONTABILIDAD gana un hijo en esta prueba, y el número lo refleja.
-    mvc.perform(detalle(CONTABILIDAD))
+    // Y se mira un SEGUNDO rol, no dos veces el mismo: uno que todavía no tiene
+    // hijos y que gana uno aquí. Con un solo rol, un contador que devolviera
+    // siempre el total de la tabla pasaría la prueba.
+    mvc.perform(detalle(hijoSinPermisos.toString()))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.childRoleCount").value(0));
+
+    crearRol("AUXILIAR_JUNIOR", "Auxiliar junior", hijoSinPermisos.toString());
+
+    mvc.perform(detalle(hijoSinPermisos.toString()))
         .andExpect(status().isOk())
         .andExpect(jsonPath("$.childRoleCount").value(1));
   }
@@ -97,10 +104,10 @@ class RoleDetailIT extends IntegrationTestBase {
     mvc.perform(detalle(hijoSinPermisos.toString()))
         .andExpect(status().isOk())
         .andExpect(jsonPath("$.permissions").isEmpty())
-        .andExpect(jsonPath("$.parentRole.code").value("CONTABILIDAD"));
+        .andExpect(jsonPath("$.parentRole.code").value("ADMIN"));
 
     // Y el sembrado sin permisos sigue igual.
-    mvc.perform(detalle(LIDER_ACADEMICO))
+    mvc.perform(detalle(AGENTE))
         .andExpect(status().isOk())
         .andExpect(jsonPath("$.permissions").isEmpty());
   }
@@ -139,11 +146,11 @@ class RoleDetailIT extends IntegrationTestBase {
   @DisplayName("CA-SP-022 — sin `roles:read` no se obtiene el detalle")
   void sinPermiso() throws Exception {
     mvc.perform(
-            get("/api/v1/roles/{id}", CONTABILIDAD)
+            get("/api/v1/roles/{id}", ADMIN)
                 .with(user(SUPERADMIN.toString()).authorities(() -> "users:read")))
         .andExpect(status().isForbidden());
 
-    mvc.perform(get("/api/v1/roles/{id}", CONTABILIDAD)).andExpect(status().isUnauthorized());
+    mvc.perform(get("/api/v1/roles/{id}", ADMIN)).andExpect(status().isUnauthorized());
   }
 
   @Test
@@ -173,14 +180,17 @@ class RoleDetailIT extends IntegrationTestBase {
   @Test
   @DisplayName("CA-SP-150 — el tamaño de la respuesta no depende de cuántos hijos tenga el rol")
   void sinListaDeHijos() throws Exception {
+    // Los cinco cuelgan del rol que crea esta clase y no de uno sembrado: así
+    // el número esperado lo fija la propia prueba y no cambia el día que el
+    // catálogo del sistema gane o pierda un rol.
     for (int i = 0; i < 5; i++) {
-      crearRol("HIJO_" + i, "Hijo " + i, CONTABILIDAD);
+      crearRol("HIJO_" + i, "Hijo " + i, hijoSinPermisos.toString());
     }
 
     String cuerpo =
-        mvc.perform(detalle(CONTABILIDAD))
+        mvc.perform(detalle(hijoSinPermisos.toString()))
             .andExpect(status().isOk())
-            .andExpect(jsonPath("$.childRoleCount").value(6))
+            .andExpect(jsonPath("$.childRoleCount").value(5))
             .andReturn()
             .getResponse()
             .getContentAsString();
@@ -204,7 +214,7 @@ class RoleDetailIT extends IntegrationTestBase {
   @DisplayName("el detalle no expone `deletedAt` ni el actor de los cambios")
   void loQueElDetalleNoLleva() throws Exception {
     String cuerpo =
-        mvc.perform(detalle(CONTABILIDAD))
+        mvc.perform(detalle(ADMIN))
             .andExpect(status().isOk())
             .andExpect(jsonPath("$.createdAt").isNotEmpty())
             .andExpect(jsonPath("$.isSystem").value(true))

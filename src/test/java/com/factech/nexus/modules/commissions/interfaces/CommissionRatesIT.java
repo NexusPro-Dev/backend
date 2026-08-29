@@ -31,10 +31,10 @@ import org.springframework.test.web.servlet.request.MockHttpServletRequestBuilde
 class CommissionRatesIT extends IntegrationTestBase {
 
   /** `MANAGER`, sembrado por `V7` con `role_type = 'VENDEDOR'`. */
-  private static final String VENDEDOR = "01a02a33-4c00-7005-9c4f-5e7ad1000005";
+  private static final String VENDEDOR = "01a02a33-4c00-7005-9c4f-5e7ad1000003";
 
-  /** `CONTABILIDAD`, que es funcionario: sirve para la mitad negativa de `RN-CM-001`. */
-  private static final String NO_VENDEDOR = "01a02a33-4c00-7003-9c4f-5e7ad1000003";
+  /** `ADMIN`, que es funcionario: sirve para la mitad negativa de `RN-CM-001`. */
+  private static final String NO_VENDEDOR = "01a02a33-4c00-7002-9c4f-5e7ad1000002";
 
   @Autowired private MockMvc mvc;
   @Autowired private JdbcTemplate jdbc;

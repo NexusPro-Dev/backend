@@ -32,7 +32,7 @@ import org.springframework.test.web.servlet.MockMvc;
 @AutoConfigureMockMvc
 class CommissionRateConcurrencyIT extends IntegrationTestBase {
 
-  private static final String VENDEDOR = "01a02a33-4c00-7005-9c4f-5e7ad1000005";
+  private static final String VENDEDOR = "01a02a33-4c00-7005-9c4f-5e7ad1000003";
 
   @Autowired private MockMvc mvc;
   @Autowired private JdbcTemplate jdbc;

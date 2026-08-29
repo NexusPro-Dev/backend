@@ -38,7 +38,7 @@ class UserMembershipIT extends IntegrationTestBase {
 
   private static final String SUPERADMIN_ROL = "01a02a33-4c00-7001-9c4f-5e7ad1000001";
   private static final String ADMIN = "01a02a33-4c00-7002-9c4f-5e7ad1000002";
-  private static final String CONTABILIDAD = "01a02a33-4c00-7003-9c4f-5e7ad1000003";
+  private static final String ADMIN_ROL = "01a02a33-4c00-7002-9c4f-5e7ad1000002";
 
   @Autowired private MockMvc mvc;
   @Autowired private JdbcTemplate jdbc;
@@ -234,7 +234,7 @@ class UserMembershipIT extends IntegrationTestBase {
   @DisplayName("EX-001 es 409, y el cuerpo dice cuál es la operación que falta")
   void sinRolDeConsumidor() throws Exception {
     jdbc.update(
-        "INSERT INTO user_roles (user_id, role_id) VALUES (?, ?::uuid)", persona, CONTABILIDAD);
+        "INSERT INTO user_roles (user_id, role_id) VALUES (?, ?::uuid)", persona, ADMIN_ROL);
 
     mvc.perform(fijar(persona, oro, null))
         .andExpect(status().isConflict())
@@ -432,7 +432,7 @@ class UserMembershipIT extends IntegrationTestBase {
     jdbc.update(
         "INSERT INTO user_roles (user_id, role_id) VALUES (?, ?::uuid) ON CONFLICT DO NOTHING",
         persona,
-        "01a02a33-4c00-7004-9c4f-5e7ad1000004");
+        "01a02a33-4c00-7007-9c4f-5e7ad1000005");
 
     // Es la salida que el `409` de arriba cita: `RF-SP-031` retira la membresía
     // en cascada, y por eso no hace falta que esta operación admita al consumidor.

@@ -37,8 +37,6 @@ class CreateRoleIT extends IntegrationTestBase {
   /** Roles sembrados por {@code V7}, referenciados por constante. */
   private static final String ADMIN = "01a02a33-4c00-7002-9c4f-5e7ad1000002";
 
-  private static final String CONTABILIDAD = "01a02a33-4c00-7003-9c4f-5e7ad1000003";
-
   @Autowired private MockMvc mvc;
   @Autowired private JdbcTemplate jdbc;
 
@@ -191,7 +189,15 @@ class CreateRoleIT extends IntegrationTestBase {
   @Test
   @DisplayName("CA-SP-003 — RN-SEG-003: 409 enumerando TODOS los permisos fuera del padre")
   void permisoFueraDelPadre() throws Exception {
-    // CONTABILIDAD solo tiene dos permisos; se piden dos que no están en él.
+    // El padre tiene que ser un rol con permisos ACOTADOS, y la prueba se lo
+    // fabrica en lugar de tomarlo de la siembra: los dos roles sembrados con
+    // permisos son SUPERADMIN —que los tiene todos— y ADMIN —que solo se
+    // reserva dos—, de modo que con cualquiera de ellos como padre casi ningún
+    // permiso quedaría fuera y la prueba devolvería 201 sin haber ejercitado la
+    // regla. Hasta el 29-08-2026 ese padre era `CONTABILIDAD`, que se retiró de
+    // la siembra.
+    String padreAcotado = crearRolConPermisos("CA_003_PADRE", "audit:read-changes");
+
     String uno = idDePermiso("roles:read");
     String dos = idDePermiso("permissions:read");
 
@@ -201,7 +207,7 @@ class CreateRoleIT extends IntegrationTestBase {
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(
                     cuerpo(
-                        "CA_003", "Criterio 003", CONTABILIDAD, "\"" + uno + "\",\"" + dos + "\"")))
+                        "CA_003", "Criterio 003", padreAcotado, "\"" + uno + "\",\"" + dos + "\"")))
         .andExpect(status().isConflict())
         .andExpect(jsonPath("$.type").value("https://nexus.factech.co/errors/regla-de-negocio"))
         .andExpect(jsonPath("$.errors.length()").value(2))
@@ -509,6 +515,33 @@ class CreateRoleIT extends IntegrationTestBase {
             todos.stream()
                 .map(c -> (org.springframework.security.core.GrantedAuthority) () -> c)
                 .toList());
+  }
+
+  /**
+   * Un rol de negocio colgado de ADMIN con exactamente los permisos indicados, para poder usarlo
+   * como padre acotado. Se inserta por SQL y no por la API porque lo que se va a verificar es el
+   * endpoint de creación: construir el fixture con él haría que un fallo del propio endpoint se
+   * confundiera con el caso bajo prueba.
+   */
+  private String crearRolConPermisos(String codigo, String... permisos) {
+    UUID id = UUID.randomUUID();
+    jdbc.update(
+        """
+        INSERT INTO roles (id, code, name, description, role_type, parent_role_id,
+                           status, is_system)
+        VALUES (?, ?, ?, 'Rol de prueba.', 'FUNCIONARIO', ?::uuid, 'ACTIVO', false)
+        """,
+        id,
+        codigo,
+        codigo,
+        ADMIN);
+    for (String permiso : permisos) {
+      jdbc.update(
+          "INSERT INTO role_permissions (role_id, permission_id) VALUES (?, ?::uuid)",
+          id,
+          idDePermiso(permiso));
+    }
+    return id.toString();
   }
 
   private String idDePermiso(String codigo) {

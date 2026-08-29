@@ -33,8 +33,11 @@ import org.springframework.test.web.servlet.request.MockHttpServletRequestBuilde
 @AutoConfigureMockMvc
 class AuthIT extends IntegrationTestBase {
 
-  private static final String CONTABILIDAD = "01a02a33-4c00-7003-9c4f-5e7ad1000003";
+  private static final String ADMIN = "01a02a33-4c00-7002-9c4f-5e7ad1000002";
   private static final String CLAVE = "ClaveLargaYSegura2026";
+
+  /** Código del rol acotado que esta clase se fabrica; ver {@link #rolAcotado}. */
+  private static final String CODIGO_ACOTADO = "AUDITORIA_ACOTADA";
 
   @Autowired private MockMvc mvc;
   @Autowired private JdbcTemplate jdbc;
@@ -43,6 +46,17 @@ class AuthIT extends IntegrationTestBase {
   @Autowired private FailedAttemptLedger sinCuenta;
 
   private UUID persona;
+
+  /**
+   * Rol con DOS permisos y ninguno más, que es lo que hace verificable la mitad negativa de {@link
+   * #elTokenAutentica}: la persona autentica pero no puede leer membresías.
+   *
+   * <p>Hasta el 29-08-2026 ese papel lo hacía {@code CONTABILIDAD}, un rol sembrado que se retiró
+   * de `V7`. Colgarla en su lugar de un rol sembrado con permisos —solo quedan SUPERADMIN y ADMIN,
+   * que los tienen casi todos— habría hecho que la puerta estuviera abierta desde el principio y
+   * que la prueba dejara de distinguir «el token autentica» de «el token concede».
+   */
+  private UUID rolAcotado;
 
   @BeforeEach
   void prepararCuenta() {
@@ -64,8 +78,38 @@ class AuthIT extends IntegrationTestBase {
         """,
         persona,
         hasher.hash(CLAVE));
+    rolAcotado = crearRolAcotado();
+    jdbc.update("INSERT INTO user_roles (user_id, role_id) VALUES (?, ?)", persona, rolAcotado);
+  }
+
+  /** Cuelga de ADMIN y declara los dos permisos de lectura de auditoría, y ninguno más. */
+  private UUID crearRolAcotado() {
+    borrarRolAcotado();
+    UUID id = UUID.randomUUID();
     jdbc.update(
-        "INSERT INTO user_roles (user_id, role_id) VALUES (?, ?::uuid)", persona, CONTABILIDAD);
+        """
+        INSERT INTO roles (id, code, name, description, role_type, parent_role_id,
+                           status, is_system)
+        VALUES (?, ?, 'Auditoría acotada', 'Rol de prueba.', 'FUNCIONARIO', ?::uuid,
+                'ACTIVO', false)
+        """,
+        id,
+        CODIGO_ACOTADO,
+        ADMIN);
+    jdbc.update(
+        """
+        INSERT INTO role_permissions (role_id, permission_id)
+        SELECT ?, id FROM permissions WHERE code IN ('audit:read-changes', 'audit:read-deletions')
+        """,
+        id);
+    return id;
+  }
+
+  private void borrarRolAcotado() {
+    jdbc.update(
+        "DELETE FROM role_permissions WHERE role_id IN (SELECT id FROM roles WHERE code = ?)",
+        CODIGO_ACOTADO);
+    jdbc.update("DELETE FROM roles WHERE code = ?", CODIGO_ACOTADO);
   }
 
   /**
@@ -80,6 +124,7 @@ class AuthIT extends IntegrationTestBase {
     jdbc.update("DELETE FROM refresh_tokens");
     jdbc.update("DELETE FROM user_roles WHERE user_id <> ?", SUPERADMIN);
     jdbc.update("DELETE FROM users WHERE id <> ?", SUPERADMIN);
+    borrarRolAcotado();
   }
 
   // ---------------------------------------------------------------------------
@@ -392,7 +437,7 @@ class AuthIT extends IntegrationTestBase {
   void elTokenAutentica() throws Exception {
     String token = accessToken(login("JPerez", CLAVE));
 
-    // CONTABILIDAD concede `audit:read-changes` y `audit:read-deletions`, y
+    // El rol acotado concede `audit:read-changes` y `audit:read-deletions`, y
     // ninguno más: el token autentica, pero no abre esta puerta.
     mvc.perform(get("/api/v1/memberships").header("Authorization", "Bearer " + token))
         .andExpect(status().isForbidden());

@@ -42,25 +42,17 @@ INSERT INTO roles (id, code, name, description, role_type, parent_role_id, statu
  'Máximo rol de negocio. Posee todo permiso que cualquier rol funcional declare, que es lo que hace viable RN-SEG-003 en la jerarquía que cuelga de él.',
  'FUNCIONARIO', '01a02a33-4c00-7001-9c4f-5e7ad1000001', 'ACTIVO', true),
 
-('01a02a33-4c00-7003-9c4f-5e7ad1000003', 'CONTABILIDAD', 'Contabilidad',
- 'Área contable. Consume roles y lee la auditoría de cambios y de eliminación; no administra roles.',
- 'FUNCIONARIO', '01a02a33-4c00-7002-9c4f-5e7ad1000002', 'ACTIVO', true),
-
-('01a02a33-4c00-7004-9c4f-5e7ad1000004', 'LIDER_ACADEMICO', 'Líder académico',
- 'Responsable del área académica. Se siembra sin permisos, a la espera de RF-SP-005.',
- 'FUNCIONARIO', '01a02a33-4c00-7002-9c4f-5e7ad1000002', 'ACTIVO', true),
-
-('01a02a33-4c00-7005-9c4f-5e7ad1000005', 'MANAGER', 'Manager',
+('01a02a33-4c00-7005-9c4f-5e7ad1000003', 'MANAGER', 'Manager',
  'Rango superior de la fuerza comercial. Se siembra sin permisos, a la espera de RF-SP-005.',
  'VENDEDOR', '01a02a33-4c00-7002-9c4f-5e7ad1000002', 'ACTIVO', true),
 
-('01a02a33-4c00-7006-9c4f-5e7ad1000006', 'DIRECTOR', 'Director',
+('01a02a33-4c00-7006-9c4f-5e7ad1000004', 'DIRECTOR', 'Director',
  'Rango intermedio de la fuerza comercial. Se siembra sin permisos, a la espera de RF-SP-005.',
- 'VENDEDOR', '01a02a33-4c00-7005-9c4f-5e7ad1000005', 'ACTIVO', true),
+ 'VENDEDOR', '01a02a33-4c00-7005-9c4f-5e7ad1000003', 'ACTIVO', true),
 
-('01a02a33-4c00-7007-9c4f-5e7ad1000007', 'AGENTE', 'Agente o vendedor',
+('01a02a33-4c00-7007-9c4f-5e7ad1000005', 'AGENTE', 'Agente o vendedor',
  'Rango base de la fuerza comercial. Se siembra sin permisos, a la espera de RF-SP-005.',
- 'VENDEDOR', '01a02a33-4c00-7006-9c4f-5e7ad1000006', 'ACTIVO', true);
+ 'VENDEDOR', '01a02a33-4c00-7006-9c4f-5e7ad1000004', 'ACTIVO', true);
 
 
 -- -----------------------------------------------------------------------------
@@ -99,20 +91,19 @@ SELECT '01a02a33-4c00-7002-9c4f-5e7ad1000002', id
 
 
 -- -----------------------------------------------------------------------------
--- 4. Permisos de CONTABILIDAD
+-- 4. Ningún rol más recibe permisos en esta siembra.
 --
--- Lo único que `requirements/sp.md` §4 documenta para él. Los cuatro registros
--- de auditoría no tienen la misma sensibilidad y no se leen en bloque
--- (`security.md` §4.4).
+-- `SUPERADMIN` y `ADMIN` los reciben arriba. `MANAGER`, `DIRECTOR` y `AGENTE`
+-- se siembran SIN permisos, a la espera de `RF-SP-005`: sembrarlos a ojo
+-- produciría un catálogo que nadie aprobó y que quedaría como referencia.
 --
--- LIDER_ACADEMICO, MANAGER, DIRECTOR y AGENTE se siembran SIN permisos, a la
--- espera de `RF-SP-005`: sembrarlos a ojo produciría un catálogo que nadie
--- aprobó y que quedaría como referencia.
+-- AQUÍ HABÍA UN BLOQUE PARA `CONTABILIDAD` —los dos permisos de lectura de
+-- auditoría que `requirements/sp.md` §4 le documentaba—, retirado el 29-08-2026
+-- junto con el propio rol y con `LIDER_ACADEMICO`, por decisión del responsable
+-- del proyecto. Quitar las filas de los roles y dejar este bloque es lo que
+-- rompió la migración: la clave foránea `fk_role_permissions_roles` no tenía a
+-- qué apuntar, y la aplicación no arrancaba sobre una base limpia.
 -- -----------------------------------------------------------------------------
-INSERT INTO role_permissions (role_id, permission_id)
-SELECT '01a02a33-4c00-7003-9c4f-5e7ad1000003', id
-  FROM permissions
- WHERE code IN ('audit:read-changes', 'audit:read-deletions');
 
 
 -- -----------------------------------------------------------------------------

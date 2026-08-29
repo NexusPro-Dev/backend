@@ -32,9 +32,9 @@ import org.springframework.test.web.servlet.request.RequestPostProcessor;
 class UserLifecycleIT extends IntegrationTestBase {
 
   private static final String SUPERADMIN_ROL = "01a02a33-4c00-7001-9c4f-5e7ad1000001";
-  private static final String CONTABILIDAD = "01a02a33-4c00-7003-9c4f-5e7ad1000003";
-  private static final String MANAGER = "01a02a33-4c00-7005-9c4f-5e7ad1000005";
-  private static final String DIRECTOR = "01a02a33-4c00-7006-9c4f-5e7ad1000006";
+  private static final String ADMIN_ROL = "01a02a33-4c00-7002-9c4f-5e7ad1000002";
+  private static final String MANAGER = "01a02a33-4c00-7005-9c4f-5e7ad1000003";
+  private static final String DIRECTOR = "01a02a33-4c00-7006-9c4f-5e7ad1000004";
 
   @Autowired private MockMvc mvc;
   @Autowired private JdbcTemplate jdbc;
@@ -58,8 +58,7 @@ class UserLifecycleIT extends IntegrationTestBase {
         SUPERADMIN_ROL);
 
     juan = crearPersona("jperez", "juan.perez@factech.co", "Juan", "Pérez");
-    jdbc.update(
-        "INSERT INTO user_roles (user_id, role_id) VALUES (?, ?::uuid)", juan, CONTABILIDAD);
+    jdbc.update("INSERT INTO user_roles (user_id, role_id) VALUES (?, ?::uuid)", juan, ADMIN_ROL);
   }
 
   /**
@@ -479,7 +478,7 @@ class UserLifecycleIT extends IntegrationTestBase {
     assertThat(fila.get("reason")).isEqualTo("Registro duplicado");
     // Después de borrar ya no habría nada que capturar, y NADA fallaría.
     assertThat((String) fila.get("snapshot"))
-        .contains("CONTABILIDAD")
+        .contains("ADMIN")
         .contains("DIRECTOR")
         .contains("elmanager")
         .contains("ACTIVO")

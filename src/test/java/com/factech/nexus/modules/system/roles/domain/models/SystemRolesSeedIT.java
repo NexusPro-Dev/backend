@@ -14,6 +14,13 @@ import org.springframework.jdbc.core.JdbcTemplate;
 /**
  * Verificación de {@code V7__seed_system_roles.sql} (`RF-SP-001` · `T-04`).
  *
+ * <p>El catálogo sembrado se REDUJO el 29-08-2026: {@code CONTABILIDAD} y {@code LIDER_ACADEMICO}
+ * se retiraron de `V7` por decisión del responsable del proyecto. Esta clase se reescribió entera
+ * para describir el catálogo que quedó, y no se ajustó número a número: varias de sus afirmaciones
+ * —los permisos acotados de un rol funcionario, el recuento de roles— hablaban de roles que ya no
+ * existen, y repuntarlas a otro rol las habría convertido en aserciones que pasan sin verificar lo
+ * que fueron escritas para verificar.
+ *
  * <p>Todas las consultas filtran por {@code is_system = true}: otras pruebas de la suite insertan
  * roles en la misma base, y contar sin ese filtro haría que el resultado dependiera del orden de
  * ejecución.
@@ -22,7 +29,9 @@ class SystemRolesSeedIT extends IntegrationTestBase {
 
   private static final UUID SUPERADMIN = UUID.fromString("01a02a33-4c00-7001-9c4f-5e7ad1000001");
   private static final UUID ADMIN = UUID.fromString("01a02a33-4c00-7002-9c4f-5e7ad1000002");
-  private static final UUID CONTABILIDAD = UUID.fromString("01a02a33-4c00-7003-9c4f-5e7ad1000003");
+
+  /** Los cinco de `V7` más `CLIENTE`, que añade `V30`. */
+  private static final int ROLES_DE_SISTEMA = 6;
 
   @Autowired private JdbcTemplate jdbc;
 
@@ -40,11 +49,16 @@ class SystemRolesSeedIT extends IntegrationTestBase {
   }
 
   @Test
-  @DisplayName("los ocho roles de sistema están, con la jerarquía del catálogo aprobado")
+  @DisplayName("los seis roles de sistema están, con la jerarquía del catálogo vigente")
   void jerarquiaSembrada() {
-    // Siete los siembra `V7` y el octavo —`CLIENTE`— lo añade `V30`, el
+    // Cinco los siembra `V7` y el sexto —`CLIENTE`— lo añade `V30`, el
     // 24-08-2026. Se cuentan juntos porque la pregunta es cuáles son los roles
     // de sistema, no qué migración puso cada uno.
+    //
+    // La fuerza comercial es una CADENA y no un abanico: MANAGER cuelga de
+    // ADMIN, DIRECTOR de MANAGER y AGENTE de DIRECTOR. Eso es lo que hace que
+    // la contención de privilegios (`RN-SEG-003`) se estreche hacia abajo en
+    // lugar de repartirse en paralelo.
     Map<String, String> padrePorCodigo =
         jdbc
             .query(
@@ -59,15 +73,23 @@ class SystemRolesSeedIT extends IntegrationTestBase {
             .collect(java.util.stream.Collectors.toMap(Map.Entry::getKey, Map.Entry::getValue));
 
     assertThat(padrePorCodigo)
-        .hasSize(8)
+        .hasSize(ROLES_DE_SISTEMA)
         .containsEntry("SUPERADMIN", "null")
         .containsEntry("ADMIN", "SUPERADMIN")
-        .containsEntry("CONTABILIDAD", "ADMIN")
-        .containsEntry("LIDER_ACADEMICO", "ADMIN")
         .containsEntry("MANAGER", "ADMIN")
         .containsEntry("DIRECTOR", "MANAGER")
         .containsEntry("AGENTE", "DIRECTOR")
         .containsEntry("CLIENTE", "SUPERADMIN");
+  }
+
+  @Test
+  @DisplayName("los dos roles retirados el 29-08-2026 ya no se siembran")
+  void rolesRetiradosDeLaSiembra() {
+    // `CONTABILIDAD` y `LIDER_ACADEMICO` estuvieron en el catálogo sembrado
+    // desde `V7` y se retiraron de él por decisión del responsable del
+    // proyecto. La prueba no desaparece con ellos: deja constancia de que la
+    // ausencia es deliberada y no un olvido de la migración.
+    assertThat(codigosDeSistema()).doesNotContain("CONTABILIDAD", "LIDER_ACADEMICO");
   }
 
   @Test
@@ -97,6 +119,22 @@ class SystemRolesSeedIT extends IntegrationTestBase {
   }
 
   @Test
+  @DisplayName("la fuerza comercial se siembra como VENDEDOR, que es lo que RN-SP-025 acota")
+  void fuerzaComercialEsVendedora() {
+    // Importa más que como etiqueta de catálogo: `RN-SP-025` prohíbe que una
+    // persona porte dos roles de este tipo, y `RF-CM-005` resuelve la comisión
+    // efectiva a partir del rol vendedor de quien vende. Si alguno de los tres
+    // dejara de ser VENDEDOR, esa resolución no encontraría tarifa y devolvería
+    // «no comisiona» en lugar de fallar.
+    List<String> vendedores =
+        jdbc.queryForList(
+            "SELECT code FROM roles WHERE is_system = true AND role_type = 'VENDEDOR'",
+            String.class);
+
+    assertThat(vendedores).containsExactlyInAnyOrder("MANAGER", "DIRECTOR", "AGENTE");
+  }
+
+  @Test
   @DisplayName("SUPERADMIN declara el catálogo completo de permisos (RN-SEG-007)")
   void superadminLoTieneTodo() {
     Integer delCatalogo = jdbc.queryForObject("SELECT count(*) FROM permissions", Integer.class);
@@ -118,17 +156,10 @@ class SystemRolesSeedIT extends IntegrationTestBase {
   }
 
   @Test
-  @DisplayName("CONTABILIDAD recibe solo los dos permisos que la documentación le atribuye")
-  void permisosDeContabilidad() {
-    assertThat(permisosDe(CONTABILIDAD))
-        .containsExactlyInAnyOrder("audit:read-changes", "audit:read-deletions");
-  }
-
-  @Test
   @DisplayName("los cuatro roles restantes se siembran sin permisos, a la espera de RF-SP-005")
   void rolesSinPermisos() {
-    // Sembrarlos a ojo produciría un catálogo que nadie aprobó y que quedaría
-    // como referencia.
+    // MANAGER, DIRECTOR, AGENTE y CLIENTE. Sembrarlos a ojo produciría un
+    // catálogo que nadie aprobó y que quedaría como referencia.
     List<String> conPermisos =
         jdbc.queryForList(
             """
@@ -138,11 +169,11 @@ class SystemRolesSeedIT extends IntegrationTestBase {
             """,
             String.class);
 
-    assertThat(conPermisos).containsExactlyInAnyOrder("SUPERADMIN", "ADMIN", "CONTABILIDAD");
+    assertThat(conPermisos).containsExactlyInAnyOrder("SUPERADMIN", "ADMIN");
   }
 
   @Test
-  @DisplayName("hay ocho filas de auditoría del poblado, con actor, correlación e IP en nulo")
+  @DisplayName("hay seis filas de auditoría del poblado, con actor, correlación e IP en nulo")
   void auditoriaDelPoblado() {
     // Una por rol de sistema, `CLIENTE` incluido: `V30` emite la suya con la
     // misma forma que `V7`.
@@ -162,7 +193,7 @@ class SystemRolesSeedIT extends IntegrationTestBase {
             """,
             Integer.class);
 
-    assertThat(filas).isEqualTo(8);
+    assertThat(filas).isEqualTo(ROLES_DE_SISTEMA);
   }
 
   @Test
@@ -170,18 +201,21 @@ class SystemRolesSeedIT extends IntegrationTestBase {
   void estadoInicialEnLaAuditoria() {
     // En un CREATE, `changes` lleva el estado inicial y no un diff con
     // `before` en null (architecture.md §6.6.2).
+    //
+    // Se mira ADMIN porque es el único rol sembrado con permisos ACOTADOS: en
+    // SUPERADMIN, que los tiene todos, un `permissions` mal construido pasaría
+    // tan desapercibido como uno correcto. La reserva de dos permisos es
+    // justamente lo que hace observable la diferencia.
     String changes =
         jdbc.queryForObject(
-            "SELECT changes::text FROM audit_change_log WHERE entity_id = ?",
-            String.class,
-            CONTABILIDAD);
+            "SELECT changes::text FROM audit_change_log WHERE entity_id = ?", String.class, ADMIN);
 
     assertThat(changes)
-        .contains("\"code\": \"CONTABILIDAD\"")
+        .contains("\"code\": \"ADMIN\"")
         .contains("\"is_system\": true")
         .contains("\"status\": \"ACTIVO\"")
-        .contains("audit:read-changes")
-        .contains("audit:read-deletions");
+        .contains("roles:create")
+        .doesNotContain("audit:read-security");
   }
 
   @Test

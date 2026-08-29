@@ -27,8 +27,8 @@ import org.springframework.test.web.servlet.request.MockHttpServletRequestBuilde
 @AutoConfigureMockMvc
 class EffectiveCommissionIT extends IntegrationTestBase {
 
-  private static final String VENDEDOR = "01a02a33-4c00-7005-9c4f-5e7ad1000005";
-  private static final String NO_VENDEDOR = "01a02a33-4c00-7003-9c4f-5e7ad1000003";
+  private static final String VENDEDOR = "01a02a33-4c00-7005-9c4f-5e7ad1000003";
+  private static final String NO_VENDEDOR = "01a02a33-4c00-7002-9c4f-5e7ad1000002";
 
   @Autowired private MockMvc mvc;
   @Autowired private JdbcTemplate jdbc;

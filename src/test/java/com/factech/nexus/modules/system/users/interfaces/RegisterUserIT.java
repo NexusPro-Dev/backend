@@ -35,13 +35,28 @@ class RegisterUserIT extends IntegrationTestBase {
   /** Roles del catálogo sembrado por {@code V7}, referenciados por constante. */
   private static final String ADMIN = "01a02a33-4c00-7002-9c4f-5e7ad1000002";
 
-  private static final String CONTABILIDAD = "01a02a33-4c00-7003-9c4f-5e7ad1000003";
-  private static final String MANAGER = "01a02a33-4c00-7005-9c4f-5e7ad1000005";
-  private static final String DIRECTOR = "01a02a33-4c00-7006-9c4f-5e7ad1000006";
-  private static final String AGENTE = "01a02a33-4c00-7007-9c4f-5e7ad1000007";
+  /**
+   * Código del rol acotado que esta clase se fabrica; ver {@link
+   * IntegrationTestBase#crearRolAcotado}.
+   */
+  private static final String CODIGO_ACOTADO = "AUDITORIA_ACOTADA";
+
+  private static final String MANAGER = "01a02a33-4c00-7005-9c4f-5e7ad1000003";
+  private static final String DIRECTOR = "01a02a33-4c00-7006-9c4f-5e7ad1000004";
+  private static final String AGENTE = "01a02a33-4c00-7007-9c4f-5e7ad1000005";
 
   @Autowired private MockMvc mvc;
   @Autowired private JdbcTemplate jdbc;
+
+  /**
+   * Rol de negocio con DOS permisos y ninguno más, que es el que estas pruebas conceden y retiran.
+   *
+   * <p>Tiene que ser acotado y no privilegiado: {@link #rolQueExcedeAlActor} necesita que quien lo
+   * porta NO alcance a conceder ADMIN, y {@link #permisosDesdeLaBase} lo desactiva para ver
+   * desaparecer sus permisos — desactivar un rol sembrado sería tocar el catálogo del sistema
+   * dentro de una base compartida por toda la suite.
+   */
+  private String rolAcotado;
 
   @BeforeEach
   void dejarSoloAlSuperadministrador() {
@@ -54,6 +69,12 @@ class RegisterUserIT extends IntegrationTestBase {
     jdbc.update("DELETE FROM user_roles WHERE user_id <> ?", SUPERADMIN);
     jdbc.update("DELETE FROM users WHERE id <> ?", SUPERADMIN);
     jdbc.update("DELETE FROM memberships WHERE level > 0");
+    jdbc.update(
+        "DELETE FROM role_permissions WHERE role_id IN"
+            + " (SELECT id FROM roles WHERE is_system = false)");
+    jdbc.update("DELETE FROM roles WHERE is_system = false");
+
+    rolAcotado = crearRolAcotado(jdbc, CODIGO_ACOTADO, "Auditoría acotada").toString();
   }
 
   // ---------------------------------------------------------------------------
@@ -63,7 +84,7 @@ class RegisterUserIT extends IntegrationTestBase {
   @Test
   @DisplayName("CA-SP-198 — la persona nace ACTIVA y marcada para cambio obligatorio")
   void altaValida() throws Exception {
-    mvc.perform(alta("jperez", "Juan.Perez@FACTECH.CO", CONTABILIDAD))
+    mvc.perform(alta("jperez", "Juan.Perez@FACTECH.CO", rolAcotado))
         .andExpect(status().isCreated())
         .andExpect(header().string("Location", org.hamcrest.Matchers.startsWith("/api/v1/users/")))
         .andExpect(jsonPath("$.status").value("ACTIVO"))
@@ -71,14 +92,14 @@ class RegisterUserIT extends IntegrationTestBase {
         // El nombre de usuario, TAL COMO SE ESCRIBIÓ; el correo, normalizado.
         .andExpect(jsonPath("$.username").value("jperez"))
         .andExpect(jsonPath("$.email").value("juan.perez@factech.co"))
-        .andExpect(jsonPath("$.roles[0].code").value("CONTABILIDAD"));
+        .andExpect(jsonPath("$.roles[0].code").value(CODIGO_ACOTADO));
   }
 
   @Test
   @DisplayName("CA-SP-196 — la respuesta no contiene la contraseña ni nada derivado de ella")
   void sinRastroDeLaCredencial() throws Exception {
     String cuerpo =
-        mvc.perform(alta("jperez", "jperez@factech.co", CONTABILIDAD))
+        mvc.perform(alta("jperez", "jperez@factech.co", rolAcotado))
             .andExpect(status().isCreated())
             .andReturn()
             .getResponse()
@@ -119,11 +140,11 @@ class RegisterUserIT extends IntegrationTestBase {
   @Test
   @DisplayName("RN-SP-016 — el nombre de usuario duplicado se rechaza ignorando la caja")
   void nombreDeUsuarioDuplicado() throws Exception {
-    mvc.perform(alta("JPerez", "uno@factech.co", CONTABILIDAD)).andExpect(status().isCreated());
+    mvc.perform(alta("JPerez", "uno@factech.co", rolAcotado)).andExpect(status().isCreated());
 
     // Si esto pasara, `JPerez` no podría entrar escribiendo `jperez` y habría
     // dos personas indistinguibles en la auditoría.
-    mvc.perform(alta("jperez", "dos@factech.co", CONTABILIDAD))
+    mvc.perform(alta("jperez", "dos@factech.co", rolAcotado))
         .andExpect(status().isConflict())
         .andExpect(jsonPath("$.errors[0].code").value("RN-SP-016"))
         .andExpect(jsonPath("$.errors[0].field").value("username"));
@@ -132,9 +153,9 @@ class RegisterUserIT extends IntegrationTestBase {
   @Test
   @DisplayName("RN-SP-016 — el correo duplicado se rechaza tras normalizar")
   void correoDuplicado() throws Exception {
-    mvc.perform(alta("uno", "Juan@Factech.CO", CONTABILIDAD)).andExpect(status().isCreated());
+    mvc.perform(alta("uno", "Juan@Factech.CO", rolAcotado)).andExpect(status().isCreated());
 
-    mvc.perform(alta("dos", "juan@factech.co", CONTABILIDAD))
+    mvc.perform(alta("dos", "juan@factech.co", rolAcotado))
         .andExpect(status().isConflict())
         .andExpect(jsonPath("$.errors[0].field").value("email"));
   }
@@ -144,7 +165,7 @@ class RegisterUserIT extends IntegrationTestBase {
   void nombreDeUsuarioConArroba() throws Exception {
     // Es lo que sostiene el inicio de sesión con las dos identidades: sin esta
     // prohibición, `RF-SP-034` tendría que adivinar qué columna consultar.
-    mvc.perform(alta("juan@factech.co", "otro@factech.co", CONTABILIDAD))
+    mvc.perform(alta("juan@factech.co", "otro@factech.co", rolAcotado))
         .andExpect(status().isBadRequest())
         .andExpect(jsonPath("$.errors[?(@.code == 'VAL-010')]").exists());
   }
@@ -158,23 +179,23 @@ class RegisterUserIT extends IntegrationTestBase {
   void contrasenaQueContieneLaIdentidad() throws Exception {
     // Sin esta regla, `jperez2026` era válida para `jperez` con solo cumplir la
     // longitud, y es la primera que un atacante prueba.
-    mvc.perform(altaCon("jperez", "jperez@factech.co", CONTABILIDAD, "jperez2026Segura"))
+    mvc.perform(altaCon("jperez", "jperez@factech.co", rolAcotado, "jperez2026Segura"))
         .andExpect(status().isBadRequest())
         .andExpect(jsonPath("$.errors[?(@.message =~ /.*nombre de usuario.*/)]").exists());
 
-    mvc.perform(altaCon("otro", "juanperez@factech.co", CONTABILIDAD, "juanperezYalgoMas"))
+    mvc.perform(altaCon("otro", "juanperez@factech.co", rolAcotado, "juanperezYalgoMas"))
         .andExpect(status().isBadRequest());
   }
 
   @Test
   @DisplayName("la contraseña corta y la común se rechazan, y las incumplidas se devuelven juntas")
   void politicaDeContrasena() throws Exception {
-    mvc.perform(altaCon("corta", "corta@factech.co", CONTABILIDAD, "abc"))
+    mvc.perform(altaCon("corta", "corta@factech.co", rolAcotado, "abc"))
         .andExpect(status().isBadRequest())
         .andExpect(
             jsonPath("$.errors.length()").value(org.hamcrest.Matchers.greaterThanOrEqualTo(1)));
 
-    mvc.perform(altaCon("comun", "comun@factech.co", CONTABILIDAD, "123456789012"))
+    mvc.perform(altaCon("comun", "comun@factech.co", rolAcotado, "123456789012"))
         .andExpect(status().isBadRequest());
   }
 
@@ -183,7 +204,7 @@ class RegisterUserIT extends IntegrationTestBase {
   void laContrasenaNoSeRecorta() throws Exception {
     // Recortarla cambiaría en silencio lo que la persona escribió y haría fallar
     // su primer inicio de sesión.
-    mvc.perform(altaCon("espacios", "espacios@factech.co", CONTABILIDAD, "  ClaveLargaSegura  "))
+    mvc.perform(altaCon("espacios", "espacios@factech.co", rolAcotado, "  ClaveLargaSegura  "))
         .andExpect(status().isCreated());
 
     String hash =
@@ -203,22 +224,22 @@ class RegisterUserIT extends IntegrationTestBase {
         .andExpect(status().isUnprocessableEntity())
         .andExpect(jsonPath("$.errors[0].code").value("EX-003"));
 
-    jdbc.update("UPDATE roles SET status = 'INACTIVO' WHERE id = ?::uuid", CONTABILIDAD);
+    jdbc.update("UPDATE roles SET status = 'INACTIVO' WHERE id = ?::uuid", rolAcotado);
     try {
-      mvc.perform(alta("juan", "juan@factech.co", CONTABILIDAD))
+      mvc.perform(alta("juan", "juan@factech.co", rolAcotado))
           .andExpect(status().isUnprocessableEntity());
     } finally {
-      jdbc.update("UPDATE roles SET status = 'ACTIVO' WHERE id = ?::uuid", CONTABILIDAD);
+      jdbc.update("UPDATE roles SET status = 'ACTIVO' WHERE id = ?::uuid", rolAcotado);
     }
   }
 
   @Test
   @DisplayName("RN-SEG-010 — no se concede un rol cuyos permisos el actor no posee")
   void rolQueExcedeAlActor() throws Exception {
-    // El actor existe en la base y porta CONTABILIDAD, que solo concede dos
+    // El actor existe en la base y porta el rol acotado, que solo concede dos
     // permisos de auditoría. Sus permisos efectivos salen de ahí, no del token:
     // es la diferencia que este requerimiento introduce.
-    UUID contable = crearPersonaConRol("contable", CONTABILIDAD);
+    UUID contable = crearPersonaConRol("contable", rolAcotado);
 
     mvc.perform(
             post("/api/v1/users")
@@ -258,7 +279,7 @@ class RegisterUserIT extends IntegrationTestBase {
                     {"username":"otro","email":"otro@factech.co","firstName":"O","lastName":"P",
                      "password":"%s","roleIds":["%s"],"membershipId":"%s"}
                     """
-                        .formatted(CONTRASENA, CONTABILIDAD, membresia)))
+                        .formatted(CONTRASENA, rolAcotado, membresia)))
         .andExpect(status().isConflict())
         .andExpect(jsonPath("$.errors[0].code").value("RN-SP-018"));
 
@@ -310,7 +331,7 @@ class RegisterUserIT extends IntegrationTestBase {
                     {"username":"contable2","email":"contable2@factech.co","firstName":"C","lastName":"D",
                      "password":"%s","roleIds":["%s"],"supervisorId":"%s"}
                     """
-                        .formatted(CONTRASENA, CONTABILIDAD, SUPERADMIN)))
+                        .formatted(CONTRASENA, rolAcotado, SUPERADMIN)))
         .andExpect(status().isConflict())
         .andExpect(jsonPath("$.errors[0].code").value("RN-SP-019"));
   }
@@ -361,7 +382,7 @@ class RegisterUserIT extends IntegrationTestBase {
     UUID correlacion = UUID.randomUUID();
 
     mvc.perform(
-            alta("jperez", "jperez@factech.co", CONTABILIDAD)
+            alta("jperez", "jperez@factech.co", rolAcotado)
                 .header("X-Correlation-Id", correlacion.toString()))
         .andExpect(status().isCreated());
 
@@ -375,7 +396,7 @@ class RegisterUserIT extends IntegrationTestBase {
             correlacion);
     assertThat(changes)
         .contains("jperez")
-        .contains("CONTABILIDAD")
+        .contains(CODIGO_ACOTADO)
         .contains("must_change_password");
     // Ningún campo derivado de la credencial (Art. IV.8). Se comprueba el
     // resumen y la clave `password`, no la subcadena: `must_change_password` la
@@ -406,7 +427,7 @@ class RegisterUserIT extends IntegrationTestBase {
             post("/api/v1/users")
                 .with(user(SUPERADMIN.toString()).authorities(() -> "users:read"))
                 .contentType(MediaType.APPLICATION_JSON)
-                .content(cuerpo("jperez", "jperez@factech.co", "\"" + CONTABILIDAD + "\"")))
+                .content(cuerpo("jperez", "jperez@factech.co", "\"" + rolAcotado + "\"")))
         .andExpect(status().isForbidden());
 
     Integer filas =
@@ -450,32 +471,32 @@ class RegisterUserIT extends IntegrationTestBase {
   @Test
   @DisplayName("los permisos efectivos salen de la BASE: un rol desactivado deja de conceder")
   void permisosDesdeLaBase() throws Exception {
-    UUID contable = crearPersonaConRol("contable", CONTABILIDAD);
+    UUID contable = crearPersonaConRol("contable", rolAcotado);
 
-    // Con el rol activo, conceder CONTABILIDAD a otro es legítimo.
+    // Con el rol activo, conceder ese mismo rol a otro es legítimo.
     mvc.perform(
             post("/api/v1/users")
                 .with(user(contable.toString()).authorities(() -> "users:create"))
                 .contentType(MediaType.APPLICATION_JSON)
-                .content(cuerpo("otro", "otro@factech.co", "\"" + CONTABILIDAD + "\"")))
+                .content(cuerpo("otro", "otro@factech.co", "\"" + rolAcotado + "\"")))
         .andExpect(status().isCreated());
 
     // Desactivado el rol, sus permisos desaparecen DE INMEDIATO — que es lo que
     // leerlos del token no permitiría hasta que este expirase.
-    jdbc.update("UPDATE roles SET status = 'INACTIVO' WHERE id = ?::uuid", CONTABILIDAD);
+    jdbc.update("UPDATE roles SET status = 'INACTIVO' WHERE id = ?::uuid", rolAcotado);
     try {
       mvc.perform(
               post("/api/v1/users")
                   .with(user(contable.toString()).authorities(() -> "users:create"))
                   .contentType(MediaType.APPLICATION_JSON)
-                  .content(cuerpo("tercero", "tercero@factech.co", "\"" + CONTABILIDAD + "\"")))
+                  .content(cuerpo("tercero", "tercero@factech.co", "\"" + rolAcotado + "\"")))
           // Desde `RN-SP-023` toda alta concede roles, de modo que la
           // consecuencia observable de desactivar el rol es que deja de poder
           // concederse. Antes esta rama hacía un alta SIN roles, que ya no
           // existe como operación.
           .andExpect(status().isUnprocessableEntity());
     } finally {
-      jdbc.update("UPDATE roles SET status = 'ACTIVO' WHERE id = ?::uuid", CONTABILIDAD);
+      jdbc.update("UPDATE roles SET status = 'ACTIVO' WHERE id = ?::uuid", rolAcotado);
     }
   }
 
