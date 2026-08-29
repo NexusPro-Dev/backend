@@ -34,9 +34,9 @@ import org.springframework.test.web.servlet.request.RequestPostProcessor;
 class OwnCredentialsIT extends IntegrationTestBase {
 
   private static final String SUPERADMIN_ROL = "01a02a33-4c00-7001-9c4f-5e7ad1000001";
-  private static final String CONTABILIDAD = "01a02a33-4c00-7003-9c4f-5e7ad1000003";
-  private static final String DIRECTOR = "01a02a33-4c00-7006-9c4f-5e7ad1000006";
-  private static final String MANAGER = "01a02a33-4c00-7005-9c4f-5e7ad1000005";
+  private static final String CODIGO_ACOTADO = "AUDITORIA_ACOTADA";
+  private static final String DIRECTOR = "01a02a33-4c00-7006-9c4f-5e7ad1000004";
+  private static final String MANAGER = "01a02a33-4c00-7005-9c4f-5e7ad1000003";
 
   private static final String CLAVE = "ClaveLargaYSegura2026";
   private static final String NUEVA = "OtraClaveLargaDistinta2026";
@@ -52,7 +52,9 @@ class OwnCredentialsIT extends IntegrationTestBase {
     limpiar();
     juan = crearPersona("jperez", "juan.perez@factech.co");
     jdbc.update(
-        "INSERT INTO user_roles (user_id, role_id) VALUES (?, ?::uuid)", juan, CONTABILIDAD);
+        "INSERT INTO user_roles (user_id, role_id) VALUES (?, ?)",
+        juan,
+        crearRolAcotado(jdbc, CODIGO_ACOTADO, "Auditoría acotada"));
   }
 
   @AfterEach
@@ -360,7 +362,7 @@ class OwnCredentialsIT extends IntegrationTestBase {
     mvc.perform(perfil(juan))
         .andExpect(status().isOk())
         .andExpect(jsonPath("$.username").value("jperez"))
-        .andExpect(jsonPath("$.roles[0].code").value("CONTABILIDAD"))
+        .andExpect(jsonPath("$.roles[0].code").value(CODIGO_ACOTADO))
         .andExpect(jsonPath("$.roles[0].status").value("ACTIVO"))
         // Es la razón de que este endpoint exista: sin él la interfaz tenía que
         // deducir del listado de roles qué puede hacer la persona.

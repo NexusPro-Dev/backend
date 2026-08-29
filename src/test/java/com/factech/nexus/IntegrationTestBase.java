@@ -101,4 +101,57 @@ public abstract class IntegrationTestBase {
    */
   protected static final java.util.UUID SUPERADMIN =
       java.util.UUID.fromString("01a033a4-4a00-7001-9c4f-5e7ad4000001");
+
+  /** Identificador de {@code ADMIN}, sembrado por {@code V7__seed_system_roles.sql}. */
+  protected static final String ADMIN_SEMBRADO = "01a02a33-4c00-7002-9c4f-5e7ad1000002";
+
+  /**
+   * Los dos permisos con los que nace un {@link #crearRolAcotado rol acotado}: los de lectura de
+   * auditoría, que es el par más pequeño que el catálogo ofrece y que ningún endpoint de negocio
+   * abre.
+   */
+  protected static final java.util.List<String> PERMISOS_ACOTADOS =
+      java.util.List.of("audit:read-changes", "audit:read-deletions");
+
+  /**
+   * Crea un rol de negocio colgado de {@code ADMIN} con DOS permisos y ninguno más, y devuelve su
+   * identificador.
+   *
+   * <p><b>Por qué existe.</b> Hasta el 29-08-2026 este papel lo hacía {@code CONTABILIDAD}, un rol
+   * sembrado por {@code V7} con exactamente esa forma. Al retirarse del catálogo —junto con {@code
+   * LIDER_ACADEMICO}, por decisión del responsable del proyecto— el sistema dejó de sembrar
+   * cualquier rol con permisos acotados: los dos que quedan con permisos son {@code SUPERADMIN},
+   * que los tiene todos, y {@code ADMIN}, que solo se reserva dos.
+   *
+   * <p>Eso importa más de lo que parece. Media suite usaba aquel rol para representar a «alguien
+   * que existe pero no puede casi nada», y es esa acotación la que hace observables la contención
+   * de privilegios, que un token autentique sin conceder, y que la marca de cambio de contraseña
+   * deniegue por un motivo distinto del permiso. Apuntar esas pruebas a {@code ADMIN} las habría
+   * dejado en verde sin verificar nada de eso, que es peor que dejarlas en rojo.
+   *
+   * <p>Se inserta por SQL a propósito: es un fixture, y construirlo por la API haría que un fallo
+   * del endpoint de creación se confundiera con el caso bajo prueba. Quien lo llame es responsable
+   * de borrarlo en su limpieza, como con cualquier rol que la prueba cree.
+   */
+  protected static java.util.UUID crearRolAcotado(
+      org.springframework.jdbc.core.JdbcTemplate jdbc, String codigo, String nombre) {
+    java.util.UUID id = java.util.UUID.randomUUID();
+    jdbc.update(
+        """
+        INSERT INTO roles (id, code, name, description, role_type, parent_role_id,
+                           status, is_system)
+        VALUES (?, ?, ?, 'Rol acotado de prueba.', 'FUNCIONARIO', ?::uuid, 'ACTIVO', false)
+        """,
+        id,
+        codigo,
+        nombre,
+        ADMIN_SEMBRADO);
+    jdbc.update(
+        """
+        INSERT INTO role_permissions (role_id, permission_id)
+        SELECT ?, id FROM permissions WHERE code IN ('audit:read-changes', 'audit:read-deletions')
+        """,
+        id);
+    return id;
+  }
 }

@@ -46,12 +46,12 @@ import org.springframework.test.web.servlet.request.MockHttpServletRequestBuilde
 @AutoConfigureMockMvc
 class AccessRevocationIT extends IntegrationTestBase {
 
-  private static final String CONTABILIDAD = "01a02a33-4c00-7003-9c4f-5e7ad1000003";
+  private static final String ADMIN_ROL = "01a02a33-4c00-7002-9c4f-5e7ad1000002";
   private static final String SUPERADMIN_ROL = "01a02a33-4c00-7001-9c4f-5e7ad1000001";
   private static final String CLAVE = "ClaveLargaYSegura2026";
   private static final String NUEVA = "OtraClaveLargaDistinta2026";
 
-  /** Un endpoint que `CONTABILIDAD` sí puede usar. */
+  /** Un endpoint que `ADMIN_ROL` sí puede usar. */
   private static final String CUALQUIERA = "/api/v1/audit/changes";
 
   @Autowired private MockMvc mvc;
@@ -75,7 +75,7 @@ class AccessRevocationIT extends IntegrationTestBase {
         persona,
         hasher.hash(CLAVE));
     jdbc.update(
-        "INSERT INTO user_roles (user_id, role_id) VALUES (?, ?::uuid)", persona, CONTABILIDAD);
+        "INSERT INTO user_roles (user_id, role_id) VALUES (?, ?::uuid)", persona, ADMIN_ROL);
   }
 
   @AfterEach

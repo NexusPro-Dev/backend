@@ -49,8 +49,8 @@ class UserConcurrencyIT extends IntegrationTestBase {
 
   private static final String SUPERADMIN_ROL = "01a02a33-4c00-7001-9c4f-5e7ad1000001";
   private static final String ADMIN = "01a02a33-4c00-7002-9c4f-5e7ad1000002";
-  private static final String CONTABILIDAD = "01a02a33-4c00-7003-9c4f-5e7ad1000003";
-  private static final String AGENTE = "01a02a33-4c00-7007-9c4f-5e7ad1000007";
+  private static final String ADMIN_ROL = "01a02a33-4c00-7002-9c4f-5e7ad1000002";
+  private static final String AGENTE = "01a02a33-4c00-7007-9c4f-5e7ad1000005";
 
   private static final String CLAVE = "ClaveLargaYSegura2026";
 
@@ -76,6 +76,11 @@ class UserConcurrencyIT extends IntegrationTestBase {
     jdbc.update("DELETE FROM user_roles WHERE user_id <> ?", SUPERADMIN);
     jdbc.update("DELETE FROM users WHERE id <> ?", SUPERADMIN);
     jdbc.update("DELETE FROM memberships WHERE level > 0");
+    // Los permisos del rol van antes que el rol: otras pruebas de la suite dejan
+    // roles no sistémicos CON permisos, y la clave foránea es RESTRICT.
+    jdbc.update(
+        "DELETE FROM role_permissions WHERE role_id IN"
+            + " (SELECT id FROM roles WHERE is_system = false)");
     jdbc.update("DELETE FROM roles WHERE is_system = false");
     jdbc.update("UPDATE roles SET status = 'ACTIVO', deleted_at = NULL WHERE is_system = true");
     jdbc.update(
@@ -99,7 +104,7 @@ class UserConcurrencyIT extends IntegrationTestBase {
   @DisplayName("`T-21` — dos altas con la MISMA identidad: una entra, la otra choca, nunca un 500")
   void dosAltasConLaMismaIdentidad() {
     List<Outcome<Integer>> resultados =
-        runTogether(2, indice -> estado(alta("jperez", "juan@factech.co", CONTABILIDAD)));
+        runTogether(2, indice -> estado(alta("jperez", "juan@factech.co", ADMIN_ROL)));
 
     // La unicidad la sostiene `uq_users_username`, no la comprobación previa:
     // entre leer «no existe» y escribir hay una ventana que dos peticiones
@@ -194,8 +199,8 @@ class UserConcurrencyIT extends IntegrationTestBase {
   @Test
   @DisplayName("`T-11` — dos ediciones distintas hacia EL MISMO correo: una 200 y una 409")
   void dosEdicionesHaciaElMismoCorreo() {
-    UUID una = crearPersona("ana", CONTABILIDAD);
-    UUID otra = crearPersona("bea", CONTABILIDAD);
+    UUID una = crearPersona("ana", ADMIN_ROL);
+    UUID otra = crearPersona("bea", ADMIN_ROL);
 
     List<Outcome<Integer>> resultados =
         runTogether(
@@ -213,7 +218,7 @@ class UserConcurrencyIT extends IntegrationTestBase {
   @Test
   @DisplayName("`T-11` — dos ediciones de la misma persona: los diffs ENCADENAN, no se pisan")
   void dosEdicionesDeLaMismaPersona() {
-    UUID persona = crearPersona("ana", CONTABILIDAD);
+    UUID persona = crearPersona("ana", ADMIN_ROL);
 
     List<Outcome<Integer>> resultados =
         runTogether(
@@ -318,7 +323,7 @@ class UserConcurrencyIT extends IntegrationTestBase {
   @Test
   @DisplayName("`T-12` — eliminar contra iniciar sesión: no queda sesión viva sobre la cuenta")
   void eliminarContraIniciarSesion() {
-    UUID persona = crearPersonaQuePuedeEntrar("jperez", CONTABILIDAD);
+    UUID persona = crearPersonaQuePuedeEntrar("jperez", ADMIN_ROL);
 
     List<Outcome<Integer>> resultados =
         runTogether(
@@ -371,7 +376,7 @@ class UserConcurrencyIT extends IntegrationTestBase {
   private void ejecutarElPar(boolean retiroPrimero) {
     String membresia = crearMembresia();
     String rolConsumidor = crearRol("ESTUDIANTE", "Estudiante", "CONSUMIDOR");
-    UUID persona = crearPersona("consumidor", CONTABILIDAD);
+    UUID persona = crearPersona("consumidor", ADMIN_ROL);
     darMembresia(persona, membresia);
 
     List<Outcome<Integer>> resultados =

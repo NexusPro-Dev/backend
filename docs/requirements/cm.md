@@ -147,7 +147,7 @@ La dependencia es **acíclica**: `CM` → `PM` → `SP`, y ninguno de los dos co
 
 ### 5.2 Por qué las críticas son críticas
 
-**`RN-CM-001` — solo los vendedores.** Sin esta regla, una tarifa puede colgarse de `CONTABILIDAD` o de `ESTUDIANTE`, y el defecto no se ve al declararla: se ve el día que la liquidación paga a quien no vende. La clasificación ya existe y es un dominio cerrado en el esquema, de modo que la regla es comprobable y no una convención.
+**`RN-CM-001` — solo los vendedores.** Sin esta regla, una tarifa puede colgarse de un rol administrativo o de `ESTUDIANTE`, y el defecto no se ve al declararla: se ve el día que la liquidación paga a quien no vende. La clasificación ya existe y es un dominio cerrado en el esquema, de modo que la regla es comprobable y no una convención.
 
 **`RN-CM-003` — la persona porta el rol.** Es la mitad que se olvida. Una excepción es «esta persona, en este rol, cobra distinto»; si la persona no tiene ese rol, la fila **nunca se aplicará** y nadie se enterará, porque no falla: se queda callada. Es el mismo tipo de defecto que `RN-PM-002` evita en su segunda mitad — no falla, promete.
 

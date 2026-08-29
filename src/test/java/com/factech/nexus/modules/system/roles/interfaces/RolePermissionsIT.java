@@ -30,7 +30,7 @@ import org.springframework.test.web.servlet.request.RequestPostProcessor;
  * dejar a un hijo declarando algo que su padre ya no tiene. Esa asimetría es lo que estas pruebas
  * vigilan.
  *
- * <p>La jerarquía de la prueba es {@code CONTABILIDAD → PADRE → HIJO}. El actor es el
+ * <p>La jerarquía de la prueba es {@code ADMIN_ROL → PADRE → HIJO}. El actor es el
  * superadministrador, que posee el catálogo entero, de modo que `RN-SEG-010` no lo bloquea nunca y
  * lo que se prueba aquí es `RN-SEG-003` y `RN-SEG-005`.
  */
@@ -38,8 +38,8 @@ import org.springframework.test.web.servlet.request.RequestPostProcessor;
 class RolePermissionsIT extends IntegrationTestBase {
 
   private static final String SUPERADMIN_ROL = "01a02a33-4c00-7001-9c4f-5e7ad1000001";
-  private static final String CONTABILIDAD = "01a02a33-4c00-7003-9c4f-5e7ad1000003";
-  private static final String MANAGER = "01a02a33-4c00-7005-9c4f-5e7ad1000005";
+  private static final String ADMIN_ROL = "01a02a33-4c00-7002-9c4f-5e7ad1000002";
+  private static final String MANAGER = "01a02a33-4c00-7005-9c4f-5e7ad1000003";
 
   @Autowired private MockMvc mvc;
   @Autowired private JdbcTemplate jdbc;
@@ -47,7 +47,7 @@ class RolePermissionsIT extends IntegrationTestBase {
   private UUID padre;
   private UUID hijo;
 
-  /** Dos permisos que CONTABILIDAD declara, y uno que no. */
+  /** Dos permisos que ADMIN_ROL declara, y uno que no. */
   private List<UUID> heredables;
 
   private UUID ajeno;
@@ -61,7 +61,7 @@ class RolePermissionsIT extends IntegrationTestBase {
             "SELECT permission_id FROM role_permissions WHERE role_id = ?::uuid"
                 + " ORDER BY permission_id LIMIT 2",
             UUID.class,
-            CONTABILIDAD);
+            ADMIN_ROL);
 
     ajeno =
         jdbc.queryForObject(
@@ -69,9 +69,9 @@ class RolePermissionsIT extends IntegrationTestBase {
                 + " (SELECT permission_id FROM role_permissions WHERE role_id = ?::uuid)"
                 + " ORDER BY code LIMIT 1",
             UUID.class,
-            CONTABILIDAD);
+            ADMIN_ROL);
 
-    padre = crearRol("PADRE", "Rol padre", CONTABILIDAD);
+    padre = crearRol("PADRE", "Rol padre", ADMIN_ROL);
     hijo = crearRol("HIJO", "Rol hijo", padre.toString());
   }
 
@@ -128,7 +128,7 @@ class RolePermissionsIT extends IntegrationTestBase {
   @Test
   @DisplayName("CA-SP-040 — la contención se valida contra el padre INMEDIATO, sin recorrer arriba")
   void contencionContraElPadreInmediato() throws Exception {
-    // `ajeno` lo tiene SUPERADMIN —el abuelo del abuelo— y no CONTABILIDAD. Si
+    // `ajeno` lo tiene SUPERADMIN —el abuelo del abuelo— y no ADMIN_ROL. Si
     // la validación recorriera la cadena de ancestros, esto pasaría.
     mvc.perform(agregar(padre, List.of(ajeno)))
         .andExpect(status().isConflict())
@@ -258,7 +258,7 @@ class RolePermissionsIT extends IntegrationTestBase {
   @Test
   @DisplayName("las dos operaciones cruzan las mismas puertas: sistema, actor y rol inexistente")
   void puertasComunes() throws Exception {
-    mvc.perform(agregar(UUID.fromString(CONTABILIDAD), heredables))
+    mvc.perform(agregar(UUID.fromString(ADMIN_ROL), heredables))
         .andExpect(status().isConflict())
         .andExpect(jsonPath("$.errors[0].code").value("RN-SEG-012"));
     mvc.perform(retirar(UUID.fromString(MANAGER), heredables)).andExpect(status().isConflict());

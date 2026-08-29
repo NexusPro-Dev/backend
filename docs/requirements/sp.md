@@ -5,11 +5,11 @@
 | Módulo | `SP` — Sistema Principal |
 | Paquete | `modules/system` |
 | Prefijos de permiso | `roles:`, `permissions:`, `audit:`, `memberships:`, `currencies:`, `countries:`, `users:` |
-| Versión | 1.28.0 |
+| Versión | 1.29.0 |
 | Estado | **Aprobado** |
 | Responsable | Bonilla Diaz William Steven |
 | Fecha de creación | 20-08-2026 |
-| Última actualización | 28-08-2026 |
+| Última actualización | 29-08-2026 |
 | Fecha de aprobación | 20-08-2026 |
 
 !!! info "Qué va en este documento"
@@ -86,12 +86,10 @@ Los actores de este módulo son los **roles del sistema**.
 |---|---|---|
 | Super Administrador | Tiene acceso completo al sistema | Posee todos los permisos |
 | Administrador | Define roles, su alcance de permisos y la configuración | `roles:*`, `permissions:read`, los cuatro de auditoría |
-| Contabilidad | Consume roles; no los administra | `audit:read-changes`, `audit:read-deletions` |
 | Manager | Consume roles; no los administra | — |
 | Director | Consume roles; no los administra | — |
 | Agente o vendedor | Consume roles; no los administra | — |
 | Estudiante | Consume roles; no los administra | — |
-| Líder académico | Consume roles; no los administra | — |
 
 Solo el **Super Administrador** y **Administrador** operan sobre `SP`. Los demás roles aparecen aquí porque son los sujetos que `SP` define, no porque ejecuten sus requerimientos.
 
@@ -101,12 +99,16 @@ Los permisos de auditoría se conceden por separado: los cuatro registros no tie
 
 Propuesta de códigos y de jerarquía de **contención de privilegios** (`RN-SEG-003`). Cierra parcialmente la decisión D-17.
 
+!!! warning "Dos roles se retiraron del catálogo el 29-08-2026"
+
+    `CONTABILIDAD` y `LIDER_ACADEMICO` se sembraban desde `V7` y **se retiraron por decisión del responsable del proyecto**. La migración `V7__seed_system_roles.sql` se editó en el sitio, y esa edición tiene una consecuencia que hay que conocer: **Flyway valida las migraciones aplicadas por suma de comprobación**, de modo que cualquier base donde `V7` ya estuviera aplicada —un entorno local, `develop`— **fallará al arrancar** hasta que se recree o se repare su historial. Sobre una base limpia no hay nada que hacer.
+
+    `CONTABILIDAD` no era decorado en las pruebas: era el **único rol sembrado con permisos acotados**, y esa forma —un hijo de `ADMIN` con dos permisos y ninguno más— es la que hacía verificables la contención de privilegios y que un token autentique sin conceder de más. `LIDER_ACADEMICO` era el **único nombre sembrado con un acento**, del que dependía la búsqueda sin acentos y el índice de trigramas de `V32`. Las pruebas afectadas **no se repuntaron a otro rol**: se les dio un fixture propio, de modo que no vuelvan a depender de qué siembre el sistema.
+
 | Código | Nombre | Rol padre | `is_system` |
 |---|---|---|---|
 | `SUPERADMIN` | Superadministrador | — | Sí |
 | `ADMIN` | Administrador | `SUPERADMIN` | Sí |
-| `CONTABILIDAD` | Contabilidad | `ADMIN` | Sí |
-| `LIDER_ACADEMICO` | Líder académico | `ADMIN` | Sí |
 | `MANAGER` | Manager | `ADMIN` | Sí |
 | `DIRECTOR` | Director | `MANAGER` | Sí |
 | `AGENTE` | Agente o vendedor | `DIRECTOR` | Sí |
@@ -129,9 +131,9 @@ Propuesta de códigos y de jerarquía de **contención de privilegios** (`RN-SEG
 
     `SUPERADMIN` es el **rol técnico del responsable del software**, no un rol de negocio. Existe para las funcionalidades reservadas a quien desarrolla y mantiene la plataforma, que se irán definiendo, y para satisfacer `RN-SEG-007`: alguien tiene que poder crear y acotar al administrador.
 
-    `ADMIN` es el **máximo rol de negocio**: tiene acceso completo a la operación, y por eso todos los roles funcionales cuelgan de él. La contención (`RN-SEG-003`) obliga entonces a que `ADMIN` posea todo permiso que cualquier rol de negocio declare, incluidos los financieros de `CONTABILIDAD`.
+    `ADMIN` es el **máximo rol de negocio**: tiene acceso completo a la operación, y por eso todos los roles funcionales cuelgan de él. La contención (`RN-SEG-003`) obliga entonces a que `ADMIN` posea todo permiso que cualquier rol de negocio declare, incluidos los financieros que llegue a declarar cualquier rol contable que se cree por la API.
 
-    **Consecuencia a tener presente:** con este diseño no hay separación entre quien configura el sistema y quien controla el dinero. Si en algún momento se quiere que Contabilidad pueda aprobar algo que Administración no, habrá que colgarla de `SUPERADMIN`.
+    **Consecuencia a tener presente:** con este diseño no hay separación entre quien configura el sistema y quien controla el dinero. Si en algún momento se quiere que un rol contable pueda aprobar algo que Administración no, habrá que colgarlo de `SUPERADMIN` y no de `ADMIN`.
 
 ## 5. Reglas de negocio
 
@@ -1164,3 +1166,4 @@ La crea `RF-SP-024` (`V19__create_user_roles.sql`), porque el alta ya escribe as
 | 1.26.0 | 27-08-2026 | **`SP` publica sus dos primeras interfaces hacia otro módulo** (§8): el catálogo de membresías y el de monedas, que consume `PM` al registrar un producto. Las escribió `RF-PM-001` y **no abren requerimiento nuevo aquí**: ningún actor pide «publicar una interfaz» como comportamiento observable. Publicar no es depender —la dirección sigue siendo `PM` → `SP`— y una regla de ArchUnit lo ancla. Queda anotado que el submódulo de usuarios ya tenía su propio `MembershipCatalog` interno para lo que él necesita al asignar una membresía: **son la misma lectura declarada dos veces**, y consolidarlas es deuda pendiente que toca código ya implementado. | Responsable técnico |
 | 1.27.0 | 28-08-2026 | **El código de un país pasa de dos letras a tres** —ISO 3166-1 **alfa-3**: `COL`, `USA`—, por decisión del responsable del proyecto. §10.6 declara `code` como `char(3)` y §10.8 su `CHECK` sobre `'^[A-Z]{3}$'`. El catálogo queda además alineado con `currencies.code`, que ya era de tres por ISO 4217. **Lo que no es un `ALTER` inofensivo es la migración**: ensanchar `char(2)` a `char(3)` convierte `CO` en `'CO '` —`char` rellena con espacios—, no en `COL`, y esa fila pasa el `NOT NULL` y el `UNIQUE`; solo la caza el `CHECK` nuevo, cuyo mensaje habla de una restricción y no del país. `V42` ensancha, **traduce con una tabla de equivalencias explícita** y **levanta excepción nombrando los códigos que no sabe traducir** en lugar de adivinarlos: `RN-SP-009` prohíbe editar un país, de modo que una equivalencia equivocada no tendría corrección posible. `V16` no se toca, que está aplicada. Enmienda la tripleta de `RF-SP-020`, aprobada e implementada (Art. I.7): §6.1, `EX-002`, `VAL-002` y `CA-SP-135`. | Responsable técnico |
 | 1.28.0 | 28-08-2026 | **Nace `RN-SP-025`: una persona no puede portar dos roles de tipo `VENDEDOR`.** La regla llega desde fuera —la pide el módulo `CM`, incorporado el mismo día— y **se registra aquí porque gobierna `RF-SP-030`**, que es la asignación de roles y es de este módulo. El motivo es una ambigüedad que `CM` no puede resolver solo: con dos roles vendedores de tarifas distintas y ninguna tarifa propia, **no hay forma no arbitraria de elegir el porcentaje**. Se descartaron las otras dos salidas —adivinar tomando el mayor, o exigir tarifa propia— porque las dos dejan la ambigüedad viva y la segunda la descubre el día de liquidar. **No se puede declarar en el esquema**: un `CHECK` no consulta otra tabla y un índice único no puede unir `user_roles` con `roles` para mirar `role_type`, de modo que la regla vive en el caso de uso y necesita el **mismo bloqueo pesimista que `RN-SP-018`** —cuya versión sin bloqueo no se sostuvo bajo concurrencia y se corrigió el 26-08-2026—, porque dos asignaciones simultáneas la burlarían igual. Enmienda pendiente en la tripleta de `RF-SP-030` (Art. I.7). | Responsable del proyecto |
+| 1.29.0 | 29-08-2026 | **El catálogo sembrado pierde dos roles**: `CONTABILIDAD` y `LIDER_ACADEMICO` se retiran de `V7__seed_system_roles.sql` por decisión del responsable del proyecto, y §4 y §4.1 dejan de listarlos. La migración **se editó en el sitio** en lugar de retirarlos con una `V47` —también por decisión del responsable—, y eso tiene un coste que queda escrito: Flyway valida las migraciones aplicadas por suma de comprobación, de modo que **toda base donde `V7` ya estuviera aplicada falla al arrancar** hasta recrearla o reparar su historial. Retirarlos **no fue quitar dos filas de una tabla**: `CONTABILIDAD` era el único rol sembrado con permisos acotados —un hijo de `ADMIN` con dos permisos y ninguno más—, la forma con la que se verificaban la contención de privilegios (`CreateRoleIT`) y que un token autentique sin conceder de más (`AuthIT`); y `LIDER_ACADEMICO` era el único nombre sembrado con acento, del que dependían la búsqueda sin acentos (`RolesQueryIT`) y el índice de trigramas de `V32`. Las pruebas afectadas **no se repuntaron a otro rol** —repuntar `CONTABILIDAD` a `ADMIN` las habría dejado pasando sin verificar lo que fueron escritas para verificar—: se reescribió `SystemRolesSeedIT` entera y las demás recibieron **fixtures propios**, de modo que ya no dependen de qué siembre el sistema. | Responsable del proyecto |

@@ -23,25 +23,25 @@
 
 | ID | Tarea | Depende de | Verificación | Estado |
 |---|---|---|---|---|
-| `T-01` | Migración `V44__create_commission_rates.sql`: la tabla, los dos `CHECK`, las tres claves foráneas, la extensión `btree_gist` y `ex_commission_rates_sin_solape` | — | Flyway aplica sobre base limpia. Un `INSERT` directo con dos tarifas por omisión solapadas **lo rechaza el motor** | `Pendiente` |
-| `T-02` | Migración `V45__seed_commissions_permissions.sql`: los cuatro permisos de `requirements/cm.md` §6 | `T-01` | Los cuatro existen tras migrar, con su recurso y su acción | `Pendiente` |
-| `T-03` | `SP` publica `RoleCatalog` en `roles/application`: el rol con su **tipo** | — | Devuelve vacío para un rol inexistente en lugar de fallar. Regla de ArchUnit en verde | `Pendiente` |
-| `T-04` | `SP` publica `UserCatalog` en `users/application`: nombre de usuario y nombre | — | Ídem | `Pendiente` |
-| `T-05` | `SP` publica `SellerRoleCatalog` en `users/application`: qué rol vendedor porta una persona, y **falla de forma visible** ante dos | — | Con dos roles vendedores **lanza**, no elige. Ver el bloqueo de §4 | `Pendiente` |
-| `T-06` | `PM` publica `ProductCatalog` en `products/application`: código, nombre y **si está retirado** | — | Distingue el producto retirado del inexistente | `Pendiente` |
-| `T-07` | `domain/models/CommissionRate`: el agregado, con `RN-CM-007` y `RN-CM-009` | `T-01` | Prueba unitaria sin Spring: porcentaje fuera de rango, fin anterior al inicio, y el **cero como valor válido** | `Pendiente` |
-| `T-08` | `domain/models/RateScope`: el grado, **calculado** y no persistido | `T-07` | Los cuatro grados se derivan de qué campos vienen | `Pendiente` |
-| `T-09` | Puerto y adaptador de escritura, con la **traducción** de la violación de `ex_commission_rates_sin_solape` a `EX-007` | `T-01`, `T-07` | El solape devuelve `409` y **no** `500` | `Pendiente` |
-| `T-10` | `RegisterCommissionRateService`, con el orden de verificación de `plan.md` §4 | `T-03` a `T-09` | Cada excepción sale con su código y en su orden | `Pendiente` |
-| `T-11` | DTO de entrada con `VAL-001` a `VAL-006` | `T-10` | Los seis mensajes, con su campo | `Pendiente` |
-| `T-12` | DTO de salida con rol, producto y persona **resueltos**, y los ausentes **nulos y presentes** | `T-10` | Un campo ausente no desaparece del JSON | `Pendiente` |
-| `T-13` | `POST /api/v1/commission-rates`, con permiso declarativo y `Location` | `T-11`, `T-12` | `201` con cabecera, `403` sin permiso | `Pendiente` |
-| `T-14` | Evento de auditoría de creación, con el estado inicial completo | `T-10` | El evento aparece en `RF-SP-011` con módulo `CM` | `Pendiente` |
-| `T-15` | Pruebas de los criterios de `spec.md` §12 | `T-13` | `CA-CM-001` a `CA-CM-013` | `Pendiente` |
-| `T-16` | **Prueba concurrente del solapamiento**: dos altas simultáneas del mismo caso y periodo | `T-15` | Una `201` y una `409`, **una sola fila**. Es la que verifica que la restricción está en el motor | `Pendiente` |
-| `T-17` | Prueba del **día de corte**: termina el 31 y empieza el 31 chocan; empezando el 1, no | `T-15` | Los dos casos | `Pendiente` |
-| `T-18` | Documentación OpenAPI del endpoint | `T-13` | El contrato publicado declara los seis campos y los cuatro estados | `Pendiente` |
-| `T-19` | Actualizar la matriz de `docs/requirements.md` | `T-15` | La fila de `RF-CM-001` refleja el estado y enlaza esta tripleta | `Pendiente` |
+| `T-01` | Migración `V44__create_commission_rates.sql`: la tabla, los dos `CHECK`, las tres claves foráneas, la extensión `btree_gist` y `ex_commission_rates_sin_solape` | — | Flyway aplica sobre base limpia. Un `INSERT` directo con dos tarifas por omisión solapadas **lo rechaza el motor** | **Hecha el 28-08-2026** |
+| `T-02` | Migración `V45__seed_commissions_permissions.sql`: los cuatro permisos de `requirements/cm.md` §6 | `T-01` | Los cuatro existen tras migrar, con su recurso y su acción | **Hecha el 28-08-2026** |
+| `T-03` | `SP` publica `RoleCatalog` en `roles/application`: el rol con su **tipo** | — | Devuelve vacío para un rol inexistente en lugar de fallar. Regla de ArchUnit en verde | **Hecha el 28-08-2026** |
+| `T-04` | `SP` publica `UserCatalog` en `users/application`: nombre de usuario y nombre | — | Ídem | **Hecha el 28-08-2026** |
+| `T-05` | `SP` publica `SellerRoleCatalog` en `users/application`: qué rol vendedor porta una persona, y **falla de forma visible** ante dos | — | Con dos roles vendedores **lanza**, no elige. Ver el bloqueo de §4 | **Hecha el 28-08-2026** |
+| `T-06` | `PM` publica `ProductCatalog` en `products/application`: código, nombre y **si está retirado** | — | Distingue el producto retirado del inexistente | **Hecha el 28-08-2026** |
+| `T-07` | `domain/models/CommissionRate`: el agregado, con `RN-CM-007` y `RN-CM-009` | `T-01` | Prueba unitaria sin Spring: porcentaje fuera de rango, fin anterior al inicio, y el **cero como valor válido** | **Hecha el 28-08-2026** |
+| `T-08` | `domain/models/RateScope`: el grado, **calculado** y no persistido | `T-07` | Los cuatro grados se derivan de qué campos vienen | **Hecha el 28-08-2026** |
+| `T-09` | Puerto y adaptador de escritura, con la **traducción** de la violación de `ex_commission_rates_sin_solape` a `EX-007` | `T-01`, `T-07` | El solape devuelve `409` y **no** `500` | **Hecha el 28-08-2026** |
+| `T-10` | `RegisterCommissionRateService`, con el orden de verificación de `plan.md` §4 | `T-03` a `T-09` | Cada excepción sale con su código y en su orden | **Hecha el 28-08-2026** |
+| `T-11` | DTO de entrada con `VAL-001` a `VAL-006` | `T-10` | Los seis mensajes, con su campo | **Hecha el 28-08-2026** |
+| `T-12` | DTO de salida con rol, producto y persona **resueltos**, y los ausentes **nulos y presentes** | `T-10` | Un campo ausente no desaparece del JSON | **Hecha el 28-08-2026** |
+| `T-13` | `POST /api/v1/commission-rates`, con permiso declarativo y `Location` | `T-11`, `T-12` | `201` con cabecera, `403` sin permiso | **Hecha el 28-08-2026** |
+| `T-14` | Evento de auditoría de creación, con el estado inicial completo | `T-10` | El evento aparece en `RF-SP-011` con módulo `CM` | **Hecha el 28-08-2026** |
+| `T-15` | Pruebas de los criterios de `spec.md` §12 | `T-13` | `CA-CM-001` a `CA-CM-013` | **Hecha el 28-08-2026** |
+| `T-16` | **Prueba concurrente del solapamiento**: dos altas simultáneas del mismo caso y periodo | `T-15` | Una `201` y una `409`, **una sola fila**. Es la que verifica que la restricción está en el motor | **Hecha el 28-08-2026** |
+| `T-17` | Prueba del **día de corte**: termina el 31 y empieza el 31 chocan; empezando el 1, no | `T-15` | Los dos casos | **Hecha el 28-08-2026** |
+| `T-18` | Documentación OpenAPI del endpoint | `T-13` | El contrato publicado declara los seis campos y los cuatro estados | **Hecha el 28-08-2026** |
+| `T-19` | Actualizar la matriz de `docs/requirements.md` | `T-15` | La fila de `RF-CM-001` refleja el estado y enlaza esta tripleta | **Hecha el 28-08-2026** |
 
 ## 2. Orden de ejecución
 

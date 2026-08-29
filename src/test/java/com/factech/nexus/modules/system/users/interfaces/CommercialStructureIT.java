@@ -37,10 +37,10 @@ import org.springframework.test.web.servlet.request.RequestPostProcessor;
 class CommercialStructureIT extends IntegrationTestBase {
 
   private static final String SUPERADMIN_ROL = "01a02a33-4c00-7001-9c4f-5e7ad1000001";
-  private static final String CONTABILIDAD = "01a02a33-4c00-7003-9c4f-5e7ad1000003";
-  private static final String MANAGER = "01a02a33-4c00-7005-9c4f-5e7ad1000005";
-  private static final String DIRECTOR = "01a02a33-4c00-7006-9c4f-5e7ad1000006";
-  private static final String AGENTE = "01a02a33-4c00-7007-9c4f-5e7ad1000007";
+  private static final String ADMIN_ROL = "01a02a33-4c00-7002-9c4f-5e7ad1000002";
+  private static final String MANAGER = "01a02a33-4c00-7005-9c4f-5e7ad1000003";
+  private static final String DIRECTOR = "01a02a33-4c00-7006-9c4f-5e7ad1000004";
+  private static final String AGENTE = "01a02a33-4c00-7007-9c4f-5e7ad1000005";
 
   @Autowired private MockMvc mvc;
   @Autowired private JdbcTemplate jdbc;
@@ -216,7 +216,7 @@ class CommercialStructureIT extends IntegrationTestBase {
   @Test
   @DisplayName("EX-003 — el 409 dice QUÉ ROL debería portar el superior")
   void superiorSinElRolExigido() throws Exception {
-    UUID contable = crearPersona("contable", CONTABILIDAD);
+    UUID contable = crearPersona("contable", ADMIN_ROL);
 
     // Sin ese dato, quien recibe el error no sabe a quién buscar.
     mvc.perform(reasignar(medio, contable, "Cambio"))
@@ -228,7 +228,7 @@ class CommercialStructureIT extends IntegrationTestBase {
   @Test
   @DisplayName("EX-001 y EX-002 — sin rol comercial, y la cúspide")
   void sinRolComercialYCuspide() throws Exception {
-    UUID contable = crearPersona("contable", CONTABILIDAD);
+    UUID contable = crearPersona("contable", ADMIN_ROL);
 
     mvc.perform(reasignar(contable, jefe, "Cambio"))
         .andExpect(status().isConflict())
@@ -350,7 +350,7 @@ class CommercialStructureIT extends IntegrationTestBase {
   @Test
   @DisplayName("FA-001 — quien no pertenece a la fuerza comercial recibe 200, no 404 ni 409")
   void sinEstructuraComercial() throws Exception {
-    UUID contable = crearPersona("contable", CONTABILIDAD);
+    UUID contable = crearPersona("contable", ADMIN_ROL);
 
     mvc.perform(equipo(contable))
         .andExpect(status().isOk())

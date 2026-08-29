@@ -30,7 +30,12 @@ class UserQueryIT extends IntegrationTestBase {
 
   private static final String SUPERADMIN_ROL = "01a02a33-4c00-7001-9c4f-5e7ad1000001";
   private static final String ADMIN = "01a02a33-4c00-7002-9c4f-5e7ad1000002";
-  private static final String CONTABILIDAD = "01a02a33-4c00-7003-9c4f-5e7ad1000003";
+
+  /** Código del rol acotado que esta clase se fabrica. */
+  private static final String CODIGO_ACOTADO = "AUDITORIA_ACOTADA";
+
+  /** Rol con DOS permisos y ninguno más: es lo que hace observable `effectivePermissions`. */
+  private String rolAcotado;
 
   @Autowired private MockMvc mvc;
   @Autowired private JdbcTemplate jdbc;
@@ -58,14 +63,14 @@ class UserQueryIT extends IntegrationTestBase {
 
     restaurarRolesDelSistema();
 
+    rolAcotado = crearRolAcotado(jdbc, CODIGO_ACOTADO, "Auditoría acotada").toString();
     consumidor = crearRol("ESTUDIANTE", "CONSUMIDOR");
     oro = crearMembresia();
 
     juan = crearPersona("jperez", "juan.perez@factech.co", "Juan", "Pérez", "ACTIVO");
     ana = crearPersona("amartinez", "ana@factech.co", "Ana", "Martínez", "INACTIVO");
 
-    jdbc.update(
-        "INSERT INTO user_roles (user_id, role_id) VALUES (?, ?::uuid)", juan, CONTABILIDAD);
+    jdbc.update("INSERT INTO user_roles (user_id, role_id) VALUES (?, ?::uuid)", juan, rolAcotado);
     jdbc.update("INSERT INTO user_roles (user_id, role_id) VALUES (?, ?::uuid)", juan, consumidor);
     jdbc.update(
         "INSERT INTO user_memberships (user_id, membership_id, started_at) VALUES (?, ?::uuid, now())",
@@ -195,7 +200,7 @@ class UserQueryIT extends IntegrationTestBase {
         .andExpect(jsonPath("$.content").isEmpty())
         .andExpect(jsonPath("$.totalElements").value(0));
 
-    mvc.perform(listado().param("roleId", CONTABILIDAD))
+    mvc.perform(listado().param("roleId", rolAcotado))
         .andExpect(status().isOk())
         .andExpect(jsonPath("$.content.length()").value(1));
   }
@@ -207,7 +212,7 @@ class UserQueryIT extends IntegrationTestBase {
     // añadiera un segundo valor al filtro. Con EXISTS no puede duplicar.
     jdbc.update("INSERT INTO user_roles (user_id, role_id) VALUES (?, ?::uuid)", juan, ADMIN);
 
-    mvc.perform(listado().param("roleId", CONTABILIDAD))
+    mvc.perform(listado().param("roleId", rolAcotado))
         .andExpect(status().isOk())
         .andExpect(jsonPath("$.content.length()").value(1))
         .andExpect(jsonPath("$.totalElements").value(1));
@@ -363,12 +368,13 @@ class UserQueryIT extends IntegrationTestBase {
   void rolesInactivos() throws Exception {
     // Las dos mitades juntas son lo único que explica por qué una persona CON
     // roles no puede hacer nada.
-    jdbc.update("UPDATE roles SET status = 'INACTIVO' WHERE id = ?::uuid", CONTABILIDAD);
+    jdbc.update("UPDATE roles SET status = 'INACTIVO' WHERE id = ?::uuid", rolAcotado);
 
     mvc.perform(detalle(juan))
         .andExpect(status().isOk())
         .andExpect(jsonPath("$.roles.length()").value(2))
-        .andExpect(jsonPath("$.roles[?(@.code == 'CONTABILIDAD')].status").value("INACTIVO"))
+        .andExpect(
+            jsonPath("$.roles[?(@.code == '" + CODIGO_ACOTADO + "')].status").value("INACTIVO"))
         .andExpect(jsonPath("$.effectivePermissions").isEmpty());
   }
 
@@ -380,7 +386,7 @@ class UserQueryIT extends IntegrationTestBase {
     mvc.perform(detalle(juan))
         .andExpect(status().isOk())
         .andExpect(jsonPath("$.roles.length()").value(1))
-        .andExpect(jsonPath("$.roles[0].code").value("CONTABILIDAD"));
+        .andExpect(jsonPath("$.roles[0].code").value(CODIGO_ACOTADO));
   }
 
   @Test

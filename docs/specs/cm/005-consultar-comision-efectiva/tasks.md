@@ -24,17 +24,17 @@
 
 | ID | Tarea | Depende de | Verificación | Estado |
 |---|---|---|---|---|
-| `T-01` | `resolve(...)` en el puerto de consulta: **una sola sentencia** con el orden de precedencia de `plan.md` §1 | `RF-CM-001` · `T-01` | Los cuatro grados se ordenan en SQL, no en Java | `Pendiente` |
-| `T-02` | `ResolveCommissionService`: determina el rol vendedor y delega la precedencia | `T-01`, `RF-CM-001` · `T-05` | El caso de uso **no reordena** nada | `Pendiente` |
-| `T-03` | Respuesta con porcentaje, tarifa aplicada, **grado** y rol considerado | `T-02` | El grado sale de la tarifa que ganó | `Pendiente` |
-| `T-04` | Los **tres desenlaces** distinguidos: hay tarifa, no hay tarifa declarada, la persona no comisiona | `T-03` | `percentage` **nulo y presente** en los dos últimos, **nunca cero** | `Pendiente` |
-| `T-05` | `GET /api/v1/commissions/effective`, en controlador propio | `T-03`, `T-04` | `200` en los tres desenlaces; `422` si la persona o el producto no existen; **ningún `404`** | `Pendiente` |
-| `T-06` | DTO de entrada con `VAL-006` y `VAL-012`, y la fecha **por omisión hoy** | `T-05` | Sin fecha resuelve con la de hoy | `Pendiente` |
-| `T-07` | Pruebas de los criterios de `spec.md` §12 | `T-05` | `CA-CM-039` a `CA-CM-050` | `Pendiente` |
-| `T-08` | **Prueba de la pareja cero / ausencia** | `T-07` | `CA-CM-047` y `CA-CM-048`: la que este endpoint no puede confundir | `Pendiente` |
+| `T-01` | `resolve(...)` en el puerto de consulta: **una sola sentencia** con el orden de precedencia de `plan.md` §1 | `RF-CM-001` · `T-01` | Los cuatro grados se ordenan en SQL, no en Java | **Hecha el 28-08-2026** |
+| `T-02` | `ResolveCommissionService`: determina el rol vendedor y delega la precedencia | `T-01`, `RF-CM-001` · `T-05` | El caso de uso **no reordena** nada | **Hecha el 28-08-2026** |
+| `T-03` | Respuesta con porcentaje, tarifa aplicada, **grado** y rol considerado | `T-02` | El grado sale de la tarifa que ganó | **Hecha el 28-08-2026** |
+| `T-04` | Los **tres desenlaces** distinguidos: hay tarifa, no hay tarifa declarada, la persona no comisiona | `T-03` | `percentage` **nulo y presente** en los dos últimos, **nunca cero** | **Hecha el 28-08-2026** |
+| `T-05` | `GET /api/v1/commissions/effective`, en controlador propio | `T-03`, `T-04` | `200` en los tres desenlaces; `422` si la persona o el producto no existen; **ningún `404`** | **Hecha el 28-08-2026** |
+| `T-06` | DTO de entrada con `VAL-006` y `VAL-012`, y la fecha **por omisión hoy** | `T-05` | Sin fecha resuelve con la de hoy | **Hecha el 28-08-2026** |
+| `T-07` | Pruebas de los criterios de `spec.md` §12 | `T-05` | `CA-CM-039` a `CA-CM-050` | **Hecha el 28-08-2026** |
+| `T-08` | **Prueba de la pareja cero / ausencia** | `T-07` | `CA-CM-047` y `CA-CM-048`: la que este endpoint no puede confundir | **Hecha el 28-08-2026** |
 | `T-09` | **Prueba de los dos roles vendedores**: el puerto falla de forma visible | `T-02` | **Lanza**, no elige. Es la prueba del bloqueo de §4 | `Pendiente` |
-| `T-10` | Documentación OpenAPI del endpoint | `T-05` | Los tres parámetros y los tres desenlaces | `Pendiente` |
-| `T-11` | Actualizar la matriz de `docs/requirements.md` | `T-07` | La fila de `RF-CM-005` refleja el estado **y su bloqueo** | `Pendiente` |
+| `T-10` | Documentación OpenAPI del endpoint | `T-05` | Los tres parámetros y los tres desenlaces | **Hecha el 28-08-2026** |
+| `T-11` | Actualizar la matriz de `docs/requirements.md` | `T-07` | La fila de `RF-CM-005` refleja el estado **y su bloqueo** | **Hecha el 28-08-2026** |
 
 ## 2. Orden de ejecución
 

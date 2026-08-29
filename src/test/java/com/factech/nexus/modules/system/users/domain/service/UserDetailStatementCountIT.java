@@ -54,10 +54,10 @@ import org.springframework.test.context.TestPropertySource;
 @TestPropertySource(properties = "spring.jpa.properties.hibernate.generate_statistics=true")
 class UserDetailStatementCountIT extends IntegrationTestBase {
 
-  private static final String CONTABILIDAD = "01a02a33-4c00-7003-9c4f-5e7ad1000003";
+  private static final String DIRECTOR = "01a02a33-4c00-7006-9c4f-5e7ad1000004";
   private static final String ADMIN = "01a02a33-4c00-7002-9c4f-5e7ad1000002";
-  private static final String AGENTE = "01a02a33-4c00-7007-9c4f-5e7ad1000007";
-  private static final String MANAGER = "01a02a33-4c00-7005-9c4f-5e7ad1000005";
+  private static final String AGENTE = "01a02a33-4c00-7007-9c4f-5e7ad1000005";
+  private static final String MANAGER = "01a02a33-4c00-7005-9c4f-5e7ad1000003";
 
   @Autowired private GetUserService detalle;
   @Autowired private JdbcTemplate jdbc;
@@ -69,8 +69,8 @@ class UserDetailStatementCountIT extends IntegrationTestBase {
   @BeforeEach
   void preparar() {
     limpiar();
-    conUnRol = crearPersona("UnRol", List.of(CONTABILIDAD));
-    conCuatroRoles = crearPersona("CuatroRoles", List.of(CONTABILIDAD, ADMIN, AGENTE, MANAGER));
+    conUnRol = crearPersona("UnRol", List.of(ADMIN));
+    conCuatroRoles = crearPersona("CuatroRoles", List.of(ADMIN, DIRECTOR, AGENTE, MANAGER));
   }
 
   @AfterEach

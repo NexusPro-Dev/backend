@@ -47,7 +47,7 @@ import org.springframework.test.web.servlet.request.RequestPostProcessor;
 @AutoConfigureMockMvc
 class UserMembershipRejectionAuditIT extends IntegrationTestBase {
 
-  private static final String CONTABILIDAD = "01a02a33-4c00-7003-9c4f-5e7ad1000003";
+  private static final String ADMIN_ROL = "01a02a33-4c00-7002-9c4f-5e7ad1000002";
 
   @Autowired private MockMvc mvc;
   @Autowired private JdbcTemplate jdbc;
@@ -71,7 +71,7 @@ class UserMembershipRejectionAuditIT extends IntegrationTestBase {
     // Un rol FUNCIONARIO: la persona NO es consumidora, que es la condición de
     // `EX-001`.
     jdbc.update(
-        "INSERT INTO user_roles (user_id, role_id) VALUES (?, ?::uuid)", persona, CONTABILIDAD);
+        "INSERT INTO user_roles (user_id, role_id) VALUES (?, ?::uuid)", persona, ADMIN_ROL);
 
     // La cadena de membresías arranca VACÍA: ninguna migración la siembra, de
     // modo que hay que crear el primer eslabón. Nivel 1 y sin padre, que es lo

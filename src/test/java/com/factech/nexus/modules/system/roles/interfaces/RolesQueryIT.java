@@ -26,7 +26,7 @@ import org.springframework.test.web.servlet.request.RequestPostProcessor;
 /**
  * Listado de roles (`RF-SP-002` · `T-11` y `T-12`).
  *
- * <p>La suite se apoya en los <b>ocho roles de sistema</b> que siembran `V7` y `V30` y añade cuatro
+ * <p>La suite se apoya en los <b>seis roles de sistema</b> que siembran `V7` y `V30` y añade cuatro
  * propios: uno con acentos, uno con un comodín en el nombre, uno inactivo y uno eliminado. Esos
  * cuatro son los que hacen verificables la búsqueda, los filtros y la marca de eliminación sin
  * depender de que alguien haya creado datos antes.
@@ -36,11 +36,10 @@ class RolesQueryIT extends IntegrationTestBase {
 
   private static final String SUPERADMIN_ROL = "01a02a33-4c00-7001-9c4f-5e7ad1000001";
   private static final String ADMIN = "01a02a33-4c00-7002-9c4f-5e7ad1000002";
-  private static final String CONTABILIDAD = "01a02a33-4c00-7003-9c4f-5e7ad1000003";
-  private static final String MANAGER = "01a02a33-4c00-7005-9c4f-5e7ad1000005";
+  private static final String MANAGER = "01a02a33-4c00-7005-9c4f-5e7ad1000003";
 
-  /** Ocho de sistema más tres propios vigentes; el cuarto está eliminado. */
-  private static final int VIGENTES = 11;
+  /** Seis de sistema más tres propios vigentes; el cuarto está eliminado. */
+  private static final int VIGENTES = 9;
 
   @Autowired private MockMvc mvc;
   @Autowired private JdbcTemplate jdbc;
@@ -50,10 +49,10 @@ class RolesQueryIT extends IntegrationTestBase {
   void preparar() {
     limpiar();
 
-    crearRol("ADMINISTRACION", "Administración", "FUNCIONARIO", CONTABILIDAD, "ACTIVO", false);
-    crearRol("SOPORTE_100", "Soporte 100% remoto", "FUNCIONARIO", CONTABILIDAD, "ACTIVO", false);
-    crearRol("ROL_INACTIVO", "Rol inactivo", "FUNCIONARIO", CONTABILIDAD, "INACTIVO", false);
-    crearRol("ARCHIVADO", "Rol archivado", "FUNCIONARIO", CONTABILIDAD, "ACTIVO", true);
+    crearRol("ADMINISTRACION", "Administración", "FUNCIONARIO", ADMIN, "ACTIVO", false);
+    crearRol("SOPORTE_100", "Soporte 100% remoto", "FUNCIONARIO", ADMIN, "ACTIVO", false);
+    crearRol("ROL_INACTIVO", "Rol inactivo", "FUNCIONARIO", ADMIN, "INACTIVO", false);
+    crearRol("ARCHIVADO", "Rol archivado", "FUNCIONARIO", ADMIN, "ACTIVO", true);
   }
 
   @AfterEach
@@ -72,12 +71,12 @@ class RolesQueryIT extends IntegrationTestBase {
         .andExpect(status().isOk())
         .andExpect(jsonPath("$.content.length()").value(5))
         .andExpect(jsonPath("$.totalElements").value(VIGENTES))
-        .andExpect(jsonPath("$.totalPages").value(3))
+        .andExpect(jsonPath("$.totalPages").value(2))
         .andExpect(jsonPath("$.page").value(0))
         .andExpect(jsonPath("$.size").value(5))
         .andExpect(jsonPath("$.totalIsExact").value(true));
 
-    // Recorrer las tres páginas debe devolver cada rol exactamente una vez: es
+    // Recorrer las dos páginas debe devolver cada rol exactamente una vez: es
     // lo único que distingue una paginación correcta de una que reparte mal.
     List<String> recorrido = recorrerPaginas("code,asc", 5);
     assertThat(recorrido).hasSize(VIGENTES).doesNotHaveDuplicates();
@@ -118,12 +117,12 @@ class RolesQueryIT extends IntegrationTestBase {
         .andExpect(status().isOk())
         .andExpect(jsonPath("$.content.length()").value(3));
 
-    // Hijos DIRECTOS de ADMIN: CONTABILIDAD, LIDER_ACADEMICO y MANAGER. DIRECTOR
-    // es nieto —cuelga de MANAGER— y no debe aparecer: el filtro es por rol
-    // padre, no por subárbol.
+    // Hijos DIRECTOS de ADMIN: MANAGER, que cuelga de él en la siembra, y los
+    // tres que crea esta clase. DIRECTOR es nieto —cuelga de MANAGER— y no debe
+    // aparecer: el filtro es por rol padre, no por subárbol.
     mvc.perform(listado().param("parentRoleId", ADMIN))
         .andExpect(status().isOk())
-        .andExpect(jsonPath("$.content.length()").value(3))
+        .andExpect(jsonPath("$.content.length()").value(4))
         .andExpect(jsonPath("$.content[?(@.code == 'DIRECTOR')]").isEmpty());
 
     // Los tres filtros combinados.
@@ -184,12 +183,19 @@ class RolesQueryIT extends IntegrationTestBase {
         .andExpect(status().isOk())
         .andExpect(jsonPath("$.content[?(@.code == 'ADMINISTRACION')]").isNotEmpty());
 
-    // Por fragmento y no por prefijo: ningún prefijo encuentra `academico`
-    // dentro de `LIDER_ACADEMICO`, que es el motivo del índice de trigramas.
-    mvc.perform(listado().param("search", "academico"))
+    // Por fragmento y no por prefijo, y con el acento EN MEDIO: ningún prefijo
+    // de `ADMINISTRACION` ni de «Administración» empieza por `ministració`, que
+    // es el motivo del índice de trigramas de `V32`.
+    //
+    // Hasta el 29-08-2026 este caso lo cubría «Líder académico», el único rol
+    // sembrado que llevaba un acento. Al retirarse de `V7`, el fragmento
+    // acentuado se busca contra un rol que crea esta misma clase: la propiedad
+    // verificada —fragmento interior, sin acentos y sin caja— es la misma, y ya
+    // no depende de qué roles siembre el sistema.
+    mvc.perform(listado().param("search", "ministració"))
         .andExpect(status().isOk())
         .andExpect(jsonPath("$.content.length()").value(1))
-        .andExpect(jsonPath("$.content[0].code").value("LIDER_ACADEMICO"));
+        .andExpect(jsonPath("$.content[0].code").value("ADMINISTRACION"));
   }
 
   @Test
@@ -231,8 +237,11 @@ class RolesQueryIT extends IntegrationTestBase {
         .andExpect(jsonPath("$.content.length()").value(1))
         .andExpect(jsonPath("$.content[0].parentRole").doesNotExist());
 
-    mvc.perform(listado().param("search", "CONTABILIDAD"))
+    // Un término que casa con UN SOLO rol, para que `content[0]` no dependa del
+    // orden: `ADMIN` casaría también con `SUPERADMIN` y con `ADMINISTRACION`.
+    mvc.perform(listado().param("search", "ADMINISTRACION"))
         .andExpect(status().isOk())
+        .andExpect(jsonPath("$.content.length()").value(1))
         .andExpect(jsonPath("$.content[0].parentRole.code").value("ADMIN"));
   }
 
@@ -250,7 +259,7 @@ class RolesQueryIT extends IntegrationTestBase {
     // tres códigos que lo llevan.
     mvc.perform(listado().param("search", "_"))
         .andExpect(status().isOk())
-        .andExpect(jsonPath("$.content.length()").value(3));
+        .andExpect(jsonPath("$.content.length()").value(2));
   }
 
   @Test

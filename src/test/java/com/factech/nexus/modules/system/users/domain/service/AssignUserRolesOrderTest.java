@@ -188,7 +188,7 @@ class AssignUserRolesOrderTest {
   private static AssignableRole rol(boolean activo, RoleType tipo) {
     return new AssignableRole(
         ROL,
-        "CONTABILIDAD",
+        "ADMIN",
         "Contabilidad",
         tipo,
         false,

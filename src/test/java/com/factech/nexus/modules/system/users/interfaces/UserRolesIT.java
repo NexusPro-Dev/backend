@@ -38,16 +38,30 @@ class UserRolesIT extends IntegrationTestBase {
 
   private static final String SUPERADMIN_ROL = "01a02a33-4c00-7001-9c4f-5e7ad1000001";
   private static final String ADMIN = "01a02a33-4c00-7002-9c4f-5e7ad1000002";
-  private static final String CONTABILIDAD = "01a02a33-4c00-7003-9c4f-5e7ad1000003";
-  private static final String LIDER = "01a02a33-4c00-7004-9c4f-5e7ad1000004";
-  private static final String MANAGER = "01a02a33-4c00-7005-9c4f-5e7ad1000005";
-  private static final String DIRECTOR = "01a02a33-4c00-7006-9c4f-5e7ad1000006";
-  private static final String AGENTE = "01a02a33-4c00-7007-9c4f-5e7ad1000007";
+  private static final String MANAGER = "01a02a33-4c00-7005-9c4f-5e7ad1000003";
+  private static final String DIRECTOR = "01a02a33-4c00-7006-9c4f-5e7ad1000004";
+  private static final String AGENTE = "01a02a33-4c00-7007-9c4f-5e7ad1000005";
 
   @Autowired private MockMvc mvc;
   @Autowired private JdbcTemplate jdbc;
 
   private UUID persona;
+
+  /**
+   * DOS roles de negocio con permisos acotados, que es lo que estas pruebas conceden y retiran.
+   *
+   * <p>Tienen que ser <b>dos y distintos</b>: la asignación es aditiva y no un reemplazo ({@link
+   * #aditiva}), y desde `RN-SP-023` nadie puede quedarse sin ningún rol, de modo que retirar uno
+   * exige que quede el otro. Y tienen que ser <b>acotados</b>: {@link #escaladaDePrivilegios}
+   * necesita que quien porta uno de ellos NO alcance a conceder ADMIN.
+   *
+   * <p>Hasta el 29-08-2026 este papel lo hacían {@code CONTABILIDAD} y {@code LIDER_ACADEMICO},
+   * retirados del catálogo sembrado por decisión del responsable del proyecto. En la siembra ya no
+   * quedan dos roles con esa forma, de modo que la clase se los fabrica.
+   */
+  private String rolAcotado;
+
+  private String rolDeReserva;
 
   @BeforeEach
   void dejarSoloAlSuperadministrador() {
@@ -72,6 +86,9 @@ class UserRolesIT extends IntegrationTestBase {
         SUPERADMIN,
         SUPERADMIN_ROL);
 
+    rolAcotado = crearRolAcotado(jdbc, "AUDITORIA_ACOTADA", "Auditoría acotada").toString();
+    rolDeReserva = crearRolAcotado(jdbc, "AUDITORIA_RESERVA", "Auditoría de reserva").toString();
+
     persona = crearPersona("jperez");
   }
 
@@ -82,47 +99,47 @@ class UserRolesIT extends IntegrationTestBase {
   @Test
   @DisplayName("CA-SP-251 — agrega los roles y devuelve la lista actualizada")
   void asignacionValida() throws Exception {
-    mvc.perform(asignar(persona, CONTABILIDAD))
+    mvc.perform(asignar(persona, rolAcotado))
         .andExpect(status().isOk())
-        .andExpect(jsonPath("$.roles[0].code").value("CONTABILIDAD"))
+        .andExpect(jsonPath("$.roles[0].code").value("AUDITORIA_ACOTADA"))
         // La membresía y el superior viajan SIEMPRE, en nulo cuando no hay:
         // «no tiene» tiene que distinguirse de «este endpoint no lo informa».
         .andExpect(jsonPath("$.membership").value(org.hamcrest.Matchers.nullValue()))
         .andExpect(jsonPath("$.supervisor").value(org.hamcrest.Matchers.nullValue()));
 
-    assertThat(rolesDe(persona)).containsExactly(CONTABILIDAD);
+    assertThat(rolesDe(persona)).containsExactly(rolAcotado);
   }
 
   @Test
   @DisplayName("CA-SP-256 — es ADITIVA: no reemplaza la lista")
   void aditiva() throws Exception {
-    mvc.perform(asignar(persona, CONTABILIDAD)).andExpect(status().isOk());
-    mvc.perform(asignar(persona, LIDER)).andExpect(status().isOk());
+    mvc.perform(asignar(persona, rolAcotado)).andExpect(status().isOk());
+    mvc.perform(asignar(persona, rolDeReserva)).andExpect(status().isOk());
 
-    // Si fuera un reemplazo, aquí quedaría solo LIDER — y ese retiro implícito
+    // Si fuera un reemplazo, aquí quedaría solo el de reserva — y ese retiro implícito
     // se habría saltado `RN-SP-001`, `RN-SP-015` y `RN-SP-022`.
-    assertThat(rolesDe(persona)).containsExactlyInAnyOrder(CONTABILIDAD, LIDER);
+    assertThat(rolesDe(persona)).containsExactlyInAnyOrder(rolAcotado, rolDeReserva);
   }
 
   @Test
   @DisplayName("CA-SP-252 — repetir la asignación no cambia nada y NO deja auditoría")
   void idempotente() throws Exception {
-    mvc.perform(asignar(persona, CONTABILIDAD)).andExpect(status().isOk());
+    mvc.perform(asignar(persona, rolAcotado)).andExpect(status().isOk());
     int antes = eventosDeCambio(persona);
 
-    mvc.perform(asignar(persona, CONTABILIDAD)).andExpect(status().isOk());
+    mvc.perform(asignar(persona, rolAcotado)).andExpect(status().isOk());
 
     // Sin el cálculo del delta, cada repetición dejaría un evento describiendo
     // una asignación que ya existía, y el recuento de concesiones mentiría.
     assertThat(eventosDeCambio(persona)).isEqualTo(antes);
-    assertThat(rolesDe(persona)).containsExactly(CONTABILIDAD);
+    assertThat(rolesDe(persona)).containsExactly(rolAcotado);
   }
 
   @Test
   @DisplayName("CA-SP-257 — la asignación deja evento de cambio y uno de seguridad ALTA")
   void auditoriaDeLaAsignacion() throws Exception {
     UUID correlacion = UUID.randomUUID();
-    mvc.perform(asignar(persona, CONTABILIDAD).header("X-Correlation-Id", correlacion.toString()))
+    mvc.perform(asignar(persona, rolAcotado).header("X-Correlation-Id", correlacion.toString()))
         .andExpect(status().isOk());
 
     Integer cambios =
@@ -154,13 +171,13 @@ class UserRolesIT extends IntegrationTestBase {
   void personaInexistente() throws Exception {
     UUID correlacion = UUID.randomUUID();
     mvc.perform(
-            asignar(UUID.randomUUID(), CONTABILIDAD)
+            asignar(UUID.randomUUID(), rolAcotado)
                 .header("X-Correlation-Id", correlacion.toString()))
         .andExpect(status().isNotFound())
         .andExpect(jsonPath("$.type").value("https://nexus.factech.co/errors/no-encontrado"));
 
     jdbc.update("UPDATE users SET deleted_at = now() WHERE id = ?", persona);
-    mvc.perform(asignar(persona, CONTABILIDAD)).andExpect(status().isNotFound());
+    mvc.perform(asignar(persona, rolAcotado)).andExpect(status().isNotFound());
 
     Integer errores =
         jdbc.queryForObject(
@@ -177,7 +194,7 @@ class UserRolesIT extends IntegrationTestBase {
     // inadministrable, y preparar su vuelta es justo lo que se hace con ella.
     jdbc.update("UPDATE users SET status = 'INACTIVO' WHERE id = ?", persona);
 
-    mvc.perform(asignar(persona, CONTABILIDAD)).andExpect(status().isOk());
+    mvc.perform(asignar(persona, rolAcotado)).andExpect(status().isOk());
   }
 
   @Test
@@ -214,16 +231,16 @@ class UserRolesIT extends IntegrationTestBase {
   void escaladaDePrivilegios() throws Exception {
     UUID contable = crearPersona("contable");
     jdbc.update(
-        "INSERT INTO user_roles (user_id, role_id) VALUES (?, ?::uuid)", contable, CONTABILIDAD);
+        "INSERT INTO user_roles (user_id, role_id) VALUES (?, ?::uuid)", contable, rolAcotado);
 
-    // CONTABILIDAD concede dos permisos de lectura de auditoría y nada más.
+    // El rol acotado concede dos permisos de lectura de auditoría y nada más.
     mvc.perform(asignarComo(contable, persona, ADMIN))
         .andExpect(status().isConflict())
         .andExpect(jsonPath("$.errors[0].code").value("RN-SEG-010"))
         .andExpect(jsonPath("$.errors[0].message", org.hamcrest.Matchers.containsString("ADMIN")));
 
     // Y lo que sí alcanza, lo concede: la comparación es por PERMISOS.
-    mvc.perform(asignarComo(contable, persona, CONTABILIDAD)).andExpect(status().isOk());
+    mvc.perform(asignarComo(contable, persona, rolAcotado)).andExpect(status().isOk());
   }
 
   @Test
@@ -270,7 +287,7 @@ class UserRolesIT extends IntegrationTestBase {
     // colgando de quien no es consumidor.
     String membresia = crearMembresia();
 
-    mvc.perform(asignarConMembresia(persona, CONTABILIDAD, membresia))
+    mvc.perform(asignarConMembresia(persona, rolAcotado, membresia))
         .andExpect(status().isUnprocessableEntity())
         .andExpect(jsonPath("$.errors[0].code").value("EX-006"));
   }
@@ -390,7 +407,7 @@ class UserRolesIT extends IntegrationTestBase {
         ConcurrencyHarness.runTogether(
             2,
             indice ->
-                mvc.perform(asignar(persona, CONTABILIDAD)).andReturn().getResponse().getStatus());
+                mvc.perform(asignar(persona, rolAcotado)).andReturn().getResponse().getStatus());
 
     assertThat(resultados).allMatch(ConcurrencyHarness.Outcome::succeeded);
     assertThat(resultados).allMatch(salida -> salida.value() == 200);
@@ -411,33 +428,31 @@ class UserRolesIT extends IntegrationTestBase {
     // Se asignan DOS y se retira UNO: desde `RN-SP-023` (24-08-2026) no se puede
     // dejar a nadie sin ningún rol, de modo que la única forma de comprobar el
     // camino feliz del retiro es que quede algo detrás.
-    mvc.perform(cuerpoDeAsignacion(persona, "[\"" + CONTABILIDAD + "\",\"" + LIDER + "\"]"))
+    mvc.perform(cuerpoDeAsignacion(persona, "[\"" + rolAcotado + "\",\"" + rolDeReserva + "\"]"))
         .andExpect(status().isOk());
 
-    mvc.perform(retirar(persona, CONTABILIDAD)).andExpect(status().isOk());
+    mvc.perform(retirar(persona, rolAcotado)).andExpect(status().isOk());
 
-    assertThat(rolesDe(persona)).containsExactly(LIDER);
+    assertThat(rolesDe(persona)).containsExactly(rolDeReserva);
   }
 
   @Test
   @DisplayName("CA-SP-269 — el retiro que dejaría a la persona sin ningún rol se rechaza")
   void retiroDelUltimoRol() throws Exception {
-    mvc.perform(asignar(persona, CONTABILIDAD)).andExpect(status().isOk());
+    mvc.perform(asignar(persona, rolAcotado)).andExpect(status().isOk());
 
-    mvc.perform(retirar(persona, CONTABILIDAD))
+    mvc.perform(retirar(persona, rolAcotado))
         .andExpect(status().isConflict())
         .andExpect(jsonPath("$.errors[0].code").value("RN-SP-023"));
 
-    assertThat(rolesDe(persona))
-        .as("un rechazo no puede retirar nada")
-        .containsExactly(CONTABILIDAD);
+    assertThat(rolesDe(persona)).as("un rechazo no puede retirar nada").containsExactly(rolAcotado);
   }
 
   @Test
   @DisplayName("FA-001 — retirar un rol que no se tiene no es un error y no deja rastro")
   void retiroSinEfecto() throws Exception {
     UUID correlacion = UUID.randomUUID();
-    mvc.perform(retirar(persona, CONTABILIDAD).header("X-Correlation-Id", correlacion.toString()))
+    mvc.perform(retirar(persona, rolAcotado).header("X-Correlation-Id", correlacion.toString()))
         .andExpect(status().isOk());
 
     Integer eliminaciones =
@@ -459,7 +474,7 @@ class UserRolesIT extends IntegrationTestBase {
     // Es la asimetría con `RF-SP-030` que más se implementa de más: comprobar
     // aquí que el rol existe dejaría la asignación atrapada para siempre.
     mvc.perform(retirar(persona, rol)).andExpect(status().isOk());
-    assertThat(rolesDe(persona)).containsExactly(LIDER);
+    assertThat(rolesDe(persona)).containsExactly(rolDeReserva);
   }
 
   @Test
@@ -467,7 +482,7 @@ class UserRolesIT extends IntegrationTestBase {
   void retiroFueraDeAlcance() throws Exception {
     UUID contable = crearPersona("contable");
     jdbc.update(
-        "INSERT INTO user_roles (user_id, role_id) VALUES (?, ?::uuid)", contable, CONTABILIDAD);
+        "INSERT INTO user_roles (user_id, role_id) VALUES (?, ?::uuid)", contable, rolAcotado);
     jdbc.update("INSERT INTO user_roles (user_id, role_id) VALUES (?, ?::uuid)", persona, ADMIN);
 
     // Quien no posee el permiso no puede quitar el rol que lo concede.
@@ -494,7 +509,7 @@ class UserRolesIT extends IntegrationTestBase {
     // dejaría sin ninguno. Se le concede otro rol para que la prueba siga
     // comprobando lo suyo —`RN-SP-001`— y no la regla nueva.
     jdbc.update(
-        "INSERT INTO user_roles (user_id, role_id) VALUES (?, ?::uuid)", SUPERADMIN, CONTABILIDAD);
+        "INSERT INTO user_roles (user_id, role_id) VALUES (?, ?::uuid)", SUPERADMIN, rolAcotado);
 
     mvc.perform(retirar(SUPERADMIN, SUPERADMIN_ROL)).andExpect(status().isOk());
   }
@@ -657,10 +672,10 @@ class UserRolesIT extends IntegrationTestBase {
         """,
         persona);
 
-    mvc.perform(asignar(persona, CONTABILIDAD)).andExpect(status().isOk());
+    mvc.perform(asignar(persona, rolAcotado)).andExpect(status().isOk());
     assertThat(sesionesVivas(persona)).isEqualTo(1);
 
-    mvc.perform(retirar(persona, CONTABILIDAD)).andExpect(status().isOk());
+    mvc.perform(retirar(persona, rolAcotado)).andExpect(status().isOk());
     assertThat(sesionesVivas(persona)).isZero();
 
     String motivo =
@@ -790,7 +805,7 @@ class UserRolesIT extends IntegrationTestBase {
     jdbc.update(
         "INSERT INTO user_roles (user_id, role_id) VALUES (?, ?::uuid) ON CONFLICT DO NOTHING",
         usuario,
-        LIDER);
+        rolDeReserva);
   }
 
   private List<String> rolesDe(UUID usuario) {

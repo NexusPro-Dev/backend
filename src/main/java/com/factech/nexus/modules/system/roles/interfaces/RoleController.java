@@ -189,8 +189,8 @@ public class RoleController {
           colección vacía, que no es un error.
 
           La búsqueda va sobre código y nombre, **sin distinguir acentos ni
-          mayúsculas**, y por fragmento: `academico` encuentra
-          `LIDER_ACADEMICO`. Un término en blanco equivale a no filtrar.
+          mayúsculas**, y por fragmento: `ministracion` encuentra
+          `ADMINISTRACION`. Un término en blanco equivale a no filtrar.
 
           **Los eliminados quedan fuera salvo que se pidan** con
           `includeDeleted=true`; cuando se piden, `deletedAt` es lo que permite

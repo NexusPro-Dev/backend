@@ -57,7 +57,7 @@ class PermissionIT extends IntegrationTestBase {
             .createQuery("SELECT count(p) FROM Permission p", Long.class)
             .getSingleResult();
 
-    assertThat(total).isEqualTo(28L);
+    assertThat(total).isEqualTo(32L);
   }
 
   @Test

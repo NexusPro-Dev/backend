@@ -23,17 +23,17 @@
 
 | ID | Tarea | Depende de | Verificación | Estado |
 |---|---|---|---|---|
-| `T-01` | `CommissionRate.delete(...)`: marca el retiro y **devuelve si hubo cambio** | `RF-CM-001` · `T-07` | Retirar dos veces devuelve `false` la segunda | `Pendiente` |
-| `T-02` | **La vigencia no se toca al retirar**, y `updatedAt` sí se mueve | `T-01` | `valid_from` y `valid_to` quedan como estaban | `Pendiente` |
-| `T-03` | `DeleteCommissionRateService`: comprueba, retira y registra la eliminación | `T-01` | El motivo llega al registro, no a la respuesta | `Pendiente` |
-| `T-04` | DTO del motivo con `VAL-007` y `VAL-008` | `T-03` | Ausente, en blanco y demasiado largo | `Pendiente` |
-| `T-05` | `POST /api/v1/commission-rates/{id}/deletion` | `T-03`, `T-04` | `204`, `400`, `403`, `404`, `409` | `Pendiente` |
-| `T-06` | Registro de eliminación con quién, cuándo, por qué y **la instantánea** | `T-03` | La instantánea conserva la vigencia que la tarifa tenía | `Pendiente` |
-| `T-07` | Pruebas de los criterios de `spec.md` §12 | `T-05` | `CA-CM-031` a `CA-CM-038` | `Pendiente` |
-| `T-08` | **Prueba de que los días quedan libres**: tras retirar, se admite otra tarifa que cubra ese periodo | `T-07` | `CA-CM-037`. Es la que verifica que la restricción del motor sea **parcial** sobre las vivas | `Pendiente` |
+| `T-01` | `CommissionRate.delete(...)`: marca el retiro y **devuelve si hubo cambio** | `RF-CM-001` · `T-07` | Retirar dos veces devuelve `false` la segunda | **Hecha el 28-08-2026** |
+| `T-02` | **La vigencia no se toca al retirar**, y `updatedAt` sí se mueve | `T-01` | `valid_from` y `valid_to` quedan como estaban | **Hecha el 28-08-2026** |
+| `T-03` | `DeleteCommissionRateService`: comprueba, retira y registra la eliminación | `T-01` | El motivo llega al registro, no a la respuesta | **Hecha el 28-08-2026** |
+| `T-04` | DTO del motivo con `VAL-007` y `VAL-008` | `T-03` | Ausente, en blanco y demasiado largo | **Hecha el 28-08-2026** |
+| `T-05` | `POST /api/v1/commission-rates/{id}/deletion` | `T-03`, `T-04` | `204`, `400`, `403`, `404`, `409` | **Hecha el 28-08-2026** |
+| `T-06` | Registro de eliminación con quién, cuándo, por qué y **la instantánea** | `T-03` | La instantánea conserva la vigencia que la tarifa tenía | **Hecha el 28-08-2026** |
+| `T-07` | Pruebas de los criterios de `spec.md` §12 | `T-05` | `CA-CM-031` a `CA-CM-038` | **Hecha el 28-08-2026** |
+| `T-08` | **Prueba de que los días quedan libres**: tras retirar, se admite otra tarifa que cubra ese periodo | `T-07` | `CA-CM-037`. Es la que verifica que la restricción del motor sea **parcial** sobre las vivas | **Hecha el 28-08-2026** |
 | `T-09` | Prueba concurrente: dos retiros simultáneos | `T-07` | Uno `204` y otro `409`, y **un solo registro de eliminación** | `Pendiente` |
-| `T-10` | Documentación OpenAPI del endpoint | `T-05` | El cuerpo con motivo y los cinco estados |  `Pendiente` |
-| `T-11` | Actualizar la matriz de `docs/requirements.md` | `T-07` | La fila de `RF-CM-004` refleja el estado | `Pendiente` |
+| `T-10` | Documentación OpenAPI del endpoint | `T-05` | El cuerpo con motivo y los cinco estados | **Hecha el 28-08-2026** |
+| `T-11` | Actualizar la matriz de `docs/requirements.md` | `T-07` | La fila de `RF-CM-004` refleja el estado | **Hecha el 28-08-2026** |
 
 ## 2. Orden de ejecución
 
