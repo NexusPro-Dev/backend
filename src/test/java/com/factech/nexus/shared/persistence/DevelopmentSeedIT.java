@@ -19,8 +19,8 @@ import org.springframework.test.context.TestPropertySource;
  *
  * <p><b>Levanta un contexto propio</b> con {@code development} y la semilla encendida: es la única
  * forma de observar lo que hace un {@link ApplicationRunner}, que corre al construir el contexto.
- * El resto de la suite corre como {@code testing} y con la semilla apagada, porque quince personas
- * apareciendo solas romperían decenas de pruebas que cuentan personas y roles.
+ * El resto de la suite corre como {@code testing} y con la semilla apagada, porque diecinueve
+ * personas apareciendo solas romperían decenas de pruebas que cuentan personas y roles.
  *
  * <p><b>Limpia detrás</b>, y no por cortesía: la base es la misma para toda la suite.
  *
@@ -48,11 +48,15 @@ class DevelopmentSeedIT extends IntegrationTestBase {
   private static final List<String> USUARIOS =
       List.of(
           "admin1",
-          "admin2",
-          "admin3",
           "agente1",
           "agente2",
           "agente3",
+          "agente4",
+          "agente5",
+          "agente6",
+          "agente7",
+          "agente8",
+          "agente9",
           "cliente1",
           "cliente2",
           "cliente3",
@@ -63,7 +67,7 @@ class DevelopmentSeedIT extends IntegrationTestBase {
           "manager2",
           "manager3");
 
-  /** Cuántas de las quince había ANTES de que esta clase tocara nada. */
+  /** Cuántas de las diecinueve había ANTES de que esta clase tocara nada. */
   private static int alArrancar = -1;
 
   @Autowired private JdbcTemplate jdbc;
@@ -74,7 +78,7 @@ class DevelopmentSeedIT extends IntegrationTestBase {
     // Se mira en `@BeforeAll` y no dentro de una prueba porque el orden de los
     // métodos no está garantizado: cualquiera de las otras limpia, y entonces
     // el recuento ya no diría nada sobre el arranque.
-    alArrancar = cuantasDeLasQuince(jdbc);
+    alArrancar = cuantasDeLasDiecinueve(jdbc);
   }
 
   @BeforeEach
@@ -101,7 +105,7 @@ class DevelopmentSeedIT extends IntegrationTestBase {
 
   @AfterAll
   static void devolverLaBaseASuSitio(@Autowired JdbcTemplate jdbc) {
-    borrarLasQuince(jdbc);
+    borrarLasDiecinueve(jdbc);
   }
 
   @Test
@@ -111,8 +115,8 @@ class DevelopmentSeedIT extends IntegrationTestBase {
     // únicamente que el método funciona, y dejaría sin comprobar lo único que
     // hace útil a esta funcionalidad: que nadie tenga que acordarse de nada.
     assertThat(alArrancar)
-        .as("las quince personas tienen que estar antes de que esta clase toque la base")
-        .isEqualTo(15);
+        .as("las diecinueve personas tienen que estar antes de que esta clase toque la base")
+        .isEqualTo(19);
 
     assertThat(semilla).isInstanceOf(ApplicationRunner.class);
   }
@@ -120,7 +124,7 @@ class DevelopmentSeedIT extends IntegrationTestBase {
   @Test
   @DisplayName("cada persona porta UN SOLO rol, y ninguno es SUPERADMIN")
   void unRolPorPersonaYNingunSuperadmin() {
-    borrarLasQuince(jdbc);
+    borrarLasDiecinueve(jdbc);
     semilla.run(null);
 
     // Dos roles VENDEDOR en la misma persona harían indeterminable la comisión
@@ -137,7 +141,7 @@ class DevelopmentSeedIT extends IntegrationTestBase {
             Integer.class,
             (Object) USUARIOS.toArray(String[]::new));
 
-    assertThat(rolesPorPersona).hasSize(15).containsOnly(1);
+    assertThat(rolesPorPersona).hasSize(19).containsOnly(1);
 
     Integer conSuperadmin =
         jdbc.queryForObject(
@@ -156,7 +160,7 @@ class DevelopmentSeedIT extends IntegrationTestBase {
   @Test
   @DisplayName("los tres clientes reciben membresías ESCALONADAS, no la misma")
   void membresiasEscalonadas() {
-    borrarLasQuince(jdbc);
+    borrarLasDiecinueve(jdbc);
     semilla.run(null);
 
     List<String> niveles =
@@ -177,9 +181,9 @@ class DevelopmentSeedIT extends IntegrationTestBase {
 
   @Test
   @DisplayName(
-      "las quince nacen SIN cambio de contraseña obligatorio, y esa es la razón del guardia")
+      "las diecinueve nacen SIN cambio de contraseña obligatorio, y esa es la razón del guardia")
   void sinCambioObligatorio() {
-    borrarLasQuince(jdbc);
+    borrarLasDiecinueve(jdbc);
     semilla.run(null);
 
     Integer retenidas =
@@ -202,7 +206,7 @@ class DevelopmentSeedIT extends IntegrationTestBase {
     semilla.run(null);
     semilla.run(null);
 
-    assertThat(cuantasDeLasQuince(jdbc)).isEqualTo(15);
+    assertThat(cuantasDeLasDiecinueve(jdbc)).isEqualTo(19);
     assertThat(
             jdbc.queryForObject(
                 """
@@ -212,10 +216,73 @@ class DevelopmentSeedIT extends IntegrationTestBase {
                 """,
                 Integer.class,
                 (Object) USUARIOS.toArray(String[]::new)))
-        .isEqualTo(15);
+        .isEqualTo(19);
   }
 
-  private static int cuantasDeLasQuince(JdbcTemplate jdbc) {
+  @Test
+  @DisplayName("cada director tiene TRES personas a cargo, y el manager es la cúspide")
+  void estructuraComercial() {
+    borrarLasDiecinueve(jdbc);
+    semilla.run(null);
+
+    String[] usuarios = USUARIOS.toArray(String[]::new);
+
+    // `RN-SP-019` dice que todo el que porte un rol VENDEDOR tiene superior.
+    // Sin estas filas la semilla dejaba a directores y agentes en un estado que
+    // la regla prohíbe, y `RF-SP-041` se probaría contra una base imposible.
+    List<Integer> aCargoPorDirector =
+        jdbc.queryForList(
+            """
+            SELECT count(*) FROM user_supervisors us
+              JOIN users sup ON sup.id = us.supervisor_id
+             WHERE us.ended_at IS NULL
+               AND sup.username = ANY (?)
+               AND sup.username LIKE 'director%'
+             GROUP BY us.supervisor_id
+            """,
+            Integer.class, (Object) usuarios);
+
+    // Tres directores, y TRES a cargo cada uno. Un equipo de uno no distingue
+    // «el equipo de alguien» de «alguien».
+    assertThat(aCargoPorDirector).hasSize(3).containsOnly(3);
+
+    // `RN-SP-020`: el superior porta el rol PADRE INMEDIATO del subordinado. Un
+    // agente colgado de un manager pasaría el recuento de arriba y sería
+    // igualmente inválido, así que se comprueba la forma y no solo el número.
+    List<String> parejas =
+        jdbc.queryForList(
+            """
+            SELECT rsub.code || ' -> ' || rsup.code
+              FROM user_supervisors us
+              JOIN user_roles ursub ON ursub.user_id = us.user_id
+              JOIN roles rsub ON rsub.id = ursub.role_id
+              JOIN user_roles ursup ON ursup.user_id = us.supervisor_id
+              JOIN roles rsup ON rsup.id = ursup.role_id
+             WHERE us.ended_at IS NULL
+             GROUP BY 1
+             ORDER BY 1
+            """,
+            String.class);
+
+    assertThat(parejas).containsExactly("AGENTE -> DIRECTOR", "DIRECTOR -> MANAGER");
+
+    // Y los MANAGER no declaran ninguno: su rol padre es `ADMIN`, que no es
+    // vendedor, de modo que `RN-SP-019` los exceptúa por ser la cúspide de la
+    // fuerza comercial. Darles superior habría poblado la tabla con filas que
+    // ninguna regla admite.
+    Integer managersConSuperior =
+        jdbc.queryForObject(
+            """
+            SELECT count(*) FROM user_supervisors us
+              JOIN users u ON u.id = us.user_id
+             WHERE us.ended_at IS NULL AND u.username LIKE 'manager%'
+            """,
+            Integer.class);
+
+    assertThat(managersConSuperior).isZero();
+  }
+
+  private static int cuantasDeLasDiecinueve(JdbcTemplate jdbc) {
     Integer total =
         jdbc.queryForObject(
             "SELECT count(*) FROM users WHERE username = ANY (?)",
@@ -224,12 +291,17 @@ class DevelopmentSeedIT extends IntegrationTestBase {
     return total == null ? 0 : total;
   }
 
-  private static void borrarLasQuince(JdbcTemplate jdbc) {
+  private static void borrarLasDiecinueve(JdbcTemplate jdbc) {
     String[] usuarios = USUARIOS.toArray(String[]::new);
     jdbc.update(
         "DELETE FROM user_memberships WHERE user_id IN (SELECT id FROM users WHERE username = ANY"
             + " (?))",
         (Object) usuarios);
+    jdbc.update(
+        "DELETE FROM user_supervisors WHERE user_id IN (SELECT id FROM users WHERE username ="
+            + " ANY (?)) OR supervisor_id IN (SELECT id FROM users WHERE username = ANY (?))",
+        usuarios,
+        usuarios);
     jdbc.update(
         "DELETE FROM user_roles WHERE user_id IN (SELECT id FROM users WHERE username = ANY (?))",
         (Object) usuarios);
