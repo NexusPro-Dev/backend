@@ -311,6 +311,19 @@ nexus:
     base-url: ${RESEND_BASE_URL:https://api.resend.com}
     timeout: PT10S
 
+    # Qué plantilla alojada en Resend le toca a cada mensaje (RF-SP-040).
+    #
+    # La clave es el código del tipo en `NotificationKind`, y el valor es el id
+    # o el alias de una plantilla PUBLICADA. Añadir una plantilla nueva es
+    # añadir una línea aquí y su variable; no se toca código.
+    #
+    # VACÍO POR OMISIÓN, y eso decide el comportamiento: sin plantilla el
+    # mensaje sale en texto plano en lugar de no salir. Un entorno al que le
+    # falte esta variable manda un correo sin estilos; uno que fallara aquí
+    # dejaría fuera a quien esperaba su código.
+    templates:
+      password-recovery: ${NOTIFICATION_TEMPLATE_PASSWORD_RECOVERY:}
+
 logging:
   level:
     root: ${LOG_LEVEL:INFO}

@@ -14,6 +14,7 @@ import com.factech.nexus.shared.audit.AuditWriter;
 import com.factech.nexus.shared.error.FieldError;
 import com.factech.nexus.shared.error.ValidationException;
 import com.factech.nexus.shared.notification.Notification;
+import com.factech.nexus.shared.notification.NotificationKind;
 import com.factech.nexus.shared.notification.NotificationSender;
 import com.factech.nexus.shared.observability.RequestContext;
 import com.factech.nexus.shared.persistence.UuidV7Generator;
@@ -168,22 +169,33 @@ public class RequestPasswordRecoveryService {
    * <p>Puede llegarle a alguien que no pidió nada —porque otro tecleó mal su correo, o porque
    * alguien lo hizo a propósito—, y en ese caso el mensaje no debe contarle nada de la cuenta a la
    * que apunta.
+   *
+   * <p><b>El texto y las variables dicen lo mismo, y las dos versiones tienen que seguir
+   * diciéndolo.</b> Si hay plantilla configurada sale la maquetada; si no, sale este texto. Quien
+   * cambie una y no la otra deja al sistema mandando dos correos distintos según el entorno, que es
+   * la clase de diferencia que solo se descubre en producción.
    */
   private Notification mensaje(String destino, String permiso) {
+    String minutos = String.valueOf(vigencia.toMinutes());
     String cuerpo =
         """
         Alguien solicitó restablecer la contraseña de la cuenta asociada a este correo.
 
         Su código es: %s
 
-        Caduca en %d minutos y solo puede usarse una vez.
+        Caduca en %s minutos y solo puede usarse una vez.
 
         Si no fue usted, no hace falta que haga nada: sin este código no se puede
         cambiar ninguna contraseña.
         """
-            .formatted(permiso, vigencia.toMinutes());
+            .formatted(permiso, minutos);
 
-    return new Notification(destino, "Restablecer su contraseña", cuerpo);
+    return new Notification(
+        destino,
+        "Restablecer su contraseña",
+        cuerpo,
+        NotificationKind.PASSWORD_RECOVERY,
+        Map.of("CODIGO", permiso, "MINUTOS", minutos));
   }
 
   private void auditar(Outcome resultado, java.util.UUID objetivo, String etapa) {

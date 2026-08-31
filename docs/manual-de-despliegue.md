@@ -161,6 +161,7 @@ REQUEST_LOG_RETENTION_DAYS=
 NOTIFICATION_ENABLED=false
 RESEND_API_KEY=
 NOTIFICATION_FROM=
+NOTIFICATION_TEMPLATE_PASSWORD_RECOVERY=
 ```
 
 Las líneas con `${{Postgres...}}` **se pegan literalmente**, con las llaves dobles. Railway las resuelve solo.
@@ -290,7 +291,10 @@ Reglas de `CORS_ALLOWED_ORIGINS`, que la aplicación verifica al arrancar:
 NOTIFICATION_ENABLED=true
 RESEND_API_KEY=re_...
 NOTIFICATION_FROM=NEXUS <no-responder@tu-dominio-verificado>
+NOTIFICATION_TEMPLATE_PASSWORD_RECOVERY=nexus-password-recovery
 ```
+
+La última es el **alias de la plantilla con estilos**, que vive publicada en Resend y **no en el repositorio**. Si la dejas vacía el correo sale igual, pero **en texto plano**. Si escribes un alias que no existe, Resend rechaza el envío y **el correo se pierde**: tiene que corresponder a una plantilla *publicada*.
 
 - [ ] En los logs del arranque **ya no aparece** el aviso de envío apagado.
 - [ ] Prueba una recuperación real y comprueba que el correo llega.

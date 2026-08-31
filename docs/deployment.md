@@ -246,6 +246,7 @@ Se cargan en el servicio **`backend`**. La columna «Valor en Railway» es liter
 | `NOTIFICATION_ENABLED` | `true` en los entornos donde deba funcionar la recuperación de contraseña | Con `false`, `RF-SP-040` emite permisos **que nadie recibe** |
 | `RESEND_API_KEY` | La clave `re_…` de Resend | Sin ella el envío queda apagado y se avisa **al arrancar** |
 | `NOTIFICATION_FROM` | `NEXUS <no-responder@dominio-verificado>` | El remitente **debe pertenecer a un dominio verificado en Resend** o el proveedor responde `403` |
+| `NOTIFICATION_TEMPLATE_PASSWORD_RECOVERY` | `nexus-password-recovery` | Plantilla con estilos del correo de `RF-SP-040`. **Vacía** manda el mensaje en texto plano; **con un valor que no exista** el proveedor rechaza el envío y el correo se pierde |
 
 !!! tip "Verificar el dominio en Resend antes de desplegar, no después"
 
