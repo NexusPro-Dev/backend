@@ -128,6 +128,28 @@ springdoc:
     path: /swagger-ui.html
 
 nexus:
+  # El entorno de esta instancia (Art. IX.4): development | testing | production.
+  #
+  # SIN VALOR POR DEFECTO, y el vacío de aquí NO es uno: `RuntimeEnvironment` lo
+  # rechaza y TUMBA EL ARRANQUE nombrando los tres admitidos. El vacío existe
+  # solo para que el mensaje de error sea el suyo y no el genérico de un
+  # marcador sin resolver.
+  #
+  # De esta variable depende que NO se siembren datos de prueba, de modo que
+  # asumir un valor sería exactamente lo que el Art. IX.5 prohíbe.
+  environment: ${ENVIRONMENT:}
+
+  # Semilla de datos de prueba (`db/dev-seed/`). NO se aplica en `production`, y
+  # eso lo decide el entorno y no este interruptor: ponerlo en `true` allí no
+  # siembra nada.
+  #
+  # Existe por lo mismo que `token-purge.enabled` y `rate-limit.enabled`: LA
+  # SUITE LO APAGA. Sus pruebas corren como `testing` y cuentan personas y
+  # roles; quince cuentas apareciendo solas harían fallar decenas de ellas por
+  # algo que no tiene que ver con lo que comprueban.
+  dev-seed:
+    enabled: ${DEV_SEED_ENABLED:true}
+
   # Uniforme para todo el sistema, no por endpoint (architecture.md §7.4).
   # Una petición que exceda el máximo se rechaza, no se recorta.
   pagination:

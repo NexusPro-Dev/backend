@@ -59,6 +59,21 @@ public abstract class IntegrationTestBase {
     // ninguna prueba lo comparte con otro proceso.
     registry.add("JWT_SECRET", () -> "secreto-de-prueba-solo-para-la-suite-automatizada");
 
+    // El entorno de la suite es `testing`, que es lo que es: no es local de
+    // nadie y no es el sistema real. Se declara porque desde el 31-08-2026 la
+    // variable es OBLIGATORIA y su ausencia tumba el arranque (Art. IX.5).
+    registry.add("ENVIRONMENT", () -> "testing");
+
+    // La SEMILLA DE DESARROLLO queda APAGADA, por lo mismo que las dos de
+    // abajo. En `testing` se aplicaría, y son quince personas con sus roles y
+    // tres membresías apareciendo solas en la base que toda la suite comparte:
+    // decenas de pruebas cuentan personas, cuentan roles o listan páginas, y
+    // fallarían por algo que no tiene nada que ver con lo que comprueban.
+    //
+    // Quien prueba la semilla la enciende para su clase (`DevelopmentSeedIT`),
+    // que es donde tiene sentido — y limpia detrás.
+    registry.add("DEV_SEED_ENABLED", () -> "false");
+
     // El límite de tasa queda APAGADO para la suite general, y es deliberado:
     // varias clases provocan ráfagas contra el inicio de sesión a propósito
     // —`RF-SP-034` comprueba el bloqueo a los cinco intentos—, y con el límite

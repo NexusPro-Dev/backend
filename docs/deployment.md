@@ -5,11 +5,11 @@
 | Proyecto | NEXUS — Renovación de plataforma |
 | Empresa | FACTECH GROUP SAS |
 | Documento | `deployment.md` |
-| Versión | 0.5.0 |
+| Versión | 0.6.0 |
 | Estado | Borrador |
 | Responsable técnico | Bonilla Diaz William Steven |
 | Fecha de creación | 27-08-2026 |
-| Última actualización | 27-08-2026 |
+| Última actualización | 31-08-2026 |
 | Documento superior | `constitution.md` v0.7.0 |
 | Documentos relacionados | `architecture.md` v0.21.0 · `security.md` v0.35.0 · [`ADR-002`](architecture/ADR-002-plataforma-de-despliegue-railway.md) |
 | Documento derivado | [`manual-de-despliegue.md`](manual-de-despliegue.md) v0.2.0 — el paso a paso |
@@ -210,8 +210,9 @@ Se cargan en el servicio **`backend`**. La columna «Valor en Railway» es liter
 | Variable | Valor en Railway | Por qué |
 |---|---|---|
 | `PORT` | **No declararla** | La inyecta Railway y la aplicación la obedece (§7.1). Declararla a mano solo tiene sentido para forzar un puerto concreto |
-| `ENVIRONMENT` | `production` o `testing` | Art. IX.4. Ver la nota de §6.6 |
-| `API_URL` | La URL pública del servicio, sin barra final | Art. IX.1. Ver la nota de §6.6 |
+| `ENVIRONMENT` | `production` o `testing` | **Obligatoria de verdad desde el 31-08-2026: sin ella el servicio NO ARRANCA.** Decide si se siembran datos de prueba. Ver §6.6 |
+| `DEV_SEED_ENABLED` | **No declararla** | La semilla no se aplica en `production` lo diga esta lo que diga. En `testing`, ponerla en `false` es lo que la desactiva |
+| `API_URL` | La URL pública del servicio, sin barra final | Art. IX.1. Declarada y todavía sin lector, ver §6.6 |
 
 ### 6.3 Seguridad
 
@@ -251,11 +252,31 @@ Se cargan en el servicio **`backend`**. La columna «Valor en Railway» es liter
 
     El `403` por dominio no verificado **no se ve al arrancar**: la aplicación levanta con normalidad y el fallo aparece la primera vez que alguien olvida su contraseña — que es exactamente cuando nadie está mirando. Y no hay reintento propio: ese mensaje se pierde y solo queda su registro.
 
-### 6.6 Dos variables que la documentación exige y el código todavía no lee
+### 6.6 `ENVIRONMENT` ya se lee; `API_URL` todavía no
 
-`ENVIRONMENT` y `API_URL` figuran en `architecture.md` §11 y en `.env.example` como obligatorias, y **ninguna clase del backend las consulta hoy**. Se declaran igual, por dos motivos: el Art. IX.4 las exige como parte del contrato de configuración, y el día que algo las lea —un banner de entorno, un enlace absoluto en un correo— no se descubrirá que faltaban en producción.
+**Desde el 31-08-2026 `ENVIRONMENT` decide algo, y por eso un valor equivocado tumba el arranque.**
 
-Queda escrito aquí para que nadie las dé por operativas: **cambiar `ENVIRONMENT` a `production` no cambia hoy ningún comportamiento**. Lo que separa un entorno de otro son las demás variables de esta sección, una por una.
+Hasta esa fecha esta sección decía que ninguna clase la consultaba y que cambiarla a `production` no cambiaba ningún comportamiento. Ya no es cierto:
+
+| Valor | Qué ocurre al arrancar |
+|---|---|
+| `production` | No se siembra nada. En el log queda la línea que lo dice |
+| `testing` · `development` | Se aplica la semilla de `db/dev-seed/`: **diecinueve personas de prueba** con sus roles, su estructura comercial —cada director con tres a cargo— y tres membresías |
+| Cualquier otra cosa, o ausente | **La aplicación NO ARRANCA**, nombrando el valor recibido y los tres admitidos |
+
+!!! danger "Un despliegue sin `ENVIRONMENT` declarada deja de arrancar"
+
+    Es un cambio de comportamiento, no un matiz. Antes la variable se ignoraba y el servicio levantaba igual; ahora su ausencia es un fallo de arranque (Art. IX.5). **Compruebe que está declarada en cada entorno de Railway antes de desplegar esto.**
+
+    La alternativa —asumir un valor por defecto— es lo que ese artículo prohíbe, y aquí el precio de acertar mal es concreto: `Production`, `prod` o el vacío contarían todos como «no es producción» y sembrarían diecinueve cuentas en el sistema real.
+
+**Qué son esas diecinueve personas, y por qué esto se mira dos veces.** Comparten el **hash de contraseña del superadministrador** y nacen **sin marca de cambio obligatorio**, al revés que cualquier alta por la API. En `development` es justo lo que se quiere. En `testing` —que es un entorno **desplegado y alcanzable**— hay que saber que quedan nombres de usuario adivinables (`admin1`, `cliente1`) sobre un host público; lo que **no** añade es una credencial nueva, porque quien pueda entrar con ellas ya podía entrar como SUPERADMIN.
+
+**El guion viaja dentro del artefacto de producción**, y tiene que hacerlo: el classpath es el mismo para todos los entornos. Lo que lo separa de esas cuentas **no es la ausencia del archivo, es el guardia** — y por eso hay una prueba dedicada (`ProductionSeedIT`) que enciende el interruptor a propósito para comprobar que en producción no siembra igual.
+
+`DEV_SEED_ENABLED` apaga la semilla sin tocar el entorno. Existe porque **la suite la apaga** —sus pruebas cuentan personas y roles—, y **no puede reabrir producción**: el entorno se comprueba primero y por separado.
+
+**`API_URL` sigue declarada y sin lector.** Se mantiene por el Art. IX.4 y para que el día que algo la lea no se descubra que faltaba en producción.
 
 ---
 
@@ -450,3 +471,4 @@ Ninguno de estos puntos impide desplegar. Todos están declarados para que no se
 | 0.2.0 | 27-08-2026 | **Dos de los pendientes de §13 dejan de serlo, y con código y no con prosa.** El **puerto** deja de fijarse a mano: `application.yml` declara `server.port: ${PORT:8080}`, de modo que en un entorno desplegado manda la plataforma y en local siguen valiendo los 8080 del `Dockerfile`. El literal anterior obligaba a declarar `PORT=8080` en Railway para que los dos lados coincidieran, y el día que dejaran de hacerlo el síntoma era **una sonda en rojo sobre un arranque impecable en los logs** — el puerto es lo último que uno mira. Y el **apagado ordenado** pasa a existir: `server.shutdown: graceful` con treinta segundos, que es lo que hace tolerable el relevo de §7.3 —hay dos procesos vivos y al viejo se le manda parar con peticiones en curso; sin esto las corta en seco, y una conexión caída es indistinguible de un sistema roto para quien estaba escribiendo—. El plazo sobra para cualquier operación de este sistema —los umbrales del Art. XV.9 son de menos de un segundo— y queda por debajo del que usa la plataforma para matar el proceso a la fuerza. §6.2 pasa a decir que `PORT` **no se declara**, §7.1 y §7.3 se reescriben, y la tabla de §13 baja de ocho filas a seis. | Responsable técnico |
 | 0.3.0 | 27-08-2026 | Este documento gana un **complemento y una frontera**: nace [`manual-de-despliegue.md`](manual-de-despliegue.md), que es **qué se teclea y en qué orden**, y esta pasa a ser la **referencia** —qué es cada cosa y por qué—. La separación no es de gusto: quien despliega por primera vez tenía que saltar entre §4, §5, §6, §7, §8 y §11 para reunir una secuencia que ninguna sección contenía entera, y quien viene a entender una decisión tropezaba con instrucciones. §1 declara cuál manda cuando se contradigan: **este**. | Responsable técnico |
 | 0.4.0 | 27-08-2026 | **Corrige un defecto de este documento que costó un despliegue caído.** §10 daba `develop` y `main` como las ramas de cada entorno sin decir que **hoy ninguna de las dos es desplegable**: todo el trabajo vive en `feature/esqueleto-del-proyecto` sin fusionar, y a `develop` y `main` les faltan **veintitrés commits**, entre ellos `railway.json` y el `server.port: ${PORT:8080}`. Desplegar una de ellas da «Application failed to respond» **con un arranque impecable en los logs** — el fallo que §7.1 describe y que este documento mandaba a reproducir. La portada de la documentación ya avisaba de que el trabajo estaba sin fusionar; lo que faltaba era leerlo desde el despliegue. §10 y el paso 4 del manual ganan el aviso y una comprobación de una línea: **una rama es desplegable si contiene `railway.json`**. | Responsable técnico |
+| 0.6.0 | 31-08-2026 | **`ENVIRONMENT` deja de ser decorativa, y §6.6 pasa de decir que nadie la lee a decir qué decide.** Fuera de `production` se aplica al arrancar la semilla de `db/dev-seed/`: diecinueve personas de prueba con sus roles y tres membresías, por decisión del responsable del proyecto. **Lo que cambia para quien despliega es que un servicio sin la variable declarada DEJA DE ARRANCAR** (Art. IX.5), y §6.2 lo dice en la propia tabla en lugar de remitir a una nota. No es celo: la condición «el entorno no es producción» sobre una cadena suelta **falla abierta justo del lado que importa** —`Production`, `prod`, el vacío y la variable ausente son todos «distintos de producción»—, y lo que se sembraría en el sistema real son diecinueve cuentas que **comparten el hash del superadministrador** y **no están obligadas a cambiar la contraseña**. El valor se traduce por eso a un dominio cerrado de tres y cualquier otra cosa tumba el arranque, con lo que no queda un cuarto estado. Queda escrito además que **el guion viaja dentro del artefacto de producción** —el classpath es el mismo— y que lo que lo separa de esas cuentas **no es la ausencia del archivo sino el guardia**, verificado por una prueba que enciende el interruptor a propósito. Se documenta `DEV_SEED_ENABLED`, que apaga la semilla sin tocar el entorno y **no puede reabrir producción**. `API_URL` sigue declarada y sin lector. | Responsable del proyecto |
