@@ -1,6 +1,15 @@
 -- =============================================================================
 -- Semilla de DESARROLLO: quince personas de prueba y sus membresías.
 --
+-- LA APLICA `DevelopmentDataSeeder` AL ARRANCAR, y solo cuando `ENVIRONMENT`
+-- NO es `production`. Vive en el classpath —y por tanto dentro del artefacto,
+-- también del de producción— porque tiene que viajar con el proceso que la
+-- ejecuta. Que el archivo esté presente en producción y no se aplique es
+-- deliberado: **el guardia es la variable de entorno, no la ausencia del
+-- archivo**, y la variable se traduce a un dominio cerrado de tres valores
+-- (Art. IX.4) que tumba el arranque si no lo reconoce. Sin ese dominio
+-- cerrado, `Production`, `prod` y el vacío contarían como «no es producción».
+--
 -- ESTO NO ES UNA MIGRACIÓN, Y NO DEBE SERLO NUNCA. Vive fuera de
 -- `db/migration` a propósito: una migración llega a TODOS los entornos, y esto
 -- crearía en producción quince cuentas que comparten el hash de contraseña
@@ -8,22 +17,24 @@
 -- siembra: sería un agujero.
 --
 -- Las CUATRO MEMBRESÍAS sí son catálogo del negocio y las siembra
--- `V46__seed_memberships.sql`. Este script las da por existentes.
+-- `V46__seed_memberships.sql`. Este guion las da por existentes.
 --
 -- NO DEJA RASTRO EN LA AUDITORÍA ni pasa por las reglas de negocio: escribe
 -- directamente en las tablas. Para datos de prueba vale; para cualquier otra
 -- cosa, la API.
 --
--- CÓMO SE EJECUTA, con el entorno local levantado:
+-- ES REPETIBLE: si las personas ya existen, no hace nada. Eso es lo que
+-- permite que corra en CADA ARRANQUE sin duplicar a nadie.
 --
---   docker exec -i nexus-db psql -U nexus -d nexus -v ON_ERROR_STOP=1 \
---     < scripts/semilla-desarrollo.sql
+-- NO LLEVA `BEGIN`/`COMMIT`: la transacción la pone quien lo ejecuta. El
+-- ejecutor lo envuelve en una, y así un fallo a mitad no deja personas sin rol
+-- —un estado que `RN-SP-023` prohíbe y que ninguna operación de la API sabría
+-- corregir—. Para lanzarlo A MANO contra el entorno local, con `-1`, que es lo
+-- que le da esa misma transacción:
 --
--- ES REPETIBLE: si las personas ya existen, no hace nada. Así sobrevive a que
--- alguien lo lance dos veces sin tener que acordarse de si ya lo hizo.
+--   docker exec -i nexus-db psql -U nexus -d nexus -v ON_ERROR_STOP=1 -1 \
+--     < src/main/resources/db/dev-seed/semilla-desarrollo.sql
 -- =============================================================================
-
-BEGIN;
 
 -- Un UUID v7 nuevo en cada llamada (Art. V.11). `gen_random_uuid()` habría sido
 -- más corto y habría sembrado v4, que es justo lo que ese artículo evita.
@@ -121,5 +132,3 @@ SELECT u.id, m.id
   JOIN users u ON u.username = asignacion.usuario
   JOIN memberships m ON m.code = asignacion.membresia
  WHERE NOT EXISTS (SELECT 1 FROM user_memberships um WHERE um.user_id = u.id);
-
-COMMIT;
