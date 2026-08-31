@@ -11,6 +11,7 @@ import com.factech.nexus.modules.system.users.application.OwnProfileResponse;
 import com.factech.nexus.modules.system.users.application.RegisterUserRequest;
 import com.factech.nexus.modules.system.users.application.ResetPasswordRequest;
 import com.factech.nexus.modules.system.users.application.RevokeRolesRequest;
+import com.factech.nexus.modules.system.users.application.UpdateOwnProfileRequest;
 import com.factech.nexus.modules.system.users.application.UpdateUserRequest;
 import com.factech.nexus.modules.system.users.application.UserDetailResponse;
 import com.factech.nexus.modules.system.users.application.UserListItem;
@@ -30,6 +31,7 @@ import com.factech.nexus.modules.system.users.domain.service.RegisterUserService
 import com.factech.nexus.modules.system.users.domain.service.ResetUserPasswordService;
 import com.factech.nexus.modules.system.users.domain.service.RevokeUserMembershipService;
 import com.factech.nexus.modules.system.users.domain.service.RevokeUserRolesService;
+import com.factech.nexus.modules.system.users.domain.service.UpdateOwnProfileService;
 import com.factech.nexus.modules.system.users.domain.service.UpdateUserService;
 import com.factech.nexus.shared.pagination.PageResponse;
 import io.swagger.v3.oas.annotations.Operation;
@@ -83,6 +85,7 @@ public class UserController {
   private final ChangeUserStatusService cambioDeEstado;
   private final DeleteUserService eliminacion;
   private final GetOwnProfileService perfilPropio;
+  private final UpdateOwnProfileService edicionPropia;
   private final ResetUserPasswordService restablecimiento;
 
   public UserController(
@@ -99,6 +102,7 @@ public class UserController {
       ChangeUserStatusService cambioDeEstado,
       DeleteUserService eliminacion,
       GetOwnProfileService perfilPropio,
+      UpdateOwnProfileService edicionPropia,
       ResetUserPasswordService restablecimiento) {
     this.alta = alta;
     this.asignacion = asignacion;
@@ -113,6 +117,7 @@ public class UserController {
     this.cambioDeEstado = cambioDeEstado;
     this.eliminacion = eliminacion;
     this.perfilPropio = perfilPropio;
+    this.edicionPropia = edicionPropia;
     this.restablecimiento = restablecimiento;
   }
 
@@ -289,6 +294,75 @@ public class UserController {
   })
   public OwnProfileResponse miPerfil() {
     return perfilPropio.profile();
+  }
+
+  @PatchMapping("/me")
+  @Operation(
+      summary = "Editar el propio perfil",
+      description =
+          """
+          Corrige el **propio** nombre, apellidos y correo. Autenticado y **sin
+          ningún permiso**: `RF-SP-027` hace el mismo cambio pero exige
+          `users:update`, que es un permiso de administración, de modo que
+          concedérselo a alguien para que arregle su propio apellido le daría de
+          paso la capacidad de editar el de cualquiera.
+
+          `me` es un **literal**, no un identificador, y el cuerpo **no admite
+          ninguno**: la operación no se puede desviar hacia otra persona.
+
+          **`currentPassword` es obligatorio si y solo si se envía `email`.**
+          Desde `RF-SP-040` el correo es la vía por la que se recupera una
+          contraseña olvidada, así que cambiarlo es cambiar **quién puede
+          recuperar la cuenta**. Una sesión robada no lleva la contraseña, y
+          exigirla convierte el robo de sesión en algo que **caduca** en lugar de
+          en una apropiación permanente. Cambiar solo el nombre no la pide,
+          porque equivocar un apellido no abre ninguna puerta.
+
+          **Enviar el correo que ya se tiene sigue exigiendo la contraseña.** Que
+          el valor no cambie se sabe después de mirarlo, y condicionar la
+          exigencia a eso daría una forma de averiguar el correo vigente probando
+          valores.
+
+          Devuelve el perfil ya actualizado, con **la misma forma** que
+          `GET /api/v1/users/me`.
+          """)
+  @ApiResponses({
+    @ApiResponse(
+        responseCode = "200",
+        description = "El perfil actualizado.",
+        content = @Content(schema = @Schema(implementation = OwnProfileResponse.class))),
+    @ApiResponse(
+        responseCode = "400",
+        description =
+            "Ningún campo informado (`VAL-001`), campo vaciado (`VAL-002`), correo inválido"
+                + " (`VAL-003`), longitud excedida (`VAL-005`), falta la contraseña actual habiendo"
+                + " correo (`VAL-006`) o campo desconocido",
+        content = @Content),
+    @ApiResponse(
+        responseCode = "401",
+        description = "Sin credencial válida, o la cuenta fue eliminada tras emitirse el token",
+        content = @Content),
+    @ApiResponse(
+        responseCode = "403",
+        description =
+            "Hay un cambio obligatorio de contraseña pendiente: se atiende primero. Esta ruta"
+                + " **no** figura entre las alcanzables con esa marca",
+        content = @Content),
+    @ApiResponse(
+        responseCode = "409",
+        description = "Ese correo ya está en uso por otra persona (`RN-SP-016`)",
+        content = @Content),
+    @ApiResponse(
+        responseCode = "422",
+        description = "La contraseña actual no es correcta (`VAL-007`)",
+        content = @Content),
+    @ApiResponse(
+        responseCode = "500",
+        description = "Fallo no controlado (`ERR-500`)",
+        content = @Content)
+  })
+  public OwnProfileResponse editarMiPerfil(@RequestBody UpdateOwnProfileRequest peticion) {
+    return edicionPropia.update(peticion);
   }
 
   @PostMapping("/{id}/password-reset")

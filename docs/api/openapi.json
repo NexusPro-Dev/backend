@@ -1837,6 +1837,23 @@
         },
         "type" : "object"
       },
+      "UpdateOwnProfileRequest" : {
+        "properties" : {
+          "currentPassword" : {
+            "type" : "string"
+          },
+          "email" : {
+            "$ref" : "#/components/schemas/PatchableString"
+          },
+          "firstName" : {
+            "$ref" : "#/components/schemas/PatchableString"
+          },
+          "lastName" : {
+            "$ref" : "#/components/schemas/PatchableString"
+          }
+        },
+        "type" : "object"
+      },
       "UpdateProductRequest" : {
         "properties" : {
           "code" : {
@@ -4896,6 +4913,52 @@
           }
         },
         "summary" : "Consultar el propio perfil",
+        "tags" : [ "Usuarios" ]
+      },
+      "patch" : {
+        "description" : "Corrige el **propio** nombre, apellidos y correo. Autenticado y **sin\nningún permiso**: `RF-SP-027` hace el mismo cambio pero exige\n`users:update`, que es un permiso de administración, de modo que\nconcedérselo a alguien para que arregle su propio apellido le daría de\npaso la capacidad de editar el de cualquiera.\n\n`me` es un **literal**, no un identificador, y el cuerpo **no admite\nninguno**: la operación no se puede desviar hacia otra persona.\n\n**`currentPassword` es obligatorio si y solo si se envía `email`.**\nDesde `RF-SP-040` el correo es la vía por la que se recupera una\ncontraseña olvidada, así que cambiarlo es cambiar **quién puede\nrecuperar la cuenta**. Una sesión robada no lleva la contraseña, y\nexigirla convierte el robo de sesión en algo que **caduca** en lugar de\nen una apropiación permanente. Cambiar solo el nombre no la pide,\nporque equivocar un apellido no abre ninguna puerta.\n\n**Enviar el correo que ya se tiene sigue exigiendo la contraseña.** Que\nel valor no cambie se sabe después de mirarlo, y condicionar la\nexigencia a eso daría una forma de averiguar el correo vigente probando\nvalores.\n\nDevuelve el perfil ya actualizado, con **la misma forma** que\n`GET /api/v1/users/me`.\n",
+        "operationId" : "editarMiPerfil",
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/UpdateOwnProfileRequest"
+              }
+            }
+          },
+          "required" : true
+        },
+        "responses" : {
+          "200" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/OwnProfileResponse"
+                }
+              }
+            },
+            "description" : "El perfil actualizado."
+          },
+          "400" : {
+            "description" : "Ningún campo informado (`VAL-001`), campo vaciado (`VAL-002`), correo inválido (`VAL-003`), longitud excedida (`VAL-005`), falta la contraseña actual habiendo correo (`VAL-006`) o campo desconocido"
+          },
+          "401" : {
+            "description" : "Sin credencial válida, o la cuenta fue eliminada tras emitirse el token"
+          },
+          "403" : {
+            "description" : "Hay un cambio obligatorio de contraseña pendiente: se atiende primero. Esta ruta **no** figura entre las alcanzables con esa marca"
+          },
+          "409" : {
+            "description" : "Ese correo ya está en uso por otra persona (`RN-SP-016`)"
+          },
+          "422" : {
+            "description" : "La contraseña actual no es correcta (`VAL-007`)"
+          },
+          "500" : {
+            "description" : "Fallo no controlado (`ERR-500`)"
+          }
+        },
+        "summary" : "Editar el propio perfil",
         "tags" : [ "Usuarios" ]
       }
     },

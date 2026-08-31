@@ -2,6 +2,7 @@ package com.factech.nexus.shared.security;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
@@ -178,6 +179,24 @@ class MustChangePasswordIT extends IntegrationTestBase {
     mvc.perform(get("/api/v1/users/me").header("Authorization", "Bearer " + token))
         .andExpect(status().isOk())
         .andExpect(jsonPath("$.mustChangePassword").value(true));
+  }
+
+  @Test
+  @DisplayName("`RF-SP-044` `T-09` — editar el propio perfil NO es alcanzable con la marca")
+  void editarElPerfilPropioNoEsAlcanzable() throws Exception {
+    // Leer el perfil sí se alcanza —hay que poder saber POR QUÉ te rechazan— y
+    // escribirlo no. La asimetría es deliberada: quien tiene una credencial
+    // provisional sin estrenar la estrena antes de tocar su correo, que es
+    // justo el dato que quien se la emitió podría querer cambiarle.
+    marcar();
+    String token = accessToken(login());
+
+    mvc.perform(
+            patch("/api/v1/users/me")
+                .header("Authorization", "Bearer " + token)
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("{\"firstName\":\"Juan Carlos\"}"))
+        .andExpect(status().isForbidden());
   }
 
   @Test
