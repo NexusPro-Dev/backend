@@ -659,6 +659,7 @@ Toda configuración dependiente del entorno se inyecta por variable de entorno (
 | `TOKEN_PURGE_ENABLED` · `TOKEN_PURGE_CRON` · `TOKEN_PURGE_RETENTION` | No | Purga de sesiones caducadas; por defecto activa, `0 30 3 * * *` UTC y `P30D` |
 | `REQUEST_LOG_RETENTION_DAYS` | No | Retención del `request_log`. **Hoy no la lee nadie**: la purga sigue pendiente de D-10 |
 | `NOTIFICATION_ENABLED` · `RESEND_API_KEY` · `NOTIFICATION_FROM` | No | Envío saliente (§15.1). Sin clave queda apagado y se avisa al arrancar |
+| `NOTIFICATION_TEMPLATE_PASSWORD_RECOVERY` | No | Plantilla alojada en Resend del correo de `RF-SP-040`, por id o alias. Vacía manda el mensaje **en texto plano** |
 
 **`ENVIRONMENT` dejó de ser decorativa el 31-08-2026**, y con ella queda una sola obligatoria sin lector: `API_URL`. Esta se declara porque el Art. IX.4 la exige como parte del contrato de configuración y porque el día que algo la lea no debe descubrirse que faltaba en producción.
 
