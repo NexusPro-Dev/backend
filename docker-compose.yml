@@ -65,7 +65,16 @@ services:
       # `docker compose ps` fallaban sin que nada estuviera mal.
       #
       # El hash lleva los `$` DUPLICADOS en el `.env`. Ver `.env.example`.
-      SUPERADMIN_EMAIL: "superadmin@factech.co"
+      #
+      # El correo sale del `.env` como todo lo demas. Tenerlo fijo aqui hacia
+      # que `SUPERADMIN_EMAIL` estuviera declarada en el `.env` y NO SE USARA:
+      # se ponia un correo y la base sembraba otro, sin que nada avisara.
+      #
+      # OJO: `V22` ya corrio en las bases existentes y Flyway no repite las
+      # migraciones aplicadas, de modo que cambiar esto NO actualiza el correo
+      # de un superadministrador ya sembrado. Para eso hay que recrear el
+      # volumen de la base o cambiarlo por la API.
+      SUPERADMIN_EMAIL: "${SUPERADMIN_EMAIL}"
       SUPERADMIN_PASSWORD_HASH: ${SUPERADMIN_PASSWORD_HASH}
 
       # Canal de envio saliente (RF-SP-040, D-23). Los valores viven en `.env`,
