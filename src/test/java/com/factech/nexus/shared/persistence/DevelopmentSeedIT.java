@@ -86,19 +86,20 @@ class DevelopmentSeedIT extends IntegrationTestBase {
     // Otras clases de la suite hacen `DELETE FROM memberships WHERE level > 0`,
     // y sin las membresías la parte de asignación de la semilla no tendría a
     // qué apuntar. Se reponen por identificador literal —los de `V46`— para que
-    // esta clase no dependa del orden de ejecución.
+    // esta clase no dependa del orden de ejecución. El orden de la cadena es el que
+    // dejó `V47`: ORO arriba y FREE abajo.
     jdbc.update(
         """
         INSERT INTO memberships (id, code, name, description, parent_membership_id, level, color)
         VALUES
-          ('01a04ad0-e800-7001-9c4f-5e7ad7000001', 'FREE', 'Free', 'Nivel de entrada.',
-           NULL, 1, '9E9E9E'),
-          ('01a04ad0-e800-7002-9c4f-5e7ad7000002', 'VIP', 'VIP', 'Primer nivel de pago.',
-           '01a04ad0-e800-7001-9c4f-5e7ad7000001', 2, '7E57C2'),
-          ('01a04ad0-e800-7003-9c4f-5e7ad7000003', 'PLATINO', 'Platino', 'Nivel intermedio.',
-           '01a04ad0-e800-7002-9c4f-5e7ad7000002', 3, 'B0BEC5'),
           ('01a04ad0-e800-7004-9c4f-5e7ad7000004', 'ORO', 'Oro', 'Nivel más alto.',
-           '01a04ad0-e800-7003-9c4f-5e7ad7000003', 4, 'FFB300')
+           NULL, 1, 'FFB300'),
+          ('01a04ad0-e800-7003-9c4f-5e7ad7000003', 'PLATINO', 'Platino', 'Nivel intermedio.',
+           '01a04ad0-e800-7004-9c4f-5e7ad7000004', 2, 'B0BEC5'),
+          ('01a04ad0-e800-7002-9c4f-5e7ad7000002', 'VIP', 'VIP', 'Primer nivel de pago.',
+           '01a04ad0-e800-7003-9c4f-5e7ad7000003', 3, '7E57C2'),
+          ('01a04ad0-e800-7001-9c4f-5e7ad7000001', 'FREE', 'Free', 'Nivel de entrada.',
+           '01a04ad0-e800-7002-9c4f-5e7ad7000002', 4, '9E9E9E')
         ON CONFLICT (id) DO NOTHING
         """);
   }
