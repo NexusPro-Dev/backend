@@ -5,7 +5,7 @@
 | Módulo | `SP` — Sistema Principal |
 | Paquete | `modules/system` |
 | Prefijos de permiso | `roles:`, `permissions:`, `audit:`, `memberships:`, `currencies:`, `countries:`, `users:` |
-| Versión | 1.29.0 |
+| Versión | 1.30.0 |
 | Estado | **Aprobado** |
 | Responsable | Bonilla Diaz William Steven |
 | Fecha de creación | 20-08-2026 |
@@ -257,6 +257,7 @@ Reglas que no son transversales de seguridad y por tanto sí llevan el prefijo d
 | `RF-SP-040` | Restablecer la propia contraseña olvidada | Alta | — (público) | En desarrollo |
 | `RF-SP-041` | Asignar o cambiar el superior comercial de un usuario | **Crítica** | `users:assign-supervisor` | En desarrollo |
 | `RF-SP-042` | Consultar el equipo a cargo de un usuario | Media | `users:read` | En desarrollo |
+| `RF-SP-044` | Editar el propio perfil | Alta | Autenticado | En desarrollo |
 
 !!! info "Dónde vive el estado de un requerimiento"
 
@@ -708,6 +709,25 @@ Dos cosas quedan deliberadamente fuera, y ambas por el mismo motivo:
 
 La segunda es **alcance por persona**, que [`security.md` §6](../security.md) reserva hasta resolver **D-22**. La primera no lo es, pero carece de sentido sin ella: quien necesita ver su red descendente completa es el propio manager, no un administrador. Ambas se especificarán juntas cuando D-22 esté cerrada. Lo que este requerimiento sí garantiza mientras tanto es que **el dato ya está registrado** y que la consulta futura no tendrá que reconstruirlo.
 
+#### `RF-SP-044` — Editar el propio perfil
+
+| Campo | Valor |
+|---|---|
+| Objetivo | Permitir que cualquier persona autenticada corrija sus propios datos de identificación sin depender de un administrador |
+| Actor | Cualquier persona autenticada |
+| Permiso requerido | — (Autenticado) |
+| Prioridad | Alta |
+| Reglas aplicables | `RN-SP-016` |
+| Depende de | `RF-SP-039` |
+| Tripleta | `docs/specs/sp/044-editar-perfil-propio/` |
+| Estado | Pendiente |
+
+Modifica el **propio** nombre, apellidos y correo. Es la contraparte de escritura de `RF-SP-039`: `RF-SP-027` ya hace este cambio, pero exige `users:update`, que es un permiso de administración, de modo que hoy **quien no administra usuarios no puede corregir un dato suyo mal escrito**. Concederle ese permiso para que arregle su propio apellido le daría de paso la capacidad de editar el de cualquiera.
+
+**El cambio de correo exige la contraseña actual, y el de nombre no.** Desde `RF-SP-040` el correo es la vía por la que se recupera una contraseña olvidada, de modo que cambiarlo es cambiar quién puede recuperar la cuenta: una sesión robada no lleva la contraseña, y exigirla convierte el robo de sesión en algo que caduca en lugar de en una apropiación permanente. Equivocar un apellido, en cambio, no abre ninguna puerta.
+
+Hereda de `RF-SP-027` la pregunta abierta de la **verificación del correo**, que ya no tiene coartada: un correo mal tecleado deja a la persona sin vía de recuperación. No bloquea este requerimiento, porque hoy ese dato no se puede ni corregir. Nace el 31-08-2026, por decisión del responsable del proyecto.
+
 ## 7. Requerimientos no funcionales
 
 Definidos en [`security.md` §11](../security.md) y en la constitución. Los que este módulo debe satisfacer:
@@ -775,6 +795,7 @@ Ninguna con sistemas externos ni con otros módulos. Al absorber los usuarios, s
 | `GET` | `/api/v1/users/me` | `RF-SP-039` | Autenticado |
 | `PATCH` | `/api/v1/users/{id}/supervisor` | `RF-SP-041` | `users:assign-supervisor` |
 | `GET` | `/api/v1/users/{id}/team` | `RF-SP-042` | `users:read` |
+| `PATCH` | `/api/v1/users/me` | `RF-SP-044` | Autenticado |
 
 Rutas propuestas. El contrato exacto de cada una se fija en el `plan.md` de su tripleta.
 
@@ -1167,3 +1188,4 @@ La crea `RF-SP-024` (`V19__create_user_roles.sql`), porque el alta ya escribe as
 | 1.27.0 | 28-08-2026 | **El código de un país pasa de dos letras a tres** —ISO 3166-1 **alfa-3**: `COL`, `USA`—, por decisión del responsable del proyecto. §10.6 declara `code` como `char(3)` y §10.8 su `CHECK` sobre `'^[A-Z]{3}$'`. El catálogo queda además alineado con `currencies.code`, que ya era de tres por ISO 4217. **Lo que no es un `ALTER` inofensivo es la migración**: ensanchar `char(2)` a `char(3)` convierte `CO` en `'CO '` —`char` rellena con espacios—, no en `COL`, y esa fila pasa el `NOT NULL` y el `UNIQUE`; solo la caza el `CHECK` nuevo, cuyo mensaje habla de una restricción y no del país. `V42` ensancha, **traduce con una tabla de equivalencias explícita** y **levanta excepción nombrando los códigos que no sabe traducir** en lugar de adivinarlos: `RN-SP-009` prohíbe editar un país, de modo que una equivalencia equivocada no tendría corrección posible. `V16` no se toca, que está aplicada. Enmienda la tripleta de `RF-SP-020`, aprobada e implementada (Art. I.7): §6.1, `EX-002`, `VAL-002` y `CA-SP-135`. | Responsable técnico |
 | 1.28.0 | 28-08-2026 | **Nace `RN-SP-025`: una persona no puede portar dos roles de tipo `VENDEDOR`.** La regla llega desde fuera —la pide el módulo `CM`, incorporado el mismo día— y **se registra aquí porque gobierna `RF-SP-030`**, que es la asignación de roles y es de este módulo. El motivo es una ambigüedad que `CM` no puede resolver solo: con dos roles vendedores de tarifas distintas y ninguna tarifa propia, **no hay forma no arbitraria de elegir el porcentaje**. Se descartaron las otras dos salidas —adivinar tomando el mayor, o exigir tarifa propia— porque las dos dejan la ambigüedad viva y la segunda la descubre el día de liquidar. **No se puede declarar en el esquema**: un `CHECK` no consulta otra tabla y un índice único no puede unir `user_roles` con `roles` para mirar `role_type`, de modo que la regla vive en el caso de uso y necesita el **mismo bloqueo pesimista que `RN-SP-018`** —cuya versión sin bloqueo no se sostuvo bajo concurrencia y se corrigió el 26-08-2026—, porque dos asignaciones simultáneas la burlarían igual. Enmienda pendiente en la tripleta de `RF-SP-030` (Art. I.7). | Responsable del proyecto |
 | 1.29.0 | 29-08-2026 | **El catálogo sembrado pierde dos roles**: `CONTABILIDAD` y `LIDER_ACADEMICO` se retiran de `V7__seed_system_roles.sql` por decisión del responsable del proyecto, y §4 y §4.1 dejan de listarlos. La migración **se editó en el sitio** en lugar de retirarlos con una `V47` —también por decisión del responsable—, y eso tiene un coste que queda escrito: Flyway valida las migraciones aplicadas por suma de comprobación, de modo que **toda base donde `V7` ya estuviera aplicada falla al arrancar** hasta recrearla o reparar su historial. Retirarlos **no fue quitar dos filas de una tabla**: `CONTABILIDAD` era el único rol sembrado con permisos acotados —un hijo de `ADMIN` con dos permisos y ninguno más—, la forma con la que se verificaban la contención de privilegios (`CreateRoleIT`) y que un token autentique sin conceder de más (`AuthIT`); y `LIDER_ACADEMICO` era el único nombre sembrado con acento, del que dependían la búsqueda sin acentos (`RolesQueryIT`) y el índice de trigramas de `V32`. Las pruebas afectadas **no se repuntaron a otro rol** —repuntar `CONTABILIDAD` a `ADMIN` las habría dejado pasando sin verificar lo que fueron escritas para verificar—: se reescribió `SystemRolesSeedIT` entera y las demás recibieron **fixtures propios**, de modo que ya no dependen de qué siembre el sistema. | Responsable del proyecto |
+| 1.30.0 | 31-08-2026 | **Nace `RF-SP-044`: editar el propio perfil**, por decisión del responsable del proyecto. Es la contraparte de escritura de `RF-SP-039`: `RF-SP-027` ya corrige nombre, apellidos y correo, pero exige `users:update` —un permiso de **administración**—, de modo que hoy **quien no administra usuarios no puede corregir un dato suyo mal escrito** y tiene que pedírselo a alguien; concederle ese permiso para que arregle su propio apellido le daría de paso la capacidad de editar el de cualquiera. La decisión que carga el requerimiento es el **correo**: desde `RF-SP-040` es la vía por la que se recupera una contraseña olvidada, de modo que cambiarlo es **cambiar quién puede recuperar la cuenta**, y por eso **exige la contraseña actual en la misma petición** mientras que el nombre y los apellidos no. Una sesión robada no lleva la contraseña, y exigirla convierte el robo de sesión en algo que **caduca** en lugar de en una apropiación permanente. Queda declarado lo que **no** resuelve —la **verificación del correo nuevo**, heredada de `RF-SP-027` y ya sin coartada, porque un correo mal tecleado deja a la persona sin vía de recuperación— y dos decisiones que no se ven en el camino feliz: el fallo de contraseña **no incrementa los intentos fallidos ni bloquea la cuenta**, porque eso permitiría a quien tenga una sesión ajena dejar fuera a la persona legítima; y el **correo repetido sigue exigiendo la contraseña**, porque hacer depender la exigencia de que el valor cambie daría una forma de averiguar el correo vigente probando valores. La ruta es `PATCH /api/v1/users/me` y **no** se añade a las alcanzables con la marca de cambio obligatorio: quien tiene una credencial provisional sin estrenar la estrena antes de tocar su correo, que es precisamente el dato que quien la emitió podría querer cambiarle. | Responsable del proyecto |
