@@ -5,7 +5,7 @@
 | Proyecto | NEXUS — Renovación de plataforma |
 | Empresa | FACTECH GROUP SAS |
 | Documento | `modules.md` |
-| Versión | 0.15.0 |
+| Versión | 0.16.0 |
 | Estado | Borrador |
 | Responsable técnico | Bonilla Diaz William Steven |
 | Fecha de creación | 20-08-2026 |
@@ -100,6 +100,7 @@ Las dependencias apuntan **del consumidor al proveedor** y deben ser acíclicas 
 | `SP` | Sistema Principal | `modules/system` | `roles:`, `permissions:`, `audit:`, `memberships:`, `currencies:`, `countries:`, `users:` | — | En desarrollo |
 | `PM` | Productos y Mercadeo | `modules/products` | `products:` | `SP` | En desarrollo |
 | `CM` | Comisiones | `modules/commissions` | `commissions:` | `SP`, `PM` | En diseño |
+| `MV` | Movimientos | `modules/movements` | `movements:` | `SP`, `PM` | Propuesto |
 
 
 **Estados:** `Propuesto` · `En diseño` · `En desarrollo` · `Implementado` · `Obsoleto`.
@@ -238,7 +239,46 @@ Nace por una pregunta que este módulo no puede responder solo: si alguien tuvie
 
 **No se puede declarar en el esquema.** Un `CHECK` no consulta otra tabla y un índice único no puede unir `user_roles` con `roles` para mirar `role_type`. La regla vive en el caso de uso de `RF-SP-030`, y necesita el mismo bloqueo pesimista que `RN-SP-018` —cuya versión sin bloqueo no se sostuvo bajo concurrencia y se corrigió el 26-08-2026—, porque dos asignaciones simultáneas la burlarían igual.
 
-### 5.4 Plantilla para un módulo nuevo
+### 5.4 `MV` — Movimientos
+
+**Propósito.** Es dueño de **lo que ocurrió con el dinero**. Un movimiento es un hecho económico ya sucedido —una compra, un depósito, la reversión de cualquiera de los dos— y lleva un **tipo** que es lo que permite que convivan en la misma tabla sin dejar de ser cosas distintas. No es un registro de ventas: es el **libro** del sistema.
+
+**Alcance.** Registrar depósitos y compras, confirmarlos, consultarlos —incluido «los míos»— y anularlos **emitiendo el inverso**. El **comprobante interno** de cada movimiento, con numeración propia. Y con qué se pagó: el catálogo de **métodos de pago** y qué **pasarela** procesó cada transacción, con su referencia externa.
+
+**No incluye.** **Cobrar** —eso lo hace la pasarela, y su integración es un requerimiento propio—; **aplicar el efecto de lo comprado**, porque cambiar el nivel de alguien es escribir en `user_memberships`, tabla de `SP` (§7); **la factura fiscal**, que es un documento DIAN con resolución y consecutivo legal y será una entidad aparte que apunte al movimiento; **el cálculo de la comisión**, que es de `CM`; y **retiros, balances y egresos**, que son la tercera etapa del módulo y tienen aprobación, saldo y otro perfil de riesgo.
+
+| Submódulo | Responsabilidad | Entidades principales |
+|---|---|---|
+| Movimientos | Registrar, confirmar, consultar y anular hechos económicos | `movements` |
+| Medios de pago | Con qué se pagó y quién lo procesó | `payment_methods` |
+
+**Dependencias.** `SP` y `PM`. De `SP` necesita los **usuarios** —que el cliente y el vendedor existan— y las **monedas**; de `PM`, el **producto** con su precio, su moneda, su vigencia y su membresía destino, para **copiarlos**. `CM` no aparece aquí porque la dependencia va al revés: es la liquidación la que consumirá a `MV`.
+
+!!! danger "D-26 — este módulo abre la primera escritura entre módulos"
+
+    Las cuatro interfaces publicadas hasta hoy son **de solo lectura**, y [`architecture.md` §15.2](architecture.md) lo declara como parte de la norma: se devuelven modelos de lectura y nunca entidades, precisamente para no dar **con qué escribir**.
+
+    `MV` no puede quedarse ahí. Un **depósito confirmado tiene que habilitar la cuenta** de un cliente, y `users` es de `SP`: sin esa escritura, `RF-SP-045` deja a todo el mundo encerrado en `FTD_PENDIENTE`. Es exactamente la situación que [`requirements/pm.md`](requirements/pm.md) §1.4 anticipó para el upgrade — «obliga a que `SP` **publique** esa escritura como interfaz de aplicación, con sus reglas intactas»— y que `PM` pudo esquivar porque él no necesitaba escribir nada.
+
+    Se recomienda esa salida y **queda abierta**: fija cómo se escribirá entre módulos para siempre, y esa forma no la debe decidir un requerimiento de paso.
+
+**Diseño detallado.** [`requirements/mv.md`](requirements/mv.md).
+
+!!! info "Por qué `MV` es un módulo, y por qué absorbe el candidato «Finanzas»"
+
+    Cumple las dos condiciones de §2.1. **Es dueño de tablas propias** —`movements` y `payment_methods`— que ningún otro necesita para funcionar: el catálogo se publica y las tarifas se declaran exista o no un solo movimiento. Y **otros van a consumirlo**: la liquidación de `CM`, y Métricas para cualquier indicador de negocio.
+
+    **El alcance elegido es «todo hecho económico» y no «la venta»**, por decisión del responsable del proyecto. Esa elección hace que el módulo cubra lo que §6 llamaba **Finanzas** (HU09: retiros, pagos, balances y egresos), de modo que aquel candidato **deja de ser un módulo pendiente** y pasa a ser el alcance por etapas de este.
+
+    Lo que se gana con esa unificación es que **el depósito tenga casa**. Con un módulo de solo ventas, el FTD —que no es una venta— habría quedado sin dónde vivir, y con él la única salida de `FTD_PENDIENTE`.
+
+!!! warning "El código se fija sabiendo lo que §6 advierte"
+
+    Esta misma sección advierte que los códigos de los módulos candidatos **no deberían fijarse hasta conocer el alcance completo** del producto. Se procede igualmente por decisión del responsable del proyecto —como ya se hizo con `PM` y con `CM`— y queda escrito que se procedió sabiéndolo.
+
+    Se consideró llamarlo `FN` —Finanzas—, que es el término con el que §6 abrió el área, y `VT` —Ventas—. Se descartó el segundo porque **el alcance incluye depósitos y retiros**, y un código que promete solo ventas envejece mal sin poder cambiarse; y el primero porque nombra el área y no lo que la tabla contiene.
+
+### 5.5 Plantilla para un módulo nuevo
 
 ```markdown
 ### `COD` — Nombre del módulo
@@ -269,8 +309,8 @@ La Épica 2 del documento de historias de usuario (HU08–HU14) define siete rol
 | Candidato | Deducido de | Alcance aparente |
 |---|---|---|
 | Red comercial | HU10, HU11, HU12 | Estructura manager → director → agente y su relación entre personas. **Su primera pieza ya está construida dentro de `SP`** — ver la nota que sigue a esta tabla |
-| ~~Comisiones~~ | HU08, HU10, HU12 | **Incorporado el 28-08-2026 como `CM`** (§5.3), con las **tarifas**: qué porcentaje gana cada rol vendedor por cada producto, y las excepciones por persona. El **cálculo, la liquidación y los FTDs** siguen fuera, y no por reparto sino porque **no hay sobre qué calcular**: ninguna tabla de ventas existe todavía |
-| Finanzas | HU09 | Retiros, pagos, balances y egresos |
+| ~~Comisiones~~ | HU08, HU10, HU12 | **Incorporado el 28-08-2026 como `CM`** (§5.3), con las **tarifas**. El **cálculo y la liquidación** siguen fuera, pero **desde el 01-09-2026 ya no por falta de sobre qué calcular**: `MV` (§5.4) aporta la tabla de movimientos que faltaba, y los **FTDs** pasan a ser un tipo de movimiento. La liquidación es la **etapa 2** de `MV`, con el cálculo en `CM` |
+| ~~Finanzas~~ | HU09 | **Absorbido el 01-09-2026 por `MV`** (§5.4). El módulo de Movimientos se definió como el libro de **todo hecho económico** y no solo de la venta, de modo que retiros, pagos y balances son sus **etapas 2 y 3** y no un módulo aparte. Lo que se gana con esa unificación es que el **depósito** —que no es una venta— tenga casa, y con él la única salida de `FTD_PENDIENTE` |
 | ~~Productos y servicios~~ | HU08, HU13 | **Incorporado el 26-08-2026 como `PM`** (§5.2), con el **catálogo**. Las **compras** siguen fuera: pertenecen a Finanzas junto con el cobro |
 | Academia | HU08, HU13, HU14 | Cursos y sesiones en vivo |
 | Señales | HU14 | Publicación y consumo de señales |
@@ -356,3 +396,4 @@ El orden importa: el módulo precede al requerimiento, el requerimiento precede 
 | 0.13.0 | 26-08-2026 | **D-25 cerrada**, y la ficha de `PM` deja de declarar su dependencia como no consumible. La respuesta vale para cualquier par de módulos y vive en `architecture.md` §15.2: **el dueño del dato publica interfaces de aplicación de solo lectura y el consumidor las importa**, una por lectura, devolviendo modelos de lectura y nunca entidades, con la ausencia como valor vacío y una regla de ArchUnit que impide importar repositorios o entidades ajenos. Es la primera vez que §7 —«un módulo NO DEBE acceder a las tablas ni a los repositorios de otro»— dice también **por dónde sí**. | Responsable del proyecto |
 | 0.14.0 | 27-08-2026 | **`PM` pasa de `En diseño` a `En desarrollo`**: su primer requerimiento está implementado, con tabla propia, permisos sembrados y endpoint funcionando. Con él, la norma de §15.2 de `architecture.md` deja de ser papel: `SP` publica sus dos primeras interfaces hacia otro módulo y una regla de ArchUnit impide que `PM` importe nada de su dominio. | Responsable técnico |
 | 0.15.0 | 28-08-2026 | **Se incorpora el módulo `CM` — Comisiones**, el tercero del sistema y el **primero que depende de dos**: `SP` le da el rol y la persona, `PM` el producto. La dependencia sigue siendo acíclica —`CM` → `PM` → `SP`— y la norma de consumo es la de D-25 sin excepción, con una consecuencia declarada: **`PM` tendrá que publicar una interfaz de lectura de productos que hoy no tiene**, y esa ampliación pertenece a los requerimientos de `CM` que la necesiten. Nace con **las tarifas y no con el cálculo**: el cálculo y la liquidación no se aplazan por reparto sino porque **no hay sobre qué calcular** mientras no exista una tabla de ventas — el mismo camino que siguió `PM`, cuyo catálogo existió antes que la compra. **Se pidió como submódulo de `PM` y se decidió que no**, por §2.1: la comisión no opera sobre `products`, opera sobre `roles` y `users`; un submódulo de `PM` con sus dos claves foráneas principales apuntando a `SP` no está en su módulo, y el identificador es irreversible. El código se fija **sabiendo lo que §6 advierte**, igual que con `PM`. Queda además una imposición sobre `SP` que se registra allí y no aquí: **una persona no puede tener dos roles de tipo `VENDEDOR`** (`RN-SP-025`), porque con dos tarifas distintas y ninguna propia no habría forma no arbitraria de elegir. | Responsable del proyecto |
+| 0.16.0 | 01-09-2026 | **Se incorpora el módulo `MV` — Movimientos**, el cuarto del sistema, por decisión del responsable del proyecto. Es dueño de `movements` y `payment_methods`, y cumple las dos condiciones de §2.1: tablas propias que ningún otro necesita para funcionar, y consumidores previsibles —la liquidación de `CM`, y Métricas—. **Es el libro de hechos económicos**: compras, depósitos y sus reversiones, distinguidos por un campo de tipo. Con él **se cierran tres aplazamientos que se citaban entre sí**: `PM` no registraba la compra «porque no existe el cobro», `CM` no calculaba «porque no hay tabla de ventas», y `RF-SP-045` dejaba a los clientes nuevos en `FTD_PENDIENTE` sin nada capaz de sacarlos. **El alcance elegido es «todo hecho económico» y no «la venta»**, y esa elección tiene una consecuencia sobre §6: **el candidato «Finanzas» queda absorbido** —retiros, pagos y balances pasan a ser las etapas 2 y 3 de `MV`— y la fila de «Comisiones» deja de decir que no hay sobre qué calcular. Lo que se gana con la unificación es que **el depósito tenga casa**: con un módulo de solo ventas, el FTD —que no es una venta— se habría quedado sin dónde vivir. **Y el módulo abre D-26**, que §5.4 declara sin cerrar: un depósito confirmado tiene que **escribir** en `users`, y las cuatro interfaces publicadas hasta hoy son **de solo lectura** por norma explícita de `architecture.md` §15.2 — es exactamente la situación que `requirements/pm.md` §1.4 anticipó para el upgrade y que `PM` pudo esquivar porque no necesitaba escribir nada. Se descartaron los códigos `FN` —nombra el área, no lo que la tabla contiene— y `VT` —promete solo ventas, y el alcance incluye depósitos y retiros—. §5.5 renumera la plantilla. | Responsable del proyecto |
