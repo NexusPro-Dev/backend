@@ -3,7 +3,7 @@
 | Campo | Valor |
 |---|---|
 | Módulo | `MV` — Movimientos |
-| Versión | 0.3.0 |
+| Versión | 0.4.0 |
 | Estado | **Borrador** |
 | Responsable | Bonilla Diaz William Steven |
 | Fecha de creación | 01-09-2026 |
@@ -21,7 +21,7 @@
 
     Se dibujan **antes** de escribir las tripletas, por decisión del responsable del proyecto (01-09-2026), y eso invierte el orden habitual: en `SP` los flujos transcribieron specs ya aprobadas.
 
-    El motivo es que aquí el valor está en lo contrario — **dibujar primero es lo que hace visibles las decisiones que faltan**, y §6 recoge las tres que este documento destapó.
+    El motivo es que aquí el valor está en lo contrario — **dibujar primero es lo que hace visibles las decisiones que faltan**, y §7 recoge las que este documento destapó.
 
     Los tres últimos —recibir, consultar y reprocesar notificaciones entrantes— se añadieron el mismo día, después de dibujar el resto.
 
@@ -49,7 +49,7 @@ stateDiagram-v2
 - **`RN-MV-001` prohíbe modificar el movimiento, y el estado sí cambia.** No es una contradicción, y conviene decirlo porque es la primera pregunta que aparece: lo que la regla congela son los **importes y los participantes** —importe, moneda, cantidad, producto, cliente y vendedor—. El estado, el instante de confirmación y el número de comprobante **no forman parte de lo que se declaró**: son lo que le fue pasando.
 - **Anular no borra**: emite un movimiento de tipo `REVERSION` que apunta al original, y el original queda en `ANULADO`. Los dos permanecen. La tabla no tiene `deleted_at` y esa ausencia **es** la regla.
 - **Solo `CONFIRMADO` produce efectos** (`RN-MV-004`). Un movimiento pendiente no habilita cuentas, no concede membresías y no comisiona.
-- Un movimiento anulado **deshace** lo que el confirmado había producido. Qué significa eso exactamente para una membresía ya concedida es la decisión abierta de §6.3.
+- Un movimiento anulado **deshace** lo que el confirmado había producido. Qué significa eso exactamente para una membresía ya concedida es la decisión abierta de §7.3.
 
 ---
 
@@ -144,7 +144,7 @@ flowchart LR
 | `RF-MV-002` · compra | `movements` | Cambio | Ninguno: está `PENDIENTE` |
 | `RF-MV-003` · confirmar | `movements.status`, comprobante | Cambio | **Aplica lo comprado** (D-26) |
 | `RF-MV-004` a `RF-MV-006` · consultas | — | — | Ninguno |
-| `RF-MV-007` · anular | `movements` — **inserta**, no borra | Cambio + eliminación | Deshace lo aplicado (§6.3) |
+| `RF-MV-007` · anular | `movements` — **inserta**, no borra | Cambio + eliminación | Deshace lo aplicado (§7.3) |
 | `RF-MV-008` · métodos de pago | — | — | Ninguno |
 | `RF-MV-009` · recibir notificación | `inbound_notifications` | Cambio | Los de `RF-MV-001` o `RF-MV-003`, si la interpreta |
 | `RF-MV-010` · consultar notificaciones | — | — | Ninguno |
@@ -154,7 +154,72 @@ flowchart LR
 
 ---
 
-## 5. Dónde se detiene el módulo hoy
+## 5. Cómo se comisiona: override sobre la cadena
+
+Decidido el 01-09-2026. **Una venta no comisiona a una persona: comisiona a toda su cadena.**
+
+```mermaid
+flowchart TD
+    V["Compra confirmada · 100 USD<br/>vendedor congelado: agente7"]
+
+    V --> W["Recorre user_supervisors HACIA ARRIBA<br/>con el estado de ESA FECHA, no el de hoy"]
+
+    W --> A["agente7"]
+    A --> D["director3"]
+    D --> M["manager1"]
+    M --> X(["cúspide · RN-SP-019<br/>no tiene superior"])
+
+    A -.->|"RF-CM-005 · 10%"| DA["DEVENGO 10 USD"]
+    D -.->|"RF-CM-005 · 4%"| DD["DEVENGO 4 USD"]
+    M -.->|"RF-CM-005 · 2%"| DM["DEVENGO 2 USD"]
+
+    DA --> S{"¿la suma supera<br/>el importe?"}
+    DD --> S
+    DM --> S
+    S -->|sí| E["RECHAZA · RN-MV-022<br/>no se recorta"]
+    S -->|no| P["Tres movimientos<br/>COMISION_DEVENGADA<br/>affects_cash = falso"]
+
+    classDef ex fill:#F7E9E5,stroke:#A33B2A,color:#7A2B1E
+    classDef ok fill:#E5EEF0,stroke:#2D5A6B,color:#141B1E
+    class E ex
+    class P ok
+```
+
+**`RF-CM-005` no cambia, y esa es la mejor noticia del diseño.** Resuelve la comisión de **una persona** sobre un producto en una fecha — que es exactamente lo que hace falta, llamado una vez por nivel. La pieza resultó correcta sin tocarla.
+
+**El recorrido es histórico y no vigente** (`RN-MV-020`). Reorganizar la fuerza comercial en marzo **no puede cambiar quién ganó por una venta de enero**, y `user_supervisors` conserva el historial precisamente para poder responderlo — es la primera regla del sistema que usa esa propiedad.
+
+!!! danger "El override abre un agujero que ninguna regla anterior cubría"
+
+    `RN-CM-007` acota **cada** porcentaje a cien. **La suma de la cadena no está acotada por nada.**
+
+    Con `AGENTE 60 %`, `DIRECTOR 30 %` y `MANAGER 20 %` se paga el **110 % de la venta**, y hasta hoy nada lo impedía — porque hasta hoy solo comisionaba una persona. `RN-MV-022` lo rechaza.
+
+    **Y rechaza en vez de recortar**, a propósito: recortar decidiría **en silencio a quién se le quita**, y esa no es una decisión que deba tomar un algoritmo a las tres de la mañana.
+
+**Los devengos no son caja.** Llevan `affects_cash` en falso, de modo que ninguna suma de dinero movido los incluye. Lo único que mueve dinero es el `COMISION_PAGADA` del final:
+
+```mermaid
+flowchart LR
+    D1["DEVENGO · agente7 · 10"] --> L{"Cierre de periodo"}
+    D2["DEVENGO · agente7 · 7"] --> L
+    D3["DEVENGO · agente7 · 12"] --> L
+    L --> P["COMISION_PAGADA · 29<br/>affects_cash = VERDADERO"]
+    P -.->|"settled_by_movement_id"| D1
+    P -.->|" "| D2
+    P -.->|" "| D3
+
+    classDef ok fill:#E5EEF0,stroke:#2D5A6B,color:#141B1E
+    class P ok
+```
+
+**Cada pago dice qué devengos salda** (`RN-MV-023`). Sin ese vínculo, «¿por qué me pagaron esto?» solo se responde sumando a mano y esperando que cuadre.
+
+**Y el caso feo, que conviene ver ahora**: si se anula una venta **ya comisionada y ya pagada**, hay que revertir los devengos y queda un **saldo negativo** contra esa persona. Es la razón real por la que importa la decisión abierta sobre qué deshace una anulación — y aquí la elección del responsable paga: al ser movimientos, la maquinaria de reversión ya existe.
+
+---
+
+## 6. Dónde se detiene el módulo hoy
 
 ```mermaid
 flowchart LR
@@ -173,23 +238,23 @@ flowchart LR
 
 ---
 
-## 6. Lo que dibujar destapó
+## 7. Lo que dibujar destapó
 
 Tres cosas que `requirements/mv.md` v0.1.0 no decía, y que solo se ven al seguir el recorrido de punta a punta.
 
-### 6.1 El depósito y la compra no comparten máquina de estados
+### 7.1 El depósito y la compra no comparten máquina de estados
 
 `requirements/mv.md` §4.1 describía `RF-MV-003` como si todo movimiento naciera `PENDIENTE` y hubiera que confirmarlo. **No es así, y el motivo es bueno**: un depósito es un hecho que **ya ocurrió** y del que un tercero avisa; confirmarlo después sería preguntarle al sistema si cree lo que el bróker le acaba de decir. Una compra sí nace pendiente, porque el cobro está en marcha y todavía puede fallar.
 
 **Resuelto**: el depósito nace `CONFIRMADO`, la compra nace `PENDIENTE`, y `RF-MV-003` es de compras. Aplicado a `requirements/mv.md` v0.2.0.
 
-### 6.2 Un depósito que no es el primero no habilita nada
+### 7.2 Un depósito que no es el primero no habilita nada
 
 El recorrido de §2 dibuja el FTD, que es el que saca la cuenta de `FTD_PENDIENTE`. **El segundo depósito de la misma persona no habilita nada**, porque ya estaba habilitada — y sin decirlo, la implementación evidente sería «todo depósito confirmado habilita», que es correcta por accidente y deja de serlo el día que exista una cuenta desactivada por otro motivo.
 
 **Resuelto**: la habilitación es una consecuencia de la **transición** y no del depósito. Aplicado como `RN-MV-011`.
 
-### 6.3 Anular no dice qué pasa con lo ya concedido
+### 7.3 Anular no dice qué pasa con lo ya concedido
 
 `RN-MV-004` dice que un anulado «deshace lo que el confirmado había producido», y eso es fácil de escribir y difícil de cumplir. Si se anula la compra de un upgrade que ya cambió el nivel de alguien: ¿se le retira el nivel? ¿Se le deja y se registra la pérdida? ¿Y si entre medias compró otro?
 
