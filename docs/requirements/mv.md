@@ -5,7 +5,7 @@
 | Módulo | `MV` — Movimientos |
 | Paquete | `modules/movements` |
 | Prefijos de permiso | `movements:` |
-| Versión | 0.2.0 |
+| Versión | 0.3.0 |
 | Estado | **Borrador** |
 | Responsable | Bonilla Diaz William Steven |
 | Fecha de creación | 01-09-2026 |
@@ -53,6 +53,7 @@ Este módulo pone ese objeto en el sistema, y con él se cierran los tres.
 - **Anular** un movimiento emitiendo su inverso.
 - El **comprobante interno** de cada movimiento, con numeración propia.
 - El catálogo de **métodos de pago**, y qué **pasarela** procesó cada transacción con su referencia externa.
+- **Recibir y conservar lo que los sistemas externos notifican**, tal como lo envían: la pasarela de pago y el bróker. Es lo único que permite reconciliar cuando el sistema y el proveedor no coinciden.
 
 **No incluye**
 
@@ -91,6 +92,9 @@ Según [`modules.md` §5](../modules.md#5-fichas-de-modulo).
 |---|---|---|
 | Movimientos | Registrar, consultar y anular hechos económicos | `movements` |
 | Medios de pago | Con qué se pagó y quién lo procesó | `payment_methods` |
+| Notificaciones entrantes | Lo que los sistemas externos dicen, tal como lo dicen | `inbound_notifications` |
+
+**Por qué las notificaciones son un submódulo y no una columna más.** Lo que llega de fuera y lo que el sistema concluye son **dos cosas distintas**, y la diferencia es toda la utilidad de guardarlo: el movimiento es la interpretación, la notificación es el hecho. Meterla como columna de `movements` obligaría a que toda notificación produjera un movimiento — y muchas no lo hacen: las que llegan repetidas, las que avisan de estados que no nos interesan, y las que no validan la firma.
 
 **Por qué los medios de pago son un submódulo y no un catálogo de `SP`.** Los catálogos de `SP` —monedas, países, membresías— los necesita **el sistema entero** para autorizar, validar o mostrar. Un método de pago solo lo necesita quien registra dinero, y `modules.md` §2.1 es explícito: si solo lo usa un módulo, es un submódulo suyo.
 
@@ -138,6 +142,15 @@ La dependencia sigue siendo **acíclica**: `MV` → `PM` → `SP`, y `MV` → `S
 | `RF-MV-006` | Consultar los movimientos propios | Movimientos | Autenticado |
 | `RF-MV-007` | Anular un movimiento | Movimientos | `movements:void` |
 | `RF-MV-008` | Consultar los métodos de pago | Medios de pago | Autenticado |
+| `RF-MV-009` | Recibir una notificación de un sistema externo | Notificaciones entrantes | **Público**, autenticado por firma |
+| `RF-MV-010` | Consultar las notificaciones recibidas | Notificaciones entrantes | `movements:read` |
+| `RF-MV-011` | Reprocesar una notificación | Notificaciones entrantes | `movements:reprocess` |
+
+**`RF-MV-009` es el segundo endpoint público del sistema que escribe**, después de `RF-SP-045`. Lo que lo autoriza no es un token sino la **firma** con la que el emisor sella su mensaje, igual que a `RF-SP-040` lo autoriza el permiso temporal que él mismo emitió.
+
+**`RF-MV-011` existe porque un documento guardado y no reprocesable no sirve de nada.** Si un defecto de interpretación deja veinte notificaciones sin convertir en movimientos, la tabla las tiene y hace falta una operación para volver a intentarlo — corregido el defecto. Sin ella, la única salida sería pedirle a la pasarela que reenvíe, que no siempre se puede.
+
+**Lleva permiso propio y no reutiliza `movements:create`**, aunque acabe creando movimientos. Reprocesar es la operación con más capacidad de hacer daño del módulo: aplicada sobre algo ya procesado, y si la idempotencia falla, duplica dinero. Quien concilia pagos no tiene por qué poder lanzarla.
 
 **El depósito y la compra son dos requerimientos y no uno**, y eso **se aparta del precedente** que `PM` y `CM` fijaron —«el alta es una, no dos»—. La razón por la que aquí no aplica no es el contenido del movimiento sino **quién lo pide y por dónde entra**: la compra la origina una persona autenticada en un flujo de pago; el depósito lo origina un **sistema externo** por un canal con otra autenticación, otra idempotencia y otro límite de tasa. Fundirlos obligaría a un endpoint con dos modelos de seguridad, que es donde se cuela el que sobra.
 
@@ -171,6 +184,11 @@ La dependencia sigue siendo **acíclica**: `MV` → `PM` → `SP`, y `MV` → `S
 | `RN-MV-007` | La cantidad es uno en los upgrades | Al registrar una compra | Un upgrade con cantidad dos no significa nada: no se sube dos veces al mismo nivel. Los bots admiten más de uno. **No se puede declarar en el esquema** —un `CHECK` no consulta `products`— y vive en el caso de uso, como `RN-CM-001` | Alta |
 | `RN-MV-008` | El comprobante es correlativo y **no es fiscal** | Al confirmar | Numeración propia, sin huecos, que no se reutiliza jamás. **No sustituye a la factura electrónica** (§1.5), y el documento fiscal será una entidad aparte que apunte al movimiento | Alta |
 | `RN-MV-009` | El importe respeta los decimales de su moneda | Al registrar | Igual que `RN-PM-007` para el precio del catálogo, y por lo mismo: la escala la decide la moneda y no la columna | Media |
+| `RN-MV-012` | La notificación se guarda **antes** de procesarse | Al recibir | Recibir, verificar la firma, **guardar**, responder, y solo entonces interpretar. Guardarla después es tenerla en todos los casos **menos en el único que importa**: aquel en que procesarla falló. Y responder antes de procesar no es una optimización — las pasarelas tienen espera corta y reintentan, de modo que procesar primero convierte cada operación lenta en una reentrega | **Crítica** |
+| `RN-MV-013` | La idempotencia tiene **dos capas**, no una | Al recibir y al registrar | El **identificador del evento** es único por emisor en `inbound_notifications`, y la **referencia externa** lo es en `movements` (`RN-MV-005`). La primera atrapa la reentrega **antes de interpretarla**, que es más barato y más seguro; la segunda la atrapa aunque el emisor mande dos eventos distintos para el mismo cobro. Las dos se declaran en el esquema | **Crítica** |
+| `RN-MV-014` | La firma inválida **se guarda y no se procesa** | Al recibir | La fila queda con la firma marcada como no válida y el evento no produce nada. Es lo que convierte «alguien está intentando falsificar confirmaciones de pago» en algo que se puede **ver** en lugar de en un `401` que nadie mira. Exige límite de tasa por origen: sin él, el endpoint es un vertedero abierto | **Crítica** |
+| `RN-MV-015` | El documento crudo caduca; la fila no | Siempre | El `payload` se purga a los **180 días** y la fila **permanece** con sus metadatos —emisor, tipo, identificador, firma, estado y qué movimiento produjo—. Así la trazabilidad sobrevive y los **datos personales de terceros** no: un documento de pasarela lleva nombre, correo, documento y últimos dígitos de una tarjeta. El plazo cubre la ventana de contracargo con margen; pasada esa, el documento crudo ya no es evidencia que nadie necesite. **Esta tabla no espera a D-10** justamente porque, al revés que `request_log`, tiene un final natural | Alta |
+| `RN-MV-016` | El secreto compartido **no se guarda jamás** | Siempre | Se conserva la **firma** que el emisor envía —que es un resumen y no una llave— y **nunca** la clave con la que se calcula, ni ninguna cabecera de autorización. Es el Art. VI.5 y el mismo criterio con el que `request_log` se niega a guardar cabeceras | **Crítica** |
 | `RN-MV-011` | Habilita la **transición**, no el depósito | Al confirmar un depósito | Un depósito solo habilita la cuenta si estaba en `FTD_PENDIENTE`. **El segundo depósito de la misma persona no toca su estado**, y decirlo importa: la implementación evidente —«todo depósito confirmado habilita»— es correcta por accidente y deja de serlo el día que exista una cuenta desactivada por otro motivo, a la que un depósito la reactivaría sin que nadie lo hubiera decidido | **Crítica** |
 | `RN-MV-010` | Método de pago y pasarela son dos datos | Al registrar | **El método** es con qué pagó la persona —transferencia, tarjeta, cripto—; **la pasarela** es quién procesó la transacción. Una pasarela ofrece varios métodos y un método lo ofrecen varias pasarelas: en un solo campo, cambiar de proveedor obligaría a reescribir datos históricos | Media |
 
@@ -204,6 +222,7 @@ La dependencia sigue siendo **acíclica**: `MV` → `PM` → `SP`, y `MV` → `S
 | `movements:create` | `movements` | `create` | Registrar un depósito o una compra |
 | `movements:confirm` | `movements` | `confirm` | Dar por bueno un movimiento pendiente |
 | `movements:void` | `movements` | `void` | Anular emitiendo el inverso |
+| `movements:reprocess` | `movements` | `reprocess` | Volver a interpretar una notificación ya recibida |
 
 **`confirm` y `void` no reutilizan `update`**, y esa es la única decisión de esta sección. Un movimiento **no se actualiza nunca** (`RN-MV-001`), de modo que un permiso llamado `movements:update` prometería algo que no existe. Y son dos permisos y no uno porque confirmar es operación de caja diaria mientras que anular deshace dinero: quien concilia pagos no tiene por qué poder revertirlos.
 
@@ -258,7 +277,43 @@ Mismo formato de código que `roles`, `memberships` y `products`: `^[A-Z][A-Z0-9
 
 **Un método desactivado no invalida los movimientos que lo usaron.** Es el mismo criterio de `RN-PM-008` con las monedas: la validación es del momento del registro, no permanente.
 
-### 7.3 Restricciones exigidas en el esquema
+### 7.3 `inbound_notifications`
+
+Lo que un sistema externo dijo, **tal como lo dijo**.
+
+| Columna | Tipo | Nula | Referencia |
+|---|---|---|---|
+| `id` | `uuid` | No | — |
+| `source` | `varchar(50)` | No | Quién la envió: la pasarela, el bróker |
+| `event_type` | `varchar(100)` | **Sí** | El tipo que declara el emisor, **sin traducir** |
+| `external_event_id` | `varchar(200)` | **Sí** | El identificador que el emisor le da al evento |
+| `payload` | `jsonb` | **Sí** | El documento **verbatim**. Nulo solo después de la purga |
+| `signature_valid` | `boolean` | No | — |
+| `status` | `varchar(20)` | No | `RECIBIDA`, `PROCESADA`, `DESCARTADA`, `FALLIDA` |
+| `failure_reason` | `text` | **Sí** | Por qué no se pudo interpretar |
+| `movement_id` | `uuid` | **Sí** | `movements` — qué produjo, si produjo algo |
+| `correlation_id` | `uuid` | No | Cruza con `request_log` |
+| `received_at` | `timestamptz` | No | — |
+| `processed_at` | `timestamptz` | **Sí** | — |
+| `payload_purged_at` | `timestamptz` | **Sí** | `RN-MV-015` |
+
+!!! danger "Esta tabla guarda justo lo que `request_log` se niega a guardar, y hay que decir por qué"
+
+    `V35__create_request_log.sql` lo dejó escrito como decisión, no como omisión: **«el CUERPO de la petición. Ahí viajan contraseñas […] ningún saneador es de fiar sobre un cuerpo arbitrario: la única forma segura de no registrar un secreto es no registrar el cuerpo»**.
+
+    **Aquí sí se guarda, y la diferencia es «arbitrario».** `request_log` cubre **todos** los endpoints, incluido el inicio de sesión: el cuerpo puede llevar una credencial **nuestra**, y no hay forma de saberlo mirándolo. Esta tabla cubre **un interlocutor conocido con esquema conocido** que nunca recibe credenciales del sistema, de modo que el cuerpo no puede contenerlas.
+
+    **Lo que sí contiene son datos personales de terceros** —nombre, correo, documento, últimos dígitos de una tarjeta—, y eso es exactamente el «riesgo legal» que `ADR-003` nombró: conservarlos indefinidamente es una decisión que nadie ha tomado. Aquí **se toma**: `RN-MV-015` los purga a los 180 días y conserva la fila. Al revés que `request_log`, esta tabla tiene un final natural.
+
+    **Y la excepción no alcanza a las cabeceras.** Se guarda la **firma** —un resumen, no una llave— y jamás el secreto con el que se calcula (`RN-MV-016`).
+
+**`event_type` va sin traducir**, con el valor que el emisor use. Traducirlo al vocabulario del sistema aquí haría que un tipo desconocido —una pasarela que añade uno— **rompiera la escritura**, que es el único paso que no puede fallar.
+
+**`payload` es nulable, y solo por la purga.** Una fila con `payload` nulo y `payload_purged_at` poblado es una notificación cuyo documento caducó; una con los dos nulos sería un defecto, y por eso el esquema lo impide.
+
+**`movement_id` es nulable porque muchas notificaciones no producen ninguno**: la reentregada, la que avisa de un estado que no interesa, y la que no valida la firma. Exigir un movimiento por notificación obligaría a inventarse uno.
+
+### 7.4 Restricciones exigidas en el esquema
 
 | Restricción | Sobre | Regla |
 |---|---|---|
@@ -271,6 +326,12 @@ Mismo formato de código que `roles`, `memberships` y `products`: `^[A-Z][A-Z0-9
 | `uq_movements_external_reference` | Único sobre `(gateway, external_reference)`, **parcial**: `WHERE external_reference IS NOT NULL` | `RN-MV-005`. Parcial porque un movimiento registrado a mano no tiene referencia, y en PostgreSQL dos nulos no compiten |
 | `uq_movements_receipt` | Único sobre `receipt_number`, **parcial**: `WHERE receipt_number IS NOT NULL` | `RN-MV-008` |
 | `fk_movements_*` | `client_id`, `seller_id`, `product_id`, `currency_id`, `target_membership_id`, `payment_method_id`, `reverses_movement_id` | Integridad |
+| `ck_inbound_status` | `status IN ('RECIBIDA','PROCESADA','DESCARTADA','FALLIDA')` | §7.3 |
+| `uq_inbound_event` | Único sobre `(source, external_event_id)`, **parcial**: `WHERE external_event_id IS NOT NULL` | `RN-MV-013`, primera capa. Parcial porque un emisor puede no dar identificador, y en PostgreSQL dos nulos no compiten |
+| `ck_inbound_payload` | `payload IS NOT NULL OR payload_purged_at IS NOT NULL` | `RN-MV-015`. Un documento ausente **solo** se admite si consta que se purgó; los dos nulos serían un defecto. Las dos ramas son predicados `IS NULL`/`IS NOT NULL` y **nunca evalúan a `NULL`** |
+| `fk_inbound_movement` | `movement_id` → `movements(id)` | Integridad |
+| `ix_inbound_recepcion` | `(received_at DESC, id DESC)` | La consulta por defecto: «las últimas notificaciones» |
+| `ix_inbound_pendientes` | **Índice parcial**: `(source, received_at) WHERE status IN ('RECIBIDA','FALLIDA')` | Lo que hay que reprocesar. Parcial porque lo ya procesado no forma parte de esa respuesta y crecería sin límite dentro del índice |
 
 **Lo que NO se puede declarar en el esquema, y por eso vive en el dominio:** que la cantidad sea uno **cuando el producto es un upgrade** (`RN-MV-007`) —un `CHECK` no consulta `products`—, que el importe respete los decimales de **su** moneda (`RN-MV-009`) y que solo lo confirmado surta efecto (`RN-MV-004`).
 
@@ -282,3 +343,4 @@ Mismo formato de código que `roles`, `memberships` y `products`: `^[A-Z][A-Z0-9
 |---|---|---|---|
 | 0.1.0 | 01-09-2026 | **Creación del módulo `MV`**, el cuarto del sistema, por decisión del responsable del proyecto, con **ocho requerimientos** y **diez reglas propias**. Es dueño de `movements`, el **libro de hechos económicos**: compras, depósitos y sus reversiones, con un campo de tipo que los distingue sin separarlos. Con él **se cierran tres aplazamientos que llevaban semanas abiertos y que se citaban entre sí**: `requirements/pm.md` §1.4 no registraba la compra «porque no existe el cobro», `requirements/cm.md` §1.4 no calculaba «porque no hay tabla de ventas», y `RF-SP-045` dejaba a los clientes nuevos en `FTD_PENDIENTE` **sin nada capaz de sacarlos**. El alcance elegido es **todo hecho económico** y no solo la venta, de modo que el módulo **absorbe el candidato «Finanzas»** de [`modules.md` §6](../modules.md#6-alcance-por-inventariar). Las dos reglas que lo definen ya venían impuestas desde fuera: **`RN-MV-002`** —el precio, la moneda y la vigencia se **copian** del producto— la exigió `pm.md` §1.4 antes de que este módulo existiera, y **`RN-MV-003`** —el vendedor se congela— es la misma idea aplicada a la estructura comercial, para que reasignar un cliente no cambie a quién se le pagó por una venta pasada. **`RN-MV-001` va un paso más allá que sus hermanas de `PM` y `CM`**: allí la fila permanece aunque se retire; aquí **no se retira ni se edita**, y corregir es emitir el inverso. Se decide además que el **comprobante no es una factura fiscal** (§1.5) y **cómo llegará la que sí lo sea** —una entidad aparte que apunta al movimiento—, para que llegue como ampliación y no como reescritura. **Y el módulo abre D-26**, que este documento no cierra: un depósito confirmado tiene que **escribir** en `users`, y las cuatro interfaces publicadas hasta hoy son **de solo lectura** por norma explícita de `architecture.md` §15.2. Se recomienda la salida que el propio `pm.md` §1.4 ya anticipó —que `SP` publique la operación con sus reglas intactas— y se deja abierta porque fija cómo se escribirá entre módulos para siempre. Las etapas 2 y 3 —liquidación, y retiros con balances— quedan **declaradas y sin registrar** en §4.2. | Responsable del proyecto |
 | 0.2.0 | 01-09-2026 | **Consecuencias de dibujar los flujos antes de las tripletas**, por decisión del responsable del proyecto. Los diagramas de [`flujos/mv/`](../flujos/mv/flujos-del-modulo.md) destaparon tres cosas que este documento no decía, y dos tienen respuesta. **(1) El depósito y la compra no comparten máquina de estados**: `RF-MV-003` se describía como si todo movimiento naciera `PENDIENTE`, y no es así — un **depósito nace `CONFIRMADO`** porque es un hecho que ya ocurrió y del que un tercero avisa, de modo que confirmarlo después sería preguntarle al sistema si cree lo que el bróker acaba de decirle; una **compra nace `PENDIENTE`** porque el cobro sigue en marcha. `RF-MV-003` pasa a ser «confirmar una **compra** pendiente». **(2) Nace `RN-MV-011`: habilita la transición, no el depósito.** Un depósito solo saca de `FTD_PENDIENTE` a quien estaba ahí; el segundo depósito de la misma persona no toca su estado. Sin la regla, la implementación evidente —«todo depósito confirmado habilita»— es correcta por accidente y deja de serlo el día que exista una cuenta desactivada por otro motivo, a la que un depósito reactivaría sin que nadie lo hubiera decidido. **(3) Queda abierta, en §5.3, qué se deshace al anular un movimiento ya aplicado**: si se anula la compra de un upgrade que ya cambió el nivel de alguien, nadie ha decidido si se le retira. No bloquea la etapa 1 —anular una compra que la pasarela rechazó no aplicó nada— y es lo primero que hay que cerrar antes de la tripleta de `RF-MV-007`. | Responsable técnico |
+| 0.3.0 | 01-09-2026 | **El módulo gana `inbound_notifications`**, por decisión del responsable del proyecto: lo que un sistema externo dice, **tal como lo dice**. Con ella el módulo pasa de ocho a **once requerimientos** —recibir, consultar y **reprocesar**— y de once reglas a **dieciséis**. Sirve para cuatro cosas que hoy no se pueden hacer: **reconciliar** cuando la pasarela y el sistema no coinciden, **detectar la reentrega antes de interpretarla**, **reprocesar** lo que un defecto se comió, y **probar** que la confirmación llegó de fuera y no la inventó el sistema. **Una sola tabla con columna `source`** y no una por proveedor: cubre la pasarela de pago y también al bróker que notifica depósitos —misma forma, mismo problema—, con el mismo criterio con el que `movements` lleva un tipo. **`RN-MV-012` es la regla que la hace útil o inútil**: se guarda **antes** de procesar, porque guardarla después es tenerla en todos los casos menos en el único que importa —aquel en que procesarla falló— y porque las pasarelas reintentan si la respuesta tarda. **`RN-MV-013` da dos capas de idempotencia** y no una: el identificador del evento aquí, la referencia externa en `movements`. **`RN-MV-014`: la firma inválida se guarda marcada y no se procesa**, porque es la evidencia de que alguien intenta falsificar confirmaciones de pago, y eso vale más visible que en un `401` que nadie mira. **Y se afronta de frente la tensión con `request_log`**, que se niega a guardar cuerpos con un argumento explícito: la diferencia es «arbitrario» —aquel cubre todos los endpoints y el cuerpo puede llevar una credencial nuestra; este cubre un interlocutor conocido que nunca recibe credenciales—. Lo que sí lleva son **datos personales de terceros**, y por eso **esta tabla no espera a D-10**: `RN-MV-015` purga el documento a los **180 días** conservando la fila con sus metadatos, porque al revés que `request_log` tiene un final natural — pasada la ventana de contracargo, el documento crudo ya no es evidencia que nadie necesite. `RN-MV-016` prohíbe guardar el secreto compartido: se conserva la firma, que es un resumen, y nunca la llave. | Responsable del proyecto |

@@ -3,7 +3,7 @@
 | Campo | Valor |
 |---|---|
 | Módulo | `MV` — Movimientos |
-| Versión | 0.1.0 |
+| Versión | 0.2.0 |
 | Estado | **Borrador** |
 | Responsable | Bonilla Diaz William Steven |
 | Fecha de creación | 01-09-2026 |
@@ -175,7 +175,103 @@ flowchart TD
 
 ---
 
-## 3. Consultar
+## 3. Lo que llega de fuera
+
+### `RF-MV-009` · Recibir una notificación de un sistema externo
+
+El único endpoint del módulo que **no lo llama una persona**. Y el orden de sus pasos es la mitad del requerimiento.
+
+```mermaid
+flowchart TD
+    A(["Pasarela o bróker<br/>envía su notificación"])
+    A --> V1{"¿dentro del<br/>límite de tasa?"}
+    V1 -->|no| E1["429 · sin esta puerta<br/>el endpoint es un vertedero"]
+    V1 -->|sí| P1["Verifica la firma<br/>NUNCA se guarda el secreto"]
+    P1 --> P2["GUARDA la notificación<br/>verbatim, con la firma marcada<br/>válida o no"]
+    P2 --> FIN(["Responde 200 · ya está a salvo"])
+    FIN --> V2{"¿la firma<br/>era válida?"}
+    V2 -->|no| D1["Estado DESCARTADA<br/>evidencia de intento de falsificación"]
+    V2 -->|sí| V3{"¿este identificador de evento<br/>ya se recibió de este emisor?"}
+    V3 -.->|"sí · reentrega"| D2["Estado DESCARTADA<br/>no se vuelve a interpretar"]
+    V3 -->|no| V4{"¿el tipo de evento<br/>nos interesa?"}
+    V4 -.->|no| D3["Estado DESCARTADA<br/>no todo lo que avisan nos afecta"]
+    V4 -->|sí| P3["Interpreta y produce el movimiento<br/>RF-MV-001 o RF-MV-003"]
+    P3 --> V5{"¿se pudo?"}
+    V5 -->|no| D4["Estado FALLIDA<br/>con el motivo · reprocesable"]
+    V5 -->|sí| D5["Estado PROCESADA<br/>apunta al movimiento"]
+
+    classDef ex fill:#F7E9E5,stroke:#A33B2A,color:#7A2B1E
+    classDef ok fill:#E5EEF0,stroke:#2D5A6B,color:#141B1E
+    classDef guarda fill:#E8F0E5,stroke:#3D6B2D,color:#1B2E14
+    class E1 ex
+    class FIN ok
+    class P2 guarda
+```
+
+**Todo lo que hay debajo de la cápsula verde ocurre después de responder**, y ese es el punto entero del diagrama. `RN-MV-012`: guardar va **antes** de interpretar, y responder va antes de trabajar.
+
+- **Guardar después de procesar** sería tener la notificación en todos los casos **menos en el único que importa**: aquel en que procesarla falló.
+- **Responder después de procesar** convertiría cada operación lenta en una reentrega, porque las pasarelas tienen espera corta y reintentan. Y cada reentrega es otro procesamiento — la forma más fácil de duplicar dinero.
+
+**La firma se verifica antes de guardar y no impide guardar.** Es `RN-MV-014`: lo que no valida se conserva marcado, porque «alguien está intentando falsificar confirmaciones de pago» vale más visible en una tabla que en un `401` que nadie mira. Por eso el límite de tasa es la primera puerta y no una mejora posterior.
+
+**Cuatro de los cinco desenlaces no producen movimiento**, y ninguno es un error del emisor. Es lo que justifica que la notificación sea una tabla y no una columna de `movements`.
+
+---
+
+### `RF-MV-011` · Reprocesar una notificación
+
+```mermaid
+flowchart TD
+    A(["Actor con movements:reprocess"])
+    A --> V1{"¿la notificación existe?"}
+    V1 -->|no| E1["No existe"]
+    V1 -->|sí| V2{"¿conserva su<br/>documento crudo?"}
+    V2 -->|no| E2["Purgado a los 180 días<br/>RN-MV-015 · ya no se puede"]
+    V2 -->|sí| V3{"¿está PROCESADA?"}
+    V3 -->|sí| E3["Ya produjo su movimiento<br/>reprocesar duplicaría dinero"]
+    V3 -->|no| V4{"¿la firma<br/>era válida?"}
+    V4 -->|no| E4["Lo descartado por firma<br/>no se reprocesa nunca"]
+    V4 -->|sí| P1["Vuelve a interpretar<br/>el mismo documento"]
+    P1 --> P2["Actualiza el estado<br/>y apunta al movimiento"]
+    P2 --> FIN(["Informa el resultado"])
+
+    classDef ex fill:#F7E9E5,stroke:#A33B2A,color:#7A2B1E
+    classDef ok fill:#E5EEF0,stroke:#2D5A6B,color:#141B1E
+    class E1,E2,E3,E4 ex
+    class FIN ok
+```
+
+**Las cuatro salidas son negativas y las cuatro importan.** Esta es la operación con más capacidad de hacer daño del módulo —reprocesar algo ya procesado duplica dinero— y por eso cada puerta está antes de tocar nada.
+
+**La purga la inutiliza, y es correcto.** A los 180 días el documento ya no está y la fila sí: se sabe qué llegó y qué produjo, pero no se puede volver a interpretar. Es el precio declarado de `RN-MV-015`, y el motivo de que el plazo cubra la ventana de contracargo con margen.
+
+**Lo descartado por firma inválida no se reprocesa jamás**, ni corrigiendo la clave. Si la firma no validó, no consta que el mensaje viniera de quien dice: reprocesarlo sería procesar algo que nadie autenticó.
+
+---
+
+### `RF-MV-010` · Consultar las notificaciones recibidas
+
+```mermaid
+flowchart TD
+    A(["Actor con movements:read<br/>filtra por emisor, estado o fechas"])
+    A --> P1["Devuelve las notificaciones<br/>con su estado y qué movimiento produjeron"]
+    P1 --> V1{"¿conserva su<br/>documento crudo?"}
+    V1 -.->|"no · purgado"| FIN
+    V1 -->|sí| P2["Incluye el documento verbatim"]
+    P2 --> FIN(["Página de notificaciones"])
+
+    classDef ok fill:#E5EEF0,stroke:#2D5A6B,color:#141B1E
+    class FIN ok
+```
+
+**Es la consulta de conciliación**: la que responde «la pasarela dice que nos avisó, ¿lo hizo?». Sin ella, la tabla guarda evidencia que nadie puede mirar.
+
+**El documento lleva datos personales de terceros**, y por eso exige `movements:read` y no basta estar autenticado — al revés que `RF-MV-006`, que solo devuelve lo propio.
+
+---
+
+## 4. Consultar
 
 ### `RF-MV-004` · Consultar movimientos
 

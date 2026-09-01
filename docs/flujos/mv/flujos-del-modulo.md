@@ -3,7 +3,7 @@
 | Campo | Valor |
 |---|---|
 | Módulo | `MV` — Movimientos |
-| Versión | 0.1.0 |
+| Versión | 0.2.0 |
 | Estado | **Borrador** |
 | Responsable | Bonilla Diaz William Steven |
 | Fecha de creación | 01-09-2026 |
@@ -11,17 +11,19 @@
 
 !!! info "Qué va en este documento"
 
-    La vista de conjunto de los **ocho requerimientos** de `MV`: cómo se encadenan, qué debe existir antes de qué, y —lo que ningún otro documento dibuja todavía— **el recorrido completo de un cliente**, que atraviesa cuatro módulos.
+    La vista de conjunto de los **once requerimientos** de `MV`: cómo se encadenan, qué debe existir antes de qué, y —lo que ningún otro documento dibuja todavía— **el recorrido completo de un cliente**, que atraviesa cuatro módulos.
 
     No define comportamiento: lo declara [`requirements/mv.md`](../../requirements/mv.md). Ante cualquier discrepancia, **manda ese documento**, y cuando existan las tripletas, mandan ellas.
 
     El detalle de cada caso, paso a paso y con sus rechazos, está en [Flujos por caso](flujos-por-caso.md).
 
-!!! warning "Ninguno de estos ocho requerimientos tiene `spec.md` todavía"
+!!! warning "Ninguno de estos once requerimientos tiene `spec.md` todavía"
 
     Se dibujan **antes** de escribir las tripletas, por decisión del responsable del proyecto (01-09-2026), y eso invierte el orden habitual: en `SP` los flujos transcribieron specs ya aprobadas.
 
     El motivo es que aquí el valor está en lo contrario — **dibujar primero es lo que hace visibles las decisiones que faltan**, y §6 recoge las tres que este documento destapó.
+
+    Los tres últimos —recibir, consultar y reprocesar notificaciones entrantes— se añadieron el mismo día, después de dibujar el resto.
 
 ---
 
@@ -144,6 +146,9 @@ flowchart LR
 | `RF-MV-004` a `RF-MV-006` · consultas | — | — | Ninguno |
 | `RF-MV-007` · anular | `movements` — **inserta**, no borra | Cambio + eliminación | Deshace lo aplicado (§6.3) |
 | `RF-MV-008` · métodos de pago | — | — | Ninguno |
+| `RF-MV-009` · recibir notificación | `inbound_notifications` | Cambio | Los de `RF-MV-001` o `RF-MV-003`, si la interpreta |
+| `RF-MV-010` · consultar notificaciones | — | — | Ninguno |
+| `RF-MV-011` · reprocesar | `inbound_notifications`, `movements` | Cambio | Los del movimiento que produzca |
 
 **`RF-MV-007` escribe en el registro de eliminación aunque no elimine nada**, y es deliberado: el Art. V.13 exige motivo para deshacer, y anular dinero es deshacer. Que la fila permanezca no cambia que alguien tuvo que justificar por qué deja de contar.
 
