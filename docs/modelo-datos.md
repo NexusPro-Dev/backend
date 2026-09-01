@@ -2,7 +2,7 @@
 
 | Campo | Valor |
 |---|---|
-| Versión | 0.16.0 |
+| Versión | 0.17.0 |
 | Estado | **Borrador** |
 | Responsable | Bonilla Diaz William Steven |
 | Fecha de creación | 21-08-2026 |
@@ -326,7 +326,6 @@ erDiagram
     currencies       ||--o{ movements : "en qué moneda"
     movements        ||--o{ movement_details : "qué se compró · UNA O VARIAS"
     products         ||--o{ movement_details : "el producto de la línea"
-    memberships      ||--o{ movement_details : "a qué nivel lleva"
     movement_details ||--o{ movements : "devenga · una COMISION por línea"
     movements        ||--o{ movements : "revierte · salda"
     inbound_notifications ||--o| movements : "qué produjo al interpretarse"
@@ -392,7 +391,6 @@ erDiagram
         numeric unit_amount "COPIADO del producto"
         numeric line_amount "cantidad x unitario, congelado"
         integer validity_days "COPIADA · NULL = no caduca"
-        uuid target_membership_id FK "COPIADA · solo en un upgrade"
     }
 
     inbound_notifications {
@@ -418,6 +416,14 @@ erDiagram
 | `movements.percentage` | Lo que **se ganó por esa venta** |
 
 **Copiar y no referenciar es la regla que sostiene el pasado** (`RN-MV-002`, `RN-MV-003`). Sin ella, corregir un precio reescribe facturas y corregir una tarifa reescribe lo que alguien cobró. Lo exigieron `pm.md` §1.4 y `RN-CM-008` **antes de que existiera la tabla donde cumplirlo**.
+
+!!! important "Pero no se copia todo, y la prueba es si el origen puede cambiar"
+
+    **Se copia lo que puede cambiar; lo inmutable se referencia.** El precio y la vigencia se corrigen (`RF-PM-004`), el porcentaje de una tarifa se corrige (`RF-CM-003`) y el vendedor de un cliente se reasigna — los cuatro se copian.
+
+    **La membresía destino no.** `RF-PM-004` `EX-004` **rechaza cambiarla**, junto al tipo y al código, de modo que leerla del producto da siempre el mismo valor. Copiarla solo añadiría **un sitio más donde el dato pudiera discrepar de sí mismo**, que es el coste que toda desnormalización paga y que aquí no compra nada.
+
+    Es la diferencia entre una copia que **protege el pasado** y una que **duplica el presente**.
 
 ### 4.2 `movements` se referencia a sí misma tres veces, y son tres cosas
 
@@ -550,7 +556,7 @@ Dos cambios que **no añaden ninguna tabla** y sí cambian lo que el modelo sign
 
 ### 5.3 Dónde apunta cada clave foránea que cruza un módulo
 
-Son **ocho**, y todas van en la misma dirección: **hacia `SP` y hacia `PM`**, nunca al revés.
+Son **siete**, y todas van en la misma dirección: **hacia `SP` y hacia `PM`**, nunca al revés.
 
 | Desde | Hacia | Módulo |
 |---|---|---|
@@ -561,7 +567,7 @@ Son **ocho**, y todas van en la misma dirección: **hacia `SP` y hacia `PM`**, n
 | `commission_rates.product_id` | `products` | `CM` → `PM` |
 | `movements.person_id`, `seller_id`, `currency_id` | `users`, `currencies` | `MV` → `SP` |
 | `movement_details.product_id` | `products` | `MV` → `PM` |
-| `movement_details.target_membership_id` | `memberships` | `MV` → `SP` |
+
 
 
 **Y hay una escritura que NO aparece aquí**, porque no es una clave foránea: un depósito confirmado en `MV` **cambia `users.status`** invocando una operación que `SP` publica (D-26, cerrada el 01-09-2026). El esquema no la muestra y el código sí — es la única dependencia entre módulos que este cuadro no puede enseñar.
@@ -610,3 +616,4 @@ Las cinco tablas de `MV` ocuparán a partir de `V50`, después de la `V48` y `V4
 | 0.14.0 | 01-09-2026 | **El documento deja de describir solo `SP`.** Su mapa llevaba **dos módulos de retraso**: no conocía `products` —de `PM`, escrita el 27-08-2026— ni `commission_rates` —de `CM`, el 28-08-2026—, y llamaba `password_reset_tokens` a una tabla que se llama **`password_reset_permits`** desde `V37`. Las tres derivas se corrigen. §4 incorpora **las tres áreas que nacieron después**: qué se vende (`PM`), cuánto se paga (`CM`) y qué ocurrió con el dinero (`MV`), con su diagrama entidad-relación. §5 se reescribe entera como **la vista de conjunto de la base**: diecinueve tablas escritas y cuatro diseñadas, con el inventario por dueño, **las siete claves foráneas que cruzan un módulo** —todas hacia `SP` y `PM`, nunca al revés— y la distinción que conviene tener a la vista mirando ese cuadro: **las claves foráneas sí cruzan y los repositorios no**, porque la integridad la defiende el motor y la frontera de código una regla de ArchUnit. §4.1 explica por qué **cuatro columnas parecen duplicadas y son lo contrario** —`products.price` es lo que cuesta hoy y `movements.unit_amount` lo que costó cuando se compró—, y §4.2 por qué `movements` **se referencia a sí misma tres veces** sin que sea una señal de alarma: las tres van en direcciones distintas del tiempo. §5.2 recoge los **dos cambios de este día que no añaden ninguna tabla** y sí cambian lo que el modelo significa: el estado `FTD_PENDIENTE` y los clientes dentro de `user_supervisors` — el segundo cuesta cero columnas y es el de más alcance. | Responsable técnico |
 | 0.15.0 | 01-09-2026 | **Nace `movement_details`**, por decisión del responsable del proyecto: una compra puede llevar **varios productos**. El producto, la cantidad, el importe unitario, la vigencia y la membresía destino **se mudan de `movements` a la línea**, y con ellos `RN-MV-002` —copiar y no referenciar— pasa a cumplirse **por línea**: cada producto se compró a su precio y con su vigencia. La cabecera conserva la moneda, el **total congelado** y el comprobante. Son **veinticuatro tablas**: diecinueve escritas y cinco diseñadas. **Y el reparto tiene un precio que conviene tener escrito en este documento**: `ck_movements_type_product` **se retira**, y las cuatro reglas que la partición hace necesarias —una compra al menos una línea, **como mucho un upgrade**, moneda compartida y total como suma— **cruzan dos tablas, de modo que ningún `CHECK` las sostiene**. El esquema pasa a defender menos que antes y el caso de uso, más. Es el mismo intercambio que ya se hizo al convertir el tipo en catálogo, y la segunda vez en el mismo día. | Responsable técnico |
 | 0.16.0 | 01-09-2026 | **Se repara §4 y se recoge lo decidido después de la v0.15.0.** El diagrama de las tres áreas nuevas tenía **dos defectos introducidos al editarlo por partes**: `movements` declaraba **`code` dos veces**, y **`movement_details` aparecía en las relaciones sin bloque de columnas** — estaba dibujada y no definida. Se reescribe entero en lugar de parchearlo: `movements` gana `currency_id`, `payment_method_id`, `gateway`, `external_reference` y `confirmed_at`, y `movement_details` su bloque completo. **§4.3 es nueva y es la parte que un modelo de datos suele callar**: **cuatro decisiones del 01-09-2026 que no añaden ni una columna** y sin las cuales el esquema se lee mal — el día cortándose en `America/Bogota`; la escritura de `MV` sobre `users.status` que **cruza por código y no por esquema** (D-26); que **`movements.status` significa dos cosas según el tipo** —en una compra «¿pagó?», en una `COMISION` «¿ya es exigible?»—; y que **`ANULADO` no aparece jamás sobre un movimiento que produjo efectos** (`RN-MV-031`), de modo que quien vea la columna creerá que puede y no. Las claves foráneas que cruzan módulos pasan de siete a **ocho**, y se añade la advertencia de que **hay una escritura que ese cuadro no puede enseñar**. Se corrigen además tres rastros viejos en §1: `users.status` seguía diciendo «`PENDIENTE` sin uso» y `user_supervisors` describía a su superior como si solo hubiera vendedores. | Responsable técnico |
+| 0.17.0 | 01-09-2026 | **Se retira `movement_details.target_membership_id`**, a señalamiento del responsable del proyecto: **era redundante**. `RF-PM-004` `EX-004` rechaza cambiar la membresía destino de un producto, de modo que leerla del producto da siempre el mismo valor —y `RN-PM-010` garantiza que el producto no desaparece nunca—. Las claves foráneas que cruzan módulos vuelven de ocho a **siete**. **Y §4.1 gana el criterio que faltaba**, que es lo que de verdad aporta el cambio: este documento venía dejando entender «cópialo todo», y la regla pasa a ser **se copia lo que puede cambiar; lo inmutable se referencia**. El precio, la vigencia, el porcentaje de una tarifa y el vendedor **sí** se copian, porque los cuatro se corrigen o se reasignan; el destino no, porque nada puede cambiarlo, y copiarlo solo añadiría **un sitio más donde el dato pudiera discrepar de sí mismo**. Es la diferencia entre una copia que **protege el pasado** y una que **duplica el presente**. | Responsable del proyecto |
