@@ -3,7 +3,7 @@
 | Campo | Valor |
 |---|---|
 | Módulo | `MV` — Movimientos |
-| Versión | 0.4.0 |
+| Versión | 0.5.0 |
 | Estado | **Borrador** |
 | Responsable | Bonilla Diaz William Steven |
 | Fecha de creación | 01-09-2026 |
@@ -43,29 +43,36 @@ flowchart TD
     V2 -->|no| E1["Cliente inexistente<br/>RN-MV-006"]
     V2 -->|sí| V3{"¿importe mayor que cero<br/>y con los decimales<br/>de su moneda?"}
     V3 -->|no| E2["Importe inválido<br/>RN-MV-009"]
-    V3 -->|sí| V4{"¿trae producto?"}
-    V4 -->|sí| E3["Un depósito no lleva producto<br/>RN-MV-006"]
-    V4 -->|no| P1["Registra el movimiento<br/>tipo DEPOSITO, estado CONFIRMADO<br/>codigo DEP-AAAAMMDD-XXXXXX<br/>congela el vendedor del cliente"]
+    V3 -->|sí| V4{"¿es el PRIMER depósito<br/>de esta persona?"}
+    V4 -->|"es el FTD"| P0["Añade UNA línea con el producto<br/>de la membresía gratuita · RN-MV-024"]
+    V4 -->|no| P1
+    P0 --> P1["Registra el movimiento<br/>tipo DEPOSITO, estado CONFIRMADO<br/>codigo DEP-AAAAMMDD-XXXXXX<br/>congela el vendedor del cliente"]
     P1 --> P2["Emite el comprobante"]
     P2 --> V5{"¿la cuenta estaba<br/>en FTD_PENDIENTE?"}
     V5 -.->|"no · ya operaba"| P4
-    V5 -->|sí| P3["Habilita la cuenta<br/>FTD_PENDIENTE → ACTIVO"]
+    V5 -->|sí| V6{"¿el importe alcanza el precio<br/>del producto gratuito?<br/>RN-MV-030"}
+    V6 -->|no| D0["No habilita todavía:<br/>el depósito queda registrado"]
+    V6 -->|sí| P3["SP habilita la cuenta · D-26<br/>FTD_PENDIENTE → ACTIVO"]
     P3 --> P4["Auditoría de cambios"]
     P4 --> FIN(["Informa el movimiento registrado"])
 
     classDef ex fill:#F7E9E5,stroke:#A33B2A,color:#7A2B1E
     classDef ok fill:#E5EEF0,stroke:#2D5A6B,color:#141B1E
     classDef esc fill:#F7F0E5,stroke:#8A6D2A,color:#4A3A16
-    class E1,E2,E3 ex
+    class E1,E2 ex
     class FIN,FIN2 ok
     class P3 esc
+    class D0 pend
+    classDef pend fill:#F7F0E5,stroke:#8A6D2A,color:#4A3A16
 ```
 
 **La reentrega devuelve lo que ya había y no falla**, y es lo más importante del diagrama. Toda pasarela reintenta cuando no recibe respuesta a tiempo, de modo que la doble entrega **es el caso normal**. Responder un error convertiría un reintento legítimo en una alarma; crear un segundo movimiento duplicaría el dinero. La unicidad la sostiene el esquema (`RN-MV-005`), no esta comprobación: dos entregas simultáneas la burlan.
 
 **`V5` es `RN-MV-011`**, y no es «todo depósito habilita»: es la **transición** la que habilita. El segundo depósito de la misma persona no toca su estado.
 
-**El paso ámbar depende de D-26.** Es la escritura en `users`, que hoy no tiene forma acordada.
+**El paso ámbar es D-26, ya cerrada** (01-09-2026): `SP` publica «habilitar cuenta por depósito» y `MV` la invoca, **síncrona y en la misma transacción** — si esa escritura falla, falla el registro entero y no queda un depósito confirmado con la cuenta retenida.
+
+**`V4` y `V6` son la novedad del 01-09-2026.** El **FTD lleva una línea** con el producto de la membresía gratuita —el mismo que fija su importe—, y por eso se comisiona como cualquier otra venta sin tocarle la firma a `RF-CM-005`. Y habilita **si el importe alcanza ese precio** (`RN-MV-030`): **al menos y no exactamente**, porque exigir el importe exacto convertiría una comisión bancaria en un bloqueo.
 
 ---
 
@@ -163,25 +170,24 @@ flowchart TD
     V1 -->|no| E1["No existe"]
     V1 -->|sí| V2{"¿ya está ANULADO?"}
     V2 -->|sí| E2["No se anula dos veces"]
-    V2 -->|no| V3{"¿es una REVERSION?"}
-    V3 -->|sí| E3["Una reversión no se anula:<br/>sería anular una corrección"]
-    V3 -->|no| P1["Inserta el movimiento inverso<br/>tipo REVERSION, apunta al original"]
+    V2 -->|no| V3{"¿YA PRODUJO EFECTOS?<br/>nivel concedido, comisión causada"}
+    V3 -->|sí| E4["RN-MV-031 · lo aplicado NO se anula.<br/>Deshacerlo es otra operación,<br/>y NINGUNA existe todavía"]
+    V3 -->|no| V3b{"¿es una REVERSION?"}
+    V3b -->|sí| E3["Una reversión no se anula:<br/>sería anular una corrección"]
+    V3b -->|no| P1["Inserta el movimiento inverso<br/>tipo REVERSION, apunta al original"]
     P1 --> P2["El original pasa a ANULADO<br/>sus importes NO se tocan"]
-    P2 --> V4{"¿el original estaba<br/>CONFIRMADO y aplicó algo?"}
-    V4 -.->|"no · estaba PENDIENTE"| P4
-    V4 -->|sí| P3["Deshace lo aplicado<br/>DECISIÓN ABIERTA"]
-    P3 --> P4["Auditoría de cambios<br/>+ registro de eliminación con el motivo"]
+    P2 --> P4["Auditoría de cambios<br/>+ registro de eliminación con el motivo"]
     P4 --> FIN(["Informa la reversión emitida"])
 
     classDef ex fill:#F7E9E5,stroke:#A33B2A,color:#7A2B1E
     classDef ok fill:#E5EEF0,stroke:#2D5A6B,color:#141B1E
-    classDef abierto fill:#F7E9E5,stroke:#A33B2A,color:#7A2B1E,stroke-dasharray: 5 5
-    class E1,E2,E3 ex
+    class E1,E2,E3,E4 ex
     class FIN ok
-    class P3 abierto
 ```
 
-**`P3` no está resuelto**, y el diagrama lo dice en lugar de fingir que sí. Anular una compra pendiente que la pasarela rechazó —el caso frecuente— no pasa por ahí: no había aplicado nada. Anular una compra ya aplicada plantea preguntas que nadie ha respondido: ¿se retira el nivel concedido? ¿y si entre medias compró otro? Ver `flujos-del-modulo.md` §6.3.
+**`V3` es la puerta que el responsable decidió cerrar** (`RN-MV-031`, 01-09-2026). Anular una compra pendiente que la pasarela rechazó —el caso frecuente— pasa de largo: no había aplicado nada. Anular una compra **ya aplicada** ya no se admite por esta vía.
+
+**Y eso deja un hueco a la vista en lugar de resolverlo**: retirar un nivel concedido o revertir una comisión causada son **operaciones distintas que no existen**. Se eligió así sobre deshacerlo todo —que obligaría a quitarle el nivel a quien lleva un mes usándolo— y sobre revertir solo el dinero —que dejaría el libro y el acceso discrepando—. **El precio: hoy un movimiento aplicado por error no tiene corrección por ninguna vía.**
 
 **Escribe en el registro de eliminación aunque no elimine.** El Art. V.13 exige motivo para deshacer, y esto deshace dinero.
 
@@ -250,7 +256,7 @@ flowchart TD
 
     classDef ex fill:#F7E9E5,stroke:#A33B2A,color:#7A2B1E
     classDef ok fill:#E5EEF0,stroke:#2D5A6B,color:#141B1E
-    class E1,E2,E3,E4,E5,E6,E7,E8 ex
+    class E1,E2,E3,E4 ex
     class FIN ok
 ```
 
