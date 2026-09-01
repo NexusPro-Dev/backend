@@ -3,7 +3,7 @@
 | Campo | Valor |
 |---|---|
 | Módulo | `MV` — Movimientos |
-| Versión | 0.4.0 |
+| Versión | 0.5.0 |
 | Estado | **Borrador** |
 | Responsable | Bonilla Diaz William Steven |
 | Fecha de creación | 01-09-2026 |
@@ -169,15 +169,15 @@ flowchart TD
     D --> M["manager1"]
     M --> X(["cúspide · RN-SP-019<br/>no tiene superior"])
 
-    A -.->|"RF-CM-005 · 10%"| DA["DEVENGO 10 USD"]
-    D -.->|"RF-CM-005 · 4%"| DD["DEVENGO 4 USD"]
-    M -.->|"RF-CM-005 · 2%"| DM["DEVENGO 2 USD"]
+    A -.->|"RF-CM-005 · 10%"| DA["COMISION 10 USD · PENDIENTE"]
+    D -.->|"RF-CM-005 · 4%"| DD["COMISION 4 USD · PENDIENTE"]
+    M -.->|"RF-CM-005 · 2%"| DM["COMISION 2 USD · PENDIENTE"]
 
     DA --> S{"¿la suma supera<br/>el importe?"}
     DD --> S
     DM --> S
     S -->|sí| E["RECHAZA · RN-MV-022<br/>no se recorta"]
-    S -->|no| P["Tres movimientos<br/>COMISION_DEVENGADA<br/>affects_cash = falso"]
+    S -->|no| P["Tres movimientos COMISION<br/>estado PENDIENTE hasta el cierre<br/>affects_cash = falso"]
 
     classDef ex fill:#F7E9E5,stroke:#A33B2A,color:#7A2B1E
     classDef ok fill:#E5EEF0,stroke:#2D5A6B,color:#141B1E
@@ -197,13 +197,51 @@ flowchart TD
 
     **Y rechaza en vez de recortar**, a propósito: recortar decidiría **en silencio a quién se le quita**, y esa no es una decisión que deba tomar un algoritmo a las tres de la mañana.
 
-**Los devengos no son caja.** Llevan `affects_cash` en falso, de modo que ninguna suma de dinero movido los incluye. Lo único que mueve dinero es el `COMISION_PAGADA` del final:
+### 5.1 La comisión espera al cierre del mes
+
+Las comisiones **nacen pendientes** y se causan el **primero de cada mes a las 00:00**.
 
 ```mermaid
 flowchart LR
-    D1["DEVENGO · agente7 · 10"] --> L{"Cierre de periodo"}
-    D2["DEVENGO · agente7 · 7"] --> L
-    D3["DEVENGO · agente7 · 12"] --> L
+    V1(["Venta · día 8"]) --> C1["COMISION · PENDIENTE"]
+    V2(["Venta · día 22"]) --> C2["COMISION · PENDIENTE"]
+    V3(["Venta · día 31"]) --> C3["COMISION · PENDIENTE"]
+
+    C1 --> J{{"Día 1, 00:00<br/>trabajo programado"}}
+    C2 --> J
+    C3 --> J
+    J -->|"RF-MV-003 en lote"| CA["CAUSADAS<br/>= CONFIRMADO"]
+    CA --> P["Pagables"]
+
+    V2 -.->|"si se anula ANTES del cierre"| AN["Su comisión se anula<br/>NADIE COBRÓ NADA"]
+
+    classDef ok fill:#E5EEF0,stroke:#2D5A6B,color:#141B1E
+    classDef nada fill:#F7F0E5,stroke:#8A6D2A,color:#4A3A16
+    class CA,P ok
+    class AN nada
+```
+
+**Causar es confirmar, y por eso no hace falta un estado nuevo.** `RN-MV-004` ya dice que lo pendiente no produce efectos; una comisión pendiente **es** una comisión no causada. El trabajo mensual usa `RF-MV-003` en lote y `ck_movements_status` no se toca.
+
+**Y esto resuelve el caso feo de §5**: una venta anulada dentro del mes anula comisiones **pendientes**, de modo que no hay saldo negativo que recuperar. Sigue habiéndolo si se anula en febrero una venta de enero, pero deja de ser el camino habitual.
+
+!!! warning "La protección es muy desigual, y es lo que significa un cierre de periodo"
+
+    La venta del **día 31** se causa **horas después**; la del **día 1** espera **un mes**. No es un defecto: es lo que un cierre mensual hace. Pero conviene saberlo — **la venta de fin de mes queda casi sin proteger**.
+
+    Si el objetivo era una ventana de seguridad y no un cierre contable, la forma sería otra: causar a los *n* días de **cada** venta.
+
+**El trabajo tiene que ser recuperable.** Si no corre el día 1 —un despliegue, una caída—, el 3 debe causar lo pendiente, y correr dos veces **no puede causar dos veces**. Misma forma que `ExpiredTokenPurgeJob`: `@Scheduled` con cron configurable y cerrojo consultivo para que con varias instancias corra una sola.
+
+### 5.2 Solo el pago mueve dinero
+
+**Las comisiones no son caja.** Llevan `affects_cash` en falso, de modo que ninguna suma de dinero movido las incluye. Lo único que mueve dinero es el `COMISION_PAGADA` del final:
+
+```mermaid
+flowchart LR
+    D1["COMISION · agente7 · 10"] --> L{"Cierre de periodo"}
+    D2["COMISION · agente7 · 7"] --> L
+    D3["COMISION · agente7 · 12"] --> L
     L --> P["COMISION_PAGADA · 29<br/>affects_cash = VERDADERO"]
     P -.->|"settled_by_movement_id"| D1
     P -.->|" "| D2
@@ -215,7 +253,7 @@ flowchart LR
 
 **Cada pago dice qué devengos salda** (`RN-MV-023`). Sin ese vínculo, «¿por qué me pagaron esto?» solo se responde sumando a mano y esperando que cuadre.
 
-**Y el caso feo, que conviene ver ahora**: si se anula una venta **ya comisionada y ya pagada**, hay que revertir los devengos y queda un **saldo negativo** contra esa persona. Es la razón real por la que importa la decisión abierta sobre qué deshace una anulación — y aquí la elección del responsable paga: al ser movimientos, la maquinaria de reversión ya existe.
+**El caso feo dejó de ser el habitual** gracias a la espera de §5.1: una venta anulada dentro del mes anula comisiones **pendientes**, que nadie cobró. Sigue existiendo para quien anula en febrero una venta de enero —ahí sí queda saldo negativo—, y ahí la elección del responsable paga: al ser movimientos, la maquinaria de reversión ya existe.
 
 ---
 
