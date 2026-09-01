@@ -2,7 +2,7 @@
 
 | Campo | Valor |
 |---|---|
-| Versión | 0.15.0 |
+| Versión | 0.16.0 |
 | Estado | **Borrador** |
 | Responsable | Bonilla Diaz William Steven |
 | Fecha de creación | 21-08-2026 |
@@ -14,7 +14,7 @@
 
     Es una **vista derivada**, no normativa. Sale de [`requirements/sp.md` §10](requirements/sp.md), [`security.md` §9](security.md) y [`architecture.md` §6.6](architecture.md). La fuente de verdad del esquema son las **migraciones Flyway** (Art. V.3), y donde ya existen mandan ellas.
 
-!!! success "Diecinueve tablas existen; cuatro están diseñadas y sin escribir"
+!!! success "Diecinueve tablas existen; cinco están diseñadas y sin escribir"
 
     De `V1` a `V47` están escritas las **diecinueve** tablas del sistema: las doce de `SP`, sus cinco de auditoría, `products` de `PM` y `commission_rates` de `CM`. Lo único diseñado y sin escribir son las **cinco de `MV`** —`movement_types`, `movements`, `movement_details`, `payment_methods` e `inbound_notifications`—, que van marcadas como tales en el mapa de §5.
 
@@ -90,7 +90,7 @@ erDiagram
         varchar password_hash "Argon2id"
         boolean must_change_password "default false · lo fijan RF-SP-024 y RF-SP-038"
         timestamptz password_expires_at "NULL · caducidad de la credencial provisional · la exige RF-SP-038"
-        varchar status "CHECK sobre dominio cerrado · PENDIENTE sin uso"
+        varchar status "ACTIVO FTD_PENDIENTE INACTIVO BLOQUEADO · el segundo AUTENTICA"
         int failed_attempts "control de bloqueo · la crea RF-SP-034"
         timestamptz locked_until "NULL · nulo también en el bloqueo manual, que no expira · la crea RF-SP-034"
         timestamptz last_login_at "NULL · la crea RF-SP-034"
@@ -137,8 +137,8 @@ erDiagram
 
     user_supervisors {
         uuid id PK "estructura comercial"
-        uuid user_id FK "subordinado · uno vigente por persona"
-        uuid supervisor_id FK "superior · porta el rol padre · RN-SP-020"
+        uuid user_id FK "subordinado O CLIENTE · uno vigente por persona"
+        uuid supervisor_id FK "superior si es vendedor, QUIEN LO TRAJO si es cliente"
         timestamptz started_at "now"
         timestamptz ended_at "NULL mientras esté vigente"
         timestamptz created_at "now"
@@ -319,15 +319,17 @@ erDiagram
     products ||--o{ commission_rates : "acotada a"
     users    ||--o{ commission_rates : "excepción de"
 
-    movement_types  ||--o{ movements : "de qué clase es"
-    movements       ||--o{ movement_details : "qué se compró · UNA O VARIAS"
-    products        ||--o{ movement_details : "el producto de la línea"
-    payment_methods ||--o{ movements : "con qué se pagó"
-    users           ||--o{ movements : "de quién es"
-    movement_details ||--o{ movements : "devenga · una comisión por LÍNEA"
-    currencies      ||--o{ movements : "en qué moneda"
-    movements       ||--o{ movements : "revierte · devenga · salda"
-    movements       ||--o| inbound_notifications : "qué produjo"
+    movement_types   ||--o{ movements : "de qué clase es"
+    payment_methods  ||--o{ movements : "con qué se pagó"
+    users            ||--o{ movements : "de quién es · person_id"
+    users            ||--o{ movements : "quién lo trajo · seller_id"
+    currencies       ||--o{ movements : "en qué moneda"
+    movements        ||--o{ movement_details : "qué se compró · UNA O VARIAS"
+    products         ||--o{ movement_details : "el producto de la línea"
+    memberships      ||--o{ movement_details : "a qué nivel lleva"
+    movement_details ||--o{ movements : "devenga · una COMISION por línea"
+    movements        ||--o{ movements : "revierte · salda"
+    inbound_notifications ||--o| movements : "qué produjo al interpretarse"
 
     products {
         uuid id PK
@@ -362,20 +364,35 @@ erDiagram
 
     movements {
         uuid id PK
-        varchar code UK "DEP-20260901-A7K2P9"
-        uuid type_id FK
+        varchar code UK "DEP-20260901-A7K2P9 · zona de Bogotá"
+        uuid type_id FK "de él sale el prefijo"
         varchar status "PENDIENTE CONFIRMADO ANULADO"
-        uuid person_id FK "de quién es"
-        uuid seller_id FK "CONGELADO"
-        uuid source_detail_id FK "la LÍNEA que devengó"
+        uuid person_id FK "de quién es · NO client_id"
+        uuid seller_id FK "CONGELADO · NULL si no aplica"
+        uuid currency_id FK
         numeric total_amount "SUMA de las líneas, congelada"
-        varchar code UK "DEP-20260901-A7K2P9"
-        numeric percentage "COPIADO de la tarifa"
-        uuid source_movement_id FK "la venta que devengó"
-        uuid reverses_movement_id FK
-        uuid settled_by_movement_id FK
-        bigint receipt_number "único POR TIPO"
-        timestamptz occurred_at "cuándo OCURRIÓ"
+        uuid payment_method_id FK "NULL en una comisión"
+        varchar gateway "quién procesó"
+        varchar external_reference "idempotencia · segunda capa"
+        numeric percentage "en una COMISION · copiado de la tarifa"
+        uuid source_movement_id FK "la venta que la devengó"
+        uuid source_detail_id FK "la LÍNEA que la devengó"
+        uuid reverses_movement_id FK "solo en una REVERSION"
+        uuid settled_by_movement_id FK "el pago que la saldó"
+        bigint receipt_number "único POR TIPO · al confirmar"
+        timestamptz occurred_at "cuándo OCURRIÓ, no cuándo se supo"
+        timestamptz confirmed_at
+    }
+
+    movement_details {
+        uuid id PK
+        uuid movement_id FK "en cascada: una línea sin cabecera no es nada"
+        uuid product_id FK
+        integer quantity "1 si el producto es un UPGRADE"
+        numeric unit_amount "COPIADO del producto"
+        numeric line_amount "cantidad x unitario, congelado"
+        integer validity_days "COPIADA · NULL = no caduca"
+        uuid target_membership_id FK "COPIADA · solo en un upgrade"
     }
 
     inbound_notifications {
@@ -412,7 +429,20 @@ erDiagram
 
 Tres autorreferencias en una tabla son una señal de alarma habitual. Aquí no lo son porque **las tres van en direcciones distintas del tiempo**: la primera mira atrás para corregir, la segunda mira atrás para explicar el origen, y la tercera mira **adelante** —se puebla después, cuando el pago ocurre—.
 
-### 4.3 Lo que `affects_cash` separa
+### 4.3 Cuatro decisiones que este esquema no muestra, y hay que leer al mirarlo
+
+Un modelo de datos enseña columnas y calla reglas. Estas cuatro se decidieron el 01-09-2026, **no añaden ni una columna**, y sin ellas el dibujo se interpreta mal:
+
+| Decisión | Qué cambia al leer el esquema |
+|---|---|
+| **El día se corta en `America/Bogota`** | El `AAAAMMDD` dentro de `movements.code` y el instante del cierre mensual. `timestamptz` sigue guardando UTC: lo que la zona decide es **dónde empieza el día**, no cómo se almacena |
+| **`SP` publica la escritura, `MV` la invoca** (D-26) | Ninguna clave foránea sale de `MV` hacia `users.status`, y sin embargo un depósito lo cambia. **La escritura cruza por código, no por esquema** |
+| **La comisión nace `PENDIENTE` y se causa el primero de mes** | `movements.status` significa **dos cosas distintas según el tipo**: en una compra es «¿pagó?»; en una `COMISION` es «¿ya es exigible?». Mismo dominio, dos lecturas |
+| **Lo ya aplicado no se anula** (`RN-MV-031`) | `status = 'ANULADO'` **no aparece nunca** sobre un movimiento que produjo efectos. Quien vea la columna pensará que sí puede, y no |
+
+**La tercera es la más fácil de leer mal.** `PENDIENTE` en una compra y `PENDIENTE` en una comisión son el mismo valor y no significan lo mismo — pero sí comparten la regla que importa: `RN-MV-004`, **lo pendiente no produce efectos**. Es lo que permitió que causar una comisión fuera exactamente confirmarla, sin ampliar `ck_movements_status`.
+
+### 4.4 Lo que `affects_cash` separa
 
 `movements` contiene **dos cosas que no son iguales**: dinero que se movió —compra, depósito, pago de comisión— y **deuda contraída** —lo que un vendedor ganó y no ha cobrado—. Sin distinguirlas, **sumar la tabla no responde ninguna pregunta**.
 
@@ -520,7 +550,7 @@ Dos cambios que **no añaden ninguna tabla** y sí cambian lo que el modelo sign
 
 ### 5.3 Dónde apunta cada clave foránea que cruza un módulo
 
-Son **siete**, y todas van en la misma dirección: **hacia `SP` y hacia `PM`**, nunca al revés.
+Son **ocho**, y todas van en la misma dirección: **hacia `SP` y hacia `PM`**, nunca al revés.
 
 | Desde | Hacia | Módulo |
 |---|---|---|
@@ -530,7 +560,11 @@ Son **siete**, y todas van en la misma dirección: **hacia `SP` y hacia `PM`**, 
 | `commission_rates.user_id` | `users` | `CM` → `SP` |
 | `commission_rates.product_id` | `products` | `CM` → `PM` |
 | `movements.person_id`, `seller_id`, `currency_id` | `users`, `currencies` | `MV` → `SP` |
-| `movements.product_id`, `target_membership_id` | `products`, `memberships` | `MV` → `PM`, `SP` |
+| `movement_details.product_id` | `products` | `MV` → `PM` |
+| `movement_details.target_membership_id` | `memberships` | `MV` → `SP` |
+
+
+**Y hay una escritura que NO aparece aquí**, porque no es una clave foránea: un depósito confirmado en `MV` **cambia `users.status`** invocando una operación que `SP` publica (D-26, cerrada el 01-09-2026). El esquema no la muestra y el código sí — es la única dependencia entre módulos que este cuadro no puede enseñar.
 
 **Las claves foráneas sí cruzan; los repositorios no.** Es la distinción de D-25 y conviene tenerla clara mirando este cuadro: la integridad referencial la defiende el motor, y la frontera de código la defiende una regla de ArchUnit. Que una tabla apunte a otra de otro módulo **no autoriza a leerla desde Java**.
 
@@ -575,3 +609,4 @@ Las cinco tablas de `MV` ocuparán a partir de `V50`, después de la `V48` y `V4
 | 0.13.0 | 01-09-2026 | **`user_supervisors` cambia de significado sin cambiar de forma** (`RF-SP-045`). Hasta hoy relacionaba **vendedores entre sí**; desde ahora contiene también a los **clientes**, colgando del vendedor que los trajo. No hay columnas nuevas ni aristas nuevas que dibujar, y por eso este cambio **no se ve en el diagrama**: lo que cambia es qué significa una fila. Se propuso una tabla propia, `client_referrals`, y **el responsable del proyecto la descartó** a favor de reutilizar esta: con dos tablas, subir de un cliente hasta el manager que cobra por él exige un join y un caso especial en la hoja; con una, es un recorrido. | Responsable técnico |
 | 0.14.0 | 01-09-2026 | **El documento deja de describir solo `SP`.** Su mapa llevaba **dos módulos de retraso**: no conocía `products` —de `PM`, escrita el 27-08-2026— ni `commission_rates` —de `CM`, el 28-08-2026—, y llamaba `password_reset_tokens` a una tabla que se llama **`password_reset_permits`** desde `V37`. Las tres derivas se corrigen. §4 incorpora **las tres áreas que nacieron después**: qué se vende (`PM`), cuánto se paga (`CM`) y qué ocurrió con el dinero (`MV`), con su diagrama entidad-relación. §5 se reescribe entera como **la vista de conjunto de la base**: diecinueve tablas escritas y cuatro diseñadas, con el inventario por dueño, **las siete claves foráneas que cruzan un módulo** —todas hacia `SP` y `PM`, nunca al revés— y la distinción que conviene tener a la vista mirando ese cuadro: **las claves foráneas sí cruzan y los repositorios no**, porque la integridad la defiende el motor y la frontera de código una regla de ArchUnit. §4.1 explica por qué **cuatro columnas parecen duplicadas y son lo contrario** —`products.price` es lo que cuesta hoy y `movements.unit_amount` lo que costó cuando se compró—, y §4.2 por qué `movements` **se referencia a sí misma tres veces** sin que sea una señal de alarma: las tres van en direcciones distintas del tiempo. §5.2 recoge los **dos cambios de este día que no añaden ninguna tabla** y sí cambian lo que el modelo significa: el estado `FTD_PENDIENTE` y los clientes dentro de `user_supervisors` — el segundo cuesta cero columnas y es el de más alcance. | Responsable técnico |
 | 0.15.0 | 01-09-2026 | **Nace `movement_details`**, por decisión del responsable del proyecto: una compra puede llevar **varios productos**. El producto, la cantidad, el importe unitario, la vigencia y la membresía destino **se mudan de `movements` a la línea**, y con ellos `RN-MV-002` —copiar y no referenciar— pasa a cumplirse **por línea**: cada producto se compró a su precio y con su vigencia. La cabecera conserva la moneda, el **total congelado** y el comprobante. Son **veinticuatro tablas**: diecinueve escritas y cinco diseñadas. **Y el reparto tiene un precio que conviene tener escrito en este documento**: `ck_movements_type_product` **se retira**, y las cuatro reglas que la partición hace necesarias —una compra al menos una línea, **como mucho un upgrade**, moneda compartida y total como suma— **cruzan dos tablas, de modo que ningún `CHECK` las sostiene**. El esquema pasa a defender menos que antes y el caso de uso, más. Es el mismo intercambio que ya se hizo al convertir el tipo en catálogo, y la segunda vez en el mismo día. | Responsable técnico |
+| 0.16.0 | 01-09-2026 | **Se repara §4 y se recoge lo decidido después de la v0.15.0.** El diagrama de las tres áreas nuevas tenía **dos defectos introducidos al editarlo por partes**: `movements` declaraba **`code` dos veces**, y **`movement_details` aparecía en las relaciones sin bloque de columnas** — estaba dibujada y no definida. Se reescribe entero en lugar de parchearlo: `movements` gana `currency_id`, `payment_method_id`, `gateway`, `external_reference` y `confirmed_at`, y `movement_details` su bloque completo. **§4.3 es nueva y es la parte que un modelo de datos suele callar**: **cuatro decisiones del 01-09-2026 que no añaden ni una columna** y sin las cuales el esquema se lee mal — el día cortándose en `America/Bogota`; la escritura de `MV` sobre `users.status` que **cruza por código y no por esquema** (D-26); que **`movements.status` significa dos cosas según el tipo** —en una compra «¿pagó?», en una `COMISION` «¿ya es exigible?»—; y que **`ANULADO` no aparece jamás sobre un movimiento que produjo efectos** (`RN-MV-031`), de modo que quien vea la columna creerá que puede y no. Las claves foráneas que cruzan módulos pasan de siete a **ocho**, y se añade la advertencia de que **hay una escritura que ese cuadro no puede enseñar**. Se corrigen además tres rastros viejos en §1: `users.status` seguía diciendo «`PENDIENTE` sin uso» y `user_supervisors` describía a su superior como si solo hubiera vendedores. | Responsable técnico |
