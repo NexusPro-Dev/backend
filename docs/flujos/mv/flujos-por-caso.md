@@ -3,7 +3,7 @@
 | Campo | Valor |
 |---|---|
 | Módulo | `MV` — Movimientos |
-| Versión | 0.3.0 |
+| Versión | 0.4.0 |
 | Estado | **Borrador** |
 | Responsable | Bonilla Diaz William Steven |
 | Fecha de creación | 01-09-2026 |
@@ -75,30 +75,40 @@ Qué producto pidió quién, y a qué precio. **Nace `PENDIENTE`**: el cobro est
 
 ```mermaid
 flowchart TD
-    A(["Cliente solicita comprar<br/>producto y cantidad"])
-    A --> V1{"¿el producto existe,<br/>está ACTIVO y<br/>no está retirado?"}
+    A(["Cliente solicita comprar<br/>UNA O VARIAS líneas:<br/>producto y cantidad"])
+    A --> V0{"¿al menos<br/>una línea?"}
+    V0 -->|no| E5["RN-MV-024 · una compra<br/>sin líneas no dice qué se compró"]
+    V0 -->|sí| V1{"POR CADA LÍNEA:<br/>¿el producto existe,<br/>está ACTIVO y no retirado?"}
     V1 -->|no| E1["Producto no disponible<br/>los tres casos comparten respuesta"]
     V1 -->|sí| V2{"¿es un upgrade<br/>con cantidad distinta de 1?"}
     V2 -->|sí| E2["RN-MV-007 · no se sube<br/>dos veces al mismo nivel"]
-    V2 -->|no| V3{"¿el upgrade lleva a un nivel<br/>superior al que ya tiene?"}
+    V2 -->|no| V2b{"¿hay MÁS DE UN<br/>upgrade entre las líneas?"}
+    V2b -->|sí| E6["RN-MV-025 · dos cambios de nivel<br/>en una sola operación"]
+    V2b -->|no| V2c{"¿todas las líneas comparten<br/>la misma moneda?"}
+    V2c -->|no| E7["RN-MV-026 · sin tasa de cambio<br/>no hay total que calcular"]
+    V2c -->|sí| V2d{"¿se repite algún<br/>producto entre las líneas?"}
+    V2d -->|sí| E8["RN-MV-028 · el mismo producto<br/>dos veces es uno con doble cantidad"]
+    V2d -->|no| V3{"¿el upgrade lleva a un nivel<br/>superior al que ya tiene?"}
     V3 -->|no| E3["No hay nada que comprar<br/>RN-PM-011"]
     V3 -->|sí| V4{"¿el método de pago<br/>existe y está activo?"}
     V4 -->|no| E4["Método no disponible"]
-    V4 -->|sí| P1["COPIA del producto:<br/>precio, moneda, vigencia<br/>y membresía destino"]
+    V4 -->|sí| P1["COPIA POR LÍNEA:<br/>precio, vigencia y<br/>membresía destino"]
     P1 --> P2["Congela el vendedor<br/>del cliente"]
-    P2 --> P3["Registra el movimiento<br/>tipo COMPRA, estado PENDIENTE<br/>codigo COM-AAAAMMDD-XXXXXX<br/>sin comprobante todavia"]
+    P2 --> P3["Registra la cabecera y sus líneas<br/>tipo COMPRA, estado PENDIENTE<br/>total = SUMA de las líneas, congelado<br/>codigo COM-AAAAMMDD-XXXXXX"]
     P3 --> P4["Auditoría de cambios"]
     P4 --> FIN(["Informa el movimiento<br/>y a dónde ir a pagar"])
 
     classDef ex fill:#F7E9E5,stroke:#A33B2A,color:#7A2B1E
     classDef ok fill:#E5EEF0,stroke:#2D5A6B,color:#141B1E
-    class E1,E2,E3,E4 ex
+    class E1,E2,E3,E4,E5,E6,E7,E8 ex
     class FIN ok
 ```
 
 **`P1` es la regla que otros documentos impusieron a este módulo antes de que existiera** (`RN-MV-002`). No se guarda una referencia al producto para leer su precio después: se guarda el precio. Sin eso, corregir un precio en el catálogo reescribiría lo ya vendido — y `requirements/pm.md` §1.4 lo dejó escrito el 26-08-2026, meses antes de que hubiera dónde cumplirlo.
 
 **No hay comprobante todavía**, y es deliberado: `RN-MV-008` lo emite al confirmar. Un comprobante sobre un cobro que puede fallar sería un número gastado.
+
+**Las cuatro verificaciones nuevas del centro son el precio de admitir varias líneas**, y ninguna existía cuando un movimiento llevaba un solo producto. La que importa es `RN-MV-025`: **dos upgrades en la misma compra son dos cambios de nivel en una sola operación**, y no hay forma no arbitraria de decidir en cuál queda la persona. Las cuatro **cruzan dos tablas**, así que ningún `CHECK` las sostiene y viven en el caso de uso.
 
 **El código sí se emite ya**, y esa asimetría es el motivo de que sean dos códigos distintos: el del movimiento identifica algo que **ya existe** aunque no se haya pagado; el del comprobante numera un documento que **solo existe si se pagó**. La fecha del código sale de `occurred_at` (`RN-MV-017`), no del reloj.
 
@@ -240,7 +250,7 @@ flowchart TD
 
     classDef ex fill:#F7E9E5,stroke:#A33B2A,color:#7A2B1E
     classDef ok fill:#E5EEF0,stroke:#2D5A6B,color:#141B1E
-    class E1,E2,E3,E4 ex
+    class E1,E2,E3,E4,E5,E6,E7,E8 ex
     class FIN ok
 ```
 

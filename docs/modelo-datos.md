@@ -2,7 +2,7 @@
 
 | Campo | Valor |
 |---|---|
-| Versión | 0.14.0 |
+| Versión | 0.15.0 |
 | Estado | **Borrador** |
 | Responsable | Bonilla Diaz William Steven |
 | Fecha de creación | 21-08-2026 |
@@ -16,7 +16,7 @@
 
 !!! success "Diecinueve tablas existen; cuatro están diseñadas y sin escribir"
 
-    De `V1` a `V47` están escritas las **diecinueve** tablas del sistema: las doce de `SP`, sus cinco de auditoría, `products` de `PM` y `commission_rates` de `CM`. Lo único diseñado y sin escribir son las **cuatro de `MV`** —`movement_types`, `movements`, `payment_methods` e `inbound_notifications`—, que van marcadas como tales en el mapa de §5.
+    De `V1` a `V47` están escritas las **diecinueve** tablas del sistema: las doce de `SP`, sus cinco de auditoría, `products` de `PM` y `commission_rates` de `CM`. Lo único diseñado y sin escribir son las **cinco de `MV`** —`movement_types`, `movements`, `movement_details`, `payment_methods` e `inbound_notifications`—, que van marcadas como tales en el mapa de §5.
 
 ---
 
@@ -320,9 +320,11 @@ erDiagram
     users    ||--o{ commission_rates : "excepción de"
 
     movement_types  ||--o{ movements : "de qué clase es"
+    movements       ||--o{ movement_details : "qué se compró · UNA O VARIAS"
+    products        ||--o{ movement_details : "el producto de la línea"
     payment_methods ||--o{ movements : "con qué se pagó"
     users           ||--o{ movements : "de quién es"
-    products        ||--o{ movements : "qué se compró"
+    movement_details ||--o{ movements : "devenga · una comisión por LÍNEA"
     currencies      ||--o{ movements : "en qué moneda"
     movements       ||--o{ movements : "revierte · devenga · salda"
     movements       ||--o| inbound_notifications : "qué produjo"
@@ -365,9 +367,9 @@ erDiagram
         varchar status "PENDIENTE CONFIRMADO ANULADO"
         uuid person_id FK "de quién es"
         uuid seller_id FK "CONGELADO"
-        uuid product_id FK "NULL en un depósito"
-        numeric unit_amount "COPIADO del producto"
-        integer validity_days "COPIADO"
+        uuid source_detail_id FK "la LÍNEA que devengó"
+        numeric total_amount "SUMA de las líneas, congelada"
+        varchar code UK "DEP-20260901-A7K2P9"
         numeric percentage "COPIADO de la tarifa"
         uuid source_movement_id FK "la venta que devengó"
         uuid reverses_movement_id FK
@@ -420,7 +422,7 @@ La marca vive en `movement_types` y no en `movements`, de modo que **es una prop
 
 ## 5. Cómo queda la base de datos
 
-**Diecinueve tablas escritas y cuatro diseñadas.** Ninguna se ha retirado nunca.
+**Diecinueve tablas escritas y cinco diseñadas.** Ninguna se ha retirado nunca.
 
 ```mermaid
 flowchart TB
@@ -465,10 +467,11 @@ flowchart TB
         M1["commission_rates"]
     end
 
-    subgraph MV["MV · 4 tablas · DISEÑADAS, sin escribir"]
+    subgraph MV["MV · 5 tablas · DISEÑADAS, sin escribir"]
         direction LR
         V1["movement_types"]
         V2["movements"]
+        V5["movement_details"]
         V3["payment_methods"]
         V4["inbound_notifications"]
     end
@@ -478,7 +481,8 @@ flowchart TB
     A1 --> M1
     P1 --> M1
     C1 --> M1
-    P1 --> V2
+    V2 --> V5
+    P1 --> V5
     C1 --> V2
     A5 --> V2
     V1 --> V2
@@ -488,7 +492,7 @@ flowchart TB
     classDef escrita fill:#e7eef0,stroke:#2d5a6b,color:#151b1e
     classDef disenada fill:#f6e6e2,stroke:#a33b2a,stroke-dasharray:3 3,color:#a33b2a
     class A1,A2,A3,A4,A5,A6,B1,B2,B3,B4,C1,C2,C3,C4,C5,C6,OBS,P1,M1 escrita
-    class V1,V2,V3,V4 disenada
+    class V1,V2,V3,V4,V5 disenada
 ```
 
 ### 5.1 El inventario, con quién es dueño
@@ -499,9 +503,9 @@ flowchart TB
 | `SP` · auditoría | `audit_change_log`, `audit_deletion_log`, `audit_error_log`, `audit_security_log`, `request_log` | **5, escritas** |
 | `PM` | `products` | **1, escrita** |
 | `CM` | `commission_rates` | **1, escrita** |
-| `MV` | `movement_types`, `movements`, `payment_methods`, `inbound_notifications` | **4, diseñadas** |
+| `MV` | `movement_types`, `movements`, `movement_details`, `payment_methods`, `inbound_notifications` | **5, diseñadas** |
 
-**Un módulo, una a cuatro tablas.** `SP` tiene diecisiete y los otros tres juntos tienen seis, y eso no es desequilibrio: `SP` es dueño del acceso, de los catálogos transversales y de la auditoría entera, que es infraestructura que todos usan y nadie duplica.
+**Un módulo, una a cinco tablas.** `SP` tiene diecisiete y los otros tres juntos tienen siete, y eso no es desequilibrio: `SP` es dueño del acceso, de los catálogos transversales y de la auditoría entera, que es infraestructura que todos usan y nadie duplica.
 
 ### 5.2 Lo que cambió en `SP` el 01-09-2026, sin tabla nueva
 
@@ -534,7 +538,7 @@ Son **siete**, y todas van en la misma dirección: **hacia `SP` y hacia `PM`**, 
 
 La secuencia no es continua —falta el tramo `V8` a `V12`— y no es un descuido: son números consumidos por trabajo que se reorganizó. Un número de migración **no se reutiliza jamás**, porque Flyway lo registra en el historial de cada entorno.
 
-Las cuatro tablas de `MV` ocuparán a partir de `V50`, después de la `V48` y `V49` que `RF-SP-045` reserva.
+Las cinco tablas de `MV` ocuparán a partir de `V50`, después de la `V48` y `V49` que `RF-SP-045` reserva.
 
 ## 6. Lo que el modelo deja pendiente
 
@@ -570,3 +574,4 @@ Las cuatro tablas de `MV` ocuparán a partir de `V50`, después de la `V48` y `V
 | 0.11.0 | 26-08-2026 | **`memberships` gana `color`**, seis dígitos hexadecimales sin `#` y en mayúsculas, con los que el frontend pinta el nivel (`RN-SP-024`). Es obligatorio: un color opcional obliga al navegador a inventarse uno de reserva, que es justo la decisión que este campo saca del frontend. Se anota en §4 la consecuencia de que `RN-SP-008` lo vuelve **incorregible** una vez creado. | Responsable técnico |
 | 0.13.0 | 01-09-2026 | **`user_supervisors` cambia de significado sin cambiar de forma** (`RF-SP-045`). Hasta hoy relacionaba **vendedores entre sí**; desde ahora contiene también a los **clientes**, colgando del vendedor que los trajo. No hay columnas nuevas ni aristas nuevas que dibujar, y por eso este cambio **no se ve en el diagrama**: lo que cambia es qué significa una fila. Se propuso una tabla propia, `client_referrals`, y **el responsable del proyecto la descartó** a favor de reutilizar esta: con dos tablas, subir de un cliente hasta el manager que cobra por él exige un join y un caso especial en la hoja; con una, es un recorrido. | Responsable técnico |
 | 0.14.0 | 01-09-2026 | **El documento deja de describir solo `SP`.** Su mapa llevaba **dos módulos de retraso**: no conocía `products` —de `PM`, escrita el 27-08-2026— ni `commission_rates` —de `CM`, el 28-08-2026—, y llamaba `password_reset_tokens` a una tabla que se llama **`password_reset_permits`** desde `V37`. Las tres derivas se corrigen. §4 incorpora **las tres áreas que nacieron después**: qué se vende (`PM`), cuánto se paga (`CM`) y qué ocurrió con el dinero (`MV`), con su diagrama entidad-relación. §5 se reescribe entera como **la vista de conjunto de la base**: diecinueve tablas escritas y cuatro diseñadas, con el inventario por dueño, **las siete claves foráneas que cruzan un módulo** —todas hacia `SP` y `PM`, nunca al revés— y la distinción que conviene tener a la vista mirando ese cuadro: **las claves foráneas sí cruzan y los repositorios no**, porque la integridad la defiende el motor y la frontera de código una regla de ArchUnit. §4.1 explica por qué **cuatro columnas parecen duplicadas y son lo contrario** —`products.price` es lo que cuesta hoy y `movements.unit_amount` lo que costó cuando se compró—, y §4.2 por qué `movements` **se referencia a sí misma tres veces** sin que sea una señal de alarma: las tres van en direcciones distintas del tiempo. §5.2 recoge los **dos cambios de este día que no añaden ninguna tabla** y sí cambian lo que el modelo significa: el estado `FTD_PENDIENTE` y los clientes dentro de `user_supervisors` — el segundo cuesta cero columnas y es el de más alcance. | Responsable técnico |
+| 0.15.0 | 01-09-2026 | **Nace `movement_details`**, por decisión del responsable del proyecto: una compra puede llevar **varios productos**. El producto, la cantidad, el importe unitario, la vigencia y la membresía destino **se mudan de `movements` a la línea**, y con ellos `RN-MV-002` —copiar y no referenciar— pasa a cumplirse **por línea**: cada producto se compró a su precio y con su vigencia. La cabecera conserva la moneda, el **total congelado** y el comprobante. Son **veinticuatro tablas**: diecinueve escritas y cinco diseñadas. **Y el reparto tiene un precio que conviene tener escrito en este documento**: `ck_movements_type_product` **se retira**, y las cuatro reglas que la partición hace necesarias —una compra al menos una línea, **como mucho un upgrade**, moneda compartida y total como suma— **cruzan dos tablas, de modo que ningún `CHECK` las sostiene**. El esquema pasa a defender menos que antes y el caso de uso, más. Es el mismo intercambio que ya se hizo al convertir el tipo en catálogo, y la segunda vez en el mismo día. | Responsable técnico |

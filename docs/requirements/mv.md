@@ -5,7 +5,7 @@
 | Módulo | `MV` — Movimientos |
 | Paquete | `modules/movements` |
 | Prefijos de permiso | `movements:` |
-| Versión | 0.5.0 |
+| Versión | 0.6.0 |
 | Estado | **Borrador** |
 | Responsable | Bonilla Diaz William Steven |
 | Fecha de creación | 01-09-2026 |
@@ -48,7 +48,7 @@ Este módulo pone ese objeto en el sistema, y con él se cierran los tres.
 **Incluye**
 
 - Registrar un **depósito**: el dinero que entra a nombre de un cliente. El primero de todos es el **FTD**, y es el que habilita su cuenta.
-- Registrar una **compra**: qué producto pidió quién, a qué precio, en qué moneda y con qué vigencia — todo **copiado en el momento**, nunca leído después del catálogo.
+- Registrar una **compra**: qué productos pidió quién —**pueden ser varios**—, a qué precio, en qué moneda y con qué vigencia. Todo **copiado en el momento**, línea a línea, nunca leído después del catálogo.
 - Consultar los movimientos, en lista y en detalle, y que **cada persona consulte los suyos**.
 - **Anular** un movimiento emitiendo su inverso.
 - El **comprobante interno** de cada movimiento, con numeración propia.
@@ -105,7 +105,7 @@ Según [`modules.md` §5](../modules.md#5-fichas-de-modulo).
 
 | Submódulo | Responsabilidad | Entidades principales |
 |---|---|---|
-| Movimientos | Registrar, consultar y anular hechos económicos | `movements` |
+| Movimientos | Registrar, consultar y anular hechos económicos | `movements`, `movement_details` |
 | Medios de pago | Con qué se pagó y quién lo procesó | `payment_methods` |
 | Notificaciones entrantes | Lo que los sistemas externos dicen, tal como lo dicen | `inbound_notifications` |
 
@@ -204,6 +204,11 @@ La dependencia sigue siendo **acíclica**: `MV` → `PM` → `SP`, y `MV` → `S
 | `RN-MV-014` | La firma inválida **se guarda y no se procesa** | Al recibir | La fila queda con la firma marcada como no válida y el evento no produce nada. Es lo que convierte «alguien está intentando falsificar confirmaciones de pago» en algo que se puede **ver** en lugar de en un `401` que nadie mira. Exige límite de tasa por origen: sin él, el endpoint es un vertedero abierto | **Crítica** |
 | `RN-MV-015` | El documento crudo caduca; la fila no | Siempre | El `payload` se purga a los **180 días** y la fila **permanece** con sus metadatos —emisor, tipo, identificador, firma, estado y qué movimiento produjo—. Así la trazabilidad sobrevive y los **datos personales de terceros** no: un documento de pasarela lleva nombre, correo, documento y últimos dígitos de una tarjeta. El plazo cubre la ventana de contracargo con margen; pasada esa, el documento crudo ya no es evidencia que nadie necesite. **Esta tabla no espera a D-10** justamente porque, al revés que `request_log`, tiene un final natural | Alta |
 | `RN-MV-016` | El secreto compartido **no se guarda jamás** | Siempre | Se conserva la **firma** que el emisor envía —que es un resumen y no una llave— y **nunca** la clave con la que se calcula, ni ninguna cabecera de autorización. Es el Art. VI.5 y el mismo criterio con el que `request_log` se niega a guardar cabeceras | **Crítica** |
+| `RN-MV-024` | Una compra lleva **al menos una línea**; un depósito, **ninguna** | Al registrar | Sustituye a la comprobación de columna que hacía `RN-MV-006`: lo que se compró vive en `movement_details` (§7.2.2) y no en la cabecera. La condición sigue yendo **en los dos sentidos** —una compra sin líneas no dice qué se compró; un depósito con líneas promete una entrega que nadie hará— y **ya no se puede declarar en el esquema**, porque un `CHECK` no cuenta filas de otra tabla | **Crítica** |
+| `RN-MV-025` | **Como mucho un upgrade** por movimiento | Al registrar una compra | Bots, los que se quiera; **upgrades, uno**. Dos en la misma compra son **dos cambios de nivel en una sola operación**, y no hay forma no arbitraria de decidir en cuál queda la persona ni de justificar cobrarle los dos. Es un agujero que **no existía** mientras un movimiento admitía un solo producto | **Crítica** |
+| `RN-MV-026` | Todas las líneas comparten la **moneda** de la cabecera | Al registrar | La moneda es del movimiento y no de la línea: un cobro se hace en **una** moneda. Un producto en otra distinta no se rechaza por gusto — es que **no hay un total que calcular** sin una tasa de cambio, y este sistema no tiene ninguna | Alta |
+| `RN-MV-027` | El total es la **suma de las líneas**, y se congela | Al registrar | `total_amount` se calcula **una vez** y no se recalcula al leer. No cabe en un `CHECK` —cruza dos tablas— y es justo el número que aparece en el comprobante: recalcularlo haría que un cambio en el redondeo reescribiera documentos ya entregados | Alta |
+| `RN-MV-028` | El mismo producto **no se repite** en un movimiento | Al registrar | Dos líneas del mismo producto son una con el doble de cantidad. Admitirlas obligaría a sumar para responder «¿cuántos compró?», y la respuesta dependería de que nadie olvidara hacerlo. Se declara en el esquema | Media |
 | `RN-MV-019` | Una venta devenga para **toda la cadena**, cada uno su porcentaje | Al confirmar una compra o un depósito | **Override**, por decisión del responsable del proyecto: no comisiona solo quien vendió. Se recorre `user_supervisors` **hacia arriba** desde el vendedor congelado, y **cada persona de la cadena devenga su propio porcentaje sobre el mismo importe** — el agente su 10 %, su director su 4 %, su manager el suyo. Un movimiento produce **tantos devengos como niveles tenga la cadena**, y quien no tenga tarifa declarada no devenga nada: eso es «sin tarifa», que **no es cero** (`RF-CM-005` `FA-001`) | **Crítica** |
 | `RN-MV-020` | La cadena se recorre **como estaba entonces**, no como está hoy | Al devengar | El recorrido usa el estado de `user_supervisors` **en la fecha del movimiento**, no el vigente. Reorganizar la fuerza comercial en marzo **no puede cambiar quién ganó por una venta de enero**. Es lo que `RN-SP-021` conserva el historial para poder responder —«determina a quién se atribuía cada resultado en cada momento»— y esta es la primera regla que lo usa | **Crítica** |
 | `RN-MV-021` | Un devengo **no es caja** | Siempre | Un `COMISION_DEVENGADA` es **deuda contraída**, no dinero movido: lo único que mueve dinero es el pago. Se distingue por `movement_types.affects_cash`, de modo que **ninguna suma de caja lo incluye** y ninguna suma de deuda incluye a los otros. Sin esa separación, sumar el libro no responde ninguna pregunta | **Crítica** |
@@ -229,6 +234,12 @@ La dependencia sigue siendo **acíclica**: `MV` → `PM` → `SP`, y `MV` → `S
 **Quién ve los movimientos de quién.** Un director que consulta movimientos ¿ve los de su equipo, los de todos, o solo los suyos? Es **alcance de datos**, depende de **D-22** —abierta, issue #28— y es el mismo aplazamiento que `requirements/cm.md` §5.3 ya hizo. Los requerimientos se especifican con **alcance global explícito** para quien tenga el permiso, y `RF-MV-006` cubre el caso propio sin depender de esa decisión.
 
 **Cómo se escribe en `SP`.** Es **D-26** (§3), y este documento la abre pero no la cierra: fija cómo se escribirá entre módulos para siempre.
+
+**Cómo se comisiona un depósito.** Lo destapó separar las líneas de la cabecera (v0.6.0), y es un hueco real: **`RF-CM-005` resuelve por persona *y producto*** —su firma exige los dos— y **un depósito no tiene producto**. Con el override, el FTD es el hecho comisionable del camino gratuito, de modo que la pregunta no es teórica: **hoy no hay forma de resolver cuánto se gana por él**.
+
+Las salidas visibles son tres y ninguna es obvia: que `RF-CM-005` admita **producto nulo** y resuelva contra la tarifa por omisión del rol —que ya existe en `commission_rates`—; que el depósito se acote a un **producto convenido**, lo que ensucia el catálogo con algo que no se vende; o que **los depósitos no comisionen**, y entonces el camino gratuito no paga a nadie. **La primera es la que menos inventa**, y aun así cambia la firma de un requerimiento ya implementado.
+
+Queda declarada y **no bloquea la etapa 1**: registrar y confirmar depósitos no necesita saberlo. Bloquea la **etapa 2**.
 
 **Qué se deshace al anular un movimiento ya aplicado.** `RN-MV-004` dice que un anulado «deshace lo que el confirmado había producido», y eso es fácil de escribir y difícil de cumplir: si se anula la compra de un upgrade que ya cambió el nivel de alguien, ¿se le retira el nivel? ¿y si entre medias compró otro? **Lo destapó dibujar los flujos** (`flujos/mv/flujos-del-modulo.md` §6.3) y **no bloquea la etapa 1**, porque anular una compra que no aplicó nada —la que la pasarela rechazó— es el caso frecuente y no tiene esa pregunta dentro. Es lo primero que hay que cerrar antes de escribir la tripleta de `RF-MV-007`.
 
@@ -263,15 +274,16 @@ La dependencia sigue siendo **acíclica**: `MV` → `PM` → `SP`, y `MV` → `S
 | `person_id` | `uuid` | No | `users` — **de quién es el movimiento** |
 | `seller_id` | `uuid` | **Sí** | `users` — congelado |
 | `source_movement_id` | `uuid` | **Sí** | `movements` — la venta que devengó esta comisión |
+| `source_detail_id` | `uuid` | **Sí** | `movement_details` — **la línea** que la devengó |
 | `percentage` | `numeric(5,2)` | **Sí** | El que aplicó, **copiado** de la tarifa |
 | `settled_by_movement_id` | `uuid` | **Sí** | `movements` — el pago que liquidó este devengo |
-| `product_id` | `uuid` | **Sí** | `products` — nulo en un depósito |
-| `quantity` | `integer` | No | — |
-| `unit_amount` | `numeric(14,4)` | No | Copiado del producto |
-| `total_amount` | `numeric(14,4)` | No | — |
+| ~~`product_id`~~ | — | — | **Se mudó a `movement_details`** en la v0.6.0 |
+| ~~`quantity`~~ | — | — | **Se mudó a `movement_details`** |
+| ~~`unit_amount`~~ | — | — | **Se mudó a `movement_details`** |
+| `total_amount` | `numeric(14,4)` | No | **Suma de las líneas**, congelada |
 | `currency_id` | `uuid` | No | `currencies` |
-| `validity_days` | `integer` | **Sí** | Copiado del producto; nulo = no caduca |
-| `target_membership_id` | `uuid` | **Sí** | `memberships` — copiado del producto |
+| ~~`validity_days`~~ | — | — | **Se mudó a `movement_details`** |
+| ~~`target_membership_id`~~ | — | — | **Se mudó a `movement_details`** |
 | `payment_method_id` | `uuid` | **Sí** | `payment_methods` |
 | `gateway` | `varchar(50)` | **Sí** | Quién procesó |
 | `external_reference` | `varchar(200)` | **Sí** | La referencia de la pasarela |
@@ -362,6 +374,35 @@ Un tipo nuevo aquí es previsible —una comisión pagada, un retiro, un ajuste�
 
 **La colisión es improbable y no imposible.** Con 32⁶ hay mil millones de combinaciones por tipo y día, de modo que un choque es rarísimo — y «rarísimo» no es «nunca». La unicidad la sostiene el índice y la generación **reintenta** ante la violación; confiar en la probabilidad es lo que produce el defecto que aparece una vez al año y nadie reproduce.
 
+### 7.2.2 `movement_details` — qué se compró, línea a línea
+
+Una compra puede llevar **varios productos**, de modo que el producto, la cantidad y el importe **no son de la cabecera**: son de cada línea.
+
+| Columna | Tipo | Nula | Referencia |
+|---|---|---|---|
+| `id` | `uuid` | No | — |
+| `movement_id` | `uuid` | No | `movements` |
+| `product_id` | `uuid` | No | `products` |
+| `quantity` | `integer` | No | — |
+| `unit_amount` | `numeric(14,4)` | No | **Copiado** del producto |
+| `line_amount` | `numeric(14,4)` | No | `quantity × unit_amount` |
+| `validity_days` | `integer` | **Sí** | **Copiada**; nula = no caduca |
+| `target_membership_id` | `uuid` | **Sí** | `memberships` — **copiada** |
+
+**Se llama `movement_details` en plural** por lo mismo que `role_permissions` y `user_memberships`: la tabla contiene la colección, no un elemento.
+
+**`line_amount` se guarda además de sus dos factores**, por el mismo motivo que `total_amount` en la cabecera: es el importe **por el que se cobró esa línea**, y calcularlo al leer haría que un cambio futuro en cómo se redondea reescribiera comprobantes ya entregados.
+
+**Y lo que se copia se copia aquí**, no en la cabecera: `RN-MV-002` se cumple **por línea**. Cada una guarda el precio, la vigencia y la membresía destino **del momento en que se compró ese producto**.
+
+!!! danger "Poder comprar varios productos abre un agujero que antes no existía"
+
+    Con un solo producto por movimiento, la pregunta no se podía hacer. Ahora sí: **¿se pueden comprar dos upgrades en la misma compra?**
+
+    `UPGRADE_PLATINO` y `UPGRADE_ORO` juntos son **dos cambios de nivel en una sola operación**, y no hay forma no arbitraria de decidir en cuál queda la persona — ni de justificar cobrarle los dos. `RN-MV-025` lo rechaza: **como mucho un upgrade por movimiento**, tantos bots como se quiera.
+
+    No se puede declarar en el esquema —un `CHECK` no cuenta filas de otra tabla— y vive en el caso de uso, como `RN-MV-007` y `RN-CM-001`.
+
 ### 7.3 `payment_methods`
 
 | Columna | Tipo | Nula |
@@ -423,7 +464,12 @@ Lo que un sistema externo dijo, **tal como lo dijo**.
 | `ck_movements_status` | `status IN ('PENDIENTE','CONFIRMADO','ANULADO')` | `RN-MV-004` |
 | `ck_movements_quantity` | `quantity >= 1` | `RN-MV-007`, en lo que el esquema puede sostener |
 | `ck_movements_amounts` | `unit_amount > 0 AND total_amount > 0` | `RN-MV-009` |
-| `ck_movements_type_product` | `(type = 'COMPRA' AND product_id IS NOT NULL) OR (type <> 'COMPRA' AND product_id IS NULL)` | `RN-MV-006`. Las dos ramas son predicados `IS NULL`/`IS NOT NULL` y **nunca evalúan a `NULL`** — la precaución no es teórica: `ck_deletion_reason` se escribió con un `OR` cuyo lado nulo evaluaba a `NULL`, y un `CHECK` que devuelve `NULL` **acepta la fila** |
+| ~~`ck_movements_type_product`~~ | **Retirada en la v0.6.0**: lo que se compró se mudó a `movement_details`, y un `CHECK` no cuenta filas de otra tabla. `RN-MV-024` vive en el caso de uso |
+| `fk_movement_details_movement` | `movement_id` → `movements(id)`, con borrado en cascada — una línea sin cabecera no significa nada |
+| `fk_movement_details_product` | `product_id` → `products(id)` |
+| `ck_movement_details_quantity` | `quantity >= 1` | `RN-MV-007`, en lo que el esquema puede sostener |
+| `ck_movement_details_amounts` | `unit_amount > 0 AND line_amount > 0` | `RN-MV-009` |
+| `uq_movement_details_producto` | Único sobre `(movement_id, product_id)` | `RN-MV-028`. Dos líneas del mismo producto son una con el doble de cantidad |
 | `ck_movements_reversion` | `(type = 'REVERSION') = (reverses_movement_id IS NOT NULL)` | Solo una reversión apunta a otro movimiento, y toda reversión apunta a uno |
 | `uq_movements_external_reference` | Único sobre `(gateway, external_reference)`, **parcial**: `WHERE external_reference IS NOT NULL` | `RN-MV-005`. Parcial porque un movimiento registrado a mano no tiene referencia, y en PostgreSQL dos nulos no compiten |
 | `uq_movements_receipt` | Único sobre `receipt_number`, **parcial**: `WHERE receipt_number IS NOT NULL` | `RN-MV-008` |
@@ -435,7 +481,7 @@ Lo que un sistema externo dijo, **tal como lo dijo**.
 | `ix_inbound_recepcion` | `(received_at DESC, id DESC)` | La consulta por defecto: «las últimas notificaciones» |
 | `ix_inbound_pendientes` | **Índice parcial**: `(source, received_at) WHERE status IN ('RECIBIDA','FALLIDA')` | Lo que hay que reprocesar. Parcial porque lo ya procesado no forma parte de esa respuesta y crecería sin límite dentro del índice |
 
-**Lo que NO se puede declarar en el esquema, y por eso vive en el dominio:** que la cantidad sea uno **cuando el producto es un upgrade** (`RN-MV-007`) —un `CHECK` no consulta `products`—, que el importe respete los decimales de **su** moneda (`RN-MV-009`) y que solo lo confirmado surta efecto (`RN-MV-004`).
+**Lo que NO se puede declarar en el esquema, y por eso vive en el dominio:** que la cantidad sea uno **cuando el producto es un upgrade** (`RN-MV-007`) —un `CHECK` no consulta `products`—, que el importe respete los decimales de **su** moneda (`RN-MV-009`), que solo lo confirmado surta efecto (`RN-MV-004`) y **las cuatro que trajo separar las líneas**: la cardinalidad por tipo (`RN-MV-024`), el upgrade único (`RN-MV-025`), la moneda compartida (`RN-MV-026`) y el total como suma (`RN-MV-027`). **Las cuatro cruzan dos tablas, y ningún `CHECK` lo hace.** Es el precio de partir la cabecera de las líneas, y conviene tenerlo escrito: el esquema defiende menos que antes, y el caso de uso, más.
 
 ---
 
@@ -448,3 +494,4 @@ Lo que un sistema externo dijo, **tal como lo dijo**.
 | 0.3.0 | 01-09-2026 | **El módulo gana `inbound_notifications`**, por decisión del responsable del proyecto: lo que un sistema externo dice, **tal como lo dice**. Con ella el módulo pasa de ocho a **once requerimientos** —recibir, consultar y **reprocesar**— y de once reglas a **dieciséis**. Sirve para cuatro cosas que hoy no se pueden hacer: **reconciliar** cuando la pasarela y el sistema no coinciden, **detectar la reentrega antes de interpretarla**, **reprocesar** lo que un defecto se comió, y **probar** que la confirmación llegó de fuera y no la inventó el sistema. **Una sola tabla con columna `source`** y no una por proveedor: cubre la pasarela de pago y también al bróker que notifica depósitos —misma forma, mismo problema—, con el mismo criterio con el que `movements` lleva un tipo. **`RN-MV-012` es la regla que la hace útil o inútil**: se guarda **antes** de procesar, porque guardarla después es tenerla en todos los casos menos en el único que importa —aquel en que procesarla falló— y porque las pasarelas reintentan si la respuesta tarda. **`RN-MV-013` da dos capas de idempotencia** y no una: el identificador del evento aquí, la referencia externa en `movements`. **`RN-MV-014`: la firma inválida se guarda marcada y no se procesa**, porque es la evidencia de que alguien intenta falsificar confirmaciones de pago, y eso vale más visible que en un `401` que nadie mira. **Y se afronta de frente la tensión con `request_log`**, que se niega a guardar cuerpos con un argumento explícito: la diferencia es «arbitrario» —aquel cubre todos los endpoints y el cuerpo puede llevar una credencial nuestra; este cubre un interlocutor conocido que nunca recibe credenciales—. Lo que sí lleva son **datos personales de terceros**, y por eso **esta tabla no espera a D-10**: `RN-MV-015` purga el documento a los **180 días** conservando la fila con sus metadatos, porque al revés que `request_log` tiene un final natural — pasada la ventana de contracargo, el documento crudo ya no es evidencia que nadie necesite. `RN-MV-016` prohíbe guardar el secreto compartido: se conserva la firma, que es un resumen, y nunca la llave. | Responsable del proyecto |
 | 0.4.0 | 01-09-2026 | **El tipo de movimiento pasa de dominio cerrado a catálogo**, por decisión del responsable del proyecto, y con él llegan **el código del movimiento** y un dato nuevo que cambia el diseño: **hay datos que migrar de otra plataforma**. §7.2 incorpora `movement_types` con su `prefix`, su `requires_product` y el contador de su serie. El motivo no es de gusto: **este proyecto ya pagó dos veces por la forma anterior** — el catálogo de `event_type` de `audit_security_log` es un `CHECK`, y añadirle un valor costó `V34` y otro `V36`, las dos con `DROP CONSTRAINT` sobre una tabla en uso. **Y lo que cuesta queda escrito**: `ck_movements_type_product` vivía en el esquema y ya no puede —un `CHECK` no consulta otra tabla—, de modo que `RN-MV-006` se muda al dominio con `RN-CM-001` y `RN-MV-007`. §7.2.1 declara **dos códigos que no son el mismo y que nadie debe fundir**: el **del movimiento** —`DEP-20260901-A7K2P9`, `RN-MV-017`— identifica, y el **del comprobante** —único por tipo— numera. Fundirlos obligaría al identificador a ser secuencial, y **un identificador secuencial publica el volumen del negocio**. El aleatorio usa el alfabeto de 32 de Crockford, sin `I`, `L`, `O` ni `U`, porque el código se dicta por teléfono; la colisión la atrapa el índice y la generación reintenta. **Y queda declarado un problema que la fecha dentro del código no deja esquivar**: hay que fijar con qué zona horaria se corta el día, o el código de un movimiento hecho a las 23:30 en Bogotá llevará el día siguiente — es el mismo problema que `requirements/cm.md` §7.1 resolvió eligiendo `date` para la vigencia. **`RN-MV-008` retira la promesa de «sin huecos»**: una `SEQUENCE` deja huecos por diseño en cada transacción revertida, y sobre todo **lo importado trae sus propias fechas y su propio orden**, de modo que sostener una serie correlativa obligaría a renumerar el pasado para que encajara. `RN-MV-018` cierra el catálogo de tipos a la API, con el mismo criterio que `RN-SP-010` aplica a las monedas y un motivo más fuerte: el caso de uso decide según el tipo, así que uno añadido en caliente sería uno que ningún código sabe procesar. **§1.6 recoge la migración**, que resuelve con lo que ya había —la plataforma anterior es un `source` más y el identificador de allí es la `external_reference`, con lo que reejecutar la carga no duplica nada— y deja fuera el mapeo, que es un requerimiento propio y de una sola ejecución. | Responsable del proyecto |
 | 0.5.0 | 01-09-2026 | **Se decide cómo se comisiona, y las dos decisiones son del responsable del proyecto.** (1) **Override**: una venta devenga para **toda la cadena** y no solo para quien vendió — el agente su porcentaje, su director el suyo, su manager el suyo, todos sobre el mismo importe (`RN-MV-019`). `RF-CM-005` **no cambia**: se le llama una vez por nivel, que es exactamente lo que ya sabe responder. Y el recorrido de `user_supervisors` es **histórico y no vigente** (`RN-MV-020`): reorganizar la fuerza comercial en marzo no puede cambiar quién ganó por una venta de enero — es la primera regla del sistema que usa el historial que `RN-SP-021` conserva precisamente para eso. (2) **El devengo es un tipo de movimiento** y no una tabla propia de `CM`. Se propuso lo segundo con el argumento de que **una comisión devengada no es dinero que se movió, es deuda**, y que meterla en el libro haría que sumarlo dejara de significar algo; el responsable eligió el movimiento, y **la objeción se convierte en columna**: `movement_types` gana **`affects_cash`** (`RN-MV-021`), de modo que la distinción entre caja y deuda queda **en datos y no en convención**, y quien siembre un tipo nuevo tiene que decidir de qué lado cae. **Y dibujar el override destapó un agujero que ninguna regla cubría**: `RN-CM-007` acota **cada** porcentaje a cien, pero **la suma de la cadena no está acotada por nada** — `60 + 30 + 20` paga el 110 % de la venta. `RN-MV-022` la rechaza, y **no la recorta**: recortar decidiría en silencio a quién se le quita. `RN-MV-023` ata cada pago a los devengos que salda. La tabla incorpora `source_movement_id`, `percentage` y `settled_by_movement_id`, y **`client_id` pasa a llamarse `person_id`**: con la mitad de los movimientos perteneciendo a un vendedor y no a un cliente, el nombre viejo era de los que se creen y se usan mal. | Responsable del proyecto |
+| 0.6.0 | 01-09-2026 | **Una compra puede llevar varios productos**, por decisión del responsable del proyecto. §7.2.2 incorpora **`movement_details`** y el producto, la cantidad, el importe unitario, la vigencia y la membresía destino **se mudan de la cabecera a la línea**: `RN-MV-002` pasa a cumplirse **por línea**, porque cada producto se compró a su precio y con su vigencia. La cabecera conserva la moneda, el total y el comprobante. **Y el cambio abre un agujero que no existía mientras un movimiento admitía un solo producto**: `RN-MV-025` prohíbe **más de un upgrade por movimiento**, porque dos son dos cambios de nivel en una sola operación y no hay forma no arbitraria de decidir en cuál queda la persona ni de justificar cobrarle los dos — bots, los que se quiera. Tres reglas más que la partición hace necesarias: `RN-MV-024` —una compra al menos una línea, un depósito ninguna, que sustituye a la comprobación de columna de `RN-MV-006`—, `RN-MV-026` —**todas las líneas comparten la moneda**, porque sin tasa de cambio no hay total que calcular— y `RN-MV-027` —el total es la suma **congelada**, no un cálculo de lectura—. **Lo que esto cuesta queda escrito**: las cuatro cruzan dos tablas y **ningún `CHECK` lo hace**, de modo que `ck_movements_type_product` se retira y el esquema pasa a defender menos que antes mientras el caso de uso defiende más. **Y destapa un hueco de comisiones que nadie había visto**: `RF-CM-005` resuelve por persona **y producto** —su firma exige los dos— y **un depósito no tiene producto**, de modo que hoy no hay forma de resolver cuánto se gana por un FTD, que es precisamente el hecho comisionable del camino gratuito. Declarado en §5.3 con sus tres salidas; no bloquea la etapa 1 y bloquea la 2. | Responsable del proyecto |
