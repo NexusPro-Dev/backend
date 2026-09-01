@@ -3,11 +3,11 @@
 | Campo | Valor |
 |---|---|
 | Módulo | `SP` — Sistema Principal |
-| Versión | 0.3.0 |
+| Versión | 0.4.0 |
 | Estado | **Borrador** |
 | Responsable | Bonilla Diaz William Steven |
 | Fecha de creación | 21-08-2026 |
-| Última actualización | 22-08-2026 |
+| Última actualización | 01-09-2026 |
 
 !!! info "Qué va en este documento"
 
@@ -58,13 +58,18 @@ stateDiagram-v2
 
 ## 2. Ciclo de vida de la persona
 
-La segunda entidad con estado propio, y la única con **tres** estados vivos en lugar de dos. La diferencia con el rol está en el final: el código de un rol eliminado vuelve a estar libre; el nombre de usuario y el correo de una persona eliminada **no**.
+La segunda entidad con estado propio, y la única con **cuatro** estados vivos en lugar de dos. La diferencia con el rol está en el final: el código de un rol eliminado vuelve a estar libre; el nombre de usuario y el correo de una persona eliminada **no**.
 
 ```mermaid
 stateDiagram-v2
     direction LR
 
     [*] --> Activo : RF-SP-024 · registrar<br/>nace marcada para cambio de contraseña
+    [*] --> FtdPendiente : RF-SP-045 · registro por enlace<br/>autentica y NO opera
+
+    FtdPendiente --> Activo : depósito confirmado · RF-MV-001<br/>o a mano por RF-SP-028
+    FtdPendiente --> Inactivo : RF-SP-028
+    FtdPendiente --> Eliminado : RF-SP-029
 
     Activo --> Inactivo : RF-SP-028 · desactivar<br/>motivo obligatorio
     Inactivo --> Activo : RF-SP-028 · activar<br/>motivo no admitido
@@ -86,7 +91,9 @@ stateDiagram-v2
 - El **bloqueo automático** de `RF-SP-034` no pasa por esas condiciones: es una respuesta de seguridad, y no puede quedar supeditada a que alguien reorganice un equipo primero.
 - **El bloqueo automático se levanta solo, y ningún requerimiento ejecuta esa transición**: la dispara el paso del tiempo y se hace efectiva en el siguiente intento de `RF-SP-034`, «sin intervención de nadie» (§13). El **manual no expira** —`locked_until` queda nulo—, y por eso `EX-002` da dos mensajes distintos: el automático dice cuándo termina, el manual remite a un administrador. `RF-SP-028` es la única forma de salir del segundo.
 - **El contador de intentos fallidos es un ciclo dentro del ciclo.** Sube con cada fallo consecutivo, dispara el bloqueo al quinto (`CA-SP-376`), vuelve a cero con un inicio de sesión correcto (`CA-SP-295`) y también al activar la cuenta por `RF-SP-028`. Un intento correcto entre dos fallidos lo reinicia: el umbral cuenta fallos **consecutivos**, no acumulados.
-- **`PENDIENTE` está declarado en el dominio de `users` y no tiene ninguna transición**, ni de entrada ni de salida. `security.md` §3.1 lo conserva para un flujo de activación que todavía no existe; mientras siga así, el diagrama está completo sin él.
+- **`FTD_PENDIENTE` es el primer estado que autentica sin estar `ACTIVO`**, y por eso es el único cuya restricción no se dibuja aquí. Hasta el 01-09-2026 «¿puede autenticarse?» y «¿está activo?» eran la misma pregunta; ahora no. Esta cuenta **entra** —necesita entrar para ver qué le falta y cómo depositar— y **no opera**, y quien lo hace valer es un filtro (`RF-SP-046`), no el estado. Es la misma forma con la que el indicador de cambio obligatorio retiene a alguien ya autenticado en lugar de negarle la entrada (§3).
+- **Sustituyó a `PENDIENTE`**, que estuvo declarado y sin ninguna transición desde el 21-08-2026 esperando un flujo de activación que nunca se escribió. `V18` lo dejó ahí a propósito «para que el día que un requerimiento lo estrene no haga falta alterar el `CHECK` de una tabla en uso», y ese día llegó con `RF-SP-045`.
+- **La transición que lo saca no la ejecuta `SP`.** La dispara un depósito confirmado en `MV` (`RF-MV-001`), que es una **escritura entre módulos** sin forma acordada todavía —**D-26**—. Mientras no exista, la única salida es a mano por `RF-SP-028`, que tuvo que ampliar su dominio para admitirla. Es la segunda transición del diagrama que ningún requerimiento de este módulo ejecuta; la otra es el vencimiento del bloqueo automático.
 - Ni el bloqueo ni la desactivación tocan roles, membresía ni credencial. Lo que sí ocurre al retirar el acceso es que **todos sus refresh tokens quedan revocados**.
 - La **credencial es ortogonal al estado de la cuenta** y tiene su propio ciclo, en §3: retirar el acceso no la toca, y sustituirla no devuelve el acceso a quien lo perdió.
 - `RF-SP-029` es la única operación del módulo que **retira** roles y membresía y a la vez **cierra** —sin borrarla— la asignación de superior comercial. La asimetría es deliberada: los primeros decían qué podía hacer hoy; la segunda es historial de negocio (`RN-SP-021`).
@@ -424,6 +431,7 @@ flowchart TB
     W1["RF-SP-024<br/>registrar usuario"]
     W2["RF-SP-030<br/>asignar roles"]
     W3["RF-SP-041<br/>asignar superior"]
+    W4["RF-SP-045<br/>registro por enlace<br/>CLIENTE bajo su vendedor"]
     C1["RF-SP-029<br/>eliminar usuario"]
     C2["RF-SP-031<br/>retirar roles"]
 
@@ -432,16 +440,25 @@ flowchart TB
     W1 -->|"abre · en la misma transacción que el alta"| S
     W2 -->|"abre · primer rol VENDEDOR o ascenso"| S
     W3 -->|"cierra la vigente y abre la nueva · con motivo"| S
+    W4 -->|"abre · el cliente cuelga del vendedor del enlace"| S
     C1 -->|"la cierra con la fecha de la baja"| S
     C2 -->|"la cierra · último rol VENDEDOR"| S
 
-    S --> G{{"¿tiene gente a cargo?"}}
+    S --> G{{"¿tiene gente a cargo?<br/>equipo Y cartera"}}
     G -->|"sí · rechaza"| B["RF-SP-028 retirar el acceso<br/>RF-SP-029 eliminar<br/>RF-SP-031 retirar el último rol VENDEDOR"]
     S --> Q["RF-SP-039 · perfil propio<br/>RF-SP-042 · equipo a cargo"]
 
     classDef tabla fill:#e7eef0,stroke:#2d5a6b,stroke-width:1px,color:#151b1e
     class S tabla
 ```
+
+!!! important "Desde `RF-SP-045` esta tabla ya no relaciona solo vendedores"
+
+    Hasta el 01-09-2026 era la estructura de la **fuerza comercial** y nada más. Ahora el **cliente cuelga de su vendedor en la misma tabla**, y una fila significa dos cosas según quién sea el subordinado: **«reporta a»** entre vendedores, **«fue traído por»** cuando es un cliente. `RN-SP-020` lo distingue con su rama de consumidor — al cliente le basta un superior con **algún** rol `VENDEDOR`, sin parentesco que comprobar.
+
+    **Lo que se gana es que el árbol comercial esté completo en un sitio.** Subir de un cliente hasta el manager que cobra por él es un recorrido de esta tabla, y no un join con una segunda estructura más un caso especial en la hoja — que es donde está el dinero.
+
+    **Lo que cuesta es que `RN-SP-022` se endurece sin cambiar de texto**: «tener personas a cargo» pasa a incluir la **cartera de clientes**, de modo que retirar a un agente exige reasignarla. Tres requerimientos ya implementados —`RF-SP-028`, `RF-SP-029` y `RF-SP-031`— empiezan a rechazar más, y `RF-SP-042` a devolver clientes junto al equipo.
 
 - **El orden de mando lo declaran los roles, no las personas.** `RN-SP-020` exige que el superior porte el **rol padre inmediato** del rol comercial de mayor rango del subordinado. La jerarquía de `roles` y la estructura de `user_supervisors` son dos dibujos del mismo orden, y el sistema no admite que se contradigan.
 - **Nadie se queda huérfano en silencio.** Las tres operaciones que retirarían a un superior se rechazan si tiene equipo, e informan **cuántas** personas —nunca quiénes: eso es `RF-SP-042`, que tiene su propio permiso—. Es la misma postura que `RN-SEG-008` toma con un rol que tiene hijos.
@@ -478,3 +495,4 @@ flowchart TB
 | 0.1.0 | 21-08-2026 | Creación inicial. Cinco diagramas derivados de las precondiciones y postcondiciones de las 21 tripletas de `SP`, y cinco puntos abiertos que el cruce deja a la vista. | Responsable técnico |
 | 0.2.0 | 22-08-2026 | Los 21 requerimientos restantes, de `RF-SP-022` a `RF-SP-042`. Tres diagramas nuevos —ciclo de vida de la persona, ciclo de vida de una sesión y estructura comercial— y los cinco anteriores rehechos sobre los 42: el mapa de dependencias incorpora usuarios y estructura, el reparto por naturaleza pasa a 26 escrituras y 16 lecturas, y el cruce de auditoría se reagrupa por combinación de registros. Se retiran las marcas de «sin tripleta» de `RF-SP-022` y `RF-SP-023`, y se registran dos puntos abiertos nuevos: el origen de la primera persona y el motivo de revocación del que depende `RF-SP-035` `EX-004`. | Responsable técnico |
 | 0.3.0 | 22-08-2026 | Revisión de completitud contra las nueve tablas de `modelo-datos.md` §1. **Dos ciclos de vida nuevos**: la credencial (§3, con el permiso temporal de un solo uso de `RF-SP-040` en diagrama propio) y la membresía de una persona (§5, la asignación, que hasta ahora solo figuraba como catálogo). **Tres enmiendas a diagramas existentes**: el vencimiento del bloqueo automático y el contador de intentos fallidos en §2, el catálogo de permisos como cuarto submódulo en §9, y la retención pendiente de los refresh tokens en §4. Secciones renumeradas de la §3 en adelante. Seis puntos abiertos nuevos: la caducidad sin columna, la salida de una provisional caducada, `PENDIENTE` sin transiciones, `role_permissions` en el borrado de rol, la purga de tokens y la referencia obsoleta a `RN-SP-015` en `RF-SP-032`. Se cierra el punto 1 —el origen de la primera persona—: el `plan.md` de `RF-SP-024` §2.5 lo declara en `V22__seed_superadmin.sql`, y §6 lo incorpora al mapa de dependencias. | Responsable técnico |
+| 0.4.0 | 01-09-2026 | **Dos diagramas dejaron de ser ciertos con `RF-SP-045`, y se corrigen.** §2 —el ciclo de vida de la persona— decía «la única con **tres** estados vivos» y afirmaba que `PENDIENTE` «no tiene ninguna transición, ni de entrada ni de salida […] mientras siga así, el diagrama está completo sin él». Ya no: `FTD_PENDIENTE` lo sustituye y **tiene las dos**. Es además **el primer estado que autentica sin estar `ACTIVO`**, de modo que la restricción que lo define **no se dibuja en este diagrama**: la impone un filtro (`RF-SP-046`) y no el estado, igual que el indicador de cambio obligatorio retiene a alguien ya autenticado en lugar de negarle la entrada. Y **la transición que lo saca no la ejecuta ningún requerimiento de `SP`**: la dispara un depósito confirmado en `MV`, que es una escritura entre módulos sin forma acordada —**D-26**—; es la segunda transición del diagrama que este módulo no ejecuta, junto al vencimiento del bloqueo automático. §10 —la estructura comercial— decía que `user_supervisors` es «la única relación persona → persona» de la fuerza comercial; **desde `RF-SP-045` contiene también a los clientes**, colgando del vendedor que los trajo, y una fila significa dos cosas según quién sea el subordinado. El diagrama gana `RF-SP-045` como cuarta operación que abre filas, y la comprobación de «gente a cargo» pasa a leerse **equipo y cartera**: `RN-SP-022` se endurece sin cambiar de texto, y con ella `RF-SP-028`, `RF-SP-029` y `RF-SP-031` empiezan a rechazar más. | Responsable técnico |
