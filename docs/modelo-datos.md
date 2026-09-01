@@ -2,7 +2,7 @@
 
 | Campo | Valor |
 |---|---|
-| Versión | 0.14.0 |
+| Versión | 0.15.0 |
 | Estado | **Borrador** |
 | Responsable | Bonilla Diaz William Steven |
 | Fecha de creación | 21-08-2026 |
@@ -14,9 +14,9 @@
 
     Es una **vista derivada**, no normativa. Sale de [`requirements/sp.md` §10](requirements/sp.md), [`security.md` §9](security.md) y [`architecture.md` §6.6](architecture.md). La fuente de verdad del esquema son las **migraciones Flyway** (Art. V.3), y donde ya existen mandan ellas.
 
-!!! success "Diecinueve tablas existen, y todas están escritas"
+!!! warning "Diecinueve tablas existen; dos están diseñadas, y una escrita cambia de forma"
 
-    De `V1` a `V47` están escritas las **diecinueve** tablas del sistema: las doce de `SP`, sus cinco de auditoría, `products` de `PM` y `commission_rates` de `CM`. Nada de lo que este documento describe está pendiente de migración.
+    De `V1` a `V47` están escritas las **diecinueve** tablas del sistema. Lo diseñado y sin escribir son las **dos que `CM` estrena** con su rediseño del 01-09-2026 —`user_commission_rates` y `product_commission_rates`— y con ellas **`commission_rates` cambia de forma**: pierde el producto, la persona y la vigencia. Es la primera vez que este documento describe una tabla **ya escrita** que hay que rehacer.
 
 ---
 
@@ -316,8 +316,9 @@ erDiagram
     currencies  ||--o{ products : "el precio se expresa en"
 
     roles    ||--o{ commission_rates : "qué gana ese rol"
-    products ||--o{ commission_rates : "acotada a"
-    users    ||--o{ commission_rates : "excepción de"
+    commission_rates ||--o{ product_commission_rates : "rige sobre"
+    products ||--o{ product_commission_rates : "paga esa tasa"
+    users    ||--o{ user_commission_rates : "excepción de"
 
     products {
         uuid id PK
@@ -332,13 +333,24 @@ erDiagram
 
     commission_rates {
         uuid id PK
-        uuid role_id FK "SIEMPRE, aun en excepción de persona"
-        uuid product_id FK "NULL = todo el catálogo"
-        uuid user_id FK "NULL = todos los de ese rol"
+        uuid role_id FK "catálogo: qué gana ese rol"
         numeric percentage "5,2 · cero es un VALOR, no la ausencia"
-        date valid_from "date y no timestamptz"
-        date valid_to "NULL = indefinidamente"
         timestamptz deleted_at "lógico · RN-CM-005"
+    }
+
+    product_commission_rates {
+        uuid product_id PK,FK "la PK es la regla:"
+        uuid role_id PK,FK "un porcentaje por rol y producto"
+        uuid commission_rate_id FK "FK COMPUESTA con role_id"
+    }
+
+    user_commission_rates {
+        uuid id PK
+        uuid user_id FK "SIN rol: es de la persona"
+        numeric percentage "5,2"
+        date valid_from "la ÚNICA tabla con vigencia"
+        date valid_to "NULL = indefinidamente"
+        timestamptz deleted_at "lógico"
     }
 ```
 
@@ -364,7 +376,7 @@ Ninguna de las dos guarda una venta, y **las dos escribieron condiciones sobre q
 
 ## 5. Cómo queda la base de datos
 
-**Diecinueve tablas, todas escritas.** Ninguna se ha retirado nunca.
+**Diecinueve tablas escritas y dos diseñadas.** Ninguna se ha retirado nunca.
 
 ```mermaid
 flowchart TB
@@ -405,16 +417,19 @@ flowchart TB
         P1["products"]
     end
 
-    subgraph CM["CM · 1 tabla"]
+    subgraph CM["CM · 3 tablas · dos DISEÑADAS"]
         M1["commission_rates"]
+        M2["user_commission_rates"]
+        M3["product_commission_rates"]
     end
 
 
     A4 --> P1
     A5 --> P1
     A1 --> M1
-    P1 --> M1
-    C1 --> M1
+    M1 --> M3
+    P1 --> M3
+    C1 --> M2
     V2 --> V5
     P1 --> V5
     C1 --> V2
@@ -427,6 +442,7 @@ flowchart TB
     classDef escrita fill:#e7eef0,stroke:#2d5a6b,color:#151b1e
     classDef disenada fill:#f6e6e2,stroke:#a33b2a,stroke-dasharray:3 3,color:#a33b2a
     class A1,A2,A3,A4,A5,A6,B1,B2,B3,B4,C1,C2,C3,C4,C5,C6,OBS,P1,M1 escrita
+    class M2,M3 disenada
     class V1,V2,V3,V4,V5,V6 disenada
 ```
 
@@ -437,7 +453,8 @@ flowchart TB
 | `SP` | `permissions`, `roles`, `role_permissions`, `users`, `user_roles`, `memberships`, `user_memberships`, `currencies`, `countries`, `user_supervisors`, `refresh_tokens`, `password_reset_permits` | **12, escritas** |
 | `SP` · auditoría | `audit_change_log`, `audit_deletion_log`, `audit_error_log`, `audit_security_log`, `request_log` | **5, escritas** |
 | `PM` | `products` | **1, escrita** |
-| `CM` | `commission_rates` | **1, escrita** |
+| `CM` | `commission_rates` | **1, escrita — y se rehace** |
+| `CM` | `user_commission_rates`, `product_commission_rates` | **2, diseñadas** |
 
 **Un módulo, una a seis tablas.** `SP` tiene diecisiete y los otros tres juntos tienen ocho, y eso no es desequilibrio: `SP` es dueño del acceso, de los catálogos transversales y de la auditoría entera, que es infraestructura que todos usan y nadie duplica.
 
@@ -461,8 +478,8 @@ Son **ocho**, y todas van en la misma dirección: **hacia `SP` y hacia `PM`**, n
 | `products.target_membership_id` | `memberships` | `PM` → `SP` |
 | `products.currency_id` | `currencies` | `PM` → `SP` |
 | `commission_rates.role_id` | `roles` | `CM` → `SP` |
-| `commission_rates.user_id` | `users` | `CM` → `SP` |
-| `commission_rates.product_id` | `products` | `CM` → `PM` |
+| `user_commission_rates.user_id` | `users` | `CM` → `SP` |
+| `product_commission_rates.product_id` | `products` | `CM` → `PM` |
 
 
 
@@ -507,3 +524,4 @@ La secuencia no es continua —falta el tramo `V8` a `V12`— y no es un descuid
 | 0.11.0 | 26-08-2026 | **`memberships` gana `color`**, seis dígitos hexadecimales sin `#` y en mayúsculas, con los que el frontend pinta el nivel (`RN-SP-024`). Es obligatorio: un color opcional obliga al navegador a inventarse uno de reserva, que es justo la decisión que este campo saca del frontend. Se anota en §4 la consecuencia de que `RN-SP-008` lo vuelve **incorregible** una vez creado. | Responsable técnico |
 | 0.13.0 | 01-09-2026 | **`user_supervisors` cambia de significado sin cambiar de forma** (`RF-SP-045`). Hasta hoy relacionaba **vendedores entre sí**; desde ahora contiene también a los **clientes**, colgando del vendedor que los trajo. No hay columnas nuevas ni aristas nuevas que dibujar, y por eso este cambio **no se ve en el diagrama**: lo que cambia es qué significa una fila. Se propuso una tabla propia, `client_referrals`, y **el responsable del proyecto la descartó** a favor de reutilizar esta: con dos tablas, subir de un cliente hasta el manager que cobra por él exige un join y un caso especial en la hoja; con una, es un recorrido. | Responsable técnico |
 | 0.14.0 | 01-09-2026 | **El documento deja de describir solo `SP`.** Su mapa llevaba **dos módulos de retraso**: no conocía `products` —de `PM`, escrita el 27-08-2026— ni `commission_rates` —de `CM`, el 28-08-2026—, y llamaba `password_reset_tokens` a una tabla que se llama **`password_reset_permits`** desde `V37`. Las tres derivas se corrigen. §4 incorpora las **dos áreas que nacieron después** con su diagrama entidad-relación, y §4.1 recoge **lo que esas dos tablas le exigen a una que todavía no existe** —la que guarde las ventas—: copiar el importe y la vigencia, copiar el porcentaje. Con el criterio que separa una copia que **protege el pasado** de una que **duplica el presente**: **se copia lo que puede cambiar; lo inmutable se referencia** — el precio y el porcentaje sí, la membresía destino no, porque `RF-PM-004` `EX-004` rechaza cambiarla. §5 se reescribe entera como **la vista de conjunto de la base**: diecinueve tablas, el inventario por dueño, **las cinco claves foráneas que cruzan un módulo** y la distinción que conviene tener a la vista mirándolas — **las claves foráneas sí cruzan y los repositorios no**, porque la integridad la defiende el motor y la frontera de código una regla de ArchUnit. §5.2 recoge los **dos cambios de este día que no añaden ninguna tabla**: el estado `FTD_PENDIENTE` y los clientes dentro de `user_supervisors`, que cuesta cero columnas y es el de más alcance. | Responsable técnico |
+| 0.15.0 | 01-09-2026 | **`CM` se rehace y el modelo lo recoge.** Donde había **una** tabla ahora hay **tres**: `commission_rates` se queda como **catálogo por rol** —pierde el producto, la persona y la vigencia—, `user_commission_rates` guarda la **excepción por persona** con su vigencia y **sin rol**, y `product_commission_rates` es la **asociación** que decide sobre qué producto rige cada tasa. **Es la primera vez que este documento describe una tabla ya escrita que hay que rehacer**, y el mapa la marca como tal. Dos detalles del esquema merecen leerse: la **clave primaria de la asociación es `(product_id, role_id)`**, de modo que «un solo porcentaje por rol y producto» **no es una regla que alguien comprueba, es la forma de la tabla**; y `role_id` está ahí **copiado a propósito**, con una **clave foránea compuesta** hacia `commission_rates(id, role_id)` que hace **imposible**, no improbable, que diverja del rol que la tasa declara. **La vigencia queda en una sola tabla**, y con ello el `EXCLUDE` de no solapamiento vuelve a caber donde tiene que estar — sacar el producto fuera lo habría hecho cruzar dos tablas, que ningún índice hace. | Responsable técnico |

@@ -3,138 +3,104 @@
 | Campo | Valor |
 |---|---|
 | Módulo | `CM` — Comisiones |
-| Versión | 0.1.0 |
+| Versión | 0.2.0 |
 | Estado | **Borrador** |
 | Responsable | Bonilla Diaz William Steven |
 | Fecha de creación | 01-09-2026 |
 | Última actualización | 01-09-2026 |
 
-!!! info "Qué va en este documento"
+!!! danger "Este documento describe el modelo ANTERIOR y está a medio rehacer"
 
-    La vista de conjunto de los **cinco requerimientos** de `CM`: cómo se encadenan, qué debe existir antes de qué, y sobre todo **cómo se elige una tarifa entre varias**, que es la mitad del módulo y la única parte que un diagrama explica mejor que un párrafo.
+    `CM` se rediseñó el 01-09-2026 (`requirements/cm.md` v0.4.0): los cuatro grados desaparecieron, el producto salió a una tabla de asociación y las tasas de rol perdieron la vigencia.
 
-    No define comportamiento. Todo lo que aquí se dibuja está declarado en las tripletas de `docs/specs/cm/`; este documento solo lo hace visible. Ante cualquier discrepancia, **manda la spec**.
-
-    El detalle de cada caso, paso a paso y con sus rechazos, está en [Flujos por caso](flujos-por-caso.md).
+    Lo que sigue **está reescrito**; los diagramas por caso de `flujos-por-caso.md` **todavía no**.
 
 ---
 
-## 1. Los cuatro grados, y por qué la ausencia es la que manda
-
-Una tarifa asocia un **rol vendedor** con un **porcentaje**. Que además acote un producto, una persona, las dos cosas o ninguna es lo que produce sus cuatro grados.
+## 1. Las dos piezas, y en qué no se parecen
 
 ```mermaid
 flowchart TB
-    R["rol · SIEMPRE"]
+    subgraph CAT["Catálogo por rol · commission_rates"]
+        R1["AGENTE 10%"]
+        R2["DIRECTOR 4%"]
+        R3["MANAGER 2%"]
+    end
 
-    R --> G1["Rol<br/>lo que gana cualquiera<br/>con ese rol, por cualquier producto"]
-    R --> G2["Rol + producto<br/>ese rol, ese producto"]
-    R --> G3["Rol + persona<br/>esa persona, cualquier producto"]
-    R --> G4["Rol + producto + persona<br/>el caso más específico"]
+    subgraph ASO["Asociación · product_commission_rates"]
+        A1["UPGRADE_ORO ← AGENTE 10%"]
+        A2["UPGRADE_ORO ← DIRECTOR 4%"]
+    end
 
-    G4 -.->|"si no existe"| G3
-    G3 -.->|"si no existe"| G2
-    G2 -.->|"si no existe"| G1
-    G1 -.->|"si no existe"| N["Sin tarifa · RF-CM-005 FA-001<br/>NO es cero"]
+    subgraph PER["Excepción por persona · user_commission_rates"]
+        P1["maría · 12%<br/>desde el 1 de marzo"]
+    end
+
+    R1 --> A1
+    R2 --> A2
+    R1 -.->|"sin asociar:<br/>NO PAGA NADA"| N["RN-CM-012"]
 
     classDef nada fill:#F7E9E5,stroke:#A33B2A,color:#7A2B1E
+    classDef ok fill:#E5EEF0,stroke:#2D5A6B,color:#141B1E
     class N nada
+    class P1 ok
 ```
 
-**No hay un campo que diga «para todos», y esa ausencia es deliberada.** Una tarifa sin persona es la de todos los de ese rol; una sin producto, la de todo el catálogo. Un campo aparte podría contradecir a la clave —«para todos» con una persona declarada— y esa contradicción **no la detecta nada**.
+**La ausencia cambió de significado, y es lo que más fácil se lee mal.** En el modelo anterior una tasa sin producto valía para **todos**; ahora **no rige hasta que se la asocia**. Una tasa creada y no asociada **parece configurada y no paga nada**, y eso no falla: se descubre liquidando.
 
-**El rol es obligatorio incluso en una excepción de persona**, y no es redundante: la tarifa dice «esta persona, **en este rol**, cobra esto». Sin el rol, una excepción sobreviviría a que la persona dejara de ser vendedora y seguiría aplicándose.
+**La personalizada no está en ese circuito.** No se asocia a productos (`RN-CM-014`) y **no lleva rol**: quien la tiene gana lo mismo venda lo que venda.
 
 ---
 
-## 2. La precedencia, que es la regla que hace que los grados signifiquen algo
-
-`RN-CM-004`. **Vive en un solo sitio** —la sentencia de `RF-CM-005`— y no en cada consumidor.
+## 2. La resolución, que ahora son dos niveles y no cuatro
 
 ```mermaid
 flowchart TD
-    A(["persona + producto + fecha"]) --> R{"¿la persona porta<br/>rol VENDEDOR?"}
-    R -->|no| N1(["No comisiona · FA-003<br/>no es que falte declarar la tarifa:<br/>es que esa persona no vende"])
-    R -->|sí| F["Filtra: mismo rol,<br/>vigente en la fecha,<br/>no retirada"]
-
-    F --> P1{"¿hay una de<br/>persona + producto?"}
-    P1 -->|sí| W(["Esa"])
-    P1 -->|no| P2{"¿hay una<br/>de persona?"}
-    P2 -->|sí| W
-    P2 -->|no| P3{"¿hay una de<br/>rol + producto?"}
-    P3 -->|sí| W
-    P3 -->|no| P4{"¿hay una<br/>de rol?"}
-    P4 -->|sí| W
-    P4 -->|no| N2(["Sin tarifa · FA-001<br/>DISTINTO de cero"])
+    A(["persona + producto + fecha"]) --> P{"¿tiene tasa personalizada<br/>VIGENTE esa fecha?"}
+    P -->|sí| W1(["Esa · sin mirar el producto"])
+    P -->|no| R{"¿porta rol<br/>VENDEDOR?"}
+    R -->|no| N1(["No comisiona<br/>no es que falte la tasa:<br/>es que no vende"])
+    R -->|sí| Q{"¿ese rol tiene tasa<br/>asociada a ESE producto?"}
+    Q -->|sí| W2(["Esa"])
+    Q -->|no| N2(["Sin tarifa<br/>DISTINTO de cero"])
 
     classDef ok fill:#E5EEF0,stroke:#2D5A6B,color:#141B1E
     classDef nada fill:#F7E9E5,stroke:#A33B2A,color:#7A2B1E
-    class W ok
+    class W1,W2 ok
     class N1,N2 nada
 ```
 
-**Los dos finales rojos no son errores, y no son el mismo.** «No comisiona» es que la persona no vende; «sin tarifa» es que vende y nadie declaró cuánto gana. La respuesta de `RF-CM-005` los distingue porque quien consuma esto va a pagar con esa cifra.
+**Una pregunta y una respuesta de reserva.** Frente a los cuatro grados anteriores, la precedencia se lee de un vistazo — y sigue viviendo **en un solo sitio**, no en cada consumidor.
 
-**Y ninguno de los dos es «cero».** Una tarifa de **cero por ciento** es una decisión declarada —«esto no comisiona»— y la única forma de exceptuar un producto a un rol que sí tiene tarifa por omisión (`RN-CM-007`). La ausencia es que nadie la tomó. Confundirlas haría **indistinguible lo pensado de lo olvidado**.
-
-!!! important "El orden vive en el `ORDER BY`, no en el flujo de control"
-
-    La implementación no escribe estos cuatro rombos: los resuelve en una sentencia, con `ORDER BY (user_id IS NOT NULL) DESC, (product_id IS NOT NULL) DESC` y `LIMIT 1`.
-
-    **No es una optimización, es la defensa.** Si el orden viviera en el código, una refactorización podría alterarlo **sin que nada falle** — devolvería un porcentaje plausible, que es exactamente el error que este requerimiento existe para evitar.
+**Los dos finales rojos siguen sin ser el mismo, y ninguno es cero.** «No comisiona» es que la persona no vende; «sin tarifa» es que vende y nadie asoció una tasa a ese producto para su rol. Y el **cero por ciento** es una decisión declarada —«este producto no paga a este rol»— que hoy solo puede expresarse **asociando** una tasa de cero. Confundirlos haría **indistinguible lo pensado de lo olvidado**.
 
 ---
 
-## 3. Corregir no es cambiar, y confundirlos borra el pasado
+## 3. Lo que se ganó y lo que se perdió al simplificar
 
-Es la distinción que más consecuencias tiene del módulo, y la que un dibujo separa mejor que un párrafo.
+| | |
+|---|---|
+| **Se ganó** | La precedencia cabe en dos preguntas · Una tasa se reutiliza en varios productos sin duplicarse · El `EXCLUDE` vuelve a caber en una tabla, y el resto lo cierra una clave primaria |
+| **Se perdió** | **El historial de las tasas de rol** · La protección de `RN-CM-003`, que impedía que una excepción sobreviviera a que la persona dejara de vender · La tarifa por omisión del rol |
+
+!!! danger "Corregir un porcentaje reescribe lo que rigió siempre"
+
+    Las tasas de rol **no tienen vigencia**. No hay dos filas contando su parte de la historia: hay una que ahora dice otra cosa. Pasar `AGENTE` de 10 a 12 **borra el 10**.
+
+    Lo único que preservaría el pasado es que **la liquidación copie el porcentaje que aplicó** (`RN-CM-008`) — y esa liquidación **no existe**. Hoy, cambiar una tasa borra el pasado y no queda forma de saberlo.
+
+## 4. Qué debe existir antes de qué
+ 
 
 ```mermaid
 flowchart LR
-    subgraph C1["CORREGIR · RF-CM-003"]
-        A1["La tarifa decía 12<br/>y siempre debió decir 2"] --> A2["Se reescribe el porcentaje"]
-        A2 --> A3["Lo que esa tarifa dice<br/>que rigió CAMBIA"]
-    end
-
-    subgraph C2["CAMBIAR LA COMISIÓN · dos operaciones"]
-        B1["Hasta hoy fue 12.<br/>Desde mañana es 2"] --> B2["RF-CM-003 · cierra la vigente"]
-        B2 --> B3["RF-CM-001 · registra la nueva"]
-        B3 --> B4["Las DOS siguen contando<br/>su parte de la historia"]
-    end
-
-    classDef ok fill:#E5EEF0,stroke:#2D5A6B,color:#141B1E
-    class A3,B4 ok
-```
-
-**No hay un endpoint que haga las dos**, y es deliberado. Ahorraría una llamada y escondería que **la primera es la que decide hasta cuándo rigió lo anterior**, que es el dato que la liquidación va a leer.
-
-**Y `RN-CM-006` obliga al orden**: no admite solapamiento, de modo que hay que cerrar antes de abrir.
-
----
-
-## 4. Retirar no es cerrar
-
-| | Retirar (`RF-CM-004`) | Cerrar la vigencia (`RF-CM-003`) |
-|---|---|---|
-| Qué dice | **No debió existir** | **Dejó de regir** |
-| Cómo | Eliminación lógica con motivo | Poblar `valid_to` |
-| Efecto en la resolución | Deja de aparecer **siempre**, también en el pasado | Sigue aplicando a las fechas que cubrió |
-
-`RN-CM-005`: la fila **permanece** en los dos casos. Lo que se pagó tiene que seguir explicándose.
-
----
-
-## 5. Qué debe existir antes de qué
-
-```mermaid
-flowchart LR
-    SP1["SP · roles<br/>tipo VENDEDOR"] --> CM1["RF-CM-001<br/>registrar tarifa"]
-    SP2["SP · usuarios<br/>portando el rol"] --> CM1
-    PM1["PM · productos"] --> CM1
+    SP1["SP · roles<br/>tipo VENDEDOR"] --> CM1["RF-CM-001<br/>tasa de rol"]
+    SP2["SP · usuarios"] --> CM6["RF-CM-006<br/>tasa personalizada"]
+    PM1["PM · productos"] --> CM7["RF-CM-007<br/>ASOCIAR"]
+    CM1 --> CM7
+    CM7 --> CM5["RF-CM-005 · resolver"]
+    CM6 --> CM5
     CM1 --> CM2["RF-CM-002 · consultar"]
-    CM1 --> CM5["RF-CM-005 · resolver"]
-    CM1 --> CM3["RF-CM-003 · corregir"]
-    CM1 --> CM4["RF-CM-004 · retirar"]
 
     CM5 -.->|"no construida"| L["Liquidación"]
 
@@ -148,7 +114,7 @@ flowchart LR
 
 ---
 
-## 6. Lo que el dibujo dejó a la vista
+## 5. Lo que el dibujo dejó a la vista
 
 | # | Observación | Dónde se resuelve |
 |---|---|---|
@@ -160,8 +126,9 @@ flowchart LR
 
 ---
 
-## 7. Control de cambios
+## 6. Control de cambios
 
 | Versión | Fecha | Cambio | Responsable |
 |---|---|---|---|
 | 0.1.0 | 01-09-2026 | Creación. `CM` era, junto a `PM`, uno de los dos módulos sin documentos de flujo. Se dibujan los **cinco requerimientos** y las tres cosas que la prosa explicaba peor: **los cuatro grados** y por qué la ausencia es la que da el alcance; **la precedencia de `RN-CM-004`**, con sus dos finales que no son errores ni son el mismo; y la diferencia entre **corregir y cambiar la comisión**, que es la que borra el pasado cuando se confunde. §6 recoge cinco observaciones que el dibujo dejó a la vista. | Responsable técnico |
+| 0.2.0 | 01-09-2026 | **Reescrito tras el rediseño de `CM`** (`requirements/cm.md` v0.4.0). Los cuatro grados desaparecen y el documento pasa a dibujar **dos piezas que no se parecen** —el catálogo por rol y la excepción por persona— más la **asociación**, que es lo único que pone una tasa en vigor. §1 marca lo que más fácil se lee mal: **la ausencia cambió de significado**, y una tasa sin asociar ya no vale para todos sino para ninguno. §2 dibuja la resolución en **dos niveles** en vez de cuatro. §3 es nueva y enfrenta lo que se perdió al simplificar — sobre todo el **historial de las tasas de rol**: corregir un porcentaje reescribe lo que rigió siempre, y lo único que lo preservaría es una liquidación que **no existe**. Los diagramas de `flujos-por-caso.md` **siguen describiendo el modelo anterior** y se avisa en cabecera. | Responsable técnico |

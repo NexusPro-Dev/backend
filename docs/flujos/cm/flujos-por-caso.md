@@ -3,7 +3,7 @@
 | Campo | Valor |
 |---|---|
 | Módulo | `CM` — Comisiones |
-| Versión | 0.1.0 |
+| Versión | 0.1.1 |
 | Estado | **Borrador** |
 | Responsable | Bonilla Diaz William Steven |
 | Fecha de creación | 01-09-2026 |
@@ -14,6 +14,12 @@
     Un diagrama por caso de uso: qué puede hacer el actor, qué verifica el sistema en cada paso y por dónde sale la operación cuando una verificación falla.
 
     Cada diagrama es la transcripción literal de las **§8 Flujo principal**, **§9 Flujos alternativos** y **§10 Excepciones** de su spec. No añade comportamiento. Ante cualquier discrepancia, **manda la spec**.
+
+!!! danger "Estos diagramas describen el modelo ANTERIOR"
+
+    `CM` se rediseñó el 01-09-2026 (`requirements/cm.md` v0.4.0): los cuatro grados desaparecieron, el producto salió a una tabla de asociación y las tasas de rol perdieron la vigencia.
+
+    **Lo que sigue todavía no está rehecho.** La vista de conjunto sí lo está, en [Flujos del módulo](flujos-del-modulo.md). Ante cualquier discrepancia, manda `requirements/cm.md`.
 
 !!! note "Convención de los diagramas"
 
@@ -226,3 +232,4 @@ Devolver cero en los tres haría **indistinguible lo pensado de lo olvidado**, y
 | Versión | Fecha | Cambio | Responsable |
 |---|---|---|---|
 | 0.1.0 | 01-09-2026 | Creación. Un diagrama por cada uno de los **cinco** casos de uso, transcritos de las §8, §9 y §10 de sus tripletas. El que más aporta es el de `RF-CM-005`: pone en el mismo dibujo **los tres finales que acaban en «no se paga nada» y son cosas distintas** —no comisiona, sin tarifa y cero por ciento—, que es la distinción que la prosa cuesta más de sostener. §3 recoge cinco observaciones que el dibujo dejó a la vista. | Responsable técnico |
+| 0.1.1 | 01-09-2026 | Se marca en cabecera que **estos diagramas describen el modelo anterior**: el rediseño de `CM` de ese mismo día dejó obsoletos los cuatro grados, la precedencia de cuatro niveles y la columna de producto. No se rehacen todavía — se avisa, que es lo que impide que alguien los lea como si valieran. | Responsable técnico |
