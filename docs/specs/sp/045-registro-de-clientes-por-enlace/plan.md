@@ -19,7 +19,7 @@ De ahí salen las tres decisiones del plan: **una sola transacción**, **límite
 
 ## 2. Cambios de esquema
 
-**Dos migraciones.**
+**Una sola migración**, y en la primera versión de este plan eran dos.
 
 **`V48` — el catálogo de estados.** `ck_users_status` pasa de `('ACTIVO','INACTIVO','BLOQUEADO','PENDIENTE')` a `('ACTIVO','INACTIVO','BLOQUEADO','FTD_PENDIENTE')`.
 
@@ -29,32 +29,17 @@ De ahí salen las tres decisiones del plan: **una sola transacción**, **límite
 
     De modo que esto es sustituir un valor del dominio, **sin migración de datos**. La misma operación con una sola fila en `PENDIENTE` habría exigido decidir a dónde va esa cuenta.
 
-**`V49` — `client_referrals`**, la atribución del cliente a su vendedor.
+**Y la atribución no trae ninguna**, que es lo que cambia respecto a la primera versión de este plan. El cliente cuelga de su vendedor en **`user_supervisors`**, y esa tabla ya tiene exactamente la forma que hace falta: `user_id`, `supervisor_id`, `started_at`, `ended_at` y su unicidad parcial del vigente. **No hay columna nueva, no hay índice nuevo y no hay `V49`.**
 
-| Columna | Tipo | Nula | Referencia |
-|---|---|---|---|
-| `id` | `uuid` | No | — |
-| `client_id` | `uuid` | No | `users` |
-| `seller_id` | `uuid` | No | `users` |
-| `product_id` | `uuid` | No | `products` |
-| `started_at` | `timestamptz` | No | — |
-| `ended_at` | `timestamptz` | **Sí** | — |
-| `created_at` | `timestamptz` | No | — |
+!!! success "Lo mejor de la decisión del responsable es lo que NO hay que escribir"
 
-**Se llama `client_referrals` y no `user_referrers`**, aunque el prefijo `user_` sea el de sus dos hermanas. Es deliberado: `user_supervisors` y `user_memberships` describen cosas que un usuario **tiene**, y nombrar a esta igual sugeriría que vive en el mismo eje que la primera. **No vive ahí**, y confundirlas es el error probable — `user_supervisors` es la **fuerza comercial**, y `RN-SP-020` exige que el superior porte el rol padre inmediato del rol **vendedor** del subordinado. Un cliente es `CONSUMIDOR`: metido ahí, esa regla lo rechazaría.
+    Se había propuesto `client_referrals`, con siete columnas, cuatro restricciones y un índice — y con una copia del razonamiento de `RN-SP-021` sobre por qué la unicidad es parcial. Reutilizar `user_supervisors` **borra esa migración entera** y hereda lo ya resuelto: un superior vigente, el historial y la protección de `RN-SP-022`.
 
-**Guarda el producto**, y no es redundante con la membresía que ya está en `user_memberships`: es **con qué producto entró**, y es el dato que la liquidación futura necesitará para resolver la tarifa (`RF-CM-005` resuelve por persona **y producto**).
+    Lo único que hay que escribir es la **enmienda de una regla**, `RN-SP-020`, que es donde estaba el obstáculo real: exige que el superior porte el rol padre inmediato del rol vendedor del subordinado, y un cliente no tiene ninguno. Gana su rama de consumidor —basta con que el superior porte **algún** rol `VENDEDOR`— y con ella la tabla admite las dos clases de fila.
 
-**Restricciones:**
+**Lo que la relación NO guarda es el producto**, y esa ausencia es deliberada. `user_supervisors` dice **quién trajo a quién**; con qué producto entró el cliente pertenece al hecho comisionable —el depósito, cuando exista— por el mismo criterio con el que `requirements/pm.md` §1.4 exige que cada compra guarde su propio importe y su propia vigencia en lugar de leerlos del catálogo. Añadir `product_id` a `user_supervisors` habría metido una columna de producto en la tabla de la jerarquía comercial, que es justo la mezcla que unificar pretendía evitar.
 
-| Restricción | Sobre | Por qué |
-|---|---|---|
-| `ck_client_referrals_no_self` | `client_id <> seller_id` | Nadie se trae a sí mismo |
-| `ck_client_referrals_periodo` | `ended_at IS NULL OR ended_at > started_at` | La rama `IS NULL` **delante y explícita**: un `CHECK` que evalúa a `NULL` **acepta** la fila, y este proyecto ya pagó una vez por eso con `ck_deletion_reason` |
-| `uq_client_referrals_vigente` | Índice único **parcial**: `client_referrals(client_id) WHERE ended_at IS NULL` | `RN-SP-028`: un cliente tiene **como mucho un vendedor vigente**. Parcial y no total porque el historial cerrado sí admite repetición — es historial |
-| `ix_client_referrals_seller` | `(seller_id, started_at DESC)` | «Qué clientes trajo esta persona», que es la consulta que la liquidación hará |
-
-**Sin `deleted_at`.** Una atribución no se retira: se **cierra**, poblando `ended_at`. Es la misma distinción que `RN-CM-005` fija para las tarifas — se retira lo que no debió existir, se cierra lo que dejó de regir — y aquí solo cabe lo segundo.
+**Una fila de esta tabla pasa a significar dos cosas según quién sea el subordinado** —«reporta a» entre vendedores, «fue traído por» cuando es un cliente— y eso hay que escribirlo donde se lea: §10.7 de `requirements/sp.md` lo recoge.
 
 ## 3. Componentes afectados
 
@@ -64,7 +49,8 @@ De ahí salen las tres decisiones del plan: **una sola transacción**, **límite
 | `modules/products/domain/repository` | `PublishedProductCatalog` | **Lo implementa `PM`**, que es quien tiene el dato |
 | `modules/system/users/application` | `SelfRegistrationRequest` | Los seis datos de la persona más producto y vendedor |
 | `modules/system/users/domain/service` | `RegisterClientByLinkService` | El caso de uso, en una transacción |
-| `modules/system/users/domain/repository` | `ClientReferralRepository` | La escritura de la atribución |
+| `modules/system/users/domain/repository` | `UserRepository` | **Se reutiliza**: `assignSupervisor` ya existe para `RF-SP-041`, y colgar un cliente es la misma escritura |
+| `modules/system/users/domain/security` | `CommercialStructure` | **Gana la rama de consumidor** de `RN-SP-020`: hoy solo sabe resolver el rol vendedor de mayor rango, y un cliente no tiene ninguno |
 | `modules/system/users/interfaces` | `RegistrationController` | `POST /api/v1/auth/registration`, público |
 | `modules/system/users/domain/models` | `UserStatus` | `PENDIENTE` → `FTD_PENDIENTE` |
 | `modules/system/auth/domain/repository` | `AuthUser` | `puedeEntrar()` admite el estado nuevo |
@@ -130,11 +116,11 @@ La auditoría de seguridad va **después de confirmar**, como en el resto del si
 
 | Documento | Enmienda |
 |---|---|
-| `requirements/sp.md` | Ficha de `RF-SP-045`, su fila en §6.1, su ruta en §9, las tres reglas nuevas en §5.1, `client_referrals` en §10 y sus restricciones en §10.8. **Y el estado**: `PENDIENTE` → `FTD_PENDIENTE` |
+| `requirements/sp.md` | Ficha de `RF-SP-045`, su fila en §6.1, su ruta en §9 y las tres reglas nuevas en §5.1. **Y tres enmiendas sobre reglas vigentes**: `RN-SP-020` gana su rama de consumidor, `RN-SP-022` pasa a cubrir la cartera de clientes, y §10.7 declara que `user_supervisors` ya no contiene solo vendedores. Más el estado: `PENDIENTE` → `FTD_PENDIENTE` |
 | `security.md` §3.1 | El catálogo de estados. **`FTD_PENDIENTE` autentica**, y es el primero que lo hace sin estar `ACTIVO`: la columna «¿Puede autenticarse?» deja de coincidir con «está activo» |
 | `architecture.md` §15.2 | La tabla de lecturas cruzadas pasa de **tres a cuatro**, y la cuarta **rompe la norma de esa sección a propósito** (ver el recuadro siguiente) |
 | `requirements.md` | Fila en la matriz e indicadores |
-| `modelo-datos.md` | `client_referrals` en el mapa |
+| `modelo-datos.md` | El mapa no gana aristas: cambia **qué significa** una fila de `user_supervisors` |
 
 !!! danger "Esta lectura NO sigue la norma de D-25, y no seguirla es lo correcto"
 
@@ -148,7 +134,22 @@ La auditoría de seguridad va **después de confirmar**, como en el resto del si
 
 **El código del adaptador vive en paquetes de `PM` y la tarea pertenece a este requerimiento**, por el mismo reparto que fijó D-25: ningún actor pide «implementar una interfaz» como comportamiento observable.
 
-**Enmienda a `RF-SP-028`**, ya implementado (Art. I.7): su operación de cambio de estado **debe admitir la salida de `FTD_PENDIENTE` hacia `ACTIVO`**. Hoy `ChangeUserStatusService` rechaza el cuarto estado del dominio con un mensaje que lo nombra. Es la única salida mientras el webhook del bróker no exista, y **desaparece sola** cuando exista: entonces será el webhook quien mueva el estado, y la vía manual quedará como excepción operativa.
+!!! danger "Cuatro requerimientos ya implementados cambian de comportamiento sin que nadie los toque"
+
+    Es la consecuencia de meter a los clientes en `user_supervisors`, y es lo que hay que revisar antes de dar por buena la decisión (Art. I.7):
+
+    | Requerimiento | Qué le pasa |
+    |---|---|
+    | `RF-SP-028` — cambiar el estado | **Dos cosas**: admitir la salida de `FTD_PENDIENTE`, y que ahora rechace desactivar a un vendedor **con cartera de clientes** por `RN-SP-022` |
+    | `RF-SP-029` — eliminar usuario | Lo mismo: un agente con clientes deja de poder eliminarse hasta reasignarlos |
+    | `RF-SP-031` — retirar roles | Retirar el rol `VENDEDOR` a quien tiene clientes se rechaza |
+    | `RF-SP-042` — consultar el equipo a cargo | **Empieza a devolver clientes** junto al equipo comercial, sin que su contrato cambie |
+
+    Las tres primeras son **más restrictivas que antes**, y eso es lo correcto: un cliente huérfano es peor que una operación que hay que preparar. La cuarta no rompe a nadie —cada fila ya lleva los roles de la persona, que es lo que permite distinguirlos—, pero **se prueba a propósito** (`CA-SP-526`) para que sea una decisión y no una sorpresa.
+
+    Y hay un efecto colateral que hay que buscar activamente: **los datos de prueba de esas tres suites pueden empezar a chocar con `RN-SP-022`** allí donde hoy desactivan a alguien sin mirar si tiene gente a cargo.
+
+**La salida manual de `FTD_PENDIENTE`**, en `RF-SP-028`: su operación de cambio de estado **debe admitir la transición hacia `ACTIVO`**. Hoy `ChangeUserStatusService` rechaza el cuarto estado del dominio con un mensaje que lo nombra. Es la única salida mientras el webhook del bróker no exista, y **desaparece sola** cuando exista: entonces será el webhook quien mueva el estado, y la vía manual quedará como excepción operativa.
 
 ## 9. Alternativas consideradas
 
@@ -159,7 +160,8 @@ La auditoría de seguridad va **después de confirmar**, como en el resto del si
 | Una columna en `memberships` que diga cuál es la gratuita | Recomendada y **descartada por el responsable** a favor del código `FREE`. Se mitiga con la verificación al arrancar de §5 |
 | Devolver credenciales de sesión al registrar | Duplicaría la emisión de sesiones en dos requerimientos, y el segundo acabaría olvidando alguna regla del primero |
 | Un tipo de evento de auditoría propio | Una migración sobre el `CHECK` de `audit_security_log` para distinguir un **detalle** de un hecho que ya tiene tipo, y obligaría a que toda consulta de altas preguntara por dos |
-| Reutilizar `user_supervisors` para la atribución | `RN-SP-020` la rechazaría: exige que el superior porte el rol padre inmediato del rol **vendedor** del subordinado, y un cliente es `CONSUMIDOR` |
+| Una tabla propia para la atribución (`client_referrals`) | **Propuesta y descartada por el responsable** (01-09-2026). El argumento a favor era formal —`RN-SP-020` exige un rol padre que un `CONSUMIDOR` no porta—, pero eso es un problema de la regla y no de la tabla. Con dos estructuras, subir de un cliente hasta el manager que cobra por él exige un join y **un caso especial en la hoja**, que es donde está el dinero y donde un caso especial se implementa mal |
+| Guardar `product_id` en `user_supervisors` | Metería una columna de producto en la tabla de la jerarquía comercial, que es la mezcla que unificar pretendía evitar. Con qué producto entró el cliente pertenece al depósito, no al vínculo |
 
 ## 10. Riesgos
 
@@ -171,6 +173,8 @@ La auditoría de seguridad va **después de confirmar**, como en el resto del si
 | 4 | Una transacción parcial deja un consumidor **sin membresía** | Una sola transacción, y `CA-SP-519` lo comprueba desde fuera tras un rechazo |
 | 5 | El renombrado del estado alcanza al **inicio de sesión de todo el sistema** | La suite de `SP` entera debe seguir en verde sin cambios; cualquier ajuste ahí es señal de que el cambio se coló donde no debía |
 | 6 | La atribución forjable ensucia la base de comisiones | Aceptado y declarado (`spec.md` §14), con su condición de reapertura escrita |
+| 7 | **`RN-SP-022` empieza a rechazar operaciones que hoy pasan.** Retirar a un agente con cartera se rechazará, y nadie lo espera | Es correcto —un cliente huérfano es peor— y se prueba a propósito (`CA-SP-525`). La suite de `RF-SP-028`, `RF-SP-029` y `RF-SP-031` hay que revisarla: sus datos de prueba pueden empezar a chocar con la regla |
+| 8 | **`RF-SP-042` empieza a devolver clientes** en el equipo a cargo, sin que su contrato cambie | Cada fila ya lleva los roles de la persona, que es lo que permite distinguirlos. Se prueba (`CA-SP-526`) para que el cambio sea deliberado y no una sorpresa |
 
 ## 11. Estrategia de prueba
 

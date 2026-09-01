@@ -21,6 +21,14 @@ Que un cliente entre al sistema por sí mismo desde un enlace, quedando con su m
 
 **El enlace lleva dos datos y ninguno es un secreto**: el producto —por su código o su identificador— y el vendedor que lo generó. De ahí sale todo lo demás: el producto declara la membresía destino (`RN-PM-002` la hace obligatoria en los upgrades) y su vigencia en días, y el vendedor es a quien se atribuye el cliente.
 
+**El cliente cuelga de su vendedor en `user_supervisors`, y no en una estructura propia.** Es la decisión que el responsable del proyecto tomó el 01-09-2026, contra la propuesta de separarlas.
+
+Separarlas tenía un argumento formal: `user_supervisors` nació para la **fuerza comercial**, y `RN-SP-020` exige allí que el superior porte el **rol padre inmediato** del rol vendedor del subordinado — un `CONSUMIDOR` no porta ninguno, de modo que la regla lo rechazaría. Pero eso es un problema de la **regla**, no de la tabla, y se resuelve enmendándola: `RN-SP-020` gana una rama para el consumidor, a quien le basta un superior con **algún** rol `VENDEDOR`.
+
+Lo que se gana con una sola tabla es que **el árbol comercial esté completo**. Subir de un cliente a su agente, de este a su director y de este a su manager —que es exactamente lo que una liquidación multinivel hace— pasa a ser **un recorrido de una tabla**, y no un join con una segunda estructura más un caso especial en la hoja. La hoja es donde está el dinero, y es donde un caso especial se implementa mal.
+
+Se hereda además, sin escribir nada, lo que aquella estructura ya tiene resuelto: **un superior vigente** (`RN-SP-021`), el historial que determina a quién se atribuía cada resultado en cada momento, y la protección de `RN-SP-022`. Lo que **no** viaja en la relación es con qué producto entró el cliente: ese dato pertenece al hecho comisionable —el depósito— y no al vínculo, por el mismo criterio con el que `requirements/pm.md` §1.4 exige que cada compra guarde su propio importe.
+
 **Que el enlace sea adivinable no lo convierte en una llave, y eso hay que argumentarlo** porque es la objeción evidente. El código de producto es legible por diseño —`ck_products_code_format` lo obliga a `^[A-Z][A-Z0-9_]*$`, y se llama `UPGRADE_ORO`—, de modo que cualquiera puede componer un enlace que no le dieron. **No gana nada haciéndolo**, y por dos motivos que se suman:
 
 - Los productos que llevan a una membresía **de pago** no se registran por aquí: van por la pasarela, que es de Finanzas y no existe todavía (§4.2). Forjar ese enlace no lleva a ninguna parte.
@@ -45,7 +53,7 @@ Lo que sí se consigue forjando es **atribuirse a un vendedor cualquiera**, y es
 - Concederle el rol de clasificación `CONSUMIDOR` que corresponde y **la membresía que declara el producto**, en la misma operación (`RN-SP-018`).
 - Fijar la **vigencia** de esa membresía a partir de `validity_days` del producto, o sin fin si el producto no la declara.
 - Dejar la cuenta en **`FTD_PENDIENTE`**: autentica, y no opera.
-- Registrar la **atribución al vendedor** del enlace.
+- Colgar al cliente de ese vendedor en **`user_supervisors`**, la misma estructura donde ya viven los vendedores entre sí.
 
 ### 4.2 No incluye
 
@@ -64,7 +72,10 @@ Lo que sí se consigue forjando es **atribuirse a un vendedor cualquiera**, y es
 | `RN-SP-018` | Todo consumidor tiene membresía, y se adquieren juntos | `requirements/sp.md` §5.1 |
 | `RN-SP-026` | **Nueva.** El registro por enlace nace en `FTD_PENDIENTE` | §5.1, este requerimiento |
 | `RN-SP-027` | **Nueva.** Todo cliente registrado por enlace queda atribuido a un vendedor | §5.1, este requerimiento |
-| `RN-SP-028` | **Nueva.** La atribución es única vigente y conserva su historial | §5.1, este requerimiento |
+| `RN-SP-028` | **Nueva.** El cliente cuelga de su vendedor en la misma estructura comercial | §5.1, este requerimiento |
+| `RN-SP-020` | **Enmendada.** Gana su rama de consumidor: al cliente le basta un superior con **algún** rol `VENDEDOR` | `requirements/sp.md` §5.1 |
+| `RN-SP-021` | Un superior vigente por persona, con historial | `requirements/sp.md` §5.1 |
+| `RN-SP-022` | **Alcanzada.** «Personas a cargo» pasa a incluir la cartera de clientes | `requirements/sp.md` §5.1 |
 | `RN-PM-002` | El upgrade declara membresía destino; el bot no puede | `requirements/pm.md` §5.1 |
 | `RN-PM-009` | Solo se ofrece lo activo | `requirements/pm.md` §5.1 |
 | `RN-PM-015` | La vigencia se mide en días y es opcional | `requirements/pm.md` §5.1 |
@@ -103,7 +114,7 @@ Lo que sí se consigue forjando es **atribuirse a un vendedor cualquiera**, y es
 
 - Existe una cuenta con estado **`FTD_PENDIENTE`**, con su rol de consumidor y su membresía, cuya vigencia sale de la del producto.
 - La contraseña **no queda marcada para cambio obligatorio**: la eligió su titular y nadie más la conoce. Es la misma distinción que `RF-SP-040` hizo frente al restablecimiento por un administrador.
-- Existe una atribución vigente del cliente al vendedor del enlace.
+- Existe una fila vigente en `user_supervisors` con el cliente a cargo del vendedor del enlace.
 - Queda constancia en la auditoría de cambios y en la de seguridad, con el vendedor y el producto en el detalle.
 - **Nada de lo anterior ocurre a medias**: los cuatro hechos son una sola transacción (`plan.md` §7).
 
@@ -116,7 +127,7 @@ Lo que sí se consigue forjando es **atribuirse a un vendedor cualquiera**, y es
 5. El sistema valida los datos de la persona y su contraseña contra la política.
 6. El sistema crea la cuenta en estado `FTD_PENDIENTE`.
 7. El sistema le concede el rol de consumidor y la membresía del producto, con su vigencia.
-8. El sistema registra la atribución al vendedor.
+8. El sistema cuelga al cliente de ese vendedor en `user_supervisors`.
 9. El sistema registra los eventos de auditoría.
 10. El sistema confirma el registro e indica que falta el depósito para poder operar.
 
@@ -178,7 +189,9 @@ Lo que sí se consigue forjando es **atribuirse a un vendedor cualquiera**, y es
 | `CA-SP-510` | La vigencia de la membresía sale de `validity_days` del producto |
 | `CA-SP-511` | Un producto **sin** vigencia produce una membresía **sin fecha de fin** |
 | `CA-SP-512` | La contraseña la elige la persona y la cuenta **no** queda marcada para cambio obligatorio |
-| `CA-SP-513` | Queda registrada la atribución del cliente al vendedor del enlace |
+| `CA-SP-513` | El cliente queda **a cargo del vendedor en `user_supervisors`**, en una fila vigente |
+| `CA-SP-525` | Un vendedor con clientes a cargo **no se puede desactivar ni eliminar** sin reasignarlos (`RN-SP-022`) |
+| `CA-SP-526` | `GET /users/{id}/team` devuelve a los clientes junto al equipo, y cada fila lleva los roles que permiten distinguirlos |
 | `CA-SP-514` | El producto se admite **por código y por identificador**, con el mismo resultado |
 | `CA-SP-515` | Un producto inexistente, inactivo y uno retirado se rechazan **con la misma respuesta** |
 | `CA-SP-516` | Un producto de tipo `BOT` se rechaza |
@@ -201,6 +214,8 @@ Lo que sí se consigue forjando es **atribuirse a un vendedor cualquiera**, y es
 | `CL-004` | Alguien compone un enlace que nadie le dio | Se registra igual, y no gana nada: §2. Lo único que consigue es atribuirse a otro vendedor, que es el riesgo de §14 |
 | `CL-005` | La membresía gratuita se renombra o desaparece | El sistema **no arranca**: `plan.md` §5 lo verifica al iniciar, como ya hace el catálogo de monedas |
 | `CL-006` | El vendedor del enlace es el propio superadministrador u otro funcionario | Se rechaza: `EX-002` exige rol `VENDEDOR`, y un funcionario no comisiona |
+| `CL-007` | El vendedor del enlace es un `MANAGER` o un `DIRECTOR`, no un `AGENTE` | Se admite. La rama de consumidor de `RN-SP-020` **no exige parentesco de roles**: cualquiera de la fuerza comercial puede traer un cliente directamente |
+| `CL-008` | Un cliente cambia de vendedor | Es `RF-SP-041` sin cambios de forma: cierra la fila vigente y abre otra, exactamente como con un vendedor. Su validación sí cambia, porque debe aceptar la rama de consumidor |
 
 ## 14. Preguntas abiertas
 
