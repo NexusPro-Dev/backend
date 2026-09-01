@@ -3,6 +3,7 @@ package com.factech.nexus.modules.products.interfaces;
 import com.factech.nexus.modules.products.application.ChangeProductStatusRequest;
 import com.factech.nexus.modules.products.application.DeleteProductRequest;
 import com.factech.nexus.modules.products.application.ListProductsRequest;
+import com.factech.nexus.modules.products.application.OfferResponse;
 import com.factech.nexus.modules.products.application.ProductDetailResponse;
 import com.factech.nexus.modules.products.application.ProductPageResponse;
 import com.factech.nexus.modules.products.application.ProductResponse;
@@ -10,6 +11,7 @@ import com.factech.nexus.modules.products.application.RegisterProductRequest;
 import com.factech.nexus.modules.products.application.UpdateProductRequest;
 import com.factech.nexus.modules.products.domain.service.ChangeProductStatusService;
 import com.factech.nexus.modules.products.domain.service.DeleteProductService;
+import com.factech.nexus.modules.products.domain.service.GetOwnOfferService;
 import com.factech.nexus.modules.products.domain.service.GetProductService;
 import com.factech.nexus.modules.products.domain.service.ListProductsService;
 import com.factech.nexus.modules.products.domain.service.RegisterProductService;
@@ -39,12 +41,14 @@ import org.springframework.web.bind.annotation.RestController;
 /**
  * El catálogo de productos (`PM`).
  *
- * <p>Las seis operaciones del catálogo: alta, listado, detalle, corrección, cambio de estado y
- * retiro. Falta la oferta del cliente (`RF-PM-007`).
+ * <p>Las seis operaciones del catálogo —alta, listado, detalle, corrección, cambio de estado y
+ * retiro— más la oferta del cliente (`RF-PM-007`).
  *
- * <p><b>Este listado no es la oferta.</b> Devuelve el catálogo completo —lo activo, lo inactivo y,
- * si se pide, lo retirado— y lo lee quien administra o vende. Lo que un cliente puede comprar es
- * `RF-PM-007`, que responde otra pregunta, a otro actor y en otro orden.
+ * <p><b>El listado no es la oferta, y por eso son dos endpoints.</b> El listado devuelve el
+ * catálogo completo —lo activo, lo inactivo y, si se pide, lo retirado—, lo lee quien administra y
+ * exige `products:read`. La oferta devuelve <b>solo lo que quien llama puede comprar</b>, la lee el
+ * cliente y no exige ningún permiso. Responden preguntas distintas, a actores distintos y en
+ * órdenes distintos; fundirlas en una con un filtro habría dado a cada cliente el catálogo entero.
  */
 @RestController
 @RequestMapping("/api/v1/products")
@@ -57,6 +61,7 @@ public class ProductController {
   private final ChangeProductStatusService estado;
   private final DeleteProductService retiro;
   private final UpdateProductService correccion;
+  private final GetOwnOfferService ofertaPropia;
 
   public ProductController(
       RegisterProductService alta,
@@ -64,13 +69,15 @@ public class ProductController {
       GetProductService detalle,
       ChangeProductStatusService estado,
       DeleteProductService retiro,
-      UpdateProductService correccion) {
+      UpdateProductService correccion,
+      GetOwnOfferService ofertaPropia) {
     this.alta = alta;
     this.listado = listado;
     this.detalle = detalle;
     this.estado = estado;
     this.retiro = retiro;
     this.correccion = correccion;
+    this.ofertaPropia = ofertaPropia;
   }
 
   @PostMapping
@@ -176,6 +183,78 @@ public class ProductController {
   public ProductPageResponse listar(
       @org.springdoc.core.annotations.ParameterObject @ModelAttribute ListProductsRequest filtros) {
     return listado.list(filtros);
+  }
+
+  /**
+   * <b>Va declarado antes que {@code /{id}} a propósito.</b> Spring no resuelve por orden de
+   * declaración sino por especificidad —el segmento literal gana a la variable de ruta—, de modo
+   * que esto no cambia el comportamiento: cambia quién lo entiende al leerlo. Que funcione lo fija
+   * una prueba, porque el síntoma de romperlo sería un {@code 400} por identificador inválido en la
+   * única ruta que un cliente usa a diario.
+   */
+  @GetMapping("/available")
+  @Operation(
+      summary = "Consultar la oferta disponible para uno mismo",
+      description =
+          """
+          Devuelve lo que **quien llama** puede comprar hoy, y no el catálogo.
+
+          **No admite ningún parámetro**: ni de persona, ni de filtro, ni de
+          paginación. El actor sale del token, de modo que no hay forma de
+          preguntar qué puede comprar otra persona.
+
+          **No exige permiso alguno**, solo estar autenticado. Pedir
+          `products:read` daría a cada cliente el catálogo administrativo entero
+          —lo inactivo, lo retirado y el motivo del retiro— para que pudiera ver
+          tres líneas.
+
+          **Solo lo activo.** Ni lo inactivo ni lo retirado aparecen aquí,
+          aunque el catálogo de `RF-PM-002` sí los muestre a quien administra.
+
+          **Upgrades: todos los que llevan a un nivel superior**, no solo el
+          inmediato. Quien está en el peldaño más bajo ve todos los de arriba y
+          elige cuánto saltar; el precio de cada uno ya expresa el salto. Llegan
+          ordenados **del salto más corto al más largo**.
+
+          **El upgrade hacia el nivel que ya se tiene no se ofrece**, ni los que
+          llevan a niveles inferiores: sería cobrar por quedarse donde se está o
+          por bajar.
+
+          **Bots: todos los activos, para cualquiera.** No dependen del nivel de
+          quien mira ni de que tenga uno.
+
+          **Quien no tiene membresía vigente —incluida la vencida— no ve ningún
+          upgrade**, y sí todos los bots. No hay nivel desde el que subir, y
+          ofrecerle el primero sería venderle una membresía, que no es lo que un
+          upgrade hace.
+
+          **Quien está en la cima recibe la lista de upgrades vacía.** No es un
+          error ni un mensaje especial: es una lista vacía.
+
+          **El precio es el del producto, igual para todos.** Un importe
+          distinto según quién mira sería un descuento, y los descuentos son
+          promociones, que están fuera de alcance.
+
+          Las dos colecciones viajan **envueltas en un objeto** y no como
+          arreglos en la raíz: hoy la oferta no se pagina, y así el día que
+          haya que paginarla no romperá a ningún cliente.
+          """)
+  @ApiResponses({
+    @ApiResponse(
+        responseCode = "200",
+        description = "La oferta del actor, con el nivel desde el que mira.",
+        content = @Content(schema = @Schema(implementation = OfferResponse.class))),
+    @ApiResponse(
+        responseCode = "401",
+        description = "Token ausente o inválido (`AUTH-001`)",
+        content = @Content),
+    @ApiResponse(
+        responseCode = "500",
+        description = "Fallo no controlado (`ERR-500`)",
+        content = @Content)
+  })
+  public OfferResponse oferta() {
+    return ofertaPropia.offer();
   }
 
   @GetMapping("/{id}")
