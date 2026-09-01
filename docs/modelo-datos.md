@@ -2,11 +2,11 @@
 
 | Campo | Valor |
 |---|---|
-| Versión | 0.13.0 |
+| Versión | 0.14.0 |
 | Estado | **Borrador** |
 | Responsable | Bonilla Diaz William Steven |
 | Fecha de creación | 21-08-2026 |
-| Última actualización | 28-08-2026 |
+| Última actualización | 01-09-2026 |
 
 !!! info "Qué va en este documento"
 
@@ -14,9 +14,9 @@
 
     Es una **vista derivada**, no normativa. Sale de [`requirements/sp.md` §10](requirements/sp.md), [`security.md` §9](security.md) y [`architecture.md` §6.6](architecture.md). La fuente de verdad del esquema son las **migraciones Flyway** (Art. V.3), y donde ya existen mandan ellas.
 
-!!! warning "Siete tablas existen; el resto es esquema exigido y no escrito"
+!!! success "Diecinueve tablas existen; cuatro están diseñadas y sin escribir"
 
-    De `V1` a `V7` están escritas: `permissions` y su siembra, las cuatro tablas de auditoría, `roles`, `role_permissions` y la siembra de roles de sistema. **Todo lo demás —`memberships`, `currencies`, `countries`, `users` y las cinco tablas que cuelgan de ella— sigue siendo el esquema que las specs aprobadas exigen y nadie ha migrado todavía**, útil para revisarlo antes de que exista y sea caro cambiarlo.
+    De `V1` a `V47` están escritas las **diecinueve** tablas del sistema: las doce de `SP`, sus cinco de auditoría, `products` de `PM` y `commission_rates` de `CM`. Lo único diseñado y sin escribir son las **cuatro de `MV`** —`movement_types`, `movements`, `payment_methods` e `inbound_notifications`—, que van marcadas como tales en el mapa de §5.
 
 ---
 
@@ -32,7 +32,7 @@ erDiagram
     users ||--o{ user_roles : "porta"
     roles ||--o{ user_roles : "se asigna a"
     users ||--o{ refresh_tokens : "abre sesión"
-    users ||--o{ password_reset_tokens : "pide restablecer · RF-SP-040"
+    users ||--o{ password_reset_permits : "pide restablecer · RF-SP-040"
     users ||--o{ user_supervisors : "está a cargo de alguien"
     users ||--o{ user_supervisors : "tiene gente a cargo"
     users ||--o| user_memberships : "tiene a lo sumo una"
@@ -124,7 +124,7 @@ erDiagram
         text user_agent "—"
     }
 
-    password_reset_tokens {
+    password_reset_permits {
         uuid id PK "permiso temporal de RF-SP-040 · sin plan.md"
         uuid user_id FK "—"
         varchar token_hash UK "nunca el valor en claro, como refresh_tokens"
@@ -306,72 +306,237 @@ erDiagram
 
 ---
 
-## 4. Cómo queda el mapa
+## 4. Lo que se vende, cuánto se paga y qué ocurrió con el dinero
 
-Qué existe, quién es dueño y qué falta:
+Las tres áreas que nacieron después de la primera versión de este documento y que **su mapa no conocía**: `PM` el 27-08-2026, `CM` el 28-08-2026 y `MV` el 01-09-2026.
 
 ```mermaid
-flowchart TB
-    subgraph SP["Módulo SP · dueño"]
-        direction LR
-        A1["roles"]
-        A2["permissions"]
-        A3["role_permissions"]
-        A4["memberships"]
-        A5["currencies"]
-        A6["countries"]
-    end
+erDiagram
+    memberships ||--o| products : "un upgrade lleva a"
+    currencies  ||--o{ products : "el precio se expresa en"
 
-    subgraph AUD["Auditoría · SP es dueño, todos escriben"]
-        direction LR
-        B1["audit_change_log"]
-        B2["audit_deletion_log"]
-        B3["audit_error_log"]
-        B4["audit_security_log"]
-    end
+    roles    ||--o{ commission_rates : "qué gana ese rol"
+    products ||--o{ commission_rates : "acotada a"
+    users    ||--o{ commission_rates : "excepción de"
 
-    subgraph USRS["Usuarios y acceso · RF-SP-024 a RF-SP-042"]
-        direction LR
-        C1["users"]
-        C2["user_roles"]
-        C3["refresh_tokens"]
-        C4["user_supervisors"]
-        C5["password_reset_tokens"]
-        C6["user_memberships"]
-    end
+    movement_types  ||--o{ movements : "de qué clase es"
+    payment_methods ||--o{ movements : "con qué se pagó"
+    users           ||--o{ movements : "de quién es"
+    products        ||--o{ movements : "qué se compró"
+    currencies      ||--o{ movements : "en qué moneda"
+    movements       ||--o{ movements : "revierte · devenga · salda"
+    movements       ||--o| inbound_notifications : "qué produjo"
 
-    OBS["request_log<br/>V35 · escrita"]
+    products {
+        uuid id PK
+        varchar code UK "no se libera JAMAS"
+        varchar type "UPGRADE_MEMBRESIA o BOT"
+        varchar status "nace INACTIVO"
+        uuid target_membership_id FK "obligatorio en upgrade, PROHIBIDO en bot"
+        numeric price "14,4 · la escala la decide la MONEDA"
+        integer validity_days "NULL = no caduca"
+        timestamptz deleted_at "lógico · RN-PM-010"
+    }
 
-    A1 --> A3
-    A2 --> A3
-    C1 --> C2
-    A1 --> C2
-    C1 --> C3
-    C1 --> C5
-    C1 --> C6
-    A4 --> C6
-    C1 -->|"subordinado"| C4
-    C1 -->|"superior"| C4
-    SP -.->|"emiten eventos"| AUD
-    USRS -.->|"emiten eventos"| AUD
-    AUD -.->|"correlation_id"| OBS
+    commission_rates {
+        uuid id PK
+        uuid role_id FK "SIEMPRE, aun en excepción de persona"
+        uuid product_id FK "NULL = todo el catálogo"
+        uuid user_id FK "NULL = todos los de ese rol"
+        numeric percentage "5,2 · cero es un VALOR, no la ausencia"
+        date valid_from "date y no timestamptz"
+        date valid_to "NULL = indefinidamente"
+        timestamptz deleted_at "lógico · RN-CM-005"
+    }
 
-    A5 -.->|"¿quién apunta aquí?"| Q2["∅"]
-    A6 -.->|"¿quién apunta aquí?"| Q3["∅"]
+    movement_types {
+        uuid id PK
+        varchar code UK
+        char prefix "3 letras · van al código"
+        boolean requires_product
+        boolean affects_cash "caja o DEUDA"
+        bigint last_receipt_number "contador de su serie"
+    }
 
-    classDef sp fill:#e7eef0,stroke:#2d5a6b,color:#151b1e
-    classDef pend fill:#f6e6e2,stroke:#a33b2a,stroke-dasharray:3 3,color:#a33b2a
-    class A1,A2,A3,A4,A5,A6,B1,B2,B3,B4 sp
-    class Q2,Q3,OBS,C1,C2,C3,C4,C5,C6 pend
+    movements {
+        uuid id PK
+        varchar code UK "DEP-20260901-A7K2P9"
+        uuid type_id FK
+        varchar status "PENDIENTE CONFIRMADO ANULADO"
+        uuid person_id FK "de quién es"
+        uuid seller_id FK "CONGELADO"
+        uuid product_id FK "NULL en un depósito"
+        numeric unit_amount "COPIADO del producto"
+        integer validity_days "COPIADO"
+        numeric percentage "COPIADO de la tarifa"
+        uuid source_movement_id FK "la venta que devengó"
+        uuid reverses_movement_id FK
+        uuid settled_by_movement_id FK
+        bigint receipt_number "único POR TIPO"
+        timestamptz occurred_at "cuándo OCURRIÓ"
+    }
+
+    inbound_notifications {
+        uuid id PK
+        varchar source "la pasarela, el bróker, la plataforma vieja"
+        varchar external_event_id "idempotencia · primera capa"
+        jsonb payload "VERBATIM · se purga a los 180 días"
+        boolean signature_valid
+        varchar status "RECIBIDA PROCESADA DESCARTADA FALLIDA"
+        timestamptz payload_purged_at
+    }
 ```
 
-**Actualizado el 25-08-2026:** de las dieciséis tablas del dibujo **quince están escritas**, de `V1` a `V35`. La que falta es **`password_reset_tokens`**, que crea `RF-SP-040` —el único requerimiento del grupo sin `plan.md`—, y es por tanto la única tabla del modelo sin sitio asignado en la secuencia de migraciones. `refresh_tokens` dejó de estarlo al implementarse `RF-SP-034`, y `request_log` al cerrarse el issue #23 en `V35`.
+### 4.1 Las tres columnas que se repiten, y no por casualidad
 
-**Sobre la numeración de las migraciones.** La secuencia no es continua —falta el tramo `V8` a `V12`— y no es un descuido: esos números quedaron reservados en `plan.md` que se escribieron antes y se implementaron después, y Flyway **aborta el arranque** ante una migración fuera de orden sobre una base ya migrada. Cada archivo afectado lo explica en su cabecera.
+`price` en `products`, `unit_amount` en `movements`, `percentage` en `commission_rates` y **otra vez** `percentage` en `movements`. Parece duplicación y es lo contrario:
+
+| Dónde | Qué significa |
+|---|---|
+| `products.price` | Lo que **cuesta hoy** |
+| `movements.unit_amount` | Lo que **costó cuando se compró** |
+| `commission_rates.percentage` | Lo que **se gana hoy** |
+| `movements.percentage` | Lo que **se ganó por esa venta** |
+
+**Copiar y no referenciar es la regla que sostiene el pasado** (`RN-MV-002`, `RN-MV-003`). Sin ella, corregir un precio reescribe facturas y corregir una tarifa reescribe lo que alguien cobró. Lo exigieron `pm.md` §1.4 y `RN-CM-008` **antes de que existiera la tabla donde cumplirlo**.
+
+### 4.2 `movements` se referencia a sí misma tres veces, y son tres cosas
+
+| Columna | Qué apunta |
+|---|---|
+| `reverses_movement_id` | El movimiento que esta **reversión** deshace |
+| `source_movement_id` | La **venta** que devengó esta comisión |
+| `settled_by_movement_id` | El **pago** que saldó este devengo |
+
+Tres autorreferencias en una tabla son una señal de alarma habitual. Aquí no lo son porque **las tres van en direcciones distintas del tiempo**: la primera mira atrás para corregir, la segunda mira atrás para explicar el origen, y la tercera mira **adelante** —se puebla después, cuando el pago ocurre—.
+
+### 4.3 Lo que `affects_cash` separa
+
+`movements` contiene **dos cosas que no son iguales**: dinero que se movió —compra, depósito, pago de comisión— y **deuda contraída** —lo que un vendedor ganó y no ha cobrado—. Sin distinguirlas, **sumar la tabla no responde ninguna pregunta**.
+
+La marca vive en `movement_types` y no en `movements`, de modo que **es una propiedad del tipo y no de cada fila**: dos movimientos del mismo tipo no pueden discrepar sobre si movieron dinero.
 
 ---
 
-## 5. Lo que el modelo deja pendiente
+## 5. Cómo queda la base de datos
+
+**Diecinueve tablas escritas y cuatro diseñadas.** Ninguna se ha retirado nunca.
+
+```mermaid
+flowchart TB
+    subgraph SP["SP · Sistema Principal · 19 tablas"]
+        direction TB
+        subgraph ACC["Control de acceso"]
+            direction LR
+            A1["roles"]
+            A2["permissions"]
+            A3["role_permissions"]
+            C1["users"]
+            C2["user_roles"]
+        end
+        subgraph CAT["Catálogos"]
+            direction LR
+            A4["memberships"]
+            A5["currencies"]
+            A6["countries"]
+        end
+        subgraph PER["Persona"]
+            direction LR
+            C6["user_memberships"]
+            C4["user_supervisors<br/>vendedores Y CLIENTES"]
+            C3["refresh_tokens"]
+            C5["password_reset_permits"]
+        end
+        subgraph AUD["Auditoría · todos escriben"]
+            direction LR
+            B1["audit_change_log"]
+            B2["audit_deletion_log"]
+            B3["audit_error_log"]
+            B4["audit_security_log"]
+            OBS["request_log"]
+        end
+    end
+
+    subgraph PM["PM · 1 tabla"]
+        P1["products"]
+    end
+
+    subgraph CM["CM · 1 tabla"]
+        M1["commission_rates"]
+    end
+
+    subgraph MV["MV · 4 tablas · DISEÑADAS, sin escribir"]
+        direction LR
+        V1["movement_types"]
+        V2["movements"]
+        V3["payment_methods"]
+        V4["inbound_notifications"]
+    end
+
+    A4 --> P1
+    A5 --> P1
+    A1 --> M1
+    P1 --> M1
+    C1 --> M1
+    P1 --> V2
+    C1 --> V2
+    A5 --> V2
+    V1 --> V2
+    V3 --> V2
+    V4 -.-> V2
+
+    classDef escrita fill:#e7eef0,stroke:#2d5a6b,color:#151b1e
+    classDef disenada fill:#f6e6e2,stroke:#a33b2a,stroke-dasharray:3 3,color:#a33b2a
+    class A1,A2,A3,A4,A5,A6,B1,B2,B3,B4,C1,C2,C3,C4,C5,C6,OBS,P1,M1 escrita
+    class V1,V2,V3,V4 disenada
+```
+
+### 5.1 El inventario, con quién es dueño
+
+| Módulo | Tablas | Estado |
+|---|---|---|
+| `SP` | `permissions`, `roles`, `role_permissions`, `users`, `user_roles`, `memberships`, `user_memberships`, `currencies`, `countries`, `user_supervisors`, `refresh_tokens`, `password_reset_permits` | **12, escritas** |
+| `SP` · auditoría | `audit_change_log`, `audit_deletion_log`, `audit_error_log`, `audit_security_log`, `request_log` | **5, escritas** |
+| `PM` | `products` | **1, escrita** |
+| `CM` | `commission_rates` | **1, escrita** |
+| `MV` | `movement_types`, `movements`, `payment_methods`, `inbound_notifications` | **4, diseñadas** |
+
+**Un módulo, una a cuatro tablas.** `SP` tiene diecisiete y los otros tres juntos tienen seis, y eso no es desequilibrio: `SP` es dueño del acceso, de los catálogos transversales y de la auditoría entera, que es infraestructura que todos usan y nadie duplica.
+
+### 5.2 Lo que cambió en `SP` el 01-09-2026, sin tabla nueva
+
+Dos cambios que **no añaden ninguna tabla** y sí cambian lo que el modelo significa:
+
+| Qué | Cambio |
+|---|---|
+| `users.status` | `PENDIENTE` —declarado y sin usar desde `V18`— es sustituido por **`FTD_PENDIENTE`**. Cambio de dominio **sin migración de datos**: ninguna fila llevaba el valor retirado |
+| `user_supervisors` | **Deja de contener solo vendedores.** El cliente cuelga de su vendedor en la misma tabla, y una fila significa dos cosas según quién sea el subordinado: «reporta a» entre vendedores, «fue traído por» cuando es un cliente |
+
+**El segundo es el más barato y el que más alcance tiene.** Cero columnas nuevas, cero migraciones — y `RN-SP-022` se endurece sin cambiar de texto, de modo que tres requerimientos ya construidos empiezan a rechazar más.
+
+### 5.3 Dónde apunta cada clave foránea que cruza un módulo
+
+Son **siete**, y todas van en la misma dirección: **hacia `SP` y hacia `PM`**, nunca al revés.
+
+| Desde | Hacia | Módulo |
+|---|---|---|
+| `products.target_membership_id` | `memberships` | `PM` → `SP` |
+| `products.currency_id` | `currencies` | `PM` → `SP` |
+| `commission_rates.role_id` | `roles` | `CM` → `SP` |
+| `commission_rates.user_id` | `users` | `CM` → `SP` |
+| `commission_rates.product_id` | `products` | `CM` → `PM` |
+| `movements.person_id`, `seller_id`, `currency_id` | `users`, `currencies` | `MV` → `SP` |
+| `movements.product_id`, `target_membership_id` | `products`, `memberships` | `MV` → `PM`, `SP` |
+
+**Las claves foráneas sí cruzan; los repositorios no.** Es la distinción de D-25 y conviene tenerla clara mirando este cuadro: la integridad referencial la defiende el motor, y la frontera de código la defiende una regla de ArchUnit. Que una tabla apunte a otra de otro módulo **no autoriza a leerla desde Java**.
+
+### 5.4 Sobre la numeración de las migraciones
+
+La secuencia no es continua —falta el tramo `V8` a `V12`— y no es un descuido: son números consumidos por trabajo que se reorganizó. Un número de migración **no se reutiliza jamás**, porque Flyway lo registra en el historial de cada entorno.
+
+Las cuatro tablas de `MV` ocuparán a partir de `V50`, después de la `V48` y `V49` que `RF-SP-045` reserva.
+
+## 6. Lo que el modelo deja pendiente
 
 | # | Punto | Dónde se resuelve |
 |---|---|---|
@@ -382,13 +547,13 @@ flowchart TB
 | 5 | **Tres estrategias de baja distintas**: `roles` con `deleted_at`, `countries` y `currencies` con `is_active`, `memberships` con ninguna. Cada caso está justificado por separado, pero no hay una regla que diga cuándo se usa cada una. | `architecture.md` §6.4 |
 | 6 | **`modelo_v1.mwb` está desactualizado.** Trae `roles.assigned_role_id`, que `security.md` §9 renombra a `parent_role_id`. El modelo gráfico es material de referencia, no autoridad sobre el esquema (Art. V.3). | `DB/modelo_v1.mwb` |
 | 7 | **Qué ocurre con `role_permissions` cuando se elimina un rol.** El borrado de `roles` es lógico, y `RF-SP-009` §7 solo dice que sus asociaciones con permisos «dejan de tener efecto»: no declara si las filas se borran o sobreviven. `RF-SP-029` sí lo declara para las suyas —las de `user_roles` y `user_memberships` **desaparecen**—, de modo que dos eliminaciones del mismo módulo resuelven distinto la misma pregunta. Reutilizar el código de un rol eliminado con sus filas de permisos vivas dejaría un vínculo apuntando a un rol que ya no existe para nadie | `RF-SP-009` §7, migración de `roles` |
-| 8 | **`refresh_tokens` y `password_reset_tokens` no tienen migración declarada.** Las crean `RF-SP-034` y `RF-SP-040`, que todavía no tienen `plan.md`; hasta que lo tengan, sus columnas son derivación de la spec y no esquema fijado. Es también donde se decidirá dónde vive la **caducidad de la credencial provisional**, que aquí figura como `users.password_expires_at` | `plan.md` de `RF-SP-034` y `RF-SP-040` |
-| 9 | ~~**Nadie purga los tokens.**~~ **Resuelto a medias el 25-08-2026 (issue #25):** `refresh_tokens` ya se purga —por familia entera, treinta días después de que **toda** ella caduque, con constancia auditada y un cerrojo que impide que tres réplicas purguen tres veces (`security.md` §5.5.2)—. Sigue abierto para **`password_reset_tokens`**, que no se puede purgar porque todavía no existe: la crea `RF-SP-040`, bloqueado por **D-23**. Y sigue abierto para el `request_log` y los cuatro registros de auditoría, cuyo plazo depende de **D-10** | `security.md` §5.5.2, **D-10**, **D-23** |
-| 10 | **`users.status` declara `PENDIENTE` y ninguna operación entra ni sale de él.** `security.md` §3.1 lo conserva para un flujo de activación que no existe, y el `CHECK` del dominio cerrado lo admitirá igual. O se retira del dominio hasta que ese flujo se especifique, o se declara qué requerimiento lo poblará | `security.md` §3.1 |
+| ~~8~~ | ~~**`refresh_tokens` y `password_reset_permits` no tienen migración declarada.**~~ **Resuelto:** las crean `V29` y `V37` respectivamente. Lo que sigue — Las crean `RF-SP-034` y `RF-SP-040`, que todavía no tienen `plan.md`; hasta que lo tengan, sus columnas son derivación de la spec y no esquema fijado. Es también donde se decidirá dónde vive la **caducidad de la credencial provisional**, que aquí figura como `users.password_expires_at` | `plan.md` de `RF-SP-034` y `RF-SP-040` |
+| 9 | ~~**Nadie purga los tokens.**~~ **Resuelto a medias el 25-08-2026 (issue #25):** `refresh_tokens` ya se purga —por familia entera, treinta días después de que **toda** ella caduque, con constancia auditada y un cerrojo que impide que tres réplicas purguen tres veces (`security.md` §5.5.2)—. Sigue abierto para **`password_reset_permits`**, que no se puede purgar porque todavía no existe: la crea `RF-SP-040`, bloqueado por **D-23**. Y sigue abierto para el `request_log` y los cuatro registros de auditoría, cuyo plazo depende de **D-10** | `security.md` §5.5.2, **D-10**, **D-23** |
+| ~~10~~ | ~~**`users.status` declara `PENDIENTE` y ninguna operación entra ni sale de él.**~~ **Resuelto el 01-09-2026:** `RF-SP-045` lo sustituye por **`FTD_PENDIENTE`**, que sí tiene entrada —el registro por enlace— y salida —un depósito confirmado—. `V18` lo había dejado declarado justamente para que estrenarlo no costara alterar el `CHECK` de una tabla en uso, y ese día llegó. Lo que sigue — `security.md` §3.1 lo conserva para un flujo de activación que no existe, y el `CHECK` del dominio cerrado lo admitirá igual. O se retira del dominio hasta que ese flujo se especifique, o se declara qué requerimiento lo poblará | `security.md` §3.1 |
 
 ---
 
-## 6. Control de cambios
+## 7. Control de cambios
 
 | Versión | Fecha | Cambio | Responsable |
 |---|---|---|---|
@@ -399,8 +564,9 @@ flowchart TB
 | 0.5.0 | 21-08-2026 | Consecuencias de aprobar `RF-SP-035`. `refresh_tokens` gana `revoked_reason`: solo la revocación por rotación indica robo, y sin ese dato cerrar sesión sería indistinguible de una reutilización. | Responsable técnico |
 | 0.6.0 | 22-08-2026 | Entidad nueva `user_supervisors`, derivada de registrar `RF-SP-041` y `RF-SP-042`: la estructura comercial **persona → persona**, con historial y un solo superior vigente por persona. Es la primera tabla del modelo que relaciona dos usuarios entre sí. Se anota por qué lleva clave sustituta cuando las demás asociaciones no la llevan, y que **no concede alcance sobre los datos** —D-22 sigue abierta—. | Responsable técnico |
 | 0.7.0 | 22-08-2026 | Consecuencias de aprobar los `plan.md` de `RF-SP-025` a `RF-SP-029`. `users` incorpora **`deleted_at`**, que nace con la tabla en `V18` y no con `RF-SP-029` —`architecture.md` §6.4 la declara obligatoria en toda tabla de negocio y diez requerimientos la leen antes de que alguien la escriba—, y se anota qué requerimiento crea cada una de las tres columnas de control de acceso: las tres son de `RF-SP-034`. §1 incorpora **`user_memberships`**, que faltaba en el diagrama pese a haberla creado `RF-SP-024` \(`V20`\), y con ella queda **cerrado el hueco 1** de §5: la asociación entre una persona y su nivel vive en esa tabla puente, con `user_id` como clave primaria. | Responsable técnico |
-| 0.8.0 | 22-08-2026 | Revisión de completitud disparada por los flujos del módulo v0.3.0. §1 incorpora **`users.password_expires_at`** —`RF-SP-038` §7 exige fijar cuándo caduca la credencial provisional y el modelo solo declaraba la marca— y la tabla **`password_reset_tokens`**, que el permiso temporal de un solo uso de `RF-SP-040` exige y que no puede ser una columna porque tiene vigencia, consumo e invalidación propios. §4 añade `user_memberships`, que faltaba en el mapa, retira la pregunta «¿quién apunta aquí?» de `memberships` —`user_memberships` la responde desde la v0.7.0— y anota qué tablas están escritas y cuáles no tienen sitio en la secuencia de migraciones. La advertencia de cabecera deja de decir que no hay ninguna migración escrita: de `V1` a `V7` lo están. §5 suma cuatro pendientes: `role_permissions` ante el borrado lógico de un rol, las dos tablas sin migración declarada, la purga que nadie ejecuta y `PENDIENTE` sin transiciones. | Responsable técnico |
+| 0.8.0 | 22-08-2026 | Revisión de completitud disparada por los flujos del módulo v0.3.0. §1 incorpora **`users.password_expires_at`** —`RF-SP-038` §7 exige fijar cuándo caduca la credencial provisional y el modelo solo declaraba la marca— y la tabla **`password_reset_permits`**, que el permiso temporal de un solo uso de `RF-SP-040` exige y que no puede ser una columna porque tiene vigencia, consumo e invalidación propios. §4 añade `user_memberships`, que faltaba en el mapa, retira la pregunta «¿quién apunta aquí?» de `memberships` —`user_memberships` la responde desde la v0.7.0— y anota qué tablas están escritas y cuáles no tienen sitio en la secuencia de migraciones. La advertencia de cabecera deja de decir que no hay ninguna migración escrita: de `V1` a `V7` lo están. §5 suma cuatro pendientes: `role_permissions` ante el borrado lógico de un rol, las dos tablas sin migración declarada, la purga que nadie ejecuta y `PENDIENTE` sin transiciones. | Responsable técnico |
 | 0.9.0 | 25-08-2026 | **`request_log` deja de ser un hueco** (issue #23). §3 sustituye el marcador «esquema sin definir» por las once columnas reales que crea `V35`, §4 la marca como escrita en el mapa y §5 cierra el **pendiente 3**. Se anota lo que no se deduce del esquema: su `correlation_id` **no** es nulable al contrario que en las cuatro de auditoría —aquellas admiten eventos de procesos internos, esto solo lo escribe una petición HTTP—, un `status` nulo significa que la petición se abortó sin respuesta, y **no participa en la transacción de negocio**, de modo que una operación revertida deja su fila igual. Sigue faltando la purga, que depende de **D-10** (pendiente 9). | Responsable técnico |
-| 0.10.0 | 25-08-2026 | §5 cierra **a medias el pendiente 9** (issue #25): `refresh_tokens` ya tiene quien la purgue. Queda abierto para `password_reset_tokens` —que no se puede purgar porque no existe— y para el `request_log` y los cuatro registros de auditoría, cuyo plazo depende de **D-10**. El esquema no cambia: la purga no añade columnas, y su único rastro en el modelo es que la tabla deja de crecer sin techo. | Responsable técnico |
+| 0.10.0 | 25-08-2026 | §5 cierra **a medias el pendiente 9** (issue #25): `refresh_tokens` ya tiene quien la purgue. Queda abierto para `password_reset_permits` —que no se puede purgar porque no existe— y para el `request_log` y los cuatro registros de auditoría, cuyo plazo depende de **D-10**. El esquema no cambia: la purga no añade columnas, y su único rastro en el modelo es que la tabla deja de crecer sin techo. | Responsable técnico |
 | 0.11.0 | 26-08-2026 | **`memberships` gana `color`**, seis dígitos hexadecimales sin `#` y en mayúsculas, con los que el frontend pinta el nivel (`RN-SP-024`). Es obligatorio: un color opcional obliga al navegador a inventarse uno de reserva, que es justo la decisión que este campo saca del frontend. Se anota en §4 la consecuencia de que `RN-SP-008` lo vuelve **incorregible** una vez creado. | Responsable técnico |
-| 0.13.0 | 01-09-2026 | **`user_supervisors` cambia de significado sin cambiar de forma** (`RF-SP-045`). Hasta hoy relacionaba **vendedores entre sí** y el mapa se leía así; desde ahora contiene también a los **clientes**, colgando del vendedor que los trajo. No hay columnas nuevas ni aristas nuevas que dibujar —las dos que ya salen de `users` cubren los dos extremos—, y por eso este cambio **no se ve en el diagrama**: lo que cambia es qué significa una fila, que depende de si el subordinado es vendedor o consumidor. Se propuso una tabla propia, `client_referrals`, y **el responsable del proyecto la descartó** el mismo día a favor de reutilizar esta: con dos tablas, subir de un cliente hasta el manager que cobra por él exige un join y un caso especial en la hoja; con una, es un recorrido. Queda anotado además lo que este mapa **sigue sin cubrir** y no se arregla aquí: ni `products` (`PM`) ni `commission_rates` (`CM`) figuran en él pese a existir desde el 27 y el 28-08-2026. | Responsable técnico |
+| 0.13.0 | 01-09-2026 | **`user_supervisors` cambia de significado sin cambiar de forma** (`RF-SP-045`). Hasta hoy relacionaba **vendedores entre sí**; desde ahora contiene también a los **clientes**, colgando del vendedor que los trajo. No hay columnas nuevas ni aristas nuevas que dibujar, y por eso este cambio **no se ve en el diagrama**: lo que cambia es qué significa una fila. Se propuso una tabla propia, `client_referrals`, y **el responsable del proyecto la descartó** a favor de reutilizar esta: con dos tablas, subir de un cliente hasta el manager que cobra por él exige un join y un caso especial en la hoja; con una, es un recorrido. | Responsable técnico |
+| 0.14.0 | 01-09-2026 | **El documento deja de describir solo `SP`.** Su mapa llevaba **dos módulos de retraso**: no conocía `products` —de `PM`, escrita el 27-08-2026— ni `commission_rates` —de `CM`, el 28-08-2026—, y llamaba `password_reset_tokens` a una tabla que se llama **`password_reset_permits`** desde `V37`. Las tres derivas se corrigen. §4 incorpora **las tres áreas que nacieron después**: qué se vende (`PM`), cuánto se paga (`CM`) y qué ocurrió con el dinero (`MV`), con su diagrama entidad-relación. §5 se reescribe entera como **la vista de conjunto de la base**: diecinueve tablas escritas y cuatro diseñadas, con el inventario por dueño, **las siete claves foráneas que cruzan un módulo** —todas hacia `SP` y `PM`, nunca al revés— y la distinción que conviene tener a la vista mirando ese cuadro: **las claves foráneas sí cruzan y los repositorios no**, porque la integridad la defiende el motor y la frontera de código una regla de ArchUnit. §4.1 explica por qué **cuatro columnas parecen duplicadas y son lo contrario** —`products.price` es lo que cuesta hoy y `movements.unit_amount` lo que costó cuando se compró—, y §4.2 por qué `movements` **se referencia a sí misma tres veces** sin que sea una señal de alarma: las tres van en direcciones distintas del tiempo. §5.2 recoge los **dos cambios de este día que no añaden ninguna tabla** y sí cambian lo que el modelo significa: el estado `FTD_PENDIENTE` y los clientes dentro de `user_supervisors` — el segundo cuesta cero columnas y es el de más alcance. | Responsable técnico |
