@@ -5,7 +5,7 @@
 | Módulo | `MV` — Movimientos |
 | Paquete | `modules/movements` |
 | Prefijos de permiso | `movements:` |
-| Versión | 0.3.0 |
+| Versión | 0.4.0 |
 | Estado | **Borrador** |
 | Responsable | Bonilla Diaz William Steven |
 | Fecha de creación | 01-09-2026 |
@@ -76,11 +76,26 @@ Este módulo pone ese objeto en el sistema, y con él se cierran los tres.
 
 ### 1.5 El comprobante no es una factura, y conviene decirlo aquí
 
-El comprobante que emite este módulo lleva **numeración propia, correlativa y sin huecos**, y sirve para que una persona sepa qué compró y por cuánto. **No es un documento fiscal.**
+El comprobante que emite este módulo lleva **numeración propia y única por tipo**, y sirve para que una persona sepa qué compró y por cuánto. **No es un documento fiscal.**
 
 La diferencia no es de matiz. Una factura electrónica en Colombia va bajo **resolución de la DIAN** con rango numérico autorizado, no se modifica jamás —se anula con **nota crédito**— y su emisión pasa por un proveedor tecnológico autorizado. FACTECH GROUP SAS es una sociedad colombiana, de modo que esto llegará.
 
 **Se decide por adelantado cómo llegará**, para que llegue como una ampliación y no como una reescritura: la factura fiscal será una **entidad aparte** que apunta al movimiento y tiene su propia numeración, y no un campo más de esta tabla. Un movimiento puede existir sin factura —un depósito no se factura— y una factura no puede existir sin el hecho que la origina.
+
+### 1.6 Este módulo nace con datos que ya existen
+
+**Hay que importar movimientos de una plataforma anterior** (decisión del responsable del proyecto, 01-09-2026). No es un detalle de puesta en marcha: cambia el diseño en cuatro sitios, y dos de ellos ya estaban resueltos por casualidad.
+
+| Qué cambia | Por qué |
+|---|---|
+| **Nada de numeración sin huecos** | Lo importado trae sus propias fechas y su propio orden. Una serie estrictamente correlativa no sobrevive a una carga histórica, y prometerla obligaría a renumerar lo migrado — que es reescribir el pasado para que encaje en la forma nueva. `RN-MV-008` lo retira |
+| **`occurred_at` separado de `created_at`** | Ya estaba, y ahora se ve para qué: lo importado ocurrió hace meses y se registra hoy. Confundirlos habría desplazado años de historia al día de la carga |
+| **La fecha del código sale del hecho** | `RN-MV-017`. Un movimiento de marzo importado en septiembre lleva `20260315` en su código, no `20260901` |
+| **Hay que poder distinguir lo importado de lo nacido aquí** | Sin marca, no se puede reconciliar contra la plataforma vieja ni saber qué parte del libro tiene la calidad de origen y qué parte la calidad de una carga |
+
+**Lo último se resuelve con lo que ya hay**: `inbound_notifications` lleva `source` y `movements` lleva `gateway` y `external_reference`. La plataforma anterior es **un emisor más** —un `source`—, y el identificador que cada movimiento tenía allí es su `external_reference`. Con eso, la unicidad de `RN-MV-013` hace además que **reejecutar la importación no duplique nada**, que es la propiedad que toda carga necesita y casi ninguna tiene.
+
+**Lo que este documento no resuelve** es el mapeo: qué campos de la plataforma anterior corresponden a cuáles de aquí, qué se hace con lo que no encaja, y si lo importado nace `CONFIRMADO` sin pasar por las validaciones del caso de uso. Es un requerimiento propio y probablemente **de una sola ejecución**, y mezclarlo con el registro ordinario dejaría el caso de uso normal lleno de ramas que solo se usan una vez.
 
 ---
 
@@ -182,13 +197,15 @@ La dependencia sigue siendo **acíclica**: `MV` → `PM` → `SP`, y `MV` → `S
 | `RN-MV-005` | La referencia externa es única por pasarela | Al registrar y al confirmar | La misma notificación entregada dos veces —cosa que **toda** pasarela hace— debe producir **un** movimiento y no dos. Se declara en el esquema, porque una comprobación en el caso de uso no sobrevive a dos entregas simultáneas | **Crítica** |
 | `RN-MV-006` | Un depósito no lleva producto; una compra sí | Al registrar | La condición se exige **en los dos sentidos**, como `RN-PM-002`: un depósito con producto promete una entrega que nadie hará, y una compra sin producto no dice qué se compró | Alta |
 | `RN-MV-007` | La cantidad es uno en los upgrades | Al registrar una compra | Un upgrade con cantidad dos no significa nada: no se sube dos veces al mismo nivel. Los bots admiten más de uno. **No se puede declarar en el esquema** —un `CHECK` no consulta `products`— y vive en el caso de uso, como `RN-CM-001` | Alta |
-| `RN-MV-008` | El comprobante es correlativo y **no es fiscal** | Al confirmar | Numeración propia, sin huecos, que no se reutiliza jamás. **No sustituye a la factura electrónica** (§1.5), y el documento fiscal será una entidad aparte que apunte al movimiento | Alta |
+| `RN-MV-008` | El comprobante es **único por tipo** y **no es fiscal** | Al confirmar | Cada tipo lleva su propia serie y un número no se reutiliza jamás. **No se promete «sin huecos»**, y la retirada de esa promesa es deliberada: hay que **importar movimientos de otra plataforma**, que traen sus propias fechas y su propio orden, y una serie sin huecos no sobrevive a eso — además de que una `SEQUENCE` de PostgreSQL deja huecos por diseño en cada transacción revertida. **No sustituye a la factura electrónica** (§1.5), que sí exigirá numeración estricta y será una entidad aparte | Alta |
 | `RN-MV-009` | El importe respeta los decimales de su moneda | Al registrar | Igual que `RN-PM-007` para el precio del catálogo, y por lo mismo: la escala la decide la moneda y no la columna | Media |
 | `RN-MV-012` | La notificación se guarda **antes** de procesarse | Al recibir | Recibir, verificar la firma, **guardar**, responder, y solo entonces interpretar. Guardarla después es tenerla en todos los casos **menos en el único que importa**: aquel en que procesarla falló. Y responder antes de procesar no es una optimización — las pasarelas tienen espera corta y reintentan, de modo que procesar primero convierte cada operación lenta en una reentrega | **Crítica** |
 | `RN-MV-013` | La idempotencia tiene **dos capas**, no una | Al recibir y al registrar | El **identificador del evento** es único por emisor en `inbound_notifications`, y la **referencia externa** lo es en `movements` (`RN-MV-005`). La primera atrapa la reentrega **antes de interpretarla**, que es más barato y más seguro; la segunda la atrapa aunque el emisor mande dos eventos distintos para el mismo cobro. Las dos se declaran en el esquema | **Crítica** |
 | `RN-MV-014` | La firma inválida **se guarda y no se procesa** | Al recibir | La fila queda con la firma marcada como no válida y el evento no produce nada. Es lo que convierte «alguien está intentando falsificar confirmaciones de pago» en algo que se puede **ver** en lugar de en un `401` que nadie mira. Exige límite de tasa por origen: sin él, el endpoint es un vertedero abierto | **Crítica** |
 | `RN-MV-015` | El documento crudo caduca; la fila no | Siempre | El `payload` se purga a los **180 días** y la fila **permanece** con sus metadatos —emisor, tipo, identificador, firma, estado y qué movimiento produjo—. Así la trazabilidad sobrevive y los **datos personales de terceros** no: un documento de pasarela lleva nombre, correo, documento y últimos dígitos de una tarjeta. El plazo cubre la ventana de contracargo con margen; pasada esa, el documento crudo ya no es evidencia que nadie necesite. **Esta tabla no espera a D-10** justamente porque, al revés que `request_log`, tiene un final natural | Alta |
 | `RN-MV-016` | El secreto compartido **no se guarda jamás** | Siempre | Se conserva la **firma** que el emisor envía —que es un resumen y no una llave— y **nunca** la clave con la que se calcula, ni ninguna cabecera de autorización. Es el Art. VI.5 y el mismo criterio con el que `request_log` se niega a guardar cabeceras | **Crítica** |
+| `RN-MV-017` | Todo movimiento lleva un **código legible**, y su día sale del hecho | Al registrar | `<prefijo del tipo>-<AAAAMMDD>-<seis aleatorios>` (§7.2.1). La fecha es la de **`occurred_at`**, no la del registro: un movimiento importado de la plataforma anterior lleva el día en que ocurrió. El aleatorio usa el alfabeto de 32 de Crockford —**sin `I`, `L`, `O` ni `U`**— porque este código se dicta por teléfono y se teclea, y `O` contra `0` es el error que se comete. **No sustituye al identificador interno**: `id` sigue siendo el UUID | Alta |
+| `RN-MV-018` | El catálogo de tipos **no se edita por API** | Siempre | Se siembra por migración, como el de monedas (`RN-SP-010`). El motivo aquí es más fuerte: el caso de uso **decide según el tipo**, de modo que uno añadido en caliente sería un tipo que **ningún código sabe procesar** — el sistema aceptaría el movimiento y no haría nada con él. Es el defecto que no falla: promete | **Crítica** |
 | `RN-MV-011` | Habilita la **transición**, no el depósito | Al confirmar un depósito | Un depósito solo habilita la cuenta si estaba en `FTD_PENDIENTE`. **El segundo depósito de la misma persona no toca su estado**, y decirlo importa: la implementación evidente —«todo depósito confirmado habilita»— es correcta por accidente y deja de serlo el día que exista una cuenta desactivada por otro motivo, a la que un depósito la reactivaría sin que nadie lo hubiera decidido | **Crítica** |
 | `RN-MV-010` | Método de pago y pasarela son dos datos | Al registrar | **El método** es con qué pagó la persona —transferencia, tarjeta, cripto—; **la pasarela** es quién procesó la transacción. Una pasarela ofrece varios métodos y un método lo ofrecen varias pasarelas: en un solo campo, cambiar de proveedor obligaría a reescribir datos históricos | Media |
 
@@ -235,7 +252,8 @@ La dependencia sigue siendo **acíclica**: `MV` → `PM` → `SP`, y `MV` → `S
 | Columna | Tipo | Nula | Referencia |
 |---|---|---|---|
 | `id` | `uuid` | No | — |
-| `type` | `varchar(20)` | No | `DEPOSITO`, `COMPRA`, `REVERSION` |
+| `type_id` | `uuid` | No | `movement_types` — de él sale el prefijo del código |
+| `code` | `varchar(30)` | No | `DEP-20260901-A7K2P9` (§7.2.1) |
 | `status` | `varchar(20)` | No | `PENDIENTE`, `CONFIRMADO`, `ANULADO` |
 | `client_id` | `uuid` | No | `users` |
 | `seller_id` | `uuid` | **Sí** | `users` — congelado |
@@ -249,7 +267,7 @@ La dependencia sigue siendo **acíclica**: `MV` → `PM` → `SP`, y `MV` → `S
 | `payment_method_id` | `uuid` | **Sí** | `payment_methods` |
 | `gateway` | `varchar(50)` | **Sí** | Quién procesó |
 | `external_reference` | `varchar(200)` | **Sí** | La referencia de la pasarela |
-| `receipt_number` | `bigint` | **Sí** | Comprobante; se puebla al confirmar |
+| `receipt_number` | `bigint` | **Sí** | Comprobante, **único por tipo**; se puebla al confirmar |
 | `reverses_movement_id` | `uuid` | **Sí** | `movements` — solo en una `REVERSION` |
 | `occurred_at` | `timestamptz` | No | Cuándo ocurrió el hecho |
 | `confirmed_at` | `timestamptz` | **Sí** | — |
@@ -263,7 +281,61 @@ La dependencia sigue siendo **acíclica**: `MV` → `PM` → `SP`, y `MV` → `S
 
 **`occurred_at` no es `created_at`.** Un depósito ocurre cuando el bróker lo recibe y se registra cuando su notificación llega, que puede ser horas después. Confundirlos desplaza los hechos al momento en que el sistema se enteró.
 
-### 7.2 `payment_methods`
+### 7.2 `movement_types`
+
+El tipo de movimiento **es un catálogo y no un dominio cerrado**, y de él sale el prefijo con el que se nombran los movimientos.
+
+| Columna | Tipo | Nula |
+|---|---|---|
+| `id` | `uuid` | No |
+| `code` | `varchar(30)` | No |
+| `prefix` | `char(3)` | No |
+| `name` | `varchar(100)` | No |
+| `requires_product` | `boolean` | No |
+| `last_receipt_number` | `bigint` | No |
+| `status` | `varchar(20)` | No |
+| `created_at` | `timestamptz` | No |
+
+**Por qué tabla y no `varchar` con `CHECK`, que era el diseño anterior.** Porque **este proyecto ya pagó dos veces por esa forma**: el catálogo de `event_type` de `audit_security_log` es un `CHECK`, y añadirle **un** valor costó `V34` —`RATE_LIMIT_EXCEEDED`— y otro `V36` —la purga de tokens—, las dos con `DROP CONSTRAINT` y `ADD CONSTRAINT` sobre una tabla en uso. `V36` lo dice en su primera línea: «POR QUÉ HACE FALTA UNA MIGRACIÓN PARA ESTO».
+
+Un tipo nuevo aquí es previsible —una comisión pagada, un retiro, un ajuste— y con tabla es una fila sembrada.
+
+**Y sobre todo: el tipo lleva datos.** Un dominio cerrado es una etiqueta; esto trae el **prefijo** del código, si **exige producto**, y el **contador** de su serie de comprobantes. Eso ya no es una etiqueta.
+
+!!! warning "Es un catálogo cerrado: se siembra por migración y NO se edita por API"
+
+    Es el mismo trato que `RN-SP-010` da a las monedas, y aquí el motivo es más fuerte. El caso de uso **decide según el tipo** —qué valida, qué efecto produce, qué escribe fuera—, de modo que un tipo añadido en caliente sería uno que **ningún código sabe procesar**: el sistema aceptaría el movimiento y no haría nada con él.
+
+    Es el defecto que este proyecto describe una y otra vez: **no falla, promete**.
+
+**Lo que este cambio cuesta, y hay que decirlo.** `ck_movements_type_product` —la condición cruzada de `RN-MV-006`— **vivía en el esquema y ya no puede**: un `CHECK` no consulta otra tabla. Se muda al dominio, con `RN-CM-001` y `RN-MV-007`, que están ahí por lo mismo. Es una pérdida real frente al Art. V.6 y es el precio de poder añadir tipos sin tocar una restricción en uso.
+
+### 7.2.1 Los dos códigos, que no son el mismo
+
+| Código | Forma | Para qué |
+|---|---|---|
+| **Del movimiento** | `DEP-20260901-A7K2P9` | Identificarlo. Es el que una persona cita en soporte |
+| **Del comprobante** | Consecutivo **único por tipo** | Numerar el documento. Es el que un contador espera |
+
+**Son dos porque responden a dos preguntas.** El primero dice *cuál* es; el segundo, *cuántos van*. Fundirlos obligaría al identificador a ser secuencial, y un identificador secuencial **publica el volumen del negocio**: quien recibe `COM-000412` sabe cuántas compras se llevan.
+
+**El código del movimiento no sustituye al identificador interno.** `id` sigue siendo un UUID v7 y sigue siendo la clave: el código es la identidad **hacia fuera**, no hacia dentro.
+
+**Sus tres partes:**
+
+- **`DEP`** — el prefijo del tipo, de `movement_types.prefix`.
+- **`20260901`** — el día de `occurred_at`, **no el de `created_at`**. Un movimiento migrado de la plataforma anterior lleva el día en que ocurrió, que es lo que hace que su código signifique algo.
+- **`A7K2P9`** — seis caracteres aleatorios, del alfabeto de **32 de Crockford**: sin `I`, `L`, `O` ni `U`. La exclusión no es estética — este código se dicta por teléfono y se teclea, y `O` contra `0` es el error que se comete.
+
+!!! danger "Hay que fijar con qué zona horaria se corta el día, o el código miente"
+
+    Un movimiento ocurrido a las 23:30 en Bogotá es el día siguiente en UTC. **Con el corte en UTC, el código de ese movimiento llevaría una fecha que no coincide con la que ve quien lo hizo**, y nadie entendería por qué.
+
+    El día se corta con la **zona de la operación**, no con la del servidor. Es el mismo problema que `requirements/cm.md` §7.1 resolvió al elegir `date` para la vigencia de una tarifa —«declararla con instante obligaría a decidir en qué zona se corta el día»—, y aquí no se puede esquivar porque la fecha va **dentro** del código.
+
+**La colisión es improbable y no imposible.** Con 32⁶ hay mil millones de combinaciones por tipo y día, de modo que un choque es rarísimo — y «rarísimo» no es «nunca». La unicidad la sostiene el índice y la generación **reintenta** ante la violación; confiar en la probabilidad es lo que produce el defecto que aparece una vez al año y nadie reproduce.
+
+### 7.3 `payment_methods`
 
 | Columna | Tipo | Nula |
 |---|---|---|
@@ -317,7 +389,10 @@ Lo que un sistema externo dijo, **tal como lo dijo**.
 
 | Restricción | Sobre | Regla |
 |---|---|---|
-| `ck_movements_type` | `type IN ('DEPOSITO','COMPRA','REVERSION')` | §7.1 |
+| `fk_movements_type` | `type_id` → `movement_types(id)` | §7.2. **Sustituye al `CHECK` de dominio cerrado** que este documento declaraba hasta la v0.4.0 |
+| `uq_movements_code` | Único sobre `code` | §7.2.1. Es lo que sostiene la unicidad del aleatorio; la generación reintenta ante la violación |
+| `ck_movements_code_format` | `code ~ '^[A-Z]{3}-[0-9]{8}-[0-9A-HJKMNP-TV-Z]{6}$'` | §7.2.1. El alfabeto excluye `I`, `L`, `O` y `U` |
+| `uq_movements_receipt_por_tipo` | Único sobre `(type_id, receipt_number)`, **parcial**: `WHERE receipt_number IS NOT NULL` | `RN-MV-008`. **Único por tipo**, no global |
 | `ck_movements_status` | `status IN ('PENDIENTE','CONFIRMADO','ANULADO')` | `RN-MV-004` |
 | `ck_movements_quantity` | `quantity >= 1` | `RN-MV-007`, en lo que el esquema puede sostener |
 | `ck_movements_amounts` | `unit_amount > 0 AND total_amount > 0` | `RN-MV-009` |
@@ -344,3 +419,4 @@ Lo que un sistema externo dijo, **tal como lo dijo**.
 | 0.1.0 | 01-09-2026 | **Creación del módulo `MV`**, el cuarto del sistema, por decisión del responsable del proyecto, con **ocho requerimientos** y **diez reglas propias**. Es dueño de `movements`, el **libro de hechos económicos**: compras, depósitos y sus reversiones, con un campo de tipo que los distingue sin separarlos. Con él **se cierran tres aplazamientos que llevaban semanas abiertos y que se citaban entre sí**: `requirements/pm.md` §1.4 no registraba la compra «porque no existe el cobro», `requirements/cm.md` §1.4 no calculaba «porque no hay tabla de ventas», y `RF-SP-045` dejaba a los clientes nuevos en `FTD_PENDIENTE` **sin nada capaz de sacarlos**. El alcance elegido es **todo hecho económico** y no solo la venta, de modo que el módulo **absorbe el candidato «Finanzas»** de [`modules.md` §6](../modules.md#6-alcance-por-inventariar). Las dos reglas que lo definen ya venían impuestas desde fuera: **`RN-MV-002`** —el precio, la moneda y la vigencia se **copian** del producto— la exigió `pm.md` §1.4 antes de que este módulo existiera, y **`RN-MV-003`** —el vendedor se congela— es la misma idea aplicada a la estructura comercial, para que reasignar un cliente no cambie a quién se le pagó por una venta pasada. **`RN-MV-001` va un paso más allá que sus hermanas de `PM` y `CM`**: allí la fila permanece aunque se retire; aquí **no se retira ni se edita**, y corregir es emitir el inverso. Se decide además que el **comprobante no es una factura fiscal** (§1.5) y **cómo llegará la que sí lo sea** —una entidad aparte que apunta al movimiento—, para que llegue como ampliación y no como reescritura. **Y el módulo abre D-26**, que este documento no cierra: un depósito confirmado tiene que **escribir** en `users`, y las cuatro interfaces publicadas hasta hoy son **de solo lectura** por norma explícita de `architecture.md` §15.2. Se recomienda la salida que el propio `pm.md` §1.4 ya anticipó —que `SP` publique la operación con sus reglas intactas— y se deja abierta porque fija cómo se escribirá entre módulos para siempre. Las etapas 2 y 3 —liquidación, y retiros con balances— quedan **declaradas y sin registrar** en §4.2. | Responsable del proyecto |
 | 0.2.0 | 01-09-2026 | **Consecuencias de dibujar los flujos antes de las tripletas**, por decisión del responsable del proyecto. Los diagramas de [`flujos/mv/`](../flujos/mv/flujos-del-modulo.md) destaparon tres cosas que este documento no decía, y dos tienen respuesta. **(1) El depósito y la compra no comparten máquina de estados**: `RF-MV-003` se describía como si todo movimiento naciera `PENDIENTE`, y no es así — un **depósito nace `CONFIRMADO`** porque es un hecho que ya ocurrió y del que un tercero avisa, de modo que confirmarlo después sería preguntarle al sistema si cree lo que el bróker acaba de decirle; una **compra nace `PENDIENTE`** porque el cobro sigue en marcha. `RF-MV-003` pasa a ser «confirmar una **compra** pendiente». **(2) Nace `RN-MV-011`: habilita la transición, no el depósito.** Un depósito solo saca de `FTD_PENDIENTE` a quien estaba ahí; el segundo depósito de la misma persona no toca su estado. Sin la regla, la implementación evidente —«todo depósito confirmado habilita»— es correcta por accidente y deja de serlo el día que exista una cuenta desactivada por otro motivo, a la que un depósito reactivaría sin que nadie lo hubiera decidido. **(3) Queda abierta, en §5.3, qué se deshace al anular un movimiento ya aplicado**: si se anula la compra de un upgrade que ya cambió el nivel de alguien, nadie ha decidido si se le retira. No bloquea la etapa 1 —anular una compra que la pasarela rechazó no aplicó nada— y es lo primero que hay que cerrar antes de la tripleta de `RF-MV-007`. | Responsable técnico |
 | 0.3.0 | 01-09-2026 | **El módulo gana `inbound_notifications`**, por decisión del responsable del proyecto: lo que un sistema externo dice, **tal como lo dice**. Con ella el módulo pasa de ocho a **once requerimientos** —recibir, consultar y **reprocesar**— y de once reglas a **dieciséis**. Sirve para cuatro cosas que hoy no se pueden hacer: **reconciliar** cuando la pasarela y el sistema no coinciden, **detectar la reentrega antes de interpretarla**, **reprocesar** lo que un defecto se comió, y **probar** que la confirmación llegó de fuera y no la inventó el sistema. **Una sola tabla con columna `source`** y no una por proveedor: cubre la pasarela de pago y también al bróker que notifica depósitos —misma forma, mismo problema—, con el mismo criterio con el que `movements` lleva un tipo. **`RN-MV-012` es la regla que la hace útil o inútil**: se guarda **antes** de procesar, porque guardarla después es tenerla en todos los casos menos en el único que importa —aquel en que procesarla falló— y porque las pasarelas reintentan si la respuesta tarda. **`RN-MV-013` da dos capas de idempotencia** y no una: el identificador del evento aquí, la referencia externa en `movements`. **`RN-MV-014`: la firma inválida se guarda marcada y no se procesa**, porque es la evidencia de que alguien intenta falsificar confirmaciones de pago, y eso vale más visible que en un `401` que nadie mira. **Y se afronta de frente la tensión con `request_log`**, que se niega a guardar cuerpos con un argumento explícito: la diferencia es «arbitrario» —aquel cubre todos los endpoints y el cuerpo puede llevar una credencial nuestra; este cubre un interlocutor conocido que nunca recibe credenciales—. Lo que sí lleva son **datos personales de terceros**, y por eso **esta tabla no espera a D-10**: `RN-MV-015` purga el documento a los **180 días** conservando la fila con sus metadatos, porque al revés que `request_log` tiene un final natural — pasada la ventana de contracargo, el documento crudo ya no es evidencia que nadie necesite. `RN-MV-016` prohíbe guardar el secreto compartido: se conserva la firma, que es un resumen, y nunca la llave. | Responsable del proyecto |
+| 0.4.0 | 01-09-2026 | **El tipo de movimiento pasa de dominio cerrado a catálogo**, por decisión del responsable del proyecto, y con él llegan **el código del movimiento** y un dato nuevo que cambia el diseño: **hay datos que migrar de otra plataforma**. §7.2 incorpora `movement_types` con su `prefix`, su `requires_product` y el contador de su serie. El motivo no es de gusto: **este proyecto ya pagó dos veces por la forma anterior** — el catálogo de `event_type` de `audit_security_log` es un `CHECK`, y añadirle un valor costó `V34` y otro `V36`, las dos con `DROP CONSTRAINT` sobre una tabla en uso. **Y lo que cuesta queda escrito**: `ck_movements_type_product` vivía en el esquema y ya no puede —un `CHECK` no consulta otra tabla—, de modo que `RN-MV-006` se muda al dominio con `RN-CM-001` y `RN-MV-007`. §7.2.1 declara **dos códigos que no son el mismo y que nadie debe fundir**: el **del movimiento** —`DEP-20260901-A7K2P9`, `RN-MV-017`— identifica, y el **del comprobante** —único por tipo— numera. Fundirlos obligaría al identificador a ser secuencial, y **un identificador secuencial publica el volumen del negocio**. El aleatorio usa el alfabeto de 32 de Crockford, sin `I`, `L`, `O` ni `U`, porque el código se dicta por teléfono; la colisión la atrapa el índice y la generación reintenta. **Y queda declarado un problema que la fecha dentro del código no deja esquivar**: hay que fijar con qué zona horaria se corta el día, o el código de un movimiento hecho a las 23:30 en Bogotá llevará el día siguiente — es el mismo problema que `requirements/cm.md` §7.1 resolvió eligiendo `date` para la vigencia. **`RN-MV-008` retira la promesa de «sin huecos»**: una `SEQUENCE` deja huecos por diseño en cada transacción revertida, y sobre todo **lo importado trae sus propias fechas y su propio orden**, de modo que sostener una serie correlativa obligaría a renumerar el pasado para que encajara. `RN-MV-018` cierra el catálogo de tipos a la API, con el mismo criterio que `RN-SP-010` aplica a las monedas y un motivo más fuerte: el caso de uso decide según el tipo, así que uno añadido en caliente sería uno que ningún código sabe procesar. **§1.6 recoge la migración**, que resuelve con lo que ya había —la plataforma anterior es un `source` más y el identificador de allí es la `external_reference`, con lo que reejecutar la carga no duplica nada— y deja fuera el mapeo, que es un requerimiento propio y de una sola ejecución. | Responsable del proyecto |

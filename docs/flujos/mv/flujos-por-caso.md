@@ -3,7 +3,7 @@
 | Campo | Valor |
 |---|---|
 | Módulo | `MV` — Movimientos |
-| Versión | 0.2.0 |
+| Versión | 0.3.0 |
 | Estado | **Borrador** |
 | Responsable | Bonilla Diaz William Steven |
 | Fecha de creación | 01-09-2026 |
@@ -45,7 +45,7 @@ flowchart TD
     V3 -->|no| E2["Importe inválido<br/>RN-MV-009"]
     V3 -->|sí| V4{"¿trae producto?"}
     V4 -->|sí| E3["Un depósito no lleva producto<br/>RN-MV-006"]
-    V4 -->|no| P1["Registra el movimiento<br/>tipo DEPOSITO, estado CONFIRMADO<br/>congela el vendedor del cliente"]
+    V4 -->|no| P1["Registra el movimiento<br/>tipo DEPOSITO, estado CONFIRMADO<br/>codigo DEP-AAAAMMDD-XXXXXX<br/>congela el vendedor del cliente"]
     P1 --> P2["Emite el comprobante"]
     P2 --> V5{"¿la cuenta estaba<br/>en FTD_PENDIENTE?"}
     V5 -.->|"no · ya operaba"| P4
@@ -86,7 +86,7 @@ flowchart TD
     V4 -->|no| E4["Método no disponible"]
     V4 -->|sí| P1["COPIA del producto:<br/>precio, moneda, vigencia<br/>y membresía destino"]
     P1 --> P2["Congela el vendedor<br/>del cliente"]
-    P2 --> P3["Registra el movimiento<br/>tipo COMPRA, estado PENDIENTE<br/>sin comprobante todavía"]
+    P2 --> P3["Registra el movimiento<br/>tipo COMPRA, estado PENDIENTE<br/>codigo COM-AAAAMMDD-XXXXXX<br/>sin comprobante todavia"]
     P3 --> P4["Auditoría de cambios"]
     P4 --> FIN(["Informa el movimiento<br/>y a dónde ir a pagar"])
 
@@ -98,7 +98,9 @@ flowchart TD
 
 **`P1` es la regla que otros documentos impusieron a este módulo antes de que existiera** (`RN-MV-002`). No se guarda una referencia al producto para leer su precio después: se guarda el precio. Sin eso, corregir un precio en el catálogo reescribiría lo ya vendido — y `requirements/pm.md` §1.4 lo dejó escrito el 26-08-2026, meses antes de que hubiera dónde cumplirlo.
 
-**No hay comprobante todavía**, y es deliberado: `RN-MV-008` lo emite al confirmar. Un comprobante sobre un cobro que puede fallar sería un número gastado y una promesa incumplida.
+**No hay comprobante todavía**, y es deliberado: `RN-MV-008` lo emite al confirmar. Un comprobante sobre un cobro que puede fallar sería un número gastado.
+
+**El código sí se emite ya**, y esa asimetría es el motivo de que sean dos códigos distintos: el del movimiento identifica algo que **ya existe** aunque no se haya pagado; el del comprobante numera un documento que **solo existe si se pagó**. La fecha del código sale de `occurred_at` (`RN-MV-017`), no del reloj.
 
 ---
 
@@ -117,7 +119,7 @@ flowchart TD
     V2 -.->|"ya CONFIRMADO"| FIN2(["Devuelve el movimiento<br/>sin volver a aplicar nada"])
     V2 -->|"ANULADO"| E2["Un movimiento anulado<br/>no se confirma"]
     V2 -->|sí| P1["Estado → CONFIRMADO<br/>con su instante"]
-    P1 --> P2["Emite el comprobante<br/>correlativo y sin huecos"]
+    P1 --> P2["Emite el comprobante<br/>consecutivo ÚNICO POR TIPO"]
     P2 --> V3{"¿lleva membresía<br/>destino?"}
     V3 -.->|no| P4
     V3 -->|sí| P3["Aplica el upgrade<br/>con la vigencia COPIADA"]
