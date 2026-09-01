@@ -2,7 +2,7 @@
 
 | Campo | Valor |
 |---|---|
-| Versión | 0.12.0 |
+| Versión | 0.13.0 |
 | Estado | **Borrador** |
 | Responsable | Bonilla Diaz William Steven |
 | Fecha de creación | 21-08-2026 |
@@ -37,6 +37,8 @@ erDiagram
     users ||--o{ user_supervisors : "tiene gente a cargo"
     users ||--o| user_memberships : "tiene a lo sumo una"
     memberships ||--o{ user_memberships : "se asigna a"
+    users ||--o{ client_referrals : "entró por un vendedor · RF-SP-045"
+    users ||--o{ client_referrals : "trae clientes · RF-SP-045"
 
     memberships {
         uuid id PK "v7"
@@ -403,3 +405,4 @@ flowchart TB
 | 0.9.0 | 25-08-2026 | **`request_log` deja de ser un hueco** (issue #23). §3 sustituye el marcador «esquema sin definir» por las once columnas reales que crea `V35`, §4 la marca como escrita en el mapa y §5 cierra el **pendiente 3**. Se anota lo que no se deduce del esquema: su `correlation_id` **no** es nulable al contrario que en las cuatro de auditoría —aquellas admiten eventos de procesos internos, esto solo lo escribe una petición HTTP—, un `status` nulo significa que la petición se abortó sin respuesta, y **no participa en la transacción de negocio**, de modo que una operación revertida deja su fila igual. Sigue faltando la purga, que depende de **D-10** (pendiente 9). | Responsable técnico |
 | 0.10.0 | 25-08-2026 | §5 cierra **a medias el pendiente 9** (issue #25): `refresh_tokens` ya tiene quien la purgue. Queda abierto para `password_reset_tokens` —que no se puede purgar porque no existe— y para el `request_log` y los cuatro registros de auditoría, cuyo plazo depende de **D-10**. El esquema no cambia: la purga no añade columnas, y su único rastro en el modelo es que la tabla deja de crecer sin techo. | Responsable técnico |
 | 0.11.0 | 26-08-2026 | **`memberships` gana `color`**, seis dígitos hexadecimales sin `#` y en mayúsculas, con los que el frontend pinta el nivel (`RN-SP-024`). Es obligatorio: un color opcional obliga al navegador a inventarse uno de reserva, que es justo la decisión que este campo saca del frontend. Se anota en §4 la consecuencia de que `RN-SP-008` lo vuelve **incorregible** una vez creado. | Responsable técnico |
+| 0.13.0 | 01-09-2026 | **El mapa incorpora `client_referrals`** (`RF-SP-045`): a qué vendedor pertenece cada cliente y con qué producto entró. Aparece dos veces colgando de `users`, como `user_supervisors`, porque relaciona a dos personas — pero **no es lo mismo que aquella y confundirlas es el error probable**: `user_supervisors` es la **fuerza comercial** y `RN-SP-020` exige allí que el superior porte el rol padre inmediato del rol vendedor del subordinado, que un `CONSUMIDOR` nunca porta. Queda anotado además lo que este mapa **sigue sin cubrir** y no se arregla aquí: ni `products` (`PM`) ni `commission_rates` (`CM`) figuran en él pese a existir desde el 27 y el 28-08-2026, de modo que la clave foránea de `client_referrals` hacia `products` no tiene extremo dibujado. | Responsable técnico |

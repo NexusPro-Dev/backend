@@ -5,7 +5,7 @@
 | Proyecto | NEXUS — Renovación de plataforma |
 | Empresa | FACTECH GROUP SAS |
 | Documento | `security.md` |
-| Versión | 0.36.0 |
+| Versión | 0.37.0 |
 | Estado | Borrador |
 | Responsable técnico | Bonilla Diaz William Steven |
 | Fecha de creación | 19-08-2026 |
@@ -48,7 +48,7 @@ Un usuario es la representación de una persona que accede al sistema. Los proce
 | `ACTIVO` | Operativo | Sí |
 | `INACTIVO` | Decisión **organizativa**: la persona ya no debe operar | No |
 | `BLOQUEADO` | Respuesta de **seguridad**: hay sospecha sobre la cuenta | No, hasta que un actor la reactive o —si el bloqueo lo puso el sistema— expire |
-| `PENDIENTE` | Creado pero sin activar su credencial | No |
+| `FTD_PENDIENTE` | Cliente registrado por enlace **sin depósito confirmado** | **Sí**, y no opera |
 
 !!! important "`INACTIVO` y `BLOQUEADO` no son lo mismo, y la diferencia no es el mecanismo"
 
@@ -61,11 +61,18 @@ Un usuario es la representación de una persona que accede al sistema. Los proce
 
     Retirar el acceso —por cualquiera de las dos vías— exige declarar un **motivo**, que se conserva en el detalle del evento de seguridad. Devolverlo no lo exige y no lo admite.
 
-!!! warning "`PENDIENTE` está declarado y hoy no se usa"
+!!! danger "`FTD_PENDIENTE` autentica, y es el primero que lo hace sin estar `ACTIVO`"
 
-    Ningún requerimiento produce ese estado. `RF-SP-024` resolvió el 21-08-2026 que **el actor fija la contraseña inicial y la cuenta nace `ACTIVO`**, porque el camino de `PENDIENTE` exige un canal de correo y un flujo de activación que no existen en ningún requerimiento. `RF-SP-028` no lo admite en el dominio de su operación.
+    Hasta el 01-09-2026 la columna «¿Puede autenticarse?» decía lo mismo que «¿Está `ACTIVO`?», y `AuthUser.puedeEntrar()` lo escribía literalmente así. Con `RF-SP-045` **deja de coincidir**: quien se registra por un enlace y no ha depositado **entra al sistema y no puede operar en él**.
 
-    Se conserva en el catálogo porque el flujo de activación acabará existiendo. Hasta entonces, la ventana en que un administrador conoce la credencial de otra persona se acota con el **indicador de cambio obligatorio de contraseña** (§3.2), no con este estado.
+    Y esas son dos preguntas distintas, que hasta ahora no hacía falta separar:
+
+    - **Autenticar** es probar quién eres. Esta cuenta puede: necesita entrar para ver qué le falta y cómo depositar.
+    - **Operar** es que el sistema atienda tus peticiones. Esta cuenta no, y quien lo hace valer es un filtro (`RF-SP-046`), no el estado — de la misma forma que el indicador de cambio obligatorio de contraseña retiene a alguien **ya autenticado** en lugar de negarle la entrada (§3.2).
+
+    De ahí una obligación sobre el código, y no es de estilo: **la lista de estados que autentican se escribe en positivo**, enumerándolos. Escrita como negación —«todo salvo `INACTIVO` y `BLOQUEADO`»— cualquier estado que se añada mañana **nacería autenticando**, y ese es el error que no se quiere cometer en el camino de acceso.
+
+    `FTD_PENDIENTE` **sustituye a `PENDIENTE`**, que estaba declarado y sin usar desde el 21-08-2026 esperando un flujo de activación que nunca se escribió. `RF-SP-024` sigue creando cuentas `ACTIVO` con la credencial fijada por el actor, y la ventana en que un administrador conoce una credencial ajena se sigue acotando con el indicador de cambio obligatorio (§3.2), no con un estado.
 
 **Identidad de la persona.** Cada usuario lleva dos identidades y con cualquiera de las dos inicia sesión (`RF-SP-024`):
 
@@ -686,3 +693,4 @@ RNF-SEG-002 merece atención: es una prueba que enumera los endpoints registrado
 | 0.33.0 | 26-08-2026 | **La cota de la solicitud de recuperación pasa de 3 por hora a 5 por minuto**, con **cinco minutos de espera** al superarla. Decisión del responsable del proyecto, tomada sobre la advertencia de sus consecuencias. §5.5.1 gana la columna **«espera al superarla»**, porque el límite de tasa estrena un concepto que no tenía: hasta hoy superar una cota solo significaba aguardar a que la ventana deslizante dejara sitio, y ahora puede costar una espera fija. **La penalización es lo que sostiene el número**: cinco por minuto sin castigo son setenta y dos mil correos al día contra una misma dirección; con él el ritmo sostenido baja a unos sesenta a la hora, que sigue siendo **veinte veces** la cota anterior. Queda declarado lo que el número asume y no resuelve: lo que se multiplica por veinte es cuántos correos puede provocar un desconocido en la bandeja de una persona real. **Y queda declarado un efecto de la simetría**: con las dos cotas en cinco, el filtro comprueba primero el origen y la de identidad **no llega a dispararse** — queda como red de seguridad para cuando la del origen se afloje detrás de una pasarela corporativa, no como una defensa que hoy actúe. | Responsable técnico |
 | 0.34.0 | 27-08-2026 | **El catálogo de permisos deja de ser solo de `SP`**: `PM` siembra los cuatro suyos en `V40`, y §4.4 los incorpora. De veinticuatro a **veintiocho**. La obligación de asociarlos a `SUPERADMIN` y `ADMIN` **en la misma migración** se cumple ahí, y no podía cumplirla `V7`, que asocia el catálogo existente en su momento. Seis pruebas de `SP` fallaron al crecer el catálogo porque lo enumeran como lista cerrada, y se ampliaron en lugar de aflojarse: **esa fricción es deliberada** — un permiso que aparezca sin que nadie toque esa lista es un permiso que nadie revisó. | Responsable técnico |
 | 0.35.0 | 27-08-2026 | **Consecuencias de que el sistema tenga por fin dónde correr** ([`ADR-002`](architecture/ADR-002-plataforma-de-despliegue-railway.md), que cierra D-09 con Railway). **D-21 se reformula, y a peor.** Se creía que era «qué IPs poner en `TRUSTED_PROXIES` en cada entorno»; al aterrizar sobre una plataforma real resulta que **no hay ninguna que poner**: `ClientIpResolver` compara el par inmediato contra un conjunto de **coincidencia exacta**, sin rangos ni CIDR, y la dirección con la que el borde habla con el contenedor no es fija ni publicada. Con la lista vacía el resolvedor hace lo correcto —ignora `X-Forwarded-For` y registra la IP del socket—, de modo que **la auditoría apunta al proxy**: un dato incompleto pero **cierto**, en lugar de uno que el atacante elige escribiendo una cabecera, que es la propiedad que ese componente existe para conservar. Lo que se pierde es el **Art. V.15 entero** —desde dónde se hizo cada operación no se responde hoy en un entorno desplegado—, y la salida **no es una lista de IPs** sino que `ClientIpResolver` admita rangos. Se corrigen además cuatro puntos que colgaban de D-09 y que ya no esperan decisión ninguna: el **canal compartido** del corte de tokens (§4.5) y el **almacenamiento común** del límite de tasa (§5.5) son ahora la condición previa a una segunda instancia, y por eso el despliegue corre con **una sola réplica**; la **purga sí está preparada** para varias y son esos dos los que imponen el tope (§5.5.2); y el **raspado de métricas** (§6) queda declarado como lo que es — D-09 se cierra **sin resolverlo**, porque la plataforma no aporta ni permiso propio ni red de administración. §6.1 deja de aplazar la lista de orígenes del navegador: vive en `deployment.md` §9, va **vacía** donde no hay frontend desplegado, y los `localhost` del `docker-compose.yml` no entran ahí jamás. | Responsable técnico |
+| 0.37.0 | 01-09-2026 | **§3.1 cambia el catálogo de estados de la cuenta**, consecuencia de aprobar `RF-SP-045`. `PENDIENTE` —declarado y sin usar desde el 21-08-2026, esperando un flujo de activación que nunca se escribió— es sustituido por **`FTD_PENDIENTE`**: el cliente que se registró por un enlace y **no ha confirmado su depósito**. Lo que hace de este cambio algo más que un renombrado es que **es el primer estado del sistema que autentica sin estar `ACTIVO`**: hasta hoy la columna «¿Puede autenticarse?» decía lo mismo que «¿está activo?», y `AuthUser.puedeEntrar()` lo escribía literalmente así. Ahora **autenticar y operar son dos preguntas distintas** — esta cuenta entra, porque necesita entrar para ver qué le falta, y no opera, y quien lo hace valer es un filtro (`RF-SP-046`) y no el estado, exactamente como el indicador de cambio obligatorio de contraseña retiene a alguien ya autenticado en lugar de negarle la entrada. De ahí una obligación sobre el código que queda escrita: **la lista de estados que autentican se escribe en positivo**, enumerándolos, porque en su forma negada todo estado futuro nacería autenticando — y ese es el error que no se quiere cometer en el camino de acceso. | Responsable del proyecto |

@@ -5,11 +5,11 @@
 | Módulo | `SP` — Sistema Principal |
 | Paquete | `modules/system` |
 | Prefijos de permiso | `roles:`, `permissions:`, `audit:`, `memberships:`, `currencies:`, `countries:`, `users:` |
-| Versión | 1.30.0 |
+| Versión | 1.31.0 |
 | Estado | **Aprobado** |
 | Responsable | Bonilla Diaz William Steven |
 | Fecha de creación | 20-08-2026 |
-| Última actualización | 29-08-2026 |
+| Última actualización | 01-09-2026 |
 | Fecha de aprobación | 20-08-2026 |
 
 !!! info "Qué va en este documento"
@@ -188,6 +188,9 @@ Reglas que no son transversales de seguridad y por tanto sí llevan el prefijo d
 | `RN-SP-008` | Membresías inmutables | Al editar o eliminar una membresía | La operación se rechaza. Solo se admite el reordenamiento derivado de `RN-SP-007`. **No llevan indicador de activo**: desactivar un eslabón dejaría un hueco en un orden lineal | Media |
 | `RN-SP-024` | La membresía declara su color | Al registrar una membresía | Toda membresía declara el **color con el que el frontend la pinta**: seis dígitos **hexadecimales sin `#`**, normalizados a mayúsculas. Es **obligatorio** y **único entre las membresías**. Obligatorio porque un color opcional obliga al navegador a inventarse uno de reserva, que es exactamente la decisión que este campo saca del frontend —y con dos pantallas eligiendo por su cuenta, el mismo nivel acaba pintado de dos maneras sin que nadie lo note hasta verlas juntas—. Único porque dos niveles del mismo color son indistinguibles justo en lo que el campo existe para distinguir; la unicidad atrapa el valor repetido y **no** dos tonos que un ojo humano no separa, y eso no lo arregla ninguna regla. **Consecuencia declarada:** `RN-SP-008` mantiene la membresía inmutable, de modo que **un color mal elegido no se puede corregir** — ver la nota que sigue a esta tabla | Media |
 | `RN-SP-025` | Un solo rol vendedor por persona | Al asignar roles a un usuario | Una persona **no puede portar dos roles de tipo `VENDEDOR`** a la vez. Asignar un segundo se rechaza; el primero se retira con `RF-SP-031` antes de asignar otro | Crítica |
+| `RN-SP-026` | El registro por enlace nace sin poder operar | Al registrarse un cliente desde un enlace | La cuenta se crea en estado **`FTD_PENDIENTE`**: **autentica y no opera**. Es el primer estado del sistema que separa esas dos cosas, porque hasta ahora todo lo que autenticaba estaba `ACTIVO`. La cuenta sale de ahí cuando se confirma el depósito por el valor del producto —el **FTD**—, que hoy hace un actor a mano por `RF-SP-028` y mañana hará el webhook del bróker | **Crítica** |
+| `RN-SP-027` | Ningún cliente se registra sin vendedor | Al registrarse un cliente desde un enlace | El enlace declara **quién lo generó**, y sin un vendedor válido el registro **se rechaza**. No se admite la atribución vacía: produciría clientes huérfanos que nadie descubre hasta el día de pagar una comisión. El vendedor debe existir, no estar eliminado y **portar un rol `VENDEDOR`** — un funcionario no comisiona | **Crítica** |
+| `RN-SP-028` | Un cliente tiene un vendedor vigente, y su historial se conserva | Siempre | La atribución vive en `client_referrals` (§10.14) con **como mucho una vigente** por cliente; reasignar cierra la anterior con fecha de fin y abre otra. **No es la estructura comercial**: `user_supervisors` relaciona vendedores entre sí y `RN-SP-020` exige allí el rol padre inmediato, que un `CONSUMIDOR` nunca porta. El historial no se borra por lo mismo que en `RN-SP-021`: determina a quién se atribuía cada resultado en cada momento | Alta |
 | `RN-SP-009` | Países inmutables salvo su estado | Al editar o eliminar un país | La operación se rechaza. Lo único modificable es el indicador de país activo (`RF-SP-022`), que permite retirar de la circulación un alta equivocada sin borrar el registro | Media |
 | `RN-SP-010` | Monedas inmutables por API salvo su estado | Siempre | Las monedas no se crean, editan ni eliminan por la API. Lo único modificable es el indicador de moneda activa (`RF-SP-023`), y la moneda por defecto no puede desactivarse | Media |
 
@@ -258,6 +261,7 @@ Reglas que no son transversales de seguridad y por tanto sí llevan el prefijo d
 | `RF-SP-041` | Asignar o cambiar el superior comercial de un usuario | **Crítica** | `users:assign-supervisor` | En desarrollo |
 | `RF-SP-042` | Consultar el equipo a cargo de un usuario | Media | `users:read` | En desarrollo |
 | `RF-SP-044` | Editar el propio perfil | Alta | Autenticado | En desarrollo |
+| `RF-SP-045` | Registro de clientes por enlace | **Crítica** | Público | Tasks en revisión |
 
 !!! info "Dónde vive el estado de un requerimiento"
 
@@ -726,6 +730,27 @@ Modifica el **propio** nombre, apellidos y correo. Es la contraparte de escritur
 
 **El cambio de correo exige la contraseña actual, y el de nombre no.** Desde `RF-SP-040` el correo es la vía por la que se recupera una contraseña olvidada, de modo que cambiarlo es cambiar quién puede recuperar la cuenta: una sesión robada no lleva la contraseña, y exigirla convierte el robo de sesión en algo que caduca en lugar de en una apropiación permanente. Equivocar un apellido, en cambio, no abre ninguna puerta.
 
+
+#### `RF-SP-045` — Registro de clientes por enlace
+
+| Campo | Valor |
+|---|---|
+| Objetivo | Que un cliente entre por sí mismo desde un enlace, con su membresía puesta y atribuido al vendedor que lo trajo |
+| Actor | Persona sin cuenta |
+| Permiso requerido | — (**Público**) |
+| Prioridad | **Crítica** |
+| Reglas aplicables | `RN-SP-013`, `RN-SP-016`, `RN-SP-018`, `RN-SP-026`, `RN-SP-027`, `RN-SP-028` |
+| Depende de | `RF-SP-024`, `RF-SP-032`, `RF-PM-001` |
+| Tripleta | `docs/specs/sp/045-registro-de-clientes-por-enlace/` |
+| Estado | Pendiente |
+
+**Es el primer endpoint público del sistema que escribe.** Los seis que ya existen o leen, o consumen una credencial que el propio sistema emitió; este crea una persona, le concede un rol, le asigna una membresía y escribe una atribución a petición de alguien que todavía no es nadie.
+
+El enlace lleva dos datos: el **producto** —por código o identificador— y el **vendedor** que lo generó. El producto declara la membresía destino (`RN-PM-002`) y su vigencia en días (`RN-PM-015`), de modo que registrarse concede el rol de consumidor y el nivel en la misma operación, que es justo lo que `RN-SP-018` exige.
+
+**Ninguno de los dos datos es un secreto, y no hace falta que lo sea.** El código de producto es legible por diseño, así que cualquiera puede componer un enlace que no le dieron — y no gana nada: los productos que llevan a una membresía **de pago** exigen pasarela, que es de Finanzas y no existe todavía, y el que lleva a la **gratuita** produce una cuenta en `FTD_PENDIENTE`, que autentica y no opera. Por eso el enlace **se compone y no se persiste**: una tabla de enlaces emitidos es la defensa que haría falta si el enlace concediera algo.
+
+Lo que sí queda abierto y declarado es que **la atribución es forjable**: quien componga el enlace elige a qué vendedor se apunta. No concede acceso, pero ensucia la base sobre la que `CM` comisionará, y la condición para cerrarlo está escrita — en cuanto se liquide una comisión sobre una atribución, el enlace tiene que dejar de ser componible. Nace el 01-09-2026, por decisión del responsable del proyecto.
 Hereda de `RF-SP-027` la pregunta abierta de la **verificación del correo**, que ya no tiene coartada: un correo mal tecleado deja a la persona sin vía de recuperación. No bloquea este requerimiento, porque hoy ese dato no se puede ni corregir. Nace el 31-08-2026, por decisión del responsable del proyecto.
 
 ## 7. Requerimientos no funcionales
@@ -796,6 +821,7 @@ Ninguna con sistemas externos ni con otros módulos. Al absorber los usuarios, s
 | `PATCH` | `/api/v1/users/{id}/supervisor` | `RF-SP-041` | `users:assign-supervisor` |
 | `GET` | `/api/v1/users/{id}/team` | `RF-SP-042` | `users:read` |
 | `PATCH` | `/api/v1/users/me` | `RF-SP-044` | Autenticado |
+| `POST` | `/api/v1/auth/registration` | `RF-SP-045` | **Público** |
 
 Rutas propuestas. El contrato exacto de cada una se fija en el `plan.md` de su tripleta.
 
@@ -1023,7 +1049,7 @@ Declaradas en la base de datos, no solo en Java (Art. V.6):
 | `ck_users_username_no_at` | `users(position('@' in username) = 0)` — `VAL-010`. **Es lo que sostiene el inicio de sesión con ambas identidades**: ningún nombre de usuario puede parecerse a un correo |
 | `ck_users_username_format` | `users(username ~ '^[A-Za-z0-9._-]{3,50}$')` — sin espacios ni acentos. Un nombre con espacio al final es indistinguible del mismo sin él, y es permanente |
 | `ck_users_names_not_blank` | `users(length(btrim(first_name)) > 0 AND length(btrim(last_name)) > 0)` |
-| `ck_users_status` | `users(status)` en (`ACTIVO`, `INACTIVO`, `BLOQUEADO`, `PENDIENTE`) |
+| `ck_users_status` | `users(status)` en (`ACTIVO`, `INACTIVO`, `BLOQUEADO`, `FTD_PENDIENTE`) — `RN-SP-026`. **`FTD_PENDIENTE` sustituye a `PENDIENTE`**, que estaba declarado y sin usar desde `V18` justamente para que estrenarlo no costara alterar el `CHECK` de una tabla en uso. El cambio es de dominio y **no de datos**: ninguna fila llevaba el valor retirado |
 | `pk_user_roles` | **Clave primaria compuesta**: `user_roles(user_id, role_id)` |
 | `fk_user_roles_user` | `user_roles(user_id)` → `users(id)`, `ON DELETE RESTRICT` |
 | `fk_user_roles_role` | `user_roles(role_id)` → `roles(id)`, `ON DELETE RESTRICT` — red debajo de `RN-SEG-008` |
@@ -1034,6 +1060,12 @@ Declaradas en la base de datos, no solo en Java (Art. V.6):
 | `fk_user_supervisors_user` | `user_supervisors(user_id)` → `users(id)` |
 | `fk_user_supervisors_supervisor` | `user_supervisors(supervisor_id)` → `users(id)`, con restricción de eliminación — `RN-SP-022` |
 | `uq_user_supervisors_vigente` | **Índice único parcial**: `user_supervisors(user_id) WHERE ended_at IS NULL` — `RN-SP-021`. Un solo superior vigente por persona; el historial cerrado no compite por esa unicidad |
+| `fk_client_referrals_client` | `client_referrals(client_id)` → `users(id)` — `RN-SP-027` |
+| `fk_client_referrals_seller` | `client_referrals(seller_id)` → `users(id)` — `RN-SP-027` |
+| `fk_client_referrals_product` | `client_referrals(product_id)` → `products(id)` — con qué producto entró el cliente |
+| `ck_client_referrals_no_self` | `client_referrals(client_id <> seller_id)` — nadie se trae a sí mismo |
+| `ck_client_referrals_periodo` | `client_referrals(ended_at IS NULL OR ended_at > started_at)`. La rama `IS NULL` va **delante y explícita**: un `CHECK` que evalúa a `NULL` **acepta** la fila, y este proyecto ya pagó una vez por eso con `ck_deletion_reason` |
+| `uq_client_referrals_vigente` | **Índice único parcial**: `client_referrals(client_id) WHERE ended_at IS NULL` — `RN-SP-028`. Un solo vendedor vigente por cliente; el historial cerrado no compite por esa unicidad, exactamente como en `uq_user_supervisors_vigente` |
 | `ck_user_supervisors_no_self` | `user_supervisors(user_id <> supervisor_id)` — nadie está a cargo de sí mismo |
 | `ck_user_supervisors_periodo` | `user_supervisors(ended_at IS NULL OR ended_at > started_at)` — un periodo cerrado no puede terminar antes de empezar |
 | `ix_users_busqueda` | Índice de trigramas sobre `users`, en **tres expresiones**: `f_unaccent(lower(username))`, `f_unaccent(lower(email))` y `f_unaccent(lower(first_name \|\| ' ' \|\| last_name))`. La tercera es el **nombre completo concatenado**, y sin ella teclear `juan perez` no encuentra a nadie: ese texto no está contenido en ninguna de las dos columnas por separado. Lo declara `RF-SP-025` |
@@ -1146,6 +1178,34 @@ La crea `RF-SP-024` (`V19__create_user_roles.sql`), porque el alta ya escribe as
 
 `RF-SP-040` la crea (`V37__create_password_reset_permits.sql`). El plan la numeraba `V29`, número que quedó tomado al aplicarse `V13` a `V36` mientras la tripleta esperaba a **D-23**.
 
+### 10.14 Campos principales — `client_referrals`
+
+A qué vendedor pertenece cada cliente, y con qué producto entró (`RF-SP-045`, `RN-SP-027`, `RN-SP-028`).
+
+| Campo | Tipo | PK | FK | Nula | Por omisión | Referencia |
+|---|---|---|---|---|---|---|
+| `id` | `uuid` | Sí | No | No | UUID v7 | — |
+| `client_id` | `uuid` | No | Sí | No | — | `users` |
+| `seller_id` | `uuid` | No | Sí | No | — | `users` |
+| `product_id` | `uuid` | No | Sí | No | — | `products` |
+| `started_at` | `timestamptz` | No | No | No | `now()` | — |
+| `ended_at` | `timestamptz` | No | No | **Sí** | — | — |
+| `created_at` | `timestamptz` | No | No | No | `now()` | — |
+
+!!! warning "No confundirla con `user_supervisors`, que es el error probable"
+
+    Las dos relacionan personas con personas y las dos llevan historial, pero **no viven en el mismo eje**. `user_supervisors` (§10.7) es la **fuerza comercial**: relaciona vendedores entre sí, y `RN-SP-020` exige allí que el superior porte el **rol padre inmediato** del rol vendedor del subordinado. Un cliente es `CONSUMIDOR` y no porta ninguno, de modo que metido en aquella tabla la regla lo rechazaría.
+
+    Por eso esta **no se llama `user_referrers`** pese a que el prefijo `user_` sea el de sus dos hermanas: nombrarla igual sugeriría que se consulta junto a ellas, y lo que se consulta aquí es a quién se le paga por un cliente.
+
+**Guarda el producto, y no es redundante con `user_memberships`.** Aquella dice qué nivel tiene la persona **hoy**; esta dice **con qué producto entró**, que es el dato con el que la liquidación futura resolverá la tarifa — `RF-CM-005` resuelve por persona **y producto**.
+
+**`ended_at` nulo significa vigente, no «se desconoce».** Es el estado normal de la atribución que rige.
+
+**Sin `deleted_at`.** Una atribución no se retira: se **cierra**. Es la misma distinción que `RN-CM-005` fija para las tarifas —se retira lo que no debió existir, se cierra lo que dejó de regir— y aquí solo cabe lo segundo, porque un cliente que entró por un vendedor entró por él aunque después cambie.
+
+---
+
 ## 11. Control de cambios
 
 | Versión | Fecha | Cambio | Responsable |
@@ -1189,3 +1249,4 @@ La crea `RF-SP-024` (`V19__create_user_roles.sql`), porque el alta ya escribe as
 | 1.28.0 | 28-08-2026 | **Nace `RN-SP-025`: una persona no puede portar dos roles de tipo `VENDEDOR`.** La regla llega desde fuera —la pide el módulo `CM`, incorporado el mismo día— y **se registra aquí porque gobierna `RF-SP-030`**, que es la asignación de roles y es de este módulo. El motivo es una ambigüedad que `CM` no puede resolver solo: con dos roles vendedores de tarifas distintas y ninguna tarifa propia, **no hay forma no arbitraria de elegir el porcentaje**. Se descartaron las otras dos salidas —adivinar tomando el mayor, o exigir tarifa propia— porque las dos dejan la ambigüedad viva y la segunda la descubre el día de liquidar. **No se puede declarar en el esquema**: un `CHECK` no consulta otra tabla y un índice único no puede unir `user_roles` con `roles` para mirar `role_type`, de modo que la regla vive en el caso de uso y necesita el **mismo bloqueo pesimista que `RN-SP-018`** —cuya versión sin bloqueo no se sostuvo bajo concurrencia y se corrigió el 26-08-2026—, porque dos asignaciones simultáneas la burlarían igual. Enmienda pendiente en la tripleta de `RF-SP-030` (Art. I.7). | Responsable del proyecto |
 | 1.29.0 | 29-08-2026 | **El catálogo sembrado pierde dos roles**: `CONTABILIDAD` y `LIDER_ACADEMICO` se retiran de `V7__seed_system_roles.sql` por decisión del responsable del proyecto, y §4 y §4.1 dejan de listarlos. La migración **se editó en el sitio** en lugar de retirarlos con una `V47` —también por decisión del responsable—, y eso tiene un coste que queda escrito: Flyway valida las migraciones aplicadas por suma de comprobación, de modo que **toda base donde `V7` ya estuviera aplicada falla al arrancar** hasta recrearla o reparar su historial. Retirarlos **no fue quitar dos filas de una tabla**: `CONTABILIDAD` era el único rol sembrado con permisos acotados —un hijo de `ADMIN` con dos permisos y ninguno más—, la forma con la que se verificaban la contención de privilegios (`CreateRoleIT`) y que un token autentique sin conceder de más (`AuthIT`); y `LIDER_ACADEMICO` era el único nombre sembrado con acento, del que dependían la búsqueda sin acentos (`RolesQueryIT`) y el índice de trigramas de `V32`. Las pruebas afectadas **no se repuntaron a otro rol** —repuntar `CONTABILIDAD` a `ADMIN` las habría dejado pasando sin verificar lo que fueron escritas para verificar—: se reescribió `SystemRolesSeedIT` entera y las demás recibieron **fixtures propios**, de modo que ya no dependen de qué siembre el sistema. | Responsable del proyecto |
 | 1.30.0 | 31-08-2026 | **Nace `RF-SP-044`: editar el propio perfil**, por decisión del responsable del proyecto. Es la contraparte de escritura de `RF-SP-039`: `RF-SP-027` ya corrige nombre, apellidos y correo, pero exige `users:update` —un permiso de **administración**—, de modo que hoy **quien no administra usuarios no puede corregir un dato suyo mal escrito** y tiene que pedírselo a alguien; concederle ese permiso para que arregle su propio apellido le daría de paso la capacidad de editar el de cualquiera. La decisión que carga el requerimiento es el **correo**: desde `RF-SP-040` es la vía por la que se recupera una contraseña olvidada, de modo que cambiarlo es **cambiar quién puede recuperar la cuenta**, y por eso **exige la contraseña actual en la misma petición** mientras que el nombre y los apellidos no. Una sesión robada no lleva la contraseña, y exigirla convierte el robo de sesión en algo que **caduca** en lugar de en una apropiación permanente. Queda declarado lo que **no** resuelve —la **verificación del correo nuevo**, heredada de `RF-SP-027` y ya sin coartada, porque un correo mal tecleado deja a la persona sin vía de recuperación— y dos decisiones que no se ven en el camino feliz: el fallo de contraseña **no incrementa los intentos fallidos ni bloquea la cuenta**, porque eso permitiría a quien tenga una sesión ajena dejar fuera a la persona legítima; y el **correo repetido sigue exigiendo la contraseña**, porque hacer depender la exigencia de que el valor cambie daría una forma de averiguar el correo vigente probando valores. La ruta es `PATCH /api/v1/users/me` y **no** se añade a las alcanzables con la marca de cambio obligatorio: quien tiene una credencial provisional sin estrenar la estrena antes de tocar su correo, que es precisamente el dato que quien la emitió podría querer cambiarle. | Responsable del proyecto |
+| 1.31.0 | 01-09-2026 | **Nace `RF-SP-045`: el registro de clientes por enlace**, por decisión del responsable del proyecto, y con él **el primer endpoint público del sistema que escribe**. Los seis que ya existen o leen o consumen una credencial que el propio sistema emitió; este crea una persona, le concede un rol, le asigna una membresía y escribe una atribución a petición de alguien que todavía no es nadie. El enlace lleva **el producto y el vendedor que lo generó**: el producto declara la membresía destino (`RN-PM-002`) y su vigencia (`RN-PM-015`), de modo que el rol de consumidor y el nivel se conceden juntos, que es lo que `RN-SP-018` ya exigía. **Ninguno de los dos datos es secreto y no hace falta que lo sea**: el camino de pago exige pasarela —de Finanzas, inexistente— y el gratuito produce una cuenta que autentica y no opera, así que forjar el enlace no consigue nada; por eso el enlace **se compone y no se persiste**. Tres reglas nuevas: **`RN-SP-026`** —la cuenta nace en `FTD_PENDIENTE`—, **`RN-SP-027`** —ningún cliente sin vendedor, porque la atribución vacía produce huérfanos que nadie descubre hasta el día de pagar una comisión— y **`RN-SP-028`** —un vendedor vigente por cliente, con historial—. §10.14 incorpora `client_referrals`, que **no es `user_supervisors`**: aquella es la fuerza comercial y `RN-SP-020` exige allí un rol padre que un `CONSUMIDOR` nunca porta. **Y el catálogo de estados cambia** (`ck_users_status`): `PENDIENTE` —declarado y sin usar desde `V18` justamente para esto— es sustituido por **`FTD_PENDIENTE`**, que es el **primer estado que autentica sin estar `ACTIVO`** y obliga a tocar `puedeEntrar()`, es decir, el camino de acceso de todo el sistema. Queda **enmendado `RF-SP-028`** (Art. I.7): debe admitir la salida de `FTD_PENDIENTE` hacia `ACTIVO`, que es la única mientras el webhook del bróker no exista. Y queda declarado lo que **no** resuelve: el camino de pago, la confirmación del depósito y que **la atribución es forjable** — no concede acceso, pero ensucia la base de comisiones, con la condición de reapertura escrita: en cuanto se liquide una comisión sobre una atribución, el enlace tiene que dejar de ser componible. | Responsable del proyecto |
