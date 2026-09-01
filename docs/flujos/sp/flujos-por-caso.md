@@ -1313,7 +1313,7 @@ flowchart TD
         L1["GET /users/me · si no ve su perfil<br/>no sabe POR QUÉ lo rechazan"]
         L2["POST /auth/password · cambiar la propia"]
         L3["POST /auth/logout · retener a quien<br/>quiere salir es lo contrario de retener"]
-        L4["GET /movements/mine · sus depósitos:<br/>es lo que está esperando ver"]
+        L4["Consultar su estado y qué le falta"]
     end
 
     classDef ex fill:#F7E9E5,stroke:#A33B2A,color:#7A2B1E
@@ -1327,12 +1327,11 @@ flowchart TD
 **La lista blanca es la parte que hay que revisar**, no el filtro. Sin ella la cuenta queda sin salida: la persona no podría ni ver que le falta depositar ni enterarse de cómo hacerlo, y recuperarla exigiría tocar la base a mano.
 
 **Se decide con el claim y no con la base de datos**, por la misma razón que `MustChangePasswordFilter`: consultar `users.status` en cada petición es la consulta por petición que **D-08** existe para evitar. Y trae el mismo coste acotado — quien deposita conserva un token retenido hasta quince minutos, y el refresco lo recalcula.
+!!! warning "Qué libera esta retención está sin decidir"
 
-!!! warning "La transición que libera esta retención la ejecuta otro módulo"
+    Quien saca la cuenta de `FTD_PENDIENTE` **no está decidido**. Hoy la única vía es que un actor la active a mano por `RF-SP-028`; confirmar automáticamente que el depósito llegó exige una pieza que no existe.
 
-    Quien saca la cuenta de `FTD_PENDIENTE` es un **depósito confirmado en `MV`** (`RF-MV-001`), y esa escritura cruza la frontera entre módulos: es **D-26**, sin forma acordada todavía.
-
-    Mientras no exista, la única salida es a mano por `RF-SP-028`. Es la única retención del sistema cuya llave está fuera del módulo que la impone.
+    Es la única retención del sistema cuya llave **todavía no existe**: el filtro sabe retener y nadie sabe soltar, salvo a mano.
 
 ---
 
@@ -1360,4 +1359,4 @@ Nueve asimetrías entre specs que solo se ven al poner los 42 flujos en la misma
 |---|---|---|---|
 | 0.1.0 | 21-08-2026 | Creación inicial. Un diagrama por cada uno de los 21 casos de uso, transcritos de las §8, §9 y §10 de sus specs, y cinco inconsistencias de tipificación detectadas al normalizar la notación. | Responsable técnico |
 | 0.2.0 | 22-08-2026 | Los 21 casos de uso restantes, de `RF-SP-022` a `RF-SP-042`: cambio de estado de país y moneda, las siete operaciones sobre usuarios, las cuatro de roles y membresía de una persona, las seis de sesión y credenciales, y las dos de estructura comercial. Cuatro secciones nuevas —Usuarios, Roles y membresía de una persona, Sesión y credenciales, Estructura comercial— y cuatro observaciones nuevas en §10. | Responsable técnico |
-| 0.4.0 | 01-09-2026 | **Dos casos nuevos, y son los dos que rompen un supuesto que el resto del documento daba por bueno.** §10 dibuja `RF-SP-045` —el **primer endpoint público del sistema que escribe**— y `RF-SP-046`, la retención de quien no ha depositado. El primero enseña de un vistazo una asimetría que hay que leer despacio: **`EX-001` y `EX-002` funden tres casos cada una porque el endpoint es público** —distinguirlos lo convertiría en una forma de enumerar el catálogo comercial o la plantilla probando valores— mientras que **`EX-005` sí distingue, contradiciéndolas a propósito**, porque quien se registra necesita saber cuál de sus dos identidades chocó. El segundo **no tiene endpoint**: es un filtro con la forma exacta de `MustChangePasswordFilter`, y lo que hay que revisar de él no es el filtro sino **la lista blanca**, sin la cual la cuenta queda sin salida. Los dos comparten una propiedad que ningún otro caso de este documento tiene: **la transición que los libera la ejecuta otro módulo** —un depósito confirmado en `MV`—, y esa escritura cruza la frontera y es **D-26**, sin forma acordada. Es la única retención del sistema cuya llave está fuera del módulo que la impone. | Responsable técnico |
+| 0.4.0 | 01-09-2026 | **Dos casos nuevos, y son los dos que rompen un supuesto que el resto del documento daba por bueno.** §10 dibuja `RF-SP-045` —el **primer endpoint público del sistema que escribe**— y `RF-SP-046`, la retención de quien no ha depositado. El primero enseña de un vistazo una asimetría que hay que leer despacio: **`EX-001` y `EX-002` funden tres casos cada una porque el endpoint es público** —distinguirlos lo convertiría en una forma de enumerar el catálogo comercial o la plantilla probando valores— mientras que **`EX-005` sí distingue, contradiciéndolas a propósito**, porque quien se registra necesita saber cuál de sus dos identidades chocó. El segundo **no tiene endpoint**: es un filtro con la forma exacta de `MustChangePasswordFilter`, y lo que hay que revisar de él no es el filtro sino **la lista blanca**, sin la cual la cuenta queda sin salida. Los dos comparten una propiedad que ningún otro caso de este documento tiene: **la transición que los libera no está decidida**. El filtro sabe retener y nadie sabe soltar, salvo a mano por `RF-SP-028`. | Responsable técnico |

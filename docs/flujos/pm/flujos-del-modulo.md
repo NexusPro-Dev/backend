@@ -81,13 +81,13 @@ flowchart LR
 
 ## 3. Lo que este módulo congela para quien venga después
 
-`PM` escribió condiciones sobre un módulo que no existía. Desde el 01-09-2026 ese módulo existe y se llama `MV`.
+`PM` escribió condiciones sobre **un módulo que todavía no existe**: el que registre las compras. Están en `requirements/pm.md` §1.4 desde el 26-08-2026.
 
 ```mermaid
 flowchart TD
     P["products<br/>precio · moneda · validity_days"] --> C{"¿la compra los<br/>LEE o los COPIA?"}
     C -->|"lee · descartado"| M["Corregir un precio<br/>REESCRIBE lo ya vendido"]
-    C -->|"copia · RN-MV-002"| B["La compra guarda su propio<br/>importe y su propia vigencia"]
+    C -->|"copia"| B["La compra guarda su propio<br/>importe y su propia vigencia"]
 
     B --> V["Al vencer, la persona se queda<br/>SIN NIVEL VIGENTE:<br/>no vuelve al anterior"]
 
@@ -97,7 +97,7 @@ flowchart TD
     class B,V ok
 ```
 
-**La condición se escribió el 26-08-2026, meses antes de que hubiera dónde cumplirla**, y hoy es `RN-MV-002`. Es el ejemplo más claro del sistema de una regla que un módulo le impone a otro **antes de que ese otro exista** — y de por qué escribirla entonces funcionó: quien construyó `MV` la encontró escrita en lugar de tener que deducirla.
+**La condición se escribió antes de que hubiera dónde cumplirla**, y esa es la parte que conviene no perder: quien construya las compras **se la encontrará escrita** en lugar de tener que deducirla. Sin ella, corregir un precio reescribiría facturas ya emitidas.
 
 **Y al vencer no se vuelve al nivel anterior**, porque eso habría exigido que la compra **guardase cuál era**: después de asignar el nuevo, esa información no está en ningún sitio.
 
@@ -158,4 +158,4 @@ flowchart LR
 
 | Versión | Fecha | Cambio | Responsable |
 |---|---|---|---|
-| 0.1.0 | 01-09-2026 | Creación. `PM` era, junto a `CM`, uno de los dos módulos sin documentos de flujo pese a tener sus siete requerimientos construidos. Se dibujan el **ciclo de vida del producto** —con `RN-PM-004` comprobándose en un solo sitio, que es el motivo de que nazca inactivo—, la **separación entre catálogo y oferta**, y **lo que este módulo congeló para un módulo que entonces no existía** y hoy se llama `MV`. §6 recoge cinco observaciones, entre ellas el **hueco deliberado en la numeración de excepciones de `RF-PM-001`**: `EX-004` está tachada porque la regla migró a `RF-PM-005`. | Responsable técnico |
+| 0.1.0 | 01-09-2026 | Creación. `PM` era, junto a `CM`, uno de los dos módulos sin documentos de flujo pese a tener sus siete requerimientos construidos. Se dibujan el **ciclo de vida del producto** —con `RN-PM-004` comprobándose en un solo sitio, que es el motivo de que nazca inactivo—, la **separación entre catálogo y oferta**, y **lo que este módulo congeló para un módulo que todavía no existe**. §6 recoge cinco observaciones, entre ellas el **hueco deliberado en la numeración de excepciones de `RF-PM-001`**: `EX-004` está tachada porque la regla migró a `RF-PM-005`. | Responsable técnico |

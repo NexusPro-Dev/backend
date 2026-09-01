@@ -99,7 +99,7 @@ flowchart TD
 
 **`V5` tuvo un defecto que la prueba de camino feliz no veía**, y conviene que quede dibujado: el precio **leído de la base** viene con la escala de la columna —`numeric(14,4)`, de modo que `49.99` llega como `49.9900`—, y compararlo en crudo daba cuatro decimales contra los dos de la moneda. El síntoma era exacto: **cambiar solo la moneda, sin tocar el precio, se rechazaba por decimales que ese precio no tiene**. Se compara la escala **significativa**.
 
-**El precio se puede corregir siempre**, y de ahí sale la condición que este módulo le impuso a `MV`: cada compra guarda su propio importe, o corregir un precio reescribiría facturas ya emitidas.
+**El precio se puede corregir siempre**, y de ahí sale la condición que este módulo le impone a quien registre las compras: cada compra guarda su propio importe, o corregir un precio reescribiría facturas ya emitidas.
 
 **No se exige motivo**, al revés que al retirar: la auditoría ya registra qué cambió, de cuánto a cuánto, quién y cuándo, y exigirlo en cada coma llena ese campo de «ajuste».
 

@@ -136,7 +136,7 @@ flowchart LR
     CM1 --> CM3["RF-CM-003 · corregir"]
     CM1 --> CM4["RF-CM-004 · retirar"]
 
-    CM5 -.->|"etapa 2 de MV<br/>no construida"| L["Liquidación"]
+    CM5 -.->|"no construida"| L["Liquidación"]
 
     classDef pend fill:#F7F0E5,stroke:#8A6D2A,color:#4A3A16
     class L pend
@@ -144,7 +144,7 @@ flowchart LR
 
 **`CM` es el primer módulo del sistema que depende de dos.** De `SP` toma el rol —para exigir que sea de tipo `VENDEDOR`— y la persona; de `PM`, el producto.
 
-**Y la flecha punteada es todo lo que este módulo no hace.** `CM` declara **cuánto** se paga; **calcular y liquidar** es la otra mitad del área. Hasta el 01-09-2026 no se podía construir porque «no hay sobre qué calcular»; con `MV` ya lo hay, y la liquidación es su **etapa 2**.
+**Y la flecha punteada es todo lo que este módulo no hace.** `CM` declara **cuánto** se paga; **calcular y liquidar** es la otra mitad del área. **Y sigue sin poderse construir**: «no hay sobre qué calcular», porque ninguna tabla de ventas existe todavía.
 
 ---
 
