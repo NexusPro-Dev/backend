@@ -5,7 +5,7 @@
 | Módulo | `MV` — Movimientos |
 | Paquete | `modules/movements` |
 | Prefijos de permiso | `movements:` |
-| Versión | 0.9.0 |
+| Versión | 0.10.0 |
 | Estado | **Borrador** |
 | Responsable | Bonilla Diaz William Steven |
 | Fecha de creación | 01-09-2026 |
@@ -53,6 +53,7 @@ Este módulo pone ese objeto en el sistema, y con él se cierran los tres.
 - **Anular** un movimiento emitiendo su inverso.
 - El **comprobante interno** de cada movimiento, con numeración propia.
 - El catálogo de **métodos de pago**, y qué **pasarela** procesó cada transacción con su referencia externa.
+- **Comprar puntos y pagar con ellos**: valor almacenado, con su tasa de conversión y su saldo **derivado del libro**.
 - **Recibir y conservar lo que los sistemas externos notifican**, tal como lo envían: la pasarela de pago y el bróker. Es lo único que permite reconciliar cuando el sistema y el proveedor no coinciden.
 
 **No incluye**
@@ -107,6 +108,7 @@ Según [`modules.md` §5](../modules.md#5-fichas-de-modulo).
 |---|---|---|
 | Movimientos | Registrar, consultar y anular hechos económicos | `movements`, `movement_details` |
 | Medios de pago | Con qué se pagó y quién lo procesó | `payment_methods` |
+| Puntos | Cuánto vale un punto, y el saldo derivado de cada persona | `point_rates` |
 | Notificaciones entrantes | Lo que los sistemas externos dicen, tal como lo dicen | `inbound_notifications` |
 
 **Por qué las notificaciones son un submódulo y no una columna más.** Lo que llega de fuera y lo que el sistema concluye son **dos cosas distintas**, y la diferencia es toda la utilidad de guardarlo: el movimiento es la interpretación, la notificación es el hecho. Meterla como columna de `movements` obligaría a que toda notificación produjera un movimiento — y muchas no lo hacen: las que llegan repetidas, las que avisan de estados que no nos interesan, y las que no validan la firma.
@@ -231,6 +233,11 @@ Una comisión pasa por tres momentos y **los tres caben en la máquina de estado
 | `RN-MV-014` | La firma inválida **se guarda y no se procesa** | Al recibir | La fila queda con la firma marcada como no válida y el evento no produce nada. Es lo que convierte «alguien está intentando falsificar confirmaciones de pago» en algo que se puede **ver** en lugar de en un `401` que nadie mira. Exige límite de tasa por origen: sin él, el endpoint es un vertedero abierto | **Crítica** |
 | `RN-MV-015` | El documento crudo caduca; la fila no | Siempre | El `payload` se purga a los **180 días** y la fila **permanece** con sus metadatos —emisor, tipo, identificador, firma, estado y qué movimiento produjo—. Así la trazabilidad sobrevive y los **datos personales de terceros** no: un documento de pasarela lleva nombre, correo, documento y últimos dígitos de una tarjeta. El plazo cubre la ventana de contracargo con margen; pasada esa, el documento crudo ya no es evidencia que nadie necesite. **Esta tabla no espera a D-10** justamente porque, al revés que `request_log`, tiene un final natural | Alta |
 | `RN-MV-016` | El secreto compartido **no se guarda jamás** | Siempre | Se conserva la **firma** que el emisor envía —que es un resumen y no una llave— y **nunca** la clave con la que se calcula, ni ninguna cabecera de autorización. Es el Art. VI.5 y el mismo criterio con el que `request_log` se niega a guardar cabeceras | **Crítica** |
+| `RN-MV-032` | **Comprar puntos no comisiona; gastarlos sí** | Al confirmar | La comisión se paga por lo que se **vendió**, no por lo que se **prepagó**. Comisionar las dos cosas pagaría **dos veces por el mismo dinero del cliente** — y con override, dos veces **a tres personas**, que no se descubre programándolo sino liquidando. El tipo lo declara: `movement_types` gana **`generates_commission`**, falso en `COMPRA_PUNTOS`. **Lo que esto cuesta y queda escrito**: el vendedor cobra **cuando el cliente gasta**, que puede ser meses después de que pagara, y **los puntos que nunca se gasten no le pagan a nadie** | **Crítica** |
+| `RN-MV-033` | El saldo de puntos **no se guarda: se deriva** | Siempre | Es la suma de `points_amount` sobre los movimientos **confirmados** de esa persona. Una columna de saldo sería una segunda fuente para el mismo hecho, y la que se quedara atrás mostraría un número que **no corresponde a ningún movimiento** | **Crítica** |
+| `RN-MV-034` | Los puntos **no caducan y no se devuelven** | Siempre | La deuda con el cliente no vence, y **solo se salda entregándole producto**. Devolverlos sería una salida de dinero, con su aprobación y su perfil regulatorio — es la etapa 3 y no se adelanta. **El coste está declarado**: el saldo de puntos es un **pasivo que crece y nunca se extingue solo**, de modo que hay que poder decir cuánto se debe en cualquier momento | Alta |
+| `RN-MV-035` | La tasa de conversión aplicada **se copia** | Al comprar o gastar puntos | El movimiento guarda la tasa con la que se calculó. Es `RN-MV-002` aplicándose a sí mismo: **la tasa cambia**, y sin copiarla, cambiarla reescribiría lo que alguien pagó. Cambiarla **reprecia el catálogo entero de golpe**, y por eso vive en una tabla con vigencia y no en una variable | **Crítica** |
+| `RN-MV-036` | No se gasta más de lo que se tiene | Al pagar con puntos | El saldo derivado debe alcanzar. **Se comprueba con bloqueo**, como `RN-SP-018` y `RN-SP-025`: sin él, dos compras simultáneas gastan el mismo saldo dos veces — y el resultado es un saldo negativo que **ninguna regla admite y nada impide** | **Crítica** |
 | `RN-MV-029` | La comisión **nace pendiente** y se causa el primero de cada mes | Al confirmar una venta, y en el cierre mensual | Toda venta —**de upgrade o de bot**— crea sus comisiones en estado **`PENDIENTE`**. El **primero de cada mes a las 00:00 de `America/Bogota`** ([`architecture.md` §15.1.1](../architecture.md)) un trabajo programado **causa** las del periodo cerrado, y causar es exactamente **confirmar**: no hace falta un estado nuevo, porque `RN-MV-004` ya dice que solo lo confirmado produce efectos. **Lo que esta espera compra** es que una venta anulada antes del cierre **no deje nunca una comisión pagada que haya que recuperar** | **Crítica** |
 | `RN-MV-030` | El depósito habilita **si alcanza el precio** del producto gratuito | Al confirmar un depósito | La cuenta que entró por la membresía gratuita sale de `FTD_PENDIENTE` cuando deposita **al menos el precio del producto asociado a esa membresía** — el que `RN-PM-006` obliga a que sea mayor que cero, y que es justamente el importe del depósito. **Al menos y no exactamente**: quien deposita de más no tiene por qué quedarse fuera, y exigir el importe exacto convertiría una comisión bancaria en un bloqueo | **Crítica** |
 | `RN-MV-024` | Una compra lleva **al menos una línea**; el **FTD**, exactamente una | Al registrar | Sustituye a la comprobación de columna que hacía `RN-MV-006`: lo que se compró vive en `movement_details` (§7.2.2) y no en la cabecera. **El depósito inicial no es una excepción a esto**: lleva **una línea con el producto de la membresía gratuita**, que es el mismo que fija su importe (`RN-MV-030`). Los depósitos posteriores no llevan ninguna. **Ya no se puede declarar en el esquema**, porque un `CHECK` no cuenta filas de otra tabla | **Crítica** |
@@ -302,6 +309,8 @@ Una comisión pasa por tres momentos y **los tres caben en la máquina de estado
 | `source_detail_id` | `uuid` | **Sí** | `movement_details` — **la línea** que la devengó |
 | `percentage` | `numeric(5,2)` | **Sí** | El que aplicó, **copiado** de la tarifa |
 | `settled_by_movement_id` | `uuid` | **Sí** | `movements` — el pago que liquidó este devengo |
+| `points_amount` | `integer` | No | Puntos movidos, **con signo**; cero si no los mueve |
+| `points_rate` | `numeric(14,4)` | **Sí** | La tasa aplicada, **copiada** (`RN-MV-035`) |
 | ~~`product_id`~~ | — | — | **Se mudó a `movement_details`** en la v0.6.0 |
 | ~~`quantity`~~ | — | — | **Se mudó a `movement_details`** |
 | ~~`unit_amount`~~ | — | — | **Se mudó a `movement_details`** |
@@ -345,6 +354,7 @@ El tipo de movimiento **es un catálogo y no un dominio cerrado**, y de él sale
 | `prefix` | `char(3)` | No |
 | `name` | `varchar(100)` | No |
 | `requires_product` | `boolean` | No |
+| `generates_commission` | `boolean` | No |
 | `affects_cash` | `boolean` | No |
 | `last_receipt_number` | `bigint` | No |
 | `status` | `varchar(20)` | No |
@@ -434,12 +444,63 @@ Una compra puede llevar **varios productos**, de modo que el producto, la cantid
 
     No se puede declarar en el esquema —un `CHECK` no cuenta filas de otra tabla— y vive en el caso de uso, como `RN-MV-007` y `RN-CM-001`.
 
+### 7.2.3 Los puntos, y dónde vive su saldo
+
+Una persona puede **comprar puntos** y **pagar upgrades o bots con ellos**. Es **valor almacenado**: cuando alguien compra puntos ya pagó y todavía no recibió nada, de modo que su saldo es **una deuda de la plataforma con él**.
+
+**No hay tabla de saldo, y eso es la decisión** (`RN-MV-033`). El saldo es **la suma de los movimientos de puntos** de esa persona, exactamente como `MV` hace todo lo demás. Una columna de saldo sería una **segunda fuente para el mismo hecho**, y la que se quedara atrás no fallaría: mostraría un número que no corresponde a ningún movimiento — que es justo lo que `RN-MV-001` existe para impedir.
+
+**`movements` gana dos columnas** para ello:
+
+| Columna | Qué guarda |
+|---|---|
+| `points_amount` | Puntos movidos, **con signo**. Positivo al comprarlos, negativo al gastarlos, cero en todo lo demás |
+| `points_rate` | La tasa que se aplicó, **copiada** — porque la tasa cambia (`RN-MV-035`) |
+
+**Comprar puntos y gastarlos son dos hechos distintos y se ven distintos:**
+
+| | Comprar puntos | Pagar con puntos |
+|---|---|---|
+| Tipo | `COMPRA_PUNTOS` | `COMPRA` normal |
+| Dinero | **Entra** | **No se mueve** |
+| Puntos | `+N` | `−N` |
+| Líneas | Ninguna | Las del producto |
+| ¿Comisiona? | **No** | **Sí** |
+
+!!! danger "`affects_cash` deja de poder vivir en el tipo, y hay que decidirlo"
+
+    Se puso en `movement_types` con un argumento que ahora se rompe: **dos movimientos del mismo tipo no pueden discrepar sobre si movieron dinero**. Con los puntos sí discrepan — una `COMPRA` pagada en efectivo mueve caja, y **la misma `COMPRA` pagada en puntos no**.
+
+    **La salida escrita aquí**: `payment_methods` gana **`is_cash`**, y una compra mueve caja **si y solo si su método lo hace**. `PUNTOS` es un método con `is_cash` en falso. El `affects_cash` del tipo se conserva para los movimientos que **no tienen método de pago** —una comisión, una reversión—, de modo que cada bandera responde a una pregunta distinta: el tipo dice *si esta clase de hecho puede mover dinero*, el método dice *si este pago concreto lo movió*.
+
+    Es una costura y se declara como tal. La alternativa —bajar `affects_cash` a la fila— es más simple de leer y pierde la garantía de que dos movimientos del mismo tipo coincidan.
+
+**Y el importe en dinero se guarda igual aunque se pague con puntos.** Una compra de 50 USD pagada con puntos tiene `total_amount = 50` y `cash` en cero: **50 es lo que vale, no lo que entró**. Es además la base sobre la que se calcula la comisión, que se paga en dinero aunque el cliente pagara en puntos.
+
+### 7.2.4 `point_rates` — cuánto vale un punto
+
+| Columna | Tipo | Nula |
+|---|---|---|
+| `id` | `uuid` | No |
+| `rate` | `numeric(14,4)` | No |
+| `currency_id` | `uuid` | No |
+| `valid_from` | `date` | No |
+| `valid_to` | `date` | **Sí** |
+| `created_at` | `timestamptz` | No |
+
+**Una tasa global y no un precio en puntos por producto**, por decisión del responsable del proyecto: el catálogo declara **un solo precio**, en dinero, y los puntos que cuesta salen de la tasa. Dos precios por producto se desalinean, y nada avisaría.
+
+**Y es una tabla y no una variable de configuración**, aunque solo tenga una fila vigente. Cambiar cuánto vale un punto **reprecia el catálogo entero de golpe**: es una decisión comercial que tiene que dejar rastro, con desde cuándo rige y sin solaparse — la misma forma que `commission_rates`, y por el mismo motivo. Una variable de entorno no se audita.
+
+**La tasa aplicada se copia al movimiento** (`RN-MV-035`), por el criterio de `RN-MV-002`: **la tasa puede cambiar**, así que copiarla es lo que impide que cambiarla reescriba lo que alguien pagó.
+
 ### 7.3 `payment_methods`
 
 | Columna | Tipo | Nula |
 |---|---|---|
 | `id` | `uuid` | No |
 | `code` | `varchar(50)` | No |
+| `is_cash` | `boolean` | No |
 | `name` | `varchar(100)` | No |
 | `status` | `varchar(20)` | No |
 | `created_at` | `timestamptz` | No |
@@ -501,6 +562,9 @@ Lo que un sistema externo dijo, **tal como lo dijo**.
 | `ck_movement_details_quantity` | `quantity >= 1` | `RN-MV-007`, en lo que el esquema puede sostener |
 | `ck_movement_details_amounts` | `unit_amount > 0 AND line_amount > 0` | `RN-MV-009` |
 | `uq_movement_details_producto` | Único sobre `(movement_id, product_id)` | `RN-MV-028`. Dos líneas del mismo producto son una con el doble de cantidad |
+| `ck_point_rates_positive` | `rate > 0` | Un punto que vale cero o menos no es una tasa |
+| `ck_point_rates_vigencia` | `valid_to IS NULL OR valid_to >= valid_from` | Con la rama `IS NULL` **delante y explícita**, por lo mismo que en `commission_rates` |
+| No solapamiento de `point_rates` | El rango de fechas | Dos tasas vigentes el mismo día harían indeterminado cuántos puntos cuesta un producto. Mismo `EXCLUDE` que `RN-CM-006`, y por el mismo motivo |
 | `ck_movements_reversion` | `(type = 'REVERSION') = (reverses_movement_id IS NOT NULL)` | Solo una reversión apunta a otro movimiento, y toda reversión apunta a uno |
 | `uq_movements_external_reference` | Único sobre `(gateway, external_reference)`, **parcial**: `WHERE external_reference IS NOT NULL` | `RN-MV-005`. Parcial porque un movimiento registrado a mano no tiene referencia, y en PostgreSQL dos nulos no compiten |
 | `uq_movements_receipt` | Único sobre `receipt_number`, **parcial**: `WHERE receipt_number IS NOT NULL` | `RN-MV-008` |
@@ -529,3 +593,4 @@ Lo que un sistema externo dijo, **tal como lo dijo**.
 | 0.7.0 | 01-09-2026 | **Se precisa cómo funciona la comisión en el tiempo**, por decisión del responsable del proyecto. **Toda venta —de upgrade o de bot— crea sus comisiones en `PENDIENTE`, y el primero de cada mes a las 00:00 se causan** (`RN-MV-029`). El hallazgo al escribirlo es que **no hace falta ningún estado nuevo**: causar **es** confirmar, y `RN-MV-004` ya dice que lo pendiente no produce efectos, de modo que el trabajo mensual usa `RF-MV-003` en lote y `ck_movements_status` no se toca. El tipo `COMISION_DEVENGADA` pasa a llamarse simplemente **`COMISION`**, porque lo que distingue a la devengada de la causada es su **estado** y no su tipo. **Y esta espera resuelve el caso feo que este documento tenía abierto**: anular una venta dentro del mes anula comisiones **pendientes** —nadie cobró nada y no hay nada que recuperar—, de modo que el saldo negativo deja de ser el camino habitual y pasa a ser la excepción de quien anula en febrero una venta de enero. **Queda anotado lo que la forma elegida no da**: la protección es **muy desigual** —una venta del día 31 se causa horas después y una del día 1 espera un mes— porque es un **cierre de periodo** y no una ventana de seguridad; si lo que se buscaba era lo segundo, la forma sería causar a los *n* días de cada venta. Y el trabajo mensual **tiene que ser recuperable e idempotente**: si no corre el día 1, el 3 debe causar lo pendiente sin causarlo dos veces — misma forma que `ExpiredTokenPurgeJob`, con cron configurable y cerrojo consultivo. **`RN-MV-030`** fija además el importe del FTD: la cuenta sale de `FTD_PENDIENTE` al depositar **al menos el precio del producto de la membresía gratuita** — **al menos y no exactamente**, porque exigir el importe exacto convertiría una comisión bancaria en un bloqueo. | Responsable del proyecto |
 | 0.8.0 | 01-09-2026 | **Cuatro decisiones del responsable del proyecto, y con ellas el módulo queda sin nada que le impida escribir tripletas de la etapa 1.** (1) **D-26 cerrada**: `SP` publica la **operación concreta** —«habilitar cuenta por depósito», «aplicar upgrade comprado»— y `MV` la invoca, **síncrona y en la misma transacción**, con las reglas viviendo en el dueño; se descartó el evento de dominio porque la habilitación dejaría de ser inmediata y **una cuenta retenida sin que nada haya fallado visiblemente es la avería que nadie reporta**. (2) **Todo opera en `America/Bogota`**: era la segunda vez que hacía falta esa decisión —el `AAAAMMDD` del código y el cierre mensual— y se toma **una sola vez** para el sistema entero; `RN-MV-017` y `RN-MV-029` la citan. (3) **El FTD sí tiene producto**: lleva **una línea con el producto de la membresía gratuita**, que es el mismo que fija su importe, de modo que `RF-CM-005` lo resuelve como a cualquier otra venta y **su firma no se toca** — la comisión registra ese producto y su importe es el de la comisión, no el de la venta. `RN-MV-024` se enmienda para decirlo. (4) **`RN-MV-031`: lo ya aplicado no se anula.** Anular solo se admite mientras el movimiento no haya producido efectos; deshacer un nivel concedido o una comisión causada es una **operación distinta que no existe todavía**. Se eligió sobre deshacerlo todo —que obligaría a quitarle el nivel a quien lleva un mes usándolo— y sobre revertir solo el dinero —que dejaría el libro y el acceso discrepando—, **y el precio queda escrito**: hasta que esas operaciones existan, un movimiento aplicado por error no tiene corrección por ninguna vía. §5.3 conserva dos abiertas y ninguna bloquea: qué operaciones deshacen lo aplicado, y si los depósitos posteriores al primero comisionan. | Responsable del proyecto |
 | 0.9.0 | 01-09-2026 | **Se retira `movement_details.target_membership_id`**, a señalamiento del responsable del proyecto: **es redundante**. `RF-PM-004` `EX-004` **rechaza cambiar la membresía destino de un producto** —junto al tipo y al código—, de modo que leerla del producto dentro de tres años da **exactamente el mismo valor**; y `RN-PM-010` garantiza que el producto no desaparece nunca, así que siempre habrá de dónde leerla. **Y de ahí sale un criterio más afilado que el que este documento venía aplicando**: `RN-MV-002` dejaba entender «cópialo todo», y pasa a decir **se copia lo que puede cambiar; lo inmutable se referencia**. Bajo esa prueba, el **precio** y la **vigencia** siguen copiándose —`RF-PM-004` los corrige, y copiarlos es lo que impide que corregirlos reescriba lo ya vendido—, el **porcentaje** de una comisión también —`RF-CM-003` lo corrige— y el **vendedor** también —una reasignación lo cambia—; el **destino** no, porque nada puede cambiarlo. Una columna menos y una regla que ahora dice **por qué** copia, en lugar de solo que copia. | Responsable del proyecto |
+| 0.10.0 | 01-09-2026 | **El módulo gana los puntos**, por decisión del responsable del proyecto: una persona los compra y con ellos paga upgrades o bots. Es **valor almacenado** —quien compra puntos ya pagó y no ha recibido nada—, de modo que **su saldo es una deuda de la plataforma con él**. Cuatro decisiones y todas suyas. (1) **Comisiona gastarlos, no comprarlos** (`RN-MV-032`): comisionar las dos cosas pagaría **dos veces por el mismo dinero del cliente** y, con override, **dos veces a tres personas** — algo que no se descubre programándolo sino liquidando. `movement_types` gana **`generates_commission`**. Queda escrito lo que cuesta: el vendedor cobra **cuando el cliente gasta**, meses después quizá, y **los puntos que nunca se gasten no le pagan a nadie**. (2) **Una tasa global** (`point_rates`) y no un precio en puntos por producto, porque dos precios por producto se desalinean y nada avisaría; es **tabla y no variable de configuración** porque cambiarla **reprecia el catálogo entero de golpe** y esa decisión tiene que dejar rastro. La tasa aplicada **se copia** al movimiento (`RN-MV-035`), que es `RN-MV-002` aplicándose a sí mismo. (3) **El saldo no se guarda: se deriva** de los movimientos (`RN-MV-033`) — una columna sería una segunda fuente para el mismo hecho. (4) **No caducan y no se devuelven** (`RN-MV-034`), con el coste declarado de que el pasivo **crece y nunca se extingue solo**. **Y aparece una costura que hay que señalar**: `affects_cash` se puso en `movement_types` con el argumento de que dos movimientos del mismo tipo no pueden discrepar, y **con los puntos discrepan** — una `COMPRA` en efectivo mueve caja y la misma pagada en puntos no. Se resuelve dando a `payment_methods` la bandera **`is_cash`**, de modo que el tipo dice *si esta clase de hecho puede mover dinero* y el método *si este pago concreto lo movió*; la alternativa, bajar `affects_cash` a la fila, es más simple de leer y pierde esa garantía. `RN-MV-036` exige saldo suficiente **con bloqueo**, porque sin él dos compras simultáneas gastan el mismo saldo dos veces. | Responsable del proyecto |

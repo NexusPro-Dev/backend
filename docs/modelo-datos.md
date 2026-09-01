@@ -2,7 +2,7 @@
 
 | Campo | Valor |
 |---|---|
-| Versión | 0.17.0 |
+| Versión | 0.18.0 |
 | Estado | **Borrador** |
 | Responsable | Bonilla Diaz William Steven |
 | Fecha de creación | 21-08-2026 |
@@ -14,9 +14,9 @@
 
     Es una **vista derivada**, no normativa. Sale de [`requirements/sp.md` §10](requirements/sp.md), [`security.md` §9](security.md) y [`architecture.md` §6.6](architecture.md). La fuente de verdad del esquema son las **migraciones Flyway** (Art. V.3), y donde ya existen mandan ellas.
 
-!!! success "Diecinueve tablas existen; cinco están diseñadas y sin escribir"
+!!! success "Diecinueve tablas existen; seis están diseñadas y sin escribir"
 
-    De `V1` a `V47` están escritas las **diecinueve** tablas del sistema: las doce de `SP`, sus cinco de auditoría, `products` de `PM` y `commission_rates` de `CM`. Lo único diseñado y sin escribir son las **cinco de `MV`** —`movement_types`, `movements`, `movement_details`, `payment_methods` e `inbound_notifications`—, que van marcadas como tales en el mapa de §5.
+    De `V1` a `V47` están escritas las **diecinueve** tablas del sistema: las doce de `SP`, sus cinco de auditoría, `products` de `PM` y `commission_rates` de `CM`. Lo único diseñado y sin escribir son las **seis de `MV`** —`movement_types`, `movements`, `movement_details`, `payment_methods`, `point_rates` e `inbound_notifications`—, que van marcadas como tales en el mapa de §5.
 
 ---
 
@@ -329,6 +329,8 @@ erDiagram
     movement_details ||--o{ movements : "devenga · una COMISION por línea"
     movements        ||--o{ movements : "revierte · salda"
     inbound_notifications ||--o| movements : "qué produjo al interpretarse"
+    point_rates      ||--o{ movements : "a qué tasa se convirtieron"
+    currencies       ||--o{ point_rates : "cuánto vale un punto, en qué moneda"
 
     products {
         uuid id PK
@@ -357,7 +359,8 @@ erDiagram
         varchar code UK
         char prefix "3 letras · van al código"
         boolean requires_product
-        boolean affects_cash "caja o DEUDA"
+        boolean generates_commission "COMPRA_PUNTOS = falso"
+        boolean affects_cash "si esta CLASE puede mover dinero"
         bigint last_receipt_number "contador de su serie"
     }
 
@@ -380,6 +383,8 @@ erDiagram
         uuid settled_by_movement_id FK "el pago que la saldó"
         bigint receipt_number "único POR TIPO · al confirmar"
         timestamptz occurred_at "cuándo OCURRIÓ, no cuándo se supo"
+        integer points_amount "CON SIGNO · el saldo es su suma"
+        numeric points_rate "COPIADA · la tasa cambia"
         timestamptz confirmed_at
     }
 
@@ -391,6 +396,14 @@ erDiagram
         numeric unit_amount "COPIADO del producto"
         numeric line_amount "cantidad x unitario, congelado"
         integer validity_days "COPIADA · NULL = no caduca"
+    }
+
+    point_rates {
+        uuid id PK
+        numeric rate "cuánto vale UN punto"
+        uuid currency_id FK
+        date valid_from
+        date valid_to "NULL = indefinidamente"
     }
 
     inbound_notifications {
@@ -445,6 +458,7 @@ Un modelo de datos enseña columnas y calla reglas. Estas cuatro se decidieron e
 | **`SP` publica la escritura, `MV` la invoca** (D-26) | Ninguna clave foránea sale de `MV` hacia `users.status`, y sin embargo un depósito lo cambia. **La escritura cruza por código, no por esquema** |
 | **La comisión nace `PENDIENTE` y se causa el primero de mes** | `movements.status` significa **dos cosas distintas según el tipo**: en una compra es «¿pagó?»; en una `COMISION` es «¿ya es exigible?». Mismo dominio, dos lecturas |
 | **Lo ya aplicado no se anula** (`RN-MV-031`) | `status = 'ANULADO'` **no aparece nunca** sobre un movimiento que produjo efectos. Quien vea la columna pensará que sí puede, y no |
+| **El saldo de puntos no se guarda** (`RN-MV-033`) | **No hay tabla de billetera y no falta**: el saldo es `sum(points_amount)` sobre los movimientos confirmados de esa persona. Buscarla es el error probable |
 
 **La tercera es la más fácil de leer mal.** `PENDIENTE` en una compra y `PENDIENTE` en una comisión son el mismo valor y no significan lo mismo — pero sí comparten la regla que importa: `RN-MV-004`, **lo pendiente no produce efectos**. Es lo que permitió que causar una comisión fuera exactamente confirmarla, sin ampliar `ck_movements_status`.
 
@@ -458,7 +472,7 @@ La marca vive en `movement_types` y no en `movements`, de modo que **es una prop
 
 ## 5. Cómo queda la base de datos
 
-**Diecinueve tablas escritas y cinco diseñadas.** Ninguna se ha retirado nunca.
+**Diecinueve tablas escritas y seis diseñadas.** Ninguna se ha retirado nunca.
 
 ```mermaid
 flowchart TB
@@ -503,12 +517,13 @@ flowchart TB
         M1["commission_rates"]
     end
 
-    subgraph MV["MV · 5 tablas · DISEÑADAS, sin escribir"]
+    subgraph MV["MV · 6 tablas · DISEÑADAS, sin escribir"]
         direction LR
         V1["movement_types"]
         V2["movements"]
         V5["movement_details"]
         V3["payment_methods"]
+        V6["point_rates"]
         V4["inbound_notifications"]
     end
 
@@ -523,12 +538,13 @@ flowchart TB
     A5 --> V2
     V1 --> V2
     V3 --> V2
+    V6 --> V2
     V4 -.-> V2
 
     classDef escrita fill:#e7eef0,stroke:#2d5a6b,color:#151b1e
     classDef disenada fill:#f6e6e2,stroke:#a33b2a,stroke-dasharray:3 3,color:#a33b2a
     class A1,A2,A3,A4,A5,A6,B1,B2,B3,B4,C1,C2,C3,C4,C5,C6,OBS,P1,M1 escrita
-    class V1,V2,V3,V4,V5 disenada
+    class V1,V2,V3,V4,V5,V6 disenada
 ```
 
 ### 5.1 El inventario, con quién es dueño
@@ -539,9 +555,9 @@ flowchart TB
 | `SP` · auditoría | `audit_change_log`, `audit_deletion_log`, `audit_error_log`, `audit_security_log`, `request_log` | **5, escritas** |
 | `PM` | `products` | **1, escrita** |
 | `CM` | `commission_rates` | **1, escrita** |
-| `MV` | `movement_types`, `movements`, `movement_details`, `payment_methods`, `inbound_notifications` | **5, diseñadas** |
+| `MV` | `movement_types`, `movements`, `movement_details`, `payment_methods`, `point_rates`, `inbound_notifications` | **6, diseñadas** |
 
-**Un módulo, una a cinco tablas.** `SP` tiene diecisiete y los otros tres juntos tienen siete, y eso no es desequilibrio: `SP` es dueño del acceso, de los catálogos transversales y de la auditoría entera, que es infraestructura que todos usan y nadie duplica.
+**Un módulo, una a seis tablas.** `SP` tiene diecisiete y los otros tres juntos tienen ocho, y eso no es desequilibrio: `SP` es dueño del acceso, de los catálogos transversales y de la auditoría entera, que es infraestructura que todos usan y nadie duplica.
 
 ### 5.2 Lo que cambió en `SP` el 01-09-2026, sin tabla nueva
 
@@ -556,7 +572,7 @@ Dos cambios que **no añaden ninguna tabla** y sí cambian lo que el modelo sign
 
 ### 5.3 Dónde apunta cada clave foránea que cruza un módulo
 
-Son **siete**, y todas van en la misma dirección: **hacia `SP` y hacia `PM`**, nunca al revés.
+Son **ocho**, y todas van en la misma dirección: **hacia `SP` y hacia `PM`**, nunca al revés.
 
 | Desde | Hacia | Módulo |
 |---|---|---|
@@ -567,6 +583,7 @@ Son **siete**, y todas van en la misma dirección: **hacia `SP` y hacia `PM`**, 
 | `commission_rates.product_id` | `products` | `CM` → `PM` |
 | `movements.person_id`, `seller_id`, `currency_id` | `users`, `currencies` | `MV` → `SP` |
 | `movement_details.product_id` | `products` | `MV` → `PM` |
+| `point_rates.currency_id` | `currencies` | `MV` → `SP` |
 
 
 
@@ -578,7 +595,7 @@ Son **siete**, y todas van en la misma dirección: **hacia `SP` y hacia `PM`**, 
 
 La secuencia no es continua —falta el tramo `V8` a `V12`— y no es un descuido: son números consumidos por trabajo que se reorganizó. Un número de migración **no se reutiliza jamás**, porque Flyway lo registra en el historial de cada entorno.
 
-Las cinco tablas de `MV` ocuparán a partir de `V50`, después de la `V48` y `V49` que `RF-SP-045` reserva.
+Las seis tablas de `MV` ocuparán a partir de `V50`, después de la `V48` y `V49` que `RF-SP-045` reserva.
 
 ## 6. Lo que el modelo deja pendiente
 
@@ -617,3 +634,4 @@ Las cinco tablas de `MV` ocuparán a partir de `V50`, después de la `V48` y `V4
 | 0.15.0 | 01-09-2026 | **Nace `movement_details`**, por decisión del responsable del proyecto: una compra puede llevar **varios productos**. El producto, la cantidad, el importe unitario, la vigencia y la membresía destino **se mudan de `movements` a la línea**, y con ellos `RN-MV-002` —copiar y no referenciar— pasa a cumplirse **por línea**: cada producto se compró a su precio y con su vigencia. La cabecera conserva la moneda, el **total congelado** y el comprobante. Son **veinticuatro tablas**: diecinueve escritas y cinco diseñadas. **Y el reparto tiene un precio que conviene tener escrito en este documento**: `ck_movements_type_product` **se retira**, y las cuatro reglas que la partición hace necesarias —una compra al menos una línea, **como mucho un upgrade**, moneda compartida y total como suma— **cruzan dos tablas, de modo que ningún `CHECK` las sostiene**. El esquema pasa a defender menos que antes y el caso de uso, más. Es el mismo intercambio que ya se hizo al convertir el tipo en catálogo, y la segunda vez en el mismo día. | Responsable técnico |
 | 0.16.0 | 01-09-2026 | **Se repara §4 y se recoge lo decidido después de la v0.15.0.** El diagrama de las tres áreas nuevas tenía **dos defectos introducidos al editarlo por partes**: `movements` declaraba **`code` dos veces**, y **`movement_details` aparecía en las relaciones sin bloque de columnas** — estaba dibujada y no definida. Se reescribe entero en lugar de parchearlo: `movements` gana `currency_id`, `payment_method_id`, `gateway`, `external_reference` y `confirmed_at`, y `movement_details` su bloque completo. **§4.3 es nueva y es la parte que un modelo de datos suele callar**: **cuatro decisiones del 01-09-2026 que no añaden ni una columna** y sin las cuales el esquema se lee mal — el día cortándose en `America/Bogota`; la escritura de `MV` sobre `users.status` que **cruza por código y no por esquema** (D-26); que **`movements.status` significa dos cosas según el tipo** —en una compra «¿pagó?», en una `COMISION` «¿ya es exigible?»—; y que **`ANULADO` no aparece jamás sobre un movimiento que produjo efectos** (`RN-MV-031`), de modo que quien vea la columna creerá que puede y no. Las claves foráneas que cruzan módulos pasan de siete a **ocho**, y se añade la advertencia de que **hay una escritura que ese cuadro no puede enseñar**. Se corrigen además tres rastros viejos en §1: `users.status` seguía diciendo «`PENDIENTE` sin uso» y `user_supervisors` describía a su superior como si solo hubiera vendedores. | Responsable técnico |
 | 0.17.0 | 01-09-2026 | **Se retira `movement_details.target_membership_id`**, a señalamiento del responsable del proyecto: **era redundante**. `RF-PM-004` `EX-004` rechaza cambiar la membresía destino de un producto, de modo que leerla del producto da siempre el mismo valor —y `RN-PM-010` garantiza que el producto no desaparece nunca—. Las claves foráneas que cruzan módulos vuelven de ocho a **siete**. **Y §4.1 gana el criterio que faltaba**, que es lo que de verdad aporta el cambio: este documento venía dejando entender «cópialo todo», y la regla pasa a ser **se copia lo que puede cambiar; lo inmutable se referencia**. El precio, la vigencia, el porcentaje de una tarifa y el vendedor **sí** se copian, porque los cuatro se corrigen o se reasignan; el destino no, porque nada puede cambiarlo, y copiarlo solo añadiría **un sitio más donde el dato pudiera discrepar de sí mismo**. Es la diferencia entre una copia que **protege el pasado** y una que **duplica el presente**. | Responsable del proyecto |
+| 0.18.0 | 01-09-2026 | **Entran los puntos**, por decisión del responsable del proyecto: se compran, y con ellos se pagan upgrades y bots. **Veinticinco tablas**: diecinueve escritas y seis diseñadas. `movements` gana `points_amount` —**con signo**— y `points_rate` **copiada**; `movement_types` gana `generates_commission`; `payment_methods` gana `is_cash`; y nace **`point_rates`**, la tasa global con vigencia. **Lo que este documento tiene que dejar claro es lo que NO hay**: **no existe tabla de saldo, y no falta** — el saldo es `sum(points_amount)` sobre los movimientos confirmados de la persona, y buscar una billetera es el error probable de quien lea el esquema. Se añade a §4.3 por eso. **Y queda declarada una costura**: `affects_cash` vivía en `movement_types` con el argumento de que dos movimientos del mismo tipo no pueden discrepar, y **con los puntos discrepan** —una `COMPRA` en efectivo mueve caja y la misma pagada en puntos no—, de modo que la bandera se reparte: el **tipo** dice si esa clase de hecho puede mover dinero, el **método de pago** si este pago concreto lo movió. Las claves foráneas cruzadas vuelven a **ocho**. | Responsable del proyecto |
