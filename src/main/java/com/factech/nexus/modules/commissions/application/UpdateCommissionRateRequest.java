@@ -1,5 +1,7 @@
 package com.factech.nexus.modules.commissions.application;
 
+import com.factech.nexus.modules.commissions.domain.models.CommissionRateType;
+import com.factech.nexus.modules.commissions.domain.models.CommissionValue;
 import com.factech.nexus.shared.patch.Patchable;
 import com.factech.nexus.shared.patch.PatchableDeserializer;
 import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
@@ -32,11 +34,15 @@ import java.math.BigDecimal;
  * desconocida» y creería que se equivocó de nombre.
  */
 public record UpdateCommissionRateRequest(
+    @JsonDeserialize(using = PatchableDeserializer.class) Patchable<CommissionRateType> rateType,
     @JsonDeserialize(using = PatchableDeserializer.class) Patchable<BigDecimal> percentage,
+    @JsonDeserialize(using = PatchableDeserializer.class) Patchable<BigDecimal> fixedAmount,
     @JsonDeserialize(using = PatchableDeserializer.class) Patchable<Object> roleId) {
 
   public UpdateCommissionRateRequest {
+    rateType = rateType == null ? Patchable.ausente() : rateType;
     percentage = percentage == null ? Patchable.ausente() : percentage;
+    fixedAmount = fixedAmount == null ? Patchable.ausente() : fixedAmount;
     roleId = roleId == null ? Patchable.ausente() : roleId;
   }
 
@@ -47,6 +53,19 @@ public record UpdateCommissionRateRequest(
 
   /** ¿Se envió algún campo corregible, con el valor que sea? */
   public boolean informaAlgo() {
-    return percentage.presente();
+    return rateType.presente() || percentage.presente() || fixedAmount.presente();
+  }
+
+  /**
+   * Los tres campos del valor, como uno solo.
+   *
+   * <p><b>La forma se envía siempre, aunque no cambie</b> — el argumento está en {@link
+   * CommissionValuePatch}. Y <b>la forma no está en la lista de inmutables</b>: se preguntó al
+   * responsable del proyecto el 02-09-2026 y se decidió que <b>sí se corrige</b>, porque prohibirlo
+   * obligaría a desasociar cada producto, retirar la tasa y volver a asociarlos — y durante esa
+   * secuencia esos productos no comisionan. Lo único inmutable sigue siendo el rol.
+   */
+  public Patchable<CommissionValue> valor() {
+    return CommissionValuePatch.resolver(rateType, percentage, fixedAmount);
   }
 }

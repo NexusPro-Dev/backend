@@ -5,7 +5,7 @@
 | Requerimiento | `RF-CM-006` |
 | Especificación | [`spec.md`](spec.md) |
 | `spec.md` aprobada el | 02-09-2026 |
-| Versión | 0.1.0 |
+| Versión | 0.2.0 |
 | Estado | **Aprobado** |
 | Autor | Responsable técnico |
 | Aprobado por | Responsable del proyecto |
@@ -28,6 +28,10 @@ Tabla propia con vigencia, y **la única restricción del módulo que dos petici
 ## 2. Cambios de esquema
 
 `V48` crea `user_commission_rates`: identificador, persona, porcentaje, vigencia en `date`, marcas de tiempo y retiro lógico.
+
+**`V49` le añade la forma y el valor fijo**, con exactamente los mismos tres cambios y las mismas tres restricciones que a `commission_rates`. **La migración es una sola y está argumentada en `RF-CM-001` §2.3**, incluido el detalle que más fácil se pierde —el `DROP DEFAULT` sobre `rate_type`—, y no se repite aquí.
+
+Lo único que hay que decir en este documento es **por qué las dos tablas se tratan igual sin excepción**: la elección de forma es una propiedad del **valor de una comisión**, no de la pieza que lo declara. En cuanto una de las dos tablas admitiera algo que la otra no —un tope, un decimal más, una moneda—, `RF-CM-005` tendría que devolver dos cosas distintas según de dónde saliera la respuesta, y **la resolución dejaría de poder hablar de «la comisión efectiva» en singular**.
 
 ### 2.1 La vigencia se mide en `date` y no en `timestamptz`
 
@@ -62,7 +66,7 @@ Por decisión del responsable del proyecto. **Lo que cuesta está en `spec.md` �
 
 | Capa | Componente | Nuevo | Responsabilidad |
 |---|---|---|---|
-| `domain/models` | `UserCommissionRate` | Sí | El agregado, con vigencia y los dos nulos opuestos |
+| `domain/models` | `UserCommissionRate` | Sí | El agregado, con vigencia y los dos nulos opuestos. **Desde v0.2.0 incrusta `CommissionValue`** |
 | `domain/repository` | `UserCommissionRateRepository` y su adaptador | Sí | Escritura, **con bloqueo y traducción** |
 | `domain/repository` | `UserCommissionRateQueryRepository` y su adaptador | Sí | El listado (`RF-CM-002`) |
 | `domain/service` | `RegisterUserCommissionRateService` | Sí | Alta |
@@ -74,6 +78,16 @@ Por decisión del responsable del proyecto. **Lo que cuesta está en `spec.md` �
 **Recurso propio y no un filtro del de tasas de rol**, porque las dos piezas no se parecen: esta tiene vigencia y persona, aquella tiene rol y asociaciones. Fundirlas obligaba a un endpoint cuyas validaciones dependen de qué campo llegó — que es exactamente lo que había hasta el 01-09-2026.
 
 **`DeleteCommissionRateRequest` se comparte con las tasas de rol.** Es un motivo y nada más; duplicarlo habría dado dos esquemas idénticos en el contrato publicado.
+
+**`CommissionValue` también se comparte, y por un motivo más fuerte que el ahorro.** Lo funda `RF-CM-001` §3.1; aquí basta decir qué se gana con que sea **el mismo objeto y no dos iguales**: `RN-CM-016` se decide una vez, y **`RF-CM-005` puede devolver la comisión resuelta sin saber de cuál de las dos tablas salió**. Dos objetos gemelos obligarían a la resolución a elegir uno de los dos o a inventar un tercero al que convertir los dos.
+
+!!! warning "La corrección de esta tasa **sustituye el valor entero**, y eso cambia lo que `Patchable` significa aquí"
+
+    Hasta ahora la corrección trataba el porcentaje y el fin de vigencia como dos campos parcheables independientes, con los **dos nulos opuestos** de §7: vaciar el fin se obedece, vaciar el porcentaje se rechaza.
+
+    Con la forma dentro, **el valor deja de ser un campo y pasa a ser una pareja**: quien corrige envía forma y valor juntos, y lo que se sustituye es el `CommissionValue` completo (`spec.md` §8). El fin de vigencia sigue siendo un `Patchable` con su nulo obediente; **el valor ya no lo es**, y esa asimetría hay que escribirla en el DTO de corrección para que nadie la deshaga por parecer inconsistente.
+
+    Es lo que hace que `spec.md` `FA-006` funcione sin ninguna regla nueva: cambiar de forma es sustituir el valor, y el sistema no tiene que distinguir esa corrección de cualquier otra.
 
 ## 4. Las tres piezas que sostienen `RN-CM-006`
 
@@ -158,6 +172,11 @@ Es el criterio con el que `RF-PM-006` no toca el estado de un producto al retira
 | Cerrar la vigencia al retirar | Destruye el dato de qué periodo cubría lo retirado. Ver §7 |
 | Bloqueo no bloqueante, como en la jerarquía de roles | Allí se quiere rechazar a la segunda; aquí se quiere que espere y compruebe |
 | Traducir por el texto del mensaje del driver | Cambia entre versiones y convertiría la traducción en un `500` silencioso |
+| **Un `CommissionValue` propio de esta tabla**, gemelo del de las tasas de rol | `RN-CM-016` se decidiría dos veces, y `RF-CM-005` tendría que elegir uno de los dos o inventar un tercero al que convertir ambos |
+| Dejar que esta tabla admita **solo porcentaje**, y el valor fijo solo en el catálogo por rol | Simplifica el módulo y **rompe la resolución**: obligaría a `RF-CM-005` a devolver cosas de forma distinta según de dónde saliera la respuesta. Ver §2 |
+| **Darle moneda propia a la tasa personalizada**, aunque el catálogo por rol no la tenga | Es donde más falta hace y donde menos se puede: no hay producto con el que comprobar que coincide, de modo que sería un dato que nadie valida y que la liquidación tendría que decidir si respetar o ignorar |
+| Exigir que el fin de vigencia exista cuando la forma es **valor fijo** | Sería inventar una regla para acotar `RN-CM-018` por un lado que no es el suyo. Un importe desmesurado con fecha de caducidad sigue siendo desmesurado |
+| **Prohibir corregir la forma**, obligando a cerrar y abrir | Descartado en `spec.md` §14, no aquí. Convierte arreglar una equivocación en una pérdida de datos |
 
 ## 11. Riesgos
 
@@ -167,6 +186,9 @@ Es el criterio con el que `RF-PM-006` no toca el estado de un producto al retira
 | 2 | Un solapamiento salga como `500` | Las tres piezas de §4, y la prueba concurrente |
 | 3 | Se añada una segunda restricción de exclusión a la tabla | La traducción por `SQLState` dejaría de identificarla. Declarado en §4.3 y en el código |
 | 4 | Alguien cierre la vigencia al retirar «para dejarlo ordenado» | §7, y `CA-CM-059` lo comprueba |
+| 5 | **Un importe fijo personalizado se cobre en monedas que nadie previó** | **No se mitiga, y aquí es peor que en el catálogo por rol**: esta tasa no se acota a ningún producto. `spec.md` §2 lo declara entero y `CA-CM-089` lo fija como comportamiento esperado |
+| 6 | **Se corrija la forma de una tasa cuya vigencia ya pasó**, reescribiendo un periodo cerrado | Aceptado: es el mismo riesgo que corregir su porcentaje. `FA-006` dice cuál es la operación correcta para acordar un cambio —cerrar y abrir— y cuál para arreglar una equivocación |
+| 7 | El valor deje de ser una pareja y vuelva a parchearse por campos sueltos | La asimetría con el fin de vigencia está escrita en §3, y `CA-CM-088` la comprueba corrigiendo la forma |
 
 ## 12. Estrategia de prueba
 
@@ -183,4 +205,14 @@ Es el criterio con el que `RF-PM-006` no toca el estado de un producto al retira
 | **Concurrencia** | Integración concurrente | Dos altas simultáneas del mismo periodo: una `201`, otra `409`, **ninguna `500`**, y **una sola fila** |
 | El agregado | Unitaria | Vigencia de un día, orden invertido, instantánea con el nulo como nulo |
 
+| **Alta en valor fijo** | Integración | `CA-CM-085` |
+| Las dos formas, ninguna, y la equivocada | Integración | `CA-CM-086`: `400` con `VAL-011`, **el mismo mensaje que en `RF-CM-001`** |
+| **Consecutivas de formas distintas** | Integración | `CA-CM-087`: y las dos quedan, que es el historial que solo esta pieza conserva |
+| **Corregir cambia la forma** | Integración | `CA-CM-088`: y el evento lleva el antes y el después **de las dos cosas**, no solo del número |
+| **El importe fijo no distingue monedas** | Integración | `CA-CM-089`: resolviendo contra dos productos de monedas distintas, **el mismo importe y ninguna señal** |
+
 **La prueba concurrente es la que verifica dónde vive la regla.** Las demás pasarían igual si el solapamiento se comprobara con una consulta previa; esta no.
+
+**`CA-CM-089` es la única prueba de este requerimiento que necesita productos de `PM`**, y no rompe la frontera de D-25: no consulta el catálogo, **resuelve** (`RF-CM-005`) contra dos productos que existen, que es lo que hace un vendedor. Comprobarlo sin productos sería comprobar que un número es igual a sí mismo.
+
+**`CA-CM-088` comprueba el evento y no solo el resultado**, y ahí está su valor. Que la tasa quede en valor fijo lo vería cualquier consulta; que **el registro de auditoría conserve que antes era un porcentaje** es lo único que permitirá entender, meses después, por qué un periodo ya liquidado dice una cosa y la tasa dice otra.

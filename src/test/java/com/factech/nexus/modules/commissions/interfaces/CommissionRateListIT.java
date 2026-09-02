@@ -120,6 +120,85 @@ class CommissionRateListIT extends IntegrationTestBase {
         .andExpect(jsonPath("$.content[1].percentage").value(4.00));
   }
 
+  // ---------------------------------------------------------------------------
+  // El valor fijo (`cm.md` v0.7.0)
+  // ---------------------------------------------------------------------------
+
+  @Test
+  @DisplayName("CA-CM-096 · cada fila lleva la forma junto al valor, y el otro campo VACÍO")
+  void laFormaViajaEnCadaFila() throws Exception {
+    CommissionFixtures.sembrarTasaDeRol(jdbc, DIRECTOR, "FIJO", "5000");
+
+    mvc.perform(listado().param("roleId", DIRECTOR).param("rateType", "FIJO"))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.content[0].rateType").value("FIJO"))
+        .andExpect(jsonPath("$.content[0].fixedAmount").value(5000))
+        .andExpect(jsonPath("$.content[0].percentage").value(org.hamcrest.Matchers.nullValue()));
+  }
+
+  @Test
+  @DisplayName("CA-CM-097 · el filtro por forma filtra, y ausente NO filtra")
+  void elFiltroPorForma() throws Exception {
+    CommissionFixtures.sembrarTasaDeRol(jdbc, DIRECTOR, "FIJO", "5000");
+
+    mvc.perform(listado().param("roleId", DIRECTOR).param("rateType", "FIJO"))
+        .andExpect(jsonPath("$.content.length()").value(1))
+        .andExpect(jsonPath("$.content[0].rateType").value("FIJO"));
+
+    mvc.perform(listado().param("roleId", DIRECTOR).param("rateType", "PORCENTAJE"))
+        .andExpect(jsonPath("$.content.length()").value(1))
+        .andExpect(jsonPath("$.content[0].rateType").value("PORCENTAJE"));
+
+    // Ausente: las dos.
+    mvc.perform(listado().param("roleId", DIRECTOR))
+        .andExpect(jsonPath("$.content.length()").value(2));
+  }
+
+  @Test
+  @DisplayName("CA-CM-098 · el orden NO intercala las formas, ni siquiera con cifras que se cruzan")
+  void elOrdenNoIntercalaLasFormas() throws Exception {
+    // EL DATO DE ESTA PRUEBA ES LA PRUEBA. Con un importe fijo GRANDE —100 frente
+    // a 80 % y 50 %— la implementación correcta y la perezosa devuelven lo mismo,
+    // y la prueba no verificaría nada.
+    //
+    // Con un importe PEQUEÑO se separan:
+    //   correcta  → FIJO 10 · 80 % · 50 %   (agrupadas por forma)
+    //   perezosa  → 80 % · 50 % · FIJO 10   (COALESCE sin `rate_type` delante)
+    //
+    // «10 fijos» y «50 %» no admiten un «mayor que»: cuál paga más depende del
+    // precio del producto, que este listado no conoce.
+    CommissionFixtures.sembrarTasaDeRol(jdbc, DIRECTOR, "PORCENTAJE", "80.00");
+    CommissionFixtures.sembrarTasaDeRol(jdbc, DIRECTOR, "FIJO", "10.0000");
+
+    mvc.perform(listado().param("roleId", DIRECTOR))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.content.length()").value(3))
+        .andExpect(jsonPath("$.content[0].rateType").value("FIJO"))
+        .andExpect(jsonPath("$.content[1].rateType").value("PORCENTAJE"))
+        .andExpect(jsonPath("$.content[1].percentage").value(80.00))
+        .andExpect(jsonPath("$.content[2].percentage").value(4.00));
+  }
+
+  @Test
+  @DisplayName("CA-CM-099 · la lectura POR PRODUCTO devuelve la forma de cada rol")
+  void laLecturaPorProductoLlevaLaForma() throws Exception {
+    // Es donde `RN-CM-011` se veía venir sumando porcentajes a ojo. Con formas
+    // mezcladas YA NO HAY SUMA QUE HACER, y por eso la forma tiene que viajar:
+    // sin ella quedaría una columna de cifras que nadie puede interpretar.
+    UUID producto = CommissionFixtures.sembrarProducto(jdbc, "BOT_C");
+    UUID enFijo = CommissionFixtures.sembrarTasaDeRol(jdbc, DIRECTOR, "FIJO", "5000");
+    CommissionFixtures.asociar(jdbc, enFijo, producto, DIRECTOR);
+
+    mvc.perform(
+            get("/api/v1/product-commission-rates")
+                .param("productId", producto.toString())
+                .with(user(SUPERADMIN.toString()).authorities(() -> "commissions:read")))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.content[0].rateType").value("FIJO"))
+        .andExpect(jsonPath("$.content[0].fixedAmount").value(5000))
+        .andExpect(jsonPath("$.content[0].percentage").value(org.hamcrest.Matchers.nullValue()));
+  }
+
   @Test
   @DisplayName("el listado exige commissions:read")
   void exigeElPermiso() throws Exception {

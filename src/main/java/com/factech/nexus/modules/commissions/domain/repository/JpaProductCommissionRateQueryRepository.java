@@ -18,7 +18,8 @@ public class JpaProductCommissionRateQueryRepository
       """
       a.product_id AS product_id, p.code AS product_code, p.name AS product_name,
       a.role_id AS role_id, r.code AS role_code, r.name AS role_name,
-      a.commission_rate_id AS rate_id, c.percentage AS percentage,
+      a.commission_rate_id AS rate_id,
+      c.rate_type AS rate_type, c.percentage AS percentage, c.fixed_amount AS fixed_amount,
       a.created_at AS created_at
       """;
 
@@ -93,7 +94,9 @@ public class JpaProductCommissionRateQueryRepository
         (String) fila.get("role_code"),
         (String) fila.get("role_name"),
         (UUID) fila.get("rate_id"),
+        CommissionRows.forma(fila.get("rate_type")),
         (BigDecimal) fila.get("percentage"),
+        (BigDecimal) fila.get("fixed_amount"),
         CommissionRows.momento(fila.get("created_at")));
   }
 }

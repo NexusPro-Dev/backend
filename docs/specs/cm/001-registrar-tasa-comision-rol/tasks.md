@@ -4,21 +4,25 @@
 |---|---|
 | Requerimiento | `RF-CM-001` |
 | Plan | [`plan.md`](plan.md), aprobado el 02-09-2026 |
-| Versión | 0.2.0 |
+| Versión | 0.3.0 |
 | Estado | **En revisión** |
 | Autor | Responsable técnico |
 | Aprobadas por | Pendiente |
 | Fecha de aprobación | Pendiente |
 | Issue | Pendiente de crear |
-| Rama | `feature/flujos-de-pm-y-cm` |
+| Rama | `feature/flujos-de-pm-y-cm` (`T-01`–`T-15`) · `feature/comision-en-valor-fijo` (`T-16`–`T-27`) |
 
 !!! info "Qué va en este documento"
 
     **En qué pasos se construye** lo que `plan.md` decidió, con su dependencia y su verificación. Ninguna tarea se da por `Hecha` sin que su verificación pase.
 
-!!! warning "Las tareas están hechas antes que este documento"
+!!! warning "Esta lista tiene dos mitades, y solo una registra"
 
-    El código se rehízo el 02-09-2026 y esta lista viene detrás. **No planifica: registra**, y por eso cada tarea nace `Hecha`. La tercera compuerta del Art. I.6 sigue pendiente y por eso el documento está `En revisión`.
+    **`T-01` a `T-15` están hechas antes que este documento.** El código se rehízo el 02-09-2026 y esa parte de la lista viene detrás: **no planifica, registra**, y por eso nacen `Hecha`.
+
+    **`T-16` a `T-27` se escribieron ANTES de construirse**, que es como debería haber nacido la primera mitad. Nacieron `Pendiente` y se cerraron el mismo día, con la suite en verde.
+
+    La tercera compuerta del Art. I.6 sigue pendiente para las dos, y por eso el documento está `En revisión`.
 
 ---
 
@@ -44,11 +48,38 @@
 | `T-14` | Documentación OpenAPI, con el aviso de que **lo registrado no rige** | `T-11` | El contrato publicado lo dice en la descripción | **Hecha el 02-09-2026** |
 | `T-15` | Aplicar las cuatro enmiendas de `plan.md` §8 | `T-13` | Los cuatro documentos con su fila de control de cambios | **Hecha el 02-09-2026** |
 
+### 1.1 El valor fijo (`cm.md` v0.7.0)
+
+| ID | Tarea | Depende de | Verificación | Estado |
+|---|---|---|---|---|
+| `T-16` | `V49`: las tres columnas **en las dos tablas, en una sola migración** | `T-01` | No existe ninguna versión del esquema en la que una pieza admita el valor fijo y la otra no | **Hecha el 02-09-2026** |
+| `T-17` | `V49`: rellenar `rate_type` con `DEFAULT 'PORCENTAJE'` **y quitarle el valor por defecto acto seguido** | `T-16` | Cubierta por `T-25`, que es una prueba y no una lectura de la migración | **Hecha el 02-09-2026** |
+| `T-18` | `V49`: `ck_*_type`, `ck_*_forma` y `ck_*_fixed` en las dos tablas | `T-16` | Una fila `FIJO` con porcentaje es rechazada por el motor, no por la aplicación | **Hecha el 02-09-2026** |
+| `T-19` | `V49`: **rehacer** `ck_*_percentage` con la rama nula **delante y explícita** | `T-16` | Sigue rechazando 101 en una fila `PORCENTAJE`, y acepta el nulo de una `FIJO` | **Hecha el 02-09-2026** |
+| `T-20` | `CommissionRateType` y `CommissionValue`, con `RN-CM-016` **en el constructor** | — | No hay forma de construir un valor inconsistente, ni desde una corrección | **Hecha el 02-09-2026** |
+| `T-21` | `CommissionValue` lanza **`ValidationException`**, no `BusinessRuleException` | `T-20` | El rechazo llega como `400` con `FieldError`, igual que `VAL-005` | **Hecha el 02-09-2026** |
+| `T-22` | `CommissionRate` **incrusta** `CommissionValue` en lugar de llevar el porcentaje suelto | `T-20` | El agregado no compila con un `percentage` de primer nivel | **Hecha el 02-09-2026** |
+| `T-23` | DTOs: `rateType` y `fixedAmount` entran, `percentage` **deja de ser obligatorio** | `T-22` | Una petición sin `rateType` da `400` con `VAL-002` | **Hecha el 02-09-2026** |
+| `T-24` | La respuesta devuelve **la forma junto al valor**, y el campo de la otra forma **vacío, no omitido** | `T-23` | Ningún consumidor tiene que deducir la forma por qué campo venga | **Hecha el 02-09-2026** |
+| `T-25` | **Prueba de esquema**: un `INSERT` directo **sin** `rate_type` falla | `T-17` | Es la única tarea que puede delatar que `DROP DEFAULT` se cayó de `V49` | **Hecha el 02-09-2026** |
+| `T-26` | Pruebas de los criterios nuevos de `spec.md` §12 | `T-24` | `CA-CM-079` a `CA-CM-084` | **Hecha el 02-09-2026** |
+| `T-27` | OpenAPI: **el cambio incompatible** y que el importe **no lleva moneda** | `T-24` | La descripción dice las dos cosas, y por qué | **Hecha el 02-09-2026** |
+
+**La instantánea de auditoría no lleva tarea propia**, y es correcto: la arma el agregado a partir de `CommissionValue` (`plan.md` §6), de modo que `T-22` la actualiza sola. Su verificación va en `T-26`.
+
 ## 2. Orden de ejecución
 
 **`T-02` es la única tarea irreversible del módulo y por eso va con `T-01`, no después.** Dejar el borrado para más adelante habría dado una ventana en la que la tabla tiene la forma nueva y filas con el significado viejo — que es exactamente la situación que la migración existe para evitar.
 
 **`T-03` parece prescindible y no lo es.** Es la restricción única redundante con la clave primaria, y sin ella `RF-CM-007` **no puede declarar** su clave foránea compuesta. Se hace aquí porque es un cambio sobre esta tabla, aunque quien la necesite sea otro requerimiento.
+
+**`T-17` es una sola tarea para dos sentencias que un lector separaría**, y están juntas a propósito. Poner el valor por defecto y quitarlo son **una operación**: el relleno lo necesita, el esquema definitivo no puede conservarlo, y dejarlas en tareas distintas permitiría dar la primera por hecha y aplazar la segunda. Aplazarla es el fallo silencioso de `V49` (`plan.md` §10, riesgo 5).
+
+**`T-20` va antes que `T-16` en la práctica, aunque no dependa de ella.** El objeto de dominio es donde `RN-CM-016` se decide; los `CHECK` de `T-18` son la segunda línea. Escribir primero la migración invita a dar la regla por cerrada porque el motor la vigila — y el motor **no puede dar un mensaje** que distinga las tres formas de equivocarse (`spec.md` §11).
+
+**`T-19` es la tarea que nadie pediría y sin la cual `V49` miente.** No añade ninguna comprobación: la restricción de `V44` seguiría ahí y seguiría pasando. Lo que hace es **volver visible** que ya no comprueba las filas de tipo `FIJO`, porque un `CHECK` que evalúa a nulo acepta la fila. Sin ella, quien lea el esquema dentro de un año no podrá saber si eso se decidió o se pasó por alto.
+
+**`T-25` prueba una línea de `SQL` y no una regla de negocio**, y es deliberado. Las pruebas de `T-26` pasan todas por la API, que **siempre envía la forma**; ninguna se entera de si la columna conserva su valor por defecto. Es el mismo argumento de `CA-CM-075` en `RF-CM-008`: se prueba lo que el esquema **habría dejado pasar**.
 
 **`T-08` tiene una verificación que no es la obvia.** No comprueba que la cuenta sea correcta —eso lo hace `CA-CM-002`— sino que la tasa **aparezca una sola vez**. Con un `LEFT JOIN` agrupado mal, cada tasa saldría una vez por producto y el `LIMIT` de la paginación contaría filas del producto cartesiano en lugar de tasas, **devolviendo menos tasas de las pedidas sin que nada fallara**.
 
@@ -63,15 +94,21 @@
 | `CA-CM-005` | `T-04`, `T-13` |
 | `CA-CM-006`, `CA-CM-007` | `T-09`, `T-13` |
 | `CA-CM-008` | `T-10`, `T-13` |
+| `CA-CM-079` | `T-16`, `T-22`, `T-24`, `T-26` |
+| `CA-CM-080`, `CA-CM-081` | `T-18`, `T-20`, `T-21`, `T-23`, `T-26` |
+| `CA-CM-082`, `CA-CM-083` | `T-18`, `T-26` |
+| `CA-CM-084` | `T-26` |
+
+**`T-17`, `T-19`, `T-25` y `T-27` no cubren ningún criterio de aceptación**, y quedan enumeradas para que su ausencia de la tabla no se lea como que sobran. Las tres primeras defienden **cosas que el negocio no puede ver** —que la forma sea obligatoria en el motor, que una restricción vieja siga diciendo la verdad—; la cuarta es el contrato publicado. `T-25` es, además, la única verificación de `T-17`.
 
 ## 4. Bloqueos
 
 Ninguno.
 
-**Queda una deuda que no bloquea nada**: esta tripleta se escribió **después** del código, invirtiendo el Art. I.6. Está declarada en `spec.md`, en `requirements.md` v0.87.0 y en la matriz.
+**Queda una deuda que no bloquea nada**: la primera mitad de esta tripleta se escribió **después** del código, invirtiendo el Art. I.6. Está declarada en `spec.md`, en `requirements.md` v0.87.0 y en la matriz. **La segunda mitad no la repite**: `T-16` a `T-27` se escriben antes de existir.
 
 ## 5. Definición de terminado
 
-- Las quince tareas `Hecha` con su verificación pasando.
-- `./mvnw clean verify` en verde. **Comprobado el 02-09-2026**: 278 unitarias y 876 de integración.
-- La matriz y el contrato publicado al día.
+- Las quince primeras tareas `Hecha` con su verificación pasando. **Comprobado el 02-09-2026**: `./mvnw clean verify` en verde, 278 unitarias y 876 de integración.
+- **Las doce del valor fijo, `Hecha` con su verificación pasando.** `./mvnw clean verify` en verde **incluyendo `T-25`**, que es la que no se ve fallar de otro modo. **Comprobado el 02-09-2026**: 287 unitarias y 902 de integración, suite entera en verde.
+- La matriz y el contrato publicado al día, **con el cambio incompatible declarado**.

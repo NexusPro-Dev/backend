@@ -43,7 +43,8 @@ public class ListCommissionRatesService {
     Pagination.Slice trozo = paginacion.resolver(filtros.page(), filtros.size());
 
     RateFilters criterios =
-        new RateFilters(filtros.roleId(), Boolean.TRUE.equals(filtros.includeDeleted()));
+        new RateFilters(
+            filtros.roleId(), filtros.rateType(), Boolean.TRUE.equals(filtros.includeDeleted()));
 
     List<CommissionRateItem> contenido =
         consultas.search(criterios, trozo.page() * trozo.size(), trozo.size()).stream()

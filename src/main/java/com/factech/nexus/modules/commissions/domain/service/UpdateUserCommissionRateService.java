@@ -88,7 +88,7 @@ public class UpdateUserCommissionRateService {
     tasas.lockUser(tasa.getUserId());
 
     Map<String, Object> cambios =
-        tasa.update(peticion.percentage(), peticion.validTo(), OffsetDateTime.now(reloj));
+        tasa.update(peticion.valor(), peticion.validTo(), OffsetDateTime.now(reloj));
 
     // EL VOLCADO EXPLÍCITO ES LA LÍNEA QUE IMPIDE UN 500. La entidad está
     // gestionada y el UPDATE saldría en el `commit`, FUERA DE TODO TRY, de modo

@@ -1,6 +1,7 @@
 package com.factech.nexus.modules.commissions.application;
 
 import com.factech.nexus.modules.commissions.domain.models.CommissionRate;
+import com.factech.nexus.modules.commissions.domain.models.CommissionRateType;
 import com.factech.nexus.modules.commissions.domain.repository.CommissionRateQueryRepository.RateRow;
 import com.factech.nexus.modules.system.roles.application.RoleCatalog.RoleView;
 import com.fasterxml.jackson.annotation.JsonInclude;
@@ -17,7 +18,12 @@ import java.util.UUID;
  */
 @JsonInclude(JsonInclude.Include.ALWAYS)
 public record CommissionRateResponse(
-    UUID id, RoleRef role, BigDecimal percentage, long associatedProducts) {
+    UUID id,
+    RoleRef role,
+    CommissionRateType rateType,
+    BigDecimal percentage,
+    BigDecimal fixedAmount,
+    long associatedProducts) {
 
   /** El rol, resuelto. */
   @JsonInclude(JsonInclude.Include.ALWAYS)
@@ -26,7 +32,12 @@ public record CommissionRateResponse(
   /** Desde el agregado recién creado, que todavía no tiene ninguna asociación. */
   public static CommissionRateResponse from(CommissionRate tasa, RoleView rol) {
     return new CommissionRateResponse(
-        tasa.getId(), new RoleRef(rol.id(), rol.code(), rol.name()), tasa.getPercentage(), 0L);
+        tasa.getId(),
+        new RoleRef(rol.id(), rol.code(), rol.name()),
+        tasa.getValue().getRateType(),
+        tasa.getPercentage(),
+        tasa.getFixedAmount(),
+        0L);
   }
 
   /** Desde una fila leída, con el rol ya resuelto por la misma sentencia. */
@@ -34,7 +45,9 @@ public record CommissionRateResponse(
     return new CommissionRateResponse(
         fila.id(),
         new RoleRef(fila.roleId(), fila.roleCode(), fila.roleName()),
+        fila.rateType(),
         fila.percentage(),
+        fila.fixedAmount(),
         fila.associatedProducts());
   }
 }

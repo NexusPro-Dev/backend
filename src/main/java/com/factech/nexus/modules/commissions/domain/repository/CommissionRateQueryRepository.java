@@ -1,5 +1,6 @@
 package com.factech.nexus.modules.commissions.domain.repository;
 
+import com.factech.nexus.modules.commissions.domain.models.CommissionRateType;
 import java.math.BigDecimal;
 import java.time.OffsetDateTime;
 import java.util.List;
@@ -19,7 +20,17 @@ public interface CommissionRateQueryRepository {
   long count(RateFilters filtros);
 
   /** Los filtros del listado. Un valor nulo significa «sin filtro». */
-  record RateFilters(UUID roleId, boolean includeDeleted) {}
+  /**
+   * Los filtros del catálogo.
+   *
+   * <p><b>{@code rateType} entra por decisión del responsable del proyecto</b> (02-09-2026) y no
+   * por necesidad técnica: ninguna operación lo requiere. Responde a la pregunta que nace el día
+   * que conviven las dos formas — «enséñame las que pagan importe fijo»—. Nulo: no filtra.
+   *
+   * <p><b>No existe el equivalente en las tasas personalizadas</b>, y no es un olvido: allí se
+   * filtra por persona, y una persona tiene <b>una</b> tasa vigente (`RN-CM-006`).
+   */
+  record RateFilters(UUID roleId, CommissionRateType rateType, boolean includeDeleted) {}
 
   /**
    * Una fila leída, con el rol resuelto en la misma sentencia.
@@ -34,7 +45,9 @@ public interface CommissionRateQueryRepository {
       UUID roleId,
       String roleCode,
       String roleName,
+      CommissionRateType rateType,
       BigDecimal percentage,
+      BigDecimal fixedAmount,
       long associatedProducts,
       OffsetDateTime deletedAt) {}
 }

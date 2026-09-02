@@ -133,7 +133,7 @@ class CommissionRateConcurrencyIT extends IntegrationTestBase {
             .content(
                 "{\"userId\":\""
                     + vendedora
-                    + "\",\"percentage\":"
+                    + "\",\"rateType\":\"PORCENTAJE\",\"percentage\":"
                     + porcentaje
                     + ",\"validFrom\":\""
                     + desde

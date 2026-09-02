@@ -21,7 +21,8 @@ public class JpaUserCommissionRateQueryRepository implements UserCommissionRateQ
       """
       t.id AS id, t.user_id AS user_id, u.username AS username,
       u.first_name AS user_nombre, u.last_name AS user_apellido,
-      t.percentage AS percentage, t.valid_from AS valid_from, t.valid_to AS valid_to,
+      t.rate_type AS rate_type, t.percentage AS percentage, t.fixed_amount AS fixed_amount,
+      t.valid_from AS valid_from, t.valid_to AS valid_to,
       t.deleted_at AS deleted_at
       """;
 
@@ -115,7 +116,9 @@ public class JpaUserCommissionRateQueryRepository implements UserCommissionRateQ
         (String) fila.get("username"),
         CommissionRows.nombreCompleto(
             (String) fila.get("user_nombre"), (String) fila.get("user_apellido")),
+        CommissionRows.forma(fila.get("rate_type")),
         (BigDecimal) fila.get("percentage"),
+        (BigDecimal) fila.get("fixed_amount"),
         CommissionRows.fecha(fila.get("valid_from")),
         CommissionRows.fecha(fila.get("valid_to")),
         CommissionRows.momento(fila.get("deleted_at")));

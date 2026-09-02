@@ -87,7 +87,7 @@ public class RegisterUserCommissionRateService {
             UserCommissionRate.create(
                 ids.next(),
                 peticion.userId(),
-                peticion.percentage(),
+                peticion.valor(),
                 peticion.validFrom(),
                 peticion.validTo(),
                 OffsetDateTime.now(reloj)));

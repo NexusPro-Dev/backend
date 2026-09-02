@@ -90,7 +90,7 @@ public class UpdateCommissionRateService {
             .orElseThrow(
                 () -> new ResourceNotFoundException("EX-404", "La tasa indicada no existe."));
 
-    Map<String, Object> cambios = tasa.update(peticion.percentage(), OffsetDateTime.now(reloj));
+    Map<String, Object> cambios = tasa.update(peticion.valor(), OffsetDateTime.now(reloj));
 
     if (!cambios.isEmpty()) {
       tasas.flushChanges();

@@ -4,21 +4,23 @@
 |---|---|
 | Requerimiento | `RF-CM-006` |
 | Plan | [`plan.md`](plan.md), aprobado el 02-09-2026 |
-| Versión | 0.1.0 |
+| Versión | 0.2.0 |
 | Estado | **En revisión** |
 | Autor | Responsable técnico |
 | Aprobadas por | Pendiente |
 | Fecha de aprobación | Pendiente |
 | Issue | Pendiente de crear |
-| Rama | `feature/flujos-de-pm-y-cm` |
+| Rama | `feature/flujos-de-pm-y-cm` (`T-01`–`T-21`) · `feature/comision-en-valor-fijo` (`T-22`–`T-29`) |
 
 !!! info "Qué va en este documento"
 
     **En qué pasos se construye** lo que `plan.md` decidió, con su dependencia y su verificación.
 
-!!! warning "Las tareas están hechas antes que este documento"
+!!! warning "Esta lista tiene dos mitades, y solo una registra"
 
-    El requerimiento se construyó el 02-09-2026 **sin tripleta previa** —excepción al Art. I.1, declarada en `spec.md`— y esta lista viene detrás. **No planifica: registra.**
+    **`T-01` a `T-21` están hechas antes que este documento.** El requerimiento se construyó el 02-09-2026 **sin tripleta previa** —excepción al Art. I.1, declarada en `spec.md`— y esa parte viene detrás: **no planifica, registra.**
+
+    **`T-22` a `T-29` se escribieron ANTES de construirse**, y se cerraron el mismo día con la suite en verde.
 
 ---
 
@@ -50,6 +52,21 @@
 | `T-20` | Documentación OpenAPI, **con el aviso de que no lleva rol y qué implica** | `T-13` | La descripción lo dice | **Hecha el 02-09-2026** |
 | `T-21` | Actualizar la matriz de `docs/requirements.md` y `cm.md` §4 | `T-14` | La fila registra la excepción al Art. I.1 | **Hecha el 02-09-2026** |
 
+### 1.1 El valor fijo (`cm.md` v0.7.0)
+
+`V49` **no lleva tareas aquí**: es una sola migración para las dos tablas y sus cuatro tareas viven en `RF-CM-001` (`T-16` a `T-19`). Partirlas dejaría dos listas dando por hecha la mitad de la otra.
+
+| ID | Tarea | Depende de | Verificación | Estado |
+|---|---|---|---|---|
+| `T-22` | `UserCommissionRate` **incrusta `CommissionValue`**, el mismo objeto que la tasa de rol | `RF-CM-001` · `T-20` | No existe un gemelo de este agregado. `RF-CM-005` no pregunta de dónde salió el valor | **Hecha el 02-09-2026** |
+| `T-23` | El alta acepta forma y valor, y **rechaza con `VAL-011` el mismo mensaje** que la de rol | `T-22` | Los dos endpoints dan una sola frase para el mismo error | **Hecha el 02-09-2026** |
+| `T-24` | La corrección **sustituye el valor entero**, no lo parchea por campos | `T-22` | Enviar un importe sobre una tasa de porcentaje **sin la forma** se rechaza | **Hecha el 02-09-2026** |
+| `T-25` | El fin de vigencia **sigue siendo `Patchable` con su nulo obediente** | `T-24` | La asimetría con el valor es deliberada y sobrevive a la revisión | **Hecha el 02-09-2026** |
+| `T-26` | La respuesta y el ítem del listado devuelven **forma y valor juntos** | `T-22` | El campo de la otra forma viaja vacío, no omitido | **Hecha el 02-09-2026** |
+| `T-27` | La instantánea de auditoría de la corrección lleva **el antes y el después de las dos cosas** | `T-24` | Un cambio de forma se puede reconstruir meses después | **Hecha el 02-09-2026** |
+| `T-28` | Pruebas de los criterios nuevos de `spec.md` §12 | `T-26`, `T-27` | `CA-CM-085` a `CA-CM-089` | **Hecha el 02-09-2026** |
+| `T-29` | OpenAPI: la forma, y que el importe **rige sobre todo el catálogo sin moneda** | `T-26` | La descripción dice lo que `spec.md` §2 argumenta | **Hecha el 02-09-2026** |
+
 ## 2. Orden de ejecución
 
 **`T-16`, `T-17` y `T-18` prueban tres decisiones del esquema y no tres comportamientos.** Es lo que las distingue del resto de `T-14`:
@@ -63,6 +80,10 @@
 Las tres comparten una propiedad: **su fallo no se parece a su causa**. Por eso se enumeran aparte en lugar de diluirse en la lista de criterios.
 
 **`T-09` es una tarea de NO hacer algo**, y por eso está escrita. El caso de uso **no comprueba el rol** de la persona, y eso no es un olvido: es la decisión del responsable del proyecto de que la tasa sea de la persona y punto. Sin esta línea, quien lea el código podría «arreglarlo» añadiendo la comprobación que el modelo anterior tenía.
+
+**`T-25` es, como `T-09`, una tarea de NO cambiar algo.** El fin de vigencia sigue parcheándose por su cuenta mientras el valor pasa a sustituirse entero, y eso **parece una inconsistencia**. No lo es: vaciar el fin **significa algo** —«rige indefinidamente»— y vaciar media forma no significa nada. Sin esta línea, la siguiente revisión unificaría los dos comportamientos por simetría y rompería `FA-003`.
+
+**`T-27` es la única tarea del valor fijo que defiende el pasado.** Todas las demás hacen que el sistema haga algo nuevo; esta hace que **se pueda entender después** por qué un periodo ya liquidado dice una cosa y la tasa dice otra. Es donde se paga que este módulo no conserve historial fuera de la vigencia.
 
 **`T-10` tiene dos ordenaciones que hay que respetar y ninguna se ve leyendo el resultado**: el bloqueo antes de tocar la entidad, y el volcado antes de auditar. Las dos existen por defectos vividos y las dos vuelven a producirse si alguien reordena «para que quede más limpio».
 
@@ -79,15 +100,23 @@ Las tres comparten una propiedad: **su fallo no se parece a su causa**. Por eso 
 | `CA-CM-059` | `T-05`, `T-11`, `T-14` |
 | `CA-CM-060` | `T-04`, `T-10`, `T-14`, `T-19` |
 | `CA-CM-061`, `CA-CM-062` | `T-10`, `T-12`, `T-14` |
+| `CA-CM-085` | `RF-CM-001` · `T-16` · `T-22`, `T-23`, `T-26`, `T-28` |
+| `CA-CM-086` | `RF-CM-001` · `T-18` · `T-23`, `T-28` |
+| `CA-CM-087` | `T-22`, `T-28` |
+| `CA-CM-088` | `T-24`, `T-27`, `T-28` |
+| `CA-CM-089` | `T-22`, `T-28` |
 
 ## 4. Bloqueos
 
-Ninguno.
+**`T-22` depende de `RF-CM-001` `T-20`**, que es donde nace `CommissionValue`, y **`T-23` y `T-28` dependen de que `V49` esté aplicada** (`RF-CM-001` `T-16` a `T-19`). No es un bloqueo externo: es que las dos altas comparten objeto y migración a propósito, y el orden entre las dos tripletas de este bloque es **`RF-CM-001` primero**.
 
-**Queda declarada una consecuencia que no es un bloqueo y que nadie va a cerrar desde aquí:** una tasa personalizada **sigue pagando** a quien deje de vender. Está en `spec.md` §13 y en `RF-CM-005` `FA-003`, y la forma de cerrarla es un acto deliberado.
+**Quedan declaradas dos consecuencias que no son bloqueos y que nadie va a cerrar desde aquí:**
+
+1. Una tasa personalizada **sigue pagando** a quien deje de vender. Está en `spec.md` §13 y en `RF-CM-005` `FA-003`, y cerrarla es un acto deliberado.
+2. Un **importe fijo** personalizado se cobra **en la moneda de lo que se venda**, sobre todo el catálogo. Está en `spec.md` §2, y `CA-CM-089` lo fija como comportamiento esperado en lugar de dejarlo sin escribir.
 
 ## 5. Definición de terminado
 
-- Las veintiuna tareas `Hecha` con su verificación pasando.
-- `./mvnw clean verify` en verde, **incluida la concurrente de `T-18`**. Comprobado el 02-09-2026: 278 unitarias y 876 de integración.
+- Las veintiuna primeras tareas `Hecha` con su verificación pasando. `./mvnw clean verify` en verde, **incluida la concurrente de `T-18`**. Comprobado el 02-09-2026: 278 unitarias y 876 de integración.
+- **Las ocho del valor fijo, `Hecha` con su verificación pasando**, sobre `V49` ya aplicada. **Comprobado el 02-09-2026**: 287 unitarias y 902 de integración, suite entera en verde.
 - La matriz, `cm.md` y el contrato publicado al día.

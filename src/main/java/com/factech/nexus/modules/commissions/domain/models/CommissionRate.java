@@ -4,6 +4,7 @@ import com.factech.nexus.shared.error.FieldError;
 import com.factech.nexus.shared.error.ValidationException;
 import com.factech.nexus.shared.patch.Patchable;
 import jakarta.persistence.Column;
+import jakarta.persistence.Embedded;
 import jakarta.persistence.Entity;
 import jakarta.persistence.Id;
 import jakarta.persistence.Table;
@@ -38,8 +39,6 @@ import java.util.UUID;
 @Table(name = "commission_rates")
 public class CommissionRate {
 
-  private static final BigDecimal CIEN = new BigDecimal("100");
-
   @Id
   @Column(name = "id", nullable = false, updatable = false)
   private UUID id;
@@ -51,8 +50,14 @@ public class CommissionRate {
   @Column(name = "role_id", nullable = false, updatable = false)
   private UUID roleId;
 
-  @Column(name = "percentage", nullable = false, precision = 5, scale = 2)
-  private BigDecimal percentage;
+  /**
+   * <b>Lo que paga: la forma y la cifra, como una sola cosa.</b>
+   *
+   * <p>Desde el 02-09-2026 puede ser un porcentaje o un importe fijo (`RN-CM-016`). Está incrustado
+   * y no suelto porque «una forma y solo una» no se puede evaluar mirando un campo — ver {@link
+   * CommissionValue}.
+   */
+  @Embedded private CommissionValue value;
 
   @Column(name = "created_at", nullable = false, updatable = false)
   private OffsetDateTime createdAt;
@@ -72,14 +77,18 @@ public class CommissionRate {
    * @param ahora instante del alta, inyectado para que la prueba pueda fijarlo
    */
   public static CommissionRate create(
-      UUID id, UUID roleId, BigDecimal percentage, OffsetDateTime ahora) {
+      UUID id, UUID roleId, CommissionValue value, OffsetDateTime ahora) {
 
-    verificarPorcentaje(percentage);
+    if (value == null) {
+      String mensaje = "La forma de la comisión es obligatoria: porcentaje o valor fijo.";
+      throw new ValidationException(
+          "VAL-002", mensaje, List.of(new FieldError("rateType", "VAL-002", mensaje)));
+    }
 
     CommissionRate tasa = new CommissionRate();
     tasa.id = id;
     tasa.roleId = roleId;
-    tasa.percentage = percentage;
+    tasa.value = value;
     tasa.createdAt = ahora;
     tasa.updatedAt = ahora;
     return tasa;
@@ -99,26 +108,28 @@ public class CommissionRate {
    * @return los campos que cambiaron, cada uno con {@code before} y {@code after}. Vacío si la
    *     petición no cambió nada
    */
-  public Map<String, Object> update(Patchable<BigDecimal> nuevoPorcentaje, OffsetDateTime ahora) {
+  public Map<String, Object> update(Patchable<CommissionValue> nuevoValor, OffsetDateTime ahora) {
 
     Map<String, Object> cambios = new LinkedHashMap<>();
 
-    if (nuevoPorcentaje.presente()) {
-      BigDecimal valor = nuevoPorcentaje.valor();
+    if (nuevoValor.presente()) {
+      CommissionValue valor = nuevoValor.valor();
       if (valor == null) {
-        String mensaje = "El porcentaje no puede vaciarse.";
+        String mensaje = "La forma de la comisión no puede vaciarse.";
         throw new ValidationException(
-            "VAL-002", mensaje, List.of(new FieldError("percentage", "VAL-002", mensaje)));
+            "VAL-002", mensaje, List.of(new FieldError("rateType", "VAL-002", mensaje)));
       }
-      verificarPorcentaje(valor);
-      // `compareTo` y no `equals`: 10.00 y 10.0000 son el mismo porcentaje con
-      // distinta escala, y `equals` los daría por distintos — el registro se
-      // llenaría de cambios que no cambian nada.
-      if (percentage.compareTo(valor) != 0) {
+      // NO es `compareTo` sobre la cifra, y ese detalle es el defecto silencioso
+      // de esta operación. `10 %` y `10` de importe fijo dan `compareTo == 0` y
+      // NO son ni remotamente el mismo valor: si se comparara así, esta
+      // corrección devolvería éxito sin escribir, sin auditar y sin mover la
+      // marca de modificación, y la tasa seguiría pagando el 10 %.
+      // Tampoco es `equals`, que daría 10.00 y 10.0000 por distintos y llenaría
+      // el registro de cambios que no cambian nada. Ver `CommissionValue`.
+      if (!value.mismoValorQue(valor)) {
         cambios.put(
-            "percentage",
-            Map.of("before", percentage.toPlainString(), "after", valor.toPlainString()));
-        percentage = valor;
+            "value", Map.of("before", value.paraAuditoria(), "after", valor.paraAuditoria()));
+        value = valor;
       }
     }
 
@@ -156,26 +167,17 @@ public class CommissionRate {
   public Map<String, Object> instantanea() {
     Map<String, Object> estado = new LinkedHashMap<>();
     estado.put("role_id", roleId.toString());
-    estado.put("percentage", percentage.toPlainString());
+    // La forma va SIEMPRE, y no solo el número. Sin ella, un `10` guardado aquí
+    // no dice si esa tasa pagaba una décima parte de la venta o diez unidades
+    // de dinero — y como esta tabla no tiene vigencia, este registro es la
+    // única copia que queda de lo que la tasa decía antes.
+    estado.put("rate_type", value.getRateType().name());
+    estado.put("value", value.cifra().toPlainString());
     return estado;
   }
 
   public boolean estaRetirada() {
     return deletedAt != null;
-  }
-
-  /** `RN-CM-007`. El cero se admite: significa «no comisiona». */
-  private static void verificarPorcentaje(BigDecimal valor) {
-    if (valor == null) {
-      String mensaje = "El porcentaje es obligatorio.";
-      throw new ValidationException(
-          "VAL-002", mensaje, List.of(new FieldError("percentage", "VAL-002", mensaje)));
-    }
-    if (valor.compareTo(BigDecimal.ZERO) < 0 || valor.compareTo(CIEN) > 0) {
-      String mensaje = "El porcentaje debe estar entre cero y cien.";
-      throw new ValidationException(
-          "VAL-003", mensaje, List.of(new FieldError("percentage", "VAL-003", mensaje)));
-    }
   }
 
   public UUID getId() {
@@ -186,8 +188,23 @@ public class CommissionRate {
     return roleId;
   }
 
+  public CommissionValue getValue() {
+    return value;
+  }
+
+  /**
+   * El porcentaje, o <b>nulo si esta tasa paga un importe fijo</b>.
+   *
+   * <p>Se conserva por comodidad de quien arma respuestas, y hay que leerlo con {@link
+   * CommissionValue#getRateType()} delante: un nulo aquí <b>no significa que falte</b>.
+   */
   public BigDecimal getPercentage() {
-    return percentage;
+    return value.getPercentage();
+  }
+
+  /** El importe fijo, o nulo si esta tasa paga un porcentaje. Ver {@link #getPercentage()}. */
+  public BigDecimal getFixedAmount() {
+    return value.getFixedAmount();
   }
 
   public OffsetDateTime getCreatedAt() {

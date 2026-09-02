@@ -1,5 +1,6 @@
 package com.factech.nexus.modules.commissions.application;
 
+import com.factech.nexus.modules.commissions.domain.models.CommissionRateType;
 import java.util.UUID;
 
 /**
@@ -13,6 +14,15 @@ import java.util.UUID;
  * <p><b>Y perdió {@code onDate}</b>, por lo mismo: las tasas de rol no tienen vigencia. Preguntar
  * qué regía una fecha concreta <b>ya no tiene respuesta aquí</b> — el catálogo solo sabe lo que
  * dice hoy.
+ *
+ * <p><b>Ganó {@code rateType} el 02-09-2026</b>, por decisión del responsable del proyecto y no por
+ * necesidad técnica: ninguna operación lo requiere. Responde a la pregunta que nace el día que
+ * conviven las dos formas —«enséñame las que pagan importe fijo»— y que hasta entonces no tenía
+ * sentido. Ausente, no filtra.
+ *
+ * <p><b>El listado de personalizadas NO lo gana</b>, y no es un olvido: allí se filtra por persona,
+ * y una persona tiene <b>una</b> tasa vigente (`RN-CM-006`). Filtrar por forma sobre un historial
+ * de una sola línea no responde a ninguna pregunta.
  */
 public record ListCommissionRatesRequest(
-    Integer page, Integer size, UUID roleId, Boolean includeDeleted) {}
+    Integer page, Integer size, UUID roleId, CommissionRateType rateType, Boolean includeDeleted) {}

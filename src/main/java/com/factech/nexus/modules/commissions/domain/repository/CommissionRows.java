@@ -1,5 +1,6 @@
 package com.factech.nexus.modules.commissions.domain.repository;
 
+import com.factech.nexus.modules.commissions.domain.models.CommissionRateType;
 import java.sql.Date;
 import java.sql.Timestamp;
 import java.time.LocalDate;
@@ -48,6 +49,25 @@ final class CommissionRows {
       return local;
     }
     return ((Date) valor).toLocalDate();
+  }
+
+  /**
+   * La forma de la comisión, que en el motor es {@code varchar(20)}.
+   *
+   * <p>Las consultas son nativas, de modo que la columna llega como texto y no como enum: la
+   * traducción tiene que hacerla alguien. <b>Está aquí y no en cada adaptador</b> por lo mismo que
+   * el resto de esta clase — las tres consultas la necesitan, y el día que la forma gane un tercer
+   * valor hay un solo sitio que mirar.
+   *
+   * <p><b>Un valor desconocido revienta, y es lo que se quiere.</b> {@code ck_*_type} lo impide en
+   * el motor; si alguna vez llegara uno, el fallo debe ser ruidoso y no un nulo silencioso que
+   * acabe en una respuesta diciendo que esa tasa no tiene forma.
+   */
+  static CommissionRateType forma(Object valor) {
+    if (valor == null) {
+      return null;
+    }
+    return CommissionRateType.valueOf(valor.toString());
   }
 
   /** El nombre completo, o nulo si no hay ninguna de las dos mitades. */

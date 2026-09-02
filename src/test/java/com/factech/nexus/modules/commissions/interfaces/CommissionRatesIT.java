@@ -148,11 +148,129 @@ class CommissionRatesIT extends IntegrationTestBase {
   }
 
   // ---------------------------------------------------------------------------
+  // El valor fijo (`cm.md` v0.7.0)
+  // ---------------------------------------------------------------------------
+
+  @Test
+  @DisplayName("CA-CM-079 · registra una tasa EN VALOR FIJO, con la forma junto al valor")
+  void altaEnValorFijo() throws Exception {
+    mvc.perform(alta(fijo(MANAGER, "10000.0000")))
+        .andExpect(status().isCreated())
+        .andExpect(jsonPath("$.rateType").value("FIJO"))
+        .andExpect(jsonPath("$.fixedAmount").value(10000.0000))
+        // Vacío y PRESENTE. Un campo que desaparece del resultado es
+        // indistinguible de uno que el cliente no conoce.
+        .andExpect(jsonPath("$.percentage").value(org.hamcrest.Matchers.nullValue()))
+        .andExpect(jsonPath("$.associatedProducts").value(0));
+
+    assertThat(cuantasTasas()).isEqualTo(1);
+  }
+
+  @Test
+  @DisplayName("CA-CM-080 · las DOS formas a la vez se rechazan: no se suman")
+  void lasDosFormasALaVez() throws Exception {
+    mvc.perform(
+            alta(
+                "{\"roleId\":\""
+                    + MANAGER
+                    + "\",\"rateType\":\"PORCENTAJE\",\"percentage\":5.00,"
+                    + "\"fixedAmount\":10000}"))
+        .andExpect(status().isBadRequest())
+        .andExpect(jsonPath("$.errors[0].code").value("VAL-011"));
+
+    assertThat(cuantasTasas()).isZero();
+  }
+
+  @Test
+  @DisplayName("CA-CM-081 · el valor que no corresponde a la forma, y la forma ausente")
+  void formaYValorDescuadrados() throws Exception {
+    // Tipo FIJO con el porcentaje lleno. Comprobar solo que UNO esté presente
+    // dejaría pasar esto, y es la manera fácil de escribir la regla a medias.
+    mvc.perform(alta("{\"roleId\":\"" + MANAGER + "\",\"rateType\":\"FIJO\",\"percentage\":10.00}"))
+        .andExpect(status().isBadRequest())
+        .andExpect(jsonPath("$.errors[0].code").value("VAL-011"));
+
+    // Y sin forma. Es la petición que funcionaba antes del 02-09-2026: se rompe
+    // A PROPÓSITO, porque suponer PORCENTAJE aceptaría como válida la petición
+    // de quien quiso declarar un importe y se equivocó de campo.
+    mvc.perform(alta("{\"roleId\":\"" + MANAGER + "\",\"percentage\":10.00}"))
+        .andExpect(status().isBadRequest())
+        .andExpect(jsonPath("$.errors[0].code").value("VAL-002"));
+
+    assertThat(cuantasTasas()).isZero();
+  }
+
+  @Test
+  @DisplayName("CA-CM-082 · el valor fijo negativo se rechaza")
+  void valorFijoNegativo() throws Exception {
+    mvc.perform(alta(fijo(MANAGER, "-0.0001"))).andExpect(status().isBadRequest());
+    assertThat(cuantasTasas()).isZero();
+  }
+
+  @Test
+  @DisplayName("CA-CM-083 · el valor fijo CERO se registra: es «no comisiona», no una ausencia")
+  void valorFijoCero() throws Exception {
+    mvc.perform(alta(fijo(MANAGER, "0")))
+        .andExpect(status().isCreated())
+        .andExpect(jsonPath("$.rateType").value("FIJO"))
+        .andExpect(jsonPath("$.fixedAmount").value(0));
+
+    assertThat(cuantasTasas()).isEqualTo(1);
+  }
+
+  @Test
+  @DisplayName("CA-CM-084 · un importe MAYOR QUE CUALQUIER PRECIO entra sin resistencia")
+  void nadieVigilaElImporte() throws Exception {
+    // ESTA PRUEBA AFIRMA QUE EL SISTEMA NO HACE NADA, y es la más importante de
+    // las seis. `RN-CM-018`: nada acota el importe por arriba, y aquí no podría
+    // — al registrar la tasa NO HAY NINGÚN PRODUCTO contra cuyo precio comparar
+    // (`RN-CM-012`), y aunque lo hubiera, mañana podría asociarse a otro más
+    // barato. La defensa está en la liquidación, que no existe.
+    //
+    // El día que alguien añada un tope aquí, esto falla y la discusión pasa por
+    // `cm.md` en lugar de resolverse en silencio con un número inventado.
+    mvc.perform(alta(fijo(MANAGER, "99999999.9999")))
+        .andExpect(status().isCreated())
+        .andExpect(jsonPath("$.fixedAmount").value(99999999.9999));
+
+    assertThat(cuantasTasas()).isEqualTo(1);
+  }
+
+  @Test
+  @DisplayName("`V49` · un INSERT sin `rate_type` FALLA: la forma no tiene valor por defecto")
+  void laFormaEsObligatoriaEnElEsquema() {
+    // LA ÚNICA PRUEBA QUE PUEDE DELATAR QUE `ALTER COLUMN rate_type DROP DEFAULT`
+    // SE CAYÓ DE LA MIGRACIÓN. Todas las demás pasan por la API, que siempre
+    // envía la forma; ninguna se enteraría. Si el valor por defecto siguiera ahí,
+    // esta inserción obtendría PORCENTAJE en silencio y el `INSERT` pasaría.
+    //
+    // Es fea —habla SQL en lugar de negocio— y es el mismo criterio que
+    // `CA-CM-075`: se prueba lo que el esquema HABRÍA dejado pasar.
+    org.assertj.core.api.Assertions.assertThatThrownBy(
+            () ->
+                jdbc.update(
+                    "INSERT INTO commission_rates (id, role_id, percentage)"
+                        + " VALUES (gen_random_uuid(), CAST(? AS uuid), 10.00)",
+                    MANAGER))
+        .isInstanceOf(org.springframework.dao.DataAccessException.class);
+
+    assertThat(cuantasTasas()).isZero();
+  }
+
+  // ---------------------------------------------------------------------------
   // Utilidades
   // ---------------------------------------------------------------------------
 
+  private static String fijo(String rol, String importe) {
+    return "{\"roleId\":\"" + rol + "\",\"rateType\":\"FIJO\",\"fixedAmount\":" + importe + "}";
+  }
+
   private static String cuerpo(String rol, String porcentaje) {
-    return "{\"roleId\":\"" + rol + "\",\"percentage\":" + porcentaje + "}";
+    return "{\"roleId\":\""
+        + rol
+        + "\",\"rateType\":\"PORCENTAJE\",\"percentage\":"
+        + porcentaje
+        + "}";
   }
 
   private MockHttpServletRequestBuilder alta(String json) {

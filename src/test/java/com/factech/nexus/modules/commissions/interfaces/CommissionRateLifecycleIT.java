@@ -60,7 +60,7 @@ class CommissionRateLifecycleIT extends IntegrationTestBase {
   @Test
   @DisplayName("corrige el porcentaje y devuelve la tasa con el rol resuelto")
   void corrigeElPorcentaje() throws Exception {
-    mvc.perform(correccion(tasa, "{\"percentage\":12.50}"))
+    mvc.perform(correccion(tasa, "{\"rateType\":\"PORCENTAJE\",\"percentage\":12.50}"))
         .andExpect(status().isOk())
         .andExpect(jsonPath("$.percentage").value(12.50))
         .andExpect(jsonPath("$.role.code").value("MANAGER"))
@@ -70,7 +70,8 @@ class CommissionRateLifecycleIT extends IntegrationTestBase {
   @Test
   @DisplayName("corregir BORRA el porcentaje anterior, y solo la auditoría lo conserva")
   void corregirBorraElPasado() throws Exception {
-    mvc.perform(correccion(tasa, "{\"percentage\":12.00}")).andExpect(status().isOk());
+    mvc.perform(correccion(tasa, "{\"rateType\":\"PORCENTAJE\",\"percentage\":12.00}"))
+        .andExpect(status().isOk());
 
     // En la tabla ya no queda ni rastro del 10: no hay dos filas contando cada
     // una su parte, hay una que ahora dice otra cosa.
@@ -90,7 +91,8 @@ class CommissionRateLifecycleIT extends IntegrationTestBase {
   @DisplayName("una corrección que no cambia nada no mueve `updated_at`")
   void correccionQueNoCambiaNada() throws Exception {
     var antes = actualizadaEn();
-    mvc.perform(correccion(tasa, "{\"percentage\":10.00}")).andExpect(status().isOk());
+    mvc.perform(correccion(tasa, "{\"rateType\":\"PORCENTAJE\",\"percentage\":10.00}"))
+        .andExpect(status().isOk());
     assertThat(actualizadaEn()).isEqualTo(antes);
   }
 
@@ -109,7 +111,7 @@ class CommissionRateLifecycleIT extends IntegrationTestBase {
   @Test
   @DisplayName("vaciar el porcentaje se rechaza: una tasa sin porcentaje no significa nada")
   void elPorcentajeNoSeVacia() throws Exception {
-    mvc.perform(correccion(tasa, "{\"percentage\":null}"))
+    mvc.perform(correccion(tasa, "{\"rateType\":null}"))
         .andExpect(status().isBadRequest())
         .andExpect(jsonPath("$.errors[0].code").value("VAL-002"));
   }
@@ -126,7 +128,8 @@ class CommissionRateLifecycleIT extends IntegrationTestBase {
   @DisplayName("una tasa retirada se trata como inexistente")
   void retiradaEsInexistente() throws Exception {
     retirar(tasa);
-    mvc.perform(correccion(tasa, "{\"percentage\":12.00}")).andExpect(status().isNotFound());
+    mvc.perform(correccion(tasa, "{\"rateType\":\"PORCENTAJE\",\"percentage\":12.00}"))
+        .andExpect(status().isNotFound());
   }
 
   // ---------------------------------------------------------------------------
@@ -201,8 +204,101 @@ class CommissionRateLifecycleIT extends IntegrationTestBase {
   }
 
   // ---------------------------------------------------------------------------
+  // Corregir la FORMA (`cm.md` v0.7.0)
+  // ---------------------------------------------------------------------------
+
+  @Test
+  @DisplayName("CA-CM-090 · corrige de porcentaje a IMPORTE FIJO, y la tasa queda en importe fijo")
+  void cambiaLaForma() throws Exception {
+    mvc.perform(correccion(tasa, "{\"rateType\":\"FIJO\",\"fixedAmount\":10000}"))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.rateType").value("FIJO"))
+        .andExpect(jsonPath("$.fixedAmount").value(10000))
+        .andExpect(jsonPath("$.percentage").value(org.hamcrest.Matchers.nullValue()));
+
+    assertThat(formaEnBase()).isEqualTo("FIJO");
+    assertThat(porcentajeEnBase()).isNull();
+  }
+
+  @Test
+  @DisplayName("CA-CM-091 · `10 %` → `10` FIJO ES UN CAMBIO, aunque las cifras comparen iguales")
+  void laMismaCifraEnLaOtraFormaSiEsUnCambio() throws Exception {
+    // EL CRITERIO MÁS IMPORTANTE DE LOS SEIS, Y EL ÚNICO QUE PUEDE FALLAR EN
+    // SILENCIO. La tasa vale 10.00 %; se corrige a 10 de importe fijo. Los dos
+    // números comparan iguales, de modo que una comparación que mirara solo la
+    // cifra —que es como estaba escrita, y con razón, por `FA-002`— concluiría
+    // que no hubo cambio: DEVOLVERÍA 200 sin escribir, sin auditar y sin mover
+    // la marca de modificación, y la tasa seguiría pagando el 10 %.
+    //
+    // Va en pareja con `correccionQueNoCambiaNada`, que usa los mismos números y
+    // espera lo contrario. Cualquiera de las dos se satisface rompiendo la otra.
+    var antes = actualizadaEn();
+
+    mvc.perform(correccion(tasa, "{\"rateType\":\"FIJO\",\"fixedAmount\":10.00}"))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.rateType").value("FIJO"));
+
+    assertThat(formaEnBase()).isEqualTo("FIJO");
+    assertThat(actualizadaEn()).isNotEqualTo(antes);
+  }
+
+  @Test
+  @DisplayName("CA-CM-092 · el evento lleva la FORMA anterior y la nueva, no solo los números")
+  void laAuditoriaGuardaLaForma() throws Exception {
+    mvc.perform(correccion(tasa, "{\"rateType\":\"FIJO\",\"fixedAmount\":10000}"))
+        .andExpect(status().isOk());
+
+    // Un `before` que dijera «10.00» sin decir que era un PORCENTAJE no conserva
+    // nada: quien lo lea dentro de un año no podrá saber si esa tasa pagaba una
+    // décima parte de la venta o diez unidades de dinero. Y como esta tabla no
+    // tiene vigencia, este registro es la única copia que queda.
+    String cambio =
+        jdbc.queryForObject(
+            "SELECT CAST(changes AS text) FROM audit_change_log WHERE entity = 'commission_rates'"
+                + " AND action = 'UPDATE' ORDER BY occurred_at DESC LIMIT 1",
+            String.class);
+
+    assertThat(cambio).contains("PORCENTAJE 10.00").contains("FIJO 10000");
+  }
+
+  @Test
+  @DisplayName("CA-CM-093 · el valor SIN la forma se rechaza, y la tasa queda intacta")
+  void elValorSinLaForma() throws Exception {
+    // Un importe suelto sobre una tasa de porcentaje puede ser «cámbiala a
+    // importe fijo» o «me equivoqué de campo», y las dos peticiones se escriben
+    // igual. No se deduce.
+    mvc.perform(correccion(tasa, "{\"fixedAmount\":10000}"))
+        .andExpect(status().isBadRequest())
+        .andExpect(jsonPath("$.errors[0].code").value("VAL-011"));
+
+    assertThat(formaEnBase()).isEqualTo("PORCENTAJE");
+    assertThat(porcentajeEnBase()).isEqualByComparingTo("10.00");
+  }
+
+  @Test
+  @DisplayName("CA-CM-094 · `150` se RECHAZA en porcentaje y se ACEPTA en importe fijo")
+  void elTopeSoloExisteEnUnaDeLasDosFormas() throws Exception {
+    mvc.perform(correccion(tasa, "{\"rateType\":\"PORCENTAJE\",\"percentage\":150}"))
+        .andExpect(status().isBadRequest());
+
+    // La misma cifra, la otra forma. `RN-CM-018`: cien es un límite que el
+    // negocio conoce sin mirar nada; para el importe NO EXISTE ESE NÚMERO.
+    mvc.perform(correccion(tasa, "{\"rateType\":\"FIJO\",\"fixedAmount\":150}"))
+        .andExpect(status().isOk());
+
+    assertThat(formaEnBase()).isEqualTo("FIJO");
+  }
+
+  // ---------------------------------------------------------------------------
   // Utilidades
   // ---------------------------------------------------------------------------
+
+  private String formaEnBase() {
+    return jdbc.queryForObject(
+        "SELECT rate_type FROM commission_rates WHERE id = CAST(? AS uuid)",
+        String.class,
+        tasa.toString());
+  }
 
   private MockHttpServletRequestBuilder correccion(UUID id, String json) {
     return patch("/api/v1/commission-rates/" + id)

@@ -41,11 +41,36 @@ public class JpaCommissionRateQueryRepository implements CommissionRateQueryRepo
   private static final String COLUMNAS =
       """
       t.id AS id, t.role_id AS role_id, r.code AS role_code, r.name AS role_name,
-      t.percentage AS percentage,
+      t.rate_type AS rate_type, t.percentage AS percentage, t.fixed_amount AS fixed_amount,
       (SELECT count(*) FROM product_commission_rates a
         WHERE a.commission_rate_id = t.id) AS asociados,
       t.deleted_at AS deleted_at
       """;
+
+  /**
+   * <b>El orden del catálogo, y por qué ya no puede ordenar por «lo que más paga».</b>
+   *
+   * <p>Hasta el 02-09-2026 era {@code r.code ASC, t.percentage DESC}: dentro de cada rol, arriba lo
+   * que más paga. Con dos formas eso <b>compara cosas que no admiten un «mayor que»</b> — cuál paga
+   * más entre «10 %» y «10.000 fijos» depende del precio del producto, que este listado no conoce y
+   * que además <b>difiere entre los productos asociados a la misma tasa</b>.
+   *
+   * <p>Ordenar por la cifra a secas sería <b>peor que no ordenar</b>: produciría una lista que
+   * <b>parece</b> de mayor a menor sin serlo, poniendo «100 fijos» por encima de «50 %».
+   *
+   * <p><b>El {@code COALESCE} solo es correcto porque va DETRÁS de {@code rate_type}.</b> Dentro de
+   * un grupo ya no hay más que una de las dos columnas llena, de modo que la fusión no compara nada
+   * heterogéneo. Movido delante —o sin {@code rate_type} en medio— haría exactamente lo que este
+   * comentario existe para impedir, <b>y sin ningún síntoma</b>: la consulta funciona, la página se
+   * llena, y el orden miente.
+   *
+   * <p><b>{@code rate_type ASC} ordena alfabéticamente</b>, de modo que {@code FIJO} va antes que
+   * {@code PORCENTAJE} por el alfabeto y no porque nadie lo haya decidido. Es arbitrario y estable,
+   * que es todo lo que hace falta: lo que importa es que los dos grupos <b>no se intercalen</b>.
+   */
+  private static final String ORDEN =
+      " ORDER BY r.code ASC, t.rate_type ASC,"
+          + " COALESCE(t.percentage, t.fixed_amount) DESC, t.id DESC";
 
   private static final String TABLAS =
       """
@@ -72,7 +97,8 @@ public class JpaCommissionRateQueryRepository implements CommissionRateQueryRepo
                 + TABLAS
                 + " WHERE "
                 + filtro.sql()
-                + " ORDER BY r.code ASC, t.percentage DESC, t.id DESC OFFSET :salto LIMIT :tope",
+                + ORDEN
+                + " OFFSET :salto LIMIT :tope",
             Tuple.class);
 
     filtro.enlazar(consulta);
@@ -115,6 +141,9 @@ public class JpaCommissionRateQueryRepository implements CommissionRateQueryRepo
   private static Filtro predicado(RateFilters f) {
     Filtro filtro = new Filtro();
     filtro.igual("t.role_id", "rol", f.roleId());
+    // El filtro por forma viaja como texto y no como enum: la columna es
+    // `varchar(20)` y el driver no tiene por qué saber traducir el tipo de Java.
+    filtro.igual("t.rate_type", "forma", f.rateType() == null ? null : f.rateType().name());
     if (!f.includeDeleted()) {
       filtro.crudo("t.deleted_at IS NULL");
     }
@@ -127,7 +156,9 @@ public class JpaCommissionRateQueryRepository implements CommissionRateQueryRepo
         (UUID) fila.get("role_id"),
         (String) fila.get("role_code"),
         (String) fila.get("role_name"),
+        CommissionRows.forma(fila.get("rate_type")),
         (BigDecimal) fila.get("percentage"),
+        (BigDecimal) fila.get("fixed_amount"),
         ((Number) fila.get("asociados")).longValue(),
         CommissionRows.momento(fila.get("deleted_at")));
   }

@@ -61,7 +61,7 @@ class EffectiveCommissionIT extends IntegrationTestBase {
         .andExpect(status().isOk())
         .andExpect(jsonPath("$.outcome").value("RESUELTA"))
         .andExpect(jsonPath("$.source").value("ROL"))
-        .andExpect(jsonPath("$.percentage").value(10.00))
+        .andExpect(jsonPath("$.value").value(10.00))
         .andExpect(jsonPath("$.rateId").value(tasa.toString()))
         // Las de rol no tienen vigencia, y estos nulos lo dicen.
         .andExpect(jsonPath("$.validFrom").value(org.hamcrest.Matchers.nullValue()));
@@ -78,7 +78,7 @@ class EffectiveCommissionIT extends IntegrationTestBase {
         .andExpect(jsonPath("$.outcome").value("SIN_TARIFA"))
         // NULO Y PRESENTE, nunca cero: cero es «no comisiona», que es una
         // decisión declarada, y la ausencia es que nadie la tomó.
-        .andExpect(jsonPath("$.percentage").value(org.hamcrest.Matchers.nullValue()));
+        .andExpect(jsonPath("$.value").value(org.hamcrest.Matchers.nullValue()));
   }
 
   @Test
@@ -115,7 +115,7 @@ class EffectiveCommissionIT extends IntegrationTestBase {
     mvc.perform(efectiva(vendedora, producto, "2026-05-01"))
         .andExpect(jsonPath("$.outcome").value("RESUELTA"))
         .andExpect(jsonPath("$.source").value("PERSONALIZADA"))
-        .andExpect(jsonPath("$.percentage").value(18.00))
+        .andExpect(jsonPath("$.value").value(18.00))
         .andExpect(jsonPath("$.rateId").value(personal.toString()));
   }
 
@@ -143,7 +143,7 @@ class EffectiveCommissionIT extends IntegrationTestBase {
 
     mvc.perform(efectiva(vendedora, producto, "2026-05-01"))
         .andExpect(jsonPath("$.source").value("ROL"))
-        .andExpect(jsonPath("$.percentage").value(10.00));
+        .andExpect(jsonPath("$.value").value(10.00));
   }
 
   @Test
@@ -171,7 +171,7 @@ class EffectiveCommissionIT extends IntegrationTestBase {
 
     mvc.perform(efectiva(ajena, producto, "2026-05-01"))
         .andExpect(jsonPath("$.outcome").value("NO_COMISIONA"))
-        .andExpect(jsonPath("$.percentage").value(org.hamcrest.Matchers.nullValue()))
+        .andExpect(jsonPath("$.value").value(org.hamcrest.Matchers.nullValue()))
         .andExpect(jsonPath("$.roleId").value(org.hamcrest.Matchers.nullValue()));
   }
 
@@ -183,7 +183,7 @@ class EffectiveCommissionIT extends IntegrationTestBase {
 
     mvc.perform(efectiva(vendedora, producto, "2026-05-01"))
         .andExpect(jsonPath("$.outcome").value("RESUELTA"))
-        .andExpect(jsonPath("$.percentage").value(0));
+        .andExpect(jsonPath("$.value").value(0));
   }
 
   @Test
@@ -251,6 +251,114 @@ class EffectiveCommissionIT extends IntegrationTestBase {
                 .param("productId", producto.toString())
                 .with(user(SUPERADMIN.toString()).authorities(() -> "commissions:create")))
         .andExpect(status().isForbidden());
+  }
+
+  // ---------------------------------------------------------------------------
+  // El valor fijo (`cm.md` v0.7.0)
+  // ---------------------------------------------------------------------------
+
+  @Test
+  @DisplayName("CA-CM-100 · resuelve un IMPORTE FIJO, con la forma junto al valor")
+  void resuelveUnImporteFijo() throws Exception {
+    UUID tasa = CommissionFixtures.sembrarTasaDeRol(jdbc, MANAGER, "FIJO", "10000");
+    CommissionFixtures.asociar(jdbc, tasa, producto, MANAGER);
+
+    mvc.perform(efectiva(vendedora, producto, "2026-05-01"))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.outcome").value("RESUELTA"))
+        .andExpect(jsonPath("$.rateType").value("FIJO"))
+        // UN solo campo de valor, al revés que en el catálogo. Con dos, el nulo
+        // tendría dos causas y la distinción entre lo pensado y lo olvidado
+        // dejaría de poder escribirse.
+        .andExpect(jsonPath("$.value").value(10000))
+        .andExpect(jsonPath("$.percentage").doesNotExist())
+        .andExpect(jsonPath("$.fixedAmount").doesNotExist());
+  }
+
+  @Test
+  @DisplayName("CA-CM-101 · la PRECEDENCIA no cambia con las formas, en las dos direcciones")
+  void laPrecedenciaSobreviveALasFormas() throws Exception {
+    // EL CRITERIO QUE PROTEGE LO VIEJO DE LO NUEVO. Las pruebas de precedencia
+    // que ya existen usan LA MISMA FORMA en las dos ramas, porque cuando se
+    // escribieron solo había una: si al añadir las columnas alguien invirtiera
+    // las ramas del `UNION ALL`, TODAS SEGUIRÍAN PASANDO y la consulta
+    // devolvería la tasa equivocada con una cifra plausible.
+    //
+    // Aquí las formas se cruzan a propósito.
+
+    // Personalizada en PORCENTAJE contra rol en FIJO: gana la personalizada.
+    UUID deRol = CommissionFixtures.sembrarTasaDeRol(jdbc, MANAGER, "FIJO", "10000");
+    CommissionFixtures.asociar(jdbc, deRol, producto, MANAGER);
+    CommissionFixtures.sembrarTasaPersonal(
+        jdbc, vendedora, "PORCENTAJE", "18.00", "2026-01-01", null);
+
+    mvc.perform(efectiva(vendedora, producto, "2026-05-01"))
+        .andExpect(jsonPath("$.source").value("PERSONALIZADA"))
+        .andExpect(jsonPath("$.rateType").value("PORCENTAJE"))
+        .andExpect(jsonPath("$.value").value(18.00));
+
+    // Y al revés: personalizada en FIJO contra rol en PORCENTAJE.
+    jdbc.update("DELETE FROM user_commission_rates");
+    jdbc.update("DELETE FROM product_commission_rates");
+    UUID enPorcentaje = CommissionFixtures.sembrarTasaDeRol(jdbc, MANAGER, "PORCENTAJE", "10.00");
+    CommissionFixtures.asociar(jdbc, enPorcentaje, producto, MANAGER);
+    CommissionFixtures.sembrarTasaPersonal(jdbc, vendedora, "FIJO", "5000", "2026-01-01", null);
+
+    mvc.perform(efectiva(vendedora, producto, "2026-05-01"))
+        .andExpect(jsonPath("$.source").value("PERSONALIZADA"))
+        .andExpect(jsonPath("$.rateType").value("FIJO"))
+        .andExpect(jsonPath("$.value").value(5000));
+  }
+
+  @Test
+  @DisplayName("CA-CM-102 · sin tasa, la forma y el valor llegan NULOS Y PRESENTES")
+  void sinTasaElNuloSigueTeniendoUnaSolaCausa() throws Exception {
+    mvc.perform(efectiva(vendedora, producto, "2026-05-01"))
+        .andExpect(jsonPath("$.outcome").value("SIN_TARIFA"))
+        .andExpect(jsonPath("$.rateType").value(org.hamcrest.Matchers.nullValue()))
+        .andExpect(jsonPath("$.value").value(org.hamcrest.Matchers.nullValue()));
+  }
+
+  @Test
+  @DisplayName("CA-CM-103 · el CERO en importe fijo resuelve, y se distingue de no tener tasa")
+  void elCeroEnImporteFijo() throws Exception {
+    UUID tasa = CommissionFixtures.sembrarTasaDeRol(jdbc, MANAGER, "FIJO", "0");
+    CommissionFixtures.asociar(jdbc, tasa, producto, MANAGER);
+
+    mvc.perform(efectiva(vendedora, producto, "2026-05-01"))
+        // RESUELTA con cero: alguien DECIDIÓ que esto no comisiona. Es lo
+        // contrario de `sinTasaElNuloSigueTeniendoUnaSolaCausa`, donde nadie lo
+        // decidió — y devolver cero allí haría indistinguible lo pensado de lo
+        // olvidado.
+        .andExpect(jsonPath("$.outcome").value("RESUELTA"))
+        .andExpect(jsonPath("$.rateType").value("FIJO"))
+        .andExpect(jsonPath("$.value").value(0));
+  }
+
+  @Test
+  @DisplayName(
+      "CA-CM-104 · un importe fijo se devuelve SIN MONEDA, y eso es lo que hay que vigilar")
+  void elImporteFijoNoLlevaMoneda() throws Exception {
+    // ESTA PRUEBA AFIRMA QUE EL SISTEMA NO DICE ALGO QUE PODRÍA DECIR. La
+    // consulta RECIBE el producto: es el primer y único punto donde un importe
+    // fijo y su moneda existen a la vez. Se preguntó al responsable del proyecto
+    // el 02-09-2026 y se decidió que no la devuelva — hacerlo empezaría a
+    // mezclar la tarifa con la venta (`cm.md` §1.4).
+    //
+    // La consecuencia es `RN-CM-017`: la misma tasa personalizada rige sobre
+    // TODO el catálogo (`RN-CM-014`) y su importe se interpreta en tantas
+    // monedas como haya. Eso NO SE PRUEBA CON DOS PRODUCTOS, y se intentó: la
+    // sentencia de resolución no toca `products` ni `currencies`, de modo que
+    // dos respuestas idénticas están garantizadas por construcción y comparar
+    // dos monedas no verificaba nada. Lo único capaz de fallar es la línea de
+    // abajo, el día que alguien revierta la decisión.
+    CommissionFixtures.sembrarTasaPersonal(jdbc, vendedora, "FIJO", "10000", "2026-01-01", null);
+
+    mvc.perform(efectiva(vendedora, producto, "2026-05-01"))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.rateType").value("FIJO"))
+        .andExpect(jsonPath("$.value").value(10000))
+        .andExpect(jsonPath("$.currency").doesNotExist());
   }
 
   private MockHttpServletRequestBuilder efectiva(UUID persona, UUID producto, String fecha) {

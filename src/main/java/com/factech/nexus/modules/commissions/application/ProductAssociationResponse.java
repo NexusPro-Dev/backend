@@ -1,5 +1,6 @@
 package com.factech.nexus.modules.commissions.application;
 
+import com.factech.nexus.modules.commissions.domain.models.CommissionRateType;
 import com.factech.nexus.modules.commissions.domain.repository.ProductCommissionRateQueryRepository.AssociationRow;
 import com.fasterxml.jackson.annotation.JsonInclude;
 import java.math.BigDecimal;
@@ -35,7 +36,9 @@ public record ProductAssociationResponse(List<ProductAssociationItem> content) {
       ProductRef product,
       RoleRef role,
       UUID commissionRateId,
+      CommissionRateType rateType,
       BigDecimal percentage,
+      BigDecimal fixedAmount,
       OffsetDateTime createdAt) {
 
     public static ProductAssociationItem from(AssociationRow fila) {
@@ -43,7 +46,9 @@ public record ProductAssociationResponse(List<ProductAssociationItem> content) {
           new ProductRef(fila.productId(), fila.productCode(), fila.productName()),
           new RoleRef(fila.roleId(), fila.roleCode(), fila.roleName()),
           fila.commissionRateId(),
+          fila.rateType(),
           fila.percentage(),
+          fila.fixedAmount(),
           fila.createdAt());
     }
   }

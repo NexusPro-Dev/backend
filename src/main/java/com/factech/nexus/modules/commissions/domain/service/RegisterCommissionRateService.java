@@ -82,7 +82,7 @@ public class RegisterCommissionRateService {
     CommissionRate nueva =
         tasas.save(
             CommissionRate.create(
-                ids.next(), peticion.roleId(), peticion.percentage(), OffsetDateTime.now(reloj)));
+                ids.next(), peticion.roleId(), peticion.valor(), OffsetDateTime.now(reloj)));
 
     auditoria.recordChange(
         new ChangeEvent(MODULO, ENTIDAD, nueva.getId(), ChangeAction.CREATE, nueva.instantanea()));

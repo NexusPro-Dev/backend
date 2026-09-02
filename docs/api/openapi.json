@@ -223,12 +223,19 @@
             "format" : "date-time",
             "type" : "string"
           },
+          "fixedAmount" : {
+            "type" : "number"
+          },
           "id" : {
             "format" : "uuid",
             "type" : "string"
           },
           "percentage" : {
             "type" : "number"
+          },
+          "rateType" : {
+            "enum" : [ "PORCENTAJE", "FIJO" ],
+            "type" : "string"
           },
           "role" : {
             "$ref" : "#/components/schemas/RoleRef"
@@ -275,12 +282,19 @@
             "format" : "int64",
             "type" : "integer"
           },
+          "fixedAmount" : {
+            "type" : "number"
+          },
           "id" : {
             "format" : "uuid",
             "type" : "string"
           },
           "percentage" : {
             "type" : "number"
+          },
+          "rateType" : {
+            "enum" : [ "PORCENTAJE", "FIJO" ],
+            "type" : "string"
           },
           "role" : {
             "$ref" : "#/components/schemas/RoleRef"
@@ -508,11 +522,12 @@
             "enum" : [ "RESUELTA", "SIN_TARIFA", "NO_COMISIONA" ],
             "type" : "string"
           },
-          "percentage" : {
-            "type" : "number"
-          },
           "rateId" : {
             "format" : "uuid",
+            "type" : "string"
+          },
+          "rateType" : {
+            "enum" : [ "PORCENTAJE", "FIJO" ],
             "type" : "string"
           },
           "roleId" : {
@@ -530,6 +545,9 @@
           "validTo" : {
             "format" : "date",
             "type" : "string"
+          },
+          "value" : {
+            "type" : "number"
           }
         },
         "type" : "object"
@@ -632,6 +650,10 @@
           "page" : {
             "format" : "int32",
             "type" : "integer"
+          },
+          "rateType" : {
+            "enum" : [ "PORCENTAJE", "FIJO" ],
+            "type" : "string"
           },
           "roleId" : {
             "format" : "uuid",
@@ -1111,6 +1133,7 @@
         "type" : "object"
       },
       "PatchableBigDecimal" : { },
+      "PatchableCommissionRateType" : { },
       "PatchableInteger" : { },
       "PatchableLocalDate" : { },
       "PatchableObject" : { },
@@ -1189,11 +1212,18 @@
             "format" : "date-time",
             "type" : "string"
           },
+          "fixedAmount" : {
+            "type" : "number"
+          },
           "percentage" : {
             "type" : "number"
           },
           "product" : {
             "$ref" : "#/components/schemas/ProductRef"
+          },
+          "rateType" : {
+            "enum" : [ "PORCENTAJE", "FIJO" ],
+            "type" : "string"
           },
           "role" : {
             "$ref" : "#/components/schemas/RoleRef"
@@ -1429,17 +1459,25 @@
       },
       "RegisterCommissionRateRequest" : {
         "properties" : {
+          "fixedAmount" : {
+            "minimum" : 0.0,
+            "type" : "number"
+          },
           "percentage" : {
             "maximum" : 100.0,
             "minimum" : 0.0,
             "type" : "number"
+          },
+          "rateType" : {
+            "enum" : [ "PORCENTAJE", "FIJO" ],
+            "type" : "string"
           },
           "roleId" : {
             "format" : "uuid",
             "type" : "string"
           }
         },
-        "required" : [ "percentage", "roleId" ],
+        "required" : [ "rateType", "roleId" ],
         "type" : "object"
       },
       "RegisterCountryRequest" : {
@@ -1539,10 +1577,18 @@
       },
       "RegisterUserCommissionRateRequest" : {
         "properties" : {
+          "fixedAmount" : {
+            "minimum" : 0.0,
+            "type" : "number"
+          },
           "percentage" : {
             "maximum" : 100.0,
             "minimum" : 0.0,
             "type" : "number"
+          },
+          "rateType" : {
+            "enum" : [ "PORCENTAJE", "FIJO" ],
+            "type" : "string"
           },
           "userId" : {
             "format" : "uuid",
@@ -1557,7 +1603,7 @@
             "type" : "string"
           }
         },
-        "required" : [ "percentage", "userId", "validFrom" ],
+        "required" : [ "rateType", "userId", "validFrom" ],
         "type" : "object"
       },
       "RegisterUserRequest" : {
@@ -1858,8 +1904,14 @@
       },
       "UpdateCommissionRateRequest" : {
         "properties" : {
+          "fixedAmount" : {
+            "$ref" : "#/components/schemas/PatchableBigDecimal"
+          },
           "percentage" : {
             "$ref" : "#/components/schemas/PatchableBigDecimal"
+          },
+          "rateType" : {
+            "$ref" : "#/components/schemas/PatchableCommissionRateType"
           },
           "roleId" : {
             "$ref" : "#/components/schemas/PatchableObject"
@@ -1929,8 +1981,14 @@
       },
       "UpdateUserCommissionRateRequest" : {
         "properties" : {
+          "fixedAmount" : {
+            "$ref" : "#/components/schemas/PatchableBigDecimal"
+          },
           "percentage" : {
             "$ref" : "#/components/schemas/PatchableBigDecimal"
+          },
+          "rateType" : {
+            "$ref" : "#/components/schemas/PatchableCommissionRateType"
           },
           "userId" : {
             "$ref" : "#/components/schemas/PatchableObject"
@@ -1964,12 +2022,19 @@
             "format" : "date-time",
             "type" : "string"
           },
+          "fixedAmount" : {
+            "type" : "number"
+          },
           "id" : {
             "format" : "uuid",
             "type" : "string"
           },
           "percentage" : {
             "type" : "number"
+          },
+          "rateType" : {
+            "enum" : [ "PORCENTAJE", "FIJO" ],
+            "type" : "string"
           },
           "user" : {
             "$ref" : "#/components/schemas/UserRef"
@@ -2020,12 +2085,19 @@
       },
       "UserCommissionRateResponse" : {
         "properties" : {
+          "fixedAmount" : {
+            "type" : "number"
+          },
           "id" : {
             "format" : "uuid",
             "type" : "string"
           },
           "percentage" : {
             "type" : "number"
+          },
+          "rateType" : {
+            "enum" : [ "PORCENTAJE", "FIJO" ],
+            "type" : "string"
           },
           "user" : {
             "$ref" : "#/components/schemas/UserRef"

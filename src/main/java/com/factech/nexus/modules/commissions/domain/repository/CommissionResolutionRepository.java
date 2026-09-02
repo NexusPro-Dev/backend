@@ -1,5 +1,6 @@
 package com.factech.nexus.modules.commissions.domain.repository;
 
+import com.factech.nexus.modules.commissions.domain.models.CommissionRateType;
 import com.factech.nexus.modules.commissions.domain.models.RateSource;
 import java.math.BigDecimal;
 import java.time.LocalDate;
@@ -34,7 +35,8 @@ public interface CommissionResolutionRepository {
   record ResolvedRate(
       RateSource source,
       UUID rateId,
-      BigDecimal percentage,
+      CommissionRateType rateType,
+      BigDecimal value,
       LocalDate validFrom,
       LocalDate validTo) {}
 }

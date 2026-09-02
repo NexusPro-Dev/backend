@@ -4,6 +4,7 @@ import com.factech.nexus.shared.error.FieldError;
 import com.factech.nexus.shared.error.ValidationException;
 import com.factech.nexus.shared.patch.Patchable;
 import jakarta.persistence.Column;
+import jakarta.persistence.Embedded;
 import jakarta.persistence.Entity;
 import jakarta.persistence.Id;
 import jakarta.persistence.Table;
@@ -40,8 +41,6 @@ import java.util.UUID;
 @Table(name = "user_commission_rates")
 public class UserCommissionRate {
 
-  private static final BigDecimal CIEN = new BigDecimal("100");
-
   @Id
   @Column(name = "id", nullable = false, updatable = false)
   private UUID id;
@@ -49,8 +48,18 @@ public class UserCommissionRate {
   @Column(name = "user_id", nullable = false, updatable = false)
   private UUID userId;
 
-  @Column(name = "percentage", nullable = false, precision = 5, scale = 2)
-  private BigDecimal percentage;
+  /**
+   * <b>El mismo objeto que incrusta la tasa de rol</b>, y no un gemelo (`RN-CM-016`).
+   *
+   * <p>Que sea el mismo es lo que permite a `RF-CM-005` devolver la comisión resuelta <b>sin saber
+   * de cuál de las dos tablas salió</b>. Dos objetos iguales obligarían a la resolución a elegir
+   * uno o a inventar un tercero al que convertir los dos.
+   *
+   * <p><b>Y aquí un importe fijo pesa más que en el catálogo</b>: esta tasa no se asocia a ningún
+   * producto (`RN-CM-014`), de modo que rige sobre todo lo que su titular venda y se interpreta en
+   * <b>tantas monedas como haya en el catálogo</b>.
+   */
+  @Embedded private CommissionValue value;
 
   /**
    * Inmutable. Cambiar desde cuándo rige no corrige la tasa: <b>reescribe a quién se le pagó
@@ -83,18 +92,18 @@ public class UserCommissionRate {
   public static UserCommissionRate create(
       UUID id,
       UUID userId,
-      BigDecimal percentage,
+      CommissionValue value,
       LocalDate validFrom,
       LocalDate validTo,
       OffsetDateTime ahora) {
 
-    verificarPorcentaje(percentage);
+    verificarValor(value);
     verificarVigencia(validFrom, validTo);
 
     UserCommissionRate tasa = new UserCommissionRate();
     tasa.id = id;
     tasa.userId = userId;
-    tasa.percentage = percentage;
+    tasa.value = value;
     tasa.validFrom = validFrom;
     tasa.validTo = validTo;
     tasa.createdAt = ahora;
@@ -117,25 +126,23 @@ public class UserCommissionRate {
    *     petición no cambió nada
    */
   public Map<String, Object> update(
-      Patchable<BigDecimal> nuevoPorcentaje, Patchable<LocalDate> nuevoFin, OffsetDateTime ahora) {
+      Patchable<CommissionValue> nuevoValor, Patchable<LocalDate> nuevoFin, OffsetDateTime ahora) {
 
     Map<String, Object> cambios = new LinkedHashMap<>();
 
-    if (nuevoPorcentaje.presente()) {
-      BigDecimal valor = nuevoPorcentaje.valor();
+    if (nuevoValor.presente()) {
+      CommissionValue valor = nuevoValor.valor();
       if (valor == null) {
-        String mensaje = "El porcentaje no puede vaciarse.";
+        String mensaje = "La forma de la comisión no puede vaciarse.";
         throw new ValidationException(
-            "VAL-002", mensaje, List.of(new FieldError("percentage", "VAL-002", mensaje)));
+            "VAL-002", mensaje, List.of(new FieldError("rateType", "VAL-002", mensaje)));
       }
-      verificarPorcentaje(valor);
-      // `compareTo` y no `equals`: 10.00 y 10.0000 son el mismo porcentaje con
-      // distinta escala, y `equals` los daría por distintos.
-      if (percentage.compareTo(valor) != 0) {
+      // Ver `CommissionRate.update`: ni `equals` ni `compareTo` sobre la cifra
+      // sirven, por motivos opuestos. La comparación vive en `CommissionValue`.
+      if (!value.mismoValorQue(valor)) {
         cambios.put(
-            "percentage",
-            Map.of("before", percentage.toPlainString(), "after", valor.toPlainString()));
-        percentage = valor;
+            "value", Map.of("before", value.paraAuditoria(), "after", valor.paraAuditoria()));
+        value = valor;
       }
     }
 
@@ -177,7 +184,8 @@ public class UserCommissionRate {
   public Map<String, Object> instantanea() {
     Map<String, Object> estado = new LinkedHashMap<>();
     estado.put("user_id", userId.toString());
-    estado.put("percentage", percentage.toPlainString());
+    estado.put("rate_type", value.getRateType().name());
+    estado.put("value", value.cifra().toPlainString());
     estado.put("valid_from", validFrom.toString());
     estado.put("valid_to", validTo == null ? null : validTo.toString());
     return estado;
@@ -187,17 +195,12 @@ public class UserCommissionRate {
     return deletedAt != null;
   }
 
-  /** `RN-CM-007`. El cero se admite: significa «no comisiona». */
-  private static void verificarPorcentaje(BigDecimal valor) {
+  /** El rango de cada forma lo comprueba {@link CommissionValue}; aquí solo la presencia. */
+  private static void verificarValor(CommissionValue valor) {
     if (valor == null) {
-      String mensaje = "El porcentaje es obligatorio.";
+      String mensaje = "La forma de la comisión es obligatoria: porcentaje o valor fijo.";
       throw new ValidationException(
-          "VAL-002", mensaje, List.of(new FieldError("percentage", "VAL-002", mensaje)));
-    }
-    if (valor.compareTo(BigDecimal.ZERO) < 0 || valor.compareTo(CIEN) > 0) {
-      String mensaje = "El porcentaje debe estar entre cero y cien.";
-      throw new ValidationException(
-          "VAL-003", mensaje, List.of(new FieldError("percentage", "VAL-003", mensaje)));
+          "VAL-002", mensaje, List.of(new FieldError("rateType", "VAL-002", mensaje)));
     }
   }
 
@@ -237,8 +240,18 @@ public class UserCommissionRate {
     return userId;
   }
 
+  public CommissionValue getValue() {
+    return value;
+  }
+
+  /** Nulo si esta tasa paga un importe fijo. Léase con {@link CommissionValue#getRateType()}. */
   public BigDecimal getPercentage() {
-    return percentage;
+    return value.getPercentage();
+  }
+
+  /** Nulo si esta tasa paga un porcentaje. */
+  public BigDecimal getFixedAmount() {
+    return value.getFixedAmount();
   }
 
   public LocalDate getValidFrom() {

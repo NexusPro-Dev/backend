@@ -47,9 +47,17 @@ final class CommissionFixtures {
     return sembrarProducto(jdbc, codigo, false);
   }
 
+  /**
+   * Un producto del catálogo.
+   *
+   * <p><b>La moneda no se elige</b>, y es deliberado: <b>ninguna consulta de este módulo la
+   * mira</b>. La sentencia de resolución une las tres tablas de `CM` y no toca {@code products}, de
+   * modo que un importe fijo se devuelve igual sea cual sea la moneda del producto — no porque
+   * alguien lo compruebe, sino porque no hay por dónde enterarse (`RN-CM-017`).
+   */
   static UUID sembrarProducto(JdbcTemplate jdbc, String codigo, boolean retirado) {
     UUID id = UUID.randomUUID();
-    String moneda =
+    String monedaId =
         jdbc.queryForObject("SELECT CAST(id AS text) FROM currencies LIMIT 1", String.class);
     jdbc.update(
         "INSERT INTO products (id, code, type, name, price, currency_id, status, deleted_at)"
@@ -58,20 +66,35 @@ final class CommissionFixtures {
         id.toString(),
         codigo,
         "Producto " + codigo,
-        moneda,
+        monedaId,
         retirado);
     return id;
   }
 
-  /** Una tasa de rol, escrita directamente: la suite que la usa no está probando el alta. */
+  /** Una tasa de rol <b>en porcentaje</b>, escrita directamente: quien la usa no prueba el alta. */
   static UUID sembrarTasaDeRol(JdbcTemplate jdbc, String rol, String porcentaje) {
+    return sembrarTasaDeRol(jdbc, rol, "PORCENTAJE", porcentaje);
+  }
+
+  /**
+   * Una tasa de rol en la forma que se pida.
+   *
+   * <p><b>La forma va explícita en el {@code INSERT}</b>, y tiene que ir: {@code V49} le quita el
+   * valor por defecto a {@code rate_type} precisamente para que omitirla falle. Una fixture que la
+   * omitiera dejaría de compilar contra el esquema — que es lo que se quiere.
+   */
+  static UUID sembrarTasaDeRol(JdbcTemplate jdbc, String rol, String forma, String valor) {
     UUID id = UUID.randomUUID();
+    boolean esPorcentaje = "PORCENTAJE".equals(forma);
     jdbc.update(
-        "INSERT INTO commission_rates (id, role_id, percentage)"
-            + " VALUES (CAST(? AS uuid), CAST(? AS uuid), CAST(? AS numeric))",
+        "INSERT INTO commission_rates (id, role_id, rate_type, percentage, fixed_amount)"
+            + " VALUES (CAST(? AS uuid), CAST(? AS uuid), ?,"
+            + " CAST(? AS numeric), CAST(? AS numeric))",
         id.toString(),
         rol,
-        porcentaje);
+        forma,
+        esPorcentaje ? valor : null,
+        esPorcentaje ? null : valor);
     return id;
   }
 
@@ -87,14 +110,24 @@ final class CommissionFixtures {
 
   static UUID sembrarTasaPersonal(
       JdbcTemplate jdbc, UUID persona, String porcentaje, String desde, String hasta) {
+    return sembrarTasaPersonal(jdbc, persona, "PORCENTAJE", porcentaje, desde, hasta);
+  }
+
+  /** La personalizada en la forma que se pida. Ver {@link #sembrarTasaDeRol}. */
+  static UUID sembrarTasaPersonal(
+      JdbcTemplate jdbc, UUID persona, String forma, String valor, String desde, String hasta) {
     UUID id = UUID.randomUUID();
+    boolean esPorcentaje = "PORCENTAJE".equals(forma);
     jdbc.update(
-        "INSERT INTO user_commission_rates (id, user_id, percentage, valid_from, valid_to)"
-            + " VALUES (CAST(? AS uuid), CAST(? AS uuid), CAST(? AS numeric),"
-            + " CAST(? AS date), CAST(? AS date))",
+        "INSERT INTO user_commission_rates"
+            + " (id, user_id, rate_type, percentage, fixed_amount, valid_from, valid_to)"
+            + " VALUES (CAST(? AS uuid), CAST(? AS uuid), ?, CAST(? AS numeric),"
+            + " CAST(? AS numeric), CAST(? AS date), CAST(? AS date))",
         id.toString(),
         persona.toString(),
-        porcentaje,
+        forma,
+        esPorcentaje ? valor : null,
+        esPorcentaje ? null : valor,
         desde,
         hasta);
     return id;

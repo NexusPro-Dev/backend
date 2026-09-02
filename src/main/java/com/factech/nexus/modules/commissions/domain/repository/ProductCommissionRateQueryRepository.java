@@ -1,5 +1,6 @@
 package com.factech.nexus.modules.commissions.domain.repository;
 
+import com.factech.nexus.modules.commissions.domain.models.CommissionRateType;
 import java.math.BigDecimal;
 import java.time.OffsetDateTime;
 import java.util.List;
@@ -33,6 +34,8 @@ public interface ProductCommissionRateQueryRepository {
       String roleCode,
       String roleName,
       UUID commissionRateId,
+      CommissionRateType rateType,
       BigDecimal percentage,
+      BigDecimal fixedAmount,
       OffsetDateTime createdAt) {}
 }

@@ -248,12 +248,130 @@ class UserCommissionRateIT extends IntegrationTestBase {
 
   private static String cuerpo(UUID persona, String porcentaje, String desde, String hasta) {
     StringBuilder json = new StringBuilder("{\"userId\":\"").append(persona).append("\"");
-    json.append(",\"percentage\":").append(porcentaje);
+    json.append(",\"rateType\":\"PORCENTAJE\",\"percentage\":").append(porcentaje);
     json.append(",\"validFrom\":\"").append(desde).append("\"");
     if (hasta != null) {
       json.append(",\"validTo\":\"").append(hasta).append("\"");
     }
     return json.append("}").toString();
+  }
+
+  // ---------------------------------------------------------------------------
+  // El valor fijo (`cm.md` v0.7.0)
+  // ---------------------------------------------------------------------------
+
+  @Test
+  @DisplayName("CA-CM-085 · registra una personalizada EN VALOR FIJO, con la forma junto al valor")
+  void altaEnValorFijo() throws Exception {
+    mvc.perform(
+            alta(
+                "{\"userId\":\""
+                    + vendedora
+                    + "\",\"rateType\":\"FIJO\",\"fixedAmount\":10000,"
+                    + "\"validFrom\":\"2026-01-01\"}"))
+        .andExpect(status().isCreated())
+        .andExpect(jsonPath("$.rateType").value("FIJO"))
+        .andExpect(jsonPath("$.fixedAmount").value(10000))
+        .andExpect(jsonPath("$.percentage").value(org.hamcrest.Matchers.nullValue()));
+  }
+
+  @Test
+  @DisplayName(
+      "CA-CM-086 · las dos formas, ninguna, y la equivocada: el MISMO mensaje que la de rol")
+  void formaYValorDescuadrados() throws Exception {
+    // El mismo `VAL-011` que en el alta por rol. Si las dos altas dieran mensajes
+    // distintos ante el mismo error, parecería que las dos formas se declaran de
+    // dos maneras.
+    mvc.perform(
+            alta(
+                "{\"userId\":\""
+                    + vendedora
+                    + "\",\"rateType\":\"FIJO\",\"percentage\":12.00,"
+                    + "\"validFrom\":\"2026-01-01\"}"))
+        .andExpect(status().isBadRequest())
+        .andExpect(jsonPath("$.errors[0].code").value("VAL-011"));
+
+    mvc.perform(
+            alta(
+                "{\"userId\":\""
+                    + vendedora
+                    + "\",\"rateType\":\"PORCENTAJE\",\"validFrom\":\"2026-01-01\"}"))
+        .andExpect(status().isBadRequest())
+        .andExpect(jsonPath("$.errors[0].code").value("VAL-011"));
+  }
+
+  @Test
+  @DisplayName("CA-CM-087 · dos CONSECUTIVAS de formas distintas conviven: son el historial")
+  void consecutivasDeFormasDistintas() throws Exception {
+    // Esta es la única pieza del módulo donde cambiar de forma DEJA RASTRO: la
+    // cerrada dice qué se ganó en porcentaje y hasta cuándo, la nueva qué se
+    // gana en importe y desde cuándo. En el catálogo por rol eso no existe.
+    mvc.perform(alta(cuerpo(vendedora, "12.00", "2026-01-01", "2026-03-31")))
+        .andExpect(status().isCreated());
+
+    mvc.perform(
+            alta(
+                "{\"userId\":\""
+                    + vendedora
+                    + "\",\"rateType\":\"FIJO\",\"fixedAmount\":5000,"
+                    + "\"validFrom\":\"2026-04-01\"}"))
+        .andExpect(status().isCreated());
+
+    assertThat(
+            jdbc.queryForObject(
+                "SELECT count(*) FROM user_commission_rates WHERE user_id = CAST(? AS uuid)",
+                Integer.class,
+                vendedora.toString()))
+        .isEqualTo(2);
+  }
+
+  @Test
+  @DisplayName("CA-CM-088 · corregir CAMBIA LA FORMA, y el evento lleva el antes y el después")
+  void corregirCambiaLaForma() throws Exception {
+    UUID tasa =
+        CommissionFixtures.sembrarTasaPersonal(jdbc, vendedora, "12.00", "2026-01-01", null);
+
+    mvc.perform(correccion(tasa, "{\"rateType\":\"FIJO\",\"fixedAmount\":5000}"))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.rateType").value("FIJO"))
+        .andExpect(jsonPath("$.percentage").value(org.hamcrest.Matchers.nullValue()));
+
+    // Lo que se comprueba aquí no es el resultado —eso lo vería cualquier
+    // consulta— sino que el REGISTRO conserve que antes era un porcentaje. Es lo
+    // único que permitirá entender, meses después, por qué un periodo ya
+    // liquidado dice una cosa y la tasa dice otra.
+    String cambio =
+        jdbc.queryForObject(
+            "SELECT CAST(changes AS text) FROM audit_change_log"
+                + " WHERE entity = 'user_commission_rates' AND action = 'UPDATE'"
+                + " ORDER BY occurred_at DESC LIMIT 1",
+            String.class);
+
+    assertThat(cambio).contains("PORCENTAJE 12.00").contains("FIJO 5000");
+  }
+
+  @Test
+  @DisplayName("CA-CM-089 · el fin de vigencia SIGUE parcheándose solo, y el valor NO")
+  void losDosRegimenesConviven() throws Exception {
+    UUID tasa =
+        CommissionFixtures.sembrarTasaPersonal(
+            jdbc, vendedora, "12.00", "2026-01-01", "2026-06-30");
+
+    // El fin vacío SE OBEDECE: significa «rige indefinidamente». Parece
+    // inconsistente con lo de abajo y no lo es — media forma vacía no significa
+    // nada, y un fin vacío sí.
+    mvc.perform(correccion(tasa, "{\"validTo\":null}")).andExpect(status().isOk());
+    assertThat(
+            jdbc.queryForObject(
+                "SELECT valid_to FROM user_commission_rates WHERE id = CAST(? AS uuid)",
+                Object.class,
+                tasa.toString()))
+        .isNull();
+
+    // El importe SUELTO, sin su forma, se rechaza.
+    mvc.perform(correccion(tasa, "{\"fixedAmount\":5000}"))
+        .andExpect(status().isBadRequest())
+        .andExpect(jsonPath("$.errors[0].code").value("VAL-011"));
   }
 
   private MockHttpServletRequestBuilder alta(String json) {

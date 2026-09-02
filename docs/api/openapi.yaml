@@ -4002,10 +4002,18 @@ components:
         userId:
           type: string
           format: uuid
+        rateType:
+          type: string
+          enum:
+          - PORCENTAJE
+          - FIJO
         percentage:
           type: number
           maximum: 100.00
           minimum: 0.00
+        fixedAmount:
+          type: number
+          minimum: 0.0000
         validFrom:
           type: string
           format: date
@@ -4013,7 +4021,7 @@ components:
           type: string
           format: date
       required:
-      - percentage
+      - rateType
       - userId
       - validFrom
     UserCommissionRateResponse:
@@ -4024,7 +4032,14 @@ components:
           format: uuid
         user:
           $ref: "#/components/schemas/UserRef"
+        rateType:
+          type: string
+          enum:
+          - PORCENTAJE
+          - FIJO
         percentage:
+          type: number
+        fixedAmount:
           type: number
         validFrom:
           type: string
@@ -4343,12 +4358,20 @@ components:
         roleId:
           type: string
           format: uuid
+        rateType:
+          type: string
+          enum:
+          - PORCENTAJE
+          - FIJO
         percentage:
           type: number
           maximum: 100.00
           minimum: 0.00
+        fixedAmount:
+          type: number
+          minimum: 0.0000
       required:
-      - percentage
+      - rateType
       - roleId
     CommissionRateResponse:
       type: object
@@ -4358,7 +4381,14 @@ components:
           format: uuid
         role:
           $ref: "#/components/schemas/RoleRef"
+        rateType:
+          type: string
+          enum:
+          - PORCENTAJE
+          - FIJO
         percentage:
+          type: number
+        fixedAmount:
           type: number
         associatedProducts:
           type: integer
@@ -4381,7 +4411,14 @@ components:
         commissionRateId:
           type: string
           format: uuid
+        rateType:
+          type: string
+          enum:
+          - PORCENTAJE
+          - FIJO
         percentage:
+          type: number
+        fixedAmount:
           type: number
         createdAt:
           type: string
@@ -4615,12 +4652,17 @@ components:
         mustChangePassword:
           type: boolean
     PatchableBigDecimal: {}
+    PatchableCommissionRateType: {}
     PatchableLocalDate: {}
     PatchableObject: {}
     UpdateUserCommissionRateRequest:
       type: object
       properties:
+        rateType:
+          $ref: "#/components/schemas/PatchableCommissionRateType"
         percentage:
+          $ref: "#/components/schemas/PatchableBigDecimal"
+        fixedAmount:
           $ref: "#/components/schemas/PatchableBigDecimal"
         validTo:
           $ref: "#/components/schemas/PatchableLocalDate"
@@ -4762,7 +4804,11 @@ components:
     UpdateCommissionRateRequest:
       type: object
       properties:
+        rateType:
+          $ref: "#/components/schemas/PatchableCommissionRateType"
         percentage:
+          $ref: "#/components/schemas/PatchableBigDecimal"
+        fixedAmount:
           $ref: "#/components/schemas/PatchableBigDecimal"
         roleId:
           $ref: "#/components/schemas/PatchableObject"
@@ -4849,7 +4895,14 @@ components:
           format: uuid
         user:
           $ref: "#/components/schemas/UserRef"
+        rateType:
+          type: string
+          enum:
+          - PORCENTAJE
+          - FIJO
         percentage:
+          type: number
+        fixedAmount:
           type: number
         validFrom:
           type: string
@@ -5103,7 +5156,12 @@ components:
           - RESUELTA
           - SIN_TARIFA
           - NO_COMISIONA
-        percentage:
+        rateType:
+          type: string
+          enum:
+          - PORCENTAJE
+          - FIJO
+        value:
           type: number
         rateId:
           type: string
@@ -5137,6 +5195,11 @@ components:
         roleId:
           type: string
           format: uuid
+        rateType:
+          type: string
+          enum:
+          - PORCENTAJE
+          - FIJO
         includeDeleted:
           type: boolean
     CommissionRateItem:
@@ -5147,7 +5210,14 @@ components:
           format: uuid
         role:
           $ref: "#/components/schemas/RoleRef"
+        rateType:
+          type: string
+          enum:
+          - PORCENTAJE
+          - FIJO
         percentage:
+          type: number
+        fixedAmount:
           type: number
         associatedProducts:
           type: integer

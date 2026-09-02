@@ -4,7 +4,7 @@
 |---|---|
 | Requerimiento | `RF-CM-005` |
 | Módulo | `CM` — Comisiones |
-| Versión | 0.2.0 |
+| Versión | 0.3.0 |
 | Estado | **Aprobada** |
 | Autor | Responsable técnico |
 | Aprobada por | Responsable del proyecto |
@@ -19,6 +19,12 @@
 !!! warning "Esta especificación se reescribió después de construirse, y construirla destapó algo"
 
     La precedencia pasó de **cuatro grados a dos**. Y al implementarla se vio una consecuencia que la prosa del módulo describía más suave de lo que es: una tasa personalizada **no se queda callada** cuando su titular deja de vender — **sigue pagando**. Ver §9, `FA-003`.
+
+!!! warning "La v0.3.0 se escribe antes del código, y cambia la RESPUESTA, no la precedencia"
+
+    Con el valor fijo de `cm.md` v0.7.0, lo que esta consulta devuelve **deja de ser un número**: pasa a ser **una forma y un valor**, porque «10» no significa nada sin saber si son diez por ciento o diez unidades de dinero.
+
+    La precedencia no cambia ni una línea. Lo que cambia es que **la respuesta ya no se puede leer sin mirar dos campos**, y §6.2 tuvo que rehacerse entera por eso.
 
 ---
 
@@ -50,13 +56,15 @@ Es el requerimiento que hace que las dos piezas del módulo signifiquen algo. Si
 ### 4.1 Incluye
 
 - Resolver la comisión de una **persona** sobre un **producto** en una **fecha**.
+- Devolver **en qué forma se paga y cuánto**, siempre las dos cosas.
 - Devolver **de cuál de las dos piezas** salió la tasa que ganó.
 - Distinguir **tres desenlaces**, ninguno de los cuales es un error.
 - Resolver con normalidad sobre un producto **retirado**.
 
 ### 4.2 No incluye
 
-- **Calcular ningún importe.** Devuelve un porcentaje; multiplicarlo por una venta es de quien tenga la venta.
+- **Calcular ningún importe.** Devuelve una forma y un valor; aplicarlos a una venta es de quien tenga la venta.
+- **Devolver la moneda en que se paga un importe fijo.** Se preguntó al responsable del proyecto el 02-09-2026 —esta consulta **conoce el producto**, y es el primer y único punto del sistema donde la moneda ya se podría saber— y **se decidió que no**. Ver §14.
 - **Resolver la cadena entera.** Devuelve la comisión de **una** persona. El override de `RN-CM-011` es llamar a esto una vez por nivel, y quien recorra la cadena es quien liquide.
 - **Comprobar que la suma de la cadena no pasa de cien.** No puede: solo ve un nivel. `RN-CM-011` declara que ese tope **queda sin dueño**.
 - **Que el vendedor consulte la suya.** Depende de D-22.
@@ -67,8 +75,11 @@ Es el requerimiento que hace que las dos piezas del módulo signifiquen algo. Si
 |---|---|---|
 | `RN-CM-004` | La personalizada gana siempre | `requirements/cm.md` §5.1 |
 | `RN-CM-012` | Una tasa de rol no rige hasta que se asocia | `requirements/cm.md` §5.1 |
+| `RN-CM-017` | El valor fijo **no lleva moneda** | `requirements/cm.md` §5.1 |
 
 **`RN-CM-004` vive aquí y solo aquí.** Es la razón de que este requerimiento exista.
+
+**`RN-CM-017` se cita porque esta consulta es donde más se nota que nadie la cumple.** No la aplica ni la comprueba: **la sufre**, y en el peor sitio — es la única operación del módulo que tiene delante el importe y el producto **a la vez**, y aun así devuelve el importe sin decir en qué moneda está. §14 recoge que eso se preguntó y se decidió.
 
 ## 6. Datos
 
@@ -85,7 +96,8 @@ Es el requerimiento que hace que las dos piezas del módulo signifiquen algo. Si
 | Dato | Descripción |
 |---|---|
 | Desenlace | Cuál de los tres ocurrió |
-| Porcentaje | El que le corresponde. **Nulo y presente** cuando no hay tasa — nunca cero |
+| **Forma** | En qué se paga: proporción de la venta, o cantidad de dinero. **Nula cuando no hay tasa** |
+| **Valor** | Cuánto, en esa forma. **Nulo y presente** cuando no hay tasa — nunca cero |
 | Tasa | El identificador de la que ganó, para poder ir a verla |
 | **Fuente** | De cuál de las dos piezas salió: la personalizada o la del rol |
 | Vigencia | La de la tasa que ganó. **Nula cuando la fuente es el rol**, porque esas no tienen |
@@ -94,9 +106,19 @@ Es el requerimiento que hace que las dos piezas del módulo signifiquen algo. Si
 
 !!! danger "Nulo y cero no son lo mismo, y quien consuma esto va a pagar con esa cifra"
 
-    **Cero es una decisión declarada** —«este producto no paga a este rol»—, y solo puede expresarse asociando una tasa del cero por ciento.
+    **Cero es una decisión declarada** —«este producto no paga a este rol»—, y puede expresarse en cualquiera de las dos formas: una tasa del cero por ciento o de cero de importe.
 
     **Nulo es que nadie la tomó.** Devolver cero en la ausencia haría **indistinguible lo pensado de lo olvidado**.
+
+!!! danger "El valor es UN campo, y no dos, aunque en las tablas sean dos columnas"
+
+    Decisión del responsable del proyecto, 02-09-2026. **Esta consulta devuelve una cifra con su forma, no una fila de una tabla**, y hay un motivo concreto para que aquí no se parezcan.
+
+    Con dos campos separados —uno por forma—, **el nulo pasaría a tener dos causas**: una tasa de importe fijo dejaría el porcentaje vacío **sin que eso signifique «nadie la tomó»**. El aviso de arriba, que es el que evita que alguien pague cero donde no había tarifa, **dejaría de poder escribirse en una frase**.
+
+    Con un campo, el nulo vuelve a significar exactamente una cosa. La distinción entre **lo pensado y lo olvidado**, que es lo único que este contrato protege de verdad, se mantiene entera.
+
+    **Y por eso este contrato NO se parece al del catálogo** (`RF-CM-002` §6.2), que sí devuelve los dos campos. Allí se está mirando una fila para editarla, y la forma de la fila es la información; aquí se está preguntando cuánto se paga, y la respuesta es una cifra. La asimetría es deliberada y hay que documentarla, porque un consumidor que use las dos lecturas la notará.
 
 ## 7. Precondiciones y postcondiciones
 
@@ -114,9 +136,11 @@ Es el requerimiento que hace que las dos piezas del módulo signifiquen algo. Si
 2. El sistema comprueba que la persona y el producto existen.
 3. El sistema determina el rol vendedor de la persona, **si porta alguno**.
 4. El sistema busca, **de una vez y con la precedencia resuelta**, la tasa que le corresponde: la personalizada vigente ese día si la hay, y si no la que su rol tenga asociada a ese producto.
-5. Si hay tasa, el sistema devuelve el porcentaje, la tasa, la fuente y la vigencia.
+5. Si hay tasa, el sistema devuelve **la forma y el valor**, la tasa, la fuente y la vigencia.
 
 **El paso 4 es una sola pregunta y no dos encadenadas**, y esa forma es parte del requerimiento: con dos preguntas el orden viviría en el flujo de control, y una reorganización podría invertirlo **sin que nada fallara** — devolvería un porcentaje plausible.
+
+**Y el paso 4 tiene que traer las dos cosas de una vez.** La forma y el valor salen de la misma fila y de la misma pregunta; ir a buscar la forma después, sabiendo ya qué tasa ganó, sería una segunda consulta que **puede leer una fila distinta** de la que decidió la precedencia si alguien corrigió la tasa entre medias. Es la misma razón por la que el paso 4 no son dos preguntas, aplicada a las columnas en vez de a las tablas.
 
 ## 9. Flujos alternativos
 
@@ -146,10 +170,11 @@ Es el requerimiento que hace que las dos piezas del módulo signifiquen algo. Si
 
 ### FA-004 — La tasa que gana paga cero
 
-**Cuándo ocurre:** la tasa resuelta declara el cero por ciento.
+**Cuándo ocurre:** la tasa resuelta declara cero, **en cualquiera de las dos formas**.
 
-1. El desenlace es **resuelta**, con porcentaje **cero**.
+1. El desenlace es **resuelta**, con valor **cero** y su forma declarada.
 2. Significa «no comisiona por esto», y es una **decisión declarada**. No se confunde con `FA-001`.
+3. **La forma se devuelve igualmente**, aunque con valor cero las dos digan lo mismo. Omitirla obligaría a un caso especial en quien consuma, y el cero es donde menos falta hace inventar excepciones.
 
 ### FA-005 — Producto retirado
 
@@ -157,6 +182,16 @@ Es el requerimiento que hace que las dos piezas del módulo signifiquen algo. Si
 
 1. Se resuelve con normalidad.
 2. **Preguntar qué se pagaba por algo que ya no se vende es legítimo**, y es la consulta que una liquidación atrasada necesita.
+
+### FA-006 — La misma persona, el mismo día, dos productos de monedas distintas
+
+**Cuándo ocurre:** quien tiene una tasa personalizada **en importe fijo** vende dos productos con monedas distintas.
+
+1. **Las dos consultas devuelven el mismo valor y la misma forma.** No hay ninguna diferencia entre las dos respuestas salvo el producto que se preguntó.
+2. **Y significan cantidades de dinero distintas**, porque el importe toma la moneda del producto (`RN-CM-017`) y esta consulta no la devuelve.
+3. **No es un error y no hay señal de ninguna clase.** La tasa personalizada no se acota a ningún producto (`RN-CM-014`), de modo que este es su comportamiento previsto.
+
+**Se enumera como flujo alternativo y no como caso límite** porque no es raro: es lo que pasa **siempre** que un catálogo tiene más de una moneda y alguien cobra un importe fijo personalizado. Lo excepcional sería que no ocurriera.
 
 ## 10. Excepciones
 
@@ -195,6 +230,19 @@ Es el requerimiento que hace que las dos piezas del módulo signifiquen algo. Si
 | `CA-CM-048` | Una tasa **retirada** deja de resolver aunque su asociación exista |
 | `CA-CM-049` | Un producto **retirado** se resuelve con normalidad |
 | `CA-CM-050` | Sin fecha se resuelve con la de hoy; la persona y el producto inexistentes se distinguen |
+| `CA-CM-100` | Resuelve una tasa **en importe fijo** y devuelve **la forma junto al valor**, en **un** campo de valor |
+| `CA-CM-101` | La **precedencia no cambia con las formas**: una personalizada **en porcentaje** gana sobre una de rol **en importe fijo**, y al revés |
+| `CA-CM-102` | Cuando no hay tasa, **la forma y el valor llegan nulos y presentes**, y el nulo sigue significando **una sola cosa** |
+| `CA-CM-103` | Un valor **cero en importe fijo** resuelve, con su forma, y se distingue de no tener tasa |
+| `CA-CM-104` | **La misma persona sobre dos productos de monedas distintas obtiene la misma respuesta**, sin señal alguna |
+
+!!! danger "`CA-CM-101` prueba que algo NO pasó, y es el criterio que protege lo único que este requerimiento hace"
+
+    La precedencia es **la razón de existir** de este requerimiento, y el valor fijo es un cambio en la **respuesta**, no en ella. Pero las dos cosas se tocan en la misma consulta, y **una implementación que reordenara las ramas al añadir las columnas nuevas seguiría devolviendo cifras plausibles**.
+
+    Por eso el criterio cruza las formas a propósito: personalizada **en porcentaje** contra rol **en importe fijo**, y la combinación contraria. Si la precedencia se rompiera al reescribir la consulta, **las demás pruebas de precedencia podrían seguir pasando** —usan la misma forma en las dos ramas— y esta no.
+
+    Es la versión, para esta operación, del defecto que `spec.md` §8 lleva describiendo desde la v0.1.0: **no falla, paga mal**.
 
 ## 13. Casos límite
 
@@ -213,9 +261,24 @@ Es el requerimiento que hace que las dos piezas del módulo signifiquen algo. Si
 
 **Queda declarado lo que este requerimiento no puede resolver y alguien tendrá que resolver:** el tope de la suma de la cadena (`RN-CM-011`). No es una pregunta abierta de esta especificación —está decidido que no vive aquí— sino una deuda del módulo que la liquidación heredará.
 
+**Y queda registrada una decisión del responsable del proyecto del 02-09-2026, que se preguntó porque esta consulta es el único sitio donde la alternativa era posible: la respuesta NO devuelve la moneda.**
+
+El argumento para devolverla era real: esta operación **recibe el producto**, de modo que es el primer y único punto del sistema donde el importe fijo y su moneda existen a la vez. Añadirla no habría sido calcular nada — solo decir en qué unidad está la cifra.
+
+Se decidió que no, y el motivo se sostiene: **`cm.md` §1.4 dice que una tasa no calcula nada**, y devolver la moneda del producto empezaría a mezclar la tarifa con la venta. La consecuencia queda escrita en lugar de disimulada:
+
+| Qué pasa | Dónde queda |
+|---|---|
+| `FA-006`: dos productos de monedas distintas dan **la misma respuesta** | `CA-CM-104` lo fija como comportamiento esperado |
+| La liquidación tendrá que **ir a buscar la moneda al producto** | Y ese producto puede haberse retirado (`FA-005`) |
+| `RN-CM-008` pasa a exigir copiar **tres cosas** y no una | `RF-CM-003` §5, y `modelo-datos.md` §4.1 |
+
+Si algún día se revierte, **lo que cambia es solo esta especificación**: un campo más en §6.2 y un criterio más en §12. La decisión es barata de deshacer, y por eso se toma en el sentido que no añade nada.
+
 ## 15. Control de cambios
 
 | Versión | Fecha | Cambio | Responsable |
 |---|---|---|---|
 | 0.1.0 | 28-08-2026 | Redacción inicial. | Responsable técnico |
 | 0.2.0 | 02-09-2026 | **Reescrita sobre el modelo de `cm.md` v0.4.0**, y después de construirse el código. La precedencia pasa de **cuatro grados a dos** y el campo que la explicaba deja de ser el **grado** de la tarifa para ser la **fuente** de la resolución — son dos conceptos distintos y por eso no se reutiliza el nombre. Entra el cambio de significado que esta consulta hereda: **desaparece la tarifa por omisión del rol**, de modo que «sin tarifa» pasa a significar casi siempre **«nadie la asoció»** y no «nadie la declaró». **Y se registra lo que construirla destapó**: nace `FA-003`, que la v0.1.0 no podía tener — quien **no porta rol vendedor pero tiene personalizada viva cobra**, porque esas tasas dejaron de llevar rol y con ello dejaron de morir con el de su titular. Lo que `cm.md` §5.3 llamaba «se queda callada» resultó ser **«sigue pagando»**, y la consecuencia visible es que el rol puede llegar **nulo junto a un desenlace resuelto**. §13 recoge además que este requerimiento **depende de dos reglas ajenas para ser determinista** —`RN-SP-025` y `RN-CM-006`— y que la fecha en el pasado **ya no responde de verdad** sobre las tasas de rol. | Responsable técnico |
+| 0.3.0 | 02-09-2026 | **Entra el valor fijo** (`cm.md` v0.7.0), antes del código, y **no toca la precedencia ni una línea**: lo que cambia es la respuesta. Lo que se devuelve deja de ser un número y pasa a ser **una forma y un valor**, porque «10» no significa nada sin saber si son diez por ciento o diez unidades de dinero. §6.2 se rehace entera alrededor de una decisión del responsable del proyecto: **el valor es UN campo y no dos**, al revés que en el catálogo (`RF-CM-002` §6.2), porque con dos campos el nulo tendría **dos causas** —una tasa de importe fijo dejaría vacío el porcentaje sin que eso signifique «nadie la tomó»— y el aviso que impide pagar cero donde no había tarifa dejaría de poder escribirse. La asimetría entre las dos lecturas es deliberada y queda documentada. §14 registra la otra decisión que se preguntó: **la respuesta no devuelve la moneda**, aunque esta consulta reciba el producto y sea **el único punto del sistema donde el importe y su moneda existen a la vez** — se descartó porque devolverla empezaría a mezclar la tarifa con la venta (`cm.md` §1.4), y la consecuencia se escribe en lugar de disimularse: `FA-006` y `CA-CM-104` fijan que **dos productos de monedas distintas obtienen la misma respuesta sin señal alguna**. `CA-CM-101` es el criterio nuevo que protege lo viejo: **cruza las formas** entre las dos ramas de la precedencia, porque una reescritura de la consulta podría invertirlas y las demás pruebas de precedencia —que usan la misma forma en las dos— seguirían pasando. | Responsable del proyecto |

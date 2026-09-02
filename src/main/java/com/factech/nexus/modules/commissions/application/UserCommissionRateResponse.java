@@ -1,5 +1,6 @@
 package com.factech.nexus.modules.commissions.application;
 
+import com.factech.nexus.modules.commissions.domain.models.CommissionRateType;
 import com.factech.nexus.modules.commissions.domain.models.UserCommissionRate;
 import com.factech.nexus.modules.commissions.domain.repository.UserCommissionRateQueryRepository.UserRateRow;
 import com.factech.nexus.modules.system.users.application.UserCatalog.UserView;
@@ -21,7 +22,13 @@ import java.util.UUID;
  */
 @JsonInclude(JsonInclude.Include.ALWAYS)
 public record UserCommissionRateResponse(
-    UUID id, UserRef user, BigDecimal percentage, LocalDate validFrom, LocalDate validTo) {
+    UUID id,
+    UserRef user,
+    CommissionRateType rateType,
+    BigDecimal percentage,
+    BigDecimal fixedAmount,
+    LocalDate validFrom,
+    LocalDate validTo) {
 
   /** La persona, resuelta. */
   @JsonInclude(JsonInclude.Include.ALWAYS)
@@ -31,7 +38,9 @@ public record UserCommissionRateResponse(
     return new UserCommissionRateResponse(
         tasa.getId(),
         new UserRef(persona.id(), persona.username(), persona.fullName()),
+        tasa.getValue().getRateType(),
         tasa.getPercentage(),
+        tasa.getFixedAmount(),
         tasa.getValidFrom(),
         tasa.getValidTo());
   }
@@ -41,7 +50,9 @@ public record UserCommissionRateResponse(
     return new UserCommissionRateResponse(
         fila.id(),
         new UserRef(fila.userId(), fila.username(), fila.userFullName()),
+        fila.rateType(),
         fila.percentage(),
+        fila.fixedAmount(),
         fila.validFrom(),
         fila.validTo());
   }

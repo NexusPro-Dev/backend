@@ -1,5 +1,7 @@
 package com.factech.nexus.modules.commissions.application;
 
+import com.factech.nexus.modules.commissions.domain.models.CommissionRateType;
+import com.factech.nexus.modules.commissions.domain.models.CommissionValue;
 import com.factech.nexus.shared.patch.Patchable;
 import com.factech.nexus.shared.patch.PatchableDeserializer;
 import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
@@ -26,13 +28,17 @@ import java.time.LocalDate;
  * creería que se equivocó de nombre.
  */
 public record UpdateUserCommissionRateRequest(
+    @JsonDeserialize(using = PatchableDeserializer.class) Patchable<CommissionRateType> rateType,
     @JsonDeserialize(using = PatchableDeserializer.class) Patchable<BigDecimal> percentage,
+    @JsonDeserialize(using = PatchableDeserializer.class) Patchable<BigDecimal> fixedAmount,
     @JsonDeserialize(using = PatchableDeserializer.class) Patchable<LocalDate> validTo,
     @JsonDeserialize(using = PatchableDeserializer.class) Patchable<Object> userId,
     @JsonDeserialize(using = PatchableDeserializer.class) Patchable<Object> validFrom) {
 
   public UpdateUserCommissionRateRequest {
+    rateType = rateType == null ? Patchable.ausente() : rateType;
     percentage = percentage == null ? Patchable.ausente() : percentage;
+    fixedAmount = fixedAmount == null ? Patchable.ausente() : fixedAmount;
     validTo = validTo == null ? Patchable.ausente() : validTo;
     userId = userId == null ? Patchable.ausente() : userId;
     validFrom = validFrom == null ? Patchable.ausente() : validFrom;
@@ -45,6 +51,21 @@ public record UpdateUserCommissionRateRequest(
 
   /** ¿Se envió algún campo corregible, con el valor que sea? */
   public boolean informaAlgo() {
-    return percentage.presente() || validTo.presente();
+    return rateType.presente()
+        || percentage.presente()
+        || fixedAmount.presente()
+        || validTo.presente();
+  }
+
+  /**
+   * Los tres campos del valor, como uno solo.
+   *
+   * <p><b>Aquí conviven los dos regímenes</b>, y es lo que más fácil se lee como una
+   * inconsistencia: el valor se <b>sustituye entero</b> y el fin de vigencia <b>se parchea
+   * solo</b>, con su nulo obediente. No se unifican porque significan cosas distintas — ver {@link
+   * CommissionValuePatch}.
+   */
+  public Patchable<CommissionValue> valor() {
+    return CommissionValuePatch.resolver(rateType, percentage, fixedAmount);
   }
 }

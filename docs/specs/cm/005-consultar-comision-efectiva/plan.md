@@ -5,7 +5,7 @@
 | Requerimiento | `RF-CM-005` |
 | Especificación | [`spec.md`](spec.md) |
 | `spec.md` aprobada el | 02-09-2026 |
-| Versión | 0.2.0 |
+| Versión | 0.3.0 |
 | Estado | **Aprobado** |
 | Autor | Responsable técnico |
 | Aprobado por | Responsable del proyecto |
@@ -60,6 +60,22 @@ rama 1 · el rol asociado      prioridad 1
 
 **El rol admite el nulo, y es deliberado.** Se pasa como parámetro y, cuando la persona no porta ninguno, apaga la rama del rol y deja respondiendo solo a la personalizada. Es lo que produce `FA-003` — y es la traducción exacta de lo que el diagrama de flujo del módulo ya dibujaba: **el rombo de la personalizada va antes que el del rol**.
 
+### 4.1 Las dos columnas nuevas, y la única forma correcta de traerlas
+
+Cada rama pasa a proyectar `rate_type` y las **dos** columnas del valor, y el `UNION ALL` exige que las dos ramas tengan la misma forma. Eso es rutina. Lo que no lo es:
+
+!!! danger "El `COALESCE` va DESPUÉS del `LIMIT 1`, nunca dentro de las ramas"
+
+    `spec.md` §6.2 decide que la respuesta lleva **un** campo de valor. La tentación es proyectar directamente `COALESCE(percentage, fixed_amount) AS value` en cada rama y ahorrarse el paso.
+
+    **Y con eso se pierde la única información que hace legible el resultado.** Fundidas las dos columnas dentro de la rama, un `10` de salida ya no dice de cuál venía; habría que reconstruirlo a partir de `rate_type`, que es lo mismo que hacer el `COALESCE` fuera pero con un sitio más donde equivocarse.
+
+    Peor: **el `CHECK` de `V49` garantiza que solo una está llena, y esa garantía se aprovecha una sola vez**. Aplicar `COALESCE` dos veces —una por rama y otra al armar la respuesta— no falla, pero deja dos sitios que hay que mantener de acuerdo cuando alguien añada una tercera forma.
+
+    La sentencia devuelve **`rate_type`, `percentage` y `fixed_amount` tal cual**, y **quien arma la respuesta** los funde en un campo con su forma. Es una decisión de proyección, no de consulta.
+
+**Y las dos columnas se leen de la fila que ganó, no de una consulta posterior.** `spec.md` §8 lo exige: buscar la forma después, sabiendo ya qué tasa ganó, permitiría leer una fila distinta si alguien la corrigió entre medias. El `LIMIT 1` trae la fila entera o no trae nada.
+
 ## 5. Qué decide el caso de uso, y qué no
 
 **No decide la precedencia.** Comprueba que la persona y el producto existen, busca el rol vendedor —que puede no haber—, y delega.
@@ -78,7 +94,17 @@ rama 1 · el rol asociado      prioridad 1
 
 **Los tres desenlaces son `200` y ninguno es un error.** Convertir «sin tarifa» en `404` obligaría a quien liquide a tratar como excepción el caso más común de un sistema recién configurado.
 
-**`percentage` viaja siempre presente, aunque sea nulo.** Un campo que desaparece del resultado es indistinguible de uno que el cliente no conoce, y aquí la diferencia entre nulo y cero es la diferencia entre lo olvidado y lo decidido.
+**`value` y `rateType` viajan siempre presentes, aunque sean nulos.** Un campo que desaparece del resultado es indistinguible de uno que el cliente no conoce, y aquí la diferencia entre nulo y cero es la diferencia entre lo olvidado y lo decidido.
+
+!!! warning "`percentage` desaparece del contrato y lo sustituye `value`: es un cambio incompatible, y hay que romperlo así"
+
+    Renombrar el campo rompe a cualquiera que lo lea. La alternativa compatible existe —conservar `percentage` y añadir `fixedAmount`— y es justo la que `spec.md` §6.2 descarta: **devolvería el nulo con dos causas** y el aviso que impide pagar cero donde no había tarifa dejaría de sostenerse.
+
+    Conservar `percentage` **con el importe fijo dentro** sería peor todavía: el campo mentiría en su nombre.
+
+    De modo que se renombra. El coste es acotado —el módulo no tiene consumidores fuera del proyecto— y el cambio **rompe ruidosamente**, que es la manera correcta de romper: quien lea `percentage` obtendrá un campo que no existe, no un número equivocado.
+
+**Este contrato deja de parecerse al del catálogo a propósito**, y la documentación publicada tiene que decirlo: `GET /commission-rates` devuelve `rateType` con `percentage` o `fixedAmount`; esta consulta devuelve `rateType` con `value`. Un consumidor que use las dos lo notará, y sin una frase que lo explique lo leerá como una inconsistencia.
 
 **Controlador aparte del de tasas**, porque es otro recurso. Es el mismo corte que separó la oferta propia del catálogo en `PM`.
 
@@ -117,6 +143,12 @@ Ninguna de las dos se comprueba aquí, y ninguna debe: son invariantes que sosti
 | Reutilizar `RateScope` con dos valores | El grado era de la tarifa; la fuente es de la resolución. El nombre habría mentido |
 | Resolver la cadena entera aquí | Este requerimiento resuelve **una persona**. El override es llamarlo una vez por nivel, y quien recorra la cadena es quien liquide |
 | Devolver también la vigencia de la tasa de rol | No la tiene. Inventar una fecha sería peor que devolver nulo |
+| **`percentage` y `fixedAmount` separados**, como en el catálogo | El nulo pasaría a tener dos causas y el aviso de `spec.md` §6.2 dejaría de poder escribirse. Decisión del responsable del proyecto |
+| Conservar el nombre `percentage` **con el importe fijo dentro** | El campo mentiría en su nombre. Romper ruidosamente es preferible a devolver un número que se lee mal |
+| **`COALESCE` dentro de cada rama** del `UNION ALL` | Pierde de qué columna venía el valor y duplica la fusión en dos sitios. Ver §4.1 |
+| Traer la forma en una **segunda consulta**, sabiendo ya qué tasa ganó | Puede leer una fila distinta de la que decidió la precedencia. `spec.md` §8 |
+| **Devolver la moneda del producto** junto al importe fijo | Se preguntó al responsable del proyecto y se descartó: empezaría a mezclar la tarifa con la venta (`cm.md` §1.4). `spec.md` §14 recoge lo que cuesta |
+| Rechazar la resolución cuando el importe fijo **supera el precio del producto** | Esta consulta no calcula (`cm.md` §1.4), y `RN-CM-018` deja ese tope a la liquidación — que debe **rechazar y no recortar** |
 
 ## 12. Riesgos
 
@@ -126,6 +158,10 @@ Ninguna de las dos se comprueba aquí, y ninguna debe: son invariantes que sosti
 | 2 | Alguien lea un rol nulo con desenlace resuelto como un fallo | `FA-003` y `CA-CM-045`, y el contrato publicado lo explica |
 | 3 | «Sin tarifa» se interprete como «nadie declaró la tasa» | La descripción publicada dice que la causa más probable es **que nadie la asoció** |
 | 4 | `RN-SP-025` o `RN-CM-006` se relajen sin que nadie lo relacione con esto | §9 las nombra. **No es una mitigación técnica**, y no la hay |
+| 5 | **La precedencia se invierta al reescribir la sentencia** para las columnas nuevas | `CA-CM-101`, que **cruza las formas** entre las dos ramas. Las pruebas de precedencia existentes usan la misma forma en ambas y **seguirían pasando** |
+| 6 | El `COALESCE` acabe dentro de las ramas «para simplificar» | §4.1. No falla y deja dos sitios que mantener de acuerdo |
+| 7 | Un consumidor lea `percentage` y obtenga un campo inexistente | **Buscado.** Es la manera correcta de romper: ruidosa. Ver §6 |
+| 8 | **Se pague un importe fijo en una moneda que nadie previó** | **No se mitiga**, y esta consulta es donde se podría haber mitigado. Decisión del responsable del proyecto (`spec.md` §14); `CA-CM-104` lo fija como comportamiento esperado |
 
 ## 13. Estrategia de prueba
 
@@ -142,5 +178,19 @@ Ninguna de las dos se comprueba aquí, y ninguna debe: son invariantes que sosti
 | **Tasa retirada con asociación viva** | Integración | `CA-CM-048`. Se **siembra a mano** el estado que `RN-CM-015` impide, para dejar constancia de por qué esa regla existe |
 | Producto retirado | Integración | `CA-CM-049` |
 | Fecha por omisión e inexistentes | Integración | `CA-CM-050` |
+
+| **Resuelve un importe fijo** | Integración | `CA-CM-100`: forma y valor, en **un** campo de valor |
+| **La precedencia con formas cruzadas** | Integración | `CA-CM-101`: personalizada en porcentaje contra rol en importe fijo, **y al revés**. Ver abajo |
+| El nulo sigue teniendo una sola causa | Integración | `CA-CM-102`: sin tasa, forma y valor **nulos y presentes** |
+| Cero en importe fijo | Integración | `CA-CM-103` |
+| **Dos monedas, la misma respuesta** | Integración | `CA-CM-104`: y **ninguna señal**. Es lo que `spec.md` §14 acepta |
+
+!!! danger "`CA-CM-101` protege lo viejo de lo nuevo, y es el único criterio de esta versión que no prueba una funcionalidad"
+
+    Las pruebas de precedencia que ya existen —`CA-CM-042`, `CA-CM-043`, `CA-CM-044`— usan **la misma forma en las dos ramas**, porque cuando se escribieron solo había una.
+
+    De modo que una reescritura de la sentencia que invirtiera las ramas al añadir las columnas **las pasaría todas**. Devolvería la tasa equivocada con una cifra plausible, que es el defecto que `spec.md` §2 lleva describiendo desde la v0.1.0: **no falla, paga mal**.
+
+    `CA-CM-101` cruza las formas a propósito, en las dos direcciones. Es barata y es la única que se entera.
 
 **`CA-CM-048` es la única prueba del módulo que construye a mano un estado que el sistema no permite alcanzar.** No comprueba un comportamiento que alguien vaya a usar: comprueba **qué pasaría si `RN-CM-015` no existiera**, y por eso vale la pena tenerla — es la evidencia de que esa regla no es una precaución teórica.

@@ -1,5 +1,6 @@
 package com.factech.nexus.modules.commissions.domain.repository;
 
+import com.factech.nexus.modules.commissions.domain.models.CommissionRateType;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.OffsetDateTime;
@@ -40,7 +41,9 @@ public interface UserCommissionRateQueryRepository {
       UUID userId,
       String username,
       String userFullName,
+      CommissionRateType rateType,
       BigDecimal percentage,
+      BigDecimal fixedAmount,
       LocalDate validFrom,
       LocalDate validTo,
       OffsetDateTime deletedAt) {}

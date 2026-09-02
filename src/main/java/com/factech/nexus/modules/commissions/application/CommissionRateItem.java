@@ -1,5 +1,6 @@
 package com.factech.nexus.modules.commissions.application;
 
+import com.factech.nexus.modules.commissions.domain.models.CommissionRateType;
 import com.factech.nexus.modules.commissions.domain.repository.CommissionRateQueryRepository.RateRow;
 import com.fasterxml.jackson.annotation.JsonInclude;
 import java.math.BigDecimal;
@@ -16,13 +17,21 @@ import java.util.UUID;
 public record CommissionRateItem(
     UUID id,
     CommissionRateResponse.RoleRef role,
+    CommissionRateType rateType,
     BigDecimal percentage,
+    BigDecimal fixedAmount,
     long associatedProducts,
     OffsetDateTime deletedAt) {
 
   public static CommissionRateItem from(RateRow fila) {
     CommissionRateResponse base = CommissionRateResponse.from(fila);
     return new CommissionRateItem(
-        base.id(), base.role(), base.percentage(), base.associatedProducts(), fila.deletedAt());
+        base.id(),
+        base.role(),
+        base.rateType(),
+        base.percentage(),
+        base.fixedAmount(),
+        base.associatedProducts(),
+        fila.deletedAt());
   }
 }
