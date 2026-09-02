@@ -79,7 +79,7 @@ class MustChangePasswordIT extends IntegrationTestBase {
         persona,
         hasher.hash(CLAVE));
     jdbc.update(
-        "INSERT INTO user_roles (user_id, role_id) VALUES (?, ?)",
+        "INSERT INTO user_roles (user_id, role_id, role_type) SELECT ?, r.id, r.role_type FROM roles r WHERE r.id = ?",
         persona,
         crearRolAcotado(jdbc, CODIGO_ACOTADO, "Auditoría acotada"));
   }

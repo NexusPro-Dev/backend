@@ -71,7 +71,9 @@ class UserMembershipRejectionAuditIT extends IntegrationTestBase {
     // Un rol FUNCIONARIO: la persona NO es consumidora, que es la condición de
     // `EX-001`.
     jdbc.update(
-        "INSERT INTO user_roles (user_id, role_id) VALUES (?, ?::uuid)", persona, ADMIN_ROL);
+        "INSERT INTO user_roles (user_id, role_id, role_type) SELECT ?, r.id, r.role_type FROM roles r WHERE r.id = ?::uuid",
+        persona,
+        ADMIN_ROL);
 
     // La cadena de membresías arranca VACÍA: ninguna migración la siembra, de
     // modo que hay que crear el primer eslabón. Nivel 1 y sin padre, que es lo

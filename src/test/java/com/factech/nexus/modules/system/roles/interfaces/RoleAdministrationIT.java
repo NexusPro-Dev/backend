@@ -177,7 +177,10 @@ class RoleAdministrationIT extends IntegrationTestBase {
   @DisplayName("CA-SP-049 y CA-SP-051 — desactiva y reactiva, conservando las asignaciones")
   void cambioDeEstado() throws Exception {
     UUID persona = crearPersona("jperez");
-    jdbc.update("INSERT INTO user_roles (user_id, role_id) VALUES (?, ?)", persona, rol);
+    jdbc.update(
+        "INSERT INTO user_roles (user_id, role_id, role_type) SELECT ?, r.id, r.role_type FROM roles r WHERE r.id = ?",
+        persona,
+        rol);
 
     mvc.perform(cambiarEstado(rol, "INACTIVO"))
         .andExpect(status().isOk())
@@ -326,7 +329,10 @@ class RoleAdministrationIT extends IntegrationTestBase {
   @DisplayName("CA-SP-067 — con personas asignadas se rechaza, y sugiere desactivar")
   void eliminacionConPersonas() throws Exception {
     UUID persona = crearPersona("amartinez");
-    jdbc.update("INSERT INTO user_roles (user_id, role_id) VALUES (?, ?)", persona, hijo);
+    jdbc.update(
+        "INSERT INTO user_roles (user_id, role_id, role_type) SELECT ?, r.id, r.role_type FROM roles r WHERE r.id = ?",
+        persona,
+        hijo);
 
     mvc.perform(eliminar(hijo, "{\"reason\":\"Ya no se usa.\"}"))
         .andExpect(status().isConflict())
@@ -390,7 +396,10 @@ class RoleAdministrationIT extends IntegrationTestBase {
   @Test
   @DisplayName("CA-SP-026 y CA-SP-152 — el rol propio del actor es 403; un ancestro suyo, no")
   void rolDelActor() throws Exception {
-    jdbc.update("INSERT INTO user_roles (user_id, role_id) VALUES (?, ?)", SUPERADMIN, hijo);
+    jdbc.update(
+        "INSERT INTO user_roles (user_id, role_id, role_type) SELECT ?, r.id, r.role_type FROM roles r WHERE r.id = ?",
+        SUPERADMIN,
+        hijo);
 
     // 403 y no 409: no es un dato inválido, es una operación que este actor no
     // puede ejecutar sobre este recurso — y queda en la auditoría de seguridad.
@@ -555,7 +564,7 @@ class RoleAdministrationIT extends IntegrationTestBase {
     jdbc.update("DELETE FROM roles WHERE is_system = false");
     jdbc.update("UPDATE roles SET status = 'ACTIVO', deleted_at = NULL WHERE is_system = true");
     jdbc.update(
-        "INSERT INTO user_roles (user_id, role_id) VALUES (?, ?::uuid) ON CONFLICT DO NOTHING",
+        "INSERT INTO user_roles (user_id, role_id, role_type) SELECT ?, r.id, r.role_type FROM roles r WHERE r.id = ?::uuid ON CONFLICT DO NOTHING",
         SUPERADMIN,
         SUPERADMIN_ROL);
   }

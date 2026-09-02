@@ -24,13 +24,35 @@ Tres verificaciones actúan sobre planos distintos y ninguna sustituye a otra:
 
 - **`RN-SEG-010`** acota al actor: nadie concede lo que no posee. Se evalúa **comparando permisos**, no roles (`spec.md` §14, pregunta 1).
 - **`RN-SP-018`** exige membresía en cuanto aparece el primer rol `CONSUMIDOR`.
-- **`RN-SP-019`** y **`RN-SP-020`** exigen superior en cuanto aparece el primer rol `VENDEDOR` **o cambia cuál es el de mayor rango**, y fijan quién puede serlo.
+- **`RN-SP-019`** y **`RN-SP-020`** exigen superior en cuanto aparece el primer rol `VENDEDOR` **o SUSTITUYE al que porta** (`RN-SP-025`), y fijan quién puede serlo.
 
 La operación se aplica **entera o no se aplica**. Un rechazo parcial dejaría a la persona con un subconjunto de roles que nadie pidió, y con la posibilidad de que ese subconjunto sea precisamente el que incumple una de las tres.
 
 Y una promesa que esta operación **no** hace: el efecto no es inmediato. El token de acceso transporta los códigos de rol (`security.md` §4.5), de modo que el rol nuevo se aplica cuando ese token expira, como mucho a los quince minutos. No se revocan sesiones, y esa es la asimetría deliberada con `RF-SP-031` (§9).
 
 ## 2. Cambios de esquema
+
+### 2.1 `V51` — `RN-SP-025` en el motor (02-09-2026)
+
+`user_roles` gana **`role_type`**, una copia de `roles.role_type`, y sobre ella:
+
+| Restricción | Qué hace |
+|---|---|
+| `uq_roles_id_role_type` sobre `roles(id, role_type)` | **Redundante con la clave primaria**, y esa es toda su función: PostgreSQL exige que el destino de una FK compuesta sea único sobre exactamente esas columnas |
+| `fk_user_roles_role` pasa a `(role_id, role_type) → roles(id, role_type)` | **Impide que la copia diverja.** Sin ella, `role_type` sería un dato suelto que nadie mantiene |
+| `uq_user_roles_vendedor` — único **parcial** sobre `(user_id) WHERE role_type = 'VENDEDOR'` | `RN-SP-025` |
+
+**Copiar un dato es normalmente el error que este proyecto evita**, y aquí no lo es por dos motivos que hay que poder nombrar: la FK compuesta hace que **no pueda mentir**, y `role_type` **no es editable** —`RF-SP-004` corrige nombre y descripción—, de modo que **nunca habrá que actualizarla**. Es el patrón que `V48` validó en `product_commission_rates`.
+
+!!! danger "El relleno de `role_type` puede fallar, y ese fallo es la información"
+
+    La columna se rellena desde `roles` y **luego** se añade el índice. Si en ese momento **alguien porta ya dos roles vendedores**, la creación del índice **falla y la migración se detiene**.
+
+    **No se limpia en la migración.** `V48` borró datos a propósito porque ninguno tenía traducción; aquí sí la tienen: alguien decidió esos roles, y **elegir cuál sobrevive es una decisión de negocio que una migración no puede tomar**. Que se detenga es lo correcto — obliga a mirar los datos antes de imponer una regla que llevaba cinco días declarada y sin sostener.
+
+    El sistema no está en producción, y en desarrollo la tabla no tiene ese caso. Queda escrito por si el día que lo esté lo tiene.
+
+### 2.2 `V25` — el índice por rol (24-08-2026)
 
 **Migración:** `V25__create_user_roles_role_index.sql`
 
@@ -60,9 +82,9 @@ Es la misma solución, por la misma razón y con la misma consecuencia: esa escr
 
 | Capa | Componente | Nuevo / Modificado | Responsabilidad |
 |---|---|---|---|
-| `domain` | `User` | Modificado | `assignRoles(...)`: agrega los roles que faltan y devuelve **cuáles se agregaron realmente**. Decide si la operación produce el primer rol `CONSUMIDOR` y si cambia el rol vendedor de mayor rango |
+| `domain` | `User` | Modificado | `assignRoles(...)`: agrega los roles que faltan y devuelve **cuáles se agregaron realmente**. Decide si la operación produce el primer rol `CONSUMIDOR` y **si cambia el rol vendedor; cuando lo cambia, RETIRA el anterior** |
 | `domain` | `PrivilegeContainment` | Sin cambios | `RN-SEG-010` en un solo sitio. Lo **extrajo `RF-SP-024`** a `domain/security` al aprobarse su plan el 22-08-2026, precisamente para que este requerimiento no lo reimplante. Recibe los permisos que se conceden y los efectivos del actor, y devuelve `PermissionContainmentViolation` |
-| `domain` | `CommercialStructure` | **Modificado** | Componente de `RF-SP-024`, que ya decide `RN-SP-019` y `RN-SP-020` sobre el conjunto de roles de un alta. Aquí gana el caso que aquel no tiene: **comparar el rango antes y después**, que es lo único que distingue un ascenso de una asignación lateral |
+| `domain` | `CommercialStructure` | **Modificado** | Componente de `RF-SP-024`, que ya decide `RN-SP-019` y `RN-SP-020` sobre el conjunto de roles de un alta. Aquí gana el caso que aquel no tiene: **comparar el rol vendedor antes y después**. Hasta el 02-09-2026 comparaba «el de mayor rango» entre varios; con `RN-SP-025` **hay a lo sumo uno**, y lo que decide es si cambia — da igual si sube o si baja |
 | `domain` | `UserRepository` | Modificado | Puerto de `RF-SP-024`. Añade la carga del usuario con sus roles, su membresía y su superior vigente en una sola lectura |
 | `domain` | `RoleRepository` | Sin cambios | Puerto de `RF-SP-001` |
 | `application` | `AssignUserRolesService` | Nuevo | Caso de uso. `@Transactional`, resuelve las cotas, escribe los tres hechos y emite la auditoría |
@@ -116,7 +138,8 @@ Los roles van por identificador y no por código, igual que los permisos en `RF-
 | `422` | Algún rol está inactivo (`EX-003`) | `EX-003` |
 | `422` | Primer rol `CONSUMIDOR` sin membresía (`EX-005`) | `RN-SP-018` |
 | `422` | Membresía indicada sin que corresponda (`EX-006`) | `EX-006` |
-| `422` | Primer rol `VENDEDOR` o ascenso sin superior (`EX-007`) | `RN-SP-019` |
+| `422` | Primer rol `VENDEDOR`, **ascenso o descenso** sin superior (`EX-007`) | `RN-SP-019` |
+| `422` | **Dos roles `VENDEDOR` en la misma petición** (`EX-009`) | `VAL-009` |
 | `422` | Superior indicado sin que corresponda, o que no puede serlo (`EX-008`) | `VAL-007`, `RN-SP-020` |
 | `500` | Fallo no controlado | `ERR-500` |
 
@@ -202,6 +225,11 @@ El evento de seguridad espera al commit por el motivo de `RF-SP-001` §7: emitid
 
 | Alternativa | Por qué se descartó |
 |---|---|
+| **`RN-SP-025` en el caso de uso, con bloqueo consultivo** | Es lo que `modules.md` declaraba, y lo que `RN-SP-018` intentó: **no se sostuvo bajo concurrencia** y hubo que corregirlo el 26-08-2026, sobre esta misma tabla. Ver §2.1 |
+| **Rechazar el segundo rol vendedor** en vez de sustituir | Obliga a retirar antes con `RF-SP-031`, y eso deja a la persona **sin rol vendedor entre las dos llamadas**. Si era su único rol, `RN-SP-023` rechaza el retiro y el ascenso **queda imposible** |
+| Sustituir **sin** exigir superior, reutilizando el que tenía | Su superior porta el rol padre del rol **viejo**. Tras la sustitución `RN-SP-020` dejaría de cumplirse, y el dato quedaría contradiciendo la regla sin que nada fallara |
+| Aplicar uno de los dos vendedores de una petición con dos, y descartar el otro | El resultado sería válido y **la decisión sería del sistema**. `EX-009` rechaza entera, como el resto de la operación |
+| **Limpiar en `V51`** a quien ya porte dos | Elegir cuál sobrevive es una decisión de negocio. Que la migración se **detenga** obliga a mirar los datos. Ver §2.1 |
 | Reemplazar la lista completa con `PUT` | Haría retiros implícitos, y retirar tiene reglas propias —`RN-SP-001`, `RN-SP-015`, `RN-SP-022`—. O se reimplementan aquí, con dos copias de cada una, o se saltan en silencio y la operación deja al sistema sin superadministrador sin que nada falle |
 | Asignar los roles válidos e ignorar los que fallan | Dejaría a la persona en un estado que nadie pidió. `EX-001` a `EX-003` exigen rechazo completo, y el subconjunto que sobrevive podría ser justo el que incumple una regla condicional |
 | Evaluar `RN-SEG-010` comparando **roles** en vez de permisos | Era más barato —bastaba recorrer la cadena de rol padre— pero rechaza asignaciones legítimas: un rol de otra rama del árbol cuyos permisos el actor sí posee. Y acopla la asignación de roles a la jerarquía de contención, que existe para acotar qué declara un rol, no quién puede repartirlo (`spec.md` §14, pregunta 1) |
@@ -243,7 +271,10 @@ El evento de seguridad espera al commit por el motivo de `RF-SP-001` §7: emitid
 | `CA-SP-370` | API | Membresía indicada sin corresponder devuelve `422` con `EX-006` |
 | `CA-SP-399` | API | Primer rol `VENDEDOR` sin superior devuelve `422` con `RN-SP-019` |
 | `CA-SP-403` | Unitaria + Integración | El **ascenso** sin superior nuevo se rechaza; con él se acepta y cierra la asignación anterior con su fecha de fin |
-| `CA-SP-404` | Unitaria | Un rol vendedor de rango **inferior** al que ya porta no exige superior |
+| `CA-SP-404` | Unitaria + API | Un rol vendedor de rango **inferior** es un **descenso**: sustituye y **exige superior igual** |
+| `CA-SP-527` | Integración | Tras asignar un vendedor a quien portaba otro, `user_roles` tiene **una sola** fila de tipo `VENDEDOR` |
+| `CA-SP-528` | Integración | El evento de auditoría cita **el rol que entra y el que sale** |
+| `CA-SP-529` | Integración | Un `INSERT` directo de un segundo rol vendedor **falla**, sin pasar por el caso de uso |
 | `CA-SP-400` | API | Superior no admitido, o que no porta el rol padre inmediato, devuelve `422` |
 | `CA-SP-401` | Integración | Rol `VENDEDOR` y superior en la misma transacción y bajo el mismo `correlation_id` |
 | `CA-SP-402` | API | La cúspide de la fuerza comercial no exige superior y lo rechaza si se indica |

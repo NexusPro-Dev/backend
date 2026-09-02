@@ -96,6 +96,22 @@ public class User {
       name = "user_roles",
       joinColumns = @JoinColumn(name = "user_id", nullable = false))
   @Column(name = "role_id", nullable = false)
+  // `role_type` LO PONE LA SENTENCIA, LEYÉNDOLO DE `roles`, y no el agregado
+  // (`RN-SP-025`, `V51`). Es una copia desnormalizada que existe para que la
+  // regla viva en el motor, y la clave foránea compuesta impide que mienta.
+  //
+  // Se sobreescribe el `INSERT` en lugar de añadir el tipo a la colección
+  // porque **este agregado no tiene por qué conocerlo**: `roleIds` es un
+  // conjunto de identificadores, y meterle el tipo dentro daría al dominio un
+  // dato que podría declarar mal — la clave foránea lo rechazaría, sí, pero el
+  // fallo saldría como `500` en vez de ser imposible de cometer.
+  //
+  // El orden de los parámetros es el que Hibernate usa para una colección de
+  // elementos: primero la clave del dueño, después el elemento.
+  @org.hibernate.annotations.SQLInsert(
+      sql =
+          "INSERT INTO user_roles (user_id, role_id, role_type)"
+              + " SELECT ?, r.id, r.role_type FROM roles r WHERE r.id = ?")
   private Set<UUID> roleIds = new LinkedHashSet<>();
 
   /** Exigido por JPA. */

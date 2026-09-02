@@ -5,7 +5,7 @@
 | Proyecto | NEXUS — Renovación de plataforma |
 | Empresa | FACTECH GROUP SAS |
 | Documento | `modules.md` |
-| Versión | 0.17.0 |
+| Versión | 0.18.0 |
 | Estado | Borrador |
 | Responsable técnico | Bonilla Diaz William Steven |
 | Fecha de creación | 20-08-2026 |
@@ -100,6 +100,7 @@ Las dependencias apuntan **del consumidor al proveedor** y deben ser acíclicas 
 | `SP` | Sistema Principal | `modules/system` | `roles:`, `permissions:`, `audit:`, `memberships:`, `currencies:`, `countries:`, `users:` | — | En desarrollo |
 | `PM` | Productos y Mercadeo | `modules/products` | `products:` | `SP` | En desarrollo |
 | `CM` | Comisiones | `modules/commissions` | `commissions:` | `SP`, `PM` | En desarrollo · **rehecho y construido el 02-09-2026** |
+| `MV` | Movimientos | `modules/movements` | `movements:` | `SP`, `PM` | Propuesto · **renace el 02-09-2026, empezando por la venta** |
 
 
 **Estados:** `Propuesto` · `En diseño` · `En desarrollo` · `Implementado` · `Obsoleto`.
@@ -237,9 +238,44 @@ Mismo desajuste que §4.1 resolvió para `SP`, y por el mismo motivo: **el códi
 
 Nace por una pregunta que este módulo no puede responder solo: si alguien tuviera dos roles vendedores con tarifas distintas y ninguna tarifa propia, **no habría forma no arbitraria de elegir**. Las tres salidas eran adivinar —el porcentaje mayor—, exigir tarifa propia, o impedir el caso. Se eligió impedirlo, que es la única que no deja la ambigüedad viva en el sistema.
 
-**No se puede declarar en el esquema.** Un `CHECK` no consulta otra tabla y un índice único no puede unir `user_roles` con `roles` para mirar `role_type`. La regla vive en el caso de uso de `RF-SP-030`, y necesita el mismo bloqueo pesimista que `RN-SP-018` —cuya versión sin bloqueo no se sostuvo bajo concurrencia y se corrigió el 26-08-2026—, porque dos asignaciones simultáneas la burlarían igual.
+**Se declaró en el esquema el 02-09-2026, y este párrafo decía lo contrario.** Afirmaba que no se podía: que un `CHECK` no consulta otra tabla y que un índice único no puede unir `user_roles` con `roles` para mirar `role_type`, de modo que la regla tendría que vivir en el caso de uso de `RF-SP-030` con un bloqueo pesimista.
 
-### 5.4 Plantilla para un módulo nuevo
+Las dos primeras frases siguen siendo ciertas y **la conclusión no lo era**: el dato que falta no hay que consultarlo, hay que **copiarlo**. `user_roles` lleva su propio `role_type`, una clave foránea **compuesta** impide que la copia diverja, y un índice único **parcial** sobre `(user_id) WHERE role_type = 'VENDEDOR'` cierra la regla. Es el patrón que `V48` validó en `product_commission_rates` cuatro días después de escribirse esta frase, y funciona aquí porque **`role_type` no es editable**.
+
+Lo que decidió no fue la elegancia sino el precedente que este mismo párrafo citaba: **`RN-SP-018` no se sostuvo bajo concurrencia** y hubo que corregirla el 26-08-2026, sobre esta misma tabla. Con la regla en el motor, dos asignaciones simultáneas **no pueden colarla**. El detalle, en [`requirements/sp.md` §10.11](requirements/sp.md).
+
+### 5.4 `MV` — Movimientos
+
+**Propósito.** Es dueño de **lo que ocurrió con el dinero**. Un movimiento es un hecho económico ya sucedido, y lleva un **tipo** que permite que la venta de un upgrade, el depósito de un cliente y el pago de una comisión vivan en la misma tabla sin dejar de ser cosas distintas. No es un registro de ventas: es el **libro** del sistema. **Un movimiento no se edita y no se borra**; lo único que avanza en él es su estado.
+
+**Alcance.** Se construye **por etapas**, y hoy solo está escrita la primera: **la venta** —registrarla, por las dos entradas que tiene; confirmarla, rechazarla o anularla; consultarla, incluidas «las mías»— con su **comprobante interno** y el catálogo sembrado de **métodos de pago**. Las etapas siguientes, declaradas y sin escribir: **depósitos y FTD**, **puntos**, **pasarela y sus notificaciones**, **devengo de comisiones** y **retiros y balances**.
+
+**No incluye.** **Cobrar** —eso lo hace una pasarela, y su integración es una etapa propia—; **aplicar el efecto de lo comprado**, porque conceder un nivel es escribir en `user_memberships`, tabla de `SP`; **la factura fiscal**, que es un documento DIAN con resolución y consecutivo legal y será una entidad aparte que apunte al movimiento; **el cálculo de la tasa**, que es de `CM`; y **descuentos e impuestos**, que hoy no existen por decisión del responsable del proyecto.
+
+| Submódulo | Responsabilidad | Entidades principales |
+|---|---|---|
+| Ventas | Registrar, resolver y consultar lo vendido | `movements`, `movement_types`, `movement_details` |
+| Medios de pago | Con qué se pagó | `payment_methods` |
+
+**Dependencias.** `SP` y `PM`. De `SP` necesita los **usuarios** —que el cliente exista y en qué estado está—, la **estructura comercial** —de qué vendedor cuelga el cliente— y las **monedas**; de `PM`, el **producto** con su precio y su vigencia, para **copiarlos**, y la **oferta** que le corresponde a quien compra (`RF-PM-007`). `CM` no aparece porque la dependencia va al revés: es la liquidación la que consumirá a `MV`.
+
+**Diseño detallado.** [`requirements/mv.md`](requirements/mv.md).
+
+!!! danger "D-26 — este módulo abre la primera escritura entre módulos"
+
+    Las interfaces publicadas entre módulos son **de solo lectura**, y [`architecture.md` §15.2](architecture.md) lo declara como norma: se devuelven modelos de lectura y nunca entidades, precisamente para no dar **con qué escribir**.
+
+    `MV` no puede quedarse ahí: una venta confirmada de un upgrade **tiene que conceder el nivel**, o confirmar no significa nada. Se recomienda que `SP` **publique la operación** y que `MV` la invoque en la misma transacción, y **queda abierta**: fija cómo se escribirá entre módulos para siempre.
+
+    Es la misma decisión que se retiró el 01-09-2026 con la primera versión del módulo, y **vuelve con su número original porque es la misma pregunta**.
+
+!!! info "Por qué `MV` vuelve, y qué se hace distinto"
+
+    El módulo existió del 01-09-2026 al 01-09-2026 y **se retiró entero** por decisión del responsable del proyecto. El problema no fue el alcance sino **el orden**: aquel documento diseñó el libro completo —ventas, depósitos, puntos, comisiones, pasarela y notificaciones entrantes— **antes de que existiera una sola venta**, y con él catorce requerimientos y treinta y nueve reglas sin una línea de código debajo.
+
+    El código `MV` **se reutiliza** por decisión del responsable, y el precio queda escrito: el borrado se llevó todos sus identificadores, de modo que `RF-MV-001` existió una vez como «registrar un depósito» y hoy es «registrar una venta». Un identificador que significa dos cosas según la fecha en que se lea es exactamente lo que §2.1 quiere evitar, y aquí se acepta a conciencia porque **ningún `RF-MV-NNN` anterior sobrevive en ninguna parte**.
+
+### 5.5 Plantilla para un módulo nuevo
 
 ```markdown
 ### `COD` — Nombre del módulo
@@ -272,7 +308,7 @@ La Épica 2 del documento de historias de usuario (HU08–HU14) define siete rol
 | Red comercial | HU10, HU11, HU12 | Estructura manager → director → agente y su relación entre personas. **Su primera pieza ya está construida dentro de `SP`** — ver la nota que sigue a esta tabla |
 | ~~Comisiones~~ | HU08, HU10, HU12 | **Incorporado el 28-08-2026 como `CM`** (§5.3), con las **tarifas**: qué porcentaje gana cada rol vendedor por cada producto, y las excepciones por persona. El **cálculo, la liquidación y los FTDs** siguen fuera, y no por reparto sino porque **no hay sobre qué calcular**: ninguna tabla de ventas existe todavía |
 | ~~Comisiones~~ | HU08, HU10, HU12 | **Incorporado el 28-08-2026 como `CM`** (§5.3), con las **tarifas**: qué porcentaje gana cada rol vendedor por cada producto, y las excepciones por persona. El **cálculo, la liquidación y los FTDs** siguen fuera, y no por reparto sino porque **no hay sobre qué calcular**: ninguna tabla de ventas existe todavía |
-| Finanzas | HU09 | Retiros, pagos, balances y egresos |
+| ~~Finanzas~~ | HU09 | **Absorbido de nuevo el 02-09-2026 por `MV`** (§5.4). El módulo declara como alcance **todo hecho económico** y no solo la venta, de modo que retiros, pagos y balances son sus **etapas posteriores** y no un módulo aparte. Fue candidato otra vez durante un día, entre que `MV` se retiró y volvió |
 | Academia | HU08, HU13, HU14 | Cursos y sesiones en vivo |
 | Señales | HU14 | Publicación y consumo de señales |
 | Métricas | HU08 | Indicadores y reportes de la plataforma |
@@ -359,3 +395,4 @@ El orden importa: el módulo precede al requerimiento, el requerimiento precede 
 | 0.15.0 | 28-08-2026 | **Se incorpora el módulo `CM` — Comisiones**, el tercero del sistema y el **primero que depende de dos**: `SP` le da el rol y la persona, `PM` el producto. La dependencia sigue siendo acíclica —`CM` → `PM` → `SP`— y la norma de consumo es la de D-25 sin excepción, con una consecuencia declarada: **`PM` tendrá que publicar una interfaz de lectura de productos que hoy no tiene**, y esa ampliación pertenece a los requerimientos de `CM` que la necesiten. Nace con **las tarifas y no con el cálculo**: el cálculo y la liquidación no se aplazan por reparto sino porque **no hay sobre qué calcular** mientras no exista una tabla de ventas — el mismo camino que siguió `PM`, cuyo catálogo existió antes que la compra. **Se pidió como submódulo de `PM` y se decidió que no**, por §2.1: la comisión no opera sobre `products`, opera sobre `roles` y `users`; un submódulo de `PM` con sus dos claves foráneas principales apuntando a `SP` no está en su módulo, y el identificador es irreversible. El código se fija **sabiendo lo que §6 advierte**, igual que con `PM`. Queda además una imposición sobre `SP` que se registra allí y no aquí: **una persona no puede tener dos roles de tipo `VENDEDOR`** (`RN-SP-025`), porque con dos tarifas distintas y ninguna propia no habría forma no arbitraria de elegir. | Responsable del proyecto |
 | 0.16.0 | 01-09-2026 | **`CM` se rehace**, por decisión del responsable del proyecto, y su ficha §5.3 lo recoge: donde había **una** tabla ahora hay **tres** —el catálogo por rol, la excepción por persona y la asociación con el producto— y el módulo gana un submódulo, **Asociación**, que es lo único que pone una tasa en vigor. **El cambio invalida la implementación**: los cinco requerimientos están construidos desde el 28-08-2026 con 45 pruebas, y la forma de `commission_rates` cambia. El detalle, en [`requirements/cm.md`](requirements/cm.md) v0.4.0. | Responsable del proyecto |
 | 0.17.0 | 02-09-2026 | **`CM` pasa de rediseñado a construido**, y su ficha §5.3 lo recoge: es dueño de **tres tablas** —el catálogo por rol, la excepción por persona y la asociación con el producto— donde el 01-09-2026 tenía una diseñada y dos por escribir. Con `V48` el módulo tiene sus **ocho requerimientos con endpoint funcionando** y **75 pruebas** propias. **La frontera de D-25 se estrenó en su forma más exigente y aguantó**: `CM` es el primer módulo que depende de dos, y al rehacerlo consume `RoleCatalog`, `UserCatalog`, `SellerRoleCatalog` y `ProductCatalog` sin importar una sola entidad ajena — mientras sus consultas siguen uniendo `roles`, `users` y `products` en la misma sentencia, que es lo que impide las `N+1` y **no rompe la frontera**, porque lo que §7 defiende es la del código y no la del motor. El detalle, en [`requirements/cm.md`](requirements/cm.md) v0.5.0. | Responsable técnico |
+| 0.18.0 | 02-09-2026 | **`MV` — Movimientos vuelve al inventario**, por decisión del responsable del proyecto, un día después de haberse retirado entero. Recupera su ficha (§5.4, y la plantilla vuelve a §5.5) y su fila, y **«Finanzas» vuelve a quedar absorbido** en §6: el módulo declara como alcance **todo hecho económico** —no solo la venta—, de modo que retiros, pagos y balances son etapas suyas. Lo que cambia respecto del primer intento **no es el alcance sino el orden**: aquel escribió el libro completo antes de que existiera una sola venta, y este declara el destino y **construye por etapas, empezando por vender**. El código `MV` **se reutiliza**, y el precio queda escrito en la ficha: `RF-MV-001` existió una vez como «registrar un depósito» y hoy es «registrar una venta» — se acepta porque el borrado se llevó **todos** los identificadores anteriores y ninguno sobrevive en ninguna parte. Vuelve además **D-26 con su número original**, porque es literalmente la misma pregunta: conceder el nivel comprado obliga a **escribir en `SP`**, y todas las interfaces entre módulos son de solo lectura. | Responsable del proyecto |

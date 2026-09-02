@@ -115,11 +115,16 @@ public class JpaUserRepository implements UserRepository {
   public int addRoles(UUID userId, Collection<UUID> roleIds) {
     int insertadas = 0;
     for (UUID rol : roleIds) {
+      // `role_type` SE TOMA DEL ROL Y NO DE QUIEN PIDE, con una subconsulta en
+      // la propia inserción. Es una copia (`RN-SP-025`, `V51`) y la clave
+      // foránea compuesta impide que mienta — pero si el valor lo aportara el
+      // caso de uso, la FK rechazaría la fila y el fallo saldría como `500` en
+      // lugar de ser imposible de cometer.
       insertadas +=
           em.createNativeQuery(
                   """
-                  INSERT INTO user_roles (user_id, role_id)
-                  VALUES (:usuario, :rol)
+                  INSERT INTO user_roles (user_id, role_id, role_type)
+                  SELECT :usuario, r.id, r.role_type FROM roles r WHERE r.id = :rol
                   ON CONFLICT (user_id, role_id) DO NOTHING
                   """)
               .setParameter("usuario", userId)

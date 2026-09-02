@@ -63,7 +63,7 @@ class CommercialStructureIT extends IntegrationTestBase {
         "DELETE FROM role_permissions WHERE role_id IN (SELECT id FROM roles WHERE is_system = false)");
     jdbc.update("DELETE FROM roles WHERE is_system = false");
     jdbc.update(
-        "INSERT INTO user_roles (user_id, role_id) VALUES (?, ?::uuid)",
+        "INSERT INTO user_roles (user_id, role_id, role_type) SELECT ?, r.id, r.role_type FROM roles r WHERE r.id = ?::uuid",
         SUPERADMIN,
         SUPERADMIN_ROL);
 
@@ -482,7 +482,10 @@ class CommercialStructureIT extends IntegrationTestBase {
         id,
         username,
         username + "@factech.co");
-    jdbc.update("INSERT INTO user_roles (user_id, role_id) VALUES (?, ?::uuid)", id, rol);
+    jdbc.update(
+        "INSERT INTO user_roles (user_id, role_id, role_type) SELECT ?, r.id, r.role_type FROM roles r WHERE r.id = ?::uuid",
+        id,
+        rol);
     return id;
   }
 

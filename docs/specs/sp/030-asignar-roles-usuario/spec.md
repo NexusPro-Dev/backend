@@ -11,6 +11,17 @@
 | Enmendada | 21-08-2026 — `RN-SP-018` obliga a indicar la membresía al asignar el primer rol `CONSUMIDOR`, al aprobar `RF-SP-033` (Art. I.7) |
 | Enmendada | 22-08-2026 — `RN-SP-019` obliga a indicar el superior comercial al asignar el primer rol `VENDEDOR`, al registrarse `RF-SP-041` (Art. I.7) |
 | Enmendada | 22-08-2026 — §11: los cuatro casos condicionales de `EX-005` a `EX-008` responden `422` y no `400`, al aprobarse el [`plan.md`](plan.md) §4 (Art. I.7) |
+| Enmendada | 02-09-2026 — **`RN-SP-025` obliga a que asignar un rol `VENDEDOR` SUSTITUYA al que la persona porte.** La operación deja de «solo agregar». Ver el aviso de cabecera |
+
+!!! danger "Esta operación ya no solo agrega, y su nombre no lo dice"
+
+    Hasta el 02-09-2026 asignar **nunca retiraba nada**, y §4.1 lo prometía. `RN-SP-025` —una persona no puede portar dos roles de tipo `VENDEDOR`, pedida por `CM` el 28-08-2026— **rompe esa promesa**: asignar un rol vendedor a quien ya porta otro **retira el que tenía**, en la misma transacción.
+
+    **Las dos cosas estaban aprobadas y nadie las había cruzado.** Este requerimiento se construyó el 24-08-2026 permitiendo el ascenso por acumulación —quien portaba `AGENTE` recibía `DIRECTOR` y quedaba con los dos—; la regla nació cuatro días después declarando que eso no puede pasar. Se descubrió al ir a construirla, el 02-09-2026.
+
+    **Se decidió sustituir y no rechazar** (responsable del proyecto). Rechazar obligaría a retirar antes con `RF-SP-031`, y eso deja a la persona **sin rol vendedor entre las dos llamadas** — o directamente imposibilita el ascenso, porque si el rol vendedor era el único que portaba, `RN-SP-023` rechaza el retiro.
+
+    Lo que cuesta queda dicho aquí y no escondido: **el nombre de la operación ya no la describe entera**, y por eso §12 exige que la auditoría registre **el rol que entra y el que sale**. Si solo registrara el que entra, el rol retirado desaparecería sin que ningún evento lo explicara.
 
 ---
 
@@ -22,7 +33,9 @@ Conceder a una persona el alcance de uno o varios roles, ampliando lo que puede 
 
 Es la operación que convierte la definición de acceso en acceso real. Todo lo que `SP` construye —el catálogo de permisos, los roles, su contención— no tiene efecto sobre nadie hasta que un rol se asigna a una persona.
 
-Los permisos efectivos de alguien son la **unión** de los permisos de sus roles activos (`RN-SEG-009`). Asignar un rol, por tanto, solo puede ampliar: nunca retira nada. Retirar tiene sus propias reglas y su propio requerimiento (`RF-SP-031`), y por el mismo motivo que en `RF-SP-005`, esta operación **agrega y no reemplaza**: un reemplazo haría retiros implícitos que se saltarían las comprobaciones de `RN-SP-015`.
+Los permisos efectivos de alguien son la **unión** de los permisos de sus roles activos (`RN-SEG-009`). Asignar un rol, por tanto, casi siempre solo amplía. Retirar tiene sus propias reglas y su propio requerimiento (`RF-SP-031`), y por el mismo motivo que en `RF-SP-005`, esta operación **agrega y no reemplaza**: un reemplazo haría retiros implícitos que se saltarían las comprobaciones de `RN-SP-015`.
+
+**La excepción es el rol vendedor**, y entró el 02-09-2026 con `RN-SP-025`: como una persona no puede portar dos, asignar uno **retira el que tenga**. No es un reemplazo de la lista —el resto de sus roles no se toca— sino la única forma de que esa asignación pueda ocurrir. Ver el aviso de cabecera.
 
 Hay una diferencia con `RF-SP-005` que conviene tener a la vista, porque afecta a lo que se puede prometer. Cambiar los permisos de un rol tiene efecto **inmediato**, por invalidación de caché. Cambiar los roles de una persona **no**: el token de acceso transporta los códigos de rol del usuario (`security.md` §4.5), de modo que el rol nuevo no se aplica hasta que ese token expira, como mucho quince minutos. Es una latencia conocida y aceptada, no un defecto; pero significa que esta operación no puede ofrecerse como forma de conceder acceso urgente.
 
@@ -39,12 +52,14 @@ Y un límite que sostiene todo el modelo: **nadie concede lo que no posee** (`RN
 
 ### 4.1 Incluye
 
-- Asignar uno o varios roles a una persona. La operación **solo agrega**: nunca retira ninguno.
+- Asignar uno o varios roles a una persona. **Agrega, con una sola excepción**: si el rol asignado es de tipo `VENDEDOR` y la persona ya porta otro, **el anterior se retira** (`RN-SP-025`).
 - Verificación de que los roles concedidos no exceden los privilegios del actor.
 
 ### 4.2 No incluye
 
-- Retirar roles → `RF-SP-031`. Esta operación no puede usarse para reemplazar la lista: un reemplazo haría retiros implícitos, y retirar tiene reglas propias que `RN-SP-015` y `RN-SP-001` imponen.
+- Retirar roles → `RF-SP-031`. **Salvo el rol vendedor que sustituye**, esta operación no puede usarse para reemplazar la lista: un reemplazo general haría retiros implícitos, y retirar tiene reglas propias que `RN-SP-015` y `RN-SP-001` imponen.
+
+    La excepción está acotada a **un solo rol y por una regla del esquema**: `RN-SP-025` no admite dos vendedores a la vez, de modo que el retiro no es una decisión de esta operación sino la única forma de que la asignación pueda ocurrir. Fuera de ahí, asignar sigue sin quitar nada.
 - Crear o modificar roles → `RF-SP-001` y siguientes.
 - Cambiar o renovar la membresía de quien ya la tiene → `RF-SP-032`. Esta operación solo la establece en un caso: cuando concede el **primer** rol `CONSUMIDOR` a alguien que no la tenía, porque `RN-SP-018` no admite el estado intermedio.
 - Cambiar el superior comercial de quien ya lo tiene → `RF-SP-041`. Esta operación solo lo establece en un caso: cuando concede el **primer** rol `VENDEDOR` a alguien que no lo tenía, por el mismo motivo que con la membresía.
@@ -59,6 +74,10 @@ Y un límite que sostiene todo el modelo: **nadie concede lo que no posee** (`RN
 | `RN-SP-013` | La membresía exige un rol de clasificación `CONSUMIDOR` | `requirements/sp.md` §5.1 |
 | `RN-SP-019` | Todo vendedor tiene superior comercial, salvo la cúspide de la fuerza comercial | `requirements/sp.md` §5.1 |
 | `RN-SP-020` | El superior porta el rol padre inmediato del rol del subordinado | `requirements/sp.md` §5.1 |
+| `RN-SP-025` | **Un solo rol vendedor por persona**: asignar uno sustituye al que porte | `requirements/sp.md` §5.1 |
+| `RN-SP-023` | Todo usuario tiene al menos un rol | `requirements/sp.md` §5.1 |
+
+**`RN-SP-023` se cita aunque esta operación no pueda violarla**, y es deliberado: es la razón de que `RN-SP-025` se resuelva **sustituyendo** y no rechazando. Retirar antes con `RF-SP-031` la violaría en el único caso que importa —quien solo porta su rol vendedor— y dejaría el ascenso sin salida.
 
 ## 6. Datos
 
@@ -70,7 +89,7 @@ Y un límite que sostiene todo el modelo: **nadie concede lo que no posee** (`RN
 | Roles | Sí | Roles a asignar | Entre 1 y 100 por petición; cada uno debe existir y estar activo |
 | Membresía | **Condicional** | Nivel de acceso que acompaña al rol de consumidor | **Obligatoria** cuando la asignación da a la persona su primer rol `CONSUMIDOR` y no tiene membresía (`RN-SP-018`). No se admite en ningún otro caso |
 | Fecha de fin de la membresía | No | Hasta cuándo está vigente | Solo si se indica membresía. Mismas reglas que en `RF-SP-032` |
-| Superior comercial | **Condicional** | Persona a cargo de la cual queda quien recibe el rol | **Obligatorio** cuando la asignación da a la persona su primer rol `VENDEDOR` **o cambia cuál es su rol vendedor de mayor rango** —un ascenso— (`RN-SP-019`), salvo que el rol resultante sea la cúspide de la fuerza comercial. No se admite en ningún otro caso. Debe existir, estar `ACTIVO` y portar el rol padre inmediato del rol vendedor de mayor rango que la persona tendrá **al terminar la operación** (`RN-SP-020`) |
+| Superior comercial | **Condicional** | Persona a cargo de la cual queda quien recibe el rol | **Obligatorio** cuando la asignación **cambia el rol vendedor de la persona** —porque no tenía ninguno, o porque el asignado sustituye a otro distinto: ascenso o descenso— (`RN-SP-019`), salvo que el rol resultante sea la cúspide de la fuerza comercial. No se admite en ningún otro caso. Debe existir, estar `ACTIVO` y portar el rol padre inmediato del rol vendedor que la persona tendrá **al terminar la operación** (`RN-SP-020`) |
 
 ### 6.2 Salida
 
@@ -101,10 +120,14 @@ Y un límite que sostiene todo el modelo: **nadie concede lo que no posee** (`RN
 2. El sistema verifica que el usuario exista y no esté eliminado.
 3. El sistema verifica que todos los roles existan, no estén eliminados y estén activos.
 4. El sistema verifica que los permisos de todos los roles estén contenidos en los permisos efectivos del actor.
-5. Si la asignación concede el primer rol `VENDEDOR` de la persona o cambia cuál es su rol vendedor de mayor rango, el sistema verifica que se haya indicado un superior comercial —salvo que el rol resultante sea la cúspide— y que ese superior exista, esté `ACTIVO` y porte el rol padre inmediato del rol de mayor rango con el que la persona termina.
-6. El sistema asocia los roles que el usuario aún no tenía y, cuando procede, escribe su superior comercial en la misma transacción.
-7. El sistema registra el evento en la auditoría de cambios y en la de seguridad.
+5. Si la asignación **cambia el rol vendedor de la persona** —porque no tenía ninguno, o porque el que se asigna es distinto del que porta—, el sistema verifica que se haya indicado un superior comercial —salvo que el rol resultante sea la cúspide— y que ese superior exista, esté `ACTIVO` y porte el rol padre inmediato del rol vendedor con el que la persona termina.
+6. El sistema asocia los roles que el usuario aún no tenía; **si el asignado es de tipo `VENDEDOR` y la persona portaba otro, retira el anterior** (`RN-SP-025`); y, cuando procede, escribe su superior comercial. Todo en la misma transacción.
+7. El sistema registra el evento en la auditoría de cambios y en la de seguridad, **con los roles que entran y los que salen**.
 8. El sistema informa el usuario con sus roles actualizados.
+
+**El paso 6 es el único de todo el módulo donde una operación de alta retira algo**, y el orden importa: el retiro y la asignación ocurren **en la misma transacción**, de modo que no existe ningún instante en que la persona porte dos roles vendedores ni ninguno. Hacerlo en dos pasos violaría `RN-SP-025` en el primero o `RN-SP-023` en el otro orden.
+
+**La comparación del paso 5 dejó de ser «de mayor rango» y pasó a ser «distinto».** Con `RN-SP-025`, la persona porta a lo sumo uno: no hay techo que calcular, hay un rol que se sustituye. Lo que sigue valiendo es el motivo — un cambio de rol vendedor cambia **con quién** debe cumplirse `RN-SP-020`.
 
 ## 9. Flujos alternativos
 
@@ -150,13 +173,20 @@ Y un límite que sostiene todo el modelo: **nadie concede lo que no posee** (`RN
 
 ### EX-007 — Rol vendedor sin superior que le corresponda
 
-**Condición:** la asignación daría a la persona su primer rol `VENDEDOR`, o cambiaría cuál es su rol vendedor de mayor rango —un ascenso—, ese rol no es la cúspide de la fuerza comercial, y no se indica superior comercial.
+**Condición:** la asignación daría a la persona su primer rol `VENDEDOR`, o **sustituiría el que porta por otro distinto** —un ascenso o un descenso—, ese rol no es la cúspide de la fuerza comercial, y no se indica superior comercial.
 **Respuesta del sistema:** rechaza la operación completa, cita `RN-SP-019` e indica que debe acompañarse del superior. El razonamiento es el de `EX-005`: un vendedor sin sitio en la estructura es un limbo del que solo se sale con otra llamada que nadie garantiza que llegue.
 
 ### EX-008 — Superior indicado sin que corresponda, o que no puede serlo
 
 **Condición:** se indica superior sin que la asignación conceda el primer rol `VENDEDOR`; o el superior indicado no existe, no está `ACTIVO`, o no porta el rol padre inmediato del rol que se concede.
 **Respuesta del sistema:** rechaza la operación. En el primer caso, por campo no admitido, e indica que cambiar el superior de quien ya lo tiene es `RF-SP-041`. En el segundo, citando `RN-SP-020` e informando qué rol debería portar el superior.
+
+### EX-009 — Dos roles vendedores en la misma petición
+
+**Condición:** la petición incluye **dos o más** roles de tipo `VENDEDOR` distintos.
+**Respuesta del sistema:** rechaza la operación completa citando `RN-SP-025`, e indica que una persona porta un solo rol vendedor.
+
+**No se resuelve aplicando uno y descartando el otro**, aunque el resultado sería válido: no hay orden que no viole la regla a mitad de camino, y elegir cuál gana sería **decidir por quien pidió la operación**. Es el mismo criterio que §13 aplica a la operación parcialmente válida — se rechaza entera.
 
 ## 11. Validaciones
 
@@ -168,8 +198,9 @@ Y un límite que sostiene todo el modelo: **nadie concede lo que no posee** (`RN
 | `VAL-004` | Los permisos de los roles están contenidos en los del actor | No puede asignar roles con permisos que usted no posee. |
 | `VAL-005` | Como máximo 100 roles por petición | No es posible asignar más de 100 roles en una sola solicitud. |
 | `VAL-006` | Usuario existente y no eliminado | El usuario solicitado no existe. |
-| `VAL-007` | Superior comercial obligatorio cuando la asignación concede el primer rol `VENDEDOR` o cambia el de mayor rango, salvo la cúspide; no admitido en cualquier otro caso | Indique quién estará a cargo de esta persona. |
-| `VAL-008` | El superior indicado existe, está `ACTIVO` y porta el rol padre inmediato del rol vendedor de mayor rango resultante | El superior indicado no puede estar a cargo de este rol. |
+| `VAL-007` | Superior comercial obligatorio cuando la asignación concede el primer rol `VENDEDOR` o lo SUSTITUYE por otro distinto, salvo la cúspide; no admitido en cualquier otro caso | Indique quién estará a cargo de esta persona. |
+| `VAL-008` | El superior indicado existe, está `ACTIVO` y porta el rol padre inmediato del rol vendedor resultante | El superior indicado no puede estar a cargo de este rol. |
+| `VAL-009` | **Como mucho un rol `VENDEDOR` por petición** (`RN-SP-025`) | Una persona no puede portar dos roles de tipo vendedor. |
 
 ## 12. Criterios de aceptación
 
@@ -187,11 +218,22 @@ Y un límite que sostiene todo el modelo: **nadie concede lo que no posee** (`RN
 | `CA-SP-369` | El sistema rechaza asignar el primer rol `CONSUMIDOR` sin indicar membresía |
 | `CA-SP-370` | El sistema rechaza una membresía indicada cuando la persona ya la tiene o cuando ningún rol asignado es de consumidor |
 | `CA-SP-399` | El sistema rechaza asignar el primer rol `VENDEDOR` sin indicar superior comercial |
-| `CA-SP-403` | El sistema rechaza el **ascenso** —asignar un rol vendedor de rango superior al que la persona ya porta— sin indicar el superior nuevo, y lo acepta indicándolo, dejando la asignación anterior cerrada con su fecha de fin |
-| `CA-SP-404` | El sistema **no** exige superior cuando el rol vendedor asignado es de rango inferior al que la persona ya porta |
+| `CA-SP-403` | El sistema rechaza el **ascenso** —asignar un rol vendedor distinto del que la persona ya porta— sin indicar el superior nuevo, y lo acepta indicándolo, dejando la asignación anterior cerrada con su fecha de fin |
+| `CA-SP-404` | Asignar un rol vendedor de rango **inferior** es un **descenso**: sustituye igual y **exige superior igual**, porque cambia con quién debe cumplirse `RN-SP-020` |
+| `CA-SP-527` | Asignar un rol vendedor a quien ya porta otro **retira el anterior**, y la persona termina portando **uno solo** |
+| `CA-SP-528` | La auditoría registra **el rol que entra y el que sale**: sin el segundo, el rol retirado desaparecería sin que ningún evento lo explicara |
+| `CA-SP-529` | El **esquema** lo impide: un `INSERT` directo de un segundo rol vendedor falla, sin pasar por el caso de uso |
+
+!!! danger "`CA-SP-404` cambió de sentido, y es lo que más fácil se lee como antes"
+
+    Decía que asignar un rol vendedor de rango **inferior** al que la persona porta **no** exige superior, porque «no cambia su techo». Ese criterio dependía de que los dos convivieran.
+
+    Con `RN-SP-025` ya no conviven: el inferior **sustituye** al superior, y eso es un **descenso**. Su superior actual porta el rol padre del que tenía, no del que pasa a tener, de modo que `RN-SP-020` dejaría de cumplirse exactamente igual que en un ascenso. **La regla mira el rol vendedor, no un techo entre varios.**
+
+    `CA-SP-529` prueba la regla **contra el esquema y no contra la API**, y es la que se entera si alguien retira el índice: todas las demás pasan por el caso de uso, que ya sustituye por su cuenta.
 | `CA-SP-400` | El sistema rechaza un superior indicado cuando la persona ya lo tiene, cuando ningún rol asignado es de vendedor, o cuando ese superior no porta el rol padre inmediato del rol concedido |
 | `CA-SP-401` | Asignar el primer rol `VENDEDOR` junto con su superior deja ambas cosas escritas en la misma transacción y bajo el mismo identificador de correlación |
-| `CA-SP-402` | Asignar el rol vendedor de mayor rango no exige superior, y el sistema lo rechaza si se indica |
+| `CA-SP-402` | Asignar el rol vendedor de la CÚSPIDE no exige superior, y el sistema lo rechaza si se indica |
 | `CA-SP-260` | El sistema registra el evento en la auditoría de cambios y en la de seguridad, con severidad alta y con el usuario afectado como objeto |
 | `CA-SP-261` | El sistema rechaza la operación a un actor sin el permiso de asignación de roles |
 
@@ -204,8 +246,10 @@ Y un límite que sostiene todo el modelo: **nadie concede lo que no posee** (`RN
 - **Asignación concurrente del mismo rol al mismo usuario:** la clave primaria compuesta de `user_roles` absorbe el empate sin error interno.
 - **Usuario inactivo o bloqueado:** puede recibir roles. Los tendrá cuando vuelva a estar activo, y `RN-SEG-002` no interviene porque afecta al estado del rol, no al de la persona.
 - **Asignar un rol a más de 100 personas:** no es esta operación. Aquí el límite es de roles por usuario, no de usuarios por rol; la asignación masiva no existe como requerimiento.
-- **Ascenso de un vendedor:** asignar `DIRECTOR` a quien ya es `AGENTE` **exige indicar el superior otra vez**, aunque ya tenga uno. No es un capricho de simetría: su superior actual porta `DIRECTOR`, y al terminar la operación la persona también lo portará, con lo que `RN-SP-020` dejaría de cumplirse. Quien asciende a alguien sabe a quién pasa a reportar; el sistema no puede deducirlo, y dejarlo para una llamada posterior admitiría datos que contradicen la regla mientras tanto.
-- **Rol vendedor de rango inferior al que ya tiene:** un `DIRECTOR` que recibe además `AGENTE` no cambia su rol de mayor rango, de modo que **no** se pide superior. La regla mira el techo de la persona, no cuántos roles comerciales acumula.
+- **Ascenso de un vendedor:** asignar `DIRECTOR` a quien ya es `AGENTE` **retira `AGENTE`** y **exige indicar el superior otra vez**, aunque ya tenga uno. No es un capricho de simetría: su superior actual porta `DIRECTOR`, y al terminar la operación la persona también lo portará, con lo que `RN-SP-020` dejaría de cumplirse. Quien asciende a alguien sabe a quién pasa a reportar; el sistema no puede deducirlo, y dejarlo para una llamada posterior admitiría datos que contradicen la regla mientras tanto.
+- **Rol vendedor de rango inferior al que ya tiene:** un `DIRECTOR` que recibe `AGENTE` **deja de ser `DIRECTOR`** — es un descenso, y exige superior igual que el ascenso. Hasta el 02-09-2026 esto era el caso contrario: los dos roles convivían y no se pedía nada. `RN-SP-025` lo cambió, y `CA-SP-404` con él.
+- **Asignar el MISMO rol vendedor que ya porta:** no sustituye nada y no exige superior. Es `FA-001` —el rol ya estaba— y sigue siendo idempotente: sin cambio, no hay evento.
+- **Asignar dos roles vendedores en la MISMA petición:** se rechaza entera. No hay un orden en el que aplicarlos que no viole `RN-SP-025` a mitad de camino, y elegir cuál de los dos gana sería decidir por quien pidió la operación.
 - **El superior asciende y su subordinado no:** esta operación no lo detecta, porque solo mira a quien recibe los roles. Es el hueco conocido de `RN-SP-020`: se valida al escribir, no de forma continua. Su corrección es `RF-SP-041` sobre cada subordinado afectado, y la interfaz de ascensos debería advertirlo. Anotado como riesgo el 22-08-2026; si aparece con frecuencia, la salida es una comprobación periódica de consistencia, no una cascada automática.
 - **Latencia de hasta quince minutos:** si hace falta que alguien tenga un permiso ya, el camino es ampliar un rol que ya porta (`RF-SP-005`), que sí es inmediato.
 

@@ -36,7 +36,7 @@ final class CommissionFixtures {
         usuario + "@factech.co");
     if (rol != null) {
       jdbc.update(
-          "INSERT INTO user_roles (user_id, role_id) VALUES (CAST(? AS uuid), CAST(? AS uuid))",
+          "INSERT INTO user_roles (user_id, role_id, role_type) SELECT CAST(? AS uuid), r.id, r.role_type FROM roles r WHERE r.id = CAST(? AS uuid)",
           id.toString(),
           rol);
     }

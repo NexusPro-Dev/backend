@@ -53,12 +53,15 @@ class UserLifecycleIT extends IntegrationTestBase {
     jdbc.update("DELETE FROM roles WHERE is_system = false");
     jdbc.update("DELETE FROM memberships WHERE level > 0");
     jdbc.update(
-        "INSERT INTO user_roles (user_id, role_id) VALUES (?, ?::uuid)",
+        "INSERT INTO user_roles (user_id, role_id, role_type) SELECT ?, r.id, r.role_type FROM roles r WHERE r.id = ?::uuid",
         SUPERADMIN,
         SUPERADMIN_ROL);
 
     juan = crearPersona("jperez", "juan.perez@factech.co", "Juan", "Pérez");
-    jdbc.update("INSERT INTO user_roles (user_id, role_id) VALUES (?, ?::uuid)", juan, ADMIN_ROL);
+    jdbc.update(
+        "INSERT INTO user_roles (user_id, role_id, role_type) SELECT ?, r.id, r.role_type FROM roles r WHERE r.id = ?::uuid",
+        juan,
+        ADMIN_ROL);
   }
 
   /**
@@ -92,7 +95,7 @@ class UserLifecycleIT extends IntegrationTestBase {
         """,
         SUPERADMIN);
     jdbc.update(
-        "INSERT INTO user_roles (user_id, role_id) VALUES (?, ?::uuid) ON CONFLICT DO NOTHING",
+        "INSERT INTO user_roles (user_id, role_id, role_type) SELECT ?, r.id, r.role_type FROM roles r WHERE r.id = ?::uuid ON CONFLICT DO NOTHING",
         SUPERADMIN,
         "01a02a33-4c00-7001-9c4f-5e7ad1000001");
   }
@@ -365,10 +368,12 @@ class UserLifecycleIT extends IntegrationTestBase {
   void ultimoSuperadministrador() throws Exception {
     UUID otroAdmin = crearPersona("admin2", "admin2@factech.co", "Otro", "Admin");
     jdbc.update(
-        "INSERT INTO user_roles (user_id, role_id) VALUES (?, ?::uuid)", otroAdmin, SUPERADMIN_ROL);
+        "INSERT INTO user_roles (user_id, role_id, role_type) SELECT ?, r.id, r.role_type FROM roles r WHERE r.id = ?::uuid",
+        otroAdmin,
+        SUPERADMIN_ROL);
     jdbc.update("DELETE FROM user_roles WHERE user_id = ?", SUPERADMIN);
     jdbc.update(
-        "INSERT INTO user_roles (user_id, role_id) VALUES (?, ?::uuid)",
+        "INSERT INTO user_roles (user_id, role_id, role_type) SELECT ?, r.id, r.role_type FROM roles r WHERE r.id = ?::uuid",
         SUPERADMIN,
         SUPERADMIN_ROL);
     jdbc.update("DELETE FROM user_roles WHERE user_id = ?", otroAdmin);
@@ -379,7 +384,9 @@ class UserLifecycleIT extends IntegrationTestBase {
     // mensaje explica la CONSECUENCIA, no solo niega.
     UUID otroActor = crearPersona("operador", "op@factech.co", "Ope", "Rador");
     jdbc.update(
-        "INSERT INTO user_roles (user_id, role_id) VALUES (?, ?::uuid)", otroActor, SUPERADMIN_ROL);
+        "INSERT INTO user_roles (user_id, role_id, role_type) SELECT ?, r.id, r.role_type FROM roles r WHERE r.id = ?::uuid",
+        otroActor,
+        SUPERADMIN_ROL);
     jdbc.update(
         "DELETE FROM user_roles WHERE user_id = ? AND role_id = ?::uuid",
         otroActor,
@@ -399,9 +406,15 @@ class UserLifecycleIT extends IntegrationTestBase {
   @DisplayName("RN-SP-022 — con equipo a cargo se rechaza diciendo cuántas, nunca quiénes")
   void conEquipoACargo() throws Exception {
     UUID jefe = crearPersona("eljefe", "jefe@factech.co", "El", "Jefe");
-    jdbc.update("INSERT INTO user_roles (user_id, role_id) VALUES (?, ?::uuid)", jefe, DIRECTOR);
+    jdbc.update(
+        "INSERT INTO user_roles (user_id, role_id, role_type) SELECT ?, r.id, r.role_type FROM roles r WHERE r.id = ?::uuid",
+        jefe,
+        DIRECTOR);
     UUID manager = crearPersona("elmanager", "mgr@factech.co", "El", "Manager");
-    jdbc.update("INSERT INTO user_roles (user_id, role_id) VALUES (?, ?::uuid)", manager, MANAGER);
+    jdbc.update(
+        "INSERT INTO user_roles (user_id, role_id, role_type) SELECT ?, r.id, r.role_type FROM roles r WHERE r.id = ?::uuid",
+        manager,
+        MANAGER);
     jdbc.update(
         "INSERT INTO user_supervisors (id, user_id, supervisor_id, started_at) VALUES (gen_random_uuid(), ?, ?, now())",
         jefe,
@@ -421,9 +434,15 @@ class UserLifecycleIT extends IntegrationTestBase {
   @DisplayName("CA-SP-411 — REACTIVAR nunca falla por regla, aunque tenga equipo a cargo")
   void reactivarNoFallaPorRegla() throws Exception {
     UUID jefe = crearPersona("eljefe", "jefe@factech.co", "El", "Jefe");
-    jdbc.update("INSERT INTO user_roles (user_id, role_id) VALUES (?, ?::uuid)", jefe, DIRECTOR);
+    jdbc.update(
+        "INSERT INTO user_roles (user_id, role_id, role_type) SELECT ?, r.id, r.role_type FROM roles r WHERE r.id = ?::uuid",
+        jefe,
+        DIRECTOR);
     UUID manager = crearPersona("elmanager", "mgr@factech.co", "El", "Manager");
-    jdbc.update("INSERT INTO user_roles (user_id, role_id) VALUES (?, ?::uuid)", manager, MANAGER);
+    jdbc.update(
+        "INSERT INTO user_roles (user_id, role_id, role_type) SELECT ?, r.id, r.role_type FROM roles r WHERE r.id = ?::uuid",
+        manager,
+        MANAGER);
     jdbc.update("UPDATE users SET status = 'INACTIVO' WHERE id = ?", manager);
     jdbc.update(
         "INSERT INTO user_supervisors (id, user_id, supervisor_id, started_at) VALUES (gen_random_uuid(), ?, ?, now())",
@@ -455,8 +474,14 @@ class UserLifecycleIT extends IntegrationTestBase {
   @DisplayName("CA-SP-360 — la eliminación captura el estado completo ANTES de borrar nada")
   void laCapturaVaAntes() throws Exception {
     UUID manager = crearPersona("elmanager", "mgr@factech.co", "El", "Manager");
-    jdbc.update("INSERT INTO user_roles (user_id, role_id) VALUES (?, ?::uuid)", manager, MANAGER);
-    jdbc.update("INSERT INTO user_roles (user_id, role_id) VALUES (?, ?::uuid)", juan, DIRECTOR);
+    jdbc.update(
+        "INSERT INTO user_roles (user_id, role_id, role_type) SELECT ?, r.id, r.role_type FROM roles r WHERE r.id = ?::uuid",
+        manager,
+        MANAGER);
+    jdbc.update(
+        "INSERT INTO user_roles (user_id, role_id, role_type) SELECT ?, r.id, r.role_type FROM roles r WHERE r.id = ?::uuid",
+        juan,
+        DIRECTOR);
     jdbc.update(
         "INSERT INTO user_supervisors (id, user_id, supervisor_id, started_at) VALUES (gen_random_uuid(), ?, ?, now())",
         juan,
@@ -491,8 +516,14 @@ class UserLifecycleIT extends IntegrationTestBase {
   @DisplayName("la eliminación retira roles y membresía, y CIERRA el superior sin borrarlo")
   void loQueLaEliminacionHaceConCadaTabla() throws Exception {
     UUID manager = crearPersona("elmanager", "mgr@factech.co", "El", "Manager");
-    jdbc.update("INSERT INTO user_roles (user_id, role_id) VALUES (?, ?::uuid)", manager, MANAGER);
-    jdbc.update("INSERT INTO user_roles (user_id, role_id) VALUES (?, ?::uuid)", juan, DIRECTOR);
+    jdbc.update(
+        "INSERT INTO user_roles (user_id, role_id, role_type) SELECT ?, r.id, r.role_type FROM roles r WHERE r.id = ?::uuid",
+        manager,
+        MANAGER);
+    jdbc.update(
+        "INSERT INTO user_roles (user_id, role_id, role_type) SELECT ?, r.id, r.role_type FROM roles r WHERE r.id = ?::uuid",
+        juan,
+        DIRECTOR);
     jdbc.update(
         "INSERT INTO user_supervisors (id, user_id, supervisor_id, started_at) VALUES (gen_random_uuid(), ?, ?, now())",
         juan,

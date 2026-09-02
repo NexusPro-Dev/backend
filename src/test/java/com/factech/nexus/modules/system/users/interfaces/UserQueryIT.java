@@ -57,7 +57,7 @@ class UserQueryIT extends IntegrationTestBase {
     jdbc.update("DELETE FROM roles WHERE is_system = false");
     jdbc.update("DELETE FROM memberships WHERE level > 0");
     jdbc.update(
-        "INSERT INTO user_roles (user_id, role_id) VALUES (?, ?::uuid)",
+        "INSERT INTO user_roles (user_id, role_id, role_type) SELECT ?, r.id, r.role_type FROM roles r WHERE r.id = ?::uuid",
         SUPERADMIN,
         SUPERADMIN_ROL);
 
@@ -70,8 +70,14 @@ class UserQueryIT extends IntegrationTestBase {
     juan = crearPersona("jperez", "juan.perez@factech.co", "Juan", "Pérez", "ACTIVO");
     ana = crearPersona("amartinez", "ana@factech.co", "Ana", "Martínez", "INACTIVO");
 
-    jdbc.update("INSERT INTO user_roles (user_id, role_id) VALUES (?, ?::uuid)", juan, rolAcotado);
-    jdbc.update("INSERT INTO user_roles (user_id, role_id) VALUES (?, ?::uuid)", juan, consumidor);
+    jdbc.update(
+        "INSERT INTO user_roles (user_id, role_id, role_type) SELECT ?, r.id, r.role_type FROM roles r WHERE r.id = ?::uuid",
+        juan,
+        rolAcotado);
+    jdbc.update(
+        "INSERT INTO user_roles (user_id, role_id, role_type) SELECT ?, r.id, r.role_type FROM roles r WHERE r.id = ?::uuid",
+        juan,
+        consumidor);
     jdbc.update(
         "INSERT INTO user_memberships (user_id, membership_id, started_at) VALUES (?, ?::uuid, now())",
         juan,
@@ -113,7 +119,7 @@ class UserQueryIT extends IntegrationTestBase {
         """,
         SUPERADMIN);
     jdbc.update(
-        "INSERT INTO user_roles (user_id, role_id) VALUES (?, ?::uuid) ON CONFLICT DO NOTHING",
+        "INSERT INTO user_roles (user_id, role_id, role_type) SELECT ?, r.id, r.role_type FROM roles r WHERE r.id = ?::uuid ON CONFLICT DO NOTHING",
         SUPERADMIN,
         "01a02a33-4c00-7001-9c4f-5e7ad1000001");
   }
@@ -210,7 +216,10 @@ class UserQueryIT extends IntegrationTestBase {
   void elFiltroPorRolNoDuplica() throws Exception {
     // Con un JOIN, `totalElements` contaría asignaciones en cuanto alguien
     // añadiera un segundo valor al filtro. Con EXISTS no puede duplicar.
-    jdbc.update("INSERT INTO user_roles (user_id, role_id) VALUES (?, ?::uuid)", juan, ADMIN);
+    jdbc.update(
+        "INSERT INTO user_roles (user_id, role_id, role_type) SELECT ?, r.id, r.role_type FROM roles r WHERE r.id = ?::uuid",
+        juan,
+        ADMIN);
 
     mvc.perform(listado().param("roleId", rolAcotado))
         .andExpect(status().isOk())

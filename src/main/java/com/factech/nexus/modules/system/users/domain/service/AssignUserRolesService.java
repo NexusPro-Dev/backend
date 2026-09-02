@@ -133,9 +133,24 @@ public class AssignUserRolesService {
     // 4. `RN-SEG-010`, antes que cualquier regla de coherencia.
     verificarAlcanceDelActor(pedidos);
 
-    Set<UUID> resultantes = RoleAssignment.resultado(actuales, nuevos);
-    List<AssignableRole> catalogoResultante = roles.findAllById(resultantes);
+    // 4.bis. `RN-SP-025` — un solo rol vendedor por persona.
+    List<AssignableRole> vendedoresPedidos =
+        pedidos.stream().filter(AssignableRole::esVendedor).toList();
+    verificarUnSoloVendedorPorPeticion(vendedoresPedidos);
+
     List<AssignableRole> catalogoPrevio = roles.findAllById(actuales);
+
+    // EL ROL VENDEDOR QUE SALE. Asignar uno SUSTITUYE al que se porte: no es
+    // una decisión de esta operación sino la única forma de que la asignación
+    // pueda ocurrir con `RN-SP-025` declarada en el motor. Rechazar en su lugar
+    // obligaría a retirar antes con `RF-SP-031`, y eso deja a la persona sin rol
+    // vendedor entre las dos llamadas — o hace el ascenso imposible, porque si
+    // ese era su único rol `RN-SP-023` rechaza el retiro.
+    Set<UUID> vendedoresSalientes = vendedorSaliente(catalogoPrevio, vendedoresPedidos);
+
+    Set<UUID> resultantes = RoleAssignment.resultado(actuales, nuevos);
+    resultantes.removeAll(vendedoresSalientes);
+    List<AssignableRole> catalogoResultante = roles.findAllById(resultantes);
 
     // 5. `RN-SP-018` — consumidor ⟺ membresía, condicional en los dos sentidos.
     boolean membresiaNueva =
@@ -147,6 +162,12 @@ public class AssignUserRolesService {
 
     OffsetDateTime ahora = OffsetDateTime.now(reloj);
 
+    // EL RETIRO VA ANTES DE LA ASIGNACIÓN, y no es indiferente: entre las dos
+    // sentencias el índice único parcial de `V51` está mirando. Al revés, la
+    // inserción del vendedor nuevo chocaría con el viejo y saldría como `500`.
+    if (!vendedoresSalientes.isEmpty()) {
+      usuarios.removeRoles(userId, vendedoresSalientes);
+    }
     if (!nuevos.isEmpty()) {
       usuarios.addRoles(userId, nuevos);
     }
@@ -162,7 +183,9 @@ public class AssignUserRolesService {
       auditar(
           usuario,
           catalogoResultante,
+          catalogoPrevio,
           nuevos,
+          vendedoresSalientes,
           membresiaNueva ? peticion.membershipId() : null,
           superiorNuevo);
     }
@@ -392,6 +415,52 @@ public class AssignUserRolesService {
     return supervisorId;
   }
 
+  /**
+   * `VAL-009`. Dos roles vendedores en la misma petición se rechazan <b>enteros</b>.
+   *
+   * <p><b>No se resuelve aplicando uno y descartando el otro</b>, aunque el resultado sería válido:
+   * no hay orden que no viole `RN-SP-025` a mitad de camino, y elegir cuál gana sería <b>decidir
+   * por quien pidió la operación</b>. Mismo criterio que el rechazo parcial de `spec.md` §13.
+   */
+  private void verificarUnSoloVendedorPorPeticion(List<AssignableRole> vendedoresPedidos) {
+    if (vendedoresPedidos.size() > 1) {
+      // `422` y no `409`, por el criterio que separa las dos series en todo el
+      // módulo: `400` es lo que se decide mirando SOLO el cuerpo, y esto no —
+      // hay que resolver cada rol contra el catálogo para saber de qué tipo es.
+      // Y no es un conflicto con el estado como `RN-SEG-010`: la petición es
+      // inaplicable por sí sola, con independencia de qué porte la persona.
+      String mensaje = "Una persona no puede portar dos roles de tipo vendedor. Indique uno solo.";
+      throw new UnprocessableEntityException(
+          "VAL-009", mensaje, List.of(new FieldError("roleIds", "VAL-009", mensaje)));
+    }
+  }
+
+  /**
+   * El rol vendedor que <b>sale</b> al asignar otro (`RN-SP-025`).
+   *
+   * <p>Devuelve vacío en los dos casos en que no hay sustitución: cuando no se asigna ningún rol
+   * vendedor, y cuando <b>el que se asigna es el que ya porta</b> — ahí la operación es idempotente
+   * y no retira nada.
+   *
+   * <p><b>Se calcula sobre el catálogo previo y no sobre la petición</b>, porque lo que sale es un
+   * rol que la persona tiene y que nadie nombró: quien asciende a alguien pide `DIRECTOR`, no pide
+   * quitar `AGENTE`. Es exactamente el retiro que `spec.md` §4.2 declara como la única excepción a
+   * que esta operación solo agregue.
+   */
+  private Set<UUID> vendedorSaliente(
+      List<AssignableRole> catalogoPrevio, List<AssignableRole> vendedoresPedidos) {
+
+    if (vendedoresPedidos.isEmpty()) {
+      return Set.of();
+    }
+    UUID entrante = vendedoresPedidos.get(0).id();
+    return catalogoPrevio.stream()
+        .filter(AssignableRole::esVendedor)
+        .map(AssignableRole::id)
+        .filter(id -> !id.equals(entrante))
+        .collect(java.util.stream.Collectors.toCollection(java.util.LinkedHashSet::new));
+  }
+
   // ---------------------------------------------------------------------------
   // Auditoría
   // ---------------------------------------------------------------------------
@@ -411,7 +480,9 @@ public class AssignUserRolesService {
   private void auditar(
       User usuario,
       List<AssignableRole> resultantes,
+      List<AssignableRole> previos,
       Set<UUID> agregados,
+      Set<UUID> retirados,
       UUID membresia,
       UUID superior) {
 
@@ -425,6 +496,20 @@ public class AssignUserRolesService {
 
       Map<String, Object> cambio = new HashMap<>();
       cambio.put("added_roles", codigosAgregados);
+      // EL ROL QUE SALE, Y NO SOLO LOS QUE ENTRAN. La operación se llama
+      // «asignar» y desde `RN-SP-025` también retira; si el evento citara solo
+      // lo que entra, el rol retirado desaparecería sin que nada lo explicara.
+      // Los códigos salen de `previos` porque el saliente ya no está en
+      // `resultantes` — es justo el que se quitó.
+      if (!retirados.isEmpty()) {
+        cambio.put(
+            "removed_roles",
+            previos.stream()
+                .filter(rol -> retirados.contains(rol.id()))
+                .map(AssignableRole::code)
+                .sorted()
+                .toList());
+      }
       cambio.put("roles", codigos(resultantes));
       auditoria.recordChange(
           new ChangeEvent(MODULO, "user_roles", usuario.getId(), ChangeAction.UPDATE, cambio));

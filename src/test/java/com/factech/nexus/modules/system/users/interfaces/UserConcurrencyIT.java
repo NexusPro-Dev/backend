@@ -91,7 +91,7 @@ class UserConcurrencyIT extends IntegrationTestBase {
         """,
         SUPERADMIN);
     jdbc.update(
-        "INSERT INTO user_roles (user_id, role_id) VALUES (?, ?::uuid) ON CONFLICT DO NOTHING",
+        "INSERT INTO user_roles (user_id, role_id, role_type) SELECT ?, r.id, r.role_type FROM roles r WHERE r.id = ?::uuid ON CONFLICT DO NOTHING",
         SUPERADMIN,
         SUPERADMIN_ROL);
   }
@@ -311,7 +311,7 @@ class UserConcurrencyIT extends IntegrationTestBase {
    */
   private void retirarElRolRaizAlActor() {
     jdbc.update(
-        "INSERT INTO user_roles (user_id, role_id) VALUES (?, ?::uuid) ON CONFLICT DO NOTHING",
+        "INSERT INTO user_roles (user_id, role_id, role_type) SELECT ?, r.id, r.role_type FROM roles r WHERE r.id = ?::uuid ON CONFLICT DO NOTHING",
         SUPERADMIN,
         ADMIN);
     jdbc.update(
@@ -537,7 +537,10 @@ class UserConcurrencyIT extends IntegrationTestBase {
         id,
         username,
         username + "@factech.co");
-    jdbc.update("INSERT INTO user_roles (user_id, role_id) VALUES (?, ?::uuid)", id, rol);
+    jdbc.update(
+        "INSERT INTO user_roles (user_id, role_id, role_type) SELECT ?, r.id, r.role_type FROM roles r WHERE r.id = ?::uuid",
+        id,
+        rol);
     return id;
   }
 
@@ -553,7 +556,10 @@ class UserConcurrencyIT extends IntegrationTestBase {
         username,
         username + "@factech.co",
         hasher.hash(CLAVE));
-    jdbc.update("INSERT INTO user_roles (user_id, role_id) VALUES (?, ?::uuid)", id, rol);
+    jdbc.update(
+        "INSERT INTO user_roles (user_id, role_id, role_type) SELECT ?, r.id, r.role_type FROM roles r WHERE r.id = ?::uuid",
+        id,
+        rol);
     return id;
   }
 

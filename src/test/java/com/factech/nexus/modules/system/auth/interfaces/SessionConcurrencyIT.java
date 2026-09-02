@@ -80,7 +80,9 @@ class SessionConcurrencyIT extends IntegrationTestBase {
         persona,
         hasher.hash(CLAVE));
     jdbc.update(
-        "INSERT INTO user_roles (user_id, role_id) VALUES (?, ?::uuid)", persona, ADMIN_ROL);
+        "INSERT INTO user_roles (user_id, role_id, role_type) SELECT ?, r.id, r.role_type FROM roles r WHERE r.id = ?::uuid",
+        persona,
+        ADMIN_ROL);
   }
 
   @AfterEach
