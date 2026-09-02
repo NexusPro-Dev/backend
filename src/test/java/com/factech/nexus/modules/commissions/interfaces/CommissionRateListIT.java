@@ -1,5 +1,8 @@
 package com.factech.nexus.modules.commissions.interfaces;
 
+import static com.factech.nexus.modules.commissions.interfaces.CommissionFixtures.AGENTE;
+import static com.factech.nexus.modules.commissions.interfaces.CommissionFixtures.DIRECTOR;
+import static com.factech.nexus.modules.commissions.interfaces.CommissionFixtures.MANAGER;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.user;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
@@ -18,212 +21,116 @@ import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.request.MockHttpServletRequestBuilder;
 
 /**
- * El listado de tarifas (`RF-CM-002` · `T-08`).
+ * El listado del catálogo (`RF-CM-002`).
  *
- * <p><b>Este listado devuelve lo declarado y NO resuelve precedencia</b>, y esa es la propiedad que
- * más importa aquí: filtrar por persona devuelve las declaradas <b>para</b> esa persona, no las que
- * <b>le aplican</b>. Lo segundo es `RF-CM-005`, y confundirlos haría que este endpoint empezara a
- * resolver precedencias por su cuenta.
+ * <p><b>Lo que este listado tiene que dejar claro es cuáles de sus filas no pagan nada.</b> Una
+ * tasa sin asociar aparece con su rol y su porcentaje y <b>no rige</b> — sin {@code
+ * associatedProducts}, el listado diría exactamente lo mismo en los dos casos y el malentendido se
+ * descubriría liquidando.
  */
 @AutoConfigureMockMvc
 class CommissionRateListIT extends IntegrationTestBase {
 
-  private static final String VENDEDOR = "01a02a33-4c00-7005-9c4f-5e7ad1000003";
-
   @Autowired private MockMvc mvc;
   @Autowired private JdbcTemplate jdbc;
 
-  private UUID vendedora;
-  private UUID producto;
+  private UUID asociada;
 
   @BeforeEach
   void preparar() {
-    limpiar();
-    vendedora = persona("vendedora");
-    producto = producto("BOT_UNO");
+    CommissionFixtures.limpiar(jdbc, SUPERADMIN);
+
+    UUID producto = CommissionFixtures.sembrarProducto(jdbc, "BOT_A");
+    UUID otro = CommissionFixtures.sembrarProducto(jdbc, "BOT_B");
+
+    asociada = CommissionFixtures.sembrarTasaDeRol(jdbc, MANAGER, "10.00");
+    CommissionFixtures.asociar(jdbc, asociada, producto, MANAGER);
+    CommissionFixtures.asociar(jdbc, asociada, otro, MANAGER);
+
+    // Declarada y nunca asociada: existe, tiene porcentaje y NO PAGA NADA.
+    CommissionFixtures.sembrarTasaDeRol(jdbc, DIRECTOR, "4.00");
   }
 
   @AfterEach
   void devolverElEstadoASuSitio() {
-    limpiar();
+    CommissionFixtures.limpiar(jdbc, SUPERADMIN);
   }
 
   @Test
-  @DisplayName(
-      "`CA-CM-014` y `CA-CM-016` — ordena por vigencia descendente, con los ausentes nulos y PRESENTES")
-  void ordenYCamposPresentes() throws Exception {
-    tarifa(null, null, "10.00", "2026-01-01", "2026-06-30", false);
-    tarifa(null, null, "12.00", "2026-07-01", null, false);
+  @DisplayName("cada fila dice sobre cuántos productos rige, y el cero significa «sobre ninguno»")
+  void cuentaLasAsociaciones() throws Exception {
+    mvc.perform(listado().param("roleId", MANAGER))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.content.length()").value(1))
+        .andExpect(jsonPath("$.content[0].associatedProducts").value(2));
 
+    mvc.perform(listado().param("roleId", DIRECTOR))
+        .andExpect(status().isOk())
+        // Esta tasa parece configurada y no paga nada a nadie.
+        .andExpect(jsonPath("$.content[0].associatedProducts").value(0));
+  }
+
+  @Test
+  @DisplayName("la cuenta de asociaciones no multiplica las filas del listado")
+  void laCuentaNoMultiplicaFilas() throws Exception {
+    // La tasa de MANAGER tiene DOS asociaciones. Con un LEFT JOIN agrupado mal,
+    // aparecería dos veces y el LIMIT de la paginación contaría filas del
+    // producto cartesiano en vez de tasas — devolviendo menos tasas de las
+    // pedidas sin que nada fallara.
     mvc.perform(listado())
         .andExpect(status().isOk())
-        .andExpect(jsonPath("$.totalElements").value(2))
-        // La más reciente por inicio de vigencia encabeza.
-        .andExpect(jsonPath("$.content[0].percentage").value(12.00))
-        .andExpect(jsonPath("$.content[0].scope").value("ROL"))
-        .andExpect(jsonPath("$.content[0].product").value(org.hamcrest.Matchers.nullValue()))
-        .andExpect(jsonPath("$.content[0].user").value(org.hamcrest.Matchers.nullValue()))
-        .andExpect(jsonPath("$.sort").value("validFrom,desc"));
+        .andExpect(jsonPath("$.content.length()").value(2))
+        .andExpect(jsonPath("$.totalElements").value(2));
   }
 
   @Test
-  @DisplayName("`CA-CM-015` — filtra por rol, producto y persona")
-  void filtros() throws Exception {
-    tarifa(null, null, "10.00", "2026-01-01", null, false);
-    tarifa(producto, null, "20.00", "2026-01-01", null, false);
-    tarifa(null, vendedora, "30.00", "2026-01-01", null, false);
+  @DisplayName("las retiradas no salen salvo que se pidan, y salen marcadas")
+  void lasRetiradas() throws Exception {
+    UUID retirada = CommissionFixtures.sembrarTasaDeRol(jdbc, AGENTE, "2.00");
+    jdbc.update(
+        "UPDATE commission_rates SET deleted_at = now() WHERE id = CAST(? AS uuid)",
+        retirada.toString());
 
-    mvc.perform(listado().param("productId", producto.toString()))
-        .andExpect(jsonPath("$.totalElements").value(1))
-        .andExpect(jsonPath("$.content[0].scope").value("PRODUCTO"));
-
-    mvc.perform(listado().param("userId", vendedora.toString()))
-        .andExpect(jsonPath("$.totalElements").value(1))
-        .andExpect(jsonPath("$.content[0].scope").value("PERSONA"));
-
-    mvc.perform(listado().param("roleId", VENDEDOR))
-        .andExpect(jsonPath("$.totalElements").value(3));
-  }
-
-  @Test
-  @DisplayName(
-      "`T-10` — filtrar por persona devuelve las declaradas PARA ella, no las que le aplican")
-  void elListadoNoResuelvePrecedencia() throws Exception {
-    // La del rol le APLICA a la vendedora, pero no está declarada para ella.
-    tarifa(null, null, "10.00", "2026-01-01", null, false);
-    tarifa(null, vendedora, "30.00", "2026-01-01", null, false);
-
-    mvc.perform(listado().param("userId", vendedora.toString()))
-        .andExpect(jsonPath("$.totalElements").value(1))
-        .andExpect(jsonPath("$.content[0].percentage").value(30.00));
-  }
-
-  @Test
-  @DisplayName(
-      "`CA-CM-017` y `CA-CM-018` — sin fecha vienen las vencidas; con fecha, solo las que rigen")
-  void elHistorialYLaFecha() throws Exception {
-    tarifa(null, null, "10.00", "2026-01-01", "2026-06-30", false);
-    tarifa(null, null, "12.00", "2026-07-01", null, false);
-
-    // Sin filtro de fecha, el historial completo: es la mitad del valor de tener
-    // vigencia.
     mvc.perform(listado()).andExpect(jsonPath("$.totalElements").value(2));
 
-    mvc.perform(listado().param("onDate", "2026-03-01"))
-        .andExpect(jsonPath("$.totalElements").value(1))
-        .andExpect(jsonPath("$.content[0].percentage").value(10.00));
-
-    // Y una fecha futura devuelve la programada, que es la forma de comprobar un
-    // cambio antes de que entre en vigor.
-    mvc.perform(listado().param("onDate", "2027-01-01"))
-        .andExpect(jsonPath("$.content[0].percentage").value(12.00));
-  }
-
-  @Test
-  @DisplayName(
-      "`CA-CM-019` — las retiradas se excluyen por omisión y se incluyen marcadas si se piden")
-  void lasRetiradas() throws Exception {
-    tarifa(null, null, "10.00", "2026-01-01", null, true);
-
-    mvc.perform(listado()).andExpect(jsonPath("$.totalElements").value(0));
-
     mvc.perform(listado().param("includeDeleted", "true"))
-        .andExpect(jsonPath("$.totalElements").value(1))
-        .andExpect(jsonPath("$.content[0].deletedAt").value(org.hamcrest.Matchers.notNullValue()));
+        .andExpect(jsonPath("$.totalElements").value(3))
+        .andExpect(
+            jsonPath("$.content[?(@.role.code == 'AGENTE')].deletedAt")
+                .value(org.hamcrest.Matchers.everyItem(org.hamcrest.Matchers.notNullValue())));
   }
 
   @Test
-  @DisplayName("`CA-CM-020` — un filtro sin resultados devuelve la colección vacía, no un error")
-  void sinResultadosNoEsError() throws Exception {
-    mvc.perform(listado().param("roleId", UUID.randomUUID().toString()))
+  @DisplayName("el orden es por código de rol y se publica en la respuesta")
+  void elOrdenSePublica() throws Exception {
+    mvc.perform(listado())
         .andExpect(status().isOk())
-        .andExpect(jsonPath("$.content").isEmpty())
-        .andExpect(jsonPath("$.totalElements").value(0));
+        .andExpect(jsonPath("$.sort").value("role.code,asc"))
+        .andExpect(jsonPath("$.content[0].role.code").value("DIRECTOR"))
+        .andExpect(jsonPath("$.content[1].role.code").value("MANAGER"));
   }
 
   @Test
-  @DisplayName("`CA-CM-022` — el historial de un caso concreto, filtrando por los tres sin fecha")
-  void historialDeUnCaso() throws Exception {
-    tarifa(producto, vendedora, "10.00", "2026-01-01", "2026-06-30", false);
-    tarifa(producto, vendedora, "15.00", "2026-07-01", null, false);
-    tarifa(null, null, "5.00", "2026-01-01", null, false);
+  @DisplayName("varias tasas del mismo rol salen de mayor a menor porcentaje")
+  void desempatePorPorcentaje() throws Exception {
+    CommissionFixtures.sembrarTasaDeRol(jdbc, DIRECTOR, "8.00");
 
-    mvc.perform(
-            listado()
-                .param("roleId", VENDEDOR)
-                .param("productId", producto.toString())
-                .param("userId", vendedora.toString()))
-        .andExpect(jsonPath("$.totalElements").value(2))
-        .andExpect(jsonPath("$.content[0].percentage").value(15.00))
-        .andExpect(jsonPath("$.content[1].percentage").value(10.00));
+    mvc.perform(listado().param("roleId", DIRECTOR))
+        .andExpect(jsonPath("$.content[0].percentage").value(8.00))
+        .andExpect(jsonPath("$.content[1].percentage").value(4.00));
   }
 
   @Test
-  @DisplayName("sin el permiso de lectura, 403")
-  void sinPermiso() throws Exception {
+  @DisplayName("el listado exige commissions:read")
+  void exigeElPermiso() throws Exception {
     mvc.perform(
             get("/api/v1/commission-rates")
                 .with(user(SUPERADMIN.toString()).authorities(() -> "commissions:create")))
         .andExpect(status().isForbidden());
   }
 
-  // ---------------------------------------------------------------------------
-
   private MockHttpServletRequestBuilder listado() {
     return get("/api/v1/commission-rates")
         .with(user(SUPERADMIN.toString()).authorities(() -> "commissions:read"));
-  }
-
-  private void tarifa(
-      UUID producto, UUID persona, String pct, String desde, String hasta, boolean retirada) {
-    jdbc.update(
-        "INSERT INTO commission_rates (id, role_id, product_id, user_id, percentage, valid_from,"
-            + " valid_to, deleted_at) VALUES (CAST(? AS uuid), CAST(? AS uuid), CAST(? AS uuid),"
-            + " CAST(? AS uuid), CAST(? AS numeric), CAST(? AS date), CAST(? AS date), "
-            + (retirada ? "now()" : "NULL")
-            + ")",
-        UUID.randomUUID().toString(),
-        VENDEDOR,
-        producto == null ? null : producto.toString(),
-        persona == null ? null : persona.toString(),
-        pct,
-        desde,
-        hasta);
-  }
-
-  private UUID persona(String usuario) {
-    UUID id = UUID.randomUUID();
-    jdbc.update(
-        "INSERT INTO users (id, username, email, first_name, last_name, password_hash, status)"
-            + " VALUES (CAST(? AS uuid), ?, ?, 'Persona', 'De prueba', 'x', 'ACTIVO')",
-        id.toString(),
-        usuario,
-        usuario + "@factech.co");
-    jdbc.update(
-        "INSERT INTO user_roles (user_id, role_id) VALUES (CAST(? AS uuid), CAST(? AS uuid))",
-        id.toString(),
-        VENDEDOR);
-    return id;
-  }
-
-  private UUID producto(String codigo) {
-    UUID id = UUID.randomUUID();
-    String moneda =
-        jdbc.queryForObject("SELECT CAST(id AS text) FROM currencies LIMIT 1", String.class);
-    jdbc.update(
-        "INSERT INTO products (id, code, type, name, price, currency_id, status)"
-            + " VALUES (CAST(? AS uuid), ?, 'BOT', ?, 10.00, CAST(? AS uuid), 'INACTIVO')",
-        id.toString(),
-        codigo,
-        "Producto " + codigo,
-        moneda);
-    return id;
-  }
-
-  private void limpiar() {
-    jdbc.update("DELETE FROM commission_rates");
-    jdbc.update("DELETE FROM products");
-    jdbc.update("DELETE FROM user_roles WHERE user_id <> CAST(? AS uuid)", SUPERADMIN.toString());
-    jdbc.update("DELETE FROM users WHERE id <> CAST(? AS uuid)", SUPERADMIN.toString());
   }
 }

@@ -1,76 +1,40 @@
 package com.factech.nexus.modules.commissions.application;
 
 import com.factech.nexus.modules.commissions.domain.models.CommissionRate;
-import com.factech.nexus.modules.commissions.domain.models.RateScope;
 import com.factech.nexus.modules.commissions.domain.repository.CommissionRateQueryRepository.RateRow;
-import com.factech.nexus.modules.products.application.ProductCatalog.ProductView;
 import com.factech.nexus.modules.system.roles.application.RoleCatalog.RoleView;
-import com.factech.nexus.modules.system.users.application.UserCatalog.UserView;
 import com.fasterxml.jackson.annotation.JsonInclude;
 import java.math.BigDecimal;
-import java.time.LocalDate;
 import java.util.UUID;
 
 /**
- * La tarifa tal como sale de la API.
+ * Una tasa de rol tal como sale de la API.
  *
- * <p><b>{@code JsonInclude.ALWAYS} no es decorativo</b>: sin el, el producto y la persona de una
- * tarifa por omision llegarian <b>ausentes</b> en lugar de {@code null}, y un campo que falta es
- * indistinguible de uno que el cliente no conoce. Aqui ademas significan algo — su ausencia es la
- * que da el alcance.
- *
- * <p><b>El grado viaja calculado</b>, para que el cliente no tenga que deducirlo de tres nulos.
+ * <p><b>{@code associatedProducts} es el campo que impide el malentendido del módulo.</b> Una tasa
+ * recién creada llega con cero, y ese cero significa <b>no paga nada a nadie</b> (`RN-CM-012`). Sin
+ * él, el cliente vería un rol y un porcentaje y concluiría que la tasa está configurada — que es
+ * exactamente lo que era cierto en el modelo anterior y dejó de serlo.
  */
 @JsonInclude(JsonInclude.Include.ALWAYS)
 public record CommissionRateResponse(
-    UUID id,
-    RoleRef role,
-    ProductRef product,
-    UserRef user,
-    RateScope scope,
-    BigDecimal percentage,
-    LocalDate validFrom,
-    LocalDate validTo) {
+    UUID id, RoleRef role, BigDecimal percentage, long associatedProducts) {
 
   /** El rol, resuelto. */
   @JsonInclude(JsonInclude.Include.ALWAYS)
   public record RoleRef(UUID id, String code, String name) {}
 
-  /** El producto, resuelto. Nulo y presente cuando la tarifa rige para todo el catalogo. */
-  @JsonInclude(JsonInclude.Include.ALWAYS)
-  public record ProductRef(UUID id, String code, String name) {}
-
-  /** La persona, resuelta. Nula y presente cuando la tarifa rige para todos los del rol. */
-  @JsonInclude(JsonInclude.Include.ALWAYS)
-  public record UserRef(UUID id, String username, String fullName) {}
-
-  public static CommissionRateResponse from(
-      CommissionRate tarifa, RoleView rol, ProductView producto, UserView persona) {
+  /** Desde el agregado recién creado, que todavía no tiene ninguna asociación. */
+  public static CommissionRateResponse from(CommissionRate tasa, RoleView rol) {
     return new CommissionRateResponse(
-        tarifa.getId(),
-        new RoleRef(rol.id(), rol.code(), rol.name()),
-        producto == null ? null : new ProductRef(producto.id(), producto.code(), producto.name()),
-        persona == null ? null : new UserRef(persona.id(), persona.username(), persona.fullName()),
-        tarifa.scope(),
-        tarifa.getPercentage(),
-        tarifa.getValidFrom(),
-        tarifa.getValidTo());
+        tasa.getId(), new RoleRef(rol.id(), rol.code(), rol.name()), tasa.getPercentage(), 0L);
   }
 
-  /** Desde una fila leida, con lo de otros modulos ya resuelto por la misma sentencia. */
+  /** Desde una fila leída, con el rol ya resuelto por la misma sentencia. */
   public static CommissionRateResponse from(RateRow fila) {
     return new CommissionRateResponse(
         fila.id(),
         new RoleRef(fila.roleId(), fila.roleCode(), fila.roleName()),
-        fila.productId() == null
-            ? null
-            : new ProductRef(fila.productId(), fila.productCode(), fila.productName()),
-        fila.userId() == null
-            ? null
-            : new UserRef(fila.userId(), fila.username(), fila.userFullName()),
-        RateScope.de(fila.userId() != null, fila.productId() != null),
         fila.percentage(),
-        fila.validFrom(),
-        fila.validTo());
+        fila.associatedProducts());
   }
 }

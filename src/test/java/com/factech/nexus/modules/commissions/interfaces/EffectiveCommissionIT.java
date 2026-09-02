@@ -1,5 +1,7 @@
 package com.factech.nexus.modules.commissions.interfaces;
 
+import static com.factech.nexus.modules.commissions.interfaces.CommissionFixtures.DIRECTOR;
+import static com.factech.nexus.modules.commissions.interfaces.CommissionFixtures.MANAGER;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.user;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
@@ -18,17 +20,18 @@ import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.request.MockHttpServletRequestBuilder;
 
 /**
- * La resolución de la comisión efectiva (`RF-CM-005` · `T-07`, `T-08`).
+ * La resolución de la comisión efectiva (`RF-CM-005`).
  *
- * <p><b>Es la suite que verifica `RN-CM-004`</b>, y ninguna de estas pruebas mira el camino feliz:
- * un porcentaje devuelto siempre es <b>plausible</b>, aunque venga del grado equivocado. Lo que se
- * comprueba es <b>cuál</b> gana, y que la ausencia no se confunda con el cero.
+ * <p><b>Aquí es donde el rediseño se ve entero.</b> La precedencia pasó de cuatro grados a dos, y
+ * sobre todo <b>la ausencia cambió de significado</b>: una tasa de rol que existe en el catálogo y
+ * no está asociada al producto <b>no paga nada</b>, donde antes habría pagado como tarifa por
+ * omisión.
+ *
+ * <p>La prueba de {@code laTasaSinAsociarNoPaga} es la que clava esa inversión. Si alguien la
+ * deshiciera, el sistema empezaría a pagar por productos que nadie configuró — y no fallaría.
  */
 @AutoConfigureMockMvc
 class EffectiveCommissionIT extends IntegrationTestBase {
-
-  private static final String VENDEDOR = "01a02a33-4c00-7005-9c4f-5e7ad1000003";
-  private static final String NO_VENDEDOR = "01a02a33-4c00-7002-9c4f-5e7ad1000002";
 
   @Autowired private MockMvc mvc;
   @Autowired private JdbcTemplate jdbc;
@@ -38,224 +41,223 @@ class EffectiveCommissionIT extends IntegrationTestBase {
 
   @BeforeEach
   void preparar() {
-    limpiar();
-    vendedora = persona("vendedora", VENDEDOR);
-    producto = producto("BOT_UNO");
+    CommissionFixtures.limpiar(jdbc, SUPERADMIN);
+    vendedora = CommissionFixtures.sembrarPersonaConRol(jdbc, "vendedora", MANAGER);
+    producto = CommissionFixtures.sembrarProducto(jdbc, "BOT_A");
   }
 
   @AfterEach
   void devolverElEstadoASuSitio() {
-    limpiar();
+    CommissionFixtures.limpiar(jdbc, SUPERADMIN);
   }
 
   @Test
-  @DisplayName("`CA-CM-039` — con solo la tarifa del rol, gana esa y lo dice")
-  void soloLaDelRol() throws Exception {
-    tarifa(null, null, "10.00", "2026-01-01", null);
+  @DisplayName("resuelve la tasa del rol cuando está ASOCIADA a ese producto")
+  void resuelvePorElRol() throws Exception {
+    UUID tasa = CommissionFixtures.sembrarTasaDeRol(jdbc, MANAGER, "10.00");
+    CommissionFixtures.asociar(jdbc, tasa, producto, MANAGER);
 
-    mvc.perform(efectiva(vendedora, producto, "2026-03-01"))
+    mvc.perform(efectiva(vendedora, producto, "2026-05-01"))
         .andExpect(status().isOk())
         .andExpect(jsonPath("$.outcome").value("RESUELTA"))
+        .andExpect(jsonPath("$.source").value("ROL"))
         .andExpect(jsonPath("$.percentage").value(10.00))
-        .andExpect(jsonPath("$.scope").value("ROL"));
+        .andExpect(jsonPath("$.rateId").value(tasa.toString()))
+        // Las de rol no tienen vigencia, y estos nulos lo dicen.
+        .andExpect(jsonPath("$.validFrom").value(org.hamcrest.Matchers.nullValue()));
   }
 
   @Test
-  @DisplayName("`CA-CM-040` — con la del rol y la del producto, GANA LA DEL PRODUCTO")
-  void ganaLaDelProducto() throws Exception {
-    tarifa(null, null, "10.00", "2026-01-01", null);
-    tarifa(producto, null, "20.00", "2026-01-01", null);
+  @DisplayName("`RN-CM-012` — LA TASA SIN ASOCIAR NO PAGA NADA, donde antes era la tarifa de todos")
+  void laTasaSinAsociarNoPaga() throws Exception {
+    // Existe, es del rol correcto, tiene porcentaje... y nadie la asoció.
+    CommissionFixtures.sembrarTasaDeRol(jdbc, MANAGER, "10.00");
 
-    mvc.perform(efectiva(vendedora, producto, "2026-03-01"))
-        .andExpect(jsonPath("$.percentage").value(20.00))
-        .andExpect(jsonPath("$.scope").value("PRODUCTO"));
+    mvc.perform(efectiva(vendedora, producto, "2026-05-01"))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.outcome").value("SIN_TARIFA"))
+        // NULO Y PRESENTE, nunca cero: cero es «no comisiona», que es una
+        // decisión declarada, y la ausencia es que nadie la tomó.
+        .andExpect(jsonPath("$.percentage").value(org.hamcrest.Matchers.nullValue()));
   }
 
   @Test
-  @DisplayName("`CA-CM-041` — con la del rol y la de la persona, GANA LA DE LA PERSONA")
-  void ganaLaDeLaPersona() throws Exception {
-    tarifa(null, null, "10.00", "2026-01-01", null);
-    tarifa(null, vendedora, "30.00", "2026-01-01", null);
+  @DisplayName("la asociación de OTRO producto no sirve para este")
+  void laAsociacionEsPorProducto() throws Exception {
+    UUID otro = CommissionFixtures.sembrarProducto(jdbc, "BOT_B");
+    UUID tasa = CommissionFixtures.sembrarTasaDeRol(jdbc, MANAGER, "10.00");
+    CommissionFixtures.asociar(jdbc, tasa, otro, MANAGER);
 
-    mvc.perform(efectiva(vendedora, producto, "2026-03-01"))
-        .andExpect(jsonPath("$.percentage").value(30.00))
-        .andExpect(jsonPath("$.scope").value("PERSONA"));
-  }
-
-  @Test
-  @DisplayName("`CA-CM-041` — la PERSONA pesa más que el PRODUCTO cuando compiten")
-  void laPersonaPesaMasQueElProducto() throws Exception {
-    tarifa(producto, null, "20.00", "2026-01-01", null);
-    tarifa(null, vendedora, "30.00", "2026-01-01", null);
-
-    // Es el escalón que decide el orden de `RN-CM-004`, y el que se implementa
-    // mal si alguien reordena los criterios.
-    mvc.perform(efectiva(vendedora, producto, "2026-03-01"))
-        .andExpect(jsonPath("$.percentage").value(30.00))
-        .andExpect(jsonPath("$.scope").value("PERSONA"));
-  }
-
-  @Test
-  @DisplayName("`CA-CM-042` — con los cuatro grados, gana la de la persona PARA ESE producto")
-  void ganaLaMasEspecifica() throws Exception {
-    tarifa(null, null, "10.00", "2026-01-01", null);
-    tarifa(producto, null, "20.00", "2026-01-01", null);
-    tarifa(null, vendedora, "30.00", "2026-01-01", null);
-    tarifa(producto, vendedora, "40.00", "2026-01-01", null);
-
-    mvc.perform(efectiva(vendedora, producto, "2026-03-01"))
-        .andExpect(jsonPath("$.percentage").value(40.00))
-        .andExpect(jsonPath("$.scope").value("PERSONA_Y_PRODUCTO"));
-  }
-
-  @Test
-  @DisplayName(
-      "`CA-CM-043` y `CA-CM-045` — se ignora la que no rige, y una fecha pasada da la de entonces")
-  void laFechaManda() throws Exception {
-    tarifa(null, null, "10.00", "2026-01-01", "2026-06-30");
-    tarifa(null, null, "12.00", "2026-07-01", null);
-
-    mvc.perform(efectiva(vendedora, producto, "2026-03-01"))
-        .andExpect(jsonPath("$.percentage").value(10.00));
-
-    mvc.perform(efectiva(vendedora, producto, "2026-09-01"))
-        .andExpect(jsonPath("$.percentage").value(12.00));
-
-    // Antes de toda tarifa: NO se extrapola hacia atrás la más antigua.
-    mvc.perform(efectiva(vendedora, producto, "2025-12-31"))
+    mvc.perform(efectiva(vendedora, producto, "2026-05-01"))
         .andExpect(jsonPath("$.outcome").value("SIN_TARIFA"));
   }
 
   @Test
-  @DisplayName("`CA-CM-046` — una tarifa RETIRADA se ignora y gana la siguiente en precedencia")
-  void laRetiradaNoGana() throws Exception {
-    tarifa(null, null, "10.00", "2026-01-01", null);
-    UUID especifica = tarifa(producto, vendedora, "40.00", "2026-01-01", null);
+  @DisplayName("la asociación de OTRO rol no sirve para esta persona")
+  void laAsociacionEsPorRol() throws Exception {
+    UUID tasa = CommissionFixtures.sembrarTasaDeRol(jdbc, DIRECTOR, "4.00");
+    CommissionFixtures.asociar(jdbc, tasa, producto, DIRECTOR);
 
+    // La vendedora es MANAGER: el producto paga, pero no a ella.
+    mvc.perform(efectiva(vendedora, producto, "2026-05-01"))
+        .andExpect(jsonPath("$.outcome").value("SIN_TARIFA"));
+  }
+
+  @Test
+  @DisplayName("`RN-CM-004` — la personalizada GANA, y sin mirar el producto")
+  void laPersonalizadaGana() throws Exception {
+    UUID delRol = CommissionFixtures.sembrarTasaDeRol(jdbc, MANAGER, "10.00");
+    CommissionFixtures.asociar(jdbc, delRol, producto, MANAGER);
+
+    UUID personal =
+        CommissionFixtures.sembrarTasaPersonal(jdbc, vendedora, "18.00", "2026-01-01", null);
+
+    mvc.perform(efectiva(vendedora, producto, "2026-05-01"))
+        .andExpect(jsonPath("$.outcome").value("RESUELTA"))
+        .andExpect(jsonPath("$.source").value("PERSONALIZADA"))
+        .andExpect(jsonPath("$.percentage").value(18.00))
+        .andExpect(jsonPath("$.rateId").value(personal.toString()));
+  }
+
+  @Test
+  @DisplayName("la personalizada gana incluso sobre un producto SIN asociación")
+  void laPersonalizadaIgnoraElProducto() throws Exception {
+    CommissionFixtures.sembrarTasaPersonal(jdbc, vendedora, "18.00", "2026-01-01", null);
+
+    // El producto no paga a nadie, y ella cobra igual: gana lo mismo venda lo
+    // que venda.
+    mvc.perform(efectiva(vendedora, producto, "2026-05-01"))
+        .andExpect(jsonPath("$.outcome").value("RESUELTA"))
+        .andExpect(jsonPath("$.source").value("PERSONALIZADA"));
+  }
+
+  @Test
+  @DisplayName("la personalizada VENCIDA deja de ganar, y vuelve a mandar la del rol")
+  void laPersonalizadaVencida() throws Exception {
+    UUID delRol = CommissionFixtures.sembrarTasaDeRol(jdbc, MANAGER, "10.00");
+    CommissionFixtures.asociar(jdbc, delRol, producto, MANAGER);
+    CommissionFixtures.sembrarTasaPersonal(jdbc, vendedora, "18.00", "2026-01-01", "2026-03-31");
+
+    mvc.perform(efectiva(vendedora, producto, "2026-02-15"))
+        .andExpect(jsonPath("$.source").value("PERSONALIZADA"));
+
+    mvc.perform(efectiva(vendedora, producto, "2026-05-01"))
+        .andExpect(jsonPath("$.source").value("ROL"))
+        .andExpect(jsonPath("$.percentage").value(10.00));
+  }
+
+  @Test
+  @DisplayName("QUIEN NO VENDE PUEDE COBRAR su personalizada: es lo que costó quitarle el rol")
+  void laPersonalizadaSobreviveAlRol() throws Exception {
+    UUID ajena = CommissionFixtures.sembrarPersonaConRol(jdbc, "ajena", null);
+    CommissionFixtures.sembrarTasaPersonal(jdbc, ajena, "18.00", "2026-01-01", null);
+
+    // No porta rol vendedor, y aun así RESUELVE. Hasta el 01-09-2026 la tarifa
+    // decía «esta persona, EN ESTE ROL» y esto habría sido NO_COMISIONA.
+    // `cm.md` §5.3 lo declara: la tasa sobrevive a que su titular deje de
+    // vender, y no se queda inerte — cobra.
+    mvc.perform(efectiva(ajena, producto, "2026-05-01"))
+        .andExpect(jsonPath("$.outcome").value("RESUELTA"))
+        .andExpect(jsonPath("$.source").value("PERSONALIZADA"))
+        // Y `roleId` llega nulo con `RESUELTA`, que no es incoherencia sino la
+        // forma de verse esta consecuencia.
+        .andExpect(jsonPath("$.roleId").value(org.hamcrest.Matchers.nullValue()));
+  }
+
+  @Test
+  @DisplayName("sin rol vendedor y sin personalizada, NO_COMISIONA")
+  void noComisiona() throws Exception {
+    UUID ajena = CommissionFixtures.sembrarPersonaConRol(jdbc, "ajena", null);
+
+    mvc.perform(efectiva(ajena, producto, "2026-05-01"))
+        .andExpect(jsonPath("$.outcome").value("NO_COMISIONA"))
+        .andExpect(jsonPath("$.percentage").value(org.hamcrest.Matchers.nullValue()))
+        .andExpect(jsonPath("$.roleId").value(org.hamcrest.Matchers.nullValue()));
+  }
+
+  @Test
+  @DisplayName("el porcentaje CERO resuelve, y no es lo mismo que no tener tasa")
+  void elCeroResuelve() throws Exception {
+    UUID tasa = CommissionFixtures.sembrarTasaDeRol(jdbc, MANAGER, "0.00");
+    CommissionFixtures.asociar(jdbc, tasa, producto, MANAGER);
+
+    mvc.perform(efectiva(vendedora, producto, "2026-05-01"))
+        .andExpect(jsonPath("$.outcome").value("RESUELTA"))
+        .andExpect(jsonPath("$.percentage").value(0));
+  }
+
+  @Test
+  @DisplayName("una tasa RETIRADA deja de resolver aunque su asociación exista")
+  void laRetiradaNoResuelve() throws Exception {
+    UUID tasa = CommissionFixtures.sembrarTasaDeRol(jdbc, MANAGER, "10.00");
+    CommissionFixtures.asociar(jdbc, tasa, producto, MANAGER);
     jdbc.update(
         "UPDATE commission_rates SET deleted_at = now() WHERE id = CAST(? AS uuid)",
-        especifica.toString());
+        tasa.toString());
 
-    mvc.perform(efectiva(vendedora, producto, "2026-03-01"))
-        .andExpect(jsonPath("$.percentage").value(10.00))
-        .andExpect(jsonPath("$.scope").value("ROL"));
+    // Es exactamente el estado que `RF-CM-004` se niega a producir: el producto
+    // deja de comisionar y nada lo indica. Aquí se siembra a mano para dejar
+    // constancia de por qué esa negativa existe.
+    mvc.perform(efectiva(vendedora, producto, "2026-05-01"))
+        .andExpect(jsonPath("$.outcome").value("SIN_TARIFA"));
   }
 
   @Test
-  @DisplayName("`CA-CM-047` y `CA-CM-048` — CERO y AUSENCIA no son lo mismo")
-  void elCeroNoEsLaAusencia() throws Exception {
-    // Sin ninguna tarifa: el porcentaje llega NULO y presente, nunca cero.
-    mvc.perform(efectiva(vendedora, producto, "2026-03-01"))
-        .andExpect(status().isOk())
-        .andExpect(jsonPath("$.outcome").value("SIN_TARIFA"))
-        .andExpect(jsonPath("$.percentage").value(org.hamcrest.Matchers.nullValue()));
+  @DisplayName("un producto RETIRADO se resuelve con normalidad")
+  void elProductoRetiradoResuelve() throws Exception {
+    UUID retirado = CommissionFixtures.sembrarProducto(jdbc, "BOT_Z", true);
+    UUID tasa = CommissionFixtures.sembrarTasaDeRol(jdbc, MANAGER, "10.00");
+    CommissionFixtures.asociar(jdbc, tasa, retirado, MANAGER);
 
-    // Con una tarifa del cero: es una respuesta afirmativa — no comisiona, y
-    // alguien lo decidió.
-    tarifa(producto, null, "0", "2026-01-01", null);
-
-    mvc.perform(efectiva(vendedora, producto, "2026-03-01"))
-        .andExpect(jsonPath("$.outcome").value("RESUELTA"))
-        .andExpect(jsonPath("$.percentage").value(0))
-        .andExpect(jsonPath("$.rateId").value(org.hamcrest.Matchers.notNullValue()));
-  }
-
-  @Test
-  @DisplayName(
-      "`CA-CM-050` — quien no porta rol vendedor NO COMISIONA, y se distingue de sin tarifa")
-  void sinRolVendedor() throws Exception {
-    UUID contable = persona("contable", NO_VENDEDOR);
-
-    mvc.perform(efectiva(contable, producto, "2026-03-01"))
-        .andExpect(status().isOk())
-        .andExpect(jsonPath("$.outcome").value("NO_COMISIONA"))
-        .andExpect(jsonPath("$.percentage").value(org.hamcrest.Matchers.nullValue()));
-  }
-
-  @Test
-  @DisplayName("`CA-CM-049` — un producto RETIRADO se resuelve con normalidad")
-  void elProductoRetiradoSeResuelve() throws Exception {
-    tarifa(producto, null, "20.00", "2026-01-01", null);
-    jdbc.update(
-        "UPDATE products SET deleted_at = now() WHERE id = CAST(? AS uuid)", producto.toString());
-
-    // Preguntar qué se pagaba por algo que ya no se vende es legítimo, y es la
+    // Preguntar qué se pagaba por algo que ya no se vende es legítimo: es la
     // consulta que una liquidación atrasada necesita.
-    mvc.perform(efectiva(vendedora, producto, "2026-03-01"))
-        .andExpect(status().isOk())
-        .andExpect(jsonPath("$.percentage").value(20.00));
+    mvc.perform(efectiva(vendedora, retirado, "2026-05-01"))
+        .andExpect(jsonPath("$.outcome").value("RESUELTA"));
   }
 
   @Test
-  @DisplayName(
-      "la persona y el producto inexistentes se rechazan, y no se confunden con sin tarifa")
-  void datosInexistentes() throws Exception {
-    mvc.perform(efectiva(UUID.randomUUID(), producto, "2026-03-01"))
-        .andExpect(status().isUnprocessableEntity());
+  @DisplayName("sin `onDate` se resuelve con la fecha de hoy")
+  void sinFecha() throws Exception {
+    CommissionFixtures.sembrarTasaPersonal(jdbc, vendedora, "18.00", "2020-01-01", null);
 
-    mvc.perform(efectiva(vendedora, UUID.randomUUID(), "2026-03-01"))
-        .andExpect(status().isUnprocessableEntity());
+    mvc.perform(
+            get("/api/v1/commissions/effective")
+                .param("userId", vendedora.toString())
+                .param("productId", producto.toString())
+                .with(user(SUPERADMIN.toString()).authorities(() -> "commissions:read")))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.outcome").value("RESUELTA"))
+        .andExpect(jsonPath("$.onDate").exists());
   }
 
-  // ---------------------------------------------------------------------------
+  @Test
+  @DisplayName("la persona y el producto inexistentes se distinguen con 422")
+  void inexistentes() throws Exception {
+    mvc.perform(efectiva(UUID.randomUUID(), producto, "2026-05-01"))
+        .andExpect(status().isUnprocessableEntity())
+        .andExpect(jsonPath("$.errors[0].code").value("EX-001"));
+
+    mvc.perform(efectiva(vendedora, UUID.randomUUID(), "2026-05-01"))
+        .andExpect(status().isUnprocessableEntity())
+        .andExpect(jsonPath("$.errors[0].code").value("EX-002"));
+  }
+
+  @Test
+  @DisplayName("resolver exige commissions:read")
+  void exigeElPermiso() throws Exception {
+    mvc.perform(
+            get("/api/v1/commissions/effective")
+                .param("userId", vendedora.toString())
+                .param("productId", producto.toString())
+                .with(user(SUPERADMIN.toString()).authorities(() -> "commissions:create")))
+        .andExpect(status().isForbidden());
+  }
 
   private MockHttpServletRequestBuilder efectiva(UUID persona, UUID producto, String fecha) {
     return get("/api/v1/commissions/effective")
-        .with(user(SUPERADMIN.toString()).authorities(() -> "commissions:read"))
         .param("userId", persona.toString())
         .param("productId", producto.toString())
-        .param("onDate", fecha);
-  }
-
-  private UUID tarifa(UUID producto, UUID persona, String pct, String desde, String hasta) {
-    UUID id = UUID.randomUUID();
-    jdbc.update(
-        "INSERT INTO commission_rates (id, role_id, product_id, user_id, percentage, valid_from,"
-            + " valid_to) VALUES (CAST(? AS uuid), CAST(? AS uuid), CAST(? AS uuid),"
-            + " CAST(? AS uuid), CAST(? AS numeric), CAST(? AS date), CAST(? AS date))",
-        id.toString(),
-        VENDEDOR,
-        producto == null ? null : producto.toString(),
-        persona == null ? null : persona.toString(),
-        pct,
-        desde,
-        hasta);
-    return id;
-  }
-
-  private UUID persona(String usuario, String rol) {
-    UUID id = UUID.randomUUID();
-    jdbc.update(
-        "INSERT INTO users (id, username, email, first_name, last_name, password_hash, status)"
-            + " VALUES (CAST(? AS uuid), ?, ?, 'Persona', 'De prueba', 'x', 'ACTIVO')",
-        id.toString(),
-        usuario,
-        usuario + "@factech.co");
-    jdbc.update(
-        "INSERT INTO user_roles (user_id, role_id) VALUES (CAST(? AS uuid), CAST(? AS uuid))",
-        id.toString(),
-        rol);
-    return id;
-  }
-
-  private UUID producto(String codigo) {
-    UUID id = UUID.randomUUID();
-    String moneda =
-        jdbc.queryForObject("SELECT CAST(id AS text) FROM currencies LIMIT 1", String.class);
-    jdbc.update(
-        "INSERT INTO products (id, code, type, name, price, currency_id, status)"
-            + " VALUES (CAST(? AS uuid), ?, 'BOT', ?, 10.00, CAST(? AS uuid), 'INACTIVO')",
-        id.toString(),
-        codigo,
-        "Producto " + codigo,
-        moneda);
-    return id;
-  }
-
-  private void limpiar() {
-    jdbc.update("DELETE FROM commission_rates");
-    jdbc.update("DELETE FROM products");
-    jdbc.update("DELETE FROM user_roles WHERE user_id <> CAST(? AS uuid)", SUPERADMIN.toString());
-    jdbc.update("DELETE FROM users WHERE id <> CAST(? AS uuid)", SUPERADMIN.toString());
+        .param("onDate", fecha)
+        .with(user(SUPERADMIN.toString()).authorities(() -> "commissions:read"));
   }
 }

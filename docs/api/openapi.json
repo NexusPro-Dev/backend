@@ -55,6 +55,16 @@
         "required" : [ "supervisorId" ],
         "type" : "object"
       },
+      "AssociateProductRequest" : {
+        "properties" : {
+          "productId" : {
+            "format" : "uuid",
+            "type" : "string"
+          }
+        },
+        "required" : [ "productId" ],
+        "type" : "object"
+      },
       "AuditActor" : {
         "properties" : {
           "fullName" : {
@@ -205,6 +215,10 @@
       },
       "CommissionRateItem" : {
         "properties" : {
+          "associatedProducts" : {
+            "format" : "int64",
+            "type" : "integer"
+          },
           "deletedAt" : {
             "format" : "date-time",
             "type" : "string"
@@ -216,26 +230,8 @@
           "percentage" : {
             "type" : "number"
           },
-          "product" : {
-            "$ref" : "#/components/schemas/ProductRef"
-          },
           "role" : {
             "$ref" : "#/components/schemas/RoleRef"
-          },
-          "scope" : {
-            "enum" : [ "PERSONA_Y_PRODUCTO", "PERSONA", "PRODUCTO", "ROL" ],
-            "type" : "string"
-          },
-          "user" : {
-            "$ref" : "#/components/schemas/UserRef"
-          },
-          "validFrom" : {
-            "format" : "date",
-            "type" : "string"
-          },
-          "validTo" : {
-            "format" : "date",
-            "type" : "string"
           }
         },
         "type" : "object"
@@ -275,6 +271,10 @@
       },
       "CommissionRateResponse" : {
         "properties" : {
+          "associatedProducts" : {
+            "format" : "int64",
+            "type" : "integer"
+          },
           "id" : {
             "format" : "uuid",
             "type" : "string"
@@ -282,26 +282,8 @@
           "percentage" : {
             "type" : "number"
           },
-          "product" : {
-            "$ref" : "#/components/schemas/ProductRef"
-          },
           "role" : {
             "$ref" : "#/components/schemas/RoleRef"
-          },
-          "scope" : {
-            "enum" : [ "PERSONA_Y_PRODUCTO", "PERSONA", "PRODUCTO", "ROL" ],
-            "type" : "string"
-          },
-          "user" : {
-            "$ref" : "#/components/schemas/UserRef"
-          },
-          "validFrom" : {
-            "format" : "date",
-            "type" : "string"
-          },
-          "validTo" : {
-            "format" : "date",
-            "type" : "string"
           }
         },
         "type" : "object"
@@ -508,6 +490,14 @@
         },
         "type" : "object"
       },
+      "DissociateProductRequest" : {
+        "properties" : {
+          "reason" : {
+            "type" : "string"
+          }
+        },
+        "type" : "object"
+      },
       "EffectiveCommissionResponse" : {
         "properties" : {
           "onDate" : {
@@ -529,8 +519,8 @@
             "format" : "uuid",
             "type" : "string"
           },
-          "scope" : {
-            "enum" : [ "PERSONA_Y_PRODUCTO", "PERSONA", "PRODUCTO", "ROL" ],
+          "source" : {
+            "enum" : [ "PERSONALIZADA", "ROL" ],
             "type" : "string"
           },
           "validFrom" : {
@@ -639,17 +629,9 @@
           "includeDeleted" : {
             "type" : "boolean"
           },
-          "onDate" : {
-            "format" : "date",
-            "type" : "string"
-          },
           "page" : {
             "format" : "int32",
             "type" : "integer"
-          },
-          "productId" : {
-            "format" : "uuid",
-            "type" : "string"
           },
           "roleId" : {
             "format" : "uuid",
@@ -658,10 +640,6 @@
           "size" : {
             "format" : "int32",
             "type" : "integer"
-          },
-          "userId" : {
-            "format" : "uuid",
-            "type" : "string"
           }
         },
         "type" : "object"
@@ -702,6 +680,30 @@
             "type" : "string"
           },
           "search" : {
+            "type" : "string"
+          }
+        },
+        "type" : "object"
+      },
+      "ListUserCommissionRatesRequest" : {
+        "properties" : {
+          "includeDeleted" : {
+            "type" : "boolean"
+          },
+          "onDate" : {
+            "format" : "date",
+            "type" : "string"
+          },
+          "page" : {
+            "format" : "int32",
+            "type" : "integer"
+          },
+          "size" : {
+            "format" : "int32",
+            "type" : "integer"
+          },
+          "userId" : {
+            "format" : "uuid",
             "type" : "string"
           }
         },
@@ -1177,6 +1179,39 @@
         },
         "type" : "object"
       },
+      "ProductAssociationItem" : {
+        "properties" : {
+          "commissionRateId" : {
+            "format" : "uuid",
+            "type" : "string"
+          },
+          "createdAt" : {
+            "format" : "date-time",
+            "type" : "string"
+          },
+          "percentage" : {
+            "type" : "number"
+          },
+          "product" : {
+            "$ref" : "#/components/schemas/ProductRef"
+          },
+          "role" : {
+            "$ref" : "#/components/schemas/RoleRef"
+          }
+        },
+        "type" : "object"
+      },
+      "ProductAssociationResponse" : {
+        "properties" : {
+          "content" : {
+            "items" : {
+              "$ref" : "#/components/schemas/ProductAssociationItem"
+            },
+            "type" : "array"
+          }
+        },
+        "type" : "object"
+      },
       "ProductDetailResponse" : {
         "properties" : {
           "code" : {
@@ -1399,28 +1434,12 @@
             "minimum" : 0.0,
             "type" : "number"
           },
-          "productId" : {
-            "format" : "uuid",
-            "type" : "string"
-          },
           "roleId" : {
             "format" : "uuid",
             "type" : "string"
-          },
-          "userId" : {
-            "format" : "uuid",
-            "type" : "string"
-          },
-          "validFrom" : {
-            "format" : "date",
-            "type" : "string"
-          },
-          "validTo" : {
-            "format" : "date",
-            "type" : "string"
           }
         },
-        "required" : [ "percentage", "roleId", "validFrom" ],
+        "required" : [ "percentage", "roleId" ],
         "type" : "object"
       },
       "RegisterCountryRequest" : {
@@ -1516,6 +1535,29 @@
           }
         },
         "required" : [ "code", "currencyId", "name", "price", "type" ],
+        "type" : "object"
+      },
+      "RegisterUserCommissionRateRequest" : {
+        "properties" : {
+          "percentage" : {
+            "maximum" : 100.0,
+            "minimum" : 0.0,
+            "type" : "number"
+          },
+          "userId" : {
+            "format" : "uuid",
+            "type" : "string"
+          },
+          "validFrom" : {
+            "format" : "date",
+            "type" : "string"
+          },
+          "validTo" : {
+            "format" : "date",
+            "type" : "string"
+          }
+        },
+        "required" : [ "percentage", "userId", "validFrom" ],
         "type" : "object"
       },
       "RegisterUserRequest" : {
@@ -1819,20 +1861,8 @@
           "percentage" : {
             "$ref" : "#/components/schemas/PatchableBigDecimal"
           },
-          "productId" : {
-            "$ref" : "#/components/schemas/PatchableObject"
-          },
           "roleId" : {
             "$ref" : "#/components/schemas/PatchableObject"
-          },
-          "userId" : {
-            "$ref" : "#/components/schemas/PatchableObject"
-          },
-          "validFrom" : {
-            "$ref" : "#/components/schemas/PatchableObject"
-          },
-          "validTo" : {
-            "$ref" : "#/components/schemas/PatchableLocalDate"
           }
         },
         "type" : "object"
@@ -1897,6 +1927,23 @@
         },
         "type" : "object"
       },
+      "UpdateUserCommissionRateRequest" : {
+        "properties" : {
+          "percentage" : {
+            "$ref" : "#/components/schemas/PatchableBigDecimal"
+          },
+          "userId" : {
+            "$ref" : "#/components/schemas/PatchableObject"
+          },
+          "validFrom" : {
+            "$ref" : "#/components/schemas/PatchableObject"
+          },
+          "validTo" : {
+            "$ref" : "#/components/schemas/PatchableLocalDate"
+          }
+        },
+        "type" : "object"
+      },
       "UpdateUserRequest" : {
         "properties" : {
           "email" : {
@@ -1907,6 +1954,89 @@
           },
           "lastName" : {
             "$ref" : "#/components/schemas/PatchableString"
+          }
+        },
+        "type" : "object"
+      },
+      "UserCommissionRateItem" : {
+        "properties" : {
+          "deletedAt" : {
+            "format" : "date-time",
+            "type" : "string"
+          },
+          "id" : {
+            "format" : "uuid",
+            "type" : "string"
+          },
+          "percentage" : {
+            "type" : "number"
+          },
+          "user" : {
+            "$ref" : "#/components/schemas/UserRef"
+          },
+          "validFrom" : {
+            "format" : "date",
+            "type" : "string"
+          },
+          "validTo" : {
+            "format" : "date",
+            "type" : "string"
+          }
+        },
+        "type" : "object"
+      },
+      "UserCommissionRatePageResponse" : {
+        "properties" : {
+          "content" : {
+            "items" : {
+              "$ref" : "#/components/schemas/UserCommissionRateItem"
+            },
+            "type" : "array"
+          },
+          "page" : {
+            "format" : "int32",
+            "type" : "integer"
+          },
+          "size" : {
+            "format" : "int32",
+            "type" : "integer"
+          },
+          "sort" : {
+            "type" : "string"
+          },
+          "totalElements" : {
+            "format" : "int64",
+            "type" : "integer"
+          },
+          "totalIsExact" : {
+            "type" : "boolean"
+          },
+          "totalPages" : {
+            "format" : "int32",
+            "type" : "integer"
+          }
+        },
+        "type" : "object"
+      },
+      "UserCommissionRateResponse" : {
+        "properties" : {
+          "id" : {
+            "format" : "uuid",
+            "type" : "string"
+          },
+          "percentage" : {
+            "type" : "number"
+          },
+          "user" : {
+            "$ref" : "#/components/schemas/UserRef"
+          },
+          "validFrom" : {
+            "format" : "date",
+            "type" : "string"
+          },
+          "validTo" : {
+            "format" : "date",
+            "type" : "string"
           }
         },
         "type" : "object"
@@ -2853,8 +2983,8 @@
     },
     "/api/v1/commission-rates" : {
       "get" : {
-        "description" : "Devuelve las tarifas **tal como se declararon**, y no resuelve cuál se\naplica: para eso está `GET /api/v1/commissions/effective`.\n\n**Incluye el historial**: las vencidas viajan junto a las vigentes salvo\nque se filtre por fecha con `onDate`.\n\n**Filtrar por persona devuelve las declaradas PARA esa persona**, no las\nque le aplican.\n",
-        "operationId" : "listar_3",
+        "description" : "Devuelve el **catálogo**, no lo que rige.\n\n**`associatedProducts` es el campo que hay que mirar**: una tasa con cero\nasociaciones aparece aquí con su porcentaje y **no paga nada a nadie**.\n\nLas tasas **personalizadas** no salen en este listado: están en\n`GET /api/v1/user-commission-rates`.\n\n**No hay filtro por fecha**, porque las tasas de rol no tienen vigencia:\nel catálogo solo sabe lo que dice hoy.\n",
+        "operationId" : "listar_4",
         "parameters" : [ {
           "in" : "query",
           "name" : "filtros",
@@ -2872,7 +3002,7 @@
                 }
               }
             },
-            "description" : "Página de tarifas"
+            "description" : "Página de tasas"
           },
           "400" : {
             "content" : {
@@ -2895,12 +3025,12 @@
             "description" : "Sin permiso"
           }
         },
-        "summary" : "Consultar las tarifas de comisión",
+        "summary" : "Consultar el catálogo de tasas por rol",
         "tags" : [ "Comisiones" ]
       },
       "post" : {
-        "description" : "Declara cuánto gana un rol de tipo **vendedor** por vender.\n\n**La ausencia es la que da el alcance**: sin `userId` la tarifa rige para\ntodos los del rol, y sin `productId` para todo el catálogo. No hay ningún\ncampo que diga «para todos».\n\n**Toda tarifa rige durante un periodo**: `validFrom` es obligatorio y\n`validTo` opcional — sin él, rige indefinidamente.\n\n**El porcentaje cero es válido** y significa «esto no comisiona», que **no\nes lo mismo** que no declarar la tarifa.\n\nDos tarifas del mismo rol, producto y persona **no pueden solaparse** en el\ntiempo. Si una termina el 31, la siguiente empieza el 1.\n",
-        "operationId" : "registrar_4",
+        "description" : "Declara cuánto gana un rol de tipo **vendedor** por vender.\n\n**Registrar una tasa NO la pone en vigor.** Hasta que se asocie a un\nproducto con `POST /{id}/products`, **no paga nada a nadie**. La respuesta\nlleva `associatedProducts`, que aquí vale siempre cero.\n\nEsto es lo contrario de lo que ocurría antes del 01-09-2026, cuando una\ntarifa sin producto regía sobre **todo el catálogo**.\n\n**Varias tasas por rol son legítimas**: el catálogo puede ofrecer\n`AGENTE 10 %` y `AGENTE 15 %` para asociarlas a productos distintos.\n\n**El porcentaje cero es válido** y significa «esto no comisiona», que **no\nes lo mismo** que no declarar la tasa.\n",
+        "operationId" : "registrar_5",
         "requestBody" : {
           "content" : {
             "application/json" : {
@@ -2920,7 +3050,7 @@
                 }
               }
             },
-            "description" : "Tarifa registrada"
+            "description" : "Tasa registrada, y todavía sin regir"
           },
           "400" : {
             "content" : {
@@ -2942,16 +3072,6 @@
             },
             "description" : "Sin permiso"
           },
-          "409" : {
-            "content" : {
-              "*/*" : {
-                "schema" : {
-                  "$ref" : "#/components/schemas/CommissionRateResponse"
-                }
-              }
-            },
-            "description" : "Se solapa con otra tarifa viva"
-          },
           "422" : {
             "content" : {
               "*/*" : {
@@ -2960,17 +3080,17 @@
                 }
               }
             },
-            "description" : "El rol, el producto o la persona no resuelven"
+            "description" : "El rol no existe"
           }
         },
-        "summary" : "Registrar una tarifa de comisión",
+        "summary" : "Registrar una tasa de comisión por rol",
         "tags" : [ "Comisiones" ]
       }
     },
     "/api/v1/commission-rates/{id}" : {
       "patch" : {
-        "description" : "Corrige el **porcentaje** y el **fin de vigencia**. Se aplica lo que llega\ny se deja intacto lo que no.\n\n**Corregir no es cambiar**: corregir arregla un error y reescribe lo que\nesa tarifa dice que rigió. Cambiar la comisión a partir de una fecha es\n**cerrar la vigente y registrar otra**, que son dos operaciones.\n\n`validTo: null` **vacía** el fin de vigencia y la tarifa vuelve a regir\nindefinidamente; `percentage: null` se **rechaza**.\n\n**El rol, el producto, la persona y el inicio de vigencia no se corrigen**,\ny enviarlos devuelve `400`. Se rechazan y no se ignoran: ignorarlos haría\ncreer que el cambio se aplicó.\n",
-        "operationId" : "corregir_1",
+        "description" : "Corrige el **porcentaje**, que es lo único corregible.\n\n**Esta operación borra el pasado.** Las tasas de rol no tienen vigencia:\npasar un `AGENTE` de 10 a 12 **borra el 10**. No hay dos filas contando\ncada una su parte; hay una que ahora dice otra cosa.\n\nLo único que preserva lo ya pagado es que la liquidación haya copiado el\nporcentaje que aplicó — y esa liquidación **todavía no existe**.\n\n`percentage: null` se **rechaza**. **El rol no se corrige**, y enviarlo\ndevuelve `400`: se rechaza y no se ignora, porque ignorarlo haría creer\nque el cambio se aplicó.\n",
+        "operationId" : "corregir_2",
         "parameters" : [ {
           "in" : "path",
           "name" : "id",
@@ -2999,7 +3119,7 @@
                 }
               }
             },
-            "description" : "Tarifa corregida"
+            "description" : "Tasa corregida"
           },
           "400" : {
             "content" : {
@@ -3030,26 +3150,16 @@
               }
             },
             "description" : "No existe, o está retirada"
-          },
-          "409" : {
-            "content" : {
-              "*/*" : {
-                "schema" : {
-                  "$ref" : "#/components/schemas/CommissionRateResponse"
-                }
-              }
-            },
-            "description" : "La vigencia resultante se solapa"
           }
         },
-        "summary" : "Corregir una tarifa de comisión",
+        "summary" : "Corregir el porcentaje de una tasa de rol",
         "tags" : [ "Comisiones" ]
       }
     },
     "/api/v1/commission-rates/{id}/deletion" : {
       "post" : {
-        "description" : "Retira una tarifa que **no debió existir**, con **motivo obligatorio**.\n\n**Retirar no es cerrar la vigencia**: se cierra lo que dejó de regir, se\nretira lo que fue un error. Por eso el retiro **no toca la vigencia** — el\nregistro de eliminación debe poder decir qué periodo cubría lo retirado.\n\n**No es idempotente**: retirar dos veces devuelve `409`.\n\nLos días que ocupaba **quedan libres**, de modo que puede declararse otra\ntarifa que los cubra.\n",
-        "operationId" : "retirar_1",
+        "description" : "Retira una tasa que **no debió existir**, con **motivo obligatorio**.\n\n**Una tasa asociada a algún producto no se retira** y devuelve `409`.\nRetire primero esas asociaciones: si no, el producto dejaría de comisionar\n**sin que nada lo indicara**, porque la asociación sobreviviría apuntando a\nuna fila muerta.\n\n**Para dejar de pagar sin destruir la tasa**, use la desasociación\n(`POST /{id}/products/{productId}/deletion`): la tasa sigue en el catálogo\ny disponible para otros productos.\n\n**No es idempotente**: retirar dos veces devuelve `409`.\n",
+        "operationId" : "retirar_2",
         "parameters" : [ {
           "in" : "path",
           "name" : "id",
@@ -3070,7 +3180,7 @@
         },
         "responses" : {
           "204" : {
-            "description" : "Tarifa retirada"
+            "description" : "Tasa retirada"
           },
           "400" : {
             "description" : "Motivo ausente, en blanco o demasiado largo"
@@ -3079,19 +3189,193 @@
             "description" : "Sin permiso"
           },
           "404" : {
-            "description" : "La tarifa no existe"
+            "description" : "La tasa no existe"
           },
           "409" : {
-            "description" : "Ya estaba retirada"
+            "description" : "Ya estaba retirada, o sigue asociada a algún producto"
           }
         },
-        "summary" : "Retirar una tarifa de comisión",
+        "summary" : "Retirar una tasa de comisión por rol",
+        "tags" : [ "Comisiones" ]
+      }
+    },
+    "/api/v1/commission-rates/{id}/products" : {
+      "get" : {
+        "description" : "**Una lista vacía significa que la tasa no paga nada a nadie**, por mucho\nque tenga porcentaje.\n\nNo se pagina: una tasa se asocia a un puñado de productos.\n",
+        "operationId" : "productosDeLaTasa",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "id",
+          "required" : true,
+          "schema" : {
+            "format" : "uuid",
+            "type" : "string"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ProductAssociationResponse"
+                }
+              }
+            },
+            "description" : "Las asociaciones de la tasa"
+          },
+          "403" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ProductAssociationResponse"
+                }
+              }
+            },
+            "description" : "Sin permiso"
+          }
+        },
+        "summary" : "Consultar sobre qué productos rige la tasa",
+        "tags" : [ "Comisiones" ]
+      },
+      "post" : {
+        "description" : "**Es lo único que pone una tasa en vigor** (`RN-CM-012`). Sin esto, la tasa\nexiste en el catálogo y no paga nada a nadie.\n\n**El rol no se envía**: se toma de la tasa que nombra la ruta, y el esquema\nhace imposible que diverja del que ella declara.\n\n**Un solo porcentaje por rol y producto** (`RN-CM-013`): si ese rol ya\ntiene otra tasa asociada a ese producto, devuelve `409`. Retire la\nasociación existente antes de declarar otra.\n\n**No se asocia a un producto retirado** ni desde una tasa retirada.\n\nDevuelve **todas** las asociaciones de la tasa, no solo la nueva.\n",
+        "operationId" : "asociar",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "id",
+          "required" : true,
+          "schema" : {
+            "format" : "uuid",
+            "type" : "string"
+          }
+        } ],
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/AssociateProductRequest"
+              }
+            }
+          },
+          "required" : true
+        },
+        "responses" : {
+          "201" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ProductAssociationResponse"
+                }
+              }
+            },
+            "description" : "Asociada. Devuelve todas sus asociaciones"
+          },
+          "400" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ProductAssociationResponse"
+                }
+              }
+            },
+            "description" : "Datos inválidos"
+          },
+          "403" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ProductAssociationResponse"
+                }
+              }
+            },
+            "description" : "Sin permiso"
+          },
+          "404" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ProductAssociationResponse"
+                }
+              }
+            },
+            "description" : "La tasa no existe o está retirada"
+          },
+          "409" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ProductAssociationResponse"
+                }
+              }
+            },
+            "description" : "Ese rol ya paga por ese producto, o el producto está retirado"
+          },
+          "422" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ProductAssociationResponse"
+                }
+              }
+            },
+            "description" : "El producto no existe"
+          }
+        },
+        "summary" : "Asociar la tasa a un producto",
+        "tags" : [ "Comisiones" ]
+      }
+    },
+    "/api/v1/commission-rates/{id}/products/{productId}/deletion" : {
+      "post" : {
+        "description" : "**Es la única forma de dejar de pagar sin retirar la tasa**: sigue en el\ncatálogo y disponible para otros productos.\n\n**El borrado es físico** y la tabla no tiene retiro lógico, de modo que\n**el registro de eliminación es lo único que queda** de que esa tasa rigió\nalguna vez sobre ese producto. De ahí el **motivo obligatorio**.\n\nSi esa tasa no está asociada a ese producto devuelve `404` — y no `409`,\nporque al no quedar rastro no puede distinguirse «nunca existió» de «ya se\nborró».\n",
+        "operationId" : "desasociar",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "id",
+          "required" : true,
+          "schema" : {
+            "format" : "uuid",
+            "type" : "string"
+          }
+        }, {
+          "in" : "path",
+          "name" : "productId",
+          "required" : true,
+          "schema" : {
+            "format" : "uuid",
+            "type" : "string"
+          }
+        } ],
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/DissociateProductRequest"
+              }
+            }
+          }
+        },
+        "responses" : {
+          "204" : {
+            "description" : "Asociación retirada"
+          },
+          "400" : {
+            "description" : "Motivo ausente, en blanco o demasiado largo"
+          },
+          "403" : {
+            "description" : "Sin permiso"
+          },
+          "404" : {
+            "description" : "Esa tasa no está asociada a ese producto"
+          }
+        },
+        "summary" : "Retirar la asociación de la tasa con un producto",
         "tags" : [ "Comisiones" ]
       }
     },
     "/api/v1/commissions/effective" : {
       "get" : {
-        "description" : "Responde **cuánto le corresponde a una persona por vender un producto un\ndía concreto**, y **por qué**: devuelve la tarifa que ganó y en qué grado\nestaba declarada.\n\n**Tres desenlaces, y ninguno es un error:**\n\n- `RESUELTA`: hay tarifa. El porcentaje puede ser **cero**, y eso significa\n  «no comisiona» — es una decisión declarada.\n- `SIN_TARIFA`: la persona vende y **nadie declaró** tarifa aplicable. El\n  porcentaje llega **nulo y presente**, nunca cero.\n- `NO_COMISIONA`: la persona **no porta ningún rol vendedor**.\n\n**Nulo y cero no son lo mismo**, y quien consuma esto va a pagar con esa\ncifra.\n\nSin `onDate`, se resuelve con la fecha de hoy. Un producto **retirado** se\nresuelve con normalidad: preguntar qué se pagaba por algo que ya no se\nvende es legítimo.\n",
+        "description" : "Responde **cuánto le corresponde a una persona por vender un producto un\ndía concreto**, y **por qué**: devuelve la tasa que ganó y de cuál de las\ndos piezas salió.\n\n**La precedencia son dos niveles:** si la persona tiene una tasa\n**personalizada** vigente ese día, es esa — **sin mirar el producto**. Si\nno, la que su **rol vendedor** tenga **asociada a ese producto**.\n\n**Tres desenlaces, y ninguno es un error:**\n\n- `RESUELTA`: hay tasa. `source` dice si fue `PERSONALIZADA` o `ROL`. El\n  porcentaje puede ser **cero**, y eso significa «no comisiona» — es una\n  decisión declarada.\n- `SIN_TARIFA`: la persona vende y **no hay tasa aplicable**. La causa más\n  probable **no es que nadie la declarara**, sino que **nadie la asoció** a\n  ese producto: la tasa puede existir en el catálogo y no regir. El\n  porcentaje llega **nulo y presente**, nunca cero.\n- `NO_COMISIONA`: la persona **no porta rol vendedor** y **tampoco tiene\n  tasa personalizada**.\n\n**`roleId` puede llegar nulo con `outcome` igual a `RESUELTA`**, y no es\nincoherente: significa que ganó la tasa personalizada de alguien que ya no\nporta rol vendedor. Las personalizadas dejaron de llevar rol el\n01-09-2026, y **siguen rigiendo aunque su titular deje de vender**.\n\n**Nulo y cero no son lo mismo**, y quien consuma esto va a pagar con esa\ncifra.\n\nSin `onDate`, se resuelve con la fecha de hoy. Un producto **retirado** se\nresuelve con normalidad: preguntar qué se pagaba por algo que ya no se\nvende es legítimo.\n",
         "operationId" : "efectiva",
         "parameters" : [ {
           "in" : "query",
@@ -3205,7 +3489,7 @@
       },
       "post" : {
         "description" : "Registra un país en el catálogo. Queda **activo** siempre: el estado no\nse envía y enviarlo devuelve `400`.\n\nEl código se normaliza a mayúsculas y se recorta, porque lo fija\nISO 3166-1 alfa-3 y no lo inventa nadie: `col`, ` COL` y `COL` son el\nmismo país. Son tres letras y no dos.\n\nEl nombre admite acentos y caracteres no latinos sin transformación\nalguna, pero **no puede coincidir** con otro ya registrado ignorando\nmayúsculas y acentos: el catálogo no se edita, y el duplicado sería\npermanente.\n",
-        "operationId" : "registrar_3",
+        "operationId" : "registrar_4",
         "requestBody" : {
           "content" : {
             "application/json" : {
@@ -3436,7 +3720,7 @@
       },
       "post" : {
         "description" : "Inserta una membresía en la cadena, por encima de la hija indicada.\n\nSi no se indica hija, la membresía queda en el extremo inferior y no se\nreordena nada. Si se indica, la nueva ocupa su nivel, hereda su superior\ny todo lo que estaba en ese nivel o por debajo baja uno.\n\nEl nivel y la superior **no se envían**: los calcula el sistema. Enviar\n`level` o `parentMembershipId` devuelve `400`.\n",
-        "operationId" : "registrar_2",
+        "operationId" : "registrar_3",
         "requestBody" : {
           "content" : {
             "application/json" : {
@@ -3663,10 +3947,59 @@
         "tags" : [ "Permisos" ]
       }
     },
+    "/api/v1/product-commission-rates" : {
+      "get" : {
+        "description" : "Devuelve una entrada **por cada rol** que cobra comisión por ese producto,\ncon el porcentaje ya resuelto.\n\n**Una lista vacía significa que ese producto no paga comisión a nadie**\n— ni siquiera a los roles que tienen tasa en el catálogo, si nadie la\nasoció (`RN-CM-012`).\n\n**Esto no resuelve la comisión de una persona.** Una tasa personalizada\ngana sobre todas estas y no aparece aquí, porque no se asocia a productos.\nPara saber qué cobra alguien concreto, use\n`GET /api/v1/commissions/effective`.\n",
+        "operationId" : "porProducto",
+        "parameters" : [ {
+          "in" : "query",
+          "name" : "productId",
+          "required" : true,
+          "schema" : {
+            "format" : "uuid",
+            "type" : "string"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ProductAssociationResponse"
+                }
+              }
+            },
+            "description" : "Las asociaciones del producto"
+          },
+          "400" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ProductAssociationResponse"
+                }
+              }
+            },
+            "description" : "Parámetros inválidos"
+          },
+          "403" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ProductAssociationResponse"
+                }
+              }
+            },
+            "description" : "Sin permiso"
+          }
+        },
+        "summary" : "Consultar qué comisiona un producto, y a qué rol",
+        "tags" : [ "Comisiones" ]
+      }
+    },
     "/api/v1/products" : {
       "get" : {
         "description" : "Devuelve el catálogo **paginado**, con el destino de cada upgrade y la\nmoneda de cada precio ya resueltos: no hace falta una segunda consulta.\n\n**Los retirados quedan fuera salvo que se pidan** con `includeDeleted`.\nAl pedirlos se indica **desde cuándo** lo están; el **motivo** no viaja\nen el listado —uno a uno lo devuelve el detalle (`RF-PM-003`), en\nbloque sería una exportación de decisiones comerciales—. Verlos **no\nexige un permiso propio**: basta `products:read`.\n\nSolo se puede ordenar por la lista blanca —`name`, `price`,\n`createdAt`—, con `,asc` o `,desc`. **Un campo fuera de ella se\nrechaza y no se ignora**: ignorarlo devolvería un orden distinto del\npedido sin decirlo. Por omisión se ordena por **fecha de alta\ndescendente**, y el orden aplicado viaja en la respuesta.\n\n**`targetMembershipId` no se valida contra el catálogo de membresías.**\nFiltrar por un destino inexistente devuelve la colección vacía y no es\nun error; combinarlo con `type=BOT` también, porque ningún\nbot tiene destino.\n\nLa búsqueda va sobre el nombre, **sin distinguir acentos ni\nmayúsculas** y por fragmento. En blanco equivale a no filtrar.\n\nUn filtro sin coincidencias devuelve `200` con la colección vacía, y\nuna página más allá de la última hace lo mismo **con el total real**.\nNo hay `404` ni `422`.\n",
-        "operationId" : "listar_2",
+        "operationId" : "listar_3",
         "parameters" : [ {
           "in" : "query",
           "name" : "page",
@@ -3878,7 +4211,7 @@
       },
       "patch" : {
         "description" : "Corrige el **nombre**, la **descripción**, el **icono**, el **precio**,\nla **moneda** y la **vigencia**. Se aplica lo que llega y se deja\nintacto lo que no.\n\n**Distingue el campo ausente del enviado vacío**, y de ahí salen dos\ncomportamientos opuestos: `description: null`, `icon: null` y\n`validityDays: null` **vacían** el campo —el producto pasa a no\ncaducar—, mientras que `name: null` se **rechaza**, porque un producto\nsin nombre no puede existir.\n\n**El icono sí se corrige, aunque el tipo no**: es el aspecto del\nproducto y no lo que otorga. En un `BOT`, cualquier valor distinto de\nnulo se rechaza con `VAL-013` (`RN-PM-016`).\n\n**El tipo, el código y la membresía destino NO se pueden corregir**, y\nenviarlos devuelve `400` con `VAL-006`. Se rechazan y no se ignoran:\nignorarlos haría creer que el cambio se aplicó. Definen qué derecho\notorga el producto, y cambiarlos convertiría lo comprado en otra cosa.\n\n**El precio se valida contra la moneda NUEVA** cuando llegan las dos.\nY el importe **no se convierte**: el sistema no hace conversión de\ndivisa — cambiar de moneda es declarar que ese número siempre estuvo\nen la otra.\n\n**Un producto retirado no se corrige**: lo que se retiró debe quedar\ncomo estaba para que lo que lo referencie siga diciendo la verdad.\n\n**No se exige motivo**, ni siquiera al cambiar el precio. Una petición\nque no cambia nada devuelve `200` y **no registra evento**.\n",
-        "operationId" : "corregir",
+        "operationId" : "corregir_1",
         "parameters" : [ {
           "in" : "path",
           "name" : "id",
@@ -3938,7 +4271,7 @@
     "/api/v1/products/{id}/deletion" : {
       "post" : {
         "description" : "Retira el producto: **eliminación lógica y con motivo** (Art. V.13).\nLa fila se conserva —lo vendido tiene que seguir resolviendo a lo que\nse vendió— y el producto deja de ofrecerse.\n\n**`POST` sobre un subrecurso y no `DELETE` con cuerpo**, igual que al\neliminar un rol o una persona: RFC 9110 no define semántica para el\ncuerpo de un `DELETE` y un intermediario puede descartarlo, con lo que\nla petición se convertiría en un rechazo por motivo ausente que quien\nla envió no puede entender ni corregir. Y tampoco en la URL, donde el\nmotivo quedaría escrito en los registros de acceso de cualquier proxy.\n\n**El motivo es obligatorio** y se comprueba lo primero de todo, antes\nde tocar la base.\n\n**El estado no se modifica al retirar.** El registro de eliminación\nconserva si el producto **estaba a la venta**: desactivarlo «de paso»\nharía que todos los registros dijeran «inactivo» y ese dato dejaría de\nsignificar nada.\n\n**Qué libera el retiro y qué no**: el **destino** del upgrade queda\nlibre para que otro se active, y el **nombre** queda libre para otro\nproducto. El **código no se libera nunca** — el día que una factura\ndiga `UPGRADE_ORO` tiene que resolver a un solo producto para siempre.\n\n**No es idempotente a propósito**: retirar uno ya retirado devuelve\n`409`. Dos motivos sobre un solo hecho es evidencia contradictoria.\n\nNo devuelve el producto: lo que se acaba de retirar no es algo que el\nsistema deba seguir ofreciendo a quien lo pidió.\n",
-        "operationId" : "retirar",
+        "operationId" : "retirar_1",
         "parameters" : [ {
           "in" : "path",
           "name" : "id",
@@ -4044,7 +4377,7 @@
     "/api/v1/roles" : {
       "get" : {
         "description" : "Listado paginado con filtros, búsqueda y ordenamiento. Es la entrada\nnatural a la administración de accesos: de aquí se navega al detalle de\ncada rol.\n\n**El orden por defecto es `code,asc`**: el código es el identificador\ncon el que se habla de un rol en la documentación y en la auditoría.\nSolo se puede ordenar por la lista blanca —`code`, `name`, `roleType`,\n`status`, `createdAt`, `updatedAt`—; cualquier otro campo devuelve\n`400` y **no llega a la base de datos**.\n\n**No incluye los permisos de cada rol** ni el número de usuarios\nasignados: la primera pregunta la responde el detalle\n(`GET /api/v1/roles/{id}`) y la segunda se hace sobre un rol concreto,\nno sobre la lista.\n\n**`parentRoleId` no se valida contra el catálogo.** Filtra por el padre\n**directo** —no por el subárbol— y uno inexistente devuelve la\ncolección vacía, que no es un error.\n\nLa búsqueda va sobre código y nombre, **sin distinguir acentos ni\nmayúsculas**, y por fragmento: `ministracion` encuentra\n`ADMINISTRACION`. Un término en blanco equivale a no filtrar.\n\n**Los eliminados quedan fuera salvo que se pidan** con\n`includeDeleted=true`; cuando se piden, `deletedAt` es lo que permite\ndistinguirlos.\n",
-        "operationId" : "listar_1",
+        "operationId" : "listar_2",
         "parameters" : [ {
           "in" : "query",
           "name" : "page",
@@ -4134,7 +4467,7 @@
       },
       "post" : {
         "description" : "Registra un rol bajo un rol padre existente y activo, con los permisos que\nse declaren.\n\nLos permisos deben estar contenidos en los del rol padre (`RN-SEG-003`) y en\nlos permisos efectivos de quien ejecuta el alta (`RN-SEG-010`). Declararlos es\nopcional: sin ellos el rol queda registrado y a la espera de `RF-SP-005`.\n\nEl rol nace siempre **activo** y nunca de sistema. Ni `status` ni `isSystem`\nse admiten en el cuerpo: enviarlos devuelve `400`.\n",
-        "operationId" : "registrar_1",
+        "operationId" : "registrar_2",
         "requestBody" : {
           "content" : {
             "application/json" : {
@@ -4749,6 +5082,244 @@
         },
         "summary" : "Activar o desactivar un rol",
         "tags" : [ "Roles" ]
+      }
+    },
+    "/api/v1/user-commission-rates" : {
+      "get" : {
+        "description" : "Devuelve las tasas **tal como se declararon**, y no resuelve cuál se\naplica: para eso está `GET /api/v1/commissions/effective`.\n\n**Incluye el historial**: las vencidas viajan junto a la vigente salvo que\nse filtre por fecha con `onDate`. Y es **el único historial que le queda al\nmódulo** — las tasas de rol perdieron la vigencia.\n\n**Filtrar por persona devuelve las declaradas PARA esa persona**, no la que\nle aplica hoy sobre un producto.\n",
+        "operationId" : "listar_1",
+        "parameters" : [ {
+          "in" : "query",
+          "name" : "filtros",
+          "required" : true,
+          "schema" : {
+            "$ref" : "#/components/schemas/ListUserCommissionRatesRequest"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/UserCommissionRatePageResponse"
+                }
+              }
+            },
+            "description" : "Página de tasas personalizadas"
+          },
+          "400" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/UserCommissionRatePageResponse"
+                }
+              }
+            },
+            "description" : "Parámetros inválidos"
+          },
+          "403" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/UserCommissionRatePageResponse"
+                }
+              }
+            },
+            "description" : "Sin permiso"
+          }
+        },
+        "summary" : "Consultar las tasas personalizadas",
+        "tags" : [ "Comisiones" ]
+      },
+      "post" : {
+        "description" : "Declara que **esta persona** gana este porcentaje, **venda lo que venda**.\n\n**Gana siempre sobre la tasa de su rol** y **sin mirar el producto**\n(`RN-CM-004`). No se asocia a productos, y por eso **paga desde el primer\ndía**: no necesita nada más.\n\n**No lleva rol, y eso tiene una consecuencia que conviene conocer**: la\ntasa sigue rigiendo aunque su titular pase a un rol que no comisiona.\nHasta el 01-09-2026 el rol era obligatorio precisamente para impedirlo.\n\n**Una sola viva por persona en cada fecha** (`RN-CM-006`): puede haber\nvarias consecutivas —son el historial—, pero **ningún día puede estar\ncubierto dos veces**. Si una termina el 31, la siguiente empieza el 1.\n\n`validFrom` es obligatorio; sin `validTo`, rige indefinidamente.\n",
+        "operationId" : "registrar_1",
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/RegisterUserCommissionRateRequest"
+              }
+            }
+          },
+          "required" : true
+        },
+        "responses" : {
+          "201" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/UserCommissionRateResponse"
+                }
+              }
+            },
+            "description" : "Tasa registrada"
+          },
+          "400" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/UserCommissionRateResponse"
+                }
+              }
+            },
+            "description" : "Datos inválidos"
+          },
+          "403" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/UserCommissionRateResponse"
+                }
+              }
+            },
+            "description" : "Sin permiso"
+          },
+          "409" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/UserCommissionRateResponse"
+                }
+              }
+            },
+            "description" : "Se solapa con otra tasa viva de esa persona"
+          },
+          "422" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/UserCommissionRateResponse"
+                }
+              }
+            },
+            "description" : "La persona no existe"
+          }
+        },
+        "summary" : "Registrar la tasa personalizada de una persona",
+        "tags" : [ "Comisiones" ]
+      }
+    },
+    "/api/v1/user-commission-rates/{id}" : {
+      "patch" : {
+        "description" : "Corrige el **porcentaje** y el **fin de vigencia**. Se aplica lo que llega\ny se deja intacto lo que no.\n\n**Corregir no es cambiar**, y aquí la distinción sigue viva: corregir\narregla un error y reescribe lo que esa tasa dice que rigió; cambiar lo que\ngana alguien a partir de una fecha es **cerrar la vigente y registrar\notra**.\n\n`validTo: null` **vacía** el fin de vigencia y la tasa vuelve a regir\nindefinidamente; `percentage: null` se **rechaza**.\n\n**La persona y el inicio de vigencia no se corrigen**, y enviarlos devuelve\n`400`.\n",
+        "operationId" : "corregir",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "id",
+          "required" : true,
+          "schema" : {
+            "format" : "uuid",
+            "type" : "string"
+          }
+        } ],
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/UpdateUserCommissionRateRequest"
+              }
+            }
+          },
+          "required" : true
+        },
+        "responses" : {
+          "200" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/UserCommissionRateResponse"
+                }
+              }
+            },
+            "description" : "Tasa corregida"
+          },
+          "400" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/UserCommissionRateResponse"
+                }
+              }
+            },
+            "description" : "Datos inválidos o campos no corregibles"
+          },
+          "403" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/UserCommissionRateResponse"
+                }
+              }
+            },
+            "description" : "Sin permiso"
+          },
+          "404" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/UserCommissionRateResponse"
+                }
+              }
+            },
+            "description" : "No existe, o está retirada"
+          },
+          "409" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/UserCommissionRateResponse"
+                }
+              }
+            },
+            "description" : "La vigencia resultante se solapa"
+          }
+        },
+        "summary" : "Corregir una tasa personalizada",
+        "tags" : [ "Comisiones" ]
+      }
+    },
+    "/api/v1/user-commission-rates/{id}/deletion" : {
+      "post" : {
+        "description" : "Retira una tasa que **no debió existir**, con **motivo obligatorio**.\n\n**Retirar no es cerrar la vigencia**: se cierra lo que dejó de regir, se\nretira lo que fue un error. Por eso el retiro **no toca la vigencia** — el\nregistro de eliminación debe poder decir qué periodo cubría lo retirado.\n\nLos días que ocupaba **quedan libres**, de modo que puede declararse otra\ntasa que los cubra.\n\n**No es idempotente**: retirar dos veces devuelve `409`.\n",
+        "operationId" : "retirar",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "id",
+          "required" : true,
+          "schema" : {
+            "format" : "uuid",
+            "type" : "string"
+          }
+        } ],
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/DeleteCommissionRateRequest"
+              }
+            }
+          }
+        },
+        "responses" : {
+          "204" : {
+            "description" : "Tasa retirada"
+          },
+          "400" : {
+            "description" : "Motivo ausente, en blanco o demasiado largo"
+          },
+          "403" : {
+            "description" : "Sin permiso"
+          },
+          "404" : {
+            "description" : "La tasa no existe"
+          },
+          "409" : {
+            "description" : "Ya estaba retirada"
+          }
+        },
+        "summary" : "Retirar una tasa personalizada",
+        "tags" : [ "Comisiones" ]
       }
     },
     "/api/v1/users" : {
@@ -5574,14 +6145,20 @@
     "description" : "Los cuatro registros de auditoría del sistema. Solo lectura, y cada uno con su permiso.",
     "name" : "Auditoría"
   }, {
+    "description" : "Tasas de comisión por rol y su asociación con los productos.",
+    "name" : "Comisiones"
+  }, {
     "description" : "Catálogo de países. Inmutable salvo su estado.",
     "name" : "Países"
   }, {
-    "description" : "Tarifas de comisión: cuánto gana un rol vendedor, por producto y por persona.",
+    "description" : "Tasas de comisión personalizadas: la excepción por persona.",
     "name" : "Comisiones"
   }, {
     "description" : "Cadena lineal de niveles de consumidor. Inmutable salvo el reordenamiento.",
     "name" : "Membresías"
+  }, {
+    "description" : "Resolución de la comisión efectiva de una persona sobre un producto.",
+    "name" : "Comisiones"
   }, {
     "description" : "Catálogo de monedas. Inmutable por API salvo su estado.",
     "name" : "Monedas"

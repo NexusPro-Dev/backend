@@ -1,24 +1,18 @@
 package com.factech.nexus.modules.commissions.application;
 
-import java.time.LocalDate;
 import java.util.UUID;
 
 /**
  * Filtros de {@code GET /api/v1/commission-rates} (`RF-CM-002`).
  *
- * <p><b>No hay interruptor «solo vigentes»</b>: eso es {@code onDate} con la fecha de hoy. Un
- * interruptor y una fecha podrian contradecirse, y esa contradiccion no la detecta nada.
+ * <p><b>Perdió el filtro por producto y por persona</b>, y no es una simplificación: en esta tabla
+ * ya no hay ni producto ni persona. «Qué tasas rigen sobre este producto» se pregunta en {@code GET
+ * /api/v1/commission-rates/by-product/{productId}}, y las personalizadas viven en su propio
+ * listado.
  *
- * <p><b>Los filtros por producto y por persona son igualdades y NO resuelven precedencia</b>:
- * devuelven las declaradas <b>para</b> ese producto o esa persona, no las que <b>le aplican</b>. Lo
- * segundo es `RF-CM-005`, y confundirlos haria que este listado empezara a resolver precedencias
- * por su cuenta.
+ * <p><b>Y perdió {@code onDate}</b>, por lo mismo: las tasas de rol no tienen vigencia. Preguntar
+ * qué regía una fecha concreta <b>ya no tiene respuesta aquí</b> — el catálogo solo sabe lo que
+ * dice hoy.
  */
 public record ListCommissionRatesRequest(
-    Integer page,
-    Integer size,
-    UUID roleId,
-    UUID productId,
-    UUID userId,
-    LocalDate onDate,
-    Boolean includeDeleted) {}
+    Integer page, Integer size, UUID roleId, Boolean includeDeleted) {}

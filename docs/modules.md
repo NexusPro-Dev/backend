@@ -5,11 +5,11 @@
 | Proyecto | NEXUS — Renovación de plataforma |
 | Empresa | FACTECH GROUP SAS |
 | Documento | `modules.md` |
-| Versión | 0.16.0 |
+| Versión | 0.17.0 |
 | Estado | Borrador |
 | Responsable técnico | Bonilla Diaz William Steven |
 | Fecha de creación | 20-08-2026 |
-| Última actualización | 01-09-2026 |
+| Última actualización | 02-09-2026 |
 | Documento superior | `constitution.md` v0.7.0 |
 | Documentos relacionados | `architecture.md` v0.17.0, `requirements.md` v0.51.0 |
 
@@ -99,7 +99,7 @@ Las dependencias apuntan **del consumidor al proveedor** y deben ser acíclicas 
 |---|---|---|---|---|---|
 | `SP` | Sistema Principal | `modules/system` | `roles:`, `permissions:`, `audit:`, `memberships:`, `currencies:`, `countries:`, `users:` | — | En desarrollo |
 | `PM` | Productos y Mercadeo | `modules/products` | `products:` | `SP` | En desarrollo |
-| `CM` | Comisiones | `modules/commissions` | `commissions:` | `SP`, `PM` | En desarrollo · **rediseñado el 01-09-2026** |
+| `CM` | Comisiones | `modules/commissions` | `commissions:` | `SP`, `PM` | En desarrollo · **rehecho y construido el 02-09-2026** |
 
 
 **Estados:** `Propuesto` · `En diseño` · `En desarrollo` · `Implementado` · `Obsoleto`.
@@ -223,7 +223,7 @@ Mismo desajuste que §4.1 resolvió para `SP`, y por el mismo motivo: **el códi
 
 !!! info "Por qué `CM` es un módulo y no un submódulo de `PM`"
 
-    Cumple las dos condiciones de §2.1. **Es dueño de una tabla propia**, `commission_rates`, que `PM` no necesita para nada: el catálogo se publica igual exista o no una tarifa. Y **otros van a consumirlo**: la liquidación, cuando exista, y Finanzas para pagar lo liquidado.
+    Cumple las dos condiciones de §2.1. **Es dueño de tres tablas propias** —`commission_rates`, `user_commission_rates` y `product_commission_rates`— que `PM` no necesita para nada: el catálogo se publica igual exista o no una tasa. Y **otros van a consumirlo**: la liquidación, cuando exista, y Finanzas para pagar lo liquidado.
 
     **Se consideró y se descartó que fuera un submódulo de `PM`**, que es como se pidió. La razón para no hacerlo es de §2.1 y no de gusto: la comisión no opera sobre `products`, opera sobre `roles` y `users`, que son de `SP`. Un submódulo de `PM` cuyas dos claves foráneas principales apuntan a `SP` no está en su módulo. Pesó además que **el identificador es irreversible** (§2.1): `RF-PM-008` se habría quedado en `PM` para siempre el día que Comisiones creciera hacia el cálculo y la liquidación, que es lo que §6 ya anticipa.
 
@@ -358,3 +358,4 @@ El orden importa: el módulo precede al requerimiento, el requerimiento precede 
 | 0.14.0 | 27-08-2026 | **`PM` pasa de `En diseño` a `En desarrollo`**: su primer requerimiento está implementado, con tabla propia, permisos sembrados y endpoint funcionando. Con él, la norma de §15.2 de `architecture.md` deja de ser papel: `SP` publica sus dos primeras interfaces hacia otro módulo y una regla de ArchUnit impide que `PM` importe nada de su dominio. | Responsable técnico |
 | 0.15.0 | 28-08-2026 | **Se incorpora el módulo `CM` — Comisiones**, el tercero del sistema y el **primero que depende de dos**: `SP` le da el rol y la persona, `PM` el producto. La dependencia sigue siendo acíclica —`CM` → `PM` → `SP`— y la norma de consumo es la de D-25 sin excepción, con una consecuencia declarada: **`PM` tendrá que publicar una interfaz de lectura de productos que hoy no tiene**, y esa ampliación pertenece a los requerimientos de `CM` que la necesiten. Nace con **las tarifas y no con el cálculo**: el cálculo y la liquidación no se aplazan por reparto sino porque **no hay sobre qué calcular** mientras no exista una tabla de ventas — el mismo camino que siguió `PM`, cuyo catálogo existió antes que la compra. **Se pidió como submódulo de `PM` y se decidió que no**, por §2.1: la comisión no opera sobre `products`, opera sobre `roles` y `users`; un submódulo de `PM` con sus dos claves foráneas principales apuntando a `SP` no está en su módulo, y el identificador es irreversible. El código se fija **sabiendo lo que §6 advierte**, igual que con `PM`. Queda además una imposición sobre `SP` que se registra allí y no aquí: **una persona no puede tener dos roles de tipo `VENDEDOR`** (`RN-SP-025`), porque con dos tarifas distintas y ninguna propia no habría forma no arbitraria de elegir. | Responsable del proyecto |
 | 0.16.0 | 01-09-2026 | **`CM` se rehace**, por decisión del responsable del proyecto, y su ficha §5.3 lo recoge: donde había **una** tabla ahora hay **tres** —el catálogo por rol, la excepción por persona y la asociación con el producto— y el módulo gana un submódulo, **Asociación**, que es lo único que pone una tasa en vigor. **El cambio invalida la implementación**: los cinco requerimientos están construidos desde el 28-08-2026 con 45 pruebas, y la forma de `commission_rates` cambia. El detalle, en [`requirements/cm.md`](requirements/cm.md) v0.4.0. | Responsable del proyecto |
+| 0.17.0 | 02-09-2026 | **`CM` pasa de rediseñado a construido**, y su ficha §5.3 lo recoge: es dueño de **tres tablas** —el catálogo por rol, la excepción por persona y la asociación con el producto— donde el 01-09-2026 tenía una diseñada y dos por escribir. Con `V48` el módulo tiene sus **ocho requerimientos con endpoint funcionando** y **75 pruebas** propias. **La frontera de D-25 se estrenó en su forma más exigente y aguantó**: `CM` es el primer módulo que depende de dos, y al rehacerlo consume `RoleCatalog`, `UserCatalog`, `SellerRoleCatalog` y `ProductCatalog` sin importar una sola entidad ajena — mientras sus consultas siguen uniendo `roles`, `users` y `products` en la misma sentencia, que es lo que impide las `N+1` y **no rompe la frontera**, porque lo que §7 defiende es la del código y no la del motor. El detalle, en [`requirements/cm.md`](requirements/cm.md) v0.5.0. | Responsable técnico |

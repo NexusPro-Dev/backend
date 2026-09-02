@@ -12,21 +12,22 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 /**
- * El listado de tarifas (`RF-CM-002`).
+ * El listado del catálogo de tasas por rol (`RF-CM-002`).
  *
- * <p><b>Devuelve las tarifas tal como se declararon y no resuelve nada.</b> Si un rol tiene tarifa
- * por omision y una persona su excepcion, aqui aparecen las dos. Cual se aplica lo responde
- * `RF-CM-005`, y son preguntas distintas.
+ * <p><b>Devuelve el catálogo y no lo que rige.</b> Una tasa puede aparecer aquí con su porcentaje y
+ * <b>no pagar nada a nadie</b>, si no está asociada a ningún producto (`RN-CM-012`). Por eso cada
+ * fila lleva {@code associatedProducts}: sin ese número, el listado diría exactamente lo mismo en
+ * los dos casos.
  *
- * <p><b>El orden es fijo</b>: del inicio de vigencia mas reciente al mas antiguo, con desempate por
- * identificador. No lo elige el cliente porque es parte del significado del recurso — el historial
- * se lee del presente hacia atras.
+ * <p><b>El orden es fijo</b>: por código de rol, y dentro de cada rol del porcentaje mayor al
+ * menor. No lo elige el cliente porque es parte del significado del recurso — un catálogo se lee
+ * agrupado por a quién paga.
  */
 @Service
 public class ListCommissionRatesService {
 
-  /** El orden aplicado, publicado en la respuesta para que se sepa sobre que se pagina. */
-  private static final String ORDEN = "validFrom,desc";
+  /** El orden aplicado, publicado en la respuesta para que se sepa sobre qué se pagina. */
+  private static final String ORDEN = "role.code,asc";
 
   private final CommissionRateQueryRepository consultas;
   private final Pagination paginacion;
@@ -42,12 +43,7 @@ public class ListCommissionRatesService {
     Pagination.Slice trozo = paginacion.resolver(filtros.page(), filtros.size());
 
     RateFilters criterios =
-        new RateFilters(
-            filtros.roleId(),
-            filtros.productId(),
-            filtros.userId(),
-            filtros.onDate(),
-            Boolean.TRUE.equals(filtros.includeDeleted()));
+        new RateFilters(filtros.roleId(), Boolean.TRUE.equals(filtros.includeDeleted()));
 
     List<CommissionRateItem> contenido =
         consultas.search(criterios, trozo.page() * trozo.size(), trozo.size()).stream()

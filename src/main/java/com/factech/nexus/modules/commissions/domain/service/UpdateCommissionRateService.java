@@ -21,11 +21,21 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 /**
- * Corrección de una tarifa (`RF-CM-003`).
+ * Corrección del porcentaje de una tasa de rol (`RF-CM-003`).
  *
- * <p><b>Corregir no es cambiar.</b> Corregir arregla un error y reescribe lo que esa tarifa dice
- * que rigió; cambiar la comisión a partir de una fecha es cerrar la vigente y registrar otra, que
- * son dos operaciones distintas.
+ * <p><b>Esta operación borra el pasado, y hay que decirlo aquí.</b> Hasta el 01-09-2026 la tarifa
+ * tenía vigencia, y por eso «corregir» y «cambiar» eran cosas distintas: corregir reescribía lo que
+ * esa tarifa decía que rigió, y cambiar la comisión a partir de una fecha era cerrar la vigente y
+ * registrar otra.
+ *
+ * <p><b>Sin vigencia solo queda reescribir.</b> Pasar un rol de 10 a 12 <b>borra el 10</b>: no hay
+ * dos filas contando cada una su parte, hay una que ahora dice otra cosa. La única defensa del
+ * pasado es que la liquidación haya copiado el porcentaje que aplicó (`RN-CM-008`) — y esa
+ * liquidación no existe todavía, de modo que <b>hoy esta llamada no deja rastro de lo que borró</b>
+ * más allá del registro de auditoría del cambio.
+ *
+ * <p>Ese registro, por tanto, deja de ser un complemento y pasa a ser <b>el único sitio donde queda
+ * escrito el porcentaje anterior</b>.
  */
 @Service
 public class UpdateCommissionRateService {
@@ -33,25 +43,25 @@ public class UpdateCommissionRateService {
   private static final String MODULO = "CM";
   private static final String ENTIDAD = "commission_rates";
 
-  private final CommissionRateRepository tarifas;
+  private final CommissionRateRepository tasas;
   private final CommissionRateQueryRepository consultas;
   private final AuditWriter auditoria;
   private final Clock reloj;
 
   @Autowired
   public UpdateCommissionRateService(
-      CommissionRateRepository tarifas,
+      CommissionRateRepository tasas,
       CommissionRateQueryRepository consultas,
       AuditWriter auditoria) {
-    this(tarifas, consultas, auditoria, Clock.systemUTC());
+    this(tasas, consultas, auditoria, Clock.systemUTC());
   }
 
   UpdateCommissionRateService(
-      CommissionRateRepository tarifas,
+      CommissionRateRepository tasas,
       CommissionRateQueryRepository consultas,
       AuditWriter auditoria,
       Clock reloj) {
-    this.tarifas = tarifas;
+    this.tasas = tasas;
     this.consultas = consultas;
     this.auditoria = auditoria;
     this.reloj = reloj;
@@ -59,12 +69,10 @@ public class UpdateCommissionRateService {
 
   @Transactional
   public CommissionRateResponse update(UUID id, UpdateCommissionRateRequest peticion) {
-    // Los cuatro inmutables se rechazan ANTES de buscar nada: no cuesta una
-    // consulta enterarse de que la petición pedía algo que no se puede hacer.
+    // El inmutable se rechaza ANTES de buscar nada: no cuesta una consulta
+    // enterarse de que la petición pedía algo que no se puede hacer.
     if (peticion.traeInmutables()) {
-      String mensaje =
-          "El rol, el producto, la persona y el inicio de vigencia de una tarifa no se pueden"
-              + " corregir.";
+      String mensaje = "El rol de una tasa de comisión no se puede corregir.";
       throw new ValidationException(
           "VAL-009", mensaje, List.of(new FieldError("roleId", "VAL-009", mensaje)));
     }
@@ -74,41 +82,31 @@ public class UpdateCommissionRateService {
           "VAL-010", mensaje, List.of(new FieldError("percentage", "VAL-010", mensaje)));
     }
 
-    // Una tarifa retirada se trata como inexistente: lo que se retiró debe
-    // quedar como estaba, para que lo que la referencie siga diciendo la verdad.
-    CommissionRate tarifa =
-        tarifas
+    // Una tasa retirada se trata como inexistente: lo que se retiró debe quedar
+    // como estaba, para que lo que la referencie siga diciendo la verdad.
+    CommissionRate tasa =
+        tasas
             .findAlive(id)
             .orElseThrow(
-                () -> new ResourceNotFoundException("EX-404", "La tarifa indicada no existe."));
+                () -> new ResourceNotFoundException("EX-404", "La tasa indicada no existe."));
 
-    // EL BLOQUEO SE TOMA ANTES DE TOCAR LA ENTIDAD, y el orden no es
-    // cosmetico: `lockCase` es una consulta nativa, y Hibernate vuelca lo
-    // pendiente antes de ejecutar una. Tomandolo despues de `update(...)`,
-    // ese volcado ocurriria DENTRO del bloqueo y fuera de todo try, y la
-    // violacion del solapamiento volveria a escaparse como 500.
-    tarifas.lockCase(tarifa);
+    Map<String, Object> cambios = tasa.update(peticion.percentage(), OffsetDateTime.now(reloj));
 
-    Map<String, Object> cambios =
-        tarifa.update(peticion.percentage(), peticion.validTo(), OffsetDateTime.now(reloj));
-
-    // EL VOLCADO EXPLÍCITO ES LA LÍNEA QUE IMPIDE UN 500. La entidad está
-    // gestionada y el UPDATE saldría en el `commit`, FUERA DE TODO TRY, de modo
-    // que la violación del solapamiento se escaparía sin traducir. Es
-    // exactamente lo que le ocurrió a `RF-SP-027` con el correo duplicado.
     if (!cambios.isEmpty()) {
-      tarifas.flushChanges();
+      tasas.flushChanges();
+      // ESTE REGISTRO ES HOY LA ÚNICA COPIA DEL PORCENTAJE ANTERIOR. Sin
+      // vigencia en la tabla y sin liquidación que copie lo que aplicó, si esto
+      // no se escribiera el valor previo desaparecería del sistema entero.
       auditoria.recordChange(
-          new ChangeEvent(MODULO, ENTIDAD, tarifa.getId(), ChangeAction.UPDATE, cambios));
+          new ChangeEvent(MODULO, ENTIDAD, tasa.getId(), ChangeAction.UPDATE, cambios));
     }
 
-    // Se relee para devolver el rol, el producto y la persona resueltos, que es
-    // lo que el contrato promete. Una sentencia con sus tres `JOIN`, no tres
-    // llamadas a los puertos.
+    // Se relee para devolver el rol resuelto y la cuenta de asociaciones, que es
+    // lo que el contrato promete. Una sentencia con su `JOIN`, no una llamada al
+    // puerto por cada fila.
     return consultas
-        .findRow(tarifa.getId())
+        .findRow(tasa.getId())
         .map(CommissionRateResponse::from)
-        .orElseThrow(
-            () -> new ResourceNotFoundException("EX-404", "La tarifa indicada no existe."));
+        .orElseThrow(() -> new ResourceNotFoundException("EX-404", "La tasa indicada no existe."));
   }
 }

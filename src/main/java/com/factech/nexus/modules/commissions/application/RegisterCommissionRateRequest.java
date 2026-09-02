@@ -5,28 +5,28 @@ import jakarta.validation.constraints.DecimalMin;
 import jakarta.validation.constraints.Digits;
 import jakarta.validation.constraints.NotNull;
 import java.math.BigDecimal;
-import java.time.LocalDate;
 import java.util.UUID;
 
 /**
  * Cuerpo de {@code POST /api/v1/commission-rates} (`RF-CM-001`).
  *
- * <p><b>El producto y la persona son opcionales, y su ausencia es la que da el alcance</b>: sin
- * persona la tarifa rige para todos los del rol, sin producto para todo el catalogo. No hay ningun
- * campo que diga «para todos» — podria contradecir a los otros dos, y esa contradiccion no la
- * detecta nada.
+ * <p><b>Dos campos, y ninguno opcional.</b> Es lo que queda del alta anterior, que tenía cinco y
+ * dejaba que la ausencia de tres de ellos decidiera el alcance. Aquí no hay nada que deducir: la
+ * tasa dice qué gana un rol, y <b>sobre qué lo gana se declara asociándola</b> (`RF-CM-007`).
  *
- * <p><b>El cero es un porcentaje valido</b> (`RN-CM-007`): significa «esto no comisiona», y es la
- * unica forma de exceptuar un producto a un rol que si tiene tarifa por omision. De ahi el {@code
- * DecimalMin} inclusivo.
+ * <p><b>Lo que esto NO hace, y conviene saberlo:</b> registrar una tasa no la pone en vigor
+ * (`RN-CM-012`). Hasta que se asocie a un producto <b>no paga nada a nadie</b>, y no falla — se
+ * descubre liquidando.
  *
- * <p><b>Lo que NO se valida aqui</b> es que el rol sea vendedor, que la persona porte el rol y que
- * el producto no este retirado: dependen de datos de otros modulos y las comprueba el caso de uso.
+ * <p><b>El cero es un porcentaje válido</b> (`RN-CM-007`): significa «esto no comisiona», y es la
+ * forma de asociar un producto a un rol declarando que no paga nada. De ahí el {@code DecimalMin}
+ * inclusivo.
+ *
+ * <p><b>Lo que NO se valida aquí</b> es que el rol sea de tipo vendedor: depende de datos de `SP` y
+ * lo comprueba el caso de uso.
  */
 public record RegisterCommissionRateRequest(
-    @NotNull(message = "VAL-001: El rol de la tarifa es obligatorio.") UUID roleId,
-    UUID productId,
-    UUID userId,
+    @NotNull(message = "VAL-001: El rol de la tasa es obligatorio.") UUID roleId,
     @NotNull(message = "VAL-002: El porcentaje es obligatorio.")
         @DecimalMin(
             value = "0.00",
@@ -38,6 +38,4 @@ public record RegisterCommissionRateRequest(
             integer = 3,
             fraction = 2,
             message = "VAL-003: El porcentaje admite como mucho dos decimales.")
-        BigDecimal percentage,
-    @NotNull(message = "VAL-004: El inicio de vigencia es obligatorio.") LocalDate validFrom,
-    LocalDate validTo) {}
+        BigDecimal percentage) {}
