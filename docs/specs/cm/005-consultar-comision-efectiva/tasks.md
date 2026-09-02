@@ -3,18 +3,22 @@
 | Campo | Valor |
 |---|---|
 | Requerimiento | `RF-CM-005` |
-| Plan | [`plan.md`](plan.md), aprobado el 28-08-2026 |
+| Plan | [`plan.md`](plan.md), aprobado el 02-09-2026 |
+| Versión | 0.2.0 |
 | Estado | **En revisión** |
 | Autor | Responsable técnico |
 | Aprobadas por | Pendiente |
 | Fecha de aprobación | Pendiente |
 | Issue | Pendiente de crear |
-| Rama | `feature/modulo-comisiones` |
-| Bloqueado por | **`RN-SP-025`**, sin implementar — ver §4 |
+| Rama | `feature/flujos-de-pm-y-cm` |
 
 !!! info "Qué va en este documento"
 
-    **En qué pasos se construye** lo que `plan.md` decidió, con su dependencia y su verificación. Ninguna tarea se da por `Hecha` sin que su verificación pase.
+    **En qué pasos se construye** lo que `plan.md` decidió, con su dependencia y su verificación.
+
+!!! warning "Las tareas están hechas antes que este documento"
+
+    El código se rehízo el 02-09-2026 y esta lista viene detrás. **No planifica: registra.** La tercera compuerta del Art. I.6 sigue pendiente y por eso el documento está `En revisión`.
 
 ---
 
@@ -24,42 +28,61 @@
 
 | ID | Tarea | Depende de | Verificación | Estado |
 |---|---|---|---|---|
-| `T-01` | `resolve(...)` en el puerto de consulta: **una sola sentencia** con el orden de precedencia de `plan.md` §1 | `RF-CM-001` · `T-01` | Los cuatro grados se ordenan en SQL, no en Java | **Hecha el 28-08-2026** |
-| `T-02` | `ResolveCommissionService`: determina el rol vendedor y delega la precedencia | `T-01`, `RF-CM-001` · `T-05` | El caso de uso **no reordena** nada | **Hecha el 28-08-2026** |
-| `T-03` | Respuesta con porcentaje, tarifa aplicada, **grado** y rol considerado | `T-02` | El grado sale de la tarifa que ganó | **Hecha el 28-08-2026** |
-| `T-04` | Los **tres desenlaces** distinguidos: hay tarifa, no hay tarifa declarada, la persona no comisiona | `T-03` | `percentage` **nulo y presente** en los dos últimos, **nunca cero** | **Hecha el 28-08-2026** |
-| `T-05` | `GET /api/v1/commissions/effective`, en controlador propio | `T-03`, `T-04` | `200` en los tres desenlaces; `422` si la persona o el producto no existen; **ningún `404`** | **Hecha el 28-08-2026** |
-| `T-06` | DTO de entrada con `VAL-006` y `VAL-012`, y la fecha **por omisión hoy** | `T-05` | Sin fecha resuelve con la de hoy | **Hecha el 28-08-2026** |
-| `T-07` | Pruebas de los criterios de `spec.md` §12 | `T-05` | `CA-CM-039` a `CA-CM-050` | **Hecha el 28-08-2026** |
-| `T-08` | **Prueba de la pareja cero / ausencia** | `T-07` | `CA-CM-047` y `CA-CM-048`: la que este endpoint no puede confundir | **Hecha el 28-08-2026** |
-| `T-09` | **Prueba de los dos roles vendedores**: el puerto falla de forma visible | `T-02` | **Lanza**, no elige. Es la prueba del bloqueo de §4 | `Pendiente` |
-| `T-10` | Documentación OpenAPI del endpoint | `T-05` | Los tres parámetros y los tres desenlaces | **Hecha el 28-08-2026** |
-| `T-11` | Actualizar la matriz de `docs/requirements.md` | `T-07` | La fila de `RF-CM-005` refleja el estado **y su bloqueo** | **Hecha el 28-08-2026** |
+| `T-01` | `RateSource`, con el orden de declaración como orden de precedencia | `RF-CM-001` · `T-05` | El javadoc dice que reordenarlo desalinea la regla | **Hecha el 02-09-2026** |
+| `T-02` | **La sentencia**: `UNION ALL` con la prioridad en el `ORDER BY` | `RF-CM-006` · `T-02`, `RF-CM-007` · `T-01` | Una sola sentencia, y `LIMIT 1` | **Hecha el 02-09-2026** |
+| `T-03` | La rama de la persona **sin filtrar por rol ni por producto** | `T-02` | Una personalizada gana sobre un producto sin asociaciones | **Hecha el 02-09-2026** |
+| `T-04` | La rama del rol **exige la asociación**, sin ningún `OR ... IS NULL` | `T-02` | Una tasa de rol sin asociar no devuelve nada | **Hecha el 02-09-2026** |
+| `T-05` | El `JOIN` a `commission_rates` **por la clave compuesta** | `T-04` | No puede leer el porcentaje de una tasa con otro rol | **Hecha el 02-09-2026** |
+| `T-06` | **El rol admite nulo** y apaga la rama del rol | `T-02` | Quien no vende y tiene personalizada **cobra** | **Hecha el 02-09-2026** |
+| `T-07` | Las dos ramas filtran `deleted_at IS NULL` | `T-02` | Una tasa retirada deja de resolver | **Hecha el 02-09-2026** |
+| `T-08` | `ResolveCommissionService`: comprueba, busca el rol y **delega sin ordenar nada** | `T-02` | El caso de uso no contiene ninguna comparación de precedencia | **Hecha el 02-09-2026** |
+| `T-09` | Clasificar la ausencia: «no comisiona» frente a «sin tarifa» | `T-08` | Con rol y sin tasa, «sin tarifa»; sin rol y sin nada, «no comisiona» | **Hecha el 02-09-2026** |
+| `T-10` | `EffectiveCommissionResponse` con los tres desenlaces y **el porcentaje siempre presente** | `T-09` | El nulo llega como nulo, no ausente | **Hecha el 02-09-2026** |
+| `T-11` | `GET /api/v1/commissions/effective` | `T-08`, `T-10` | `200` en los tres desenlaces, `400`, `403`, `422` | **Hecha el 02-09-2026** |
+| `T-12` | Pruebas de los criterios de `spec.md` §12 | `T-11` | `CA-CM-038` a `CA-CM-050` | **Hecha el 02-09-2026** |
+| `T-13` | **Prueba de que la tasa sin asociar no paga** | `T-12` | `CA-CM-039` | **Hecha el 02-09-2026** |
+| `T-14` | **Prueba de `FA-003`**: quien no vende cobra su personalizada, con el rol nulo | `T-12` | `CA-CM-045` | **Hecha el 02-09-2026** |
+| `T-15` | **Prueba del estado que `RN-CM-015` impide**, sembrado a mano | `T-12` | `CA-CM-048` | **Hecha el 02-09-2026** |
+| `T-16` | Documentación OpenAPI, con los tres desenlaces y **el aviso del rol nulo** | `T-11` | La descripción explica que nulo y cero no son lo mismo | **Hecha el 02-09-2026** |
+| `T-17` | Actualizar la matriz de `docs/requirements.md` | `T-12` | La fila refleja el estado y el bloqueo de `RN-SP-025` | **Hecha el 02-09-2026** |
+| `T-18` | **Prueba de los dos roles vendedores**: que el puerto falle de forma visible en vez de elegir | `T-12` | Bloqueada por `RN-SP-025` | `Bloqueada` |
 
 ## 2. Orden de ejecución
 
-`T-01` primero y sola: **es la regla `RN-CM-004` escrita una vez**, y todo lo demás cuelga de que esté bien. `T-08` y `T-09` se escriben aparte de las funcionales porque verifican lo que no se ve en la respuesta — un porcentaje devuelto es plausible aunque venga del grado equivocado.
+**`T-02` va antes que `T-08`, y no al revés.** Escribir primero el caso de uso invita a encadenar dos consultas y decidir en Java — que es exactamente lo que `plan.md` §1 existe para impedir. Construyendo antes la sentencia, el caso de uso queda con lo único que le toca: comprobar, buscar el rol y delegar.
+
+**`T-06` parece un detalle de firma y es una decisión de negocio.** Aceptar el rol nulo es lo que hace que `FA-003` ocurra. La v0.1.0 cortaba antes de consultar cuando la persona no portaba rol vendedor, y con el modelo nuevo **eso escondería que su personalizada sigue pagando**.
+
+**`T-15` construye a mano un estado que el sistema no permite alcanzar**, y es la única tarea del módulo que lo hace. No prueba un comportamiento que alguien vaya a usar: prueba **qué pasaría si `RN-CM-015` no existiera**. Es la evidencia de que esa regla no es una precaución teórica.
+
+**`T-18` sigue bloqueada**, como en la v0.1.0. `RN-SP-025` —una persona no tiene dos roles vendedores— es la invariante de la que esta resolución depende para ser determinista, y hasta que `SP` la sostenga no hay forma de probar que el puerto falle de forma visible en lugar de elegir uno en silencio.
 
 ## 3. Cobertura de los criterios de aceptación
 
 | Criterio | Tareas |
 |---|---|
-| `CA-CM-039` a `CA-CM-042` | `T-01`, `T-07` |
-| `CA-CM-043` a `CA-CM-045` | `T-01`, `T-06`, `T-07` |
-| `CA-CM-046` | `T-01`, `T-07` |
-| `CA-CM-047`, `CA-CM-048` | `T-04`, `T-08` |
-| `CA-CM-049`, `CA-CM-050` | `T-02`, `T-07` |
+| `CA-CM-038` | `T-04`, `T-05`, `T-12` |
+| `CA-CM-039` | `T-04`, `T-13` |
+| `CA-CM-040`, `CA-CM-041` | `T-04`, `T-05`, `T-12` |
+| `CA-CM-042`, `CA-CM-043` | `T-03`, `T-12` |
+| `CA-CM-044` | `T-03`, `T-12` |
+| `CA-CM-045` | `T-06`, `T-14` |
+| `CA-CM-046` | `T-09`, `T-12` |
+| `CA-CM-047` | `T-10`, `T-12` |
+| `CA-CM-048` | `T-07`, `T-15` |
+| `CA-CM-049` | `T-08`, `T-12` |
+| `CA-CM-050` | `T-08`, `T-11`, `T-12` |
 
 ## 4. Bloqueos
 
-| # | Bloqueo | Efecto | Quién lo levanta |
-|---|---|---|---|
-| 1 | **`RN-SP-025` no está implementada** — una persona todavía puede portar dos roles de tipo `VENDEDOR` | **Este requerimiento no puede darse por terminado.** El paso 2 de su flujo deja de ser determinista, y con él toda la resolución. Se construye igual, y `T-09` fija que ante dos roles el sistema **falle de forma visible** en lugar de elegir en silencio | Requiere un pase sobre `RF-SP-030`, en `SP`. No es trabajo de este módulo |
+| # | Bloqueo | Efecto |
+|---|---|---|
+| 1 | **`RN-SP-025`** — una persona no puede tener dos roles vendedores | `T-18` queda `Bloqueada`. El requerimiento funciona; lo que no se puede probar es que el puerto **falle de forma visible** en lugar de elegir uno |
 
-**Por qué se construye igual y no se espera.** El bloqueo está aislado en **una** pregunta —cuál es el rol vendedor de esta persona—, exactamente como `RF-SP-040` aisló D-23 en una sola tarea. Todo lo demás —la precedencia, las fechas, los tres desenlaces— es construible y probable hoy con personas de un solo rol vendedor.
+**Y queda declarada una deuda que no bloquea nada y que nadie va a resolver desde aquí**: el tope de la suma de la cadena (`RN-CM-011`). Este requerimiento ve un nivel y no puede verlo; lo heredará la liquidación.
 
 ## 5. Definición de terminado
 
-- Las once tareas `Hecha` con su verificación pasando.
-- `./mvnw clean verify` en verde, incluidas `T-08` y `T-09`.
-- **`RN-SP-025` implementada en `SP`.** Hasta entonces, este requerimiento queda `Bloqueado` aunque sus once tareas estén hechas — y la matriz debe decirlo, en lugar de disimularlo.
+- Diecisiete de las dieciocho tareas `Hecha` con su verificación pasando. **`T-18` queda `Bloqueada` y declarada.**
+- `./mvnw clean verify` en verde. **Comprobado el 02-09-2026**: 278 unitarias y 876 de integración.
+- La matriz y el contrato publicado al día.
