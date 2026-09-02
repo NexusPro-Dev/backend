@@ -3,12 +3,12 @@
 | Campo | Valor |
 |---|---|
 | Requerimiento | `RF-PM-004` |
-| Especificación | [`spec.md`](spec.md) v0.2.0 |
+| Especificación | [`spec.md`](spec.md) v0.3.0 |
 | `spec.md` aprobada el | 26-08-2026 |
 | Estado | **Aprobado** |
 | Autor | Responsable técnico |
 | Aprobado por | Responsable del proyecto |
-| Enmendado el | 27-08-2026 — `RN-PM-015` |
+| Enmendado el | 27-08-2026 — `RN-PM-015`; 02-09-2026 — la membresía de **origen** (`RN-PM-017`, `RN-PM-018`) |
 | Fecha de aprobación | 26-08-2026 |
 
 ---
@@ -39,7 +39,7 @@ Aquí la distinción decide dos comportamientos opuestos: **la descripción admi
 
 `PATCH /api/v1/products/{id}` con los campos a corregir. `200` con el producto en la misma forma que `RF-PM-003`.
 
-- **El tipo, el código y la membresía destino no se admiten**, y su presencia **devuelve `400`** (`CA-PM-033`). Se rechaza y no se ignora: ignorarlos haría creer al actor que el cambio se aplicó. Se consigue con `FAIL_ON_UNKNOWN_PROPERTIES`, que ya está activo, más un mensaje propio de `VAL-006` si llegan con nombre conocido.
+- **El tipo, el código y las dos membresías no se admiten**, y su presencia **devuelve `400`** (`CA-PM-033`). El origen es inmutable por el mismo motivo que el destino: cambiarlo convierte el producto en **otro salto**, con otro precio y otra clientela, y quien lo compró ayer compró el anterior. Se rechaza y no se ignora: ignorarlos haría creer al actor que el cambio se aplicó. Se consigue con `FAIL_ON_UNKNOWN_PROPERTIES`, que ya está activo, más un mensaje propio de `VAL-006` si llegan con nombre conocido.
 - **`description: null` la borra; `name: null` se rechaza** (`VAL-002`).
 - **No se exige motivo** (`spec.md` §14, resolución 2).
 
@@ -72,14 +72,14 @@ Es la misma corrección que `SP` aplicó el 26-08-2026 a las cuatro operaciones 
 
 ## 8. Impacto sobre otros módulos
 
-Consume el **catálogo de monedas** de `SP` cuando llega precio o moneda. Ninguno más: el destino no se toca.
+Consume el **catálogo de monedas** de `SP` cuando llega precio o moneda. Ninguno más: las membresías no se tocan, de modo que `RN-PM-017` no se vuelve a comprobar — no hay nada que pueda haberla roto desde el alta.
 
 ## 9. Alternativas consideradas
 
 | Alternativa | Por qué se descartó |
 |---|---|
 | `Optional` en vez de `Patchable` | Ya falló en `RF-SP-027`, y en silencio |
-| `PUT` con el recurso completo | Obligaría a reenviar tipo, código y destino, que son inmutables, y a decidir qué hacer si llegan distintos |
+| `PUT` con el recurso completo | Obligaría a reenviar tipo, código, origen y destino, que son inmutables, y a decidir qué hacer si llegan distintos |
 | Ignorar los campos inmutables si llegan | Haría creer que el cambio se aplicó |
 | Convertir el importe al cambiar de moneda | El sistema **no hace conversión de divisa**. Cambiar de moneda es declarar que ese número siempre estuvo en la otra, y así queda escrito en `spec.md` §13 |
 
@@ -96,7 +96,7 @@ Consume el **catálogo de monedas** de `SP` cuando llega precio o moneda. Ningun
 |---|---|---|
 | Los diez criterios de `spec.md` §12 | API | |
 | **Ausente ≠ vacío** | API | Vaciar la descripción la borra; el nombre vacío se rechaza; el campo ausente no se toca |
-| Tipo, código o destino en la petición | API | `400`, no se ignoran |
+| Tipo, código, origen o destino en la petición | API | `400`, no se ignoran |
 | Nombre igual al actual | API | No es duplicado consigo mismo |
 | Moneda nueva con otra escala | API | El precio se valida contra la **nueva** |
 | Número de sentencias | Integración | Bloqueo, unicidad **solo si el nombre cambió**, `UPDATE` y evento |

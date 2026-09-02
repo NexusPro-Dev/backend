@@ -3,6 +3,7 @@
 | Campo | Valor |
 |---|---|
 | Requerimiento | `RF-PM-002` |
+| Enmendadas | 02-09-2026 — el filtro por membresía de **origen** |
 | Plan | [`plan.md`](plan.md), aprobado el 26-08-2026 |
 | Estado | **Aprobadas** |
 | Autor | Responsable técnico |
@@ -17,9 +18,9 @@
 |---|---|---|---|---|
 | `T-01` | Migración `V41__create_products_search_index.sql`: índice de trigramas sobre `f_unaccent(lower(name))` e índice de listado sobre `(created_at DESC, id DESC)` | `RF-PM-001 · T-01` | `mvn flyway:info` los lista. **No se indexan `type` ni `status`**: dos y tres valores no dan selectividad | Hecha |
 | `T-02` | `application/ProductSortField`: dominio **cerrado** con `name`, `price` y `createdAt` | — | Unitaria: un campo fuera de la lista no es representable, y el analizador devuelve el error de `VAL-005` en lugar de un valor por omisión | Hecha |
-| `T-03` | `application/ListProductsRequest`: los cinco filtros, la paginación y el orden, con `includeDeleted` en `false` por omisión | `T-02` | Los cuatro `400` se devuelven **juntos**, no de uno en uno | Hecha |
+| `T-03` | `application/ListProductsRequest`: los **seis** filtros —desde el 02-09-2026 también el de origen—, la paginación y el orden, con `includeDeleted` en `false` por omisión | `T-02` | Los cuatro `400` se devuelven **juntos**, no de uno en uno | Hecha |
 | `T-04` | `application`: `ProductItem` y la envoltura `PageResponse<ProductItem>` con `totalIsExact` en `true` | — | Compila y serializa | Hecha |
-| `T-05` | `domain/repository/ProductQueryRepository` y su adaptador: **una sentencia**, predicado dinámico, `LEFT JOIN` a `memberships` y a `currencies`, y **orden total** con `id` de desempate | `T-01`, `T-04` | Integración: la consulta cuesta **una** sentencia con y sin filtros, y el plan usa el índice | Hecha |
+| `T-05` | `domain/repository/ProductQueryRepository` y su adaptador: **una sentencia**, predicado dinámico, **dos** `LEFT JOIN` a `memberships` —origen y destino— más el de `currencies`, y **orden total** con `id` de desempate | `T-01`, `T-04` | Integración: la consulta cuesta **una** sentencia con y sin filtros —también con los seis puestos a la vez—, y el plan usa el índice | Hecha |
 | `T-06` | Búsqueda: recorte del término, **escape de `\`, `%` y `_`**, parámetro enlazado y `f_unaccent` aplicado **a los dos lados** | `T-05` | Buscar «membresia» encuentra «Membresía»; un término con `%` no devuelve el catálogo entero | Hecha |
 | `T-07` | Conteo **exacto**, sin el atajo de omitirlo cuando la página no se llena | `T-05` | La página vacía más allá de la última devuelve el **total real**, no uno deducido del desplazamiento (`FA-002`) | Hecha |
 | `T-08` | `domain/service/ListProductsService` con `@Transactional(readOnly = true)` | `T-05`, `T-07` | La transacción se declara de solo lectura | Hecha |
@@ -27,7 +28,7 @@
 | `T-10` | Pruebas de API de los criterios de `spec.md` §12 | `T-09` | La suite cubre `CA-PM-013` a `CA-PM-022` y `CA-PM-074`, `CA-PM-075`, `CA-PM-077` | Hecha |
 | `T-11` | **Prueba de paginación estable**: se recorren todas las páginas con varios productos del mismo instante de alta y no falta ni se repite ninguno | `T-05` | `CA-PM-076`. Sin el desempate por `id` esta prueba falla, y es la única que lo detecta | Hecha |
 | `T-12` | Prueba de `EXPLAIN`: con doscientos productos sembrados, la búsqueda usa `ix_products_busqueda` | `T-06` | La prueba **siembra volumen a propósito**: con pocas filas el planificador elige recorrido secuencial y la prueba no probaría nada | Hecha |
-| `T-13` | Documentación OpenAPI del endpoint con sus siete parámetros | `T-10` | El contrato declara los filtros y los estados | Hecha |
+| `T-13` | Documentación OpenAPI del endpoint con sus **ocho** parámetros | `T-10` | El contrato declara los filtros y los estados | Hecha |
 | `T-14` | Actualizar la matriz de trazabilidad | `T-10` | La fila refleja el estado | Hecha |
 | `T-15` | La **vigencia** viaja en cada fila del listado | `T-05` | Un producto sin vigencia llega con el campo **vacío y presente**, no ausente | Hecha |
 

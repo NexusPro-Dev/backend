@@ -71,6 +71,7 @@ public class ListProductsService {
             filtros.sort(),
             tipo,
             estado,
+            filtros.sourceMembershipId(),
             filtros.targetMembershipId(),
             filtros.search(),
             filtros.includeDeleted());

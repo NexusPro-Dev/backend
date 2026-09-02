@@ -20,7 +20,7 @@ Ver todo lo que el sistema sabe de un producto, incluido su retiro.
 
 El listado de `RF-PM-002` responde «qué hay»; esta consulta responde «qué es exactamente esto». Es la pantalla desde la que se decide corregir un precio, desactivar una oferta o entender por qué un producto dejó de venderse, y por eso trae cosas que el listado no lleva.
 
-**El destino llega resuelto.** Cuando el producto es un upgrade, el detalle devuelve el código, el nombre y el **nivel** de la membresía a la que lleva: un detalle que obliga a una segunda llamada para ser legible no es un detalle.
+**Las dos membresías llegan resueltas.** Cuando el producto es un upgrade, el detalle devuelve el código, el nombre y el **nivel** de la membresía de la que sale y de la membresía a la que lleva: un detalle que obliga a una segunda llamada para ser legible no es un detalle.
 
 ## 3. Actores
 
@@ -34,7 +34,7 @@ El listado de `RF-PM-002` responde «qué hay»; esta consulta responde «qué e
 ### 4.1 Incluye
 
 - Devolver un producto por su identificador, con todos sus datos.
-- Resolver la membresía destino de los upgrades, con su nivel.
+- Resolver **las dos membresías** de los upgrades, con su nivel: sin el origen, el detalle no dice a quién va dirigido el producto.
 - Indicar si el producto está retirado y desde cuándo.
 - Devolver **el motivo por el que se retiró**, cuando el producto está retirado.
 
@@ -64,6 +64,7 @@ El listado de `RF-PM-002` responde «qué hay»; esta consulta responde «qué e
 |---|---|
 | Producto | Identificador, código, tipo, nombre, descripción, **icono**, precio con su moneda, **vigencia en días** y estado |
 | Membresía destino | En los upgrades: código, nombre y **nivel**. Vacía en los bots |
+| Membresía de origen | Igual. **Aquí sí viaja**, al revés que en `RF-PM-007`: allí el origen es siempre el del actor y repetirlo sobraría, y aquí es una propiedad del producto que nadie más dice |
 | Marca de retiro | Si está retirado, desde cuándo y **con qué motivo** |
 | Marcas temporales | Cuándo se creó y cuándo se modificó por última vez. **Sin actor**: quién lo hizo vive en la auditoría |
 
@@ -81,7 +82,7 @@ El listado de `RF-PM-002` responde «qué hay»; esta consulta responde «qué e
 
 1. El actor pide un producto por su identificador.
 2. El sistema comprueba que el identificador tiene forma válida.
-3. El sistema devuelve el producto con su destino resuelto si es un upgrade.
+3. El sistema devuelve el producto con **sus dos membresías resueltas** si es un upgrade.
 
 ## 9. Flujos alternativos
 

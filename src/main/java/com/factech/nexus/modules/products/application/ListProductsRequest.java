@@ -26,6 +26,7 @@ public record ListProductsRequest(
     String sort,
     String type,
     String status,
+    UUID sourceMembershipId,
     UUID targetMembershipId,
     String search,
     Boolean includeDeleted) {

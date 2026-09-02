@@ -1277,6 +1277,9 @@
           "price" : {
             "type" : "number"
           },
+          "sourceMembership" : {
+            "$ref" : "#/components/schemas/MembershipRef"
+          },
           "status" : {
             "enum" : [ "ACTIVO", "INACTIVO" ],
             "type" : "string"
@@ -1330,6 +1333,9 @@
           },
           "price" : {
             "type" : "number"
+          },
+          "sourceMembership" : {
+            "$ref" : "#/components/schemas/MembershipRef"
           },
           "status" : {
             "enum" : [ "ACTIVO", "INACTIVO" ],
@@ -1424,6 +1430,9 @@
           },
           "price" : {
             "type" : "number"
+          },
+          "sourceMembership" : {
+            "$ref" : "#/components/schemas/MembershipRef"
           },
           "status" : {
             "enum" : [ "ACTIVO", "INACTIVO" ],
@@ -1557,6 +1566,10 @@
           "price" : {
             "minimum" : 0.0,
             "type" : "number"
+          },
+          "sourceMembershipId" : {
+            "format" : "uuid",
+            "type" : "string"
           },
           "targetMembershipId" : {
             "format" : "uuid",
@@ -1955,6 +1968,9 @@
           },
           "price" : {
             "$ref" : "#/components/schemas/PatchableBigDecimal"
+          },
+          "sourceMembershipId" : {
+            "$ref" : "#/components/schemas/PatchableObject"
           },
           "targetMembershipId" : {
             "$ref" : "#/components/schemas/PatchableObject"
@@ -4107,6 +4123,14 @@
           "name" : "status",
           "required" : false,
           "schema" : {
+            "type" : "string"
+          }
+        }, {
+          "in" : "query",
+          "name" : "sourceMembershipId",
+          "required" : false,
+          "schema" : {
+            "format" : "uuid",
             "type" : "string"
           }
         }, {

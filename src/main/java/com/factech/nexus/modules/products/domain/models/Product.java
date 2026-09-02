@@ -90,6 +90,19 @@ public class Product {
   @Column(name = "target_membership_id", updatable = false)
   private UUID targetMembershipId;
 
+  /**
+   * De qué membresía <b>sale</b> el upgrade, desde el 02-09-2026 (`RN-PM-002`).
+   *
+   * <p><b>Inmutable por el mismo motivo que el destino</b>: cambiar de quién sale un upgrade
+   * reescribe a quién iba dirigido lo que ya se vendió.
+   *
+   * <p><b>No tiene por qué ser la inmediatamente inferior al destino</b> (`RN-PM-018`). Deducirla
+   * de la cadena habría hecho imposible exactamente el caso que este campo existe para permitir: el
+   * salto de varios niveles, que es un producto distinto y con su propio precio.
+   */
+  @Column(name = "source_membership_id", updatable = false)
+  private UUID sourceMembershipId;
+
   @Column(name = "price", nullable = false, precision = 14, scale = 4)
   private BigDecimal price;
 
@@ -140,6 +153,7 @@ public class Product {
       String name,
       String description,
       String icon,
+      UUID sourceMembershipId,
       UUID targetMembershipId,
       BigDecimal price,
       UUID currencyId,
@@ -152,9 +166,10 @@ public class Product {
     producto.type = type;
     producto.name = recortar(name);
     producto.description = recortar(description);
-    verificarTipoYDestino(type, targetMembershipId);
+    verificarTipoYMembresias(type, sourceMembershipId, targetMembershipId);
     producto.icon = normalizarIcono(icon);
     verificarTipoEIcono(type, producto.icon);
+    producto.sourceMembershipId = sourceMembershipId;
     producto.targetMembershipId = targetMembershipId;
     producto.price = price;
     producto.currencyId = currencyId;
@@ -360,6 +375,8 @@ public class Product {
     estado.put("description", description);
     estado.put(
         "target_membership_id", targetMembershipId == null ? null : targetMembershipId.toString());
+    estado.put(
+        "source_membership_id", sourceMembershipId == null ? null : sourceMembershipId.toString());
     estado.put("price", price.toPlainString());
     estado.put("currency_id", currencyId.toString());
     estado.put("validity_days", validityDays);
@@ -409,16 +426,43 @@ public class Product {
    * produciría un fallo de integridad —un {@code 500}— donde corresponde un {@code 400} que diga
    * <b>cuál</b> de las dos mitades se incumplió.
    */
-  public static void verificarTipoYDestino(ProductType tipo, UUID destino) {
-    if (tipo.exigeDestino() && destino == null) {
-      String mensaje = "Un producto de upgrade debe declarar su membresía destino.";
-      throw new ValidationException(
-          "VAL-007", mensaje, List.of(new FieldError("targetMembershipId", "VAL-007", mensaje)));
+  public static void verificarTipoYMembresias(ProductType tipo, UUID origen, UUID destino) {
+    if (tipo.exigeDestino()) {
+      // LAS DOS, y con su propio campo en el error: con dos membresías, un
+      // mensaje que no distingue cuál falta obliga a probar las dos.
+      if (origen == null) {
+        String mensaje = "Un producto de upgrade debe declarar su membresía de origen.";
+        throw new ValidationException(
+            "VAL-007", mensaje, List.of(new FieldError("sourceMembershipId", "VAL-007", mensaje)));
+      }
+      if (destino == null) {
+        String mensaje = "Un producto de upgrade debe declarar su membresía destino.";
+        throw new ValidationException(
+            "VAL-007", mensaje, List.of(new FieldError("targetMembershipId", "VAL-007", mensaje)));
+      }
+      // `RN-PM-017`, la mitad que el esquema TAMBIÉN sostiene. La otra —que el
+      // origen esté por debajo— necesita el `level` de las dos membresías y no
+      // cabe aquí: el agregado no conoce `memberships`. Vive en el caso de uso.
+      if (origen.equals(destino)) {
+        String mensaje =
+            "Un upgrade debe subir de nivel: el origen no puede ser la membresía destino.";
+        throw new ValidationException(
+            "VAL-014", mensaje, List.of(new FieldError("sourceMembershipId", "VAL-014", mensaje)));
+      }
+      return;
     }
-    if (!tipo.exigeDestino() && destino != null) {
+
+    // NINGUNA. Esta mitad es la que se olvida y la peligrosa: un bot con
+    // membresía no falla — PROMETE un cambio de nivel que nadie va a aplicar.
+    if (destino != null) {
       String mensaje = "Un producto de tipo bot no puede declarar membresía destino.";
       throw new ValidationException(
           "VAL-008", mensaje, List.of(new FieldError("targetMembershipId", "VAL-008", mensaje)));
+    }
+    if (origen != null) {
+      String mensaje = "Un producto de tipo bot no puede declarar membresía de origen.";
+      throw new ValidationException(
+          "VAL-008", mensaje, List.of(new FieldError("sourceMembershipId", "VAL-008", mensaje)));
     }
   }
 
@@ -516,6 +560,11 @@ public class Product {
 
   public UUID getTargetMembershipId() {
     return targetMembershipId;
+  }
+
+  /** De qué membresía sale el upgrade. Nula en los bots. */
+  public UUID getSourceMembershipId() {
+    return sourceMembershipId;
   }
 
   public BigDecimal getPrice() {

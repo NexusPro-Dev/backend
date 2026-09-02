@@ -25,10 +25,10 @@ import java.util.UUID;
  *
  * <h2>Los tres inmutables están declarados A PROPÓSITO</h2>
  *
- * <p>{@code type}, {@code code} y {@code targetMembershipId} <b>no se pueden corregir</b>: definen
- * qué derecho otorga el producto, y cambiarlos convertiría lo comprado en otra cosa. Se declaran
- * igualmente —como {@code Patchable<Object>}, porque su valor no importa— para poder rechazarlos
- * con <b>su</b> mensaje.
+ * <p>{@code type}, {@code code} y LAS DOS MEMBRESIAS. {@code targetMembershipId} <b>no se pueden
+ * corregir</b>: definen qué derecho otorga el producto, y cambiarlos convertiría lo comprado en
+ * otra cosa. Se declaran igualmente —como {@code Patchable<Object>}, porque su valor no importa—
+ * para poder rechazarlos con <b>su</b> mensaje.
  *
  * <p>Sin ellos, {@code FAIL_ON_UNKNOWN_PROPERTIES} ya devolvería {@code 400}, pero con el texto
  * genérico de Jackson: quien intente cambiar el código leería «propiedad desconocida» y creería que
@@ -44,7 +44,8 @@ public record UpdateProductRequest(
     @JsonDeserialize(using = PatchableDeserializer.class) Patchable<Integer> validityDays,
     @JsonDeserialize(using = PatchableDeserializer.class) Patchable<Object> type,
     @JsonDeserialize(using = PatchableDeserializer.class) Patchable<Object> code,
-    @JsonDeserialize(using = PatchableDeserializer.class) Patchable<Object> targetMembershipId) {
+    @JsonDeserialize(using = PatchableDeserializer.class) Patchable<Object> targetMembershipId,
+    @JsonDeserialize(using = PatchableDeserializer.class) Patchable<Object> sourceMembershipId) {
 
   /**
    * El campo que Jackson no vio llega como {@code null} al constructor canónico.
@@ -62,11 +63,15 @@ public record UpdateProductRequest(
     type = type == null ? Patchable.ausente() : type;
     code = code == null ? Patchable.ausente() : code;
     targetMembershipId = targetMembershipId == null ? Patchable.ausente() : targetMembershipId;
+    sourceMembershipId = sourceMembershipId == null ? Patchable.ausente() : sourceMembershipId;
   }
 
-  /** ¿Trae alguno de los tres campos que no se pueden corregir? (`VAL-006`) */
+  /** ¿Trae alguno de los CUATRO campos que no se pueden corregir? (`VAL-006`) */
   public boolean traeInmutables() {
-    return type.presente() || code.presente() || targetMembershipId.presente();
+    return type.presente()
+        || code.presente()
+        || targetMembershipId.presente()
+        || sourceMembershipId.presente();
   }
 
   /** ¿Se envió algún campo corregible, con el valor que sea? */

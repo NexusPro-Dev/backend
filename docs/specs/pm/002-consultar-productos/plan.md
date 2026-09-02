@@ -3,12 +3,12 @@
 | Campo | Valor |
 |---|---|
 | Requerimiento | `RF-PM-002` |
-| Especificación | [`spec.md`](spec.md) v0.3.0 |
+| Especificación | [`spec.md`](spec.md) v0.4.0 |
 | `spec.md` aprobada el | 26-08-2026 |
 | Estado | **Aprobado** |
 | Autor | Responsable técnico |
 | Aprobado por | Responsable del proyecto |
-| Enmendado el | 27-08-2026 — `RN-PM-015` |
+| Enmendado el | 27-08-2026 — `RN-PM-015`; 02-09-2026 — la membresía de **origen** (`RN-PM-017`, `RN-PM-018`) |
 | Fecha de aprobación | 26-08-2026 |
 
 ---
@@ -72,13 +72,13 @@ Ninguna. Una consulta de catálogo no es un evento de seguridad; el único lista
 
 ## 8. Impacto sobre otros módulos
 
-**Ninguno.** El destino de cada upgrade se resuelve con un `LEFT JOIN` a `memberships` **dentro de la misma sentencia**, y no llamando al puerto de `SP` una vez por fila.
+**Ninguno.** Las **dos** membresías de cada upgrade —origen y destino— se resuelven con sendos `LEFT JOIN` a `memberships` **dentro de la misma sentencia**, y no llamando al puerto de `SP` una vez por fila. Son dos uniones y no dos consultas: el coste de la página sigue siendo **una** sentencia, y el del listado entero **dos** con el conteo.
 
 !!! important "Por qué aquí sí hay `JOIN` y no puerto, y no contradice a D-25"
 
     D-25 gobierna el **código**: `PM` no importa repositorios ni entidades de `SP`. Este `JOIN` es SQL de una consulta de lectura, y la alternativa —llamar al puerto por cada producto de la página— es el problema de las N+1 consultas con otro nombre: cien productos, cien llamadas.
 
-    La frontera se mantiene donde importa: **ninguna regla se decide con ese `JOIN`**. Lo que valida que el destino existe sigue siendo el puerto, en `RF-PM-001`; aquí solo se pinta un nombre junto a un identificador que ya está en la fila.
+    La frontera se mantiene donde importa: **ninguna regla se decide con esos `JOIN`**. Lo que valida que las dos membresías existen, y que el origen está por debajo del destino, sigue siendo el puerto, en `RF-PM-001`; aquí solo se pinta un nombre junto a un identificador que ya está en la fila.
 
 ## 9. Alternativas consideradas
 
@@ -86,7 +86,7 @@ Ninguna. Una consulta de catálogo no es un evento de seguridad; el único lista
 |---|---|
 | Orden solo por `createdAt`, sin desempate | Paginación inestable: filas repetidas u omitidas entre páginas, sin ningún error |
 | `sort` como campo libre | Deja ordenar por lo que nadie revisó. `RF-SP-025` lo prohibió por un motivo peor: ordenar por la marca de cambio obligatorio producía la lista de quién no ha cambiado su contraseña |
-| Resolver el destino con el puerto de `SP`, fila a fila | N+1 consultas por página |
+| Resolver las dos membresías con el puerto de `SP`, fila a fila | N+1 consultas por página, y con el origen serían **2N+1** |
 | Excluir siempre los eliminados | Impediría entender por qué un producto dejó de venderse, que es media razón de existir de este listado |
 
 ## 10. Riesgos

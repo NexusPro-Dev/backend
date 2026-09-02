@@ -9,6 +9,16 @@
 | Aprobada por | Responsable del proyecto |
 | Fecha de aprobación | 26-08-2026 |
 | Enmendada el | 28-08-2026 — ver §15 |
+| Enmendada el | 02-09-2026 — **un upgrade declara tambien su membresia de ORIGEN** (`RN-PM-002`, `RN-PM-017`, `RN-PM-018`). Ver el aviso de cabecera |
+
+!!! danger "Un upgrade dice ahora DE DONDE sale, y eso cambia quien puede comprarlo"
+
+    Hasta el 02-09-2026 un upgrade solo declaraba **a donde lleva**, y quien podia comprarlo **se deducia**: cualquiera por debajo de ese nivel. Por decision del responsable del proyecto, ahora declara tambien **de que membresia sale**.
+
+    **Lo que eso compra es el salto.** `FREE → ORO` no se podia expresar: la deduccion ofrecia «subir a ORO» a todo el mundo por debajo, al mismo precio, sin distinguir a quien sube tres escalones de quien sube uno. Ahora **cada salto es un producto** y cada uno tiene su precio.
+
+    **El origen es obligatorio**, y la consecuencia se acepta entera: si nadie declara un upgrade desde `VIP`, quien este en `VIP` **no vera ninguna subida** — sin error y sin aviso. Es el precio de que la oferta sea explicita en lugar de calculada (`pm.md` §5.2.1).
+
 
 ---
 
@@ -32,9 +42,9 @@ Hoy la plataforma no tiene **nada que vender**. La membresía de una persona sol
 
 ### 4.1 Incluye
 
-- Registrar un producto de tipo **upgrade de membresía**, declarando su membresía destino.
-- Registrar un producto de tipo **bot del sistema**, sin membresía destino.
-- Verificar que el destino existe, que la moneda existe y está activa, y que ni el nombre ni el código chocan con los de otro producto.
+- Registrar un producto de tipo **upgrade de membresía**, declarando **de qué membresía sale y a cuál lleva**.
+- Registrar un producto de tipo **bot del sistema**, sin ninguna de las dos.
+- Verificar que **las dos membresías existen y que el origen está por debajo del destino**, que la moneda existe y está activa, y que ni el nombre ni el código chocan con los de otro producto.
 - Dejar constancia del alta en la auditoría de cambios.
 - **Registrarlo `INACTIVO`**: existe, y no se ofrece hasta que alguien lo publique con `RF-PM-005`.
 
@@ -51,7 +61,9 @@ Hoy la plataforma no tiene **nada que vender**. La membresía de una persona sol
 |---|---|---|
 | `RN-PM-001` | Dos tipos, y el tipo es inmutable | `requirements/pm.md` §5.1 |
 | `RN-PM-002` | Destino obligatorio en el upgrade, prohibido en el bot | `requirements/pm.md` §5.1 |
-| `RN-PM-003` | El destino es una membresía real de la cadena | `requirements/pm.md` §5.1 |
+| `RN-PM-003` | Origen y destino son membresías reales de la cadena | `requirements/pm.md` §5.1 |
+| `RN-PM-017` | **El origen está por debajo del destino**, y no es el mismo | `requirements/pm.md` §5.1 |
+| `RN-PM-018` | **Se admite saltar niveles** | `requirements/pm.md` §5.1 |
 | `RN-PM-005` | Nombre único entre los vivos | `requirements/pm.md` §5.1 |
 | `RN-PM-006` | El precio es mayor que cero | `requirements/pm.md` §5.1 |
 | `RN-PM-007` | El precio respeta los decimales de su moneda | `requirements/pm.md` §5.1 |
@@ -71,7 +83,8 @@ Hoy la plataforma no tiene **nada que vender**. La membresía de una persona sol
 | Tipo | Sí | Upgrade de membresía o bot del sistema | Uno de los dos, y **no se podrá cambiar después** (`RN-PM-001`) |
 | Nombre | Sí | Cómo se llama el producto de cara a quien lo compra | Único entre los productos vivos, sin distinguir mayúsculas ni acentos (`RN-PM-005`) |
 | Descripción | No | Qué se lleva quien lo compra | Con longitud acotada. Opcional al registrar; **sin ella el producto no podrá publicarse** (`RN-PM-014`) |
-| Membresía destino | **Depende del tipo** | Nivel al que lleva el upgrade | **Obligatoria** si el tipo es upgrade, **prohibida** si es bot (`RN-PM-002`). Debe existir (`RN-PM-003`) |
+| Membresía **de origen** | **Depende del tipo** | Nivel desde el que se compra el upgrade | **Obligatoria** si el tipo es upgrade, **prohibida** si es bot (`RN-PM-002`). Debe existir (`RN-PM-003`) y estar **por debajo** del destino (`RN-PM-017`) |
+| Membresía **destino** | **Depende del tipo** | Nivel al que lleva el upgrade | Mismas condiciones. **No tiene por qué ser el inmediatamente superior al origen** (`RN-PM-018`) |
 | Icono | No | **Nombre** del icono con el que el frontend pinta el producto, no una imagen | Minúsculas, dígitos y guion medio, empezando por letra, hasta 50 caracteres. **Solo en el upgrade**, y opcional incluso ahí (`RN-PM-016`) |
 | Precio | Sí | Cuánto cuesta | Mayor que cero (`RN-PM-006`), con los decimales que admita su moneda (`RN-PM-007`) |
 | Moneda | Sí | En qué moneda se expresa el precio | Debe existir y estar **activa** (`RN-PM-008`) |
@@ -82,7 +95,7 @@ Hoy la plataforma no tiene **nada que vender**. La membresía de una persona sol
 | Dato | Descripción |
 |---|---|
 | Producto | El producto registrado, con su identificador, su código, su tipo, su precio **tal como quedó almacenado** y su estado, que es siempre `INACTIVO` |
-| Membresía destino resuelta | Cuando es un upgrade: el código, el nombre y el nivel del destino, y no solo su identificador |
+| Membresías resueltas | Cuando es un upgrade: el código, el nombre y el nivel **de las dos**, y no solo sus identificadores |
 
 ## 7. Precondiciones y postcondiciones
 
@@ -100,10 +113,10 @@ Hoy la plataforma no tiene **nada que vender**. La membresía de una persona sol
 
 ## 8. Flujo principal
 
-1. El actor envía el código, el tipo, el nombre, el precio, la moneda y —si es un upgrade— la membresía destino.
+1. El actor envía el código, el tipo, el nombre, el precio, la moneda y —si es un upgrade— **las dos membresías, la de origen y la de destino**.
 2. El sistema comprueba que los datos obligatorios de **ese tipo** están presentes y que no llegan los que ese tipo prohíbe.
 3. El sistema comprueba que la moneda existe y está activa, y que el precio es mayor que cero y no tiene más decimales que los que esa moneda admite.
-4. Si es un upgrade, el sistema comprueba que la membresía destino existe.
+4. Si es un upgrade, el sistema comprueba que **las dos membresías existen**, que **no son la misma**, y que **el origen está por debajo del destino** (`RN-PM-017`).
 5. El sistema comprueba que el código no lo ha tenido nunca otro producto, y que el nombre no lo tiene ya otro producto vivo.
 6. El sistema registra el producto **inactivo** y emite el evento de auditoría de creación.
 7. El sistema devuelve el producto registrado.
@@ -161,7 +174,8 @@ Hoy la plataforma no tiene **nada que vender**. La membresía de una persona sol
 | `VAL-004` | Precio obligatorio y mayor que cero | El precio debe ser mayor que cero. |
 | `VAL-005` | Decimales del precio según su moneda | El precio no admite más decimales que los de su moneda. |
 | `VAL-006` | Moneda obligatoria | La moneda es obligatoria. |
-| `VAL-007` | Destino obligatorio en el upgrade | Un producto de upgrade debe declarar su membresía destino. |
+| `VAL-007` | **Origen y destino** obligatorios en el upgrade | Un producto de upgrade debe declarar su membresía de origen y su membresía destino. |
+| `VAL-014` | **El origen está por debajo del destino** | Un upgrade debe subir de nivel: la membresía de origen no puede ser la de destino ni estar por encima. |
 | `VAL-008` | Destino prohibido en el bot | Un producto de bot no puede declarar membresía destino. |
 | `VAL-009` | Código obligatorio | El código del producto es obligatorio. |
 | `VAL-010` | Formato del código | El código solo admite letras mayúsculas, dígitos y guion bajo, y debe empezar por letra. |
@@ -194,6 +208,11 @@ Hoy la plataforma no tiene **nada que vender**. La membresía de una persona sol
 | `CA-PM-071` | El sistema **admite registrar sin descripción**, y el producto queda inactivo a la espera de que `RF-PM-005` la exija para publicarlo |
 | `CA-PM-092` | El sistema **admite registrar sin vigencia**, y ese producto otorga su derecho sin caducidad |
 | `CA-PM-093` | El sistema rechaza una vigencia de cero, negativa o no entera, en cualquiera de los dos tipos |
+| `CA-PM-101` | El sistema registra un upgrade **con su origen y su destino**, y la respuesta resuelve **las dos** membresías |
+| `CA-PM-102` | El sistema registra un **salto**: `FREE → ORO` con dos niveles de por medio, sin exigir que sean contiguos |
+| `CA-PM-103` | El sistema rechaza un upgrade **sin origen**, y otro **sin destino** |
+| `CA-PM-104` | El sistema rechaza un upgrade cuyo origen **es** el destino, y otro cuyo origen está **por encima** — un descenso vendido como upgrade |
+| `CA-PM-105` | El sistema rechaza un **bot** que declare cualquiera de las dos membresías |
 
 ## 13. Casos límite
 
@@ -226,3 +245,4 @@ Ninguna. Las cinco se resolvieron el 26-08-2026, antes de aprobar la especificac
 | 0.1.0 | 26-08-2026 | Redacción inicial, con cinco preguntas abiertas. | Responsable técnico |
 | 0.3.0 | 27-08-2026 | **El producto gana vigencia de adquisición** (`RN-PM-015`), medida en días y **opcional**: sin ella, lo adquirido no caduca. Entra como dato de entrada, sale en la respuesta, y trae `VAL-011`, `CA-PM-092` y `CA-PM-093`. La spec vuelve a su compuerta y se reaprueba el mismo día (Art. I.7); no había código escrito, de modo que el cambio costó una edición y no una migración. | Responsable del proyecto |
 | 0.4.0 | 28-08-2026 | **El tipo `SERVICIO` pasa a llamarse `BOT`, y el upgrade gana icono** (`RN-PM-016`), por decisión del responsable del proyecto. El renombrado **no cambia la semántica** del tipo —sigue siendo el producto que no toca el nivel de acceso de nadie— y fue posible porque todavía no existe ninguna tabla de compras que apunte a un producto. El icono es un **identificador y no una imagen**, es **opcional** y **solo el upgrade puede llevarlo**: `RN-PM-016` tiene una sola mitad, al revés que `RN-PM-002`, y lo que rechaza es el icono de más. Entran `VAL-012`, `VAL-013` y `CA-PM-096` a `CA-PM-098`, y la tabla de §6.1 gana la fila del icono. | Responsable técnico |
+| 0.5.0 | 02-09-2026 | **Un upgrade declara su membresía de ORIGEN**, y no solo el destino, por decisión del responsable del proyecto. Hasta hoy quién podía comprarlo **se deducía** —cualquiera por debajo del destino—, y esa deducción hacía **imposible el salto**: «subir a `ORO`» era el mismo producto y el mismo precio para quien sube un escalón y para quien sube tres. Ahora **cada salto es un producto**. El alta pasa de una membresía a dos, las dos obligatorias en el upgrade y **las dos prohibidas en el bot** (`RN-PM-002`), y el paso 4 del flujo gana lo que el destino solo no podía comprobar: que **no sean la misma** y que **el origen esté por debajo** (`RN-PM-017`, `VAL-014`). `RN-PM-018` declara que **saltar niveles es legítimo** —es la razón de que el origen se declare en lugar de deducirse de la cadena—, de modo que `CA-PM-102` prueba `FREE → ORO` con dos niveles de por medio. `EX-002` deja de hablar de «la membresía» y pasa a decir **cuál de las dos** no existe: con dos campos, un mensaje que no distingue obliga a probar los dos. **La consecuencia que la cabecera acepta entera**: el origen obligatorio significa que **un origen sin producto no falla, no se ofrece** — quien esté en `VIP` sin un upgrade declarado desde `VIP` no verá ninguna subida, y el catálogo se verá perfectamente bien desde administración. | Responsable del proyecto |

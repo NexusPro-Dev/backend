@@ -5,7 +5,7 @@
 | Módulo | `PM` — Productos y Mercadeo |
 | Paquete | `modules/products` |
 | Prefijos de permiso | `products:` |
-| Versión | 0.13.0 |
+| Versión | 0.14.0 |
 | Estado | **Borrador** |
 | Responsable | Bonilla Diaz William Steven |
 | Fecha de creación | 26-08-2026 |
@@ -46,7 +46,7 @@ Hoy la membresía de una persona solo cambia porque un administrador se la asign
 **Incluye**
 
 - Registrar un producto de cualquiera de los dos tipos, con su precio y su moneda.
-- Consultar el catálogo completo, en lista y en detalle, con filtros por tipo, estado y membresía destino.
+- Consultar el catálogo completo, en lista y en detalle, con filtros por tipo, estado y membresía —**de origen y de destino**—.
 - Corregir un producto: nombre, descripción, icono, precio y moneda.
 - Activar y desactivar un producto, que es lo que decide si se ofrece.
 - Retirar un producto por eliminación lógica y con motivo.
@@ -126,9 +126,11 @@ La dependencia es **acíclica**: `PM` consume `SP` y `SP` no consume nada ([`mod
 | ID | Regla | Cuándo aplica | Qué debe ocurrir | Prioridad |
 |---|---|---|---|---|
 | `RN-PM-001` | Dos tipos, y el tipo es inmutable | Al registrar y en toda edición | El producto es `UPGRADE_MEMBRESIA` o `BOT`. El tipo se fija al crear y **ninguna operación lo cambia** | Crítica |
-| `RN-PM-002` | Destino obligatorio en el upgrade, prohibido en el bot | Al registrar | Un `UPGRADE_MEMBRESIA` declara **una** membresía destino; un `BOT` **no puede** declararla. La condición se exige en los dos sentidos | Crítica |
-| `RN-PM-003` | El destino es una membresía real de la cadena | Al registrar un upgrade | La membresía destino debe existir en `SP`. Se declara además como clave foránea | Crítica |
-| `RN-PM-004` | Un solo upgrade activo por destino | **Al activar**, y no al registrar | No pueden coexistir **dos productos de upgrade activos hacia la misma membresía**. Se comprueba en un solo sitio porque el producto **nace inactivo** (`RN-PM-012`): dos copias de esta regla —una en el alta y otra en la activación— acabarían divergiendo, y la que se quedara atrás no fallaría, admitiría | Crítica |
+| `RN-PM-002` | **Origen y destino** obligatorios en el upgrade, prohibidos en el bot | Al registrar | Un `UPGRADE_MEMBRESIA` declara **de qué membresía sale y a cuál lleva**; un `BOT` **no puede** declarar ninguna de las dos. La condición se exige en los dos sentidos. El origen entró el 02-09-2026 (§5.2.1) | **Crítica** |
+| `RN-PM-003` | Origen y destino son membresías reales de la cadena | Al registrar un upgrade | Las dos deben existir en `SP`. Se declaran además como claves foráneas | Crítica |
+| `RN-PM-017` | **El origen está por debajo del destino** | Al registrar un upgrade | Un upgrade **sube**: `level` del origen mayor que el del destino —la cadena numera del uno hacia abajo, de modo que **mayor `level` es más bajo**—. Declarar `ORO → FREE` sería vender un descenso llamándolo upgrade, y **declarar el mismo en los dos lados** sería vender nada | **Crítica** |
+| `RN-PM-018` | **Se admite saltar niveles** | Siempre | El origen **no tiene por qué ser el inmediatamente inferior** al destino: `FREE → ORO` es legítimo y es la razón de que el origen se declare en lugar de deducirse de la cadena. Deducirlo habría hecho imposible exactamente el caso que el campo existe para permitir | Alta |
+| `RN-PM-004` | Un solo upgrade activo **por pareja origen→destino** | **Al activar**, y no al registrar | No pueden coexistir **dos productos de upgrade activos con el mismo origen y el mismo destino**. **Hasta el 02-09-2026 la unicidad era solo por destino**, y eso hacía imposible vender `FREE → ORO` y `PLATINO → ORO` a la vez — que es precisamente lo que el origen existe para permitir. Se comprueba en un solo sitio porque el producto **nace inactivo** (`RN-PM-012`): dos copias de esta regla —una en el alta y otra en la activación— acabarían divergiendo, y la que se quedara atrás no fallaría, admitiría | Crítica |
 | `RN-PM-005` | Nombre único entre los vivos | Al registrar y al editar | El nombre no se repite entre los productos no eliminados, **sin distinguir mayúsculas ni acentos** | Alta |
 | `RN-PM-006` | El precio es mayor que cero | Al registrar y al editar | Un precio de cero o negativo se rechaza. Lo gratuito no se vende: se concede | Alta |
 | `RN-PM-007` | El precio respeta los decimales de su moneda | Al registrar y al editar | El importe no puede tener más decimales que los que declara su moneda (`currencies.decimal_places`) | Media |
@@ -152,7 +154,29 @@ La dependencia es **acíclica**: `PM` consume `SP` y `SP` no consume nada ([`mod
 
 **`RN-PM-003` — el destino existe.** Sin esta regla un upgrade puede apuntar a un identificador que no es nada, y el defecto solo se ve al intentar aplicarlo: con el cobro ya hecho.
 
-**`RN-PM-004` — un solo upgrade activo por destino.** Dos productos activos hacia el mismo nivel son **dos precios simultáneos para exactamente lo mismo**, y quien compre pagará el que la interfaz liste primero. Esto no se descubre como un error: se descubre como una discrepancia de facturación meses después.
+**`RN-PM-004` — un solo upgrade activo por pareja.** Dos productos activos **desde el mismo sitio y hacia el mismo sitio** son **dos precios simultáneos para exactamente lo mismo**, y quien compre pagará el que la interfaz liste primero. Esto no se descubre como un error: se descubre como una discrepancia de facturación meses después.
+
+**Lo que la pareja SÍ admite, y antes no**: dos productos activos hacia `ORO`, uno desde `FREE` y otro desde `PLATINO`. No son el mismo producto con dos precios — **son dos saltos distintos**, y que cuesten distinto es lo normal.
+
+### 5.2.1 El origen de un upgrade — 02-09-2026
+
+Hasta esta fecha un upgrade solo decía **a dónde lleva**, y quién podía comprarlo se **deducía**: cualquiera por debajo de ese nivel. Por decisión del responsable del proyecto, ahora declara también **de dónde sale**.
+
+**Lo que eso compra es el salto.** `FREE → ORO` no se podía expresar: la deducción por niveles ofrecía «subir a ORO» a todo el mundo por debajo, al mismo precio, sin poder distinguir a quien salta tres escalones de quien sube uno. Con el origen declarado, **cada salto es un producto** y cada uno tiene su precio.
+
+**El origen es obligatorio en todo upgrade** (`RN-PM-002`), y de ahí sale una consecuencia que hay que aceptar entera:
+
+!!! warning "Un origen sin producto no falla: no se ofrece"
+
+    Si nadie declara un upgrade desde `VIP`, quien esté en `VIP` **no verá ninguna oferta de subida**. No hay error, no hay aviso, y el catálogo se ve perfectamente bien desde administración.
+
+    Es el precio de que la oferta sea **explícita** en lugar de deducida: antes la cadena cubría sola todos los casos porque el sistema los calculaba; ahora los cubre **quien declara los productos**. Cubrir la cadena entera exige un producto por cada pareja que se quiera vender.
+
+    Se acepta a conciencia porque la alternativa —dejar el origen opcional, con «vacío = desde cualquiera»— obliga a que **dos reglas convivan** en cada consulta de oferta, y a que un mismo comprador vea dos caminos al mismo destino sin que nadie lo haya decidido.
+
+**Y `RF-PM-007` deja de comparar niveles.** La oferta pasa a ser una coincidencia exacta —*los upgrades cuyo origen es mi membresía*— y con ello la regla de niveles se muda: deja de ser un filtro que se evalúa en **cada consulta** y pasa a ser una validación que se comprueba **una vez, al registrar** (`RN-PM-017`).
+
+Eso conserva sin escribir nada lo que aquel requerimiento ya decía: **quien no tiene membresía no ve ningún upgrade**, porque no coincide con ningún origen.
 
 ### 5.3 Reglas de otros documentos que este módulo aplica
 
@@ -210,7 +234,7 @@ El alta crea la tabla y el catálogo, y sin catálogo no hay nada que consultar.
 | Tripleta | `docs/specs/pm/001-registrar-producto/` |
 | Estado | **Tasks aprobadas** (26-08-2026) |
 
-Registra un producto declarando su **tipo**, su nombre, su precio y su moneda; si el tipo es `UPGRADE_MEMBRESIA`, además su membresía destino, que es obligatoria ahí y está prohibida en el otro tipo. Es el requerimiento que crea la tabla del módulo y **siembra sus cuatro permisos**, con la obligación de asociarlos a `SUPERADMIN` y `ADMIN` en la misma migración ([`security.md` §4.4](../security.md#44-catalogo-de-permisos)): olvidarlo no falla al aplicar la migración, deja a `ADMIN` incapaz de conceder lo que no tiene.
+Registra un producto declarando su **tipo**, su nombre, su precio y su moneda; si el tipo es `UPGRADE_MEMBRESIA`, además **de qué membresía sale y a cuál lleva**, las dos obligatorias ahí y prohibidas en el otro tipo. Es el requerimiento que crea la tabla del módulo y **siembra sus cuatro permisos**, con la obligación de asociarlos a `SUPERADMIN` y `ADMIN` en la misma migración ([`security.md` §4.4](../security.md#44-catalogo-de-permisos)): olvidarlo no falla al aplicar la migración, deja a `ADMIN` incapaz de conceder lo que no tiene.
 
 #### `RF-PM-002` — Consultar productos
 
@@ -225,7 +249,7 @@ Registra un producto declarando su **tipo**, su nombre, su precio y su moneda; s
 | Tripleta | `docs/specs/pm/002-consultar-productos/` |
 | Estado | **Tasks aprobadas** (26-08-2026) |
 
-Devuelve el catálogo **paginado**, con filtros por tipo, estado y membresía destino, y búsqueda por nombre. Incluye lo inactivo y **excluye lo eliminado salvo que se pida expresamente**, porque un catálogo que oculta lo retirado impide entender por qué un producto dejó de venderse.
+Devuelve el catálogo **paginado**, con filtros por tipo, estado y membresía **de origen o de destino**, y búsqueda por nombre. Incluye lo inactivo y **excluye lo eliminado salvo que se pida expresamente**, porque un catálogo que oculta lo retirado impide entender por qué un producto dejó de venderse.
 
 #### `RF-PM-003` — Consultar el detalle de un producto
 
@@ -240,7 +264,7 @@ Devuelve el catálogo **paginado**, con filtros por tipo, estado y membresía de
 | Tripleta | `docs/specs/pm/003-consultar-detalle-producto/` |
 | Estado | **Tasks aprobadas** (26-08-2026) |
 
-Devuelve un producto por su identificador con sus datos completos y, cuando es un upgrade, **la membresía destino resuelta** —su código, su nombre y su nivel— y no solo su identificador: un detalle que obliga a una segunda llamada para ser legible no es un detalle.
+Devuelve un producto por su identificador con sus datos completos y, cuando es un upgrade, **las dos membresías resueltas** —código, nombre y nivel de cada una— y no solo sus identificadores: un detalle que obliga a una segunda llamada para ser legible no es un detalle.
 
 #### `RF-PM-004` — Editar producto
 
@@ -255,7 +279,7 @@ Devuelve un producto por su identificador con sus datos completos y, cuando es u
 | Tripleta | `docs/specs/pm/004-editar-producto/` |
 | Estado | **Tasks aprobadas** (26-08-2026) |
 
-Permite corregir **nombre, descripción, precio y moneda**. **No permite cambiar el tipo** (`RN-PM-001`) **ni la membresía destino**: las dos definen qué derecho otorga el producto, y cambiarlas convierte lo comprado en otra cosa. Quien necesite otro destino registra otro producto y retira el anterior.
+Permite corregir **nombre, descripción, precio y moneda**. **No permite cambiar el tipo** (`RN-PM-001`) **ni ninguna de las dos membresías**: las tres definen qué derecho otorga el producto, y cambiarlas convierte lo comprado en otra cosa. Quien necesite otro origen u otro destino registra otro producto y retira el anterior.
 
 #### `RF-PM-005` — Cambiar el estado de un producto
 
@@ -369,6 +393,7 @@ Ninguna otra. `memberships` y `currencies` se **referencian** por clave foránea
 | `description` | `text` | No | No | Sí | — | — |
 | `icon` | `varchar(50)` | No | No | Sí | — | — |
 | `target_membership_id` | `uuid` | No | Sí | Sí | — | `memberships` |
+| `source_membership_id` | `uuid` | No | Sí | Sí | — | `memberships` |
 | `price` | `numeric(14,4)` | No | No | No | — | — |
 | `currency_id` | `uuid` | No | Sí | No | — | `currencies` |
 | `status` | `varchar(20)` | No | No | No | `ACTIVO` | — |
@@ -382,7 +407,7 @@ Sin columnas de actor, y **sin columna de motivo**: quién retiró el producto y
 
 | Valor | Qué derecho otorga |
 |---|---|
-| `UPGRADE_MEMBRESIA` | Pasar a la membresía que declara `target_membership_id` |
+| `UPGRADE_MEMBRESIA` | Pasar **de** `source_membership_id` **a** `target_membership_id`. Las dos se declaran; ninguna se deduce |
 | `BOT` | Una prestación del sistema, sin efecto sobre el nivel de acceso |
 
 `status` tiene dominio cerrado —`ACTIVO`, `INACTIVO`— y decide si el producto se ofrece (`RN-PM-009`). **No se usa `boolean`**, al revés que los catálogos de `SP`: el dominio es candidato a crecer —un `BORRADOR` que permita preparar un producto sin publicarlo es previsible— y añadir un valor a un `varchar` con `CHECK` es una migración, mientras que convertir un `boolean` en tres estados es una reescritura de todo lo que lo consulta.
@@ -397,17 +422,19 @@ Sin columnas de actor, y **sin columna de motivo**: quién retiró el producto y
 |---|---|---|
 | `ck_products_type` | `type IN ('UPGRADE_MEMBRESIA','BOT')` | `RN-PM-001` |
 | `ck_products_status` | `status IN ('ACTIVO','INACTIVO')`, con `DEFAULT 'INACTIVO'` | `RN-PM-009`, `RN-PM-012` |
-| `ck_products_type_target` | `(type = 'UPGRADE_MEMBRESIA' AND target_membership_id IS NOT NULL) OR (type = 'BOT' AND target_membership_id IS NULL)` | `RN-PM-002` |
+| `ck_products_type_target` | `(type = 'UPGRADE_MEMBRESIA' AND target_membership_id IS NOT NULL AND source_membership_id IS NOT NULL) OR (type = 'BOT' AND target_membership_id IS NULL AND source_membership_id IS NULL)` | `RN-PM-002` |
 | `ck_products_icon_solo_upgrade` | `icon IS NULL OR type = 'UPGRADE_MEMBRESIA'` | `RN-PM-016`. La rama `IS NULL` va **delante y explícita** por lo mismo que en la vigencia: un `CHECK` que evalúa a `NULL` **acepta** la fila |
 | `ck_products_icon_format` | `icon IS NULL OR icon ~ '^[a-z][a-z0-9-]*$'` | `RN-PM-016`. El valor se guarda ya normalizado, de modo que el `CHECK` puede ser una comprobación de forma corriente |
 | `ck_products_price_positive` | `price > 0` | `RN-PM-006` |
 | `ck_products_validity_positive` | `validity_days IS NULL OR validity_days > 0` | `RN-PM-015`. La rama `IS NULL` se escribe **explícita** aunque `validity_days > 0` sola también admitiría el nulo —un `CHECK` que evalúa a `NULL` acepta la fila—: así el permiso es deliberado y no accidental, y el día que la vigencia se vuelva obligatoria basta con quitar esa rama |
 | `fk_products_target_membership` | `target_membership_id` → `memberships(id)` | `RN-PM-003` |
+| `fk_products_source_membership` | `source_membership_id` → `memberships(id)` | `RN-PM-003` |
+| `ck_products_origen_distinto` | `source_membership_id IS NULL OR source_membership_id <> target_membership_id` | `RN-PM-017`, la mitad que el esquema **sí** puede sostener. La rama `IS NULL` va **delante**: un `CHECK` que evalúa a nulo acepta la fila |
 | `uq_products_code` | `products(code)` — restricción **total**, no parcial | `RN-PM-013`: al revés que el nombre, el código **no se libera** al retirar un producto. El día que una factura diga `UPGRADE_ORO` tiene que resolver a un solo producto para siempre |
 | `ck_products_code_format` | `code ~ '^[A-Z][A-Z0-9_]*$'` | `RN-PM-013`. Mismo formato que `roles` y `memberships` |
 | `fk_products_currency` | `currency_id` → `currencies(id)` | `RN-PM-008` |
 | `uq_products_name` | Índice único sobre `f_unaccent(lower(name))`, **parcial**: `WHERE deleted_at IS NULL` | `RN-PM-005` |
-| `uq_products_upgrade_target` | Índice único sobre `target_membership_id`, **parcial**: `WHERE type = 'UPGRADE_MEMBRESIA' AND status = 'ACTIVO' AND deleted_at IS NULL` | `RN-PM-004` |
+| `uq_products_upgrade_target` | Índice único sobre **`(source_membership_id, target_membership_id)`**, **parcial**: `WHERE type = 'UPGRADE_MEMBRESIA' AND status = 'ACTIVO' AND deleted_at IS NULL`. **Era solo sobre el destino hasta el 02-09-2026** | `RN-PM-004` |
 
 Se declaran en la base de datos, no solo en Java (Art. V.6).
 
@@ -444,3 +471,4 @@ Se declaran en la base de datos, no solo en Java (Art. V.6).
 | 0.11.0 | 26-08-2026 | **Las siete `tasks.md` aprobadas**: la tripleta del módulo está completa y el código puede escribirse (Art. I.1). **95 tareas**, con el orden de implementación fijado por una dependencia que no es la de los identificadores: `RF-PM-003` necesita una eliminación registrada, que escribe `RF-PM-006`, de modo que la secuencia es `001 → 002 → 005 → 006 → 003 → 004 → 007`. Tres tareas escriben **fuera de `PM`** —dos interfaces en `SP`, una tercera para la membresía vigente, y la lectura estrecha del motivo en `shared/audit`— y son las de mayor riesgo: una regresión ahí alcanza a `SP` entero, y por eso su definición de terminado exige que su suite siga en verde sin cambios. | Responsable del proyecto |
 | 0.12.0 | 27-08-2026 | **Los productos ganan vigencia de adquisición, medida en días** (`RN-PM-015`), por decisión del responsable del proyecto. Es **opcional y en los dos tipos**: sin ella, lo adquirido **no caduca** —comprar Oro y quedarse en Oro—; con ella, el derecho dura los días que declare, contados desde la compra. Se descartó hacerla obligatoria porque vender algo permanente habría exigido un valor de relleno —mil años— que ningún `CHECK` distingue de un error de tecleo. §10 incorpora `validity_days` y `ck_products_validity_positive`, cuya rama `IS NULL` se escribe **explícita** aunque la comparación sola también admitiría el nulo: así el permiso es deliberado y no accidental. **Dos condiciones más sobre la compra futura**, en §1.4: cada compra guardará **la vigencia que compró** además del importe —o corregir una vigencia reescribiría lo ya vendido—, y **al vencer, la persona se queda sin nivel vigente**: no vuelve al que tenía antes, porque eso habría exigido que la compra guardase cuál era, ni baja al más bajo, que castigaría a quien ya estaba arriba. Enmienda las siete tripletas, aprobadas el día anterior (Art. I.7). | Responsable del proyecto |
 | 0.13.0 | 28-08-2026 | **Dos cambios pedidos por el responsable del proyecto.** (1) **El tipo `SERVICIO` pasa a llamarse `BOT`**. Es un **renombrado y no un cambio de semántica**: sigue siendo el producto que da derecho a una prestación y no toca el nivel de acceso de nadie. Se pudo hacer hoy porque **todavía no existe ninguna tabla de compras** que apunte a un producto; el día que exista, un renombrado de este valor tendrá que arrastrar también lo vendido, y por eso queda escrito. (2) **Nace `RN-PM-016`: el icono, solo en el upgrade.** Un `UPGRADE_MEMBRESIA` puede declarar el icono con el que el frontend lo pinta y un `BOT` no puede, y **es opcional incluso donde se admite**. Es un **identificador y no una imagen** —`crown`, `arrow-up-circle`—, por el mismo camino que el color de la membresía (`RN-SP-024`): el sistema no almacena binarios, y dónde vivirían es una decisión abierta que este cambio no necesitaba abrir. La regla tiene **una sola mitad** —prohíbe, no obliga—, que es lo que la distingue de `RN-PM-002`. Migración **`V43`**: `V39` no se edita, que está aplicada y Flyway valida por suma de comprobación; los dos `CHECK` que nombraban el literal viejo caen primero, porque mientras exijan `SERVICIO` ningún `UPDATE` puede escribir `BOT`. **El contrato publicado cambia**, de modo que la copia del frontend queda vieja: `docs/api/openapi.json` es la autoridad. Enmienda las tripletas de `RF-PM-001` a `RF-PM-004` (Art. I.7). | Responsable técnico |
+| 0.14.0 | 02-09-2026 | **Un upgrade declara de dónde sale, no solo a dónde lleva**, por decisión del responsable del proyecto. Hasta hoy solo decía el destino y **quién podía comprarlo se deducía** —cualquiera por debajo de ese nivel—, y esa deducción hacía **imposible el salto**: «`FREE → ORO`» no se podía expresar, porque el mismo producto se ofrecía al mismo precio a quien sube tres escalones y a quien sube uno. Con el origen declarado, **cada salto es un producto** y cada uno tiene su precio. **El origen es obligatorio en todo upgrade** (`RN-PM-002`), y §5.2.1 acepta entera la consecuencia: **un origen sin producto no falla, no se ofrece** — si nadie declara un upgrade desde `VIP`, quien esté en `VIP` no verá ninguna subida, y el catálogo se ve perfectamente bien desde administración. Es el precio de que la oferta sea explícita en lugar de calculada; la alternativa —origen opcional con «vacío = desde cualquiera»— obligaba a que **dos reglas convivieran** en cada consulta y a que un mismo comprador viera dos caminos al mismo destino sin que nadie lo decidiera. **`RN-PM-004` cambia de forma**: la unicidad pasa de ser **por destino** a ser **por pareja origen→destino**, porque la anterior prohibía exactamente lo que el origen existe para permitir — `FREE → ORO` y `PLATINO → ORO` activos a la vez no son dos precios para lo mismo, son **dos saltos distintos**. Nacen `RN-PM-017` —el origen está **por debajo** del destino, y no puede ser el mismo: lo contrario sería vender un descenso llamándolo upgrade, o vender nada— y `RN-PM-018`, que declara que **saltar niveles es legítimo** y es la razón de que el origen se declare en lugar de deducirse de la cadena. **Y `RF-PM-007` deja de comparar niveles**: la oferta pasa a ser una coincidencia exacta —los upgrades cuyo origen es mi membresía— con lo que la regla de niveles se muda de ser un filtro evaluado en cada consulta a una validación comprobada **una vez, al registrar**. Eso conserva sin escribir nada que **quien no tiene membresía no vea ningún upgrade**: no coincide con ningún origen. | Responsable del proyecto |

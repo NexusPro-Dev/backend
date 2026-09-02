@@ -37,6 +37,7 @@ public record ProductItem(
     String name,
     String description,
     String icon,
+    ProductResponse.MembershipRef sourceMembership,
     ProductResponse.MembershipRef targetMembership,
     BigDecimal price,
     ProductResponse.CurrencyRef currency,
@@ -60,6 +61,13 @@ public record ProductItem(
         fila.name(),
         fila.description(),
         fila.icon(),
+        fila.sourceMembershipId() == null
+            ? null
+            : new ProductResponse.MembershipRef(
+                fila.sourceMembershipId(),
+                fila.sourceMembershipCode(),
+                fila.sourceMembershipName(),
+                fila.sourceMembershipLevel()),
         fila.targetMembershipId() == null
             ? null
             : new ProductResponse.MembershipRef(

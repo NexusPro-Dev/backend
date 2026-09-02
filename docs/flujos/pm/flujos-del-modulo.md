@@ -3,11 +3,11 @@
 | Campo | Valor |
 |---|---|
 | Módulo | `PM` — Productos y Mercadeo |
-| Versión | 0.1.0 |
+| Versión | 0.2.0 |
 | Estado | **Borrador** |
 | Responsable | Bonilla Diaz William Steven |
 | Fecha de creación | 01-09-2026 |
-| Última actualización | 01-09-2026 |
+| Última actualización | 02-09-2026 |
 
 !!! info "Qué va en este documento"
 
@@ -29,7 +29,7 @@ stateDiagram-v2
 
     [*] --> Inactivo : RF-PM-001 · registrar<br/>RN-PM-012 · SIEMPRE inactivo
 
-    Inactivo --> Activo : RF-PM-005 · activar<br/>exige descripción · RN-PM-014<br/>y ningún otro upgrade activo al destino · RN-PM-004
+    Inactivo --> Activo : RF-PM-005 · activar<br/>exige descripción · RN-PM-014<br/>y ningún otro activo con la MISMA<br/>pareja origen→destino · RN-PM-004
     Activo --> Inactivo : RF-PM-005 · desactivar<br/>sin condiciones
 
     Inactivo --> Inactivo : RF-PM-004 · corregir
@@ -43,7 +43,7 @@ stateDiagram-v2
 
 **Lo que el diagrama no puede dibujar y hay que leer en las specs:**
 
-- **`RN-PM-004` se comprueba solo al activar**, y ese es el motivo de que el producto nazca inactivo. Naciendo activo habría que verificar «un solo upgrade activo por destino» en el alta **y** en la activación, y **la copia que se quedara atrás no fallaría: admitiría**.
+- **`RN-PM-004` se comprueba solo al activar**, y ese es el motivo de que el producto nazca inactivo. Naciendo activo habría que verificar «un solo upgrade activo por pareja origen→destino» en el alta **y** en la activación, y **la copia que se quedara atrás no fallaría: admitiría**.
 - **Activar exige descripción y desactivar no exige nada.** Registrar un producto a medias es legítimo —está preparándose—; ofrecérselo a un cliente sin decirle qué se lleva, no.
 - **El tipo y el código no tienen ninguna transición.** Son inmutables (`RN-PM-001`, `RN-PM-013`), y por eso `RF-PM-004` los rechaza explícitamente en vez de ignorarlos.
 - **El código y el nombre se comportan al revés al retirar**, y es deliberado: el nombre queda libre porque es una etiqueta corregible; **el código no se libera jamás**, porque el día que una factura diga `UPGRADE_ORO` tiene que resolver a un solo producto para siempre.
@@ -65,7 +65,7 @@ flowchart LR
 
     subgraph B["RF-PM-007 · la oferta"]
         B1["La lee el CLIENTE"] --> B2["Solo lo activo, y solo<br/>lo que le aplica a él"]
-        B2 --> B3["Orden: upgrades por nivel destino,<br/>bots por fecha"]
+        B2 --> B3["Filtra por ORIGEN = su membresía<br/>Orden: upgrades por nivel destino,<br/>bots por fecha"]
         B3 --> B4["NO exige permiso"]
     end
 
@@ -107,7 +107,7 @@ flowchart TD
 
 ```mermaid
 flowchart LR
-    SP1["SP · membresías<br/>y su nivel"] --> PM1["RF-PM-001<br/>registrar"]
+    SP1["SP · membresías<br/>y su nivel<br/>ORIGEN y destino"] --> PM1["RF-PM-001<br/>registrar"]
     SP2["SP · monedas<br/>y sus decimales"] --> PM1
     PM1 --> PM5["RF-PM-005 · estado"]
     PM1 --> PM4["RF-PM-004 · corregir"]
@@ -158,4 +158,5 @@ flowchart LR
 
 | Versión | Fecha | Cambio | Responsable |
 |---|---|---|---|
+| 0.2.0 | 02-09-2026 | **El upgrade declara su membresía de ORIGEN.** El ciclo de vida lo nota en la transición a `ACTIVO`: `RN-PM-004` deja de contarse por destino y pasa a contarse **por pareja origen→destino**, de modo que dos saltos distintos hacia el mismo nivel conviven activos. La **oferta propia** deja de comparar niveles y filtra por coincidencia exacta de origen; el orden sigue mirando el `level` del destino, porque ordenar no es filtrar. Y el mapa de dependencias con `SP` lo refleja: de `memberships` entran ahora **dos** identificadores por upgrade, no uno. | Responsable técnico |
 | 0.1.0 | 01-09-2026 | Creación. `PM` era, junto a `CM`, uno de los dos módulos sin documentos de flujo pese a tener sus siete requerimientos construidos. Se dibujan el **ciclo de vida del producto** —con `RN-PM-004` comprobándose en un solo sitio, que es el motivo de que nazca inactivo—, la **separación entre catálogo y oferta**, y **lo que este módulo congeló para un módulo que todavía no existe**. §6 recoge cinco observaciones, entre ellas el **hueco deliberado en la numeración de excepciones de `RF-PM-001`**: `EX-004` está tachada porque la regla migró a `RF-PM-005`. | Responsable técnico |

@@ -50,6 +50,11 @@ public record RegisterProductRequest(
     @Size(max = 1000, message = "VAL-003: La descripción no puede exceder 1000 caracteres.")
         String description,
     @Size(max = 50, message = "VAL-012: El icono no puede exceder 50 caracteres.") String icon,
+    // NINGUNA DE LAS DOS LLEVA `@NotNull`, y es deliberado: su obligatoriedad
+    // depende del TIPO (`RN-PM-002`), que Bean Validation no puede mirar sin una
+    // restricción de clase. La comprueba el dominio, que es donde vive la regla
+    // — y donde además puede decir CUÁL de las dos falta.
+    UUID sourceMembershipId,
     UUID targetMembershipId,
     @NotNull(message = "VAL-004: El precio es obligatorio.")
         @DecimalMin(
@@ -81,6 +86,15 @@ public record RegisterProductRequest(
 
   public RegisterProductCommand toCommand() {
     return new RegisterProductCommand(
-        code, type, name, description, icon, targetMembershipId, price, currencyId, validityDays);
+        code,
+        type,
+        name,
+        description,
+        icon,
+        sourceMembershipId,
+        targetMembershipId,
+        price,
+        currencyId,
+        validityDays);
   }
 }

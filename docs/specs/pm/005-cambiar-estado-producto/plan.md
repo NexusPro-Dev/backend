@@ -3,8 +3,9 @@
 | Campo | Valor |
 |---|---|
 | Requerimiento | `RF-PM-005` |
-| Especificación | [`spec.md`](spec.md) v0.2.0 |
+| Especificación | [`spec.md`](spec.md) v0.3.0 |
 | `spec.md` aprobada el | 26-08-2026 |
+| Enmendado el | 02-09-2026 — `RN-PM-004` pasa a contarse **por pareja origen→destino** |
 | Estado | **Aprobado** |
 | Autor | Responsable técnico |
 | Aprobado por | Responsable del proyecto |
@@ -14,7 +15,7 @@
 
 ## 1. Enfoque
 
-La operación más corta del módulo y la que concentra su invariante más caro. Cambiar una columna es trivial; lo que no lo es es que **`RN-PM-004` vive entera aquí**: desde que el producto nace inactivo (`RN-PM-012`), esta es la única puerta por la que un upgrade puede quedar activo, y por tanto el único sitio donde dos precios simultáneos para el mismo nivel podrían entrar.
+La operación más corta del módulo y la que concentra su invariante más caro. Cambiar una columna es trivial; lo que no lo es es que **`RN-PM-004` vive entera aquí**: desde que el producto nace inactivo (`RN-PM-012`), esta es la única puerta por la que un upgrade puede quedar activo, y por tanto el único sitio donde dos precios simultáneos para **el mismo salto** podrían entrar. Desde el 02-09-2026 el salto es una **pareja**: dos upgrades activos hacia `ORO`, uno desde `FREE` y otro desde `PLATINO`, no compiten — venden cosas distintas, y que cuesten distinto es lo normal. Lo que sigue prohibido es que dos vendan **el mismo salto**.
 
 ## 2. Cambios de esquema
 
@@ -41,16 +42,16 @@ La operación más corta del módulo y la que concentra su invariante más caro.
 2. Existe y **no está retirado** (`EX-001`).
 3. Si el estado pedido es el que ya tiene: se responde `200` **sin tocar nada y sin auditar** (`FA-001`). No es un error: quien pulsa dos veces el mismo botón no ha hecho nada malo.
 4. Si se activa: **tiene descripción** (`RN-PM-014`, `VAL-003`).
-5. Si se activa **y es un upgrade**: ningún otro upgrade activo apunta a su destino (`EX-002`), y el mensaje **nombra al producto que lo ocupa** para que el actor sepa cuál desactivar.
+5. Si se activa **y es un upgrade**: ningún otro upgrade activo declara **su misma pareja origen→destino** (`EX-002`), y el mensaje **nombra al producto que la ocupa** para que el actor sepa cuál desactivar.
 6. Se aplica y se audita.
 
-**Desactivar no comprueba nada del destino** (`FA-002`): liberarlo nunca produce conflicto. Y en un bot, el paso 5 **no se ejecuta** — la prueba comprueba la ausencia, no solo que no falle.
+**Desactivar no comprueba nada de las membresías** (`FA-002`): liberar una pareja nunca produce conflicto. Y en un bot, el paso 5 **no se ejecuta** — la prueba comprueba la ausencia, no solo que no falle.
 
 ## 6. La concurrencia es el requisito, no un detalle
 
-Dos upgrades inactivos hacia el mismo nivel activados a la vez: **la verificación previa no basta**. Las dos transacciones leen que el destino está libre, las dos concluyen que pueden proceder, y sin nada más quedarían las dos activas — que es exactamente el desenlace que `RN-PM-004` existe para impedir.
+Dos upgrades inactivos con **la misma pareja** activados a la vez: **la verificación previa no basta**. Las dos transacciones leen que la pareja está libre, las dos concluyen que pueden proceder, y sin nada más quedarían las dos activas — que es exactamente el desenlace que `RN-PM-004` existe para impedir.
 
-**Lo que lo impide es `uq_products_upgrade_target`**, el índice único parcial: la segunda transacción falla al escribir y el adaptador traduce esa violación a `EX-002`, el mismo `409` que habría dado la verificación previa. La verificación previa **existe para dar un mensaje preciso** —qué producto ocupa el destino—; la garantía la da el índice.
+**Lo que lo impide es `uq_products_upgrade_target`** —desde `V52` sobre `(source_membership_id, target_membership_id)`—, el índice único parcial: la segunda transacción falla al escribir y el adaptador traduce esa violación a `EX-002`, el mismo `409` que habría dado la verificación previa. La verificación previa **existe para dar un mensaje preciso** —qué producto ocupa el destino—; la garantía la da el índice.
 
 Es la misma división de trabajo que `RF-SP-016` fijó para el alta de membresías: la restricción decide, la comprobación redacta.
 
@@ -66,7 +67,7 @@ Un evento `UPDATE` con `status` y su valor anterior. **Ninguno cuando no hubo ca
 
 ## 8. Transaccionalidad
 
-Una transacción con bloqueo pesimista sobre la fila. El bloqueo serializa dos peticiones **sobre el mismo producto**; lo que serializa dos productos distintos compitiendo por el mismo destino es el índice.
+Una transacción con bloqueo pesimista sobre la fila. El bloqueo serializa dos peticiones **sobre el mismo producto**; lo que serializa dos productos distintos compitiendo por la misma pareja es el índice.
 
 ## 9. Alternativas consideradas
 
@@ -75,7 +76,7 @@ Una transacción con bloqueo pesimista sobre la fila. El bloqueo serializa dos p
 | Un campo `status` dentro del `PATCH` de `RF-PM-004` | Mezclaría corregir con publicar |
 | Rechazar la petición que no cambia el estado | Obligaría a la interfaz a consultar antes de cada pulsación |
 | Confiar solo en la verificación previa | Es la escritura sesgada que `SP` acaba de pagar con `RN-SP-018`: dos transacciones validan contra el estado que la otra va a cambiar y ninguna falla |
-| Confiar solo en el índice | Daría un `409` correcto sin decir **qué producto** ocupa el destino, que es lo único accionable |
+| Confiar solo en el índice | Daría un `409` correcto sin decir **qué producto** ocupa la pareja, que es lo único accionable |
 
 ## 10. Riesgos
 
@@ -91,8 +92,9 @@ Una transacción con bloqueo pesimista sobre la fila. El bloqueo serializa dos p
 | Los ocho criterios de `spec.md` §12 | API | |
 | Activar sin descripción | API | `400`, y admitido en cuanto `RF-PM-004` la pone |
 | Desactivar sin descripción | API | **Se admite**: la regla acota lo que se publica |
-| Reactivar tras liberar el destino | API | Desactivar el que lo ocupa y activar el otro |
+| Reactivar tras liberar la pareja | API | Desactivar el que la ocupa y activar el otro |
 | Petición que no cambia el estado | Integración | `200` y `audit_change_log` no crece |
-| Bot: el paso del destino **no se ejecuta** | Integración | Número de sentencias |
-| **Dos activaciones simultáneas hacia el mismo destino** | Concurrencia | Exactamente uno queda activo; el otro recibe `409` con el nombre del que ocupa |
+| Bot: el paso de las membresías **no se ejecuta** | Integración | Número de sentencias |
+| **Dos activaciones simultáneas de la misma pareja** | Concurrencia | Exactamente uno queda activo; el otro recibe `409` con el nombre del que ocupa |
+| **Dos parejas distintas hacia el mismo destino** | API | Los dos quedan activos: es lo que el origen existe para permitir |
 | Desactivar y activar en carrera | Concurrencia | Cualquiera de los dos desenlaces vale; lo que no vale es que no quede ninguno activo |

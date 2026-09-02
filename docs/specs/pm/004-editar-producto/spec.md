@@ -20,7 +20,7 @@ Corregir lo que se puede corregir de un producto, sin reescribir lo que ya se ve
 
 Un producto se equivoca de nombre, se le escapa una falta en la descripción o cambia de precio. Sin este requerimiento la única salida sería retirarlo y crear otro, lo que rompe la referencia de todo lo que apunte al producto anterior.
 
-**Lo que no se puede corregir es lo que define qué se compró.** El **tipo**, el **código** y la **membresía destino** quedan fuera: cambiarlos convierte lo comprado en otra cosa, y quien pagó por subir a un nivel se encontraría con un derecho distinto del que adquirió. Quien necesite otro destino registra otro producto y retira el anterior.
+**Lo que no se puede corregir es lo que define qué se compró.** El **tipo**, el **código** y **las dos membresías** quedan fuera: cambiarlos convierte lo comprado en otra cosa, y quien pagó por subir a un nivel se encontraría con un derecho distinto del que adquirió. Quien necesite otro destino registra otro producto y retira el anterior.
 
 **El precio se puede cambiar siempre, y eso obliga a la compra futura.** Resuelto el 26-08-2026: corregir el precio nunca reescribe lo vendido, porque **cada compra guardará el importe que se pagó** en el momento de comprar. Es una condición que este requerimiento **impone a un módulo que todavía no existe**, y por eso queda escrita aquí y en `requirements/pm.md` §1.4: si la compra leyera el precio del producto, esta operación pasaría a reescribir el pasado sin que nadie la hubiera tocado.
 
@@ -40,7 +40,9 @@ Un producto se equivoca de nombre, se le escapa una falta en la descripción o c
 
 ### 4.2 No incluye
 
-- **Cambiar el tipo** (`RN-PM-001`), **el código** (`RN-PM-013`) ni **la membresía destino**. Ver §2.
+- **Cambiar el tipo** (`RN-PM-001`), **el código** (`RN-PM-013`) ni **ninguna de las dos membresías**. Ver §2.
+
+    **El origen entra en esa lista por el mismo motivo que el destino**, y conviene decirlo porque es nuevo: cambiar de quién sale un upgrade **reescribe a quién iba dirigido lo que ya se vendió**. Quien necesite otra pareja registra otro producto y retira el anterior.
 - **Exigir un motivo del cambio.** El Art. V.13 solo lo obliga en las eliminaciones, y la auditoría ya registra qué cambió, de cuánto a cuánto, quién y cuándo. Resuelto el 26-08-2026.
 - **Activar o desactivar**, que es `RF-PM-005`: el estado no es un dato comercial, es una decisión de publicación.
 - **Retirar el producto**, que es `RF-PM-006`.
@@ -88,7 +90,7 @@ Un producto se equivoca de nombre, se le escapa una falta en la descripción o c
 
 **Postcondiciones**
 
-- El producto queda con los valores nuevos y **conserva su identificador**, su tipo y su destino.
+- El producto queda con los valores nuevos y **conserva su identificador**, su tipo y **sus dos membresías**.
 - La auditoría de cambios contiene un evento con **solo los campos que cambiaron**, cada uno con su valor anterior y el nuevo.
 
 ## 8. Flujo principal

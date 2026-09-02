@@ -3,11 +3,11 @@
 | Campo | Valor |
 |---|---|
 | Módulo | `PM` — Productos y Mercadeo |
-| Versión | 0.1.0 |
+| Versión | 0.2.0 |
 | Estado | **Borrador** |
 | Responsable | Bonilla Diaz William Steven |
 | Fecha de creación | 01-09-2026 |
-| Última actualización | 01-09-2026 |
+| Última actualización | 02-09-2026 |
 
 !!! info "Qué va en este documento"
 
@@ -41,12 +41,14 @@ flowchart TD
     V1 -->|sí| V2{"¿el nombre está libre<br/>entre los NO retirados?"}
     V2 -->|no| E1["EX-001 · RN-PM-005<br/>sin distinguir acentos ni mayúsculas"]
     V2 -->|sí| D1{"¿qué tipo?"}
-    D1 -->|"UPGRADE_MEMBRESIA"| V3{"¿declara<br/>membresía destino?"}
-    V3 -->|no| E0["RN-PM-002 · el upgrade<br/>la exige"]
-    V3 -->|sí| V4{"¿existe?"}
-    V4 -->|no| E2["EX-002 · destino inexistente"]
-    V4 -->|sí| V6
-    D1 -.->|"BOT · FA-001"| V5{"¿declara destino<br/>o icono?"}
+    D1 -->|"UPGRADE_MEMBRESIA"| V3{"¿declara ORIGEN<br/>Y destino?"}
+    V3 -->|no| E0["RN-PM-002 · el upgrade<br/>exige LAS DOS · VAL-007<br/>dice CUÁL falta"]
+    V3 -->|sí| V4{"¿existen<br/>las dos?"}
+    V4 -->|no| E2["EX-002 · dice CUÁL<br/>de las dos no existe"]
+    V4 -->|sí| V8{"¿el origen está POR DEBAJO<br/>del destino? level MAYOR"}
+    V8 -->|no| E4["VAL-014 · RN-PM-017<br/>igual → 400 · por encima → 422<br/>un descenso vendido como upgrade"]
+    V8 -->|sí| V6
+    D1 -.->|"BOT · FA-001"| V5{"¿declara alguna<br/>membresía o icono?"}
     V5 -->|sí| E00["RN-PM-002 y RN-PM-016<br/>el bot los tiene PROHIBIDOS"]
     V5 -->|no| V6{"¿la moneda existe<br/>y está ACTIVA?"}
     V6 -->|no| E3["EX-003 · moneda no válida"]
@@ -58,15 +60,19 @@ flowchart TD
 
     classDef ex fill:#F7E9E5,stroke:#A33B2A,color:#7A2B1E
     classDef ok fill:#E5EEF0,stroke:#2D5A6B,color:#141B1E
-    class E0,E00,E01,E1,E2,E3,E5 ex
+    class E0,E00,E01,E1,E2,E3,E4,E5 ex
     class FIN ok
 ```
 
 **Las dos primeras verificaciones se comportan al revés a propósito.** El **código** se comprueba contra **todos** los productos, incluidos los retirados; el **nombre**, solo contra los vivos. El nombre es una etiqueta que `RF-PM-004` deja corregir; el código es lo que una factura usará para siempre.
 
-**`RN-PM-002` va en los dos sentidos, y la mitad que se olvida es la segunda.** Un upgrade sin destino es inservible; un **bot con destino promete un cambio de nivel que nadie va a aplicar**. No falla: promete.
+**`RN-PM-002` va en los dos sentidos, y desde el 02-09-2026 sobre las DOS membresías.** Un upgrade sin origen o sin destino es inservible; un **bot con cualquiera de las dos promete un cambio de nivel que nadie va a aplicar**. No falla: promete. Con dos campos, el rechazo **dice cuál** de los cuatro casos se dio — un mensaje que no distinga obliga a probar los dos.
 
-**Falta `EX-004` y no es un error.** Está **tachada** en la spec: era «ya hay un upgrade activo hacia ese destino» y **migró a `RF-PM-005`** cuando se decidió que el producto naciera inactivo. El número se deja vacío para que la migración de la regla quede a la vista.
+**El origen se declara y no se deduce, y esa es la razón de la enmienda.** Mientras se deducía —«cualquiera por debajo del destino»— el **salto era imposible**: «subir a `ORO`» era el mismo producto y el mismo precio para quien sube un escalón y para quien sube tres. Ahora **cada salto es un producto** (`RN-PM-018`).
+
+**El rombo de `RN-PM-017` produce dos códigos distintos a propósito.** Origen **igual** al destino lo ve el agregado —le basta comparar dos identificadores— y es `400`; origen **por encima** exige leer el `level` de dos filas de `memberships` y es `422`, porque el dato existe y lo que no vale es la relación entre los dos.
+
+**Falta `EX-004` y no es un error.** Está **tachada** en la spec: era «ya hay un upgrade activo hacia ese destino» y **migró a `RF-PM-005`** cuando se decidió que el producto naciera inactivo. El número se deja vacío para que la migración de la regla quede a la vista. Al migrar cambió además de forma: hoy la regla se cuenta **por pareja origen→destino**.
 
 ---
 
@@ -121,7 +127,7 @@ flowchart TD
     D1 -.->|"DESACTIVAR · FA-002"| P2["Sin condiciones:<br/>deja de ofrecerse y ya"]
     D1 -->|ACTIVAR| V2{"¿tiene descripción?"}
     V2 -->|no| E0["RN-PM-014 · no se publica<br/>lo que no se explica"]
-    V2 -->|sí| V3{"¿es un upgrade con OTRO<br/>upgrade ya activo<br/>hacia el mismo destino?"}
+    V2 -->|sí| V3{"¿es un upgrade con OTRO<br/>upgrade ya activo con la<br/>MISMA PAREJA origen→destino?"}
     V3 -->|sí| E2["EX-002 · RN-PM-004<br/>informa CUÁL desactivar"]
     V3 -->|no| P1["Activa"]
     P1 --> P3["Auditoría de cambios"]
@@ -136,7 +142,9 @@ flowchart TD
 
 **La asimetría es el requerimiento.** Activar exige dos cosas; desactivar, ninguna. Un diagrama de estados con transiciones simétricas lo escondería, y por eso aquí se bifurca.
 
-**`RN-PM-004` se comprueba aquí y en ningún otro sitio**, y esa es la razón de que el producto nazca inactivo. Con dos copias —una en el alta y otra aquí— la que se quedara atrás **no fallaría: admitiría**. Dos upgrades activos al mismo nivel son **dos precios simultáneos para lo mismo**, y eso no se descubre como un error: se descubre como una discrepancia de facturación meses después.
+**`RN-PM-004` se comprueba aquí y en ningún otro sitio**, y esa es la razón de que el producto nazca inactivo. Con dos copias —una en el alta y otra aquí— la que se quedara atrás **no fallaría: admitiría**. Dos upgrades activos **con la misma pareja origen→destino** son **dos precios simultáneos para lo mismo**, y eso no se descubre como un error: se descubre como una discrepancia de facturación meses después.
+
+**Lo que cambió el 02-09-2026 es qué cuenta como «lo mismo».** Dos upgrades hacia `ORO`, uno desde `FREE` y otro desde `PLATINO`, **no compiten**: venden saltos distintos, y que cuesten distinto es lo normal. La regla anterior —una por destino— prohibía exactamente lo que el origen existe para permitir.
 
 **`EX-002` informa cuál desactivar.** Saber que hay un conflicto sin saber con qué deja al actor buscando a ciegas.
 
@@ -177,7 +185,7 @@ flowchart TD
 
 ```mermaid
 flowchart TD
-    A(["Actor con products:read<br/>filtra por tipo, estado, destino<br/>o busca por nombre"])
+    A(["Actor con products:read<br/>filtra por tipo, estado, origen,<br/>destino o busca por nombre"])
     A --> V1{"¿paginación, dominios<br/>e identificadores válidos?"}
     V1 -->|no| E1["EX-001 · los cuatro primeros<br/>se devuelven JUNTOS"]
     V1 -->|sí| V2{"¿campo de<br/>ordenamiento en<br/>la lista blanca?"}
@@ -240,13 +248,13 @@ flowchart TD
     A(["Cualquier persona autenticada<br/>SIN parámetros"])
     A --> P1["El actor sale del token"]
     P1 --> V1{"¿tiene membresía<br/>VIGENTE?"}
-    V1 -.->|"no · FA-001"| Z["Nivel = ninguno"]
+    V1 -.->|"no · FA-001"| Z["Membresía = ninguna"]
     V1 -.->|"vencida · FA-003"| Z
-    V1 -->|sí| N["Nivel = el suyo"]
+    V1 -->|sí| N["Membresía = la suya"]
 
     Z --> Q["Una sentencia:<br/>solo ACTIVO y no retirado"]
     N --> Q
-    Q --> R1["Upgrades: level ESTRICTAMENTE<br/>MENOR que el suyo<br/>la cadena crece hacia abajo"]
+    Q --> R1["Upgrades: los que declaran<br/>SU membresía como ORIGEN<br/>coincidencia exacta"]
     Q --> R2["Bots: TODOS los activos,<br/>para cualquiera"]
     R1 --> D1{"¿alguno?"}
     D1 -.->|"no · FA-002<br/>está en la cima"| FIN
@@ -259,9 +267,11 @@ flowchart TD
 
 **`FA-001` y `FA-003` van al mismo sitio, y decirlo importa.** Vencer no es lo mismo que no tener, pero para decidir «a dónde puede subir» produce el mismo resultado. Y la vigencia **la calcula `SP`**: reimplementarla aquí es el defecto que devuelve resultados plausibles durante meses.
 
-**«Nivel superior» es número MENOR.** La cadena crece hacia abajo —`1` es la cima—, de modo que la comparación es `<` estricto. **Escrita al revés ofrecería bajadas de nivel, cobrándolas, y ninguna prueba de camino feliz lo vería.**
+**Aquí ya no se comparan niveles**, desde el 02-09-2026. La oferta es una **coincidencia exacta**: los upgrades cuyo origen es la membresía del actor. **La comparación no desapareció, se mudó** — se hace una vez, al registrar el producto (`RN-PM-017`), en lugar de en cada consulta.
 
-**El estricto es lo que impide ofrecer el upgrade al nivel que ya se tiene**: sería cobrar por quedarse donde se está.
+**Y `FA-001` sale del propio filtro**: quien no tiene membresía no coincide con ningún origen. Antes había que escribirlo aparte. Lo mismo con el upgrade **hacia** el nivel que ya se tiene: no se ofrece porque su origen es otro, sin que nadie lo prohíba expresamente.
+
+**Lo que se paga por ello conviene tenerlo delante**: si nadie declara un upgrade desde `VIP`, quien esté en `VIP` **no ve ninguna subida** — sin error y sin aviso, y el catálogo se ve perfectamente bien desde administración. La cobertura de la cadena deja de ser automática.
 
 **Las dos colecciones van envueltas** para que el día que los bots crezcan, añadir paginación no rompa a ningún cliente.
 
@@ -284,4 +294,5 @@ flowchart TD
 
 | Versión | Fecha | Cambio | Responsable |
 |---|---|---|---|
+| 0.2.0 | 02-09-2026 | **El upgrade declara de dónde sale**, y tres diagramas cambian. El del **alta** gana un rombo —`RN-PM-017`, el origen por debajo del destino— que produce **dos códigos distintos a propósito**: origen igual al destino es `400` porque lo ve el agregado, y origen por encima es `422` porque exige el `level` de dos filas de `memberships`. El del **cambio de estado** deja de contar «un upgrade activo por destino» y pasa a contarlo **por pareja origen→destino**: dos upgrades hacia `ORO`, uno desde `FREE` y otro desde `PLATINO`, ya no compiten. Y el de la **oferta propia** pierde su comparación de niveles entera: pasa a ser una **coincidencia exacta** por origen, con lo que `FA-001` y el upgrade hacia el nivel que ya se tiene salen **del propio filtro** en lugar de estar escritos aparte. Queda anotado lo que se paga: si nadie declara un upgrade desde `VIP`, quien esté en `VIP` no ve ninguna subida — sin error y sin aviso. | Responsable técnico |
 | 0.1.0 | 01-09-2026 | Creación. Un diagrama por cada uno de los **siete** casos de uso, transcritos de las §8, §9 y §10 de sus tripletas. Los dos que más aportan son `RF-PM-005` —donde se ve que las condiciones **dependen del estado al que se va y no del actual**, cosa que un diagrama de estados simétrico esconde— y `RF-PM-001`, que pone en pasos consecutivos **dos unicidades con criterios opuestos**. §3 recoge seis observaciones, entre ellas el **hueco deliberado de `EX-004`**, tachada porque su regla migró a otro requerimiento. | Responsable técnico |

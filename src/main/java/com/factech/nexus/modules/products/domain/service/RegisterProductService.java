@@ -95,7 +95,8 @@ public class RegisterProductService {
     // buscara primero, un upgrade sin destino saldría como «la membresía no
     // existe» —un 422 sobre un dato que el actor nunca envió— en vez del 400 que
     // le corresponde. Lo destapó la prueba de la condición cruzada.
-    Product.verificarTipoYDestino(comando.type(), comando.targetMembershipId());
+    Product.verificarTipoYMembresias(
+        comando.type(), comando.sourceMembershipId(), comando.targetMembershipId());
 
     // `RN-PM-016` —el icono solo en el upgrade— NO se sube aquí, al revés que
     // `RN-PM-002`: el motivo de subir aquella es que su incumplimiento se
@@ -103,6 +104,9 @@ public class RegisterProductService {
     // búsqueda. Lo comprueba `Product.create`, que es donde vive la regla.
     CurrencyView moneda = verificarMoneda(comando);
     MembershipView destino = verificarDestino(comando);
+    // El origen DESPUÉS del destino, porque `RN-PM-017` compara los dos: sin el
+    // destino resuelto no hay contra qué comparar.
+    MembershipView origen = verificarOrigen(comando, destino);
     verificarUnicidad(comando);
 
     Product nuevo =
@@ -114,6 +118,7 @@ public class RegisterProductService {
                 comando.name(),
                 comando.description(),
                 comando.icon(),
+                comando.sourceMembershipId(),
                 comando.targetMembershipId(),
                 comando.price(),
                 comando.currencyId(),
@@ -122,7 +127,7 @@ public class RegisterProductService {
 
     auditar(nuevo);
 
-    return ProductResponse.from(nuevo, destino, moneda);
+    return ProductResponse.from(nuevo, origen, destino, moneda);
   }
 
   /**
@@ -173,16 +178,46 @@ public class RegisterProductService {
     if (comando.type() == null || !comando.type().exigeDestino()) {
       return null;
     }
+    return resolver(comando.targetMembershipId(), "targetMembershipId", "destino");
+  }
+
+  /**
+   * `EX-002` sobre la membresía de <b>origen</b>, y `RN-PM-017` entera.
+   *
+   * <p><b>La comparación de niveles vive aquí y no en el agregado</b>, y no por comodidad: exige el
+   * {@code level} de <b>dos filas de `memberships`</b>, que es una tabla de `SP`. El agregado no la
+   * conoce —ni debe—, y un {@code CHECK} tampoco puede consultarla. Es el mismo reparto que
+   * `RN-PM-007` hace con los decimales de la moneda.
+   *
+   * <p><b>La cadena numera desde la cima</b> (`V47`): `ORO` es 1 y `FREE` es 4, de modo que «el
+   * origen está por debajo del destino» se escribe con el {@code level} del origen <b>mayor</b>.
+   * Leerlo al revés es el error fácil de esta comprobación, y no fallaría de forma visible —
+   * aceptaría exactamente los descensos que la regla existe para rechazar.
+   */
+  private MembershipView verificarOrigen(RegisterProductCommand comando, MembershipView destino) {
+    if (comando.type() == null || !comando.type().exigeDestino()) {
+      return null;
+    }
+    MembershipView origen = resolver(comando.sourceMembershipId(), "sourceMembershipId", "origen");
+
+    if (origen.level() <= destino.level()) {
+      String mensaje =
+          "Un upgrade debe subir de nivel: la membresía de origen no puede estar por encima"
+              + " de la de destino ni ser la misma.";
+      throw new UnprocessableEntityException(
+          "EX-006", mensaje, List.of(new FieldError("sourceMembershipId", "VAL-014", mensaje)));
+    }
+    return origen;
+  }
+
+  private MembershipView resolver(java.util.UUID id, String campo, String cual) {
+    String mensaje = "La membresía de " + cual + " indicada no existe.";
     return membresias
-        .find(comando.targetMembershipId())
+        .find(id)
         .orElseThrow(
             () ->
                 new UnprocessableEntityException(
-                    "EX-002",
-                    "La membresía indicada no existe.",
-                    List.of(
-                        new FieldError(
-                            "targetMembershipId", "EX-002", "La membresía indicada no existe."))));
+                    "EX-002", mensaje, List.of(new FieldError(campo, "EX-002", mensaje))));
   }
 
   /**

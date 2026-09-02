@@ -44,6 +44,7 @@ class ProductUpdateIT extends IntegrationTestBase {
   @Autowired private JdbcTemplate jdbc;
 
   private UUID oro;
+  private UUID free;
   private UUID producto;
 
   @BeforeEach
@@ -52,6 +53,10 @@ class ProductUpdateIT extends IntegrationTestBase {
     jdbc.update("DELETE FROM memberships");
     jdbc.update("DELETE FROM currencies WHERE is_default = false");
     oro = membresia("ORO", "Oro", 1);
+    // El SUELO de la cadena: es el origen de todo upgrade que se siembre
+    // aqui. Va encadenado bajo `oro` porque `uq_memberships_parent` es
+    // UNIQUE NULLS NOT DISTINCT — dos raices revientan en el COMMIT.
+    free = membresia("FREE", "Free", 2, oro);
     producto = upgrade("UPGRADE_ORO", "Ascenso a Oro", oro, "Sube al nivel oro.", 30);
   }
 
@@ -446,13 +451,19 @@ class ProductUpdateIT extends IntegrationTestBase {
   }
 
   private UUID membresia(String codigo, String nombre, int nivel) {
+    return membresia(codigo, nombre, nivel, null);
+  }
+
+  private UUID membresia(String codigo, String nombre, int nivel, UUID superior) {
     UUID id = UUID.randomUUID();
     jdbc.update(
         "INSERT INTO memberships (id, code, name, parent_membership_id, level, color)"
-            + " VALUES (?, ?, ?, NULL, ?, upper(lpad(to_hex(? * 4919), 6, '0')))",
-        id,
+            + " VALUES (CAST(? AS uuid), ?, ?, CAST(? AS uuid), ?,"
+            + " upper(lpad(to_hex(? * 4919), 6, '0')))",
+        id.toString(),
         codigo,
         nombre,
+        superior == null ? null : superior.toString(),
         nivel,
         nivel);
     return id;
@@ -504,16 +515,23 @@ class ProductUpdateIT extends IntegrationTestBase {
       Integer vigencia) {
 
     UUID id = UUID.randomUUID();
+    // Origen y destino VIAJAN JUNTOS: un upgrade declara los dos
+    // (`RN-PM-002`) y un bot no declara ninguno. Por eso el origen se
+    // deriva del destino en lugar de ser un parametro mas — nunca puede
+    // quedar uno sin el otro, que es lo que `ck_products_type_target` mira.
     jdbc.update(
-        "INSERT INTO products (id, code, type, name, description, target_membership_id, price,"
+        "INSERT INTO products (id, code, type, name, description, source_membership_id,"
+            + " target_membership_id, price,"
             + " currency_id, validity_days, status, created_at, updated_at)"
-            + " VALUES (CAST(? AS uuid), ?, ?, ?, CAST(? AS text), CAST(? AS uuid), 49.99,"
+            + " VALUES (CAST(? AS uuid), ?, ?, ?, CAST(? AS text),"
+            + " CAST(? AS uuid), CAST(? AS uuid), 49.99,"
             + " CAST(? AS uuid), CAST(? AS integer), 'INACTIVO', ?, ?)",
         id.toString(),
         codigo,
         tipo,
         nombre,
         descripcion,
+        destino == null ? null : free.toString(),
         destino == null ? null : destino.toString(),
         USD,
         vigencia,

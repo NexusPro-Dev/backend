@@ -1082,6 +1082,12 @@ paths:
         required: false
         schema:
           type: string
+      - name: sourceMembershipId
+        in: query
+        required: false
+        schema:
+          type: string
+          format: uuid
       - name: targetMembershipId
         in: query
         required: false
@@ -4196,6 +4202,9 @@ components:
           type: string
           maxLength: 50
           minLength: 0
+        sourceMembershipId:
+          type: string
+          format: uuid
         targetMembershipId:
           type: string
           format: uuid
@@ -4245,6 +4254,8 @@ components:
           type: string
         icon:
           type: string
+        sourceMembership:
+          $ref: "#/components/schemas/MembershipRef"
         targetMembership:
           $ref: "#/components/schemas/MembershipRef"
         price:
@@ -4716,6 +4727,8 @@ components:
           $ref: "#/components/schemas/PatchableObject"
         targetMembershipId:
           $ref: "#/components/schemas/PatchableObject"
+        sourceMembershipId:
+          $ref: "#/components/schemas/PatchableObject"
     ProductDetailResponse:
       type: object
       properties:
@@ -4735,6 +4748,8 @@ components:
           type: string
         icon:
           type: string
+        sourceMembership:
+          $ref: "#/components/schemas/MembershipRef"
         targetMembership:
           $ref: "#/components/schemas/MembershipRef"
         price:
@@ -4991,6 +5006,8 @@ components:
           type: string
         icon:
           type: string
+        sourceMembership:
+          $ref: "#/components/schemas/MembershipRef"
         targetMembership:
           $ref: "#/components/schemas/MembershipRef"
         price:

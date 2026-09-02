@@ -2,7 +2,7 @@
 
 | Campo | Valor |
 |---|---|
-| Versión | 0.20.0 |
+| Versión | 0.21.0 |
 | Estado | **Borrador** |
 | Responsable | Bonilla Diaz William Steven |
 | Fecha de creación | 21-08-2026 |
@@ -356,7 +356,8 @@ erDiagram
         varchar code UK "no se libera JAMAS"
         varchar type "UPGRADE_MEMBRESIA o BOT"
         varchar status "nace INACTIVO"
-        uuid target_membership_id FK "obligatorio en upgrade, PROHIBIDO en bot"
+        uuid target_membership_id FK "obligatorio en upgrade, PROHIBIDO en bot · A DONDE lleva"
+        uuid source_membership_id FK "obligatorio en upgrade, PROHIBIDO en bot · DE DONDE sale"
         numeric price "14,4 · la escala la decide la MONEDA"
         integer validity_days "NULL = no caduca"
         timestamptz deleted_at "lógico · RN-PM-010"
@@ -406,6 +407,14 @@ erDiagram
     **El valor fijo no puede validarse igual**: cuando se declara, **no se sabe en qué moneda se pagará**. En el catálogo por rol el producto todavía no está asociado; en la personalizada no hay producto en absoluto.
 
     De modo que dos columnas con **la misma forma** tienen **garantías distintas**: el precio casa con su moneda, el importe de comisión **no lo comprueba nadie**.
+
+!!! danger "`products` tiene DOS membresías desde el 02-09-2026, y la unicidad se movió con ellas"
+
+    Un `UPGRADE_MEMBRESIA` declara **de dónde sale y a dónde lleva**. Hasta esa fecha solo declaraba el destino y quién podía comprarlo **se deducía** de la cadena — cualquiera por debajo—, y eso hacía **imposible el salto**: `FREE → ORO` no se podía distinguir de `PLATINO → ORO`, porque los dos eran «subir a ORO».
+
+    **Lo que cambia en el esquema no es una columna, son dos cosas.** `uq_products_upgrade_target` pasa de ser único sobre `target_membership_id` a serlo sobre **la pareja**. La versión anterior prohibía exactamente lo que el origen existe para permitir: dos upgrades activos hacia `ORO`, uno desde `FREE` y otro desde `PLATINO`, **no son dos precios para lo mismo — son dos saltos distintos**.
+
+    **Y `RN-PM-017` solo cabe a medias en el motor.** Un `CHECK` puede exigir que las dos membresías **no sean la misma**; **no puede** exigir que el origen esté por debajo del destino, porque eso obliga a leer el `level` de las dos filas en `memberships` y un `CHECK` no consulta otra tabla. Esa mitad vive en el dominio, como `RN-PM-007` con los decimales de la moneda — y por el mismo motivo exacto.
 
 ### 4.1 Lo que estas dos tablas le exigen a una que todavía no existe
 
@@ -542,6 +551,7 @@ Son **ocho**, y todas van en la misma dirección: **hacia `SP` y hacia `PM`**, n
 | Desde | Hacia | Módulo |
 |---|---|---|
 | `products.target_membership_id` | `memberships` | `PM` → `SP` |
+| `products.source_membership_id` | `memberships` | `PM` → `SP` |
 | `products.currency_id` | `currencies` | `PM` → `SP` |
 | `commission_rates.role_id` | `roles` | `CM` → `SP` |
 | `user_commission_rates.user_id` | `users` | `CM` → `SP` |
@@ -596,3 +606,4 @@ La secuencia no es continua —falta el tramo `V8` a `V12`— y no es un descuid
 | 0.18.0 | 02-09-2026 | **`user_roles` gana `role_type`, la primera columna desnormalizada del sistema**, y con ella `RN-SP-025` deja de ser una regla declarada sin nadie que la sostenga. Copiar un dato es normalmente el error que este documento evita; §1 nombra la diferencia: la copia está atada por una **clave foránea compuesta** —de modo que no puede divergir— y su origen es **inmutable**, porque `RF-SP-004` corrige nombre y descripción y no el tipo. Es el mismo patrón que `product_commission_rates`, y la condición que lo hace legítimo es la misma en los dos sitios: **el dato copiado no cambia en su origen**. Sobre esa columna, un **índice único parcial** sobre `(user_id) WHERE role_type = 'VENDEDOR'` cierra la regla en el motor. Se decidió así por un precedente y no por gusto: `RN-SP-018` se comprobaba en el caso de uso, **no aguantó la concurrencia** y hubo que corregirla el 26-08-2026 **sobre esta misma tabla**. Y el hallazgo 1 queda **enmendado**: decía que `RN-SP-013` y `RN-SP-018` no son expresables en el esquema por depender de `user_roles` y `roles.role_type`, y desde hoy **sí lo son** — la copia trae a la tabla justo ese dato. No se hace en este pase, y se anota para que no se pierda. | Responsable técnico |
 | 0.19.0 | 02-09-2026 | **Vuelve a haber tablas diseñadas y sin escribir**, y son cuatro: `movements`, `movement_types`, `movement_details` y `payment_methods`, del `MV` renacido. Las creará `V50` con `RF-MV-001`. **Su forma no se copia a este documento**, y eso es lo que cambia respecto del intento anterior: aquí es una **vista derivada** y allí, en [`requirements/mv.md` §7](requirements/mv.md), está la fuente — dos copias de un esquema que todavía se discute divergen sin que nadie lo note, y este mapa ya llegó una vez con **dos módulos de retraso**. Lo que sí se recoge es la respuesta a §4.1, que llevaba abierta desde el 01-09-2026: **la tabla que aquellas dos exigían ya existe en papel y acepta sus condiciones** — copia el precio y la vigencia en la línea, y **no copia la membresía destino** porque `RF-PM-004` `EX-004` rechaza cambiarla. **La segunda condición sigue sin dueño**: copiar lo que la comisión valía no lo hace la venta, porque no devenga comisiones todavía — es la etapa 5 de `MV`, y ahora al menos se sabe dónde se pagará esa deuda. | Responsable técnico |
 | 0.20.0 | 02-09-2026 | **La primera de las tres migraciones que se disputaban el `50` está aplicada, y no es ninguna de las que lo habían reservado.** `V50__seed_movements_permissions.sql` siembra los cuatro permisos `movements:` de [`requirements/mv.md` §6](requirements/mv.md) y **no crea ninguna tabla**: la tarea que los siembra no depende de nada, y un permiso sin endpoint que lo exija no rompe nada, mientras que una tabla sin el caso de uso que la escribe promete algo que no existe. Con ello el reparto queda en **`V50` permisos de `MV`, `V51` el `role_type` de `RN-SP-025` y `V52` las cuatro tablas de `MV`** — el número lo toma quien se aplica primero, y las otras dos seguían siendo reservas sin una línea de `SQL`. **Lo que hay que leer del bloque de arriba no es el número sino la asociación**: esos cuatro permisos van **solo a `SUPERADMIN`**, por decisión del responsable del proyecto, de modo que por `RN-SEG-003` ningún rol bajo `ADMIN` podrá declararlos mientras la reserva siga en pie ([`security.md` §4.4](security.md)). El esquema no cambia: `role_permissions` recibe cuatro filas y nada más. | Responsable técnico |
+| 0.21.0 | 02-09-2026 | **`products` gana `source_membership_id`**: un upgrade declara **de dónde sale**, no solo a dónde lleva (decisión del responsable del proyecto, `requirements/pm.md` v0.14.0). Hasta hoy quién podía comprarlo **se deducía** de la cadena —cualquiera por debajo del destino—, y esa deducción hacía **imposible el salto**: `FREE → ORO` y `PLATINO → ORO` eran el mismo producto. **Lo que cambia no es una columna, son dos cosas**: `uq_products_upgrade_target` pasa de ser único sobre el destino a serlo sobre **la pareja**, porque la versión anterior prohibía exactamente lo que el origen existe para permitir — dos upgrades activos hacia `ORO` desde sitios distintos **no son dos precios para lo mismo, son dos saltos**. Y `RN-PM-017` **solo cabe a medias en el motor**: un `CHECK` puede exigir que las dos membresías no sean la misma, y **no puede** exigir que el origen esté por debajo del destino — eso obliga a leer el `level` de dos filas de `memberships`, y un `CHECK` no consulta otra tabla. Esa mitad vive en el dominio, por el mismo motivo exacto que `RN-PM-007` con los decimales de la moneda. | Responsable del proyecto |
