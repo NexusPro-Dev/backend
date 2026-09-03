@@ -18,10 +18,10 @@
 |---|---|---|---|---|
 | `T-01` | **En `SP`**: `CurrentMembershipLookup` con su adaptador, en `modules/system/users/application`. Devuelve la membresía **vigente** ya evaluada, o vacío | `RF-PM-001 · T-07` | Integración: una membresía con fecha de fin **pasada** devuelve vacío, y una con fecha **igual al instante consultado** también — ese borde ya está fijado en `SP` y aquí se hereda, no se reimplementa | **Hecha** |
 | `T-02` | `application/OfferResponse`: `currentMembership` más **dos colecciones envueltas** | — | La respuesta tiene `upgrades.content` y `services.content`, **no arreglos en la raíz** (`CA-PM-091`) | **Hecha** |
-| `T-03` | `ProductQueryRepository.findOffer(Integer nivel)`: una sentencia, solo activos, upgrades con `level` **estrictamente menor** que el del actor | `RF-PM-002 · T-05` | Integración: **una** sentencia. La comparación es la mitad del requerimiento y se prueba en `T-06` | **Hecha** |
+| `T-03` | `ProductQueryRepository.findOffer(Integer nivel)`: una sentencia, solo activos, upgrades con `level` **estrictamente menor** que el del actor | `RF-PM-002 · T-05` | Integración: **una** sentencia. La comparación es la mitad del requerimiento y se prueba en `T-06` | **Hecha, pendiente de reescribir** — ver `T-20` |
 | `T-04` | Orden: upgrades por nivel destino, bots por fecha de alta | `T-03` | `CA-PM-078`, `CA-PM-079` | **Hecha** |
 | `T-05` | `domain/service/GetOwnOfferService`: el actor sale del token, nunca de un parámetro | `T-01`, `T-03` | Enviar `userId` no cambia la respuesta (`CA-PM-066`) | **Hecha** |
-| `T-06` | **Prueba de los tres casos de nivel**: destino inferior, igual y superior al del actor | `T-05` | Es la que detecta la comparación escrita al revés, que **pasaría todas las pruebas de camino feliz** ofreciendo exactamente lo contrario | **Hecha** |
+| `T-06` | **Prueba de los tres casos de nivel**: destino inferior, igual y superior al del actor | `T-05` | Es la que detecta la comparación escrita al revés, que **pasaría todas las pruebas de camino feliz** ofreciendo exactamente lo contrario | **Hecha, obsoleta** — ver `T-21` |
 | `T-07` | `interfaces`: `GET /api/v1/products/available`. **Sin permiso hasta el 02-09-2026**; desde entonces, `@PreAuthorize("hasAuthority('products:sale')")` (`T-16`) | `T-05` | Responde a un actor autenticado que porta `products:sale` (`CA-PM-065`) | **Hecha** |
 | `T-08` | Prueba de que la ruta literal **no se confunde** con `/products/{id}` | `T-07` | `available` responde `200` y no `400` por identificador inválido. Spring resuelve antes el segmento literal, y esta prueba es lo que impide que un renombrado lo rompa en silencio | **Hecha** |
 | `T-09` | Pruebas de API del resto de criterios de `spec.md` §12 | `T-07` | Cubre `CA-PM-058` a `CA-PM-067`, `CA-PM-078`, `CA-PM-079`, `CA-PM-088` a `CA-PM-091` | **Hecha** |
@@ -46,7 +46,9 @@
 
 ## 2. Orden de ejecución
 
-`T-01` primero: es la tercera y última lectura de D-25, y la única que este requerimiento estrena. `T-06` dejó de ser la prueba que decide si el requerimiento hace lo contrario de lo que dice: **desde el 02-09-2026 aquí no se comparan niveles**, y esa comparación se hace una vez al registrar el producto (`RN-PM-017`).
+`T-01` primero: es la tercera y última lectura de D-25, y la única que este requerimiento estrena.
+
+**`T-20` va antes que `T-21`, y `T-06` sigue en verde hasta que `T-20` se termine.** La spec manda desde el 02-09-2026 que aquí no se comparen niveles, y esa comparación pasa a hacerse una vez al registrar el producto (`RN-PM-017`) — pero el código todavía compara `level` en cada consulta, y **`T-06` es hoy la prueba que lo sostiene**. Sustituirla por `T-21` antes de que `T-20` reescriba `findOffer` dejaría una ventana sin ninguna prueba vigilando la comparación.
 
 **`T-15` va antes que `T-16`, y no al revés.** Sembrar el permiso sin exigirlo todavía no rompe nada; exigirlo sin haberlo sembrado deja a todo el mundo —incluido `SUPERADMIN`— fuera de una ruta que hasta ayer era pública. `V48` sigue la misma forma que `V40`: los identificadores se enumeran por código y no por `SELECT` sin filtro, para no asociar de paso ningún otro permiso que otra migración hubiera sembrado y que alguien hubiera decidido no conceder.
 

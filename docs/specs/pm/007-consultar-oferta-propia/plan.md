@@ -8,7 +8,7 @@
 | Estado | **Aprobado** |
 | Autor | Responsable técnico |
 | Aprobado por | Responsable del proyecto |
-| Enmendado el | 02-09-2026 — `products:sale` (antes: 02-09-2026, la oferta deja de comparar niveles; 27-08-2026, `RN-PM-015`) |
+| Enmendado el | 27-08-2026 — `RN-PM-015`; 02-09-2026 — **la oferta deja de comparar niveles**; 02-09-2026 — `products:sale` |
 | Fecha de aprobación | 26-08-2026 |
 
 ---
