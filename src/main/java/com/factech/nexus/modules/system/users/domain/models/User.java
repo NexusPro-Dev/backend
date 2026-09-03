@@ -97,7 +97,7 @@ public class User {
       joinColumns = @JoinColumn(name = "user_id", nullable = false))
   @Column(name = "role_id", nullable = false)
   // `role_type` LO PONE LA SENTENCIA, LEYÉNDOLO DE `roles`, y no el agregado
-  // (`RN-SP-025`, `V51`). Es una copia desnormalizada que existe para que la
+  // (`RN-SP-025`, `V52`). Es una copia desnormalizada que existe para que la
   // regla viva en el motor, y la clave foránea compuesta impide que mienta.
   //
   // Se sobreescribe el `INSERT` en lugar de añadir el tipo a la colección

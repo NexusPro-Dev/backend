@@ -27,9 +27,9 @@ Tabla propia con vigencia, y **la única restricción del módulo que dos petici
 
 ## 2. Cambios de esquema
 
-`V48` crea `user_commission_rates`: identificador, persona, porcentaje, vigencia en `date`, marcas de tiempo y retiro lógico.
+`V49` crea `user_commission_rates`: identificador, persona, porcentaje, vigencia en `date`, marcas de tiempo y retiro lógico.
 
-**`V49` le añade la forma y el valor fijo**, con exactamente los mismos tres cambios y las mismas tres restricciones que a `commission_rates`. **La migración es una sola y está argumentada en `RF-CM-001` §2.3**, incluido el detalle que más fácil se pierde —el `DROP DEFAULT` sobre `rate_type`—, y no se repite aquí.
+**`V50` le añade la forma y el valor fijo**, con exactamente los mismos tres cambios y las mismas tres restricciones que a `commission_rates`. **La migración es una sola y está argumentada en `RF-CM-001` §2.3**, incluido el detalle que más fácil se pierde —el `DROP DEFAULT` sobre `rate_type`—, y no se repite aquí.
 
 Lo único que hay que decir en este documento es **por qué las dos tablas se tratan igual sin excepción**: la elección de forma es una propiedad del **valor de una comisión**, no de la pieza que lo declara. En cuanto una de las dos tablas admitiera algo que la otra no —un tope, un decimal más, una moneda—, `RF-CM-005` tendría que devolver dos cosas distintas según de dónde saliera la respuesta, y **la resolución dejaría de poder hablar de «la comisión efectiva» en singular**.
 

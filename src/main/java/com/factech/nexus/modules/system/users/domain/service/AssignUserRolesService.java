@@ -163,7 +163,7 @@ public class AssignUserRolesService {
     OffsetDateTime ahora = OffsetDateTime.now(reloj);
 
     // EL RETIRO VA ANTES DE LA ASIGNACIÓN, y no es indiferente: entre las dos
-    // sentencias el índice único parcial de `V51` está mirando. Al revés, la
+    // sentencias el índice único parcial de `V52` está mirando. Al revés, la
     // inserción del vendedor nuevo chocaría con el viejo y saldría como `500`.
     if (!vendedoresSalientes.isEmpty()) {
       usuarios.removeRoles(userId, vendedoresSalientes);

@@ -45,7 +45,7 @@
 | `T-15` | **Prueba del estado que `RN-CM-015` impide**, sembrado a mano | `T-12` | `CA-CM-048` | **Hecha el 02-09-2026** |
 | `T-16` | Documentación OpenAPI, con los tres desenlaces y **el aviso del rol nulo** | `T-11` | La descripción explica que nulo y cero no son lo mismo | **Hecha el 02-09-2026** |
 | `T-17` | Actualizar la matriz de `docs/requirements.md` | `T-12` | La fila refleja el estado y el bloqueo de `RN-SP-025` | **Hecha el 02-09-2026** |
-| `T-18` | **Prueba de los dos roles vendedores**: que el puerto falle de forma visible en vez de elegir | `T-12` | **Sin objeto desde el 02-09-2026**: `V51` hace ese estado imposible de alcanzar | `Retirada` |
+| `T-18` | **Prueba de los dos roles vendedores**: que el puerto falle de forma visible en vez de elegir | `T-12` | **Sin objeto desde el 02-09-2026**: `V52` hace ese estado imposible de alcanzar | `Retirada` |
 
 ### 1.1 El valor fijo (`cm.md` v0.7.0)
 
@@ -76,7 +76,7 @@
 
 **`T-15` construye a mano un estado que el sistema no permite alcanzar**, y es la única tarea del módulo que lo hace. No prueba un comportamiento que alguien vaya a usar: prueba **qué pasaría si `RN-CM-015` no existiera**. Es la evidencia de que esa regla no es una precaución teórica.
 
-**`T-18` se RETIRÓ el 02-09-2026, y no por haberse desbloqueado.** Existía para probar que el puerto revienta en lugar de elegir cuando alguien porta dos roles vendedores. Al declarar `RN-SP-025` **en el motor** (`V51`), ese estado dejó de poder alcanzarse: la inserción falla. La prueba no se puede escribir porque **no hay forma de llegar al escenario**, que es exactamente lo que se quería. `AmbiguousSellerRoleException` se queda: es lo que saltaría si algún día alguien retirara el índice.
+**`T-18` se RETIRÓ el 02-09-2026, y no por haberse desbloqueado.** Existía para probar que el puerto revienta en lugar de elegir cuando alguien porta dos roles vendedores. Al declarar `RN-SP-025` **en el motor** (`V52`), ese estado dejó de poder alcanzarse: la inserción falla. La prueba no se puede escribir porque **no hay forma de llegar al escenario**, que es exactamente lo que se quería. `AmbiguousSellerRoleException` se queda: es lo que saltaría si algún día alguien retirara el índice.
 
 ## 3. Cobertura de los criterios de aceptación
 
@@ -111,11 +111,11 @@
 
     `T-18` existía para probar que `SellerRoleCatalog` **revienta en lugar de elegir** cuando alguien porta dos roles vendedores. Estaba bloqueada porque `RN-SP-025` no la sostenía nadie, y sin la regla ese estado era alcanzable pero nadie lo declaraba imposible.
 
-    Al construir la regla el 02-09-2026 se declaró **en el motor** (`V51`, índice único parcial), y con eso **el estado dejó de poder existir**: la inserción falla. La prueba ya no se puede escribir — no porque falte algo, sino porque **no hay forma de llegar al escenario**.
+    Al construir la regla el 02-09-2026 se declaró **en el motor** (`V52`, índice único parcial), y con eso **el estado dejó de poder existir**: la inserción falla. La prueba ya no se puede escribir — no porque falte algo, sino porque **no hay forma de llegar al escenario**.
 
     **`AmbiguousSellerRoleException` se queda igualmente**, y eso no es código muerto por descuido: es lo que salta si algún día alguien retirara el índice. Que no se pueda probar hoy es exactamente lo que se quería conseguir.
 
-**`T-19` depende de que `V49` esté aplicada** (`RF-CM-001` `T-16` a `T-19`), y no es un bloqueo: es el orden del bloque, con `RF-CM-001` primero.
+**`T-19` depende de que `V50` esté aplicada** (`RF-CM-001` `T-16` a `T-19`), y no es un bloqueo: es el orden del bloque, con `RF-CM-001` primero.
 
 **Y quedan declaradas dos deudas que no bloquean nada y que nadie va a resolver desde aquí:**
 
@@ -124,6 +124,6 @@
 
 ## 5. Definición de terminado
 
-- Diecisiete de las dieciocho primeras tareas `Hecha` con su verificación pasando. **`T-18` queda `Retirada`**: `V51` hizo imposible el estado que probaba. `./mvnw clean verify` en verde. **Comprobado el 02-09-2026**: 278 unitarias y 876 de integración.
+- Diecisiete de las dieciocho primeras tareas `Hecha` con su verificación pasando. **`T-18` queda `Retirada`**: `V52` hizo imposible el estado que probaba. `./mvnw clean verify` en verde. **Comprobado el 02-09-2026**: 278 unitarias y 876 de integración.
 - **Las seis del valor fijo, `Hecha`**, con `CA-CM-101` pasando **en las dos direcciones** — que es lo único que verifica que la precedencia sobrevivió a reescribir la sentencia. **Comprobado el 02-09-2026**: 287 unitarias y 902 de integración, suite entera en verde.
 - La matriz y el contrato publicado al día, **con los dos cambios incompatibles declarados**: el de `RF-CM-001` y la retirada de `percentage` de aquí.

@@ -116,7 +116,7 @@ public class JpaUserRepository implements UserRepository {
     int insertadas = 0;
     for (UUID rol : roleIds) {
       // `role_type` SE TOMA DEL ROL Y NO DE QUIEN PIDE, con una subconsulta en
-      // la propia inserción. Es una copia (`RN-SP-025`, `V51`) y la clave
+      // la propia inserción. Es una copia (`RN-SP-025`, `V52`) y la clave
       // foránea compuesta impide que mienta — pero si el valor lo aportara el
       // caso de uso, la FK rechazaría la fila y el fallo saldría como `500` en
       // lugar de ser imposible de cometer.

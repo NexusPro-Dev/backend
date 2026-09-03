@@ -20,7 +20,7 @@ import org.springframework.stereotype.Repository;
 @Repository
 public class JpaUserCommissionRateRepository implements UserCommissionRateRepository {
 
-  /** El nombre exacto de la restricción de `V48`. Si cambia allí, cambia aquí. */
+  /** El nombre exacto de la restricción de `V49`. Si cambia allí, cambia aquí. */
   private static final String EX_SOLAPE = "uq_user_commission_rates_vigente";
 
   /** `SQLState` estándar de «violación de restricción de exclusión». */

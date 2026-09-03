@@ -30,8 +30,8 @@
 
 | ID | Tarea | Depende de | Verificación | Estado |
 |---|---|---|---|---|
-| `T-01` | `V48`: crear `user_commission_rates`, con la vigencia en `date` | `RF-CM-001` · `T-01` | Las dos comprobaciones de rango y de orden están en la tabla | **Hecha el 02-09-2026** |
-| `T-02` | `V48`: el `EXCLUDE` con **rango cerrado** y **parcial sobre las vivas** | `T-01` | Dos periodos que comparten el día de corte chocan | **Hecha el 02-09-2026** |
+| `T-01` | `V49`: crear `user_commission_rates`, con la vigencia en `date` | `RF-CM-001` · `T-01` | Las dos comprobaciones de rango y de orden están en la tabla | **Hecha el 02-09-2026** |
+| `T-02` | `V49`: el `EXCLUDE` con **rango cerrado** y **parcial sobre las vivas** | `T-01` | Dos periodos que comparten el día de corte chocan | **Hecha el 02-09-2026** |
 | `T-03` | La comprobación de vigencia con **la rama `IS NULL` delante y explícita** | `T-01` | Sin ella, toda tasa indefinida pasaría sin comprobarse | **Hecha el 02-09-2026** |
 | `T-04` | `UserCommissionRate`: el agregado, con **los dos nulos opuestos** | `T-01` | Vaciar el fin se cumple; vaciar el porcentaje lanza | **Hecha el 02-09-2026** |
 | `T-05` | `delete(...)` **sin tocar la vigencia**, y devolviendo si hubo cambio | `T-04` | Tras retirar, `valid_to` sigue como estaba | **Hecha el 02-09-2026** |
@@ -54,7 +54,7 @@
 
 ### 1.1 El valor fijo (`cm.md` v0.7.0)
 
-`V49` **no lleva tareas aquí**: es una sola migración para las dos tablas y sus cuatro tareas viven en `RF-CM-001` (`T-16` a `T-19`). Partirlas dejaría dos listas dando por hecha la mitad de la otra.
+`V50` **no lleva tareas aquí**: es una sola migración para las dos tablas y sus cuatro tareas viven en `RF-CM-001` (`T-16` a `T-19`). Partirlas dejaría dos listas dando por hecha la mitad de la otra.
 
 | ID | Tarea | Depende de | Verificación | Estado |
 |---|---|---|---|---|
@@ -108,7 +108,7 @@ Las tres comparten una propiedad: **su fallo no se parece a su causa**. Por eso 
 
 ## 4. Bloqueos
 
-**`T-22` depende de `RF-CM-001` `T-20`**, que es donde nace `CommissionValue`, y **`T-23` y `T-28` dependen de que `V49` esté aplicada** (`RF-CM-001` `T-16` a `T-19`). No es un bloqueo externo: es que las dos altas comparten objeto y migración a propósito, y el orden entre las dos tripletas de este bloque es **`RF-CM-001` primero**.
+**`T-22` depende de `RF-CM-001` `T-20`**, que es donde nace `CommissionValue`, y **`T-23` y `T-28` dependen de que `V50` esté aplicada** (`RF-CM-001` `T-16` a `T-19`). No es un bloqueo externo: es que las dos altas comparten objeto y migración a propósito, y el orden entre las dos tripletas de este bloque es **`RF-CM-001` primero**.
 
 **Quedan declaradas dos consecuencias que no son bloqueos y que nadie va a cerrar desde aquí:**
 
@@ -118,5 +118,5 @@ Las tres comparten una propiedad: **su fallo no se parece a su causa**. Por eso 
 ## 5. Definición de terminado
 
 - Las veintiuna primeras tareas `Hecha` con su verificación pasando. `./mvnw clean verify` en verde, **incluida la concurrente de `T-18`**. Comprobado el 02-09-2026: 278 unitarias y 876 de integración.
-- **Las ocho del valor fijo, `Hecha` con su verificación pasando**, sobre `V49` ya aplicada. **Comprobado el 02-09-2026**: 287 unitarias y 902 de integración, suite entera en verde.
+- **Las ocho del valor fijo, `Hecha` con su verificación pasando**, sobre `V50` ya aplicada. **Comprobado el 02-09-2026**: 287 unitarias y 902 de integración, suite entera en verde.
 - La matriz, `cm.md` y el contrato publicado al día.

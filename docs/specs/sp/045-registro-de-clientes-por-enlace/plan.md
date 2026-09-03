@@ -21,7 +21,7 @@ De ahí salen las tres decisiones del plan: **una sola transacción**, **límite
 
 **Una sola migración**, y en la primera versión de este plan eran dos.
 
-**`V48` — el catálogo de estados.** `ck_users_status` pasa de `('ACTIVO','INACTIVO','BLOQUEADO','PENDIENTE')` a `('ACTIVO','INACTIVO','BLOQUEADO','FTD_PENDIENTE')`.
+**`V49` — el catálogo de estados.** `ck_users_status` pasa de `('ACTIVO','INACTIVO','BLOQUEADO','PENDIENTE')` a `('ACTIVO','INACTIVO','BLOQUEADO','FTD_PENDIENTE')`.
 
 !!! success "El renombrado sale gratis hoy, y no lo será dentro de un mes"
 
@@ -29,7 +29,7 @@ De ahí salen las tres decisiones del plan: **una sola transacción**, **límite
 
     De modo que esto es sustituir un valor del dominio, **sin migración de datos**. La misma operación con una sola fila en `PENDIENTE` habría exigido decidir a dónde va esa cuenta.
 
-**Y la atribución no trae ninguna**, que es lo que cambia respecto a la primera versión de este plan. El cliente cuelga de su vendedor en **`user_supervisors`**, y esa tabla ya tiene exactamente la forma que hace falta: `user_id`, `supervisor_id`, `started_at`, `ended_at` y su unicidad parcial del vigente. **No hay columna nueva, no hay índice nuevo y no hay `V49`.**
+**Y la atribución no trae ninguna**, que es lo que cambia respecto a la primera versión de este plan. El cliente cuelga de su vendedor en **`user_supervisors`**, y esa tabla ya tiene exactamente la forma que hace falta: `user_id`, `supervisor_id`, `started_at`, `ended_at` y su unicidad parcial del vigente. **No hay columna nueva, no hay índice nuevo y no hay `V50`.**
 
 !!! success "Lo mejor de la decisión del responsable es lo que NO hay que escribir"
 

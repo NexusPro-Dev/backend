@@ -3,14 +3,14 @@
 | Campo | Valor |
 |---|---|
 | Requerimiento | `RF-CM-007` |
-| Plan | [`plan.md`](plan.md), aprobado el 02-09-2026 |
-| Versión | 0.1.0 |
+| Plan | [`plan.md`](plan.md), aprobado el 03-09-2026 |
+| Versión | 0.2.0 |
 | Estado | **En revisión** |
 | Autor | Responsable técnico |
 | Aprobadas por | Pendiente |
 | Fecha de aprobación | Pendiente |
 | Issue | Pendiente de crear |
-| Rama | `feature/flujos-de-pm-y-cm` |
+| Rama | `feature/comision-en-valor-fijo` |
 
 !!! info "Qué va en este documento"
 
@@ -28,9 +28,9 @@
 
 | ID | Tarea | Depende de | Verificación | Estado |
 |---|---|---|---|---|
-| `T-01` | `V48`: crear `product_commission_rates` con **clave primaria `(product_id, role_id)`** | `RF-CM-001` · `T-03` | Dos tasas del mismo rol sobre el mismo producto chocan | **Hecha el 02-09-2026** |
-| `T-02` | `V48`: la clave foránea **compuesta** hacia `commission_rates(id, role_id)` | `T-01` | Un rol copiado distinto del de la tasa **no se puede escribir** | **Hecha el 02-09-2026** |
-| `T-03` | `V48`: índice por tasa, para la lectura «sobre qué productos rige» | `T-01` | La clave primaria ya cubre la otra dirección | **Hecha el 02-09-2026** |
+| `T-01` | `V49`: crear `product_commission_rates` con **clave primaria `(product_id, role_id)`** | `RF-CM-001` · `T-03` | Dos tasas del mismo rol sobre el mismo producto chocan | **Hecha el 02-09-2026** |
+| `T-02` | `V49`: la clave foránea **compuesta** hacia `commission_rates(id, role_id)` | `T-01` | Un rol copiado distinto del de la tasa **no se puede escribir** | **Hecha el 02-09-2026** |
+| `T-03` | `V49`: índice por tasa, para la lectura «sobre qué productos rige» | `T-01` | La clave primaria ya cubre la otra dirección | **Hecha el 02-09-2026** |
 | `T-04` | `ProductCommissionRate` con clave compuesta, y `equals`/`hashCode` en ella | `T-01` | Dos lecturas de la misma fila son la misma entidad | **Hecha el 02-09-2026** |
 | `T-05` | `create(...)` **recibe la tasa entera**, no su identificador, y copia el rol de ahí | `T-04` | No hay forma de pasarle un rol distinto | **Hecha el 02-09-2026** |
 | `T-06` | Puerto y adaptador de escritura, con búsqueda **por tasa y producto** | `T-04` | Buscar por rol borraría una asociación que nadie pidió retirar | **Hecha el 02-09-2026** |
@@ -46,6 +46,13 @@
 | `T-16` | **Prueba concurrente**: dos asociaciones simultáneas del mismo rol | `T-13` | `CA-CM-071`: una `201`, otra `409`, **una sola fila** | **Hecha el 02-09-2026** |
 | `T-17` | Documentación OpenAPI, diciendo que **es lo único que pone la tasa en vigor** | `T-11` | La descripción lo dice y nombra `RN-CM-012` | **Hecha el 02-09-2026** |
 | `T-18` | Actualizar la matriz de `docs/requirements.md` y `cm.md` §4 | `T-13` | La fila registra la excepción al Art. I.1 | **Hecha el 02-09-2026** |
+| `T-19` | `ProductCatalog.findPrice(UUID)` y su implementación en `PublishedProductCatalog` | — | Devuelve el precio de un producto vivo o retirado; vacío si no existe | **Hecha el 03-09-2026** |
+| `T-20` | `ProductCommissionCapGuard`: suma el porcentaje ocupado de un producto y rechaza si pasa de cien | `T-19` | Cubierto por las pruebas de integración de `T-23` y `T-24`: el guardián no tiene comportamiento propio fuera de asociar y corregir | **Hecha el 03-09-2026** |
+| `T-21` | El bloqueo consultivo por `productId`, tomado antes de leer la suma | `T-20` | `plan.md` §4.1 | **Hecha el 03-09-2026** |
+| `T-22` | `AssociateProductService` llama a `ProductCommissionCapGuard` antes de escribir, y traduce el rechazo a `EX-005` | `T-20`, `T-21` | `409` con el mensaje de `spec.md` §10, y la descripción OpenAPI de `CommissionRateController.asociar` lo documenta | **Hecha el 03-09-2026** |
+| `T-23` | Pruebas de `RN-CM-019`: suma exacta, suma que se pasa, valor fijo convertido | `T-22` | `CA-CM-105` a `CA-CM-107`, `CA-CM-109` | **Hecha el 03-09-2026** |
+| `T-24` | **Prueba concurrente**: dos asociaciones simultáneas al mismo producto, individualmente dentro del tope y juntas fuera | `T-22` | `CA-CM-108`: una `201`, otra `409`, **ninguna `500`** | **Hecha el 03-09-2026** |
+| `T-25` | Actualizar `cm.md`, `modelo-datos.md` y la matriz de `docs/requirements.md` con `RN-CM-019` | — | Ya hecho en el bloque de documentación (03-09-2026) | **Hecha el 03-09-2026** |
 
 ## 2. Orden de ejecución
 
@@ -62,6 +69,10 @@
 
 **`T-16` verifica dónde vive la regla.** `T-14` pasaría igual si `RN-CM-013` se comprobara con una consulta previa; esta no.
 
+**`T-20` y `T-21` van antes que `T-22` por el mismo motivo que `T-05` va antes que `T-08`.** `ProductCommissionCapGuard` no depende de `AssociateProductService`; es al revés, y separarlo permite probarlo sin levantar el caso de uso entero — `T-20` lo hace con una prueba unitaria pura, sin base de datos.
+
+**`T-24` verifica lo mismo que `T-16`, con un mecanismo distinto.** `T-16` prueba que la clave primaria cierra la carrera de `RN-CM-013`; `T-24` prueba que el bloqueo consultivo cierra la de `RN-CM-019`, que una clave primaria no puede cerrar porque no hay una fila que dos peticiones se disputen — hay una suma que las dos leen antes de que exista la fila de la otra.
+
 ## 3. Cobertura de los criterios de aceptación
 
 | Criterio | Tareas |
@@ -75,6 +86,10 @@
 | `CA-CM-070` | `T-08`, `T-13` |
 | `CA-CM-071` | `T-16` |
 | `CA-CM-072` | `T-11`, `T-13` |
+| `CA-CM-105`, `CA-CM-106` | `T-20`, `T-22`, `T-23` |
+| `CA-CM-107` | `T-19`, `T-20`, `T-23` |
+| `CA-CM-108` | `T-21`, `T-24` |
+| `CA-CM-109` | `T-20`, `T-23` |
 
 ## 4. Bloqueos
 
@@ -82,8 +97,10 @@ Ninguno.
 
 **Queda declarado un riesgo que no se puede cerrar desde aquí:** la asociación **no tiene retiro lógico** y sobreviviría al retiro de su tasa. Se cierra en `RF-CM-004` con `RN-CM-015`, porque **una clave foránea no distingue una fila viva de una retirada lógicamente**.
 
+**Y queda declarado, desde el 03-09-2026, el mismo tipo de límite sobre `RN-CM-019`:** una tasa personalizada en la cadena comercial no entra en la suma que `T-20` calcula, y el precio comprobado puede quedar desactualizado si `RF-PM-004` lo cambia después. Ninguna tarea de esta lista lo cierra — `plan.md` §9 y §11 explican por qué no se cierra desde aquí.
+
 ## 5. Definición de terminado
 
-- Las dieciocho tareas `Hecha` con su verificación pasando.
-- `./mvnw clean verify` en verde, **incluida la concurrente de `T-16`**. Comprobado el 02-09-2026: 278 unitarias y 876 de integración.
-- La matriz, `cm.md` y el contrato publicado al día.
+- Las dieciocho tareas originales `Hecha`, más `T-19` a `T-25` `Hecha` con su verificación pasando.
+- `./mvnw clean verify` en verde, **incluidas las dos concurrentes: `T-16` y `T-24`**.
+- La matriz, `cm.md`, `modelo-datos.md` y el contrato publicado al día.

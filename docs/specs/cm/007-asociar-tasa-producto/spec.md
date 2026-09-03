@@ -4,11 +4,11 @@
 |---|---|
 | Requerimiento | `RF-CM-007` |
 | Módulo | `CM` — Comisiones |
-| Versión | 0.1.0 |
+| Versión | 0.2.0 |
 | Estado | **Aprobada** |
 | Autor | Responsable técnico |
 | Aprobada por | Responsable del proyecto |
-| Fecha de aprobación | 02-09-2026 |
+| Fecha de aprobación | 03-09-2026 |
 
 !!! info "Qué va en este documento"
 
@@ -46,6 +46,7 @@ Es la operación más pequeña del módulo y la que lo sostiene entero. **Sin el
 
 - Asociar una tasa de rol **viva** a un producto **no retirado**.
 - Garantizar que **un rol tiene un solo porcentaje sobre un producto** (`RN-CM-013`).
+- **Garantizar que ese producto no quede pagando más del 100 % de sí mismo** entre todas sus tasas de rol asociadas (`RN-CM-019`).
 - Devolver **todas** las asociaciones de la tasa, no solo la nueva.
 - Dejar constancia en la auditoría de cambios.
 
@@ -66,8 +67,11 @@ Es la operación más pequeña del módulo y la que lo sostiene entero. **Sin el
 | `RN-CM-012` | Una tasa de rol no rige hasta que se asocia | `requirements/cm.md` §5.1 |
 | `RN-CM-013` | Un solo porcentaje por rol y producto | `requirements/cm.md` §5.1 |
 | `RN-CM-014` | Solo las tasas de rol se asocian a productos | `requirements/cm.md` §5.1 |
+| `RN-CM-019` | Un producto no puede pagar más del 100 % de sí mismo | `requirements/cm.md` §5.1 |
 
 **`RN-CM-014` no se comprueba: se cumple por construcción.** Las tasas personalizadas viven en otra tabla y esta operación no tiene forma de nombrarlas.
+
+**`RN-CM-019` sí se comprueba, y es la única regla de esta operación que necesita leer más de una fila y más de una tabla.** Suma el porcentaje ocupado de cada asociación viva del producto —el de una tasa `PORCENTAJE` tal cual, el de una `FIJO` convertido a `fixed_amount ÷ precio × 100` contra el precio que `PM` publica hoy— más el de la tasa que se está asociando, y rechaza si pasa de cien.
 
 ## 6. Datos
 
@@ -100,6 +104,7 @@ Es la operación más pequeña del módulo y la que lo sostiene entero. **Sin el
 - **Ese producto pasa a pagar ese porcentaje a ese rol, inmediatamente.**
 - Ningún otro producto cambia.
 - Ese rol **no tiene ninguna otra tasa** asociada a ese producto (`RN-CM-013`).
+- **Ese producto no queda pagando más del 100 % de sí mismo** entre todas sus tasas de rol asociadas (`RN-CM-019`).
 - La auditoría de cambios contiene el evento con la tasa, el rol, el producto y el porcentaje.
 
 ## 8. Flujo principal
@@ -107,11 +112,14 @@ Es la operación más pequeña del módulo y la que lo sostiene entero. **Sin el
 1. El actor envía la tasa y el producto.
 2. El sistema comprueba que la tasa existe y está viva.
 3. El sistema comprueba que el producto existe y no está retirado.
-4. El sistema registra la asociación, **copiando el rol de la tasa**.
-5. El sistema comprueba que ese rol no tenía ya otra tasa asociada a ese producto.
-6. El sistema emite el evento de auditoría y devuelve todas las asociaciones de la tasa.
+4. El sistema suma el porcentaje ocupado de las asociaciones vivas de ese producto más el de la tasa que se va a asociar, y rechaza si la suma pasa de cien (`RN-CM-019`).
+5. El sistema registra la asociación, **copiando el rol de la tasa**.
+6. El sistema comprueba que ese rol no tenía ya otra tasa asociada a ese producto.
+7. El sistema emite el evento de auditoría y devuelve todas las asociaciones de la tasa.
 
-**Los pasos 4 y 5 ocurren a la vez y en ese orden**, y no al revés: comprobar antes de escribir sería una carrera. Ver `plan.md` §4.
+**Los pasos 5 y 6 ocurren a la vez y en ese orden**, y no al revés: comprobar antes de escribir sería una carrera. Ver `plan.md` §4.
+
+**El paso 4 comprueba una suma, y una suma sí se puede leer antes de escribir** — al contrario que `RN-CM-013`, no depende de que dos peticiones no se crucen sobre la fila que cada una va a insertar, depende de las filas que **ya existen**. Lo que sí puede cruzarse son **dos peticiones sobre el mismo producto**, y de eso habla `plan.md` §4.1.
 
 ## 9. Flujos alternativos
 
@@ -127,7 +135,8 @@ Es la operación más pequeña del módulo y la que lo sostiene entero. **Sin el
 **Cuándo ocurre:** el producto ya tiene tasas asociadas de otros roles.
 
 1. Se admite. Es el **override** de `RN-CM-011` visto desde el producto: cada nivel de la cadena gana su propio porcentaje sobre el mismo importe.
-2. **La suma de esos porcentajes puede pasar de cien**, y nada lo impide. `RN-CM-011` declara que ese tope **queda sin dueño**.
+2. **Desde el 03-09-2026 la suma de esos porcentajes ya no puede pasar de cien** (`RN-CM-019`): se admite mientras quepa, y se rechaza la asociación que la haría pasarse — ver `EX-005`.
+3. **Esto no cierra `RN-CM-011` entero.** Si algún nivel de la cadena cobra por una tasa **personalizada** en lugar de por el rol asociado a este producto, esa fila no está aquí para sumarse: la personalizada no se asocia a nada (`RN-CM-004`). El tope de la cadena completa sigue sin dueño hasta que exista la liquidación.
 
 ### FA-003 — Asociar una tasa del cero por ciento
 
@@ -164,6 +173,13 @@ Es la operación más pequeña del módulo y la que lo sostiene entero. **Sin el
 
 **El conflicto no es «esta tasa ya está asociada» sino «este rol ya cobra por este producto»**, que puede ser con otra tasa distinta. Decir lo primero mandaría a buscar el problema en la tasa que se está asociando, cuando está en la que ya estaba.
 
+### EX-005 — La asociación haría pasar al producto de cien
+
+**Condición:** sumando el porcentaje ocupado de las tasas de rol ya asociadas a ese producto más el de la tasa que se quiere asociar, el resultado supera cien.
+**Respuesta del sistema:** rechaza la asociación diciendo que ese producto quedaría pagando más del 100 % de sí mismo, y nombra los porcentajes ya ocupados (`RN-CM-019`).
+
+**No es el mismo conflicto que `EX-004`.** Ahí el problema es que ese rol ya cobra por ese producto; aquí el rol es nuevo y el problema está en la **suma con los demás roles** que ya cobran. Pueden darse los dos a la vez —un rol repetido que además haría pasar la suma de cien— y el sistema informa el que encuentra primero: `RN-CM-019` se comprueba **antes** de escribir (§8, paso 4), y `RN-CM-013` la cierra la clave primaria **al escribir** (§8, paso 6). Un rol repetido cuya tasa además haría pasar la suma de cien se rechaza como `EX-005`, no como `EX-004` — la petición nunca llega a intentar el `INSERT` que `EX-004` traduce.
+
 ## 11. Validaciones
 
 | ID | Regla | Mensaje |
@@ -184,6 +200,13 @@ Es la operación más pequeña del módulo y la que lo sostiene entero. **Sin el
 | `CA-CM-070` | Rechaza asociar desde una tasa **retirada** |
 | `CA-CM-071` | Dos asociaciones **simultáneas** del mismo rol al mismo producto: solo una entra |
 | `CA-CM-072` | Exige el permiso de modificación de comisiones |
+| `CA-CM-105` | Asociar una tasa que deja la suma del producto en **exactamente cien** se admite |
+| `CA-CM-106` | Asociar una tasa que haría **pasar de cien** la suma del producto se rechaza, **y no queda ninguna fila nueva** |
+| `CA-CM-107` | La suma cuenta un **valor fijo** convertido a `fixed_amount ÷ precio × 100` **contra el precio de ese producto**, no como cifra directa |
+| `CA-CM-108` | Dos asociaciones **simultáneas** al mismo producto, cada una dentro del tope por separado pero **juntas fuera**: solo una entra |
+| `CA-CM-109` | Asociar sobre un producto **sin ninguna asociación previa** solo compara contra la tasa que se está asociando |
+
+
 
 ## 13. Casos límite
 
@@ -193,6 +216,9 @@ Es la operación más pequeña del módulo y la que lo sostiene entero. **Sin el
 - **Un rol quiere dos porcentajes sobre el mismo producto:** no tiene sentido y el sistema lo impide. Con dos, la resolución tendría **dos respuestas válidas** y la elección quedaría a criterio de cómo se ejecute la consulta.
 - **Asociar la misma tasa al mismo producto dos veces:** es el caso particular de `EX-004` donde la tasa existente es la misma. Se rechaza igual: **la operación no es idempotente**, y no lo es porque el conflicto es informativo.
 - **Un producto sin ninguna asociación:** no comisiona a nadie. **No es un estado inválido**, y `RF-CM-005` lo dice devolviendo «sin tarifa».
+- **Un producto de precio cero:** no existe. `ck_products_price_positive` (`PM`, `V39`) exige `price > 0` desde antes de que este módulo existiera, así que la conversión de un valor fijo nunca divide entre cero — no es una comprobación de este requerimiento, es una garantía que ya traía el esquema de `PM`.
+- **El precio del producto cambia después de asociar:** la suma se comprobó contra el precio de **ese instante**, y nadie la repite cuando `RF-PM-004` cambia el precio. Puede quedar pasada de cien sin que nada lo detecte. Es el hueco que `cm.md` `RN-CM-019` acepta a conciencia, y solo lo cierra la liquidación futura.
+- **La cadena comercial incluye una tasa personalizada:** la suma de esta operación no la ve — la personalizada no se asocia a ningún producto (`RN-CM-004`) — y el tope de `RN-CM-011` para ese caso sigue sin dueño.
 
 ## 14. Preguntas abiertas
 
@@ -202,8 +228,11 @@ Es la operación más pequeña del módulo y la que lo sostiene entero. **Sin el
 
 **Queda declarada una decisión discutible que ya está tomada:** asociar reutiliza el permiso de **modificación** y no estrena uno propio, aunque sea **lo único que pone una tasa en vigor**. El criterio, en `cm.md` §6: asociar cambia lo que se paga tanto como corregir un porcentaje, de modo que quien puede lo uno debería poder lo otro. Separarlos tendría sentido el día que alguien deba poder **revisar tarifas sin poder activarlas**.
 
+**Y queda declarada otra, del 03-09-2026:** `RN-CM-019` compara una suma, y una suma no se puede leer y comprobar de forma segura frente a otra petición que hace lo mismo sobre el mismo producto sin algún tipo de bloqueo — al contrario que `RN-CM-013`, que se cierra sola en la clave primaria. Se decidió cerrar esa ventana con un bloqueo consultivo de Postgres por producto, y no dejarla como hueco aceptado; el porqué y el detalle técnico están en `plan.md` §4.1.
+
 ## 15. Control de cambios
 
 | Versión | Fecha | Cambio | Responsable |
 |---|---|---|---|
 | 0.1.0 | 02-09-2026 | Redacción inicial, **después de construirse el requerimiento** — excepción al Art. I.1 declarada en cabecera, y **este es el requerimiento que la justifica**: sin él el catálogo no paga nada y el módulo no se puede probar de punta a punta. Recoge la operación que nació al invertirse el significado de la ausencia el 01-09-2026, y §2 explica por qué el producto salió de la tasa: es una relación de muchos a muchos, y como columna habría obligado a duplicar la tasa una vez por producto. §6.1 declara por qué **el rol no se recibe**, y §10 por qué el conflicto de `EX-004` habla del **rol** y no de la tasa. §13 recoge las dos asimetrías con `RN-CM-010` y `RN-CM-015`: el producto retirado **conserva** sus asociaciones pero no admite nuevas, y la tasa retirada **no puede** tenerlas. | Responsable técnico |
+| 0.2.0 | 03-09-2026 | **Nace `RN-CM-019`** (`cm.md` v0.8.0), y esta operación es una de las dos que la comprueban. §4.1 y §7 la suman a lo que asociar garantiza; §8 gana un paso nuevo, **antes** de escribir, que suma el porcentaje ocupado de las asociaciones vivas del producto —convirtiendo cada valor fijo contra el precio que `PM` publica— más el de la tasa entrante, y rechaza si pasa de cien. `FA-002` **se corrige**: decía que la suma de varios roles sobre un producto podía pasar de cien sin que nada lo impidiera, y desde hoy **sí hay algo que lo impide**, aunque no todo — se aclara que una tasa **personalizada** en la cadena sigue fuera de esta suma, porque no se asocia a ningún producto. Nace `EX-005`, distinto de `EX-004`: aquí el rol es nuevo y el conflicto está en la suma con los demás roles que ya cobran, no en que ese rol repita asociación. §13 suma tres casos límite: el precio cero —que resulta **imposible**, porque `ck_products_price_positive` (`PM`, `V39`) ya lo impedía—; el precio que cambia después de asociar, que **nadie vuelve a comprobar**; y la cadena con una tasa personalizada, que esta suma no alcanza. §14 registra la decisión de cerrar con un **bloqueo consultivo de Postgres** la ventana que abre comprobar una suma antes de escribir — la primera vez que el módulo usa ese mecanismo en lugar de una restricción del esquema, porque una suma agregada entre filas hermanas, que además lee el precio de otro módulo, no cabe en ningún `CHECK` ni `EXCLUDE`. | Responsable del proyecto |

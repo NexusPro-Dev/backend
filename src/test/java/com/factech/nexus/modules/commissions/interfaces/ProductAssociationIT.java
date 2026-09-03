@@ -1,5 +1,6 @@
 package com.factech.nexus.modules.commissions.interfaces;
 
+import static com.factech.nexus.modules.commissions.interfaces.CommissionFixtures.AGENTE;
 import static com.factech.nexus.modules.commissions.interfaces.CommissionFixtures.DIRECTOR;
 import static com.factech.nexus.modules.commissions.interfaces.CommissionFixtures.MANAGER;
 import static org.assertj.core.api.Assertions.assertThat;
@@ -244,6 +245,74 @@ class ProductAssociationIT extends IntegrationTestBase {
                 .contentType(MediaType.APPLICATION_JSON)
                 .content("{\"productId\":\"" + producto + "\"}"))
         .andExpect(status().isForbidden());
+  }
+
+  // ---------------------------------------------------------------------------
+  // `RN-CM-019` — el producto no paga más del 100 % de sí mismo (`cm.md` v0.8.0)
+  // ---------------------------------------------------------------------------
+
+  @Test
+  @DisplayName("CA-CM-109 · un producto sin ninguna asociación previa solo compara consigo misma")
+  void productoSinAsociacionesPrevias() throws Exception {
+    UUID cien = CommissionFixtures.sembrarTasaDeRol(jdbc, DIRECTOR, "100.00");
+
+    mvc.perform(asociacion(cien, producto)).andExpect(status().isCreated());
+    assertThat(cuantasAsociaciones()).isEqualTo(1);
+  }
+
+  @Test
+  @DisplayName("CA-CM-105 · la suma EXACTA a cien se admite")
+  void sumaExactaACien() throws Exception {
+    UUID sesenta = CommissionFixtures.sembrarTasaDeRol(jdbc, MANAGER, "60.00");
+    UUID cuarenta = CommissionFixtures.sembrarTasaDeRol(jdbc, DIRECTOR, "40.00");
+
+    mvc.perform(asociacion(sesenta, producto)).andExpect(status().isCreated());
+    // La respuesta devuelve las asociaciones DE ESA TASA, no las del producto
+    // (`spec.md` §6.2): la segunda tasa es otra fila del catálogo, así que su
+    // propia respuesta trae una sola asociación — la suya.
+    mvc.perform(asociacion(cuarenta, producto))
+        .andExpect(status().isCreated())
+        .andExpect(jsonPath("$.content.length()").value(1));
+
+    assertThat(cuantasAsociaciones()).isEqualTo(2);
+  }
+
+  @Test
+  @DisplayName("CA-CM-106 · la suma que PASA de cien se rechaza, y no queda fila nueva")
+  void sumaQuePasaDeCien() throws Exception {
+    UUID sesenta = CommissionFixtures.sembrarTasaDeRol(jdbc, MANAGER, "60.00");
+    UUID cuarentaYCinco = CommissionFixtures.sembrarTasaDeRol(jdbc, DIRECTOR, "45.00");
+
+    mvc.perform(asociacion(sesenta, producto)).andExpect(status().isCreated());
+
+    // 60 + 45 = 105: se rechaza, y el rol DIRECTOR se queda sin asociar.
+    mvc.perform(asociacion(cuarentaYCinco, producto))
+        .andExpect(status().isConflict())
+        .andExpect(jsonPath("$.errors[0].code").value("EX-005"));
+
+    assertThat(cuantasAsociaciones()).isEqualTo(1);
+  }
+
+  @Test
+  @DisplayName(
+      "CA-CM-107 · el valor fijo entra en la suma convertido contra el precio del producto")
+  void valorFijoConvertidoContraElPrecio() throws Exception {
+    UUID caro = CommissionFixtures.sembrarProducto(jdbc, "BOT_1000", false, "1000.0000");
+    // 400 / 1000 * 100 = 40 %.
+    UUID fijo400 = CommissionFixtures.sembrarTasaDeRol(jdbc, MANAGER, "FIJO", "400.0000");
+    // 40 + 60 = 100: cabe justo.
+    UUID sesenta = CommissionFixtures.sembrarTasaDeRol(jdbc, DIRECTOR, "60.00");
+    // 40 + 61 = 101: no cabe.
+    UUID sesentaYUno = CommissionFixtures.sembrarTasaDeRol(jdbc, AGENTE, "61.00");
+
+    mvc.perform(asociacion(fijo400, caro)).andExpect(status().isCreated());
+    mvc.perform(asociacion(sesenta, caro)).andExpect(status().isCreated());
+
+    mvc.perform(asociacion(sesentaYUno, caro))
+        .andExpect(status().isConflict())
+        .andExpect(jsonPath("$.errors[0].code").value("EX-005"));
+
+    assertThat(cuantasAsociaciones()).isEqualTo(2);
   }
 
   // ---------------------------------------------------------------------------

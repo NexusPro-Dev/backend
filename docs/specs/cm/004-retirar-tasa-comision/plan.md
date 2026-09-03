@@ -29,7 +29,7 @@ Una clave foránea no lo evita: **no distingue una fila viva de una retirada ló
 
 ## 2. Cambios de esquema
 
-**Ninguno.** `deleted_at` está en la tabla desde `V44` y `V48` no la toca.
+**Ninguno.** `deleted_at` está en la tabla desde `V44` y `V49` no la toca.
 
 **Lo que sí hace falta es una consulta nueva**, no una columna: saber si la tasa tiene asociaciones. Se resuelve con una cuenta sobre `product_commission_rates`, y se declara en el **puerto de escritura** y no en el de consulta, porque quien la necesita es un caso de uso que escribe y su respuesta forma parte de la decisión de escribir.
 

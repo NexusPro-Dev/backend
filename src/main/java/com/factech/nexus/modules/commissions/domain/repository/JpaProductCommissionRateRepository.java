@@ -13,7 +13,7 @@ import org.springframework.stereotype.Repository;
 @Repository
 public class JpaProductCommissionRateRepository implements ProductCommissionRateRepository {
 
-  /** El nombre exacto de la clave primaria de `V48`. Si cambia allí, cambia aquí. */
+  /** El nombre exacto de la clave primaria de `V49`. Si cambia allí, cambia aquí. */
   private static final String PK_ASOCIACION = "pk_product_commission_rates";
 
   /** `SQLState` estándar de «violación de unicidad». */

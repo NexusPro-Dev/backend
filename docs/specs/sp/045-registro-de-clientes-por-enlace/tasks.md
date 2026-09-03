@@ -17,7 +17,7 @@
 
 | ID | Tarea | Depende de | Verificación | Estado |
 |---|---|---|---|---|
-| `T-01` | `V48`: `ck_users_status` sustituye `PENDIENTE` por `FTD_PENDIENTE`, y `UserStatus` con él | — | Ninguna fila cambia: el valor retirado no lo usa nadie. Migración en verde sobre base con datos | Pendiente |
+| `T-01` | `V49`: `ck_users_status` sustituye `PENDIENTE` por `FTD_PENDIENTE`, y `UserStatus` con él | — | Ninguna fila cambia: el valor retirado no lo usa nadie. Migración en verde sobre base con datos | Pendiente |
 | `T-02` | **`RN-SP-020` gana su rama de consumidor** en `CommercialStructure`: si el subordinado no porta rol vendedor, basta con que el superior porte **alguno** | — | Un cliente cuelga de un `AGENTE`, de un `DIRECTOR` y de un `MANAGER` por igual (`CL-007`); un funcionario sigue siendo rechazado. **Sin migración**: `user_supervisors` ya tiene la forma | Pendiente |
 | `T-03` | **`AuthUser.puedeEntrar()`** admite `FTD_PENDIENTE`, escrito como **lista explícita** de los estados que autentican | `T-01` | Prueba de que `INACTIVO` y `BLOQUEADO` **siguen sin poder**. Es el riesgo 1 del plan y la tarea más delicada del requerimiento | Pendiente |
 | `T-04` | Enmienda a `RF-SP-028`: `ChangeUserStatusService` admite la salida de `FTD_PENDIENTE` a `ACTIVO` | `T-01` | `CA-SP-524`. Es la única salida mientras no haya webhook | Pendiente |

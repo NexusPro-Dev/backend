@@ -155,12 +155,21 @@ public class CommissionRateController {
           `percentage: null` se **rechaza**. **El rol no se corrige**, y enviarlo
           devuelve `400`: se rechaza y no se ignora, porque ignorarlo haría creer
           que el cambio se aplicó.
+
+          **Si la tasa está asociada, revisa el tope de cien en TODOS sus
+          productos a la vez** (`RN-CM-019`): si el nuevo valor dejaría a alguno
+          pagando más del 100 % de sí mismo, la corrección se rechaza **entera**
+          y devuelve `409` — ninguno de los productos cambia, ni siquiera los que
+          sí cabían.
           """)
   @ApiResponses({
     @ApiResponse(responseCode = "200", description = "Tasa corregida"),
     @ApiResponse(responseCode = "400", description = "Datos inválidos o campos no corregibles"),
     @ApiResponse(responseCode = "403", description = "Sin permiso"),
-    @ApiResponse(responseCode = "404", description = "No existe, o está retirada")
+    @ApiResponse(responseCode = "404", description = "No existe, o está retirada"),
+    @ApiResponse(
+        responseCode = "409",
+        description = "El nuevo valor dejaría a algún producto asociado pagando más de cien")
   })
   @PatchMapping("/{id}")
   @PreAuthorize("hasAuthority('commissions:update')")
@@ -219,6 +228,11 @@ public class CommissionRateController {
 
           **No se asocia a un producto retirado** ni desde una tasa retirada.
 
+          **El producto no puede quedar pagando más del 100 % de sí mismo**
+          (`RN-CM-019`): suma el porcentaje de sus tasas de rol ya asociadas
+          —convirtiendo cada valor fijo contra el precio del producto— más el de
+          esta, y devuelve `409` si pasa de cien.
+
           Devuelve **todas** las asociaciones de la tasa, no solo la nueva.
           """)
   @ApiResponses({
@@ -228,7 +242,9 @@ public class CommissionRateController {
     @ApiResponse(responseCode = "404", description = "La tasa no existe o está retirada"),
     @ApiResponse(
         responseCode = "409",
-        description = "Ese rol ya paga por ese producto, o el producto está retirado"),
+        description =
+            "Ese rol ya paga por ese producto, el producto está retirado, o la suma pasaría de"
+                + " cien"),
     @ApiResponse(responseCode = "422", description = "El producto no existe")
   })
   @PostMapping("/{id}/products")

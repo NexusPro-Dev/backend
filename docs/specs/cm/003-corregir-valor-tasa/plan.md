@@ -4,12 +4,12 @@
 |---|---|
 | Requerimiento | `RF-CM-003` |
 | Especificación | [`spec.md`](spec.md) |
-| `spec.md` aprobada el | 02-09-2026 |
-| Versión | 0.3.0 |
+| `spec.md` aprobada el | 03-09-2026 |
+| Versión | 0.4.0 |
 | Estado | **Aprobado** |
 | Autor | Responsable técnico |
 | Aprobado por | Responsable del proyecto |
-| Fecha de aprobación | 02-09-2026 |
+| Fecha de aprobación | 03-09-2026 |
 
 !!! info "Qué va en este documento"
 
@@ -29,16 +29,19 @@ Lo que gana es un peso que no tenía: **el registro de auditoría del cambio pas
 
 ## 2. Cambios de esquema
 
-**Ninguno propio.** `V48` deja la tabla como esta operación la necesitaba, y `V49` le añade la forma — pero esa migración es de `RF-CM-001` §2.3 y se hereda entera.
+**Ninguno propio.** `V49` deja la tabla como esta operación la necesitaba, y `V50` le añade la forma — pero esa migración es de `RF-CM-001` §2.3 y se hereda entera.
 
-**Lo que sí conviene decir aquí es qué le hacen los `CHECK` de `V49` a esta operación**: `ck_commission_rates_forma` vigila que el tipo y el valor concuerden **en cada `UPDATE`, no solo en el `INSERT`**. De modo que una corrección que dejara la fila descuadrada **la rechaza el motor** aunque la aplicación se despistara. Es una red, no la regla: el motor no puede dar el mensaje de `VAL-011`.
+**Lo que sí conviene decir aquí es qué le hacen los `CHECK` de `V50` a esta operación**: `ck_commission_rates_forma` vigila que el tipo y el valor concuerden **en cada `UPDATE`, no solo en el `INSERT`**. De modo que una corrección que dejara la fila descuadrada **la rechaza el motor** aunque la aplicación se despistara. Es una red, no la regla: el motor no puede dar el mensaje de `VAL-011`.
+
+**Y tampoco añade nada `RN-CM-019` desde el 03-09-2026**, por el mismo motivo que en `RF-CM-007` §2.4: la suma no se guarda, se calcula en cada corrección.
 
 ## 3. Componentes afectados
 
 | Capa | Componente | Nuevo / Modificado | Responsabilidad |
 |---|---|---|---|
 | `domain/models` | `CommissionRate` | **Rehecho** | `update(...)` con un solo campo corregible, que **devuelve qué cambió de verdad** |
-| `domain/service` | `UpdateCommissionRateService` | **Rehecho** | Caso de uso; pierde el bloqueo y el volcado defensivo |
+| `domain/service` | `UpdateCommissionRateService` | **Rehecho, y de nuevo desde v0.4.0** | Caso de uso; pierde el bloqueo y el volcado defensivo de la v0.1.0, y gana desde v0.4.0 dos dependencias: `ProductCommissionRateQueryRepository` y `ProductCommissionCapGuard` |
+| `domain/service` | `ProductCommissionCapGuard` | **No, reutilizado de `RF-CM-007`** | La misma suma y el mismo bloqueo, aplicados aquí a cada producto de la tasa en lugar de a uno solo |
 | `application` | `UpdateCommissionRateRequest` | **Rehecho** | Un campo corregible y **un inmutable declarado a propósito** |
 | `interfaces` | `CommissionRateController` | **Modificado** | `PATCH /api/v1/commission-rates/{id}` |
 
@@ -69,6 +72,14 @@ De modo que la comparación pasa a ser **del `CommissionValue` entero**, y tiene
 
     Las dos pruebas van juntas por eso: `CA-CM-024` y `CA-CM-091` son la misma decisión mirada desde sus dos lados, y **cualquiera de las dos sola se puede satisfacer rompiendo la otra**.
 
+### 3.2 Un producto por vez, en un orden que no cambia
+
+`ProductCommissionCapGuard.verificar(...)` (§3) espera **un** producto. Corregir una tasa puede regir sobre veinte, así que `UpdateCommissionRateService` recorre la lista que devuelve `ProductCommissionRateQueryRepository.findByRate(id)` y llama al guardián **una vez por producto**, con el valor **nuevo** de la tasa.
+
+**El orden de ese recorrido no es cualquiera.** `AssociateProductService` también puede estar tomando el mismo bloqueo consultivo sobre uno de esos productos al mismo tiempo (`RF-CM-007` `plan.md` §4.1); si dos transacciones bloquean varios productos en órdenes distintos, cada una puede acabar esperando un bloqueo que la otra ya tiene. Se recorre **ordenado por `productId`**, el mismo criterio en las dos operaciones, para que dos transacciones que se cruzan siempre lo hagan en la misma dirección.
+
+**El rechazo es del primero que falla, y no de todos a la vez.** No hace falta acumular los veinte resultados: en cuanto uno supera cien, la corrección entera se rechaza y los bloqueos de esa transacción se sueltan al hacer rollback. Los productos que sí cabían no llegan a escribirse porque **nada se escribe hasta el paso 8** — la suma se comprueba antes de tocar la fila de la tasa.
+
 ## 4. Contrato de API
 
 `PATCH /api/v1/commission-rates/{id}` · `200 OK`.
@@ -78,8 +89,9 @@ De modo que la comparación pasa a ser **del `CommissionValue` entero**, y tiene
 | `400` | `VAL-002`, `VAL-003`, `VAL-009`, `VAL-010`, `VAL-011`, `VAL-012` |
 | `403` | Sin el permiso `commissions:update` |
 | `404` | `EX-001`: no existe, o está retirada |
+| `409` | `EX-006`, desde v0.4.0: la corrección haría pasar de cien a algún producto asociado |
 
-**Ya no hay `409`.** La v0.1.0 lo declaraba para la vigencia solapada, y esa columna desapareció. **Su ausencia es informativa**: dice que esta operación no puede entrar en conflicto con ninguna otra fila.
+**Vuelve a haber `409`, y no por la misma razón que en la v0.1.0.** Aquella era la vigencia solapada, y esa columna desapareció con la v0.2.0 — de ahí que la nota original dijera que esta operación no podía entrar en conflicto con ninguna fila. `RN-CM-019` reabre esa puerta desde otro lado: el conflicto no es con otra fila de esta tabla, es con la suma que otras filas de `product_commission_rates` ya ocupan.
 
 **`PATCH` y no `PUT`**, y desde la v0.3.0 el argumento hay que rehacerlo. Decía «se corrige un campo, no se sustituye la tasa», y ahora ese campo **es una pareja que viaja entera** (`spec.md` §6.1) — que es justo lo que un `PUT` hace.
 
@@ -119,7 +131,7 @@ Registro de **cambios**, acción de actualización, con `before` y `after` de ca
 
 ## 8. Impacto sobre otros módulos
 
-**Ninguno.**
+**Ninguno hasta la v0.3.0. Desde la v0.4.0, el mismo que declara `RF-CM-007` `plan.md` §9**: se consume `ProductCatalog.findPrice`, que `PM` publica, a través de `ProductCommissionCapGuard` — esta operación no llama a `PM` directamente.
 
 ## 9. Alternativas consideradas
 
@@ -137,8 +149,10 @@ Registro de **cambios**, acción de actualización, con `before` y `after` de ca
 | Pasar a `PUT`, ya que el valor viaja entero | Obligaría a enviar el rol, que es inmutable: un cuerpo parcial con nombre de completo. Ver §4 |
 | **Hacer la forma inmutable**, junto al rol | Decisión del responsable del proyecto en contra (02-09-2026). Obligaría a desasociar cada producto, retirar y volver a asociar — y **esos productos no comisionan mientras tanto**. `spec.md` §14 |
 | Permitir el cambio de forma **solo en tasas sin asociaciones** | Descartado con lo anterior: el caso en que hace falta corregir es precisamente aquel en que la tasa ya está en uso |
-| Acotar el importe fijo por arriba **al corregir**, ya que aquí sí se conocen las asociaciones | El precio de un producto se corrige después (`RF-PM-004`), de modo que la comprobación quedaría desfasada al día siguiente. `RN-CM-018` |
+| Acotar el importe fijo por arriba **al corregir**, ya que aquí sí se conocen las asociaciones | Era la postura hasta la v0.3.0. **Se revierte en la v0.4.0** (`cm.md` v0.8.0, decisión del responsable del proyecto, 03-09-2026): se acepta que el tope quede calculado contra el precio de hoy y pueda desactualizarse si `RF-PM-004` lo cambia después, en lugar de no comprobar nada |
 | **Impedir corregir una tasa asociada** | Sería coherente con `RN-CM-015`, y es la restricción equivocada: retirar destruye la tasa, corregir la mantiene. Obligaría a desasociar veinte productos para arreglar una errata |
+| Aplicar los productos que caben y rechazar solo los que no | Convierte una corrección en una decisión repartida: la tasa terminaría diciendo una cosa para unos productos y otra para otros, sin que nadie lo haya pedido. `spec.md` §4.1 lo exige entero o nada |
+| Construir un guardián propio en vez de reutilizar `ProductCommissionCapGuard` de `RF-CM-007` | Duplicaría la suma, la conversión del valor fijo y el bloqueo consultivo en dos sitios que tienen que decidir exactamente lo mismo sobre la misma tabla |
 
 ## 10. Riesgos
 
@@ -151,6 +165,9 @@ Registro de **cambios**, acción de actualización, con `before` y `after` de ca
 | 5 | La instantánea guarde el número sin la forma | Sale bien solo si el mapa de cambios trata el valor como **un** campo. §6 |
 | 6 | Un cliente parchee `fixedAmount` suelto, por costumbre del proyecto | `400` con `VAL-011`, y el contrato publicado tiene que explicar por qué. §4 |
 | 7 | Veinte productos cambien de **forma** de pago sin aviso | La respuesta devuelve cuántos son, igual que con el número. Es lo que se aceptó al decidir que la forma se corrige (`spec.md` §14) |
+| 8 | Corregir una tasa deje pasado de cien a un producto asociado | `RN-CM-019`, desde v0.4.0: `EX-006` lo rechaza entero antes de escribir |
+| 9 | Dos peticiones —una corrección y una asociación de `RF-CM-007`— bloqueando el mismo conjunto de productos en órdenes distintos | El mismo criterio de orden en las dos: por `productId` (§3.2) |
+| 10 | El precio de un producto cambia después de corregir, y la suma comprobada queda desactualizada | No se cierra desde aquí. Aceptado a conciencia, igual que en `RF-CM-007` `spec.md` §13 |
 
 ## 11. Estrategia de prueba
 
@@ -171,6 +188,10 @@ Registro de **cambios**, acción de actualización, con `before` y `after` de ca
 | El valor sin la forma | Integración | `CA-CM-093`: `400` con `VAL-011`, y **la tasa intacta** |
 | El tope que solo existe en una forma | Integración | `CA-CM-094`: `150` rechazado en porcentaje, aceptado en importe fijo |
 | Los asociados pasan a la forma nueva | Integración | `CA-CM-095`, resolviendo |
+| `RN-CM-019`, suma que cabe y suma que se pasa | Integración | `CA-CM-110`, `CA-CM-111`: el rechazo **no deja ningún producto afectado**, ni los que sí cabían |
+| `RN-CM-019` sobre veinte productos | Integración | `CA-CM-112`: uno solo que se pase de cien rechaza los veinte |
+| `RN-CM-019` con valor fijo | Integración | `CA-CM-113`: convertido contra el precio de cada producto |
+| Tasa sin asociaciones | Integración | `CA-CM-114`: se comporta igual que antes de esta versión |
 
 **`CA-CM-022` es la prueba que justifica este requerimiento**, y su forma importa: no basta con verificar que el registro se escribió. Comprueba **las dos mitades** —que el valor anterior desapareció de la tabla y que sobrevivió en la auditoría—, porque lo que se está afirmando es que ese registro es la única copia.
 

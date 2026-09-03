@@ -1,5 +1,6 @@
 package com.factech.nexus.modules.commissions.interfaces;
 
+import static com.factech.nexus.modules.commissions.interfaces.CommissionFixtures.AGENTE;
 import static com.factech.nexus.modules.commissions.interfaces.CommissionFixtures.DIRECTOR;
 import static com.factech.nexus.modules.commissions.interfaces.CommissionFixtures.MANAGER;
 import static org.assertj.core.api.Assertions.assertThat;
@@ -290,6 +291,108 @@ class CommissionRateLifecycleIT extends IntegrationTestBase {
   }
 
   // ---------------------------------------------------------------------------
+  // `RN-CM-019` — el tope de cien al corregir (`cm.md` v0.8.0)
+  // ---------------------------------------------------------------------------
+
+  @Test
+  @DisplayName("CA-CM-110 · corregir una tasa asociada, dentro del tope, se admite con normalidad")
+  void corregirDentroDelTope() throws Exception {
+    UUID producto = CommissionFixtures.sembrarProducto(jdbc, "BOT_A");
+    CommissionFixtures.asociar(jdbc, tasa, producto, MANAGER);
+    UUID otraTasa = CommissionFixtures.sembrarTasaDeRol(jdbc, DIRECTOR, "30.00");
+    CommissionFixtures.asociar(jdbc, otraTasa, producto, DIRECTOR);
+
+    // 60 + 30 = 90: cabe.
+    mvc.perform(correccion(tasa, "{\"rateType\":\"PORCENTAJE\",\"percentage\":60.00}"))
+        .andExpect(status().isOk());
+
+    assertThat(porcentajeEnBase()).isEqualByComparingTo("60.00");
+  }
+
+  @Test
+  @DisplayName(
+      "CA-CM-111 · corregir una tasa que pasaría de cien un producto asociado SE RECHAZA ENTERA")
+  void corregirQuePasaDeCienSeRechaza() throws Exception {
+    UUID producto = CommissionFixtures.sembrarProducto(jdbc, "BOT_A");
+    CommissionFixtures.asociar(jdbc, tasa, producto, MANAGER);
+    UUID otraTasa = CommissionFixtures.sembrarTasaDeRol(jdbc, DIRECTOR, "30.00");
+    CommissionFixtures.asociar(jdbc, otraTasa, producto, DIRECTOR);
+
+    // La tasa vale 10.00; corregirla a 71 dejaría 71 + 30 = 101.
+    mvc.perform(correccion(tasa, "{\"rateType\":\"PORCENTAJE\",\"percentage\":71.00}"))
+        .andExpect(status().isConflict())
+        .andExpect(jsonPath("$.errors[0].code").value("EX-006"));
+
+    // Ni el producto que se pasaba, ni la propia tasa, cambiaron.
+    assertThat(porcentajeEnBase()).isEqualByComparingTo("10.00");
+  }
+
+  @Test
+  @DisplayName("CA-CM-112 · corregir revisa el tope en TODOS los productos: uno rechaza los demás")
+  void corregirRevisaTodosLosProductosDeLaTasa() throws Exception {
+    UUID p1 = CommissionFixtures.sembrarProducto(jdbc, "BOT_1");
+    UUID p2 = CommissionFixtures.sembrarProducto(jdbc, "BOT_2");
+    UUID p3 = CommissionFixtures.sembrarProducto(jdbc, "BOT_3");
+    CommissionFixtures.asociar(jdbc, tasa, p1, MANAGER);
+    CommissionFixtures.asociar(jdbc, tasa, p2, MANAGER);
+    CommissionFixtures.asociar(jdbc, tasa, p3, MANAGER);
+
+    // Cada producto tiene otro rol ocupando parte de su cien; p3 deja el margen
+    // más estrecho a propósito, para que sea el que rechace la corrección.
+    CommissionFixtures.asociar(
+        jdbc, CommissionFixtures.sembrarTasaDeRol(jdbc, DIRECTOR, "10.00"), p1, DIRECTOR);
+    CommissionFixtures.asociar(
+        jdbc, CommissionFixtures.sembrarTasaDeRol(jdbc, AGENTE, "20.00"), p2, AGENTE);
+    // Otra tasa del mismo rol AGENTE, para el tercer producto: la asociación es
+    // por producto, y dos tasas de un rol pueden convivir mientras rijan sobre
+    // productos distintos (`RN-CM-013`).
+    CommissionFixtures.asociar(
+        jdbc, CommissionFixtures.sembrarTasaDeRol(jdbc, AGENTE, "49.00"), p3, AGENTE);
+
+    // La tasa vale 10.00 en los tres. Corregirla a 52 dejaría: p1 = 62, p2 = 72,
+    // p3 = 101 (52 + 49). El tercero rechaza, y NINGUNO de los tres cambia.
+    mvc.perform(correccion(tasa, "{\"rateType\":\"PORCENTAJE\",\"percentage\":52.00}"))
+        .andExpect(status().isConflict())
+        .andExpect(jsonPath("$.errors[0].code").value("EX-006"));
+
+    assertThat(porcentajeEnBase()).isEqualByComparingTo("10.00");
+  }
+
+  @Test
+  @DisplayName("CA-CM-113 · el valor fijo entra en la suma convertido contra CADA producto")
+  void corregirAValorFijoSeConvierteContraCadaProducto() throws Exception {
+    UUID barato = CommissionFixtures.sembrarProducto(jdbc, "BOT_1000", false, "1000.0000");
+    UUID caro = CommissionFixtures.sembrarProducto(jdbc, "BOT_2000", false, "2000.0000");
+    CommissionFixtures.asociar(jdbc, tasa, barato, MANAGER);
+    CommissionFixtures.asociar(jdbc, tasa, caro, MANAGER);
+    CommissionFixtures.asociar(
+        jdbc, CommissionFixtures.sembrarTasaDeRol(jdbc, DIRECTOR, "50.00"), barato, DIRECTOR);
+    CommissionFixtures.asociar(
+        jdbc, CommissionFixtures.sembrarTasaDeRol(jdbc, AGENTE, "50.00"), caro, AGENTE);
+
+    // 400 / 1000 * 100 = 40 (+ 50 = 90); 400 / 2000 * 100 = 20 (+ 50 = 70). Cabe.
+    mvc.perform(correccion(tasa, "{\"rateType\":\"FIJO\",\"fixedAmount\":400}"))
+        .andExpect(status().isOk());
+    assertThat(fixedAmountEnBase()).isEqualByComparingTo("400");
+
+    // 600 / 1000 * 100 = 60 (+ 50 = 110): el producto barato se pasa de cien.
+    mvc.perform(correccion(tasa, "{\"rateType\":\"FIJO\",\"fixedAmount\":600}"))
+        .andExpect(status().isConflict())
+        .andExpect(jsonPath("$.errors[0].code").value("EX-006"));
+    assertThat(fixedAmountEnBase()).isEqualByComparingTo("400");
+  }
+
+  @Test
+  @DisplayName("CA-CM-114 · una tasa SIN asociaciones no comprueba ningún tope al corregir")
+  void corregirSinAsociacionesNoComprueboNingunTope() throws Exception {
+    mvc.perform(correccion(tasa, "{\"rateType\":\"PORCENTAJE\",\"percentage\":99.99}"))
+        .andExpect(status().isOk());
+
+    mvc.perform(correccion(tasa, "{\"rateType\":\"FIJO\",\"fixedAmount\":99999999.9999}"))
+        .andExpect(status().isOk());
+  }
+
+  // ---------------------------------------------------------------------------
   // Utilidades
   // ---------------------------------------------------------------------------
 
@@ -321,6 +424,13 @@ class CommissionRateLifecycleIT extends IntegrationTestBase {
   private java.math.BigDecimal porcentajeEnBase() {
     return jdbc.queryForObject(
         "SELECT percentage FROM commission_rates WHERE id = CAST(? AS uuid)",
+        java.math.BigDecimal.class,
+        tasa.toString());
+  }
+
+  private java.math.BigDecimal fixedAmountEnBase() {
+    return jdbc.queryForObject(
+        "SELECT fixed_amount FROM commission_rates WHERE id = CAST(? AS uuid)",
         java.math.BigDecimal.class,
         tasa.toString());
   }

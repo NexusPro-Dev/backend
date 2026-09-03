@@ -50,9 +50,9 @@ La regla nació el 28-08-2026 pidiéndola `CM` y **durante cinco días no la sos
 
 | ID | Tarea | Depende de | Verificación | Estado |
 |---|---|---|---|---|
-| `T-17` | `V51`: `role_type` en `user_roles`, **rellenado desde `roles`** | `T-01` | Toda fila existente queda con el tipo de su rol | **Hecha el 02-09-2026** |
-| `T-18` | `V51`: `uq_roles_id_role_type` y la **FK compuesta** `(role_id, role_type)` | `T-17` | La copia no puede divergir | **Hecha el 02-09-2026** |
-| `T-19` | `V51`: `uq_user_roles_vendedor`, **único parcial** | `T-18` | Si alguien porta ya dos, **la migración se detiene** — y eso es lo correcto | **Hecha el 02-09-2026** |
+| `T-17` | `V52`: `role_type` en `user_roles`, **rellenado desde `roles`** | `T-01` | Toda fila existente queda con el tipo de su rol | **Hecha el 02-09-2026** |
+| `T-18` | `V52`: `uq_roles_id_role_type` y la **FK compuesta** `(role_id, role_type)` | `T-17` | La copia no puede divergir | **Hecha el 02-09-2026** |
+| `T-19` | `V52`: `uq_user_roles_vendedor`, **único parcial** | `T-18` | Si alguien porta ya dos, **la migración se detiene** — y eso es lo correcto | **Hecha el 02-09-2026** |
 | `T-20` | La entidad escribe `role_type` al insertar, tomándolo **del rol** y no de quien pide | `T-17` | Nadie puede declarar un tipo que el rol no tiene | **Hecha el 02-09-2026** |
 | `T-21` | `CommercialStructure`: comparar **el rol vendedor** antes y después, no «el de mayor rango» | — | Un descenso se detecta igual que un ascenso | **Hecha el 02-09-2026** |
 | `T-22` | `User.assignRoles(...)`: **retira el rol vendedor anterior** cuando el asignado es otro | `T-21` | Nunca quedan dos, ni ninguno, en ningún instante | **Hecha el 02-09-2026** |

@@ -42,6 +42,12 @@ import org.springframework.transaction.annotation.Transactional;
  * <p><b>Y `RN-CM-014` tampoco se comprueba</b>: que solo las tasas de rol se asocien a productos no
  * es una validación de este caso de uso, es que las personalizadas viven en otra tabla y esta ruta
  * no puede alcanzarlas.
+ *
+ * <p><b>`RN-CM-019` sí se comprueba, y es la única regla de esta operación que necesita leer más de
+ * una fila y más de una tabla</b>: {@link ProductCommissionCapGuard} suma el porcentaje ocupado del
+ * producto —incluida la tasa que se está asociando— y rechaza si pasaría de cien. A diferencia de
+ * `RN-CM-013`, una suma <b>sí</b> se puede comprobar antes de escribir; lo que abre es una ventana
+ * distinta, y el guardián la cierra con un bloqueo consultivo por producto.
  */
 @Service
 public class AssociateProductService {
@@ -53,6 +59,7 @@ public class AssociateProductService {
   private final ProductCommissionRateRepository asociaciones;
   private final ProductCommissionRateQueryRepository consultas;
   private final ProductCatalog productos;
+  private final ProductCommissionCapGuard tope;
   private final AuditWriter auditoria;
   private final Clock reloj;
 
@@ -62,8 +69,9 @@ public class AssociateProductService {
       ProductCommissionRateRepository asociaciones,
       ProductCommissionRateQueryRepository consultas,
       ProductCatalog productos,
+      ProductCommissionCapGuard tope,
       AuditWriter auditoria) {
-    this(tasas, asociaciones, consultas, productos, auditoria, Clock.systemUTC());
+    this(tasas, asociaciones, consultas, productos, tope, auditoria, Clock.systemUTC());
   }
 
   AssociateProductService(
@@ -71,12 +79,14 @@ public class AssociateProductService {
       ProductCommissionRateRepository asociaciones,
       ProductCommissionRateQueryRepository consultas,
       ProductCatalog productos,
+      ProductCommissionCapGuard tope,
       AuditWriter auditoria,
       Clock reloj) {
     this.tasas = tasas;
     this.asociaciones = asociaciones;
     this.consultas = consultas;
     this.productos = productos;
+    this.tope = tope;
     this.auditoria = auditoria;
     this.reloj = reloj;
   }
@@ -93,6 +103,11 @@ public class AssociateProductService {
 
     ProductView producto = verificarProducto(peticion.productId());
 
+    // `RN-CM-019`: se comprueba ANTES de escribir, con el mismo criterio que el
+    // paso 5 de `spec.md` §8 — comprobar después dejaría la asociación creada si
+    // el rechazo llegara tarde.
+    tope.verificar(producto.id(), producto.code(), null, tasa.getValue(), "EX-005");
+
     asociaciones.save(ProductCommissionRate.create(producto.id(), tasa, OffsetDateTime.now(reloj)));
 
     auditoria.recordChange(
@@ -105,7 +120,8 @@ public class AssociateProductService {
                 "product_id", producto.id().toString(),
                 "role_id", tasa.getRoleId().toString(),
                 "commission_rate_id", tasa.getId().toString(),
-                "percentage", tasa.getPercentage().toPlainString())));
+                "rate_type", tasa.getValue().getRateType().name(),
+                "value", tasa.getValue().cifra().toPlainString())));
 
     return ProductAssociationResponse.de(consultas.findByRate(tasa.getId()));
   }

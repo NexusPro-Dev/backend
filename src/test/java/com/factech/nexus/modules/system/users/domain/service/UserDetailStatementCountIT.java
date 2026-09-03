@@ -69,7 +69,7 @@ class UserDetailStatementCountIT extends IntegrationTestBase {
   void preparar() {
     limpiar();
     conUnRol = crearPersona("UnRol", List.of(ADMIN));
-    // TRES ROLES Y NO CUATRO, Y UNO SOLO VENDEDOR: desde `RN-SP-025` (`V51`)
+    // TRES ROLES Y NO CUATRO, Y UNO SOLO VENDEDOR: desde `RN-SP-025` (`V52`)
     // una persona no puede portar dos de tipo VENDEDOR, y el indice unico
     // parcial rechaza la fixture que se lo daba. Lo que esta prueba necesita es
     // que sean VARIOS, no que sean cuatro.

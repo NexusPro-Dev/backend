@@ -70,7 +70,7 @@ Cada rama pasa a proyectar `rate_type` y las **dos** columnas del valor, y el `U
 
     **Y con eso se pierde la única información que hace legible el resultado.** Fundidas las dos columnas dentro de la rama, un `10` de salida ya no dice de cuál venía; habría que reconstruirlo a partir de `rate_type`, que es lo mismo que hacer el `COALESCE` fuera pero con un sitio más donde equivocarse.
 
-    Peor: **el `CHECK` de `V49` garantiza que solo una está llena, y esa garantía se aprovecha una sola vez**. Aplicar `COALESCE` dos veces —una por rama y otra al armar la respuesta— no falla, pero deja dos sitios que hay que mantener de acuerdo cuando alguien añada una tercera forma.
+    Peor: **el `CHECK` de `V50` garantiza que solo una está llena, y esa garantía se aprovecha una sola vez**. Aplicar `COALESCE` dos veces —una por rama y otra al armar la respuesta— no falla, pero deja dos sitios que hay que mantener de acuerdo cuando alguien añada una tercera forma.
 
     La sentencia devuelve **`rate_type`, `percentage` y `fixed_amount` tal cual**, y **quien arma la respuesta** los funde en un campo con su forma. Es una decisión de proyección, no de consulta.
 

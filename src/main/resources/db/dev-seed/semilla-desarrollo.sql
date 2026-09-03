@@ -124,7 +124,7 @@ insertadas AS (
     FROM personas p
   RETURNING id, username
 )
--- `role_type` se copia DEL ROL (`RN-SP-025`, `V51`): la clave foranea compuesta
+-- `role_type` se copia DEL ROL (`RN-SP-025`, `V52`): la clave foranea compuesta
 -- no admite otra cosa, y aportarlo desde aqui seria poder mentir.
 INSERT INTO user_roles (user_id, role_id, role_type)
 SELECT i.id, r.id, r.role_type

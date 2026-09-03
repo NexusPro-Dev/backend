@@ -1,5 +1,6 @@
 package com.factech.nexus.modules.commissions.interfaces;
 
+import static com.factech.nexus.modules.commissions.interfaces.CommissionFixtures.DIRECTOR;
 import static com.factech.nexus.modules.commissions.interfaces.CommissionFixtures.MANAGER;
 import static com.factech.nexus.testing.ConcurrencyHarness.runTogether;
 import static org.assertj.core.api.Assertions.assertThat;
@@ -114,6 +115,35 @@ class CommissionRateConcurrencyIT extends IntegrationTestBase {
     // «qué paga MANAGER por este producto» y elegiría el plan de ejecución. La
     // clave primaria es lo único que lo impide.
     assertThat(cuantasAsociaciones()).isEqualTo(1);
+
+    assertThat(resultados.stream().filter(r -> r.succeeded() && r.value() == 201).count())
+        .isEqualTo(1);
+    assertThat(resultados.stream().filter(r -> r.succeeded() && r.value() == 409).count())
+        .isEqualTo(1);
+  }
+
+  // ---------------------------------------------------------------------------
+  // `RN-CM-019` — el tope de cien (`cm.md` v0.8.0)
+  // ---------------------------------------------------------------------------
+
+  @Test
+  @DisplayName(
+      "CA-CM-108 · dos asociaciones simultáneas al mismo producto, dentro del tope por separado"
+          + " pero juntas fuera: solo una entra")
+  void dosAsociacionesSimultaneasSePasanDeCienJuntas() throws Exception {
+    UUID producto = CommissionFixtures.sembrarProducto(jdbc, "BOT_CAP");
+    // Cada una, sola, cabe de sobra. Las dos juntas suman 110.
+    UUID sesenta = CommissionFixtures.sembrarTasaDeRol(jdbc, MANAGER, "60.00");
+    UUID cincuenta = CommissionFixtures.sembrarTasaDeRol(jdbc, DIRECTOR, "50.00");
+
+    List<Outcome<Integer>> resultados =
+        runTogether(2, indice -> asociar(indice == 0 ? sesenta : cincuenta, producto));
+
+    // Ninguna puede salir como 500: si el bloqueo consultivo no cerrara la
+    // ventana, las dos leerían la suma "antes" y las dos pasarían.
+    assertThat(resultados).noneMatch(r -> r.succeeded() && r.value() >= 500);
+
+    assertThat(cuantasAsociaciones()).as("las dos entraron, o no entró ninguna").isEqualTo(1);
 
     assertThat(resultados.stream().filter(r -> r.succeeded() && r.value() == 201).count())
         .isEqualTo(1);

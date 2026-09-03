@@ -3,8 +3,11 @@ package com.factech.nexus.modules.commissions.domain.service;
 import com.factech.nexus.modules.commissions.application.CommissionRateResponse;
 import com.factech.nexus.modules.commissions.application.UpdateCommissionRateRequest;
 import com.factech.nexus.modules.commissions.domain.models.CommissionRate;
+import com.factech.nexus.modules.commissions.domain.models.CommissionValue;
 import com.factech.nexus.modules.commissions.domain.repository.CommissionRateQueryRepository;
 import com.factech.nexus.modules.commissions.domain.repository.CommissionRateRepository;
+import com.factech.nexus.modules.commissions.domain.repository.ProductCommissionRateQueryRepository;
+import com.factech.nexus.modules.commissions.domain.repository.ProductCommissionRateQueryRepository.AssociationRow;
 import com.factech.nexus.shared.audit.AuditEnums.ChangeAction;
 import com.factech.nexus.shared.audit.AuditEvents.ChangeEvent;
 import com.factech.nexus.shared.audit.AuditWriter;
@@ -13,6 +16,7 @@ import com.factech.nexus.shared.error.ResourceNotFoundException;
 import com.factech.nexus.shared.error.ValidationException;
 import java.time.Clock;
 import java.time.OffsetDateTime;
+import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
@@ -36,6 +40,12 @@ import org.springframework.transaction.annotation.Transactional;
  *
  * <p>Ese registro, por tanto, deja de ser un complemento y pasa a ser <b>el único sitio donde queda
  * escrito el porcentaje anterior</b>.
+ *
+ * <p><b>Desde `cm.md` v0.8.0 también revisa `RN-CM-019`</b> — que ningún producto donde la tasa
+ * está asociada quede pagando más del 100 % de sí mismo — en <b>todos</b> sus productos a la vez,
+ * con {@link ProductCommissionCapGuard}, el mismo componente que usa `RF-CM-007`. Si alguno se
+ * pasaría, la corrección se rechaza <b>entera</b>: no se aplica a diecinueve productos y se calla
+ * el veinte.
  */
 @Service
 public class UpdateCommissionRateService {
@@ -45,6 +55,8 @@ public class UpdateCommissionRateService {
 
   private final CommissionRateRepository tasas;
   private final CommissionRateQueryRepository consultas;
+  private final ProductCommissionRateQueryRepository asociaciones;
+  private final ProductCommissionCapGuard tope;
   private final AuditWriter auditoria;
   private final Clock reloj;
 
@@ -52,17 +64,23 @@ public class UpdateCommissionRateService {
   public UpdateCommissionRateService(
       CommissionRateRepository tasas,
       CommissionRateQueryRepository consultas,
+      ProductCommissionRateQueryRepository asociaciones,
+      ProductCommissionCapGuard tope,
       AuditWriter auditoria) {
-    this(tasas, consultas, auditoria, Clock.systemUTC());
+    this(tasas, consultas, asociaciones, tope, auditoria, Clock.systemUTC());
   }
 
   UpdateCommissionRateService(
       CommissionRateRepository tasas,
       CommissionRateQueryRepository consultas,
+      ProductCommissionRateQueryRepository asociaciones,
+      ProductCommissionCapGuard tope,
       AuditWriter auditoria,
       Clock reloj) {
     this.tasas = tasas;
     this.consultas = consultas;
+    this.asociaciones = asociaciones;
+    this.tope = tope;
     this.auditoria = auditoria;
     this.reloj = reloj;
   }
@@ -90,6 +108,12 @@ public class UpdateCommissionRateService {
             .orElseThrow(
                 () -> new ResourceNotFoundException("EX-404", "La tasa indicada no existe."));
 
+    // `RN-CM-019`: se comprueba con el valor NUEVO, antes de escribirlo. Hacerlo
+    // después dejaría la tasa a medio corregir si el rechazo llegara tarde.
+    if (peticion.valor().presente()) {
+      verificarTope(tasa.getId(), peticion.valor().valor());
+    }
+
     Map<String, Object> cambios = tasa.update(peticion.valor(), OffsetDateTime.now(reloj));
 
     if (!cambios.isEmpty()) {
@@ -108,5 +132,22 @@ public class UpdateCommissionRateService {
         .findRow(tasa.getId())
         .map(CommissionRateResponse::from)
         .orElseThrow(() -> new ResourceNotFoundException("EX-404", "La tasa indicada no existe."));
+  }
+
+  /**
+   * Revisa el tope de `RN-CM-019` en <b>todos</b> los productos donde esta tasa está asociada, con
+   * el valor que va a regir. Si la tasa no está asociada a ninguno, no hay nada que revisar
+   * (`RN-CM-012`).
+   *
+   * <p><b>Ordenado por producto</b>, el mismo criterio que usa `AssociateProductService`, para que
+   * dos transacciones que se crucen sobre los mismos productos siempre tomen sus bloqueos en la
+   * misma dirección y ninguna acabe esperando a la otra.
+   */
+  private void verificarTope(UUID rateId, CommissionValue valorNuevo) {
+    asociaciones.findByRate(rateId).stream()
+        .sorted(Comparator.comparing(AssociationRow::productId))
+        .forEach(
+            fila ->
+                tope.verificar(fila.productId(), fila.productCode(), rateId, valorNuevo, "EX-006"));
   }
 }

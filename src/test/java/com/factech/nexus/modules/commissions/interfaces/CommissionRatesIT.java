@@ -237,7 +237,7 @@ class CommissionRatesIT extends IntegrationTestBase {
   }
 
   @Test
-  @DisplayName("`V49` · un INSERT sin `rate_type` FALLA: la forma no tiene valor por defecto")
+  @DisplayName("`V50` · un INSERT sin `rate_type` FALLA: la forma no tiene valor por defecto")
   void laFormaEsObligatoriaEnElEsquema() {
     // LA ÚNICA PRUEBA QUE PUEDE DELATAR QUE `ALTER COLUMN rate_type DROP DEFAULT`
     // SE CAYÓ DE LA MIGRACIÓN. Todas las demás pasan por la API, que siempre

@@ -60,11 +60,11 @@ Restricciones e índices:
 | `uq_products_name` | `CREATE UNIQUE INDEX … ON products (f_unaccent(lower(name))) WHERE deleted_at IS NULL` | `RN-PM-005`. Índice **funcional y parcial**: una restricción de tabla no admite expresión ni condición. `f_unaccent` existe desde `V1` y está declarada `IMMUTABLE` precisamente para poder indexarse |
 | `ck_products_type` | `type IN ('UPGRADE_MEMBRESIA','BOT')` | `RN-PM-001` |
 | `ck_products_status` | `status IN ('ACTIVO','INACTIVO')` | `RN-PM-009` |
-| `ck_products_type_target` | `(type = 'UPGRADE_MEMBRESIA' AND target_membership_id IS NOT NULL) OR (type = 'BOT' AND target_membership_id IS NULL)` | `RN-PM-002`, en los dos sentidos. **`V52` la reescribe** para que cubra también el origen — ver §2.3 |
+| `ck_products_type_target` | `(type = 'UPGRADE_MEMBRESIA' AND target_membership_id IS NOT NULL) OR (type = 'BOT' AND target_membership_id IS NULL)` | `RN-PM-002`, en los dos sentidos. **`V53` la reescribe** para que cubra también el origen — ver §2.3 |
 | `ck_products_price_positive` | `price > 0` | `RN-PM-006` |
 | `ck_products_validity_positive` | `validity_days IS NULL OR validity_days > 0` | `RN-PM-015`. La rama `IS NULL` va **explícita**: la comparación sola también admitiría el nulo —un `CHECK` que evalúa a `NULL` acepta la fila—, y se escribe para que ese permiso sea deliberado |
 | `ck_products_name_length` | `length(name) <= 150` implícito en el tipo; `description` con `CHECK` de 1000 | Sin cota, el listado de `RF-PM-002` devolvería respuestas de tamaño impredecible |
-| `uq_products_upgrade_target` | `CREATE UNIQUE INDEX … ON products (target_membership_id) WHERE type = 'UPGRADE_MEMBRESIA' AND status = 'ACTIVO' AND deleted_at IS NULL` | `RN-PM-004`. Se declara **aquí**, con la tabla, aunque **solo `RF-PM-005` pueda violarla**: el esquema es de quien crea la tabla. **`V52` lo rehace sobre la pareja `(origen, destino)`** — ver §2.3 |
+| `uq_products_upgrade_target` | `CREATE UNIQUE INDEX … ON products (target_membership_id) WHERE type = 'UPGRADE_MEMBRESIA' AND status = 'ACTIVO' AND deleted_at IS NULL` | `RN-PM-004`. Se declara **aquí**, con la tabla, aunque **solo `RF-PM-005` pueda violarla**: el esquema es de quien crea la tabla. **`V53` lo rehace sobre la pareja `(origen, destino)`** — ver §2.3 |
 | `fk_products_target_membership` | `target_membership_id → memberships(id)` | `RN-PM-003` |
 | `fk_products_currency` | `currency_id → currencies(id)` | `RN-PM-008` |
 
@@ -90,7 +90,7 @@ Los cuatro van a **ambos roles**: a diferencia de `audit:read-security` y `curre
 
 Esta migración **no emite auditoría**, igual que `V3`: un permiso no tiene línea de tiempo que reconstruir.
 
-### 2.3 `V52__products_source_membership.sql` — enmienda del 02-09-2026
+### 2.3 `V53__products_source_membership.sql` — enmienda del 02-09-2026
 
 **El upgrade declara de dónde sale, y no solo a dónde lleva.** Hasta esta migración el origen **se deducía**: podía comprarlo cualquiera por debajo del destino. Esa deducción hacía **imposible el salto** —«subir a `ORO`» era el mismo producto y el mismo precio para quien sube un escalón y para quien sube tres—, y con el origen declarado **cada salto es un producto** con su precio.
 

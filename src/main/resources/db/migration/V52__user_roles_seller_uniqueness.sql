@@ -17,7 +17,7 @@
 -- es por dos motivos que conviene poder nombrar:
 --
 --   1. La copia esta atada por una CLAVE FORANEA COMPUESTA, de modo que no
---      puede divergir. Es el patron que `V48` valido en
+--      puede divergir. Es el patron que `V49` valido en
 --      `product_commission_rates`.
 --   2. `roles.role_type` NO ES EDITABLE —`RF-SP-004` corrige nombre y
 --      descripcion—, de modo que la copia NUNCA habra que actualizarla.
@@ -36,7 +36,7 @@
 -- REDUNDANTE CON LA CLAVE PRIMARIA DE `roles`, Y ESA ES TODA SU FUNCION.
 -- PostgreSQL exige que el destino de una FK COMPUESTA sea una restriccion unica
 -- sobre EXACTAMENTE esas columnas; sin esto, la de abajo no se puede declarar.
--- Mismo caso que `uq_commission_rates_id_role` en `V48`.
+-- Mismo caso que `uq_commission_rates_id_role` en `V49`.
 -- -----------------------------------------------------------------------------
 
 ALTER TABLE roles
@@ -89,7 +89,7 @@ ALTER TABLE user_roles
 -- VENDEDOR. Un funcionario y un consumidor pueden convivir con lo que sea.
 --
 -- SI ESTA SENTENCIA FALLA, ALGUIEN PORTA YA DOS ROLES VENDEDORES, y la
--- migracion se detiene. NO SE LIMPIA AQUI: `V48` borro datos a proposito porque
+-- migracion se detiene. NO SE LIMPIA AQUI: `V49` borro datos a proposito porque
 -- ninguno tenia traduccion al modelo nuevo; estos si la tienen —alguien decidio
 -- esos roles— y ELEGIR CUAL SOBREVIVE ES UNA DECISION DE NEGOCIO QUE UNA
 -- MIGRACION NO PUEDE TOMAR. Que se detenga es lo correcto: obliga a mirar los

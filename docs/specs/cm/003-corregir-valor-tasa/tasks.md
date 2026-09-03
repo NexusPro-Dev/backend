@@ -3,14 +3,14 @@
 | Campo | Valor |
 |---|---|
 | Requerimiento | `RF-CM-003` |
-| Plan | [`plan.md`](plan.md), aprobado el 02-09-2026 |
-| Versión | 0.3.0 |
+| Plan | [`plan.md`](plan.md), aprobado el 03-09-2026 |
+| Versión | 0.4.0 |
 | Estado | **En revisión** |
 | Autor | Responsable técnico |
 | Aprobadas por | Pendiente |
 | Fecha de aprobación | Pendiente |
 | Issue | Pendiente de crear |
-| Rama | `feature/flujos-de-pm-y-cm` (`T-01`–`T-14`) · `feature/comision-en-valor-fijo` (`T-15`–`T-22`) |
+| Rama | `feature/flujos-de-pm-y-cm` (`T-01`–`T-14`) · `feature/comision-en-valor-fijo` (`T-15`–`T-29`) |
 
 !!! info "Qué va en este documento"
 
@@ -60,6 +60,18 @@
 | `T-21` | Pruebas de los criterios nuevos de `spec.md` §12, **`CA-CM-091` también en unitaria** | `T-16`, `T-18`, `T-20` | `CA-CM-090` a `CA-CM-095` | **Hecha el 02-09-2026** |
 | `T-22` | OpenAPI: **los dos regímenes del cuerpo**, y que la forma también se corrige | `T-20` | El contrato explica por qué `fixedAmount` suelto se rechaza | **Hecha el 02-09-2026** |
 
+### 1.2 El tope de cien (`cm.md` v0.8.0, `RN-CM-019`)
+
+| ID | Tarea | Depende de | Verificación | Estado |
+|---|---|---|---|---|
+| `T-23` | `UpdateCommissionRateService` gana `ProductCommissionRateQueryRepository` y `ProductCommissionCapGuard` | `RF-CM-007` · `T-20`, `T-21` | Se inyectan sin romper el constructor de pruebas existente | **Hecha el 03-09-2026** |
+| `T-24` | Recorrer `findByRate(id)` **ordenado por `productId`**, llamando al guardián con el valor **nuevo** en cada producto | `T-23` | El orden coincide con el de `AssociateProductService` (`RF-CM-007` `plan.md` §4.1) | **Hecha el 03-09-2026** |
+| `T-25` | Traducir el rechazo del guardián a `EX-006`, **antes de tocar la fila de la tasa** | `T-24` | `409`, y la tasa **intacta** en base | **Hecha el 03-09-2026** |
+| `T-26` | Pruebas de `RN-CM-019`: suma que cabe, suma que se pasa, valor fijo convertido, tasa sin asociaciones | `T-25` | `CA-CM-110`, `CA-CM-111`, `CA-CM-113`, `CA-CM-114` | **Hecha el 03-09-2026** |
+| `T-27` | **Prueba de varios productos**: uno solo que se pase de cien rechaza la corrección entera | `T-25` | `CA-CM-112` | **Hecha el 03-09-2026** |
+| `T-28` | Documentación OpenAPI: el nuevo `409` de `EX-006` | `T-25` | El contrato publicado lo describe | **Hecha el 03-09-2026** |
+| `T-29` | Actualizar `cm.md`, `modelo-datos.md` y la matriz de `docs/requirements.md` con `RN-CM-019` | — | Ya hecho en el bloque de documentación | **Hecha el 03-09-2026** |
+
 ## 2. Orden de ejecución
 
 **`T-06` es una tarea de quitar, y merece figurar como tarea.** Se retiran el bloqueo consultivo, la consulta de solapamiento y la traducción de la violación del motor — tres piezas que existían por un defecto medido el 28-08-2026 y que **dejan de tener objeto** cuando la columna que las causaba desaparece. Dejarlas «por si acaso» habría dejado código que parece defender una invariante inexistente, que es peor que no tenerlo.
@@ -77,6 +89,10 @@
 **`T-12` no es una prueba más de `T-11`, y por eso va aparte.** Verificar que el registro de auditoría se escribió no demuestra nada: lo que hay que demostrar es que **el valor anterior ya no está en ningún otro sitio**. La prueba mira las dos mitades, y es la que da sentido a `RN-CM-008`.
 
 **`T-13` lleva un aviso que ningún otro contrato del proyecto lleva.** La descripción publicada dice que corregir **borra el porcentaje anterior**, porque quien consuma la API desde fuera no tiene forma de deducirlo de la forma del recurso.
+
+**`T-25` va antes de escribir, y por el mismo motivo que `T-06` retiró un bloqueo en su día: aquí hay que dejar uno nuevo en el sitio correcto.** Comprobar el tope después de que la fila cambie dejaría una tasa a medio corregir si el rechazo llegara tarde — la misma razón que `spec.md` §8 da para poner el paso 7 antes del 8.
+
+**`T-24` reutiliza `ProductCommissionCapGuard` de `RF-CM-007` en lugar de escribir su propia suma.** Es la misma decisión que descarta un guardián propio en `plan.md` §9: la suma, la conversión del valor fijo y el bloqueo consultivo son exactamente los mismos, solo que aquí se llaman una vez por cada producto de la lista en lugar de una sola vez.
 
 ## 3. Cobertura de los criterios de aceptación
 
@@ -97,6 +113,10 @@
 | `CA-CM-093` | `T-17`, `T-21` |
 | `CA-CM-094` | `T-19`, `T-21` |
 | `CA-CM-095` | `T-16`, `T-21` |
+| `CA-CM-110`, `CA-CM-111` | `T-23`, `T-24`, `T-25`, `T-26` |
+| `CA-CM-112` | `T-24`, `T-25`, `T-27` |
+| `CA-CM-113` | `T-24`, `T-26` |
+| `CA-CM-114` | `T-24`, `T-26` |
 
 **`CA-CM-024` aparece dos veces y no es un error de la tabla.** Lo cubría `T-02` sola; desde `T-15` lo cubren las dos, porque la comparación que lo satisface es ahora la misma que satisface a `CA-CM-091` y **cualquiera de las dos se puede romper arreglando la otra**.
 
@@ -108,8 +128,11 @@ Ninguno para construir. **`T-15` depende de `RF-CM-001` `T-20`**, que es donde n
 
 **Y la deuda creció con esta versión**: lo que la liquidación tendría que copiar pasó de un número a **tres cosas** —forma, valor y moneda—, y la tercera no está en ninguna tabla de `CM` ni la devuelve la resolución (decisión del responsable del proyecto, 02-09-2026). `spec.md` §5 lo declara.
 
+**Y desde `T-23` a `T-27` queda declarado el mismo límite que en `RF-CM-007`:** una tasa personalizada en la cadena comercial no entra en la suma de `RN-CM-019`, y el precio comprobado puede quedar desactualizado si `RF-PM-004` lo cambia después de corregir. Ninguna tarea de este bloque lo cierra.
+
 ## 5. Definición de terminado
 
 - Las catorce primeras tareas `Hecha` con su verificación pasando. `./mvnw clean verify` en verde. **Comprobado el 02-09-2026**: 278 unitarias y 876 de integración.
 - **Las ocho del valor fijo, `Hecha`**, con `CA-CM-024` y `CA-CM-091` **pasando a la vez** — que es la condición que ninguna de las dos comprueba por su cuenta. **Comprobado el 02-09-2026**: 287 unitarias y 902 de integración, suite entera en verde.
-- La matriz y el contrato publicado al día.
+- **`T-23` a `T-29`, `Hecha`**, con `CA-CM-110` a `CA-CM-114` pasando y sin regresión en las anteriores.
+- La matriz, `cm.md`, `modelo-datos.md` y el contrato publicado al día.

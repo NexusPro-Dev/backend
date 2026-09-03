@@ -50,7 +50,7 @@ public class JpaCommissionResolutionRepository implements CommissionResolutionRe
    * importe, y habría que reconstruirlo a partir de {@code rate_type} — lo mismo que hacer la
    * fusión fuera, pero con un sitio más donde equivocarse.
    *
-   * <p>Peor: el {@code CHECK} de {@code V49} garantiza que <b>solo una está llena</b>, y esa
+   * <p>Peor: el {@code CHECK} de {@code V50} garantiza que <b>solo una está llena</b>, y esa
    * garantía se aprovecha <b>una sola vez</b>. Fundir aquí y volver a fundir al armar la respuesta
    * dejaría dos sitios que mantener de acuerdo el día que aparezca una tercera forma.
    *

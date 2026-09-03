@@ -488,7 +488,7 @@ class UserRolesIT extends IntegrationTestBase {
 
     // TODAS LAS DEMÁS PRUEBAS PASAN POR EL CASO DE USO, que ya sustituye por su
     // cuenta: ninguna se enteraría si alguien retirara el índice. Esta va contra
-    // el esquema, que es donde `RN-SP-025` vive desde `V51`.
+    // el esquema, que es donde `RN-SP-025` vive desde `V52`.
     assertThatThrownBy(
             () ->
                 jdbc.update(

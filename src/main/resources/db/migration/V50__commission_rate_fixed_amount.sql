@@ -37,7 +37,7 @@
 --      porque la personalizada NO TIENE PRODUCTO con el que comprobar que
 --      coincide.
 --
--- A DIFERENCIA DE `V48`, AQUI NO SE BORRA NADA. El relleno es exacto y no una
+-- A DIFERENCIA DE `V49`, AQUI NO SE BORRA NADA. El relleno es exacto y no una
 -- suposicion: hasta hoy la unica forma que existia era el porcentaje, de modo
 -- que toda fila anterior a esta migracion es de tipo PORCENTAJE por definicion.
 -- =============================================================================
@@ -69,7 +69,7 @@ ALTER TABLE commission_rates
 -- con la columna ya nula, ese CHECK EVALUA A NULL Y ACEPTA LA FILA en todas las
 -- de tipo FIJO. Es lo que se quiere. Pero si no se reescribe explicitamente,
 -- quien lea el esquema dentro de un ano NO PODRA SABER si eso se decidio o se
--- paso por alto. La rama nula va DELANTE, como en `V48`.
+-- paso por alto. La rama nula va DELANTE, como en `V49`.
 ALTER TABLE commission_rates
     DROP CONSTRAINT ck_commission_rates_percentage;
 

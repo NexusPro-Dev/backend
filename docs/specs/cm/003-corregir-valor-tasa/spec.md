@@ -4,11 +4,11 @@
 |---|---|
 | Requerimiento | `RF-CM-003` |
 | Módulo | `CM` — Comisiones |
-| Versión | 0.3.0 |
+| Versión | 0.4.0 |
 | Estado | **Aprobada** |
 | Autor | Responsable técnico |
 | Aprobada por | Responsable del proyecto |
-| Fecha de aprobación | 02-09-2026 |
+| Fecha de aprobación | 03-09-2026 |
 
 !!! info "Qué va en este documento"
 
@@ -61,6 +61,7 @@ Quien necesite conservar qué se pagó antes tiene **una sola vía, y está fuer
 - Corregir **el valor y su forma** en una tasa viva, **como una sola cosa**.
 - **Rechazar** el intento de cambiar el rol, en lugar de ignorarlo.
 - Rechazar una petición que no informa nada corregible.
+- **Rechazar la corrección entera** si el nuevo valor haría que **algún** producto donde la tasa está asociada quedara pagando más del 100 % de sí mismo (`RN-CM-019`).
 - Dejar en la auditoría de cambios **la forma y el valor anteriores, y los nuevos**.
 
 ### 4.2 No incluye
@@ -78,7 +79,8 @@ Quien necesite conservar qué se pagó antes tiene **una sola vía, y está fuer
 | `RN-CM-007` | El porcentaje va de cero a cien | `requirements/cm.md` §5.1 |
 | `RN-CM-008` | La liquidación conserva lo que aplicó, y es la única defensa del pasado | `requirements/cm.md` §5.1 |
 | `RN-CM-016` | **Una tasa declara una forma y solo una** | `requirements/cm.md` §5.1 |
-| `RN-CM-018` | El valor fijo **no está acotado por arriba** | `requirements/cm.md` §5.1 |
+| `RN-CM-018` | El valor fijo, sin asociar, **no está acotado por arriba** | `requirements/cm.md` §5.1 |
+| `RN-CM-019` | Un producto no puede pagar más del 100 % de sí mismo | `requirements/cm.md` §5.1 |
 
 **`RN-CM-008` no la cumple este requerimiento: la necesita.** Es la única regla del módulo dirigida a un módulo que no existe, y esta operación es exactamente la que la hace imprescindible.
 
@@ -91,6 +93,8 @@ Quien necesite conservar qué se pagó antes tiene **una sola vía, y está fuer
     Está escrito en `modelo-datos.md` §4.1 y se repite aquí porque **esta es la operación que hace la deuda impagable si nadie la atiende**: corregir la forma de una tasa borra la forma anterior igual que borra el número.
 
 **`RN-CM-018` se cita porque `VAL-003` deja de aplicar a la mitad de las correcciones.** Corregir a `150` se rechaza si la forma es porcentaje y **se acepta si es importe fijo**, y esa asimetría es la regla, no un descuido.
+
+**`RN-CM-019` es nueva desde el 03-09-2026, y es la primera regla de esta operación que necesita mirar otras tablas.** Corregir el porcentaje de una tasa **no cambia solo esa fila**: cambia lo que paga **cada producto** donde está asociada, a la vez. Si la tasa rige sobre veinte productos, corregirla revisa el tope en los veinte, y si alguno se pasaría de cien la corrección **se rechaza entera** — no se aplica a diecinueve y se calla el veinte. Ver §8, paso 7.
 
 ## 6. Datos
 
@@ -133,6 +137,7 @@ Quien necesite conservar qué se pagó antes tiene **una sola vía, y está fuer
 - La tasa declara **la forma y el valor** corregidos.
 - **Ni el valor ni la forma anteriores existen ya en la tabla**, y el registro de auditoría del cambio es el único sitio donde quedan escritos. **Los dos**, no solo el número: un evento que guardara el «10» sin decir que era un porcentaje sería tan inútil como no guardarlo.
 - Si la petición no cambió nada, **la marca de última modificación no se mueve**: una petición que no cambia nada no es un cambio, y moverla haría creer que alguien tocó la tasa.
+- **Ningún producto donde la tasa está asociada queda pagando más del 100 % de sí mismo** (`RN-CM-019`). Si la corrección lo haría en alguno, no se aplica en ninguno.
 
 ## 8. Flujo principal
 
@@ -142,12 +147,15 @@ Quien necesite conservar qué se pagó antes tiene **una sola vía, y está fuer
 4. El sistema comprueba que **se declaró una forma y solo una**, y que el valor presente es el que le corresponde.
 5. El sistema comprueba que la tasa existe y está viva.
 6. El sistema comprueba el valor contra lo que **su forma** admite: el porcentaje, entre cero y cien; el importe, cero o más.
-7. Si **la forma o el valor** difieren de los que la tasa tiene, el sistema los cambia y emite el evento de auditoría con el **antes y el después de los dos**.
-8. El sistema devuelve la tasa, con su forma y su valor, el rol resuelto y el número de productos asociados.
+7. Para **cada producto** donde la tasa está asociada, el sistema suma el porcentaje ocupado de las demás tasas de rol de ese producto más el del valor **nuevo**, y rechaza la corrección entera si alguno pasaría de cien (`RN-CM-019`).
+8. Si **la forma o el valor** difieren de los que la tasa tiene, el sistema los cambia y emite el evento de auditoría con el **antes y el después de los dos**.
+9. El sistema devuelve la tasa, con su forma y su valor, el rol resuelto y el número de productos asociados.
 
 **Los pasos 2, 3 y 4 van antes de buscar la tasa**, y es deliberado: no cuesta una consulta enterarse de que la petición pedía algo que no se puede hacer.
 
-!!! danger "El paso 7 compara DOS cosas, y comparar solo el número es el defecto que este documento existe para evitar"
+**El paso 7 va antes que el 8, y no puede ir después**: comprobar el tope contra un valor que ya se escribió dejaría la tasa a medio corregir si el rechazo llegara tarde. Compara siempre contra el valor **nuevo**, aunque no haya cambio real (`FA-001`, `FA-002`) — recalcularlo cuesta lo mismo que decidir si hace falta, y así el paso no necesita saber de antemano si el paso 8 va a escribir algo.
+
+!!! danger "El paso 8 compara DOS cosas, y comparar solo el número es el defecto que este documento existe para evitar"
 
     El valor viejo y el nuevo se comparan por su cifra —`10.00` y `10.0000` son la misma, y por eso `FA-002` no registra cambio—.
 
@@ -177,6 +185,14 @@ Quien necesite conservar qué se pagó antes tiene **una sola vía, y está fuer
 
 1. La corrección se aplica con normalidad.
 2. **No afecta a nada**, y la respuesta lo dice devolviendo cero productos asociados.
+3. **El paso 7 de §8 no rechaza nada aquí**: sin productos no hay suma que calcular, igual que `RN-CM-019` no se comprueba al registrar una tasa que todavía no está asociada (`RN-CM-012`).
+
+### FA-005 — La tasa rige sobre varios productos, y todos caben
+
+**Cuándo ocurre:** la corrección deja la suma en cien o menos en **cada** producto donde la tasa está asociada.
+
+1. Se aplica con normalidad en la fila, que es **una sola**: la tasa no se duplica por producto (`RF-CM-007` §2), y todos los productos pasan a pagar el valor nuevo a la vez.
+2. Es la misma consecuencia que ya declaraba §13 antes de esta versión: una tasa se reutiliza precisamente para eso, y ahora además queda **garantizado** que ninguno de esos productos termina pagando más de cien.
 
 ### FA-004 — La misma cifra en la otra forma
 
@@ -213,6 +229,13 @@ Quien necesite conservar qué se pagó antes tiene **una sola vía, y está fuer
 **Condición:** la corrección declara una forma y envía el valor de la otra, o envía las dos, o ninguna.
 **Respuesta del sistema:** rechaza la corrección diciendo que el valor no concuerda con la forma declarada. **Es la misma respuesta que al registrar** (`RF-CM-001` `VAL-011`), con el mismo mensaje, porque es el mismo error.
 
+### EX-006 — La corrección haría pasar de cien a algún producto asociado
+
+**Condición:** para al menos uno de los productos donde la tasa está asociada, la suma del porcentaje ocupado de las demás tasas de rol de ese producto más el valor **nuevo** de esta supera cien.
+**Respuesta del sistema:** rechaza la corrección diciendo que dejaría a uno o más productos pagando más del 100 % de sí mismos, y nombra los productos afectados (`RN-CM-019`). **No cambia nada**: ni ese producto ni ninguno de los demás donde la tasa también está asociada.
+
+**Es distinta de las demás excepciones de esta operación en una cosa: mira otras tablas.** `EX-001` a `EX-005` se resuelven con la petición y, como mucho, la propia fila de la tasa. `EX-006` necesita leer `product_commission_rates` de cada producto asociado y el precio que `PM` publica de cada uno — es la misma comprobación que `RF-CM-007` hace al asociar, aplicada aquí a **todos** los productos de la tasa a la vez en lugar de a uno solo.
+
 ## 11. Validaciones
 
 | ID | Regla | Mensaje |
@@ -246,6 +269,11 @@ Quien necesite conservar qué se pagó antes tiene **una sola vía, y está fuer
 | `CA-CM-093` | El sistema rechaza una corrección que envía el valor **sin la forma**, y una que las envía descuadradas |
 | `CA-CM-094` | `150` se **rechaza** si la forma es porcentaje y se **acepta** si es importe fijo |
 | `CA-CM-095` | Los productos asociados pasan a pagar **la forma nueva**, y la respuesta lo hace visible con su cuenta |
+| `CA-CM-110` | Corregir una tasa asociada a un producto donde la suma con las demás **no** supera cien se admite con normalidad |
+| `CA-CM-111` | Corregir una tasa que haría que la suma de **algún** producto asociado supere cien **se rechaza**, y **ningún** producto queda afectado, ni siquiera los que sí cabían |
+| `CA-CM-112` | Corregir una tasa asociada a **veinte** productos revisa el tope en los veinte; si uno solo se pasaría, la corrección se rechaza entera |
+| `CA-CM-113` | El valor fijo entra en la suma convertido contra el precio de **cada** producto asociado, no como cifra directa |
+| `CA-CM-114` | Corregir una tasa **sin ninguna asociación** no comprueba ningún tope, y se comporta como antes de esta versión |
 
 !!! danger "`CA-CM-091` es el criterio más importante de los seis, y el único que puede fallar en silencio"
 
@@ -257,14 +285,16 @@ Quien necesite conservar qué se pagó antes tiene **una sola vía, y está fuer
 
 ## 13. Casos límite
 
-- **Corregir una tasa que rige sobre veinte productos:** los veinte pasan a pagar el porcentaje nuevo, **inmediatamente y sin aviso**. Es el comportamiento previsto —una tasa se reutiliza precisamente para eso— y la respuesta lo hace visible devolviendo cuántos son.
+- **Corregir una tasa que rige sobre veinte productos:** los veinte pasan a pagar el porcentaje nuevo, **inmediatamente y sin aviso**. Es el comportamiento previsto —una tasa se reutiliza precisamente para eso— y la respuesta lo hace visible devolviendo cuántos son. Desde el 03-09-2026, antes de aplicarlo el sistema revisa el tope de `RN-CM-019` en los veinte: si uno solo se pasaría de cien, **ninguno** de los veinte cambia.
 - **Querer cambiar el porcentaje a partir del mes que viene:** **no se puede.** La alternativa es registrar una tasa nueva y reasociar cada producto el día que corresponda, y **tampoco conserva** desde cuándo rigió cada una. Es la pérdida aceptada en `cm.md` v0.4.0.
 - **Corregir hacia abajo lo que ya se pagó:** el sistema lo admite y **no puede detectarlo**, porque no sabe qué se pagó. Es `RN-CM-008` mirándonos de frente.
 - **Corregir una tasa del cero por ciento:** se corrige como cualquier otra. El cero no es un estado especial, es un porcentaje.
 - **Cambiar la forma de una tasa que rige sobre veinte productos:** los veinte pasan a pagar **de otra manera**, no solo otra cantidad, e **inmediatamente**. Es el caso que hizo preguntar si la forma debía ser inmutable, y §14 recoge por qué se decidió que no.
-- **Corregir a importe fijo un valor mayor que el precio de los productos asociados:** se admite, **y aquí el sistema sí tendría con qué compararlo** —conoce las asociaciones— y aun así no lo hace. La comparación no serviría: el precio de un producto se corrige después (`RF-PM-004`), de modo que una comprobación hecha hoy quedaría desfasada mañana. `RN-CM-018`.
+- **Corregir a importe fijo un valor mayor que el precio de alguno de los productos asociados:** desde el 03-09-2026 esto **sí se comprueba**, y es la comprobación que este mismo requerimiento agrega (`RN-CM-019`): se convierte a `fixed_amount ÷ precio × 100` de **cada** producto asociado y entra en la suma con las demás tasas de rol de ese producto — si sola o sumada pasa de cien, se rechaza. Lo que **sigue sin comprobarse**, a conciencia, es que el precio se corrige después (`RF-PM-004`) y nadie repite esta cuenta cuando eso ocurre: la validación es contra el precio de **hoy**, no una garantía permanente.
 - **Corregir la forma de una tasa sin asociaciones:** no afecta a nadie, y es la única versión inofensiva de esta operación. Se distingue de las demás en la respuesta, que devuelve cero.
-- **Dos correcciones simultáneas de la misma tasa:** ninguna regla lo impide y ninguna hace falta. La última escritura gana, las dos quedan en la auditoría, y no hay ninguna invariante entre filas que pueda romperse — al revés que en `RF-CM-006`.
+- **Dos correcciones simultáneas de la misma tasa:** ninguna regla lo impide y ninguna hace falta **sobre la propia fila**. La última escritura gana, las dos quedan en la auditoría, y no hay ninguna invariante entre dos correcciones de la misma tasa que pueda romperse — al revés que en `RF-CM-006`.
+- **Corregir una tasa a la vez que se asocia otra al mismo producto (`RF-CM-007`):** aquí **sí** hay una invariante entre filas de tablas distintas —la suma que `RN-CM-019` acota— y por eso las dos operaciones toman el mismo bloqueo consultivo por producto antes de sumar. Ver `plan.md` §4.1.
+- **Corregir una tasa asociada a varios de los mismos productos que otra corrección concurrente:** los bloqueos se toman en el mismo orden en las dos peticiones —por `productId`—, así que ninguna puede esperar a la otra y viceversa. Es la misma precaución contra interbloqueos que `plan.md` de `RF-CM-007` §4.1 declara.
 
 ## 14. Preguntas abiertas
 
@@ -285,7 +315,9 @@ Quien necesite conservar qué se pagó antes tiene **una sola vía, y está fuer
 | 3. Registrar otra en la forma correcta | — |
 | 4. Volver a asociar cada producto | — |
 
-**La ventana entre el paso 1 y el 4 no existe hoy. Prohibir la corrección la inventaría**, y para arreglar una equivocación de tecleo. Se consideró también permitirlo solo en tasas sin asociaciones —regla nueva, `RN-CM-019`— y se descartó por lo mismo: el caso en que hace falta corregir es precisamente aquel en que la tasa ya está en uso.
+**La ventana entre el paso 1 y el 4 no existe hoy. Prohibir la corrección la inventaría**, y para arreglar una equivocación de tecleo. Se consideró también permitirlo solo en tasas sin asociaciones —una regla nueva, sin numerar entonces— y se descartó por lo mismo: el caso en que hace falta corregir es precisamente aquel en que la tasa ya está en uso.
+
+**Nota del 03-09-2026: el identificador `RN-CM-019` que esta sección dejaba libre ya tiene dueño**, y es una regla distinta de la que aquí se descartó — no restringe **cuándo** se puede corregir la forma, acota **cuánto** puede sumar lo que un producto paga. Ver §5 y §8, paso 7.
 
 Lo que se paga a cambio está escrito y es real: `CA-CM-095` deja constancia de que veinte productos cambian de forma de pago sin aviso, y la respuesta lo hace visible devolviendo cuántos son.
 
@@ -296,3 +328,4 @@ Lo que se paga a cambio está escrito y es real: `CA-CM-095` deja constancia de 
 | 0.1.0 | 28-08-2026 | Redacción inicial. | Responsable técnico |
 | 0.2.0 | 02-09-2026 | **Reescrita sobre el modelo de `cm.md` v0.4.0**, y después de construirse el código. La corrección **pierde el fin de vigencia** y se queda con un solo campo, y con ello **desaparece la distinción entre corregir y cambiar**: sin vigencia no hay «desde cuándo», solo un número que se reescribe hacia atrás y hacia delante a la vez. El documento se reordena alrededor de esa consecuencia — el aviso de cabecera dice que esta operación **borra el pasado de todo el sistema**, y §5 declara que `RN-CM-008` no es una regla que este requerimiento cumpla sino **una que necesita**, dirigida a un módulo que no existe. Los inmutables pasan de cuatro a uno, y §6.2 estrena una lectura del número de productos asociados que el alta no tiene: dice **a cuántas ventas futuras afecta la corrección**. §13 recoge que corregir una tasa compartida cambia lo que pagan veinte productos **sin aviso**, y que corregir hacia abajo lo ya pagado **el sistema no puede detectarlo**. | Responsable técnico |
 | 0.3.0 | 02-09-2026 | **Entra el valor fijo** (`cm.md` v0.7.0), **antes del código**, y el requerimiento **cambia de nombre**: «corregir el porcentaje» dejó de describir lo que hace. Lo que se corrige es **el valor y su forma, como una sola cosa** — §6.1 rompe a propósito la costumbre del proyecto de que una corrección sea parcial, porque un importe suelto sobre una tasa de porcentaje se escribe igual tanto si se quiso cambiar la forma como si se erró el campo, y **corregir es donde deducirlo sale más caro**: al registrar solo se pierde un alta, aquí se cambia lo que ya paga. De ahí sale la pieza central de esta versión, `FA-004` y `CA-CM-091`: pasar una tasa de `10 %` a `10` de importe fijo **es un cambio de los grandes y los dos números comparan iguales**, de modo que una comparación que mire solo la cifra **devuelve éxito sin cambiar, sin auditar y sin mover la marca de modificación**. Es el contrario exacto de `FA-002`, que con esos mismos números pide lo opuesto, y por eso se prueban las dos. §5 declara que esta versión **agrava `RN-CM-008`**: lo que la liquidación tiene que copiar pasa de un número a **tres cosas**, y la tercera —la moneda— no está en ninguna tabla de `CM` ni la devuelve la resolución. §14 registra la decisión del responsable del proyecto de que **la forma se pueda corregir**, con la tabla de los cuatro pasos que la prohibición obligaría a dar y la ventana en la que los productos no comisionarían. | Responsable del proyecto |
+| 0.4.0 | 03-09-2026 | **Nace `RN-CM-019`** (`cm.md` v0.8.0), y esta operación es la segunda que la comprueba, junto a `RF-CM-007`. §4.1 y §7 la suman a lo que corregir garantiza; §8 gana un paso nuevo, **antes** de escribir (paso 7), que revisa el tope en **todos** los productos donde la tasa está asociada y rechaza la corrección entera si alguno se pasaría de cien. Nace `EX-006`, la primera excepción de esta operación que necesita leer otras tablas —`product_commission_rates` de cada producto y el precio que `PM` publica de cada uno—, y `FA-005` documenta el camino feliz de una tasa sobre varios productos que caben todos. §13 **corrige** un caso límite que decía lo contrario: hasta ayer, corregir a un importe fijo mayor que el precio de un producto asociado se admitía a propósito porque «el sistema no lo hace»; desde hoy **sí lo hace**, y lo que queda sin comprobar es solo que el precio cambie **después**. Se aprovecha para resolver una ambigüedad de nombres que §14 dejaba abierta desde la v0.3.0: el identificador `RN-CM-019` que ahí se mencionaba como una regla hipotética y descartada ya tiene dueño, y es otra. | Responsable del proyecto |

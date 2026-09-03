@@ -7,7 +7,7 @@ import org.springframework.jdbc.core.JdbcTemplate;
  * Los datos que las siete suites de `CM` necesitan sembrar.
  *
  * <p><b>Están aquí y no repetidos siete veces</b> por una razón concreta: el orden de borrado
- * depende de las claves foráneas de `V48`, y una copia que se quedara atrás no fallaría por lo que
+ * depende de las claves foráneas de `V49`, y una copia que se quedara atrás no fallaría por lo que
  * cambió — fallaría con una violación de integridad en la suite que nadie tocó.
  */
 final class CommissionFixtures {
@@ -56,16 +56,25 @@ final class CommissionFixtures {
    * alguien lo compruebe, sino porque no hay por dónde enterarse (`RN-CM-017`).
    */
   static UUID sembrarProducto(JdbcTemplate jdbc, String codigo, boolean retirado) {
+    return sembrarProducto(jdbc, codigo, retirado, "10.00");
+  }
+
+  /**
+   * Un producto con un precio elegido, para las pruebas de `RN-CM-019` que convierten un valor fijo
+   * contra ese precio.
+   */
+  static UUID sembrarProducto(JdbcTemplate jdbc, String codigo, boolean retirado, String precio) {
     UUID id = UUID.randomUUID();
     String monedaId =
         jdbc.queryForObject("SELECT CAST(id AS text) FROM currencies LIMIT 1", String.class);
     jdbc.update(
         "INSERT INTO products (id, code, type, name, price, currency_id, status, deleted_at)"
-            + " VALUES (CAST(? AS uuid), ?, 'BOT', ?, 10.00, CAST(? AS uuid), 'INACTIVO',"
-            + " CASE WHEN ? THEN now() ELSE NULL END)",
+            + " VALUES (CAST(? AS uuid), ?, 'BOT', ?, CAST(? AS numeric), CAST(? AS uuid),"
+            + " 'INACTIVO', CASE WHEN ? THEN now() ELSE NULL END)",
         id.toString(),
         codigo,
         "Producto " + codigo,
+        precio,
         monedaId,
         retirado);
     return id;
@@ -79,7 +88,7 @@ final class CommissionFixtures {
   /**
    * Una tasa de rol en la forma que se pida.
    *
-   * <p><b>La forma va explícita en el {@code INSERT}</b>, y tiene que ir: {@code V49} le quita el
+   * <p><b>La forma va explícita en el {@code INSERT}</b>, y tiene que ir: {@code V50} le quita el
    * valor por defecto a {@code rate_type} precisamente para que omitirla falle. Una fixture que la
    * omitiera dejaría de compilar contra el esquema — que es lo que se quiere.
    */

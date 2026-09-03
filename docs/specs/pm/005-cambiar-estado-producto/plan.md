@@ -51,7 +51,7 @@ La operación más corta del módulo y la que concentra su invariante más caro.
 
 Dos upgrades inactivos con **la misma pareja** activados a la vez: **la verificación previa no basta**. Las dos transacciones leen que la pareja está libre, las dos concluyen que pueden proceder, y sin nada más quedarían las dos activas — que es exactamente el desenlace que `RN-PM-004` existe para impedir.
 
-**Lo que lo impide es `uq_products_upgrade_target`** —desde `V52` sobre `(source_membership_id, target_membership_id)`—, el índice único parcial: la segunda transacción falla al escribir y el adaptador traduce esa violación a `EX-002`, el mismo `409` que habría dado la verificación previa. La verificación previa **existe para dar un mensaje preciso** —qué producto ocupa el destino—; la garantía la da el índice.
+**Lo que lo impide es `uq_products_upgrade_target`** —desde `V53` sobre `(source_membership_id, target_membership_id)`—, el índice único parcial: la segunda transacción falla al escribir y el adaptador traduce esa violación a `EX-002`, el mismo `409` que habría dado la verificación previa. La verificación previa **existe para dar un mensaje preciso** —qué producto ocupa el destino—; la garantía la da el índice.
 
 Es la misma división de trabajo que `RF-SP-016` fijó para el alta de membresías: la restricción decide, la comprobación redacta.
 

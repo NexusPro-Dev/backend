@@ -32,7 +32,7 @@ Y una promesa que esta operación **no** hace: el efecto no es inmediato. El tok
 
 ## 2. Cambios de esquema
 
-### 2.1 `V51` — `RN-SP-025` en el motor (02-09-2026)
+### 2.1 `V52` — `RN-SP-025` en el motor (02-09-2026)
 
 `user_roles` gana **`role_type`**, una copia de `roles.role_type`, y sobre ella:
 
@@ -42,13 +42,13 @@ Y una promesa que esta operación **no** hace: el efecto no es inmediato. El tok
 | `fk_user_roles_role` pasa a `(role_id, role_type) → roles(id, role_type)` | **Impide que la copia diverja.** Sin ella, `role_type` sería un dato suelto que nadie mantiene |
 | `uq_user_roles_vendedor` — único **parcial** sobre `(user_id) WHERE role_type = 'VENDEDOR'` | `RN-SP-025` |
 
-**Copiar un dato es normalmente el error que este proyecto evita**, y aquí no lo es por dos motivos que hay que poder nombrar: la FK compuesta hace que **no pueda mentir**, y `role_type` **no es editable** —`RF-SP-004` corrige nombre y descripción—, de modo que **nunca habrá que actualizarla**. Es el patrón que `V48` validó en `product_commission_rates`.
+**Copiar un dato es normalmente el error que este proyecto evita**, y aquí no lo es por dos motivos que hay que poder nombrar: la FK compuesta hace que **no pueda mentir**, y `role_type` **no es editable** —`RF-SP-004` corrige nombre y descripción—, de modo que **nunca habrá que actualizarla**. Es el patrón que `V49` validó en `product_commission_rates`.
 
 !!! danger "El relleno de `role_type` puede fallar, y ese fallo es la información"
 
     La columna se rellena desde `roles` y **luego** se añade el índice. Si en ese momento **alguien porta ya dos roles vendedores**, la creación del índice **falla y la migración se detiene**.
 
-    **No se limpia en la migración.** `V48` borró datos a propósito porque ninguno tenía traducción; aquí sí la tienen: alguien decidió esos roles, y **elegir cuál sobrevive es una decisión de negocio que una migración no puede tomar**. Que se detenga es lo correcto — obliga a mirar los datos antes de imponer una regla que llevaba cinco días declarada y sin sostener.
+    **No se limpia en la migración.** `V49` borró datos a propósito porque ninguno tenía traducción; aquí sí la tienen: alguien decidió esos roles, y **elegir cuál sobrevive es una decisión de negocio que una migración no puede tomar**. Que se detenga es lo correcto — obliga a mirar los datos antes de imponer una regla que llevaba cinco días declarada y sin sostener.
 
     El sistema no está en producción, y en desarrollo la tabla no tiene ese caso. Queda escrito por si el día que lo esté lo tiene.
 
@@ -229,7 +229,7 @@ El evento de seguridad espera al commit por el motivo de `RF-SP-001` §7: emitid
 | **Rechazar el segundo rol vendedor** en vez de sustituir | Obliga a retirar antes con `RF-SP-031`, y eso deja a la persona **sin rol vendedor entre las dos llamadas**. Si era su único rol, `RN-SP-023` rechaza el retiro y el ascenso **queda imposible** |
 | Sustituir **sin** exigir superior, reutilizando el que tenía | Su superior porta el rol padre del rol **viejo**. Tras la sustitución `RN-SP-020` dejaría de cumplirse, y el dato quedaría contradiciendo la regla sin que nada fallara |
 | Aplicar uno de los dos vendedores de una petición con dos, y descartar el otro | El resultado sería válido y **la decisión sería del sistema**. `EX-009` rechaza entera, como el resto de la operación |
-| **Limpiar en `V51`** a quien ya porte dos | Elegir cuál sobrevive es una decisión de negocio. Que la migración se **detenga** obliga a mirar los datos. Ver §2.1 |
+| **Limpiar en `V52`** a quien ya porte dos | Elegir cuál sobrevive es una decisión de negocio. Que la migración se **detenga** obliga a mirar los datos. Ver §2.1 |
 | Reemplazar la lista completa con `PUT` | Haría retiros implícitos, y retirar tiene reglas propias —`RN-SP-001`, `RN-SP-015`, `RN-SP-022`—. O se reimplementan aquí, con dos copias de cada una, o se saltan en silencio y la operación deja al sistema sin superadministrador sin que nada falle |
 | Asignar los roles válidos e ignorar los que fallan | Dejaría a la persona en un estado que nadie pidió. `EX-001` a `EX-003` exigen rechazo completo, y el subconjunto que sobrevive podría ser justo el que incumple una regla condicional |
 | Evaluar `RN-SEG-010` comparando **roles** en vez de permisos | Era más barato —bastaba recorrer la cadena de rol padre— pero rechaza asignaciones legítimas: un rol de otra rama del árbol cuyos permisos el actor sí posee. Y acopla la asignación de roles a la jerarquía de contención, que existe para acotar qué declara un rol, no quién puede repartirlo (`spec.md` §14, pregunta 1) |
