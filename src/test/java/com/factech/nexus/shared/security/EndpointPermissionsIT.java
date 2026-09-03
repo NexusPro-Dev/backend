@@ -61,6 +61,10 @@ class EndpointPermissionsIT extends IntegrationTestBase {
           "GET /api/v1/users/me",
           "El actor y solo el actor (`RF-SP-039`): no admite parámetro, de modo que no hay"
               + " nada que autorizar más allá de estar autenticado",
+          "PATCH /api/v1/users/me",
+          "El actor y solo el actor (`RF-SP-044`): toma la persona del token y no admite"
+              + " identificador, de modo que no hay nadie más a quien pudiera editar. Editar la"
+              + " ficha ajena es `RF-SP-027`, y esa sí exige `users:update`",
           "POST /api/v1/auth/password",
           "La propia contraseña (`RF-SP-037` §5): «no hay permiso asociado más allá de estar"
               + " autenticado. Nadie cambia la contraseña de otro por este camino». Cambiar la"
