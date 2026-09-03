@@ -523,8 +523,8 @@ class ProductOfferIT extends IntegrationTestBase {
             + " target_membership_id, price,"
             + " currency_id, validity_days, status, created_at, updated_at, deleted_at)"
             + " VALUES (CAST(? AS uuid), ?, ?, ?, 'Descripción de prueba', CAST(? AS uuid),"
-            + " CAST(? AS uuid), CAST(? AS numeric), CAST(? AS uuid), CAST(? AS integer), ?, ?, ?,"
-            + " CAST(? AS timestamptz))",
+            + " CAST(? AS uuid), CAST(? AS numeric), CAST(? AS uuid), CAST(? AS integer), ?, ?,"
+            + " ?, CAST(? AS timestamptz))",
         UUID.randomUUID().toString(),
         codigo,
         tipo,

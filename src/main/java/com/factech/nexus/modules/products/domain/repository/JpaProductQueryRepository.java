@@ -227,6 +227,8 @@ public class JpaProductQueryRepository implements ProductQueryRepository {
                 """
                 SELECT p.id AS id, p.code AS code, p.type AS type, p.name AS name,
                        p.description AS description, p.icon AS icon,
+                       p.source_membership_id AS s_id, s.code AS s_code, s.name AS s_name,
+                       s.level AS s_level,
                        p.target_membership_id AS m_id, m.code AS m_code, m.name AS m_name,
                        m.level AS m_level,
                        p.price AS price, p.currency_id AS c_id, c.code AS c_code,
@@ -234,6 +236,7 @@ public class JpaProductQueryRepository implements ProductQueryRepository {
                        p.validity_days AS validity_days, p.status AS status,
                        p.created_at AS created_at
                   FROM products p
+                  LEFT JOIN memberships s ON s.id = p.source_membership_id
                   LEFT JOIN memberships m ON m.id = p.target_membership_id
                   LEFT JOIN currencies  c ON c.id = p.currency_id
                  WHERE p.deleted_at IS NULL
@@ -260,14 +263,10 @@ public class JpaProductQueryRepository implements ProductQueryRepository {
               (String) fila.get("name"),
               (String) fila.get("description"),
               (String) fila.get("icon"),
-              // El origen no entra en esta sentencia: `findOffer` todavía
-              // compara por NIVEL (`T-03` de la tripleta) y no por origen. La
-              // reescritura que lo cambie es `T-20`, pendiente — hasta
-              // entonces el registro no tiene de dónde tomar estos cuatro.
-              null,
-              null,
-              null,
-              null,
+              (UUID) fila.get("s_id"),
+              (String) fila.get("s_code"),
+              (String) fila.get("s_name"),
+              entero(fila.get("s_level")),
               (UUID) fila.get("m_id"),
               (String) fila.get("m_code"),
               (String) fila.get("m_name"),

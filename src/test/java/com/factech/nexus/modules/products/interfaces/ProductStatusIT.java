@@ -217,6 +217,50 @@ class ProductStatusIT extends IntegrationTestBase {
   }
 
   @Test
+  @DisplayName(
+      "`RN-PM-004` — mismo destino, orígenes DISTINTOS: los dos pueden estar activos a la vez")
+  void mismoDestinoOrigenesDistintosNoChocan() throws Exception {
+    // El caso que RN-PM-004 existe para permitir desde el 02-09-2026: dos
+    // saltos hacia el mismo nivel no son el mismo producto si parten de
+    // orígenes distintos. La unicidad es sobre la PAREJA, no sobre el destino.
+    UUID desdePlata =
+        upgrade("UPGRADE_ORO_DESDE_PLATA", "Ascenso a Oro", plata, oro, "Desde plata.");
+    UUID desdeFree =
+        upgrade("UPGRADE_ORO_DESDE_FREE", "Ascenso directo a Oro", free, oro, "Desde free.");
+
+    mvc.perform(cambiar(desdePlata, "ACTIVO")).andExpect(status().isOk());
+    mvc.perform(cambiar(desdeFree, "ACTIVO")).andExpect(status().isOk());
+
+    assertThat(cuantosActivosHacia(oro)).isEqualTo(2);
+  }
+
+  @Test
+  @DisplayName(
+      "`RN-PM-004` — mismo origen Y mismo destino: el segundo sí choca, aunque el primero"
+          + " tenga otro origen activo hacia el mismo destino")
+  void mismaParejaChocaAunqueOtroOrigenYaEsteActivo() throws Exception {
+    UUID desdePlata =
+        upgrade("UPGRADE_ORO_DESDE_PLATA", "Ascenso a Oro", plata, oro, "Desde plata.");
+    UUID desdeFreeUno =
+        upgrade("UPGRADE_ORO_DESDE_FREE", "Ascenso directo a Oro", free, oro, "Desde free.");
+    UUID desdeFreeDos =
+        upgrade("UPGRADE_ORO_DESDE_FREE_2", "Otro ascenso a Oro", free, oro, "También desde free.");
+
+    mvc.perform(cambiar(desdePlata, "ACTIVO")).andExpect(status().isOk());
+    mvc.perform(cambiar(desdeFreeUno, "ACTIVO")).andExpect(status().isOk());
+
+    // El conflicto es con `desdeFreeUno` —misma pareja—, no con `desdePlata`.
+    mvc.perform(cambiar(desdeFreeDos, "ACTIVO"))
+        .andExpect(status().isConflict())
+        .andExpect(jsonPath("$.errors[0].code").value("EX-002"))
+        // Entre paréntesis y no como subcadena suelta: el código del segundo
+        // ("...FREE_2") contiene al del primero como prefijo, y una
+        // comprobación menos precisa pasaría igual señalando al producto
+        // equivocado.
+        .andExpect(jsonPath("$.detail").value(Matchers.containsString("(UPGRADE_ORO_DESDE_FREE)")));
+  }
+
+  @Test
   @DisplayName("varios BOTS activos a la vez: la regla del destino no les alcanza")
   void losBotsNoCompiten() throws Exception {
     UUID uno = bot("SOPORTE", "Soporte", "Atención prioritaria.");
@@ -392,20 +436,23 @@ class ProductStatusIT extends IntegrationTestBase {
   }
 
   private UUID bot(String codigo, String nombre, String descripcion) {
-    return producto(codigo, "BOT", nombre, descripcion, null);
+    return producto(codigo, "BOT", nombre, descripcion, null, null);
   }
 
+  // El origen por defecto es `free`: la mayoría de las pruebas de este
+  // archivo no necesitan variarlo, solo que exista.
   private UUID upgrade(String codigo, String nombre, UUID destino, String descripcion) {
-    return producto(codigo, "UPGRADE_MEMBRESIA", nombre, descripcion, destino);
+    return upgrade(codigo, nombre, free, destino, descripcion);
+  }
+
+  private UUID upgrade(
+      String codigo, String nombre, UUID origen, UUID destino, String descripcion) {
+    return producto(codigo, "UPGRADE_MEMBRESIA", nombre, descripcion, origen, destino);
   }
 
   private UUID producto(
-      String codigo, String tipo, String nombre, String descripcion, UUID destino) {
+      String codigo, String tipo, String nombre, String descripcion, UUID origen, UUID destino) {
     UUID id = UUID.randomUUID();
-    // Origen y destino VIAJAN JUNTOS: un upgrade declara los dos
-    // (`RN-PM-002`) y un bot no declara ninguno. Por eso el origen se
-    // deriva del destino en lugar de ser un parametro mas — nunca puede
-    // quedar uno sin el otro, que es lo que `ck_products_type_target` mira.
     jdbc.update(
         "INSERT INTO products (id, code, type, name, description, source_membership_id,"
             + " target_membership_id, price,"
@@ -418,7 +465,7 @@ class ProductStatusIT extends IntegrationTestBase {
         tipo,
         nombre,
         descripcion,
-        destino == null ? null : free.toString(),
+        origen == null ? null : origen.toString(),
         destino == null ? null : destino.toString(),
         USD,
         BASE,

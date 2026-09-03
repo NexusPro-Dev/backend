@@ -4,7 +4,7 @@
 |---|---|
 | Requerimiento | `RF-CM-001` |
 | Módulo | `CM` — Comisiones |
-| Versión | 0.3.0 |
+| Versión | 1.0.0 |
 | Estado | **Aprobada** |
 | Autor | Responsable técnico |
 | Aprobada por | Responsable del proyecto |
@@ -18,12 +18,6 @@
 
     Debe poder leerlo alguien del negocio y entenderlo completo. Es la primera compuerta del Art. I.6: hasta que no esté aprobada, no se escribe `plan.md`.
 
-!!! warning "Esta especificación tiene dos capas, y se leen distinto"
-
-    **La v0.2.0 se escribió DESPUÉS de construirse.** Describía el modelo de `cm.md` v0.4.0 con el código ya hecho, que es el orden inverso al que manda el Art. I.6: **no proponía, describía**.
-
-    **La v0.3.0 se escribe ANTES.** El valor fijo de `cm.md` v0.7.0 **no existe en el código todavía**, y lo que este documento dice de él **decide lo que habrá que construir**. Todo lo que hable de forma, tipo o valor fijo está sin escribir; el resto sigue describiendo lo que la suite verifica hoy.
-
 ---
 
 ## 1. Objetivo
@@ -32,15 +26,15 @@ Declarar **cuánto gana un rol vendedor** por vender —**una proporción de la 
 
 ## 2. Contexto
 
-Hoy el sistema sabe **qué se vende** y **quién vende**, y **no sabe cuánto se le paga a quien vende**. Este es el primer requerimiento del módulo y el que crea el objeto del que dependerán después el cálculo y la liquidación.
+Es el primer requerimiento del módulo y el que crea el objeto del que dependen después el cálculo y la liquidación.
 
-**Lo que esta operación registra es un catálogo, no una configuración aplicada.** Es el cambio de fondo respecto a la versión anterior de este documento, y es lo que más fácil se lee mal: hasta el 01-09-2026 una tasa sin producto regía sobre **todo el catálogo**, y ahora **no rige sobre nada** hasta que alguien la asocie a un producto (`RN-CM-012`, y la operación es `RF-CM-007`).
+**Lo que esta operación registra es un catálogo, no una configuración aplicada**, y es lo que más fácil se lee mal. Una tasa recién registrada **no rige sobre nada**: empieza a pagar cuando alguien la asocia a un producto (`RN-CM-012`, y la operación es `RF-CM-007`).
 
-**La ausencia cambió de significado**: pasó de «todos» a «ninguno». Una tasa recién registrada **parece configurada y no paga nada a nadie**, y eso no falla — se descubriría liquidando. Por eso esta operación **devuelve explícitamente sobre cuántos productos rige**, que al registrarla es siempre **cero**: sin ese dato, la respuesta sería idéntica para una tasa que paga y para una que no.
+De ahí sale la forma de la respuesta. Una tasa que paga y una que no **serían idénticas** en cualquier listado, de modo que esta operación **devuelve explícitamente sobre cuántos productos rige** — al registrarla, siempre cero.
 
 **Varias tasas del mismo rol son legítimas.** El catálogo puede ofrecer «`AGENTE` 10 %» y «`AGENTE` 15 %» para asociarlas a productos distintos. Lo que no puede repetirse es un rol sobre el **mismo** producto, y eso no lo decide esta operación (`RN-CM-013`, y lo comprueba `RF-CM-007`).
 
-**Y desde el 02-09-2026 el catálogo puede ofrecer también «`AGENTE` 10.000 fijos».** Es el cambio de esta versión: una tasa declara **una forma y solo una** (`RN-CM-016`), o proporción o cantidad, y las dos son alta legítima de la misma operación. No se suman: no existe «5 % más 10.000».
+**Y puede ofrecer también «`AGENTE` 10.000 fijos».** Una tasa declara **una forma y solo una** (`RN-CM-016`) —o proporción o cantidad—, y las dos son alta legítima de la misma operación. No se suman: no existe «5 % más 10.000».
 
 !!! danger "El valor fijo se declara sin moneda, y quien registra la tasa tiene que saberlo"
 
@@ -70,7 +64,7 @@ Hoy el sistema sabe **qué se vende** y **quién vende**, y **no sabe cuánto se
 ### 4.2 No incluye
 
 - **Poner la tasa en vigor.** Eso es asociarla a un producto, y es `RF-CM-007`. Sin esa operación, lo que aquí se registra no paga nada a nadie.
-- **Acotar la tasa a un producto o a una persona.** Ya no son campos de la tasa: el producto vive en la asociación (`RF-CM-007`) y la excepción por persona es otra cosa distinta (`RF-CM-006`).
+- **Acotar la tasa a un producto o a una persona.** El producto vive en la asociación (`RF-CM-007`) y la excepción por persona es otra cosa distinta (`RF-CM-006`).
 - **Declarar desde cuándo rige.** Las tasas de rol **no tienen vigencia**; la única que la tiene es la personalizada. Ver §13.
 - **Declarar en qué moneda se paga un valor fijo.** No es un campo de la tasa: se toma del producto que se venda (`RN-CM-017`). Ver §2.
 - **Comprobar que un valor fijo cabe en el precio de algo.** Nada lo acota por arriba (`RN-CM-018`), y aquí no podría comprobarse: la tasa **no conoce ningún producto todavía**. Ver §13.
@@ -88,9 +82,9 @@ Hoy el sistema sabe **qué se vende** y **quién vende**, y **no sabe cuánto se
 | `RN-CM-017` | El valor fijo **no lleva moneda** | `requirements/cm.md` §5.1 |
 | `RN-CM-018` | El valor fijo **no está acotado por arriba** | `requirements/cm.md` §5.1 |
 
-**Tres reglas donde la versión anterior citaba siete**, y ninguna se relajó: **se mudaron**. `RN-CM-002` y `RN-CM-010` —el producto— viajaron a `RF-CM-007`; `RN-CM-003` desapareció con el rol de las personalizadas; `RN-CM-006` y `RN-CM-009` —el solapamiento y la vigencia— viajaron a `RF-CM-006`, que es lo único que conserva fechas.
+**Son seis y no más porque las demás viven donde les toca**, y conviene decirlo para que la lista corta no se lea como una relajación: el producto y su unicidad las comprueba `RF-CM-007`, y la vigencia y su no solapamiento, `RF-CM-006` — que es lo único del módulo que conserva fechas.
 
-**Las tres que entran en v0.3.0 no son iguales entre sí**, y conviene no leerlas de corrido:
+**Las tres últimas no son iguales entre sí**, y conviene no leerlas de corrido:
 
 - **`RN-CM-016` esta operación la hace cumplir.** Es la única de las tres que se comprueba aquí, y rechaza el alta.
 - **`RN-CM-017` esta operación la sufre.** No hay nada que comprobar: se cita porque explica por qué no se pide la moneda, que es la pregunta que hará quien lea la entrada.
@@ -107,7 +101,7 @@ Hoy el sistema sabe **qué se vende** y **quién vende**, y **no sabe cuánto se
 | Porcentaje | **Solo si la forma es proporción** | Qué proporción de la venta gana | De **cero a cien** (`RN-CM-007`) |
 | Valor fijo | **Solo si la forma es cantidad** | Cuánto dinero gana por venta | **Cero o más, sin tope** (`RN-CM-018`). **Sin moneda** (`RN-CM-017`) |
 
-**Cuatro campos, de los que siempre llegan tres.** El alta anterior tenía dos y ninguno opcional; ahora hay una elección que hacer, y la elección se **declara** en lugar de deducirse.
+**Cuatro campos, de los que siempre llegan tres**: hay una elección que hacer, y la elección se **declara** en lugar de deducirse.
 
 !!! warning "La forma se pide aunque parezca deducible de qué valor se envíe"
 
@@ -161,7 +155,7 @@ Hoy el sistema sabe **qué se vende** y **quién vende**, y **no sabe cuánto se
 
 **Cuándo ocurre:** ya existe una tasa para ese rol.
 
-1. **No hay ningún conflicto que comprobar**, y esa es la diferencia con el modelo anterior: sin vigencia, dos tasas del mismo rol no pueden solaparse en el tiempo porque no hay tiempo que solapar.
+1. **No hay ningún conflicto que comprobar.** Sin vigencia, dos tasas del mismo rol no pueden solaparse en el tiempo porque no hay tiempo que solapar.
 2. Las dos quedan en el catálogo, disponibles para asociarse a productos distintos.
 3. El resto del flujo es idéntico.
 
@@ -201,9 +195,7 @@ Hoy el sistema sabe **qué se vende** y **quién vende**, y **no sabe cuánto se
 **Condición:** el rol indicado no existe.
 **Respuesta del sistema:** rechaza el alta diciendo que el rol indicado no existe. **No es un «no encontrado»**: lo que no existe es un dato que el actor envió, no el recurso que estaba pidiendo. Se distingue de `EX-001` a propósito — quien escribió bien el identificador no debe buscar el error donde no está.
 
-!!! note "Las cinco excepciones que esta especificación perdió"
-
-    La v0.1.0 tipificaba siete. Las cinco que faltan —producto inexistente, producto retirado, persona inexistente, persona sin el rol y solapamiento— **no se eliminaron: se mudaron** con los campos que las causaban, a `RF-CM-007` y a `RF-CM-006`. Se dice aquí para que la reducción no se lea como una relajación de las comprobaciones.
+**Solo hay dos, y no es que esta operación compruebe poco.** Lo que un lector echaría de menos —producto inexistente, producto retirado, persona sin el rol, solapamiento de vigencias— **son excepciones de otras operaciones**, porque son campos que esta alta no tiene: viven en `RF-CM-006` y `RF-CM-007`.
 
 ## 11. Validaciones
 
@@ -215,8 +207,6 @@ Hoy el sistema sabe **qué se vende** y **quién vende**, y **no sabe cuánto se
 | `VAL-011` | **El valor corresponde a la forma** | Una comisión por porcentaje lleva porcentaje y no valor fijo; una comisión por valor fijo, al revés. |
 | `VAL-012` | **Valor fijo no negativo** | El valor fijo no puede ser negativo. |
 
-**`VAL-002` cambió de significado sin cambiar de identificador**, y queda dicho para que nadie lo lea como el mismo aviso de antes. Decía «el porcentaje es obligatorio»; **ahora el porcentaje no siempre lo es**, y lo que se ha vuelto obligatorio es la elección. Conservar el identificador es correcto —ocupa el mismo lugar en la validación de entrada— y reutilizar el mensaje habría sido un error.
-
 **`VAL-011` es un solo mensaje para lo que podrían parecer tres errores** —las dos formas llenas, ninguna llena, y la equivocada llena—. Son el mismo: **lo enviado no concuerda con lo declarado**, y separarlos obligaría a redactar tres frases que dicen lo mismo con distinta cara.
 
 **No hay validación que acote el valor fijo por arriba, y su ausencia es la decisión.** `VAL-003` acota el porcentaje porque cien es un límite que el negocio conoce sin mirar nada; para el importe **no existe ese número** (`RN-CM-018`), y ponerlo aquí sería inventarlo.
@@ -227,7 +217,7 @@ Hoy el sistema sabe **qué se vende** y **quién vende**, y **no sabe cuánto se
 |---|---|
 | `CA-CM-001` | El sistema registra la tasa de un rol vendedor y devuelve el rol resuelto |
 | `CA-CM-002` | La tasa recién registrada declara **cero productos asociados**, y ese cero significa que no rige sobre ninguno |
-| `CA-CM-003` | La respuesta **no lleva** producto, persona, vigencia ni grado: son campos que el modelo ya no tiene |
+| `CA-CM-003` | La respuesta **no lleva** producto, persona, vigencia ni grado: son campos que el modelo no tiene |
 | `CA-CM-004` | El sistema admite **varias tasas del mismo rol**, para asociarlas a productos distintos |
 | `CA-CM-005` | El sistema registra una tasa con porcentaje **cero**, y la distingue de no tener tasa |
 | `CA-CM-006` | El sistema rechaza una tasa sobre un rol que no es de tipo vendedor |
@@ -242,15 +232,15 @@ Hoy el sistema sabe **qué se vende** y **quién vende**, y **no sabe cuánto se
 
 **`CA-CM-081` cubre dos peticiones distintas en un criterio** —el valor que no corresponde a la forma, y la forma ausente— porque las dos verifican lo mismo: que **la forma y el valor se comprueban juntos** y no por separado.
 
-!!! danger "`CA-CM-084` afirma que el sistema NO hace algo, y es el criterio más importante de los seis"
+!!! danger "`CA-CM-084` afirma que el sistema NO hace algo, y es el más importante de los catorce"
 
-    Los otros cinco comprueban rechazos. Este comprueba que **una tasa disparatada entra sin resistencia**, que es lo que `RN-CM-018` declara y lo que la liquidación tendrá que arreglar algún día.
+    Los demás comprueban altas y rechazos. Este comprueba que **una tasa disparatada entra sin resistencia**, que es lo que `RN-CM-018` declara y lo que la liquidación tendrá que arreglar algún día.
 
     Se escribe como criterio de aceptación —y no solo como caso límite en §13— porque **el día que alguien añada un tope aquí, esta prueba fallará**, y la discusión pasará por `cm.md` en lugar de resolverse en silencio con un número inventado.
 
 ## 13. Casos límite
 
-- **Una tasa registrada y nunca asociada:** queda en el catálogo con su porcentaje y **no paga nada a nadie**. Es el caso límite más importante de este requerimiento y **no es un error del sistema**: es la consecuencia de `RN-CM-012`, y la respuesta lo dice devolviendo cero productos asociados.
+- **Una tasa registrada y nunca asociada:** queda en el catálogo con su valor y **no paga nada a nadie**. Es el caso límite más importante de este requerimiento y **no es un error del sistema**: es la consecuencia de `RN-CM-012`, y la respuesta lo dice devolviendo cero productos asociados.
 - **Dos tasas idénticas del mismo rol y el mismo porcentaje:** se admiten. No hay ninguna regla que lo impida y prohibirlo obligaría a decidir si dos tasas iguales son un error o una preparación para asociarlas a productos distintos — decisión que el sistema no puede tomar por quien administra.
 - **Cambiar el porcentaje a partir de una fecha:** **no se puede**, y hay que saberlo. Sin vigencia en las tasas de rol, la única operación disponible es corregir (`RF-CM-003`), que **reescribe lo que la tasa dijo siempre**. Registrar una tasa nueva y reasociar el producto es la alternativa, y tampoco conserva desde cuándo rigió cada una.
 - **El rol se desactiva o se elimina después de registrarse la tasa:** la tasa **permanece**. `RN-CM-001` se comprueba al registrar, no continuamente: retirar un rol no es motivo para borrar el historial de lo que se pagó por él.
@@ -278,5 +268,6 @@ Hoy el sistema sabe **qué se vende** y **quién vende**, y **no sabe cuánto se
 | Versión | Fecha | Cambio | Responsable |
 |---|---|---|---|
 | 0.1.0 | 28-08-2026 | Redacción inicial, sin preguntas abiertas. | Responsable técnico |
-| 0.2.0 | 02-09-2026 | **Reescrita sobre el modelo de `cm.md` v0.4.0**, y **después de construirse** el código — orden inverso al del Art. I.6, declarado en cabecera. El alta pierde cuatro de sus seis campos: el producto viaja a `RF-CM-007`, la persona a `RF-CM-006` y la vigencia desaparece del catálogo. Con ellos se van **cinco de las siete excepciones y cuatro de las siete reglas**, y §10 avisa de que **no se relajaron, se mudaron**. Lo que entra en su lugar es el cambio de fondo: **lo que esta operación registra ya no rige** (`RN-CM-012`), de modo que §7 declara como postcondición que **nadie cobra nada distinto** por ejecutarla, y §6.2 añade el número de productos asociados —siempre cero al registrar— porque sin él la respuesta sería idéntica para una tasa que paga y para una que no. §13 recoge la consecuencia que más incomoda: **cambiar un porcentaje a partir de una fecha ya no se puede**. | Responsable técnico |
-| 0.3.0 | 02-09-2026 | **Entra el valor fijo** (`cm.md` v0.7.0), y esta vez **antes del código**: lo que aquí se decide está sin construir. El alta pasa de dos campos a cuatro, de los que llegan tres — la novedad no es el importe sino **la forma**, que se **declara** en lugar de deducirse de qué campo venga lleno. §6.1 argumenta por qué: sin ella, una petición con las dos formas llenas y otra con ninguna **producirían el mismo mensaje de error para dos equivocaciones distintas**. Entran `RN-CM-016`, `RN-CM-017` y `RN-CM-018`, y §5 avisa de que **las tres se relacionan con esta operación de tres maneras opuestas**: la primera la hace cumplir, la segunda la sufre, la tercera **la deja pasar a sabiendas**. De ahí salen las dos piezas incómodas de esta versión: `FA-004` y `CA-CM-084`, que **afirman que el sistema no impide** registrar un importe mayor que el precio de cualquier producto —no puede: al registrar no hay producto, y `RF-CM-007` tampoco podría, porque el precio se corrige después—; y el aviso de §2 de que **la misma tasa paga cosas distintas** según a qué producto se la asocie, porque el importe **no lleva moneda**. §14 recoge lo que eso le hace a `RN-CM-008`: la copia que defiende el pasado deja de ser un número y pasa a ser **tres cosas, de las que una no está en este módulo**. `VAL-002` **conserva su identificador y cambia de significado** —era «el porcentaje es obligatorio», ahora lo obligatorio es la elección—, y queda dicho para que nadie reutilice el mensaje viejo. | Responsable técnico |
+| 0.2.0 | 02-09-2026 | **Reescrita sobre el modelo de `cm.md` v0.4.0**, y **después de construirse** el código — orden inverso al del Art. I.6. El alta pierde cuatro de sus seis campos: el producto viaja a `RF-CM-007`, la persona a `RF-CM-006` y la vigencia desaparece del catálogo. Con ellos se van cinco de las siete excepciones y cuatro de las siete reglas, que **no se relajaron: se mudaron**. Lo que entra en su lugar es el cambio de fondo: **lo que esta operación registra ya no rige** (`RN-CM-012`), de modo que §7 declara como postcondición que **nadie cobra nada distinto** por ejecutarla, y §6.2 añade el número de productos asociados —siempre cero al registrar— porque sin él la respuesta sería idéntica para una tasa que paga y para una que no. | Responsable técnico |
+| 0.3.0 | 02-09-2026 | **Entra el valor fijo** (`cm.md` v0.7.0), esta vez **antes del código**. El alta pasa de dos campos a cuatro, de los que llegan tres — la novedad no es el importe sino **la forma**, que se declara en lugar de deducirse. Entran `RN-CM-016`, `RN-CM-017` y `RN-CM-018`, que se relacionan con esta operación de tres maneras opuestas: la hace cumplir, la sufre, y **la deja pasar a sabiendas**. De ahí salen `FA-004` y `CA-CM-084`, que afirman que el sistema **no impide** registrar un importe mayor que el precio de cualquier producto. | Responsable técnico |
+| **1.0.0** | 02-09-2026 | **Consolidación: el documento deja de contarse a sí mismo y pasa a describir lo que existe.** No cambia ni una regla, ni un campo, ni un criterio de aceptación — cambia **la voz**. Se retira el aviso de cabecera que obligaba a leer la historia del documento antes que el documento, y se reescriben en presente los pasajes que explicaban el diseño **por contraste con versiones anteriores** («la v0.2.0 citaba siete reglas», «el alta anterior tenía dos campos»): quien lea esto dentro de un año no ha visto aquellas versiones, y lo que necesita saber es por qué las reglas que faltan **viven en otro requerimiento**, que es lo que §5 y §10 dicen ahora sin nombrar ninguna versión. **La deuda no se borra: se salda y queda en esta tabla.** Las tres filas anteriores conservan íntegro el registro de que `0.2.0` se escribió después del código, invirtiendo el Art. I.6, y de que `0.3.0` volvió a ponerlo del derecho. | Responsable técnico |

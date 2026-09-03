@@ -24,11 +24,11 @@ class PermissionsSeedIT extends IntegrationTestBase {
 
   @Test
   @DisplayName(
-      "el catálogo tiene exactamente treinta y tres: veinticuatro de SP, cinco de PM y cuatro de"
-          + " CM")
+      "el catálogo tiene exactamente treinta y siete: veinticuatro de SP, cinco de PM, cuatro de"
+          + " CM y cuatro de MV")
   void catalogoCompleto() {
     assertThat(jdbc.queryForObject("SELECT count(*) FROM permissions", Integer.class))
-        .isEqualTo(33);
+        .isEqualTo(37);
   }
 
   @Test
@@ -53,7 +53,7 @@ class PermissionsSeedIT extends IntegrationTestBase {
   }
 
   @Test
-  @DisplayName("el catálogo sembrado coincide con requirements/sp.md §9")
+  @DisplayName("el catálogo sembrado coincide con sp.md §9, pm.md §4, cm.md §6 y mv.md §6")
   void coincideConElCatalogoAprobado() {
     List<String> codigos =
         jdbc.queryForList("SELECT code FROM permissions ORDER BY code", String.class);
@@ -75,6 +75,10 @@ class PermissionsSeedIT extends IntegrationTestBase {
             "currencies:update",
             "memberships:create",
             "memberships:read",
+            "movements:confirm",
+            "movements:create",
+            "movements:read",
+            "movements:void",
             "permissions:read",
             "products:create",
             "products:delete",
@@ -100,7 +104,7 @@ class PermissionsSeedIT extends IntegrationTestBase {
   void identificadoresUuidV7() {
     List<UUID> ids = jdbc.queryForList("SELECT id FROM permissions", UUID.class);
 
-    assertThat(ids).hasSize(33).doesNotHaveDuplicates();
+    assertThat(ids).hasSize(37).doesNotHaveDuplicates();
     assertThat(ids).allSatisfy(id -> assertThat(id.version()).isEqualTo(7));
     // variant() == 2 es la variante RFC 9562 (bits 10xx).
     assertThat(ids).allSatisfy(id -> assertThat(id.variant()).isEqualTo(2));

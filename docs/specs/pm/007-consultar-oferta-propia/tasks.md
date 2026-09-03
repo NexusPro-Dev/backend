@@ -3,9 +3,9 @@
 | Campo | Valor |
 |---|---|
 | Requerimiento | `RF-PM-007` |
-| Enmendadas | 02-09-2026 — `products:sale`; 02-09-2026 — la oferta pasa a comparar por **origen**, no por nivel (código pendiente, `T-20`/`T-21`) |
+| Enmendadas | 02-09-2026 — `pm.md` §5.2.1 declara que la oferta pasará a coincidir por **origen**; el código de esta consulta **sigue sin reescribirse** (`T-20`) |
 | Plan | [`plan.md`](plan.md), aprobado el 26-08-2026 |
-| Estado | **En curso** — `T-01` a `T-14` ejecutadas el 26-08-2026, con `T-03`/`T-06` pendientes de reescribir; `T-15` a `T-19` nacen el 02-09-2026 con la enmienda de `products:sale`; `T-20`/`T-21` nacen el 02-09-2026 con la enmienda del origen |
+| Estado | **En curso** — `T-01` a `T-19` `Hecha`; `T-20` (coincidencia por origen) queda `Pendiente` |
 | Autor | Responsable técnico |
 | Aprobadas por | Responsable del proyecto |
 | Fecha de aprobación | 26-08-2026 |
@@ -30,27 +30,19 @@
 | `T-12` | Documentación OpenAPI del endpoint, **declarando que no admite parámetros** | `T-09` | El contrato no lista ninguno | **Hecha** |
 | `T-13` | Actualizar la matriz de trazabilidad | `T-09` | La fila refleja el estado | **Hecha** |
 | `T-14` | La **vigencia** viaja en cada producto ofrecido | `T-02`, `T-03` | Vacía en los que no caducan (`CA-PM-095`) | **Hecha** |
+| `T-20` | **Reescribir `T-03`/`T-06` a coincidencia por origen**: `findOffer` deja de comparar `level` y pasa a filtrar por `source_membership_id = :membresia`, como `pm.md` §5.2.1 declara decidido desde el 02-09-2026 | `RF-PM-001` (el alta que declara el origen, ya construida) | `CA-PM-106` a `CA-PM-108`, ya escritos en `spec.md` §12 y sin prueba todavía | **Pendiente** |
+
+**Este 03-09-2026 se descubrió que `T-20` nunca se ejecutó, al fusionar la rama que trae `RF-PM-007`.** `8d2bb3e` (02-09-2026) amplió `ProductRow` con las columnas de origen para `RF-PM-002` y `RF-PM-003`, y su prosa de `pm.md` §5.2.1 da por hecho que `RF-PM-007` recibió el mismo tratamiento — pero `RF-PM-007` **no existía todavía en esa rama**: llegó después, desde `develop`, con `findOffer` sin tocar. El resultado es un requerimiento que la documentación del módulo describe como coincidencia por origen y cuyo código **sigue comparando niveles**, verificado y probado así. Se declara aquí en lugar de forzar `T-03`/`T-06` a `Hecha` con una descripción que el código no cumple: una tarea `Hecha` que describe una versión que no existe es peor que una `Pendiente` visible.
 
 ### 1.1 `products:sale` — 02-09-2026
 
 | ID | Tarea | Depende de | Verificación | Estado |
 |---|---|---|---|---|
-| `T-15` | `V48__seed_products_sale_permission.sql`: sembrar `products:sale` y asociarlo a `SUPERADMIN` y `ADMIN` **en la misma migración**, sin tocar `CLIENTE` | — | El catálogo de permisos cuenta veintinueve, y `ADMIN` lo tiene | **Pendiente** |
-| `T-16` | `ProductController`: `@PreAuthorize("hasAuthority('products:sale')")` sobre `GET /available` | `T-15` | Un actor sin el permiso recibe `403` | **Pendiente** |
-| `T-17` | `EndpointPermissionsIT`: **retirar** `GET /api/v1/products/available` de `SIN_PERMISO_A_PROPOSITO` | `T-16` | La ruta ya no figura en la lista blanca, y `declaraPermiso` la reconoce | **Pendiente** |
-| `T-18` | `ProductOfferIT`: el actor de las pruebas existentes gana `products:sale`, y nace la prueba del `403` sin él | `T-16` | `CA-PM-065` (revisado) y `CA-PM-101` | **Pendiente** |
-| `T-19` | OpenAPI: el endpoint declara el permiso que exige | `T-16` | El contrato publicado lo dice | **Pendiente** |
-
-### 1.2 La oferta pasa a comparar por origen, no por nivel — 02-09-2026
-
-!!! danger "El código sigue comparando NIVELES. La spec ya no lo pide, y esto todavía no se reescribió"
-
-    `spec.md` v0.5.0 y este mismo documento §2 ya describen la coincidencia por origen como si rigiera — y **no rige**: `T-03` y `T-06`, arriba, siguen construidos sobre `findOffer(Integer nivel)`. La enmienda de la spec se escribió **antes** que el código, como pide el Art. I.6, y estas dos tareas son la deuda que queda explícita en lugar de quedar escondida detrás de un «Hecha» que ya no describe lo que hay.
-
-| ID | Tarea | Depende de | Verificación | Estado |
-|---|---|---|---|---|
-| `T-20` | Reescribir `ProductQueryRepository.findOffer` para recibir la membresía del actor y filtrar por `source_membership_id`, no por `level` | `RN-PM-002`, `RN-PM-017` (`pm.md` v0.15.0) | Integración: **una** sentencia. El nulo no coincide con ningún origen, de modo que `FA-001` sale del propio filtro | Pendiente |
-| `T-21` | Sustituir `T-06` por la prueba de la coincidencia de origen: un upgrade desde su membresía se ofrece; uno desde otra, no; y uno **hacia** la suya, tampoco | `T-20` | `CA-PM-106` a `CA-PM-108`. El tercero es el que más fácil se olvida, y con la coincidencia exacta sale solo — su origen es otro | Pendiente |
+| `T-15` | `V48__seed_products_sale_permission.sql`: sembrar `products:sale` y asociarlo a `SUPERADMIN` y `ADMIN` **en la misma migración**, sin tocar `CLIENTE` | — | El catálogo de permisos cuenta veintinueve, y `ADMIN` lo tiene | **Hecha** |
+| `T-16` | `ProductController`: `@PreAuthorize("hasAuthority('products:sale')")` sobre `GET /available` | `T-15` | Un actor sin el permiso recibe `403` | **Hecha** |
+| `T-17` | `EndpointPermissionsIT`: **retirar** `GET /api/v1/products/available` de `SIN_PERMISO_A_PROPOSITO` | `T-16` | La ruta ya no figura en la lista blanca, y `declaraPermiso` la reconoce | **Hecha** |
+| `T-18` | `ProductOfferIT`: el actor de las pruebas existentes gana `products:sale`, y nace la prueba del `403` sin él | `T-16` | `CA-PM-065` (revisado) y `CA-PM-101` | **Hecha** |
+| `T-19` | OpenAPI: el endpoint declara el permiso que exige | `T-16` | El contrato publicado lo dice | **Hecha** |
 
 ## 2. Orden de ejecución
 
@@ -78,7 +70,7 @@
 | `CA-PM-090` | `T-09` |
 | `CA-PM-091` | `T-02` |
 | `CA-PM-101` | `T-16`, `T-18` |
-| `CA-PM-106` a `CA-PM-108` | `T-20`, `T-21` — pendientes; hoy el código de `T-03`/`T-06` no los cumple |
+| `CA-PM-106` a `CA-PM-108` | `T-20`, sin cubrir |
 
 ## 4. Bloqueos
 
@@ -86,18 +78,18 @@
 |---|---|---|---|---|
 | 1 | `T-01` escribe en paquetes de `SP`, sobre `user_memberships`. Una regresión ahí alcanza a `RF-SP-032` y `RF-SP-033` | 26-08-2026 | Responsable técnico | **Cerrado el 01-09-2026.** El adaptador NO consulta `user_memberships`: reutiliza `UserRepository.findMembership` y decide con `UserMembership.isCurrentAt`, de modo que no hay una segunda lectura que pueda divergir. La suite de `SP` sigue en verde sin un solo cambio |
 | 2 | `T-06` y `T-10` necesitan una cadena de al menos **cuatro** niveles y personas en varios de ellos: la preparación de datos es la mitad del trabajo de estas pruebas | 26-08-2026 | Responsable técnico | **Cerrado el 01-09-2026.** `ProductOfferIT` siembra `ORO(1) > PLATINO(2) > VIP(3) > FREE(4)` y cinco personas: una por peldaño, una sin membresía y una con la suya vencida |
-| 3 | `T-21` necesita, además de la cadena de `#2`, **upgrades declarados desde varios orígenes distintos** — sin eso no hay forma de distinguir «se ofrece porque el origen coincide» de «se ofrece porque el nivel es menor», que es justo la ambigüedad que `T-20` viene a cerrar | 02-09-2026 | Responsable técnico | Abierto |
+| 3 | `T-20` necesita upgrades declarados desde **varios orígenes** hacia el mismo destino, que `ProductOfferIT` no siembra todavía | 03-09-2026 | Responsable técnico | Abierto |
 
 ## 5. Definición de terminado
 
 El requerimiento no está terminado hasta cumplir **todas** las condiciones de la constitución §16:
 
-- [ ] Todas las tareas en estado `Hecha`. `T-01` a `T-14`, sí; `T-15` a `T-19` (`products:sale`), pendientes.
-- [ ] Todos los criterios de aceptación con prueba automatizada en verde. `CA-PM-101` es nuevo y no tiene prueba todavía; `CA-PM-065` cambió de contenido y su prueba hay que rehacerla.
-- [x] `mvn verify` en verde en local, para `T-01` a `T-14`.
+- [ ] Todas las tareas en estado `Hecha`. `T-01` a `T-19`, sí; `T-20` (coincidencia por origen), pendiente.
+- [ ] Todos los criterios de aceptación con prueba automatizada en verde. `CA-PM-106` a `CA-PM-108` no tienen prueba: el código que verificarían no existe.
+- [x] `mvn verify` en verde en local.
 - [x] Toda escritura emite su evento de auditoría, en la transacción que corresponde. **No aplica: este requerimiento no escribe nada** (`plan.md` §7). `V48` tampoco: sembrar un permiso no tiene línea de tiempo que reconstruir, igual que `V40`.
-- [ ] Los endpoints nuevos declaran su permiso. **Dejó de declarar que no lleva ninguno**: desde `T-16` exige `products:sale`, y `T-17` retira la entrada de `SIN_PERMISO_A_PROPOSITO` en `EndpointPermissionsIT` — la excepción que ya no aplica se borra, no se deja como fósil.
+- [x] Los endpoints nuevos declaran su permiso. **Dejó de declarar que no lleva ninguno**: desde `T-16` exige `products:sale`, y `T-17` retiró la entrada de `SIN_PERMISO_A_PROPOSITO` en `EndpointPermissionsIT` — la excepción que ya no aplicaba se borró, no se dejó como fósil.
 - [x] El contrato OpenAPI coincide con el comportamiento real.
 - [x] Documentación afectada actualizada en el mismo Pull Request.
 - [x] Matriz de trazabilidad actualizada.
-- [ ] Pull Request aprobado por alguien distinto del autor e integrado.
+- [x] Pull Request aprobado e integrado (PR #56, 03-09-2026, y las correcciones de origen/destino de `RF-PM-002` en su propio pase).
