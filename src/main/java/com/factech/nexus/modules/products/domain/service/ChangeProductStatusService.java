@@ -30,15 +30,15 @@ import org.springframework.transaction.annotation.Transactional;
  * <p><b>Es la operación más corta del módulo y la que concentra su invariante más caro.</b> Cambiar
  * una columna es trivial; lo que no lo es es que <b>`RN-PM-004` vive entera aquí</b>: desde que el
  * producto nace inactivo (`RN-PM-012`), esta es la <b>única</b> puerta por la que un upgrade puede
- * quedar activo, y por tanto el único sitio donde dos precios simultáneos para el mismo nivel
- * podrían entrar.
+ * quedar activo, y por tanto el único sitio donde dos precios simultáneos para la misma pareja
+ * origen→destino podrían entrar.
  *
  * <h2>La verificación previa NO es la garantía</h2>
  *
- * <p>Dos upgrades inactivos hacia el mismo nivel activados a la vez: las dos transacciones leen que
- * el destino está libre, las dos concluyen que pueden proceder, y sin nada más quedarían las dos
- * activas — que es exactamente el desenlace que la regla existe para impedir. Es la misma escritura
- * sesgada que `RN-SP-018` costó en `SP`.
+ * <p>Dos upgrades inactivos con la misma pareja origen→destino activados a la vez: las dos
+ * transacciones leen que la pareja está libre, las dos concluyen que pueden proceder, y sin nada
+ * más quedarían las dos activas — que es exactamente el desenlace que la regla existe para impedir.
+ * Es la misma escritura sesgada que `RN-SP-018` costó en `SP`.
  *
  * <p>Lo que lo impide es <b>{@code uq_products_upgrade_target}</b>. La verificación previa existe
  * para <b>redactar</b> —decir qué producto ocupa el destino, que es lo único accionable—; la
@@ -139,9 +139,9 @@ public class ChangeProductStatusService {
   }
 
   /**
-   * `RN-PM-004` — un solo upgrade activo por destino.
+   * `RN-PM-004` — un solo upgrade activo por pareja origen→destino.
    *
-   * <p><b>El mensaje nombra al producto que ocupa el destino.</b> Un {@code 409} que diga solo «ya
+   * <p><b>El mensaje nombra al producto que ocupa la pareja.</b> Un {@code 409} que diga solo «ya
    * hay uno» obliga a quien lo recibe a buscarlo, y es lo único que hace la respuesta accionable:
    * lo que el actor necesita saber es <b>cuál desactivar</b>.
    *
@@ -152,11 +152,12 @@ public class ChangeProductStatusService {
       return;
     }
     productos
-        .findActiveUpgradeFor(producto.getTargetMembershipId(), producto.getId())
+        .findActiveUpgradeFor(
+            producto.getSourceMembershipId(), producto.getTargetMembershipId(), producto.getId())
         .ifPresent(
             ocupante -> {
               String mensaje =
-                  "Ya hay un upgrade activo hacia esa membresía destino: '"
+                  "Ya hay un upgrade activo con ese mismo origen y destino: '"
                       + ocupante.getName()
                       + "' ("
                       + ocupante.getCode()

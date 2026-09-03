@@ -120,18 +120,21 @@ public class JpaProductRepository implements ProductRepository {
   }
 
   @Override
-  public Optional<Product> findActiveUpgradeFor(UUID targetMembershipId, UUID excluido) {
-    if (targetMembershipId == null) {
+  public Optional<Product> findActiveUpgradeFor(
+      UUID sourceMembershipId, UUID targetMembershipId, UUID excluido) {
+    if (sourceMembershipId == null || targetMembershipId == null) {
       return Optional.empty();
     }
     // Mismo predicado que `uq_products_upgrade_target`, y a propósito: si esta
     // lectura mirara un conjunto distinto del que el índice protege, el mensaje
-    // nombraría a un producto que no es el que va a provocar el rechazo.
+    // nombraría a un producto que no es el que va a provocar el rechazo. El
+    // índice es sobre la PAREJA (origen, destino), no solo el destino.
     return em
         .createQuery(
             """
             SELECT p FROM Product p
-             WHERE p.targetMembershipId = :destino
+             WHERE p.sourceMembershipId = :origen
+               AND p.targetMembershipId = :destino
                AND p.type = com.factech.nexus.modules.products.domain.models.ProductType
                             .UPGRADE_MEMBRESIA
                AND p.status = com.factech.nexus.modules.products.domain.models.ProductStatus.ACTIVO
@@ -139,6 +142,7 @@ public class JpaProductRepository implements ProductRepository {
                AND p.id <> :excluido
             """,
             Product.class)
+        .setParameter("origen", sourceMembershipId)
         .setParameter("destino", targetMembershipId)
         .setParameter("excluido", excluido)
         .setMaxResults(1)

@@ -77,15 +77,19 @@ public interface ProductRepository {
   Optional<Product> findByIdForUpdate(UUID id);
 
   /**
-   * El upgrade <b>activo</b> que ocupa ese destino, si lo hay (`RN-PM-004`).
+   * El upgrade <b>activo</b> que ocupa esa pareja origen→destino, si lo hay (`RN-PM-004`).
    *
    * <p>Existe para <b>redactar</b> el rechazo —nombrar cuál desactivar, que es lo único
    * accionable—, no para garantizarlo: entre esta lectura y la escritura cabe otra transacción. La
-   * garantía la da el índice único parcial.
+   * garantía la da el índice único parcial, y este predicado tiene que mirar exactamente lo mismo
+   * que él —la pareja completa, no solo el destino—, porque desde el 02-09-2026 la unicidad dejó de
+   * ser por destino: `FREE → ORO` y `VIP → ORO` son parejas distintas y las dos pueden estar
+   * activas a la vez.
    *
    * @param excluido el producto que se está activando, que no debe contarse a sí mismo
    */
-  Optional<Product> findActiveUpgradeFor(UUID targetMembershipId, UUID excluido);
+  Optional<Product> findActiveUpgradeFor(
+      UUID sourceMembershipId, UUID targetMembershipId, UUID excluido);
 
   /**
    * Vuelca los cambios pendientes y traduce lo que el índice rechace.
