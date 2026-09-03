@@ -387,6 +387,29 @@ class OpenApiContractIT extends IntegrationTestBase {
   }
 
   @Test
+  @DisplayName("la oferta propia se publica y NO declara parámetros de ningún tipo")
+  void laOfertaPropiaNoAdmiteParametros() throws Exception {
+    // `RF-PM-007` · `T-12`. `available` es un literal, no un identificador:
+    // admitir un parámetro convertiría esta consulta en «qué puede comprar
+    // fulano», que es una pregunta sobre un tercero que nadie ha decidido quién
+    // puede hacer. Que el contrato no liste ninguno es la forma comprobable de
+    // decirlo, y lo que impide que alguien añada uno sin pasar por la compuerta.
+    mvc.perform(get("/v3/api-docs").with(user("doc")))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.paths['/api/v1/products/available'].get").exists())
+        .andExpect(jsonPath("$.paths['/api/v1/products/available'].get.parameters").doesNotExist())
+        .andExpect(jsonPath("$.paths['/api/v1/products/available'].get.requestBody").doesNotExist())
+        // Ni el 403 ni el 404 le corresponden: no exige permiso y no hay
+        // recurso que pueda faltar.
+        .andExpect(
+            jsonPath("$.paths['/api/v1/products/available'].get.responses.403").doesNotExist())
+        .andExpect(
+            jsonPath("$.paths['/api/v1/products/available'].get.responses.404").doesNotExist())
+        // Y sigue siendo una ruta distinta de la del detalle, que sí exige permiso.
+        .andExpect(jsonPath("$.paths['/api/v1/products/{id}'].get").exists());
+  }
+
+  @Test
   @DisplayName("publica el contrato en docs/api/openapi.json, para que el frontend lo consuma")
   void publicaElContratoComoArchivoVersionado() throws Exception {
     // ADR-001. Hasta hoy el contrato no se publicaba en ninguna parte:

@@ -172,6 +172,100 @@ public class JpaProductQueryRepository implements ProductQueryRepository {
                     momento(fila.get("deleted_at"))));
   }
 
+  /**
+   * La oferta, en <b>una</b> sentencia (`RF-PM-007` · `T-03`, `T-04`).
+   *
+   * <h2>«Nivel superior» es número MENOR, y esta es la línea que decide el requerimiento</h2>
+   *
+   * <p>La cadena de membresías crece hacia abajo: {@code 1} es la cima (`requirements/sp.md`
+   * §10.4). De modo que ofrecer «hacia arriba» (`RN-PM-011`) es {@code m.level < :nivel}, con
+   * <b>menor estricto</b>. Escrito al revés, esta consulta pasaría todas las pruebas de camino
+   * feliz y ofrecería <b>exactamente lo contrario</b> —bajadas de nivel, cobrando por ellas—, que
+   * es el riesgo 1 del plan y el motivo de que `T-06` pruebe los tres casos: destino inferior,
+   * igual y superior.
+   *
+   * <p>El estricto es lo que implementa `CA-PM-060`: el upgrade hacia el nivel que la persona <b>ya
+   * tiene</b> no se ofrece, porque sería cobrarle por quedarse donde está.
+   *
+   * <h2>Sin nivel no es «sin filtro»</h2>
+   *
+   * <p>Con {@code :nivel} nulo, {@code m.level < NULL} evalúa a {@code NULL} y la fila <b>queda
+   * fuera</b> — que es justo lo que `FA-001` pide—. Aun así la condición se escribe con su {@code
+   * IS NOT NULL} <b>explícito</b> y delante: este proyecto ya pagó una vez por confiar en cómo se
+   * comporta el nulo dentro de una condición compuesta —{@code ck_deletion_reason} evaluaba a
+   * {@code NULL} y por tanto <b>aceptaba</b> la fila—, y en un {@code WHERE} el nulo excluye
+   * mientras que en un {@code CHECK} admite. Escribirlo dice cuál de los dos comportamientos se
+   * está usando, en lugar de dejar que quien lo lea tenga que recordarlo.
+   *
+   * <h2>El orden</h2>
+   *
+   * <p>Los upgrades primero y los bots después (`CA-PM-078`); dentro de los upgrades, por <b>nivel
+   * de destino</b> y no por precio ni por nombre, porque es el único orden en el que «subir»
+   * significa algo (`CA-PM-079`). {@code DESC} sobre el número es <b>del salto más corto al más
+   * largo</b>: quien está en el último peldaño ve primero el siguiente y al final la cima, que es
+   * el orden en el que se sube. Los bots, por fecha de alta.
+   */
+  @Override
+  @Transactional(readOnly = true)
+  public List<ProductRow> findOffer(Integer nivel) {
+    List<Tuple> filas =
+        em.createNativeQuery(
+                """
+                SELECT p.id AS id, p.code AS code, p.type AS type, p.name AS name,
+                       p.description AS description, p.icon AS icon,
+                       p.target_membership_id AS m_id, m.code AS m_code, m.name AS m_name,
+                       m.level AS m_level,
+                       p.price AS price, p.currency_id AS c_id, c.code AS c_code,
+                       c.decimal_places AS c_decimales,
+                       p.validity_days AS validity_days, p.status AS status,
+                       p.created_at AS created_at
+                  FROM products p
+                  LEFT JOIN memberships m ON m.id = p.target_membership_id
+                  LEFT JOIN currencies  c ON c.id = p.currency_id
+                 WHERE p.deleted_at IS NULL
+                   AND p.status = 'ACTIVO'
+                   AND ( p.type = 'BOT'
+                         OR ( CAST(:nivel AS integer) IS NOT NULL
+                              AND m.level < CAST(:nivel AS integer) ) )
+                 ORDER BY CASE WHEN p.type = 'UPGRADE_MEMBRESIA' THEN 0 ELSE 1 END,
+                          m.level DESC,
+                          p.created_at ASC,
+                          p.id ASC
+                """,
+                Tuple.class)
+            .setParameter("nivel", nivel)
+            .getResultList();
+
+    List<ProductRow> resultado = new ArrayList<>(filas.size());
+    for (Tuple fila : filas) {
+      resultado.add(
+          new ProductRow(
+              (UUID) fila.get("id"),
+              (String) fila.get("code"),
+              (String) fila.get("type"),
+              (String) fila.get("name"),
+              (String) fila.get("description"),
+              (String) fila.get("icon"),
+              (UUID) fila.get("m_id"),
+              (String) fila.get("m_code"),
+              (String) fila.get("m_name"),
+              entero(fila.get("m_level")),
+              (BigDecimal) fila.get("price"),
+              (UUID) fila.get("c_id"),
+              (String) fila.get("c_code"),
+              ((Number) fila.get("c_decimales")).intValue(),
+              entero(fila.get("validity_days")),
+              (String) fila.get("status"),
+              momento(fila.get("created_at")),
+              // Ni `updated_at` ni `deleted_at`: la oferta no los selecciona.
+              // El segundo es siempre nulo aquí —el predicado ya lo exige— y
+              // seleccionarlo para descartarlo sugeriría que puede no serlo.
+              null,
+              null));
+    }
+    return resultado;
+  }
+
   // ---------------------------------------------------------------------------
   // El predicado, en un solo sitio
   // ---------------------------------------------------------------------------
