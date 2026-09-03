@@ -143,16 +143,30 @@ class SystemRolesSeedIT extends IntegrationTestBase {
   }
 
   @Test
-  @DisplayName("ADMIN recibe todo SALVO audit:read-security y currencies:update")
+  @DisplayName("ADMIN recibe todo SALVO las dos reservas de V7 y los cuatro movements: de V51")
   void reservaDeSuperadmin() {
     // Sin esa reserva, ADMIN y SUPERADMIN serían indistinguibles salvo por ser
     // uno la raíz. La consecuencia se acepta: ADMIN no puede crear un rol que
     // declare un permiso que él no tiene, porque RN-SEG-003 lo rechazaría.
+    //
+    // La reserva creció el 02-09-2026 y la de MV NO ES DEL MISMO TIPO que las
+    // dos primeras, de modo que conviene que la prueba lo diga. `V7` reservó
+    // dos operaciones que solo hace el superadministrador; `V51` reserva el
+    // trabajo diario de la fuerza comercial, que cuelga entera de ADMIN. Con
+    // ADMIN fuera, RN-SEG-003 impide que MANAGER, DIRECTOR o AGENTE declaren
+    // `movements:create` — y esta cuenta es lo único que lo delata.
     List<String> deAdmin = permisosDe(ADMIN);
     Integer delCatalogo = jdbc.queryForObject("SELECT count(*) FROM permissions", Integer.class);
 
-    assertThat(deAdmin).doesNotContain("audit:read-security", "currencies:update");
-    assertThat(deAdmin).hasSize(delCatalogo - 2);
+    assertThat(deAdmin)
+        .doesNotContain(
+            "audit:read-security",
+            "currencies:update",
+            "movements:read",
+            "movements:create",
+            "movements:confirm",
+            "movements:void");
+    assertThat(deAdmin).hasSize(delCatalogo - 6);
   }
 
   @Test

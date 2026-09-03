@@ -1,0 +1,331 @@
+# SPEC — `RF-MV-001` Registrar una venta
+
+| Campo | Valor |
+|---|---|
+| Requerimiento | `RF-MV-001` |
+| Módulo | `MV` — Movimientos |
+| Versión | 0.1.0 |
+| Estado | **Aprobada** |
+| Autor | Responsable técnico |
+| Aprobada por | Responsable del proyecto |
+| Fecha de aprobación | 02-09-2026 |
+
+!!! info "Qué va en este documento"
+
+    **Qué debe pasar, y por qué.** Nada más.
+
+    **Prueba de pertenencia:** si un cambio de tecnología lo invalidaría, no pertenece aquí — va a `plan.md`. No se nombran tablas, clases, endpoints ni librerías.
+
+    Debe poder leerlo alguien del negocio y entenderlo completo. Es la primera compuerta del Art. I.6: hasta que no esté aprobada, no se escribe `plan.md`.
+
+---
+
+## 1. Objetivo
+
+Dejar constancia de **qué le vendió la empresa a un cliente**: qué productos, en qué cantidad, a qué precio y con qué vigencia, **atribuida al vendedor que le corresponde** — como un hecho que todavía **no está pagado**.
+
+## 2. Contexto
+
+Es el **primer requerimiento del módulo** y el que pone en el sistema el objeto que le faltaba. Hasta hoy el sistema sabe qué se vende (`PM`), quién vende (`SP`) y cuánto gana cada rol por cada producto (`CM`), y **no sabe qué se vendió**: `requirements/cm.md` §1.4 no liquida porque no hay ninguna tabla de ventas a la que aplicar un porcentaje.
+
+**Lo que esta operación registra no es un cobro.** La venta nace **pendiente**, que significa exactamente que alguien dijo que iba a pagar y nadie ha comprobado que pagara. No concede ningún nivel, no habilita ninguna cuenta y no comisiona (`RN-MV-004`). Confirmarla es otra operación, `RF-MV-003`.
+
+**Y lo que registra queda congelado.** El precio y la vigencia se **copian** del catálogo en el momento, y el vendedor se **toma del cliente** y se guarda. Ninguno de los tres se vuelve a leer: corregir mañana el precio de un producto, o reasignar un cliente a otro agente, **no puede cambiar lo que se vendió hoy** (`RN-MV-002`, `RN-MV-003`).
+
+!!! danger "El precio no se envía: se toma del catálogo, y esa es una decisión de negocio"
+
+    Quien registra la venta indica **qué productos y cuántos**, y **nunca cuánto cuestan**. Un precio que llega en la petición es **un precio que elige quien vende**, y eso tiene un nombre: es un descuento — que hoy no existe por decisión del responsable del proyecto (`requirements/mv.md` §1.3).
+
+    La consecuencia es que **el importe de la venta no es negociable en el momento de registrarla**. Si hace falta que lo sea, la salida es el descuento con su autorización y su rastro, y no un campo abierto en esta operación.
+
+## 3. Actores
+
+| Actor | Rol en esta funcionalidad |
+|---|---|
+| Funcionario | Registra la venta a nombre de un cliente. Es quien la teclea, y **no cobra nada por ella** |
+| Cliente | Es **el sujeto** de la venta, no el actor. Aquí no interviene; cuando compra él, la operación es `RF-MV-002` |
+| Vendedor | **Ni la pide ni la teclea**: el sistema lo deduce del cliente y lo congela. De él colgará la comisión |
+
+## 4. Alcance
+
+### 4.1 Incluye
+
+- Registrar una venta a nombre de un cliente, con **una o varias líneas**.
+- **Copiar** de cada producto su precio unitario y su vigencia en días.
+- **Deducir el vendedor** del cliente y congelarlo en la venta.
+- Calcular el total como la **suma de las líneas**, y con él el importe a pagar.
+- Emitir el **código del comprobante**.
+- Dejarla **pendiente de pago**.
+- Verificar que el cliente existe, que **puede comprar** y que cada producto está **en la oferta que le corresponde**.
+- Verificar las reglas de composición: un solo upgrade, sin productos repetidos, una sola moneda, y cantidad uno en los upgrades.
+- Dejar constancia del alta en la auditoría de cambios.
+
+### 4.2 No incluye
+
+- **Cobrar.** Ninguna pasarela interviene: la venta queda pendiente y el dinero se comprueba fuera del sistema.
+- **Confirmarla, rechazarla o anularla.** Son `RF-MV-003`, `RF-MV-004` y `RF-MV-005`.
+- **Conceder el nivel comprado.** Eso ocurre **al confirmar** y solo entonces (`RN-MV-004`).
+- **Que el cliente compre por su cuenta**, que es `RF-MV-002`.
+- **Descuentos e impuestos**: no existen (`requirements/mv.md` §1.3). El importe a pagar es siempre igual al total.
+- **Pagar con puntos**, que es la etapa 3 del módulo.
+- **Registrar un depósito**, que es la etapa 2 y es otra cosa: no lleva producto y no la origina una venta.
+
+## 5. Reglas de negocio aplicables
+
+| ID | Regla | Origen |
+|---|---|---|
+| `RN-MV-002` | Se copia lo que puede cambiar | `requirements/mv.md` §5.1 |
+| `RN-MV-003` | El vendedor sale del cliente y se congela | `requirements/mv.md` §5.1 |
+| `RN-MV-004` | Solo una venta confirmada produce efectos | `requirements/mv.md` §5.1 |
+| `RN-MV-006` | Solo se sube de nivel | `requirements/mv.md` §5.1 |
+| `RN-MV-007` | El producto tiene que estar en la oferta de quien compra | `requirements/mv.md` §5.1 |
+| `RN-MV-008` | A una cuenta en `FTD_PENDIENTE` no se le vende | `requirements/mv.md` §5.1 |
+| `RN-MV-009` | Una venta lleva al menos una línea | `requirements/mv.md` §5.1 |
+| `RN-MV-010` | Como mucho un upgrade por venta | `requirements/mv.md` §5.1 |
+| `RN-MV-011` | El mismo producto no se repite | `requirements/mv.md` §5.1 |
+| `RN-MV-012` | Todas las líneas comparten la moneda de la cabecera | `requirements/mv.md` §5.1 |
+| `RN-MV-013` | El total es la suma de las líneas, y se congela | `requirements/mv.md` §5.1 |
+| `RN-MV-014` | El importe respeta los decimales de su moneda | `requirements/mv.md` §5.1 |
+| `RN-MV-015` | La cantidad es uno en los upgrades | `requirements/mv.md` §5.1 |
+| `RN-MV-016` | Toda venta lleva un código legible | `requirements/mv.md` §5.1 |
+| `RN-MV-018` | Un método de pago desactivado no invalida lo pagado con él | `requirements/mv.md` §5.1 |
+| `RN-SP-026` | La cuenta registrada por enlace autentica y no opera | `requirements/sp.md` §5.1 |
+| `RN-PM-009` | Solo se ofrece lo activo | `requirements/pm.md` §5.1 |
+
+**Este requerimiento hace cumplir catorce de ellas y sufre las otras tres.** `RN-MV-004` no se comprueba aquí: se **respeta** dejando la venta pendiente. `RN-SP-026` y `RN-PM-009` son de otros módulos y este las consulta, no las evalúa — es `SP` quien dice en qué estado está la cuenta y `PM` quien dice qué se le puede ofrecer a esa persona.
+
+## 6. Datos
+
+### 6.1 Entrada
+
+| Dato | Obligatorio | Descripción | Restricción de negocio |
+|---|---|---|---|
+| Cliente | Sí | A nombre de quién es la venta | Debe existir, **no estar eliminado** y **no estar en `FTD_PENDIENTE`** (`RN-MV-008`) |
+| Método de pago | Sí | Con qué se va a pagar | Debe existir y estar activo (`RN-MV-018`) |
+| Líneas | Sí | Qué se vende | **Al menos una** (`RN-MV-009`), sin productos repetidos (`RN-MV-011`) |
+| — Producto | Sí | Cuál | Debe existir y **estar en la oferta del cliente** (`RN-MV-007`) |
+| — Cantidad | Sí | Cuántos | Entera y mayor que cero. **Uno**, si el producto es un upgrade (`RN-MV-015`) |
+| Fecha del hecho | No | Cuándo ocurrió la venta | Por omisión, **ahora**. **No puede estar en el futuro** |
+
+**Ni el precio, ni la vigencia, ni la moneda, ni el vendedor son datos de entrada**, y esa lista de ausencias es la mitad del diseño de esta operación:
+
+- **El precio y la vigencia** se copian del catálogo (§2). Enviarlos sería fijarlos.
+- **La moneda** es la del producto que se vende, y por eso `RN-MV-012` no es una comprobación contra un campo enviado sino contra **las líneas entre sí**: si dos productos vienen en monedas distintas, no hay ninguna venta posible que las contenga.
+- **El vendedor** sale del cliente (`RN-MV-003`). Pedirlo permitiría atribuirse la venta de otro, que es exactamente lo que congelarlo evita.
+
+**La fecha del hecho es el único campo opcional, y existe por un caso real**: un funcionario registra el lunes la venta que se cerró el sábado. Sin él, todo lo vendido lleva la fecha en que alguien tuvo tiempo de teclearlo, y esa fecha es además **la que sale impresa en el código del comprobante** (`RN-MV-016`).
+
+### 6.2 Salida
+
+| Dato | Descripción |
+|---|---|
+| Venta | La venta registrada, con su identificador y su **código de comprobante** |
+| Estado | **Pendiente**, siempre. No hay ningún camino por el que esta operación devuelva otra cosa |
+| Cliente resuelto | Quién compró, con su nombre, y no solo su identificador |
+| **Vendedor resuelto** | **A quién se le atribuye**, con su nombre. Es el dato que el actor no envió y que más le importa a quien mira la venta |
+| Líneas | Cada producto con su nombre, su cantidad, **el precio que se le copió**, la vigencia copiada y el importe de la línea |
+| Moneda | La de la venta, resuelta |
+| Importes | Total, descuento e importe a pagar |
+| Fecha del hecho | La que se registró, sea la enviada o la de ahora |
+
+**El vendedor se devuelve siempre**, y no es un adorno. Quien registra la venta **no lo eligió**, de modo que la respuesta es el único momento en que puede ver a quién acaba de atribuirse lo que vendió — y si es el equivocado, el problema está en la estructura comercial y no en esta venta.
+
+**El descuento se devuelve aunque valga siempre cero.** Omitirlo obligaría a añadirlo al contrato el día que exista, y a que todos los consumidores lo traten como opcional para siempre.
+
+## 7. Precondiciones y postcondiciones
+
+**Precondiciones**
+
+- El actor está autenticado y posee el permiso de creación de movimientos.
+- El cliente existe, **cuelga de un vendedor** y no está en `FTD_PENDIENTE`.
+- Existe al menos un producto en la oferta de ese cliente, y al menos un método de pago activo.
+
+**Postcondiciones**
+
+- La venta queda registrada **en estado pendiente**, con su código, sus líneas y su vendedor congelado.
+- La auditoría de cambios contiene un evento de creación con el estado inicial completo de la venta.
+- **Nadie ha subido de nivel, nadie ha cobrado y nadie ha comisionado.** Es la postcondición que conviene leer dos veces: registrar una venta no cambia absolutamente nada fuera de este módulo.
+
+## 8. Flujo principal
+
+1. El actor envía el cliente, el método de pago y las líneas.
+2. El sistema comprueba que el cliente existe y **que puede comprar**: ni eliminado, ni en `FTD_PENDIENTE`.
+3. El sistema resuelve **el vendedor del cliente** y lo retiene.
+4. El sistema comprueba la composición de las líneas: al menos una, sin productos repetidos, **como mucho un upgrade**, y cantidad uno en él.
+5. El sistema comprueba que **cada producto está en la oferta que le corresponde a ese cliente**.
+6. El sistema comprueba que **todos los productos comparten moneda**.
+7. El sistema **copia** de cada producto su precio unitario y su vigencia, y calcula el importe de cada línea.
+8. El sistema suma las líneas, fija el total y el importe a pagar, y comprueba que la escala corresponde a la moneda.
+9. El sistema emite el **código del comprobante** con la fecha del hecho.
+10. El sistema registra la venta **pendiente**, con su vendedor congelado, y emite el evento de auditoría de creación.
+11. El sistema devuelve la venta con su código, su vendedor resuelto y sus líneas con lo que se les copió.
+
+**El paso 5 va después del 4 a propósito.** Comprobar la oferta es lo más caro de la operación —hay que resolver qué puede comprar esa persona—, y hacerlo antes de saber si la petición está bien formada gastaría ese trabajo para rechazarla por un producto repetido.
+
+**El paso 3 va antes que todo lo demás que mira al cliente.** Si el cliente no cuelga de ningún vendedor la venta no se puede atribuir, y es mejor saberlo antes de resolver ofertas y precios.
+
+## 9. Flujos alternativos
+
+### FA-001 — Venta de varios bots
+
+**Cuándo ocurre:** todas las líneas son productos que no cambian de nivel.
+
+1. Se registra con normalidad, con tantas líneas como productos.
+2. **No hay ninguna comprobación de nivel**, porque no hay upgrade: `RN-MV-006` no aplica.
+3. Es el caso más común y se enumera para que quede claro que **una venta sin upgrade es una venta completa**, no una a medias.
+
+### FA-002 — Venta con un upgrade y varios bots
+
+**Cuándo ocurre:** una de las líneas cambia de nivel y las demás no.
+
+1. Se registra con normalidad. `RN-MV-010` permite **uno** y este es uno.
+2. La comprobación de nivel se hace **solo sobre esa línea**.
+3. Al confirmarse, esa línea será la que conceda el nivel, y las demás no harán nada.
+
+### FA-003 — El precio del producto cambia después de registrada la venta
+
+**Cuándo ocurre:** alguien corrige el precio en el catálogo al día siguiente.
+
+1. **La venta no cambia.** Lo que se copió, copiado está (`RN-MV-002`).
+2. Una venta del mismo producto registrada después llevará el precio nuevo, y las dos convivirán con importes distintos. **Eso es lo correcto**, y es la razón de ser de la copia.
+
+### FA-004 — El cliente se reasigna a otro vendedor después
+
+**Cuándo ocurre:** la estructura comercial cambia.
+
+1. **La venta sigue atribuida a quien la vendió** (`RN-MV-003`).
+2. Las ventas siguientes se atribuirán al vendedor nuevo. Esto es lo que impide que reorganizar la fuerza comercial en marzo cambie quién ganó por una venta de enero.
+
+### FA-005 — Se registra hoy una venta de una fecha anterior
+
+**Cuándo ocurre:** el actor envía la fecha del hecho.
+
+1. La venta se registra con esa fecha, y **el código del comprobante lleva ese día** y no el de hoy (`RN-MV-016`).
+2. Queda constancia de las dos fechas: cuándo ocurrió y cuándo se registró.
+
+## 10. Excepciones
+
+### EX-001 — El cliente no existe
+
+**Condición:** el identificador de cliente no corresponde a nadie, o la persona está eliminada.
+**Respuesta del sistema:** rechaza la venta diciendo que el cliente indicado no existe, y no registra nada.
+
+### EX-002 — El cliente está en `FTD_PENDIENTE`
+
+**Condición:** la cuenta se registró por enlace y su depósito no se ha confirmado.
+**Respuesta del sistema:** rechaza la venta diciendo que esa cuenta **todavía no puede operar**, y que lo que le falta es su depósito. **No se le vende y no se le deja a medias** (`RN-MV-008`).
+
+### EX-003 — El cliente no cuelga de ningún vendedor
+
+**Condición:** la persona existe y no tiene superior comercial.
+**Respuesta del sistema:** rechaza la venta diciendo que **no se puede atribuir**. `RN-SP-027` promete que esto no ocurre —ningún cliente se registra sin vendedor—, y esta excepción existe porque **una promesa de otro módulo no es una comprobación de este**: el día que falle, la venta tiene que negarse a existir en lugar de nacer sin dueño.
+
+### EX-004 — Un producto no está en la oferta del cliente
+
+**Condición:** el producto existe pero no es de los que esa persona puede comprar — está retirado, inactivo, o no le corresponde por su nivel.
+**Respuesta del sistema:** rechaza la venta **nombrando el producto**, y no registra ninguna línea.
+
+### EX-005 — El upgrade no sube de nivel
+
+**Condición:** el producto lleva a una membresía **igual o inferior** a la que el cliente ya tiene.
+**Respuesta del sistema:** rechaza la venta diciendo que esa membresía no está por encima de la actual. Se rechaza **al registrar y no al confirmar**, que es lo único que evita cobrarle a alguien por algo que no le da nada (`RN-MV-006`).
+
+### EX-006 — Dos upgrades en la misma venta
+
+**Condición:** dos líneas llevan a membresías.
+**Respuesta del sistema:** rechaza la venta diciendo que solo se admite un cambio de nivel por operación (`RN-MV-010`).
+
+### EX-007 — El mismo producto repetido
+
+**Condición:** dos líneas nombran el mismo producto.
+**Respuesta del sistema:** rechaza la venta pidiendo que se sumen en una sola línea (`RN-MV-011`).
+
+### EX-008 — Productos en monedas distintas
+
+**Condición:** las líneas no comparten moneda.
+**Respuesta del sistema:** rechaza la venta diciendo que una venta se cobra en una sola moneda. **No hay conversión posible**: el sistema no tiene ninguna tasa de cambio (`RN-MV-012`).
+
+### EX-009 — Cantidad distinta de uno en un upgrade
+
+**Condición:** la línea del upgrade pide dos o más.
+**Respuesta del sistema:** rechaza la venta diciendo que un cambio de nivel no admite cantidad (`RN-MV-015`).
+
+### EX-010 — El método de pago no existe o está inactivo
+
+**Condición:** el método indicado no está en el catálogo, o está desactivado.
+**Respuesta del sistema:** rechaza la venta. **Un método desactivado no invalida lo ya vendido con él** (`RN-MV-018`), pero tampoco sirve para vender hoy.
+
+### EX-011 — El producto no existe
+
+**Condición:** el identificador de producto no corresponde a nada.
+**Respuesta del sistema:** rechaza la venta diciendo que el producto indicado no existe. **Se distingue de `EX-004`** a propósito: quien escribió mal un identificador no debe buscar el error en la oferta.
+
+## 11. Validaciones
+
+| ID | Regla | Mensaje |
+|---|---|---|
+| `VAL-001` | Cliente obligatorio | El cliente de la venta es obligatorio. |
+| `VAL-002` | Método de pago obligatorio | El método de pago es obligatorio. |
+| `VAL-003` | Al menos una línea | Una venta debe llevar al menos un producto. |
+| `VAL-004` | Producto obligatorio en la línea | Cada línea debe indicar su producto. |
+| `VAL-005` | Cantidad mayor que cero | La cantidad de cada línea debe ser mayor que cero. |
+| `VAL-006` | Producto no repetido | Un producto no puede aparecer dos veces en la misma venta. |
+| `VAL-007` | Fecha del hecho no futura | La fecha de la venta no puede estar en el futuro. |
+
+**`VAL-006` es de entrada y no de negocio**, aunque `RN-MV-011` sea una regla: la repetición se ve **mirando la petición**, sin consultar nada, y rechazarla ahí ahorra resolver ofertas y precios de una venta que ya se sabe mal formada.
+
+**No hay validación de precio, de moneda ni de importe.** No se envían (§6.1), de modo que no hay nada que validar: lo que en otras operaciones sería una comprobación, aquí es **una ausencia de campo**.
+
+## 12. Criterios de aceptación
+
+| ID | Criterio |
+|---|---|
+| `CA-MV-001` | El sistema registra una venta de un producto y la devuelve **pendiente**, con su código de comprobante |
+| `CA-MV-002` | La venta devuelve **el vendedor resuelto**, que el actor no envió, y es el superior comercial del cliente |
+| `CA-MV-003` | El precio y la vigencia de cada línea son **los del catálogo en ese momento**, y **corregir el producto después no los cambia** |
+| `CA-MV-004` | El total es la suma de las líneas y **el importe a pagar es igual al total**, con el descuento en cero |
+| `CA-MV-005` | El sistema registra una venta de **varios productos**, incluida una con un upgrade y varios bots |
+| `CA-MV-006` | El código del comprobante lleva el prefijo del tipo, **el día de la fecha del hecho** y seis caracteres del alfabeto sin `I`, `L`, `O` ni `U` |
+| `CA-MV-007` | La venta **no cambia el nivel de nadie**: el cliente conserva su membresía después de registrarla |
+| `CA-MV-008` | El sistema rechaza vender a una cuenta en `FTD_PENDIENTE`, **diciendo que le falta el depósito** |
+| `CA-MV-009` | El sistema rechaza un cliente inexistente, y **lo distingue** de un cliente que no puede operar |
+| `CA-MV-010` | El sistema rechaza un producto **fuera de la oferta** del cliente, nombrándolo, y lo distingue de un producto inexistente |
+| `CA-MV-011` | El sistema rechaza un upgrade a una membresía **igual o inferior** a la vigente |
+| `CA-MV-012` | El sistema rechaza **dos upgrades** en la misma venta |
+| `CA-MV-013` | El sistema rechaza el **mismo producto repetido** y una cantidad mayor que uno en un upgrade |
+| `CA-MV-014` | El sistema rechaza productos en **monedas distintas** |
+| `CA-MV-015` | El sistema rechaza un método de pago inexistente o inactivo |
+| `CA-MV-016` | El sistema rechaza una venta **sin líneas**, sin cliente y con fecha futura |
+| `CA-MV-017` | El sistema rechaza la venta de un cliente **sin vendedor**, en lugar de registrarla sin atribución |
+| `CA-MV-018` | La auditoría de cambios contiene la creación con la instantánea completa, **incluido el vendedor congelado** |
+
+**`CA-MV-007` afirma que el sistema NO hace algo**, y es el criterio que sostiene todo el módulo. Sin él, la diferencia entre registrar y confirmar es una palabra en un documento; con él, es algo que falla si alguien la borra.
+
+**`CA-MV-003` se prueba corrigiendo el producto después**, y no solo comparando el precio al registrar. La copia solo se puede verificar cambiando el original: si la venta leyera el catálogo al mostrarse, un precio idéntico pasaría la prueba igual.
+
+## 13. Casos límite
+
+- **Un cliente sin membresía vigente:** no tiene oferta que resolver, de modo que **cualquier producto que se le intente vender cae en `EX-004`**. No es un caso especial de esta operación: es lo que `RF-PM-007` responde cuando no hay nivel del que partir.
+- **Una persona que no es cliente:** solo los consumidores tienen membresía (`RN-SP-018`), así que la venta a un funcionario o a un vendedor **se rechaza por la oferta**, no por una comprobación de rol propia. Se declara aquí porque el mensaje que verá quien lo intente hablará de la oferta y no del rol.
+- **La membresía del cliente vence entre registrar y confirmar:** la venta ya está registrada y **no se revalida al confirmar**. Es una consecuencia aceptada de que la comprobación sea del momento del registro, y la alternativa —revalidar— haría que una venta pagada pudiera rechazarse por algo que el cliente no controla.
+- **El producto se retira del catálogo entre registrar y confirmar:** igual. Lo vendido está copiado y `RN-PM-010` garantiza que el producto no desaparece nunca.
+- **Dos ventas simultáneas del mismo upgrade al mismo cliente:** **las dos se registran**, y no hay ninguna regla que lo impida — ninguna de las dos ha concedido nada todavía. El conflicto aparece al confirmar la segunda, y es `RF-MV-003` quien tiene que resolverlo.
+- **Una venta de importe cero:** posible si el producto es gratuito. Se registra con normalidad; `RN-PM-006` exige precio mayor que cero en el catálogo, de modo que hoy no puede ocurrir, y esta operación no añade una comprobación propia para algo que el catálogo ya impide.
+- **Una cantidad muy grande de un bot:** no hay tope. Nada acota cuántos bots caben en una venta, y ponerle un número aquí sería inventarlo.
+- **La fecha del hecho muy antigua:** se admite. Solo se rechaza el futuro, porque una venta que aún no ha ocurrido no es un hecho — y el pasado remoto es exactamente lo que hace falta para registrar lo que ya ocurrió.
+
+## 14. Preguntas abiertas
+
+| # | Pregunta | Responsable | Estado |
+|---|---|---|---|
+| — | Ninguna | — | — |
+
+**Queda declarado un condicionante que no es una pregunta de este requerimiento:** quién puede ver las ventas de quién depende de **D-22**, abierta. Esta operación **crea** ventas y no las lista, de modo que no la afecta; lo que puede tener que cambiar el día que D-22 se cierre es `RF-MV-006`.
+
+**Y queda declarado un bloqueo de implementación que no es de diseño:** este requerimiento **no se puede construir antes que `RF-SP-045`**, que es quien crea los clientes colgando de un vendedor y el estado `FTD_PENDIENTE`. Sin él, `EX-002` y `EX-003` no tienen nada que comprobar. No bloquea esta especificación.
+
+## 15. Control de cambios
+
+| Versión | Fecha | Cambio | Responsable |
+|---|---|---|---|
+| 0.1.0 | 02-09-2026 | Redacción inicial, sin preguntas abiertas. Es la primera tripleta del `MV` renacido, y la que fija cómo se comporta la venta: **nace pendiente**, **congela** precio, vigencia y vendedor, y **no acepta el precio como dato de entrada** — que es la decisión con más consecuencias de este documento, porque convierte «negociar el importe» en algo que no se puede hacer sin descuentos. Once excepciones, de las que tres —`EX-002`, `EX-005` y `EX-003`— existen para que la venta se niegue a nacer antes de cobrar en lugar de después. | Responsable técnico |
