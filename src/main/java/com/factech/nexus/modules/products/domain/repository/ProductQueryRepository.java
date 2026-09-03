@@ -37,6 +37,23 @@ public interface ProductQueryRepository {
   Optional<ProductRow> findDetail(UUID id);
 
   /**
+   * La oferta que le corresponde a quien mira desde ese nivel (`RF-PM-007` · `T-03`).
+   *
+   * <p><b>Una sola sentencia para los dos tipos</b>, y no dos consultas: el filtro que los separa
+   * es una condición, no una pregunta distinta, y dos sentencias acabarían con dos criterios de
+   * «activo» que divergen.
+   *
+   * <p>Devuelve <b>solo lo activo y no retirado</b> (`RN-PM-009`), en el orden que exigen
+   * `CA-PM-078` y `CA-PM-079`: primero los upgrades por nivel de destino, después los bots por
+   * fecha de alta. Quien la consume solo tiene que separar por tipo, sin reordenar.
+   *
+   * @param nivel el nivel de la membresía <b>vigente</b> del actor, o {@code null} si no tiene
+   *     ninguno. Nulo <b>no</b> significa «sin filtro»: significa que no hay peldaño desde el que
+   *     subir, y por tanto <b>cero upgrades</b> y todos los bots (`FA-001`, `FA-003`)
+   */
+  List<ProductRow> findOffer(Integer nivel);
+
+  /**
    * Proyección de un producto del listado.
    *
    * <p><b>{@code type} y {@code status} son texto y no sus enumerados.</b> La proyección es lo que

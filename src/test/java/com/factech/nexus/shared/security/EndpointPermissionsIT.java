@@ -70,6 +70,11 @@ class EndpointPermissionsIT extends IntegrationTestBase {
               + " autenticado. Nadie cambia la contraseña de otro por este camino». Cambiar la"
               + " ajena es `RF-SP-038`, y esa sí exige `users:reset-password`");
 
+  // `GET /api/v1/products/available` (`RF-PM-007`) figuraba aquí hasta el
+  // 02-09-2026: exigía solo estar autenticado. Desde `products:sale`
+  // declara su permiso como cualquier otro endpoint, y `declaraPermiso`
+  // la reconoce sin necesitar la excepción.
+
   /**
    * El mapeo de la aplicación, <b>por nombre</b>.
    *

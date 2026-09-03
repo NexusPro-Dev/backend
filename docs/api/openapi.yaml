@@ -3085,6 +3085,67 @@ paths:
           description: La persona no existe o está eliminada (`VAL-002`)
         "500":
           description: Fallo no controlado (`ERR-500`)
+  /api/v1/products/available:
+    get:
+      tags:
+      - Productos
+      summary: Consultar la oferta disponible para uno mismo
+      description: |
+        Devuelve lo que **quien llama** puede comprar hoy, y no el catálogo.
+
+        **No admite ningún parámetro**: ni de persona, ni de filtro, ni de
+        paginación. El actor sale del token, de modo que no hay forma de
+        preguntar qué puede comprar otra persona.
+
+        **Exige `products:sale`**, un permiso propio de esta vista y no
+        `products:read` — ese abre el catálogo administrativo entero, lo
+        inactivo, lo retirado y el motivo del retiro, para que alguien pudiera
+        ver tres líneas.
+
+        **Solo lo activo.** Ni lo inactivo ni lo retirado aparecen aquí,
+        aunque el catálogo de `RF-PM-002` sí los muestre a quien administra.
+
+        **Upgrades: todos los que llevan a un nivel superior**, no solo el
+        inmediato. Quien está en el peldaño más bajo ve todos los de arriba y
+        elige cuánto saltar; el precio de cada uno ya expresa el salto. Llegan
+        ordenados **del salto más corto al más largo**.
+
+        **El upgrade hacia el nivel que ya se tiene no se ofrece**, ni los que
+        llevan a niveles inferiores: sería cobrar por quedarse donde se está o
+        por bajar.
+
+        **Bots: todos los activos, para cualquiera.** No dependen del nivel de
+        quien mira ni de que tenga uno.
+
+        **Quien no tiene membresía vigente —incluida la vencida— no ve ningún
+        upgrade**, y sí todos los bots. No hay nivel desde el que subir, y
+        ofrecerle el primero sería venderle una membresía, que no es lo que un
+        upgrade hace.
+
+        **Quien está en la cima recibe la lista de upgrades vacía.** No es un
+        error ni un mensaje especial: es una lista vacía.
+
+        **El precio es el del producto, igual para todos.** Un importe
+        distinto según quién mira sería un descuento, y los descuentos son
+        promociones, que están fuera de alcance.
+
+        Las dos colecciones viajan **envueltas en un objeto** y no como
+        arreglos en la raíz: hoy la oferta no se pagina, y así el día que
+        haya que paginarla no romperá a ningún cliente.
+      operationId: oferta
+      responses:
+        "200":
+          description: "La oferta del actor, con el nivel desde el que mira."
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/OfferResponse"
+        "401":
+          description: Token ausente o inválido (`AUTH-001`)
+        "403":
+          description: Autenticado sin el permiso `products:sale` (`AUTH-002`)
+        "500":
+          description: Fallo no controlado (`ERR-500`)
   /api/v1/product-commission-rates:
     get:
       tags:
@@ -5070,6 +5131,50 @@ components:
           type: boolean
         sort:
           type: string
+    OfferItem:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        code:
+          type: string
+        type:
+          type: string
+          enum:
+          - UPGRADE_MEMBRESIA
+          - BOT
+        name:
+          type: string
+        description:
+          type: string
+        icon:
+          type: string
+        targetMembership:
+          $ref: "#/components/schemas/MembershipRef"
+        price:
+          type: number
+        currency:
+          $ref: "#/components/schemas/CurrencyRef"
+        validityDays:
+          type: integer
+          format: int32
+    OfferResponse:
+      type: object
+      properties:
+        currentMembership:
+          $ref: "#/components/schemas/MembershipRef"
+        upgrades:
+          $ref: "#/components/schemas/Offered"
+        services:
+          $ref: "#/components/schemas/Offered"
+    Offered:
+      type: object
+      properties:
+        content:
+          type: array
+          items:
+            $ref: "#/components/schemas/OfferItem"
     ListPermissionsRequest:
       type: object
       properties:

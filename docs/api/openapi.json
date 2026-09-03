@@ -882,6 +882,69 @@
         },
         "type" : "object"
       },
+      "OfferItem" : {
+        "properties" : {
+          "code" : {
+            "type" : "string"
+          },
+          "currency" : {
+            "$ref" : "#/components/schemas/CurrencyRef"
+          },
+          "description" : {
+            "type" : "string"
+          },
+          "icon" : {
+            "type" : "string"
+          },
+          "id" : {
+            "format" : "uuid",
+            "type" : "string"
+          },
+          "name" : {
+            "type" : "string"
+          },
+          "price" : {
+            "type" : "number"
+          },
+          "targetMembership" : {
+            "$ref" : "#/components/schemas/MembershipRef"
+          },
+          "type" : {
+            "enum" : [ "UPGRADE_MEMBRESIA", "BOT" ],
+            "type" : "string"
+          },
+          "validityDays" : {
+            "format" : "int32",
+            "type" : "integer"
+          }
+        },
+        "type" : "object"
+      },
+      "OfferResponse" : {
+        "properties" : {
+          "currentMembership" : {
+            "$ref" : "#/components/schemas/MembershipRef"
+          },
+          "services" : {
+            "$ref" : "#/components/schemas/Offered"
+          },
+          "upgrades" : {
+            "$ref" : "#/components/schemas/Offered"
+          }
+        },
+        "type" : "object"
+      },
+      "Offered" : {
+        "properties" : {
+          "content" : {
+            "items" : {
+              "$ref" : "#/components/schemas/OfferItem"
+            },
+            "type" : "array"
+          }
+        },
+        "type" : "object"
+      },
       "OwnProfileResponse" : {
         "properties" : {
           "email" : {
@@ -4269,6 +4332,35 @@
           }
         },
         "summary" : "Registrar un producto",
+        "tags" : [ "Productos" ]
+      }
+    },
+    "/api/v1/products/available" : {
+      "get" : {
+        "description" : "Devuelve lo que **quien llama** puede comprar hoy, y no el catálogo.\n\n**No admite ningún parámetro**: ni de persona, ni de filtro, ni de\npaginación. El actor sale del token, de modo que no hay forma de\npreguntar qué puede comprar otra persona.\n\n**Exige `products:sale`**, un permiso propio de esta vista y no\n`products:read` — ese abre el catálogo administrativo entero, lo\ninactivo, lo retirado y el motivo del retiro, para que alguien pudiera\nver tres líneas.\n\n**Solo lo activo.** Ni lo inactivo ni lo retirado aparecen aquí,\naunque el catálogo de `RF-PM-002` sí los muestre a quien administra.\n\n**Upgrades: todos los que llevan a un nivel superior**, no solo el\ninmediato. Quien está en el peldaño más bajo ve todos los de arriba y\nelige cuánto saltar; el precio de cada uno ya expresa el salto. Llegan\nordenados **del salto más corto al más largo**.\n\n**El upgrade hacia el nivel que ya se tiene no se ofrece**, ni los que\nllevan a niveles inferiores: sería cobrar por quedarse donde se está o\npor bajar.\n\n**Bots: todos los activos, para cualquiera.** No dependen del nivel de\nquien mira ni de que tenga uno.\n\n**Quien no tiene membresía vigente —incluida la vencida— no ve ningún\nupgrade**, y sí todos los bots. No hay nivel desde el que subir, y\nofrecerle el primero sería venderle una membresía, que no es lo que un\nupgrade hace.\n\n**Quien está en la cima recibe la lista de upgrades vacía.** No es un\nerror ni un mensaje especial: es una lista vacía.\n\n**El precio es el del producto, igual para todos.** Un importe\ndistinto según quién mira sería un descuento, y los descuentos son\npromociones, que están fuera de alcance.\n\nLas dos colecciones viajan **envueltas en un objeto** y no como\narreglos en la raíz: hoy la oferta no se pagina, y así el día que\nhaya que paginarla no romperá a ningún cliente.\n",
+        "operationId" : "oferta",
+        "responses" : {
+          "200" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/OfferResponse"
+                }
+              }
+            },
+            "description" : "La oferta del actor, con el nivel desde el que mira."
+          },
+          "401" : {
+            "description" : "Token ausente o inválido (`AUTH-001`)"
+          },
+          "403" : {
+            "description" : "Autenticado sin el permiso `products:sale` (`AUTH-002`)"
+          },
+          "500" : {
+            "description" : "Fallo no controlado (`ERR-500`)"
+          }
+        },
+        "summary" : "Consultar la oferta disponible para uno mismo",
         "tags" : [ "Productos" ]
       }
     },

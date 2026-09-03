@@ -6,6 +6,7 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import com.factech.nexus.IntegrationTestBase;
 import java.util.List;
+import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -22,6 +23,22 @@ import org.springframework.jdbc.core.JdbcTemplate;
 class AuditLogsSchemaIT extends IntegrationTestBase {
 
   @Autowired private JdbcTemplate jdbc;
+
+  @AfterEach
+  void limpiar() {
+    // `motivoCorto` y `asociacionSinMotivo` insertan por SQL directo, sin
+    // `actor_id`: una fila de verdad, escrita por la API, siempre lo lleva
+    // (`AuditActorProvider` la resuelve del actor autenticado). Filtrar por
+    // `IS NULL` limpia exactamente estas dos filas sintéticas y ninguna otra,
+    // sin tener que rastrear los `gen_random_uuid()` que las crean.
+    //
+    // Sin esto, las dos sobreviven al resto de la suite y `AuditQueryIT`
+    // —que cuenta filas sin filtrar por rol— las cuenta de más cuando esta
+    // clase corre antes: en Windows corre después (orden alfabético) y el
+    // defecto queda invisible; en el runner de CI (Linux) el orden es otro y
+    // la prueba falla con un número que no es el suyo.
+    jdbc.update("DELETE FROM audit_deletion_log WHERE actor_id IS NULL");
+  }
 
   // ---------------------------------------------------------------------------
   // audit_error_log

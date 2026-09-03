@@ -24,10 +24,11 @@ class PermissionsSeedIT extends IntegrationTestBase {
 
   @Test
   @DisplayName(
-      "el catálogo tiene exactamente treinta y dos: veinticuatro de SP, cuatro de PM y cuatro de CM")
+      "el catálogo tiene exactamente treinta y tres: veinticuatro de SP, cinco de PM y cuatro de"
+          + " CM")
   void catalogoCompleto() {
     assertThat(jdbc.queryForObject("SELECT count(*) FROM permissions", Integer.class))
-        .isEqualTo(32);
+        .isEqualTo(33);
   }
 
   @Test
@@ -78,6 +79,7 @@ class PermissionsSeedIT extends IntegrationTestBase {
             "products:create",
             "products:delete",
             "products:read",
+            "products:sale",
             "products:update",
             "roles:create",
             "roles:delete",
@@ -98,7 +100,7 @@ class PermissionsSeedIT extends IntegrationTestBase {
   void identificadoresUuidV7() {
     List<UUID> ids = jdbc.queryForList("SELECT id FROM permissions", UUID.class);
 
-    assertThat(ids).hasSize(32).doesNotHaveDuplicates();
+    assertThat(ids).hasSize(33).doesNotHaveDuplicates();
     assertThat(ids).allSatisfy(id -> assertThat(id.version()).isEqualTo(7));
     // variant() == 2 es la variante RFC 9562 (bits 10xx).
     assertThat(ids).allSatisfy(id -> assertThat(id.variant()).isEqualTo(2));

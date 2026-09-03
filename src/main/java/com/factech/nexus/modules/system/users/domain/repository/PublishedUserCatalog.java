@@ -1,33 +1,48 @@
 package com.factech.nexus.modules.system.users.domain.repository;
 
+import com.factech.nexus.modules.system.users.application.CurrentMembershipLookup;
 import com.factech.nexus.modules.system.users.application.SellerRoleCatalog;
 import com.factech.nexus.modules.system.users.application.UserCatalog;
 import jakarta.persistence.EntityManager;
 import jakarta.persistence.Tuple;
+import java.time.Clock;
+import java.time.OffsetDateTime;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Repository;
 import org.springframework.transaction.annotation.Transactional;
 
 /**
- * Adaptador de las dos interfaces que este submódulo <b>publica</b> hacia otros módulos (**D-25**).
+ * Adaptador de las tres interfaces que este submódulo <b>publica</b> hacia otros módulos
+ * (**D-25**).
  *
- * <p><b>Dos interfaces y un solo adaptador</b>, y eso no contradice a «una interfaz por lectura»:
+ * <p><b>Tres interfaces y un solo adaptador</b>, y eso no contradice a «una interfaz por lectura»:
  * lo que §15.2 separa son los <b>contratos</b>, para que añadir un método a uno no cambie el del
- * otro. Quién los implementa es una decisión interna de `SP`, y las dos lecturas salen de las
- * mismas dos tablas.
+ * otro. Quién los implementa es una decisión interna de `SP`, y las tres lecturas salen de las
+ * mismas tablas.
  *
  * <p>Proyecta a los modelos de lectura aquí dentro: si {@code User} saliera de estos métodos, el
  * otro módulo tendría una entidad JPA viva en las manos.
  */
 @Repository
-public class PublishedUserCatalog implements UserCatalog, SellerRoleCatalog {
+public class PublishedUserCatalog
+    implements UserCatalog, SellerRoleCatalog, CurrentMembershipLookup {
 
   private final EntityManager em;
+  private final UserRepository usuarios;
+  private final Clock reloj;
 
-  public PublishedUserCatalog(EntityManager em) {
+  @Autowired
+  public PublishedUserCatalog(EntityManager em, UserRepository usuarios) {
+    this(em, usuarios, Clock.systemUTC());
+  }
+
+  PublishedUserCatalog(EntityManager em, UserRepository usuarios, Clock reloj) {
     this.em = em;
+    this.usuarios = usuarios;
+    this.reloj = reloj;
   }
 
   @Override
@@ -94,6 +109,40 @@ public class PublishedUserCatalog implements UserCatalog, SellerRoleCatalog {
       throw new AmbiguousSellerRoleException(userId);
     }
     return vendedores.stream().findFirst();
+  }
+
+  /**
+   * La membresía vigente de la persona (`RF-PM-007` · `T-01`).
+   *
+   * <p><b>No escribe ni un {@code WHERE} de vigencia</b>, y eso es lo único importante de este
+   * método. Reutiliza {@link UserRepository#findMembership} —la misma lectura que usan `RF-SP-026`,
+   * `RF-SP-031` y `RF-SP-032`— y decide con {@link UserMembership#isCurrentAt}, que es donde vive
+   * la <b>única</b> definición de «vigente» del sistema y donde está fijado su borde por prueba:
+   * una fecha igual al instante consultado ya <b>no</b> está vigente.
+   *
+   * <p>Una consulta propia aquí sería una cuarta copia de esa comparación. Copiada bien, no aporta
+   * nada; copiada mal, devuelve un nivel que ya expiró y `PM` ofrece upgrades desde un peldaño en
+   * el que la persona ya no está — sin que nada falle.
+   *
+   * <p><b>La proyección descarta la fecha de fin</b> al cruzar la frontera: es el dato con el que
+   * `PM` podría rehacer la decisión que aquí se toma.
+   */
+  @Override
+  @Transactional(readOnly = true)
+  public Optional<CurrentMembershipView> currentMembershipOf(UUID userId) {
+    if (userId == null) {
+      return Optional.empty();
+    }
+    return usuarios
+        .findMembership(userId)
+        .filter(membresia -> membresia.isCurrentAt(OffsetDateTime.now(reloj)))
+        .map(
+            membresia ->
+                new CurrentMembershipView(
+                    membresia.membershipId(),
+                    membresia.code(),
+                    membresia.name(),
+                    membresia.level()));
   }
 
   /** Nombre y apellido, o nulo si no hay ninguno de los dos. */
