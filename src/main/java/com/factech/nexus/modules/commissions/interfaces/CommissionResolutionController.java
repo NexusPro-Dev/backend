@@ -18,13 +18,17 @@ import org.springframework.web.bind.annotation.RestController;
 /**
  * La resolución de la comisión efectiva (`RF-CM-005`).
  *
- * <p><b>Controlador aparte y no un método más del de tarifas</b>, porque es otro recurso: no
- * devuelve una tarifa del catálogo sino una respuesta calculada. Es el mismo corte que separó la
- * oferta propia del catálogo en `PM`.
+ * <p><b>Controlador aparte y no un método más del de tasas</b>, porque es otro recurso: no devuelve
+ * una tasa del catálogo sino una respuesta calculada. Es el mismo corte que separó la oferta propia
+ * del catálogo en `PM`.
+ *
+ * <p><b>Es el único sitio donde vive la precedencia de `RN-CM-004`</b>, y desde el 01-09-2026 son
+ * dos niveles y no cuatro. Reimplementarla en un consumidor es el defecto que devuelve resultados
+ * plausibles durante meses.
  */
 @Tag(
     name = "Comisiones",
-    description = "Tarifas de comisión: cuánto gana un rol vendedor, por producto y por persona.")
+    description = "Resolución de la comisión efectiva de una persona sobre un producto.")
 @RestController
 @RequestMapping("/api/v1/commissions")
 public class CommissionResolutionController {
@@ -40,16 +44,29 @@ public class CommissionResolutionController {
       description =
           """
           Responde **cuánto le corresponde a una persona por vender un producto un
-          día concreto**, y **por qué**: devuelve la tarifa que ganó y en qué grado
-          estaba declarada.
+          día concreto**, y **por qué**: devuelve la tasa que ganó y de cuál de las
+          dos piezas salió.
+
+          **La precedencia son dos niveles:** si la persona tiene una tasa
+          **personalizada** vigente ese día, es esa — **sin mirar el producto**. Si
+          no, la que su **rol vendedor** tenga **asociada a ese producto**.
 
           **Tres desenlaces, y ninguno es un error:**
 
-          - `RESUELTA`: hay tarifa. El porcentaje puede ser **cero**, y eso significa
-            «no comisiona» — es una decisión declarada.
-          - `SIN_TARIFA`: la persona vende y **nadie declaró** tarifa aplicable. El
+          - `RESUELTA`: hay tasa. `source` dice si fue `PERSONALIZADA` o `ROL`. El
+            porcentaje puede ser **cero**, y eso significa «no comisiona» — es una
+            decisión declarada.
+          - `SIN_TARIFA`: la persona vende y **no hay tasa aplicable**. La causa más
+            probable **no es que nadie la declarara**, sino que **nadie la asoció** a
+            ese producto: la tasa puede existir en el catálogo y no regir. El
             porcentaje llega **nulo y presente**, nunca cero.
-          - `NO_COMISIONA`: la persona **no porta ningún rol vendedor**.
+          - `NO_COMISIONA`: la persona **no porta rol vendedor** y **tampoco tiene
+            tasa personalizada**.
+
+          **`roleId` puede llegar nulo con `outcome` igual a `RESUELTA`**, y no es
+          incoherente: significa que ganó la tasa personalizada de alguien que ya no
+          porta rol vendedor. Las personalizadas dejaron de llevar rol el
+          01-09-2026, y **siguen rigiendo aunque su titular deje de vender**.
 
           **Nulo y cero no son lo mismo**, y quien consuma esto va a pagar con esa
           cifra.

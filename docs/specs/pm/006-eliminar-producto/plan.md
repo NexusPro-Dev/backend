@@ -65,7 +65,7 @@ Eliminación **lógica y con motivo** (Art. V.13). Lo que define esta operación
 
 | Recurso | ¿Se libera? | Por qué |
 |---|---|---|
-| El **destino** del upgrade | **Sí** | `uq_products_upgrade_target` es parcial `WHERE … deleted_at IS NULL`: la fila retirada deja de contar y otro upgrade puede activarse (`CA-PM-053`) |
+| La **pareja origen→destino** del upgrade | **Sí** | `uq_products_upgrade_target` es parcial `WHERE … deleted_at IS NULL`: la fila retirada deja de contar y otro upgrade **con esa misma pareja** puede activarse (`CA-PM-053`). Desde el 02-09-2026 lo que se libera es la pareja, no el destino a secas |
 | El **nombre** | **Sí** | `uq_products_name` también es parcial (`CA-PM-054`) |
 | El **código** | **No, nunca** | `uq_products_code` es una restricción **total** (`RN-PM-013`): el día que una factura diga `UPGRADE_ORO` tiene que resolver a un solo producto para siempre |
 

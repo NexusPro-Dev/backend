@@ -54,12 +54,15 @@ public class JpaProductQueryRepository implements ProductQueryRepository {
                p.description AS description, p.icon AS icon,
                p.target_membership_id AS m_id, m.code AS m_code, m.name AS m_name,
                m.level AS m_level,
+               p.source_membership_id AS s_id, s.code AS s_code, s.name AS s_name,
+               s.level AS s_level,
                p.price AS price, p.currency_id AS c_id, c.code AS c_code,
                c.decimal_places AS c_decimales,
                p.validity_days AS validity_days, p.status AS status,
                p.created_at AS created_at, p.deleted_at AS deleted_at
           FROM products p
           LEFT JOIN memberships m ON m.id = p.target_membership_id
+          LEFT JOIN memberships s ON s.id = p.source_membership_id
           LEFT JOIN currencies  c ON c.id = p.currency_id
          WHERE """
             // El espacio va aquí y no al final del bloque de texto: Java recorta
@@ -85,6 +88,10 @@ public class JpaProductQueryRepository implements ProductQueryRepository {
               (String) fila.get("name"),
               (String) fila.get("description"),
               (String) fila.get("icon"),
+              (UUID) fila.get("s_id"),
+              (String) fila.get("s_code"),
+              (String) fila.get("s_name"),
+              entero(fila.get("s_level")),
               (UUID) fila.get("m_id"),
               (String) fila.get("m_code"),
               (String) fila.get("m_name"),
@@ -132,6 +139,8 @@ public class JpaProductQueryRepository implements ProductQueryRepository {
                        p.description AS description, p.icon AS icon,
                        p.target_membership_id AS m_id, m.code AS m_code, m.name AS m_name,
                        m.level AS m_level,
+                       p.source_membership_id AS s_id, s.code AS s_code, s.name AS s_name,
+                       s.level AS s_level,
                        p.price AS price, p.currency_id AS c_id, c.code AS c_code,
                        c.decimal_places AS c_decimales,
                        p.validity_days AS validity_days, p.status AS status,
@@ -139,6 +148,7 @@ public class JpaProductQueryRepository implements ProductQueryRepository {
                        p.deleted_at AS deleted_at
                   FROM products p
                   LEFT JOIN memberships m ON m.id = p.target_membership_id
+                  LEFT JOIN memberships s ON s.id = p.source_membership_id
                   LEFT JOIN currencies  c ON c.id = p.currency_id
                  WHERE p.id = :id
                 """,
@@ -157,6 +167,10 @@ public class JpaProductQueryRepository implements ProductQueryRepository {
                     (String) fila.get("name"),
                     (String) fila.get("description"),
                     (String) fila.get("icon"),
+                    (UUID) fila.get("s_id"),
+                    (String) fila.get("s_code"),
+                    (String) fila.get("s_name"),
+                    entero(fila.get("s_level")),
                     (UUID) fila.get("m_id"),
                     (String) fila.get("m_code"),
                     (String) fila.get("m_name"),
@@ -246,6 +260,14 @@ public class JpaProductQueryRepository implements ProductQueryRepository {
               (String) fila.get("name"),
               (String) fila.get("description"),
               (String) fila.get("icon"),
+              // El origen no entra en esta sentencia: `findOffer` todavía
+              // compara por NIVEL (`T-03` de la tripleta) y no por origen. La
+              // reescritura que lo cambie es `T-20`, pendiente — hasta
+              // entonces el registro no tiene de dónde tomar estos cuatro.
+              null,
+              null,
+              null,
+              null,
               (UUID) fila.get("m_id"),
               (String) fila.get("m_code"),
               (String) fila.get("m_name"),
@@ -295,6 +317,9 @@ public class JpaProductQueryRepository implements ProductQueryRepository {
     if (filtros.targetMembershipId() != null) {
       donde.append(" AND p.target_membership_id = :destino");
     }
+    if (filtros.sourceMembershipId() != null) {
+      donde.append(" AND p.source_membership_id = :origen");
+    }
     if (filtros.search() != null) {
       // La normalización la hace LA BASE DE DATOS, con la misma función que
       // alimenta `ix_products_busqueda`: normalizar en Java produce un
@@ -318,6 +343,9 @@ public class JpaProductQueryRepository implements ProductQueryRepository {
     }
     if (filtros.targetMembershipId() != null) {
       consulta.setParameter("destino", filtros.targetMembershipId());
+    }
+    if (filtros.sourceMembershipId() != null) {
+      consulta.setParameter("origen", filtros.sourceMembershipId());
     }
     if (filtros.search() != null) {
       consulta.setParameter("termino", "%" + escapar(filtros.search()) + "%");

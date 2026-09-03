@@ -124,10 +124,13 @@ insertadas AS (
     FROM personas p
   RETURNING id, username
 )
-INSERT INTO user_roles (user_id, role_id)
-SELECT i.id, p.rol_id
+-- `role_type` se copia DEL ROL (`RN-SP-025`, `V52`): la clave foranea compuesta
+-- no admite otra cosa, y aportarlo desde aqui seria poder mentir.
+INSERT INTO user_roles (user_id, role_id, role_type)
+SELECT i.id, r.id, r.role_type
   FROM insertadas i
-  JOIN personas p ON p.usuario = i.username;
+  JOIN personas p ON p.usuario = i.username
+  JOIN roles r ON r.id = p.rol_id;
 
 
 

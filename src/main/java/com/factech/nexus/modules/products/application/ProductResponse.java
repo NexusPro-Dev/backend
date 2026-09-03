@@ -29,6 +29,7 @@ public record ProductResponse(
     String name,
     String description,
     String icon,
+    MembershipRef sourceMembership,
     MembershipRef targetMembership,
     BigDecimal price,
     CurrencyRef currency,
@@ -37,7 +38,7 @@ public record ProductResponse(
     OffsetDateTime createdAt,
     OffsetDateTime updatedAt) {
 
-  /** La membresía destino, resuelta. Nula y presente en los bots. */
+  /** Las membresías de origen y destino, resueltas. Nulas y presentes en los bots. */
   @JsonInclude(JsonInclude.Include.ALWAYS)
   public record MembershipRef(UUID id, String code, String name, int level) {}
 
@@ -46,7 +47,7 @@ public record ProductResponse(
   public record CurrencyRef(UUID id, String code, int decimalPlaces) {}
 
   public static ProductResponse from(
-      Product producto, MembershipView destino, CurrencyView moneda) {
+      Product producto, MembershipView origen, MembershipView destino, CurrencyView moneda) {
     return new ProductResponse(
         producto.getId(),
         producto.getCode(),
@@ -54,15 +55,26 @@ public record ProductResponse(
         producto.getName(),
         producto.getDescription(),
         producto.getIcon(),
-        destino == null
-            ? null
-            : new MembershipRef(destino.id(), destino.code(), destino.name(), destino.level()),
+        ref(origen),
+        ref(destino),
         enLaEscalaDe(producto.getPrice(), moneda),
         new CurrencyRef(moneda.id(), moneda.code(), moneda.decimalPlaces()),
         producto.getValidityDays(),
         producto.getStatus(),
         enUtc(producto.getCreatedAt()),
         enUtc(producto.getUpdatedAt()));
+  }
+
+  /**
+   * Nula y PRESENTE cuando no hay membresía, que es siempre el caso en un bot.
+   *
+   * <p>Un campo que desaparece del resultado es indistinguible de uno que el cliente no conoce, y
+   * aquí la ausencia significa algo: este producto no cambia de nivel a nadie.
+   */
+  private static MembershipRef ref(MembershipView vista) {
+    return vista == null
+        ? null
+        : new MembershipRef(vista.id(), vista.code(), vista.name(), vista.level());
   }
 
   /**

@@ -52,7 +52,7 @@ class OwnCredentialsIT extends IntegrationTestBase {
     limpiar();
     juan = crearPersona("jperez", "juan.perez@factech.co");
     jdbc.update(
-        "INSERT INTO user_roles (user_id, role_id) VALUES (?, ?)",
+        "INSERT INTO user_roles (user_id, role_id, role_type) SELECT ?, r.id, r.role_type FROM roles r WHERE r.id = ?",
         juan,
         crearRolAcotado(jdbc, CODIGO_ACOTADO, "Auditoría acotada"));
   }
@@ -82,7 +82,7 @@ class OwnCredentialsIT extends IntegrationTestBase {
         """,
         SUPERADMIN);
     jdbc.update(
-        "INSERT INTO user_roles (user_id, role_id) VALUES (?, ?::uuid) ON CONFLICT DO NOTHING",
+        "INSERT INTO user_roles (user_id, role_id, role_type) SELECT ?, r.id, r.role_type FROM roles r WHERE r.id = ?::uuid ON CONFLICT DO NOTHING",
         SUPERADMIN,
         SUPERADMIN_ROL);
   }
@@ -391,8 +391,14 @@ class OwnCredentialsIT extends IntegrationTestBase {
   @DisplayName("CA-SP-449 — devuelve el superior comercial y NUNCA el equipo")
   void soloElSuperior() throws Exception {
     UUID manager = crearPersona("elmanager", "mgr@factech.co");
-    jdbc.update("INSERT INTO user_roles (user_id, role_id) VALUES (?, ?::uuid)", manager, MANAGER);
-    jdbc.update("INSERT INTO user_roles (user_id, role_id) VALUES (?, ?::uuid)", juan, DIRECTOR);
+    jdbc.update(
+        "INSERT INTO user_roles (user_id, role_id, role_type) SELECT ?, r.id, r.role_type FROM roles r WHERE r.id = ?::uuid",
+        manager,
+        MANAGER);
+    jdbc.update(
+        "INSERT INTO user_roles (user_id, role_id, role_type) SELECT ?, r.id, r.role_type FROM roles r WHERE r.id = ?::uuid",
+        juan,
+        DIRECTOR);
     jdbc.update(
         "INSERT INTO user_supervisors (id, user_id, supervisor_id, started_at) VALUES (gen_random_uuid(), ?, ?, now())",
         juan,

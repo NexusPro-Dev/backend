@@ -1,5 +1,6 @@
 package com.factech.nexus.modules.products.application;
 
+import java.math.BigDecimal;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -16,9 +17,9 @@ import java.util.UUID;
  * retirado no se declaran tarifas nuevas (`RN-CM-010`) y quien escribió bien el identificador no
  * debe buscar el error donde no está. Devolver vacío para el retirado colapsaría los dos casos.
  *
- * <p><b>No viaja el precio ni la moneda.</b> Una interfaz por lectura y no una fachada: quien
- * necesite el importe de un producto pedirá su propia lectura, y así añadirlo no cambiará este
- * contrato ni sus dobles de prueba.
+ * <p><b>El precio no viaja en {@link ProductView}, y la moneda sigue sin viajar.</b> Una interfaz
+ * por lectura y no una fachada: quien necesita el importe de un producto pide su propia lectura
+ * —{@link #findPrice}, desde `cm.md` v0.8.0— sin que este contrato ni sus dobles de prueba cambien.
  */
 public interface ProductCatalog {
 
@@ -28,6 +29,18 @@ public interface ProductCatalog {
    * @param id identificador del producto; un valor nulo devuelve vacío en lugar de fallar
    */
   Optional<ProductView> find(UUID id);
+
+  /**
+   * El precio del producto, si existe. Nadie más necesita este dato, y por eso no viaja en {@link
+   * ProductView} — es la lectura propia que el Javadoc de esta interfaz ya anticipaba (`RN-CM-019`,
+   * `requirements/cm.md` v0.8.0).
+   *
+   * <p><b>No filtra por retirado</b>, igual que {@link #find}: comprobar el tope de un producto ya
+   * asociado y luego retirado es legítimo (`RN-CM-010` prohíbe declarar, no conservar).
+   *
+   * @param id identificador del producto; un valor nulo devuelve vacío en lugar de fallar
+   */
+  Optional<BigDecimal> findPrice(UUID id);
 
   /** Lo que cruza la frontera: datos planos, sin comportamiento y sin entidad. */
   record ProductView(UUID id, String code, String name, boolean retired) {}

@@ -30,6 +30,7 @@ class ProductTest {
   private static final OffsetDateTime AHORA =
       OffsetDateTime.of(2026, 8, 27, 12, 0, 0, 0, ZoneOffset.UTC);
   private static final UUID DESTINO = UUID.randomUUID();
+  private static final UUID ORIGEN = UUID.randomUUID();
   private static final UUID MONEDA = UUID.randomUUID();
 
   @Test
@@ -84,6 +85,7 @@ class ProductTest {
                     "Asesoría",
                     null,
                     null,
+                    null,
                     DESTINO,
                     new BigDecimal("49.99"),
                     MONEDA,
@@ -110,6 +112,7 @@ class ProductTest {
             "Ascenso mensual",
             null,
             null,
+            ORIGEN,
             DESTINO,
             new BigDecimal("19.99"),
             MONEDA,
@@ -129,6 +132,7 @@ class ProductTest {
             ProductType.BOT,
             "  Asesoría personalizada  ",
             "   ",
+            null,
             null,
             null,
             new BigDecimal("10.00"),
@@ -206,6 +210,7 @@ class ProductTest {
             "  Una hora con un asesor.  ",
             null,
             null,
+            null,
             new BigDecimal("49.99"),
             MONEDA,
             null,
@@ -253,6 +258,7 @@ class ProductTest {
             "Ascenso a Oro",
             "Sube al nivel oro.",
             null,
+            ORIGEN,
             DESTINO,
             new BigDecimal("49.99"),
             MONEDA,
@@ -354,6 +360,7 @@ class ProductTest {
             "Una hora con un asesor.",
             null,
             null,
+            null,
             new BigDecimal("49.99"),
             MONEDA,
             30,
@@ -383,6 +390,7 @@ class ProductTest {
             ProductType.BOT,
             "Asesoría",
             "Una hora con un asesor.",
+            null,
             null,
             null,
             new BigDecimal("49.99"),
@@ -446,6 +454,7 @@ class ProductTest {
                     "Asesoría",
                     null,
                     "crown",
+                    null,
                     null,
                     new BigDecimal("49.99"),
                     MONEDA,
@@ -552,6 +561,7 @@ class ProductTest {
         "Ascenso a Oro",
         null,
         icono,
+        ORIGEN,
         DESTINO,
         new BigDecimal("49.99"),
         MONEDA,
@@ -560,6 +570,10 @@ class ProductTest {
   }
 
   private static Product upgrade(String codigo, UUID destino) {
+    return upgrade(codigo, ORIGEN, destino);
+  }
+
+  private static Product upgrade(String codigo, UUID origen, UUID destino) {
     return Product.create(
         UUID.randomUUID(),
         codigo,
@@ -567,6 +581,7 @@ class ProductTest {
         "Ascenso a Oro",
         null,
         null,
+        origen,
         destino,
         new BigDecimal("49.99"),
         MONEDA,
@@ -580,6 +595,7 @@ class ProductTest {
         codigo,
         ProductType.BOT,
         "Asesoría",
+        null,
         null,
         null,
         null,

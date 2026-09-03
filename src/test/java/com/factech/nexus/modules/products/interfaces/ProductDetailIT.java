@@ -48,6 +48,7 @@ class ProductDetailIT extends IntegrationTestBase {
   @Autowired private JdbcTemplate jdbc;
 
   private UUID oro;
+  private UUID free;
   private UUID upgrade;
   private UUID bot;
 
@@ -57,6 +58,10 @@ class ProductDetailIT extends IntegrationTestBase {
     jdbc.update("DELETE FROM memberships");
     jdbc.update("DELETE FROM currencies WHERE is_default = false");
     oro = membresia("ORO", "Oro", 1);
+    // El SUELO de la cadena: es el origen de todo upgrade que se siembre
+    // aqui. Va encadenado bajo `oro` porque `uq_memberships_parent` es
+    // UNIQUE NULLS NOT DISTINCT — dos raices revientan en el COMMIT.
+    free = membresia("FREE", "Free", 2, oro);
 
     upgrade = producto("UPGRADE_ORO", "UPGRADE_MEMBRESIA", "Ascenso a Oro", oro, "49.99", 30, USD);
     bot = producto("SOPORTE", "BOT", "Soporte prioritario", null, "99.50", null, USD);
@@ -271,13 +276,19 @@ class ProductDetailIT extends IntegrationTestBase {
   }
 
   private UUID membresia(String codigo, String nombre, int nivel) {
+    return membresia(codigo, nombre, nivel, null);
+  }
+
+  private UUID membresia(String codigo, String nombre, int nivel, UUID superior) {
     UUID id = UUID.randomUUID();
     jdbc.update(
         "INSERT INTO memberships (id, code, name, parent_membership_id, level, color)"
-            + " VALUES (?, ?, ?, NULL, ?, upper(lpad(to_hex(? * 4919), 6, '0')))",
-        id,
+            + " VALUES (CAST(? AS uuid), ?, ?, CAST(? AS uuid), ?,"
+            + " upper(lpad(to_hex(? * 4919), 6, '0')))",
+        id.toString(),
         codigo,
         nombre,
+        superior == null ? null : superior.toString(),
         nivel,
         nivel);
     return id;
@@ -303,15 +314,22 @@ class ProductDetailIT extends IntegrationTestBase {
       String moneda) {
 
     UUID id = UUID.randomUUID();
+    // Origen y destino VIAJAN JUNTOS: un upgrade declara los dos
+    // (`RN-PM-002`) y un bot no declara ninguno. Por eso el origen se
+    // deriva del destino en lugar de ser un parametro mas — nunca puede
+    // quedar uno sin el otro, que es lo que `ck_products_type_target` mira.
     jdbc.update(
-        "INSERT INTO products (id, code, type, name, description, target_membership_id, price,"
+        "INSERT INTO products (id, code, type, name, description, source_membership_id,"
+            + " target_membership_id, price,"
             + " currency_id, validity_days, status, created_at, updated_at)"
-            + " VALUES (CAST(? AS uuid), ?, ?, ?, NULL, CAST(? AS uuid), CAST(? AS numeric),"
+            + " VALUES (CAST(? AS uuid), ?, ?, ?, NULL,"
+            + " CAST(? AS uuid), CAST(? AS uuid), CAST(? AS numeric),"
             + " CAST(? AS uuid), CAST(? AS integer), 'INACTIVO', ?, ?)",
         id.toString(),
         codigo,
         tipo,
         nombre,
+        destino == null ? null : free.toString(),
         destino == null ? null : destino.toString(),
         precio,
         moneda,

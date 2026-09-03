@@ -4,6 +4,7 @@
 |---|---|
 | Requerimiento | `RF-PM-005` |
 | Plan | [`plan.md`](plan.md), aprobado el 26-08-2026 |
+| Enmendadas | 02-09-2026 — `RN-PM-004` se cuenta **por pareja origen→destino** |
 | Estado | **Aprobadas** |
 | Autor | Responsable técnico |
 | Aprobadas por | Responsable del proyecto |
@@ -17,15 +18,15 @@
 |---|---|---|---|---|
 | `T-01` | `Product.activate()` y `Product.deactivate()`: devuelven **si hubo cambio** | `RF-PM-001 · T-03` | Unitaria: activar uno ya activo devuelve «sin cambio», no una excepción | Hecha |
 | `T-02` | Comprobación de `RN-PM-014`: **no se activa sin descripción** | `T-01` | Integración: `400` con `VAL-003`, y admitido en cuanto `RF-PM-004` la pone | Hecha |
-| `T-03` | Comprobación de `RN-PM-004` al activar un upgrade, **con el nombre del producto que ocupa el destino** en el mensaje | `T-01` | El `409` dice cuál desactivar. Un `409` sin ese nombre no es accionable | Hecha |
+| `T-03` | Comprobación de `RN-PM-004` al activar un upgrade, **con el nombre del producto que ocupa la pareja origen→destino** en el mensaje | `T-01` | El `409` dice cuál desactivar. Un `409` sin ese nombre no es accionable. **Y dos parejas distintas hacia el mismo destino no chocan**: es lo que el origen existe para permitir | Hecha |
 | `T-04` | Traducción de `uq_products_upgrade_target` **por nombre de restricción** a `EX-002`, con `flush` explícito | `RF-PM-001 · T-09` | Integración: la violación produce el mismo `409` que la comprobación previa. **La restricción decide, la comprobación redacta** | Hecha |
-| `T-05` | `domain/service/ChangeProductStatusService` con el orden de `plan.md` §5 | `T-02`, `T-03`, `T-04` | Desactivar **no ejecuta** la comprobación del destino | Hecha |
+| `T-05` | `domain/service/ChangeProductStatusService` con el orden de `plan.md` §5 | `T-02`, `T-03`, `T-04` | Desactivar **no ejecuta** la comprobación de las membresías | Hecha |
 | `T-06` | Auditoría: evento `UPDATE` con `status` y su valor anterior; **ninguno** si no hubo cambio | `T-05` | `audit_change_log` no crece con una petición que no cambia nada (`CA-PM-044`) | Hecha |
 | `T-07` | `interfaces`: `PATCH /api/v1/products/{id}/status` con `products:update` | `T-05`, `T-06` | Recurso propio, no un campo del `PATCH` general | Hecha |
 | `T-08` | Pruebas de API de los criterios de `spec.md` §12 | `T-07` | Cubre `CA-PM-040` a `CA-PM-047`, `CA-PM-072`, `CA-PM-073` y `CA-PM-085` | Hecha |
-| `T-09` | Prueba de que en un **bot** la comprobación del destino **no se ejecuta** | `T-07` | Número de sentencias: se comprueba la ausencia, no solo que no falle | Hecha |
-| `T-10` | **Prueba concurrente: dos activaciones simultáneas hacia el mismo destino** | `T-07` | **Exactamente uno** queda activo y el otro recibe `409`. No basta con que hubiera un `409`: hay que contar cuántos quedaron activos | Hecha |
-| `T-11` | Prueba concurrente: desactivar el que ocupa el destino mientras otro se activa | `T-07` | Cualquiera de los dos desenlaces vale; lo que no vale es que no quede **ninguno** activo | Hecha |
+| `T-09` | Prueba de que en un **bot** la comprobación de las membresías **no se ejecuta** | `T-07` | Número de sentencias: se comprueba la ausencia, no solo que no falle | Hecha |
+| `T-10` | **Prueba concurrente: dos activaciones simultáneas de la misma pareja** | `T-07` | **Exactamente uno** queda activo y el otro recibe `409`. No basta con que hubiera un `409`: hay que contar cuántos quedaron activos | Hecha |
+| `T-11` | Prueba concurrente: desactivar el que ocupa la pareja mientras otro se activa | `T-07` | Cualquiera de los dos desenlaces vale; lo que no vale es que no quede **ninguno** activo | Hecha |
 | `T-12` | Documentación OpenAPI del endpoint | `T-08` | El contrato declara el `200`, el `400` y el `409` | Hecha |
 | `T-13` | Actualizar la matriz de trazabilidad | `T-08` | La fila refleja el estado | Hecha |
 
@@ -76,13 +77,13 @@ El requerimiento no está terminado hasta cumplir **todas** las condiciones de l
 | Con la comprobación previa desactivada | Qué pasó |
 |---|---|
 | `ProductStatusConcurrencyIT` | **Sigue en verde.** Con dos y con tres activaciones simultáneas queda **exactamente una**, y el `409` llega traducido. La garantía la da `uq_products_upgrade_target` |
-| `ProductStatusIT.destinoOcupado` | **Falla**, y falla en `$.detail`: el `409` sigue siendo correcto pero deja de **nombrar** al producto que ocupa el destino |
+| `ProductStatusIT.destinoOcupado` | **Falla**, y falla en `$.detail`: el `409` sigue siendo correcto pero deja de **nombrar** al producto que ocupa la pareja |
 
 Es la prueba de que las dos piezas hacen cosas distintas: **la restricción decide, la comprobación redacta**. Quitar cualquiera de las dos rompe algo, y lo que rompe cada una es distinto.
 
 | # | Qué se hizo distinto | Por qué |
 |---|---|---|
-| 1 | La respuesta es `ProductDetailResponse`, la misma que devuelve `RF-PM-003` | `plan.md` §4 dice «devuelve `200` con el producto» sin fijar la forma. Sale de **una** consulta —el destino y la moneda resueltos en la misma sentencia— en lugar de dos llamadas a los puertos de `SP`, y el mismo recurso se lee igual por donde se pida |
-| 2 | `T-09` se comprueba como **diferencia** entre activar un bot y activar un upgrade, no como número absoluto | Un número absoluto obligaría a reescribir la prueba cada vez que cambie cuánto cuesta el resto de la operación, y lo que se quiere afirmar es solo que **la comprobación del destino no se ejecuta** cuando no hay destino. Se añadió además la simétrica: desactivar cuesta lo mismo en los dos tipos |
-| 3 | La traducción de `uq_products_upgrade_target` **no nombra** al producto que ocupa el destino | Es inevitable y está acotado: por ese camino se llega solo en la **carrera**, donde la comprobación previa no vio a nadie. Averiguarlo entonces exigiría una consulta dentro del fallo. El mensaje accionable lo da el camino normal |
+| 1 | La respuesta es `ProductDetailResponse`, la misma que devuelve `RF-PM-003` | `plan.md` §4 dice «devuelve `200` con el producto» sin fijar la forma. Sale de **una** consulta —las dos membresías y la moneda resueltas en la misma sentencia— en lugar de dos llamadas a los puertos de `SP`, y el mismo recurso se lee igual por donde se pida |
+| 2 | `T-09` se comprueba como **diferencia** entre activar un bot y activar un upgrade, no como número absoluto | Un número absoluto obligaría a reescribir la prueba cada vez que cambie cuánto cuesta el resto de la operación, y lo que se quiere afirmar es solo que **la comprobación de las membresías no se ejecuta** cuando no hay membresías. Se añadió además la simétrica: desactivar cuesta lo mismo en los dos tipos |
+| 3 | La traducción de `uq_products_upgrade_target` **no nombra** al producto que ocupa la pareja | Es inevitable y está acotado: por ese camino se llega solo en la **carrera**, donde la comprobación previa no vio a nadie. Averiguarlo entonces exigiría una consulta dentro del fallo. El mensaje accionable lo da el camino normal |
 | 4 | Una petición **sin cambio** no exige descripción | Si ya está activo, pedir `ACTIVO` no publica nada. Exigirla ahí rechazaría una petición que no cambia el estado, y `FA-001` dice que eso responde `200` |

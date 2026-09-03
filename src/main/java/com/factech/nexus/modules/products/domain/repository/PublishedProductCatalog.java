@@ -3,6 +3,7 @@ package com.factech.nexus.modules.products.domain.repository;
 import com.factech.nexus.modules.products.application.ProductCatalog;
 import com.factech.nexus.modules.products.domain.models.Product;
 import jakarta.persistence.EntityManager;
+import java.math.BigDecimal;
 import java.util.Optional;
 import java.util.UUID;
 import org.springframework.stereotype.Repository;
@@ -48,5 +49,20 @@ public class PublishedProductCatalog implements ProductCatalog {
                     producto.getCode(),
                     producto.getName(),
                     producto.estaRetirado()));
+  }
+
+  @Override
+  @Transactional(readOnly = true)
+  public Optional<BigDecimal> findPrice(UUID id) {
+    if (id == null) {
+      return Optional.empty();
+    }
+    return em
+        .createQuery("SELECT p.price FROM Product p WHERE p.id = :id", BigDecimal.class)
+        .setParameter("id", id)
+        .setMaxResults(1)
+        .getResultList()
+        .stream()
+        .findFirst();
   }
 }

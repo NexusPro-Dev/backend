@@ -79,7 +79,10 @@ class AuthIT extends IntegrationTestBase {
         persona,
         hasher.hash(CLAVE));
     rolAcotado = crearRolAcotado();
-    jdbc.update("INSERT INTO user_roles (user_id, role_id) VALUES (?, ?)", persona, rolAcotado);
+    jdbc.update(
+        "INSERT INTO user_roles (user_id, role_id, role_type) SELECT ?, r.id, r.role_type FROM roles r WHERE r.id = ?",
+        persona,
+        rolAcotado);
   }
 
   /** Cuelga de ADMIN y declara los dos permisos de lectura de auditoría, y ninguno más. */
@@ -445,7 +448,7 @@ class AuthIT extends IntegrationTestBase {
     // Y al concederle el rol, la puerta se abre SIN emitir un token nuevo:
     // los permisos se resuelven por petición contra la base.
     jdbc.update(
-        "INSERT INTO user_roles (user_id, role_id) VALUES (?, ?::uuid)",
+        "INSERT INTO user_roles (user_id, role_id, role_type) SELECT ?, r.id, r.role_type FROM roles r WHERE r.id = ?::uuid",
         persona,
         "01a02a33-4c00-7002-9c4f-5e7ad1000002");
     mvc.perform(get("/api/v1/memberships").header("Authorization", "Bearer " + token))
@@ -456,7 +459,7 @@ class AuthIT extends IntegrationTestBase {
   @DisplayName("retirar el rol cierra la puerta de INMEDIATO, con el mismo token")
   void retirarElRolEsInmediato() throws Exception {
     jdbc.update(
-        "INSERT INTO user_roles (user_id, role_id) VALUES (?, ?::uuid)",
+        "INSERT INTO user_roles (user_id, role_id, role_type) SELECT ?, r.id, r.role_type FROM roles r WHERE r.id = ?::uuid",
         persona,
         "01a02a33-4c00-7002-9c4f-5e7ad1000002");
     String token = accessToken(login("JPerez", CLAVE));

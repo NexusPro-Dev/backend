@@ -5,11 +5,11 @@
 | Módulo | `SP` — Sistema Principal |
 | Paquete | `modules/system` |
 | Prefijos de permiso | `roles:`, `permissions:`, `audit:`, `memberships:`, `currencies:`, `countries:`, `users:` |
-| Versión | 1.30.0 |
+| Versión | 1.32.0 |
 | Estado | **Aprobado** |
 | Responsable | Bonilla Diaz William Steven |
 | Fecha de creación | 20-08-2026 |
-| Última actualización | 29-08-2026 |
+| Última actualización | 01-09-2026 |
 | Fecha de aprobación | 20-08-2026 |
 
 !!! info "Qué va en este documento"
@@ -177,9 +177,9 @@ Reglas que no son transversales de seguridad y por tanto sí llevan el prefijo d
 | `RN-SP-017` | Un usuario no se opera a sí mismo | Al eliminar un usuario, al cambiar su estado y **al cambiar su superior comercial** | El actor no puede aplicar la operación sobre su propia cuenta. Alcanza a las tres operaciones en que quien ejecuta tendría interés directo en el resultado: dejar de existir, recuperar su propio acceso y **reubicarse en la estructura comercial**, de la que cuelga la atribución de su producción. Ampliada el 22-08-2026 al aprobar `RF-SP-041`; antes solo alcanzaba a eliminar y desactivar | Alta |
 | `RN-SP-011` | Orden de mando comercial | Al crear o reubicar un rol `VENDEDOR` | El orden de mando de la fuerza comercial se expresa con `parent_role_id`: el rol superior es el rol padre. No existe un campo de rango aparte | Alta |
 | `RN-SP-019` | Superior comercial obligatorio | Al registrar un usuario, al asignarle roles y al retirárselos | Un usuario que porta al menos un rol de clasificación `VENDEDOR` **debe tener un superior comercial**, salvo quien porta el rol vendedor de mayor rango —aquel cuyo rol padre no es `VENDEDOR`—, que es la cúspide de la fuerza comercial y no declara ninguno. El estado «vendedor sin superior» no existe: toda operación que conceda el primer rol `VENDEDOR` de una persona **o que cambie cuál es su rol vendedor de mayor rango** —un ascenso— **exige indicar el superior en la misma operación** (`RF-SP-024`, `RF-SP-030`), y retirar el último rol `VENDEDOR` **retira su superior** en la misma transacción (`RF-SP-031`), auditando ambos hechos bajo el mismo identificador de correlación. Es la forma que `RN-SP-018` ya da al par consumidor-membresía, con una exigencia más: allí el nivel no depende de qué rol se conceda después, y aquí sí | **Crítica** |
-| `RN-SP-020` | El superior porta el rol padre | Al asignar o cambiar el superior comercial, y al conceder un rol `VENDEDOR` | El superior debe portar el rol **padre inmediato** del **rol vendedor de mayor rango** que porta el subordinado (`RN-SP-011`): quien es `AGENTE` reporta a quien porta `DIRECTOR`, nunca a otro `AGENTE` ni directamente a un `MANAGER`. La validación es contra el padre inmediato y **no recorre ancestros**, igual que `RN-SEG-004`. Se evalúa sobre el rol de mayor rango, y no sobre «el primero», porque **un ascenso cambia con quién debe cumplirse**: quien pasa de `AGENTE` a `DIRECTOR` deja de poder estar a cargo de un director. Su consecuencia útil es que la cadena de personas hereda la aciclicidad de la cadena de roles (`RN-SEG-006`) y no necesita una regla anti-ciclos propia | **Crítica** |
+| `RN-SP-020` | El superior porta el rol padre, y el cliente cuelga de un vendedor | Al asignar o cambiar el superior comercial, al conceder un rol `VENDEDOR` y al registrar un cliente por enlace | **Si el subordinado es vendedor**, el superior debe portar el rol **padre inmediato** del **rol vendedor de mayor rango** que porta (`RN-SP-011`): quien es `AGENTE` reporta a quien porta `DIRECTOR`, nunca a otro `AGENTE` ni directamente a un `MANAGER`. La validación es contra el padre inmediato y **no recorre ancestros**, igual que `RN-SEG-004`. Se evalúa sobre el rol de mayor rango, y no sobre «el primero», porque **un ascenso cambia con quién debe cumplirse**. **Si el subordinado es `CONSUMIDOR`** —el caso que abre `RF-SP-045`— el superior debe portar **algún** rol `VENDEDOR`, sin exigencia de parentesco: un cliente no tiene rol vendedor del que derivar un padre, y cualquiera de la fuerza comercial puede traerlo. Su consecuencia útil no cambia: la cadena de personas hereda la aciclicidad de la de roles (`RN-SEG-006`) y no necesita una regla anti-ciclos propia | **Crítica** |
 | `RN-SP-021` | Un superior por vendedor | Al asignar el superior comercial | Un usuario tiene como mucho **un superior vigente**. Asignar otro cierra la asignación anterior —que conserva su fila con fecha de fin— y abre una nueva. El historial no se borra: determina a quién se atribuía cada resultado en cada momento, y las comisiones lo necesitarán | Alta |
-| `RN-SP-022` | Ningún equipo se queda sin superior | Al desactivar, bloquear o eliminar un usuario, y al retirarle el rol `VENDEDOR` | Si el usuario tiene personas a cargo, la operación **se rechaza** hasta que se reasignen. **No se reasignan solas** al superior del superior: la estructura comercial determinará atribución de negocio, y desplazarla sin decisión explícita cambiaría en silencio a quién pertenece un resultado. Es la misma postura que `RN-SEG-008` toma con un rol que tiene hijos | Alta |
+| `RN-SP-022` | Ningún equipo se queda sin superior, y ningún cliente sin vendedor | Al desactivar, bloquear o eliminar un usuario, y al retirarle el rol `VENDEDOR` | Si el usuario tiene personas a cargo, la operación **se rechaza** hasta que se reasignen. **No se reasignan solas** al superior del superior: la estructura comercial determinará atribución de negocio, y desplazarla sin decisión explícita cambiaría en silencio a quién pertenece un resultado. Es la misma postura que `RN-SEG-008` toma con un rol que tiene hijos. **Desde `RF-SP-045` «personas a cargo» incluye a los clientes**, y eso endurece la regla en la práctica: retirar a un agente exige reasignar también su cartera, no solo su equipo | Alta |
 | `RN-SP-023` | Todo usuario tiene al menos un rol | Al registrar un usuario y al retirarle roles | Un usuario **debe tener siempre al menos un rol asignado**. El alta lo exige —`roles` deja de ser opcional— y el retiro rechaza quitar el último. El estado «usuario sin ningún rol» deja de existir. **La regla mira la asignación, no el estado del rol**: un usuario cuyos roles estén todos inactivos la cumple, y que no conceda nada lo resuelve `RN-SEG-002`. Esa acotación es deliberada — exigir un rol *activo* haría que desactivar o eliminar un rol (`RF-SP-007`, `RF-SP-009`) pudiera violar la regla **a distancia**, sobre personas que nadie estaba tocando, y dejaría operaciones del catálogo bloqueadas por el estado de terceros. **No es expresable como restricción del esquema**: «al menos una fila en `user_roles`» exige un disparador o una restricción diferida, de modo que vive en el dominio y se verifica dentro de la transacción, igual que `RN-SP-001`. Añadida el 24-08-2026; enmienda `RF-SP-024` y `RF-SP-031`, ya aprobadas (Art. I.7) | **Crítica** |
 | `RN-SP-004` | Permisos inmutables por API | Siempre | Los permisos no se crean, editan ni eliminan por la API: se pueblan y modifican únicamente por migración | Alta |
 | `RN-SP-005` | Revocación sin motivo | Al retirar un permiso de un rol | La fila de asociación se elimina físicamente y se audita en `audit_deletion_log` sin motivo declarado (Art. V.13, excepción de asociaciones) | Alta |
@@ -187,9 +187,39 @@ Reglas que no son transversales de seguridad y por tanto sí llevan el prefijo d
 | `RN-SP-007` | Inserción en la cadena de membresías | Al crear una membresía | Se indica cuál es su membresía hija, si la hay, y el sistema reordena la jerarquía en consecuencia. Si no se indica ninguna, la nueva membresía queda en el extremo inferior de la cadena | Alta |
 | `RN-SP-008` | Membresías inmutables | Al editar o eliminar una membresía | La operación se rechaza. Solo se admite el reordenamiento derivado de `RN-SP-007`. **No llevan indicador de activo**: desactivar un eslabón dejaría un hueco en un orden lineal | Media |
 | `RN-SP-024` | La membresía declara su color | Al registrar una membresía | Toda membresía declara el **color con el que el frontend la pinta**: seis dígitos **hexadecimales sin `#`**, normalizados a mayúsculas. Es **obligatorio** y **único entre las membresías**. Obligatorio porque un color opcional obliga al navegador a inventarse uno de reserva, que es exactamente la decisión que este campo saca del frontend —y con dos pantallas eligiendo por su cuenta, el mismo nivel acaba pintado de dos maneras sin que nadie lo note hasta verlas juntas—. Único porque dos niveles del mismo color son indistinguibles justo en lo que el campo existe para distinguir; la unicidad atrapa el valor repetido y **no** dos tonos que un ojo humano no separa, y eso no lo arregla ninguna regla. **Consecuencia declarada:** `RN-SP-008` mantiene la membresía inmutable, de modo que **un color mal elegido no se puede corregir** — ver la nota que sigue a esta tabla | Media |
-| `RN-SP-025` | Un solo rol vendedor por persona | Al asignar roles a un usuario | Una persona **no puede portar dos roles de tipo `VENDEDOR`** a la vez. Asignar un segundo se rechaza; el primero se retira con `RF-SP-031` antes de asignar otro | Crítica |
+| `RN-SP-025` | Un solo rol vendedor por persona | Al asignar roles a un usuario | Una persona **no puede portar dos roles de tipo `VENDEDOR`** a la vez. **Asignar uno SUSTITUYE al que porte**, en la misma transacción — no se rechaza, y no hay que retirarlo antes: el ascenso seguiría siendo una operación y la persona no queda sin rol vendedor en ningún instante. **Vive en el motor** (§10.11): `user_roles` copia el `role_type` y un índice único parcial cierra la regla, de modo que **dos asignaciones simultáneas no pueden colarla**. Ver la nota que sigue a esta tabla | **Crítica** |
+| `RN-SP-026` | El registro por enlace nace sin poder operar | Al registrarse un cliente desde un enlace | La cuenta se crea en estado **`FTD_PENDIENTE`**: **autentica y no opera**. Es el primer estado del sistema que separa esas dos cosas, porque hasta ahora todo lo que autenticaba estaba `ACTIVO`. La cuenta sale de ahí cuando se confirma el depósito por el valor del producto —el **FTD**—, que hoy hace un actor a mano por `RF-SP-028` y mañana hará el webhook del bróker | **Crítica** |
+| `RN-SP-027` | Ningún cliente se registra sin vendedor | Al registrarse un cliente desde un enlace | El enlace declara **quién lo generó**, y sin un vendedor válido el registro **se rechaza**. No se admite la atribución vacía: produciría clientes huérfanos que nadie descubre hasta el día de pagar una comisión. El vendedor debe existir, no estar eliminado y **portar un rol `VENDEDOR`** — un funcionario no comisiona | **Crítica** |
+| `RN-SP-028` | El cliente cuelga de su vendedor en la **misma** estructura | Siempre | La atribución **no tiene tabla propia**: es una fila de `user_supervisors` (§10.7) como cualquier otra, con el cliente en `user_id` y el vendedor en `supervisor_id`. De ahí hereda gratis lo que ya está resuelto —**un superior vigente** por `RN-SP-021`, el historial que determina a quién se atribuía cada resultado, y la protección de `RN-SP-022`—. **Y deja el árbol comercial completo en una sola tabla**, que es lo que permite subir de un cliente a su agente, su director y su manager con **un recorrido** en lugar de con un caso especial en la hoja: es la forma que una liquidación multinivel necesita. Lo que la regla **no** trae es con qué producto entró el cliente; ese dato pertenece al hecho comisionable —el depósito— y no a la relación | **Crítica** |
 | `RN-SP-009` | Países inmutables salvo su estado | Al editar o eliminar un país | La operación se rechaza. Lo único modificable es el indicador de país activo (`RF-SP-022`), que permite retirar de la circulación un alta equivocada sin borrar el registro | Media |
 | `RN-SP-010` | Monedas inmutables por API salvo su estado | Siempre | Las monedas no se crean, editan ni eliminan por la API. Lo único modificable es el indicador de moneda activa (`RF-SP-023`), y la moneda por defecto no puede desactivarse | Media |
+
+!!! danger "`RN-SP-025` vive en el motor, y hasta el 02-09-2026 no vivía en ninguna parte"
+
+    La regla nació el 28-08-2026 porque la pidió `CM`: sin ella, «el rol vendedor de una persona» no es una pregunta con una sola respuesta, y la resolución de comisiones elegiría en silencio. **Se declaró y no se construyó**, de modo que durante cinco días una persona pudo portar dos.
+
+    Lo que la sostenía mientras tanto era **una excepción, no una regla**: `SellerRoleCatalog` revienta con `AmbiguousSellerRoleException` en lugar de elegir. Deliberadamente **no se traduce a un `4xx`** — no es culpa de quien pregunta, es que el sistema está en un estado que no debería existir.
+
+    **Se decidió declararla en el esquema y no en el caso de uso** (02-09-2026), revirtiendo lo que `modules.md` §5.3 afirmaba. `user_roles` copia el `role_type`, una clave foránea compuesta impide que la copia diverja, y un **índice único parcial** sobre `(user_id) WHERE role_type = 'VENDEDOR'` cierra la regla. El detalle, en §10.11.
+
+    **El motivo que decidió es un precedente, no una preferencia:** `RN-SP-018` se comprobaba en el caso de uso, **no se sostuvo bajo concurrencia** y hubo que corregirla el 26-08-2026. Es la misma tabla y la misma clase de comprobación.
+
+    **Y la columna abre más de lo que se le pidió.** `RN-SP-013` y `RN-SP-018` —solo los consumidores tienen membresía— están declaradas como no expresables en el esquema por depender de `user_roles` y `roles.role_type`; con el `role_type` ya copiado, **pasan a serlo**. No se hace hoy: es otro requerimiento y otra tripleta.
+
+!!! danger "`RN-SP-025` contradecía el ASCENSO, que estaba construido y probado desde el 24-08-2026"
+
+    `RF-SP-030` permite ascender asignando el rol nuevo: quien portaba `AGENTE` recibe `DIRECTOR` y **queda portando los dos**. Está en su §13 —«un `DIRECTOR` que recibe además `AGENTE` no cambia su rol de mayor rango»— y toda la mecánica de `CommercialStructure` —comparar el rango **antes y después**— existe porque se daba por supuesto que conviven.
+
+    **Las dos cosas estaban aprobadas y nadie las cruzó.** `RF-SP-030` se construyó el 24-08-2026; `RN-SP-025` nació el 28-08-2026 pidiéndola `CM`. Se descubrió el 02-09-2026 al ir a construirla, y **la regla habría hecho fallar `CA-SP-399`**.
+
+    **Se resolvió haciendo que asignar SUSTITUYA** (responsable del proyecto, 02-09-2026), y no que rechace:
+
+    | Alternativa | Por qué se descartó |
+    |---|---|
+    | Rechazar el segundo, y retirar el primero con `RF-SP-031` | Son dos llamadas, y **entre ellas la persona no es vendedora**. Peor: si el rol vendedor era el único que portaba, `RN-SP-023` **rechaza el retiro** y el ascenso queda imposible sin darle antes un rol de relleno |
+    | Retirar `RN-SP-025` y que `CM` resuelva «el de mayor rango» | Devuelve al sistema a **elegir en silencio** cuál es el rol vendedor de alguien. Hoy `SellerRoleCatalog` revienta a propósito para no hacerlo |
+
+    **Lo que cuesta queda escrito: «asignar» pasa a poder retirar**, y el nombre de la operación ya no lo dice entero. La auditoría tiene que registrar las dos cosas — el rol que entra y el que sale—, porque si solo registra el que entra, **el rol retirado desaparece sin que ningún evento lo explique**.
 
 !!! warning "El color se elige una vez y no se corrige — hueco aceptado el 26-08-2026"
 
@@ -258,6 +288,7 @@ Reglas que no son transversales de seguridad y por tanto sí llevan el prefijo d
 | `RF-SP-041` | Asignar o cambiar el superior comercial de un usuario | **Crítica** | `users:assign-supervisor` | En desarrollo |
 | `RF-SP-042` | Consultar el equipo a cargo de un usuario | Media | `users:read` | En desarrollo |
 | `RF-SP-044` | Editar el propio perfil | Alta | Autenticado | En desarrollo |
+| `RF-SP-045` | Registro de clientes por enlace | **Crítica** | Público | Tasks en revisión |
 
 !!! info "Dónde vive el estado de un requerimiento"
 
@@ -726,6 +757,27 @@ Modifica el **propio** nombre, apellidos y correo. Es la contraparte de escritur
 
 **El cambio de correo exige la contraseña actual, y el de nombre no.** Desde `RF-SP-040` el correo es la vía por la que se recupera una contraseña olvidada, de modo que cambiarlo es cambiar quién puede recuperar la cuenta: una sesión robada no lleva la contraseña, y exigirla convierte el robo de sesión en algo que caduca en lugar de en una apropiación permanente. Equivocar un apellido, en cambio, no abre ninguna puerta.
 
+
+#### `RF-SP-045` — Registro de clientes por enlace
+
+| Campo | Valor |
+|---|---|
+| Objetivo | Que un cliente entre por sí mismo desde un enlace, con su membresía puesta y atribuido al vendedor que lo trajo |
+| Actor | Persona sin cuenta |
+| Permiso requerido | — (**Público**) |
+| Prioridad | **Crítica** |
+| Reglas aplicables | `RN-SP-013`, `RN-SP-016`, `RN-SP-018`, `RN-SP-026`, `RN-SP-027`, `RN-SP-028` |
+| Depende de | `RF-SP-024`, `RF-SP-032`, `RF-PM-001` |
+| Tripleta | `docs/specs/sp/045-registro-de-clientes-por-enlace/` |
+| Estado | Pendiente |
+
+**Es el primer endpoint público del sistema que escribe.** Los seis que ya existen o leen, o consumen una credencial que el propio sistema emitió; este crea una persona, le concede un rol, le asigna una membresía y escribe una atribución a petición de alguien que todavía no es nadie.
+
+El enlace lleva dos datos: el **producto** —por código o identificador— y el **vendedor** que lo generó. El producto declara la membresía destino (`RN-PM-002`) y su vigencia en días (`RN-PM-015`), de modo que registrarse concede el rol de consumidor y el nivel en la misma operación, que es justo lo que `RN-SP-018` exige.
+
+**Ninguno de los dos datos es un secreto, y no hace falta que lo sea.** El código de producto es legible por diseño, así que cualquiera puede componer un enlace que no le dieron — y no gana nada: los productos que llevan a una membresía **de pago** exigen pasarela, que es de Finanzas y no existe todavía, y el que lleva a la **gratuita** produce una cuenta en `FTD_PENDIENTE`, que autentica y no opera. Por eso el enlace **se compone y no se persiste**: una tabla de enlaces emitidos es la defensa que haría falta si el enlace concediera algo.
+
+Lo que sí queda abierto y declarado es que **la atribución es forjable**: quien componga el enlace elige a qué vendedor se apunta. No concede acceso, pero ensucia la base sobre la que `CM` comisionará, y la condición para cerrarlo está escrita — en cuanto se liquide una comisión sobre una atribución, el enlace tiene que dejar de ser componible. Nace el 01-09-2026, por decisión del responsable del proyecto.
 Hereda de `RF-SP-027` la pregunta abierta de la **verificación del correo**, que ya no tiene coartada: un correo mal tecleado deja a la persona sin vía de recuperación. No bloquea este requerimiento, porque hoy ese dato no se puede ni corregir. Nace el 31-08-2026, por decisión del responsable del proyecto.
 
 ## 7. Requerimientos no funcionales
@@ -796,6 +848,7 @@ Ninguna con sistemas externos ni con otros módulos. Al absorber los usuarios, s
 | `PATCH` | `/api/v1/users/{id}/supervisor` | `RF-SP-041` | `users:assign-supervisor` |
 | `GET` | `/api/v1/users/{id}/team` | `RF-SP-042` | `users:read` |
 | `PATCH` | `/api/v1/users/me` | `RF-SP-044` | Autenticado |
+| `POST` | `/api/v1/auth/registration` | `RF-SP-045` | **Público** |
 
 Rutas propuestas. El contrato exacto de cada una se fija en el `plan.md` de su tripleta.
 
@@ -968,6 +1021,16 @@ Se declara `varchar(6)` y no `char(6)` porque `char(n)` **rellena con espacios**
 
 Es la única tabla del módulo que **relaciona dos usuarios entre sí**, y la primera pieza de la red comercial ([`modules.md` §6](../modules.md)).
 
+!!! important "Desde `RF-SP-045` esta tabla contiene también a los clientes"
+
+    Hasta el 01-09-2026 relacionaba **vendedores entre sí** y nada más; la semilla de desarrollo lo deja escrito: «`ADMIN` y `CLIENTE` quedan fuera porque no son vendedores».
+
+    Ya no. El cliente que se registra por un enlace **cuelga de su vendedor en esta misma tabla**, con el cliente en `user_id` y el vendedor en `supervisor_id`. Lo que la fila significa cambia según quién sea el subordinado —**«reporta a»** entre vendedores, **«fue traído por»** cuando es un cliente— y `RN-SP-020` lo distingue con su rama de consumidor.
+
+    **Lo que se gana es que el árbol comercial esté completo en un solo sitio.** Subir de un cliente hasta el manager que cobra por él es un recorrido de esta tabla, y no un join con una segunda estructura y un caso especial en la hoja — que es la forma que una liquidación multinivel necesita.
+
+    **Lo que cuesta está en `RN-SP-022`**, y no es menor: «tener personas a cargo» pasa a incluir la cartera de clientes, de modo que retirar a un agente exige reasignarla. Y `RF-SP-042` —consultar el equipo a cargo— empieza a devolver clientes junto al equipo; cada fila lleva ya los roles de la persona, que es lo que permite distinguirlos sin cambiar el contrato.
+
 !!! important "Por qué lleva clave sustituta y las otras asociaciones no"
 
     `role_permissions` y `user_roles` no llevan `id` porque la unicidad del par es toda la información que contienen (§1). Aquí no: el mismo par `(user_id, supervisor_id)` puede repetirse legítimamente si alguien vuelve a estar a cargo de quien ya lo estuvo, y lo que distingue una fila de otra es **el periodo**.
@@ -1023,10 +1086,12 @@ Declaradas en la base de datos, no solo en Java (Art. V.6):
 | `ck_users_username_no_at` | `users(position('@' in username) = 0)` — `VAL-010`. **Es lo que sostiene el inicio de sesión con ambas identidades**: ningún nombre de usuario puede parecerse a un correo |
 | `ck_users_username_format` | `users(username ~ '^[A-Za-z0-9._-]{3,50}$')` — sin espacios ni acentos. Un nombre con espacio al final es indistinguible del mismo sin él, y es permanente |
 | `ck_users_names_not_blank` | `users(length(btrim(first_name)) > 0 AND length(btrim(last_name)) > 0)` |
-| `ck_users_status` | `users(status)` en (`ACTIVO`, `INACTIVO`, `BLOQUEADO`, `PENDIENTE`) |
+| `ck_users_status` | `users(status)` en (`ACTIVO`, `INACTIVO`, `BLOQUEADO`, `FTD_PENDIENTE`) — `RN-SP-026`. **`FTD_PENDIENTE` sustituye a `PENDIENTE`**, que estaba declarado y sin usar desde `V18` justamente para que estrenarlo no costara alterar el `CHECK` de una tabla en uso. El cambio es de dominio y **no de datos**: ninguna fila llevaba el valor retirado |
 | `pk_user_roles` | **Clave primaria compuesta**: `user_roles(user_id, role_id)` |
 | `fk_user_roles_user` | `user_roles(user_id)` → `users(id)`, `ON DELETE RESTRICT` |
-| `fk_user_roles_role` | `user_roles(role_id)` → `roles(id)`, `ON DELETE RESTRICT` — red debajo de `RN-SEG-008` |
+| `fk_user_roles_role` | `user_roles(role_id, role_type)` → `roles(id, role_type)`, `ON DELETE RESTRICT` — red debajo de `RN-SEG-008`, y **compuesta desde el 02-09-2026** para que el `role_type` copiado no pueda divergir |
+| `uq_roles_id_role_type` | `roles(id, role_type)` — **redundante con la clave primaria**, y esa es toda su función: PostgreSQL exige que el destino de una clave foránea compuesta sea único sobre exactamente esas columnas |
+| `uq_user_roles_vendedor` | Único **parcial**: `user_roles(user_id) WHERE role_type = 'VENDEDOR'` — `RN-SP-025` |
 | `pk_user_memberships` | **Clave primaria**: `user_memberships(user_id)` — declara `RN-SP-014` en el esquema: una membresía por usuario |
 | `fk_user_memberships_user` | `user_memberships(user_id)` → `users(id)`, `ON DELETE RESTRICT` |
 | `fk_user_memberships_membership` | `user_memberships(membership_id)` → `memberships(id)`, `ON DELETE RESTRICT` |
@@ -1055,6 +1120,14 @@ Declaradas en la base de datos, no solo en Java (Art. V.6):
 `RN-SEG-006` (ausencia de ciclos), `RN-SEG-003` (contención), `RN-SP-001` (superadministrador siempre presente), `RN-SP-019` (superior comercial obligatorio), `RN-SP-020` (el superior porta el rol padre) y `RN-SP-022` (ningún equipo sin superior) **no** son expresables como restricción declarativa: se verifican en el dominio, y por eso exigen prueba unitaria propia.
 
 Las tres últimas se apoyan además en datos de otras tablas —`user_roles` y `roles`—, de modo que ni siquiera un `CHECK` con subconsulta las sostendría: PostgreSQL no admite subconsultas en `CHECK`.
+
+!!! warning "«Depende de otra tabla» no siempre significa «no se puede declarar», y el 02-09-2026 se comprobó"
+
+    `RN-SP-025` estaba en esta lista por ese motivo, y **salió de ella**: la columna que necesitaba no era una subconsulta sino **una copia atada por una clave foránea compuesta** (§10.11). El dato se trae a la tabla donde la restricción tiene que vivir, y la FK impide que la copia mienta.
+
+    **La condición es que el dato copiado sea inmutable en su origen**, y aquí lo es: `role_type` no se corrige. Donde el origen cambia, el patrón no vale —la FK bloquearía la corrección legítima— y la regla vuelve al dominio.
+
+    Queda anotado que `RN-SP-013` y `RN-SP-018` cumplen esa condición y **podrían salir también**. No se hace hoy: son otro requerimiento.
 
 ### 10.9 Campos de los registros de auditoría
 
@@ -1095,11 +1168,22 @@ Añadida el 22-08-2026 al aprobar el `plan.md` de `RF-SP-024`, que es quien crea
 |---|---|---|---|---|---|---|
 | `user_id` | `uuid` | **Sí (compuesta)** | Sí | No | — | `users` |
 | `role_id` | `uuid` | **Sí (compuesta)** | Sí | No | — | `roles` |
+| `role_type` | `varchar(20)` | No | **Sí (compuesta)** | No | — | `roles` |
 | `created_at` | `timestamptz` | No | No | No | `now()` | — |
 
 **No lleva clave sustituta ni `updated_at`**, y ninguna de las dos ausencias contradice el Art. V.7: la unicidad del par es toda la información que la fila contiene, y una asignación no se modifica —se crea y se borra—, de modo que una marca de última modificación sería siempre igual a la de creación. Mismo criterio que `role_permissions` (§10.3).
 
 La crea `RF-SP-024` (`V19__create_user_roles.sql`), porque el alta ya escribe asignaciones. `RF-SP-030` añade `ix_user_roles_role_id`, que es el índice del que dependen `RF-SP-003` y `RF-SP-009` para contar cuántos usuarios porta un rol.
+
+!!! danger "`role_type` es una copia, y existe para que `RN-SP-025` viva en el motor"
+
+    Es el mismo dato que `roles.role_type` y **está desnormalizado a propósito**. Sin él, «una persona no puede portar dos roles de tipo `VENDEDOR`» no se puede declarar: un `CHECK` no consulta otra tabla y un índice único no puede unir `user_roles` con `roles`.
+
+    **Lo que impide que la copia mienta es la clave foránea compuesta** `(role_id, role_type) → roles(id, role_type)`, que exige a su vez un `UNIQUE (id, role_type)` sobre `roles` —**redundante con su clave primaria, y esa es toda su función**—. Es exactamente el patrón que `V49` usó en `product_commission_rates`, y funciona aquí por la misma razón: **`role_type` no es editable** (`RF-SP-004` solo corrige nombre y descripción), de modo que la copia no puede quedarse atrás.
+
+    Sobre esa columna, `uq_user_roles_vendedor` —único parcial sobre `(user_id) WHERE role_type = 'VENDEDOR'`— cierra la regla. **Dos asignaciones simultáneas no pueden colarla**, que es lo que una comprobación en el caso de uso no garantiza: `RN-SP-018` lo intentó y hubo que corregirla el 26-08-2026.
+
+    **Y no lleva `updated_at` por lo mismo que el resto de la tabla**: si `role_type` cambiara, la FK compuesta rechazaría el cambio en `roles` antes de que llegara aquí.
 
 ### 10.12 Campos principales — `user_memberships`
 
@@ -1189,3 +1273,5 @@ La crea `RF-SP-024` (`V19__create_user_roles.sql`), porque el alta ya escribe as
 | 1.28.0 | 28-08-2026 | **Nace `RN-SP-025`: una persona no puede portar dos roles de tipo `VENDEDOR`.** La regla llega desde fuera —la pide el módulo `CM`, incorporado el mismo día— y **se registra aquí porque gobierna `RF-SP-030`**, que es la asignación de roles y es de este módulo. El motivo es una ambigüedad que `CM` no puede resolver solo: con dos roles vendedores de tarifas distintas y ninguna tarifa propia, **no hay forma no arbitraria de elegir el porcentaje**. Se descartaron las otras dos salidas —adivinar tomando el mayor, o exigir tarifa propia— porque las dos dejan la ambigüedad viva y la segunda la descubre el día de liquidar. **No se puede declarar en el esquema**: un `CHECK` no consulta otra tabla y un índice único no puede unir `user_roles` con `roles` para mirar `role_type`, de modo que la regla vive en el caso de uso y necesita el **mismo bloqueo pesimista que `RN-SP-018`** —cuya versión sin bloqueo no se sostuvo bajo concurrencia y se corrigió el 26-08-2026—, porque dos asignaciones simultáneas la burlarían igual. Enmienda pendiente en la tripleta de `RF-SP-030` (Art. I.7). | Responsable del proyecto |
 | 1.29.0 | 29-08-2026 | **El catálogo sembrado pierde dos roles**: `CONTABILIDAD` y `LIDER_ACADEMICO` se retiran de `V7__seed_system_roles.sql` por decisión del responsable del proyecto, y §4 y §4.1 dejan de listarlos. La migración **se editó en el sitio** en lugar de retirarlos con una `V47` —también por decisión del responsable—, y eso tiene un coste que queda escrito: Flyway valida las migraciones aplicadas por suma de comprobación, de modo que **toda base donde `V7` ya estuviera aplicada falla al arrancar** hasta recrearla o reparar su historial. Retirarlos **no fue quitar dos filas de una tabla**: `CONTABILIDAD` era el único rol sembrado con permisos acotados —un hijo de `ADMIN` con dos permisos y ninguno más—, la forma con la que se verificaban la contención de privilegios (`CreateRoleIT`) y que un token autentique sin conceder de más (`AuthIT`); y `LIDER_ACADEMICO` era el único nombre sembrado con acento, del que dependían la búsqueda sin acentos (`RolesQueryIT`) y el índice de trigramas de `V32`. Las pruebas afectadas **no se repuntaron a otro rol** —repuntar `CONTABILIDAD` a `ADMIN` las habría dejado pasando sin verificar lo que fueron escritas para verificar—: se reescribió `SystemRolesSeedIT` entera y las demás recibieron **fixtures propios**, de modo que ya no dependen de qué siembre el sistema. | Responsable del proyecto |
 | 1.30.0 | 31-08-2026 | **Nace `RF-SP-044`: editar el propio perfil**, por decisión del responsable del proyecto. Es la contraparte de escritura de `RF-SP-039`: `RF-SP-027` ya corrige nombre, apellidos y correo, pero exige `users:update` —un permiso de **administración**—, de modo que hoy **quien no administra usuarios no puede corregir un dato suyo mal escrito** y tiene que pedírselo a alguien; concederle ese permiso para que arregle su propio apellido le daría de paso la capacidad de editar el de cualquiera. La decisión que carga el requerimiento es el **correo**: desde `RF-SP-040` es la vía por la que se recupera una contraseña olvidada, de modo que cambiarlo es **cambiar quién puede recuperar la cuenta**, y por eso **exige la contraseña actual en la misma petición** mientras que el nombre y los apellidos no. Una sesión robada no lleva la contraseña, y exigirla convierte el robo de sesión en algo que **caduca** en lugar de en una apropiación permanente. Queda declarado lo que **no** resuelve —la **verificación del correo nuevo**, heredada de `RF-SP-027` y ya sin coartada, porque un correo mal tecleado deja a la persona sin vía de recuperación— y dos decisiones que no se ven en el camino feliz: el fallo de contraseña **no incrementa los intentos fallidos ni bloquea la cuenta**, porque eso permitiría a quien tenga una sesión ajena dejar fuera a la persona legítima; y el **correo repetido sigue exigiendo la contraseña**, porque hacer depender la exigencia de que el valor cambie daría una forma de averiguar el correo vigente probando valores. La ruta es `PATCH /api/v1/users/me` y **no** se añade a las alcanzables con la marca de cambio obligatorio: quien tiene una credencial provisional sin estrenar la estrena antes de tocar su correo, que es precisamente el dato que quien la emitió podría querer cambiarle. | Responsable del proyecto |
+| 1.31.0 | 01-09-2026 | **Nace `RF-SP-045`: el registro de clientes por enlace**, por decisión del responsable del proyecto, y con él **el primer endpoint público del sistema que escribe**. Los seis que ya existen o leen o consumen una credencial que el propio sistema emitió; este crea una persona, le concede un rol, le asigna una membresía y la cuelga de un vendedor a petición de alguien que todavía no es nadie. El enlace lleva **el producto y el vendedor que lo generó**: el producto declara la membresía destino (`RN-PM-002`) y su vigencia (`RN-PM-015`), de modo que el rol de consumidor y el nivel se conceden juntos, que es lo que `RN-SP-018` ya exigía. **Ninguno de los dos datos es secreto y no hace falta que lo sea**: el camino de pago exige pasarela —de Finanzas, inexistente— y el gratuito produce una cuenta que autentica y no opera, así que forjar el enlace no consigue nada; por eso el enlace **se compone y no se persiste**. Tres reglas nuevas: **`RN-SP-026`** —la cuenta nace en `FTD_PENDIENTE`—, **`RN-SP-027`** —ningún cliente sin vendedor, porque la atribución vacía produce huérfanos que nadie descubre hasta el día de pagar una comisión— y **`RN-SP-028`**. **La decisión de fondo la tomó el responsable el mismo día: el cliente cuelga de su vendedor en `user_supervisors`, la MISMA estructura de la fuerza comercial, y no en una tabla propia.** Se había propuesto una tabla aparte con el argumento de que `RN-SP-020` exige un rol padre que un `CONSUMIDOR` nunca porta; se descartó, y la regla se enmienda en su lugar — **`RN-SP-020` gana su rama de consumidor**: si el subordinado es cliente, basta con que el superior porte **algún** rol `VENDEDOR`, sin parentesco que comprobar. Lo que se gana es **un solo árbol comercial**: subir de un cliente a su agente, su director y su manager es **un recorrido** en lugar de un join con un caso especial en la hoja, que es exactamente la forma que una liquidación multinivel necesita. **Y `RN-SP-022` se endurece sin tocar su texto**: «personas a cargo» pasa a incluir clientes, de modo que retirar a un agente exige reasignar también su cartera — enmienda de hecho a `RF-SP-028`, `RF-SP-029` y `RF-SP-031`, y `RF-SP-042` empieza a devolver clientes en el equipo a cargo (Art. I.7). **El catálogo de estados cambia** (`ck_users_status`): `PENDIENTE` —declarado y sin usar desde `V18` justamente para esto— es sustituido por **`FTD_PENDIENTE`**, el **primer estado que autentica sin estar `ACTIVO`**, lo que obliga a tocar `puedeEntrar()`, es decir, el camino de acceso de todo el sistema. Queda **enmendado `RF-SP-028`** también en su dominio: debe admitir la salida de `FTD_PENDIENTE` hacia `ACTIVO`, única mientras el webhook del bróker no exista. Y queda declarado lo que **no** resuelve: el camino de pago, la confirmación del depósito y que **la atribución es forjable** — no concede acceso, pero ensucia la base de comisiones, con la condición de reapertura escrita: en cuanto se liquide una comisión sobre una atribución, el enlace tiene que dejar de ser componible. | Responsable del proyecto |
+| 1.32.0 | 02-09-2026 | **`RN-SP-025` pasa a vivir en el motor**, y con ello deja de estar solo declarada: nació el 28-08-2026 porque la pidió `CM` y **durante cinco días no la sostuvo nada** — una persona podía portar dos roles vendedores, y lo único que lo delataba era que `SellerRoleCatalog` reventara con `AmbiguousSellerRoleException` en lugar de elegir en silencio. Se decidió declararla **en el esquema y no en el caso de uso** (responsable del proyecto, 02-09-2026), **revirtiendo lo que `modules.md` §5.3 afirmaba**: que no se podía. Sí se puede, con el patrón que `V49` validó cuatro días después de escribir aquella frase — `user_roles` **copia el `role_type`**, una **clave foránea compuesta** `(role_id, role_type) → roles(id, role_type)` impide que la copia diverja, y un **índice único parcial** sobre `(user_id) WHERE role_type = 'VENDEDOR'` cierra la regla. Funciona **porque `role_type` no es editable**: `RF-SP-004` solo corrige nombre y descripción, de modo que la copia no puede quedarse atrás. **Lo que decidió no fue la elegancia sino un precedente**: `RN-SP-018` se comprobaba en el caso de uso, **no se sostuvo bajo concurrencia** y hubo que corregirla el 26-08-2026 — misma tabla, misma clase de comprobación. §10.8 gana la advertencia de que **«depende de otra tabla» no siempre significa «no se puede declarar»**, con la condición que lo permite —que el dato copiado sea inmutable en su origen— y la constancia de que **`RN-SP-013` y `RN-SP-018` la cumplen y podrían salir también** de la lista de reglas no expresables. Y al ir a construirla apareció un choque que nadie había cruzado: **`RF-SP-030` permite ascender asignando el rol nuevo, y la persona queda portando los dos** —está en su §13 y toda la mecánica de `CommercialStructure` lo supone—, de modo que la regla habría hecho fallar `CA-SP-399`, en verde desde el 24-08-2026. **Se resolvió haciendo que asignar SUSTITUYA** el rol vendedor que se porte, en la misma transacción, y no que rechace: retirar antes con `RF-SP-031` deja a la persona sin rol vendedor entre las dos llamadas, y si ese era su único rol **`RN-SP-023` rechaza el retiro** y el ascenso queda imposible. El precio queda escrito: **«asignar» pasa a poder retirar**, y la auditoría debe registrar el rol que entra **y el que sale**. | Responsable del proyecto |

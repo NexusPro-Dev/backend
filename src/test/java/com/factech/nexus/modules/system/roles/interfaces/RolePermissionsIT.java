@@ -266,7 +266,10 @@ class RolePermissionsIT extends IntegrationTestBase {
     mvc.perform(agregar(UUID.randomUUID(), heredables)).andExpect(status().isNotFound());
     mvc.perform(retirar(UUID.randomUUID(), heredables)).andExpect(status().isNotFound());
 
-    jdbc.update("INSERT INTO user_roles (user_id, role_id) VALUES (?, ?)", SUPERADMIN, hijo);
+    jdbc.update(
+        "INSERT INTO user_roles (user_id, role_id, role_type) SELECT ?, r.id, r.role_type FROM roles r WHERE r.id = ?",
+        SUPERADMIN,
+        hijo);
     mvc.perform(agregar(hijo, heredables)).andExpect(status().isForbidden());
     mvc.perform(retirar(hijo, heredables)).andExpect(status().isForbidden());
   }
@@ -347,7 +350,7 @@ class RolePermissionsIT extends IntegrationTestBase {
     jdbc.update("DELETE FROM roles WHERE is_system = false");
     jdbc.update("UPDATE roles SET status = 'ACTIVO', deleted_at = NULL WHERE is_system = true");
     jdbc.update(
-        "INSERT INTO user_roles (user_id, role_id) VALUES (?, ?::uuid) ON CONFLICT DO NOTHING",
+        "INSERT INTO user_roles (user_id, role_id, role_type) SELECT ?, r.id, r.role_type FROM roles r WHERE r.id = ?::uuid ON CONFLICT DO NOTHING",
         SUPERADMIN,
         SUPERADMIN_ROL);
   }

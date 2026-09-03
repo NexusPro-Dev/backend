@@ -60,7 +60,7 @@ class UserMembershipIT extends IntegrationTestBase {
     jdbc.update("DELETE FROM roles WHERE is_system = false");
     jdbc.update("DELETE FROM memberships WHERE level > 0");
     jdbc.update(
-        "INSERT INTO user_roles (user_id, role_id) VALUES (?, ?::uuid)",
+        "INSERT INTO user_roles (user_id, role_id, role_type) SELECT ?, r.id, r.role_type FROM roles r WHERE r.id = ?::uuid",
         SUPERADMIN,
         SUPERADMIN_ROL);
 
@@ -234,7 +234,9 @@ class UserMembershipIT extends IntegrationTestBase {
   @DisplayName("EX-001 es 409, y el cuerpo dice cuál es la operación que falta")
   void sinRolDeConsumidor() throws Exception {
     jdbc.update(
-        "INSERT INTO user_roles (user_id, role_id) VALUES (?, ?::uuid)", persona, ADMIN_ROL);
+        "INSERT INTO user_roles (user_id, role_id, role_type) SELECT ?, r.id, r.role_type FROM roles r WHERE r.id = ?::uuid",
+        persona,
+        ADMIN_ROL);
 
     mvc.perform(fijar(persona, oro, null))
         .andExpect(status().isConflict())
@@ -430,7 +432,7 @@ class UserMembershipIT extends IntegrationTestBase {
     // ningún rol, y sin él el retiro chocaría con esa regla en lugar de disparar
     // la cascada de `RN-SP-015`, que es lo que esta prueba mide.
     jdbc.update(
-        "INSERT INTO user_roles (user_id, role_id) VALUES (?, ?::uuid) ON CONFLICT DO NOTHING",
+        "INSERT INTO user_roles (user_id, role_id, role_type) SELECT ?, r.id, r.role_type FROM roles r WHERE r.id = ?::uuid ON CONFLICT DO NOTHING",
         persona,
         "01a02a33-4c00-7007-9c4f-5e7ad1000005");
 
@@ -477,7 +479,7 @@ class UserMembershipIT extends IntegrationTestBase {
 
   private void hacerConsumidor(UUID usuario) {
     jdbc.update(
-        "INSERT INTO user_roles (user_id, role_id) VALUES (?, ?::uuid) ON CONFLICT DO NOTHING",
+        "INSERT INTO user_roles (user_id, role_id, role_type) SELECT ?, r.id, r.role_type FROM roles r WHERE r.id = ?::uuid ON CONFLICT DO NOTHING",
         usuario,
         consumidor);
   }

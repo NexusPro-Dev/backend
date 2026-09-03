@@ -19,11 +19,14 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 /**
- * Retiro de una tarifa (`RF-CM-004`).
+ * Retiro de una tasa de rol (`RF-CM-004`).
  *
- * <p><b>Retirar no es cerrar la vigencia.</b> Se cierra lo que dejo de regir; se retira lo que NO
- * DEBIO EXISTIR — de ahi el motivo obligatorio (Art. V.13). Y por eso la vigencia no se toca: el
- * registro de eliminacion debe poder decir que periodo cubria lo retirado.
+ * <p><b>Se retira lo que NO DEBIÓ EXISTIR</b> — de ahí el motivo obligatorio (Art. V.13).
+ *
+ * <p><b>Y aquí ya no hay nada que «cerrar» en lugar de retirar</b>, al revés que hasta el
+ * 01-09-2026: sin vigencia, retirar es la única forma de sacar una tasa del catálogo. La otra forma
+ * de dejar de pagar —sin tocar la tasa— es <b>desasociarla</b> del producto (`RF-CM-008`), que es
+ * una operación distinta y no destruye nada.
  */
 @Service
 public class DeleteCommissionRateService {
@@ -32,18 +35,17 @@ public class DeleteCommissionRateService {
   private static final String ENTIDAD = "commission_rates";
   private static final int MAX_MOTIVO = 500;
 
-  private final CommissionRateRepository tarifas;
+  private final CommissionRateRepository tasas;
   private final AuditWriter auditoria;
   private final Clock reloj;
 
   @Autowired
-  public DeleteCommissionRateService(CommissionRateRepository tarifas, AuditWriter auditoria) {
-    this(tarifas, auditoria, Clock.systemUTC());
+  public DeleteCommissionRateService(CommissionRateRepository tasas, AuditWriter auditoria) {
+    this(tasas, auditoria, Clock.systemUTC());
   }
 
-  DeleteCommissionRateService(
-      CommissionRateRepository tarifas, AuditWriter auditoria, Clock reloj) {
-    this.tarifas = tarifas;
+  DeleteCommissionRateService(CommissionRateRepository tasas, AuditWriter auditoria, Clock reloj) {
+    this.tasas = tasas;
     this.auditoria = auditoria;
     this.reloj = reloj;
   }
@@ -51,8 +53,8 @@ public class DeleteCommissionRateService {
   @Transactional
   public void delete(UUID id, DeleteCommissionRateRequest peticion) {
     // EL MOTIVO SE VERIFICA EL PRIMERO DE TODO: el Art. V.13 exige rechazar la
-    // eliminacion sin motivo ANTES de ejecutarla, y hacerlo primero significa
-    // ademas que un motivo vacio no cuesta ni una consulta.
+    // eliminación sin motivo ANTES de ejecutarla, y hacerlo primero significa
+    // además que un motivo vacío no cuesta ni una consulta.
     String motivo = peticion == null || peticion.reason() == null ? null : peticion.reason().trim();
     if (motivo == null || motivo.isEmpty()) {
       String mensaje = "El motivo del retiro es obligatorio.";
@@ -65,31 +67,56 @@ public class DeleteCommissionRateService {
           "VAL-008", mensaje, List.of(new FieldError("reason", "VAL-008", mensaje)));
     }
 
-    CommissionRate tarifa =
-        tarifas
+    CommissionRate tasa =
+        tasas
             .findAny(id)
             .orElseThrow(
-                () -> new ResourceNotFoundException("EX-404", "La tarifa indicada no existe."));
+                () -> new ResourceNotFoundException("EX-404", "La tasa indicada no existe."));
 
-    // 409 Y NO 404 SI YA ESTABA RETIRADA: la tarifa existe, y decir que no
-    // existe esconderia que el retiro YA OCURRIO, que es lo que quien repite la
-    // operacion necesita saber. Ademas NO ES IDEMPOTENTE a proposito: retirar
-    // dos veces con dos motivos distintos dejaria el segundo escrito sobre un
-    // hecho anterior, y el registro pasaria a mentir sobre por que se retiro.
-    if (tarifa.estaRetirada()) {
-      throw new BusinessRuleException("EX-002", "La tarifa ya estaba retirada.");
+    // 409 Y NO 404 SI YA ESTABA RETIRADA: la tasa existe, y decir que no existe
+    // escondería que el retiro YA OCURRIÓ, que es lo que quien repite la
+    // operación necesita saber. Además NO ES IDEMPOTENTE a propósito: retirar
+    // dos veces con dos motivos distintos dejaría el segundo escrito sobre un
+    // hecho anterior, y el registro pasaría a mentir sobre por qué se retiró.
+    if (tasa.estaRetirada()) {
+      throw new BusinessRuleException("EX-002", "La tasa ya estaba retirada.");
     }
 
-    // La instantanea se toma ANTES de retirar: debe describir la tarifa tal como
-    // estaba, CON SU VIGENCIA INTACTA, que es lo que el registro de eliminacion
-    // existe para conservar.
-    var instantanea = tarifa.instantanea();
+    // -------------------------------------------------------------------------
+    // UNA TASA ASOCIADA NO SE RETIRA, Y ESTA CONDICIÓN NO ESTÁ EN `cm.md`.
+    //
+    // Se añade al construir el módulo porque sin ella el retiro produce EL
+    // FALLO QUE ESTE MÓDULO MÁS TEME: la asociación no tiene retiro lógico y
+    // sobreviviría apuntando a una fila muerta, de modo que la resolución
+    // —que filtra las retiradas— dejaría de encontrar tarifa y EL PRODUCTO
+    // PASARÍA A NO PAGAR NADA sin que nada lo dijera. Es exactamente la
+    // silenciosidad contra la que `RN-CM-012` avisa, pero llegando por la
+    // puerta de atrás.
+    //
+    // Las otras dos salidas eran peores: borrar las asociaciones en cascada
+    // destruiría configuración que nadie pidió destruir, y dejarlas apuntando
+    // a la fila muerta es el defecto descrito arriba.
+    //
+    // El coste es dos operaciones donde antes había una — desasociar y luego
+    // retirar—, y es un coste que se paga a la vista.
+    // -------------------------------------------------------------------------
+    if (tasas.tieneAsociaciones(tasa.getId())) {
+      String mensaje =
+          "La tasa está asociada a uno o más productos. Retire primero esas asociaciones: de otro"
+              + " modo el producto dejaría de comisionar sin que nada lo indicara.";
+      throw new BusinessRuleException(
+          "EX-005", mensaje, List.of(new FieldError("id", "EX-005", mensaje)));
+    }
 
-    tarifa.delete(OffsetDateTime.now(reloj));
-    tarifas.flushChanges();
+    // La instantánea se toma ANTES de retirar: debe describir la tasa tal como
+    // estaba, que es lo que el registro de eliminación existe para conservar.
+    var instantanea = tasa.instantanea();
+
+    tasa.delete(OffsetDateTime.now(reloj));
+    tasas.flushChanges();
 
     auditoria.recordDeletion(
         new DeletionEvent(
-            MODULO, ENTIDAD, tarifa.getId(), DeletionType.LOGICAL, motivo, instantanea));
+            MODULO, ENTIDAD, tasa.getId(), DeletionType.LOGICAL, motivo, instantanea));
   }
 }

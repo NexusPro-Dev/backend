@@ -3,6 +3,7 @@
 | Campo | Valor |
 |---|---|
 | Requerimiento | `RF-PM-004` |
+| Enmendadas | 02-09-2026 — el origen entra en la lista de inmutables |
 | Plan | [`plan.md`](plan.md), aprobado el 26-08-2026 |
 | Estado | **Aprobadas** |
 | Autor | Responsable técnico |

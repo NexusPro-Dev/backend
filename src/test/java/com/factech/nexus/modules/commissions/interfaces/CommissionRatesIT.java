@@ -1,5 +1,7 @@
 package com.factech.nexus.modules.commissions.interfaces;
 
+import static com.factech.nexus.modules.commissions.interfaces.CommissionFixtures.MANAGER;
+import static com.factech.nexus.modules.commissions.interfaces.CommissionFixtures.NO_VENDEDOR;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.user;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
@@ -21,189 +23,254 @@ import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.request.MockHttpServletRequestBuilder;
 
 /**
- * El alta de tarifas de comisión (`RF-CM-001` · `T-15`, `T-17`).
+ * El alta del catálogo de tasas por rol (`RF-CM-001`).
  *
- * <p>Lo que más importa aquí no es el camino feliz sino <b>las dos mitades de `RN-CM-003`</b> —la
- * persona debe portar el rol— y sobre todo <b>el no solapamiento</b>, que lo sostiene una
- * restricción del motor y no el caso de uso.
+ * <p><b>Lo que más importa aquí no es el camino feliz sino que lo registrado NO RIGE.</b> El alta
+ * llena un catálogo; lo que pone una tasa en vigor es asociarla (`RN-CM-012`). Antes del 01-09-2026
+ * era al revés —una tarifa sin producto valía para todo el catálogo—, y esa inversión es lo que hay
+ * que dejar clavado en una prueba: si alguien la deshace, el sistema empezaría a pagar por
+ * productos que nadie configuró.
  */
 @AutoConfigureMockMvc
 class CommissionRatesIT extends IntegrationTestBase {
 
-  /** `MANAGER`, sembrado por `V7` con `role_type = 'VENDEDOR'`. */
-  private static final String VENDEDOR = "01a02a33-4c00-7005-9c4f-5e7ad1000003";
-
-  /** `ADMIN`, que es funcionario: sirve para la mitad negativa de `RN-CM-001`. */
-  private static final String NO_VENDEDOR = "01a02a33-4c00-7002-9c4f-5e7ad1000002";
-
   @Autowired private MockMvc mvc;
   @Autowired private JdbcTemplate jdbc;
 
-  private UUID vendedora;
-
   @BeforeEach
   void preparar() {
-    limpiar();
-    vendedora = sembrarPersonaConRol("vendedora", VENDEDOR);
+    CommissionFixtures.limpiar(jdbc, SUPERADMIN);
   }
 
   @AfterEach
   void devolverElEstadoASuSitio() {
-    limpiar();
+    CommissionFixtures.limpiar(jdbc, SUPERADMIN);
   }
 
   @Test
-  @DisplayName("`CA-CM-001` — registra la tarifa por omisión del rol, con su grado")
-  void tarifaPorOmisionDelRol() throws Exception {
-    mvc.perform(alta(cuerpo(VENDEDOR, null, null, "10.00", "2026-01-01", null)))
+  @DisplayName("registra la tasa del rol, y nace SIN REGIR: cero productos asociados")
+  void naceSinRegir() throws Exception {
+    mvc.perform(alta(cuerpo(MANAGER, "10.00")))
         .andExpect(status().isCreated())
         .andExpect(header().string("Location", org.hamcrest.Matchers.startsWith("/api/v1/")))
-        .andExpect(jsonPath("$.scope").value("ROL"))
         .andExpect(jsonPath("$.role.code").value("MANAGER"))
-        // Nulos y PRESENTES: su ausencia es la que da el alcance, y un campo que
-        // falta es indistinguible de uno que el cliente no conoce.
-        .andExpect(jsonPath("$.product").value(org.hamcrest.Matchers.nullValue()))
-        .andExpect(jsonPath("$.user").value(org.hamcrest.Matchers.nullValue()))
-        .andExpect(jsonPath("$.validTo").value(org.hamcrest.Matchers.nullValue()));
+        .andExpect(jsonPath("$.percentage").value(10.00))
+        // ESTE CERO ES LA PRUEBA. Sin asociación la tasa no paga nada a nadie, y
+        // sin este campo el cliente vería un rol con su porcentaje y concluiría
+        // que está configurada.
+        .andExpect(jsonPath("$.associatedProducts").value(0));
+
+    assertThat(cuantasAsociaciones()).isZero();
   }
 
   @Test
-  @DisplayName("`CA-CM-003` — registra la excepción de una persona que porta el rol")
-  void excepcionDeUnaPersona() throws Exception {
-    mvc.perform(alta(cuerpo(VENDEDOR, null, vendedora.toString(), "15.00", "2026-01-01", null)))
+  @DisplayName("la respuesta ya no lleva producto, persona, vigencia ni grado")
+  void loQuePerdioElAlta() throws Exception {
+    mvc.perform(alta(cuerpo(MANAGER, "10.00")))
         .andExpect(status().isCreated())
-        .andExpect(jsonPath("$.scope").value("PERSONA"))
-        .andExpect(jsonPath("$.user.username").value("vendedora"));
+        // Los cuatro grados desaparecieron con el rediseño: no hay `scope` que
+        // devolver porque no hay nada que graduar.
+        .andExpect(jsonPath("$.scope").doesNotExist())
+        .andExpect(jsonPath("$.product").doesNotExist())
+        .andExpect(jsonPath("$.user").doesNotExist())
+        .andExpect(jsonPath("$.validFrom").doesNotExist())
+        .andExpect(jsonPath("$.validTo").doesNotExist());
   }
 
   @Test
-  @DisplayName("`CA-CM-004` — el porcentaje CERO se registra, y no es lo mismo que no tener tarifa")
+  @DisplayName("VARIAS tasas del mismo rol son legítimas: se asociarán a productos distintos")
+  void variasTasasPorRol() throws Exception {
+    mvc.perform(alta(cuerpo(MANAGER, "10.00"))).andExpect(status().isCreated());
+    mvc.perform(alta(cuerpo(MANAGER, "15.00"))).andExpect(status().isCreated());
+
+    // Lo que no puede repetirse es un rol sobre el MISMO producto, y eso lo
+    // cierra la clave primaria de la asociación — no esta tabla.
+    assertThat(cuantasTasas()).isEqualTo(2);
+  }
+
+  @Test
+  @DisplayName("el porcentaje CERO se registra, y no es lo mismo que no tener tasa")
   void elCeroSeRegistra() throws Exception {
-    mvc.perform(alta(cuerpo(VENDEDOR, null, null, "0", "2026-01-01", null)))
+    mvc.perform(alta(cuerpo(MANAGER, "0")))
         .andExpect(status().isCreated())
         .andExpect(jsonPath("$.percentage").value(0));
 
-    assertThat(cuantasTarifas()).isEqualTo(1);
+    assertThat(cuantasTasas()).isEqualTo(1);
   }
 
   @Test
-  @DisplayName("`CA-CM-006` — un rol que no es vendedor se rechaza")
+  @DisplayName("un rol que no es vendedor se rechaza con 400")
   void soloComisionanLosVendedores() throws Exception {
-    mvc.perform(alta(cuerpo(NO_VENDEDOR, null, null, "10.00", "2026-01-01", null)))
+    mvc.perform(alta(cuerpo(NO_VENDEDOR, "10.00")))
         .andExpect(status().isBadRequest())
         .andExpect(jsonPath("$.errors[0].code").value("EX-001"));
 
-    assertThat(cuantasTarifas()).isZero();
+    assertThat(cuantasTasas()).isZero();
   }
 
   @Test
-  @DisplayName(
-      "`CA-CM-008` — una persona que NO porta el rol se rechaza: es la mitad que se olvida")
-  void laPersonaDebePortarElRol() throws Exception {
-    UUID ajena = sembrarPersonaConRol("ajena", null);
-
-    mvc.perform(alta(cuerpo(VENDEDOR, null, ajena.toString(), "15.00", "2026-01-01", null)))
+  @DisplayName("el rol inexistente se distingue del que no es vendedor: 422 y no 400")
+  void rolInexistente() throws Exception {
+    mvc.perform(alta(cuerpo(UUID.randomUUID().toString(), "10.00")))
         .andExpect(status().isUnprocessableEntity())
-        .andExpect(jsonPath("$.errors[0].code").value("EX-006"));
+        .andExpect(jsonPath("$.errors[0].code").value("EX-002"));
 
-    // Sin esta comprobación la tarifa quedaría registrada y no se aplicaría
-    // nunca: no falla, se queda callada.
-    assertThat(cuantasTarifas()).isZero();
+    assertThat(cuantasTasas()).isZero();
   }
 
   @Test
-  @DisplayName("la persona inexistente se distingue de la que no porta el rol")
-  void personaInexistente() throws Exception {
+  @DisplayName("el porcentaje fuera de [0, 100] se rechaza")
+  void porcentajeFueraDeRango() throws Exception {
+    mvc.perform(alta(cuerpo(MANAGER, "100.01"))).andExpect(status().isBadRequest());
+    mvc.perform(alta(cuerpo(MANAGER, "-1"))).andExpect(status().isBadRequest());
+
+    assertThat(cuantasTasas()).isZero();
+  }
+
+  @Test
+  @DisplayName("el rol es obligatorio")
+  void rolObligatorio() throws Exception {
+    mvc.perform(alta("{\"percentage\":10.00}")).andExpect(status().isBadRequest());
+    assertThat(cuantasTasas()).isZero();
+  }
+
+  @Test
+  @DisplayName("sin el permiso de alta se rechaza")
+  void exigeElPermiso() throws Exception {
     mvc.perform(
-            alta(cuerpo(VENDEDOR, null, UUID.randomUUID().toString(), "15.00", "2026-01-01", null)))
-        .andExpect(status().isUnprocessableEntity())
-        .andExpect(jsonPath("$.errors[0].code").value("EX-005"));
+            post("/api/v1/commission-rates")
+                .with(user(SUPERADMIN.toString()).authorities(() -> "commissions:read"))
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(cuerpo(MANAGER, "10.00")))
+        .andExpect(status().isForbidden());
+
+    assertThat(cuantasTasas()).isZero();
+  }
+
+  // ---------------------------------------------------------------------------
+  // El valor fijo (`cm.md` v0.7.0)
+  // ---------------------------------------------------------------------------
+
+  @Test
+  @DisplayName("CA-CM-079 · registra una tasa EN VALOR FIJO, con la forma junto al valor")
+  void altaEnValorFijo() throws Exception {
+    mvc.perform(alta(fijo(MANAGER, "10000.0000")))
+        .andExpect(status().isCreated())
+        .andExpect(jsonPath("$.rateType").value("FIJO"))
+        .andExpect(jsonPath("$.fixedAmount").value(10000.0000))
+        // Vacío y PRESENTE. Un campo que desaparece del resultado es
+        // indistinguible de uno que el cliente no conoce.
+        .andExpect(jsonPath("$.percentage").value(org.hamcrest.Matchers.nullValue()))
+        .andExpect(jsonPath("$.associatedProducts").value(0));
+
+    assertThat(cuantasTasas()).isEqualTo(1);
   }
 
   @Test
-  @DisplayName("`CA-CM-009` — dos tarifas del mismo caso que se solapan: la segunda recibe 409")
-  void elSolapamientoSeRechaza() throws Exception {
-    mvc.perform(alta(cuerpo(VENDEDOR, null, null, "10.00", "2026-01-01", "2026-06-30")))
-        .andExpect(status().isCreated());
+  @DisplayName("CA-CM-080 · las DOS formas a la vez se rechazan: no se suman")
+  void lasDosFormasALaVez() throws Exception {
+    mvc.perform(
+            alta(
+                "{\"roleId\":\""
+                    + MANAGER
+                    + "\",\"rateType\":\"PORCENTAJE\",\"percentage\":5.00,"
+                    + "\"fixedAmount\":10000}"))
+        .andExpect(status().isBadRequest())
+        .andExpect(jsonPath("$.errors[0].code").value("VAL-011"));
 
-    mvc.perform(alta(cuerpo(VENDEDOR, null, null, "12.00", "2026-06-01", "2026-12-31")))
-        .andExpect(status().isConflict())
-        .andExpect(jsonPath("$.errors[0].code").value("EX-007"));
-
-    assertThat(cuantasTarifas()).isEqualTo(1);
+    assertThat(cuantasTasas()).isZero();
   }
 
   @Test
-  @DisplayName("`CA-CM-010` — dos consecutivas que NO comparten día se admiten: son el historial")
-  void lasConsecutivasSeAdmiten() throws Exception {
-    mvc.perform(alta(cuerpo(VENDEDOR, null, null, "10.00", "2026-01-01", "2026-06-30")))
-        .andExpect(status().isCreated());
+  @DisplayName("CA-CM-081 · el valor que no corresponde a la forma, y la forma ausente")
+  void formaYValorDescuadrados() throws Exception {
+    // Tipo FIJO con el porcentaje lleno. Comprobar solo que UNO esté presente
+    // dejaría pasar esto, y es la manera fácil de escribir la regla a medias.
+    mvc.perform(alta("{\"roleId\":\"" + MANAGER + "\",\"rateType\":\"FIJO\",\"percentage\":10.00}"))
+        .andExpect(status().isBadRequest())
+        .andExpect(jsonPath("$.errors[0].code").value("VAL-011"));
 
-    mvc.perform(alta(cuerpo(VENDEDOR, null, null, "12.00", "2026-07-01", null)))
-        .andExpect(status().isCreated());
+    // Y sin forma. Es la petición que funcionaba antes del 02-09-2026: se rompe
+    // A PROPÓSITO, porque suponer PORCENTAJE aceptaría como válida la petición
+    // de quien quiso declarar un importe y se equivocó de campo.
+    mvc.perform(alta("{\"roleId\":\"" + MANAGER + "\",\"percentage\":10.00}"))
+        .andExpect(status().isBadRequest())
+        .andExpect(jsonPath("$.errors[0].code").value("VAL-002"));
 
-    assertThat(cuantasTarifas()).isEqualTo(2);
+    assertThat(cuantasTasas()).isZero();
   }
 
   @Test
-  @DisplayName("el DÍA DE CORTE es inclusive: empezar el mismo día en que otra termina choca")
-  void elDiaDeCorteEsInclusive() throws Exception {
-    mvc.perform(alta(cuerpo(VENDEDOR, null, null, "10.00", "2026-01-01", "2026-06-30")))
-        .andExpect(status().isCreated());
-
-    // Con el rango semiabierto que PostgreSQL usa por omisión, esto NO chocaría
-    // y el día 30 quedaría cubierto dos veces.
-    mvc.perform(alta(cuerpo(VENDEDOR, null, null, "12.00", "2026-06-30", null)))
-        .andExpect(status().isConflict());
-
-    assertThat(cuantasTarifas()).isEqualTo(1);
+  @DisplayName("CA-CM-082 · el valor fijo negativo se rechaza")
+  void valorFijoNegativo() throws Exception {
+    mvc.perform(alta(fijo(MANAGER, "-0.0001"))).andExpect(status().isBadRequest());
+    assertThat(cuantasTasas()).isZero();
   }
 
   @Test
-  @DisplayName("`CA-CM-013` — el mismo rol y periodo con productos distintos conviven")
-  void productosDistintosConviven() throws Exception {
-    UUID uno = sembrarProducto("BOT_UNO");
-    UUID otro = sembrarProducto("BOT_DOS");
+  @DisplayName("CA-CM-083 · el valor fijo CERO se registra: es «no comisiona», no una ausencia")
+  void valorFijoCero() throws Exception {
+    mvc.perform(alta(fijo(MANAGER, "0")))
+        .andExpect(status().isCreated())
+        .andExpect(jsonPath("$.rateType").value("FIJO"))
+        .andExpect(jsonPath("$.fixedAmount").value(0));
 
-    mvc.perform(alta(cuerpo(VENDEDOR, uno.toString(), null, "10.00", "2026-01-01", null)))
-        .andExpect(status().isCreated());
-    mvc.perform(alta(cuerpo(VENDEDOR, otro.toString(), null, "20.00", "2026-01-01", null)))
-        .andExpect(status().isCreated());
-
-    assertThat(cuantasTarifas()).isEqualTo(2);
+    assertThat(cuantasTasas()).isEqualTo(1);
   }
 
   @Test
-  @DisplayName("`CA-CM-011` y `CA-CM-012` — porcentaje fuera de rango y vigencia al revés")
-  void validacionesDeForma() throws Exception {
-    mvc.perform(alta(cuerpo(VENDEDOR, null, null, "101", "2026-01-01", null)))
-        .andExpect(status().isBadRequest());
+  @DisplayName("CA-CM-084 · un importe MAYOR QUE CUALQUIER PRECIO entra sin resistencia")
+  void nadieVigilaElImporte() throws Exception {
+    // ESTA PRUEBA AFIRMA QUE EL SISTEMA NO HACE NADA, y es la más importante de
+    // las seis. `RN-CM-018`: nada acota el importe por arriba, y aquí no podría
+    // — al registrar la tasa NO HAY NINGÚN PRODUCTO contra cuyo precio comparar
+    // (`RN-CM-012`), y aunque lo hubiera, mañana podría asociarse a otro más
+    // barato. La defensa está en la liquidación, que no existe.
+    //
+    // El día que alguien añada un tope aquí, esto falla y la discusión pasa por
+    // `cm.md` en lugar de resolverse en silencio con un número inventado.
+    mvc.perform(alta(fijo(MANAGER, "99999999.9999")))
+        .andExpect(status().isCreated())
+        .andExpect(jsonPath("$.fixedAmount").value(99999999.9999));
 
-    mvc.perform(alta(cuerpo(VENDEDOR, null, null, "10.00", "2026-06-01", "2026-01-01")))
-        .andExpect(status().isBadRequest());
+    assertThat(cuantasTasas()).isEqualTo(1);
+  }
 
-    assertThat(cuantasTarifas()).isZero();
+  @Test
+  @DisplayName("`V50` · un INSERT sin `rate_type` FALLA: la forma no tiene valor por defecto")
+  void laFormaEsObligatoriaEnElEsquema() {
+    // LA ÚNICA PRUEBA QUE PUEDE DELATAR QUE `ALTER COLUMN rate_type DROP DEFAULT`
+    // SE CAYÓ DE LA MIGRACIÓN. Todas las demás pasan por la API, que siempre
+    // envía la forma; ninguna se enteraría. Si el valor por defecto siguiera ahí,
+    // esta inserción obtendría PORCENTAJE en silencio y el `INSERT` pasaría.
+    //
+    // Es fea —habla SQL en lugar de negocio— y es el mismo criterio que
+    // `CA-CM-075`: se prueba lo que el esquema HABRÍA dejado pasar.
+    org.assertj.core.api.Assertions.assertThatThrownBy(
+            () ->
+                jdbc.update(
+                    "INSERT INTO commission_rates (id, role_id, percentage)"
+                        + " VALUES (gen_random_uuid(), CAST(? AS uuid), 10.00)",
+                    MANAGER))
+        .isInstanceOf(org.springframework.dao.DataAccessException.class);
+
+    assertThat(cuantasTasas()).isZero();
   }
 
   // ---------------------------------------------------------------------------
   // Utilidades
   // ---------------------------------------------------------------------------
 
-  private static String cuerpo(
-      String rol, String producto, String persona, String porcentaje, String desde, String hasta) {
-    StringBuilder json = new StringBuilder("{\"roleId\":\"").append(rol).append("\"");
-    if (producto != null) {
-      json.append(",\"productId\":\"").append(producto).append("\"");
-    }
-    if (persona != null) {
-      json.append(",\"userId\":\"").append(persona).append("\"");
-    }
-    json.append(",\"percentage\":").append(porcentaje);
-    json.append(",\"validFrom\":\"").append(desde).append("\"");
-    if (hasta != null) {
-      json.append(",\"validTo\":\"").append(hasta).append("\"");
-    }
-    return json.append("}").toString();
+  private static String fijo(String rol, String importe) {
+    return "{\"roleId\":\"" + rol + "\",\"rateType\":\"FIJO\",\"fixedAmount\":" + importe + "}";
+  }
+
+  private static String cuerpo(String rol, String porcentaje) {
+    return "{\"roleId\":\""
+        + rol
+        + "\",\"rateType\":\"PORCENTAJE\",\"percentage\":"
+        + porcentaje
+        + "}";
   }
 
   private MockHttpServletRequestBuilder alta(String json) {
@@ -213,45 +280,11 @@ class CommissionRatesIT extends IntegrationTestBase {
         .content(json);
   }
 
-  private UUID sembrarPersonaConRol(String usuario, String rol) {
-    UUID id = UUID.randomUUID();
-    jdbc.update(
-        "INSERT INTO users (id, username, email, first_name, last_name, password_hash, status)"
-            + " VALUES (CAST(? AS uuid), ?, ?, 'Persona', 'De prueba', 'x', 'ACTIVO')",
-        id.toString(),
-        usuario,
-        usuario + "@factech.co");
-    if (rol != null) {
-      jdbc.update(
-          "INSERT INTO user_roles (user_id, role_id) VALUES (CAST(? AS uuid), CAST(? AS uuid))",
-          id.toString(),
-          rol);
-    }
-    return id;
-  }
-
-  private UUID sembrarProducto(String codigo) {
-    UUID id = UUID.randomUUID();
-    String moneda =
-        jdbc.queryForObject("SELECT CAST(id AS text) FROM currencies LIMIT 1", String.class);
-    jdbc.update(
-        "INSERT INTO products (id, code, type, name, price, currency_id, status)"
-            + " VALUES (CAST(? AS uuid), ?, 'BOT', ?, 10.00, CAST(? AS uuid), 'INACTIVO')",
-        id.toString(),
-        codigo,
-        "Producto " + codigo,
-        moneda);
-    return id;
-  }
-
-  private long cuantasTarifas() {
+  private long cuantasTasas() {
     return jdbc.queryForObject("SELECT count(*) FROM commission_rates", Long.class);
   }
 
-  private void limpiar() {
-    jdbc.update("DELETE FROM commission_rates");
-    jdbc.update("DELETE FROM products");
-    jdbc.update("DELETE FROM user_roles WHERE user_id <> CAST(? AS uuid)", SUPERADMIN.toString());
-    jdbc.update("DELETE FROM users WHERE id <> CAST(? AS uuid)", SUPERADMIN.toString());
+  private long cuantasAsociaciones() {
+    return jdbc.queryForObject("SELECT count(*) FROM product_commission_rates", Long.class);
   }
 }

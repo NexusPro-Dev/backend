@@ -282,7 +282,10 @@ class RoleDetailIT extends IntegrationTestBase {
   }
 
   private void asignar(UUID persona, UUID rol) {
-    jdbc.update("INSERT INTO user_roles (user_id, role_id) VALUES (?, ?)", persona, rol);
+    jdbc.update(
+        "INSERT INTO user_roles (user_id, role_id, role_type) SELECT ?, r.id, r.role_type FROM roles r WHERE r.id = ?",
+        persona,
+        rol);
   }
 
   private void limpiar() {

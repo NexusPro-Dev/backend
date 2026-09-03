@@ -8,7 +8,7 @@
 | Autor | Responsable técnico |
 | Aprobadas por | Responsable del proyecto |
 | Fecha de aprobación | 26-08-2026 |
-| Enmendadas | 28-08-2026 — `T-19` a `T-22` por el renombrado a `BOT` y el icono del upgrade |
+| Enmendadas | 28-08-2026 — `T-19` a `T-22` por el renombrado a `BOT` y el icono del upgrade; 02-09-2026 — `T-23` a `T-26` por la membresía de **origen** |
 
 !!! info "Qué va en este documento"
 
@@ -42,6 +42,10 @@
 | `T-20` | `ProductType.BOT`, y el icono en el agregado, el DTO de alta, el mandato y las tres respuestas. `Product.verificarTipoEIcono` junto a su hermana, y la normalización a minúsculas en un solo sitio | `T-19` | `ProductTest` cubre las dos mitades: el bot con icono da `VAL-013` y el upgrade sin icono se construye sin queja. El icono se guarda recortado y en minúsculas | **Hecha el 28-08-2026** |
 | `T-21` | Pruebas de API del icono en el alta: normalización, opcionalidad, forma inválida y el rechazo en el bot | `T-20` | `CA-PM-096` a `CA-PM-098` y `VAL-012` en `ProductsIT` | **Hecha el 28-08-2026** |
 | `T-22` | Contrato y documentación: `openapi.json` y `openapi.yaml` regenerados, `requirements/pm.md` §5.1 y §10, y esta tripleta | `T-21` | El contrato publicado dice `BOT` y declara `icon`; no queda ningún `SERVICIO` en el contrato | **Hecha el 28-08-2026** |
+| `T-23` | Migración `V53__products_source_membership.sql`: la columna, el relleno con `FREE`, `ck_products_type_target` reescrita, `fk_products_source_membership`, `ck_products_origen_distinto` y `uq_products_upgrade_target` sobre la **pareja** (`plan.md` §2.3) | `T-01` | Flyway la aplica sobre una base con upgrades existentes y todos quedan con origen; un `INSERT` directo de un upgrade sin origen lo rechaza el `CHECK`, y dos upgrades activos hacia `ORO` desde orígenes distintos **conviven** | **Hecha el 02-09-2026** |
+| `T-24` | El origen en el agregado, el DTO de alta, el mandato y las tres respuestas. `Product.verificarTipoYDestino` pasa a `verificarTipoYMembresias` y comprueba **las cuatro** mitades de `RN-PM-002` más la igualdad de `RN-PM-017` | `T-23` | `ProductTest` cubre las cuatro: upgrade sin origen y sin destino con `VAL-007` sobre el campo que falta, bot con cualquiera de las dos con `VAL-008`, y origen igual a destino con `VAL-014` | **Hecha el 02-09-2026** |
+| `T-25` | La mitad de `RN-PM-017` que necesita el `level` de dos filas, en `RegisterProductService.verificarOrigen`, con el orden moneda → destino → **origen** → unicidad | `T-24` | Integración: origen por encima del destino da `422` con `EX-006` y `VAL-014`; el origen inexistente da `422` con `EX-002` **sobre `sourceMembershipId`**, distinguible del destino inexistente | **Hecha el 02-09-2026** |
+| `T-26` | El origen en la lectura: filtro del listado, proyección de `ProductRow`, el segundo `LEFT JOIN` y el detalle. Y las pruebas de API de `CA-PM-101` a `CA-PM-105` | `T-25` | La suite de `PM` en verde con los criterios nuevos, incluida la premisa de `CA-PM-102` —la cadena tiene dos eslabones entre origen y destino—, y el listado sigue costando **dos** sentencias con los seis filtros puestos | **Hecha el 02-09-2026** |
 
 ## 2. Orden de ejecución
 
@@ -65,6 +69,9 @@
 | `CA-PM-069` | `T-01`, `T-09` |
 | `CA-PM-070` | `T-03` |
 | `CA-PM-071` | `T-10` |
+| `CA-PM-101`, `CA-PM-102` | `T-23`, `T-24`, `T-26` |
+| `CA-PM-103`, `CA-PM-105` | `T-24`, `T-26` |
+| `CA-PM-104` | `T-24`, `T-25`, `T-26` |
 
 ## 4. Bloqueos
 

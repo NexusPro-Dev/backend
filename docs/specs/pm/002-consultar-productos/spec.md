@@ -34,7 +34,7 @@ Con `RF-PM-001` se puede **crear** un producto y no **verlo**: quien administra 
 ### 4.1 Incluye
 
 - Devolver los productos **paginados**.
-- Filtrar por tipo, por estado y por membresía destino.
+- Filtrar por tipo, por estado y por membresía **de origen o de destino**.
 - Buscar por nombre, sin distinguir mayúsculas ni acentos.
 - Incluir o excluir los productos retirados.
 - Ordenar por **fecha de alta** salvo que el actor pida otro orden de la lista admitida.
@@ -61,7 +61,8 @@ Con `RF-PM-001` se puede **crear** un producto y no **verlo**: quien administra 
 | Página y tamaño | No | Qué porción del catálogo se pide | Con un tamaño máximo; pedir más se **rechaza**, no se recorta |
 | Tipo | No | Filtra por upgrade o por bot | Uno de los dos valores admitidos |
 | Estado | No | Filtra por activo o inactivo | Uno de los valores admitidos |
-| Membresía destino | No | Filtra los upgrades que llevan a ese nivel | Un destino que no existe devuelve una colección vacía, no un error |
+| Membresía destino | No | Filtra los upgrades que **llevan** a ese nivel | Un destino que no existe devuelve una colección vacía, no un error |
+| Membresía de origen | No | Filtra los upgrades que **salen** de ese nivel | Igual. Es la pregunta «qué puede comprar quien está en `FREE`» hecha desde administración, y **no sustituye a `RF-PM-007`**: aquella responde sobre quien llama y esta sobre cualquiera |
 | Búsqueda | No | Coincidencia parcial sobre el nombre | En blanco equivale a ausente |
 | Incluir retirados | No | Si se devuelven también los productos eliminados | Por omisión **no** se devuelven |
 | Orden | No | Por qué campo se ordena y en qué sentido | **Lista cerrada**: nombre, precio o fecha de alta. Cualquier otro valor se rechaza |
@@ -131,9 +132,10 @@ Con `RF-PM-001` se puede **crear** un producto y no **verlo**: quien administra 
 | `CA-PM-014` | El sistema filtra por tipo y devuelve solo los upgrades o solo los bots |
 | `CA-PM-015` | El sistema filtra por estado y devuelve también los inactivos cuando se piden |
 | `CA-PM-016` | El sistema filtra los upgrades por su membresía destino |
+| `CA-PM-109` | El sistema filtra los upgrades por su membresía **de origen**, y los dos filtros **se combinan**: origen y destino a la vez devuelven la pareja exacta |
 | `CA-PM-017` | El sistema busca por nombre sin distinguir mayúsculas ni acentos, y la búsqueda en blanco equivale a no filtrar |
 | `CA-PM-018` | El sistema **excluye los productos retirados** salvo que se pidan expresamente, y al pedirlos indica desde cuándo lo están |
-| `CA-PM-019` | El sistema devuelve el destino de cada upgrade con su nombre y su nivel, sin exigir una segunda consulta |
+| `CA-PM-019` | El sistema devuelve **el origen y el destino** de cada upgrade con su nombre y su nivel, sin exigir una segunda consulta |
 | `CA-PM-020` | El sistema rechaza los parámetros inválidos **enumerándolos todos juntos** |
 | `CA-PM-021` | El sistema devuelve una colección vacía y total cero cuando ningún producto cumple el filtro |
 | `CA-PM-022` | El sistema rechaza la consulta a un actor sin el permiso de lectura de productos |

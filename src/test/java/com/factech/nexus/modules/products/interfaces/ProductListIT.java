@@ -45,6 +45,7 @@ class ProductListIT extends IntegrationTestBase {
 
   private UUID oro;
   private UUID plata;
+  private UUID free;
 
   @BeforeEach
   void sembrarCatalogo() {
@@ -56,6 +57,8 @@ class ProductListIT extends IntegrationTestBase {
     // COMMIT, lejos de donde se escribieron.
     oro = membresia("ORO", "Oro", 1, null);
     plata = membresia("PLATA", "Plata", 2, oro);
+    // El SUELO de la cadena: el origen de todo upgrade que se siembre aqui.
+    free = membresia("FREE", "Free", 3, plata);
 
     // Cinco productos, cada uno una hora después del anterior: el orden de alta
     // queda determinado y las pruebas de orden pueden afirmar cuál va primero.
@@ -426,15 +429,22 @@ class ProductListIT extends IntegrationTestBase {
       String estado,
       OffsetDateTime creado) {
 
+    // Origen y destino VIAJAN JUNTOS: un upgrade declara los dos
+    // (`RN-PM-002`) y un bot no declara ninguno. Por eso el origen se
+    // deriva del destino en lugar de ser un parametro mas — nunca puede
+    // quedar uno sin el otro, que es lo que `ck_products_type_target` mira.
     jdbc.update(
-        "INSERT INTO products (id, code, type, name, description, target_membership_id, price,"
+        "INSERT INTO products (id, code, type, name, description, source_membership_id,"
+            + " target_membership_id, price,"
             + " currency_id, validity_days, status, created_at, updated_at)"
-            + " VALUES (CAST(? AS uuid), ?, ?, ?, NULL, CAST(? AS uuid), CAST(? AS numeric),"
+            + " VALUES (CAST(? AS uuid), ?, ?, ?, NULL,"
+            + " CAST(? AS uuid), CAST(? AS uuid), CAST(? AS numeric),"
             + " CAST(? AS uuid), CAST(? AS integer), ?, ?, ?)",
         UUID.randomUUID().toString(),
         codigo,
         tipo,
         nombre,
+        destino == null ? null : free.toString(),
         destino == null ? null : destino.toString(),
         precio,
         USD,

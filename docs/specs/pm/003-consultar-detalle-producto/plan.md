@@ -3,19 +3,19 @@
 | Campo | Valor |
 |---|---|
 | Requerimiento | `RF-PM-003` |
-| Especificación | [`spec.md`](spec.md) v0.2.0 |
+| Especificación | [`spec.md`](spec.md) v0.3.0 |
 | `spec.md` aprobada el | 26-08-2026 |
 | Estado | **Aprobado** |
 | Autor | Responsable técnico |
 | Aprobado por | Responsable del proyecto |
-| Enmendado el | 27-08-2026 — `RN-PM-015` |
+| Enmendado el | 27-08-2026 — `RN-PM-015`; 02-09-2026 — la membresía de **origen** (`RN-PM-017`, `RN-PM-018`) |
 | Fecha de aprobación | 26-08-2026 |
 
 ---
 
 ## 1. Enfoque
 
-Una lectura por identificador que devuelve el producto con su destino y su moneda **resueltos**, y —cuando está retirado— **el motivo del retiro**. Todo lo demás es rutina; el motivo no lo es, y es lo que este plan tiene que resolver.
+Una lectura por identificador que devuelve el producto con sus **dos** membresías —origen y destino— y su moneda **resueltos**, y —cuando está retirado— **el motivo del retiro**. Todo lo demás es rutina; el motivo no lo es, y es lo que este plan tiene que resolver.
 
 ## 2. Cambios de esquema
 
@@ -44,7 +44,7 @@ Si esta salida no se aprueba, la alternativa es **añadir `deletion_reason` a `p
 | Capa | Componente | Responsabilidad |
 |---|---|---|
 | `shared/audit` | `DeletionReasonReader` + adaptador | La lectura estrecha de §3 |
-| `application` | `ProductDetailResponse` | Producto, destino resuelto, moneda y marca de retiro con motivo |
+| `application` | `ProductDetailResponse` | Producto, **origen y destino** resueltos, moneda y marca de retiro con motivo |
 | `domain/repository` | `ProductQueryRepository.findDetail(UUID)` | Una sentencia con dos uniones externas |
 | `domain/service` | `GetProductService` | `@Transactional(readOnly = true)` |
 | `interfaces` | `ProductController` | `GET /api/v1/products/{id}` |
@@ -53,7 +53,7 @@ Si esta salida no se aprueba, la alternativa es **añadir `deletion_reason` a `p
 
 `GET /api/v1/products/{id}` → `200` con el detalle; `404` si no existe; `400` si el identificador no es canónico.
 
-- **El destino y la moneda llegan resueltos** con `LEFT JOIN`, en la misma sentencia. Mismo criterio y misma justificación que `RF-PM-002` §8.
+- **Las dos membresías y la moneda llegan resueltas** con `LEFT JOIN`, en la misma sentencia. Mismo criterio y misma justificación que `RF-PM-002` §8. **Aquí el origen sí viaja**, al revés que en `RF-PM-007`: el detalle es la vista de administración de un producto, y de qué salto se vende es media identidad del producto.
 - **`targetMembership` viaja como `null` presente** en los bots, no ausente.
 - **El precio va como número, con los decimales de su moneda** y no con la escala de la columna (`CA-PM-082`): `49.99`, no `49.9900`. La escala se aplica al serializar, leyendo `decimalPlaces` de la moneda que ya viene en la misma fila.
 - **`deletedAt` y `deletionReason` solo aparecen si el producto está retirado**, y `deletionReason` se pide al puerto **solo entonces**: en un producto vivo esa consulta no se ejecuta.

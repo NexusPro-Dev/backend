@@ -21,7 +21,7 @@ Es la operación del día a día del catálogo: se deja de vender algo por una t
 
 **Desactivar no toca nada de lo ya vendido.** El producto sigue existiendo, sigue apareciendo en el catálogo administrativo y sigue pudiendo explicarse; lo único que cambia es que deja de ofrecerse (`RN-PM-009`).
 
-**Reactivar vuelve a competir por el destino.** Un upgrade que se desactivó libera su destino, y en ese intervalo puede haberse publicado otro hacia el mismo nivel. Volver a activarlo exige comprobar `RN-PM-004` otra vez: es el momento en que dos precios simultáneos para lo mismo entrarían por la puerta de atrás.
+**Reactivar vuelve a competir por la PAREJA.** Un upgrade que se desactivó libera su pareja origen→destino, y en ese intervalo puede haberse publicado otro hacia el mismo nivel. Volver a activarlo exige comprobar `RN-PM-004` otra vez: es el momento en que dos precios simultáneos para lo mismo entrarían por la puerta de atrás.
 
 ## 3. Actores
 
@@ -34,7 +34,7 @@ Es la operación del día a día del catálogo: se deja de vender algo por una t
 ### 4.1 Incluye
 
 - Activar un producto inactivo y desactivar uno activo.
-- Comprobar, al activar un upgrade, que ningún otro upgrade activo apunta a su mismo destino.
+- Comprobar, al activar un upgrade, que ningún otro upgrade activo declara **su misma pareja origen→destino**.
 - Comprobar, al activar, que el producto tiene descripción (`RN-PM-014`).
 - Dejar constancia del cambio en la auditoría.
 
@@ -49,7 +49,7 @@ Es la operación del día a día del catálogo: se deja de vender algo por una t
 
 | ID | Regla | Origen |
 |---|---|---|
-| `RN-PM-004` | Un solo upgrade activo por destino | `requirements/pm.md` §5.1 |
+| `RN-PM-004` | Un solo upgrade activo **por pareja origen→destino** | `requirements/pm.md` §5.1 |
 | `RN-PM-009` | Solo se ofrece lo activo | `requirements/pm.md` §5.1 |
 | `RN-PM-014` | No se publica lo que no se explica | `requirements/pm.md` §5.1 |
 
@@ -78,7 +78,7 @@ Es la operación del día a día del catálogo: se deja de vender algo por una t
 **Postcondiciones**
 
 - El producto queda en el estado pedido.
-- Si quedó activo y es un upgrade, es el **único** upgrade activo hacia su destino.
+- Si quedó activo y es un upgrade, es el **único** upgrade activo **con su pareja**. Otros hacia el mismo destino desde orígenes distintos **conviven**, y eso es lo que el origen vino a permitir.
 - La auditoría de cambios contiene el cambio de estado con su valor anterior y el nuevo.
 
 ## 8. Flujo principal
@@ -86,7 +86,7 @@ Es la operación del día a día del catálogo: se deja de vender algo por una t
 1. El actor envía el identificador y el estado que quiere.
 2. El sistema comprueba que el producto existe y no está retirado.
 3. Si el estado pedido es «activo», el sistema comprueba que el producto tiene descripción.
-4. Si además es un upgrade, el sistema comprueba que ningún otro upgrade activo apunta a su destino.
+4. Si además es un upgrade, el sistema comprueba que ningún otro upgrade activo declara **su misma pareja**.
 5. El sistema aplica el estado y emite el evento de auditoría.
 6. El sistema devuelve el producto.
 
@@ -169,3 +169,4 @@ Ninguna. Las tres quedaron cerradas el 26-08-2026: una por decisión, una por la
 |---|---|---|---|
 | 0.2.0 | 26-08-2026 | **Aprobada.** No se exige motivo para activar ni desactivar, por coherencia con `RF-PM-004` y con los catálogos de `SP`. Recibió además dos cosas de fuera: la excepción del **upgrade activo hacia el mismo destino**, que llegó desde `RF-PM-001` al resolverse que el producto nace inactivo —y con ella la comprobación de `RN-PM-004` vive solo aquí—, y la regla `RN-PM-014`, que impide **publicar un producto sin descripción**. La pregunta del carrito se traslada a quien escriba la compra, con lo único que esta spec puede afirmar: aquí no se reserva nada. Criterios `CA-PM-072`, `CA-PM-073` y `CA-PM-085`. | Responsable del proyecto |
 | 0.1.0 | 26-08-2026 | Redacción inicial, con tres preguntas abiertas. | Responsable técnico |
+| 0.2.0 | 02-09-2026 | **`RN-PM-004` pasa de ser «un upgrade activo por destino» a «por pareja origen→destino»**, porque un upgrade declara ahora **de dónde sale** (`pm.md` §5.2.1). La versión anterior **prohibía exactamente lo que el origen existe para permitir**: `FREE → ORO` y `PLATINO → ORO` activos a la vez. Y el motivo por el que la regla existe **no se debilita** — dos productos activos **desde el mismo sitio y hacia el mismo sitio** siguen siendo dos precios simultáneos para lo mismo—; lo que cambia es qué cuenta como «lo mismo». Dos saltos distintos hacia el mismo destino **no lo son**, y que cuesten distinto es lo normal. | Responsable del proyecto |

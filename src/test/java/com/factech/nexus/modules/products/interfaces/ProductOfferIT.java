@@ -77,15 +77,21 @@ class ProductOfferIT extends IntegrationTestBase {
     platino = membresia("PLATINO", "Platino", 2, oro);
     vip = membresia("VIP", "Vip", 3, platino);
     free = membresia("FREE", "Free", 4, vip);
+    // Solo para que `UP_FREE` tenga un origen por debajo del suyo (`RN-PM-002`
+    // exige las dos membresías desde el 02-09-2026): nadie se asigna aquí, y la
+    // comparación que decide esta prueba sigue siendo por NIVEL, no por origen
+    // (`T-20` de la tripleta, pendiente) — este nivel no participa en ninguna
+    // aserción.
+    UUID sotano = membresia("SOTANO", "Sótano de prueba", 5, free);
 
     // Un upgrade activo hacia cada nivel. El de FREE existe y está ACTIVO a
     // propósito: es el único que hace verificable `CA-PM-061` —que no se
     // ofrecen bajadas—. Con él inactivo, quedar fuera no probaría nada, porque
     // ya lo excluiría `RN-PM-009`.
-    upgrade("UP_ORO", "Ascenso a Oro", oro, "100.00", 365, "ACTIVO", BASE, false);
-    upgrade("UP_PLATINO", "Ascenso a Platino", platino, "50.00", 30, "ACTIVO", BASE, false);
-    upgrade("UP_VIP", "Ascenso a Vip", vip, "20.00", null, "ACTIVO", BASE, false);
-    upgrade("UP_FREE", "Ascenso a Free", free, "5.00", 7, "ACTIVO", BASE, false);
+    upgrade("UP_ORO", "Ascenso a Oro", platino, oro, "100.00", 365, "ACTIVO", BASE, false);
+    upgrade("UP_PLATINO", "Ascenso a Platino", vip, platino, "50.00", 30, "ACTIVO", BASE, false);
+    upgrade("UP_VIP", "Ascenso a Vip", free, vip, "20.00", null, "ACTIVO", BASE, false);
+    upgrade("UP_FREE", "Ascenso a Free", sotano, free, "5.00", 7, "ACTIVO", BASE, false);
 
     // Lo que NO debe salir nunca (`CA-PM-058`). Los dos apuntan a ORO, y no
     // chocan con `UP_ORO` porque `uq_products_upgrade_target` es un índice
@@ -93,13 +99,23 @@ class ProductOfferIT extends IntegrationTestBase {
     upgrade(
         "UP_ORO_BORRADOR",
         "Ascenso a Oro (sin publicar)",
+        platino,
         oro,
         "90.00",
         365,
         "INACTIVO",
         BASE,
         false);
-    upgrade("UP_ORO_RETIRADO", "Ascenso a Oro (retirado)", oro, "80.00", 365, "ACTIVO", BASE, true);
+    upgrade(
+        "UP_ORO_RETIRADO",
+        "Ascenso a Oro (retirado)",
+        platino,
+        oro,
+        "80.00",
+        365,
+        "ACTIVO",
+        BASE,
+        true);
 
     bot("BOT_SENALES", "Bot de señales", "10.00", null, "ACTIVO", BASE.plusHours(2), false);
     bot("BOT_SOPORTE", "Bot de soporte", "99.50", 15, "ACTIVO", BASE.plusHours(3), false);
@@ -453,6 +469,7 @@ class ProductOfferIT extends IntegrationTestBase {
   private void upgrade(
       String codigo,
       String nombre,
+      UUID origen,
       UUID destino,
       String precio,
       Integer vigencia,
@@ -460,7 +477,16 @@ class ProductOfferIT extends IntegrationTestBase {
       OffsetDateTime creado,
       boolean retirado) {
     insertar(
-        codigo, "UPGRADE_MEMBRESIA", nombre, destino, precio, vigencia, estado, creado, retirado);
+        codigo,
+        "UPGRADE_MEMBRESIA",
+        nombre,
+        origen,
+        destino,
+        precio,
+        vigencia,
+        estado,
+        creado,
+        retirado);
   }
 
   private void bot(
@@ -471,7 +497,7 @@ class ProductOfferIT extends IntegrationTestBase {
       String estado,
       OffsetDateTime creado,
       boolean retirado) {
-    insertar(codigo, "BOT", nombre, null, precio, vigencia, estado, creado, retirado);
+    insertar(codigo, "BOT", nombre, null, null, precio, vigencia, estado, creado, retirado);
   }
 
   /**
@@ -484,6 +510,7 @@ class ProductOfferIT extends IntegrationTestBase {
       String codigo,
       String tipo,
       String nombre,
+      UUID origen,
       UUID destino,
       String precio,
       Integer vigencia,
@@ -492,15 +519,17 @@ class ProductOfferIT extends IntegrationTestBase {
       boolean retirado) {
 
     jdbc.update(
-        "INSERT INTO products (id, code, type, name, description, target_membership_id, price,"
+        "INSERT INTO products (id, code, type, name, description, source_membership_id,"
+            + " target_membership_id, price,"
             + " currency_id, validity_days, status, created_at, updated_at, deleted_at)"
             + " VALUES (CAST(? AS uuid), ?, ?, ?, 'Descripción de prueba', CAST(? AS uuid),"
-            + " CAST(? AS numeric), CAST(? AS uuid), CAST(? AS integer), ?, ?, ?,"
+            + " CAST(? AS uuid), CAST(? AS numeric), CAST(? AS uuid), CAST(? AS integer), ?, ?, ?,"
             + " CAST(? AS timestamptz))",
         UUID.randomUUID().toString(),
         codigo,
         tipo,
         nombre,
+        origen == null ? null : origen.toString(),
         destino == null ? null : destino.toString(),
         precio,
         USD,

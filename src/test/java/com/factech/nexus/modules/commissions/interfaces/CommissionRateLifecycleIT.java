@@ -1,5 +1,8 @@
 package com.factech.nexus.modules.commissions.interfaces;
 
+import static com.factech.nexus.modules.commissions.interfaces.CommissionFixtures.AGENTE;
+import static com.factech.nexus.modules.commissions.interfaces.CommissionFixtures.DIRECTOR;
+import static com.factech.nexus.modules.commissions.interfaces.CommissionFixtures.MANAGER;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.user;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch;
@@ -21,29 +24,29 @@ import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.request.MockHttpServletRequestBuilder;
 
 /**
- * Corrección y retiro de una tarifa (`RF-CM-003` y `RF-CM-004`).
+ * Corregir y retirar una tasa de rol (`RF-CM-003` y `RF-CM-004`).
  *
- * <p>Las dos operaciones van juntas porque la distinción que las separa es lo que se prueba:
- * <b>corregir reescribe lo que una tarifa dice que rigió; retirar dice que no debió existir</b>. Y
- * de ahí que el retiro <b>no toque la vigencia</b>.
+ * <p><b>La prueba que más importa de este archivo es la del retiro con asociaciones vivas.</b> Es
+ * una condición que `cm.md` no declara y que se añadió al construir el módulo: sin ella, retirar
+ * una tasa asociada haría que el producto <b>dejara de comisionar sin que nada lo dijera</b>,
+ * porque la asociación sobreviviría apuntando a una fila que la resolución ya no mira.
+ *
+ * <p>Y la segunda: <b>corregir borra el pasado</b>. Sin vigencia no hay historial, de modo que el
+ * registro de auditoría del cambio es hoy el único sitio donde queda escrito el porcentaje
+ * anterior.
  */
 @AutoConfigureMockMvc
 class CommissionRateLifecycleIT extends IntegrationTestBase {
 
-  private static final String VENDEDOR = "01a02a33-4c00-7005-9c4f-5e7ad1000003";
-
   @Autowired private MockMvc mvc;
   @Autowired private JdbcTemplate jdbc;
 
-  private UUID tarifa;
+  private UUID tasa;
 
   @BeforeEach
   void preparar() {
     limpiar();
-    // Acotada a 2026 a propósito: una tarifa indefinida taparía los periodos que
-    // las pruebas del retiro usan más adelante, y el choque sería del montaje y
-    // no de lo que se quiere verificar.
-    tarifa = sembrarTarifa("10.00", "2026-01-01", "2026-12-31");
+    tasa = CommissionFixtures.sembrarTasaDeRol(jdbc, MANAGER, "10.00");
   }
 
   @AfterEach
@@ -51,195 +54,416 @@ class CommissionRateLifecycleIT extends IntegrationTestBase {
     limpiar();
   }
 
+  // ---------------------------------------------------------------------------
+  // Corregir
+  // ---------------------------------------------------------------------------
+
   @Test
-  @DisplayName("`CA-CM-023` — corrige el porcentaje y conserva intacto lo demás")
+  @DisplayName("corrige el porcentaje y devuelve la tasa con el rol resuelto")
   void corrigeElPorcentaje() throws Exception {
-    mvc.perform(corregir(tarifa, "{\"percentage\":12.50}"))
+    mvc.perform(correccion(tasa, "{\"rateType\":\"PORCENTAJE\",\"percentage\":12.50}"))
         .andExpect(status().isOk())
         .andExpect(jsonPath("$.percentage").value(12.50))
-        .andExpect(jsonPath("$.validFrom").value("2026-01-01"));
+        .andExpect(jsonPath("$.role.code").value("MANAGER"))
+        .andExpect(jsonPath("$.associatedProducts").value(0));
   }
 
   @Test
-  @DisplayName("`CA-CM-024` y `CA-CM-025` — declara el fin de vigencia y lo VACÍA")
-  void cierraYReabreLaVigencia() throws Exception {
-    mvc.perform(corregir(tarifa, "{\"validTo\":\"2026-06-30\"}"))
-        .andExpect(status().isOk())
-        .andExpect(jsonPath("$.validTo").value("2026-06-30"));
+  @DisplayName("corregir BORRA el porcentaje anterior, y solo la auditoría lo conserva")
+  void corregirBorraElPasado() throws Exception {
+    mvc.perform(correccion(tasa, "{\"rateType\":\"PORCENTAJE\",\"percentage\":12.00}"))
+        .andExpect(status().isOk());
 
-    mvc.perform(corregir(tarifa, "{\"validTo\":null}"))
-        .andExpect(status().isOk())
-        .andExpect(jsonPath("$.validTo").value(org.hamcrest.Matchers.nullValue()));
+    // En la tabla ya no queda ni rastro del 10: no hay dos filas contando cada
+    // una su parte, hay una que ahora dice otra cosa.
+    assertThat(porcentajeEnBase()).isEqualByComparingTo("12.00");
+
+    // De modo que ESTE registro es la única copia del valor previo que existe en
+    // todo el sistema. Si dejara de escribirse, el 10 desaparecería.
+    String cambio =
+        jdbc.queryForObject(
+            "SELECT CAST(changes AS text) FROM audit_change_log WHERE entity = 'commission_rates'"
+                + " AND action = 'UPDATE' ORDER BY occurred_at DESC LIMIT 1",
+            String.class);
+    assertThat(cambio).contains("10.00").contains("12.00");
   }
 
   @Test
-  @DisplayName("`CA-CM-026` — vaciar el porcentaje se RECHAZA, al revés que el fin de vigencia")
+  @DisplayName("una corrección que no cambia nada no mueve `updated_at`")
+  void correccionQueNoCambiaNada() throws Exception {
+    var antes = actualizadaEn();
+    mvc.perform(correccion(tasa, "{\"rateType\":\"PORCENTAJE\",\"percentage\":10.00}"))
+        .andExpect(status().isOk());
+    assertThat(actualizadaEn()).isEqualTo(antes);
+  }
+
+  @Test
+  @DisplayName("el rol NO se corrige, y se rechaza en vez de ignorarse")
+  void elRolNoSeCorrige() throws Exception {
+    mvc.perform(correccion(tasa, "{\"roleId\":\"" + DIRECTOR + "\"}"))
+        .andExpect(status().isBadRequest())
+        .andExpect(jsonPath("$.errors[0].code").value("VAL-009"));
+
+    // Ignorarlo haría creer que el cambio se aplicó, y la tasa habría arrastrado
+    // sus asociaciones a un rol que nadie eligió.
+    assertThat(rolEnBase()).isEqualTo(MANAGER);
+  }
+
+  @Test
+  @DisplayName("vaciar el porcentaje se rechaza: una tasa sin porcentaje no significa nada")
   void elPorcentajeNoSeVacia() throws Exception {
-    mvc.perform(corregir(tarifa, "{\"percentage\":null}"))
+    mvc.perform(correccion(tasa, "{\"rateType\":null}"))
         .andExpect(status().isBadRequest())
         .andExpect(jsonPath("$.errors[0].code").value("VAL-002"));
   }
 
   @Test
-  @DisplayName("`CA-CM-027` — los cuatro inmutables se rechazan con su mensaje, no se ignoran")
-  void losInmutablesSeRechazan() throws Exception {
-    mvc.perform(corregir(tarifa, "{\"roleId\":\"" + VENDEDOR + "\",\"percentage\":50}"))
-        .andExpect(status().isBadRequest())
-        .andExpect(jsonPath("$.errors[0].code").value("VAL-009"));
-
-    // Y NO se aplica el resto de la petición: ignorarlos haría creer que el
-    // cambio se aplicó.
-    assertThat(porcentajeDe(tarifa)).isEqualByComparingTo(new java.math.BigDecimal("10.00"));
-
-    mvc.perform(corregir(tarifa, "{\"validFrom\":\"2026-02-01\"}"))
-        .andExpect(status().isBadRequest());
-  }
-
-  @Test
-  @DisplayName("la petición vacía se rechaza")
+  @DisplayName("una petición vacía se rechaza")
   void peticionVacia() throws Exception {
-    mvc.perform(corregir(tarifa, "{}"))
+    mvc.perform(correccion(tasa, "{}"))
         .andExpect(status().isBadRequest())
         .andExpect(jsonPath("$.errors[0].code").value("VAL-010"));
   }
 
   @Test
-  @DisplayName("`CA-CM-028` — corregir la vigencia hasta solapar devuelve 409, y NO 500")
-  void elSolapamientoAlCorregirEs409() throws Exception {
-    // Se cierra la primera y se declara la siguiente, consecutivas.
-    mvc.perform(corregir(tarifa, "{\"validTo\":\"2026-06-30\"}")).andExpect(status().isOk());
-    sembrarTarifa("12.00", "2026-07-01", null);
+  @DisplayName("una tasa retirada se trata como inexistente")
+  void retiradaEsInexistente() throws Exception {
+    retirar(tasa);
+    mvc.perform(correccion(tasa, "{\"rateType\":\"PORCENTAJE\",\"percentage\":12.00}"))
+        .andExpect(status().isNotFound());
+  }
 
-    // Reabrir la primera pisaría los días de la segunda. Es la prueba del
-    // defecto de `RF-SP-027`: el UPDATE sale en el commit, fuera de todo try, y
-    // sin el volcado explícito esto llegaría como 500.
-    mvc.perform(corregir(tarifa, "{\"validTo\":null}"))
-        .andExpect(status().isConflict())
-        .andExpect(jsonPath("$.errors[0].code").value("EX-007"));
+  // ---------------------------------------------------------------------------
+  // Retirar
+  // ---------------------------------------------------------------------------
+
+  @Test
+  @DisplayName("retira con motivo, y la fila permanece")
+  void retiraConMotivo() throws Exception {
+    mvc.perform(retiro(tasa, "se declaró por error")).andExpect(status().isNoContent());
+
+    assertThat(estaRetirada()).isTrue();
+    // `RN-CM-005`: la fila permanece para que una liquidación pasada siga
+    // resolviendo con qué porcentaje se pagó.
+    assertThat(cuantasFilas()).isEqualTo(1);
   }
 
   @Test
-  @DisplayName("`CA-CM-029` — una tarifa retirada se trata como inexistente al corregir")
-  void laRetiradaNoSeCorrige() throws Exception {
-    mvc.perform(retirar(tarifa, "Se declaró sobre el rol equivocado."))
+  @DisplayName("UNA TASA ASOCIADA NO SE RETIRA: si no, el producto dejaría de pagar en silencio")
+  void noSeRetiraLoQueRige() throws Exception {
+    UUID producto = CommissionFixtures.sembrarProducto(jdbc, "BOT_A");
+    CommissionFixtures.asociar(jdbc, tasa, producto, MANAGER);
+
+    mvc.perform(retiro(tasa, "ya no aplica"))
+        .andExpect(status().isConflict())
+        .andExpect(jsonPath("$.errors[0].code").value("EX-005"));
+
+    // Sin esta condición la asociación seguiría ahí apuntando a una fila que la
+    // resolución ya no mira, y el producto pasaría a no comisionar sin que nada
+    // lo indicara. Es la silenciosidad de `RN-CM-012` por la puerta de atrás.
+    assertThat(estaRetirada()).isFalse();
+  }
+
+  @Test
+  @DisplayName("desasociada primero, la misma tasa sí se retira")
+  void desasociarDesbloqueaElRetiro() throws Exception {
+    UUID producto = CommissionFixtures.sembrarProducto(jdbc, "BOT_A");
+    CommissionFixtures.asociar(jdbc, tasa, producto, MANAGER);
+
+    mvc.perform(
+            post("/api/v1/commission-rates/" + tasa + "/products/" + producto + "/deletion")
+                .with(user(SUPERADMIN.toString()).authorities(() -> "commissions:update"))
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("{\"reason\":\"deja de comisionar\"}"))
         .andExpect(status().isNoContent());
 
-    mvc.perform(corregir(tarifa, "{\"percentage\":50}")).andExpect(status().isNotFound());
+    mvc.perform(retiro(tasa, "ya no se usa")).andExpect(status().isNoContent());
+    assertThat(estaRetirada()).isTrue();
+  }
+
+  @Test
+  @DisplayName("retirar sin motivo se rechaza antes de tocar nada")
+  void motivoObligatorio() throws Exception {
+    mvc.perform(retiro(tasa, "   "))
+        .andExpect(status().isBadRequest())
+        .andExpect(jsonPath("$.errors[0].code").value("VAL-007"));
+
+    assertThat(estaRetirada()).isFalse();
+  }
+
+  @Test
+  @DisplayName("retirar dos veces da 409 y no 404: la tasa existe, y el retiro YA ocurrió")
+  void noEsIdempotente() throws Exception {
+    retirar(tasa);
+    mvc.perform(retiro(tasa, "otra vez")).andExpect(status().isConflict());
+  }
+
+  @Test
+  @DisplayName("retirar lo inexistente da 404")
+  void retirarLoInexistente() throws Exception {
+    mvc.perform(retiro(UUID.randomUUID(), "un motivo")).andExpect(status().isNotFound());
+  }
+
+  // ---------------------------------------------------------------------------
+  // Corregir la FORMA (`cm.md` v0.7.0)
+  // ---------------------------------------------------------------------------
+
+  @Test
+  @DisplayName("CA-CM-090 · corrige de porcentaje a IMPORTE FIJO, y la tasa queda en importe fijo")
+  void cambiaLaForma() throws Exception {
+    mvc.perform(correccion(tasa, "{\"rateType\":\"FIJO\",\"fixedAmount\":10000}"))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.rateType").value("FIJO"))
+        .andExpect(jsonPath("$.fixedAmount").value(10000))
+        .andExpect(jsonPath("$.percentage").value(org.hamcrest.Matchers.nullValue()));
+
+    assertThat(formaEnBase()).isEqualTo("FIJO");
+    assertThat(porcentajeEnBase()).isNull();
+  }
+
+  @Test
+  @DisplayName("CA-CM-091 · `10 %` → `10` FIJO ES UN CAMBIO, aunque las cifras comparen iguales")
+  void laMismaCifraEnLaOtraFormaSiEsUnCambio() throws Exception {
+    // EL CRITERIO MÁS IMPORTANTE DE LOS SEIS, Y EL ÚNICO QUE PUEDE FALLAR EN
+    // SILENCIO. La tasa vale 10.00 %; se corrige a 10 de importe fijo. Los dos
+    // números comparan iguales, de modo que una comparación que mirara solo la
+    // cifra —que es como estaba escrita, y con razón, por `FA-002`— concluiría
+    // que no hubo cambio: DEVOLVERÍA 200 sin escribir, sin auditar y sin mover
+    // la marca de modificación, y la tasa seguiría pagando el 10 %.
+    //
+    // Va en pareja con `correccionQueNoCambiaNada`, que usa los mismos números y
+    // espera lo contrario. Cualquiera de las dos se satisface rompiendo la otra.
+    var antes = actualizadaEn();
+
+    mvc.perform(correccion(tasa, "{\"rateType\":\"FIJO\",\"fixedAmount\":10.00}"))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.rateType").value("FIJO"));
+
+    assertThat(formaEnBase()).isEqualTo("FIJO");
+    assertThat(actualizadaEn()).isNotEqualTo(antes);
+  }
+
+  @Test
+  @DisplayName("CA-CM-092 · el evento lleva la FORMA anterior y la nueva, no solo los números")
+  void laAuditoriaGuardaLaForma() throws Exception {
+    mvc.perform(correccion(tasa, "{\"rateType\":\"FIJO\",\"fixedAmount\":10000}"))
+        .andExpect(status().isOk());
+
+    // Un `before` que dijera «10.00» sin decir que era un PORCENTAJE no conserva
+    // nada: quien lo lea dentro de un año no podrá saber si esa tasa pagaba una
+    // décima parte de la venta o diez unidades de dinero. Y como esta tabla no
+    // tiene vigencia, este registro es la única copia que queda.
+    String cambio =
+        jdbc.queryForObject(
+            "SELECT CAST(changes AS text) FROM audit_change_log WHERE entity = 'commission_rates'"
+                + " AND action = 'UPDATE' ORDER BY occurred_at DESC LIMIT 1",
+            String.class);
+
+    assertThat(cambio).contains("PORCENTAJE 10.00").contains("FIJO 10000");
+  }
+
+  @Test
+  @DisplayName("CA-CM-093 · el valor SIN la forma se rechaza, y la tasa queda intacta")
+  void elValorSinLaForma() throws Exception {
+    // Un importe suelto sobre una tasa de porcentaje puede ser «cámbiala a
+    // importe fijo» o «me equivoqué de campo», y las dos peticiones se escriben
+    // igual. No se deduce.
+    mvc.perform(correccion(tasa, "{\"fixedAmount\":10000}"))
+        .andExpect(status().isBadRequest())
+        .andExpect(jsonPath("$.errors[0].code").value("VAL-011"));
+
+    assertThat(formaEnBase()).isEqualTo("PORCENTAJE");
+    assertThat(porcentajeEnBase()).isEqualByComparingTo("10.00");
+  }
+
+  @Test
+  @DisplayName("CA-CM-094 · `150` se RECHAZA en porcentaje y se ACEPTA en importe fijo")
+  void elTopeSoloExisteEnUnaDeLasDosFormas() throws Exception {
+    mvc.perform(correccion(tasa, "{\"rateType\":\"PORCENTAJE\",\"percentage\":150}"))
+        .andExpect(status().isBadRequest());
+
+    // La misma cifra, la otra forma. `RN-CM-018`: cien es un límite que el
+    // negocio conoce sin mirar nada; para el importe NO EXISTE ESE NÚMERO.
+    mvc.perform(correccion(tasa, "{\"rateType\":\"FIJO\",\"fixedAmount\":150}"))
+        .andExpect(status().isOk());
+
+    assertThat(formaEnBase()).isEqualTo("FIJO");
+  }
+
+  // ---------------------------------------------------------------------------
+  // `RN-CM-019` — el tope de cien al corregir (`cm.md` v0.8.0)
+  // ---------------------------------------------------------------------------
+
+  @Test
+  @DisplayName("CA-CM-110 · corregir una tasa asociada, dentro del tope, se admite con normalidad")
+  void corregirDentroDelTope() throws Exception {
+    UUID producto = CommissionFixtures.sembrarProducto(jdbc, "BOT_A");
+    CommissionFixtures.asociar(jdbc, tasa, producto, MANAGER);
+    UUID otraTasa = CommissionFixtures.sembrarTasaDeRol(jdbc, DIRECTOR, "30.00");
+    CommissionFixtures.asociar(jdbc, otraTasa, producto, DIRECTOR);
+
+    // 60 + 30 = 90: cabe.
+    mvc.perform(correccion(tasa, "{\"rateType\":\"PORCENTAJE\",\"percentage\":60.00}"))
+        .andExpect(status().isOk());
+
+    assertThat(porcentajeEnBase()).isEqualByComparingTo("60.00");
   }
 
   @Test
   @DisplayName(
-      "`CA-CM-031` y `CA-CM-038` — retira con motivo, conserva la fila y NO toca la vigencia")
-  void retiraSinTocarLaVigencia() throws Exception {
-    UUID conVigencia = sembrarTarifa("20.00", "2027-01-01", "2027-06-30");
+      "CA-CM-111 · corregir una tasa que pasaría de cien un producto asociado SE RECHAZA ENTERA")
+  void corregirQuePasaDeCienSeRechaza() throws Exception {
+    UUID producto = CommissionFixtures.sembrarProducto(jdbc, "BOT_A");
+    CommissionFixtures.asociar(jdbc, tasa, producto, MANAGER);
+    UUID otraTasa = CommissionFixtures.sembrarTasaDeRol(jdbc, DIRECTOR, "30.00");
+    CommissionFixtures.asociar(jdbc, otraTasa, producto, DIRECTOR);
 
-    mvc.perform(retirar(conVigencia, "Se duplicó por error.")).andExpect(status().isNoContent());
+    // La tasa vale 10.00; corregirla a 71 dejaría 71 + 30 = 101.
+    mvc.perform(correccion(tasa, "{\"rateType\":\"PORCENTAJE\",\"percentage\":71.00}"))
+        .andExpect(status().isConflict())
+        .andExpect(jsonPath("$.errors[0].code").value("EX-006"));
 
-    assertThat(sigueLaFila(conVigencia)).isTrue();
-    assertThat(fechaDeRetiro(conVigencia)).isNotNull();
-    // La evidencia que el registro de eliminación necesita: qué periodo cubría.
-    assertThat(vigenciaHastaDe(conVigencia)).isEqualTo("2027-06-30");
+    // Ni el producto que se pasaba, ni la propia tasa, cambiaron.
+    assertThat(porcentajeEnBase()).isEqualByComparingTo("10.00");
   }
 
   @Test
-  @DisplayName("`CA-CM-035` — sin motivo, o en blanco, no se retira nada")
-  void elMotivoEsObligatorio() throws Exception {
-    mvc.perform(retirar(tarifa, "   "))
-        .andExpect(status().isBadRequest())
-        .andExpect(jsonPath("$.errors[0].code").value("VAL-007"));
+  @DisplayName("CA-CM-112 · corregir revisa el tope en TODOS los productos: uno rechaza los demás")
+  void corregirRevisaTodosLosProductosDeLaTasa() throws Exception {
+    UUID p1 = CommissionFixtures.sembrarProducto(jdbc, "BOT_1");
+    UUID p2 = CommissionFixtures.sembrarProducto(jdbc, "BOT_2");
+    UUID p3 = CommissionFixtures.sembrarProducto(jdbc, "BOT_3");
+    CommissionFixtures.asociar(jdbc, tasa, p1, MANAGER);
+    CommissionFixtures.asociar(jdbc, tasa, p2, MANAGER);
+    CommissionFixtures.asociar(jdbc, tasa, p3, MANAGER);
 
-    assertThat(fechaDeRetiro(tarifa)).isNull();
+    // Cada producto tiene otro rol ocupando parte de su cien; p3 deja el margen
+    // más estrecho a propósito, para que sea el que rechace la corrección.
+    CommissionFixtures.asociar(
+        jdbc, CommissionFixtures.sembrarTasaDeRol(jdbc, DIRECTOR, "10.00"), p1, DIRECTOR);
+    CommissionFixtures.asociar(
+        jdbc, CommissionFixtures.sembrarTasaDeRol(jdbc, AGENTE, "20.00"), p2, AGENTE);
+    // Otra tasa del mismo rol AGENTE, para el tercer producto: la asociación es
+    // por producto, y dos tasas de un rol pueden convivir mientras rijan sobre
+    // productos distintos (`RN-CM-013`).
+    CommissionFixtures.asociar(
+        jdbc, CommissionFixtures.sembrarTasaDeRol(jdbc, AGENTE, "49.00"), p3, AGENTE);
+
+    // La tasa vale 10.00 en los tres. Corregirla a 52 dejaría: p1 = 62, p2 = 72,
+    // p3 = 101 (52 + 49). El tercero rechaza, y NINGUNO de los tres cambia.
+    mvc.perform(correccion(tasa, "{\"rateType\":\"PORCENTAJE\",\"percentage\":52.00}"))
+        .andExpect(status().isConflict())
+        .andExpect(jsonPath("$.errors[0].code").value("EX-006"));
+
+    assertThat(porcentajeEnBase()).isEqualByComparingTo("10.00");
   }
 
   @Test
-  @DisplayName("`CA-CM-036` — retirar dos veces devuelve 409, y no es idempotente")
-  void noEsIdempotente() throws Exception {
-    mvc.perform(retirar(tarifa, "El primer motivo.")).andExpect(status().isNoContent());
-    mvc.perform(retirar(tarifa, "Un motivo distinto.")).andExpect(status().isConflict());
+  @DisplayName("CA-CM-113 · el valor fijo entra en la suma convertido contra CADA producto")
+  void corregirAValorFijoSeConvierteContraCadaProducto() throws Exception {
+    UUID barato = CommissionFixtures.sembrarProducto(jdbc, "BOT_1000", false, "1000.0000");
+    UUID caro = CommissionFixtures.sembrarProducto(jdbc, "BOT_2000", false, "2000.0000");
+    CommissionFixtures.asociar(jdbc, tasa, barato, MANAGER);
+    CommissionFixtures.asociar(jdbc, tasa, caro, MANAGER);
+    CommissionFixtures.asociar(
+        jdbc, CommissionFixtures.sembrarTasaDeRol(jdbc, DIRECTOR, "50.00"), barato, DIRECTOR);
+    CommissionFixtures.asociar(
+        jdbc, CommissionFixtures.sembrarTasaDeRol(jdbc, AGENTE, "50.00"), caro, AGENTE);
+
+    // 400 / 1000 * 100 = 40 (+ 50 = 90); 400 / 2000 * 100 = 20 (+ 50 = 70). Cabe.
+    mvc.perform(correccion(tasa, "{\"rateType\":\"FIJO\",\"fixedAmount\":400}"))
+        .andExpect(status().isOk());
+    assertThat(fixedAmountEnBase()).isEqualByComparingTo("400");
+
+    // 600 / 1000 * 100 = 60 (+ 50 = 110): el producto barato se pasa de cien.
+    mvc.perform(correccion(tasa, "{\"rateType\":\"FIJO\",\"fixedAmount\":600}"))
+        .andExpect(status().isConflict())
+        .andExpect(jsonPath("$.errors[0].code").value("EX-006"));
+    assertThat(fixedAmountEnBase()).isEqualByComparingTo("400");
   }
 
   @Test
-  @DisplayName("`CA-CM-037` — tras retirar, LOS DÍAS QUEDAN LIBRES para otra tarifa")
-  void losDiasQuedanLibres() throws Exception {
-    mvc.perform(retirar(tarifa, "Se declaró mal.")).andExpect(status().isNoContent());
+  @DisplayName("CA-CM-114 · una tasa SIN asociaciones no comprueba ningún tope al corregir")
+  void corregirSinAsociacionesNoComprueboNingunTope() throws Exception {
+    mvc.perform(correccion(tasa, "{\"rateType\":\"PORCENTAJE\",\"percentage\":99.99}"))
+        .andExpect(status().isOk());
 
-    // Es la prueba de que la restricción del motor es PARCIAL sobre las vivas.
-    // Si se hubiera declarado sobre todas las filas, retirar dejaría el periodo
-    // inutilizable para siempre y nada más fallaría.
-    mvc.perform(
-            post("/api/v1/commission-rates")
-                .with(user(SUPERADMIN.toString()).authorities(() -> "commissions:create"))
-                .contentType(MediaType.APPLICATION_JSON)
-                .content(
-                    "{\"roleId\":\""
-                        + VENDEDOR
-                        + "\",\"percentage\":15,"
-                        + "\"validFrom\":\"2026-01-01\"}"))
-        .andExpect(status().isCreated());
+    mvc.perform(correccion(tasa, "{\"rateType\":\"FIJO\",\"fixedAmount\":99999999.9999}"))
+        .andExpect(status().isOk());
   }
 
   // ---------------------------------------------------------------------------
+  // Utilidades
+  // ---------------------------------------------------------------------------
 
-  private MockHttpServletRequestBuilder corregir(UUID id, String json) {
-    return patch("/api/v1/commission-rates/{id}", id)
+  private String formaEnBase() {
+    return jdbc.queryForObject(
+        "SELECT rate_type FROM commission_rates WHERE id = CAST(? AS uuid)",
+        String.class,
+        tasa.toString());
+  }
+
+  private MockHttpServletRequestBuilder correccion(UUID id, String json) {
+    return patch("/api/v1/commission-rates/" + id)
         .with(user(SUPERADMIN.toString()).authorities(() -> "commissions:update"))
         .contentType(MediaType.APPLICATION_JSON)
         .content(json);
   }
 
-  private MockHttpServletRequestBuilder retirar(UUID id, String motivo) {
-    return post("/api/v1/commission-rates/{id}/deletion", id)
+  private MockHttpServletRequestBuilder retiro(UUID id, String motivo) {
+    return post("/api/v1/commission-rates/" + id + "/deletion")
         .with(user(SUPERADMIN.toString()).authorities(() -> "commissions:delete"))
         .contentType(MediaType.APPLICATION_JSON)
         .content("{\"reason\":\"" + motivo + "\"}");
   }
 
-  private UUID sembrarTarifa(String pct, String desde, String hasta) {
-    UUID id = UUID.randomUUID();
-    jdbc.update(
-        "INSERT INTO commission_rates (id, role_id, percentage, valid_from, valid_to)"
-            + " VALUES (CAST(? AS uuid), CAST(? AS uuid), CAST(? AS numeric), CAST(? AS date),"
-            + " CAST(? AS date))",
-        id.toString(),
-        VENDEDOR,
-        pct,
-        desde,
-        hasta);
-    return id;
+  private void retirar(UUID id) throws Exception {
+    mvc.perform(retiro(id, "motivo de la primera vez")).andExpect(status().isNoContent());
   }
 
-  private java.math.BigDecimal porcentajeDe(UUID id) {
+  private java.math.BigDecimal porcentajeEnBase() {
     return jdbc.queryForObject(
         "SELECT percentage FROM commission_rates WHERE id = CAST(? AS uuid)",
         java.math.BigDecimal.class,
-        id.toString());
+        tasa.toString());
   }
 
-  private boolean sigueLaFila(UUID id) {
+  private java.math.BigDecimal fixedAmountEnBase() {
     return jdbc.queryForObject(
-            "SELECT count(*) FROM commission_rates WHERE id = CAST(? AS uuid)",
-            Long.class,
-            id.toString())
-        == 1L;
+        "SELECT fixed_amount FROM commission_rates WHERE id = CAST(? AS uuid)",
+        java.math.BigDecimal.class,
+        tasa.toString());
   }
 
-  private Object fechaDeRetiro(UUID id) {
+  private String rolEnBase() {
     return jdbc.queryForObject(
-        "SELECT deleted_at FROM commission_rates WHERE id = CAST(? AS uuid)",
-        Object.class,
-        id.toString());
-  }
-
-  private String vigenciaHastaDe(UUID id) {
-    return jdbc.queryForObject(
-        "SELECT CAST(valid_to AS text) FROM commission_rates WHERE id = CAST(? AS uuid)",
+        "SELECT CAST(role_id AS text) FROM commission_rates WHERE id = CAST(? AS uuid)",
         String.class,
-        id.toString());
+        tasa.toString());
+  }
+
+  private Object actualizadaEn() {
+    return jdbc.queryForObject(
+        "SELECT updated_at FROM commission_rates WHERE id = CAST(? AS uuid)",
+        Object.class,
+        tasa.toString());
+  }
+
+  private boolean estaRetirada() {
+    return Boolean.TRUE.equals(
+        jdbc.queryForObject(
+            "SELECT deleted_at IS NOT NULL FROM commission_rates WHERE id = CAST(? AS uuid)",
+            Boolean.class,
+            tasa.toString()));
+  }
+
+  private long cuantasFilas() {
+    return jdbc.queryForObject("SELECT count(*) FROM commission_rates", Long.class);
   }
 
   private void limpiar() {
-    jdbc.update("DELETE FROM commission_rates");
-    jdbc.update("DELETE FROM audit_change_log WHERE module = 'CM'");
+    CommissionFixtures.limpiar(jdbc, SUPERADMIN);
     jdbc.update("DELETE FROM audit_deletion_log WHERE module = 'CM'");
+    jdbc.update("DELETE FROM audit_change_log WHERE module = 'CM'");
   }
 }

@@ -55,22 +55,25 @@ import org.springframework.test.context.TestPropertySource;
 class UserDetailStatementCountIT extends IntegrationTestBase {
 
   private static final String DIRECTOR = "01a02a33-4c00-7006-9c4f-5e7ad1000004";
+  private static final String SUPERADMIN_ROL = "01a02a33-4c00-7001-9c4f-5e7ad1000001";
   private static final String ADMIN = "01a02a33-4c00-7002-9c4f-5e7ad1000002";
-  private static final String AGENTE = "01a02a33-4c00-7007-9c4f-5e7ad1000005";
-  private static final String MANAGER = "01a02a33-4c00-7005-9c4f-5e7ad1000003";
 
   @Autowired private GetUserService detalle;
   @Autowired private JdbcTemplate jdbc;
   @Autowired private EntityManagerFactory fabrica;
 
   private UUID conUnRol;
-  private UUID conCuatroRoles;
+  private UUID conVariosRoles;
 
   @BeforeEach
   void preparar() {
     limpiar();
     conUnRol = crearPersona("UnRol", List.of(ADMIN));
-    conCuatroRoles = crearPersona("CuatroRoles", List.of(ADMIN, DIRECTOR, AGENTE, MANAGER));
+    // TRES ROLES Y NO CUATRO, Y UNO SOLO VENDEDOR: desde `RN-SP-025` (`V52`)
+    // una persona no puede portar dos de tipo VENDEDOR, y el indice unico
+    // parcial rechaza la fixture que se lo daba. Lo que esta prueba necesita es
+    // que sean VARIOS, no que sean cuatro.
+    conVariosRoles = crearPersona("VariosRoles", List.of(SUPERADMIN_ROL, ADMIN, DIRECTOR));
   }
 
   @AfterEach
@@ -108,16 +111,16 @@ class UserDetailStatementCountIT extends IntegrationTestBase {
      * Esta es la afirmación que el requerimiento existe para proteger, y la
      * única que no depende de cuánto cueste hoy: si alguien sustituye la
      * proyección por el agregado `User`, Hibernate recorrerá la colección de
-     * roles de uno en uno y el de cuatro costará más que el de uno.
+     * roles de uno en uno y el de varios costará más que el de uno.
      *
-     * Se pide primero el de cuatro para que un `N+1` no pueda esconderse detrás
+     * Se pide primero el de varios para que un `N+1` no pueda esconderse detrás
      * de una caché que el primero hubiera calentado.
      */
-    long conCuatro = sentenciasDe(() -> detalle.detail(conCuatroRoles));
+    long conVarios = sentenciasDe(() -> detalle.detail(conVariosRoles));
     long conUno = sentenciasDe(() -> detalle.detail(conUnRol));
 
-    assertThat(conCuatro)
-        .as("el detalle debe costar lo mismo con cuatro roles que con uno")
+    assertThat(conVarios)
+        .as("el detalle debe costar lo mismo con varios roles que con uno")
         .isEqualTo(conUno);
   }
 
@@ -175,7 +178,10 @@ class UserDetailStatementCountIT extends IntegrationTestBase {
         usuario.toLowerCase(java.util.Locale.ROOT) + "@factech.co");
     roles.forEach(
         rol ->
-            jdbc.update("INSERT INTO user_roles (user_id, role_id) VALUES (?, ?::uuid)", id, rol));
+            jdbc.update(
+                "INSERT INTO user_roles (user_id, role_id, role_type) SELECT ?, r.id, r.role_type FROM roles r WHERE r.id = ?::uuid",
+                id,
+                rol));
     return id;
   }
 

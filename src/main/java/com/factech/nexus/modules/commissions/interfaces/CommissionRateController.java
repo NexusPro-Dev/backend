@@ -1,13 +1,19 @@
 package com.factech.nexus.modules.commissions.interfaces;
 
+import com.factech.nexus.modules.commissions.application.AssociateProductRequest;
 import com.factech.nexus.modules.commissions.application.CommissionRatePageResponse;
 import com.factech.nexus.modules.commissions.application.CommissionRateResponse;
 import com.factech.nexus.modules.commissions.application.DeleteCommissionRateRequest;
+import com.factech.nexus.modules.commissions.application.DissociateProductRequest;
 import com.factech.nexus.modules.commissions.application.ListCommissionRatesRequest;
+import com.factech.nexus.modules.commissions.application.ProductAssociationResponse;
 import com.factech.nexus.modules.commissions.application.RegisterCommissionRateRequest;
 import com.factech.nexus.modules.commissions.application.UpdateCommissionRateRequest;
+import com.factech.nexus.modules.commissions.domain.service.AssociateProductService;
 import com.factech.nexus.modules.commissions.domain.service.DeleteCommissionRateService;
+import com.factech.nexus.modules.commissions.domain.service.DissociateProductService;
 import com.factech.nexus.modules.commissions.domain.service.ListCommissionRatesService;
+import com.factech.nexus.modules.commissions.domain.service.ListProductAssociationsService;
 import com.factech.nexus.modules.commissions.domain.service.RegisterCommissionRateService;
 import com.factech.nexus.modules.commissions.domain.service.UpdateCommissionRateService;
 import io.swagger.v3.oas.annotations.Operation;
@@ -31,15 +37,19 @@ import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
 
 /**
- * Las tarifas de comisión (`CM`).
+ * El catálogo de tasas por rol y sus asociaciones (`CM`).
  *
- * <p>Cuatro operaciones: alta, listado, corrección y retiro. La <b>resolución</b> —qué porcentaje
- * le corresponde a una persona por un producto— vive en otro controlador, porque es otro recurso:
- * no devuelve una tarifa del catálogo sino una respuesta calculada.
+ * <p><b>Las asociaciones cuelgan de la tasa y no son un recurso raíz</b>, porque no existen sin
+ * ella: una asociación es «esta tasa, sobre este producto». La lectura desde el otro lado —«qué
+ * paga este producto»— sí tiene recurso propio, en {@link ProductCommissionRateController}.
+ *
+ * <p>Las <b>tasas personalizadas</b> viven en {@link UserCommissionRateController} y la
+ * <b>resolución</b> en {@link CommissionResolutionController}: son recursos distintos, no vistas
+ * del mismo.
  */
 @Tag(
     name = "Comisiones",
-    description = "Tarifas de comisión: cuánto gana un rol vendedor, por producto y por persona.")
+    description = "Tasas de comisión por rol y su asociación con los productos.")
 @RestController
 @RequestMapping("/api/v1/commission-rates")
 public class CommissionRateController {
@@ -48,45 +58,51 @@ public class CommissionRateController {
   private final ListCommissionRatesService listado;
   private final UpdateCommissionRateService correccion;
   private final DeleteCommissionRateService retiro;
+  private final AssociateProductService asociacion;
+  private final DissociateProductService desasociacion;
+  private final ListProductAssociationsService asociaciones;
 
   public CommissionRateController(
       RegisterCommissionRateService alta,
       ListCommissionRatesService listado,
       UpdateCommissionRateService correccion,
-      DeleteCommissionRateService retiro) {
+      DeleteCommissionRateService retiro,
+      AssociateProductService asociacion,
+      DissociateProductService desasociacion,
+      ListProductAssociationsService asociaciones) {
     this.alta = alta;
     this.listado = listado;
     this.correccion = correccion;
     this.retiro = retiro;
+    this.asociacion = asociacion;
+    this.desasociacion = desasociacion;
+    this.asociaciones = asociaciones;
   }
 
   @Operation(
-      summary = "Registrar una tarifa de comisión",
+      summary = "Registrar una tasa de comisión por rol",
       description =
           """
           Declara cuánto gana un rol de tipo **vendedor** por vender.
 
-          **La ausencia es la que da el alcance**: sin `userId` la tarifa rige para
-          todos los del rol, y sin `productId` para todo el catálogo. No hay ningún
-          campo que diga «para todos».
+          **Registrar una tasa NO la pone en vigor.** Hasta que se asocie a un
+          producto con `POST /{id}/products`, **no paga nada a nadie**. La respuesta
+          lleva `associatedProducts`, que aquí vale siempre cero.
 
-          **Toda tarifa rige durante un periodo**: `validFrom` es obligatorio y
-          `validTo` opcional — sin él, rige indefinidamente.
+          Esto es lo contrario de lo que ocurría antes del 01-09-2026, cuando una
+          tarifa sin producto regía sobre **todo el catálogo**.
+
+          **Varias tasas por rol son legítimas**: el catálogo puede ofrecer
+          `AGENTE 10 %` y `AGENTE 15 %` para asociarlas a productos distintos.
 
           **El porcentaje cero es válido** y significa «esto no comisiona», que **no
-          es lo mismo** que no declarar la tarifa.
-
-          Dos tarifas del mismo rol, producto y persona **no pueden solaparse** en el
-          tiempo. Si una termina el 31, la siguiente empieza el 1.
+          es lo mismo** que no declarar la tasa.
           """)
   @ApiResponses({
-    @ApiResponse(responseCode = "201", description = "Tarifa registrada"),
+    @ApiResponse(responseCode = "201", description = "Tasa registrada, y todavía sin regir"),
     @ApiResponse(responseCode = "400", description = "Datos inválidos, o el rol no es vendedor"),
     @ApiResponse(responseCode = "403", description = "Sin permiso"),
-    @ApiResponse(responseCode = "409", description = "Se solapa con otra tarifa viva"),
-    @ApiResponse(
-        responseCode = "422",
-        description = "El rol, el producto o la persona no resuelven")
+    @ApiResponse(responseCode = "422", description = "El rol no existe")
   })
   @PostMapping
   @PreAuthorize("hasAuthority('commissions:create')")
@@ -98,20 +114,22 @@ public class CommissionRateController {
   }
 
   @Operation(
-      summary = "Consultar las tarifas de comisión",
+      summary = "Consultar el catálogo de tasas por rol",
       description =
           """
-          Devuelve las tarifas **tal como se declararon**, y no resuelve cuál se
-          aplica: para eso está `GET /api/v1/commissions/effective`.
+          Devuelve el **catálogo**, no lo que rige.
 
-          **Incluye el historial**: las vencidas viajan junto a las vigentes salvo
-          que se filtre por fecha con `onDate`.
+          **`associatedProducts` es el campo que hay que mirar**: una tasa con cero
+          asociaciones aparece aquí con su porcentaje y **no paga nada a nadie**.
 
-          **Filtrar por persona devuelve las declaradas PARA esa persona**, no las
-          que le aplican.
+          Las tasas **personalizadas** no salen en este listado: están en
+          `GET /api/v1/user-commission-rates`.
+
+          **No hay filtro por fecha**, porque las tasas de rol no tienen vigencia:
+          el catálogo solo sabe lo que dice hoy.
           """)
   @ApiResponses({
-    @ApiResponse(responseCode = "200", description = "Página de tarifas"),
+    @ApiResponse(responseCode = "200", description = "Página de tasas"),
     @ApiResponse(responseCode = "400", description = "Parámetros inválidos"),
     @ApiResponse(responseCode = "403", description = "Sin permiso")
   })
@@ -122,29 +140,36 @@ public class CommissionRateController {
   }
 
   @Operation(
-      summary = "Corregir una tarifa de comisión",
+      summary = "Corregir el porcentaje de una tasa de rol",
       description =
           """
-          Corrige el **porcentaje** y el **fin de vigencia**. Se aplica lo que llega
-          y se deja intacto lo que no.
+          Corrige el **porcentaje**, que es lo único corregible.
 
-          **Corregir no es cambiar**: corregir arregla un error y reescribe lo que
-          esa tarifa dice que rigió. Cambiar la comisión a partir de una fecha es
-          **cerrar la vigente y registrar otra**, que son dos operaciones.
+          **Esta operación borra el pasado.** Las tasas de rol no tienen vigencia:
+          pasar un `AGENTE` de 10 a 12 **borra el 10**. No hay dos filas contando
+          cada una su parte; hay una que ahora dice otra cosa.
 
-          `validTo: null` **vacía** el fin de vigencia y la tarifa vuelve a regir
-          indefinidamente; `percentage: null` se **rechaza**.
+          Lo único que preserva lo ya pagado es que la liquidación haya copiado el
+          porcentaje que aplicó — y esa liquidación **todavía no existe**.
 
-          **El rol, el producto, la persona y el inicio de vigencia no se corrigen**,
-          y enviarlos devuelve `400`. Se rechazan y no se ignoran: ignorarlos haría
-          creer que el cambio se aplicó.
+          `percentage: null` se **rechaza**. **El rol no se corrige**, y enviarlo
+          devuelve `400`: se rechaza y no se ignora, porque ignorarlo haría creer
+          que el cambio se aplicó.
+
+          **Si la tasa está asociada, revisa el tope de cien en TODOS sus
+          productos a la vez** (`RN-CM-019`): si el nuevo valor dejaría a alguno
+          pagando más del 100 % de sí mismo, la corrección se rechaza **entera**
+          y devuelve `409` — ninguno de los productos cambia, ni siquiera los que
+          sí cabían.
           """)
   @ApiResponses({
-    @ApiResponse(responseCode = "200", description = "Tarifa corregida"),
+    @ApiResponse(responseCode = "200", description = "Tasa corregida"),
     @ApiResponse(responseCode = "400", description = "Datos inválidos o campos no corregibles"),
     @ApiResponse(responseCode = "403", description = "Sin permiso"),
     @ApiResponse(responseCode = "404", description = "No existe, o está retirada"),
-    @ApiResponse(responseCode = "409", description = "La vigencia resultante se solapa")
+    @ApiResponse(
+        responseCode = "409",
+        description = "El nuevo valor dejaría a algún producto asociado pagando más de cien")
   })
   @PatchMapping("/{id}")
   @PreAuthorize("hasAuthority('commissions:update')")
@@ -154,26 +179,30 @@ public class CommissionRateController {
   }
 
   @Operation(
-      summary = "Retirar una tarifa de comisión",
+      summary = "Retirar una tasa de comisión por rol",
       description =
           """
-          Retira una tarifa que **no debió existir**, con **motivo obligatorio**.
+          Retira una tasa que **no debió existir**, con **motivo obligatorio**.
 
-          **Retirar no es cerrar la vigencia**: se cierra lo que dejó de regir, se
-          retira lo que fue un error. Por eso el retiro **no toca la vigencia** — el
-          registro de eliminación debe poder decir qué periodo cubría lo retirado.
+          **Una tasa asociada a algún producto no se retira** y devuelve `409`.
+          Retire primero esas asociaciones: si no, el producto dejaría de comisionar
+          **sin que nada lo indicara**, porque la asociación sobreviviría apuntando a
+          una fila muerta.
+
+          **Para dejar de pagar sin destruir la tasa**, use la desasociación
+          (`POST /{id}/products/{productId}/deletion`): la tasa sigue en el catálogo
+          y disponible para otros productos.
 
           **No es idempotente**: retirar dos veces devuelve `409`.
-
-          Los días que ocupaba **quedan libres**, de modo que puede declararse otra
-          tarifa que los cubra.
           """)
   @ApiResponses({
-    @ApiResponse(responseCode = "204", description = "Tarifa retirada"),
+    @ApiResponse(responseCode = "204", description = "Tasa retirada"),
     @ApiResponse(responseCode = "400", description = "Motivo ausente, en blanco o demasiado largo"),
     @ApiResponse(responseCode = "403", description = "Sin permiso"),
-    @ApiResponse(responseCode = "404", description = "La tarifa no existe"),
-    @ApiResponse(responseCode = "409", description = "Ya estaba retirada")
+    @ApiResponse(responseCode = "404", description = "La tasa no existe"),
+    @ApiResponse(
+        responseCode = "409",
+        description = "Ya estaba retirada, o sigue asociada a algún producto")
   })
   @PostMapping("/{id}/deletion")
   @ResponseStatus(HttpStatus.NO_CONTENT)
@@ -181,5 +210,98 @@ public class CommissionRateController {
   public void retirar(
       @PathVariable UUID id, @RequestBody(required = false) DeleteCommissionRateRequest peticion) {
     retiro.delete(id, peticion);
+  }
+
+  @Operation(
+      summary = "Asociar la tasa a un producto",
+      description =
+          """
+          **Es lo único que pone una tasa en vigor** (`RN-CM-012`). Sin esto, la tasa
+          existe en el catálogo y no paga nada a nadie.
+
+          **El rol no se envía**: se toma de la tasa que nombra la ruta, y el esquema
+          hace imposible que diverja del que ella declara.
+
+          **Un solo porcentaje por rol y producto** (`RN-CM-013`): si ese rol ya
+          tiene otra tasa asociada a ese producto, devuelve `409`. Retire la
+          asociación existente antes de declarar otra.
+
+          **No se asocia a un producto retirado** ni desde una tasa retirada.
+
+          **El producto no puede quedar pagando más del 100 % de sí mismo**
+          (`RN-CM-019`): suma el porcentaje de sus tasas de rol ya asociadas
+          —convirtiendo cada valor fijo contra el precio del producto— más el de
+          esta, y devuelve `409` si pasa de cien.
+
+          Devuelve **todas** las asociaciones de la tasa, no solo la nueva.
+          """)
+  @ApiResponses({
+    @ApiResponse(responseCode = "201", description = "Asociada. Devuelve todas sus asociaciones"),
+    @ApiResponse(responseCode = "400", description = "Datos inválidos"),
+    @ApiResponse(responseCode = "403", description = "Sin permiso"),
+    @ApiResponse(responseCode = "404", description = "La tasa no existe o está retirada"),
+    @ApiResponse(
+        responseCode = "409",
+        description =
+            "Ese rol ya paga por ese producto, el producto está retirado, o la suma pasaría de"
+                + " cien"),
+    @ApiResponse(responseCode = "422", description = "El producto no existe")
+  })
+  @PostMapping("/{id}/products")
+  @ResponseStatus(HttpStatus.CREATED)
+  @PreAuthorize("hasAuthority('commissions:update')")
+  public ProductAssociationResponse asociar(
+      @PathVariable UUID id, @Valid @RequestBody AssociateProductRequest peticion) {
+    return asociacion.associate(id, peticion);
+  }
+
+  @Operation(
+      summary = "Consultar sobre qué productos rige la tasa",
+      description =
+          """
+          **Una lista vacía significa que la tasa no paga nada a nadie**, por mucho
+          que tenga porcentaje.
+
+          No se pagina: una tasa se asocia a un puñado de productos.
+          """)
+  @ApiResponses({
+    @ApiResponse(responseCode = "200", description = "Las asociaciones de la tasa"),
+    @ApiResponse(responseCode = "403", description = "Sin permiso")
+  })
+  @GetMapping("/{id}/products")
+  @PreAuthorize("hasAuthority('commissions:read')")
+  public ProductAssociationResponse productosDeLaTasa(@PathVariable UUID id) {
+    return asociaciones.byRate(id);
+  }
+
+  @Operation(
+      summary = "Retirar la asociación de la tasa con un producto",
+      description =
+          """
+          **Es la única forma de dejar de pagar sin retirar la tasa**: sigue en el
+          catálogo y disponible para otros productos.
+
+          **El borrado es físico** y la tabla no tiene retiro lógico, de modo que
+          **el registro de eliminación es lo único que queda** de que esa tasa rigió
+          alguna vez sobre ese producto. De ahí el **motivo obligatorio**.
+
+          Si esa tasa no está asociada a ese producto devuelve `404` — y no `409`,
+          porque al no quedar rastro no puede distinguirse «nunca existió» de «ya se
+          borró».
+          """)
+  @ApiResponses({
+    @ApiResponse(responseCode = "204", description = "Asociación retirada"),
+    @ApiResponse(responseCode = "400", description = "Motivo ausente, en blanco o demasiado largo"),
+    @ApiResponse(responseCode = "403", description = "Sin permiso"),
+    @ApiResponse(responseCode = "404", description = "Esa tasa no está asociada a ese producto")
+  })
+  @PostMapping("/{id}/products/{productId}/deletion")
+  @ResponseStatus(HttpStatus.NO_CONTENT)
+  @PreAuthorize("hasAuthority('commissions:update')")
+  public void desasociar(
+      @PathVariable UUID id,
+      @PathVariable UUID productId,
+      @RequestBody(required = false) DissociateProductRequest peticion) {
+    desasociacion.dissociate(id, productId, peticion);
   }
 }

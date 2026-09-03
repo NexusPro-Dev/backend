@@ -20,6 +20,16 @@ Que cada persona vea qué puede comprar, sin que sea el navegador quien decida l
 
 El catálogo de `RF-PM-002` lo lee quien administra y contiene todo. Lo que un cliente puede comprar es **un subconjunto que depende de él**: los upgrades solo tienen sentido hacia niveles por encima del suyo, y ofrecerle uno hacia el nivel que ya tiene —o hacia uno inferior— es ofrecerle pagar por nada.
 
+!!! danger "Desde el 02-09-2026 esta consulta NO COMPARA NIVELES: compara ORIGEN"
+
+    Un upgrade declara ahora **de qué membresía sale**, no solo a cuál lleva (`pm.md` §5.2.1). La oferta pasa de ser un cálculo —«todos los que llevan por encima de mi nivel»— a ser una **coincidencia exacta**: *los upgrades cuyo origen es mi membresía*.
+
+    **La regla de niveles no desaparece: se muda.** Deja de evaluarse en cada consulta y pasa a comprobarse **una vez, al registrar el producto** (`RN-PM-017`, en `RF-PM-001`). Aquí ya no hay nada que deducir, porque quien declaró el producto ya dijo a quién va dirigido.
+
+    **Y eso conserva `FA-001` sin escribir una línea**: quien no tiene membresía no coincide con ningún origen, de modo que sigue sin ver upgrades. Antes había que decirlo aparte; ahora sale del propio filtro.
+
+    **Lo que se paga**: si nadie declara un upgrade desde `VIP`, quien esté en `VIP` **no ve ninguna subida**. No hay error. La cobertura de la cadena deja de ser automática y pasa a depender de que alguien declare los productos.
+
 **Esa regla vive en el servidor o no vive.** Si la interfaz filtrara el catálogo por su cuenta, cada pantalla que muestre productos tendría que repetir el mismo cálculo, y la que se quedara atrás **no fallaría: ofrecería de más**. Es la misma decisión que `RF-SP-039` tomó al publicar los permisos efectivos del actor en lugar de dejar que el navegador los dedujera.
 
 **No admite parámetro de persona.** Responde sobre quien llama y sobre nadie más. Un parámetro convertiría esta consulta en «qué puede comprar fulano», que es una pregunta sobre un tercero y que hoy nadie ha decidido quién puede hacer.
@@ -35,7 +45,7 @@ El catálogo de `RF-PM-002` lo lee quien administra y contiene todo. Lo que un c
 ### 4.1 Incluye
 
 - Devolver los productos **activos** que el actor puede comprar hoy.
-- De los upgrades, **todos los que llevan a un nivel superior** al que el actor tiene, y no solo el inmediato: quien está en el nivel más bajo ve todos los de arriba y elige cuánto saltar.
+- De los upgrades, **todos los que declaran como origen la membresía que el actor tiene**. Puede haber varios con destinos distintos —un paso corto y un salto— y se ofrecen todos: elegir es de quien compra. Y no solo el inmediato: quien está en el nivel más bajo ve todos los de arriba y elige cuánto saltar.
 - **Todos los bots activos, para cualquiera**: no dependen del nivel de quien mira, ni siquiera de que tenga uno.
 - Devolverlos **agrupados por tipo**: los upgrades por nivel destino, los bots por fecha de alta. Fijado el 26-08-2026 al aprobar `RF-PM-002`, que dejó dicho que las dos consultas tienen órdenes distintos porque responden a actores distintos.
 
@@ -69,6 +79,7 @@ El catálogo de `RF-PM-002` lo lee quien administra y contiene todo. Lo que un c
 | Productos ofrecibles | Identificador, código, tipo, nombre, descripción, precio con su moneda y **vigencia en días**. **El precio es el del producto**, sin ajuste por nivel |
 | Orden | **Agrupados por tipo**: primero los upgrades ordenados por **nivel destino**, después los bots por fecha de alta |
 | Membresía destino | En los upgrades: código, nombre y **nivel**, para que quien mira entienda a dónde sube |
+| Membresía de origen | **No viaja.** Es siempre la del actor, que ya va en la respuesta: repetirla en cada producto sería decir tres veces lo mismo |
 | Nivel actual del actor | Cuál es su membresía hoy, o que no tiene ninguna |
 
 ## 7. Precondiciones y postcondiciones
@@ -86,7 +97,7 @@ El catálogo de `RF-PM-002` lo lee quien administra y contiene todo. Lo que un c
 1. El actor pide su oferta.
 2. El sistema resuelve **su membresía vigente** y el nivel de esta.
 3. El sistema toma los productos activos.
-4. De los upgrades, conserva solo aquellos cuyo destino está en un nivel **superior** al del actor.
+4. De los upgrades, conserva solo aquellos **cuyo origen es la membresía del actor** — coincidencia exacta, sin comparar niveles.
 5. El sistema agrupa el resultado por tipo: los upgrades por nivel destino, los bots por fecha de alta.
 6. El sistema devuelve los productos resultantes junto con el nivel actual del actor.
 
@@ -138,11 +149,14 @@ Ninguna: la consulta no admite entrada.
 | `CA-PM-078` | El sistema devuelve la oferta **agrupada por tipo**, con los upgrades ordenados por nivel destino y los bots por fecha de alta |
 | `CA-PM-079` | El sistema ordena los upgrades por el **nivel** de su destino y no por su precio ni por su nombre: es el único orden en el que «subir» significa algo |
 | `CA-PM-088` | El sistema ofrece **los bots activos a quien no tiene membresía**, y a esa misma persona **ningún upgrade** |
-| `CA-PM-089` | El sistema ofrece a quien está en el nivel más bajo **todos los upgrades superiores**, y no solo el del nivel inmediato |
+| `CA-PM-089` | El sistema ofrece a quien está en el nivel más bajo **todos los upgrades declarados desde ahí**, y no solo el del nivel inmediato |
 | `CA-PM-090` | El sistema devuelve el **precio del producto sin ajuste alguno**: dos personas de niveles distintos ven el mismo importe para el mismo producto |
 | `CA-PM-091` | El sistema devuelve las dos colecciones **envueltas en un objeto** y no como arreglos desnudos, de modo que añadir paginación después no rompa a ningún cliente |
 | `CA-PM-095` | El sistema devuelve la **vigencia** de cada producto ofrecido, y **vacía** en los que no caducan: es lo que distingue comprar un mes de comprar para siempre |
 | `CA-PM-101` | El sistema responde `403` a un actor autenticado **sin** `products:sale`, aunque tenga otros permisos de `products:` |
+| `CA-PM-106` | El sistema ofrece **solo los upgrades cuyo origen es la membresía del actor**, y **no** uno declarado desde otra |
+| `CA-PM-107` | Con dos upgrades desde su membresía —un paso corto y un **salto**— el sistema **ofrece los dos**: elegir es de quien compra |
+| `CA-PM-108` | Un upgrade **hacia** la membresía del actor, declarado desde una inferior, **no se le ofrece**: ya está ahí |
 
 ## 13. Casos límite
 
@@ -174,3 +188,4 @@ Ninguna. Las cinco se resolvieron el 26-08-2026, antes de aprobar la especificac
 | 0.1.0 | 26-08-2026 | Redacción inicial, con cinco preguntas abiertas. | Responsable técnico |
 | 0.3.0 | 27-08-2026 | La oferta devuelve la **vigencia en días** de cada producto (`RN-PM-015`), y **vacía** en los que no caducan. Es el dato que decide una compra: sin él, dos upgrades al mismo nivel y al mismo precio son indistinguibles aunque uno dure un mes y el otro para siempre. `CA-PM-095`. **Lo que ocurre al vencer no lo decide esta consulta** y ya está escrito en `requirements/pm.md` §1.4: la persona se queda sin nivel vigente, que es exactamente el caso que `FA-003` ya contempla. | Responsable del proyecto |
 | 0.4.0 | 02-09-2026 | **Enmienda bajo Art. I.7, con el requerimiento ya implementado.** Por decisión del responsable del proyecto, esta consulta pasa a exigir `products:sale`: hasta hoy respondía a cualquier persona autenticada sin exigir nada. `CA-PM-065` **cambia de contenido y conserva su identificador** —el mismo criterio, el permiso exigido— y nace `CA-PM-101`: el `403` a quien no lo tenga, aunque porte otros permisos de `products:`. §3 se actualiza a juego. Lo que **no** cambia: sigue sin admitir parámetro de persona (`CA-PM-066`), y la oferta de un tercero sigue sin existir ni con parámetro ni con permiso (§4.2). | Responsable del proyecto |
+| 0.5.0 | 02-09-2026 | **Esta consulta deja de comparar niveles.** Un upgrade declara ahora **de qué membresía sale** (`pm.md` §5.2.1), y la oferta pasa de ser un cálculo —«todos los que llevan por encima de mi nivel»— a una **coincidencia exacta**: los upgrades cuyo origen es mi membresía. **La regla de niveles no desaparece, se muda**: deja de evaluarse en cada consulta y se comprueba **una vez, al registrar** (`RN-PM-017`). Aquí ya no hay nada que deducir, porque quien declaró el producto ya dijo a quién va dirigido. **Y `FA-001` se conserva sin escribir una línea**: quien no tiene membresía no coincide con ningún origen, de modo que sigue sin ver upgrades — antes había que decirlo aparte, ahora sale del propio filtro. La membresía de origen **no viaja en la respuesta**: es siempre la del actor, que ya va ahí. Nacen `CA-PM-106` a `CA-PM-108`, y la última es la que más fácil se olvida: **un upgrade hacia el nivel que ya se tiene no se ofrece**, y con la coincidencia exacta eso sale solo — su origen es otro. **Lo que se paga queda escrito en cabecera**: si nadie declara un upgrade desde `VIP`, quien esté en `VIP` no ve ninguna subida, sin error y sin aviso. La cobertura de la cadena deja de ser automática. | Responsable del proyecto |

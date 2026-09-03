@@ -89,20 +89,32 @@ class ListProductsServiceIT extends IntegrationTestBase {
   }
 
   @Test
-  @DisplayName("`T-05` — y sigue costando DOS con los cinco filtros puestos a la vez")
+  @DisplayName("`T-05` — y sigue costando DOS con los seis filtros puestos a la vez")
   void dosSentenciasConTodosLosFiltros() {
     UUID destino = membresia("ORO", "Oro", 1);
+    UUID origen = membresia("FREE", "Free", 2, destino);
     sembrar(5);
     jdbc.update(
-        "UPDATE products SET type = 'UPGRADE_MEMBRESIA', target_membership_id = CAST(? AS uuid)"
+        "UPDATE products SET type = 'UPGRADE_MEMBRESIA',"
+            + " source_membership_id = CAST(? AS uuid),"
+            + " target_membership_id = CAST(? AS uuid)"
             + " WHERE code = 'VOL_1'",
+        origen.toString(),
         destino.toString());
     estadisticas.clear();
 
     ProductPageResponse pagina =
         service.list(
             new ListProductsRequest(
-                0, 10, "name,asc", "UPGRADE_MEMBRESIA", "ACTIVO", destino, "Producto", true));
+                0,
+                10,
+                "name,asc",
+                "UPGRADE_MEMBRESIA",
+                "ACTIVO",
+                origen,
+                destino,
+                "Producto",
+                true));
 
     assertThat(pagina.content()).hasSize(1);
     assertThat(estadisticas.getPrepareStatementCount()).isEqualTo(2);
@@ -115,7 +127,7 @@ class ListProductsServiceIT extends IntegrationTestBase {
     estadisticas.clear();
 
     ProductPageResponse pagina =
-        service.list(new ListProductsRequest(99, 20, null, null, null, null, null, null));
+        service.list(new ListProductsRequest(99, 20, null, null, null, null, null, null, null));
 
     assertThat(pagina.content()).isEmpty();
     // Y no 1980, que es lo que daría deducir el total del desplazamiento: un
@@ -232,7 +244,7 @@ class ListProductsServiceIT extends IntegrationTestBase {
     List<UUID> vistos = new ArrayList<>();
     for (int pagina = 0; pagina < paginas; pagina++) {
       service
-          .list(new ListProductsRequest(pagina, tamano, orden, null, null, null, null, null))
+          .list(new ListProductsRequest(pagina, tamano, orden, null, null, null, null, null, null))
           .content()
           .stream()
           .map(ProductItem::id)
@@ -242,17 +254,23 @@ class ListProductsServiceIT extends IntegrationTestBase {
   }
 
   private static ListProductsRequest peticion(Integer tamano, String orden, String estado) {
-    return new ListProductsRequest(0, tamano, orden, null, estado, null, null, null);
+    return new ListProductsRequest(0, tamano, orden, null, estado, null, null, null, null);
   }
 
   private UUID membresia(String codigo, String nombre, int nivel) {
+    return membresia(codigo, nombre, nivel, null);
+  }
+
+  private UUID membresia(String codigo, String nombre, int nivel, UUID superior) {
     UUID id = UUID.randomUUID();
     jdbc.update(
         "INSERT INTO memberships (id, code, name, parent_membership_id, level, color)"
-            + " VALUES (?, ?, ?, NULL, ?, upper(lpad(to_hex(? * 4919), 6, '0')))",
-        id,
+            + " VALUES (CAST(? AS uuid), ?, ?, CAST(? AS uuid), ?,"
+            + " upper(lpad(to_hex(? * 4919), 6, '0')))",
+        id.toString(),
         codigo,
         nombre,
+        superior == null ? null : superior.toString(),
         nivel,
         nivel);
     return id;
@@ -279,9 +297,10 @@ class ListProductsServiceIT extends IntegrationTestBase {
           });
     }
     jdbc.batchUpdate(
-        "INSERT INTO products (id, code, type, name, target_membership_id, price, currency_id,"
+        "INSERT INTO products (id, code, type, name, source_membership_id,"
+            + " target_membership_id, price, currency_id,"
             + " status, created_at, updated_at)"
-            + " VALUES (CAST(? AS uuid), ?, 'BOT', ?, NULL, ?, CAST(? AS uuid), 'ACTIVO',"
+            + " VALUES (CAST(? AS uuid), ?, 'BOT', ?, NULL, NULL, ?, CAST(? AS uuid), 'ACTIVO',"
             + " ?, ?)",
         filas);
   }

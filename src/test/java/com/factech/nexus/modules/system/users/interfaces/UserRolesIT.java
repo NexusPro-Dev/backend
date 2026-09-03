@@ -1,6 +1,7 @@
 package com.factech.nexus.modules.system.users.interfaces;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.user;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
@@ -82,7 +83,7 @@ class UserRolesIT extends IntegrationTestBase {
     // reponerlo el actor de las siguientes se queda sin un solo permiso — con lo
     // que todas fallarían por `RN-SEG-010` en lugar de por lo que comprueban.
     jdbc.update(
-        "INSERT INTO user_roles (user_id, role_id) VALUES (?, ?::uuid)",
+        "INSERT INTO user_roles (user_id, role_id, role_type) SELECT ?, r.id, r.role_type FROM roles r WHERE r.id = ?::uuid",
         SUPERADMIN,
         SUPERADMIN_ROL);
 
@@ -231,7 +232,9 @@ class UserRolesIT extends IntegrationTestBase {
   void escaladaDePrivilegios() throws Exception {
     UUID contable = crearPersona("contable");
     jdbc.update(
-        "INSERT INTO user_roles (user_id, role_id) VALUES (?, ?::uuid)", contable, rolAcotado);
+        "INSERT INTO user_roles (user_id, role_id, role_type) SELECT ?, r.id, r.role_type FROM roles r WHERE r.id = ?::uuid",
+        contable,
+        rolAcotado);
 
     // El rol acotado concede dos permisos de lectura de auditoría y nada más.
     mvc.perform(asignarComo(contable, persona, ADMIN))
@@ -304,7 +307,10 @@ class UserRolesIT extends IntegrationTestBase {
   @DisplayName("RN-SP-020 — el superior debe portar el rol PADRE INMEDIATO, no un ancestro")
   void superiorConElRolPadreInmediato() throws Exception {
     UUID manager = crearPersona("elmanager");
-    jdbc.update("INSERT INTO user_roles (user_id, role_id) VALUES (?, ?::uuid)", manager, MANAGER);
+    jdbc.update(
+        "INSERT INTO user_roles (user_id, role_id, role_type) SELECT ?, r.id, r.role_type FROM roles r WHERE r.id = ?::uuid",
+        manager,
+        MANAGER);
 
     // Un AGENTE reporta a un DIRECTOR. MANAGER es ancestro, no padre inmediato:
     // admitirlo rompería la aciclicidad que la cadena de roles garantiza.
@@ -314,7 +320,9 @@ class UserRolesIT extends IntegrationTestBase {
 
     UUID director = crearPersona("eldirector");
     jdbc.update(
-        "INSERT INTO user_roles (user_id, role_id) VALUES (?, ?::uuid)", director, DIRECTOR);
+        "INSERT INTO user_roles (user_id, role_id, role_type) SELECT ?, r.id, r.role_type FROM roles r WHERE r.id = ?::uuid",
+        director,
+        DIRECTOR);
 
     mvc.perform(asignarConSuperior(persona, AGENTE, director))
         .andExpect(status().isOk())
@@ -325,7 +333,10 @@ class UserRolesIT extends IntegrationTestBase {
   @DisplayName("la cúspide comercial no declara superior: indicarlo se rechaza")
   void cuspideSinSuperior() throws Exception {
     UUID otro = crearPersona("otro");
-    jdbc.update("INSERT INTO user_roles (user_id, role_id) VALUES (?, ?::uuid)", otro, ADMIN);
+    jdbc.update(
+        "INSERT INTO user_roles (user_id, role_id, role_type) SELECT ?, r.id, r.role_type FROM roles r WHERE r.id = ?::uuid",
+        otro,
+        ADMIN);
 
     mvc.perform(asignarConSuperior(persona, MANAGER, otro))
         .andExpect(status().isUnprocessableEntity())
@@ -339,7 +350,9 @@ class UserRolesIT extends IntegrationTestBase {
   void ascenso() throws Exception {
     UUID director = crearPersona("eldirector");
     jdbc.update(
-        "INSERT INTO user_roles (user_id, role_id) VALUES (?, ?::uuid)", director, DIRECTOR);
+        "INSERT INTO user_roles (user_id, role_id, role_type) SELECT ?, r.id, r.role_type FROM roles r WHERE r.id = ?::uuid",
+        director,
+        DIRECTOR);
     mvc.perform(asignarConSuperior(persona, AGENTE, director)).andExpect(status().isOk());
 
     // Ascender a DIRECTOR cambia con quién debe cumplirse la regla: un director
@@ -349,7 +362,10 @@ class UserRolesIT extends IntegrationTestBase {
         .andExpect(jsonPath("$.errors[0].code").value("RN-SP-019"));
 
     UUID manager = crearPersona("elmanager");
-    jdbc.update("INSERT INTO user_roles (user_id, role_id) VALUES (?, ?::uuid)", manager, MANAGER);
+    jdbc.update(
+        "INSERT INTO user_roles (user_id, role_id, role_type) SELECT ?, r.id, r.role_type FROM roles r WHERE r.id = ?::uuid",
+        manager,
+        MANAGER);
 
     mvc.perform(asignarConSuperior(persona, DIRECTOR, manager))
         .andExpect(status().isOk())
@@ -366,17 +382,143 @@ class UserRolesIT extends IntegrationTestBase {
   }
 
   @Test
-  @DisplayName("CA-SP-402 — la asignación LATERAL no exige superior nuevo")
-  void asignacionLateral() throws Exception {
+  @DisplayName("CA-SP-404 — el DESCENSO sustituye igual, y exige superior igual")
+  void descenso() throws Exception {
     UUID manager = crearPersona("elmanager");
-    jdbc.update("INSERT INTO user_roles (user_id, role_id) VALUES (?, ?::uuid)", manager, MANAGER);
+    jdbc.update(
+        "INSERT INTO user_roles (user_id, role_id, role_type)"
+            + " SELECT ?, r.id, r.role_type FROM roles r WHERE r.id = ?::uuid",
+        manager,
+        MANAGER);
     mvc.perform(asignarConSuperior(persona, DIRECTOR, manager)).andExpect(status().isOk());
 
-    // Añadir AGENTE a un DIRECTOR no lo degrada: su rango sigue siendo DIRECTOR
-    // y sigue reportando a quien reportaba.
+    // HASTA EL 02-09-2026 ESTO ERA LO CONTRARIO. Se llamaba «asignación
+    // lateral»: añadir AGENTE a un DIRECTOR dejaba los dos roles, no cambiaba
+    // «el de mayor rango» y no pedía superior.
+    //
+    // Con `RN-SP-025` no conviven: el AGENTE SUSTITUYE al DIRECTOR, y eso es un
+    // DESCENSO. Su superior porta MANAGER —el padre de DIRECTOR—, no el padre
+    // de AGENTE, de modo que `RN-SP-020` dejaría de cumplirse exactamente igual
+    // que en un ascenso. La regla mira el rol vendedor, no un techo entre
+    // varios.
     mvc.perform(asignar(persona, AGENTE))
+        .andExpect(status().isUnprocessableEntity())
+        .andExpect(jsonPath("$.errors[0].code").value("RN-SP-019"));
+
+    UUID director = crearPersona("eldirector");
+    jdbc.update(
+        "INSERT INTO user_roles (user_id, role_id, role_type)"
+            + " SELECT ?, r.id, r.role_type FROM roles r WHERE r.id = ?::uuid",
+        director,
+        DIRECTOR);
+
+    mvc.perform(asignarConSuperior(persona, AGENTE, director))
         .andExpect(status().isOk())
-        .andExpect(jsonPath("$.supervisor.username").value("elmanager"));
+        .andExpect(jsonPath("$.supervisor.username").value("eldirector"));
+
+    // Y termina portando UN SOLO rol vendedor: el DIRECTOR salió.
+    assertThat(rolesVendedoresDe(persona)).containsExactly("AGENTE");
+  }
+
+  @Test
+  @DisplayName("CA-SP-527 — asignar un vendedor RETIRA el anterior: nunca quedan dos")
+  void asignarVendedorSustituye() throws Exception {
+    UUID director = crearPersona("eldirector");
+    jdbc.update(
+        "INSERT INTO user_roles (user_id, role_id, role_type)"
+            + " SELECT ?, r.id, r.role_type FROM roles r WHERE r.id = ?::uuid",
+        director,
+        DIRECTOR);
+    mvc.perform(asignarConSuperior(persona, AGENTE, director)).andExpect(status().isOk());
+
+    UUID manager = crearPersona("elmanager");
+    jdbc.update(
+        "INSERT INTO user_roles (user_id, role_id, role_type)"
+            + " SELECT ?, r.id, r.role_type FROM roles r WHERE r.id = ?::uuid",
+        manager,
+        MANAGER);
+    mvc.perform(asignarConSuperior(persona, DIRECTOR, manager)).andExpect(status().isOk());
+
+    assertThat(rolesVendedoresDe(persona)).containsExactly("DIRECTOR");
+  }
+
+  @Test
+  @DisplayName("CA-SP-528 — la auditoría cita el rol que SALE, no solo los que entran")
+  void laAuditoriaCitaElRolRetirado() throws Exception {
+    UUID director = crearPersona("eldirector");
+    jdbc.update(
+        "INSERT INTO user_roles (user_id, role_id, role_type)"
+            + " SELECT ?, r.id, r.role_type FROM roles r WHERE r.id = ?::uuid",
+        director,
+        DIRECTOR);
+    mvc.perform(asignarConSuperior(persona, AGENTE, director)).andExpect(status().isOk());
+
+    UUID manager = crearPersona("elmanager");
+    jdbc.update(
+        "INSERT INTO user_roles (user_id, role_id, role_type)"
+            + " SELECT ?, r.id, r.role_type FROM roles r WHERE r.id = ?::uuid",
+        manager,
+        MANAGER);
+    mvc.perform(asignarConSuperior(persona, DIRECTOR, manager)).andExpect(status().isOk());
+
+    // La operación se llama «asignar» y desde `RN-SP-025` también retira. Si el
+    // evento solo citara lo que entra, el AGENTE desaparecería sin que ningún
+    // registro lo explicara.
+    String cambio =
+        jdbc.queryForObject(
+            "SELECT CAST(changes AS text) FROM audit_change_log"
+                + " WHERE entity = 'user_roles' AND entity_id = ?"
+                + " ORDER BY occurred_at DESC LIMIT 1",
+            String.class,
+            persona);
+
+    assertThat(cambio).contains("removed_roles").contains("AGENTE").contains("DIRECTOR");
+  }
+
+  @Test
+  @DisplayName("CA-SP-529 — el ESQUEMA lo impide: un INSERT directo del segundo vendedor falla")
+  void elEsquemaImpideDosVendedores() throws Exception {
+    UUID director = crearPersona("eldirector");
+    jdbc.update(
+        "INSERT INTO user_roles (user_id, role_id, role_type)"
+            + " SELECT ?, r.id, r.role_type FROM roles r WHERE r.id = ?::uuid",
+        director,
+        DIRECTOR);
+    mvc.perform(asignarConSuperior(persona, AGENTE, director)).andExpect(status().isOk());
+
+    // TODAS LAS DEMÁS PRUEBAS PASAN POR EL CASO DE USO, que ya sustituye por su
+    // cuenta: ninguna se enteraría si alguien retirara el índice. Esta va contra
+    // el esquema, que es donde `RN-SP-025` vive desde `V52`.
+    assertThatThrownBy(
+            () ->
+                jdbc.update(
+                    "INSERT INTO user_roles (user_id, role_id, role_type)"
+                        + " SELECT ?, r.id, r.role_type FROM roles r WHERE r.id = ?::uuid",
+                    persona,
+                    DIRECTOR))
+        .isInstanceOf(org.springframework.dao.DataAccessException.class);
+  }
+
+  @Test
+  @DisplayName("`VAL-009` — dos roles vendedores en la MISMA petición se rechazan enteros")
+  void dosVendedoresEnUnaPeticion() throws Exception {
+    // No se resuelve aplicando uno y descartando el otro: no hay orden que no
+    // viole la regla a mitad de camino, y elegir cuál gana sería decidir por
+    // quien pidió la operación.
+    mvc.perform(cuerpoDeAsignacion(persona, "[\"" + AGENTE + "\",\"" + DIRECTOR + "\"]"))
+        .andExpect(status().isUnprocessableEntity())
+        .andExpect(jsonPath("$.errors[0].code").value("VAL-009"));
+
+    assertThat(rolesVendedoresDe(persona)).isEmpty();
+  }
+
+  /** Los códigos de los roles de tipo `VENDEDOR` que porta una persona. */
+  private List<String> rolesVendedoresDe(UUID usuario) {
+    return jdbc.queryForList(
+        "SELECT r.code FROM user_roles ur JOIN roles r ON r.id = ur.role_id"
+            + " WHERE ur.user_id = ? AND ur.role_type = 'VENDEDOR' ORDER BY r.code",
+        String.class,
+        usuario);
   }
 
   @Test
@@ -468,7 +610,10 @@ class UserRolesIT extends IntegrationTestBase {
   void retiroDeRolEliminado() throws Exception {
     conRolDeReserva(persona);
     String rol = crearRol("OBSOLETO", "FUNCIONARIO", ADMIN);
-    jdbc.update("INSERT INTO user_roles (user_id, role_id) VALUES (?, ?::uuid)", persona, rol);
+    jdbc.update(
+        "INSERT INTO user_roles (user_id, role_id, role_type) SELECT ?, r.id, r.role_type FROM roles r WHERE r.id = ?::uuid",
+        persona,
+        rol);
     jdbc.update("UPDATE roles SET deleted_at = now() WHERE id = ?::uuid", rol);
 
     // Es la asimetría con `RF-SP-030` que más se implementa de más: comprobar
@@ -482,8 +627,13 @@ class UserRolesIT extends IntegrationTestBase {
   void retiroFueraDeAlcance() throws Exception {
     UUID contable = crearPersona("contable");
     jdbc.update(
-        "INSERT INTO user_roles (user_id, role_id) VALUES (?, ?::uuid)", contable, rolAcotado);
-    jdbc.update("INSERT INTO user_roles (user_id, role_id) VALUES (?, ?::uuid)", persona, ADMIN);
+        "INSERT INTO user_roles (user_id, role_id, role_type) SELECT ?, r.id, r.role_type FROM roles r WHERE r.id = ?::uuid",
+        contable,
+        rolAcotado);
+    jdbc.update(
+        "INSERT INTO user_roles (user_id, role_id, role_type) SELECT ?, r.id, r.role_type FROM roles r WHERE r.id = ?::uuid",
+        persona,
+        ADMIN);
 
     // Quien no posee el permiso no puede quitar el rol que lo concede.
     mvc.perform(retirarComo(contable, persona, ADMIN))
@@ -501,7 +651,9 @@ class UserRolesIT extends IntegrationTestBase {
     // Con un segundo portador activo, el retiro procede.
     UUID reserva = crearPersona("reserva");
     jdbc.update(
-        "INSERT INTO user_roles (user_id, role_id) VALUES (?, ?::uuid)", reserva, SUPERADMIN_ROL);
+        "INSERT INTO user_roles (user_id, role_id, role_type) SELECT ?, r.id, r.role_type FROM roles r WHERE r.id = ?::uuid",
+        reserva,
+        SUPERADMIN_ROL);
 
     // `RN-SP-023` —«una persona debe conservar al menos un rol»— la incorporó
     // otra sesión de trabajo el 24-08-2026, y alcanza a este caso: al
@@ -509,7 +661,9 @@ class UserRolesIT extends IntegrationTestBase {
     // dejaría sin ninguno. Se le concede otro rol para que la prueba siga
     // comprobando lo suyo —`RN-SP-001`— y no la regla nueva.
     jdbc.update(
-        "INSERT INTO user_roles (user_id, role_id) VALUES (?, ?::uuid)", SUPERADMIN, rolAcotado);
+        "INSERT INTO user_roles (user_id, role_id, role_type) SELECT ?, r.id, r.role_type FROM roles r WHERE r.id = ?::uuid",
+        SUPERADMIN,
+        rolAcotado);
 
     mvc.perform(retirar(SUPERADMIN, SUPERADMIN_ROL)).andExpect(status().isOk());
   }
@@ -519,7 +673,9 @@ class UserRolesIT extends IntegrationTestBase {
   void ultimoSuperadministradorConcurrente() {
     UUID reserva = crearPersona("reserva");
     jdbc.update(
-        "INSERT INTO user_roles (user_id, role_id) VALUES (?, ?::uuid)", reserva, SUPERADMIN_ROL);
+        "INSERT INTO user_roles (user_id, role_id, role_type) SELECT ?, r.id, r.role_type FROM roles r WHERE r.id = ?::uuid",
+        reserva,
+        SUPERADMIN_ROL);
 
     // Con el bloqueo sobre la fila de `users` en lugar de sobre la asignación,
     // las dos transacciones tocarían filas distintas, no se esperarían, las dos
@@ -555,7 +711,10 @@ class UserRolesIT extends IntegrationTestBase {
   @DisplayName("RN-SP-022 — con equipo a cargo se rechaza diciendo CUÁNTOS, nunca quiénes")
   void conEquipoACargo() throws Exception {
     UUID manager = crearPersona("elmanager");
-    jdbc.update("INSERT INTO user_roles (user_id, role_id) VALUES (?, ?::uuid)", manager, MANAGER);
+    jdbc.update(
+        "INSERT INTO user_roles (user_id, role_id, role_type) SELECT ?, r.id, r.role_type FROM roles r WHERE r.id = ?::uuid",
+        manager,
+        MANAGER);
     mvc.perform(asignarConSuperior(persona, DIRECTOR, manager)).andExpect(status().isOk());
 
     UUID agente = crearPersona("elagente");
@@ -596,7 +755,10 @@ class UserRolesIT extends IntegrationTestBase {
   void cascadaDeSuperior() throws Exception {
     conRolDeReserva(persona);
     UUID manager = crearPersona("elmanager");
-    jdbc.update("INSERT INTO user_roles (user_id, role_id) VALUES (?, ?::uuid)", manager, MANAGER);
+    jdbc.update(
+        "INSERT INTO user_roles (user_id, role_id, role_type) SELECT ?, r.id, r.role_type FROM roles r WHERE r.id = ?::uuid",
+        manager,
+        MANAGER);
     mvc.perform(asignarConSuperior(persona, DIRECTOR, manager)).andExpect(status().isOk());
 
     mvc.perform(retirar(persona, DIRECTOR))
@@ -618,7 +780,10 @@ class UserRolesIT extends IntegrationTestBase {
   void auditoriaDelRetiro() throws Exception {
     conRolDeReserva(persona);
     UUID manager = crearPersona("elmanager");
-    jdbc.update("INSERT INTO user_roles (user_id, role_id) VALUES (?, ?::uuid)", manager, MANAGER);
+    jdbc.update(
+        "INSERT INTO user_roles (user_id, role_id, role_type) SELECT ?, r.id, r.role_type FROM roles r WHERE r.id = ?::uuid",
+        manager,
+        MANAGER);
     mvc.perform(asignarConSuperior(persona, DIRECTOR, manager)).andExpect(status().isOk());
 
     UUID correlacion = UUID.randomUUID();
@@ -803,7 +968,7 @@ class UserRolesIT extends IntegrationTestBase {
    */
   private void conRolDeReserva(UUID usuario) {
     jdbc.update(
-        "INSERT INTO user_roles (user_id, role_id) VALUES (?, ?::uuid) ON CONFLICT DO NOTHING",
+        "INSERT INTO user_roles (user_id, role_id, role_type) SELECT ?, r.id, r.role_type FROM roles r WHERE r.id = ?::uuid ON CONFLICT DO NOTHING",
         usuario,
         rolDeReserva);
   }

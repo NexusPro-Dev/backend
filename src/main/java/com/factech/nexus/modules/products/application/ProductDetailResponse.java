@@ -45,6 +45,7 @@ public record ProductDetailResponse(
     String name,
     String description,
     String icon,
+    ProductResponse.MembershipRef sourceMembership,
     ProductResponse.MembershipRef targetMembership,
     BigDecimal price,
     ProductResponse.CurrencyRef currency,
@@ -72,6 +73,15 @@ public record ProductDetailResponse(
         fila.name(),
         fila.description(),
         fila.icon(),
+        fila.sourceMembershipId() == null
+            ? null
+            : new ProductResponse.MembershipRef(
+                fila.sourceMembershipId(),
+                fila.sourceMembershipCode(),
+                fila.sourceMembershipName(),
+                // Igual que el destino: el nivel es el ACTUAL. Ver la nota de
+                // abajo — vale para las dos y por el mismo motivo.
+                fila.sourceMembershipLevel()),
         fila.targetMembershipId() == null
             ? null
             : new ProductResponse.MembershipRef(

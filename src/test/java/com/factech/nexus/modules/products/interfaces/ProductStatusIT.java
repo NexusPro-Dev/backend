@@ -42,12 +42,17 @@ class ProductStatusIT extends IntegrationTestBase {
   @Autowired private JdbcTemplate jdbc;
 
   private UUID oro;
+  private UUID plata;
+  private UUID free;
 
   @BeforeEach
   void sembrarCatalogo() {
     jdbc.update("DELETE FROM products");
     jdbc.update("DELETE FROM memberships");
     oro = membresia("ORO", "Oro", 1);
+    plata = membresia("PLATA", "Plata", 2, oro);
+    // El SUELO de la cadena: el origen de todo upgrade que se siembre aqui.
+    free = membresia("FREE", "Free", 3, plata);
   }
 
   @AfterEach
@@ -200,7 +205,6 @@ class ProductStatusIT extends IntegrationTestBase {
   @Test
   @DisplayName("dos upgrades hacia destinos DISTINTOS pueden estar activos a la vez")
   void destinosDistintosNoChocan() throws Exception {
-    UUID plata = membresia("PLATA", "Plata", 2, oro);
     UUID aOro = upgrade("UPGRADE_ORO", "Ascenso a Oro", oro, "Sube al nivel oro.");
     UUID aPlata = upgrade("UPGRADE_PLATA", "Ascenso a Plata", plata, "Sube al nivel plata.");
 
@@ -398,16 +402,23 @@ class ProductStatusIT extends IntegrationTestBase {
   private UUID producto(
       String codigo, String tipo, String nombre, String descripcion, UUID destino) {
     UUID id = UUID.randomUUID();
+    // Origen y destino VIAJAN JUNTOS: un upgrade declara los dos
+    // (`RN-PM-002`) y un bot no declara ninguno. Por eso el origen se
+    // deriva del destino en lugar de ser un parametro mas — nunca puede
+    // quedar uno sin el otro, que es lo que `ck_products_type_target` mira.
     jdbc.update(
-        "INSERT INTO products (id, code, type, name, description, target_membership_id, price,"
+        "INSERT INTO products (id, code, type, name, description, source_membership_id,"
+            + " target_membership_id, price,"
             + " currency_id, validity_days, status, created_at, updated_at)"
-            + " VALUES (CAST(? AS uuid), ?, ?, ?, CAST(? AS text), CAST(? AS uuid), 10.00,"
+            + " VALUES (CAST(? AS uuid), ?, ?, ?, CAST(? AS text),"
+            + " CAST(? AS uuid), CAST(? AS uuid), 10.00,"
             + " CAST(? AS uuid), NULL, 'INACTIVO', ?, ?)",
         id.toString(),
         codigo,
         tipo,
         nombre,
         descripcion,
+        destino == null ? null : free.toString(),
         destino == null ? null : destino.toString(),
         USD,
         BASE,

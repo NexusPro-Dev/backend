@@ -3,19 +3,21 @@
 | Campo | Valor |
 |---|---|
 | Requerimiento | `RF-PM-007` |
-| Especificación | [`spec.md`](spec.md) v0.4.0 |
+| Especificación | [`spec.md`](spec.md) v0.5.0 |
 | `spec.md` aprobada el | 26-08-2026 |
 | Estado | **Aprobado** |
 | Autor | Responsable técnico |
 | Aprobado por | Responsable del proyecto |
-| Enmendado el | 02-09-2026 — `products:sale` (antes 27-08-2026, `RN-PM-015`) |
+| Enmendado el | 27-08-2026 — `RN-PM-015`; 02-09-2026 — `products:sale`; 02-09-2026 — **la oferta deja de comparar niveles** |
 | Fecha de aprobación | 26-08-2026 |
 
 ---
 
 ## 1. Enfoque
 
-Una consulta sin parámetros que responde **sobre quien llama**. Su dificultad no está en el SQL: está en que **la regla que decide qué ofrecer vive en el servidor o no vive**, y en que el dato que la alimenta —el nivel del actor— pertenece a otro módulo.
+Una consulta sin parámetros que responde **sobre quien llama**. Su dificultad no está en el SQL: está en que **la regla que decide qué ofrecer vive en el servidor o no vive**, y en que el dato que la alimenta —la membresía del actor— pertenece a otro módulo.
+
+Desde el 02-09-2026 esa regla es **más pequeña de lo que era**: un upgrade declara de qué membresía sale, de modo que la oferta pasa de un cálculo —«todos los que llevan por encima de mi nivel»— a una **coincidencia exacta**. **La comparación de niveles no desaparece, se muda**: se comprueba una vez, al registrar el producto (`RN-PM-017`), en lugar de en cada consulta. Lo que aquí quedaba como el riesgo número uno —escribirla al revés— deja de existir porque ya no hay ninguna comparación que escribir.
 
 Es la tercera y última lectura de D-25, y la única que este requerimiento estrena.
 
@@ -29,7 +31,7 @@ Es la tercera y última lectura de D-25, y la única que este requerimiento estr
 |---|---|---|
 | `modules/system/users/application` | `CurrentMembershipLookup` + adaptador | **En `SP`**: la membresía **vigente** de una persona, o vacío |
 | `application` | `OfferResponse` | Dos colecciones **envueltas**, más el nivel actual del actor |
-| `domain/repository` | `ProductQueryRepository.findOffer(Integer nivel)` | Una sentencia |
+| `domain/repository` | `ProductQueryRepository.findOffer(UUID membresia)` | Una sentencia. **El parámetro es el identificador de la membresía, no su nivel**: la coincidencia es por origen |
 | `domain/service` | `GetOwnOfferService` | `@Transactional(readOnly = true)` |
 | `interfaces` | `ProductController` | `GET /api/v1/products/available` |
 
@@ -53,7 +55,8 @@ Es la tercera y última lectura de D-25, y la única que este requerimiento estr
 
 - **Las dos colecciones van envueltas en un objeto**, no como arreglos desnudos (`CA-PM-091`). Es la decisión que `RF-SP-017` tomó con la cadena de membresías, y aquí resuelve la quinta pregunta de la spec: hoy no se pagina, y el día que los bots crezcan, añadir paginación **no rompe a ningún cliente**.
 - **`currentMembership` es `null` presente** en quien no tiene nivel, no ausente.
-- **Los upgrades ordenados por nivel destino; los bots por fecha de alta** (`CA-PM-078`).
+- **Los upgrades ordenados por nivel destino; los bots por fecha de alta** (`CA-PM-078`). El orden **sí** sigue mirando el `level` del destino, y no contradice lo anterior: ordenar no es filtrar. Presenta primero el salto más alto, que es la información que quien compra quiere ver arriba.
+- **La membresía de origen no viaja en cada producto**: es siempre la del actor, que ya va en `currentMembership`. Repetirla en cada fila sería decir tres veces lo mismo, y la tercera acabaría desincronizada.
 
 !!! warning "`/products/available` compite con `/products/{id}`"
 
@@ -61,11 +64,11 @@ Es la tercera y última lectura de D-25, y la única que este requerimiento estr
 
 ## 5. La consulta
 
-Una sola sentencia, con el nivel del actor como parámetro:
+Una sola sentencia, con la membresía del actor como parámetro:
 
 - **Productos activos y no retirados**, siempre.
-- **Upgrades**: solo aquellos cuyo destino tiene `level` **estrictamente menor** que el del actor. El orden de la cadena crece hacia abajo —`1` es la cima (`requirements/sp.md` §10.4)—, de modo que **«nivel superior» es número menor**. Escribirlo al revés es el error que pasaría todas las pruebas de camino feliz y ofrecería exactamente lo contrario.
-- **Sin nivel** —el actor no tiene membresía vigente—: **cero upgrades** y todos los bots (`FA-001`).
+- **Upgrades**: solo aquellos cuyo `source_membership_id` **es** la membresía vigente del actor. Coincidencia exacta, sin comparar niveles y sin recorrer la cadena. Quien declaró el producto ya dijo a quién va dirigido.
+- **Sin membresía** —el actor no tiene ninguna vigente—: **cero upgrades** y todos los bots (`FA-001`), y **sale del propio filtro**: el nulo no coincide con ningún origen. Antes había que escribirlo aparte.
 - **Bots**: todos los activos, sin filtro (`spec.md` §14, resolución 2).
 
 ## 6. Autorización
@@ -97,7 +100,7 @@ Ninguna.
 
 | # | Riesgo | Mitigación |
 |---|---|---|
-| 1 | **La comparación de niveles se escribe al revés** y ofrece bajadas en lugar de subidas | Pruebas sobre los **tres** casos —inferior, igual y superior—, no solo el feliz |
+| 1 | **Un nivel se queda sin oferta y nadie se entera**: si nadie declara un upgrade desde `VIP`, quien esté en `VIP` no ve ninguna subida — sin error y sin aviso, y el catálogo se ve bien desde administración | Es el coste aceptado de la enmienda del 02-09-2026, escrito en la cabecera de `spec.md`. La cobertura de la cadena **deja de ser automática** y pasa a ser una responsabilidad de quien mantiene el catálogo |
 | 2 | La cadena se reordena entre dos consultas y la oferta cambia sin que nadie tocara productos | Es correcto y está en `spec.md` §13. La prueba lo fija para que nadie lo «arregle» |
 | 3 | Los bots crecen y la respuesta se vuelve grande | La envoltura permite paginar después sin romper el contrato; el disparador es que los bots activos pasen de unas decenas |
 
@@ -106,8 +109,10 @@ Ninguna.
 | Qué se prueba | Nivel | Cómo |
 |---|---|---|
 | Los doce criterios de `spec.md` §12 | API | |
-| **Los tres casos de nivel** | API | Destino inferior, igual y superior al del actor |
-| Todos los superiores, no solo el siguiente | API | Actor en el nivel más bajo de una cadena de cuatro |
+| **La coincidencia de origen** | API | Un upgrade desde la membresía del actor **se ofrece**; uno declarado desde otra, **no** (`CA-PM-106`) |
+| **Un upgrade hacia el nivel que ya se tiene** | API | No se ofrece (`CA-PM-108`), y sale solo de la coincidencia: su origen es otro |
+| El paso corto y el salto conviven | API | Dos upgrades desde su membresía, con destinos distintos: **se ofrecen los dos** (`CA-PM-107`) |
+| Todos los declarados desde ahí, no solo el inmediato | API | Actor en el nivel más bajo de una cadena de cuatro (`CA-PM-089`) |
 | Quien no tiene membresía | API | Cero upgrades, todos los bots |
 | **Membresía vencida** | API | Se comporta como quien no tiene nivel (`FA-003`) |
 | Quien está en la cima | API | Lista de upgrades vacía, sin error |

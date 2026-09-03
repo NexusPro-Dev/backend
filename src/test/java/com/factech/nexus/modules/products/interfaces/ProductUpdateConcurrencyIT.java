@@ -135,9 +135,10 @@ class ProductUpdateConcurrencyIT extends IntegrationTestBase {
   private UUID bot(String codigo, String nombre) {
     UUID id = UUID.randomUUID();
     jdbc.update(
-        "INSERT INTO products (id, code, type, name, description, target_membership_id, price,"
+        "INSERT INTO products (id, code, type, name, description, source_membership_id,"
+            + " target_membership_id, price,"
             + " currency_id, validity_days, status, created_at, updated_at)"
-            + " VALUES (CAST(? AS uuid), ?, 'BOT', ?, 'Atención prioritaria.', NULL, 49.99,"
+            + " VALUES (CAST(? AS uuid), ?, 'BOT', ?, 'Atención prioritaria.', NULL, NULL, 49.99,"
             + " CAST(? AS uuid), NULL, 'INACTIVO', ?, ?)",
         id.toString(),
         codigo,

@@ -192,6 +192,12 @@ public class UpdateProductService {
     if (peticion.targetMembershipId().presente()) {
       problemas.add(new FieldError("targetMembershipId", "VAL-006", mensaje));
     }
+    // El origen entra en la lista por el MISMO motivo que el destino: cambiar
+    // de quién sale un upgrade reescribe a quién iba dirigido lo que ya se
+    // vendió. Quien necesite otra pareja registra otro producto.
+    if (peticion.sourceMembershipId().presente()) {
+      problemas.add(new FieldError("sourceMembershipId", "VAL-006", mensaje));
+    }
     throw new ValidationException("VAL-006", mensaje, problemas);
   }
 

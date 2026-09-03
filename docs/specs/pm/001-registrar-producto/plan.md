@@ -3,12 +3,12 @@
 | Campo | Valor |
 |---|---|
 | Requerimiento | `RF-PM-001` |
-| Especificación | [`spec.md`](spec.md) v0.2.0 |
+| Especificación | [`spec.md`](spec.md) v0.5.0 |
 | `spec.md` aprobada el | 26-08-2026 |
 | Estado | **Aprobado** |
 | Autor | Responsable técnico |
 | Aprobado por | Responsable del proyecto |
-| Enmendado el | 27-08-2026 — `RN-PM-015` |
+| Enmendado el | 27-08-2026 — `RN-PM-015`; 02-09-2026 — la membresía de **origen** (`RN-PM-017`, `RN-PM-018`) |
 | Fecha de aprobación | 26-08-2026 |
 
 !!! info "Qué va en este documento"
@@ -23,7 +23,7 @@ Es el requerimiento que **funda el módulo**: crea `products`, siembra sus cuatr
 
 El caso de uso es un alta con validación condicional por tipo, y su forma ya existe en el sistema: es la de `RF-SP-024`, que aplica reglas condicionales en los dos sentidos dentro de una sola operación. Lo específico de este requerimiento es que **la mitad de sus validaciones se resuelve contra otro módulo**, y esa es la parte que hay que construir con cuidado.
 
-**El producto nace `INACTIVO`** (`RN-PM-012`), lo que simplifica el alta más de lo que parece: no hay que comprobar `RN-PM-004` —«un solo upgrade activo por destino»—, porque nada de lo que entre por aquí queda activo. Esa comprobación vive entera en `RF-PM-005`.
+**El producto nace `INACTIVO`** (`RN-PM-012`), lo que simplifica el alta más de lo que parece: no hay que comprobar `RN-PM-004` —«un solo upgrade activo por pareja origen→destino»—, porque nada de lo que entre por aquí queda activo. Esa comprobación vive entera en `RF-PM-005`.
 
 ## 2. Cambios de esquema
 
@@ -60,11 +60,11 @@ Restricciones e índices:
 | `uq_products_name` | `CREATE UNIQUE INDEX … ON products (f_unaccent(lower(name))) WHERE deleted_at IS NULL` | `RN-PM-005`. Índice **funcional y parcial**: una restricción de tabla no admite expresión ni condición. `f_unaccent` existe desde `V1` y está declarada `IMMUTABLE` precisamente para poder indexarse |
 | `ck_products_type` | `type IN ('UPGRADE_MEMBRESIA','BOT')` | `RN-PM-001` |
 | `ck_products_status` | `status IN ('ACTIVO','INACTIVO')` | `RN-PM-009` |
-| `ck_products_type_target` | `(type = 'UPGRADE_MEMBRESIA' AND target_membership_id IS NOT NULL) OR (type = 'BOT' AND target_membership_id IS NULL)` | `RN-PM-002`, en los dos sentidos |
+| `ck_products_type_target` | `(type = 'UPGRADE_MEMBRESIA' AND target_membership_id IS NOT NULL) OR (type = 'BOT' AND target_membership_id IS NULL)` | `RN-PM-002`, en los dos sentidos. **`V53` la reescribe** para que cubra también el origen — ver §2.3 |
 | `ck_products_price_positive` | `price > 0` | `RN-PM-006` |
 | `ck_products_validity_positive` | `validity_days IS NULL OR validity_days > 0` | `RN-PM-015`. La rama `IS NULL` va **explícita**: la comparación sola también admitiría el nulo —un `CHECK` que evalúa a `NULL` acepta la fila—, y se escribe para que ese permiso sea deliberado |
 | `ck_products_name_length` | `length(name) <= 150` implícito en el tipo; `description` con `CHECK` de 1000 | Sin cota, el listado de `RF-PM-002` devolvería respuestas de tamaño impredecible |
-| `uq_products_upgrade_target` | `CREATE UNIQUE INDEX … ON products (target_membership_id) WHERE type = 'UPGRADE_MEMBRESIA' AND status = 'ACTIVO' AND deleted_at IS NULL` | `RN-PM-004`. Se declara **aquí**, con la tabla, aunque **solo `RF-PM-005` pueda violarla**: el esquema es de quien crea la tabla |
+| `uq_products_upgrade_target` | `CREATE UNIQUE INDEX … ON products (target_membership_id) WHERE type = 'UPGRADE_MEMBRESIA' AND status = 'ACTIVO' AND deleted_at IS NULL` | `RN-PM-004`. Se declara **aquí**, con la tabla, aunque **solo `RF-PM-005` pueda violarla**: el esquema es de quien crea la tabla. **`V53` lo rehace sobre la pareja `(origen, destino)`** — ver §2.3 |
 | `fk_products_target_membership` | `target_membership_id → memberships(id)` | `RN-PM-003` |
 | `fk_products_currency` | `currency_id → currencies(id)` | `RN-PM-008` |
 
@@ -89,6 +89,31 @@ Siembra los cuatro permisos `products:create`, `products:read`, `products:update
 Los cuatro van a **ambos roles**: a diferencia de `audit:read-security` y `currencies:update`, que `V7` excluyó de `ADMIN`, aquí no hay ninguno que deba quedar reservado al superadministrador.
 
 Esta migración **no emite auditoría**, igual que `V3`: un permiso no tiene línea de tiempo que reconstruir.
+
+### 2.3 `V53__products_source_membership.sql` — enmienda del 02-09-2026
+
+**El upgrade declara de dónde sale, y no solo a dónde lleva.** Hasta esta migración el origen **se deducía**: podía comprarlo cualquiera por debajo del destino. Esa deducción hacía **imposible el salto** —«subir a `ORO`» era el mismo producto y el mismo precio para quien sube un escalón y para quien sube tres—, y con el origen declarado **cada salto es un producto** con su precio.
+
+| Cambio | Definición | Por qué |
+|---|---|---|
+| `source_membership_id` | `uuid NULL` | **Sin `NOT NULL` a propósito**: en un bot tiene que estar vacía. Quien exige su presencia es el `CHECK`, que es el único capaz de decir «obligatoria aquí y prohibida allá» |
+| Relleno | `UPDATE … SET source_membership_id = (SELECT id FROM memberships WHERE code = 'FREE')` sobre los upgrades existentes | **Es una decisión, no una deducción**: bajo el modelo anterior esos productos **no tenían** origen. Se elige el suelo de la cadena porque conserva la oferta de quien está en `FREE`, que es el caso más común |
+| `ck_products_type_target` | Se **reescribe entera** para exigir las dos membresías en el upgrade y prohibirlas las dos en el bot | Añadir un segundo `CHECK` al lado se leería como dos reglas, y `RN-PM-002` es **una** |
+| `fk_products_source_membership` | `source_membership_id → memberships(id)` | Lo mismo que su gemela del destino, y por el mismo motivo |
+| `ck_products_origen_distinto` | `source_membership_id IS NULL OR source_membership_id <> target_membership_id` | La mitad de `RN-PM-017` que el motor **sí** puede sostener: un upgrade de `FREE` a `FREE` vende nada |
+| `uq_products_upgrade_target` | Se rehace sobre **`(source_membership_id, target_membership_id)`** | La versión anterior prohibía **exactamente lo que el origen existe para permitir**: dos upgrades activos hacia `ORO`, uno desde `FREE` y otro desde `PLATINO` |
+
+!!! danger "El coste del relleno, escrito para que nadie lo descubra en producción"
+
+    Dar `FREE` a todos los upgrades existentes significa que **quien esté en `VIP` deja de verlos**. No recibe ningún error: simplemente dejan de ofrecerse, y el catálogo se ve perfectamente bien desde administración. La alternativa considerada —el nivel inmediatamente inferior al destino, derivable de la cadena— estrecha igual y además deja a `FREE` sin nada.
+
+    **Y la migración puede detenerse**: si existe un upgrade cuyo destino es `FREE`, el relleno lo deja apuntando a sí mismo y `ck_products_origen_distinto` la aborta. Es lo correcto — ese producto vendía un descenso llamándolo upgrade, y qué hacer con él es una decisión del negocio, no de una migración.
+
+!!! important "La otra mitad de `RN-PM-017` no cabe en el esquema"
+
+    «El origen está por debajo del destino» obliga a leer el `level` de **dos filas de `memberships`**, y un `CHECK` no consulta otra tabla. Vive en el caso de uso, por el mismo motivo exacto que los decimales de la moneda en `RN-PM-007`.
+
+    Y va con el reparto de `V47` delante: **`level` numera desde la cima** —`ORO` es el 1 y `FREE` el 4—, de modo que «por debajo» es **número mayor**. Escribir la comparación al revés produce un sistema que acepta descensos y rechaza ascensos, y las dos mitades fallan calladas.
 
 ## 3. Componentes afectados
 
@@ -133,6 +158,7 @@ Se añade a `LayerRulesTest`: **ninguna clase de `..modules.products..` depende 
   "type": "UPGRADE_MEMBRESIA",
   "name": "Ascenso a Oro",
   "description": "Acceso a los contenidos de nivel oro.",
+  "sourceMembershipId": "018f3a2b-7c41-7000-9a3d-1f2e5b8c9d24",
   "targetMembershipId": "018f3a2b-7c41-7000-9a3d-1f2e5b8c9d20",
   "price": 49.99,
   "validityDays": 30,
@@ -144,7 +170,8 @@ Se añade a `LayerRulesTest`: **ninguna clase de `..modules.products..` depende 
 - `code` se **recorta y se pasa a mayúsculas** antes de validar; `name` y `description` se recortan. Sin el recorte, `"Ascenso "` y `"Ascenso"` serían dos nombres distintos para `uq_products_name`.
 - `price` llega como **número**. La escala admisible **no la fija el DTO**, la fija la moneda (`RN-PM-007`), y por eso se valida en el caso de uso y no con una anotación.
 - **`validityDays` es opcional en los dos tipos.** Ausente o `null` significa lo mismo: el producto no caduca. Se valida en el DTO —entero mayor que cero— porque su regla no depende de ningún otro campo, al revés que el precio.
-- `targetMembershipId` es obligatorio o prohibido según `type`, y **la condición se comprueba en el caso de uso y no con validación declarativa**: una anotación de Bean Validation no puede expresar «obligatorio si otro campo vale X» sin un validador de clase, y el mensaje que produce no distingue cuál de las dos mitades se incumplió.
+- `sourceMembershipId` y `targetMembershipId` son **obligatorios los dos o prohibidos los dos** según `type`, y **la condición se comprueba en el caso de uso y no con validación declarativa**: una anotación de Bean Validation no puede expresar «obligatorio si otro campo vale X» sin un validador de clase, y el mensaje que produce no distingue cuál de las cuatro mitades se incumplió. Con dos campos el mensaje **dice cuál**: `VAL-007` y `VAL-008` viajan con el `field` que falta o que sobra, porque uno que no distinga obliga a probar los dos.
+- **El orden de las comprobaciones importa y está fijado**: moneda → destino → **origen** → unicidad. Que el origen no exista (`EX-002`) y que el origen no esté por debajo del destino (`EX-006`, con `VAL-014`) son dos respuestas distintas, y la segunda no se puede dar sin haber resuelto la primera.
 
 **Respuesta `201`**, con cabecera `Location: /api/v1/products/{id}`:
 
@@ -155,6 +182,7 @@ Se añade a `LayerRulesTest`: **ninguna clase de `..modules.products..` depende 
   "type": "UPGRADE_MEMBRESIA",
   "name": "Ascenso a Oro",
   "description": "Acceso a los contenidos de nivel oro.",
+  "sourceMembership": { "id": "018f3a2b-…", "code": "FREE", "name": "Free", "level": 4 },
   "targetMembership": { "id": "018f3a2b-…", "code": "ORO", "name": "Oro", "level": 1 },
   "price": 49.99,
   "validityDays": 30,
@@ -165,8 +193,8 @@ Se añade a `LayerRulesTest`: **ninguna clase de `..modules.products..` depende 
 }
 ```
 
-- **El destino llega resuelto** y no como identificador suelto, con los datos que el puerto ya devolvió: resolverlo cuesta cero consultas extra porque la validación ya lo trajo.
-- **`targetMembership` viaja como `null` presente** en los bots, no ausente: un campo que falta es indistinguible de uno que el cliente no conoce.
+- **Las dos membresías llegan resueltas** y no como identificadores sueltos, con los datos que el puerto ya devolvió: resolverlas cuesta cero consultas extra porque la validación ya las trajo. En el ejemplo, `level` 4 → 1 es un **salto de tres escalones**, y es legítimo (`RN-PM-018`).
+- **`sourceMembership` y `targetMembership` viajan como `null` presentes** en los bots, no ausentes: un campo que falta es indistinguible de uno que el cliente no conoce.
 - **El precio se serializa con los decimales de su moneda** y no con la escala de la columna (`CA-PM-082`): `49.99`, no `49.9900`.
 
 ## 5. Autorización
@@ -175,7 +203,7 @@ Se añade a `LayerRulesTest`: **ninguna clase de `..modules.products..` depende 
 
 ## 6. Auditoría
 
-Un evento `CREATE` en `audit_change_log`, en la misma transacción, con el **estado inicial completo**: código, tipo, nombre, descripción, destino, precio, moneda y estado (`CA-PM-011`).
+Un evento `CREATE` en `audit_change_log`, en la misma transacción, con el **estado inicial completo**: código, tipo, nombre, descripción, **origen**, destino, precio, moneda y estado (`CA-PM-011`).
 
 **Sin evento de seguridad**, y no es una omisión: `spec.md` §14 resolución 5 lo decidió. Un producto no concede privilegios sobre el sistema y el catálogo de `security.md` §8.1 es cerrado. Quién puso un precio lo responde este mismo evento.
 
@@ -197,6 +225,7 @@ Una sola transacción para el `INSERT` y su evento de auditoría. Las lecturas c
 
 | Alternativa | Por qué se descartó |
 |---|---|
+| **Deducir el origen de la cadena** en lugar de declararlo: el nivel inmediatamente inferior al destino | Es lo que había, escrito de otra forma, y arrastra su defecto: **hace imposible el salto**. Un producto por salto es la razón de la enmienda, no un efecto colateral (`RN-PM-018`) |
 | Validar el tipo y el destino con un validador de clase de Bean Validation | Expresa la condición, pero el `400` que produce no distingue si sobró el destino o si faltó, y `VAL-007` y `VAL-008` son dos mensajes distintos |
 | Un endpoint por tipo (`/products/upgrades`, `/products/services`) | Duplicaría el contrato y la mitad del caso de uso para una diferencia de un campo. La spec ya resolvió que es **un** requerimiento |
 | Guardar el precio como `numeric(12,2)` | Fijaría en dos los decimales de toda moneda, cuando `currencies.decimal_places` existe justamente para no asumirlo |
@@ -218,7 +247,9 @@ Una sola transacción para el `INSERT` y su evento de auditoría. Las lecturas c
 | Normalización y formato del código, y del nombre | Unitaria | Sobre `Product`, sin Spring |
 | Decimales del precio según la moneda | Unitaria | Dos monedas: una de dos decimales y otra de **cero** |
 | Los once criterios de `spec.md` §12 | API | `MockMvc` con permiso concedido |
-| La condición cruzada de `RN-PM-002` | API | **En los dos sentidos**: upgrade sin destino y bot con destino |
+| La condición cruzada de `RN-PM-002` | API | **En los cuatro sentidos**: upgrade sin origen, upgrade sin destino, bot con destino y bot con origen — y el `field` de cada rechazo, porque un mensaje que no distinga obliga a probar los dos |
+| `RN-PM-017` — el origen por debajo del destino | API | Origen **igual** al destino (`400`, lo ve el agregado) y origen **por encima** (`422`, hace falta el `level` de las dos filas). Un descenso vendido como upgrade |
+| `RN-PM-018` — saltar niveles es legítimo | API | `FREE → ORO` con **dos eslabones de por medio**, y la premisa comprobada: sin afirmar que la cadena los tiene, el salto lo sería solo de nombre |
 | El producto nace `INACTIVO` | API | Y enviar `status` devuelve `400`, no se ignora |
 | Código único **incluso contra eliminados** | Integración | Se retira un producto y se intenta reutilizar su código |
 | Traducción por nombre de restricción | Integración | El duplicado produce `409` con el campo correcto, distinguiendo código de nombre |

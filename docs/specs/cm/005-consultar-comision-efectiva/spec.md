@@ -4,61 +4,82 @@
 |---|---|
 | Requerimiento | `RF-CM-005` |
 | Módulo | `CM` — Comisiones |
+| Versión | 0.3.0 |
 | Estado | **Aprobada** |
 | Autor | Responsable técnico |
 | Aprobada por | Responsable del proyecto |
-| Fecha de aprobación | 28-08-2026 |
+| Fecha de aprobación | 02-09-2026 |
 
 !!! info "Qué va en este documento"
 
     **Qué debe pasar, y por qué.** Nada más.
 
-    **Prueba de pertenencia:** si un cambio de tecnología lo invalidaría, no pertenece aquí — va a `plan.md`. No se nombran tablas, clases, endpoints ni librerías.
+    **Prueba de pertenencia:** si un cambio de tecnología lo invalidaría, no pertenece aquí — va a `plan.md`.
 
-    Debe poder leerlo alguien del negocio y entenderlo completo. Es la primera compuerta del Art. I.6: hasta que no esté aprobada, no se escribe `plan.md`.
+!!! warning "Esta especificación se reescribió después de construirse, y construirla destapó algo"
+
+    La precedencia pasó de **cuatro grados a dos**. Y al implementarla se vio una consecuencia que la prosa del módulo describía más suave de lo que es: una tasa personalizada **no se queda callada** cuando su titular deja de vender — **sigue pagando**. Ver §9, `FA-003`.
+
+!!! warning "La v0.3.0 se escribe antes del código, y cambia la RESPUESTA, no la precedencia"
+
+    Con el valor fijo de `cm.md` v0.7.0, lo que esta consulta devuelve **deja de ser un número**: pasa a ser **una forma y un valor**, porque «10» no significa nada sin saber si son diez por ciento o diez unidades de dinero.
+
+    La precedencia no cambia ni una línea. Lo que cambia es que **la respuesta ya no se puede leer sin mirar dos campos**, y §6.2 tuvo que rehacerse entera por eso.
 
 ---
 
 ## 1. Objetivo
 
-Responder, sin ambigüedad, **cuánto le corresponde a una persona por vender un producto un día concreto** — y **por qué**.
+Responder **cuánto le corresponde a una persona por vender un producto un día concreto**, y **por qué**.
 
 ## 2. Contexto
 
-Las tarifas se declaran en cuatro grados y con vigencia, de modo que a un caso concreto pueden aplicarle varias. **Cuál gana es una regla del negocio, y vive aquí y en un solo sitio.**
+Es el requerimiento que hace que las dos piezas del módulo signifiquen algo. Sin él, el catálogo por rol y las excepciones por persona son dos listas que nadie sabe combinar.
 
-**Que viva en un solo sitio es la razón de ser de este requerimiento.** Si cada consumidor —la liquidación, un informe, una pantalla— resolviera la precedencia por su cuenta, cada uno la implementaría un poco distinto y todos devolverían resultados **plausibles**. Un error así no se ve: no falla, paga mal. Es el mismo criterio con el que el sistema decidió que «la regla se queda con su dueño».
+**Vive en un solo sitio a propósito.** Reimplementar una comparación de precedencia en cada consumidor es el defecto que **devuelve resultados plausibles durante meses**: no falla, paga mal. Cuando exista la liquidación, llamará aquí una vez por cada nivel de la cadena comercial (`RN-CM-011`) en lugar de decidir por su cuenta.
 
-**Y responde por qué.** No basta el número: quien pregunta necesita saber **qué tarifa** se aplicó, porque de eso depende que pueda corregirla si está mal. Un porcentaje sin su origen obliga a reconstruir la precedencia a mano, que es justo lo que este requerimiento existe para evitar.
+**La precedencia es ahora una pregunta y una respuesta de reserva**, donde antes eran cuatro grados ordenados. Si la persona tiene una tasa personalizada vigente ese día, **es esa, sin mirar el producto**. Si no, la que su rol vendedor tenga **asociada a ese producto**. Si tampoco, no hay tarifa.
+
+**Y hay un cambio de significado que esta consulta hereda y no puede suavizar.** Antes, una tarifa sin producto valía para todo el catálogo, de modo que un rol con tarifa por omisión siempre tenía respuesta. Ahora **no hay tarifa por omisión**: sin asociación no hay nada que devolver, aunque el catálogo tenga una tasa para ese rol con su porcentaje.
 
 ## 3. Actores
 
 | Actor | Rol en esta funcionalidad |
 |---|---|
-| Administrador | Comprueba qué comisión le corresponde a una persona por un producto, y con qué tarifa |
+| Administrador | Comprueba qué le corresponde a alguien, y **por qué tasa** |
+| Un módulo futuro de liquidación | Consumirá esta respuesta, una vez por nivel de la cadena |
 
-**Solo administrativa, por ahora.** Que un vendedor consulte **la suya** es otro actor y otra pregunta, y depende del modelo de alcance de datos, que sigue sin decidirse. Ver §14.
+**No incluye al vendedor consultando la suya**, que es otro actor y depende de **D-22**.
 
 ## 4. Alcance
 
 ### 4.1 Incluye
 
-- Resolver el porcentaje aplicable a una **persona**, un **producto** y una **fecha**.
-- Devolver **cuál** de las tarifas declaradas se aplicó y **en qué grado** estaba declarada.
-- Distinguir «no comisiona» —una tarifa del cero por ciento— de «no hay tarifa declarada», que **no son lo mismo**.
+- Resolver la comisión de una **persona** sobre un **producto** en una **fecha**.
+- Devolver **en qué forma se paga y cuánto**, siempre las dos cosas.
+- Devolver **de cuál de las dos piezas** salió la tasa que ganó.
+- Distinguir **tres desenlaces**, ninguno de los cuales es un error.
+- Resolver con normalidad sobre un producto **retirado**.
 
 ### 4.2 No incluye
 
-- **Calcular el importe de la comisión.** Este requerimiento devuelve el porcentaje, no un dinero: no hay venta ni importe sobre el que aplicarlo.
-- **Listar las tarifas**, que es `RF-CM-002`.
-- **Que un vendedor consulte la suya.** Ver §3 y §14.
+- **Calcular ningún importe.** Devuelve una forma y un valor; aplicarlos a una venta es de quien tenga la venta.
+- **Devolver la moneda en que se paga un importe fijo.** Se preguntó al responsable del proyecto el 02-09-2026 —esta consulta **conoce el producto**, y es el primer y único punto del sistema donde la moneda ya se podría saber— y **se decidió que no**. Ver §14.
+- **Resolver la cadena entera.** Devuelve la comisión de **una** persona. El override de `RN-CM-011` es llamar a esto una vez por nivel, y quien recorra la cadena es quien liquide.
+- **Comprobar que la suma de la cadena no pasa de cien.** No puede: solo ve un nivel. `RN-CM-011` declara que ese tope **queda sin dueño**.
+- **Que el vendedor consulte la suya.** Depende de D-22.
 
 ## 5. Reglas de negocio aplicables
 
 | ID | Regla | Origen |
 |---|---|---|
-| `RN-CM-004` | Gana la tarifa más específica vigente en la fecha | `requirements/cm.md` §5.1 |
-| `RN-CM-005` | La tarifa no desaparece | `requirements/cm.md` §5.1 |
+| `RN-CM-004` | La personalizada gana siempre | `requirements/cm.md` §5.1 |
+| `RN-CM-012` | Una tasa de rol no rige hasta que se asocia | `requirements/cm.md` §5.1 |
+| `RN-CM-017` | El valor fijo **no lleva moneda** | `requirements/cm.md` §5.1 |
+
+**`RN-CM-004` vive aquí y solo aquí.** Es la razón de que este requerimiento exista.
+
+**`RN-CM-017` se cita porque esta consulta es donde más se nota que nadie la cumple.** No la aplica ni la comprueba: **la sufre**, y en el peor sitio — es la única operación del módulo que tiene delante el importe y el producto **a la vez**, y aun así devuelve el importe sin decir en qué moneda está. §14 recoge que eso se preguntó y se decidió.
 
 ## 6. Datos
 
@@ -66,106 +87,171 @@ Las tarifas se declaran en cuatro grados y con vigencia, de modo que a un caso c
 
 | Dato | Obligatorio | Descripción | Restricción de negocio |
 |---|---|---|---|
-| Persona | Sí | De quién se resuelve la comisión | Debe existir |
-| Producto | Sí | Por vender qué | Debe existir. **Se admite aunque esté retirado**: se puede preguntar qué se pagaba por algo que ya no se vende |
-| Fecha | No | En qué día. Sin ella, **hoy** | Una fecha |
+| Persona | Sí | De quién se pregunta | Debe existir |
+| Producto | Sí | Por vender qué | Debe existir. **Puede estar retirado** |
+| Fecha | No | Qué día. Sin ella, **hoy** | Una fecha |
 
 ### 6.2 Salida
 
 | Dato | Descripción |
 |---|---|
-| Porcentaje | El que le corresponde, o **la declaración explícita de que no hay tarifa** |
-| Tarifa aplicada | Cuál de las declaradas ganó: su identificador y su vigencia |
-| Grado | En qué grado estaba declarada la que ganó: del rol, del rol para ese producto, de la persona, o de la persona para ese producto |
-| Rol considerado | El rol vendedor de esa persona con el que se resolvió |
+| Desenlace | Cuál de los tres ocurrió |
+| **Forma** | En qué se paga: proporción de la venta, o cantidad de dinero. **Nula cuando no hay tasa** |
+| **Valor** | Cuánto, en esa forma. **Nulo y presente** cuando no hay tasa — nunca cero |
+| Tasa | El identificador de la que ganó, para poder ir a verla |
+| **Fuente** | De cuál de las dos piezas salió: la personalizada o la del rol |
+| Vigencia | La de la tasa que ganó. **Nula cuando la fuente es el rol**, porque esas no tienen |
+| Rol | El rol vendedor de la persona. **Puede llegar nulo con desenlace resuelto**: ver `FA-003` |
+| Fecha | La fecha con la que se resolvió, sea la enviada o la de hoy |
+
+!!! danger "Nulo y cero no son lo mismo, y quien consuma esto va a pagar con esa cifra"
+
+    **Cero es una decisión declarada** —«este producto no paga a este rol»—, y puede expresarse en cualquiera de las dos formas: una tasa del cero por ciento o de cero de importe.
+
+    **Nulo es que nadie la tomó.** Devolver cero en la ausencia haría **indistinguible lo pensado de lo olvidado**.
+
+!!! danger "El valor es UN campo, y no dos, aunque en las tablas sean dos columnas"
+
+    Decisión del responsable del proyecto, 02-09-2026. **Esta consulta devuelve una cifra con su forma, no una fila de una tabla**, y hay un motivo concreto para que aquí no se parezcan.
+
+    Con dos campos separados —uno por forma—, **el nulo pasaría a tener dos causas**: una tasa de importe fijo dejaría el porcentaje vacío **sin que eso signifique «nadie la tomó»**. El aviso de arriba, que es el que evita que alguien pague cero donde no había tarifa, **dejaría de poder escribirse en una frase**.
+
+    Con un campo, el nulo vuelve a significar exactamente una cosa. La distinción entre **lo pensado y lo olvidado**, que es lo único que este contrato protege de verdad, se mantiene entera.
+
+    **Y por eso este contrato NO se parece al del catálogo** (`RF-CM-002` §6.2), que sí devuelve los dos campos. Allí se está mirando una fila para editarla, y la forma de la fila es la información; aquí se está preguntando cuánto se paga, y la respuesta es una cifra. La asimetría es deliberada y hay que documentarla, porque un consumidor que use las dos lecturas la notará.
 
 ## 7. Precondiciones y postcondiciones
 
 **Precondiciones**
 
-- El actor está autenticado y posee el permiso de lectura de tarifas de comisión.
+- El actor está autenticado y posee el permiso de lectura de comisiones.
 
 **Postcondiciones**
 
-- Ninguna: la consulta no cambia el estado del sistema.
+- Ninguna. No cambia nada.
 
 ## 8. Flujo principal
 
-1. El actor indica la persona, el producto y, si quiere, la fecha.
-2. El sistema determina el **rol vendedor** de esa persona.
-3. El sistema busca, entre las tarifas **vivas y vigentes en esa fecha** para ese rol, la más específica que aplique, en este orden:
-   1. La declarada para **esa persona y ese producto**.
-   2. La declarada para **esa persona**, sin producto.
-   3. La declarada para **ese producto**, sin persona.
-   4. La declarada para **el rol**, sin producto ni persona.
-4. El sistema devuelve el porcentaje de la primera que exista, junto con cuál fue y en qué grado estaba declarada.
+1. El actor envía la persona, el producto y opcionalmente la fecha.
+2. El sistema comprueba que la persona y el producto existen.
+3. El sistema determina el rol vendedor de la persona, **si porta alguno**.
+4. El sistema busca, **de una vez y con la precedencia resuelta**, la tasa que le corresponde: la personalizada vigente ese día si la hay, y si no la que su rol tenga asociada a ese producto.
+5. Si hay tasa, el sistema devuelve **la forma y el valor**, la tasa, la fuente y la vigencia.
+
+**El paso 4 es una sola pregunta y no dos encadenadas**, y esa forma es parte del requerimiento: con dos preguntas el orden viviría en el flujo de control, y una reorganización podría invertirlo **sin que nada fallara** — devolvería un porcentaje plausible.
+
+**Y el paso 4 tiene que traer las dos cosas de una vez.** La forma y el valor salen de la misma fila y de la misma pregunta; ir a buscar la forma después, sabiendo ya qué tasa ganó, sería una segunda consulta que **puede leer una fila distinta** de la que decidió la precedencia si alguien corrigió la tasa entre medias. Es la misma razón por la que el paso 4 no son dos preguntas, aplicada a las columnas en vez de a las tablas.
 
 ## 9. Flujos alternativos
 
-### FA-001 — No hay ninguna tarifa aplicable
+### FA-001 — No hay tasa aplicable
 
-**Cuándo ocurre:** ninguno de los cuatro grados tiene tarifa viva y vigente esa fecha.
+**Cuándo ocurre:** la persona porta rol vendedor, no tiene personalizada vigente, y **nadie asoció** una tasa de su rol a ese producto.
 
-1. El sistema responde que **no hay tarifa declarada** para ese caso.
-2. **No es un error ni un «no encontrado»**: la persona existe, el producto existe, y la respuesta a la pregunta es «nadie lo ha declarado». Devolver un error obligaría a quien pregunta a distinguir un fallo de una respuesta legítima.
-3. **No se devuelve cero.** Cero significa «no comisiona», que es una decisión declarada; la ausencia es que nadie decidió. Confundirlas haría indistinguible lo pensado de lo olvidado.
+1. El sistema devuelve el desenlace **sin tarifa**, con el porcentaje **nulo y presente**.
+2. **La causa más probable no es que nadie declarara la tasa, sino que nadie la asoció.** El catálogo puede tener una tasa para ese rol, con su porcentaje, y no regir sobre este producto.
+3. **No es un error**: es una respuesta.
 
-### FA-002 — La comisión declarada es cero
+### FA-002 — La persona no comisiona
 
-**Cuándo ocurre:** la tarifa que gana declara cero por ciento.
+**Cuándo ocurre:** la persona **no porta rol vendedor** y **tampoco tiene tasa personalizada** viva.
 
-1. El sistema devuelve **cero**, con la tarifa que lo declaró.
-2. Es una respuesta afirmativa: **esto no comisiona, y alguien lo decidió**.
+1. El sistema devuelve el desenlace **no comisiona**, con el porcentaje nulo y sin rol.
+2. No es que falte declarar la tasa: **es que esa persona no vende**. Es un dato distinto de `FA-001` y el contrato los distingue.
 
-### FA-003 — La persona no tiene rol vendedor
+### FA-003 — Quien ya no vende cobra su personalizada
 
-**Cuándo ocurre:** la persona existe y no porta ningún rol de tipo vendedor.
+**Cuándo ocurre:** la persona **no porta rol vendedor** y **sí** tiene una tasa personalizada vigente.
 
-1. El sistema responde que **esa persona no comisiona**, distinguiéndolo de que no haya tarifa: no es que falte declararla, es que esa persona no vende.
+1. El sistema devuelve el desenlace **resuelta**, con la fuente **personalizada** y **el rol nulo**.
+2. **Cobra.** Las tasas personalizadas dejaron de llevar rol el 01-09-2026, y con ello dejaron de morir con el rol de su titular.
+3. **`cm.md` §5.3 lo describía como que la excepción «se queda callada hasta que alguien la mira». No se queda callada: sigue pagando.** Se descubrió al construir este requerimiento, y queda aquí escrito porque es el único sitio donde se ve.
+4. Un rol nulo junto a un desenlace resuelto **no es una incoherencia de la respuesta**: es esta rama.
+
+### FA-004 — La tasa que gana paga cero
+
+**Cuándo ocurre:** la tasa resuelta declara cero, **en cualquiera de las dos formas**.
+
+1. El desenlace es **resuelta**, con valor **cero** y su forma declarada.
+2. Significa «no comisiona por esto», y es una **decisión declarada**. No se confunde con `FA-001`.
+3. **La forma se devuelve igualmente**, aunque con valor cero las dos digan lo mismo. Omitirla obligaría a un caso especial en quien consuma, y el cero es donde menos falta hace inventar excepciones.
+
+### FA-005 — Producto retirado
+
+**Cuándo ocurre:** el producto existe y fue retirado del catálogo.
+
+1. Se resuelve con normalidad.
+2. **Preguntar qué se pagaba por algo que ya no se vende es legítimo**, y es la consulta que una liquidación atrasada necesita.
+
+### FA-006 — La misma persona, el mismo día, dos productos de monedas distintas
+
+**Cuándo ocurre:** quien tiene una tasa personalizada **en importe fijo** vende dos productos con monedas distintas.
+
+1. **Las dos consultas devuelven el mismo valor y la misma forma.** No hay ninguna diferencia entre las dos respuestas salvo el producto que se preguntó.
+2. **Y significan cantidades de dinero distintas**, porque el importe toma la moneda del producto (`RN-CM-017`) y esta consulta no la devuelve.
+3. **No es un error y no hay señal de ninguna clase.** La tasa personalizada no se acota a ningún producto (`RN-CM-014`), de modo que este es su comportamiento previsto.
+
+**Se enumera como flujo alternativo y no como caso límite** porque no es raro: es lo que pasa **siempre** que un catálogo tiene más de una moneda y alguien cobra un importe fijo personalizado. Lo excepcional sería que no ocurriera.
 
 ## 10. Excepciones
 
 ### EX-001 — La persona no existe
 
-**Condición:** la persona indicada no existe.
-**Respuesta del sistema:** rechaza la consulta diciendo que la persona indicada no existe.
+**Condición:** el identificador no corresponde a ninguna persona.
+**Respuesta del sistema:** rechaza la consulta diciendo que la persona indicada no existe. **No es un «no encontrado»**: lo que no existe es un dato que el actor envió.
 
 ### EX-002 — El producto no existe
 
-**Condición:** el producto indicado no existe.
-**Respuesta del sistema:** rechaza la consulta diciendo que el producto indicado no existe. **Un producto retirado no entra aquí**: existe, y se resuelve con normalidad.
+**Condición:** el identificador no corresponde a ningún producto.
+**Respuesta del sistema:** rechaza la consulta diciendo que el producto indicado no existe.
+
+**No hay ninguna excepción más, y esa escasez es deliberada:** los tres desenlaces de §9 son **respuestas**, no fallos. Convertir «sin tarifa» en un error obligaría a quien liquide a tratar como excepción el caso más común de un sistema recién configurado.
 
 ## 11. Validaciones
 
 | ID | Regla | Mensaje |
 |---|---|---|
-| `VAL-006` | Formato de fecha | La fecha debe expresarse en el formato de fecha admitido. |
-| `VAL-012` | Persona y producto obligatorios | La persona y el producto son obligatorios para resolver la comisión. |
+| — | Persona y producto obligatorios, y formato de fecha | Los del sistema |
 
 ## 12. Criterios de aceptación
 
 | ID | Criterio |
 |---|---|
-| `CA-CM-039` | Con solo la tarifa por omisión del rol, el sistema la devuelve e indica ese grado |
-| `CA-CM-040` | Con tarifa del rol y tarifa del rol para el producto, **gana la del producto** |
-| `CA-CM-041` | Con tarifa del rol y excepción de la persona, **gana la de la persona** |
-| `CA-CM-042` | Con los cuatro grados declarados, **gana la de la persona para ese producto** |
-| `CA-CM-043` | El sistema **ignora** las tarifas que no rigen en la fecha consultada, y aplica la que sí |
-| `CA-CM-044` | Sin fecha, el sistema resuelve **con la de hoy** |
-| `CA-CM-045` | Con una fecha pasada, el sistema devuelve **la que regía entonces** y no la de hoy |
-| `CA-CM-046` | El sistema **ignora** las tarifas retiradas, y aplica la siguiente en precedencia |
-| `CA-CM-047` | Sin ninguna tarifa aplicable, el sistema responde «no hay tarifa declarada» y **no** cero |
-| `CA-CM-048` | Con una tarifa del cero por ciento, el sistema devuelve **cero** e indica qué tarifa lo declaró |
-| `CA-CM-049` | El sistema resuelve con normalidad sobre un producto **retirado** |
-| `CA-CM-050` | Con una persona sin rol vendedor, el sistema lo dice, y lo distingue de que no haya tarifa |
+| `CA-CM-038` | Resuelve la tasa del rol cuando está **asociada** a ese producto, con fuente `ROL` |
+| `CA-CM-039` | **Una tasa de rol sin asociar NO paga nada**: el desenlace es «sin tarifa» |
+| `CA-CM-040` | La asociación de **otro producto** no sirve para este |
+| `CA-CM-041` | La asociación de **otro rol** no sirve para esta persona |
+| `CA-CM-042` | La personalizada **gana** sobre la del rol, con fuente `PERSONALIZADA` |
+| `CA-CM-043` | La personalizada gana **aunque el producto no tenga ninguna asociación** |
+| `CA-CM-044` | Una personalizada **vencida** deja de ganar, y vuelve a mandar la del rol |
+| `CA-CM-045` | **Quien no porta rol vendedor pero tiene personalizada viva COBRA**, y el rol llega nulo |
+| `CA-CM-046` | Sin rol vendedor y sin personalizada, el desenlace es «no comisiona» |
+| `CA-CM-047` | El porcentaje **cero** resuelve, y se distingue de no tener tasa |
+| `CA-CM-048` | Una tasa **retirada** deja de resolver aunque su asociación exista |
+| `CA-CM-049` | Un producto **retirado** se resuelve con normalidad |
+| `CA-CM-050` | Sin fecha se resuelve con la de hoy; la persona y el producto inexistentes se distinguen |
+| `CA-CM-100` | Resuelve una tasa **en importe fijo** y devuelve **la forma junto al valor**, en **un** campo de valor |
+| `CA-CM-101` | La **precedencia no cambia con las formas**: una personalizada **en porcentaje** gana sobre una de rol **en importe fijo**, y al revés |
+| `CA-CM-102` | Cuando no hay tasa, **la forma y el valor llegan nulos y presentes**, y el nulo sigue significando **una sola cosa** |
+| `CA-CM-103` | Un valor **cero en importe fijo** resuelve, con su forma, y se distingue de no tener tasa |
+| `CA-CM-104` | **La misma persona sobre dos productos de monedas distintas obtiene la misma respuesta**, sin señal alguna |
+
+!!! danger "`CA-CM-101` prueba que algo NO pasó, y es el criterio que protege lo único que este requerimiento hace"
+
+    La precedencia es **la razón de existir** de este requerimiento, y el valor fijo es un cambio en la **respuesta**, no en ella. Pero las dos cosas se tocan en la misma consulta, y **una implementación que reordenara las ramas al añadir las columnas nuevas seguiría devolviendo cifras plausibles**.
+
+    Por eso el criterio cruza las formas a propósito: personalizada **en porcentaje** contra rol **en importe fijo**, y la combinación contraria. Si la precedencia se rompiera al reescribir la consulta, **las demás pruebas de precedencia podrían seguir pasando** —usan la misma forma en las dos ramas— y esta no.
+
+    Es la versión, para esta operación, del defecto que `spec.md` §8 lleva describiendo desde la v0.1.0: **no falla, paga mal**.
 
 ## 13. Casos límite
 
-- **Una tarifa más específica pero retirada:** se ignora, y gana la siguiente en precedencia. Retirar significa que no debió existir, de modo que no puede seguir ganando.
-- **Una tarifa más específica pero vencida:** se ignora igual, y por otra razón: no rige esa fecha. Las dos exclusiones son distintas y las dos llevan al mismo sitio.
-- **Fecha futura:** se resuelve con las tarifas que regirán ese día, incluidas las programadas. Es la forma de comprobar que un cambio ya declarado hará lo que se espera **antes** de que entre en vigor.
-- **Fecha anterior a toda tarifa declarada:** responde «no hay tarifa declarada». No se extrapola hacia atrás la más antigua: una tarifa dice desde cuándo rige, y antes de esa fecha no regía.
-- **La persona tiene rol vendedor y ninguna tarifa, ni siquiera la del rol:** responde «no hay tarifa declarada». Es distinto de `FA-003`, donde el problema es que no vende.
+- **La vigencia de la tasa que gana llega nula:** es lo normal cuando la fuente es el rol, porque **esas no tienen vigencia**. No es un dato que falte.
+- **Una tasa retirada con su asociación viva:** deja de resolver, y el producto pasa a no comisionar. **Es el estado que `RN-CM-015` existe para impedir**, y este requerimiento es donde se vería el daño — se prueba a propósito, sembrándolo a mano, para dejar constancia de por qué esa regla existe.
+- **La persona porta dos roles vendedores:** no puede (`RN-SP-025`), y este requerimiento **depende de ello**. Sin esa garantía, «el rol vendedor de la persona» no sería una pregunta con una sola respuesta y la resolución elegiría en silencio.
+- **La fecha en el pasado sobre una tasa de rol:** devuelve lo que la tasa dice **hoy**, no lo que decía entonces. Sin vigencia, el catálogo no puede responder a «qué regía». Solo las personalizadas responden de verdad a la fecha.
+- **La suma de la cadena pasa de cien:** este requerimiento no lo ve ni lo puede ver. `RN-CM-011` declara que el tope **queda sin dueño** hasta que exista quien aplique las tarifas, y que cuando lo tenga debe **rechazar y no recortar** — recortar decidiría en silencio a quién se le quita.
+- **Dos personalizadas de la misma persona cubriendo el mismo día:** no puede ocurrir (`RN-CM-006`), y esta resolución **depende de ello**. Con dos, dejaría de ser determinista.
 
 ## 14. Preguntas abiertas
 
@@ -173,12 +259,26 @@ Las tarifas se declaran en cuatro grados y con vigencia, de modo que a un caso c
 |---|---|---|---|
 | — | Ninguna | — | — |
 
-**Que un vendedor consulte su propia comisión no es una pregunta abierta de este requerimiento: es un requerimiento que todavía no se abre.** Sería el equivalente de lo que en el catálogo de productos separó la oferta propia del catálogo administrativo — otro actor, otra pregunta, otro permiso—, y **depende de D-22**, el modelo de alcance de datos, que sigue sin decidirse. Cuando se cierre, se registrará como `RF-CM-006`.
+**Queda declarado lo que este requerimiento no puede resolver y alguien tendrá que resolver:** el tope de la suma de la cadena (`RN-CM-011`). No es una pregunta abierta de esta especificación —está decidido que no vive aquí— sino una deuda del módulo que la liquidación heredará.
 
-**Una persona no puede tener dos roles vendedores** (`RN-SP-025`), y de eso depende que el paso 2 del flujo principal sea determinista. Esa regla la gobierna el módulo `SP` y **todavía no está implementada**: mientras no lo esté, este requerimiento no puede darse por terminado.
+**Y queda registrada una decisión del responsable del proyecto del 02-09-2026, que se preguntó porque esta consulta es el único sitio donde la alternativa era posible: la respuesta NO devuelve la moneda.**
+
+El argumento para devolverla era real: esta operación **recibe el producto**, de modo que es el primer y único punto del sistema donde el importe fijo y su moneda existen a la vez. Añadirla no habría sido calcular nada — solo decir en qué unidad está la cifra.
+
+Se decidió que no, y el motivo se sostiene: **`cm.md` §1.4 dice que una tasa no calcula nada**, y devolver la moneda del producto empezaría a mezclar la tarifa con la venta. La consecuencia queda escrita en lugar de disimulada:
+
+| Qué pasa | Dónde queda |
+|---|---|
+| `FA-006`: dos productos de monedas distintas dan **la misma respuesta** | `CA-CM-104` lo fija como comportamiento esperado |
+| La liquidación tendrá que **ir a buscar la moneda al producto** | Y ese producto puede haberse retirado (`FA-005`) |
+| `RN-CM-008` pasa a exigir copiar **tres cosas** y no una | `RF-CM-003` §5, y `modelo-datos.md` §4.1 |
+
+Si algún día se revierte, **lo que cambia es solo esta especificación**: un campo más en §6.2 y un criterio más en §12. La decisión es barata de deshacer, y por eso se toma en el sentido que no añade nada.
 
 ## 15. Control de cambios
 
 | Versión | Fecha | Cambio | Responsable |
 |---|---|---|---|
-| 0.1.0 | 28-08-2026 | Redacción inicial, sin preguntas abiertas. | Responsable técnico |
+| 0.1.0 | 28-08-2026 | Redacción inicial. | Responsable técnico |
+| 0.2.0 | 02-09-2026 | **Reescrita sobre el modelo de `cm.md` v0.4.0**, y después de construirse el código. La precedencia pasa de **cuatro grados a dos** y el campo que la explicaba deja de ser el **grado** de la tarifa para ser la **fuente** de la resolución — son dos conceptos distintos y por eso no se reutiliza el nombre. Entra el cambio de significado que esta consulta hereda: **desaparece la tarifa por omisión del rol**, de modo que «sin tarifa» pasa a significar casi siempre **«nadie la asoció»** y no «nadie la declaró». **Y se registra lo que construirla destapó**: nace `FA-003`, que la v0.1.0 no podía tener — quien **no porta rol vendedor pero tiene personalizada viva cobra**, porque esas tasas dejaron de llevar rol y con ello dejaron de morir con el de su titular. Lo que `cm.md` §5.3 llamaba «se queda callada» resultó ser **«sigue pagando»**, y la consecuencia visible es que el rol puede llegar **nulo junto a un desenlace resuelto**. §13 recoge además que este requerimiento **depende de dos reglas ajenas para ser determinista** —`RN-SP-025` y `RN-CM-006`— y que la fecha en el pasado **ya no responde de verdad** sobre las tasas de rol. | Responsable técnico |
+| 0.3.0 | 02-09-2026 | **Entra el valor fijo** (`cm.md` v0.7.0), antes del código, y **no toca la precedencia ni una línea**: lo que cambia es la respuesta. Lo que se devuelve deja de ser un número y pasa a ser **una forma y un valor**, porque «10» no significa nada sin saber si son diez por ciento o diez unidades de dinero. §6.2 se rehace entera alrededor de una decisión del responsable del proyecto: **el valor es UN campo y no dos**, al revés que en el catálogo (`RF-CM-002` §6.2), porque con dos campos el nulo tendría **dos causas** —una tasa de importe fijo dejaría vacío el porcentaje sin que eso signifique «nadie la tomó»— y el aviso que impide pagar cero donde no había tarifa dejaría de poder escribirse. La asimetría entre las dos lecturas es deliberada y queda documentada. §14 registra la otra decisión que se preguntó: **la respuesta no devuelve la moneda**, aunque esta consulta reciba el producto y sea **el único punto del sistema donde el importe y su moneda existen a la vez** — se descartó porque devolverla empezaría a mezclar la tarifa con la venta (`cm.md` §1.4), y la consecuencia se escribe en lugar de disimularse: `FA-006` y `CA-CM-104` fijan que **dos productos de monedas distintas obtienen la misma respuesta sin señal alguna**. `CA-CM-101` es el criterio nuevo que protege lo viejo: **cruza las formas** entre las dos ramas de la precedencia, porque una reescritura de la consulta podría invertirlas y las demás pruebas de precedencia —que usan la misma forma en las dos— seguirían pasando. | Responsable del proyecto |

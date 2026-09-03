@@ -141,7 +141,8 @@ class UpdateOwnProfileIT extends IntegrationTestBase {
   @DisplayName("CA-SP-502 · roles, membresía, estado y superior quedan intactos")
   void loQueNoSeToca() throws Exception {
     jdbc.update(
-        "INSERT INTO user_roles (user_id, role_id) SELECT ?, id FROM roles WHERE code = 'CLIENTE'",
+        "INSERT INTO user_roles (user_id, role_id, role_type)"
+            + " SELECT ?, id, role_type FROM roles WHERE code = 'CLIENTE'",
         juan);
     // NO se depende del catálogo sembrado: varias clases de la suite hacen
     // `DELETE FROM memberships`, de modo que `FREE` puede no existir según el

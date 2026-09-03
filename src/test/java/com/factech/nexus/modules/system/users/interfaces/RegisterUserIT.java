@@ -559,7 +559,10 @@ class RegisterUserIT extends IntegrationTestBase {
         id,
         username,
         username + "@factech.co");
-    jdbc.update("INSERT INTO user_roles (user_id, role_id) VALUES (?, ?::uuid)", id, rolId);
+    jdbc.update(
+        "INSERT INTO user_roles (user_id, role_id, role_type) SELECT ?, r.id, r.role_type FROM roles r WHERE r.id = ?::uuid",
+        id,
+        rolId);
     return id;
   }
 

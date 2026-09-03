@@ -38,30 +38,41 @@ class ProductsIT extends IntegrationTestBase {
   @Autowired private JdbcTemplate jdbc;
 
   private String oro;
+  private String platino;
+  private String vip;
+  private String free;
 
   @BeforeEach
   void prepararCatalogo() {
     jdbc.update("DELETE FROM currencies WHERE is_default = false");
     jdbc.update("DELETE FROM products");
     jdbc.update("DELETE FROM memberships");
-    oro = crearMembresia("ORO", "Oro", 1);
+    // LA CADENA ENTERA, y no solo la cima: `RN-PM-018` dice que un upgrade
+    // puede saltar niveles, y eso no se puede probar sin niveles que saltar.
+    oro = crearMembresia("ORO", "Oro", 1, null);
+    platino = crearMembresia("PLATINO", "Platino", 2, oro);
+    vip = crearMembresia("VIP", "Vip", 3, platino);
+    free = crearMembresia("FREE", "Free", 4, vip);
   }
 
   @Test
-  @DisplayName("`CA-PM-001` — registra un upgrade y devuelve el destino resuelto con su nivel")
+  @DisplayName("`CA-PM-001` y `CA-PM-101` — registra un upgrade y resuelve LAS DOS membresías")
   void altaDeUpgrade() throws Exception {
     mvc.perform(
             alta(
                 """
                 {"code":"UPGRADE_ORO","type":"UPGRADE_MEMBRESIA","name":"Ascenso a Oro",
-                 "description":"Acceso al nivel oro.","targetMembershipId":"%s",
-                 "price":49.99,"currencyId":"%s","validityDays":30}
+                 "description":"Acceso al nivel oro.","sourceMembershipId":"%s",
+                 "targetMembershipId":"%s","price":49.99,"currencyId":"%s",
+                 "validityDays":30}
                 """
-                    .formatted(oro, USD)))
+                    .formatted(free, oro, USD)))
         .andExpect(status().isCreated())
         .andExpect(
             header().string("Location", org.hamcrest.Matchers.startsWith("/api/v1/products/")))
         .andExpect(jsonPath("$.code").value("UPGRADE_ORO"))
+        .andExpect(jsonPath("$.sourceMembership.code").value("FREE"))
+        .andExpect(jsonPath("$.sourceMembership.level").value(4))
         .andExpect(jsonPath("$.targetMembership.code").value("ORO"))
         .andExpect(jsonPath("$.targetMembership.level").value(1))
         .andExpect(jsonPath("$.currency.code").value("USD"))
@@ -92,9 +103,10 @@ class ProductsIT extends IntegrationTestBase {
             alta(
                 """
                 {"code":"UPGRADE_ORO","type":"UPGRADE_MEMBRESIA","name":"Ascenso a Oro",
-                 "icon":"  CROWN  ","targetMembershipId":"%s","price":49.99,"currencyId":"%s"}
+                 "icon":"  CROWN  ","sourceMembershipId":"%s","targetMembershipId":"%s",
+                 "price":49.99,"currencyId":"%s"}
                 """
-                    .formatted(oro, USD)))
+                    .formatted(free, oro, USD)))
         .andExpect(status().isCreated())
         .andExpect(jsonPath("$.icon").value("crown"));
   }
@@ -121,9 +133,10 @@ class ProductsIT extends IntegrationTestBase {
             alta(
                 """
                 {"code":"UPGRADE_ORO","type":"UPGRADE_MEMBRESIA","name":"Ascenso a Oro",
-                 "targetMembershipId":"%s","price":49.99,"currencyId":"%s"}
+                 "sourceMembershipId":"%s","targetMembershipId":"%s","price":49.99,
+                 "currencyId":"%s"}
                 """
-                    .formatted(oro, USD)))
+                    .formatted(free, oro, USD)))
         .andExpect(status().isCreated())
         .andExpect(jsonPath("$.icon").value(org.hamcrest.Matchers.nullValue()));
   }
@@ -135,9 +148,10 @@ class ProductsIT extends IntegrationTestBase {
             alta(
                 """
                 {"code":"UPGRADE_ORO","type":"UPGRADE_MEMBRESIA","name":"Ascenso a Oro",
-                 "icon":"Crown Oro","targetMembershipId":"%s","price":49.99,"currencyId":"%s"}
+                 "icon":"Crown Oro","sourceMembershipId":"%s","targetMembershipId":"%s",
+                 "price":49.99,"currencyId":"%s"}
                 """
-                    .formatted(oro, USD)))
+                    .formatted(free, oro, USD)))
         .andExpect(status().isBadRequest())
         .andExpect(jsonPath("$.errors[0].code").value("VAL-012"));
   }
@@ -168,7 +182,7 @@ class ProductsIT extends IntegrationTestBase {
   }
 
   @Test
-  @DisplayName("`CA-PM-003` y `CA-PM-004` — la condición de `RN-PM-002`, en los dos sentidos")
+  @DisplayName("`CA-PM-003`, `CA-PM-004` y `CA-PM-105` — `RN-PM-002` en los dos sentidos")
   void condicionCruzadaEnLosDosSentidos() throws Exception {
     mvc.perform(
             alta(
@@ -189,7 +203,106 @@ class ProductsIT extends IntegrationTestBase {
                 """
                     .formatted(oro, USD)))
         .andExpect(status().isBadRequest())
-        .andExpect(jsonPath("$.errors[0].code").value("VAL-008"));
+        .andExpect(jsonPath("$.errors[0].code").value("VAL-008"))
+        .andExpect(jsonPath("$.errors[0].field").value("targetMembershipId"));
+
+    // `CA-PM-105`. La prohibición vale para LAS DOS: un bot que declarara solo
+    // el origen promete lo mismo que uno que declara solo el destino —que el
+    // nivel de alguien va a cambiar— y nadie lo va a aplicar.
+    mvc.perform(
+            alta(
+                """
+                {"code":"ASESORIA","type":"BOT","name":"Asesoría","sourceMembershipId":"%s",
+                 "price":10.00,"currencyId":"%s"}
+                """
+                    .formatted(free, USD)))
+        .andExpect(status().isBadRequest())
+        .andExpect(jsonPath("$.errors[0].code").value("VAL-008"))
+        .andExpect(jsonPath("$.errors[0].field").value("sourceMembershipId"));
+
+    assertThat(cuantosProductos()).isZero();
+  }
+
+  @Test
+  @DisplayName("`CA-PM-102` — `RN-PM-018`: el upgrade puede SALTAR niveles, y no solo el contiguo")
+  void saltarNivelesEsLegitimo() throws Exception {
+    // La premisa que hace valer la prueba: entre el origen y el destino hay dos
+    // eslabones. Sin comprobarla, `FREE -> ORO` sería un salto de nombre.
+    assertThat(cuantasMembresias()).isEqualTo(4);
+
+    mvc.perform(
+            alta(
+                """
+                {"code":"SALTO_ORO","type":"UPGRADE_MEMBRESIA","name":"De Free a Oro",
+                 "sourceMembershipId":"%s","targetMembershipId":"%s","price":99.99,
+                 "currencyId":"%s"}
+                """
+                    .formatted(free, oro, USD)))
+        .andExpect(status().isCreated())
+        .andExpect(jsonPath("$.sourceMembership.level").value(4))
+        .andExpect(jsonPath("$.targetMembership.level").value(1));
+  }
+
+  @Test
+  @DisplayName("`CA-PM-103` — falta una de las dos y se rechaza, diciendo CUÁL")
+  void faltaUnaDeLasDosMembresias() throws Exception {
+    mvc.perform(
+            alta(
+                """
+                {"code":"SIN_ORIGEN","type":"UPGRADE_MEMBRESIA","name":"Sin origen",
+                 "targetMembershipId":"%s","price":49.99,"currencyId":"%s"}
+                """
+                    .formatted(oro, USD)))
+        .andExpect(status().isBadRequest())
+        .andExpect(jsonPath("$.errors[0].code").value("VAL-007"))
+        .andExpect(jsonPath("$.errors[0].field").value("sourceMembershipId"));
+
+    mvc.perform(
+            alta(
+                """
+                {"code":"SIN_DESTINO","type":"UPGRADE_MEMBRESIA","name":"Sin destino",
+                 "sourceMembershipId":"%s","price":49.99,"currencyId":"%s"}
+                """
+                    .formatted(free, USD)))
+        .andExpect(status().isBadRequest())
+        .andExpect(jsonPath("$.errors[0].code").value("VAL-007"))
+        .andExpect(jsonPath("$.errors[0].field").value("targetMembershipId"));
+
+    assertThat(cuantosProductos()).isZero();
+  }
+
+  @Test
+  @DisplayName("`CA-PM-104` — `RN-PM-017`: ni el mismo nivel ni un descenso vendido como upgrade")
+  void elOrigenDebeEstarPorDebajoDelDestino() throws Exception {
+    // Origen IGUAL al destino. Lo ve el agregado —le basta comparar dos
+    // identificadores—, y por eso es 400 y no 422.
+    mvc.perform(
+            alta(
+                """
+                {"code":"MISMO","type":"UPGRADE_MEMBRESIA","name":"A donde ya estoy",
+                 "sourceMembershipId":"%s","targetMembershipId":"%s","price":49.99,
+                 "currencyId":"%s"}
+                """
+                    .formatted(oro, oro, USD)))
+        .andExpect(status().isBadRequest())
+        .andExpect(jsonPath("$.errors[0].code").value("VAL-014"))
+        .andExpect(jsonPath("$.errors[0].field").value("sourceMembershipId"));
+
+    // Origen POR ENCIMA del destino: `ORO` es el nivel 1 y `FREE` el 4. Un
+    // descenso con la etiqueta de ascenso. Aquí sí hace falta leer el `level`
+    // de las dos filas, y es 422 porque el dato existe: lo que no vale es la
+    // relación entre los dos.
+    mvc.perform(
+            alta(
+                """
+                {"code":"DESCENSO","type":"UPGRADE_MEMBRESIA","name":"Bajada disfrazada",
+                 "sourceMembershipId":"%s","targetMembershipId":"%s","price":49.99,
+                 "currencyId":"%s"}
+                """
+                    .formatted(oro, free, USD)))
+        .andExpect(status().isUnprocessableEntity())
+        .andExpect(jsonPath("$.errors[0].code").value("VAL-014"))
+        .andExpect(jsonPath("$.errors[0].field").value("sourceMembershipId"));
 
     assertThat(cuantosProductos()).isZero();
   }
@@ -244,9 +357,10 @@ class ProductsIT extends IntegrationTestBase {
             alta(
                 """
                 {"code":"UPGRADE_X","type":"UPGRADE_MEMBRESIA","name":"Ascenso",
-                 "targetMembershipId":"%s","price":49.99,"currencyId":"%s"}
+                 "sourceMembershipId":"%s","targetMembershipId":"%s","price":49.99,
+                 "currencyId":"%s"}
                 """
-                    .formatted(UUID.randomUUID(), USD)))
+                    .formatted(free, UUID.randomUUID(), USD)))
         .andExpect(status().isUnprocessableEntity())
         .andExpect(jsonPath("$.errors[0].code").value("EX-002"));
   }
@@ -364,9 +478,10 @@ class ProductsIT extends IntegrationTestBase {
                 .content(
                     """
                     {"code":"UPGRADE_ORO","type":"UPGRADE_MEMBRESIA","name":"Ascenso a Oro",
-                     "targetMembershipId":"%s","price":49.99,"currencyId":"%s","validityDays":30}
+                     "sourceMembershipId":"%s","targetMembershipId":"%s","price":49.99,
+                     "currencyId":"%s","validityDays":30}
                     """
-                        .formatted(oro, USD)))
+                        .formatted(free, oro, USD)))
         .andExpect(status().isCreated());
 
     String cambios =
@@ -443,14 +558,16 @@ class ProductsIT extends IntegrationTestBase {
         .content(cuerpo);
   }
 
-  private String crearMembresia(String codigo, String nombre, int nivel) {
+  private String crearMembresia(String codigo, String nombre, int nivel, String superior) {
     UUID id = UUID.randomUUID();
     jdbc.update(
         "INSERT INTO memberships (id, code, name, parent_membership_id, level, color)"
-            + " VALUES (?, ?, ?, NULL, ?, upper(lpad(to_hex(? * 4919), 6, '0')))",
-        id,
+            + " VALUES (CAST(? AS uuid), ?, ?, CAST(? AS uuid), ?,"
+            + " upper(lpad(to_hex(? * 4919), 6, '0')))",
+        id.toString(),
         codigo,
         nombre,
+        superior,
         nivel,
         nivel);
     return id.toString();
@@ -464,6 +581,11 @@ class ProductsIT extends IntegrationTestBase {
             + " VALUES (?, 'EUR', 'Euro', 'E', 2, false, false)",
         id);
     return id.toString();
+  }
+
+  private int cuantasMembresias() {
+    Integer filas = jdbc.queryForObject("SELECT count(*) FROM memberships", Integer.class);
+    return filas == null ? 0 : filas;
   }
 
   private int cuantosProductos() {

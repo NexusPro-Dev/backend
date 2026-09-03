@@ -3,11 +3,11 @@
 | Campo | Valor |
 |---|---|
 | Módulo | `SP` — Sistema Principal |
-| Versión | 0.3.0 |
+| Versión | 0.4.0 |
 | Estado | **Borrador** |
 | Responsable | Bonilla Diaz William Steven |
 | Fecha de creación | 21-08-2026 |
-| Última actualización | 28-08-2026 |
+| Última actualización | 01-09-2026 |
 
 !!! info "Qué va en este documento"
 
@@ -1251,7 +1251,91 @@ flowchart TD
 No tiene permiso propio: exige `users:read`, el mismo que `RF-SP-025` y `RF-SP-026`. Quien puede ver la ficha de una persona puede ver de quién depende. Es además la consulta que `RF-SP-028`, `RF-SP-029` y `RF-SP-031` mandan usar cuando rechazan por equipo a cargo, porque ellas informan **cuántos** son y nunca quiénes.
 
 ---
-## 10. Lo que el dibujo dejó a la vista
+## 10. Registro público
+
+### `RF-SP-045` · Registro de clientes por enlace
+
+El **primer endpoint público del sistema que escribe**. Los seis que ya existían o leen, o consumen una credencial que el propio sistema emitió.
+
+```mermaid
+flowchart TD
+    A(["Persona SIN CUENTA abre el enlace<br/>producto + vendedor + sus datos"])
+    A --> V1{"¿dentro del<br/>límite de tasa?"}
+    V1 -->|no| E0["429 · es público y crea usuarios"]
+    V1 -->|sí| V2{"¿el producto existe,<br/>está ACTIVO y no<br/>está retirado?"}
+    V2 -->|no| E1["EX-001 · los TRES casos<br/>comparten respuesta:<br/>no se enumera el catálogo"]
+    V2 -->|sí| V3{"¿es un UPGRADE?"}
+    V3 -->|no| E3["EX-003 · un BOT no declara<br/>membresía destino"]
+    V3 -->|sí| V4{"¿lleva a la<br/>membresía gratuita?"}
+    V4 -->|no| E4["EX-004 · exige pago.<br/>ÚNICA excepción que dice qué pasó"]
+    V4 -->|sí| V5{"¿el vendedor existe, no está<br/>eliminado y porta rol VENDEDOR?"}
+    V5 -->|no| E2["EX-002 · los TRES casos<br/>comparten respuesta:<br/>no se enumera la plantilla"]
+    V5 -->|sí| V6{"¿nombre de usuario<br/>y correo libres?"}
+    V6 -->|no| E5["EX-005 · SÍ dice cuál de los dos.<br/>Contradice a EX-001 a propósito"]
+    V6 -->|sí| V7{"¿la contraseña cumple<br/>la política?"}
+    V7 -->|no| E6["VAL-006"]
+    V7 -->|sí| P1["Crea la cuenta en FTD_PENDIENTE<br/>contraseña elegida por ella:<br/>SIN marca de cambio obligatorio"]
+    P1 --> P2["Concede rol CONSUMIDOR<br/>+ membresía del producto<br/>vigencia desde validity_days"]
+    P2 --> P3["Cuelga al cliente del vendedor<br/>en user_supervisors"]
+    P3 --> P4["Auditoría de cambios<br/>+ seguridad · USER_CREATED"]
+    P4 --> FIN(["Confirma, y dice que falta<br/>el depósito para operar.<br/>NO devuelve sesión"])
+
+    classDef ex fill:#F7E9E5,stroke:#A33B2A,color:#7A2B1E
+    classDef ok fill:#E5EEF0,stroke:#2D5A6B,color:#141B1E
+    class E0,E1,E2,E3,E4,E5,E6 ex
+    class FIN ok
+```
+
+**Las tres respuestas compartidas y la que no lo es** son la parte que hay que leer con cuidado. `EX-001` y `EX-002` funden tres casos cada una **porque el endpoint es público**: distinguirlos lo convertiría en una forma de enumerar el catálogo comercial o la plantilla probando valores. `EX-005` **sí** distingue, y contradice a las otras dos a propósito — quien se registra necesita saber cuál de sus dos identidades chocó, y callarlo lo deja probando a ciegas. El coste está declarado: este endpoint permite comprobar si un correo está registrado, como cualquier formulario de registro del mundo.
+
+**`EX-004` es la única que explica.** Ahí el producto existe y está activo —el enlace es legítimo— y callarlo dejaría a alguien con un enlace bueno sin entender por qué no funciona.
+
+**Los cuatro pasos finales son una sola transacción.** Cualquier corte deja un estado que ninguna regla admite: un consumidor sin membresía viola `RN-SP-018`, y un cliente sin atribución es el huérfano que `RN-SP-027` existe para evitar.
+
+**No devuelve credenciales de sesión**, y esa ausencia evita duplicar la emisión de sesiones en dos requerimientos — el segundo acabaría olvidando alguna regla del primero.
+
+---
+
+### `RF-SP-046` · La retención de quien no ha depositado
+
+Este requerimiento **no tiene endpoint**: es un filtro. Lo que hace valer es que `FTD_PENDIENTE` **autentique y no opere**.
+
+```mermaid
+flowchart TD
+    A(["Petición con token válido"])
+    A --> V1{"¿la cuenta está<br/>en FTD_PENDIENTE?"}
+    V1 -.->|no| P1["Sigue su camino normal"]
+    V1 -->|sí| V2{"¿la ruta está en la<br/>lista blanca?"}
+    V2 -->|sí| P1
+    V2 -->|no| E1["403 · falta el depósito<br/>con qué falta y cómo hacerlo"]
+
+    subgraph LB["Lo alcanzable sin haber depositado"]
+        L1["GET /users/me · si no ve su perfil<br/>no sabe POR QUÉ lo rechazan"]
+        L2["POST /auth/password · cambiar la propia"]
+        L3["POST /auth/logout · retener a quien<br/>quiere salir es lo contrario de retener"]
+        L4["Consultar su estado y qué le falta"]
+    end
+
+    classDef ex fill:#F7E9E5,stroke:#A33B2A,color:#7A2B1E
+    classDef ok fill:#E5EEF0,stroke:#2D5A6B,color:#141B1E
+    class E1 ex
+    class P1 ok
+```
+
+**Tiene la forma exacta de `MustChangePasswordFilter`**, y no por parecido: es el mismo problema. Un claim en el token decide, y una **lista blanca escrita con el motivo al lado** dice qué sigue siendo alcanzable. Ese motivo al lado es lo que convierte una excepción en una decisión revisable en vez de en un olvido.
+
+**La lista blanca es la parte que hay que revisar**, no el filtro. Sin ella la cuenta queda sin salida: la persona no podría ni ver que le falta depositar ni enterarse de cómo hacerlo, y recuperarla exigiría tocar la base a mano.
+
+**Se decide con el claim y no con la base de datos**, por la misma razón que `MustChangePasswordFilter`: consultar `users.status` en cada petición es la consulta por petición que **D-08** existe para evitar. Y trae el mismo coste acotado — quien deposita conserva un token retenido hasta quince minutos, y el refresco lo recalcula.
+!!! warning "Qué libera esta retención está sin decidir"
+
+    Quien saca la cuenta de `FTD_PENDIENTE` **no está decidido**. Hoy la única vía es que un actor la active a mano por `RF-SP-028`; confirmar automáticamente que el depósito llegó exige una pieza que no existe.
+
+    Es la única retención del sistema cuya llave **todavía no existe**: el filtro sabe retener y nadie sabe soltar, salvo a mano.
+
+---
+
+## 11. Lo que el dibujo dejó a la vista
 
 Nueve asimetrías entre specs que solo se ven al poner los 42 flujos en la misma notación. Ninguna contradice lo aprobado; son inconsistencias de tipificación o dependencias que ninguna spec enuncia.
 
@@ -1269,9 +1353,10 @@ Nueve asimetrías entre specs que solo se ven al poner los 42 flujos en la misma
 
 ---
 
-## 11. Control de cambios
+## 12. Control de cambios
 
 | Versión | Fecha | Cambio | Responsable |
 |---|---|---|---|
 | 0.1.0 | 21-08-2026 | Creación inicial. Un diagrama por cada uno de los 21 casos de uso, transcritos de las §8, §9 y §10 de sus specs, y cinco inconsistencias de tipificación detectadas al normalizar la notación. | Responsable técnico |
 | 0.2.0 | 22-08-2026 | Los 21 casos de uso restantes, de `RF-SP-022` a `RF-SP-042`: cambio de estado de país y moneda, las siete operaciones sobre usuarios, las cuatro de roles y membresía de una persona, las seis de sesión y credenciales, y las dos de estructura comercial. Cuatro secciones nuevas —Usuarios, Roles y membresía de una persona, Sesión y credenciales, Estructura comercial— y cuatro observaciones nuevas en §10. | Responsable técnico |
+| 0.4.0 | 01-09-2026 | **Dos casos nuevos, y son los dos que rompen un supuesto que el resto del documento daba por bueno.** §10 dibuja `RF-SP-045` —el **primer endpoint público del sistema que escribe**— y `RF-SP-046`, la retención de quien no ha depositado. El primero enseña de un vistazo una asimetría que hay que leer despacio: **`EX-001` y `EX-002` funden tres casos cada una porque el endpoint es público** —distinguirlos lo convertiría en una forma de enumerar el catálogo comercial o la plantilla probando valores— mientras que **`EX-005` sí distingue, contradiciéndolas a propósito**, porque quien se registra necesita saber cuál de sus dos identidades chocó. El segundo **no tiene endpoint**: es un filtro con la forma exacta de `MustChangePasswordFilter`, y lo que hay que revisar de él no es el filtro sino **la lista blanca**, sin la cual la cuenta queda sin salida. Los dos comparten una propiedad que ningún otro caso de este documento tiene: **la transición que los libera no está decidida**. El filtro sabe retener y nadie sabe soltar, salvo a mano por `RF-SP-028`. | Responsable técnico |
