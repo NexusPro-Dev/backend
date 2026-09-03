@@ -4,7 +4,7 @@
 |---|---|
 | Requerimiento | `RF-CM-002` |
 | Plan | [`plan.md`](plan.md), aprobado el 02-09-2026 |
-| Versión | 0.3.0 |
+| Versión | 1.0.0 |
 | Estado | **En revisión** |
 | Autor | Responsable técnico |
 | Aprobadas por | Pendiente |
@@ -16,9 +16,7 @@
 
     **En qué pasos se construye** lo que `plan.md` decidió, con su dependencia y su verificación.
 
-!!! warning "Las tareas están hechas antes que este documento"
-
-    El código se rehízo el 02-09-2026 y esta lista viene detrás. **No planifica: registra.** La tercera compuerta del Art. I.6 sigue pendiente y por eso el documento está `En revisión`.
+    **Las tareas están hechas y verificadas el 02-09-2026**, salvo `T-16`. La tercera compuerta del Art. I.6 sigue pendiente, y por eso el documento está `En revisión`.
 
 ---
 
@@ -74,7 +72,7 @@
 
 **`T-02`, `T-05` y `T-07` dependen de requerimientos posteriores**, y esa inversión es real: las tablas que consultan las crean `RF-CM-006` y `RF-CM-007`. En el orden de construcción esas dos fueron antes, aunque su número sea mayor.
 
-**`T-16` queda pendiente.** La prueba de número de sentencias existía en la v0.1.0 sobre el listado anterior y hay que rehacerla contra el catálogo nuevo. No bloquea nada y se registra para que no desaparezca — es lo único que impide que una refactorización que «limpie» los `JOIN` traiga de vuelta las `N+1`.
+**`T-16` queda pendiente.** Es la prueba de número de sentencias del catálogo, y **es la única tarea viva de esta tripleta**. No bloquea nada y se registra para que no desaparezca — es lo único que impide que una refactorización que «limpie» los `JOIN` traiga de vuelta las `N+1`.
 
 ## 3. Cobertura de los criterios de aceptación
 
@@ -100,7 +98,7 @@
 
 ## 4. Bloqueos
 
-Ninguno. **`T-17` depende de que `V49` esté aplicada** (`RF-CM-001` `T-16` a `T-19`): dentro del bloque, `RF-CM-001` va primero.
+Ninguno. **`T-17` depende de que `V50` esté aplicada** (`RF-CM-001` `T-16` a `T-19`): dentro del bloque, `RF-CM-001` va primero.
 
 **Queda declarado un condicionante**: este es el requerimiento que **D-22** puede tener que cambiar. El predicado de cada listado vive en un solo método para que ese día haya uno que tocar por listado y no tres.
 

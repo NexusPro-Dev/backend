@@ -4,7 +4,7 @@
 |---|---|
 | Requerimiento | `RF-CM-002` |
 | Módulo | `CM` — Comisiones |
-| Versión | 0.3.0 |
+| Versión | 1.0.0 |
 | Estado | **Aprobada** |
 | Autor | Responsable técnico |
 | Aprobada por | Responsable del proyecto |
@@ -16,12 +16,6 @@
 
     **Prueba de pertenencia:** si un cambio de tecnología lo invalidaría, no pertenece aquí — va a `plan.md`.
 
-!!! warning "Esta especificación se reescribió después de construirse"
-
-    La v0.1.0 describía **un** listado sobre **una** tabla. El rediseño del 01-09-2026 partió esa tabla en tres, y esta consulta con ella.
-
-    **La v0.3.0 se escribe antes del código**, y trae el valor fijo de `cm.md` v0.7.0 — que en una consulta parece un campo más y **rompe una cosa que no se ve**: el orden. Ver §6.2.
-
 ---
 
 ## 1. Objetivo
@@ -32,11 +26,11 @@ Ver **qué comisiones hay declaradas** y, sobre todo, **cuáles de ellas rigen d
 
 Es la lectura administrativa del módulo, y **devuelve las tasas tal como se declararon**. No resuelve nada: cuál se aplica a un caso concreto lo responde `RF-CM-005`, y son preguntas distintas.
 
-**Lo que este requerimiento tiene que resolver, y la v0.1.0 no tenía que resolver, es que ahora hay tres cosas que mirar y no una.** El catálogo por rol, las excepciones por persona y las asociaciones son tres tablas con formas distintas: una no tiene vigencia, otra sí, y la tercera no tiene ni identificador propio. Un listado único devolvería filas con la mitad de los campos vacíos y obligaría al cliente a deducir de qué tipo es cada una.
+**Hay tres cosas que mirar y no una.** El catálogo por rol, las excepciones por persona y las asociaciones son tres tablas con formas distintas: una no tiene vigencia, otra sí, y la tercera no tiene ni identificador propio. Un listado único devolvería filas con la mitad de los campos vacíos y obligaría al cliente a deducir de qué tipo es cada una.
 
-**Sigue siendo UN requerimiento y no tres, y conviene decir por qué.** La pregunta es la misma —«qué comisiones hay declaradas»— sobre tres soportes; el permiso es el mismo; y ninguna de las tres decide nada. Partirlo en tres habría multiplicado por tres una especificación cuyo contenido propio cabe en dos párrafos, y habría escondido lo único que de verdad hay que entender: **que las tres juntas responden a la pregunta y ninguna sola la responde**.
+**Y aun así es UN requerimiento y no tres, y conviene decir por qué.** La pregunta es la misma —«qué comisiones hay declaradas»— sobre tres soportes; el permiso es el mismo; y ninguna de las tres decide nada. Partirlo habría multiplicado por tres una especificación cuyo contenido propio cabe en dos párrafos, y habría escondido lo único que de verdad hay que entender: **que las tres juntas responden a la pregunta y ninguna sola la responde**.
 
-**Y hay algo que solo se ve mirando las tres a la vez.** Una tasa de rol puede aparecer en el catálogo con su porcentaje y **no rige sobre nada**. Es la consecuencia de `RN-CM-012`, y es invisible desde el catálogo si el catálogo no lo dice. Por eso cada tasa de rol declara **sobre cuántos productos rige**: sin ese número, el listado sería idéntico para una tasa que paga y para una que no.
+**Hay algo que solo se ve mirando las tres a la vez.** Una tasa de rol puede aparecer en el catálogo con su valor y **no regir sobre nada**. Es la consecuencia de `RN-CM-012`, y es invisible desde el catálogo si el catálogo no lo dice. Por eso cada tasa de rol declara **sobre cuántos productos rige**: sin ese número, el listado sería idéntico para una tasa que paga y para una que no.
 
 ## 3. Actores
 
@@ -83,13 +77,13 @@ Ninguna. Es una consulta: no decide nada y no cambia nada.
 | Dato | Obligatorio | Descripción | Restricción de negocio |
 |---|---|---|---|
 | Rol | No | Filtra las tasas de un rol | Si el rol no existe, la colección vuelve vacía y **no es un error** |
-| **Forma** | No | Filtra por cómo paga la tasa: porcentaje o valor fijo | Una de las dos. Ausente, **no filtra** |
+| Forma | No | Filtra por cómo paga la tasa: porcentaje o valor fijo | Una de las dos. Ausente, **no filtra** |
 | Incluir retiradas | No | Si se piden también las retiradas | Por omisión, **no** se incluyen |
 | Página y tamaño | No | Paginación | Los límites del sistema |
 
-**El filtro por forma entra por decisión del responsable del proyecto el 02-09-2026**, y no por necesidad técnica: no hay ninguna operación que lo requiera. Responde a la pregunta que nace el día que conviven las dos formas —«enséñame las que pagan importe fijo»— y que hasta entonces no tenía sentido.
+**El filtro por forma está por decisión del responsable del proyecto**, y no por necesidad técnica: no hay ninguna operación que lo requiera. Responde a la pregunta que nace cuando conviven las dos formas — «enséñame las que pagan importe fijo».
 
-**No se le añade al listado de personalizadas**, y no es un olvido: allí se filtra por persona, y una persona tiene **una** tasa vigente (`RN-CM-006`). Filtrar por forma sobre un historial de una sola línea no responde a ninguna pregunta.
+**No lo lleva el listado de personalizadas**, y no es un olvido: allí se filtra por persona, y una persona tiene **una** tasa vigente (`RN-CM-006`). Filtrar por forma sobre un historial de una sola línea no responde a ninguna pregunta.
 
 **De las tasas personalizadas**
 
@@ -120,15 +114,15 @@ Ninguna. Es una consulta: no decide nada y no cambia nada.
 | Marca de retiro | En las retiradas, que lo están y desde cuándo |
 | Total y orden | Cuántas cumplen el filtro, y sobre qué se está paginando |
 
-!!! danger "El orden del catálogo deja de tener sentido, y es lo único de esta versión que no es aditivo"
+!!! danger "El orden no es «de mayor a menor», y no puede serlo"
 
-    Hasta la v0.2.0 el catálogo se ordenaba **por código de rol y, dentro de cada rol, de mayor a menor porcentaje** (`CA-CM-013`). Era un orden útil: dentro de un rol, arriba lo que más paga.
+    El orden que se esperaría es el útil: por rol y, dentro de cada rol, **lo que más paga arriba**. Con dos formas ese orden **compara cosas que no admiten un «mayor que»**.
 
-    **Con dos formas ese orden ordena cosas que no se pueden comparar.** «10 %» y «10.000 fijos» no admiten un «mayor que»: cuál paga más depende del precio del producto, que el catálogo no conoce — y que puede ser distinto para cada producto asociado a esa misma tasa.
+    «10 %» y «10.000 fijos» no se pueden ordenar entre sí: cuál paga más depende del precio del producto, que el catálogo no conoce — y que puede ser distinto para cada producto asociado a esa misma tasa.
 
     Ordenar por la cifra a secas es **peor que no ordenar**, porque produce una lista que **parece** de mayor a menor y no lo es: pondría «100 fijos» por encima de «50 %» sin que eso signifique nada.
 
-    **El orden pasa a ser: código de rol, luego forma, y dentro de cada forma de mayor a menor valor.** No es una ordenación por lo que se paga —eso ya no existe— sino **dos listas comparables una detrás de otra**, y agrupar por forma es lo que hace honesto el «de mayor a menor» que queda dentro de cada grupo.
+    **El orden es: código de rol, luego forma, y dentro de cada forma de mayor a menor valor.** No es una ordenación por lo que se paga —eso no existe— sino **dos listas comparables una detrás de otra**, y agrupar por forma es lo que hace honesto el «de mayor a menor» que queda dentro de cada grupo.
 
 **De las tasas personalizadas**
 
@@ -183,7 +177,7 @@ Ninguna. Es una consulta: no decide nada y no cambia nada.
 
 **Cuándo ocurre:** una tasa de rol sin ninguna asociación.
 
-1. Aparece en el catálogo con su porcentaje y con **cero productos asociados**.
+1. Aparece en el catálogo con su valor y con **cero productos asociados**.
 2. **Es la respuesta correcta y es lo que hay que saber ver**: esa tasa está declarada y no paga nada a nadie.
 
 ### FA-003 — Un producto que no paga a nadie
@@ -216,7 +210,7 @@ Ninguna propia. Los parámetros mal formados los rechaza la validación de entra
 | `CA-CM-015` | El listado de personalizadas devuelve el **historial** completo de una persona |
 | `CA-CM-016` | Filtrando por fecha, devuelve solo la que regía ese día |
 | `CA-CM-017` | Las personalizadas se ordenan del inicio de vigencia más reciente al más antiguo |
-| `CA-CM-018` | Las asociaciones de una tasa devuelven el producto resuelto y el porcentaje |
+| `CA-CM-018` | Las asociaciones de una tasa devuelven el producto resuelto y el valor |
 | `CA-CM-019` | Las asociaciones de un producto devuelven **una entrada por rol** que cobra por él |
 | `CA-CM-020` | Las cuatro lecturas exigen el permiso de lectura de comisiones |
 | `CA-CM-096` | Las cuatro lecturas devuelven **la forma junto al valor**, y el valor de la otra forma **vacío, no omitido** |
@@ -235,9 +229,9 @@ Ninguna propia. Los parámetros mal formados los rechaza la validación de entra
 ## 13. Casos límite
 
 - **Una tasa declarada y nunca asociada:** aparece con cero productos. Es el caso que este listado existe para hacer visible, y **el sistema no puede decir si está a medio configurar o mal configurada** — solo puede decir que no rige.
-- **Filtrar las personalizadas por una persona sin ninguna:** colección vacía. **No significa que esa persona no cobre**: significa que no tiene excepción, y cobrará lo que su rol tenga asociado. Confundir las dos cosas es el error que `§4.2` avisa.
+- **Filtrar las personalizadas por una persona sin ninguna:** colección vacía. **No significa que esa persona no cobre**: significa que no tiene excepción, y cobrará lo que su rol tenga asociado. Confundir las dos cosas es el error del que avisa §4.2.
 - **Un producto con asociaciones de tres roles:** se devuelven las tres. Es el override de `RN-CM-011` visto desde el producto, y **la suma de esos tres porcentajes puede pasar de cien** sin que nada lo impida.
-- **Un producto con tres roles y formas mezcladas:** se devuelven las tres, y **ya no hay ninguna suma que hacer**. «10 %, 15 % y 5.000 fijos» no se suma sin conocer el precio, de modo que este listado —que es donde `RN-CM-011` se veía venir— **deja de poder enseñarla**. Es una pérdida real de esta versión: la vigilancia que nadie hacía ahora tampoco se puede hacer a ojo. Por eso la forma viaja siempre (§6.2).
+- **Un producto con tres roles y formas mezcladas:** se devuelven las tres, y **ya no hay ninguna suma que hacer**. «10 %, 15 % y 5.000 fijos» no se suma sin conocer el precio, de modo que este listado —que es donde `RN-CM-011` se veía venir— **no puede enseñarla**. Es una pérdida real y declarada: la vigilancia que nadie hacía tampoco se puede hacer a ojo. Por eso la forma viaja siempre (§6.2).
 - **Un catálogo donde el mismo rol tiene `50 %` y `100` de importe fijo:** los dos aparecen, agrupados por forma. **Cuál paga más no lo sabe este listado ni puede saberlo**: depende del precio de cada producto asociado. Ordenarlos entre sí sería inventar una comparación.
 - **Filtrar por forma un rol que solo tiene la otra:** colección vacía, como cualquier otro filtro que no encuentra nada (`FA-001`). **No significa que ese rol no cobre.**
 - **Las asociaciones no se paginan:** una tasa rige sobre un puñado de productos, y un producto tiene tantas asociaciones como roles vendedores hay en el sistema — un orden de magnitud que fija `SP` y que es pequeño. Paginarlas sería complejidad sin cliente. **Si algún día deja de serlo, la colección viaja envuelta** para que añadir paginación no rompa a nadie.
@@ -257,5 +251,6 @@ Ninguna propia. Los parámetros mal formados los rechaza la validación de entra
 | Versión | Fecha | Cambio | Responsable |
 |---|---|---|---|
 | 0.1.0 | 28-08-2026 | Redacción inicial. | Responsable técnico |
-| 0.2.0 | 02-09-2026 | **Reescrita sobre el modelo de `cm.md` v0.4.0**, y después de construirse el código. El requerimiento pasa de **un listado sobre una tabla a cuatro lecturas sobre tres**, y §2 argumenta por qué sigue siendo **un solo requerimiento**: la pregunta es la misma sobre tres soportes, y partirlo escondería lo único que hay que entender — que las tres juntas la responden y ninguna sola. El catálogo **pierde** los filtros por producto y por persona —esas columnas ya no existen— y **pierde el filtro por fecha**, porque las tasas de rol no tienen vigencia; el filtro por fecha sobrevive solo en las personalizadas, que son el único historial que le queda al módulo. Entra el cambio de fondo: cada tasa de rol declara **sobre cuántos productos rige**, y §5 dice para qué — `RN-CM-012` **no produce ningún error en ningún sitio y solo se ve aquí**. Nacen las dos lecturas de la asociación, y §6.2 explica por qué la del producto lleva el porcentaje resuelto. §13 recoge que la suma de los porcentajes de un producto **puede pasar de cien** y nada lo impide. | Responsable técnico |
-| 0.3.0 | 02-09-2026 | **Entra el valor fijo** (`cm.md` v0.7.0), antes del código. En una consulta parecería un campo más, y **rompe una cosa que no se ve**: el orden. Hasta aquí el catálogo se ordenaba por rol y, dentro de cada rol, **de mayor a menor porcentaje**; con dos formas ese orden **compara cosas que no admiten un «mayor que»** —cuál paga más entre «10 %» y «10.000 fijos» depende del precio del producto, que este listado no conoce y que además difiere entre los productos asociados a la misma tasa—. Ordenar por la cifra a secas sería **peor que no ordenar**, porque produciría una lista que parece de mayor a menor sin serlo. El orden pasa a **rol, forma, y valor dentro de cada forma**: dos listas comparables una detrás de otra. `CA-CM-098` lo comprueba con cifras que **se cruzan** a propósito —`50 %` frente a `100` fijos—, porque con cifras que no se crucen las dos implementaciones dan el mismo resultado y la prueba no verificaría nada. Entra el **filtro por forma** en el catálogo, por decisión del responsable del proyecto y no por necesidad técnica; **no se le añade al listado de personalizadas**, donde una persona tiene una sola tasa vigente y filtrar por forma no responde a nada. Y §13 recoge una pérdida: la lectura por producto era donde `RN-CM-011` se veía venir sumando porcentajes, y **con formas mezcladas ya no hay suma que hacer**. | Responsable técnico |
+| 0.2.0 | 02-09-2026 | **Reescrita sobre el modelo de `cm.md` v0.4.0**, y después de construirse el código. El requerimiento pasa de **un listado sobre una tabla a cuatro lecturas sobre tres**, y §2 argumenta por qué sigue siendo **un solo requerimiento**. El catálogo pierde los filtros por producto y por persona —esas columnas ya no existen— y **pierde el filtro por fecha**, porque las tasas de rol no tienen vigencia. Entra el cambio de fondo: cada tasa declara **sobre cuántos productos rige**, y §5 dice para qué — `RN-CM-012` **no produce ningún error en ningún sitio y solo se ve aquí**. | Responsable técnico |
+| 0.3.0 | 02-09-2026 | **Entra el valor fijo** (`cm.md` v0.7.0), antes del código. En una consulta parecería un campo más, y **rompe una cosa que no se ve**: el orden. Ordenar por la cifra a secas sería **peor que no ordenar**, y el orden pasa a **rol, forma, y valor dentro de cada forma**. `CA-CM-098` lo comprueba con cifras que **se cruzan** a propósito, porque con cifras que no se crucen las dos implementaciones dan el mismo resultado y la prueba no verificaría nada. Entra el **filtro por forma** en el catálogo. Y §13 recoge una pérdida: la lectura por producto era donde `RN-CM-011` se veía venir sumando porcentajes, y **con formas mezcladas ya no hay suma que hacer**. | Responsable técnico |
+| **1.0.0** | 02-09-2026 | **Consolidación: el documento describe lo que existe, y deja de explicarse por contraste con sus versiones anteriores.** No cambia ninguna lectura, ningún filtro, ningún criterio — cambia la voz. Se retira el aviso de cabecera y se reescriben en presente los pasajes que decían «la v0.1.0 tenía un listado sobre una tabla» o «hasta la v0.2.0 el orden era otro»: quien lea esto no ha visto aquellas versiones, y lo que necesita saber es **por qué el orden no puede ser de mayor a menor**, que es lo que §6.2 dice ahora sin citar ninguna. **La deuda no se borra**: las tres filas anteriores conservan el registro de que la `0.2.0` se escribió después del código. | Responsable técnico |

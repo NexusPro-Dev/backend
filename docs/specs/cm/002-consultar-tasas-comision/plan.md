@@ -5,7 +5,7 @@
 | Requerimiento | `RF-CM-002` |
 | Especificación | [`spec.md`](spec.md) |
 | `spec.md` aprobada el | 02-09-2026 |
-| Versión | 0.3.0 |
+| Versión | 1.0.0 |
 | Estado | **Aprobado** |
 | Autor | Responsable técnico |
 | Aprobado por | Responsable del proyecto |
@@ -27,7 +27,7 @@ Cuatro consultas de solo lectura, dos paginadas y dos no.
 
 ## 2. Cambios de esquema
 
-**Ninguno.** `V48` deja los índices que estas consultas necesitan: `idx_commission_rates_role` para el filtro del catálogo, `idx_product_commission_rates_rate` para la lectura por tasa, y la clave primaria de la asociación para la lectura por producto.
+**Ninguno.** `V49` deja los índices que estas consultas necesitan: `idx_commission_rates_role` para el filtro del catálogo, `idx_product_commission_rates_rate` para la lectura por tasa, y la clave primaria de la asociación para la lectura por producto.
 
 ## 3. Componentes afectados
 
@@ -149,7 +149,7 @@ Permiso `commissions:read` en las cuatro. Alcance global explícito.
 | 1 | **La paginación devuelva de menos** si alguien sustituye la subconsulta por un `JOIN` | `CA-CM-011`, que comprueba que la tasa aparezca **una vez** y no que la cuenta sea correcta |
 | 2 | Alguien lea el catálogo y dé por hecho que todo lo que ve se está pagando | `associatedProducts` en cada fila. **No se elimina**: el sistema no puede distinguir una tasa a medio configurar de una mal configurada |
 | 3 | Filtrar las personalizadas por persona se confunda con «qué cobra esa persona» | Declarado en `spec.md` §4.2 y §13, y en la descripción publicada del endpoint |
-| 4 | Las `N+1` vuelvan por una refactorización que «limpie» los `JOIN` | La prueba de número de sentencias del listado, heredada de la v0.1.0 |
+| 4 | Las `N+1` vuelvan por una refactorización que «limpie» los `JOIN` | La prueba de número de sentencias del catálogo — que es `T-16`, **la única tarea pendiente del requerimiento** |
 | 5 | **El `COALESCE` del orden se mueva delante de `rate_type`** y la lista mienta sin síntoma | `CA-CM-098`, **con cifras que se cruzan a propósito**. Con cifras que no se crucen la prueba pasa igual y no verifica nada |
 | 6 | Alguien sume las cifras de la lectura por producto **mezclando formas** | La forma viaja en cada entrada (`spec.md` §6.2), y `CA-CM-099` lo comprueba. **No se mitiga del todo**: nada impide sumarlas de todos modos |
 | 7 | El orden de los dos grupos cambie al renombrar un valor del tipo | Declarado en §7.1. `CA-CM-098` **no lo detectaría**, y se acepta: lo que importa es que no se intercalen |
