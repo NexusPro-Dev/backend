@@ -193,6 +193,7 @@ public class ProductController {
    * única ruta que un cliente usa a diario.
    */
   @GetMapping("/available")
+  @PreAuthorize("hasAuthority('products:sale')")
   @Operation(
       summary = "Consultar la oferta disponible para uno mismo",
       description =
@@ -203,10 +204,10 @@ public class ProductController {
           paginación. El actor sale del token, de modo que no hay forma de
           preguntar qué puede comprar otra persona.
 
-          **No exige permiso alguno**, solo estar autenticado. Pedir
-          `products:read` daría a cada cliente el catálogo administrativo entero
-          —lo inactivo, lo retirado y el motivo del retiro— para que pudiera ver
-          tres líneas.
+          **Exige `products:sale`**, un permiso propio de esta vista y no
+          `products:read` — ese abre el catálogo administrativo entero, lo
+          inactivo, lo retirado y el motivo del retiro, para que alguien pudiera
+          ver tres líneas.
 
           **Solo lo activo.** Ni lo inactivo ni lo retirado aparecen aquí,
           aunque el catálogo de `RF-PM-002` sí los muestre a quien administra.
@@ -247,6 +248,10 @@ public class ProductController {
     @ApiResponse(
         responseCode = "401",
         description = "Token ausente o inválido (`AUTH-001`)",
+        content = @Content),
+    @ApiResponse(
+        responseCode = "403",
+        description = "Autenticado sin el permiso `products:sale` (`AUTH-002`)",
         content = @Content),
     @ApiResponse(
         responseCode = "500",

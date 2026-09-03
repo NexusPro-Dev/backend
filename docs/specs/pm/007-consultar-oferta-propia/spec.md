@@ -8,7 +8,7 @@
 | Autor | Responsable técnico |
 | Aprobada por | Responsable del proyecto |
 | Fecha de aprobación | 26-08-2026 |
-| Enmendada el | 27-08-2026 — ver §15 |
+| Enmendada el | 02-09-2026 — ver §15 |
 
 ---
 
@@ -28,7 +28,7 @@ El catálogo de `RF-PM-002` lo lee quien administra y contiene todo. Lo que un c
 
 | Actor | Rol en esta funcionalidad |
 |---|---|
-| Cualquier persona autenticada | Consulta lo que ella misma puede comprar. **No exige permiso**: exigir el de lectura de productos daría a cada cliente el catálogo entero para que pudiera ver tres líneas |
+| Cualquier persona autenticada con `products:sale` | Consulta lo que ella misma puede comprar. **No exige `products:read`**: ese permiso da el catálogo entero para que pudiera ver tres líneas. `products:sale` es propio de esta vista y desde el 02-09-2026 (§15) se concede a los roles de tipo `CONSUMIDOR` por `RF-SP-006`, como cualquier otro permiso |
 
 ## 4. Alcance
 
@@ -132,7 +132,7 @@ Ninguna: la consulta no admite entrada.
 | `CA-PM-062` | El sistema devuelve la lista de upgrades vacía a quien está en el nivel más alto de la cadena |
 | `CA-PM-063` | El sistema no ofrece ningún upgrade a quien no tiene membresía vigente, incluida la vencida |
 | `CA-PM-064` | El sistema devuelve el nivel actual del actor junto con su oferta |
-| `CA-PM-065` | El sistema responde **sin exigir ningún permiso**, a cualquier persona autenticada |
+| `CA-PM-065` | El sistema responde a cualquier persona autenticada **con `products:sale`**. Hasta el 02-09-2026 no exigía ningún permiso: mismo identificador, contenido revisado (§15) |
 | `CA-PM-066` | El sistema **no admite ningún parámetro**: enviarlos no cambia la respuesta ni permite consultar la oferta de otra persona |
 | `CA-PM-067` | El sistema no devuelve el motivo de retiro de ningún producto, ni la membresía de terceros |
 | `CA-PM-078` | El sistema devuelve la oferta **agrupada por tipo**, con los upgrades ordenados por nivel destino y los bots por fecha de alta |
@@ -142,6 +142,7 @@ Ninguna: la consulta no admite entrada.
 | `CA-PM-090` | El sistema devuelve el **precio del producto sin ajuste alguno**: dos personas de niveles distintos ven el mismo importe para el mismo producto |
 | `CA-PM-091` | El sistema devuelve las dos colecciones **envueltas en un objeto** y no como arreglos desnudos, de modo que añadir paginación después no rompa a ningún cliente |
 | `CA-PM-095` | El sistema devuelve la **vigencia** de cada producto ofrecido, y **vacía** en los que no caducan: es lo que distingue comprar un mes de comprar para siempre |
+| `CA-PM-101` | El sistema responde `403` a un actor autenticado **sin** `products:sale`, aunque tenga otros permisos de `products:` |
 
 ## 13. Casos límite
 
@@ -172,3 +173,4 @@ Ninguna. Las cinco se resolvieron el 26-08-2026, antes de aprobar la especificac
 | 0.2.0 | 26-08-2026 | **Aprobada**, y con ella las siete del módulo. Quien no tiene nivel **ve los servicios y ningún upgrade**; los servicios **no dependen del nivel** y su acotación por nivel queda declarada como lo que costaría —una relación nueva entre producto y membresía, no un filtro—; el **precio no se ajusta** por quién mira, porque eso sería una promoción y §1.3 las deja fuera; y se ofrecen **todos los upgrades superiores**, no solo el siguiente. La paginación se resuelve sin decidirla: no se pagina hoy, y las dos colecciones viajan **envueltas** para que añadirla después no rompa a ningún cliente. Cuatro criterios nuevos, `CA-PM-088` a `CA-PM-091`. | Responsable del proyecto |
 | 0.1.0 | 26-08-2026 | Redacción inicial, con cinco preguntas abiertas. | Responsable técnico |
 | 0.3.0 | 27-08-2026 | La oferta devuelve la **vigencia en días** de cada producto (`RN-PM-015`), y **vacía** en los que no caducan. Es el dato que decide una compra: sin él, dos upgrades al mismo nivel y al mismo precio son indistinguibles aunque uno dure un mes y el otro para siempre. `CA-PM-095`. **Lo que ocurre al vencer no lo decide esta consulta** y ya está escrito en `requirements/pm.md` §1.4: la persona se queda sin nivel vigente, que es exactamente el caso que `FA-003` ya contempla. | Responsable del proyecto |
+| 0.4.0 | 02-09-2026 | **Enmienda bajo Art. I.7, con el requerimiento ya implementado.** Por decisión del responsable del proyecto, esta consulta pasa a exigir `products:sale`: hasta hoy respondía a cualquier persona autenticada sin exigir nada. `CA-PM-065` **cambia de contenido y conserva su identificador** —el mismo criterio, el permiso exigido— y nace `CA-PM-101`: el `403` a quien no lo tenga, aunque porte otros permisos de `products:`. §3 se actualiza a juego. Lo que **no** cambia: sigue sin admitir parámetro de persona (`CA-PM-066`), y la oferta de un tercero sigue sin existir ni con parámetro ni con permiso (§4.2). | Responsable del proyecto |

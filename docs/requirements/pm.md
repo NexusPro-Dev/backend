@@ -5,11 +5,11 @@
 | Módulo | `PM` — Productos y Mercadeo |
 | Paquete | `modules/products` |
 | Prefijos de permiso | `products:` |
-| Versión | 0.14.0 |
+| Versión | 0.15.0 |
 | Estado | **Borrador** |
 | Responsable | Bonilla Diaz William Steven |
 | Fecha de creación | 26-08-2026 |
-| Última actualización | 01-09-2026 |
+| Última actualización | 02-09-2026 |
 
 !!! info "Qué va en este documento"
 
@@ -113,9 +113,11 @@ La dependencia es **acíclica**: `PM` consume `SP` y `SP` no consume nada ([`mod
 |---|---|---|
 | Administrador | Define y gobierna el catálogo entero | `products:create`, `products:read`, `products:update`, `products:delete` |
 | Funcionario · fuerza comercial | Consulta el catálogo para vender o para atender a un cliente | `products:read` |
-| Consumidor | Ve lo que puede comprar. **Sin permiso**: le basta estar autenticado | — |
+| Consumidor | Ve lo que puede comprar | `products:sale` |
 
-**El consumidor no lleva `products:read`, y es a propósito.** Ese permiso abre el catálogo completo, con lo inactivo y lo retirado dentro. `RF-PM-007` responde con lo suyo y solo con lo suyo, de modo que exigirlo obligaría a conceder a cada cliente la lectura de todo el catálogo para que pudiera ver tres líneas. Es la misma decisión que `RF-SP-039` tomó con el perfil propio.
+**El consumidor no lleva `products:read`, y es a propósito.** Ese permiso abre el catálogo completo, con lo inactivo y lo retirado dentro. `RF-PM-007` responde con lo suyo y solo con lo suyo, de modo que concederlo obligaría a dar a cada cliente la lectura de todo el catálogo para que pudiera ver tres líneas. Es la misma decisión que `RF-SP-039` tomó con el perfil propio.
+
+**`RF-PM-007` respondía hasta el 02-09-2026 a cualquier persona autenticada, sin exigir nada.** Por decisión del responsable del proyecto pasa a exigir `products:sale` — un permiso de negocio, no de administración: gobierna quién ve la **vista de venta**, y no el catálogo. Se concede a los roles de tipo `CONSUMIDOR` como cualquier otro permiso, por `RF-SP-006`, y no por siembra: el rol `CLIENTE` nace sin permisos a propósito (`V30`), y este cambio no le abre una excepción.
 
 ---
 
@@ -163,7 +165,7 @@ No se copian: se referencian, porque dos copias de una regla acaban divergiendo.
 | `RN-SP-006`, `RN-SP-007` | [`requirements/sp.md` §5.1](sp.md#51-reglas-propias-del-modulo) | La cadena de membresías es **lineal y ordenada por `level`**. `RN-PM-011` se apoya en ese orden: sin él, «nivel superior» no significa nada |
 | `RN-SP-018` | [`requirements/sp.md` §5.1](sp.md#51-reglas-propias-del-modulo) | Consumidor ⟺ membresía. Es lo que garantiza que todo cliente tenga un nivel del que partir, y por tanto que `RF-PM-007` pueda decidir su oferta |
 | `RN-SP-010` | [`requirements/sp.md` §5.1](sp.md#51-reglas-propias-del-modulo) | El catálogo de monedas no se edita por API. Este módulo lo **lee**, nunca lo toca |
-| `RN-SEG-003` | [`security.md` §4](../security.md) | Los cuatro permisos `products:` se conceden por rol como cualquier otro, y ningún rol puede conceder lo que su padre no tiene |
+| `RN-SEG-003` | [`security.md` §4](../security.md) | Los cinco permisos `products:` se conceden por rol como cualquier otro, y ningún rol puede conceder lo que su padre no tiene |
 | Art. V.13 | [`constitution.md`](../constitution.md) | Toda eliminación exige motivo, que viaja al registro de eliminación con la instantánea de lo borrado |
 
 ---
@@ -180,7 +182,7 @@ No se copian: se referencian, porque dos copias de una regla acaban divergiendo.
 | `RF-PM-004` | Editar producto | Alta | `products:update` | **En desarrollo** |
 | `RF-PM-005` | Cambiar el estado de un producto | Alta | `products:update` | **En desarrollo** |
 | `RF-PM-006` | Eliminar producto | Media | `products:delete` | **En desarrollo** |
-| `RF-PM-007` | Consultar la oferta disponible para uno mismo | Alta | Autenticado | **En desarrollo** |
+| `RF-PM-007` | Consultar la oferta disponible para uno mismo | Alta | `products:sale` | **En desarrollo** |
 
 **Prioridades:** Crítica · Alta · Media · Baja.
 **Estados:** los de [`requirements.md` §4](../requirements.md#4-matriz-de-trazabilidad), que es su autoridad.
@@ -292,8 +294,8 @@ Elimina lógicamente un producto **exigiendo motivo** (Art. V.13), que viaja al 
 | Campo | Valor |
 |---|---|
 | Objetivo | Que un cliente vea qué puede comprar, sin que el navegador decida la regla |
-| Actor | Cualquier persona autenticada |
-| Permiso requerido | — (autenticado) |
+| Actor | Cualquier persona autenticada con `products:sale` |
+| Permiso requerido | `products:sale` |
 | Prioridad | Alta |
 | Reglas aplicables | `RN-PM-009`, `RN-PM-011` |
 | Depende de | `RF-PM-001` |
@@ -333,7 +335,7 @@ Ninguna con sistemas externos. La pasarela de pago, que sería la primera, perte
 |---|---|---|---|
 | `POST` | `/api/v1/products` | `RF-PM-001` | `products:create` |
 | `GET` | `/api/v1/products` | `RF-PM-002` | `products:read` |
-| `GET` | `/api/v1/products/available` | `RF-PM-007` | Autenticado |
+| `GET` | `/api/v1/products/available` | `RF-PM-007` | `products:sale` |
 | `GET` | `/api/v1/products/{id}` | `RF-PM-003` | `products:read` |
 | `PATCH` | `/api/v1/products/{id}` | `RF-PM-004` | `products:update` |
 | `PATCH` | `/api/v1/products/{id}/status` | `RF-PM-005` | `products:update` |
@@ -451,3 +453,4 @@ Se declaran en la base de datos, no solo en Java (Art. V.6).
 | 0.12.0 | 27-08-2026 | **Los productos ganan vigencia de adquisición, medida en días** (`RN-PM-015`), por decisión del responsable del proyecto. Es **opcional y en los dos tipos**: sin ella, lo adquirido **no caduca** —comprar Oro y quedarse en Oro—; con ella, el derecho dura los días que declare, contados desde la compra. Se descartó hacerla obligatoria porque vender algo permanente habría exigido un valor de relleno —mil años— que ningún `CHECK` distingue de un error de tecleo. §10 incorpora `validity_days` y `ck_products_validity_positive`, cuya rama `IS NULL` se escribe **explícita** aunque la comparación sola también admitiría el nulo: así el permiso es deliberado y no accidental. **Dos condiciones más sobre la compra futura**, en §1.4: cada compra guardará **la vigencia que compró** además del importe —o corregir una vigencia reescribiría lo ya vendido—, y **al vencer, la persona se queda sin nivel vigente**: no vuelve al que tenía antes, porque eso habría exigido que la compra guardase cuál era, ni baja al más bajo, que castigaría a quien ya estaba arriba. Enmienda las siete tripletas, aprobadas el día anterior (Art. I.7). | Responsable del proyecto |
 | 0.13.0 | 28-08-2026 | **Dos cambios pedidos por el responsable del proyecto.** (1) **El tipo `SERVICIO` pasa a llamarse `BOT`**. Es un **renombrado y no un cambio de semántica**: sigue siendo el producto que da derecho a una prestación y no toca el nivel de acceso de nadie. Se pudo hacer hoy porque **todavía no existe ninguna tabla de compras** que apunte a un producto; el día que exista, un renombrado de este valor tendrá que arrastrar también lo vendido, y por eso queda escrito. (2) **Nace `RN-PM-016`: el icono, solo en el upgrade.** Un `UPGRADE_MEMBRESIA` puede declarar el icono con el que el frontend lo pinta y un `BOT` no puede, y **es opcional incluso donde se admite**. Es un **identificador y no una imagen** —`crown`, `arrow-up-circle`—, por el mismo camino que el color de la membresía (`RN-SP-024`): el sistema no almacena binarios, y dónde vivirían es una decisión abierta que este cambio no necesitaba abrir. La regla tiene **una sola mitad** —prohíbe, no obliga—, que es lo que la distingue de `RN-PM-002`. Migración **`V43`**: `V39` no se edita, que está aplicada y Flyway valida por suma de comprobación; los dos `CHECK` que nombraban el literal viejo caen primero, porque mientras exijan `SERVICIO` ningún `UPDATE` puede escribir `BOT`. **El contrato publicado cambia**, de modo que la copia del frontend queda vieja: `docs/api/openapi.json` es la autoridad. Enmienda las tripletas de `RF-PM-001` a `RF-PM-004` (Art. I.7). | Responsable técnico |
 | 0.14.0 | 01-09-2026 | **`RF-PM-007` implementado**, y con él las siete operaciones del módulo tienen código: `GET /api/v1/products/available` publica a cada persona lo que puede comprar. Estrena la **tercera y última lectura de D-25** —`CurrentMembershipLookup`, la membresía **vigente** de una persona—, que devuelve la membresía **ya evaluada** en lugar de su fecha de fin: publicar la fecha habría invitado a `PM` a rehacer la comparación de vigencia, y ese es el defecto que **no falla** —resultados plausibles durante meses, visibles solo en el borde—. La comparación que decide el requerimiento es `m.level < :nivel` con **menor estricto**, porque la cadena crece hacia abajo y **nivel superior es número menor**; escrita al revés habría ofrecido **bajadas** de nivel cobrándolas, sin que ninguna prueba de camino feliz lo viera, y por eso `ProductOfferIT` comprueba los tres casos —inferior, igual y superior— en una sola vista y sobre una cadena de **cuatro** niveles, que es la única longitud con la que «todos los superiores» y «solo el inmediato» dejan de dar el mismo resultado. **Se corrige además §9** (Art. I.7): la fila del retiro decía `DELETE /api/v1/products/{id}` desde el 26-08-2026, cuando el `plan.md` de `RF-PM-006` se había corregido el 27-08-2026 y el código expone `POST /{id}/deletion` — el documento transversal contradecía al plan y a la implementación a la vez. **Y §6.1 se pone al día**: los siete requerimientos figuraban en `Tasks aprobadas` cuando seis llevaban código desde el 27-08-2026 — esta tabla no es la autoridad del estado, lo es la matriz de [`requirements.md` §4](../requirements.md#4-matriz-de-trazabilidad), y tenerla desactualizada obliga a comprobar cuál de las dos miente. | Responsable técnico |
+| 0.15.0 | 02-09-2026 | **`RF-PM-007` deja de responder sin permiso**, por decisión del responsable del proyecto, y **§4 se enmienda bajo Art. I.7** —el requerimiento ya está implementado—. Nace `products:sale`: no es un permiso de administración como los otros cuatro del módulo, es el que gobierna la **vista de venta** que un rol de tipo `CONSUMIDOR` usa para ver qué puede comprar. El razonamiento que justificaba «sin permiso» —que exigir `products:read` daría a cada cliente el catálogo entero— **sigue siendo válido para `products:read`**, y es exactamente por lo que el permiso nuevo no es ese: es uno propio, acotado a esta vista y a nada más. **No se concede por siembra**: el rol `CLIENTE` (`V30`) nace sin permisos a propósito, y quien administre roles se lo concede a `CLIENTE`, a `ESTUDIANTE` o a cualquier `CONSUMIDOR` por `RF-SP-006`, como a cualquier otro permiso. `V48__seed_products_sale_permission.sql` lo siembra y lo asocia a `SUPERADMIN` y `ADMIN` en la misma migración ([`security.md` §4.4](../security.md#44-catalogo-de-permisos)). | Responsable del proyecto |
