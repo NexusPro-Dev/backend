@@ -399,10 +399,9 @@ class OpenApiContractIT extends IntegrationTestBase {
         .andExpect(jsonPath("$.paths['/api/v1/products/available'].get").exists())
         .andExpect(jsonPath("$.paths['/api/v1/products/available'].get.parameters").doesNotExist())
         .andExpect(jsonPath("$.paths['/api/v1/products/available'].get.requestBody").doesNotExist())
-        // Ni el 403 ni el 404 le corresponden: no exige permiso y no hay
-        // recurso que pueda faltar.
-        .andExpect(
-            jsonPath("$.paths['/api/v1/products/available'].get.responses.403").doesNotExist())
+        // Desde el 02-09-2026 (`products:sale`) el `403` sí le corresponde; el
+        // `404` sigue sin tener sentido, porque no hay recurso que pueda faltar.
+        .andExpect(jsonPath("$.paths['/api/v1/products/available'].get.responses.403").exists())
         .andExpect(
             jsonPath("$.paths['/api/v1/products/available'].get.responses.404").doesNotExist())
         // Y sigue siendo una ruta distinta de la del detalle, que sí exige permiso.

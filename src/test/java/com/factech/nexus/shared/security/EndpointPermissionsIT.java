@@ -68,13 +68,12 @@ class EndpointPermissionsIT extends IntegrationTestBase {
           "POST /api/v1/auth/password",
           "La propia contraseña (`RF-SP-037` §5): «no hay permiso asociado más allá de estar"
               + " autenticado. Nadie cambia la contraseña de otro por este camino». Cambiar la"
-              + " ajena es `RF-SP-038`, y esa sí exige `users:reset-password`",
-          "GET /api/v1/products/available",
-          "La oferta del actor y solo la del actor (`RF-PM-007` · `plan.md` §6): no admite"
-              + " parámetro de persona, de modo que no hay nada que autorizar más allá de estar"
-              + " autenticado. Exigir `products:read` le daría a cada cliente el catálogo"
-              + " administrativo entero —lo inactivo, lo retirado y su motivo— para que pudiera"
-              + " ver tres líneas");
+              + " ajena es `RF-SP-038`, y esa sí exige `users:reset-password`");
+
+  // `GET /api/v1/products/available` (`RF-PM-007`) figuraba aquí hasta el
+  // 02-09-2026: exigía solo estar autenticado. Desde `products:sale`
+  // declara su permiso como cualquier otro endpoint, y `declaraPermiso`
+  // la reconoce sin necesitar la excepción.
 
   /**
    * El mapeo de la aplicación, <b>por nombre</b>.

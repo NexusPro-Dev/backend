@@ -321,11 +321,22 @@ class ProductOfferIT extends IntegrationTestBase {
   // ---------------------------------------------------------------------------
 
   @Test
-  @DisplayName("`CA-PM-065` — responde a quien está autenticado y NO tiene un solo permiso")
-  void noExigeNingunPermiso() throws Exception {
-    // `comoActor` no concede ninguna autoridad. Exigir `products:read` daría a
-    // cada cliente el catálogo administrativo entero para ver tres líneas.
+  @DisplayName("`CA-PM-065` — responde a quien porta `products:sale`")
+  void respondeConElPermisoDeVenta() throws Exception {
+    // `comoActor` concede exactamente `products:sale`, y nada más. No es
+    // `products:read`: ese daría a cada cliente el catálogo administrativo
+    // entero para ver tres líneas, y no es lo que este permiso gobierna.
     mvc.perform(oferta(enFree)).andExpect(status().isOk());
+  }
+
+  @Test
+  @DisplayName(
+      "`CA-PM-101` — sin `products:sale` responde `403`, aunque el actor tenga otros"
+          + " permisos de `products:`")
+  void sinPermisoDeVentaEsForbidden() throws Exception {
+    RequestPostProcessor sinVenta = user(enFree.toString()).authorities(() -> "products:read");
+
+    mvc.perform(get("/api/v1/products/available").with(sinVenta)).andExpect(status().isForbidden());
   }
 
   @Test
@@ -367,13 +378,15 @@ class ProductOfferIT extends IntegrationTestBase {
   }
 
   /**
-   * Autenticado y <b>sin un solo permiso</b>.
+   * Autenticado con <b>exactamente</b> {@code products:sale}, desde el 02-09-2026.
    *
-   * <p>Es deliberado: este endpoint no exige ninguno, y un actor con permisos no distinguiría eso
-   * de tenerlos.
+   * <p>Ni de más ni de menos: con otro permiso de sobra no se distinguiría un actor correctamente
+   * autorizado de uno con privilegios que no debería tener, y sin él ninguna de las pruebas de
+   * comportamiento de este archivo llegaría a ejecutarse — todas pasarían por el {@code 403} de
+   * {@code sinPermisoDeVentaEsForbidden} en lugar de probar lo que dicen probar.
    */
   private RequestPostProcessor comoActor(UUID quien) {
-    return user(quien.toString()).authorities();
+    return user(quien.toString()).authorities(() -> "products:sale");
   }
 
   private void limpiar() {

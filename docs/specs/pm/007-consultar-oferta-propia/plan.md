@@ -3,12 +3,12 @@
 | Campo | Valor |
 |---|---|
 | Requerimiento | `RF-PM-007` |
-| Especificación | [`spec.md`](spec.md) v0.2.0 |
+| Especificación | [`spec.md`](spec.md) v0.4.0 |
 | `spec.md` aprobada el | 26-08-2026 |
 | Estado | **Aprobado** |
 | Autor | Responsable técnico |
 | Aprobado por | Responsable del proyecto |
-| Enmendado el | 27-08-2026 — `RN-PM-015` |
+| Enmendado el | 02-09-2026 — `products:sale` (antes 27-08-2026, `RN-PM-015`) |
 | Fecha de aprobación | 26-08-2026 |
 
 ---
@@ -21,7 +21,7 @@ Es la tercera y última lectura de D-25, y la única que este requerimiento estr
 
 ## 2. Cambios de esquema
 
-**Ninguno.** El índice de listado de `V41` sirve.
+**Ninguno sobre `products`.** El índice de listado de `V41` sirve. Desde el 02-09-2026 (§15 de `spec.md`) hay una migración nueva, `V48__seed_products_sale_permission.sql`, que siembra `products:sale` y lo asocia a `SUPERADMIN` y `ADMIN` — no toca la tabla del módulo.
 
 ## 3. Componentes afectados
 
@@ -70,9 +70,9 @@ Una sola sentencia, con el nivel del actor como parámetro:
 
 ## 6. Autorización
 
-**Ninguna.** Basta estar autenticado (`CA-PM-065`). Exigir `products:read` daría a cada cliente el catálogo entero para que pudiera ver tres líneas — la misma decisión que `RF-SP-039` tomó con el perfil propio.
+**`@PreAuthorize("hasAuthority('products:sale')")` desde el 02-09-2026** (`CA-PM-065`, `CA-PM-101`). Hasta entonces bastaba estar autenticado; el cambio no reabre el argumento contra `products:read` —seguiría dando a cada cliente el catálogo entero para ver tres líneas, la misma decisión que `RF-SP-039` tomó con el perfil propio—, abre uno **nuevo**: un permiso propio de esta vista, que se concede por rol como cualquier otro (`RF-SP-006`) y no viene sembrado en `CLIENTE`.
 
-El actor sale del token, nunca de un parámetro.
+El actor sale del token, nunca de un parámetro. Eso no cambia: el permiso decide **si** se responde, no **a quién**.
 
 ## 7. Auditoría
 
@@ -91,6 +91,7 @@ Ninguna.
 | Reutilizar `RF-PM-002` con un filtro | Ese exige `products:read` y devuelve lo inactivo y lo retirado. Son dos preguntas y dos actores |
 | Devolver los arreglos desnudos | Cerraría la puerta a paginar sin romper a todos los clientes |
 | Calcular la vigencia de la membresía aquí | Duplicaría una regla de `SP` cuyo borde ya está fijado por prueba |
+| Sembrar `products:sale` en `CLIENTE` (02-09-2026) | `V30` siembra ese rol **sin permisos a propósito**. Concedérselo de oficio en la migración repetiría exactamente lo que esa decisión evitó |
 
 ## 10. Riesgos
 
@@ -110,7 +111,8 @@ Ninguna.
 | Quien no tiene membresía | API | Cero upgrades, todos los bots |
 | **Membresía vencida** | API | Se comporta como quien no tiene nivel (`FA-003`) |
 | Quien está en la cima | API | Lista de upgrades vacía, sin error |
-| Sin permiso alguno | API | Responde a un actor autenticado sin autoridades |
+| Con `products:sale` | API | Responde a un actor autenticado que lo porta (`CA-PM-065`) |
+| Sin `products:sale` | API | `403`, aunque el actor tenga otros permisos de `products:` (`CA-PM-101`) |
 | Parámetros ignorados | API | Enviar `userId` no cambia la respuesta |
 | La ruta literal no se confunde con `{id}` | API | `available` responde `200`, no `400` |
 | Colecciones envueltas | API | La respuesta tiene `upgrades.content`, no un arreglo en la raíz |
