@@ -2,11 +2,11 @@
 
 | Campo | Valor |
 |---|---|
-| Versión | 0.22.0 |
+| Versión | 0.23.0 |
 | Estado | **Borrador** |
 | Responsable | Bonilla Diaz William Steven |
 | Fecha de creación | 21-08-2026 |
-| Última actualización | 03-09-2026 |
+| Última actualización | 04-09-2026 |
 
 !!! info "Qué va en este documento"
 
@@ -14,25 +14,28 @@
 
     Es una **vista derivada**, no normativa. Sale de [`requirements/sp.md` §10](requirements/sp.md), [`security.md` §9](security.md) y [`architecture.md` §6.6](architecture.md). La fuente de verdad del esquema son las **migraciones Flyway** (Art. V.3), y donde ya existen mandan ellas.
 
-!!! warning "Veintiuna tablas escritas, y cuatro diseñadas que todavía no existen"
+!!! success "Veinticinco tablas escritas, y ninguna diseñada pendiente de escribir"
 
-    Están escritas las **veintiuna** tablas que este documento describe. `V49` cerró lo último que quedaba: creó `user_commission_rates` y `product_commission_rates`, y **rehízo `commission_rates`** quitándole el producto, la persona y la vigencia.
+    `V49` cerró las tres de `CM` —creó `user_commission_rates` y `product_commission_rates`, y **rehízo `commission_rates`** quitándole el producto, la persona y la vigencia—, y el 04-09-2026 **`V54__create_movements.sql`** creó las cuatro de `MV`: `movements`, `movement_types`, `movement_details` y `payment_methods`, con sus dos catálogos sembrados en la misma migración (`RF-MV-001`).
 
-    Desde el 02-09-2026 hay **cuatro más diseñadas y sin escribir**, del `MV` renacido: `movements`, `movement_types`, `movement_details` y `payment_methods`. Las crea **`V53`** con `RF-MV-001`, y **su forma no se repite aquí**: vive en [`requirements/mv.md` §7](requirements/mv.md). Este documento es una **vista derivada** —lo dice justo arriba—, y dos copias de un esquema que todavía se está discutiendo divergen sin que nadie lo note.
+    **La forma de esas cuatro no se repite aquí**: vive en [`requirements/mv.md` §7](requirements/mv.md). Este documento es una **vista derivada** —lo dice justo arriba—, y dos copias del mismo esquema divergen sin que nadie lo note.
+
+    **`movements` es la única tabla del sistema sin `updated_at` ni `deleted_at`** (`RN-MV-001`), y es deliberado: una venta no se edita y no se borra, solo avanza su `status`. Quien mantenga el gestor de auditoría de la aplicación tiene que saberlo, porque no puede tratar esta tabla como a las demás.
 
     **`V50`** añadió las cuatro columnas del valor fijo —`rate_type` y `fixed_amount` en las dos tablas de tasas— y **`V52`** el `role_type` de `user_roles`, que es lo que hace declarable `RN-SP-025`.
 
-    !!! warning "El número de `MV` se movió dos veces el 02-09-2026, y no es cosmético"
+    !!! warning "Las tablas de `MV` cambiaron de número TRES veces, y no es cosmético"
 
-        Tres migraciones se diseñaron el mismo día sin cruzarse y las tres pedían el `50`. **Se numeran por orden de aplicación**, y el reparto quedó así:
+        Se numeran **por orden de aplicación**, y estas cuatro tablas son el caso que mejor lo enseña: pidieron el `51`, luego el `52`, luego el `53`, y acabaron en el **`54`**.
 
-        | Número | Qué hace | Estado |
-        |---|---|---|
-        | **`V51`** | `V51__seed_movements_permissions.sql` — siembra los cuatro permisos `movements:` y los asocia **solo a `SUPERADMIN`** ([`requirements/mv.md` §6.1](requirements/mv.md)). **Ninguna tabla** | **Aplicada** |
-        | **`V52`** | El `role_type` de `user_roles`, que hace declarable `RN-SP-025` | Diseñada |
-        | **`V53`** | Las cuatro tablas de `MV`, con `RF-MV-001` | Diseñada |
+        | Reserva | Quién se llevó el hueco |
+        |---|---|
+        | `V51` | `V51__seed_movements_permissions.sql` — la siembra de los cuatro permisos `movements:`, que **no crea ninguna tabla** y estaba escrita antes ([`requirements/mv.md` §6.1](requirements/mv.md)) |
+        | `V52` | El `role_type` de `user_roles`, que hace declarable `RN-SP-025` |
+        | `V53` | `V53__products_source_membership.sql` — el origen del upgrade (`RF-PM-001`), fusionado el 03-09-2026 |
+        | **`V54`** | **Las cuatro tablas de `MV`. Aplicada el 04-09-2026** |
 
-        **La que se aplicó primero fue la única que estaba escrita**, y por eso se quedó con el `50` aunque llegara la última al reparto. Las otras dos estaban reservadas y sin una línea de `SQL`, que es la situación en la que una reserva no vale nada.
+        **La que se aplica primero es siempre la que está escrita.** Las otras eran reservas sin una línea de `SQL`, y esa es la situación en la que una reserva no vale nada: Flyway deja fuera, sin error y sin aviso, una migración con número por debajo del último aplicado.
 
         No es una preferencia de estilo. Flyway aplica **en orden**, y una migración añadida con un número **por debajo** del último aplicado se queda fuera — el esquema quedaría sin esas cuatro tablas y nada lo diría hasta la primera consulta.
 
@@ -422,7 +425,7 @@ Ninguna de las dos guarda una venta, y **las dos escribieron condiciones sobre q
 
 !!! success "Esa tabla ya existe en papel, y acepta las dos condiciones"
 
-    Desde el 02-09-2026 la venta está diseñada: `movements` y `movement_details` ([`requirements/mv.md` §7](requirements/mv.md)), que `RF-MV-001` creará con `V53`. **Copia el precio unitario y la vigencia en la línea** —lo primero que esta sección exigía— y **no copia la membresía destino**, por el criterio que esta misma sección fijó: se copia lo que puede cambiar, y `RF-PM-004` `EX-004` rechaza cambiarla.
+    Desde el 04-09-2026 la venta **existe**: `movements` y `movement_details` ([`requirements/mv.md` §7](requirements/mv.md)), creadas por `V54` con `RF-MV-001`. **Copia el precio unitario y la vigencia en la línea** —lo primero que esta sección exigía— y **no copia la membresía destino**, por el criterio que esta misma sección fijó: se copia lo que puede cambiar, y `RF-PM-004` `EX-004` rechaza cambiarla.
 
     Lo que **sigue sin dueño** es la segunda condición: copiar lo que la comisión valía. La venta no la copia porque **no devenga comisiones todavía** —es la etapa 5 de `MV`—, de modo que la deuda que §4.1 abrió sigue abierta y ahora se sabe **dónde** se pagará.
 
@@ -616,3 +619,4 @@ La secuencia no es continua —falta el tramo `V8` a `V12`— y no es un descuid
 | 0.20.0 | 02-09-2026 | **La primera de las tres migraciones que se disputaban el `50` está aplicada, y no es ninguna de las que lo habían reservado.** `V51__seed_movements_permissions.sql` siembra los cuatro permisos `movements:` de [`requirements/mv.md` §6](requirements/mv.md) y **no crea ninguna tabla**: la tarea que los siembra no depende de nada, y un permiso sin endpoint que lo exija no rompe nada, mientras que una tabla sin el caso de uso que la escribe promete algo que no existe. Con ello el reparto queda en **`V51` permisos de `MV`, `V52` el `role_type` de `RN-SP-025` y `V53` las cuatro tablas de `MV`** — el número lo toma quien se aplica primero, y las otras dos seguían siendo reservas sin una línea de `SQL`. **Lo que hay que leer del bloque de arriba no es el número sino la asociación**: esos cuatro permisos van **solo a `SUPERADMIN`**, por decisión del responsable del proyecto, de modo que por `RN-SEG-003` ningún rol bajo `ADMIN` podrá declararlos mientras la reserva siga en pie ([`security.md` §4.4](security.md)). El esquema no cambia: `role_permissions` recibe cuatro filas y nada más. | Responsable técnico |
 | 0.21.0 | 02-09-2026 | **`products` gana `source_membership_id`**: un upgrade declara **de dónde sale**, no solo a dónde lleva (decisión del responsable del proyecto, `requirements/pm.md` v0.15.0). Hasta hoy quién podía comprarlo **se deducía** de la cadena —cualquiera por debajo del destino—, y esa deducción hacía **imposible el salto**: `FREE → ORO` y `PLATINO → ORO` eran el mismo producto. **Lo que cambia no es una columna, son dos cosas**: `uq_products_upgrade_target` pasa de ser único sobre el destino a serlo sobre **la pareja**, porque la versión anterior prohibía exactamente lo que el origen existe para permitir — dos upgrades activos hacia `ORO` desde sitios distintos **no son dos precios para lo mismo, son dos saltos**. Y `RN-PM-017` **solo cabe a medias en el motor**: un `CHECK` puede exigir que las dos membresías no sean la misma, y **no puede** exigir que el origen esté por debajo del destino — eso obliga a leer el `level` de dos filas de `memberships`, y un `CHECK` no consulta otra tabla. Esa mitad vive en el dominio, por el mismo motivo exacto que `RN-PM-007` con los decimales de la moneda. | Responsable del proyecto |
 | 0.22.0 | 03-09-2026 | **Nace `RN-CM-019`** (`requirements/cm.md` v0.8.0) y **el esquema no cambia**: ninguna tabla gana columna, no hay migración. §4.1 recoge la consecuencia — un producto ya no se puede configurar para pagar más del 100 % de sí mismo por la vía de sus tasas de rol asociadas, comprobado al asociar (`RF-CM-007`) y al corregir (`RF-CM-003`) sumando `percentage` o `fixed_amount ÷ price × 100` de cada asociación viva de `product_commission_rates` contra el precio que `PM` publica **en ese instante**. **Es el mismo tipo de regla que `RN-CM-001`, `RN-CM-010` y la precedencia de `RN-CM-004`**: no cabe en un `CHECK` ni en un `EXCLUDE` — aquí, además, porque suma filas hermanas y lee otra tabla de otro módulo — y vive en el dominio. Dos deudas de §4.1 quedan explícitamente **fuera** de este cierre y siguen esperando la liquidación: la tasa **personalizada** de la cadena, que no se asocia a ningún producto, y el precio **cambiando después** de haberse comprobado la suma. | Responsable del proyecto |
+| 0.23.0 | 04-09-2026 | **Las cuatro tablas de `MV` dejan de estar diseñadas y pasan a existir**, con `V54__create_movements.sql` y `RF-MV-001`. El sistema llega a **veinticinco tablas** y **no queda ninguna pendiente de escribir** — la segunda vez desde que existe este documento. `movement_types` y `payment_methods` se crean **y se siembran en la misma migración**: una tabla de tipos vacía deja el módulo sin poder registrar nada, y separar la siembra permitiría desplegar ese estado. **`movements` estrena algo que ninguna otra tabla del sistema tiene: no lleva `updated_at` ni `deleted_at`** (`RN-MV-001`), porque una venta no se edita y no se borra, solo avanza su `status` — y eso obliga a que el gestor de auditoría de la aplicación no la trate como a las demás, que es la consecuencia práctica de la regla. **El número cambió por tercera vez, y la lección merece quedarse escrita**: estas tablas reservaron el `51`, luego el `52`, luego el `53`, y acabaron en el `54`, porque cada vez alguien con el `SQL` ya escrito se llevó el hueco — la última, `V53__products_source_membership.sql` el 03-09-2026. **Una tabla reservada no está reservada**, y Flyway deja fuera sin error y sin aviso una migración con número por debajo del último aplicado. **Y queda declarada una tensión que este documento no puede resolver solo**: los cinco importes de `MV` son `numeric(14,2)` mientras `currencies.decimal_places` admite de cero a cuatro y `products.price` es `numeric(14,4)` justamente por eso, de modo que una moneda de tres o cuatro decimales **redondearía en silencio lo que alguien pagó**. Hoy no ocurre —la única moneda sembrada es `USD` con dos— y el caso de uso rechaza al registrar el precio que no quepa, en lugar de dejarlo pasar. Lo que hay que decidir es si los importes del libro suben a `numeric(14,4)` o si el sistema declara que no admitirá monedas de más de dos decimales. | Responsable técnico |

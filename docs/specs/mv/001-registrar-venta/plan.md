@@ -5,7 +5,7 @@
 | Requerimiento | `RF-MV-001` |
 | Especificación | [`spec.md`](spec.md) |
 | `spec.md` aprobada el | 02-09-2026 |
-| Versión | 0.1.0 |
+| Versión | 0.2.0 |
 | Estado | **Aprobado** |
 | Autor | Responsable técnico |
 | Aprobado por | Responsable del proyecto |
@@ -33,11 +33,19 @@ Lo que este plan tiene que explicar no es el `INSERT` —que es corriente— sin
 
 `V51__seed_movements_permissions.sql` — **ya aplicada**. Estrena los cuatro permisos y **nada más**: ninguna tabla.
 
-`V53` — **la migración que funda el módulo**. Crea las cuatro tablas y siembra dos catálogos.
+`V54__create_movements.sql` — **la migración que funda el módulo**. Crea las cuatro tablas y siembra dos catálogos. **Aplicada el 04-09-2026.**
 
 **Por qué se separaron.** Los permisos se adelantaron porque su tarea no depende de ninguna otra, y adelantar una tabla habría sido distinto: un permiso sin endpoint que lo exija no rompe nada —el catálogo es datos, y su único efecto es poder concederse—, mientras que una tabla sin el caso de uso que la escribe es un esquema que promete algo que no existe.
 
-**Y por qué el número saltó de `51` a `52`.** El `50` estaba reservado por `RN-SP-025` y el `51` por este requerimiento, y **ninguna de las dos estaba escrita**. El número lo toma quien se aplica primero ([`modelo-datos.md` §1](../../../modelo-datos.md)): Flyway deja fuera una migración con número por debajo del último aplicado, de modo que reservar por adelantado y aplicar después es exactamente lo que no se puede hacer.
+**Y por qué el número acabó siendo `54`, después de haber sido `51`, `52` y `53`.** El número lo toma quien se aplica primero ([`modelo-datos.md` §1](../../../modelo-datos.md)): Flyway deja fuera una migración con número por debajo del último aplicado, de modo que reservar por adelantado y aplicar después es exactamente lo que no se puede hacer. Estas tablas lo comprobaron **tres veces**:
+
+| Reserva | Quién la desplazó |
+|---|---|
+| `V51` | `RN-SP-025` la tenía reservada, y ninguna de las dos estaba escrita |
+| `V52` | `develop` fusionó su propio `V48` (`products:sale`, PR #56) y toda la serie corrió un puesto |
+| `V53` | `V53__products_source_membership.sql` —el origen del upgrade, `RF-PM-001`— se fusionó el 03-09-2026, antes de que estas tablas existieran |
+
+Lo que hay que leer de esto no es el número, que es un detalle: es que **una tabla reservada no está reservada**. Mientras el `SQL` no exista, cualquier rama que se fusione antes se lleva el hueco.
 
 ### 2.1 Las cuatro tablas
 
@@ -77,7 +85,7 @@ La restricción que ata `confirmed_at` al estado `CONFIRMADA` no la ejercita est
 | `application` | `RegisterSaleRequest`, `SaleResponse`, `SaleLineResponse` | Nuevos | Entrada y salida |
 | `interfaces` | `MovementController` | Nuevo | `POST /api/v1/movements` |
 | `modules/products/application` | `ProductCatalog` | **Modificado** | Gana la vista de venta y la consulta de oferta. Ver §3.2 |
-| `modules/system/users/application` | `ClientCatalog` | **Nuevo, dentro de `SP`** | El estado del cliente, su vendedor y su nivel vigente. Ver §3.2 |
+| `modules/system/users/application` | `ClientCatalog` | **Nuevo, dentro de `SP`** | El estado del cliente y su vendedor vigente. **El nivel NO: lo publica ya `CurrentMembershipLookup`** (enmienda del 04-09-2026, `tasks.md` §2.2). Ver §3.2 |
 
 ### 3.1 El total lo calcula el agregado, no el caso de uso
 
@@ -96,7 +104,7 @@ Cuatro datos que la petición no trae, y **ninguno se calcula aquí** ([`archite
 | Precio, moneda, tipo, vigencia y membresía destino de cada producto | `PM` — `ProductCatalog` gana una **vista de venta** | Son datos suyos. La vista actual solo lleva código, nombre y si está retirado, y **no se amplía**: se añade un método con su propio registro, para que `CM`, que ya consume el existente, no cambie |
 | **Si el producto está en la oferta de esa persona** | `PM` — la misma interfaz | Es la decisión que `RF-PM-007` ya toma. Recalcularla aquí crearía **dos definiciones de «lo que alguien puede comprar»**, y el día que una cambiara la otra seguiría vendiendo lo que la primera ya no ofrece |
 | El estado del cliente y **de qué vendedor cuelga** | `SP` — `ClientCatalog`, nuevo | `users` y `user_supervisors` son suyas, y el vendedor de un cliente es su superior comercial con la rama de consumidor de `RN-SP-020` |
-| El nivel de membresía vigente del cliente | `SP` — el mismo | `user_memberships` es suya |
+| El nivel de membresía vigente del cliente | `SP` — **`CurrentMembershipLookup`, que YA EXISTE** | `user_memberships` es suya, y desde `RF-PM-007` · `T-01` ya publica esta lectura con su borde fijado por prueba. **Enmendado el 04-09-2026** (`tasks.md` §2.2): declararla otra vez en `ClientCatalog` habría creado la segunda definición de «vigente», que es el defecto que aquel puerto existe para evitar |
 
 **Las dos consultas a `PM` se hacen por lote y no por línea.** Una venta de cinco productos que preguntara cinco veces cruzaría la frontera cinco veces para lo mismo: es una `N+1` que no se ve porque cada llamada es un método Java, y que aparece entera en el registro de sentencias.
 
@@ -148,9 +156,11 @@ Registro de **cambios**, acción de creación, con la instantánea completa: cli
 | Módulo | Qué gana | Quién lo escribe |
 |---|---|---|
 | `PM` | La vista de venta y la consulta de oferta en `ProductCatalog` | Tareas de este requerimiento, aunque el código viva en `modules/products`. Es el precedente de `RF-PM-001` y `RF-PM-007`, que escribieron puertos dentro de `SP` |
-| `SP` | `ClientCatalog`: estado, vendedor y nivel vigente | Igual |
+| `SP` | `ClientCatalog`: estado y vendedor vigente. **El nivel no**: ya lo publica `CurrentMembershipLookup` | Igual |
 
-**Su definición de terminado exige que las suites de `PM` y de `SP` sigan en verde sin cambios.** Lo que se añade son métodos nuevos sobre interfaces existentes y una interfaz nueva; nada se modifica.
+**Su definición de terminado exige que las suites de `PM` y de `SP` sigan en verde sin cambios.** Lo que se añade son métodos nuevos sobre interfaces existentes y una interfaz nueva; nada se modifica. **Comprobado el 04-09-2026: 963 pruebas, cero fallos, y ni una prueba de `PM` o de `SP` tocada.**
+
+**Y `MV` gana la regla de ArchUnit que `PM` ya tenía**, extendida a los dos módulos que consume (`tasks.md` §1.1, `T-19`). Sin ella, «pregunta la oferta, no la recalcules» es una frase de este documento: un `SELECT` propio sobre `products` compilaría igual y pasaría las pruebas igual.
 
 **En la documentación, tres enmiendas ya aplicadas** en el mismo pase que este plan:
 

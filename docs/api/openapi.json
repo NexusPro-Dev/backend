@@ -642,6 +642,21 @@
         "type" : "object"
       },
       "JsonNode" : { },
+      "Line" : {
+        "properties" : {
+          "productId" : {
+            "format" : "uuid",
+            "type" : "string"
+          },
+          "quantity" : {
+            "format" : "int32",
+            "minimum" : 1,
+            "type" : "integer"
+          }
+        },
+        "required" : [ "productId", "quantity" ],
+        "type" : "object"
+      },
       "ListCommissionRatesRequest" : {
         "properties" : {
           "includeDeleted" : {
@@ -855,6 +870,18 @@
           },
           "updatedAt" : {
             "format" : "date-time",
+            "type" : "string"
+          }
+        },
+        "type" : "object"
+      },
+      "Money" : {
+        "properties" : {
+          "code" : {
+            "type" : "string"
+          },
+          "id" : {
+            "format" : "uuid",
             "type" : "string"
           }
         },
@@ -1164,6 +1191,21 @@
           "totalPages" : {
             "format" : "int32",
             "type" : "integer"
+          }
+        },
+        "type" : "object"
+      },
+      "Party" : {
+        "properties" : {
+          "id" : {
+            "format" : "uuid",
+            "type" : "string"
+          },
+          "name" : {
+            "type" : "string"
+          },
+          "username" : {
+            "type" : "string"
           }
         },
         "type" : "object"
@@ -1651,6 +1693,31 @@
         "required" : [ "code", "currencyId", "name", "price", "type" ],
         "type" : "object"
       },
+      "RegisterSaleRequest" : {
+        "properties" : {
+          "clientId" : {
+            "format" : "uuid",
+            "type" : "string"
+          },
+          "lines" : {
+            "items" : {
+              "$ref" : "#/components/schemas/Line"
+            },
+            "minItems" : 1,
+            "type" : "array"
+          },
+          "occurredAt" : {
+            "format" : "date-time",
+            "type" : "string"
+          },
+          "paymentMethodId" : {
+            "format" : "uuid",
+            "type" : "string"
+          }
+        },
+        "required" : [ "clientId", "lines", "paymentMethodId" ],
+        "type" : "object"
+      },
       "RegisterUserCommissionRateRequest" : {
         "properties" : {
           "fixedAmount" : {
@@ -1887,6 +1954,85 @@
           },
           "name" : {
             "type" : "string"
+          }
+        },
+        "type" : "object"
+      },
+      "SaleLineResponse" : {
+        "properties" : {
+          "lineAmount" : {
+            "type" : "number"
+          },
+          "productCode" : {
+            "type" : "string"
+          },
+          "productId" : {
+            "format" : "uuid",
+            "type" : "string"
+          },
+          "productName" : {
+            "type" : "string"
+          },
+          "quantity" : {
+            "format" : "int32",
+            "type" : "integer"
+          },
+          "unitPrice" : {
+            "type" : "number"
+          },
+          "validityDays" : {
+            "format" : "int32",
+            "type" : "integer"
+          }
+        },
+        "type" : "object"
+      },
+      "SaleResponse" : {
+        "properties" : {
+          "client" : {
+            "$ref" : "#/components/schemas/Party"
+          },
+          "code" : {
+            "type" : "string"
+          },
+          "createdAt" : {
+            "format" : "date-time",
+            "type" : "string"
+          },
+          "currency" : {
+            "$ref" : "#/components/schemas/Money"
+          },
+          "discountAmount" : {
+            "type" : "number"
+          },
+          "id" : {
+            "format" : "uuid",
+            "type" : "string"
+          },
+          "lines" : {
+            "items" : {
+              "$ref" : "#/components/schemas/SaleLineResponse"
+            },
+            "type" : "array"
+          },
+          "occurredAt" : {
+            "format" : "date-time",
+            "type" : "string"
+          },
+          "payableAmount" : {
+            "type" : "number"
+          },
+          "paymentMethod" : {
+            "type" : "string"
+          },
+          "seller" : {
+            "$ref" : "#/components/schemas/Party"
+          },
+          "status" : {
+            "type" : "string"
+          },
+          "totalAmount" : {
+            "type" : "number"
           }
         },
         "type" : "object"
@@ -3181,7 +3327,7 @@
       },
       "post" : {
         "description" : "Declara cuánto gana un rol de tipo **vendedor** por vender.\n\n**Registrar una tasa NO la pone en vigor.** Hasta que se asocie a un\nproducto con `POST /{id}/products`, **no paga nada a nadie**. La respuesta\nlleva `associatedProducts`, que aquí vale siempre cero.\n\nEsto es lo contrario de lo que ocurría antes del 01-09-2026, cuando una\ntarifa sin producto regía sobre **todo el catálogo**.\n\n**Varias tasas por rol son legítimas**: el catálogo puede ofrecer\n`AGENTE 10 %` y `AGENTE 15 %` para asociarlas a productos distintos.\n\n**El porcentaje cero es válido** y significa «esto no comisiona», que **no\nes lo mismo** que no declarar la tasa.\n",
-        "operationId" : "registrar_5",
+        "operationId" : "registrar_6",
         "requestBody" : {
           "content" : {
             "application/json" : {
@@ -3650,7 +3796,7 @@
       },
       "post" : {
         "description" : "Registra un país en el catálogo. Queda **activo** siempre: el estado no\nse envía y enviarlo devuelve `400`.\n\nEl código se normaliza a mayúsculas y se recorta, porque lo fija\nISO 3166-1 alfa-3 y no lo inventa nadie: `col`, ` COL` y `COL` son el\nmismo país. Son tres letras y no dos.\n\nEl nombre admite acentos y caracteres no latinos sin transformación\nalguna, pero **no puede coincidir** con otro ya registrado ignorando\nmayúsculas y acentos: el catálogo no se edita, y el duplicado sería\npermanente.\n",
-        "operationId" : "registrar_4",
+        "operationId" : "registrar_5",
         "requestBody" : {
           "content" : {
             "application/json" : {
@@ -3881,7 +4027,7 @@
       },
       "post" : {
         "description" : "Inserta una membresía en la cadena, por encima de la hija indicada.\n\nSi no se indica hija, la membresía queda en el extremo inferior y no se\nreordena nada. Si se indica, la nueva ocupa su nivel, hereda su superior\ny todo lo que estaba en ese nivel o por debajo baja uno.\n\nEl nivel y la superior **no se envían**: los calcula el sistema. Enviar\n`level` o `parentMembershipId` devuelve `400`.\n",
-        "operationId" : "registrar_3",
+        "operationId" : "registrar_4",
         "requestBody" : {
           "content" : {
             "application/json" : {
@@ -3968,6 +4114,48 @@
         },
         "summary" : "Consultar el detalle de una membresía",
         "tags" : [ "Membresías" ]
+      }
+    },
+    "/api/v1/movements" : {
+      "post" : {
+        "description" : "Deja constancia de **qué le vendió la empresa a un cliente**, como un hecho que\n**todavía no está pagado**.\n\n**La venta nace `PENDIENTE`, y eso significa que no concede nada.** No sube de\nnivel a nadie, no habilita ninguna cuenta y no comisiona: registrar una venta\n**no cambia absolutamente nada fuera de este módulo**. Confirmarla es otra\noperación.\n\n**El precio no se envía: se toma del catálogo.** Se indica qué productos y\ncuántos, nunca cuánto cuestan — un precio que llegara en la petición sería un\ndescuento sin autorización y sin rastro. Tampoco se envían la moneda, la\nvigencia ni el vendedor: la moneda y la vigencia salen del producto, y **el\nvendedor sale del cliente** y se congela en la venta.\n\n**Lo copiado queda congelado.** Corregir mañana el precio de un producto, o\nreasignar el cliente a otro agente, no cambia lo que se vendió hoy.\n\nReglas de composición: **como mucho un upgrade** por venta y con cantidad uno,\nsin productos repetidos y todas las líneas en la misma moneda.\n",
+        "operationId" : "registrar_3",
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/RegisterSaleRequest"
+              }
+            }
+          },
+          "required" : true
+        },
+        "responses" : {
+          "201" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/SaleResponse"
+                }
+              }
+            },
+            "description" : "Venta registrada, pendiente de pago."
+          },
+          "400" : {
+            "description" : "Lo que se ve mirando la petición: falta el cliente o el método de pago, no hay líneas, la cantidad no es positiva, un producto se repite, o la fecha del hecho está en el futuro."
+          },
+          "403" : {
+            "description" : "Sin el permiso `movements:create`."
+          },
+          "409" : {
+            "description" : "Lo que solo se sabe después de resolver: la cuenta no puede operar todavía, el cliente no cuelga de ningún vendedor, un producto no está en su oferta, el upgrade no sube de nivel, hay dos upgrades, las monedas difieren, o el método de pago está desactivado."
+          },
+          "422" : {
+            "description" : "Un dato bien formado que no resuelve: el cliente, un producto o el método de pago no existen."
+          }
+        },
+        "summary" : "Registrar una venta a nombre de un cliente",
+        "tags" : [ "Movimientos" ]
       }
     },
     "/api/v1/permissions" : {
@@ -6334,11 +6522,8 @@
     "description" : "Registro y administración de los roles del sistema.",
     "name" : "Roles"
   }, {
-    "description" : "Alta y administración de las personas del sistema.",
-    "name" : "Usuarios"
-  }, {
-    "description" : "Catálogo de permisos del sistema. Solo lectura.",
-    "name" : "Permisos"
+    "description" : "El libro de hechos económicos: qué se vendió, a quién y a quién se le atribuye.",
+    "name" : "Movimientos"
   }, {
     "description" : "Los cuatro registros de auditoría del sistema. Solo lectura, y cada uno con su permiso.",
     "name" : "Auditoría"
@@ -6354,6 +6539,12 @@
   }, {
     "description" : "Cadena lineal de niveles de consumidor. Inmutable salvo el reordenamiento.",
     "name" : "Membresías"
+  }, {
+    "description" : "Alta y administración de las personas del sistema.",
+    "name" : "Usuarios"
+  }, {
+    "description" : "Catálogo de permisos del sistema. Solo lectura.",
+    "name" : "Permisos"
   }, {
     "description" : "Resolución de la comisión efectiva de una persona sobre un producto.",
     "name" : "Comisiones"
