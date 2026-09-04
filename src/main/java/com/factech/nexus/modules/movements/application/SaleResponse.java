@@ -40,7 +40,24 @@ public record SaleResponse(
     String code,
     String status,
     Party client,
-    Party seller,
+    // LA NULABILIDAD SE DECLARA A MANO, y hay que hacerlo: springdoc no la
+    // deduce. Un campo de un `record` sale como un `$ref` pelado —sin
+    // `required` y sin tipo—, de modo que el contrato publicado NO DIRÍA que
+    // esta venta puede no tener vendedor, y el cliente generado lo trataría
+    // como «puede no venir», que es otra cosa. Sin esto, un cambio de
+    // comportamiento quedaría acordado fuera del contrato — Art. VIII.7.
+    //
+    // Y se declara con `types` y no con `nullable`, que es lo que uno escribe
+    // primero: este contrato se publica como OPENAPI 3.1, donde `nullable`
+    // DEJÓ DE SER UNA PALABRA CLAVE y springdoc la descarta EN SILENCIO. La
+    // anotación se aplicaba, el contrato salía igual, y nada avisaba.
+    @Schema(
+            types = {"object", "null"},
+            description =
+                "A quién se atribuye la venta. NULO cuando quien compra no cuelga de ningún"
+                    + " vendedor — un agente, o la cúspide de la fuerza comercial. Esa venta NO"
+                    + " comisiona a nadie.")
+        Party seller,
     Money currency,
     String paymentMethod,
     List<SaleLineResponse> lines,

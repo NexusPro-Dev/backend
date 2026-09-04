@@ -4538,7 +4538,13 @@ components:
         client:
           $ref: "#/components/schemas/SaleParty"
         seller:
+          type:
+          - object
+          - "null"
           $ref: "#/components/schemas/SaleParty"
+          description: "A quién se atribuye la venta. NULO cuando quien compra no\
+            \ cuelga de ningún vendedor — un agente, o la cúspide de la fuerza comercial.\
+            \ Esa venta NO comisiona a nadie."
         currency:
           $ref: "#/components/schemas/SaleCurrency"
         paymentMethod:
