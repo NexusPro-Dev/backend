@@ -1,5 +1,6 @@
 package com.factech.nexus.modules.movements.application;
 
+import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.NotEmpty;
@@ -50,7 +51,15 @@ public record RegisterSaleRequest(
    * en una venta, y ponerle un número aquí sería inventarlo (`spec.md` §13). Que en un upgrade sea
    * <b>uno</b> lo comprueba `RN-MV-015` en el caso de uso, y no aquí: si el producto es un upgrade
    * no se sabe mirando la petición.
+   *
+   * <p><b>El nombre publicado NO es {@code Line}</b>, que es como se llamaría por ser un registro
+   * anidado. En el contrato los esquemas viven en un espacio de nombres <b>plano y compartido por
+   * todos los módulos</b>, y el día que otro publique su propia «línea» —de una factura, de un
+   * gráfico— springdoc emitiría {@code Line} y {@code Line_1} <b>sin garantizar cuál es cuál</b>:
+   * el cliente generado del frontend cambiaría de tipo sin que nada fallara. Es el mismo defecto
+   * que ya tienen los {@code operationId} de este contrato, y aquí no cuesta nada evitarlo.
    */
+  @Schema(name = "SaleLineRequest")
   public record Line(
       @NotNull(message = "VAL-004: Cada línea debe indicar su producto.") UUID productId,
       @NotNull(message = "VAL-005: La cantidad de cada línea es obligatoria.")

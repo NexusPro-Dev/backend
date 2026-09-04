@@ -2,6 +2,7 @@ package com.factech.nexus.modules.movements.application;
 
 import com.factech.nexus.modules.movements.domain.models.Movement;
 import com.factech.nexus.modules.movements.domain.models.MovementLine;
+import io.swagger.v3.oas.annotations.media.Schema;
 import java.math.BigDecimal;
 import java.time.OffsetDateTime;
 import java.util.ArrayList;
@@ -48,9 +49,11 @@ public record SaleResponse(
    * vendió y a quién se le atribuye, y devolver dos {@code uuid} obligaría a una consulta más para
    * responder a la pregunta que la operación acaba de contestar.
    */
+  @Schema(name = "SaleParty")
   public record Party(UUID id, String username, String name) {}
 
   /** La moneda de la venta, resuelta. Es una sola para toda ella (`RN-MV-012`). */
+  @Schema(name = "SaleCurrency")
   public record Money(UUID id, String code) {}
 
   /** Arma la respuesta a partir del agregado y de lo que se resolvió para construirlo. */

@@ -54,7 +54,7 @@ Su forma la fija [`requirements/mv.md` §7](../../../requirements/mv.md) y no se
 | Tabla | Detalle |
 |---|---|
 | `movement_types` | Se crea **y se siembra en la misma migración**, con una sola fila: `VENTA`, prefijo `VTA`. Una tabla de tipos vacía deja el módulo sin poder registrar nada, y separar la siembra permitiría desplegar ese estado |
-| `payment_methods` | Sembrada con **dos filas**: `EFECTIVO` y `TRANSFERENCIA`. Nada más — `PUNTOS` es de la etapa 3 y sembrarlo hoy ofrecería un método con el que no se puede pagar |
+| `payment_methods` | Sembrada con **tres filas**: `CREDIT_CARD`, `PSE` y `TRANSFERENCIA`, que son los medios con los que se cobra de verdad — fijados por el responsable del proyecto el 04-09-2026, en lugar del `EFECTIVO`/`TRANSFERENCIA` que este plan había supuesto. `PUNTOS` **no**: es de la etapa 3, y sembrarlo hoy ofrecería un método con el que no se puede pagar |
 | `movements` | **Sin `updated_at` ni `deleted_at`** (`RN-MV-001`). Es la única tabla del sistema que no los lleva, y por eso el gestor de auditoría de la aplicación no puede tratarla como a las demás |
 | `movement_details` | Clave foránea a `movements` **con borrado en cascada**, que aquí no significa nada porque nada borra ventas: está para que el esquema no admita líneas huérfanas |
 

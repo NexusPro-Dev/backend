@@ -120,8 +120,9 @@ COMMENT ON COLUMN payment_methods.is_active IS
     'RN-MV-018: un metodo desactivado no invalida lo ya pagado con el, pero no sirve para vender hoy.';
 
 INSERT INTO payment_methods (id, code, name) VALUES
-('01a061ba-3400-7002-9c4f-5e7ad7000021', 'EFECTIVO',      'Efectivo'),
-('01a061ba-3400-7003-9c4f-5e7ad7000022', 'TRANSFERENCIA', 'Transferencia bancaria');
+('01a061ba-3400-7002-9c4f-5e7ad7000021', 'CREDIT_CARD',      'Tarjeta de credito'),
+('01a061ba-3400-7003-9c4f-5e7ad7000022', 'PSE', 'Multiples métodos de pago'),
+('01a061ba-3400-7003-9c4f-5e7ad7000023', 'POINTS', 'Pagar con puntos');
 
 
 -- -----------------------------------------------------------------------------

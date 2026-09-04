@@ -4417,19 +4417,6 @@ components:
       properties:
         reason:
           type: string
-    Line:
-      type: object
-      properties:
-        productId:
-          type: string
-          format: uuid
-        quantity:
-          type: integer
-          format: int32
-          minimum: 1
-      required:
-      - productId
-      - quantity
     RegisterSaleRequest:
       type: object
       properties:
@@ -4442,7 +4429,7 @@ components:
         lines:
           type: array
           items:
-            $ref: "#/components/schemas/Line"
+            $ref: "#/components/schemas/SaleLineRequest"
           minItems: 1
         occurredAt:
           type: string
@@ -4451,23 +4438,26 @@ components:
       - clientId
       - lines
       - paymentMethodId
-    Money:
+    SaleLineRequest:
+      type: object
+      properties:
+        productId:
+          type: string
+          format: uuid
+        quantity:
+          type: integer
+          format: int32
+          minimum: 1
+      required:
+      - productId
+      - quantity
+    SaleCurrency:
       type: object
       properties:
         id:
           type: string
           format: uuid
         code:
-          type: string
-    Party:
-      type: object
-      properties:
-        id:
-          type: string
-          format: uuid
-        username:
-          type: string
-        name:
           type: string
     SaleLineResponse:
       type: object
@@ -4489,6 +4479,16 @@ components:
         validityDays:
           type: integer
           format: int32
+    SaleParty:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        username:
+          type: string
+        name:
+          type: string
     SaleResponse:
       type: object
       properties:
@@ -4500,11 +4500,11 @@ components:
         status:
           type: string
         client:
-          $ref: "#/components/schemas/Party"
+          $ref: "#/components/schemas/SaleParty"
         seller:
-          $ref: "#/components/schemas/Party"
+          $ref: "#/components/schemas/SaleParty"
         currency:
-          $ref: "#/components/schemas/Money"
+          $ref: "#/components/schemas/SaleCurrency"
         paymentMethod:
           type: string
         lines:

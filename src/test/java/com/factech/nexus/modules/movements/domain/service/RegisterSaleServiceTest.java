@@ -84,7 +84,8 @@ class RegisterSaleServiceTest {
     when(clientes.sellerOf(CLIENTE))
         .thenReturn(Optional.of(new SellerView(VENDEDOR, "vendedor", "Luis", "Paz")));
     when(movimientos.findPaymentMethod(METODO))
-        .thenReturn(Optional.of(new PaymentMethodView(METODO, "EFECTIVO", "Efectivo", true)));
+        .thenReturn(
+            Optional.of(new PaymentMethodView(METODO, "CREDIT_CARD", "Tarjeta de credito", true)));
     when(movimientos.findTypeByCode("VENTA"))
         .thenReturn(Optional.of(new MovementTypeView(UUID.randomUUID(), "VENTA", "VTA")));
   }

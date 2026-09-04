@@ -642,21 +642,6 @@
         "type" : "object"
       },
       "JsonNode" : { },
-      "Line" : {
-        "properties" : {
-          "productId" : {
-            "format" : "uuid",
-            "type" : "string"
-          },
-          "quantity" : {
-            "format" : "int32",
-            "minimum" : 1,
-            "type" : "integer"
-          }
-        },
-        "required" : [ "productId", "quantity" ],
-        "type" : "object"
-      },
       "ListCommissionRatesRequest" : {
         "properties" : {
           "includeDeleted" : {
@@ -870,18 +855,6 @@
           },
           "updatedAt" : {
             "format" : "date-time",
-            "type" : "string"
-          }
-        },
-        "type" : "object"
-      },
-      "Money" : {
-        "properties" : {
-          "code" : {
-            "type" : "string"
-          },
-          "id" : {
-            "format" : "uuid",
             "type" : "string"
           }
         },
@@ -1191,21 +1164,6 @@
           "totalPages" : {
             "format" : "int32",
             "type" : "integer"
-          }
-        },
-        "type" : "object"
-      },
-      "Party" : {
-        "properties" : {
-          "id" : {
-            "format" : "uuid",
-            "type" : "string"
-          },
-          "name" : {
-            "type" : "string"
-          },
-          "username" : {
-            "type" : "string"
           }
         },
         "type" : "object"
@@ -1701,7 +1659,7 @@
           },
           "lines" : {
             "items" : {
-              "$ref" : "#/components/schemas/Line"
+              "$ref" : "#/components/schemas/SaleLineRequest"
             },
             "minItems" : 1,
             "type" : "array"
@@ -1958,6 +1916,33 @@
         },
         "type" : "object"
       },
+      "SaleCurrency" : {
+        "properties" : {
+          "code" : {
+            "type" : "string"
+          },
+          "id" : {
+            "format" : "uuid",
+            "type" : "string"
+          }
+        },
+        "type" : "object"
+      },
+      "SaleLineRequest" : {
+        "properties" : {
+          "productId" : {
+            "format" : "uuid",
+            "type" : "string"
+          },
+          "quantity" : {
+            "format" : "int32",
+            "minimum" : 1,
+            "type" : "integer"
+          }
+        },
+        "required" : [ "productId", "quantity" ],
+        "type" : "object"
+      },
       "SaleLineResponse" : {
         "properties" : {
           "lineAmount" : {
@@ -1987,10 +1972,25 @@
         },
         "type" : "object"
       },
+      "SaleParty" : {
+        "properties" : {
+          "id" : {
+            "format" : "uuid",
+            "type" : "string"
+          },
+          "name" : {
+            "type" : "string"
+          },
+          "username" : {
+            "type" : "string"
+          }
+        },
+        "type" : "object"
+      },
       "SaleResponse" : {
         "properties" : {
           "client" : {
-            "$ref" : "#/components/schemas/Party"
+            "$ref" : "#/components/schemas/SaleParty"
           },
           "code" : {
             "type" : "string"
@@ -2000,7 +2000,7 @@
             "type" : "string"
           },
           "currency" : {
-            "$ref" : "#/components/schemas/Money"
+            "$ref" : "#/components/schemas/SaleCurrency"
           },
           "discountAmount" : {
             "type" : "number"
@@ -2026,7 +2026,7 @@
             "type" : "string"
           },
           "seller" : {
-            "$ref" : "#/components/schemas/Party"
+            "$ref" : "#/components/schemas/SaleParty"
           },
           "status" : {
             "type" : "string"

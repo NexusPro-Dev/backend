@@ -34,7 +34,7 @@ import org.springframework.transaction.annotation.Transactional;
 class MovementCodeRetryIT extends IntegrationTestBase {
 
   private static final String USD = "01a03336-6d00-7001-9c4f-5e7ad3000001";
-  private static final String EFECTIVO = "01a061ba-3400-7002-9c4f-5e7ad7000021";
+  private static final String TARJETA = "01a061ba-3400-7002-9c4f-5e7ad7000021";
   private static final String TIPO_VENTA = "01a061ba-3400-7001-9c4f-5e7ad7000011";
 
   private static final OffsetDateTime AHORA =
@@ -120,7 +120,7 @@ class MovementCodeRetryIT extends IntegrationTestBase {
         UUID.fromString(TIPO_VENTA),
         cliente,
         vendedor,
-        UUID.fromString(EFECTIVO),
+        UUID.fromString(TARJETA),
         UUID.fromString(USD),
         codigo,
         List.of(
@@ -148,7 +148,7 @@ class MovementCodeRetryIT extends IntegrationTestBase {
         TIPO_VENTA,
         cliente.toString(),
         vendedor.toString(),
-        EFECTIVO,
+        TARJETA,
         USD,
         codigo,
         AHORA);

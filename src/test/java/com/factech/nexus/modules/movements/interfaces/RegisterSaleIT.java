@@ -49,7 +49,7 @@ class RegisterSaleIT extends IntegrationTestBase {
   private static final String USD = "01a03336-6d00-7001-9c4f-5e7ad3000001";
 
   /** El método de pago sembrado por `V54`. */
-  private static final String EFECTIVO = "01a061ba-3400-7002-9c4f-5e7ad7000021";
+  private static final String TARJETA = "01a061ba-3400-7002-9c4f-5e7ad7000021";
 
   private static final OffsetDateTime BASE =
       OffsetDateTime.of(2026, 8, 1, 12, 0, 0, 0, ZoneOffset.UTC);
@@ -142,7 +142,7 @@ class RegisterSaleIT extends IntegrationTestBase {
   @Test
   @DisplayName("CA-MV-001 y CA-MV-004: la venta nace PENDIENTE, con su código y sus importes")
   void ventaSimple() throws Exception {
-    mvc.perform(venta(cliente, EFECTIVO, linea(botCopy, 2)))
+    mvc.perform(venta(cliente, TARJETA, linea(botCopy, 2)))
         .andExpect(status().isCreated())
         .andExpect(jsonPath("$.status").value("PENDIENTE"))
         .andExpect(jsonPath("$.code").value(org.hamcrest.Matchers.matchesPattern(CODIGO)))
@@ -155,13 +155,13 @@ class RegisterSaleIT extends IntegrationTestBase {
         .andExpect(jsonPath("$.discountAmount").value(0.00))
         .andExpect(jsonPath("$.payableAmount").value(31.00))
         .andExpect(jsonPath("$.currency.code").value("USD"))
-        .andExpect(jsonPath("$.paymentMethod").value("EFECTIVO"));
+        .andExpect(jsonPath("$.paymentMethod").value("CREDIT_CARD"));
   }
 
   @Test
   @DisplayName("CA-MV-002: devuelve el vendedor resuelto, que el actor no envió")
   void elVendedorSaleDelCliente() throws Exception {
-    mvc.perform(venta(cliente, EFECTIVO, linea(botSenales, 1)))
+    mvc.perform(venta(cliente, TARJETA, linea(botSenales, 1)))
         .andExpect(status().isCreated())
         .andExpect(jsonPath("$.client.id").value(cliente.toString()))
         .andExpect(jsonPath("$.seller.id").value(vendedor.toString()))
@@ -174,7 +174,7 @@ class RegisterSaleIT extends IntegrationTestBase {
   @Test
   @DisplayName("CA-MV-005: varias líneas, con un upgrade y varios bots (FA-002)")
   void variasLineas() throws Exception {
-    mvc.perform(venta(cliente, EFECTIVO, linea(upVip, 1), linea(botSenales, 1), linea(botCopy, 3)))
+    mvc.perform(venta(cliente, TARJETA, linea(upVip, 1), linea(botSenales, 1), linea(botCopy, 3)))
         .andExpect(status().isCreated())
         .andExpect(jsonPath("$.lines.length()").value(3))
         // 20.00 + 10.00 + 46.50
@@ -185,7 +185,7 @@ class RegisterSaleIT extends IntegrationTestBase {
   @DisplayName(
       "CA-MV-003: el precio y la vigencia se COPIAN, y corregir el producto después no los cambia")
   void laCopiaSobreviveALaCorreccion() throws Exception {
-    mvc.perform(venta(cliente, EFECTIVO, linea(upPlatino, 1)))
+    mvc.perform(venta(cliente, TARJETA, linea(upPlatino, 1)))
         .andExpect(status().isCreated())
         .andExpect(jsonPath("$.lines[0].unitPrice").value(50.00))
         .andExpect(jsonPath("$.lines[0].validityDays").value(30));
@@ -219,7 +219,7 @@ class RegisterSaleIT extends IntegrationTestBase {
     String cuerpo =
         ("{\"clientId\":\"%s\",\"paymentMethodId\":\"%s\",\"occurredAt\":\"2026-07-12T03:00:00Z\","
                 + "\"lines\":[{\"productId\":\"%s\",\"quantity\":1}]}")
-            .formatted(cliente, EFECTIVO, botSenales);
+            .formatted(cliente, TARJETA, botSenales);
 
     mvc.perform(
             post("/api/v1/movements")
@@ -234,7 +234,7 @@ class RegisterSaleIT extends IntegrationTestBase {
   @Test
   @DisplayName("CA-MV-007: registrar una venta NO cambia el nivel de nadie")
   void registrarNoConcedeNada() throws Exception {
-    mvc.perform(venta(cliente, EFECTIVO, linea(upVip, 1))).andExpect(status().isCreated());
+    mvc.perform(venta(cliente, TARJETA, linea(upVip, 1))).andExpect(status().isCreated());
 
     // Es el criterio que sostiene todo el módulo. Sin él, la diferencia entre
     // registrar y confirmar es una palabra en un documento; con él, es algo que
@@ -251,7 +251,7 @@ class RegisterSaleIT extends IntegrationTestBase {
   @Test
   @DisplayName("CA-MV-018: la auditoría guarda la instantánea completa, con el vendedor congelado")
   void laAuditoriaGuardaElVendedor() throws Exception {
-    mvc.perform(venta(cliente, EFECTIVO, linea(botCopy, 1))).andExpect(status().isCreated());
+    mvc.perform(venta(cliente, TARJETA, linea(botCopy, 1))).andExpect(status().isCreated());
 
     Map<String, Object> fila =
         jdbc.queryForMap(
@@ -276,7 +276,7 @@ class RegisterSaleIT extends IntegrationTestBase {
   @Test
   @DisplayName("CA-MV-009: el cliente inexistente es 422, y se distingue del que no puede operar")
   void clienteInexistente() throws Exception {
-    mvc.perform(venta(UUID.randomUUID(), EFECTIVO, linea(botSenales, 1)))
+    mvc.perform(venta(UUID.randomUUID(), TARJETA, linea(botSenales, 1)))
         .andExpect(status().isUnprocessableEntity())
         .andExpect(jsonPath("$.errors[0].code").value("EX-001"));
   }
@@ -286,7 +286,7 @@ class RegisterSaleIT extends IntegrationTestBase {
   void clienteSinVendedor() throws Exception {
     // `RN-SP-027` promete que esto no ocurre, y se comprueba igual: una promesa
     // de otro módulo no es una comprobación de este.
-    mvc.perform(venta(clienteSinVendedor, EFECTIVO, linea(botSenales, 1)))
+    mvc.perform(venta(clienteSinVendedor, TARJETA, linea(botSenales, 1)))
         .andExpect(status().isConflict())
         .andExpect(jsonPath("$.errors[0].code").value("EX-003"));
   }
@@ -294,14 +294,14 @@ class RegisterSaleIT extends IntegrationTestBase {
   @Test
   @DisplayName("CA-MV-010: el producto inexistente es 422 y el que está fuera de la oferta, 409")
   void productoInexistenteFrenteAFueraDeLaOferta() throws Exception {
-    mvc.perform(venta(cliente, EFECTIVO, linea(UUID.randomUUID(), 1)))
+    mvc.perform(venta(cliente, TARJETA, linea(UUID.randomUUID(), 1)))
         .andExpect(status().isUnprocessableEntity())
         .andExpect(jsonPath("$.errors[0].code").value("EX-011"));
 
     // Retirado: existe, y no se le ofrece a nadie. El mensaje NOMBRA el
     // producto, que es lo que evita probar de uno en uno en una venta de cinco
     // líneas.
-    mvc.perform(venta(cliente, EFECTIVO, linea(botRetirado, 1)))
+    mvc.perform(venta(cliente, TARJETA, linea(botRetirado, 1)))
         .andExpect(status().isConflict())
         .andExpect(jsonPath("$.errors[0].code").value("EX-004"))
         .andExpect(
@@ -323,7 +323,7 @@ class RegisterSaleIT extends IntegrationTestBase {
     // `RegisterSaleServiceTest`: allí la oferta se amplía y `EX-005` se
     // alcanza. Las dos pruebas juntas son el argumento del riesgo de
     // `plan.md` §3.2.
-    mvc.perform(venta(cliente, EFECTIVO, linea(upFree, 1)))
+    mvc.perform(venta(cliente, TARJETA, linea(upFree, 1)))
         .andExpect(status().isConflict())
         .andExpect(jsonPath("$.errors[0].code").value("EX-004"));
   }
@@ -331,7 +331,7 @@ class RegisterSaleIT extends IntegrationTestBase {
   @Test
   @DisplayName("CA-MV-012: dos upgrades en la misma venta")
   void dosUpgrades() throws Exception {
-    mvc.perform(venta(cliente, EFECTIVO, linea(upVip, 1), linea(upPlatino, 1)))
+    mvc.perform(venta(cliente, TARJETA, linea(upVip, 1), linea(upPlatino, 1)))
         .andExpect(status().isConflict())
         .andExpect(jsonPath("$.errors[0].code").value("EX-006"));
   }
@@ -341,11 +341,11 @@ class RegisterSaleIT extends IntegrationTestBase {
   void repetidoYCantidadEnUpgrade() throws Exception {
     // `VAL-006` es de ENTRADA aunque `RN-MV-011` sea una regla: la repetición
     // se ve mirando la petición, sin consultar nada.
-    mvc.perform(venta(cliente, EFECTIVO, linea(botSenales, 1), linea(botSenales, 2)))
+    mvc.perform(venta(cliente, TARJETA, linea(botSenales, 1), linea(botSenales, 2)))
         .andExpect(status().isBadRequest())
         .andExpect(jsonPath("$.errors[0].code").value("VAL-006"));
 
-    mvc.perform(venta(cliente, EFECTIVO, linea(upVip, 2)))
+    mvc.perform(venta(cliente, TARJETA, linea(upVip, 2)))
         .andExpect(status().isConflict())
         .andExpect(jsonPath("$.errors[0].code").value("EX-009"));
   }
@@ -353,7 +353,7 @@ class RegisterSaleIT extends IntegrationTestBase {
   @Test
   @DisplayName("CA-MV-014: productos en monedas distintas, sin conversión posible")
   void monedasDistintas() throws Exception {
-    mvc.perform(venta(cliente, EFECTIVO, linea(botSenales, 1), linea(botEnOtraMoneda, 1)))
+    mvc.perform(venta(cliente, TARJETA, linea(botSenales, 1), linea(botEnOtraMoneda, 1)))
         .andExpect(status().isConflict())
         .andExpect(jsonPath("$.errors[0].code").value("EX-008"));
   }
@@ -373,7 +373,7 @@ class RegisterSaleIT extends IntegrationTestBase {
   @Test
   @DisplayName("CA-MV-016: sin líneas, sin cliente y con fecha futura")
   void peticionesMalFormadas() throws Exception {
-    mvc.perform(venta(cliente, EFECTIVO)).andExpect(status().isBadRequest());
+    mvc.perform(venta(cliente, TARJETA)).andExpect(status().isBadRequest());
 
     mvc.perform(
             post("/api/v1/movements")
@@ -381,7 +381,7 @@ class RegisterSaleIT extends IntegrationTestBase {
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(
                     "{\"paymentMethodId\":\"%s\",\"lines\":[{\"productId\":\"%s\",\"quantity\":1}]}"
-                        .formatted(EFECTIVO, botSenales)))
+                        .formatted(TARJETA, botSenales)))
         .andExpect(status().isBadRequest());
 
     // Una venta que aún no ha ocurrido no es un hecho. El pasado remoto sí se
@@ -394,7 +394,7 @@ class RegisterSaleIT extends IntegrationTestBase {
                     ("{\"clientId\":\"%s\",\"paymentMethodId\":\"%s\","
                             + "\"occurredAt\":\"2099-01-01T00:00:00Z\","
                             + "\"lines\":[{\"productId\":\"%s\",\"quantity\":1}]}")
-                        .formatted(cliente, EFECTIVO, botSenales)))
+                        .formatted(cliente, TARJETA, botSenales)))
         .andExpect(status().isBadRequest())
         .andExpect(jsonPath("$.errors[0].code").value("VAL-007"));
   }
@@ -409,7 +409,7 @@ class RegisterSaleIT extends IntegrationTestBase {
             post("/api/v1/movements")
                 .with(soloLectura)
                 .contentType(MediaType.APPLICATION_JSON)
-                .content(cuerpo(cliente.toString(), EFECTIVO, linea(botSenales, 1))))
+                .content(cuerpo(cliente.toString(), TARJETA, linea(botSenales, 1))))
         .andExpect(status().isForbidden());
   }
 

@@ -343,6 +343,8 @@ Mismo formato de código que `roles`, `memberships` y `products`: `^[A-Z][A-Z0-9
 
 Se siembra por migración y **no se administra por API todavía** (§5.3). Lo mínimo para que una venta pueda decir con qué se pagó.
 
+**`V54` la sembró con tres filas** —`CREDIT_CARD`, `PSE` y `TRANSFERENCIA`—, por decisión del responsable del proyecto del 04-09-2026. Son los medios con los que se cobra de verdad, y sustituyen al `EFECTIVO`/`TRANSFERENCIA` que la tripleta de `RF-MV-001` había supuesto. **`PUNTOS` sigue fuera**: es de la etapa 3, y sembrarlo hoy ofrecería un método con el que no se puede pagar.
+
 ### 7.5 Restricciones exigidas en el esquema
 
 | Restricción | Sobre | Por qué ahí y no en el código |
