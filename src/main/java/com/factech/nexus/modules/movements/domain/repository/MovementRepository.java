@@ -1,6 +1,7 @@
 package com.factech.nexus.modules.movements.domain.repository;
 
 import com.factech.nexus.modules.movements.domain.models.Movement;
+import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 import java.util.function.Supplier;
@@ -57,8 +58,49 @@ public interface MovementRepository {
    */
   Optional<PaymentMethodView> findPaymentMethod(UUID id);
 
+  /**
+   * Los métodos de pago <b>activos</b>, cada uno con los países en los que no vale (`RF-MV-009`).
+   *
+   * <p><b>Solo los activos.</b> Quien consume esto pinta un selector, y un elemento que no se puede
+   * elegir no va en un selector. Leer una venta vieja pagada con un método retirado es `RF-MV-007`,
+   * y esa lectura trae el método <b>de la venta</b> y no del catálogo — que es la mitad de
+   * `RN-MV-018` que a esta consulta no le toca.
+   *
+   * <p><b>Una sola sentencia para el catálogo y sus exclusiones.</b> Tres métodos resueltos uno a
+   * uno serían cuatro consultas: con tres filas no se nota, y ese es exactamente el problema — no
+   * se notaría hasta que alguien añadiera métodos, y para entonces el patrón estaría copiado en las
+   * lecturas que vengan detrás.
+   *
+   * <p><b>Y la unión es externa.</b> Hoy <b>ningún método tiene exclusiones</b>, de modo que con
+   * una unión interna la respuesta vendría vacía: el catálogo entero desaparecería sin error y sin
+   * que nada avisara.
+   *
+   * @return ordenados por código, de forma estable. Sin orden declarado, dos peticiones pueden
+   *     devolverlos en distinta posición y un selector cambiaría entre recargas
+   */
+  List<PaymentMethodCatalogView> findActivePaymentMethods();
+
   /** El tipo, con el prefijo que su comprobante lleva impreso (`RN-MV-016`). */
   record MovementTypeView(UUID id, String code, String prefix) {}
+
+  /**
+   * Un método de pago con sus exclusiones (`RN-MV-019`).
+   *
+   * <p><b>{@code excludedCountries} vacío significa que vale en todas partes</b>, y nunca es nulo:
+   * es la ausencia con significado que `RN-MV-019` declara, y colapsarla con el nulo obligaría a
+   * cada consumidor a tratar los dos casos.
+   */
+  record PaymentMethodCatalogView(
+      UUID id, String code, String name, List<ExcludedCountryView> excludedCountries) {}
+
+  /**
+   * Un país en el que un método no vale.
+   *
+   * <p><b>No lleva el nombre</b>, solo el identificador y el código. Quien pinta países ya tiene su
+   * catálogo (`RF-SP-021`), y repetir el nombre aquí lo dejaría desincronizado el día que se
+   * corrija una tilde.
+   */
+  record ExcludedCountryView(UUID id, String code) {}
 
   /** El método de pago, con la marca que `RN-MV-018` obliga a mirar al vender. */
   record PaymentMethodView(UUID id, String code, String name, boolean active) {}

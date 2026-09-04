@@ -608,6 +608,18 @@
         },
         "type" : "object"
       },
+      "ExcludedCountry" : {
+        "properties" : {
+          "code" : {
+            "type" : "string"
+          },
+          "id" : {
+            "format" : "uuid",
+            "type" : "string"
+          }
+        },
+        "type" : "object"
+      },
       "Item" : {
         "properties" : {
           "childMembershipId" : {
@@ -1202,6 +1214,38 @@
       "PatchableObject" : { },
       "PatchableString" : { },
       "PatchableUUID" : { },
+      "PaymentMethodCatalogResponse" : {
+        "properties" : {
+          "content" : {
+            "items" : {
+              "$ref" : "#/components/schemas/PaymentMethodResponse"
+            },
+            "type" : "array"
+          }
+        },
+        "type" : "object"
+      },
+      "PaymentMethodResponse" : {
+        "properties" : {
+          "code" : {
+            "type" : "string"
+          },
+          "excludedCountries" : {
+            "items" : {
+              "$ref" : "#/components/schemas/ExcludedCountry"
+            },
+            "type" : "array"
+          },
+          "id" : {
+            "format" : "uuid",
+            "type" : "string"
+          },
+          "name" : {
+            "type" : "string"
+          }
+        },
+        "type" : "object"
+      },
       "PermissionCatalogResponse" : {
         "properties" : {
           "content" : {
@@ -3895,7 +3939,7 @@
     "/api/v1/currencies" : {
       "get" : {
         "description" : "Devuelve el catálogo completo, sin paginar, ordenado por código.\n\n`decimalPlaces` es el campo del que depende el redondeo de todo cálculo\nfinanciero: cero es un valor legítimo y el campo nunca es nulo.\n\nLas monedas inactivas no aparecen salvo que se pidan con\n`includeInactive=true`, que **añade** a las activas en lugar de\nsustituirlas.\n",
-        "operationId" : "consultar_2",
+        "operationId" : "consultar_3",
         "parameters" : [ {
           "in" : "query",
           "name" : "peticion",
@@ -4156,6 +4200,29 @@
         },
         "summary" : "Registrar una venta a nombre de un cliente",
         "tags" : [ "Movimientos" ]
+      }
+    },
+    "/api/v1/payment-methods" : {
+      "get" : {
+        "description" : "Devuelve los métodos de pago **activos**, sin paginar y ordenados por código.\n\n**`excludedCountries` dice dónde NO vale cada medio.** Una lista vacía\nsignifica que vale en todos los países, y el campo **viaja siempre**:\nno hay que distinguir «sin exclusiones» de «no vino el campo».\n\n**Esta restricción es informativa y el servidor NO la aplica.** Registrar\nuna venta con un método excluido en algún país **se registra con\nnormalidad**: quien decide qué ofrecer es el cliente que consume esta\nrespuesta. El servidor no sabe de qué país es quien compra — ninguna\npersona del sistema tiene país todavía.\n\n**No admite parámetros**, y en particular no admite un país: filtrar aquí\nharía creer que el servidor sabe cuál corresponde.\n\n**No exige permiso**, solo estar autenticado. `movements:read` gobierna ver\nventas y hoy está reservado al superadministrador; exigirlo aquí dejaría sin\nmétodos de pago a la pantalla de compra propia, que no pide ningún permiso.\n",
+        "operationId" : "consultar_2",
+        "responses" : {
+          "200" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/PaymentMethodCatalogResponse"
+                }
+              }
+            },
+            "description" : "El catálogo de métodos de pago activos."
+          },
+          "401" : {
+            "description" : "Sin token."
+          }
+        },
+        "summary" : "Consultar los métodos de pago",
+        "tags" : [ "Métodos de pago" ]
       }
     },
     "/api/v1/permissions" : {
@@ -6545,6 +6612,9 @@
   }, {
     "description" : "Catálogo de permisos del sistema. Solo lectura.",
     "name" : "Permisos"
+  }, {
+    "description" : "Con qué se puede pagar, y en qué países no vale cada medio.",
+    "name" : "Métodos de pago"
   }, {
     "description" : "Resolución de la comisión efectiva de una persona sobre un producto.",
     "name" : "Comisiones"

@@ -68,7 +68,13 @@ class EndpointPermissionsIT extends IntegrationTestBase {
           "POST /api/v1/auth/password",
           "La propia contraseña (`RF-SP-037` §5): «no hay permiso asociado más allá de estar"
               + " autenticado. Nadie cambia la contraseña de otro por este camino». Cambiar la"
-              + " ajena es `RF-SP-038`, y esa sí exige `users:reset-password`");
+              + " ajena es `RF-SP-038`, y esa sí exige `users:reset-password`",
+          "GET /api/v1/payment-methods",
+          "Un catálogo cerrado de tres filas (`RF-MV-009`): con qué se puede pagar. No exige"
+              + " permiso por lo mismo que `RF-MV-002` no lo exige — quien compra lo suyo tiene"
+              + " que poder ver las opciones. `movements:read` gobierna VER VENTAS y hoy está"
+              + " reservado al superadministrador (`requirements/mv.md` §6.1), de modo que"
+              + " exigirlo aquí dejaría la pantalla de compra propia sin poder pintar su selector");
 
   // `GET /api/v1/products/available` (`RF-PM-007`) figuraba aquí hasta el
   // 02-09-2026: exigía solo estar autenticado. Desde `products:sale`

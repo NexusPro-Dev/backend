@@ -32,7 +32,7 @@
 
 | ID | Tarea | Depende de | Verificación | Estado |
 |---|---|---|---|---|
-| `T-01` | **`V54`**: `movement_types` y `payment_methods`, **creadas y sembradas en la misma migración** — `VENTA`/`VTA`, y los tres medios de pago `CREDIT_CARD`, `PSE` y `TRANSFERENCIA` | — | Ninguna versión del esquema tiene la tabla de tipos vacía | **Hecha** — 04-09-2026 |
+| `T-01` | **`V54`**: `movement_types` y `payment_methods`, **creadas y sembradas en la misma migración** — `VENTA`/`VTA`, y los tres medios de pago `CREDIT_CARD`, `PSE` y `POINTS` | — | Ninguna versión del esquema tiene la tabla de tipos vacía | **Hecha** — 04-09-2026 |
 | `T-02` | **`V54`**: `movements`, **sin `updated_at` ni `deleted_at`**, con `ck_movements_status`, `ck_movements_payable`, `ck_movements_amounts`, `ck_movements_confirmed` y `uq_movements_code` | `T-01` | Los cuatro `CHECK` declarados; `uq_movements_code` es además lo que hace posible el reintento de `T-10`, probado en `MovementCodeRetryIT` | **Hecha** — 04-09-2026 |
 | `T-03` | **`V54`**: `movement_details`, con `uq_movement_details_producto`, `ck_movement_details_quantity` y `ck_movement_details_validity` **con la rama nula delante** | `T-02` | Declaradas. La repetición la rechaza además la aplicación antes de llegar al motor (`VAL-006`), y las dos capas se prueban por separado | **Hecha** — 04-09-2026 |
 | `T-04` | `V51`: sembrar los cuatro permisos `movements:` **y asociarlos SOLO a `SUPERADMIN`** — la reserva de [`mv.md` §6.1](../../../requirements/mv.md), que se aparta de `security.md` §4.4 | — | Cubierta por `T-16`, que es una prueba y no una lectura del `SQL` | **Hecha** — 02-09-2026 |

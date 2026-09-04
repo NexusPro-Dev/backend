@@ -4,11 +4,15 @@ import com.factech.nexus.modules.movements.domain.models.Movement;
 import com.factech.nexus.modules.movements.domain.models.MovementLine;
 import jakarta.persistence.EntityManager;
 import jakarta.persistence.Tuple;
+import java.util.ArrayList;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
 import java.util.function.Supplier;
 import org.springframework.stereotype.Repository;
+import org.springframework.transaction.annotation.Transactional;
 
 /**
  * Adaptador del libro de movimientos.
@@ -143,6 +147,61 @@ public class JpaMovementRepository implements MovementRepository {
             fila ->
                 new MovementTypeView(
                     (UUID) fila.get("id"), (String) fila.get("code"), (String) fila.get("prefix")));
+  }
+
+  /**
+   * El catálogo activo con sus exclusiones, en <b>una</b> sentencia.
+   *
+   * <p>La consulta devuelve una fila <b>por par método-país</b> y aquí se agrupan. Es la forma de
+   * traer una colección anidada sin la {@code N+1} que `plan.md` §3.2 descarta — la que con tres
+   * filas no se nota, y por eso se copia.
+   *
+   * <p><b>{@code LEFT JOIN} y no interno.</b> Hoy ningún método tiene exclusiones: con una unión
+   * interna esta consulta devolvería <b>cero métodos</b>, y el catálogo entero desaparecería sin
+   * error. Es el riesgo 2 del plan, y lo detecta la prueba de la lista vacía.
+   *
+   * <p><b>{@code LinkedHashMap} y no {@code HashMap}</b>: el orden que fija el {@code ORDER BY} es
+   * parte del contrato —un selector que cambia de posición entre recargas está roto— y agrupar en
+   * un mapa sin orden lo perdería después de haberlo pedido.
+   */
+  @Override
+  @Transactional(readOnly = true)
+  public List<PaymentMethodCatalogView> findActivePaymentMethods() {
+    List<Tuple> filas =
+        em.createNativeQuery(
+                """
+                SELECT m.id AS m_id, m.code AS m_code, m.name AS m_name,
+                       c.id AS c_id, c.code AS c_code
+                  FROM payment_methods m
+                  LEFT JOIN payment_method_exclusions e ON e.payment_method_id = m.id
+                  LEFT JOIN countries c ON c.id = e.country_id
+                 WHERE m.is_active = true
+                 ORDER BY m.code ASC, c.code ASC
+                """,
+                Tuple.class)
+            .getResultList();
+
+    Map<UUID, PaymentMethodCatalogView> porMetodo = new LinkedHashMap<>();
+    for (Tuple fila : filas) {
+      UUID metodo = (UUID) fila.get("m_id");
+      PaymentMethodCatalogView vista =
+          porMetodo.computeIfAbsent(
+              metodo,
+              id ->
+                  new PaymentMethodCatalogView(
+                      id,
+                      (String) fila.get("m_code"),
+                      (String) fila.get("m_name"),
+                      new ArrayList<>()));
+
+      // Nulo en un método sin exclusiones, que es el estado de los tres de hoy:
+      // la fila existe por el LEFT JOIN y no trae país.
+      UUID pais = (UUID) fila.get("c_id");
+      if (pais != null) {
+        vista.excludedCountries().add(new ExcludedCountryView(pais, (String) fila.get("c_code")));
+      }
+    }
+    return List.copyOf(porMetodo.values());
   }
 
   @Override

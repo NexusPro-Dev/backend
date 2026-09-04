@@ -249,6 +249,31 @@ class RegisterSaleIT extends IntegrationTestBase {
   }
 
   @Test
+  @DisplayName("CA-MV-034: una venta con un método EXCLUIDO en un país SE REGISTRA igual")
+  void laExclusionPorPaisNoImpideVender() throws Exception {
+    // `RN-MV-019` declara dónde NO vale cada método de pago, y esta prueba
+    // afirma que el sistema NO LO COMPRUEBA al vender. Es lo contrario de lo
+    // que casi cualquiera supondría al leer la tabla, y por eso existe.
+    //
+    // La restricción es para el cliente que pinta el selector; el servidor no
+    // sabe de qué país es quien compra, porque `users` no guarda país. Sin
+    // esta prueba, «la restricción es informativa» solo estaría escrito en
+    // documentos y alguien la convertiría en validación sin decidirlo — y el
+    // día que eso ocurra, aquí es donde se entera.
+    UUID paisExcluido = pais("PVT", "País de prueba de venta");
+    jdbc.update(
+        "INSERT INTO payment_method_exclusions (payment_method_id, country_id)"
+            + " VALUES (CAST(? AS uuid), CAST(? AS uuid))",
+        TARJETA,
+        paisExcluido.toString());
+
+    mvc.perform(venta(cliente, TARJETA, linea(botSenales, 1)))
+        .andExpect(status().isCreated())
+        .andExpect(jsonPath("$.status").value("PENDIENTE"))
+        .andExpect(jsonPath("$.paymentMethod").value("CREDIT_CARD"));
+  }
+
+  @Test
   @DisplayName("CA-MV-018: la auditoría guarda la instantánea completa, con el vendedor congelado")
   void laAuditoriaGuardaElVendedor() throws Exception {
     mvc.perform(venta(cliente, TARJETA, linea(botCopy, 1))).andExpect(status().isCreated());
@@ -444,6 +469,7 @@ class RegisterSaleIT extends IntegrationTestBase {
     // claves foráneas son RESTRICT a propósito, para que un borrado físico no
     // se lleve por delante la atribución de una venta.
     jdbc.update("DELETE FROM movement_details");
+    jdbc.update("DELETE FROM payment_method_exclusions");
     jdbc.update("DELETE FROM movements");
     jdbc.update("DELETE FROM audit_change_log WHERE module = 'MV'");
     // El catálogo y la cadena se borran ENTEROS, como en `ProductOfferIT` y por
@@ -460,6 +486,7 @@ class RegisterSaleIT extends IntegrationTestBase {
     jdbc.update("DELETE FROM memberships");
     jdbc.update("DELETE FROM payment_methods WHERE code LIKE 'VTA\\_%'");
     jdbc.update("DELETE FROM currencies WHERE code = 'VTC'");
+    jdbc.update("DELETE FROM countries WHERE code = 'PVT'");
   }
 
   private UUID membresia(String codigo, String nombre, int nivel, UUID superior) {
@@ -579,6 +606,16 @@ class RegisterSaleIT extends IntegrationTestBase {
         persona.toString(),
         superior.toString(),
         BASE);
+  }
+
+  private UUID pais(String codigo, String nombre) {
+    UUID id = UUID.randomUUID();
+    jdbc.update(
+        "INSERT INTO countries (id, code, name, is_active) VALUES (CAST(? AS uuid), ?, ?, true)",
+        id.toString(),
+        codigo,
+        nombre);
+    return id;
   }
 
   private UUID moneda(String codigo, String nombre) {
