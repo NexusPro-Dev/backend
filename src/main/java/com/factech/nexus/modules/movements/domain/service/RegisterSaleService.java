@@ -47,8 +47,9 @@ import org.springframework.transaction.annotation.Transactional;
  *
  * <ol>
  *   <li>El cliente existe y <b>puede comprar</b> (`EX-001`, `EX-002`).
- *   <li><b>El vendedor</b>, antes que todo lo demás: si el cliente no cuelga de nadie la venta no
- *       se puede atribuir, y es mejor saberlo antes de resolver ofertas y precios (`EX-003`).
+ *   <li><b>El vendedor</b>, que desde el 04-09-2026 <b>puede no haberlo</b> (`RN-MV-003`). Este
+ *       paso ya no puede rechazar nada: se conserva aquí porque es una lectura del mismo cliente
+ *       que el paso anterior acaba de verificar, y no porque comprobara algo.
  *   <li>El método de pago, que es una lectura barata del propio módulo (`EX-010`).
  *   <li>La <b>composición</b> de las líneas: sin repetidos, como mucho un upgrade, cantidad uno en
  *       él (`VAL-006`, `EX-006`, `EX-009`).
@@ -146,7 +147,7 @@ public class RegisterSaleService {
     OffsetDateTime ocurrioEn = fechaDelHecho(peticion.occurredAt(), ahora);
 
     ClientView cliente = verificarCliente(peticion.clientId());
-    SellerView vendedor = verificarVendedor(cliente);
+    Optional<SellerView> vendedor = resolverVendedor(cliente);
     PaymentMethodView metodo = verificarMetodoDePago(peticion.paymentMethodId());
 
     List<RegisterSaleRequest.Line> lineas = peticion.lines();
@@ -168,7 +169,7 @@ public class RegisterSaleService {
         Movement.registrar(
             tipo.id(),
             cliente.id(),
-            vendedor.id(),
+            vendedor.map(SellerView::id).orElse(null),
             metodo.id(),
             referencia.currencyId(),
             MovementCode.generar(tipo.prefix(), ocurrioEn),
@@ -185,7 +186,7 @@ public class RegisterSaleService {
     return SaleResponse.de(
         venta,
         new SaleResponse.Party(cliente.id(), cliente.username(), nombre(cliente)),
-        new SaleResponse.Party(vendedor.id(), vendedor.username(), nombre(vendedor)),
+        vendedor.map(v -> new SaleResponse.Party(v.id(), v.username(), nombre(v))).orElse(null),
         new SaleResponse.Money(referencia.currencyId(), referencia.currencyCode()),
         metodo.code());
   }
@@ -221,21 +222,33 @@ public class RegisterSaleService {
   }
 
   /**
-   * `EX-003`. `RN-SP-027` promete que esto no ocurre, y se comprueba igual: <b>una promesa de otro
-   * módulo no es una comprobación de este</b>. El día que falle, la venta tiene que negarse a
-   * existir en lugar de nacer sin dueño — una venta sin vendedor no se descubre hasta el día de
-   * pagar una comisión, y entonces ya no hay a quién preguntarle.
+   * El vendedor, <b>si lo hay</b> (`RN-MV-003`).
+   *
+   * <h2>Aquí había un rechazo, y se retiró el 04-09-2026</h2>
+   *
+   * <p>`EX-003` rechazaba la venta de quien no colgaba de nadie, con este argumento: «`RN-SP-027`
+   * promete que ningún cliente se registra sin vendedor, y una promesa de otro módulo no es una
+   * comprobación de este». El argumento era bueno y <b>la premisa estaba incompleta</b>: daba por
+   * hecho que <b>quien compra es siempre un cliente</b>.
+   *
+   * <p>No lo es. Un agente también compra, y la fuerza comercial no está hecha para que todos sus
+   * miembros cuelguen de otro: `RN-SP-019` declara que <b>la cúspide no declara superior</b>. Con
+   * aquel rechazo en pie, esa persona no podía comprar nada — no por una decisión de negocio, sino
+   * porque la venta no sabía a quién atribuirla.
+   *
+   * <p><b>Se retiró la exigencia, no la deducción.</b> Quien tiene superior sigue produciendo una
+   * venta atribuida a él, exactamente igual que antes.
+   *
+   * <p><b>Y lo que cuesta: una venta sin vendedor NO COMISIONA A NADIE.</b> `RN-CM-011` liquida por
+   * <i>override</i> recorriendo la cadena hacia arriba desde el vendedor, y sin punto de partida no
+   * hay cadena. Es correcto —nadie vendió, nadie cobra— y es lo que quien construya la liquidación
+   * tiene que tratar. La alternativa era inventar una atribución, y una comisión pagada a quien no
+   * vendió <b>no se detecta</b>: el dinero sale y el número cuadra.
+   *
+   * @return el vendedor, o vacío si quien compra no cuelga de nadie
    */
-  private SellerView verificarVendedor(ClientView cliente) {
-    return clientes
-        .sellerOf(cliente.id())
-        .orElseThrow(
-            () -> {
-              String mensaje =
-                  "La venta no se puede atribuir: esa persona no cuelga de ningún vendedor.";
-              return new BusinessRuleException(
-                  "EX-003", mensaje, List.of(new FieldError("clientId", "EX-003", mensaje)));
-            });
+  private Optional<SellerView> resolverVendedor(ClientView cliente) {
+    return clientes.sellerOf(cliente.id());
   }
 
   // ---------------------------------------------------------------------------

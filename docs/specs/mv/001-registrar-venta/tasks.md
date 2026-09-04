@@ -4,7 +4,7 @@
 |---|---|
 | Requerimiento | `RF-MV-001` |
 | Plan | [`plan.md`](plan.md), aprobado el 02-09-2026 |
-| Versión | 0.2.0 |
+| Versión | 0.3.0 |
 | Estado | **En curso** — `T-01` a `T-18` `Hecha`; `CA-MV-008` queda **sin prueba** hasta `RF-SP-045` |
 | Autor | Responsable técnico |
 | Aprobadas por | Responsable del proyecto |
@@ -20,7 +20,9 @@
 
     La versión 0.1.0 daba por bloqueadas `T-07`, `T-11` y `T-15` hasta que `RF-SP-045` existiera. Al construirlas se comprobó que **solo una cosa falta de verdad**: el estado `FTD_PENDIENTE`, que ese requerimiento estrena y que `ck_users_status` todavía no admite.
 
-    Todo lo demás **ya existía**. `user_supervisors` está desde `V21` y `UserRepository.findActiveSupervisor` desde `RF-SP-041`, de modo que `ClientCatalog` se pudo escribir entero y `EX-003` —el cliente sin vendedor— es **alcanzable y está probado**. Lo que `RF-SP-045` traerá no es la capacidad de colgar clientes: es el camino público que los cuelga solo.
+    Todo lo demás **ya existía**. `user_supervisors` está desde `V21` y `UserRepository.findActiveSupervisor` desde `RF-SP-041`, de modo que `ClientCatalog` se pudo escribir entero. Lo que `RF-SP-045` traerá no es la capacidad de colgar clientes: es el camino público que los cuelga solo.
+
+    **`EX-003` se probó ese mismo día y se retiró unas horas después** (§1.1): comprar no es cosa solo de los clientes, y quien no cuelga de nadie compra igual.
 
     **Queda exactamente un criterio sin prueba, `CA-MV-008`**, y su rama de código sí está escrita. Ver §4.
 
@@ -51,7 +53,22 @@
 | `T-17` | Documentación OpenAPI: que **el precio no se envía** y que la venta **nace pendiente y no concede nada** | `T-13` | El contrato publicado dice las dos cosas, y enumera los cuatro códigos de rechazo con el criterio que los reparte | **Hecha** — 04-09-2026 |
 | `T-18` | **Comprobar que las tres enmiendas de `plan.md` §8 siguen valiendo** tras el código, y llevar la matriz al estado final | `T-15` | Las cuatro tablas dejan de estar «diseñadas y sin escribir» en `modelo-datos.md`, y las lecturas de `architecture.md` §15.2 existen — **una menos de las tres previstas**, por la enmienda de §2 | **Hecha** — 04-09-2026 |
 
-### 1.1 Lo que se añadió y no estaba en la tabla
+### 1.1 El vendedor deja de ser obligatorio — 04-09-2026
+
+Enmienda del Art. I.7 sobre este requerimiento ya construido. La decidió el responsable del proyecto: **comprar no es cosa solo de los clientes**, y un agente también compra.
+
+| ID | Tarea | Depende de | Verificación | Estado |
+|---|---|---|---|---|
+| `T-21` | `V54`: `movements.seller_id` pasa a admitir **nulo**, con el motivo y su coste escritos junto a la columna | — | Una venta sin vendedor entra en la tabla | **Hecha** — 04-09-2026 |
+| `T-22` | `RegisterSaleService`: `EX-003` **se retira**, y el vendedor pasa a resolverse como opcional | `T-21` | Quien no cuelga de nadie compra, y la venta queda sin atribución | **Hecha** — 04-09-2026 |
+| `T-23` | `SaleResponse` se aparta del `non_null` global para que **el vendedor viaje en nulo y no ausente** | `T-22` | La respuesta contiene `"seller":null`, comprobado **sobre el JSON en crudo** | **Hecha** — 04-09-2026 |
+| `T-24` | `CA-MV-017` **invierte su sentido** y se añade la prueba de la auditoría con la clave en nulo | `T-22`, `T-23` | La venta se registra, `seller_id` queda nulo en la tabla y la instantánea lleva `"seller_id": null` | **Hecha** — 04-09-2026 |
+
+**`T-23` parece cosmética y no lo es.** `application.yml` fija `default-property-inclusion: non_null`, de modo que sin esa anotación el vendedor nulo **desaparecería de la respuesta** y el consumidor no podría distinguir «esta venta no tiene vendedor» de «esta respuesta no lo trae». Es la diferencia que decide si alguien va a cobrar por ella.
+
+**Y `T-24` se comprueba sobre el JSON en crudo a propósito.** `jsonPath(...).doesNotExist()` da por buenas las dos cosas —campo ausente y campo en nulo—, que es exactamente la distinción que aquí se quiere fijar: con ese matcher, la prueba habría pasado igual si la anotación de `T-23` no existiera.
+
+### 1.2 Lo que se añadió y no estaba en la tabla
 
 | ID | Tarea | Por qué |
 |---|---|---|
@@ -100,7 +117,7 @@ Queda declarado lo que esto obliga: **las lecturas de `RF-MV-006` y `RF-MV-007` 
 | `CA-MV-014` | `T-05`, `T-11`, `T-15` | Cubierto |
 | `CA-MV-015` | `T-01`, `T-11`, `T-15` | Cubierto — inexistente `422`, desactivado `409` |
 | `CA-MV-016` | `T-12`, `T-13`, `T-15` | Cubierto |
-| `CA-MV-017` | `T-07`, `T-11`, `T-15` | Cubierto — **y no estaba previsto que lo estuviera**. Ver el aviso de cabecera |
+| `CA-MV-017` | `T-07`, `T-11`, `T-15`, `T-24` | Cubierto, **con el sentido invertido el 04-09-2026**: afirma que la venta se registra sin atribución, no que se rechaza |
 | `CA-MV-018` | `T-08`, `T-14`, `T-15` | Cubierto |
 
 **`CA-MV-011` necesita dos pruebas, y merece leerse dos veces.** Por HTTP, un upgrade que no sube **nunca llega** a `RN-MV-006`: la oferta de `RF-PM-007` ya lo excluyó, y el rechazo que se ve es `EX-004`. La prueba de integración lo comprueba así porque es lo que hoy ocurre de verdad, y el criterio queda satisfecho — se rechaza **al registrar**, que es lo que exige.

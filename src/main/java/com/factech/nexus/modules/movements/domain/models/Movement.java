@@ -124,6 +124,10 @@ public final class Movement {
    * ata al total y al descuento, y recibirlo permitiría escribir una fila que el esquema rechaza —
    * un error que aparecería en el {@code commit} y no aquí.
    *
+   * @param sellerId <b>puede ser nulo</b> desde el 04-09-2026 (`RN-MV-003`): quien compra sin
+   *     colgar de nadie compra igual, y la venta se registra sin atribución. Es un estado legítimo
+   *     y no un dato que falte — <b>lo que implica es que esa venta no comisiona a nadie</b>,
+   *     porque `RN-CM-011` recorre la cadena hacia arriba desde este punto
    * @param lines al menos una (`RN-MV-009`). La comprobación vive aquí y no en el esquema porque un
    *     {@code CHECK} no puede contar filas de otra tabla
    * @param decimales los de la moneda de la venta (`RN-MV-014`)
@@ -186,7 +190,10 @@ public final class Movement {
     datos.put("code", code);
     datos.put("status", status.name());
     datos.put("client_id", clientId.toString());
-    datos.put("seller_id", sellerId.toString());
+    // La clave se escribe SIEMPRE, en nulo cuando no hay vendedor. Omitirla se
+    // leería como «esta versión no lo registraba», y aquí la diferencia decide
+    // si alguien va a cobrar por esta venta.
+    datos.put("seller_id", sellerId == null ? null : sellerId.toString());
     datos.put("payment_method_id", paymentMethodId.toString());
     datos.put("currency_id", currencyId.toString());
     datos.put("total_amount", totalAmount.toPlainString());

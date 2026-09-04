@@ -2,6 +2,7 @@ package com.factech.nexus.modules.movements.application;
 
 import com.factech.nexus.modules.movements.domain.models.Movement;
 import com.factech.nexus.modules.movements.domain.models.MovementLine;
+import com.fasterxml.jackson.annotation.JsonInclude;
 import io.swagger.v3.oas.annotations.media.Schema;
 import java.math.BigDecimal;
 import java.time.OffsetDateTime;
@@ -12,11 +13,17 @@ import java.util.UUID;
 /**
  * La venta registrada (`RF-MV-001` · §6.2).
  *
- * <h2>El vendedor se devuelve siempre, y no es un adorno</h2>
+ * <h2>El vendedor se devuelve siempre que lo haya, y no es un adorno</h2>
  *
- * <p>Quien registra la venta <b>no lo eligió</b>: sale del cliente y se congela (`RN-MV-003`). Esta
- * respuesta es el único momento en que puede ver a quién acaba de atribuirse lo que vendió — y si
- * es el equivocado, el problema está en la estructura comercial y no en esta venta.
+ * <p>Quien registra la venta <b>no lo eligió</b>: sale de quien compra y se congela (`RN-MV-003`).
+ * Esta respuesta es el único momento en que puede ver a quién acaba de atribuirse lo que vendió — y
+ * si es el equivocado, el problema está en la estructura comercial y no en esta venta.
+ *
+ * <p><b>Desde el 04-09-2026 puede venir en nulo</b>, cuando quien compra no cuelga de nadie. Y
+ * viaja <b>en nulo y no ausente</b>: por eso este registro lleva {@code @JsonInclude(ALWAYS)} y se
+ * aparta del {@code non_null} global de {@code application.yml}. La diferencia entre «esta venta no
+ * tiene vendedor» y «esta respuesta no lo trae» es exactamente la que decide si alguien va a cobrar
+ * por ella, y colapsarla dejaría a cada consumidor adivinando.
  *
  * <h2>El descuento se devuelve aunque valga siempre cero</h2>
  *
@@ -27,6 +34,7 @@ import java.util.UUID;
  * respuesta no debe deducir el estado de que la operación haya tenido éxito: lo debe leer, porque
  * `RF-MV-003` a `RF-MV-005` devolverán el mismo objeto con otro valor.
  */
+@JsonInclude(JsonInclude.Include.ALWAYS)
 public record SaleResponse(
     UUID id,
     String code,

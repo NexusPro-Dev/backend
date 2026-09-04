@@ -307,13 +307,61 @@ class RegisterSaleIT extends IntegrationTestBase {
   }
 
   @Test
-  @DisplayName("CA-MV-017: sin vendedor la venta se NIEGA A EXISTIR, en lugar de nacer sin dueño")
-  void clienteSinVendedor() throws Exception {
-    // `RN-SP-027` promete que esto no ocurre, y se comprueba igual: una promesa
-    // de otro módulo no es una comprobación de este.
+  @DisplayName("CA-MV-017: sin vendedor la venta SE REGISTRA, sin atribución y sin error")
+  void compraSinVendedor() throws Exception {
+    // INVERTIDO EL 04-09-2026. Hasta entonces esto devolvía `409 EX-003`, con
+    // este argumento: «`RN-SP-027` promete que ningún cliente se registra sin
+    // vendedor, y una promesa de otro módulo no es una comprobación de este».
+    // El argumento era bueno y LA PREMISA ESTABA INCOMPLETA: daba por hecho que
+    // quien compra es siempre un cliente.
+    //
+    // No lo es. Un agente también compra, y `RN-SP-019` declara que LA CÚSPIDE
+    // de la fuerza comercial no declara superior — de modo que esa persona no
+    // podía comprar nada.
+    //
+    // El vendedor viaja EN NULO Y NO AUSENTE: la diferencia entre «no tiene
+    // vendedor» y «no vino el campo» es la que decide si alguien cobra por esta
+    // venta, y esta venta NO COMISIONA A NADIE.
+    String cuerpo =
+        mvc.perform(venta(clienteSinVendedor, TARJETA, linea(botSenales, 1)))
+            .andExpect(status().isCreated())
+            .andExpect(jsonPath("$.status").value("PENDIENTE"))
+            .andExpect(jsonPath("$.client.id").value(clienteSinVendedor.toString()))
+            .andExpect(jsonPath("$.code").value(org.hamcrest.Matchers.matchesPattern(CODIGO)))
+            .andReturn()
+            .getResponse()
+            .getContentAsString();
+
+    // SE MIRA EL JSON EN CRUDO, y no con `jsonPath(...).doesNotExist()`: ese
+    // matcher da por buenas las dos cosas —el campo ausente y el campo en
+    // nulo— y aquí la diferencia es justamente lo que se quiere fijar. La
+    // respuesta se aparta del `non_null` global de `application.yml` para que
+    // el vendedor viaje siempre.
+    assertThat(cuerpo).contains("\"seller\":null");
+
+    // Y en la base queda sin atribución, que es lo que la liquidación tendrá
+    // que tratar: `RN-CM-011` recorre la cadena hacia arriba desde el vendedor.
+    assertThat(
+            jdbc.queryForObject(
+                "SELECT seller_id FROM movements WHERE client_id = CAST(? AS uuid)",
+                UUID.class,
+                clienteSinVendedor.toString()))
+        .isNull();
+  }
+
+  @Test
+  @DisplayName("La auditoría registra la venta sin vendedor con la clave presente y en nulo")
+  void laAuditoriaDeLaVentaSinVendedor() throws Exception {
     mvc.perform(venta(clienteSinVendedor, TARJETA, linea(botSenales, 1)))
-        .andExpect(status().isConflict())
-        .andExpect(jsonPath("$.errors[0].code").value("EX-003"));
+        .andExpect(status().isCreated());
+
+    String cambios =
+        jdbc.queryForObject(
+            "SELECT changes::text FROM audit_change_log WHERE module = 'MV'", String.class);
+
+    // Omitir la clave se leería como «esta versión no lo registraba»; el nulo
+    // dice «esta venta no tiene vendedor», que es lo que ocurrió.
+    assertThat(cambios).contains("\"seller_id\": null");
   }
 
   @Test

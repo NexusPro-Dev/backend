@@ -158,7 +158,7 @@ CREATE TABLE movements (
     id                uuid           PRIMARY KEY,
     movement_type_id  uuid           NOT NULL,
     client_id         uuid           NOT NULL,
-    seller_id         uuid           NOT NULL,
+    seller_id         uuid           NULL,
     payment_method_id uuid           NOT NULL,
     currency_id       uuid           NOT NULL,
     code              varchar(30)    NOT NULL,
@@ -174,6 +174,20 @@ CREATE TABLE movements (
     CONSTRAINT fk_movements_type
         FOREIGN KEY (movement_type_id) REFERENCES movement_types (id) ON DELETE RESTRICT,
 
+    -- `seller_id` ADMITE NULO DESDE EL 04-09-2026 (`RN-MV-003`), y nacio
+    -- NOT NULL esa misma manana. La suposicion que se cayo: que toda venta
+    -- tiene a quien atribuirse. COMPRAR NO ES COSA SOLO DE LOS CLIENTES — un
+    -- agente tambien compra—, y `RN-SP-019` declara desde el principio que la
+    -- CUSPIDE de la fuerza comercial no declara superior: con la columna
+    -- obligatoria, esa persona no podia comprar nada.
+    --
+    -- LO QUE CUESTA, escrito donde esta la columna que lo produce: una venta
+    -- sin vendedor NO COMISIONA A NADIE. `RN-CM-011` liquida por override
+    -- recorriendo la cadena HACIA ARRIBA DESDE EL VENDEDOR, y sin punto de
+    -- partida no hay cadena que recorrer. Es correcto —nadie vendio, nadie
+    -- cobra— y la alternativa era inventar una atribucion: una comision pagada
+    -- a quien no vendio NO SE DETECTA, porque el dinero sale y el numero cuadra.
+    --
     -- ON DELETE RESTRICT en las dos personas. `users` tiene borrado LOGICO
     -- (`deleted_at`), de modo que esta restriccion no se ejerce en la practica
     -- — y esta para que un DELETE fisico hecho a mano no se lleve por delante
@@ -226,7 +240,7 @@ COMMENT ON TABLE movements IS
     'El libro de hechos economicos. NO lleva updated_at ni deleted_at (RN-MV-001): una venta no se edita y no se borra.';
 
 COMMENT ON COLUMN movements.seller_id IS
-    'RN-MV-003: el vendedor sale del cliente y SE CONGELA. Reasignar la cartera manana no cambia a quien se atribuyo esto.';
+    'RN-MV-003: el vendedor sale de quien compra y SE CONGELA. NULL = venta sin atribucion, que NO COMISIONA A NADIE.';
 
 COMMENT ON COLUMN movements.occurred_at IS
     'Cuando ocurrio la venta. De aqui sale el dia del codigo (RN-MV-016), no de created_at.';

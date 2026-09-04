@@ -4,7 +4,7 @@
 |---|---|
 | Requerimiento | `RF-MV-001` |
 | Módulo | `MV` — Movimientos |
-| Versión | 0.1.0 |
+| Versión | 0.2.0 |
 | Estado | **Aprobada** |
 | Autor | Responsable técnico |
 | Aprobada por | Responsable del proyecto |
@@ -75,7 +75,7 @@ Es el **primer requerimiento del módulo** y el que pone en el sistema el objeto
 | ID | Regla | Origen |
 |---|---|---|
 | `RN-MV-002` | Se copia lo que puede cambiar | `requirements/mv.md` §5.1 |
-| `RN-MV-003` | El vendedor sale del cliente y se congela | `requirements/mv.md` §5.1 |
+| `RN-MV-003` | El vendedor sale de quien compra y se congela, y **puede no haberlo** | `requirements/mv.md` §5.1 |
 | `RN-MV-004` | Solo una venta confirmada produce efectos | `requirements/mv.md` §5.1 |
 | `RN-MV-006` | Solo se sube de nivel | `requirements/mv.md` §5.1 |
 | `RN-MV-007` | El producto tiene que estar en la oferta de quien compra | `requirements/mv.md` §5.1 |
@@ -128,7 +128,9 @@ Es el **primer requerimiento del módulo** y el que pone en el sistema el objeto
 | Importes | Total, descuento e importe a pagar |
 | Fecha del hecho | La que se registró, sea la enviada o la de ahora |
 
-**El vendedor se devuelve siempre**, y no es un adorno. Quien registra la venta **no lo eligió**, de modo que la respuesta es el único momento en que puede ver a quién acaba de atribuirse lo que vendió — y si es el equivocado, el problema está en la estructura comercial y no en esta venta.
+**El vendedor se devuelve siempre que lo haya**, y no es un adorno. Quien registra la venta **no lo eligió**, de modo que la respuesta es el único momento en que puede ver a quién acaba de atribuirse lo que vendió — y si es el equivocado, el problema está en la estructura comercial y no en esta venta.
+
+**Desde el 04-09-2026 puede venir vacío**, cuando quien compra no cuelga de nadie. **Viaja igual, en nulo y no ausente**: la diferencia entre «esta venta no tiene vendedor» y «esta respuesta no lo trae» es exactamente la que decide si alguien va a cobrar por ella, y colapsarla dejaría a cada consumidor adivinando.
 
 **El descuento se devuelve aunque valga siempre cero.** Omitirlo obligaría a añadirlo al contrato el día que exista, y a que todos los consumidores lo traten como opcional para siempre.
 
@@ -150,7 +152,7 @@ Es el **primer requerimiento del módulo** y el que pone en el sistema el objeto
 
 1. El actor envía el cliente, el método de pago y las líneas.
 2. El sistema comprueba que el cliente existe y **que puede comprar**: ni eliminado, ni en `FTD_PENDIENTE`.
-3. El sistema resuelve **el vendedor del cliente** y lo retiene.
+3. El sistema resuelve **el vendedor de quien compra**, si lo hay, y lo retiene.
 4. El sistema comprueba la composición de las líneas: al menos una, sin productos repetidos, **como mucho un upgrade**, y cantidad uno en él.
 5. El sistema comprueba que **cada producto está en la oferta que le corresponde a ese cliente**.
 6. El sistema comprueba que **todos los productos comparten moneda**.
@@ -162,7 +164,7 @@ Es el **primer requerimiento del módulo** y el que pone en el sistema el objeto
 
 **El paso 5 va después del 4 a propósito.** Comprobar la oferta es lo más caro de la operación —hay que resolver qué puede comprar esa persona—, y hacerlo antes de saber si la petición está bien formada gastaría ese trabajo para rechazarla por un producto repetido.
 
-**El paso 3 va antes que todo lo demás que mira al cliente.** Si el cliente no cuelga de ningún vendedor la venta no se puede atribuir, y es mejor saberlo antes de resolver ofertas y precios.
+**El paso 3 ya no puede fallar, y se conserva donde está.** Desde el 04-09-2026 no encontrar vendedor **no rechaza nada**: la venta se registra sin atribución. Resolverlo aquí y no al final sigue siendo lo correcto —es una lectura del mismo cliente que el paso 2 acaba de verificar—, pero deja de ser una comprobación y pasa a ser un dato que se recoge.
 
 ## 9. Flujos alternativos
 
@@ -215,10 +217,17 @@ Es el **primer requerimiento del módulo** y el que pone en el sistema el objeto
 **Condición:** la cuenta se registró por enlace y su depósito no se ha confirmado.
 **Respuesta del sistema:** rechaza la venta diciendo que esa cuenta **todavía no puede operar**, y que lo que le falta es su depósito. **No se le vende y no se le deja a medias** (`RN-MV-008`).
 
-### EX-003 — El cliente no cuelga de ningún vendedor
+### ~~EX-003~~ — Retirada el 04-09-2026
 
-**Condición:** la persona existe y no tiene superior comercial.
-**Respuesta del sistema:** rechaza la venta diciendo que **no se puede atribuir**. `RN-SP-027` promete que esto no ocurre —ningún cliente se registra sin vendedor—, y esta excepción existe porque **una promesa de otro módulo no es una comprobación de este**: el día que falle, la venta tiene que negarse a existir en lugar de nacer sin dueño.
+**Decía:** «el cliente no cuelga de ningún vendedor → rechaza la venta diciendo que no se puede atribuir».
+
+**Se retira por decisión del responsable del proyecto, y no se borra**, porque el motivo por el que existía sigue leyéndose bien y llevaba a la conclusión equivocada: *«`RN-SP-027` promete que esto no ocurre, y una promesa de otro módulo no es una comprobación de este»*. El argumento era correcto **y la premisa incompleta** — daba por hecho que **quien compra es siempre un cliente**.
+
+**No lo es.** Un agente también compra, y la fuerza comercial no está hecha para que todos sus miembros cuelguen de otro: `RN-SP-019` declara que **la cúspide no declara superior**. Con esta excepción en pie, esa persona no podía comprar nada.
+
+**Qué ocurre ahora:** la venta se registra **sin vendedor**. No es un dato que falte ni un error que se tolera: es un estado legítimo. Lo que cuesta está en `spec.md` §13 y en `requirements/mv.md` §5.2 — **no comisiona a nadie**.
+
+**El número no se reutiliza.** Las excepciones siguen siendo `EX-001`, `EX-002`, `EX-004` a `EX-011`: renumerarlas cambiaría el código que ya devuelven las que no han cambiado.
 
 ### EX-004 — Un producto no está en la oferta del cliente
 
@@ -296,7 +305,7 @@ Es el **primer requerimiento del módulo** y el que pone en el sistema el objeto
 | `CA-MV-014` | El sistema rechaza productos en **monedas distintas** |
 | `CA-MV-015` | El sistema rechaza un método de pago inexistente o inactivo |
 | `CA-MV-016` | El sistema rechaza una venta **sin líneas**, sin cliente y con fecha futura |
-| `CA-MV-017` | El sistema rechaza la venta de un cliente **sin vendedor**, en lugar de registrarla sin atribución |
+| `CA-MV-017` | **Invertido el 04-09-2026.** El sistema **registra** la venta de quien no cuelga de ningún vendedor, **sin atribución** y sin error. Antes afirmaba lo contrario |
 | `CA-MV-018` | La auditoría de cambios contiene la creación con la instantánea completa, **incluido el vendedor congelado** |
 
 **`CA-MV-007` afirma que el sistema NO hace algo**, y es el criterio que sostiene todo el módulo. Sin él, la diferencia entre registrar y confirmar es una palabra en un documento; con él, es algo que falla si alguien la borra.
@@ -306,7 +315,8 @@ Es el **primer requerimiento del módulo** y el que pone en el sistema el objeto
 ## 13. Casos límite
 
 - **Un cliente sin membresía vigente:** no tiene oferta que resolver, de modo que **cualquier producto que se le intente vender cae en `EX-004`**. No es un caso especial de esta operación: es lo que `RF-PM-007` responde cuando no hay nivel del que partir.
-- **Una persona que no es cliente:** solo los consumidores tienen membresía (`RN-SP-018`), así que la venta a un funcionario o a un vendedor **se rechaza por la oferta**, no por una comprobación de rol propia. Se declara aquí porque el mensaje que verá quien lo intente hablará de la oferta y no del rol.
+- **Una persona que no es cliente:** solo los consumidores tienen membresía (`RN-SP-018`), de modo que quien no lo es **no tiene nivel del que partir** y su oferta son **los bots y nada más**. Puede comprarlos: intentar venderle un upgrade cae en `EX-004`, y el mensaje hablará de la oferta y no del rol. **Desde el 04-09-2026 esto importa de verdad**, porque es el caso que la decisión abrió: un agente compra bots con normalidad.
+- **Quien compra y no cuelga de nadie:** la venta se registra **sin vendedor** (`RN-MV-003`, desde el 04-09-2026). Ocurre con la **cúspide de la fuerza comercial**, que por `RN-SP-019` no declara superior, y con cualquiera a quien nadie haya colgado todavía. **La consecuencia es que esa venta no comisiona a nadie**: `RN-CM-011` liquida recorriendo la cadena hacia arriba desde el vendedor, y sin punto de partida no hay cadena. Es correcto —nadie vendió, nadie cobra— y **es la mitad cara de esta decisión**: la alternativa era inventar una atribución, y una comisión pagada a quien no vendió no se detecta, porque el dinero sale y el número cuadra.
 - **La membresía del cliente vence entre registrar y confirmar:** la venta ya está registrada y **no se revalida al confirmar**. Es una consecuencia aceptada de que la comprobación sea del momento del registro, y la alternativa —revalidar— haría que una venta pagada pudiera rechazarse por algo que el cliente no controla.
 - **El producto se retira del catálogo entre registrar y confirmar:** igual. Lo vendido está copiado y `RN-PM-010` garantiza que el producto no desaparece nunca.
 - **Dos ventas simultáneas del mismo upgrade al mismo cliente:** **las dos se registran**, y no hay ninguna regla que lo impida — ninguna de las dos ha concedido nada todavía. El conflicto aparece al confirmar la segunda, y es `RF-MV-003` quien tiene que resolverlo.
@@ -329,3 +339,4 @@ Es el **primer requerimiento del módulo** y el que pone en el sistema el objeto
 | Versión | Fecha | Cambio | Responsable |
 |---|---|---|---|
 | 0.1.0 | 02-09-2026 | Redacción inicial, sin preguntas abiertas. Es la primera tripleta del `MV` renacido, y la que fija cómo se comporta la venta: **nace pendiente**, **congela** precio, vigencia y vendedor, y **no acepta el precio como dato de entrada** — que es la decisión con más consecuencias de este documento, porque convierte «negociar el importe» en algo que no se puede hacer sin descuentos. Once excepciones, de las que tres —`EX-002`, `EX-005` y `EX-003`— existen para que la venta se niegue a nacer antes de cobrar en lugar de después. | Responsable técnico |
+| 0.2.0 | 04-09-2026 | **El vendedor deja de ser obligatorio, y con él se retira `EX-003`** (Art. I.7, sobre un requerimiento ya construido). Lo decidió el responsable del proyecto: **comprar no es cosa solo de los clientes** — un agente también compra. El motivo por el que `EX-003` existía sigue leyéndose bien —«una promesa de otro módulo no es una comprobación de este»— y **su premisa estaba incompleta**: daba por hecho que quien compra es siempre un cliente. `RN-SP-019` declara desde el principio que **la cúspide de la fuerza comercial no declara superior**, de modo que con esa excepción en pie esa persona **no podía comprar nada**. `CA-MV-017` **invierte su sentido**: afirmaba que la venta se rechazaba y ahora afirma que se registra, sin atribución y sin error. El vendedor sigue viajando en la respuesta y **puede venir en nulo**, nunca ausente: la diferencia entre «no tiene vendedor» y «no vino el campo» es la que decide si alguien cobra. **Lo que cuesta queda en §13**: una venta sin vendedor **no comisiona a nadie**, porque `RN-CM-011` recorre la cadena hacia arriba desde él. Se acepta a conciencia — la alternativa era inventar una atribución, y una comisión pagada a quien no vendió **no se detecta**. **El número de la excepción no se reutiliza** y el hueco queda a la vista, para que nadie lea `EX-004` creyendo que es la tercera. | Responsable del proyecto |

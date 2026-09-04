@@ -124,7 +124,7 @@ Cuatro datos que la petición no trae, y **ninguno se calcula aquí** ([`archite
 |---|---|
 | `400` | `VAL-001` a `VAL-007`: lo que se ve **mirando la petición** — falta el cliente, no hay líneas, cantidad no positiva, producto repetido, fecha futura |
 | `403` | Sin el permiso `movements:create` |
-| `409` | Lo que solo se sabe **después de resolver**: cuenta en `FTD_PENDIENTE` (`EX-002`), cliente sin vendedor (`EX-003`), producto fuera de la oferta (`EX-004`), upgrade que no sube (`EX-005`), dos upgrades (`EX-006`), monedas distintas (`EX-008`), cantidad en un upgrade (`EX-009`), método inactivo (`EX-010`) |
+| `409` | Lo que solo se sabe **después de resolver**: cuenta en `FTD_PENDIENTE` (`EX-002`), producto fuera de la oferta (`EX-004`), upgrade que no sube (`EX-005`), dos upgrades (`EX-006`), monedas distintas (`EX-008`), cantidad en un upgrade (`EX-009`), método inactivo (`EX-010`) |
 | `422` | `EX-001`, `EX-011` y el método inexistente: un dato **bien formado que no resuelve** contra otro módulo |
 
 **El criterio de reparto es el del proyecto, y aquí se aplica a rajatabla**: `400` es forma, `422` es referencia que no existe, `409` es conflicto con el estado del sistema. Lo que empuja tres excepciones al `409` que un lector pondría en `400` —dos upgrades, monedas distintas, cantidad en un upgrade— es que **ninguna de las tres se puede decidir sin haber leído el catálogo**: la petición es idéntica en forma a una correcta, y lo que la hace inválida es qué son esos productos.
