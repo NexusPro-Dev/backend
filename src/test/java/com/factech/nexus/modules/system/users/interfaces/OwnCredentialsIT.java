@@ -374,6 +374,19 @@ class OwnCredentialsIT extends IntegrationTestBase {
   }
 
   @Test
+  @DisplayName("CA-SP-473 — devuelve el identificador del actor, y es EL MISMO de su ficha")
+  void elPerfilTraeElIdentificador() throws Exception {
+    // No basta con que venga un `uuid`. Este campo existe para poner el
+    // identificador en el cuerpo de una compra (`R-28` del frontend), de modo
+    // que uno PLAUSIBLE Y EQUIVOCADO —el de la sesión, el de otra tabla—
+    // dejaría comprar a nombre de otro sin que nada fallara. Se contrasta
+    // contra el identificador real de la persona, no contra sí mismo.
+    mvc.perform(perfil(juan))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.id").value(juan.toString()));
+  }
+
+  @Test
   @DisplayName("`me` es un literal: no hay parámetros y no acepta el propio identificador")
   void sinParametros() throws Exception {
     // Pedir el propio detalle por la ruta con identificador es otra operación y

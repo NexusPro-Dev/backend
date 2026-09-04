@@ -965,6 +965,10 @@
           "firstName" : {
             "type" : "string"
           },
+          "id" : {
+            "format" : "uuid",
+            "type" : "string"
+          },
           "lastLoginAt" : {
             "format" : "date-time",
             "type" : "string"

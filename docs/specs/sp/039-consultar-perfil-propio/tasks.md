@@ -30,6 +30,20 @@ Sin migración y sin componentes de dominio: es una consulta (`plan.md` §3). La
 | `T-09` | Documentación OpenAPI del endpoint: respuesta `200` y estados `401` y `500`, con `lastLoginAt` descrito como **dato informativo de la sesión en curso**, no señal de acceso ajeno | `T-07` | El contrato publicado coincide con el comportamiento real (Art. VIII.6), y la descripción evita la lectura equivocada del último acceso | **Hecha** |
 | `T-10` | Actualizar la matriz de trazabilidad de `docs/requirements.md` | `T-07` | La fila de `RF-SP-039` refleja el estado y enlaza esta tripleta | **Hecha** |
 
+### 1.1 `id` en la respuesta — 04-09-2026
+
+Enmienda del Art. I.7 sobre un requerimiento ya implementado. La pidió el frontend como `R-28`, y lo que destapó es que el motivo por el que este campo faltaba —«quien pregunta ya sabe quién es»— **era falso**: el identificador viaja dentro del token y leerlo obligaría al navegador a descomponer un JWT.
+
+| ID | Tarea | Depende de | Verificación | Estado |
+|---|---|---|---|---|
+| `T-11` | `OwnProfileResponse` abre con `id`, y su Javadoc **deja de afirmar que no lo lleva** | — | La respuesta trae el `uuid` del actor | **Hecha** — 04-09-2026 |
+| `T-12` | Prueba de `CA-SP-473`: el identificador es **el mismo** con el que `RF-SP-026` consulta a esa persona | `T-11` | No basta con que venga un `uuid`: tiene que ser **ese**. Un identificador plausible y equivocado dejaría comprar a nombre de otro sin que nada fallara | **Hecha** — 04-09-2026 |
+| `T-13` | OpenAPI: el campo entra en el contrato publicado | `T-11` | `mvn verify` regenera `docs/api/` y CI compara | **Hecha** — 04-09-2026 |
+
+**`T-12` es la que importa, y no es una formalidad.** Este campo existe para poner el identificador en el cuerpo de una compra: si devolviera un `uuid` cualquiera —el de la sesión, el de otra tabla— la prueba de que «viene un identificador» pasaría igual, y el defecto aparecería como una venta a nombre de otro. Se contrasta contra la tabla, no contra sí mismo.
+
+**Lo que esta enmienda NO desbloquea, y conviene que quede escrito aquí también:** `POST /api/v1/movements` exige `movements:create`, hoy reservado a `SUPERADMIN` (`requirements/mv.md` §6.1). Un cliente sigue sin poder llamarlo. La compra propia es `RF-MV-002` —`POST /api/v1/movements/mine`, sin permiso—, aprobada el 02-09-2026 y **sin construir**.
+
 **Estados:** `Pendiente` · `En curso` · `Hecha` · `Bloqueada`.
 
 ## 2. Orden de ejecución

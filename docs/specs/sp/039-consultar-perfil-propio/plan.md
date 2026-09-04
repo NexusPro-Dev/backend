@@ -50,8 +50,11 @@ Y una asimetría que hay que conocer y no corregir: **el perfil puede mostrar me
 
 **Respuesta `200`**
 
+**Desde el 04-09-2026 la respuesta abre con `id`** (Art. I.7, `R-28` del frontend). Es el identificador **del actor**, resuelto del token como todo lo demás de esta respuesta: no añade parámetros, no permite señalar a nadie y `CA-SP-434` sigue intacto.
+
 ```json
 {
+  "id": "01a05f6a-…",
   "username": "jperez",
   "email": "jperez@ejemplo.com",
   "firstName": "Juan",

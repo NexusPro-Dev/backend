@@ -3,6 +3,7 @@ package com.factech.nexus.modules.system.users.application;
 import com.fasterxml.jackson.annotation.JsonInclude;
 import java.time.OffsetDateTime;
 import java.util.List;
+import java.util.UUID;
 
 /**
  * El perfil de quien pregunta (`RF-SP-039`).
@@ -21,14 +22,30 @@ import java.util.List;
  * <p><b>No se pagina.</b> Es el perfil de una sola persona; partirlo obligaría a pedirlo en trozos
  * para poder pintar un menú.
  *
- * <p><b>No lleva identificador</b>: quien pregunta ya sabe quién es. Y no lleva equipo a cargo —
- * eso es la consulta de estructura comercial, con su propio permiso y su propia paginación.
+ * <p><b>Lleva el identificador desde el 04-09-2026</b>, y la historia de por qué no lo llevaba vale
+ * la pena. El motivo escrito era «quien pregunta ya sabe quién es»: suena razonable y <b>es
+ * falso</b>. Quien pregunta sabe su nombre de usuario; el {@code uuid} viaja <b>dentro del
+ * token</b>, y leerlo desde una interfaz obliga a descomponer un JWT — que es justo lo que un
+ * cliente no debe hacer con una credencial.
+ *
+ * <p>Lo destapó el frontend al construir la compra propia (`R-28`): {@code POST /api/v1/movements}
+ * exige {@code clientId}, de modo que <b>quien compraba para sí mismo no podía decir quién era</b>.
+ * El rodeo disponible —buscarse en el listado de usuarios— exige {@code users:read}, que un cliente
+ * no tiene.
+ *
+ * <p><b>No abre alcance</b>: es el identificador <b>del propio actor</b>, se resuelve del token
+ * como todo lo demás de esta respuesta, y la operación sigue sin admitir parámetros — no hay forma
+ * de señalar a otra persona (`CA-SP-434`, intacto).
+ *
+ * <p>No lleva equipo a cargo — eso es la consulta de estructura comercial, con su propio permiso y
+ * su propia paginación.
  *
  * <p>{@code membership} y {@code supervisor} van <b>ausentes</b>, no en nulo, cuando no aplican: la
  * interfaz distingue «no tiene» de «no se pudo resolver».
  */
 @JsonInclude(JsonInclude.Include.NON_NULL)
 public record OwnProfileResponse(
+    UUID id,
     String username,
     String email,
     String firstName,
