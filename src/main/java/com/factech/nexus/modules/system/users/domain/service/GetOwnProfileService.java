@@ -77,6 +77,13 @@ public class GetOwnProfileService {
     Set<String> efectivos = permisos.forUser(quien).orElseGet(Set::of);
 
     return new OwnProfileResponse(
+        // Sale de LA FILA y no de `quien`, aunque sean el mismo valor: es el
+        // identificador con el que `RF-SP-026` consulta a esta persona, que es
+        // lo que `CA-SP-473` exige. Tomarlo del token daría hoy lo mismo y
+        // dejaría de darlo el día que la identidad del token y la de la ficha
+        // pudieran diferir — y ese día nadie se enteraría, porque un `uuid`
+        // plausible y equivocado deja comprar a nombre de otro sin fallar.
+        fila.id(),
         fila.username(),
         fila.email(),
         fila.firstName(),

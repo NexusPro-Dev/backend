@@ -22,10 +22,9 @@ tags:
   description: "Catálogo de venta: upgrades de membresía y bots."
 - name: Roles
   description: Registro y administración de los roles del sistema.
-- name: Usuarios
-  description: Alta y administración de las personas del sistema.
-- name: Permisos
-  description: Catálogo de permisos del sistema. Solo lectura.
+- name: Movimientos
+  description: "El libro de hechos económicos: qué se vendió, a quién y a quién se\
+    \ le atribuye."
 - name: Auditoría
   description: "Los cuatro registros de auditoría del sistema. Solo lectura, y cada\
     \ uno con su permiso."
@@ -37,6 +36,12 @@ tags:
   description: "Tasas de comisión personalizadas: la excepción por persona."
 - name: Membresías
   description: Cadena lineal de niveles de consumidor. Inmutable salvo el reordenamiento.
+- name: Usuarios
+  description: Alta y administración de las personas del sistema.
+- name: Permisos
+  description: Catálogo de permisos del sistema. Solo lectura.
+- name: Métodos de pago
+  description: "Con qué se puede pagar, y en qué países no vale cada medio."
 - name: Comisiones
   description: Resolución de la comisión efectiva de una persona sobre un producto.
 - name: Monedas
@@ -1247,6 +1252,59 @@ paths:
           description: El producto ya estaba retirado (`EX-002`)
         "500":
           description: Fallo no controlado (`ERR-500`)
+  /api/v1/movements:
+    post:
+      tags:
+      - Movimientos
+      summary: Registrar una venta a nombre de un cliente
+      description: |
+        Deja constancia de **qué le vendió la empresa a un cliente**, como un hecho que
+        **todavía no está pagado**.
+
+        **La venta nace `PENDIENTE`, y eso significa que no concede nada.** No sube de
+        nivel a nadie, no habilita ninguna cuenta y no comisiona: registrar una venta
+        **no cambia absolutamente nada fuera de este módulo**. Confirmarla es otra
+        operación.
+
+        **El precio no se envía: se toma del catálogo.** Se indica qué productos y
+        cuántos, nunca cuánto cuestan — un precio que llegara en la petición sería un
+        descuento sin autorización y sin rastro. Tampoco se envían la moneda, la
+        vigencia ni el vendedor: la moneda y la vigencia salen del producto, y **el
+        vendedor sale del cliente** y se congela en la venta.
+
+        **Lo copiado queda congelado.** Corregir mañana el precio de un producto, o
+        reasignar el cliente a otro agente, no cambia lo que se vendió hoy.
+
+        Reglas de composición: **como mucho un upgrade** por venta y con cantidad uno,
+        sin productos repetidos y todas las líneas en la misma moneda.
+      operationId: registrar_3
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/RegisterSaleRequest"
+        required: true
+      responses:
+        "201":
+          description: "Venta registrada, pendiente de pago."
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/SaleResponse"
+        "400":
+          description: "Lo que se ve mirando la petición: falta el cliente o el mé\
+            todo de pago, no hay líneas, la cantidad no es positiva, un producto se\
+            \ repite, o la fecha del hecho está en el futuro."
+        "403":
+          description: Sin el permiso `movements:create`.
+        "409":
+          description: "Lo que solo se sabe después de resolver: la cuenta no puede\
+            \ operar todavía, el cliente no cuelga de ningún vendedor, un producto\
+            \ no está en su oferta, el upgrade no sube de nivel, hay dos upgrades,\
+            \ las monedas difieren, o el método de pago está desactivado."
+        "422":
+          description: "Un dato bien formado que no resuelve: el cliente, un producto\
+            \ o el método de pago no existen."
   /api/v1/memberships:
     get:
       tags:
@@ -1293,7 +1351,7 @@ paths:
 
         El nivel y la superior **no se envían**: los calcula el sistema. Enviar
         `level` o `parentMembershipId` devuelve `400`.
-      operationId: registrar_3
+      operationId: registrar_4
       requestBody:
         content:
           application/json:
@@ -1373,7 +1431,7 @@ paths:
         alguna, pero **no puede coincidir** con otro ya registrado ignorando
         mayúsculas y acentos: el catálogo no se edita, y el duplicado sería
         permanente.
-      operationId: registrar_4
+      operationId: registrar_5
       requestBody:
         content:
           application/json:
@@ -1458,7 +1516,7 @@ paths:
 
         **El porcentaje cero es válido** y significa «esto no comisiona», que **no
         es lo mismo** que no declarar la tasa.
-      operationId: registrar_5
+      operationId: registrar_6
       requestBody:
         content:
           application/json:
@@ -3301,6 +3359,40 @@ paths:
             '*/*':
               schema:
                 $ref: "#/components/schemas/PermissionResponse"
+  /api/v1/payment-methods:
+    get:
+      tags:
+      - Métodos de pago
+      summary: Consultar los métodos de pago
+      description: |
+        Devuelve los métodos de pago **activos**, sin paginar y ordenados por código.
+
+        **`excludedCountries` dice dónde NO vale cada medio.** Una lista vacía
+        significa que vale en todos los países, y el campo **viaja siempre**:
+        no hay que distinguir «sin exclusiones» de «no vino el campo».
+
+        **Esta restricción es informativa y el servidor NO la aplica.** Registrar
+        una venta con un método excluido en algún país **se registra con
+        normalidad**: quien decide qué ofrecer es el cliente que consume esta
+        respuesta. El servidor no sabe de qué país es quien compra — ninguna
+        persona del sistema tiene país todavía.
+
+        **No admite parámetros**, y en particular no admite un país: filtrar aquí
+        haría creer que el servidor sabe cuál corresponde.
+
+        **No exige permiso**, solo estar autenticado. `movements:read` gobierna ver
+        ventas y hoy está reservado al superadministrador; exigirlo aquí dejaría sin
+        métodos de pago a la pantalla de compra propia, que no pide ningún permiso.
+      operationId: consultar_2
+      responses:
+        "200":
+          description: El catálogo de métodos de pago activos.
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/PaymentMethodCatalogResponse"
+        "401":
+          description: Sin token.
   /api/v1/memberships/{id}:
     get:
       tags:
@@ -3350,7 +3442,7 @@ paths:
         Las monedas inactivas no aparecen salvo que se pidan con
         `includeInactive=true`, que **añade** a las activas en lugar de
         sustituirlas.
-      operationId: consultar_2
+      operationId: consultar_3
       parameters:
       - name: peticion
         in: query
@@ -4361,6 +4453,118 @@ components:
       properties:
         reason:
           type: string
+    RegisterSaleRequest:
+      type: object
+      properties:
+        clientId:
+          type: string
+          format: uuid
+        paymentMethodId:
+          type: string
+          format: uuid
+        lines:
+          type: array
+          items:
+            $ref: "#/components/schemas/SaleLineRequest"
+          minItems: 1
+        occurredAt:
+          type: string
+          format: date-time
+      required:
+      - clientId
+      - lines
+      - paymentMethodId
+    SaleLineRequest:
+      type: object
+      properties:
+        productId:
+          type: string
+          format: uuid
+        quantity:
+          type: integer
+          format: int32
+          minimum: 1
+      required:
+      - productId
+      - quantity
+    SaleCurrency:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        code:
+          type: string
+    SaleLineResponse:
+      type: object
+      properties:
+        productId:
+          type: string
+          format: uuid
+        productCode:
+          type: string
+        productName:
+          type: string
+        quantity:
+          type: integer
+          format: int32
+        unitPrice:
+          type: number
+        lineAmount:
+          type: number
+        validityDays:
+          type: integer
+          format: int32
+    SaleParty:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        username:
+          type: string
+        name:
+          type: string
+    SaleResponse:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        code:
+          type: string
+        status:
+          type: string
+        client:
+          $ref: "#/components/schemas/SaleParty"
+        seller:
+          type:
+          - object
+          - "null"
+          $ref: "#/components/schemas/SaleParty"
+          description: "A quién se atribuye la venta. NULO cuando quien compra no\
+            \ cuelga de ningún vendedor — un agente, o la cúspide de la fuerza comercial.\
+            \ Esa venta NO comisiona a nadie."
+        currency:
+          $ref: "#/components/schemas/SaleCurrency"
+        paymentMethod:
+          type: string
+        lines:
+          type: array
+          items:
+            $ref: "#/components/schemas/SaleLineResponse"
+        totalAmount:
+          type: number
+        discountAmount:
+          type: number
+        payableAmount:
+          type: number
+        occurredAt:
+          type: string
+          format: date-time
+        createdAt:
+          type: string
+          format: date-time
     RegisterMembershipRequest:
       type: object
       properties:
@@ -4715,6 +4919,9 @@ components:
     OwnProfileResponse:
       type: object
       properties:
+        id:
+          type: string
+          format: uuid
         username:
           type: string
         email:
@@ -5191,6 +5398,35 @@ components:
           type: array
           items:
             $ref: "#/components/schemas/PermissionResponse"
+    ExcludedCountry:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        code:
+          type: string
+    PaymentMethodCatalogResponse:
+      type: object
+      properties:
+        content:
+          type: array
+          items:
+            $ref: "#/components/schemas/PaymentMethodResponse"
+    PaymentMethodResponse:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        code:
+          type: string
+        name:
+          type: string
+        excludedCountries:
+          type: array
+          items:
+            $ref: "#/components/schemas/ExcludedCountry"
     ListMembershipsRequest:
       type: object
       properties:

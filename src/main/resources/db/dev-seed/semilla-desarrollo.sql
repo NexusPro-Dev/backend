@@ -156,13 +156,43 @@ SELECT i.id, r.id, r.role_type
 -- rol vendedor de mayor rango —aquel cuyo rol padre no es `VENDEDOR`—, y el
 -- padre de `MANAGER` es `ADMIN`. Es la cúspide de la fuerza comercial.
 --
--- `ADMIN` y `CLIENTE` QUEDAN FUERA porque no son vendedores. Darles superior
--- habría poblado la tabla con filas que ninguna regla admite.
+-- LOS CLIENTES TAMBIÉN CUELGAN, desde el 04-09-2026. Hasta hoy este comentario
+-- decía que quedaban fuera «porque no son vendedores», y eso dejó de ser cierto
+-- el 01-09-2026 con `RN-SP-028`: el cliente cuelga de su vendedor EN ESTA MISMA
+-- TABLA, con el cliente en `user_id` y el vendedor en `supervisor_id`. La
+-- semilla iba tres días por detrás del diseño, y mientras tanto NO HABÍA NI UNA
+-- CARTERA en desarrollo — de modo que la mitad comercial de una venta no se
+-- podía ver funcionando en local.
+--
+-- LOS TRES CUELGAN A PROFUNDIDAD DISTINTA, y esa es la decisión de este bloque:
+--
+--     cliente1 → agente1     el caso normal
+--     cliente2 → director1   salta un escalón
+--     cliente3 → manager1    salta dos
+--
+-- `RN-SP-020` lo permite: su RAMA DE CONSUMIDOR solo exige que el superior
+-- porte ALGÚN rol `VENDEDOR`, sin parentesco que comprobar — un cliente no
+-- tiene rol vendedor del que derivar un padre, y cualquiera de la fuerza
+-- comercial puede traerlo. Es la diferencia con la rama de arriba, donde un
+-- agente sí debe colgar de un director y de nadie más.
+--
+-- Y NO ES UN CAPRICHO: la cadena de comisiones se recorre HACIA ARRIBA desde
+-- quien tiene al cliente, de modo que su profundidad decide cuántos cobran. Con
+-- los tres colgados de un agente, «el cliente de un director» sería un caso que
+-- el diseño admite y que en desarrollo no existiría — y es justo el que obliga
+-- a decidir a qué tarifa cobra quien está pegado al cliente cuando NO es un
+-- agente.
+--
+-- `ADMIN` SIGUE FUERA: no es vendedor, no participa de la estructura comercial
+-- y no tiene cartera.
 --
 -- TRES A CARGO POR DIRECTOR Y NO UNO, por decisión del responsable del
 -- proyecto: un equipo de uno no distingue «el equipo de alguien» de «alguien»,
 -- y `RN-SP-022` —que rechaza desactivar a quien tiene personas a cargo— se
--- cumpliría por accidente con cualquier implementación.
+-- cumpliría por accidente con cualquier implementación. Con los clientes
+-- dentro, `director1` pasa a tener CUATRO a cargo —tres agentes y un cliente— y
+-- `agente1` y `manager1` uno cada uno: es la mezcla que `RF-SP-042` tiene que
+-- saber devolver distinguiendo por rol.
 --
 -- ES REPETIBLE como el resto: si la persona ya tiene un superior VIGENTE, no se
 -- toca. Reasignar es `RF-SP-041`, no trabajo de esta semilla.
@@ -178,6 +208,15 @@ SELECT pg_temp.uuid_v7(), subordinado.id, superior.id
         -- Y cada director bajo su manager.
         SELECT 'director' || n, 'manager' || n
           FROM generate_series(1, 3) AS n
+         UNION ALL
+        -- Los clientes, cada uno a una profundidad distinta. Se enumeran a mano
+        -- y no con una serie: son tres casos ELEGIDOS —normal, un salto, dos
+        -- saltos— y una formula los volveria a hacer intercambiables.
+        SELECT * FROM (VALUES
+            ('cliente1', 'agente1'),
+            ('cliente2', 'director1'),
+            ('cliente3', 'manager1')
+        ) AS cartera(de, a)
        ) AS enlace
   JOIN users subordinado ON subordinado.username = enlace.de
   JOIN users superior    ON superior.username    = enlace.a

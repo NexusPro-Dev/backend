@@ -1,5 +1,6 @@
 package com.factech.nexus.modules.system.users.domain.repository;
 
+import com.factech.nexus.modules.system.users.application.ClientCatalog;
 import com.factech.nexus.modules.system.users.application.CurrentMembershipLookup;
 import com.factech.nexus.modules.system.users.application.SellerRoleCatalog;
 import com.factech.nexus.modules.system.users.application.UserCatalog;
@@ -18,17 +19,17 @@ import org.springframework.transaction.annotation.Transactional;
  * Adaptador de las tres interfaces que este submódulo <b>publica</b> hacia otros módulos
  * (**D-25**).
  *
- * <p><b>Tres interfaces y un solo adaptador</b>, y eso no contradice a «una interfaz por lectura»:
- * lo que §15.2 separa son los <b>contratos</b>, para que añadir un método a uno no cambie el del
- * otro. Quién los implementa es una decisión interna de `SP`, y las tres lecturas salen de las
- * mismas tablas.
+ * <p><b>Cuatro interfaces y un solo adaptador</b>, y eso no contradice a «una interfaz por
+ * lectura»: lo que §15.2 separa son los <b>contratos</b>, para que añadir un método a uno no cambie
+ * el del otro. Quién los implementa es una decisión interna de `SP`, y las cuatro lecturas salen de
+ * las mismas tablas.
  *
  * <p>Proyecta a los modelos de lectura aquí dentro: si {@code User} saliera de estos métodos, el
  * otro módulo tendría una entidad JPA viva en las manos.
  */
 @Repository
 public class PublishedUserCatalog
-    implements UserCatalog, SellerRoleCatalog, CurrentMembershipLookup {
+    implements UserCatalog, SellerRoleCatalog, CurrentMembershipLookup, ClientCatalog {
 
   private final EntityManager em;
   private final UserRepository usuarios;
@@ -143,6 +144,65 @@ public class PublishedUserCatalog
                     membresia.code(),
                     membresia.name(),
                     membresia.level()));
+  }
+
+  // ---------------------------------------------------------------------------
+  // ClientCatalog (`RF-MV-001` · `T-07`)
+  // ---------------------------------------------------------------------------
+
+  /**
+   * El cliente a nombre de quien se vende.
+   *
+   * <p><b>Reutiliza {@code findNotDeletedById} y no escribe un {@code SELECT} propio</b>, que es
+   * exactamente lo que hace {@link #currentMembershipOf} con {@code findMembership}: la definición
+   * de «existe» —no eliminada, sin exigir estado— vive en el repositorio y no se reimplementa por
+   * cada consumidor.
+   *
+   * <p><b>El estado se proyecta a cadena aquí</b>, y es lo único que este método traduce. Devolver
+   * el enumerado dejaría a `MV` recompilando cada vez que `SP` estrene un valor.
+   */
+  @Override
+  @Transactional(readOnly = true)
+  public Optional<ClientView> findClient(UUID id) {
+    if (id == null) {
+      return Optional.empty();
+    }
+    return usuarios
+        .findNotDeletedById(id)
+        .map(
+            persona ->
+                new ClientView(
+                    persona.getId(),
+                    persona.getUsername(),
+                    persona.getFirstName(),
+                    persona.getLastName(),
+                    persona.getStatus().name()));
+  }
+
+  /**
+   * El vendedor del que cuelga el cliente.
+   *
+   * <p><b>Se descarta {@code roleCode} y {@code since} al proyectar</b>, y no por omisión: el
+   * primero solo dice si el superior porta un rol `VENDEDOR` —lo comprueba `RN-SP-020` al colgarlo,
+   * y volver a exigirlo al vender convertiría una estructura mal formada en una venta rechazada— y
+   * el segundo responde «desde cuándo reporta», que a una venta no le concierne. Lo que cruza la
+   * frontera es lo que se va a congelar y lo que se va a devolver resuelto, y nada más.
+   */
+  @Override
+  @Transactional(readOnly = true)
+  public Optional<SellerView> sellerOf(UUID id) {
+    if (id == null) {
+      return Optional.empty();
+    }
+    return usuarios
+        .findActiveSupervisor(id)
+        .map(
+            superior ->
+                new SellerView(
+                    superior.supervisorId(),
+                    superior.username(),
+                    superior.firstName(),
+                    superior.lastName()));
   }
 
   /** Nombre y apellido, o nulo si no hay ninguno de los dos. */

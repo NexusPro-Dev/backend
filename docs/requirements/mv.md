@@ -5,11 +5,11 @@
 | Módulo | `MV` — Movimientos |
 | Paquete | `modules/movements` |
 | Prefijos de permiso | `movements:` |
-| Versión | 0.3.0 |
+| Versión | 0.6.0 |
 | Estado | **Borrador** |
 | Responsable | Bonilla Diaz William Steven |
 | Fecha de creación | 02-09-2026 |
-| Última actualización | 03-09-2026 |
+| Última actualización | 04-09-2026 |
 
 !!! info "Qué va en este documento"
 
@@ -89,7 +89,7 @@ Según [`modules.md` §5](../modules.md).
 | Submódulo | Responsabilidad | Entidades principales |
 |---|---|---|
 | Ventas | Registrar, resolver y consultar lo vendido | `movements`, `movement_types`, `movement_details` |
-| Medios de pago | Con qué se pagó | `payment_methods` |
+| Medios de pago | Con qué se pagó, y **dónde no se puede pagar así** | `payment_methods`, `payment_method_exclusions` |
 
 **Por qué los medios de pago son un submódulo y no un catálogo de `SP`.** Los catálogos de `SP` —monedas, países, membresías— los necesita **el sistema entero** para autorizar, validar o mostrar. Un método de pago solo lo necesita quien registra dinero, y [`modules.md` §2.1](../modules.md#21-regla-de-decision) es explícito: si solo lo usa un módulo, es un submódulo suyo.
 
@@ -100,8 +100,9 @@ Según [`modules.md` §5](../modules.md).
 | Módulo | Tipo | Para qué |
 |---|---|---|
 | `SP` | Consume | **Usuarios**: que el cliente exista, y en qué estado está |
-| `SP` | Consume | **La estructura comercial**: de qué vendedor cuelga el cliente (`user_supervisors`, `RN-SP-020`) |
+| `SP` | Consume | **La estructura comercial**: de qué vendedor cuelga quien compra (`user_supervisors`), **si cuelga de alguno** — desde el 04-09-2026 el vendedor es opcional (`RN-MV-003`) |
 | `SP` | Consume | **Monedas**: la del importe, con sus decimales |
+| `SP` | Consume | **Países**: en cuáles no vale cada método de pago (`RN-MV-019`). Es una **clave foránea y no una interfaz publicada**, y ahí está la diferencia con las tres de arriba: `payment_method_exclusions` es una tabla de `MV` que apunta a `countries`, no una lectura que `MV` le haga a `SP` |
 | `SP` | **Escribe** | **Conceder el nivel comprado** cuando la venta se confirma — ver **D-26** |
 | `PM` | Consume | **Productos**: precio, moneda, vigencia en días y membresía destino |
 | `PM` | Consume | **La oferta de quien compra** (`RF-PM-007`), que es lo que este módulo valida en `RN-MV-007` |
@@ -183,7 +184,7 @@ La dependencia es **acíclica**: `MV` → `PM` → `SP`, y `MV` → `SP`.
 |---|---|---|---|---|
 | `RN-MV-001` | La venta **no se edita y no se borra**; solo avanza su estado | Siempre | Ningún importe, cantidad, producto ni participante cambia después de creada, y **no hay eliminación — ni lógica ni física**. Lo único mutable es `status`, y solo hacia adelante (`RN-MV-005`). **Por eso la tabla no lleva `updated_at` ni `deleted_at`**: una columna que promete una edición que ninguna operación debe hacer no falla — invita | **Crítica** |
 | `RN-MV-002` | Se copia **lo que puede cambiar**; lo inmutable se referencia | Al registrar | **Precio unitario y vigencia en días se guardan en la línea**, porque `RF-PM-004` corrige el precio y `RN-PM-015` declara la vigencia del producto. La **membresía destino no se copia**: `RF-PM-004` **rechaza cambiarla**, de modo que leerla del producto da siempre el mismo valor y copiarla solo añadiría un sitio donde el dato pudiera discrepar de sí mismo. Nada se relee del catálogo después | **Crítica** |
-| `RN-MV-003` | El vendedor **sale del cliente y se congela** | Al registrar | No se teclea: se toma el **superior vigente del cliente** en `user_supervisors` —el que `RF-SP-045` le asignó al registrarse— y se guarda en la venta. Reasignar mañana un cliente **no puede cambiar quién ganó por lo vendido hoy**. **Quién registró la operación no se guarda aquí**: va al registro de auditoría, y no cobra nada — sin esa separación, el día que alguien de oficina registre la venta de un agente la cadena de comisiones arranca en la persona equivocada | **Crítica** |
+| `RN-MV-003` | El vendedor **sale de quien compra y se congela**, y **puede no haberlo** | Al registrar | No se teclea: se toma el **superior vigente de quien compra** en `user_supervisors` y se guarda en la venta. Reasignarlo mañana **no puede cambiar quién ganó por lo vendido hoy**. **Quién registró la operación no se guarda aquí**: va al registro de auditoría, y no cobra nada — sin esa separación, el día que alguien de oficina registre la venta de un agente la cadena de comisiones arranca en la persona equivocada. **Desde el 04-09-2026 el vendedor es opcional**: quien compra sin colgar de nadie compra igual, y la venta se registra **sin atribución** | **Crítica** |
 | `RN-MV-004` | Solo una venta **confirmada** produce efectos | Siempre | Una venta `PENDIENTE` no concede ningún nivel, no habilita ninguna cuenta y no comisiona. Sin esta regla, **iniciar un cobro concede lo que se está comprando**, y no hace falta mala fe: basta con que el pago no llegue | **Crítica** |
 | `RN-MV-005` | Los estados y sus transiciones son **cuatro y cerradas** | Al resolver | `PENDIENTE` → `CONFIRMADA`, `RECHAZADA` o `ANULADA`. **De `CONFIRMADA` no se sale**, porque ya concedió lo comprado y deshacerlo es una operación que no existe (§5.3). `RECHAZADA` y `ANULADA` son finales. Se declara en el esquema como `CHECK`, y la transición en el caso de uso | **Crítica** |
 | `RN-MV-006` | **Solo se sube de nivel** | Al registrar una venta con upgrade | Comprar una membresía **igual o inferior** a la vigente **se rechaza al registrar**, antes de cobrar nada. Cobrar por algo que no da nada es el reclamo que ninguna prueba de camino feliz encuentra. La comparación es sobre el **nivel** de la cadena de membresías, donde **superior significa número menor** | **Crítica** |
@@ -199,6 +200,8 @@ La dependencia es **acíclica**: `MV` → `PM` → `SP`, y `MV` → `SP`.
 | `RN-MV-016` | Toda venta lleva un **código legible**, y su día sale del hecho | Al registrar | `<prefijo del tipo>-<AAAAMMDD>-<seis aleatorios>`, único (§7.2.1). El día se corta en la **zona de la operación —`America/Bogota`—** y no en UTC ([`architecture.md` §15.1.1](../architecture.md)): con UTC, una venta de las 23:30 en Bogotá llevaría el día siguiente. La fecha es la de **`occurred_at`**. El aleatorio usa el alfabeto de 32 de Crockford —**sin `I`, `L`, `O` ni `U`**— porque este código se dicta por teléfono y se teclea, y `O` contra `0` es el error que se comete. **No sustituye al identificador interno**: `id` sigue siendo el UUID | Alta |
 | `RN-MV-017` | El catálogo de tipos **no se edita por API** y no se borra | Siempre | Se siembra por migración, como el de monedas. El motivo es más fuerte que allí: **el caso de uso decide según el tipo**, de modo que uno añadido en caliente sería un tipo que ningún código sabe procesar — el sistema aceptaría el movimiento y no haría nada con él. Es el defecto que no falla: promete. Y **no lleva borrado**, porque un tipo eliminado deja movimientos históricos apuntando a algo que ya no significa nada | **Crítica** |
 | `RN-MV-018` | Un método de pago desactivado **no invalida** lo que se pagó con él | Siempre | La validación es del **momento del registro**, no permanente. Es el mismo criterio de `RN-PM-008` con las monedas | Media |
+| `RN-MV-019` | Un método de pago puede estar **excluido en países concretos**, y esa exclusión **se publica, no se comprueba** | Al consultar los métodos de pago (`RF-MV-009`) | No todos los medios operan en todas partes: `PSE` es colombiano y no significa nada en México. El sistema **declara dónde NO vale cada método** y lo devuelve junto al catálogo; **quién aplica ese filtro es el cliente que lo consume**. Un método **sin exclusiones vale en todos los países**, que es el estado de los tres sembrados hoy. **Esta regla no interviene al registrar una venta** — ver §5.3 | Media |
+| `RN-MV-020` | Una venta **confirmada** que lleva un upgrade **concede la membresía comprada** | Al confirmar el pago **completo** de una venta (`RF-MV-003`) | Es la contraparte de `RN-MV-004`: si registrar no concede nada, **confirmar tiene que conceder**, o confirmar no significa nada. La membresía es la **destino del producto de la línea de upgrade** —a lo sumo una, por `RN-MV-010`— y la vigencia sale de los `validity_days` **copiados en la línea**, contados desde la confirmación. Escribe en `user_memberships`, que es de `SP`: es la primera escritura entre módulos y la gobierna **D-26**. Ver §5.4 | **Crítica** |
 
 ### 5.2 Por qué las críticas son críticas
 
@@ -206,7 +209,21 @@ La dependencia es **acíclica**: `MV` → `PM` → `SP`, y `MV` → `SP`.
 
 **`RN-MV-002` y `RN-MV-003` — congelar, no referenciar.** Son la misma regla aplicada a dos cosas distintas, y las dos las **impusieron otros documentos antes de que este módulo existiera**: `pm.md` §1.4 para el precio y la vigencia, y la estructura comercial para el vendedor. El defecto que evitan no falla en el momento: aparece cuando alguien corrige un precio, o reasigna un cliente, y descubre que acaba de cambiar el pasado.
 
+!!! important "El vendedor pasó a ser opcional el 04-09-2026, y no compra solo quien es cliente"
+
+    Hasta hoy, una venta **exigía** que quien compraba colgase de alguien: sin superior vigente, la operación se rechazaba para no registrar una venta sin dueño. La decisión del responsable del proyecto es retirar esa exigencia, **porque comprar no es cosa solo de los clientes**: un agente también compra, y la fuerza comercial no está hecha para que todos sus miembros cuelguen de otro.
+
+    **El caso que lo destapa está escrito en `sp.md` desde el principio.** `RN-SP-019` dice que **la cúspide de la fuerza comercial no declara superior** —quien porta el rol vendedor de mayor rango, aquel cuyo rol padre ya no es `VENDEDOR`—. Esa persona existe, no cuelga de nadie por diseño, y con la regla anterior **no podía comprar nada**: no por una decisión de negocio, sino porque la venta no sabía a quién atribuirla.
+
+    **Lo que se retira es la exigencia, no la deducción.** Quien tiene superior sigue produciendo una venta atribuida a él, exactamente igual que antes; quien no lo tiene produce una venta **sin vendedor**, y eso es un estado legítimo y no un dato que falte.
+
+    **Y lo que cuesta hay que leerlo entero: una venta sin vendedor NO COMISIONA A NADIE.** `RN-CM-011` liquida por *override* recorriendo la cadena **hacia arriba desde el vendedor**, de modo que sin ese punto de partida no hay cadena que recorrer. Es correcto —nadie vendió, nadie cobra— y es una diferencia que quien construya la liquidación tiene que tratar: **la alternativa era inventar una atribución**, y una comisión pagada a quien no vendió es un error que no se detecta, porque el dinero sale y el número cuadra.
+
+    **Esto no cambia `RN-SP-027` ni `RN-SP-020`.** Un cliente registrado por enlace sigue exigiendo vendedor: es una regla de `SP` sobre **cómo se crean** los clientes, no sobre quién puede comprar. Lo que `MV` deja de hacer es **exigir el cumplimiento de una promesa ajena** en cada venta, que además era el único sitio donde se comprobaba.
+
 **`RN-MV-004` y `RN-MV-005` — el estado es lo único que se mueve, y no se mueve hacia atrás.** Sin la primera, iniciar un cobro concede lo que se está comprando. Sin la segunda, «confirmada» deja de significar algo: una venta que puede volver a pendiente es una venta cuyo efecto nadie puede dar por firme.
+
+**`RN-MV-020` — y por eso confirmar tiene que conceder.** Es la contraparte de `RN-MV-004`, y las dos solo valen juntas: una dice que registrar no hace nada y la otra dice qué hace confirmar. Con la primera sola, «pendiente» y «confirmada» serían dos palabras para el mismo hecho sin efecto — que es exactamente lo que hoy ocurre, porque `RF-MV-003` no está construido. Se desarrolla en §5.4, **con un caso deliberadamente sin decidir**.
 
 **`RN-MV-006`, `RN-MV-008` y `RN-MV-010` — las tres que protegen a quien paga.** Cobrar un nivel que no sube, venderle a una cuenta que todavía no opera, o cobrar dos upgrades que no se pueden aplicar los dos. Ninguna de las tres rompe nada técnicamente: las tres producen un cobro que hay que devolver, y devolver dinero en este sistema **es una etapa que ni siquiera existe**.
 
@@ -218,7 +235,41 @@ La dependencia es **acíclica**: `MV` → `PM` → `SP`, y `MV` → `SP`.
 
 **Cómo se escribe en `SP`.** Es **D-26** (§3). Este documento recomienda una salida y no la fija.
 
-**Qué métodos de pago hay y en qué países valen.** Se siembran los mínimos por migración y se leen (`RF-MV-009`). **Administrarlos y restringirlos por país queda para después**, por decisión del responsable del proyecto del 02-09-2026 — y queda anotado lo que hace falta el día que se retome: **hoy nadie tiene país**, porque `users` no lo guarda y `countries` no tiene una sola clave foránea entrante.
+**Qué métodos de pago hay.** Se siembran los mínimos por migración y se leen (`RF-MV-009`). **Administrarlos por API sigue quedando para después**, por decisión del responsable del proyecto del 02-09-2026.
+
+**En qué países vale cada método: decidido el 04-09-2026, y NO como se había supuesto.** Aquella nota daba por hecho que restringir por país exigiría antes darle un país a alguien —«hoy nadie tiene país, porque `users` no lo guarda y `countries` no tiene una sola clave foránea entrante»—. **No hace falta**, porque el responsable del proyecto decidió que la restricción **es informativa y no ejecutiva**: el sistema declara dónde no vale cada método y lo publica; **quien filtra es el cliente que consume el catálogo** (`RN-MV-019`).
+
+**La consecuencia hay que leerla dos veces, porque es lo que este módulo NO hace:** `RF-MV-001` y `RF-MV-002` **no comprueban el país al registrar una venta**, y una petición que use un método excluido **se registra con normalidad**. No es un descuido ni una fase pendiente: es lo que significa que la restricción sea del cliente. **Nada impide hoy cobrar con `PSE` fuera de Colombia por API**, y quien quiera que eso se impida tiene que decidir antes de qué país se trata — que es la pregunta que sigue sin respuesta y que esta decisión **aplaza en lugar de resolver**.
+
+**Por qué se acepta.** El caso real es una pantalla que ofrece medios de pago, y ofrecer uno que no va a funcionar es el defecto que se quería quitar. Convertirlo en una validación del servidor exigiría `users.country_id`, tocar `RF-SP-024` y `RF-SP-045`, y decidir qué país tienen las personas que ya existen — todo para cerrar una puerta por la que hoy solo pasa el superadministrador (§6.1).
+
+### 5.4 `RN-MV-020` — qué concede exactamente una venta confirmada
+
+**La regla en una frase:** confirmado el pago **completo** de una venta que lleva un upgrade, esa persona **pasa a tener la membresía que compró**.
+
+Es la contraparte exacta de `RN-MV-004`. Si registrar no concede nada, **confirmar tiene que conceder**, o «confirmada» no significa nada. Las dos reglas juntas son las que hacen que el estado de una venta sea el único sitio donde vive esa diferencia.
+
+**Cuál membresía, sin ambigüedad.** La **destino del producto** de la línea de upgrade. Hay **a lo sumo una** por venta, y no por casualidad: `RN-MV-010` lo exige desde el registro precisamente para que este momento no tenga que elegir entre dos. Una venta de solo bots confirma y **no concede ninguna membresía** — no es un caso especial, es el caso común.
+
+**Y no se relee del catálogo.** La membresía destino **no se copia en la línea** (§7.3) porque `RF-PM-004` rechaza cambiarla y `RN-PM-010` garantiza que el producto no desaparece: leerla del producto dentro de tres años da el mismo valor. Lo que **sí** está copiado y **sí** se usa es la **vigencia en días**.
+
+#### Las tres decisiones que esta regla lleva dentro
+
+**1. La vigencia se cuenta desde la confirmación, no desde la venta.** Los `validity_days` copiados en la línea se suman al instante en que se confirma. Comprar el sábado y confirmar el lunes **no puede comerse dos días** de lo comprado: quien paga treinta días recibe treinta días de uso, y el retraso en comprobar el dinero es del sistema y no suyo. Vigencia nula significa **indefinida** (`RN-PM-015`), y entonces no hay fecha de fin que escribir.
+
+**2. Conceder SUSTITUYE, y no hay historial.** `user_memberships` tiene la clave primaria en `user_id`: **una membresía por persona** (`RN-SP-014`). Subir de nivel **reemplaza la fila**, no añade otra, exactamente como hace `RF-SP-032`. **El coste está declarado y no es menor: el nivel que alguien tuvo antes no se puede reconstruir desde esa tabla.** Es la misma deuda que `RN-CM-008` ya obliga a pagar por otro lado —la liquidación tiene que copiar el porcentaje que aplicó—, y aquí se repite: quien necesite saber en qué nivel estaba alguien en una fecha **tendrá que leerlo de las ventas confirmadas**, no de `SP`.
+
+**3. Confirmar dos veces no concede dos veces.** Lo sostiene `RN-MV-005` —de `CONFIRMADA` no se sale—, y eso obliga a que la transición sea **atómica**: no un `SELECT` y luego un `UPDATE`, sino una escritura condicionada al estado anterior. Importa más de lo que parece porque **el disparador será una pasarela**, y una pasarela reintenta: sin esa atomicidad, dos webhooks del mismo pago conceden el nivel dos veces y devengan la comisión dos veces.
+
+!!! danger "Un caso sin decidir: confirmar podría BAJAR de nivel a alguien"
+
+    `RN-MV-006` comprueba **al registrar** que el upgrade sube. **Entre registrar y confirmar puede pasar cualquier cosa**, y una de ellas es que la persona haya subido más por otra vía: compró `FREE → VIP`, y antes de confirmarse le concedieron `PLATINO`. Confirmar la primera venta la **devolvería a `VIP`**.
+
+    No es hipotético: `RN-MV-010` limita a un upgrade **por venta**, no por persona, y `spec.md` §13 de `RF-MV-001` ya declara que **dos ventas simultáneas del mismo upgrade se registran las dos** y que el conflicto lo resuelve quien confirma.
+
+    **Queda sin decidir a propósito**, porque las dos salidas son razonables y la elección no es técnica: **conceder siempre lo comprado** —quien pagó recibe lo que pagó, aunque le baje— o **no bajar nunca** —la venta confirma, cobra y no toca el nivel, con lo que alguien paga por algo que no recibe—. La segunda es la segura y **deja un problema peor sin resolver**: una venta cobrada que no entregó nada, y `RN-MV-005` impide corregirla (§5.3).
+
+    Lo que **no** puede pasar es que se decida por omisión al escribir el código.
 
 ---
 
@@ -266,7 +317,7 @@ La dependencia es **acíclica**: `MV` → `PM` → `SP`, y `MV` → `SP`.
 | `id` | `uuid` | No | — |
 | `movement_type_id` | `uuid` | No | `movement_types` |
 | `client_id` | `uuid` | No | `users` |
-| `seller_id` | `uuid` | No | `users` |
+| `seller_id` | `uuid` | **Sí** | `users` |
 | `payment_method_id` | `uuid` | No | `payment_methods` |
 | `currency_id` | `uuid` | No | `currencies` |
 | `code` | `varchar(30)` | No | — |
@@ -343,7 +394,33 @@ Mismo formato de código que `roles`, `memberships` y `products`: `^[A-Z][A-Z0-9
 
 Se siembra por migración y **no se administra por API todavía** (§5.3). Lo mínimo para que una venta pueda decir con qué se pagó.
 
-### 7.5 Restricciones exigidas en el esquema
+**`V54` la sembró con tres filas** —`CREDIT_CARD`, `PSE` y `POINTS`—, por decisión del responsable del proyecto del 04-09-2026. Sustituyen al `EFECTIVO`/`TRANSFERENCIA` que la tripleta de `RF-MV-001` había supuesto.
+
+!!! warning "`POINTS` está sembrado y todavía no se puede pagar con él"
+
+    Este documento decía, hasta hoy, que `PUNTOS` **no se sembraba** porque «es de la etapa 3 y sembrarlo hoy ofrecería un método con el que no se puede pagar». **Se siembra igual**, por decisión del responsable del proyecto, y el argumento anterior no ha dejado de valer: **no existe saldo de puntos**, de modo que una venta pagada con `POINTS` se registra sin que haya nada de dónde descontar.
+
+    **La consecuencia se acepta y queda escrita**: hoy el método aparece en el selector y la venta entra igual que cualquier otra. Cuando llegue la etapa 3 habrá que decidir qué se hace con las ventas que se registraron así — y **no habrá forma de distinguirlas** de las que se registren después, porque nada marca cuándo empezó a existir el saldo.
+
+    Si lo que se quiere es que aparezca en el catálogo sin poder usarse todavía, la salida barata es sembrarlo con `is_active` en falso: sigue en la tabla, no se ofrece, y activarlo el día que haya puntos es un `UPDATE` de una fila.
+
+### 7.5 `payment_method_exclusions`
+
+| Columna | Tipo | Nula | Referencia |
+|---|---|---|---|
+| `payment_method_id` | `uuid` | No | `payment_methods` |
+| `country_id` | `uuid` | No | `countries` |
+| `created_at` | `timestamptz` | No | — |
+
+**Dónde NO vale cada método** (`RN-MV-019`). Clave primaria compuesta por las dos columnas, como `role_permissions`: la fila **es** la relación y no tiene identidad propia que valga la pena nombrar.
+
+**Declara la exclusión y no el permiso, y esa elección tiene un coste que conviene tener escrito.** Un método **sin filas vale en todos los países**, de modo que sembrar los tres actuales no exige declarar nada y añadir un país nuevo no obliga a revisar el catálogo de medios. Lo que se paga a cambio es que **olvidar una exclusión no falla: ofrece**. Es la postura contraria a la que `RN-CM-012` tomó con las tasas —donde la ausencia significa «ninguno»— y se elige aquí por dos motivos: la lista de países crece sola y la de métodos no, y **esto no bloquea un cobro, solo pinta un selector**.
+
+**Es la primera clave foránea entrante que recibe `countries`.** Ese catálogo existe desde `V16` y hasta hoy no lo referenciaba ni una tabla: se consultaba para pintar selectores y nada más. Con esto pasa a tener dependientes, y **retirar un país** —`RF-SP-022` cambia `is_active`, no borra— sigue sin romper nada porque nadie borra filas de `countries`.
+
+**No se administra por API todavía** (§5.3): las exclusiones se siembran por migración, igual que los métodos. El día que haya pantalla de administración será un requerimiento propio, y entonces habrá que decidir si retirar una exclusión es auditable — hoy no hay operación que auditar.
+
+### 7.6 Restricciones exigidas en el esquema
 
 | Restricción | Sobre | Por qué ahí y no en el código |
 |---|---|---|
@@ -355,6 +432,9 @@ Se siembra por migración y **no se administra por API todavía** (§5.3). Lo m�
 | `uq_movement_details_producto` | `(movement_id, product_id)` | `RN-MV-011` |
 | `ck_movement_details_quantity` | `quantity > 0` | Una línea de cero unidades no es una línea |
 | `ck_movement_details_validity` | `validity_days IS NULL OR validity_days > 0` | La rama `IS NULL` va **delante y explícita**, por lo mismo que en `ck_products_icon_solo_upgrade`: un `CHECK` que evalúa a `NULL` **acepta** la fila |
+| `pk_payment_method_exclusions` | `(payment_method_id, country_id)` | Un método no se excluye dos veces del mismo país. La clave primaria compuesta lo cierra sin que ninguna operación tenga que comprobarlo, igual que en `role_permissions` |
+
+**`RN-MV-019` no aparece en esa lista, y es a propósito.** No hay nada que declarar: la exclusión **no se comprueba en ninguna operación**, solo se publica. Lo único que el esquema sostiene es que la relación no se duplique y que apunte a filas que existen.
 
 **Lo que no se puede declarar en el esquema** y vive en el caso de uso: que haya al menos una línea (`RN-MV-009`), que haya como mucho un upgrade (`RN-MV-010`), que la cantidad sea uno en los upgrades (`RN-MV-015`), que el producto esté en la oferta (`RN-MV-007`), que el nivel suba (`RN-MV-006`) y que la cuenta no esté en `FTD_PENDIENTE` (`RN-MV-008`). Las seis dependen de filas de otras tablas, y un `CHECK` no consulta otras tablas.
 
@@ -367,3 +447,6 @@ Se siembra por migración y **no se administra por API todavía** (§5.3). Lo m�
 | 0.1.0 | 02-09-2026 | **`MV` vuelve a nacer, y esta vez empieza por vender**, por decisión del responsable del proyecto. El módulo anterior se retiró entero el 01-09-2026 —catorce requerimientos y treinta y nueve reglas— y este documento **no es aquel corregido**: los identificadores vuelven a `RF-MV-001` y ninguna regla hereda su número. **La lección del primer intento está en el alcance**: aquel diseñó el libro completo —ventas, depósitos, puntos, comisiones, pasarela y notificaciones— antes de que existiera una sola venta; este declara el mismo destino y **escribe solo la etapa 1**, con las cinco siguientes en §4.2 y lo ya decidido de cada una anotado ahí. Nueve requerimientos y dieciocho reglas. **Once decisiones del responsable, todas del 02-09-2026.** (1) **Registrar y comprar son dos requerimientos**, porque una la origina un funcionario sobre la cuenta de otro y la otra el interesado sobre la suya: fundirlas daría un endpoint con dos modelos de seguridad. (2) **El vendedor sale del cliente y se congela** (`RN-MV-003`) — no se teclea, y quien registra queda en la auditoría sin cobrar nada; con un solo campo, el día que alguien de oficina registre la venta de un agente la cadena arranca en la persona equivocada. (3) **Cuatro estados**, con `RECHAZADA` separada de `ANULADA` porque un cobro que no entró y una venta que no debía existir son dos hechos distintos, y fundirlos borraría el número que dice cuánto se intenta cobrar y no entra. (4) **De `CONFIRMADA` no se sale**, y el precio queda escrito: hoy una venta confirmada por error **no se puede corregir por ninguna vía**. (5) **Solo se sube de nivel** (`RN-MV-006`), rechazado **al registrar** y no al confirmar, porque cobrar primero y descubrirlo después obliga a devolver dinero en un sistema donde devolver es una etapa que no existe. (6) **La oferta de `RF-PM-007` es condición de la venta**, también cuando registra el funcionario. (7) **A una cuenta en `FTD_PENDIENTE` no se le vende.** (8) **Sin descuentos y sin impuestos**: la columna de descuento se declara hoy y vale cero, para que su llegada no toque lo ya vendido; el impuesto no tiene columna porque separarlo exige decidir con qué tasa se recalcula el pasado. (9) **La comisión se devengará sobre el valor de cada línea** y no sobre el total, que es lo que encaja con `CM` rehecho —la tasa se resuelve por producto— y lo que impide que dos productos con tarifas distintas se promedien. (10) **Los métodos de pago se siembran y se leen**; administrarlos y restringirlos por país queda para después, y queda anotado el obstáculo real: **hoy nadie tiene país**. (11) **El campo del comprobante se llama `code` y no `resolucion`**, porque «resolución» es la palabra con la que la DIAN autoriza una numeración y usarla aquí invita justo a la confusión que §1.5 existe para evitar. **De la propuesta de tablas del responsable se conservan los tres importes y caen `updated_at` y `deleted_at`** (`RN-MV-001`): un libro con borrado lógico deja de ser un libro. **Y vuelve a abrirse D-26 con el mismo número**, porque es la misma pregunta que se retiró con el módulo: conceder el nivel comprado obliga a **escribir en `SP`**, y todas las interfaces entre módulos son de solo lectura. | Responsable del proyecto |
 | 0.2.0 | 02-09-2026 | **Los cuatro permisos de §6 se siembran, y se reservan al superadministrador.** `V51__seed_movements_permissions.sql` los estrena adelantándose al resto del módulo —la tarea no depende de ninguna otra— y **no crea ninguna de las cuatro tablas de §7**. Nueva **§6.1** con la decisión que se aparta de [`security.md` §4.4](../security.md): **`ADMIN` no los recibe**, por decisión del responsable del proyecto, y ahí queda escrito lo que cuesta — la fuerza comercial cuelga de `ADMIN`, de modo que por `RN-SEG-003` **ningún rol de la cadena podrá declarar `movements:create`** y seis de los nueve requerimientos quedan operables solo por el superadministrador. No invalida ninguna regla ni bloquea construir el módulo: `RF-MV-002`, `RF-MV-008` y `RF-MV-009` no llevan permiso. **La reserva de las cuatro tablas del módulo (§7) no tiene número fijo**: lo toma quien se aplica primero, y esta migración —que no depende de nada— ya demostró que una reserva por adelantado sin código escrito no vale nada frente a eso. | Responsable técnico |
 | 0.3.0 | 03-09-2026 | **`RF-PM-007` deja de ser el ejemplo de «comprar y consultar lo propio no llevan permiso»** (§6): pasó a exigir `products:sale` el 02-09-2026, y esta sección se corrige para no citarlo como si siguiera abierto. **El número de la siembra de permisos vuelve a correr**, esta vez porque `develop` fusionó su propio `V48` (`products:sale`, PR #56) mientras esta rama —sin empujar a `origin`— ya tenía el suyo: la que cede el número es siempre la rama que no está publicada, y esta migración pasa a `V51`. El motivo completo, con los números exactos de cada paso, vive en el encabezado de `V51__seed_movements_permissions.sql`. | Responsable técnico |
+| 0.4.0 | 04-09-2026 | **Nace `RN-MV-019`: un método de pago puede estar excluido en países concretos.** Lo pidió el responsable del proyecto —«no en todos los países se pueden usar los métodos de pago»— y la decisión de fondo la tomó él mismo al precisarlo: **la restricción es informativa y no ejecutiva**. El sistema declara dónde NO vale cada método y lo publica con el catálogo (`RF-MV-009`); **quien filtra es el cliente que lo consume**. **Eso desmonta el bloqueo que §5.3 daba por seguro desde el 02-09-2026** —«hoy nadie tiene país, porque `users` no lo guarda y `countries` no tiene una sola clave foránea entrante»—: era cierto y **dejó de ser relevante**, porque si nadie valida en el servidor, nadie necesita saber de qué país se trata. Nace `payment_method_exclusions` (§7.5), con clave primaria compuesta como `role_permissions`, y con ella **`countries` recibe su primera clave foránea entrante** en los veinte días que lleva existiendo. **Declara la exclusión y no el permiso**, que es la postura CONTRARIA a la que `RN-CM-012` tomó con las tasas: un método sin filas vale en todas partes, de modo que sembrar los tres actuales no exige declarar nada y añadir un país no obliga a revisar el catálogo de medios — a cambio, **olvidar una exclusión no falla: ofrece**. Se elige así porque la lista de países crece sola y la de métodos no, y porque **esto no bloquea un cobro, solo pinta un selector**. **Y queda escrito lo que el módulo NO hace, que es la mitad de esta decisión**: `RF-MV-001` y `RF-MV-002` **no comprueban el país al registrar**, y una venta con un método excluido se registra con normalidad — hoy nada impide cobrar con `PSE` fuera de Colombia por API. Cerrar esa puerta exigiría `users.country_id`, tocar `RF-SP-024` y `RF-SP-045` y decidir qué país tienen las personas que ya existen, todo para una puerta por la que hoy solo pasa el superadministrador (§6.1). **La pregunta de qué país es el que manda sigue abierta y esta decisión la aplaza en lugar de resolverla.** | Responsable del proyecto |
+| 0.5.0 | 04-09-2026 | **El vendedor deja de ser obligatorio en una venta** (`RN-MV-003`), por decisión del responsable del proyecto, **porque comprar no es cosa solo de los clientes**: un agente también compra. Hasta hoy la venta exigía que quien compraba colgase de alguien y rechazaba la operación si no —`EX-003` de `RF-MV-001`—, y esa exigencia **dejaba fuera a una persona que este mismo documento sabía que existe**: `RN-SP-019` declara desde el principio que **la cúspide de la fuerza comercial no declara superior**, de modo que quien porta el rol vendedor de mayor rango no podía comprar nada — no por una decisión de negocio, sino porque la venta no sabía a quién atribuirla. **Se retira la exigencia, no la deducción**: quien tiene superior sigue produciendo una venta atribuida a él, exactamente igual que antes; quien no lo tiene produce una venta **sin vendedor**, que es un estado legítimo y no un dato que falte. `movements.seller_id` pasa a admitir nulo, `EX-003` desaparece y `CA-MV-017` **invierte su sentido**: afirmaba que la venta se rechazaba, y ahora afirma que se registra. **Lo que cuesta hay que leerlo entero: una venta sin vendedor NO COMISIONA A NADIE.** `RN-CM-011` liquida por *override* recorriendo la cadena **hacia arriba desde el vendedor**, y sin ese punto de partida no hay cadena que recorrer. Es correcto —nadie vendió, nadie cobra— y quien construya la liquidación tiene que tratarlo: la alternativa era **inventar una atribución**, y una comisión pagada a quien no vendió es un error que no se detecta, porque el dinero sale y el número cuadra. **Esto no toca `RN-SP-027` ni `RN-SP-020`**: un cliente registrado por enlace sigue exigiendo vendedor, porque esa es una regla sobre **cómo se crean** los clientes y no sobre quién puede comprar. Lo que `MV` deja de hacer es **exigir el cumplimiento de una promesa ajena** en cada venta — que además era el único sitio donde se comprobaba. | Responsable del proyecto |
+| 0.6.0 | 04-09-2026 | **Nace `RN-MV-020`: una venta confirmada que lleva un upgrade concede la membresía comprada**, por decisión del responsable del proyecto. Es **la contraparte de `RN-MV-004`**, y hasta hoy faltaba: aquella dice que registrar no concede nada, y sin esta el módulo no decía en ninguna parte **qué hace confirmar** — con lo que «pendiente» y «confirmada» eran dos palabras para el mismo hecho sin efecto. La regla se desarrolla en **§5.4** con las tres decisiones que lleva dentro. **(1) La vigencia se cuenta desde la confirmación y no desde la venta**: comprar el sábado y confirmar el lunes no puede comerse dos días de lo comprado — el retraso en comprobar el dinero es del sistema, no de quien pagó. **(2) Conceder SUSTITUYE y no deja historial**, porque `user_memberships` tiene la clave primaria en `user_id` (`RN-SP-014`): el nivel que alguien tuvo antes **no se puede reconstruir desde `SP`**, y quien lo necesite tendrá que leerlo de las ventas confirmadas. Es la misma deuda que `RN-CM-008` ya obliga a pagar con los porcentajes. **(3) Confirmar dos veces no concede dos veces**, lo que obliga a que la transición de estado sea **atómica** — y no es celo: el disparador será una pasarela, y una pasarela reintenta. **Cuál membresía no es ambiguo** gracias a `RN-MV-010`: hay a lo sumo un upgrade por venta, y esa restricción existía desde el registro precisamente para que este momento no tuviera que elegir. **Y queda un caso SIN DECIDIR a propósito**: entre registrar y confirmar, la persona puede haber subido más por otra vía, de modo que confirmar **la bajaría de nivel**. Las dos salidas son razonables —conceder siempre lo comprado, o no bajar nunca y dejar una venta cobrada que no entregó nada, que `RN-MV-005` impide corregir— y la elección no es técnica. Lo que no puede pasar es que se decida por omisión al escribir el código. **La regla no se puede construir todavía**: escribe en `user_memberships`, que es de `SP`, y eso lo gobierna **D-26**, abierta. Con esto, D-26 pasa a ser lo único que separa al módulo de `RF-MV-003`. | Responsable del proyecto |

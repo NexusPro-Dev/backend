@@ -5,11 +5,11 @@
 | Proyecto | NEXUS — Renovación de plataforma |
 | Empresa | FACTECH GROUP SAS |
 | Documento | `api/index.md` |
-| Versión | 1.0.0 |
+| Versión | 1.1.0 |
 | Estado | Publicado |
 | Responsable técnico | Bonilla Diaz William Steven |
 | Fecha de creación | 25-08-2026 |
-| Última actualización | 25-08-2026 |
+| Última actualización | 04-09-2026 |
 | Documento superior | `architecture.md` v0.14.0 |
 
 ---
@@ -69,14 +69,17 @@ Se recomienda **fijar la generación en la construcción** del frontend y no com
 
 ## 6. Lo que el contrato todavía no dice
 
-Conviene saberlo antes de tropezar:
+**Las tres advertencias que esta sección traía desde el 25-08-2026 ya no valen, y se retiran en lugar de dejarse como fósil**: el `423` de cuenta bloqueada está documentado en `POST /auth/login` y `POST /auth/password`; el `429` lo está en las dos rutas de recuperación; y la recuperación de contraseña **existe** desde que se cerró **D-23** el 26-08-2026 —`POST /auth/password-recovery`, su `/confirmation` y `POST /auth/password`—.
 
-- **El `429` del límite de tasa no está documentado por endpoint.** Lo produce un filtro, que no pasa por las anotaciones del controlador. El comportamiento existe y es el descrito arriba; la anotación falta.
-- **El `423` de cuenta bloqueada y el cuerpo del `429`** están en curso en el trabajo de `RF-SP-034`.
-- **No hay endpoint de recuperación de contraseña**: `RF-SP-040` está bloqueado por la decisión **D-23**, el mecanismo del canal de envío.
+Lo que sigue siendo cierto, y conviene saberlo antes de tropezar:
+
+- **El `429` no está documentado en `POST /auth/login` ni en `/auth/refresh`**, aunque el filtro también las acota. Lo produce un filtro, que no pasa por las anotaciones del controlador: el comportamiento existe y es el descrito arriba, y la anotación falta en esas dos.
+- **Los `operationId` llevan sufijos numéricos** —`registrar_3`, `listar_4`, `corregir_2`— en 24 de las 65 operaciones. Los genera springdoc al chocar dos métodos con el mismo nombre en controladores distintos, y **no son estables**: añadir otro `registrar` en cualquier módulo puede reasignar el número. `openapi-typescript` indexa por ruta y método, de modo que hoy no afecta al cliente generado; **cualquier generador que use el `operationId` como nombre de función sí se rompería en silencio**. Si el frontend cambia de generador, esto hay que resolverlo antes.
+- **Los nombres de esquema tienen el mismo riesgo**, y por eso los de `MV` se declaran a mano: un registro anidado se publicaría como `Line`, `Party` o `Money` —genéricos en un espacio de nombres plano y compartido por todos los módulos—, de modo que se publican como `SaleLineRequest`, `SaleParty` y `SaleCurrency`. **Quedan sin resolver los que ya existían**: `Item`, `Neighbor`, `Person`, `RoleRef`, `UserRef` y el `Offered` de `RF-PM-007`. No es urgente y no es gratis: renombrarlos cambia tipos que el frontend ya usa.
 
 ## 7. Control de cambios
 
 | Versión | Fecha | Cambio | Responsable |
 |---|---|---|---|
 | 1.0.0 | 25-08-2026 | Se publica esta página. El contrato ya se versionaba desde `ADR-001`, pero **nada decía dónde encontrarlo ni cómo consumirlo**, de modo que el frontend tenía el archivo y no la instrucción. Se añade además el **YAML**, que es el formato que asumen por defecto los generadores de cliente: publicar solo el JSON obligaba a cada consumidor a convertirlo, y una conversión hecha en el lado del cliente es una copia del contrato que envejece por su cuenta. | Responsable técnico |
+| 1.1.0 | 04-09-2026 | **Se retiran las tres advertencias de §6, que llevaban desde el 25-08-2026 diciendo lo contrario de lo que ocurre.** El `423` está documentado, el `429` también en las dos rutas de recuperación, y **la recuperación de contraseña existe** desde que D-23 se cerró el 26-08-2026 — el frontend leía aquí que no había endpoint mientras el backend lo publicaba. Se retiran en lugar de dejarse tachadas: una advertencia falsa cuesta más que ninguna. **En su sitio quedan dos riesgos reales del contrato generado**, que hasta hoy no estaban escritos en ninguna parte. El primero: **24 de los 65 `operationId` llevan sufijo numérico** —`registrar_3`, `listar_4`— porque springdoc los genera al chocar dos métodos con el mismo nombre en controladores distintos, y **el número no es estable**; hoy no afecta porque `openapi-typescript` indexa por ruta y método, pero cualquier generador que use el `operationId` como nombre de función se rompería **en silencio** al añadirse otro `registrar`. El segundo: **los nombres de esquema tienen el mismo problema**, porque el espacio de nombres es plano y compartido por todos los módulos. Por eso los tres registros anidados que estrena `MV` se publican con nombre declarado a mano —`SaleLineRequest`, `SaleParty` y `SaleCurrency` en lugar de `Line`, `Party` y `Money`—: mientras nadie los consume es gratis, y después es un cambio incompatible. Queda dicho lo que **no** se tocó y por qué: `Item`, `Neighbor`, `Person`, `RoleRef`, `UserRef` y `Offered` ya existen y renombrarlos cambiaría tipos que el frontend usa. | Responsable técnico |

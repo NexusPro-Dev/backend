@@ -243,13 +243,19 @@ class DevelopmentSeedIT extends IntegrationTestBase {
             """,
             Integer.class, (Object) usuarios);
 
-    // Tres directores, y TRES a cargo cada uno. Un equipo de uno no distingue
-    // «el equipo de alguien» de «alguien».
-    assertThat(aCargoPorDirector).hasSize(3).containsOnly(3);
+    // Tres directores. `director1` tiene CUATRO a cargo desde el 04-09-2026
+    // —sus tres agentes más `cliente2`— y los otros dos siguen con tres. Un
+    // equipo de uno no distingue «el equipo de alguien» de «alguien», y un
+    // equipo de un solo tipo no distingue «el equipo» de «la cartera».
+    assertThat(aCargoPorDirector).containsExactlyInAnyOrder(4, 3, 3);
 
-    // `RN-SP-020`: el superior porta el rol PADRE INMEDIATO del subordinado. Un
-    // agente colgado de un manager pasaría el recuento de arriba y sería
-    // igualmente inválido, así que se comprueba la forma y no solo el número.
+    // `RN-SP-020` TIENE DOS RAMAS, y esta comprobación las separa. Entre
+    // vendedores el superior porta el rol PADRE INMEDIATO —un agente colgado de
+    // un manager pasaría el recuento de arriba y sería igualmente inválido—;
+    // con un CONSUMIDOR basta que el superior porte ALGÚN rol `VENDEDOR`, sin
+    // parentesco, porque un cliente no tiene rol vendedor del que derivar un
+    // padre. Por eso las tres parejas de cliente son válidas y las de agente no
+    // lo serían.
     List<String> parejas =
         jdbc.queryForList(
             """
@@ -265,7 +271,18 @@ class DevelopmentSeedIT extends IntegrationTestBase {
             """,
             String.class);
 
-    assertThat(parejas).containsExactly("AGENTE -> DIRECTOR", "DIRECTOR -> MANAGER");
+    // En orden alfabético, que es el que la consulta pide.
+    assertThat(parejas)
+        .containsExactly(
+            // La estructura entre vendedores, que sigue siendo estricta.
+            "AGENTE -> DIRECTOR",
+            // Y la cartera, a TRES PROFUNDIDADES distintas: es lo que hace
+            // observable en desarrollo el caso que obliga a decidir a qué
+            // tarifa cobra quien tiene al cliente cuando no es un agente.
+            "CLIENTE -> AGENTE",
+            "CLIENTE -> DIRECTOR",
+            "CLIENTE -> MANAGER",
+            "DIRECTOR -> MANAGER");
 
     // Y los MANAGER no declaran ninguno: su rol padre es `ADMIN`, que no es
     // vendedor, de modo que `RN-SP-019` los exceptúa por ser la cúspide de la
