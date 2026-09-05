@@ -76,7 +76,15 @@ class UserRolesIT extends IntegrationTestBase {
     jdbc.update(
         "DELETE FROM role_permissions WHERE role_id IN (SELECT id FROM roles WHERE is_system = false)");
     jdbc.update("DELETE FROM roles WHERE is_system = false");
-    jdbc.update("DELETE FROM memberships WHERE level > 0");
+    // FREE SOBREVIVE AL BARRIDO desde el 05-09-2026: `RN-SP-018` da nivel a toda
+    // persona y el alta lo resuelve por código, de modo que un catálogo vacío ya
+    // no es un estado del que el sistema pueda salir. Borrarla aquí probaría algo
+    // que `RN-SP-008` no deja ocurrir: la membresía sembrada no se elimina.
+    // BARRIDO TOTAL Y REPOSICIÓN, en ese orden: conservar FREE haría depender esta
+    // clase del ORDEN DE EJECUCIÓN — según quién haya corrido antes, la fila queda
+    // colgando de VIP (`V47`) o suelta, y el barrido choca con `fk_memberships_parent`.
+    jdbc.update("DELETE FROM memberships");
+    reponerElSuelo(jdbc);
 
     // El rol raíz se REPONE, y no basta con no borrarlo: dos pruebas de esta
     // misma clase se lo retiran al superadministrador a propósito, y sin
@@ -103,9 +111,11 @@ class UserRolesIT extends IntegrationTestBase {
     mvc.perform(asignar(persona, rolAcotado))
         .andExpect(status().isOk())
         .andExpect(jsonPath("$.roles[0].code").value("AUDITORIA_ACOTADA"))
-        // La membresía y el superior viajan SIEMPRE, en nulo cuando no hay:
-        // «no tiene» tiene que distinguirse de «este endpoint no lo informa».
-        .andExpect(jsonPath("$.membership").value(org.hamcrest.Matchers.nullValue()))
+        // EL SUPERIOR viaja SIEMPRE, en nulo cuando no hay: «no tiene» tiene que
+        // distinguirse de «este endpoint no lo informa». LA MEMBRESÍA ya no puede
+        // ser nula desde el 05-09-2026 —toda persona tiene nivel—, de modo que lo
+        // que se fija aquí es que viaje, y que sea el suelo.
+        .andExpect(jsonPath("$.membership.code").value("FREE"))
         .andExpect(jsonPath("$.supervisor").value(org.hamcrest.Matchers.nullValue()));
 
     assertThat(rolesDe(persona)).containsExactly(rolAcotado);
@@ -269,30 +279,36 @@ class UserRolesIT extends IntegrationTestBase {
   // ---------------------------------------------------------------------------
 
   @Test
-  @DisplayName("RN-SP-018 — el primer rol de consumidor exige membresía, y es 422 y no 400")
-  void consumidorExigeMembresia() throws Exception {
+  @DisplayName("RN-SP-018 — el primer rol de consumidor YA NO exige membresía: la persona ya tiene")
+  void consumidorNoExigeMembresia() throws Exception {
     String consumidor = crearRol("ESTUDIANTE", "CONSUMIDOR", ADMIN);
 
+    // Hasta el 05-09-2026 esto era un `422` con código `RN-SP-018`. Dejó de
+    // serlo porque la persona TIENE NIVEL DESDE EL ALTA: el alta se lo concedió,
+    // y exigirlo otra vez aquí sería pedir lo que ya está.
     mvc.perform(asignar(persona, consumidor))
-        .andExpect(status().isUnprocessableEntity())
-        .andExpect(jsonPath("$.errors[0].code").value("RN-SP-018"));
-
-    String membresia = crearMembresia();
-    mvc.perform(asignarConMembresia(persona, consumidor, membresia))
         .andExpect(status().isOk())
-        .andExpect(jsonPath("$.membership.code").value("ORO"));
+        .andExpect(jsonPath("$.membership.code").value("FREE"));
   }
 
   @Test
-  @DisplayName("EX-006 — la membresía sin rol de consumidor no se ignora: se rechaza")
-  void membresiaSinConsumidor() throws Exception {
-    // Si se ignorara, una petición copiada de otra dejaría una membresía
-    // colgando de quien no es consumidor.
-    String membresia = crearMembresia();
-
-    mvc.perform(asignarConMembresia(persona, rolAcotado, membresia))
-        .andExpect(status().isUnprocessableEntity())
-        .andExpect(jsonPath("$.errors[0].code").value("EX-006"));
+  @DisplayName("El cuerpo ya no admite membresía: enviarla es 400, no un campo que se ignore")
+  void membresiaEnElCuerpoSeRechaza() throws Exception {
+    // `membershipId` salió de `AssignRolesRequest` el 05-09-2026. Que el rechazo
+    // sea RUIDOSO es la mitad del cambio: un campo retirado que se ignorase en
+    // silencio dejaría a un cliente creyendo que asignó un nivel que nadie
+    // escribió. Cambiarlo es la operación de membresía, con su propio permiso.
+    mvc.perform(
+            post("/api/v1/users/{id}/roles", persona)
+                .with(superadmin())
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(
+                    "{\"roleIds\":[\""
+                        + rolAcotado
+                        + "\"],\"membershipId\":\""
+                        + crearMembresia()
+                        + "\"}"))
+        .andExpect(status().isBadRequest());
   }
 
   @Test
@@ -522,21 +538,28 @@ class UserRolesIT extends IntegrationTestBase {
   }
 
   @Test
-  @DisplayName("CA-SP-259 — roles, membresía y superior se escriben en la MISMA transacción")
+  @DisplayName("CA-SP-259 — roles y superior se escriben en la MISMA transacción")
   void todoEnUnaTransaccion() throws Exception {
     String consumidor = crearRol("ESTUDIANTE", "CONSUMIDOR", ADMIN);
-    String membresia = crearMembresia();
 
     // Un superior inadmisible hace fallar el paso 7; nada anterior debe quedar.
     UUID nadie = crearPersona("nadie");
-    mvc.perform(asignarTodo(persona, List.of(consumidor, AGENTE), membresia, nadie.toString()))
+    mvc.perform(asignarTodo(persona, List.of(consumidor, AGENTE), nadie.toString()))
         .andExpect(status().isUnprocessableEntity());
 
     assertThat(rolesDe(persona)).isEmpty();
-    Integer membresias =
+
+    // LA MEMBRESÍA YA NO ENTRA EN ESTA TRANSACCIÓN, y por eso lo que se
+    // comprueba es que sigue siendo LA DEL ALTA: la persona conserva su `FREE`
+    // pase lo que pase con los roles. Antes se exigía cero filas, porque la
+    // operación podía escribirla y el fallo tenía que revertirla.
+    String nivel =
         jdbc.queryForObject(
-            "SELECT count(*) FROM user_memberships WHERE user_id = ?", Integer.class, persona);
-    assertThat(membresias).isZero();
+            "SELECT m.code FROM user_memberships um JOIN memberships m ON m.id = um.membership_id"
+                + " WHERE um.user_id = ? AND um.closed_at IS NULL",
+            String.class,
+            persona);
+    assertThat(nivel).isEqualTo("FREE");
   }
 
   @Test
@@ -733,35 +756,37 @@ class UserRolesIT extends IntegrationTestBase {
   }
 
   @Test
-  @DisplayName("RN-SP-015 — quedarse sin rol de consumidor CIERRA la membresía, no la borra")
-  void cascadaDeMembresia() throws Exception {
+  @DisplayName("RN-SP-015 retirada — quedarse sin rol de consumidor NO toca la membresía")
+  void sinCascadaDeMembresia() throws Exception {
     conRolDeReserva(persona);
     String consumidor = crearRol("ESTUDIANTE", "CONSUMIDOR", ADMIN);
+    // El nivel se fija por SQL y no por la API: esta clase no tiene actor con
+    // `users:assign-membership`, y lo que la prueba mide es el retiro de roles.
     String membresia = crearMembresia();
-    mvc.perform(asignarConMembresia(persona, consumidor, membresia)).andExpect(status().isOk());
+    jdbc.update(
+        "UPDATE user_memberships SET membership_id = ?::uuid"
+            + " WHERE user_id = ? AND closed_at IS NULL",
+        membresia,
+        persona);
+    mvc.perform(asignar(persona, consumidor)).andExpect(status().isOk());
 
+    // CONSERVA `ORO`. Esta prueba pasó por tres versiones el mismo día y las tres
+    // decían cosas distintas: primero la membresía se BORRABA, después se
+    // CERRABA, y desde que `RN-SP-015` está retirada NO SE TOCA. Bajarla al suelo
+    // sería quitarle a alguien algo que pagó, y ninguna regla lo pide.
     mvc.perform(retirar(persona, consumidor))
         .andExpect(status().isOk())
-        .andExpect(jsonPath("$.membership").value(org.hamcrest.Matchers.nullValue()));
+        .andExpect(jsonPath("$.membership.code").value("ORO"));
 
-    // NINGUNA ABIERTA: para todo el que pregunte, esta persona no tiene nivel.
     Integer abiertas =
         jdbc.queryForObject(
             "SELECT count(*) FROM user_memberships WHERE user_id = ? AND closed_at IS NULL",
             Integer.class,
             persona);
-    assertThat(abiertas).isZero();
+    assertThat(abiertas).isEqualTo(1);
 
-    // PERO LA FILA SIGUE AHÍ, cerrada. Desde `V56` esta prueba exigía cero filas
-    // en total, y eso era exactamente lo que borraba la constancia de que esta
-    // persona tuvo un nivel y lo perdió. Es el mismo criterio con el que
-    // `cascadaDeSuperior`, aquí abajo, cierra el superior en lugar de borrarlo.
-    Integer cerradas =
-        jdbc.queryForObject(
-            "SELECT count(*) FROM user_memberships WHERE user_id = ? AND closed_at IS NOT NULL",
-            Integer.class,
-            persona);
-    assertThat(cerradas).isEqualTo(1);
+    // Y LA CASCADA DEL SUPERIOR SIGUE EN PIE: `cascadaDeSuperior`, aquí abajo, lo
+    // comprueba. Las dos eran simétricas y ahora solo hay una.
   }
 
   @Test
@@ -887,26 +912,19 @@ class UserRolesIT extends IntegrationTestBase {
         .content("{\"roleIds\":" + roles + "}");
   }
 
-  private MockHttpServletRequestBuilder asignarConMembresia(
-      UUID usuario, String rol, String membresia) {
-    return asignarTodo(usuario, List.of(rol), membresia, null);
-  }
-
   private MockHttpServletRequestBuilder asignarConSuperior(
       UUID usuario, String rol, UUID superior) {
-    return asignarTodo(usuario, List.of(rol), null, superior.toString());
+    return asignarTodo(usuario, List.of(rol), superior.toString());
   }
 
   private MockHttpServletRequestBuilder asignarTodo(
-      UUID usuario, List<String> roles, String membresia, String superior) {
+      UUID usuario, List<String> roles, String superior) {
     String lista =
         roles.stream().map(rol -> "\"" + rol + "\"").reduce((a, b) -> a + "," + b).orElse("");
     String cuerpo =
         "{\"roleIds\":["
             + lista
-            + "],\"membershipId\":"
-            + (membresia == null ? "null" : "\"" + membresia + "\"")
-            + ",\"supervisorId\":"
+            + "],\"supervisorId\":"
             + (superior == null ? "null" : "\"" + superior + "\"")
             + "}";
     return post("/api/v1/users/{id}/roles", usuario)
@@ -949,6 +967,9 @@ class UserRolesIT extends IntegrationTestBase {
         id,
         username,
         username + "@factech.co");
+    // El fixture inserta por SQL y se salta el caso de uso: sin esto la persona
+    // quedaria viva y sin nivel, un estado que `RN-SP-018` ya no admite.
+    darElSuelo(jdbc, id);
     return id;
   }
 
@@ -968,7 +989,8 @@ class UserRolesIT extends IntegrationTestBase {
     UUID id = UUID.randomUUID();
     jdbc.update(
         "INSERT INTO memberships (id, code, name, parent_membership_id, level, color)"
-            + " VALUES (?, 'ORO', 'Oro', NULL, 1, 'D4AF37')",
+            + " VALUES (?, 'ORO', 'Oro', (SELECT id FROM memberships WHERE code = 'FREE'), 2,"
+            + " 'D4AF37')",
         id);
     return id.toString();
   }

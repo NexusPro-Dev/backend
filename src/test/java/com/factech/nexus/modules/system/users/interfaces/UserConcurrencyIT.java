@@ -75,7 +75,15 @@ class UserConcurrencyIT extends IntegrationTestBase {
     jdbc.update("DELETE FROM user_memberships");
     jdbc.update("DELETE FROM user_roles WHERE user_id <> ?", SUPERADMIN);
     jdbc.update("DELETE FROM users WHERE id <> ?", SUPERADMIN);
-    jdbc.update("DELETE FROM memberships WHERE level > 0");
+    // FREE SOBREVIVE AL BARRIDO desde el 05-09-2026: `RN-SP-018` da nivel a toda
+    // persona y el alta lo resuelve por código, de modo que un catálogo vacío ya
+    // no es un estado del que el sistema pueda salir. Borrarla aquí probaría algo
+    // que `RN-SP-008` no deja ocurrir: la membresía sembrada no se elimina.
+    // BARRIDO TOTAL Y REPOSICIÓN, en ese orden: conservar FREE haría depender esta
+    // clase del ORDEN DE EJECUCIÓN — según quién haya corrido antes, la fila queda
+    // colgando de VIP (`V47`) o suelta, y el barrido choca con `fk_memberships_parent`.
+    jdbc.update("DELETE FROM memberships");
+    reponerElSuelo(jdbc);
     // Los permisos del rol van antes que el rol: otras pruebas de la suite dejan
     // roles no sistémicos CON permisos, y la clave foránea es RESTRICT.
     jdbc.update(
@@ -591,7 +599,7 @@ class UserConcurrencyIT extends IntegrationTestBase {
     jdbc.update(
         """
         INSERT INTO memberships (id, code, name, level, parent_membership_id, color)
-        VALUES (?, 'BRONCE', 'Bronce', 1, NULL, 'CD7F32')
+        VALUES (?, 'BRONCE', 'Bronce', 2, (SELECT id FROM memberships WHERE code = 'FREE'), 'CD7F32')
         """,
         id);
     return id.toString();

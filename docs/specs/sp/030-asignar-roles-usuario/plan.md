@@ -12,6 +12,16 @@
 
 ---
 
+!!! warning "Enmendado el 05-09-2026 — esta operación deja de tocar la membresía"
+
+    `RN-SP-018` pasa de «todo **consumidor** tiene membresía» a «todo **usuario** la tiene», y `RN-SP-013` y `RN-SP-015` quedan **retiradas** (`requirements/sp.md` v1.36.0). La consecuencia sobre este plan es que **toda la lógica de membresía desaparece de él**, no que cambie.
+
+    **`membershipId` y `membershipEndsAt` se retiran del cuerpo.** Cuando llega esta petición la persona **ya tiene nivel** —lo tiene desde el alta—, de modo que los dos únicos desenlaces que quedaban eran «ya la tiene, use `RF-SP-032`» y «la vigencia sin membresía», los dos `422`. **Un campo que solo puede producir un error es peor que ningún campo**: promete algo que el sistema no hace.
+
+    **Y el argumento que ya estaba escrito se conserva intacto**: cambiar el nivel aquí sería «una edición encubierta y sin su permiso», porque `RF-SP-032` tiene el suyo. Lo que cambia es que ahora no hay ni siquiera un caso legítimo que lo justificara.
+
+    **`RN-SP-019` y `RN-SP-020` no se tocan.** El par vendedor ⟺ superior comercial sigue exactamente igual, y este plan lo sigue evaluando: lo que se soltó fue la atadura entre consumidor y nivel, no la otra.
+
 ## 1. Enfoque
 
 Es donde el acceso deja de ser una definición y empieza a recaer sobre personas. Todo lo que `SP` construyó antes —el catálogo, los roles, su contención— no afecta a nadie hasta esta operación.

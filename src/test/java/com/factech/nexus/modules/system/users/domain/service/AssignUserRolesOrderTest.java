@@ -14,7 +14,6 @@ import com.factech.nexus.modules.system.roles.domain.models.RoleType;
 import com.factech.nexus.modules.system.users.application.AssignRolesRequest;
 import com.factech.nexus.modules.system.users.domain.models.User;
 import com.factech.nexus.modules.system.users.domain.repository.AssignableRole;
-import com.factech.nexus.modules.system.users.domain.repository.MembershipCatalog;
 import com.factech.nexus.modules.system.users.domain.repository.RoleCatalog;
 import com.factech.nexus.modules.system.users.domain.repository.UserRepository;
 import com.factech.nexus.modules.system.users.domain.security.CommercialStructure;
@@ -62,7 +61,7 @@ class AssignUserRolesOrderTest {
 
   private final UserRepository usuarios = mock(UserRepository.class);
   private final RoleCatalog roles = mock(RoleCatalog.class);
-  private final MembershipCatalog membresias = mock(MembershipCatalog.class);
+
   private final CommercialStructure estructura = mock(CommercialStructure.class);
   private final AuthenticatedActor actor = mock(AuthenticatedActor.class);
   private final AuditWriter auditoria = mock(AuditWriter.class);
@@ -72,7 +71,6 @@ class AssignUserRolesOrderTest {
       new AssignUserRolesService(
           usuarios,
           roles,
-          membresias,
           estructura,
           actor,
           auditoria,
@@ -96,7 +94,7 @@ class AssignUserRolesOrderTest {
        * trabajo tirado, y además abriría una vía para averiguar qué roles hay
        * en el catálogo desde una ruta que responde `404`.
        */
-      verifyNoInteractions(roles, membresias, estructura, actor, auditoria);
+      verifyNoInteractions(roles, estructura, actor, auditoria);
     }
   }
 
@@ -115,7 +113,7 @@ class AssignUserRolesOrderTest {
           .isInstanceOf(UnprocessableEntityException.class)
           .hasMessageContaining("no existen");
 
-      verifyNoInteractions(membresias, estructura);
+      verifyNoInteractions(estructura);
       verify(actor, never()).permissions();
     }
 
@@ -130,7 +128,7 @@ class AssignUserRolesOrderTest {
           .isInstanceOf(UnprocessableEntityException.class)
           .hasMessageContaining("inactivos");
 
-      verifyNoInteractions(membresias, estructura);
+      verifyNoInteractions(estructura);
       verify(actor, never()).permissions();
     }
   }
@@ -159,7 +157,7 @@ class AssignUserRolesOrderTest {
           .isInstanceOf(BusinessRuleException.class)
           .hasMessageContaining("exceden sus propios permisos");
 
-      verifyNoInteractions(membresias, estructura);
+      verifyNoInteractions(estructura);
       verify(usuarios, never()).addRoles(any(), anySet());
       verifyNoInteractions(auditoria);
     }
@@ -198,6 +196,6 @@ class AssignUserRolesOrderTest {
   }
 
   private static AssignRolesRequest peticion() {
-    return new AssignRolesRequest(List.of(ROL), null, null, null);
+    return new AssignRolesRequest(List.of(ROL), null);
   }
 }

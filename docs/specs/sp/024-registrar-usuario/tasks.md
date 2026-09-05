@@ -186,6 +186,30 @@ Decisión del responsable del proyecto: **conceder una membresía es una fila nu
 - **No decide qué pasa con los días pagados y no usados.** Cerrar una membresía de treinta días el día doce deja constancia de los dieciocho perdidos y **no los devuelve, ni los prorratea, ni los suma** a la nueva. Está declarado en `requirements/mv.md` §5.4 y sigue sin resolverse.
 - **No cambia el evento de auditoría de `RF-SP-033`.** Para quien lee la auditoría, el hecho sigue siendo que a esa persona le retiraron su membresía; que la fila sobreviva cerrada es un detalle de cómo se guarda.
 
+## 4.quater Toda persona tiene membresía — segunda enmienda del 05-09-2026
+
+El mismo día y sobre la anterior. `RN-SP-018` pasa de «todo consumidor» a **«todo usuario»**, y quien no recibe membresía al registrarse arranca en la de código `FREE`. `RN-SP-013` y `RN-SP-015` quedan **retiradas**. La migración es `V57` y se declara en `plan.md` §2.3.ter.
+
+**Estados:** `Pendiente` · `En curso` · `Hecha` · `Bloqueada`.
+
+| ID | Tarea | Depende de | Verificación | Estado |
+|---|---|---|---|---|
+| `T-33` | **`V57`**: una fila `FREE` para toda persona sin membresía abierta, **eliminadas incluidas** | `T-25` | Tras migrar, `SELECT count(*) FROM users u WHERE NOT EXISTS (…abierta…)` es **cero**. El superadministrador de `V22` queda con `FREE` | **Hecha** — 05-09-2026 |
+| `T-34` | `MembershipCatalog` gana la resolución del suelo **por código**, y falla ruidosamente si no existe | `T-33` | Prueba de integración: devuelve la sembrada por `V46`. **No se resuelve por `parent_membership_id IS NULL`** — `RN-SP-007` deja registrar una por debajo y eso movería el nivel de arranque sin que nadie lo pidiera | **Hecha** — 05-09-2026 |
+| `T-35` | `RF-SP-024`: `membershipId` pasa a **opcional**; sin él, `FREE`. Se retiran las dos comprobaciones de `RN-SP-018` | `T-34` | Registrar un funcionario **sin** `membershipId` devuelve `201` y la persona tiene `FREE`. Registrar un consumidor sin él **ya no es `409`** | **Hecha** — 05-09-2026 |
+| `T-36` | `RF-SP-030`: **deja de admitir membresía**; `membershipId` y `membershipEndsAt` salen de `AssignRolesRequest` y del contrato | `T-35` | La lógica que queda **no puede** escribir en `user_memberships`. Un campo que solo puede producir un `422` es peor que ningún campo | **Hecha** — 05-09-2026 |
+| `T-37` | `RF-SP-031`: **se retira la cascada** de `RN-SP-015` | `T-35` | Retirar el último rol consumidor deja los roles como corresponde y **no toca** la membresía: quien tenía `ORO` sigue con `ORO` | **Hecha** — 05-09-2026 |
+| `T-38` | `RF-SP-032`: se retira `EX-001` (`RN-SP-013`) | `T-35` | Asignar `VIP` a un **funcionario** devuelve `200`, no `409` | **Hecha** — 05-09-2026 |
+| `T-39` | `RF-SP-033`: pasa a **devolver al suelo** — cierra y abre una `FREE`, responde `200` con cuerpo y pierde su precondición de no ser consumidor | `T-34` | Tras la operación la persona tiene `FREE` **abierta**, y la anterior queda cerrada con su `ends_at` intacto | **Hecha** — 05-09-2026 |
+| `T-40` | La semilla de desarrollo concede `FREE` a quien no tenga otra | `T-33` | `DevelopmentSeedIT` comprueba que **ninguna** persona de la semilla se queda sin nivel | **Hecha** — 05-09-2026 |
+| `T-41` | Prueba del invariante, de punta a punta | `T-39` | **La que importa**: tras registrar, asignar roles, retirar roles y devolver al suelo, **en ningún momento** hay una persona viva sin membresía abierta | **Hecha** — 05-09-2026 |
+
+**Lo que esta enmienda NO hace:**
+
+- **No declara el invariante en el motor**, y no por descuido: es una comprobación entre `users` y `user_memberships` que ningún `CHECK` alcanza (`plan.md` §2.3.ter).
+- **No baja de nivel a quien deja de ser consumidor.** Conserva lo que tenía, incluido lo comprado. Es lo que sustituye a la cascada retirada, y es una decisión, no una omisión.
+- **No toca `RN-SP-019`**, el par equivalente del superior comercial. Vendedor ⟺ superior sigue tal cual: solo se soltó la atadura entre consumidor y nivel.
+
 ## 5. Definición de terminado
 
 El requerimiento no está terminado hasta cumplir **todas** las condiciones de la constitución §16:

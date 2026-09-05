@@ -12,6 +12,20 @@
 
 ---
 
+!!! warning "Enmendado el 05-09-2026 — deja de retirar y pasa a DEVOLVER AL SUELO"
+
+    Segunda enmienda del mismo día, y encima de la anterior. `RN-SP-018` pasa a exigir que **toda** persona tenga nivel, de modo que esta operación **ya no puede dejar a nadie sin membresía**.
+
+    **Cierra la que hay y abre una de código `FREE`**, en la misma transacción — la misma escritura de dos sentencias que `RF-SP-032` usa para sustituir.
+
+    **Responde `200` con la membresía `FREE`, no `204` sin cuerpo.** Devolver `204` diría que no queda nada, y queda algo: el nivel de arranque. Quien llama necesita saber en qué quedó la persona sin tener que volver a preguntar.
+
+    **`EX-001` desaparece**, y con él la rareza que definía este requerimiento: exigía que la persona **no** portara ningún rol `CONSUMIDOR` —lo contrario de lo que sugiere su nombre— porque `RN-SP-018` no admitía consumidores sin nivel. Retirada `RN-SP-013` y reescrita `RN-SP-018`, esa precondición no protege nada: bajar a alguien al suelo es válido lo porte o no.
+
+    **`FA-001` —sin membresía previa— deja de ser alcanzable**, por la misma razón. No se elimina del texto: describe un estado que el sistema ya no admite, y saber que se contempló vale más que un hueco.
+
+    **Y el requerimiento cambia de nombre**: «Retirar la membresía de un usuario» pasa a «**Devolver la membresía de un usuario al suelo**». El verbo importaba: `DELETE` sobre `/membership` ya no borra una relación, la **restablece**.
+
 ## 1. Enfoque
 
 Es el requerimiento más pequeño del módulo y el que más fácil es implementar mal, porque su nombre promete una operación corriente y lo que hace es lo contrario: **retira la membresía exactamente cuando la persona no es consumidora**, y la rechaza cuando lo es.

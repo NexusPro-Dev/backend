@@ -239,6 +239,11 @@ SELECT pg_temp.uuid_v7(), subordinado.id, superior.id
 -- a `cliente2` dos y a `cliente3` uno. Con los tres en el mismo nivel, la mitad
 -- de `RF-PM-007` quedaría sin ejercitar.
 --
+-- TODA PERSONA LLEVA MEMBRESIA desde `V57` (`RN-SP-018`), y no solo los
+-- clientes: el superadministrador y los funcionarios arrancan en Free. Sin esas
+-- filas, `V57` se las pondria igual — pero la semilla dejaria de describir el
+-- estado que produce y habria que ir a leer la migracion para saberlo.
+--
 -- `user_memberships` ES UN HISTORIAL desde `V56`: `id` propio, y `closed_at`
 -- nulo marca la fila ABIERTA, que es la actual. Conceder otra membresia cierra
 -- la que hubiera e inserta una nueva. La semilla escribe solo la abierta: en
@@ -257,7 +262,9 @@ SELECT (
         || substr(md5(random()::text || u.id::text || m.id::text), 1, 12)
        )::uuid,
        u.id, m.id
-  FROM (VALUES ('cliente1', 'FREE'), ('cliente2', 'VIP'), ('cliente3', 'PLATINO'))
+  FROM (VALUES ('superadmin', 'FREE'), ('admin1', 'FREE'), ('manager1', 'FREE'),
+               ('director1', 'FREE'), ('agente1', 'FREE'), ('agente2', 'FREE'), ('agente3', 'FREE'),
+               ('cliente1', 'FREE'), ('cliente2', 'VIP'), ('cliente3', 'PLATINO'))
        AS asignacion(usuario, membresia)
   JOIN users u ON u.username = asignacion.usuario
   JOIN memberships m ON m.code = asignacion.membresia

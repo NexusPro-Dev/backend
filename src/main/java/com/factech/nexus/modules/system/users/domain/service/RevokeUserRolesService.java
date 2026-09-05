@@ -8,7 +8,6 @@ import com.factech.nexus.modules.system.users.domain.repository.AssignableRole;
 import com.factech.nexus.modules.system.users.domain.repository.RoleCatalog;
 import com.factech.nexus.modules.system.users.domain.repository.UserRepository;
 import com.factech.nexus.modules.system.users.domain.security.CommercialStructure;
-import com.factech.nexus.modules.system.users.domain.security.ConsumerStatus;
 import com.factech.nexus.modules.system.users.domain.security.PrivilegeContainment;
 import com.factech.nexus.modules.system.users.domain.security.RoleAssignment;
 import com.factech.nexus.modules.system.users.domain.security.RootAdministratorPresence;
@@ -163,15 +162,14 @@ public class RevokeUserRolesService {
 
     usuarios.removeRoles(userId, aRetirar);
 
-    boolean pierdeLaMembresia =
-        !ConsumerStatus.esConsumidor(catalogoResultante)
-            && usuarios.findMembership(userId).isPresent();
-    UUID membresiaRetirada =
-        pierdeLaMembresia ? usuarios.findMembership(userId).orElseThrow().membershipId() : null;
-
-    if (pierdeLaMembresia) {
-      usuarios.closeMembership(userId, ahora);
-    }
+    // LA CASCADA DE LA MEMBRESÍA SE RETIRÓ EL 05-09-2026, con `RN-SP-015`.
+    // Quien deja de ser consumidor CONSERVA LA MEMBRESÍA QUE TENÍA, incluida una
+    // comprada: `RN-SP-018` reescrita no admite a nadie sin nivel, y bajarla al
+    // suelo sería quitarle a alguien algo que pagó.
+    //
+    // LA DEL SUPERIOR COMERCIAL SE QUEDA, y las dos eran simétricas — leer este
+    // método esperando la otra es el error que este comentario existe para
+    // evitar. `RN-SP-019` no se tocó.
 
     boolean cierraSuperior =
         pierdeLaCondicionDeVendedor && usuarios.findActiveSupervisor(userId).isPresent();
@@ -184,13 +182,7 @@ public class RevokeUserRolesService {
     // deje vivo el acceso que decía haber cortado.
     int sesionesRevocadas = sesiones.revokeAllForAccessChange(userId);
 
-    auditar(
-        usuario,
-        retirados,
-        catalogoResultante,
-        membresiaRetirada,
-        cierraSuperior,
-        sesionesRevocadas);
+    auditar(usuario, retirados, catalogoResultante, cierraSuperior, sesionesRevocadas);
 
     return UserResponses.de(usuario, catalogoResultante, usuarios, userId);
   }
@@ -296,13 +288,13 @@ public class RevokeUserRolesService {
   // ---------------------------------------------------------------------------
 
   /**
-   * Eliminación para lo que se borra, cambio para lo que se cierra.
+   * Eliminación para los roles, cambio para lo que se cierra.
    *
-   * <p>La distinción no es formal: la membresía <b>desaparece</b> —`RN-SP-015` dice que quien deja
-   * de ser consumidor no tiene membresía, no que tuviera una que terminó— mientras que la
-   * asignación de superior <b>sobrevive con su fecha de cierre</b>, porque dice a quién se atribuía
-   * cada resultado comercial en cada periodo. Registrar el cierre como una eliminación sugeriría
-   * que esa fila ya no está.
+   * <p><b>La membresía ya no aparece aquí</b> (05-09-2026): esta operación dejó de tocarla cuando
+   * `RN-SP-015` se retiró, de modo que no hay nada suyo que registrar. Hasta entonces se anotaba
+   * como eliminación —«quien deja de ser consumidor no tiene membresía, no que tuviera una que
+   * terminó»— frente al cierre del superior, que <b>sobrevive con su fecha</b> porque dice a quién
+   * se atribuía cada resultado comercial en cada periodo.
    *
    * <p>Las filas de eliminación quedan <b>sin motivo</b>: es la excepción del Art. V.13 que
    * `RN-SP-005` aplicó a las asociaciones, y el endpoint no lo pide.
@@ -311,7 +303,6 @@ public class RevokeUserRolesService {
       User usuario,
       List<AssignableRole> retirados,
       List<AssignableRole> resultantes,
-      UUID membresiaRetirada,
       boolean superiorCerrado,
       int sesionesRevocadas) {
 
@@ -322,17 +313,6 @@ public class RevokeUserRolesService {
     auditoria.recordDeletion(
         new DeletionEvent(
             MODULO, "user_roles", usuario.getId(), DeletionType.ASSOCIATION, null, estadoRoles));
-
-    if (membresiaRetirada != null) {
-      auditoria.recordDeletion(
-          new DeletionEvent(
-              MODULO,
-              "user_memberships",
-              usuario.getId(),
-              DeletionType.ASSOCIATION,
-              null,
-              Map.of("membership_id", membresiaRetirada.toString())));
-    }
 
     if (superiorCerrado) {
       auditoria.recordChange(

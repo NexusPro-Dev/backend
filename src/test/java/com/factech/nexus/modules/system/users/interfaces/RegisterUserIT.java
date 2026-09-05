@@ -68,7 +68,15 @@ class RegisterUserIT extends IntegrationTestBase {
     jdbc.update("DELETE FROM user_memberships");
     jdbc.update("DELETE FROM user_roles WHERE user_id <> ?", SUPERADMIN);
     jdbc.update("DELETE FROM users WHERE id <> ?", SUPERADMIN);
-    jdbc.update("DELETE FROM memberships WHERE level > 0");
+    // FREE SOBREVIVE AL BARRIDO desde el 05-09-2026: `RN-SP-018` da nivel a toda
+    // persona y el alta lo resuelve por código, de modo que un catálogo vacío ya
+    // no es un estado del que el sistema pueda salir. Borrarla aquí probaría algo
+    // que `RN-SP-008` no deja ocurrir: la membresía sembrada no se elimina.
+    // BARRIDO TOTAL Y REPOSICIÓN, en ese orden: conservar FREE haría depender esta
+    // clase del ORDEN DE EJECUCIÓN — según quién haya corrido antes, la fila queda
+    // colgando de VIP (`V47`) o suelta, y el barrido choca con `fk_memberships_parent`.
+    jdbc.update("DELETE FROM memberships");
+    reponerElSuelo(jdbc);
     jdbc.update(
         "DELETE FROM role_permissions WHERE role_id IN"
             + " (SELECT id FROM roles WHERE is_system = false)");
@@ -252,38 +260,47 @@ class RegisterUserIT extends IntegrationTestBase {
   }
 
   // ---------------------------------------------------------------------------
-  // Membresía y superior — condicionales en los dos sentidos
+  // Membresía — el alta SIEMPRE concede una (`RN-SP-018`, reescrita)
   // ---------------------------------------------------------------------------
 
   @Test
-  @DisplayName("RN-SP-018 — el consumidor exige membresía, y la membresía exige consumidor")
-  void consumidorYMembresiaSonInseparables() throws Exception {
+  @DisplayName("RN-SP-018 — sin membresía indicada, la persona nace en el suelo")
+  void sinMembresiaNaceEnElSuelo() throws Exception {
     String consumidor = crearRolConsumidor();
-    String membresia = crearMembresia();
 
+    // Hasta el 05-09-2026 esto era un `409` con código `RN-SP-018`: el rol de
+    // consumidor EXIGÍA indicar membresía. Ahora no la exige nadie, porque toda
+    // persona nace con una.
     mvc.perform(
             post("/api/v1/users")
                 .with(superadmin())
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(cuerpo("cliente", "cliente@factech.co", "\"" + consumidor + "\"")))
-        .andExpect(status().isConflict())
-        .andExpect(jsonPath("$.errors[0].code").value("RN-SP-018"));
+        .andExpect(status().isCreated())
+        .andExpect(jsonPath("$.membership.code").value("FREE"));
+  }
 
-    // Y la recíproca: membresía sin rol de consumidor tampoco se ignora.
+  @Test
+  @DisplayName("RN-SP-013 retirada — un FUNCIONARIO también nace con nivel")
+  void elFuncionarioTambienNaceConNivel() throws Exception {
+    // La recíproca de la prueba anterior, y la que más cambia: antes, indicar
+    // membresía sin rol de consumidor era un `409`. Ahora ni siquiera hace falta
+    // indicarla — quien no es consumidor de nada tiene `FREE` igual.
     mvc.perform(
             post("/api/v1/users")
                 .with(superadmin())
                 .contentType(MediaType.APPLICATION_JSON)
-                .content(
-                    """
-                    {"username":"otro","email":"otro@factech.co","firstName":"O","lastName":"P",
-                     "password":"%s","roleIds":["%s"],"membershipId":"%s"}
-                    """
-                        .formatted(CONTRASENA, rolAcotado, membresia)))
-        .andExpect(status().isConflict())
-        .andExpect(jsonPath("$.errors[0].code").value("RN-SP-018"));
+                .content(cuerpo("otro", "otro@factech.co", "\"" + ADMIN + "\"")))
+        .andExpect(status().isCreated())
+        .andExpect(jsonPath("$.membership.code").value("FREE"));
+  }
 
-    // Juntos, sí.
+  @Test
+  @DisplayName("la membresía indicada se respeta, y es la única fila abierta de esa persona")
+  void laMembresiaIndicadaSeRespeta() throws Exception {
+    String consumidor = crearRolConsumidor();
+    String membresia = crearMembresia();
+
     mvc.perform(
             post("/api/v1/users")
                 .with(superadmin())
@@ -294,9 +311,17 @@ class RegisterUserIT extends IntegrationTestBase {
                      "password":"%s","roleIds":["%s"],"membershipId":"%s"}
                     """
                         .formatted(CONTRASENA, consumidor, membresia)))
-        .andExpect(status().isCreated());
+        .andExpect(status().isCreated())
+        .andExpect(jsonPath("$.membership.code").value("ORO"));
 
-    Integer filas = jdbc.queryForObject("SELECT count(*) FROM user_memberships", Integer.class);
+    // UNA POR PERSONA, no una en toda la tabla: desde `V57` el superadministrador
+    // sembrado también tiene la suya, de modo que contar filas sin acotar por
+    // persona mide otra cosa.
+    Integer filas =
+        jdbc.queryForObject(
+            "SELECT count(*) FROM user_memberships um JOIN users u ON u.id = um.user_id"
+                + " WHERE u.username = 'cliente' AND um.closed_at IS NULL",
+            Integer.class);
     assertThat(filas).isEqualTo(1);
   }
 
@@ -583,7 +608,7 @@ class RegisterUserIT extends IntegrationTestBase {
     jdbc.update(
         """
         INSERT INTO memberships (id, code, name, parent_membership_id, level, color)
-        VALUES (?, 'ORO', 'Oro', NULL, 1, 'D4AF37')
+        VALUES (?, 'ORO', 'Oro', (SELECT id FROM memberships WHERE code = 'FREE'), 2, 'D4AF37')
         """,
         id);
     return id.toString();

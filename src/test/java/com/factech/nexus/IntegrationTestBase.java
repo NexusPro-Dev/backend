@@ -169,4 +169,45 @@ public abstract class IntegrationTestBase {
         id);
     return id;
   }
+
+  /**
+   * Repone la membresía de arranque, <b>la de código {@code FREE}</b>, con el identificador literal
+   * que `V46` siembra.
+   *
+   * <p><b>Hace falta porque la suite comparte una sola base y dos docenas de clases hacen {@code
+   * DELETE FROM memberships}</b> para montar su propia cadena. Desde el 05-09-2026 eso rompe a
+   * quien venga después: `RN-SP-018` da nivel a toda persona y el alta lo resuelve por código, de
+   * modo que sin esta fila <b>registrar un usuario devuelve {@code 500}</b> — y el fallo aparece o
+   * no según el orden de ejecución, que es la peor clase de prueba intermitente.
+   *
+   * <p>Se llama <b>después</b> del barrido de la clase, cuando ya no queda ninguna otra membresía
+   * sin padre con la que chocar en {@code uq_memberships_parent}.
+   */
+  protected static void reponerElSuelo(org.springframework.jdbc.core.JdbcTemplate jdbc) {
+    jdbc.update(
+        """
+        INSERT INTO memberships (id, code, name, description, parent_membership_id, level, color)
+        VALUES ('01a04ad0-e800-7001-9c4f-5e7ad7000001', 'FREE', 'Free', 'Nivel de entrada.',
+                NULL, 1, '9E9E9E')
+        ON CONFLICT (id) DO NOTHING
+        """);
+  }
+
+  /**
+   * Concede la membresía de arranque a una persona creada <b>por SQL</b>.
+   *
+   * <p>Los fixtures que insertan en {@code users} directamente se saltan el caso de uso, y con él
+   * la concesión que `RN-SP-018` exige. Sin esto, esas personas quedan en un estado que el sistema
+   * <b>ya no produce</b> —viva y sin nivel—, y una prueba que lo dé por bueno estaría fijando algo
+   * que no puede ocurrir.
+   */
+  protected static void darElSuelo(
+      org.springframework.jdbc.core.JdbcTemplate jdbc, java.util.UUID userId) {
+    jdbc.update(
+        """
+        INSERT INTO user_memberships (id, user_id, membership_id)
+        SELECT gen_random_uuid(), ?, id FROM memberships WHERE code = 'FREE'
+        """,
+        userId);
+  }
 }

@@ -133,10 +133,15 @@ public class UserController {
           contraseña**: quien prepara el alta conoce la credencial, y esa ventana
           se cierra en el primer inicio de sesión. Ni el estado ni la marca se
           envían; enviarlos devuelve `400`.
+          **`membershipId` es OPCIONAL, y el superior es condicional.** Desde el
+          05-09-2026 toda persona nace con nivel: si no se indica ninguno, se le
+          concede el de arranque (`FREE`). Ya no hay rechazo por indicarlo sin rol
+          de consumidor ni por omitirlo teniéndolo — esa exigencia murió con
+          `RN-SP-013`.
 
-          **La membresía y el superior son condicionales en los dos sentidos.**
-          Un rol de consumidor exige membresía y la membresía exige un rol de
-          consumidor; lo mismo con el rol de vendedor y el superior comercial.
+          El rol de vendedor y el superior comercial **sí siguen siendo
+          condicionales en los dos sentidos**: indicar uno sin el otro devuelve
+          `409`, no se ignora.
           Indicar uno sin el otro devuelve `409`, no se ignora.
 
           El superior debe portar el **rol padre inmediato** del rol vendedor de
@@ -168,7 +173,7 @@ public class UserController {
         responseCode = "409",
         description =
             "Identidad ya en uso (`RN-SP-016`), rol que excede los privilegios del actor"
-                + " (`RN-SEG-010`), consumidor sin membresía o al revés (`RN-SP-018`), vendedor sin"
+                + " (`RN-SEG-010`), vendedor sin"
                 + " superior o al revés (`RN-SP-019`), o superior que no porta el rol padre"
                 + " (`RN-SP-020`)",
         content = @Content),
@@ -701,12 +706,16 @@ public class UserController {
           Pedir un rol que la persona ya tiene no es un error: no cambia nada y
           no deja rastro en la auditoría.
 
-          `membershipId`, `membershipEndsAt` y `supervisorId` son
-          **condicionales**: obligatorios exactamente cuando la operación
-          convierte a la persona en consumidor o cambia su rango comercial, y no
-          admitidos en cualquier otro caso. Su admisibilidad depende del estado
-          de la persona y no del cuerpo, de modo que su incumplimiento es `422` y
-          nunca `400`.
+          **Esta operación no toca la membresía**, y desde el 05-09-2026 tampoco
+          la admite: `membershipId` y `membershipEndsAt` se retiraron del cuerpo.
+          Toda persona tiene nivel desde el alta, de modo que cuando llega esta
+          petición ya lo tiene; cambiarlo es la operación de membresía, que tiene
+          su propio permiso.
+
+          `supervisorId` es **condicional**: obligatorio exactamente cuando la
+          operación cambia el rango comercial de la persona, y no admitido en
+          cualquier otro caso. Su admisibilidad depende del estado de la persona
+          y no del cuerpo, de modo que su incumplimiento es `422` y nunca `400`.
 
           Un **ascenso** —que cambia el rol vendedor de mayor rango— exige
           declarar de nuevo el superior: el anterior puede haber dejado de ser
@@ -742,8 +751,7 @@ public class UserController {
     @ApiResponse(
         responseCode = "422",
         description =
-            "Rol inexistente (`EX-002`), rol inactivo (`EX-003`), consumidor sin membresía"
-                + " (`RN-SP-018`), membresía indicada sin que corresponda (`EX-006`), vendedor sin"
+            "Rol inexistente (`EX-002`), rol inactivo (`EX-003`), vendedor sin"
                 + " superior (`RN-SP-019`), o superior inadmisible (`VAL-007`, `RN-SP-020`)",
         content = @Content),
     @ApiResponse(
@@ -762,10 +770,14 @@ public class UserController {
       summary = "Retirar roles de una persona",
       description =
           """
-          Retira roles y **arrastra las cascadas**: quedarse sin ningún rol de
-          consumidor borra la membresía, y quedarse sin ningún rol de vendedor
-          cierra la asignación de superior comercial —cerrarla, nunca borrarla:
-          esa fila dice a quién se atribuía cada resultado—.
+          Retira roles y **arrastra UNA cascada**: quedarse sin ningún rol de
+          vendedor cierra la asignación de superior comercial —cerrarla, nunca
+          borrarla: esa fila dice a quién se atribuía cada resultado—.
+
+          **La membresía ya no se arrastra** (05-09-2026). Quien deja de ser
+          consumidor **conserva el nivel que tenía**, incluido uno comprado: toda
+          persona debe tener membresía, y bajarla al suelo sería quitarle algo
+          que pagó.
 
           **Revoca todas las sesiones de la persona.** Asignar no lo hace;
           retirar sí, porque el refresh token sobrevive al cambio de permisos y
@@ -826,7 +838,7 @@ public class UserController {
           """
           **`PUT` y no `POST`**, al revés que la asignación de roles, y la
           diferencia no es de gusto: aquí el cuerpo **sí** representa el estado
-          final. La persona tiene una membresía o ninguna, de modo que enviar una
+          final. La persona tiene siempre exactamente una, de modo que enviar una
           la deja como la única — y de ahí sale gratis la idempotencia.
 
           `endsAt` es opcional. **Ausente significa indefinida**: enviarlo ausente
@@ -864,12 +876,6 @@ public class UserController {
         description = "La persona no existe o está eliminada (`VAL-004`)",
         content = @Content),
     @ApiResponse(
-        responseCode = "409",
-        description =
-            "La persona no porta ningún rol de consumidor (`RN-SP-013`). El cuerpo indica que"
-                + " primero corresponde asignarle uno",
-        content = @Content),
-    @ApiResponse(
         responseCode = "422",
         description = "La membresía indicada no existe en la cadena (`VAL-002`)",
         content = @Content),
@@ -884,30 +890,40 @@ public class UserController {
   }
 
   @DeleteMapping("/{id}/membership")
-  @ResponseStatus(HttpStatus.NO_CONTENT)
   @PreAuthorize("hasAuthority('users:assign-membership')")
   @Operation(
-      summary = "Retirar la membresía de una persona",
+      summary = "Devolver la membresía de una persona al suelo",
       description =
           """
-          **Rechaza a quien SÍ es consumidor**, que es lo contrario de lo que
-          sugiere el nombre. No existe el estado «consumidor sin nivel», de modo
-          que esta operación solo sirve para **corregir un estado incoherente**:
-          alguien con membresía que ya no porta ningún rol de consumidor.
+          **Devuelve al nivel de arranque, y no deja a nadie sin nivel.** Desde el
+          05-09-2026 `RN-SP-018` exige que **toda** persona tenga membresía, de
+          modo que esta operación cierra la que tenga y le abre una `FREE`.
 
-          Las dos salidas reales para un consumidor en activo son bajarlo de nivel
-          con la operación de membresía, o retirarle el rol — el retiro arrastra la
-          membresía por su cuenta. El cuerpo del `409` las cita.
+          Existe para **corregir un nivel concedido por error**. Bajar a alguien a
+          un nivel intermedio es la operación de membresía, que admite indicar
+          cuál.
 
-          Sin membresía previa devuelve `204` igual: la operación es idempotente y
-          su resultado ya se cumplía.
+          **Responde `200` con la membresía resultante**, no `204`: devolver un
+          cuerpo vacío diría que no queda nada, y queda el nivel de arranque —
+          quien llama necesita saber en qué quedó la persona sin volver a
+          preguntar.
+
+          **Es idempotente.** Aplicada sobre quien ya está en el suelo no escribe
+          ni audita, y devuelve lo mismo.
+
+          **Ya no rechaza a los consumidores.** Hasta el 05-09-2026 exigía que la
+          persona **no** portara ningún rol de consumidor, porque la regla de
+          entonces no admitía consumidores sin nivel; retirada `RN-SP-013`, esa
+          precondición no protege nada.
 
           **Conserva el `DELETE`** y no le alcanza la enmienda del retiro de
           roles: esta operación no lleva cuerpo, de modo que el problema que
           aquella evitaba no existe aquí.
           """)
   @ApiResponses({
-    @ApiResponse(responseCode = "204", description = "Membresía retirada.", content = @Content),
+    @ApiResponse(
+        responseCode = "200",
+        description = "La persona queda en el nivel de arranque, que se devuelve."),
     @ApiResponse(
         responseCode = "400",
         description = "Identificador malformado (`VAL-001`)",
@@ -925,16 +941,12 @@ public class UserController {
         description = "La persona no existe o está eliminada (`VAL-002`)",
         content = @Content),
     @ApiResponse(
-        responseCode = "409",
-        description = "La persona porta al menos un rol de consumidor (`RN-SP-018`)",
-        content = @Content),
-    @ApiResponse(
         responseCode = "500",
         description = "Fallo no controlado (`ERR-500`)",
         content = @Content)
   })
-  public void retirarMembresia(@PathVariable UUID id) {
-    retiroDeMembresia.revoke(id);
+  public UserMembershipResponse devolverMembresiaAlSuelo(@PathVariable UUID id) {
+    return retiroDeMembresia.resetToFloor(id);
   }
 
   @PatchMapping("/{id}/supervisor")

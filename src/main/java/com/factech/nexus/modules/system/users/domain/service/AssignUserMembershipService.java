@@ -4,14 +4,11 @@ import com.factech.nexus.modules.system.users.application.AssignMembershipReques
 import com.factech.nexus.modules.system.users.application.UserMembershipResponse;
 import com.factech.nexus.modules.system.users.domain.models.User;
 import com.factech.nexus.modules.system.users.domain.repository.MembershipCatalog;
-import com.factech.nexus.modules.system.users.domain.repository.RoleCatalog;
 import com.factech.nexus.modules.system.users.domain.repository.UserMembership;
 import com.factech.nexus.modules.system.users.domain.repository.UserRepository;
-import com.factech.nexus.modules.system.users.domain.security.ConsumerStatus;
 import com.factech.nexus.shared.audit.AuditEnums.ChangeAction;
 import com.factech.nexus.shared.audit.AuditEvents.ChangeEvent;
 import com.factech.nexus.shared.audit.AuditWriter;
-import com.factech.nexus.shared.error.BusinessRuleException;
 import com.factech.nexus.shared.error.FieldError;
 import com.factech.nexus.shared.error.ResourceNotFoundException;
 import com.factech.nexus.shared.error.UnprocessableEntityException;
@@ -59,7 +56,7 @@ public class AssignUserMembershipService {
   private static final String ENTIDAD = "user_memberships";
 
   private final UserRepository usuarios;
-  private final RoleCatalog roles;
+
   private final MembershipCatalog membresias;
   private final AuditWriter auditoria;
   private final Clock reloj;
@@ -68,22 +65,20 @@ public class AssignUserMembershipService {
   @Autowired
   public AssignUserMembershipService(
       UserRepository usuarios,
-      RoleCatalog roles,
       MembershipCatalog membresias,
       AuditWriter auditoria,
       UuidV7Generator ids) {
-    this(usuarios, roles, membresias, auditoria, Clock.systemUTC(), ids);
+    this(usuarios, membresias, auditoria, Clock.systemUTC(), ids);
   }
 
   AssignUserMembershipService(
       UserRepository usuarios,
-      RoleCatalog roles,
       MembershipCatalog membresias,
       AuditWriter auditoria,
       Clock reloj,
       UuidV7Generator ids) {
     this.usuarios = usuarios;
-    this.roles = roles;
+
     this.membresias = membresias;
     this.auditoria = auditoria;
     this.reloj = reloj;
@@ -125,14 +120,11 @@ public class AssignUserMembershipService {
                       List.of(new FieldError("membershipId", "VAL-002", mensaje)));
                 });
 
-    // 4. `EX-001` — `RN-SP-013`.
-    if (!ConsumerStatus.esConsumidor(roles.findAllById(roles.roleIdsOf(userId)))) {
-      String mensaje =
-          "La persona no porta ningún rol de consumidor: asígnele uno primero con la operación de"
-              + " roles, que admite indicar la membresía en la misma petición.";
-      throw new BusinessRuleException(
-          "RN-SP-013", mensaje, List.of(new FieldError("membershipId", "RN-SP-013", mensaje)));
-    }
+    // 4. `EX-001` SE RETIRÓ EL 05-09-2026, con `RN-SP-013`. Exigía que la
+    //    persona portara algún rol de consumidor, y esa exigencia se contradice
+    //    con la regla que la sustituye: `RN-SP-018` reescrita da nivel a TODA
+    //    persona, y el superadministrador tiene `FREE` sin ser consumidor de
+    //    nada. La numeración de los pasos no se recoloca: `spec.md` los cita.
 
     Optional<UserMembership> anterior = usuarios.findMembership(userId);
 

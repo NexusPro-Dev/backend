@@ -7,10 +7,10 @@ import com.factech.nexus.modules.system.users.domain.models.Email;
 import com.factech.nexus.modules.system.users.domain.models.User;
 import com.factech.nexus.modules.system.users.domain.models.Username;
 import com.factech.nexus.modules.system.users.domain.repository.AssignableRole;
+import com.factech.nexus.modules.system.users.domain.repository.MembershipCatalog;
 import com.factech.nexus.modules.system.users.domain.repository.RoleCatalog;
 import com.factech.nexus.modules.system.users.domain.repository.UserRepository;
 import com.factech.nexus.modules.system.users.domain.security.CommercialStructure;
-import com.factech.nexus.modules.system.users.domain.security.ConsumerStatus;
 import com.factech.nexus.modules.system.users.domain.security.PrivilegeContainment;
 import com.factech.nexus.shared.audit.AuditEnums.ChangeAction;
 import com.factech.nexus.shared.audit.AuditEnums.Outcome;
@@ -49,7 +49,9 @@ import org.springframework.transaction.annotation.Transactional;
  *   <li>Unicidad de nombre de usuario y correo (`RN-SP-016` → {@code 409}).
  *   <li>Los roles existen y sirven (`EX-003` → {@code 422}).
  *   <li>Ningún rol excede los privilegios del actor (`RN-SEG-010` → {@code 409}).
- *   <li>Consumidor ⟺ membresía (`RN-SP-018` → {@code 409}).
+ *   <li>Toda persona nace con nivel (`RN-SP-018`): la indicada, o el suelo. <b>Ya no hay caso de
+ *       rechazo</b> desde el 05-09-2026 — la comprobación de los dos sentidos murió con
+ *       `RN-SP-013`.
  *   <li>Vendedor ⟺ superior (`RN-SP-019` → {@code 409}).
  *   <li>El superior porta el rol padre inmediato (`RN-SP-020` → {@code 409}).
  * </ol>
@@ -69,6 +71,7 @@ public class RegisterUserService {
 
   private final UserRepository usuarios;
   private final RoleCatalog roles;
+  private final MembershipCatalog membresias;
   private final CommercialStructure estructura;
   private final AuthenticatedActor actor;
   private final PasswordPolicy politica;
@@ -82,18 +85,30 @@ public class RegisterUserService {
   public RegisterUserService(
       UserRepository usuarios,
       RoleCatalog roles,
+      MembershipCatalog membresias,
       CommercialStructure estructura,
       AuthenticatedActor actor,
       PasswordPolicy politica,
       PasswordHasher hasher,
       AuditWriter auditoria,
       UuidV7Generator ids) {
-    this(usuarios, roles, estructura, actor, politica, hasher, auditoria, ids, Clock.systemUTC());
+    this(
+        usuarios,
+        roles,
+        membresias,
+        estructura,
+        actor,
+        politica,
+        hasher,
+        auditoria,
+        ids,
+        Clock.systemUTC());
   }
 
   RegisterUserService(
       UserRepository usuarios,
       RoleCatalog roles,
+      MembershipCatalog membresias,
       CommercialStructure estructura,
       AuthenticatedActor actor,
       PasswordPolicy politica,
@@ -103,6 +118,7 @@ public class RegisterUserService {
       Clock reloj) {
     this.usuarios = usuarios;
     this.roles = roles;
+    this.membresias = membresias;
     this.estructura = estructura;
     this.actor = actor;
     this.politica = politica;
@@ -126,7 +142,14 @@ public class RegisterUserService {
 
     List<AssignableRole> concedidos = resolverRoles(comando.roleIds());
     verificarAlcanceDelActor(concedidos);
-    verificarMembresia(concedidos, comando.membershipId());
+
+    // `RN-SP-018`, reescrita el 05-09-2026: TODA PERSONA NACE CON NIVEL. Si el
+    // alta no indica membresía, la de arranque. Ya no se comprueba nada sobre
+    // ella: la comprobación de los dos sentidos —consumidor sin membresía y
+    // membresía sin consumidor— murió con `RN-SP-013`.
+    UUID membresia =
+        comando.membershipId() != null ? comando.membershipId() : membresias.floor().id();
+
     UUID superior = verificarSuperior(concedidos, comando.supervisorId());
 
     OffsetDateTime ahora = OffsetDateTime.now(reloj);
@@ -142,14 +165,18 @@ public class RegisterUserService {
                 comando.roleIds(),
                 ahora));
 
-    if (comando.membershipId() != null) {
-      usuarios.assignMembership(ids.next(), usuario.getId(), comando.membershipId(), null, ahora);
-    }
+    // SIN CONDICIÓN. No existe un instante en que la persona esté escrita y sin
+    // nivel — ni entre estas dos sentencias, porque comparten transacción.
+    usuarios.assignMembership(ids.next(), usuario.getId(), membresia, null, ahora);
+
     if (superior != null) {
       usuarios.assignSupervisor(ids.next(), usuario.getId(), superior, ahora);
     }
 
-    auditar(usuario, concedidos, comando.membershipId(), superior);
+    // SE AUDITA LA CONCEDIDA DE VERDAD, no la pedida: si el alta no indicó
+    // ninguna, el registro tiene que decir que nació en el suelo y no que nació
+    // sin nada.
+    auditar(usuario, concedidos, membresia, superior);
 
     return UserResponses.de(usuario, concedidos, usuarios, usuario.getId());
   }
@@ -223,31 +250,6 @@ public class RegisterUserService {
     if (!excedidos.isEmpty()) {
       throw new BusinessRuleException(
           "RN-SEG-010", "No puede conceder roles que exceden sus propios permisos.", excedidos);
-    }
-  }
-
-  /**
-   * `RN-SP-018` → {@code 409}, y es <b>condicional en los dos sentidos</b>.
-   *
-   * <p>El rol de consumidor y la membresía son inseparables: no existe el estado «consumidor sin
-   * nivel». Y la recíproca importa igual — indicar una membresía sin el rol que la exige no es un
-   * dato que se ignore, es un `409`: sin ese rechazo, una petición copiada de otra dejaría una
-   * membresía colgando de quien no es consumidor.
-   */
-  private void verificarMembresia(List<AssignableRole> concedidos, UUID membresia) {
-    boolean hayConsumidor = ConsumerStatus.esConsumidor(concedidos);
-
-    if (hayConsumidor && membresia == null) {
-      throw conflicto(
-          "RN-SP-018",
-          "membershipId",
-          "Todo consumidor debe tener membresía: indíquela en esta misma operación.");
-    }
-    if (!hayConsumidor && membresia != null) {
-      throw conflicto(
-          "RN-SP-018",
-          "membershipId",
-          "No se puede asignar una membresía a quien no porta ningún rol de consumidor.");
     }
   }
 

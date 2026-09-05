@@ -80,8 +80,9 @@ class UserMembershipRejectionAuditIT extends IntegrationTestBase {
     // único que `uq_memberships_parent` admite como raíz.
     membresia = UUID.randomUUID();
     jdbc.update(
-        "INSERT INTO memberships (id, code, name, level, color)"
-            + " VALUES (?, 'BASICA', 'Basica', 1, '1234AB')",
+        "INSERT INTO memberships (id, code, name, level, parent_membership_id, color)"
+            + " VALUES (?, 'BASICA', 'Basica', 2,"
+            + " (SELECT id FROM memberships WHERE code = 'FREE'), '1234AB')",
         membresia);
   }
 
@@ -93,23 +94,6 @@ class UserMembershipRejectionAuditIT extends IntegrationTestBase {
   @Nested
   @DisplayName("los rechazos de negocio SÍ dejan rastro")
   class SiSeRegistran {
-
-    @Test
-    @DisplayName("EX-001 — la persona no es consumidora: 409 con su fila, severidad MEDIA")
-    void noEsConsumidora() {
-      long antes = filasDeError();
-
-      ejecutar(cuerpo(membresia, null), status().isConflict());
-
-      assertThat(filasDeError() - antes).as("el rechazo debe dejar UNA fila").isEqualTo(1);
-
-      Map<String, Object> fila = ultimoError();
-      assertThat(fila.get("error_type")).isEqualTo("BUSINESS_RULE");
-      assertThat(fila.get("severity"))
-          .as("no es un intento de escalada: es una regla de negocio corriente")
-          .isEqualTo("MEDIA");
-      assertThat((String) fila.get("resource")).contains("users");
-    }
 
     @Test
     @DisplayName("EX-002 — la membresía no existe: 422 con su fila")
@@ -213,6 +197,10 @@ class UserMembershipRejectionAuditIT extends IntegrationTestBase {
     jdbc.update("DELETE FROM users WHERE id <> ?", SUPERADMIN);
     // La cadena de membresías también: esta clase crea su primer eslabón, y sin
     // barrerlo la segunda prueba choca contra `uq_memberships_code`.
+    // BARRIDO TOTAL Y REPOSICIÓN, en ese orden: conservar FREE haría depender esta
+    // clase del ORDEN DE EJECUCIÓN — según quién haya corrido antes, la fila queda
+    // colgando de VIP (`V47`) o suelta, y el barrido choca con `fk_memberships_parent`.
     jdbc.update("DELETE FROM memberships");
+    reponerElSuelo(jdbc);
   }
 }

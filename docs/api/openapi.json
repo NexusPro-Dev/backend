@@ -17,14 +17,6 @@
       },
       "AssignRolesRequest" : {
         "properties" : {
-          "membershipEndsAt" : {
-            "format" : "date-time",
-            "type" : "string"
-          },
-          "membershipId" : {
-            "format" : "uuid",
-            "type" : "string"
-          },
           "roleIds" : {
             "items" : {
               "format" : "uuid",
@@ -5874,7 +5866,7 @@
         "tags" : [ "Usuarios" ]
       },
       "post" : {
-        "description" : "Registra una persona con sus roles iniciales.\n\nLa cuenta nace **activa** y **marcada para cambio obligatorio de\ncontraseña**: quien prepara el alta conoce la credencial, y esa ventana\nse cierra en el primer inicio de sesión. Ni el estado ni la marca se\nenvían; enviarlos devuelve `400`.\n\n**La membresía y el superior son condicionales en los dos sentidos.**\nUn rol de consumidor exige membresía y la membresía exige un rol de\nconsumidor; lo mismo con el rol de vendedor y el superior comercial.\nIndicar uno sin el otro devuelve `409`, no se ignora.\n\nEl superior debe portar el **rol padre inmediato** del rol vendedor de\nmayor rango de la persona, y estar activo.\n\nLa contraseña no se recorta: un espacio al principio o al final es parte\nde ella.\n",
+        "description" : "Registra una persona con sus roles iniciales.\n\nLa cuenta nace **activa** y **marcada para cambio obligatorio de\ncontraseña**: quien prepara el alta conoce la credencial, y esa ventana\nse cierra en el primer inicio de sesión. Ni el estado ni la marca se\nenvían; enviarlos devuelve `400`.\n**`membershipId` es OPCIONAL, y el superior es condicional.** Desde el\n05-09-2026 toda persona nace con nivel: si no se indica ninguno, se le\nconcede el de arranque (`FREE`). Ya no hay rechazo por indicarlo sin rol\nde consumidor ni por omitirlo teniéndolo — esa exigencia murió con\n`RN-SP-013`.\n\nEl rol de vendedor y el superior comercial **sí siguen siendo\ncondicionales en los dos sentidos**: indicar uno sin el otro devuelve\n`409`, no se ignora.\nIndicar uno sin el otro devuelve `409`, no se ignora.\n\nEl superior debe portar el **rol padre inmediato** del rol vendedor de\nmayor rango de la persona, y estar activo.\n\nLa contraseña no se recorta: un espacio al principio o al final es parte\nde ella.\n",
         "operationId" : "registrar",
         "requestBody" : {
           "content" : {
@@ -5907,7 +5899,7 @@
             "description" : "Autenticado sin el permiso de creación de usuarios (`AUTH-002`)"
           },
           "409" : {
-            "description" : "Identidad ya en uso (`RN-SP-016`), rol que excede los privilegios del actor (`RN-SEG-010`), consumidor sin membresía o al revés (`RN-SP-018`), vendedor sin superior o al revés (`RN-SP-019`), o superior que no porta el rol padre (`RN-SP-020`)"
+            "description" : "Identidad ya en uso (`RN-SP-016`), rol que excede los privilegios del actor (`RN-SEG-010`), vendedor sin superior o al revés (`RN-SP-019`), o superior que no porta el rol padre (`RN-SP-020`)"
           },
           "422" : {
             "description" : "Algún rol no existe o no está activo (`EX-003`)"
@@ -6143,8 +6135,8 @@
     },
     "/api/v1/users/{id}/membership" : {
       "delete" : {
-        "description" : "**Rechaza a quien SÍ es consumidor**, que es lo contrario de lo que\nsugiere el nombre. No existe el estado «consumidor sin nivel», de modo\nque esta operación solo sirve para **corregir un estado incoherente**:\nalguien con membresía que ya no porta ningún rol de consumidor.\n\nLas dos salidas reales para un consumidor en activo son bajarlo de nivel\ncon la operación de membresía, o retirarle el rol — el retiro arrastra la\nmembresía por su cuenta. El cuerpo del `409` las cita.\n\nSin membresía previa devuelve `204` igual: la operación es idempotente y\nsu resultado ya se cumplía.\n\n**Conserva el `DELETE`** y no le alcanza la enmienda del retiro de\nroles: esta operación no lleva cuerpo, de modo que el problema que\naquella evitaba no existe aquí.\n",
-        "operationId" : "retirarMembresia",
+        "description" : "**Devuelve al nivel de arranque, y no deja a nadie sin nivel.** Desde el\n05-09-2026 `RN-SP-018` exige que **toda** persona tenga membresía, de\nmodo que esta operación cierra la que tenga y le abre una `FREE`.\n\nExiste para **corregir un nivel concedido por error**. Bajar a alguien a\nun nivel intermedio es la operación de membresía, que admite indicar\ncuál.\n\n**Responde `200` con la membresía resultante**, no `204`: devolver un\ncuerpo vacío diría que no queda nada, y queda el nivel de arranque —\nquien llama necesita saber en qué quedó la persona sin volver a\npreguntar.\n\n**Es idempotente.** Aplicada sobre quien ya está en el suelo no escribe\nni audita, y devuelve lo mismo.\n\n**Ya no rechaza a los consumidores.** Hasta el 05-09-2026 exigía que la\npersona **no** portara ningún rol de consumidor, porque la regla de\nentonces no admitía consumidores sin nivel; retirada `RN-SP-013`, esa\nprecondición no protege nada.\n\n**Conserva el `DELETE`** y no le alcanza la enmienda del retiro de\nroles: esta operación no lleva cuerpo, de modo que el problema que\naquella evitaba no existe aquí.\n",
+        "operationId" : "devolverMembresiaAlSuelo",
         "parameters" : [ {
           "in" : "path",
           "name" : "id",
@@ -6155,8 +6147,15 @@
           }
         } ],
         "responses" : {
-          "204" : {
-            "description" : "Membresía retirada."
+          "200" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/UserMembershipResponse"
+                }
+              }
+            },
+            "description" : "La persona queda en el nivel de arranque, que se devuelve."
           },
           "400" : {
             "description" : "Identificador malformado (`VAL-001`)"
@@ -6170,18 +6169,15 @@
           "404" : {
             "description" : "La persona no existe o está eliminada (`VAL-002`)"
           },
-          "409" : {
-            "description" : "La persona porta al menos un rol de consumidor (`RN-SP-018`)"
-          },
           "500" : {
             "description" : "Fallo no controlado (`ERR-500`)"
           }
         },
-        "summary" : "Retirar la membresía de una persona",
+        "summary" : "Devolver la membresía de una persona al suelo",
         "tags" : [ "Usuarios" ]
       },
       "put" : {
-        "description" : "**`PUT` y no `POST`**, al revés que la asignación de roles, y la\ndiferencia no es de gusto: aquí el cuerpo **sí** representa el estado\nfinal. La persona tiene una membresía o ninguna, de modo que enviar una\nla deja como la única — y de ahí sale gratis la idempotencia.\n\n`endsAt` es opcional. **Ausente significa indefinida**: enviarlo ausente\nsobre una membresía que tenía fecha la convierte en indefinida, y es un\ncaso normal, no un olvido que haya que interpretar. Presente, la\nmembresía deja de estar vigente **al llegar** ese instante, no después.\n\nRepetir la petición idéntica no escribe ni deja auditoría. Cambiar solo\nla fecha sí es un cambio y sí se registra.\n\nDevuelve `200` incluso la primera vez: `PUT` sobre una ruta fija no crea\nun recurso direccionable nuevo.\n",
+        "description" : "**`PUT` y no `POST`**, al revés que la asignación de roles, y la\ndiferencia no es de gusto: aquí el cuerpo **sí** representa el estado\nfinal. La persona tiene siempre exactamente una, de modo que enviar una\nla deja como la única — y de ahí sale gratis la idempotencia.\n\n`endsAt` es opcional. **Ausente significa indefinida**: enviarlo ausente\nsobre una membresía que tenía fecha la convierte en indefinida, y es un\ncaso normal, no un olvido que haya que interpretar. Presente, la\nmembresía deja de estar vigente **al llegar** ese instante, no después.\n\nRepetir la petición idéntica no escribe ni deja auditoría. Cambiar solo\nla fecha sí es un cambio y sí se registra.\n\nDevuelve `200` incluso la primera vez: `PUT` sobre una ruta fija no crea\nun recurso direccionable nuevo.\n",
         "operationId" : "fijarMembresia",
         "parameters" : [ {
           "in" : "path",
@@ -6224,9 +6220,6 @@
           },
           "404" : {
             "description" : "La persona no existe o está eliminada (`VAL-004`)"
-          },
-          "409" : {
-            "description" : "La persona no porta ningún rol de consumidor (`RN-SP-013`). El cuerpo indica que primero corresponde asignarle uno"
           },
           "422" : {
             "description" : "La membresía indicada no existe en la cadena (`VAL-002`)"
@@ -6291,7 +6284,7 @@
     },
     "/api/v1/users/{id}/roles" : {
       "post" : {
-        "description" : "Agrega roles. **No reemplaza la lista**: por eso es un `POST` sobre un\nsubrecurso y no un `PUT`. Un reemplazo haría retiros implícitos que se\nsaltarían tres reglas cuyo incumplimiento nadie vería.\n\nPedir un rol que la persona ya tiene no es un error: no cambia nada y\nno deja rastro en la auditoría.\n\n`membershipId`, `membershipEndsAt` y `supervisorId` son\n**condicionales**: obligatorios exactamente cuando la operación\nconvierte a la persona en consumidor o cambia su rango comercial, y no\nadmitidos en cualquier otro caso. Su admisibilidad depende del estado\nde la persona y no del cuerpo, de modo que su incumplimiento es `422` y\nnunca `400`.\n\nUn **ascenso** —que cambia el rol vendedor de mayor rango— exige\ndeclarar de nuevo el superior: el anterior puede haber dejado de ser\nadmisible sin que nadie tocara esa fila.\n",
+        "description" : "Agrega roles. **No reemplaza la lista**: por eso es un `POST` sobre un\nsubrecurso y no un `PUT`. Un reemplazo haría retiros implícitos que se\nsaltarían tres reglas cuyo incumplimiento nadie vería.\n\nPedir un rol que la persona ya tiene no es un error: no cambia nada y\nno deja rastro en la auditoría.\n\n**Esta operación no toca la membresía**, y desde el 05-09-2026 tampoco\nla admite: `membershipId` y `membershipEndsAt` se retiraron del cuerpo.\nToda persona tiene nivel desde el alta, de modo que cuando llega esta\npetición ya lo tiene; cambiarlo es la operación de membresía, que tiene\nsu propio permiso.\n\n`supervisorId` es **condicional**: obligatorio exactamente cuando la\noperación cambia el rango comercial de la persona, y no admitido en\ncualquier otro caso. Su admisibilidad depende del estado de la persona\ny no del cuerpo, de modo que su incumplimiento es `422` y nunca `400`.\n\nUn **ascenso** —que cambia el rol vendedor de mayor rango— exige\ndeclarar de nuevo el superior: el anterior puede haber dejado de ser\nadmisible sin que nadie tocara esa fila.\n",
         "operationId" : "asignarRoles",
         "parameters" : [ {
           "in" : "path",
@@ -6339,7 +6332,7 @@
             "description" : "Algún rol concede permisos que el actor no posee (`RN-SEG-010`). El cuerpo enumera cuáles"
           },
           "422" : {
-            "description" : "Rol inexistente (`EX-002`), rol inactivo (`EX-003`), consumidor sin membresía (`RN-SP-018`), membresía indicada sin que corresponda (`EX-006`), vendedor sin superior (`RN-SP-019`), o superior inadmisible (`VAL-007`, `RN-SP-020`)"
+            "description" : "Rol inexistente (`EX-002`), rol inactivo (`EX-003`), vendedor sin superior (`RN-SP-019`), o superior inadmisible (`VAL-007`, `RN-SP-020`)"
           },
           "500" : {
             "description" : "Fallo no controlado (`ERR-500`)"
@@ -6351,7 +6344,7 @@
     },
     "/api/v1/users/{id}/roles/revocations" : {
       "post" : {
-        "description" : "Retira roles y **arrastra las cascadas**: quedarse sin ningún rol de\nconsumidor borra la membresía, y quedarse sin ningún rol de vendedor\ncierra la asignación de superior comercial —cerrarla, nunca borrarla:\nesa fila dice a quién se atribuía cada resultado—.\n\n**Revoca todas las sesiones de la persona.** Asignar no lo hace;\nretirar sí, porque el refresh token sobrevive al cambio de permisos y\ndejaría vivo hasta siete días el acceso que se acaba de quitar.\n\nEs un `POST` sobre un subrecurso y no un `DELETE`: la lista viaja en el\ncuerpo, y RFC 9110 no define semántica para el cuerpo de un `DELETE` —\nun intermediario puede descartarlo sin avisar, y el retiro llegaría sin\nroles.\n\n**No se pide motivo** y **no se comprueba que los roles existan**:\nretirar un rol eliminado del catálogo es legítimo, porque la asignación\nsigue ahí y debe poder soltarse.\n",
+        "description" : "Retira roles y **arrastra UNA cascada**: quedarse sin ningún rol de\nvendedor cierra la asignación de superior comercial —cerrarla, nunca\nborrarla: esa fila dice a quién se atribuía cada resultado—.\n\n**La membresía ya no se arrastra** (05-09-2026). Quien deja de ser\nconsumidor **conserva el nivel que tenía**, incluido uno comprado: toda\npersona debe tener membresía, y bajarla al suelo sería quitarle algo\nque pagó.\n\n**Revoca todas las sesiones de la persona.** Asignar no lo hace;\nretirar sí, porque el refresh token sobrevive al cambio de permisos y\ndejaría vivo hasta siete días el acceso que se acaba de quitar.\n\nEs un `POST` sobre un subrecurso y no un `DELETE`: la lista viaja en el\ncuerpo, y RFC 9110 no define semántica para el cuerpo de un `DELETE` —\nun intermediario puede descartarlo sin avisar, y el retiro llegaría sin\nroles.\n\n**No se pide motivo** y **no se comprueba que los roles existan**:\nretirar un rol eliminado del catálogo es legítimo, porque la asignación\nsigue ahí y debe poder soltarse.\n",
         "operationId" : "retirarRoles",
         "parameters" : [ {
           "in" : "path",

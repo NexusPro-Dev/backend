@@ -60,7 +60,15 @@ class UserMembershipIT extends IntegrationTestBase {
     jdbc.update(
         "DELETE FROM role_permissions WHERE role_id IN (SELECT id FROM roles WHERE is_system = false)");
     jdbc.update("DELETE FROM roles WHERE is_system = false");
-    jdbc.update("DELETE FROM memberships WHERE level > 0");
+    // FREE SOBREVIVE AL BARRIDO desde el 05-09-2026: `RN-SP-018` da nivel a toda
+    // persona y el alta lo resuelve por código, de modo que un catálogo vacío ya
+    // no es un estado del que el sistema pueda salir. Borrarla aquí probaría algo
+    // que `RN-SP-008` no deja ocurrir: la membresía sembrada no se elimina.
+    // BARRIDO TOTAL Y REPOSICIÓN, en ese orden: conservar FREE haría depender esta
+    // clase del ORDEN DE EJECUCIÓN — según quién haya corrido antes, la fila queda
+    // colgando de VIP (`V47`) o suelta, y el barrido choca con `fk_memberships_parent`.
+    jdbc.update("DELETE FROM memberships");
+    reponerElSuelo(jdbc);
     jdbc.update(
         "INSERT INTO user_roles (user_id, role_id, role_type) SELECT ?, r.id, r.role_type FROM roles r WHERE r.id = ?::uuid",
         SUPERADMIN,
@@ -68,10 +76,13 @@ class UserMembershipIT extends IntegrationTestBase {
 
     persona = crearPersona("jperez");
     consumidor = crearRolConsumidor();
-    // La cadena es lineal y con una sola cima: `uq_memberships_parent` con NULLS
-    // NOT DISTINCT solo admite una membresía sin superior.
-    oro = crearMembresia("ORO", "Oro", 1, null);
-    plata = crearMembresia("PLATA", "Plata", 2, oro);
+    // CUELGAN DE FREE, que sobrevive al barrido desde el 05-09-2026:
+    // `uq_memberships_parent` va con NULLS NOT DISTINCT y solo admite UN suelo en
+    // toda la cadena, de modo que ya no se puede crear otra sin padre.
+    String suelo =
+        jdbc.queryForObject("SELECT id::text FROM memberships WHERE code = 'FREE'", String.class);
+    oro = crearMembresia("ORO", "Oro", 2, suelo);
+    plata = crearMembresia("PLATA", "Plata", 3, oro);
   }
 
   // ---------------------------------------------------------------------------
@@ -86,7 +97,8 @@ class UserMembershipIT extends IntegrationTestBase {
     mvc.perform(fijar(persona, oro, null))
         .andExpect(status().isOk())
         .andExpect(jsonPath("$.code").value("ORO"))
-        .andExpect(jsonPath("$.level").value(1))
+        // ORO cuelga de FREE, que sobrevive al barrido: por eso su nivel es 2.
+        .andExpect(jsonPath("$.level").value(2))
         // Presente y en nulo: «indefinida» tiene que distinguirse de «este
         // endpoint no informa de la vigencia».
         .andExpect(jsonPath("$.endsAt").value(org.hamcrest.Matchers.nullValue()));
@@ -254,27 +266,29 @@ class UserMembershipIT extends IntegrationTestBase {
   }
 
   @Test
-  @DisplayName("EX-001 es 409, y el cuerpo dice cuál es la operación que falta")
-  void sinRolDeConsumidor() throws Exception {
+  @DisplayName("EX-001 retirado — asignar a quien NO es consumidor ya no se rechaza")
+  void sinRolDeConsumidorSeAsignaIgual() throws Exception {
     jdbc.update(
         "INSERT INTO user_roles (user_id, role_id, role_type) SELECT ?, r.id, r.role_type FROM roles r WHERE r.id = ?::uuid",
         persona,
         ADMIN_ROL);
 
+    // Hasta el 05-09-2026 esto era un `409` con código `RN-SP-013`. La regla se
+    // retiró porque se contradice con la que la sustituye: `RN-SP-018` da nivel a
+    // TODA persona, y el superadministrador tiene `FREE` sin ser consumidor.
     mvc.perform(fijar(persona, oro, null))
-        .andExpect(status().isConflict())
-        .andExpect(jsonPath("$.errors[0].code").value("RN-SP-013"))
-        // Sin esta indicación, quien lo recibe no tiene forma de saber que la
-        // operación que le falta es otra.
-        .andExpect(jsonPath("$.detail", org.hamcrest.Matchers.containsString("roles")));
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.code").value("ORO"));
+
+    assertThat(membresiaDe(persona)).isEqualTo(oro);
   }
 
   @Test
-  @DisplayName("la membresía se comprueba ANTES que el rol: es el error más accionable")
+  @DisplayName("la membresía inexistente sigue siendo 422, que era el otro de los dos rechazos")
   void ordenDeLosDosRechazos() throws Exception {
-    // Sin rol de consumidor Y con una membresía inexistente, gana el `422`: un
-    // identificador equivocado es un dato de la petición, y la falta de rol es
-    // una operación previa pendiente.
+    // Esta prueba medía CUÁL de los dos rechazos ganaba. Retirado `RN-SP-013`
+    // solo queda uno, y lo que sigue valiendo es que un identificador
+    // equivocado es un `422` y no un `409`.
     mvc.perform(fijar(persona, UUID.randomUUID().toString(), null))
         .andExpect(status().isUnprocessableEntity());
   }
@@ -327,22 +341,24 @@ class UserMembershipIT extends IntegrationTestBase {
   }
 
   // ---------------------------------------------------------------------------
-  // Retirar
+  // Devolver al suelo — era «retirar» hasta el 05-09-2026
   // ---------------------------------------------------------------------------
 
   @Test
-  @DisplayName("CA-SP-281 — sin rol de consumidor, la membresía se retira y devuelve 204")
-  void retiroValido() throws Exception {
-    // El estado que esta operación existe para corregir: alguien con membresía
-    // que ya no porta ningún rol de consumidor.
+  @DisplayName("CA-SP-281 — devuelve al suelo y responde 200 con la membresía FREE")
+  void devuelveAlSuelo() throws Exception {
     hacerConsumidor(persona);
     mvc.perform(fijar(persona, oro, null)).andExpect(status().isOk());
-    jdbc.update("DELETE FROM user_roles WHERE user_id = ?", persona);
 
-    mvc.perform(retirar(persona)).andExpect(status().isNoContent());
+    // 200 Y NO 204: devolver un cuerpo vacío diría que no queda nada, y queda el
+    // nivel de arranque. Quien llama necesita saber en qué quedó la persona.
+    mvc.perform(retirar(persona))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.code").value("FREE"));
 
-    assertThat(membresiaDe(persona)).isNull();
-    // La membresía sigue existiendo en la cadena: se retiró la asignación, no la
+    assertThat(codigoDe(persona)).isEqualTo("FREE");
+
+    // La membresía sigue existiendo en la cadena: se cerró la asignación, no la
     // membresía.
     Integer enLaCadena =
         jdbc.queryForObject(
@@ -351,47 +367,57 @@ class UserMembershipIT extends IntegrationTestBase {
   }
 
   @Test
-  @DisplayName("EX-001 — RECHAZA a quien SÍ es consumidor, y cita LAS DOS salidas reales")
-  void rechazaAlConsumidor() throws Exception {
+  @DisplayName("EX-001 retirado — YA NO rechaza a quien es consumidor")
+  void aceptaAlConsumidor() throws Exception {
     hacerConsumidor(persona);
     mvc.perform(fijar(persona, oro, null)).andExpect(status().isOk());
 
+    // Hasta el 05-09-2026 esto era un `409`: la persona portaba rol de consumidor
+    // y `RN-SP-018` no admitía consumidores sin nivel. Ahora no queda sin nivel —
+    // queda en el suelo—, de modo que la precondición no protegía nada.
     mvc.perform(retirar(persona))
-        .andExpect(status().isConflict())
-        .andExpect(jsonPath("$.errors[0].code").value("RN-SP-018"))
-        .andExpect(jsonPath("$.detail", org.hamcrest.Matchers.containsString("nivel")))
-        .andExpect(jsonPath("$.detail", org.hamcrest.Matchers.containsString("rol")));
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.code").value("FREE"));
 
-    assertThat(membresiaDe(persona)).isEqualTo(oro);
+    assertThat(codigoDe(persona)).isEqualTo("FREE");
   }
 
   @Test
-  @DisplayName("FA-001 — sin membresía previa devuelve 204 igual, sin escribir ni auditar")
-  void retiroIdempotente() throws Exception {
+  @DisplayName("es idempotente: sobre quien ya está en el suelo no escribe ni audita")
+  void devolverAlSueloEsIdempotente() throws Exception {
+    // La persona nace en FREE, de modo que esta es la primera invocación y ya no
+    // hay nada que cambiar. Antes esto era `FA-001` —sin membresía previa— y ese
+    // estado dejó de existir.
     UUID correlacion = UUID.randomUUID();
     mvc.perform(retirar(persona).header("X-Correlation-Id", correlacion.toString()))
-        .andExpect(status().isNoContent());
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.code").value("FREE"));
 
-    // Un evento de eliminación que no eliminó nada es un dato falso.
     Integer eliminaciones =
         jdbc.queryForObject(
             "SELECT count(*) FROM audit_deletion_log WHERE correlation_id = ?",
             Integer.class,
             correlacion);
     assertThat(eliminaciones).isZero();
+
+    Integer abiertas =
+        jdbc.queryForObject(
+            "SELECT count(*) FROM user_memberships WHERE user_id = ? AND closed_at IS NULL",
+            Integer.class,
+            persona);
+    assertThat(abiertas).isEqualTo(1);
   }
 
   @Test
-  @DisplayName("el retiro se audita como eliminación de ASOCIACIÓN, sin motivo y con la vigencia")
+  @DisplayName("se audita como eliminación de ASOCIACIÓN, sin motivo y con la vigencia")
   void auditoriaDelRetiro() throws Exception {
     hacerConsumidor(persona);
     String futuro = OffsetDateTime.now(ZoneOffset.UTC).plusYears(1).toString();
     mvc.perform(fijar(persona, oro, futuro)).andExpect(status().isOk());
-    jdbc.update("DELETE FROM user_roles WHERE user_id = ?", persona);
 
     UUID correlacion = UUID.randomUUID();
     mvc.perform(retirar(persona).header("X-Correlation-Id", correlacion.toString()))
-        .andExpect(status().isNoContent());
+        .andExpect(status().isOk());
 
     var fila =
         jdbc.queryForMap(
@@ -402,13 +428,13 @@ class UserMembershipIT extends IntegrationTestBase {
             correlacion);
     assertThat(fila.get("deletion_type")).isEqualTo("ASSOCIATION");
     assertThat(fila.get("reason")).isNull();
-    // Sin la fecha no se podría distinguir si se retiró una membresía viva o
-    // una ya vencida, que es lo que alguien querría saber.
+    // Sin la fecha no se podría distinguir si se devolvió al suelo desde una
+    // membresía viva o desde una ya vencida.
     assertThat((String) fila.get("snapshot")).contains("ORO").contains("ends_at");
   }
 
   @Test
-  @DisplayName("se retira una membresía VENCIDA sin particularidad")
+  @DisplayName("se devuelve al suelo desde una membresía VENCIDA sin particularidad")
   void membresiaVencida() throws Exception {
     hacerConsumidor(persona);
     mvc.perform(fijar(persona, oro, null)).andExpect(status().isOk());
@@ -418,13 +444,12 @@ class UserMembershipIT extends IntegrationTestBase {
         """
         UPDATE user_memberships
            SET started_at = now() - interval '3 days', ends_at = now() - interval '1 day'
-         WHERE user_id = ?
+         WHERE user_id = ? AND closed_at IS NULL
         """,
         persona);
-    jdbc.update("DELETE FROM user_roles WHERE user_id = ?", persona);
 
-    mvc.perform(retirar(persona)).andExpect(status().isNoContent());
-    assertThat(membresiaDe(persona)).isNull();
+    mvc.perform(retirar(persona)).andExpect(status().isOk());
+    assertThat(codigoDe(persona)).isEqualTo("FREE");
   }
 
   @Test
@@ -433,41 +458,18 @@ class UserMembershipIT extends IntegrationTestBase {
     mvc.perform(retirar(UUID.randomUUID())).andExpect(status().isNotFound());
   }
 
-  // ---------------------------------------------------------------------------
-  // La oposición entre las dos operaciones
-  // ---------------------------------------------------------------------------
-
   @Test
-  @DisplayName("las dos condiciones son OPUESTAS: lo que una admite, la otra rechaza")
-  void lasDosDirecciones() throws Exception {
-    // Ambas mitades en la misma prueba. Invertir la condición en cualquiera de
-    // los dos servicios tiene que hacer fallar esto, y ejecutar solo una mitad
-    // no probaría nada.
-    hacerConsumidor(persona);
-    mvc.perform(fijar(persona, oro, null)).andExpect(status().isOk());
-    mvc.perform(retirar(persona)).andExpect(status().isConflict());
-
-    jdbc.update("DELETE FROM user_roles WHERE user_id = ?", persona);
-    mvc.perform(retirar(persona)).andExpect(status().isNoContent());
-    mvc.perform(fijar(persona, oro, null)).andExpect(status().isConflict());
-  }
-
-  @Test
-  @DisplayName("el retiro de ROLES arrastra la membresía por su cuenta, sin pasar por aquí")
-  void laCascadaDeRolesNoNecesitaEstaOperacion() throws Exception {
+  @DisplayName("RN-SP-015 retirada — el retiro de ROLES ya no arrastra la membresía")
+  void elRetiroDeRolesYaNoArrastraLaMembresia() throws Exception {
     hacerConsumidor(persona);
     mvc.perform(fijar(persona, oro, null)).andExpect(status().isOk());
 
-    // Rol de reserva: desde `RN-SP-023` (24-08-2026) nadie puede quedarse sin
-    // ningún rol, y sin él el retiro chocaría con esa regla en lugar de disparar
-    // la cascada de `RN-SP-015`, que es lo que esta prueba mide.
+    // Rol de reserva: desde `RN-SP-023` nadie puede quedarse sin ningún rol.
     jdbc.update(
         "INSERT INTO user_roles (user_id, role_id, role_type) SELECT ?, r.id, r.role_type FROM roles r WHERE r.id = ?::uuid ON CONFLICT DO NOTHING",
         persona,
         "01a02a33-4c00-7007-9c4f-5e7ad1000005");
 
-    // Es la salida que el `409` de arriba cita: `RF-SP-031` retira la membresía
-    // en cascada, y por eso no hace falta que esta operación admita al consumidor.
     mvc.perform(
             post("/api/v1/users/{id}/roles/revocations", persona)
                 .with(rolesActor())
@@ -475,7 +477,10 @@ class UserMembershipIT extends IntegrationTestBase {
                 .content("{\"roleIds\":[\"" + consumidor + "\"]}"))
         .andExpect(status().isOk());
 
-    assertThat(membresiaDe(persona)).isNull();
+    // CONSERVA `ORO`. Esta prueba existía para comprobar la cascada que hacía
+    // innecesario que esta operación admitiera al consumidor; retirada
+    // `RN-SP-015`, comprueba justo lo contrario, que es lo que hay que fijar.
+    assertThat(membresiaDe(persona)).isEqualTo(oro);
   }
 
   // ---------------------------------------------------------------------------
@@ -552,6 +557,14 @@ class UserMembershipIT extends IntegrationTestBase {
         nivel,
         nivel);
     return id.toString();
+  }
+
+  private String codigoDe(UUID usuario) {
+    return jdbc.queryForObject(
+        "SELECT m.code FROM user_memberships um JOIN memberships m ON m.id = um.membership_id"
+            + " WHERE um.user_id = ? AND um.closed_at IS NULL",
+        String.class,
+        usuario);
   }
 
   private String membresiaDe(UUID usuario) {

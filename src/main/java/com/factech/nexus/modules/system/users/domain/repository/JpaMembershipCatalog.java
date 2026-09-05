@@ -16,6 +16,13 @@ import org.springframework.stereotype.Repository;
 @Repository
 public class JpaMembershipCatalog implements MembershipCatalog {
 
+  /**
+   * El código de la membresía de arranque (`RN-SP-018`). <b>Es un literal a propósito</b>: `V46` la
+   * siembra con ese código en todos los entornos, `uq_memberships_code` lo hace único y `RN-SP-008`
+   * impide borrar la fila.
+   */
+  private static final String CODIGO_SUELO = "FREE";
+
   private final EntityManager em;
 
   public JpaMembershipCatalog(EntityManager em) {
@@ -44,5 +51,37 @@ public class JpaMembershipCatalog implements MembershipCatalog {
                     (String) fila.get("name"),
                     ((Number) fila.get("level")).shortValue()))
         .findFirst();
+  }
+
+  /**
+   * El suelo, por <b>código</b>. El literal vive aquí, junto al SQL que lo busca, y no repartido
+   * por los tres servicios que lo necesitan.
+   */
+  @Override
+  public MembershipRef floor() {
+    List<Tuple> filas =
+        em.createNativeQuery(
+                "SELECT id AS id, code AS code, name AS name, level AS level"
+                    + " FROM memberships WHERE code = :codigo",
+                Tuple.class)
+            .setParameter("codigo", CODIGO_SUELO)
+            .getResultList();
+
+    return filas.stream()
+        .map(
+            fila ->
+                new MembershipRef(
+                    (UUID) fila.get("id"),
+                    (String) fila.get("code"),
+                    (String) fila.get("name"),
+                    ((Number) fila.get("level")).shortValue()))
+        .findFirst()
+        .orElseThrow(
+            () ->
+                new IllegalStateException(
+                    "El catálogo no tiene la membresía de arranque '"
+                        + CODIGO_SUELO
+                        + "' (RN-SP-018). La siembra V46 debería haberla creado, y V57 aborta si"
+                        + " falta: una base que llegue aquí sin ella está mal construida."));
   }
 }

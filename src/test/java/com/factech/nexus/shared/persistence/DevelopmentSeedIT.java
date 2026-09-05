@@ -83,11 +83,19 @@ class DevelopmentSeedIT extends IntegrationTestBase {
 
   @BeforeEach
   void reponerElCatalogoDeMembresias() {
-    // Otras clases de la suite hacen `DELETE FROM memberships WHERE level > 0`,
-    // y sin las membresías la parte de asignación de la semilla no tendría a
-    // qué apuntar. Se reponen por identificador literal —los de `V46`— para que
-    // esta clase no dependa del orden de ejecución. El orden de la cadena es el que
-    // dejó `V47`: ORO arriba y FREE abajo.
+    // Otras clases de la suite vacían `memberships`, y sin ellas la parte de
+    // asignación de la semilla no tendría a qué apuntar. Se reponen por
+    // identificador literal —los de `V46`— para que esta clase no dependa del
+    // orden de ejecución. El orden de la cadena es el que dejó `V47`: ORO arriba
+    // y FREE abajo.
+    //
+    // SE VACÍA PRIMERO, y desde el 05-09-2026 hace falta: quien haya corrido
+    // antes pudo dejar a FREE SOLA Y SIN PADRE —así la repone `reponerElSuelo`,
+    // porque `RN-SP-018` exige que exista—, y entonces el ORO de aquí abajo, que
+    // también va sin padre, chocaría con `uq_memberships_parent`. Un `ON CONFLICT
+    // (id)` no lo ve: el choque no es de identificador.
+    jdbc.update("DELETE FROM user_memberships");
+    jdbc.update("DELETE FROM memberships");
     jdbc.update(
         """
         INSERT INTO memberships (id, code, name, description, parent_membership_id, level, color)
