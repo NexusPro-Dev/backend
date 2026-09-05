@@ -4,6 +4,11 @@ import com.factech.nexus.modules.movements.domain.models.Movement;
 import com.factech.nexus.modules.movements.domain.models.MovementLine;
 import jakarta.persistence.EntityManager;
 import jakarta.persistence.Tuple;
+import java.math.BigDecimal;
+import java.sql.Timestamp;
+import java.time.Instant;
+import java.time.OffsetDateTime;
+import java.time.ZoneOffset;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -224,5 +229,209 @@ public class JpaMovementRepository implements MovementRepository {
                     (String) fila.get("code"),
                     (String) fila.get("name"),
                     (Boolean) fila.get("is_active")));
+  }
+
+  // ---------------------------------------------------------------------------
+  // `RF-MV-008` — los movimientos propios
+  // ---------------------------------------------------------------------------
+
+  /**
+   * La selección, escrita una vez: la página y el conteo tienen que filtrar igual.
+   *
+   * <p><b>{@code OR} y no {@code UNION}</b>: un {@code UNION} duplicaría el movimiento en que
+   * alguien es comprador y vendedor a la vez, y `FA-002` exige que aparezca una sola vez. Evitarlo
+   * con un {@code UNION} sin {@code ALL} costaría un ordenamiento completo antes de paginar.
+   *
+   * <p>El {@code CAST} del estado no es adorno: sin él, PostgreSQL no sabe de qué tipo es el
+   * parámetro cuando llega nulo y rechaza la comparación.
+   */
+  private static final String SELECCION_PROPIA =
+      """
+      FROM movements m
+      JOIN users cli ON cli.id = m.client_id
+      LEFT JOIN users ven ON ven.id = m.seller_id
+      JOIN currencies cur ON cur.id = m.currency_id
+      JOIN payment_methods pm ON pm.id = m.payment_method_id
+      WHERE (m.client_id = :actor OR m.seller_id = :actor)
+        AND (CAST(:estado AS varchar) IS NULL OR m.status = CAST(:estado AS varchar))
+      """;
+
+  /**
+   * Las columnas de la cabecera, con el papel resuelto por el motor.
+   *
+   * <p><b>La rama de «ambos» va PRIMERO, y ahí está el defecto que se comete.</b> Escrita al final,
+   * las dos anteriores ya habrían capturado la fila y nadie lo vería hasta que alguien de la fuerza
+   * comercial se comprara algo a sí mismo — que es exactamente lo que `RF-MV-002` permite.
+   *
+   * <p><b>Lo calcula SQL y no Java</b>: el identificador de quien pregunta ya está atado a la
+   * consulta, y resolverlo fuera obligaría a arrastrar los dos identificadores de las partes solo
+   * para compararlos y descartarlos.
+   */
+  private static final String CABECERA_PROPIA =
+      """
+      SELECT m.id AS id, m.code AS code, m.status AS status,
+             CASE
+               WHEN m.client_id = :actor AND m.seller_id = :actor THEN 'BOTH'
+               WHEN m.seller_id = :actor                          THEN 'SELLER'
+               ELSE                                                    'BUYER'
+             END AS role,
+             cli.id AS cli_id, cli.username AS cli_username,
+             cli.first_name AS cli_first, cli.last_name AS cli_last,
+             ven.id AS ven_id, ven.username AS ven_username,
+             ven.first_name AS ven_first, ven.last_name AS ven_last,
+             cur.id AS cur_id, cur.code AS cur_code, pm.name AS pm_name,
+             m.total_amount AS total, m.discount_amount AS descuento,
+             m.payable_amount AS pagar,
+             m.occurred_at AS occurred_at, m.created_at AS created_at
+      """;
+
+  @Override
+  @Transactional(readOnly = true)
+  public List<MyMovementRow> findMine(UUID actorId, String status, int offset, int limit) {
+    List<Tuple> filas =
+        em.createNativeQuery(
+                CABECERA_PROPIA
+                    + SELECCION_PROPIA
+                    // EL DESEMPATE POR `id` NO ES COSMÉTICO: sin él, dos
+                    // movimientos del mismo instante pueden repetirse en una
+                    // página y faltar en la siguiente sin que nada falle.
+                    + " ORDER BY m.occurred_at DESC, m.id DESC LIMIT :limite OFFSET :desde",
+                Tuple.class)
+            .setParameter("actor", actorId)
+            .setParameter("estado", status)
+            .setParameter("limite", limit)
+            .setParameter("desde", offset)
+            .getResultList();
+
+    List<MyMovementRow> resultado = new ArrayList<>(filas.size());
+    for (Tuple fila : filas) {
+      resultado.add(cabecera(fila));
+    }
+    return resultado;
+  }
+
+  @Override
+  @Transactional(readOnly = true)
+  public long countMine(UUID actorId, String status) {
+    Object total =
+        em.createNativeQuery("SELECT count(*) " + SELECCION_PROPIA)
+            .setParameter("actor", actorId)
+            .setParameter("estado", status)
+            .getSingleResult();
+    return ((Number) total).longValue();
+  }
+
+  /**
+   * <b>El alcance va en la sentencia, no en una comprobación posterior.</b> Un movimiento ajeno no
+   * se lee y luego se rechaza: no se lee. Por eso el vacío significa las dos cosas —no existe, o no
+   * es suyo— y quien llama no puede distinguirlas (`EX-002`).
+   */
+  @Override
+  @Transactional(readOnly = true)
+  public Optional<MovementDetailView> findMineById(UUID movementId, UUID actorId) {
+    if (movementId == null || actorId == null) {
+      return Optional.empty();
+    }
+
+    List<Tuple> cabecera =
+        em.createNativeQuery(
+                CABECERA_PROPIA
+                    + """
+                    FROM movements m
+                    JOIN users cli ON cli.id = m.client_id
+                    LEFT JOIN users ven ON ven.id = m.seller_id
+                    JOIN currencies cur ON cur.id = m.currency_id
+                    JOIN payment_methods pm ON pm.id = m.payment_method_id
+                    WHERE m.id = :movimiento
+                      AND (m.client_id = :actor OR m.seller_id = :actor)
+                    """,
+                Tuple.class)
+            .setParameter("movimiento", movementId)
+            .setParameter("actor", actorId)
+            .getResultList();
+
+    if (cabecera.isEmpty()) {
+      return Optional.empty();
+    }
+
+    // EL CÓDIGO Y EL NOMBRE DEL PRODUCTO SALEN DE `products`, no de la línea:
+    // `V54` NO LOS CONGELA en `movement_details`, que guarda el identificador, la
+    // cantidad, el precio y la vigencia y nada más. Queda declarado en el puerto
+    // y en `tasks.md` §3 — renombrar un producto cambia cómo se ve una venta ya
+    // registrada, y eso no se resuelve aquí.
+    List<Tuple> lineas =
+        em.createNativeQuery(
+                """
+                SELECT d.product_id AS product_id, p.code AS p_code, p.name AS p_name,
+                       d.quantity AS cantidad, d.unit_price AS precio,
+                       d.line_amount AS importe, d.validity_days AS vigencia
+                  FROM movement_details d
+                  JOIN products p ON p.id = d.product_id
+                 WHERE d.movement_id = :movimiento
+                 ORDER BY p.code ASC
+                """,
+                Tuple.class)
+            .setParameter("movimiento", movementId)
+            .getResultList();
+
+    List<MovementLineRow> detalle = new ArrayList<>(lineas.size());
+    for (Tuple linea : lineas) {
+      detalle.add(
+          new MovementLineRow(
+              (UUID) linea.get("product_id"),
+              (String) linea.get("p_code"),
+              (String) linea.get("p_name"),
+              ((Number) linea.get("cantidad")).intValue(),
+              (BigDecimal) linea.get("precio"),
+              (BigDecimal) linea.get("importe"),
+              linea.get("vigencia") == null ? null : ((Number) linea.get("vigencia")).intValue()));
+    }
+
+    return Optional.of(new MovementDetailView(cabecera(cabecera.get(0)), detalle));
+  }
+
+  /** El mapeo de la cabecera, escrito una vez: el listado y el detalle piden lo mismo. */
+  private static MyMovementRow cabecera(Tuple fila) {
+    return new MyMovementRow(
+        (UUID) fila.get("id"),
+        (String) fila.get("code"),
+        (String) fila.get("status"),
+        (String) fila.get("role"),
+        (UUID) fila.get("cli_id"),
+        (String) fila.get("cli_username"),
+        (String) fila.get("cli_first"),
+        (String) fila.get("cli_last"),
+        (UUID) fila.get("ven_id"),
+        (String) fila.get("ven_username"),
+        (String) fila.get("ven_first"),
+        (String) fila.get("ven_last"),
+        (UUID) fila.get("cur_id"),
+        (String) fila.get("cur_code"),
+        (String) fila.get("pm_name"),
+        (BigDecimal) fila.get("total"),
+        (BigDecimal) fila.get("descuento"),
+        (BigDecimal) fila.get("pagar"),
+        instante(fila.get("occurred_at")),
+        instante(fila.get("created_at")));
+  }
+
+  /**
+   * El instante, venga como venga del controlador JDBC.
+   *
+   * <p>Una proyección nativa no garantiza el tipo: el mismo {@code timestamptz} llega como {@code
+   * Timestamp} o como {@code OffsetDateTime} según el camino. Un {@code cast} directo funciona
+   * hasta que deja de hacerlo, y entonces falla en tiempo de ejecución y en una sola consulta. Es
+   * el mismo conversor que {@code JpaUserRepository} tiene por el mismo motivo.
+   */
+  private static OffsetDateTime instante(Object valor) {
+    return switch (valor) {
+      case null -> null;
+      case OffsetDateTime momento -> momento;
+      case Instant momento -> momento.atOffset(ZoneOffset.UTC);
+      case Timestamp marca -> marca.toInstant().atOffset(ZoneOffset.UTC);
+      default ->
+          throw new IllegalStateException(
+              "Tipo temporal inesperado en la proyección: " + valor.getClass());
+    };
   }
 }

@@ -1,19 +1,29 @@
 package com.factech.nexus.modules.movements.interfaces;
 
+import com.factech.nexus.modules.movements.application.MyMovementResponse;
+import com.factech.nexus.modules.movements.application.MyMovementsRequest;
 import com.factech.nexus.modules.movements.application.RegisterSaleRequest;
 import com.factech.nexus.modules.movements.application.SaleResponse;
+import com.factech.nexus.modules.movements.domain.service.GetMyMovementService;
+import com.factech.nexus.modules.movements.domain.service.ListMyMovementsService;
 import com.factech.nexus.modules.movements.domain.service.RegisterSaleService;
+import com.factech.nexus.shared.pagination.PageResponse;
 import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.media.Content;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import java.net.URI;
+import java.util.UUID;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 /**
@@ -31,9 +41,14 @@ import org.springframework.web.bind.annotation.RestController;
 public class MovementController {
 
   private final RegisterSaleService alta;
+  private final ListMyMovementsService listado;
+  private final GetMyMovementService detalle;
 
-  public MovementController(RegisterSaleService alta) {
+  public MovementController(
+      RegisterSaleService alta, ListMyMovementsService listado, GetMyMovementService detalle) {
     this.alta = alta;
+    this.listado = listado;
+    this.detalle = detalle;
   }
 
   @Operation(
@@ -93,5 +108,105 @@ public class MovementController {
   public ResponseEntity<SaleResponse> registrar(@Valid @RequestBody RegisterSaleRequest peticion) {
     SaleResponse venta = alta.register(peticion);
     return ResponseEntity.created(URI.create("/api/v1/movements/" + venta.id())).body(venta);
+  }
+
+  /**
+   * <b>Va declarado antes que cualquier variable de ruta a propósito.</b> Hoy este controlador no
+   * tiene ninguna, pero `RF-MV-007` traerá {@code GET /api/v1/movements/{id}} y entonces {@code
+   * mine} empezaría a parecerse a un identificador. Spring resuelve por especificidad —el segmento
+   * literal gana— de modo que <b>funcionará igual</b>; lo que se declara aquí es el orden en que se
+   * escribe, para que quien lea el archivo lo entienda. Una prueba lo fija, porque el síntoma de
+   * romperlo sería un {@code 400} por identificador inválido en la ruta que más se usa.
+   *
+   * <p><b>{@code mine} y no {@code me}</b>: `SP` usa {@code /users/me} porque el recurso <b>es</b>
+   * la persona. Aquí el recurso son los movimientos, y {@code me} no es uno de ellos.
+   */
+  @GetMapping("/mine")
+  @Operation(
+      summary = "Consultar los movimientos propios",
+      description =
+          """
+          Devuelve **los movimientos en los que usted participó**, paginados y del más
+          reciente al más antiguo.
+
+          **«Propio» son DOS papeles.** Un movimiento lleva a quien recibe lo comprado y a
+          quien lo vendió, y usted puede ser cualquiera de los dos — o **los dos a la vez**,
+          si compró para sí mismo algo que se le atribuye. Cada movimiento dice en qué papel
+          aparece usted con `role`: `BUYER`, `SELLER` o `BOTH`. El que es las dos cosas
+          **aparece una sola vez**.
+
+          **No hay forma de preguntar por otra persona**, ni indicándola ni teniendo
+          permisos: quien pregunta sale de la credencial. Consultar las ventas de terceros es
+          otra operación, con su permiso.
+
+          **Las líneas no viajan aquí.** Una venta puede llevar varias, y meterlas
+          multiplicaría la respuesta por un dato que solo se mira al abrir uno: están en el
+          detalle.
+
+          **El vendedor puede ser nulo**, y viaja igual: es el caso normal de quien no cuelga
+          de ningún vendedor.
+
+          El orden es fijo y no se puede cambiar. `status` filtra por estado.
+          """)
+  @ApiResponses({
+    @ApiResponse(responseCode = "200", description = "La página de movimientos propios."),
+    @ApiResponse(
+        responseCode = "400",
+        description = "Paginación inválida (`VAL-002`) o estado no admitido (`VAL-003`)",
+        content = @Content),
+    @ApiResponse(
+        responseCode = "401",
+        description = "Token ausente o inválido (`AUTH-001`)",
+        content = @Content),
+    @ApiResponse(
+        responseCode = "500",
+        description = "Fallo no controlado (`ERR-500`)",
+        content = @Content)
+  })
+  public PageResponse<MyMovementResponse> mios(
+      @RequestParam(required = false) Integer page,
+      @RequestParam(required = false) Integer size,
+      @RequestParam(required = false) String status) {
+    return listado.list(new MyMovementsRequest(page, size, status));
+  }
+
+  /**
+   * <b>Un movimiento ajeno responde {@code 404} y no {@code 403}</b>, igual que uno inexistente
+   * (`EX-002`). Un {@code 403} diría «existe pero no es tuyo», y con un identificador que alguien
+   * esté probando eso ya es información.
+   */
+  @GetMapping("/mine/{id}")
+  @Operation(
+      summary = "Consultar el detalle de un movimiento propio",
+      description =
+          """
+          Devuelve **lo mismo que devuelve registrar una venta**, con sus líneas: qué
+          productos, cuántos, a qué precio y con qué vigencia. Quien registró una venta y
+          quien la consulta después ven la misma forma.
+
+          **Un movimiento que no es suyo responde `404`**, exactamente igual que uno que no
+          existe. No es un descuido: un `403` confirmaría que el identificador existe.
+          """)
+  @ApiResponses({
+    @ApiResponse(responseCode = "200", description = "El movimiento, con sus líneas."),
+    @ApiResponse(
+        responseCode = "400",
+        description = "Identificador malformado (`VAL-001`)",
+        content = @Content),
+    @ApiResponse(
+        responseCode = "401",
+        description = "Token ausente o inválido (`AUTH-001`)",
+        content = @Content),
+    @ApiResponse(
+        responseCode = "404",
+        description = "No existe **o no es suyo** (`VAL-002`). Las dos son la misma respuesta",
+        content = @Content),
+    @ApiResponse(
+        responseCode = "500",
+        description = "Fallo no controlado (`ERR-500`)",
+        content = @Content)
+  })
+  public SaleResponse mio(@PathVariable UUID id) {
+    return detalle.get(id);
   }
 }

@@ -864,6 +864,81 @@
         },
         "type" : "object"
       },
+      "MyMovement" : {
+        "description" : "Un movimiento en el que participa quien consulta.",
+        "properties" : {
+          "client" : {
+            "$ref" : "#/components/schemas/MyMovementParty"
+          },
+          "code" : {
+            "type" : "string"
+          },
+          "currency" : {
+            "$ref" : "#/components/schemas/MyMovementCurrency"
+          },
+          "discountAmount" : {
+            "type" : "number"
+          },
+          "id" : {
+            "format" : "uuid",
+            "type" : "string"
+          },
+          "occurredAt" : {
+            "format" : "date-time",
+            "type" : "string"
+          },
+          "payableAmount" : {
+            "type" : "number"
+          },
+          "paymentMethod" : {
+            "type" : "string"
+          },
+          "role" : {
+            "description" : "El papel de quien consulta en ESTE movimiento.",
+            "enum" : [ "BUYER", "SELLER", "BOTH" ],
+            "type" : "string"
+          },
+          "seller" : {
+            "$ref" : "#/components/schemas/MyMovementParty",
+            "description" : "A quién se atribuye. NULO cuando quien compró no cuelga de ningún vendedor.",
+            "type" : [ "object", "null" ]
+          },
+          "status" : {
+            "type" : "string"
+          },
+          "totalAmount" : {
+            "type" : "number"
+          }
+        },
+        "type" : "object"
+      },
+      "MyMovementCurrency" : {
+        "properties" : {
+          "code" : {
+            "type" : "string"
+          },
+          "id" : {
+            "format" : "uuid",
+            "type" : "string"
+          }
+        },
+        "type" : "object"
+      },
+      "MyMovementParty" : {
+        "properties" : {
+          "id" : {
+            "format" : "uuid",
+            "type" : "string"
+          },
+          "name" : {
+            "type" : "string"
+          },
+          "username" : {
+            "type" : "string"
+          }
+        },
+        "type" : "object"
+      },
       "Neighbor" : {
         "properties" : {
           "code" : {
@@ -1091,6 +1166,36 @@
           "content" : {
             "items" : {
               "$ref" : "#/components/schemas/ErrorAuditItem"
+            },
+            "type" : "array"
+          },
+          "page" : {
+            "format" : "int32",
+            "type" : "integer"
+          },
+          "size" : {
+            "format" : "int32",
+            "type" : "integer"
+          },
+          "totalElements" : {
+            "format" : "int64",
+            "type" : "integer"
+          },
+          "totalIsExact" : {
+            "type" : "boolean"
+          },
+          "totalPages" : {
+            "format" : "int32",
+            "type" : "integer"
+          }
+        },
+        "type" : "object"
+      },
+      "PageResponseMyMovement" : {
+        "properties" : {
+          "content" : {
+            "items" : {
+              "$ref" : "#/components/schemas/MyMovement"
             },
             "type" : "array"
           },
@@ -4197,6 +4302,100 @@
           }
         },
         "summary" : "Registrar una venta a nombre de un cliente",
+        "tags" : [ "Movimientos" ]
+      }
+    },
+    "/api/v1/movements/mine" : {
+      "get" : {
+        "description" : "Devuelve **los movimientos en los que usted participó**, paginados y del más\nreciente al más antiguo.\n\n**«Propio» son DOS papeles.** Un movimiento lleva a quien recibe lo comprado y a\nquien lo vendió, y usted puede ser cualquiera de los dos — o **los dos a la vez**,\nsi compró para sí mismo algo que se le atribuye. Cada movimiento dice en qué papel\naparece usted con `role`: `BUYER`, `SELLER` o `BOTH`. El que es las dos cosas\n**aparece una sola vez**.\n\n**No hay forma de preguntar por otra persona**, ni indicándola ni teniendo\npermisos: quien pregunta sale de la credencial. Consultar las ventas de terceros es\notra operación, con su permiso.\n\n**Las líneas no viajan aquí.** Una venta puede llevar varias, y meterlas\nmultiplicaría la respuesta por un dato que solo se mira al abrir uno: están en el\ndetalle.\n\n**El vendedor puede ser nulo**, y viaja igual: es el caso normal de quien no cuelga\nde ningún vendedor.\n\nEl orden es fijo y no se puede cambiar. `status` filtra por estado.\n",
+        "operationId" : "mios",
+        "parameters" : [ {
+          "in" : "query",
+          "name" : "page",
+          "required" : false,
+          "schema" : {
+            "format" : "int32",
+            "type" : "integer"
+          }
+        }, {
+          "in" : "query",
+          "name" : "size",
+          "required" : false,
+          "schema" : {
+            "format" : "int32",
+            "type" : "integer"
+          }
+        }, {
+          "in" : "query",
+          "name" : "status",
+          "required" : false,
+          "schema" : {
+            "type" : "string"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/PageResponseMyMovement"
+                }
+              }
+            },
+            "description" : "La página de movimientos propios."
+          },
+          "400" : {
+            "description" : "Paginación inválida (`VAL-002`) o estado no admitido (`VAL-003`)"
+          },
+          "401" : {
+            "description" : "Token ausente o inválido (`AUTH-001`)"
+          },
+          "500" : {
+            "description" : "Fallo no controlado (`ERR-500`)"
+          }
+        },
+        "summary" : "Consultar los movimientos propios",
+        "tags" : [ "Movimientos" ]
+      }
+    },
+    "/api/v1/movements/mine/{id}" : {
+      "get" : {
+        "description" : "Devuelve **lo mismo que devuelve registrar una venta**, con sus líneas: qué\nproductos, cuántos, a qué precio y con qué vigencia. Quien registró una venta y\nquien la consulta después ven la misma forma.\n\n**Un movimiento que no es suyo responde `404`**, exactamente igual que uno que no\nexiste. No es un descuido: un `403` confirmaría que el identificador existe.\n",
+        "operationId" : "mio",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "id",
+          "required" : true,
+          "schema" : {
+            "format" : "uuid",
+            "type" : "string"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/SaleResponse"
+                }
+              }
+            },
+            "description" : "El movimiento, con sus líneas."
+          },
+          "400" : {
+            "description" : "Identificador malformado (`VAL-001`)"
+          },
+          "401" : {
+            "description" : "Token ausente o inválido (`AUTH-001`)"
+          },
+          "404" : {
+            "description" : "No existe **o no es suyo** (`VAL-002`). Las dos son la misma respuesta"
+          },
+          "500" : {
+            "description" : "Fallo no controlado (`ERR-500`)"
+          }
+        },
+        "summary" : "Consultar el detalle de un movimiento propio",
         "tags" : [ "Movimientos" ]
       }
     },

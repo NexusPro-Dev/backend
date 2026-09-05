@@ -1,6 +1,8 @@
 package com.factech.nexus.modules.movements.domain.repository;
 
 import com.factech.nexus.modules.movements.domain.models.Movement;
+import java.math.BigDecimal;
+import java.time.OffsetDateTime;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
@@ -104,4 +106,81 @@ public interface MovementRepository {
 
   /** El método de pago, con la marca que `RN-MV-018` obliga a mirar al vender. */
   record PaymentMethodView(UUID id, String code, String name, boolean active) {}
+
+  // ---------------------------------------------------------------------------
+  // `RF-MV-008` — los movimientos propios
+  // ---------------------------------------------------------------------------
+
+  /**
+   * La página de movimientos en los que {@code actorId} participa, del más reciente al más antiguo.
+   *
+   * <p><b>El alcance va DENTRO de la sentencia y no se aplica después</b>, y esa es la única
+   * decisión de este método. Traer de más y descartar en Java haría que el total contase
+   * movimientos ajenos, y dejaría el filtro en un sitio donde moverlo no rompe nada visible.
+   *
+   * <p>No hay sobrecarga que acepte otra persona: consultar las de un tercero es `RF-MV-006`, con
+   * su permiso.
+   */
+  List<MyMovementRow> findMine(UUID actorId, String status, int offset, int limit);
+
+  /** Cuántos hay en total. Exacto: es el conjunto de una persona, no una tabla sin límite. */
+  long countMine(UUID actorId, String status);
+
+  /**
+   * El detalle de un movimiento propio, con sus líneas.
+   *
+   * <p><b>Devuelve vacío tanto si no existe como si es ajeno</b> (`EX-002`): quien llama no puede
+   * distinguir los dos casos, porque distinguirlos confirmaría la existencia de un identificador
+   * ajeno.
+   */
+  Optional<MovementDetailView> findMineById(UUID movementId, UUID actorId);
+
+  /**
+   * Una fila del listado propio, con el papel ya resuelto.
+   *
+   * <p><b>{@code role} llega calculado por el motor</b> y no por Java: el identificador de quien
+   * pregunta ya está atado a la consulta, y resolverlo fuera obligaría a arrastrar los dos
+   * identificadores de las partes solo para compararlos y descartarlos.
+   */
+  record MyMovementRow(
+      UUID id,
+      String code,
+      String status,
+      String role,
+      UUID clientId,
+      String clientUsername,
+      String clientFirstName,
+      String clientLastName,
+      UUID sellerId,
+      String sellerUsername,
+      String sellerFirstName,
+      String sellerLastName,
+      UUID currencyId,
+      String currencyCode,
+      String paymentMethod,
+      BigDecimal totalAmount,
+      BigDecimal discountAmount,
+      BigDecimal payableAmount,
+      OffsetDateTime occurredAt,
+      OffsetDateTime createdAt) {}
+
+  /** La cabecera y sus líneas. */
+  record MovementDetailView(MyMovementRow header, List<MovementLineRow> lines) {}
+
+  /**
+   * Una línea del detalle.
+   *
+   * <p><b>El código y el nombre del producto salen de {@code products}, no de la línea</b>, y hay
+   * que saberlo: `V54` no los congela — {@code movement_details} guarda el identificador, la
+   * cantidad, el precio y la vigencia, y nada más. La consecuencia está declarada en `tasks.md` §3
+   * y no se resuelve aquí: renombrar un producto cambia cómo se ve una venta pasada.
+   */
+  record MovementLineRow(
+      UUID productId,
+      String productCode,
+      String productName,
+      int quantity,
+      BigDecimal unitPrice,
+      BigDecimal lineAmount,
+      Integer validityDays) {}
 }

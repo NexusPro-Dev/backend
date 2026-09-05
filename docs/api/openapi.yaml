@@ -3411,6 +3411,101 @@ paths:
                 $ref: "#/components/schemas/PaymentMethodCatalogResponse"
         "401":
           description: Sin token.
+  /api/v1/movements/mine:
+    get:
+      tags:
+      - Movimientos
+      summary: Consultar los movimientos propios
+      description: |
+        Devuelve **los movimientos en los que usted participó**, paginados y del más
+        reciente al más antiguo.
+
+        **«Propio» son DOS papeles.** Un movimiento lleva a quien recibe lo comprado y a
+        quien lo vendió, y usted puede ser cualquiera de los dos — o **los dos a la vez**,
+        si compró para sí mismo algo que se le atribuye. Cada movimiento dice en qué papel
+        aparece usted con `role`: `BUYER`, `SELLER` o `BOTH`. El que es las dos cosas
+        **aparece una sola vez**.
+
+        **No hay forma de preguntar por otra persona**, ni indicándola ni teniendo
+        permisos: quien pregunta sale de la credencial. Consultar las ventas de terceros es
+        otra operación, con su permiso.
+
+        **Las líneas no viajan aquí.** Una venta puede llevar varias, y meterlas
+        multiplicaría la respuesta por un dato que solo se mira al abrir uno: están en el
+        detalle.
+
+        **El vendedor puede ser nulo**, y viaja igual: es el caso normal de quien no cuelga
+        de ningún vendedor.
+
+        El orden es fijo y no se puede cambiar. `status` filtra por estado.
+      operationId: mios
+      parameters:
+      - name: page
+        in: query
+        required: false
+        schema:
+          type: integer
+          format: int32
+      - name: size
+        in: query
+        required: false
+        schema:
+          type: integer
+          format: int32
+      - name: status
+        in: query
+        required: false
+        schema:
+          type: string
+      responses:
+        "200":
+          description: La página de movimientos propios.
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/PageResponseMyMovement"
+        "400":
+          description: Paginación inválida (`VAL-002`) o estado no admitido (`VAL-003`)
+        "401":
+          description: Token ausente o inválido (`AUTH-001`)
+        "500":
+          description: Fallo no controlado (`ERR-500`)
+  /api/v1/movements/mine/{id}:
+    get:
+      tags:
+      - Movimientos
+      summary: Consultar el detalle de un movimiento propio
+      description: |
+        Devuelve **lo mismo que devuelve registrar una venta**, con sus líneas: qué
+        productos, cuántos, a qué precio y con qué vigencia. Quien registró una venta y
+        quien la consulta después ven la misma forma.
+
+        **Un movimiento que no es suyo responde `404`**, exactamente igual que uno que no
+        existe. No es un descuido: un `403` confirmaría que el identificador existe.
+      operationId: mio
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      responses:
+        "200":
+          description: "El movimiento, con sus líneas."
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/SaleResponse"
+        "400":
+          description: Identificador malformado (`VAL-001`)
+        "401":
+          description: Token ausente o inválido (`AUTH-001`)
+        "404":
+          description: No existe **o no es suyo** (`VAL-002`). Las dos son la misma
+            respuesta
+        "500":
+          description: Fallo no controlado (`ERR-500`)
   /api/v1/memberships/{id}:
     get:
       tags:
@@ -5439,6 +5534,85 @@ components:
           type: array
           items:
             $ref: "#/components/schemas/ExcludedCountry"
+    MyMovement:
+      type: object
+      description: Un movimiento en el que participa quien consulta.
+      properties:
+        id:
+          type: string
+          format: uuid
+        code:
+          type: string
+        status:
+          type: string
+        role:
+          type: string
+          description: El papel de quien consulta en ESTE movimiento.
+          enum:
+          - BUYER
+          - SELLER
+          - BOTH
+        client:
+          $ref: "#/components/schemas/MyMovementParty"
+        seller:
+          type:
+          - object
+          - "null"
+          $ref: "#/components/schemas/MyMovementParty"
+          description: A quién se atribuye. NULO cuando quien compró no cuelga de
+            ningún vendedor.
+        currency:
+          $ref: "#/components/schemas/MyMovementCurrency"
+        paymentMethod:
+          type: string
+        totalAmount:
+          type: number
+        discountAmount:
+          type: number
+        payableAmount:
+          type: number
+        occurredAt:
+          type: string
+          format: date-time
+    MyMovementCurrency:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        code:
+          type: string
+    MyMovementParty:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        username:
+          type: string
+        name:
+          type: string
+    PageResponseMyMovement:
+      type: object
+      properties:
+        content:
+          type: array
+          items:
+            $ref: "#/components/schemas/MyMovement"
+        totalElements:
+          type: integer
+          format: int64
+        totalPages:
+          type: integer
+          format: int32
+        page:
+          type: integer
+          format: int32
+        size:
+          type: integer
+          format: int32
+        totalIsExact:
+          type: boolean
     ListMembershipsRequest:
       type: object
       properties:
