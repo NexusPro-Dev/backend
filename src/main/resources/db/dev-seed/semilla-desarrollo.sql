@@ -239,16 +239,27 @@ SELECT pg_temp.uuid_v7(), subordinado.id, superior.id
 -- a `cliente2` dos y a `cliente3` uno. Con los tres en el mismo nivel, la mitad
 -- de `RF-PM-007` quedaría sin ejercitar.
 --
--- `user_memberships` tiene la clave primaria en `user_id`: UNA membresía por
--- persona y SIN historial. Subir a alguien de nivel reemplaza la fila, no añade
--- otra — de ahí que la liquidación futura de `CM` tenga que guardar el
--- porcentaje que aplicó, porque el nivel de entonces no se puede reconstruir
--- desde aquí.
+-- `user_memberships` ES UN HISTORIAL desde `V56`: `id` propio, y `closed_at`
+-- nulo marca la fila ABIERTA, que es la actual. Conceder otra membresia cierra
+-- la que hubiera e inserta una nueva. La semilla escribe solo la abierta: en
+-- desarrollo nadie ha subido de nivel todavia, y fabricar un historial falso
+-- haria que las consultas parecieran correctas por el motivo equivocado.
+--
+-- EL `id` SE CONSTRUYE, NO SE GENERA AL AZAR (Art. V.11, y `V3`): un v7 cuyo
+-- prefijo temporal sale de `now()`, igual que hace `V56` con `started_at`.
 -- -----------------------------------------------------------------------------
-INSERT INTO user_memberships (user_id, membership_id)
-SELECT u.id, m.id
+INSERT INTO user_memberships (id, user_id, membership_id)
+SELECT (
+           lpad(to_hex((extract(epoch FROM now()) * 1000)::bigint), 12, '0')
+        || '7' || substr(md5(random()::text || u.id::text), 1, 3)
+        || substr('89ab', 1 + (random() * 3)::int, 1)
+        || substr(md5(random()::text || m.id::text), 1, 3)
+        || substr(md5(random()::text || u.id::text || m.id::text), 1, 12)
+       )::uuid,
+       u.id, m.id
   FROM (VALUES ('cliente1', 'FREE'), ('cliente2', 'VIP'), ('cliente3', 'PLATINO'))
        AS asignacion(usuario, membresia)
   JOIN users u ON u.username = asignacion.usuario
   JOIN memberships m ON m.code = asignacion.membresia
- WHERE NOT EXISTS (SELECT 1 FROM user_memberships um WHERE um.user_id = u.id);
+ WHERE NOT EXISTS (SELECT 1 FROM user_memberships um
+                    WHERE um.user_id = u.id AND um.closed_at IS NULL);

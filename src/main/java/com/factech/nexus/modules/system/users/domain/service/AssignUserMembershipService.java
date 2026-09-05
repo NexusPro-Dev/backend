@@ -16,6 +16,7 @@ import com.factech.nexus.shared.error.FieldError;
 import com.factech.nexus.shared.error.ResourceNotFoundException;
 import com.factech.nexus.shared.error.UnprocessableEntityException;
 import com.factech.nexus.shared.error.ValidationException;
+import com.factech.nexus.shared.persistence.UuidV7Generator;
 import java.time.Clock;
 import java.time.OffsetDateTime;
 import java.util.HashMap;
@@ -62,14 +63,16 @@ public class AssignUserMembershipService {
   private final MembershipCatalog membresias;
   private final AuditWriter auditoria;
   private final Clock reloj;
+  private final UuidV7Generator ids;
 
   @Autowired
   public AssignUserMembershipService(
       UserRepository usuarios,
       RoleCatalog roles,
       MembershipCatalog membresias,
-      AuditWriter auditoria) {
-    this(usuarios, roles, membresias, auditoria, Clock.systemUTC());
+      AuditWriter auditoria,
+      UuidV7Generator ids) {
+    this(usuarios, roles, membresias, auditoria, Clock.systemUTC(), ids);
   }
 
   AssignUserMembershipService(
@@ -77,12 +80,14 @@ public class AssignUserMembershipService {
       RoleCatalog roles,
       MembershipCatalog membresias,
       AuditWriter auditoria,
-      Clock reloj) {
+      Clock reloj,
+      UuidV7Generator ids) {
     this.usuarios = usuarios;
     this.roles = roles;
     this.membresias = membresias;
     this.auditoria = auditoria;
     this.reloj = reloj;
+    this.ids = ids;
   }
 
   @Transactional
@@ -139,7 +144,25 @@ public class AssignUserMembershipService {
         anterior.map(previa -> previa.coincideCon(membresia.id(), peticion.endsAt())).orElse(false);
 
     if (!sinCambio) {
-      usuarios.assignMembership(userId, membresia.id(), peticion.endsAt(), ahora);
+      // LOS DOS CAMINOS DE `V56`, y cuál se toma lo decide si CAMBIA EL NIVEL o
+      // solo la fecha.
+      //
+      // MISMA MEMBRESÍA CON OTRA FECHA: se corrige la fila abierta y NO SE GENERA
+      // HISTORIAL. Corregir hasta cuándo vale un nivel es una corrección
+      // administrativa, no un ascenso ni una bajada, y anotarla como un periodo
+      // nuevo llenaría el historial de filas que no describen ningún cambio de
+      // nivel — que es justo lo que ese historial existe para contar.
+      //
+      // OTRA MEMBRESÍA: se cierra la abierta y se abre una nueva. `assignMembership`
+      // hace las dos cosas juntas.
+      boolean mismoNivel =
+          anterior.map(previa -> previa.membershipId().equals(membresia.id())).orElse(false);
+
+      if (mismoNivel) {
+        usuarios.updateMembershipEnd(userId, peticion.endsAt(), ahora);
+      } else {
+        usuarios.assignMembership(ids.next(), userId, membresia.id(), peticion.endsAt(), ahora);
+      }
       auditar(usuario, anterior.orElse(null), membresia, peticion.endsAt());
     }
 

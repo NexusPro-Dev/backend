@@ -11,11 +11,14 @@ import com.factech.nexus.shared.audit.AuditWriter;
 import com.factech.nexus.shared.error.BusinessRuleException;
 import com.factech.nexus.shared.error.FieldError;
 import com.factech.nexus.shared.error.ResourceNotFoundException;
+import java.time.Clock;
+import java.time.OffsetDateTime;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -45,11 +48,25 @@ public class RevokeUserMembershipService {
   private final RoleCatalog roles;
   private final AuditWriter auditoria;
 
+  /**
+   * Desde el 05-09-2026 esta operación <b>escribe una fecha</b>, y por eso necesita reloj: retirar
+   * pasó de borrar la fila a <b>cerrarla</b> con {@code closed_at} (`V56`). Se inyecta, y no se
+   * toma de {@code OffsetDateTime.now()}, para que una prueba pueda fijar el instante del cierre.
+   */
+  private final Clock reloj;
+
+  @Autowired
   public RevokeUserMembershipService(
       UserRepository usuarios, RoleCatalog roles, AuditWriter auditoria) {
+    this(usuarios, roles, auditoria, Clock.systemUTC());
+  }
+
+  RevokeUserMembershipService(
+      UserRepository usuarios, RoleCatalog roles, AuditWriter auditoria, Clock reloj) {
     this.usuarios = usuarios;
     this.roles = roles;
     this.auditoria = auditoria;
+    this.reloj = reloj;
   }
 
   @Transactional
@@ -78,7 +95,7 @@ public class RevokeUserMembershipService {
       return;
     }
 
-    usuarios.removeMembership(userId);
+    usuarios.closeMembership(userId, OffsetDateTime.now(reloj));
     auditar(usuario, actual.get());
   }
 

@@ -79,7 +79,8 @@ class UserQueryIT extends IntegrationTestBase {
         juan,
         consumidor);
     jdbc.update(
-        "INSERT INTO user_memberships (user_id, membership_id, started_at) VALUES (?, ?::uuid, now())",
+        "INSERT INTO user_memberships (id, user_id, membership_id, started_at)"
+            + " VALUES (gen_random_uuid(), ?, ?::uuid, now())",
         juan,
         oro);
   }

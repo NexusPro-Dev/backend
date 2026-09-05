@@ -636,11 +636,13 @@ class RegisterSaleIT extends IntegrationTestBase {
   }
 
   private void asignarMembresia(UUID persona, UUID membresia) {
-    // Sin `id`: `RN-SP-014` pone `user_id` como clave primaria, de modo que
-    // «dos membresías a la vez» es imposible por construcción (`V20`).
+    // CON `id` DESDE `V56`: `user_memberships` es un historial y `user_id` ya no
+    // es la clave primaria. El fixture abre la fila y nunca cierra ninguna, que
+    // es todo lo que estas pruebas necesitan; `gen_random_uuid()` basta porque
+    // aquí el identificador no ordena nada.
     jdbc.update(
-        "INSERT INTO user_memberships (user_id, membership_id, started_at, ends_at)"
-            + " VALUES (CAST(? AS uuid), CAST(? AS uuid), ?, NULL)",
+        "INSERT INTO user_memberships (id, user_id, membership_id, started_at, ends_at)"
+            + " VALUES (gen_random_uuid(), CAST(? AS uuid), CAST(? AS uuid), ?, NULL)",
         persona.toString(),
         membresia.toString(),
         BASE);

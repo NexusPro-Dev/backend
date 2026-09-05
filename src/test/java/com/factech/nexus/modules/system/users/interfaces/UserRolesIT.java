@@ -733,7 +733,7 @@ class UserRolesIT extends IntegrationTestBase {
   }
 
   @Test
-  @DisplayName("RN-SP-015 — quedarse sin rol de consumidor BORRA la membresía")
+  @DisplayName("RN-SP-015 — quedarse sin rol de consumidor CIERRA la membresía, no la borra")
   void cascadaDeMembresia() throws Exception {
     conRolDeReserva(persona);
     String consumidor = crearRol("ESTUDIANTE", "CONSUMIDOR", ADMIN);
@@ -744,10 +744,24 @@ class UserRolesIT extends IntegrationTestBase {
         .andExpect(status().isOk())
         .andExpect(jsonPath("$.membership").value(org.hamcrest.Matchers.nullValue()));
 
-    Integer filas =
+    // NINGUNA ABIERTA: para todo el que pregunte, esta persona no tiene nivel.
+    Integer abiertas =
         jdbc.queryForObject(
-            "SELECT count(*) FROM user_memberships WHERE user_id = ?", Integer.class, persona);
-    assertThat(filas).isZero();
+            "SELECT count(*) FROM user_memberships WHERE user_id = ? AND closed_at IS NULL",
+            Integer.class,
+            persona);
+    assertThat(abiertas).isZero();
+
+    // PERO LA FILA SIGUE AHÍ, cerrada. Desde `V56` esta prueba exigía cero filas
+    // en total, y eso era exactamente lo que borraba la constancia de que esta
+    // persona tuvo un nivel y lo perdió. Es el mismo criterio con el que
+    // `cascadaDeSuperior`, aquí abajo, cierra el superior en lugar de borrarlo.
+    Integer cerradas =
+        jdbc.queryForObject(
+            "SELECT count(*) FROM user_memberships WHERE user_id = ? AND closed_at IS NOT NULL",
+            Integer.class,
+            persona);
+    assertThat(cerradas).isEqualTo(1);
   }
 
   @Test

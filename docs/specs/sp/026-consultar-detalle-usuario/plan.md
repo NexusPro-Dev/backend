@@ -43,7 +43,7 @@ Todo lo que necesita ya existe o lo crea otro requerimiento:
 |---|---|---|
 | `users` | `V18__create_users.sql` (`RF-SP-024`) | Fila de la persona, incluida `deleted_at` |
 | `user_roles` | `V19__create_user_roles.sql` (`RF-SP-024`) | Roles asignados, leídos por el prefijo `user_id` de su clave primaria |
-| `user_memberships`, `memberships` | `V20` (`RF-SP-024`) y `V13` (`RF-SP-016`) | Membresía vigente y su nivel |
+| `user_memberships`, `memberships` | `V20` (`RF-SP-024`) y `V13` (`RF-SP-016`) | Membresía **abierta** y su nivel. `V56` convierte la primera en historial, y el cruce se acota a `closed_at IS NULL` |
 | `roles`, `role_permissions`, `permissions` | `V5`, `V6` (`RF-SP-001`) y `V2` (`RF-SP-010`) | Estado de cada rol y permisos que declara |
 | `CanonicalUuidConverter` | `RF-SP-003` | Que un identificador no canónico sea `400` y no `404` |
 
@@ -171,7 +171,7 @@ SELECT u.id, u.username, u.email, u.first_name, u.last_name, u.status,
        u.last_login_at, u.locked_until, u.created_at, u.updated_at,
        m.id, m.code, m.name, m.level, um.ends_at
   FROM users u
-  LEFT JOIN user_memberships um ON um.user_id = u.id
+  LEFT JOIN user_memberships um ON um.user_id = u.id AND um.closed_at IS NULL
   LEFT JOIN memberships m       ON m.id = um.membership_id
  WHERE u.id = :id AND u.deleted_at IS NULL;
 
@@ -184,7 +184,7 @@ SELECT r.id, r.code, r.name, r.status
 ```
 
 - **El orden importa.** Primero la persona: si no existe o está eliminada, se devuelve `404` **sin ejecutar la segunda sentencia** y sin preguntar por permiso alguno.
-- **La membresía va por `LEFT JOIN` en la primera sentencia**, porque es a lo sumo una fila —lo garantiza `pk_user_memberships`— y traerla aparte costaría una tercera sentencia para un dato que el `JOIN` resuelve gratis. Los roles no pueden ir ahí: dos colecciones en la misma sentencia producen el producto cartesiano que `RF-SP-003` §4 describe, y aquí la segunda colección sería la de permisos.
+- **La membresía va por `LEFT JOIN` en la primera sentencia**, porque es a lo sumo una fila y traerla aparte costaría una tercera sentencia para un dato que el `JOIN` resuelve gratis. **Enmendado el 05-09-2026**: lo garantizaba `pk_user_memberships` sobre `user_id`, y desde que `user_memberships` es un historial lo garantizan **el predicado `um.closed_at IS NULL` en el propio `JOIN`** y, debajo, `uq_user_memberships_abierta` (`V56`). Sin ese predicado, el detalle de quien haya cambiado de nivel alguna vez devolvería **varias filas** — y esta sentencia da por hecho que devuelve una. Los roles no pueden ir ahí: dos colecciones en la misma sentencia producen el producto cartesiano que `RF-SP-003` §4 describe, y aquí la segunda colección sería la de permisos.
 - **No hay `N+1` posible**, por el mismo argumento de `RF-SP-002` y `RF-SP-003`: no se carga `UserEntity`, de modo que no hay asociación perezosa que un mapeador, un `toString` o la serialización puedan recorrer.
 - **La resolución de permisos no añade sentencias en el caso común**, porque la caché ya tiene la entrada de cada rol; en un fallo de caché añade las que ese componente necesite, que son suyas y no de este requerimiento.
 

@@ -170,7 +170,7 @@ public class RevokeUserRolesService {
         pierdeLaMembresia ? usuarios.findMembership(userId).orElseThrow().membershipId() : null;
 
     if (pierdeLaMembresia) {
-      usuarios.removeMembership(userId);
+      usuarios.closeMembership(userId, ahora);
     }
 
     boolean cierraSuperior =

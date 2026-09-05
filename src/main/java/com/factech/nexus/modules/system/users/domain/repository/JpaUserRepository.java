@@ -152,22 +152,40 @@ public class JpaUserRepository implements UserRepository {
 
   @Override
   public void assignMembership(
-      UUID userId, UUID membershipId, OffsetDateTime endsAt, OffsetDateTime ahora) {
+      UUID id, UUID userId, UUID membershipId, OffsetDateTime endsAt, OffsetDateTime ahora) {
+    // 1. CIERRA LA ABIERTA, SIN CONDICIÓN DE VIGENCIA. Cierra también la vencida:
+    //    dejarla abierta produciría dos filas actuales, que `uq_user_memberships_abierta`
+    //    rechaza y que antes de eso ya habría hecho que el listado de usuarios
+    //    devolviera a esa persona dos veces.
+    cerrarMembresiaAbierta(userId, ahora);
+
+    // 2. ABRE LA NUEVA. `started_at` y el cierre de arriba comparten instante, y por
+    //    eso `ck_user_memberships_cierre` admite la igualdad.
     em.createNativeQuery(
             """
             INSERT INTO user_memberships
-                   (user_id, membership_id, started_at, ends_at, created_at, updated_at)
-            VALUES (:usuario, :membresia, :ahora, :fin, :ahora, :ahora)
-            ON CONFLICT (user_id) DO UPDATE
-               SET membership_id = EXCLUDED.membership_id,
-                   started_at    = EXCLUDED.started_at,
-                   ends_at       = EXCLUDED.ends_at,
-                   updated_at    = EXCLUDED.updated_at
+                   (id, user_id, membership_id, started_at, ends_at, created_at, updated_at)
+            VALUES (:id, :usuario, :membresia, :ahora, :fin, :ahora, :ahora)
             """)
+        .setParameter("id", id)
         .setParameter("usuario", userId)
         .setParameter("membresia", membershipId)
         .setParameter("fin", endsAt)
         .setParameter("ahora", ahora)
+        .executeUpdate();
+  }
+
+  @Override
+  public void updateMembershipEnd(UUID userId, OffsetDateTime endsAt, OffsetDateTime ahora) {
+    em.createNativeQuery(
+            """
+            UPDATE user_memberships
+               SET ends_at = :fin, updated_at = :ahora
+             WHERE user_id = :usuario AND closed_at IS NULL
+            """)
+        .setParameter("fin", endsAt)
+        .setParameter("ahora", ahora)
+        .setParameter("usuario", userId)
         .executeUpdate();
   }
 
@@ -180,7 +198,7 @@ public class JpaUserRepository implements UserRepository {
                        um.ends_at AS ends_at
                   FROM user_memberships um
                   JOIN memberships m ON m.id = um.membership_id
-                 WHERE um.user_id = :usuario
+                 WHERE um.user_id = :usuario AND um.closed_at IS NULL
                 """,
                 Tuple.class)
             .setParameter("usuario", userId)
@@ -199,8 +217,24 @@ public class JpaUserRepository implements UserRepository {
   }
 
   @Override
-  public void removeMembership(UUID userId) {
-    em.createNativeQuery("DELETE FROM user_memberships WHERE user_id = :usuario")
+  public void closeMembership(UUID userId, OffsetDateTime ahora) {
+    cerrarMembresiaAbierta(userId, ahora);
+  }
+
+  /**
+   * El cierre, escrito una vez.
+   *
+   * <p>Lo comparten conceder —que cierra antes de abrir— y retirar. <b>No toca {@code ends_at}</b>:
+   * la fila cerrada sigue diciendo hasta cuándo se había pagado.
+   */
+  private void cerrarMembresiaAbierta(UUID userId, OffsetDateTime ahora) {
+    em.createNativeQuery(
+            """
+            UPDATE user_memberships
+               SET closed_at = :ahora, updated_at = :ahora
+             WHERE user_id = :usuario AND closed_at IS NULL
+            """)
+        .setParameter("ahora", ahora)
         .setParameter("usuario", userId)
         .executeUpdate();
   }

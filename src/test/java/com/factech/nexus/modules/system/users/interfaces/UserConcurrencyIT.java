@@ -399,8 +399,16 @@ class UserConcurrencyIT extends IntegrationTestBase {
                 """,
                 persona)
             > 0;
+    // `closed_at IS NULL` NO ES UN DETALLE DE LA CONSULTA, ES LA MITAD DE LA
+    // AFIRMACIÓN. Desde `V56` retirar CIERRA la fila en lugar de borrarla, de
+    // modo que contarlas todas diría que esta persona «tiene membresía» para
+    // siempre y `RN-SP-018` parecería rota en cuanto alguien deja de ser
+    // consumidor. Lo que el invariante mira es la fila ABIERTA.
     boolean tieneMembresia =
-        contar("SELECT count(*) FROM user_memberships WHERE user_id = ?", persona) > 0;
+        contar(
+                "SELECT count(*) FROM user_memberships WHERE user_id = ? AND closed_at IS NULL",
+                persona)
+            > 0;
 
     assertThat(esConsumidor)
         .as(
@@ -591,7 +599,8 @@ class UserConcurrencyIT extends IntegrationTestBase {
 
   private void darMembresia(UUID persona, String membresia) {
     jdbc.update(
-        "INSERT INTO user_memberships (user_id, membership_id) VALUES (?, ?::uuid)",
+        "INSERT INTO user_memberships (id, user_id, membership_id)"
+            + " VALUES (gen_random_uuid(), ?, ?::uuid)",
         persona,
         membresia);
   }

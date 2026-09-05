@@ -163,6 +163,29 @@ Exigirlo aquí sería exigir que no ocurra algo que el requerimiento de al lado 
 
 Las otras dos afirmaciones de `T-21` se conservan tal cual y sí se comprueban: la identidad duplicada produce una `201` y una `409`, y nadie queda a cargo de una cuenta sin acceso.
 
+## 4.ter `user_memberships` pasa a ser un historial — enmienda del 05-09-2026
+
+Decisión del responsable del proyecto: **conceder una membresía es una fila nueva** — se cierra la que había y se crea otra (`requirements/sp.md` v1.35.0, `RN-SP-014` reescrita). La migración se declara en `plan.md` §2.3.bis. Las tareas siguen la numeración del documento y arrancan en `T-25`: `T-22` a `T-24` ya estaban tomadas por §1 y **es de este requerimiento porque la tabla lo es**, aunque quienes cambian de comportamiento sean `RF-SP-032`, `RF-SP-033` y `RF-SP-029`.
+
+**Estados:** `Pendiente` · `En curso` · `Hecha` · `Bloqueada`.
+
+| ID | Tarea | Depende de | Verificación | Estado |
+|---|---|---|---|---|
+| `T-25` | **`V56`**: `id` y `closed_at`, la clave primaria a `id`, y las restricciones `uq_user_memberships_abierta`, `ex_user_memberships_sin_solape` y `ck_user_memberships_cierre`; `ix_user_memberships_membership_id` pasa a parcial | — | Un segundo `INSERT` abierto para el mismo usuario lo rechaza `uq_user_memberships_abierta`; dos periodos solapados los rechaza el `EXCLUDE`. **Sin que ningún código lo verifique** | **Hecha** — 05-09-2026 |
+| `T-26` | El relleno de `id` construye **UUID v7 desde `started_at`** dentro de la propia migración | `T-25` | Los identificadores de las filas existentes quedan **ordenados por fecha de concesión**, y ninguno es un v4 | **Hecha** — 05-09-2026 |
+| `T-27` | `findMembership` filtra por `closed_at IS NULL`, y `UserMembership` **no gana** `closedAt` | `T-25` | Integración: quien tiene historial devuelve **la abierta** y solo esa. **`UserMembership` se queda como está a propósito**: describe siempre la fila abierta porque la consulta ya lo garantiza, y un campo que siempre vale nulo no documenta nada — «abierta» lo decide el `WHERE`, «vigente» lo sigue decidiendo `isCurrentAt` | **Hecha** — 05-09-2026 |
+| `T-28` | `UserRepository`: `assignMembership` pasa a **cerrar e insertar** cuando cambia la membresía y a **actualizar** cuando solo cambia la fecha; `removeMembership` pasa a `closeMembership` | `T-27` | Integración: asignar dos veces deja **dos** filas, una cerrada y otra abierta; asignar la misma con otra fecha deja **una** | **Hecha** — 05-09-2026 |
+| `T-29` | Los dos `LEFT JOIN` de `JpaUserQueryRepository` se acotan con `um.closed_at IS NULL`, y el filtro por membresía también | `T-28` | **La prueba que importa**: una persona con tres membresías en su historial aparece **una sola vez** en el listado, y `totalElements` no la cuenta tres veces | **Hecha** — 05-09-2026 |
+| `T-30` | `RevokeUserMembershipService`, `RevokeUserRolesService` y `DeleteUserService` cierran en lugar de borrar | `T-28` | Tras retirar, la fila **sigue estando** con `closed_at` poblado y `ends_at` intacto; el detalle de la persona dice que no tiene membresía | **Hecha** — 05-09-2026 |
+| `T-31` | La semilla de desarrollo escribe `id` en sus filas de `user_memberships` | `T-25` | `DevelopmentSeedIT` en verde | **Hecha** — 05-09-2026 |
+| `T-32` | Prueba de concurrencia: dos asignaciones simultáneas a la misma persona | `T-28` | Ninguna devuelve `500` y **no quedan dos filas abiertas**. Lo serializa el bloqueo que la operación ya toma, no un `ON CONFLICT` — que era lo que lo absorbía y ha dejado de existir | **Hecha** — 05-09-2026 |
+
+**Lo que esta enmienda NO hace, y conviene que no se dé por hecho:**
+
+- **No expone el historial por ninguna API.** `RF-SP-026` sigue devolviendo la membresía abierta y nada más. Consultar el historial de niveles de una persona es un requerimiento que no existe, y esta enmienda solo hace que **el dato esté** para cuando exista.
+- **No decide qué pasa con los días pagados y no usados.** Cerrar una membresía de treinta días el día doce deja constancia de los dieciocho perdidos y **no los devuelve, ni los prorratea, ni los suma** a la nueva. Está declarado en `requirements/mv.md` §5.4 y sigue sin resolverse.
+- **No cambia el evento de auditoría de `RF-SP-033`.** Para quien lee la auditoría, el hecho sigue siendo que a esa persona le retiraron su membresía; que la fila sobreviva cerrada es un detalle de cómo se guarda.
+
 ## 5. Definición de terminado
 
 El requerimiento no está terminado hasta cumplir **todas** las condiciones de la constitución §16:

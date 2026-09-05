@@ -77,16 +77,61 @@ public interface UserRepository {
   // Membresía
   // ---------------------------------------------------------------------------
 
+  /**
+   * Concede una membresía: <b>cierra la abierta e inserta una nueva</b>, en esa transacción.
+   *
+   * <p><b>Cierra siempre, aunque la anterior ya estuviera vencida.</b> No es celo: dejarla abierta
+   * produciría dos filas actuales, que es lo que {@code uq_user_memberships_abierta} rechaza — y
+   * antes de que el motor lo rechace, ya habría roto el {@code LEFT JOIN} de `RF-SP-025` y
+   * `RF-SP-026`, que devolverían a esa persona dos veces (`V56`).
+   *
+   * <p><b>Usarla cuando cambia el nivel, no cuando solo cambia la fecha.</b> Para lo segundo está
+   * {@link #updateMembershipEnd}, que no genera historial: corregir hasta cuándo vale un nivel es
+   * una corrección administrativa y no un ascenso, y anotarla como un periodo nuevo llenaría el
+   * historial de filas que no describen ningún cambio de nivel.
+   *
+   * <p><b>El empate concurrente lo absorbe {@link #findNotDeletedByIdForUpdate}</b>, no un {@code
+   * ON CONFLICT}. Hasta el 05-09-2026 esta escritura era una sola sentencia con {@code ON CONFLICT
+   * (user_id)}, que la clave primaria hacía posible; ya no lo es. Sin ese bloqueo, dos asignaciones
+   * simultáneas leerían la misma fila abierta, las dos la cerrarían y las dos insertarían.
+   */
   void assignMembership(
-      UUID userId, UUID membershipId, OffsetDateTime endsAt, OffsetDateTime ahora);
+      UUID id, UUID userId, UUID membershipId, OffsetDateTime endsAt, OffsetDateTime ahora);
 
+  /**
+   * Corrige la fecha de fin de la membresía abierta, <b>sin cerrarla ni generar historial</b>.
+   *
+   * <p>Es el camino de `RF-SP-032` cuando la membresía es la misma y solo cambia la vigencia — lo
+   * que separa `FA-002` de `FA-003`.
+   */
+  void updateMembershipEnd(UUID userId, OffsetDateTime endsAt, OffsetDateTime ahora);
+
+  /**
+   * La membresía <b>abierta</b> de la persona, si tiene alguna.
+   *
+   * <p><b>Abierta no es vigente</b>, y la consulta devuelve la primera: una membresía vencida sigue
+   * abierta, ocupa la plaza y no concede nivel, y {@code UserMembership.isCurrentAt} es quien
+   * decide lo segundo. Filtrar aquí por vigencia haría indistinguible «no tiene» de «la tiene
+   * vencida», que es justo lo que `RF-SP-026` existe para distinguir.
+   */
   Optional<UserMembership> findMembership(UUID userId);
 
   /**
-   * Retira la membresía. Es un {@code DELETE} y no un cierre por fecha: `RN-SP-015` dice que quien
-   * deja de ser consumidor <b>no tiene</b> membresía, no que tuviera una que terminó.
+   * Retira la membresía <b>cerrándola</b>, y no borrándola.
+   *
+   * <p><b>Era un {@code DELETE} hasta el 05-09-2026</b>, con este motivo escrito: `RN-SP-015` dice
+   * que quien deja de ser consumidor <b>no tiene</b> membresía, no que tuviera una que terminó. El
+   * argumento era correcto y <b>su premisa desapareció</b>: la tabla es ahora un historial, y en un
+   * historial sí existe algo que escribir — cuándo dejó de tenerla.
+   *
+   * <p><b>No toca {@code ends_at}.</b> La fila cerrada sigue diciendo hasta cuándo se había pagado,
+   * de modo que retirar el día doce una membresía pagada hasta el treinta deja constancia de las
+   * dos cosas. Machacarla haría indistinguible <b>vencer</b> de <b>que te la quiten</b>, que es la
+   * diferencia que {@code closed_at} existe para guardar.
+   *
+   * <p>Es el mismo criterio con el que {@link #endSupervisor} nunca fue un {@code DELETE}.
    */
-  void removeMembership(UUID userId);
+  void closeMembership(UUID userId, OffsetDateTime ahora);
 
   // ---------------------------------------------------------------------------
   // Superior comercial

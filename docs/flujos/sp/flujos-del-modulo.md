@@ -3,11 +3,11 @@
 | Campo | Valor |
 |---|---|
 | Módulo | `SP` — Sistema Principal |
-| Versión | 0.4.0 |
+| Versión | 0.5.0 |
 | Estado | **Borrador** |
 | Responsable | Bonilla Diaz William Steven |
 | Fecha de creación | 21-08-2026 |
-| Última actualización | 01-09-2026 |
+| Última actualización | 05-09-2026 |
 
 !!! info "Qué va en este documento"
 
@@ -192,24 +192,34 @@ La asignación tiene un ciclo que el catálogo no tiene, y es el único del mód
 stateDiagram-v2
     direction LR
 
-    state "Sin membresía" as SIN
+    state "Sin membresía abierta" as SIN
     state "Vigente" as VIG
-    state "Vencida · ocupa la plaza y no concede nivel" as VEN
+    state "Vencida · sigue abierta, ocupa la plaza y no concede nivel" as VEN
+    state "Cerrada · closed_at · historial" as CER
 
     [*] --> SIN
     SIN --> VIG : RF-SP-024 · alta con rol CONSUMIDOR<br/>RF-SP-030 · primer rol CONSUMIDOR<br/>RN-SP-018 · en la misma transacción
-    VIG --> VIG : RF-SP-032 · sustituir o renovar<br/>UPDATE sobre la misma fila
+    VIG --> VIG : RF-SP-032 · MISMA membresía, otra fecha<br/>UPDATE de ends_at · no genera historial
+    VIG --> CER : RF-SP-032 · OTRA membresía<br/>cierra e inserta, en la misma transacción
+    VEN --> CER : RF-SP-032 · cierra igual, aunque ya no valiera
+    CER --> VIG : la fila nueva que abre esa misma operación
     VIG --> VEN : pasa la fecha de fin<br/>nadie lo ejecuta · RN-SP-014
     VEN --> VIG : RF-SP-032 · renovar<br/>no hace falta retirarla antes
-    VIG --> SIN : RF-SP-031 FA-003 · cae el último rol CONSUMIDOR<br/>RF-SP-033 · retiro correctivo<br/>RF-SP-029 · la fila se borra
+    VIG --> SIN : RF-SP-031 FA-003 · cae el último rol CONSUMIDOR<br/>RF-SP-033 · retiro correctivo<br/>RF-SP-029 · la fila se CIERRA
     VEN --> SIN : las mismas tres
+    CER --> [*] : no vuelve · queda en el historial
 ```
 
 **Lo que el diagrama no puede dibujar y hay que leer en las specs:**
 
 - **La transición a vencida no la ejecuta nadie.** `RF-SP-032` §2 lo resuelve de forma explícita: la vigencia se evalúa al consultarla y ningún proceso recorre las membresías venciéndolas, porque ese proceso sería un requerimiento nuevo —con su horario, su registro de ejecución y su comportamiento ante fallos— que hoy nada cubre. Es la tercera transición del módulo que dispara el reloj y no una petición, junto con el vencimiento del bloqueo (§2) y el del refresh token (§4).
-- **Vencer no es lo mismo que no tener.** La fila permanece, ocupa la única plaza de la persona y no concede nivel alguno; `RF-SP-026` la devuelve con su fecha, que es lo que permite distinguir una cosa de la otra. Nadie avisa antes de que ocurra, y `RF-SP-032` §13 deja dicho que la interfaz debería hacerlo visible.
-- **Una plaza por persona, declarada en el esquema.** La clave primaria de `user_memberships` es `user_id`, de modo que `RN-SP-014` deja de ser una regla que el dominio deba recordar; por eso `RF-SP-032` sustituye con un `UPDATE` y no insertando una fila nueva. No hay historial de membresías.
+- **Vencer no es lo mismo que no tener.** La fila permanece **abierta**, ocupa la única plaza de la persona y no concede nivel alguno; `RF-SP-026` la devuelve con su fecha, que es lo que permite distinguir una cosa de la otra. Nadie avisa antes de que ocurra, y `RF-SP-032` §13 deja dicho que la interfaz debería hacerlo visible.
+- **Abierta y vigente son estados distintos, y confundirlos es el error que este diagrama existe para evitar.** **Abierta** es `closed_at IS NULL` —hay como mucho una, y es la que las consultas cruzan—; **vigente** es abierta **y además** dentro de su fecha. Una membresía vencida está abierta y no es vigente. Una cerrada no es ninguna de las dos.
+- **Una plaza por persona, declarada en el motor — pero ya no por la clave primaria** (05-09-2026). `user_memberships` es un **historial**: `id` propio, `user_id` repetido, y `RN-SP-014` sostenida por `uq_user_memberships_abierta` —único parcial sobre `WHERE closed_at IS NULL`— más `ex_user_memberships_sin_solape`, que impide que dos **periodos** se pisen. `RF-SP-032` deja de sustituir con un `UPDATE` cuando cambia el nivel: **cierra e inserta**.
+- **Conceder cierra SIEMPRE, aunque la anterior ya estuviera vencida.** No es celo: dos filas abiertas harían que el `LEFT JOIN` de `RF-SP-025` y `RF-SP-026` devolviera a la misma persona dos veces, y el único parcial existe precisamente para que eso no llegue a ocurrir.
+- **El rol de consumidor y el nivel son inseparables** (`RN-SP-013` y `RN-SP-018`, recíprocas): se conceden juntos —`RF-SP-024` y `RF-SP-030` exigen indicar la membresía con el primer rol `CONSUMIDOR`— y se sueltan juntos, porque retirar el último arrastra la membresía en la misma transacción y bajo el mismo identificador de correlación (`RN-SP-015`). Rechazar ese retiro, como decía el borrador de `RF-SP-031`, producía un bloqueo mutuo del que nadie salía.
+- **`RF-SP-033` es la salida correctiva y exige justo lo contrario**: que la persona ya **no** porte ningún rol `CONSUMIDOR`. Existe para deshacer un estado inconsistente, y su uso es excepcional por diseño. **Cierra con `closed_at` y no toca `ends_at`**, de modo que la fila sigue diciendo hasta cuándo se había pagado.
+- La eliminación de la persona **cierra la fila** desde el 05-09-2026 —igual que la asignación de superior comercial y **ya no** como las de `user_roles`, que siguen borrándose—: la fila en `users` sobrevive al borrado lógico, y suprimir su historial de niveles destruiría el de alguien que todavía existe. La membresía del catálogo no se toca: `RN-SP-008` impide borrarlas, y esta operación no lo intenta.
 - **El rol de consumidor y el nivel son inseparables** (`RN-SP-013` y `RN-SP-018`, recíprocas): se conceden juntos —`RF-SP-024` y `RF-SP-030` exigen indicar la membresía con el primer rol `CONSUMIDOR`— y se sueltan juntos, porque retirar el último arrastra la membresía en la misma transacción y bajo el mismo identificador de correlación (`RN-SP-015`). Rechazar ese retiro, como decía el borrador de `RF-SP-031`, producía un bloqueo mutuo del que nadie salía.
 - **`RF-SP-033` es la salida correctiva y exige justo lo contrario**: que la persona ya **no** porte ningún rol `CONSUMIDOR`. Existe para deshacer un estado inconsistente, y su uso es excepcional por diseño.
 - La eliminación de la persona **borra la fila**, igual que las de `user_roles` y a diferencia de la asignación de superior comercial, que se cierra. La membresía del catálogo no se toca: `RN-SP-008` impide borrarlas, y esta operación no lo intenta.
@@ -496,3 +506,4 @@ flowchart TB
 | 0.2.0 | 22-08-2026 | Los 21 requerimientos restantes, de `RF-SP-022` a `RF-SP-042`. Tres diagramas nuevos —ciclo de vida de la persona, ciclo de vida de una sesión y estructura comercial— y los cinco anteriores rehechos sobre los 42: el mapa de dependencias incorpora usuarios y estructura, el reparto por naturaleza pasa a 26 escrituras y 16 lecturas, y el cruce de auditoría se reagrupa por combinación de registros. Se retiran las marcas de «sin tripleta» de `RF-SP-022` y `RF-SP-023`, y se registran dos puntos abiertos nuevos: el origen de la primera persona y el motivo de revocación del que depende `RF-SP-035` `EX-004`. | Responsable técnico |
 | 0.3.0 | 22-08-2026 | Revisión de completitud contra las nueve tablas de `modelo-datos.md` §1. **Dos ciclos de vida nuevos**: la credencial (§3, con el permiso temporal de un solo uso de `RF-SP-040` en diagrama propio) y la membresía de una persona (§5, la asignación, que hasta ahora solo figuraba como catálogo). **Tres enmiendas a diagramas existentes**: el vencimiento del bloqueo automático y el contador de intentos fallidos en §2, el catálogo de permisos como cuarto submódulo en §9, y la retención pendiente de los refresh tokens en §4. Secciones renumeradas de la §3 en adelante. Seis puntos abiertos nuevos: la caducidad sin columna, la salida de una provisional caducada, `PENDIENTE` sin transiciones, `role_permissions` en el borrado de rol, la purga de tokens y la referencia obsoleta a `RN-SP-015` en `RF-SP-032`. Se cierra el punto 1 —el origen de la primera persona—: el `plan.md` de `RF-SP-024` §2.5 lo declara en `V22__seed_superadmin.sql`, y §6 lo incorpora al mapa de dependencias. | Responsable técnico |
 | 0.4.0 | 01-09-2026 | **Dos diagramas dejaron de ser ciertos con `RF-SP-045`, y se corrigen.** §2 —el ciclo de vida de la persona— decía «la única con **tres** estados vivos» y afirmaba que `PENDIENTE` «no tiene ninguna transición, ni de entrada ni de salida […] mientras siga así, el diagrama está completo sin él». Ya no: `FTD_PENDIENTE` lo sustituye y **tiene las dos**. Es además **el primer estado que autentica sin estar `ACTIVO`**, de modo que la restricción que lo define **no se dibuja en este diagrama**: la impone un filtro (`RF-SP-046`) y no el estado, igual que el indicador de cambio obligatorio retiene a alguien ya autenticado en lugar de negarle la entrada. Y **nada automático lo saca de ahí todavía**: la única salida es que un actor active la cuenta a mano por `RF-SP-028`, que tuvo que ampliar su dominio para admitirlo. Qué la libere sin intervención humana está sin decidir. §10 —la estructura comercial— decía que `user_supervisors` es «la única relación persona → persona» de la fuerza comercial; **desde `RF-SP-045` contiene también a los clientes**, colgando del vendedor que los trajo, y una fila significa dos cosas según quién sea el subordinado. El diagrama gana `RF-SP-045` como cuarta operación que abre filas, y la comprobación de «gente a cargo» pasa a leerse **equipo y cartera**: `RN-SP-022` se endurece sin cambiar de texto, y con ella `RF-SP-028`, `RF-SP-029` y `RF-SP-031` empiezan a rechazar más. | Responsable técnico |
+| 0.5.0 | 05-09-2026 | **§5 se rehace: `user_memberships` pasa a ser un historial** (`requirements/sp.md` v1.35.0). El diagrama gana un estado —**`Cerrada`**, que es el historial— y con él las transiciones que faltaban: `RF-SP-032` con **otra** membresía cierra e inserta, mientras que con la **misma** y otra fecha sigue siendo un `UPDATE` que no genera historial. La distinción que el diagrama anterior no podía hacer y que ahora es central: **abierta** (`closed_at IS NULL`) y **vigente** (abierta y dentro de fecha) son estados distintos — una membresía vencida está abierta y no es vigente, y una cerrada no es ninguna de las dos. Se corrigen además **dos afirmaciones que dejaron de ser ciertas**: «la clave primaria de `user_memberships` es `user_id` … no hay historial de membresías», que ahora sostienen `uq_user_memberships_abierta` y `ex_user_memberships_sin_solape`; y «la eliminación de la persona **borra la fila**», que pasa a **cerrarla** — `user_roles` sigue borrándose y esta ya no, porque la fila en `users` sobrevive al borrado lógico y suprimir su historial de niveles destruiría el de alguien que todavía existe. Queda escrita la obligación que menos se ve: **conceder cierra siempre**, aunque la anterior estuviera vencida, porque dos filas abiertas harían que el `LEFT JOIN` de `RF-SP-025` y `RF-SP-026` devolviera a la misma persona dos veces. | Responsable del proyecto |

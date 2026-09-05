@@ -156,8 +156,8 @@ class UpdateOwnProfileIT extends IntegrationTestBase {
         """,
         UUID.randomUUID());
     jdbc.update(
-        "INSERT INTO user_memberships (user_id, membership_id)"
-            + " SELECT ?, id FROM memberships ORDER BY level LIMIT 1",
+        "INSERT INTO user_memberships (id, user_id, membership_id)"
+            + " SELECT gen_random_uuid(), ?, id FROM memberships ORDER BY level LIMIT 1",
         juan);
     jdbc.update(
         "INSERT INTO user_supervisors (id, user_id, supervisor_id) VALUES (?, ?, ?)",

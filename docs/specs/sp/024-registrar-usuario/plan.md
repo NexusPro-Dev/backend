@@ -115,7 +115,7 @@ Es el mismo criterio que `RF-SP-020` §2 aplicó a `countries`: el esquema no ll
 
 | Nombre | Definición | Por qué |
 |---|---|---|
-| `pk_user_memberships` | `PRIMARY KEY (user_id)` | **`RN-SP-014`: una membresía por usuario.** La regla se declara en el esquema y no solo en el dominio (Art. V.6): con `user_id` como clave primaria, «dos membresías a la vez» es imposible por construcción, y `RF-SP-032` sustituye con un `UPDATE` en lugar de insertar |
+| `pk_user_memberships` | `PRIMARY KEY (user_id)` | **`RN-SP-014`: una membresía por usuario.** La regla se declara en el esquema y no solo en el dominio (Art. V.6): con `user_id` como clave primaria, «dos membresías a la vez» es imposible por construcción, y `RF-SP-032` sustituye con un `UPDATE` en lugar de insertar. **SUSTITUIDA el 05-09-2026 — ver §2.3.bis**: la clave pasa a `id` y `RN-SP-014` la sostienen otras dos restricciones |
 | `fk_user_memberships_user` | `(user_id) → users(id)` `ON DELETE RESTRICT` | Ídem `user_roles` |
 | `fk_user_memberships_membership` | `(membership_id) → memberships(id)` `ON DELETE RESTRICT` | Obligación que el plan de `RF-SP-016` §8 dejó declarada: una membresía no se elimina |
 | `ck_user_memberships_periodo` | `CHECK (ends_at IS NULL OR ends_at > started_at)` | Una vigencia que termina antes de empezar no es un caso de negocio, es un dato corrupto |
@@ -124,7 +124,32 @@ Es el mismo criterio que `RF-SP-020` §2 aplicó a `countries`: el esquema no ll
 
 **`ends_at` nace nulo en esta operación.** `spec.md` §6.1 no admite fecha de fin en el alta: la membresía que concede el alta es indefinida, y quien quiera acotarla ejecuta `RF-SP-032` a continuación. Es una asimetría consciente con `RF-SP-030`, que sí la admite, y se declara en §10 como riesgo menor: el alta de un consumidor con membresía temporal cuesta dos peticiones.
 
-**Ninguna vigencia se retira sola.** `RN-SP-014` es explícita: la vigencia se evalúa al consultarla y ningún proceso retira la fila vencida. El esquema no lleva nada que sugiera lo contrario —ni columna de estado, ni marca de caducado—, y ese vacío es deliberado.
+**Ninguna vigencia se retira sola.** `RN-SP-014` es explícita: la vigencia se evalúa al consultarla y ningún proceso retira la fila vencida. El esquema no lleva nada que sugiera lo contrario —ni columna de estado, ni marca de caducado—, y ese vacío es deliberado. **Sigue siendo cierto tras `V56`**: `closed_at` no es una marca de caducado sino de **sustitución**, y nadie la escribe por el paso del tiempo.
+
+### 2.3.bis `V56__user_memberships_historial.sql` — enmienda del 05-09-2026
+
+**Todo lo que §2.3 dice sobre la clave primaria dejó de ser cierto.** Por decisión del responsable del proyecto, `user_memberships` pasa a ser un **historial**: conceder una membresía **cierra la anterior e inserta una nueva** en lugar de reescribir la única fila de la persona (`requirements/sp.md` v1.35.0, `RN-SP-014` reescrita). Esta migración es la que lo hace, y se declara aquí —y no en el plan de `RF-SP-032`— porque **el dueño de la tabla es este requerimiento**.
+
+| Tabla | Cambio | Detalle |
+|---|---|---|
+| `user_memberships` | Altera | Gana `id uuid` —que pasa a ser la clave primaria— y `closed_at timestamptz NULL`; `user_id` deja de serlo |
+
+| Nombre | Definición | Por qué |
+|---|---|---|
+| `pk_user_memberships` | `PRIMARY KEY (id)` | `user_id` se repite: la tabla guarda **todas** las membresías que alguien tuvo. **Sustituye** a la clave declarada en §2.3 |
+| `uq_user_memberships_abierta` | `UNIQUE (user_id) WHERE closed_at IS NULL` | **Una sola fila abierta por persona.** Es lo que carga `RN-SP-014` en el día a día, y tiene un segundo trabajo menos visible: `RF-SP-025` y `RF-SP-026` cruzan esta tabla con un `LEFT JOIN`, y sin él ese cruce **repetiría personas** en cuanto alguien tuviera dos membresías |
+| `ex_user_memberships_sin_solape` | `EXCLUDE USING gist (user_id WITH =, tstzrange(started_at, COALESCE(LEAST(ends_at, closed_at), 'infinity')) WITH &&)` | **Dos periodos no se pisan.** Es lo que el índice de arriba **no** puede decir: aquel habla de filas abiertas, y dos filas **cerradas** con fechas solapadas lo satisfacen sin problema. `LEAST` da el fin real —vence o la cierran, lo que ocurra antes— y devuelve la que no sea nula; el `COALESCE` cubre que las dos lo sean, que es la membresía indefinida y viva |
+| `ck_user_memberships_cierre` | `CHECK (closed_at IS NULL OR closed_at >= started_at)` | Un cierre anterior al comienzo es un dato corrupto. **`>=` y no `>`**: conceder y cerrar en la misma transacción producen el mismo instante, y prohibirlo haría fallar la operación normal de `RF-SP-032` |
+| `ix_user_memberships_membership_id` | Pasa a ser **parcial**: `WHERE closed_at IS NULL` | `RF-SP-025` pregunta quiénes tienen **hoy** esa membresía; el historial cerrado nunca forma parte de la respuesta y crecería indefinidamente dentro del índice |
+
+**Ninguno de los dos primeros sobra, y esa es la parte que se piensa mal.** El único parcial no ve el historial. El `EXCLUDE` no ve **dos filas abiertas que no se solapan** — una vencida en enero y otra nueva en marzo satisfacen la no-superposición y son, aun así, dos filas actuales. Hacen falta los dos.
+
+**`btree_gist` no se declara aquí**: `V44` ya la instaló para `ex_commission_rates_sin_solape`, que es el mismo patrón y por el mismo motivo — comprobar un solape con un `SELECT` previo es una carrera.
+
+**El relleno de `id` construye UUID v7 desde `started_at`, y no usa `gen_random_uuid()`.** El Art. V.11 exige v7 y `V3` deja escrito que en este proyecto los identificadores de migración son **literales o construidos, nunca aleatorios**. Aquí hay además un motivo propio: derivarlos de `started_at` deja el historial **ordenado por el identificador**, que es justo lo que un v7 promete y lo que un v4 rompería fila a fila.
+
+**Ninguna fila existente se cierra.** Toda membresía que hoy existe es la actual de su persona, de modo que la migración las deja con `closed_at` nulo: son la fila abierta, y eso ya es cierto sin tocarlas.
+
 
 ### 2.4 `V21__create_user_supervisors.sql`
 

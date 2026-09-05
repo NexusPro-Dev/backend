@@ -37,6 +37,16 @@ public class JpaUserQueryRepository implements UserQueryRepository {
   @Transactional(readOnly = true)
   public List<UserRow> search(
       ListUsersRequest filtros, String ordenamiento, int offset, int limit) {
+    // `um.closed_at IS NULL` NO ES UN FILTRO DE NEGOCIO, ES LO QUE IMPIDE QUE
+    // ESTA CONSULTA REPITA PERSONAS. Desde `V56` la tabla es un historial, y sin
+    // ese predicado el LEFT JOIN devolvería una fila por cada membresía que la
+    // persona haya tenido — y `totalElements`, que sale de esta misma sentencia,
+    // contaría asignaciones en lugar de gente. Es el defecto que el filtro por
+    // rol evita con EXISTS unas líneas más abajo.
+    //
+    // Y NO FILTRA POR VIGENCIA, a propósito: una membresía vencida sigue abierta
+    // y tiene que viajar, con `m_current` en falso. Filtrarla aquí haría
+    // indistinguible «no tiene» de «la tiene vencida».
 
     String sql =
         """
@@ -47,7 +57,7 @@ public class JpaUserQueryRepository implements UserQueryRepository {
                um.ends_at AS m_ends_at,
                (um.user_id IS NOT NULL AND (um.ends_at IS NULL OR um.ends_at > now())) AS m_current
           FROM users u
-          LEFT JOIN user_memberships um ON um.user_id = u.id
+          LEFT JOIN user_memberships um ON um.user_id = u.id AND um.closed_at IS NULL
           LEFT JOIN memberships m       ON m.id = um.membership_id
          WHERE """
             // El espacio va aquí y no al final del bloque de texto: Java recorta
@@ -151,7 +161,7 @@ public class JpaUserQueryRepository implements UserQueryRepository {
                        (um.user_id IS NOT NULL AND (um.ends_at IS NULL OR um.ends_at > now()))
                          AS m_current
                   FROM users u
-                  LEFT JOIN user_memberships um ON um.user_id = u.id
+                  LEFT JOIN user_memberships um ON um.user_id = u.id AND um.closed_at IS NULL
                   LEFT JOIN memberships m       ON m.id = um.membership_id
                  WHERE u.id = :id AND u.deleted_at IS NULL
                 """,
@@ -214,6 +224,7 @@ public class JpaUserQueryRepository implements UserQueryRepository {
       donde.append(
           " AND EXISTS (SELECT 1 FROM user_memberships umf"
               + " WHERE umf.user_id = u.id AND umf.membership_id = :membresia"
+              + " AND umf.closed_at IS NULL"
               + " AND (umf.ends_at IS NULL OR umf.ends_at > now()))");
     }
     if (filtros.search() != null) {

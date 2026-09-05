@@ -173,7 +173,7 @@ public class AssignUserRolesService {
     }
     if (membresiaNueva) {
       usuarios.assignMembership(
-          userId, peticion.membershipId(), peticion.membershipEndsAt(), ahora);
+          ids.next(), userId, peticion.membershipId(), peticion.membershipEndsAt(), ahora);
     }
     if (superiorNuevo != null) {
       usuarios.assignSupervisor(ids.next(), userId, superiorNuevo, ahora);

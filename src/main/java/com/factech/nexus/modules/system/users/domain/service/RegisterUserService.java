@@ -143,7 +143,7 @@ public class RegisterUserService {
                 ahora));
 
     if (comando.membershipId() != null) {
-      usuarios.assignMembership(usuario.getId(), comando.membershipId(), null, ahora);
+      usuarios.assignMembership(ids.next(), usuario.getId(), comando.membershipId(), null, ahora);
     }
     if (superior != null) {
       usuarios.assignSupervisor(ids.next(), usuario.getId(), superior, ahora);

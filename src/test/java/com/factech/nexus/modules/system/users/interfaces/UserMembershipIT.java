@@ -1,6 +1,7 @@
 package com.factech.nexus.modules.system.users.interfaces;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.user;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
@@ -19,6 +20,7 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.http.MediaType;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.test.web.servlet.MockMvc;
@@ -93,7 +95,7 @@ class UserMembershipIT extends IntegrationTestBase {
   }
 
   @Test
-  @DisplayName("la sustitución deja UNA fila: RN-SP-014, una membresía por persona")
+  @DisplayName("la sustitución CIERRA la anterior y abre una nueva: RN-SP-014 desde V56")
   void sustitucion() throws Exception {
     hacerConsumidor(persona);
     mvc.perform(fijar(persona, oro, null)).andExpect(status().isOk());
@@ -102,11 +104,32 @@ class UserMembershipIT extends IntegrationTestBase {
         .andExpect(status().isOk())
         .andExpect(jsonPath("$.code").value("PLATA"));
 
+    // DOS FILAS, no una: la tabla es un historial desde `V56`. Hasta el
+    // 05-09-2026 esta prueba exigía UNA, porque asignar sustituía con un UPDATE
+    // y el nivel anterior desaparecía.
     Integer filas =
         jdbc.queryForObject(
             "SELECT count(*) FROM user_memberships WHERE user_id = ?", Integer.class, persona);
-    assertThat(filas).isEqualTo(1);
+    assertThat(filas).isEqualTo(2);
+
+    // Y UNA SOLA ABIERTA, que es lo que `RN-SP-014` dice ahora y lo que sostiene
+    // `uq_user_memberships_abierta`.
+    Integer abiertas =
+        jdbc.queryForObject(
+            "SELECT count(*) FROM user_memberships WHERE user_id = ? AND closed_at IS NULL",
+            Integer.class,
+            persona);
+    assertThat(abiertas).isEqualTo(1);
     assertThat(membresiaDe(persona)).isEqualTo(plata);
+
+    // LO QUE ESTE CAMBIO EXISTE PARA CONSEGUIR: el nivel anterior se puede leer.
+    String cerrada =
+        jdbc.queryForObject(
+            "SELECT membership_id::text FROM user_memberships"
+                + " WHERE user_id = ? AND closed_at IS NOT NULL",
+            String.class,
+            persona);
+    assertThat(cerrada).isEqualTo(oro);
   }
 
   @Test
@@ -269,12 +292,15 @@ class UserMembershipIT extends IntegrationTestBase {
   }
 
   @Test
-  @DisplayName("dos asignaciones simultáneas dejan UNA fila y ninguna produce 500")
+  @DisplayName("dos asignaciones simultáneas dejan UNA fila ABIERTA y ninguna produce 500")
   void asignacionConcurrente() {
     hacerConsumidor(persona);
 
-    // La clave primaria impide dos filas, pero sin `ON CONFLICT` la segunda
-    // recibiría 23505 y saldría como 500.
+    // QUÉ LAS SERIALIZA, DESDE EL 05-09-2026: el bloqueo sobre la fila de la
+    // persona, no un `ON CONFLICT`. Aquel se apoyaba en que `user_id` fuera la
+    // clave primaria y desapareció con `V56`. Sin el bloqueo, las dos leerían la
+    // misma fila abierta, las dos la cerrarían y las dos insertarían — y el
+    // 23505 de `uq_user_memberships_abierta` saldría como 500.
     List<String> destinos = List.of(oro, plata);
     List<ConcurrencyHarness.Outcome<Integer>> resultados =
         ConcurrencyHarness.runTogether(
@@ -288,10 +314,14 @@ class UserMembershipIT extends IntegrationTestBase {
     assertThat(resultados).allMatch(ConcurrencyHarness.Outcome::succeeded);
     assertThat(resultados).allMatch(salida -> salida.value() == 200);
 
-    Integer filas =
+    // UNA SOLA ABIERTA. El total ya no es 1 —la primera queda cerrada en el
+    // historial—, y contarlo sería volver a exigir lo que `V56` deshizo.
+    Integer abiertas =
         jdbc.queryForObject(
-            "SELECT count(*) FROM user_memberships WHERE user_id = ?", Integer.class, persona);
-    assertThat(filas).isEqualTo(1);
+            "SELECT count(*) FROM user_memberships WHERE user_id = ? AND closed_at IS NULL",
+            Integer.class,
+            persona);
+    assertThat(abiertas).isEqualTo(1);
     // El resultado es una de las dos, nunca una mezcla.
     assertThat(membresiaDe(persona)).isIn(oro, plata);
   }
@@ -527,7 +557,7 @@ class UserMembershipIT extends IntegrationTestBase {
   private String membresiaDe(UUID usuario) {
     List<String> filas =
         jdbc.queryForList(
-            "SELECT membership_id::text FROM user_memberships WHERE user_id = ?",
+            "SELECT membership_id::text FROM user_memberships WHERE user_id = ? AND closed_at IS NULL",
             String.class,
             usuario);
     return filas.isEmpty() ? null : filas.get(0);
@@ -540,5 +570,81 @@ class UserMembershipIT extends IntegrationTestBase {
             Integer.class,
             usuario);
     return total == null ? 0 : total;
+  }
+
+  // ---------------------------------------------------------------------------
+  // Lo que sostiene `RN-SP-014` desde `V56`, ejercitado contra el motor
+  // ---------------------------------------------------------------------------
+
+  @Test
+  @DisplayName("uq_user_memberships_abierta rechaza una SEGUNDA fila abierta")
+  void dosAbiertasNoCaben() throws Exception {
+    hacerConsumidor(persona);
+    mvc.perform(fijar(persona, oro, null)).andExpect(status().isOk());
+
+    // Por la puerta de atrás, saltándose el caso de uso: es la única forma de
+    // comprobar que la regla la sostiene EL MOTOR y no el código que la respeta.
+    assertThatThrownBy(
+            () ->
+                jdbc.update(
+                    "INSERT INTO user_memberships (id, user_id, membership_id, started_at)"
+                        + " VALUES (gen_random_uuid(), ?, ?::uuid, now())",
+                    persona,
+                    plata))
+        .isInstanceOf(DataIntegrityViolationException.class);
+  }
+
+  @Test
+  @DisplayName("ex_user_memberships_sin_solape rechaza dos periodos que se pisan")
+  void periodosSolapadosNoCaben() throws Exception {
+    hacerConsumidor(persona);
+    mvc.perform(fijar(persona, oro, null)).andExpect(status().isOk());
+
+    // La abierta empieza hace diez días y sigue viva.
+    jdbc.update(
+        "UPDATE user_memberships SET started_at = now() - interval '10 days' WHERE user_id = ?",
+        persona);
+
+    // Una fila CERRADA cuyo periodo cae dentro del de la abierta. El único
+    // parcial no la vería —está cerrada— y aun así no puede existir: dos niveles
+    // a la vez en los mismos días no describen nada real.
+    assertThatThrownBy(
+            () ->
+                jdbc.update(
+                    """
+                    INSERT INTO user_memberships
+                           (id, user_id, membership_id, started_at, closed_at)
+                    VALUES (gen_random_uuid(), ?, ?::uuid,
+                            now() - interval '5 days', now() - interval '2 days')
+                    """,
+                    persona,
+                    plata))
+        .isInstanceOf(DataIntegrityViolationException.class);
+  }
+
+  @Test
+  @DisplayName("dos periodos CONSECUTIVOS sí caben: el fin de uno es el inicio del otro")
+  void periodosConsecutivosSiCaben() throws Exception {
+    hacerConsumidor(persona);
+    mvc.perform(fijar(persona, oro, null)).andExpect(status().isOk());
+    jdbc.update(
+        """
+        UPDATE user_memberships
+           SET started_at = now() - interval '10 days', closed_at = now() - interval '5 days'
+         WHERE user_id = ?
+        """,
+        persona);
+
+    // Empieza exactamente donde terminó la anterior. `tstzrange` es `[)`, de modo
+    // que no se pisan — y si el rango fuera cerrado, cada sustitución fallaría.
+    jdbc.update(
+        """
+        INSERT INTO user_memberships (id, user_id, membership_id, started_at)
+        VALUES (gen_random_uuid(), ?, ?::uuid, now() - interval '5 days')
+        """,
+        persona,
+        plata);
+
+    assertThat(membresiaDe(persona)).isEqualTo(plata);
   }
 }

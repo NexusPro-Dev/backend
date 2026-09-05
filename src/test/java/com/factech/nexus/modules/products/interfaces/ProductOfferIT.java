@@ -456,9 +456,9 @@ class ProductOfferIT extends IntegrationTestBase {
   private void asignar(UUID quien, UUID membresia, OffsetDateTime fin) {
     jdbc.update(
         """
-        INSERT INTO user_memberships (user_id, membership_id, started_at, ends_at,
+        INSERT INTO user_memberships (id, user_id, membership_id, started_at, ends_at,
                                       created_at, updated_at)
-        VALUES (CAST(? AS uuid), CAST(? AS uuid), now() - interval '30 days',
+        VALUES (gen_random_uuid(), CAST(? AS uuid), CAST(? AS uuid), now() - interval '30 days',
                 CAST(? AS timestamptz), now(), now())
         """,
         quien.toString(),

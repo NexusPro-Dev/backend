@@ -27,29 +27,46 @@ Y una decisión que este plan no toma pero de la que depende su forma: **la vige
 
 ## 2. Cambios de esquema
 
-**Ninguno.**
+**Ninguno propio.** La tabla la crea `V20__create_user_memberships.sql` (`RF-SP-024`), y **`V56` la convierte en historial** — se declara en el plan de aquel requerimiento, que es el dueño de la tabla, no aquí.
 
-`user_memberships` la crea `V20__create_user_memberships.sql` (`RF-SP-024`) con `user_id` como clave primaria, `membership_id`, `started_at` y `ends_at` nulable. Todo lo que este requerimiento necesita ya está.
+!!! warning "Enmendado el 05-09-2026 — la sustitución con `ON CONFLICT` ya no existe"
 
-**La sustitución se escribe como una sola sentencia**, y no como «leer, decidir si existe, insertar o actualizar»:
+    Hasta hoy esta sección declaraba **una sola sentencia** para toda la operación:
+
+    ```sql
+    INSERT INTO user_memberships (user_id, membership_id, started_at, ends_at)
+    VALUES (?, ?, now(), ?)
+    ON CONFLICT (user_id) DO UPDATE SET …
+    ```
+
+    Se apoyaba en que **`user_id` era la clave primaria**, y eso dejó de ser cierto: `user_memberships` es ahora un historial con `id` propio, de modo que no hay conflicto que absorber sobre esa columna. Las tres razones que la justificaban se resuelven ahora en otro sitio, y conviene decir en cuál para que no se den por perdidas.
+
+**La operación pasa a tener dos caminos, y cuál se toma lo decide si cambia el nivel o solo la fecha.**
+
+**Camino 1 — la misma membresía con otra fecha de fin: `UPDATE` sobre la fila abierta.** No genera historial, y esa es la decisión: corregir hasta cuándo vale un nivel es una **corrección administrativa**, no un cambio de nivel, y anotarla como un periodo nuevo llenaría el historial de filas que no describen ningún ascenso ni ningún descenso. Es lo que conserva la distinción entre `FA-002` —ningún cambio— y `FA-003` que el dominio ya codifica en `UserMembership.coincideCon`.
 
 ```sql
-INSERT INTO user_memberships (user_id, membership_id, started_at, ends_at)
-VALUES (?, ?, now(), ?)
-ON CONFLICT (user_id)
-DO UPDATE SET membership_id = EXCLUDED.membership_id,
-              started_at    = EXCLUDED.started_at,
-              ends_at       = EXCLUDED.ends_at,
-              updated_at    = now()
+UPDATE user_memberships
+   SET ends_at = ?, updated_at = now()
+ WHERE user_id = ? AND closed_at IS NULL
 ```
 
-Tres razones, y la tercera es la que importa:
+**Camino 2 — otra membresía: cerrar e insertar, en la misma transacción.**
 
-1. Cubre `FA-001` —primera membresía— y el reemplazo con el mismo código.
-2. Evita la lectura previa que solo serviría para elegir entre dos sentencias.
-3. **Absorbe el empate concurrente** que `spec.md` §13 declara: dos asignaciones simultáneas al mismo usuario no pueden dejar dos filas, porque la clave primaria lo impide, pero sin `ON CONFLICT` la segunda recibiría `23505` y saldría como `500`. Es la misma corrección que `RF-SP-005` tuvo que aplicar el 22-08-2026, y conviene no repetir el error en el tercer sitio.
+```sql
+UPDATE user_memberships
+   SET closed_at = now(), updated_at = now()
+ WHERE user_id = ? AND closed_at IS NULL;
 
-**Consecuencia sobre el adaptador:** esa escritura baja a sentencia nativa. El `merge` de JPA no sabe expresar `ON CONFLICT` y, sobre una entidad con clave primaria asignada, haría exactamente la lectura previa que se quiere evitar.
+INSERT INTO user_memberships (id, user_id, membership_id, started_at, ends_at, created_at, updated_at)
+VALUES (?, ?, ?, now(), ?, now(), now())
+```
+
+**El `UPDATE` de cierre no lleva condición de vigencia, y es a propósito**: cierra la fila abierta **aunque ya estuviera vencida**. Dejarla abierta produciría dos filas actuales, que es exactamente lo que `uq_user_memberships_abierta` rechaza — y antes de rechazarlo en el motor ya habría roto el `LEFT JOIN` de `RF-SP-025` y `RF-SP-026`.
+
+**Y el empate concurrente lo sigue absorbiendo algo, pero ya no es `ON CONFLICT`.** Lo absorbe el bloqueo que la operación **ya toma**: `findNotDeletedByIdForUpdate` sobre la fila de la persona, obligatorio desde el 26-08-2026 para toda operación que toque sus roles o su membresía. Dos asignaciones simultáneas se serializan ahí, y la segunda ve la fila que la primera cerró. **Sin ese bloqueo, las dos leerían la misma fila abierta, las dos la cerrarían y las dos insertarían** — y el `23505` de `uq_user_memberships_abierta` saldría como `500`. El bloqueo no es nuevo y no hay que añadirlo; lo que es nuevo es que **ahora carga también esta regla**.
+
+**Consecuencia sobre el adaptador:** las dos escrituras siguen bajando a sentencia nativa, por el mismo motivo de siempre —el `merge` de JPA sobre una entidad con clave asignada haría una lectura previa— y ahora además porque son dos sentencias que deben ir juntas.
 
 ## 3. Componentes afectados
 
