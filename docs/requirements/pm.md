@@ -5,7 +5,7 @@
 | Módulo | `PM` — Productos y Mercadeo |
 | Paquete | `modules/products` |
 | Prefijos de permiso | `products:` |
-| Versión | 0.19.0 |
+| Versión | 0.20.0 |
 | Estado | **Borrador** |
 | Responsable | Bonilla Diaz William Steven |
 | Fecha de creación | 26-08-2026 |
@@ -81,6 +81,7 @@ Según [`modules.md` §5](../modules.md#5-fichas-de-modulo).
 |---|---|---|
 | Productos | Alta, consulta, edición, estado y retiro del catálogo | `RF-PM-001` a `RF-PM-006` |
 | Oferta | Qué puede comprar quien mira, que no es el catálogo completo | `RF-PM-007` |
+| **Hotlinks** | El enlace público que un vendedor reparte: un producto y quién lo ofrece, sin autenticación | `RF-PM-008` |
 
 **Por qué la oferta es un submódulo y no una consulta más.** Responde una pregunta distinta y a otro actor: el catálogo lo lee quien administra y contiene todo —lo inactivo, lo retirado, el motivo del retiro—; la oferta la lee el cliente y contiene **solo lo que le aplica a él**. Separarlas evita el error que consiste en filtrar la respuesta en el navegador.
 
@@ -157,6 +158,8 @@ La dependencia es **acíclica**: `PM` consume `SP` y `SP` no consume nada ([`mod
 | `RN-PM-016` | El icono solo existe en el upgrade | Al registrar y al editar | Un `UPGRADE_MEMBRESIA` **puede** declarar el icono con el que el frontend lo pinta; un `BOT` **no puede**. Es un **identificador**, no una imagen, y es **opcional** incluso donde se admite | Media |
 | `RN-PM-019` | **El alcance dice hasta dónde se muestra el producto, y es acumulativo** | Al registrar y al editar | Todo producto declara `TIENDA` o `HOTLINKS`, **obligatorio en los dos tipos y sin valor por omisión**. No son dos canales que se reparten el catálogo: `HOTLINKS` **incluye** la tienda, de modo que la escala crece. Se corrige libremente (§5.2.2) | Alta |
 | `RN-PM-020` | **La implementación dice si lo comprado se aplica solo o espera autorización** | Al registrar y al editar | Todo producto declara `AUTOMATICA` o `MANUAL`, **obligatorio en los dos tipos y sin valor por omisión**. Gobierna qué hace `MV` al confirmar una venta: `RN-MV-020` concede la membresía **solo** si el producto es automático, y con `MANUAL` lo comprado queda esperando a que un funcionario lo autorice | **Crítica** |
+| `RN-PM-021` | **El hotlink solo publica lo activo y de alcance `HOTLINKS`** | Al responder el enlace público (`RF-PM-008`) | Un producto inactivo, retirado o de alcance `TIENDA` **no se publica sin autenticación**, y su ausencia se responde con el **mismo `404`** que un código inexistente. Es el primer sitio donde `RN-PM-019` **filtra de verdad**: hasta hoy el alcance se declaraba y no acotaba ninguna consulta | **Crítica** |
+| `RN-PM-022` | **De la persona solo se publica su nombre, y solo si es fuerza comercial** | Al responder el enlace público (`RF-PM-008`) | El enlace devuelve **nombre y apellido** y nada más —ni correo, ni identificador, ni estado, ni roles—, y **solo de quien porta un rol de tipo `VENDEDOR`**. Un cliente, un administrador o un nombre de usuario inexistente responden **lo mismo**: `404`. Sin esa uniformidad, el endpoint confirmaría qué nombres de usuario existen | **Crítica** |
 
 ### 5.2 Por qué las críticas son críticas
 
@@ -305,6 +308,7 @@ No se copian: se referencian, porque dos copias de una regla acaban divergiendo.
 | `RF-PM-005` | Cambiar el estado de un producto | Alta | `products:update` | **En desarrollo** |
 | `RF-PM-006` | Eliminar producto | Media | `products:delete` | **En desarrollo** |
 | `RF-PM-007` | Consultar la oferta disponible para uno mismo | Alta | `products:sale` | **En desarrollo** |
+| `RF-PM-008` | Consultar un hotlink: producto y vendedor, sin autenticación | Alta | **Público** | **Tasks en revisión** |
 
 **Prioridades:** Crítica · Alta · Media · Baja.
 **Estados:** los de [`requirements.md` §4](../requirements.md#4-matriz-de-trazabilidad), que es su autoridad.
@@ -440,6 +444,30 @@ Devuelve **solo productos activos**, y de los de tipo upgrade **solo aquellos cu
 
 ---
 
+#### `RF-PM-008` — Consultar un hotlink: producto y vendedor, sin autenticación
+
+| Campo | Valor |
+|---|---|
+| Objetivo | Que un enlace repartido por un vendedor abra una pantalla con el producto y con quién lo ofrece |
+| Actor | **Cualquiera, sin autenticar** |
+| Permiso requerido | **Ninguno: es público** |
+| Prioridad | Alta |
+| Reglas aplicables | `RN-PM-009`, `RN-PM-019`, `RN-PM-021`, `RN-PM-022` |
+| Depende de | `RF-PM-001`, **`RF-SP-047`** |
+| Tripleta | `docs/specs/pm/008-hotlink-publico/` |
+| Estado | **Tasks en revisión** (07-09-2026) |
+
+Devuelve, en **una** llamada y **sin token**, el producto que el enlace señala y el **nombre y apellido** de quien lo reparte. El producto viaja con su precio en su moneda **y con la conversión a la moneda por omisión** usando la tasa vigente hoy (`RF-SP-047`).
+
+**Es el primer endpoint público del módulo, y el primero del sistema que publica el nombre de una persona.** De ahí salen las dos reglas que lo gobiernan: solo se publica lo que tiene alcance `HOTLINKS` (`RN-PM-021`) y solo el nombre de quien es fuerza comercial (`RN-PM-022`).
+
+!!! danger "Todo lo que no procede responde el MISMO `404`, y esa uniformidad es la mitad de la seguridad"
+
+    Nombre de usuario inexistente, persona que no es vendedor, código inexistente, producto inactivo, retirado o de alcance `TIENDA`: **los seis responden igual**. Distinguirlos convertiría el endpoint en un oráculo — bastaría fijar un código válido e ir variando el nombre de usuario para saber **quién existe** en el sistema.
+
+    Lo que la uniformidad **no** evita es que alguien recorra nombres de usuario a ciegas; eso lo acota `RateLimitFilter` **por origen**, y queda escrito que **acotar no es impedir**.
+
+**`SP` publica dos lecturas nuevas por la vía de D-25**, y no se leen sus tablas: **el vendedor por nombre de usuario** —que devuelve vacío si no es fuerza comercial, de modo que la regla de quién es publicable vive en `SP`, que es de quien son los roles— y **la tasa vigente entre dos monedas**. Las tareas que las escriben pertenecen a este requerimiento aunque el código viva en paquetes de `SP`, como ocurrió con las tres de `RF-PM-001` y `RF-PM-007`.
 ## 7. Requerimientos no funcionales
 
 Definidos en [`security.md` §11](../security.md) y en la constitución. Los que este módulo debe satisfacer:
@@ -447,7 +475,7 @@ Definidos en [`security.md` §11](../security.md) y en la constitución. Los que
 | ID | Requerimiento |
 |---|---|
 | `RNF-SEG-001` | Autenticación y autorización basada en roles y permisos |
-| `RNF-SEG-002` | Todo endpoint no declarado como público exige autenticación. **Este módulo no publica ninguno público** |
+| `RNF-SEG-002` | Todo endpoint no declarado como público exige autenticación. **Este módulo publica UNO desde el 07-09-2026**: `RF-PM-008`, el hotlink, y su declaración va en `SecurityConfig` con el motivo escrito al lado |
 | `RNF-PERF-001` | Lectura p95 < 500 ms, escritura p95 < 1 s (Art. XV.9) |
 | `RNF-MAN-001` | Ninguna regla de negocio del módulo vive en el controlador (`architecture.md` §5) |
 
@@ -474,6 +502,7 @@ Ninguna con sistemas externos. La pasarela de pago, que sería la primera, perte
 | `PATCH` | `/api/v1/products/{id}` | `RF-PM-004` | `products:update` |
 | `PATCH` | `/api/v1/products/{id}/status` | `RF-PM-005` | `products:update` |
 | `POST` | `/api/v1/products/{id}/deletion` | `RF-PM-006` | `products:delete` |
+| `GET` | `/api/v1/hotlinks/{username}/{code}` | `RF-PM-008` | **Público** |
 
 !!! warning "El retiro es un `POST` sobre un subrecurso, y no un `DELETE`"
 
@@ -616,3 +645,4 @@ Se declaran en la base de datos, no solo en Java (Art. V.6).
 | 0.17.0 | 07-09-2026 | **Un producto declara HASTA DÓNDE se muestra y CÓMO se entrega**, por decisión del responsable del proyecto. Nacen dos columnas, dos reglas y §5.2.2. **`RN-PM-019` — el alcance es ACUMULATIVO, no un canal**: `TIENDA` es el alcance más corto y `HOTLINKS` **incluye la tienda**, de modo que la escala crece en lugar de repartir el catálogo. Se eligió frente a dos canales excluyentes, y **lo que cuesta hay que leerlo entero: no existe forma de publicar algo SOLO en hotlinks**, ni de esconder de la tienda un producto que se quiere enlazar. El día que haga falta, lo que entra es un **tercer valor** —`SOLO_HOTLINKS`— y no un cambio de significado de los dos que hay, que reescribiría en silencio lo ya declarado. **`RN-PM-020` — la implementación dice si lo comprado se aplica solo o espera a que alguien lo autorice**, `AUTOMATICA` o `MANUAL`, y **es lo primero de este catálogo que gobierna a otro módulo**: `RN-MV-020` deja de conceder la membresía en toda venta confirmada y pasa a concederla **solo** cuando el producto es automático ([`requirements/mv.md` v0.9.0](mv.md)). **Las dos son obligatorias en los dos tipos y las dos se corrigen** (`RF-PM-004`), al revés que el tipo y las dos membresías: ninguna cambia **qué derecho otorga** el producto —una dice dónde se ve y la otra quién lo entrega—, de modo que congelarlas obligaría a registrar un producto nuevo para mover un enlace de sitio, con lo vendido colgando del viejo. **Y queda escrito lo que el alcance NO hace hoy**: `RF-PM-007` —la tienda— **no lo filtra**, porque bajo la escala acumulativa los dos valores llegan a ella; su único uso inmediato es el filtro del catálogo administrativo (`RF-PM-002`), que entra con las columnas y no después — sin él, el alcance sería un dato que se declara y no se puede consultar. `V59` añade las dos columnas **sin valor por omisión** —el dominio las escribe siempre— y rellena lo existente con `TIENDA` y `MANUAL`: el alcance más corto **conserva exactamente la oferta de hoy**, y la implementación más lenta **no concede nada sola** — rellenar con `AUTOMATICA` habría hecho que el día que `RF-MV-003` se construya, productos que nadie revisó entregaran membresías sin que ninguna decisión lo hubiera dicho. Enmienda las tripletas de `RF-PM-001` a `RF-PM-004` y `RF-PM-007` (Art. I.7), y las cinco quedan **construidas el mismo día**: quince criterios nuevos —`CA-PM-110` a `CA-PM-124`— y la suite del proyecto de **992 a 1006 pruebas**, en verde. | Responsable del proyecto |
 | 0.18.0 | 07-09-2026 | **Nace `products:hotlink`, el segundo permiso de vista del módulo**, por decisión del responsable del proyecto. Gobierna la **vista de hotlinks** —los productos cuyo alcance llega a ese canal (`RN-PM-019`, v0.17.0)— y no reutiliza `products:read` por el mismo motivo que `products:sale`: aquel abre el catálogo administrativo entero, con lo inactivo y lo retirado dentro, y concederlo para ver un canal comercial sería dar la lectura de todo para ver tres líneas. **Nace SIN ENDPOINT que lo exija**, y es deliberado: el canal de hotlinks no está construido, sembrar el permiso antes **no rompe nada** —el catálogo es datos, y su único efecto es poder concederse— y es lo que ya hizo `V51` con los cuatro `movements:`. Lo que evita es llegar al requerimiento que lo necesite y tener que sembrar el permiso **y** construir la vista en el mismo Pull Request. `V60__seed_products_hotlink_permission.sql` lo siembra y lo asocia a **`SUPERADMIN` y a `ADMIN`** en la misma migración, **sin reserva**: decidirlo de otro modo habría creado la cuarta reserva del superadministrador, y ver qué se publica en un canal comercial no es una operación que deba quedar exclusiva de la raíz — `V40` ya estableció que el catálogo comercial de `PM` es administración ordinaria. La migración lleva la **guarda** que `V51` estrenó, y aquí vale por lo contrario: aquella comprobaba una reserva deliberada y esta comprueba que **no** la hay — olvidar la fila de `ADMIN` no falla al aplicar, deja a `ADMIN` incapaz de conceder lo que no tiene. **A `CLIENTE` no se le asocia**, por lo mismo que `products:sale`: `V30` siembra ese rol sin permisos a propósito. Nace `ProductsPermissionsSeedIT`, que es **lo único que verifica este permiso**: sin endpoint, ninguna prueba de API lo toca, y una asociación que se cayera del guion no rompería nada hasta que alguien intentara crear un rol que la necesitara. El catálogo del sistema pasa de treinta y siete a **treinta y ocho** (suite: 1006 → **1010**, en verde) ([`security.md` §4.4](../security.md#44-catalogo-de-permisos) v0.40.0). | Responsable del proyecto |
 | 0.19.0 | 07-09-2026 | **Un upgrade puede declarar la misma membresía en los dos lados: nace la RENOVACIÓN**, por decisión del responsable del proyecto. `RN-PM-017` tenía **dos mitades metidas en una** —«no bajes» y «no repitas»— y solo la primera protegía algo: la segunda impedía cobrar por **tiempo**, que es un producto legítimo. La comparación pasa de estricta a **mayor o igual**, y `V61` **retira `ck_products_origen_distinto`**, que prohibía exactamente lo que ahora se admite. Queda dicho lo que eso cuesta: **de `RN-PM-017` ya no queda nada declarado en el esquema** — la mitad que sobrevive necesita el `level` de dos filas de `memberships` y vive entera en el caso de uso, sin la red que tenía. **Lo que se vende en una renovación es tiempo y no nivel**, y `RN-MV-020` ya lo entrega sin una línea nueva: cierra la membresía abierta e inserta la comprada, y aquí las dos son del mismo nivel. **Y esto obligó a pagar una deuda de cinco días** (§5.2.3): `RN-PM-011` seguía diciendo «solo si su membresía vigente es de nivel inferior al destino» y `findOffer` seguía comparando niveles, cuando §5.2.1 había declarado la **coincidencia por origen** el 02-09-2026 — el documento se contradecía consigo mismo y el código estaba del lado de la regla vieja. **La renovación no se puede expresar comparando niveles**: abrir la comparación a «inferior o igual» le ofrecería a quien está en `ORO` un `PLATINO → ORO`, que no es suyo. `RN-PM-011` se reescribe entera y `RF-PM-007` pasa a `source_membership_id = mi membresía` (`T-20`, pendiente desde el 02-09-2026, **construida**). **La garantía de que no se ofrecen bajadas no se pierde al quitar el filtro de niveles**: la sostiene `RN-PM-017` comprobada **al registrar**, porque un producto declarado desde mi membresía no puede apuntar por debajo. En `MV`, `RN-MV-006` admite el mismo nivel y sigue rechazando el inferior ([`requirements/mv.md` v0.10.0](mv.md)) — su código ya lo había anticipado por escrito: «el día que se vendan renovaciones del mismo nivel». | Responsable del proyecto |
+| 0.20.0 | 07-09-2026 | **Nace `RF-PM-008`, el hotlink: el primer endpoint público del módulo y el primero del sistema que publica el nombre de una persona.** Por decisión del responsable del proyecto, un enlace repartido por un vendedor abre —**sin token**— una pantalla con el producto y con quién lo ofrece, y el producto llega con su precio **convertido a la moneda por omisión** usando la tasa vigente (`RF-SP-047`). **Vive en `PM` y no en `SP`, y eso no es una preferencia**: devuelve un producto, un vendedor y una tasa, y `modules.md` §7 prohíbe el ciclo — ponerlo en `SP` obligaría a que la raíz del grafo leyera `products`. `SP` publica **dos lecturas nuevas** por la vía de **D-25**: el vendedor por nombre de usuario y la tasa vigente entre dos monedas. **Nacen dos reglas críticas.** `RN-PM-021` — **solo se publica lo activo y de alcance `HOTLINKS`**, y con ella `RN-PM-019` **filtra por primera vez**: el alcance llevaba cuatro commits declarado sin acotar ninguna consulta. `RN-PM-022` — **de la persona solo el nombre y el apellido, y solo si es fuerza comercial**; un cliente, un administrador y un nombre de usuario inexistente responden **lo mismo**. **La decisión de seguridad es esa uniformidad**: los seis casos que no proceden devuelven el **mismo `404`**, porque distinguirlos convertiría el endpoint en un oráculo — bastaría fijar un código válido e ir variando el usuario para saber quién existe. Queda escrito que **eso no evita el recorrido a ciegas**, que lo acota `RateLimitFilter` por origen, y que **acotar no es impedir**. **Y queda una pregunta abierta que este cambio destapa**: `products:hotlink`, sembrado el mismo día en `V60` para «la vista de hotlinks», **se queda sin endpoint que lo exija** si esa vista es pública. La tripleta propone reconciliarlo —gobernaría la vista **autenticada** donde un vendedor administra sus enlaces— y **la decisión no está tomada**. | Responsable del proyecto |
