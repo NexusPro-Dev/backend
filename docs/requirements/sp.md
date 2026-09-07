@@ -5,7 +5,7 @@
 | Módulo | `SP` — Sistema Principal |
 | Paquete | `modules/system` |
 | Prefijos de permiso | `roles:`, `permissions:`, `audit:`, `memberships:`, `currencies:`, `countries:`, `users:`, `exchange-rates:` |
-| Versión | 1.37.0 |
+| Versión | 1.38.0 |
 | Estado | **Aprobado** |
 | Responsable | Bonilla Diaz William Steven |
 | Fecha de creación | 20-08-2026 |
@@ -197,6 +197,7 @@ Reglas que no son transversales de seguridad y por tanto sí llevan el prefijo d
 | `RN-SP-031` | La vigencia **empieza siempre y puede no terminar** | Al registrar y al corregir | `valid_from` es **obligatoria**; `valid_to` es **opcional** y nula significa **vitalicia**. Si se declara, no puede ser anterior al inicio | Alta |
 | `RN-SP-032` | **Dos tasas vigentes del mismo par no se solapan** | Al registrar, al corregir y al activar | No pueden coexistir dos tasas **activas y vivas** con el mismo **origen y destino** cuyas vigencias se toquen. **El mismo origen sí puede cambiarse a varias monedas a la vez** —`USD → COP` y `USD → EUR` conviven—: lo que la regla acota es el **par**, no el origen. Se declara en el motor con un `EXCLUDE` (§5.2) | **Crítica** |
 | `RN-SP-033` | La tasa no desaparece | Al retirar | La eliminación es **lógica y con motivo** (Art. V.13). La fila permanece porque una conversión hecha ayer tiene que poder decir con qué tasa se hizo | Alta |
+| `RN-SP-034` | Todo usuario pertenece a un país | Al registrar un usuario y al editarlo | Toda persona declara **exactamente un país** del catálogo, y el estado «usuario sin país» **no existe**: el alta lo exige —tanto la administrativa (`RF-SP-024`) como el registro por enlace (`RF-SP-045`)— y la columna es `NOT NULL`. **Solo se puede asignar un país activo**, pero **desactivarlo después no invalida a quien ya lo tenía**: `RF-SP-022` retira un país de los selectores y deja resolviendo a los datos que ya lo referencian, que es exactamente lo que aquí ocurre. **Se corrige solo por `RF-SP-027`**, con `users:update`; el titular **no** lo cambia desde `RF-SP-044` | **Crítica** |
 | `RN-SP-009` | Países inmutables salvo su estado | Al editar o eliminar un país | La operación se rechaza. Lo único modificable es el indicador de país activo (`RF-SP-022`), que permite retirar de la circulación un alta equivocada sin borrar el registro | Media |
 | `RN-SP-010` | Monedas inmutables por API salvo su estado | Siempre | Las monedas no se crean, editan ni eliminan por la API. Lo único modificable es el indicador de moneda activa (`RF-SP-023`), y la moneda por defecto no puede desactivarse | Media |
 
@@ -238,6 +239,22 @@ Reglas que no son transversales de seguridad y por tanto sí llevan el prefijo d
     Países y monedas **sí** llevan indicador de activo; las membresías **no**. La diferencia no es de criterio sino de estructura: un catálogo plano admite que un elemento deje de ofrecerse sin que los demás se enteren, mientras que la cadena de membresías es un orden lineal en el que retirar un eslabón obliga a decidir qué pasa con el hueco y con quien lo tenía asignado.
 
     Desactivar **no es corregir**: el código y el nombre erróneos permanecen, y los datos que ya los referencian siguen resolviéndolos. Es lo que evita que el error se propague a partir de ese momento, no lo que lo repara.
+
+!!! important "`RN-SP-034` — por qué el país es una columna de `users` y no una tabla puente"
+
+    Las otras dos cosas que una persona «tiene» en este módulo viven en tablas propias, y conviene decir por qué esta no. `user_memberships` es un **historial** porque una membresía se concede por un periodo, vence y se sustituye (`RN-SP-014`); `user_supervisors` lo es porque el mando cambia y hay que poder responder quién estaba a cargo **entonces** (`RN-SP-021`).
+
+    **El país no tiene vigencia.** No se concede hasta una fecha, no vence y nadie pregunta en qué país estaba alguien el mes pasado: lo que el sistema necesita saber es dónde está **hoy**, que es lo que decide qué medios de pago se le ofrecen (`RN-MV-019`) y en qué moneda se le habla. Una tabla puente para un dato sin periodo añadiría un `join` a cada consulta de usuario a cambio de nada, y el rastro del cambio —quién lo movió y cuándo— ya lo guarda `audit_change_log` sin necesidad de una tabla más.
+
+!!! warning "«Solo países activos» **no** es declarable en el esquema, y la clave foránea compuesta que lo parecería está prohibida aquí"
+
+    La mitad de `RN-SP-034` que exige que el país asignado esté **activo** se comprueba en el caso de uso, no en el motor, y no por comodidad.
+
+    El patrón que `RN-SP-025` estrenó el 02-09-2026 —copiar el dato del que depende la regla y atarlo con una **clave foránea compuesta** (§10.8)— parece aplicable: bastaría copiar `is_active` a `users` y declarar `(country_id, is_active) → countries(id, is_active)`. **No vale, y falla en la condición que aquel mismo caso dejó escrita: el dato copiado tiene que ser inmutable en su origen.** `role_type` no se corrige nunca; `countries.is_active` es **lo único que `RN-SP-009` deja cambiar**, y es `RF-SP-022` quien lo cambia.
+
+    Lo que ocurriría es concreto: la clave foránea compuesta **haría fallar `RF-SP-022`** en cuanto un solo usuario tuviera ese país. Desactivar dejaría de ser «retirarlo de los selectores» —lo que `RF-SP-022` promete— y pasaría a ser una operación bloqueada por terceros, sobre gente a la que nadie estaba tocando. Es el mismo daño a distancia que `RN-SP-023` evita al mirar la asignación y no el estado del rol.
+
+    De modo que la comprobación es **de entrada, no permanente**: se exige país activo al asignarlo, y quien ya lo tenía lo conserva aunque se desactive después.
 
 !!! info "Sobre `RN-SP-005`"
 
@@ -329,10 +346,10 @@ EXCLUDE USING gist (
 | `RF-SP-042` | Consultar el equipo a cargo de un usuario | Media | `users:read` | En desarrollo |
 | `RF-SP-044` | Editar el propio perfil | Alta | Autenticado | En desarrollo |
 | `RF-SP-045` | Registro de clientes por enlace | **Crítica** | Público | Tasks en revisión |
-| `RF-SP-047` | Registrar una tasa de cambio | Alta | `exchange-rates:create` | Pendiente |
-| `RF-SP-048` | Consultar las tasas de cambio | Alta | `exchange-rates:read` | Pendiente |
-| `RF-SP-049` | Corregir una tasa de cambio | Media | `exchange-rates:update` | Pendiente |
-| `RF-SP-050` | Retirar una tasa de cambio | Media | `exchange-rates:delete` | Pendiente |
+| `RF-SP-047` | Registrar una tasa de cambio | Alta | `exchange-rates:create` | Tasks en revisión |
+| `RF-SP-048` | Consultar las tasas de cambio | Alta | `exchange-rates:read` | Tasks en revisión |
+| `RF-SP-049` | Corregir una tasa de cambio | Media | `exchange-rates:update` | Tasks en revisión |
+| `RF-SP-050` | Retirar una tasa de cambio | Media | `exchange-rates:delete` | Tasks en revisión |
 
 !!! info "Dónde vive el estado de un requerimiento"
 
@@ -843,7 +860,7 @@ Hereda de `RF-SP-027` la pregunta abierta de la **verificación del correo**, qu
 | Reglas aplicables | `RN-SP-029` a `RN-SP-032` |
 | Depende de | — |
 | Tripleta | `docs/specs/sp/047-registrar-tasa-de-cambio/` |
-| Estado | **Pendiente** |
+| Estado | **Tasks en revisión** (07-09-2026) |
 
 Registra una tasa declarando **origen, destino, precio y desde cuándo rige**, con la fecha de fin opcional —sin ella la tasa es **vitalicia**— y su estado. Es el requerimiento que crea la tabla del módulo y **siembra sus cuatro permisos**, con la obligación de asociarlos a `SUPERADMIN` y `ADMIN` en la misma migración ([`security.md` §4.4](../security.md#44-catalogo-de-permisos)).
 
@@ -860,7 +877,7 @@ Registra una tasa declarando **origen, destino, precio y desde cuándo rige**, c
 | Reglas aplicables | — |
 | Depende de | `RF-SP-047` |
 | Tripleta | `docs/specs/sp/048-consultar-tasas-de-cambio/` |
-| Estado | **Pendiente** |
+| Estado | **Tasks en revisión** (07-09-2026) |
 
 Devuelve las tasas **paginadas**, con las dos monedas resueltas —código y decimales— y filtros por origen, destino, estado y **vigencia a una fecha**. Ese último es el que responde la pregunta que se hace a diario: *¿a cuánto está el cambio hoy?*
 
@@ -877,7 +894,7 @@ Devuelve las tasas **paginadas**, con las dos monedas resueltas —código y dec
 | Reglas aplicables | `RN-SP-030` a `RN-SP-032` |
 | Depende de | `RF-SP-047` |
 | Tripleta | `docs/specs/sp/049-corregir-tasa-de-cambio/` |
-| Estado | **Pendiente** |
+| Estado | **Tasks en revisión** (07-09-2026) |
 
 Permite corregir **el precio, la vigencia y el estado**. **No permite cambiar ninguna de las dos monedas**: son las que definen qué cambio expresa la tasa, y tocarlas la convertiría en otra — quien necesite otro par registra otra y retira esta. Es el mismo criterio que `RF-PM-004` aplica al tipo y a las membresías de un producto.
 
@@ -894,7 +911,7 @@ Permite corregir **el precio, la vigencia y el estado**. **No permite cambiar ni
 | Reglas aplicables | `RN-SP-032`, `RN-SP-033` |
 | Depende de | `RF-SP-047` |
 | Tripleta | `docs/specs/sp/050-retirar-tasa-de-cambio/` |
-| Estado | **Pendiente** |
+| Estado | **Tasks en revisión** (07-09-2026) |
 
 Retira lógicamente una tasa **exigiendo motivo** (Art. V.13), que viaja al registro de eliminación con la instantánea de lo retirado. **La fila permanece**: el día que algo se convierta con una tasa, esa conversión tendrá que poder decir cuál usó.
 
@@ -1129,6 +1146,16 @@ Se declara `varchar(6)` y no `char(6)` porque `char(n)` **rellena con espacios**
 
 `code` sigue ISO 3166-1 alfa-3 (`COL`, `USA`). No se edita ni elimina (`RN-SP-009`); lo único modificable es `is_active`, a través de `RF-SP-022`. El catálogo **no se siembra** con la lista internacional completa: los países se dan de alta por la API a medida que la plataforma llega a ellos.
 
+!!! important "El catálogo deja de nacer vacío: `RN-SP-034` obliga a sembrar **una** fila, Colombia"
+
+    Hasta el 07-09-2026 este catálogo arrancaba sin ninguna fila, y era coherente: nadie dependía de él para existir. `RN-SP-034` lo rompe — `users.country_id` es `NOT NULL`, y **`V22` siembra un superadministrador** que hay que rellenar con algo. Un catálogo vacío haría fallar la migración en toda base, incluidas las de las pruebas de integración.
+
+    Se siembra **Colombia** (`COL`), por decisión del responsable del proyecto, con identificador **UUID v7 literal** para que sea el mismo en todos los entornos (Art. V.11). Mismo criterio que `V15` con `USD`: **una sola fila, la del mercado desde el que se opera**, y ninguna otra «por si acaso» — un país que existe en el catálogo puede seleccionarse, y ofrecer uno en el que no se opera es peor que no tenerlo.
+
+    **Y la elección no tiene vuelta atrás**: `RN-SP-009` no admite editar ni borrar un país, de modo que un código o un nombre mal sembrados solo se pueden **desactivar**, nunca corregir. Es la misma irreversibilidad que obligó a `V42` a levantar excepción en lugar de adivinar equivalencias.
+
+`countries` recibe con `RN-SP-034` su **segunda clave foránea entrante**, y la primera que viene de una persona: hasta el 04-09-2026 era una isla, `payment_method_exclusions` la sacó de esa condición (`V55`) y ahora lo hace `users.country_id`. Con las dos juntas el sistema sabe **dónde no vale un medio de pago** y **dónde está quien va a pagar**, que es la asimetría que [`modelo-datos.md` §6](../modelo-datos.md) tenía anotada como pendiente.
+
 ### 10.7 Campos principales — `user_supervisors`
 
 | Campo | Tipo | PK | FK | Nullable | Default | Entidad relacional |
@@ -1210,6 +1237,7 @@ Declaradas en la base de datos, no solo en Java (Art. V.6):
 | `ck_users_username_no_at` | `users(position('@' in username) = 0)` — `VAL-010`. **Es lo que sostiene el inicio de sesión con ambas identidades**: ningún nombre de usuario puede parecerse a un correo |
 | `ck_users_username_format` | `users(username ~ '^[A-Za-z0-9._-]{3,50}$')` — sin espacios ni acentos. Un nombre con espacio al final es indistinguible del mismo sin él, y es permanente |
 | `ck_users_names_not_blank` | `users(length(btrim(first_name)) > 0 AND length(btrim(last_name)) > 0)` |
+| `fk_users_country` | `users(country_id)` → `countries(id)` — `RN-SP-034`. **Simple y no compuesta**, y **sin `ON DELETE`**: la compuesta `(country_id, is_active)` haría fallar `RF-SP-022` sobre un país con usuarios (§5.1), y no hay borrado del que defenderse porque `RN-SP-009` no lo admite |
 | `ck_users_status` | `users(status)` en (`ACTIVO`, `INACTIVO`, `BLOQUEADO`, `FTD_PENDIENTE`) — `RN-SP-026`. **`FTD_PENDIENTE` sustituye a `PENDIENTE`**, que estaba declarado y sin usar desde `V18` justamente para que estrenarlo no costara alterar el `CHECK` de una tabla en uso. El cambio es de dominio y **no de datos**: ninguna fila llevaba el valor retirado |
 | `pk_user_roles` | **Clave primaria compuesta**: `user_roles(user_id, role_id)` |
 | `fk_user_roles_user` | `user_roles(user_id)` → `users(id)`, `ON DELETE RESTRICT` |
@@ -1229,6 +1257,7 @@ Declaradas en la base de datos, no solo en Java (Art. V.6):
 | `ck_user_supervisors_no_self` | `user_supervisors(user_id <> supervisor_id)` — nadie está a cargo de sí mismo |
 | `ck_user_supervisors_periodo` | `user_supervisors(ended_at IS NULL OR ended_at > started_at)` — un periodo cerrado no puede terminar antes de empezar |
 | `ix_users_busqueda` | Índice de trigramas sobre `users`, en **tres expresiones**: `f_unaccent(lower(username))`, `f_unaccent(lower(email))` y `f_unaccent(lower(first_name \|\| ' ' \|\| last_name))`. La tercera es el **nombre completo concatenado**, y sin ella teclear `juan perez` no encuentra a nadie: ese texto no está contenido en ninguna de las dos columnas por separado. Lo declara `RF-SP-025` |
+| `ix_users_country_id` | `users(country_id)` — filtro por país de `RF-SP-025`. **Total y no parcial**, al revés que los dos índices de abajo: aquellos existen para responder «hoy» sobre tablas con historial, y aquí no hay historial que excluir — el país es una columna del propio agregado (§10.10). Y hace **doble trabajo**: sin él, el `NO ACTION` de `fk_users_country` recorrería `users` entera en cada intento de borrar un país |
 | `ix_user_memberships_membership_id` | **Índice parcial**: `user_memberships(membership_id) WHERE closed_at IS NULL` — filtro por membresía de `RF-SP-025`. **Parcial desde el 05-09-2026**: esa consulta pregunta quiénes tienen **hoy** esa membresía, y el historial cerrado nunca forma parte de la respuesta y crecería indefinidamente dentro del índice. Es el mismo criterio con el que `ix_user_supervisors_supervisor_vigente` ya es parcial |
 | `ix_user_supervisors_supervisor_vigente` | **Índice parcial**: `user_supervisors(supervisor_id) WHERE ended_at IS NULL` — responde «¿quién está a cargo de esta persona **hoy**?», que es lo que preguntan `RN-SP-022` y `RF-SP-042`. Parcial y no total porque el historial cerrado nunca forma parte de esa respuesta y crecería indefinidamente dentro del índice. Lo declara `RF-SP-028`, y **sustituye al nombre `ix_user_supervisors_supervisor_id`** que el plan de `RF-SP-024` había anticipado: aquel describía un índice sobre una columna, y este lleva además una condición |
 | `fk_exchange_rates_source` | `exchange_rates.source_currency_id` → `currencies(id)` — `RN-SP-029` |
@@ -1254,6 +1283,8 @@ Declaradas en la base de datos, no solo en Java (Art. V.6):
 
 Las tres últimas se apoyan además en datos de otras tablas —`user_roles` y `roles`—, de modo que ni siquiera un `CHECK` con subconsulta las sostendría: PostgreSQL no admite subconsultas en `CHECK`.
 
+**`RN-SP-034` está declarada a medias, y es el único caso así de la lista.** Su mitad estructural —todo usuario tiene un país del catálogo— sí vive en el motor, con `NOT NULL` y `fk_users_country`. Su mitad de estado —el país asignado tiene que estar **activo**— no, y no porque no se pueda escribir, sino porque **escribirla rompería `RF-SP-022`**: el detalle está en §5.1.
+
 !!! warning "«Depende de otra tabla» no siempre significa «no se puede declarar», y el 02-09-2026 se comprobó"
 
     `RN-SP-025` estaba en esta lista por ese motivo, y **salió de ella**: la columna que necesitaba no era una subconsulta sino **una copia atada por una clave foránea compuesta** (§10.11). El dato se trae a la tabla donde la restricción tiene que vivir, y la FK impide que la copia mienta.
@@ -1277,6 +1308,7 @@ Añadida el 22-08-2026 al aprobar el `plan.md` de `RF-SP-024`, que es quien crea
 | `email` | `varchar(255)` | No | No | No | — | — |
 | `first_name` | `varchar(100)` | No | No | No | — | — |
 | `last_name` | `varchar(100)` | No | No | No | — | — |
+| `country_id` | `uuid` | No | **Sí** | **No** | — | `countries` |
 | `password_hash` | `varchar(255)` | No | No | No | — | — |
 | `must_change_password` | `boolean` | No | No | No | `false` | — |
 | `provisional_password_expires_at` | `timestamptz` | No | No | Sí | — | — |
@@ -1286,6 +1318,12 @@ Añadida el 22-08-2026 al aprobar el `plan.md` de `RF-SP-024`, que es quien crea
 | `deleted_at` | `timestamptz` | No | No | Sí | — | — |
 
 **`username` se persiste tal como se escribió y su unicidad ignora la caja** (§10.8). El correo, en cambio, se persiste ya normalizado —recortado y en minúsculas— y su unicidad es una restricción corriente. La asimetría es deliberada: el nombre de usuario es como la persona aparece en la auditoría durante años, y el correo es una dirección de buzón cuya forma canónica es la minúscula.
+
+**`country_id` es `NOT NULL`, y es la única columna de esta tabla que apunta a un catálogo** (`RN-SP-034`, 07-09-2026). Nace obligatoria y no nulable-hoy-obligatoria-mañana, y esa decisión tiene un precio que se paga una sola vez: la migración que la añade **tiene que rellenar las filas existentes**, y para poder hacerlo **siembra Colombia** en un catálogo que hasta ahora nacía vacío (§10.6). El precio de la alternativa era permanente — una columna nulable obliga a **todo** consumidor futuro a contemplar la ausencia, y `RN-SP-034` dice justamente que esa ausencia no significa nada.
+
+**No lleva `ON DELETE` de ningún tipo**, y no hace falta declararlo: `RN-SP-009` no admite borrar un país, ni lógica ni físicamente, de modo que la fila apuntada **no puede desaparecer**. El comportamiento por omisión —`NO ACTION`— es aquí una red que nadie llegará a tocar, y declarar `RESTRICT` sugeriría que existe un borrado del que defenderse.
+
+**El `deleted_at` de un usuario no libera nada aquí**, al contrario de lo que ocurre con las asignaciones de `RF-SP-029`: el país es una columna del propio agregado, viaja con la fila y sigue diciendo dónde estaba esa persona cuando se la eliminó. Es lo que hace que la instantánea de `audit_deletion_log` sea completa.
 
 !!! important "El esquema inicial no lleva todas las columnas del modelo lógico"
 
@@ -1448,3 +1486,4 @@ closed_at IS NULL AND (ends_at IS NULL OR ends_at > now())
 | 1.35.0 | 05-09-2026 | **`user_memberships` pasa a ser un historial**, por decisión del responsable del proyecto: conceder una membresía es **una fila nueva** —se cierra la que había y se crea otra—, y no un `UPDATE` sobre la única fila de la persona. **`RN-SP-014` se reescribe**: de «una membresía por usuario» a «una membresía **vigente** por usuario, y todas las que tuvo conservadas». La regla dejaba una deuda que estaba escrita, aceptada y **citada por otro módulo**: `RN-MV-020` —nacida el día anterior— declaraba que quien necesitara saber en qué nivel estaba alguien en una fecha «tendrá que leerlo de las ventas confirmadas, no de `SP`». Esa deuda desaparece, y con ella el párrafo que la justificaba. **La decisión que carga el cambio son DOS columnas de fin y no una**: `ends_at` sigue siendo la **planificada** —hasta cuándo se pagó, nula si es indefinida— y nace **`closed_at`**, el cierre **real**. Una membresía de treinta días reemplazada el día doce termina con las dos fechas puestas y distintas, y las dos son ciertas; con una sola columna se pierde la diferencia entre **vencer** y **que te la sustituyan**, que es justo la que responde un reclamo. **La unicidad deja de poder vivir en la clave primaria** —que pasa a un `id` propio, porque `user_id` se repite— y se reparte entre **dos** restricciones que no se solapan en su trabajo: `uq_user_memberships_abierta`, único parcial sobre `WHERE closed_at IS NULL`, que es lo que impide dos filas actuales **y** lo que evita que el `LEFT JOIN` de `RF-SP-025` y `RF-SP-026` empiece a repetir personas; y `ex_user_memberships_sin_solape`, un `EXCLUDE USING gist` sobre `tstzrange(started_at, COALESCE(LEAST(ends_at, closed_at), 'infinity'))`, que es lo que impide que dos **periodos** se pisen — algo que el índice parcial no ve, porque dos filas cerradas con fechas solapadas lo satisfacen. Ninguno de los dos sobra. Es el patrón y la extensión que `V44` ya estrenó con `ex_commission_rates_sin_solape`. **De ahí sale la obligación menos evidente: conceder cierra SIEMPRE**, aunque la anterior estuviera vencida; si no, quedan dos filas abiertas. **`RF-SP-033` cierra y ya no borra**, con `closed_at` y sin tocar `ends_at`: el `DELETE` llevaba escrito su motivo —`RN-SP-015` dice que quien deja de ser consumidor **no tiene** membresía, no que tuviera una que terminó— y el historial lo invierte, porque la fila cerrada dice exactamente que la tuvo y se la quitaron. Es el criterio con el que `endSupervisor` nunca fue un `DELETE`. **Y una decisión técnica queda declarada para que no se tome por omisión**: `RF-SP-032` con la **misma** membresía y otra fecha **actualiza** la fila abierta y no genera historial —es una corrección administrativa, no un cambio de nivel—, mientras que con **otra** membresía cierra e inserta; es lo que conserva la distinción entre `FA-002` y `FA-003` que el dominio ya codificaba. La migración es `V56`. | Responsable del proyecto |
 | 1.36.0 | 05-09-2026 | **Toda persona tiene membresía, y quien no recibe una arranca en `FREE`** — decisión del responsable del proyecto. Es un cambio de alcance, no un ajuste: la membresía deja de significar «esta persona es cliente» y pasa a ser **un atributo de todo usuario**, superadministrador y funcionarios incluidos. **`RN-SP-018` se reescribe** y **dos reglas críticas mueren con ella**: `RN-SP-013` —membresía solo para consumidores— y `RN-SP-015` —quedarse sin rol consumidor retira la membresía—. Las dos sostenían las mitades de una atadura entre el rol y el nivel que ya no existe; **sus filas se conservan tachadas y no se borran**, porque sus códigos estaban citados en respuestas de error, en cinco `plan.md` aprobados y en los flujos, y suprimirlos dejaría referencias colgando. **El suelo se resuelve por código y no por la forma de la cadena**, y esa es la decisión que más se piensa: `RN-SP-007` permite registrar una membresía **por debajo** de `FREE`, de modo que «la que no tiene padre» es un blanco móvil — con él, registrar un nivel nuevo cambiaría en silencio con qué arranca la gente. Se toma la de **código `FREE`**, sembrada por `V46`, única por `uq_memberships_code` e imposible de borrar por `RN-SP-008`. El precio queda escrito: si alguien registra una por debajo, **el suelo de la cadena y el nivel de arranque dejan de ser el mismo**. **Cuatro requerimientos cambian de comportamiento.** `RF-SP-024`: `membershipId` pasa a **opcional** y sin él la persona nace en `FREE`; deja de exigirse por portar un rol consumidor. `RF-SP-030`: **deja de admitir membresía**, y sus dos campos se retiran del cuerpo — quien ya tiene nivel no lo cambia por una puerta lateral, y cambiarlo es `RF-SP-032`, que tiene su propio permiso. `RF-SP-031`: **pierde la cascada** — quien deja de ser consumidor **conserva la membresía que tenía**, incluida una comprada; bajarla al suelo sería quitarle algo que pagó. `RF-SP-033`: **devuelve al suelo en lugar de dejar sin nada**, y con ello responde `200` con la membresía `FREE` en vez de `204` sin cuerpo. **Y lo que esto abre fuera de `SP` conviene tenerlo presente**: `RF-PM-007` y `RF-MV-002` deciden qué se ofrece y qué se puede comprar leyendo la membresía vigente, de modo que **funcionarios y vendedores pasan a tener oferta de upgrades**. Va en la misma dirección que la enmienda del 04-09-2026 que abrió la compra propia más allá de los clientes. La migración es `V57`, que **rellena y no altera el esquema**: no hay columna nueva, solo una fila `FREE` para toda persona que no tuviera ninguna abierta. **El invariante no se puede declarar en el motor** —«toda fila de `users` tiene una abierta en `user_memberships`» es una comprobación entre tablas que ningún `CHECK` alcanza—, y por eso lo sostienen el relleno y las tres operaciones que crean personas. | Responsable del proyecto |
 | 1.37.0 | 07-09-2026 | **Nace el submódulo TASAS DE CAMBIO**, por decisión del responsable del proyecto: a cuánto se cambia una moneda por otra, desde cuándo y hasta cuándo. Cuatro requerimientos —`RF-SP-047` a `RF-SP-050`—, cuatro permisos `exchange-rates:` y una tabla, `exchange_rates` (§10.14). **Se administra por API, al revés que el catálogo de monedas**: `RN-SP-010` deja las monedas fuera del alcance de la API porque son un catálogo estable que nadie edita, y una tasa es lo contrario — cambia, y cambia seguido. **La decisión que carga el diseño es `RN-SP-032`: dos tasas vigentes del mismo par no se solapan**, y §5.2 explica por qué **un `UNIQUE` no puede expresarlo** — lo que no puede repetirse no es un valor, es un **solapamiento de rangos**: dos tasas `USD → COP` con fechas distintas pasarían cualquier unicidad y en el día que comparten habría **dos precios para el mismo cambio**. Se declara con el `EXCLUDE USING gist` que `V44` estrenó para las tasas de comisión, con `daterange(..., '[]')` —el intervalo cerrado, o dos tasas que se tocan en un extremo no se verían— y **parcial sobre las vivas y activas**, o retirar dejaría el periodo bloqueado para siempre. **De ahí sale la consecuencia que hay que aceptar entera**: si las inactivas no bloquean, **activar es la operación peligrosa y no el alta**, de modo que `RF-SP-047` y `RF-SP-049` tienen los dos que traducir esa violación a un `409` — dejarla subir daría un `500` sobre una regla de negocio. **El precio se declara `numeric(18,8)` y no `numeric(14,4)` como `products.price`**, y el motivo hay que leerlo: una tasa **no es un importe**. Con cuatro decimales `COP → USD` —del orden de `0,00024`— se guardaría redondeada, y una moneda más devaluada se guardaría como **cero**. **El estado es booleano y no un `varchar` con `CHECK`**, al revés que `products.status`: aquel creció porque su dominio era candidato a hacerlo, y aquí la única distinción que un tercer estado expresaría —«programada, aún no rige»— **ya la expresan las fechas**. **Y queda declarado lo que esto NO hace**: `MV` sigue exigiendo una sola moneda por venta (`RN-MV-012`). Lo que cambia es el **motivo** de esa regla — decía «este sistema no tiene ninguna tasa de cambio», y ahora las tiene: sigue sin convertir **por decisión** y no por ausencia. | Responsable del proyecto |
+| 1.38.0 | 07-09-2026 | **Toda persona pertenece a un país**, por decisión del responsable del proyecto. Nace `RN-SP-034` y `users` gana `country_id`, `NOT NULL` y con clave foránea a `countries` (§10.10). Es la **primera columna de `users` que apunta a un catálogo**, y con ella `countries` recibe su segunda clave foránea entrante —la primera venía de `payment_method_exclusions` (`V55`)—: el sistema ya sabía **dónde no vale un medio de pago** y ahora sabe **dónde está quien va a pagar**, que es la asimetría que [`modelo-datos.md` §6](../modelo-datos.md) tenía anotada como pendiente 2. **El país es una columna y no una tabla puente**, al revés que la membresía y el superior comercial, y el criterio queda escrito: aquellas dos llevan tabla porque **tienen vigencia** —se conceden, vencen, se sustituyen— y el país no tiene ninguna; nadie pregunta en qué país estaba alguien el mes pasado, y el rastro del cambio ya lo guarda `audit_change_log`. **Se fija en el alta —administrativa (`RF-SP-024`) y por enlace (`RF-SP-045`)— y solo lo corrige un administrador con `users:update` (`RF-SP-027`); el titular no lo toca desde `RF-SP-044`**, porque el país decide qué medios de pago se le ofrecen (`RN-MV-019`) y cambiárselo uno mismo sería cambiarse de mercado. **La mitad de la regla que exige país activo NO se declara en el esquema**, y el motivo merece leerse porque parecía declarable: el patrón de clave foránea compuesta que `RN-SP-025` estrenó el 02-09-2026 exige que el dato copiado sea **inmutable en su origen**, y `countries.is_active` es justo **lo único que `RN-SP-009` deja cambiar** — declararlo haría que `RF-SP-022` fallara sobre cualquier país con usuarios, convirtiendo «retirarlo de los selectores» en una operación bloqueada por terceros. La comprobación es **de entrada y no permanente**: quien ya tenía el país lo conserva aunque se desactive. **Lo que cuesta queda escrito: el catálogo de países deja de nacer vacío.** `V22` siembra un superadministrador que hay que rellenar, de modo que la migración **siembra Colombia** (`COL`) con identificador UUID v7 literal, igual que `V15` con `USD`. Y la elección **no tiene corrección posible** (`RN-SP-009`): un país mal sembrado solo se puede desactivar. Enmienda seis tripletas ya aprobadas (Art. I.7): `RF-SP-024`, `RF-SP-025` —el país aparece en el listado y se puede filtrar por él, con `ix_users_country_id`—, `RF-SP-026`, `RF-SP-027`, `RF-SP-039` y `RF-SP-045`. | Responsable técnico |

@@ -11,6 +11,7 @@
 | Enmendada | 21-08-2026 — `RN-SP-018` obliga a indicar la membresía si el alta concede un rol `CONSUMIDOR`, al aprobar `RF-SP-033` (Art. I.7) |
 | Enmendada | 22-08-2026 — `RN-SP-019` obliga a indicar el superior comercial si el alta concede un rol `VENDEDOR`, al registrarse `RF-SP-041` (Art. I.7) |
 | Enmendada | 24-08-2026 — `RN-SP-023` hace **obligatorio** al menos un rol: `FA-001` se retira, nace `EX-008` y `CA-SP-197` se invierte (Art. I.7) |
+| Enmendada | 07-09-2026 — `RN-SP-034` hace **obligatorio el país**: entra en §6.1 y §6.2, nace `EX-009`, `VAL-014` y `CA-SP-543` a `CA-SP-545`, y **se reabre la resolución 3 de §14**, que había dejado el país fuera a propósito (Art. I.7) |
 
 ---
 
@@ -42,6 +43,7 @@ Que ambas sirvan para iniciar sesión obliga a una condición sobre el formato: 
 ### 4.1 Incluye
 
 - Alta de un usuario con su nombre de usuario, su correo y sus datos de identificación personal.
+- **Declaración del país en el que está la persona** (`RN-SP-034`).
 - Establecimiento de su credencial inicial.
 - Asignación opcional de un conjunto inicial de roles.
 
@@ -50,6 +52,7 @@ Que ambas sirvan para iniciar sesión obliga a una condición sobre el formato: 
 - Asignar o retirar roles después del alta → `RF-SP-030` y `RF-SP-031`.
 - Cambiar o renovar la membresía después del alta → `RF-SP-032`. El alta solo la establece cuando concede un rol `CONSUMIDOR`, porque `RN-SP-018` no admite el estado intermedio.
 - Cambiar el superior comercial después del alta → `RF-SP-041`. El alta solo lo establece cuando concede un rol `VENDEDOR`, y por el mismo motivo: `RN-SP-019` no admite el estado intermedio de un vendedor sin superior.
+- Cambiar el país después del alta → `RF-SP-027`. A diferencia de la membresía y del superior, aquí **no hay estado intermedio que evitar**: el país entra siempre, en toda alta, y lo que `RF-SP-027` hace es corregirlo.
 - Cambiar el estado del usuario → `RF-SP-028`.
 - Cambiar la contraseña → `RF-SP-037` y `RF-SP-038`.
 - El auto-registro de un consumidor desde la aplicación pública: esta funcionalidad es administrativa y exige `users:create`.
@@ -63,6 +66,7 @@ Que ambas sirvan para iniciar sesión obliga a una condición sobre el formato: 
 | `RN-SP-018` | Todo consumidor tiene membresía; el rol y el nivel se conceden juntos | `requirements/sp.md` §5.1 |
 | `RN-SP-019` | Todo vendedor tiene superior comercial, salvo la cúspide de la fuerza comercial | `requirements/sp.md` §5.1 |
 | `RN-SP-020` | El superior porta el rol padre inmediato del rol del subordinado | `requirements/sp.md` §5.1 |
+| `RN-SP-034` | Todo usuario pertenece a un país, y solo se asigna uno **activo** | `requirements/sp.md` §5.1 |
 
 ## 6. Datos
 
@@ -73,6 +77,7 @@ Que ambas sirvan para iniciar sesión obliga a una condición sobre el formato: 
 | Nombre de usuario | Sí | Identidad estable de la persona, y una de las dos con las que inicia sesión | Único entre **todos** los usuarios, incluidos los eliminados. **No admite arroba**, para que nunca pueda confundirse con un correo. No se modifica después |
 | Correo | Sí | Correo de la persona, y la otra forma de iniciar sesión | Único entre todos los usuarios, incluidos los eliminados. Formato de correo válido |
 | Nombre y apellidos | Sí | Cómo se llama la persona | Es lo que la interfaz y la auditoría muestran cuando hay que decir quién hizo algo |
+| País | **Sí** | Dónde está la persona | Debe existir en el catálogo y estar **activo** (`RN-SP-034`). **Obligatorio para todos**, sin condición sobre los roles: no es como la membresía ni como el superior, que dependen de qué se conceda. Se corrige después con `RF-SP-027` |
 | Contraseña inicial | Sí | Credencial con la que la persona entra por primera vez | Debe cumplir la política mínima de contraseña (`security.md` §3.2). Nunca se devuelve ni se registra. **La persona deberá cambiarla en su primer inicio de sesión** |
 | Roles | **Sí** | Roles que se le asignan al crearlo | **Al menos uno** (`RN-SP-023`). Cada uno debe existir, estar activo y no exceder los privilegios del actor |
 | Membresía | **Condicional** | Nivel de acceso de la persona | **Obligatoria** si alguno de los roles indicados es de clasificación `CONSUMIDOR` (`RN-SP-018`). No se admite en ningún otro caso |
@@ -84,6 +89,7 @@ Que ambas sirvan para iniciar sesión obliga a una condición sobre el formato: 
 |---|---|
 | Identificador | Identificador del usuario creado |
 | Usuario | Nombre de usuario, correo, nombre, estado y roles asignados |
+| País | El país registrado, con su identificador, su código y su nombre. **Se devuelve resuelto y no como identificador suelto**: quien acaba de registrar tiene que poder leer qué quedó escrito sin una segunda consulta al catálogo, igual que ocurre con los roles |
 | Cambio de contraseña pendiente | Indicador de que la persona debe cambiar su credencial en el primer inicio de sesión |
 
 La contraseña **no forma parte de la salida** en ninguna forma, ni siquiera transformada.
@@ -101,6 +107,7 @@ La contraseña **no forma parte de la salida** en ninguna forma, ni siquiera tra
 - Queda **marcado para cambio obligatorio de contraseña**: `RF-SP-034` lo autentica y le advierte, y la marca se limpia cuando ejecuta `RF-SP-037`.
 - Su nombre de usuario y su correo quedan reservados de forma permanente: no volverán a estar disponibles ni siquiera si el usuario se elimina.
 - Sus roles quedan asignados y sus permisos efectivos son la unión de los permisos de esos roles (`RN-SEG-009`).
+- **Queda asociada al país indicado, y la asociación no caduca.** No hay estado en que la persona exista sin país. Si más tarde ese país se desactiva (`RF-SP-022`), la persona **lo conserva**: la comprobación de país activo es del momento de asignarlo y no una condición permanente (`RN-SP-034`).
 - Si el alta concedió un rol `VENDEDOR`, queda **a cargo del superior indicado**, con la asignación vigente y sin fecha de fin. La escritura ocurre en la misma transacción que el alta: no existe un instante en que el vendedor esté creado y sin superior.
 - La contraseña queda almacenada con Argon2id y no es recuperable (`security.md` §3.2).
 - Queda constancia en la auditoría de cambios y en la de seguridad, sin ningún dato de la credencial (Art. IV.8).
