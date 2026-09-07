@@ -97,6 +97,12 @@ public class ProductController {
           `UPGRADE_MEMBRESIA` puede llevarlo: en un `BOT` se rechaza (`RN-PM-016`).
 
           La vigencia es opcional en los dos tipos: sin ella, lo adquirido no caduca.
+
+          `scope` e `implementation` son **obligatorios y en los dos tipos**, y
+          **no tienen valor por omisión**: `scope` dice hasta dónde se muestra el
+          producto —`HOTLINKS` **incluye** `TIENDA`, no la sustituye— e
+          `implementation` dice si lo comprado se aplica solo (`AUTOMATICA`) o
+          espera a que un funcionario lo autorice (`MANUAL`).
           """)
   @ApiResponses({
     @ApiResponse(
@@ -150,6 +156,12 @@ public class ProductController {
 
           La búsqueda va sobre el nombre, **sin distinguir acentos ni
           mayúsculas** y por fragmento. En blanco equivale a no filtrar.
+
+          **`scope` e `implementation` filtran como `type` y `status`**: se
+          admiten en cualquier caja y un valor fuera de dominio se rechaza junto
+          al resto de parámetros inválidos, no en una vuelta aparte. El de
+          alcance es **el único sitio donde ese dato se consulta hoy** — la
+          oferta de `RF-PM-007` no filtra por él.
 
           Un filtro sin coincidencias devuelve `200` con la colección vacía, y
           una página más allá de la última hace lo mismo **con el total real**.
@@ -223,6 +235,13 @@ public class ProductController {
 
           **Bots: todos los activos, para cualquiera.** No dependen del nivel de
           quien mira ni de que tenga uno.
+
+          **Publica `scope` e `implementation` de cada producto y NO filtra por
+          ninguno de los dos.** El alcance no puede filtrar aquí: `HOTLINKS`
+          incluye `TIENDA`, de modo que los dos valores llegan a esta vista y un
+          filtro devolvería siempre lo mismo que no ponerlo. La implementación
+          viaja para que quien compra sepa **antes de pagar** si lo que se lleva
+          se le entrega en el acto.
 
           **Quien no tiene membresía vigente —incluida la vencida— no ve ningún
           upgrade**, y sí todos los bots. No hay nivel desde el que subir, y
@@ -331,14 +350,25 @@ public class ProductController {
       description =
           """
           Corrige el **nombre**, la **descripción**, el **icono**, el **precio**,
-          la **moneda** y la **vigencia**. Se aplica lo que llega y se deja
-          intacto lo que no.
+          la **moneda**, la **vigencia**, el **alcance** y la
+          **implementación**. Se aplica lo que llega y se deja intacto lo que
+          no.
 
           **Distingue el campo ausente del enviado vacío**, y de ahí salen dos
           comportamientos opuestos: `description: null`, `icon: null` y
           `validityDays: null` **vacían** el campo —el producto pasa a no
           caducar—, mientras que `name: null` se **rechaza**, porque un producto
           sin nombre no puede existir.
+
+          **`scope: null` e `implementation: null` también se rechazan**, y ahí
+          van con el nombre y no con la descripción: son obligatorios en la
+          columna, de modo que «bórralo» no tiene ningún estado al que llevar el
+          producto. Devuelven `400` con `VAL-007` y `VAL-008`.
+
+          **El alcance y la implementación SÍ se corrigen, aunque el tipo y las
+          membresías no**: ninguna de las dos define qué derecho otorga el
+          producto —una dice hasta dónde se muestra y la otra quién lo aplica—,
+          de modo que corregirlas no reescribe lo que compró quien lo compró.
 
           **El icono sí se corrige, aunque el tipo no**: es el aspecto del
           producto y no lo que otorga. En un `BOT`, cualquier valor distinto de
