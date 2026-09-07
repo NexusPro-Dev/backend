@@ -2,7 +2,7 @@
 
 | Campo | Valor |
 |---|---|
-| Versión | 0.29.0 |
+| Versión | 0.30.0 |
 | Estado | **Borrador** |
 | Responsable | Bonilla Diaz William Steven |
 | Fecha de creación | 21-08-2026 |
@@ -14,7 +14,7 @@
 
     Es una **vista derivada**, no normativa. Sale de [`requirements/sp.md` §10](requirements/sp.md), [`security.md` §9](security.md) y [`architecture.md` §6.6](architecture.md). La fuente de verdad del esquema son las **migraciones Flyway** (Art. V.3), y donde ya existen mandan ellas.
 
-!!! success "Veintiséis tablas escritas, y ninguna diseñada pendiente de escribir"
+!!! success "Veintisiete tablas escritas, y ninguna diseñada pendiente de escribir"
 
     `V49` cerró las tres de `CM` —creó `user_commission_rates` y `product_commission_rates`, y **rehízo `commission_rates`** quitándole el producto, la persona y la vigencia—, y el 04-09-2026 **`V54__create_movements.sql`** creó las cuatro de `MV`: `movements`, `movement_types`, `movement_details` y `payment_methods`, con sus dos catálogos sembrados en la misma migración (`RF-MV-001`).
 
@@ -201,11 +201,19 @@ Ocho decisiones que el dibujo no explica solo:
 
 ## 2. Catálogos
 
-Tres tablas que hoy **no tienen ninguna clave foránea entrante**: nada en el modelo las referencia todavía.
+Los tres catálogos del módulo `SP`, y **la primera tabla que cuelga de uno de ellos**.
+
+!!! warning "Esta sección decía «no tienen ninguna clave foránea entrante», y dejó de ser cierto hace tiempo"
+
+    Lo era el 21-08-2026 y se quedó escrito. `currencies` dejó de ser una isla con `products.currency_id` (`V39`) y `movements.currency_id` (`V54`); `countries`, con `payment_method_exclusions` (`V55`, 04-09-2026). §5.3 lo recogía y esta línea no.
+
+    **Y el 07-09-2026 `currencies` recibe dos más de golpe**, las dos desde la misma tabla: `exchange_rates` apunta a ella **por partida doble** —origen y destino—, que es lo que obliga a que su restricción de no solapamiento compare **las dos** columnas y no una.
 
 ```mermaid
 erDiagram
     memberships ||--o| memberships : "parent_membership_id · una sola hija"
+    currencies  ||--o{ exchange_rates : "de esta moneda sale"
+    currencies  ||--o{ exchange_rates : "a esta moneda llega"
 
     memberships {
         uuid id PK "v7"
@@ -237,6 +245,17 @@ erDiagram
         boolean is_active "default true · lo cambia RF-SP-022"
         timestamptz created_at "now"
         timestamptz updated_at "now · lo mueve RF-SP-022"
+    }
+
+    exchange_rates {
+        uuid id PK "v7"
+        uuid source_currency_id FK "de que moneda"
+        uuid target_currency_id FK "a cual · CHECK: distinta del origen"
+        numeric price "18,8 · NO es un importe: COP a USD ronda 0,00024"
+        date valid_from "obligatoria"
+        date valid_to "NULL = vitalicia"
+        boolean is_active "default true"
+        timestamptz deleted_at "logico con motivo · RN-SP-033"
     }
 ```
 
@@ -635,3 +654,4 @@ La secuencia no es continua —falta el tramo `V8` a `V12`— y no es un descuid
 | 0.27.0 | 05-09-2026 | **La cardinalidad entre `users` y `user_memberships` deja de ser opcional**: pasa de `||--o{` a `||--|{`. `RN-SP-018` reescrita obliga a que **toda** persona tenga una membresía abierta —superadministrador y funcionarios incluidos—, y quien no recibe una al registrarse arranca en la de código `FREE` (`V46`). **No hay cambio de esquema**: `V57` **rellena** y no altera nada — una fila `FREE` para toda persona que no tuviera ninguna abierta. **Y el invariante no se puede declarar en el motor**, cosa que conviene tener escrita porque el Art. V.6 empuja a intentarlo: «toda fila de `users` tiene una fila abierta en `user_memberships`» es una comprobación **entre tablas** que ningún `CHECK` alcanza, y una clave foránea en sentido contrario no existe porque la fila de la membresía nace después que la persona. Lo sostienen el relleno de `V57` y las tres operaciones que crean personas. | Responsable del proyecto |
 | 0.28.0 | 07-09-2026 | **`products` gana `scope` e `implementation`**: hasta dónde se muestra un producto y quién aplica lo que otorga (`requirements/pm.md` v0.17.0, `V59`). **Dos columnas obligatorias, sin `DEFAULT` y en los dos tipos**, que se apartan de todo lo que este mapa tenía en esa tabla: `RN-PM-002` y `RN-PM-016` obligan o prohíben **según el tipo**, y estas no distinguen — un bot también se muestra en algún sitio y también se entrega de alguna forma. **`scope` es una escala y no un reparto**: `HOTLINKS` **incluye** la tienda, de modo que no existe forma de publicar algo solo en hotlinks y el día que ese caso aparezca lo que entra es un **tercer valor**, no un cambio de significado de los dos que hay — cambiárselo reescribiría en silencio cada fila ya declarada. **`implementation` es lo primero de `PM` que gobierna a `MV`**: `RN-MV-020` deja de conceder la membresía en toda venta confirmada y la concede **solo** cuando el producto es automático (`requirements/mv.md` v0.9.0). **Y de ahí sale la deuda que este mapa tiene que registrar**: §4.1 declara desde el 01-09-2026 que **se copia lo que puede cambiar y lo inmutable se referencia**, la implementación **se corrige** (`RF-PM-004`), y **`movement_details` no tiene esa columna** (`V54`) — sin ella, corregir un producto reescribiría cómo se entregan ventas ya hechas, en los dos sentidos y sin fallar en ninguno. No se escribe hoy porque `RF-MV-003` —el único que leería el valor— sigue bloqueado por **D-26**, y queda dicho que la copia **debe existir antes** de que ese requerimiento se construya. Es la tercera cosa que `movement_details` tendrá que congelar, junto al código y el nombre del producto que `requirements/mv.md` v0.8.0 dejó anotados. **Ninguna tabla nueva**: el sistema sigue en veintiséis. | Responsable del proyecto |
 | 0.29.0 | 07-09-2026 | **Cae `ck_products_origen_distinto` (`V61`)**, y con ella **la última línea de `RN-PM-017` que vivía en el esquema**. La retira la **renovación**: un upgrade puede declarar la misma membresía en los dos lados —`FREE → FREE`, `ORO → ORO`— porque lo que se vende ahí es **tiempo y no nivel** (`requirements/pm.md` v0.19.0 §5.2.3), y esa restricción prohibía exactamente eso. **Ninguna columna cambia**: es una restricción que se va, y el sistema sigue en veintiséis tablas. Lo que hay que leer es lo que queda al descubierto: la mitad superviviente de la regla —«el origen no está por encima del destino»— **nunca cupo en un `CHECK`**, porque obliga a leer el `level` de dos filas de `memberships`, de modo que a partir de hoy **una regla crítica de `PM` no tiene una sola línea declarada en el motor** y depende por completo del caso de uso. Es el mismo reparto que `RN-PM-007` tiene con los decimales de la moneda, con la diferencia de que aquel nunca tuvo red y este la pierde. **`uq_products_upgrade_target` no se toca**: `(FREE, FREE)` es una pareja como cualquier otra, y sigue admitiendo un solo producto activo por pareja. | Responsable del proyecto |
+| 0.30.0 | 07-09-2026 | **Nace `exchange_rates`, la tabla veintisiete**: a cuánto se cambia una moneda por otra, con su vigencia (`requirements/sp.md` v1.37.0 §10.14, `V62`). **Es la primera tabla que cuelga de `currencies`, y lo hace por partida doble** —origen y destino apuntan a la misma tabla—, que es lo que obliga a que su restricción de no solapamiento compare **las dos** columnas: con una sola, `USD → COP` y `USD → EUR` no podrían convivir, y eso es justo lo que la regla admite. **La restricción es un `EXCLUDE USING gist` y no un `UNIQUE`**, y es la tercera vez que este modelo lo necesita —`V44`, `V49` y ahora—: lo que no puede repetirse **no es un valor, es un solapamiento de rangos**, y dos tasas con fechas distintas pasarían cualquier unicidad mientras comparten días. Va con `daterange(..., '[]')` —cerrado, o dos tasas que se tocan en un extremo no se verían— y **parcial sobre las vivas y activas**, o retirar dejaría el periodo bloqueado para siempre. **El precio es `numeric(18,8)` y rompe deliberadamente con `numeric(14,4)`**, que es la forma de todo importe del sistema: una tasa **no es un importe**, y con cuatro decimales `COP → USD` se guardaría redondeada y una moneda más devaluada se guardaría como **cero**. Es la primera columna numérica del modelo cuya escala la decide **la aritmética** y no `currencies.decimal_places`. **Y §2 se corrige de paso**: decía que sus tres catálogos «no tienen ninguna clave foránea entrante», y eso dejó de ser cierto el 27-08-2026 con `products.currency_id` — §5.3 ya lo recogía y esa línea no. | Responsable del proyecto |

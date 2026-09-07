@@ -4,12 +4,12 @@
 |---|---|
 | Módulo | `SP` — Sistema Principal |
 | Paquete | `modules/system` |
-| Prefijos de permiso | `roles:`, `permissions:`, `audit:`, `memberships:`, `currencies:`, `countries:`, `users:` |
-| Versión | 1.36.0 |
+| Prefijos de permiso | `roles:`, `permissions:`, `audit:`, `memberships:`, `currencies:`, `countries:`, `users:`, `exchange-rates:` |
+| Versión | 1.37.0 |
 | Estado | **Aprobado** |
 | Responsable | Bonilla Diaz William Steven |
 | Fecha de creación | 20-08-2026 |
-| Última actualización | 05-09-2026 |
+| Última actualización | 07-09-2026 |
 | Fecha de aprobación | 20-08-2026 |
 
 !!! info "Qué va en este documento"
@@ -62,6 +62,7 @@ Según [`modules.md` §5.1](../modules.md).
 | Roles y permisos | Asociación y revocación de permisos sobre un rol | `RF-SP-005`, `RF-SP-006` |
 | Membresías | Nivel de acceso del consumidor a servicios y contenidos | `RF-SP-016` a `RF-SP-018` |
 | Monedas | Catálogo de monedas. Solo lectura por API | `RF-SP-019` |
+| **Tasas de cambio** | A cuánto se cambia una moneda por otra, y desde cuándo. **Se administra por API**, al revés que el catálogo de monedas | `RF-SP-047` a `RF-SP-050` |
 | Países | Catálogo de países | `RF-SP-020`, `RF-SP-021` |
 | **Usuarios** | Alta, consulta, edición, estado y baja de las personas que acceden al sistema, y consulta del propio perfil | `RF-SP-024` a `RF-SP-029`, `RF-SP-039` |
 | **Roles de usuario** | Asignación y retiro de roles sobre una persona | `RF-SP-030`, `RF-SP-031` |
@@ -191,6 +192,11 @@ Reglas que no son transversales de seguridad y por tanto sí llevan el prefijo d
 | `RN-SP-026` | El registro por enlace nace sin poder operar | Al registrarse un cliente desde un enlace | La cuenta se crea en estado **`FTD_PENDIENTE`**: **autentica y no opera**. Es el primer estado del sistema que separa esas dos cosas, porque hasta ahora todo lo que autenticaba estaba `ACTIVO`. La cuenta sale de ahí cuando se confirma el depósito por el valor del producto —el **FTD**—, que hoy hace un actor a mano por `RF-SP-028` y mañana hará el webhook del bróker | **Crítica** |
 | `RN-SP-027` | Ningún cliente se registra sin vendedor | Al registrarse un cliente desde un enlace | El enlace declara **quién lo generó**, y sin un vendedor válido el registro **se rechaza**. No se admite la atribución vacía: produciría clientes huérfanos que nadie descubre hasta el día de pagar una comisión. El vendedor debe existir, no estar eliminado y **portar un rol `VENDEDOR`** — un funcionario no comisiona | **Crítica** |
 | `RN-SP-028` | El cliente cuelga de su vendedor en la **misma** estructura | Siempre | La atribución **no tiene tabla propia**: es una fila de `user_supervisors` (§10.7) como cualquier otra, con el cliente en `user_id` y el vendedor en `supervisor_id`. De ahí hereda gratis lo que ya está resuelto —**un superior vigente** por `RN-SP-021`, el historial que determina a quién se atribuía cada resultado, y la protección de `RN-SP-022`—. **Y deja el árbol comercial completo en una sola tabla**, que es lo que permite subir de un cliente a su agente, su director y su manager con **un recorrido** en lugar de con un caso especial en la hoja: es la forma que una liquidación multinivel necesita. Lo que la regla **no** trae es con qué producto entró el cliente; ese dato pertenece al hecho comisionable —el depósito— y no a la relación | **Crítica** |
+| `RN-SP-029` | Una tasa cambia **de una moneda a OTRA**, y las dos existen y están **activas** al declararla | Al registrar y al corregir | Origen y destino son monedas del catálogo, y **no pueden ser la misma**: una tasa de `USD` a `USD` no expresa ningún cambio. Que **después** se desactive una moneda no invalida la tasa ya registrada, por el mismo criterio que `RN-PM-008` | **Crítica** |
+| `RN-SP-030` | El precio es **mayor que cero** | Al registrar y al corregir | Una tasa de cero o negativa no es un cambio, es una destrucción de valor. Se declara con **ocho decimales** (§10.14) | Alta |
+| `RN-SP-031` | La vigencia **empieza siempre y puede no terminar** | Al registrar y al corregir | `valid_from` es **obligatoria**; `valid_to` es **opcional** y nula significa **vitalicia**. Si se declara, no puede ser anterior al inicio | Alta |
+| `RN-SP-032` | **Dos tasas vigentes del mismo par no se solapan** | Al registrar, al corregir y al activar | No pueden coexistir dos tasas **activas y vivas** con el mismo **origen y destino** cuyas vigencias se toquen. **El mismo origen sí puede cambiarse a varias monedas a la vez** —`USD → COP` y `USD → EUR` conviven—: lo que la regla acota es el **par**, no el origen. Se declara en el motor con un `EXCLUDE` (§5.2) | **Crítica** |
+| `RN-SP-033` | La tasa no desaparece | Al retirar | La eliminación es **lógica y con motivo** (Art. V.13). La fila permanece porque una conversión hecha ayer tiene que poder decir con qué tasa se hizo | Alta |
 | `RN-SP-009` | Países inmutables salvo su estado | Al editar o eliminar un país | La operación se rechaza. Lo único modificable es el indicador de país activo (`RF-SP-022`), que permite retirar de la circulación un alta equivocada sin borrar el registro | Media |
 | `RN-SP-010` | Monedas inmutables por API salvo su estado | Siempre | Las monedas no se crean, editan ni eliminan por la API. Lo único modificable es el indicador de moneda activa (`RF-SP-023`), y la moneda por defecto no puede desactivarse | Media |
 
@@ -238,6 +244,40 @@ Reglas que no son transversales de seguridad y por tanto sí llevan el prefijo d
     Retirar un permiso de un rol **elimina físicamente** la fila de `role_permissions`, y por tanto se audita en `audit_deletion_log`. No se exige motivo: una asociación rol-permiso no es una entidad de negocio y su «por qué» ya está en el propio evento —qué permiso, de qué rol, quién y cuándo—. Un motivo de texto libre aquí se rellenaría con ruido.
 
     Esto exigió enmendar el Art. V.13, que prohibía las eliminaciones sin motivo. La excepción quedó acotada a las asociaciones.
+
+### 5.2 `RN-SP-032` — por qué el no solapamiento vive en el motor
+
+**La regla en una frase:** en cualquier instante, un par origen→destino tiene **como mucho una** tasa activa.
+
+**Un `UNIQUE` no puede expresarlo**, y conviene entender por qué antes de intentarlo: la unicidad compara **valores iguales**, y aquí lo que no puede repetirse es un **solapamiento de rangos**. `USD → COP` del 1 de enero al 30 de junio y `USD → COP` del 1 de junio al 31 de diciembre tienen fechas **distintas** —pasarían cualquier `UNIQUE`— y en junio hay **dos tasas para el mismo cambio**.
+
+Se declara con la misma forma que `user_commission_rates` estrenó en `V44` y `V49` mantuvo:
+
+```sql
+EXCLUDE USING gist (
+    source_currency_id WITH =,
+    target_currency_id WITH =,
+    daterange(valid_from, valid_to, '[]') WITH &&
+) WHERE (is_active AND deleted_at IS NULL)
+```
+
+**Las tres piezas hacen falta y ninguna sobra:**
+
+| Pieza | Qué pasa si falta |
+|---|---|
+| Las dos monedas `WITH =` | La restricción compararía solo rangos y prohibiría que `USD → COP` y `USD → EUR` convivan, que es justo lo que esta regla **sí** admite |
+| `daterange(..., '[]')` | Con `'[)'` —el intervalo por omisión— una tasa que termina el 30 de junio y otra que empieza el 30 de junio **no se solaparían**, y ese día habría dos |
+| `WHERE (is_active AND deleted_at IS NULL)` | Una tasa retirada o desactivada seguiría **bloqueando sus días para siempre**, y nada más fallaría — el periodo quedaría inutilizable sin que nadie supiera por qué |
+
+!!! danger "La consecuencia del `WHERE`: activar puede violar la regla"
+
+    Si las inactivas no bloquean, **activar una tasa que se solapa con la vigente es la operación peligrosa**, no el alta. Es exactamente el reparto que `RN-PM-004` tiene en `PM`, donde la comprobación vive en `RF-PM-005` y no en el alta.
+
+    Aquí no hay un requerimiento de «cambiar el estado»: el estado se declara al registrar (`RF-SP-047`) y se corrige en `RF-SP-049`, de modo que **los dos** tienen que traducir la violación del `EXCLUDE` a un `409` legible. Si alguno la dejara subir, el actor recibiría un `500` sobre una regla de negocio.
+
+!!! important "Requiere `btree_gist`, y esa extensión ya está instalada"
+
+    Un `EXCLUDE` que mezcla igualdad sobre `uuid` con solapamiento sobre `daterange` necesita `btree_gist`. La instaló `V44` para la primera tabla de tasas de comisión; esta la reutiliza y **no la vuelve a declarar**.
 
 ## 6. Requerimientos funcionales
 
@@ -289,6 +329,10 @@ Reglas que no son transversales de seguridad y por tanto sí llevan el prefijo d
 | `RF-SP-042` | Consultar el equipo a cargo de un usuario | Media | `users:read` | En desarrollo |
 | `RF-SP-044` | Editar el propio perfil | Alta | Autenticado | En desarrollo |
 | `RF-SP-045` | Registro de clientes por enlace | **Crítica** | Público | Tasks en revisión |
+| `RF-SP-047` | Registrar una tasa de cambio | Alta | `exchange-rates:create` | Pendiente |
+| `RF-SP-048` | Consultar las tasas de cambio | Alta | `exchange-rates:read` | Pendiente |
+| `RF-SP-049` | Corregir una tasa de cambio | Media | `exchange-rates:update` | Pendiente |
+| `RF-SP-050` | Retirar una tasa de cambio | Media | `exchange-rates:delete` | Pendiente |
 
 !!! info "Dónde vive el estado de un requerimiento"
 
@@ -788,6 +832,73 @@ El enlace lleva dos datos: el **producto** —por código o identificador— y e
 Lo que sí queda abierto y declarado es que **la atribución es forjable**: quien componga el enlace elige a qué vendedor se apunta. No concede acceso, pero ensucia la base sobre la que `CM` comisionará, y la condición para cerrarlo está escrita — en cuanto se liquide una comisión sobre una atribución, el enlace tiene que dejar de ser componible. Nace el 01-09-2026, por decisión del responsable del proyecto.
 Hereda de `RF-SP-027` la pregunta abierta de la **verificación del correo**, que ya no tiene coartada: un correo mal tecleado deja a la persona sin vía de recuperación. No bloquea este requerimiento, porque hoy ese dato no se puede ni corregir. Nace el 31-08-2026, por decisión del responsable del proyecto.
 
+#### `RF-SP-047` — Registrar una tasa de cambio
+
+| Campo | Valor |
+|---|---|
+| Objetivo | Declarar a cuánto se cambia una moneda por otra, y desde cuándo |
+| Actor | Administrador |
+| Permiso requerido | `exchange-rates:create` |
+| Prioridad | Alta |
+| Reglas aplicables | `RN-SP-029` a `RN-SP-032` |
+| Depende de | — |
+| Tripleta | `docs/specs/sp/047-registrar-tasa-de-cambio/` |
+| Estado | **Pendiente** |
+
+Registra una tasa declarando **origen, destino, precio y desde cuándo rige**, con la fecha de fin opcional —sin ella la tasa es **vitalicia**— y su estado. Es el requerimiento que crea la tabla del módulo y **siembra sus cuatro permisos**, con la obligación de asociarlos a `SUPERADMIN` y `ADMIN` en la misma migración ([`security.md` §4.4](../security.md#44-catalogo-de-permisos)).
+
+**El rechazo que más importa es el solapamiento** (`RN-SP-032`): lo decide un `EXCLUDE` del motor y llega como `409`, no como `500`. Traducirlo es tarea de este requerimiento y de `RF-SP-049`.
+
+#### `RF-SP-048` — Consultar las tasas de cambio
+
+| Campo | Valor |
+|---|---|
+| Objetivo | Ver qué tasas hay, cuáles rigen hoy y cuáles rigieron |
+| Actor | Administrador · fuerza comercial |
+| Permiso requerido | `exchange-rates:read` |
+| Prioridad | Alta |
+| Reglas aplicables | — |
+| Depende de | `RF-SP-047` |
+| Tripleta | `docs/specs/sp/048-consultar-tasas-de-cambio/` |
+| Estado | **Pendiente** |
+
+Devuelve las tasas **paginadas**, con las dos monedas resueltas —código y decimales— y filtros por origen, destino, estado y **vigencia a una fecha**. Ese último es el que responde la pregunta que se hace a diario: *¿a cuánto está el cambio hoy?*
+
+**Incluye las vencidas y excluye las retiradas salvo que se pidan**, por el mismo criterio que `RF-PM-002`: una tasa que dejó de regir explica por qué una conversión de hace un mes dio lo que dio.
+
+#### `RF-SP-049` — Corregir una tasa de cambio
+
+| Campo | Valor |
+|---|---|
+| Objetivo | Enmendar lo que se declaró mal, sin reescribir lo que ya se convirtió |
+| Actor | Administrador |
+| Permiso requerido | `exchange-rates:update` |
+| Prioridad | Media |
+| Reglas aplicables | `RN-SP-030` a `RN-SP-032` |
+| Depende de | `RF-SP-047` |
+| Tripleta | `docs/specs/sp/049-corregir-tasa-de-cambio/` |
+| Estado | **Pendiente** |
+
+Permite corregir **el precio, la vigencia y el estado**. **No permite cambiar ninguna de las dos monedas**: son las que definen qué cambio expresa la tasa, y tocarlas la convertiría en otra — quien necesite otro par registra otra y retira esta. Es el mismo criterio que `RF-PM-004` aplica al tipo y a las membresías de un producto.
+
+**Es la operación que puede violar `RN-SP-032` sin que el alta lo haya hecho**: mover una vigencia o activar una tasa inactiva puede pisar a la que ya rige (§5.2).
+
+#### `RF-SP-050` — Retirar una tasa de cambio
+
+| Campo | Valor |
+|---|---|
+| Objetivo | Sacar de circulación una tasa que no debió existir |
+| Actor | Administrador |
+| Permiso requerido | `exchange-rates:delete` |
+| Prioridad | Media |
+| Reglas aplicables | `RN-SP-032`, `RN-SP-033` |
+| Depende de | `RF-SP-047` |
+| Tripleta | `docs/specs/sp/050-retirar-tasa-de-cambio/` |
+| Estado | **Pendiente** |
+
+Retira lógicamente una tasa **exigiendo motivo** (Art. V.13), que viaja al registro de eliminación con la instantánea de lo retirado. **La fila permanece**: el día que algo se convierta con una tasa, esa conversión tendrá que poder decir cuál usó.
+
+**Retirar libera su periodo** (§5.2): el `EXCLUDE` es parcial sobre las vivas, de modo que después de retirar se puede declarar otra tasa que cubra esos mismos días.
 ## 7. Requerimientos no funcionales
 
 Definidos en [`security.md` §11](../security.md) y en la constitución. Los que este módulo debe satisfacer:
@@ -857,6 +968,10 @@ Ninguna con sistemas externos ni con otros módulos. Al absorber los usuarios, s
 | `GET` | `/api/v1/users/{id}/team` | `RF-SP-042` | `users:read` |
 | `PATCH` | `/api/v1/users/me` | `RF-SP-044` | Autenticado |
 | `POST` | `/api/v1/auth/registration` | `RF-SP-045` | **Público** |
+| `POST` | `/api/v1/exchange-rates` | `RF-SP-047` | `exchange-rates:create` |
+| `GET` | `/api/v1/exchange-rates` | `RF-SP-048` | `exchange-rates:read` |
+| `PATCH` | `/api/v1/exchange-rates/{id}` | `RF-SP-049` | `exchange-rates:update` |
+| `POST` | `/api/v1/exchange-rates/{id}/deletion` | `RF-SP-050` | `exchange-rates:delete` |
 
 Rutas propuestas. El contrato exacto de cada una se fija en el `plan.md` de su tripleta.
 
@@ -869,6 +984,7 @@ Rutas propuestas. El contrato exacto de cada una se fija en el `plan.md` de su t
 | `role_permissions` | Permisos declarados por cada rol | `SP` |
 | `memberships` | Niveles de acceso del consumidor | `SP` |
 | `currencies` | Catálogo de monedas | `SP` |
+| `exchange_rates` | A cuánto se cambia una moneda por otra, con su vigencia | `SP` |
 | `countries` | Catálogo de países | `SP` |
 | `users` | Personas que acceden al sistema, con su credencial y su estado | `SP` |
 | `user_roles` | Roles asignados a cada usuario | `SP` |
@@ -1115,6 +1231,12 @@ Declaradas en la base de datos, no solo en Java (Art. V.6):
 | `ix_users_busqueda` | Índice de trigramas sobre `users`, en **tres expresiones**: `f_unaccent(lower(username))`, `f_unaccent(lower(email))` y `f_unaccent(lower(first_name \|\| ' ' \|\| last_name))`. La tercera es el **nombre completo concatenado**, y sin ella teclear `juan perez` no encuentra a nadie: ese texto no está contenido en ninguna de las dos columnas por separado. Lo declara `RF-SP-025` |
 | `ix_user_memberships_membership_id` | **Índice parcial**: `user_memberships(membership_id) WHERE closed_at IS NULL` — filtro por membresía de `RF-SP-025`. **Parcial desde el 05-09-2026**: esa consulta pregunta quiénes tienen **hoy** esa membresía, y el historial cerrado nunca forma parte de la respuesta y crecería indefinidamente dentro del índice. Es el mismo criterio con el que `ix_user_supervisors_supervisor_vigente` ya es parcial |
 | `ix_user_supervisors_supervisor_vigente` | **Índice parcial**: `user_supervisors(supervisor_id) WHERE ended_at IS NULL` — responde «¿quién está a cargo de esta persona **hoy**?», que es lo que preguntan `RN-SP-022` y `RF-SP-042`. Parcial y no total porque el historial cerrado nunca forma parte de esa respuesta y crecería indefinidamente dentro del índice. Lo declara `RF-SP-028`, y **sustituye al nombre `ix_user_supervisors_supervisor_id`** que el plan de `RF-SP-024` había anticipado: aquel describía un índice sobre una columna, y este lleva además una condición |
+| `fk_exchange_rates_source` | `exchange_rates.source_currency_id` → `currencies(id)` — `RN-SP-029` |
+| `fk_exchange_rates_target` | `exchange_rates.target_currency_id` → `currencies(id)` — `RN-SP-029` |
+| `ck_exchange_rates_monedas_distintas` | `source_currency_id <> target_currency_id` — `RN-SP-029`. Una tasa de una moneda a sí misma no expresa ningún cambio |
+| `ck_exchange_rates_price_positive` | `price > 0` — `RN-SP-030` |
+| `ck_exchange_rates_vigencia` | `valid_to IS NULL OR valid_to >= valid_from` — `RN-SP-031`. La rama `IS NULL` va **delante y explícita**: un `CHECK` que evalúa a `NULL` **acepta** la fila, y sin ella toda tasa vitalicia pasaría sin comprobarse |
+| `uq_exchange_rates_vigente` | **`EXCLUDE USING gist`** sobre las dos monedas `WITH =` y `daterange(valid_from, valid_to, '[]') WITH &&`, **parcial**: `WHERE (is_active AND deleted_at IS NULL)` — `RN-SP-032`. **Un `UNIQUE` no puede expresarlo**: lo que no puede repetirse no es un valor, es un **solapamiento** (§5.2) |
 
 !!! important "La unicidad de rol es parcial, no total"
 
@@ -1252,6 +1374,30 @@ closed_at IS NULL AND (ends_at IS NULL OR ends_at > now())
 
 `RF-SP-040` la crea (`V37__create_password_reset_permits.sql`). El plan la numeraba `V29`, número que quedó tomado al aplicarse `V13` a `V36` mientras la tripleta esperaba a **D-23**.
 
+### 10.14 Campos principales — `exchange_rates`
+
+| Campo | Tipo | PK | FK | Nullable | Default | Entidad relacional |
+|---|---|---|---|---|---|---|
+| `id` | `uuid` | Sí | No | No | — | — |
+| `source_currency_id` | `uuid` | No | Sí | No | — | `currencies` |
+| `target_currency_id` | `uuid` | No | Sí | No | — | `currencies` |
+| `price` | `numeric(18,8)` | No | No | No | — | — |
+| `valid_from` | `date` | No | No | No | — | — |
+| `valid_to` | `date` | No | No | **Sí** | — | — |
+| `is_active` | `boolean` | No | No | No | `true` | — |
+| `created_at` | `timestamptz` | No | No | No | `now()` | — |
+| `updated_at` | `timestamptz` | No | No | No | `now()` | — |
+| `deleted_at` | `timestamptz` | No | No | Sí | — | — |
+
+**`numeric(18,8)` y no `numeric(14,4)` como `products.price`**, y la diferencia no es de gusto: una tasa **no es un importe**. Con cuatro decimales, `COP → USD` —del orden de `0,00024`— se guardaría como `0,0002`, y una moneda más devaluada se guardaría como **cero**. Ocho decimales es lo que usan las tesorerías y las pasarelas, y los diez dígitos enteros cubren el otro extremo.
+
+**`valid_from` y `valid_to` son `date` y no `timestamptz`**, igual que en las dos tablas de tasas de comisión. Una tasa de cambio rige **por días**, no por instantes: declararla con hora obligaría a decidir en qué zona se corta el día, que es la decisión que [`architecture.md` §15.1.1](../architecture.md) resolvió para el código de una venta y que aquí no hace falta abrir.
+
+**`is_active` es booleano y no un `varchar` con `CHECK`**, al revés que `products.status`. Aquel se declaró así porque su dominio **es candidato a crecer** —un `BORRADOR` era previsible—; aquí no lo es: la única distinción que un tercer estado expresaría —«programada, aún no rige»— **ya la expresan las fechas**. Es la forma que `currencies` y `countries` usan en este mismo módulo.
+
+**`updated_at` sí, `deleted_at` sí**: es una tabla de negocio que se corrige (`RF-SP-049`) y se retira con motivo (`RN-SP-033`), al revés que `password_reset_permits`.
+
+**Sin columna de motivo y sin columnas de actor**: quién retiró la tasa y por qué residen en `audit_deletion_log`, con la instantánea de la fila (Art. V.7 y V.13).
 ## 11. Control de cambios
 
 | Versión | Fecha | Cambio | Responsable |
@@ -1301,3 +1447,4 @@ closed_at IS NULL AND (ends_at IS NULL OR ends_at > now())
 | 1.34.0 | 04-09-2026 | **La semilla de desarrollo cuelga por fin a los clientes de su vendedor**, tres días después de que `RN-SP-028` lo decidiera. Hasta hoy la semilla decía —y la nota de §10.7 lo citaba— que «`CLIENTE` queda fuera porque no son vendedores», y eso dejó de ser cierto el 01-09-2026: el cliente cuelga de su vendedor **en `user_supervisors`**, con el cliente en `user_id`. **La consecuencia de ese desfase no era cosmética: en desarrollo no había NI UNA CARTERA**, de modo que la mitad comercial de una venta —de quién es el cliente, a quién se le atribuye— no se podía ver funcionando en local. **Los tres clientes cuelgan a profundidad distinta**, y esa es la decisión: `cliente1` de un agente, `cliente2` de un director y `cliente3` de un manager. Lo permite la **rama de consumidor de `RN-SP-020`**, que solo exige que el superior porte **algún** rol `VENDEDOR` sin parentesco que comprobar — y colgarlos a los tres de un agente habría dejado sin existir en desarrollo el caso que el diseño admite y que obliga a decidir **a qué tarifa cobra quien está pegado al cliente cuando no es un agente**. `director1` pasa a tener cuatro a cargo —tres agentes y un cliente—, que es la mezcla que `RF-SP-042` tiene que saber devolver distinguiendo por rol. `ADMIN` sigue fuera: no es vendedor y no tiene cartera. | Responsable técnico |
 | 1.35.0 | 05-09-2026 | **`user_memberships` pasa a ser un historial**, por decisión del responsable del proyecto: conceder una membresía es **una fila nueva** —se cierra la que había y se crea otra—, y no un `UPDATE` sobre la única fila de la persona. **`RN-SP-014` se reescribe**: de «una membresía por usuario» a «una membresía **vigente** por usuario, y todas las que tuvo conservadas». La regla dejaba una deuda que estaba escrita, aceptada y **citada por otro módulo**: `RN-MV-020` —nacida el día anterior— declaraba que quien necesitara saber en qué nivel estaba alguien en una fecha «tendrá que leerlo de las ventas confirmadas, no de `SP`». Esa deuda desaparece, y con ella el párrafo que la justificaba. **La decisión que carga el cambio son DOS columnas de fin y no una**: `ends_at` sigue siendo la **planificada** —hasta cuándo se pagó, nula si es indefinida— y nace **`closed_at`**, el cierre **real**. Una membresía de treinta días reemplazada el día doce termina con las dos fechas puestas y distintas, y las dos son ciertas; con una sola columna se pierde la diferencia entre **vencer** y **que te la sustituyan**, que es justo la que responde un reclamo. **La unicidad deja de poder vivir en la clave primaria** —que pasa a un `id` propio, porque `user_id` se repite— y se reparte entre **dos** restricciones que no se solapan en su trabajo: `uq_user_memberships_abierta`, único parcial sobre `WHERE closed_at IS NULL`, que es lo que impide dos filas actuales **y** lo que evita que el `LEFT JOIN` de `RF-SP-025` y `RF-SP-026` empiece a repetir personas; y `ex_user_memberships_sin_solape`, un `EXCLUDE USING gist` sobre `tstzrange(started_at, COALESCE(LEAST(ends_at, closed_at), 'infinity'))`, que es lo que impide que dos **periodos** se pisen — algo que el índice parcial no ve, porque dos filas cerradas con fechas solapadas lo satisfacen. Ninguno de los dos sobra. Es el patrón y la extensión que `V44` ya estrenó con `ex_commission_rates_sin_solape`. **De ahí sale la obligación menos evidente: conceder cierra SIEMPRE**, aunque la anterior estuviera vencida; si no, quedan dos filas abiertas. **`RF-SP-033` cierra y ya no borra**, con `closed_at` y sin tocar `ends_at`: el `DELETE` llevaba escrito su motivo —`RN-SP-015` dice que quien deja de ser consumidor **no tiene** membresía, no que tuviera una que terminó— y el historial lo invierte, porque la fila cerrada dice exactamente que la tuvo y se la quitaron. Es el criterio con el que `endSupervisor` nunca fue un `DELETE`. **Y una decisión técnica queda declarada para que no se tome por omisión**: `RF-SP-032` con la **misma** membresía y otra fecha **actualiza** la fila abierta y no genera historial —es una corrección administrativa, no un cambio de nivel—, mientras que con **otra** membresía cierra e inserta; es lo que conserva la distinción entre `FA-002` y `FA-003` que el dominio ya codificaba. La migración es `V56`. | Responsable del proyecto |
 | 1.36.0 | 05-09-2026 | **Toda persona tiene membresía, y quien no recibe una arranca en `FREE`** — decisión del responsable del proyecto. Es un cambio de alcance, no un ajuste: la membresía deja de significar «esta persona es cliente» y pasa a ser **un atributo de todo usuario**, superadministrador y funcionarios incluidos. **`RN-SP-018` se reescribe** y **dos reglas críticas mueren con ella**: `RN-SP-013` —membresía solo para consumidores— y `RN-SP-015` —quedarse sin rol consumidor retira la membresía—. Las dos sostenían las mitades de una atadura entre el rol y el nivel que ya no existe; **sus filas se conservan tachadas y no se borran**, porque sus códigos estaban citados en respuestas de error, en cinco `plan.md` aprobados y en los flujos, y suprimirlos dejaría referencias colgando. **El suelo se resuelve por código y no por la forma de la cadena**, y esa es la decisión que más se piensa: `RN-SP-007` permite registrar una membresía **por debajo** de `FREE`, de modo que «la que no tiene padre» es un blanco móvil — con él, registrar un nivel nuevo cambiaría en silencio con qué arranca la gente. Se toma la de **código `FREE`**, sembrada por `V46`, única por `uq_memberships_code` e imposible de borrar por `RN-SP-008`. El precio queda escrito: si alguien registra una por debajo, **el suelo de la cadena y el nivel de arranque dejan de ser el mismo**. **Cuatro requerimientos cambian de comportamiento.** `RF-SP-024`: `membershipId` pasa a **opcional** y sin él la persona nace en `FREE`; deja de exigirse por portar un rol consumidor. `RF-SP-030`: **deja de admitir membresía**, y sus dos campos se retiran del cuerpo — quien ya tiene nivel no lo cambia por una puerta lateral, y cambiarlo es `RF-SP-032`, que tiene su propio permiso. `RF-SP-031`: **pierde la cascada** — quien deja de ser consumidor **conserva la membresía que tenía**, incluida una comprada; bajarla al suelo sería quitarle algo que pagó. `RF-SP-033`: **devuelve al suelo en lugar de dejar sin nada**, y con ello responde `200` con la membresía `FREE` en vez de `204` sin cuerpo. **Y lo que esto abre fuera de `SP` conviene tenerlo presente**: `RF-PM-007` y `RF-MV-002` deciden qué se ofrece y qué se puede comprar leyendo la membresía vigente, de modo que **funcionarios y vendedores pasan a tener oferta de upgrades**. Va en la misma dirección que la enmienda del 04-09-2026 que abrió la compra propia más allá de los clientes. La migración es `V57`, que **rellena y no altera el esquema**: no hay columna nueva, solo una fila `FREE` para toda persona que no tuviera ninguna abierta. **El invariante no se puede declarar en el motor** —«toda fila de `users` tiene una abierta en `user_memberships`» es una comprobación entre tablas que ningún `CHECK` alcanza—, y por eso lo sostienen el relleno y las tres operaciones que crean personas. | Responsable del proyecto |
+| 1.37.0 | 07-09-2026 | **Nace el submódulo TASAS DE CAMBIO**, por decisión del responsable del proyecto: a cuánto se cambia una moneda por otra, desde cuándo y hasta cuándo. Cuatro requerimientos —`RF-SP-047` a `RF-SP-050`—, cuatro permisos `exchange-rates:` y una tabla, `exchange_rates` (§10.14). **Se administra por API, al revés que el catálogo de monedas**: `RN-SP-010` deja las monedas fuera del alcance de la API porque son un catálogo estable que nadie edita, y una tasa es lo contrario — cambia, y cambia seguido. **La decisión que carga el diseño es `RN-SP-032`: dos tasas vigentes del mismo par no se solapan**, y §5.2 explica por qué **un `UNIQUE` no puede expresarlo** — lo que no puede repetirse no es un valor, es un **solapamiento de rangos**: dos tasas `USD → COP` con fechas distintas pasarían cualquier unicidad y en el día que comparten habría **dos precios para el mismo cambio**. Se declara con el `EXCLUDE USING gist` que `V44` estrenó para las tasas de comisión, con `daterange(..., '[]')` —el intervalo cerrado, o dos tasas que se tocan en un extremo no se verían— y **parcial sobre las vivas y activas**, o retirar dejaría el periodo bloqueado para siempre. **De ahí sale la consecuencia que hay que aceptar entera**: si las inactivas no bloquean, **activar es la operación peligrosa y no el alta**, de modo que `RF-SP-047` y `RF-SP-049` tienen los dos que traducir esa violación a un `409` — dejarla subir daría un `500` sobre una regla de negocio. **El precio se declara `numeric(18,8)` y no `numeric(14,4)` como `products.price`**, y el motivo hay que leerlo: una tasa **no es un importe**. Con cuatro decimales `COP → USD` —del orden de `0,00024`— se guardaría redondeada, y una moneda más devaluada se guardaría como **cero**. **El estado es booleano y no un `varchar` con `CHECK`**, al revés que `products.status`: aquel creció porque su dominio era candidato a hacerlo, y aquí la única distinción que un tercer estado expresaría —«programada, aún no rige»— **ya la expresan las fechas**. **Y queda declarado lo que esto NO hace**: `MV` sigue exigiendo una sola moneda por venta (`RN-MV-012`). Lo que cambia es el **motivo** de esa regla — decía «este sistema no tiene ninguna tasa de cambio», y ahora las tiene: sigue sin convertir **por decisión** y no por ausencia. | Responsable del proyecto |
