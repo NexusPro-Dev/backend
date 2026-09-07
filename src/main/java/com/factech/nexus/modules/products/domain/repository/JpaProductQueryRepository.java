@@ -193,41 +193,48 @@ public class JpaProductQueryRepository implements ProductQueryRepository {
   }
 
   /**
-   * La oferta, en <b>una</b> sentencia (`RF-PM-007` · `T-03`, `T-04`).
+   * La oferta, en <b>una</b> sentencia (`RF-PM-007` · `T-20`).
    *
-   * <h2>«Nivel superior» es número MENOR, y esta es la línea que decide el requerimiento</h2>
+   * <h2>Coincidencia exacta por ORIGEN, y esta es la línea que decide el requerimiento</h2>
    *
-   * <p>La cadena de membresías crece hacia abajo: {@code 1} es la cima (`requirements/sp.md`
-   * §10.4). De modo que ofrecer «hacia arriba» (`RN-PM-011`) es {@code m.level < :nivel}, con
-   * <b>menor estricto</b>. Escrito al revés, esta consulta pasaría todas las pruebas de camino
-   * feliz y ofrecería <b>exactamente lo contrario</b> —bajadas de nivel, cobrando por ellas—, que
-   * es el riesgo 1 del plan y el motivo de que `T-06` pruebe los tres casos: destino inferior,
-   * igual y superior.
+   * <p>{@code p.source_membership_id = :membresia}. Se ofrecen los upgrades que <b>alguien declaró
+   * desde donde el actor está</b>, y ninguno más. Quien registró el producto ya decidió a quién va
+   * dirigido; esta consulta no lo vuelve a decidir.
    *
-   * <p>El estricto es lo que implementa `CA-PM-060`: el upgrade hacia el nivel que la persona <b>ya
-   * tiene</b> no se ofrece, porque sería cobrarle por quedarse donde está.
+   * <p><b>Comparaba niveles hasta el 07-09-2026</b> —{@code m.level < :nivel}—, y cambiarlo no fue
+   * una limpieza: una comparación de niveles <b>no puede expresar la renovación</b>. Para que quepa
+   * un {@code X → X} hay que abrirla a {@code <=}, y entonces a quien está en {@code ORO} se le
+   * ofrece también {@code PLATINO → ORO} — el salto de otro que acaba donde él ya está. El filtro
+   * por origen distingue las dos cosas sin una condición más.
    *
-   * <h2>Sin nivel no es «sin filtro»</h2>
+   * <h2>Que no se ofrezcan bajadas ya NO lo sostiene esta consulta</h2>
    *
-   * <p>Con {@code :nivel} nulo, {@code m.level < NULL} evalúa a {@code NULL} y la fila <b>queda
-   * fuera</b> — que es justo lo que `FA-001` pide—. Aun así la condición se escribe con su {@code
-   * IS NOT NULL} <b>explícito</b> y delante: este proyecto ya pagó una vez por confiar en cómo se
-   * comporta el nulo dentro de una condición compuesta —{@code ck_deletion_reason} evaluaba a
-   * {@code NULL} y por tanto <b>aceptaba</b> la fila—, y en un {@code WHERE} el nulo excluye
-   * mientras que en un {@code CHECK} admite. Escribirlo dice cuál de los dos comportamientos se
-   * está usando, en lugar de dejar que quien lo lea tenga que recordarlo.
+   * <p>Lo sostiene `RN-PM-017` al <b>registrar</b>: un producto cuyo origen sea la membresía del
+   * actor no puede apuntar por debajo, porque no habría podido darse de alta. La regla se mudó de
+   * la consulta al alta el 02-09-2026 (`requirements/pm.md` §5.2.1) y el código tardó cinco días en
+   * seguirla. <b>Quien toque `RegisterProductService.verificarOrigen` está tocando también lo que
+   * esta consulta da por cierto.</b>
+   *
+   * <h2>Sin membresía no es «sin filtro»</h2>
+   *
+   * <p>Con {@code :membresia} nulo, {@code p.source_membership_id = NULL} evalúa a {@code NULL} y
+   * la fila <b>queda fuera</b> — que es justo lo que `FA-001` pide, y ahora <b>sale del propio
+   * filtro</b> en lugar de necesitar una condición escrita aparte—. Aun así se deja dicho aquí:
+   * este proyecto ya pagó una vez por confiar en cómo se comporta el nulo dentro de una condición
+   * compuesta —{@code ck_deletion_reason} evaluaba a {@code NULL} y por tanto <b>aceptaba</b> la
+   * fila—, y en un {@code WHERE} el nulo excluye mientras que en un {@code CHECK} admite.
    *
    * <h2>El orden</h2>
    *
    * <p>Los upgrades primero y los bots después (`CA-PM-078`); dentro de los upgrades, por <b>nivel
    * de destino</b> y no por precio ni por nombre, porque es el único orden en el que «subir»
    * significa algo (`CA-PM-079`). {@code DESC} sobre el número es <b>del salto más corto al más
-   * largo</b>: quien está en el último peldaño ve primero el siguiente y al final la cima, que es
-   * el orden en el que se sube. Los bots, por fecha de alta.
+   * largo</b>, y con la renovación dentro empieza por ella: {@code X → X} es el salto de longitud
+   * cero, y aparece antes que el primer peldaño. Los bots, por fecha de alta.
    */
   @Override
   @Transactional(readOnly = true)
-  public List<ProductRow> findOffer(Integer nivel) {
+  public List<ProductRow> findOffer(UUID membresia) {
     List<Tuple> filas =
         em.createNativeQuery(
                 """
@@ -249,15 +256,14 @@ public class JpaProductQueryRepository implements ProductQueryRepository {
                  WHERE p.deleted_at IS NULL
                    AND p.status = 'ACTIVO'
                    AND ( p.type = 'BOT'
-                         OR ( CAST(:nivel AS integer) IS NOT NULL
-                              AND m.level < CAST(:nivel AS integer) ) )
+                         OR p.source_membership_id = CAST(:membresia AS uuid) )
                  ORDER BY CASE WHEN p.type = 'UPGRADE_MEMBRESIA' THEN 0 ELSE 1 END,
                           m.level DESC,
                           p.created_at ASC,
                           p.id ASC
                 """,
                 Tuple.class)
-            .setParameter("nivel", nivel)
+            .setParameter("membresia", membresia)
             .getResultList();
 
     List<ProductRow> resultado = new ArrayList<>(filas.size());

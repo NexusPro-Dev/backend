@@ -8,7 +8,7 @@
 | Estado | **Aprobado** |
 | Autor | Responsable técnico |
 | Aprobado por | Responsable del proyecto |
-| Enmendado el | 27-08-2026 — `RN-PM-015`; 02-09-2026 — **la oferta deja de comparar niveles**; 02-09-2026 — `products:sale`; 07-09-2026 — el **alcance** y la **implementación** en la respuesta, **sin filtro** (`RN-PM-019`, `RN-PM-020`) |
+| Enmendado el | 27-08-2026 — `RN-PM-015`; 02-09-2026 — **la oferta deja de comparar niveles**; 02-09-2026 — `products:sale`; 07-09-2026 — el **alcance** y la **implementación** en la respuesta, **sin filtro** (`RN-PM-019`, `RN-PM-020`), y **construida la coincidencia por ORIGEN** (`T-20`) con la **renovación** dentro |
 | Fecha de aprobación | 26-08-2026 |
 
 ---
@@ -70,6 +70,14 @@ Una sola sentencia, con la membresía del actor como parámetro:
 - **Upgrades**: solo aquellos cuyo `source_membership_id` **es** la membresía vigente del actor. Coincidencia exacta, sin comparar niveles y sin recorrer la cadena. Quien declaró el producto ya dijo a quién va dirigido.
 - **Sin membresía** —el actor no tiene ninguna vigente—: **cero upgrades** y todos los bots (`FA-001`), y **sale del propio filtro**: el nulo no coincide con ningún origen. Antes había que escribirlo aparte.
 - **Bots**: todos los activos, sin filtro (`spec.md` §14, resolución 2).
+
+!!! success "Escrito el 02-09-2026, construido el 07-09-2026 — y lo que lo desatascó fue la renovación"
+
+    Esta sección describía la coincidencia por origen desde el 02-09-2026, y `findOffer` **siguió comparando niveles cinco días**: `T-20` quedó en `Pendiente` y `RN-PM-011` ni siquiera se reescribió, de modo que el documento del módulo se contradecía consigo mismo.
+
+    Lo desatascó la **renovación** (`requirements/pm.md` §5.2.3), porque **un `X → X` no se puede ofrecer comparando niveles**: abrir la comparación a «inferior o igual» le daría a quien está en `ORO` un `PLATINO → ORO`, que no es suyo. La coincidencia exacta era la única forma, y ya estaba decidida.
+
+    **Con ella la renovación no cuesta ni una condición**: `FREE → FREE` coincide con quien está en `FREE` igual que coincidiría `FREE → ORO`. El filtro no sabe que una es una renovación, y no necesita saberlo.
 
 ## 6. Autorización
 

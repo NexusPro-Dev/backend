@@ -8,7 +8,7 @@
 | Estado | **Aprobado** |
 | Autor | Responsable técnico |
 | Aprobado por | Responsable del proyecto |
-| Enmendado el | 27-08-2026 — `RN-PM-015`; 02-09-2026 — la membresía de **origen** (`RN-PM-017`, `RN-PM-018`); 07-09-2026 — **el alcance y la implementación** (`RN-PM-019`, `RN-PM-020`), §2.4 |
+| Enmendado el | 27-08-2026 — `RN-PM-015`; 02-09-2026 — la membresía de **origen** (`RN-PM-017`, `RN-PM-018`); 07-09-2026 — **el alcance y la implementación** (`RN-PM-019`, `RN-PM-020`), §2.4, y **la renovación** —el origen puede ser el destino (`RN-PM-017`)—, §2.5 |
 | Fecha de aprobación | 26-08-2026 |
 
 !!! info "Qué va en este documento"
@@ -140,6 +140,26 @@ Esta migración **no emite auditoría**, igual que `V3`: un permiso no tiene lí
     El relleno lo escribe **la migración, una vez**, sobre lo que ya existe. Un `DEFAULT` lo escribiría **la columna, siempre**, sobre todo lo que venga — y con él, un alta que olvidara declarar el alcance se guardaría sin error y sin que nadie pudiera distinguirla de una que lo declaró. `status` sí lleva `DEFAULT` porque una regla lo exige (`RN-PM-012`); aquí ninguna regla dice cuál es el valor natural, y ese es precisamente el motivo por el que se declara.
 
     Es la misma forma que `V53` usó con `source_membership_id`: rellenar y no suponer.
+
+### 2.5 `V61__products_admite_renovacion.sql` — enmienda del 07-09-2026
+
+**Cae `ck_products_origen_distinto`**, y es una migración de una sola sentencia con una consecuencia que merece más líneas que el `SQL`.
+
+| Cambio | Definición | Por qué |
+|---|---|---|
+| `ck_products_origen_distinto` | `DROP CONSTRAINT` | Prohibía `source_membership_id = target_membership_id`, que es **exactamente** lo que la renovación admite (`requirements/pm.md` §5.2.3) |
+
+!!! danger "De `RN-PM-017` no queda NADA en el esquema"
+
+    Esa restricción era **la única mitad de la regla que el motor podía sostener**. La que sobrevive —«el origen no está por encima del destino»— obliga a leer el `level` de **dos filas de `memberships`**, y un `CHECK` no consulta otra tabla: nunca cupo aquí y no va a caber.
+
+    De modo que a partir de esta migración **una regla crítica de este módulo vive entera en `RegisterProductService`**, sin red. Es el mismo reparto que `RN-PM-007` tiene con los decimales de la moneda, con una diferencia que conviene no olvidar: aquel **nunca** tuvo una restricción detrás, y este la pierde. Un `INSERT` directo —una migración, una corrección a mano— puede meter hoy un descenso vendido como upgrade, y nada lo impedirá.
+
+!!! important "No se toca `uq_products_upgrade_target`"
+
+    `(FREE, FREE)` es una pareja como cualquier otra. La unicidad sigue siendo **un producto activo por pareja origen→destino**, de modo que no pueden coexistir dos renovaciones activas de la misma membresía — que es justo lo que `RN-PM-004` existe para evitar: dos precios simultáneos para lo mismo.
+
+**Y el agregado pierde una comprobación sin ganarla en otro sitio.** `Product.verificarTipoYMembresias` rechazaba `origen.equals(destino)` con `VAL-014`; esa comparación **dejó de decir nada**. Quien decide es el caso de uso, que es el único que conoce los dos `level`, y su comparación pasa de `origen.level() <= destino.level()` a `origen.level() < destino.level()`.
 
 ## 3. Componentes afectados
 

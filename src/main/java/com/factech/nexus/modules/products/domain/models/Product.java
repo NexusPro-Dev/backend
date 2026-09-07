@@ -495,15 +495,15 @@ public class Product {
         throw new ValidationException(
             "VAL-007", mensaje, List.of(new FieldError("targetMembershipId", "VAL-007", mensaje)));
       }
-      // `RN-PM-017`, la mitad que el esquema TAMBIÉN sostiene. La otra —que el
-      // origen esté por debajo— necesita el `level` de las dos membresías y no
-      // cabe aquí: el agregado no conoce `memberships`. Vive en el caso de uso.
-      if (origen.equals(destino)) {
-        String mensaje =
-            "Un upgrade debe subir de nivel: el origen no puede ser la membresía destino.";
-        throw new ValidationException(
-            "VAL-014", mensaje, List.of(new FieldError("sourceMembershipId", "VAL-014", mensaje)));
-      }
+      // `RN-PM-017` NO SE COMPRUEBA AQUÍ, y desde el 07-09-2026 no queda de ella
+      // ni una mitad en este agregado. Decía «el origen no puede ser el
+      // destino», y eso es exactamente lo que la RENOVACIÓN admite: un
+      // `ORO → ORO` vende TIEMPO y no nivel (`requirements/pm.md` §5.2.3).
+      //
+      // Lo que queda de la regla —«el origen no está por encima»— necesita el
+      // `level` de dos filas de `memberships`, que este agregado no conoce ni
+      // debe. Vive entera en `RegisterProductService.verificarOrigen`, y desde
+      // `V61` TAMPOCO tiene una restricción detrás: es el único sitio.
       return;
     }
 

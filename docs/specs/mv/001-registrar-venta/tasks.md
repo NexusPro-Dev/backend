@@ -74,6 +74,7 @@ Enmienda del Art. I.7 sobre este requerimiento ya construido. La decidió el res
 |---|---|---|
 | `T-19` | **Regla de ArchUnit**: `movements` no depende de `system..domain..` ni de `products..domain..` | `MV` es el módulo que más fronteras cruza, y el primero que se apoya en una **decisión** de otro (`RF-PM-007`) en lugar de en un dato suyo. Sin la regla, «pregunta la oferta, no la recalcules» es una frase de un documento: un `SELECT` propio sobre `products` compilaría igual y pasaría las pruebas igual. La regla equivalente de `PM` existe desde D-25 y solo cubría a `PM` |
 | `T-20` | **Prueba unitaria de `RN-MV-006`** con el catálogo simulado | `EX-005` **no es alcanzable por HTTP hoy**, porque la oferta ya excluye lo que no sube. Sin esta prueba, borrar la comprobación de nivel del caso de uso dejaría la suite entera en verde. Ver §3 |
+| `T-21` | **`RN-MV-006` estrecha**: la comparación pasa de `destino >= nivelActual` a `destino > nivelActual`, y la prueba unitaria del catálogo simulado gana el caso del **mismo nivel**, que ahora se admite | La renovación se registra sin `EX-005`, y el **descenso lo sigue recibiendo**. `CA-MV-011` y `CA-MV-048` | **Hecha el 07-09-2026** |
 
 ## 2. Lo que se apartó del plan, y por qué
 

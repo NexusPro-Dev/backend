@@ -4,11 +4,12 @@
 |---|---|
 | Requerimiento | `RF-MV-001` |
 | Módulo | `MV` — Movimientos |
-| Versión | 0.2.0 |
+| Versión | 0.3.0 |
 | Estado | **Aprobada** |
 | Autor | Responsable técnico |
 | Aprobada por | Responsable del proyecto |
 | Fecha de aprobación | 02-09-2026 |
+| Enmendada el | 07-09-2026 — **renovar el mismo nivel se admite** (`RN-MV-006`). Ver §15 |
 
 !!! info "Qué va en este documento"
 
@@ -77,7 +78,7 @@ Es el **primer requerimiento del módulo** y el que pone en el sistema el objeto
 | `RN-MV-002` | Se copia lo que puede cambiar | `requirements/mv.md` §5.1 |
 | `RN-MV-003` | El vendedor sale de quien compra y se congela, y **puede no haberlo** | `requirements/mv.md` §5.1 |
 | `RN-MV-004` | Solo una venta confirmada produce efectos | `requirements/mv.md` §5.1 |
-| `RN-MV-006` | Solo se sube de nivel | `requirements/mv.md` §5.1 |
+| `RN-MV-006` | **No se baja de nivel**; renovar el mismo se admite | `requirements/mv.md` §5.1 |
 | `RN-MV-007` | El producto tiene que estar en la oferta de quien compra | `requirements/mv.md` §5.1 |
 | `RN-MV-008` | A una cuenta en `FTD_PENDIENTE` no se le vende | `requirements/mv.md` §5.1 |
 | `RN-MV-009` | Una venta lleva al menos una línea | `requirements/mv.md` §5.1 |
@@ -234,10 +235,14 @@ Es el **primer requerimiento del módulo** y el que pone en el sistema el objeto
 **Condición:** el producto existe pero no es de los que esa persona puede comprar — está retirado, inactivo, o no le corresponde por su nivel.
 **Respuesta del sistema:** rechaza la venta **nombrando el producto**, y no registra ninguna línea.
 
-### EX-005 — El upgrade no sube de nivel
+### EX-005 — El upgrade BAJA de nivel
 
-**Condición:** el producto lleva a una membresía **igual o inferior** a la que el cliente ya tiene.
-**Respuesta del sistema:** rechaza la venta diciendo que esa membresía no está por encima de la actual. Se rechaza **al registrar y no al confirmar**, que es lo único que evita cobrarle a alguien por algo que no le da nada (`RN-MV-006`).
+**Condición:** el producto lleva a una membresía **inferior** a la que el cliente ya tiene.
+**Respuesta del sistema:** rechaza la venta diciendo que esa membresía está por debajo de la actual. Se rechaza **al registrar y no al confirmar**, que es lo único que evita cobrarle a alguien por algo que le **quita** (`RN-MV-006`).
+
+!!! info "La membresía IGUAL dejó de ser una excepción el 07-09-2026"
+
+    Esta excepción rechazaba «igual o inferior». La mitad de «igual» **no protegía a nadie**: impedía **renovar**, que es pagar por tiempo sobre el nivel que ya se tiene, y `PM` lo admite desde hoy (`requirements/pm.md` §5.2.3). Lo que se queda es lo que importa — **una venta no baja a nadie de nivel**.
 
 ### EX-006 — Dos upgrades en la misma venta
 
@@ -299,7 +304,8 @@ Es el **primer requerimiento del módulo** y el que pone en el sistema el objeto
 | `CA-MV-008` | El sistema rechaza vender a una cuenta en `FTD_PENDIENTE`, **diciendo que le falta el depósito** |
 | `CA-MV-009` | El sistema rechaza un cliente inexistente, y **lo distingue** de un cliente que no puede operar |
 | `CA-MV-010` | El sistema rechaza un producto **fuera de la oferta** del cliente, nombrándolo, y lo distingue de un producto inexistente |
-| `CA-MV-011` | El sistema rechaza un upgrade a una membresía **igual o inferior** a la vigente |
+| `CA-MV-011` | El sistema rechaza un upgrade a una membresía **inferior** a la vigente |
+| `CA-MV-048` | El sistema **admite** un upgrade a la **misma** membresía vigente: es una **renovación**, y lo que se paga ahí es tiempo y no nivel |
 | `CA-MV-012` | El sistema rechaza **dos upgrades** en la misma venta |
 | `CA-MV-013` | El sistema rechaza el **mismo producto repetido** y una cantidad mayor que uno en un upgrade |
 | `CA-MV-014` | El sistema rechaza productos en **monedas distintas** |
@@ -340,3 +346,4 @@ Es el **primer requerimiento del módulo** y el que pone en el sistema el objeto
 |---|---|---|---|
 | 0.1.0 | 02-09-2026 | Redacción inicial, sin preguntas abiertas. Es la primera tripleta del `MV` renacido, y la que fija cómo se comporta la venta: **nace pendiente**, **congela** precio, vigencia y vendedor, y **no acepta el precio como dato de entrada** — que es la decisión con más consecuencias de este documento, porque convierte «negociar el importe» en algo que no se puede hacer sin descuentos. Once excepciones, de las que tres —`EX-002`, `EX-005` y `EX-003`— existen para que la venta se niegue a nacer antes de cobrar en lugar de después. | Responsable técnico |
 | 0.2.0 | 04-09-2026 | **El vendedor deja de ser obligatorio, y con él se retira `EX-003`** (Art. I.7, sobre un requerimiento ya construido). Lo decidió el responsable del proyecto: **comprar no es cosa solo de los clientes** — un agente también compra. El motivo por el que `EX-003` existía sigue leyéndose bien —«una promesa de otro módulo no es una comprobación de este»— y **su premisa estaba incompleta**: daba por hecho que quien compra es siempre un cliente. `RN-SP-019` declara desde el principio que **la cúspide de la fuerza comercial no declara superior**, de modo que con esa excepción en pie esa persona **no podía comprar nada**. `CA-MV-017` **invierte su sentido**: afirmaba que la venta se rechazaba y ahora afirma que se registra, sin atribución y sin error. El vendedor sigue viajando en la respuesta y **puede venir en nulo**, nunca ausente: la diferencia entre «no tiene vendedor» y «no vino el campo» es la que decide si alguien cobra. **Lo que cuesta queda en §13**: una venta sin vendedor **no comisiona a nadie**, porque `RN-CM-011` recorre la cadena hacia arriba desde él. Se acepta a conciencia — la alternativa era inventar una atribución, y una comisión pagada a quien no vendió **no se detecta**. **El número de la excepción no se reutiliza** y el hueco queda a la vista, para que nadie lea `EX-004` creyendo que es la tercera. | Responsable del proyecto |
+| 0.3.0 | 07-09-2026 | **`RN-MV-006` pierde la mitad de «igual»**: `EX-005` pasa de rechazar una membresía «igual o inferior» a rechazar **solo la inferior**, y `CA-MV-011` con ella. Nace `CA-MV-048`: comprar la **misma** membresía vigente se **admite**, porque es una **renovación** y lo que se paga ahí es **tiempo y no nivel** (`requirements/pm.md` §5.2.3, donde `PM` abre el catálogo a `X → X`). La mitad que se retira **no protegía a nadie**; la que se queda —**una venta no baja a nadie de nivel**— es la que evita cobrar por algo que quita. **El resto de la spec no cambia**: la venta sigue copiando importe y vigencia, `RN-MV-010` sigue admitiendo un solo upgrade, y `RN-MV-020` entrega la renovación sin nada nuevo — cierra la membresía abierta e inserta la comprada, que aquí es del mismo nivel. | Responsable del proyecto |

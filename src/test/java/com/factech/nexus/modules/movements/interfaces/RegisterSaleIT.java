@@ -94,11 +94,20 @@ class RegisterSaleIT extends IntegrationTestBase {
 
     upVip = upgrade("VTA_UP_VIP", "Ascenso a Vip", free, vip, "20.00", null, "ACTIVO", false);
     upPlatino =
-        upgrade("VTA_UP_PLATINO", "Ascenso a Platino", vip, platino, "50.00", 30, "ACTIVO", false);
-    upgrade("VTA_UP_ORO", "Ascenso a Oro", platino, oro, "100.00", 365, "ACTIVO", false);
+        upgrade("VTA_UP_PLATINO", "Ascenso a Platino", free, platino, "50.00", 30, "ACTIVO", false);
+    // DECLARADO DESDE `free` COMO LOS DEMÁS: desde el 07-09-2026 la oferta
+    // coincide por ORIGEN y no por nivel (`RF-PM-007` · `T-20`), de modo que un
+    // producto declarado desde `vip` no estaría en la oferta del cliente —que
+    // está en `free`— y `RN-MV-007` lo rechazaría antes de llegar a la regla
+    // que cada prueba quiere ejercitar. Es un SALTO, que `RN-PM-018` admite.
+    upgrade("VTA_UP_ORO", "Ascenso a Oro", free, oro, "100.00", 365, "ACTIVO", false);
 
     // Lleva a FREE, que es el nivel que el cliente YA tiene: la oferta no lo
-    // incluye, y es lo que hace verificable `CA-MV-011` de punta a punta.
+    // incluye —su ORIGEN es `sotano`, no `free`—, y es lo que hace verificable
+    // `EX-004` de punta a punta. La mitad de `CA-MV-011` que se comprueba aquí
+    // dejó de ser «el mismo nivel» el 07-09-2026: eso es una RENOVACIÓN y se
+    // admite; lo que sigue sin admitirse es la BAJADA, y esa vive en
+    // `RegisterSaleServiceTest`, donde la oferta se amplía a mano.
     upFree = upgrade("VTA_UP_FREE", "Ascenso a Free", sotano, free, "5.00", 7, "ACTIVO", false);
 
     botSenales = bot("VTA_BOT_SENALES", "Bot de señales", "10.00", null, "ACTIVO", USD, false);

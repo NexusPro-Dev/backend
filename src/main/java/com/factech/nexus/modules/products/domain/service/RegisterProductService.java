@@ -202,10 +202,18 @@ public class RegisterProductService {
     }
     MembershipView origen = resolver(comando.sourceMembershipId(), "sourceMembershipId", "origen");
 
-    if (origen.level() <= destino.level()) {
+    // ESTRICTAMENTE MENOR, y el cambio del 07-09-2026 está en ese símbolo. Era
+    // `<=`, que rechazaba también el MISMO nivel; ahora la renovación —un
+    // `ORO → ORO`, que vende tiempo y no nivel— se admite, y lo único que se
+    // rechaza es el DESCENSO (`requirements/pm.md` §5.2.3).
+    //
+    // Y desde `V61` esta comparación es LO ÚNICO que sostiene `RN-PM-017`:
+    // `ck_products_origen_distinto` se retiró con la renovación, y la mitad que
+    // sobrevive nunca cupo en un `CHECK`. No hay red debajo.
+    if (origen.level() < destino.level()) {
       String mensaje =
-          "Un upgrade debe subir de nivel: la membresía de origen no puede estar por encima"
-              + " de la de destino ni ser la misma.";
+          "Un upgrade no puede bajar de nivel: la membresía de origen no puede estar por encima"
+              + " de la de destino.";
       throw new UnprocessableEntityException(
           "EX-006", mensaje, List.of(new FieldError("sourceMembershipId", "VAL-014", mensaje)));
     }

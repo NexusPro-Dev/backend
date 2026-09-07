@@ -1,11 +1,11 @@
 package com.factech.nexus.modules.movements.domain.service;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatCode;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyCollection;
 import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -91,20 +91,18 @@ class RegisterSaleServiceTest {
   }
 
   @Test
-  @DisplayName("EX-005: un upgrade al MISMO nivel se rechaza, aunque la oferta lo incluya")
+  @DisplayName("`CA-MV-048` — un upgrade al MISMO nivel se ADMITE: es una renovación")
   void elUpgradeAlMismoNivel() {
-    // El cliente está en el nivel 3 y el producto lleva al 3. Subir es ir a un
-    // número MENOR: esto no sube.
+    // El cliente está en el nivel 3 y el producto lleva al 3. Hasta el
+    // 07-09-2026 esto era `EX-005`; desde que `PM` admite un `X → X`, es una
+    // RENOVACIÓN — se paga tiempo y no nivel (`requirements/pm.md` §5.2.3).
     UUID producto = ofrecer(upgrade("UP_IGUAL", 3));
     enNivel(3);
 
-    assertThatThrownBy(() -> servicio.register(peticion(producto, 1)))
-        .isInstanceOf(BusinessRuleException.class)
-        .hasMessageContaining("UP_IGUAL");
+    assertThatCode(() -> servicio.register(peticion(producto, 1))).doesNotThrowAnyException();
 
-    // Y no se registra nada: se rechaza AL REGISTRAR y no al confirmar, que es
-    // lo único que evita cobrarle a alguien por algo que no le da nada.
-    verify(movimientos, never()).save(any(), any());
+    // Y se registra: la mitad de la regla que se retiró no protegía a nadie.
+    verify(movimientos).save(any(), any());
   }
 
   @Test

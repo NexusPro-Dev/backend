@@ -151,9 +151,10 @@ public class PublishedProductCatalog implements ProductCatalog {
    * findOffer}. Lo único que este método añade es la intersección con el lote.
    *
    * <p>Escribir un {@code SELECT} propio que filtrara «los que están por encima de su nivel» habría
-   * sido más corto y habría creado <b>la segunda definición de la oferta</b>. Cuando `RF-PM-007` ·
-   * `T-20` reescriba {@code findOffer} para coincidir por origen, esta lectura cambia con ella sin
-   * que nadie la toque; con una consulta propia, seguiría vendiendo por nivel y nada fallaría.
+   * sido más corto y habría creado <b>la segunda definición de la oferta</b>. `RF-PM-007` · `T-20`
+   * reescribió {@code findOffer} para coincidir por origen el 07-09-2026, y esta lectura cambió con
+   * él sin que nadie la tocara — <b>lo único que hubo que cambiar fue el tipo de una variable</b>.
+   * Con una consulta propia, seguiría vendiendo por nivel y nada fallaría.
    *
    * <p><b>Dos consultas y no una</b> —la membresía y la oferta—, que son exactamente las mismas dos
    * que `GetOwnOfferService` hace para responder a la misma pregunta. La oferta completa cabe en
@@ -170,11 +171,16 @@ public class PublishedProductCatalog implements ProductCatalog {
     // tuvo membresía, quien la tuvo y venció, y quien no existe. `findOffer`
     // acepta el nulo y devuelve solo los bots, que es la respuesta correcta
     // para los tres (`RF-PM-007` · `FA-001` y `FA-003`).
-    Integer nivel =
-        membresias.currentMembershipOf(userId).map(m -> (Integer) m.level()).orElse(null);
+    //
+    // ES EL IDENTIFICADOR Y NO EL NIVEL desde el 07-09-2026, y ese es TODO el
+    // cambio que costó aquí la coincidencia por origen: el aviso de arriba
+    // decía que esta lectura cambiaría «sin que nadie la toque», y lo único que
+    // hubo que tocar fue el tipo de esta variable. Una consulta propia habría
+    // seguido vendiendo por nivel, sin que nada fallara.
+    UUID membresia = membresias.currentMembershipOf(userId).map(m -> (UUID) m.id()).orElse(null);
 
     Set<UUID> pedidos = new LinkedHashSet<>(ids);
-    return consultas.findOffer(nivel).stream()
+    return consultas.findOffer(membresia).stream()
         .map(ProductQueryRepository.ProductRow::id)
         .filter(pedidos::contains)
         .collect(Collectors.toCollection(LinkedHashSet::new));

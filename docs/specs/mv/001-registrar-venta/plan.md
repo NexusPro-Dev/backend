@@ -116,6 +116,12 @@ Cuatro datos que la petición no trae, y **ninguno se calcula aquí** ([`archite
 
     Es lo que mantiene `EX-005` alcanzable: hoy no se llega por la oferta, y se llegaría el día siguiente a que `PM` la ampliara.
 
+!!! success "Y el 07-09-2026 se amplió, exactamente como este aviso previó"
+
+    `PM` abrió el catálogo a la **renovación** —`X → X`, `requirements/pm.md` §5.2.3— y la oferta pasó a coincidir por **origen**, de modo que un producto de la misma membresía **sí llega** ahora a `RN-MV-006`.
+
+    La comprobación no se borra: **estrecha**. Pasa de rechazar `destino >= nivelActual` a rechazar `destino > nivelActual` — el mismo nivel se admite y el inferior sigue sin admitirse. Lo que este aviso defendía era justo eso: que la regla siguiera viva y en `MV` para poder cambiarla **aquí** el día que `PM` moviera su oferta, sin que nadie tuviera que ir a buscarla.
+
 ## 4. Contrato de API
 
 `POST /api/v1/movements` · `201 Created`, con `Location`.

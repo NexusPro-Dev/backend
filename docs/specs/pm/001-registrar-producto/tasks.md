@@ -8,7 +8,7 @@
 | Autor | Responsable técnico |
 | Aprobadas por | Responsable del proyecto |
 | Fecha de aprobación | 26-08-2026 |
-| Enmendadas | 28-08-2026 — `T-19` a `T-22` por el renombrado a `BOT` y el icono del upgrade; 02-09-2026 — `T-23` a `T-26` por la membresía de **origen**; 07-09-2026 — `T-27` a `T-30` por el **alcance** y la **implementación** |
+| Enmendadas | 28-08-2026 — `T-19` a `T-22` por el renombrado a `BOT` y el icono del upgrade; 02-09-2026 — `T-23` a `T-26` por la membresía de **origen**; 07-09-2026 — `T-27` a `T-30` por el **alcance** y la **implementación**, y `T-31` por la **renovación** |
 
 !!! info "Qué va en este documento"
 
@@ -50,6 +50,7 @@
 | `T-28` | `ProductScope` y `ProductImplementation` como dominios cerrados, las dos columnas en el agregado, en `RegisterProductRequest` con `@NotNull` y en `RegisterProductCommand` | `T-27` | Un valor fuera del dominio devuelve `400` al deserializar, y la ausencia devuelve `400` **nombrando el campo** (`VAL-015`, `VAL-016`) | **Hecha el 07-09-2026** |
 | `T-29` | Las dos en la **instantánea** del agregado y en las cuatro respuestas del módulo —alta, listado, detalle y oferta— | `T-28` | El evento de creación de `audit_change_log` las lleva (`CA-PM-114`), y las cuatro respuestas las devuelven **siempre presentes** | **Hecha el 07-09-2026** |
 | `T-30` | Pruebas de API de `CA-PM-110` a `CA-PM-114`, incluida la del **bot con `HOTLINKS` y `MANUAL`**, que es la que verifica que ninguna de las dos depende del tipo | `T-29` | La suite de `PM` en verde con los cinco criterios nuevos | **Hecha el 07-09-2026** |
+| `T-31` | Migración `V61__products_admite_renovacion.sql`: **retira `ck_products_origen_distinto`** (`plan.md` §2.5). En el agregado, `Product.verificarTipoYMembresias` deja de rechazar `origen == destino`; en el caso de uso, la comparación pasa de `<=` a `<` | `T-23` | Un `INSERT` directo de `FREE → FREE` **entra**; el alta por API admite la renovación (`CA-PM-125`) y sigue rechazando el descenso con `EX-006` y `VAL-014` (`CA-PM-104`) | **Hecha el 07-09-2026** |
 
 ## 2. Orden de ejecución
 
@@ -75,7 +76,8 @@
 | `CA-PM-071` | `T-10` |
 | `CA-PM-101`, `CA-PM-102` | `T-23`, `T-24`, `T-26` |
 | `CA-PM-103`, `CA-PM-105` | `T-24`, `T-26` |
-| `CA-PM-104` | `T-24`, `T-25`, `T-26` |
+| `CA-PM-104` | `T-24`, `T-25`, `T-26`, `T-31` |
+| `CA-PM-125` | `T-31` |
 | `CA-PM-110`, `CA-PM-111` | `T-28`, `T-30` |
 | `CA-PM-112` | `T-28`, `T-30` |
 | `CA-PM-113` | `T-29`, `T-30` |

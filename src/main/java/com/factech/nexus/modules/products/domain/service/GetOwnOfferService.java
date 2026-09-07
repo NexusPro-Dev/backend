@@ -75,11 +75,16 @@ public class GetOwnOfferService {
 
     Optional<CurrentMembershipView> actual = membresias.currentMembershipOf(quien);
 
-    // Nulo NO es «sin filtro»: es «no hay peldaño desde el que subir», y la
-    // consulta lo traduce en cero upgrades y todos los bots (`FA-001`,
-    // `FA-003`). Quien no tiene nivel no lo obtiene comprando un salto, sino
-    // recibiendo un rol de consumidor (`RN-SP-018`).
-    Integer nivel = actual.map(CurrentMembershipView::level).orElse(null);
+    // Nulo NO es «sin filtro»: es «ninguna coincidencia posible», y la consulta
+    // lo traduce en cero upgrades y todos los bots (`FA-001`, `FA-003`). Quien
+    // no tiene nivel no lo obtiene comprando un salto, sino recibiendo un rol de
+    // consumidor (`RN-SP-018`).
+    //
+    // ES EL IDENTIFICADOR Y NO EL NIVEL desde el 07-09-2026 (`T-20`): la oferta
+    // coincide por ORIGEN. El nivel no podía expresar la renovación —un
+    // `X → X` obliga a comparar «igual», y ahí entra el salto ajeno que acaba
+    // donde el actor ya está—.
+    UUID membresia = actual.map(CurrentMembershipView::id).orElse(null);
 
     List<OfferItem> upgrades = new ArrayList<>();
     List<OfferItem> bots = new ArrayList<>();
@@ -87,7 +92,7 @@ public class GetOwnOfferService {
     // Se separa por tipo SIN reordenar: la sentencia ya devolvió los upgrades
     // por nivel de destino y los bots por fecha de alta (`CA-PM-078`), y volver
     // a ordenar aquí sería una segunda copia de ese criterio.
-    for (ProductRow fila : consultas.findOffer(nivel)) {
+    for (ProductRow fila : consultas.findOffer(membresia)) {
       OfferItem producto = OfferItem.from(fila);
       if (producto.type() == ProductType.UPGRADE_MEMBRESIA) {
         upgrades.add(producto);

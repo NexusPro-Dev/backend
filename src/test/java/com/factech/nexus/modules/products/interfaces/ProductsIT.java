@@ -272,26 +272,15 @@ class ProductsIT extends IntegrationTestBase {
   }
 
   @Test
-  @DisplayName("`CA-PM-104` — `RN-PM-017`: ni el mismo nivel ni un descenso vendido como upgrade")
-  void elOrigenDebeEstarPorDebajoDelDestino() throws Exception {
-    // Origen IGUAL al destino. Lo ve el agregado —le basta comparar dos
-    // identificadores—, y por eso es 400 y no 422.
-    mvc.perform(
-            alta(
-                """
-                {"scope":"TIENDA","implementation":"AUTOMATICA","code":"MISMO","type":"UPGRADE_MEMBRESIA","name":"A donde ya estoy",
-                 "sourceMembershipId":"%s","targetMembershipId":"%s","price":49.99,
-                 "currencyId":"%s"}
-                """
-                    .formatted(oro, oro, USD)))
-        .andExpect(status().isBadRequest())
-        .andExpect(jsonPath("$.errors[0].code").value("VAL-014"))
-        .andExpect(jsonPath("$.errors[0].field").value("sourceMembershipId"));
-
+  @DisplayName("`CA-PM-104` — `RN-PM-017`: un descenso vendido como upgrade se rechaza")
+  void elOrigenNoPuedeEstarPorEncimaDelDestino() throws Exception {
     // Origen POR ENCIMA del destino: `ORO` es el nivel 1 y `FREE` el 4. Un
-    // descenso con la etiqueta de ascenso. Aquí sí hace falta leer el `level`
-    // de las dos filas, y es 422 porque el dato existe: lo que no vale es la
-    // relación entre los dos.
+    // descenso con la etiqueta de ascenso. Hace falta leer el `level` de las
+    // dos filas, y es 422 porque el dato existe: lo que no vale es la relación
+    // entre los dos.
+    //
+    // Y desde `V61` esta comprobación es LO ÚNICO que sostiene la regla:
+    // `ck_products_origen_distinto` se retiró con la renovación.
     mvc.perform(
             alta(
                 """
@@ -304,7 +293,27 @@ class ProductsIT extends IntegrationTestBase {
         .andExpect(jsonPath("$.errors[0].code").value("VAL-014"))
         .andExpect(jsonPath("$.errors[0].field").value("sourceMembershipId"));
 
-    assertThat(cuantosProductos()).isZero();
+    assertThat(cuantosProductos()).as("el rechazo no registró nada").isZero();
+  }
+
+  @Test
+  @DisplayName("`CA-PM-125` — el origen PUEDE ser el destino: es una renovación")
+  void elOrigenPuedeSerElDestino() throws Exception {
+    // Lo rechazaba `VAL-014` hasta el 07-09-2026. Un `ORO → ORO` no vende un
+    // cambio de nivel: vende TIEMPO, la vigencia que declara, y eso es un
+    // producto legítimo (`requirements/pm.md` §5.2.3).
+    mvc.perform(
+            alta(
+                """
+                {"scope":"TIENDA","implementation":"AUTOMATICA","code":"RENOVAR_ORO","type":"UPGRADE_MEMBRESIA","name":"Renovar Oro",
+                 "sourceMembershipId":"%s","targetMembershipId":"%s","price":49.99,
+                 "currencyId":"%s","validityDays":30}
+                """
+                    .formatted(oro, oro, USD)))
+        .andExpect(status().isCreated())
+        .andExpect(jsonPath("$.sourceMembership.code").value("ORO"))
+        .andExpect(jsonPath("$.targetMembership.code").value("ORO"))
+        .andExpect(jsonPath("$.validityDays").value(30));
   }
 
   @Test

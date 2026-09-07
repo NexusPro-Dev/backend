@@ -10,6 +10,7 @@
 | Fecha de aprobación | 26-08-2026 |
 | Enmendada el | 02-09-2026 — ver §15 |
 | Enmendada el | 07-09-2026 — **la oferta publica el alcance y la implementación, y no filtra por ninguno** (`RN-PM-019`, `RN-PM-020`). Ver §15 |
+| Enmendada el | 07-09-2026 — **la oferta coincide por ORIGEN** (`RN-PM-011`), y con ella entra la **renovación**. Ver §15 |
 
 ---
 
@@ -64,7 +65,7 @@ El catálogo de `RF-PM-002` lo lee quien administra y contiene todo. Lo que un c
 | ID | Regla | Origen |
 |---|---|---|
 | `RN-PM-009` | Solo se ofrece lo activo | `requirements/pm.md` §5.1 |
-| `RN-PM-011` | Un upgrade se ofrece solo hacia arriba | `requirements/pm.md` §5.1 |
+| `RN-PM-011` | **La oferta coincide por ORIGEN**, no compara niveles | `requirements/pm.md` §5.1 |
 | `RN-PM-019` | El alcance es **acumulativo**, y por eso **no filtra** esta consulta | `requirements/pm.md` §5.2.2 |
 | `RN-PM-020` | La implementación dice si lo comprado se aplica solo o espera autorización | `requirements/pm.md` §5.1 |
 | `RN-SP-018` | Todo consumidor tiene membresía | `requirements/sp.md` §5.1 |
@@ -141,10 +142,11 @@ Ninguna: la consulta no admite entrada.
 | ID | Criterio |
 |---|---|
 | `CA-PM-058` | El sistema devuelve solo productos **activos**: ni inactivos, ni retirados |
-| `CA-PM-059` | El sistema ofrece a un actor de nivel intermedio **solo los upgrades hacia niveles superiores** al suyo |
-| `CA-PM-060` | El sistema **no ofrece** el upgrade hacia el nivel que el actor ya tiene |
+| `CA-PM-059` | El sistema ofrece a un actor de nivel intermedio **solo los upgrades declarados desde su membresía**, y ninguno declarado desde otra |
+| `CA-PM-060` | El sistema **no ofrece** un upgrade hacia el nivel que el actor ya tiene **cuando su origen no es el suyo** — sería el salto de otro que acaba donde él está |
+| `CA-PM-126` | El sistema **sí ofrece** el upgrade `X → X` declarado desde la membresía del actor: es su **renovación** |
 | `CA-PM-061` | El sistema **no ofrece** upgrades hacia niveles inferiores al del actor |
-| `CA-PM-062` | El sistema devuelve la lista de upgrades vacía a quien está en el nivel más alto de la cadena |
+| `CA-PM-062` | El sistema devuelve la lista de upgrades **vacía a quien no tenga ninguno declarado desde su membresía**, y eso incluye al que está en la cima si nadie declaró su renovación |
 | `CA-PM-063` | El sistema no ofrece ningún upgrade a quien no tiene membresía vigente, incluida la vencida |
 | `CA-PM-064` | El sistema devuelve el nivel actual del actor junto con su oferta |
 | `CA-PM-065` | El sistema responde a cualquier persona autenticada **con `products:sale`**. Hasta el 02-09-2026 no exigía ningún permiso: mismo identificador, contenido revisado (§15) |
@@ -196,3 +198,4 @@ Ninguna. Las cinco se resolvieron el 26-08-2026, antes de aprobar la especificac
 | 0.4.0 | 02-09-2026 | **Esta consulta deja de comparar niveles.** Un upgrade declara ahora **de qué membresía sale** (`pm.md` §5.2.1), y la oferta pasa de ser un cálculo —«todos los que llevan por encima de mi nivel»— a una **coincidencia exacta**: los upgrades cuyo origen es mi membresía. **La regla de niveles no desaparece, se muda**: deja de evaluarse en cada consulta y se comprueba **una vez, al registrar** (`RN-PM-017`). Aquí ya no hay nada que deducir, porque quien declaró el producto ya dijo a quién va dirigido. **Y `FA-001` se conserva sin escribir una línea**: quien no tiene membresía no coincide con ningún origen, de modo que sigue sin ver upgrades — antes había que decirlo aparte, ahora sale del propio filtro. La membresía de origen **no viaja en la respuesta**: es siempre la del actor, que ya va ahí. Nacen `CA-PM-106` a `CA-PM-108`, y la última es la que más fácil se olvida: **un upgrade hacia el nivel que ya se tiene no se ofrece**, y con la coincidencia exacta eso sale solo — su origen es otro. **Lo que se paga queda escrito en cabecera**: si nadie declara un upgrade desde `VIP`, quien esté en `VIP` no ve ninguna subida, sin error y sin aviso. La cobertura de la cadena deja de ser automática. | Responsable del proyecto |
 | 0.5.0 | 02-09-2026 | **Enmienda bajo Art. I.7, con el requerimiento ya implementado.** Por decisión del responsable del proyecto, esta consulta pasa a exigir `products:sale`: hasta hoy respondía a cualquier persona autenticada sin exigir nada. `CA-PM-065` **cambia de contenido y conserva su identificador** —el mismo criterio, el permiso exigido— y nace `CA-PM-101`: el `403` a quien no lo tenga, aunque porte otros permisos de `products:`. §3 se actualiza a juego. Lo que **no** cambia: sigue sin admitir parámetro de persona (`CA-PM-066`), y la oferta de un tercero sigue sin existir ni con parámetro ni con permiso (§4.2). | Responsable del proyecto |
 | 0.5.0 | 07-09-2026 | **La oferta publica el alcance y la implementación, y NO filtra por ninguno de los dos** (`RN-PM-019`, `RN-PM-020`). Lo segundo es lo que hay que leer: **el alcance no puede filtrar aquí**, porque es **acumulativo** — `HOTLINKS` incluye la tienda, de modo que los dos valores llegan a esta consulta y un predicado sobre él devolvería siempre lo mismo que no ponerlo. Escribirlo «por simetría» con `RF-PM-002` habría sido peor que no escribirlo: un filtro que no filtra invita a construir sobre él una condición que nunca se cumple. **La implementación sí viaja en la respuesta**, y no por simetría tampoco: quien compra tiene que poder saber **antes de pagar** que lo que se lleva no se le entrega en el acto, y ocultarlo no evita la espera — la convierte en una incidencia de soporte. Entran `CA-PM-123` y `CA-PM-124`, y el segundo es el que **prueba que la escala no filtra**: un producto de `TIENDA` y otro de `HOTLINKS` aparecen **los dos**. | Responsable del proyecto |
+| 0.6.0 | 07-09-2026 | **La oferta deja de comparar niveles y pasa a coincidir por ORIGEN**, que es lo que `requirements/pm.md` §5.2.1 declaró decidido el **02-09-2026** y nunca se construyó (`T-20`). El disparador es la **renovación**: `PM` admite ya un upgrade `X → X` (§5.2.3), y **eso no se puede expresar comparando niveles** — abrir la comparación a «inferior o igual» le ofrecería a quien está en `ORO` un `PLATINO → ORO`, que no es suyo. La coincidencia exacta lo resuelve entero: `FREE → FREE` es la renovación de quien está en `FREE`, y `PLATINO → ORO` no le aparece a nadie que no esté en `PLATINO`. **Se enmiendan tres criterios que estaban escritos en términos de nivel** —`CA-PM-059`, `CA-PM-060` y `CA-PM-062`—, y `CA-PM-106` a `CA-PM-108`, escritos el 02-09-2026 y **sin prueba hasta hoy**, pasan a estar cubiertos. Nace `CA-PM-126` para la renovación. **La garantía de que no se ofrecen bajadas NO se pierde al quitar el filtro de niveles**, y conviene que quede escrito: la sostiene `RN-PM-017` comprobada **al registrar**, porque un producto declarado desde mi membresía no puede apuntar por debajo — la regla se mudó de la consulta al alta, que es lo que aquella sección ya decía. | Responsable del proyecto |

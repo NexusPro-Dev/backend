@@ -396,7 +396,7 @@ public class RegisterSaleService {
   }
 
   /**
-   * `RN-MV-006` y `EX-005`: <b>solo se sube de nivel</b>.
+   * `RN-MV-006` y `EX-005`: <b>no se baja de nivel</b>, y renovar el mismo <b>sí</b> se admite.
    *
    * <p><b>Se comprueba aunque la oferta ya lo garantice hoy</b>, y eso no es redundancia por exceso
    * de celo: la oferta es una decisión de `PM` y puede ampliarse —el día que se vendan renovaciones
@@ -422,9 +422,17 @@ public class RegisterSaleService {
       return;
     }
     Integer destino = upgrade.targetMembershipLevel();
-    if (destino == null || destino >= nivelActual.get()) {
+    // MAYOR ESTRICTO, y el cambio del 07-09-2026 está en ese símbolo. Era
+    // `>=`, que rechazaba también la MISMA membresía; desde que `PM` admite un
+    // `X → X` eso es una RENOVACIÓN —se paga tiempo, no nivel— y registrarla es
+    // legítimo (`requirements/pm.md` §5.2.3).
+    //
+    // Lo que se queda es la mitad que protege a quien paga: UNA VENTA NO BAJA A
+    // NADIE DE NIVEL. El nulo se sigue rechazando — un upgrade sin destino no
+    // debería existir, y si llega aquí es que algo se rompió antes.
+    if (destino == null || destino > nivelActual.get()) {
       String mensaje =
-          "El producto «%s» no lleva a una membresía superior a la que esa persona ya tiene."
+          "El producto «%s» lleva a una membresía inferior a la que esa persona ya tiene."
               .formatted(upgrade.code());
       throw new BusinessRuleException(
           "EX-005", mensaje, List.of(new FieldError("lines", "EX-005", mensaje)));
