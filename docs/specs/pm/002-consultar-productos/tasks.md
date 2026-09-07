@@ -3,7 +3,7 @@
 | Campo | Valor |
 |---|---|
 | Requerimiento | `RF-PM-002` |
-| Enmendadas | 02-09-2026 — el filtro por membresía de **origen** |
+| Enmendadas | 02-09-2026 — el filtro por membresía de **origen**; 07-09-2026 — `T-16` y `T-17` por los filtros de **alcance** e **implementación** |
 | Plan | [`plan.md`](plan.md), aprobado el 26-08-2026 |
 | Estado | **Aprobadas** |
 | Autor | Responsable técnico |
@@ -31,6 +31,8 @@
 | `T-13` | Documentación OpenAPI del endpoint con sus **ocho** parámetros | `T-10` | El contrato declara los filtros y los estados | Hecha |
 | `T-14` | Actualizar la matriz de trazabilidad | `T-10` | La fila refleja el estado | Hecha |
 | `T-15` | La **vigencia** viaja en cada fila del listado | `T-05` | Un producto sin vigencia llega con el campo **vacío y presente**, no ausente | Hecha |
+| `T-16` | Los dos filtros nuevos: `scope` e `implementation` en `ListProductsRequest`, su comprobación de dominio **con el ayudante que ya usan `type` y `status`**, el predicado y el enlace en el adaptador, y las dos columnas en `ProductItem` | `RF-PM-001 · T-28` | El filtro en minúsculas devuelve las filas correctas —no una colección vacía—, un valor fuera de dominio se acumula con los demás en un solo `400`, y el listado sigue costando **dos** sentencias con los ocho filtros puestos | **Hecha el 07-09-2026** |
+| `T-17` | Pruebas de API de `CA-PM-115` a `CA-PM-117`, y la documentación OpenAPI con los **diez** parámetros | `T-16` | La suite de `PM` en verde con los tres criterios nuevos, y el contrato declara los dos parámetros | **Hecha el 07-09-2026** |
 
 ## 2. Orden de ejecución
 
@@ -52,6 +54,8 @@
 | `CA-PM-074`, `CA-PM-075` | `T-02`, `T-05` |
 | `CA-PM-076` | `T-11` |
 | `CA-PM-077` | `T-10` |
+| `CA-PM-115`, `CA-PM-116` | `T-16`, `T-17` |
+| `CA-PM-117` | `T-16`, `T-17` |
 
 ## 4. Bloqueos
 

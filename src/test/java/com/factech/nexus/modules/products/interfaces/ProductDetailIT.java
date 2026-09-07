@@ -245,6 +245,35 @@ class ProductDetailIT extends IntegrationTestBase {
         .andExpect(status().isForbidden());
   }
 
+  @Test
+  @DisplayName(
+      "`CA-PM-118` — el detalle devuelve el alcance y la implementación, retirado incluido")
+  void alcanceEImplementacionEnElDetalle() throws Exception {
+    jdbc.update(
+        "UPDATE products SET scope = 'HOTLINKS', implementation = 'AUTOMATICA' WHERE id = ?",
+        upgrade);
+
+    mvc.perform(detalle(upgrade))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.scope").value("HOTLINKS"))
+        .andExpect(jsonPath("$.implementation").value("AUTOMATICA"));
+
+    // En el bot también: ninguna de las dos depende del tipo.
+    mvc.perform(detalle(bot))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.scope").value("TIENDA"))
+        .andExpect(jsonPath("$.implementation").value("MANUAL"));
+
+    // Y en uno retirado: el detalle lo devuelve marcado, no como inexistente
+    // (`CA-PM-026`), de modo que su configuración sigue siendo legible.
+    retirar(bot, "Se descontinúa el servicio.");
+    mvc.perform(detalle(bot))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.deletedAt").exists())
+        .andExpect(jsonPath("$.scope").value("TIENDA"))
+        .andExpect(jsonPath("$.implementation").value("MANUAL"));
+  }
+
   // ---------------------------------------------------------------------------
 
   private MockHttpServletRequestBuilder detalle(UUID id) {
@@ -319,10 +348,10 @@ class ProductDetailIT extends IntegrationTestBase {
     // deriva del destino en lugar de ser un parametro mas — nunca puede
     // quedar uno sin el otro, que es lo que `ck_products_type_target` mira.
     jdbc.update(
-        "INSERT INTO products (id, code, type, name, description, source_membership_id,"
+        "INSERT INTO products (scope, implementation, id, code, type, name, description, source_membership_id,"
             + " target_membership_id, price,"
             + " currency_id, validity_days, status, created_at, updated_at)"
-            + " VALUES (CAST(? AS uuid), ?, ?, ?, NULL,"
+            + " VALUES ('TIENDA', 'MANUAL', CAST(? AS uuid), ?, ?, ?, NULL,"
             + " CAST(? AS uuid), CAST(? AS uuid), CAST(? AS numeric),"
             + " CAST(? AS uuid), CAST(? AS integer), 'INACTIVO', ?, ?)",
         id.toString(),

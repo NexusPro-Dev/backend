@@ -58,7 +58,8 @@ public class JpaProductQueryRepository implements ProductQueryRepository {
                s.level AS s_level,
                p.price AS price, p.currency_id AS c_id, c.code AS c_code,
                c.decimal_places AS c_decimales,
-               p.validity_days AS validity_days, p.status AS status,
+               p.validity_days AS validity_days, p.scope AS scope,
+               p.implementation AS implementation, p.status AS status,
                p.created_at AS created_at, p.deleted_at AS deleted_at
           FROM products p
           LEFT JOIN memberships m ON m.id = p.target_membership_id
@@ -101,6 +102,8 @@ public class JpaProductQueryRepository implements ProductQueryRepository {
               (String) fila.get("c_code"),
               ((Number) fila.get("c_decimales")).intValue(),
               entero(fila.get("validity_days")),
+              (String) fila.get("scope"),
+              (String) fila.get("implementation"),
               (String) fila.get("status"),
               momento(fila.get("created_at")),
               // El listado no selecciona `updated_at`: nadie pregunta a una
@@ -143,7 +146,8 @@ public class JpaProductQueryRepository implements ProductQueryRepository {
                        s.level AS s_level,
                        p.price AS price, p.currency_id AS c_id, c.code AS c_code,
                        c.decimal_places AS c_decimales,
-                       p.validity_days AS validity_days, p.status AS status,
+                       p.validity_days AS validity_days, p.scope AS scope,
+                       p.implementation AS implementation, p.status AS status,
                        p.created_at AS created_at, p.updated_at AS updated_at,
                        p.deleted_at AS deleted_at
                   FROM products p
@@ -180,6 +184,8 @@ public class JpaProductQueryRepository implements ProductQueryRepository {
                     (String) fila.get("c_code"),
                     ((Number) fila.get("c_decimales")).intValue(),
                     entero(fila.get("validity_days")),
+                    (String) fila.get("scope"),
+                    (String) fila.get("implementation"),
                     (String) fila.get("status"),
                     momento(fila.get("created_at")),
                     momento(fila.get("updated_at")),
@@ -233,7 +239,8 @@ public class JpaProductQueryRepository implements ProductQueryRepository {
                        m.level AS m_level,
                        p.price AS price, p.currency_id AS c_id, c.code AS c_code,
                        c.decimal_places AS c_decimales,
-                       p.validity_days AS validity_days, p.status AS status,
+                       p.validity_days AS validity_days, p.scope AS scope,
+                       p.implementation AS implementation, p.status AS status,
                        p.created_at AS created_at
                   FROM products p
                   LEFT JOIN memberships s ON s.id = p.source_membership_id
@@ -276,6 +283,8 @@ public class JpaProductQueryRepository implements ProductQueryRepository {
               (String) fila.get("c_code"),
               ((Number) fila.get("c_decimales")).intValue(),
               entero(fila.get("validity_days")),
+              (String) fila.get("scope"),
+              (String) fila.get("implementation"),
               (String) fila.get("status"),
               momento(fila.get("created_at")),
               // Ni `updated_at` ni `deleted_at`: la oferta no los selecciona.
@@ -292,7 +301,7 @@ public class JpaProductQueryRepository implements ProductQueryRepository {
   // ---------------------------------------------------------------------------
 
   /**
-   * Los cinco filtros, todos sobre columnas de {@code products}.
+   * Los siete filtros, todos sobre columnas de {@code products}.
    *
    * <p><b>Ninguno puede multiplicar la fila</b>, y por eso aquí no hace falta el {@code EXISTS} que
    * el listado de personas necesitó: un producto tiene <b>un</b> destino y <b>una</b> moneda, no
@@ -312,6 +321,12 @@ public class JpaProductQueryRepository implements ProductQueryRepository {
     }
     if (filtros.status() != null) {
       donde.append(" AND p.status = :estado");
+    }
+    if (filtros.scope() != null) {
+      donde.append(" AND p.scope = :alcance");
+    }
+    if (filtros.implementation() != null) {
+      donde.append(" AND p.implementation = :implementacion");
     }
     if (filtros.targetMembershipId() != null) {
       donde.append(" AND p.target_membership_id = :destino");
@@ -339,6 +354,12 @@ public class JpaProductQueryRepository implements ProductQueryRepository {
     }
     if (filtros.status() != null) {
       consulta.setParameter("estado", filtros.status());
+    }
+    if (filtros.scope() != null) {
+      consulta.setParameter("alcance", filtros.scope());
+    }
+    if (filtros.implementation() != null) {
+      consulta.setParameter("implementacion", filtros.implementation());
     }
     if (filtros.targetMembershipId() != null) {
       consulta.setParameter("destino", filtros.targetMembershipId());

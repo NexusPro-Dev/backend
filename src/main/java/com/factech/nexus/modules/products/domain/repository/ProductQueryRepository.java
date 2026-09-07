@@ -56,10 +56,10 @@ public interface ProductQueryRepository {
   /**
    * Proyección de un producto del listado.
    *
-   * <p><b>{@code type} y {@code status} son texto y no sus enumerados.</b> La proyección es lo que
-   * la base devuelve; convertir a enumerado es decisión del modelo de lectura, y hacerlo aquí
-   * pondría a fallar la consulta entera —con un {@code 500}— si algún día el esquema admitiera un
-   * valor que el código todavía no conoce.
+   * <p><b>{@code type}, {@code status}, {@code scope} e {@code implementation} son texto y no sus
+   * enumerados.</b> La proyección es lo que la base devuelve; convertir a enumerado es decisión del
+   * modelo de lectura, y hacerlo aquí pondría a fallar la consulta entera —con un {@code 500}— si
+   * algún día el esquema admitiera un valor que el código todavía no conoce.
    *
    * <p><b>No lleva el motivo del retiro</b> (`CA-PM-077`): la sentencia ni siquiera lo selecciona,
    * que es lo único que hace verificable el criterio. Cuando el detalle lo necesita, entra por el
@@ -89,6 +89,8 @@ public interface ProductQueryRepository {
       String currencyCode,
       int currencyDecimalPlaces,
       Integer validityDays,
+      String scope,
+      String implementation,
       String status,
       OffsetDateTime createdAt,
       OffsetDateTime updatedAt,

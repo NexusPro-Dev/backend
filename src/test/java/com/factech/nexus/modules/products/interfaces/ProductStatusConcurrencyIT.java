@@ -185,10 +185,10 @@ class ProductStatusConcurrencyIT extends IntegrationTestBase {
     // deriva del destino en lugar de ser un parametro mas — nunca puede
     // quedar uno sin el otro, que es lo que `ck_products_type_target` mira.
     jdbc.update(
-        "INSERT INTO products (id, code, type, name, description, source_membership_id,"
+        "INSERT INTO products (scope, implementation, id, code, type, name, description, source_membership_id,"
             + " target_membership_id, price,"
             + " currency_id, validity_days, status, created_at, updated_at)"
-            + " VALUES (CAST(? AS uuid), ?, 'UPGRADE_MEMBRESIA', ?, 'Sube al nivel oro.',"
+            + " VALUES ('TIENDA', 'MANUAL', CAST(? AS uuid), ?, 'UPGRADE_MEMBRESIA', ?, 'Sube al nivel oro.',"
             + " CAST(? AS uuid), CAST(? AS uuid), 10.00, CAST(? AS uuid), NULL, 'INACTIVO', ?, ?)",
         id.toString(),
         codigo,

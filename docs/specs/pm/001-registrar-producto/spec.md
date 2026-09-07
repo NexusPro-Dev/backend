@@ -10,6 +10,7 @@
 | Fecha de aprobación | 26-08-2026 |
 | Enmendada el | 28-08-2026 — ver §15 |
 | Enmendada el | 02-09-2026 — **un upgrade declara tambien su membresia de ORIGEN** (`RN-PM-002`, `RN-PM-017`, `RN-PM-018`). Ver el aviso de cabecera |
+| Enmendada el | 07-09-2026 — **el alta declara el alcance y la implementación** (`RN-PM-019`, `RN-PM-020`), las dos obligatorias y en los dos tipos. Ver §15 |
 
 !!! danger "Un upgrade dice ahora DE DONDE sale, y eso cambia quien puede comprarlo"
 
@@ -72,6 +73,8 @@ Hoy la plataforma no tiene **nada que vender**. La membresía de una persona sol
 | `RN-PM-013` | El código no se libera nunca | `requirements/pm.md` §5.1 |
 | `RN-PM-015` | La vigencia se mide en días y es opcional | `requirements/pm.md` §5.1 |
 | `RN-PM-016` | El icono solo existe en el upgrade | `requirements/pm.md` §5.1 |
+| `RN-PM-019` | **El alcance dice hasta dónde se muestra, y es acumulativo** | `requirements/pm.md` §5.1 |
+| `RN-PM-020` | **La implementación dice si lo comprado se aplica solo o espera autorización** | `requirements/pm.md` §5.1 |
 
 ## 6. Datos
 
@@ -89,6 +92,8 @@ Hoy la plataforma no tiene **nada que vender**. La membresía de una persona sol
 | Precio | Sí | Cuánto cuesta | Mayor que cero (`RN-PM-006`), con los decimales que admita su moneda (`RN-PM-007`) |
 | Moneda | Sí | En qué moneda se expresa el precio | Debe existir y estar **activa** (`RN-PM-008`) |
 | Vigencia | No | Cuántos días dura lo que el producto otorga, contados desde la compra | Entero mayor que cero. **Sin ella, lo adquirido no caduca** (`RN-PM-015`) |
+| Alcance | **Sí** | Hasta dónde se muestra el producto | `TIENDA` o `HOTLINKS`, **en los dos tipos y sin valor por omisión**. Es **acumulativo**: `HOTLINKS` incluye la tienda (`RN-PM-019`) |
+| Implementación | **Sí** | Si lo comprado se aplica solo o espera a que alguien lo autorice | `AUTOMATICA` o `MANUAL`, **en los dos tipos y sin valor por omisión** (`RN-PM-020`) |
 
 ### 6.2 Salida
 
@@ -182,6 +187,8 @@ Hoy la plataforma no tiene **nada que vender**. La membresía de una persona sol
 | `VAL-011` | Vigencia mayor que cero | La vigencia debe ser un número de días mayor que cero. |
 | `VAL-012` | Formato del icono | El icono solo admite minúsculas, dígitos y guion medio, debe empezar por letra y no puede exceder 50 caracteres. |
 | `VAL-013` | Icono prohibido en el bot | Un producto de tipo bot no puede declarar icono. |
+| `VAL-015` | Alcance obligatorio y dentro del dominio | El alcance del producto es obligatorio y debe ser uno de los admitidos. |
+| `VAL-016` | Implementación obligatoria y dentro del dominio | La implementación del producto es obligatoria y debe ser una de las admitidas. |
 
 ## 12. Criterios de aceptación
 
@@ -213,6 +220,11 @@ Hoy la plataforma no tiene **nada que vender**. La membresía de una persona sol
 | `CA-PM-103` | El sistema rechaza un upgrade **sin origen**, y otro **sin destino** |
 | `CA-PM-104` | El sistema rechaza un upgrade cuyo origen **es** el destino, y otro cuyo origen está **por encima** — un descenso vendido como upgrade |
 | `CA-PM-105` | El sistema rechaza un **bot** que declare cualquiera de las dos membresías |
+| `CA-PM-110` | El sistema **rechaza un alta sin alcance**, en los dos tipos, y el rechazo nombra el campo |
+| `CA-PM-111` | El sistema **rechaza un alta sin implementación**, en los dos tipos, y el rechazo nombra el campo |
+| `CA-PM-112` | El sistema rechaza un valor **fuera del dominio** en cualquiera de las dos, y no lo interpreta como ausente |
+| `CA-PM-113` | El sistema registra un **bot** con alcance `HOTLINKS` e implementación `MANUAL` sin queja: ninguna de las dos depende del tipo |
+| `CA-PM-114` | La respuesta del alta devuelve las dos, y el **evento de creación las incluye en la instantánea** |
 
 ## 13. Casos límite
 
@@ -246,3 +258,4 @@ Ninguna. Las cinco se resolvieron el 26-08-2026, antes de aprobar la especificac
 | 0.3.0 | 27-08-2026 | **El producto gana vigencia de adquisición** (`RN-PM-015`), medida en días y **opcional**: sin ella, lo adquirido no caduca. Entra como dato de entrada, sale en la respuesta, y trae `VAL-011`, `CA-PM-092` y `CA-PM-093`. La spec vuelve a su compuerta y se reaprueba el mismo día (Art. I.7); no había código escrito, de modo que el cambio costó una edición y no una migración. | Responsable del proyecto |
 | 0.4.0 | 28-08-2026 | **El tipo `SERVICIO` pasa a llamarse `BOT`, y el upgrade gana icono** (`RN-PM-016`), por decisión del responsable del proyecto. El renombrado **no cambia la semántica** del tipo —sigue siendo el producto que no toca el nivel de acceso de nadie— y fue posible porque todavía no existe ninguna tabla de compras que apunte a un producto. El icono es un **identificador y no una imagen**, es **opcional** y **solo el upgrade puede llevarlo**: `RN-PM-016` tiene una sola mitad, al revés que `RN-PM-002`, y lo que rechaza es el icono de más. Entran `VAL-012`, `VAL-013` y `CA-PM-096` a `CA-PM-098`, y la tabla de §6.1 gana la fila del icono. | Responsable técnico |
 | 0.5.0 | 02-09-2026 | **Un upgrade declara su membresía de ORIGEN**, y no solo el destino, por decisión del responsable del proyecto. Hasta hoy quién podía comprarlo **se deducía** —cualquiera por debajo del destino—, y esa deducción hacía **imposible el salto**: «subir a `ORO`» era el mismo producto y el mismo precio para quien sube un escalón y para quien sube tres. Ahora **cada salto es un producto**. El alta pasa de una membresía a dos, las dos obligatorias en el upgrade y **las dos prohibidas en el bot** (`RN-PM-002`), y el paso 4 del flujo gana lo que el destino solo no podía comprobar: que **no sean la misma** y que **el origen esté por debajo** (`RN-PM-017`, `VAL-014`). `RN-PM-018` declara que **saltar niveles es legítimo** —es la razón de que el origen se declare en lugar de deducirse de la cadena—, de modo que `CA-PM-102` prueba `FREE → ORO` con dos niveles de por medio. `EX-002` deja de hablar de «la membresía» y pasa a decir **cuál de las dos** no existe: con dos campos, un mensaje que no distingue obliga a probar los dos. **La consecuencia que la cabecera acepta entera**: el origen obligatorio significa que **un origen sin producto no falla, no se ofrece** — quien esté en `VIP` sin un upgrade declarado desde `VIP` no verá ninguna subida, y el catálogo se verá perfectamente bien desde administración. | Responsable del proyecto |
+| 0.6.0 | 07-09-2026 | **El alta declara el ALCANCE y la IMPLEMENTACIÓN**, por decisión del responsable del proyecto (`RN-PM-019`, `RN-PM-020`). Son **obligatorias, en los dos tipos y sin valor por omisión**, y ahí se apartan de todo lo que esta spec tenía: `RN-PM-002` y `RN-PM-016` obligan o prohíben **según el tipo**, y estas dos no distinguen — un bot también se muestra en algún sitio y también se entrega de alguna forma. **Sin `DEFAULT` a propósito**: un valor por omisión sería una decisión comercial tomada por la columna, y el defecto no se vería porque un producto con el valor supuesto se ve exactamente igual que uno declarado. El alcance es **acumulativo** —`HOTLINKS` incluye la tienda—, de modo que esta spec **no valida ninguna combinación**: los dos valores son legítimos en cualquier producto. La implementación es la que cruza a otro módulo: `RN-MV-020` concede la membresía comprada **solo** si el producto es `AUTOMATICA`. Entran `VAL-015`, `VAL-016` y `CA-PM-110` a `CA-PM-114`, y §6.1 gana las dos filas. **La instantánea de auditoría crece con las dos**, y eso no es cosmético: es el único sitio donde queda escrito con qué configuración nació un producto que después se corrige. | Responsable del proyecto |

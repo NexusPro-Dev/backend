@@ -118,6 +118,8 @@ public class UpdateProductService {
             peticion.price(),
             peticion.currencyId(),
             peticion.validityDays(),
+            peticion.scope(),
+            peticion.implementation(),
             OffsetDateTime.now(reloj));
 
     if (cambios.containsKey("name")) {
@@ -270,6 +272,27 @@ public class UpdateProductService {
                 "VAL-011",
                 "La vigencia debe ser un número de días mayor que cero."));
       }
+    }
+
+    // EL ALCANCE Y LA IMPLEMENTACIÓN NO ADMITEN VACIARSE, y ahí van al revés
+    // que la descripción, el icono y la vigencia. Aquellos pueden faltar en la
+    // columna, de modo que el nulo explícito tiene un estado al que llevarlos;
+    // estos son `NOT NULL`, y «bórralo» no significa nada — dejarlo pasar
+    // produciría un fallo de integridad, un 500 donde corresponde un 400 que
+    // nombre el campo.
+    //
+    // El valor FUERA DE DOMINIO no llega hasta aquí: lo rechaza Jackson al
+    // deserializar el enumerado, y esta comprobación solo ve el nulo.
+    if (peticion.scope().presente() && peticion.scope().valor() == null) {
+      problemas.add(
+          new FieldError("scope", "VAL-007", "El alcance del producto no puede quedar vacío."));
+    }
+    if (peticion.implementation().presente() && peticion.implementation().valor() == null) {
+      problemas.add(
+          new FieldError(
+              "implementation",
+              "VAL-008",
+              "La implementación del producto no puede quedar vacía."));
     }
 
     if (!problemas.isEmpty()) {

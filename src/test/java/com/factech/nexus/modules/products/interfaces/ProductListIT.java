@@ -366,6 +366,52 @@ class ProductListIT extends IntegrationTestBase {
     mvc.perform(listado().param("sort", "name,arriba")).andExpect(status().isBadRequest());
   }
 
+  @Test
+  @DisplayName("`CA-PM-115` — filtra por alcance, y el filtro es el único sitio donde se consulta")
+  void filtraPorAlcance() throws Exception {
+    jdbc.update("UPDATE products SET scope = 'HOTLINKS' WHERE code IN ('ASESORIA', 'SOPORTE')");
+
+    mvc.perform(listado().param("scope", "HOTLINKS"))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.totalElements").value(2))
+        .andExpect(
+            jsonPath("$.content[*].scope").value(Matchers.everyItem(Matchers.is("HOTLINKS"))));
+
+    mvc.perform(listado().param("scope", "TIENDA"))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.totalElements").value(3));
+  }
+
+  @Test
+  @DisplayName("`CA-PM-116` — filtra por implementación en cualquier caja, y acumula su rechazo")
+  void filtraPorImplementacion() throws Exception {
+    jdbc.update("UPDATE products SET implementation = 'AUTOMATICA' WHERE code = 'UPGRADE_ORO'");
+
+    // En minúsculas es la MISMA pregunta: sin normalizar, este filtro
+    // devolvería la colección vacía —un `200` que miente— en lugar de la fila.
+    mvc.perform(listado().param("implementation", "automatica"))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.totalElements").value(1))
+        .andExpect(jsonPath("$.content[0].code").value("UPGRADE_ORO"));
+
+    // Y el valor fuera de dominio se devuelve JUNTO a los demás parámetros
+    // inválidos (`CA-PM-020`), no en una vuelta aparte.
+    mvc.perform(listado().param("implementation", "MEDIO").param("scope", "TIENDAS"))
+        .andExpect(status().isBadRequest())
+        .andExpect(jsonPath("$.errors.length()").value(2));
+  }
+
+  @Test
+  @DisplayName("`CA-PM-117` — cada fila devuelve el alcance y la implementación, en los dos tipos")
+  void cadaFilaLosDevuelve() throws Exception {
+    mvc.perform(listado())
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.content[*].scope").value(Matchers.everyItem(Matchers.is("TIENDA"))))
+        .andExpect(
+            jsonPath("$.content[*].implementation")
+                .value(Matchers.everyItem(Matchers.is("MANUAL"))));
+  }
+
   // ---------------------------------------------------------------------------
 
   private MockHttpServletRequestBuilder listado() {
@@ -434,10 +480,10 @@ class ProductListIT extends IntegrationTestBase {
     // deriva del destino en lugar de ser un parametro mas — nunca puede
     // quedar uno sin el otro, que es lo que `ck_products_type_target` mira.
     jdbc.update(
-        "INSERT INTO products (id, code, type, name, description, source_membership_id,"
+        "INSERT INTO products (scope, implementation, id, code, type, name, description, source_membership_id,"
             + " target_membership_id, price,"
             + " currency_id, validity_days, status, created_at, updated_at)"
-            + " VALUES (CAST(? AS uuid), ?, ?, ?, NULL,"
+            + " VALUES ('TIENDA', 'MANUAL', CAST(? AS uuid), ?, ?, ?, NULL,"
             + " CAST(? AS uuid), CAST(? AS uuid), CAST(? AS numeric),"
             + " CAST(? AS uuid), CAST(? AS integer), ?, ?, ?)",
         UUID.randomUUID().toString(),

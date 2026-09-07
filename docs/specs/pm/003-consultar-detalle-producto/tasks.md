@@ -3,7 +3,7 @@
 | Campo | Valor |
 |---|---|
 | Requerimiento | `RF-PM-003` |
-| Enmendadas | 02-09-2026 — el detalle resuelve **las dos** membresías |
+| Enmendadas | 02-09-2026 — el detalle resuelve **las dos** membresías; 07-09-2026 — `T-13` por el **alcance** y la **implementación** |
 | Plan | [`plan.md`](plan.md), aprobado el 26-08-2026 |
 | Estado | **Aprobadas** |
 | Autor | Responsable técnico |
@@ -28,6 +28,7 @@
 | `T-10` | Documentación OpenAPI del endpoint | `T-07` | El contrato declara el `200`, el `404` y el `400` | Hecha |
 | `T-11` | Actualizar la matriz de trazabilidad | `T-07` | La fila refleja el estado | Hecha |
 | `T-12` | La **vigencia** viaja en el detalle | `T-03` | Vacía y presente en los productos que no caducan | Hecha |
+| `T-13` | El **alcance** y la **implementación** en `ProductDetailResponse` y en la proyección `ProductRow`, con la sentencia del detalle seleccionándolas | `RF-PM-001 · T-28` | `CA-PM-118`: las dos llegan en un upgrade, en un bot y en un producto **retirado**, y el detalle sigue costando **una** sentencia | **Hecha el 07-09-2026** |
 
 ## 2. Orden de ejecución
 
@@ -47,6 +48,7 @@ El resto es rutina y depende de `RF-PM-001` y `RF-PM-002`.
 | `CA-PM-080` | `T-01`, `T-05` |
 | `CA-PM-081` | `T-09` |
 | `CA-PM-082` | `T-03` |
+| `CA-PM-118` | `T-13` |
 
 ## 4. Bloqueos
 

@@ -68,8 +68,8 @@ final class CommissionFixtures {
     String monedaId =
         jdbc.queryForObject("SELECT CAST(id AS text) FROM currencies LIMIT 1", String.class);
     jdbc.update(
-        "INSERT INTO products (id, code, type, name, price, currency_id, status, deleted_at)"
-            + " VALUES (CAST(? AS uuid), ?, 'BOT', ?, CAST(? AS numeric), CAST(? AS uuid),"
+        "INSERT INTO products (scope, implementation, id, code, type, name, price, currency_id, status, deleted_at)"
+            + " VALUES ('TIENDA', 'MANUAL', CAST(? AS uuid), ?, 'BOT', ?, CAST(? AS numeric), CAST(? AS uuid),"
             + " 'INACTIVO', CASE WHEN ? THEN now() ELSE NULL END)",
         id.toString(),
         codigo,

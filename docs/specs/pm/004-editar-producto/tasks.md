@@ -9,7 +9,7 @@
 | Autor | Responsable técnico |
 | Aprobadas por | Responsable del proyecto |
 | Fecha de aprobación | 26-08-2026 |
-| Enmendadas | 28-08-2026 — `T-16` por el icono corregible |
+| Enmendadas | 28-08-2026 — `T-16` por el icono corregible; 07-09-2026 — `T-17` y `T-18` por el **alcance** y la **implementación** |
 
 ---
 
@@ -33,6 +33,8 @@
 | `T-14` | Actualizar la matriz de trazabilidad | `T-10` | La fila refleja el estado | Hecha |
 | `T-15` | La **vigencia** se suma a lo corregible, con `Patchable` | `T-01`, `T-03` | Corregirla la cambia; **vaciarla** convierte el producto en uno que no caduca (`CA-PM-094`) | Hecha |
 | `T-16` | El icono, corregible y vaciable: `Patchable<String>` en el DTO, en `Product.update` y en el diff de auditoría. La comprobación de `RN-PM-016` se hace **antes** de asignar, para que el rechazo no deje el producto a medias | — | `CA-PM-099` y `CA-PM-100` en `ProductUpdateIT`, y el vaciado con nulo explícito en `ProductTest` | **Hecha el 28-08-2026** |
+| `T-17` | El alcance y la implementación **corregibles**: `Patchable<ProductScope>` y `Patchable<ProductImplementation>` en el DTO, en `Product.update` y en el diff de auditoría. **El nulo explícito se RECHAZA** en lugar de vaciar, que es lo contrario del icono y de la vigencia | `RF-PM-001 · T-28` | `CA-PM-119` a `CA-PM-122`: la corrección cambia el valor y lo audita con `before`/`after`; el nulo explícito da `400` con `VAL-007` o `VAL-008`; el mismo valor **no** produce evento | **Hecha el 07-09-2026** |
+| `T-18` | Pruebas de API de los cuatro criterios y documentación OpenAPI de los dos campos corregibles | `T-17` | La suite de `PM` en verde, y el contrato los lista **como corregibles** junto al nombre y el precio | **Hecha el 07-09-2026** |
 
 ## 2. Orden de ejecución
 
@@ -54,6 +56,7 @@
 | `CA-PM-039` | `T-09` |
 | `CA-PM-083` | `T-10` |
 | `CA-PM-084` | `T-10` |
+| `CA-PM-119` a `CA-PM-122` | `T-17`, `T-18` |
 
 ## 4. Bloqueos
 

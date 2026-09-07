@@ -4,6 +4,8 @@ import com.factech.nexus.modules.products.application.ListProductsRequest;
 import com.factech.nexus.modules.products.application.ProductItem;
 import com.factech.nexus.modules.products.application.ProductPageResponse;
 import com.factech.nexus.modules.products.application.ProductSortField;
+import com.factech.nexus.modules.products.domain.models.ProductImplementation;
+import com.factech.nexus.modules.products.domain.models.ProductScope;
 import com.factech.nexus.modules.products.domain.models.ProductStatus;
 import com.factech.nexus.modules.products.domain.models.ProductType;
 import com.factech.nexus.modules.products.domain.repository.ProductQueryRepository;
@@ -52,6 +54,20 @@ public class ListProductsService {
     String tipo = canonico(filtros.type(), ProductType.values(), "type", "VAL-002", problemas);
     String estado =
         canonico(filtros.status(), ProductStatus.values(), "status", "VAL-003", problemas);
+    // Los dos nuevos reutilizan EL MISMO ayudante que el tipo y el estado, y
+    // eso es media decisión: se admiten en cualquier caja y se NORMALIZAN a su
+    // forma canónica. Validar sin normalizar dejaría pasar `scope=tienda`, que
+    // después no coincide con ninguna fila — y el actor recibiría `200` con la
+    // colección vacía en vez de sus productos.
+    String alcance =
+        canonico(filtros.scope(), ProductScope.values(), "scope", "VAL-006", problemas);
+    String implementacion =
+        canonico(
+            filtros.implementation(),
+            ProductImplementation.values(),
+            "implementation",
+            "VAL-007",
+            problemas);
 
     // Los cuatro `400` se devuelven JUNTOS (`CA-PM-020`): quien se equivocó en
     // cuatro parámetros no tiene que corregir la dirección cuatro veces.
@@ -71,6 +87,8 @@ public class ListProductsService {
             filtros.sort(),
             tipo,
             estado,
+            alcance,
+            implementacion,
             filtros.sourceMembershipId(),
             filtros.targetMembershipId(),
             filtros.search(),

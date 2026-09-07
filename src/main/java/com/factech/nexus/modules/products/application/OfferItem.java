@@ -1,5 +1,7 @@
 package com.factech.nexus.modules.products.application;
 
+import com.factech.nexus.modules.products.domain.models.ProductImplementation;
+import com.factech.nexus.modules.products.domain.models.ProductScope;
 import com.factech.nexus.modules.products.domain.models.ProductType;
 import com.factech.nexus.modules.products.domain.repository.ProductQueryRepository.ProductRow;
 import com.fasterxml.jackson.annotation.JsonInclude;
@@ -38,7 +40,9 @@ public record OfferItem(
     ProductResponse.MembershipRef targetMembership,
     BigDecimal price,
     ProductResponse.CurrencyRef currency,
-    Integer validityDays) {
+    Integer validityDays,
+    ProductScope scope,
+    ProductImplementation implementation) {
 
   /**
    * Proyecta la fila leída, con el destino y la moneda que trajo la <b>misma</b> sentencia.
@@ -74,6 +78,14 @@ public record OfferItem(
         // de la respuesta y no la ausencia de uno (`CA-PM-095`). Sin este dato,
         // dos upgrades al mismo nivel y al mismo precio son indistinguibles
         // aunque uno dure un mes y el otro para siempre.
-        fila.validityDays());
+        fila.validityDays(),
+        // El alcance viaja Y NO FILTRA: la escala es acumulativa, de modo que los
+        // dos valores llegan a la tienda y un predicado sobre él devolvería
+        // siempre lo mismo que no ponerlo (`CA-PM-124`).
+        ProductScope.valueOf(fila.scope()),
+        // La implementación viaja para que quien compra sepa ANTES DE PAGAR si
+        // lo que se lleva se le entrega en el acto. Ocultarlo no evita la
+        // espera: la convierte en una incidencia de soporte.
+        ProductImplementation.valueOf(fila.implementation()));
   }
 }

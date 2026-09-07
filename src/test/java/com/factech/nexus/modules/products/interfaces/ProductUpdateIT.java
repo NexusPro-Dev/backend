@@ -398,6 +398,62 @@ class ProductUpdateIT extends IntegrationTestBase {
     assertThat(nombreDe(producto)).isEqualTo("Ascenso a Oro");
   }
 
+  @Test
+  @DisplayName("`CA-PM-119` — corrige alcance e implementación, y el diff registra antes y después")
+  void corrigeAlcanceEImplementacion() throws Exception {
+    mvc.perform(corregir(producto, "{\"scope\":\"HOTLINKS\",\"implementation\":\"AUTOMATICA\"}"))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.scope").value("HOTLINKS"))
+        .andExpect(jsonPath("$.implementation").value("AUTOMATICA"));
+
+    // Van del lado CORREGIBLE porque ninguna define qué derecho otorga el
+    // producto: una dice dónde se ve y la otra quién lo entrega.
+    assertThat(ultimoCambio(producto))
+        .contains("scope")
+        .contains("TIENDA")
+        .contains("HOTLINKS")
+        .contains("implementation")
+        .contains("AUTOMATICA");
+  }
+
+  @Test
+  @DisplayName("`CA-PM-120` — el nulo explícito NO las vacía: se rechaza, al revés que el icono")
+  void nulaExplicitaSeRechaza() throws Exception {
+    mvc.perform(corregir(producto, "{\"scope\":null}"))
+        .andExpect(status().isBadRequest())
+        .andExpect(jsonPath("$.errors[0].field").value("scope"));
+
+    mvc.perform(corregir(producto, "{\"implementation\":null}"))
+        .andExpect(status().isBadRequest())
+        .andExpect(jsonPath("$.errors[0].field").value("implementation"));
+  }
+
+  @Test
+  @DisplayName("`CA-PM-121` — el valor fuera de dominio se rechaza y NO aplica lo demás")
+  void fueraDeDominioNoAplicaNada() throws Exception {
+    mvc.perform(corregir(producto, "{\"name\":\"Otro nombre\",\"scope\":\"TIENDAS\"}"))
+        .andExpect(status().isBadRequest());
+
+    // `CA-PM-034` con otro disparador: ningún rechazo deja el producto a medias.
+    assertThat(
+            jdbc.queryForObject(
+                "SELECT name FROM products WHERE id = CAST(? AS uuid)",
+                String.class,
+                producto.toString()))
+        .isEqualTo("Ascenso a Oro");
+  }
+
+  @Test
+  @DisplayName("`CA-PM-122` — enviar el MISMO alcance no cambia nada y no registra evento")
+  void elMismoValorNoEsCambio() throws Exception {
+    long antes = eventosDe(producto);
+
+    mvc.perform(corregir(producto, "{\"scope\":\"TIENDA\",\"implementation\":\"MANUAL\"}"))
+        .andExpect(status().isOk());
+
+    assertThat(eventosDe(producto)).as("`audit_change_log` no debía crecer").isEqualTo(antes);
+  }
+
   // ---------------------------------------------------------------------------
 
   private MockHttpServletRequestBuilder corregir(UUID id, String cuerpo) {
@@ -520,10 +576,10 @@ class ProductUpdateIT extends IntegrationTestBase {
     // deriva del destino en lugar de ser un parametro mas — nunca puede
     // quedar uno sin el otro, que es lo que `ck_products_type_target` mira.
     jdbc.update(
-        "INSERT INTO products (id, code, type, name, description, source_membership_id,"
+        "INSERT INTO products (scope, implementation, id, code, type, name, description, source_membership_id,"
             + " target_membership_id, price,"
             + " currency_id, validity_days, status, created_at, updated_at)"
-            + " VALUES (CAST(? AS uuid), ?, ?, ?, CAST(? AS text),"
+            + " VALUES ('TIENDA', 'MANUAL', CAST(? AS uuid), ?, ?, ?, CAST(? AS text),"
             + " CAST(? AS uuid), CAST(? AS uuid), 49.99,"
             + " CAST(? AS uuid), CAST(? AS integer), 'INACTIVO', ?, ?)",
         id.toString(),

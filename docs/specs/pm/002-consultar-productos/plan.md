@@ -8,7 +8,7 @@
 | Estado | **Aprobado** |
 | Autor | Responsable técnico |
 | Aprobado por | Responsable del proyecto |
-| Enmendado el | 27-08-2026 — `RN-PM-015`; 02-09-2026 — la membresía de **origen** (`RN-PM-017`, `RN-PM-018`) |
+| Enmendado el | 27-08-2026 — `RN-PM-015`; 02-09-2026 — la membresía de **origen** (`RN-PM-017`, `RN-PM-018`); 07-09-2026 — los filtros de **alcance** e **implementación** (`RN-PM-019`, `RN-PM-020`) |
 | Fecha de aprobación | 26-08-2026 |
 
 ---
@@ -43,12 +43,14 @@ Reutiliza entera la infraestructura de paginación de `shared/pagination`, que `
 
 ## 4. Contrato de API
 
-`GET /api/v1/products?type=&status=&targetMembershipId=&search=&includeDeleted=&sort=&page=&size=`
+`GET /api/v1/products?type=&status=&scope=&implementation=&sourceMembershipId=&targetMembershipId=&search=&includeDeleted=&sort=&page=&size=`
 
 - **El orden por omisión es `createdAt` descendente, con `id` como desempate.** El desempate no es cosmético: sin un orden **total**, dos productos con el mismo instante de alta pueden repetirse o saltarse entre páginas, y eso se descubre como «faltan productos» sin ningún error de por medio. Sale gratis: el identificador es un UUID v7 y su orden **es** el cronológico.
 - **`sort` es un dominio cerrado** —`name`, `price`, `createdAt`— y un valor fuera de él devuelve `400` (`VAL-005`). Se rechaza y no se ignora: ignorarlo devolvería un orden distinto del pedido sin decirlo.
 - **Los cuatro `400` se devuelven juntos**, como en `RF-SP-002`: quien se equivocó en cuatro parámetros no tiene que corregir la dirección cuatro veces.
 - `includeDeleted` por omisión es `false`.
+- **`scope` e `implementation` entran como filtros el 07-09-2026**, y se validan **exactamente como `type` y `status`**: llegan al mandato como **texto y no como enumerado** —enlazarlos como enumerado dejaría que Spring rechazara el valor fuera de dominio **antes** del caso de uso, y el rechazo saldría solo en lugar de junto a los demás, que es lo que `CA-PM-020` no admite—, se comprueban contra su dominio y se **normalizan a su forma canónica**. Lo segundo no es un adorno: validar sin normalizar deja pasar `scope=tienda`, que después no coincide con ninguna fila, y el actor recibe `200` con la colección vacía en vez de sus productos. Reutilizan el mismo ayudante que ya sirve a los otros dos, de modo que el filtro nuevo no trae lógica nueva.
+- **No se indexan**, por lo mismo que `type` y `status`: dos valores no dan selectividad, y un índice sobre ellos costaría escritura sin ahorrar una sola lectura.
 
 La respuesta es un `PageResponse<ProductItem>` con `totalIsExact` en `true`.
 

@@ -9,6 +9,7 @@
 | Aprobada por | Responsable del proyecto |
 | Fecha de aprobación | 26-08-2026 |
 | Enmendada el | 28-08-2026 — ver §15 |
+| Enmendada el | 07-09-2026 — **dos filtros nuevos: alcance e implementación** (`RN-PM-019`, `RN-PM-020`). Ver §15 |
 
 ---
 
@@ -51,6 +52,8 @@ Con `RF-PM-001` se puede **crear** un producto y no **verlo**: quien administra 
 | ID | Regla | Origen |
 |---|---|---|
 | `RN-PM-010` | El producto no desaparece: el retiro es lógico | `requirements/pm.md` §5.1 |
+| `RN-PM-019` | El alcance dice hasta dónde se muestra, y es **acumulativo** | `requirements/pm.md` §5.1 |
+| `RN-PM-020` | La implementación dice si lo comprado se aplica solo o espera autorización | `requirements/pm.md` §5.1 |
 
 ## 6. Datos
 
@@ -63,6 +66,8 @@ Con `RF-PM-001` se puede **crear** un producto y no **verlo**: quien administra 
 | Estado | No | Filtra por activo o inactivo | Uno de los valores admitidos |
 | Membresía destino | No | Filtra los upgrades que **llevan** a ese nivel | Un destino que no existe devuelve una colección vacía, no un error |
 | Membresía de origen | No | Filtra los upgrades que **salen** de ese nivel | Igual. Es la pregunta «qué puede comprar quien está en `FREE`» hecha desde administración, y **no sustituye a `RF-PM-007`**: aquella responde sobre quien llama y esta sobre cualquiera |
+| Alcance | No | Filtra por hasta dónde se muestra el producto | Uno de los valores admitidos. **Es el único sitio donde este dato se consulta hoy**: `RF-PM-007` no lo filtra y el canal de hotlinks no existe todavía |
+| Implementación | No | Filtra por si lo comprado se aplica solo o espera autorización | Uno de los valores admitidos |
 | Búsqueda | No | Coincidencia parcial sobre el nombre | En blanco equivale a ausente |
 | Incluir retirados | No | Si se devuelven también los productos eliminados | Por omisión **no** se devuelven |
 | Orden | No | Por qué campo se ordena y en qué sentido | **Lista cerrada**: nombre, precio o fecha de alta. Cualquier otro valor se rechaza |
@@ -72,6 +77,7 @@ Con `RF-PM-001` se puede **crear** un producto y no **verlo**: quien administra 
 | Dato | Descripción |
 |---|---|
 | Productos | Identificador, tipo, nombre, descripción, **icono**, precio con su moneda, **vigencia en días**, estado y —en los upgrades— la membresía destino con su nombre y su nivel |
+| Alcance e implementación | En **todas** las filas y en los dos tipos: hasta dónde se muestra el producto y quién aplica lo que otorga |
 | Marca de retiro | En los retirados, que lo están y desde cuándo |
 | Total | Cuántos productos cumplen el filtro |
 | Orden | El aplicado, para que quien recibe la página sepa sobre qué está paginando |
@@ -123,6 +129,8 @@ Con `RF-PM-001` se puede **crear** un producto y no **verlo**: quien administra 
 | `VAL-003` | Estado dentro del dominio | El estado indicado no es válido. |
 | `VAL-004` | Identificador de membresía con formato válido | El identificador indicado no tiene un formato válido. |
 | `VAL-005` | Campo de ordenamiento dentro de la lista admitida | El campo de ordenamiento indicado no es válido. |
+| `VAL-006` | Alcance dentro del dominio | El alcance indicado no es válido. |
+| `VAL-007` | Implementación dentro del dominio | La implementación indicada no es válida. |
 
 ## 12. Criterios de aceptación
 
@@ -143,6 +151,9 @@ Con `RF-PM-001` se puede **crear** un producto y no **verlo**: quien administra 
 | `CA-PM-075` | El sistema ordena por nombre, por precio y por fecha de alta cuando se le pide, y **rechaza cualquier otro campo** en lugar de ignorarlo |
 | `CA-PM-076` | El sistema devuelve las mismas filas sin repetir ni saltarse ninguna al recorrer todas las páginas, aunque varios productos compartan el valor por el que se ordena |
 | `CA-PM-077` | El sistema devuelve los retirados a cualquier actor con el permiso de lectura, **sin exigir uno propio**, y **sin incluir el motivo del retiro** — que sí devuelve el detalle de `RF-PM-003`, uno a uno |
+| `CA-PM-115` | El sistema filtra por **alcance** y devuelve solo los de `TIENDA` o solo los de `HOTLINKS` |
+| `CA-PM-116` | El sistema filtra por **implementación**, admite el valor en minúsculas y **rechaza el que está fuera del dominio junto al resto de parámetros inválidos**, no por separado |
+| `CA-PM-117` | Cada fila del listado devuelve **el alcance y la implementación**, en los dos tipos de producto |
 
 ## 13. Casos límite
 
@@ -173,3 +184,4 @@ Ninguna. Las cuatro se resolvieron el 26-08-2026, antes de aprobar la especifica
 | 0.1.0 | 26-08-2026 | Redacción inicial, con cuatro preguntas abiertas. | Responsable técnico |
 | 0.4.0 | 27-08-2026 | El listado devuelve la **vigencia en días** de cada producto (`RN-PM-015`). Sin ella, quien administra no distingue en la lista un upgrade permanente de uno de treinta días, que es la diferencia comercial más importante entre dos filas por lo demás idénticas. | Responsable del proyecto |
 | 0.3.0 | 28-08-2026 | **La respuesta gana el icono** (`RN-PM-016`) y el tipo `SERVICIO` pasa a llamarse `BOT`. Ninguna de las dos cosas cambia el comportamiento de esta consulta: el icono viaja como un campo más —nulo y presente cuando no lo hay, por el mismo criterio que el destino y la vigencia— y el renombrado solo cambia el valor que se lee y por el que se filtra. **El contrato publicado cambia**, de modo que la copia del frontend queda vieja. | Responsable técnico |
+| 0.4.0 | 07-09-2026 | **El catálogo gana dos filtros y dos columnas de salida: alcance e implementación** (`RN-PM-019`, `RN-PM-020`). **El del alcance no es un filtro más**: es el **único sitio del sistema donde ese dato se puede consultar hoy**, porque `RF-PM-007` no lo filtra —bajo la escala acumulativa los dos valores llegan a la tienda— y el canal de hotlinks todavía no existe. Sin él, el alcance sería un dato que se declara, se corrige y **no se puede ver**. Entran `VAL-006`, `VAL-007` y `CA-PM-115` a `CA-PM-117`. Los dos se validan **como el tipo y el estado**: se admiten en cualquier caja, se normalizan a su forma canónica y su rechazo **se acumula** con el resto en un solo `400` (`CA-PM-020`) — validar sin normalizar es el defecto sutil que devolvería `200` con la colección vacía en lugar de los productos que se piden. | Responsable del proyecto |

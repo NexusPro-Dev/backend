@@ -385,6 +385,41 @@ class ProductOfferIT extends IntegrationTestBase {
         .andExpect(status().isForbidden());
   }
 
+  @Test
+  @DisplayName("`CA-PM-123` — la oferta devuelve el alcance y la implementación de cada producto")
+  void publicaAlcanceEImplementacion() throws Exception {
+    jdbc.update("UPDATE products SET implementation = 'AUTOMATICA' WHERE code = 'UP_ORO'");
+
+    mvc.perform(oferta(enVip))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.upgrades.content[0].scope").value("TIENDA"))
+        // La implementación viaja para que quien compra sepa ANTES DE PAGAR si
+        // lo que se lleva se le entrega en el acto.
+        .andExpect(jsonPath("$.upgrades.content[0].implementation").exists())
+        .andExpect(jsonPath("$.services.content[0].scope").value("TIENDA"))
+        .andExpect(jsonPath("$.services.content[0].implementation").value("MANUAL"));
+  }
+
+  @Test
+  @DisplayName("`CA-PM-124` — los DOS alcances llegan a la tienda: la escala no filtra aquí")
+  void laEscalaNoFiltraLaOferta() throws Exception {
+    // Es la prueba que verifica que nadie añadió el filtro «por simetría» con
+    // `RF-PM-002`. `HOTLINKS` INCLUYE la tienda, de modo que un predicado
+    // sobre esta columna devolvería siempre lo mismo que no ponerlo — y quien
+    // lo escribiera dejaría fuera de la tienda productos que deben estar.
+    jdbc.update("UPDATE products SET scope = 'HOTLINKS' WHERE code = 'BOT_SENALES'");
+
+    mvc.perform(oferta(enFree))
+        .andExpect(status().isOk())
+        // LOS DOS bots activos siguen ahí: uno de cada alcance, y ninguno se
+        // queda fuera por el suyo.
+        .andExpect(jsonPath("$.services.content.length()").value(2))
+        .andExpect(jsonPath("$.services.content[0].code").value("BOT_SENALES"))
+        .andExpect(jsonPath("$.services.content[0].scope").value("HOTLINKS"))
+        .andExpect(jsonPath("$.services.content[1].code").value("BOT_SOPORTE"))
+        .andExpect(jsonPath("$.services.content[1].scope").value("TIENDA"));
+  }
+
   // ---------------------------------------------------------------------------
   // Preparación
   // ---------------------------------------------------------------------------
@@ -519,10 +554,10 @@ class ProductOfferIT extends IntegrationTestBase {
       boolean retirado) {
 
     jdbc.update(
-        "INSERT INTO products (id, code, type, name, description, source_membership_id,"
+        "INSERT INTO products (scope, implementation, id, code, type, name, description, source_membership_id,"
             + " target_membership_id, price,"
             + " currency_id, validity_days, status, created_at, updated_at, deleted_at)"
-            + " VALUES (CAST(? AS uuid), ?, ?, ?, 'Descripción de prueba', CAST(? AS uuid),"
+            + " VALUES ('TIENDA', 'MANUAL', CAST(? AS uuid), ?, ?, ?, 'Descripción de prueba', CAST(? AS uuid),"
             + " CAST(? AS uuid), CAST(? AS numeric), CAST(? AS uuid), CAST(? AS integer), ?, ?,"
             + " ?, CAST(? AS timestamptz))",
         UUID.randomUUID().toString(),

@@ -5,11 +5,11 @@
 | Módulo | `PM` — Productos y Mercadeo |
 | Paquete | `modules/products` |
 | Prefijos de permiso | `products:` |
-| Versión | 0.16.0 |
+| Versión | 0.17.0 |
 | Estado | **Borrador** |
 | Responsable | Bonilla Diaz William Steven |
 | Fecha de creación | 26-08-2026 |
-| Última actualización | 02-09-2026 |
+| Última actualización | 07-09-2026 |
 
 !!! info "Qué va en este documento"
 
@@ -45,9 +45,9 @@ Hoy la membresía de una persona solo cambia porque un administrador se la asign
 
 **Incluye**
 
-- Registrar un producto de cualquiera de los dos tipos, con su precio y su moneda.
+- Registrar un producto de cualquiera de los dos tipos, con su precio, su moneda, **hasta dónde se muestra** y **cómo se implementa lo que otorga**.
 - Consultar el catálogo completo, en lista y en detalle, con filtros por tipo, estado y membresía —**de origen y de destino**—.
-- Corregir un producto: nombre, descripción, icono, precio y moneda.
+- Corregir un producto: nombre, descripción, icono, precio, moneda, vigencia, **alcance** e **implementación**.
 - Activar y desactivar un producto, que es lo que decide si se ofrece.
 - Retirar un producto por eliminación lógica y con motivo.
 - **Publicar a cada persona la oferta que le aplica**, que en los upgrades depende de su nivel actual.
@@ -145,8 +145,10 @@ La dependencia es **acíclica**: `PM` consume `SP` y `SP` no consume nada ([`mod
 | `RN-PM-014` | No se publica lo que no se explica | Al activar | Un producto **sin descripción no puede activarse**. Registrarlo sin ella es legítimo —está preparándose—; ofrecérselo a un cliente sin decirle qué se lleva, no | Media |
 | `RN-PM-015` | La vigencia se mide en días y es opcional | Al registrar y al editar | Un producto puede declarar **cuántos días dura lo que otorga**, contados desde la compra. Es **opcional en los dos tipos**: sin ella, lo adquirido **no caduca**. Si se declara, es un entero **mayor que cero** | Alta |
 | `RN-PM-016` | El icono solo existe en el upgrade | Al registrar y al editar | Un `UPGRADE_MEMBRESIA` **puede** declarar el icono con el que el frontend lo pinta; un `BOT` **no puede**. Es un **identificador**, no una imagen, y es **opcional** incluso donde se admite | Media |
+| `RN-PM-019` | **El alcance dice hasta dónde se muestra el producto, y es acumulativo** | Al registrar y al editar | Todo producto declara `TIENDA` o `HOTLINKS`, **obligatorio en los dos tipos y sin valor por omisión**. No son dos canales que se reparten el catálogo: `HOTLINKS` **incluye** la tienda, de modo que la escala crece. Se corrige libremente (§5.2.2) | Alta |
+| `RN-PM-020` | **La implementación dice si lo comprado se aplica solo o espera autorización** | Al registrar y al editar | Todo producto declara `AUTOMATICA` o `MANUAL`, **obligatorio en los dos tipos y sin valor por omisión**. Gobierna qué hace `MV` al confirmar una venta: `RN-MV-020` concede la membresía **solo** si el producto es automático, y con `MANUAL` lo comprado queda esperando a que un funcionario lo autorice | **Crítica** |
 
-### 5.2 Por qué las cuatro críticas son críticas
+### 5.2 Por qué las críticas son críticas
 
 **`RN-PM-001` — el tipo no cambia.** Convertir un `BOT` en `UPGRADE_MEMBRESIA` después de venderlo reescribe qué compró quien lo compró. El campo no es una etiqueta: decide qué otras columnas son obligatorias y qué derecho se adquiere.
 
@@ -159,6 +161,8 @@ La dependencia es **acíclica**: `PM` consume `SP` y `SP` no consume nada ([`mod
 **`RN-PM-004` — un solo upgrade activo por pareja.** Dos productos activos **desde el mismo sitio y hacia el mismo sitio** son **dos precios simultáneos para exactamente lo mismo**, y quien compre pagará el que la interfaz liste primero. Esto no se descubre como un error: se descubre como una discrepancia de facturación meses después.
 
 **Lo que la pareja SÍ admite, y antes no**: dos productos activos hacia `ORO`, uno desde `FREE` y otro desde `PLATINO`. No son el mismo producto con dos precios — **son dos saltos distintos**, y que cuesten distinto es lo normal.
+
+**`RN-PM-020` — la implementación decide si el dinero cobrado entrega algo.** Es la primera regla de este catálogo que gobierna a otro módulo: `RN-MV-020` concede la membresía comprada **solo** si el producto es automático. Omitirla —dejando que toda venta confirmada entregue— produce el defecto que este documento ya nombró una vez: **no falla, entrega**. Un producto que exigía revisión se aplicaría solo, con el cobro hecho, sin que nadie lo hubiera aprobado y sin que quedara en ningún sitio el rastro de que debía revisarse. Se desarrolla en §5.2.2.
 
 ### 5.2.1 El origen de un upgrade — 02-09-2026
 
@@ -179,6 +183,48 @@ Hasta esta fecha un upgrade solo decía **a dónde lleva**, y quién podía comp
 **Y `RF-PM-007` deja de comparar niveles.** La oferta pasa a ser una coincidencia exacta —*los upgrades cuyo origen es mi membresía*— y con ello la regla de niveles se muda: deja de ser un filtro que se evalúa en **cada consulta** y pasa a ser una validación que se comprueba **una vez, al registrar** (`RN-PM-017`).
 
 Eso conserva sin escribir nada lo que aquel requerimiento ya decía: **quien no tiene membresía no ve ningún upgrade**, porque no coincide con ningún origen.
+
+### 5.2.2 El alcance y la implementación — 07-09-2026
+
+Por decisión del responsable del proyecto, un producto declara desde hoy **dos cosas que hasta ahora no decía en ninguna parte**: hasta dónde se muestra y quién aplica lo que se compra. Son dos preguntas distintas y con dos respuestas independientes — un producto puede verse en todas partes y entregarse a mano, o verse solo en la tienda y aplicarse solo.
+
+#### El alcance es una escala, y por eso no hay «solo hotlinks»
+
+`TIENDA` y `HOTLINKS` **no se reparten el catálogo**: el segundo **incluye** al primero. Un producto de alcance `HOTLINKS` se ve en la tienda **y** en los hotlinks; uno de alcance `TIENDA` se ve solo en la tienda. La pregunta que el campo responde es «hasta dónde llega», no «en cuál de los dos está».
+
+**La alternativa era declararlos excluyentes**, un canal cada uno, y se descartó por lo que obligaba a hacer: publicar algo en los dos sitios exigiría **dos productos** —dos códigos, dos precios que mantener sincronizados y dos filas que `RN-PM-004` tendría que aprender a distinguir—, o bien un tercer valor «ambos» que convierte el campo en una escala de tres con dos nombres que fingen ser canales.
+
+!!! warning "Lo que la escala cuesta: no se puede esconder un producto de la tienda"
+
+    **No existe forma de publicar algo SOLO en hotlinks.** El alcance más corto es la tienda, de modo que todo producto que quiera enlazarse aparece también en la tienda, lo quiera quien lo declara o no.
+
+    Se acepta a conciencia, y con la salida escrita: el día que ese caso exista, lo que entra es un **tercer valor** —`SOLO_HOTLINKS`—, no un cambio de significado de los dos que hay. Cambiarles el significado reescribiría en silencio lo que ya está declarado: doscientos productos que dicen `HOTLINKS` pasarían a significar otra cosa sin que nadie tocara una fila.
+
+**Y el alcance no filtra la tienda.** `RF-PM-007` **no puede** filtrar por él —los dos valores llegan a la tienda, de modo que el predicado sobraría—, con lo que su único uso hoy es el filtro del catálogo administrativo (`RF-PM-002`). Conviene decirlo en voz alta: **el campo se declara antes de que exista quien lo consuma**. El canal de hotlinks no está construido, y hasta que lo esté, el alcance es un dato que se escribe, se corrige y se consulta desde administración, y no cambia lo que ve nadie.
+
+#### La implementación cruza a `MV`, y es lo primero de este catálogo que lo hace
+
+`AUTOMATICA` significa que el sistema aplica lo comprado sin que intervenga nadie. `MANUAL` significa que **lo comprado espera a que un funcionario lo autorice**, y que confirmar el pago **no** lo entrega.
+
+Hasta hoy `RN-MV-020` decía que una venta confirmada con un upgrade concede la membresía comprada, **sin distinguir**. Desde hoy la concede **solo si el producto es automático** ([`requirements/mv.md` §5.4](mv.md), v0.9.0). Ese es todo el efecto del campo, y es grande: **el catálogo pasa a gobernar lo que otro módulo hace con el dinero ya cobrado**.
+
+**Lo que no cambia es el cobro.** Una venta de un producto manual se confirma con normalidad cuando el dinero entra: lo que queda pendiente no es el pago, es la **entrega**. Distinguir las dos cosas es lo que permite que `RN-MV-005` —de `CONFIRMADA` no se sale— siga intacta.
+
+!!! danger "La condición que este cambio le impone a `MV`, y que todavía no está construida"
+
+    **La implementación tiene que copiarse en la línea de la venta**, junto al importe y la vigencia que `RF-MV-001` ya copia. El criterio es el que este proyecto tiene escrito desde el 01-09-2026 en [`modelo-datos.md` §4.1](../modelo-datos.md): **se copia lo que puede cambiar; lo inmutable se referencia**. La membresía destino se referencia porque `RF-PM-004` la rechaza; la implementación **se corrige**, de modo que se copia.
+
+    Sin esa copia, corregir un producto de `AUTOMATICA` a `MANUAL` dejaría **esperando autorización a ventas que se hicieron cuando el producto se entregaba solo** — y al revés, entregaría sin revisión lo que se vendió con revisión prometida. Ninguna de las dos falla: las dos entregan mal y con el cobro hecho.
+
+    **`movement_details` no tiene hoy esa columna** (`V54`), y esta decisión **no la escribe**: `RF-MV-003` —quien lee el valor— está en `Pendiente` y bloqueado por **D-26**, de modo que hoy no hay nadie que la lea. Lo que queda declarado es que **la copia debe existir antes de que ese requerimiento se construya**, y no después.
+
+#### Las dos son obligatorias, en los dos tipos, y las dos se corrigen
+
+**Obligatorias sin valor por omisión**, ni en el esquema ni en la petición: un producto sin alcance no se sabe dónde se ve, y uno sin implementación no se sabe quién lo entrega. Poner un `DEFAULT` habría dejado que la columna tomara una decisión comercial que nadie escribió — y el defecto no se vería, porque un producto con el valor por omisión se ve exactamente igual que uno declarado.
+
+**En los dos tipos**, y ahí se apartan de `RN-PM-002` y `RN-PM-016`: aquellas obligan o prohíben **según el tipo**, y estas no distinguen. Un bot también se muestra en algún sitio y también se entrega de alguna forma — de hecho es el caso donde la implementación manual es más probable, porque una prestación del sistema puede exigir que alguien la active.
+
+**Y se corrigen**, al revés que el tipo y las dos membresías. La frontera es la misma de siempre: lo que define **qué derecho otorga** el producto no se toca; lo que define **dónde se ve y cómo se entrega**, sí. Mover un producto de la tienda a los hotlinks no puede costar un alta y un retiro.
 
 ### 5.3 Reglas de otros documentos que este módulo aplica
 
@@ -231,12 +277,14 @@ El alta crea la tabla y el catálogo, y sin catálogo no hay nada que consultar.
 | Actor | Administrador |
 | Permiso requerido | `products:create` |
 | Prioridad | **Crítica** |
-| Reglas aplicables | `RN-PM-001` a `RN-PM-008`, `RN-PM-012`, `RN-PM-013` |
+| Reglas aplicables | `RN-PM-001` a `RN-PM-008`, `RN-PM-012`, `RN-PM-013`, `RN-PM-019`, `RN-PM-020` |
 | Depende de | — |
 | Tripleta | `docs/specs/pm/001-registrar-producto/` |
 | Estado | **Tasks aprobadas** (26-08-2026) |
 
 Registra un producto declarando su **tipo**, su nombre, su precio y su moneda; si el tipo es `UPGRADE_MEMBRESIA`, además **de qué membresía sale y a cuál lleva**, las dos obligatorias ahí y prohibidas en el otro tipo. Es el requerimiento que crea la tabla del módulo y **siembra sus cuatro permisos**, con la obligación de asociarlos a `SUPERADMIN` y `ADMIN` en la misma migración ([`security.md` §4.4](../security.md#44-catalogo-de-permisos)): olvidarlo no falla al aplicar la migración, deja a `ADMIN` incapaz de conceder lo que no tiene.
+
+**Desde el 07-09-2026 declara además el alcance y la implementación**, las dos **obligatorias y en los dos tipos** (`RN-PM-019`, `RN-PM-020`). No tienen valor por omisión ni en el esquema ni en el cuerpo de la petición, y es deliberado: omitir cualquiera de las dos sería dejar que la columna tomara una decisión comercial —dónde se ve el producto, quién lo entrega— que nadie escribió.
 
 #### `RF-PM-002` — Consultar productos
 
@@ -251,7 +299,9 @@ Registra un producto declarando su **tipo**, su nombre, su precio y su moneda; s
 | Tripleta | `docs/specs/pm/002-consultar-productos/` |
 | Estado | **Tasks aprobadas** (26-08-2026) |
 
-Devuelve el catálogo **paginado**, con filtros por tipo, estado y membresía **de origen o de destino**, y búsqueda por nombre. Incluye lo inactivo y **excluye lo eliminado salvo que se pida expresamente**, porque un catálogo que oculta lo retirado impide entender por qué un producto dejó de venderse.
+Devuelve el catálogo **paginado**, con filtros por tipo, estado, membresía **de origen o de destino**, **alcance** e **implementación**, y búsqueda por nombre. Incluye lo inactivo y **excluye lo eliminado salvo que se pida expresamente**, porque un catálogo que oculta lo retirado impide entender por qué un producto dejó de venderse.
+
+**Los dos filtros nuevos entran con las columnas** (07-09-2026) y no en una ampliación posterior. El del alcance es el **único sitio del sistema donde ese dato se puede consultar hoy**: `RF-PM-007` no lo filtra —no puede, §5.2.2— y el canal de hotlinks que lo consumirá todavía no existe, de modo que sin este filtro el alcance sería un dato que se declara, se corrige y no se puede ver.
 
 #### `RF-PM-003` — Consultar el detalle de un producto
 
@@ -268,6 +318,8 @@ Devuelve el catálogo **paginado**, con filtros por tipo, estado y membresía **
 
 Devuelve un producto por su identificador con sus datos completos y, cuando es un upgrade, **las dos membresías resueltas** —código, nombre y nivel de cada una— y no solo sus identificadores: un detalle que obliga a una segunda llamada para ser legible no es un detalle.
 
+Devuelve además **el alcance y la implementación** (`RN-PM-019`, `RN-PM-020`): son configuración declarada y no se deducen de ningún otro campo, de modo que un detalle sin ellas obligaría a abrir la edición para saber dónde se publica un producto y cómo se entrega.
+
 #### `RF-PM-004` — Editar producto
 
 | Campo | Valor |
@@ -276,12 +328,16 @@ Devuelve un producto por su identificador con sus datos completos y, cuando es u
 | Actor | Administrador |
 | Permiso requerido | `products:update` |
 | Prioridad | Alta |
-| Reglas aplicables | `RN-PM-001`, `RN-PM-005` a `RN-PM-008` |
+| Reglas aplicables | `RN-PM-001`, `RN-PM-005` a `RN-PM-008`, `RN-PM-019`, `RN-PM-020` |
 | Depende de | `RF-PM-001` |
 | Tripleta | `docs/specs/pm/004-editar-producto/` |
 | Estado | **Tasks aprobadas** (26-08-2026) |
 
-Permite corregir **nombre, descripción, precio y moneda**. **No permite cambiar el tipo** (`RN-PM-001`) **ni ninguna de las dos membresías**: las tres definen qué derecho otorga el producto, y cambiarlas convierte lo comprado en otra cosa. Quien necesite otro origen u otro destino registra otro producto y retira el anterior.
+Permite corregir **nombre, descripción, icono, precio, moneda, vigencia, alcance e implementación**. **No permite cambiar el tipo** (`RN-PM-001`) **ni ninguna de las dos membresías**: las tres definen qué derecho otorga el producto, y cambiarlas convierte lo comprado en otra cosa. Quien necesite otro origen u otro destino registra otro producto y retira el anterior.
+
+**El alcance y la implementación entran del lado corregible** (07-09-2026), y esa es la línea que las separa de los tres inmutables: ninguna cambia **qué derecho otorga** el producto —una dice hasta dónde se muestra y la otra quién lo aplica—, de modo que corregirlas no reescribe lo que compró quien lo compró. Congelarlas habría obligado a registrar un producto nuevo para mover un enlace de sitio, y a retirar el viejo con lo vendido colgando de él.
+
+**Y no reescriben ninguna venta anterior, porque la venta copia la implementación en su línea** —como el importe y la vigencia—: quien compró algo que se entregaba solo lo sigue teniendo así aunque el catálogo cambie de criterio mañana. Es la condición que §5.2.2 impone a `MV`, y **todavía no está construida**.
 
 #### `RF-PM-005` — Cambiar el estado de un producto
 
@@ -321,12 +377,14 @@ Elimina lógicamente un producto **exigiendo motivo** (Art. V.13), que viaja al 
 | Actor | Cualquier persona autenticada con `products:sale` |
 | Permiso requerido | `products:sale` |
 | Prioridad | Alta |
-| Reglas aplicables | `RN-PM-009`, `RN-PM-011` |
+| Reglas aplicables | `RN-PM-009`, `RN-PM-011`, `RN-PM-019`, `RN-PM-020` |
 | Depende de | `RF-PM-001` |
 | Tripleta | `docs/specs/pm/007-consultar-oferta-propia/` |
 | Estado | **Tasks aprobadas** (26-08-2026) |
 
 Devuelve **solo productos activos**, y de los de tipo upgrade **solo los que llevan a un nivel superior al que el actor tiene hoy**. No admite parámetro de persona: responde sobre quien llama y sobre nadie más, como `RF-SP-039`. Nunca devuelve el motivo de retiro, ni lo inactivo, ni la membresía de terceros.
+
+**Publica el alcance y la implementación de cada producto, y no filtra por ninguno de los dos** (`RN-PM-019`, `RN-PM-020`). El alcance **no puede** filtrar aquí: bajo la escala acumulativa los dos valores llegan a la tienda, de modo que un predicado sobre él devolvería siempre lo mismo que no ponerlo. La implementación sí viaja en la respuesta, y por un motivo que no es de simetría: quien compra tiene que poder saber **antes de pagar** que lo que se lleva no se le entrega en el acto. Ocultarlo no evita la espera — la convierte en una incidencia de soporte.
 
 ---
 
@@ -405,6 +463,8 @@ Ninguna otra. `memberships` y `currencies` se **referencian** por clave foránea
 | `price` | `numeric(14,4)` | No | No | No | — | — |
 | `currency_id` | `uuid` | No | Sí | No | — | `currencies` |
 | `status` | `varchar(20)` | No | No | No | `ACTIVO` | — |
+| `scope` | `varchar(20)` | No | No | No | — | — |
+| `implementation` | `varchar(20)` | No | No | No | — | — |
 | `created_at` | `timestamptz` | No | No | No | `now()` | — |
 | `updated_at` | `timestamptz` | No | No | No | `now()` | — |
 | `deleted_at` | `timestamptz` | No | No | Sí | — | — |
@@ -420,6 +480,22 @@ Sin columnas de actor, y **sin columna de motivo**: quién retiró el producto y
 
 `status` tiene dominio cerrado —`ACTIVO`, `INACTIVO`— y decide si el producto se ofrece (`RN-PM-009`). **No se usa `boolean`**, al revés que los catálogos de `SP`: el dominio es candidato a crecer —un `BORRADOR` que permita preparar un producto sin publicarlo es previsible— y añadir un valor a un `varchar` con `CHECK` es una migración, mientras que convertir un `boolean` en tres estados es una reescritura de todo lo que lo consulta.
 
+`scope` tiene dominio cerrado y **es una escala, no un reparto** (`RN-PM-019`):
+
+| Valor | Hasta dónde llega el producto |
+|---|---|
+| `TIENDA` | Solo la tienda |
+| `HOTLINKS` | La tienda **y** los hotlinks. **Incluye** al anterior: es un alcance mayor, no otro canal |
+
+`implementation` tiene dominio cerrado y dice **quién aplica lo comprado** (`RN-PM-020`):
+
+| Valor | Qué ocurre cuando se confirma el pago de una venta |
+|---|---|
+| `AUTOMATICA` | El sistema aplica lo comprado sin que intervenga nadie |
+| `MANUAL` | Lo comprado **queda esperando** a que un funcionario lo autorice. Confirmar el pago **no** lo entrega |
+
+**Las dos son `varchar` con `CHECK` y no `boolean`**, por el mismo motivo que `status`. En el alcance el dominio ya es candidato a crecer —un tercer valor que publique **solo** en hotlinks es previsible—, y añadirlo a un `varchar` es una migración mientras que convertir un `boolean` en tres estados es reescribir todo lo que lo consulta. En la implementación el dominio parece binario de verdad, y se declara igual: el día que aparezca una tercera forma —diferida, automática con tope— el nombre `boolean` ya habría mentido, y el coste de haberlo elegido se paga entero en ese momento.
+
 **El valor por omisión de `status` es `INACTIVO`** (`RN-PM-012`), y con él se descartó por ahora el tercer valor `BORRADOR`: la distinción entre «nunca publicado» y «retirado de la venta» es fina y no urge, y añadirla después es exactamente la migración barata que este párrafo describe. Resuelto el 26-08-2026 al aprobar `RF-PM-001`.
 
 **`price` se declara `numeric(14,4)` y no `numeric(12,2)`.** La escala no puede fijarse en dos porque `currencies.decimal_places` no siempre vale dos, y el sistema declara ese campo precisamente para no asumirlo. Cuatro decimales cubren toda moneda ISO 4217 en circulación. La escala **efectiva** de cada producto la decide su moneda, y esa es `RN-PM-007`.
@@ -433,6 +509,8 @@ Sin columnas de actor, y **sin columna de motivo**: quién retiró el producto y
 | `ck_products_type_target` | `(type = 'UPGRADE_MEMBRESIA' AND target_membership_id IS NOT NULL AND source_membership_id IS NOT NULL) OR (type = 'BOT' AND target_membership_id IS NULL AND source_membership_id IS NULL)` | `RN-PM-002` |
 | `ck_products_icon_solo_upgrade` | `icon IS NULL OR type = 'UPGRADE_MEMBRESIA'` | `RN-PM-016`. La rama `IS NULL` va **delante y explícita** por lo mismo que en la vigencia: un `CHECK` que evalúa a `NULL` **acepta** la fila |
 | `ck_products_icon_format` | `icon IS NULL OR icon ~ '^[a-z][a-z0-9-]*$'` | `RN-PM-016`. El valor se guarda ya normalizado, de modo que el `CHECK` puede ser una comprobación de forma corriente |
+| `ck_products_scope` | `scope IN ('TIENDA','HOTLINKS')` | `RN-PM-019` |
+| `ck_products_implementation` | `implementation IN ('AUTOMATICA','MANUAL')` | `RN-PM-020`. **Ninguna de las dos lleva `DEFAULT`**, al revés que `status`: aquel lo tiene porque una regla lo exige (`RN-PM-012`), y aquí un valor por omisión sería **una decisión comercial tomada por la columna** — hasta dónde se muestra un producto y quién lo entrega los declara quien lo registra |
 | `ck_products_price_positive` | `price > 0` | `RN-PM-006` |
 | `ck_products_validity_positive` | `validity_days IS NULL OR validity_days > 0` | `RN-PM-015`. La rama `IS NULL` se escribe **explícita** aunque `validity_days > 0` sola también admitiría el nulo —un `CHECK` que evalúa a `NULL` acepta la fila—: así el permiso es deliberado y no accidental, y el día que la vigencia se vuelva obligatoria basta con quitar esa rama |
 | `fk_products_target_membership` | `target_membership_id` → `memberships(id)` | `RN-PM-003` |
@@ -482,3 +560,4 @@ Se declaran en la base de datos, no solo en Java (Art. V.6).
 | 0.14.0 | 01-09-2026 | **`RF-PM-007` implementado**, y con él las siete operaciones del módulo tienen código: `GET /api/v1/products/available` publica a cada persona lo que puede comprar. Estrena la **tercera y última lectura de D-25** —`CurrentMembershipLookup`, la membresía **vigente** de una persona—, que devuelve la membresía **ya evaluada** en lugar de su fecha de fin: publicar la fecha habría invitado a `PM` a rehacer la comparación de vigencia, y ese es el defecto que **no falla** —resultados plausibles durante meses, visibles solo en el borde—. La comparación que decide el requerimiento es `m.level < :nivel` con **menor estricto**, porque la cadena crece hacia abajo y **nivel superior es número menor**; escrita al revés habría ofrecido **bajadas** de nivel cobrándolas, sin que ninguna prueba de camino feliz lo viera, y por eso `ProductOfferIT` comprueba los tres casos —inferior, igual y superior— en una sola vista y sobre una cadena de **cuatro** niveles, que es la única longitud con la que «todos los superiores» y «solo el inmediato» dejan de dar el mismo resultado. **Se corrige además §9** (Art. I.7): la fila del retiro decía `DELETE /api/v1/products/{id}` desde el 26-08-2026, cuando el `plan.md` de `RF-PM-006` se había corregido el 27-08-2026 y el código expone `POST /{id}/deletion` — el documento transversal contradecía al plan y a la implementación a la vez. **Y §6.1 se pone al día**: los siete requerimientos figuraban en `Tasks aprobadas` cuando seis llevaban código desde el 27-08-2026 — esta tabla no es la autoridad del estado, lo es la matriz de [`requirements.md` §4](../requirements.md#4-matriz-de-trazabilidad), y tenerla desactualizada obliga a comprobar cuál de las dos miente. | Responsable técnico |
 | 0.15.0 | 02-09-2026 | **Un upgrade declara de dónde sale, no solo a dónde lleva**, por decisión del responsable del proyecto. Hasta hoy solo decía el destino y **quién podía comprarlo se deducía** —cualquiera por debajo de ese nivel—, y esa deducción hacía **imposible el salto**: «`FREE → ORO`» no se podía expresar, porque el mismo producto se ofrecía al mismo precio a quien sube tres escalones y a quien sube uno. Con el origen declarado, **cada salto es un producto** y cada uno tiene su precio. **El origen es obligatorio en todo upgrade** (`RN-PM-002`), y §5.2.1 acepta entera la consecuencia: **un origen sin producto no falla, no se ofrece** — si nadie declara un upgrade desde `VIP`, quien esté en `VIP` no verá ninguna subida, y el catálogo se ve perfectamente bien desde administración. Es el precio de que la oferta sea explícita en lugar de calculada; la alternativa —origen opcional con «vacío = desde cualquiera»— obligaba a que **dos reglas convivieran** en cada consulta y a que un mismo comprador viera dos caminos al mismo destino sin que nadie lo decidiera. **`RN-PM-004` cambia de forma**: la unicidad pasa de ser **por destino** a ser **por pareja origen→destino**, porque la anterior prohibía exactamente lo que el origen existe para permitir — `FREE → ORO` y `PLATINO → ORO` activos a la vez no son dos precios para lo mismo, son **dos saltos distintos**. Nacen `RN-PM-017` —el origen está **por debajo** del destino, y no puede ser el mismo: lo contrario sería vender un descenso llamándolo upgrade, o vender nada— y `RN-PM-018`, que declara que **saltar niveles es legítimo** y es la razón de que el origen se declare en lugar de deducirse de la cadena. **Y `RF-PM-007` deja de comparar niveles**: la oferta pasa a ser una coincidencia exacta —los upgrades cuyo origen es mi membresía— con lo que la regla de niveles se muda de ser un filtro evaluado en cada consulta a una validación comprobada **una vez, al registrar**. Eso conserva sin escribir nada que **quien no tiene membresía no vea ningún upgrade**: no coincide con ningún origen. | Responsable del proyecto |
 | 0.16.0 | 02-09-2026 | **`RF-PM-007` deja de responder sin permiso**, por decisión del responsable del proyecto, y **§4 se enmienda bajo Art. I.7** —el requerimiento ya está implementado—. Nace `products:sale`: no es un permiso de administración como los otros cuatro del módulo, es el que gobierna la **vista de venta** que un rol de tipo `CONSUMIDOR` usa para ver qué puede comprar. El razonamiento que justificaba «sin permiso» —que exigir `products:read` daría a cada cliente el catálogo entero— **sigue siendo válido para `products:read`**, y es exactamente por lo que el permiso nuevo no es ese: es uno propio, acotado a esta vista y a nada más. **No se concede por siembra**: el rol `CLIENTE` (`V30`) nace sin permisos a propósito, y quien administre roles se lo concede a `CLIENTE`, a `ESTUDIANTE` o a cualquier `CONSUMIDOR` por `RF-SP-006`, como a cualquier otro permiso. `V48__seed_products_sale_permission.sql` lo siembra y lo asocia a `SUPERADMIN` y `ADMIN` en la misma migración ([`security.md` §4.4](../security.md#44-catalogo-de-permisos)). | Responsable del proyecto |
+| 0.17.0 | 07-09-2026 | **Un producto declara HASTA DÓNDE se muestra y CÓMO se entrega**, por decisión del responsable del proyecto. Nacen dos columnas, dos reglas y §5.2.2. **`RN-PM-019` — el alcance es ACUMULATIVO, no un canal**: `TIENDA` es el alcance más corto y `HOTLINKS` **incluye la tienda**, de modo que la escala crece en lugar de repartir el catálogo. Se eligió frente a dos canales excluyentes, y **lo que cuesta hay que leerlo entero: no existe forma de publicar algo SOLO en hotlinks**, ni de esconder de la tienda un producto que se quiere enlazar. El día que haga falta, lo que entra es un **tercer valor** —`SOLO_HOTLINKS`— y no un cambio de significado de los dos que hay, que reescribiría en silencio lo ya declarado. **`RN-PM-020` — la implementación dice si lo comprado se aplica solo o espera a que alguien lo autorice**, `AUTOMATICA` o `MANUAL`, y **es lo primero de este catálogo que gobierna a otro módulo**: `RN-MV-020` deja de conceder la membresía en toda venta confirmada y pasa a concederla **solo** cuando el producto es automático ([`requirements/mv.md` v0.9.0](mv.md)). **Las dos son obligatorias en los dos tipos y las dos se corrigen** (`RF-PM-004`), al revés que el tipo y las dos membresías: ninguna cambia **qué derecho otorga** el producto —una dice dónde se ve y la otra quién lo entrega—, de modo que congelarlas obligaría a registrar un producto nuevo para mover un enlace de sitio, con lo vendido colgando del viejo. **Y queda escrito lo que el alcance NO hace hoy**: `RF-PM-007` —la tienda— **no lo filtra**, porque bajo la escala acumulativa los dos valores llegan a ella; su único uso inmediato es el filtro del catálogo administrativo (`RF-PM-002`), que entra con las columnas y no después — sin él, el alcance sería un dato que se declara y no se puede consultar. `V59` añade las dos columnas **sin valor por omisión** —el dominio las escribe siempre— y rellena lo existente con `TIENDA` y `MANUAL`: el alcance más corto **conserva exactamente la oferta de hoy**, y la implementación más lenta **no concede nada sola** — rellenar con `AUTOMATICA` habría hecho que el día que `RF-MV-003` se construya, productos que nadie revisó entregaran membresías sin que ninguna decisión lo hubiera dicho. Enmienda las tripletas de `RF-PM-001` a `RF-PM-004` y `RF-PM-007` (Art. I.7), y las cinco quedan **construidas el mismo día**: quince criterios nuevos —`CA-PM-110` a `CA-PM-124`— y la suite del proyecto de **992 a 1006 pruebas**, en verde. | Responsable del proyecto |

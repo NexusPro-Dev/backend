@@ -8,7 +8,7 @@
 | Estado | **Aprobado** |
 | Autor | Responsable técnico |
 | Aprobado por | Responsable del proyecto |
-| Enmendado el | 27-08-2026 — `RN-PM-015`; 02-09-2026 — la membresía de **origen** (`RN-PM-017`, `RN-PM-018`) |
+| Enmendado el | 27-08-2026 — `RN-PM-015`; 02-09-2026 — la membresía de **origen** (`RN-PM-017`, `RN-PM-018`); 07-09-2026 — el **alcance** y la **implementación**, corregibles y **no vaciables** (`RN-PM-019`, `RN-PM-020`) |
 | Fecha de aprobación | 26-08-2026 |
 
 ---
@@ -42,6 +42,8 @@ Aquí la distinción decide dos comportamientos opuestos: **la descripción admi
 - **El tipo, el código y las dos membresías no se admiten**, y su presencia **devuelve `400`** (`CA-PM-033`). El origen es inmutable por el mismo motivo que el destino: cambiarlo convierte el producto en **otro salto**, con otro precio y otra clientela, y quien lo compró ayer compró el anterior. Se rechaza y no se ignora: ignorarlos haría creer al actor que el cambio se aplicó. Se consigue con `FAIL_ON_UNKNOWN_PROPERTIES`, que ya está activo, más un mensaje propio de `VAL-006` si llegan con nombre conocido.
 - **`description: null` la borra; `name: null` se rechaza** (`VAL-002`).
 - **No se exige motivo** (`spec.md` §14, resolución 2).
+- **El alcance y la implementación se corrigen, y el nulo explícito NO los vacía.** Son los dos primeros campos `Patchable` del módulo con **tres** estados en los que el tercero es un rechazo: ausente deja como está, con valor corrige, y **presente con nulo devuelve `400`** — al revés que la descripción, el icono y la vigencia, donde el nulo es una orden de borrado. La diferencia no es de gusto: aquellos admiten faltar en la columna y estos no, de modo que «bórralo» no tiene ningún estado al que llevar el producto.
+- **El diff los lleva como cualquier otro campo**, con `before` y `after`, y por el motivo de siempre: el diff lo devuelve **quien aplica el cambio** y no el caso de uso comparando antes y después, de modo que un campo que no entre en el diff es un campo que no se audita — y eso se ve en la misma línea en que se asigna.
 
 ## 5. Orden de verificación
 

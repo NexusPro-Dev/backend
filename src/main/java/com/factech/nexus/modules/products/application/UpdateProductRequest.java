@@ -1,5 +1,7 @@
 package com.factech.nexus.modules.products.application;
 
+import com.factech.nexus.modules.products.domain.models.ProductImplementation;
+import com.factech.nexus.modules.products.domain.models.ProductScope;
 import com.factech.nexus.shared.patch.Patchable;
 import com.factech.nexus.shared.patch.PatchableDeserializer;
 import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
@@ -42,6 +44,9 @@ public record UpdateProductRequest(
     @JsonDeserialize(using = PatchableDeserializer.class) Patchable<BigDecimal> price,
     @JsonDeserialize(using = PatchableDeserializer.class) Patchable<UUID> currencyId,
     @JsonDeserialize(using = PatchableDeserializer.class) Patchable<Integer> validityDays,
+    @JsonDeserialize(using = PatchableDeserializer.class) Patchable<ProductScope> scope,
+    @JsonDeserialize(using = PatchableDeserializer.class)
+        Patchable<ProductImplementation> implementation,
     @JsonDeserialize(using = PatchableDeserializer.class) Patchable<Object> type,
     @JsonDeserialize(using = PatchableDeserializer.class) Patchable<Object> code,
     @JsonDeserialize(using = PatchableDeserializer.class) Patchable<Object> targetMembershipId,
@@ -60,6 +65,8 @@ public record UpdateProductRequest(
     price = price == null ? Patchable.ausente() : price;
     currencyId = currencyId == null ? Patchable.ausente() : currencyId;
     validityDays = validityDays == null ? Patchable.ausente() : validityDays;
+    scope = scope == null ? Patchable.ausente() : scope;
+    implementation = implementation == null ? Patchable.ausente() : implementation;
     type = type == null ? Patchable.ausente() : type;
     code = code == null ? Patchable.ausente() : code;
     targetMembershipId = targetMembershipId == null ? Patchable.ausente() : targetMembershipId;
@@ -81,6 +88,8 @@ public record UpdateProductRequest(
         || icon.presente()
         || price.presente()
         || currencyId.presente()
-        || validityDays.presente();
+        || validityDays.presente()
+        || scope.presente()
+        || implementation.presente();
   }
 }

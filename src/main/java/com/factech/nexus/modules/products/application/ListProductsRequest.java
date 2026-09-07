@@ -16,9 +16,10 @@ import java.util.UUID;
  * {@code 400}, porque Spring intenta convertir la ausencia. Es el mismo defecto que el catálogo de
  * monedas tuvo que corregir en `SP`.
  *
- * <p><b>{@code type} y {@code status} son texto y no sus enumerados.</b> Enlazarlos como enumerado
- * dejaría que Spring rechazara el valor fuera de dominio antes de entrar al caso de uso, y el
- * rechazo saldría <b>solo</b> —no junto a los demás—, que es justo lo que `CA-PM-020` no admite.
+ * <p><b>{@code type}, {@code status}, {@code scope} e {@code implementation} son texto y no sus
+ * enumerados.</b> Enlazarlos como enumerado dejaría que Spring rechazara el valor fuera de dominio
+ * antes de entrar al caso de uso, y el rechazo saldría <b>solo</b> —no junto a los demás—, que es
+ * justo lo que `CA-PM-020` no admite.
  */
 public record ListProductsRequest(
     Integer page,
@@ -26,6 +27,8 @@ public record ListProductsRequest(
     String sort,
     String type,
     String status,
+    String scope,
+    String implementation,
     UUID sourceMembershipId,
     UUID targetMembershipId,
     String search,
@@ -38,6 +41,9 @@ public record ListProductsRequest(
     search = search == null || search.isBlank() ? null : search.trim();
     type = type == null || type.isBlank() ? null : type.trim();
     status = status == null || status.isBlank() ? null : status.trim();
+    scope = scope == null || scope.isBlank() ? null : scope.trim();
+    implementation =
+        implementation == null || implementation.isBlank() ? null : implementation.trim();
     sort = sort == null || sort.isBlank() ? null : sort.trim();
   }
 

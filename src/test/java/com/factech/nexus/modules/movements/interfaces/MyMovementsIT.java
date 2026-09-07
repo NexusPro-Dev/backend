@@ -306,9 +306,9 @@ class MyMovementsIT extends IntegrationTestBase {
   private UUID producto() {
     UUID id = UUID.randomUUID();
     jdbc.update(
-        "INSERT INTO products (id, code, type, name, description, source_membership_id,"
+        "INSERT INTO products (scope, implementation, id, code, type, name, description, source_membership_id,"
             + " target_membership_id, price, currency_id, validity_days, status)"
-            + " VALUES (?, 'MINE_BOT', 'BOT', 'Bot de prueba', 'Producto de prueba', NULL,"
+            + " VALUES ('TIENDA', 'MANUAL', ?, 'MINE_BOT', 'BOT', 'Bot de prueba', 'Producto de prueba', NULL,"
             + " NULL, CAST(? AS numeric), CAST(? AS uuid), NULL, 'ACTIVO')",
         id,
         "100.00",

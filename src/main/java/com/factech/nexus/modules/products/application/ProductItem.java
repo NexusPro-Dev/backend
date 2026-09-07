@@ -1,5 +1,7 @@
 package com.factech.nexus.modules.products.application;
 
+import com.factech.nexus.modules.products.domain.models.ProductImplementation;
+import com.factech.nexus.modules.products.domain.models.ProductScope;
 import com.factech.nexus.modules.products.domain.models.ProductStatus;
 import com.factech.nexus.modules.products.domain.models.ProductType;
 import com.factech.nexus.modules.products.domain.repository.ProductQueryRepository.ProductRow;
@@ -42,6 +44,8 @@ public record ProductItem(
     BigDecimal price,
     ProductResponse.CurrencyRef currency,
     Integer validityDays,
+    ProductScope scope,
+    ProductImplementation implementation,
     ProductStatus status,
     OffsetDateTime createdAt,
     OffsetDateTime deletedAt) {
@@ -79,6 +83,8 @@ public record ProductItem(
         new ProductResponse.CurrencyRef(
             fila.currencyId(), fila.currencyCode(), fila.currencyDecimalPlaces()),
         fila.validityDays(),
+        ProductScope.valueOf(fila.scope()),
+        ProductImplementation.valueOf(fila.implementation()),
         ProductStatus.valueOf(fila.status()),
         enUtc(fila.createdAt()),
         enUtc(fila.deletedAt()));

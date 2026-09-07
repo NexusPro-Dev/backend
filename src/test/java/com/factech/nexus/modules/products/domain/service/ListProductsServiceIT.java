@@ -111,6 +111,8 @@ class ListProductsServiceIT extends IntegrationTestBase {
                 "name,asc",
                 "UPGRADE_MEMBRESIA",
                 "ACTIVO",
+                null,
+                null,
                 origen,
                 destino,
                 "Producto",
@@ -127,7 +129,8 @@ class ListProductsServiceIT extends IntegrationTestBase {
     estadisticas.clear();
 
     ProductPageResponse pagina =
-        service.list(new ListProductsRequest(99, 20, null, null, null, null, null, null, null));
+        service.list(
+            new ListProductsRequest(99, 20, null, null, null, null, null, null, null, null, null));
 
     assertThat(pagina.content()).isEmpty();
     // Y no 1980, que es lo que daría deducir el total del desplazamiento: un
@@ -244,7 +247,9 @@ class ListProductsServiceIT extends IntegrationTestBase {
     List<UUID> vistos = new ArrayList<>();
     for (int pagina = 0; pagina < paginas; pagina++) {
       service
-          .list(new ListProductsRequest(pagina, tamano, orden, null, null, null, null, null, null))
+          .list(
+              new ListProductsRequest(
+                  pagina, tamano, orden, null, null, null, null, null, null, null, null))
           .content()
           .stream()
           .map(ProductItem::id)
@@ -254,7 +259,8 @@ class ListProductsServiceIT extends IntegrationTestBase {
   }
 
   private static ListProductsRequest peticion(Integer tamano, String orden, String estado) {
-    return new ListProductsRequest(0, tamano, orden, null, estado, null, null, null, null);
+    return new ListProductsRequest(
+        0, tamano, orden, null, estado, null, null, null, null, null, null);
   }
 
   private UUID membresia(String codigo, String nombre, int nivel) {
@@ -297,10 +303,10 @@ class ListProductsServiceIT extends IntegrationTestBase {
           });
     }
     jdbc.batchUpdate(
-        "INSERT INTO products (id, code, type, name, source_membership_id,"
+        "INSERT INTO products (scope, implementation, id, code, type, name, source_membership_id,"
             + " target_membership_id, price, currency_id,"
             + " status, created_at, updated_at)"
-            + " VALUES (CAST(? AS uuid), ?, 'BOT', ?, NULL, NULL, ?, CAST(? AS uuid), 'ACTIVO',"
+            + " VALUES ('TIENDA', 'MANUAL', CAST(? AS uuid), ?, 'BOT', ?, NULL, NULL, ?, CAST(? AS uuid), 'ACTIVO',"
             + " ?, ?)",
         filas);
   }

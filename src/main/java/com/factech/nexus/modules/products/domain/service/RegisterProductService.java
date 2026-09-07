@@ -123,6 +123,8 @@ public class RegisterProductService {
                 comando.price(),
                 comando.currencyId(),
                 comando.validityDays(),
+                comando.scope(),
+                comando.implementation(),
                 OffsetDateTime.now(reloj)));
 
     auditar(nuevo);

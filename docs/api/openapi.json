@@ -979,11 +979,19 @@
             "format" : "uuid",
             "type" : "string"
           },
+          "implementation" : {
+            "enum" : [ "AUTOMATICA", "MANUAL" ],
+            "type" : "string"
+          },
           "name" : {
             "type" : "string"
           },
           "price" : {
             "type" : "number"
+          },
+          "scope" : {
+            "enum" : [ "TIENDA", "HOTLINKS" ],
+            "type" : "string"
           },
           "targetMembership" : {
             "$ref" : "#/components/schemas/MembershipRef"
@@ -1313,6 +1321,8 @@
       "PatchableInteger" : { },
       "PatchableLocalDate" : { },
       "PatchableObject" : { },
+      "PatchableProductImplementation" : { },
+      "PatchableProductScope" : { },
       "PatchableString" : { },
       "PatchableUUID" : { },
       "PaymentMethodCatalogResponse" : {
@@ -1479,11 +1489,19 @@
             "format" : "uuid",
             "type" : "string"
           },
+          "implementation" : {
+            "enum" : [ "AUTOMATICA", "MANUAL" ],
+            "type" : "string"
+          },
           "name" : {
             "type" : "string"
           },
           "price" : {
             "type" : "number"
+          },
+          "scope" : {
+            "enum" : [ "TIENDA", "HOTLINKS" ],
+            "type" : "string"
           },
           "sourceMembership" : {
             "$ref" : "#/components/schemas/MembershipRef"
@@ -1536,11 +1554,19 @@
             "format" : "uuid",
             "type" : "string"
           },
+          "implementation" : {
+            "enum" : [ "AUTOMATICA", "MANUAL" ],
+            "type" : "string"
+          },
           "name" : {
             "type" : "string"
           },
           "price" : {
             "type" : "number"
+          },
+          "scope" : {
+            "enum" : [ "TIENDA", "HOTLINKS" ],
+            "type" : "string"
           },
           "sourceMembership" : {
             "$ref" : "#/components/schemas/MembershipRef"
@@ -1633,11 +1659,19 @@
             "format" : "uuid",
             "type" : "string"
           },
+          "implementation" : {
+            "enum" : [ "AUTOMATICA", "MANUAL" ],
+            "type" : "string"
+          },
           "name" : {
             "type" : "string"
           },
           "price" : {
             "type" : "number"
+          },
+          "scope" : {
+            "enum" : [ "TIENDA", "HOTLINKS" ],
+            "type" : "string"
           },
           "sourceMembership" : {
             "$ref" : "#/components/schemas/MembershipRef"
@@ -1766,6 +1800,10 @@
             "minLength" : 0,
             "type" : "string"
           },
+          "implementation" : {
+            "enum" : [ "AUTOMATICA", "MANUAL" ],
+            "type" : "string"
+          },
           "name" : {
             "maxLength" : 150,
             "minLength" : 0,
@@ -1774,6 +1812,10 @@
           "price" : {
             "minimum" : 0.0,
             "type" : "number"
+          },
+          "scope" : {
+            "enum" : [ "TIENDA", "HOTLINKS" ],
+            "type" : "string"
           },
           "sourceMembershipId" : {
             "format" : "uuid",
@@ -1793,7 +1835,7 @@
             "type" : "integer"
           }
         },
-        "required" : [ "code", "currencyId", "name", "price", "type" ],
+        "required" : [ "code", "currencyId", "implementation", "name", "price", "scope", "type" ],
         "type" : "object"
       },
       "RegisterSaleRequest" : {
@@ -2319,11 +2361,17 @@
           "icon" : {
             "$ref" : "#/components/schemas/PatchableString"
           },
+          "implementation" : {
+            "$ref" : "#/components/schemas/PatchableProductImplementation"
+          },
           "name" : {
             "$ref" : "#/components/schemas/PatchableString"
           },
           "price" : {
             "$ref" : "#/components/schemas/PatchableBigDecimal"
+          },
+          "scope" : {
+            "$ref" : "#/components/schemas/PatchableProductScope"
           },
           "sourceMembershipId" : {
             "$ref" : "#/components/schemas/PatchableObject"
@@ -4646,6 +4694,20 @@
         }, {
           "in" : "query",
           "name" : "status",
+          "required" : false,
+          "schema" : {
+            "type" : "string"
+          }
+        }, {
+          "in" : "query",
+          "name" : "scope",
+          "required" : false,
+          "schema" : {
+            "type" : "string"
+          }
+        }, {
+          "in" : "query",
+          "name" : "implementation",
           "required" : false,
           "schema" : {
             "type" : "string"

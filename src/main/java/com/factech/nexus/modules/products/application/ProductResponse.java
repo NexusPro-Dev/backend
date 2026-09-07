@@ -1,6 +1,8 @@
 package com.factech.nexus.modules.products.application;
 
 import com.factech.nexus.modules.products.domain.models.Product;
+import com.factech.nexus.modules.products.domain.models.ProductImplementation;
+import com.factech.nexus.modules.products.domain.models.ProductScope;
 import com.factech.nexus.modules.products.domain.models.ProductStatus;
 import com.factech.nexus.modules.products.domain.models.ProductType;
 import com.factech.nexus.modules.system.currencies.application.CurrencyCatalog.CurrencyView;
@@ -34,6 +36,8 @@ public record ProductResponse(
     BigDecimal price,
     CurrencyRef currency,
     Integer validityDays,
+    ProductScope scope,
+    ProductImplementation implementation,
     ProductStatus status,
     OffsetDateTime createdAt,
     OffsetDateTime updatedAt) {
@@ -60,6 +64,8 @@ public record ProductResponse(
         enLaEscalaDe(producto.getPrice(), moneda),
         new CurrencyRef(moneda.id(), moneda.code(), moneda.decimalPlaces()),
         producto.getValidityDays(),
+        producto.getScope(),
+        producto.getImplementation(),
         producto.getStatus(),
         enUtc(producto.getCreatedAt()),
         enUtc(producto.getUpdatedAt()));

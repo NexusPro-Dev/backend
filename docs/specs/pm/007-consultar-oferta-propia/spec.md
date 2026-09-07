@@ -9,6 +9,7 @@
 | Aprobada por | Responsable del proyecto |
 | Fecha de aprobación | 26-08-2026 |
 | Enmendada el | 02-09-2026 — ver §15 |
+| Enmendada el | 07-09-2026 — **la oferta publica el alcance y la implementación, y no filtra por ninguno** (`RN-PM-019`, `RN-PM-020`). Ver §15 |
 
 ---
 
@@ -64,6 +65,8 @@ El catálogo de `RF-PM-002` lo lee quien administra y contiene todo. Lo que un c
 |---|---|---|
 | `RN-PM-009` | Solo se ofrece lo activo | `requirements/pm.md` §5.1 |
 | `RN-PM-011` | Un upgrade se ofrece solo hacia arriba | `requirements/pm.md` §5.1 |
+| `RN-PM-019` | El alcance es **acumulativo**, y por eso **no filtra** esta consulta | `requirements/pm.md` §5.2.2 |
+| `RN-PM-020` | La implementación dice si lo comprado se aplica solo o espera autorización | `requirements/pm.md` §5.1 |
 | `RN-SP-018` | Todo consumidor tiene membresía | `requirements/sp.md` §5.1 |
 
 ## 6. Datos
@@ -77,6 +80,7 @@ El catálogo de `RF-PM-002` lo lee quien administra y contiene todo. Lo que un c
 | Dato | Descripción |
 |---|---|
 | Productos ofrecibles | Identificador, código, tipo, nombre, descripción, precio con su moneda y **vigencia en días**. **El precio es el del producto**, sin ajuste por nivel |
+| Alcance e implementación | Los dos, en cada producto. **El alcance no filtra esta consulta** —es acumulativo y los dos valores llegan a la tienda—; la implementación viaja para que quien compra sepa **antes de pagar** si lo que se lleva se le entrega en el acto |
 | Orden | **Agrupados por tipo**: primero los upgrades ordenados por **nivel destino**, después los bots por fecha de alta |
 | Membresía destino | En los upgrades: código, nombre y **nivel**, para que quien mira entienda a dónde sube |
 | Membresía de origen | **No viaja.** Es siempre la del actor, que ya va en la respuesta: repetirla en cada producto sería decir tres veces lo mismo |
@@ -157,6 +161,8 @@ Ninguna: la consulta no admite entrada.
 | `CA-PM-106` | El sistema ofrece **solo los upgrades cuyo origen es la membresía del actor**, y **no** uno declarado desde otra |
 | `CA-PM-107` | Con dos upgrades desde su membresía —un paso corto y un **salto**— el sistema **ofrece los dos**: elegir es de quien compra |
 | `CA-PM-108` | Un upgrade **hacia** la membresía del actor, declarado desde una inferior, **no se le ofrece**: ya está ahí |
+| `CA-PM-123` | El sistema devuelve **el alcance y la implementación** de cada producto ofrecido, en los dos tipos |
+| `CA-PM-124` | El sistema ofrece **los productos de los dos alcances**: uno de `TIENDA` y otro de `HOTLINKS` aparecen los dos, porque la escala es acumulativa y esta consulta **no filtra por ella** |
 
 ## 13. Casos límite
 
@@ -189,3 +195,4 @@ Ninguna. Las cinco se resolvieron el 26-08-2026, antes de aprobar la especificac
 | 0.3.0 | 27-08-2026 | La oferta devuelve la **vigencia en días** de cada producto (`RN-PM-015`), y **vacía** en los que no caducan. Es el dato que decide una compra: sin él, dos upgrades al mismo nivel y al mismo precio son indistinguibles aunque uno dure un mes y el otro para siempre. `CA-PM-095`. **Lo que ocurre al vencer no lo decide esta consulta** y ya está escrito en `requirements/pm.md` §1.4: la persona se queda sin nivel vigente, que es exactamente el caso que `FA-003` ya contempla. | Responsable del proyecto |
 | 0.4.0 | 02-09-2026 | **Esta consulta deja de comparar niveles.** Un upgrade declara ahora **de qué membresía sale** (`pm.md` §5.2.1), y la oferta pasa de ser un cálculo —«todos los que llevan por encima de mi nivel»— a una **coincidencia exacta**: los upgrades cuyo origen es mi membresía. **La regla de niveles no desaparece, se muda**: deja de evaluarse en cada consulta y se comprueba **una vez, al registrar** (`RN-PM-017`). Aquí ya no hay nada que deducir, porque quien declaró el producto ya dijo a quién va dirigido. **Y `FA-001` se conserva sin escribir una línea**: quien no tiene membresía no coincide con ningún origen, de modo que sigue sin ver upgrades — antes había que decirlo aparte, ahora sale del propio filtro. La membresía de origen **no viaja en la respuesta**: es siempre la del actor, que ya va ahí. Nacen `CA-PM-106` a `CA-PM-108`, y la última es la que más fácil se olvida: **un upgrade hacia el nivel que ya se tiene no se ofrece**, y con la coincidencia exacta eso sale solo — su origen es otro. **Lo que se paga queda escrito en cabecera**: si nadie declara un upgrade desde `VIP`, quien esté en `VIP` no ve ninguna subida, sin error y sin aviso. La cobertura de la cadena deja de ser automática. | Responsable del proyecto |
 | 0.5.0 | 02-09-2026 | **Enmienda bajo Art. I.7, con el requerimiento ya implementado.** Por decisión del responsable del proyecto, esta consulta pasa a exigir `products:sale`: hasta hoy respondía a cualquier persona autenticada sin exigir nada. `CA-PM-065` **cambia de contenido y conserva su identificador** —el mismo criterio, el permiso exigido— y nace `CA-PM-101`: el `403` a quien no lo tenga, aunque porte otros permisos de `products:`. §3 se actualiza a juego. Lo que **no** cambia: sigue sin admitir parámetro de persona (`CA-PM-066`), y la oferta de un tercero sigue sin existir ni con parámetro ni con permiso (§4.2). | Responsable del proyecto |
+| 0.5.0 | 07-09-2026 | **La oferta publica el alcance y la implementación, y NO filtra por ninguno de los dos** (`RN-PM-019`, `RN-PM-020`). Lo segundo es lo que hay que leer: **el alcance no puede filtrar aquí**, porque es **acumulativo** — `HOTLINKS` incluye la tienda, de modo que los dos valores llegan a esta consulta y un predicado sobre él devolvería siempre lo mismo que no ponerlo. Escribirlo «por simetría» con `RF-PM-002` habría sido peor que no escribirlo: un filtro que no filtra invita a construir sobre él una condición que nunca se cumple. **La implementación sí viaja en la respuesta**, y no por simetría tampoco: quien compra tiene que poder saber **antes de pagar** que lo que se lleva no se le entrega en el acto, y ocultarlo no evita la espera — la convierte en una incidencia de soporte. Entran `CA-PM-123` y `CA-PM-124`, y el segundo es el que **prueba que la escala no filtra**: un producto de `TIENDA` y otro de `HOTLINKS` aparecen **los dos**. | Responsable del proyecto |

@@ -117,6 +117,34 @@ public class Product {
   @Column(name = "status", nullable = false, length = 20)
   private ProductStatus status;
 
+  /**
+   * Hasta dónde se muestra el producto (`RN-PM-019`).
+   *
+   * <p><b>Obligatorio en los dos tipos</b>, y ahí se aparta de la membresía destino y del icono:
+   * aquellos dependen del tipo, y este no — un bot también se muestra en algún sitio.
+   *
+   * <p><b>Y no lleva valor por omisión</b>, ni aquí ni en la columna. Un producto guardado con el
+   * alcance supuesto se ve <b>exactamente igual</b> que uno declarado, de modo que el defecto no se
+   * vería nunca: nadie descubriría que nadie decidió dónde se publica.
+   */
+  @Enumerated(EnumType.STRING)
+  @Column(name = "scope", nullable = false, length = 20)
+  private ProductScope scope;
+
+  /**
+   * Si lo comprado se aplica solo o espera a que alguien lo autorice (`RN-PM-020`).
+   *
+   * <p><b>Es el campo de este agregado que gobierna a otro módulo</b>: `RN-MV-020` concede la
+   * membresía comprada <b>solo</b> si vale {@link ProductImplementation#AUTOMATICA}.
+   *
+   * <p><b>Se corrige</b> (`RF-PM-004`), y por eso `RN-MV-002` obliga a que la venta lo <b>copie en
+   * su línea</b> en lugar de releerlo del catálogo — esa copia está declarada y todavía no
+   * construida (`requirements/mv.md` §5.4).
+   */
+  @Enumerated(EnumType.STRING)
+  @Column(name = "implementation", nullable = false, length = 20)
+  private ProductImplementation implementation;
+
   @Column(name = "created_at", nullable = false, updatable = false)
   private OffsetDateTime createdAt;
 
@@ -158,6 +186,8 @@ public class Product {
       BigDecimal price,
       UUID currencyId,
       Integer validityDays,
+      ProductScope scope,
+      ProductImplementation implementation,
       OffsetDateTime ahora) {
 
     Product producto = new Product();
@@ -174,6 +204,8 @@ public class Product {
     producto.price = price;
     producto.currencyId = currencyId;
     producto.validityDays = validityDays;
+    producto.scope = scope;
+    producto.implementation = implementation;
     producto.status = ProductStatus.INACTIVO;
     producto.createdAt = ahora;
     producto.updatedAt = ahora;
@@ -244,6 +276,8 @@ public class Product {
       Patchable<BigDecimal> nuevoPrecio,
       Patchable<UUID> nuevaMoneda,
       Patchable<Integer> nuevaVigencia,
+      Patchable<ProductScope> nuevoAlcance,
+      Patchable<ProductImplementation> nuevaImplementacion,
       OffsetDateTime ahora) {
 
     Map<String, Object> cambios = new LinkedHashMap<>();
@@ -298,6 +332,25 @@ public class Product {
         cambios.put(
             "validity_days", Map.of("before", numero(validityDays), "after", numero(valor)));
         validityDays = valor;
+      }
+    }
+    // LAS DOS SE CORRIGEN, y el nulo explícito NO las vacía: son obligatorias
+    // en la columna, de modo que «bórralo» no tiene ningún estado al que llevar
+    // el producto. Quien lo envía recibe un 400 del caso de uso ANTES de llegar
+    // aquí; este método solo trata el caso con valor.
+    if (nuevoAlcance.presente() && nuevoAlcance.valor() != null) {
+      ProductScope valor = nuevoAlcance.valor();
+      if (valor != scope) {
+        cambios.put("scope", Map.of("before", scope.name(), "after", valor.name()));
+        scope = valor;
+      }
+    }
+    if (nuevaImplementacion.presente() && nuevaImplementacion.valor() != null) {
+      ProductImplementation valor = nuevaImplementacion.valor();
+      if (valor != implementation) {
+        cambios.put(
+            "implementation", Map.of("before", implementation.name(), "after", valor.name()));
+        implementation = valor;
       }
     }
 
@@ -381,6 +434,8 @@ public class Product {
     estado.put("currency_id", currencyId.toString());
     estado.put("validity_days", validityDays);
     estado.put("status", status.name());
+    estado.put("scope", scope.name());
+    estado.put("implementation", implementation.name());
     return estado;
   }
 
@@ -581,6 +636,16 @@ public class Product {
 
   public ProductStatus getStatus() {
     return status;
+  }
+
+  /** Hasta dónde se muestra el producto (`RN-PM-019`). */
+  public ProductScope getScope() {
+    return scope;
+  }
+
+  /** Si lo comprado se aplica solo o espera autorización (`RN-PM-020`). */
+  public ProductImplementation getImplementation() {
+    return implementation;
   }
 
   public OffsetDateTime getCreatedAt() {

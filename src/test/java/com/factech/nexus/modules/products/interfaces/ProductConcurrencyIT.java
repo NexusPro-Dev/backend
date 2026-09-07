@@ -83,7 +83,7 @@ class ProductConcurrencyIT extends IntegrationTestBase {
         .contentType(MediaType.APPLICATION_JSON)
         .content(
             """
-            {"code":"%s","type":"BOT","name":"%s","price":10.00,"currencyId":"%s"}
+            {"scope":"TIENDA","implementation":"AUTOMATICA","code":"%s","type":"BOT","name":"%s","price":10.00,"currencyId":"%s"}
             """
                 .formatted(codigo, nombre, USD));
   }

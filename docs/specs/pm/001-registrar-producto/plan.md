@@ -8,7 +8,7 @@
 | Estado | **Aprobado** |
 | Autor | Responsable técnico |
 | Aprobado por | Responsable del proyecto |
-| Enmendado el | 27-08-2026 — `RN-PM-015`; 02-09-2026 — la membresía de **origen** (`RN-PM-017`, `RN-PM-018`) |
+| Enmendado el | 27-08-2026 — `RN-PM-015`; 02-09-2026 — la membresía de **origen** (`RN-PM-017`, `RN-PM-018`); 07-09-2026 — **el alcance y la implementación** (`RN-PM-019`, `RN-PM-020`), §2.4 |
 | Fecha de aprobación | 26-08-2026 |
 
 !!! info "Qué va en este documento"
@@ -115,6 +115,32 @@ Esta migración **no emite auditoría**, igual que `V3`: un permiso no tiene lí
 
     Y va con el reparto de `V47` delante: **`level` numera desde la cima** —`ORO` es el 1 y `FREE` el 4—, de modo que «por debajo» es **número mayor**. Escribir la comparación al revés produce un sistema que acepta descensos y rechaza ascensos, y las dos mitades fallan calladas.
 
+### 2.4 `V59__products_scope_and_implementation.sql` — enmienda del 07-09-2026
+
+**Un producto declara hasta dónde se muestra y quién aplica lo que otorga** (`RN-PM-019`, `RN-PM-020`). Dos columnas obligatorias, en los **dos** tipos, y **sin valor por omisión**.
+
+| Cambio | Definición | Por qué |
+|---|---|---|
+| `scope` | `varchar(20) NOT NULL`, en **tres pasos**: se añade nula, se rellena, y solo entonces se marca `NOT NULL` | Una columna `NOT NULL` no se puede añadir de golpe a una tabla con filas sin darle un `DEFAULT`, y **el `DEFAULT` es justo lo que no queremos** — ver la fila del relleno |
+| `implementation` | `varchar(20) NOT NULL`, con la misma secuencia | Lo mismo |
+| Relleno | `TIENDA` y `MANUAL` sobre todo lo existente | **Es una decisión, no una deducción**, como el `FREE` de `V53`: bajo el modelo anterior estos productos **no tenían** ni alcance ni implementación. `TIENDA` es el alcance **más corto** y conserva **exactamente** la oferta de hoy; `MANUAL` es la implementación que **no entrega sola** |
+| `ck_products_scope` | `scope IN ('TIENDA','HOTLINKS')` | `RN-PM-019` |
+| `ck_products_implementation` | `implementation IN ('AUTOMATICA','MANUAL')` | `RN-PM-020` |
+
+!!! danger "Por qué el relleno de la implementación es `MANUAL` y no `AUTOMATICA`"
+
+    El valor por omisión de una migración **es una decisión de negocio disfrazada de detalle técnico**, y aquí las dos opciones no cuestan lo mismo.
+
+    Con `AUTOMATICA`, el día que `RF-MV-003` se construya **todo producto que existía antes de esta migración entregaría solo** — membresías concedidas por productos que nadie revisó, con el cobro hecho y sin que ninguna decisión lo hubiera dicho. El defecto **no falla: entrega**.
+
+    Con `MANUAL`, lo peor que pasa es que alguien tenga que autorizar una entrega que podría haberse aplicado sola. Eso se nota, se corrige con `RF-PM-004` y no deja nada mal concedido detrás.
+
+!!! important "Ninguna de las dos lleva `DEFAULT`, y no es lo mismo que el relleno"
+
+    El relleno lo escribe **la migración, una vez**, sobre lo que ya existe. Un `DEFAULT` lo escribiría **la columna, siempre**, sobre todo lo que venga — y con él, un alta que olvidara declarar el alcance se guardaría sin error y sin que nadie pudiera distinguirla de una que lo declaró. `status` sí lleva `DEFAULT` porque una regla lo exige (`RN-PM-012`); aquí ninguna regla dice cuál es el valor natural, y ese es precisamente el motivo por el que se declara.
+
+    Es la misma forma que `V53` usó con `source_membership_id`: rellenar y no suponer.
+
 ## 3. Componentes afectados
 
 ### 3.1 En `PM` — `modules/products`
@@ -173,6 +199,8 @@ Se añade a `LayerRulesTest`: **ninguna clase de `..modules.products..` depende 
 - `sourceMembershipId` y `targetMembershipId` son **obligatorios los dos o prohibidos los dos** según `type`, y **la condición se comprueba en el caso de uso y no con validación declarativa**: una anotación de Bean Validation no puede expresar «obligatorio si otro campo vale X» sin un validador de clase, y el mensaje que produce no distingue cuál de las cuatro mitades se incumplió. Con dos campos el mensaje **dice cuál**: `VAL-007` y `VAL-008` viajan con el `field` que falta o que sobra, porque uno que no distinga obliga a probar los dos.
 - **El orden de las comprobaciones importa y está fijado**: moneda → destino → **origen** → unicidad. Que el origen no exista (`EX-002`) y que el origen no esté por debajo del destino (`EX-006`, con `VAL-014`) son dos respuestas distintas, y la segunda no se puede dar sin haber resuelto la primera.
 
+- **`scope` e `implementation` son obligatorios y sin valor por omisión**, en los **dos** tipos. Se validan **con anotación** —`@NotNull` sobre el enumerado— y no en el caso de uso, al revés que las membresías: su obligatoriedad **no depende de ningún otro campo**, de modo que no hay nada que un validador de clase pudiera decir que la anotación no diga. Un valor fuera del dominio lo rechaza Jackson al deserializar el enumerado, con `400`.
+- **Ausente y nulo significan lo mismo aquí: falta.** No se admite el valor por omisión ni en el DTO ni en la columna, y la razón es que el defecto **no se vería**: un producto que se guardó con el alcance supuesto se ve exactamente igual que uno declarado, y nadie descubriría nunca que nadie decidió dónde se publica.
 **Respuesta `201`**, con cabecera `Location: /api/v1/products/{id}`:
 
 ```json

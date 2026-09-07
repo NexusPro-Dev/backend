@@ -599,10 +599,10 @@ class RegisterSaleIT extends IntegrationTestBase {
 
     UUID id = UUID.randomUUID();
     jdbc.update(
-        "INSERT INTO products (id, code, type, name, description, source_membership_id,"
+        "INSERT INTO products (scope, implementation, id, code, type, name, description, source_membership_id,"
             + " target_membership_id, price, currency_id, validity_days, status, created_at,"
             + " updated_at, deleted_at)"
-            + " VALUES (CAST(? AS uuid), ?, ?, ?, 'Producto de prueba', CAST(? AS uuid),"
+            + " VALUES ('TIENDA', 'MANUAL', CAST(? AS uuid), ?, ?, ?, 'Producto de prueba', CAST(? AS uuid),"
             + " CAST(? AS uuid), CAST(? AS numeric), CAST(? AS uuid), CAST(? AS integer), ?, ?, ?,"
             + " CAST(? AS timestamptz))",
         id.toString(),

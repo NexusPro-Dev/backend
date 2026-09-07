@@ -1,5 +1,7 @@
 package com.factech.nexus.modules.products.application;
 
+import com.factech.nexus.modules.products.domain.models.ProductImplementation;
+import com.factech.nexus.modules.products.domain.models.ProductScope;
 import com.factech.nexus.modules.products.domain.models.ProductType;
 import jakarta.validation.constraints.DecimalMin;
 import jakarta.validation.constraints.Digits;
@@ -68,7 +70,15 @@ public record RegisterProductRequest(
         BigDecimal price,
     @NotNull(message = "VAL-006: La moneda es obligatoria.") UUID currencyId,
     @Min(value = 1, message = "VAL-011: La vigencia debe ser un número de días mayor que cero.")
-        Integer validityDays) {
+        Integer validityDays,
+    // LAS DOS CON `@NotNull`, y aquí SÍ con validación declarativa, al revés
+    // que las membresías: su obligatoriedad NO DEPENDE DE NINGÚN OTRO CAMPO, de
+    // modo que no hay nada que un validador de clase pudiera decir que la
+    // anotación no diga. El valor fuera de dominio lo rechaza Jackson al
+    // deserializar el enumerado, también con `400`.
+    @NotNull(message = "VAL-015: El alcance del producto es obligatorio.") ProductScope scope,
+    @NotNull(message = "VAL-016: La implementación del producto es obligatoria.")
+        ProductImplementation implementation) {
 
   /**
    * Recorta antes de que corran las validaciones.
@@ -95,6 +105,8 @@ public record RegisterProductRequest(
         targetMembershipId,
         price,
         currencyId,
-        validityDays);
+        validityDays,
+        scope,
+        implementation);
   }
 }

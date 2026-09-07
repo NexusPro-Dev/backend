@@ -3,7 +3,7 @@
 | Campo | Valor |
 |---|---|
 | Requerimiento | `RF-PM-007` |
-| Enmendadas | 02-09-2026 — `pm.md` §5.2.1 declara que la oferta pasará a coincidir por **origen**; el código de esta consulta **sigue sin reescribirse** (`T-20`) |
+| Enmendadas | 02-09-2026 — `pm.md` §5.2.1 declara que la oferta pasará a coincidir por **origen**; el código de esta consulta **sigue sin reescribirse** (`T-20`); 07-09-2026 — `T-21` por el **alcance** y la **implementación**, que se publican y **no filtran** |
 | Plan | [`plan.md`](plan.md), aprobado el 26-08-2026 |
 | Estado | **En curso** — `T-01` a `T-19` `Hecha`; `T-20` (coincidencia por origen) queda `Pendiente` |
 | Autor | Responsable técnico |
@@ -43,6 +43,7 @@
 | `T-17` | `EndpointPermissionsIT`: **retirar** `GET /api/v1/products/available` de `SIN_PERMISO_A_PROPOSITO` | `T-16` | La ruta ya no figura en la lista blanca, y `declaraPermiso` la reconoce | **Hecha** |
 | `T-18` | `ProductOfferIT`: el actor de las pruebas existentes gana `products:sale`, y nace la prueba del `403` sin él | `T-16` | `CA-PM-065` (revisado) y `CA-PM-101` | **Hecha** |
 | `T-19` | OpenAPI: el endpoint declara el permiso que exige | `T-16` | El contrato publicado lo dice | **Hecha** |
+| `T-21` | El **alcance** y la **implementación** en `OfferItem` y en la sentencia de `findOffer`, **sin añadir ningún predicado sobre ellos** | `RF-PM-001 · T-28` | `CA-PM-123` y `CA-PM-124`: las dos llegan en cada producto ofrecido, y un producto de `TIENDA` y otro de `HOTLINKS` **aparecen los dos** — la prueba que verifica que nadie añadió el filtro «por simetría» con `RF-PM-002` | **Hecha el 07-09-2026** |
 
 ## 2. Orden de ejecución
 
@@ -71,6 +72,7 @@
 | `CA-PM-091` | `T-02` |
 | `CA-PM-101` | `T-16`, `T-18` |
 | `CA-PM-106` a `CA-PM-108` | `T-20`, sin cubrir |
+| `CA-PM-123`, `CA-PM-124` | `T-21` |
 
 ## 4. Bloqueos
 

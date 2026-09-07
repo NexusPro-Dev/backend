@@ -157,9 +157,9 @@ class MovementCodeRetryIT extends IntegrationTestBase {
   private UUID producto() {
     UUID id = UUID.randomUUID();
     jdbc.update(
-        "INSERT INTO products (id, code, type, name, price, currency_id, status,"
+        "INSERT INTO products (scope, implementation, id, code, type, name, price, currency_id, status,"
             + " created_at, updated_at)"
-            + " VALUES (CAST(? AS uuid), 'RTY_BOT', 'BOT', 'Bot de prueba', 10.00,"
+            + " VALUES ('TIENDA', 'MANUAL', CAST(? AS uuid), 'RTY_BOT', 'BOT', 'Bot de prueba', 10.00,"
             + " CAST(? AS uuid), 'ACTIVO', ?, ?)",
         id.toString(),
         USD,

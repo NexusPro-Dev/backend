@@ -90,6 +90,8 @@ class ProductTest {
                     new BigDecimal("49.99"),
                     MONEDA,
                     null,
+                    ProductScope.TIENDA,
+                    ProductImplementation.AUTOMATICA,
                     AHORA),
             ValidationException.class);
 
@@ -117,6 +119,8 @@ class ProductTest {
             new BigDecimal("19.99"),
             MONEDA,
             30,
+            ProductScope.TIENDA,
+            ProductImplementation.AUTOMATICA,
             AHORA);
 
     assertThat(conVigencia.getValidityDays()).isEqualTo(30);
@@ -138,6 +142,8 @@ class ProductTest {
             new BigDecimal("10.00"),
             MONEDA,
             null,
+            ProductScope.TIENDA,
+            ProductImplementation.AUTOMATICA,
             AHORA);
 
     assertThat(producto.getName()).isEqualTo("Asesoría personalizada");
@@ -214,6 +220,8 @@ class ProductTest {
             new BigDecimal("49.99"),
             MONEDA,
             null,
+            ProductScope.TIENDA,
+            ProductImplementation.AUTOMATICA,
             AHORA);
 
     assertThat(conDescripcion.tieneDescripcion()).isTrue();
@@ -263,6 +271,8 @@ class ProductTest {
             new BigDecimal("49.99"),
             MONEDA,
             30,
+            ProductScope.TIENDA,
+            ProductImplementation.AUTOMATICA,
             AHORA);
     producto.activate(AHORA);
 
@@ -315,6 +325,8 @@ class ProductTest {
             Patchable.de(new BigDecimal("49.9900")),
             Patchable.ausente(),
             Patchable.ausente(),
+            Patchable.ausente(),
+            Patchable.ausente(),
             AHORA.plusDays(1));
 
     // El precio se compara por VALOR y no por `equals`: `49.99` y `49.9900` son
@@ -334,6 +346,8 @@ class ProductTest {
     Map<String, Object> cambios =
         producto.update(
             Patchable.de("Asesoría premium"),
+            Patchable.ausente(),
+            Patchable.ausente(),
             Patchable.ausente(),
             Patchable.ausente(),
             Patchable.ausente(),
@@ -364,10 +378,14 @@ class ProductTest {
             new BigDecimal("49.99"),
             MONEDA,
             30,
+            ProductScope.TIENDA,
+            ProductImplementation.AUTOMATICA,
             AHORA);
 
     producto.update(
         Patchable.de("Asesoría premium"),
+        Patchable.ausente(),
+        Patchable.ausente(),
         Patchable.ausente(),
         Patchable.ausente(),
         Patchable.ausente(),
@@ -396,6 +414,8 @@ class ProductTest {
             new BigDecimal("49.99"),
             MONEDA,
             30,
+            ProductScope.TIENDA,
+            ProductImplementation.AUTOMATICA,
             AHORA);
 
     Map<String, Object> cambios =
@@ -406,6 +426,8 @@ class ProductTest {
             Patchable.ausente(),
             Patchable.ausente(),
             Patchable.de(null),
+            Patchable.ausente(),
+            Patchable.ausente(),
             AHORA.plusDays(1));
 
     assertThat(producto.getDescription()).isNull();
@@ -428,6 +450,8 @@ class ProductTest {
     Map<String, Object> cambios =
         producto.update(
             Patchable.de("ASESORIA"),
+            Patchable.ausente(),
+            Patchable.ausente(),
             Patchable.ausente(),
             Patchable.ausente(),
             Patchable.ausente(),
@@ -459,6 +483,8 @@ class ProductTest {
                     new BigDecimal("49.99"),
                     MONEDA,
                     null,
+                    ProductScope.TIENDA,
+                    ProductImplementation.AUTOMATICA,
                     AHORA),
             ValidationException.class);
 
@@ -509,6 +535,8 @@ class ProductTest {
             Patchable.ausente(),
             Patchable.ausente(),
             Patchable.ausente(),
+            Patchable.ausente(),
+            Patchable.ausente(),
             AHORA.plusDays(1));
 
     assertThat(producto.getIcon()).isEqualTo("rocket");
@@ -520,6 +548,8 @@ class ProductTest {
             Patchable.ausente(),
             Patchable.ausente(),
             Patchable.de(null),
+            Patchable.ausente(),
+            Patchable.ausente(),
             Patchable.ausente(),
             Patchable.ausente(),
             Patchable.ausente(),
@@ -541,6 +571,8 @@ class ProductTest {
                     Patchable.ausente(),
                     Patchable.ausente(),
                     Patchable.de("crown"),
+                    Patchable.ausente(),
+                    Patchable.ausente(),
                     Patchable.ausente(),
                     Patchable.ausente(),
                     Patchable.ausente(),
@@ -566,6 +598,8 @@ class ProductTest {
         new BigDecimal("49.99"),
         MONEDA,
         null,
+        ProductScope.TIENDA,
+        ProductImplementation.AUTOMATICA,
         AHORA);
   }
 
@@ -586,6 +620,8 @@ class ProductTest {
         new BigDecimal("49.99"),
         MONEDA,
         null,
+        ProductScope.TIENDA,
+        ProductImplementation.AUTOMATICA,
         AHORA);
   }
 
@@ -602,6 +638,8 @@ class ProductTest {
         new BigDecimal("49.99"),
         MONEDA,
         null,
+        ProductScope.TIENDA,
+        ProductImplementation.AUTOMATICA,
         AHORA);
   }
 }

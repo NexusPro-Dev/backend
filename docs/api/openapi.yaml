@@ -1105,6 +1105,16 @@ paths:
         required: false
         schema:
           type: string
+      - name: scope
+        in: query
+        required: false
+        schema:
+          type: string
+      - name: implementation
+        in: query
+        required: false
+        schema:
+          type: string
       - name: sourceMembershipId
         in: query
         required: false
@@ -4497,11 +4507,23 @@ components:
           type: integer
           format: int32
           minimum: 1
+        scope:
+          type: string
+          enum:
+          - TIENDA
+          - HOTLINKS
+        implementation:
+          type: string
+          enum:
+          - AUTOMATICA
+          - MANUAL
       required:
       - code
       - currencyId
+      - implementation
       - name
       - price
+      - scope
       - type
     CurrencyRef:
       type: object
@@ -4544,6 +4566,16 @@ components:
         validityDays:
           type: integer
           format: int32
+        scope:
+          type: string
+          enum:
+          - TIENDA
+          - HOTLINKS
+        implementation:
+          type: string
+          enum:
+          - AUTOMATICA
+          - MANUAL
         status:
           type: string
           enum:
@@ -5099,6 +5131,8 @@ components:
       required:
       - parentRoleId
     PatchableInteger: {}
+    PatchableProductImplementation: {}
+    PatchableProductScope: {}
     PatchableUUID: {}
     UpdateProductRequest:
       type: object
@@ -5115,6 +5149,10 @@ components:
           $ref: "#/components/schemas/PatchableUUID"
         validityDays:
           $ref: "#/components/schemas/PatchableInteger"
+        scope:
+          $ref: "#/components/schemas/PatchableProductScope"
+        implementation:
+          $ref: "#/components/schemas/PatchableProductImplementation"
         type:
           $ref: "#/components/schemas/PatchableObject"
         code:
@@ -5153,6 +5191,16 @@ components:
         validityDays:
           type: integer
           format: int32
+        scope:
+          type: string
+          enum:
+          - TIENDA
+          - HOTLINKS
+        implementation:
+          type: string
+          enum:
+          - AUTOMATICA
+          - MANUAL
         status:
           type: string
           enum:
@@ -5411,6 +5459,16 @@ components:
         validityDays:
           type: integer
           format: int32
+        scope:
+          type: string
+          enum:
+          - TIENDA
+          - HOTLINKS
+        implementation:
+          type: string
+          enum:
+          - AUTOMATICA
+          - MANUAL
         status:
           type: string
           enum:
@@ -5473,6 +5531,16 @@ components:
         validityDays:
           type: integer
           format: int32
+        scope:
+          type: string
+          enum:
+          - TIENDA
+          - HOTLINKS
+        implementation:
+          type: string
+          enum:
+          - AUTOMATICA
+          - MANUAL
     OfferResponse:
       type: object
       properties:

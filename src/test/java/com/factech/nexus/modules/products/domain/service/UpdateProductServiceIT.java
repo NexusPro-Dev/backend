@@ -95,6 +95,8 @@ class UpdateProductServiceIT extends IntegrationTestBase {
             Patchable.ausente(),
             Patchable.ausente(),
             Patchable.ausente(),
+            Patchable.ausente(),
+            Patchable.ausente(),
             Patchable.ausente()));
 
     // El nombre llega, pero es el mismo: no hay nada contra lo que chocar, y no
@@ -146,6 +148,8 @@ class UpdateProductServiceIT extends IntegrationTestBase {
             Patchable.ausente(),
             Patchable.ausente(),
             Patchable.ausente(),
+            Patchable.ausente(),
+            Patchable.ausente(),
             Patchable.ausente()));
 
     // Cambiar el precio obliga a mirar cuántos decimales admite su moneda,
@@ -158,6 +162,8 @@ class UpdateProductServiceIT extends IntegrationTestBase {
   private static UpdateProductRequest soloNombre(String nombre) {
     return new UpdateProductRequest(
         Patchable.de(nombre),
+        Patchable.ausente(),
+        Patchable.ausente(),
         Patchable.ausente(),
         Patchable.ausente(),
         Patchable.ausente(),
@@ -180,6 +186,8 @@ class UpdateProductServiceIT extends IntegrationTestBase {
         Patchable.ausente(),
         Patchable.ausente(),
         Patchable.ausente(),
+        Patchable.ausente(),
+        Patchable.ausente(),
         Patchable.ausente());
   }
 
@@ -193,10 +201,10 @@ class UpdateProductServiceIT extends IntegrationTestBase {
   private UUID bot(String codigo, String nombre, String descripcion) {
     UUID id = UUID.randomUUID();
     jdbc.update(
-        "INSERT INTO products (id, code, type, name, description, source_membership_id,"
+        "INSERT INTO products (scope, implementation, id, code, type, name, description, source_membership_id,"
             + " target_membership_id, price,"
             + " currency_id, validity_days, status, created_at, updated_at)"
-            + " VALUES (CAST(? AS uuid), ?, 'BOT', ?, ?, NULL, NULL, 49.99, CAST(? AS uuid), NULL,"
+            + " VALUES ('TIENDA', 'MANUAL', CAST(? AS uuid), ?, 'BOT', ?, ?, NULL, NULL, 49.99, CAST(? AS uuid), NULL,"
             + " 'INACTIVO', ?, ?)",
         id.toString(),
         codigo,

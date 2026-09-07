@@ -9,6 +9,7 @@
 | Aprobada por | Responsable del proyecto |
 | Fecha de aprobación | 26-08-2026 |
 | Enmendada el | 28-08-2026 — ver §15 |
+| Enmendada el | 07-09-2026 — **el alcance y la implementación son corregibles** (`RN-PM-019`, `RN-PM-020`), y **no admiten vaciarse**. Ver §15 |
 
 ---
 
@@ -58,6 +59,8 @@ Un producto se equivoca de nombre, se le escapa una falta en la descripción o c
 | `RN-PM-007` | El precio respeta los decimales de su moneda | `requirements/pm.md` §5.1 |
 | `RN-PM-008` | La moneda debe estar activa al declararla | `requirements/pm.md` §5.1 |
 | `RN-PM-015` | La vigencia se mide en días y es opcional | `requirements/pm.md` §5.1 |
+| `RN-PM-019` | El alcance dice hasta dónde se muestra, y **se corrige** | `requirements/pm.md` §5.1 |
+| `RN-PM-020` | La implementación dice si lo comprado se aplica solo, y **se corrige** | `requirements/pm.md` §5.1 |
 
 ## 6. Datos
 
@@ -72,6 +75,8 @@ Un producto se equivoca de nombre, se le escapa una falta en la descripción o c
 | Precio | No | Precio nuevo | Mayor que cero y con los decimales de su moneda |
 | Moneda | No | Moneda nueva | Debe existir y estar activa |
 | Vigencia | No | Vigencia nueva, en días | Mayor que cero. **Sí admite vaciarse**, y hacerlo convierte el producto en uno que no caduca |
+| Alcance | No | Alcance nuevo | **NO admite vaciarse**: es obligatorio en la columna, de modo que el nulo explícito se rechaza en lugar de borrar (`RN-PM-019`) |
+| Implementación | No | Implementación nueva | Igual. **NO admite vaciarse** (`RN-PM-020`) |
 
 **Ausente y vacío no son lo mismo.** No enviar un campo significa «déjalo como está»; enviarlo vacío significa «bórralo», y solo la descripción lo admite. Confundir los dos estados hace que corregir un nombre borre la descripción sin que nadie lo pida.
 
@@ -151,6 +156,8 @@ Un producto se equivoca de nombre, se le escapa una falta en la descripción o c
 | `VAL-004` | Precio mayor que cero | El precio debe ser mayor que cero. |
 | `VAL-005` | Decimales del precio según su moneda | El precio no admite más decimales que los de su moneda. |
 | `VAL-006` | El tipo, el código y el destino no se admiten | El tipo, el código y la membresía destino no se pueden modificar. |
+| `VAL-007` | El alcance no admite vaciarse, y debe estar dentro del dominio | El alcance del producto es obligatorio y debe ser uno de los admitidos. |
+| `VAL-008` | La implementación no admite vaciarse, y debe estar dentro del dominio | La implementación del producto es obligatoria y debe ser una de las admitidas. |
 
 ## 12. Criterios de aceptación
 
@@ -171,6 +178,10 @@ Un producto se equivoca de nombre, se le escapa una falta en la descripción o c
 | `CA-PM-094` | El sistema corrige la **vigencia**, y **vaciarla** convierte el producto en uno que no caduca |
 | `CA-PM-099` | El sistema corrige el **icono**, y **vaciarlo** con nulo explícito lo deja sin icono |
 | `CA-PM-100` | El sistema rechaza el icono en un producto de tipo bot, también cuando llega en una corrección |
+| `CA-PM-119` | El sistema corrige el **alcance** y la **implementación**, y el evento de auditoría registra el valor anterior y el nuevo de cada una |
+| `CA-PM-120` | El sistema **rechaza vaciarlas** con nulo explícito, al revés que la descripción, el icono y la vigencia: son obligatorias y no admiten ausencia |
+| `CA-PM-121` | El sistema rechaza un valor **fuera del dominio** en cualquiera de las dos, y no aplica ninguno de los demás cambios enviados |
+| `CA-PM-122` | El sistema **no registra evento** cuando la corrección envía el mismo alcance o la misma implementación que el producto ya tenía |
 
 ## 13. Casos límite
 
@@ -201,3 +212,4 @@ Ninguna. Dos se resolvieron el 26-08-2026 y **las otras dos quedaron respondidas
 | 0.1.0 | 26-08-2026 | Redacción inicial, con cuatro preguntas abiertas. | Responsable técnico |
 | 0.3.0 | 27-08-2026 | La **vigencia** se suma a lo corregible (`RN-PM-015`), con el mismo criterio que el precio: corregirla no reescribe lo vendido **porque cada compra guardará la vigencia que compró**. Es el tercer campo que admite vaciarse —junto con la descripción—, y vaciarlo convierte el producto en uno que no caduca. `CA-PM-094`. | Responsable del proyecto |
 | 0.4.0 | 28-08-2026 | **El icono se suma a lo corregible** (`RN-PM-016`), y con el criterio opuesto al del tipo: el tipo no se corrige porque define qué otorga el producto, mientras que el icono es su **aspecto** y cambiarlo no reescribe lo comprado. Admite vaciarse con nulo explícito, como la descripción y la vigencia. Lo que **no** admite excepción es la regla: en un producto de tipo bot el icono se rechaza con `VAL-013` aunque llegue en un `PATCH`. Entran `CA-PM-099` y `CA-PM-100`. | Responsable técnico |
+| 0.5.0 | 07-09-2026 | **El alcance y la implementación entran del lado corregible** (`RN-PM-019`, `RN-PM-020`), y esa es la única decisión de esta enmienda. La frontera de esta spec era «lo que define **qué derecho otorga** el producto no se toca»: el tipo, el código y las dos membresías. **Ninguna de las dos nuevas lo define** —una dice hasta dónde se muestra y la otra quién lo aplica—, de modo que congelarlas habría obligado a **registrar un producto nuevo para mover un enlace de sitio**, con lo vendido colgando del viejo. **Y no admiten vaciarse**, que es donde se apartan de la descripción, el icono y la vigencia: son obligatorias en la columna, y un nulo explícito no puede ser una orden de borrado de algo que no puede faltar — se rechaza con `VAL-007` y `VAL-008`. **Lo que se corrige aquí no reescribe ninguna venta anterior**, porque `RN-MV-002` obliga a que la venta **copie la implementación en su línea**; esa copia **todavía no está construida** (`requirements/mv.md` §5.4) y hasta que lo esté nadie lee este valor desde `MV`. Entran `CA-PM-119` a `CA-PM-122`. | Responsable del proyecto |
