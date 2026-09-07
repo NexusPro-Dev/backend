@@ -1170,7 +1170,17 @@ paths:
         operación (`RF-PM-005`).
 
         El tipo decide qué campos son obligatorios: un `UPGRADE_MEMBRESIA` debe
-        declarar su membresía destino y un `BOT` no puede declararla.
+        declarar **las dos** membresías —de qué nivel sale y a cuál lleva— y un
+        `BOT` no puede declarar ninguna.
+
+        **El origen no puede estar por encima del destino**: eso sería vender un
+        descenso llamándolo upgrade, y se rechaza con `422` (`EX-006`). **Sí
+        puede ser el MISMO**, y entonces el producto es una **renovación**: lo
+        que vende es tiempo —su `validityDays`— y no un cambio de nivel.
+
+        **Y no tiene por qué ser el inmediatamente inferior**: saltar niveles es
+        legítimo, y es la razón de que el origen se declare en lugar de
+        deducirse de la cadena.
 
         `icon` es el **nombre** del icono con el que el frontend pinta el producto
         —no una imagen—, en minúsculas y guion medio. Es **opcional**, y solo un
@@ -1222,8 +1232,8 @@ paths:
               schema:
                 $ref: "#/components/schemas/ProductResponse"
         "422":
-          description: "Membresía destino o moneda inexistente o inactiva (`EX-002`,\
-            \ `EX-003`)"
+          description: "Membresía inexistente, moneda inexistente o inactiva, o un\
+            \ origen POR ENCIMA del destino (`EX-002`, `EX-003`, `EX-006`)"
           content:
             '*/*':
               schema:
@@ -1340,8 +1350,9 @@ paths:
         "409":
           description: "Lo que solo se sabe después de resolver: la cuenta no puede\
             \ operar todavía, el cliente no cuelga de ningún vendedor, un producto\
-            \ no está en su oferta, el upgrade no sube de nivel, hay dos upgrades,\
-            \ las monedas difieren, o el método de pago está desactivado."
+            \ no está en su oferta, el upgrade BAJA de nivel —renovar el mismo sí\
+            \ se admite—, hay dos upgrades, las monedas difieren, o el método de pago\
+            \ está desactivado."
         "422":
           description: "Un dato bien formado que no resuelve: el cliente, un producto\
             \ o el método de pago no existen."
@@ -3214,14 +3225,25 @@ paths:
         **Solo lo activo.** Ni lo inactivo ni lo retirado aparecen aquí,
         aunque el catálogo de `RF-PM-002` sí los muestre a quien administra.
 
-        **Upgrades: todos los que llevan a un nivel superior**, no solo el
-        inmediato. Quien está en el peldaño más bajo ve todos los de arriba y
-        elige cuánto saltar; el precio de cada uno ya expresa el salto. Llegan
-        ordenados **del salto más corto al más largo**.
+        **Upgrades: los declarados DESDE la membresía vigente de quien mira**,
+        y ninguno más. La coincidencia es exacta: no se comparan niveles ni se
+        recorre la cadena. Quien registró el producto ya decidió a quién va
+        dirigido.
 
-        **El upgrade hacia el nivel que ya se tiene no se ofrece**, ni los que
-        llevan a niveles inferiores: sería cobrar por quedarse donde se está o
-        por bajar.
+        Eso incluye **todos** los declarados desde ahí y no solo el inmediato
+        —quien está en el peldaño más bajo elige cuánto saltar, y el precio de
+        cada uno ya expresa el salto—, y llegan ordenados **del salto más
+        corto al más largo**.
+
+        **La RENOVACIÓN entra aquí**, y va primera: un producto `X → X`
+        declarado desde su propia membresía es el salto de longitud cero. Lo
+        que vende es **tiempo** —su `validityDays`— y no un cambio de nivel.
+
+        **Un upgrade hacia el nivel que ya se tiene NO se ofrece cuando su
+        origen no es el suyo**: sería el salto de otra persona que acaba donde
+        quien mira ya está. Y **ninguna bajada** llega hasta aquí, aunque este
+        filtro ya no la mire: lo impide `RN-PM-017` **al registrar**, porque un
+        producto declarado desde mi membresía no puede apuntar por debajo.
 
         **Bots: todos los activos, para cualquiera.** No dependen del nivel de
         quien mira ni de que tenga uno.

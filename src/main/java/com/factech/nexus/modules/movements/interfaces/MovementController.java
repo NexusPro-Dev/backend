@@ -93,7 +93,8 @@ public class MovementController {
         description =
             "Lo que solo se sabe después de resolver: la cuenta no puede operar todavía, el"
                 + " cliente no cuelga de ningún vendedor, un producto no está en su oferta, el"
-                + " upgrade no sube de nivel, hay dos upgrades, las monedas difieren, o el método"
+                + " upgrade BAJA de nivel —renovar el mismo sí se admite—, hay dos upgrades, las"
+                + " monedas difieren, o el método"
                 + " de pago está desactivado.",
         content = @io.swagger.v3.oas.annotations.media.Content()),
     @ApiResponse(
