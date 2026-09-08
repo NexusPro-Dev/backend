@@ -37,6 +37,9 @@ tags:
   description: Catálogo de países. Inmutable salvo su estado.
 - name: Comisiones
   description: "Tasas de comisión personalizadas: la excepción por persona."
+- name: Brokers
+  description: "Catálogo de los brokers con los que opera la plataforma. Solo lectura:\
+    \ se puebla por migración (RN-SP-039)."
 - name: Membresías
   description: Cadena lineal de niveles de consumidor. Inmutable salvo el reordenamiento.
 - name: Usuarios
@@ -3986,6 +3989,51 @@ paths:
             '*/*':
               schema:
                 $ref: "#/components/schemas/EffectiveCommissionResponse"
+  /api/v1/brokers:
+    get:
+      tags:
+      - Brokers
+      summary: Consultar el catálogo de brokers
+      description: |
+        Devuelve los brokers con los que opera la plataforma, **ordenados por
+        nombre**.
+
+        **Un broker guarda de momento solo su nombre**, y eso tiene una
+        consecuencia que conviene conocer antes de integrarse: **el nombre es la
+        clave de negocio**, no un texto descriptivo. No hay un `code` estable
+        frente a un cambio de nombre comercial — quien necesite referenciar un
+        broker debe hacerlo por su **identificador**.
+
+        **No se administra por API** (`RN-SP-039`): no hay alta, ni edición, ni
+        eliminación, ni cambio de estado. Se puebla por migración, igual que los
+        catálogos de monedas y de tipos de documento, y cada alta queda en el
+        historial del repositorio en lugar de en una fila que alguien insertó.
+
+        **Puede responder la colección vacía**, y eso no es un fallo: es el
+        estado de un catálogo que todavía no se ha sembrado.
+
+        **No se pagina**: son unos pocos elementos y partirlos obligaría a dos
+        llamadas para pintar un desplegable.
+      operationId: listar_6
+      parameters:
+      - name: filtros
+        in: query
+        required: true
+        schema:
+          $ref: "#/components/schemas/ListBrokersRequest"
+      responses:
+        "200":
+          description: "Catálogo, ordenado por nombre"
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/BrokerCatalogResponse"
+        "401":
+          description: Token ausente o inválido
+        "403":
+          description: El actor no posee `brokers:read`
+        "500":
+          description: Fallo no controlado (`ERR-500`)
   /api/v1/audit/security:
     get:
       tags:
@@ -6449,6 +6497,28 @@ components:
           type: boolean
         sort:
           type: string
+    ListBrokersRequest:
+      type: object
+      properties:
+        includeInactive:
+          type: boolean
+    BrokerCatalogResponse:
+      type: object
+      properties:
+        content:
+          type: array
+          items:
+            $ref: "#/components/schemas/BrokerItem"
+    BrokerItem:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        name:
+          type: string
+        isActive:
+          type: boolean
     AuditActor:
       type: object
       properties:

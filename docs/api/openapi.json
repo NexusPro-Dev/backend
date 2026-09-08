@@ -68,6 +68,32 @@
         },
         "type" : "object"
       },
+      "BrokerCatalogResponse" : {
+        "properties" : {
+          "content" : {
+            "items" : {
+              "$ref" : "#/components/schemas/BrokerItem"
+            },
+            "type" : "array"
+          }
+        },
+        "type" : "object"
+      },
+      "BrokerItem" : {
+        "properties" : {
+          "id" : {
+            "format" : "uuid",
+            "type" : "string"
+          },
+          "isActive" : {
+            "type" : "boolean"
+          },
+          "name" : {
+            "type" : "string"
+          }
+        },
+        "type" : "object"
+      },
       "ChangeAuditItem" : {
         "properties" : {
           "action" : {
@@ -783,6 +809,14 @@
         "type" : "object"
       },
       "JsonNode" : { },
+      "ListBrokersRequest" : {
+        "properties" : {
+          "includeInactive" : {
+            "type" : "boolean"
+          }
+        },
+        "type" : "object"
+      },
       "ListCommissionRatesRequest" : {
         "properties" : {
           "includeDeleted" : {
@@ -3830,6 +3864,43 @@
         "security" : [ ],
         "summary" : "Renovar la sesión",
         "tags" : [ "Sesión" ]
+      }
+    },
+    "/api/v1/brokers" : {
+      "get" : {
+        "description" : "Devuelve los brokers con los que opera la plataforma, **ordenados por\nnombre**.\n\n**Un broker guarda de momento solo su nombre**, y eso tiene una\nconsecuencia que conviene conocer antes de integrarse: **el nombre es la\nclave de negocio**, no un texto descriptivo. No hay un `code` estable\nfrente a un cambio de nombre comercial — quien necesite referenciar un\nbroker debe hacerlo por su **identificador**.\n\n**No se administra por API** (`RN-SP-039`): no hay alta, ni edición, ni\neliminación, ni cambio de estado. Se puebla por migración, igual que los\ncatálogos de monedas y de tipos de documento, y cada alta queda en el\nhistorial del repositorio en lugar de en una fila que alguien insertó.\n\n**Puede responder la colección vacía**, y eso no es un fallo: es el\nestado de un catálogo que todavía no se ha sembrado.\n\n**No se pagina**: son unos pocos elementos y partirlos obligaría a dos\nllamadas para pintar un desplegable.\n",
+        "operationId" : "listar_6",
+        "parameters" : [ {
+          "in" : "query",
+          "name" : "filtros",
+          "required" : true,
+          "schema" : {
+            "$ref" : "#/components/schemas/ListBrokersRequest"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/BrokerCatalogResponse"
+                }
+              }
+            },
+            "description" : "Catálogo, ordenado por nombre"
+          },
+          "401" : {
+            "description" : "Token ausente o inválido"
+          },
+          "403" : {
+            "description" : "El actor no posee `brokers:read`"
+          },
+          "500" : {
+            "description" : "Fallo no controlado (`ERR-500`)"
+          }
+        },
+        "summary" : "Consultar el catálogo de brokers",
+        "tags" : [ "Brokers" ]
       }
     },
     "/api/v1/commission-rates" : {
@@ -7405,6 +7476,9 @@
   }, {
     "description" : "Tasas de comisión personalizadas: la excepción por persona.",
     "name" : "Comisiones"
+  }, {
+    "description" : "Catálogo de los brokers con los que opera la plataforma. Solo lectura: se puebla por migración (RN-SP-039).",
+    "name" : "Brokers"
   }, {
     "description" : "Cadena lineal de niveles de consumidor. Inmutable salvo el reordenamiento.",
     "name" : "Membresías"

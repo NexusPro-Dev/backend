@@ -24,11 +24,11 @@ class PermissionsSeedIT extends IntegrationTestBase {
 
   @Test
   @DisplayName(
-      "el catálogo tiene exactamente cuarenta y dos: VEINTIOCHO de SP, seis de PM, cuatro de"
+      "el catálogo tiene exactamente cuarenta y cuatro: TREINTA de SP, seis de PM, cuatro de"
           + " CM y cuatro de MV")
   void catalogoCompleto() {
     assertThat(jdbc.queryForObject("SELECT count(*) FROM permissions", Integer.class))
-        .isEqualTo(42);
+        .isEqualTo(44);
   }
 
   @Test
@@ -68,9 +68,19 @@ class PermissionsSeedIT extends IntegrationTestBase {
             "commissions:delete",
             "commissions:read",
             "commissions:update",
+            // El SEGUNDO recurso sin ninguna acción de escritura, por el mismo
+            // motivo estructural y no por el mismo motivo de negocio: `RN-SP-039`
+            // deja el catálogo de brokers fuera de la API porque son pocos y
+            // cambian poco, no porque su contenido sea una regla.
+            "brokers:read",
             "countries:create",
             "countries:read",
             "countries:update",
+            // El ÚNICO recurso del catálogo sin ninguna acción de escritura, y no
+            // es que falten: `RN-SP-036` las prohíbe, porque el contenido de
+            // `document_types` ES la validación de mayoría de edad. Un
+            // `document-types:create` la desactivaría sin cambiar ninguna regla.
+            "document-types:read",
             "exchange-rates:create",
             "exchange-rates:delete",
             "exchange-rates:read",
@@ -109,7 +119,7 @@ class PermissionsSeedIT extends IntegrationTestBase {
   void identificadoresUuidV7() {
     List<UUID> ids = jdbc.queryForList("SELECT id FROM permissions", UUID.class);
 
-    assertThat(ids).hasSize(42).doesNotHaveDuplicates();
+    assertThat(ids).hasSize(44).doesNotHaveDuplicates();
     assertThat(ids).allSatisfy(id -> assertThat(id.version()).isEqualTo(7));
     // variant() == 2 es la variante RFC 9562 (bits 10xx).
     assertThat(ids).allSatisfy(id -> assertThat(id.variant()).isEqualTo(2));
