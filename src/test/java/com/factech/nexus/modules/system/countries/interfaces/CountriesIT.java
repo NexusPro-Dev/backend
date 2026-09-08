@@ -341,12 +341,36 @@ class CountriesIT extends IntegrationTestBase {
   }
 
   @Test
-  @DisplayName("CA-SP-143 — sin el permiso de lectura se responde 403")
-  void sinPermisoDeLectura() throws Exception {
+  @DisplayName("CA-SP-143 — REESCRITO: el catálogo se consulta SIN INICIAR SESIÓN")
+  void catalogoPublico() throws Exception {
+    // Decía «sin el permiso de lectura se responde 403» hasta el 08-09-2026,
+    // cuando el responsable del proyecto abrió los tres catálogos que el
+    // formulario de registro necesita antes de que exista la cuenta.
+    //
+    // La prueba NO se borra, se invierte: lo que había que comprobar era que la
+    // puerta estaba cerrada, y ahora hay que comprobar que está abierta — para
+    // que el día que alguien la cierre por descuido, falle aquí.
+    mvc.perform(get("/api/v1/countries")).andExpect(status().isOk());
+
+    // Y con un token sin `countries:read` responde lo mismo: el permiso dejó de
+    // gobernar esta lectura.
     mvc.perform(
             get("/api/v1/countries")
                 .with(user(UUID.randomUUID().toString()).authorities(() -> "roles:read")))
-        .andExpect(status().isForbidden());
+        .andExpect(status().isOk());
+  }
+
+  @Test
+  @DisplayName("pero las ESCRITURAS de países siguen exigiendo token, y responden 401 sin él")
+  void lasEscriturasNoSeAbren() throws Exception {
+    // El `GET` se abrió por método, no por ruta: metida la ruta entera en las
+    // públicas, un anónimo recibiría `403` aquí —«existe y no puedes»— en lugar
+    // de `401` —«identifícate»—.
+    mvc.perform(
+            post("/api/v1/countries")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("{\"code\":\"PA\",\"name\":\"Panamá\"}"))
+        .andExpect(status().isUnauthorized());
   }
 
   // ---------------------------------------------------------------------------

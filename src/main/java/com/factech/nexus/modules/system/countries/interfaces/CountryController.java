@@ -127,7 +127,10 @@ public class CountryController {
   }
 
   @GetMapping
-  @PreAuthorize("hasAuthority('countries:read')")
+  // SIN @PreAuthorize desde el 08-09-2026: el catálogo es PÚBLICO (ver
+  // `SecurityConfig.CATALOGOS_PUBLICOS`). Con la anotación puesta, un anónimo
+  // pasaría el filtro y chocaría aquí con un `403` — la ruta estaría abierta y
+  // no serviría de nada.
   @Operation(
       summary = "Consultar el catálogo de países",
       description =

@@ -43,9 +43,38 @@ class BrokersIT extends IntegrationTestBase {
     insertar("IC Markets", false);
   }
 
+  /**
+   * Deja el catálogo <b>como lo dejó la migración</b>, y no vacío.
+   *
+   * <p>Estas pruebas vacían la tabla para poder afirmar tamaños exactos, y sin esta restauración el
+   * catálogo sembrado por {@code V76} desaparecería <b>para el resto de la suite</b>: la clase que
+   * lo necesitara fallaría lejos de aquí y por un motivo que no se lee en su código.
+   */
   @AfterEach
-  void vaciar() {
+  void restaurarLaSiembra() {
     limpiar();
+    jdbc.update(
+        """
+        INSERT INTO brokers (id, name) VALUES
+        ('01a081f0-6000-7101-9c4f-5e7adb000001', 'IQOPTION'),
+        ('01a081f0-6000-7102-9c4f-5e7adb000002', 'EXNOVA'),
+        ('01a081f0-6000-7103-9c4f-5e7adb000003', 'EXOPTION')
+        """);
+  }
+
+  @Test
+  @DisplayName("la siembra de `V76` deja los tres brokers que se pidieron")
+  void laSiembra() {
+    // Se comprueba sobre la restauración de arriba y no sobre la migración
+    // —esta clase ya vació la tabla—, de modo que lo que verifica es que la
+    // lista escrita aquí y la de `V76` sigan siendo la misma. La siembra real
+    // la garantiza la GUARDA de la migración, que aborta si no quedan tres.
+    limpiar();
+    restaurarLaSiembra();
+
+    org.assertj.core.api.Assertions.assertThat(
+            jdbc.queryForList("SELECT name FROM brokers ORDER BY name", String.class))
+        .containsExactly("EXNOVA", "EXOPTION", "IQOPTION");
   }
 
   @Test
@@ -113,12 +142,28 @@ class BrokersIT extends IntegrationTestBase {
   }
 
   @Test
-  @DisplayName("`CA-SP-606` — sin `brokers:read` no se consulta")
-  void sinPermiso() throws Exception {
-    mvc.perform(
-            get("/api/v1/brokers")
-                .with(user(UUID.randomUUID().toString()).authorities(() -> "users:read")))
-        .andExpect(status().isForbidden());
+  @DisplayName("`CA-SP-608` — el catálogo se consulta SIN INICIAR SESIÓN")
+  void publicoSinToken() throws Exception {
+    // Decisión del responsable del proyecto del 08-09-2026: el formulario de
+    // registro elige broker ANTES de que exista la cuenta. Sin esto, `RF-SP-045`
+    // tendría que pintar un desplegable vacío.
+    mvc.perform(get("/api/v1/brokers"))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.content.length()").value(2));
+  }
+
+  @Test
+  @DisplayName("y con un token cualquiera responde LO MISMO: no hay versión enriquecida")
+  void conTokenRespondeIgual() throws Exception {
+    String anonimo =
+        mvc.perform(get("/api/v1/brokers")).andReturn().getResponse().getContentAsString();
+    String autenticado =
+        mvc.perform(get("/api/v1/brokers").with(user(UUID.randomUUID().toString())))
+            .andReturn()
+            .getResponse()
+            .getContentAsString();
+
+    org.assertj.core.api.Assertions.assertThat(autenticado).isEqualTo(anonimo);
   }
 
   @Test

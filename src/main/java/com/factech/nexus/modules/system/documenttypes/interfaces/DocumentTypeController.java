@@ -9,7 +9,6 @@ import io.swagger.v3.oas.annotations.media.Schema;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.tags.Tag;
-import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.ModelAttribute;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -33,9 +32,9 @@ import org.springframework.web.bind.annotation.RestController;
  * cueste un despliegue es el precio correcto para una decisión que cambia quién puede entrar al
  * sistema.
  *
- * <p><b>Una prueba de arquitectura comprueba que esta clase no declara ningún verbo de escritura</b>,
- * porque «no existe la operación» no se demuestra llamándola —no hay a qué llamar— sino
- * comprobando que no está.
+ * <p><b>Una prueba de arquitectura comprueba que esta clase no declara ningún verbo de
+ * escritura</b>, porque «no existe la operación» no se demuestra llamándola —no hay a qué llamar—
+ * sino comprobando que no está.
  */
 @RestController
 @RequestMapping("/api/v1/document-types")
@@ -53,7 +52,8 @@ public class DocumentTypeController {
   }
 
   @GetMapping
-  @PreAuthorize("hasAuthority('document-types:read')")
+  // SIN @PreAuthorize desde el 08-09-2026: el catálogo es PÚBLICO (ver
+  // `SecurityConfig.CATALOGOS_PUBLICOS`).
   @Operation(
       summary = "Consultar el catálogo de tipos de documento",
       description =
@@ -79,9 +79,11 @@ public class DocumentTypeController {
     @ApiResponse(
         responseCode = "200",
         description = "Catálogo completo, ordenado por nombre",
-        content =
-            @Content(schema = @Schema(implementation = DocumentTypeCatalogResponse.class))),
-    @ApiResponse(responseCode = "401", description = "Token ausente o inválido", content = @Content),
+        content = @Content(schema = @Schema(implementation = DocumentTypeCatalogResponse.class))),
+    @ApiResponse(
+        responseCode = "401",
+        description = "Token ausente o inválido",
+        content = @Content),
     @ApiResponse(
         responseCode = "403",
         description = "El actor no posee `document-types:read`",

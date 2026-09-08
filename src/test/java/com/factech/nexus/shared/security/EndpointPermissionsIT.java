@@ -50,6 +50,21 @@ class EndpointPermissionsIT extends IntegrationTestBase {
   private static final Map<String, String> SIN_PERMISO_A_PROPOSITO =
       Map.ofEntries(
           Map.entry(
+              "GET /api/v1/countries",
+              "PÚBLICO POR DECISIÓN desde el 08-09-2026: el formulario de registro elige país"
+                  + " antes de que exista la cuenta (`RF-SP-045`). Es una lista de opciones y no"
+                  + " identifica a nadie. `countries:read` sigue sembrado y deja de gobernar esta"
+                  + " lectura; el `POST` y el `PATCH` de países NO se abren"),
+          Map.entry(
+              "GET /api/v1/document-types",
+              "PÚBLICO POR DECISIÓN desde el 08-09-2026, por lo mismo que el de países: sin él,"
+                  + " el formulario de registro no tiene de dónde sacar el tipo de documento"),
+          Map.entry(
+              "GET /api/v1/brokers",
+              "PÚBLICO POR DECISIÓN desde el 08-09-2026 (`RF-SP-052`), por lo mismo que los otros"
+                  + " dos catálogos. `brokers:read` nació el mismo día y quedó sin endpoint que lo"
+                  + " exija, como `products:hotlink`"),
+          Map.entry(
               "POST /api/v1/auth/password-recovery",
               "Público por definición (`RF-SP-040`): quien olvidó su contraseña no puede"
                   + " autenticarse para pedir recuperarla"),

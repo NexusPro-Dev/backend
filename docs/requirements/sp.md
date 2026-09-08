@@ -5,7 +5,7 @@
 | Módulo | `SP` — Sistema Principal |
 | Paquete | `modules/system` |
 | Prefijos de permiso | `roles:`, `permissions:`, `audit:`, `memberships:`, `currencies:`, `countries:`, `users:`, `exchange-rates:`, `document-types:` |
-| Versión | 1.42.0 |
+| Versión | 1.43.0 |
 | Estado | **Aprobado** |
 | Responsable | Bonilla Diaz William Steven |
 | Fecha de creación | 20-08-2026 |
@@ -205,6 +205,7 @@ Reglas que no son transversales de seguridad y por tanto sí llevan el prefijo d
 | `RN-SP-038` | **Una cuenta de broker pertenece a UNA sola persona** | Al vincular una cuenta de broker | Dos personas **no pueden declarar la misma cuenta**: el par **broker + identificador** es único en todo el sistema, y el segundo intento se rechaza con `409`. **Una misma persona SÍ puede tener varias cuentas en el mismo broker** —es lo normal en el ramo—, de modo que lo que se acota no es cuántas cuentas tiene alguien sino **de quién es cada cuenta**. Se declara en el esquema y no en un caso de uso: quien la sostiene es un índice único, porque dos altas simultáneas de la misma cuenta pasan cualquier comprobación previa | **Crítica** |
 | `RN-SP-039` | El catálogo de brokers no se administra por API | Siempre | El catálogo se **puebla por migración** y no se crea, ni se edita, ni se elimina desde la API: solo se consulta. Es la misma decisión que `RN-SP-010` toma con las monedas y `RN-SP-036` con los tipos de documento, y por el mismo motivo — son pocos, cambian poco, y cada alta es una decisión de negocio que merece quedar en el historial del repositorio y no en una fila que alguien insertó un martes | Alta |
 | `RN-SP-040` | **El nombre de usuario en el broker llega DESPUÉS** | Al vincular una cuenta y al recibir la confirmación del broker | La cuenta se declara con **el broker y el identificador**, que es lo que la persona conoce; el **nombre de usuario en el broker lo rellena más tarde el webhook** del propio broker. Por eso la columna admite nulo, y **ese nulo significa «el broker todavía no lo ha confirmado»**, no «esta cuenta no tiene nombre». La distinción importa: una columna obligatoria obligaría a inventarse un valor en el alta, y el dato inventado sobreviviría a la confirmación | Alta |
+| `RN-SP-041` | **Los tres catálogos del registro se consultan sin iniciar sesión** | Al consultar países, tipos de documento o brokers | El `GET` de los tres es **público** (08-09-2026): quien rellena el formulario de registro (`RF-SP-045`) todavía no tiene cuenta, y sin esto el desplegable no tiene de dónde sacar las opciones. **Solo el `GET`** — el alta y el cambio de estado de países siguen exigiendo su permiso. **Lo que publican no identifica a nadie**: son listas de opciones, y por eso no hace falta aquí nada del diseño que el hotlink necesita. Consecuencia declarada: `countries:read`, `document-types:read` y `brokers:read` **dejan de gobernar esas lecturas** y quedan sembrados sin endpoint que los exija | Alta |
 | `RN-SP-034` | Todo usuario pertenece a un país | Al registrar un usuario y al editarlo | Toda persona declara **exactamente un país** del catálogo, y el estado «usuario sin país» **no existe**: el alta lo exige —tanto la administrativa (`RF-SP-024`) como el registro por enlace (`RF-SP-045`)— y la columna es `NOT NULL`. **Solo se puede asignar un país activo**, pero **desactivarlo después no invalida a quien ya lo tenía**: `RF-SP-022` retira un país de los selectores y deja resolviendo a los datos que ya lo referencian, que es exactamente lo que aquí ocurre. **Se corrige solo por `RF-SP-027`**, con `users:update`; el titular **no** lo cambia desde `RF-SP-044` | **Crítica** |
 | `RN-SP-009` | Países inmutables salvo su estado | Al editar o eliminar un país | La operación se rechaza. Lo único modificable es el indicador de país activo (`RF-SP-022`), que permite retirar de la circulación un alta equivocada sin borrar el registro | Media |
 | `RN-SP-010` | Monedas inmutables por API salvo su estado | Siempre | Las monedas no se crean, editan ni eliminan por la API. Lo único modificable es el indicador de moneda activa (`RF-SP-023`), y la moneda por defecto no puede desactivarse | Media |
@@ -330,7 +331,7 @@ EXCLUDE USING gist (
 | `RF-SP-018` | Consultar detalle de una membresía | Media | `memberships:read` | En desarrollo |
 | `RF-SP-019` | Consultar monedas | Media | `currencies:read` | En desarrollo |
 | `RF-SP-020` | Registrar país | Media | `countries:create` | En desarrollo |
-| `RF-SP-021` | Consultar países | Media | `countries:read` | En desarrollo |
+| `RF-SP-021` | Consultar países | Media | **Público** | En desarrollo |
 | `RF-SP-022` | Cambiar el estado de un país | Media | `countries:update` | En desarrollo |
 | `RF-SP-023` | Cambiar el estado de una moneda | Baja | `currencies:update` | En desarrollo |
 | `RF-SP-024` | Registrar usuario | **Crítica** | `users:create` | En desarrollo |
@@ -358,8 +359,8 @@ EXCLUDE USING gist (
 | `RF-SP-048` | Consultar las tasas de cambio | Alta | `exchange-rates:read` | Tasks en revisión |
 | `RF-SP-049` | Corregir una tasa de cambio | Media | `exchange-rates:update` | Tasks en revisión |
 | `RF-SP-050` | Retirar una tasa de cambio | Media | `exchange-rates:delete` | Tasks en revisión |
-| `RF-SP-051` | Consultar tipos de documento | Alta | `document-types:read` | Pendiente |
-| `RF-SP-052` | Consultar el catálogo de brokers | Alta | `brokers:read` | **Tasks en revisión** |
+| `RF-SP-051` | Consultar tipos de documento | Alta | **Público** | Pendiente |
+| `RF-SP-052` | Consultar el catálogo de brokers | Alta | **Público** | **Tasks en revisión** |
 | `RF-SP-053` | Vincular una cuenta de broker a una persona | Alta | Por decidir | **Pendiente** |
 | `RF-SP-054` | Completar la cuenta de broker desde el webhook del broker | Media | **Ninguno: lo llama el broker** | **Pendiente** |
 
@@ -696,10 +697,10 @@ Crea un país. Una vez creado no puede editarse ni eliminarse, de modo que la va
 | Campo | Valor |
 |---|---|
 | Objetivo | Disponer del catálogo de países |
-| Actor | Cualquier rol autenticado con el permiso |
-| Permiso requerido | `countries:read` |
+| Actor | **Cualquiera, sin autenticar** |
+| Permiso requerido | **Ninguno: es público** (`RN-SP-041`, 08-09-2026) |
 | Prioridad | Media |
-| Reglas aplicables | — |
+| Reglas aplicables | `RN-SP-041` |
 | Depende de | `RF-SP-020` |
 | Tripleta | `docs/specs/sp/021-consultar-paises/` |
 | Estado | Pendiente |
@@ -866,10 +867,10 @@ Hereda de `RF-SP-027` la pregunta abierta de la **verificación del correo**, qu
 | Campo | Valor |
 |---|---|
 | Objetivo | Disponer del catálogo de documentos de identidad admitidos, para poder registrar a una persona |
-| Actor | Cualquier rol autenticado con el permiso |
-| Permiso requerido | `document-types:read` |
+| Actor | **Cualquiera, sin autenticar** |
+| Permiso requerido | **Ninguno: es público** (`RN-SP-041`, 08-09-2026) |
 | Prioridad | Alta |
-| Reglas aplicables | `RN-SP-035`, `RN-SP-036` |
+| Reglas aplicables | `RN-SP-035`, `RN-SP-036`, `RN-SP-041` |
 | Depende de | — |
 | Tripleta | `docs/specs/sp/051-consultar-tipos-de-documento/` |
 | Estado | Pendiente |
@@ -909,10 +910,10 @@ Listado de tipos de documento, con su **nombre** y su **abreviación**. Se puebl
 | Campo | Valor |
 |---|---|
 | Objetivo | Disponer de la lista de brokers con los que opera la plataforma, para poder declarar en cuál se tiene cuenta |
-| Actor | Cualquier rol autenticado con el permiso |
-| Permiso requerido | `brokers:read` |
+| Actor | **Cualquiera, sin autenticar** |
+| Permiso requerido | **Ninguno: es público** (`RN-SP-041`, 08-09-2026) |
 | Prioridad | Alta |
-| Reglas aplicables | `RN-SP-039` |
+| Reglas aplicables | `RN-SP-039`, `RN-SP-041` |
 | Depende de | — |
 | Tripleta | `docs/specs/sp/052-consultar-brokers/` |
 | Estado | **Tasks en revisión** (08-09-2026) |
@@ -1070,7 +1071,7 @@ Ninguna con sistemas externos ni con otros módulos. Al absorber los usuarios, s
 | `GET` | `/api/v1/memberships/{id}` | `RF-SP-018` | `memberships:read` |
 | `GET` | `/api/v1/currencies` | `RF-SP-019` | `currencies:read` |
 | `POST` | `/api/v1/countries` | `RF-SP-020` | `countries:create` |
-| `GET` | `/api/v1/countries` | `RF-SP-021` | `countries:read` |
+| `GET` | `/api/v1/countries` | `RF-SP-021` | **Ninguno: público** |
 | `PATCH` | `/api/v1/countries/{id}/status` | `RF-SP-022` | `countries:update` |
 | `PATCH` | `/api/v1/currencies/{id}/status` | `RF-SP-023` | `currencies:update` |
 | `POST` | `/api/v1/users` | `RF-SP-024` | `users:create` |
@@ -1099,8 +1100,8 @@ Ninguna con sistemas externos ni con otros módulos. Al absorber los usuarios, s
 | `GET` | `/api/v1/exchange-rates` | `RF-SP-048` | `exchange-rates:read` |
 | `PATCH` | `/api/v1/exchange-rates/{id}` | `RF-SP-049` | `exchange-rates:update` |
 | `POST` | `/api/v1/exchange-rates/{id}/deletion` | `RF-SP-050` | `exchange-rates:delete` |
-| `GET` | `/api/v1/document-types` | `RF-SP-051` | `document-types:read` |
-| `GET` | `/api/v1/brokers` | `RF-SP-052` | `brokers:read` |
+| `GET` | `/api/v1/document-types` | `RF-SP-051` | **Ninguno: público** |
+| `GET` | `/api/v1/brokers` | `RF-SP-052` | **Ninguno: público** |
 
 Rutas propuestas. El contrato exacto de cada una se fija en el `plan.md` de su tripleta.
 
@@ -2590,3 +2591,4 @@ Añadidos el 08-09-2026 (`RN-SP-035`, `RN-SP-037`). Se listan aparte de §10.10 
 | 1.40.0 | 07-09-2026 | **Los dos puertos de membresía que este módulo publica ganan el `color`** (`RN-SP-024`): `MembershipCatalog.MembershipView` y `CurrentMembershipLookup.CurrentMembershipView`. Lo pide `PM`, que lo publica en las cinco respuestas de su catálogo y en el hotlink. **Es un dato puramente estético y aun así cruza por el puerto**, y esa es la parte que merece quedar escrita: la tentación era resolverlo con un `JOIN` de conveniencia «porque solo es un color», y abrir esa excepción sería **la primera grieta en la única regla que sostiene D-25** — quien decide qué se sabe de una membresía es este módulo. **El cambio es aditivo y no rompe a ningún consumidor**: quien ya lee los cuatro campos sigue leyéndolos. **Ninguna tabla cambia**: `memberships.color` existe desde `V38`. | Responsable técnico |
 | 1.41.0 | 08-09-2026 | **Toda persona se identifica con un documento y declara sus datos de contacto**, por decisión del responsable del proyecto. `users` gana seis columnas —`document_type_id`, `document_number`, `address_line1`, `address_line2`, `city` y `phone` (§10.16)— y nace el catálogo **`document_types`** (§10.15) con su requerimiento de consulta, **`RF-SP-051`**, y su permiso `document-types:read`. Tres reglas nuevas: `RN-SP-035` —identidad documental, par único que no se libera al eliminar—, `RN-SP-036` —el catálogo no se administra por API— y `RN-SP-037` —teléfono obligatorio, dirección opcional—. **La decisión que define el diseño es cómo se valida la mayoría de edad**: se pidió esa validación y **no se implementa como comprobación, sino como contenido** — el catálogo **solo lleva documentos de persona mayor de edad**, sin columna que marque cuáles sí y cuáles no. Con una columna, registrar a un menor sería *posible y rechazado*, y bastaría con que un caso de uso futuro olvidara mirarla; sin ella es **inexpresable**, porque no hay identificador que poner que signifique «Tarjeta de Identidad» y `fk_users_document_type` no admite otra cosa. **De ahí que `RN-SP-036` no sea simetría con `RN-SP-010` sino una necesidad**: un catálogo administrable por API dejaría que cualquiera añadiera el tipo que falta y **la validación desaparecería sin cambiar ninguna regla, sin migración y sin que nadie lo notara**. **Lo que esto no hace queda dicho**: el tipo de documento es un **indicio** de mayoría de edad y no una prueba —un pasaporte lo tiene un niño igual—, y la condición para abrir el campo de fecha de nacimiento queda escrita en la ficha de `RF-SP-051`. **Y la asimetría que hay que aceptar entera**: las seis columnas nacen **nulables en el esquema** aunque documento y teléfono sean **obligatorios en la API**, porque un número de documento de relleno no es un valor neutro como «Colombia» — **es una afirmación falsa sobre la identidad de una persona**, y `V22` siembra un superadministrador que no tiene ninguno. Existen y seguirán existiendo personas sin documento; lo que no puede ocurrir es que se creen más. Enmienda cinco tripletas aprobadas (Art. I.7): `RF-SP-024`, `RF-SP-026`, `RF-SP-027`, `RF-SP-039` y `RF-SP-044` —que gana los cuatro campos de contacto y **no** el documento, porque el documento es identidad y lo corrige un administrador— más `RF-SP-045`. | Responsable técnico |
 | 1.42.0 | 08-09-2026 | **Nace el submódulo BROKERS**, por decisión del responsable del proyecto: el catálogo de los brokers con los que opera la plataforma y **la cuenta que cada persona tiene en cada uno**. El módulo pasa a **cincuenta y cuatro** requerimientos —`RF-SP-052` a `RF-SP-054`— y el modelo gana **dos tablas**, `brokers` y `user_brokers` (§10.17 y §10.18). **El catálogo se puebla por migración y solo se consulta** (`RN-SP-039`), como los de monedas y tipos de documento, y **de momento guarda solo el nombre** — de donde sale que **el nombre sea la clave de negocio**, con índice único funcional, y que renombrar un broker sea una migración. **La regla que carga el diseño es `RN-SP-038`**: el único va sobre **`(broker_id, external_id)`** y **no** sobre `(user_id, broker_id)`. La diferencia es el requerimiento entero — con el segundo se prohibiría lo que sí se admite (varias cuentas de la misma persona en el mismo broker, que es lo normal en el ramo) y se permitiría lo que no (que dos personas declaren la misma cuenta). Lo sostiene el índice y no una comprobación previa, porque dos altas simultáneas de la misma cuenta pasan cualquier comprobación previa. **`RN-SP-040` explica por qué `broker_username` admite nulo**: la cuenta se declara con el broker y el identificador —lo único que la persona conoce— y el nombre de usuario **lo rellena después el webhook del broker**; ese nulo significa «el broker todavía no lo ha confirmado» y no «no tiene». **Solo se construye `RF-SP-052`**: `RF-SP-053` —quién declara la cuenta— y `RF-SP-054` —el webhook— quedan **registrados y sin `spec.md`**, porque el actor del primero no está decidido y del segundo no está decidido **nada de lo que importa**: cómo se autentica el broker, qué pasa con un webhook de una cuenta que nadie declaró, si puede cambiar el identificador y cómo se hace idempotente ante la reentrega. Queda declarado que sería **la segunda ruta pública del sistema y la primera que ESCRIBE**. | Responsable del proyecto |
+| 1.43.0 | 08-09-2026 | **Los tres catálogos del registro se abren SIN INICIAR SESIÓN**, por decisión del responsable del proyecto, y **el catálogo de brokers se siembra**: `IQOPTION`, `EXNOVA` y `EXOPTION` (`V76`). Nace `RN-SP-041`: el `GET` de países (`RF-SP-021`), tipos de documento (`RF-SP-051`) y brokers (`RF-SP-052`) es **público**. Lo que resuelve es un hueco declarado tres veces —en `V16`, `V72` y `V75`—: el registro público de `RF-SP-045` necesita elegir los tres y ninguno se podía leer sin una sesión que todavía no existe. **Solo el `GET`**, y esa precisión es la mitad del cambio: el alta y el cambio de estado de países siguen exigiendo su permiso, y siguen respondiendo `401` sin token en lugar de `403`. **Lo que publican no identifica a nadie** —son listas de opciones—, de modo que no hace falta aquí nada del diseño que el hotlink necesitó: no hay oráculo posible porque no hay nada que sondear. **Consecuencia declarada y no disimulada**: `countries:read`, `document-types:read` y `brokers:read` **dejan de gobernar esas lecturas** y quedan sembrados sin endpoint que los exija, como `products:hotlink`; no se retiran porque eliminarlos rompería los roles que ya los tengan, y hacerlo es una decisión del responsable del proyecto y no una limpieza técnica ([`security.md`](../security.md) v0.46.0 §6). **Los tres brokers se escriben como se dieron**, en mayúsculas: el nombre es la clave de negocio, de modo que la caja con la que entran es la que el desplegable pinta y cambiarla después es una migración. La migración lleva **guarda**: si no quedan tres, aborta — un catálogo a medias no falla en ningún sitio y deja el registro con menos opciones de las que existen. | Responsable del proyecto |

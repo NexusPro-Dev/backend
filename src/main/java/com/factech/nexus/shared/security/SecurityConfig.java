@@ -4,6 +4,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.http.HttpMethod;
 import org.springframework.http.HttpStatus;
 import org.springframework.security.config.Customizer;
 import org.springframework.security.config.annotation.method.configuration.EnableMethodSecurity;
@@ -83,6 +84,34 @@ public class SecurityConfig {
   };
 
   /**
+   * Los tres catálogos que el formulario de registro necesita <b>antes</b> de que exista la cuenta.
+   *
+   * <p><b>Van aparte de {@link #RUTAS_PUBLICAS} porque aquí el MÉTODO importa</b>, y esa es toda la
+   * razón de que exista esta segunda lista. {@code /api/v1/countries} responde a tres verbos: el
+   * {@code GET} que se abre y un {@code POST} y un {@code PATCH} que <b>no</b>. Metida en la lista
+   * de arriba, la ruta entera quedaría en {@code permitAll} a nivel de filtro: las escrituras
+   * seguirían protegidas —lo hace {@code @PreAuthorize}—, pero un anónimo pasaría de recibir {@code
+   * 401} a recibir {@code 403}, y eso es decirle «existe y no puedes» en lugar de «identifícate».
+   *
+   * <p><b>Se abren el 08-09-2026 por decisión del responsable del proyecto</b>, y lo que resuelven
+   * es un hueco que este documento llevaba tres migraciones declarando: el registro público de
+   * `RF-SP-045` necesita elegir país, tipo de documento y broker, y ninguno de los tres se podía
+   * leer sin haber iniciado sesión — que es justo lo que todavía no se ha hecho.
+   *
+   * <p><b>Lo que publican no identifica a nadie</b>: son listas de opciones. Es la diferencia con
+   * el hotlink, que publica el nombre de una persona; aquí no hay oráculo posible porque no hay
+   * nada que sondear.
+   *
+   * <p><b>Y su consecuencia se declara en lugar de disimularse</b>: {@code countries:read}, {@code
+   * document-types:read} y {@code brokers:read} <b>dejan de gobernar estas lecturas</b>. Los
+   * permisos siguen sembrados —retirarlos rompería los roles que ya los tengan—, y quedan como los
+   * cuatro de `movements:` y `products:hotlink`: sembrados y sin endpoint que los exija.
+   */
+  private static final String[] CATALOGOS_PUBLICOS = {
+    "/api/v1/countries", "/api/v1/document-types", "/api/v1/brokers"
+  };
+
+  /**
    * Documentación de la API: pública solo donde se habilite de forma explícita.
    *
    * <p><b>{@code /v3/api-docs.yaml} se declara aparte y no sobra.</b> No casa con el literal exacto
@@ -142,6 +171,10 @@ public class SecurityConfig {
         .authorizeHttpRequests(
             auth -> {
               auth.requestMatchers(RUTAS_PUBLICAS).permitAll();
+              // Solo el GET: ver `CATALOGOS_PUBLICOS`. El `POST` y el `PATCH`
+              // de países siguen exigiendo token, y siguen respondiendo `401`
+              // sin él en lugar de `403`.
+              auth.requestMatchers(HttpMethod.GET, CATALOGOS_PUBLICOS).permitAll();
               if (documentacionPublica) {
                 auth.requestMatchers(RUTAS_DOCUMENTACION).permitAll();
               }

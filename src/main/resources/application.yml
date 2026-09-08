@@ -274,6 +274,20 @@ nexus:
         por-origen: 60
         ventana: PT1M
 
+      # Los tres catálogos que el formulario de registro lee SIN TOKEN desde el
+      # 08-09-2026: países, tipos de documento y brokers. Se acotan por lo mismo
+      # que el refresco —son públicas y consultan la base en cada llamada— y NO
+      # por lo mismo que el hotlink: aquí no hay nada que sondear, son listas de
+      # opciones que no identifican a nadie.
+      #
+      # El número más holgado del sistema, y a propósito: UNA sola carga del
+      # formulario pide los tres, y detrás de una dirección de salida compartida
+      # eso son muchas cargas por minuto. Cada catálogo lleva su propio cubo, de
+      # modo que agotar el de países no deja sin brokers al mismo formulario.
+      public-catalog:
+        por-origen: 120
+        ventana: PT1M
+
     # Orígenes que el navegador puede usar para llamar a esta API, separados
     # por coma y con la forma esquema://host[:puerto]. Cambian por entorno, de
     # modo que llegan por variable y NO se escriben en el código (Art. IX.1).

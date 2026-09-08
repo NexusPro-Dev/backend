@@ -86,6 +86,20 @@ public class RateLimitFilter extends OncePerRequestFilter {
    */
   private static final String HOTLINKS = "/api/v1/hotlinks/";
 
+  /**
+   * Los tres catálogos que se leen <b>sin token</b> desde el 08-09-2026.
+   *
+   * <p><b>Se acotan por lo mismo que el refresco y no por lo mismo que el hotlink</b>: aquí no hay
+   * nada que sondear —son listas de opciones que no identifican a nadie—, pero son rutas públicas
+   * que <b>consultan la base en cada llamada</b>. Lo que se corta es el bucle.
+   *
+   * <p><b>Comparten política y NO comparten cubo</b>: el ámbito es la ruta, de modo que agotar el
+   * de países no deja sin brokers a quien está rellenando el mismo formulario.
+   */
+  private static final String[] CATALOGOS_PUBLICOS = {
+    "/api/v1/countries", "/api/v1/document-types", "/api/v1/brokers"
+  };
+
   /** Un cuerpo de autenticación son decenas de bytes; esto es holgura, no un límite funcional. */
   private static final int TOPE_DEL_CUERPO = 8 * 1024;
 
@@ -195,7 +209,17 @@ public class RateLimitFilter extends OncePerRequestFilter {
     // y por eso es la única que se mira en un GET (`RF-PM-008`). Se cuenta por
     // el prefijo y no por la ruta: ver `HOTLINKS`.
     if ("GET".equalsIgnoreCase(peticion.getMethod())) {
-      return ruta.startsWith(HOTLINKS) ? new Regla(HOTLINKS, ajustes.hotlink()) : null;
+      if (ruta.startsWith(HOTLINKS)) {
+        return new Regla(HOTLINKS, ajustes.hotlink());
+      }
+      for (String catalogo : CATALOGOS_PUBLICOS) {
+        if (catalogo.equals(ruta)) {
+          // El ámbito es la ruta y no una familia: son tres cubos, para que
+          // agotar uno no deje sin los otros al mismo formulario.
+          return new Regla(ruta, ajustes.publicCatalog());
+        }
+      }
+      return null;
     }
 
     if (!"POST".equalsIgnoreCase(peticion.getMethod())) {

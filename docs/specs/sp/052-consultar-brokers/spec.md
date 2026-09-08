@@ -25,7 +25,7 @@ Disponer de la lista de brokers con los que opera la plataforma, para poder decl
 
 | Actor | Papel |
 |---|---|
-| Cualquier rol autenticado con `brokers:read` | Consulta el catálogo |
+| **Cualquiera, sin autenticar** | Consulta el catálogo |
 
 ## 4. Alcance
 
@@ -39,12 +39,14 @@ Disponer de la lista de brokers con los que opera la plataforma, para poder decl
 - **Crear, editar, eliminar ni cambiar de estado un broker** (`RN-SP-039`). El catálogo se puebla por migración.
 - **Paginar.** Son unos pocos y se devuelven enteros, como los tipos de documento y las monedas.
 - **Las cuentas de las personas.** Eso es `RF-SP-053`, y no existe.
+- **Exigir autenticación.** Se consulta sin iniciar sesión (`RN-SP-041`, 08-09-2026).
 
 ## 5. Reglas de negocio aplicables
 
 | ID | Regla | Origen |
 |---|---|---|
 | `RN-SP-039` | El catálogo de brokers no se administra por API | `requirements/sp.md` §5.1 |
+| `RN-SP-041` | Los tres catálogos del registro se consultan sin iniciar sesión | `requirements/sp.md` §5.1 |
 
 ## 6. Datos
 
@@ -82,9 +84,13 @@ Disponer de la lista de brokers con los que opera la plataforma, para poder decl
 
 ## 10. Seguridad
 
-Permiso `brokers:read`. **Sin él, `403`.**
+**Ninguna: es público** (`RN-SP-041`, 08-09-2026). Se consulta **sin iniciar sesión**, igual que los catálogos de países y de tipos de documento.
 
-**El catálogo no publica nada sensible** —el nombre de un broker es público en su propia web—, y aun así se exige permiso: es la misma decisión que toman los otros catálogos del módulo, y lo contrario abriría una ruta más sin autenticación por una comodidad que nadie ha pedido.
+**Nació exigiendo `brokers:read` y duró unas horas.** El motivo del cambio es el que este documento ya anticipaba en §2: el formulario de registro elige broker **antes de que exista la cuenta**, y con el permiso puesto no tenía de dónde sacar las opciones.
+
+**Lo que publica no identifica a nadie.** Es la diferencia con el hotlink, que también es público y publica el nombre de una persona: allí hay un oráculo que evitar y aquí no hay nada que sondear — son tres nombres de empresa.
+
+**El permiso `brokers:read` sigue sembrado y deja de gobernar esta lectura**, como `products:hotlink`. No se retira porque eliminarlo rompería los roles que ya lo tengan.
 
 ## 11. Validaciones
 
@@ -100,7 +106,8 @@ Permiso `brokers:read`. **Sin él, `403`.**
 | `CA-SP-603` | Los brokers inactivos **no aparecen** salvo que se pidan explícitamente, y entonces se **añaden** |
 | `CA-SP-604` | El sistema **no expone** ninguna operación de creación, edición, eliminación ni cambio de estado sobre este catálogo (`RN-SP-039`) |
 | `CA-SP-605` | El orden es **por nombre** y el cliente no puede cambiarlo |
-| `CA-SP-606` | El sistema rechaza la consulta a un actor sin `brokers:read` |
+| ~~`CA-SP-606`~~ | ~~El sistema rechaza la consulta a un actor sin `brokers:read`~~ — **retirado el 08-09-2026**: el catálogo es público. Su prueba se **invierte** en `CA-SP-608` |
+| `CA-SP-608` | El sistema devuelve el catálogo **sin token**, y responde **lo mismo** con uno |
 | `CA-SP-607` | **Dos brokers no pueden llamarse igual**, ni distinguiéndose por mayúsculas o acentos |
 
 **`CA-SP-607` no es un criterio del endpoint sino del esquema**, y se escribe aquí porque es lo único que sostiene que el nombre sirva de clave: sin ese único, «Exness» y «exness» serían dos brokers y `user_brokers` acabaría repartida entre los dos.
@@ -125,3 +132,4 @@ Permiso `brokers:read`. **Sin él, `403`.**
 | Versión | Fecha | Cambio | Responsable |
 |---|---|---|---|
 | 0.1.0 | 08-09-2026 | Redacción inicial. **Nace el submódulo de brokers**, y de él solo se especifica el catálogo: vincular una cuenta y confirmarla por webhook quedan registrados y sin decidir. La decisión que gobierna esta tripleta es que **el catálogo guarde solo el nombre**, de donde sale que el nombre sea la clave de negocio y que `CA-SP-607` —un criterio de esquema— viva en esta lista. | Responsable del proyecto |
+| 0.2.0 | 08-09-2026 | **El catálogo pasa a ser PÚBLICO y se siembra**, las dos por decisión del responsable del proyecto y el mismo día que nació. Se consulta **sin iniciar sesión** (`RN-SP-041`), junto a los de países y tipos de documento: el formulario de registro elige broker **antes de que exista la cuenta**, que es lo que §2 ya anticipaba. **`CA-SP-606` se retira** —exigía el `403` sin permiso— y su prueba **se invierte** en `CA-SP-608`, que afirma lo contrario: sin token responde `200`, y con un token cualquiera responde **lo mismo**. Invertirla en vez de borrarla hace que el día que alguien vuelva a cerrar la ruta, falle aquí. **Y el catálogo deja de estar vacío**: `IQOPTION`, `EXNOVA` y `EXOPTION` (`V76`), escritos como se dieron —el nombre es la clave de negocio— y con una guarda que aborta la migración si no quedan tres. Con eso se cierra el bloqueo 1 de `tasks.md`. | Responsable del proyecto |
