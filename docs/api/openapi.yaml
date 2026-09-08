@@ -224,6 +224,12 @@ paths:
         schema:
           type: string
           format: uuid
+      - name: countryId
+        in: query
+        required: false
+        schema:
+          type: string
+          format: uuid
       - name: search
         in: query
         required: false
@@ -4221,6 +4227,9 @@ components:
         password:
           type: string
           minLength: 1
+        countryId:
+          type: string
+          format: uuid
         roleIds:
           type: array
           items:
@@ -4235,12 +4244,23 @@ components:
           type: string
           format: uuid
       required:
+      - countryId
       - email
       - firstName
       - lastName
       - password
       - roleIds
       - username
+    CountryRef:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        code:
+          type: string
+        name:
+          type: string
     MembershipRef:
       type: object
       properties:
@@ -4254,6 +4274,8 @@ components:
         level:
           type: integer
           format: int32
+        color:
+          type: string
     RoleRef:
       type: object
       properties:
@@ -4296,6 +4318,8 @@ components:
           type: array
           items:
             $ref: "#/components/schemas/RoleRef"
+        country:
+          $ref: "#/components/schemas/CountryRef"
         membership:
           $ref: "#/components/schemas/MembershipRef"
         supervisor:
@@ -5000,6 +5024,7 @@ components:
       - identifier
       - password
     PatchableString: {}
+    PatchableUUID: {}
     UpdateUserRequest:
       type: object
       properties:
@@ -5009,6 +5034,8 @@ components:
           $ref: "#/components/schemas/PatchableString"
         email:
           $ref: "#/components/schemas/PatchableString"
+        countryId:
+          $ref: "#/components/schemas/PatchableUUID"
     AssignSupervisorRequest:
       type: object
       properties:
@@ -5131,6 +5158,8 @@ components:
           type: array
           items:
             type: string
+        country:
+          $ref: "#/components/schemas/CountryRef"
         membership:
           $ref: "#/components/schemas/MembershipRef"
         lastLoginAt:
@@ -5185,7 +5214,6 @@ components:
     PatchableInteger: {}
     PatchableProductImplementation: {}
     PatchableProductScope: {}
-    PatchableUUID: {}
     UpdateProductRequest:
       type: object
       properties:
@@ -5365,6 +5393,8 @@ components:
           type: array
           items:
             type: string
+        country:
+          $ref: "#/components/schemas/CountryRef"
         membership:
           $ref: "#/components/schemas/MembershipRef"
         lastLoginAt:

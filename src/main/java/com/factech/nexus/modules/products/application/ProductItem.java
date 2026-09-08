@@ -71,14 +71,16 @@ public record ProductItem(
                 fila.sourceMembershipId(),
                 fila.sourceMembershipCode(),
                 fila.sourceMembershipName(),
-                fila.sourceMembershipLevel()),
+                fila.sourceMembershipLevel(),
+                fila.sourceMembershipColor()),
         fila.targetMembershipId() == null
             ? null
             : new ProductResponse.MembershipRef(
                 fila.targetMembershipId(),
                 fila.targetMembershipCode(),
                 fila.targetMembershipName(),
-                fila.targetMembershipLevel()),
+                fila.targetMembershipLevel(),
+                fila.targetMembershipColor()),
         ProductPrice.enLaEscalaDe(fila.price(), fila.currencyDecimalPlaces()),
         new ProductResponse.CurrencyRef(
             fila.currencyId(), fila.currencyCode(), fila.currencyDecimalPlaces()),

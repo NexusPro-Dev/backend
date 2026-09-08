@@ -85,7 +85,8 @@ public record ProductDetailResponse(
                 fila.sourceMembershipName(),
                 // Igual que el destino: el nivel es el ACTUAL. Ver la nota de
                 // abajo — vale para las dos y por el mismo motivo.
-                fila.sourceMembershipLevel()),
+                fila.sourceMembershipLevel(),
+                fila.sourceMembershipColor()),
         fila.targetMembershipId() == null
             ? null
             : new ProductResponse.MembershipRef(
@@ -96,7 +97,8 @@ public record ProductDetailResponse(
                 // producto: la cadena se reordena al insertar un eslabón
                 // (`RN-SP-007`), y devolver el de entonces obligaría a
                 // guardarlo, que es duplicar un dato que cambia.
-                fila.targetMembershipLevel()),
+                fila.targetMembershipLevel(),
+                fila.targetMembershipColor()),
         ProductPrice.enLaEscalaDe(fila.price(), fila.currencyDecimalPlaces()),
         new ProductResponse.CurrencyRef(
             fila.currencyId(), fila.currencyCode(), fila.currencyDecimalPlaces()),

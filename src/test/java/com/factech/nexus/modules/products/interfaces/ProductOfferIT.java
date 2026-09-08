@@ -503,6 +503,21 @@ class ProductOfferIT extends IntegrationTestBase {
   // Preparación
   // ---------------------------------------------------------------------------
 
+  @Test
+  @DisplayName("`CA-PM-144` — la oferta trae el COLOR del destino y el de la membresía del actor")
+  void laOfertaTraeElColorDeLasMembresias() throws Exception {
+    // El de `currentMembership` es el que más se nota: la pantalla pinta
+    // «estás en X, sube a Y», y hasta hoy no tenía con qué colorear el «X».
+    mvc.perform(oferta(enFree))
+        .andExpect(status().isOk())
+        .andExpect(
+            jsonPath("$.currentMembership.color").value(Matchers.matchesPattern("^[0-9A-F]{6}$")))
+        .andExpect(
+            jsonPath(
+                "$.upgrades.content[*].targetMembership.color",
+                Matchers.everyItem(Matchers.matchesPattern("^[0-9A-F]{6}$"))));
+  }
+
   private MockHttpServletRequestBuilder oferta(UUID quien) {
     return get("/api/v1/products/available").with(comoActor(quien));
   }
@@ -549,8 +564,8 @@ class ProductOfferIT extends IntegrationTestBase {
     jdbc.update(
         """
         INSERT INTO users (id, username, email, first_name, last_name, password_hash,
-                           must_change_password, status)
-        VALUES (CAST(? AS uuid), ?, ?, 'Ana', 'Ruiz', 'no-se-usa-en-esta-prueba', false, 'ACTIVO')
+                           must_change_password, status, country_id)
+        VALUES (CAST(? AS uuid), ?, ?, 'Ana', 'Ruiz', 'no-se-usa-en-esta-prueba', false, 'ACTIVO', (SELECT id FROM countries WHERE code = 'COL'))
         """,
         id.toString(),
         username,

@@ -51,6 +51,7 @@
 | `T-29` | Las dos en la **instantánea** del agregado y en las cuatro respuestas del módulo —alta, listado, detalle y oferta— | `T-28` | El evento de creación de `audit_change_log` las lleva (`CA-PM-114`), y las cuatro respuestas las devuelven **siempre presentes** | **Hecha el 07-09-2026** |
 | `T-30` | Pruebas de API de `CA-PM-110` a `CA-PM-114`, incluida la del **bot con `HOTLINKS` y `MANUAL`**, que es la que verifica que ninguna de las dos depende del tipo | `T-29` | La suite de `PM` en verde con los cinco criterios nuevos | **Hecha el 07-09-2026** |
 | `T-31` | Migración `V61__products_admite_renovacion.sql`: **retira `ck_products_origen_distinto`** (`plan.md` §2.5). En el agregado, `Product.verificarTipoYMembresias` deja de rechazar `origen == destino`; en el caso de uso, la comparación pasa de `<=` a `<` | `T-23` | Un `INSERT` directo de `FREE → FREE` **entra**; el alta por API admite la renovación (`CA-PM-125`) y sigue rechazando el descenso con `EX-006` y `VAL-014` (`CA-PM-104`) | **Hecha el 07-09-2026** |
+| `T-32` | El **color** en `MembershipView` —el puerto de `SP`— y en `ProductResponse.MembershipRef`, que comparten las cinco respuestas del módulo | `T-05` | `CA-PM-141`. **Aditivo**: quien ya consume el puerto sigue leyendo los cuatro campos que leía | **Hecha el 07-09-2026** |
 
 ## 2. Orden de ejecución
 
@@ -78,6 +79,7 @@
 | `CA-PM-103`, `CA-PM-105` | `T-24`, `T-26` |
 | `CA-PM-104` | `T-24`, `T-25`, `T-26`, `T-31` |
 | `CA-PM-125` | `T-31` |
+| `CA-PM-141` | `T-32` |
 | `CA-PM-110`, `CA-PM-111` | `T-28`, `T-30` |
 | `CA-PM-112` | `T-28`, `T-30` |
 | `CA-PM-113` | `T-29`, `T-30` |

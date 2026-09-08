@@ -9,6 +9,7 @@
 | Aprobada por | Responsable del proyecto |
 | Fecha de aprobación | 26-08-2026 |
 | Enmendada el | 28-08-2026 — ver §15 |
+| Enmendada el | 07-09-2026 — **las membresías traen su color** (`RN-SP-024`). Ver §15 |
 | Enmendada el | 07-09-2026 — **el detalle devuelve el alcance y la implementación** (`RN-PM-019`, `RN-PM-020`). Ver §15 |
 
 ---
@@ -131,6 +132,7 @@ El listado de `RF-PM-002` responde «qué hay»; esta consulta responde «qué e
 | `CA-PM-081` | El sistema **no devuelve quién** creó, corrigió ni retiró el producto, ni siquiera resuelto desde la auditoría |
 | `CA-PM-082` | El sistema devuelve el precio como **número**, con los decimales que declara su moneda y no con la escala de la columna: `49.99` en una moneda de dos decimales, no `49.9900` |
 | `CA-PM-118` | El sistema devuelve **el alcance y la implementación** del producto, en los dos tipos y también en uno retirado |
+| `CA-PM-143` | El sistema devuelve el **color** de las dos membresías del detalle |
 
 ## 13. Casos límite
 
@@ -161,3 +163,4 @@ Ninguna. Las tres se resolvieron el 26-08-2026, antes de aprobar la especificaci
 | 0.3.0 | 27-08-2026 | El detalle devuelve la **vigencia en días** (`RN-PM-015`), y **vacía y presente** cuando el producto no caduca — un campo ausente sería indistinguible de uno que el cliente no conoce. | Responsable del proyecto |
 | 0.3.0 | 28-08-2026 | **La respuesta gana el icono** (`RN-PM-016`) y el tipo `SERVICIO` pasa a llamarse `BOT`. Ninguna de las dos cosas cambia el comportamiento de esta consulta: el icono viaja como un campo más —nulo y presente cuando no lo hay, por el mismo criterio que el destino y la vigencia— y el renombrado solo cambia el valor que se lee y por el que se filtra. **El contrato publicado cambia**, de modo que la copia del frontend queda vieja. | Responsable técnico |
 | 0.4.0 | 07-09-2026 | **El detalle devuelve el alcance y la implementación** (`RN-PM-019`, `RN-PM-020`). Es una ampliación de la salida y nada más — no hay validación nueva, ni excepción, ni permiso —, y aun así se escribe: un detalle **sin** las dos obligaría a abrir la edición para saber dónde se publica un producto y cómo se entrega, que es exactamente el «detalle que obliga a una segunda llamada» que esta spec existe para evitar. Entra `CA-PM-118`. | Responsable del proyecto |
+| 0.5.0 | 07-09-2026 | **Las membresías del detalle traen su COLOR** (`RN-SP-024`). Es la misma referencia compartida que devuelven el alta, el listado y la oferta, y por eso el cambio es de una línea: **dos formas del mismo dato obligarían a la interfaz a escribir dos lectores**, que es lo que esta spec ya evitaba reutilizando `MembershipRef`. Entra `CA-PM-143`. | Responsable del proyecto |

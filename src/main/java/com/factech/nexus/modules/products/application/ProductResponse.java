@@ -44,7 +44,7 @@ public record ProductResponse(
 
   /** Las membresías de origen y destino, resueltas. Nulas y presentes en los bots. */
   @JsonInclude(JsonInclude.Include.ALWAYS)
-  public record MembershipRef(UUID id, String code, String name, int level) {}
+  public record MembershipRef(UUID id, String code, String name, int level, String color) {}
 
   /** La moneda del precio, con los decimales que declara. */
   @JsonInclude(JsonInclude.Include.ALWAYS)
@@ -80,7 +80,7 @@ public record ProductResponse(
   private static MembershipRef ref(MembershipView vista) {
     return vista == null
         ? null
-        : new MembershipRef(vista.id(), vista.code(), vista.name(), vista.level());
+        : new MembershipRef(vista.id(), vista.code(), vista.name(), vista.level(), vista.color());
   }
 
   /**

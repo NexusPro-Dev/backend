@@ -27,7 +27,7 @@ import java.util.UUID;
  * #isCurrentAt}, y lo primero ya lo decidió la consulta.
  */
 public record UserMembership(
-    UUID membershipId, String code, String name, short level, OffsetDateTime endsAt) {
+    UUID membershipId, String code, String name, short level, String color, OffsetDateTime endsAt) {
 
   /** ¿Sigue valiendo en ese instante? */
   public boolean isCurrentAt(OffsetDateTime instante) {

@@ -29,6 +29,7 @@
 | `T-11` | Actualizar la matriz de trazabilidad | `T-07` | La fila refleja el estado | Hecha |
 | `T-12` | La **vigencia** viaja en el detalle | `T-03` | Vacía y presente en los productos que no caducan | Hecha |
 | `T-13` | El **alcance** y la **implementación** en `ProductDetailResponse` y en la proyección `ProductRow`, con la sentencia del detalle seleccionándolas | `RF-PM-001 · T-28` | `CA-PM-118`: las dos llegan en un upgrade, en un bot y en un producto **retirado**, y el detalle sigue costando **una** sentencia | **Hecha el 07-09-2026** |
+| `T-14` | El **color** de las dos membresías en el detalle | `RF-PM-001 · T-32` | `CA-PM-143`, y el detalle sigue costando **una** sentencia | **Hecha el 07-09-2026** |
 
 ## 2. Orden de ejecución
 
@@ -49,6 +50,7 @@ El resto es rutina y depende de `RF-PM-001` y `RF-PM-002`.
 | `CA-PM-081` | `T-09` |
 | `CA-PM-082` | `T-03` |
 | `CA-PM-118` | `T-13` |
+| `CA-PM-143` | `T-14` |
 
 ## 4. Bloqueos
 

@@ -143,7 +143,8 @@ public class PublishedUserCatalog
                     membresia.membershipId(),
                     membresia.code(),
                     membresia.name(),
-                    membresia.level()));
+                    membresia.level(),
+                    membresia.color()));
   }
 
   // ---------------------------------------------------------------------------

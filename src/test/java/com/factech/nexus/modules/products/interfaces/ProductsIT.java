@@ -659,6 +659,26 @@ class ProductsIT extends IntegrationTestBase {
     assertThat(cambios).contains("HOTLINKS").contains("MANUAL").contains("implementation");
   }
 
+  @Test
+  @DisplayName("`CA-PM-141` — la membresía resuelta trae su COLOR, junto al código, nombre y nivel")
+  void laMembresiaResueltaTraeSuColor() throws Exception {
+    // `oro` se siembra con nivel 1, y el color de la semilla es
+    // `upper(lpad(to_hex(nivel * 4919), 6, '0'))` — para el nivel 1, `001337`.
+    // Se afirma el valor EXACTO y no solo el formato: así la prueba demuestra
+    // que viaja el color de ESA membresía y no el de cualquiera.
+    mvc.perform(
+            alta(
+                """
+                {"scope":"TIENDA","implementation":"AUTOMATICA","code":"UPGRADE_ORO","type":"UPGRADE_MEMBRESIA","name":"Ascenso a Oro",
+                 "sourceMembershipId":"%s","targetMembershipId":"%s","price":49.99,
+                 "currencyId":"%s"}
+                """
+                    .formatted(free, oro, USD)))
+        .andExpect(status().isCreated())
+        .andExpect(jsonPath("$.targetMembership.color").value("001337"))
+        .andExpect(jsonPath("$.sourceMembership.color").value("004CDC"));
+  }
+
   private RequestPostProcessor admin() {
     return user(UUID.randomUUID().toString()).authorities(() -> "products:create");
   }

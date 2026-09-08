@@ -414,6 +414,21 @@ class ProductListIT extends IntegrationTestBase {
 
   // ---------------------------------------------------------------------------
 
+  @Test
+  @DisplayName("`CA-PM-142` — cada upgrade del listado trae el COLOR de sus dos membresías")
+  void elListadoTraeElColorDeLasMembresias() throws Exception {
+    mvc.perform(listado().param("type", "UPGRADE_MEMBRESIA"))
+        .andExpect(status().isOk())
+        .andExpect(
+            jsonPath(
+                "$.content[*].targetMembership.color",
+                Matchers.everyItem(Matchers.matchesPattern("^[0-9A-F]{6}$"))))
+        .andExpect(
+            jsonPath(
+                "$.content[*].sourceMembership.color",
+                Matchers.everyItem(Matchers.matchesPattern("^[0-9A-F]{6}$"))));
+  }
+
   private MockHttpServletRequestBuilder listado() {
     return get("/api/v1/products")
         .with(user(UUID.randomUUID().toString()).authorities(() -> "products:read"));

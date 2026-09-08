@@ -9,6 +9,7 @@
 | Issue | Pendiente de crear |
 | Rama | `feature/hotlink-publico` |
 | Autor | Responsable técnico |
+| Enmendadas | 07-09-2026 — `T-05b` por el **color de la membresía** |
 
 ---
 
@@ -21,6 +22,7 @@
 | `T-03` | Regla de **ArchUnit**: la ruta pública no puede importar repositorios ni entidades de `SP` | `T-01`, `T-02` | La regla ya existe para `modules/products`; se comprueba que alcanza al paquete nuevo | Pendiente |
 | `T-04` | `ProductQueryRepository.findPublishedByCode(String)`: por código, **sin distinguir mayúsculas**, exigiendo `ACTIVO`, no retirado y **alcance `HOTLINKS`** | `RF-PM-002 · T-05` | Un producto de alcance `TIENDA` **no se encuentra** (`CA-PM-131`), ni uno inactivo ni uno retirado (`CA-PM-132`) | Pendiente |
 | `T-05` | `application/HotlinkResponse` con `SellerRef` y `ExchangeRef`. **`rate` como cadena**, `amount` como número redondeado a la moneda de destino | `T-04` | `CA-PM-128`: los ocho decimales llegan intactos en la respuesta | Pendiente |
+| `T-05b` | La **membresía destino recortada** en `HotlinkResponse`: `code`, `name` y `color`, **presente y nula** en los bots. Sale del `LEFT JOIN` que la consulta ya hace, sin llamada extra | `T-04` | `CA-PM-138` a `CA-PM-140`. La prueba comprueba además que **no** viajan `id` ni `level` | Pendiente |
 | `T-06` | `domain/service/GetHotlinkService`: vendedor, producto, tasa — **y un solo punto de salida para el `404`** | `T-01`, `T-02`, `T-04`, `T-05` | Los seis casos que no proceden lanzan **la misma** excepción, con el mismo código y el mismo mensaje | Pendiente |
 | `T-07` | La conversión: se calcula solo si hay tasa **y** la moneda del producto no es la de casa | `T-06` | `CA-PM-129` y `CA-PM-130`: en los dos casos `exchange` llega **presente y nulo**, y el producto se devuelve igual | Pendiente |
 | `T-08` | `interfaces/HotlinkController`: `GET /api/v1/hotlinks/{username}/{code}`, **sin `@PreAuthorize`** | `T-06` | Responde sin token (`CA-PM-127`) y **lo mismo con uno** (`CA-PM-136`) | Pendiente |
@@ -54,6 +56,7 @@
 | `CA-PM-135` | `T-12` |
 | `CA-PM-136` | `T-08` |
 | `CA-PM-137` | `T-10` |
+| `CA-PM-138` a `CA-PM-140` | `T-05b` |
 
 ## 4. Bloqueos
 

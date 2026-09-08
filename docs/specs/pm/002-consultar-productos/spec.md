@@ -9,6 +9,7 @@
 | Aprobada por | Responsable del proyecto |
 | Fecha de aprobación | 26-08-2026 |
 | Enmendada el | 28-08-2026 — ver §15 |
+| Enmendada el | 07-09-2026 — **las membresías resueltas traen su color** (`RN-SP-024`). Ver §15 |
 | Enmendada el | 07-09-2026 — **dos filtros nuevos: alcance e implementación** (`RN-PM-019`, `RN-PM-020`). Ver §15 |
 
 ---
@@ -154,6 +155,7 @@ Con `RF-PM-001` se puede **crear** un producto y no **verlo**: quien administra 
 | `CA-PM-115` | El sistema filtra por **alcance** y devuelve solo los de `TIENDA` o solo los de `HOTLINKS` |
 | `CA-PM-116` | El sistema filtra por **implementación**, admite el valor en minúsculas y **rechaza el que está fuera del dominio junto al resto de parámetros inválidos**, no por separado |
 | `CA-PM-117` | Cada fila del listado devuelve **el alcance y la implementación**, en los dos tipos de producto |
+| `CA-PM-142` | El sistema devuelve el **color** de las dos membresías de cada upgrade, resueltas en la misma sentencia |
 
 ## 13. Casos límite
 
@@ -185,3 +187,4 @@ Ninguna. Las cuatro se resolvieron el 26-08-2026, antes de aprobar la especifica
 | 0.4.0 | 27-08-2026 | El listado devuelve la **vigencia en días** de cada producto (`RN-PM-015`). Sin ella, quien administra no distingue en la lista un upgrade permanente de uno de treinta días, que es la diferencia comercial más importante entre dos filas por lo demás idénticas. | Responsable del proyecto |
 | 0.3.0 | 28-08-2026 | **La respuesta gana el icono** (`RN-PM-016`) y el tipo `SERVICIO` pasa a llamarse `BOT`. Ninguna de las dos cosas cambia el comportamiento de esta consulta: el icono viaja como un campo más —nulo y presente cuando no lo hay, por el mismo criterio que el destino y la vigencia— y el renombrado solo cambia el valor que se lee y por el que se filtra. **El contrato publicado cambia**, de modo que la copia del frontend queda vieja. | Responsable técnico |
 | 0.4.0 | 07-09-2026 | **El catálogo gana dos filtros y dos columnas de salida: alcance e implementación** (`RN-PM-019`, `RN-PM-020`). **El del alcance no es un filtro más**: es el **único sitio del sistema donde ese dato se puede consultar hoy**, porque `RF-PM-007` no lo filtra —bajo la escala acumulativa los dos valores llegan a la tienda— y el canal de hotlinks todavía no existe. Sin él, el alcance sería un dato que se declara, se corrige y **no se puede ver**. Entran `VAL-006`, `VAL-007` y `CA-PM-115` a `CA-PM-117`. Los dos se validan **como el tipo y el estado**: se admiten en cualquier caja, se normalizan a su forma canónica y su rechazo **se acumula** con el resto en un solo `400` (`CA-PM-020`) — validar sin normalizar es el defecto sutil que devolvería `200` con la colección vacía en lugar de los productos que se piden. | Responsable del proyecto |
+| 0.5.0 | 07-09-2026 | **Las membresías resueltas del listado traen su COLOR** (`RN-SP-024`). Sale del mismo `LEFT JOIN` que ya trae el código, el nombre y el nivel, de modo que **no cuesta ninguna consulta más** — que es exactamente el motivo por el que el destino entra por un `JOIN` y no fila a fila por el puerto. Entra `CA-PM-142`. | Responsable del proyecto |

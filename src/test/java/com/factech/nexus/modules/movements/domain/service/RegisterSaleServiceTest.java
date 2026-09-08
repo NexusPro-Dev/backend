@@ -152,7 +152,8 @@ class RegisterSaleServiceTest {
   private void enNivel(int nivel) {
     when(membresias.currentMembershipOf(CLIENTE))
         .thenReturn(
-            Optional.of(new CurrentMembershipView(MEMBRESIA, "NIVEL_" + nivel, "Nivel", nivel)));
+            Optional.of(
+                new CurrentMembershipView(MEMBRESIA, "NIVEL_" + nivel, "Nivel", nivel, "D4AF37")));
   }
 
   /** Mete el producto en el catálogo <b>y en la oferta</b>, que es lo que `PM` decide de verdad. */

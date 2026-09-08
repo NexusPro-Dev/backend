@@ -305,6 +305,21 @@
         },
         "type" : "object"
       },
+      "CountryRef" : {
+        "properties" : {
+          "code" : {
+            "type" : "string"
+          },
+          "id" : {
+            "format" : "uuid",
+            "type" : "string"
+          },
+          "name" : {
+            "type" : "string"
+          }
+        },
+        "type" : "object"
+      },
       "CountryResponse" : {
         "properties" : {
           "code" : {
@@ -809,6 +824,9 @@
           "code" : {
             "type" : "string"
           },
+          "color" : {
+            "type" : "string"
+          },
           "id" : {
             "format" : "uuid",
             "type" : "string"
@@ -1034,6 +1052,9 @@
       },
       "OwnProfileResponse" : {
         "properties" : {
+          "country" : {
+            "$ref" : "#/components/schemas/CountryRef"
+          },
           "email" : {
             "type" : "string"
           },
@@ -1896,6 +1917,10 @@
       },
       "RegisterUserRequest" : {
         "properties" : {
+          "countryId" : {
+            "format" : "uuid",
+            "type" : "string"
+          },
           "email" : {
             "minLength" : 1,
             "type" : "string"
@@ -1936,7 +1961,7 @@
             "type" : "string"
           }
         },
-        "required" : [ "email", "firstName", "lastName", "password", "roleIds", "username" ],
+        "required" : [ "countryId", "email", "firstName", "lastName", "password", "roleIds", "username" ],
         "type" : "object"
       },
       "ResetPasswordRequest" : {
@@ -2424,6 +2449,9 @@
       },
       "UpdateUserRequest" : {
         "properties" : {
+          "countryId" : {
+            "$ref" : "#/components/schemas/PatchableUUID"
+          },
           "email" : {
             "$ref" : "#/components/schemas/PatchableString"
           },
@@ -2535,6 +2563,9 @@
       },
       "UserDetailResponse" : {
         "properties" : {
+          "country" : {
+            "$ref" : "#/components/schemas/CountryRef"
+          },
           "createdAt" : {
             "format" : "date-time",
             "type" : "string"
@@ -2628,6 +2659,9 @@
       },
       "UserResponse" : {
         "properties" : {
+          "country" : {
+            "$ref" : "#/components/schemas/CountryRef"
+          },
           "createdAt" : {
             "format" : "date-time",
             "type" : "string"
@@ -6079,6 +6113,14 @@
         }, {
           "in" : "query",
           "name" : "membershipId",
+          "required" : false,
+          "schema" : {
+            "format" : "uuid",
+            "type" : "string"
+          }
+        }, {
+          "in" : "query",
+          "name" : "countryId",
           "required" : false,
           "schema" : {
             "format" : "uuid",

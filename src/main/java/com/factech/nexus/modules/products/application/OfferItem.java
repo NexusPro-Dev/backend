@@ -70,7 +70,8 @@ public record OfferItem(
                 fila.targetMembershipId(),
                 fila.targetMembershipCode(),
                 fila.targetMembershipName(),
-                fila.targetMembershipLevel()),
+                fila.targetMembershipLevel(),
+                fila.targetMembershipColor()),
         ProductPrice.enLaEscalaDe(fila.price(), fila.currencyDecimalPlaces()),
         new ProductResponse.CurrencyRef(
             fila.currencyId(), fila.currencyCode(), fila.currencyDecimalPlaces()),

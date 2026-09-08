@@ -104,6 +104,10 @@ La dependencia es **acíclica**: `PM` consume `SP` y `SP` no consume nada ([`mod
 
     **Lo que cruza la frontera son modelos de lectura, nunca entidades**, y la definición de «vigente» **se queda en `SP`**: reimplementarla aquí es el defecto que devuelve resultados plausibles durante meses. La ausencia del dato llega como valor vacío, y qué `4xx` produce lo decide este módulo, que es quien tiene el contrato. Una regla de **ArchUnit** impide que `modules/products` importe repositorios o entidades de `modules/system`.
 
+    **`MembershipView` gana el `color` el 07-09-2026**, y con él la referencia que las cinco respuestas del módulo publican. **Es un dato puramente estético y aun así cruza la frontera por el puerto y no por un `JOIN` de conveniencia**: quien decide qué se sabe de una membresía es `SP` (`RN-SP-024`), y abrir una excepción «porque solo es un color» sería la primera grieta en la única regla que sostiene D-25.
+
+    **Ampliar el puerto es aditivo y no rompe a nadie**: quien ya lo consume sigue leyendo los cuatro campos que leía.
+
     Las tareas que escriben esos puertos pertenecen a **`RF-PM-001` y `RF-PM-007`**, aunque el código viva en paquetes de `SP`. El detalle completo, en [`architecture.md` §15.2](../architecture.md#152-como-consume-un-modulo-los-datos-de-otro-cierre-de-d-25).
 
 ---

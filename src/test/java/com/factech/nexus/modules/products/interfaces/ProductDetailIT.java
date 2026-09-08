@@ -276,6 +276,17 @@ class ProductDetailIT extends IntegrationTestBase {
 
   // ---------------------------------------------------------------------------
 
+  @Test
+  @DisplayName("`CA-PM-143` — el detalle trae el COLOR de las dos membresías")
+  void elDetalleTraeElColorDeLasMembresias() throws Exception {
+    mvc.perform(detalle(upgrade))
+        .andExpect(status().isOk())
+        .andExpect(
+            jsonPath("$.targetMembership.color").value(Matchers.matchesPattern("^[0-9A-F]{6}$")))
+        .andExpect(
+            jsonPath("$.sourceMembership.color").value(Matchers.matchesPattern("^[0-9A-F]{6}$")));
+  }
+
   private MockHttpServletRequestBuilder detalle(UUID id) {
     return get("/api/v1/products/{id}", id)
         .with(user(UUID.randomUUID().toString()).authorities(() -> "products:read"));

@@ -10,6 +10,7 @@
 | Fecha de aprobación | 07-09-2026 |
 
 ---
+| Enmendada el | 07-09-2026 — **el upgrade trae su membresía destino con el color** (`RN-SP-024`). Ver §15 |
 
 ## 1. Objetivo
 
@@ -77,9 +78,18 @@ Que **un enlace repartido por un vendedor abra una pantalla**: qué se vende, cu
 | Producto | Código, tipo, nombre, descripción, icono, vigencia en días |
 | Precio | El importe **en la moneda del producto**, con los decimales de esa moneda |
 | Conversión | La moneda de destino, **la tasa aplicada** y el **importe convertido**. **Vacía y presente** cuando no hay conversión que hacer |
+| Membresía destino | **Solo en los upgrades**: código, nombre y **color**. **Vacía y presente en los bots**, que no llevan ninguna |
 
 **La tasa viaja además del importe convertido**, y no es redundante: sin ella la pantalla no puede decir *«a 4.150 por dólar»*, que es lo que hace creíble el número. Con ella, además, quien lea la respuesta puede comprobar la cuenta.
 
+
+**El color viene de la membresía y es lo que la pantalla pinta.** `RN-SP-024` obliga a que toda membresía declare el suyo —seis dígitos hexadecimales sin `#`— y este es el primer sitio del sistema donde ese dato sale **sin autenticación**. No es un dato personal ni comercial: es la identidad visual de un nivel, y sin él la pantalla de un enlace tendría que inventarse un color o pedirlo aparte.
+
+!!! important "El hotlink publica MENOS de la membresía que los otros cuatro endpoints, y es deliberado"
+
+    Los demás devuelven `id`, `code`, `name`, `level` y `color`. Aquí van **solo tres**: ni el identificador, que no sirve a quien no puede llamar a nada más, ni el **nivel**, que publicaría la forma de la cadena comercial sin token.
+
+    **No son dos formas del mismo dato**, que es lo que los javadoc de `ProductItem` y `OfferItem` prohíben: es la misma forma **recortada**, y quien lea el hotlink lee tres campos que ya conoce. Lo que se evita al recortar es publicar de más, que en un endpoint público es la decisión por omisión.
 !!! danger "El importe convertido es informativo, y esto tiene que llegar hasta el frontend"
 
     **Lo que se cobra no es este número.** Una venta va en **una sola moneda** (`RN-MV-012`) y congela su importe al registrarse; esta conversión se calcula al vuelo, cambia el día que cambie la tasa y **no reserva nada**.
@@ -157,6 +167,9 @@ Que **un enlace repartido por un vendedor abra una pantalla**: qué se vende, cu
 | `CA-PM-135` | La respuesta **no lleva** correo, identificador, estado ni roles del vendedor: solo nombre y apellido |
 | `CA-PM-136` | El sistema responde **lo mismo** con un token válido que sin él |
 | `CA-PM-137` | El sistema **acota por origen** las peticiones a esta ruta, y el exceso recibe `429` |
+| `CA-PM-138` | El sistema devuelve, en un **upgrade**, la membresía destino con **código, nombre y color** |
+| `CA-PM-139` | El sistema **no publica el identificador ni el nivel** de la membresía en este endpoint, al revés que en los otros cuatro |
+| `CA-PM-140` | El sistema devuelve la membresía **vacía y presente** en un producto de tipo **bot** |
 
 ## 13. Casos límite
 
@@ -178,9 +191,11 @@ Que **un enlace repartido por un vendedor abra una pantalla**: qué se vende, cu
 | 3 | ¿Debería el enlace comprobar que ese producto es **de** ese vendedor? | **Hoy no se puede**: nada asocia un producto con una persona en el modelo. El enlace **compone** dos cosas independientes. Queda anotado que el día que exista esa relación, esta consulta tendrá que exigirla — y que hasta entonces **cualquier vendedor puede enlazar cualquier producto de alcance `HOTLINKS`**, que es un hecho del diseño y no un descuido |
 | 4 | ¿Se cuentan las visitas? | **No.** Contar visitas es analítica, tiene su propio almacenamiento y su propia decisión de privacidad, y meterla aquí de rebote la dejaría sin ninguna de las dos. Queda fuera del alcance |
 | 5 | ¿Se audita? | **No.** Es una lectura pública y anónima; auditarla llenaría `audit_change_log` de filas sin actor. Lo que sí queda es el registro de peticiones de `request_log`, que ya recoge toda llamada HTTP |
+| 6 | ¿Por qué el hotlink publica menos de la membresía que los otros cuatro endpoints? | **Porque es público.** El `id` no le sirve a quien no puede llamar a nada más, y el `level` publicaría **la forma de la cadena comercial** sin token — cuántos niveles hay y en qué orden. No es una segunda forma del mismo dato: es la misma **recortada**, y recortar es la decisión por omisión en una ruta pública |
 
 ## 15. Control de cambios
 
 | Versión | Fecha | Cambio | Responsable |
 |---|---|---|---|
 | 0.1.0 | 07-09-2026 | Redacción inicial. **La decisión que gobierna el requerimiento no es la conversión de moneda sino el `404` uniforme**: los seis casos que no proceden responden lo mismo, porque distinguirlos convertiría el endpoint en un oráculo que dice **quién existe** —y, peor, **quién es cliente**—. Queda escrito lo que esa uniformidad **no** resuelve: el recorrido a ciegas, que `RateLimitFilter` acota por origen y que **acotar no es impedir**; se admite porque el conjunto publicable es la fuerza comercial, que ya reparte su nombre. **Sin tasa vigente el producto se devuelve igual**, con la conversión vacía: responder `404` escondería un producto vendible porque nadie declaró una tasa. **Las validaciones responden `404` y no `400`**, porque en una ruta pública la forma también es información. **Y quedan dos cosas declaradas y sin dueño**: `products:hotlink` se queda sin endpoint —la reconciliación se propone y no se decide— y **nada asocia un producto con un vendedor**, de modo que hoy cualquiera de la fuerza comercial puede enlazar cualquier producto del canal. | Responsable del proyecto |
+| 0.2.0 | 07-09-2026 | **El producto trae la membresía destino cuando es un upgrade, con su COLOR**, por decisión del responsable del proyecto. `RN-SP-024` obliga a que toda membresía declare el suyo, y este es el primer sitio donde ese dato sale **sin autenticación**: no es personal ni comercial, es la identidad visual de un nivel, y sin él la pantalla de un enlace tendría que inventárselo. **El hotlink publica solo código, nombre y color** —ni identificador ni nivel—, al revés que los otros cuatro endpoints del módulo, que devuelven la referencia completa: el `id` no sirve a quien no puede llamar a nada más, y el `level` publicaría la forma de la cadena comercial sin token. **No son dos formas del mismo dato**, que es lo que los javadoc de `ProductItem` y `OfferItem` prohíben: es la misma **recortada**. Entran `CA-PM-138` a `CA-PM-140`. | Responsable del proyecto |

@@ -60,6 +60,7 @@ La búsqueda del producto por código **ya está cubierta** por `uq_products_cod
     "name": "Ascenso a Oro",
     "icon": "crown",
     "validityDays": 30,
+    "membership": { "code": "ORO", "name": "Oro", "color": "D4AF37" },
     "price": 49.99,
     "currency": { "code": "USD", "decimalPlaces": 2 },
     "exchange": {
@@ -71,6 +72,7 @@ La búsqueda del producto por código **ya está cubierta** por `uq_products_cod
 }
 ```
 
+- **`membership` es una proyección PROPIA y recortada**, no el `MembershipRef` que comparten los otros cuatro endpoints: tres campos en vez de cinco. Se declara aparte **a propósito**, y no por descuido — en una ruta pública, reutilizar la forma completa publicaría el identificador y el nivel sin que nadie lo hubiera decidido. Llega **presente y nula** en los bots.
 - **`exchange` llega presente y nulo** cuando no hay conversión (`FA-001`, `FA-002`). Un campo que desaparece es indistinguible de uno que el cliente no conoce.
 - **`rate` viaja como cadena y no como número.** Es el único campo del sistema que lo hace, y por un motivo: tiene **ocho decimales**, y un número JSON pasa por coma flotante de doble precisión en cualquier cliente JavaScript. Como cadena, la tasa que se muestra es la que se declaró.
 - **`amount` sí es número**, redondeado a los decimales de la **moneda de destino** con `ProductPrice`, que es el componente que ya hace eso para las respuestas del módulo.

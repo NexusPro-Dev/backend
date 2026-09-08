@@ -114,6 +114,6 @@ public class GetOwnOfferService {
    */
   private static ProductResponse.MembershipRef referencia(CurrentMembershipView membresia) {
     return new ProductResponse.MembershipRef(
-        membresia.id(), membresia.code(), membresia.name(), membresia.level());
+        membresia.id(), membresia.code(), membresia.name(), membresia.level(), membresia.color());
   }
 }

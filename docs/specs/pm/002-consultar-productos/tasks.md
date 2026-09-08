@@ -33,6 +33,7 @@
 | `T-15` | La **vigencia** viaja en cada fila del listado | `T-05` | Un producto sin vigencia llega con el campo **vacío y presente**, no ausente | Hecha |
 | `T-16` | Los dos filtros nuevos: `scope` e `implementation` en `ListProductsRequest`, su comprobación de dominio **con el ayudante que ya usan `type` y `status`**, el predicado y el enlace en el adaptador, y las dos columnas en `ProductItem` | `RF-PM-001 · T-28` | El filtro en minúsculas devuelve las filas correctas —no una colección vacía—, un valor fuera de dominio se acumula con los demás en un solo `400`, y el listado sigue costando **dos** sentencias con los ocho filtros puestos | **Hecha el 07-09-2026** |
 | `T-17` | Pruebas de API de `CA-PM-115` a `CA-PM-117`, y la documentación OpenAPI con los **diez** parámetros | `T-16` | La suite de `PM` en verde con los tres criterios nuevos, y el contrato declara los dos parámetros | **Hecha el 07-09-2026** |
+| `T-18` | El **color** de las dos membresías en la proyección y en el `LEFT JOIN` del listado | `RF-PM-001 · T-32` | `CA-PM-142`, y el listado sigue costando **dos** sentencias | **Hecha el 07-09-2026** |
 
 ## 2. Orden de ejecución
 
@@ -56,6 +57,7 @@
 | `CA-PM-077` | `T-10` |
 | `CA-PM-115`, `CA-PM-116` | `T-16`, `T-17` |
 | `CA-PM-117` | `T-16`, `T-17` |
+| `CA-PM-142` | `T-18` |
 
 ## 4. Bloqueos
 

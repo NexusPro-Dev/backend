@@ -195,6 +195,7 @@ public class JpaUserRepository implements UserRepository {
         em.createNativeQuery(
                 """
                 SELECT m.id AS id, m.code AS code, m.name AS name, m.level AS level,
+                       m.color AS color,
                        um.ends_at AS ends_at
                   FROM user_memberships um
                   JOIN memberships m ON m.id = um.membership_id
@@ -212,6 +213,7 @@ public class JpaUserRepository implements UserRepository {
                     (String) fila.get("code"),
                     (String) fila.get("name"),
                     ((Number) fila.get("level")).shortValue(),
+                    (String) fila.get("color"),
                     momento(fila.get("ends_at"))))
         .findFirst();
   }
