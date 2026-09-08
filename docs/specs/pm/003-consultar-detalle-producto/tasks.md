@@ -3,7 +3,7 @@
 | Campo | Valor |
 |---|---|
 | Requerimiento | `RF-PM-003` |
-| Enmendadas | 02-09-2026 — el detalle resuelve **las dos** membresías; 07-09-2026 — `T-13` por el **alcance** y la **implementación** |
+| Enmendadas | 02-09-2026 — el detalle resuelve **las dos** membresías; 07-09-2026 — `T-13` por el **alcance** y la **implementación**; 08-09-2026 — `T-15` por el **precio público** |
 | Plan | [`plan.md`](plan.md), aprobado el 26-08-2026 |
 | Estado | **Aprobadas** |
 | Autor | Responsable técnico |
@@ -30,6 +30,7 @@
 | `T-12` | La **vigencia** viaja en el detalle | `T-03` | Vacía y presente en los productos que no caducan | Hecha |
 | `T-13` | El **alcance** y la **implementación** en `ProductDetailResponse` y en la proyección `ProductRow`, con la sentencia del detalle seleccionándolas | `RF-PM-001 · T-28` | `CA-PM-118`: las dos llegan en un upgrade, en un bot y en un producto **retirado**, y el detalle sigue costando **una** sentencia | **Hecha el 07-09-2026** |
 | `T-14` | El **color** de las dos membresías en el detalle | `RF-PM-001 · T-32` | `CA-PM-143`, y el detalle sigue costando **una** sentencia | **Hecha el 07-09-2026** |
+| `T-15` | El **precio público** en `ProductDetailResponse` y en el `SELECT` del detalle, con la escala de la misma moneda | `RF-PM-001 · T-34` | `CA-PM-152`: los dos importes, y el público **nulo y presente** donde no se declaró. El detalle sigue costando **una** sentencia más el motivo | **Hecha el 08-09-2026** |
 
 ## 2. Orden de ejecución
 
@@ -51,6 +52,7 @@ El resto es rutina y depende de `RF-PM-001` y `RF-PM-002`.
 | `CA-PM-082` | `T-03` |
 | `CA-PM-118` | `T-13` |
 | `CA-PM-143` | `T-14` |
+| `CA-PM-152` | `T-15` |
 
 ## 4. Bloqueos
 

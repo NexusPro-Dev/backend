@@ -2,6 +2,7 @@ package com.factech.nexus.modules.system.users.domain.repository;
 
 import com.factech.nexus.modules.system.users.application.ClientCatalog;
 import com.factech.nexus.modules.system.users.application.CurrentMembershipLookup;
+import com.factech.nexus.modules.system.users.application.PublicSellerLookup;
 import com.factech.nexus.modules.system.users.application.SellerRoleCatalog;
 import com.factech.nexus.modules.system.users.application.UserCatalog;
 import jakarta.persistence.EntityManager;
@@ -29,7 +30,11 @@ import org.springframework.transaction.annotation.Transactional;
  */
 @Repository
 public class PublishedUserCatalog
-    implements UserCatalog, SellerRoleCatalog, CurrentMembershipLookup, ClientCatalog {
+    implements UserCatalog,
+        SellerRoleCatalog,
+        CurrentMembershipLookup,
+        ClientCatalog,
+        PublicSellerLookup {
 
   private final EntityManager em;
   private final UserRepository usuarios;
@@ -145,6 +150,57 @@ public class PublishedUserCatalog
                     membresia.name(),
                     membresia.level(),
                     membresia.color()));
+  }
+
+  // ---------------------------------------------------------------------------
+  // PublicSellerLookup (`RF-PM-008` · `T-01`)
+  // ---------------------------------------------------------------------------
+
+  /**
+   * El nombre de quien reparte un enlace, <b>solo si es fuerza comercial</b>.
+   *
+   * <p><b>Los tres rechazos son el mismo vacío</b> —no existe, no está activa, no es vendedora— y
+   * eso es deliberado: quien consume no puede distinguirlos, de modo que el `404` que `PM` devuelve
+   * no puede filtrarse por accidente en tres respuestas distintas.
+   *
+   * <p><b>La comparación del nombre de usuario ignora la caja</b>, como el correo en `RF-SP-024`:
+   * un enlace se teclea y se comparte por mensajería.
+   *
+   * <p><b>La consulta selecciona DOS columnas</b>, y no la fila entera. Lo que no cruza la frontera
+   * no se puede publicar por descuido al otro lado — es la misma disciplina con la que {@code
+   * currentMembershipOf} descarta la fecha de fin.
+   */
+  @Override
+  @Transactional(readOnly = true)
+  public Optional<PublicSellerView> findSellerByUsername(String username) {
+    if (username == null || username.isBlank()) {
+      return Optional.empty();
+    }
+    List<Tuple> filas =
+        em.createNativeQuery(
+                """
+                SELECT u.first_name AS first_name, u.last_name AS last_name
+                  FROM users u
+                 WHERE lower(u.username) = lower(:usuario)
+                   AND u.status = 'ACTIVO'
+                   AND u.deleted_at IS NULL
+                   AND EXISTS (
+                         SELECT 1
+                           FROM user_roles ur
+                          WHERE ur.user_id = u.id
+                            AND ur.role_type = 'VENDEDOR')
+                 LIMIT 1
+                """,
+                Tuple.class)
+            .setParameter("usuario", username)
+            .getResultList();
+
+    return filas.stream()
+        .findFirst()
+        .map(
+            fila ->
+                new PublicSellerView(
+                    (String) fila.get("first_name"), (String) fila.get("last_name")));
   }
 
   // ---------------------------------------------------------------------------

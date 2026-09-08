@@ -22,6 +22,11 @@ import java.util.UUID;
  *
  * <p><b>El destino llega resuelto</b> y no como identificador suelto: resolverlo cuesta cero
  * consultas extra, porque la validación del alta ya lo trajo del catálogo que `SP` publica.
+ *
+ * <p><b>Lleva los DOS precios porque esta respuesta exige `products:create`</b> (`RN-PM-024`), que
+ * solo tiene quien administra el catálogo. La oferta de `RF-PM-007` y el hotlink de `RF-PM-008`
+ * devuelven <b>uno solo</b>: publicar el par enseñaría la diferencia entre lo que se anuncia y lo
+ * que se cobra.
  */
 @JsonInclude(JsonInclude.Include.ALWAYS)
 public record ProductResponse(
@@ -34,6 +39,7 @@ public record ProductResponse(
     MembershipRef sourceMembership,
     MembershipRef targetMembership,
     BigDecimal price,
+    BigDecimal publicPrice,
     CurrencyRef currency,
     Integer validityDays,
     ProductScope scope,
@@ -62,6 +68,10 @@ public record ProductResponse(
         ref(origen),
         ref(destino),
         enLaEscalaDe(producto.getPrice(), moneda),
+        // Nulo y PRESENTE cuando el producto no lo declara: su nulo SIGNIFICA
+        // «se anuncia con el precio del sistema», y un campo ausente no puede
+        // decir eso (`CA-PM-146`).
+        producto.getPublicPrice() == null ? null : enLaEscalaDe(producto.getPublicPrice(), moneda),
         new CurrencyRef(moneda.id(), moneda.code(), moneda.decimalPlaces()),
         producto.getValidityDays(),
         producto.getScope(),
@@ -87,6 +97,10 @@ public record ProductResponse(
    * El precio en la escala de su moneda. La regla vive en {@link ProductPrice}, compartida por las
    * tres respuestas del módulo: escrita aquí y repetida en las otras dos, el mismo producto
    * llegaría con dos precios distintos según por dónde se pidiera.
+   *
+   * <p><b>Y desde el 08-09-2026 la comparten también los dos importes</b>: escrita dos veces, el
+   * mismo producto acabaría enseñando su precio del sistema con dos decimales y el público con
+   * cuatro.
    */
   private static BigDecimal enLaEscalaDe(BigDecimal precio, CurrencyView moneda) {
     return ProductPrice.enLaEscalaDe(precio, moneda.decimalPlaces());

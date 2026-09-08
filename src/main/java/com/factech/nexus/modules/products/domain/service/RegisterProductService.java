@@ -30,7 +30,7 @@ import org.springframework.transaction.annotation.Transactional;
  * <p><b>El orden de verificación es el contrato</b> (`plan.md` §4):
  *
  * <ol>
- *   <li>La moneda existe y está <b>activa</b>, y el precio cabe en sus decimales.
+ *   <li>La moneda existe y está <b>activa</b>, y <b>los dos precios</b> caben en sus decimales.
  *   <li>Si es un upgrade, la membresía destino existe.
  *   <li>El código no lo ha tenido nunca otro producto; el nombre no lo tiene ningún producto vivo.
  *   <li>Se registra <b>inactivo</b> y se emite el evento de creación.
@@ -121,6 +121,7 @@ public class RegisterProductService {
                 comando.sourceMembershipId(),
                 comando.targetMembershipId(),
                 comando.price(),
+                comando.publicPrice(),
                 comando.currencyId(),
                 comando.validityDays(),
                 comando.scope(),
@@ -160,14 +161,27 @@ public class RegisterProductService {
 
     // `RN-PM-007`. No lo puede comprobar un CHECK: la escala admisible vive en
     // otra tabla, y PostgreSQL no admite subconsultas en una restricción.
-    if (!ProductPrice.cabeEn(comando.price(), moneda.decimalPlaces())) {
-      String mensaje =
-          "El precio no admite más de %d decimales en %s."
-              .formatted(moneda.decimalPlaces(), moneda.code());
-      throw new ValidationException(
-          "VAL-005", mensaje, List.of(new FieldError("price", "VAL-005", mensaje)));
-    }
+    //
+    // LOS DOS IMPORTES, y cada rechazo NOMBRA SU CAMPO: con dos precios, un
+    // mensaje que no distingue obliga a probar los dos para saber cuál corregir.
+    // El público solo se mide si llega — nulo significa que no se declara, y un
+    // importe que no existe no tiene decimales.
+    verificarDecimales(comando.price(), "price", moneda);
+    verificarDecimales(comando.publicPrice(), "publicPrice", moneda);
     return moneda;
+  }
+
+  /** `RN-PM-007` sobre un importe, con el campo del error. Un nulo no se mide: no existe. */
+  private static void verificarDecimales(
+      java.math.BigDecimal importe, String campo, CurrencyView moneda) {
+    if (importe == null || ProductPrice.cabeEn(importe, moneda.decimalPlaces())) {
+      return;
+    }
+    String mensaje =
+        "El precio no admite más de %d decimales en %s."
+            .formatted(moneda.decimalPlaces(), moneda.code());
+    throw new ValidationException(
+        "VAL-005", mensaje, List.of(new FieldError(campo, "VAL-005", mensaje)));
   }
 
   /**

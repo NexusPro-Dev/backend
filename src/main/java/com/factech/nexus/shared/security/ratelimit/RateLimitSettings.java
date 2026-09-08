@@ -32,6 +32,15 @@ import org.springframework.boot.context.properties.ConfigurationProperties;
  *       número</b>: cinco por minuto sin ella son setenta y dos mil correos al día; con ella el
  *       ritmo sostenido es de cinco cada cinco minutos, unos sesenta a la hora. Era de tres a la
  *       hora.
+ *   <li><b>Hotlink — 60/min por origen, sin penalización.</b> La única cota que no protege un
+ *       endpoint de autenticación (`RF-PM-008`, 08-09-2026). Lo que acota es el <b>recorrido a
+ *       ciegas de nombres de usuario</b>: la respuesta es un {@code 404} uniforme, de modo que
+ *       barrer nombres es lo único que queda, y esta cota es su única mitigación. El número es
+ *       holgado <b>a propósito</b>: un hotlink se reparte por mensajería y lo abren muchas personas
+ *       que pueden compartir la dirección de salida de su operador, de modo que una cota estrecha
+ *       dejaría fuera a lectores legítimos antes que a nadie más. Y <b>sin penalización</b> por lo
+ *       mismo: una espera fija convertiría una ráfaga de lectores en un corte de cinco minutos para
+ *       todos los que salen por esa dirección.
  * </ul>
  *
  * <p><b>Las dos cotas de recuperación se aplican desde el 26-08-2026</b>, al existir sus endpoints:
@@ -50,7 +59,8 @@ public record RateLimitSettings(
     Politica login,
     Politica refresh,
     Politica recovery,
-    Politica recoveryConfirmation) {
+    Politica recoveryConfirmation,
+    Politica hotlink) {
 
   /**
    * Una política: cuántas peticiones por ventana, por origen y por identidad.

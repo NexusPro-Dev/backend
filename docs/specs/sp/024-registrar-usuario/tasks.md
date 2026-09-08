@@ -258,6 +258,34 @@ Decisión del responsable del proyecto: **toda persona declara un país**, oblig
 - **No desasigna a nadie cuando su país se desactiva.** Quien lo tenía lo conserva, y a partir de ahí pueden convivir personas en un país que ya no se ofrece en el alta. Es lo que `RF-SP-022` prometía desde el principio; lo único nuevo es que ahora hay a quién afectar.
 - **No añade el documento de identidad ni el teléfono**, que `spec.md` §14 resolución 3 dejó fuera junto al país. Siguen fuera: nadie los ha pedido.
 
+## 4.sexies Identidad documental y datos de contacto — enmienda del 08-09-2026
+
+Decisión del responsable del proyecto: **toda persona se identifica con un documento y declara sus datos de contacto** (`requirements/sp.md` v1.41.0, `RN-SP-035` a `RN-SP-037`). Las migraciones se declaran en `plan.md` §2.7 y en [`../051-consultar-tipos-de-documento/plan.md`](../051-consultar-tipos-de-documento/plan.md) §2.
+
+**Las tareas son de este requerimiento porque las columnas lo son**, aunque cambien de comportamiento otros cinco. Mismo reparto que §4.ter y §4.quinquies. La numeración sigue la del documento y arranca en `T-53`.
+
+**Estados:** `Pendiente` · `En curso` · `Hecha` · `Bloqueada`.
+
+| ID | Tarea | Depende de | Verificación | Estado |
+|---|---|---|---|---|
+| `T-53` | **`V68__usuario_con_documento_y_contacto.sql`**: las seis columnas **nulables**, `fk_users_document_type`, los cuatro `CHECK` y `uq_users_document` parcial sobre el no nulo (`plan.md` §2.7) | `RF-SP-051 · T-01` | Integración: dos personas con el mismo par tipo+número son rechazadas **aunque una esté eliminada**; un tipo sin número y un número sin tipo los rechaza `ck_users_document_pair`; el superadministrador de `V22` sigue existiendo **con los seis campos nulos** | Pendiente |
+| `T-54` | `domain`: el agregado `User` recibe documento y contacto en `create` y gana `changeDocument` y `changeContact`, los dos con el contrato de `rename` —devuelven si hubo cambio real— | `T-53` | Prueba unitaria **sin Spring**: `changeDocument` con el mismo par devuelve `false` y no mueve `updatedAt`; **no existe forma de dejar el tipo sin el número** | Pendiente |
+| `T-55` | `application`: puerto `AssignableDocumentType` y su adaptador, con **bloqueo compartido**, distinguiendo «no existe» de «está inactivo» | `T-53` | Integración: los dos casos producen respuestas distintas, y la traza muestra `SELECT … FOR SHARE` sobre `document_types` | Pendiente |
+| `T-56` | `RF-SP-024`: los siete campos en el DTO —dos obligatorios de documento, teléfono obligatorio, tres de dirección opcionales—, la verificación en el orden de `plan.md` §4 —paso 5.ter— y `document` y `contact` **agrupados** en la respuesta | `T-54`, `T-55` | Prueba de API: sin documento o sin teléfono es `400`; tipo inexistente `422`; tipo inactivo `409`; par repetido `409` **incluso contra una persona eliminada** (`CA-SP-590` a `CA-SP-592`) | Pendiente |
+| `T-57` | `RF-SP-026` y `RF-SP-039`: el documento y el contacto entran en el detalle y en el perfil propio, con el tipo **resuelto** y **`LEFT JOIN`** | `T-56` | **La prueba que importa**: una persona **sin** documento —de las anteriores a `V68`— **sigue apareciendo** en el detalle, con `document` en nulo. Con un `JOIN` interno desaparecería sin fallar (`CA-SP-593`, `CA-SP-597`) | Pendiente |
+| `T-58` | `RF-SP-027`: los siete campos **patchables**, con las **dos familias** de nulo de `plan.md` §4 —rechazado en documento y teléfono, aceptado y vaciador en los tres de dirección— y su auditoría | `T-55`, `T-57` | Prueba de API: `{"phone":null}` es `400`; `{"addressLine2":null}` es `200` y **vacía**; `{"documentNumber":"…"}` sin tipo es `400`; el cambio de documento deja evento **de cambio y no de seguridad** (`CA-SP-594` a `CA-SP-596`) | Pendiente |
+| `T-59` | `RF-SP-044`: el titular corrige **solo el contacto**. El documento y el país devuelven `400` por propiedad desconocida | `T-58` | Prueba de API: cambiar el teléfono **no exige contraseña actual**; enviar `documentTypeId` o `countryId` es `400` y **ninguno cambia** (`CA-SP-598`, `CA-SP-599`) | Pendiente |
+| `T-60` | `RF-SP-045`: el registro público exige documento **por abreviación** y teléfono, con los tres casos de fallo **compartiendo respuesta** | `T-56` | Prueba de API: enviar `TI` se rechaza **igual** que una abreviación inventada, y el cuerpo no enumera el catálogo (`CA-SP-600`, `CA-SP-601`) | **Bloqueada** — ver el bloqueo 3 de [`../051-consultar-tipos-de-documento/tasks.md`](../051-consultar-tipos-de-documento/tasks.md) §4 |
+| `T-61` | La semilla de desarrollo declara documento y teléfono de cada persona que crea | `T-53` | `DevelopmentSeedIT` en verde. **Cada persona con un número distinto**: repetirlos violaría `uq_users_document` y la semilla fallaría a medias | Pendiente |
+| `T-62` | El contrato OpenAPI se regenera con los siete campos y los códigos de error nuevos | `T-56` a `T-59` | `OpenApiContractIT` en verde. El contrato **no** puede decir que el documento es opcional en el alta | Pendiente |
+
+**Lo que esta enmienda NO hace:**
+
+- **No declara las columnas `NOT NULL`**, aunque documento y teléfono sean obligatorios en la API. Inventarle un número de documento al superadministrador de `V22` sería escribir algo falso sobre la identidad de una persona — que es justo la diferencia con el país, cuyo relleno era neutro (`plan.md` §2.7). La condición para endurecerlo queda escrita: el día que ninguna fila lo tenga nulo.
+- **No comprueba la edad en ningún sitio.** No hay `if` que escribir: el catálogo de `RF-SP-051` no ofrece documentos de menor, y `fk_users_document_type` hace el resto.
+- **No añade la ciudad como catálogo.** Es texto libre; un catálogo de ciudades exigiría decidir su relación con el país y su unicidad, y ningún requerimiento lo respalda.
+- **No toca el listado de `RF-SP-025`.** Ni publica el documento en cada fila ni permite buscar por él. Es la decisión más discutible de la enmienda y se toma a conciencia: buscar a alguien por su documento es una necesidad administrativa real y **nadie la ha pedido**, y publicarlo en un listado paginado lo expone mucho más que devolverlo en un detalle. La condición para abrirlo queda escrita.
+
 ## 5. Definición de terminado
 
 El requerimiento no está terminado hasta cumplir **todas** las condiciones de la constitución §16:

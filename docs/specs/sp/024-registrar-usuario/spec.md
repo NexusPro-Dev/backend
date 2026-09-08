@@ -11,6 +11,7 @@
 | Enmendada | 21-08-2026 — `RN-SP-018` obliga a indicar la membresía si el alta concede un rol `CONSUMIDOR`, al aprobar `RF-SP-033` (Art. I.7) |
 | Enmendada | 22-08-2026 — `RN-SP-019` obliga a indicar el superior comercial si el alta concede un rol `VENDEDOR`, al registrarse `RF-SP-041` (Art. I.7) |
 | Enmendada | 24-08-2026 — `RN-SP-023` hace **obligatorio** al menos un rol: `FA-001` se retira, nace `EX-008` y `CA-SP-197` se invierte (Art. I.7) |
+| Enmendada | 08-09-2026 — `RN-SP-035` y `RN-SP-037`: **documento y teléfono obligatorios**, dirección y ciudad opcionales. Nace `EX-010`, `VAL-015` a `VAL-017` y `CA-SP-590` a `CA-SP-592`, y **la resolución 3 de §14 se cierra del todo** (Art. I.7) |
 | Enmendada | 07-09-2026 — `RN-SP-034` hace **obligatorio el país**: entra en §6.1 y §6.2, nace `EX-009`, `VAL-014` y `CA-SP-572` a `CA-SP-574`, y **se reabre la resolución 3 de §14**, que había dejado el país fuera a propósito (Art. I.7) |
 
 ---
@@ -44,6 +45,8 @@ Que ambas sirvan para iniciar sesión obliga a una condición sobre el formato: 
 
 - Alta de un usuario con su nombre de usuario, su correo y sus datos de identificación personal.
 - **Declaración del país en el que está la persona** (`RN-SP-034`).
+- **Identidad documental**: tipo y número de documento (`RN-SP-035`).
+- **Datos de contacto**: teléfono obligatorio, y dirección, complemento y ciudad opcionales (`RN-SP-037`).
 - Establecimiento de su credencial inicial.
 - Asignación opcional de un conjunto inicial de roles.
 
@@ -67,6 +70,8 @@ Que ambas sirvan para iniciar sesión obliga a una condición sobre el formato: 
 | `RN-SP-019` | Todo vendedor tiene superior comercial, salvo la cúspide de la fuerza comercial | `requirements/sp.md` §5.1 |
 | `RN-SP-020` | El superior porta el rol padre inmediato del rol del subordinado | `requirements/sp.md` §5.1 |
 | `RN-SP-034` | Todo usuario pertenece a un país, y solo se asigna uno **activo** | `requirements/sp.md` §5.1 |
+| `RN-SP-035` | Toda persona se identifica con un documento; el par tipo+número es único y no se libera | `requirements/sp.md` §5.1 |
+| `RN-SP-037` | Toda persona tiene teléfono; la dirección es opcional | `requirements/sp.md` §5.1 |
 
 ## 6. Datos
 
@@ -77,6 +82,12 @@ Que ambas sirvan para iniciar sesión obliga a una condición sobre el formato: 
 | Nombre de usuario | Sí | Identidad estable de la persona, y una de las dos con las que inicia sesión | Único entre **todos** los usuarios, incluidos los eliminados. **No admite arroba**, para que nunca pueda confundirse con un correo. No se modifica después |
 | Correo | Sí | Correo de la persona, y la otra forma de iniciar sesión | Único entre todos los usuarios, incluidos los eliminados. Formato de correo válido |
 | Nombre y apellidos | Sí | Cómo se llama la persona | Es lo que la interfaz y la auditoría muestran cuando hay que decir quién hizo algo |
+| Tipo de documento | **Sí** | Con qué se identifica la persona | Debe existir en el catálogo de `RF-SP-051` y estar **activo**. **El catálogo solo contiene documentos de mayor de edad** (`RN-SP-035`), de modo que declarar el de un menor no es algo que se rechace: no hay identificador que poner |
+| Número de documento | **Sí** | El número del documento | Se persiste **recortado y en mayúsculas**. **El par tipo+número es único entre todas las personas, incluidas las eliminadas** — mismo trato que el nombre de usuario y el correo (`RN-SP-016`). No existe el número sin el tipo ni el tipo sin el número |
+| Teléfono | **Sí** | Vía de contacto | Dígitos con un `+` opcional, hasta quince (E.164). Se persiste normalizado, sin espacios ni guiones. **No se valida contra el país**: eso exigiría un catálogo de prefijos que nadie ha pedido |
+| Dirección | No | Línea principal de la dirección postal | Opcional. Si se envía, no puede quedar en blanco |
+| Complemento | No | Apartamento, torre, referencia | Opcional **por naturaleza y no por transición**: una dirección puede no tener complemento, y eso no es un dato que falte |
+| Ciudad | No | Ciudad de residencia | **Texto libre.** No hay catálogo de ciudades y no se abre aquí: exigiría decidir su relación con el país y su unicidad, y ningún requerimiento lo respalda |
 | País | **Sí** | Dónde está la persona | Debe existir en el catálogo y estar **activo** (`RN-SP-034`). **Obligatorio para todos**, sin condición sobre los roles: no es como la membresía ni como el superior, que dependen de qué se conceda. Se corrige después con `RF-SP-027` |
 | Contraseña inicial | Sí | Credencial con la que la persona entra por primera vez | Debe cumplir la política mínima de contraseña (`security.md` §3.2). Nunca se devuelve ni se registra. **La persona deberá cambiarla en su primer inicio de sesión** |
 | Roles | **Sí** | Roles que se le asignan al crearlo | **Al menos uno** (`RN-SP-023`). Cada uno debe existir, estar activo y no exceder los privilegios del actor |
@@ -89,6 +100,8 @@ Que ambas sirvan para iniciar sesión obliga a una condición sobre el formato: 
 |---|---|
 | Identificador | Identificador del usuario creado |
 | Usuario | Nombre de usuario, correo, nombre, estado y roles asignados |
+| Documento | El tipo **resuelto** —identificador, abreviación y nombre— y el número ya normalizado. Mismo criterio que el país y por lo mismo: quien acaba de registrar tiene que poder comprobar qué quedó escrito sin llamar a un catálogo que además exige otro permiso |
+| Contacto | Teléfono, dirección, complemento y ciudad, tal como quedaron. Los tres últimos **presentes y nulos** cuando no se declararon: la ausencia del campo obligaría al cliente a tratar dos formas |
 | País | El país registrado, con su identificador, su código y su nombre. **Se devuelve resuelto y no como identificador suelto**: quien acaba de registrar tiene que poder leer qué quedó escrito sin una segunda consulta al catálogo, igual que ocurre con los roles |
 | Cambio de contraseña pendiente | Indicador de que la persona debe cambiar su credencial en el primer inicio de sesión |
 
@@ -107,6 +120,7 @@ La contraseña **no forma parte de la salida** en ninguna forma, ni siquiera tra
 - Queda **marcado para cambio obligatorio de contraseña**: `RF-SP-034` lo autentica y le advierte, y la marca se limpia cuando ejecuta `RF-SP-037`.
 - Su nombre de usuario y su correo quedan reservados de forma permanente: no volverán a estar disponibles ni siquiera si el usuario se elimina.
 - Sus roles quedan asignados y sus permisos efectivos son la unión de los permisos de esos roles (`RN-SEG-009`).
+- **Su documento queda reservado de forma permanente**: el par tipo+número no volverá a estar disponible ni siquiera si la persona se elimina (`RN-SP-035`), con el mismo criterio que el nombre de usuario y el correo.
 - **Queda asociada al país indicado, y la asociación no caduca.** No hay estado en que la persona exista sin país. Si más tarde ese país se desactiva (`RF-SP-022`), la persona **lo conserva**: la comprobación de país activo es del momento de asignarlo y no una condición permanente (`RN-SP-034`).
 - Si el alta concedió un rol `VENDEDOR`, queda **a cargo del superior indicado**, con la asignación vigente y sin fecha de fin. La escritura ocurre en la misma transacción que el alta: no existe un instante en que el vendedor esté creado y sin superior.
 - La contraseña queda almacenada con Argon2id y no es recuperable (`security.md` §3.2).
@@ -120,6 +134,7 @@ La contraseña **no forma parte de la salida** en ninguna forma, ni siquiera tra
 4. El sistema verifica que el nombre de usuario y el correo no estén en uso por ningún usuario, incluidos los eliminados.
 5. El sistema verifica que los roles indicados existan y estén activos.
 5.bis El sistema verifica que el país indicado exista en el catálogo y esté activo.
+5.ter El sistema verifica que el tipo de documento exista en el catálogo y esté activo, y que el par tipo+número no lo tenga ya nadie.
 6. El sistema verifica que los roles indicados no excedan los privilegios del actor.
 7. Si alguno de los roles indicados es de clasificación `VENDEDOR`, el sistema verifica que se haya indicado un superior comercial —salvo que el rol sea la cúspide de la fuerza comercial— y que ese superior exista, esté `ACTIVO` y porte el rol padre inmediato de ese rol.
 8. El sistema registra al usuario con su credencial protegida, su país y sus roles, lo marca para cambio obligatorio de contraseña y, cuando procede, escribe su superior comercial en la misma transacción.
@@ -176,6 +191,16 @@ Es la excepción que nació el 24-08-2026 al establecerse `RN-SP-023`, y sustitu
 
 No se ofrece el camino de dar de alta el país sobre la marcha: el catálogo es de `RF-SP-020`, y `RN-SP-009` hace que un país registrado por error **no se pueda corregir nunca**. Crearlo desde aquí convertiría una errata en un alta permanente.
 
+### EX-010 — Documento inexistente, inactivo o ya en uso
+
+**Condición:** el tipo de documento no existe en el catálogo, existe y está **inactivo**, o el par tipo+número ya lo tiene otra persona —vigente **o eliminada**—.
+
+**Respuesta del sistema:** rechaza el alta completa. Los tres casos se distinguen, con el mismo reparto que `EX-009` hace con el país: tipo inexistente es una referencia que no resuelve, tipo inactivo es una que resuelve y que una regla rechaza, y **documento repetido es `RN-SP-035`**.
+
+**El conflicto por documento repetido no dice de quién es**, exactamente igual que `EX-001` con el nombre de usuario y el correo: decirlo informaría de la existencia de una cuenta. Y **no distingue si el titular está vigente o eliminado**, por el mismo motivo.
+
+**Y no existe el caso «este documento es de un menor».** No hay nada que rechazar: el catálogo no ofrece ese tipo, de modo que el intento se queda en `EX-010` por referencia inexistente. Es la diferencia entre una regla que se comprueba y una que no se puede violar.
+
 ### EX-004 — Rol fuera del alcance del actor
 
 **Condición:** alguno de los roles indicados concede permisos que el actor no posee.
@@ -199,6 +224,9 @@ No se ofrece el camino de dar de alta el país sobre la marcha: el catálogo es 
 | `VAL-012` | El superior indicado existe, está `ACTIVO` y porta el rol padre inmediato del rol vendedor concedido | El superior indicado no puede estar a cargo de este rol. |
 | `VAL-013` | Al menos un rol informado (`RN-SP-023`) | Debe indicar al menos un rol. |
 | `VAL-014` | País obligatorio, existente y activo (`RN-SP-034`) | El país indicado no es válido. |
+| `VAL-015` | Tipo y número de documento obligatorios (`RN-SP-035`) | El tipo y el número de documento son obligatorios. |
+| `VAL-016` | Número de documento con formato admitido | El número de documento no es válido. |
+| `VAL-017` | Teléfono obligatorio y con formato admitido (`RN-SP-037`) | El teléfono indicado no es válido. |
 
 ## 12. Criterios de aceptación
 
@@ -225,6 +253,9 @@ No se ofrece el camino de dar de alta el país sobre la marcha: el catálogo es 
 | `CA-SP-572` | El sistema **rechaza** el alta que no indica país, y la que indica uno inexistente, citando `RN-SP-034` |
 | `CA-SP-573` | El sistema rechaza el alta que indica un país **inactivo**, y lo hace con un error distinto del que produce un país inexistente |
 | `CA-SP-574` | El alta devuelve el país **resuelto** —identificador, código y nombre— y no un identificador suelto |
+| `CA-SP-590` | El sistema **rechaza** el alta sin tipo de documento, sin número o sin teléfono, y **acepta** la que no declara dirección, complemento ni ciudad |
+| `CA-SP-591` | El sistema rechaza el alta cuyo par tipo+número **ya tiene otra persona**, y lo rechaza igual cuando esa persona está **eliminada**, con la misma respuesta |
+| `CA-SP-592` | El alta devuelve el tipo de documento **resuelto** —abreviación y nombre—, el número normalizado en mayúsculas y los cuatro campos de contacto, con los opcionales **presentes y nulos** cuando no se declararon |
 | `CA-SP-202` | El sistema rechaza el alta a un actor sin el permiso de creación de usuarios |
 
 ## 13. Casos límite
@@ -242,6 +273,11 @@ No se ofrece el camino de dar de alta el país sobre la marcha: el catálogo es 
 - **País que se desactiva durante el alta:** se serializa sobre la fila del país, igual que el rol y el superior en los dos casos de arriba. El alta o lo ve activo o lo rechaza, pero no deja a nadie en un país que acaba de retirarse de la circulación.
 - **Catálogo de países vacío:** deja de ser posible desde `RN-SP-034`. La migración que introduce la columna **siembra Colombia**, porque `users.country_id` es `NOT NULL` y el superadministrador de la semilla tiene que apuntar a algo (`requirements/sp.md` §10.6). Sin esa siembra, el alta sería irrealizable en una instalación nueva: no habría ningún país que indicar.
 - **Persona que vive en un país que la plataforma no tiene en el catálogo:** no se registra. `EX-009` la rechaza, y la salida es dar de alta el país con `RF-SP-020` y repetir el alta. Es deliberado y tiene precio: quien dé de alta al usuario **no puede** desatascarse solo si además no tiene `countries:create`. Se acepta porque `RN-SP-009` hace que un país mal escrito no se pueda corregir jamás, y un catálogo que crece por descuido en cada alta es exactamente cómo se llena de erratas permanentes.
+- **Número de documento en minúsculas o con espacios:** se normaliza antes de verificar la unicidad, igual que el correo. `abc123` y ` ABC123 ` son el mismo documento, y sin normalizar serían dos personas distintas.
+- **El mismo número con dos tipos distintos:** se admite. La unicidad va sobre el **par**, no sobre el número: dos catálogos distintos pueden numerar igual, y prohibirlo rechazaría documentos legítimos.
+- **Persona que solo tiene tarjeta de identidad:** no se registra, y es el comportamiento buscado. La salida **no** es añadir ese tipo al catálogo — eso desactivaría la regla para todo el sistema (`RF-SP-051` `spec.md` §2).
+- **Persona sin dirección conocida:** se registra con normalidad. Es el caso de cualquier funcionario interno, y es la razón de que los tres campos de dirección sean opcionales.
+- **El superadministrador de `V22` y la semilla de desarrollo:** no tienen documento ni teléfono, y **el esquema lo admite** aunque la API no. Inventarles un número sería escribir algo falso sobre la identidad de una persona; el nulo es la verdad sobre esas filas (`requirements/sp.md` §10.16).
 - **Primer usuario del sistema:** no se crea por esta funcionalidad. El superadministrador inicial se siembra por migración, porque esta operación exige un actor autenticado con `users:create` y no habría ninguno.
 
 ## 14. Preguntas abiertas
@@ -252,6 +288,6 @@ Ninguna. Las cinco se resolvieron el 21-08-2026, antes de aprobar la especificac
 |---|---|---|
 | 1 | ¿El alta fija la contraseña, o el usuario nace `PENDIENTE` y la establece él? | **El actor fija una contraseña inicial y el usuario nace `ACTIVO`.** El camino de `PENDIENTE` exige un canal de correo y un flujo de activación que hoy no existen en ningún requerimiento: habría que inventarlos enteros para dar de alta a la primera persona. El estado `PENDIENTE` de `security.md` §3.1 **queda declarado y sin usar** hasta que ese flujo exista, y así lo recoge `RF-SP-028`, que no lo admite en su dominio. El coste —que el actor conoce temporalmente la credencial de otra persona— se acota con la resolución 2 |
 | 2 | ¿Debe obligarse a cambiar la contraseña en el primer inicio de sesión? | **Sí.** El usuario nace con un indicador de **cambio obligatorio de contraseña**, y eso reduce a un solo inicio de sesión la ventana en que dos personas conocen la misma credencial. Sin él, la auditoría no podría distinguir quién actuó. Reparte obligaciones en tres requerimientos más: `RF-SP-034` **autentica y advierte**, no rechaza —la persona necesita una sesión para poder cambiarla—; `RF-SP-037` limpia la marca; y `RF-SP-038` la vuelve a fijar al restablecer. `CA-SP-342` lo verifica de extremo a extremo |
-| 3 | ¿Qué datos personales lleva el usuario, además del nombre? | **Nombre y apellidos, y nada más por ahora.** `modelo-datos.md` §1 no registraba ninguno de los dos, y la auditoría y la interfaz necesitan poder decir quién es la persona y no solo su nombre de usuario. Documento de identidad, teléfono y país se dejan fuera de forma deliberada: cada uno arrastra decisiones propias —formato, unicidad, qué pasa con quien no tenga documento del país— que ningún requerimiento respalda todavía. Se añadirán cuando uno lo pida, y añadir una columna a `users` es una migración corriente, no una revisión de nada ya calculado. **Reabierta y resuelta a medias el 07-09-2026: el país entra**, por decisión del responsable del proyecto (`RN-SP-034`). Lo pidió un requerimiento, que es la condición que esta resolución dejó escrita — `RN-MV-019` sabía **dónde no vale un medio de pago** y no tenía contra qué contrastarlo. **Y el pronóstico de esta misma resolución se cumplió a medias**: el país sí arrastraba una decisión propia, pero no la que aquí se temía —formato y unicidad los resuelve el catálogo de `RF-SP-020`, que ya existía— sino **que el catálogo dejara de nacer vacío**, porque `NOT NULL` obliga a rellenar al superadministrador de `V22`. Documento de identidad y teléfono **siguen fuera**, y por el mismo motivo de siempre: nadie los ha pedido |
+| 3 | ¿Qué datos personales lleva el usuario, además del nombre? | **Nombre y apellidos, y nada más por ahora.** `modelo-datos.md` §1 no registraba ninguno de los dos, y la auditoría y la interfaz necesitan poder decir quién es la persona y no solo su nombre de usuario. Documento de identidad, teléfono y país se dejan fuera de forma deliberada: cada uno arrastra decisiones propias —formato, unicidad, qué pasa con quien no tenga documento del país— que ningún requerimiento respalda todavía. Se añadirán cuando uno lo pida, y añadir una columna a `users` es una migración corriente, no una revisión de nada ya calculado. **Cerrada del todo el 08-09-2026: entran también el documento y el teléfono**, por decisión del responsable del proyecto (`RN-SP-035`, `RN-SP-037`), y con ellos la dirección y la ciudad que esta resolución no llegó a nombrar. **De los tres que dejó fuera no queda ninguno.** Y el pronóstico se cumplió otra vez y otra vez por donde no se esperaba: el documento sí arrastraba una decisión propia, pero no la de «formato y unicidad» que aquí se temía —el formato se resuelve con un `CHECK` mínimo y la unicidad con un índice sobre el par— sino **que el catálogo de tipos resultó ser la validación de mayoría de edad**, y eso obligó a sacarlo entero de la API (`RN-SP-036`). **Reabierta y resuelta a medias el 07-09-2026: el país entra**, por decisión del responsable del proyecto (`RN-SP-034`). Lo pidió un requerimiento, que es la condición que esta resolución dejó escrita — `RN-MV-019` sabía **dónde no vale un medio de pago** y no tenía contra qué contrastarlo. **Y el pronóstico de esta misma resolución se cumplió a medias**: el país sí arrastraba una decisión propia, pero no la que aquí se temía —formato y unicidad los resuelve el catálogo de `RF-SP-020`, que ya existía— sino **que el catálogo dejara de nacer vacío**, porque `NOT NULL` obliga a rellenar al superadministrador de `V22`. Documento de identidad y teléfono **siguen fuera**, y por el mismo motivo de siempre: nadie los ha pedido |
 | 4 | ¿El nombre de usuario es un dato aparte del correo? | **Sí, los dos, y con cualquiera de los dos se inicia sesión.** El correo es el dato que la persona reconoce y el que puede corregirse (`RF-SP-027`); el nombre de usuario es el dato **estable**, el que no cambia nunca y con el que aparece en la auditoría. Justamente porque el correo cambia no puede ser la única identidad: lo que la auditoría referencia tiene que seguir significando lo mismo dentro de diez años. Que ambos sirvan para entrar obliga a una condición de formato —**el nombre de usuario no admite arroba** (`VAL-010`)—, y con ella ningún valor presentado en el inicio de sesión es ambiguo y las dos columnas no necesitan compartir espacio de unicidad. `RF-SP-034` recibe la obligación de aceptar ambos |
 | 5 | ¿La verificación de `RN-SEG-010` sobre los roles se hace aquí, o se delega en `RF-SP-030`? | **En ambos sitios, con un componente compartido.** Un alta que asigna roles concede privilegios igual que una asignación posterior; dejarla fuera aquí abriría el hueco de fabricarse un superadministrador en la misma petición del alta, que es exactamente lo que `RN-SEG-010` existe para impedir. `EX-004` la declara, y el `plan.md` debe resolverla con **un único componente** compartido con `RF-SP-030` y con `RF-SP-005`, para que las tres no puedan divergir con el tiempo |

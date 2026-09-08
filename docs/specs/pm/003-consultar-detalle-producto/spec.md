@@ -11,6 +11,7 @@
 | Enmendada el | 28-08-2026 — ver §15 |
 | Enmendada el | 07-09-2026 — **las membresías traen su color** (`RN-SP-024`). Ver §15 |
 | Enmendada el | 07-09-2026 — **el detalle devuelve el alcance y la implementación** (`RN-PM-019`, `RN-PM-020`). Ver §15 |
+| Enmendada el | 08-09-2026 — **el detalle devuelve los DOS precios** (`RN-PM-023`, `RN-PM-024`). Ver §15 |
 
 ---
 
@@ -53,6 +54,8 @@ El listado de `RF-PM-002` responde «qué hay»; esta consulta responde «qué e
 | `RN-PM-010` | El producto no desaparece: el retiro es lógico | `requirements/pm.md` §5.1 |
 | `RN-PM-019` | El alcance dice hasta dónde se muestra, y es **acumulativo** | `requirements/pm.md` §5.1 |
 | `RN-PM-020` | La implementación dice si lo comprado se aplica solo o espera autorización | `requirements/pm.md` §5.1 |
+| `RN-PM-023` | **El precio público es opcional y no se cobra** | `requirements/pm.md` §5.1 |
+| `RN-PM-024` | **El precio del sistema no sale de administración** — y este detalle **es** administración | `requirements/pm.md` §5.1 |
 
 ## 6. Datos
 
@@ -66,7 +69,8 @@ El listado de `RF-PM-002` responde «qué hay»; esta consulta responde «qué e
 
 | Dato | Descripción |
 |---|---|
-| Producto | Identificador, código, tipo, nombre, descripción, **icono**, precio con su moneda, **vigencia en días** y estado |
+| Producto | Identificador, código, tipo, nombre, descripción, **icono**, **los dos precios** con su moneda, **vigencia en días** y estado |
+| Los dos precios | El **del sistema** —el que se cobra— y el **público** —el que se anuncia—, este **presente y nulo** cuando el producto no lo declara (`RN-PM-023`). Es, con el listado, **el único sitio donde se ven juntos**: la oferta y el hotlink devuelven uno solo (`RN-PM-024`) |
 | Alcance e implementación | Hasta dónde se muestra el producto y quién aplica lo que otorga. En los **dos** tipos (`RN-PM-019`, `RN-PM-020`) |
 | Membresía destino | En los upgrades: código, nombre y **nivel**. Vacía en los bots |
 | Membresía de origen | Igual. **Aquí sí viaja**, al revés que en `RF-PM-007`: allí el origen es siempre el del actor y repetirlo sobraría, y aquí es una propiedad del producto que nadie más dice |
@@ -133,6 +137,7 @@ El listado de `RF-PM-002` responde «qué hay»; esta consulta responde «qué e
 | `CA-PM-082` | El sistema devuelve el precio como **número**, con los decimales que declara su moneda y no con la escala de la columna: `49.99` en una moneda de dos decimales, no `49.9900` |
 | `CA-PM-118` | El sistema devuelve **el alcance y la implementación** del producto, en los dos tipos y también en uno retirado |
 | `CA-PM-143` | El sistema devuelve el **color** de las dos membresías del detalle |
+| `CA-PM-152` | El sistema devuelve **los dos precios**, cada uno con los decimales de la moneda, y el **público en nulo presente** cuando el producto no lo declara |
 
 ## 13. Casos límite
 
@@ -164,3 +169,4 @@ Ninguna. Las tres se resolvieron el 26-08-2026, antes de aprobar la especificaci
 | 0.3.0 | 28-08-2026 | **La respuesta gana el icono** (`RN-PM-016`) y el tipo `SERVICIO` pasa a llamarse `BOT`. Ninguna de las dos cosas cambia el comportamiento de esta consulta: el icono viaja como un campo más —nulo y presente cuando no lo hay, por el mismo criterio que el destino y la vigencia— y el renombrado solo cambia el valor que se lee y por el que se filtra. **El contrato publicado cambia**, de modo que la copia del frontend queda vieja. | Responsable técnico |
 | 0.4.0 | 07-09-2026 | **El detalle devuelve el alcance y la implementación** (`RN-PM-019`, `RN-PM-020`). Es una ampliación de la salida y nada más — no hay validación nueva, ni excepción, ni permiso —, y aun así se escribe: un detalle **sin** las dos obligaría a abrir la edición para saber dónde se publica un producto y cómo se entrega, que es exactamente el «detalle que obliga a una segunda llamada» que esta spec existe para evitar. Entra `CA-PM-118`. | Responsable del proyecto |
 | 0.5.0 | 07-09-2026 | **Las membresías del detalle traen su COLOR** (`RN-SP-024`). Es la misma referencia compartida que devuelven el alta, el listado y la oferta, y por eso el cambio es de una línea: **dos formas del mismo dato obligarían a la interfaz a escribir dos lectores**, que es lo que esta spec ya evitaba reutilizando `MembershipRef`. Entra `CA-PM-143`. | Responsable del proyecto |
+| 0.6.0 | 08-09-2026 | **El detalle devuelve los DOS precios** (`RN-PM-023`, `RN-PM-024`): el del sistema —el que se cobra— y el público —el que se anuncia—. El público llega **presente y nulo** cuando el producto no lo declara, y no ausente: su nulo **significa** «se anuncia con el precio del sistema», que es exactamente el trato que esta spec ya da al destino de un bot y a la vigencia de lo que no caduca. **`CA-PM-082` alcanza a los dos**: los dos importes salen con los decimales de su moneda y no con la escala de la columna, y lo hacen con **la misma función** — escrita dos veces, el mismo producto acabaría enseñando sus dos precios con escalas distintas. **Este detalle y el listado son los dos únicos sitios donde los dos importes se ven juntos**, y lo que los separa de `RF-PM-007` y `RF-PM-008` es `products:read`. Entra `CA-PM-152`. | Responsable del proyecto |

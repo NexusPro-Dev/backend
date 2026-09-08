@@ -3,7 +3,7 @@
 | Campo | Valor |
 |---|---|
 | Requerimiento | `RF-PM-007` |
-| Enmendadas | 02-09-2026 — `pm.md` §5.2.1 declara que la oferta pasará a coincidir por **origen** (`T-20`); 07-09-2026 — `T-21` por el **alcance** y la **implementación**, que se publican y **no filtran**, y `T-22` por la **renovación**; ese mismo día se **cierra `T-20`**, cinco días después de escribirse |
+| Enmendadas | 02-09-2026 — `pm.md` §5.2.1 declara que la oferta pasará a coincidir por **origen** (`T-20`); 07-09-2026 — `T-21` por el **alcance** y la **implementación**, que se publican y **no filtran**, y `T-22` por la **renovación**; ese mismo día se **cierra `T-20`**, cinco días después de escribirse; 08-09-2026 — `T-24` y `T-25` por el **precio a mostrar** |
 | Plan | [`plan.md`](plan.md), aprobado el 26-08-2026 |
 | Estado | **En curso** — `T-01` a `T-22` `Hecha`. `T-20` se cerró el 07-09-2026, y con ella la coincidencia por origen |
 | Autor | Responsable técnico |
@@ -33,6 +33,8 @@
 | `T-20` | **Reescribir `T-03`/`T-06` a coincidencia por origen**: `findOffer` deja de comparar `level` y pasa a filtrar por `source_membership_id = :membresia`, como `pm.md` §5.2.1 declara decidido desde el 02-09-2026 | `RF-PM-001` (el alta que declara el origen, ya construida) | `CA-PM-106` a `CA-PM-108`, escritos en `spec.md` §12 el 02-09-2026 y **sin prueba hasta hoy**. `CA-PM-059`, `CA-PM-060` y `CA-PM-062` se enmiendan con ellos: estaban escritos en términos de nivel | **Hecha el 07-09-2026** |
 | `T-22` | La **renovación** en la oferta: no cuesta ninguna condición —`X → X` coincide con su origen como cualquier otro— y sí una prueba, porque es el caso que `T-20` existía para permitir | `T-20` | `CA-PM-126`: al actor en `FREE` se le ofrece el `FREE → FREE` declarado, y **no** se le ofrece un `FREE → FREE` de otra membresía, que no existe — ni un `PLATINO → ORO` a quien está en `ORO` | **Hecha el 07-09-2026** |
 | `T-23` | El **color** en la oferta: el del destino de cada upgrade y el de la membresía **vigente del actor**, que obliga a ampliar también `CurrentMembershipLookup` | `RF-PM-001 · T-32` | `CA-PM-144`. Es el único sitio donde hacen falta **los dos** puertos de `SP` ampliados | **Hecha el 07-09-2026** |
+| `T-24` | **Un solo importe, resuelto en la consulta**: `findOffer` selecciona `COALESCE(p.public_price, p.price) AS price` y **no selecciona `public_price`**. `OfferItem` **no gana ningún campo** | `RF-PM-001 · T-33` | `CA-PM-158` y `CA-PM-159`: con precio público se publica ese, sin él el del sistema | **Hecha el 08-09-2026** |
+| `T-25` | La prueba de la **ausencia**: el cuerpo trae **un** campo de importe por producto, y ningún indicador de cuál de los dos es | `T-24` | `CA-PM-160`. **Es la única cosa que sostiene `RN-PM-024` en esta consulta**: sin ella, un campo añadido «por simetría» con el catálogo administrativo publica el precio del sistema sin autenticar y **nada falla** | **Hecha el 08-09-2026** |
 
 **Este 03-09-2026 se descubrió que `T-20` nunca se ejecutó, al fusionar la rama que trae `RF-PM-007`.** `8d2bb3e` (02-09-2026) amplió `ProductRow` con las columnas de origen para `RF-PM-002` y `RF-PM-003`, y su prosa de `pm.md` §5.2.1 da por hecho que `RF-PM-007` recibió el mismo tratamiento — pero `RF-PM-007` **no existía todavía en esa rama**: llegó después, desde `develop`, con `findOffer` sin tocar. El resultado es un requerimiento que la documentación del módulo describe como coincidencia por origen y cuyo código **sigue comparando niveles**, verificado y probado así. Se declara aquí en lugar de forzar `T-03`/`T-06` a `Hecha` con una descripción que el código no cumple: una tarea `Hecha` que describe una versión que no existe es peor que una `Pendiente` visible.
 
@@ -77,6 +79,8 @@
 | `CA-PM-126` | `T-22` |
 | `CA-PM-123`, `CA-PM-124` | `T-21` |
 | `CA-PM-144` | `T-23` |
+| `CA-PM-158`, `CA-PM-159` | `T-24` |
+| `CA-PM-160` | `T-25` |
 
 ## 4. Bloqueos
 

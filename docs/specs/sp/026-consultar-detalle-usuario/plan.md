@@ -10,6 +10,7 @@
 | Aprobado por | Responsable del proyecto |
 | Fecha de aprobación | 22-08-2026 |
 | Reabierto el | 07-09-2026 — `RN-SP-034`: la respuesta incorpora `country`, ver §4 (Art. I.7) |
+| Reabierto el | 08-09-2026 — `RN-SP-035` y `RN-SP-037`: la respuesta incorpora `document` y `contact`, ver §4 (Art. I.7) |
 
 !!! info "Qué va en este documento"
 
@@ -124,6 +125,16 @@ Sin cuerpo y sin parámetros de consulta. No hay `?include=…`: la especificaci
   ],
   "effectivePermissions": ["users:read", "roles:read"],
   "country": { "id": "01a03336-6d00-7002-9c4f-5e7ad3000001", "code": "COL", "name": "Colombia" },
+  "document": {
+    "type": { "id": "01a081a0-0000-7001-9c4f-5e7ad5000001", "abbreviation": "CC", "name": "Cédula de ciudadanía" },
+    "number": "1020304050"
+  },
+  "contact": {
+    "phone": "+573001234567",
+    "addressLine1": "Calle 100 # 15-20",
+    "addressLine2": "Torre B, apto 502",
+    "city": "Bogotá"
+  },
   "membership": {
     "id": "018f3a2b-7c41-7000-9a3d-1f2e5b8c9d05",
     "code": "ORO",
@@ -144,6 +155,9 @@ Decisiones del contrato:
 - **`roles` lleva el estado de cada uno**, y esa es la mitad de `FA-002`: la otra mitad es que `effectivePermissions` llegue vacía. Las dos juntas son lo que explica por qué una persona con roles no puede hacer nada.
 - **`effectivePermissions` es una lista de códigos, ordenada y sin duplicados** (`CA-SP-213`). No se devuelven los identificadores de los permisos ni su descripción: la pregunta es «qué puede hacer», y `RF-SP-015` responde qué significa cada uno. El orden es alfabético por código, para que la respuesta sea estable entre llamadas y comparable entre personas.
 - **No se pagina.** `architecture.md` §7.4 exige paginar «las colecciones», y aquí se aparta de forma consciente por el mismo argumento de `RF-SP-003` §4: los permisos efectivos de una persona son decenas, no constituyen un recurso navegable y paginarlos obligaría a dos peticiones para responder la única pregunta del requerimiento.
+- **`document` SÍ puede ser nulo, y es la diferencia con `country`** (08-09-2026). Las personas registradas antes de esta enmienda no tienen documento y el esquema lo admite a propósito: inventarles uno sería escribir algo falso sobre su identidad. De modo que este detalle es el sitio donde esa ausencia **se ve**, y quien administra la usa para saber a quién hay que completar. El objeto llega en **nulo y no ausente**, para que el cliente no tenga que distinguir «no tiene» de «este endpoint no informa».
+- **`contact` está siempre presente aunque sus cuatro campos vengan nulos**, con el mismo criterio.
+- **El tipo de documento se resuelve con un `LEFT JOIN` y no con uno interno**, justamente porque puede faltar: un `JOIN` interno haría **desaparecer del detalle** a toda persona sin documento, que es el error más caro posible aquí — no falla, oculta.
 - **`country` nunca es nulo y se devuelve aunque el país esté inactivo** (`CA-SP-577`, 07-09-2026). Es un `JOIN` interno por una columna `NOT NULL`, y **no lleva `is_active` en la proyección ni condición sobre él en el predicado**: la desactivación de un país retira la opción del alta (`RF-SP-022`), no oculta dónde está quien ya lo tenía. Que el país esté inactivo es un dato que quien administra necesita ver, no ocultar — es exactamente el caso en que hay que usar `RF-SP-027` para moverlo, y esta es la pantalla desde la que se decide.
 - **`membership` lleva `level`**, que el listado no devuelve. Es el dato con el que los módulos de academia y productos deciden qué contenido ofrecer, y esta es la pantalla donde se comprueba.
 - **`membership` no es nula cuando está vencida**, con la misma semántica que `RF-SP-025` §4: `current` dice si concede nivel y `endsAt` hasta cuándo lo hizo. Vencer no es lo mismo que no tener (`RN-SP-014`).

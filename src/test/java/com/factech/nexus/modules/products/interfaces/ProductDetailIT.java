@@ -197,6 +197,29 @@ class ProductDetailIT extends IntegrationTestBase {
   }
 
   @Test
+  @DisplayName("`CA-PM-152` — el detalle devuelve los DOS precios, y el público nulo y presente")
+  void elDetalleTraeLosDosPrecios() throws Exception {
+    // Sin declararlo, el campo va PRESENTE con nulo: su nulo significa «se
+    // anuncia con el precio del sistema», y un campo ausente no puede decirlo.
+    mvc.perform(detalle(upgrade))
+        .andExpect(jsonPath("$.price").value(49.99))
+        .andExpect(jsonPath("$.publicPrice").doesNotExist())
+        .andExpect(content().string(Matchers.containsString("\"publicPrice\":null")));
+
+    jdbc.update(
+        "UPDATE products SET public_price = CAST('59.99' AS numeric) WHERE id = CAST(? AS uuid)",
+        upgrade.toString());
+
+    // Y los dos salen con los decimales de SU moneda, con la misma función:
+    // escrita dos veces, el mismo producto enseñaría uno con dos decimales y
+    // el otro con cuatro.
+    mvc.perform(detalle(upgrade))
+        .andExpect(jsonPath("$.price").value(49.99))
+        .andExpect(jsonPath("$.publicPrice").value(59.99))
+        .andExpect(content().string(Matchers.containsString("\"publicPrice\":59.99")));
+  }
+
+  @Test
   @DisplayName("el precio de una moneda de CERO decimales llega sin parte decimal")
   void precioEnMonedaSinDecimales() throws Exception {
     String pesos = monedaSinDecimales();

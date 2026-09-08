@@ -9,6 +9,7 @@
 | Aprobada por | Responsable del proyecto |
 | Fecha de aprobación | 22-08-2026 |
 | Enmendada | 07-09-2026 — `RN-SP-034`: el perfil publica el país del actor; `CA-SP-581` (Art. I.7) |
+| Enmendada | 08-09-2026 — `RN-SP-035` y `RN-SP-037`: el perfil publica el documento y el contacto; `CA-SP-597` (Art. I.7) |
 
 ---
 
@@ -78,6 +79,8 @@ Ninguna. La identidad del actor se resuelve a partir de su autenticación, y **n
 | Estado | Estado de la cuenta. Siempre `ACTIVO`: ningún otro estado permite llegar hasta aquí |
 | Roles | Roles asignados, cada uno con su estado |
 | Permisos efectivos | Unión de los permisos de sus roles **activos**, ya resuelta |
+| Documento | El tipo **resuelto** y el número, del propio actor. Puede faltar entero |
+| Contacto | Teléfono, dirección, complemento y ciudad. Es lo que `RF-SP-044` deja corregir, de modo que sin publicarlo aquí la pantalla de edición **no podría precargarse** |
 | País | El país del actor, resuelto —identificador, código y nombre—. **Está siempre** (`RN-SP-034`). Lo necesita la interfaz por el mismo motivo por el que necesitó el identificador: `RN-MV-019` decide **qué medios de pago se le ofrecen** según dónde esté, y sin este campo el navegador no puede pintar la pantalla de pago sin preguntar por otra vía que un cliente no tiene |
 | Membresía | Membresía vigente y su nivel, cuando la persona tiene una |
 | Último inicio de sesión | Momento registrado por `RF-SP-034` en el acceso en curso. Se sobrescribe en cada entrada: no revela accesos anteriores |
@@ -171,6 +174,7 @@ Ninguna. La consulta no recibe datos de entrada.
 | `CA-SP-471` | La respuesta **no** contiene fechas de creación ni de modificación de la cuenta, ni momento de expiración de bloqueo |
 | `CA-SP-472` | La consulta **no** admite ninguna operación de escritura sobre los datos del actor |
 | `CA-SP-473` | El perfil devuelve el **identificador del actor**, y es **el mismo** con el que `RF-SP-026` lo consulta |
+| `CA-SP-597` | El perfil devuelve el **documento y el contacto del actor**, y el documento **en nulo** si la persona no lo tiene |
 | `CA-SP-581` | El perfil devuelve el **país del actor**, resuelto, y **no admite cambiarlo**: la operación sigue siendo de solo lectura y `RF-SP-044` tampoco lo acepta |
 
 ## 13. Casos límite

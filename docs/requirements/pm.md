@@ -5,11 +5,11 @@
 | Módulo | `PM` — Productos y Mercadeo |
 | Paquete | `modules/products` |
 | Prefijos de permiso | `products:` |
-| Versión | 0.20.0 |
+| Versión | 0.21.0 |
 | Estado | **Borrador** |
 | Responsable | Bonilla Diaz William Steven |
 | Fecha de creación | 26-08-2026 |
-| Última actualización | 07-09-2026 |
+| Última actualización | 08-09-2026 |
 
 !!! info "Qué va en este documento"
 
@@ -35,6 +35,8 @@
 
 `PM` es dueño de **lo que la plataforma vende**. Un producto es una unidad de venta con nombre, precio y moneda, y existe en **dos tipos que no se mezclan**: el **upgrade de membresía**, que da derecho a pasar al nivel de acceso que declara, y el **bot del sistema**, que da derecho a una prestación de la plataforma.
 
+**Desde el 08-09-2026 un producto lleva DOS precios y solo uno de ellos se cobra**: el **precio del sistema**, que es el que la venta copia y sobre el que comisiona `CM`, y el **precio público**, opcional, que es **lo que se le enseña a quien no administra el catálogo** (§5.2.4).
+
 El módulo gobierna ese catálogo —lo crea, lo consulta, lo corrige, lo activa y lo retira— y **publica a cada persona lo que puede comprar**, que no es lo mismo que el catálogo completo.
 
 ### 1.2 Objetivo
@@ -45,9 +47,9 @@ Hoy la membresía de una persona solo cambia porque un administrador se la asign
 
 **Incluye**
 
-- Registrar un producto de cualquiera de los dos tipos, con su precio, su moneda, **hasta dónde se muestra** y **cómo se implementa lo que otorga**.
-- Consultar el catálogo completo, en lista y en detalle, con filtros por tipo, estado y membresía —**de origen y de destino**—.
-- Corregir un producto: nombre, descripción, icono, precio, moneda, vigencia, **alcance** e **implementación**.
+- Registrar un producto de cualquiera de los dos tipos, con su precio, su moneda, **hasta dónde se muestra**, **cómo se implementa lo que otorga** y —si se quiere— **el precio con el que se anuncia**.
+- Consultar el catálogo completo, en lista y en detalle, con filtros por tipo, estado y membresía —**de origen y de destino**—, **con los dos precios a la vista**.
+- Corregir un producto: nombre, descripción, icono, **los dos precios**, moneda, vigencia, **alcance** e **implementación**.
 - Activar y desactivar un producto, que es lo que decide si se ofrece.
 - Retirar un producto por eliminación lógica y con motivo.
 - **Publicar a cada persona la oferta que le aplica**, que en los upgrades son **los declarados desde su membresía vigente** — su salto y su renovación.
@@ -58,7 +60,7 @@ Hoy la membresía de una persona solo cambia porque un administrador se la asign
 - **La aplicación del upgrade sobre la persona.** Cambiar el nivel de alguien es escribir en `user_memberships`, que es tabla de `SP` y tiene su propio requerimiento (`RF-SP-032`). Ver §1.4.
 - **El contenido de lo que se vende.** Qué cursos o qué sesiones incluye un nivel pertenece a **Academia**; qué señales, a **Señales**. Este módulo vende el derecho, no lo entrega.
 - **Comisiones y atribución de la venta.** A quién se le paga por vender un producto es del área de **Comisiones**.
-- **Promociones, descuentos y campañas.** El nombre del módulo las anticipa y su alcance las admite, pero no se registran todavía: un precio promocional con vigencia es un requerimiento con su propia tabla, y escribirlo hoy sería adelantarlo sin necesidad.
+- **Promociones, descuentos y campañas.** El nombre del módulo las anticipa y su alcance las admite, pero no se registran todavía: un precio promocional con vigencia es un requerimiento con su propia tabla, y escribirlo hoy sería adelantarlo sin necesidad. **El precio público de `RN-PM-023` no las abre**: no tiene vigencia, no depende de quién mire y **no cambia lo que se cobra** — es un rótulo, no un descuento (§5.2.4).
 
 ### 1.4 La frontera, y por qué está donde está
 
@@ -149,8 +151,8 @@ La dependencia es **acíclica**: `PM` consume `SP` y `SP` no consume nada ([`mod
 | `RN-PM-018` | **Se admite saltar niveles** | Siempre | El origen **no tiene por qué ser el inmediatamente inferior** al destino: `FREE → ORO` es legítimo y es la razón de que el origen se declare en lugar de deducirse de la cadena. Deducirlo habría hecho imposible exactamente el caso que el campo existe para permitir | Alta |
 | `RN-PM-004` | Un solo upgrade activo **por pareja origen→destino** | **Al activar**, y no al registrar | No pueden coexistir **dos productos de upgrade activos con el mismo origen y el mismo destino**. **Hasta el 02-09-2026 la unicidad era solo por destino**, y eso hacía imposible vender `FREE → ORO` y `PLATINO → ORO` a la vez — que es precisamente lo que el origen existe para permitir. Se comprueba en un solo sitio porque el producto **nace inactivo** (`RN-PM-012`): dos copias de esta regla —una en el alta y otra en la activación— acabarían divergiendo, y la que se quedara atrás no fallaría, admitiría | Crítica |
 | `RN-PM-005` | Nombre único entre los vivos | Al registrar y al editar | El nombre no se repite entre los productos no eliminados, **sin distinguir mayúsculas ni acentos** | Alta |
-| `RN-PM-006` | El precio es mayor que cero | Al registrar y al editar | Un precio de cero o negativo se rechaza. Lo gratuito no se vende: se concede | Alta |
-| `RN-PM-007` | El precio respeta los decimales de su moneda | Al registrar y al editar | El importe no puede tener más decimales que los que declara su moneda (`currencies.decimal_places`) | Media |
+| `RN-PM-006` | **Ningún precio es negativo**, y el cero se admite | Al registrar y al editar | **Los dos importes** —el del sistema y el público— se rechazan si son negativos, y **se aceptan en cero**. **Decía «mayor que cero» hasta el 08-09-2026**, con el argumento de que lo gratuito se concede en lugar de venderse; lo que lo tumbó fue la **renovación** (§5.2.3): un `FREE → FREE` es un producto legítimo que vale cero, y prohibirlo obligaba a inventarle un céntimo | Alta |
+| `RN-PM-007` | **Los precios respetan** los decimales de su moneda | Al registrar y al editar | **Ninguno de los dos importes** puede tener más decimales que los que declara su moneda (`currencies.decimal_places`). **Es una sola moneda para los dos**: el precio público se expresa en la del producto y no en otra | Media |
 | `RN-PM-008` | La moneda debe estar activa al declararla | Al registrar y al editar el precio | Se rechaza una moneda inexistente o inactiva. Que **después** se desactive no invalida lo ya registrado | Media |
 | `RN-PM-009` | Solo se ofrece lo activo | Siempre que se publique la oferta | Un producto inactivo o eliminado no aparece en `RF-PM-007`, aunque siga siendo visible en el catálogo administrativo | Alta |
 | `RN-PM-010` | El producto no desaparece | Al eliminar | La eliminación es **lógica y con motivo** (Art. V.13). La fila permanece para que lo que se venda siga resolviendo qué era y cuánto costaba | Alta |
@@ -164,6 +166,8 @@ La dependencia es **acíclica**: `PM` consume `SP` y `SP` no consume nada ([`mod
 | `RN-PM-020` | **La implementación dice si lo comprado se aplica solo o espera autorización** | Al registrar y al editar | Todo producto declara `AUTOMATICA` o `MANUAL`, **obligatorio en los dos tipos y sin valor por omisión**. Gobierna qué hace `MV` al confirmar una venta: `RN-MV-020` concede la membresía **solo** si el producto es automático, y con `MANUAL` lo comprado queda esperando a que un funcionario lo autorice | **Crítica** |
 | `RN-PM-021` | **El hotlink solo publica lo activo y de alcance `HOTLINKS`** | Al responder el enlace público (`RF-PM-008`) | Un producto inactivo, retirado o de alcance `TIENDA` **no se publica sin autenticación**, y su ausencia se responde con el **mismo `404`** que un código inexistente. Es el primer sitio donde `RN-PM-019` **filtra de verdad**: hasta hoy el alcance se declaraba y no acotaba ninguna consulta | **Crítica** |
 | `RN-PM-022` | **De la persona solo se publica su nombre, y solo si es fuerza comercial** | Al responder el enlace público (`RF-PM-008`) | El enlace devuelve **nombre y apellido** y nada más —ni correo, ni identificador, ni estado, ni roles—, y **solo de quien porta un rol de tipo `VENDEDOR`**. Un cliente, un administrador o un nombre de usuario inexistente responden **lo mismo**: `404`. Sin esa uniformidad, el endpoint confirmaría qué nombres de usuario existen | **Crítica** |
+| `RN-PM-023` | **Un producto puede declarar un segundo precio, y ese no se cobra** | Al registrar y al editar | El **precio público** es **opcional** y **solo sirve para mostrarse**: no lo copia ninguna venta, no comisiona `CM` y no interviene en ningún cálculo. Se expresa en **la moneda del producto** y obedece a `RN-PM-006` y `RN-PM-007` como el otro. **Nulo no es cero**: significa «este producto no declara precio público», y entonces lo que se muestra es el del sistema. **Se corrige libremente y se puede vaciar** (`RF-PM-004`) | Alta |
+| `RN-PM-024` | **El precio del sistema no sale de administración** | Siempre que se publique un producto fuera del catálogo administrativo | `RF-PM-007` y `RF-PM-008` devuelven **un solo importe** —el público si el producto lo declara, y el del sistema si no—, nunca los dos. Ver los dos precios exige `products:read`, que es lo que separa a quien administra el catálogo de quien lo mira. **Y tiene un límite que se declara en lugar de fingirse**: quien compra ve en su venta el importe que se le cobró (`RF-MV-002`), porque un comprobante que no dice lo que se cobró no es un comprobante (§5.2.4) | **Crítica** |
 
 ### 5.2 Por qué las críticas son críticas
 
@@ -178,6 +182,8 @@ La dependencia es **acíclica**: `PM` consume `SP` y `SP` no consume nada ([`mod
 **`RN-PM-004` — un solo upgrade activo por pareja.** Dos productos activos **desde el mismo sitio y hacia el mismo sitio** son **dos precios simultáneos para exactamente lo mismo**, y quien compre pagará el que la interfaz liste primero. Esto no se descubre como un error: se descubre como una discrepancia de facturación meses después.
 
 **Lo que la pareja SÍ admite, y antes no**: dos productos activos hacia `ORO`, uno desde `FREE` y otro desde `PLATINO`. No son el mismo producto con dos precios — **son dos saltos distintos**, y que cuesten distinto es lo normal.
+
+**`RN-PM-024` — el precio del sistema es el que gobierna el dinero, y por eso no se publica.** Es crítica por lo que ocurre si se filtra al revés: si la oferta y el hotlink devolvieran **los dos** importes, cualquier cliente podría leer el que se cobra junto al que se anuncia y **la diferencia entre ambos quedaría publicada** — que es exactamente la decisión comercial que el precio público existe para no enseñar. No falla, **publica**, y no hay forma de retirarlo después: lo que un endpoint público devolvió una vez ya está fuera. La regla es de forma de la respuesta, no de permisos: se sostiene en que `OfferItem` y la respuesta del hotlink **no tienen dónde poner el segundo importe**.
 
 **`RN-PM-020` — la implementación decide si el dinero cobrado entrega algo.** Es la primera regla de este catálogo que gobierna a otro módulo: `RN-MV-020` concede la membresía comprada **solo** si el producto es automático. Omitirla —dejando que toda venta confirmada entregue— produce el defecto que este documento ya nombró una vez: **no falla, entrega**. Un producto que exigía revisión se aplicaría solo, con el cobro hecho, sin que nadie lo hubiera aprobado y sin que quedara en ningún sitio el rastro de que debía revisarse. Se desarrolla en §5.2.2.
 
@@ -285,6 +291,41 @@ Lo que sí lo distingue es la **coincidencia exacta por origen**, que §5.2.1 de
 
 Conviene leer que el código de `MV` ya lo había anticipado por escrito: `RegisterSaleService.verificarQueSube` advertía que la comprobación existe aunque la oferta la garantice, «porque la oferta puede ampliarse — **el día que se vendan renovaciones del mismo nivel**, por ejemplo». Ese día es hoy.
 
+### 5.2.4 Los dos precios — 08-09-2026
+
+Por decisión del responsable del proyecto, un producto declara desde hoy **dos importes**, y solo uno de ellos es dinero:
+
+| | Qué es | Quién lo ve | Qué hace |
+|---|---|---|---|
+| **Precio del sistema** (`price`) | Lo que cuesta el producto | Solo quien tenga `products:read` | **Es el que se cobra**: lo copia `movement_details.unit_price`, y sobre él calcula `CM` (`RN-CM-019`) |
+| **Precio público** (`public_price`) | Lo que se anuncia | Todo el mundo, y es **lo único** que ve quien no administra | **Nada.** No se copia, no comisiona, no interviene en ningún cálculo |
+
+**El precio público es opcional, y su nulo significa algo.** No es «cero» ni «sin dato»: es **este producto no declara precio público**, y entonces lo que se muestra es el del sistema. Es lo que permite que la migración no invente un valor para lo ya registrado y que declarar dos precios sea un acto deliberado, no el estado por omisión de cada producto del catálogo.
+
+**Por qué no se reutiliza `price` para lo que se muestra.** La alternativa era guardar solo el importe anunciado y calcular el otro, y no se sostiene: no hay ninguna operación que relacione los dos —no es un porcentaje, ni un impuesto, ni un redondeo— porque **la relación es una decisión comercial que se toma producto a producto**. Lo único que puede guardarla es una segunda columna.
+
+#### Lo que cuesta, escrito entero
+
+!!! danger "Quien compra ve un importe y se le cobra el otro"
+
+    La oferta (`RF-PM-007`) y el hotlink (`RF-PM-008`) enseñan el **precio público**; la venta (`RF-MV-001`, `RF-MV-002`) cobra y copia el **del sistema**. Si los dos números no coinciden, **el comprador ve uno y paga otro**, y no hay nada en el sistema que lo impida: `RN-PM-006` acota cada importe por separado y **ninguna regla los compara entre sí**.
+
+    Se acepta a conciencia, porque comparar los dos es cerrarle la puerta al caso que el campo existe para permitir —anunciar por debajo de lo que se cobra es tan legítimo como lo contrario, y quién decide eso es quien pone los precios—, y porque **la salida es barata y está escrita**: `public_price >= price` es un `CHECK` entre dos columnas de la misma fila, una migración de tres líneas el día que se decida que el anuncio nunca puede quedar por debajo.
+
+    Lo que **no** se puede hacer es taparlo con la interfaz: mientras los dos importes existan y solo uno se cobre, quien los declara es el único que puede mantenerlos coherentes.
+
+!!! warning "`RN-PM-024` se rompe en el comprobante, y ahí es correcto que se rompa"
+
+    Un cliente **acaba viendo el precio del sistema**: en cuanto compra, `RF-MV-002` le devuelve la venta con el importe que se le cobró. La regla acota **el catálogo y la oferta**, no el comprobante — un documento que no dice lo que se cobró no sirve para nada, y ocultarlo ahí sería el defecto grave, no la fuga.
+
+    Queda escrito para que nadie intente «arreglarlo» después ocultando el importe de la venta.
+
+#### La condición que este cambio le impone a `CM`, y que sí hubo que construir
+
+`RN-PM-006` admite desde hoy el **precio cero**, y eso rompe una cuenta que ya existía. `RN-CM-019` convierte un valor fijo a su porcentaje equivalente con `fixed_amount ÷ precio × 100`, y `ProductCommissionCapGuard` **confiaba por escrito en que el precio nunca fuera cero**, citando la restricción que este cambio relaja: con un producto gratuito, esa división es un fallo aritmético y un `500`.
+
+La resolución no necesita una regla nueva, porque es lo que `RN-CM-019` ya dice llevado al límite: **sobre un producto de precio cero, cualquier valor fijo mayor que cero paga más del 100 % de lo que el producto cobra**, y se rechaza con el mismo mensaje que cualquier otro exceso. Un valor fijo de cero ocupa cero. Ver [`requirements/cm.md` §5.2](cm.md).
+
 ### 5.3 Reglas de otros documentos que este módulo aplica
 
 No se copian: se referencian, porque dos copias de una regla acaban divergiendo.
@@ -312,7 +353,7 @@ No se copian: se referencian, porque dos copias de una regla acaban divergiendo.
 | `RF-PM-005` | Cambiar el estado de un producto | Alta | `products:update` | **En desarrollo** |
 | `RF-PM-006` | Eliminar producto | Media | `products:delete` | **En desarrollo** |
 | `RF-PM-007` | Consultar la oferta disponible para uno mismo | Alta | `products:sale` | **En desarrollo** |
-| `RF-PM-008` | Consultar un hotlink: producto y vendedor, sin autenticación | Alta | **Público** | **Tasks en revisión** |
+| `RF-PM-008` | Consultar un hotlink: producto y vendedor, sin autenticación | Alta | **Público** | **En desarrollo** |
 
 **Prioridades:** Crítica · Alta · Media · Baja.
 **Estados:** los de [`requirements.md` §4](../requirements.md#4-matriz-de-trazabilidad), que es su autoridad.
@@ -337,7 +378,7 @@ El alta crea la tabla y el catálogo, y sin catálogo no hay nada que consultar.
 | Actor | Administrador |
 | Permiso requerido | `products:create` |
 | Prioridad | **Crítica** |
-| Reglas aplicables | `RN-PM-001` a `RN-PM-008`, `RN-PM-012`, `RN-PM-013`, `RN-PM-019`, `RN-PM-020` |
+| Reglas aplicables | `RN-PM-001` a `RN-PM-008`, `RN-PM-012`, `RN-PM-013`, `RN-PM-019`, `RN-PM-020`, `RN-PM-023` |
 | Depende de | — |
 | Tripleta | `docs/specs/pm/001-registrar-producto/` |
 | Estado | **Tasks aprobadas** (26-08-2026) |
@@ -345,6 +386,8 @@ El alta crea la tabla y el catálogo, y sin catálogo no hay nada que consultar.
 Registra un producto declarando su **tipo**, su nombre, su precio y su moneda; si el tipo es `UPGRADE_MEMBRESIA`, además **de qué membresía sale y a cuál lleva**, las dos obligatorias ahí y prohibidas en el otro tipo. Es el requerimiento que crea la tabla del módulo y **siembra sus cuatro permisos**, con la obligación de asociarlos a `SUPERADMIN` y `ADMIN` en la misma migración ([`security.md` §4.4](../security.md#44-catalogo-de-permisos)): olvidarlo no falla al aplicar la migración, deja a `ADMIN` incapaz de conceder lo que no tiene.
 
 **Desde el 07-09-2026 declara además el alcance y la implementación**, las dos **obligatorias y en los dos tipos** (`RN-PM-019`, `RN-PM-020`). No tienen valor por omisión ni en el esquema ni en el cuerpo de la petición, y es deliberado: omitir cualquiera de las dos sería dejar que la columna tomara una decisión comercial —dónde se ve el producto, quién lo entrega— que nadie escribió.
+
+**Y desde el 08-09-2026 admite un segundo precio, el público** (`RN-PM-023`), que **sí es opcional** y ahí se aparta de las dos anteriores: omitirlo no deja ninguna decisión sin tomar, porque un producto sin precio público **se anuncia con el del sistema** y eso es exactamente lo que hoy hacen todos. Los dos importes se validan igual —no negativos, y con los decimales de la **única** moneda del producto—, y el alta devuelve los dos.
 
 #### `RF-PM-002` — Consultar productos
 
@@ -360,6 +403,8 @@ Registra un producto declarando su **tipo**, su nombre, su precio y su moneda; s
 | Estado | **Tasks aprobadas** (26-08-2026) |
 
 Devuelve el catálogo **paginado**, con filtros por tipo, estado, membresía **de origen o de destino**, **alcance** e **implementación**, y búsqueda por nombre. Incluye lo inactivo y **excluye lo eliminado salvo que se pida expresamente**, porque un catálogo que oculta lo retirado impide entender por qué un producto dejó de venderse.
+
+**Devuelve los DOS precios** (`RN-PM-024`), y es —con `RF-PM-003`— uno de los dos sitios donde se pueden ver juntos. **No se filtra por ninguno de ellos**: el filtro por rango de precio quedó fuera del alcance el 26-08-2026 y el precio público no lo reabre.
 
 **Los dos filtros nuevos entran con las columnas** (07-09-2026) y no en una ampliación posterior. El del alcance es el **único sitio del sistema donde ese dato se puede consultar hoy**: `RF-PM-007` no lo filtra —no puede, §5.2.2— y el canal de hotlinks que lo consumirá todavía no existe, de modo que sin este filtro el alcance sería un dato que se declara, se corrige y no se puede ver.
 
@@ -380,6 +425,8 @@ Devuelve un producto por su identificador con sus datos completos y, cuando es u
 
 Devuelve además **el alcance y la implementación** (`RN-PM-019`, `RN-PM-020`): son configuración declarada y no se deducen de ningún otro campo, de modo que un detalle sin ellas obligaría a abrir la edición para saber dónde se publica un producto y cómo se entrega.
 
+**Y devuelve los dos precios, con el público en nulo cuando no se declara** (`RN-PM-023`): presente y nulo, no ausente. La distinción es la misma que este módulo ya hace con el destino de un bot — un campo que falta es indistinguible de uno que el cliente no conoce, y aquí el nulo **significa** «este producto se anuncia con el precio del sistema».
+
 #### `RF-PM-004` — Editar producto
 
 | Campo | Valor |
@@ -388,14 +435,16 @@ Devuelve además **el alcance y la implementación** (`RN-PM-019`, `RN-PM-020`):
 | Actor | Administrador |
 | Permiso requerido | `products:update` |
 | Prioridad | Alta |
-| Reglas aplicables | `RN-PM-001`, `RN-PM-005` a `RN-PM-008`, `RN-PM-019`, `RN-PM-020` |
+| Reglas aplicables | `RN-PM-001`, `RN-PM-005` a `RN-PM-008`, `RN-PM-019`, `RN-PM-020`, `RN-PM-023` |
 | Depende de | `RF-PM-001` |
 | Tripleta | `docs/specs/pm/004-editar-producto/` |
 | Estado | **Tasks aprobadas** (26-08-2026) |
 
-Permite corregir **nombre, descripción, icono, precio, moneda, vigencia, alcance e implementación**. **No permite cambiar el tipo** (`RN-PM-001`) **ni ninguna de las dos membresías**: las tres definen qué derecho otorga el producto, y cambiarlas convierte lo comprado en otra cosa. Quien necesite otro origen u otro destino registra otro producto y retira el anterior.
+Permite corregir **nombre, descripción, icono, los dos precios, moneda, vigencia, alcance e implementación**. **No permite cambiar el tipo** (`RN-PM-001`) **ni ninguna de las dos membresías**: las tres definen qué derecho otorga el producto, y cambiarlas convierte lo comprado en otra cosa. Quien necesite otro origen u otro destino registra otro producto y retira el anterior.
 
 **El alcance y la implementación entran del lado corregible** (07-09-2026), y esa es la línea que las separa de los tres inmutables: ninguna cambia **qué derecho otorga** el producto —una dice hasta dónde se muestra y la otra quién lo aplica—, de modo que corregirlas no reescribe lo que compró quien lo compró. Congelarlas habría obligado a registrar un producto nuevo para mover un enlace de sitio, y a retirar el viejo con lo vendido colgando de él.
+
+**El precio público se corrige y además se puede VACIAR** (`RN-PM-023`), y en eso va con la descripción, el icono y la vigencia y no con el precio del sistema: su nulo es un estado legítimo —«se anuncia con el precio del sistema»— de modo que el nulo explícito **es una orden** y no un error. El del sistema no admite vaciarse: la columna es obligatoria y «bórralo» no tiene ningún estado al que llevar el producto.
 
 **Y no reescriben ninguna venta anterior, porque la venta copia la implementación en su línea** —como el importe y la vigencia—: quien compró algo que se entregaba solo lo sigue teniendo así aunque el catálogo cambie de criterio mañana. Es la condición que §5.2.2 impone a `MV`, y **todavía no está construida**.
 
@@ -437,12 +486,14 @@ Elimina lógicamente un producto **exigiendo motivo** (Art. V.13), que viaja al 
 | Actor | Cualquier persona autenticada con `products:sale` |
 | Permiso requerido | `products:sale` |
 | Prioridad | Alta |
-| Reglas aplicables | `RN-PM-009`, `RN-PM-011`, `RN-PM-019`, `RN-PM-020` |
+| Reglas aplicables | `RN-PM-009`, `RN-PM-011`, `RN-PM-019`, `RN-PM-020`, `RN-PM-024` |
 | Depende de | `RF-PM-001` |
 | Tripleta | `docs/specs/pm/007-consultar-oferta-propia/` |
 | Estado | **Tasks aprobadas** (26-08-2026) |
 
 Devuelve **solo productos activos**, y de los de tipo upgrade **solo aquellos cuyo origen es la membresía vigente del actor** (`RN-PM-011`) — lo que incluye su **renovación**, si existe declarada. No admite parámetro de persona: responde sobre quien llama y sobre nadie más, como `RF-SP-039`. Nunca devuelve el motivo de retiro, ni lo inactivo, ni la membresía de terceros.
+
+**Publica UN SOLO precio, y es el que se muestra** (`RN-PM-024`): el público si el producto lo declara, y el del sistema si no. **No devuelve los dos ni dice cuál de ellos es**, porque enseñar el par publicaría la diferencia entre lo que se anuncia y lo que se cobra — la decisión comercial que el precio público existe para no enseñar. Quien consume esta respuesta siempre ha leído «el precio que se le enseña a esta persona», y eso no cambia; lo que cambia es que **ese número puede no ser el que la venta cobre** (§5.2.4).
 
 **Publica el alcance y la implementación de cada producto, y no filtra por ninguno de los dos** (`RN-PM-019`, `RN-PM-020`). El alcance **no puede** filtrar aquí: bajo la escala acumulativa los dos valores llegan a la tienda, de modo que un predicado sobre él devolvería siempre lo mismo que no ponerlo. La implementación sí viaja en la respuesta, y por un motivo que no es de simetría: quien compra tiene que poder saber **antes de pagar** que lo que se lleva no se le entrega en el acto. Ocultarlo no evita la espera — la convierte en una incidencia de soporte.
 
@@ -456,12 +507,14 @@ Devuelve **solo productos activos**, y de los de tipo upgrade **solo aquellos cu
 | Actor | **Cualquiera, sin autenticar** |
 | Permiso requerido | **Ninguno: es público** |
 | Prioridad | Alta |
-| Reglas aplicables | `RN-PM-009`, `RN-PM-019`, `RN-PM-021`, `RN-PM-022` |
+| Reglas aplicables | `RN-PM-009`, `RN-PM-019`, `RN-PM-021`, `RN-PM-022`, `RN-PM-024` |
 | Depende de | `RF-PM-001`, **`RF-SP-047`** |
 | Tripleta | `docs/specs/pm/008-hotlink-publico/` |
 | Estado | **Tasks en revisión** (07-09-2026) |
 
 Devuelve, en **una** llamada y **sin token**, el producto que el enlace señala y el **nombre y apellido** de quien lo reparte. El producto viaja con su precio en su moneda **y con la conversión a la moneda por omisión** usando la tasa vigente hoy (`RF-SP-047`).
+
+**Ese precio es el que se muestra y nunca el del sistema** (`RN-PM-024`): el público si el producto lo declara, y el del sistema si no. **Y la conversión se calcula sobre el mismo número que se enseña**, no sobre el otro — convertir uno y publicar el otro daría dos importes que no se corresponden en la misma respuesta, y quien los mirara juntos deduciría la diferencia que este endpoint, que es público, es el último sitio donde debería aparecer.
 
 **Es el primer endpoint público del módulo, y el primero del sistema que publica el nombre de una persona.** De ahí salen las dos reglas que lo gobiernan: solo se publica lo que tiene alcance `HOTLINKS` (`RN-PM-021`) y solo el nombre de quien es fuerza comercial (`RN-PM-022`).
 
@@ -546,6 +599,7 @@ Ninguna otra. `memberships` y `currencies` se **referencian** por clave foránea
 | `target_membership_id` | `uuid` | No | Sí | Sí | — | `memberships` |
 | `source_membership_id` | `uuid` | No | Sí | Sí | — | `memberships` |
 | `price` | `numeric(14,4)` | No | No | No | — | — |
+| `public_price` | `numeric(14,4)` | No | No | **Sí** | — | — |
 | `currency_id` | `uuid` | No | Sí | No | — | `currencies` |
 | `status` | `varchar(20)` | No | No | No | `ACTIVO` | — |
 | `scope` | `varchar(20)` | No | No | No | — | — |
@@ -585,6 +639,10 @@ Sin columnas de actor, y **sin columna de motivo**: quién retiró el producto y
 
 **`price` se declara `numeric(14,4)` y no `numeric(12,2)`.** La escala no puede fijarse en dos porque `currencies.decimal_places` no siempre vale dos, y el sistema declara ese campo precisamente para no asumirlo. Cuatro decimales cubren toda moneda ISO 4217 en circulación. La escala **efectiva** de cada producto la decide su moneda, y esa es `RN-PM-007`.
 
+**`public_price` comparte forma con `price` y es la única columna de dinero de este esquema que admite nulo** (`RN-PM-023`, 08-09-2026). La forma es la misma porque **es el mismo dinero en la misma moneda**: un importe anunciado que no cupiera donde cabe el que se cobra sería una asimetría sin causa. Lo que no comparte es la obligatoriedad, y ahí está la decisión: **el nulo significa «este producto no declara precio público»** —y entonces se anuncia con el del sistema—, no «vale cero». Los dos estados existen y son distintos, que es exactamente el motivo por el que la columna admite nulo en lugar de llevar `DEFAULT 0`.
+
+**Y no hay columna de moneda para el precio público.** Se expresa en `currency_id`, la del producto, porque un segundo importe **en otra moneda** no sería un rótulo sino un segundo precio de verdad, con su tasa y su vigencia — que es lo que `RF-SP-047` resuelve para el hotlink y no algo que esta tabla deba guardar.
+
 ### 10.2 Restricciones exigidas en el esquema
 
 | Restricción | Sobre | Regla que implementa |
@@ -596,7 +654,8 @@ Sin columnas de actor, y **sin columna de motivo**: quién retiró el producto y
 | `ck_products_icon_format` | `icon IS NULL OR icon ~ '^[a-z][a-z0-9-]*$'` | `RN-PM-016`. El valor se guarda ya normalizado, de modo que el `CHECK` puede ser una comprobación de forma corriente |
 | `ck_products_scope` | `scope IN ('TIENDA','HOTLINKS')` | `RN-PM-019` |
 | `ck_products_implementation` | `implementation IN ('AUTOMATICA','MANUAL')` | `RN-PM-020`. **Ninguna de las dos lleva `DEFAULT`**, al revés que `status`: aquel lo tiene porque una regla lo exige (`RN-PM-012`), y aquí un valor por omisión sería **una decisión comercial tomada por la columna** — hasta dónde se muestra un producto y quién lo entrega los declara quien lo registra |
-| `ck_products_price_positive` | `price > 0` | `RN-PM-006` |
+| ~~`ck_products_price_positive`~~ → `ck_products_price_no_negativo` | `price >= 0`. **Cambia de umbral Y de nombre el 08-09-2026 en `V67`**: la restricción dejó de decir «positivo», y dejarle el nombre viejo habría hecho que quien lo leyera creyera que el cero sigue prohibido. Su relajación es lo que obliga a `ProductCommissionCapGuard` a dejar de dividir a ciegas (§5.2.4) | `RN-PM-006` |
+| `ck_products_public_price_no_negativo` | `public_price IS NULL OR public_price >= 0`. La rama `IS NULL` va **delante y explícita**, por lo mismo que en la vigencia y el icono: un `CHECK` que evalúa a `NULL` **acepta** la fila, y el permiso debe ser deliberado y no accidental | `RN-PM-006`, `RN-PM-023` |
 | `ck_products_validity_positive` | `validity_days IS NULL OR validity_days > 0` | `RN-PM-015`. La rama `IS NULL` se escribe **explícita** aunque `validity_days > 0` sola también admitiría el nulo —un `CHECK` que evalúa a `NULL` acepta la fila—: así el permiso es deliberado y no accidental, y el día que la vigencia se vuelva obligatoria basta con quitar esa rama |
 | `fk_products_target_membership` | `target_membership_id` → `memberships(id)` | `RN-PM-003` |
 | `fk_products_source_membership` | `source_membership_id` → `memberships(id)` | `RN-PM-003` |
@@ -619,7 +678,9 @@ Se declaran en la base de datos, no solo en Java (Art. V.6).
 
 | Regla | Por qué no | Cómo se verifica |
 |---|---|---|
-| `RN-PM-007` — decimales según la moneda | Un `CHECK` no puede consultar otra tabla, y la escala admisible depende de `currencies.decimal_places` | En el dominio, con prueba unitaria propia sobre una moneda de dos decimales y otra de cero |
+| `RN-PM-007` — decimales según la moneda, **de los dos importes** | Un `CHECK` no puede consultar otra tabla, y la escala admisible depende de `currencies.decimal_places` | En el dominio, con prueba unitaria propia sobre una moneda de dos decimales y otra de cero, **y contra el precio público además del del sistema** |
+| `RN-PM-023` — el precio público no se cobra | **No es una restricción de integridad**: ninguna columna puede declarar que un número no se use. Lo que la sostiene es **dónde no aparece** — `movement_details` copia `price` y `ProductCatalog.saleViewOf` no publica el otro | Contando qué lee la venta: prueba de que corregir el precio público **no cambia** el importe de una venta registrada después |
+| `RN-PM-024` — el precio del sistema no sale de administración | Tampoco: es forma de la respuesta. Lo sostiene que `OfferItem` y la respuesta del hotlink **no tengan** un segundo campo de importe | En las pruebas de `RF-PM-007` y `RF-PM-008`, comprobando que el cuerpo trae **un** importe y que es el público cuando existe |
 | `RN-PM-008` — la moneda debe estar **activa** | La clave foránea garantiza que existe, no que esté vigente | En el caso de uso, contra la interfaz que `SP` publique (**D-25**) |
 | `RN-PM-011` — la oferta coincide por origen | Es una consulta, no una restricción de integridad | En el caso de uso de `RF-PM-007`, con prueba sobre los cuatro casos: origen que coincide, origen ajeno, **renovación** y actor sin membresía |
 | `RN-PM-017` — el origen no está por encima | **Desde el 07-09-2026 no queda NADA de ella en el esquema**: `ck_products_origen_distinto` se retiró con la renovación, y la mitad que sobrevive necesita el `level` de **dos** filas de `memberships`, que un `CHECK` no puede consultar | En `RegisterProductService.verificarOrigen`, con prueba del descenso —que se rechaza— y del mismo nivel —que se admite— |
@@ -650,3 +711,4 @@ Se declaran en la base de datos, no solo en Java (Art. V.6).
 | 0.18.0 | 07-09-2026 | **Nace `products:hotlink`, el segundo permiso de vista del módulo**, por decisión del responsable del proyecto. Gobierna la **vista de hotlinks** —los productos cuyo alcance llega a ese canal (`RN-PM-019`, v0.17.0)— y no reutiliza `products:read` por el mismo motivo que `products:sale`: aquel abre el catálogo administrativo entero, con lo inactivo y lo retirado dentro, y concederlo para ver un canal comercial sería dar la lectura de todo para ver tres líneas. **Nace SIN ENDPOINT que lo exija**, y es deliberado: el canal de hotlinks no está construido, sembrar el permiso antes **no rompe nada** —el catálogo es datos, y su único efecto es poder concederse— y es lo que ya hizo `V51` con los cuatro `movements:`. Lo que evita es llegar al requerimiento que lo necesite y tener que sembrar el permiso **y** construir la vista en el mismo Pull Request. `V60__seed_products_hotlink_permission.sql` lo siembra y lo asocia a **`SUPERADMIN` y a `ADMIN`** en la misma migración, **sin reserva**: decidirlo de otro modo habría creado la cuarta reserva del superadministrador, y ver qué se publica en un canal comercial no es una operación que deba quedar exclusiva de la raíz — `V40` ya estableció que el catálogo comercial de `PM` es administración ordinaria. La migración lleva la **guarda** que `V51` estrenó, y aquí vale por lo contrario: aquella comprobaba una reserva deliberada y esta comprueba que **no** la hay — olvidar la fila de `ADMIN` no falla al aplicar, deja a `ADMIN` incapaz de conceder lo que no tiene. **A `CLIENTE` no se le asocia**, por lo mismo que `products:sale`: `V30` siembra ese rol sin permisos a propósito. Nace `ProductsPermissionsSeedIT`, que es **lo único que verifica este permiso**: sin endpoint, ninguna prueba de API lo toca, y una asociación que se cayera del guion no rompería nada hasta que alguien intentara crear un rol que la necesitara. El catálogo del sistema pasa de treinta y siete a **treinta y ocho** (suite: 1006 → **1010**, en verde) ([`security.md` §4.4](../security.md#44-catalogo-de-permisos) v0.40.0). | Responsable del proyecto |
 | 0.19.0 | 07-09-2026 | **Un upgrade puede declarar la misma membresía en los dos lados: nace la RENOVACIÓN**, por decisión del responsable del proyecto. `RN-PM-017` tenía **dos mitades metidas en una** —«no bajes» y «no repitas»— y solo la primera protegía algo: la segunda impedía cobrar por **tiempo**, que es un producto legítimo. La comparación pasa de estricta a **mayor o igual**, y `V61` **retira `ck_products_origen_distinto`**, que prohibía exactamente lo que ahora se admite. Queda dicho lo que eso cuesta: **de `RN-PM-017` ya no queda nada declarado en el esquema** — la mitad que sobrevive necesita el `level` de dos filas de `memberships` y vive entera en el caso de uso, sin la red que tenía. **Lo que se vende en una renovación es tiempo y no nivel**, y `RN-MV-020` ya lo entrega sin una línea nueva: cierra la membresía abierta e inserta la comprada, y aquí las dos son del mismo nivel. **Y esto obligó a pagar una deuda de cinco días** (§5.2.3): `RN-PM-011` seguía diciendo «solo si su membresía vigente es de nivel inferior al destino» y `findOffer` seguía comparando niveles, cuando §5.2.1 había declarado la **coincidencia por origen** el 02-09-2026 — el documento se contradecía consigo mismo y el código estaba del lado de la regla vieja. **La renovación no se puede expresar comparando niveles**: abrir la comparación a «inferior o igual» le ofrecería a quien está en `ORO` un `PLATINO → ORO`, que no es suyo. `RN-PM-011` se reescribe entera y `RF-PM-007` pasa a `source_membership_id = mi membresía` (`T-20`, pendiente desde el 02-09-2026, **construida**). **La garantía de que no se ofrecen bajadas no se pierde al quitar el filtro de niveles**: la sostiene `RN-PM-017` comprobada **al registrar**, porque un producto declarado desde mi membresía no puede apuntar por debajo. En `MV`, `RN-MV-006` admite el mismo nivel y sigue rechazando el inferior ([`requirements/mv.md` v0.10.0](mv.md)) — su código ya lo había anticipado por escrito: «el día que se vendan renovaciones del mismo nivel». | Responsable del proyecto |
 | 0.20.0 | 07-09-2026 | **Nace `RF-PM-008`, el hotlink: el primer endpoint público del módulo y el primero del sistema que publica el nombre de una persona.** Por decisión del responsable del proyecto, un enlace repartido por un vendedor abre —**sin token**— una pantalla con el producto y con quién lo ofrece, y el producto llega con su precio **convertido a la moneda por omisión** usando la tasa vigente (`RF-SP-047`). **Vive en `PM` y no en `SP`, y eso no es una preferencia**: devuelve un producto, un vendedor y una tasa, y `modules.md` §7 prohíbe el ciclo — ponerlo en `SP` obligaría a que la raíz del grafo leyera `products`. `SP` publica **dos lecturas nuevas** por la vía de **D-25**: el vendedor por nombre de usuario y la tasa vigente entre dos monedas. **Nacen dos reglas críticas.** `RN-PM-021` — **solo se publica lo activo y de alcance `HOTLINKS`**, y con ella `RN-PM-019` **filtra por primera vez**: el alcance llevaba cuatro commits declarado sin acotar ninguna consulta. `RN-PM-022` — **de la persona solo el nombre y el apellido, y solo si es fuerza comercial**; un cliente, un administrador y un nombre de usuario inexistente responden **lo mismo**. **La decisión de seguridad es esa uniformidad**: los seis casos que no proceden devuelven el **mismo `404`**, porque distinguirlos convertiría el endpoint en un oráculo — bastaría fijar un código válido e ir variando el usuario para saber quién existe. Queda escrito que **eso no evita el recorrido a ciegas**, que lo acota `RateLimitFilter` por origen, y que **acotar no es impedir**. **Y queda una pregunta abierta que este cambio destapa**: `products:hotlink`, sembrado el mismo día en `V60` para «la vista de hotlinks», **se queda sin endpoint que lo exija** si esa vista es pública. La tripleta propone reconciliarlo —gobernaría la vista **autenticada** donde un vendedor administra sus enlaces— y **la decisión no está tomada**. | Responsable del proyecto |
+| 0.21.0 | 08-09-2026 | **Un producto lleva DOS precios, y solo uno de ellos es dinero**, por decisión del responsable del proyecto. El **precio del sistema** —`price`, el que ya existía— sigue siendo el que se cobra: lo copia la venta y sobre él comisiona `CM`. Nace el **precio público** —`public_price`, opcional—, que es **lo único que ve quien no administra el catálogo** y que **no interviene en ningún cálculo**. `RN-PM-023` lo declara y `RN-PM-024` acota dónde puede verse cada uno: los dos en `RF-PM-002` y `RF-PM-003`, con `products:read`; **uno solo** en `RF-PM-007` y `RF-PM-008` — el público si existe y el del sistema si no—, porque devolver el par publicaría la diferencia entre lo que se anuncia y lo que se cobra, que es justo la decisión comercial que el campo existe para no enseñar. **El nulo del precio público significa algo y no es cero**: «este producto no declara precio público», y es lo que permite que la migración no invente un valor para las filas de hoy. **`RN-PM-006` se relaja y cambia de forma**: de «mayor que cero» a **«ningún precio es negativo»**, en los dos importes. Lo que la tumbó no fue este cambio sino la **renovación** — un `FREE → FREE` es un producto legítimo que vale cero, y prohibirlo obligaba a inventarle un céntimo—. `V67` —planificada como `V65` y corrida dos huecos el mismo día, porque las tasas de cambio se llevaron `V65` y `V66`: **una migración reservada no está reservada**— renombra `ck_products_price_positive` a `ck_products_price_no_negativo` porque el nombre viejo habría mentido, y añade el `CHECK` del público con su rama `IS NULL` explícita. **Y esa relajación rompía una cuenta que ya existía**: `RN-CM-019` convierte un valor fijo con `fixed_amount ÷ precio`, y `ProductCommissionCapGuard` confiaba **por escrito** en que el precio nunca fuera cero — con un producto gratuito, esa división es un `500`. Se resuelve sin regla nueva, llevando `RN-CM-019` a su límite: sobre precio cero, cualquier valor fijo mayor que cero paga más del 100 % y se rechaza con el mismo mensaje. **Queda escrito lo que este cambio cuesta y no se tapa**: quien compra ve el precio público y se le cobra el del sistema, ninguna regla compara los dos importes, y la salida —un `CHECK` de `public_price >= price`— es una migración de tres líneas el día que se decida. Y `RN-PM-024` **se rompe en el comprobante a propósito**: `RF-MV-002` devuelve el importe cobrado, porque un comprobante que no lo dice no sirve. | Responsable del proyecto |

@@ -21,6 +21,11 @@ import java.util.UUID;
  * <p><b>Y sobre todo no lleva el motivo del retiro</b> (`CA-PM-067`): no puede llevarlo, porque
  * ningún producto retirado llega hasta aquí.
  *
+ * <p><b>Ni un segundo campo de importe</b>, y esa ausencia es lo único que sostiene `RN-PM-024` en
+ * esta consulta: mientras este registro no tenga dónde ponerlo, el precio del sistema no puede
+ * publicarse por descuido. Un campo añadido aquí «por simetría» con {@link ProductItem} lo
+ * publicaría sin que nada fallara — por eso `CA-PM-160` prueba que <b>no está</b>.
+ *
  * <p>Reutiliza en cambio las <b>referencias</b> de {@link ProductResponse} —destino y moneda— y no
  * declara unas propias: dos formas del mismo dato obligarían al frontend a escribir dos lectores, y
  * el segundo acabaría asumiendo lo que el primero hacía.
@@ -55,6 +60,12 @@ public record OfferItem(
    * descuento, y los descuentos son promociones — que `requirements/pm.md` §1.3 deja fuera del
    * alcance a propósito. La única transformación es la escala, que la decide la <b>moneda</b> y no
    * la columna, y la aplica {@link ProductPrice} para las tres respuestas del módulo por igual.
+   *
+   * <p><b>Y desde el 08-09-2026 ese importe es EL QUE SE MUESTRA</b> (`RN-PM-024`): el público si
+   * el producto lo declara, y el del sistema si no. <b>Sigue sin ajustarse por quién mira</b> —
+   * cuál de los dos se publica lo decide el <b>producto</b>, no el actor—, y lo resuelve la
+   * consulta con un {@code COALESCE}: aquí no hay nada que elegir porque por esta lectura <b>solo
+   * llega un número</b>.
    */
   public static OfferItem from(ProductRow fila) {
     return new OfferItem(

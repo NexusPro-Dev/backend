@@ -40,6 +40,10 @@ tags:
   description: Alta y administración de las personas del sistema.
 - name: Permisos
   description: Catálogo de permisos del sistema. Solo lectura.
+- name: Tasas de cambio
+  description: A cuánto se cambia una moneda por otra
+- name: Hotlinks
+  description: El enlace público que un vendedor reparte
 - name: Métodos de pago
   description: "Con qué se puede pagar, y en qué países no vale cada medio."
 - name: Comisiones
@@ -1065,10 +1069,16 @@ paths:
         bloque sería una exportación de decisiones comerciales—. Verlos **no
         exige un permiso propio**: basta `products:read`.
 
+        Cada fila trae **los dos precios**: `price` —el que se cobra— y
+        `publicPrice` —el que se anuncia—, este **presente y nulo** en los
+        productos que no lo declaran. Este listado y el detalle son los
+        **únicos** sitios donde se ven juntos (`RN-PM-024`).
+
         Solo se puede ordenar por la lista blanca —`name`, `price`,
-        `createdAt`—, con `,asc` o `,desc`. **Un campo fuera de ella se
-        rechaza y no se ignora**: ignorarlo devolvería un orden distinto del
-        pedido sin decirlo. Por omisión se ordena por **fecha de alta
+        `createdAt`—, con `,asc` o `,desc`. **`publicPrice` no está en ella**:
+        ordenar por lo que se anuncia no responde ninguna pregunta de quien
+        administra. **Un campo fuera de la lista se rechaza y no se ignora**:
+        ignorarlo devolvería un orden distinto del pedido sin decirlo. Por omisión se ordena por **fecha de alta
         descendente**, y el orden aplicado viaja en la respuesta.
 
         **`targetMembershipId` no se valida contra el catálogo de membresías.**
@@ -1199,6 +1209,21 @@ paths:
         producto —`HOTLINKS` **incluye** `TIENDA`, no la sustituye— e
         `implementation` dice si lo comprado se aplica solo (`AUTOMATICA`) o
         espera a que un funcionario lo autorice (`MANUAL`).
+
+        **Un producto lleva DOS precios y solo uno se cobra.** `price` es el
+        del sistema —el que copia la venta y sobre el que se comisiona— y
+        `publicPrice` es con el que **se anuncia**: es **opcional**, no
+        interviene en ningún cálculo y se expresa en la **misma moneda**.
+        Ausente o nulo significan lo mismo —el producto se anuncia con el del
+        sistema—, y **eso no es «vale cero»** (`RN-PM-023`).
+
+        Los dos importes se validan igual: **no negativos** —el **cero se
+        admite** desde que existe la renovación de una membresía gratuita— y
+        con los decimales que declare su moneda. El rechazo **nombra el
+        campo** que incumple.
+
+        **Los dos solo se ven desde administración** (`RN-PM-024`): la oferta
+        de un cliente y el hotlink público devuelven **uno**.
       operationId: register
       requestBody:
         content:
@@ -1436,6 +1461,82 @@ paths:
           description: La membresía hija indicada no existe (`EX-002`)
         "500":
           description: Fallo no controlado (`ERR-500`)
+  /api/v1/exchange-rates:
+    post:
+      tags:
+      - Tasas de cambio
+      summary: Registrar una tasa de cambio
+      description: |
+        Declara **a cuánto se cambia una moneda por otra y desde cuándo**.
+
+        `price` es **cuántas unidades de la moneda de destino da UNA de la de
+        origen**: `USD → COP` a `4150` significa que un dólar da cuatro mil
+        ciento cincuenta pesos. **La dirección contraria no se deduce** — la
+        inversa aritmética casi nunca es la tasa real, y calcularla produciría
+        un número plausible y falso. Quien necesite las dos declara **dos
+        tasas**.
+
+        **Ocho decimales**, y no los de ninguna moneda: una tasa **no es un
+        importe**, es un cociente entre dos monedas. Con cuatro, `COP → USD`
+        se guardaría redondeada y una moneda más devaluada, como cero.
+
+        **`validFrom` es obligatoria y `validTo` no**: sin ella la tasa es
+        **vitalicia**. Ausente y `null` significan lo mismo. Una vigencia que
+        empieza y termina el mismo día es legítima, y una que **empieza en el
+        futuro** también — es lo que hace innecesario un estado «programada».
+
+        **`isActive` es opcional y por omisión verdadero.**
+
+        **Dos tasas activas del mismo par no pueden solaparse** (`RN-SP-032`),
+        y los **dos extremos de la vigencia cuentan**: una que termina el 30 de
+        junio choca con otra que empieza el 30 de junio. El choque devuelve
+        `409` y **no registra nada**: el sistema **no** cierra ni recorta la
+        tasa anterior, porque resolver el conflicto es una decisión de quien
+        administra, no del servidor.
+      operationId: registrar_5
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/RegisterExchangeRateRequest"
+        required: true
+      responses:
+        "201":
+          description: Tasa registrada.
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/ExchangeRateResponse"
+        "400":
+          description: Datos inválidos (serie `VAL-nnn`)
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/ExchangeRateResponse"
+        "401":
+          description: Token ausente o inválido (`AUTH-001`)
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/ExchangeRateResponse"
+        "403":
+          description: Autenticado sin el permiso `exchange-rates:create` (`AUTH-002`)
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/ExchangeRateResponse"
+        "409":
+          description: Se solapa con una tasa vigente del mismo par (`EX-002`)
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/ExchangeRateResponse"
+        "422":
+          description: Moneda inexistente o desactivada (`EX-001`)
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/ExchangeRateResponse"
   /api/v1/countries:
     get:
       tags:
@@ -1488,7 +1589,7 @@ paths:
         alguna, pero **no puede coincidir** con otro ya registrado ignorando
         mayúsculas y acentos: el catálogo no se edita, y el duplicado sería
         permanente.
-      operationId: registrar_5
+      operationId: registrar_6
       requestBody:
         content:
           application/json:
@@ -1573,7 +1674,7 @@ paths:
 
         **El porcentaje cero es válido** y significa «esto no comisiona», que **no
         es lo mismo** que no declarar la tasa.
-      operationId: registrar_6
+      operationId: registrar_7
       requestBody:
         content:
           application/json:
@@ -2833,16 +2934,20 @@ paths:
       - Productos
       summary: Corregir un producto
       description: |
-        Corrige el **nombre**, la **descripción**, el **icono**, el **precio**,
-        la **moneda**, la **vigencia**, el **alcance** y la
+        Corrige el **nombre**, la **descripción**, el **icono**, **los dos
+        precios**, la **moneda**, la **vigencia**, el **alcance** y la
         **implementación**. Se aplica lo que llega y se deja intacto lo que
         no.
 
         **Distingue el campo ausente del enviado vacío**, y de ahí salen dos
-        comportamientos opuestos: `description: null`, `icon: null` y
-        `validityDays: null` **vacían** el campo —el producto pasa a no
-        caducar—, mientras que `name: null` se **rechaza**, porque un producto
-        sin nombre no puede existir.
+        comportamientos opuestos: `description: null`, `icon: null`,
+        `validityDays: null` y `publicPrice: null` **vacían** el campo,
+        mientras que `name: null` y `price: null` se **rechazan**, porque un
+        producto sin nombre o sin precio del sistema no puede existir.
+
+        **Vaciar `publicPrice` NO es ponerlo a cero**: con nulo el producto
+        vuelve a anunciarse con el precio del sistema, y con cero se anuncia
+        gratis. Son dos estados distintos y los dos se alcanzan desde aquí.
 
         **`scope: null` e `implementation: null` también se rechazan**, y ahí
         van con el nombre y no con la descripción: son obligatorios en la
@@ -2863,10 +2968,12 @@ paths:
         ignorarlos haría creer que el cambio se aplicó. Definen qué derecho
         otorga el producto, y cambiarlos convertiría lo comprado en otra cosa.
 
-        **El precio se valida contra la moneda NUEVA** cuando llegan las dos.
-        Y el importe **no se convierte**: el sistema no hace conversión de
-        divisa — cambiar de moneda es declarar que ese número siempre estuvo
-        en la otra.
+        **Los DOS importes se validan contra la moneda que va a quedar**, y no
+        solo el que llega en la petición: cambiar **solo** la moneda puede
+        dejar sin caber a un precio que nadie tocó, y el rechazo **nombra el
+        campo** que no cabe. Y el importe **no se convierte**: el sistema no
+        hace conversión de divisa — cambiar de moneda es declarar que ese
+        número siempre estuvo en la otra.
 
         **Un producto retirado no se corrige**: lo que se retiró debe quedar
         como estaba para que lo que lo referencie siga diciendo la verdad.
@@ -2897,9 +3004,9 @@ paths:
         "400":
           description: "Identificador sin forma canónica (`VAL-001`), nombre vací\
             o o ningún campo informado (`VAL-002`), longitud excedida (`VAL-003`),\
-            \ precio no positivo (`VAL-004`), decimales que la moneda no admite (`VAL-005`),\
-            \ campos inmutables en la petición (`VAL-006`) o vigencia no positiva\
-            \ (`VAL-011`)"
+            \ precio negativo o precio del sistema vaciado (`VAL-004`), decimales\
+            \ que la moneda no admite (`VAL-005`), campos inmutables en la petició\
+            n (`VAL-006`) o vigencia no positiva (`VAL-011`)"
         "401":
           description: Token ausente o inválido (`AUTH-001`)
         "403":
@@ -3269,9 +3376,21 @@ paths:
         **Quien está en la cima recibe la lista de upgrades vacía.** No es un
         error ni un mensaje especial: es una lista vacía.
 
-        **El precio es el del producto, igual para todos.** Un importe
-        distinto según quién mira sería un descuento, y los descuentos son
-        promociones, que están fuera de alcance.
+        **El precio es igual para todos**: un importe distinto según quién
+        mira sería un descuento, y los descuentos son promociones, que están
+        fuera de alcance.
+
+        **Y es el precio A MOSTRAR, no necesariamente el que se cobra.** Un
+        producto puede declarar un **precio público** además del del sistema
+        (`RN-PM-023`); esta respuesta publica el público si existe y el del
+        sistema si no, y **nunca los dos** — enseñar el par publicaría la
+        diferencia entre lo que se anuncia y lo que se cobra (`RN-PM-024`).
+        Cuál de los dos se publica lo decide el **producto**, no quien mira,
+        de modo que dos personas siguen viendo el mismo importe.
+
+        **Quien construya la pantalla de compra tiene que saberlo**: el
+        importe que confirma la venta sale de `products.price` y puede no ser
+        este número.
 
         Las dos colecciones viajan **envueltas en un objeto** y no como
         arreglos en la raíz: hoy la oferta no se pagina, y así el día que
@@ -3609,6 +3728,85 @@ paths:
           description: No existe membresía con ese identificador (`EX-001`)
         "500":
           description: Fallo no controlado (`ERR-500`)
+  /api/v1/hotlinks/{username}/{code}:
+    get:
+      tags:
+      - Hotlinks
+      summary: Consultar un hotlink
+      description: |
+        Devuelve, **sin token**, el producto que el enlace señala y el **nombre
+        y apellido** de quien lo reparte.
+
+        **Es público por decisión, no por definición.** Las otras cinco rutas
+        públicas del sistema lo son porque quien las llama no puede portar
+        todavía un token; esta lo es porque un enlace se abre antes de
+        registrarse.
+
+        **Solo publica productos activos y de alcance `HOTLINKS`**, y solo el
+        nombre de quien porta un rol de tipo `VENDEDOR`. Ni correo, ni
+        identificador, ni estado, ni roles.
+
+        **De la membresía se publican tres campos** —código, nombre y color—,
+        y no los cinco que devuelven los otros endpoints: el identificador no
+        sirve a quien no puede llamar a nada más, y el nivel publicaría la
+        forma de la cadena comercial sin token.
+
+        **El precio llega en la moneda del producto y, si hay tasa vigente,
+        convertido a la moneda por omisión.** `rate` viaja como **cadena**
+        porque tiene ocho decimales y un número JSON pasa por coma flotante en
+        cualquier cliente JavaScript.
+
+        **Y ese precio es el que el producto ANUNCIA, no necesariamente el que
+        se cobra.** Un producto puede declarar un precio público además del
+        del sistema; aquí se publica el público si existe y el del sistema si
+        no, y **el del sistema no viaja por ninguna vía** (`RN-PM-024`) — ni
+        siquiera dividiendo el importe convertido entre la tasa, porque la
+        conversión se calcula sobre el **mismo** importe que se publica.
+
+        **La conversión es INFORMATIVA**: lo que se cobra no es ese número. Una
+        venta va en una sola moneda y congela su importe al registrarse; esta
+        conversión se calcula al vuelo, cambia el día que cambie la tasa y **no
+        reserva nada**. Cuando no hay tasa vigente —o el producto ya está en la
+        moneda de casa— `exchange` llega **presente y nulo**, y el producto se
+        devuelve igual.
+
+        **Todo lo que no procede responde el MISMO `404`**: usuario
+        inexistente, persona que no es vendedora, código inexistente, producto
+        inactivo, retirado o de alcance `TIENDA`. **No dice cuál falló**, y esa
+        uniformidad es deliberada — distinguirlos convertiría el enlace en un
+        oráculo que dice quién existe.
+      operationId: hotlink
+      parameters:
+      - name: username
+        in: path
+        required: true
+        schema:
+          type: string
+      - name: code
+        in: path
+        required: true
+        schema:
+          type: string
+      responses:
+        "200":
+          description: "El enlace, con su producto y su vendedor."
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/HotlinkResponse"
+        "404":
+          description: El enlace no lleva a ninguna parte. **El mismo cuerpo en los
+            seis casos** (`EX-001`)
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/HotlinkResponse"
+        "429":
+          description: Demasiadas peticiones desde ese origen
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/HotlinkResponse"
   /api/v1/currencies:
     get:
       tags:
@@ -4576,6 +4774,9 @@ components:
         price:
           type: number
           minimum: 0.0
+        publicPrice:
+          type: number
+          minimum: 0.0
         currencyId:
           type: string
           format: uuid
@@ -4604,9 +4805,6 @@ components:
     CurrencyRef:
       type: object
       properties:
-        id:
-          type: string
-          format: uuid
         code:
           type: string
         decimalPlaces:
@@ -4636,6 +4834,8 @@ components:
         targetMembership:
           $ref: "#/components/schemas/MembershipRef"
         price:
+          type: number
+        publicPrice:
           type: number
         currency:
           $ref: "#/components/schemas/CurrencyRef"
@@ -4836,6 +5036,51 @@ components:
         updatedAt:
           type: string
           format: date-time
+    RegisterExchangeRateRequest:
+      type: object
+      properties:
+        sourceCurrencyId:
+          type: string
+          format: uuid
+        targetCurrencyId:
+          type: string
+          format: uuid
+        price:
+          type: number
+          minimum: 0.0
+        validFrom:
+          type: string
+          format: date
+        validTo:
+          type: string
+          format: date
+        isActive:
+          type: boolean
+      required:
+      - price
+      - sourceCurrencyId
+      - targetCurrencyId
+      - validFrom
+    ExchangeRateResponse:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        sourceCurrency:
+          $ref: "#/components/schemas/CurrencyRef"
+        targetCurrency:
+          $ref: "#/components/schemas/CurrencyRef"
+        price:
+          type: number
+        validFrom:
+          type: string
+          format: date
+        validTo:
+          type: string
+          format: date
+        isActive:
+          type: boolean
     RegisterCountryRequest:
       type: object
       properties:
@@ -4948,8 +5193,28 @@ components:
           format: uuid
         code:
           type: string
+        type:
+          type: string
+          enum:
+          - UPGRADE_MEMBRESIA
+          - BOT
         name:
           type: string
+        description:
+          type: string
+        icon:
+          type: string
+        validityDays:
+          type: integer
+          format: int32
+        membership:
+          $ref: "#/components/schemas/MembershipBadge"
+        price:
+          type: number
+        currency:
+          $ref: "#/components/schemas/CurrencyRef"
+        exchange:
+          $ref: "#/components/schemas/ExchangeRef"
     DissociateProductRequest:
       type: object
       properties:
@@ -5225,6 +5490,8 @@ components:
           $ref: "#/components/schemas/PatchableString"
         price:
           $ref: "#/components/schemas/PatchableBigDecimal"
+        publicPrice:
+          $ref: "#/components/schemas/PatchableBigDecimal"
         currencyId:
           $ref: "#/components/schemas/PatchableUUID"
         validityDays:
@@ -5265,6 +5532,8 @@ components:
         targetMembership:
           $ref: "#/components/schemas/MembershipRef"
         price:
+          type: number
+        publicPrice:
           type: number
         currency:
           $ref: "#/components/schemas/CurrencyRef"
@@ -5535,6 +5804,8 @@ components:
         targetMembership:
           $ref: "#/components/schemas/MembershipRef"
         price:
+          type: number
+        publicPrice:
           type: number
         currency:
           $ref: "#/components/schemas/CurrencyRef"
@@ -5833,6 +6104,38 @@ components:
           type: integer
           format: int32
         color:
+          type: string
+    ExchangeRef:
+      type: object
+      properties:
+        currency:
+          $ref: "#/components/schemas/CurrencyRef"
+        rate:
+          type: string
+        amount:
+          type: number
+    HotlinkResponse:
+      type: object
+      properties:
+        seller:
+          $ref: "#/components/schemas/SellerRef"
+        product:
+          $ref: "#/components/schemas/ProductRef"
+    MembershipBadge:
+      type: object
+      properties:
+        code:
+          type: string
+        name:
+          type: string
+        color:
+          type: string
+    SellerRef:
+      type: object
+      properties:
+        firstName:
+          type: string
+        lastName:
           type: string
     ListCurrenciesRequest:
       type: object

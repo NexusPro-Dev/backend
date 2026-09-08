@@ -71,6 +71,7 @@
 | `T-27` | **Prueba de varios productos**: uno solo que se pase de cien rechaza la corrección entera | `T-25` | `CA-CM-112` | **Hecha el 03-09-2026** |
 | `T-28` | Documentación OpenAPI: el nuevo `409` de `EX-006` | `T-25` | El contrato publicado lo describe | **Hecha el 03-09-2026** |
 | `T-29` | Actualizar `cm.md`, `modelo-datos.md` y la matriz de `docs/requirements.md` con `RN-CM-019` | — | Ya hecho en el bloque de documentación | **Hecha el 03-09-2026** |
+| `T-30` | **El producto de precio cero**: `ProductCommissionCapGuard` deja de dividir a ciegas. La corrección a valor fijo mayor que cero sobre un producto gratuito se rechaza con el tope | `RF-PM-001 · T-33` | `CA-CM-117`. **Es la misma tarea que `RF-CM-007 · T-26`**: la clase es una y se cita desde las dos listas para que ninguna la dé por hecha de la otra | **Hecha el 08-09-2026** |
 
 ## 2. Orden de ejecución
 
@@ -117,6 +118,7 @@
 | `CA-CM-112` | `T-24`, `T-25`, `T-27` |
 | `CA-CM-113` | `T-24`, `T-26` |
 | `CA-CM-114` | `T-24`, `T-26` |
+| `CA-CM-117` | `T-30` |
 
 **`CA-CM-024` aparece dos veces y no es un error de la tabla.** Lo cubría `T-02` sola; desde `T-15` lo cubren las dos, porque la comparación que lo satisface es ahora la misma que satisface a `CA-CM-091` y **cualquiera de las dos se puede romper arreglando la otra**.
 

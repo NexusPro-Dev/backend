@@ -8,9 +8,10 @@
 | Autor | Responsable técnico |
 | Aprobada por | Responsable del proyecto |
 | Fecha de aprobación | 07-09-2026 |
+| Enmendada el | 07-09-2026 — **el upgrade trae su membresía destino con el color** (`RN-SP-024`). Ver §15 |
+| Enmendada el | 08-09-2026 — **el precio que publica es el que se ANUNCIA** (`RN-PM-023`, `RN-PM-024`), y la conversión se calcula sobre él. Ver §15 |
 
 ---
-| Enmendada el | 07-09-2026 — **el upgrade trae su membresía destino con el color** (`RN-SP-024`). Ver §15 |
 
 ## 1. Objetivo
 
@@ -55,6 +56,7 @@ Que **un enlace repartido por un vendedor abra una pantalla**: qué se vende, cu
 | `RN-PM-019` | El alcance dice hasta dónde se muestra, y es acumulativo | `requirements/pm.md` §5.1 |
 | `RN-PM-021` | **El hotlink solo publica lo activo y de alcance `HOTLINKS`** | `requirements/pm.md` §5.1 |
 | `RN-PM-022` | **De la persona solo el nombre, y solo si es fuerza comercial** | `requirements/pm.md` §5.1 |
+| `RN-PM-024` | **El precio del sistema no sale de administración**, y esto es lo más lejos de administración que hay | `requirements/pm.md` §5.1 |
 | `RN-SP-032` | Dos tasas vigentes del mismo par no se solapan | `requirements/sp.md` §5.2 |
 
 **`RN-SP-032` es la que hace que «la tasa vigente» sea una y no varias.** Sin ella esta consulta tendría que elegir entre dos precios simultáneos para el mismo cambio, y elegiría el que el índice listara primero.
@@ -76,8 +78,8 @@ Que **un enlace repartido por un vendedor abra una pantalla**: qué se vende, cu
 |---|---|
 | Vendedor | **Nombre y apellido**, y nada más |
 | Producto | Código, tipo, nombre, descripción, icono, vigencia en días |
-| Precio | El importe **en la moneda del producto**, con los decimales de esa moneda |
-| Conversión | La moneda de destino, **la tasa aplicada** y el **importe convertido**. **Vacía y presente** cuando no hay conversión que hacer |
+| Precio | El importe **en la moneda del producto**, con los decimales de esa moneda. **Es el precio a mostrar** —el público si el producto lo declara y el del sistema si no—, y **el del sistema no viaja nunca por aquí** (`RN-PM-024`) |
+| Conversión | La moneda de destino, **la tasa aplicada** y el **importe convertido**. **Vacía y presente** cuando no hay conversión que hacer. **Se calcula sobre el mismo importe que se publica**, no sobre el otro |
 | Membresía destino | **Solo en los upgrades**: código, nombre y **color**. **Vacía y presente en los bots**, que no llevan ninguna |
 
 **La tasa viaja además del importe convertido**, y no es redundante: sin ella la pantalla no puede decir *«a 4.150 por dólar»*, que es lo que hace creíble el número. Con ella, además, quien lea la respuesta puede comprobar la cuenta.
@@ -90,6 +92,14 @@ Que **un enlace repartido por un vendedor abra una pantalla**: qué se vende, cu
     Los demás devuelven `id`, `code`, `name`, `level` y `color`. Aquí van **solo tres**: ni el identificador, que no sirve a quien no puede llamar a nada más, ni el **nivel**, que publicaría la forma de la cadena comercial sin token.
 
     **No son dos formas del mismo dato**, que es lo que los javadoc de `ProductItem` y `OfferItem` prohíben: es la misma forma **recortada**, y quien lea el hotlink lee tres campos que ya conoce. Lo que se evita al recortar es publicar de más, que en un endpoint público es la decisión por omisión.
+!!! danger "El precio que publica este endpoint es el que se ANUNCIA, y puede no ser el que se cobre"
+
+    Desde el 08-09-2026 un producto lleva dos importes y **solo uno se cobra** (`requirements/pm.md` §5.2.4). Este endpoint publica **el otro** cuando existe: el precio público.
+
+    **Convertir uno y publicar el otro sería el defecto grave**, y por eso se escribe: la respuesta llevaría dos importes que no se corresponden, y quien los mirara juntos podría **deducir la diferencia** entre lo anunciado y lo cobrado — en el único endpoint del módulo que no pide token.
+
+    Lo que se cobra sale de `products.price` y lo dice el comprobante de la venta (`RF-MV-002`). Aquí no aparece **por ninguna vía**, ni siquiera dividiendo el importe convertido entre la tasa.
+
 !!! danger "El importe convertido es informativo, y esto tiene que llegar hasta el frontend"
 
     **Lo que se cobra no es este número.** Una venta va en **una sola moneda** (`RN-MV-012`) y congela su importe al registrarse; esta conversión se calcula al vuelo, cambia el día que cambie la tasa y **no reserva nada**.
@@ -170,6 +180,9 @@ Que **un enlace repartido por un vendedor abra una pantalla**: qué se vende, cu
 | `CA-PM-138` | El sistema devuelve, en un **upgrade**, la membresía destino con **código, nombre y color** |
 | `CA-PM-139` | El sistema **no publica el identificador ni el nivel** de la membresía en este endpoint, al revés que en los otros cuatro |
 | `CA-PM-140` | El sistema devuelve la membresía **vacía y presente** en un producto de tipo **bot** |
+| `CA-PM-161` | El sistema publica el **precio público** del producto que lo declara, y el **del sistema** del que no |
+| `CA-PM-162` | El sistema calcula la **conversión sobre el importe que publica**, y no sobre el otro: el importe convertido dividido por la tasa devuelve el publicado |
+| `CA-PM-163` | La respuesta **no lleva** el precio del sistema en ningún campo cuando el producto declara precio público |
 
 ## 13. Casos límite
 
@@ -178,6 +191,8 @@ Que **un enlace repartido por un vendedor abra una pantalla**: qué se vende, cu
 | El vendedor **deja de serlo** después de repartir sus enlaces | Los enlaces **dejan de funcionar**, y devuelven el mismo `404` que uno inventado. Es correcto: `RN-PM-022` publica a la fuerza comercial **de hoy**, no a la de cuando se generó el enlace. Que un enlace caduque por eso es una consecuencia aceptada y no un defecto |
 | Dos personas con nombre y apellido iguales | El enlace las distingue por **nombre de usuario**, que es único. Que la pantalla enseñe dos veces «Ana Ruiz» no es problema de este endpoint |
 | El producto **cambia de alcance** a `TIENDA` | El enlace deja de funcionar. Es exactamente lo que `RN-PM-019` existe para permitir: retirar algo de un canal sin retirarlo del catálogo |
+| El producto **gana o pierde su precio público** entre dos visitas | La segunda visita muestra el otro importe, sin aviso. Es lo mismo que ocurre con la tasa, y por el mismo motivo: este endpoint publica el estado de hoy y **no reserva nada** |
+| El precio público vale **cero** y el del sistema no | Se publica **el cero**, y la conversión de cero es cero. El endpoint no compara los dos importes ni «corrige» el que le parezca raro: quien los declara es quien decide (`requirements/pm.md` §5.2.4) |
 | La tasa cambia entre dos visitas | La segunda visita muestra otro importe. **Es correcto y hay que decirlo en la pantalla**: la conversión es informativa y no reserva nada (§6.2) |
 | El nombre de usuario lleva mayúsculas | Se compara **sin distinguirlas**, como el correo en `RF-SP-024`: un enlace se teclea y se comparte por WhatsApp, y exigir la caja exacta rompería la mitad de las visitas |
 | Alguien pide un producto de otro vendedor | **Se devuelve igual.** No hay relación entre vendedor y producto en el modelo: el enlace **compone** dos cosas que existen por separado, y quién puede enlazar qué no está declarado en ningún sitio. Ver §14, resolución 3 |
@@ -199,3 +214,4 @@ Que **un enlace repartido por un vendedor abra una pantalla**: qué se vende, cu
 |---|---|---|---|
 | 0.1.0 | 07-09-2026 | Redacción inicial. **La decisión que gobierna el requerimiento no es la conversión de moneda sino el `404` uniforme**: los seis casos que no proceden responden lo mismo, porque distinguirlos convertiría el endpoint en un oráculo que dice **quién existe** —y, peor, **quién es cliente**—. Queda escrito lo que esa uniformidad **no** resuelve: el recorrido a ciegas, que `RateLimitFilter` acota por origen y que **acotar no es impedir**; se admite porque el conjunto publicable es la fuerza comercial, que ya reparte su nombre. **Sin tasa vigente el producto se devuelve igual**, con la conversión vacía: responder `404` escondería un producto vendible porque nadie declaró una tasa. **Las validaciones responden `404` y no `400`**, porque en una ruta pública la forma también es información. **Y quedan dos cosas declaradas y sin dueño**: `products:hotlink` se queda sin endpoint —la reconciliación se propone y no se decide— y **nada asocia un producto con un vendedor**, de modo que hoy cualquiera de la fuerza comercial puede enlazar cualquier producto del canal. | Responsable del proyecto |
 | 0.2.0 | 07-09-2026 | **El producto trae la membresía destino cuando es un upgrade, con su COLOR**, por decisión del responsable del proyecto. `RN-SP-024` obliga a que toda membresía declare el suyo, y este es el primer sitio donde ese dato sale **sin autenticación**: no es personal ni comercial, es la identidad visual de un nivel, y sin él la pantalla de un enlace tendría que inventárselo. **El hotlink publica solo código, nombre y color** —ni identificador ni nivel—, al revés que los otros cuatro endpoints del módulo, que devuelven la referencia completa: el `id` no sirve a quien no puede llamar a nada más, y el `level` publicaría la forma de la cadena comercial sin token. **No son dos formas del mismo dato**, que es lo que los javadoc de `ProductItem` y `OfferItem` prohíben: es la misma **recortada**. Entran `CA-PM-138` a `CA-PM-140`. | Responsable del proyecto |
+| 0.3.0 | 08-09-2026 | **El precio que este endpoint publica es el que se ANUNCIA, no el que se cobra** (`RN-PM-023`, `RN-PM-024`). Un producto lleva desde hoy dos importes y solo uno es dinero; el hotlink devuelve **el público si el producto lo declara y el del sistema si no**, y el del sistema **no viaja por aquí por ninguna vía**. Es el sitio donde esa regla pesa más: es el único endpoint del módulo **sin token**, de modo que cualquier fuga es pública y no se puede retirar. **La conversión se calcula sobre el importe que se publica**, y esa frase es la mitad de la enmienda: convertir uno y publicar el otro dejaría en la misma respuesta dos números que no se corresponden, y quien los mirara juntos —dividiendo el convertido entre la tasa, que también viaja— **deduciría exactamente la diferencia** entre lo anunciado y lo cobrado. Entran `CA-PM-161` a `CA-PM-163`, y el tercero prueba una **ausencia**. Dos casos límite nuevos: el producto que gana o pierde su precio público entre dos visitas —cambia lo que se muestra, sin aviso, como ya ocurre con la tasa— y el precio público en **cero**, que se publica tal cual porque este endpoint no compara los dos importes ni corrige al que lo declaró. | Responsable del proyecto |

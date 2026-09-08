@@ -258,6 +258,22 @@ nexus:
         por-origen: 30
         ventana: PT1H
 
+      # La única cota que no protege un endpoint de autenticación. Lo que acota
+      # es el RECORRIDO A CIEGAS de nombres de usuario: el hotlink responde el
+      # mismo 404 a los seis casos que no proceden, de modo que barrer nombres
+      # es lo único que le queda a quien sondea, y esta cota es su única
+      # mitigación (`RF-PM-008`, `CA-PM-137`).
+      #
+      # El número es HOLGADO a propósito, y sin penalización: un hotlink se
+      # reparte por mensajería y lo abren muchas personas que pueden compartir
+      # la dirección de salida de su operador. Una cota estrecha —o una espera
+      # fija al superarla— dejaría fuera a lectores legítimos antes que a nadie
+      # más. Se cuenta por la FAMILIA de rutas y no por enlace: ver `HOTLINKS`
+      # en `RateLimitFilter`.
+      hotlink:
+        por-origen: 60
+        ventana: PT1M
+
     # Orígenes que el navegador puede usar para llamar a esta API, separados
     # por coma y con la forma esquema://host[:puerto]. Cambian por entorno, de
     # modo que llegan por variable y NO se escriben en el código (Art. IX.1).

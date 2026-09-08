@@ -41,8 +41,8 @@ import org.springframework.transaction.annotation.Transactional;
  *   <li>El producto existe y <b>no está retirado</b> (`EX-001`).
  *   <li>Cada campo recibido, contra su regla.
  *   <li>Si llega nombre: unicidad <b>excluyendo al propio producto</b>.
- *   <li>Si llega precio o moneda: la moneda existe, está activa, y los decimales cuadran <b>con la
- *       moneda nueva</b>.
+ *   <li>Si llega <b>cualquiera de los dos precios</b> o la moneda: la moneda existe, está activa, y
+ *       <b>los dos importes que van a quedar</b> caben en los decimales de la <b>moneda final</b>.
  *   <li>Se aplica, y <b>solo si algo cambió</b> se emite el evento.
  * </ol>
  *
@@ -116,6 +116,7 @@ public class UpdateProductService {
             peticion.description(),
             peticion.icon(),
             peticion.price(),
+            peticion.publicPrice(),
             peticion.currencyId(),
             peticion.validityDays(),
             peticion.scope(),
@@ -248,12 +249,28 @@ public class UpdateProductService {
       }
     }
 
+    // EL DEL SISTEMA NO ADMITE VACIARSE: la columna es `NOT NULL` y «bórralo»
+    // no tiene ningún estado al que llevar el producto. Y desde el 08-09-2026
+    // ADMITE CERO (`RN-PM-006`): lo que tumbó el «mayor que cero» fue la
+    // renovación de una membresía gratuita, no el precio público.
     if (peticion.price().presente()) {
       BigDecimal valor = peticion.price().valor();
       if (valor == null) {
         problemas.add(new FieldError("price", "VAL-004", "El precio es obligatorio."));
-      } else if (valor.compareTo(BigDecimal.ZERO) <= 0) {
-        problemas.add(new FieldError("price", "VAL-004", "El precio debe ser mayor que cero."));
+      } else if (valor.compareTo(BigDecimal.ZERO) < 0) {
+        problemas.add(new FieldError("price", "VAL-004", "El precio no puede ser negativo."));
+      }
+    }
+
+    // EL PÚBLICO SÍ ADMITE VACIARSE, y ahí va con la descripción, el icono y la
+    // vigencia: el nulo explícito es una ORDEN —«devuélvelo a anunciarse con el
+    // precio del sistema»— y no un error. Lo único que se rechaza es el
+    // negativo.
+    if (peticion.publicPrice().presente()) {
+      BigDecimal valor = peticion.publicPrice().valor();
+      if (valor != null && valor.compareTo(BigDecimal.ZERO) < 0) {
+        problemas.add(
+            new FieldError("publicPrice", "VAL-004", "El precio público no puede ser negativo."));
       }
     }
 
@@ -335,7 +352,10 @@ public class UpdateProductService {
   private void verificarPrecioYMoneda(UpdateProductRequest peticion, Product producto) {
     boolean cambiaMoneda = presenteConValor(peticion.currencyId());
     boolean cambiaPrecio = presenteConValor(peticion.price());
-    if (!cambiaMoneda && !cambiaPrecio) {
+    // El público entra en el disparador aunque llegue NULO, porque vaciarlo
+    // también cambia lo que va a quedar — deja de haber un importe que medir.
+    boolean tocaPublico = peticion.publicPrice().presente();
+    if (!cambiaMoneda && !cambiaPrecio && !tocaPublico) {
       return;
     }
 
@@ -361,14 +381,35 @@ public class UpdateProductService {
           "EX-003", mensaje, List.of(new FieldError("currencyId", "EX-003", mensaje)));
     }
 
+    // LOS DOS IMPORTES QUE VAN A QUEDAR, no los que llegan. Con un solo precio
+    // esto ya importaba —cambiar SOLO la moneda obliga a revalidar el que nadie
+    // tocó—; con dos, el mismo caso aparece DOS VECES y el segundo es el que se
+    // olvida. El defecto NO FALLA: guarda un importe con más decimales de los
+    // que su moneda admite, y ese producto sale del catálogo con un precio que
+    // `RN-PM-007` prohíbe.
     BigDecimal precioFinal = cambiaPrecio ? peticion.price().valor() : producto.getPrice();
-    if (!ProductPrice.cabeEn(precioFinal, moneda.decimalPlaces())) {
-      String mensaje =
-          "El precio no admite más de %d decimales en %s."
-              .formatted(moneda.decimalPlaces(), moneda.code());
-      throw new ValidationException(
-          "VAL-005", mensaje, List.of(new FieldError("price", "VAL-005", mensaje)));
+    BigDecimal publicoFinal =
+        tocaPublico ? peticion.publicPrice().valor() : producto.getPublicPrice();
+
+    verificarDecimales(precioFinal, "price", moneda);
+    verificarDecimales(publicoFinal, "publicPrice", moneda);
+  }
+
+  /**
+   * `RN-PM-007` sobre un importe, <b>con el campo del error</b>.
+   *
+   * <p>Un nulo no se mide: significa que ese importe no va a existir —el público vaciado— y un
+   * importe que no existe no tiene decimales que quepan o dejen de caber.
+   */
+  private static void verificarDecimales(BigDecimal importe, String campo, CurrencyView moneda) {
+    if (importe == null || ProductPrice.cabeEn(importe, moneda.decimalPlaces())) {
+      return;
     }
+    String mensaje =
+        "El precio no admite más de %d decimales en %s."
+            .formatted(moneda.decimalPlaces(), moneda.code());
+    throw new ValidationException(
+        "VAL-005", mensaje, List.of(new FieldError(campo, "VAL-005", mensaje)));
   }
 
   private static boolean presenteConValor(Patchable<?> campo) {

@@ -103,8 +103,34 @@ public class Product {
   @Column(name = "source_membership_id", updatable = false)
   private UUID sourceMembershipId;
 
+  /**
+   * El precio que <b>se cobra</b> (`RN-PM-023`).
+   *
+   * <p><b>Admite cero desde el 08-09-2026</b> (`RN-PM-006`, `V67`). Lo que tumbó el «mayor que
+   * cero» no fue el precio público sino la <b>renovación</b>: un {@code FREE → FREE} es un producto
+   * legítimo que vale eso, y prohibirlo obligaba a inventarle un céntimo.
+   */
   @Column(name = "price", nullable = false, precision = 14, scale = 4)
   private BigDecimal price;
+
+  /**
+   * El precio con el que el producto <b>se anuncia</b> (`RN-PM-023`).
+   *
+   * <p><b>No se cobra.</b> Ningún cálculo lo lee: la venta copia {@link #price} y sobre ese mismo
+   * calcula `RN-CM-019`. Que un importe no se cobre <b>no es expresable en el esquema</b>, de modo
+   * que lo único que sostiene esa regla es <b>dónde no aparece</b> — {@code
+   * ProductCatalog.saleViewOf} no lo lleva, y añadirlo ahí bastaría para que empezara a cobrarse
+   * sin que nada fallara.
+   *
+   * <p><b>Nulo no es cero</b>, y esa distinción decide lo que se ve en la tienda: el nulo significa
+   * «este producto no declara precio público» —y entonces se anuncia con {@link #price}—, mientras
+   * que el cero anuncia que es gratis. Los dos estados son alcanzables desde `RF-PM-004`.
+   *
+   * <p><b>Y va en la misma moneda</b>: no hay una segunda {@code currency_id}, porque un importe en
+   * otra moneda no sería un rótulo sino un segundo precio de verdad, con su tasa y su vigencia.
+   */
+  @Column(name = "public_price", precision = 14, scale = 4)
+  private BigDecimal publicPrice;
 
   @Column(name = "currency_id", nullable = false)
   private UUID currencyId;
@@ -184,6 +210,7 @@ public class Product {
       UUID sourceMembershipId,
       UUID targetMembershipId,
       BigDecimal price,
+      BigDecimal publicPrice,
       UUID currencyId,
       Integer validityDays,
       ProductScope scope,
@@ -202,6 +229,12 @@ public class Product {
     producto.sourceMembershipId = sourceMembershipId;
     producto.targetMembershipId = targetMembershipId;
     producto.price = price;
+    // Ausente y nulo significan LO MISMO aquí, y ahí se aparta del alcance y de
+    // la implementación: omitirlo no deja ninguna decisión sin tomar, porque hay
+    // un comportamiento correcto y evidente para el producto que no lo declara
+    // — anunciarse con el precio del sistema, que es lo que hacen todos los del
+    // catálogo de hoy.
+    producto.publicPrice = publicPrice;
     producto.currencyId = currencyId;
     producto.validityDays = validityDays;
     producto.scope = scope;
@@ -274,6 +307,7 @@ public class Product {
       Patchable<String> nuevaDescripcion,
       Patchable<String> nuevoIcono,
       Patchable<BigDecimal> nuevoPrecio,
+      Patchable<BigDecimal> nuevoPrecioPublico,
       Patchable<UUID> nuevaMoneda,
       Patchable<Integer> nuevaVigencia,
       Patchable<ProductScope> nuevoAlcance,
@@ -316,6 +350,22 @@ public class Product {
         cambios.put(
             "price", Map.of("before", price.toPlainString(), "after", valor.toPlainString()));
         price = valor;
+      }
+    }
+    // EL NULO EXPLICITO SI LO VACIA, al revés que el precio del sistema: la
+    // columna admite nulo y ese nulo SIGNIFICA «se anuncia con el precio del
+    // sistema», de modo que «bórralo» tiene un estado al que llevar el producto.
+    // Va con la descripción, el icono y la vigencia, no con `price`.
+    //
+    // Y VACIARLO NO ES PONERLO A CERO: uno anuncia lo que cuesta y el otro
+    // anuncia gratis. Los dos casos son alcanzables desde aquí y no se
+    // confunden — el cero entra por la rama de abajo, con su `compareTo`.
+    if (nuevoPrecioPublico.presente()) {
+      BigDecimal valor = nuevoPrecioPublico.valor();
+      if (!mismoImporte(publicPrice, valor)) {
+        cambios.put(
+            "public_price", Map.of("before", importe(publicPrice), "after", importe(valor)));
+        publicPrice = valor;
       }
     }
     if (nuevaMoneda.presente() && nuevaMoneda.valor() != null) {
@@ -369,6 +419,34 @@ public class Product {
    */
   private static String texto(String valor) {
     return valor == null ? "" : valor;
+  }
+
+  /**
+   * Dos importes que pueden ser nulos, comparados por <b>valor</b> y no por escala.
+   *
+   * <p><b>{@code compareTo} y no {@code equals}</b>, por lo mismo que en el precio del sistema:
+   * {@code 10.00} y {@code 10.0000} son el mismo importe con distinta escala, y {@code equals} los
+   * daría por distintos — el registro de auditoría se llenaría de cambios que no cambian nada.
+   *
+   * <p><b>Y el nulo entra en la comparación</b>, porque aquí sí es un valor: vaciar un precio
+   * público que no existía no es un cambio, y ponerle cero a uno vacío sí lo es.
+   */
+  private static boolean mismoImporte(BigDecimal uno, BigDecimal otro) {
+    if (uno == null || otro == null) {
+      return uno == otro;
+    }
+    return uno.compareTo(otro) == 0;
+  }
+
+  /**
+   * El importe en el registro de auditoría va como texto, y el nulo como cadena vacía.
+   *
+   * <p>Lo primero porque {@code BigDecimal} serializado a JSON puede perder la escala; lo segundo
+   * porque {@code Map.of} rechaza los nulos y, aunque los admitiera, una clave que desaparece haría
+   * indistinguible «se vació el precio público» de «no se tocó».
+   */
+  private static String importe(BigDecimal valor) {
+    return valor == null ? "" : valor.toPlainString();
   }
 
   private static Object numero(Integer valor) {
@@ -431,6 +509,12 @@ public class Product {
     estado.put(
         "source_membership_id", sourceMembershipId == null ? null : sourceMembershipId.toString());
     estado.put("price", price.toPlainString());
+    // ENTRA AUNQUE NO SE COBRE, y no por simetría: es el único sitio donde
+    // queda escrito CON QUÉ SE ANUNCIABA un producto que después se corrige, y
+    // sin él una reclamación por «lo vi a otro precio» no tendría contra qué
+    // contrastarse. Nulo cuando no se declaró — `LinkedHashMap` sí lo admite,
+    // al revés que `Map.of`.
+    estado.put("public_price", publicPrice == null ? null : publicPrice.toPlainString());
     estado.put("currency_id", currencyId.toString());
     estado.put("validity_days", validityDays);
     estado.put("status", status.name());
@@ -624,6 +708,23 @@ public class Product {
 
   public BigDecimal getPrice() {
     return price;
+  }
+
+  /** El precio con el que se anuncia. Nulo: se anuncia con el del sistema (`RN-PM-023`). */
+  public BigDecimal getPublicPrice() {
+    return publicPrice;
+  }
+
+  /**
+   * El importe que se le enseña a quien no administra el catálogo (`RN-PM-024`).
+   *
+   * <p>Vive en el agregado y <b>no se usa en ninguna respuesta</b>: `RF-PM-007` y `RF-PM-008`
+   * resuelven lo mismo con un {@code COALESCE} en su consulta, para que por esas lecturas <b>solo
+   * viaje un número</b>. Está aquí porque la regla es del producto y no de una consulta, y quien
+   * escriba la siguiente lectura pública debe encontrarla sin tener que deducirla.
+   */
+  public BigDecimal getDisplayPrice() {
+    return publicPrice == null ? price : publicPrice;
   }
 
   public UUID getCurrencyId() {

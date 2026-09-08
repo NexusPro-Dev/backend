@@ -146,6 +146,18 @@ Dos ediciones simultáneas hacia **el mismo correo** devolvían una `200` y un *
 - **Se comprueba el país de destino, nunca el actual.** Es lo que hace utilizable la operación: esta es la herramienta con la que se saca a alguien de un país recién desactivado, y exigir que el vigente estuviera activo la volvería inútil justo cuando hace falta.
 - **El cambio de país no emite evento de seguridad**, aunque sea el campo que más se le parece al correo. El correo lo emite porque es una **vía de acceso**; el país no lo es. Queda en `audit_change_log` con su antes y su después, que es donde se responde quién lo cambió.
 
+## 4.quater El documento y el contacto pasan a corregirse desde aquí — enmienda del 08-09-2026
+
+Esta es la **única** operación que cambia el documento, y una de las dos que cambian el contacto —la otra es `RF-SP-044`, para el propio titular—.
+
+**La tarea no se duplica aquí.** Es `T-58` de [`../024-registrar-usuario/tasks.md`](../024-registrar-usuario/tasks.md) §4.sexies.
+
+**Tres decisiones que sí son de este requerimiento**, razonadas en `plan.md` §4 y §6:
+
+- **El nulo explícito deja de significar lo mismo en todo el cuerpo.** Hasta hoy siempre se rechazaba, porque todas las columnas eran `NOT NULL`. Con el contacto entran tres nulables donde el nulo **sí es una orden**: «ya no vive ahí» es un hecho que hay que poder registrar. La línea que separa las dos familias es la de lo obligatorio y lo opcional, no la de los tipos.
+- **El tipo y el número se validan como una unidad.** Enviar uno solo es `400` y no un cambio a medias; dejarlo llegar al motor daría un `500` sobre `ck_users_document_pair`.
+- **Corregir el documento no libera el anterior.** Es la asimetría deliberada con el correo, que sí se libera: un documento identifica a una persona en el mundo real, y liberarlo dejaría que otra ficha lo tomara.
+
 ## 5. Definición de terminado
 
 El requerimiento no está terminado hasta cumplir **todas** las condiciones de la constitución §16:

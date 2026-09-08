@@ -19,7 +19,13 @@
 
 ## 2. Cambios de esquema
 
-### 2.1 `V62__create_exchange_rates.sql`
+### 2.1 `V65__create_exchange_rates.sql`
+
+!!! warning "Estas dos migraciones se numeraron `V62` y `V63` al escribir el plan, y acabaron en `V65` y `V66`"
+
+    Entre la escritura de esta tripleta y su construcción, `V64__usuario_con_pais.sql` se llevó el hueco. **Una reserva no está reservada**, y este proyecto ya lo pagó tres veces con las cuatro tablas de `MV` —pidieron el `51`, luego el `52`, luego el `53` y acabaron en el `54`—.
+
+    No es cosmético: Flyway aplica **en orden**, y una migración con número **por debajo** del último aplicado se queda fuera **sin error y sin aviso**. Con `V62`, la tabla no existiría y nada lo diría hasta la primera consulta.
 
 | Columna | Tipo | Por qué |
 |---|---|---|
@@ -74,7 +80,7 @@ ALTER TABLE exchange_rates
 
 **Necesita `btree_gist`, y ya está instalada**: la puso `V44` para las tasas de comisión. Esta migración **no la vuelve a declarar** — un `CREATE EXTENSION IF NOT EXISTS` de más no rompe nada, y deja creer que la dependencia es de aquí.
 
-### 2.3 `V63__seed_exchange_rates_permissions.sql`
+### 2.3 `V66__seed_exchange_rates_permissions.sql`
 
 Los cuatro permisos con identificador literal (Art. V.11) **y su asociación a `SUPERADMIN` y a `ADMIN` en la misma migración**, con la guarda que `V51` estrenó: si alguna de las ocho filas de `role_permissions` no se insertó, la migración aborta. Olvidarlo no falla al aplicar — deja a `ADMIN` incapaz de conceder lo que no tiene.
 
@@ -83,7 +89,7 @@ Los cuatro permisos con identificador literal (Art. V.11) **y su asociación a `
 | Capa | Elemento | Nota |
 |---|---|---|
 | `domain/models` | `ExchangeRate` | Agregado y modelo persistente, como `Product` y `Role` |
-| `domain/repository` | `ExchangeRateRepository` + adaptador | **Traduce la violación del `EXCLUDE` por nombre de restricción** |
+| `domain/repository` | `ExchangeRateRepository` + adaptador | **Traduce la violación del `EXCLUDE`**, por nombre de restricción **y por `SQLState` `23P01`** — ver el riesgo 1 |
 | `domain/service` | `RegisterExchangeRateService` | El orden de verificación de §5 |
 | `application` | `RegisterExchangeRateRequest`, `ExchangeRateResponse` | |
 | `interfaces` | `ExchangeRateController` | `POST /api/v1/exchange-rates` |
@@ -132,7 +138,7 @@ Es el contrato, y el orden importa:
 
 ## 6. Autorización
 
-`@PreAuthorize("hasAuthority('exchange-rates:create')")` sobre el método. Los cuatro permisos se siembran en `V63` y se asocian a `SUPERADMIN` y `ADMIN`.
+`@PreAuthorize("hasAuthority('exchange-rates:create')")` sobre el método. Los cuatro permisos se siembran en `V66` y se asocian a `SUPERADMIN` y `ADMIN`.
 
 ## 7. Auditoría
 
@@ -162,7 +168,7 @@ Una transacción: inserción y evento. **Sin bloqueo pesimista**, y no es un olv
 
 | # | Riesgo | Mitigación |
 |---|---|---|
-| 1 | **La violación del `EXCLUDE` llega como `500`** si nadie la traduce | El adaptador traduce **por nombre de restricción**, y `CA-SP-538` lo comprueba de extremo a extremo |
+| 1 | **La violación del `EXCLUDE` llega como `500`** si nadie la traduce | El adaptador traduce **por nombre de restricción y, sobre todo, por `SQLState` `23P01`**. **Se materializó el 08-09-2026**: con solo el nombre, el rechazo concurrente respondía `500` — Hibernate **no da el nombre** cuando la violación es de exclusión, y devuelve `null`. Estaba escrito desde el 28-08-2026 en `JpaUserCommissionRateRepository`, el otro `EXCLUDE` del sistema, y aquí se olvidó. `CA-SP-538` **no lo veía**: por el camino normal corta la verificación previa, y solo `T-12` —dos altas a la vez— llega hasta la restricción |
 | 2 | **`'[)'` en vez de `'[]'`** dejaría pasar dos tasas que comparten un día | `CA-SP-539` prueba el borde exacto: una termina el día antes de que la otra empiece —se admite— y una termina **el mismo día** que la otra empieza — se rechaza |
 | 3 | **La escala se recorta en algún punto del camino** —DTO, JSON, `BigDecimal`— y la tasa se guarda redondeada | `CA-SP-535` comprueba `0,00024096` de punta a punta, leyéndolo de la base |
 | 4 | Alguien añade `CREATE EXTENSION btree_gist` «por si acaso» | Queda escrito en §2.2 que la instaló `V44`: repetirla deja creer que la dependencia nace aquí |

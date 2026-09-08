@@ -50,6 +50,7 @@ public record ProductDetailResponse(
     ProductResponse.MembershipRef sourceMembership,
     ProductResponse.MembershipRef targetMembership,
     BigDecimal price,
+    BigDecimal publicPrice,
     ProductResponse.CurrencyRef currency,
     Integer validityDays,
     ProductScope scope,
@@ -100,6 +101,11 @@ public record ProductDetailResponse(
                 fila.targetMembershipLevel(),
                 fila.targetMembershipColor()),
         ProductPrice.enLaEscalaDe(fila.price(), fila.currencyDecimalPlaces()),
+        // Nulo y presente donde el producto no lo declara (`CA-PM-152`), como
+        // el destino de un bot y la vigencia de lo que no caduca.
+        fila.publicPrice() == null
+            ? null
+            : ProductPrice.enLaEscalaDe(fila.publicPrice(), fila.currencyDecimalPlaces()),
         new ProductResponse.CurrencyRef(
             fila.currencyId(), fila.currencyCode(), fila.currencyDecimalPlaces()),
         fila.validityDays(),

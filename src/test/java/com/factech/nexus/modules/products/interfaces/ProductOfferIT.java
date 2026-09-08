@@ -412,6 +412,54 @@ class ProductOfferIT extends IntegrationTestBase {
   }
 
   // ---------------------------------------------------------------------------
+  // El precio que se publica (`RN-PM-024`) — 08-09-2026
+  // ---------------------------------------------------------------------------
+
+  @Test
+  @DisplayName("`CA-PM-158` — con precio público se publica ESE, y no el del sistema")
+  void publicaElPrecioPublico() throws Exception {
+    declararPrecioPublico("UP_ORO", "149.00");
+
+    mvc.perform(oferta(enFree))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.upgrades.content[3].code").value("UP_ORO"))
+        .andExpect(jsonPath("$.upgrades.content[3].price").value(149.00));
+  }
+
+  @Test
+  @DisplayName("`CA-PM-159` — sin precio público se publica el del sistema")
+  void publicaElDelSistemaCuandoNoHayPublico() throws Exception {
+    mvc.perform(oferta(enFree))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.upgrades.content[3].code").value("UP_ORO"))
+        .andExpect(jsonPath("$.upgrades.content[3].price").value(100.00));
+  }
+
+  @Test
+  @DisplayName(
+      "`CA-PM-160` — la oferta trae UN importe por producto, y ningún indicador de cuál es")
+  void laOfertaNoPublicaElSegundoImporte() throws Exception {
+    declararPrecioPublico("UP_ORO", "149.00");
+
+    // Es una prueba de AUSENCIA, y es lo único que sostiene `RN-PM-024` aquí:
+    // un campo añadido a `OfferItem` «por simetría» con el catálogo
+    // administrativo publicaría el precio que se cobra sin que nada fallara.
+    mvc.perform(oferta(enFree))
+        .andExpect(status().isOk())
+        .andExpect(content().string(Matchers.not(Matchers.containsString("publicPrice"))))
+        // Y el que se cobra no aparece por ninguna vía: `100.00` es el precio
+        // del sistema de `UP_ORO`, y la respuesta trae `149.00`.
+        .andExpect(jsonPath("$.upgrades.content[3].price").value(149.00))
+        .andExpect(jsonPath("$.upgrades.content[3].publicPrice").doesNotExist());
+  }
+
+  /** Le pone precio público a un producto ya sembrado, que es lo que la siembra no hace. */
+  private void declararPrecioPublico(String codigo, String importe) {
+    jdbc.update(
+        "UPDATE products SET public_price = CAST(? AS numeric) WHERE code = ?", importe, codigo);
+  }
+
+  // ---------------------------------------------------------------------------
   // Autorización y forma de la ruta
   // ---------------------------------------------------------------------------
 

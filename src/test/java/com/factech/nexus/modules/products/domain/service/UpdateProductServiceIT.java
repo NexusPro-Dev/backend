@@ -97,6 +97,7 @@ class UpdateProductServiceIT extends IntegrationTestBase {
             Patchable.ausente(),
             Patchable.ausente(),
             Patchable.ausente(),
+            Patchable.ausente(),
             Patchable.ausente()));
 
     // El nombre llega, pero es el mismo: no hay nada contra lo que chocar, y no
@@ -150,6 +151,7 @@ class UpdateProductServiceIT extends IntegrationTestBase {
             Patchable.ausente(),
             Patchable.ausente(),
             Patchable.ausente(),
+            Patchable.ausente(),
             Patchable.ausente()));
 
     // Cambiar el precio obliga a mirar cuántos decimales admite su moneda,
@@ -172,6 +174,7 @@ class UpdateProductServiceIT extends IntegrationTestBase {
         Patchable.ausente(),
         Patchable.ausente(),
         Patchable.ausente(),
+        Patchable.ausente(),
         Patchable.ausente());
   }
 
@@ -179,6 +182,7 @@ class UpdateProductServiceIT extends IntegrationTestBase {
     return new UpdateProductRequest(
         Patchable.ausente(),
         Patchable.de(descripcion),
+        Patchable.ausente(),
         Patchable.ausente(),
         Patchable.ausente(),
         Patchable.ausente(),

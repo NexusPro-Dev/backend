@@ -16,6 +16,12 @@ import java.util.UUID;
  * dos comportamientos <b>opuestos</b> — la descripción, el icono y la vigencia <b>admiten
  * vaciarse</b>, y el nombre <b>no</b>.
  *
+ * <p><b>Y los dos precios se separan justo en esa distinción</b> (`RN-PM-023`): {@code publicPrice}
+ * <b>admite vaciarse</b> —su nulo es un estado legítimo de la columna, «se anuncia con el precio
+ * del sistema»—, y {@code price} <b>no</b>, porque es {@code NOT NULL} y «bórralo» no tiene ningún
+ * estado al que llevar el producto. <b>Vaciar el público no es ponerlo a cero</b>: uno anuncia lo
+ * que cuesta y el otro anuncia gratis.
+ *
  * <p><b>El icono se corrige aunque el tipo no</b>: es el aspecto del producto y no lo que otorga,
  * de modo que cambiarlo no reescribe lo comprado. En un producto de tipo bot, en cambio, cualquier
  * valor distinto de nulo se rechaza con `VAL-013` — `RN-PM-016` no admite excepción por venir en un
@@ -42,6 +48,7 @@ public record UpdateProductRequest(
     @JsonDeserialize(using = PatchableDeserializer.class) Patchable<String> description,
     @JsonDeserialize(using = PatchableDeserializer.class) Patchable<String> icon,
     @JsonDeserialize(using = PatchableDeserializer.class) Patchable<BigDecimal> price,
+    @JsonDeserialize(using = PatchableDeserializer.class) Patchable<BigDecimal> publicPrice,
     @JsonDeserialize(using = PatchableDeserializer.class) Patchable<UUID> currencyId,
     @JsonDeserialize(using = PatchableDeserializer.class) Patchable<Integer> validityDays,
     @JsonDeserialize(using = PatchableDeserializer.class) Patchable<ProductScope> scope,
@@ -63,6 +70,7 @@ public record UpdateProductRequest(
     description = description == null ? Patchable.ausente() : description;
     icon = icon == null ? Patchable.ausente() : icon;
     price = price == null ? Patchable.ausente() : price;
+    publicPrice = publicPrice == null ? Patchable.ausente() : publicPrice;
     currencyId = currencyId == null ? Patchable.ausente() : currencyId;
     validityDays = validityDays == null ? Patchable.ausente() : validityDays;
     scope = scope == null ? Patchable.ausente() : scope;
@@ -87,6 +95,7 @@ public record UpdateProductRequest(
         || description.presente()
         || icon.presente()
         || price.presente()
+        || publicPrice.presente()
         || currencyId.presente()
         || validityDays.presente()
         || scope.presente()

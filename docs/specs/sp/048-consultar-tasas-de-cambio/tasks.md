@@ -16,7 +16,7 @@
 
 | ID | Tarea | Depende de | Verificación | Estado |
 |---|---|---|---|---|
-| `T-01` | El índice de listado `(valid_from DESC, id DESC)` **dentro de `V62`**, con la tabla | `RF-SP-047 · T-01` | `mvn flyway:info` lo lista. No hay migración propia: el índice es de la tabla y va con ella | Pendiente |
+| `T-01` | El índice de listado `(valid_from DESC, id DESC)` **dentro de `V65`**, con la tabla | `RF-SP-047 · T-01` | `mvn flyway:info` lo lista. No hay migración propia: el índice es de la tabla y va con ella | Pendiente |
 | `T-02` | `application/ExchangeRateSortField`: dominio **cerrado** con `validFrom` y `price` | — | Unitaria: un campo fuera de la lista no es representable, y el analizador devuelve `VAL-003` en lugar de un valor por omisión | Pendiente |
 | `T-03` | `application/ListExchangeRatesRequest`: los seis filtros, la paginación y el orden, con `includeDeleted` en `Boolean` | `T-02` | La petición **sin** `includeDeleted` no falla, y los `400` se devuelven **juntos** | Pendiente |
 | `T-04` | `application`: `ExchangeRateItem` y la envoltura `PageResponse` con `totalIsExact` en `true` | — | Compila y serializa; el precio sale con **ocho decimales** | Pendiente |

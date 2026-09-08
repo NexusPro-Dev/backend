@@ -315,6 +315,43 @@ class ProductAssociationIT extends IntegrationTestBase {
     assertThat(cuantasAsociaciones()).isEqualTo(2);
   }
 
+  @Test
+  @DisplayName(
+      "CA-CM-115 · un valor fijo sobre un producto de PRECIO CERO se rechaza con el tope, no con"
+          + " un 500")
+  void valorFijoSobreProductoGratuito() throws Exception {
+    // El producto de precio cero EXISTE desde el 08-09-2026: `V67` relajó
+    // `RN-PM-006` para admitir la renovación de una membresía gratuita. Esta
+    // clase dependía POR ESCRITO de que no existiera —`fixed_amount ÷ precio`—
+    // y con él la división es entre cero.
+    UUID gratis = CommissionFixtures.sembrarProducto(jdbc, "BOT_GRATIS", false, "0.0000");
+    UUID fijo = CommissionFixtures.sembrarTasaDeRol(jdbc, MANAGER, "FIJO", "1.0000");
+
+    // No hace falta ninguna regla nueva: es `RN-CM-019` en su límite. Un
+    // producto que no cobra nada no puede pagar ningún importe fijo.
+    mvc.perform(asociacion(fijo, gratis))
+        .andExpect(status().isConflict())
+        .andExpect(jsonPath("$.errors[0].code").value("EX-005"));
+
+    assertThat(cuantasAsociaciones()).isZero();
+  }
+
+  @Test
+  @DisplayName(
+      "CA-CM-116 · sobre precio cero, un valor fijo de CERO ocupa cero y un porcentaje se comporta"
+          + " igual que siempre")
+  void valorFijoCeroYPorcentajeSobreProductoGratuito() throws Exception {
+    UUID gratis = CommissionFixtures.sembrarProducto(jdbc, "BOT_GRATIS", false, "0.0000");
+    UUID fijoCero = CommissionFixtures.sembrarTasaDeRol(jdbc, MANAGER, "FIJO", "0.0000");
+    UUID porcentaje = CommissionFixtures.sembrarTasaDeRol(jdbc, DIRECTOR, "60.00");
+
+    mvc.perform(asociacion(fijoCero, gratis)).andExpect(status().isCreated());
+    // Un porcentaje no divide por nada: el precio cero no lo afecta.
+    mvc.perform(asociacion(porcentaje, gratis)).andExpect(status().isCreated());
+
+    assertThat(cuantasAsociaciones()).isEqualTo(2);
+  }
+
   // ---------------------------------------------------------------------------
   // Utilidades
   // ---------------------------------------------------------------------------

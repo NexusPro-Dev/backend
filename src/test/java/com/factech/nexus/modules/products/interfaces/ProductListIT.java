@@ -429,6 +429,29 @@ class ProductListIT extends IntegrationTestBase {
                 Matchers.everyItem(Matchers.matchesPattern("^[0-9A-F]{6}$"))));
   }
 
+  @Test
+  @DisplayName("`CA-PM-151` — cada fila trae los DOS precios, y el público nulo y presente")
+  void cadaFilaTraeLosDosPrecios() throws Exception {
+    jdbc.update(
+        "UPDATE products SET public_price = CAST('59.99' AS numeric) WHERE code = 'UPGRADE_ORO'");
+
+    // El listado y el detalle son los DOS ÚNICOS sitios donde los dos importes
+    // se ven juntos, y lo que los separa de la oferta es `products:read`.
+    mvc.perform(listado().param("targetMembershipId", oro.toString()))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.content[0].code").value("UPGRADE_ORO"))
+        .andExpect(jsonPath("$.content[0].price").exists())
+        .andExpect(jsonPath("$.content[0].publicPrice").value(59.99));
+
+    // Y en un producto que no lo declara, el campo va PRESENTE con nulo: su
+    // nulo significa «se anuncia con el precio del sistema».
+    mvc.perform(listado().param("targetMembershipId", plata.toString()))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.content[0].code").value("UPGRADE_PLATA"))
+        .andExpect(jsonPath("$.content[0].publicPrice").doesNotExist())
+        .andExpect(jsonPath("$.content[0]").value(org.hamcrest.Matchers.hasKey("publicPrice")));
+  }
+
   private MockHttpServletRequestBuilder listado() {
     return get("/api/v1/products")
         .with(user(UUID.randomUUID().toString()).authorities(() -> "products:read"));

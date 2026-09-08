@@ -8,6 +8,7 @@
 | Autor | Responsable técnico |
 | Aprobada por | Pendiente |
 | Fecha de aprobación | — |
+| Enmendada | 08-09-2026 — `RN-SP-037`: el titular pasa a corregir sus **datos de contacto**, y **no** su documento; `CA-SP-598` y `CA-SP-599` (Art. I.7) |
 
 ---
 
@@ -38,11 +39,13 @@ Por eso el cambio de correo **exige la contraseña actual en la misma petición*
 ### 4.1 Incluye
 
 - Modificación del **propio** nombre, apellidos y correo.
+- **Modificación de los propios datos de contacto**: teléfono, dirección, complemento y ciudad (`RN-SP-037`, 08-09-2026).
 - Exigencia de la contraseña actual **cuando y solo cuando** se cambia el correo.
 
 ### 4.2 No incluye
 
 - Editar los datos de otra persona → `RF-SP-027`, que exige `users:update`.
+- **El tipo y el número de documento, y el país.** Son **identidad**, no contacto, y los corrige un administrador por `RF-SP-027`. Enviarlos aquí devuelve `400` por propiedad desconocida, no se ignoran. **El motivo de la línea**: un teléfono nuevo o una mudanza son hechos que la persona conoce mejor que nadie y que no deberían costar un ticket; su documento es con lo que figura en la auditoría, y el país decide qué medios de pago se le ofrecen (`RN-MV-019`) — cambiárselos uno mismo sería reescribir quién es y en qué mercado está.
 - El nombre de usuario, que es inmutable por `RN-SP-016`.
 - La propia contraseña → `RF-SP-037`.
 - Los roles, la membresía, el estado y el superior comercial: ninguno es un dato que la persona decida sobre sí misma. Son `RF-SP-030` a `RF-SP-033`, `RF-SP-028` y `RF-SP-041`.
@@ -53,6 +56,7 @@ Por eso el cambio de correo **exige la contraseña actual en la misma petición*
 | ID | Regla | Origen |
 |---|---|---|
 | `RN-SP-016` | El nombre de usuario y el correo son únicos entre los usuarios; el nombre de usuario no cambia | `requirements/sp.md` §5.1 |
+| `RN-SP-037` | El teléfono es obligatorio y la dirección opcional; **son datos de contacto y los corrige el titular** | `requirements/sp.md` §5.1 |
 
 ## 6. Datos
 
@@ -62,6 +66,8 @@ Por eso el cambio de correo **exige la contraseña actual en la misma petición*
 |---|---|---|---|
 | Nombre y apellidos | No | Nuevos datos de la persona | No pueden quedar vacíos si se envían |
 | Correo | No | Nuevo correo | Único entre los usuarios. Formato válido |
+| Teléfono | No | Nuevo teléfono | **No se admite vaciarlo** (`RN-SP-037`). **No exige contraseña actual**: no es una vía de acceso |
+| Dirección, complemento y ciudad | No | Nuevos datos de contacto | **Sí se admite vaciarlos** con nulo explícito: son opcionales, y «ya no vivo ahí» es un hecho que hay que poder registrar |
 | Contraseña actual | Condicional | Prueba de que quien pide el cambio es la persona | **Obligatoria si y solo si se envía correo.** Debe coincidir con la vigente |
 
 No hay identificador de entrada: el usuario a editar es **el que porta el token**. Al menos uno de los campos modificables debe venir informado.
@@ -151,6 +157,8 @@ No hay identificador de entrada: el usuario a editar es **el que porta el token*
 | `CA-SP-503` | El cambio de correo emite evento de seguridad de severidad alta; el de nombre, no |
 | `CA-SP-504` | La contraseña actual incorrecta emite evento de seguridad y **no** incrementa los intentos fallidos ni bloquea la cuenta |
 | `CA-SP-505` | Enviar los mismos valores no registra auditoría y responde sin error |
+| `CA-SP-598` | El titular cambia su teléfono, su dirección, su complemento y su ciudad **sin ningún permiso y sin contraseña actual**, y el nulo explícito vacía los tres últimos |
+| `CA-SP-599` | El titular **no puede** cambiar su tipo ni su número de documento, ni su país: enviarlos devuelve `400` por propiedad desconocida y **ninguno cambia** |
 | `CA-SP-506` | Sin token, la petición se rechaza como no autenticada |
 
 ## 13. Casos límite

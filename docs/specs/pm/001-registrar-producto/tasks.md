@@ -8,7 +8,7 @@
 | Autor | Responsable técnico |
 | Aprobadas por | Responsable del proyecto |
 | Fecha de aprobación | 26-08-2026 |
-| Enmendadas | 28-08-2026 — `T-19` a `T-22` por el renombrado a `BOT` y el icono del upgrade; 02-09-2026 — `T-23` a `T-26` por la membresía de **origen**; 07-09-2026 — `T-27` a `T-30` por el **alcance** y la **implementación**, y `T-31` por la **renovación** |
+| Enmendadas | 28-08-2026 — `T-19` a `T-22` por el renombrado a `BOT` y el icono del upgrade; 02-09-2026 — `T-23` a `T-26` por la membresía de **origen**; 07-09-2026 — `T-27` a `T-30` por el **alcance** y la **implementación**, y `T-31` por la **renovación**; 08-09-2026 — `T-33` a `T-37` por el **precio público** y la relajación de `RN-PM-006` |
 
 !!! info "Qué va en este documento"
 
@@ -52,6 +52,11 @@
 | `T-30` | Pruebas de API de `CA-PM-110` a `CA-PM-114`, incluida la del **bot con `HOTLINKS` y `MANUAL`**, que es la que verifica que ninguna de las dos depende del tipo | `T-29` | La suite de `PM` en verde con los cinco criterios nuevos | **Hecha el 07-09-2026** |
 | `T-31` | Migración `V61__products_admite_renovacion.sql`: **retira `ck_products_origen_distinto`** (`plan.md` §2.5). En el agregado, `Product.verificarTipoYMembresias` deja de rechazar `origen == destino`; en el caso de uso, la comparación pasa de `<=` a `<` | `T-23` | Un `INSERT` directo de `FREE → FREE` **entra**; el alta por API admite la renovación (`CA-PM-125`) y sigue rechazando el descenso con `EX-006` y `VAL-014` (`CA-PM-104`) | **Hecha el 07-09-2026** |
 | `T-32` | El **color** en `MembershipView` —el puerto de `SP`— y en `ProductResponse.MembershipRef`, que comparten las cinco respuestas del módulo | `T-05` | `CA-PM-141`. **Aditivo**: quien ya consume el puerto sigue leyendo los cuatro campos que leía | **Hecha el 07-09-2026** |
+| `T-33` | Migración `V67__products_precio_publico.sql`: la columna `public_price`, **el `DROP` de `ck_products_price_positive`** y los dos `CHECK` nuevos de `plan.md` §2.6 | — | `flyway:info` la lista aplicada. Un `INSERT` con `price = 0` **entra**; uno con `public_price` negativo se rechaza, y **con nulo entra** — que es la rama `IS NULL` explícita haciendo su trabajo | **Hecha el 08-09-2026** |
+| `T-34` | El campo en el agregado y en el contrato: `Product.publicPrice` con su mutador en `update`, `RegisterProductRequest`/`Command`, y las **tres** respuestas de administración —`ProductResponse`, `ProductItem`, `ProductDetailResponse`— con la escala de la moneda | `T-33` | `CA-PM-145`, `CA-PM-146`: informado sale con los decimales de su moneda; **ausente y nulo terminan los dos en la misma fila** y salen `null` **presentes** | **Hecha el 08-09-2026** |
+| `T-35` | La validación de los **dos** importes en un solo sitio: no negativo en el DTO y en el caso de uso, y `ProductPrice.cabeEn` contra la moneda **para cada uno**, con el `field` del que incumple | `T-34` | `CA-PM-147`, `CA-PM-148`, `CA-PM-149`. El error de un público con decimales de más **nombra `publicPrice`**, no `price`, aunque el del sistema sí quepa | **Hecha el 08-09-2026** |
+| `T-36` | El precio público en la **instantánea de auditoría** (`Product.instantanea`), como texto y nulo cuando no se declaró | `T-34` | `CA-PM-150`. El evento `CREATE` trae la clave `public_price`, y la trae **también** cuando vale nulo — sin ella no habría con qué contrastar una reclamación por «lo vi a otro precio» | **Hecha el 08-09-2026** |
+| `T-37` | **En `CM`**: `ProductCommissionCapGuard` deja de dividir a ciegas. Sobre precio cero, un valor fijo **mayor que cero** ocupa más del 100 % y se rechaza con el mensaje de `RN-CM-019`; uno de cero ocupa cero | `T-33` | `CA-CM-115` y `CA-CM-116`. **Sin esta tarea, asociar una tasa fija a un producto gratuito es un `500`** — la clase lo daba por imposible **por escrito**, citando la restricción que `T-33` relaja | **Hecha el 08-09-2026** |
 
 ## 2. Orden de ejecución
 
@@ -80,6 +85,10 @@
 | `CA-PM-104` | `T-24`, `T-25`, `T-26`, `T-31` |
 | `CA-PM-125` | `T-31` |
 | `CA-PM-141` | `T-32` |
+| `CA-PM-145`, `CA-PM-146` | `T-33`, `T-34` |
+| `CA-PM-147`, `CA-PM-148` | `T-35` |
+| `CA-PM-149` | `T-33`, `T-35` |
+| `CA-PM-150` | `T-36` |
 | `CA-PM-110`, `CA-PM-111` | `T-28`, `T-30` |
 | `CA-PM-112` | `T-28`, `T-30` |
 | `CA-PM-113` | `T-29`, `T-30` |

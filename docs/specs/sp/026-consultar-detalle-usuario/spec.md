@@ -9,6 +9,7 @@
 | Aprobada por | Responsable técnico |
 | Fecha de aprobación | 21-08-2026 |
 | Enmendada | 07-09-2026 — `RN-SP-034`: el detalle publica el país; `CA-SP-577` (Art. I.7) |
+| Enmendada | 08-09-2026 — `RN-SP-035` y `RN-SP-037`: el detalle publica el documento y el contacto; `CA-SP-593` (Art. I.7) |
 
 ---
 
@@ -71,6 +72,8 @@ Es también la pantalla a la que se acude cuando alguien no puede entrar, de mod
 | Usuario | Nombre de usuario, correo, nombre y estado |
 | Roles | Roles asignados, cada uno con su estado, para que se vea cuáles no están concediendo nada |
 | Permisos efectivos | Unión de los permisos de sus roles **activos**, ya resuelta |
+| Documento | El tipo **resuelto** —identificador, abreviación y nombre— y el número. **Puede faltar entero**: las personas anteriores al 08-09-2026 no lo tienen, y el esquema lo admite a propósito (`requirements/sp.md` §10.16) |
+| Contacto | Teléfono, dirección, complemento y ciudad. Los cuatro pueden ser nulos |
 | País | El país de la persona, resuelto —identificador, código y nombre—. **Está siempre** (`RN-SP-034`), y es el dato que esta consulta tiene que traer para que `RF-SP-027` pueda corregirlo: sin él, quien edita no sabe qué está cambiando |
 | Membresía | Membresía vigente y su nivel, cuando la persona tiene una |
 | Contexto de acceso | Último inicio de sesión y, si está bloqueada, el momento en que expira el bloqueo |
@@ -140,6 +143,7 @@ Es también la pantalla a la que se acude cuando alguien no puede entrar, de mod
 | `CA-SP-346` | La respuesta **no** contiene el número de intentos fallidos acumulados |
 | `CA-SP-218` | La respuesta no contiene ningún dato de la credencial, ni siquiera transformado |
 | `CA-SP-577` | El detalle devuelve el país **resuelto**, y lo devuelve igual cuando ese país está **inactivo** — desactivarlo retira la opción del alta, no oculta dónde está quien ya lo tenía |
+| `CA-SP-593` | El detalle devuelve el documento con su tipo **resuelto** y el contacto completo, y los devuelve **en nulo y no ausentes** para una persona que no los declaró |
 | `CA-SP-219` | El sistema informa que el usuario no existe cuando está eliminado lógicamente |
 | `CA-SP-220` | El sistema rechaza la consulta a un actor sin el permiso de lectura de usuarios |
 

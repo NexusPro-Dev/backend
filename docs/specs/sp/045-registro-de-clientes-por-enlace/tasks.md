@@ -84,6 +84,15 @@
 
 **Y deja abierto el bloqueo 6**, que es lo que esta enmienda no puede cerrar sola.
 
+## 4.ter El formulario público exige documento y teléfono — enmienda del 08-09-2026
+
+**La tarea no se duplica aquí.** Es `T-60` de [`../024-registrar-usuario/tasks.md`](../024-registrar-usuario/tasks.md) §4.sexies, y está **bloqueada**.
+
+**Este endpoint es donde la validación de mayoría de edad se pone a prueba de verdad**: es el único alta que cualquiera puede ejecutar **sin credenciales**, y aun así **no ejecuta ninguna comprobación de edad**. Enviar `TI` falla por referencia inexistente, exactamente igual que enviar `XX` — porque el catálogo no tiene esa fila. Es el argumento de `RF-SP-051` puesto en el peor sitio posible.
+
+**El documento repetido no dice que lo esté**, al contrario que el nombre de usuario y el correo de `EX-005`. Un número de documento es un dato que se consigue, y confirmarle a un desconocido que esa persona tiene cuenta aquí es un problema distinto de ayudar a alguien a elegir otro nombre de usuario.
+
+**Y el bloqueo del catálogo público crece a dos.** El formulario necesita ahora la lista de **países** y la de **tipos de documento**, y ninguna de las dos es legible sin permiso. Con un catálogo era una excepción discutible; con dos es una **decisión de forma** — un endpoint público de catálogos bajo `/auth` con su propio límite de tasa, en lugar de dos parches. **Se fusiona con el bloqueo 6 y se decide una sola vez.**
 ## 5. Definición de terminado
 
 El requerimiento no está terminado hasta cumplir **todas** las condiciones de la constitución §16:

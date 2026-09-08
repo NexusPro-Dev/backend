@@ -97,6 +97,13 @@ class EndpointPermissionsIT extends IntegrationTestBase {
                   + " ADMINISTRACIÓN que le daría de paso las ventas de sus compañeros — y a un"
                   + " cliente, las de todo el mundo"),
           Map.entry(
+              "GET /api/v1/hotlinks/{username}/{code}",
+              "PÚBLICO POR DECISIÓN y no por definición (`RF-PM-008`): un enlace se abre antes de"
+                  + " registrarse. Es el primero del sistema que publica el nombre de una persona,"
+                  + " y su alcance está acotado dos veces — solo productos activos de alcance"
+                  + " HOTLINKS (`RN-PM-021`) y solo el nombre de quien es fuerza comercial"
+                  + " (`RN-PM-022`). El recorrido a ciegas lo acota el límite de tasa por origen"),
+          Map.entry(
               "GET /api/v1/movements/mine/{id}",
               "El detalle de lo propio (`RF-MV-008`): el alcance va dentro de la consulta y un"
                   + " movimiento ajeno responde `404`, igual que uno inexistente. Sin esta ruta el"

@@ -31,7 +31,13 @@ import org.springframework.stereotype.Component;
 import org.springframework.web.filter.OncePerRequestFilter;
 
 /**
- * Límite de tasa de los endpoints públicos de autenticación (`security.md` §5.5, issue #21).
+ * Límite de tasa de los endpoints públicos (`security.md` §5.5, issue #21).
+ *
+ * <p><b>Eran solo los de autenticación hasta el 08-09-2026</b>, cuando entró el hotlink
+ * (`RF-PM-008`): la primera ruta pública **por decisión** y no por definición, y la primera que se
+ * acota en un {@code GET}. Lo que allí se corta no es una ráfaga de credenciales sino el
+ * <b>recorrido a ciegas de nombres de usuario</b>, que es lo único que le queda a quien sondea un
+ * endpoint cuyos rechazos son todos el mismo {@code 404}.
  *
  * <p><b>Es un filtro y no una comprobación dentro del caso de uso</b>, y esa es la decisión que
  * gobierna el diseño. Lo que se quiere acotar es <b>el trabajo</b> que una ráfaga provoca, y desde
@@ -70,6 +76,16 @@ public class RateLimitFilter extends OncePerRequestFilter {
   private static final String RECOVERY = "/api/v1/auth/password-recovery";
   private static final String RECOVERY_CONFIRMATION = "/api/v1/auth/password-recovery/confirmation";
 
+  /**
+   * El hotlink es un <b>prefijo</b> y no una ruta, porque lleva dos variables (`RF-PM-008`).
+   *
+   * <p>Y ese prefijo es además <b>la llave del contador</b>, que es la mitad que importa: contar
+   * por URI daría un cubo distinto a cada nombre de usuario probado, y quien barre el padrón no
+   * repite ninguno. La cota que se pretende —una por origen sobre toda la familia— solo existe si
+   * las mil rutas distintas de un recorrido a ciegas caen en el mismo sitio.
+   */
+  private static final String HOTLINKS = "/api/v1/hotlinks/";
+
   /** Un cuerpo de autenticación son decenas de bytes; esto es holgura, no un límite funcional. */
   private static final int TOPE_DEL_CUERPO = 8 * 1024;
 
@@ -98,16 +114,21 @@ public class RateLimitFilter extends OncePerRequestFilter {
       HttpServletRequest peticion, HttpServletResponse respuesta, FilterChain cadena)
       throws ServletException, IOException {
 
-    Politica politica = politicaDe(peticion);
-    if (!ajustes.enabled() || politica == null) {
+    Regla regla = reglaDe(peticion);
+    if (!ajustes.enabled() || regla == null || regla.politica() == null) {
       cadena.doFilter(peticion, respuesta);
       return;
     }
 
+    Politica politica = regla.politica();
     HttpServletRequest envuelta =
         politica.acotaPorIdentidad() ? new CachedBodyRequest(peticion, TOPE_DEL_CUERPO) : peticion;
 
+    // La ruta es lo que se DEVUELVE —el `instance` del problema—; el ámbito es
+    // por lo que se CUENTA. Coinciden en los cuatro endpoints de sesión y no
+    // en el hotlink, que es justo donde la diferencia sostiene la cota.
     String ruta = peticion.getRequestURI();
+    String ambito = regla.ambito();
     String origen = ips.resolve(peticion);
 
     // El origen primero: es la cota que protege del rociado de contraseñas, y
@@ -115,13 +136,14 @@ public class RateLimitFilter extends OncePerRequestFilter {
     if (politica.acotaPorOrigen() && origen != null) {
       RateLimitLedger.Veredicto veredicto =
           contador.registrar(
-              llave(ruta, "ip", origen),
+              llave(ambito, "ip", origen),
               politica.porOrigen(),
               politica.ventana(),
               politica.penalizacion());
 
       if (!veredicto.admitida()) {
-        rechazar(envuelta, respuesta, veredicto, ruta, "origen", origen, politica.ventana());
+        rechazar(
+            respuesta, veredicto, peticion, ruta, ambito, "origen", origen, politica.ventana());
         return;
       }
     }
@@ -131,7 +153,7 @@ public class RateLimitFilter extends OncePerRequestFilter {
       if (identidad != null) {
         RateLimitLedger.Veredicto veredicto =
             contador.registrar(
-                llave(ruta, "id", identidad),
+                llave(ambito, "id", identidad),
                 politica.porIdentidad(),
                 politica.ventana(),
                 politica.penalizacion());
@@ -140,7 +162,15 @@ public class RateLimitFilter extends OncePerRequestFilter {
           // La identidad NO viaja al registro ni a la respuesta: decir «esta
           // cuenta está limitada» confirmaría que existe. Lo que se registra es
           // que hubo una ráfaga contra una identidad, no cuál.
-          rechazar(envuelta, respuesta, veredicto, ruta, "identidad", origen, politica.ventana());
+          rechazar(
+              respuesta,
+              veredicto,
+              peticion,
+              ruta,
+              ambito,
+              "identidad",
+              origen,
+              politica.ventana());
           return;
         }
       }
@@ -158,27 +188,50 @@ public class RateLimitFilter extends OncePerRequestFilter {
    * origen</b>, porque su cuerpo no lleva identidad ninguna —lleva un permiso— y lo que hay que
    * cortar ahí es probar permisos al azar.
    */
-  private Politica politicaDe(HttpServletRequest peticion) {
+  private Regla reglaDe(HttpServletRequest peticion) {
+    String ruta = peticion.getRequestURI();
+
+    // El hotlink es la única cota que NO protege un endpoint de autenticación,
+    // y por eso es la única que se mira en un GET (`RF-PM-008`). Se cuenta por
+    // el prefijo y no por la ruta: ver `HOTLINKS`.
+    if ("GET".equalsIgnoreCase(peticion.getMethod())) {
+      return ruta.startsWith(HOTLINKS) ? new Regla(HOTLINKS, ajustes.hotlink()) : null;
+    }
+
     if (!"POST".equalsIgnoreCase(peticion.getMethod())) {
       return null;
     }
-    String ruta = peticion.getRequestURI();
     if (LOGIN.equals(ruta)) {
-      return ajustes.login();
+      return new Regla(ruta, ajustes.login());
     }
     if (REFRESH.equals(ruta)) {
-      return ajustes.refresh();
+      return new Regla(ruta, ajustes.refresh());
     }
     // El literal más largo primero: la confirmación cuelga de la ruta de
     // solicitud, y comparar al revés le aplicaría la cota equivocada.
     if (RECOVERY_CONFIRMATION.equals(ruta)) {
-      return ajustes.recoveryConfirmation();
+      return new Regla(ruta, ajustes.recoveryConfirmation());
     }
     if (RECOVERY.equals(ruta)) {
-      return ajustes.recovery();
+      return new Regla(ruta, ajustes.recovery());
     }
     return null;
   }
+
+  /**
+   * La cota que aplica, y <b>bajo qué llave se cuenta</b>.
+   *
+   * <p>Existe porque en el hotlink las dos cosas dejaron de coincidir: hasta él, contar «por la
+   * ruta» era contar por el endpoint, porque cada endpoint acotado tenía una ruta fija. Con
+   * variables en el camino, seguir contando por la URI convertiría la cota en una por enlace — que
+   * es exactamente la que no sirve para lo que existe.
+   *
+   * @param ambito la llave del contador: la ruta en los cuatro endpoints de sesión, el prefijo de
+   *     la familia en el hotlink
+   * @param politica la cota; <b>puede ser nula</b> si la configuración no la declara, y entonces
+   *     esa ruta no se acota
+   */
+  private record Regla(String ambito, Politica politica) {}
 
   /**
    * El identificador que la petición declara, en minúsculas.
@@ -222,10 +275,11 @@ public class RateLimitFilter extends OncePerRequestFilter {
    * formatos de error según quién lo produjo.
    */
   private void rechazar(
-      HttpServletRequest peticion,
       HttpServletResponse respuesta,
       RateLimitLedger.Veredicto veredicto,
+      HttpServletRequest peticion,
       String ruta,
+      String ambito,
       String eje,
       String origen,
       Duration ventana)
@@ -250,7 +304,7 @@ public class RateLimitFilter extends OncePerRequestFilter {
 
     respuesta.getWriter().write(json.writeValueAsString(problema));
 
-    auditar(ruta, eje, origen, ventana);
+    auditar(peticion.getMethod(), ambito, eje, origen, ventana);
   }
 
   /**
@@ -259,8 +313,8 @@ public class RateLimitFilter extends OncePerRequestFilter {
    * <p>Y con transacción propia ({@code recordSecurity}), porque aquí no hay ninguna transacción de
    * negocio a la que unirse: la petición no llegó a ejecutarse.
    */
-  private void auditar(String ruta, String eje, String origen, Duration ventana) {
-    if (!contador.debeAvisar(llave(ruta, eje, origen == null ? "-" : origen), ventana)) {
+  private void auditar(String metodo, String ambito, String eje, String origen, Duration ventana) {
+    if (!contador.debeAvisar(llave(ambito, eje, origen == null ? "-" : origen), ventana)) {
       return;
     }
 
@@ -271,12 +325,15 @@ public class RateLimitFilter extends OncePerRequestFilter {
               Severity.ALTA,
               Outcome.FAILURE,
               null,
-              Map.of("operation", "POST " + ruta, "limit", eje)));
+              // El ÁMBITO y no la ruta: en el hotlink la ruta lleva el nombre
+              // de usuario probado, y el registro guardaría uno al azar de los
+              // mil de un recorrido — un dato personal a cambio de nada.
+              Map.of("operation", metodo + " " + ambito, "limit", eje)));
     } catch (RuntimeException fallo) {
       // Un fallo al auditar no debe convertir un 429 legible en un 500 opaco.
       // No se ignora: se registra con su correlación, que es lo que permite
       // detectar que la auditoría dejó de escribir.
-      LOG.error("No se pudo registrar el rechazo por límite de tasa en {}", ruta, fallo);
+      LOG.error("No se pudo registrar el rechazo por límite de tasa en {}", ambito, fallo);
     }
   }
 

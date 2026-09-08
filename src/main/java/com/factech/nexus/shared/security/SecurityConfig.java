@@ -65,7 +65,21 @@ public class SecurityConfig {
     // su contraseña no puede autenticarse para pedir recuperarla. La segunda la
     // autoriza el permiso temporal que la primera envía, no un token.
     "/api/v1/auth/password-recovery",
-    "/api/v1/auth/password-recovery/confirmation"
+    "/api/v1/auth/password-recovery/confirmation",
+    // EL HOTLINK (`RF-PM-008`), Y ES LA PRIMERA RUTA PÚBLICA POR DECISIÓN Y NO
+    // POR DEFINICIÓN. Las cinco de arriba lo son porque quien las llama no
+    // puede portar todavía un token; esta lo es porque UN ENLACE SE ABRE ANTES
+    // DE REGISTRARSE.
+    //
+    // Es también la primera que publica el nombre de una persona, y por eso su
+    // alcance está acotado dos veces: solo productos activos de alcance
+    // `HOTLINKS` (`RN-PM-021`) y solo el nombre de quien es fuerza comercial
+    // (`RN-PM-022`). Lo que no procede responde el MISMO `404` en los seis
+    // casos — distinguirlos convertiría el enlace en un oráculo de existencia.
+    //
+    // El recorrido a ciegas lo acota `RateLimitFilter` POR ORIGEN, y queda
+    // escrito que acotar no es impedir (`spec.md` §10).
+    "/api/v1/hotlinks/*/*"
   };
 
   /**

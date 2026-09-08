@@ -56,7 +56,8 @@ public class JpaProductQueryRepository implements ProductQueryRepository {
                m.level AS m_level, m.color AS m_color,
                p.source_membership_id AS s_id, s.code AS s_code, s.name AS s_name,
                s.level AS s_level, s.color AS s_color,
-               p.price AS price, p.currency_id AS c_id, c.code AS c_code,
+               p.price AS price, p.public_price AS public_price,
+               p.currency_id AS c_id, c.code AS c_code,
                c.decimal_places AS c_decimales,
                p.validity_days AS validity_days, p.scope AS scope,
                p.implementation AS implementation, p.status AS status,
@@ -100,6 +101,7 @@ public class JpaProductQueryRepository implements ProductQueryRepository {
               entero(fila.get("m_level")),
               (String) fila.get("m_color"),
               (BigDecimal) fila.get("price"),
+              (BigDecimal) fila.get("public_price"),
               (UUID) fila.get("c_id"),
               (String) fila.get("c_code"),
               ((Number) fila.get("c_decimales")).intValue(),
@@ -146,7 +148,8 @@ public class JpaProductQueryRepository implements ProductQueryRepository {
                        m.level AS m_level, m.color AS m_color, m.color AS m_color,
                        p.source_membership_id AS s_id, s.code AS s_code, s.name AS s_name,
                        s.level AS s_level, s.color AS s_color, s.color AS s_color,
-                       p.price AS price, p.currency_id AS c_id, c.code AS c_code,
+                       p.price AS price, p.public_price AS public_price,
+                       p.currency_id AS c_id, c.code AS c_code,
                        c.decimal_places AS c_decimales,
                        p.validity_days AS validity_days, p.scope AS scope,
                        p.implementation AS implementation, p.status AS status,
@@ -184,6 +187,7 @@ public class JpaProductQueryRepository implements ProductQueryRepository {
                     entero(fila.get("m_level")),
                     (String) fila.get("m_color"),
                     (BigDecimal) fila.get("price"),
+                    (BigDecimal) fila.get("public_price"),
                     (UUID) fila.get("c_id"),
                     (String) fila.get("c_code"),
                     ((Number) fila.get("c_decimales")).intValue(),
@@ -248,7 +252,8 @@ public class JpaProductQueryRepository implements ProductQueryRepository {
                        s.level AS s_level, s.color AS s_color, s.color AS s_color,
                        p.target_membership_id AS m_id, m.code AS m_code, m.name AS m_name,
                        m.level AS m_level, m.color AS m_color, m.color AS m_color,
-                       p.price AS price, p.currency_id AS c_id, c.code AS c_code,
+                       COALESCE(p.public_price, p.price) AS price,
+                       p.currency_id AS c_id, c.code AS c_code,
                        c.decimal_places AS c_decimales,
                        p.validity_days AS validity_days, p.scope AS scope,
                        p.implementation AS implementation, p.status AS status,
@@ -291,6 +296,12 @@ public class JpaProductQueryRepository implements ProductQueryRepository {
               entero(fila.get("m_level")),
               (String) fila.get("m_color"),
               (BigDecimal) fila.get("price"),
+              // `public_price` NO SE SELECCIONA en esta consulta, y por eso va
+              // nulo: el importe a mostrar ya viene resuelto arriba con el
+              // `COALESCE`. Es el mismo trato que reciben `updated_at` y
+              // `deleted_at` — seleccionar un dato para descartarlo sugiere que
+              // alguien podría leerlo, y aquí ese alguien lo publicaría.
+              null,
               (UUID) fila.get("c_id"),
               (String) fila.get("c_code"),
               ((Number) fila.get("c_decimales")).intValue(),
@@ -310,6 +321,95 @@ public class JpaProductQueryRepository implements ProductQueryRepository {
 
   // ---------------------------------------------------------------------------
   // El predicado, en un solo sitio
+
+  /**
+   * El producto del hotlink (`RF-PM-008` · `T-04`).
+   *
+   * <p><b>Tres condiciones y ninguna sobra</b>: activo (`RN-PM-009`), no retirado y de alcance
+   * {@code HOTLINKS} (`RN-PM-021`). El tercero es el que hace que `RN-PM-019` **filtre por primera
+   * vez** — llevaba desde el 07-09-2026 declarado sin acotar ninguna consulta.
+   *
+   * <p><b>Reutiliza la misma proyección que el detalle</b>, con las mismas uniones externas: dos
+   * formas del mismo dato acabarían con dos criterios de «publicado» que divergen.
+   */
+  @Override
+  @Transactional(readOnly = true)
+  public Optional<ProductRow> findPublishedByCode(String code) {
+    if (code == null || code.isBlank()) {
+      return Optional.empty();
+    }
+    List<Tuple> filas =
+        em.createNativeQuery(
+                """
+                SELECT p.id AS id, p.code AS code, p.type AS type, p.name AS name,
+                       p.description AS description, p.icon AS icon,
+                       p.target_membership_id AS m_id, m.code AS m_code, m.name AS m_name,
+                       m.level AS m_level, m.color AS m_color,
+                       p.source_membership_id AS s_id, s.code AS s_code, s.name AS s_name,
+                       s.level AS s_level, s.color AS s_color,
+                       COALESCE(p.public_price, p.price) AS price,
+                       p.currency_id AS c_id, c.code AS c_code,
+                       c.decimal_places AS c_decimales,
+                       p.validity_days AS validity_days, p.scope AS scope,
+                       p.implementation AS implementation, p.status AS status,
+                       p.created_at AS created_at
+                  FROM products p
+                  LEFT JOIN memberships m ON m.id = p.target_membership_id
+                  LEFT JOIN memberships s ON s.id = p.source_membership_id
+                  LEFT JOIN currencies  c ON c.id = p.currency_id
+                 WHERE upper(p.code) = upper(:codigo)
+                   AND p.status = 'ACTIVO'
+                   AND p.deleted_at IS NULL
+                   AND p.scope = 'HOTLINKS'
+                """,
+                Tuple.class)
+            .setParameter("codigo", code)
+            .getResultList();
+
+    return filas.stream().findFirst().map(JpaProductQueryRepository::fila);
+  }
+
+  /**
+   * La proyección, en un solo sitio: dos copias divergirían campo a campo.
+   *
+   * <p><b>La usa solo {@code findPublishedByCode}</b>, que es la lectura <b>pública</b>. Su {@code
+   * price} viene ya resuelto por el {@code COALESCE} de la consulta —es el importe a mostrar— y
+   * {@code publicPrice} va <b>nulo a propósito</b>: por esta lectura solo viaja un número
+   * (`RN-PM-024`), y el precio del sistema no puede publicarse ni por descuido.
+   */
+  private static ProductRow fila(Tuple fila) {
+    return new ProductRow(
+        (UUID) fila.get("id"),
+        (String) fila.get("code"),
+        (String) fila.get("type"),
+        (String) fila.get("name"),
+        (String) fila.get("description"),
+        (String) fila.get("icon"),
+        (UUID) fila.get("s_id"),
+        (String) fila.get("s_code"),
+        (String) fila.get("s_name"),
+        entero(fila.get("s_level")),
+        (String) fila.get("s_color"),
+        (UUID) fila.get("m_id"),
+        (String) fila.get("m_code"),
+        (String) fila.get("m_name"),
+        entero(fila.get("m_level")),
+        (String) fila.get("m_color"),
+        (BigDecimal) fila.get("price"),
+        // Nulo a propósito: ver el Javadoc de arriba.
+        null,
+        (UUID) fila.get("c_id"),
+        (String) fila.get("c_code"),
+        ((Number) fila.get("c_decimales")).intValue(),
+        entero(fila.get("validity_days")),
+        (String) fila.get("scope"),
+        (String) fila.get("implementation"),
+        (String) fila.get("status"),
+        momento(fila.get("created_at")),
+        null,
+        null);
+  }
+
   // ---------------------------------------------------------------------------
 
   /**

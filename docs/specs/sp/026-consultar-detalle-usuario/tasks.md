@@ -139,6 +139,14 @@ graph LR
 
 **Lo que sí es decisión de este requerimiento** y queda en `plan.md` §4: el país se devuelve **también cuando está inactivo**. Es la pantalla desde la que se decide mover a alguien con `RF-SP-027`, y ocultarle que su país fue retirado sería ocultarle justo el motivo por el que hay que moverlo.
 
+## 4.quater El detalle publica el documento y el contacto — enmienda del 08-09-2026
+
+`RN-SP-035` y `RN-SP-037` añaden a `users` la identidad documental y los datos de contacto, y este detalle los publica (`spec.md` §6.2, `CA-SP-593`).
+
+**La tarea no se duplica aquí.** Es `T-57` de [`../024-registrar-usuario/tasks.md`](../024-registrar-usuario/tasks.md) §4.sexies.
+
+**Lo que sí es decisión de este requerimiento** y queda en `plan.md` §4: el tipo de documento se resuelve con un **`LEFT JOIN` y no con uno interno**. Puede faltar —las personas anteriores a `V68` no tienen documento—, y un `JOIN` interno **haría desaparecer del detalle** a toda persona sin él. No fallaría: ocultaría, que es el error más caro posible en la pantalla desde la que se administra.
+
 ## 5. Definición de terminado
 
 El requerimiento no está terminado hasta cumplir **todas** las condiciones de la constitución §16:

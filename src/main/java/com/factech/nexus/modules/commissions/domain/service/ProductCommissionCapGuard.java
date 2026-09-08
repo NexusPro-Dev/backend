@@ -42,6 +42,20 @@ import org.springframework.stereotype.Service;
 public class ProductCommissionCapGuard {
 
   private static final BigDecimal CIEN = new BigDecimal("100");
+
+  /**
+   * Lo que ocupa un valor fijo mayor que cero sobre un producto de <b>precio cero</b>.
+   *
+   * <p>No es un número arbitrario ni un centinela: es la respuesta correcta a la pregunta que hace
+   * {@link #ocupado}. Un producto que no cobra nada no puede pagar ningún importe, de modo que
+   * cualquier importe fijo es <b>más</b> del cien por cien de lo que cobra — y basta con que la
+   * suma lo supere para que `RN-CM-019` lo rechace con su mensaje de siempre.
+   *
+   * <p>Se elige un valor que <b>por sí solo</b> pasa del tope para que no dependa de lo que sumen
+   * las demás tasas: con `100` exacto, una fila así pasaría inadvertida si fuera la única.
+   */
+  private static final BigDecimal MAS_DE_CIEN = new BigDecimal("101");
+
   private static final MathContext PRECISION = new MathContext(20, RoundingMode.HALF_UP);
 
   /**
@@ -122,14 +136,35 @@ public class ProductCommissionCapGuard {
   }
 
   /**
-   * El porcentaje que una fila ocupa. El precio nunca es cero —{@code ck_products_price_positive}
-   * lo garantiza desde `V39`, y esta clase confía en esa garantía en lugar de defenderse de un
-   * estado que el propio esquema hace imposible.
+   * El porcentaje que una fila ocupa.
+   *
+   * <h2>El precio SÍ puede ser cero desde el 08-09-2026, y esta clase decía por escrito que no</h2>
+   *
+   * <p>Decía que «el precio nunca es cero — {@code ck_products_price_positive} lo garantiza desde
+   * `V39`», y confiaba en esa garantía en lugar de defenderse. **`V67` retiró esa restricción** y
+   * la sustituyó por {@code ck_products_price_no_negativo} (`RN-PM-006`), para admitir la
+   * renovación de una membresía gratuita: la división de abajo pasó a poder ser <b>entre cero</b>.
+   *
+   * <p><b>La resolución no necesita ninguna regla nueva</b>: es `RN-CM-019` llevada a su límite. Un
+   * producto que <b>no cobra nada</b> no puede pagar ningún importe fijo, de modo que cualquier
+   * valor fijo mayor que cero ocupa <b>más del cien por cien</b> de lo que ese producto cobra y lo
+   * rechaza el mismo tope, con el mismo mensaje que cualquier otro exceso. Un valor fijo de
+   * <b>cero</b> ocupa cero. Un <b>porcentaje</b> no se ve afectado: no divide por nada.
+   *
+   * <p>Lo que hay que leer de esto no es el arreglo: es que <b>una clase de `CM` dependía de una
+   * restricción de `PM`</b>, lo decía en su Javadoc con el nombre de la restricción, y aun así el
+   * cambio pudo llegar sin que nada fallara al compilar. Lo destapó leer el comentario.
    */
   private BigDecimal ocupado(
       CommissionRateType tipo, BigDecimal percentage, BigDecimal fixedAmount, BigDecimal precio) {
     if (tipo == CommissionRateType.PORCENTAJE) {
       return percentage;
+    }
+    if (precio.compareTo(BigDecimal.ZERO) == 0) {
+      // `compareTo` y no `equals`: `0`, `0.00` y `0.0000` son el mismo cero con
+      // distinta escala, y `equals` los daría por distintos — la fila leída de
+      // la base llega con la escala de la columna, `numeric(14,4)`.
+      return fixedAmount.compareTo(BigDecimal.ZERO) == 0 ? BigDecimal.ZERO : MAS_DE_CIEN;
     }
     return fixedAmount.divide(precio, PRECISION).multiply(CIEN);
   }

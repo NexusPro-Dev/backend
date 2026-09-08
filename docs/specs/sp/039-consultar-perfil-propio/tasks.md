@@ -121,6 +121,14 @@ Y el <b>recorrido completo</b>, que ninguno de los tres requerimientos verifica 
 
 **Lo que esta enmienda no hace:** el perfil publica el país y **no lo deja cambiar**. `RF-SP-044` tampoco lo admite; lo corrige un administrador por `RF-SP-027`.
 
+## 4.quater El perfil publica el documento y el contacto del actor — enmienda del 08-09-2026
+
+**La tarea no se duplica aquí.** Es `T-57` de [`../024-registrar-usuario/tasks.md`](../024-registrar-usuario/tasks.md) §4.sexies.
+
+**Lo que sí es de este requerimiento**: el contacto se publica aquí **para que `RF-SP-044` pueda precargarse**. Sin él, quien quisiera cambiar solo su ciudad tendría que reescribir de memoria el resto del formulario.
+
+Y la simetría con lo de ayer conviene verla: `country` **no puede** llegar nulo y `document` **sí**. Los dos viajan en la misma respuesta con inclusión `NON_NULL`, y en el primero un nulo sería una violación de integridad mientras que en el segundo es la verdad sobre una persona anterior a `V68`.
+
 ## 5. Definición de terminado
 
 El requerimiento no está terminado hasta cumplir **todas** las condiciones de la constitución §16:

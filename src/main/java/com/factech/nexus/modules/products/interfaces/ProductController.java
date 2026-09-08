@@ -113,6 +113,21 @@ public class ProductController {
           producto —`HOTLINKS` **incluye** `TIENDA`, no la sustituye— e
           `implementation` dice si lo comprado se aplica solo (`AUTOMATICA`) o
           espera a que un funcionario lo autorice (`MANUAL`).
+
+          **Un producto lleva DOS precios y solo uno se cobra.** `price` es el
+          del sistema —el que copia la venta y sobre el que se comisiona— y
+          `publicPrice` es con el que **se anuncia**: es **opcional**, no
+          interviene en ningún cálculo y se expresa en la **misma moneda**.
+          Ausente o nulo significan lo mismo —el producto se anuncia con el del
+          sistema—, y **eso no es «vale cero»** (`RN-PM-023`).
+
+          Los dos importes se validan igual: **no negativos** —el **cero se
+          admite** desde que existe la renovación de una membresía gratuita— y
+          con los decimales que declare su moneda. El rechazo **nombra el
+          campo** que incumple.
+
+          **Los dos solo se ven desde administración** (`RN-PM-024`): la oferta
+          de un cliente y el hotlink público devuelven **uno**.
           """)
   @ApiResponses({
     @ApiResponse(
@@ -155,10 +170,16 @@ public class ProductController {
           bloque sería una exportación de decisiones comerciales—. Verlos **no
           exige un permiso propio**: basta `products:read`.
 
+          Cada fila trae **los dos precios**: `price` —el que se cobra— y
+          `publicPrice` —el que se anuncia—, este **presente y nulo** en los
+          productos que no lo declaran. Este listado y el detalle son los
+          **únicos** sitios donde se ven juntos (`RN-PM-024`).
+
           Solo se puede ordenar por la lista blanca —`name`, `price`,
-          `createdAt`—, con `,asc` o `,desc`. **Un campo fuera de ella se
-          rechaza y no se ignora**: ignorarlo devolvería un orden distinto del
-          pedido sin decirlo. Por omisión se ordena por **fecha de alta
+          `createdAt`—, con `,asc` o `,desc`. **`publicPrice` no está en ella**:
+          ordenar por lo que se anuncia no responde ninguna pregunta de quien
+          administra. **Un campo fuera de la lista se rechaza y no se ignora**:
+          ignorarlo devolvería un orden distinto del pedido sin decirlo. Por omisión se ordena por **fecha de alta
           descendente**, y el orden aplicado viaja en la respuesta.
 
           **`targetMembershipId` no se valida contra el catálogo de membresías.**
@@ -274,9 +295,21 @@ public class ProductController {
           **Quien está en la cima recibe la lista de upgrades vacía.** No es un
           error ni un mensaje especial: es una lista vacía.
 
-          **El precio es el del producto, igual para todos.** Un importe
-          distinto según quién mira sería un descuento, y los descuentos son
-          promociones, que están fuera de alcance.
+          **El precio es igual para todos**: un importe distinto según quién
+          mira sería un descuento, y los descuentos son promociones, que están
+          fuera de alcance.
+
+          **Y es el precio A MOSTRAR, no necesariamente el que se cobra.** Un
+          producto puede declarar un **precio público** además del del sistema
+          (`RN-PM-023`); esta respuesta publica el público si existe y el del
+          sistema si no, y **nunca los dos** — enseñar el par publicaría la
+          diferencia entre lo que se anuncia y lo que se cobra (`RN-PM-024`).
+          Cuál de los dos se publica lo decide el **producto**, no quien mira,
+          de modo que dos personas siguen viendo el mismo importe.
+
+          **Quien construya la pantalla de compra tiene que saberlo**: el
+          importe que confirma la venta sale de `products.price` y puede no ser
+          este número.
 
           Las dos colecciones viajan **envueltas en un objeto** y no como
           arreglos en la raíz: hoy la oferta no se pagina, y así el día que
@@ -372,16 +405,20 @@ public class ProductController {
       summary = "Corregir un producto",
       description =
           """
-          Corrige el **nombre**, la **descripción**, el **icono**, el **precio**,
-          la **moneda**, la **vigencia**, el **alcance** y la
+          Corrige el **nombre**, la **descripción**, el **icono**, **los dos
+          precios**, la **moneda**, la **vigencia**, el **alcance** y la
           **implementación**. Se aplica lo que llega y se deja intacto lo que
           no.
 
           **Distingue el campo ausente del enviado vacío**, y de ahí salen dos
-          comportamientos opuestos: `description: null`, `icon: null` y
-          `validityDays: null` **vacían** el campo —el producto pasa a no
-          caducar—, mientras que `name: null` se **rechaza**, porque un producto
-          sin nombre no puede existir.
+          comportamientos opuestos: `description: null`, `icon: null`,
+          `validityDays: null` y `publicPrice: null` **vacían** el campo,
+          mientras que `name: null` y `price: null` se **rechazan**, porque un
+          producto sin nombre o sin precio del sistema no puede existir.
+
+          **Vaciar `publicPrice` NO es ponerlo a cero**: con nulo el producto
+          vuelve a anunciarse con el precio del sistema, y con cero se anuncia
+          gratis. Son dos estados distintos y los dos se alcanzan desde aquí.
 
           **`scope: null` e `implementation: null` también se rechazan**, y ahí
           van con el nombre y no con la descripción: son obligatorios en la
@@ -402,10 +439,12 @@ public class ProductController {
           ignorarlos haría creer que el cambio se aplicó. Definen qué derecho
           otorga el producto, y cambiarlos convertiría lo comprado en otra cosa.
 
-          **El precio se valida contra la moneda NUEVA** cuando llegan las dos.
-          Y el importe **no se convierte**: el sistema no hace conversión de
-          divisa — cambiar de moneda es declarar que ese número siempre estuvo
-          en la otra.
+          **Los DOS importes se validan contra la moneda que va a quedar**, y no
+          solo el que llega en la petición: cambiar **solo** la moneda puede
+          dejar sin caber a un precio que nadie tocó, y el rechazo **nombra el
+          campo** que no cabe. Y el importe **no se convierte**: el sistema no
+          hace conversión de divisa — cambiar de moneda es declarar que ese
+          número siempre estuvo en la otra.
 
           **Un producto retirado no se corrige**: lo que se retiró debe quedar
           como estaba para que lo que lo referencie siga diciendo la verdad.
@@ -422,7 +461,8 @@ public class ProductController {
         responseCode = "400",
         description =
             "Identificador sin forma canónica (`VAL-001`), nombre vacío o ningún campo informado"
-                + " (`VAL-002`), longitud excedida (`VAL-003`), precio no positivo (`VAL-004`),"
+                + " (`VAL-002`), longitud excedida (`VAL-003`), precio negativo o precio del"
+                + " sistema vaciado (`VAL-004`),"
                 + " decimales que la moneda no admite (`VAL-005`), campos inmutables en la"
                 + " petición (`VAL-006`) o vigencia no positiva (`VAL-011`)",
         content = @Content),

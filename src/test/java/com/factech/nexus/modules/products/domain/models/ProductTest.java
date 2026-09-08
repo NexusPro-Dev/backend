@@ -88,6 +88,7 @@ class ProductTest {
                     null,
                     DESTINO,
                     new BigDecimal("49.99"),
+                    null,
                     MONEDA,
                     null,
                     ProductScope.TIENDA,
@@ -117,6 +118,7 @@ class ProductTest {
             ORIGEN,
             DESTINO,
             new BigDecimal("19.99"),
+            null,
             MONEDA,
             30,
             ProductScope.TIENDA,
@@ -140,6 +142,7 @@ class ProductTest {
             null,
             null,
             new BigDecimal("10.00"),
+            null,
             MONEDA,
             null,
             ProductScope.TIENDA,
@@ -218,6 +221,7 @@ class ProductTest {
             null,
             null,
             new BigDecimal("49.99"),
+            null,
             MONEDA,
             null,
             ProductScope.TIENDA,
@@ -269,6 +273,7 @@ class ProductTest {
             ORIGEN,
             DESTINO,
             new BigDecimal("49.99"),
+            null,
             MONEDA,
             30,
             ProductScope.TIENDA,
@@ -327,6 +332,7 @@ class ProductTest {
             Patchable.ausente(),
             Patchable.ausente(),
             Patchable.ausente(),
+            Patchable.ausente(),
             AHORA.plusDays(1));
 
     // El precio se compara por VALOR y no por `equals`: `49.99` y `49.9900` son
@@ -346,6 +352,7 @@ class ProductTest {
     Map<String, Object> cambios =
         producto.update(
             Patchable.de("Asesoría premium"),
+            Patchable.ausente(),
             Patchable.ausente(),
             Patchable.ausente(),
             Patchable.ausente(),
@@ -376,6 +383,7 @@ class ProductTest {
             null,
             null,
             new BigDecimal("49.99"),
+            null,
             MONEDA,
             30,
             ProductScope.TIENDA,
@@ -384,6 +392,7 @@ class ProductTest {
 
     producto.update(
         Patchable.de("Asesoría premium"),
+        Patchable.ausente(),
         Patchable.ausente(),
         Patchable.ausente(),
         Patchable.ausente(),
@@ -412,6 +421,7 @@ class ProductTest {
             null,
             null,
             new BigDecimal("49.99"),
+            null,
             MONEDA,
             30,
             ProductScope.TIENDA,
@@ -422,6 +432,7 @@ class ProductTest {
         producto.update(
             Patchable.ausente(),
             Patchable.de(null),
+            Patchable.ausente(),
             Patchable.ausente(),
             Patchable.ausente(),
             Patchable.ausente(),
@@ -457,6 +468,7 @@ class ProductTest {
             Patchable.ausente(),
             Patchable.ausente(),
             Patchable.ausente(),
+            Patchable.ausente(),
             AHORA.plusDays(1));
 
     // La unicidad ignora caja y acentos, pero el VALOR guardado no: `Plan Oro`
@@ -481,6 +493,7 @@ class ProductTest {
                     null,
                     null,
                     new BigDecimal("49.99"),
+                    null,
                     MONEDA,
                     null,
                     ProductScope.TIENDA,
@@ -537,6 +550,7 @@ class ProductTest {
             Patchable.ausente(),
             Patchable.ausente(),
             Patchable.ausente(),
+            Patchable.ausente(),
             AHORA.plusDays(1));
 
     assertThat(producto.getIcon()).isEqualTo("rocket");
@@ -548,6 +562,7 @@ class ProductTest {
             Patchable.ausente(),
             Patchable.ausente(),
             Patchable.de(null),
+            Patchable.ausente(),
             Patchable.ausente(),
             Patchable.ausente(),
             Patchable.ausente(),
@@ -576,6 +591,7 @@ class ProductTest {
                     Patchable.ausente(),
                     Patchable.ausente(),
                     Patchable.ausente(),
+                    Patchable.ausente(),
                     AHORA.plusDays(1)),
             ValidationException.class);
 
@@ -583,6 +599,205 @@ class ProductTest {
     assertThat(fallo.errorCode()).isEqualTo("VAL-013");
     // Y el producto no se queda a medias: el rechazo ocurre antes de asignar.
     assertThat(producto.getIcon()).isNull();
+  }
+
+  // ---------------------------------------------------------------------------
+  // Los dos precios (`RN-PM-023`, `RN-PM-006`) — 08-09-2026
+  // ---------------------------------------------------------------------------
+
+  @Test
+  @DisplayName("`RN-PM-023` — sin precio público el producto se anuncia con el del sistema")
+  void sinPrecioPublicoSeAnunciaConElDelSistema() {
+    Product producto = bot("ASESORIA");
+
+    // El nulo se CONSERVA y no se normaliza a cero: son dos estados distintos,
+    // y aquí el nulo significa «este producto no declara precio público».
+    assertThat(producto.getPublicPrice()).isNull();
+    assertThat(producto.getDisplayPrice()).isEqualByComparingTo("49.99");
+  }
+
+  @Test
+  @DisplayName("`RN-PM-023` — con precio público, lo que se muestra es ESE y no el del sistema")
+  void conPrecioPublicoSeMuestraElPublico() {
+    Product producto = conPrecios(new BigDecimal("49.99"), new BigDecimal("59.99"));
+
+    assertThat(producto.getPrice()).isEqualByComparingTo("49.99");
+    assertThat(producto.getPublicPrice()).isEqualByComparingTo("59.99");
+    assertThat(producto.getDisplayPrice()).isEqualByComparingTo("59.99");
+  }
+
+  @Test
+  @DisplayName(
+      "`RN-PM-023` — un precio público de CERO se muestra, y no se confunde con no tenerlo")
+  void elPrecioPublicoCeroSeMuestra() {
+    Product producto = conPrecios(new BigDecimal("49.99"), BigDecimal.ZERO);
+
+    // Anunciar «gratis» y «no declarar precio público» son dos cosas distintas,
+    // y la diferencia se ve en la tienda.
+    assertThat(producto.getPublicPrice()).isEqualByComparingTo("0");
+    assertThat(producto.getDisplayPrice()).isEqualByComparingTo("0");
+  }
+
+  @Test
+  @DisplayName("`RN-PM-006` · `CA-PM-149` — el precio de CERO se admite: es la renovación gratuita")
+  void admiteElPrecioCero() {
+    assertThatCode(() -> conPrecios(BigDecimal.ZERO, BigDecimal.ZERO)).doesNotThrowAnyException();
+
+    // Hasta el 08-09-2026 esto era imposible, y lo que lo hizo posible no fue el
+    // precio público sino la renovación: un `FREE → FREE` vale cero.
+    assertThat(conPrecios(BigDecimal.ZERO, null).getDisplayPrice()).isEqualByComparingTo("0");
+  }
+
+  @Test
+  @DisplayName("`CA-PM-150` — la instantánea lleva el precio público, y lo escribe NULO si no hay")
+  void laInstantaneaLlevaElPrecioPublico() {
+    assertThat(conPrecios(new BigDecimal("49.99"), new BigDecimal("59.99")).instantanea())
+        .containsEntry("price", "49.99")
+        .containsEntry("public_price", "59.99");
+
+    // La clave está PRESENTE con valor nulo: sin ella no habría contra qué
+    // contrastar una reclamación por «lo vi a otro precio».
+    Map<String, Object> sinPublico = bot("ASESORIA").instantanea();
+    assertThat(sinPublico).containsKey("public_price");
+    assertThat(sinPublico.get("public_price")).isNull();
+  }
+
+  @Test
+  @DisplayName("`CA-PM-153` — corregir el precio público no toca el del sistema, y se audita")
+  void corregirElPrecioPublico() {
+    Product producto = conPrecios(new BigDecimal("49.99"), new BigDecimal("59.99"));
+
+    Map<String, Object> cambios =
+        producto.update(
+            Patchable.ausente(),
+            Patchable.ausente(),
+            Patchable.ausente(),
+            Patchable.ausente(),
+            Patchable.de(new BigDecimal("69.99")),
+            Patchable.ausente(),
+            Patchable.ausente(),
+            Patchable.ausente(),
+            Patchable.ausente(),
+            AHORA.plusDays(1));
+
+    assertThat(cambios).containsOnlyKeys("public_price");
+    assertThat(cambios.get("public_price")).isEqualTo(Map.of("before", "59.99", "after", "69.99"));
+    assertThat(producto.getPrice()).isEqualByComparingTo("49.99");
+    assertThat(producto.getPublicPrice()).isEqualByComparingTo("69.99");
+  }
+
+  @Test
+  @DisplayName(
+      "`CA-PM-154` — el nulo explícito VACÍA el precio público, y eso NO es ponerlo a cero")
+  void vaciarElPrecioPublico() {
+    Product producto = conPrecios(new BigDecimal("49.99"), new BigDecimal("59.99"));
+
+    Map<String, Object> cambios =
+        producto.update(
+            Patchable.ausente(),
+            Patchable.ausente(),
+            Patchable.ausente(),
+            Patchable.ausente(),
+            Patchable.de(null),
+            Patchable.ausente(),
+            Patchable.ausente(),
+            Patchable.ausente(),
+            Patchable.ausente(),
+            AHORA.plusDays(1));
+
+    assertThat(cambios).containsOnlyKeys("public_price");
+    assertThat(cambios.get("public_price")).isEqualTo(Map.of("before", "59.99", "after", ""));
+
+    // El producto vuelve a anunciarse con el precio del sistema. Ponerlo a cero
+    // lo habría dejado anunciando que es gratis, que es lo contrario.
+    assertThat(producto.getPublicPrice()).isNull();
+    assertThat(producto.getDisplayPrice()).isEqualByComparingTo("49.99");
+  }
+
+  @Test
+  @DisplayName("`CA-PM-156` — corregir el precio público a CERO es un cambio, y no un vaciado")
+  void corregirElPrecioPublicoACero() {
+    Product producto = conPrecios(new BigDecimal("49.99"), new BigDecimal("59.99"));
+
+    producto.update(
+        Patchable.ausente(),
+        Patchable.ausente(),
+        Patchable.ausente(),
+        Patchable.ausente(),
+        Patchable.de(BigDecimal.ZERO),
+        Patchable.ausente(),
+        Patchable.ausente(),
+        Patchable.ausente(),
+        Patchable.ausente(),
+        AHORA.plusDays(1));
+
+    assertThat(producto.getPublicPrice()).isEqualByComparingTo("0");
+    assertThat(producto.getDisplayPrice()).isEqualByComparingTo("0");
+  }
+
+  @Test
+  @DisplayName("vaciar un precio público que no existía NO es un cambio: no entra en el diff")
+  void vaciarLoQueNoHabiaNoEsUnCambio() {
+    Product producto = bot("ASESORIA");
+    OffsetDateTime antes = producto.getUpdatedAt();
+
+    Map<String, Object> cambios =
+        producto.update(
+            Patchable.ausente(),
+            Patchable.ausente(),
+            Patchable.ausente(),
+            Patchable.ausente(),
+            Patchable.de(null),
+            Patchable.ausente(),
+            Patchable.ausente(),
+            Patchable.ausente(),
+            Patchable.ausente(),
+            AHORA.plusDays(1));
+
+    assertThat(cambios).isEmpty();
+    assertThat(producto.getUpdatedAt()).isEqualTo(antes);
+  }
+
+  @Test
+  @DisplayName("el precio público se compara por VALOR: `59.99` y `59.9900` no son un cambio")
+  void elPrecioPublicoSeComparaPorValor() {
+    Product producto = conPrecios(new BigDecimal("49.99"), new BigDecimal("59.99"));
+
+    Map<String, Object> cambios =
+        producto.update(
+            Patchable.ausente(),
+            Patchable.ausente(),
+            Patchable.ausente(),
+            Patchable.ausente(),
+            Patchable.de(new BigDecimal("59.9900")),
+            Patchable.ausente(),
+            Patchable.ausente(),
+            Patchable.ausente(),
+            Patchable.ausente(),
+            AHORA.plusDays(1));
+
+    // `equals` los daría por distintos y el registro se llenaría de cambios que
+    // no cambian nada. Es lo mismo que ya hacía el precio del sistema.
+    assertThat(cambios).isEmpty();
+  }
+
+  private static Product conPrecios(BigDecimal precio, BigDecimal precioPublico) {
+    return Product.create(
+        UUID.randomUUID(),
+        "UPGRADE_ORO",
+        ProductType.UPGRADE_MEMBRESIA,
+        "Ascenso a Oro",
+        null,
+        null,
+        ORIGEN,
+        DESTINO,
+        precio,
+        precioPublico,
+        MONEDA,
+        null,
+        ProductScope.TIENDA,
+        ProductImplementation.AUTOMATICA,
+        AHORA);
   }
 
   private static Product upgradeConIcono(String icono) {
@@ -596,6 +811,7 @@ class ProductTest {
         ORIGEN,
         DESTINO,
         new BigDecimal("49.99"),
+        null,
         MONEDA,
         null,
         ProductScope.TIENDA,
@@ -618,6 +834,7 @@ class ProductTest {
         origen,
         destino,
         new BigDecimal("49.99"),
+        null,
         MONEDA,
         null,
         ProductScope.TIENDA,
@@ -636,6 +853,7 @@ class ProductTest {
         null,
         null,
         new BigDecimal("49.99"),
+        null,
         MONEDA,
         null,
         ProductScope.TIENDA,

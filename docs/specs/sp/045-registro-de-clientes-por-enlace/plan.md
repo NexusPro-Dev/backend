@@ -9,6 +9,7 @@
 | Aprobado por | Responsable del proyecto |
 | Fecha de aprobación | 01-09-2026 |
 | Reabierto el | 07-09-2026 — `RN-SP-034`: el cuerpo público exige `countryCode`, ver §4 (Art. I.7) |
+| Reabierto el | 08-09-2026 — `RN-SP-035` y `RN-SP-037`: el cuerpo exige documento y teléfono, ver §4 (Art. I.7) |
 
 ---
 
@@ -77,13 +78,23 @@ De ahí salen las tres decisiones del plan: **una sola transacción**, **límite
   "firstName": "Ana", "lastName": "Ruiz",
   "username": "ana.ruiz", "email": "ana@ejemplo.com",
   "password": "…",
-  "countryCode": "COL"
+  "countryCode": "COL",
+  "documentType": "CC",
+  "documentNumber": "1020304050",
+  "phone": "+573001234567",
+  "addressLine1": null, "addressLine2": null, "city": null
 }
 ```
 
 **Cuelga de `/auth` y no de `/users`.** Las seis rutas públicas del sistema viven ahí y esta es la séptima; colgarla de `/users` la pondría al lado de `POST /api/v1/users`, que exige `users:create` — dos altas de persona bajo el mismo recurso, una abierta y otra no, es la clase de vecindad que produce el `@PreAuthorize` olvidado.
 
 **`product` admite código o identificador en el mismo campo**, resuelto por forma: lo que parece un UUID se busca por identificador, lo demás por código. Es lo que ya hace el inicio de sesión con `identifier`, que acepta nombre de usuario o correo. Dos campos opcionales y excluyentes habrían obligado a validar que llega exactamente uno.
+
+**`documentType` va por abreviación, como el país por código y el producto por el suyo**: los cuatro campos de referencia de este cuerpo evitan los UUID, porque es un formulario público al que no se le pide conocer identificadores internos.
+
+**Y este endpoint es donde la validación de mayoría de edad se pone a prueba de verdad**: es el único alta que cualquiera puede ejecutar sin credenciales, y **no ejecuta ninguna comprobación de edad**. No la necesita — enviar `TI` falla por referencia inexistente, igual que enviar `XX`, porque el catálogo no tiene esa fila. Es el argumento de `RF-SP-051` puesto en el peor sitio posible.
+
+**El documento repetido NO dice que lo esté**, al contrario que el nombre de usuario y el correo de `EX-005`. La asimetría es deliberada y está razonada en `spec.md` `EX-007`: un número de documento es un dato que se consigue, y confirmarle a un desconocido que esa persona tiene cuenta aquí es un problema distinto del de ayudar a alguien a elegir otro nombre de usuario.
 
 **`countryCode` es alfa-3 y no un identificador** (07-09-2026), y es el tercer campo de referencia de este cuerpo que evita los UUID: el producto admite su código, el vendedor va por nombre de usuario. Aquí el argumento es incluso más firme — `RN-SP-009` hace que el código de un país **no cambie jamás**, de modo que es el identificador más estable del sistema.
 

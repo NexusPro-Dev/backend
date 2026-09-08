@@ -11,6 +11,7 @@
 | Enmendada el | 28-08-2026 — ver §15 |
 | Enmendada el | 07-09-2026 — **las membresías resueltas traen su color** (`RN-SP-024`). Ver §15 |
 | Enmendada el | 07-09-2026 — **dos filtros nuevos: alcance e implementación** (`RN-PM-019`, `RN-PM-020`). Ver §15 |
+| Enmendada el | 08-09-2026 — **cada fila trae los DOS precios** (`RN-PM-023`, `RN-PM-024`). Ver §15 |
 
 ---
 
@@ -55,6 +56,8 @@ Con `RF-PM-001` se puede **crear** un producto y no **verlo**: quien administra 
 | `RN-PM-010` | El producto no desaparece: el retiro es lógico | `requirements/pm.md` §5.1 |
 | `RN-PM-019` | El alcance dice hasta dónde se muestra, y es **acumulativo** | `requirements/pm.md` §5.1 |
 | `RN-PM-020` | La implementación dice si lo comprado se aplica solo o espera autorización | `requirements/pm.md` §5.1 |
+| `RN-PM-023` | **El precio público es opcional y no se cobra** | `requirements/pm.md` §5.1 |
+| `RN-PM-024` | **El precio del sistema no sale de administración** — y este listado **es** administración | `requirements/pm.md` §5.1 |
 
 ## 6. Datos
 
@@ -71,13 +74,14 @@ Con `RF-PM-001` se puede **crear** un producto y no **verlo**: quien administra 
 | Implementación | No | Filtra por si lo comprado se aplica solo o espera autorización | Uno de los valores admitidos |
 | Búsqueda | No | Coincidencia parcial sobre el nombre | En blanco equivale a ausente |
 | Incluir retirados | No | Si se devuelven también los productos eliminados | Por omisión **no** se devuelven |
-| Orden | No | Por qué campo se ordena y en qué sentido | **Lista cerrada**: nombre, precio o fecha de alta. Cualquier otro valor se rechaza |
+| Orden | No | Por qué campo se ordena y en qué sentido | **Lista cerrada**: nombre, precio o fecha de alta. Cualquier otro valor se rechaza. **`precio` es el del sistema**, y el público **no se añade a la lista**: ordenar por lo que se anuncia no responde ninguna pregunta de quien administra, y la lista se amplía cuando alguien la necesite y no antes |
 
 ### 6.2 Salida
 
 | Dato | Descripción |
 |---|---|
-| Productos | Identificador, tipo, nombre, descripción, **icono**, precio con su moneda, **vigencia en días**, estado y —en los upgrades— la membresía destino con su nombre y su nivel |
+| Productos | Identificador, tipo, nombre, descripción, **icono**, **los dos precios** con su moneda, **vigencia en días**, estado y —en los upgrades— la membresía destino con su nombre y su nivel |
+| Los dos precios | El **del sistema** —el que se cobra— y el **público** —el que se anuncia—, este **presente y nulo** cuando el producto no lo declara (`RN-PM-023`). **Este listado y el detalle son los dos únicos sitios donde se pueden ver juntos**, y por eso exigen `products:read` (`RN-PM-024`) |
 | Alcance e implementación | En **todas** las filas y en los dos tipos: hasta dónde se muestra el producto y quién aplica lo que otorga |
 | Marca de retiro | En los retirados, que lo están y desde cuándo |
 | Total | Cuántos productos cumplen el filtro |
@@ -156,6 +160,7 @@ Con `RF-PM-001` se puede **crear** un producto y no **verlo**: quien administra 
 | `CA-PM-116` | El sistema filtra por **implementación**, admite el valor en minúsculas y **rechaza el que está fuera del dominio junto al resto de parámetros inválidos**, no por separado |
 | `CA-PM-117` | Cada fila del listado devuelve **el alcance y la implementación**, en los dos tipos de producto |
 | `CA-PM-142` | El sistema devuelve el **color** de las dos membresías de cada upgrade, resueltas en la misma sentencia |
+| `CA-PM-151` | Cada fila devuelve **los dos precios**: el del sistema siempre, y el público **presente y nulo** en los productos que no lo declaran |
 
 ## 13. Casos límite
 
@@ -188,3 +193,4 @@ Ninguna. Las cuatro se resolvieron el 26-08-2026, antes de aprobar la especifica
 | 0.3.0 | 28-08-2026 | **La respuesta gana el icono** (`RN-PM-016`) y el tipo `SERVICIO` pasa a llamarse `BOT`. Ninguna de las dos cosas cambia el comportamiento de esta consulta: el icono viaja como un campo más —nulo y presente cuando no lo hay, por el mismo criterio que el destino y la vigencia— y el renombrado solo cambia el valor que se lee y por el que se filtra. **El contrato publicado cambia**, de modo que la copia del frontend queda vieja. | Responsable técnico |
 | 0.4.0 | 07-09-2026 | **El catálogo gana dos filtros y dos columnas de salida: alcance e implementación** (`RN-PM-019`, `RN-PM-020`). **El del alcance no es un filtro más**: es el **único sitio del sistema donde ese dato se puede consultar hoy**, porque `RF-PM-007` no lo filtra —bajo la escala acumulativa los dos valores llegan a la tienda— y el canal de hotlinks todavía no existe. Sin él, el alcance sería un dato que se declara, se corrige y **no se puede ver**. Entran `VAL-006`, `VAL-007` y `CA-PM-115` a `CA-PM-117`. Los dos se validan **como el tipo y el estado**: se admiten en cualquier caja, se normalizan a su forma canónica y su rechazo **se acumula** con el resto en un solo `400` (`CA-PM-020`) — validar sin normalizar es el defecto sutil que devolvería `200` con la colección vacía en lugar de los productos que se piden. | Responsable del proyecto |
 | 0.5.0 | 07-09-2026 | **Las membresías resueltas del listado traen su COLOR** (`RN-SP-024`). Sale del mismo `LEFT JOIN` que ya trae el código, el nombre y el nivel, de modo que **no cuesta ninguna consulta más** — que es exactamente el motivo por el que el destino entra por un `JOIN` y no fila a fila por el puerto. Entra `CA-PM-142`. | Responsable del proyecto |
+| 0.6.0 | 08-09-2026 | **Cada fila trae los DOS precios** (`RN-PM-023`, `RN-PM-024`): el del sistema —el que se cobra— y el público —el que se anuncia—, este **presente y nulo** en los productos que no lo declaran. **Este listado y `RF-PM-003` son los dos únicos sitios donde se pueden ver juntos**, y eso no es un detalle de forma: `RF-PM-007` y `RF-PM-008` devuelven **uno solo**, porque publicar el par enseñaría la diferencia entre lo que se anuncia y lo que se cobra. Lo que separa unos de otros es `products:read`. **El orden no crece**: la lista cerrada sigue siendo nombre, precio y fecha de alta, y su `precio` es **el del sistema** — ordenar por lo anunciado no responde ninguna pregunta de quien administra, y la lista se ampliará cuando alguien la necesite y no antes. **Tampoco entra un filtro por precio público**: el filtro por rango de precio salió del alcance el 26-08-2026 y este cambio no lo reabre. Entra `CA-PM-151`. | Responsable del proyecto |

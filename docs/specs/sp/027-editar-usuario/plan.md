@@ -10,6 +10,7 @@
 | Aprobado por | Responsable del proyecto |
 | Fecha de aprobación | 22-08-2026 |
 | Reabierto el | 07-09-2026 — `RN-SP-034`: `countryId` entra en el `PATCH`, ver §4 (Art. I.7) |
+| Reabierto el | 08-09-2026 — `RN-SP-035` y `RN-SP-037`: entran el documento y los cuatro campos de contacto, ver §4 (Art. I.7) |
 
 !!! info "Qué va en este documento"
 
@@ -93,7 +94,13 @@ Se usa `PATCH` y no `PUT` por el motivo de `RF-SP-004` §4: `PUT` obligaría a e
 {
   "firstName": "Juan Carlos",
   "email": "juan.perez@factech.co",
-  "countryId": "01a03336-6d00-7002-9c4f-5e7ad3000001"
+  "countryId": "01a03336-6d00-7002-9c4f-5e7ad3000001",
+  "documentTypeId": "01a081a0-0000-7001-9c4f-5e7ad5000001",
+  "documentNumber": "1020304050",
+  "phone": "+573001234567",
+  "addressLine1": "Calle 100 # 15-20",
+  "addressLine2": null,
+  "city": "Medellín"
 }
 ```
 
@@ -105,11 +112,21 @@ Se usa `PATCH` y no `PUT` por el motivo de `RF-SP-004` §4: `PUT` obligaría a e
 | `{ "email": "x@y.co" }` | Cambia el correo. El nombre y los apellidos no se tocan |
 | `{ "countryId": "…" }` | Cambia el país. Los otros tres no se tocan |
 | `{ "firstName": null }` | **Rechazado** por `VAL-002`. Ningún campo admite vaciarse |
+| `{ "documentTypeId": "…", "documentNumber": "…" }` | Cambia el documento. **Los dos juntos o ninguno** |
+| `{ "documentNumber": "…" }` | **Rechazado** por `VAL-007`: un número sin tipo no significa nada |
+| `{ "phone": null }` | **Rechazado** por `VAL-008`: `RN-SP-037` lo hace obligatorio |
+| `{ "addressLine2": null }` | **Aceptado, y vacía el campo.** Es el único grupo del cuerpo donde el nulo es una orden |
 | `{ "countryId": null }` | **Rechazado** por `VAL-006`, y por el mismo motivo: `country_id` es `NOT NULL` y el estado «sin país» no existe (`CA-SP-579`) |
 | `{ "firstName": "   " }` | Rechazado por `VAL-002` **tras recortar los extremos** |
 | `{}` | Rechazado por `VAL-001` |
 
 **Es la diferencia con `RF-SP-004`, y conviene no copiarla mal.** Allí el nulo explícito era una orden —«borra la descripción»— porque la columna admite nulo. Aquí las tres columnas son `NOT NULL` y `ck_users_names_not_blank` impide además el nombre en blanco: el nulo explícito no puede ser una orden, y **aceptarlo en silencio sería peor que rechazarlo**, porque produciría una violación de integridad traducida a `500` en lugar del `400` que corresponde. `Patchable<T>` sigue haciendo falta para distinguir el campo ausente del enviado; lo que cambia es qué se hace con su tercer estado.
+
+**El nulo explícito deja de significar lo mismo en todo el cuerpo, y esa es la novedad de esta enmienda** (08-09-2026). Hasta hoy este `PATCH` tenía una regla única y cómoda —«el nulo siempre se rechaza»— porque todas sus columnas eran `NOT NULL`. Con el contacto entran **tres columnas nulables**, y en ellas el nulo **sí es una orden**: «ya no vive ahí» es un hecho que hay que poder registrar, y rechazarlo dejaría la dirección vieja pegada para siempre.
+
+**De modo que el cuerpo tiene ahora dos familias** y conviene tenerlas escritas juntas: `firstName`, `lastName`, `email`, `countryId`, `documentTypeId`, `documentNumber` y `phone` **rechazan el nulo**; `addressLine1`, `addressLine2` y `city` **lo aceptan y vacían**. La línea que las separa no es técnica sino de negocio — es exactamente la línea entre lo obligatorio y lo opcional de `RN-SP-035` y `RN-SP-037`—, y por eso se declara aquí en lugar de deducirse de la nulabilidad de cada columna.
+
+**El tipo y el número se validan como una unidad**, no como dos campos. Enviar uno solo es `400` y no un cambio a medias: `ck_users_document_pair` lo impediría de todas formas, y dejarlo llegar al motor daría un `500` sobre una regla de negocio.
 
 **`countryId` es el cuarto campo del `PATCH` y hereda el trato de los otros tres** (07-09-2026). Es `Patchable<UUID>`, no un `UUID` suelto: sin los tres estados, «no lo envié» y «ponlo a nulo» se confunden, y aquí el segundo tiene que ser un `400` explícito porque la columna es `NOT NULL`. **Y es el único campo del cuerpo que se verifica contra otra tabla**, lo que le añade un paso que el nombre y el correo no tienen: existe y está activo (`EX-003`), leído con bloqueo compartido igual que en el alta.
 
@@ -156,6 +173,12 @@ Se usa `PATCH` y no `PUT` por el motivo de `RF-SP-004` §4: `PUT` obligaría a e
 | `403` | Autenticado sin `users:update` | `AUTH-002` | — |
 | `404` | No existe usuario vigente con ese identificador (`EX-002`) | `EX-002` | — |
 | `400` | `countryId` con nulo explícito (`VAL-006`) | `VAL-006` | `countryId` |
+| `400` | Tipo o número de documento sin su pareja, o con nulo explícito (`VAL-007`) | `VAL-007` | El campo |
+| `400` | Teléfono con nulo explícito o formato inadmisible (`VAL-008`) | `VAL-008` | `phone` |
+| `400` | Dirección, complemento o ciudad **en blanco** (`VAL-009`) | `VAL-009` | El campo |
+| `409` | El documento **ya lo tiene otra persona** (`EX-004`) | `RN-SP-035` | `documentNumber` |
+| `409` | El tipo de documento existe pero está **inactivo** (`EX-004`) | `RN-SP-035` | `documentTypeId` |
+| `422` | El tipo de documento **no existe** (`EX-004`) | `EX-004` | `documentTypeId` |
 | `409` | El correo ya está en uso (`EX-001`, `VAL-004`) | `RN-SP-016` | — |
 | `409` | El país indicado existe pero está **inactivo** (`EX-003`) | `RN-SP-034` | `countryId` |
 | `422` | El país indicado **no existe** (`EX-003`) | `EX-003` | `countryId` |
@@ -199,6 +222,8 @@ Dos cosas de este orden importan. **La unicidad va después de detectar el cambi
 | Edición efectiva | `audit_change_log` | `module = 'SP'`, `entity = 'users'`, `entity_id`, `action = 'UPDATE'`, `changes` con **solo** los campos que mutaron, cada uno con su antes y su después. El correo, **normalizado en ambos lados** |
 | Edición efectiva **que cambió el correo** | `audit_security_log` | `event_type = 'EMAIL_CHANGED'`, `severity = 'ALTA'`, `outcome = 'SUCCESS'`, `target_user_id` de la persona editada, `detail` **sin** el correo anterior ni el nuevo (§ abajo) |
 | Edición efectiva que **no** cambió el correo | — | **Ningún evento de seguridad.** Solo el de cambio |
+| Edición efectiva **que cambió el documento** | `audit_change_log` | `document_type_id` y `document_number` dentro de `changes`, con su antes y su después. **Ningún evento de seguridad**: el documento no es una vía de acceso —no se entra con él— y sigue el criterio del país, no el del correo |
+| Edición efectiva **que cambió el contacto** | `audit_change_log` | Los campos que mutaron, con su antes y su después. **El vaciado se audita como cualquier cambio**, con `after` en nulo: es lo que distingue «se borró la dirección» de «nunca la hubo» |
 | Edición efectiva **que cambió el país** | `audit_change_log` | Va dentro de `changes` como un campo más, con el identificador de país anterior y el nuevo. **Ningún evento de seguridad**: el país no es una vía de acceso |
 | Edición sin cambio (`FA-001`) | — | **Ningún evento**, en ningún registro |
 | Rechazo `409` por `EX-001` | `audit_error_log` | `resource = 'users'`, `operation = 'PATCH /api/v1/users/{id}'`, `error_code = 'RN-SP-016'`, `error_type = 'BUSINESS_RULE'`, `http_status = 409`, `severity = 'MEDIA'`, `message` saneado |

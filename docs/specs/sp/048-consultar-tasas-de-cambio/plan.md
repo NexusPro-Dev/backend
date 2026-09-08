@@ -21,7 +21,7 @@ Hereda entero el diseño de `RF-PM-002`, que es el listado más parecido del sis
 
 ## 2. Cambios de esquema
 
-### 2.1 `V62` ya trae los índices
+### 2.1 `V65` ya trae los índices
 
 No hay migración propia. La tabla la crea `RF-SP-047`, y **los índices de lectura van con ella**:
 

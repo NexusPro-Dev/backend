@@ -1,6 +1,7 @@
 package com.factech.nexus.shared.security.ratelimit;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.header;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
@@ -39,7 +40,9 @@ import org.springframework.test.web.servlet.MockMvc;
       "nexus.security.rate-limit.login.por-identidad=2",
       "nexus.security.rate-limit.login.ventana=PT1M",
       "nexus.security.rate-limit.refresh.por-origen=2",
-      "nexus.security.rate-limit.refresh.ventana=PT1M"
+      "nexus.security.rate-limit.refresh.ventana=PT1M",
+      "nexus.security.rate-limit.hotlink.por-origen=2",
+      "nexus.security.rate-limit.hotlink.ventana=PT1M"
     })
 class RateLimitIT extends IntegrationTestBase {
 
@@ -220,6 +223,53 @@ class RateLimitIT extends IntegrationTestBase {
     // El caso con el reloj en la mano está en `RateLimitLedgerTest`.
     assertThat(segunda).isLessThanOrEqualTo(primera);
     assertThat(tercera).isLessThanOrEqualTo(segunda);
+  }
+
+  @Test
+  @DisplayName("hotlink — el recorrido a ciegas topa aunque cada nombre probado sea distinto")
+  void elHotlinkSeAcotaPorOrigenYNoPorEnlace() throws Exception {
+    // `CA-PM-137`. Y lo que de verdad se afirma aquí son los NOMBRES DISTINTOS:
+    // quien barre el padrón no repite ninguno, de modo que una cota contada por
+    // URI le daría un cubo nuevo en cada intento y no cortaría jamás. Con dos
+    // por origen, la tercera topa aunque las tres rutas sean tres rutas.
+    atendida(hotlink("ana", "UPGRADE_ORO"));
+    atendida(hotlink("beatriz", "UPGRADE_ORO"));
+
+    hotlink("carlos", "UPGRADE_ORO")
+        .andExpect(status().isTooManyRequests())
+        .andExpect(header().exists("Retry-After"))
+        .andExpect(jsonPath("$.status").value(429))
+        // El `instance` sí es la ruta pedida y no el prefijo: lo que se cuenta
+        // por familia se responde por petición.
+        .andExpect(jsonPath("$.instance").value("/api/v1/hotlinks/carlos/UPGRADE_ORO"));
+  }
+
+  @Test
+  @DisplayName("hotlink — la auditoría del rechazo no se queda con el nombre probado")
+  void elRechazoDelHotlinkNoRegistraElNombreProbado() throws Exception {
+    atendida(hotlink("ana", "UPGRADE_ORO"));
+    atendida(hotlink("beatriz", "UPGRADE_ORO"));
+    hotlink("carlos", "UPGRADE_ORO").andExpect(status().isTooManyRequests());
+
+    java.util.List<String> detalles =
+        jdbc.queryForList(
+            "SELECT detail::text FROM audit_security_log"
+                + " WHERE event_type = 'RATE_LIMIT_EXCEEDED'",
+            String.class);
+
+    // La ruta lleva dentro el nombre de usuario que alguien probó. Guardar uno
+    // al azar de los mil de un recorrido es un dato personal a cambio de nada:
+    // lo que hay que investigar es el origen, y ese sí queda.
+    assertThat(detalles).hasSize(1);
+    assertThat(detalles).allMatch(detalle -> detalle.contains("GET /api/v1/hotlinks/"));
+    assertThat(detalles).noneMatch(detalle -> detalle.contains("carlos"));
+  }
+
+  private org.springframework.test.web.servlet.ResultActions hotlink(String usuario, String codigo)
+      throws Exception {
+    // Ni el usuario ni el producto existen, y da igual: el filtro corta antes
+    // del controlador, de modo que lo atendido responde 404 y lo cortado 429.
+    return mvc.perform(get("/api/v1/hotlinks/{usuario}/{codigo}", usuario, codigo));
   }
 
   private org.springframework.test.web.servlet.ResultActions recuperar(String identidad)

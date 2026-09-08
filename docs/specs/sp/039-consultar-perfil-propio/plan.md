@@ -10,6 +10,7 @@
 | Aprobado por | Responsable del proyecto |
 | Fecha de aprobación | 24-08-2026 |
 | Reabierto el | 07-09-2026 — `RN-SP-034`: la respuesta incorpora `country`, ver §4 (Art. I.7) |
+| Reabierto el | 08-09-2026 — `RN-SP-035` y `RN-SP-037`: la respuesta incorpora `document` y `contact`, ver §4 (Art. I.7) |
 
 ---
 
@@ -64,6 +65,16 @@ Y una asimetría que hay que conocer y no corregir: **el perfil puede mostrar me
   "roles": [{ "code": "AGENTE", "name": "Agente o vendedor", "status": "ACTIVO" }],
   "permissions": ["users:read", "roles:read"],
   "country": { "id": "01a03336-6d00-7002-9c4f-5e7ad3000001", "code": "COL", "name": "Colombia" },
+  "document": {
+    "type": { "id": "01a081a0-0000-7001-9c4f-5e7ad5000001", "abbreviation": "CC", "name": "Cédula de ciudadanía" },
+    "number": "1020304050"
+  },
+  "contact": {
+    "phone": "+573001234567",
+    "addressLine1": "Calle 100 # 15-20",
+    "addressLine2": "Torre B, apto 502",
+    "city": "Bogotá"
+  },
   "membership": { "code": "PREMIUM", "level": 2, "endsAt": null },
   "lastLoginAt": "2026-08-24T09:14:00Z",
   "supervisor": { "username": "amartinez", "firstName": "Ana", "lastName": "Martínez", "roleCode": "DIRECTOR" },
@@ -74,6 +85,12 @@ Y una asimetría que hay que conocer y no corregir: **el perfil puede mostrar me
 `membership` y `supervisor` van **ausentes**, no en nulo, cuando no aplican: `spring.jackson.default-property-inclusion` ya está en `non_null` (`application.yml`), de modo que sale gratis y la interfaz distingue «no tiene» de «no se pudo resolver».
 
 **`country` NO puede estar ausente nunca** (07-09-2026, `CA-SP-581`), y por eso conviene decirlo justo aquí: la inclusión `non_null` de arriba es lo que hace que un campo desaparezca cuando es nulo, y si el país llegara nulo **desaparecería en silencio** en lugar de fallar. No puede llegar nulo —la columna es `NOT NULL` (`RN-SP-034`)—, y esa es la única razón por la que la interfaz puede leer `country` sin comprobar si existe. Es el mismo motivo, leído desde el otro lado, por el que este perfil lo publica: `RN-MV-019` decide los medios de pago por el país del comprador, y un campo que a veces no viene obligaría al navegador a una segunda llamada que un cliente no tiene permiso para hacer.
+
+**`contact` se publica AQUÍ y se corrige en `RF-SP-044`, y ese par es lo que hace utilizable la pantalla de perfil** (08-09-2026): sin publicarlo, el formulario de edición no podría precargar el teléfono ni la dirección y quien quisiera cambiar solo la ciudad tendría que reescribir lo demás de memoria.
+
+**`document` se publica y NO se puede cambiar desde aquí**, al contrario que el contacto. Es identidad, y lo corrige un administrador por `RF-SP-027` (`RN-SP-035`) — la misma línea que separa al país. Que los dos viajen en la misma respuesta y solo uno sea editable es exactamente por qué van **agrupados en dos objetos** y no como ocho campos sueltos: la forma del contrato enseña la regla.
+
+**Y `document` sí puede llegar nulo**, al revés que `country`: la inclusión `NON_NULL` de este registro haría que **desapareciera en silencio**, y aquí eso es correcto — «no lo declaro» y «no lo tengo» son lo mismo para quien mira su propio perfil.
 
 **`country` se publica y NO se puede cambiar desde aquí.** Ni esta operación, que es de solo lectura, ni `RF-SP-044`, que edita el perfil propio y **no admite el campo**. El país lo corrige un administrador por `RF-SP-027` (`RN-SP-034`), y la razón es la misma que lo hace útil en esta respuesta: si decide qué medios de pago se ofrecen, cambiárselo uno mismo sería cambiarse de mercado.
 
