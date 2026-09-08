@@ -457,6 +457,35 @@ class OwnCredentialsIT extends IntegrationTestBase {
   }
 
   @Test
+  @DisplayName("CA-SP-581 — el perfil publica el país del actor, y NUNCA va ausente")
+  void elPerfilLlevaElPais() throws Exception {
+    // Este registro usa inclusión NON_NULL, de modo que un país nulo
+    // DESAPARECERÍA del JSON en silencio en lugar de fallar. Que no pueda serlo
+    // —`country_id` es NOT NULL— es la única razón por la que la interfaz puede
+    // leerlo sin comprobar si existe.
+    mvc.perform(perfil(juan))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.country.id").value(COLOMBIA.toString()))
+        .andExpect(jsonPath("$.country.code").value("COL"))
+        .andExpect(jsonPath("$.country.name").value("Colombia"));
+  }
+
+  @Test
+  @DisplayName("CA-SP-581 — el perfil propio NO deja cambiar el país")
+  void elPerfilNoCambiaElPais() throws Exception {
+    // Ni esta consulta, que es de solo lectura, ni `RF-SP-044`: el país lo
+    // corrige un administrador por `RF-SP-027`, porque decide qué medios de pago
+    // se ofrecen y cambiárselo uno mismo sería cambiarse de mercado.
+    mvc.perform(
+            org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch(
+                    "/api/v1/users/me")
+                .with(comoActor(juan))
+                .contentType(org.springframework.http.MediaType.APPLICATION_JSON)
+                .content("{\"countryId\":\"" + COLOMBIA + "\"}"))
+        .andExpect(status().isBadRequest());
+  }
+
+  @Test
   @DisplayName("sin membresía y sin superior, los dos campos van AUSENTES y no en nulo")
   void ausentesYNoNulos() throws Exception {
     String cuerpo = mvc.perform(perfil(juan)).andReturn().getResponse().getContentAsString();
@@ -541,8 +570,8 @@ class OwnCredentialsIT extends IntegrationTestBase {
     jdbc.update(
         """
         INSERT INTO users (id, username, email, first_name, last_name, password_hash,
-                           must_change_password, status)
-        VALUES (?, ?, ?, 'Juan', 'Pérez', ?, true, 'ACTIVO')
+                           must_change_password, status, country_id)
+        VALUES (?, ?, ?, 'Juan', 'Pérez', ?, true, 'ACTIVO', (SELECT id FROM countries WHERE code = 'COL'))
         """,
         id,
         username,

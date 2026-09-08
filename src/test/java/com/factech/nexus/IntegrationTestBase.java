@@ -121,6 +121,21 @@ public abstract class IntegrationTestBase {
   protected static final String ADMIN_SEMBRADO = "01a02a33-4c00-7002-9c4f-5e7ad1000002";
 
   /**
+   * Colombia, el único país sembrado, por {@code V64__usuario_con_pais.sql} (`RN-SP-034`).
+   *
+   * <p>Es fijo por el mismo motivo que {@link #SUPERADMIN}: toda alta de persona lo exige, y una
+   * prueba que tuviera que consultarlo antes estaría probando el catálogo de países en lugar de lo
+   * suyo.
+   *
+   * <p><b>Y el catálogo de países deja de nacer vacío por su culpa</b>, que es la consecuencia de
+   * `RN-SP-034` que más se nota aquí: {@code users.country_id} es {@code NOT NULL} y {@code V22}
+   * siembra un superadministrador, de modo que ninguna base —tampoco la de estas pruebas— puede
+   * arrancar sin al menos un país.
+   */
+  protected static final java.util.UUID COLOMBIA =
+      java.util.UUID.fromString("01a07bbd-5200-7001-9c4f-5e7ad3000101");
+
+  /**
    * Los dos permisos con los que nace un {@link #crearRolAcotado rol acotado}: los de lectura de
    * auditoría, que es el par más pequeño que el catálogo ofrece y que ningún endpoint de negocio
    * abre.

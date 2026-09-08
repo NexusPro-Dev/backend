@@ -11,7 +11,7 @@
 | Enmendada | 21-08-2026 — `RN-SP-018` obliga a indicar la membresía si el alta concede un rol `CONSUMIDOR`, al aprobar `RF-SP-033` (Art. I.7) |
 | Enmendada | 22-08-2026 — `RN-SP-019` obliga a indicar el superior comercial si el alta concede un rol `VENDEDOR`, al registrarse `RF-SP-041` (Art. I.7) |
 | Enmendada | 24-08-2026 — `RN-SP-023` hace **obligatorio** al menos un rol: `FA-001` se retira, nace `EX-008` y `CA-SP-197` se invierte (Art. I.7) |
-| Enmendada | 07-09-2026 — `RN-SP-034` hace **obligatorio el país**: entra en §6.1 y §6.2, nace `EX-009`, `VAL-014` y `CA-SP-543` a `CA-SP-545`, y **se reabre la resolución 3 de §14**, que había dejado el país fuera a propósito (Art. I.7) |
+| Enmendada | 07-09-2026 — `RN-SP-034` hace **obligatorio el país**: entra en §6.1 y §6.2, nace `EX-009`, `VAL-014` y `CA-SP-572` a `CA-SP-574`, y **se reabre la resolución 3 de §14**, que había dejado el país fuera a propósito (Art. I.7) |
 
 ---
 
@@ -119,9 +119,10 @@ La contraseña **no forma parte de la salida** en ninguna forma, ni siquiera tra
 3. El sistema verifica que la contraseña cumple la política mínima.
 4. El sistema verifica que el nombre de usuario y el correo no estén en uso por ningún usuario, incluidos los eliminados.
 5. El sistema verifica que los roles indicados existan y estén activos.
+5.bis El sistema verifica que el país indicado exista en el catálogo y esté activo.
 6. El sistema verifica que los roles indicados no excedan los privilegios del actor.
 7. Si alguno de los roles indicados es de clasificación `VENDEDOR`, el sistema verifica que se haya indicado un superior comercial —salvo que el rol sea la cúspide de la fuerza comercial— y que ese superior exista, esté `ACTIVO` y porte el rol padre inmediato de ese rol.
-8. El sistema registra al usuario con su credencial protegida y sus roles, lo marca para cambio obligatorio de contraseña y, cuando procede, escribe su superior comercial en la misma transacción.
+8. El sistema registra al usuario con su credencial protegida, su país y sus roles, lo marca para cambio obligatorio de contraseña y, cuando procede, escribe su superior comercial en la misma transacción.
 9. El sistema registra el evento en la auditoría de cambios y en la de seguridad.
 10. El sistema informa el usuario creado, sin dato alguno de la credencial.
 
@@ -168,6 +169,13 @@ La contraseña **no forma parte de la salida** en ninguna forma, ni siquiera tra
 
 Es la excepción que nació el 24-08-2026 al establecerse `RN-SP-023`, y sustituye al flujo `FA-001` que admitía este caso.
 
+### EX-009 — País inexistente o inactivo
+
+**Condición:** no se indica país, el país indicado no existe en el catálogo, o existe y está **inactivo**.
+**Respuesta del sistema:** rechaza el alta completa y cita `RN-SP-034`. Distingue los dos casos, porque el actor los corrige de forma distinta: un país que **no existe** es una referencia rota —lo mismo que un rol inexistente en `EX-003`— y uno **inactivo** es una referencia que resuelve y que una regla de negocio rechaza. Es la misma correspondencia que este requerimiento ya usa para separar `EX-003` de `EX-004`.
+
+No se ofrece el camino de dar de alta el país sobre la marcha: el catálogo es de `RF-SP-020`, y `RN-SP-009` hace que un país registrado por error **no se pueda corregir nunca**. Crearlo desde aquí convertiría una errata en un alta permanente.
+
 ### EX-004 — Rol fuera del alcance del actor
 
 **Condición:** alguno de los roles indicados concede permisos que el actor no posee.
@@ -190,6 +198,7 @@ Es la excepción que nació el 24-08-2026 al establecerse `RN-SP-023`, y sustitu
 | `VAL-011` | Superior comercial obligatorio si se concede un rol `VENDEDOR` que no es la cúspide, y no admitido en cualquier otro caso | Indique quién estará a cargo de esta persona. |
 | `VAL-012` | El superior indicado existe, está `ACTIVO` y porta el rol padre inmediato del rol vendedor concedido | El superior indicado no puede estar a cargo de este rol. |
 | `VAL-013` | Al menos un rol informado (`RN-SP-023`) | Debe indicar al menos un rol. |
+| `VAL-014` | País obligatorio, existente y activo (`RN-SP-034`) | El país indicado no es válido. |
 
 ## 12. Criterios de aceptación
 
@@ -213,6 +222,9 @@ Es la excepción que nació el 24-08-2026 al establecerse `RN-SP-023`, y sustitu
 | `CA-SP-396` | El sistema rechaza el alta cuyo superior no porta el rol padre inmediato del rol vendedor concedido, y la que lo indica inactivo o inexistente |
 | `CA-SP-397` | El alta que concede un rol `VENDEDOR` con su superior deja ambas cosas escritas en la misma transacción, sin instante intermedio en que el vendedor exista sin superior |
 | `CA-SP-398` | El alta que concede el rol vendedor de mayor rango se acepta **sin** superior, y lo rechaza si se indica uno |
+| `CA-SP-572` | El sistema **rechaza** el alta que no indica país, y la que indica uno inexistente, citando `RN-SP-034` |
+| `CA-SP-573` | El sistema rechaza el alta que indica un país **inactivo**, y lo hace con un error distinto del que produce un país inexistente |
+| `CA-SP-574` | El alta devuelve el país **resuelto** —identificador, código y nombre— y no un identificador suelto |
 | `CA-SP-202` | El sistema rechaza el alta a un actor sin el permiso de creación de usuarios |
 
 ## 13. Casos límite
@@ -227,6 +239,9 @@ Es la excepción que nació el 24-08-2026 al establecerse `RN-SP-023`, y sustitu
 - **Alta del primer manager, cúspide de la fuerza comercial:** se acepta sin superior, porque su rol no tiene un rol padre `VENDEDOR`. Es la única excepción de `RN-SP-019`, y funciona igual que `RN-SEG-007` con el rol raíz: la cadena tiene que empezar en algún sitio.
 - **Superior que se desactiva durante el alta:** ambas operaciones se serializan sobre la fila del superior, igual que ocurre con el rol en el caso anterior. El alta o lo ve `ACTIVO` o rechaza, pero no deja a nadie a cargo de una cuenta que acaba de perder el acceso.
 - **Alta que concede a la vez un rol `VENDEDOR` y uno `CONSUMIDOR`:** exige indicar superior **y** membresía; ninguna de las dos reglas releva a la otra. Es un caso poco probable —un vendedor que además compra— pero admitido: nada en el modelo prohíbe portar ambas clasificaciones.
+- **País que se desactiva durante el alta:** se serializa sobre la fila del país, igual que el rol y el superior en los dos casos de arriba. El alta o lo ve activo o lo rechaza, pero no deja a nadie en un país que acaba de retirarse de la circulación.
+- **Catálogo de países vacío:** deja de ser posible desde `RN-SP-034`. La migración que introduce la columna **siembra Colombia**, porque `users.country_id` es `NOT NULL` y el superadministrador de la semilla tiene que apuntar a algo (`requirements/sp.md` §10.6). Sin esa siembra, el alta sería irrealizable en una instalación nueva: no habría ningún país que indicar.
+- **Persona que vive en un país que la plataforma no tiene en el catálogo:** no se registra. `EX-009` la rechaza, y la salida es dar de alta el país con `RF-SP-020` y repetir el alta. Es deliberado y tiene precio: quien dé de alta al usuario **no puede** desatascarse solo si además no tiene `countries:create`. Se acepta porque `RN-SP-009` hace que un país mal escrito no se pueda corregir jamás, y un catálogo que crece por descuido en cada alta es exactamente cómo se llena de erratas permanentes.
 - **Primer usuario del sistema:** no se crea por esta funcionalidad. El superadministrador inicial se siembra por migración, porque esta operación exige un actor autenticado con `users:create` y no habría ninguno.
 
 ## 14. Preguntas abiertas
@@ -237,6 +252,6 @@ Ninguna. Las cinco se resolvieron el 21-08-2026, antes de aprobar la especificac
 |---|---|---|
 | 1 | ¿El alta fija la contraseña, o el usuario nace `PENDIENTE` y la establece él? | **El actor fija una contraseña inicial y el usuario nace `ACTIVO`.** El camino de `PENDIENTE` exige un canal de correo y un flujo de activación que hoy no existen en ningún requerimiento: habría que inventarlos enteros para dar de alta a la primera persona. El estado `PENDIENTE` de `security.md` §3.1 **queda declarado y sin usar** hasta que ese flujo exista, y así lo recoge `RF-SP-028`, que no lo admite en su dominio. El coste —que el actor conoce temporalmente la credencial de otra persona— se acota con la resolución 2 |
 | 2 | ¿Debe obligarse a cambiar la contraseña en el primer inicio de sesión? | **Sí.** El usuario nace con un indicador de **cambio obligatorio de contraseña**, y eso reduce a un solo inicio de sesión la ventana en que dos personas conocen la misma credencial. Sin él, la auditoría no podría distinguir quién actuó. Reparte obligaciones en tres requerimientos más: `RF-SP-034` **autentica y advierte**, no rechaza —la persona necesita una sesión para poder cambiarla—; `RF-SP-037` limpia la marca; y `RF-SP-038` la vuelve a fijar al restablecer. `CA-SP-342` lo verifica de extremo a extremo |
-| 3 | ¿Qué datos personales lleva el usuario, además del nombre? | **Nombre y apellidos, y nada más por ahora.** `modelo-datos.md` §1 no registraba ninguno de los dos, y la auditoría y la interfaz necesitan poder decir quién es la persona y no solo su nombre de usuario. Documento de identidad, teléfono y país se dejan fuera de forma deliberada: cada uno arrastra decisiones propias —formato, unicidad, qué pasa con quien no tenga documento del país— que ningún requerimiento respalda todavía. Se añadirán cuando uno lo pida, y añadir una columna a `users` es una migración corriente, no una revisión de nada ya calculado |
+| 3 | ¿Qué datos personales lleva el usuario, además del nombre? | **Nombre y apellidos, y nada más por ahora.** `modelo-datos.md` §1 no registraba ninguno de los dos, y la auditoría y la interfaz necesitan poder decir quién es la persona y no solo su nombre de usuario. Documento de identidad, teléfono y país se dejan fuera de forma deliberada: cada uno arrastra decisiones propias —formato, unicidad, qué pasa con quien no tenga documento del país— que ningún requerimiento respalda todavía. Se añadirán cuando uno lo pida, y añadir una columna a `users` es una migración corriente, no una revisión de nada ya calculado. **Reabierta y resuelta a medias el 07-09-2026: el país entra**, por decisión del responsable del proyecto (`RN-SP-034`). Lo pidió un requerimiento, que es la condición que esta resolución dejó escrita — `RN-MV-019` sabía **dónde no vale un medio de pago** y no tenía contra qué contrastarlo. **Y el pronóstico de esta misma resolución se cumplió a medias**: el país sí arrastraba una decisión propia, pero no la que aquí se temía —formato y unicidad los resuelve el catálogo de `RF-SP-020`, que ya existía— sino **que el catálogo dejara de nacer vacío**, porque `NOT NULL` obliga a rellenar al superadministrador de `V22`. Documento de identidad y teléfono **siguen fuera**, y por el mismo motivo de siempre: nadie los ha pedido |
 | 4 | ¿El nombre de usuario es un dato aparte del correo? | **Sí, los dos, y con cualquiera de los dos se inicia sesión.** El correo es el dato que la persona reconoce y el que puede corregirse (`RF-SP-027`); el nombre de usuario es el dato **estable**, el que no cambia nunca y con el que aparece en la auditoría. Justamente porque el correo cambia no puede ser la única identidad: lo que la auditoría referencia tiene que seguir significando lo mismo dentro de diez años. Que ambos sirvan para entrar obliga a una condición de formato —**el nombre de usuario no admite arroba** (`VAL-010`)—, y con ella ningún valor presentado en el inicio de sesión es ambiguo y las dos columnas no necesitan compartir espacio de unicidad. `RF-SP-034` recibe la obligación de aceptar ambos |
 | 5 | ¿La verificación de `RN-SEG-010` sobre los roles se hace aquí, o se delega en `RF-SP-030`? | **En ambos sitios, con un componente compartido.** Un alta que asigna roles concede privilegios igual que una asignación posterior; dejarla fuera aquí abriría el hueco de fabricarse un superadministrador en la misma petición del alta, que es exactamente lo que `RN-SEG-010` existe para impedir. `EX-004` la declara, y el `plan.md` debe resolverla con **un único componente** compartido con `RF-SP-030` y con `RF-SP-005`, para que las tres no puedan divergir con el tiempo |

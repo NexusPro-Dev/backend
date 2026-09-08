@@ -111,6 +111,16 @@ Casi todo lo que define este endpoint es **qué no devuelve** y **a quién**:
 
 Y el <b>recorrido completo</b>, que ninguno de los tres requerimientos verifica por su cuenta: restablecer, entrar con la credencial provisional, ver en el perfil que toca cambiarla, cambiarla, y comprobar que el perfil deja de pedirlo.
 
+## 4.ter El perfil publica el país del actor — enmienda del 07-09-2026
+
+`RN-SP-034` obliga a que toda persona declare un país (`requirements/sp.md` v1.38.0), y este perfil lo publica resuelto (`spec.md` §6.2, `CA-SP-581`).
+
+**La tarea no se duplica aquí.** Es `T-48` de [`../024-registrar-usuario/tasks.md`](../024-registrar-usuario/tasks.md) §4.quinquies, donde vive la enmienda entera.
+
+**Es el segundo campo que esta consulta añade por una necesidad del frontend**, y la simetría con el primero conviene verla: el `id` entró el 04-09-2026 porque `POST /api/v1/movements` exige `clientId` y el cliente no podía decir quién era; el país entra hoy porque `RN-MV-019` decide **qué medios de pago se le ofrecen** según dónde esté. Los dos son datos **del propio actor**, resueltos del token, y ninguno abre alcance: la operación sigue sin admitir parámetros y `CA-SP-434` sigue intacto.
+
+**Lo que esta enmienda no hace:** el perfil publica el país y **no lo deja cambiar**. `RF-SP-044` tampoco lo admite; lo corrige un administrador por `RF-SP-027`.
+
 ## 5. Definición de terminado
 
 El requerimiento no está terminado hasta cumplir **todas** las condiciones de la constitución §16:

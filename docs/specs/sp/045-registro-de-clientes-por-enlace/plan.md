@@ -8,6 +8,7 @@
 | Autor | Responsable técnico |
 | Aprobado por | Responsable del proyecto |
 | Fecha de aprobación | 01-09-2026 |
+| Reabierto el | 07-09-2026 — `RN-SP-034`: el cuerpo público exige `countryCode`, ver §4 (Art. I.7) |
 
 ---
 
@@ -75,13 +76,20 @@ De ahí salen las tres decisiones del plan: **una sola transacción**, **límite
   "referrer": "agente.martinez",
   "firstName": "Ana", "lastName": "Ruiz",
   "username": "ana.ruiz", "email": "ana@ejemplo.com",
-  "password": "…"
+  "password": "…",
+  "countryCode": "COL"
 }
 ```
 
 **Cuelga de `/auth` y no de `/users`.** Las seis rutas públicas del sistema viven ahí y esta es la séptima; colgarla de `/users` la pondría al lado de `POST /api/v1/users`, que exige `users:create` — dos altas de persona bajo el mismo recurso, una abierta y otra no, es la clase de vecindad que produce el `@PreAuthorize` olvidado.
 
 **`product` admite código o identificador en el mismo campo**, resuelto por forma: lo que parece un UUID se busca por identificador, lo demás por código. Es lo que ya hace el inicio de sesión con `identifier`, que acepta nombre de usuario o correo. Dos campos opcionales y excluyentes habrían obligado a validar que llega exactamente uno.
+
+**`countryCode` es alfa-3 y no un identificador** (07-09-2026), y es el tercer campo de referencia de este cuerpo que evita los UUID: el producto admite su código, el vendedor va por nombre de usuario. Aquí el argumento es incluso más firme — `RN-SP-009` hace que el código de un país **no cambie jamás**, de modo que es el identificador más estable del sistema.
+
+**Se normaliza a mayúsculas antes de buscar**, porque un formulario público recibirá `col` y `Col`, y `ck_countries_code_format` solo admite mayúsculas. Rechazar por la caja sería rechazar por algo que el sistema puede arreglar sin ambigüedad — es el mismo trato que el correo recibe en `RF-SP-024`.
+
+**El rechazo no distingue inexistente de inactivo** (`EX-006`, `CA-SP-583`), al revés que en `RF-SP-024` y `RF-SP-027`. Es el criterio que este endpoint ya aplica al producto y al vendedor: distinguirlo no ayudaría a rellenar el formulario y sí permitiría **enumerar en qué mercados opera la plataforma** probando los doscientos cuarenta y nueve códigos ISO.
 
 La respuesta lleva la cuenta creada y **su estado**, y **no lleva credenciales de sesión** (`CA-SP-521`).
 

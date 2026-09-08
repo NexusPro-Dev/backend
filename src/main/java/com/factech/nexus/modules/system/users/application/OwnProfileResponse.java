@@ -53,10 +53,31 @@ public record OwnProfileResponse(
     String status,
     List<RoleRef> roles,
     List<String> permissions,
+    CountryRef country,
     MembershipRef membership,
     OffsetDateTime lastLoginAt,
     SupervisorRef supervisor,
     boolean mustChangePassword) {
+
+  /**
+   * El país del actor (`RN-SP-034`, 07-09-2026), y <b>nunca ausente</b>.
+   *
+   * <p>La inclusión {@code NON_NULL} de este registro hace que un campo nulo <b>desaparezca en
+   * silencio</b> en lugar de fallar, de modo que conviene decir por qué aquí eso no puede ocurrir:
+   * la columna es {@code NOT NULL}. Esa es la única razón por la que la interfaz puede leer {@code
+   * country} sin comprobar si existe.
+   *
+   * <p><b>Entra por la misma clase de necesidad que el identificador</b>, y la simetría vale la
+   * pena verla: aquel entró porque la compra propia exige {@code clientId} y el cliente no podía
+   * decir quién era; este entra porque `RN-MV-019` decide <b>qué medios de pago se le ofrecen</b>
+   * según dónde esté. Los dos son datos del propio actor y ninguno abre alcance.
+   *
+   * <p><b>Se publica y no se puede cambiar desde aquí.</b> Ni esta consulta, que es de solo
+   * lectura, ni `RF-SP-044`, que edita el perfil propio y no admite el campo: el país lo corrige un
+   * administrador por `RF-SP-027`, porque si decide los medios de pago, cambiárselo uno mismo sería
+   * cambiarse de mercado.
+   */
+  public record CountryRef(UUID id, String code, String name) {}
 
   /** Con su estado: es lo que explica que un rol asignado no aparezca en {@code permissions}. */
   public record RoleRef(String code, String name, String status) {}

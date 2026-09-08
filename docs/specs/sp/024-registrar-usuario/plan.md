@@ -11,6 +11,7 @@
 | Fecha de aprobación | 22-08-2026 |
 | Reabierto el | 22-08-2026 — `V18` incorpora `deleted_at`, ver §2.1 (Art. I.7) |
 | Reaprobado el | 22-08-2026 — Responsable del proyecto, verificado contra `architecture.md` §6.4 |
+| Reabierto el | 07-09-2026 — `RN-SP-034`: `users` gana `country_id` `NOT NULL` y el catálogo de países deja de nacer vacío, ver §2.6 (Art. I.7) |
 
 !!! info "Qué va en este documento"
 
@@ -37,7 +38,7 @@ Hay una quinta cosa que este plan tiene que resolver y que no parece de él: **e
 
 ## 2. Cambios de esquema
 
-Cinco migraciones. `V17__create_country_search_index.sql` (`RF-SP-021`) es la última comprometida.
+Cinco migraciones, **más la enmienda de §2.6** (07-09-2026). `V17__create_country_search_index.sql` (`RF-SP-021`) es la última comprometida.
 
 **Se declaran en migraciones separadas y no en una sola** por el mismo criterio con el que `V5__create_roles.sql` y `V6__create_role_permissions.sql` se separaron: cada una crea una entidad con su propio conjunto de restricciones, y una migración que falla a mitad es más fácil de leer cuando su nombre dice qué estaba creando.
 
@@ -219,6 +220,38 @@ Tres decisiones:
 
 Depende de `V7__seed_system_roles.sql`, que es donde nace el rol `SUPERADMIN`. Si ese rol no existiera, el `INSERT … SELECT` no insertaría fila alguna y el superadministrador quedaría sin permisos: la migración debe verificarlo y fallar, no continuar en silencio.
 
+### 2.6 `V64__usuario_con_pais.sql` — enmienda del 07-09-2026
+
+`RN-SP-034` hace que toda persona pertenezca a un país. La columna nace **`NOT NULL` desde el primer día**, y esa decisión es la que carga la migración entera: una columna obligatoria sobre una tabla que ya tiene filas no se puede añadir sin decidir **qué valor llevan esas filas**.
+
+```sql
+-- 1. El país base. El catálogo hasta hoy nacía vacío.
+INSERT INTO countries (id, code, name)
+VALUES ('...uuid v7 fijo...', 'COL', 'Colombia');
+
+-- 2. La columna, nulable de momento.
+ALTER TABLE users ADD COLUMN country_id uuid;
+
+-- 3. El relleno.
+UPDATE users SET country_id = '...uuid v7 fijo...' WHERE country_id IS NULL;
+
+-- 4. Y solo entonces, obligatoria.
+ALTER TABLE users ALTER COLUMN country_id SET NOT NULL;
+ALTER TABLE users ADD CONSTRAINT fk_users_country
+    FOREIGN KEY (country_id) REFERENCES countries (id);
+CREATE INDEX ix_users_country_id ON users (country_id);
+```
+
+Cinco decisiones:
+
+- **El número es `V64`, y llegar a él costó dos correcciones el mismo día.** Se escribió primero como `V62` con el argumento de §5.4 de `modelo-datos.md`: aquel documento lo había anotado para `exchange_rates` **sin una línea de `SQL`**, y una reserva así no vale nada — Flyway aplica en orden y deja fuera, sin error y sin aviso, una migración con número por debajo del último aplicado. **El argumento sigue siendo cierto y la conclusión ya no lo era**: horas después, las tripletas de `RF-SP-047` a `RF-SP-050` fijaron `V62` para la tabla y `V63` para sus permisos en cuatro documentos aprobados. **Una reserva de una línea no vale nada; una planificada en cuatro documentos sí vale**, aunque tampoco garantice el número. Se toma `V64` para no invalidar tripletas recién aprobadas, y **la regla de fondo no cambia**: aplique quien aplique primero se lleva su número, y quien llegue después renumera. Las cuatro tablas de `MV` cambiaron de número tres veces por esto.
+- **Añadir, rellenar y solo después endurecer.** `ADD COLUMN … NOT NULL` sin defecto falla en seco sobre una tabla con filas, y con un defecto dejaría el valor cableado en el esquema para siempre. Los cuatro pasos separados son lo que permite que el paso 3 sea **legible como decisión** y no un efecto lateral de una cláusula.
+- **La siembra de Colombia va en esta migración y no en una aparte**, aunque toque otra tabla. Es la única forma de que los cuatro pasos sean atómicos: separarlas admite un estado —catálogo sembrado, columna sin crear, o peor, columna creada sin país que la rellene— en el que la segunda migración falla y la primera ya dejó una fila **imborrable** en un catálogo que `RN-SP-009` no deja corregir.
+- **El identificador del país es UUID v7 literal**, generado una vez al redactar la migración, exactamente como `V15` con `USD` y `V22` con el superadministrador. Debe ser el mismo en todos los entornos: las pruebas de integración de este requerimiento y de los otros cinco enmendados necesitan referir un país sin consultarlo.
+- **La clave foránea es simple y sin `ON DELETE`, y el índice es total.** El razonamiento está en `requirements/sp.md` §10.8 y no se repite: la compuesta `(country_id, is_active)` haría fallar `RF-SP-022` sobre cualquier país con usuarios, y no hay borrado del que defenderse porque `RN-SP-009` no lo admite. El índice hace doble trabajo — filtro de `RF-SP-025` y respaldo del `NO ACTION`.
+
+**Lo que esta migración NO hace, y hay que decirlo:** no toca `V18`, que está aplicada y validada por suma de comprobación. Mismo criterio que `V42` sobre `V16` y `V38` sobre `V13`.
+
 ## 3. Componentes afectados
 
 Paquete raíz: `com.factech.nexus.modules.system`. Reglas de dependencia de `architecture.md` §5.2; `domain` no importa Spring ni JPA, y la prueba de ArchUnit de `RF-SP-001` lo verifica.
@@ -241,6 +274,7 @@ Paquete raíz: `com.factech.nexus.modules.system`. Reglas de dependencia de `arc
 | `application` | `CommonPasswordCatalog` | Nuevo | Puerto de consulta de la lista de contraseñas comunes |
 | `application` | `AuthenticatedActor` | Modificado | Puerto de `RF-SP-001`. Ya declara los permisos efectivos del actor leídos de base de datos; aquí se usan tal cual para `RN-SEG-010` |
 | `application` | `RoleCatalog` | Modificado | Puerto de `RF-SP-001`. Gana la lectura **con bloqueo compartido** de los roles a conceder (§7) |
+| `application` | `AssignableCountry` | **Nuevo, 07-09-2026** | Puerto de lectura del país a asignar: devuelve si existe y si está activo, **distinguiendo los dos**, porque `EX-009` los responde distinto. Es un puerto de `SP` hacia su propio catálogo y **no un repositorio de `countries`**: el caso de uso del alta no puede leer el agregado `Country` de otro submódulo, y lo que necesita saber cabe en dos booleanos. Resuelve **por identificador y por código alfa-3**, porque `RF-SP-045` recibe el código y no el identificador, y partirlo en dos puertos dejaría la misma regla escrita dos veces. Lo reutilizan `RF-SP-027` y `RF-SP-045` |
 | `application` | `UserChangeAuditor` | Nuevo | Puerto hacia `shared/audit` para el evento de cambio. Lo reutilizarán `RF-SP-027` a `RF-SP-033` |
 | `application` | `UserSecurityAuditor` | Nuevo | Puerto hacia `shared/audit` para el evento de seguridad del alta (§6) |
 | `infrastructure` | `JpaUserRepository` | Nuevo | Adaptador. **Traduce la violación de índice único distinguiendo cuál de los dos se violó** |
@@ -275,6 +309,7 @@ Tres decisiones de reparto:
   "firstName": "Juan",
   "lastName": "Pérez",
   "password": "···",
+  "countryId": "01a03336-6d00-7002-9c4f-5e7ad3000001",
   "roleIds": ["018f3a2b-7c41-7000-9a3d-1f2e5b8c9d01"],
   "membershipId": null,
   "supervisorId": null
@@ -286,6 +321,7 @@ Tres decisiones de reparto:
 - **`membershipId` y `supervisorId` son condicionales en los dos sentidos.** Indicarlos sin el rol que los exige es `409`, no un dato que se ignora (`EX-005`, `EX-006`). Es lo que impide que una petición copiada de otra deje una membresía colgando de quien no es consumidor.
 - **`roleIds` admite entre 0 y 100 elementos.** Cero es `FA-001` y es válido. El techo es el de `RF-SP-005` §4, por el mismo motivo: acotar el coste de una petición que dispara una verificación por elemento.
 - **`password` no se recorta ni se transforma.** Un espacio al principio o al final es parte de la contraseña. Recortarla, como se hace con los demás campos, cambiaría silenciosamente lo que la persona escribió y haría fallar su primer inicio de sesión.
+- **`countryId` es obligatorio y va por identificador, no por código** (07-09-2026). Obligatorio **sin condición**: al contrario que `membershipId` y `supervisorId`, no depende de qué roles se concedan — su ausencia es siempre `400`, nunca un `409` condicional. Y por identificador porque es el criterio del cuerpo entero, que no mezcla dos espacios de identificación; el cliente tiene los identificadores de `RF-SP-021`, que además **solo publica los países activos**, de modo que un selector alimentado por él no puede ofrecer uno que `EX-009` vaya a rechazar.
 
 **Respuesta `201`**
 
@@ -300,6 +336,7 @@ Con cabecera `Location: /api/v1/users/{id}`, que **sí resuelve**: `RF-SP-026` p
   "lastName": "Pérez",
   "status": "ACTIVO",
   "mustChangePassword": true,
+  "country": { "id": "01a03336-6d00-7002-9c4f-5e7ad3000001", "code": "COL", "name": "Colombia" },
   "roles": [
     { "id": "018f3a2b-7c41-7000-9a3d-1f2e5b8c9d01", "code": "ASESOR", "name": "Asesor comercial" }
   ],
@@ -309,6 +346,7 @@ Con cabecera `Location: /api/v1/users/{id}`, que **sí resuelve**: `RF-SP-026` p
 ```
 
 - **Se devuelve el correo ya normalizado y el nombre de usuario tal como se escribió.** Es la única forma de que el actor vea qué quedó registrado, y refleja exactamente la asimetría de §2.
+- **El país se devuelve resuelto —objeto con `id`, `code` y `name`— y no como identificador suelto** (`CA-SP-574`, 07-09-2026). Es el mismo trato que reciben los roles, y por el mismo motivo: quien acaba de registrar tiene que poder comprobar **qué** quedó escrito sin una segunda llamada al catálogo. **Es además la excepción razonada al punto siguiente**: la membresía y el superior no se devuelven, y el país sí, porque aquellos son **condicionales** —puede que el alta no los haya escrito— y este entra **siempre**; una salida que a veces trae un campo y a veces no es la que obliga al cliente a llamar a `RF-SP-026` de todas formas.
 - **No se devuelven la membresía ni el superior**, aunque el alta los haya escrito. `spec.md` §6.2 fija la salida y no los incluye; quien los necesite tiene `RF-SP-026`. Añadirlos aquí crearía dos formas del mismo recurso que habría que mantener sincronizadas.
 - **No existe `password` ni ningún campo derivado de ella**, ni siquiera su longitud (`CA-SP-196`).
 - **No existe `createdBy`**: el actor no vive en la tabla de negocio (Art. V.7). Quién registró a la persona se responde con `RF-SP-011`.
@@ -320,6 +358,7 @@ Con cabecera `Location: /api/v1/users/{id}`, que **sí resuelve**: `RF-SP-026` p
 | `400` | Campo obligatorio ausente, formato inválido o longitud excedida (`VAL-001` a `VAL-004`, `VAL-008`) | El `VAL-…` correspondiente |
 | `400` | Nombre de usuario con arroba o fuera del alfabeto (`VAL-010`) | `VAL-010` |
 | `400` | Ningún rol informado (`EX-008`, `RN-SP-023`) | `VAL-013` |
+| `400` | `countryId` ausente (`EX-009`, `RN-SP-034`) | `VAL-014` |
 | `400` | Cuerpo con campo desconocido, incluidos `status` y `mustChangePassword` | `VAL-001` |
 | `401` | Token ausente o inválido | `AUTH-001` |
 | `403` | El actor no posee `users:create` | `AUTH-002` |
@@ -328,12 +367,16 @@ Con cabecera `Location: /api/v1/users/{id}`, que **sí resuelve**: `RF-SP-026` p
 | `409` | Rol vendedor sin superior, o superior sin rol vendedor (`EX-006`) | `RN-SP-019` |
 | `409` | El superior no porta el rol padre inmediato, no existe o no está `ACTIVO` (`EX-007`) | `RN-SP-020` |
 | `409` | Algún rol excede los privilegios del actor (`EX-004`) | `RN-SEG-010` |
+| `409` | El país indicado existe pero está **inactivo** (`EX-009`) | `RN-SP-034` |
 | `422` | Algún rol no existe, está eliminado o está inactivo (`EX-003`) | `EX-003` |
+| `422` | El país indicado **no existe** en el catálogo (`EX-009`) | `EX-009` |
 | `500` | Fallo no controlado | `ERR-500` |
 
 El formato de error es el de `architecture.md` §7.3.
 
 **`422` para el rol inexistente y `409` para el rol que excede al actor**, igual que `RF-SP-005` §4: el primero es una referencia que no resuelve, el segundo es una petición bien formada que una regla de negocio rechaza. Mantener la misma correspondencia en los dos requerimientos es lo que permite a un cliente tratarlos igual.
+
+**El país parte `EX-009` en dos códigos por esa misma correspondencia** (07-09-2026): país inexistente es `422` —una referencia que no resuelve, como el rol— y país inactivo es `409` —resuelve, y una regla lo rechaza—. Repartirlo así no es cosmético: **el cliente los corrige de forma distinta**. Ante el `422` vuelve a leer `RF-SP-021`, porque su selector está desincronizado; ante el `409` sabe que el país existe y que alguien lo retiró de la circulación, que es una conversación con quien administra el catálogo y no un error de la petición.
 
 **Los cuerpos de `409` deben enumerar qué elemento incumple.** `EX-001` exige decir cuál de las dos identidades está en uso; `EX-003` y `EX-004`, qué roles; `EX-007`, qué rol debería portar el superior. Sin ese detalle el actor no puede corregir la petición.
 
@@ -346,6 +389,7 @@ El formato de error es el de `architecture.md` §7.3.
 3. **Política de contraseña** (`EX-002`). Antes que nada que consulte la base de datos: es la única verificación que no necesita ir a buscar nada, y fallar aquí ahorra el resto.
 4. **Unicidad** de nombre de usuario y correo (`EX-001`), por consulta para el mensaje y en última instancia por el índice.
 5. **Existencia y estado de los roles** (`EX-003`), leyéndolos **con bloqueo compartido** (§7).
+5.bis **Existencia y estado del país** (`EX-009`), leído **con bloqueo compartido** por el mismo motivo que el rol y el superior: `RF-SP-022` puede desactivarlo a la vez. Va **aquí y no antes** porque es una consulta más a la base de datos y no aporta nada adelantarla; y va **antes de la escritura** porque `fk_users_country` no distingue «no existe» de «está inactivo» — dejarlo al motor daría un `500` sobre una regla de negocio.
 6. **Contención de privilegios** (`EX-004`, `RN-SEG-010`).
 7. **Coherencia consumidor–membresía** (`EX-005`) y **vendedor–superior** (`EX-006`), que son comprobaciones sobre los roles ya cargados.
 8. **Validez del superior** (`EX-007`), leyéndolo con bloqueo compartido.

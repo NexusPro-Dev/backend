@@ -75,6 +75,9 @@ public class GetUserService {
                     new UserDetailResponse.RoleRef(rol.id(), rol.code(), rol.name(), rol.status()))
             .toList(),
         efectivos.stream().sorted().toList(),
+        // Sin condicional: el país está siempre, y se devuelve aunque esté
+        // inactivo — esta es la pantalla desde la que se decide moverla.
+        new UserDetailResponse.CountryRef(fila.countryId(), fila.countryCode(), fila.countryName()),
         fila.tieneMembresia()
             ? new UserDetailResponse.MembershipRef(
                 fila.membershipId(),

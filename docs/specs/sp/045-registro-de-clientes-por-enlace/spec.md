@@ -8,6 +8,7 @@
 | Autor | Responsable técnico |
 | Aprobada por | Pendiente |
 | Fecha de aprobación | — |
+| Enmendada | 07-09-2026 — `RN-SP-034`: el formulario público exige país; nace `EX-006`, `VAL-009`, `CA-SP-582` y `CA-SP-583`, y **una pregunta abierta que esta enmienda no puede cerrar** (§14, pregunta 1) |
 
 ---
 
@@ -93,6 +94,9 @@ Lo que sí se consigue forjando es **atribuirse a un vendedor cualquiera**, y es
 | Nombre de usuario | Sí | Identidad estable | Única, sin arroba (`RN-SP-016`) |
 | Correo | Sí | Identidad corregible | Único, formato válido |
 | Contraseña | Sí | **La elige la persona** | Debe cumplir la política |
+| País | Sí | **Código ISO 3166-1 alfa-3** del país donde está la persona | Debe existir en el catálogo y estar **activo** (`RN-SP-034`) |
+
+**El país viaja por código y no por identificador**, y es el mismo criterio que gobierna los otros dos campos de referencia de este formulario: el producto admite su código y el vendedor va por nombre de usuario. La razón aquí es más fuerte todavía — `RN-SP-009` hace que el código de un país **no cambie nunca**, de modo que es el identificador más estable que existe en el sistema, y además es el que la persona reconoce. Meter un UUID en un formulario público sería pedirle al navegador que conociera identificadores internos para dar de alta a alguien que aún no tiene cuenta.
 
 **El vendedor viaja por nombre de usuario y no por identificador**, y es una decisión: el nombre de usuario es inmutable por `RN-SP-016` —de modo que un enlace impreso en un folleto sigue resolviendo dentro de dos años—, es legible, y no expone el identificador interno de un empleado en una dirección que se comparte por redes.
 
@@ -166,6 +170,14 @@ Lo que sí se consigue forjando es **atribuirse a un vendedor cualquiera**, y es
 
 **Aquí sí se distingue, y contradice a `EX-001` a propósito.** Quien se registra necesita saber cuál de sus dos identidades chocó para poder corregirla; callarlo lo deja probando a ciegas. El coste está declarado: este endpoint permite comprobar si un correo está registrado. Se acepta porque **cualquier formulario de registro del mundo lo permite** —es indistinguible de la respuesta que da al usuario legítimo— y porque la defensa real es el límite de tasa de `plan.md` §5, no el silencio.
 
+### EX-006 — País inexistente o inactivo
+
+**Respuesta:** se rechaza, y **los dos casos comparten respuesta**, al revés que en `RF-SP-024` `EX-009` y en `RF-SP-027` `EX-003`, donde sí se distinguen.
+
+**La asimetría es la misma que separa `EX-001` de `EX-005` en esta especificación, y se resuelve igual: ¿informa al usuario legítimo, o enumera el sistema?** Distinguir «no existe» de «está inactivo» **no ayuda a nadie a rellenar el formulario** —en los dos casos la salida es elegir otro país— y en cambio convierte este endpoint público en una forma de averiguar **en qué mercados opera la plataforma y cuáles retiró**, probando códigos ISO. Es información comercial, y sale gratis obtenerla porque los códigos ISO son públicos y son doscientos cuarenta y nueve.
+
+Dentro del sistema, en cambio, la distinción sí ayuda: un administrador **puede hacer algo distinto** con cada caso.
+
 ## 11. Validaciones
 
 | ID | Validación | Mensaje esperado |
@@ -178,6 +190,7 @@ Lo que sí se consigue forjando es **atribuirse a un vendedor cualquiera**, y es
 | `VAL-006` | Contraseña conforme a la política | La contraseña no cumple la política. |
 | `VAL-007` | Nombre de usuario único | Ese nombre de usuario ya está en uso. |
 | `VAL-008` | Correo único | Ese correo ya está en uso. |
+| `VAL-009` | País informado, existente y activo (`RN-SP-034`) | El país indicado no es válido. |
 
 ## 12. Criterios de aceptación
 
@@ -202,6 +215,8 @@ Lo que sí se consigue forjando es **atribuirse a un vendedor cualquiera**, y es
 | `CA-SP-521` | El registro **no devuelve credenciales de sesión** |
 | `CA-SP-522` | La persona registrada **puede autenticarse** pese a no estar `ACTIVO` |
 | `CA-SP-523` | El registro emite evento de seguridad con el vendedor y el producto en el detalle |
+| `CA-SP-582` | El registro público **exige país** y la cuenta nace con él, igual que el alta administrativa |
+| `CA-SP-583` | Un país inexistente y uno inactivo se rechazan **con la misma respuesta**, y el cuerpo **no dice qué países existen** |
 | `CA-SP-524` | Un administrador puede llevar la cuenta de `FTD_PENDIENTE` a `ACTIVO` por `RF-SP-028` |
 
 ## 13. Casos límite
@@ -221,6 +236,7 @@ Lo que sí se consigue forjando es **atribuirse a un vendedor cualquiera**, y es
 
 | Pregunta | Estado |
 |---|---|
+| **De dónde saca el formulario público la lista de países.** `RN-SP-034` (07-09-2026) obliga a pedir el país, y **el catálogo no es público**: `GET /api/v1/countries` (`RF-SP-021`) exige `countries:read`, que quien se está registrando no tiene por definición. Sin resolverlo, el formulario solo puede ofrecer la lista ISO completa y dejar que el servidor rechace los doscientos y pico países en los que la plataforma no opera — que es una pantalla que falla después de rellenarla | **ABIERTA, y es la única que esta enmienda no puede cerrar sola.** Requiere decisión del responsable del proyecto, porque las tres salidas cuestan cosas distintas: **(a)** abrir `GET /api/v1/countries` al público —barato, y publica en qué mercados opera la plataforma, que es justo lo que `EX-006` acaba de decidir no revelar—; **(b)** un endpoint público propio que devuelva solo los países activos, con su propio límite de tasa —más trabajo, misma información publicada, pero acotada y con su ruta en `/auth`—; **(c)** dejar el formulario con la lista ISO entera y el rechazo del servidor —cero trabajo y la peor experiencia—. **No bloquea al resto de la enmienda**: los otros cinco requerimientos no dependen de ella, y este todavía no está implementado (`tasks.md` en revisión). Queda como bloqueo explícito en `tasks.md` §4 |
 | **La atribución es forjable.** Quien componga el enlace elige a qué vendedor se atribuye. No concede acceso, pero ensucia la base sobre la que `CM` comisionará. Cerrarlo exige que el enlace sea un artefacto emitido y persistido, con su tabla y su operación de emisión | **Abierta, y aceptada por ahora.** No bloquea: hoy no se paga ninguna comisión, porque la liquidación no existe. **La condición para reabrirla queda escrita: en cuanto se liquide una comisión sobre una atribución, el enlace tiene que dejar de ser componible** |
 | **El camino de pago.** Los productos que llevan a membresías de pago se rechazan hoy con `EX-004` | **Abierta por dependencia.** Espera al área de Finanzas. La forma de este requerimiento no cambia: cambia la rama que hoy rechaza |
 | **La confirmación del depósito.** Será el webhook del bróker | **Aplazada por decisión del responsable** (01-09-2026). Mientras tanto, la salida es manual por `RF-SP-028` |

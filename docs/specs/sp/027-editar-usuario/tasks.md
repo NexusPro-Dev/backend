@@ -134,6 +134,18 @@ Dos ediciones simultáneas hacia **el mismo correo** devolvían una `200` y un *
 - **Solo el correo deja evento de seguridad.** Es la identidad con la que se entra y la llave de la recuperación; corregir un apellido no lo es.
 - **El actor sí puede editarse a sí mismo**, al revés que en el cambio de estado y la eliminación: corregir el propio apellido no concede ningún privilegio.
 
+## 4.ter El país pasa a corregirse desde aquí — enmienda del 07-09-2026
+
+`RN-SP-034` obliga a que toda persona declare un país (`requirements/sp.md` v1.38.0), y **esta es la única operación que lo cambia**: el alta lo fija, `RF-SP-044` no lo admite y ningún otro requerimiento lo toca.
+
+**La tarea no se duplica aquí.** Es `T-50` de [`../024-registrar-usuario/tasks.md`](../024-registrar-usuario/tasks.md) §4.quinquies, donde vive la enmienda entera.
+
+**Tres decisiones que sí son de este requerimiento**, razonadas en `plan.md` §4 y §6:
+
+- **`countryId` es `Patchable<UUID>` y el nulo explícito se rechaza** con `400`, igual que los otros tres campos y por el mismo motivo: la columna es `NOT NULL`, de modo que aceptarlo en silencio daría un `500` sobre una violación de integridad en lugar del `400` que corresponde.
+- **Se comprueba el país de destino, nunca el actual.** Es lo que hace utilizable la operación: esta es la herramienta con la que se saca a alguien de un país recién desactivado, y exigir que el vigente estuviera activo la volvería inútil justo cuando hace falta.
+- **El cambio de país no emite evento de seguridad**, aunque sea el campo que más se le parece al correo. El correo lo emite porque es una **vía de acceso**; el país no lo es. Queda en `audit_change_log` con su antes y su después, que es donde se responde quién lo cambió.
+
 ## 5. Definición de terminado
 
 El requerimiento no está terminado hasta cumplir **todas** las condiciones de la constitución §16:

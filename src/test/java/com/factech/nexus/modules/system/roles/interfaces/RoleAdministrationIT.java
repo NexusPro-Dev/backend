@@ -539,8 +539,8 @@ class RoleAdministrationIT extends IntegrationTestBase {
     jdbc.update(
         """
         INSERT INTO users (id, username, email, first_name, last_name, password_hash,
-                           must_change_password, status)
-        VALUES (?, ?, ?, 'Nombre', 'Apellido', 'x', false, 'ACTIVO')
+                           must_change_password, status, country_id)
+        VALUES (?, ?, ?, 'Nombre', 'Apellido', 'x', false, 'ACTIVO', (SELECT id FROM countries WHERE code = 'COL'))
         """,
         id,
         usuario,

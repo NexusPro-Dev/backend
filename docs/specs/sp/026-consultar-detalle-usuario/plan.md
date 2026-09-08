@@ -9,6 +9,7 @@
 | Autor | Responsable técnico |
 | Aprobado por | Responsable del proyecto |
 | Fecha de aprobación | 22-08-2026 |
+| Reabierto el | 07-09-2026 — `RN-SP-034`: la respuesta incorpora `country`, ver §4 (Art. I.7) |
 
 !!! info "Qué va en este documento"
 
@@ -122,6 +123,7 @@ Sin cuerpo y sin parámetros de consulta. No hay `?include=…`: la especificaci
     { "id": "018f3a2b-7c41-7000-9a3d-1f2e5b8c9d02", "code": "SOPORTE", "name": "Soporte", "status": "INACTIVO" }
   ],
   "effectivePermissions": ["users:read", "roles:read"],
+  "country": { "id": "01a03336-6d00-7002-9c4f-5e7ad3000001", "code": "COL", "name": "Colombia" },
   "membership": {
     "id": "018f3a2b-7c41-7000-9a3d-1f2e5b8c9d05",
     "code": "ORO",
@@ -142,6 +144,7 @@ Decisiones del contrato:
 - **`roles` lleva el estado de cada uno**, y esa es la mitad de `FA-002`: la otra mitad es que `effectivePermissions` llegue vacía. Las dos juntas son lo que explica por qué una persona con roles no puede hacer nada.
 - **`effectivePermissions` es una lista de códigos, ordenada y sin duplicados** (`CA-SP-213`). No se devuelven los identificadores de los permisos ni su descripción: la pregunta es «qué puede hacer», y `RF-SP-015` responde qué significa cada uno. El orden es alfabético por código, para que la respuesta sea estable entre llamadas y comparable entre personas.
 - **No se pagina.** `architecture.md` §7.4 exige paginar «las colecciones», y aquí se aparta de forma consciente por el mismo argumento de `RF-SP-003` §4: los permisos efectivos de una persona son decenas, no constituyen un recurso navegable y paginarlos obligaría a dos peticiones para responder la única pregunta del requerimiento.
+- **`country` nunca es nulo y se devuelve aunque el país esté inactivo** (`CA-SP-577`, 07-09-2026). Es un `JOIN` interno por una columna `NOT NULL`, y **no lleva `is_active` en la proyección ni condición sobre él en el predicado**: la desactivación de un país retira la opción del alta (`RF-SP-022`), no oculta dónde está quien ya lo tenía. Que el país esté inactivo es un dato que quien administra necesita ver, no ocultar — es exactamente el caso en que hay que usar `RF-SP-027` para moverlo, y esta es la pantalla desde la que se decide.
 - **`membership` lleva `level`**, que el listado no devuelve. Es el dato con el que los módulos de academia y productos deciden qué contenido ofrecer, y esta es la pantalla donde se comprueba.
 - **`membership` no es nula cuando está vencida**, con la misma semántica que `RF-SP-025` §4: `current` dice si concede nivel y `endsAt` hasta cuándo lo hizo. Vencer no es lo mismo que no tener (`RN-SP-014`).
 - **`lockedUntil` es nulo en dos casos distintos y eso es información**: la cuenta no está bloqueada, o lo está **por decisión de un actor** y por tanto sin expiración (`RF-SP-028`). El estado desambigua: `BLOQUEADO` con `lockedUntil` nulo es un bloqueo manual, que no se levanta solo. `CA-SP-217` se satisface en el otro caso.

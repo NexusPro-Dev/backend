@@ -34,6 +34,7 @@ public record UserResponse(
     String status,
     boolean mustChangePassword,
     List<RoleRef> roles,
+    CountryRef country,
     MembershipRef membership,
     SupervisorRef supervisor,
     OffsetDateTime createdAt,
@@ -41,6 +42,25 @@ public record UserResponse(
 
   @JsonInclude(JsonInclude.Include.ALWAYS)
   public record RoleRef(UUID id, String code, String name) {}
+
+  /**
+   * El país de la persona (`RN-SP-034`), resuelto y no como identificador suelto.
+   *
+   * <p>Mismo trato que {@code RoleRef} y por el mismo motivo: quien acaba de registrar o de editar
+   * tiene que poder comprobar <b>qué</b> quedó escrito sin una segunda llamada al catálogo — que
+   * además exige {@code countries:read}, un permiso que quien tiene {@code users:create} no
+   * necesariamente porta.
+   *
+   * <p><b>Es el único de los tres objetos anidados de esta respuesta que nunca es nulo.</b> La
+   * membresía y el superior son condicionales; el país entra siempre. Esa es la razón de que el
+   * alta lo devuelva y no devuelva los otros dos: una salida que a veces trae un campo y a veces no
+   * obliga al cliente a llamar al detalle de todas formas.
+   *
+   * <p>Se devuelve <b>aunque el país esté inactivo</b>, y sin decir que lo está: desactivar un país
+   * lo retira de los selectores del alta (`RF-SP-022`), no cambia dónde está quien ya lo tenía.
+   */
+  @JsonInclude(JsonInclude.Include.ALWAYS)
+  public record CountryRef(UUID id, String code, String name) {}
 
   /** {@code endsAt} nulo significa <b>indefinida</b>, no «sin fecha conocida». */
   @JsonInclude(JsonInclude.Include.ALWAYS)
@@ -50,7 +70,11 @@ public record UserResponse(
   public record SupervisorRef(UUID id, String username, String firstName, String lastName) {}
 
   public static UserResponse from(
-      User usuario, List<RoleRef> roles, MembershipRef membresia, SupervisorRef superior) {
+      User usuario,
+      List<RoleRef> roles,
+      CountryRef pais,
+      MembershipRef membresia,
+      SupervisorRef superior) {
     return new UserResponse(
         usuario.getId(),
         usuario.getUsername(),
@@ -60,6 +84,7 @@ public record UserResponse(
         usuario.getStatus().name(),
         usuario.isMustChangePassword(),
         roles,
+        pais,
         membresia,
         superior,
         enUtc(usuario.getCreatedAt()),

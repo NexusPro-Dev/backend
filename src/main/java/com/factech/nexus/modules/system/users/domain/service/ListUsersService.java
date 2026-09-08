@@ -121,6 +121,9 @@ public class ListUsersService {
         roles.getOrDefault(fila.id(), List.of()).stream()
             .map(rol -> new UserResponse.RoleRef(rol.id(), rol.code(), rol.name()))
             .toList(),
+        // SIN CONDICIONAL, al revés que la membresía de abajo: el país está
+        // siempre (`RN-SP-034`). Un ternario aquí sugeriría que puede faltar.
+        new UserResponse.CountryRef(fila.countryId(), fila.countryCode(), fila.countryName()),
         fila.tieneMembresia()
             ? new UserListItem.MembershipRef(
                 fila.membershipId(),

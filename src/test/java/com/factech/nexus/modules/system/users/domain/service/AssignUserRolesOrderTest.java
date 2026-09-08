@@ -13,6 +13,7 @@ import com.factech.nexus.modules.system.roles.application.AuthenticatedActor;
 import com.factech.nexus.modules.system.roles.domain.models.RoleType;
 import com.factech.nexus.modules.system.users.application.AssignRolesRequest;
 import com.factech.nexus.modules.system.users.domain.models.User;
+import com.factech.nexus.modules.system.users.domain.repository.AssignableCountry;
 import com.factech.nexus.modules.system.users.domain.repository.AssignableRole;
 import com.factech.nexus.modules.system.users.domain.repository.RoleCatalog;
 import com.factech.nexus.modules.system.users.domain.repository.UserRepository;
@@ -67,6 +68,11 @@ class AssignUserRolesOrderTest {
   private final AuditWriter auditoria = mock(AuditWriter.class);
   private final UuidV7Generator ids = mock(UuidV7Generator.class);
 
+  // El país no participa en NINGUNO de los órdenes que esta prueba fija: entra
+  // solo al componer la respuesta, después de que todo lo que aquí se verifica
+  // ya haya ocurrido. El doble está para poder construir el servicio.
+  private final AssignableCountry paises = mock(AssignableCountry.class);
+
   private final AssignUserRolesService servicio =
       new AssignUserRolesService(
           usuarios,
@@ -75,6 +81,7 @@ class AssignUserRolesOrderTest {
           actor,
           auditoria,
           ids,
+          paises,
           Clock.fixed(Instant.parse("2026-08-27T10:00:00Z"), ZoneOffset.UTC));
 
   @Nested

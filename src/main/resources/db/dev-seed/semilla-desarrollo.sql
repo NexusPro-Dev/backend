@@ -111,8 +111,15 @@ personas AS (
    WHERE NOT EXISTS (SELECT 1 FROM users u WHERE u.username = r.prefijo || n)
 ),
 insertadas AS (
+  -- `country_id` SE DECLARA EXPLICITAMENTE y no se deja al relleno de `V64`
+  -- (`RN-SP-034`): aquella migracion pone Colombia a las filas QUE YA EXISTIAN,
+  -- y estas se crean despues. Sin declararlo, el INSERT falla por `NOT NULL` —
+  -- que es el comportamiento correcto y no el que esta semilla quiere probar.
+  --
+  -- Se resuelve POR CODIGO y no por identificador literal: en una base donde
+  -- Colombia ya se hubiera registrado por la API, la fila buena es la suya.
   INSERT INTO users (id, username, email, first_name, last_name, password_hash,
-                     must_change_password, status)
+                     must_change_password, status, country_id)
   SELECT p.id,
          p.usuario,
          p.usuario || '@factech.co',
@@ -120,7 +127,8 @@ insertadas AS (
          'Prueba ' || p.indice,
          (SELECT password_hash FROM users WHERE username = 'superadmin'),
          false,
-         'ACTIVO'
+         'ACTIVO',
+         (SELECT id FROM countries WHERE code = 'COL')
     FROM personas p
   RETURNING id, username
 )

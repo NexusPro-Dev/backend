@@ -2,6 +2,7 @@ package com.factech.nexus.modules.system.users.application;
 
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotEmpty;
+import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Size;
 import java.util.LinkedHashSet;
 import java.util.List;
@@ -24,6 +25,12 @@ import java.util.UUID;
  * duplicaría la regla en dos sitios que divergirían, y el correo debe validarse <b>después</b> de
  * pasar a minúsculas, no antes.
  *
+ * @param countryId <b>obligatorio</b> (`RN-SP-034`, 07-09-2026). Va por identificador y no por
+ *     código, que es el criterio del cuerpo entero — no mezclar dos espacios de identificación—, y
+ *     el cliente los tiene de `RF-SP-021`, que además <b>solo publica los países activos</b>: un
+ *     selector alimentado por él no puede ofrecer uno que el alta vaya a rechazar. Es obligatorio
+ *     <b>sin condición</b>, al contrario que {@code membershipId} y {@code supervisorId}: no
+ *     depende de qué roles se concedan
  * @param roleIds admite entre 1 y 100. <b>Al menos uno es obligatorio</b> desde `RN-SP-023`
  *     (24-08-2026): un usuario sin roles se autentica y no puede hacer nada, de modo que
  *     registrarlo así solo reservaría un nombre de usuario y un correo que `RN-SP-016` no libera
@@ -39,6 +46,7 @@ public record RegisterUserRequest(
         @Size(max = 100, message = "VAL-003: El apellido no puede exceder 100 caracteres.")
         String lastName,
     @NotBlank(message = "VAL-008: La contraseña es obligatoria.") String password,
+    @NotNull(message = "VAL-014: El país es obligatorio.") UUID countryId,
     @NotEmpty(message = "VAL-013: Debe indicar al menos un rol.")
         @Size(max = 100, message = "VAL-004: No se admiten más de 100 roles en una sola petición.")
         List<UUID> roleIds,
@@ -60,6 +68,14 @@ public record RegisterUserRequest(
   public RegisterUserCommand toCommand() {
     Set<UUID> roles = new LinkedHashSet<>(roleIds);
     return new RegisterUserCommand(
-        username, email, firstName, lastName, password, roles, membershipId, supervisorId);
+        username,
+        email,
+        firstName,
+        lastName,
+        password,
+        countryId,
+        roles,
+        membershipId,
+        supervisorId);
   }
 }

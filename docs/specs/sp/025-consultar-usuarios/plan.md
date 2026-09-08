@@ -9,6 +9,7 @@
 | Autor | Responsable técnico |
 | Aprobado por | Responsable del proyecto |
 | Fecha de aprobación | 22-08-2026 |
+| Reabierto el | 07-09-2026 — `RN-SP-034`: el país entra en la fila y nace su filtro, ver §2.bis y §4 (Art. I.7) |
 
 !!! info "Qué va en este documento"
 
@@ -81,6 +82,16 @@ Cuatro decisiones sostienen esas líneas.
 
 **`deleted_at` existe desde la creación de `users`**, y conviene decir de dónde viene esa certeza: el `plan.md` de `RF-SP-024` la dejaba a `RF-SP-029`, y sus `tasks.md` la corrigieron (Art. I.7) porque `architecture.md` §6.4 la declara columna obligatoria de toda tabla de negocio y porque `RF-SP-003` §2 ya la daba por existente. **Sin esa corrección, este requerimiento no sería implementable**: `CA-SP-204` es la mitad de su contrato.
 
+### 2.bis El filtro por país — enmienda del 07-09-2026
+
+`RN-SP-034` añade `users.country_id` y con ella un filtro más. **Este requerimiento no declara ninguna migración nueva**: la columna, su clave foránea y `ix_users_country_id` los crea `V64`, en el plan de `RF-SP-024` §2.6, porque la columna es de aquella tabla y el índice hace además de respaldo de la clave foránea.
+
+Es el reparto **contrario** al de `ix_user_memberships_membership_id`, y la diferencia se puede nombrar: aquel índice **solo** sirve a esta consulta —el alta escribe una fila por usuario y nunca pregunta por membresía—, de modo que declararlo aquí era declararlo donde se usa. `ix_users_country_id` tiene un segundo consumidor que no es esta consulta: sin él, el `NO ACTION` de `fk_users_country` recorre `users` entera en cada intento de borrar un país. Un índice con dos razones de existir se declara con la primera.
+
+**El país entra en la fila sin una consulta más y sin multiplicar filas.** Es un `JOIN` corriente hacia `countries` por una columna obligatoria: uno a uno, sin `LEFT`, sin agrupación y sin el riesgo que sí tienen los dos `LEFT JOIN` de roles y membresía. Es la unión más barata de esta consulta, y la única que no necesita justificarse contra la multiplicación de filas.
+
+**El filtro admite países inactivos** (`spec.md` §6.1). No lleva `AND c.is_active` en ningún sitio, y no es un olvido: la condición de país activo es del **momento de asignarlo** (`RN-SP-034`), y un listado que no encontrara a quien está en un país retirado dejaría invisible justo a la gente a la que hay que ir a mover con `RF-SP-027`.
+
 ## 3. Componentes afectados
 
 Paquete raíz: `com.factech.nexus.modules.system`. Reglas de dependencia de `architecture.md` §5.2.
@@ -125,6 +136,7 @@ GET /api/v1/users?page=0&size=20&sort=lastName,asc
                  &status=ACTIVO
                  &roleId=018f3a2b-7c41-7000-9a3d-1f2e5b8c9d01
                  &membershipId=018f3a2b-7c41-7000-9a3d-1f2e5b8c9d05
+                 &countryId=01a03336-6d00-7002-9c4f-5e7ad3000001
                  &search=perez
                  &includeDeleted=false
 ```
@@ -137,12 +149,14 @@ GET /api/v1/users?page=0&size=20&sort=lastName,asc
 | `status` | enum | — | `ACTIVO`, `INACTIVO`, `BLOQUEADO` o `PENDIENTE`. Otro → `VAL-004` |
 | `roleId` | UUID | — | Rol asignado. **No se valida que exista** |
 | `membershipId` | UUID | — | Membresía **vigente**. No se valida que exista |
+| `countryId` | UUID | — | País de la persona. **No se valida que exista, ni que esté activo** (07-09-2026) |
 | `search` | texto | — | Sobre nombre de usuario, correo y nombre completo. Recortado; en blanco equivale a ausente |
 | `includeDeleted` | booleano | `false` | `true` incorpora los usuarios con `deleted_at` no nulo |
 
 - **El orden por defecto es `lastName,asc` y no `username`.** Es la lista desde la que se administra el acceso de personas, y quien la mira busca a alguien por su apellido. Es la única diferencia deliberada con `RF-SP-002`, cuyo defecto es `code,asc`.
 - **`PENDIENTE` se admite en el filtro aunque hoy ninguna fila lo tenga.** El estado está declarado en `ck_users_status` y sin usar (`RF-SP-024`, resolución 1); excluirlo del dominio del filtro obligaría a ampliarlo el día que exista el flujo de activación, y devolver colección vacía es la respuesta correcta mientras tanto.
 - **Ni `roleId` ni `membershipId` se validan contra su catálogo.** `spec.md` §13 lo exige para el rol —«filtro por rol inexistente: devuelve colección vacía; no es un error»— y se aplica igual a la membresía, por el mismo argumento de `RF-SP-002` §4: validarlo añadiría una consulta por petición para producir un fallo que la especificación no quiere.
+- **`countryId` tampoco se valida, y además NO se acota a países activos.** Lo primero es el mismo criterio de los otros dos filtros. Lo segundo es una decisión aparte y va contra la intuición, de modo que conviene dejarla escrita: sería fácil escribir `JOIN countries c ON … AND c.is_active`, y **eso convertiría desactivar un país en una forma de esconder a su gente**. La condición de país activo es del momento de asignarlo (`RN-SP-034`), no de leerlo, y este listado es precisamente la herramienta con la que se va a buscar a quien quedó en un país retirado para moverlo con `RF-SP-027`.
 
 **Respuesta `200`**
 
@@ -159,6 +173,7 @@ GET /api/v1/users?page=0&size=20&sort=lastName,asc
       "roles": [
         { "id": "018f3a2b-7c41-7000-9a3d-1f2e5b8c9d01", "code": "ASESOR", "name": "Asesor comercial" }
       ],
+      "country": { "id": "01a03336-6d00-7002-9c4f-5e7ad3000001", "code": "COL", "name": "Colombia" },
       "membership": {
         "id": "018f3a2b-7c41-7000-9a3d-1f2e5b8c9d05",
         "code": "ORO",
@@ -180,6 +195,7 @@ GET /api/v1/users?page=0&size=20&sort=lastName,asc
 Decisiones del contrato:
 
 - **`roles` va completa por fila, y vacía cuando la persona no tiene ninguno** (`CA-SP-343`). Nunca `null` ni campo ausente: una persona sin roles es un estado válido tras `RF-SP-024`, y distinguirlo con la ausencia del campo obligaría al cliente a tratar dos formas.
+- **`country` nunca es nulo, y es el único objeto anidado de esta fila del que se puede decir eso** (07-09-2026). `roles` puede venir vacío, `membership` puede venir nulo, `deletedAt` puede venir nulo; el país **está siempre**, porque la columna es `NOT NULL`. La consecuencia para quien consuma este listado es que **no tiene que escribir la rama del país ausente**, y por eso el `JOIN` es interno y no `LEFT`: un `LEFT JOIN` aquí sugeriría que la ausencia es posible y taparía con un nulo lo que en realidad sería una violación de integridad.
 - **`membership` es nula cuando la persona no tiene ninguna**, y **no es nula cuando la tiene vencida**. Es la distinción que `CA-SP-366` de `RF-SP-032` exige y que este endpoint es el primero en publicar: vencer no es lo mismo que no tener. El campo `current` dice cuál de los dos casos es, y `endsAt` dice hasta cuándo fue.
 - **`current` se calcula, no se almacena.** Vale `true` cuando `ends_at` es nulo o posterior al momento de la consulta. Ese momento es **el de la transacción de la base de datos**, no el del reloj de la aplicación (§7).
 - **`deletedAt` está siempre presente y vale `null` en los usuarios vigentes.** `spec.md` §6.2 lo declara «presente solo cuando se piden los eliminados»; se interpreta como que es entonces cuando **informa**, no como que el campo aparece y desaparece. Es el mismo criterio de `RF-SP-002` §4, y evita que el cliente tenga que tratar dos formas del mismo recurso según qué parámetro envió. `CA-SP-204` se satisface igual.

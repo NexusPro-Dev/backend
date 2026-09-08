@@ -93,6 +93,10 @@ public class GetOwnProfileService {
             .map(rol -> new OwnProfileResponse.RoleRef(rol.code(), rol.name(), rol.status()))
             .toList(),
         efectivos.stream().sorted().toList(),
+        // Sin condicional, y aquí importa más que en los otros dos: este registro
+        // usa inclusión NON_NULL, de modo que un país nulo DESAPARECERÍA del
+        // JSON en silencio en lugar de fallar.
+        new OwnProfileResponse.CountryRef(fila.countryId(), fila.countryCode(), fila.countryName()),
         fila.tieneMembresia()
             ? new OwnProfileResponse.MembershipRef(
                 fila.membershipCode(),

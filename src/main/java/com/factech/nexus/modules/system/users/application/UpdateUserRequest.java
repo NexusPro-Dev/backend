@@ -2,7 +2,9 @@ package com.factech.nexus.modules.system.users.application;
 
 import com.factech.nexus.shared.patch.Patchable;
 import com.factech.nexus.shared.patch.PatchableStringDeserializer;
+import com.factech.nexus.shared.patch.PatchableUuidDeserializer;
 import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
+import java.util.UUID;
 
 /**
  * Cuerpo de {@code PATCH /api/v1/users/{id}} (`RF-SP-027`).
@@ -18,6 +20,13 @@ import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
  * que rechazarlo</b>, porque produciría una violación de integridad traducida a {@code 500} en
  * lugar del {@code 400} que corresponde.
  *
+ * <p><b>{@code countryId} es el cuarto campo y hereda el trato de los otros tres</b> (`RN-SP-034`,
+ * 07-09-2026): {@code {"countryId": null}} se rechaza con {@code 400}, porque {@code country_id} es
+ * {@code NOT NULL} y el estado «persona sin país» no existe. Es además <b>el único campo del cuerpo
+ * que se verifica contra otra tabla</b> —existe y está activo—, y esa verificación es sobre el país
+ * <b>de destino</b> y nunca sobre el actual: esta es la operación con la que se saca a alguien de
+ * un país recién desactivado.
+ *
  * <p><b>El nombre de usuario no está aquí</b>, y tampoco el estado, los roles, la membresía ni la
  * contraseña. Cada uno tiene su requerimiento. Enviarlos devuelve {@code 400} por propiedad
  * desconocida — sin ese rechazo se ignorarían en silencio y quien los enviara creería haberlos
@@ -26,7 +35,8 @@ import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
 public record UpdateUserRequest(
     @JsonDeserialize(using = PatchableStringDeserializer.class) Patchable<String> firstName,
     @JsonDeserialize(using = PatchableStringDeserializer.class) Patchable<String> lastName,
-    @JsonDeserialize(using = PatchableStringDeserializer.class) Patchable<String> email) {
+    @JsonDeserialize(using = PatchableStringDeserializer.class) Patchable<String> email,
+    @JsonDeserialize(using = PatchableUuidDeserializer.class) Patchable<UUID> countryId) {
 
   /**
    * El campo que Jackson no vio llega como {@code null} al constructor canónico. Convertirlo aquí
@@ -36,10 +46,11 @@ public record UpdateUserRequest(
     firstName = firstName == null ? Patchable.ausente() : firstName;
     lastName = lastName == null ? Patchable.ausente() : lastName;
     email = email == null ? Patchable.ausente() : email;
+    countryId = countryId == null ? Patchable.ausente() : countryId;
   }
 
-  /** ¿Se envió alguno de los tres, con el valor que sea? */
+  /** ¿Se envió alguno de los cuatro, con el valor que sea? */
   public boolean informaAlgo() {
-    return firstName.presente() || lastName.presente() || email.presente();
+    return firstName.presente() || lastName.presente() || email.presente() || countryId.presente();
   }
 }

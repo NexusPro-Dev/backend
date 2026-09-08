@@ -8,6 +8,7 @@
 | Autor | Responsable técnico |
 | Aprobada por | Responsable técnico |
 | Fecha de aprobación | 21-08-2026 |
+| Enmendada | 07-09-2026 — `RN-SP-034`: el país pasa a ser corregible desde aquí; nace `EX-003`, `VAL-006` y `CA-SP-578` a `CA-SP-580` (Art. I.7) |
 
 ---
 
@@ -37,6 +38,7 @@ El **nombre de usuario queda fuera**, y por un motivo más fuerte que en el caso
 ### 4.1 Incluye
 
 - Modificación del nombre, los apellidos y el correo.
+- **Corrección del país** (`RN-SP-034`, 07-09-2026). Es la **única** operación que lo cambia: el alta lo fija y ningún otro requerimiento lo toca.
 
 ### 4.2 No incluye
 
@@ -46,12 +48,14 @@ El **nombre de usuario queda fuera**, y por un motivo más fuerte que en el caso
 - El estado → `RF-SP-028`.
 - La contraseña → `RF-SP-037` y `RF-SP-038`.
 - Eliminar al usuario → `RF-SP-029`.
+- **Que el titular cambie su propio país** → no existe. `RF-SP-044` edita el perfil propio y **no admite el campo**: el país decide qué medios de pago se ofrecen (`RN-MV-019`), y cambiárselo uno mismo sería cambiarse de mercado.
 
 ## 5. Reglas de negocio aplicables
 
 | ID | Regla | Origen |
 |---|---|---|
 | `RN-SP-016` | El nombre de usuario y el correo son únicos entre los usuarios; el nombre de usuario no cambia | `requirements/sp.md` §5.1 |
+| `RN-SP-034` | Todo usuario pertenece a un país, y solo se asigna uno **activo** | `requirements/sp.md` §5.1 |
 
 ## 6. Datos
 
@@ -62,6 +66,7 @@ El **nombre de usuario queda fuera**, y por un motivo más fuerte que en el caso
 | Identificador | Sí | Usuario que se edita | Debe existir y no estar eliminado |
 | Nombre y apellidos | No | Nuevos datos de la persona | No pueden quedar vacíos si se envían |
 | Correo | No | Nuevo correo | Único entre los usuarios. Formato de correo válido |
+| País | No | Nuevo país de la persona | Debe existir y estar **activo** (`RN-SP-034`). **No se admite vaciarlo**: la columna es obligatoria y el estado «sin país» no existe |
 
 Al menos uno de los campos modificables debe venir informado.
 
@@ -69,7 +74,7 @@ Al menos uno de los campos modificables debe venir informado.
 
 | Dato | Descripción |
 |---|---|
-| Usuario | Usuario con sus datos actualizados |
+| Usuario | Usuario con sus datos actualizados, **con el país resuelto** |
 
 ## 7. Precondiciones y postcondiciones
 
@@ -88,6 +93,7 @@ Al menos uno de los campos modificables debe venir informado.
 1. El actor solicita editar un usuario y proporciona los campos a modificar.
 2. El sistema verifica que el usuario exista y no esté eliminado.
 3. Si se envía correo, el sistema verifica que no esté en uso por otro usuario.
+3.bis Si se envía país, el sistema verifica que exista en el catálogo y esté activo.
 4. El sistema aplica los cambios.
 5. El sistema registra el evento en la auditoría de cambios, con el antes y el después de cada campo modificado, y —si cambió el correo— también en la de seguridad.
 6. El sistema informa el usuario actualizado.
@@ -113,6 +119,13 @@ Al menos uno de los campos modificables debe venir informado.
 **Condición:** el identificador no corresponde a ningún usuario vigente, o el usuario está eliminado.
 **Respuesta del sistema:** informa que el usuario no existe, sin distinguir ambos casos.
 
+### EX-003 — País inexistente o inactivo
+
+**Condición:** el país indicado no existe en el catálogo, o existe y está **inactivo**.
+**Respuesta del sistema:** rechaza la edición completa y cita `RN-SP-034`, **distinguiendo los dos casos** con el mismo criterio que `RF-SP-024` `EX-009`: inexistente es una referencia rota, inactivo es una referencia que resuelve y que una regla rechaza.
+
+**Y aquí la distinción tiene una consecuencia que en el alta no tenía.** Esta es la operación con la que se saca a alguien de un país recién desactivado, de modo que quien la usa **está mirando personas cuyo país actual está inactivo**. Que el rechazo sea del país **de destino** y nunca del actual es lo que hace que la corrección sea posible: si la edición exigiera que el país vigente estuviera activo, nadie podría mover a quien más falta le hace.
+
 ## 11. Validaciones
 
 | ID | Validación | Mensaje esperado |
@@ -122,6 +135,7 @@ Al menos uno de los campos modificables debe venir informado.
 | `VAL-003` | Correo con formato válido si se envía | El correo indicado no es válido. |
 | `VAL-004` | Correo único entre los usuarios | Ese correo ya está en uso. |
 | `VAL-005` | Longitud máxima de los campos de texto | El campo excede la longitud permitida. |
+| `VAL-006` | País existente y activo si se envía; **nulo explícito rechazado** (`RN-SP-034`) | El país indicado no es válido. |
 
 ## 12. Criterios de aceptación
 
@@ -137,6 +151,9 @@ Al menos uno de los campos modificables debe venir informado.
 | `CA-SP-355` | El correo anterior queda **liberado**: otro usuario puede tomarlo en un alta o en una edición posterior |
 | `CA-SP-356` | El cambio de correo se registra **también** en la auditoría de seguridad, con severidad alta y el usuario afectado como objeto; el cambio de nombre o apellidos, no |
 | `CA-SP-357` | Tras cambiar el correo, la persona puede iniciar sesión con el nuevo y **no** con el anterior, y en ambos casos su nombre de usuario sigue funcionando |
+| `CA-SP-578` | El sistema cambia el país de una persona, y el detalle (`RF-SP-026`) devuelve el nuevo |
+| `CA-SP-579` | El sistema **rechaza** vaciar el país con un nulo explícito, y lo rechaza como petición inválida y no como fallo interno |
+| `CA-SP-580` | El cambio de país queda en la auditoría de cambios con su antes y su después, y **reenviar el mismo país no registra evento** (`FA-001`) |
 | `CA-SP-228` | El sistema informa que el usuario no existe cuando está eliminado lógicamente |
 | `CA-SP-229` | El sistema rechaza la edición a un actor sin el permiso de modificación de usuarios |
 
@@ -149,6 +166,9 @@ Al menos uno de los campos modificables debe venir informado.
 - **Usuario eliminado lógicamente:** se trata como inexistente.
 - **Edición concurrente:** gana el último en escribir, mismo criterio que en `RF-SP-004`. La auditoría de cambios conserva ambas ediciones, de modo que el cambio perdido es reconstruible.
 - **El actor se edita a sí mismo:** se admite. `RN-SEG-011` protege a los roles, no a los usuarios, y editar el propio nombre no concede ningún privilegio.
+- **Persona cuyo país actual fue desactivado:** se edita con normalidad, y es el caso para el que este campo existe. Lo que se verifica es el país **de destino**, nunca el vigente.
+- **País de destino igual al actual:** no es conflicto ni error; entra en `FA-001` y no registra evento, igual que reenviar el mismo correo.
+- **País que se desactiva durante la edición:** mismo trato que en el alta (`RF-SP-024` §13). O se ve activo o se rechaza, pero nadie acaba movido a un país que acaba de retirarse.
 - **Usuario inactivo o bloqueado:** puede editarse. Corregir el nombre de alguien no depende de que pueda entrar.
 - **Nombre solo con espacios:** se rechaza por validación tras recortar los extremos.
 

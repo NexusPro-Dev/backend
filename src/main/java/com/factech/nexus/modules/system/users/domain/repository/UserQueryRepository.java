@@ -52,6 +52,9 @@ public interface UserQueryRepository {
       OffsetDateTime lockedUntil,
       OffsetDateTime createdAt,
       OffsetDateTime updatedAt,
+      UUID countryId,
+      String countryCode,
+      String countryName,
       UUID membershipId,
       String membershipCode,
       String membershipName,
@@ -61,6 +64,17 @@ public interface UserQueryRepository {
 
     public boolean tieneMembresia() {
       return membershipId != null;
+    }
+
+    /**
+     * El país <b>siempre está</b> (`RN-SP-034`), y por eso no hay un {@code tienePais()}.
+     *
+     * <p>La columna es {@code NOT NULL} y la consulta lo trae con una unión interna, de modo que un
+     * nulo aquí no sería «no tiene»: sería una violación de integridad, y el sitio para detectarla
+     * es el motor y no un predicado en Java.
+     */
+    public boolean tienePais() {
+      return countryId != null;
     }
   }
 

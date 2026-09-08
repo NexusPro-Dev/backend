@@ -210,6 +210,54 @@ El mismo día y sobre la anterior. `RN-SP-018` pasa de «todo consumidor» a **�
 - **No baja de nivel a quien deja de ser consumidor.** Conserva lo que tenía, incluido lo comprado. Es lo que sustituye a la cascada retirada, y es una decisión, no una omisión.
 - **No toca `RN-SP-019`**, el par equivalente del superior comercial. Vendedor ⟺ superior sigue tal cual: solo se soltó la atadura entre consumidor y nivel.
 
+## 4.quinquies Todo usuario pertenece a un país — enmienda del 07-09-2026
+
+Decisión del responsable del proyecto: **toda persona declara un país**, obligatorio para todos y no solo para los clientes (`requirements/sp.md` v1.38.0, `RN-SP-034`). La migración se declara en `plan.md` §2.6.
+
+**Las tareas son de este requerimiento porque la columna lo es**, aunque cambien de comportamiento otros cinco: `RF-SP-025`, `RF-SP-026`, `RF-SP-027`, `RF-SP-039` y `RF-SP-045`. Es el mismo reparto que §4.ter hizo con `user_memberships`. La numeración sigue la del documento y arranca en `T-42`.
+
+**Estados:** `Pendiente` · `En curso` · `Hecha` · `Bloqueada`.
+
+| ID | Tarea | Depende de | Verificación | Estado |
+|---|---|---|---|---|
+| `T-42` | **`V64__usuario_con_pais.sql`**: los cuatro pasos de `plan.md` §2.6 —siembra de Colombia con UUID v7 literal, columna nulable, relleno, y solo entonces `NOT NULL` + `fk_users_country` + `ix_users_country_id`—, **en una sola migración** | — | `mvn flyway:info` la lista aplicada. Prueba de integración: tras `V64` **ninguna** fila de `users` tiene `country_id` nulo, el superadministrador de `V22` incluido; y un `INSERT` directo con `country_id` nulo es rechazado por el motor | **Hecha** — 08-09-2026 |
+| `T-43` | Verificar que **`V64` sigue libre** justo antes de escribir `T-42`. Ya pasó una vez: esta migración se planificó como `V62` y las tripletas de tasas de cambio se llevaron `V62` y `V63` el mismo día | — | `ls src/main/resources/db/migration/` no contiene ningún `V64`, y ninguna tripleta aprobada lo nombra. Si lo estuviera, esta migración pasa al siguiente libre y se corrige `plan.md` §2.6 | **Hecha** — 08-09-2026. Y sirvió: la comprobación equivalente sobre `V62` es la que destapó que las tasas de cambio se lo habían llevado |
+| `T-44` | `domain`: el agregado `User` recibe el país en `create` y **no lo puede dejar nulo**; gana `changeCountry`, que devuelve si hubo cambio real —mismo contrato que `rename` y `changeEmail`— para que `RF-SP-027` no audite lo que no cambió | `T-42` | Prueba unitaria **sin Spring**: no existe forma de construir un `User` sin país; `changeCountry` con el mismo país devuelve `false` y no mueve `updatedAt` | **Hecha** — 08-09-2026 |
+| `T-45` | `application`: puerto `AssignableCountry`, que responde **existe** y **está activo** por separado, y su adaptador de infraestructura leyendo con **bloqueo compartido** | `T-42` | Integración: un país inexistente y uno inactivo producen **dos** respuestas distintas, y la traza muestra `SELECT … FOR SHARE` sobre `countries` | **Hecha** — 08-09-2026 |
+| `T-46` | `RF-SP-024`: `countryId` obligatorio en el DTO, verificación en el orden de `plan.md` §4 —paso 5.bis—, y `country` **resuelto** en la respuesta | `T-44`, `T-45` | Prueba de API: sin `countryId` es `400`/`VAL-014`; con uno inexistente es `422`; con uno inactivo es `409`/`RN-SP-034`; y la `201` trae `country` con `id`, `code` y `name` (`CA-SP-572` a `CA-SP-574`) | **Hecha** — 08-09-2026, en `RegisterUserIT` |
+| `T-47` | `RF-SP-045`: el registro por enlace exige país **por código ISO alfa-3**, no por identificador, y **sin ampliar lo que el formulario público revela**: país inexistente e inactivo comparten respuesta | `T-46` | Prueba de API: el alta pública sin país es `400`; con `col` en minúsculas **funciona**; y un país inexistente y uno inactivo devuelven **el mismo cuerpo** (`CA-SP-582`, `CA-SP-583`) | **Bloqueada** — ver el bloqueo 6 de [`../045-registro-de-clientes-por-enlace/tasks.md`](../045-registro-de-clientes-por-enlace/tasks.md) §4 |
+| `T-48` | `RF-SP-026`, `RF-SP-039` y `RF-SP-025`: el país entra en el detalle, en el perfil propio y en cada fila del listado, **resuelto y no como identificador** | `T-46` | Prueba de API sobre los tres: ninguno devuelve `countryId` suelto, los tres devuelven el objeto (`CA-SP-577`, `CA-SP-581`) | **Hecha** — 08-09-2026, en `UserQueryIT` y `OwnCredentialsIT` |
+| `T-49` | `RF-SP-025`: filtro `countryId`, apoyado en `ix_users_country_id`, componible con los filtros que ya existen | `T-48` | Integración: el filtro devuelve solo esas personas y **se combina** con el de rol y el de membresía; el plan de ejecución usa el índice y no recorre la tabla (`CA-SP-575`, `CA-SP-576`) | **Hecha a medias** — 08-09-2026. El filtro y la combinación están probados en `UserQueryIT`; **la prueba de `EXPLAIN` no**, igual que `RF-SP-025` `T-14`, que lleva pendiente desde el 24-08-2026 |
+| `T-50` | `RF-SP-027`: `countryId` **patchable**, con nulo explícito **rechazado** —la columna es `NOT NULL`, igual que los otros tres campos del `PATCH`—, su verificación de país activo y su evento de auditoría | `T-45`, `T-48` | Prueba de API: `{"countryId": null}` es `400` y no `500`; cambiar el país deja **un** evento en `audit_change_log` con el valor anterior y el nuevo; reenviar el mismo país **no** emite evento (`CA-SP-578` a `CA-SP-580`) | **Hecha** — 08-09-2026, en `UserLifecycleIT`, con una prueba más que no estaba pedida: el cambio de país **no** deja evento de seguridad |
+| `T-51` | La semilla de desarrollo declara el país de cada persona que crea | `T-42` | `DevelopmentSeedIT` en verde, y **ninguna** persona de la semilla queda con el país de relleno por descuido: se declaran explícitamente | **Hecha** — 08-09-2026 |
+| `T-52` | El contrato OpenAPI publicado se regenera con `country`, `countryId` y los dos códigos de error nuevos | `T-46` a `T-50` | `OpenApiContractIT` en verde. El contrato publicado **no** puede decir que `countryId` es opcional | **Hecha** — 08-09-2026 |
+
+!!! warning "Lo que la implementación destapó y las tareas no habían previsto (08-09-2026)"
+
+    **`fk_users_country` rompió las pruebas del catálogo de países**, y romperlas era lo correcto.
+    `CountriesIT`, `CountryConcurrencyIT` y `CountrySearchIndexIT` abrían cada caso con un `DELETE
+    FROM countries` apoyado en que el catálogo nacía vacío. Ya no nace vacío y la fila de Colombia
+    la referencia el superadministrador, de modo que ese borrado ahora lo rechaza el motor.
+
+    Se corrige borrando **solo lo que ninguna persona referencia**, y las tres clases quedan
+    contando con Colombia dentro: ninguna puede usar ya `COL` como país de prueba —sería un
+    duplicado— y **toda aserción sobre el tamaño o el orden del catálogo la incluye**. Donde se
+    usaba `COL` ahora va `URY`.
+
+    **No es un daño colateral, es la regla funcionando**: `RN-SP-034` dice que el catálogo no puede
+    quedar vacío mientras exista un usuario, y esas pruebas describían un estado que el sistema ya
+    no puede alcanzar.
+
+    **Y veintiocho ficheros de prueba insertaban personas con `SQL` directo** sin país. Todos
+    fallaban por `NOT NULL`, que es exactamente lo que la columna existe para hacer.
+
+**Lo que esta enmienda NO hace:**
+
+- **No declara «el país tiene que estar activo» en el motor**, y no por descuido: la clave foránea compuesta que lo expresaría haría fallar `RF-SP-022` sobre cualquier país con usuarios (`requirements/sp.md` §5.1). La comprobación es de entrada y vive en el caso de uso.
+- **No toca `RF-SP-044`.** El titular no cambia su propio país; solo lo corrige un administrador por `RF-SP-027`. Es deliberado: el país decide qué medios de pago se le ofrecen (`RN-MV-019`), y cambiárselo uno mismo sería cambiarse de mercado.
+- **No desasigna a nadie cuando su país se desactiva.** Quien lo tenía lo conserva, y a partir de ahí pueden convivir personas en un país que ya no se ofrece en el alta. Es lo que `RF-SP-022` prometía desde el principio; lo único nuevo es que ahora hay a quién afectar.
+- **No añade el documento de identidad ni el teléfono**, que `spec.md` §14 resolución 3 dejó fuera junto al país. Siguen fuera: nadie los ha pedido.
+
 ## 5. Definición de terminado
 
 El requerimiento no está terminado hasta cumplir **todas** las condiciones de la constitución §16:

@@ -29,8 +29,8 @@ final class CommissionFixtures {
   static UUID sembrarPersonaConRol(JdbcTemplate jdbc, String usuario, String rol) {
     UUID id = UUID.randomUUID();
     jdbc.update(
-        "INSERT INTO users (id, username, email, first_name, last_name, password_hash, status)"
-            + " VALUES (CAST(? AS uuid), ?, ?, 'Persona', 'De prueba', 'x', 'ACTIVO')",
+        "INSERT INTO users (id, username, email, first_name, last_name, password_hash, status, country_id)"
+            + " VALUES (CAST(? AS uuid), ?, ?, 'Persona', 'De prueba', 'x', 'ACTIVO', (SELECT id FROM countries WHERE code = 'COL'))",
         id.toString(),
         usuario,
         usuario + "@factech.co");

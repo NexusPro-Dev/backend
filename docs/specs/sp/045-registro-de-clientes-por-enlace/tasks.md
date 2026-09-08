@@ -71,6 +71,19 @@
 | 3 | El camino de **pago** queda rechazado por `EX-004` hasta que exista el área de Finanzas. No bloquea este requerimiento: bloquea su otra mitad | 01-09-2026 | Responsable del proyecto | Abierto |
 | 4 | La **confirmación del depósito** por webhook del bróker se construye más adelante. Hasta entonces, la salida de `FTD_PENDIENTE` es manual (`T-04`) | 01-09-2026 | Responsable del proyecto | Abierto |
 
+| 6 | **El formulario público exige país y NO tiene de dónde sacar la lista** (`RN-SP-034`, 07-09-2026). `GET /api/v1/countries` (`RF-SP-021`) exige `countries:read`, que quien se registra no tiene por definición. Las tres salidas —abrir aquel endpoint, crear uno público propio bajo `/auth`, o dejar que el formulario ofrezca la lista ISO entera y el servidor rechace— publican o cuestan cosas distintas, y **una de ellas contradice la decisión que `EX-006` acaba de tomar** de no revelar en qué mercados opera la plataforma. **No bloquea al resto de la enmienda de `RN-SP-034`**: los otros cinco requerimientos no dependen de ella | 07-09-2026 | **Responsable del proyecto** | **Abierto** |
+
+## 4.bis El formulario público exige país — enmienda del 07-09-2026
+
+`RN-SP-034` obliga a que toda persona declare un país, **también quien se registra por enlace** (`spec.md` §6.1, `CA-SP-582` y `CA-SP-583`). La tarea es `T-47` de [`../024-registrar-usuario/tasks.md`](../024-registrar-usuario/tasks.md) §4.quinquies.
+
+**Dos decisiones son de este requerimiento**, razonadas en `plan.md` §4:
+
+- **El país viaja por código ISO alfa-3 y no por identificador**, como el producto por código y el vendedor por nombre de usuario. `RN-SP-009` hace que ese código no cambie nunca, de modo que es la referencia más estable del sistema y la única que un enlace impreso puede permitirse.
+- **El rechazo no distingue inexistente de inactivo**, al revés que en `RF-SP-024` y `RF-SP-027`. Distinguirlo no ayuda a rellenar el formulario y sí permite enumerar en qué mercados opera la plataforma probando códigos ISO — el mismo criterio con el que `EX-001` y `EX-002` ya callan.
+
+**Y deja abierto el bloqueo 6**, que es lo que esta enmienda no puede cerrar sola.
+
 ## 5. Definición de terminado
 
 El requerimiento no está terminado hasta cumplir **todas** las condiciones de la constitución §16:

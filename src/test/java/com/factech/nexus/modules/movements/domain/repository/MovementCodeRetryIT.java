@@ -173,8 +173,8 @@ class MovementCodeRetryIT extends IntegrationTestBase {
     jdbc.update(
         """
         INSERT INTO users (id, username, email, first_name, last_name, password_hash,
-                           must_change_password, status)
-        VALUES (CAST(? AS uuid), ?, ?, 'Ana', 'Ruiz', 'no-se-usa', false, 'ACTIVO')
+                           must_change_password, status, country_id)
+        VALUES (CAST(? AS uuid), ?, ?, 'Ana', 'Ruiz', 'no-se-usa', false, 'ACTIVO', (SELECT id FROM countries WHERE code = 'COL'))
         """,
         id.toString(),
         username,

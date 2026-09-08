@@ -8,6 +8,7 @@
 | Autor | Responsable técnico |
 | Aprobada por | Responsable técnico |
 | Fecha de aprobación | 21-08-2026 |
+| Enmendada | 07-09-2026 — `RN-SP-034`: el detalle publica el país; `CA-SP-577` (Art. I.7) |
 
 ---
 
@@ -70,6 +71,7 @@ Es también la pantalla a la que se acude cuando alguien no puede entrar, de mod
 | Usuario | Nombre de usuario, correo, nombre y estado |
 | Roles | Roles asignados, cada uno con su estado, para que se vea cuáles no están concediendo nada |
 | Permisos efectivos | Unión de los permisos de sus roles **activos**, ya resuelta |
+| País | El país de la persona, resuelto —identificador, código y nombre—. **Está siempre** (`RN-SP-034`), y es el dato que esta consulta tiene que traer para que `RF-SP-027` pueda corregirlo: sin él, quien edita no sabe qué está cambiando |
 | Membresía | Membresía vigente y su nivel, cuando la persona tiene una |
 | Contexto de acceso | Último inicio de sesión y, si está bloqueada, el momento en que expira el bloqueo |
 | Fechas de creación y modificación | Contexto mínimo. El **actor** de esos cambios no se devuelve: reside en la auditoría (Art. V.7) |
@@ -137,6 +139,7 @@ Es también la pantalla a la que se acude cuando alguien no puede entrar, de mod
 | `CA-SP-217` | El sistema devuelve el momento en que expira el bloqueo cuando la persona está bloqueada |
 | `CA-SP-346` | La respuesta **no** contiene el número de intentos fallidos acumulados |
 | `CA-SP-218` | La respuesta no contiene ningún dato de la credencial, ni siquiera transformado |
+| `CA-SP-577` | El detalle devuelve el país **resuelto**, y lo devuelve igual cuando ese país está **inactivo** — desactivarlo retira la opción del alta, no oculta dónde está quien ya lo tenía |
 | `CA-SP-219` | El sistema informa que el usuario no existe cuando está eliminado lógicamente |
 | `CA-SP-220` | El sistema rechaza la consulta a un actor sin el permiso de lectura de usuarios |
 

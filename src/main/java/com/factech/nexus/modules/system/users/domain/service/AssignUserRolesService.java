@@ -4,6 +4,7 @@ import com.factech.nexus.modules.system.roles.application.AuthenticatedActor;
 import com.factech.nexus.modules.system.users.application.AssignRolesRequest;
 import com.factech.nexus.modules.system.users.application.UserResponse;
 import com.factech.nexus.modules.system.users.domain.models.User;
+import com.factech.nexus.modules.system.users.domain.repository.AssignableCountry;
 import com.factech.nexus.modules.system.users.domain.repository.AssignableRole;
 import com.factech.nexus.modules.system.users.domain.repository.RoleCatalog;
 import com.factech.nexus.modules.system.users.domain.repository.UserRepository;
@@ -72,6 +73,7 @@ public class AssignUserRolesService {
 
   private final UserRepository usuarios;
   private final RoleCatalog roles;
+  private final AssignableCountry paises;
 
   private final CommercialStructure estructura;
   private final AuthenticatedActor actor;
@@ -86,8 +88,9 @@ public class AssignUserRolesService {
       CommercialStructure estructura,
       AuthenticatedActor actor,
       AuditWriter auditoria,
-      UuidV7Generator ids) {
-    this(usuarios, roles, estructura, actor, auditoria, ids, Clock.systemUTC());
+      UuidV7Generator ids,
+      AssignableCountry paises) {
+    this(usuarios, roles, estructura, actor, auditoria, ids, paises, Clock.systemUTC());
   }
 
   AssignUserRolesService(
@@ -97,9 +100,11 @@ public class AssignUserRolesService {
       AuthenticatedActor actor,
       AuditWriter auditoria,
       UuidV7Generator ids,
+      AssignableCountry paises,
       Clock reloj) {
     this.usuarios = usuarios;
     this.roles = roles;
+    this.paises = paises;
 
     this.estructura = estructura;
     this.actor = actor;
@@ -183,7 +188,7 @@ public class AssignUserRolesService {
           usuario, catalogoResultante, catalogoPrevio, nuevos, vendedoresSalientes, superiorNuevo);
     }
 
-    return UserResponses.de(usuario, catalogoResultante, usuarios, userId);
+    return UserResponses.de(usuario, catalogoResultante, usuarios, paises, userId);
   }
 
   // ---------------------------------------------------------------------------

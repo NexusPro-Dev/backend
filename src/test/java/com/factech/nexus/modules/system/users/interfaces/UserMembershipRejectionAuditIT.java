@@ -63,9 +63,9 @@ class UserMembershipRejectionAuditIT extends IntegrationTestBase {
     jdbc.update(
         """
         INSERT INTO users (id, username, email, first_name, last_name, password_hash,
-                           must_change_password, status)
+                           must_change_password, status, country_id)
         VALUES (?, 'PMembresia', 'pmembresia@factech.co', 'Paula', 'Membresia', 'x', false,
-                'ACTIVO')
+                'ACTIVO', (SELECT id FROM countries WHERE code = 'COL'))
         """,
         persona);
     // Un rol FUNCIONARIO: la persona NO es consumidora, que es la condición de

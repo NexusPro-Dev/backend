@@ -295,8 +295,8 @@ class UpdateOwnProfileIT extends IntegrationTestBase {
     jdbc.update(
         """
         INSERT INTO users (id, username, email, first_name, last_name, password_hash,
-                           must_change_password, status)
-        VALUES (?, ?, ?, 'Juan', 'Pérez', ?, false, 'ACTIVO')
+                           must_change_password, status, country_id)
+        VALUES (?, ?, ?, 'Juan', 'Pérez', ?, false, 'ACTIVO', (SELECT id FROM countries WHERE code = 'COL'))
         """,
         id,
         username,

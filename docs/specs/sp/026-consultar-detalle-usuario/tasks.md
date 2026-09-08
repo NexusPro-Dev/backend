@@ -131,6 +131,14 @@ graph LR
 - **El identificador no canónico es `400` y no `404`**, gracias al editor transversal que este requerimiento exigía por su nombre y que cierra el hueco declarado de `RF-SP-018` · `T-08`.
 - Los permisos que devuelve son los que la autorización usará, y la prueba lo comprueba contra un actor real.
 
+## 4.ter El detalle publica el país — enmienda del 07-09-2026
+
+`RN-SP-034` obliga a que toda persona declare un país (`requirements/sp.md` v1.38.0), y este detalle lo publica resuelto (`spec.md` §6.2, `CA-SP-577`).
+
+**La tarea no se duplica aquí.** Es `T-48` de [`../024-registrar-usuario/tasks.md`](../024-registrar-usuario/tasks.md) §4.quinquies, donde vive la enmienda entera.
+
+**Lo que sí es decisión de este requerimiento** y queda en `plan.md` §4: el país se devuelve **también cuando está inactivo**. Es la pantalla desde la que se decide mover a alguien con `RF-SP-027`, y ocultarle que su país fue retirado sería ocultarle justo el motivo por el que hay que moverlo.
+
 ## 5. Definición de terminado
 
 El requerimiento no está terminado hasta cumplir **todas** las condiciones de la constitución §16:

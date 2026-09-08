@@ -4,6 +4,7 @@ import com.factech.nexus.modules.system.users.application.UpdateUserRequest;
 import com.factech.nexus.modules.system.users.application.UserResponse;
 import com.factech.nexus.modules.system.users.domain.models.Email;
 import com.factech.nexus.modules.system.users.domain.models.User;
+import com.factech.nexus.modules.system.users.domain.repository.AssignableCountry;
 import com.factech.nexus.modules.system.users.domain.repository.AssignableRole;
 import com.factech.nexus.modules.system.users.domain.repository.RoleCatalog;
 import com.factech.nexus.modules.system.users.domain.repository.UserRepository;
@@ -17,6 +18,7 @@ import com.factech.nexus.shared.audit.AuditWriter;
 import com.factech.nexus.shared.error.BusinessRuleException;
 import com.factech.nexus.shared.error.FieldError;
 import com.factech.nexus.shared.error.ResourceNotFoundException;
+import com.factech.nexus.shared.error.UnprocessableEntityException;
 import com.factech.nexus.shared.error.ValidationException;
 import com.factech.nexus.shared.patch.Patchable;
 import java.time.Clock;
@@ -61,18 +63,25 @@ public class UpdateUserService {
 
   private final UserRepository usuarios;
   private final RoleCatalog roles;
+  private final AssignableCountry paises;
   private final AuditWriter auditoria;
   private final Clock reloj;
 
   @Autowired
-  public UpdateUserService(UserRepository usuarios, RoleCatalog roles, AuditWriter auditoria) {
-    this(usuarios, roles, auditoria, Clock.systemUTC());
+  public UpdateUserService(
+      UserRepository usuarios, RoleCatalog roles, AuditWriter auditoria, AssignableCountry paises) {
+    this(usuarios, roles, auditoria, paises, Clock.systemUTC());
   }
 
   UpdateUserService(
-      UserRepository usuarios, RoleCatalog roles, AuditWriter auditoria, Clock reloj) {
+      UserRepository usuarios,
+      RoleCatalog roles,
+      AuditWriter auditoria,
+      AssignableCountry paises,
+      Clock reloj) {
     this.usuarios = usuarios;
     this.roles = roles;
+    this.paises = paises;
     this.auditoria = auditoria;
     this.reloj = reloj;
   }
@@ -89,6 +98,17 @@ public class UpdateUserService {
     String nombre = normalizar("firstName", peticion.firstName(), problemas);
     String apellido = normalizar("lastName", peticion.lastName(), problemas);
     String correoBruto = normalizar("email", peticion.email(), problemas);
+    // EL NULO EXPLÍCITO SE RECHAZA, igual que en los otros tres campos y por lo
+    // mismo: `country_id` es `NOT NULL` y el estado «persona sin país» no
+    // existe (`RN-SP-034`). Aceptarlo en silencio daría un `500` por violación
+    // de integridad en lugar del `400` que corresponde.
+    UUID paisPedido = null;
+    if (peticion.countryId().presente()) {
+      paisPedido = peticion.countryId().valor();
+      if (paisPedido == null) {
+        problemas.add(new FieldError("countryId", "VAL-006", "El país no puede quedar vacío."));
+      }
+    }
 
     if (!problemas.isEmpty()) {
       throw new ValidationException(problemas.get(0).code(), problemas.get(0).message(), problemas);
@@ -117,6 +137,21 @@ public class UpdateUserService {
     boolean cambiaNombre = usuario.rename(nombre, apellido, ahora);
     boolean cambiaCorreo = correo != null && !correo.equals(correoAnterior);
 
+    // SE VERIFICA EL PAÍS DE DESTINO, NUNCA EL ACTUAL, y esa es la decisión que
+    // hace utilizable esta operación: es la herramienta con la que se saca a
+    // alguien de un país recién desactivado, de modo que exigir que el vigente
+    // estuviera activo la volvería inútil justo cuando hace falta.
+    //
+    // Y se verifica solo si CAMBIA: reenviar el mismo país no consulta el
+    // catálogo, no audita nada y no puede fallar aunque ese país esté hoy
+    // inactivo.
+    UUID paisAnterior = usuario.getCountryId();
+    boolean cambiaPais = paisPedido != null && !paisPedido.equals(paisAnterior);
+    if (cambiaPais) {
+      verificarPais(paisPedido);
+      usuario.changeCountry(paisPedido, ahora);
+    }
+
     if (cambiaCorreo) {
       verificarCorreoLibre(correo);
       usuario.changeEmail(correo, ahora);
@@ -131,13 +166,20 @@ public class UpdateUserService {
       usuarios.flushChanges();
     }
 
-    if (cambiaNombre || cambiaCorreo) {
+    if (cambiaNombre || cambiaCorreo || cambiaPais) {
       auditar(
-          usuario, nombreAnterior, apellidoAnterior, correoAnterior, cambiaNombre, cambiaCorreo);
+          usuario,
+          nombreAnterior,
+          apellidoAnterior,
+          correoAnterior,
+          paisAnterior,
+          cambiaNombre,
+          cambiaCorreo,
+          cambiaPais);
     }
 
     List<AssignableRole> catalogo = roles.findAllById(roles.roleIdsOf(userId));
-    return UserResponses.de(usuario, catalogo, usuarios, userId);
+    return UserResponses.de(usuario, catalogo, usuarios, paises, userId);
   }
 
   /**
@@ -167,6 +209,36 @@ public class UpdateUserService {
       return null;
     }
     return contenido;
+  }
+
+  /**
+   * `EX-003` → {@code 422} si el país no existe, {@code 409} si está inactivo (`RN-SP-034`).
+   *
+   * <p>Misma correspondencia que el alta: inexistente es una referencia que no resuelve, inactivo
+   * es una que resuelve y que una regla rechaza. Y misma razón para distinguirlos — quien edita ya
+   * tiene {@code users:update} y ve el catálogo de todos modos, de modo que separarlos no revela
+   * nada y sí le dice qué hacer.
+   */
+  private void verificarPais(UUID countryId) {
+    var pais =
+        paises
+            .find(countryId)
+            .orElseThrow(
+                () ->
+                    new UnprocessableEntityException(
+                        "EX-003",
+                        "El país indicado no existe.",
+                        List.of(
+                            new FieldError(
+                                "countryId",
+                                "EX-003",
+                                "El país '" + countryId + "' no existe en el catálogo."))));
+
+    if (!pais.active()) {
+      String mensaje = "El país '" + pais.code() + "' está inactivo y no se puede asignar.";
+      throw new BusinessRuleException(
+          "RN-SP-034", mensaje, List.of(new FieldError("countryId", "RN-SP-034", mensaje)));
+    }
   }
 
   /**
@@ -202,8 +274,10 @@ public class UpdateUserService {
       String nombreAnterior,
       String apellidoAnterior,
       String correoAnterior,
+      UUID paisAnterior,
       boolean cambiaNombre,
-      boolean cambiaCorreo) {
+      boolean cambiaCorreo,
+      boolean cambiaPais) {
 
     Map<String, Object> cambios = new HashMap<>();
     if (cambiaNombre) {
@@ -212,6 +286,21 @@ public class UpdateUserService {
     }
     if (cambiaCorreo) {
       cambios.put("email", Map.of("before", correoAnterior, "after", usuario.getEmail()));
+    }
+    // EL PAÍS VA AQUÍ Y NO EN EL EVENTO DE SEGURIDAD, y es el campo que más se
+    // le parece al correo: los dos los corrige un tercero y los dos cambian cómo
+    // la persona usa el sistema. La diferencia es que el correo ES UNA VÍA DE
+    // ACCESO y el país no. Cambiárselo a alguien altera qué medios de pago se le
+    // ofrecen (`RN-MV-019`) —una decisión comercial con consecuencias—, y eso se
+    // responde aquí. Meterlo además en `audit_security_log` diluiría un registro
+    // que existe para credenciales y vías de acceso, y que no se purga sin
+    // decisión documentada (Art. XV.8).
+    //
+    // Y se guarda el IDENTIFICADOR, no el código: es lo que quedó en la columna.
+    if (cambiaPais) {
+      cambios.put(
+          "country_id",
+          Map.of("before", paisAnterior.toString(), "after", usuario.getCountryId().toString()));
     }
 
     auditoria.recordChange(

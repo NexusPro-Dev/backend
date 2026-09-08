@@ -436,9 +436,9 @@ class UserConcurrencyIT extends IntegrationTestBase {
         .content(
             """
             {"username":"%s","email":"%s","firstName":"Juan","lastName":"Pérez",
-             "password":"%s","roleIds":["%s"]}
+             "password":"%s","countryId":"%s","roleIds":["%s"]}
             """
-                .formatted(username, email, CLAVE, rol));
+                .formatted(username, email, CLAVE, COLOMBIA, rol));
   }
 
   private MockHttpServletRequestBuilder altaConSuperior(
@@ -449,9 +449,9 @@ class UserConcurrencyIT extends IntegrationTestBase {
         .content(
             """
             {"username":"%s","email":"%s","firstName":"Juan","lastName":"Pérez",
-             "password":"%s","roleIds":["%s"],"supervisorId":"%s"}
+             "password":"%s","countryId":"%s","roleIds":["%s"],"supervisorId":"%s"}
             """
-                .formatted(username, email, CLAVE, rol, superior));
+                .formatted(username, email, CLAVE, COLOMBIA, rol, superior));
   }
 
   private MockHttpServletRequestBuilder editarCorreo(UUID id, String correo) {
@@ -547,8 +547,8 @@ class UserConcurrencyIT extends IntegrationTestBase {
     UUID id = UUID.randomUUID();
     jdbc.update(
         """
-        INSERT INTO users (id, username, email, first_name, last_name, password_hash, status)
-        VALUES (?, ?, ?, 'N', 'N', '$argon2id$sin-uso', 'ACTIVO')
+        INSERT INTO users (id, username, email, first_name, last_name, password_hash, status, country_id)
+        VALUES (?, ?, ?, 'N', 'N', '$argon2id$sin-uso', 'ACTIVO', (SELECT id FROM countries WHERE code = 'COL'))
         """,
         id,
         username,
@@ -565,8 +565,8 @@ class UserConcurrencyIT extends IntegrationTestBase {
     UUID id = UUID.randomUUID();
     jdbc.update(
         """
-        INSERT INTO users (id, username, email, first_name, last_name, password_hash, status)
-        VALUES (?, ?, ?, 'N', 'N', ?, 'ACTIVO')
+        INSERT INTO users (id, username, email, first_name, last_name, password_hash, status, country_id)
+        VALUES (?, ?, ?, 'N', 'N', ?, 'ACTIVO', (SELECT id FROM countries WHERE code = 'COL'))
         """,
         id,
         username,

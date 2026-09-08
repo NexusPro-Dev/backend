@@ -52,11 +52,23 @@ public record UserDetailResponse(
     String status,
     List<RoleRef> roles,
     List<String> effectivePermissions,
+    CountryRef country,
     MembershipRef membership,
     OffsetDateTime lastLoginAt,
     OffsetDateTime lockedUntil,
     OffsetDateTime createdAt,
     OffsetDateTime updatedAt) {
+
+  /**
+   * El país de la persona (`RN-SP-034`), y <b>se devuelve aunque esté inactivo</b>.
+   *
+   * <p>Es la pantalla desde la que se decide moverla con `RF-SP-027`, y ocultarle a quien
+   * administra que ese país fue retirado sería ocultarle justo el motivo por el que hay que
+   * moverla. Desactivar un país lo retira de los selectores del alta (`RF-SP-022`); no cambia dónde
+   * está quien ya lo tenía, ni quién puede verlo.
+   */
+  @JsonInclude(JsonInclude.Include.ALWAYS)
+  public record CountryRef(UUID id, String code, String name) {}
 
   /** Con su estado: es lo que explica que un rol asignado no conceda nada. */
   @JsonInclude(JsonInclude.Include.ALWAYS)

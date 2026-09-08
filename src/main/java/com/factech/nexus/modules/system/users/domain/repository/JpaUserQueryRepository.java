@@ -53,10 +53,12 @@ public class JpaUserQueryRepository implements UserQueryRepository {
         SELECT u.id AS id, u.username AS username, u.email AS email,
                u.first_name AS first_name, u.last_name AS last_name,
                u.status AS status, u.deleted_at AS deleted_at,
+               c.id AS c_id, c.code AS c_code, c.name AS c_name,
                m.id AS m_id, m.code AS m_code, m.name AS m_name, m.level AS m_level,
                um.ends_at AS m_ends_at,
                (um.user_id IS NOT NULL AND (um.ends_at IS NULL OR um.ends_at > now())) AS m_current
           FROM users u
+          JOIN countries c              ON c.id = u.country_id
           LEFT JOIN user_memberships um ON um.user_id = u.id AND um.closed_at IS NULL
           LEFT JOIN memberships m       ON m.id = um.membership_id
          WHERE """
@@ -88,6 +90,9 @@ public class JpaUserQueryRepository implements UserQueryRepository {
               null,
               null,
               null,
+              (UUID) fila.get("c_id"),
+              ((String) fila.get("c_code")).trim(),
+              (String) fila.get("c_name"),
               (UUID) fila.get("m_id"),
               (String) fila.get("m_code"),
               (String) fila.get("m_name"),
@@ -156,11 +161,13 @@ public class JpaUserQueryRepository implements UserQueryRepository {
                        u.status AS status,
                        u.last_login_at AS last_login_at, u.locked_until AS locked_until,
                        u.created_at AS created_at, u.updated_at AS updated_at,
+                       c.id AS c_id, c.code AS c_code, c.name AS c_name,
                        m.id AS m_id, m.code AS m_code, m.name AS m_name, m.level AS m_level,
                        um.ends_at AS m_ends_at,
                        (um.user_id IS NOT NULL AND (um.ends_at IS NULL OR um.ends_at > now()))
                          AS m_current
                   FROM users u
+                  JOIN countries c              ON c.id = u.country_id
                   LEFT JOIN user_memberships um ON um.user_id = u.id AND um.closed_at IS NULL
                   LEFT JOIN memberships m       ON m.id = um.membership_id
                  WHERE u.id = :id AND u.deleted_at IS NULL
@@ -184,6 +191,9 @@ public class JpaUserQueryRepository implements UserQueryRepository {
                     momento(fila.get("locked_until")),
                     momento(fila.get("created_at")),
                     momento(fila.get("updated_at")),
+                    (UUID) fila.get("c_id"),
+                    ((String) fila.get("c_code")).trim(),
+                    (String) fila.get("c_name"),
                     (UUID) fila.get("m_id"),
                     (String) fila.get("m_code"),
                     (String) fila.get("m_name"),
@@ -220,6 +230,17 @@ public class JpaUserQueryRepository implements UserQueryRepository {
           " AND EXISTS (SELECT 1 FROM user_roles ur"
               + " WHERE ur.user_id = u.id AND ur.role_id = :rol)");
     }
+    // FILTRO POR PAÍS. Directo sobre la columna y NO con EXISTS: es una
+    // relación uno a uno, de modo que no hay filas que multiplicar — que es lo
+    // que obliga a EXISTS en el rol y en la membresía.
+    //
+    // Y SIN `AND c.is_active`, a propósito. Escribirlo convertiría desactivar un
+    // país en una forma de esconder a su gente, y este listado es justamente la
+    // herramienta con la que se busca a quien quedó dentro para moverlo
+    // (`RF-SP-027`). La condición de país activo es DE ENTRADA, no de lectura.
+    if (filtros.countryId() != null) {
+      donde.append(" AND u.country_id = :pais");
+    }
     if (filtros.membershipId() != null) {
       donde.append(
           " AND EXISTS (SELECT 1 FROM user_memberships umf"
@@ -247,6 +268,9 @@ public class JpaUserQueryRepository implements UserQueryRepository {
     }
     if (filtros.roleId() != null) {
       consulta.setParameter("rol", filtros.roleId());
+    }
+    if (filtros.countryId() != null) {
+      consulta.setParameter("pais", filtros.countryId());
     }
     if (filtros.membershipId() != null) {
       consulta.setParameter("membresia", filtros.membershipId());

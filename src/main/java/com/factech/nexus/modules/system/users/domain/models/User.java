@@ -54,6 +54,27 @@ public class User {
   @Column(name = "last_name", nullable = false, length = 100)
   private String lastName;
 
+  /**
+   * Dónde está la persona (`RN-SP-034`).
+   *
+   * <p><b>Es un identificador y no una asociación hacia {@code Country}</b>, por el mismo criterio
+   * con el que {@code roleIds} lo es: el país pertenece a otro agregado y tiene su propio ciclo de
+   * vida. Una asociación entre entidades permitiría escribir en {@code countries} desde aquí, que
+   * es justo lo que `RN-SP-009` prohíbe.
+   *
+   * <p><b>Y es una columna y no una tabla puente</b>, al contrario que la membresía y el superior
+   * comercial. Aquellas dos llevan tabla porque <b>tienen vigencia</b> —se conceden, vencen, se
+   * sustituyen, y hay que poder decir cuál regía <i>entonces</i>—; el país no tiene periodo y nadie
+   * pregunta dónde estaba alguien el mes pasado. El rastro de cada cambio lo guarda {@code
+   * audit_change_log}.
+   *
+   * <p><b>Que el país esté activo NO se comprueba aquí.</b> El agregado no consulta el catálogo; lo
+   * verifica el caso de uso antes de construirlo, y solo <b>en el momento de asignarlo</b> — quien
+   * ya lo tenía lo conserva aunque se desactive después (`RF-SP-022`).
+   */
+  @Column(name = "country_id", nullable = false)
+  private UUID countryId;
+
   @Column(name = "password_hash", nullable = false, length = 255)
   private String passwordHash;
 
@@ -125,6 +146,9 @@ public class User {
    * estado, `RF-SP-037` para la marca— y un solo lugar donde auditarlo.
    *
    * @param passwordHash resumen ya calculado; la contraseña en claro nunca llega a este agregado
+   * @param countryId país de la persona (`RN-SP-034`). <b>Obligatorio y sin valor por defecto</b>:
+   *     no hay país de reserva, porque uno cableado aquí acabaría asignándose en silencio a quien
+   *     olvidara declararlo. Que exista y esté activo lo verifica el caso de uso
    */
   public static User create(
       UUID id,
@@ -133,8 +157,13 @@ public class User {
       String firstName,
       String lastName,
       String passwordHash,
+      UUID countryId,
       Collection<UUID> roleIds,
       OffsetDateTime ahora) {
+
+    if (countryId == null) {
+      throw new IllegalArgumentException("RN-SP-034: toda persona pertenece a un país.");
+    }
 
     User usuario = new User();
     usuario.id = id;
@@ -142,6 +171,7 @@ public class User {
     usuario.email = email.value();
     usuario.firstName = firstName == null ? null : firstName.trim();
     usuario.lastName = lastName == null ? null : lastName.trim();
+    usuario.countryId = countryId;
     usuario.passwordHash = passwordHash;
     usuario.mustChangePassword = true;
     usuario.status = UserStatus.ACTIVO;
@@ -170,6 +200,10 @@ public class User {
 
   public String getLastName() {
     return lastName;
+  }
+
+  public UUID getCountryId() {
+    return countryId;
   }
 
   public boolean isMustChangePassword() {
@@ -237,6 +271,32 @@ public class User {
       return false;
     }
     this.email = correo;
+    this.updatedAt = ahora;
+    return true;
+  }
+
+  /**
+   * Cambia el país (`RF-SP-027`, `RN-SP-034`).
+   *
+   * <p>Mismo contrato que {@link #rename} y {@link #changeEmail}: devuelve si hubo cambio de
+   * verdad, y que lo decida el agregado es lo que impide que reenviar el mismo país deje un evento
+   * de auditoría describiendo algo que no ocurrió.
+   *
+   * <p>Un argumento nulo significa «no se envió», <b>nunca «bórralo»</b>. La columna es {@code NOT
+   * NULL} y el estado «persona sin país» no existe, de modo que el nulo explícito del cuerpo se
+   * rechaza en el DTO —con {@code 400}— antes de llegar aquí. Es la misma distinción que
+   * `RF-SP-027` hace con el nombre y el correo.
+   *
+   * <p><b>No se comprueba que el país exista ni que esté activo.</b> El agregado no consulta el
+   * catálogo; y la comprobación que el caso de uso hace es sobre el país <b>de destino</b>, nunca
+   * sobre el actual — si exigiera que el vigente estuviera activo, no se podría sacar a nadie de un
+   * país recién desactivado, que es justo para lo que esta operación hace falta.
+   */
+  public boolean changeCountry(UUID pais, OffsetDateTime ahora) {
+    if (pais == null || pais.equals(countryId)) {
+      return false;
+    }
+    this.countryId = pais;
     this.updatedAt = ahora;
     return true;
   }

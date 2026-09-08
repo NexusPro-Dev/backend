@@ -270,8 +270,8 @@ class RoleDetailIT extends IntegrationTestBase {
     jdbc.update(
         """
         INSERT INTO users (id, username, email, first_name, last_name, password_hash,
-                           must_change_password, status, deleted_at)
-        VALUES (?, ?, ?, 'Nombre', 'Apellido', 'x', false, ?, ?)
+                           must_change_password, status, deleted_at, country_id)
+        VALUES (?, ?, ?, 'Nombre', 'Apellido', 'x', false, ?, ?, (SELECT id FROM countries WHERE code = 'COL'))
         """,
         id,
         usuario,

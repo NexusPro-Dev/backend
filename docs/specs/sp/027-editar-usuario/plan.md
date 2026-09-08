@@ -9,6 +9,7 @@
 | Autor | Responsable técnico |
 | Aprobado por | Responsable del proyecto |
 | Fecha de aprobación | 22-08-2026 |
+| Reabierto el | 07-09-2026 — `RN-SP-034`: `countryId` entra en el `PATCH`, ver §4 (Art. I.7) |
 
 !!! info "Qué va en este documento"
 
@@ -82,7 +83,7 @@ Dos decisiones de reparto:
 
 | Método | Ruta | Descripción |
 |---|---|---|
-| `PATCH` | `/api/v1/users/{id}` | Modifica el nombre, los apellidos y el correo de una persona |
+| `PATCH` | `/api/v1/users/{id}` | Modifica el nombre, los apellidos, el correo **y el país** de una persona |
 
 Se usa `PATCH` y no `PUT` por el motivo de `RF-SP-004` §4: `PUT` obligaría a enviar el recurso completo, incluidos el nombre de usuario, el estado y los roles, que este requerimiento **no** puede modificar, y habría que decidir qué hacer si llegaran con valores distintos.
 
@@ -91,7 +92,8 @@ Se usa `PATCH` y no `PUT` por el motivo de `RF-SP-004` §4: `PUT` obligaría a e
 ```json
 {
   "firstName": "Juan Carlos",
-  "email": "juan.perez@factech.co"
+  "email": "juan.perez@factech.co",
+  "countryId": "01a03336-6d00-7002-9c4f-5e7ad3000001"
 }
 ```
 
@@ -101,11 +103,17 @@ Se usa `PATCH` y no `PUT` por el motivo de `RF-SP-004` §4: `PUT` obligaría a e
 |---|---|
 | `{ "firstName": "X" }` | Cambia el nombre. **Los apellidos y el correo no se tocan** |
 | `{ "email": "x@y.co" }` | Cambia el correo. El nombre y los apellidos no se tocan |
+| `{ "countryId": "…" }` | Cambia el país. Los otros tres no se tocan |
 | `{ "firstName": null }` | **Rechazado** por `VAL-002`. Ningún campo admite vaciarse |
+| `{ "countryId": null }` | **Rechazado** por `VAL-006`, y por el mismo motivo: `country_id` es `NOT NULL` y el estado «sin país» no existe (`CA-SP-579`) |
 | `{ "firstName": "   " }` | Rechazado por `VAL-002` **tras recortar los extremos** |
 | `{}` | Rechazado por `VAL-001` |
 
 **Es la diferencia con `RF-SP-004`, y conviene no copiarla mal.** Allí el nulo explícito era una orden —«borra la descripción»— porque la columna admite nulo. Aquí las tres columnas son `NOT NULL` y `ck_users_names_not_blank` impide además el nombre en blanco: el nulo explícito no puede ser una orden, y **aceptarlo en silencio sería peor que rechazarlo**, porque produciría una violación de integridad traducida a `500` en lugar del `400` que corresponde. `Patchable<T>` sigue haciendo falta para distinguir el campo ausente del enviado; lo que cambia es qué se hace con su tercer estado.
+
+**`countryId` es el cuarto campo del `PATCH` y hereda el trato de los otros tres** (07-09-2026). Es `Patchable<UUID>`, no un `UUID` suelto: sin los tres estados, «no lo envié» y «ponlo a nulo» se confunden, y aquí el segundo tiene que ser un `400` explícito porque la columna es `NOT NULL`. **Y es el único campo del cuerpo que se verifica contra otra tabla**, lo que le añade un paso que el nombre y el correo no tienen: existe y está activo (`EX-003`), leído con bloqueo compartido igual que en el alta.
+
+**El país de destino se comprueba; el actual, nunca.** Es la decisión que hace utilizable esta operación: si exigiera que el país vigente estuviera activo, no se podría sacar a nadie de un país recién desactivado — que es exactamente para lo que hace falta (`spec.md` `EX-003`).
 
 **El nombre de usuario no está en el DTO** (`CA-SP-223`). Enviarlo devuelve `400` por propiedad desconocida, porque el deserializador rechaza campos que no declara. Sin ese rechazo, `username` se ignoraría en silencio y el criterio no comprobaría nada — es exactamente lo que `CA-SP-151` verifica en `RF-SP-004` para la clasificación de un rol. Lo mismo alcanza a `status`, `roles`, `membership` y `password`: cada uno tiene su requerimiento y ninguno entra por aquí.
 
@@ -122,6 +130,7 @@ Se usa `PATCH` y no `PUT` por el motivo de `RF-SP-004` §4: `PUT` obligaría a e
   "lastName": "Pérez",
   "status": "ACTIVO",
   "mustChangePassword": false,
+  "country": { "id": "01a03336-6d00-7002-9c4f-5e7ad3000001", "code": "COL", "name": "Colombia" },
   "roles": [
     { "id": "018f3a2b-7c41-7000-9a3d-1f2e5b8c9d01", "code": "ASESOR", "name": "Asesor comercial" }
   ],
@@ -146,7 +155,10 @@ Se usa `PATCH` y no `PUT` por el motivo de `RF-SP-004` §4: `PUT` obligaría a e
 | `401` | Token ausente o inválido | `AUTH-001` | — |
 | `403` | Autenticado sin `users:update` | `AUTH-002` | — |
 | `404` | No existe usuario vigente con ese identificador (`EX-002`) | `EX-002` | — |
+| `400` | `countryId` con nulo explícito (`VAL-006`) | `VAL-006` | `countryId` |
 | `409` | El correo ya está en uso (`EX-001`, `VAL-004`) | `RN-SP-016` | — |
+| `409` | El país indicado existe pero está **inactivo** (`EX-003`) | `RN-SP-034` | `countryId` |
+| `422` | El país indicado **no existe** (`EX-003`) | `EX-003` | `countryId` |
 | `500` | Fallo no controlado | `ERR-500` | — |
 
 - **El `409` lleva `RN-SP-016` como `error_code`** y no `EX-001`, por la convención de `development-guide.md` §7.2: el código es el identificador de la regla incumplida cuando existe una. Es la misma elección que hizo `RF-SP-024` §4 para el duplicado del alta, y mantenerla permite a un cliente tratar los dos casos igual.
@@ -187,6 +199,7 @@ Dos cosas de este orden importan. **La unicidad va después de detectar el cambi
 | Edición efectiva | `audit_change_log` | `module = 'SP'`, `entity = 'users'`, `entity_id`, `action = 'UPDATE'`, `changes` con **solo** los campos que mutaron, cada uno con su antes y su después. El correo, **normalizado en ambos lados** |
 | Edición efectiva **que cambió el correo** | `audit_security_log` | `event_type = 'EMAIL_CHANGED'`, `severity = 'ALTA'`, `outcome = 'SUCCESS'`, `target_user_id` de la persona editada, `detail` **sin** el correo anterior ni el nuevo (§ abajo) |
 | Edición efectiva que **no** cambió el correo | — | **Ningún evento de seguridad.** Solo el de cambio |
+| Edición efectiva **que cambió el país** | `audit_change_log` | Va dentro de `changes` como un campo más, con el identificador de país anterior y el nuevo. **Ningún evento de seguridad**: el país no es una vía de acceso |
 | Edición sin cambio (`FA-001`) | — | **Ningún evento**, en ningún registro |
 | Rechazo `409` por `EX-001` | `audit_error_log` | `resource = 'users'`, `operation = 'PATCH /api/v1/users/{id}'`, `error_code = 'RN-SP-016'`, `error_type = 'BUSINESS_RULE'`, `http_status = 409`, `severity = 'MEDIA'`, `message` saneado |
 | Rechazo `404` por `EX-002` | — | **No se audita**: `architecture.md` §6.6.4 lo deja fuera y `ck_audit_error_log_status` lo impide en el esquema |
@@ -202,6 +215,10 @@ Cuatro decisiones:
 **Un solo evento de seguridad aunque la petición cambie además el nombre.** Es una sola operación y el `detail` puede decir qué más se tocó. Dos eventos harían que cualquier recuento de cambios de correo contase de más, que es el mismo argumento con el que `RF-SP-024` §6 emitió uno y no dos.
 
 **El `detail` del evento de seguridad no lleva ninguno de los dos correos.** Podría argumentarse lo contrario —es el dato que uno quiere ver al investigar—, y se descarta: `audit_security_log` es de **retención prolongada y no se purga sin decisión documentada** (Art. XV.8), mientras que el dato completo ya está en `audit_change_log` bajo el mismo identificador de correlación. Guardarlo dos veces multiplica la superficie de un dato personal sin responder ninguna pregunta nueva; quien investigue el evento tiene la correlación para llegar al diff.
+
+**El cambio de país NO emite evento de seguridad, y merece decirse porque es el campo que más se le parece al correo** (07-09-2026). Los dos son datos que alguien corrige sobre una cuenta ajena y los dos cambian cómo esa persona usa el sistema. La diferencia es la que `spec.md` §14 resolución 4 fijó para el correo: **este es una vía de acceso y el país no**. Cambiarle el país a alguien altera qué medios de pago se le ofrecen (`RN-MV-019`) — es una decisión comercial con consecuencias, y va a `audit_change_log` con su antes y su después, que es donde se responde «quién le cambió el país y cuándo». Meterlo además en `audit_security_log` diluiría un registro que existe para vías de acceso y credenciales, y que **no se purga sin decisión documentada** (Art. XV.8).
+
+**`changes` guarda el identificador del país, no su código ni su nombre.** Es lo que había y lo que quedó en la columna; el código es un dato de otra tabla que `RN-SP-009` deja intacto, de modo que resolverlo al leer la auditoría da siempre la misma respuesta. Guardarlo resuelto sería copiar un dato que no puede cambiar — barato, y sin ninguna pregunta nueva que responda.
 
 **`changes` guarda el correo normalizado en el antes y en el después.** La auditoría refleja lo que había y lo que quedó en la tabla, no lo que llegó por HTTP; cómo llegó exactamente es asunto del `request_log` (Art. XV.3). Y `updated_at` **queda fuera** del diff, por ser consecuencia de la escritura y no un dato que alguien decidiera cambiar — mismo criterio que `RF-SP-022` §6 y `RF-SP-023` §6.
 

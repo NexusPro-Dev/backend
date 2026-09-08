@@ -6,6 +6,7 @@ import com.factech.nexus.modules.system.users.application.UserResponse;
 import com.factech.nexus.modules.system.users.domain.models.Email;
 import com.factech.nexus.modules.system.users.domain.models.User;
 import com.factech.nexus.modules.system.users.domain.models.Username;
+import com.factech.nexus.modules.system.users.domain.repository.AssignableCountry;
 import com.factech.nexus.modules.system.users.domain.repository.AssignableRole;
 import com.factech.nexus.modules.system.users.domain.repository.MembershipCatalog;
 import com.factech.nexus.modules.system.users.domain.repository.RoleCatalog;
@@ -54,6 +55,7 @@ import org.springframework.transaction.annotation.Transactional;
  *       `RN-SP-013`.
  *   <li>Vendedor ⟺ superior (`RN-SP-019` → {@code 409}).
  *   <li>El superior porta el rol padre inmediato (`RN-SP-020` → {@code 409}).
+ *   <li>El país existe ({@code 422}) y está activo ({@code 409}) — `RN-SP-034`, 07-09-2026.
  * </ol>
  *
  * <p>Las cuatro últimas <b>no son evaluables</b> sin haber resuelto antes los roles: el orden no es
@@ -72,6 +74,7 @@ public class RegisterUserService {
   private final UserRepository usuarios;
   private final RoleCatalog roles;
   private final MembershipCatalog membresias;
+  private final AssignableCountry paises;
   private final CommercialStructure estructura;
   private final AuthenticatedActor actor;
   private final PasswordPolicy politica;
@@ -91,7 +94,8 @@ public class RegisterUserService {
       PasswordPolicy politica,
       PasswordHasher hasher,
       AuditWriter auditoria,
-      UuidV7Generator ids) {
+      UuidV7Generator ids,
+      AssignableCountry paises) {
     this(
         usuarios,
         roles,
@@ -102,6 +106,7 @@ public class RegisterUserService {
         hasher,
         auditoria,
         ids,
+        paises,
         Clock.systemUTC());
   }
 
@@ -115,10 +120,12 @@ public class RegisterUserService {
       PasswordHasher hasher,
       AuditWriter auditoria,
       UuidV7Generator ids,
+      AssignableCountry paises,
       Clock reloj) {
     this.usuarios = usuarios;
     this.roles = roles;
     this.membresias = membresias;
+    this.paises = paises;
     this.estructura = estructura;
     this.actor = actor;
     this.politica = politica;
@@ -152,6 +159,12 @@ public class RegisterUserService {
 
     UUID superior = verificarSuperior(concedidos, comando.supervisorId());
 
+    // `RN-SP-034`. VA DESPUÉS DE LOS ROLES Y NO ANTES: es una consulta más a la
+    // base y no aporta nada adelantarla. Y va ANTES de la escritura porque
+    // `fk_users_country` no distingue «no existe» de «está inactivo» — dejarlo
+    // al motor daría un `500` sobre una regla de negocio.
+    verificarPais(comando.countryId());
+
     OffsetDateTime ahora = OffsetDateTime.now(reloj);
     User usuario =
         usuarios.save(
@@ -162,6 +175,7 @@ public class RegisterUserService {
                 comando.firstName(),
                 comando.lastName(),
                 hasher.hash(comando.password()),
+                comando.countryId(),
                 comando.roleIds(),
                 ahora));
 
@@ -178,12 +192,49 @@ public class RegisterUserService {
     // sin nada.
     auditar(usuario, concedidos, membresia, superior);
 
-    return UserResponses.de(usuario, concedidos, usuarios, usuario.getId());
+    return UserResponses.de(usuario, concedidos, usuarios, paises, usuario.getId());
   }
 
   // ---------------------------------------------------------------------------
   // Reglas
   // ---------------------------------------------------------------------------
+
+  /**
+   * `RN-SP-034` → {@code 422} si no existe, {@code 409} si está inactivo.
+   *
+   * <p><b>Los dos casos NO comparten respuesta</b>, al revés que los roles de `EX-003` y que el
+   * producto y el vendedor del registro público. La diferencia es a quién se le habla: aquí quien
+   * pregunta ya tiene {@code users:create} y puede ver el catálogo entero de todos modos, de modo
+   * que distinguirlos no revela nada — y sí le dice qué hacer. Ante el {@code 422} vuelve a leer el
+   * catálogo, porque su selector está desincronizado; ante el {@code 409} sabe que alguien retiró
+   * ese país de la circulación, que es una conversación y no un error de la petición.
+   *
+   * <p><b>No se ofrece dar de alta el país sobre la marcha.</b> El catálogo es de `RF-SP-020`, y
+   * `RN-SP-009` hace que un país registrado por error no se pueda corregir jamás: crearlo desde
+   * aquí convertiría una errata en un alta permanente.
+   */
+  private void verificarPais(UUID countryId) {
+    var pais =
+        paises
+            .find(countryId)
+            .orElseThrow(
+                () ->
+                    new UnprocessableEntityException(
+                        "EX-009",
+                        "El país indicado no existe.",
+                        List.of(
+                            new FieldError(
+                                "countryId",
+                                "EX-009",
+                                "El país '" + countryId + "' no existe en el catálogo."))));
+
+    if (!pais.active()) {
+      throw conflicto(
+          "RN-SP-034",
+          "countryId",
+          "El país '" + pais.code() + "' está inactivo y no se puede asignar.");
+    }
+  }
 
   /** `RN-SP-016`. La garantía la dan los índices únicos totales; esto solo redacta el mensaje. */
   private void verificarUnicidad(Username username, Email email) {
@@ -345,6 +396,10 @@ public class RegisterUserService {
     estado.put("email", usuario.getEmail());
     estado.put("first_name", usuario.getFirstName());
     estado.put("last_name", usuario.getLastName());
+    // EL IDENTIFICADOR Y NO EL CÓDIGO: es lo que quedó en la columna. El código
+    // vive en otra tabla que `RN-SP-009` deja intacta, de modo que resolverlo al
+    // leer la auditoría da siempre la misma respuesta.
+    estado.put("country_id", usuario.getCountryId().toString());
     estado.put("status", usuario.getStatus().name());
     estado.put("must_change_password", usuario.isMustChangePassword());
     estado.put("roles", codigos(concedidos));

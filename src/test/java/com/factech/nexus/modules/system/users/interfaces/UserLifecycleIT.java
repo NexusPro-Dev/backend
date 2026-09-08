@@ -123,6 +123,78 @@ class UserLifecycleIT extends IntegrationTestBase {
   }
 
   @Test
+  @DisplayName("CA-SP-578 — el país se corrige desde aquí, y el detalle devuelve el nuevo")
+  void cambiarElPais() throws Exception {
+    java.util.UUID otro = sembrarPais("XED", "Pais Destino De Edicion", true);
+
+    mvc.perform(editar(juan, "{\"countryId\":\"" + otro + "\"}"))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.country.code").value("XED"));
+
+    // Y un país que no existe es 422; uno inactivo, 409. Los dos se distinguen
+    // aquí y no en el registro público, porque quien edita ya ve el catálogo.
+    mvc.perform(editar(juan, "{\"countryId\":\"" + java.util.UUID.randomUUID() + "\"}"))
+        .andExpect(status().isUnprocessableEntity());
+
+    java.util.UUID inactivo = sembrarPais("XIE", "Pais Inactivo De Edicion", false);
+    mvc.perform(editar(juan, "{\"countryId\":\"" + inactivo + "\"}"))
+        .andExpect(status().isConflict());
+  }
+
+  @Test
+  @DisplayName("CA-SP-579 — vaciar el país con un nulo explícito es 400, nunca un 500")
+  void elPaisNoSeVacia() throws Exception {
+    // Mismo trato que los otros tres campos: la columna es NOT NULL y el estado
+    // «persona sin país» no existe, de modo que el nulo no puede ser una orden.
+    mvc.perform(editar(juan, "{\"countryId\":null}")).andExpect(status().isBadRequest());
+  }
+
+  @Test
+  @DisplayName("CA-SP-580 — el cambio de país audita el antes y el después, y reenviarlo NO audita")
+  void auditoriaDelCambioDePais() throws Exception {
+    java.util.UUID destino = sembrarPais("XAU", "Pais Auditado", true);
+
+    int antes = eventosDeCambio(juan);
+    mvc.perform(editar(juan, "{\"countryId\":\"" + destino + "\"}")).andExpect(status().isOk());
+    assertThat(eventosDeCambio(juan)).isEqualTo(antes + 1);
+
+    String cambios =
+        jdbc.queryForObject(
+            "SELECT changes::text FROM audit_change_log WHERE entity_id = ?"
+                + " ORDER BY occurred_at DESC LIMIT 1",
+            String.class,
+            juan);
+    assertThat(cambios).contains("country_id").contains(destino.toString());
+
+    // FA-001: reenviar el mismo país no es un cambio y no deja evento.
+    mvc.perform(editar(juan, "{\"countryId\":\"" + destino + "\"}")).andExpect(status().isOk());
+    assertThat(eventosDeCambio(juan)).isEqualTo(antes + 1);
+  }
+
+  @Test
+  @DisplayName("el cambio de país NO deja evento de SEGURIDAD: no es una vía de acceso")
+  void elPaisNoEsUnaViaDeAcceso() throws Exception {
+    java.util.UUID destino = sembrarPais("XSE", "Pais Sin Evento De Seguridad", true);
+
+    int antes = eventosDeSeguridadDe(juan);
+    mvc.perform(editar(juan, "{\"countryId\":\"" + destino + "\"}")).andExpect(status().isOk());
+
+    // Es el campo que más se parece al correo —lo corrige un tercero y cambia
+    // cómo la persona usa el sistema— y aun así no va al registro de seguridad:
+    // aquel existe para credenciales y vías de acceso.
+    assertThat(eventosDeSeguridadDe(juan)).isEqualTo(antes);
+  }
+
+  private int eventosDeSeguridadDe(java.util.UUID usuario) {
+    Integer total =
+        jdbc.queryForObject(
+            "SELECT count(*) FROM audit_security_log WHERE target_user_id = ?",
+            Integer.class,
+            usuario);
+    return total == null ? 0 : total;
+  }
+
+  @Test
   @DisplayName("VAL-002 — el nulo explícito y el blanco se RECHAZAN, no vacían")
   void ningunCampoSeVacia() throws Exception {
     // Es la diferencia con la edición de un rol, donde el nulo sí era una orden:
@@ -621,6 +693,29 @@ class UserLifecycleIT extends IntegrationTestBase {
         .content(cuerpo);
   }
 
+  /**
+   * Registra un país de prueba y devuelve su identificador.
+   *
+   * <p><b>Los códigos son del bloque de USO PRIVADO de ISO 3166-1</b> —los que empiezan por {@code
+   * X}—, que ningún país real ocupa jamás. La base de estas pruebas es compartida y los países
+   * <b>no se pueden borrar</b> (`RN-SP-009`): sembrar aquí «Panamá» chocaría con {@code
+   * uq_countries_name} en cuanto otra clase lo hubiera hecho antes, y el fallo aparecería o no
+   * según el orden de ejecución.
+   *
+   * <p>Y es <b>idempotente</b> por lo mismo: el país sobrevive a la prueba que lo creó.
+   */
+  private java.util.UUID sembrarPais(String codigo, String nombre, boolean activo) {
+    jdbc.update(
+        "INSERT INTO countries (id, code, name, is_active) VALUES (?, ?, ?, ?)"
+            + " ON CONFLICT (code) DO UPDATE SET is_active = EXCLUDED.is_active",
+        java.util.UUID.randomUUID(),
+        codigo,
+        nombre,
+        activo);
+    return jdbc.queryForObject(
+        "SELECT id FROM countries WHERE code = ?", java.util.UUID.class, codigo);
+  }
+
   private MockHttpServletRequestBuilder estado(UUID id, String destino, String motivo) {
     String cuerpo =
         "{\"status\":\""
@@ -654,8 +749,8 @@ class UserLifecycleIT extends IntegrationTestBase {
     jdbc.update(
         """
         INSERT INTO users (id, username, email, first_name, last_name, password_hash,
-                           must_change_password, status)
-        VALUES (?, ?, ?, ?, ?, 'x', false, 'ACTIVO')
+                           must_change_password, status, country_id)
+        VALUES (?, ?, ?, ?, ?, 'x', false, 'ACTIVO', (SELECT id FROM countries WHERE code = 'COL'))
         """,
         id,
         username,

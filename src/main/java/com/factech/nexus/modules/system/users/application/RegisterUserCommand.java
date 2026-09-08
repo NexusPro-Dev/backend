@@ -14,6 +14,9 @@ import java.util.UUID;
  *     rol consumidor, prohibido si no—, y esa exigencia murió con `RN-SP-013`
  * @param supervisorId condicional en los dos sentidos, que es lo que {@code membershipId} dejó de
  *     ser: exigido si hay rol vendedor, prohibido si no (`RN-SP-019`)
+ * @param countryId <b>obligatorio y sin condición</b> desde el 07-09-2026 (`RN-SP-034`). Es la
+ *     diferencia con los dos anteriores: aquellos dependen de qué roles se concedan, y este entra
+ *     siempre — su ausencia es {@code 400} en el DTO, nunca un {@code 409} condicional
  */
 public record RegisterUserCommand(
     String username,
@@ -21,6 +24,7 @@ public record RegisterUserCommand(
     String firstName,
     String lastName,
     String password,
+    UUID countryId,
     Set<UUID> roleIds,
     UUID membershipId,
     UUID supervisorId) {}

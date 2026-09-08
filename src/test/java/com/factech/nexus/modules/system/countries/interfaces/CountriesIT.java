@@ -28,8 +28,14 @@ import org.springframework.test.web.servlet.request.RequestPostProcessor;
 /**
  * Criterios de aceptación del catálogo de países (`RF-SP-020`, `RF-SP-021`, `RF-SP-022`).
  *
- * <p>El catálogo se vacía antes de cada prueba: nace vacío —no hay migración de siembra— y el orden
- * de ejecución no debe decidir el resultado.
+ * <p>El catálogo se limpia antes de cada prueba, pero <b>ya no queda vacío</b>. Desde `RN-SP-034`
+ * (07-09-2026) {@code users.country_id} es {@code NOT NULL} y `V64` siembra <b>Colombia</b> para
+ * poder rellenar al superadministrador de `V22`: esa fila la referencia una persona y {@code
+ * fk_users_country} impide borrarla.
+ *
+ * <p>La consecuencia atraviesa esta clase entera y conviene leerla una vez: <b>toda aserción sobre
+ * el tamaño o el orden del catálogo cuenta con Colombia dentro</b>, y ningún caso puede usar {@code
+ * COL} como país de prueba — sería un duplicado. Donde antes se usaba, ahora va {@code URY}.
  */
 @AutoConfigureMockMvc
 class CountriesIT extends IntegrationTestBase {
@@ -40,7 +46,17 @@ class CountriesIT extends IntegrationTestBase {
 
   @BeforeEach
   void vaciarElCatalogo() {
-    jdbc.update("DELETE FROM countries");
+    // NO SE VACÍA ENTERO desde `RN-SP-034` (07-09-2026): `fk_users_country`
+    // lo impide, y hace bien — el superadministrador de `V22` vive en
+    // Colombia. Se borra lo que NINGUNA persona referencia, que es todo lo
+    // que estas pruebas crean.
+    //
+    // Y no se borra la fila de Colombia «con cuidado» ni se desasigna a nadie
+    // para poder borrarla: el catálogo ya NO nace vacío, y una prueba que lo
+    // dejara así estaría probando un estado que el sistema no puede alcanzar.
+    jdbc.update(
+        "DELETE FROM countries c WHERE NOT EXISTS"
+            + " (SELECT 1 FROM users u WHERE u.country_id = c.id)");
   }
 
   // ---------------------------------------------------------------------------
@@ -65,7 +81,7 @@ class CountriesIT extends IntegrationTestBase {
   void sinLocation() throws Exception {
     // Una cabecera que existe para llevar al cliente al recurso creado y lo
     // lleva a una URL que devuelve 404 es peor que no ponerla.
-    mvc.perform(alta("COL", "Colombia"))
+    mvc.perform(alta("URY", "Uruguay"))
         .andExpect(status().isCreated())
         .andExpect(
             org.springframework.test.web.servlet.result.MockMvcResultMatchers.header()
@@ -77,12 +93,12 @@ class CountriesIT extends IntegrationTestBase {
   void codigoNormalizado() throws Exception {
     // Diferencia deliberada con el código de un ROL, que se rechaza en
     // minúsculas: allí el actor lo inventa; aquí lo fija ISO 3166-1.
-    mvc.perform(alta("col", "Colombia"))
+    mvc.perform(alta("ury", "Uruguay"))
         .andExpect(status().isCreated())
-        .andExpect(jsonPath("$.code").value("COL"));
+        .andExpect(jsonPath("$.code").value("URY"));
 
     // Y por tanto el segundo intento es un duplicado, no un país nuevo.
-    mvc.perform(alta(" COL ", "Otra Colombia")).andExpect(status().isConflict());
+    mvc.perform(alta(" URY ", "Otro Uruguay")).andExpect(status().isConflict());
   }
 
   @Test
@@ -221,14 +237,18 @@ class CountriesIT extends IntegrationTestBase {
   void listadoOrdenado() throws Exception {
     crear("PER", "Perú");
     crear("PAN", "Panamá");
-    crear("COL", "Colombia");
+    crear("URY", "Uruguay");
 
+    // CUATRO Y NO TRES: Colombia la siembra `V64` y no se puede borrar, porque
+    // el superadministrador vive en ella (`RN-SP-034`). Va la primera, que es
+    // además lo que esta prueba comprueba — el orden es por nombre.
     mvc.perform(get("/api/v1/countries").with(lector()))
         .andExpect(status().isOk())
-        .andExpect(jsonPath("$.content.length()").value(3))
+        .andExpect(jsonPath("$.content.length()").value(4))
         .andExpect(jsonPath("$.content[0].name").value("Colombia"))
         .andExpect(jsonPath("$.content[1].name").value("Panamá"))
         .andExpect(jsonPath("$.content[2].name").value("Perú"))
+        .andExpect(jsonPath("$.content[3].name").value("Uruguay"))
         .andExpect(jsonPath("$.totalElements").doesNotExist())
         .andExpect(jsonPath("$.totalPages").doesNotExist());
   }
@@ -243,28 +263,33 @@ class CountriesIT extends IntegrationTestBase {
     crear("PER", "Perú");
     crear("PAN", "Panamá");
 
+    // Las posiciones son 1 y 2 y no 0 y 1: Colombia, sembrada por `V64`, ocupa
+    // la primera. Lo que esta prueba fija sigue siendo lo mismo — que «Panamá»
+    // va ANTES que «Perú».
     mvc.perform(get("/api/v1/countries").with(lector()))
-        .andExpect(jsonPath("$.content[0].name").value("Panamá"))
-        .andExpect(jsonPath("$.content[1].name").value("Perú"));
+        .andExpect(jsonPath("$.content[1].name").value("Panamá"))
+        .andExpect(jsonPath("$.content[2].name").value("Perú"));
   }
 
   @Test
   @DisplayName("CA-SP-141 — la búsqueda filtra por código y por nombre, ignorando acentos")
   void busqueda() throws Exception {
     crear("PAN", "Panamá");
-    crear("COL", "Colombia");
+    crear("URY", "Uruguay");
 
     mvc.perform(get("/api/v1/countries?search=panama").with(lector()))
         .andExpect(jsonPath("$.content.length()").value(1))
         .andExpect(jsonPath("$.content[0].code").value("PAN"));
 
-    mvc.perform(get("/api/v1/countries?search=co").with(lector()))
+    // `urug` y no `ur`: el fragmento corto también casaría con «Uruguay» y con
+    // cualquier país sembrado que lo contenga.
+    mvc.perform(get("/api/v1/countries?search=urug").with(lector()))
         .andExpect(jsonPath("$.content.length()").value(1))
-        .andExpect(jsonPath("$.content[0].code").value("COL"));
+        .andExpect(jsonPath("$.content[0].code").value("URY"));
 
-    // En blanco equivale a ausente.
+    // En blanco equivale a ausente. TRES: las dos de la prueba y Colombia.
     mvc.perform(get("/api/v1/countries?search=   ").with(lector()))
-        .andExpect(jsonPath("$.content.length()").value(2));
+        .andExpect(jsonPath("$.content.length()").value(3));
   }
 
   @Test
@@ -286,15 +311,18 @@ class CountriesIT extends IntegrationTestBase {
   @DisplayName("CA-SP-172 — los inactivos no aparecen salvo que se pidan, y entonces se AÑADEN")
   void inactivosBajoPeticion() throws Exception {
     crear("PAN", "Panamá");
-    String co = crear("COL", "Colombia");
-    mvc.perform(cambioDeEstado(co, false)).andExpect(status().isOk());
+    String uy = crear("URY", "Uruguay");
+    mvc.perform(cambioDeEstado(uy, false)).andExpect(status().isOk());
 
+    // DOS activos —Colombia y Panamá— y el retirado fuera. Lo que la prueba fija
+    // es que el inactivo NO esté, no cuántos hay en total.
     mvc.perform(get("/api/v1/countries").with(lector()))
-        .andExpect(jsonPath("$.content.length()").value(1))
-        .andExpect(jsonPath("$.content[0].code").value("PAN"));
+        .andExpect(jsonPath("$.content.length()").value(2))
+        .andExpect(jsonPath("$.content[?(@.code == 'URY')]").isEmpty());
 
+    // Y al pedirlos, se AÑADE: tres.
     mvc.perform(get("/api/v1/countries?includeInactive=true").with(lector()))
-        .andExpect(jsonPath("$.content.length()").value(2));
+        .andExpect(jsonPath("$.content.length()").value(3));
   }
 
   @Test
@@ -337,8 +365,10 @@ class CountriesIT extends IntegrationTestBase {
         .andExpect(jsonPath("$.code").value("PAN"))
         .andExpect(jsonPath("$.name").value("Panamá"));
 
+    // Desaparece del catálogo activo. Ya no se comprueba «cero»: Colombia sigue
+    // ahí y no se puede borrar (`RN-SP-034`).
     mvc.perform(get("/api/v1/countries").with(lector()))
-        .andExpect(jsonPath("$.content.length()").value(0));
+        .andExpect(jsonPath("$.content[?(@.code == 'PAN')]").isEmpty());
 
     mvc.perform(cambioDeEstado(pa, true))
         .andExpect(status().isOk())
@@ -352,7 +382,9 @@ class CountriesIT extends IntegrationTestBase {
     mvc.perform(cambioDeEstado(pa, false)).andExpect(status().isOk());
 
     // Quien ya referenciaba el país por su identificador lo sigue resolviendo.
-    mvc.perform(get("/api/v1/countries?includeInactive=true").with(lector()))
+    // Se acota con la búsqueda para aislar la fila: sin ella, la primera
+    // posición la ocupa Colombia, que `V64` siembra y nadie puede borrar.
+    mvc.perform(get("/api/v1/countries?search=PAN&includeInactive=true").with(lector()))
         .andExpect(jsonPath("$.content[0].id").value(pa))
         .andExpect(jsonPath("$.content[0].name").value("Panamá"));
   }

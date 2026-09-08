@@ -308,9 +308,9 @@ class RegisterUserIT extends IntegrationTestBase {
                 .content(
                     """
                     {"username":"cliente","email":"cliente@factech.co","firstName":"C","lastName":"L",
-                     "password":"%s","roleIds":["%s"],"membershipId":"%s"}
+                     "password":"%s","countryId":"%s","roleIds":["%s"],"membershipId":"%s"}
                     """
-                        .formatted(CONTRASENA, consumidor, membresia)))
+                        .formatted(CONTRASENA, COLOMBIA, consumidor, membresia)))
         .andExpect(status().isCreated())
         .andExpect(jsonPath("$.membership.code").value("ORO"));
 
@@ -354,9 +354,9 @@ class RegisterUserIT extends IntegrationTestBase {
                 .content(
                     """
                     {"username":"contable2","email":"contable2@factech.co","firstName":"C","lastName":"D",
-                     "password":"%s","roleIds":["%s"],"supervisorId":"%s"}
+                     "password":"%s","countryId":"%s","roleIds":["%s"],"supervisorId":"%s"}
                     """
-                        .formatted(CONTRASENA, rolAcotado, SUPERADMIN)))
+                        .formatted(CONTRASENA, COLOMBIA, rolAcotado, SUPERADMIN)))
         .andExpect(status().isConflict())
         .andExpect(jsonPath("$.errors[0].code").value("RN-SP-019"));
   }
@@ -526,6 +526,103 @@ class RegisterUserIT extends IntegrationTestBase {
   }
 
   // ---------------------------------------------------------------------------
+  // `RN-SP-034` — toda persona pertenece a un país
+  // ---------------------------------------------------------------------------
+
+  @Test
+  @DisplayName("CA-SP-572 — sin país es 400, y con uno inexistente es 422")
+  void paisObligatorioYExistente() throws Exception {
+    // Sin el campo: es `400` y NO un `409` condicional. Es la diferencia con la
+    // membresía y el superior, que dependen de qué roles se concedan.
+    mvc.perform(
+            post("/api/v1/users")
+                .with(superadmin())
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(
+                    """
+                    {"username":"sinpais","email":"sinpais@factech.co","firstName":"S","lastName":"P",
+                     "password":"%s","roleIds":["%s"]}
+                    """
+                        .formatted(CONTRASENA, rolAcotado)))
+        .andExpect(status().isBadRequest());
+
+    // Con un país que no está en el catálogo: `422`, porque es una referencia
+    // que no resuelve — mismo trato que un rol inexistente.
+    mvc.perform(
+            post("/api/v1/users")
+                .with(superadmin())
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(
+                    """
+                    {"username":"paisfantasma","email":"pf@factech.co","firstName":"P","lastName":"F",
+                     "password":"%s","countryId":"%s","roleIds":["%s"]}
+                    """
+                        .formatted(CONTRASENA, UUID.randomUUID(), rolAcotado)))
+        .andExpect(status().isUnprocessableEntity())
+        .andExpect(jsonPath("$.errors[0].code").value("EX-009"))
+        .andExpect(jsonPath("$.errors[0].field").value("countryId"));
+  }
+
+  @Test
+  @DisplayName("CA-SP-573 — un país inactivo es 409, y NO el mismo error que uno inexistente")
+  void paisInactivo() throws Exception {
+    UUID inactivo = sembrarPais("XIA", "Pais Inactivo Del Alta", false);
+
+    // `409` y no `422`: el país existe, y lo que lo rechaza es una regla de
+    // negocio. El cliente los corrige distinto — ante el `422` releería el
+    // catálogo; ante este sabe que alguien lo retiró de la circulación.
+    mvc.perform(
+            post("/api/v1/users")
+                .with(superadmin())
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(
+                    """
+                    {"username":"paisinactivo","email":"pi@factech.co","firstName":"P","lastName":"I",
+                     "password":"%s","countryId":"%s","roleIds":["%s"]}
+                    """
+                        .formatted(CONTRASENA, inactivo, rolAcotado)))
+        .andExpect(status().isConflict())
+        .andExpect(jsonPath("$.errors[0].code").value("RN-SP-034"))
+        .andExpect(jsonPath("$.errors[0].field").value("countryId"));
+  }
+
+  @Test
+  @DisplayName("CA-SP-574 — el alta devuelve el país RESUELTO, no un identificador suelto")
+  void paisResueltoEnLaRespuesta() throws Exception {
+    mvc.perform(alta("conpais", "conpais@factech.co", rolAcotado))
+        .andExpect(status().isCreated())
+        .andExpect(jsonPath("$.country.id").value(COLOMBIA.toString()))
+        .andExpect(jsonPath("$.country.code").value("COL"))
+        .andExpect(jsonPath("$.country.name").value("Colombia"))
+        // Y NO el identificador suelto: quien recibe esto no tiene que llamar al
+        // catálogo —que además exige `countries:read`— para saber qué quedó.
+        .andExpect(jsonPath("$.countryId").doesNotExist());
+  }
+
+  // ---------------------------------------------------------------------------
+
+  /**
+   * Registra un país de prueba y devuelve su identificador.
+   *
+   * <p><b>Los códigos son del bloque de USO PRIVADO de ISO 3166-1</b> —los que empiezan por {@code
+   * X}—, que ningún país real ocupa jamás. La base de estas pruebas es compartida y los países
+   * <b>no se pueden borrar</b> (`RN-SP-009`): sembrar aquí «Panamá» chocaría con {@code
+   * uq_countries_name} en cuanto otra clase lo hubiera hecho antes, y el fallo aparecería o no
+   * según el orden de ejecución.
+   *
+   * <p>Y es <b>idempotente</b> por lo mismo: el país sobrevive a la prueba que lo creó.
+   */
+  private java.util.UUID sembrarPais(String codigo, String nombre, boolean activo) {
+    jdbc.update(
+        "INSERT INTO countries (id, code, name, is_active) VALUES (?, ?, ?, ?)"
+            + " ON CONFLICT (code) DO UPDATE SET is_active = EXCLUDED.is_active",
+        java.util.UUID.randomUUID(),
+        codigo,
+        nombre,
+        activo);
+    return jdbc.queryForObject(
+        "SELECT id FROM countries WHERE code = ?", java.util.UUID.class, codigo);
+  }
 
   private static final String CONTRASENA = "ClaveLargaYSegura2026";
 
@@ -547,9 +644,9 @@ class RegisterUserIT extends IntegrationTestBase {
         .content(
             """
             {"username":"%s","email":"%s","firstName":"Juan","lastName":"Pérez",
-             "password":"%s","roleIds":["%s"]}
+             "password":"%s","countryId":"%s","roleIds":["%s"]}
             """
-                .formatted(username, email, contrasena, rol));
+                .formatted(username, email, contrasena, COLOMBIA, rol));
   }
 
   private MockHttpServletRequestBuilder altaConSuperior(
@@ -560,17 +657,17 @@ class RegisterUserIT extends IntegrationTestBase {
         .content(
             """
             {"username":"%s","email":"%s","firstName":"A","lastName":"B",
-             "password":"%s","roleIds":["%s"],"supervisorId":"%s"}
+             "password":"%s","countryId":"%s","roleIds":["%s"],"supervisorId":"%s"}
             """
-                .formatted(username, email, CONTRASENA, rol, superior));
+                .formatted(username, email, CONTRASENA, COLOMBIA, rol, superior));
   }
 
   private static String cuerpo(String username, String email, String roles) {
     return """
         {"username":"%s","email":"%s","firstName":"A","lastName":"B",
-         "password":"%s","roleIds":[%s]}
+         "password":"%s","countryId":"%s","roleIds":[%s]}
         """
-        .formatted(username, email, CONTRASENA, roles);
+        .formatted(username, email, CONTRASENA, COLOMBIA, roles);
   }
 
   /** Crea una persona directamente en la base, para usarla como actor o como superior. */
@@ -578,8 +675,8 @@ class RegisterUserIT extends IntegrationTestBase {
     UUID id = UUID.randomUUID();
     jdbc.update(
         """
-        INSERT INTO users (id, username, email, first_name, last_name, password_hash, status)
-        VALUES (?, ?, ?, 'N', 'N', '$argon2id$sin-uso', 'ACTIVO')
+        INSERT INTO users (id, username, email, first_name, last_name, password_hash, status, country_id)
+        VALUES (?, ?, ?, 'N', 'N', '$argon2id$sin-uso', 'ACTIVO', (SELECT id FROM countries WHERE code = 'COL'))
         """,
         id,
         username,

@@ -8,6 +8,7 @@
 | Autor | Responsable técnico |
 | Aprobada por | Responsable técnico |
 | Fecha de aprobación | 21-08-2026 |
+| Enmendada | 07-09-2026 — `RN-SP-034`: el país entra en cada fila y nace el filtro por país; `CA-SP-575` y `CA-SP-576` (Art. I.7) |
 
 ---
 
@@ -61,6 +62,7 @@ Conviene dejarlo dicho de forma explícita, porque **el día que exista alcance 
 | Estado | No | Filtro por estado del usuario | Uno de los estados definidos en `security.md` §3.1 |
 | Rol | No | Filtro por rol asignado | Si se indica uno inexistente, el resultado es una colección vacía, no un error |
 | Membresía | No | Filtro por membresía vigente | Solo tiene sentido sobre consumidores |
+| País | No | Filtro por país de la persona | **Admite países inactivos**, y es deliberado: quien se registró antes de que se retirara sigue estando ahí, y no poder listarlo lo dejaría invisible justo cuando hay que ir a corregirlo. Si se indica uno inexistente, el resultado es una colección vacía y no un error — mismo trato que el filtro por rol |
 | Búsqueda | No | Texto libre sobre nombre de usuario, correo y nombre | Insensible a mayúsculas y a acentos |
 | Incluir eliminados | No | Incorpora los usuarios con borrado lógico | Por defecto no |
 
@@ -70,6 +72,7 @@ Conviene dejarlo dicho de forma explícita, porque **el día que exista alcance 
 |---|---|
 | Usuarios | Nombre de usuario, correo, nombre, estado y roles de cada uno |
 | Membresía | Membresía vigente, cuando la persona tiene una |
+| País | El país de cada persona, resuelto —identificador, código y nombre—. **Está siempre**, al contrario que la membresía y que la marca de eliminación: `RN-SP-034` no admite la ausencia, de modo que el cliente no tiene que contemplar la fila sin país |
 | Marca de eliminación | Presente solo cuando se piden los eliminados, para poder distinguirlos de los vigentes |
 | Paginación | Total de elementos, total de páginas y página actual |
 
@@ -134,6 +137,8 @@ Conviene dejarlo dicho de forma explícita, porque **el día que exista alcance 
 | `CA-SP-343` | Cada fila devuelve la **lista completa** de roles de la persona, no su conteo, y vacía cuando no tiene ninguno |
 | `CA-SP-344` | La búsqueda encuentra a una persona por un **fragmento** de su correo |
 | `CA-SP-345` | El listado no devuelve el momento en que expira un bloqueo, que solo aparece en `RF-SP-026` |
+| `CA-SP-575` | Cada fila devuelve el país **resuelto**, y ninguna lo devuelve vacío |
+| `CA-SP-576` | El filtro por país devuelve solo a quienes están en él, **se combina** con los de estado, rol y membresía, y **encuentra igual a quienes están en un país inactivo** |
 | `CA-SP-210` | El sistema rechaza un tamaño de página superior al máximo configurado |
 | `CA-SP-211` | El sistema rechaza la consulta a un actor sin el permiso de lectura de usuarios |
 
@@ -143,6 +148,8 @@ Conviene dejarlo dicho de forma explícita, porque **el día que exista alcance 
 - **Búsqueda sin acentos:** «peres» no debe encontrar «Pérez», pero «perez» sí. Es el mismo criterio de `RF-SP-002` y exige el mismo índice funcional.
 - **Búsqueda vacía o solo espacios:** equivale a no filtrar.
 - **Filtro por rol inexistente:** devuelve colección vacía; no es un error de la consulta.
+- **Filtro por un país inactivo:** devuelve resultados con normalidad, y es la razón de ser de la acotación de §6.1. Es el caso que hace falta cuando alguien retira un país de la circulación y hay que ir a mover a quien quedó dentro (`RF-SP-027`). Rechazarlo —o devolver vacío— convertiría la desactivación de un país en una forma de esconder gente.
+- **Persona sin país:** no existe (`RN-SP-034`). No hay fila que pueda devolver el campo vacío, y por eso el listado no declara ningún comportamiento para ese caso.
 - **Usuario sin permisos efectivos:** aparece en el listado con sus roles, todos inactivos. Desde `RN-SP-023` (24-08-2026) la lista de roles **vacía** ya no es alcanzable por la API.
 - **Usuario con muchos roles:** la lista de roles se devuelve completa por fila. Los roles de una persona son unos pocos, no decenas; si dejaran de serlo, esta decisión habría que revisarla.
 - **Búsqueda por correo parcial:** encuentra por fragmento, lo que convierte el listado en una forma de comprobar si un correo está registrado. Es aceptable porque el endpoint exige `users:read`, a diferencia de los de autenticación, que no deben revelarlo (`security.md` §5.5).
