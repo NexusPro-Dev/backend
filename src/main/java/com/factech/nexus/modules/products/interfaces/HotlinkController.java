@@ -59,12 +59,11 @@ public class HotlinkController {
           porque tiene ocho decimales y un número JSON pasa por coma flotante en
           cualquier cliente JavaScript.
 
-          **Y ese precio es el que el producto ANUNCIA, no necesariamente el que
-          se cobra.** Un producto puede declarar un precio público además del
-          del sistema; aquí se publica el público si existe y el del sistema si
-          no, y **el del sistema no viaja por ninguna vía** (`RN-PM-024`) — ni
-          siquiera dividiendo el importe convertido entre la tasa, porque la
-          conversión se calcula sobre el **mismo** importe que se publica.
+          **Vienen LOS DOS importes** (`RN-PM-024`, 08-09-2026): `price` es el
+          del sistema —el que se cobra— y `publicPrice` el que el producto
+          anuncia, **nulo y presente** cuando no lo declara. Hasta esa fecha
+          viajaba uno solo. **La conversión se calcula sobre el que se muestra**
+          —el público si existe y el del sistema si no—, y no sobre los dos.
 
           **La conversión es INFORMATIVA**: lo que se cobra no es ese número. Una
           venta va en una sola moneda y congela su importe al registrarse; esta

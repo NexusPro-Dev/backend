@@ -57,6 +57,7 @@ public class RegisterProductService {
   private final AuditWriter auditoria;
   private final UuidV7Generator ids;
   private final Clock reloj;
+  private final ProductExchangeResolver conversiones;
 
   /**
    * Constructor de producción. La anotación es obligatoria porque la clase declara dos
@@ -69,8 +70,9 @@ public class RegisterProductService {
       MembershipCatalog membresias,
       CurrencyCatalog monedas,
       AuditWriter auditoria,
-      UuidV7Generator ids) {
-    this(productos, membresias, monedas, auditoria, ids, Clock.systemUTC());
+      UuidV7Generator ids,
+      ProductExchangeResolver conversiones) {
+    this(productos, membresias, monedas, auditoria, ids, conversiones, Clock.systemUTC());
   }
 
   RegisterProductService(
@@ -79,12 +81,14 @@ public class RegisterProductService {
       CurrencyCatalog monedas,
       AuditWriter auditoria,
       UuidV7Generator ids,
+      ProductExchangeResolver conversiones,
       Clock reloj) {
     this.productos = productos;
     this.membresias = membresias;
     this.monedas = monedas;
     this.auditoria = auditoria;
     this.ids = ids;
+    this.conversiones = conversiones;
     this.reloj = reloj;
   }
 
@@ -130,7 +134,18 @@ public class RegisterProductService {
 
     auditar(nuevo);
 
-    return ProductResponse.from(nuevo, origen, destino, moneda);
+    return ProductResponse.from(
+        nuevo,
+        origen,
+        destino,
+        moneda,
+        // El alta responde con la misma forma que las lecturas: quien acaba de
+        // registrar un producto ve su conversión sin tener que volver a pedirlo.
+        conversiones
+            .para(java.util.List.of(moneda.id()))
+            .de(
+                moneda.id(),
+                ProductExchangeResolver.importeMostrado(nuevo.getPrice(), nuevo.getPublicPrice())));
   }
 
   /**

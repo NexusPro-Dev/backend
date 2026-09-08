@@ -44,6 +44,7 @@ public record ProductItem(
     BigDecimal price,
     BigDecimal publicPrice,
     ProductResponse.CurrencyRef currency,
+    ExchangeRef exchange,
     Integer validityDays,
     ProductScope scope,
     ProductImplementation implementation,
@@ -58,7 +59,7 @@ public record ProductItem(
    * puerto de `SP` es el problema de las {@code N+1} consultas con otro nombre —cien productos,
    * cien llamadas—, y por eso viaja en el {@code LEFT JOIN}.
    */
-  public static ProductItem from(ProductRow fila) {
+  public static ProductItem from(ProductRow fila, ExchangeRef conversion) {
     return new ProductItem(
         fila.id(),
         fila.code(),
@@ -89,6 +90,7 @@ public record ProductItem(
             : ProductPrice.enLaEscalaDe(fila.publicPrice(), fila.currencyDecimalPlaces()),
         new ProductResponse.CurrencyRef(
             fila.currencyId(), fila.currencyCode(), fila.currencyDecimalPlaces()),
+        conversion,
         fila.validityDays(),
         ProductScope.valueOf(fila.scope()),
         ProductImplementation.valueOf(fila.implementation()),

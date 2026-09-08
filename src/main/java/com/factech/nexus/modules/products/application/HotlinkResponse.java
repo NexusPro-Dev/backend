@@ -37,20 +37,23 @@ public record HotlinkResponse(SellerRef seller, ProductRef product) {
   @JsonInclude(JsonInclude.Include.ALWAYS)
   public record CurrencyRef(String code, int decimalPlaces) {}
 
-  /**
-   * La conversión a la moneda de casa.
-   *
-   * <p><b>{@code rate} viaja como CADENA</b>, y es el único campo del sistema que lo hace: tiene
-   * ocho decimales, y un número JSON pasa por coma flotante de doble precisión en cualquier cliente
-   * JavaScript. Como cadena, la tasa que se muestra es la que se declaró.
-   *
-   * <p><b>{@code amount} es informativo.</b> Lo que se cobra no es este número: una venta va en una
-   * sola moneda (`RN-MV-012`) y congela su importe al registrarse.
-   */
-  @JsonInclude(JsonInclude.Include.ALWAYS)
-  public record ExchangeRef(CurrencyRef currency, String rate, BigDecimal amount) {}
+  // La conversión ya NO se declara aquí: desde el 08-09-2026 la llevan las
+  // cuatro lecturas del módulo y vive en `ExchangeRef`, que nació en este
+  // fichero y salió de él el día que dejó de ser cosa del hotlink.
 
-  /** El producto que el enlace señala. */
+  /**
+   * El producto que el enlace señala.
+   *
+   * <p><b>Lleva los DOS importes desde el 08-09-2026</b> (`RN-PM-024` reescrita): {@code price} es
+   * el del sistema —el que se cobra— y {@code publicPrice} el anunciado, <b>nulo</b> cuando el
+   * producto no lo declara. Hasta esa fecha viajaba <b>uno solo</b>, resuelto con un {@code
+   * COALESCE} en la consulta, y el del sistema no salía por aquí a propósito.
+   *
+   * <p><b>Lo que eso publica está decidido y escrito</b> (`requirements/pm.md` §5.2.5): en una ruta
+   * sin token, cualquiera resta un importe del otro y ve la diferencia entre lo anunciado y lo
+   * cobrado. No es un descuido de esta clase — es lo pedido, y `CA-PM-169` lo deja comprobado para
+   * que el día que se decida lo contrario haga falta decidirlo.
+   */
   @JsonInclude(JsonInclude.Include.ALWAYS)
   public record ProductRef(
       UUID id,
@@ -62,6 +65,7 @@ public record HotlinkResponse(SellerRef seller, ProductRef product) {
       Integer validityDays,
       MembershipBadge membership,
       BigDecimal price,
+      BigDecimal publicPrice,
       CurrencyRef currency,
       ExchangeRef exchange) {}
 }

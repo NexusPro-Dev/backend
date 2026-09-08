@@ -1,5 +1,6 @@
 package com.factech.nexus.modules.products.interfaces;
 
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.user;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
@@ -237,6 +238,52 @@ class ProductListIT extends IntegrationTestBase {
         // El precio en la escala de SU MONEDA y no en la de la columna: 49.99 y
         // no 49.9900.
         .andExpect(jsonPath("$.content[0].price").value(49.99));
+  }
+
+  @Test
+  @DisplayName(
+      "`CA-PM-164` — cada fila trae su conversión, presente y nula si no hay nada que convertir")
+  void cadaFilaTraeSuConversion() throws Exception {
+    // Los productos sembrados están en USD, que es la moneda de casa: no hay
+    // nada que convertir. Lo que se comprueba es que el campo ESTÁ — ausente
+    // sería indistinguible de uno que el cliente no conoce.
+    String cuerpo =
+        mvc.perform(listado().param("search", "Ascenso a Oro"))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.content[0].exchange").value(org.hamcrest.Matchers.nullValue()))
+            .andReturn()
+            .getResponse()
+            .getContentAsString();
+
+    assertThat(cuerpo).contains("\"exchange\":null");
+  }
+
+  @Test
+  @DisplayName("`CA-PM-164` — con una moneda distinta y tasa vigente, la conversión llega resuelta")
+  void laConversionLlegaResuelta() throws Exception {
+    String cop = insertarMoneda("COP", "Peso colombiano");
+    jdbc.update(
+        "UPDATE products SET currency_id = CAST(? AS uuid), price = 1000.00"
+            + " WHERE code = 'UPGRADE_ORO'",
+        cop);
+    jdbc.update(
+        "INSERT INTO exchange_rates (id, source_currency_id, target_currency_id, price,"
+            + " valid_from, valid_to, is_active)"
+            + " VALUES (CAST(? AS uuid), CAST(? AS uuid), CAST(? AS uuid), 0.00024096,"
+            + " CAST(? AS date), NULL, true)",
+        UUID.randomUUID().toString(),
+        cop,
+        USD,
+        java.time.LocalDate.now().minusDays(1).toString());
+
+    mvc.perform(listado().param("search", "Ascenso a Oro"))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.content[0].currency.code").value("COP"))
+        .andExpect(jsonPath("$.content[0].exchange.currency.code").value("USD"))
+        // La tasa como CADENA, con sus ocho decimales intactos.
+        .andExpect(jsonPath("$.content[0].exchange.rate").value("0.00024096"))
+        // 1000,00 × 0,00024096 = 0,24096 → 0,24 con los dos decimales de USD.
+        .andExpect(jsonPath("$.content[0].exchange.amount").value(0.24));
   }
 
   @Test
@@ -550,5 +597,23 @@ class ProductListIT extends IntegrationTestBase {
   @AfterEach
   void vaciarCatalogo() {
     jdbc.update("DELETE FROM products");
+    // La conversión trajo dos tablas más a esta clase (08-09-2026). Se limpian
+    // aquí y en este orden: las tasas apuntan a las monedas.
+    jdbc.update("DELETE FROM exchange_rates");
+    jdbc.update("DELETE FROM currencies WHERE is_default = false");
+  }
+
+  /** Una moneda distinta de la de casa, que es lo que hace que haya algo que convertir. */
+  private String insertarMoneda(String codigo, String nombre) {
+    UUID id = UUID.randomUUID();
+    jdbc.update(
+        """
+        INSERT INTO currencies (id, code, name, symbol, decimal_places, is_default, is_active)
+        VALUES (?, ?, ?, '#', 2, false, true)
+        """,
+        id,
+        codigo,
+        nombre);
+    return id.toString();
   }
 }

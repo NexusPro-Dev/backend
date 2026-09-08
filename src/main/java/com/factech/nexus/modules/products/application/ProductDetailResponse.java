@@ -52,6 +52,7 @@ public record ProductDetailResponse(
     BigDecimal price,
     BigDecimal publicPrice,
     ProductResponse.CurrencyRef currency,
+    ExchangeRef exchange,
     Integer validityDays,
     ProductScope scope,
     ProductImplementation implementation,
@@ -70,7 +71,7 @@ public record ProductDetailResponse(
    *
    * @param motivo el motivo del retiro, o nulo si el producto está vivo o no se registró ninguno
    */
-  public static ProductDetailResponse from(ProductRow fila, String motivo) {
+  public static ProductDetailResponse from(ProductRow fila, String motivo, ExchangeRef conversion) {
     return new ProductDetailResponse(
         fila.id(),
         fila.code(),
@@ -108,6 +109,7 @@ public record ProductDetailResponse(
             : ProductPrice.enLaEscalaDe(fila.publicPrice(), fila.currencyDecimalPlaces()),
         new ProductResponse.CurrencyRef(
             fila.currencyId(), fila.currencyCode(), fila.currencyDecimalPlaces()),
+        conversion,
         fila.validityDays(),
         ProductScope.valueOf(fila.scope()),
         ProductImplementation.valueOf(fila.implementation()),

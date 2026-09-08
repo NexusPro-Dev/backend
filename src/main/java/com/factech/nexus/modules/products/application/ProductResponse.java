@@ -41,6 +41,7 @@ public record ProductResponse(
     BigDecimal price,
     BigDecimal publicPrice,
     CurrencyRef currency,
+    ExchangeRef exchange,
     Integer validityDays,
     ProductScope scope,
     ProductImplementation implementation,
@@ -57,7 +58,11 @@ public record ProductResponse(
   public record CurrencyRef(UUID id, String code, int decimalPlaces) {}
 
   public static ProductResponse from(
-      Product producto, MembershipView origen, MembershipView destino, CurrencyView moneda) {
+      Product producto,
+      MembershipView origen,
+      MembershipView destino,
+      CurrencyView moneda,
+      ExchangeRef conversion) {
     return new ProductResponse(
         producto.getId(),
         producto.getCode(),
@@ -73,6 +78,7 @@ public record ProductResponse(
         // decir eso (`CA-PM-146`).
         producto.getPublicPrice() == null ? null : enLaEscalaDe(producto.getPublicPrice(), moneda),
         new CurrencyRef(moneda.id(), moneda.code(), moneda.decimalPlaces()),
+        conversion,
         producto.getValidityDays(),
         producto.getScope(),
         producto.getImplementation(),

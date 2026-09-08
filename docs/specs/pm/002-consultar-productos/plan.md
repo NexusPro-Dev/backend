@@ -47,6 +47,7 @@ Reutiliza entera la infraestructura de paginación de `shared/pagination`, que `
 
 - **El orden por omisión es `createdAt` descendente, con `id` como desempate.** El desempate no es cosmético: sin un orden **total**, dos productos con el mismo instante de alta pueden repetirse o saltarse entre páginas, y eso se descubre como «faltan productos» sin ningún error de por medio. Sale gratis: el identificador es un UUID v7 y su orden **es** el cronológico.
 - **`sort` es un dominio cerrado** —`name`, `price`, `createdAt`— y un valor fuera de él devuelve `400` (`VAL-005`). Se rechaza y no se ignora: ignorarlo devolvería un orden distinto del pedido sin decirlo. **`publicPrice` NO se añade al dominio** (08-09-2026): ordenar por lo que se anuncia no responde ninguna pregunta de quien administra, y **ordenar por una columna que admite nulos abriría una decisión que nadie ha tomado** — dónde van los productos sin precio público, al principio o al final. Se amplía el día que alguien lo pida, y entonces con esa decisión escrita.
+- **`exchange` viaja en cada fila desde el 08-09-2026** (`RN-PM-024` reescrita), **presente y nulo** cuando el producto ya está en la moneda por omisión o cuando no hay tasa vigente. Cómo se resuelve sin una consulta por fila está en §4.1, y es la parte de este cambio que puede salir mal en silencio.
 - **`publicPrice` viaja en cada fila** y **no es un filtro**: se selecciona en la misma sentencia, junto a `price`, y se serializa con los decimales de la misma moneda. La proyección crece en un campo; la consulta no gana ni un `JOIN` ni una condición.
 - **Los cuatro `400` se devuelven juntos**, como en `RF-SP-002`: quien se equivocó en cuatro parámetros no tiene que corregir la dirección cuatro veces.
 - `includeDeleted` por omisión es `false`.
@@ -60,6 +61,24 @@ La respuesta es un `PageResponse<ProductItem>` con `totalIsExact` en `true`.
 !!! warning "El atajo del conteo NO se aplica aquí"
 
     `RF-SP-002` dejó escrito un defecto que conviene no repetir: «omitir el conteo cuando la página no se llena» es correcto **salvo en la página vacía más allá de la última**, donde deducir el total del desplazamiento da un número inventado —`1980` para la página 99 de un catálogo de doce— con la colección vacía y sin error que lo delate. Aquí se cuenta siempre.
+
+## 4.1 La conversión de una página, y por qué se resuelve fuera de la consulta — 08-09-2026
+
+**`RN-PM-024` reescrita obliga a que cada fila lleve `exchange`**, y esa es la parte del cambio que puede salir mal sin que nada falle: un listado de veinte productos que pregunte por fila **la moneda de casa** y **la tasa** son **cuarenta consultas** donde había una, y la respuesta sería idéntica. Es el `N+1` que este módulo lleva seis requerimientos evitando, y aquí no lo destapa ninguna prueba de cuerpo.
+
+**Se resuelve en tres pasos y DOS consultas como mucho, sean veinte filas o cien:**
+
+1. La página se lee como hasta hoy — **una sentencia**, con sus `JOIN`.
+2. **La moneda por omisión, una vez**: `CurrencyCatalog.findDefault()`.
+3. **Las tasas de todas las monedas presentes en la página, en una sentencia**: `ExchangeRateLookup.ratesOn(monedasDistintas, monedaDeCasa, hoy)` devuelve un mapa `moneda → tasa`, y cada fila busca la suya en memoria. **Este paso se salta entero** cuando todos los productos ya están en la moneda de casa —el caso normal de un catálogo de una sola moneda—, porque no hay nada que convertir y `RN-SP-029` impide que exista una tasa de una moneda a sí misma.
+
+**El puerto de `SP` gana el método por lotes** y no se llama al de una en un bucle: `rateOn` sigue existiendo para el detalle y el hotlink, que leen **una** fila. Poner el bucle en `PM` dejaría la decisión de cuántas sentencias cuesta una página **fuera** del módulo que las paga.
+
+!!! danger "La prueba de este apartado NO mira el cuerpo"
+
+    `CA-PM-165` y `CA-PM-168` se miden **contando sentencias** con las estadísticas de Hibernate, como ya hacen `ListProductsServiceIT` y `GetProductServiceIT`. Es la única forma de verlo: veinte productos con la conversión correcta se ven exactamente igual con dos consultas que con cuarenta, y el día que alguien «simplifique» el resolutor a un bucle, ninguna prueba de API se enteraría.
+
+**Lo que la conversión NO hace es fallar la lectura.** Si no hay moneda por omisión, o no hay tasa vigente para una moneda, esa fila lleva `exchange` **presente y nulo**. Un catálogo que devolviera `500` porque nadie declaró una tasa sería un catálogo rehén de otro módulo.
 
 ## 5. Autorización
 

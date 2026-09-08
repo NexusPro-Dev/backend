@@ -70,14 +70,16 @@ public class UpdateProductService {
   private final CurrencyCatalog monedas;
   private final AuditWriter auditoria;
   private final Clock reloj;
+  private final ProductExchangeResolver conversiones;
 
   @Autowired
   public UpdateProductService(
       ProductRepository productos,
       ProductQueryRepository consultas,
       CurrencyCatalog monedas,
-      AuditWriter auditoria) {
-    this(productos, consultas, monedas, auditoria, Clock.systemUTC());
+      AuditWriter auditoria,
+      ProductExchangeResolver conversiones) {
+    this(productos, consultas, monedas, auditoria, conversiones, Clock.systemUTC());
   }
 
   UpdateProductService(
@@ -85,11 +87,13 @@ public class UpdateProductService {
       ProductQueryRepository consultas,
       CurrencyCatalog monedas,
       AuditWriter auditoria,
+      ProductExchangeResolver conversiones,
       Clock reloj) {
     this.productos = productos;
     this.consultas = consultas;
     this.monedas = monedas;
     this.auditoria = auditoria;
+    this.conversiones = conversiones;
     this.reloj = reloj;
   }
 
@@ -137,7 +141,17 @@ public class UpdateProductService {
 
     return consultas
         .findDetail(producto.getId())
-        .map(fila -> ProductDetailResponse.from(fila, null))
+        .map(
+            fila ->
+                ProductDetailResponse.from(
+                    fila,
+                    null,
+                    conversiones
+                        .para(java.util.List.of(fila.currencyId()))
+                        .de(
+                            fila.currencyId(),
+                            ProductExchangeResolver.importeMostrado(
+                                fila.price(), fila.publicPrice()))))
         .orElseThrow(
             () ->
                 new ResourceNotFoundException(

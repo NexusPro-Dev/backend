@@ -1,8 +1,8 @@
 package com.factech.nexus.modules.products.domain.service;
 
+import com.factech.nexus.modules.products.application.ExchangeRef;
 import com.factech.nexus.modules.products.application.HotlinkResponse;
 import com.factech.nexus.modules.products.application.HotlinkResponse.CurrencyRef;
-import com.factech.nexus.modules.products.application.HotlinkResponse.ExchangeRef;
 import com.factech.nexus.modules.products.application.HotlinkResponse.MembershipBadge;
 import com.factech.nexus.modules.products.application.HotlinkResponse.ProductRef;
 import com.factech.nexus.modules.products.application.HotlinkResponse.SellerRef;
@@ -10,18 +10,10 @@ import com.factech.nexus.modules.products.application.ProductPrice;
 import com.factech.nexus.modules.products.domain.models.ProductType;
 import com.factech.nexus.modules.products.domain.repository.ProductQueryRepository;
 import com.factech.nexus.modules.products.domain.repository.ProductQueryRepository.ProductRow;
-import com.factech.nexus.modules.system.currencies.application.CurrencyCatalog;
-import com.factech.nexus.modules.system.currencies.application.CurrencyCatalog.CurrencyView;
-import com.factech.nexus.modules.system.exchangerates.application.ExchangeRateLookup;
-import com.factech.nexus.modules.system.exchangerates.application.ExchangeRateLookup.ExchangeRateView;
 import com.factech.nexus.modules.system.users.application.PublicSellerLookup;
 import com.factech.nexus.modules.system.users.application.PublicSellerLookup.PublicSellerView;
 import com.factech.nexus.shared.error.ResourceNotFoundException;
-import java.math.BigDecimal;
-import java.math.RoundingMode;
-import java.time.Clock;
-import java.time.LocalDate;
-import java.util.Optional;
+import java.util.List;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -47,30 +39,16 @@ public class GetHotlinkService {
 
   private final ProductQueryRepository productos;
   private final PublicSellerLookup vendedores;
-  private final ExchangeRateLookup tasas;
-  private final CurrencyCatalog monedas;
-  private final Clock reloj;
+  private final ProductExchangeResolver conversiones;
 
   @Autowired
   public GetHotlinkService(
       ProductQueryRepository productos,
       PublicSellerLookup vendedores,
-      ExchangeRateLookup tasas,
-      CurrencyCatalog monedas) {
-    this(productos, vendedores, tasas, monedas, Clock.systemUTC());
-  }
-
-  GetHotlinkService(
-      ProductQueryRepository productos,
-      PublicSellerLookup vendedores,
-      ExchangeRateLookup tasas,
-      CurrencyCatalog monedas,
-      Clock reloj) {
+      ProductExchangeResolver conversiones) {
     this.productos = productos;
     this.vendedores = vendedores;
-    this.tasas = tasas;
-    this.monedas = monedas;
-    this.reloj = reloj;
+    this.conversiones = conversiones;
   }
 
   @Transactional(readOnly = true)
@@ -115,6 +93,11 @@ public class GetHotlinkService {
                 fila.targetMembershipName(),
                 fila.targetMembershipColor()),
         ProductPrice.enLaEscalaDe(fila.price(), fila.currencyDecimalPlaces()),
+        // Los DOS importes desde el 08-09-2026 (`RN-PM-024` reescrita), y el
+        // público NULO Y PRESENTE cuando el producto no lo declara.
+        fila.publicPrice() == null
+            ? null
+            : ProductPrice.enLaEscalaDe(fila.publicPrice(), fila.currencyDecimalPlaces()),
         moneda,
         conversion(fila));
   }
@@ -131,30 +114,14 @@ public class GetHotlinkService {
    * declaró una tasa, y el enlace dejaría de funcionar sin que nada lo explicara.
    */
   private ExchangeRef conversion(ProductRow fila) {
-    Optional<CurrencyView> casa = monedas.findDefault();
-    if (casa.isEmpty() || casa.get().id().equals(fila.currencyId())) {
-      return null;
-    }
-    CurrencyView destino = casa.get();
-    Optional<ExchangeRateView> tasa =
-        tasas.rateOn(fila.currencyId(), destino.id(), LocalDate.now(reloj));
-    if (tasa.isEmpty()) {
-      return null;
-    }
-
-    BigDecimal importe =
-        fila.price()
-            .multiply(tasa.get().price())
-            // A los decimales de la moneda de DESTINO, que es en la que queda
-            // expresado el importe. La escala de la tasa —ocho— no manda aquí:
-            // el resultado ya no es un cociente, es dinero.
-            .setScale(destino.decimalPlaces(), RoundingMode.HALF_UP);
-
-    return new ExchangeRef(
-        new CurrencyRef(destino.code(), destino.decimalPlaces()),
-        // Como CADENA: ocho decimales no sobreviven a la coma flotante de doble
-        // precisión de un cliente JavaScript.
-        tasa.get().price().toPlainString(),
-        importe);
+    // El cálculo salió de aquí el 08-09-2026, al dejar de ser cosa del hotlink:
+    // lo hace `ProductExchangeResolver` para las cuatro lecturas. Este método se
+    // queda porque el importe SOBRE EL QUE se convierte sí es decisión de cada
+    // lectura, y aquí es el que se muestra.
+    return conversiones
+        .para(List.of(fila.currencyId()))
+        .de(
+            fila.currencyId(),
+            ProductExchangeResolver.importeMostrado(fila.price(), fila.publicPrice()));
   }
 }

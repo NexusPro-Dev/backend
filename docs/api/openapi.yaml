@@ -18,6 +18,9 @@ servers:
 security:
 - bearerAuth: []
 tags:
+- name: Tipos de documento
+  description: "Catálogo de documentos de identidad admitidos. Solo lectura: su contenido\
+    \ es la validación de mayoría de edad (RN-SP-036)."
 - name: Productos
   description: "Catálogo de venta: upgrades de membresía y bots."
 - name: Roles
@@ -1071,8 +1074,14 @@ paths:
 
         Cada fila trae **los dos precios**: `price` —el que se cobra— y
         `publicPrice` —el que se anuncia—, este **presente y nulo** en los
-        productos que no lo declaran. Este listado y el detalle son los
-        **únicos** sitios donde se ven juntos (`RN-PM-024`).
+        productos que no lo declaran. Desde el 08-09-2026 los devuelven **las
+        cuatro lecturas** del módulo y no solo esta (`RN-PM-024`).
+
+        Y trae **`exchange`**, la conversión a la moneda por omisión con la
+        tasa vigente hoy, calculada sobre el importe **que se muestra** —el
+        público si existe y el del sistema si no—. Llega **presente y nula**
+        cuando el producto ya está en esa moneda o cuando nadie declaró una
+        tasa: eso **no es un error** y el producto se devuelve igual.
 
         Solo se puede ordenar por la lista blanca —`name`, `price`,
         `createdAt`—, con `,asc` o `,desc`. **`publicPrice` no está en ella**:
@@ -2882,6 +2891,13 @@ paths:
         Devuelve el producto con su membresía destino y su moneda **resueltas**,
         sin exigir una segunda consulta.
 
+        Trae **los dos precios** —`price`, el que se cobra, y `publicPrice`,
+        el que se anuncia y llega **nulo y presente** si no se declara— y
+        **`exchange`**, la conversión a la moneda por omisión con la tasa
+        vigente hoy, calculada sobre el importe **que se muestra**. La
+        conversión llega **presente y nula** cuando el producto ya está en esa
+        moneda o cuando nadie declaró una tasa (`RN-PM-024`, 08-09-2026).
+
         **Un producto retirado se devuelve marcado como tal**, no como
         inexistente: `deletedAt` dice desde cuándo y `deletionReason` **por
         qué**. Los dos campos **solo aparecen si el producto está retirado** —
@@ -3380,17 +3396,20 @@ paths:
         mira sería un descuento, y los descuentos son promociones, que están
         fuera de alcance.
 
-        **Y es el precio A MOSTRAR, no necesariamente el que se cobra.** Un
-        producto puede declarar un **precio público** además del del sistema
-        (`RN-PM-023`); esta respuesta publica el público si existe y el del
-        sistema si no, y **nunca los dos** — enseñar el par publicaría la
-        diferencia entre lo que se anuncia y lo que se cobra (`RN-PM-024`).
-        Cuál de los dos se publica lo decide el **producto**, no quien mira,
-        de modo que dos personas siguen viendo el mismo importe.
+        **Vienen LOS DOS importes** (`RN-PM-024`, reescrita el 08-09-2026):
+        `price` es el del sistema —el que la venta cobra— y `publicPrice` el
+        que el producto anuncia, **nulo y presente** cuando no lo declara.
+        Hasta esa fecha esta respuesta publicaba **uno solo**, resuelto por la
+        consulta, y quien la leía no sabía cuál de los dos era.
+
+        Y viene **`exchange`**, la conversión a la moneda por omisión con la
+        tasa vigente hoy, calculada sobre el importe **que se muestra** —el
+        público si existe y el del sistema si no—. **Presente y nula** cuando
+        no hay nada que convertir.
 
         **Quien construya la pantalla de compra tiene que saberlo**: el
-        importe que confirma la venta sale de `products.price` y puede no ser
-        este número.
+        importe que confirma la venta es `price`, y puede no ser el que se le
+        está enseñando a quien compra.
 
         Las dos colecciones viajan **envueltas en un objeto** y no como
         arreglos en la raíz: hoy la oferta no se pagina, y así el día que
@@ -3756,12 +3775,11 @@ paths:
         porque tiene ocho decimales y un número JSON pasa por coma flotante en
         cualquier cliente JavaScript.
 
-        **Y ese precio es el que el producto ANUNCIA, no necesariamente el que
-        se cobra.** Un producto puede declarar un precio público además del
-        del sistema; aquí se publica el público si existe y el del sistema si
-        no, y **el del sistema no viaja por ninguna vía** (`RN-PM-024`) — ni
-        siquiera dividiendo el importe convertido entre la tasa, porque la
-        conversión se calcula sobre el **mismo** importe que se publica.
+        **Vienen LOS DOS importes** (`RN-PM-024`, 08-09-2026): `price` es el
+        del sistema —el que se cobra— y `publicPrice` el que el producto
+        anuncia, **nulo y presente** cuando no lo declara. Hasta esa fecha
+        viajaba uno solo. **La conversión se calcula sobre el que se muestra**
+        —el público si existe y el del sistema si no—, y no sobre los dos.
 
         **La conversión es INFORMATIVA**: lo que se cobra no es ese número. Una
         venta va en una sola moneda y congela su importe al registrarse; esta
@@ -3807,6 +3825,48 @@ paths:
             '*/*':
               schema:
                 $ref: "#/components/schemas/HotlinkResponse"
+  /api/v1/document-types:
+    get:
+      tags:
+      - Tipos de documento
+      summary: Consultar el catálogo de tipos de documento
+      description: |
+        Devuelve los documentos de identidad con los que una persona puede
+        registrarse, con su **nombre** y su **abreviación**.
+
+        **El catálogo contiene solo documentos de persona mayor de edad**, y esa
+        es la validación entera: no hay ninguna marca que distinga cuáles sí y
+        cuáles no, porque los que no están **no están**. Registrar a un menor no
+        se rechaza — no se puede expresar.
+
+        **No se administra por API** (`RN-SP-036`): no hay alta, ni edición, ni
+        eliminación, ni cambio de estado. Se puebla por migración, y lo que deja
+        de admitirse se retira también por migración. Es la asimetría deliberada
+        con los catálogos de países y monedas, que sí tienen operación para
+        cambiar su estado.
+
+        **No se pagina**: son unos pocos elementos, y partirlos obligaría a dos
+        llamadas para pintar un desplegable.
+      operationId: listar_5
+      parameters:
+      - name: includeInactive
+        in: query
+        required: false
+        schema:
+          type: boolean
+      responses:
+        "200":
+          description: "Catálogo completo, ordenado por nombre"
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/DocumentTypeCatalogResponse"
+        "401":
+          description: Token ausente o inválido
+        "403":
+          description: El actor no posee `document-types:read`
+        "500":
+          description: Fallo no controlado (`ERR-500`)
   /api/v1/currencies:
     get:
       tags:
@@ -4428,6 +4488,29 @@ components:
         countryId:
           type: string
           format: uuid
+        documentTypeId:
+          type: string
+          format: uuid
+        documentNumber:
+          type: string
+          maxLength: 30
+          minLength: 0
+        phone:
+          type: string
+          maxLength: 25
+          minLength: 0
+        addressLine1:
+          type: string
+          maxLength: 150
+          minLength: 0
+        addressLine2:
+          type: string
+          maxLength: 150
+          minLength: 0
+        city:
+          type: string
+          maxLength: 100
+          minLength: 0
         roleIds:
           type: array
           items:
@@ -4443,12 +4526,26 @@ components:
           format: uuid
       required:
       - countryId
+      - documentNumber
+      - documentTypeId
       - email
       - firstName
       - lastName
       - password
+      - phone
       - roleIds
       - username
+    ContactRef:
+      type: object
+      properties:
+        phone:
+          type: string
+        addressLine1:
+          type: string
+        addressLine2:
+          type: string
+        city:
+          type: string
     CountryRef:
       type: object
       properties:
@@ -4456,6 +4553,23 @@ components:
           type: string
           format: uuid
         code:
+          type: string
+        name:
+          type: string
+    DocumentRef:
+      type: object
+      properties:
+        type:
+          $ref: "#/components/schemas/DocumentTypeRef"
+        number:
+          type: string
+    DocumentTypeRef:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        abbreviation:
           type: string
         name:
           type: string
@@ -4518,6 +4632,10 @@ components:
             $ref: "#/components/schemas/RoleRef"
         country:
           $ref: "#/components/schemas/CountryRef"
+        document:
+          $ref: "#/components/schemas/DocumentRef"
+        contact:
+          $ref: "#/components/schemas/ContactRef"
         membership:
           $ref: "#/components/schemas/MembershipRef"
         supervisor:
@@ -4810,6 +4928,15 @@ components:
         decimalPlaces:
           type: integer
           format: int32
+    ExchangeRef:
+      type: object
+      properties:
+        currency:
+          $ref: "#/components/schemas/TargetCurrency"
+        rate:
+          type: string
+        amount:
+          type: number
     ProductResponse:
       type: object
       properties:
@@ -4839,6 +4966,8 @@ components:
           type: number
         currency:
           $ref: "#/components/schemas/CurrencyRef"
+        exchange:
+          $ref: "#/components/schemas/ExchangeRef"
         validityDays:
           type: integer
           format: int32
@@ -4863,6 +4992,14 @@ components:
         updatedAt:
           type: string
           format: date-time
+    TargetCurrency:
+      type: object
+      properties:
+        code:
+          type: string
+        decimalPlaces:
+          type: integer
+          format: int32
     DeleteProductRequest:
       type: object
       properties:
@@ -5211,6 +5348,8 @@ components:
           $ref: "#/components/schemas/MembershipBadge"
         price:
           type: number
+        publicPrice:
+          type: number
         currency:
           $ref: "#/components/schemas/CurrencyRef"
         exchange:
@@ -5301,6 +5440,18 @@ components:
           $ref: "#/components/schemas/PatchableString"
         countryId:
           $ref: "#/components/schemas/PatchableUUID"
+        documentTypeId:
+          $ref: "#/components/schemas/PatchableUUID"
+        documentNumber:
+          $ref: "#/components/schemas/PatchableString"
+        phone:
+          $ref: "#/components/schemas/PatchableString"
+        addressLine1:
+          $ref: "#/components/schemas/PatchableString"
+        addressLine2:
+          $ref: "#/components/schemas/PatchableString"
+        city:
+          $ref: "#/components/schemas/PatchableString"
     AssignSupervisorRequest:
       type: object
       properties:
@@ -5397,6 +5548,14 @@ components:
           $ref: "#/components/schemas/PatchableString"
         email:
           $ref: "#/components/schemas/PatchableString"
+        phone:
+          $ref: "#/components/schemas/PatchableString"
+        addressLine1:
+          $ref: "#/components/schemas/PatchableString"
+        addressLine2:
+          $ref: "#/components/schemas/PatchableString"
+        city:
+          $ref: "#/components/schemas/PatchableString"
         currentPassword:
           type: string
     OwnProfileResponse:
@@ -5425,6 +5584,10 @@ components:
             type: string
         country:
           $ref: "#/components/schemas/CountryRef"
+        document:
+          $ref: "#/components/schemas/DocumentRef"
+        contact:
+          $ref: "#/components/schemas/ContactRef"
         membership:
           $ref: "#/components/schemas/MembershipRef"
         lastLoginAt:
@@ -5537,6 +5700,8 @@ components:
           type: number
         currency:
           $ref: "#/components/schemas/CurrencyRef"
+        exchange:
+          $ref: "#/components/schemas/ExchangeRef"
         validityDays:
           type: integer
           format: int32
@@ -5664,6 +5829,10 @@ components:
             type: string
         country:
           $ref: "#/components/schemas/CountryRef"
+        document:
+          $ref: "#/components/schemas/DocumentRef"
+        contact:
+          $ref: "#/components/schemas/ContactRef"
         membership:
           $ref: "#/components/schemas/MembershipRef"
         lastLoginAt:
@@ -5809,6 +5978,8 @@ components:
           type: number
         currency:
           $ref: "#/components/schemas/CurrencyRef"
+        exchange:
+          $ref: "#/components/schemas/ExchangeRef"
         validityDays:
           type: integer
           format: int32
@@ -5879,8 +6050,12 @@ components:
           $ref: "#/components/schemas/MembershipRef"
         price:
           type: number
+        publicPrice:
+          type: number
         currency:
           $ref: "#/components/schemas/CurrencyRef"
+        exchange:
+          $ref: "#/components/schemas/ExchangeRef"
         validityDays:
           type: integer
           format: int32
@@ -6105,15 +6280,6 @@ components:
           format: int32
         color:
           type: string
-    ExchangeRef:
-      type: object
-      properties:
-        currency:
-          $ref: "#/components/schemas/CurrencyRef"
-        rate:
-          type: string
-        amount:
-          type: number
     HotlinkResponse:
       type: object
       properties:
@@ -6137,6 +6303,25 @@ components:
           type: string
         lastName:
           type: string
+    DocumentTypeCatalogResponse:
+      type: object
+      properties:
+        content:
+          type: array
+          items:
+            $ref: "#/components/schemas/DocumentTypeItem"
+    DocumentTypeItem:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        abbreviation:
+          type: string
+        name:
+          type: string
+        isActive:
+          type: boolean
     ListCurrenciesRequest:
       type: object
       properties:

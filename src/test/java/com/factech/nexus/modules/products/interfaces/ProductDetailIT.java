@@ -74,6 +74,10 @@ class ProductDetailIT extends IntegrationTestBase {
     // en ellas y solo con cierto orden de ejecución.
     jdbc.update("DELETE FROM products");
     jdbc.update("DELETE FROM audit_deletion_log WHERE module = 'PM'");
+    // La conversión trajo `exchange_rates` a esta clase (08-09-2026), y va
+    // antes que las monedas: las tasas las referencian.
+    jdbc.update("DELETE FROM exchange_rates");
+    jdbc.update("DELETE FROM currencies WHERE is_default = false");
   }
 
   @Test
@@ -228,6 +232,38 @@ class ProductDetailIT extends IntegrationTestBase {
     mvc.perform(detalle(conPesos))
         .andExpect(jsonPath("$.currency.decimalPlaces").value(0))
         .andExpect(content().string(Matchers.containsString("\"price\":50")));
+  }
+
+  @Test
+  @DisplayName(
+      "`CA-PM-166` — el detalle trae la conversión, presente y nula si no hay que convertir")
+  void elDetalleTraeLaConversion() throws Exception {
+    // El producto está en la moneda de casa: no hay nada que convertir, y el
+    // campo llega PRESENTE con nulo. Ausente sería indistinguible de uno que el
+    // cliente no conoce.
+    mvc.perform(detalle(upgrade))
+        .andExpect(jsonPath("$.exchange").value(Matchers.nullValue()))
+        .andExpect(content().string(Matchers.containsString("\"exchange\":null")));
+
+    String pesos = monedaSinDecimales();
+    UUID enPesos = producto("BOT_CONV", "BOT", "Con conversión", null, "1000.0000", null, pesos);
+    jdbc.update(
+        "INSERT INTO exchange_rates (id, source_currency_id, target_currency_id, price,"
+            + " valid_from, valid_to, is_active)"
+            + " VALUES (CAST(? AS uuid), CAST(? AS uuid), CAST(? AS uuid), 0.00024096,"
+            + " CAST(? AS date), NULL, true)",
+        UUID.randomUUID().toString(),
+        pesos,
+        USD,
+        java.time.LocalDate.now().minusDays(1).toString());
+
+    mvc.perform(detalle(enPesos))
+        .andExpect(jsonPath("$.exchange.currency.code").value("USD"))
+        // La tasa como CADENA, con sus ocho decimales intactos.
+        .andExpect(jsonPath("$.exchange.rate").value("0.00024096"))
+        // 1000 × 0,00024096 = 0,24096 → 0,24 con los dos decimales de USD, que
+        // es la moneda de DESTINO: los cero decimales del origen no mandan aquí.
+        .andExpect(jsonPath("$.exchange.amount").value(0.24));
   }
 
   @Test

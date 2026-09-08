@@ -61,7 +61,8 @@ La búsqueda del producto por código **ya está cubierta** por `uq_products_cod
     "icon": "crown",
     "validityDays": 30,
     "membership": { "code": "ORO", "name": "Oro", "color": "D4AF37" },
-    "price": 49.99,
+    "price": 60.00,
+    "publicPrice": 49.99,
     "currency": { "code": "USD", "decimalPlaces": 2 },
     "exchange": {
       "currency": { "code": "COP", "decimalPlaces": 2 },
@@ -77,14 +78,16 @@ La búsqueda del producto por código **ya está cubierta** por `uq_products_cod
 - **`rate` viaja como cadena y no como número.** Es el único campo del sistema que lo hace, y por un motivo: tiene **ocho decimales**, y un número JSON pasa por coma flotante de doble precisión en cualquier cliente JavaScript. Como cadena, la tasa que se muestra es la que se declaró.
 - **`amount` sí es número**, redondeado a los decimales de la **moneda de destino** con `ProductPrice`, que es el componente que ya hace eso para las respuestas del módulo.
 - **Ningún parámetro de consulta**, y ninguna cabecera que cambie la respuesta.
-- **`price` es el precio A MOSTRAR** (08-09-2026, `RN-PM-024`): `COALESCE(public_price, price)` resuelto **en la consulta**, igual que en `RF-PM-007`. La respuesta **no tiene un segundo campo de importe** del producto, y esa ausencia es lo único que sostiene la regla en la única ruta del módulo **sin token**.
-- **Y `amount` se calcula sobre ESE número**, no sobre el otro. Es la mitad de la enmienda y la que tiene filo: `rate` viaja en la misma respuesta, de modo que publicar un importe y convertir el otro dejaría **la diferencia entre lo anunciado y lo cobrado a una división de distancia** — sin token, en un endpoint pensado para repartirse por WhatsApp.
+- **`price` y `publicPrice` viajan los dos** (08-09-2026, `RN-PM-024` reescrita): `price` es el del sistema —el que se cobra— y `publicPrice` el anunciado, **nulo** cuando el producto no lo declara. La consulta **selecciona los dos** y ya no resuelve ningún `COALESCE`.
+- **Y `amount` se calcula sobre el importe QUE SE MUESTRA** —`publicPrice` si existe, `price` si no—, no sobre los dos. Dar dos importes convertidos obligaría a decir en la respuesta cuál corresponde a cuál, que es la ambigüedad que este cambio viene a quitar.
 
-!!! danger "Aquí NO vale resolver el importe en Java"
+!!! warning "Este apartado decía lo contrario hasta el 08-09-2026, y conviene saber qué cambió"
 
-    En `RF-PM-007` la resolución va en el `SELECT` por prudencia; aquí es una condición del requerimiento. Si la consulta trajera **los dos** importes hasta el servicio, el precio del sistema estaría **dentro del objeto que se serializa**, a un campo de distancia de publicarse — y en una ruta pública ese descuido no se puede retirar después.
+    Decía que la consulta debía resolver `COALESCE(public_price, price)` y **no seleccionar el otro**, porque traer los dos importes hasta el servicio dejaba el del sistema «a un campo de distancia de publicarse» en una ruta sin token.
 
-    `findPublishedByCode` selecciona `COALESCE(p.public_price, p.price) AS price` y **no selecciona `public_price`**: por esta lectura solo viaja un número.
+    **Eso es exactamente lo que ahora se pide**, por decisión del responsable del proyecto (`requirements/pm.md` §5.2.5). `findPublishedByCode` selecciona `p.price` y `p.public_price` **por separado**, y los dos viajan.
+
+    Lo que la decisión acepta —que la diferencia entre lo anunciado y lo cobrado quede visible sin token— está escrito en `spec.md` §6.2 y medido por `CA-PM-169`.
 
 ## 5. El `404` uniforme, y dónde se implementa
 
@@ -110,11 +113,13 @@ La ruta se acota **por origen** en `RateLimitFilter`, y no por identidad: no hay
 
 ## 9. Transaccionalidad
 
-`@Transactional(readOnly = true)`. **Cuatro consultas**: el vendedor, el producto, **la moneda de casa** y la tasa. Las dos últimas solo se pagan si las dos primeras salieron, de modo que **quien recorre nombres al azar cuesta UNA** y no cuatro.
+`@Transactional(readOnly = true)`. **TRES consultas, y cuatro solo si hay algo que convertir**: el vendedor, el producto, la **moneda de casa** y —únicamente cuando el producto está en otra moneda— la **tasa**. Todas menos la primera se pagan solo si la anterior salió, de modo que **quien recorre nombres al azar cuesta UNA**.
 
-!!! note "Eran tres al aprobar el plan, y la prueba de `T-13` dijo que son cuatro (08-09-2026)"
+!!! note "El plan dijo tres, luego cuatro, y la prueba de `T-13` dejó el número en su sitio (08-09-2026)"
 
-    La cuarta es `CurrencyCatalog.findDefault()`, que el plan no contó porque pensaba la conversión como un solo paso —«la tasa»— cuando son dos: **cuál es la moneda de casa** y **a cuánto se cambia**. El número se corrige aquí en vez de esconderlo, que es para lo que existe una prueba que cuenta sentencias: la respuesta habría sido idéntica con seis.
+    El plan contó la conversión como **un** paso —«la tasa»— cuando son **dos**: cuál es la moneda de casa y a cuánto se cambia. Y la segunda **no siempre se paga**: con el producto ya en la moneda de casa no hay nada que convertir y la consulta de tasas ni se lanza, de modo que el coste real es **tres**, o cuatro cuando la conversión procede.
+
+    El número se corrigió **dos veces el mismo día**, y las dos las destapó la prueba: primero al escribirla y después al optimizar el resolutor. Es exactamente para lo que existe una prueba que cuenta sentencias — la respuesta habría sido idéntica con seis.
 
 ## 10. Alternativas consideradas
 
@@ -137,7 +142,7 @@ La ruta se acota **por origen** en `RateLimitFilter`, y no por identidad: no hay
 | 3 | **`rate` se serializa como número** y el cliente lo redondea | Viaja como **cadena**, y `CA-PM-128` comprueba los ocho decimales |
 | 4 | El puerto de `SP` devuelve a **cualquier** persona | La regla vive en `SP`; `CA-PM-133` prueba el cliente y `CA-PM-135` que no viaja nada más que el nombre |
 | 5 | **Se construye antes que `RF-SP-047`** y la conversión queda siempre vacía | Declarado como bloqueo en `tasks.md` §4 |
-| 6 | **Se publica el precio del sistema sin token**, por traer los dos importes hasta el servicio o por añadir un campo «por simetría» con el catálogo administrativo | La consulta resuelve `COALESCE` y **no selecciona el otro**; `CA-PM-163` prueba la **ausencia** en el cuerpo. En una ruta pública el descuido no se puede retirar después |
+| ~~6~~ | ~~**Se publica el precio del sistema sin token**~~ — **dejó de ser un riesgo el 08-09-2026**: se publica **a propósito** (`RN-PM-024` reescrita). Lo que queda no es un riesgo sino una consecuencia aceptada | `CA-PM-169` la deja escrita: los dos importes viajan sin token y la diferencia entre ellos es visible. `CA-PM-163`, que probaba la ausencia, se retira |
 | 7 | **Se convierte un importe y se publica el otro** | `CA-PM-162` comprueba la cuenta al revés: el importe convertido **dividido por la tasa** devuelve el publicado. Con `rate` en la respuesta, cualquier descuadre es deducible desde fuera |
 
 ## 12. Estrategia de prueba

@@ -10,8 +10,13 @@ import jakarta.persistence.Tuple;
 import java.math.BigDecimal;
 import java.sql.Date;
 import java.time.LocalDate;
+import java.util.Collection;
+import java.util.LinkedHashMap;
+import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
 import java.util.UUID;
 import org.springframework.stereotype.Repository;
 import org.springframework.transaction.annotation.Transactional;
@@ -19,9 +24,14 @@ import org.springframework.transaction.annotation.Transactional;
 /**
  * Adaptador de escritura y de la lectura publicada (`RF-SP-047` · `T-04`, `T-02` de `RF-PM-008`).
  *
- * <p><b>Traduce la violación del {@code EXCLUDE} por NOMBRE DE RESTRICCIÓN</b>, nunca por el texto
- * del driver: ese texto cambia entre versiones de PostgreSQL y la traducción se rompería sin que
- * ninguna prueba lo dijera.
+ * <p><b>Traduce la violación del {@code EXCLUDE} por nombre de restricción y por {@code
+ * SQLState}</b>, nunca por el texto del driver: ese texto cambia entre versiones de PostgreSQL y la
+ * traducción se rompería sin que ninguna prueba lo dijera. Por qué el nombre <b>no basta</b>, en
+ * {@link #ESTADO_EXCLUSION}.
+ *
+ * <p><b>Publica además la lectura por lotes</b> ({@code ratesOn}), que existe por el listado de
+ * productos: desde que cada fila lleva su conversión, preguntar de una en una convertiría una
+ * página en veinte consultas sin que la respuesta cambiara ni una coma.
  */
 @Repository
 public class JpaExchangeRateRepository implements ExchangeRateRepository, ExchangeRateLookup {
@@ -142,6 +152,56 @@ public class JpaExchangeRateRepository implements ExchangeRateRepository, Exchan
                     (BigDecimal) fila.get("price"),
                     fecha(fila.get("valid_from")),
                     fecha(fila.get("valid_to"))));
+  }
+
+  @Override
+  @Transactional(readOnly = true)
+  public Map<UUID, ExchangeRateView> ratesOn(
+      Collection<UUID> origenes, UUID destino, LocalDate dia) {
+
+    if (origenes == null || origenes.isEmpty() || destino == null || dia == null) {
+      return Map.of();
+    }
+
+    // Las repetidas se colapsan ANTES de consultar: una página de veinte
+    // productos en tres monedas pregunta por tres, no por veinte.
+    Set<UUID> distintas = new LinkedHashSet<>(origenes);
+    distintas.remove(null);
+    if (distintas.isEmpty()) {
+      return Map.of();
+    }
+
+    List<Tuple> filas =
+        em.createNativeQuery(
+                """
+                SELECT source_currency_id, id, price, valid_from, valid_to
+                  FROM exchange_rates
+                 WHERE is_active AND deleted_at IS NULL
+                   AND source_currency_id IN (:origenes)
+                   AND target_currency_id = CAST(:destino AS uuid)
+                   AND valid_from <= CAST(:dia AS date)
+                   AND (valid_to IS NULL OR valid_to >= CAST(:dia AS date))
+                """,
+                Tuple.class)
+            .setParameter("origenes", distintas)
+            .setParameter("destino", destino)
+            .setParameter("dia", dia)
+            .getResultList();
+
+    // `RN-SP-032` garantiza UNA por par y día, de modo que no hay que elegir
+    // entre dos: si algún día hubiera dos, quedarse con la primera es lo mismo
+    // que hace `rateOn` con su `LIMIT 1`, y las dos mentirían igual.
+    Map<UUID, ExchangeRateView> tasas = new LinkedHashMap<>();
+    for (Tuple fila : filas) {
+      tasas.putIfAbsent(
+          (UUID) fila.get("source_currency_id"),
+          new ExchangeRateView(
+              (UUID) fila.get("id"),
+              (BigDecimal) fila.get("price"),
+              fecha(fila.get("valid_from")),
+              fecha(fila.get("valid_to"))));
+    }
+    return tasas;
   }
 
   private static LocalDate fecha(Object valor) {

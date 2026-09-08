@@ -180,24 +180,35 @@ class HotlinkIT extends IntegrationTestBase {
   // ---------------------------------------------------------------------------
 
   @Test
-  @DisplayName("`CA-PM-161` — se publica el precio PÚBLICO cuando el producto lo declara")
-  void publicaElPrecioPublico() throws Exception {
+  @DisplayName("`CA-PM-161` — se publican LOS DOS importes cuando el producto declara el público")
+  void publicaLosDosImportes() throws Exception {
     jdbc.update(
         "UPDATE products SET price = 49.99, public_price = 59.99 WHERE code = 'HL_UPGRADE'");
 
     mvc.perform(get("/api/v1/hotlinks/{u}/{c}", "hl-vendedora", "HL_UPGRADE"))
         .andExpect(status().isOk())
-        .andExpect(jsonPath("$.product.price").value(59.99));
+        // `price` es SIEMPRE el del sistema, y ya no «el que se muestra».
+        .andExpect(jsonPath("$.product.price").value(49.99))
+        .andExpect(jsonPath("$.product.publicPrice").value(59.99));
   }
 
   @Test
-  @DisplayName("`CA-PM-161` — sin precio público se publica el del sistema")
-  void publicaElDelSistemaCuandoNoHayPublico() throws Exception {
+  @DisplayName("`CA-PM-161` — sin precio público, `publicPrice` llega NULO Y PRESENTE")
+  void elPublicoLlegaNuloYPresente() throws Exception {
     jdbc.update("UPDATE products SET price = 49.99, public_price = NULL WHERE code = 'HL_UPGRADE'");
 
-    mvc.perform(get("/api/v1/hotlinks/{u}/{c}", "hl-vendedora", "HL_UPGRADE"))
-        .andExpect(status().isOk())
-        .andExpect(jsonPath("$.product.price").value(49.99));
+    String cuerpo =
+        mvc.perform(get("/api/v1/hotlinks/{u}/{c}", "hl-vendedora", "HL_UPGRADE"))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.product.price").value(49.99))
+            .andExpect(jsonPath("$.product.publicPrice").value(org.hamcrest.Matchers.nullValue()))
+            .andReturn()
+            .getResponse()
+            .getContentAsString();
+
+    // Presente y nulo, no ausente: el nulo SIGNIFICA «este producto se anuncia
+    // con el precio del sistema», y un campo que falta no puede decir eso.
+    assertThat(cuerpo).contains("\"publicPrice\":null");
   }
 
   @Test
@@ -212,21 +223,20 @@ class HotlinkIT extends IntegrationTestBase {
     // deducir la diferencia entre lo anunciado y lo cobrado — sin token.
     mvc.perform(get("/api/v1/hotlinks/{u}/{c}", "hl-vendedora", "HL_DOS_PRECIOS"))
         .andExpect(status().isOk())
-        .andExpect(jsonPath("$.product.price").value(2000.00))
+        // Los dos viajan, y la conversión sale del ANUNCIADO.
+        .andExpect(jsonPath("$.product.price").value(1000.00))
+        .andExpect(jsonPath("$.product.publicPrice").value(2000.00))
         // 2000,00 × 0,00024096 = 0,48192 → 0,48. Con el precio del sistema
         // habría dado 0,24, que es exactamente la mitad.
         .andExpect(jsonPath("$.product.exchange.amount").value(0.48));
   }
 
   @Test
-  @DisplayName("`CA-PM-163` — el precio del sistema NO aparece en el cuerpo por ninguna vía")
-  void elPrecioDelSistemaNoSePublica() throws Exception {
+  @DisplayName("`CA-PM-169` — los dos importes viajan SIN TOKEN, y la diferencia queda a la vista")
+  void losDosImportesViajanSinToken() throws Exception {
     jdbc.update(
         "UPDATE products SET price = 49.99, public_price = 59.99 WHERE code = 'HL_UPGRADE'");
 
-    // Es una prueba de AUSENCIA, como la del correo del vendedor: en una ruta
-    // pública lo que hay que verificar es lo que NO está, porque lo que se
-    // publica una vez ya no se puede retirar.
     String cuerpo =
         mvc.perform(get("/api/v1/hotlinks/{u}/{c}", "hl-vendedora", "HL_UPGRADE"))
             .andExpect(status().isOk())
@@ -234,7 +244,12 @@ class HotlinkIT extends IntegrationTestBase {
             .getResponse()
             .getContentAsString();
 
-    assertThat(cuerpo).doesNotContain("publicPrice").doesNotContain("49.99");
+    // Esta prueba AFIRMA la fuga, y es lo contrario de lo que afirmaba hasta el
+    // 08-09-2026: `CA-PM-163` exigía que el precio del sistema no apareciera.
+    // Se invierte en vez de borrarse para que el día que alguien decida volver
+    // a ocultarlo tenga que decidirlo — y no lo descubra el frontend.
+    assertThat(cuerpo).contains("49.99").contains("59.99");
+    assertThat(cuerpo).contains("publicPrice");
   }
 
   @Test
@@ -322,11 +337,8 @@ class HotlinkIT extends IntegrationTestBase {
   }
 
   @Test
-  @DisplayName("`T-13` — cuesta CUATRO consultas, y solo UNA cuando el vendedor no procede")
+  @DisplayName("`T-13` — TRES consultas, CUATRO si hay conversión, UNA si el vendedor no procede")
   void elCosteDeLaLectura() {
-    // El producto está en COP y la casa es USD, de modo que la conversión SÍ
-    // procede: es el camino más caro que tiene el endpoint.
-    tasa(cop, USD, "0.00024096", LocalDate.now().minusDays(1), null);
 
     var estadisticas = sessionFactory.getStatistics();
     estadisticas.setStatisticsEnabled(true);
@@ -334,15 +346,30 @@ class HotlinkIT extends IntegrationTestBase {
 
     servicio.hotlink("hl-vendedora", "HL_UPGRADE");
 
-    // Vendedor, producto y tasa. Se cuenta aquí y no sobre la respuesta HTTP
-    // porque el JSON sería idéntico con seis: un `N+1` en la única ruta pública
-    // del sistema no se ve mirando el cuerpo.
+    // TRES con un producto en la moneda de casa: el vendedor, el producto y la
+    // moneda por omisión. La consulta de tasas NO se paga, porque la única
+    // moneda de la respuesta es la de destino y no hay nada que convertir.
+    //
+    // Se cuenta aquí y no sobre la respuesta HTTP porque el JSON sería idéntico
+    // con seis: un `N+1` en la única ruta pública del sistema no se ve mirando
+    // el cuerpo.
     assertThat(estadisticas.getPrepareStatementCount()).isEqualTo(3);
 
     estadisticas.clear();
 
-    // Y la tercera NO se paga si no hay a quién enseñársela: quien recorre
-    // nombres al azar no llega a tocar `exchange_rates`.
+    // CUATRO cuando sí hay algo que convertir: entra la consulta de tasas.
+    productoEnMoneda("HL_COSTE", "En pesos", cop, "1000.00");
+    tasa(cop, USD, "0.00024096", LocalDate.now().minusDays(1), null);
+    estadisticas.clear();
+
+    servicio.hotlink("hl-vendedora", "HL_COSTE");
+
+    assertThat(estadisticas.getPrepareStatementCount()).isEqualTo(4);
+
+    estadisticas.clear();
+
+    // Y NADA de eso se paga si no hay a quién enseñárselo: quien recorre
+    // nombres al azar no llega ni al producto.
     assertThatThrownBy(() -> servicio.hotlink("hl-clienta", "HL_UPGRADE"))
         .isInstanceOf(ResourceNotFoundException.class);
 

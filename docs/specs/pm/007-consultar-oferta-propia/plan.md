@@ -57,7 +57,8 @@ Es la tercera y última lectura de D-25, y la única que este requerimiento estr
 - **`currentMembership` es `null` presente** en quien no tiene nivel, no ausente.
 - **Los upgrades ordenados por nivel destino; los bots por fecha de alta** (`CA-PM-078`). El orden **sí** sigue mirando el `level` del destino, y no contradice lo anterior: ordenar no es filtrar. Presenta primero el salto más alto, que es la información que quien compra quiere ver arriba.
 - **La membresía de origen no viaja en cada producto**: es siempre la del actor, que ya va en `currentMembership`. Repetirla en cada fila sería decir tres veces lo mismo, y la tercera acabaría desincronizada.
-- **`price` es el precio A MOSTRAR, y es el único importe de esta respuesta** (08-09-2026, `RN-PM-024`): `COALESCE(public_price, price)` resuelto **en la consulta**, no en Java. `OfferItem` **no gana ningún campo** — y esa ausencia es lo único que sostiene la regla: mientras el registro no tenga dónde poner el segundo importe, no puede publicarse por descuido.
+- **`price` y `publicPrice` viajan los dos, y con ellos `exchange`** (08-09-2026, `RN-PM-024` **reescrita**): `price` es el del sistema —el que se cobra— y `publicPrice` el anunciado, **nulo** cuando el producto no lo declara. La consulta **selecciona los dos** y ya no resuelve ningún `COALESCE`. `OfferItem` gana **dos campos**: `publicPrice` y `exchange`.
+- **Y la conversión de la página se resuelve en DOS consultas, no en una por fila**: la moneda de casa una vez y las tasas de todas las monedas presentes en una sola sentencia. El diseño está escrito una sola vez, en [`002-consultar-productos/plan.md` §4.1](../002-consultar-productos/plan.md), porque es el mismo aquí y allí y duplicarlo dejaría dos versiones que divergen. Lo mide `CA-PM-168` **contando sentencias**, no leyendo el cuerpo.
 
 !!! important "Por qué el campo NO se renombra a `displayPrice`"
 
@@ -79,7 +80,7 @@ Una sola sentencia, con la membresía del actor como parámetro:
 - **Upgrades**: solo aquellos cuyo `source_membership_id` **es** la membresía vigente del actor. Coincidencia exacta, sin comparar niveles y sin recorrer la cadena. Quien declaró el producto ya dijo a quién va dirigido.
 - **Sin membresía** —el actor no tiene ninguna vigente—: **cero upgrades** y todos los bots (`FA-001`), y **sale del propio filtro**: el nulo no coincide con ningún origen. Antes había que escribirlo aparte.
 - **Bots**: todos los activos, sin filtro (`spec.md` §14, resolución 2).
-- **El importe se resuelve aquí**: `COALESCE(p.public_price, p.price) AS price`. Esta consulta **no selecciona `public_price`**, de modo que ese campo de `ProductRow` llega **nulo desde la oferta** — el mismo trato que ya reciben `updated_at` y `deleted_at`, y por el mismo motivo: seleccionar un dato para descartarlo sugiere que alguien podría leerlo.
+- **Los dos importes se seleccionan por separado**: `p.price AS price` y `p.public_price AS public_price`. Hasta el 08-09-2026 esta consulta resolvía `COALESCE(p.public_price, p.price)` y **no seleccionaba el segundo**; con `RN-PM-024` reescrita los dos llegan a `ProductRow` y los dos viajan.
 
 !!! success "Escrito el 02-09-2026, construido el 07-09-2026 — y lo que lo desatascó fue la renovación"
 

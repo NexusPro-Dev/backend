@@ -5,7 +5,7 @@
 | Requerimiento | `RF-PM-008` |
 | Especificación | [`spec.md`](spec.md) |
 | Plan | [`plan.md`](plan.md), aprobado el 07-09-2026 |
-| Estado | **Completada el 08-09-2026** — `T-01` a `T-18` **Hecha**. La última en cerrarse fue `T-10`, el límite de tasa, que era la única mitigación del recorrido a ciegas y la parte del requerimiento que se podía olvidar sin que fallara nada |
+| Estado | **En curso** — `T-01` a `T-17` **Hecha**, `T-18` retirada. Faltan `T-19` y `T-20`, que nacen el 08-09-2026 al reescribirse `RN-PM-024`: los dos importes se publican |
 | Issue | Pendiente de crear |
 | Rama | `feature/hotlink-publico` |
 | Autor | Responsable técnico |
@@ -30,12 +30,14 @@
 | `T-10` | La política de **límite de tasa por origen** para esta ruta | `T-09` | `CA-PM-137`: el exceso desde un origen recibe `429` | **Hecha el 08-09-2026** |
 | `T-11` | **LA PRUEBA DEL ORÁCULO**: los **seis** casos que no proceden, comparando **el cuerpo entero** de las respuestas entre sí | `T-08` | `CA-PM-134`. **Es la prueba que define el requerimiento**: sin ella, el día que alguien mejore un mensaje para depurar nadie se enteraría de que el endpoint pasó a decir quién existe | **Hecha el 07-09-2026** |
 | `T-12` | Prueba de que la respuesta **no lleva** correo, identificador, estado ni roles del vendedor | `T-08` | `CA-PM-135`, comprobando el cuerpo completo y no solo los campos esperados | **Hecha el 07-09-2026** |
-| `T-13` | Prueba de **número de consultas** | `T-06` | **Cuatro** —vendedor, producto, moneda de casa y tasa— y **una sola** cuando el vendedor no procede. Eran «tres y dos» al aprobar el plan: la prueba corrigió el número, que es para lo que existe. La conversión no se pide si no hay a quién enseñársela | **Hecha el 08-09-2026** |
+| `T-13` | Prueba de **número de consultas** | `T-06` | **TRES** —vendedor, producto y moneda de casa—, **cuatro** cuando el producto está en otra moneda y hay tasa que aplicar, y **una sola** cuando el vendedor no procede. El plan dijo «tres y dos», luego «cuatro y una», y la prueba dejó el número en su sitio: es para lo que existe. La conversión no se pide si no hay a quién enseñársela | **Hecha el 08-09-2026** |
 | `T-14` | Pruebas de API de los once criterios de `spec.md` §12 | `T-08` | La suite cubre `CA-PM-127` a `CA-PM-137` | **Hecha el 07-09-2026** |
 | `T-15` | Documentación OpenAPI. **La prosa dice que es público, que la conversión es informativa y que `rate` es una cadena** | `T-14` | El contrato declara el `200` y el `404`, y **ningún** esquema de seguridad para esta ruta | **Hecha el 07-09-2026** |
 | `T-16` | Actualizar la matriz de `docs/requirements.md` | `T-14` | La fila de `RF-PM-008` refleja el estado | **Hecha el 08-09-2026** |
 | `T-17` | **El precio a mostrar**: `findPublishedByCode` selecciona `COALESCE(p.public_price, p.price) AS price` y **no selecciona el otro**; la conversión de `T-07` se calcula sobre **ese** importe | `RF-PM-001 · T-33`, `T-04` | `CA-PM-161` y `CA-PM-162`: con precio público se publica y se convierte ese; el importe convertido **dividido por la tasa** devuelve el publicado | **Hecha el 08-09-2026** |
-| `T-18` | Prueba de que el precio del sistema **no aparece en el cuerpo** de un producto con precio público | `T-17` | `CA-PM-163`. Es la misma clase de prueba que `T-12`: en una ruta pública, lo que hay que verificar es **lo que no está** | **Hecha el 08-09-2026** |
+| ~~`T-18`~~ | ~~Prueba de que el precio del sistema **no aparece en el cuerpo**~~ — **retirada el 08-09-2026** con `CA-PM-163`: aparece a propósito | `T-17` | La prueba **se invierte** en `T-20` en vez de borrarse | **Retirada el 08-09-2026** |
+| `T-19` | **Los dos importes en la respuesta**: `findPublishedByCode` selecciona `p.price` y `p.public_price` por separado —sin `COALESCE`— y `ProductRef` gana `publicPrice`. La conversión se sigue calculando sobre **el que se muestra** | `T-17` | `CA-PM-161` y `CA-PM-162` reescritos: los dos importes llegan, y el convertido dividido por la tasa devuelve el mostrado | **Hecha el 08-09-2026** |
+| `T-20` | **La prueba de la fuga aceptada**: los dos importes viajan **sin token** y la diferencia entre ellos es visible. Es `T-18` del revés | `T-19` | `CA-PM-169`. Se escribe **afirmando** lo que se publica, para que el día que alguien decida volver a ocultarlo la prueba falle y obligue a decidirlo | **Hecha el 08-09-2026** |
 
 ## 2. Orden de ejecución
 
@@ -59,8 +61,9 @@
 | `CA-PM-136` | `T-08` |
 | `CA-PM-137` | `T-10` |
 | `CA-PM-138` a `CA-PM-140` | `T-05b` |
-| `CA-PM-161`, `CA-PM-162` | `T-17` |
-| `CA-PM-163` | `T-18` |
+| `CA-PM-161`, `CA-PM-162` | `T-17`, `T-19` |
+| ~~`CA-PM-163`~~ | ~~`T-18`~~ — retirados el 08-09-2026 |
+| `CA-PM-169` | `T-20` |
 
 ## 4. Bloqueos
 

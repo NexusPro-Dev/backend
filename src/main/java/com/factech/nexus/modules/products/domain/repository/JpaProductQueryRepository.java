@@ -252,7 +252,7 @@ public class JpaProductQueryRepository implements ProductQueryRepository {
                        s.level AS s_level, s.color AS s_color, s.color AS s_color,
                        p.target_membership_id AS m_id, m.code AS m_code, m.name AS m_name,
                        m.level AS m_level, m.color AS m_color, m.color AS m_color,
-                       COALESCE(p.public_price, p.price) AS price,
+                       p.price AS price, p.public_price AS public_price,
                        p.currency_id AS c_id, c.code AS c_code,
                        c.decimal_places AS c_decimales,
                        p.validity_days AS validity_days, p.scope AS scope,
@@ -296,12 +296,11 @@ public class JpaProductQueryRepository implements ProductQueryRepository {
               entero(fila.get("m_level")),
               (String) fila.get("m_color"),
               (BigDecimal) fila.get("price"),
-              // `public_price` NO SE SELECCIONA en esta consulta, y por eso va
-              // nulo: el importe a mostrar ya viene resuelto arriba con el
-              // `COALESCE`. Es el mismo trato que reciben `updated_at` y
-              // `deleted_at` — seleccionar un dato para descartarlo sugiere que
-              // alguien podría leerlo, y aquí ese alguien lo publicaría.
-              null,
+              // Los DOS importes desde el 08-09-2026 (`RN-PM-024` reescrita).
+              // Hasta esa fecha aquí iba `null` y el de arriba venía resuelto
+              // con un `COALESCE`, para que por esta lectura solo viajara un
+              // número: era la oferta, y la decisión se revirtió a conciencia.
+              (BigDecimal) fila.get("public_price"),
               (UUID) fila.get("c_id"),
               (String) fila.get("c_code"),
               ((Number) fila.get("c_decimales")).intValue(),
@@ -347,7 +346,7 @@ public class JpaProductQueryRepository implements ProductQueryRepository {
                        m.level AS m_level, m.color AS m_color,
                        p.source_membership_id AS s_id, s.code AS s_code, s.name AS s_name,
                        s.level AS s_level, s.color AS s_color,
-                       COALESCE(p.public_price, p.price) AS price,
+                       p.price AS price, p.public_price AS public_price,
                        p.currency_id AS c_id, c.code AS c_code,
                        c.decimal_places AS c_decimales,
                        p.validity_days AS validity_days, p.scope AS scope,
@@ -372,10 +371,11 @@ public class JpaProductQueryRepository implements ProductQueryRepository {
   /**
    * La proyección, en un solo sitio: dos copias divergirían campo a campo.
    *
-   * <p><b>La usa solo {@code findPublishedByCode}</b>, que es la lectura <b>pública</b>. Su {@code
-   * price} viene ya resuelto por el {@code COALESCE} de la consulta —es el importe a mostrar— y
-   * {@code publicPrice} va <b>nulo a propósito</b>: por esta lectura solo viaja un número
-   * (`RN-PM-024`), y el precio del sistema no puede publicarse ni por descuido.
+   * <p><b>La usa solo {@code findPublishedByCode}</b>, que es la lectura <b>pública</b>. Desde el
+   * 08-09-2026 selecciona <b>los dos importes</b> (`RN-PM-024` reescrita): hasta entonces resolvía
+   * el que se muestra con un {@code COALESCE} y dejaba {@code publicPrice} nulo a propósito, para
+   * que por esta lectura no pudiera viajar el precio del sistema ni por descuido. Ahora viaja <b>a
+   * propósito</b>, sin token, y lo que eso publica está en `requirements/pm.md` §5.2.5.
    */
   private static ProductRow fila(Tuple fila) {
     return new ProductRow(
@@ -396,8 +396,9 @@ public class JpaProductQueryRepository implements ProductQueryRepository {
         entero(fila.get("m_level")),
         (String) fila.get("m_color"),
         (BigDecimal) fila.get("price"),
-        // Nulo a propósito: ver el Javadoc de arriba.
-        null,
+        // Los DOS importes desde el 08-09-2026: aquí iba `null` a propósito
+        // mientras `RN-PM-024` prohibía publicar el del sistema sin token.
+        (BigDecimal) fila.get("public_price"),
         (UUID) fila.get("c_id"),
         (String) fila.get("c_code"),
         ((Number) fila.get("c_decimales")).intValue(),

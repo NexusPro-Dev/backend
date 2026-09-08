@@ -33,8 +33,8 @@
 | `T-20` | **Reescribir `T-03`/`T-06` a coincidencia por origen**: `findOffer` deja de comparar `level` y pasa a filtrar por `source_membership_id = :membresia`, como `pm.md` §5.2.1 declara decidido desde el 02-09-2026 | `RF-PM-001` (el alta que declara el origen, ya construida) | `CA-PM-106` a `CA-PM-108`, escritos en `spec.md` §12 el 02-09-2026 y **sin prueba hasta hoy**. `CA-PM-059`, `CA-PM-060` y `CA-PM-062` se enmiendan con ellos: estaban escritos en términos de nivel | **Hecha el 07-09-2026** |
 | `T-22` | La **renovación** en la oferta: no cuesta ninguna condición —`X → X` coincide con su origen como cualquier otro— y sí una prueba, porque es el caso que `T-20` existía para permitir | `T-20` | `CA-PM-126`: al actor en `FREE` se le ofrece el `FREE → FREE` declarado, y **no** se le ofrece un `FREE → FREE` de otra membresía, que no existe — ni un `PLATINO → ORO` a quien está en `ORO` | **Hecha el 07-09-2026** |
 | `T-23` | El **color** en la oferta: el del destino de cada upgrade y el de la membresía **vigente del actor**, que obliga a ampliar también `CurrentMembershipLookup` | `RF-PM-001 · T-32` | `CA-PM-144`. Es el único sitio donde hacen falta **los dos** puertos de `SP` ampliados | **Hecha el 07-09-2026** |
-| `T-24` | **Un solo importe, resuelto en la consulta**: `findOffer` selecciona `COALESCE(p.public_price, p.price) AS price` y **no selecciona `public_price`**. `OfferItem` **no gana ningún campo** | `RF-PM-001 · T-33` | `CA-PM-158` y `CA-PM-159`: con precio público se publica ese, sin él el del sistema | **Hecha el 08-09-2026** |
-| `T-25` | La prueba de la **ausencia**: el cuerpo trae **un** campo de importe por producto, y ningún indicador de cuál de los dos es | `T-24` | `CA-PM-160`. **Es la única cosa que sostiene `RN-PM-024` en esta consulta**: sin ella, un campo añadido «por simetría» con el catálogo administrativo publica el precio del sistema sin autenticar y **nada falla** | **Hecha el 08-09-2026** |
+| ~~`T-24`~~ | ~~**Un solo importe, resuelto en la consulta**~~ — **retirada el 08-09-2026** al reescribirse `RN-PM-024`: la consulta selecciona los dos. La sustituye `T-26` | — | — | **Retirada el 08-09-2026** |
+| ~~`T-25`~~ | ~~La prueba de la **ausencia** del segundo importe~~ — **retirada el 08-09-2026** con `CA-PM-160`: lo que había que probar era la ausencia, y ahora hay que probar la presencia | — | — | **Retirada el 08-09-2026** |
 
 **Este 03-09-2026 se descubrió que `T-20` nunca se ejecutó, al fusionar la rama que trae `RF-PM-007`.** `8d2bb3e` (02-09-2026) amplió `ProductRow` con las columnas de origen para `RF-PM-002` y `RF-PM-003`, y su prosa de `pm.md` §5.2.1 da por hecho que `RF-PM-007` recibió el mismo tratamiento — pero `RF-PM-007` **no existía todavía en esa rama**: llegó después, desde `develop`, con `findOffer` sin tocar. El resultado es un requerimiento que la documentación del módulo describe como coincidencia por origen y cuyo código **sigue comparando niveles**, verificado y probado así. Se declara aquí en lugar de forzar `T-03`/`T-06` a `Hecha` con una descripción que el código no cumple: una tarea `Hecha` que describe una versión que no existe es peor que una `Pendiente` visible.
 
@@ -48,6 +48,8 @@
 | `T-18` | `ProductOfferIT`: el actor de las pruebas existentes gana `products:sale`, y nace la prueba del `403` sin él | `T-16` | `CA-PM-065` (revisado) y `CA-PM-101` | **Hecha** |
 | `T-19` | OpenAPI: el endpoint declara el permiso que exige | `T-16` | El contrato publicado lo dice | **Hecha** |
 | `T-21` | El **alcance** y la **implementación** en `OfferItem` y en la sentencia de `findOffer`, **sin añadir ningún predicado sobre ellos** | `RF-PM-001 · T-28` | `CA-PM-123` y `CA-PM-124`: las dos llegan en cada producto ofrecido, y un producto de `TIENDA` y otro de `HOTLINKS` **aparecen los dos** — la prueba que verifica que nadie añadió el filtro «por simetría» con `RF-PM-002` | **Hecha el 07-09-2026** |
+| `T-26` | **Los dos importes y la conversión en la oferta**: `findOffer` selecciona `p.price` y `p.public_price` por separado —sin `COALESCE`— y `OfferItem` gana `publicPrice` y `exchange` | `RF-PM-002 · T-21` | `CA-PM-158` y `CA-PM-159` reescritos, `CA-PM-167` nuevo | **Hecha el 08-09-2026** |
+| `T-27` | **La prueba de sentencias de la oferta** | `T-26` | `CA-PM-168`: la conversión de la página cuesta **dos consultas** y no dos por producto | **Hecha el 08-09-2026** |
 
 ## 2. Orden de ejecución
 
@@ -58,6 +60,8 @@
 **`T-15` va antes que `T-16`, y no al revés.** Sembrar el permiso sin exigirlo todavía no rompe nada; exigirlo sin haberlo sembrado deja a todo el mundo —incluido `SUPERADMIN`— fuera de una ruta que hasta ayer era pública. `V48` sigue la misma forma que `V40`: los identificadores se enumeran por código y no por `SELECT` sin filtro, para no asociar de paso ningún otro permiso que otra migración hubiera sembrado y que alguien hubiera decidido no conceder.
 
 ## 3. Cobertura de los criterios de aceptación
+
+> `CA-PM-158`, `CA-PM-159` y `CA-PM-167` → `T-26` · `CA-PM-168` → `T-27` · ~~`CA-PM-160`~~ retirado el 08-09-2026.
 
 | Criterio | Tareas |
 |---|---|

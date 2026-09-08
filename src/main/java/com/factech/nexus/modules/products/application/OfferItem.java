@@ -44,7 +44,9 @@ public record OfferItem(
     String icon,
     ProductResponse.MembershipRef targetMembership,
     BigDecimal price,
+    BigDecimal publicPrice,
     ProductResponse.CurrencyRef currency,
+    ExchangeRef exchange,
     Integer validityDays,
     ProductScope scope,
     ProductImplementation implementation) {
@@ -61,13 +63,16 @@ public record OfferItem(
    * alcance a propósito. La única transformación es la escala, que la decide la <b>moneda</b> y no
    * la columna, y la aplica {@link ProductPrice} para las tres respuestas del módulo por igual.
    *
-   * <p><b>Y desde el 08-09-2026 ese importe es EL QUE SE MUESTRA</b> (`RN-PM-024`): el público si
-   * el producto lo declara, y el del sistema si no. <b>Sigue sin ajustarse por quién mira</b> —
-   * cuál de los dos se publica lo decide el <b>producto</b>, no el actor—, y lo resuelve la
-   * consulta con un {@code COALESCE}: aquí no hay nada que elegir porque por esta lectura <b>solo
-   * llega un número</b>.
+   * <p><b>Y desde el 08-09-2026 viajan LOS DOS importes</b> (`RN-PM-024`, reescrita ese mismo día):
+   * {@code price} es el del sistema —el que se cobra— y {@code publicPrice} el anunciado,
+   * <b>nulo</b> cuando el producto no lo declara. Durante unas horas esta lectura publicó <b>uno
+   * solo</b>, resuelto por un {@code COALESCE} en la consulta; ahora la consulta selecciona los dos
+   * y aquí no se elige nada.
+   *
+   * <p><b>Lo que sí elige un solo importe es la conversión</b>: se calcula sobre el que se muestra
+   * —el público si existe y el del sistema si no—, y por eso llega ya resuelta desde el servicio.
    */
-  public static OfferItem from(ProductRow fila) {
+  public static OfferItem from(ProductRow fila, ExchangeRef conversion) {
     return new OfferItem(
         fila.id(),
         fila.code(),
@@ -84,8 +89,12 @@ public record OfferItem(
                 fila.targetMembershipLevel(),
                 fila.targetMembershipColor()),
         ProductPrice.enLaEscalaDe(fila.price(), fila.currencyDecimalPlaces()),
+        fila.publicPrice() == null
+            ? null
+            : ProductPrice.enLaEscalaDe(fila.publicPrice(), fila.currencyDecimalPlaces()),
         new ProductResponse.CurrencyRef(
             fila.currencyId(), fila.currencyCode(), fila.currencyDecimalPlaces()),
+        conversion,
         // `RN-PM-015`: nula significa que lo adquirido NO caduca, y es un valor
         // de la respuesta y no la ausencia de uno (`CA-PM-095`). Sin este dato,
         // dos upgrades al mismo nivel y al mismo precio son indistinguibles

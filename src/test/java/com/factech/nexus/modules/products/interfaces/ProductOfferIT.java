@@ -1,5 +1,6 @@
 package com.factech.nexus.modules.products.interfaces;
 
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.user;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content;
@@ -54,6 +55,9 @@ class ProductOfferIT extends IntegrationTestBase {
 
   @Autowired private MockMvc mvc;
   @Autowired private JdbcTemplate jdbc;
+  @Autowired private org.hibernate.SessionFactory sessionFactory;
+
+  @Autowired private com.factech.nexus.modules.products.domain.service.GetOwnOfferService servicio;
 
   private UUID oro;
   private UUID platino;
@@ -416,41 +420,73 @@ class ProductOfferIT extends IntegrationTestBase {
   // ---------------------------------------------------------------------------
 
   @Test
-  @DisplayName("`CA-PM-158` — con precio público se publica ESE, y no el del sistema")
-  void publicaElPrecioPublico() throws Exception {
+  @DisplayName("`CA-PM-158` — con precio público viajan LOS DOS importes")
+  void publicaLosDosImportes() throws Exception {
     declararPrecioPublico("UP_ORO", "149.00");
 
     mvc.perform(oferta(enFree))
         .andExpect(status().isOk())
         .andExpect(jsonPath("$.upgrades.content[3].code").value("UP_ORO"))
-        .andExpect(jsonPath("$.upgrades.content[3].price").value(149.00));
+        // `price` es SIEMPRE el del sistema desde el 08-09-2026, y ya no «el
+        // que se muestra»: hasta ese día aquí se esperaba 149,00.
+        .andExpect(jsonPath("$.upgrades.content[3].price").value(100.00))
+        .andExpect(jsonPath("$.upgrades.content[3].publicPrice").value(149.00));
   }
 
   @Test
-  @DisplayName("`CA-PM-159` — sin precio público se publica el del sistema")
-  void publicaElDelSistemaCuandoNoHayPublico() throws Exception {
+  @DisplayName("`CA-PM-159` — sin precio público, `publicPrice` llega NULO Y PRESENTE")
+  void elPublicoLlegaNuloYPresente() throws Exception {
     mvc.perform(oferta(enFree))
         .andExpect(status().isOk())
         .andExpect(jsonPath("$.upgrades.content[3].code").value("UP_ORO"))
-        .andExpect(jsonPath("$.upgrades.content[3].price").value(100.00));
+        .andExpect(jsonPath("$.upgrades.content[3].price").value(100.00))
+        .andExpect(jsonPath("$.upgrades.content[3].publicPrice").value(Matchers.nullValue()));
   }
 
   @Test
-  @DisplayName(
-      "`CA-PM-160` — la oferta trae UN importe por producto, y ningún indicador de cuál es")
-  void laOfertaNoPublicaElSegundoImporte() throws Exception {
-    declararPrecioPublico("UP_ORO", "149.00");
+  @DisplayName("`CA-PM-167` — cada producto trae su conversión, presente y nula si no procede")
+  void cadaProductoTraeSuConversion() throws Exception {
+    // Los productos sembrados están en la moneda de casa, de modo que no hay
+    // nada que convertir. Lo que se comprueba es que el campo ESTÁ: ausente
+    // sería indistinguible de uno que el cliente no conoce.
+    String cuerpo =
+        mvc.perform(oferta(enFree))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.upgrades.content[3].exchange").value(Matchers.nullValue()))
+            .andReturn()
+            .getResponse()
+            .getContentAsString();
 
-    // Es una prueba de AUSENCIA, y es lo único que sostiene `RN-PM-024` aquí:
-    // un campo añadido a `OfferItem` «por simetría» con el catálogo
-    // administrativo publicaría el precio que se cobra sin que nada fallara.
-    mvc.perform(oferta(enFree))
-        .andExpect(status().isOk())
-        .andExpect(content().string(Matchers.not(Matchers.containsString("publicPrice"))))
-        // Y el que se cobra no aparece por ninguna vía: `100.00` es el precio
-        // del sistema de `UP_ORO`, y la respuesta trae `149.00`.
-        .andExpect(jsonPath("$.upgrades.content[3].price").value(149.00))
-        .andExpect(jsonPath("$.upgrades.content[3].publicPrice").doesNotExist());
+    assertThat(cuerpo).contains("\"exchange\":null");
+  }
+
+  @Test
+  @DisplayName("`CA-PM-168` — la conversión de la oferta cuesta DOS consultas, no dos por producto")
+  void laConversionNoSePagaPorProducto() {
+    // Se cuenta sobre el SERVICIO y no sobre la llamada HTTP: por el filtro
+    // pasan escrituras que no son de esta lectura, y contarlas mediría el
+    // arranque de la petición en lugar del coste del caso de uso.
+    var estadisticas = sessionFactory.getStatistics();
+    estadisticas.setStatisticsEnabled(true);
+    estadisticas.clear();
+
+    // El actor se pone a mano porque el servicio lo lee del contexto de
+    // seguridad y aquí no hay petición HTTP que lo traiga.
+    org.springframework.security.core.context.SecurityContextHolder.getContext()
+        .setAuthentication(
+            new org.springframework.security.authentication.UsernamePasswordAuthenticationToken(
+                enFree.toString(), null, java.util.List.of()));
+    try {
+      servicio.offer();
+    } finally {
+      org.springframework.security.core.context.SecurityContextHolder.clearContext();
+    }
+
+    // Cuatro upgrades y dos bots en la respuesta. Tres consultas: la oferta, la
+    // membresía vigente del actor y —desde el 08-09-2026— la moneda de casa y
+    // las tasas, que son dos más y NO dos por producto. Con la conversión
+    // resuelta fila a fila serían más de diez, y el cuerpo sería idéntico.
+    assertThat(estadisticas.getPrepareStatementCount()).isLessThanOrEqualTo(4);
   }
 
   /** Le pone precio público a un producto ya sembrado, que es lo que la siembra no hace. */

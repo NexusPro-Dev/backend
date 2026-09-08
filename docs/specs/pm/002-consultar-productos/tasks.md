@@ -35,6 +35,9 @@
 | `T-17` | Pruebas de API de `CA-PM-115` a `CA-PM-117`, y la documentación OpenAPI con los **diez** parámetros | `T-16` | La suite de `PM` en verde con los tres criterios nuevos, y el contrato declara los dos parámetros | **Hecha el 07-09-2026** |
 | `T-18` | El **color** de las dos membresías en la proyección y en el `LEFT JOIN` del listado | `RF-PM-001 · T-32` | `CA-PM-142`, y el listado sigue costando **dos** sentencias | **Hecha el 07-09-2026** |
 | `T-19` | El **precio público** en `ProductRow`, en el `SELECT` del listado y en `ProductItem`, con la escala de la misma moneda | `RF-PM-001 · T-34` | `CA-PM-151`: la fila trae los dos importes, y el público llega **nulo y presente** donde no se declaró. El listado sigue costando **dos** sentencias — la proyección crece, la consulta no | **Hecha el 08-09-2026** |
+| `T-20` | **El puerto por lotes en `SP`**: `ExchangeRateLookup.ratesOn(monedas, destino, día)` devuelve un mapa en **una sola sentencia**. `rateOn` se conserva para las lecturas de una fila | `RF-SP-047` | Integración: pedir cinco monedas cuesta **una** consulta, y las que no tienen tasa vigente **faltan del mapa** en vez de venir nulas | **Hecha el 08-09-2026** |
+| `T-21` | **El resolutor de conversión de `PM`**: resuelve la moneda de casa una vez, pide las tasas por lotes y construye el `exchange` de cada fila sobre el importe **que se muestra** | `T-20` | `CA-PM-164`. Lo comparten las cuatro lecturas del módulo: escribirlo dos veces dejaría dos versiones que divergen | **Hecha el 08-09-2026** |
+| `T-22` | **La prueba de sentencias del listado** | `T-21` | `CA-PM-165`: una página de varios productos en monedas distintas cuesta **dos consultas más** y no dos por fila. Es la única forma de verlo — el cuerpo es idéntico con cuarenta | **Hecha el 08-09-2026** |
 
 ## 2. Orden de ejecución
 
@@ -43,6 +46,8 @@
 `T-11` y `T-12` se escriben al final pero **no son opcionales**: son las dos que fallan cuando alguien simplifica el orden o borra el índice.
 
 ## 3. Cobertura de los criterios de aceptación
+
+> `CA-PM-164` → `T-21` · `CA-PM-165` → `T-22` (añadidos el 08-09-2026 con la conversión).
 
 | Criterio | Tareas |
 |---|---|

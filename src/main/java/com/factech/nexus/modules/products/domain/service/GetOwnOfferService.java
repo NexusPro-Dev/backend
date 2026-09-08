@@ -52,11 +52,17 @@ public class GetOwnOfferService {
   private final CurrentMembershipLookup membresias;
   private final CurrentActor actor;
 
+  private final ProductExchangeResolver conversiones;
+
   public GetOwnOfferService(
-      ProductQueryRepository consultas, CurrentMembershipLookup membresias, CurrentActor actor) {
+      ProductQueryRepository consultas,
+      CurrentMembershipLookup membresias,
+      CurrentActor actor,
+      ProductExchangeResolver conversiones) {
     this.consultas = consultas;
     this.membresias = membresias;
     this.actor = actor;
+    this.conversiones = conversiones;
   }
 
   /**
@@ -92,8 +98,21 @@ public class GetOwnOfferService {
     // Se separa por tipo SIN reordenar: la sentencia ya devolvió los upgrades
     // por nivel de destino y los bots por fecha de alta (`CA-PM-078`), y volver
     // a ordenar aquí sería una segunda copia de ese criterio.
-    for (ProductRow fila : consultas.findOffer(membresia)) {
-      OfferItem producto = OfferItem.from(fila);
+    List<ProductRow> filas = consultas.findOffer(membresia);
+
+    // La conversión de TODA la oferta en dos consultas, y no dos por producto.
+    // El cuerpo sería idéntico con cuarenta, de modo que esto solo se ve
+    // contando sentencias (`CA-PM-168`).
+    ProductExchangeResolver.Conversor conversor =
+        conversiones.para(filas.stream().map(ProductRow::currencyId).toList());
+
+    for (ProductRow fila : filas) {
+      OfferItem producto =
+          OfferItem.from(
+              fila,
+              conversor.de(
+                  fila.currencyId(),
+                  ProductExchangeResolver.importeMostrado(fila.price(), fila.publicPrice())));
       if (producto.type() == ProductType.UPGRADE_MEMBRESIA) {
         upgrades.add(producto);
       } else {

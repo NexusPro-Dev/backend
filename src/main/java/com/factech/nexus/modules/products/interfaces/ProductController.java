@@ -172,8 +172,14 @@ public class ProductController {
 
           Cada fila trae **los dos precios**: `price` —el que se cobra— y
           `publicPrice` —el que se anuncia—, este **presente y nulo** en los
-          productos que no lo declaran. Este listado y el detalle son los
-          **únicos** sitios donde se ven juntos (`RN-PM-024`).
+          productos que no lo declaran. Desde el 08-09-2026 los devuelven **las
+          cuatro lecturas** del módulo y no solo esta (`RN-PM-024`).
+
+          Y trae **`exchange`**, la conversión a la moneda por omisión con la
+          tasa vigente hoy, calculada sobre el importe **que se muestra** —el
+          público si existe y el del sistema si no—. Llega **presente y nula**
+          cuando el producto ya está en esa moneda o cuando nadie declaró una
+          tasa: eso **no es un error** y el producto se devuelve igual.
 
           Solo se puede ordenar por la lista blanca —`name`, `price`,
           `createdAt`—, con `,asc` o `,desc`. **`publicPrice` no está en ella**:
@@ -299,17 +305,20 @@ public class ProductController {
           mira sería un descuento, y los descuentos son promociones, que están
           fuera de alcance.
 
-          **Y es el precio A MOSTRAR, no necesariamente el que se cobra.** Un
-          producto puede declarar un **precio público** además del del sistema
-          (`RN-PM-023`); esta respuesta publica el público si existe y el del
-          sistema si no, y **nunca los dos** — enseñar el par publicaría la
-          diferencia entre lo que se anuncia y lo que se cobra (`RN-PM-024`).
-          Cuál de los dos se publica lo decide el **producto**, no quien mira,
-          de modo que dos personas siguen viendo el mismo importe.
+          **Vienen LOS DOS importes** (`RN-PM-024`, reescrita el 08-09-2026):
+          `price` es el del sistema —el que la venta cobra— y `publicPrice` el
+          que el producto anuncia, **nulo y presente** cuando no lo declara.
+          Hasta esa fecha esta respuesta publicaba **uno solo**, resuelto por la
+          consulta, y quien la leía no sabía cuál de los dos era.
+
+          Y viene **`exchange`**, la conversión a la moneda por omisión con la
+          tasa vigente hoy, calculada sobre el importe **que se muestra** —el
+          público si existe y el del sistema si no—. **Presente y nula** cuando
+          no hay nada que convertir.
 
           **Quien construya la pantalla de compra tiene que saberlo**: el
-          importe que confirma la venta sale de `products.price` y puede no ser
-          este número.
+          importe que confirma la venta es `price`, y puede no ser el que se le
+          está enseñando a quien compra.
 
           Las dos colecciones viajan **envueltas en un objeto** y no como
           arreglos en la raíz: hoy la oferta no se pagina, y así el día que
@@ -345,6 +354,13 @@ public class ProductController {
           """
           Devuelve el producto con su membresía destino y su moneda **resueltas**,
           sin exigir una segunda consulta.
+
+          Trae **los dos precios** —`price`, el que se cobra, y `publicPrice`,
+          el que se anuncia y llega **nulo y presente** si no se declara— y
+          **`exchange`**, la conversión a la moneda por omisión con la tasa
+          vigente hoy, calculada sobre el importe **que se muestra**. La
+          conversión llega **presente y nula** cuando el producto ya está en esa
+          moneda o cuando nadie declaró una tasa (`RN-PM-024`, 08-09-2026).
 
           **Un producto retirado se devuelve marcado como tal**, no como
           inexistente: `deletedAt` dice desde cuándo y `deletionReason` **por
