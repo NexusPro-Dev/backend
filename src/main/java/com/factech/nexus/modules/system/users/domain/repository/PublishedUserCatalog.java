@@ -203,6 +203,41 @@ public class PublishedUserCatalog
                     (String) fila.get("first_name"), (String) fila.get("last_name")));
   }
 
+  /**
+   * El identificador del mismo vendedor que {@link #findSellerByUsername} resuelve.
+   *
+   * <p><b>El predicado se repite y no se comparte</b>, y conviene decir por qué: extraerlo a una
+   * constante de texto ahorraría cinco líneas y dejaría dos consultas atadas a la misma cadena, que
+   * es peor de leer que dos consultas explícitas. Lo que <b>no</b> se repite es la regla — vive en
+   * este adaptador y solo en él.
+   */
+  @Override
+  @Transactional(readOnly = true)
+  public Optional<UUID> sellerIdByUsername(String username) {
+    if (username == null || username.isBlank()) {
+      return Optional.empty();
+    }
+    List<UUID> filas =
+        em.createNativeQuery(
+                """
+                SELECT u.id
+                  FROM users u
+                 WHERE lower(u.username) = lower(:usuario)
+                   AND u.status = 'ACTIVO'
+                   AND u.deleted_at IS NULL
+                   AND EXISTS (
+                         SELECT 1
+                           FROM user_roles ur
+                          WHERE ur.user_id = u.id
+                            AND ur.role_type = 'VENDEDOR')
+                """,
+                UUID.class)
+            .setParameter("usuario", username.trim())
+            .getResultList();
+
+    return filas.stream().findFirst();
+  }
+
   // ---------------------------------------------------------------------------
   // ClientCatalog (`RF-MV-001` · `T-07`)
   // ---------------------------------------------------------------------------

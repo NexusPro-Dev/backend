@@ -191,7 +191,7 @@ class UserQueryIT extends IntegrationTestBase {
 
     // Está declarado en el esquema y sin usar: excluirlo del dominio obligaría a
     // ampliarlo el día que exista el flujo de activación.
-    mvc.perform(listado().param("status", "PENDIENTE"))
+    mvc.perform(listado().param("status", "FTD_PENDIENTE"))
         .andExpect(status().isOk())
         .andExpect(jsonPath("$.content").isEmpty());
 

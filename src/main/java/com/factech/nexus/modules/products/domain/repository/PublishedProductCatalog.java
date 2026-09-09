@@ -2,7 +2,9 @@ package com.factech.nexus.modules.products.domain.repository;
 
 import com.factech.nexus.modules.products.application.ProductCatalog;
 import com.factech.nexus.modules.products.domain.models.Product;
+import com.factech.nexus.modules.products.domain.models.ProductType;
 import com.factech.nexus.modules.system.users.application.CurrentMembershipLookup;
+import com.factech.nexus.modules.system.users.application.RegistrableProductLookup;
 import jakarta.persistence.EntityManager;
 import jakarta.persistence.Tuple;
 import java.math.BigDecimal;
@@ -29,7 +31,7 @@ import org.springframework.transaction.annotation.Transactional;
  * legítimo.
  */
 @Repository
-public class PublishedProductCatalog implements ProductCatalog {
+public class PublishedProductCatalog implements ProductCatalog, RegistrableProductLookup {
 
   private final EntityManager em;
   private final ProductQueryRepository consultas;
@@ -184,6 +186,81 @@ public class PublishedProductCatalog implements ProductCatalog {
         .map(ProductQueryRepository.ProductRow::id)
         .filter(pedidos::contains)
         .collect(Collectors.toCollection(LinkedHashSet::new));
+  }
+
+  /**
+   * El producto de un enlace de registro (`RF-SP-045` · `T-05`).
+   *
+   * <p><b>Este método implementa un puerto de `SP`</b>, al revés que todo lo demás de esta clase, y
+   * el motivo está escrito en {@link RegistrableProductLookup}: `SP` no puede importar de `PM` sin
+   * abrir un ciclo, de modo que declara lo que necesita y `PM` lo cumple.
+   *
+   * <p><b>Devuelve vacío en los tres casos que no proceden</b> —no existe, inactivo, retirado— y no
+   * los distingue: quien lo consume es un endpoint público.
+   *
+   * <p><b>Una sentencia con sus dos uniones</b>, y las dos son externas a propósito: un bot no
+   * tiene membresías, y con uniones internas desaparecería de esta lectura en lugar de llegar para
+   * que el caso de uso lo rechace con `EX-003` — que es lo que el criterio exige.
+   */
+  @Override
+  @Transactional(readOnly = true)
+  public Optional<RegistrableProductView> findRegistrable(String codigoOIdentificador) {
+    if (codigoOIdentificador == null || codigoOIdentificador.isBlank()) {
+      return Optional.empty();
+    }
+
+    String valor = codigoOIdentificador.trim();
+    UUID comoId = comoUuid(valor);
+
+    List<Tuple> filas =
+        em.createNativeQuery(
+                """
+                SELECT p.id AS id, p.code AS code, p.type AS type,
+                       p.source_membership_id AS s_id, s.code AS s_code,
+                       p.target_membership_id AS m_id, m.code AS m_code,
+                       p.validity_days AS validity_days
+                  FROM products p
+                  LEFT JOIN memberships s ON s.id = p.source_membership_id
+                  LEFT JOIN memberships m ON m.id = p.target_membership_id
+                 WHERE p.status = 'ACTIVO'
+                   AND p.deleted_at IS NULL
+                   AND ( (CAST(:id AS uuid) IS NOT NULL AND p.id = CAST(:id AS uuid))
+                      OR (CAST(:id AS uuid) IS NULL AND upper(p.code) = upper(:codigo)) )
+                 LIMIT 1
+                """,
+                Tuple.class)
+            .setParameter("id", comoId)
+            .setParameter("codigo", valor)
+            .getResultList();
+
+    return filas.stream()
+        .findFirst()
+        .map(
+            fila ->
+                new RegistrableProductView(
+                    (UUID) fila.get("id"),
+                    (String) fila.get("code"),
+                    ProductType.UPGRADE_MEMBRESIA.name().equals(fila.get("type")),
+                    (UUID) fila.get("s_id"),
+                    (String) fila.get("s_code"),
+                    (UUID) fila.get("m_id"),
+                    (String) fila.get("m_code"),
+                    entero(fila.get("validity_days"))));
+  }
+
+  /**
+   * ¿Lo que llega es un identificador o un código?
+   *
+   * <p><b>Se decide por la forma y no por un parámetro</b>: el enlace lo compone quien lo reparte,
+   * y pedirle que además diga qué clase de referencia usó sería trasladarle una decisión nuestra.
+   * Un valor que no es un UUID no es un error — es un código.
+   */
+  private static UUID comoUuid(String valor) {
+    try {
+      return UUID.fromString(valor);
+    } catch (IllegalArgumentException noEsUnIdentificador) {
+      return null;
+    }
   }
 
   /**

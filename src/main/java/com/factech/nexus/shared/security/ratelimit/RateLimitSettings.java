@@ -67,7 +67,8 @@ public record RateLimitSettings(
     Politica recovery,
     Politica recoveryConfirmation,
     Politica hotlink,
-    Politica publicCatalog) {
+    Politica publicCatalog,
+    Politica registration) {
 
   /**
    * Una política: cuántas peticiones por ventana, por origen y por identidad.

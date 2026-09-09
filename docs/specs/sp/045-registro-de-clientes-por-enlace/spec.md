@@ -4,10 +4,11 @@
 |---|---|
 | Requerimiento | `RF-SP-045` |
 | Módulo | `SP` — Sistema Principal |
-| Estado | **En revisión** |
+| Estado | **Aprobada** |
 | Autor | Responsable técnico |
-| Aprobada por | Pendiente |
-| Fecha de aprobación | — |
+| Aprobada por | Responsable del proyecto |
+| Fecha de aprobación | 09-09-2026 |
+| Enmendada | 09-09-2026 — **la cuenta de broker en el formulario** (`RN-SP-042`), obligatoria solo cuando el producto es `FREE → FREE`; y **los dos catálogos públicos dejan de ser una pregunta abierta**. Ver §15 |
 | Enmendada | 08-09-2026 — `RN-SP-035` y `RN-SP-037`: el formulario público exige **documento y teléfono**; `CA-SP-600` y `CA-SP-601`, y **el bloqueo del catálogo público crece a dos** (§14) |
 | Enmendada | 07-09-2026 — `RN-SP-034`: el formulario público exige país; nace `EX-006`, `VAL-009`, `CA-SP-582` y `CA-SP-583`, y **una pregunta abierta que esta enmienda no puede cerrar** (§14, pregunta 1) |
 
@@ -56,6 +57,7 @@ Lo que sí se consigue forjando es **atribuirse a un vendedor cualquiera**, y es
 - Fijar la **vigencia** de esa membresía a partir de `validity_days` del producto, o sin fin si el producto no la declara.
 - Dejar la cuenta en **`FTD_PENDIENTE`**: autentica, y no opera.
 - Colgar al cliente de ese vendedor en **`user_supervisors`**, la misma estructura donde ya viven los vendedores entre sí.
+- **Declarar su cuenta de broker** —broker e identificador— cuando el producto del enlace es `FREE → FREE` (`RN-SP-042`, 09-09-2026), en la **misma** transacción.
 
 ### 4.2 No incluye
 
@@ -100,6 +102,17 @@ Lo que sí se consigue forjando es **atribuirse a un vendedor cualquiera**, y es
 | Teléfono | Sí | Vía de contacto | `RN-SP-037` |
 | Dirección, complemento y ciudad | No | Datos de contacto | Opcionales, como en el alta administrativa |
 | País | Sí | **Código ISO 3166-1 alfa-3** del país donde está la persona | Debe existir en el catálogo y estar **activo** (`RN-SP-034`) |
+| Broker | **Condicional** | Identificador del broker donde tiene su cuenta | Debe existir y estar activo. **Obligatorio solo si el producto es `FREE → FREE`** (`RN-SP-042`) |
+| Identificador de cuenta | **Condicional** | El número de cuenta de la persona **en ese broker** | Ídem. Único junto con el broker en todo el sistema (`RN-SP-038`) |
+
+
+!!! important "Por qué la cuenta de broker es obligatoria SOLO en el enlace `FREE → FREE`"
+
+    Decisión del responsable del proyecto, 09-09-2026. **La condición no es de forma sino de encierro**: la cuenta que este registro crea nace en `FTD_PENDIENTE`, que **autentica y no opera**, y quien la saca de ahí es el **depósito confirmado por el webhook del broker**. Sin la cuenta declarada, el sistema no puede saber de quién es un depósito cuando llegue — y la persona se queda encerrada en un estado del que nadie puede sacarla salvo a mano.
+
+    **Hoy esa condición se cumple siempre**, y conviene saberlo: el registro solo admite productos cuya membresía destino es la gratuita (§8, paso 3), y `RN-PM-017` impide que un producto apunte por debajo de su origen — de modo que **todo producto admisible aquí es `FREE → FREE`**. La condicionalidad no cambia nada hoy.
+
+    **Lo que compra es el día que se abra el camino de pago.** Cuando `EX-004` deje de rechazar, entrarán productos hacia membresías de pago cuyo acceso **no depende de ningún depósito**, y ahí exigir la cuenta de broker sería pedir un dato que no hace falta. Escrita como condición, ese día no hay que acordarse de nada; escrita como campo obligatorio a secas, alguien tendría que descubrir por qué se pide.
 
 **El tipo de documento viaja por abreviación, igual que el país por código y el producto por su código**, y por la misma razón: es un formulario público al que no se le pide conocer identificadores internos. `CC` es además lo que la persona reconoce.
 
@@ -128,6 +141,7 @@ Lo que sí se consigue forjando es **atribuirse a un vendedor cualquiera**, y es
 - Existe una cuenta con estado **`FTD_PENDIENTE`**, con su rol de consumidor y su membresía, cuya vigencia sale de la del producto.
 - La contraseña **no queda marcada para cambio obligatorio**: la eligió su titular y nadie más la conoce. Es la misma distinción que `RF-SP-040` hizo frente al restablecimiento por un administrador.
 - Existe una fila vigente en `user_supervisors` con el cliente a cargo del vendedor del enlace.
+- Existe una fila en `user_brokers` con el broker y el identificador declarados, y **`broker_username` en nulo**: lo rellena el webhook del broker (`RN-SP-040`).
 - Queda constancia en la auditoría de cambios y en la de seguridad, con el vendedor y el producto en el detalle.
 - **Nada de lo anterior ocurre a medias**: los cuatro hechos son una sola transacción (`plan.md` §7).
 
@@ -141,8 +155,9 @@ Lo que sí se consigue forjando es **atribuirse a un vendedor cualquiera**, y es
 6. El sistema crea la cuenta en estado `FTD_PENDIENTE`.
 7. El sistema le concede el rol de consumidor y la membresía del producto, con su vigencia.
 8. El sistema cuelga al cliente de ese vendedor en `user_supervisors`.
-9. El sistema registra los eventos de auditoría.
-10. El sistema confirma el registro e indica que falta el depósito para poder operar.
+9. El sistema **declara su cuenta de broker** si el producto es `FREE → FREE`, con el nombre de usuario del broker **en nulo**.
+10. El sistema registra los eventos de auditoría.
+11. El sistema confirma el registro e indica que falta el depósito para poder operar.
 
 ## 9. Flujos alternativos
 
@@ -195,6 +210,16 @@ Lo que sí se consigue forjando es **atribuirse a un vendedor cualquiera**, y es
 
 Dentro del sistema, en cambio, la distinción sí ayuda: un administrador **puede hacer algo distinto** con cada caso.
 
+### EX-008 — Broker inexistente o inactivo
+
+**Respuesta:** se rechaza, y **los dos casos comparten respuesta**, con el mismo criterio que `EX-006` aplica al país y `EX-007` al documento: distinguirlos no ayuda a rellenar el formulario y sí permitiría averiguar con qué brokers opera la plataforma probando identificadores. El catálogo **ya dice cuáles hay** —es público desde el 08-09-2026—, de modo que quien rellena el formulario no necesita esta respuesta para saberlo.
+
+### EX-009 — La cuenta de broker ya está declarada
+
+**Respuesta:** se rechaza. Es `RN-SP-038` —**una cuenta es de una sola persona**— y la sostiene el índice único, no una comprobación previa: dos registros simultáneos con la misma cuenta leen una tabla sin la fila y los dos creen que pueden.
+
+**Aquí se dice qué pasó, y contradice a `EX-007` a propósito.** El documento repetido **no** dice que lo esté, porque confirmarle a un desconocido que esa persona ya tiene cuenta es publicar un dato que él no tenía. Con la cuenta de broker el intercambio es el contrario: **quien la declara es su titular** —tuvo que abrirla en el broker— y necesita saber que ya está tomada, porque significa que alguien se la atribuyó. **Que el número de cuenta sea de quien lo envía es lo que hace segura la respuesta**, y por eso el mismo razonamiento no vale para el documento, que es un dato que se consigue.
+
 ## 11. Validaciones
 
 | ID | Validación | Mensaje esperado |
@@ -210,6 +235,8 @@ Dentro del sistema, en cambio, la distinción sí ayuda: un administrador **pued
 | `VAL-009` | País informado, existente y activo (`RN-SP-034`) | El país indicado no es válido. |
 | `VAL-010` | Tipo y número de documento informados y válidos (`RN-SP-035`) | El documento indicado no es válido. |
 | `VAL-011` | Teléfono informado y con formato admitido (`RN-SP-037`) | El teléfono indicado no es válido. |
+| `VAL-012` | Broker informado **cuando el producto es `FREE → FREE`** (`RN-SP-042`) | Debe indicar el broker donde tiene su cuenta. |
+| `VAL-013` | Identificador de cuenta informado en el mismo caso | Debe indicar su identificador de cuenta en el broker. |
 
 ## 12. Criterios de aceptación
 
@@ -238,6 +265,11 @@ Dentro del sistema, en cambio, la distinción sí ayuda: un administrador **pued
 | `CA-SP-583` | Un país inexistente y uno inactivo se rechazan **con la misma respuesta**, y el cuerpo **no dice qué países existen** |
 | `CA-SP-600` | El registro público **exige documento y teléfono**, y acepta el alta sin dirección, complemento ni ciudad |
 | `CA-SP-601` | **No existe abreviación que registre a un menor**: enviar `TI` se rechaza con la misma respuesta que una abreviación inventada, y el cuerpo **no dice qué tipos existen** |
+| `CA-SP-609` | El registro por un enlace `FREE → FREE` **exige broker e identificador de cuenta**, y sin ellos se rechaza |
+| `CA-SP-610` | La cuenta de broker queda declarada en la **misma operación** que la cuenta de la persona, con el **nombre de usuario del broker en nulo** |
+| `CA-SP-611` | Un broker inexistente y uno inactivo se rechazan **con la misma respuesta** |
+| `CA-SP-612` | Una cuenta de broker **ya declarada por otra persona** se rechaza diciendo qué pasó, y **no deja nada escrito** — ni cuenta, ni membresía, ni atribución |
+| `CA-SP-613` | La misma persona **puede** declarar en el registro una cuenta que ella ya tiene en **otro** broker: lo único que no se repite es el par broker + identificador |
 | `CA-SP-524` | Un administrador puede llevar la cuenta de `FTD_PENDIENTE` a `ACTIVO` por `RF-SP-028` |
 
 ## 13. Casos límite
@@ -257,9 +289,18 @@ Dentro del sistema, en cambio, la distinción sí ayuda: un administrador **pued
 
 | Pregunta | Estado |
 |---|---|
-| **De dónde saca el formulario público la lista de TIPOS DE DOCUMENTO.** Mismo problema que el de países, y **el hecho de que ahora sean dos es lo que cambia la decisión**: `GET /api/v1/document-types` exige `document-types:read` (`RF-SP-051`) y quien se registra no lo tiene | **ABIERTA.** Con un catálogo era una excepción discutible; con **dos** es una decisión de forma — un endpoint público de catálogos bajo `/auth` con su propio límite de tasa, en lugar de dos parches. Se fusiona con la pregunta de abajo y **se decide una sola vez** |
-| **De dónde saca el formulario público la lista de países.** `RN-SP-034` (07-09-2026) obliga a pedir el país, y **el catálogo no es público**: `GET /api/v1/countries` (`RF-SP-021`) exige `countries:read`, que quien se está registrando no tiene por definición. Sin resolverlo, el formulario solo puede ofrecer la lista ISO completa y dejar que el servidor rechace los doscientos y pico países en los que la plataforma no opera — que es una pantalla que falla después de rellenarla | **ABIERTA, y es la única que esta enmienda no puede cerrar sola.** Requiere decisión del responsable del proyecto, porque las tres salidas cuestan cosas distintas: **(a)** abrir `GET /api/v1/countries` al público —barato, y publica en qué mercados opera la plataforma, que es justo lo que `EX-006` acaba de decidir no revelar—; **(b)** un endpoint público propio que devuelva solo los países activos, con su propio límite de tasa —más trabajo, misma información publicada, pero acotada y con su ruta en `/auth`—; **(c)** dejar el formulario con la lista ISO entera y el rechazo del servidor —cero trabajo y la peor experiencia—. **No bloquea al resto de la enmienda**: los otros cinco requerimientos no dependen de ella, y este todavía no está implementado (`tasks.md` en revisión). Queda como bloqueo explícito en `tasks.md` §4 |
+| ~~**De dónde saca el formulario público la lista de TIPOS DE DOCUMENTO.**~~ | **CERRADA el 08-09-2026**, en el mismo lote: los tres catálogos que este formulario necesita —países, tipos de documento y brokers— se leen **sin iniciar sesión**. Era la pregunta que llevaba dos enmiendas abierta, y se resolvió abriendo los catálogos y no dando permisos a quien no tiene cuenta |
+| ~~**De dónde saca el formulario público la lista de países.**~~ | **CERRADA el 08-09-2026** por decisión del responsable del proyecto: `GET /api/v1/countries` es **público** (`RN-SP-041`). El bloqueo 6 de `tasks.md` se cierra con ella |
 | **La atribución es forjable.** Quien componga el enlace elige a qué vendedor se atribuye. No concede acceso, pero ensucia la base sobre la que `CM` comisionará. Cerrarlo exige que el enlace sea un artefacto emitido y persistido, con su tabla y su operación de emisión | **Abierta, y aceptada por ahora.** No bloquea: hoy no se paga ninguna comisión, porque la liquidación no existe. **La condición para reabrirla queda escrita: en cuanto se liquide una comisión sobre una atribución, el enlace tiene que dejar de ser componible** |
 | **El camino de pago.** Los productos que llevan a membresías de pago se rechazan hoy con `EX-004` | **Abierta por dependencia.** Espera al área de Finanzas. La forma de este requerimiento no cambia: cambia la rama que hoy rechaza |
-| **La confirmación del depósito.** Será el webhook del bróker | **Aplazada por decisión del responsable** (01-09-2026). Mientras tanto, la salida es manual por `RF-SP-028` |
+| **La confirmación del depósito.** Será el webhook del bróker | **Abierta, y desde el 09-09-2026 tiene la mitad resuelta.** El webhook es `RF-SP-054`, registrado y sin decidir; lo que ya no falta es **a quién confirmar**: la cuenta de broker se declara en este mismo registro (`RN-SP-042`). Mientras el webhook no exista, la salida de `FTD_PENDIENTE` sigue siendo manual por `RF-SP-028` |
 | **Cuál es la membresía gratuita se decide por el código `FREE`** | **Resuelta el 01-09-2026 por el responsable del proyecto.** Se eligió la convención sobre una columna explícita. Queda mitigada con la verificación al arrancar de `CL-005`, que convierte un renombrado en un arranque fallido en lugar de en un registro roto en producción |
+
+## 15. Control de cambios
+
+| Versión | Fecha | Cambio | Responsable |
+|---|---|---|---|
+| 0.1.0 | 01-09-2026 | Redacción inicial. | Responsable técnico |
+| 0.2.0 | 07-09-2026 | El formulario público **exige país** (`RN-SP-034`): nacen `EX-006`, `VAL-009`, `CA-SP-582` y `CA-SP-583`, y con ellos la pregunta abierta de **de dónde saca la lista** quien no tiene cuenta. | Responsable del proyecto |
+| 0.3.0 | 08-09-2026 | El formulario público **exige documento y teléfono** (`RN-SP-035`, `RN-SP-037`): nacen `EX-007`, `VAL-010`, `VAL-011`, `CA-SP-600` y `CA-SP-601`. **La pregunta del catálogo crece a dos**, y eso es lo que acaba cambiando la decisión: con uno era una excepción, con dos es un patrón. | Responsable del proyecto |
+| **1.0.0** | **09-09-2026** | **APROBADA**, y con tres cambios que la tripleta no podía prever cuando se escribió el 01-09. **Uno: sus dos preguntas abiertas de catálogo se cerraron solas** — los tres catálogos que este formulario necesita se leen **sin iniciar sesión** desde el 08-09-2026 (`RN-SP-041`), y con ellas se cierra el **bloqueo 6**. **Dos: el formulario declara la CUENTA DE BROKER** (`RN-SP-042`), obligatoria **solo cuando el producto es `FREE → FREE`**; nacen `EX-008`, `EX-009`, `VAL-012`, `VAL-013` y `CA-SP-609` a `CA-SP-613`. La condición **hoy se cumple siempre** —todo producto admisible aquí es `FREE → FREE`, porque `RN-PM-017` impide apuntar por debajo del origen y el destino tiene que ser la gratuita— y lo que compra es **el día que se abra el camino de pago**: entonces entrarán productos cuyo acceso no depende de ningún depósito, y pedir la cuenta de broker sería pedir un dato que no hace falta. **Tres: la pregunta de la confirmación del depósito pasa a tener la mitad resuelta** — el webhook sigue sin decidir (`RF-SP-054`), pero **ya se sabe a quién confirmar**. Lo que no cambia: el camino de pago sigue rechazado por `EX-004` y la atribución sigue siendo forjable. | Responsable del proyecto |

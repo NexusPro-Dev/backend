@@ -58,6 +58,8 @@ tags:
   description: Catálogo de monedas. Inmutable por API salvo su estado.
 - name: Sesión
   description: "Inicio, renovación y cierre de sesión."
+- name: Registro por enlace
+  description: Alta de un cliente desde el enlace de un vendedor. Público (RF-SP-045).
 paths:
   /api/v1/users/{id}/membership:
     put:
@@ -186,9 +188,24 @@ paths:
         de cambio obligatorio produciría la lista de quien no ha cambiado su
         contraseña inicial.
 
-        **`roleId` y `membershipId` no se validan contra su catálogo.** Un
-        filtro por algo inexistente devuelve la colección vacía y no es un
-        error.
+        **`roleId`, `membershipId` y `countryId` no se validan contra su
+        catálogo.** Un filtro por algo inexistente devuelve la colección vacía y
+        no es un error.
+
+        **`countryId` NO se acota a países activos**, y va contra la intuición:
+        filtrar solo por los activos convertiría desactivar un país en una forma
+        de **esconder a su gente**, y este listado es justamente la herramienta
+        con la que se busca a quien quedó dentro para moverlo. Quien esté en un
+        país retirado aparece con normalidad.
+
+        Cada fila trae su `country` **resuelto y nunca nulo** — es el único
+        objeto anidado de la fila del que se puede decir eso: `roles` puede venir
+        vacía y `membership` y `deletedAt` pueden venir nulos.
+
+        **El listado NO publica el documento ni los datos de contacto**, y no se
+        puede buscar por ellos. Es deliberado: exponer un documento en un listado
+        paginado alcanza a mucha más gente que devolverlo en un detalle. Quien
+        necesite el documento de una persona usa `GET /api/v1/users/{id}`.
 
         La búsqueda va sobre nombre de usuario, correo y nombre completo,
         **sin distinguir acentos ni mayúsculas**, y por fragmento.
@@ -287,10 +304,47 @@ paths:
         El rol de vendedor y el superior comercial **sí siguen siendo
         condicionales en los dos sentidos**: indicar uno sin el otro devuelve
         `409`, no se ignora.
-        Indicar uno sin el otro devuelve `409`, no se ignora.
 
         El superior debe portar el **rol padre inmediato** del rol vendedor de
         mayor rango de la persona, y estar activo.
+
+        ## Identidad, contacto y país
+
+        **`countryId`, `documentTypeId`, `documentNumber` y `phone` son
+        obligatorios**, y a diferencia de la membresía y el superior **no
+        dependen de qué roles se concedan**: su ausencia es `400`, nunca un
+        `409` condicional.
+
+        **`addressLine1`, `addressLine2` y `city` son opcionales.** Exigir una
+        dirección postal a un funcionario interno bloquearía su alta sin que
+        nadie la necesite. `city` es **texto libre**: no hay catálogo de
+        ciudades.
+
+        **El tipo de documento sale de `GET /api/v1/document-types`, y ese
+        catálogo contiene SOLO documentos de persona mayor de edad.** Ahí está
+        la validación de mayoría de edad del sistema entero: no hay ninguna
+        marca que diga cuáles acreditan y cuáles no, porque **los que no
+        acreditan no están**. Registrar a un menor no se rechaza — no se puede
+        expresar, porque no hay identificador que enviar. Un desplegable
+        alimentado por ese catálogo no puede ofrecer una opción que el alta vaya
+        a rechazar.
+
+        **El par tipo + número es único entre TODAS las personas, incluidas las
+        eliminadas** (`RN-SP-035`), igual que el nombre de usuario y el correo.
+        El `409` que produce **no dice de quién es** el documento, ni si esa
+        persona sigue vigente.
+
+        El número de documento se guarda **recortado y en mayúsculas**, y el
+        teléfono **normalizado a dígitos con un `+` opcional** —fuera espacios,
+        guiones y paréntesis—. La dirección y la ciudad solo se recortan.
+
+        **El teléfono no se valida contra el país**: eso exigiría un catálogo de
+        prefijos que no existe.
+
+        La respuesta agrupa `country`, `document` y `contact` en tres objetos, y
+        devuelve el **tipo de documento resuelto** —abreviación y nombre— para
+        que no haga falta una segunda llamada al catálogo, que además exige otro
+        permiso.
 
         La contraseña no se recorta: un espacio al principio o al final es parte
         de ella.
@@ -309,18 +363,24 @@ paths:
               schema:
                 $ref: "#/components/schemas/UserResponse"
         "400":
-          description: "Formato u obligatoriedad incumplidos, contraseña que no cumple\
-            \ la política, o campo no admitido en el cuerpo"
+          description: "Formato u obligatoriedad incumplidos —incluidos país, tipo\
+            \ y número de documento y teléfono, que son obligatorios (`VAL-014` a\
+            \ `VAL-017`)—, contraseña que no cumple la política, o campo no admitido\
+            \ en el cuerpo"
         "401":
           description: Token ausente o inválido (`AUTH-001`)
         "403":
           description: Autenticado sin el permiso de creación de usuarios (`AUTH-002`)
         "409":
-          description: "Identidad ya en uso (`RN-SP-016`), rol que excede los privilegios\
+          description: "Identidad ya en uso (`RN-SP-016`), documento ya registrado\
+            \ por otra persona —vigente o eliminada— o tipo de documento inactivo\
+            \ (`RN-SP-035`), país inactivo (`RN-SP-034`), rol que excede los privilegios\
             \ del actor (`RN-SEG-010`), vendedor sin superior o al revés (`RN-SP-019`),\
             \ o superior que no porta el rol padre (`RN-SP-020`)"
         "422":
-          description: Algún rol no existe o no está activo (`EX-003`)
+          description: "Algún rol no existe o no está activo (`EX-003`), el país no\
+            \ existe (`EX-009`) o el tipo de documento no existe (`EX-010`) — referencias\
+            \ que no resuelven, frente al `409` de las que resuelven y una regla rechaza"
         "500":
           description: Fallo no controlado (`ERR-500`)
   /api/v1/users/{id}/roles:
@@ -1910,6 +1970,92 @@ paths:
           description: La tasa no existe
         "409":
           description: "Ya estaba retirada, o sigue asociada a algún producto"
+  /api/v1/auth/registration:
+    post:
+      tags:
+      - Registro por enlace
+      summary: Registrarse desde el enlace de un vendedor
+      description: |
+        Crea una cuenta de cliente **sin autenticación**, a partir del enlace
+        que un vendedor reparte. Es el **primer endpoint público del sistema
+        que escribe**.
+
+        El enlace lleva dos datos y **ninguno es un secreto**: el producto —por
+        su código o su identificador, en el mismo campo— y el vendedor, por su
+        **nombre de usuario**. Los cuatro campos de referencia de este cuerpo
+        evitan los UUID —producto, vendedor, `countryCode` alfa-3 y
+        `documentType` por abreviación— porque es un formulario público al que
+        no se le puede pedir que conozca los identificadores del sistema. La
+        excepción es `brokerId`, que se elige de un desplegable leído del
+        catálogo público de brokers.
+
+        **`brokerId` y `brokerAccountId` son obligatorios cuando el producto
+        del enlace es una membresía `FREE → FREE`** (`RN-SP-042`), y solo
+        entonces. El motivo es el estado en el que nace la cuenta: sin la
+        cuenta de broker declarada, nadie podrá atribuirle el depósito que la
+        saca de `FTD_PENDIENTE`. El **nombre de usuario en el broker no se
+        pide**: lo rellena después el webhook del propio broker.
+
+        **La cuenta nace en `FTD_PENDIENTE`**, que **autentica y no opera**:
+        quien se registra puede iniciar sesión y ver lo suyo, y lo que le falta
+        para operar es el primer depósito.
+
+        **La contraseña la elige la persona**, y por eso la cuenta **no** queda
+        marcada para cambio obligatorio — se marca lo que fijó otro, no lo que
+        uno fijó.
+
+        **No devuelve credenciales de sesión**: registrarse no es iniciar
+        sesión. Quien acaba de crear su cuenta pasa por el inicio de sesión
+        como todo el mundo.
+
+        **Los rechazos no dicen qué pasó, salvo tres.** Producto inexistente,
+        inactivo o retirado comparten respuesta, y lo mismo el vendedor que no
+        existe y el que no es fuerza comercial: distinguirlos convertiría este
+        endpoint en una forma de enumerar el catálogo y la plantilla. **Sí
+        dicen** cuál de las dos identidades —nombre de usuario o correo— está
+        en uso, que el producto exige pago, y que la cuenta de broker ya está
+        declarada por otra persona: los tres los necesita quien se registra
+        para poder corregir.
+      operationId: registrar_8
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/SelfRegistrationRequest"
+        required: true
+      responses:
+        "201":
+          description: "Cuenta creada, en estado `FTD_PENDIENTE`"
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/SelfRegistrationResponse"
+        "400":
+          description: Datos inválidos (serie `VAL-nnn`)
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/SelfRegistrationResponse"
+        "409":
+          description: "Nombre de usuario o correo en uso (`EX-005`), o cuenta de\
+            \ broker ya declarada (`EX-009`)"
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/SelfRegistrationResponse"
+        "422":
+          description: "El enlace no procede (`EX-001`, `EX-002`, `EX-003`, `EX-006`,\
+            \ `EX-007`, `EX-008`) o el producto exige pago (`EX-004`)"
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/SelfRegistrationResponse"
+        "429":
+          description: Demasiadas peticiones desde este origen
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/SelfRegistrationResponse"
   /api/v1/auth/refresh:
     post:
       tags:
@@ -2201,6 +2347,18 @@ paths:
         la cuenta no está bloqueada, o lo está **por decisión de un actor** y
         por tanto sin expiración. El estado desambigua.
 
+        Trae el `country`, el `document` y el `contact` de la persona.
+
+        **`country` nunca es nulo y `document` sí puede serlo**: quienes se
+        registraron antes de que el documento fuera obligatorio no lo tienen, y
+        **esta pantalla es donde esa ausencia se ve** — es la que sirve para
+        saber a quién hay que completar.
+
+        **El país y el tipo de documento se devuelven aunque estén inactivos.**
+        Retirarlos del catálogo los quita de los desplegables del alta; no
+        cambia dónde está ni con qué se identifica quien ya los tenía, ni lo
+        oculta a quien administra.
+
         **No devuelve intentos fallidos** —diría cuántos le quedan a una cuenta
         antes de bloquearse—, **ni dato alguno de la credencial**, **ni el
         superior comercial**, que tiene su propio endpoint.
@@ -2237,16 +2395,41 @@ paths:
       - Usuarios
       summary: Editar los datos de una persona
       description: |
-        Modifica el nombre, los apellidos y el correo. `PATCH` y no `PUT`:
+        Modifica el nombre, los apellidos, el correo, el país, la **identidad
+        documental** y los **datos de contacto**. `PATCH` y no `PUT`:
         `PUT` obligaría a enviar el recurso completo —incluidos el nombre de
         usuario, el estado y los roles, que esta operación **no** puede
         modificar— y habría que decidir qué hacer si llegaran con otros valores.
 
-        **Los tres campos son opcionales y ninguno admite vaciarse.** El campo
-        ausente no se toca; el campo con nulo explícito o en blanco devuelve
-        `400`. Es la diferencia con la edición de un rol, donde el nulo sí era
-        una orden: aquí las columnas son `NOT NULL` y aceptarlo produciría un
-        `500` en lugar del `400` que corresponde.
+        **Todos los campos son opcionales, y el nulo explícito NO significa lo
+        mismo en todos.** El campo ausente nunca se toca; con el nulo hay **dos
+        familias**, y la línea que las separa es la de lo obligatorio y lo
+        opcional:
+
+        - **Lo rechazan con `400`**: `firstName`, `lastName`, `email`,
+          `countryId`, `documentTypeId`, `documentNumber` y `phone`. Su columna
+          no admite ausencia, y aceptarlo produciría un `500` en lugar del `400`
+          que corresponde.
+        - **Lo aceptan y VACÍAN el campo**: `addressLine1`, `addressLine2` y
+          `city`. Son opcionales, y «ya no vive ahí» es un hecho que hay que
+          poder registrar.
+
+        **El tipo y el número de documento se envían juntos o no se envían.**
+        Enviar uno solo devuelve `400`: un número sin decir de qué documento es
+        no significa nada.
+
+        **Esta es la ÚNICA operación que cambia el documento y el país.** El
+        titular no puede tocarlos desde `PATCH /api/v1/users/me`.
+
+        **Se comprueba el destino, nunca el actual.** Un país o un tipo de
+        documento inactivos se rechazan **como destino**; que los vigentes de
+        la persona lo estén no impide editarla — es justamente para eso que
+        existe esta operación.
+
+        **Corregir el documento no libera el anterior.** Es la diferencia
+        deliberada con el correo, que sí queda libre: un documento identifica a
+        alguien en el mundo real, y liberarlo permitiría que otra ficha lo
+        tomara.
 
         **El nombre de usuario no se puede cambiar**, y enviarlo devuelve `400`
         por propiedad desconocida en lugar de ignorarse en silencio. Lo mismo
@@ -2281,8 +2464,12 @@ paths:
               schema:
                 $ref: "#/components/schemas/UserResponse"
         "400":
-          description: "Ningún campo informado (`VAL-001`), campo vaciado (`VAL-002`),\
-            \ correo inválido (`VAL-003`), longitud excedida (`VAL-005`) o campo desconocido"
+          description: "Ningún campo informado (`VAL-001`), campo vaciado que no admite\
+            \ vaciarse (`VAL-002`, `VAL-006` país, `VAL-007` documento, `VAL-008`\
+            \ teléfono), tipo y número de documento sin su pareja (`VAL-007`), correo\
+            \ inválido (`VAL-003`), longitud excedida (`VAL-005`) o campo desconocido\
+            \ —incluidos el nombre de usuario, el estado, los roles y la contraseñ\
+            a"
         "401":
           description: Token ausente o inválido (`AUTH-001`)
         "403":
@@ -2457,6 +2644,17 @@ paths:
         reporta uno es un dato del actor; quiénes dependen de uno es un conjunto
         de terceros.
 
+        Trae además el `country`, el `document` y el `contact` del actor.
+        **`country` nunca falta y `document` sí puede faltar**: las personas
+        registradas antes de que el documento fuera obligatorio no lo tienen, y
+        el campo llega ausente. El navegador tiene que contemplarlo.
+
+        **El `contact` se publica aquí para que la pantalla de edición pueda
+        precargarse**: es exactamente lo que `PATCH /api/v1/users/me` deja
+        corregir. El `document` viaja en la misma respuesta y **no** es
+        editable por el titular — esa diferencia es la razón de que los dos
+        vayan en objetos separados en lugar de como campos sueltos.
+
         `lastLoginAt` es un dato **informativo de la sesión en curso**, no una
         señal de intrusión: el inicio de sesión sobrescribe ese valor al entrar.
       operationId: miPerfil
@@ -2478,7 +2676,8 @@ paths:
       - Usuarios
       summary: Editar el propio perfil
       description: |
-        Corrige el **propio** nombre, apellidos y correo. Autenticado y **sin
+        Corrige el **propio** nombre, apellidos, correo y **datos de contacto**
+        —teléfono, dirección, complemento y ciudad—. Autenticado y **sin
         ningún permiso**: `RF-SP-027` hace el mismo cambio pero exige
         `users:update`, que es un permiso de administración, de modo que
         concedérselo a alguien para que arregle su propio apellido le daría de
@@ -2499,6 +2698,28 @@ paths:
         el valor no cambie se sabe después de mirarlo, y condicionar la
         exigencia a eso daría una forma de averiguar el correo vigente probando
         valores.
+
+        ## Qué se puede cambiar aquí y qué no
+
+        **El contacto sí; la identidad no.** El tipo y el número de documento y
+        el país **no están en este cuerpo**: son identidad, no contacto, y los
+        corrige un administrador por `PATCH /api/v1/users/{id}`. Enviarlos
+        devuelve `400` por propiedad desconocida, no se ignoran.
+
+        La línea no es técnica: un teléfono nuevo o una mudanza son hechos que
+        la persona conoce mejor que nadie y no deberían costar un ticket; el
+        documento es con lo que figura en la auditoría, y el país decide qué
+        medios de pago se le ofrecen.
+
+        **El teléfono NO exige `currentPassword`**, al contrario que el correo.
+        La contraseña se pide cuando el campo **es una vía de acceso**, y el
+        teléfono hoy no lo es. El día que exista verificación por SMS o segundo
+        factor telefónico, esta decisión se revisa.
+
+        **El nulo explícito no significa lo mismo en todo el cuerpo.**
+        `addressLine1`, `addressLine2` y `city` **lo aceptan y vacían el campo**
+        —«ya no vivo ahí» es un hecho que hay que poder registrar—; el nombre,
+        los apellidos, el correo y el **teléfono** lo rechazan con `400`.
 
         Devuelve el perfil ya actualizado, con **la misma forma** que
         `GET /api/v1/users/me`.
@@ -5406,6 +5627,77 @@ components:
       type: object
       properties:
         reason:
+          type: string
+    SelfRegistrationRequest:
+      type: object
+      properties:
+        product:
+          type: string
+          minLength: 1
+        referrer:
+          type: string
+          minLength: 1
+        firstName:
+          type: string
+          minLength: 1
+        lastName:
+          type: string
+          minLength: 1
+        username:
+          type: string
+          minLength: 1
+        email:
+          type: string
+          minLength: 1
+        password:
+          type: string
+          minLength: 1
+        countryCode:
+          type: string
+          minLength: 1
+        documentType:
+          type: string
+          minLength: 1
+        documentNumber:
+          type: string
+          minLength: 1
+        phone:
+          type: string
+          minLength: 1
+        addressLine1:
+          type: string
+        addressLine2:
+          type: string
+        city:
+          type: string
+        brokerId:
+          type: string
+          format: uuid
+        brokerAccountId:
+          type: string
+      required:
+      - countryCode
+      - documentNumber
+      - documentType
+      - email
+      - firstName
+      - lastName
+      - password
+      - phone
+      - product
+      - referrer
+      - username
+    SelfRegistrationResponse:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        username:
+          type: string
+        status:
+          type: string
+        pending:
           type: string
     RefreshRequest:
       type: object

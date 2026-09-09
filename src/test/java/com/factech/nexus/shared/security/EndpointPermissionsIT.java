@@ -50,6 +50,13 @@ class EndpointPermissionsIT extends IntegrationTestBase {
   private static final Map<String, String> SIN_PERMISO_A_PROPOSITO =
       Map.ofEntries(
           Map.entry(
+              "POST /api/v1/auth/registration",
+              "PÚBLICO POR DEFINICIÓN (`RF-SP-045`, 09-09-2026): quien se registra no tiene cuenta con"
+                  + " la que autenticarse. Es el PRIMER endpoint público que ESCRIBE, y lo que"
+                  + " sostiene que no sea un agujero no es un token: la cuenta nace en"
+                  + " `FTD_PENDIENTE` —autentica y no opera— y el origen está acotado por"
+                  + " `RateLimitFilter`"),
+          Map.entry(
               "GET /api/v1/countries",
               "PÚBLICO POR DECISIÓN desde el 08-09-2026: el formulario de registro elige país"
                   + " antes de que exista la cuenta (`RF-SP-045`). Es una lista de opciones y no"

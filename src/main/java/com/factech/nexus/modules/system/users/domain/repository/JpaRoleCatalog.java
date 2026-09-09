@@ -52,6 +52,20 @@ public class JpaRoleCatalog implements RoleCatalog {
 
   @Override
   @Transactional(readOnly = true)
+  public Optional<AssignableRole> findByCode(String code) {
+    if (code == null || code.isBlank()) {
+      return Optional.empty();
+    }
+    return leer(
+            "SELECT " + PROYECCION + " FROM roles r WHERE upper(r.code) = upper(:ids)",
+            "ids",
+            code.trim())
+        .stream()
+        .findFirst();
+  }
+
+  @Override
+  @Transactional(readOnly = true)
   public Set<UUID> roleIdsOf(UUID userId) {
     if (userId == null) {
       return Set.of();

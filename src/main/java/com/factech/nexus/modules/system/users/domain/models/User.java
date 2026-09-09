@@ -75,6 +75,63 @@ public class User {
   @Column(name = "country_id", nullable = false)
   private UUID countryId;
 
+  /**
+   * Con qué se identifica la persona (`RN-SP-035`).
+   *
+   * <p><b>Nulable en el esquema y obligatorio en la API</b>, y la asimetría con {@link #countryId}
+   * es deliberada: un país de relleno es una afirmación neutra, y un <b>número de documento</b> de
+   * relleno es una afirmación <b>falsa sobre la identidad de una persona</b>. `V22` siembra un
+   * superadministrador que no tiene ninguno, y el nulo es la verdad sobre esa fila.
+   *
+   * <p><b>Que el documento acredite mayoría de edad NO se comprueba aquí ni en ningún sitio.</b> El
+   * catálogo al que apunta solo contiene documentos de adulto, de modo que no hay identificador que
+   * poner que signifique lo contrario.
+   */
+  @Column(name = "document_type_id")
+  private UUID documentTypeId;
+
+  /**
+   * El número, ya normalizado — recortado y en mayúsculas.
+   *
+   * <p><b>Va inseparablemente unido al tipo</b> (`ck_users_document_pair`): no existe el número sin
+   * decir de qué documento es, ni el tipo sin número. Y el par es <b>único entre todas las
+   * personas, incluidas las eliminadas</b>, con el mismo criterio que el nombre de usuario: liberar
+   * un documento permitiría que la actividad de dos personas quedara bajo la misma identidad.
+   */
+  @Column(name = "document_number", length = 30)
+  private String documentNumber;
+
+  /** Línea principal de la dirección postal. Opcional (`RN-SP-037`). */
+  @Column(name = "address_line1", length = 150)
+  private String addressLine1;
+
+  /**
+   * Complemento: apartamento, torre, referencia.
+   *
+   * <p>Es el único de los seis campos que es opcional <b>por naturaleza y no por transición</b>:
+   * una dirección puede no tener complemento, y eso no es un dato que falte.
+   */
+  @Column(name = "address_line2", length = 150)
+  private String addressLine2;
+
+  /**
+   * Ciudad de residencia, como <b>texto libre</b>.
+   *
+   * <p>No hay catálogo de ciudades y no se abre aquí: exigiría decidir su relación con el país y su
+   * unicidad, y ningún requerimiento lo respalda.
+   */
+  @Column(name = "city", length = 100)
+  private String city;
+
+  /**
+   * Vía de contacto, normalizada a dígitos con un {@code +} opcional (`RN-SP-037`).
+   *
+   * <p><b>Obligatorio en la API y nulable en el esquema</b>, por lo mismo que el documento. <b>No
+   * se valida contra el país</b>: eso exigiría un catálogo de prefijos que nadie ha pedido.
+   */
+  @Column(name = "phone", length = 20)
+  private String phone;
+
   @Column(name = "password_hash", nullable = false, length = 255)
   private String passwordHash;
 
@@ -146,6 +203,12 @@ public class User {
    * estado, `RF-SP-037` para la marca— y un solo lugar donde auditarlo.
    *
    * @param passwordHash resumen ya calculado; la contraseña en claro nunca llega a este agregado
+   * @param documento tipo y número (`RN-SP-035`). <b>Los dos juntos o ninguno</b>: no hay forma de
+   *     construir media identidad. Que el tipo exista y esté activo lo verifica el caso de uso; que
+   *     acredite mayoría de edad <b>no lo verifica nadie</b>, porque el catálogo solo ofrece los
+   *     que la acreditan
+   * @param contacto teléfono y dirección (`RN-SP-037`). El teléfono es obligatorio en la API y los
+   *     tres campos de dirección son opcionales
    * @param countryId país de la persona (`RN-SP-034`). <b>Obligatorio y sin valor por defecto</b>:
    *     no hay país de reserva, porque uno cableado aquí acabaría asignándose en silencio a quien
    *     olvidara declararlo. Que exista y esté activo lo verifica el caso de uso
@@ -158,6 +221,8 @@ public class User {
       String lastName,
       String passwordHash,
       UUID countryId,
+      DocumentIdentity documento,
+      ContactDetails contacto,
       Collection<UUID> roleIds,
       OffsetDateTime ahora) {
 
@@ -172,6 +237,8 @@ public class User {
     usuario.firstName = firstName == null ? null : firstName.trim();
     usuario.lastName = lastName == null ? null : lastName.trim();
     usuario.countryId = countryId;
+    usuario.aplicarDocumento(documento);
+    usuario.aplicarContacto(contacto);
     usuario.passwordHash = passwordHash;
     usuario.mustChangePassword = true;
     usuario.status = UserStatus.ACTIVO;
@@ -179,6 +246,56 @@ public class User {
     usuario.updatedAt = ahora;
     usuario.deletedAt = null;
     usuario.roleIds.addAll(roleIds);
+    return usuario;
+  }
+
+  /**
+   * Quien se registra por sí mismo desde un enlace (`RF-SP-045`).
+   *
+   * <p><b>Se separa de {@link #create} en lugar de añadirle dos parámetros</b>, y no es una
+   * preferencia de estilo: lo que cambia son <b>dos invariantes</b>, y las dos hacia el lado
+   * peligroso. Un parámetro booleano de más en el alta administrativa —llamada desde varios sitios—
+   * es una llamada de distancia de crear cuentas que no caducan la contraseña o que nacen pudiendo
+   * operar sin depósito.
+   *
+   * <ul>
+   *   <li><b>Nace en {@code FTD_PENDIENTE} y no en {@code ACTIVO}</b>: autentica y <b>no opera</b>
+   *       hasta que haya un primer depósito confirmado.
+   *   <li><b>NO queda marcada para cambio obligatorio</b>: la contraseña <b>la eligió su
+   *       titular</b> y nadie más la conoce. Es la misma distinción que `RF-SP-040` hizo frente al
+   *       restablecimiento por un administrador — se marca lo que fijó otra persona, no lo que fijó
+   *       uno mismo.
+   * </ul>
+   */
+  public static User selfRegister(
+      UUID id,
+      Username username,
+      Email email,
+      String firstName,
+      String lastName,
+      String passwordHash,
+      UUID countryId,
+      DocumentIdentity documento,
+      ContactDetails contacto,
+      Collection<UUID> roleIds,
+      OffsetDateTime ahora) {
+
+    User usuario =
+        create(
+            id,
+            username,
+            email,
+            firstName,
+            lastName,
+            passwordHash,
+            countryId,
+            documento,
+            contacto,
+            roleIds,
+            ahora);
+
+    usuario.mustChangePassword = false;
+    usuario.status = UserStatus.FTD_PENDIENTE;
     return usuario;
   }
 
@@ -204,6 +321,30 @@ public class User {
 
   public UUID getCountryId() {
     return countryId;
+  }
+
+  public UUID getDocumentTypeId() {
+    return documentTypeId;
+  }
+
+  public String getDocumentNumber() {
+    return documentNumber;
+  }
+
+  public String getAddressLine1() {
+    return addressLine1;
+  }
+
+  public String getAddressLine2() {
+    return addressLine2;
+  }
+
+  public String getCity() {
+    return city;
+  }
+
+  public String getPhone() {
+    return phone;
   }
 
   public boolean isMustChangePassword() {
@@ -299,6 +440,93 @@ public class User {
     this.countryId = pais;
     this.updatedAt = ahora;
     return true;
+  }
+
+  /**
+   * Cambia la identidad documental (`RF-SP-027`, `RN-SP-035`).
+   *
+   * <p>Mismo contrato que {@link #rename}: devuelve si hubo cambio de verdad, para que reenviar el
+   * mismo documento no deje un evento de auditoría describiendo algo que no ocurrió.
+   *
+   * <p><b>El tipo y el número se cambian a la vez o no se cambian.</b> No hay forma de mover uno
+   * solo, y no es una comodidad: {@code ck_users_document_pair} lo impide en el motor, y admitirlo
+   * aquí produciría una violación de integridad traducida a {@code 500} en lugar del {@code 400}
+   * que corresponde.
+   *
+   * <p><b>Un argumento nulo significa «no se envió», nunca «bórralo»</b>: `RN-SP-035` no admite
+   * dejar a alguien sin documento, y el nulo explícito del cuerpo se rechaza en el DTO.
+   *
+   * <p><b>El documento anterior NO queda libre.</b> Corregir una errata es legítimo y la unicidad
+   * sigue siendo total: un documento identifica a una persona en el mundo real, y liberarlo
+   * permitiría que otra ficha lo tomara. Es la diferencia deliberada con el correo, que sí se
+   * libera al cambiarlo.
+   */
+  public boolean changeDocument(DocumentIdentity documento, OffsetDateTime ahora) {
+    if (documento == null || !documento.completa()) {
+      return false;
+    }
+    if (documento.typeId().equals(documentTypeId) && documento.number().equals(documentNumber)) {
+      return false;
+    }
+    aplicarDocumento(documento);
+    this.updatedAt = ahora;
+    return true;
+  }
+
+  /**
+   * Cambia los datos de contacto (`RF-SP-027`, `RF-SP-044`, `RN-SP-037`).
+   *
+   * <p><b>Es la única operación del agregado donde un nulo puede ser una orden</b>, y por eso no
+   * recibe los campos sueltos sino un {@link ContactDetails} que ya distingue «no se envió» de «se
+   * envió vacío». La dirección, el complemento y la ciudad son opcionales: «ya no vive ahí» es un
+   * hecho que hay que poder registrar, y rechazar el vaciado dejaría la dirección vieja pegada para
+   * siempre.
+   *
+   * <p><b>El teléfono es la excepción dentro de la excepción</b>: `RN-SP-037` lo hace obligatorio,
+   * de modo que su nulo explícito se rechaza en el DTO y aquí solo llega como «no se envió».
+   */
+  public boolean changeContact(ContactDetails contacto, OffsetDateTime ahora) {
+    if (contacto == null || !contacto.informaAlgo()) {
+      return false;
+    }
+    String telefonoNuevo = contacto.phone().orElse(phone);
+    String linea1Nueva = contacto.addressLine1().resuelto(addressLine1);
+    String linea2Nueva = contacto.addressLine2().resuelto(addressLine2);
+    String ciudadNueva = contacto.city().resuelto(city);
+
+    boolean cambia =
+        !java.util.Objects.equals(telefonoNuevo, phone)
+            || !java.util.Objects.equals(linea1Nueva, addressLine1)
+            || !java.util.Objects.equals(linea2Nueva, addressLine2)
+            || !java.util.Objects.equals(ciudadNueva, city);
+
+    if (!cambia) {
+      return false;
+    }
+    this.phone = telefonoNuevo;
+    this.addressLine1 = linea1Nueva;
+    this.addressLine2 = linea2Nueva;
+    this.city = ciudadNueva;
+    this.updatedAt = ahora;
+    return true;
+  }
+
+  private void aplicarDocumento(DocumentIdentity documento) {
+    if (documento == null || !documento.completa()) {
+      return;
+    }
+    this.documentTypeId = documento.typeId();
+    this.documentNumber = documento.number();
+  }
+
+  private void aplicarContacto(ContactDetails contacto) {
+    if (contacto == null) {
+      return;
+    }
+    this.phone = contacto.phone().orElse(null);
+    this.addressLine1 = contacto.addressLine1().resuelto(null);
+    this.addressLine2 = contacto.addressLine2().resuelto(null);
+    this.city = contacto.city().resuelto(null);
   }
 
   /**

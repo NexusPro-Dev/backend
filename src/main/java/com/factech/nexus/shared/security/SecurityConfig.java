@@ -67,6 +67,15 @@ public class SecurityConfig {
     // autoriza el permiso temporal que la primera envía, no un token.
     "/api/v1/auth/password-recovery",
     "/api/v1/auth/password-recovery/confirmation",
+    // EL REGISTRO POR ENLACE (`RF-SP-045`, 09-09-2026), Y ES EL PRIMERO PÚBLICO
+    // QUE ESCRIBE. Las demás de esta lista o leen, o consumen una credencial
+    // que alguien emitió; esta CREA CUENTAS.
+    //
+    // Es público por definición y no por decisión: quien se registra no tiene
+    // cuenta con la que autenticarse. Lo que sostiene que eso no sea un agujero
+    // son dos cosas y ninguna es el token — la cuenta nace en `FTD_PENDIENTE`,
+    // que autentica y NO OPERA, y `RateLimitFilter` acota el origen.
+    "/api/v1/auth/registration",
     // EL HOTLINK (`RF-PM-008`), Y ES LA PRIMERA RUTA PÚBLICA POR DECISIÓN Y NO
     // POR DEFINICIÓN. Las cinco de arriba lo son porque quien las llama no
     // puede portar todavía un token; esta lo es porque UN ENLACE SE ABRE ANTES

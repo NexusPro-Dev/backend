@@ -118,6 +118,14 @@ class CommercialStructureTest {
     }
 
     @Override
+    public java.util.Optional<AssignableRole> findByCode(String code) {
+      // `RF-SP-045` lo estrenó el 09-09-2026 para resolver el rol `CLIENTE`.
+      // Este componente no lo usa: el doble lo implementa porque la interfaz lo
+      // declara.
+      return porId.values().stream().filter(rol -> rol.code().equalsIgnoreCase(code)).findFirst();
+    }
+
+    @Override
     public List<AssignableRole> findAllById(Set<UUID> ids) {
       return ids.stream().map(porId::get).filter(java.util.Objects::nonNull).toList();
     }

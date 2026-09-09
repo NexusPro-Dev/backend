@@ -77,6 +77,16 @@ public class RateLimitFilter extends OncePerRequestFilter {
   private static final String RECOVERY_CONFIRMATION = "/api/v1/auth/password-recovery/confirmation";
 
   /**
+   * El registro por enlace (`RF-SP-045`, 09-09-2026).
+   *
+   * <p><b>Se acota por lo mismo que la recuperación y no por lo mismo que el refresco</b>: no es
+   * que consulte la base, es que <b>ESCRIBE</b>. Sin cota, un origen puede crear cuentas en masa —
+   * cada una con su membresía, su atribución y su cuenta de broker— y ensuciar el árbol comercial
+   * sobre el que `CM` comisionará.
+   */
+  private static final String REGISTRATION = "/api/v1/auth/registration";
+
+  /**
    * El hotlink es un <b>prefijo</b> y no una ruta, porque lleva dos variables (`RF-PM-008`).
    *
    * <p>Y ese prefijo es además <b>la llave del contador</b>, que es la mitad que importa: contar
@@ -235,6 +245,9 @@ public class RateLimitFilter extends OncePerRequestFilter {
     // solicitud, y comparar al revés le aplicaría la cota equivocada.
     if (RECOVERY_CONFIRMATION.equals(ruta)) {
       return new Regla(ruta, ajustes.recoveryConfirmation());
+    }
+    if (REGISTRATION.equals(ruta)) {
+      return new Regla(ruta, ajustes.registration());
     }
     if (RECOVERY.equals(ruta)) {
       return new Regla(ruta, ajustes.recovery());

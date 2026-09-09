@@ -288,6 +288,20 @@ nexus:
         por-origen: 120
         ventana: PT1M
 
+      # EL REGISTRO POR ENLACE (`RF-SP-045`), y se acota por lo mismo que la
+      # recuperación y no por lo mismo que el refresco: no es que consulte la
+      # base, es que ESCRIBE. Sin cota, un origen puede crear cuentas en masa
+      # —cada una con su membresía, su atribución y su cuenta de broker— y
+      # ensuciar el árbol comercial sobre el que `CM` comisionará.
+      #
+      # Diez por hora: registrarse es algo que una persona hace UNA VEZ. El
+      # margen deja sitio a quien se equivoca y vuelve a intentarlo, y no deja
+      # sitio a una carga masiva. Detrás de una salida compartida —un locutorio,
+      # una oficina— diez familias al día siguen cabiendo.
+      registration:
+        por-origen: 10
+        ventana: PT1H
+
     # Orígenes que el navegador puede usar para llamar a esta API, separados
     # por coma y con la forma esquema://host[:puerto]. Cambian por entorno, de
     # modo que llegan por variable y NO se escriben en el código (Art. IX.1).

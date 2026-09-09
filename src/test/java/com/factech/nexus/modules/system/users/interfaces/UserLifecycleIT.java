@@ -355,10 +355,14 @@ class UserLifecycleIT extends IntegrationTestBase {
   }
 
   @Test
-  @DisplayName("VAL-001 — PENDIENTE no se admite, aunque el esquema lo acepte")
-  void pendienteNoSeAdmite() throws Exception {
-    // Sería el único camino hacia un estado del que nadie sabe salir.
-    mvc.perform(estado(juan, "PENDIENTE", "x"))
+  @DisplayName("VAL-001 — FTD_PENDIENTE no se admite COMO DESTINO, aunque el esquema lo acepte")
+  void ftdPendienteNoSeAdmiteComoDestino() throws Exception {
+    // Ese estado lo produce el registro por enlace (`RF-SP-045`) y nadie más:
+    // admitirlo aquí dejaría a un administrador metiendo a cualquiera en una
+    // espera que solo un depósito puede terminar. Lo que sí se admite es la
+    // SALIDA — de `FTD_PENDIENTE` a `ACTIVO`—, que hoy es la única forma de
+    // sacar a alguien de ahí mientras el webhook del bróker no exista.
+    mvc.perform(estado(juan, "FTD_PENDIENTE", "x"))
         .andExpect(status().isBadRequest())
         .andExpect(jsonPath("$.errors[0].code").value("VAL-001"));
 

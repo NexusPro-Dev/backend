@@ -1,6 +1,7 @@
 package com.factech.nexus.modules.system.users.application;
 
 import java.util.Optional;
+import java.util.UUID;
 
 /**
  * El nombre de quien reparte un enlace, para el hotlink público (`RF-PM-008`, **D-25**).
@@ -26,6 +27,20 @@ public interface PublicSellerLookup {
    *     <b>los tres casos iguales</b>, para que quien consuma no pueda distinguirlos
    */
   Optional<PublicSellerView> findSellerByUsername(String username);
+
+  /**
+   * El IDENTIFICADOR del vendedor, para colgar de él a quien se registra (`RF-SP-045`).
+   *
+   * <p><b>Aplica exactamente la misma regla que { #findSellerByUsername}</b> —existe, no está
+   * eliminado y porta un rol de tipo { VENDEDOR}—, y por eso vive aquí y no en una consulta
+   * propia del registro: la definición de «fuerza comercial» no puede existir en dos sitios, porque
+   * el segundo se queda atrás sin que nada falle.
+   *
+   * <p><b>El hotlink NO lo llama, y eso no lo contradice</b>: aquel no publica el identificador en su
+   * respuesta, que es una decisión sobre lo que sale por una ruta pública. Esto es un dato interno
+   * que nunca se serializa.
+   */
+  Optional<UUID> sellerIdByUsername(String username);
 
   /** Nombre y apellido. Nada más. */
   record PublicSellerView(String firstName, String lastName) {}

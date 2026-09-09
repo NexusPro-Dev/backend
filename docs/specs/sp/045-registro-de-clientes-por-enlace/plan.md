@@ -5,6 +5,7 @@
 | Requerimiento | `RF-SP-045` |
 | Especificación | [`spec.md`](spec.md) |
 | Estado | **Aprobado** |
+| Enmendado el | 09-09-2026 — **la cuenta de broker** (`RN-SP-042`) y **los tres catálogos públicos**, que cierran el bloqueo 6 |
 | Autor | Responsable técnico |
 | Aprobado por | Responsable del proyecto |
 | Fecha de aprobación | 01-09-2026 |
@@ -57,6 +58,7 @@ De ahí salen las tres decisiones del plan: **una sola transacción**, **límite
 | `modules/system/users/domain/models` | `UserStatus` | `PENDIENTE` → `FTD_PENDIENTE` |
 | `modules/system/auth/domain/repository` | `AuthUser` | `puedeEntrar()` admite el estado nuevo |
 | `shared/security` | `SecurityConfig` | Una ruta pública más |
+| `modules/system/brokers/application` | `BrokerAccountRegistrar` | **Puerto nuevo**: declara la cuenta de broker de una persona. Lo implementa el submódulo de brokers, que es de quien es la tabla |
 | `shared/security/ratelimit` | — | La política del endpoint nuevo |
 
 !!! danger "`puedeEntrar()` es la línea más delicada de este requerimiento"
@@ -82,7 +84,9 @@ De ahí salen las tres decisiones del plan: **una sola transacción**, **límite
   "documentType": "CC",
   "documentNumber": "1020304050",
   "phone": "+573001234567",
-  "addressLine1": null, "addressLine2": null, "city": null
+  "addressLine1": null, "addressLine2": null, "city": null,
+  "brokerId": "01a081f0-6000-7101-9c4f-5e7adb000001",
+  "brokerAccountId": "12345678"
 }
 ```
 
@@ -97,6 +101,11 @@ De ahí salen las tres decisiones del plan: **una sola transacción**, **límite
 **El documento repetido NO dice que lo esté**, al contrario que el nombre de usuario y el correo de `EX-005`. La asimetría es deliberada y está razonada en `spec.md` `EX-007`: un número de documento es un dato que se consigue, y confirmarle a un desconocido que esa persona tiene cuenta aquí es un problema distinto del de ayudar a alguien a elegir otro nombre de usuario.
 
 **`countryCode` es alfa-3 y no un identificador** (07-09-2026), y es el tercer campo de referencia de este cuerpo que evita los UUID: el producto admite su código, el vendedor va por nombre de usuario. Aquí el argumento es incluso más firme — `RN-SP-009` hace que el código de un país **no cambie jamás**, de modo que es el identificador más estable del sistema.
+
+
+**`brokerId` va por IDENTIFICADOR y no por nombre**, y es el único campo de referencia de este cuerpo que lo hace. Los otros tres —producto, vendedor, país— evitan los UUID porque quien rellena el formulario los teclea o los trae el enlace; **el broker lo elige de un desplegable** que acaba de leer del catálogo público, de modo que el identificador ya lo tiene en la mano. Y es lo correcto por lo que el catálogo declara de sí mismo: **el nombre es su clave de negocio y renombrar un broker es una migración**, de modo que referenciarlo por nombre desde un formulario ataría el registro a una cadena que puede cambiar.
+
+**Los dos campos son condicionalmente obligatorios** (`RN-SP-042`): se exigen cuando el producto del enlace es `FREE → FREE`, y **la comprobación se hace DESPUÉS de resolver el producto**, no en la validación del cuerpo. No cabe en una anotación: depende de un dato que hay que ir a buscar.
 
 **Se normaliza a mayúsculas antes de buscar**, porque un formulario público recibirá `col` y `Col`, y `ck_countries_code_format` solo admite mayúsculas. Rechazar por la caja sería rechazar por algo que el sistema puede arreglar sin ambigüedad — es el mismo trato que el correo recibe en `RF-SP-024`.
 
@@ -125,9 +134,11 @@ La respuesta lleva la cuenta creada y **su estado**, y **no lleva credenciales d
 
 ## 7. Transaccionalidad
 
-**Una sola transacción** para los cuatro hechos: cuenta, rol, membresía y atribución.
+**Una sola transacción** para los CINCO hechos: cuenta, rol, membresía, atribución y **cuenta de broker** (09-09-2026).
 
 No es una preferencia: **cualquier corte deja un estado que ninguna regla admite**. Una cuenta con rol de consumidor y sin membresía viola `RN-SP-018`; una con membresía y sin atribución es el cliente huérfano que `EX-002` existe para evitar. `CA-SP-519` lo verifica desde fuera — tras un rechazo, ninguna de las cuatro tablas tiene una fila nueva.
+**Y la cuenta de broker entra en la MISMA**, aunque su fallo llegue del motor y no de una regla: si el índice de `RN-SP-038` rechaza la cuenta —ya la declaró otro—, lo que no puede quedar es una persona registrada, con membresía y atribución, y sin la cuenta que su producto exigía. El estado `FTD_PENDIENTE` la dejaría esperando un depósito que nadie podría atribuirle.
+
 
 La auditoría de seguridad va **después de confirmar**, como en el resto del sistema: un registro que sobreviviera al fallo afirmaría un alta que no ocurrió.
 

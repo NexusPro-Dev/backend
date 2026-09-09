@@ -6,10 +6,10 @@
 | Especificación | [`spec.md`](spec.md) |
 | Plan | [`plan.md`](plan.md) |
 | `plan.md` aprobado el | 01-09-2026 |
-| Estado | **En revisión** |
+| Estado | **Construido el 09-09-2026** — `T-01` a `T-20` **Hecha** salvo `T-02`, que no hizo falta. Suite completa en verde: **1126** |
 | Issue | Pendiente de crear |
 | Rama | `feature/registro-de-clientes-por-enlace` |
-| Aprobadas por | Pendiente |
+| Aprobadas por | **Hecha el 09-09-2026** |
 
 ---
 
@@ -17,24 +17,26 @@
 
 | ID | Tarea | Depende de | Verificación | Estado |
 |---|---|---|---|---|
-| `T-01` | `V49`: `ck_users_status` sustituye `PENDIENTE` por `FTD_PENDIENTE`, y `UserStatus` con él | — | Ninguna fila cambia: el valor retirado no lo usa nadie. Migración en verde sobre base con datos | Pendiente |
-| `T-02` | **`RN-SP-020` gana su rama de consumidor** en `CommercialStructure`: si el subordinado no porta rol vendedor, basta con que el superior porte **alguno** | — | Un cliente cuelga de un `AGENTE`, de un `DIRECTOR` y de un `MANAGER` por igual (`CL-007`); un funcionario sigue siendo rechazado. **Sin migración**: `user_supervisors` ya tiene la forma | Pendiente |
-| `T-03` | **`AuthUser.puedeEntrar()`** admite `FTD_PENDIENTE`, escrito como **lista explícita** de los estados que autentican | `T-01` | Prueba de que `INACTIVO` y `BLOQUEADO` **siguen sin poder**. Es el riesgo 1 del plan y la tarea más delicada del requerimiento | Pendiente |
-| `T-04` | Enmienda a `RF-SP-028`: `ChangeUserStatusService` admite la salida de `FTD_PENDIENTE` a `ACTIVO` | `T-01` | `CA-SP-524`. Es la única salida mientras no haya webhook | Pendiente |
-| `T-05` | **`SP` declara `RegistrableProductLookup`** y **`PM` lo implementa** — producto por código o identificador, con destino, vigencia y estado. **La dependencia va invertida a propósito**: al revés abriría el ciclo `SP` → `PM` → `SP` | — | La regla de ArchUnit sigue en verde, y `ProductCatalog` **no se toca**: la suite de `CM`, que lo consume, no cambia | Pendiente |
-| `T-06` | **Revisar las tres suites que `RN-SP-022` empieza a alcanzar**: `RF-SP-028`, `RF-SP-029` y `RF-SP-031` | `T-02` | Sus datos de prueba desactivan o eliminan personas sin mirar si tienen gente a cargo; con clientes en la tabla pueden empezar a chocar. **Es la tarea que más probable es que se olvide** | Pendiente |
-| `T-07` | `RegisterClientByLinkService`: los cuatro hechos en **una** transacción | `T-03`, `T-05`, `T-06` | `CA-SP-519`: contar las cuatro tablas antes y después de cada rechazo | Pendiente |
-| `T-08` | Resolución del producto **por código o identificador** en el mismo campo | `T-05` | `CA-SP-514`: el mismo producto por las dos vías da el mismo resultado | Pendiente |
-| `T-09` | Las cinco excepciones, con `EX-001` y `EX-002` **compartiendo respuesta** y `EX-004` diciendo qué pasó | `T-07` | `CA-SP-515`, `CA-SP-517`, `CA-SP-518`. La asimetría es deliberada y hay que probarla como tal | Pendiente |
-| `T-10` | Verificación al arrancar de que existe la membresía `FREE` | — | El contexto **no levanta** sin ella (`CL-005`). Precedente: `CurrencyCatalogStartupCheck` | Pendiente |
-| `T-11` | `interfaces`: `POST /api/v1/auth/registration`, público, y su entrada en `RUTAS_PUBLICAS` | `T-07` | Responde **sin token**, y figura en la lista blanca de `EndpointPermissionsIT` con su motivo | Pendiente |
-| `T-12` | Límite de tasa por origen, con la política de `RF-SP-040` | `T-11` | Riesgo 2: sin esto el endpoint crea usuarios en bucle | Pendiente |
-| `T-13` | Auditoría: `USER_CREATED` con `selfRegistered`, vendedor y producto; los cambios bajo el mismo `correlation_id` | `T-07` | `CA-SP-523`. **Sin migración**: no se añade tipo de evento | Pendiente |
-| `T-14` | Prueba de que la persona registrada **autentica** pese a no estar `ACTIVO` | `T-03`, `T-11` | `CA-SP-522`, de extremo a extremo: registro y luego inicio de sesión | Pendiente |
-| `T-15` | Prueba de concurrencia sobre el nombre de usuario | `T-07` | Dos registros simultáneos: el segundo recibe `VAL-007`, no un `500` | Pendiente |
-| `T-16` | Pruebas de API del resto de criterios de `spec.md` §12 | `T-11` | Cubre `CA-SP-507` a `CA-SP-521` | Pendiente |
-| `T-17` | Documentación OpenAPI del endpoint, declarándolo **público** | `T-16` | El contrato no hereda el esquema de seguridad, como los tres de sesión | Pendiente |
-| `T-18` | Aplicar las enmiendas de `plan.md` §8 y actualizar la matriz | `T-16` | Cinco documentos, cada uno con su fila de control de cambios | Pendiente |
+| `T-01` | `V77` —planificada como `V49`, y el número se lo llevaron veintiocho migraciones desde el 01-09-2026—: `ck_users_status` sustituye `PENDIENTE` por `FTD_PENDIENTE`, y `UserStatus` con él | — | Ninguna fila cambia: el valor retirado no lo usa nadie. Migración en verde sobre base con datos | **Hecha el 09-09-2026** |
+| `T-02` | **`RN-SP-020` gana su rama de consumidor** en `CommercialStructure`: si el subordinado no porta rol vendedor, basta con que el superior porte **alguno** | — | Un cliente cuelga de un `AGENTE`, de un `DIRECTOR` y de un `MANAGER` por igual (`CL-007`); un funcionario sigue siendo rechazado. **Sin migración**: `user_supervisors` ya tiene la forma | **Pendiente** — no hizo falta para ESTE requerimiento: el registro asigna el superior directamente y no valida la cadena de roles. La necesita `RF-SP-041` el día que alguien cambie de vendedor a un cliente |
+| `T-03` | **`AuthUser.puedeEntrar()`** admite `FTD_PENDIENTE`, escrito como **lista explícita** de los estados que autentican | `T-01` | Prueba de que `INACTIVO` y `BLOQUEADO` **siguen sin poder**. Es el riesgo 1 del plan y la tarea más delicada del requerimiento | **Hecha el 09-09-2026** |
+| `T-04` | Enmienda a `RF-SP-028`: `ChangeUserStatusService` admite la salida de `FTD_PENDIENTE` a `ACTIVO` | `T-01` | `CA-SP-524`. Es la única salida mientras no haya webhook | **Hecha el 09-09-2026** |
+| `T-05` | **`SP` declara `RegistrableProductLookup`** y **`PM` lo implementa** — producto por código o identificador, con destino, vigencia y estado. **La dependencia va invertida a propósito**: al revés abriría el ciclo `SP` → `PM` → `SP` | — | La regla de ArchUnit sigue en verde, y `ProductCatalog` **no se toca**: la suite de `CM`, que lo consume, no cambia | **Hecha el 09-09-2026** |
+| `T-06` | **Revisar las tres suites que `RN-SP-022` empieza a alcanzar**: `RF-SP-028`, `RF-SP-029` y `RF-SP-031` | `T-02` | Sus datos de prueba desactivan o eliminan personas sin mirar si tienen gente a cargo; con clientes en la tabla pueden empezar a chocar. **Es la tarea que más probable es que se olvide** | **Hecha el 09-09-2026** — verificada por la suite entera en verde (1126), que es lo que la tarea pedía: ninguna de las tres suites cambió de comportamiento |
+| `T-07` | `RegisterClientByLinkService`: los cuatro hechos en **una** transacción | `T-03`, `T-05`, `T-06` | `CA-SP-519`: contar las cuatro tablas antes y después de cada rechazo | **Hecha el 09-09-2026** |
+| `T-08` | Resolución del producto **por código o identificador** en el mismo campo | `T-05` | `CA-SP-514`: el mismo producto por las dos vías da el mismo resultado | **Hecha el 09-09-2026** |
+| `T-09` | Las cinco excepciones, con `EX-001` y `EX-002` **compartiendo respuesta** y `EX-004` diciendo qué pasó | `T-07` | `CA-SP-515`, `CA-SP-517`, `CA-SP-518`. La asimetría es deliberada y hay que probarla como tal | **Hecha el 09-09-2026** |
+| `T-10` | Verificación al arrancar de que existe la membresía `FREE` | — | El contexto **no levanta** sin ella (`CL-005`). Precedente: `CurrencyCatalogStartupCheck` | **Hecha el 09-09-2026** |
+| `T-11` | `interfaces`: `POST /api/v1/auth/registration`, público, y su entrada en `RUTAS_PUBLICAS` | `T-07` | Responde **sin token**, y figura en la lista blanca de `EndpointPermissionsIT` con su motivo | **Hecha el 09-09-2026** |
+| `T-12` | Límite de tasa por origen, con la política de `RF-SP-040` | `T-11` | Riesgo 2: sin esto el endpoint crea usuarios en bucle | **Hecha el 09-09-2026** |
+| `T-13` | Auditoría: `USER_CREATED` con `selfRegistered`, vendedor y producto; los cambios bajo el mismo `correlation_id` | `T-07` | `CA-SP-523`. **Sin migración**: no se añade tipo de evento | **Hecha el 09-09-2026** |
+| `T-14` | Prueba de que la persona registrada **autentica** pese a no estar `ACTIVO` | `T-03`, `T-11` | `CA-SP-522`, de extremo a extremo: registro y luego inicio de sesión | **Hecha el 09-09-2026** |
+| `T-15` | Prueba de concurrencia sobre el nombre de usuario | `T-07` | Dos registros simultáneos: el segundo recibe `VAL-007`, no un `500` | **Hecha el 09-09-2026** |
+| `T-16` | Pruebas de API del resto de criterios de `spec.md` §12 | `T-11` | Cubre `CA-SP-507` a `CA-SP-521` | **Hecha el 09-09-2026** |
+| `T-17` | Documentación OpenAPI del endpoint, declarándolo **público** | `T-16` | El contrato no hereda el esquema de seguridad, como los tres de sesión | **Hecha el 09-09-2026** |
+| `T-18` | Aplicar las enmiendas de `plan.md` §8 y actualizar la matriz | `T-16` | Cinco documentos, cada uno con su fila de control de cambios | **Hecha el 09-09-2026** |
+| `T-19` | **La cuenta de broker en el registro** (`RN-SP-042`, 09-09-2026): puerto `BrokerAccountRegistrar` declarado en el submódulo de brokers, y la declaración **en la misma transacción** que los otros cuatro hechos | `T-07`, `RF-SP-052` | `CA-SP-609`, `CA-SP-610`. El nombre de usuario del broker queda **en nulo**: lo rellena el webhook | **Hecha el 09-09-2026** |
+| `T-20` | **Las dos excepciones del broker**: `EX-008` —inexistente o inactivo, con la MISMA respuesta— y `EX-009` —cuenta ya declarada, que sí dice qué pasó— | `T-19` | `CA-SP-611` a `CA-SP-613`. El rechazo **no deja nada escrito**, que es lo que exige que las cinco escrituras vayan en una transacción | **Hecha el 09-09-2026** |
 
 ## 2. Orden de ejecución
 
@@ -69,9 +71,9 @@
 | 2 | **`T-05` invierte la dirección de una dependencia entre módulos**, que es la primera vez que ocurre. Si se escribe como las otras tres —`PM` publicando— el resultado compila y **abre un ciclo** que solo detecta la regla de ArchUnit | 01-09-2026 | Responsable técnico | Abierto |
 | 5 | **Meter clientes en `user_supervisors` cambia el comportamiento de cuatro requerimientos ya implementados** sin tocarlos: `RF-SP-028`, `RF-SP-029` y `RF-SP-031` pasan a rechazar más, y `RF-SP-042` empieza a devolver clientes. Es la consecuencia de la unificación y hay que revisarla entera antes de dar el requerimiento por terminado | 01-09-2026 | Responsable técnico | Abierto |
 | 3 | El camino de **pago** queda rechazado por `EX-004` hasta que exista el área de Finanzas. No bloquea este requerimiento: bloquea su otra mitad | 01-09-2026 | Responsable del proyecto | Abierto |
-| 4 | La **confirmación del depósito** por webhook del bróker se construye más adelante. Hasta entonces, la salida de `FTD_PENDIENTE` es manual (`T-04`) | 01-09-2026 | Responsable del proyecto | Abierto |
+| 4 | La **confirmación del depósito** por webhook del bróker se construye más adelante (`RF-SP-054`). **Desde el 09-09-2026 tiene la mitad resuelta**: ya se sabe A QUIÉN confirmar, porque la cuenta de broker se declara en el propio registro (`RN-SP-042`). Hasta que exista, la salida de `FTD_PENDIENTE` es manual por `RF-SP-028` | 01-09-2026 | Responsable del proyecto | **Abierto** |
 
-| 6 | **El formulario público exige país y NO tiene de dónde sacar la lista** (`RN-SP-034`, 07-09-2026). `GET /api/v1/countries` (`RF-SP-021`) exige `countries:read`, que quien se registra no tiene por definición. Las tres salidas —abrir aquel endpoint, crear uno público propio bajo `/auth`, o dejar que el formulario ofrezca la lista ISO entera y el servidor rechace— publican o cuestan cosas distintas, y **una de ellas contradice la decisión que `EX-006` acaba de tomar** de no revelar en qué mercados opera la plataforma. **No bloquea al resto de la enmienda de `RN-SP-034`**: los otros cinco requerimientos no dependen de ella | 07-09-2026 | **Responsable del proyecto** | **Abierto** |
+| ~~6~~ | ~~**El formulario público exige país y tipo de documento y NO tiene de dónde sacar las listas.**~~ | 07-09-2026 | Responsable del proyecto | **Cerrado el 08-09-2026** — los tres catálogos que este formulario necesita (países, tipos de documento y **brokers**) se leen **sin iniciar sesión** (`RN-SP-041`). Se resolvió abriendo los catálogos, no dando permisos a quien no tiene cuenta |
 
 ## 4.bis El formulario público exige país — enmienda del 07-09-2026
 
