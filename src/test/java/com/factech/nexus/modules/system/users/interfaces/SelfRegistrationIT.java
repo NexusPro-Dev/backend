@@ -199,18 +199,96 @@ class SelfRegistrationIT extends IntegrationTestBase {
   // ---------------------------------------------------------------------------
 
   @Test
-  @DisplayName("`CA-SP-609` — el enlace FREE → FREE exige broker e identificador de cuenta")
+  @DisplayName("`CA-SP-609` — el enlace FREE → FREE exige AL MENOS UNA cuenta de broker")
   void elBrokerEsObligatorio() throws Exception {
+    // Lista vacía: es lo que envía un formulario donde nadie declaró ninguna.
     mvc.perform(registro(cuerpoCon("REG_FREE", "ana.ruiz", "ana@ejemplo.com", null, BROKER)))
         .andExpect(status().isBadRequest())
-        .andExpect(jsonPath("$.errors[0].code").value("VAL-013"));
+        .andExpect(jsonPath("$.errors[0].code").value("VAL-012"));
 
+    // Una cuenta sin broker: la lista llega, pero incompleta.
     mvc.perform(registro(cuerpoCon("REG_FREE", "ana.ruiz", "ana@ejemplo.com", "12345678", null)))
         .andExpect(status().isBadRequest())
         .andExpect(jsonPath("$.errors[0].code").value("VAL-012"));
 
     // Y ninguno de los dos rechazos deja nada escrito.
     assertThat(cuantasPersonas()).isZero();
+  }
+
+  @Test
+  @DisplayName("`CA-SP-614` — se declaran VARIAS cuentas en el mismo registro")
+  void variasCuentasDeBroker() throws Exception {
+    String otro =
+        jdbc.queryForObject("SELECT id::text FROM brokers WHERE name = 'EXNOVA'", String.class);
+
+    // Una persona puede operar con varios brokers, y este formulario es hoy la
+    // única vía para declararlos: `RF-SP-053` sigue sin decidirse.
+    mvc.perform(
+            registro(
+                plantillaConCuentas(
+                    ("[{\"brokerId\":\"%s\",\"accountId\":\"111\"},"
+                            + "{\"brokerId\":\"%s\",\"accountId\":\"222\"},"
+                            + "{\"brokerId\":\"%s\",\"accountId\":\"333\"}]")
+                        .formatted(BROKER, otro, BROKER))))
+        .andExpect(status().isCreated());
+
+    // Tres filas, y dos de ellas del MISMO broker: `RN-SP-038` acota el par
+    // broker + identificador, no cuántas cuentas tiene alguien.
+    assertThat(
+            jdbc.queryForObject(
+                "SELECT count(*) FROM user_brokers ub JOIN users u ON u.id = ub.user_id"
+                    + " WHERE u.username = 'ana.ruiz'",
+                Integer.class))
+        .isEqualTo(3);
+  }
+
+  @Test
+  @DisplayName("`VAL-014` — la misma cuenta repetida en la misma petición se rechaza")
+  void cuentaRepetidaEnLaMismaPeticion() throws Exception {
+    // El índice también la cazaría, y su mensaje diría «ya está declarada por
+    // OTRA persona» — la otra persona sería ella misma, dos líneas más arriba
+    // del mismo formulario.
+    mvc.perform(
+            registro(
+                plantillaConCuentas(
+                    ("[{\"brokerId\":\"%s\",\"accountId\":\"111\"},"
+                            + "{\"brokerId\":\"%s\",\"accountId\":\"111\"}]")
+                        .formatted(BROKER, BROKER))))
+        .andExpect(status().isBadRequest())
+        .andExpect(jsonPath("$.errors[0].code").value("VAL-014"));
+
+    assertThat(cuantasPersonas()).isZero();
+  }
+
+  @Test
+  @DisplayName("si UNA de las cuentas choca, no queda NADA: ni la persona ni las anteriores")
+  void unaCuentaQueChocaDeshaceElRegistroEntero() throws Exception {
+    mvc.perform(registro(cuerpo("ana.ruiz", "ana@ejemplo.com", "111")))
+        .andExpect(status().isCreated());
+
+    String otro =
+        jdbc.queryForObject("SELECT id::text FROM brokers WHERE name = 'EXNOVA'", String.class);
+
+    // La primera cuenta es libre y la segunda ya es de Ana: registrar a alguien
+    // con la mitad de sus brokers declarados sería peor que no registrarlo,
+    // porque nadie sabría cuál falta.
+    mvc.perform(
+            registro(
+                plantillaConCuentas(
+                    "beto.paz",
+                    "beto@ejemplo.com",
+                    ("[{\"brokerId\":\"%s\",\"accountId\":\"999\"},"
+                            + "{\"brokerId\":\"%s\",\"accountId\":\"111\"}]")
+                        .formatted(otro, BROKER))))
+        .andExpect(status().isConflict())
+        .andExpect(jsonPath("$.errors[0].code").value("EX-009"));
+
+    assertThat(
+            jdbc.queryForObject(
+                "SELECT count(*) FROM users WHERE username = 'beto.paz'", Integer.class))
+        .isZero();
+    // Y la cuenta libre de la petición fallida tampoco quedó.
+    assertThat(jdbc.queryForObject("SELECT count(*) FROM user_brokers", Integer.class)).isOne();
   }
 
   @Test
@@ -474,7 +552,7 @@ class SelfRegistrationIT extends IntegrationTestBase {
          "countryCode":"%s","documentType":"%s","documentNumber":"%s",
          "phone":"+573001234567",
          "addressLine1":null,"addressLine2":null,"city":null,
-         "brokerId":%s,"brokerAccountId":%s}
+         "brokerAccounts":%s}
         """
         .formatted(
             producto,
@@ -486,8 +564,44 @@ class SelfRegistrationIT extends IntegrationTestBase {
             // El número de documento se deriva del nombre de usuario para que
             // dos registros distintos no choquen por `uq_users_document`.
             Integer.toString(Math.abs(usuario.hashCode())),
-            broker == null ? "null" : "\"" + broker + "\"",
-            cuenta == null ? "null" : "\"" + cuenta + "\"");
+            cuentas(broker, cuenta));
+  }
+
+  private String plantillaConCuentas(String cuentasJson) {
+    return plantillaConCuentas("ana.ruiz", "ana@ejemplo.com", cuentasJson);
+  }
+
+  /** El cuerpo con una lista de cuentas escrita a mano, para los casos de varias. */
+  private String plantillaConCuentas(String usuario, String correo, String cuentasJson) {
+    return """
+        {"product":"REG_FREE","referrer":"reg-agente",
+         "firstName":"Ana","lastName":"Ruiz",
+         "username":"%s","email":"%s","password":"ClaveSegura2026!",
+         "countryCode":"%s","documentType":"CC","documentNumber":"%s",
+         "phone":"+573001234567",
+         "addressLine1":null,"addressLine2":null,"city":null,
+         "brokerAccounts":%s}
+        """
+        .formatted(
+            usuario,
+            correo,
+            paisSembrado(),
+            Integer.toString(Math.abs(usuario.hashCode())),
+            cuentasJson);
+  }
+
+  /**
+   * La lista de cuentas, o vacía.
+   *
+   * <p>Un broker nulo produce una cuenta SIN broker —para probar `VAL-012`— y una cuenta nula
+   * produce una lista vacía, que es lo que el registro rechaza cuando el enlace la exige.
+   */
+  private static String cuentas(String broker, String cuenta) {
+    if (cuenta == null) {
+      return "[]";
+    }
+    String id = broker == null ? "null" : "\"" + broker + "\"";
+    return "[{\"brokerId\":" + id + ",\"accountId\":\"" + cuenta + "\"}]";
   }
 
   private String paisSembrado() {

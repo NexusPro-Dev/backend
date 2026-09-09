@@ -85,8 +85,10 @@ De ahí salen las tres decisiones del plan: **una sola transacción**, **límite
   "documentNumber": "1020304050",
   "phone": "+573001234567",
   "addressLine1": null, "addressLine2": null, "city": null,
-  "brokerId": "01a081f0-6000-7101-9c4f-5e7adb000001",
-  "brokerAccountId": "12345678"
+  "brokerAccounts": [
+    { "brokerId": "01a081f0-6000-7101-9c4f-5e7adb000001", "accountId": "12345678" },
+    { "brokerId": "01a081f0-6000-7102-9c4f-5e7adb000002", "accountId": "87654321" }
+  ]
 }
 ```
 
@@ -105,7 +107,9 @@ De ahí salen las tres decisiones del plan: **una sola transacción**, **límite
 
 **`brokerId` va por IDENTIFICADOR y no por nombre**, y es el único campo de referencia de este cuerpo que lo hace. Los otros tres —producto, vendedor, país— evitan los UUID porque quien rellena el formulario los teclea o los trae el enlace; **el broker lo elige de un desplegable** que acaba de leer del catálogo público, de modo que el identificador ya lo tiene en la mano. Y es lo correcto por lo que el catálogo declara de sí mismo: **el nombre es su clave de negocio y renombrar un broker es una migración**, de modo que referenciarlo por nombre desde un formulario ataría el registro a una cadena que puede cambiar.
 
-**Los dos campos son condicionalmente obligatorios** (`RN-SP-042`): se exigen cuando el producto del enlace es `FREE → FREE`, y **la comprobación se hace DESPUÉS de resolver el producto**, no en la validación del cuerpo. No cabe en una anotación: depende de un dato que hay que ir a buscar.
+**Es una LISTA y se exige AL MENOS UNA** cuando el producto del enlace es `FREE → FREE` (`RN-SP-042`): una persona puede operar con varios brokers, y este formulario es hoy la única vía para declararlos. **La comprobación se hace DESPUÉS de resolver el producto**, no en la validación del cuerpo: no cabe en una anotación porque depende de un dato que hay que ir a buscar.
+
+**Las repetidas dentro de la misma petición se rechazan como dato inválido** y no con el `409` del índice, aunque el índice también las cazaría: ese mensaje dice «ya está declarada por otra persona», y ahí la otra persona sería ella misma dos líneas más arriba del mismo formulario.
 
 **Se normaliza a mayúsculas antes de buscar**, porque un formulario público recibirá `col` y `Col`, y `ck_countries_code_format` solo admite mayúsculas. Rechazar por la caja sería rechazar por algo que el sistema puede arreglar sin ambigüedad — es el mismo trato que el correo recibe en `RF-SP-024`.
 

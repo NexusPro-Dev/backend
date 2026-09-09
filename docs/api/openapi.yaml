@@ -1986,15 +1986,25 @@ paths:
         evitan los UUID —producto, vendedor, `countryCode` alfa-3 y
         `documentType` por abreviación— porque es un formulario público al que
         no se le puede pedir que conozca los identificadores del sistema. La
-        excepción es `brokerId`, que se elige de un desplegable leído del
-        catálogo público de brokers.
+        excepción es el broker de cada cuenta, que se elige de un desplegable
+        leído del catálogo público de brokers.
 
-        **`brokerId` y `brokerAccountId` son obligatorios cuando el producto
-        del enlace es una membresía `FREE → FREE`** (`RN-SP-042`), y solo
-        entonces. El motivo es el estado en el que nace la cuenta: sin la
-        cuenta de broker declarada, nadie podrá atribuirle el depósito que la
-        saca de `FTD_PENDIENTE`. El **nombre de usuario en el broker no se
-        pide**: lo rellena después el webhook del propio broker.
+        **`brokerAccounts` es una LISTA: se declaran UNA O MÁS cuentas** en el
+        mismo registro, porque una persona puede operar con varios brokers y
+        esta es hoy la única vía para declararlos.
+
+        **Es obligatoria —al menos una— cuando el producto del enlace es una
+        membresía `FREE → FREE`** (`RN-SP-042`), y solo entonces. El motivo es
+        el estado en el que nace la cuenta: sin cuenta de broker declarada,
+        nadie podrá atribuirle el depósito que la saca de `FTD_PENDIENTE`. Con
+        otro producto **se admiten igualmente** las que se envíen.
+
+        **El nombre de usuario en el broker no se pide**: lo rellena después el
+        webhook del propio broker.
+
+        **Dos cuentas iguales en la misma petición se rechazan** con `VAL-014`,
+        y no con el `409` del índice: ese mensaje diría «ya está declarada por
+        otra persona», y la otra persona sería ella misma.
 
         **La cuenta nace en `FTD_PENDIENTE`**, que **autentica y no opera**:
         quien se registra puede iniciar sesión y ver lo suyo, y lo que le falta
@@ -5628,6 +5638,14 @@ components:
       properties:
         reason:
           type: string
+    BrokerAccount:
+      type: object
+      properties:
+        brokerId:
+          type: string
+          format: uuid
+        accountId:
+          type: string
     SelfRegistrationRequest:
       type: object
       properties:
@@ -5670,11 +5688,10 @@ components:
           type: string
         city:
           type: string
-        brokerId:
-          type: string
-          format: uuid
-        brokerAccountId:
-          type: string
+        brokerAccounts:
+          type: array
+          items:
+            $ref: "#/components/schemas/BrokerAccount"
       required:
       - countryCode
       - documentNumber

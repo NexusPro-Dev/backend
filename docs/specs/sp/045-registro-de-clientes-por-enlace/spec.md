@@ -102,13 +102,12 @@ Lo que sí se consigue forjando es **atribuirse a un vendedor cualquiera**, y es
 | Teléfono | Sí | Vía de contacto | `RN-SP-037` |
 | Dirección, complemento y ciudad | No | Datos de contacto | Opcionales, como en el alta administrativa |
 | País | Sí | **Código ISO 3166-1 alfa-3** del país donde está la persona | Debe existir en el catálogo y estar **activo** (`RN-SP-034`) |
-| Broker | **Condicional** | Identificador del broker donde tiene su cuenta | Debe existir y estar activo. **Obligatorio solo si el producto es `FREE → FREE`** (`RN-SP-042`) |
-| Identificador de cuenta | **Condicional** | El número de cuenta de la persona **en ese broker** | Ídem. Único junto con el broker en todo el sistema (`RN-SP-038`) |
+| Cuentas de broker | **Condicional** | **Una o más**: cada una con su broker y su identificador de cuenta en ese broker | Los brokers deben existir y estar activos. **Al menos una si el producto es `FREE → FREE`** (`RN-SP-042`). Cada par broker + identificador es único en todo el sistema (`RN-SP-038`), y **no se repite dentro de la misma petición** |
 
 
 !!! important "Por qué la cuenta de broker es obligatoria SOLO en el enlace `FREE → FREE`"
 
-    Decisión del responsable del proyecto, 09-09-2026. **La condición no es de forma sino de encierro**: la cuenta que este registro crea nace en `FTD_PENDIENTE`, que **autentica y no opera**, y quien la saca de ahí es el **depósito confirmado por el webhook del broker**. Sin la cuenta declarada, el sistema no puede saber de quién es un depósito cuando llegue — y la persona se queda encerrada en un estado del que nadie puede sacarla salvo a mano.
+    Decisión del responsable del proyecto, 09-09-2026, junto con la de que se declaren **una o más**. **La condición no es de forma sino de encierro**: la cuenta que este registro crea nace en `FTD_PENDIENTE`, que **autentica y no opera**, y quien la saca de ahí es el **depósito confirmado por el webhook del broker**. Sin la cuenta declarada, el sistema no puede saber de quién es un depósito cuando llegue — y la persona se queda encerrada en un estado del que nadie puede sacarla salvo a mano.
 
     **Hoy esa condición se cumple siempre**, y conviene saberlo: el registro solo admite productos cuya membresía destino es la gratuita (§8, paso 3), y `RN-PM-017` impide que un producto apunte por debajo de su origen — de modo que **todo producto admisible aquí es `FREE → FREE`**. La condicionalidad no cambia nada hoy.
 
@@ -235,8 +234,9 @@ Dentro del sistema, en cambio, la distinción sí ayuda: un administrador **pued
 | `VAL-009` | País informado, existente y activo (`RN-SP-034`) | El país indicado no es válido. |
 | `VAL-010` | Tipo y número de documento informados y válidos (`RN-SP-035`) | El documento indicado no es válido. |
 | `VAL-011` | Teléfono informado y con formato admitido (`RN-SP-037`) | El teléfono indicado no es válido. |
-| `VAL-012` | Broker informado **cuando el producto es `FREE → FREE`** (`RN-SP-042`) | Debe indicar el broker donde tiene su cuenta. |
-| `VAL-013` | Identificador de cuenta informado en el mismo caso | Debe indicar su identificador de cuenta en el broker. |
+| `VAL-012` | **Al menos una cuenta de broker**, con su broker informado, cuando el producto es `FREE → FREE` (`RN-SP-042`) | Debe indicar al menos una cuenta de broker. |
+| `VAL-013` | Identificador de cuenta informado en cada cuenta declarada | Debe indicar su identificador de cuenta en el broker. |
+| `VAL-014` | **La misma cuenta no se repite dentro de la petición** | No repita la misma cuenta de broker en el registro. |
 
 ## 12. Criterios de aceptación
 
@@ -270,6 +270,9 @@ Dentro del sistema, en cambio, la distinción sí ayuda: un administrador **pued
 | `CA-SP-611` | Un broker inexistente y uno inactivo se rechazan **con la misma respuesta** |
 | `CA-SP-612` | Una cuenta de broker **ya declarada por otra persona** se rechaza diciendo qué pasó, y **no deja nada escrito** — ni cuenta, ni membresía, ni atribución |
 | `CA-SP-613` | La misma persona **puede** declarar en el registro una cuenta que ella ya tiene en **otro** broker: lo único que no se repite es el par broker + identificador |
+| `CA-SP-614` | El registro admite **varias cuentas de broker a la vez**, incluidas **dos del mismo broker**: lo que `RN-SP-038` acota es el par, no cuántas cuentas tiene alguien |
+| `CA-SP-615` | La **misma cuenta repetida en la misma petición** se rechaza como dato inválido, y **no** con el conflicto del índice — ese mensaje diría «ya está declarada por otra persona», y la otra persona sería ella misma |
+| `CA-SP-616` | Si **una** de las cuentas choca, **no queda nada**: ni la persona, ni su membresía, ni las cuentas anteriores de la misma petición |
 | `CA-SP-524` | Un administrador puede llevar la cuenta de `FTD_PENDIENTE` a `ACTIVO` por `RF-SP-028` |
 
 ## 13. Casos límite
@@ -304,3 +307,4 @@ Dentro del sistema, en cambio, la distinción sí ayuda: un administrador **pued
 | 0.2.0 | 07-09-2026 | El formulario público **exige país** (`RN-SP-034`): nacen `EX-006`, `VAL-009`, `CA-SP-582` y `CA-SP-583`, y con ellos la pregunta abierta de **de dónde saca la lista** quien no tiene cuenta. | Responsable del proyecto |
 | 0.3.0 | 08-09-2026 | El formulario público **exige documento y teléfono** (`RN-SP-035`, `RN-SP-037`): nacen `EX-007`, `VAL-010`, `VAL-011`, `CA-SP-600` y `CA-SP-601`. **La pregunta del catálogo crece a dos**, y eso es lo que acaba cambiando la decisión: con uno era una excepción, con dos es un patrón. | Responsable del proyecto |
 | **1.0.0** | **09-09-2026** | **APROBADA**, y con tres cambios que la tripleta no podía prever cuando se escribió el 01-09. **Uno: sus dos preguntas abiertas de catálogo se cerraron solas** — los tres catálogos que este formulario necesita se leen **sin iniciar sesión** desde el 08-09-2026 (`RN-SP-041`), y con ellas se cierra el **bloqueo 6**. **Dos: el formulario declara la CUENTA DE BROKER** (`RN-SP-042`), obligatoria **solo cuando el producto es `FREE → FREE`**; nacen `EX-008`, `EX-009`, `VAL-012`, `VAL-013` y `CA-SP-609` a `CA-SP-613`. La condición **hoy se cumple siempre** —todo producto admisible aquí es `FREE → FREE`, porque `RN-PM-017` impide apuntar por debajo del origen y el destino tiene que ser la gratuita— y lo que compra es **el día que se abra el camino de pago**: entonces entrarán productos cuyo acceso no depende de ningún depósito, y pedir la cuenta de broker sería pedir un dato que no hace falta. **Tres: la pregunta de la confirmación del depósito pasa a tener la mitad resuelta** — el webhook sigue sin decidir (`RF-SP-054`), pero **ya se sabe a quién confirmar**. Lo que no cambia: el camino de pago sigue rechazado por `EX-004` y la atribución sigue siendo forjable. | Responsable del proyecto |
+| 1.1.0 | 09-09-2026 | **Las cuentas de broker son UNA O MÁS**, por precisión del responsable del proyecto el mismo día: una persona puede operar con varios brokers, y este formulario es **hoy la única vía** para declararlos — `RF-SP-053` sigue sin decidirse para todo lo que no sea este registro. El campo pasa de dos escalares a una **lista**, y `RN-SP-042` exige **al menos una** cuando el enlace es `FREE → FREE`. Nacen `CA-SP-614` —varias a la vez, **incluidas dos del mismo broker**, porque lo que `RN-SP-038` acota es el par y no cuántas cuentas tiene alguien—, `CA-SP-615` —la **repetida dentro de la misma petición** se rechaza como dato inválido y no con el `409` del índice: ese mensaje diría «ya está declarada por otra persona», y la otra persona sería ella misma dos líneas más arriba— y `CA-SP-616`, que es el que sostiene la transacción: **si una cuenta choca, no queda nada**, ni la persona ni las cuentas anteriores de la misma petición. Registrar a alguien con la mitad de sus brokers declarados sería peor que no registrarlo, porque nadie sabría cuál falta. | Responsable del proyecto |

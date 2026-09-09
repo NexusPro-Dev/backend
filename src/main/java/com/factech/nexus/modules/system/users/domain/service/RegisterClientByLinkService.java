@@ -4,6 +4,7 @@ import com.factech.nexus.modules.system.users.application.PublicSellerLookup;
 import com.factech.nexus.modules.system.users.application.RegistrableProductLookup;
 import com.factech.nexus.modules.system.users.application.RegistrableProductLookup.RegistrableProductView;
 import com.factech.nexus.modules.system.users.application.SelfRegistrationRequest;
+import com.factech.nexus.modules.system.users.application.SelfRegistrationRequest.BrokerAccount;
 import com.factech.nexus.modules.system.users.application.SelfRegistrationResponse;
 import com.factech.nexus.modules.system.users.domain.models.ContactDetails;
 import com.factech.nexus.modules.system.users.domain.models.DocumentIdentity;
@@ -35,6 +36,7 @@ import com.factech.nexus.shared.security.PasswordPolicy;
 import java.time.Clock;
 import java.time.OffsetDateTime;
 import java.util.LinkedHashMap;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -62,12 +64,18 @@ import org.springframework.transaction.annotation.Transactional;
  *       identidades chocó, y que su cuenta de broker ya está tomada.
  * </ul>
  *
- * <h2>Cinco escrituras y UNA transacción</h2>
+ * <h2>Cuatro escrituras, MÁS UNA POR CUENTA DE BROKER, y una sola transacción</h2>
  *
- * <p>Cuenta, rol, membresía, atribución y cuenta de broker. <b>Cualquier corte deja un estado que
- * ninguna regla admite</b>: una cuenta con rol de consumidor y sin membresía viola `RN-SP-018`; una
- * sin atribución deja un cliente que no comisiona a nadie; y una sin cuenta de broker deja a la
- * persona en {@code FTD_PENDIENTE} esperando un depósito que nadie podrá atribuirle.
+ * <p>Cuenta, rol, membresía, atribución y <b>una o más</b> cuentas de broker. <b>Cualquier corte
+ * deja un estado que ninguna regla admite</b>: una cuenta con rol de consumidor y sin membresía
+ * viola `RN-SP-018`; una sin atribución deja un cliente que no comisiona a nadie; y una sin cuenta
+ * de broker deja a la persona en {@code FTD_PENDIENTE} esperando un depósito que nadie podrá
+ * atribuirle.
+ *
+ * <p><b>Que sean varias no cambia la transacción, y sí cambia lo que puede quedar a medias</b>: si
+ * la tercera cuenta choca con el índice de `RN-SP-038`, se deshacen también las dos primeras y la
+ * persona. Registrar a alguien con la mitad de sus brokers declarados sería peor que no registrarlo
+ * — nadie sabría cuál falta.
  */
 @Service
 public class RegisterClientByLinkService {
@@ -165,7 +173,7 @@ public class RegisterClientByLinkService {
 
     UUID pais = verificarPais(peticion.countryCode());
     UUID tipoDocumento = verificarDocumento(peticion.documentType());
-    BrokerRef broker = verificarBroker(producto, peticion);
+    List<BrokerAccount> cuentas = verificarCuentasDeBroker(producto, peticion);
 
     AssignableRole rolCliente =
         roles
@@ -209,11 +217,14 @@ public class RegisterClientByLinkService {
     // nadie comisiona y que nadie sabe reclamar.
     usuarios.assignSupervisor(ids.next(), usuario.getId(), vendedor, ahora);
 
-    if (broker != null) {
-      brokers.declare(ids.next(), usuario.getId(), broker.id(), peticion.brokerAccountId().trim());
+    // Todas en la MISMA transacción que la persona: una cuenta rechazada por el
+    // índice deshace el registro entero, en lugar de dejar a alguien dentro con
+    // media declaración.
+    for (BrokerAccount cuenta : cuentas) {
+      brokers.declare(ids.next(), usuario.getId(), cuenta.brokerId(), cuenta.accountId().trim());
     }
 
-    auditar(usuario, producto, peticion.referrer(), broker);
+    auditar(usuario, producto, peticion.referrer(), cuentas.size());
 
     return SelfRegistrationResponse.de(usuario.getId(), usuario.getUsername());
   }
@@ -309,32 +320,65 @@ public class RegisterClientByLinkService {
    * es el día que se abra el camino de pago: entonces entrarán productos cuyo acceso no depende de
    * ningún depósito, y pedir la cuenta de broker sería pedir un dato que no hace falta.
    *
-   * @return el broker verificado, o {@code null} si este enlace no exige cuenta
+   * <p><b>Son UNA O MÁS</b> (09-09-2026): una persona puede operar con varios brokers, y el
+   * registro es hoy la única vía para declararlos — `RF-SP-053` sigue sin decidirse para todo lo
+   * que no sea este formulario. Lo que la regla exige es <b>al menos una</b>, no exactamente una.
+   *
+   * <p><b>Las repetidas dentro de la MISMA petición se rechazan aquí</b> y no en el índice, aunque
+   * el índice también las cazaría: la respuesta de `RN-SP-038` dice «ya está declarada por otra
+   * persona», y en este caso la otra persona <b>es ella misma</b>, tres líneas más arriba del mismo
+   * formulario. Un mensaje que miente confunde más que uno que falta.
+   *
+   * @return las cuentas verificadas, o la lista vacía si este enlace no exige ninguna
    */
-  private BrokerRef verificarBroker(RegistrableProductView producto, SelfRegistrationRequest p) {
+  private List<BrokerAccount> verificarCuentasDeBroker(
+      RegistrableProductView producto, SelfRegistrationRequest p) {
+
     boolean gratuitaAGratuita =
         MEMBRESIA_GRATUITA.equalsIgnoreCase(producto.sourceMembershipCode())
             && MEMBRESIA_GRATUITA.equalsIgnoreCase(producto.targetMembershipCode());
 
+    List<BrokerAccount> cuentas = p.cuentas();
+
     if (!gratuitaAGratuita) {
-      return null;
+      // El enlace no exige cuenta, y lo que llegue se declara igual: quien la
+      // aporta sin que se le pida no está haciendo nada indebido, y descartarla
+      // en silencio sería perder un dato que su titular quiso dar.
+      return verificadas(cuentas);
     }
 
-    if (p.brokerId() == null) {
-      throw validacion("brokerId", "VAL-012", "Debe indicar el broker donde tiene su cuenta.");
+    if (cuentas.isEmpty()) {
+      throw validacion("brokerAccounts", "VAL-012", "Debe indicar al menos una cuenta de broker.");
     }
-    if (p.brokerAccountId() == null || p.brokerAccountId().isBlank()) {
-      throw validacion(
-          "brokerAccountId", "VAL-013", "Debe indicar su identificador de cuenta en el broker.");
-    }
+    return verificadas(cuentas);
+  }
 
-    // Inexistente e inactivo comparten respuesta: el catálogo ya dice cuáles
-    // hay —es público— y distinguirlos solo permitiría averiguar con qué
-    // brokers opera la plataforma probando identificadores.
-    return brokers
-        .find(p.brokerId())
-        .filter(BrokerRef::active)
-        .orElseThrow(() -> noProcede("brokerId", "EX-008"));
+  private List<BrokerAccount> verificadas(List<BrokerAccount> cuentas) {
+    Set<String> vistas = new LinkedHashSet<>();
+
+    for (BrokerAccount cuenta : cuentas) {
+      if (cuenta == null || cuenta.brokerId() == null) {
+        throw validacion(
+            "brokerAccounts", "VAL-012", "Debe indicar el broker donde tiene su cuenta.");
+      }
+      if (cuenta.accountId() == null || cuenta.accountId().isBlank()) {
+        throw validacion(
+            "brokerAccounts", "VAL-013", "Debe indicar su identificador de cuenta en el broker.");
+      }
+      if (!vistas.add(cuenta.brokerId() + "|" + cuenta.accountId().trim())) {
+        throw validacion(
+            "brokerAccounts", "VAL-014", "No repita la misma cuenta de broker en el registro.");
+      }
+
+      // Inexistente e inactivo comparten respuesta: el catálogo ya dice cuáles
+      // hay —es público— y distinguirlos solo permitiría averiguar con qué
+      // brokers opera la plataforma probando identificadores.
+      brokers
+          .find(cuenta.brokerId())
+          .filter(BrokerRef::active)
+          .orElseThrow(() -> noProcede("brokerAccounts", "EX-008"));
+    }
+    return cuentas;
   }
 
   // ---------------------------------------------------------------------------
@@ -349,13 +393,13 @@ public class RegisterClientByLinkService {
    * {@code selfRegistered} en el detalle, y el actor — que aquí es <b>la propia persona</b>.
    */
   private void auditar(
-      User usuario, RegistrableProductView producto, String referrer, BrokerRef broker) {
+      User usuario, RegistrableProductView producto, String referrer, int cuentasDeBroker) {
 
     Map<String, Object> detalle = new LinkedHashMap<>();
     detalle.put("selfRegistered", true);
     detalle.put("product", producto.code());
     detalle.put("referrer", referrer);
-    detalle.put("brokerDeclared", broker != null);
+    detalle.put("brokerAccounts", cuentasDeBroker);
 
     // El estado inicial, con las mismas claves que el alta administrativa: dos
     // altas de la misma tabla descritas con claves distintas no se pueden

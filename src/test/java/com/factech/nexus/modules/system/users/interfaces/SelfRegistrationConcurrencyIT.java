@@ -102,7 +102,7 @@ class SelfRegistrationConcurrencyIT extends IntegrationTestBase {
          "username":"%s","email":"%s","password":"ClaveSegura2026!",
          "countryCode":"%s","documentType":"CC","documentNumber":"%s",
          "phone":"+573001234567",
-         "brokerId":"%s","brokerAccountId":"cuenta-%d"}
+         "brokerAccounts":[{"brokerId":"%s","accountId":"cuenta-%d"}]}
         """
             .formatted(
                 usuario, correo, pais(), Integer.toString(correo.hashCode()), BROKER, cuenta);

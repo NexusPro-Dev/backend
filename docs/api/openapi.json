@@ -68,6 +68,18 @@
         },
         "type" : "object"
       },
+      "BrokerAccount" : {
+        "properties" : {
+          "accountId" : {
+            "type" : "string"
+          },
+          "brokerId" : {
+            "format" : "uuid",
+            "type" : "string"
+          }
+        },
+        "type" : "object"
+      },
       "BrokerCatalogResponse" : {
         "properties" : {
           "content" : {
@@ -2599,12 +2611,11 @@
           "addressLine2" : {
             "type" : "string"
           },
-          "brokerAccountId" : {
-            "type" : "string"
-          },
-          "brokerId" : {
-            "format" : "uuid",
-            "type" : "string"
+          "brokerAccounts" : {
+            "items" : {
+              "$ref" : "#/components/schemas/BrokerAccount"
+            },
+            "type" : "array"
           },
           "city" : {
             "type" : "string"
@@ -3952,7 +3963,7 @@
     },
     "/api/v1/auth/registration" : {
       "post" : {
-        "description" : "Crea una cuenta de cliente **sin autenticación**, a partir del enlace\nque un vendedor reparte. Es el **primer endpoint público del sistema\nque escribe**.\n\nEl enlace lleva dos datos y **ninguno es un secreto**: el producto —por\nsu código o su identificador, en el mismo campo— y el vendedor, por su\n**nombre de usuario**. Los cuatro campos de referencia de este cuerpo\nevitan los UUID —producto, vendedor, `countryCode` alfa-3 y\n`documentType` por abreviación— porque es un formulario público al que\nno se le puede pedir que conozca los identificadores del sistema. La\nexcepción es `brokerId`, que se elige de un desplegable leído del\ncatálogo público de brokers.\n\n**`brokerId` y `brokerAccountId` son obligatorios cuando el producto\ndel enlace es una membresía `FREE → FREE`** (`RN-SP-042`), y solo\nentonces. El motivo es el estado en el que nace la cuenta: sin la\ncuenta de broker declarada, nadie podrá atribuirle el depósito que la\nsaca de `FTD_PENDIENTE`. El **nombre de usuario en el broker no se\npide**: lo rellena después el webhook del propio broker.\n\n**La cuenta nace en `FTD_PENDIENTE`**, que **autentica y no opera**:\nquien se registra puede iniciar sesión y ver lo suyo, y lo que le falta\npara operar es el primer depósito.\n\n**La contraseña la elige la persona**, y por eso la cuenta **no** queda\nmarcada para cambio obligatorio — se marca lo que fijó otro, no lo que\nuno fijó.\n\n**No devuelve credenciales de sesión**: registrarse no es iniciar\nsesión. Quien acaba de crear su cuenta pasa por el inicio de sesión\ncomo todo el mundo.\n\n**Los rechazos no dicen qué pasó, salvo tres.** Producto inexistente,\ninactivo o retirado comparten respuesta, y lo mismo el vendedor que no\nexiste y el que no es fuerza comercial: distinguirlos convertiría este\nendpoint en una forma de enumerar el catálogo y la plantilla. **Sí\ndicen** cuál de las dos identidades —nombre de usuario o correo— está\nen uso, que el producto exige pago, y que la cuenta de broker ya está\ndeclarada por otra persona: los tres los necesita quien se registra\npara poder corregir.\n",
+        "description" : "Crea una cuenta de cliente **sin autenticación**, a partir del enlace\nque un vendedor reparte. Es el **primer endpoint público del sistema\nque escribe**.\n\nEl enlace lleva dos datos y **ninguno es un secreto**: el producto —por\nsu código o su identificador, en el mismo campo— y el vendedor, por su\n**nombre de usuario**. Los cuatro campos de referencia de este cuerpo\nevitan los UUID —producto, vendedor, `countryCode` alfa-3 y\n`documentType` por abreviación— porque es un formulario público al que\nno se le puede pedir que conozca los identificadores del sistema. La\nexcepción es el broker de cada cuenta, que se elige de un desplegable\nleído del catálogo público de brokers.\n\n**`brokerAccounts` es una LISTA: se declaran UNA O MÁS cuentas** en el\nmismo registro, porque una persona puede operar con varios brokers y\nesta es hoy la única vía para declararlos.\n\n**Es obligatoria —al menos una— cuando el producto del enlace es una\nmembresía `FREE → FREE`** (`RN-SP-042`), y solo entonces. El motivo es\nel estado en el que nace la cuenta: sin cuenta de broker declarada,\nnadie podrá atribuirle el depósito que la saca de `FTD_PENDIENTE`. Con\notro producto **se admiten igualmente** las que se envíen.\n\n**El nombre de usuario en el broker no se pide**: lo rellena después el\nwebhook del propio broker.\n\n**Dos cuentas iguales en la misma petición se rechazan** con `VAL-014`,\ny no con el `409` del índice: ese mensaje diría «ya está declarada por\notra persona», y la otra persona sería ella misma.\n\n**La cuenta nace en `FTD_PENDIENTE`**, que **autentica y no opera**:\nquien se registra puede iniciar sesión y ver lo suyo, y lo que le falta\npara operar es el primer depósito.\n\n**La contraseña la elige la persona**, y por eso la cuenta **no** queda\nmarcada para cambio obligatorio — se marca lo que fijó otro, no lo que\nuno fijó.\n\n**No devuelve credenciales de sesión**: registrarse no es iniciar\nsesión. Quien acaba de crear su cuenta pasa por el inicio de sesión\ncomo todo el mundo.\n\n**Los rechazos no dicen qué pasó, salvo tres.** Producto inexistente,\ninactivo o retirado comparten respuesta, y lo mismo el vendedor que no\nexiste y el que no es fuerza comercial: distinguirlos convertiría este\nendpoint en una forma de enumerar el catálogo y la plantilla. **Sí\ndicen** cuál de las dos identidades —nombre de usuario o correo— está\nen uso, que el producto exige pago, y que la cuenta de broker ya está\ndeclarada por otra persona: los tres los necesita quien se registra\npara poder corregir.\n",
         "operationId" : "registrar_8",
         "requestBody" : {
           "content" : {

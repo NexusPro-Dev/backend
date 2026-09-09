@@ -35,7 +35,7 @@
 | `T-16` | Pruebas de API del resto de criterios de `spec.md` §12 | `T-11` | Cubre `CA-SP-507` a `CA-SP-521` | **Hecha el 09-09-2026** |
 | `T-17` | Documentación OpenAPI del endpoint, declarándolo **público** | `T-16` | El contrato no hereda el esquema de seguridad, como los tres de sesión | **Hecha el 09-09-2026** |
 | `T-18` | Aplicar las enmiendas de `plan.md` §8 y actualizar la matriz | `T-16` | Cinco documentos, cada uno con su fila de control de cambios | **Hecha el 09-09-2026** |
-| `T-19` | **La cuenta de broker en el registro** (`RN-SP-042`, 09-09-2026): puerto `BrokerAccountRegistrar` declarado en el submódulo de brokers, y la declaración **en la misma transacción** que los otros cuatro hechos | `T-07`, `RF-SP-052` | `CA-SP-609`, `CA-SP-610`. El nombre de usuario del broker queda **en nulo**: lo rellena el webhook | **Hecha el 09-09-2026** |
+| `T-19` | **Las cuentas de broker en el registro** (`RN-SP-042`, 09-09-2026): puerto `BrokerAccountRegistrar`, y la declaración de **UNA O MÁS** cuentas **en la misma transacción** que los otros cuatro hechos | `T-07`, `RF-SP-052` | `CA-SP-609`, `CA-SP-610`. El nombre de usuario del broker queda **en nulo**: lo rellena el webhook | **Hecha el 09-09-2026** |
 | `T-20` | **Las dos excepciones del broker**: `EX-008` —inexistente o inactivo, con la MISMA respuesta— y `EX-009` —cuenta ya declarada, que sí dice qué pasó— | `T-19` | `CA-SP-611` a `CA-SP-613`. El rechazo **no deja nada escrito**, que es lo que exige que las cinco escrituras vayan en una transacción | **Hecha el 09-09-2026** |
 
 ## 2. Orden de ejecución

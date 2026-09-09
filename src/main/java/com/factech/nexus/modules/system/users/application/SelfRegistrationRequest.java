@@ -2,6 +2,7 @@ package com.factech.nexus.modules.system.users.application;
 
 import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.NotBlank;
+import java.util.List;
 import java.util.UUID;
 
 /**
@@ -12,10 +13,15 @@ import java.util.UUID;
  * el tipo de documento por abreviación. Es un formulario <b>público</b> al que no se le puede pedir
  * que conozca los UUID del sistema — salvo el del broker, que acaba de leer del catálogo.
  *
- * <p><b>Los dos campos del broker NO llevan {@code @NotBlank}</b> y son condicionalmente
- * obligatorios (`RN-SP-042`): se exigen cuando el producto del enlace es {@code FREE → FREE}, y eso
- * <b>no cabe en una anotación</b> porque depende de un dato que hay que ir a buscar. Lo comprueba
- * el caso de uso después de resolver el producto.
+ * <p><b>{@code brokerAccounts} es una LISTA</b> (09-09-2026, por decisión del responsable del
+ * proyecto): una persona puede operar con varios brokers, y declararlos todos en el registro evita
+ * que tenga que volver por otra ruta que además <b>no existe</b> — `RF-SP-053` sigue sin decidirse
+ * para todo lo que no sea este formulario.
+ *
+ * <p><b>No lleva {@code @NotEmpty} y es condicionalmente obligatoria</b> (`RN-SP-042`): se exige al
+ * menos una cuando el producto del enlace es {@code FREE → FREE}, y eso <b>no cabe en una
+ * anotación</b> porque depende de un dato que hay que ir a buscar. Lo comprueba el caso de uso
+ * después de resolver el producto.
  */
 public record SelfRegistrationRequest(
     @NotBlank(message = "VAL-001: Debe indicar el producto del enlace.") String product,
@@ -34,5 +40,21 @@ public record SelfRegistrationRequest(
     String addressLine1,
     String addressLine2,
     String city,
-    UUID brokerId,
-    String brokerAccountId) {}
+    List<BrokerAccount> brokerAccounts) {
+
+  /** Nunca nula: una lista ausente y una vacía significan lo mismo. */
+  public List<BrokerAccount> cuentas() {
+    return brokerAccounts == null ? List.of() : brokerAccounts;
+  }
+
+  /**
+   * Una cuenta en un broker.
+   *
+   * @param brokerId el broker, <b>por identificador</b>: se elige de un desplegable que el
+   *     formulario acaba de leer del catálogo público, de modo que ya lo tiene en la mano. Y es lo
+   *     correcto por lo que el catálogo declara de sí mismo — el nombre es su clave de negocio y
+   *     renombrar un broker es una migración
+   * @param accountId el identificador de la persona <b>en ese broker</b>: el número de cuenta
+   */
+  public record BrokerAccount(UUID brokerId, String accountId) {}
+}
