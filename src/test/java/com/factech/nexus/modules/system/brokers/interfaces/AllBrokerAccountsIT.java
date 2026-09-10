@@ -8,6 +8,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
 import com.factech.nexus.IntegrationTestBase;
 import java.util.UUID;
+import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -85,6 +86,19 @@ class AllBrokerAccountsIT extends IntegrationTestBase {
     declarar(base, brokerB, "30000001");
     declarar(nieto, brokerA, "40000001");
     declarar(ajeno, brokerB, "50000001");
+  }
+
+  /**
+   * Deja {@code user_brokers} <b>vacía</b>, y no es cortesía: es lo que impide romper la suite.
+   *
+   * <p>{@code fk_user_brokers_user} es {@code RESTRICT}, de modo que una fila que sobreviva a esta
+   * clase hace fallar el {@code DELETE FROM users} de <b>todas</b> las que se ejecuten después —y
+   * el error señala a la clase equivocada—. <b>Limpiar solo en {@code @BeforeEach} no basta</b>:
+   * protege a esta clase y deja el estropicio para las demás.
+   */
+  @AfterEach
+  void vaciar() {
+    jdbc.update("DELETE FROM user_brokers");
   }
 
   // ---------------------------------------------------------------------------

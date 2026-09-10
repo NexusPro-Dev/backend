@@ -1208,6 +1208,88 @@
         },
         "type" : "object"
       },
+      "NetworkIndicators" : {
+        "properties" : {
+          "accounts" : {
+            "format" : "int32",
+            "type" : "integer"
+          },
+          "consumers" : {
+            "format" : "int32",
+            "type" : "integer"
+          },
+          "conversion" : {
+            "type" : "number"
+          },
+          "ftd" : {
+            "format" : "int32",
+            "type" : "integer"
+          },
+          "pending" : {
+            "format" : "int32",
+            "type" : "integer"
+          }
+        },
+        "type" : "object"
+      },
+      "NetworkIndicatorsResponse" : {
+        "properties" : {
+          "nodes" : {
+            "items" : {
+              "$ref" : "#/components/schemas/NetworkNode"
+            },
+            "type" : "array"
+          },
+          "totals" : {
+            "$ref" : "#/components/schemas/NetworkIndicators"
+          },
+          "unassigned" : {
+            "$ref" : "#/components/schemas/NetworkIndicators"
+          }
+        },
+        "type" : "object"
+      },
+      "NetworkNode" : {
+        "properties" : {
+          "children" : {
+            "items" : {
+              "$ref" : "#/components/schemas/NetworkNode"
+            },
+            "type" : "array"
+          },
+          "network" : {
+            "$ref" : "#/components/schemas/NetworkIndicators"
+          },
+          "own" : {
+            "$ref" : "#/components/schemas/NetworkIndicators"
+          },
+          "roleCode" : {
+            "type" : "string"
+          },
+          "user" : {
+            "$ref" : "#/components/schemas/NetworkNodeUser"
+          }
+        },
+        "type" : "object"
+      },
+      "NetworkNodeUser" : {
+        "properties" : {
+          "firstName" : {
+            "type" : "string"
+          },
+          "id" : {
+            "format" : "uuid",
+            "type" : "string"
+          },
+          "lastName" : {
+            "type" : "string"
+          },
+          "username" : {
+            "type" : "string"
+          }
+        },
+        "type" : "object"
+      },
       "OfferItem" : {
         "properties" : {
           "code" : {
@@ -4299,6 +4381,86 @@
           }
         },
         "summary" : "Consultar y filtrar todas las cuentas de broker",
+        "tags" : [ "Cuentas de broker" ]
+      }
+    },
+    "/api/v1/broker-accounts/indicators" : {
+      "get" : {
+        "description" : "Devuelve **el árbol de la fuerza comercial**, cada nodo con dos\nbloques de números: `own` —lo que cuelga **directamente** de esa\npersona— y `network` —esa persona **y todo lo que cuelga de ella**, a\ncualquier profundidad—.\n\n**La regla es una sola en todos los niveles**: el `network` de alguien\nes su `own` más la suma de los `network` de sus hijos. Un agente\nrecibe lo de sus clientes directos; un director, lo suyo más lo de sus\nagentes; un manager, lo suyo más lo de sus directores.\n\n**NO SUME LA COLUMNA `network` DE UNA LISTA.** El `network` de un\ndirector **ya contiene** el de sus agentes, de modo que sumar totales\nde distintos niveles cuenta dos veces. Para agregar, sume `own`; para\nleer el total de una rama, use su `network`.\n\n**Qué cuenta como uno:** `accounts` cuenta **cuentas** y `consumers`\ncuenta **personas**, y no tienen por qué coincidir — un cliente con\ndos cuentas es una persona y dos cuentas. **Solo cuentan las cuentas\nde consumidores**: la cuenta personal de un vendedor no entra en\nningún indicador.\n\n**Los consumidores no son nodos.** Aportan el número y no aparecen: el\nárbol es de la fuerza comercial.\n\n**`conversion` es `ftd / accounts`, un cociente entre 0 y 1 —no un\nporcentaje— y es NULA cuando no hay cuentas**, no cero: cero se lee\ncomo «nadie convirtió» y la verdad sería «no hay nada que convertir».\nSe recalcula en cada nodo sobre sus propios totales; **no es el\npromedio de las de sus hijos**.\n\n**`unassigned` es lo que hace que los números cuadren**: las cuentas\nde consumidores que no cuelgan de ningún vendedor no entran en ningún\nnodo. Se cumple que `totals` + `unassigned` es igual al\n`totalElements` de `GET /api/v1/broker-accounts` sin filtros. Se omite\ncuando se pide una rama con `rootId`, donde no significa nada.\n\n**`rootId` acota el árbol a esa rama e INCLUYE a la persona como\nraíz**, al revés que el `supervisorId` de `GET /api/v1/broker-accounts`:\nallí se piden las cuentas de su red —y las suyas no son de su red— y\naquí se pide el nodo que lleva sus números.\n\n**Hoy `ftd` será cero en todas partes** y el embudo se verá entero en\n`pending`: quien mueve una cuenta a `FIRST_DEPOSIT` es el webhook del\nbroker, que todavía no existe. Es el estado real, no un fallo del\nindicador.\n",
+        "operationId" : "indicadoresDeLaRed",
+        "parameters" : [ {
+          "description" : "Acota el árbol a la rama de esa persona, ella incluida.",
+          "in" : "query",
+          "name" : "rootId",
+          "required" : false,
+          "schema" : {
+            "format" : "uuid",
+            "type" : "string"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/NetworkIndicatorsResponse"
+                }
+              }
+            },
+            "description" : "El árbol, con los totales y lo no atribuido. `nodes` vacío si no hay fuerza comercial."
+          },
+          "400" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/NetworkIndicatorsResponse"
+                }
+              }
+            },
+            "description" : "`rootId` malformado (`VAL-001`)"
+          },
+          "401" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/NetworkIndicatorsResponse"
+                }
+              }
+            },
+            "description" : "Token ausente o inválido (`AUTH-001`)"
+          },
+          "403" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/NetworkIndicatorsResponse"
+                }
+              }
+            },
+            "description" : "Autenticado sin `broker-accounts:read` (`AUTH-002`)"
+          },
+          "404" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/NetworkIndicatorsResponse"
+                }
+              }
+            },
+            "description" : "`rootId` no designa a nadie de la fuerza comercial, o está eliminado (`VAL-002`)"
+          },
+          "500" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/NetworkIndicatorsResponse"
+                }
+              }
+            },
+            "description" : "Fallo no controlado (`ERR-500`)"
+          }
+        },
+        "summary" : "Consultar los indicadores de la red comercial",
         "tags" : [ "Cuentas de broker" ]
       }
     },

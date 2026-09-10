@@ -86,6 +86,63 @@ public interface BrokerAccountQueryRepository {
    *
    * <p><b>Todo nulo significa «sin filtrar»</b>, y se combinan con Y.
    */
+  /**
+   * La fuerza comercial vigente: una fila por vendedor, con su superior (`RF-SP-058` · `T-01`).
+   *
+   * <p><b>Se identifica por {@code user_roles.role_type} y no uniendo con {@code roles}</b>: la
+   * columna es una <b>copia</b> del tipo en la propia fila (`V52`, `RN-SP-025`), y la unicidad de
+   * rol vendedor por persona —del mismo `RN-SP-025`— garantiza que <b>no salgan filas
+   * repetidas</b>. Sin esa garantía, una persona con dos roles vendedores se duplicaría en el árbol
+   * y sus números se contarían dos veces.
+   */
+  List<SellerRow> findCommercialForce();
+
+  /**
+   * Cuántas cuentas de <b>consumidores</b> cuelgan directamente de cada persona, por estado.
+   *
+   * <p><b>El consumidor se comprueba con {@code EXISTS} y no con un {@code JOIN}</b>: el {@code
+   * JOIN} multiplicaría la fila de la cuenta por cada rol de consumidor que la persona porte, y
+   * cada cuenta se contaría tantas veces como roles. Es el defecto que no falla — devuelve de más y
+   * parece un buen mes.
+   *
+   * <p><b>Solo consumidores</b> (`RN-SP-048`): la cuenta personal de un vendedor no es una
+   * captación.
+   */
+  List<DirectCountRow> countDirectAccountsBySupervisor();
+
+  /** Cuántos consumidores distintos cuelgan directamente de cada persona. */
+  List<DirectCountRow> countDirectConsumersBySupervisor();
+
+  /**
+   * Las cuentas de consumidores que <b>no cuelgan de ningún vendedor</b>, por estado.
+   *
+   * <p>Sin superior vigente, o colgando de quien no es fuerza comercial. <b>Es lo que hace que los
+   * números cuadren</b>: sin esto, el árbol suma menos que el listado global y nadie puede saber si
+   * falta algo o si el cálculo está mal.
+   */
+  List<DirectCountRow> countUnassignedAccounts();
+
+  /** Cuántos consumidores distintos quedan sin atribuir. */
+  int countUnassignedConsumers();
+
+  /** Un vendedor y su superior vigente, que puede no tenerlo. */
+  record SellerRow(
+      UUID id,
+      String username,
+      String firstName,
+      String lastName,
+      String roleCode,
+      UUID supervisorId) {}
+
+  /**
+   * Un conteo agrupado.
+   *
+   * <p>{@code status} va nulo en los conteos de personas, donde el estado no agrupa: una persona
+   * con una cuenta en cada estado es <b>una</b> persona, y repartirla entre los dos grupos la
+   * contaría dos veces.
+   */
+  record DirectCountRow(UUID supervisorId, String status, int total) {}
+
   record BrokerAccountFilters(
       UUID supervisorId,
       UUID userId,

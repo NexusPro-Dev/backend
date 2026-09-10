@@ -1,17 +1,22 @@
 package com.factech.nexus.modules.system.brokers.interfaces;
 
 import com.factech.nexus.modules.system.brokers.application.ListBrokerAccountsRequest;
+import com.factech.nexus.modules.system.brokers.application.NetworkIndicatorsResponse;
 import com.factech.nexus.modules.system.brokers.application.TeamBrokerAccountItem;
+import com.factech.nexus.modules.system.brokers.domain.service.GetNetworkIndicatorsService;
 import com.factech.nexus.modules.system.brokers.domain.service.ListBrokerAccountsService;
 import com.factech.nexus.shared.pagination.PageResponse;
 import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.tags.Tag;
+import java.util.UUID;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.ModelAttribute;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 /**
@@ -31,9 +36,88 @@ import org.springframework.web.bind.annotation.RestController;
 public class BrokerAccountController {
 
   private final ListBrokerAccountsService listado;
+  private final GetNetworkIndicatorsService indicadores;
 
-  public BrokerAccountController(ListBrokerAccountsService listado) {
+  public BrokerAccountController(
+      ListBrokerAccountsService listado, GetNetworkIndicatorsService indicadores) {
     this.listado = listado;
+    this.indicadores = indicadores;
+  }
+
+  @GetMapping("/indicators")
+  @PreAuthorize("hasAuthority('broker-accounts:read')")
+  @Operation(
+      summary = "Consultar los indicadores de la red comercial",
+      description =
+          """
+          Devuelve **el árbol de la fuerza comercial**, cada nodo con dos
+          bloques de números: `own` —lo que cuelga **directamente** de esa
+          persona— y `network` —esa persona **y todo lo que cuelga de ella**, a
+          cualquier profundidad—.
+
+          **La regla es una sola en todos los niveles**: el `network` de alguien
+          es su `own` más la suma de los `network` de sus hijos. Un agente
+          recibe lo de sus clientes directos; un director, lo suyo más lo de sus
+          agentes; un manager, lo suyo más lo de sus directores.
+
+          **NO SUME LA COLUMNA `network` DE UNA LISTA.** El `network` de un
+          director **ya contiene** el de sus agentes, de modo que sumar totales
+          de distintos niveles cuenta dos veces. Para agregar, sume `own`; para
+          leer el total de una rama, use su `network`.
+
+          **Qué cuenta como uno:** `accounts` cuenta **cuentas** y `consumers`
+          cuenta **personas**, y no tienen por qué coincidir — un cliente con
+          dos cuentas es una persona y dos cuentas. **Solo cuentan las cuentas
+          de consumidores**: la cuenta personal de un vendedor no entra en
+          ningún indicador.
+
+          **Los consumidores no son nodos.** Aportan el número y no aparecen: el
+          árbol es de la fuerza comercial.
+
+          **`conversion` es `ftd / accounts`, un cociente entre 0 y 1 —no un
+          porcentaje— y es NULA cuando no hay cuentas**, no cero: cero se lee
+          como «nadie convirtió» y la verdad sería «no hay nada que convertir».
+          Se recalcula en cada nodo sobre sus propios totales; **no es el
+          promedio de las de sus hijos**.
+
+          **`unassigned` es lo que hace que los números cuadren**: las cuentas
+          de consumidores que no cuelgan de ningún vendedor no entran en ningún
+          nodo. Se cumple que `totals` + `unassigned` es igual al
+          `totalElements` de `GET /api/v1/broker-accounts` sin filtros. Se omite
+          cuando se pide una rama con `rootId`, donde no significa nada.
+
+          **`rootId` acota el árbol a esa rama e INCLUYE a la persona como
+          raíz**, al revés que el `supervisorId` de `GET /api/v1/broker-accounts`:
+          allí se piden las cuentas de su red —y las suyas no son de su red— y
+          aquí se pide el nodo que lleva sus números.
+
+          **Hoy `ftd` será cero en todas partes** y el embudo se verá entero en
+          `pending`: quien mueve una cuenta a `FIRST_DEPOSIT` es el webhook del
+          broker, que todavía no existe. Es el estado real, no un fallo del
+          indicador.
+          """)
+  @ApiResponses({
+    @ApiResponse(
+        responseCode = "200",
+        description =
+            "El árbol, con los totales y lo no atribuido. `nodes` vacío si no hay fuerza"
+                + " comercial."),
+    @ApiResponse(responseCode = "400", description = "`rootId` malformado (`VAL-001`)"),
+    @ApiResponse(responseCode = "401", description = "Token ausente o inválido (`AUTH-001`)"),
+    @ApiResponse(
+        responseCode = "403",
+        description = "Autenticado sin `broker-accounts:read` (`AUTH-002`)"),
+    @ApiResponse(
+        responseCode = "404",
+        description =
+            "`rootId` no designa a nadie de la fuerza comercial, o está eliminado (`VAL-002`)"),
+    @ApiResponse(responseCode = "500", description = "Fallo no controlado (`ERR-500`)")
+  })
+  public NetworkIndicatorsResponse indicadoresDeLaRed(
+      @Parameter(description = "Acota el árbol a la rama de esa persona, ella incluida.")
+          @RequestParam(required = false)
+          UUID rootId) {
+    return indicadores.of(rootId);
   }
 
   @GetMapping

@@ -178,6 +178,159 @@ public class JpaBrokerAccountQueryRepository implements BrokerAccountQueryReposi
     return ((Number) consulta.getSingleResult()).intValue();
   }
 
+  // ---------------------------------------------------------------------------
+  // `RF-SP-058` — los indicadores. TRES CONSULTAS PLANAS, y la suma en el servicio.
+  //
+  // La alternativa —reusar la recursiva por cada nodo— es una recursiva POR
+  // VENDEDOR: un `N + 1` de consultas caras que ninguna prueba detectaría,
+  // porque el resultado sería correcto y solo lento.
+  // ---------------------------------------------------------------------------
+
+  /**
+   * El consumidor se comprueba con {@code EXISTS}: un {@code JOIN} multiplicaría la cuenta.
+   *
+   * <p><b>Con espacios propios al principio y al final, y NO como bloque de texto.</b> Un bloque
+   * recorta el espacio final de cada línea, de modo que un {@code "… AND """} concatenado con él
+   * produce {@code ANDEXISTS} — un error de sintaxis que solo aparece en ejecución y que no se ve
+   * leyendo el código.
+   */
+  private static final String ES_CONSUMIDOR =
+      " EXISTS (SELECT 1 FROM user_roles ur"
+          + " WHERE ur.user_id = u.id AND ur.role_type = 'CONSUMIDOR') ";
+
+  @Override
+  @Transactional(readOnly = true)
+  public List<SellerRow> findCommercialForce() {
+    @SuppressWarnings("unchecked")
+    List<Tuple> filas =
+        em.createNativeQuery(
+                """
+                SELECT u.id AS id, u.username AS username,
+                       u.first_name AS first_name, u.last_name AS last_name,
+                       r.code AS role_code, us.supervisor_id AS supervisor_id
+                  FROM users u
+                  JOIN user_roles ur ON ur.user_id = u.id AND ur.role_type = 'VENDEDOR'
+                  JOIN roles r ON r.id = ur.role_id
+                  LEFT JOIN user_supervisors us
+                         ON us.user_id = u.id AND us.ended_at IS NULL
+                 WHERE u.deleted_at IS NULL
+                 ORDER BY u.username
+                """,
+                Tuple.class)
+            .getResultList();
+
+    List<SellerRow> resultado = new ArrayList<>(filas.size());
+    for (Tuple fila : filas) {
+      resultado.add(
+          new SellerRow(
+              (UUID) fila.get("id"),
+              (String) fila.get("username"),
+              (String) fila.get("first_name"),
+              (String) fila.get("last_name"),
+              (String) fila.get("role_code"),
+              (UUID) fila.get("supervisor_id")));
+    }
+    return resultado;
+  }
+
+  @Override
+  @Transactional(readOnly = true)
+  public List<DirectCountRow> countDirectAccountsBySupervisor() {
+    return conteos(
+        """
+        SELECT us.supervisor_id AS jefe, ub.status AS estado, count(*) AS total
+          FROM user_brokers ub
+          JOIN users u ON u.id = ub.user_id
+          JOIN user_supervisors us ON us.user_id = u.id AND us.ended_at IS NULL
+         WHERE u.deleted_at IS NULL
+           AND """
+            + " "
+            + ES_CONSUMIDOR
+            + " GROUP BY us.supervisor_id, ub.status",
+        true);
+  }
+
+  @Override
+  @Transactional(readOnly = true)
+  public List<DirectCountRow> countDirectConsumersBySupervisor() {
+    // SIN agrupar por estado: una persona con una cuenta en cada estado es UNA
+    // persona, y repartirla entre los dos grupos la contaría dos veces.
+    return conteos(
+        """
+        SELECT us.supervisor_id AS jefe, count(DISTINCT u.id) AS total
+          FROM user_brokers ub
+          JOIN users u ON u.id = ub.user_id
+          JOIN user_supervisors us ON us.user_id = u.id AND us.ended_at IS NULL
+         WHERE u.deleted_at IS NULL
+           AND """
+            + " "
+            + ES_CONSUMIDOR
+            + " GROUP BY us.supervisor_id",
+        false);
+  }
+
+  @Override
+  @Transactional(readOnly = true)
+  public List<DirectCountRow> countUnassignedAccounts() {
+    return conteos(
+        """
+        SELECT NULL AS jefe, ub.status AS estado, count(*) AS total
+          FROM user_brokers ub
+          JOIN users u ON u.id = ub.user_id
+         WHERE u.deleted_at IS NULL
+           AND """
+            + " "
+            + ES_CONSUMIDOR
+            + SIN_VENDEDOR_ENCIMA
+            + " GROUP BY ub.status",
+        true);
+  }
+
+  @Override
+  @Transactional(readOnly = true)
+  public int countUnassignedConsumers() {
+    Query consulta =
+        em.createNativeQuery(
+            """
+            SELECT count(DISTINCT u.id)
+              FROM user_brokers ub
+              JOIN users u ON u.id = ub.user_id
+             WHERE u.deleted_at IS NULL
+               AND """
+                + " "
+                + ES_CONSUMIDOR
+                + SIN_VENDEDOR_ENCIMA);
+    return ((Number) consulta.getSingleResult()).intValue();
+  }
+
+  /**
+   * «No cuelga de ningún vendedor», que son <b>dos</b> casos y no uno.
+   *
+   * <p>No tener superior vigente, <b>y</b> tenerlo pero que no sea fuerza comercial —un
+   * funcionario, por ejemplo—. El segundo se olvida con facilidad y su cuenta desaparecería de
+   * todos los números: no estaría en ningún nodo del árbol y tampoco en lo no atribuido.
+   */
+  private static final String SIN_VENDEDOR_ENCIMA =
+      " AND NOT EXISTS (SELECT 1 FROM user_supervisors us"
+          + " JOIN user_roles urj ON urj.user_id = us.supervisor_id"
+          + " AND urj.role_type = 'VENDEDOR'"
+          + " WHERE us.user_id = u.id AND us.ended_at IS NULL) ";
+
+  private List<DirectCountRow> conteos(String sql, boolean conEstado) {
+    @SuppressWarnings("unchecked")
+    List<Tuple> filas = em.createNativeQuery(sql, Tuple.class).getResultList();
+
+    List<DirectCountRow> resultado = new ArrayList<>(filas.size());
+    for (Tuple fila : filas) {
+      resultado.add(
+          new DirectCountRow(
+              (UUID) fila.get("jefe"),
+              conEstado ? (String) fila.get("estado") : null,
+              ((Number) fila.get("total")).intValue()));
+    }
+    return resultado;
+  }
+
   /**
    * <b>La red de una persona, en profundidad.</b> La única consulta recursiva del sistema.
    *
