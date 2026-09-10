@@ -5,6 +5,7 @@ import com.factech.nexus.modules.system.brokers.application.BrokerAccountItem.Br
 import com.factech.nexus.modules.system.brokers.application.TeamBrokerAccountItem;
 import com.factech.nexus.modules.system.brokers.application.TeamBrokerAccountItem.Holder;
 import com.factech.nexus.modules.system.brokers.domain.models.UserBrokerStatus;
+import com.factech.nexus.modules.system.brokers.domain.repository.BrokerAccountQueryRepository.BrokerAccountFilters;
 import jakarta.persistence.EntityManager;
 import jakarta.persistence.Query;
 import jakarta.persistence.Tuple;
@@ -106,23 +107,7 @@ public class JpaBrokerAccountQueryRepository implements BrokerAccountQueryReposi
     @SuppressWarnings("unchecked")
     List<Tuple> filas = consulta.getResultList();
 
-    List<TeamBrokerAccountItem> resultado = new ArrayList<>(filas.size());
-    for (Tuple fila : filas) {
-      resultado.add(
-          new TeamBrokerAccountItem(
-              (UUID) fila.get("id"),
-              new Holder(
-                  (UUID) fila.get("user_id"),
-                  (String) fila.get("username"),
-                  (String) fila.get("first_name"),
-                  (String) fila.get("last_name")),
-              new BrokerRef((UUID) fila.get("broker_id"), (String) fila.get("broker_name")),
-              (String) fila.get("external_id"),
-              (String) fila.get("broker_username"),
-              estado(fila),
-              momento(fila.get("created_at"))));
-    }
-    return resultado;
+    return conFilas(filas);
   }
 
   @Override
@@ -141,6 +126,234 @@ public class JpaBrokerAccountQueryRepository implements BrokerAccountQueryReposi
     enlazar(consulta, supervisorId, estado, brokerId);
 
     return ((Number) consulta.getSingleResult()).intValue();
+  }
+
+  // ---------------------------------------------------------------------------
+  // `RF-SP-057` — todas las cuentas, filtradas
+  // ---------------------------------------------------------------------------
+
+  @Override
+  @Transactional(readOnly = true)
+  public List<TeamBrokerAccountItem> findAll(BrokerAccountFilters filtros, int offset, int limit) {
+
+    Filtro filtro = predicado(filtros);
+    Query consulta =
+        em.createNativeQuery(
+            recursivaSiHace(filtros)
+                + COLUMNAS
+                + DESDE_GLOBAL
+                + " WHERE "
+                + filtro.sql()
+                // Los mismos tres desempates que el listado del equipo, y el
+                // último es único: sin él dos páginas seguidas pueden repetir
+                // una fila y omitir otra sin que nada falle.
+                + """
+                 ORDER BY u.username, b.name, ub.external_id
+                 OFFSET :salto LIMIT :tope
+                """,
+            Tuple.class);
+    filtro.enlazar(consulta);
+    consulta.setParameter("salto", offset);
+    consulta.setParameter("tope", limit);
+
+    @SuppressWarnings("unchecked")
+    List<Tuple> filas = consulta.getResultList();
+
+    return conFilas(filas);
+  }
+
+  @Override
+  @Transactional(readOnly = true)
+  public int countAll(BrokerAccountFilters filtros) {
+    Filtro filtro = predicado(filtros);
+    Query consulta =
+        em.createNativeQuery(
+            recursivaSiHace(filtros)
+                + " SELECT count(*) "
+                + DESDE_GLOBAL
+                + " WHERE "
+                + filtro.sql());
+    filtro.enlazar(consulta);
+
+    return ((Number) consulta.getSingleResult()).intValue();
+  }
+
+  /**
+   * <b>La red de una persona, en profundidad.</b> La única consulta recursiva del sistema.
+   *
+   * <p>Cuatro decisiones, y ninguna es de estilo:
+   *
+   * <ul>
+   *   <li><b>{@code UNION} y no {@code UNION ALL}.</b> Es lo que hace que la consulta <b>no pueda
+   *       colgarse</b> aunque los datos tuvieran un ciclo: quien ya se vio no se reexpande. Que el
+   *       ciclo no deba existir —`RN-SP-020` ata esta cadena a la de roles, que es acíclica— es un
+   *       argumento sobre los datos, y <b>la terminación no debería depender de un argumento</b>.
+   *   <li><b>{@code ended_at IS NULL} en LOS DOS brazos.</b> Omitirlo en el recursivo haría
+   *       descender por la estructura <b>de ayer</b> sin que nada fallara — el error que no rompe
+   *       nada y devuelve de más. Además es lo que deja usar {@code
+   *       ix_user_supervisors_supervisor_vigente}, que es parcial sobre ese predicado.
+   *   <li><b>La raíz NO se siembra.</b> El brazo base son <b>sus subordinados</b>, no ella: por eso
+   *       su red la excluye. Quien quiera además las suyas las pide con {@code userId}.
+   *   <li><b>{@code deleted_at} NO se filtra aquí</b>, sino fuera, al unir con {@code users}.
+   *       Dentro <b>cortaría la rama</b>: una persona eliminada dejaría de expandirse y sus
+   *       subordinados desaparecerían del resultado aunque sigan vivos y colgando de ella.
+   * </ul>
+   */
+  private static String recursivaSiHace(BrokerAccountFilters filtros) {
+    if (filtros.supervisorId() == null) {
+      return "";
+    }
+    return """
+        WITH RECURSIVE red AS (
+            SELECT us.user_id
+              FROM user_supervisors us
+             WHERE us.supervisor_id = CAST(:raiz AS uuid)
+               AND us.ended_at IS NULL
+            UNION
+            SELECT us.user_id
+              FROM user_supervisors us
+              JOIN red r ON us.supervisor_id = r.user_id
+             WHERE us.ended_at IS NULL
+        )
+        """;
+  }
+
+  private static final String COLUMNAS =
+      """
+      SELECT ub.id AS id, ub.external_id AS external_id,
+             ub.broker_username AS broker_username, ub.status AS status,
+             ub.created_at AS created_at,
+             b.id AS broker_id, b.name AS broker_name,
+             u.id AS user_id, u.username AS username,
+             u.first_name AS first_name, u.last_name AS last_name
+      """;
+
+  private static final String DESDE_GLOBAL =
+      """
+        FROM user_brokers ub
+        JOIN users u ON u.id = ub.user_id
+        JOIN brokers b ON b.id = ub.broker_id
+      """;
+
+  /**
+   * Los siete filtros, escritos UNA vez y compartidos por la página y el conteo.
+   *
+   * <p>Dos copias son lo que hace que un día el total cuente una cosa y la página muestre otra, y
+   * que nadie lo note hasta que un cliente lo reporte.
+   */
+  private static Filtro predicado(BrokerAccountFilters f) {
+    Filtro filtro = new Filtro();
+
+    // FUERA de la recursiva a propósito: ver el javadoc de `recursivaSiHace`.
+    filtro.condicion("u.deleted_at IS NULL");
+
+    if (f.supervisorId() != null) {
+      filtro.condicion("ub.user_id IN (SELECT user_id FROM red)", "raiz", f.supervisorId());
+    }
+    filtro.igual("ub.user_id", "persona", f.userId());
+    filtro.igual("ub.broker_id", "broker", f.brokerId());
+    if (f.status() != null) {
+      filtro.condicion("ub.status = :estado", "estado", f.status().name());
+    }
+    if (f.from() != null) {
+      filtro.condicion("ub.created_at >= :desde", "desde", f.from());
+    }
+    if (f.to() != null) {
+      // SEMIABIERTO —incluye `from`, excluye `to`—, como los cuatro listados de
+      // auditoría. Con `<=`, pedir dos rangos consecutivos contaría dos veces
+      // lo que cayera justo en el borde.
+      filtro.condicion("ub.created_at < :hasta", "hasta", f.to());
+    }
+    if (f.search() != null) {
+      // Las expresiones son LAS DEL ÍNDICE (`ix_user_brokers_busqueda` y
+      // `ix_users_busqueda`): si divergieran, los índices existirían y el
+      // planificador no los usaría nunca — y el defecto saldría como lentitud,
+      // no como error.
+      filtro.condicion(
+          """
+          (f_unaccent(lower(ub.external_id)) LIKE f_unaccent(lower(:termino)) ESCAPE '\\'
+            OR f_unaccent(lower(u.username)) LIKE f_unaccent(lower(:termino)) ESCAPE '\\'
+            OR f_unaccent(lower(u.email)) LIKE f_unaccent(lower(:termino)) ESCAPE '\\'
+            OR f_unaccent(lower(u.first_name || ' ' || u.last_name))
+               LIKE f_unaccent(lower(:termino)) ESCAPE '\\')
+          """,
+          "termino",
+          "%" + escapar(f.search()) + "%");
+    }
+    return filtro;
+  }
+
+  /**
+   * Escapa lo que {@code LIKE} interpreta.
+   *
+   * <p>El valor va enlazado, de modo que esto no es defensa contra inyección: es que sin escapar,
+   * buscar {@code 100%} devolvería la tabla entera y {@code _} coincidiría con cualquier carácter.
+   */
+  private static String escapar(String termino) {
+    return termino.replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_");
+  }
+
+  /**
+   * Predicado y parámetros, construidos a la vez.
+   *
+   * <p>Van juntos a propósito, como en {@code JpaAuditQueryRepository}: escribir la condición en un
+   * sitio y su parámetro en otro es la forma habitual de que una se quede sin el otro, y el síntoma
+   * es una excepción de parámetro no enlazado en tiempo de ejecución.
+   */
+  private static final class Filtro {
+
+    private final StringBuilder donde = new StringBuilder("1 = 1");
+    private final java.util.Map<String, Object> parametros = new java.util.LinkedHashMap<>();
+
+    void condicion(String sql) {
+      donde.append(" AND ").append(sql);
+    }
+
+    void condicion(String sql, String nombre, Object valor) {
+      condicion(sql);
+      parametros.put(nombre, valor);
+    }
+
+    /** Igualdad simple. Un valor nulo significa «sin filtro» y no añade nada. */
+    void igual(String columna, String nombre, Object valor) {
+      if (valor != null) {
+        condicion(columna + " = CAST(:" + nombre + " AS uuid)", nombre, valor);
+      }
+    }
+
+    String sql() {
+      return donde.toString();
+    }
+
+    void enlazar(Query consulta) {
+      parametros.forEach(consulta::setParameter);
+    }
+  }
+
+  /**
+   * La fila, mapeada en UN solo sitio.
+   *
+   * <p>La comparten el listado del equipo y el de administración, y esa igualdad <b>es
+   * contrato</b>: el frontend pinta las dos pantallas con un solo componente.
+   */
+  private static List<TeamBrokerAccountItem> conFilas(List<Tuple> filas) {
+    List<TeamBrokerAccountItem> resultado = new ArrayList<>(filas.size());
+    for (Tuple fila : filas) {
+      resultado.add(
+          new TeamBrokerAccountItem(
+              (UUID) fila.get("id"),
+              new Holder(
+                  (UUID) fila.get("user_id"),
+                  (String) fila.get("username"),
+                  (String) fila.get("first_name"),
+                  (String) fila.get("last_name")),
+              new BrokerRef((UUID) fila.get("broker_id"), (String) fila.get("broker_name")),
+              (String) fila.get("external_id"),
+              (String) fila.get("broker_username"),
+              estado(fila),
+              momento(fila.get("created_at"))));
+    }
+    return resultado;
   }
 
   /**

@@ -876,14 +876,6 @@
         "type" : "object"
       },
       "JsonNode" : { },
-      "ListBrokersRequest" : {
-        "properties" : {
-          "includeInactive" : {
-            "type" : "boolean"
-          }
-        },
-        "type" : "object"
-      },
       "ListCommissionRatesRequest" : {
         "properties" : {
           "includeDeleted" : {
@@ -4179,16 +4171,147 @@
         "tags" : [ "Registro por enlace" ]
       }
     },
+    "/api/v1/broker-accounts" : {
+      "get" : {
+        "description" : "Devuelve **todas** las cuentas de broker del sistema, paginadas y con\nsu titular en cada fila. **Sin ningún filtro devuelve el sistema\nentero**: es lo que `broker-accounts:read` significa.\n\n**`supervisorId` devuelve LA RED ENTERA de esa persona, en\nprofundidad** (`RN-SP-047`): sus subordinados, los subordinados de\nestos, y así hasta abajo. **No es un solo nivel**, al revés que\n`GET /api/v1/users/{id}/team` y que\n`GET /api/v1/users/me/team/broker-accounts` — aquellos se autorizan\npor la estructura y por eso se acotan; este se autoriza por permiso,\nque ya alcanza a todos, de modo que la profundidad **ahorra recorrer\nel árbol y no concede nada**.\n\n**La raíz NO se incluye en su red.** Preguntar por la red de alguien\ndevuelve la de los suyos; sus propias cuentas se piden con `userId`, y\n**los dos filtros se combinan** — juntos responden «de la red de este\nvendedor, las cuentas de esta persona».\n\n**Solo la estructura vigente.** Quien dejó la red ayer no aparece, ni\nlos que colgaban de él por esa vía. Y una persona **eliminada** no\naparece **sin que su rama se corte**: quienes dependían de ella siguen\nsaliendo.\n\n**Filtros, todos opcionales y combinables con Y:**\n\n- `supervisorId` — la red, en profundidad.\n- `userId` — una persona concreta.\n- `status` — `REGISTER` o `FIRST_DEPOSIT`. **Cualquier otro valor es\n  `400`**, no una página vacía.\n- `brokerId` — un broker del catálogo.\n- `search` — fragmento de **número de cuenta**, nombre de usuario,\n  correo o nombre completo. Sin acentos y sin distinguir mayúsculas.\n- `from` / `to` — **cuándo se declaró la cuenta**. Son **instantes con\n  zona**, no fechas sueltas, y el rango es **semiabierto**: incluye\n  `from`, excluye `to`. `from` posterior a `to` es `400`.\n\n**Un identificador inexistente devuelve la página vacía sin error** —\n`supervisorId`, `userId` y `brokerId` no se validan contra su tabla—,\nal revés que `status` y que el rango: aquellos son preguntas legítimas\ncon respuesta vacía y estos son preguntas mal escritas.\n\n`totalElements` **cuenta lo filtrado**.\n\n**La fila es idéntica campo por campo a la de\n`GET /api/v1/users/me/team/broker-accounts`**, a propósito: las dos\npantallas se pintan con el mismo componente.\n\n**Hoy todas las cuentas están en `REGISTER`**: quien mueve una a\n`FIRST_DEPOSIT` es el webhook del broker, que todavía no existe.\n\n**Esta ruta no sustituye a `GET /api/v1/users/{id}/broker-accounts`**,\nque existe para **el superior comercial sin permiso**.\n",
+        "operationId" : "listar_7",
+        "parameters" : [ {
+          "in" : "query",
+          "name" : "page",
+          "required" : false,
+          "schema" : {
+            "format" : "int32",
+            "type" : "integer"
+          }
+        }, {
+          "in" : "query",
+          "name" : "size",
+          "required" : false,
+          "schema" : {
+            "format" : "int32",
+            "type" : "integer"
+          }
+        }, {
+          "in" : "query",
+          "name" : "supervisorId",
+          "required" : false,
+          "schema" : {
+            "format" : "uuid",
+            "type" : "string"
+          }
+        }, {
+          "in" : "query",
+          "name" : "userId",
+          "required" : false,
+          "schema" : {
+            "format" : "uuid",
+            "type" : "string"
+          }
+        }, {
+          "in" : "query",
+          "name" : "status",
+          "required" : false,
+          "schema" : {
+            "type" : "string"
+          }
+        }, {
+          "in" : "query",
+          "name" : "brokerId",
+          "required" : false,
+          "schema" : {
+            "format" : "uuid",
+            "type" : "string"
+          }
+        }, {
+          "in" : "query",
+          "name" : "search",
+          "required" : false,
+          "schema" : {
+            "type" : "string"
+          }
+        }, {
+          "in" : "query",
+          "name" : "from",
+          "required" : false,
+          "schema" : {
+            "format" : "date-time",
+            "type" : "string"
+          }
+        }, {
+          "in" : "query",
+          "name" : "to",
+          "required" : false,
+          "schema" : {
+            "format" : "date-time",
+            "type" : "string"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/PageResponseTeamBrokerAccountItem"
+                }
+              }
+            },
+            "description" : "Página de cuentas, ordenada por titular, broker e identificador de cuenta. Vacía si ningún registro cumple el filtro."
+          },
+          "400" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/PageResponseTeamBrokerAccountItem"
+                }
+              }
+            },
+            "description" : "`status` fuera de `REGISTER`/`FIRST_DEPOSIT`, `from` posterior a `to`, identificador malformado (`VAL-001`) o paginación fuera de límites (`VAL-003`)"
+          },
+          "401" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/PageResponseTeamBrokerAccountItem"
+                }
+              }
+            },
+            "description" : "Token ausente o inválido (`AUTH-001`)"
+          },
+          "403" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/PageResponseTeamBrokerAccountItem"
+                }
+              }
+            },
+            "description" : "Autenticado sin `broker-accounts:read` (`AUTH-002`)"
+          },
+          "500" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/PageResponseTeamBrokerAccountItem"
+                }
+              }
+            },
+            "description" : "Fallo no controlado (`ERR-500`)"
+          }
+        },
+        "summary" : "Consultar y filtrar todas las cuentas de broker",
+        "tags" : [ "Cuentas de broker" ]
+      }
+    },
     "/api/v1/brokers" : {
       "get" : {
         "description" : "Devuelve los brokers con los que opera la plataforma, **ordenados por\nnombre**.\n\n**Un broker guarda de momento solo su nombre**, y eso tiene una\nconsecuencia que conviene conocer antes de integrarse: **el nombre es la\nclave de negocio**, no un texto descriptivo. No hay un `code` estable\nfrente a un cambio de nombre comercial — quien necesite referenciar un\nbroker debe hacerlo por su **identificador**.\n\n**No se administra por API** (`RN-SP-039`): no hay alta, ni edición, ni\neliminación, ni cambio de estado. Se puebla por migración, igual que los\ncatálogos de monedas y de tipos de documento, y cada alta queda en el\nhistorial del repositorio en lugar de en una fila que alguien insertó.\n\n**Puede responder la colección vacía**, y eso no es un fallo: es el\nestado de un catálogo que todavía no se ha sembrado.\n\n**No se pagina**: son unos pocos elementos y partirlos obligaría a dos\nllamadas para pintar un desplegable.\n",
         "operationId" : "listar_6",
         "parameters" : [ {
           "in" : "query",
-          "name" : "filtros",
-          "required" : true,
+          "name" : "includeInactive",
+          "required" : false,
           "schema" : {
-            "$ref" : "#/components/schemas/ListBrokersRequest"
+            "type" : "boolean"
           }
         } ],
         "responses" : {
@@ -7904,6 +8027,9 @@
   }, {
     "description" : "Tasas de comisión personalizadas: la excepción por persona.",
     "name" : "Comisiones"
+  }, {
+    "description" : "Todas las cuentas de broker del sistema, para quien administra. Las del propio equipo se consultan sin permiso en GET /api/v1/users/me/team/broker-accounts.",
+    "name" : "Cuentas de broker"
   }, {
     "description" : "Catálogo de los brokers con los que opera la plataforma. Solo lectura: se puebla por migración (RN-SP-039).",
     "name" : "Brokers"

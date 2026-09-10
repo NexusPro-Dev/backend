@@ -56,4 +56,42 @@ public interface BrokerAccountQueryRepository {
    * ninguna fila donde leerlo—.
    */
   int countByTeamOf(UUID supervisorId, UserBrokerStatus estado, UUID brokerId);
+
+  /**
+   * Todas las cuentas del sistema, filtradas y paginadas (`RF-SP-057`).
+   *
+   * <p><b>Sin ningún filtro devuelve el sistema entero</b>, y eso es lo que el permiso significa:
+   * quien llega aquí trae `broker-accounts:read`, que ya alcanza a todo el mundo.
+   *
+   * <p><b>{@code supervisorId} es LA RED ENTERA, en profundidad</b> (`RN-SP-047`) — al revés que
+   * {@link #findByTeamOf}, que es de un nivel. La asimetría no es un descuido: aquel lo autoriza la
+   * <b>estructura</b> y devolver la rama completa publicaría la empresa a quien solo lleva un
+   * equipo; este lo autoriza el <b>permiso</b>, de modo que la profundidad <b>no concede nada</b> —
+   * ahorra recorrer el árbol.
+   *
+   * <p>El estado ya viene resuelto a enumerado: traducir el texto es del servicio, porque un valor
+   * inválido es un {@code 400} y este puerto no sabe de códigos de error.
+   */
+  List<TeamBrokerAccountItem> findAll(BrokerAccountFilters filtros, int offset, int limit);
+
+  /** Cuántas cuentas cumplen el mismo filtro. Dos consultas y no una ventana, como arriba. */
+  int countAll(BrokerAccountFilters filtros);
+
+  /**
+   * Los filtros del listado de administración, ya validados.
+   *
+   * <p><b>Un registro y no ocho argumentos</b>: con este número, una llamada posicional deja pasar
+   * sin ruido el día que alguien intercambie {@code supervisorId} y {@code userId} — dos {@code
+   * UUID} seguidos que significan cosas opuestas.
+   *
+   * <p><b>Todo nulo significa «sin filtrar»</b>, y se combinan con Y.
+   */
+  record BrokerAccountFilters(
+      UUID supervisorId,
+      UUID userId,
+      UserBrokerStatus status,
+      UUID brokerId,
+      String search,
+      java.time.OffsetDateTime from,
+      java.time.OffsetDateTime to) {}
 }

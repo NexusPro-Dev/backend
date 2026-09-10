@@ -75,7 +75,11 @@ public class BrokerController {
         description = "Fallo no controlado (`ERR-500`)",
         content = @Content)
   })
-  public BrokerCatalogResponse listar(@ModelAttribute ListBrokersRequest filtros) {
+  public BrokerCatalogResponse listar(
+      // `@ParameterObject` EXPLOTA el registro en sus parámetros de consulta. Sin
+      // él, el contrato publica UNO solo llamado `filtros` y el frontend no ve
+      // que existe `includeInactive`. Faltaba desde `RF-SP-052` (10-09-2026).
+      @org.springdoc.core.annotations.ParameterObject @ModelAttribute ListBrokersRequest filtros) {
     return catalogo.list(filtros);
   }
 }

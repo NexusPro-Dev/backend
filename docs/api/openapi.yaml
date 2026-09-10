@@ -37,6 +37,9 @@ tags:
   description: Catálogo de países. Inmutable salvo su estado.
 - name: Comisiones
   description: "Tasas de comisión personalizadas: la excepción por persona."
+- name: Cuentas de broker
+  description: "Todas las cuentas de broker del sistema, para quien administra. Las\
+    \ del propio equipo se consultan sin permiso en GET /api/v1/users/me/team/broker-accounts."
 - name: Brokers
   description: "Catálogo de los brokers con los que opera la plataforma. Solo lectura:\
     \ se puebla por migración (RN-SP-039)."
@@ -4458,11 +4461,11 @@ paths:
         llamadas para pintar un desplegable.
       operationId: listar_6
       parameters:
-      - name: filtros
+      - name: includeInactive
         in: query
-        required: true
+        required: false
         schema:
-          $ref: "#/components/schemas/ListBrokersRequest"
+          type: boolean
       responses:
         "200":
           description: "Catálogo, ordenado por nombre"
@@ -4476,6 +4479,152 @@ paths:
           description: El actor no posee `brokers:read`
         "500":
           description: Fallo no controlado (`ERR-500`)
+  /api/v1/broker-accounts:
+    get:
+      tags:
+      - Cuentas de broker
+      summary: Consultar y filtrar todas las cuentas de broker
+      description: |
+        Devuelve **todas** las cuentas de broker del sistema, paginadas y con
+        su titular en cada fila. **Sin ningún filtro devuelve el sistema
+        entero**: es lo que `broker-accounts:read` significa.
+
+        **`supervisorId` devuelve LA RED ENTERA de esa persona, en
+        profundidad** (`RN-SP-047`): sus subordinados, los subordinados de
+        estos, y así hasta abajo. **No es un solo nivel**, al revés que
+        `GET /api/v1/users/{id}/team` y que
+        `GET /api/v1/users/me/team/broker-accounts` — aquellos se autorizan
+        por la estructura y por eso se acotan; este se autoriza por permiso,
+        que ya alcanza a todos, de modo que la profundidad **ahorra recorrer
+        el árbol y no concede nada**.
+
+        **La raíz NO se incluye en su red.** Preguntar por la red de alguien
+        devuelve la de los suyos; sus propias cuentas se piden con `userId`, y
+        **los dos filtros se combinan** — juntos responden «de la red de este
+        vendedor, las cuentas de esta persona».
+
+        **Solo la estructura vigente.** Quien dejó la red ayer no aparece, ni
+        los que colgaban de él por esa vía. Y una persona **eliminada** no
+        aparece **sin que su rama se corte**: quienes dependían de ella siguen
+        saliendo.
+
+        **Filtros, todos opcionales y combinables con Y:**
+
+        - `supervisorId` — la red, en profundidad.
+        - `userId` — una persona concreta.
+        - `status` — `REGISTER` o `FIRST_DEPOSIT`. **Cualquier otro valor es
+          `400`**, no una página vacía.
+        - `brokerId` — un broker del catálogo.
+        - `search` — fragmento de **número de cuenta**, nombre de usuario,
+          correo o nombre completo. Sin acentos y sin distinguir mayúsculas.
+        - `from` / `to` — **cuándo se declaró la cuenta**. Son **instantes con
+          zona**, no fechas sueltas, y el rango es **semiabierto**: incluye
+          `from`, excluye `to`. `from` posterior a `to` es `400`.
+
+        **Un identificador inexistente devuelve la página vacía sin error** —
+        `supervisorId`, `userId` y `brokerId` no se validan contra su tabla—,
+        al revés que `status` y que el rango: aquellos son preguntas legítimas
+        con respuesta vacía y estos son preguntas mal escritas.
+
+        `totalElements` **cuenta lo filtrado**.
+
+        **La fila es idéntica campo por campo a la de
+        `GET /api/v1/users/me/team/broker-accounts`**, a propósito: las dos
+        pantallas se pintan con el mismo componente.
+
+        **Hoy todas las cuentas están en `REGISTER`**: quien mueve una a
+        `FIRST_DEPOSIT` es el webhook del broker, que todavía no existe.
+
+        **Esta ruta no sustituye a `GET /api/v1/users/{id}/broker-accounts`**,
+        que existe para **el superior comercial sin permiso**.
+      operationId: listar_7
+      parameters:
+      - name: page
+        in: query
+        required: false
+        schema:
+          type: integer
+          format: int32
+      - name: size
+        in: query
+        required: false
+        schema:
+          type: integer
+          format: int32
+      - name: supervisorId
+        in: query
+        required: false
+        schema:
+          type: string
+          format: uuid
+      - name: userId
+        in: query
+        required: false
+        schema:
+          type: string
+          format: uuid
+      - name: status
+        in: query
+        required: false
+        schema:
+          type: string
+      - name: brokerId
+        in: query
+        required: false
+        schema:
+          type: string
+          format: uuid
+      - name: search
+        in: query
+        required: false
+        schema:
+          type: string
+      - name: from
+        in: query
+        required: false
+        schema:
+          type: string
+          format: date-time
+      - name: to
+        in: query
+        required: false
+        schema:
+          type: string
+          format: date-time
+      responses:
+        "200":
+          description: "Página de cuentas, ordenada por titular, broker e identificador\
+            \ de cuenta. Vacía si ningún registro cumple el filtro."
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/PageResponseTeamBrokerAccountItem"
+        "400":
+          description: "`status` fuera de `REGISTER`/`FIRST_DEPOSIT`, `from` posterior\
+            \ a `to`, identificador malformado (`VAL-001`) o paginación fuera de lí\
+            mites (`VAL-003`)"
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/PageResponseTeamBrokerAccountItem"
+        "401":
+          description: Token ausente o inválido (`AUTH-001`)
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/PageResponseTeamBrokerAccountItem"
+        "403":
+          description: Autenticado sin `broker-accounts:read` (`AUTH-002`)
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/PageResponseTeamBrokerAccountItem"
+        "500":
+          description: Fallo no controlado (`ERR-500`)
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/PageResponseTeamBrokerAccountItem"
   /api/v1/audit/security:
     get:
       tags:
@@ -7122,11 +7271,6 @@ components:
           type: boolean
         sort:
           type: string
-    ListBrokersRequest:
-      type: object
-      properties:
-        includeInactive:
-          type: boolean
     BrokerCatalogResponse:
       type: object
       properties:
