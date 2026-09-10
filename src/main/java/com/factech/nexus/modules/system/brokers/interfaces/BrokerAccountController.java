@@ -168,13 +168,20 @@ public class BrokerAccountController {
 
           `totalElements` **cuenta lo filtrado**.
 
-          **La respuesta lleva además un `summary` con dos totales y sus
-          desgloses por broker**:
+          **La respuesta lleva además un `summary` con TRES totales y sus
+          desgloses por broker**, los tres con la misma forma —un `total` y un
+          `byBroker`—:
 
           - `summary.accounts` — cuántos registros cumplen el filtro. Su
             `total` es **el mismo número que `totalElements`**, y sale de la
             misma consulta: no pueden discrepar.
+          - `summary.register` — cuántos de esos están en `REGISTER`.
           - `summary.firstDeposit` — cuántos de esos están en `FIRST_DEPOSIT`.
+
+          **`accounts` es siempre `register` + `firstDeposit`**, total a total y
+          broker a broker. La redundancia es deliberada: van los dos estados
+          para no obligar a restar, y va el total porque es la pregunta que más
+          se hace.
 
           **El resumen respeta TODOS los filtros, incluido `status`**, y de ahí
           sale lo único que hay que saber antes de pintarlo: **con
@@ -184,13 +191,15 @@ public class BrokerAccountController {
           tablero que lo enseñe sin decirlo miente; para ver el embudo completo,
           consulte **sin** el filtro `status`.
 
-          **`byBroker` trae solo los brokers con al menos una cuenta**, ordenado
-          por nombre. Un broker que no aparece no tiene ninguna en ese filtro —
-          no hay ceros que interpretar. Los dos desgloses **suman exactamente**
-          su `total`.
+          **`byBroker` trae TODOS los brokers del catálogo**, ordenado por
+          nombre y **con cero donde el filtro no deja ninguna**: su longitud
+          **no cambia** al filtrar, de modo que las columnas de una tabla se
+          arman una vez y no bailan. Un broker **desactivado sigue apareciendo**
+          — apagarlo no borra lo que ya se declaró en él. Los tres desgloses
+          **suman exactamente** su `total`.
 
-          **Con la página vacía el resumen va en ceros y arreglos vacíos**, no
-          ausente.
+          **Con la página vacía el resumen va en ceros**, no ausente: el
+          `byBroker` sigue trayendo el catálogo entero, todo a cero.
 
           **La fila es idéntica campo por campo a la de
           `GET /api/v1/users/me/team/broker-accounts`**, a propósito: las dos

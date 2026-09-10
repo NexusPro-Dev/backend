@@ -5,7 +5,7 @@
 | Requerimiento | `RF-SP-057` |
 | Especificación | [`spec.md`](spec.md) |
 | Plan | [`plan.md`](plan.md), aprobado el 10-09-2026 |
-| Estado | **En revisión** — `T-01` a `T-14` **Hecha** el 10-09-2026, con `mvn verify` en **1193 pruebas verdes**. Enmendado el mismo día: la respuesta gana su resumen |
+| Estado | **En revisión** — `T-01` a `T-14` **Hecha** el 10-09-2026, con `mvn verify` en **1194 pruebas verdes**. Enmendado dos veces el mismo día: la respuesta gana su resumen, y el resumen gana el segundo estado y el catálogo entero |
 | Issue | Pendiente de crear |
 | Rama | `feature/venta-de-productos` |
 | Autor | Responsable técnico |

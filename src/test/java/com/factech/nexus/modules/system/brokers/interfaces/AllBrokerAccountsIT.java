@@ -369,29 +369,52 @@ class AllBrokerAccountsIT extends IntegrationTestBase {
         .andExpect(jsonPath("$.summary.accounts.total").value(5))
         .andExpect(jsonPath("$.summary.firstDeposit.total").value(1))
         // EXNOVA tiene 3 (10000001, 20000001, 40000001) e IQOPTION 2.
-        .andExpect(jsonPath("$.summary.accounts.byBroker.length()").value(2))
-        .andExpect(jsonPath("$.summary.accounts.byBroker[0].broker.name").value("EXNOVA"))
-        .andExpect(jsonPath("$.summary.accounts.byBroker[0].total").value(3))
-        .andExpect(jsonPath("$.summary.accounts.byBroker[1].broker.name").value("IQOPTION"))
-        .andExpect(jsonPath("$.summary.accounts.byBroker[1].total").value(2))
-        // Y el desglose de FTD solo trae el broker que tiene alguna.
-        .andExpect(jsonPath("$.summary.firstDeposit.byBroker.length()").value(1))
-        .andExpect(jsonPath("$.summary.firstDeposit.byBroker[0].broker.name").value("IQOPTION"))
-        .andExpect(jsonPath("$.summary.firstDeposit.byBroker[0].total").value(1));
+        .andExpect(deBroker("accounts", "EXNOVA", 3))
+        .andExpect(deBroker("accounts", "IQOPTION", 2))
+        .andExpect(deBroker("firstDeposit", "IQOPTION", 1))
+        // La única depositada es de IQOPTION, de modo que EXNOVA sale EN CERO
+        // y no ausente.
+        .andExpect(deBroker("firstDeposit", "EXNOVA", 0));
   }
 
   @Test
-  @DisplayName("`CA-SP-671` — el desglose trae SOLO los brokers con al menos una cuenta")
-  void elDesgloseNoTraeCeros() throws Exception {
-    // EXOPTION existe en el catálogo y no tiene ninguna cuenta: NO aparece.
-    // Así no hay que distinguir un cero real de «este broker nunca se usó».
+  @DisplayName("`CA-SP-676` — van los DOS estados, y `accounts` es siempre su suma")
+  void losDosEstados() throws Exception {
+    jdbc.update("UPDATE user_brokers SET status = 'FIRST_DEPOSIT' WHERE external_id = '30000001'");
+
+    // Sin el bloque `register`, el cliente tendría que restar. Con dos estados
+    // esa resta es trivial HOY; el día que haya un tercero dejaría de serlo, y
+    // quien la hubiera escrito no se enteraría.
+    mvc.perform(get(RUTA).with(administrador()))
+        .andExpect(jsonPath("$.summary.accounts.total").value(5))
+        .andExpect(jsonPath("$.summary.register.total").value(4))
+        .andExpect(jsonPath("$.summary.firstDeposit.total").value(1))
+        // Y broker a broker, no solo en el total: IQOPTION tiene 2 = 1 + 1.
+        .andExpect(deBroker("register", "IQOPTION", 1))
+        .andExpect(deBroker("register", "EXNOVA", 3));
+  }
+
+  @Test
+  @DisplayName(
+      "`CA-SP-675` — el desglose trae TODO el catálogo, y su longitud NO cambia al filtrar")
+  void elDesgloseTraeTodoElCatalogo() throws Exception {
+    // EXOPTION está en el catálogo y no tiene ninguna cuenta: aparece EN CERO.
+    // Es lo contrario de lo que este endpoint hacía al nacer, y se invirtió
+    // porque un arreglo cuya longitud depende del filtro obliga a rearmar las
+    // columnas de la tabla en cada consulta.
     brokerAsegurado("01a081f0-6000-7103-9c4f-5e7adb000003", "EXOPTION");
+    int catalogo = brokersEnCatalogo();
 
     mvc.perform(get(RUTA).with(administrador()))
-        .andExpect(jsonPath("$.summary.accounts.byBroker.length()").value(2))
-        .andExpect(
-            jsonPath("$.summary.accounts.byBroker[?(@.broker.name == 'EXOPTION')]")
-                .value(org.hamcrest.Matchers.empty()));
+        .andExpect(jsonPath("$.summary.accounts.byBroker.length()").value(catalogo))
+        .andExpect(deBroker("accounts", "EXOPTION", 0));
+
+    // Y con un filtro que deja UNA sola cuenta, el arreglo sigue midiendo lo
+    // mismo. Eso es lo que se está probando: la longitud no depende del filtro.
+    mvc.perform(get(RUTA + "?search=40000").with(administrador()))
+        .andExpect(jsonPath("$.summary.accounts.total").value(1))
+        .andExpect(jsonPath("$.summary.accounts.byBroker.length()").value(catalogo))
+        .andExpect(deBroker("accounts", "IQOPTION", 0));
   }
 
   @Test
@@ -408,12 +431,17 @@ class AllBrokerAccountsIT extends IntegrationTestBase {
     mvc.perform(get(RUTA + "?status=REGISTER").with(administrador()))
         .andExpect(status().isOk())
         .andExpect(jsonPath("$.summary.accounts.total").value(4))
+        .andExpect(jsonPath("$.summary.register.total").value(4))
         .andExpect(jsonPath("$.summary.firstDeposit.total").value(0))
-        .andExpect(jsonPath("$.summary.firstDeposit.byBroker.length()").value(0));
+        // El desglose sigue trayendo el catálogo entero: lo que va a cero son
+        // los valores, no la longitud.
+        .andExpect(jsonPath("$.summary.firstDeposit.byBroker.length()").value(brokersEnCatalogo()))
+        .andExpect(deBroker("firstDeposit", "IQOPTION", 0));
 
-    // Y con el filtro contrario, el FTD es TODO el total.
+    // Y con el filtro contrario, el FTD es TODO el total y `register` cae a cero.
     mvc.perform(get(RUTA + "?status=FIRST_DEPOSIT").with(administrador()))
         .andExpect(jsonPath("$.summary.accounts.total").value(1))
+        .andExpect(jsonPath("$.summary.register.total").value(0))
         .andExpect(jsonPath("$.summary.firstDeposit.total").value(1));
   }
 
@@ -423,13 +451,14 @@ class AllBrokerAccountsIT extends IntegrationTestBase {
     // Por red: de `jefe` cuelgan 3 cuentas (medio, base, nieto).
     mvc.perform(get(RUTA + "?supervisorId=" + jefe).with(administrador()))
         .andExpect(jsonPath("$.summary.accounts.total").value(3))
-        .andExpect(jsonPath("$.summary.accounts.byBroker.length()").value(2));
+        .andExpect(deBroker("accounts", "EXNOVA", 2))
+        .andExpect(deBroker("accounts", "IQOPTION", 1));
 
-    // Por broker: solo IQOPTION.
+    // Por broker: solo IQOPTION suma, y EXNOVA queda en cero SIN desaparecer.
     mvc.perform(get(RUTA + "?brokerId=" + brokerB).with(administrador()))
         .andExpect(jsonPath("$.summary.accounts.total").value(2))
-        .andExpect(jsonPath("$.summary.accounts.byBroker.length()").value(1))
-        .andExpect(jsonPath("$.summary.accounts.byBroker[0].broker.name").value("IQOPTION"));
+        .andExpect(deBroker("accounts", "IQOPTION", 2))
+        .andExpect(deBroker("accounts", "EXNOVA", 0));
 
     // Por texto: una sola cuenta.
     mvc.perform(get(RUTA + "?search=40000").with(administrador()))
@@ -445,8 +474,11 @@ class AllBrokerAccountsIT extends IntegrationTestBase {
         // Presente y en ceros: ausente obligaría al cliente a distinguir dos
         // formas de respuesta para pintar lo mismo.
         .andExpect(jsonPath("$.summary.accounts.total").value(0))
-        .andExpect(jsonPath("$.summary.accounts.byBroker.length()").value(0))
-        .andExpect(jsonPath("$.summary.firstDeposit.total").value(0));
+        .andExpect(jsonPath("$.summary.register.total").value(0))
+        .andExpect(jsonPath("$.summary.firstDeposit.total").value(0))
+        // Y el desglose sigue siendo el catálogo entero, todo a cero.
+        .andExpect(jsonPath("$.summary.accounts.byBroker.length()").value(brokersEnCatalogo()))
+        .andExpect(deBroker("accounts", "EXNOVA", 0));
   }
 
   @Test
@@ -459,7 +491,28 @@ class AllBrokerAccountsIT extends IntegrationTestBase {
         .andExpect(jsonPath("$.summary.accounts.total").value(5));
   }
 
-  // ---------------------------------------------------------------------------
+  /**
+   * El total de un broker DENTRO de un bloque del resumen, buscado por nombre.
+   *
+   * <p><b>Por nombre y no por posición</b>: el desglose trae ahora el catálogo entero, de modo que
+   * su longitud y su orden dependen de cuántos brokers haya sembrados — y una prueba que indexara
+   * fallaría el día que entre uno nuevo, por un motivo que no tiene nada que ver con lo que afirma.
+   */
+  private static org.springframework.test.web.servlet.ResultMatcher deBroker(
+      String bloque, String nombre, int esperado) {
+    // El filtro de JsonPath devuelve una LISTA aunque coincida uno solo, de modo
+    // que se compara con `contains` y no con `value(int)`. Eso además afirma
+    // algo útil de paso: que el broker aparece EXACTAMENTE una vez.
+    return jsonPath(
+        "$.summary." + bloque + ".byBroker[?(@.broker.name == '" + nombre + "')].total",
+        org.hamcrest.Matchers.contains(esperado));
+  }
+
+  /** Cuántos brokers hay sembrados ahora mismo. Ver {@code brokerAsegurado}. */
+  private int brokersEnCatalogo() {
+    return jdbc.queryForObject("SELECT count(*) FROM brokers", Integer.class);
+  }
+
   // Utilidades
   // ---------------------------------------------------------------------------
 

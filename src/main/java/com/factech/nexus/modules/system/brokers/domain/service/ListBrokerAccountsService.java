@@ -5,16 +5,19 @@ import com.factech.nexus.modules.system.brokers.application.BrokerAccountsPage;
 import com.factech.nexus.modules.system.brokers.application.BrokerAccountsPage.ByBroker;
 import com.factech.nexus.modules.system.brokers.application.BrokerAccountsPage.Summary;
 import com.factech.nexus.modules.system.brokers.application.BrokerAccountsPage.Totals;
+import com.factech.nexus.modules.system.brokers.application.BrokerItem;
 import com.factech.nexus.modules.system.brokers.application.ListBrokerAccountsRequest;
 import com.factech.nexus.modules.system.brokers.application.TeamBrokerAccountItem;
 import com.factech.nexus.modules.system.brokers.domain.models.UserBrokerStatus;
 import com.factech.nexus.modules.system.brokers.domain.repository.BrokerAccountQueryRepository;
 import com.factech.nexus.modules.system.brokers.domain.repository.BrokerAccountQueryRepository.BrokerAccountFilters;
 import com.factech.nexus.modules.system.brokers.domain.repository.BrokerAccountQueryRepository.BrokerStatusCount;
+import com.factech.nexus.modules.system.brokers.domain.repository.BrokerQueryRepository;
 import com.factech.nexus.shared.error.FieldError;
 import com.factech.nexus.shared.error.ValidationException;
 import com.factech.nexus.shared.pagination.PageResponse;
 import com.factech.nexus.shared.pagination.Pagination;
+import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -52,10 +55,22 @@ import org.springframework.transaction.annotation.Transactional;
 public class ListBrokerAccountsService {
 
   private final BrokerAccountQueryRepository cuentas;
+
+  /**
+   * El catálogo de `RF-SP-052`, para completar el desglose con los brokers <b>sin</b> cuentas.
+   *
+   * <p>Se reutiliza en lugar de escribir un {@code LEFT JOIN} contra la consulta filtrada: aquello
+   * obligaría a meter el predicado —y la recursiva de la red— dentro de una unión externa, para
+   * completar tres filas.
+   */
+  private final BrokerQueryRepository brokers;
+
   private final Pagination paginacion;
 
-  public ListBrokerAccountsService(BrokerAccountQueryRepository cuentas, Pagination paginacion) {
+  public ListBrokerAccountsService(
+      BrokerAccountQueryRepository cuentas, BrokerQueryRepository brokers, Pagination paginacion) {
     this.cuentas = cuentas;
+    this.brokers = brokers;
     this.paginacion = paginacion;
   }
 
@@ -96,43 +111,62 @@ public class ListBrokerAccountsService {
   }
 
   /**
-   * Los dos totales y sus desgloses, armados de <b>una sola</b> consulta agrupada.
+   * Los tres totales y sus desgloses, armados de <b>una sola</b> consulta agrupada.
    *
-   * <p><b>El de {@code FIRST_DEPOSIT} sale del mismo conjunto que el otro</b>, y por tanto respeta
-   * también el filtro {@code status} (decisión del 10-09-2026). De ahí que con {@code
-   * ?status=REGISTER} valga cero: no es que nadie haya depositado, es que no se pidió ninguno.
+   * <p><b>Los tres salen del mismo conjunto</b>, y por tanto respetan también el filtro {@code
+   * status} (decisión del 10-09-2026). De ahí que con {@code ?status=REGISTER} el de {@code
+   * FIRST_DEPOSIT} valga cero: no es que nadie haya depositado, es que no se pidió ninguno.
    *
-   * <p><b>El desglose conserva el orden de la consulta</b> —por nombre de broker— porque se recorre
-   * en orden y se acumula en un mapa que lo preserva. Reordenar aquí sería una segunda copia del
-   * criterio que ya fijó el {@code ORDER BY}.
+   * <p><b>El desglose se arma sobre EL CATÁLOGO ENTERO</b> y no sobre las filas que devolvió la
+   * consulta: se parte de todos los brokers en cero y se van sumando los conteos encima. Es lo que
+   * hace que <b>la longitud del arreglo no dependa del filtro</b> — y que una columna con cero se
+   * distinga de una columna que desapareció.
+   *
+   * <p><b>El orden es el del catálogo</b>, que ya viene por nombre con la intercalación de la
+   * columna. Reordenar aquí sería una segunda copia de ese criterio.
    */
-  private static Summary resumen(List<BrokerStatusCount> conteos) {
-    Map<UUID, ByBroker> todas = new LinkedHashMap<>();
-    Map<UUID, ByBroker> depositadas = new LinkedHashMap<>();
-    long total = 0;
-    long conDeposito = 0;
+  private Summary resumen(List<BrokerStatusCount> conteos) {
+    // Reutiliza el catálogo de `RF-SP-052` en vez de un `LEFT JOIN` contra la
+    // consulta filtrada: aquello obligaría a meter el predicado y la recursiva
+    // dentro de una unión externa, y son tres brokers.
+    List<BrokerItem> catalogo = brokers.findAll(true);
+
+    Map<UUID, Long> todas = enCero(catalogo);
+    Map<UUID, Long> pendientes = enCero(catalogo);
+    Map<UUID, Long> depositadas = enCero(catalogo);
 
     for (BrokerStatusCount fila : conteos) {
-      BrokerRef broker = new BrokerRef(fila.brokerId(), fila.brokerName());
-      acumular(todas, broker, fila.total());
-      total += fila.total();
-
-      if (fila.status() == UserBrokerStatus.FIRST_DEPOSIT) {
-        acumular(depositadas, broker, fila.total());
-        conDeposito += fila.total();
-      }
+      todas.merge(fila.brokerId(), fila.total(), Long::sum);
+      Map<UUID, Long> delEstado =
+          fila.status() == UserBrokerStatus.FIRST_DEPOSIT ? depositadas : pendientes;
+      delEstado.merge(fila.brokerId(), fila.total(), Long::sum);
     }
 
     return new Summary(
-        new Totals(total, List.copyOf(todas.values())),
-        new Totals(conDeposito, List.copyOf(depositadas.values())));
+        totales(catalogo, todas), totales(catalogo, pendientes), totales(catalogo, depositadas));
   }
 
-  private static void acumular(Map<UUID, ByBroker> destino, BrokerRef broker, long cuantas) {
-    destino.merge(
-        broker.id(),
-        new ByBroker(broker, cuantas),
-        (antes, ahora) -> new ByBroker(broker, antes.total() + ahora.total()));
+  /**
+   * Todos los brokers del catálogo, cada uno a cero.
+   *
+   * <p>Partir de aquí —y no de lo que devolvió la consulta— es lo único que garantiza que estén
+   * todos: sumar encima nunca añade un broker que no estuviera.
+   */
+  private static Map<UUID, Long> enCero(List<BrokerItem> catalogo) {
+    Map<UUID, Long> vacio = new LinkedHashMap<>();
+    catalogo.forEach(broker -> vacio.put(broker.id(), 0L));
+    return vacio;
+  }
+
+  private static Totals totales(List<BrokerItem> catalogo, Map<UUID, Long> conteos) {
+    List<ByBroker> desglose = new ArrayList<>(catalogo.size());
+    long total = 0;
+    for (BrokerItem broker : catalogo) {
+      long cuantas = conteos.getOrDefault(broker.id(), 0L);
+      desglose.add(new ByBroker(new BrokerRef(broker.id(), broker.name()), cuantas));
+      total += cuantas;
+    }
+    return new Totals(total, List.copyOf(desglose));
   }
 
   /**

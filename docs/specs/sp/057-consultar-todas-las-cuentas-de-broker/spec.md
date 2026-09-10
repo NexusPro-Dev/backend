@@ -36,7 +36,7 @@ Ver **todas** las cuentas de broker del sistema y acotarlas — sobre todo **por
 - El listado **paginado de todas las cuentas** del sistema, cada fila con su titular.
 - Filtro por **la red completa de un vendedor**, en profundidad (`RN-SP-047`).
 - Filtros por **persona**, **estado**, **broker**, **texto** y **rango de fechas** de declaración.
-- Un **resumen de lo filtrado** (10-09-2026): cuántos registros hay y cuántos en `FIRST_DEPOSIT`, **cada uno desglosado por broker**.
+- Un **resumen de lo filtrado** (10-09-2026): cuántos registros hay y cuántos en **cada uno de los dos estados**, los tres **desglosados por broker** —y por **todos** los del catálogo—.
 
 ### 4.2 No incluye
 
@@ -93,16 +93,23 @@ Ver **todas** las cuentas de broker del sistema y acotarlas — sobre todo **por
 
 | Dato | Descripción |
 |---|---|
-| `summary.accounts.total` | Cuántos registros cumplen el filtro. **Es el mismo número que `totalElements`**, por construcción |
-| `summary.accounts.byBroker` | Ese total, **desglosado por broker**, ordenado por nombre |
-| `summary.firstDeposit.total` | Cuántos de esos están en `FIRST_DEPOSIT` |
-| `summary.firstDeposit.byBroker` | Ese otro total, desglosado por broker |
+| `summary.accounts` | Cuántos registros cumplen el filtro. Su total **es el mismo número que `totalElements`**, por construcción |
+| `summary.register` | Cuántos de esos están en `REGISTER` |
+| `summary.firstDeposit` | Cuántos de esos están en `FIRST_DEPOSIT` |
+
+**Los tres bloques tienen la misma forma**: un `total` y un `byBroker`.
+
+**Van LOS DOS ESTADOS y no solo el depósito** (10-09-2026): el embudo tiene dos lados, y obligar a restar —`accounts − firstDeposit`— es pedirle al cliente que rehaga una cuenta que el servidor ya tiene hecha. Con dos valores posibles la resta es trivial hoy; **el día que `RN-SP-045` admita un tercer estado dejaría de serlo**, y quien la hubiera escrito no se enteraría.
+
+**`accounts` = `register` + `firstDeposit`**, siempre. Es redundante a propósito, por lo mismo que arriba: el total es la pregunta que más se hace y no debería costar una suma.
 
 **El resumen respeta TODOS los filtros, incluido `status`.** Es decisión expresa del responsable del proyecto y se tomó **contra la recomendación técnica**: se ofreció que el conteo de FTD ignorase el filtro de estado —para que los dos números informaran a la vez— y se eligió la **coherencia**, que el resumen describa exactamente lo devuelto.
 
 **La consecuencia hay que conocerla antes de pintarla**: con `?status=REGISTER` el total de `FIRST_DEPOSIT` **vale siempre cero**, y con `?status=FIRST_DEPOSIT` vale siempre el total. **Ese cero no significa «nadie ha depositado»: significa «no pediste ninguno».** Un tablero que lo enseñe sin decirlo miente.
 
-**El desglose trae solo los brokers con al menos una cuenta.** Un broker ausente no tiene ninguna en ese filtro, y así no hay ceros que distinguir de «este broker nunca se usó».
+**El desglose trae TODOS los brokers del catálogo, con cero donde no hay** (10-09-2026, corrigiendo la decisión del mismo día). Nació al revés —solo los que tenían alguna— y se invirtió por lo que cuesta en la pantalla: **un arreglo cuya longitud depende del filtro obliga a rearmar las columnas en cada consulta**, y una columna que desaparece se lee como un dato que falta, no como un cero.
+
+**Consecuencia declarada**: un broker **desactivado sigue apareciendo**, con su cero o con las cuentas que ya tenía. Es lo correcto —apagar un broker no borra lo declarado en él (`RF-SP-052` §13)— y el precio es una columna muerta el día que se retire alguno. Si eso molesta, la decisión de acotar el desglose a los activos es del responsable del proyecto, no una limpieza técnica.
 
 **`accounts.total` y `totalElements` salen de la misma consulta** y no de dos: son el mismo número dicho en dos sitios, y calcularlos por separado sería tener dos fuentes de verdad sobre lo mismo — el día que una divergiera, nadie sabría cuál creer.
 
@@ -165,7 +172,9 @@ Ver **todas** las cuentas de broker del sistema y acotarlas — sobre todo **por
 | `CA-SP-657` | La fila es **idéntica** a la de `RF-SP-056`, campo por campo |
 | `CA-SP-669` | `summary.accounts.total` **coincide siempre con `totalElements`**, con cualquier combinación de filtros |
 | `CA-SP-670` | `summary.accounts.byBroker` **suma exactamente** `summary.accounts.total`, y lo mismo el de `firstDeposit` |
-| `CA-SP-671` | El desglose **trae solo los brokers con al menos una cuenta**, ordenados por nombre |
+| ~~`CA-SP-671`~~ | ~~El desglose **trae solo los brokers con al menos una cuenta**, ordenados por nombre~~ — **retirado el 10-09-2026**, el mismo día. Su prueba se **invierte** en `CA-SP-675` |
+| `CA-SP-675` | El desglose trae **TODOS los brokers del catálogo**, ordenados por nombre, **con cero** donde el filtro no deja ninguna — y **su longitud no cambia** al filtrar |
+| `CA-SP-676` | `summary.register` trae las que están en `REGISTER`, y **`accounts` es siempre `register` + `firstDeposit`**, total a total y broker a broker |
 | `CA-SP-672` | Con `?status=REGISTER`, `summary.firstDeposit.total` es **cero** y su desglose va **vacío**; con `?status=FIRST_DEPOSIT` es **igual** al total |
 | `CA-SP-673` | El resumen **respeta el resto de filtros**: acotar por `supervisorId`, `brokerId`, `search` o fechas cambia los dos totales y sus desgloses |
 | `CA-SP-674` | Con la página **vacía**, el resumen va en **ceros y arreglos vacíos**, no ausente |
@@ -195,3 +204,4 @@ Ver **todas** las cuentas de broker del sistema y acotarlas — sobre todo **por
 |---|---|---|---|
 | 0.1.0 | 10-09-2026 | Redacción inicial. Nace de una pregunta del responsable del proyecto cuya respuesta era **no**, y cierra el hueco que `RF-SP-056` §14 había declarado cerrado **el día anterior** — se cita entero porque prueba que aquella decisión estaba bien tomada: se dejó fuera por no adivinar, y la forma que se pidió no es la que se habría imaginado. **Lo que carga la especificación es `RN-SP-047`**: la red es **todo lo que cuelga**, lo que rompe a propósito la cota de un solo nivel de los tres requerimientos hermanos. La asimetría se razona una vez y para siempre en §10 — **aquellos los autoriza la estructura y este el permiso**—, y `security.md` §5 la registra para que esta ruta no se lea como un precedente que amplía D-22. | Responsable del proyecto |
 | 0.2.0 | 10-09-2026 | **La respuesta gana un RESUMEN de lo filtrado**, por decisión del responsable del proyecto: cuántos registros hay y cuántos en `FIRST_DEPOSIT`, cada uno **desglosado por broker** (§6.3, `CA-SP-669` a `CA-SP-674`). Va **dentro del listado** y no en un endpoint aparte, para que la tabla y sus contadores no puedan desincronizarse. **La decisión que carga la enmienda se tomó contra la recomendación técnica**, y se registra así porque el número resultante es fácil de leer mal: se ofreció que el conteo de FTD **ignorase** el filtro de estado —de modo que los dos totales informaran a la vez— y el responsable del proyecto eligió que el resumen **respete todos los filtros**, describiendo exactamente lo devuelto. La consecuencia queda escrita en §6.3 y en la prosa del contrato con estas palabras: **con `?status=REGISTER` el total de `FIRST_DEPOSIT` vale siempre cero, y ese cero no significa «nadie ha depositado» sino «no pediste ninguno»**. | Responsable del proyecto |
+| 0.3.0 | 10-09-2026 | **El resumen se corrige el mismo día en dos puntos**, por decisión del responsable del proyecto. **Uno: van los DOS estados.** Nace `summary.register` junto a `firstDeposit`, porque el embudo tiene dos lados y obligar al cliente a restar —`accounts − firstDeposit`— es pedirle que rehaga una cuenta ya hecha; con dos estados la resta es trivial **hoy**, y **el día que `RN-SP-045` admita un tercero dejaría de serlo sin que quien la escribió se enterase**. **Dos: el desglose trae TODOS los brokers del catálogo, con cero donde no hay.** Nació al revés —solo los que tenían alguna— y se invierte por lo que cuesta en pantalla: un arreglo cuya longitud depende del filtro **obliga a rearmar las columnas en cada consulta**, y una columna que desaparece se lee como un dato que falta, no como un cero. **`CA-SP-671` se retira y su prueba se invierte en `CA-SP-675`** —afirma lo contrario— en lugar de borrarse, con el criterio que `RF-SP-052` usó con `CA-SP-606`: así, el día que alguien vuelva a acotar el desglose, falla aquí. Queda declarada la consecuencia: **un broker desactivado sigue apareciendo**, que es lo correcto —apagarlo no borra lo declarado en él— al precio de una columna muerta el día que se retire alguno. | Responsable del proyecto |
