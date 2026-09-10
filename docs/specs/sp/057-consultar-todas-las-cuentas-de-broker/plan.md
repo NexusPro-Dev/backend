@@ -81,9 +81,42 @@ Cuatro decisiones, y ninguna es de estilo:
 
 `GET /api/v1/broker-accounts?supervisorId=…&userId=…&status=REGISTER&brokerId=…&search=7012&from=…&to=…&page=0&size=20`
 
-La respuesta es **`PageResponseTeamBrokerAccountItem`**, el mismo esquema que devuelve `GET /api/v1/users/me/team/broker-accounts`.
+Desde el 10-09-2026 la respuesta es **`BrokerAccountsPage`** y ya no `PageResponseTeamBrokerAccountItem`: los mismos campos de la página **más `summary`**.
+
+```json
+{
+  "content": [ … ],
+  "totalElements": 40, "totalPages": 2, "page": 0, "size": 20, "totalIsExact": true,
+  "summary": {
+    "accounts":     { "total": 40, "byBroker": [ { "broker": { "id": "…", "name": "EXNOVA" }, "total": 25 } ] },
+    "firstDeposit": { "total": 12, "byBroker": [ … ] }
+  }
+}
+```
+
+**Es un cambio ADITIVO en el JSON** —los campos de la página se llaman igual y en el mismo sitio—, pero **el nombre del esquema cambia**, de modo que un cliente generado a partir del contrato hay que regenerarlo. Se acepta porque el endpoint se publicó **el mismo día**.
+
+**`GET /api/v1/users/me/team/broker-accounts` NO cambia**: sigue devolviendo `PageResponseTeamBrokerAccountItem`, sin resumen. El resumen se pidió para el listado de administración.
+
+La fila sigue siendo **`TeamBrokerAccountItem`**, la misma que el listado del equipo.
 
 **Y se declara sin `@Schema(implementation = …)` en el `200`**, dejando que springdoc use el tipo de retorno. No es un detalle: el anotado publica la envoltura **cruda** —`content` sin tipo— y el cliente generado no sabría qué hay en cada fila. Es el defecto que este mismo endpoint hermano tuvo el 10-09-2026 y que **solo se ve leyendo `docs/api/openapi.json`**, porque el contrato sigue siendo válido.
+
+## 5.1 El resumen, y por qué SUSTITUYE al conteo (10-09-2026)
+
+**Una sola consulta agrupada** sobre el mismo `FROM` y el mismo predicado que la página:
+
+```sql
+SELECT b.id, b.name, ub.status, count(*) …  GROUP BY b.id, b.name, ub.status
+```
+
+De ese único resultado salen **las cuatro cifras**: el total, su desglose por broker, el total de `FIRST_DEPOSIT` y el suyo. Y sale también **`totalElements`**, que es la suma de todo.
+
+**Por eso el `countAll` desaparece.** Tenerlo al lado sería **una segunda fuente de verdad sobre el mismo número**: dos consultas que hoy coinciden y que el día que alguien toque una y no la otra dirán cosas distintas sobre la misma respuesta — y nadie sabría cuál creer. Con esto, `summary.accounts.total` y `totalElements` **no pueden discrepar**, porque son el mismo entero.
+
+**El coste no sube**: antes eran dos consultas —página y conteo— y siguen siendo dos —página y resumen—.
+
+**El desglose se arma en Java** a partir de las filas agrupadas, y no con cuatro consultas: agrupar por `(broker, estado)` da todo lo que hace falta, y separar por estado en el `SQL` obligaría a repetir el predicado dos veces más.
 
 ## 6. Autorización
 

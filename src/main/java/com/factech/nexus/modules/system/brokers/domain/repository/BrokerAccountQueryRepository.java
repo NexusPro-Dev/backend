@@ -74,18 +74,23 @@ public interface BrokerAccountQueryRepository {
    */
   List<TeamBrokerAccountItem> findAll(BrokerAccountFilters filtros, int offset, int limit);
 
-  /** Cuántas cuentas cumplen el mismo filtro. Dos consultas y no una ventana, como arriba. */
-  int countAll(BrokerAccountFilters filtros);
-
   /**
-   * Los filtros del listado de administración, ya validados.
+   * El resumen de lo filtrado, agrupado por <b>broker y estado</b> (`RF-SP-057`, 10-09-2026).
    *
-   * <p><b>Un registro y no ocho argumentos</b>: con este número, una llamada posicional deja pasar
-   * sin ruido el día que alguien intercambie {@code supervisorId} y {@code userId} — dos {@code
-   * UUID} seguidos que significan cosas opuestas.
+   * <p><b>Sustituye al conteo</b>, y no lo acompaña. De estas filas salen las cuatro cifras del
+   * resumen <b>y también {@code totalElements}</b>, que es su suma: tener además un {@code
+   * count(*)} al lado sería <b>una segunda fuente de verdad sobre el mismo número</b>, y el día que
+   * alguien tocara una consulta y no la otra dirían cosas distintas sobre la misma respuesta.
    *
-   * <p><b>Todo nulo significa «sin filtrar»</b>, y se combinan con Y.
+   * <p><b>Agrupa por las dos cosas a la vez</b> en lugar de contar cada estado por separado:
+   * separarlos en el {@code SQL} obligaría a repetir el predicado —el mismo que la página— dos
+   * veces más, y el desglose se arma igual de bien en Java a partir de estas filas.
    */
+  List<BrokerStatusCount> summarize(BrokerAccountFilters filtros);
+
+  /** Cuántas cuentas hay de un broker en un estado, dentro del filtro. */
+  record BrokerStatusCount(UUID brokerId, String brokerName, UserBrokerStatus status, long total) {}
+
   /**
    * La fuerza comercial vigente: una fila por vendedor, con su superior (`RF-SP-058` · `T-01`).
    *
@@ -143,6 +148,15 @@ public interface BrokerAccountQueryRepository {
    */
   record DirectCountRow(UUID supervisorId, String status, int total) {}
 
+  /**
+   * Los filtros del listado de administración, ya validados.
+   *
+   * <p><b>Un registro y no siete argumentos</b>: con este número, una llamada posicional deja pasar
+   * sin ruido el día que alguien intercambie {@code supervisorId} y {@code userId} — dos {@code
+   * UUID} seguidos que significan cosas opuestas.
+   *
+   * <p><b>Todo nulo significa «sin filtrar»</b>, y se combinan con Y.
+   */
   record BrokerAccountFilters(
       UUID supervisorId,
       UUID userId,

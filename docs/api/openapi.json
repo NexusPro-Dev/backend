@@ -112,6 +112,51 @@
         },
         "type" : "object"
       },
+      "BrokerAccountsByBroker" : {
+        "properties" : {
+          "broker" : {
+            "$ref" : "#/components/schemas/BrokerRef"
+          },
+          "total" : {
+            "format" : "int64",
+            "type" : "integer"
+          }
+        },
+        "type" : "object"
+      },
+      "BrokerAccountsPage" : {
+        "properties" : {
+          "content" : {
+            "items" : {
+              "$ref" : "#/components/schemas/TeamBrokerAccountItem"
+            },
+            "type" : "array"
+          },
+          "page" : {
+            "format" : "int32",
+            "type" : "integer"
+          },
+          "size" : {
+            "format" : "int32",
+            "type" : "integer"
+          },
+          "summary" : {
+            "$ref" : "#/components/schemas/BrokerAccountsSummary"
+          },
+          "totalElements" : {
+            "format" : "int64",
+            "type" : "integer"
+          },
+          "totalIsExact" : {
+            "type" : "boolean"
+          },
+          "totalPages" : {
+            "format" : "int32",
+            "type" : "integer"
+          }
+        },
+        "type" : "object"
+      },
       "BrokerAccountsResponse" : {
         "properties" : {
           "content" : {
@@ -119,6 +164,32 @@
               "$ref" : "#/components/schemas/BrokerAccountItem"
             },
             "type" : "array"
+          }
+        },
+        "type" : "object"
+      },
+      "BrokerAccountsSummary" : {
+        "properties" : {
+          "accounts" : {
+            "$ref" : "#/components/schemas/BrokerAccountsTotals"
+          },
+          "firstDeposit" : {
+            "$ref" : "#/components/schemas/BrokerAccountsTotals"
+          }
+        },
+        "type" : "object"
+      },
+      "BrokerAccountsTotals" : {
+        "properties" : {
+          "byBroker" : {
+            "items" : {
+              "$ref" : "#/components/schemas/BrokerAccountsByBroker"
+            },
+            "type" : "array"
+          },
+          "total" : {
+            "format" : "int64",
+            "type" : "integer"
           }
         },
         "type" : "object"
@@ -4255,7 +4326,7 @@
     },
     "/api/v1/broker-accounts" : {
       "get" : {
-        "description" : "Devuelve **todas** las cuentas de broker del sistema, paginadas y con\nsu titular en cada fila. **Sin ningún filtro devuelve el sistema\nentero**: es lo que `broker-accounts:read` significa.\n\n**`supervisorId` devuelve LA RED ENTERA de esa persona, en\nprofundidad** (`RN-SP-047`): sus subordinados, los subordinados de\nestos, y así hasta abajo. **No es un solo nivel**, al revés que\n`GET /api/v1/users/{id}/team` y que\n`GET /api/v1/users/me/team/broker-accounts` — aquellos se autorizan\npor la estructura y por eso se acotan; este se autoriza por permiso,\nque ya alcanza a todos, de modo que la profundidad **ahorra recorrer\nel árbol y no concede nada**.\n\n**La raíz NO se incluye en su red.** Preguntar por la red de alguien\ndevuelve la de los suyos; sus propias cuentas se piden con `userId`, y\n**los dos filtros se combinan** — juntos responden «de la red de este\nvendedor, las cuentas de esta persona».\n\n**Solo la estructura vigente.** Quien dejó la red ayer no aparece, ni\nlos que colgaban de él por esa vía. Y una persona **eliminada** no\naparece **sin que su rama se corte**: quienes dependían de ella siguen\nsaliendo.\n\n**Filtros, todos opcionales y combinables con Y:**\n\n- `supervisorId` — la red, en profundidad.\n- `userId` — una persona concreta.\n- `status` — `REGISTER` o `FIRST_DEPOSIT`. **Cualquier otro valor es\n  `400`**, no una página vacía.\n- `brokerId` — un broker del catálogo.\n- `search` — fragmento de **número de cuenta**, nombre de usuario,\n  correo o nombre completo. Sin acentos y sin distinguir mayúsculas.\n- `from` / `to` — **cuándo se declaró la cuenta**. Son **instantes con\n  zona**, no fechas sueltas, y el rango es **semiabierto**: incluye\n  `from`, excluye `to`. `from` posterior a `to` es `400`.\n\n**Un identificador inexistente devuelve la página vacía sin error** —\n`supervisorId`, `userId` y `brokerId` no se validan contra su tabla—,\nal revés que `status` y que el rango: aquellos son preguntas legítimas\ncon respuesta vacía y estos son preguntas mal escritas.\n\n`totalElements` **cuenta lo filtrado**.\n\n**La fila es idéntica campo por campo a la de\n`GET /api/v1/users/me/team/broker-accounts`**, a propósito: las dos\npantallas se pintan con el mismo componente.\n\n**Hoy todas las cuentas están en `REGISTER`**: quien mueve una a\n`FIRST_DEPOSIT` es el webhook del broker, que todavía no existe.\n\n**Esta ruta no sustituye a `GET /api/v1/users/{id}/broker-accounts`**,\nque existe para **el superior comercial sin permiso**.\n",
+        "description" : "Devuelve **todas** las cuentas de broker del sistema, paginadas y con\nsu titular en cada fila. **Sin ningún filtro devuelve el sistema\nentero**: es lo que `broker-accounts:read` significa.\n\n**`supervisorId` devuelve LA RED ENTERA de esa persona, en\nprofundidad** (`RN-SP-047`): sus subordinados, los subordinados de\nestos, y así hasta abajo. **No es un solo nivel**, al revés que\n`GET /api/v1/users/{id}/team` y que\n`GET /api/v1/users/me/team/broker-accounts` — aquellos se autorizan\npor la estructura y por eso se acotan; este se autoriza por permiso,\nque ya alcanza a todos, de modo que la profundidad **ahorra recorrer\nel árbol y no concede nada**.\n\n**La raíz NO se incluye en su red.** Preguntar por la red de alguien\ndevuelve la de los suyos; sus propias cuentas se piden con `userId`, y\n**los dos filtros se combinan** — juntos responden «de la red de este\nvendedor, las cuentas de esta persona».\n\n**Solo la estructura vigente.** Quien dejó la red ayer no aparece, ni\nlos que colgaban de él por esa vía. Y una persona **eliminada** no\naparece **sin que su rama se corte**: quienes dependían de ella siguen\nsaliendo.\n\n**Filtros, todos opcionales y combinables con Y:**\n\n- `supervisorId` — la red, en profundidad.\n- `userId` — una persona concreta.\n- `status` — `REGISTER` o `FIRST_DEPOSIT`. **Cualquier otro valor es\n  `400`**, no una página vacía.\n- `brokerId` — un broker del catálogo.\n- `search` — fragmento de **número de cuenta**, nombre de usuario,\n  correo o nombre completo. Sin acentos y sin distinguir mayúsculas.\n- `from` / `to` — **cuándo se declaró la cuenta**. Son **instantes con\n  zona**, no fechas sueltas, y el rango es **semiabierto**: incluye\n  `from`, excluye `to`. `from` posterior a `to` es `400`.\n\n**Un identificador inexistente devuelve la página vacía sin error** —\n`supervisorId`, `userId` y `brokerId` no se validan contra su tabla—,\nal revés que `status` y que el rango: aquellos son preguntas legítimas\ncon respuesta vacía y estos son preguntas mal escritas.\n\n`totalElements` **cuenta lo filtrado**.\n\n**La respuesta lleva además un `summary` con dos totales y sus\ndesgloses por broker**:\n\n- `summary.accounts` — cuántos registros cumplen el filtro. Su\n  `total` es **el mismo número que `totalElements`**, y sale de la\n  misma consulta: no pueden discrepar.\n- `summary.firstDeposit` — cuántos de esos están en `FIRST_DEPOSIT`.\n\n**El resumen respeta TODOS los filtros, incluido `status`**, y de ahí\nsale lo único que hay que saber antes de pintarlo: **con\n`?status=REGISTER`, `summary.firstDeposit.total` vale SIEMPRE cero**,\ny con `?status=FIRST_DEPOSIT` vale siempre el total. **Ese cero no\nsignifica «nadie ha depositado»: significa «no pediste ninguno».** Un\ntablero que lo enseñe sin decirlo miente; para ver el embudo completo,\nconsulte **sin** el filtro `status`.\n\n**`byBroker` trae solo los brokers con al menos una cuenta**, ordenado\npor nombre. Un broker que no aparece no tiene ninguna en ese filtro —\nno hay ceros que interpretar. Los dos desgloses **suman exactamente**\nsu `total`.\n\n**Con la página vacía el resumen va en ceros y arreglos vacíos**, no\nausente.\n\n**La fila es idéntica campo por campo a la de\n`GET /api/v1/users/me/team/broker-accounts`**, a propósito: las dos\npantallas se pintan con el mismo componente. **Lo que aquella no\nlleva es el `summary`**: el resumen se pidió para el listado de\nadministración.\n\n**Hoy todas las cuentas están en `REGISTER`**: quien mueve una a\n`FIRST_DEPOSIT` es el webhook del broker, que todavía no existe.\n\n**Esta ruta no sustituye a `GET /api/v1/users/{id}/broker-accounts`**,\nque existe para **el superior comercial sin permiso**.\n",
         "operationId" : "listar_7",
         "parameters" : [ {
           "in" : "query",
@@ -4333,17 +4404,17 @@
             "content" : {
               "*/*" : {
                 "schema" : {
-                  "$ref" : "#/components/schemas/PageResponseTeamBrokerAccountItem"
+                  "$ref" : "#/components/schemas/BrokerAccountsPage"
                 }
               }
             },
-            "description" : "Página de cuentas, ordenada por titular, broker e identificador de cuenta. Vacía si ningún registro cumple el filtro."
+            "description" : "Página de cuentas, ordenada por titular, broker e identificador de cuenta, **con su resumen**. Vacía —y el resumen en ceros— si ningún registro cumple el filtro."
           },
           "400" : {
             "content" : {
               "*/*" : {
                 "schema" : {
-                  "$ref" : "#/components/schemas/PageResponseTeamBrokerAccountItem"
+                  "$ref" : "#/components/schemas/BrokerAccountsPage"
                 }
               }
             },
@@ -4353,7 +4424,7 @@
             "content" : {
               "*/*" : {
                 "schema" : {
-                  "$ref" : "#/components/schemas/PageResponseTeamBrokerAccountItem"
+                  "$ref" : "#/components/schemas/BrokerAccountsPage"
                 }
               }
             },
@@ -4363,7 +4434,7 @@
             "content" : {
               "*/*" : {
                 "schema" : {
-                  "$ref" : "#/components/schemas/PageResponseTeamBrokerAccountItem"
+                  "$ref" : "#/components/schemas/BrokerAccountsPage"
                 }
               }
             },
@@ -4373,7 +4444,7 @@
             "content" : {
               "*/*" : {
                 "schema" : {
-                  "$ref" : "#/components/schemas/PageResponseTeamBrokerAccountItem"
+                  "$ref" : "#/components/schemas/BrokerAccountsPage"
                 }
               }
             },

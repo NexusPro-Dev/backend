@@ -1,15 +1,24 @@
 package com.factech.nexus.modules.system.brokers.domain.service;
 
+import com.factech.nexus.modules.system.brokers.application.BrokerAccountItem.BrokerRef;
+import com.factech.nexus.modules.system.brokers.application.BrokerAccountsPage;
+import com.factech.nexus.modules.system.brokers.application.BrokerAccountsPage.ByBroker;
+import com.factech.nexus.modules.system.brokers.application.BrokerAccountsPage.Summary;
+import com.factech.nexus.modules.system.brokers.application.BrokerAccountsPage.Totals;
 import com.factech.nexus.modules.system.brokers.application.ListBrokerAccountsRequest;
 import com.factech.nexus.modules.system.brokers.application.TeamBrokerAccountItem;
 import com.factech.nexus.modules.system.brokers.domain.models.UserBrokerStatus;
 import com.factech.nexus.modules.system.brokers.domain.repository.BrokerAccountQueryRepository;
 import com.factech.nexus.modules.system.brokers.domain.repository.BrokerAccountQueryRepository.BrokerAccountFilters;
+import com.factech.nexus.modules.system.brokers.domain.repository.BrokerAccountQueryRepository.BrokerStatusCount;
 import com.factech.nexus.shared.error.FieldError;
 import com.factech.nexus.shared.error.ValidationException;
 import com.factech.nexus.shared.pagination.PageResponse;
 import com.factech.nexus.shared.pagination.Pagination;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
+import java.util.UUID;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -50,9 +59,9 @@ public class ListBrokerAccountsService {
     this.paginacion = paginacion;
   }
 
-  /** El conteo y la página, <b>en la misma transacción de solo lectura</b>. */
+  /** El resumen y la página, <b>en la misma transacción de solo lectura</b>. */
   @Transactional(readOnly = true)
-  public PageResponse<TeamBrokerAccountItem> list(ListBrokerAccountsRequest peticion) {
+  public BrokerAccountsPage list(ListBrokerAccountsRequest peticion) {
     Pagination.Slice trozo = paginacion.resolver(peticion.page(), peticion.size());
 
     BrokerAccountFilters filtros =
@@ -65,10 +74,65 @@ public class ListBrokerAccountsService {
             peticion.from(),
             rangoVerificado(peticion));
 
-    int total = cuentas.countAll(filtros);
+    List<BrokerStatusCount> conteos = cuentas.summarize(filtros);
     List<TeamBrokerAccountItem> pagina = cuentas.findAll(filtros, trozo.offset(), trozo.size());
 
-    return PageResponse.de(pagina, total, trozo.page(), trozo.size());
+    Summary resumen = resumen(conteos);
+
+    // `totalElements` sale DEL RESUMEN y no de un conteo aparte: son el mismo
+    // número, y calcularlos por separado daría dos fuentes de verdad sobre lo
+    // mismo — el día que una divergiera, nadie sabría cuál creer.
+    PageResponse<TeamBrokerAccountItem> pagina0 =
+        PageResponse.de(pagina, resumen.accounts().total(), trozo.page(), trozo.size());
+
+    return new BrokerAccountsPage(
+        pagina0.content(),
+        pagina0.totalElements(),
+        pagina0.totalPages(),
+        pagina0.page(),
+        pagina0.size(),
+        pagina0.totalIsExact(),
+        resumen);
+  }
+
+  /**
+   * Los dos totales y sus desgloses, armados de <b>una sola</b> consulta agrupada.
+   *
+   * <p><b>El de {@code FIRST_DEPOSIT} sale del mismo conjunto que el otro</b>, y por tanto respeta
+   * también el filtro {@code status} (decisión del 10-09-2026). De ahí que con {@code
+   * ?status=REGISTER} valga cero: no es que nadie haya depositado, es que no se pidió ninguno.
+   *
+   * <p><b>El desglose conserva el orden de la consulta</b> —por nombre de broker— porque se recorre
+   * en orden y se acumula en un mapa que lo preserva. Reordenar aquí sería una segunda copia del
+   * criterio que ya fijó el {@code ORDER BY}.
+   */
+  private static Summary resumen(List<BrokerStatusCount> conteos) {
+    Map<UUID, ByBroker> todas = new LinkedHashMap<>();
+    Map<UUID, ByBroker> depositadas = new LinkedHashMap<>();
+    long total = 0;
+    long conDeposito = 0;
+
+    for (BrokerStatusCount fila : conteos) {
+      BrokerRef broker = new BrokerRef(fila.brokerId(), fila.brokerName());
+      acumular(todas, broker, fila.total());
+      total += fila.total();
+
+      if (fila.status() == UserBrokerStatus.FIRST_DEPOSIT) {
+        acumular(depositadas, broker, fila.total());
+        conDeposito += fila.total();
+      }
+    }
+
+    return new Summary(
+        new Totals(total, List.copyOf(todas.values())),
+        new Totals(conDeposito, List.copyOf(depositadas.values())));
+  }
+
+  private static void acumular(Map<UUID, ByBroker> destino, BrokerRef broker, long cuantas) {
+    destino.merge(
+        broker.id(),
+        new ByBroker(broker, cuantas),
+        (antes, ahora) -> new ByBroker(broker, antes.total() + ahora.total()));
   }
 
   /**

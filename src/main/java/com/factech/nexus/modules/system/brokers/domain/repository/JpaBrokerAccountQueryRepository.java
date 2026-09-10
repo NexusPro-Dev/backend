@@ -164,18 +164,36 @@ public class JpaBrokerAccountQueryRepository implements BrokerAccountQueryReposi
 
   @Override
   @Transactional(readOnly = true)
-  public int countAll(BrokerAccountFilters filtros) {
+  public List<BrokerStatusCount> summarize(BrokerAccountFilters filtros) {
     Filtro filtro = predicado(filtros);
     Query consulta =
         em.createNativeQuery(
             recursivaSiHace(filtros)
-                + " SELECT count(*) "
+                + " SELECT b.id AS broker_id, b.name AS broker_name,"
+                + " ub.status AS status, count(*) AS total "
                 + DESDE_GLOBAL
                 + " WHERE "
-                + filtro.sql());
+                + filtro.sql()
+                // El orden del desglose lo fija el servidor, como el de la
+                // página: por nombre de broker, con la intercalación de la
+                // columna.
+                + " GROUP BY b.id, b.name, ub.status ORDER BY b.name",
+            Tuple.class);
     filtro.enlazar(consulta);
 
-    return ((Number) consulta.getSingleResult()).intValue();
+    @SuppressWarnings("unchecked")
+    List<Tuple> filas = consulta.getResultList();
+
+    List<BrokerStatusCount> resultado = new ArrayList<>(filas.size());
+    for (Tuple fila : filas) {
+      resultado.add(
+          new BrokerStatusCount(
+              (UUID) fila.get("broker_id"),
+              (String) fila.get("broker_name"),
+              estado(fila),
+              ((Number) fila.get("total")).longValue()));
+    }
+    return resultado;
   }
 
   // ---------------------------------------------------------------------------

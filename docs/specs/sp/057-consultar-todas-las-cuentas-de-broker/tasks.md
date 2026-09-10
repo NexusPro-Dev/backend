@@ -5,7 +5,7 @@
 | Requerimiento | `RF-SP-057` |
 | Especificación | [`spec.md`](spec.md) |
 | Plan | [`plan.md`](plan.md), aprobado el 10-09-2026 |
-| Estado | **En revisión** — `T-01` a `T-10` **Hecha** el 10-09-2026, con `mvn verify` en **1176 pruebas verdes** |
+| Estado | **En revisión** — `T-01` a `T-14` **Hecha** el 10-09-2026, con `mvn verify` en **1193 pruebas verdes**. Enmendado el mismo día: la respuesta gana su resumen |
 | Issue | Pendiente de crear |
 | Rama | `feature/venta-de-productos` |
 | Autor | Responsable técnico |
@@ -26,6 +26,10 @@
 | `T-08` | **La prueba de la rama que no se corta**: una persona eliminada **con subordinados vivos** | `T-07` | `CA-SP-651`. Es la que distingue filtrar de podar | **Hecha el 10-09-2026** |
 | `T-09` | Documentación OpenAPI: **prosa**, y el `200` **sin `@Schema(implementation)`** | `T-07` | Se comprueba **leyendo `docs/api/openapi.json`**: la fila tiene que salir tipada | **Hecha el 10-09-2026** |
 | `T-10` | Actualizar la matriz de `docs/requirements.md` | `T-07` | La fila de `RF-SP-057` refleja el estado | **Hecha el 10-09-2026** |
+| `T-11` | **El resumen**: una consulta agrupada por `(broker, estado)` sobre el mismo predicado, que **sustituye a `countAll`** | `T-04` | `CA-SP-669`, `CA-SP-670`. `totalElements` sale de ella | **Hecha el 10-09-2026** |
+| `T-12` | `BrokerAccountsPage` y `BrokerAccountsSummary`, con el desglose ordenado por nombre de broker | `T-11` | `CA-SP-671`, `CA-SP-674` | **Hecha el 10-09-2026** |
+| `T-13` | Pruebas del resumen, **incluida la del cero que engaña**: `?status=REGISTER` deja `firstDeposit` en cero | `T-12` | `CA-SP-669` a `CA-SP-674` | **Hecha el 10-09-2026** |
+| `T-14` | Prosa OpenAPI del resumen, **con la frase del cero** | `T-13` | Dice que ese cero significa «no pediste ninguno» | **Hecha el 10-09-2026** |
 
 ## 2. Orden de ejecución
 
@@ -45,6 +49,9 @@
 | `CA-SP-652` a `CA-SP-654` | `T-01`, `T-04`, `T-07` |
 | `CA-SP-655` | `T-05`, `T-07` |
 | `CA-SP-656`, `CA-SP-657` | `T-04`, `T-07`, `T-09` |
+| `CA-SP-669`, `CA-SP-670` | `T-11`, `T-13` |
+| `CA-SP-671`, `CA-SP-674` | `T-12`, `T-13` |
+| `CA-SP-672`, `CA-SP-673` | `T-11`, `T-13`, `T-14` |
 
 ## 4. Bloqueos
 

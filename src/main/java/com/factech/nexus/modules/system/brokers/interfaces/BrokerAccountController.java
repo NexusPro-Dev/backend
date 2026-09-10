@@ -1,11 +1,10 @@
 package com.factech.nexus.modules.system.brokers.interfaces;
 
+import com.factech.nexus.modules.system.brokers.application.BrokerAccountsPage;
 import com.factech.nexus.modules.system.brokers.application.ListBrokerAccountsRequest;
 import com.factech.nexus.modules.system.brokers.application.NetworkIndicatorsResponse;
-import com.factech.nexus.modules.system.brokers.application.TeamBrokerAccountItem;
 import com.factech.nexus.modules.system.brokers.domain.service.GetNetworkIndicatorsService;
 import com.factech.nexus.modules.system.brokers.domain.service.ListBrokerAccountsService;
-import com.factech.nexus.shared.pagination.PageResponse;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
@@ -169,9 +168,35 @@ public class BrokerAccountController {
 
           `totalElements` **cuenta lo filtrado**.
 
+          **La respuesta lleva además un `summary` con dos totales y sus
+          desgloses por broker**:
+
+          - `summary.accounts` — cuántos registros cumplen el filtro. Su
+            `total` es **el mismo número que `totalElements`**, y sale de la
+            misma consulta: no pueden discrepar.
+          - `summary.firstDeposit` — cuántos de esos están en `FIRST_DEPOSIT`.
+
+          **El resumen respeta TODOS los filtros, incluido `status`**, y de ahí
+          sale lo único que hay que saber antes de pintarlo: **con
+          `?status=REGISTER`, `summary.firstDeposit.total` vale SIEMPRE cero**,
+          y con `?status=FIRST_DEPOSIT` vale siempre el total. **Ese cero no
+          significa «nadie ha depositado»: significa «no pediste ninguno».** Un
+          tablero que lo enseñe sin decirlo miente; para ver el embudo completo,
+          consulte **sin** el filtro `status`.
+
+          **`byBroker` trae solo los brokers con al menos una cuenta**, ordenado
+          por nombre. Un broker que no aparece no tiene ninguna en ese filtro —
+          no hay ceros que interpretar. Los dos desgloses **suman exactamente**
+          su `total`.
+
+          **Con la página vacía el resumen va en ceros y arreglos vacíos**, no
+          ausente.
+
           **La fila es idéntica campo por campo a la de
           `GET /api/v1/users/me/team/broker-accounts`**, a propósito: las dos
-          pantallas se pintan con el mismo componente.
+          pantallas se pintan con el mismo componente. **Lo que aquella no
+          lleva es el `summary`**: el resumen se pidió para el listado de
+          administración.
 
           **Hoy todas las cuentas están en `REGISTER`**: quien mueve una a
           `FIRST_DEPOSIT` es el webhook del broker, que todavía no existe.
@@ -183,12 +208,12 @@ public class BrokerAccountController {
     // SIN `@Schema(implementation = …)`: ese anotado publicaría la envoltura
     // CRUDA —`content` sin tipo— y el cliente generado no sabría qué hay en
     // cada fila. Dejando el tipo de retorno, springdoc emite
-    // `PageResponseTeamBrokerAccountItem`.
+    // `BrokerAccountsPage` con la fila y el resumen dentro.
     @ApiResponse(
         responseCode = "200",
         description =
-            "Página de cuentas, ordenada por titular, broker e identificador de cuenta. Vacía si"
-                + " ningún registro cumple el filtro."),
+            "Página de cuentas, ordenada por titular, broker e identificador de cuenta, **con su"
+                + " resumen**. Vacía —y el resumen en ceros— si ningún registro cumple el filtro."),
     @ApiResponse(
         responseCode = "400",
         description =
@@ -200,7 +225,7 @@ public class BrokerAccountController {
         description = "Autenticado sin `broker-accounts:read` (`AUTH-002`)"),
     @ApiResponse(responseCode = "500", description = "Fallo no controlado (`ERR-500`)")
   })
-  public PageResponse<TeamBrokerAccountItem> listar(
+  public BrokerAccountsPage listar(
       // `@ParameterObject` EXPLOTA el registro en sus siete parámetros de
       // consulta. Sin él, el contrato publica UNO solo llamado `filtros` y el
       // frontend no ve ninguno de los filtros que esta prosa describe.

@@ -354,6 +354,112 @@ class AllBrokerAccountsIT extends IntegrationTestBase {
   }
 
   // ---------------------------------------------------------------------------
+  // El resumen (10-09-2026)
+  // ---------------------------------------------------------------------------
+
+  @Test
+  @DisplayName("`CA-SP-669`, `CA-SP-670` — `accounts.total` es `totalElements`, y el desglose suma")
+  void elResumenCuadraConLaPagina() throws Exception {
+    jdbc.update("UPDATE user_brokers SET status = 'FIRST_DEPOSIT' WHERE external_id = '30000001'");
+
+    mvc.perform(get(RUTA).with(administrador()))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.totalElements").value(5))
+        // El mismo entero, y sale de la MISMA consulta: no pueden discrepar.
+        .andExpect(jsonPath("$.summary.accounts.total").value(5))
+        .andExpect(jsonPath("$.summary.firstDeposit.total").value(1))
+        // EXNOVA tiene 3 (10000001, 20000001, 40000001) e IQOPTION 2.
+        .andExpect(jsonPath("$.summary.accounts.byBroker.length()").value(2))
+        .andExpect(jsonPath("$.summary.accounts.byBroker[0].broker.name").value("EXNOVA"))
+        .andExpect(jsonPath("$.summary.accounts.byBroker[0].total").value(3))
+        .andExpect(jsonPath("$.summary.accounts.byBroker[1].broker.name").value("IQOPTION"))
+        .andExpect(jsonPath("$.summary.accounts.byBroker[1].total").value(2))
+        // Y el desglose de FTD solo trae el broker que tiene alguna.
+        .andExpect(jsonPath("$.summary.firstDeposit.byBroker.length()").value(1))
+        .andExpect(jsonPath("$.summary.firstDeposit.byBroker[0].broker.name").value("IQOPTION"))
+        .andExpect(jsonPath("$.summary.firstDeposit.byBroker[0].total").value(1));
+  }
+
+  @Test
+  @DisplayName("`CA-SP-671` — el desglose trae SOLO los brokers con al menos una cuenta")
+  void elDesgloseNoTraeCeros() throws Exception {
+    // EXOPTION existe en el catálogo y no tiene ninguna cuenta: NO aparece.
+    // Así no hay que distinguir un cero real de «este broker nunca se usó».
+    brokerAsegurado("01a081f0-6000-7103-9c4f-5e7adb000003", "EXOPTION");
+
+    mvc.perform(get(RUTA).with(administrador()))
+        .andExpect(jsonPath("$.summary.accounts.byBroker.length()").value(2))
+        .andExpect(
+            jsonPath("$.summary.accounts.byBroker[?(@.broker.name == 'EXOPTION')]")
+                .value(org.hamcrest.Matchers.empty()));
+  }
+
+  @Test
+  @DisplayName(
+      "`CA-SP-672` — con `?status=REGISTER` el FTD vale CERO, y ese cero no dice lo que parece")
+  void elCeroQueEngana() throws Exception {
+    jdbc.update("UPDATE user_brokers SET status = 'FIRST_DEPOSIT' WHERE external_id = '30000001'");
+
+    // Decisión del 10-09-2026: el resumen respeta TODOS los filtros. El cero de
+    // aquí NO significa «nadie ha depositado» —hay uno, y se ve sin el filtro—
+    // sino «no pediste ninguno». La prosa del contrato lo dice con esas
+    // palabras, y esta prueba es lo que impide que alguien lo «arregle»
+    // haciendo que el FTD ignore el filtro.
+    mvc.perform(get(RUTA + "?status=REGISTER").with(administrador()))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.summary.accounts.total").value(4))
+        .andExpect(jsonPath("$.summary.firstDeposit.total").value(0))
+        .andExpect(jsonPath("$.summary.firstDeposit.byBroker.length()").value(0));
+
+    // Y con el filtro contrario, el FTD es TODO el total.
+    mvc.perform(get(RUTA + "?status=FIRST_DEPOSIT").with(administrador()))
+        .andExpect(jsonPath("$.summary.accounts.total").value(1))
+        .andExpect(jsonPath("$.summary.firstDeposit.total").value(1));
+  }
+
+  @Test
+  @DisplayName("`CA-SP-673` — el resumen respeta el resto de filtros")
+  void elResumenSigueAlFiltro() throws Exception {
+    // Por red: de `jefe` cuelgan 3 cuentas (medio, base, nieto).
+    mvc.perform(get(RUTA + "?supervisorId=" + jefe).with(administrador()))
+        .andExpect(jsonPath("$.summary.accounts.total").value(3))
+        .andExpect(jsonPath("$.summary.accounts.byBroker.length()").value(2));
+
+    // Por broker: solo IQOPTION.
+    mvc.perform(get(RUTA + "?brokerId=" + brokerB).with(administrador()))
+        .andExpect(jsonPath("$.summary.accounts.total").value(2))
+        .andExpect(jsonPath("$.summary.accounts.byBroker.length()").value(1))
+        .andExpect(jsonPath("$.summary.accounts.byBroker[0].broker.name").value("IQOPTION"));
+
+    // Por texto: una sola cuenta.
+    mvc.perform(get(RUTA + "?search=40000").with(administrador()))
+        .andExpect(jsonPath("$.summary.accounts.total").value(1));
+  }
+
+  @Test
+  @DisplayName("`CA-SP-674` — con la página vacía el resumen va en ceros, no ausente")
+  void elResumenVacio() throws Exception {
+    mvc.perform(get(RUTA + "?userId=" + UUID.randomUUID()).with(administrador()))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.totalElements").value(0))
+        // Presente y en ceros: ausente obligaría al cliente a distinguir dos
+        // formas de respuesta para pintar lo mismo.
+        .andExpect(jsonPath("$.summary.accounts.total").value(0))
+        .andExpect(jsonPath("$.summary.accounts.byBroker.length()").value(0))
+        .andExpect(jsonPath("$.summary.firstDeposit.total").value(0));
+  }
+
+  @Test
+  @DisplayName("el resumen NO depende de la página: la segunda página trae los mismos totales")
+  void elResumenNoSigueALaPagina() throws Exception {
+    // Es lo que distingue un resumen de un conteo de lo devuelto: describe el
+    // FILTRO, no la porción que cupo en la página.
+    mvc.perform(get(RUTA + "?page=1&size=2").with(administrador()))
+        .andExpect(jsonPath("$.content.length()").value(2))
+        .andExpect(jsonPath("$.summary.accounts.total").value(5));
+  }
+
+  // ---------------------------------------------------------------------------
   // Utilidades
   // ---------------------------------------------------------------------------
 
