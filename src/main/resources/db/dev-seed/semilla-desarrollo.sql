@@ -1,6 +1,6 @@
 -- =============================================================================
--- Semilla de DESARROLLO: diecinueve personas de prueba, su estructura comercial
--- y sus membresías.
+-- Semilla de DESARROLLO: diecinueve personas de prueba, la estructura que las
+-- relaciona y sus membresías.
 --
 -- LA APLICA `DevelopmentDataSeeder` AL ARRANCAR, y solo cuando `ENVIRONMENT`
 -- NO es `production`. Vive en el classpath —y por tanto dentro del artefacto,
@@ -55,14 +55,19 @@ $$ LANGUAGE sql VOLATILE;
 -- Diecinueve personas, repartidas por lo que hace falta poder probar.
 --
 -- YA NO SON TRES DE CADA. `AGENTE` son nueve porque cada uno de los tres
--- directores necesita tres personas a cargo, y `ADMIN` es uno solo: no entra en
--- la estructura comercial, de modo que el segundo y el tercero no ejercitaban
--- nada. El reparto vive en la tabla `plan` de aquí abajo, en un solo sitio.
+-- directores necesita tres personas a cargo, y `ADMIN` es UNO SOLO por decisión
+-- del responsable del proyecto: desde el 10-09-2026 sí entra en la estructura
+-- —los tres managers cuelgan de él—, y un segundo administrador solo añadiría
+-- una bifurcación que la rama comercial ya ejercita más abajo. El reparto vive
+-- en la tabla `plan` de aquí abajo, en un solo sitio.
 --
 -- SE EXCLUYE `SUPERADMIN`, porque el privilegio máximo no se
--- reparte en datos de prueba y `RN-SP-001` lo protege. `CONTABILIDAD` y
--- `LIDER_ACADEMICO` ya no existen: se retiraron de la siembra del sistema el
--- 29-08-2026, por decisión del responsable del proyecto.
+-- reparte en datos de prueba y `RN-SP-001` lo protege. Sigue sin sembrarse a
+-- nadie con ese rol: el superadministrador de `V22` aparece más abajo, pero
+-- como RAÍZ de la estructura y no como una persona de prueba más.
+--
+-- `CONTABILIDAD` y `LIDER_ACADEMICO` ya no existen: se retiraron de la siembra
+-- del sistema el 29-08-2026, por decisión del responsable del proyecto.
 --
 -- CADA PERSONA PORTA UN SOLO ROL, y eso importa más de lo que parece: los roles
 -- `MANAGER`, `DIRECTOR` y `AGENTE` son de tipo `VENDEDOR`, y `RN-SP-025` prohíbe
@@ -81,8 +86,9 @@ $$ LANGUAGE sql VOLATILE;
 WITH plan AS (
   -- CUÁNTAS DE CADA ROL, y ya no tres de todo. Los números salen de lo que hay
   -- que poder probar: `AGENTE` son nueve porque cada uno de los tres directores
-  -- necesita tres personas a cargo, y `ADMIN` es uno solo porque no participa
-  -- de la estructura comercial y tres no ejercitaban nada que uno no ejercite.
+  -- necesita tres personas a cargo, y `ADMIN` es uno solo porque tres no
+  -- ejercitarían nada que uno no ejercite: la bifurcación de la jerarquía ya se
+  -- ve en los tres managers que cuelgan de él.
   SELECT * FROM (VALUES
       ('ADMIN',    1),
       ('MANAGER',  3),
@@ -159,28 +165,53 @@ SELECT i.id, r.id, r.role_type
 
 
 -- -----------------------------------------------------------------------------
--- La estructura comercial: quién está a cargo de quién.
+-- La estructura: quién está a cargo de quién.
 --
 -- SIN ESTO LOS DATOS DE PRUEBA NACÍAN EN UN ESTADO QUE EL SISTEMA PROHÍBE.
 -- `RN-SP-019` dice que todo el que porte un rol de clasificación `VENDEDOR`
--- debe tener superior comercial, y hasta ahora la semilla creaba directores y
--- agentes sin ninguno. No fallaba nada —esa regla todavía no está
--- implementada—, y esa es justamente la trampa: `RF-SP-041` y `RF-SP-042` se
--- probarían contra una base que no puede existir en producción.
+-- debe tener superior comercial, y hasta que este bloque existió la semilla
+-- creaba directores y agentes sin ninguno. No fallaba nada —esa regla todavía
+-- no está implementada—, y esa es justamente la trampa: `RF-SP-041` y
+-- `RF-SP-042` se probarían contra una base que no puede existir en producción.
 --
--- LA FORMA LA FIJA `RN-SP-020`, no el gusto: el superior porta el ROL PADRE
--- INMEDIATO del subordinado. Quien es `AGENTE` reporta a un `DIRECTOR`, nunca a
--- otro `AGENTE` ni directamente a un `MANAGER`.
+-- EL ÁRBOL LLEGA DE PUNTA A PUNTA DESDE EL 10-09-2026, por decisión del
+-- responsable del proyecto, y se pidió para poder VER LA ESTRUCTURA COMPLETA en
+-- local. Hasta hoy nacía partida en dos: la fuerza comercial colgaba de tres
+-- managers que no colgaban de nadie, y `admin1` quedaba suelto.
 --
---     manager1 ← director1 ← agente1, agente2, agente3
---     manager2 ← director2 ← agente4, agente5, agente6
---     manager3 ← director3 ← agente7, agente8, agente9
+--     superadmin
+--       └── admin1
+--             ├── manager1 ← director1 ← agente1, agente2, agente3
+--             ├── manager2 ← director2 ← agente4, agente5, agente6
+--             └── manager3 ← director3 ← agente7, agente8, agente9
 --
--- LOS MANAGERS NO DECLARAN SUPERIOR, y no es un olvido: `RN-SP-019` exceptúa al
--- rol vendedor de mayor rango —aquel cuyo rol padre no es `VENDEDOR`—, y el
--- padre de `MANAGER` es `ADMIN`. Es la cúspide de la fuerza comercial.
+-- LAS CUATRO FILAS DE ARRIBA SON DEUDA DECLARADA, Y CONVIENE LEERLO ANTES DE
+-- APOYARSE EN ELLAS: `RF-SP-041` LAS RECHAZARÍA. Colgar un manager de un
+-- administrador sale `409 VAL-004` —`RN-SP-019` exceptúa al vendedor de mayor
+-- rango, y el rol padre de `MANAGER` es `ADMIN`, que no es `VENDEDOR`—, y
+-- colgar al administrador del superadministrador sale `409 VAL-003`, porque no
+-- pertenece a la fuerza comercial y no tiene superior que asignar. `RN-SP-020`
+-- tampoco las cubre: tiene rama de vendedor y rama de consumidor, y un
+-- `FUNCIONARIO` no cae en ninguna de las dos.
 --
--- LOS CLIENTES TAMBIÉN CUELGAN, desde el 04-09-2026. Hasta hoy este comentario
+-- LO QUE NO SON ES INCOHERENTES, y por eso la deuda es de alcance y no de
+-- diseño: `SUPERADMIN → ADMIN → MANAGER` es exactamente el parentesco que
+-- declara el catálogo de roles (`V7`), el mismo que `RN-SP-020` exige entre
+-- vendedores. Lo que falta es decidir si la estructura de personas deja de ser
+-- COMERCIAL para ser la jerarquía completa. Mientras no se decida, esto vive
+-- SOLO AQUÍ: ninguna regla, ningún endpoint y ninguna prueba de otro
+-- requerimiento deben apoyarse en estas cuatro filas.
+--
+-- Y CAMBIA QUIÉN ES LA CÚSPIDE EN DESARROLLO: la única persona sin superior pasa
+-- a ser `superadmin`. Es lo que `RF-SP-042` publica OMITIENDO `supervisor`
+-- (`CA-SP-445`), de modo que el caso sigue siendo observable en local — pero
+-- ahora hay UNA sola cúspide y no cuatro.
+--
+-- LA FORMA DE LA RAMA COMERCIAL LA FIJA `RN-SP-020`, no el gusto: el superior
+-- porta el ROL PADRE INMEDIATO del subordinado. Quien es `AGENTE` reporta a un
+-- `DIRECTOR`, nunca a otro `AGENTE` ni directamente a un `MANAGER`.
+--
+-- LOS CLIENTES TAMBIÉN CUELGAN, desde el 04-09-2026. Antes este comentario
 -- decía que quedaban fuera «porque no son vendedores», y eso dejó de ser cierto
 -- el 01-09-2026 con `RN-SP-028`: el cliente cuelga de su vendedor EN ESTA MISMA
 -- TABLA, con el cliente en `user_id` y el vendedor en `supervisor_id`. La
@@ -197,7 +228,7 @@ SELECT i.id, r.id, r.role_type
 -- `RN-SP-020` lo permite: su RAMA DE CONSUMIDOR solo exige que el superior
 -- porte ALGÚN rol `VENDEDOR`, sin parentesco que comprobar — un cliente no
 -- tiene rol vendedor del que derivar un padre, y cualquiera de la fuerza
--- comercial puede traerlo. Es la diferencia con la rama de arriba, donde un
+-- comercial puede traerlo. Es la diferencia con la rama comercial, donde un
 -- agente sí debe colgar de un director y de nadie más.
 --
 -- Y NO ES UN CAPRICHO: la cadena de comisiones se recorre HACIA ARRIBA desde
@@ -207,8 +238,8 @@ SELECT i.id, r.id, r.role_type
 -- a decidir a qué tarifa cobra quien está pegado al cliente cuando NO es un
 -- agente.
 --
--- `ADMIN` SIGUE FUERA: no es vendedor, no participa de la estructura comercial
--- y no tiene cartera.
+-- `ADMIN` NO TIENE CARTERA, y eso no ha cambiado: entra en el árbol POR ARRIBA,
+-- como superior de los managers, y no como vendedor que trae clientes.
 --
 -- TRES A CARGO POR DIRECTOR Y NO UNO, por decisión del responsable del
 -- proyecto: un equipo de uno no distingue «el equipo de alguien» de «alguien»,
@@ -232,6 +263,15 @@ SELECT pg_temp.uuid_v7(), subordinado.id, superior.id
         -- Y cada director bajo su manager.
         SELECT 'director' || n, 'manager' || n
           FROM generate_series(1, 3) AS n
+         UNION ALL
+        -- La rama de funcionarios, desde el 10-09-2026: los tres managers bajo
+        -- el único administrador, y el administrador bajo el superadministrador.
+        -- Son las cuatro filas que la cabecera declara como deuda: `RF-SP-041`
+        -- no sabría producirlas.
+        SELECT 'manager' || n, 'admin1'
+          FROM generate_series(1, 3) AS n
+         UNION ALL
+        SELECT 'admin1', 'superadmin'
          UNION ALL
         -- Los clientes, cada uno a una profundidad distinta. Se enumeran a mano
         -- y no con una serie: son tres casos ELEGIDOS —normal, un salto, dos

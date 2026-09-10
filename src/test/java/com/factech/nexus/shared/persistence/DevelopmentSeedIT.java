@@ -229,7 +229,7 @@ class DevelopmentSeedIT extends IntegrationTestBase {
   }
 
   @Test
-  @DisplayName("cada director tiene TRES personas a cargo, y el manager es la cúspide")
+  @DisplayName("cada director tiene TRES a cargo, y el árbol llega hasta el superadministrador")
   void estructuraComercial() {
     borrarLasDiecinueve(jdbc);
     semilla.run(null);
@@ -282,6 +282,9 @@ class DevelopmentSeedIT extends IntegrationTestBase {
     // En orden alfabético, que es el que la consulta pide.
     assertThat(parejas)
         .containsExactly(
+            // La rama de FUNCIONARIOS, desde el 10-09-2026. Ninguna regla la
+            // exige y `RF-SP-041` no sabría producirla: ver más abajo.
+            "ADMIN -> SUPERADMIN",
             // La estructura entre vendedores, que sigue siendo estricta.
             "AGENTE -> DIRECTOR",
             // Y la cartera, a TRES PROFUNDIDADES distintas: es lo que hace
@@ -290,22 +293,56 @@ class DevelopmentSeedIT extends IntegrationTestBase {
             "CLIENTE -> AGENTE",
             "CLIENTE -> DIRECTOR",
             "CLIENTE -> MANAGER",
-            "DIRECTOR -> MANAGER");
+            "DIRECTOR -> MANAGER",
+            "MANAGER -> ADMIN");
 
-    // Y los MANAGER no declaran ninguno: su rol padre es `ADMIN`, que no es
-    // vendedor, de modo que `RN-SP-019` los exceptúa por ser la cúspide de la
-    // fuerza comercial. Darles superior habría poblado la tabla con filas que
-    // ninguna regla admite.
-    Integer managersConSuperior =
+    // LOS MANAGER YA NO SON LA CÚSPIDE de los datos de prueba, y hasta el
+    // 10-09-2026 esta prueba exigía justamente lo contrario: cero managers con
+    // superior. Se invirtió por decisión del responsable del proyecto, para que
+    // la semilla deje ver la estructura COMPLETA en local.
+    //
+    // LO QUE SE SIEMBRA AQUÍ `RF-SP-041` LO RECHAZARÍA: `409 VAL-004` para el
+    // manager —`RN-SP-019` lo exceptúa por ser la cúspide de la fuerza
+    // comercial, ya que su rol padre `ADMIN` no es `VENDEDOR`— y `409 VAL-003`
+    // para el administrador, que no pertenece a la fuerza comercial y no tiene
+    // superior que asignar. Es DEUDA DECLARADA en la cabecera del guion, y esta
+    // prueba es el sitio donde se ve: si algún día `RN-SP-019` y `RN-SP-020` se
+    // enmiendan para cubrir a los funcionarios, esto deja de ser deuda sin que
+    // haga falta cambiar ni una línea de aquí.
+    List<String> ramaDeFuncionarios =
+        jdbc.queryForList(
+            """
+            SELECT sub.username || ' -> ' || sup.username
+              FROM user_supervisors us
+              JOIN users sub ON sub.id = us.user_id
+              JOIN users sup ON sup.id = us.supervisor_id
+             WHERE us.ended_at IS NULL
+               AND (sub.username LIKE 'manager%' OR sub.username = 'admin1')
+             ORDER BY 1
+            """,
+            String.class);
+
+    assertThat(ramaDeFuncionarios)
+        .containsExactly(
+            "admin1 -> superadmin",
+            "manager1 -> admin1",
+            "manager2 -> admin1",
+            "manager3 -> admin1");
+
+    // Y LA CÚSPIDE PASA A SER UNA SOLA. Importa porque `RF-SP-042` publica ese
+    // hecho OMITIENDO `supervisor` (`CA-SP-445`), y la ausencia significa «no
+    // depende de nadie» y nada más: el caso sigue siendo observable en
+    // desarrollo, pero ahora hay una raíz y no cuatro.
+    Integer superadminConSuperior =
         jdbc.queryForObject(
             """
             SELECT count(*) FROM user_supervisors us
               JOIN users u ON u.id = us.user_id
-             WHERE us.ended_at IS NULL AND u.username LIKE 'manager%'
+             WHERE us.ended_at IS NULL AND u.username = 'superadmin'
             """,
             Integer.class);
 
-    assertThat(managersConSuperior).isZero();
+    assertThat(superadminConSuperior).isZero();
   }
 
   private static int cuantasDeLasDiecinueve(JdbcTemplate jdbc) {
