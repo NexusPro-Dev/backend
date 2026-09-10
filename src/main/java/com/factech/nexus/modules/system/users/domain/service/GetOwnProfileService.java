@@ -111,7 +111,11 @@ public class GetOwnProfileService {
         // El contacto SIEMPRE presente: es lo que `RF-SP-044` deja corregir, y
         // sin publicarlo el formulario de edición no podría precargarse.
         new OwnProfileResponse.ContactRef(
-            fila.phone(), fila.addressLine1(), fila.addressLine2(), fila.city()),
+            fila.phone(),
+            fila.companyPhone(),
+            fila.addressLine1(),
+            fila.addressLine2(),
+            fila.city()),
         fila.tieneMembresia()
             ? new OwnProfileResponse.MembershipRef(
                 fila.membershipCode(),

@@ -13,6 +13,7 @@
 | Reaprobado el | 22-08-2026 — Responsable del proyecto, verificado contra `architecture.md` §6.4 |
 | Reabierto el | 08-09-2026 — `RN-SP-035` y `RN-SP-037`: `users` gana la identidad documental y el contacto, ver §2.7 (Art. I.7) |
 | Reabierto el | 07-09-2026 — `RN-SP-034`: `users` gana `country_id` `NOT NULL` y el catálogo de países deja de nacer vacío, ver §2.6 (Art. I.7) |
+| Reabierto el | 10-09-2026 — `RN-SP-037` gana el **teléfono de la empresa**: `users` recibe `company_phone` en `V83`, ver §2.8 (Art. I.7) |
 
 !!! info "Qué va en este documento"
 
@@ -336,6 +337,7 @@ Tres decisiones de reparto:
   "documentTypeId": "01a081a0-0000-7001-9c4f-5e7ad5000001",
   "documentNumber": "1020304050",
   "phone": "+573001234567",
+  "companyPhone": "+576012345678",
   "addressLine1": "Calle 100 # 15-20",
   "addressLine2": "Torre B, apto 502",
   "city": "Bogotá",
@@ -351,8 +353,8 @@ Tres decisiones de reparto:
 - **`roleIds` admite entre 0 y 100 elementos.** Cero es `FA-001` y es válido. El techo es el de `RF-SP-005` §4, por el mismo motivo: acotar el coste de una petición que dispara una verificación por elemento.
 - **`password` no se recorta ni se transforma.** Un espacio al principio o al final es parte de la contraseña. Recortarla, como se hace con los demás campos, cambiaría silenciosamente lo que la persona escribió y haría fallar su primer inicio de sesión.
 - **`documentTypeId` va por identificador y `countryId` también**, con el mismo criterio del cuerpo entero: no mezclar dos espacios de identificación. El cliente los tiene de `RF-SP-051`, que además **solo publica los activos** — de modo que un desplegable alimentado por él no puede ofrecer uno que el alta vaya a rechazar. **Y no puede ofrecer el de un menor**, porque no está en el catálogo: es el único campo de este cuerpo cuya validación de negocio la hace el **contenido de una tabla** y no una comprobación.
-- **`documentNumber` y `phone` se normalizan y `addressLine1`, `addressLine2` y `city` solo se recortan.** El documento pasa a mayúsculas y el teléfono pierde espacios, guiones y paréntesis, porque los dos participan en comparaciones —uno en un índice único, el otro en un `CHECK` de formato—. La dirección y la ciudad no se comparan con nada: transformarlas sería cambiar en silencio lo que la persona escribió.
-- **Los tres campos de dirección son opcionales y el teléfono no**, y la asimetría es de `RN-SP-037`: exigir una dirección postal a un funcionario interno bloquearía su alta sin que nadie la necesite.
+- **`documentNumber`, `phone` y `companyPhone` se normalizan y `addressLine1`, `addressLine2` y `city` solo se recortan.** El documento pasa a mayúsculas y el teléfono pierde espacios, guiones y paréntesis, porque los dos participan en comparaciones —uno en un índice único, el otro en un `CHECK` de formato—. La dirección y la ciudad no se comparan con nada: transformarlas sería cambiar en silencio lo que la persona escribió.
+- **Los tres campos de dirección y el teléfono de la empresa son opcionales, y el teléfono personal no**, y la asimetría es de `RN-SP-037`: exigir una dirección postal a un funcionario interno bloquearía su alta sin que nadie la necesite.
 - **`countryId` es obligatorio y va por identificador, no por código** (07-09-2026). Obligatorio **sin condición**: al contrario que `membershipId` y `supervisorId`, no depende de qué roles se concedan — su ausencia es siempre `400`, nunca un `409` condicional. Y por identificador porque es el criterio del cuerpo entero, que no mezcla dos espacios de identificación; el cliente tiene los identificadores de `RF-SP-021`, que además **solo publica los países activos**, de modo que un selector alimentado por él no puede ofrecer uno que `EX-009` vaya a rechazar.
 
 **Respuesta `201`**
@@ -375,6 +377,7 @@ Con cabecera `Location: /api/v1/users/{id}`, que **sí resuelve**: `RF-SP-026` p
   },
   "contact": {
     "phone": "+573001234567",
+    "companyPhone": "+576012345678",
     "addressLine1": "Calle 100 # 15-20",
     "addressLine2": "Torre B, apto 502",
     "city": "Bogotá"
@@ -390,7 +393,7 @@ Con cabecera `Location: /api/v1/users/{id}`, que **sí resuelve**: `RF-SP-026` p
 - **Se devuelve el correo ya normalizado y el nombre de usuario tal como se escribió.** Es la única forma de que el actor vea qué quedó registrado, y refleja exactamente la asimetría de §2.
 - **`document` y `contact` van agrupados y no como ocho campos sueltos en la raíz**, y es la única decisión de forma de esta enmienda. Son dos conjuntos con significados distintos —identidad y contacto—, se editan por caminos distintos —`RF-SP-027` el primero, también `RF-SP-044` el segundo— y agruparlos deja esa diferencia **visible en el contrato** en lugar de escrita solo en una regla. El coste es un nivel más de anidamiento; la alternativa era ocho campos planos que nadie puede mirar y deducir cuáles cambia el titular.
 - **`document.type` se devuelve resuelto, con abreviación y nombre**, por el mismo motivo que el país: quien registra tiene que poder comprobar qué quedó escrito, y el catálogo exige `document-types:read`, que quien tiene `users:create` no necesariamente porta.
-- **`contact` está siempre presente aunque sus cuatro campos vengan nulos.** Un objeto que aparece y desaparece obliga al cliente a comprobar dos cosas antes de leer un teléfono.
+- **`contact` está siempre presente aunque sus cinco campos vengan nulos.** Un objeto que aparece y desaparece obliga al cliente a comprobar dos cosas antes de leer un teléfono.
 - **El país se devuelve resuelto —objeto con `id`, `code` y `name`— y no como identificador suelto** (`CA-SP-574`, 07-09-2026). Es el mismo trato que reciben los roles, y por el mismo motivo: quien acaba de registrar tiene que poder comprobar **qué** quedó escrito sin una segunda llamada al catálogo. **Es además la excepción razonada al punto siguiente**: la membresía y el superior no se devuelven, y el país sí, porque aquellos son **condicionales** —puede que el alta no los haya escrito— y este entra **siempre**; una salida que a veces trae un campo y a veces no es la que obliga al cliente a llamar a `RF-SP-026` de todas formas.
 - **No se devuelven la membresía ni el superior**, aunque el alta los haya escrito. `spec.md` §6.2 fija la salida y no los incluye; quien los necesite tiene `RF-SP-026`. Añadirlos aquí crearía dos formas del mismo recurso que habría que mantener sincronizadas.
 - **No existe `password` ni ningún campo derivado de ella**, ni siquiera su longitud (`CA-SP-196`).
@@ -920,6 +923,27 @@ Cinco decisiones, y la primera es la que hay que entender antes que las demás:
 - **`fk_users_document_type` sin `ON DELETE`**, como `fk_users_country`: `RN-SP-036` no admite borrar una fila del catálogo, de modo que no hay borrado del que defenderse. **Y esta clave foránea es donde vive la validación de mayoría de edad**: el catálogo no ofrece documentos de menor, y esto es lo que impide apuntar a uno.
 
 **Lo que esta migración NO hace:** no crea índice sobre `phone` ni sobre `city`. Ninguna consulta filtra por ellos hoy, y un índice sin consumidor es una estructura que se mantiene sola en cada escritura.
+
+### 2.8 `V83__usuario_con_telefono_de_empresa.sql` — enmienda del 10-09-2026
+
+```sql
+ALTER TABLE users
+    ADD COLUMN company_phone varchar(20);
+
+ALTER TABLE users
+    ADD CONSTRAINT ck_users_company_phone_format
+        CHECK (company_phone IS NULL OR company_phone ~ '^\+?[0-9]{7,15}$');
+```
+
+**Una columna y una restricción, y nada más.** El teléfono de la empresa comparte forma con el personal —mismo largo, misma normalización en el dominio, misma expresión en el `CHECK`— de modo que no hay ninguna decisión de esquema que tomar aquí: se copia la que `V71` ya tomó.
+
+**Nace nulable, y esta vez el nulo NO es una transición.** Las seis columnas de `V71` nacieron nulables porque las filas anteriores no tenían el dato y **inventarlo habría sido escribir algo falso**; §10.16 dejó escrita la condición para endurecerlas. Aquí no hay condición que escribir: `RN-SP-037` lo declara **opcional para siempre**, de modo que `NOT NULL` no es un endurecimiento pendiente sino algo que **nunca debe ocurrir**. Es la diferencia con `document_number`, y conviene no confundirlas al leer §10.16.
+
+**Sin `DEFAULT` y sin relleno.** Poner una cadena vacía o un guion afirmaría que esa persona tiene un teléfono de empresa que no tiene, y además chocaría con el `CHECK`. El nulo es la verdad.
+
+**Sin índice**, por lo mismo que `phone`: ninguna consulta filtra ni ordena por él, y `RF-SP-025` no lo admite como criterio de búsqueda.
+
+**Numeración: `V83`.** `V82` la ocupó el índice de búsqueda de `user_brokers` el mismo día. La reserva de números por requerimiento quedó muerta el 24-08-2026 (ver `V28`).
 
 ## 3. Componentes afectados
 

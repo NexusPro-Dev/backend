@@ -469,6 +469,7 @@ public class RegisterUserService {
         usuario.getDocumentTypeId() == null ? null : usuario.getDocumentTypeId().toString());
     estado.put("document_number", usuario.getDocumentNumber());
     estado.put("phone", usuario.getPhone());
+    estado.put("companyPhone", usuario.getCompanyPhone());
     estado.put("address_line1", usuario.getAddressLine1());
     estado.put("address_line2", usuario.getAddressLine2());
     estado.put("city", usuario.getCity());

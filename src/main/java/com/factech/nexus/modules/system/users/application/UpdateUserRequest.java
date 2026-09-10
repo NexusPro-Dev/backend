@@ -29,9 +29,13 @@ import java.util.UUID;
  *
  * <p>De modo que el cuerpo tiene ahora <b>dos familias</b>: {@code firstName}, {@code lastName},
  * {@code email}, {@code countryId}, {@code documentTypeId}, {@code documentNumber} y {@code phone}
- * <b>rechazan</b> el nulo; {@code addressLine1}, {@code addressLine2} y {@code city} lo <b>aceptan
- * y vacían</b>. La línea que las separa no es técnica sino de negocio — es la de lo obligatorio y
- * lo opcional de `RN-SP-035` y `RN-SP-037`.
+ * <b>rechazan</b> el nulo; {@code addressLine1}, {@code addressLine2}, {@code city} y {@code
+ * companyPhone} lo <b>aceptan y vacían</b>. La línea que las separa no es técnica sino de negocio —
+ * es la de lo obligatorio y lo opcional de `RN-SP-035` y `RN-SP-037`.
+ *
+ * <p><b>{@code companyPhone} entró en la segunda familia el 10-09-2026, y es la comprobación de que
+ * la línea está bien trazada.</b> Es un teléfono, comparte forma y validación con {@code phone}, y
+ * aun así cae del otro lado: lo que decide no es qué dato es, sino si la regla lo exige.
  *
  * <p><b>El tipo y el número de documento se validan como una unidad</b>: enviar uno solo es {@code
  * 400} y no un cambio a medias. {@code ck_users_document_pair} lo impediría de todas formas, y
@@ -57,6 +61,7 @@ public record UpdateUserRequest(
     @JsonDeserialize(using = PatchableUuidDeserializer.class) Patchable<UUID> documentTypeId,
     @JsonDeserialize(using = PatchableStringDeserializer.class) Patchable<String> documentNumber,
     @JsonDeserialize(using = PatchableStringDeserializer.class) Patchable<String> phone,
+    @JsonDeserialize(using = PatchableStringDeserializer.class) Patchable<String> companyPhone,
     @JsonDeserialize(using = PatchableStringDeserializer.class) Patchable<String> addressLine1,
     @JsonDeserialize(using = PatchableStringDeserializer.class) Patchable<String> addressLine2,
     @JsonDeserialize(using = PatchableStringDeserializer.class) Patchable<String> city) {
@@ -73,12 +78,13 @@ public record UpdateUserRequest(
     documentTypeId = documentTypeId == null ? Patchable.ausente() : documentTypeId;
     documentNumber = documentNumber == null ? Patchable.ausente() : documentNumber;
     phone = phone == null ? Patchable.ausente() : phone;
+    companyPhone = companyPhone == null ? Patchable.ausente() : companyPhone;
     addressLine1 = addressLine1 == null ? Patchable.ausente() : addressLine1;
     addressLine2 = addressLine2 == null ? Patchable.ausente() : addressLine2;
     city = city == null ? Patchable.ausente() : city;
   }
 
-  /** ¿Se envió alguno de los diez, con el valor que sea? */
+  /** ¿Se envió alguno de los once, con el valor que sea? */
   public boolean informaAlgo() {
     return firstName.presente()
         || lastName.presente()
@@ -87,6 +93,7 @@ public record UpdateUserRequest(
         || documentTypeId.presente()
         || documentNumber.presente()
         || phone.presente()
+        || companyPhone.presente()
         || addressLine1.presente()
         || addressLine2.presente()
         || city.presente();

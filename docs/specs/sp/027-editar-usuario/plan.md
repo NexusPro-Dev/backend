@@ -20,6 +20,7 @@
 
 El comportamiento —flujos, excepciones, validaciones y criterios de aceptación— es el de [`spec.md`](spec.md) y no se repite aquí. Este documento decide tres cosas: **cómo se distingue un campo ausente de uno vaciado cuando ninguno puede vaciarse**, **por qué el correo emite un evento de seguridad y el apellido no**, y **por qué esta operación no revoca ninguna sesión pese a tocar una vía de acceso**.
 
+| Reabierto el | 10-09-2026 — entra `companyPhone`, y entra en la familia del **nulo que vacía**: es la primera vez que un teléfono acepta el nulo explícito, ver §4 (Art. I.7) |
 ---
 
 ## 1. Enfoque
@@ -98,6 +99,7 @@ Se usa `PATCH` y no `PUT` por el motivo de `RF-SP-004` §4: `PUT` obligaría a e
   "documentTypeId": "01a081a0-0000-7001-9c4f-5e7ad5000001",
   "documentNumber": "1020304050",
   "phone": "+573001234567",
+  "companyPhone": "+576012345678",
   "addressLine1": "Calle 100 # 15-20",
   "addressLine2": null,
   "city": "Medellín"
@@ -115,6 +117,7 @@ Se usa `PATCH` y no `PUT` por el motivo de `RF-SP-004` §4: `PUT` obligaría a e
 | `{ "documentTypeId": "…", "documentNumber": "…" }` | Cambia el documento. **Los dos juntos o ninguno** |
 | `{ "documentNumber": "…" }` | **Rechazado** por `VAL-007`: un número sin tipo no significa nada |
 | `{ "phone": null }` | **Rechazado** por `VAL-008`: `RN-SP-037` lo hace obligatorio |
+| `{ "companyPhone": null }` | **Aceptado y vacía** (10-09-2026): `RN-SP-037` lo deja opcional, de modo que su nulo es una orden y no un error. Es la única diferencia con la fila de arriba, y es toda la enmienda |
 | `{ "addressLine2": null }` | **Aceptado, y vacía el campo.** Es el único grupo del cuerpo donde el nulo es una orden |
 | `{ "countryId": null }` | **Rechazado** por `VAL-006`, y por el mismo motivo: `country_id` es `NOT NULL` y el estado «sin país» no existe (`CA-SP-579`) |
 | `{ "firstName": "   " }` | Rechazado por `VAL-002` **tras recortar los extremos** |
@@ -124,7 +127,7 @@ Se usa `PATCH` y no `PUT` por el motivo de `RF-SP-004` §4: `PUT` obligaría a e
 
 **El nulo explícito deja de significar lo mismo en todo el cuerpo, y esa es la novedad de esta enmienda** (08-09-2026). Hasta hoy este `PATCH` tenía una regla única y cómoda —«el nulo siempre se rechaza»— porque todas sus columnas eran `NOT NULL`. Con el contacto entran **tres columnas nulables**, y en ellas el nulo **sí es una orden**: «ya no vive ahí» es un hecho que hay que poder registrar, y rechazarlo dejaría la dirección vieja pegada para siempre.
 
-**De modo que el cuerpo tiene ahora dos familias** y conviene tenerlas escritas juntas: `firstName`, `lastName`, `email`, `countryId`, `documentTypeId`, `documentNumber` y `phone` **rechazan el nulo**; `addressLine1`, `addressLine2` y `city` **lo aceptan y vacían**. La línea que las separa no es técnica sino de negocio — es exactamente la línea entre lo obligatorio y lo opcional de `RN-SP-035` y `RN-SP-037`—, y por eso se declara aquí en lugar de deducirse de la nulabilidad de cada columna.
+**De modo que el cuerpo tiene ahora dos familias** y conviene tenerlas escritas juntas: `firstName`, `lastName`, `email`, `countryId`, `documentTypeId`, `documentNumber` y `phone` **rechazan el nulo**; `addressLine1`, `addressLine2`, `city` y `companyPhone` **lo aceptan y vacían**. La línea que las separa no es técnica sino de negocio — es exactamente la línea entre lo obligatorio y lo opcional de `RN-SP-035` y `RN-SP-037`—, y por eso se declara aquí en lugar de deducirse de la nulabilidad de cada columna. **`companyPhone` entró el 10-09-2026 en la segunda familia**, y es la comprobación de que la línea es la correcta: es un teléfono, comparte forma y validación con `phone`, y sin embargo cae del otro lado — porque lo que decide no es el tipo del dato sino si `RN-SP-037` lo exige.
 
 **El tipo y el número se validan como una unidad**, no como dos campos. Enviar uno solo es `400` y no un cambio a medias: `ck_users_document_pair` lo impediría de todas formas, y dejarlo llegar al motor daría un `500` sobre una regla de negocio.
 
@@ -174,7 +177,7 @@ Se usa `PATCH` y no `PUT` por el motivo de `RF-SP-004` §4: `PUT` obligaría a e
 | `404` | No existe usuario vigente con ese identificador (`EX-002`) | `EX-002` | — |
 | `400` | `countryId` con nulo explícito (`VAL-006`) | `VAL-006` | `countryId` |
 | `400` | Tipo o número de documento sin su pareja, o con nulo explícito (`VAL-007`) | `VAL-007` | El campo |
-| `400` | Teléfono con nulo explícito o formato inadmisible (`VAL-008`) | `VAL-008` | `phone` |
+| `400` | Teléfono con nulo explícito o formato inadmisible (`VAL-008`). **El nulo solo falla en `phone`**: en `companyPhone` vacía | `VAL-008` | `phone`, `companyPhone` |
 | `400` | Dirección, complemento o ciudad **en blanco** (`VAL-009`) | `VAL-009` | El campo |
 | `409` | El documento **ya lo tiene otra persona** (`EX-004`) | `RN-SP-035` | `documentNumber` |
 | `409` | El tipo de documento existe pero está **inactivo** (`EX-004`) | `RN-SP-035` | `documentTypeId` |

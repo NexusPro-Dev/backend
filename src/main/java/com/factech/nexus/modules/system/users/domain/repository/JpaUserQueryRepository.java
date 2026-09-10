@@ -97,7 +97,9 @@ public class JpaUserQueryRepository implements UserQueryRepository {
               // decisión: buscar a alguien por su documento es una necesidad
               // administrativa real que NADIE HA PEDIDO, y publicarlo en un
               // listado paginado lo expone mucho más que devolverlo en un
-              // detalle. La condición para abrirlo está en `tasks.md` §4.sexies.
+              // detalle. La condición para abrirlo está en `tasks.md` §4.sexies. Los
+              // DOS teléfonos quedan fuera por lo mismo, desde el 10-09-2026.
+              null,
               null,
               null,
               null,
@@ -177,6 +179,7 @@ public class JpaUserQueryRepository implements UserQueryRepository {
                        c.id AS c_id, c.code AS c_code, c.name AS c_name,
                        dt.id AS d_id, dt.abbreviation AS d_abbr, dt.name AS d_name,
                        u.document_number AS d_number, u.phone AS phone,
+                       u.company_phone AS company_phone,
                        u.address_line1 AS address1, u.address_line2 AS address2,
                        u.city AS city,
                        m.id AS m_id, m.code AS m_code, m.name AS m_name, m.level AS m_level,
@@ -221,6 +224,7 @@ public class JpaUserQueryRepository implements UserQueryRepository {
                     (String) fila.get("d_name"),
                     (String) fila.get("d_number"),
                     (String) fila.get("phone"),
+                    (String) fila.get("company_phone"),
                     (String) fila.get("address1"),
                     (String) fila.get("address2"),
                     (String) fila.get("city"),

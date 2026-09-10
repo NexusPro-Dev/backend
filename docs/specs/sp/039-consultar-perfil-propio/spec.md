@@ -10,6 +10,7 @@
 | Fecha de aprobación | 22-08-2026 |
 | Enmendada | 07-09-2026 — `RN-SP-034`: el perfil publica el país del actor; `CA-SP-581` (Art. I.7) |
 | Enmendada | 08-09-2026 — `RN-SP-035` y `RN-SP-037`: el perfil publica el documento y el contacto; `CA-SP-597` (Art. I.7) |
+| Enmendada | 10-09-2026 — el contacto publica **dos teléfonos**: el personal y el de la empresa. Es lo que permite precargar el formulario de `RF-SP-044` con los dos (Art. I.7) |
 
 ---
 
@@ -80,7 +81,7 @@ Ninguna. La identidad del actor se resuelve a partir de su autenticación, y **n
 | Roles | Roles asignados, cada uno con su estado |
 | Permisos efectivos | Unión de los permisos de sus roles **activos**, ya resuelta |
 | Documento | El tipo **resuelto** y el número, del propio actor. Puede faltar entero |
-| Contacto | Teléfono, dirección, complemento y ciudad. Es lo que `RF-SP-044` deja corregir, de modo que sin publicarlo aquí la pantalla de edición **no podría precargarse** |
+| Contacto | Los dos teléfonos —el personal y el de la empresa—, dirección, complemento y ciudad. Es lo que `RF-SP-044` deja corregir, de modo que sin publicarlo aquí la pantalla de edición **no podría precargarse** |
 | País | El país del actor, resuelto —identificador, código y nombre—. **Está siempre** (`RN-SP-034`). Lo necesita la interfaz por el mismo motivo por el que necesitó el identificador: `RN-MV-019` decide **qué medios de pago se le ofrecen** según dónde esté, y sin este campo el navegador no puede pintar la pantalla de pago sin preguntar por otra vía que un cliente no tiene |
 | Membresía | Membresía vigente y su nivel, cuando la persona tiene una |
 | Último inicio de sesión | Momento registrado por `RF-SP-034` en el acceso en curso. Se sobrescribe en cada entrada: no revela accesos anteriores |

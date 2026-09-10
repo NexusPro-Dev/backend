@@ -20,6 +20,7 @@
 
 El comportamiento —flujos, excepciones, validaciones y criterios de aceptación— es el de [`spec.md`](spec.md) y no se repite aquí. Este documento decide una sola cosa importante, y las demás se derivan de ella: **de dónde salen los permisos efectivos**.
 
+| Reabierto el | 10-09-2026 — el contacto publica **dos teléfonos**: entra `companyPhone`, opcional y presente aunque vaya nulo (Art. I.7) |
 ---
 
 ## 1. Enfoque
@@ -131,6 +132,7 @@ Sin cuerpo y sin parámetros de consulta. No hay `?include=…`: la especificaci
   },
   "contact": {
     "phone": "+573001234567",
+    "companyPhone": "+576012345678",
     "addressLine1": "Calle 100 # 15-20",
     "addressLine2": "Torre B, apto 502",
     "city": "Bogotá"

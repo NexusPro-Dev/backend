@@ -14,6 +14,7 @@
 | Reabierto el | 07-09-2026 — `RN-SP-034`: el cuerpo público exige `countryCode`, ver §4 (Art. I.7) |
 | Reabierto el | 08-09-2026 — `RN-SP-035` y `RN-SP-037`: el cuerpo exige documento y teléfono, ver §4 (Art. I.7) |
 
+| Reabierto el | 10-09-2026 — el cuerpo **NO admite** `companyPhone`, que nace ese día para el resto del sistema: enviarlo es `400` por propiedad desconocida, ver §4 (Art. I.7) |
 ---
 
 ## 1. Enfoque

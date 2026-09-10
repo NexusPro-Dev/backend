@@ -65,6 +65,7 @@ final class UserResponses {
         // El contacto SIEMPRE presente, aunque sus cuatro campos vengan nulos.
         new UserResponse.ContactRef(
             usuario.getPhone(),
+            usuario.getCompanyPhone(),
             usuario.getAddressLine1(),
             usuario.getAddressLine2(),
             usuario.getCity()),

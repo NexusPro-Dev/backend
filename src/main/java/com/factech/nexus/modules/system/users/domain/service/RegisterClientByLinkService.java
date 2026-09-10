@@ -216,6 +216,11 @@ public class RegisterClientByLinkService {
                 new DocumentIdentity(tipoDocumento, peticion.documentNumber()),
                 new ContactDetails(
                     Optional.ofNullable(peticion.phone()),
+                    // AUSENTE Y NO NULO, aunque el efecto sea el mismo: el
+                    // formulario público NO admite el teléfono de la empresa
+                    // (`RF-SP-045` §4.2, 10-09-2026). Quien se registra por un
+                    // enlace es un cliente; puede añadirlo luego desde su perfil.
+                    Patchable.ausente(),
                     Patchable.de(peticion.addressLine1()),
                     Patchable.de(peticion.addressLine2()),
                     Patchable.de(peticion.city())),
@@ -536,6 +541,7 @@ public class RegisterClientByLinkService {
         usuario.getDocumentTypeId() == null ? null : usuario.getDocumentTypeId().toString());
     estado.put("document_number", usuario.getDocumentNumber());
     estado.put("phone", usuario.getPhone());
+    estado.put("companyPhone", usuario.getCompanyPhone());
     estado.put("status", usuario.getStatus().name());
     estado.put("must_change_password", usuario.isMustChangePassword());
     estado.put("self_registered", true);

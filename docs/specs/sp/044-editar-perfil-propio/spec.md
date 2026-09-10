@@ -10,6 +10,7 @@
 | Fecha de aprobación | — |
 | Enmendada | 08-09-2026 — `RN-SP-037`: el titular pasa a corregir sus **datos de contacto**, y **no** su documento; `CA-SP-598` y `CA-SP-599` (Art. I.7) |
 
+| Enmendada | 10-09-2026 — el titular corrige también su **teléfono de la empresa**, y este **sí se puede vaciar**: `RN-SP-037` lo deja opcional. Nace `CA-SP-680` (Art. I.7) |
 ---
 
 ## 1. Objetivo
@@ -39,7 +40,7 @@ Por eso el cambio de correo **exige la contraseña actual en la misma petición*
 ### 4.1 Incluye
 
 - Modificación del **propio** nombre, apellidos y correo.
-- **Modificación de los propios datos de contacto**: teléfono, dirección, complemento y ciudad (`RN-SP-037`, 08-09-2026).
+- **Modificación de los propios datos de contacto**: los dos teléfonos —el personal y el de la empresa—, dirección, complemento y ciudad (`RN-SP-037`, 08-09-2026 y 10-09-2026).
 - Exigencia de la contraseña actual **cuando y solo cuando** se cambia el correo.
 
 ### 4.2 No incluye
@@ -56,7 +57,7 @@ Por eso el cambio de correo **exige la contraseña actual en la misma petición*
 | ID | Regla | Origen |
 |---|---|---|
 | `RN-SP-016` | El nombre de usuario y el correo son únicos entre los usuarios; el nombre de usuario no cambia | `requirements/sp.md` §5.1 |
-| `RN-SP-037` | El teléfono es obligatorio y la dirección opcional; **son datos de contacto y los corrige el titular** | `requirements/sp.md` §5.1 |
+| `RN-SP-037` | El teléfono personal es obligatorio; el de la empresa y la dirección son opcionales; **son datos de contacto y los corrige el titular** | `requirements/sp.md` §5.1 |
 
 ## 6. Datos
 
@@ -66,7 +67,8 @@ Por eso el cambio de correo **exige la contraseña actual en la misma petición*
 |---|---|---|---|
 | Nombre y apellidos | No | Nuevos datos de la persona | No pueden quedar vacíos si se envían |
 | Correo | No | Nuevo correo | Único entre los usuarios. Formato válido |
-| Teléfono | No | Nuevo teléfono | **No se admite vaciarlo** (`RN-SP-037`). **No exige contraseña actual**: no es una vía de acceso |
+| Teléfono personal | No | Nuevo teléfono personal | **No se admite vaciarlo** (`RN-SP-037`). **No exige contraseña actual**: no es una vía de acceso |
+| Teléfono de la empresa | No | Nuevo teléfono de la empresa | **Sí se admite vaciarlo** (`RN-SP-037`), al revés que el personal: es opcional, y «ya no tengo» es un hecho que hay que poder registrar. **Tampoco exige contraseña actual**, por lo mismo que aquel: no es una vía de acceso |
 | Dirección, complemento y ciudad | No | Nuevos datos de contacto | **Sí se admite vaciarlos** con nulo explícito: son opcionales, y «ya no vivo ahí» es un hecho que hay que poder registrar |
 | Contraseña actual | Condicional | Prueba de que quien pide el cambio es la persona | **Obligatoria si y solo si se envía correo.** Debe coincidir con la vigente |
 
@@ -158,6 +160,7 @@ No hay identificador de entrada: el usuario a editar es **el que porta el token*
 | `CA-SP-504` | La contraseña actual incorrecta emite evento de seguridad y **no** incrementa los intentos fallidos ni bloquea la cuenta |
 | `CA-SP-505` | Enviar los mismos valores no registra auditoría y responde sin error |
 | `CA-SP-598` | El titular cambia su teléfono, su dirección, su complemento y su ciudad **sin ningún permiso y sin contraseña actual**, y el nulo explícito vacía los tres últimos |
+| `CA-SP-680` | El titular **cambia y vacía** su teléfono de la empresa sin contraseña actual, y el personal sigue **rechazando** el vaciado en la misma petición |
 | `CA-SP-599` | El titular **no puede** cambiar su tipo ni su número de documento, ni su país: enviarlos devuelve `400` por propiedad desconocida y **ninguno cambia** |
 | `CA-SP-506` | Sin token, la petición se rechaza como no autenticada |
 

@@ -11,6 +11,7 @@
 | Enmendada | 07-09-2026 — `RN-SP-034`: el detalle publica el país; `CA-SP-577` (Art. I.7) |
 | Enmendada | 08-09-2026 — `RN-SP-035` y `RN-SP-037`: el detalle publica el documento y el contacto; `CA-SP-593` (Art. I.7) |
 
+| Enmendada | 10-09-2026 — el contacto publica **dos teléfonos**: el personal y el de la empresa, que `RN-SP-037` deja opcional. Los cinco campos siguen presentes aunque vayan nulos (Art. I.7) |
 ---
 
 ## 1. Objetivo
@@ -73,7 +74,7 @@ Es también la pantalla a la que se acude cuando alguien no puede entrar, de mod
 | Roles | Roles asignados, cada uno con su estado, para que se vea cuáles no están concediendo nada |
 | Permisos efectivos | Unión de los permisos de sus roles **activos**, ya resuelta |
 | Documento | El tipo **resuelto** —identificador, abreviación y nombre— y el número. **Puede faltar entero**: las personas anteriores al 08-09-2026 no lo tienen, y el esquema lo admite a propósito (`requirements/sp.md` §10.16) |
-| Contacto | Teléfono, dirección, complemento y ciudad. Los cuatro pueden ser nulos |
+| Contacto | Los dos teléfonos —el personal y el de la empresa—, dirección, complemento y ciudad. Los cinco pueden ser nulos |
 | País | El país de la persona, resuelto —identificador, código y nombre—. **Está siempre** (`RN-SP-034`), y es el dato que esta consulta tiene que traer para que `RF-SP-027` pueda corregirlo: sin él, quien edita no sabe qué está cambiando |
 | Membresía | Membresía vigente y su nivel, cuando la persona tiene una |
 | Contexto de acceso | Último inicio de sesión y, si está bloqueada, el momento en que expira el bloqueo |

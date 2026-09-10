@@ -169,6 +169,7 @@ public class UpdateOwnProfileService {
         usuario.changeContact(
             new com.factech.nexus.modules.system.users.domain.models.ContactDetails(
                 java.util.Optional.ofNullable(peticion.phone().valor()),
+                peticion.companyPhone(),
                 peticion.addressLine1(),
                 peticion.addressLine2(),
                 peticion.city()),

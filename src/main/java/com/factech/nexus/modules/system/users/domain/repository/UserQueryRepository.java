@@ -60,6 +60,7 @@ public interface UserQueryRepository {
       String documentTypeName,
       String documentNumber,
       String phone,
+      String companyPhone,
       String addressLine1,
       String addressLine2,
       String city,

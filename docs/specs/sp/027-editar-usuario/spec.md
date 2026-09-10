@@ -11,6 +11,7 @@
 | Enmendada | 08-09-2026 — `RN-SP-035` y `RN-SP-037`: el documento y el contacto pasan a ser corregibles; nace `EX-004`, `VAL-007` a `VAL-009` y `CA-SP-594` a `CA-SP-596` (Art. I.7) |
 | Enmendada | 07-09-2026 — `RN-SP-034`: el país pasa a ser corregible desde aquí; nace `EX-003`, `VAL-006` y `CA-SP-578` a `CA-SP-580` (Art. I.7) |
 
+| Enmendada | 10-09-2026 — entra el **teléfono de la empresa**, y entra en la familia de la DIRECCIÓN y no en la del teléfono personal: su nulo explícito lo **vacía**. Nace `CA-SP-679` (Art. I.7) |
 ---
 
 ## 1. Objetivo
@@ -59,7 +60,7 @@ El **nombre de usuario queda fuera**, y por un motivo más fuerte que en el caso
 | `RN-SP-016` | El nombre de usuario y el correo son únicos entre los usuarios; el nombre de usuario no cambia | `requirements/sp.md` §5.1 |
 | `RN-SP-034` | Todo usuario pertenece a un país, y solo se asigna uno **activo** | `requirements/sp.md` §5.1 |
 | `RN-SP-035` | El documento identifica a la persona; el par tipo+número es único y no se libera | `requirements/sp.md` §5.1 |
-| `RN-SP-037` | El teléfono es obligatorio y la dirección opcional | `requirements/sp.md` §5.1 |
+| `RN-SP-037` | El teléfono personal es obligatorio; el de la empresa y la dirección son opcionales | `requirements/sp.md` §5.1 |
 
 ## 6. Datos
 
@@ -71,7 +72,8 @@ El **nombre de usuario queda fuera**, y por un motivo más fuerte que en el caso
 | Nombre y apellidos | No | Nuevos datos de la persona | No pueden quedar vacíos si se envían |
 | Correo | No | Nuevo correo | Único entre los usuarios. Formato de correo válido |
 | Tipo y número de documento | No | Nueva identidad documental | **Van juntos o no van**: enviar uno solo se rechaza. El tipo debe existir y estar **activo**; el par no puede tenerlo ya nadie. **No se admite vaciarlos** en una persona que ya los tiene |
-| Teléfono | No | Nuevo teléfono | **No se admite vaciarlo**: `RN-SP-037` lo hace obligatorio. En una persona que no lo tenía, informarlo lo añade |
+| Teléfono personal | No | Nuevo teléfono personal | **No se admite vaciarlo**: `RN-SP-037` lo hace obligatorio. En una persona que no lo tenía, informarlo lo añade |
+| Teléfono de la empresa | No | Nuevo teléfono de la empresa | **Sí se admite vaciarlo**, y ahí está toda la diferencia con el personal: `RN-SP-037` lo deja opcional, de modo que su nulo explícito es una **orden de borrado** y no un error — el mismo trato que la dirección. «Ya no tengo teléfono de empresa» es un hecho que hay que poder registrar |
 | Dirección, complemento y ciudad | No | Nuevos datos de contacto | **Sí se admite vaciarlos** con nulo explícito, y son los únicos campos del cuerpo de los que se puede decir eso: son opcionales, de modo que el nulo **sí es una orden** — «ya no vive ahí» es un hecho que hay que poder registrar |
 | País | No | Nuevo país de la persona | Debe existir y estar **activo** (`RN-SP-034`). **No se admite vaciarlo**: la columna es obligatoria y el estado «sin país» no existe |
 
@@ -153,7 +155,7 @@ Al menos uno de los campos modificables debe venir informado.
 | `VAL-005` | Longitud máxima de los campos de texto | El campo excede la longitud permitida. |
 | `VAL-006` | País existente y activo si se envía; **nulo explícito rechazado** (`RN-SP-034`) | El país indicado no es válido. |
 | `VAL-007` | Tipo y número de documento **van juntos**, y ninguno admite nulo explícito (`RN-SP-035`) | El tipo y el número de documento se informan juntos. |
-| `VAL-008` | Teléfono con formato admitido; **nulo explícito rechazado** (`RN-SP-037`) | El teléfono indicado no es válido. |
+| `VAL-008` | Teléfono con formato admitido. **El personal rechaza el nulo explícito y el de la empresa lo acepta y vacía** (`RN-SP-037`) | El teléfono indicado no es válido. |
 | `VAL-009` | Dirección, complemento y ciudad: en blanco se rechaza, **nulo explícito se admite** y vacía el campo | El campo no puede quedar en blanco. |
 
 ## 12. Criterios de aceptación
@@ -175,7 +177,8 @@ Al menos uno de los campos modificables debe venir informado.
 | `CA-SP-580` | El cambio de país queda en la auditoría de cambios con su antes y su después, y **reenviar el mismo país no registra evento** (`FA-001`) |
 | `CA-SP-594` | El sistema cambia el documento y los cuatro campos de contacto de una persona, y el detalle devuelve los nuevos |
 | `CA-SP-595` | El sistema rechaza el documento que **ya tiene otra persona**, incluida una eliminada, sin revelar de quién es; y el documento anterior de quien lo corrige **no queda libre** |
-| `CA-SP-596` | El nulo explícito **vacía** la dirección, el complemento y la ciudad, y **se rechaza** en el tipo, el número y el teléfono |
+| `CA-SP-596` | El nulo explícito **vacía** la dirección, el complemento, la ciudad y el teléfono de la empresa, y **se rechaza** en el tipo, el número y el teléfono personal |
+| `CA-SP-679` | La edición **cambia** el teléfono de la empresa de quien no lo tenía, y su **nulo explícito lo borra**; el cambio queda en la auditoría como cualquier otro campo |
 | `CA-SP-228` | El sistema informa que el usuario no existe cuando está eliminado lógicamente |
 | `CA-SP-229` | El sistema rechaza la edición a un actor sin el permiso de modificación de usuarios |
 

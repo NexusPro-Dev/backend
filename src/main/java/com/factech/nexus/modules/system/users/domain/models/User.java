@@ -132,6 +132,17 @@ public class User {
   @Column(name = "phone", length = 20)
   private String phone;
 
+  /**
+   * El teléfono de la empresa (`RN-SP-037`, 10-09-2026).
+   *
+   * <p><b>Opcional siempre, y su nulo es un hecho y no un dato pendiente</b>: esa persona no tiene
+   * teléfono de empresa. Es la diferencia con {@link #phone} y con {@link #documentNumber}, cuyo
+   * nulo solo existe en las filas anteriores a la regla que los exige. Por eso es el único dato de
+   * contacto que <b>se puede vaciar de vuelta</b> una vez escrito.
+   */
+  @Column(name = "company_phone", length = 20)
+  private String companyPhone;
+
   @Column(name = "password_hash", nullable = false, length = 255)
   private String passwordHash;
 
@@ -348,6 +359,10 @@ public class User {
     return phone;
   }
 
+  public String getCompanyPhone() {
+    return companyPhone;
+  }
+
   public boolean isMustChangePassword() {
     return mustChangePassword;
   }
@@ -491,12 +506,14 @@ public class User {
       return false;
     }
     String telefonoNuevo = contacto.phone().orElse(phone);
+    String telefonoEmpresaNuevo = contacto.companyPhone().resuelto(companyPhone);
     String linea1Nueva = contacto.addressLine1().resuelto(addressLine1);
     String linea2Nueva = contacto.addressLine2().resuelto(addressLine2);
     String ciudadNueva = contacto.city().resuelto(city);
 
     boolean cambia =
         !java.util.Objects.equals(telefonoNuevo, phone)
+            || !java.util.Objects.equals(telefonoEmpresaNuevo, companyPhone)
             || !java.util.Objects.equals(linea1Nueva, addressLine1)
             || !java.util.Objects.equals(linea2Nueva, addressLine2)
             || !java.util.Objects.equals(ciudadNueva, city);
@@ -505,6 +522,7 @@ public class User {
       return false;
     }
     this.phone = telefonoNuevo;
+    this.companyPhone = telefonoEmpresaNuevo;
     this.addressLine1 = linea1Nueva;
     this.addressLine2 = linea2Nueva;
     this.city = ciudadNueva;
@@ -525,6 +543,7 @@ public class User {
       return;
     }
     this.phone = contacto.phone().orElse(null);
+    this.companyPhone = contacto.companyPhone().resuelto(null);
     this.addressLine1 = contacto.addressLine1().resuelto(null);
     this.addressLine2 = contacto.addressLine2().resuelto(null);
     this.city = contacto.city().resuelto(null);

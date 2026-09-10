@@ -28,6 +28,10 @@ import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
  *     contrario que el correo: la contraseña se pide cuando el campo <b>es una vía de acceso</b>, y
  *     el teléfono hoy no lo es. <b>La condición para revisarlo queda escrita</b>: el día que exista
  *     verificación por SMS o segundo factor telefónico, pasa a la familia del correo
+ * @param companyPhone nuevo teléfono de la empresa (`RN-SP-037`, 10-09-2026). <b>Este SÍ admite el
+ *     nulo explícito y lo vacía</b>, al contrario que el personal: es opcional, y «ya no tengo ese
+ *     número» es un hecho que hay que poder registrar. <b>Tampoco exige contraseña actual</b>, por
+ *     lo mismo que aquel
  * @param addressLine1 nueva dirección. <b>Admite el nulo explícito y lo vacía</b>: es opcional, y
  *     «ya no vivo ahí» es un hecho que hay que poder registrar
  * @param addressLine2 nuevo complemento, con el mismo trato
@@ -41,6 +45,7 @@ public record UpdateOwnProfileRequest(
     @JsonDeserialize(using = PatchableStringDeserializer.class) Patchable<String> lastName,
     @JsonDeserialize(using = PatchableStringDeserializer.class) Patchable<String> email,
     @JsonDeserialize(using = PatchableStringDeserializer.class) Patchable<String> phone,
+    @JsonDeserialize(using = PatchableStringDeserializer.class) Patchable<String> companyPhone,
     @JsonDeserialize(using = PatchableStringDeserializer.class) Patchable<String> addressLine1,
     @JsonDeserialize(using = PatchableStringDeserializer.class) Patchable<String> addressLine2,
     @JsonDeserialize(using = PatchableStringDeserializer.class) Patchable<String> city,
@@ -51,6 +56,7 @@ public record UpdateOwnProfileRequest(
     lastName = lastName == null ? Patchable.ausente() : lastName;
     email = email == null ? Patchable.ausente() : email;
     phone = phone == null ? Patchable.ausente() : phone;
+    companyPhone = companyPhone == null ? Patchable.ausente() : companyPhone;
     addressLine1 = addressLine1 == null ? Patchable.ausente() : addressLine1;
     addressLine2 = addressLine2 == null ? Patchable.ausente() : addressLine2;
     city = city == null ? Patchable.ausente() : city;
@@ -62,6 +68,7 @@ public record UpdateOwnProfileRequest(
         || lastName.presente()
         || email.presente()
         || phone.presente()
+        || companyPhone.presente()
         || addressLine1.presente()
         || addressLine2.presente()
         || city.presente();

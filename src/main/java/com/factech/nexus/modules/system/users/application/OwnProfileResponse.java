@@ -102,7 +102,8 @@ public record OwnProfileResponse(
    * los dos van agrupados en objetos separados: la forma del contrato enseña la regla.
    */
   @JsonInclude(JsonInclude.Include.ALWAYS)
-  public record ContactRef(String phone, String addressLine1, String addressLine2, String city) {}
+  public record ContactRef(
+      String phone, String companyPhone, String addressLine1, String addressLine2, String city) {}
 
   /** Con su estado: es lo que explica que un rol asignado no aparezca en {@code permissions}. */
   public record RoleRef(String code, String name, String status) {}

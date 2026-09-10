@@ -276,6 +276,35 @@ class UpdateOwnProfileIT extends IntegrationTestBase {
     return "{\"email\":\"" + correo + "\",\"currentPassword\":\"" + clave + "\"}";
   }
 
+  @Test
+  @DisplayName("CA-SP-680 · el titular cambia y VACÍA su teléfono de empresa sin contraseña")
+  void elTelefonoDeLaEmpresaSeCambiaYSeVacia() throws Exception {
+    // Lo pone quien no lo tenía, y sin `currentPassword`: no es una vía de
+    // acceso, igual que el personal.
+    mvc.perform(editar(juan, "{\"companyPhone\":\"+57 (601) 234-5678\"}"))
+        .andExpect(status().isOk())
+        // Normalizado con el mismo criterio que el personal: fuera espacios,
+        // guiones y paréntesis.
+        .andExpect(jsonPath("$.contact.companyPhone").value("+576012345678"));
+
+    assertThat(campo(juan, "company_phone")).isEqualTo("+576012345678");
+
+    // Y el NULO EXPLÍCITO lo borra, que es lo único que lo separa del personal:
+    // `RN-SP-037` lo deja opcional, de modo que «ya no tengo» es registrable.
+    mvc.perform(editar(juan, "{\"companyPhone\":null}"))
+        .andExpect(status().isOk())
+        // PRESENTE Y EN NULO, no ausente: `contact` publica sus cinco campos
+        // siempre, y un objeto que aparece y desaparece obligaría al cliente a
+        // comprobar dos cosas antes de leer una.
+        .andExpect(jsonPath("$.contact.companyPhone").value(org.hamcrest.Matchers.nullValue()));
+
+    assertThat(campo(juan, "company_phone")).isNull();
+
+    // El personal sigue rechazando el vaciado en la misma operación. Sin esta
+    // comprobación, un cambio que unificara las dos familias pasaría inadvertido.
+    mvc.perform(editar(juan, "{\"phone\":null}")).andExpect(status().isBadRequest());
+  }
+
   private String campo(UUID quien, String columna) {
     return jdbc.queryForObject(
         "SELECT " + columna + " FROM users WHERE id = ?", String.class, quien);

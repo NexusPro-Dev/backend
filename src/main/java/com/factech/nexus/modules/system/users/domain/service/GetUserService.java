@@ -90,7 +90,11 @@ public class GetUserService {
                 fila.documentNumber())
             : null,
         new com.factech.nexus.modules.system.users.application.UserResponse.ContactRef(
-            fila.phone(), fila.addressLine1(), fila.addressLine2(), fila.city()),
+            fila.phone(),
+            fila.companyPhone(),
+            fila.addressLine1(),
+            fila.addressLine2(),
+            fila.city()),
         fila.tieneMembresia()
             ? new UserDetailResponse.MembershipRef(
                 fila.membershipId(),

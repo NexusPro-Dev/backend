@@ -690,6 +690,47 @@ class UserLifecycleIT extends IntegrationTestBase {
 
   // ---------------------------------------------------------------------------
 
+  @Test
+  @DisplayName("CA-SP-679 — el teléfono de la empresa se cambia, se VACÍA con nulo y se audita")
+  void elTelefonoDeLaEmpresaSeCambiaYSeVacia() throws Exception {
+    int antes = eventosDeCambio(juan);
+
+    mvc.perform(editar(juan, "{\"companyPhone\":\"+57 601 234 5678\"}"))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.contact.companyPhone").value("+576012345678"));
+
+    // MAYOR, y no «antes + 1»: un cambio de contacto deja DOS asientos —el
+    // general y el del contacto, que `anotarContacto` escribe aparte—, y eso es
+    // anterior a esta enmienda. Lo que aquí importa es que el cambio se audita;
+    // cuántos asientos deja el resto de la operación no es asunto de esta prueba.
+    assertThat(eventosDeCambio(juan)).isGreaterThan(antes);
+
+    // EL NULO EXPLÍCITO LO VACÍA, y es la primera vez que un teléfono lo acepta:
+    // `RN-SP-037` lo deja opcional, de modo que cae en la familia de la
+    // dirección y no en la del personal. Lo que decide de qué lado está un campo
+    // no es qué dato es, sino si la regla lo exige.
+    mvc.perform(editar(juan, "{\"companyPhone\":null}")).andExpect(status().isOk());
+
+    assertThat(
+            jdbc.queryForObject("SELECT company_phone FROM users WHERE id = ?", String.class, juan))
+        .isNull();
+
+    // El vaciado se audita como cualquier cambio, con el después en nulo: es lo
+    // que distingue «se borró» de «nunca lo hubo».
+    String cambios =
+        jdbc.queryForObject(
+            "SELECT changes::text FROM audit_change_log WHERE entity_id = ?"
+                + " ORDER BY occurred_at DESC LIMIT 1",
+            String.class,
+            juan);
+    assertThat(cambios).contains("companyPhone");
+
+    // Y el personal sigue rechazándolo, que es la mitad que hace útil a la otra.
+    mvc.perform(editar(juan, "{\"phone\":null}")).andExpect(status().isBadRequest());
+  }
+
+  // ---------------------------------------------------------------------------
+
   private MockHttpServletRequestBuilder editar(UUID id, String cuerpo) {
     return patch("/api/v1/users/{id}", id)
         .with(editor())

@@ -632,6 +632,46 @@ class RegisterUserIT extends IntegrationTestBase {
         "SELECT id FROM countries WHERE code = ?", java.util.UUID.class, codigo);
   }
 
+  @Test
+  @DisplayName(
+      "CA-SP-677 y CA-SP-678 · el teléfono de la empresa entra, se normaliza y es OPCIONAL")
+  void elTelefonoDeLaEmpresa() throws Exception {
+    // Con el campo: se acepta y se persiste NORMALIZADO, con el mismo criterio
+    // que el personal — fuera espacios, guiones y paréntesis.
+    mvc.perform(
+            post("/api/v1/users")
+                .with(superadmin())
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(
+                    """
+                    {"username":"conempresa","email":"conempresa@factech.co","firstName":"A","lastName":"B",
+                     "password":"%s","countryId":"%s","documentTypeId":"%s","documentNumber":"%s",
+                     "phone":"+573001234567","companyPhone":"+57 (601) 234-5678","roleIds":["%s"]}
+                    """
+                        .formatted(CONTRASENA, COLOMBIA, CEDULA, documentoNuevo(), ADMIN)))
+        .andExpect(status().isCreated())
+        .andExpect(jsonPath("$.contact.phone").value("+573001234567"))
+        .andExpect(jsonPath("$.contact.companyPhone").value("+576012345678"));
+
+    assertThat(
+            jdbc.queryForObject(
+                "SELECT company_phone FROM users WHERE username = 'conempresa'", String.class))
+        .isEqualTo("+576012345678");
+
+    // Sin el campo: se acepta igual —`RN-SP-037` lo deja OPCIONAL— y sale
+    // PRESENTE Y EN NULO, no ausente. Exigirlo bloquearía el alta de todo el
+    // que no tenga empresa; devolverlo ausente obligaría al cliente a
+    // distinguir dos formas para pintar lo mismo.
+    mvc.perform(altaCon("sinempresa", "sinempresa@factech.co", ADMIN, CONTRASENA))
+        .andExpect(status().isCreated())
+        .andExpect(jsonPath("$.contact.companyPhone").value(org.hamcrest.Matchers.nullValue()));
+
+    assertThat(
+            jdbc.queryForObject(
+                "SELECT company_phone FROM users WHERE username = 'sinempresa'", String.class))
+        .isNull();
+  }
+
   private static final String CONTRASENA = "ClaveLargaYSegura2026";
 
   private RequestPostProcessor superadmin() {

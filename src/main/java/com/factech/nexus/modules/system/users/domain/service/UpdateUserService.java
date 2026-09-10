@@ -201,6 +201,7 @@ public class UpdateUserService {
     }
 
     String telefonoAnterior = usuario.getPhone();
+    String telefonoEmpresaAnterior = usuario.getCompanyPhone();
     String linea1Anterior = usuario.getAddressLine1();
     String linea2Anterior = usuario.getAddressLine2();
     String ciudadAnterior = usuario.getCity();
@@ -208,6 +209,7 @@ public class UpdateUserService {
         usuario.changeContact(
             new ContactDetails(
                 java.util.Optional.ofNullable(peticion.phone().valor()),
+                peticion.companyPhone(),
                 peticion.addressLine1(),
                 peticion.addressLine2(),
                 peticion.city()),
@@ -242,7 +244,13 @@ public class UpdateUserService {
         anotarDocumento(usuario, tipoAnterior, numeroAnterior);
       }
       if (cambiaContacto) {
-        anotarContacto(usuario, telefonoAnterior, linea1Anterior, linea2Anterior, ciudadAnterior);
+        anotarContacto(
+            usuario,
+            telefonoAnterior,
+            telefonoEmpresaAnterior,
+            linea1Anterior,
+            linea2Anterior,
+            ciudadAnterior);
       }
     }
 
@@ -406,12 +414,14 @@ public class UpdateUserService {
   private void anotarContacto(
       User usuario,
       String telefonoAnterior,
+      String telefonoEmpresaAnterior,
       String linea1Anterior,
       String linea2Anterior,
       String ciudadAnterior) {
 
     Map<String, Object> cambios = new HashMap<>();
     anotarSiCambia(cambios, "phone", telefonoAnterior, usuario.getPhone());
+    anotarSiCambia(cambios, "companyPhone", telefonoEmpresaAnterior, usuario.getCompanyPhone());
     anotarSiCambia(cambios, "address_line1", linea1Anterior, usuario.getAddressLine1());
     anotarSiCambia(cambios, "address_line2", linea2Anterior, usuario.getAddressLine2());
     anotarSiCambia(cambios, "city", ciudadAnterior, usuario.getCity());

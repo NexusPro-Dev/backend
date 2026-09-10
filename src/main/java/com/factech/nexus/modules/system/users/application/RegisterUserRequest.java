@@ -35,7 +35,12 @@ import java.util.UUID;
  *     no hay ningún otro sitio donde esa validación ocurra
  * @param documentNumber <b>obligatorio</b>. Se normaliza a mayúsculas en {@link DocumentIdentity};
  *     único junto con el tipo entre todas las personas, incluidas las eliminadas
- * @param phone <b>obligatorio</b> (`RN-SP-037`). Se normaliza en {@link ContactDetails}
+ * @param phone <b>obligatorio</b> (`RN-SP-037`). Es el <b>personal</b>, y se normaliza en {@link
+ *     ContactDetails}
+ * @param companyPhone opcional (`RN-SP-037`, 10-09-2026). El de la <b>empresa</b>: misma forma y
+ *     misma normalización que el personal. Es opcional porque exigirlo bloquearía el alta de todo
+ *     el que no tenga una, y es el único dato de contacto que se puede <b>vaciar de vuelta</b>
+ *     después (`RF-SP-027`, `RF-SP-044`)
  * @param addressLine1 opcional
  * @param addressLine2 opcional, y el único que lo es <b>por naturaleza</b>: una dirección puede no
  *     tener complemento
@@ -69,6 +74,8 @@ public record RegisterUserRequest(
     @NotBlank(message = "VAL-017: El teléfono es obligatorio.")
         @Size(max = 25, message = "VAL-017: El teléfono no puede exceder 25 caracteres.")
         String phone,
+    @Size(max = 25, message = "VAL-017: El teléfono no puede exceder 25 caracteres.")
+        String companyPhone,
     @Size(max = 150, message = "VAL-008: La dirección no puede exceder 150 caracteres.")
         String addressLine1,
     @Size(max = 150, message = "VAL-008: El complemento no puede exceder 150 caracteres.")
@@ -120,6 +127,7 @@ public record RegisterUserRequest(
         new DocumentIdentity(documentTypeId, documentNumber),
         new ContactDetails(
             Optional.ofNullable(phone),
+            Patchable.de(companyPhone),
             Patchable.de(addressLine1),
             Patchable.de(addressLine2),
             Patchable.de(city)),

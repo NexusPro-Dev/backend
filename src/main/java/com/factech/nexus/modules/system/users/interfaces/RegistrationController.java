@@ -60,6 +60,14 @@ public class RegistrationController {
           formulario **acaba de leer de un catálogo**: el broker de cada cuenta y
           el producto.
 
+          **`companyPhone` NO se admite aquí**, y enviarlo devuelve `400` por
+          propiedad desconocida. El resto del sistema lo declara desde el
+          10-09-2026, pero quien se registra por un enlace es un cliente y
+          preguntarle por el teléfono de una empresa que no tiene añadiría un
+          campo que nadie rellenaría. Puede ponerlo después desde su propio perfil
+          (`PATCH /api/v1/users/me`). **Ignorarlo en silencio sería peor que
+          rechazarlo**: haría creer a quien lo manda que quedó guardado.
+
           **El registro anota una venta** (`RN-SP-043`), siempre — también en el
           enlace gratuito. Nace `PENDIENTE`, de modo que registrarse **no paga
           nada**, y su código se devuelve en `sale`.

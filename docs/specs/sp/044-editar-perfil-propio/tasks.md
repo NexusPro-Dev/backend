@@ -56,9 +56,9 @@ graph LR
 
 **La tarea no se duplica aquí.** Es `T-59` de [`../024-registrar-usuario/tasks.md`](../024-registrar-usuario/tasks.md) §4.sexies.
 
-**La decisión de este requerimiento es dónde cae la línea**, y no es técnica: entra el **contacto** —teléfono, dirección, complemento y ciudad— y **no** la identidad —documento y país—. Un teléfono nuevo o una mudanza son hechos que la persona conoce mejor que nadie y que no deberían costar un ticket administrativo; su documento es con lo que figura en la auditoría, y el país decide qué medios de pago se le ofrecen (`RN-MV-019`).
+**La decisión de este requerimiento es dónde cae la línea**, y no es técnica: entra el **contacto** —los dos teléfonos, dirección, complemento y ciudad— y **no** la identidad —documento y país—. Un teléfono nuevo o una mudanza son hechos que la persona conoce mejor que nadie y que no deberían costar un ticket administrativo; su documento es con lo que figura en la auditoría, y el país decide qué medios de pago se le ofrecen (`RN-MV-019`).
 
-**Y el teléfono no exige contraseña actual**, al contrario que el correo. La condición que este plan ya usaba sigue valiendo tal cual: se exige cuando el campo **es una vía de acceso**, porque cambiarlo altera cómo se entra y cómo se recupera la cuenta. El teléfono hoy no lo es — y **la condición para revisarlo queda escrita**: el día que exista verificación por SMS o segundo factor telefónico, pasa a la familia del correo.
+**Y los teléfonos no exigen contraseña actual**, al contrario que el correo. La condición que este plan ya usaba sigue valiendo tal cual: se exige cuando el campo **es una vía de acceso**, porque cambiarlo altera cómo se entra y cómo se recupera la cuenta. El teléfono hoy no lo es — y **la condición para revisarlo queda escrita**: el día que exista verificación por SMS o segundo factor telefónico, pasa a la familia del correo.
 
 **Enviar el documento o el país devuelve `400` por propiedad desconocida** y no se ignora en silencio, que es el mismo trato que este cuerpo ya da al nombre de usuario (`CA-SP-599`).
 ## 3. Definición de terminado

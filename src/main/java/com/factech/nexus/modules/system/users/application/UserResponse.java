@@ -95,7 +95,8 @@ public record UserResponse(
    * en lugar de escrita solo en una regla.
    */
   @JsonInclude(JsonInclude.Include.ALWAYS)
-  public record ContactRef(String phone, String addressLine1, String addressLine2, String city) {}
+  public record ContactRef(
+      String phone, String companyPhone, String addressLine1, String addressLine2, String city) {}
 
   /** {@code endsAt} nulo significa <b>indefinida</b>, no «sin fecha conocida». */
   @JsonInclude(JsonInclude.Include.ALWAYS)

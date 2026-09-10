@@ -617,6 +617,28 @@ class SelfRegistrationIT extends IntegrationTestBase {
     assertThat(normalizar(tarjeta)).isEqualTo(normalizar(inventada));
   }
 
+  @Test
+  @DisplayName("`CA-SP-681` — el formulario público NO admite el teléfono de la empresa")
+  void elTelefonoDeLaEmpresaNoSePuedeEnviar() throws Exception {
+    // El campo nace el 10-09-2026 para el resto del sistema y NO entra aquí:
+    // quien se registra por un enlace es un cliente, y preguntarle por el
+    // teléfono de una empresa que no tiene añadiría un campo que nadie
+    // rellenaría. Puede ponerlo después desde su propio perfil.
+    //
+    // SE RECHAZA, NO SE IGNORA, y la diferencia importa: ignorarlo en silencio
+    // haría creer a quien lo manda que quedó guardado. Es el mismo trato que ya
+    // reciben aquí el documento y el país en `PATCH /api/v1/users/me`.
+    String base = cuerpo("conempresa", "conempresa@factech.co", "1234567").trim();
+    String cuerpo = "{\"companyPhone\":\"+576012345678\"," + base.substring(base.indexOf('{') + 1);
+
+    mvc.perform(registro(cuerpo)).andExpect(status().isBadRequest());
+
+    assertThat(
+            jdbc.queryForObject(
+                "SELECT count(*) FROM users WHERE username = 'conempresa'", Integer.class))
+        .isZero();
+  }
+
   // ---------------------------------------------------------------------------
   // Preparación
   // ---------------------------------------------------------------------------

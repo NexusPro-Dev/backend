@@ -12,6 +12,7 @@
 | Enmendada | 22-08-2026 — `RN-SP-019` obliga a indicar el superior comercial si el alta concede un rol `VENDEDOR`, al registrarse `RF-SP-041` (Art. I.7) |
 | Enmendada | 24-08-2026 — `RN-SP-023` hace **obligatorio** al menos un rol: `FA-001` se retira, nace `EX-008` y `CA-SP-197` se invierte (Art. I.7) |
 | Enmendada | 08-09-2026 — `RN-SP-035` y `RN-SP-037`: **documento y teléfono obligatorios**, dirección y ciudad opcionales. Nace `EX-010`, `VAL-015` a `VAL-017` y `CA-SP-590` a `CA-SP-592`, y **la resolución 3 de §14 se cierra del todo** (Art. I.7) |
+| Enmendada | 10-09-2026 — `RN-SP-037` gana el **teléfono de la empresa**, OPCIONAL: entra en §6.1 y §6.2 y nacen `CA-SP-677` y `CA-SP-678`. Es una ampliación y no una ruptura — `phone` no cambia (Art. I.7) |
 | Enmendada | 07-09-2026 — `RN-SP-034` hace **obligatorio el país**: entra en §6.1 y §6.2, nace `EX-009`, `VAL-014` y `CA-SP-572` a `CA-SP-574`, y **se reabre la resolución 3 de §14**, que había dejado el país fuera a propósito (Art. I.7) |
 
 ---
@@ -46,7 +47,7 @@ Que ambas sirvan para iniciar sesión obliga a una condición sobre el formato: 
 - Alta de un usuario con su nombre de usuario, su correo y sus datos de identificación personal.
 - **Declaración del país en el que está la persona** (`RN-SP-034`).
 - **Identidad documental**: tipo y número de documento (`RN-SP-035`).
-- **Datos de contacto**: teléfono obligatorio, y dirección, complemento y ciudad opcionales (`RN-SP-037`).
+- **Datos de contacto**: teléfono personal obligatorio, y teléfono de la empresa, dirección, complemento y ciudad opcionales (`RN-SP-037`).
 - Establecimiento de su credencial inicial.
 - Asignación opcional de un conjunto inicial de roles.
 
@@ -71,7 +72,7 @@ Que ambas sirvan para iniciar sesión obliga a una condición sobre el formato: 
 | `RN-SP-020` | El superior porta el rol padre inmediato del rol del subordinado | `requirements/sp.md` §5.1 |
 | `RN-SP-034` | Todo usuario pertenece a un país, y solo se asigna uno **activo** | `requirements/sp.md` §5.1 |
 | `RN-SP-035` | Toda persona se identifica con un documento; el par tipo+número es único y no se libera | `requirements/sp.md` §5.1 |
-| `RN-SP-037` | Toda persona tiene teléfono; la dirección es opcional | `requirements/sp.md` §5.1 |
+| `RN-SP-037` | Toda persona tiene teléfono personal; el de la empresa y la dirección son opcionales | `requirements/sp.md` §5.1 |
 
 ## 6. Datos
 
@@ -84,7 +85,8 @@ Que ambas sirvan para iniciar sesión obliga a una condición sobre el formato: 
 | Nombre y apellidos | Sí | Cómo se llama la persona | Es lo que la interfaz y la auditoría muestran cuando hay que decir quién hizo algo |
 | Tipo de documento | **Sí** | Con qué se identifica la persona | Debe existir en el catálogo de `RF-SP-051` y estar **activo**. **El catálogo solo contiene documentos de mayor de edad** (`RN-SP-035`), de modo que declarar el de un menor no es algo que se rechace: no hay identificador que poner |
 | Número de documento | **Sí** | El número del documento | Se persiste **recortado y en mayúsculas**. **El par tipo+número es único entre todas las personas, incluidas las eliminadas** — mismo trato que el nombre de usuario y el correo (`RN-SP-016`). No existe el número sin el tipo ni el tipo sin el número |
-| Teléfono | **Sí** | Vía de contacto | Dígitos con un `+` opcional, hasta quince (E.164). Se persiste normalizado, sin espacios ni guiones. **No se valida contra el país**: eso exigiría un catálogo de prefijos que nadie ha pedido |
+| Teléfono personal | **Sí** | Vía de contacto con la que se opera | Dígitos con un `+` opcional, hasta quince (E.164). Se persiste normalizado, sin espacios ni guiones. **No se valida contra el país**: eso exigiría un catálogo de prefijos que nadie ha pedido |
+| Teléfono de la empresa | No | La otra vía de contacto, la del trabajo | **Misma forma que el personal** —dígitos con un `+` opcional, hasta quince, normalizado— y **opcional**: exigirlo bloquearía el alta de todo el que no tenga empresa. Es el único de los cinco datos de contacto que **se puede vaciar de vuelta** una vez informado (`RF-SP-027`, `RF-SP-044`) |
 | Dirección | No | Línea principal de la dirección postal | Opcional. Si se envía, no puede quedar en blanco |
 | Complemento | No | Apartamento, torre, referencia | Opcional **por naturaleza y no por transición**: una dirección puede no tener complemento, y eso no es un dato que falte |
 | Ciudad | No | Ciudad de residencia | **Texto libre.** No hay catálogo de ciudades y no se abre aquí: exigiría decidir su relación con el país y su unicidad, y ningún requerimiento lo respalda |
@@ -101,7 +103,7 @@ Que ambas sirvan para iniciar sesión obliga a una condición sobre el formato: 
 | Identificador | Identificador del usuario creado |
 | Usuario | Nombre de usuario, correo, nombre, estado y roles asignados |
 | Documento | El tipo **resuelto** —identificador, abreviación y nombre— y el número ya normalizado. Mismo criterio que el país y por lo mismo: quien acaba de registrar tiene que poder comprobar qué quedó escrito sin llamar a un catálogo que además exige otro permiso |
-| Contacto | Teléfono, dirección, complemento y ciudad, tal como quedaron. Los tres últimos **presentes y nulos** cuando no se declararon: la ausencia del campo obligaría al cliente a tratar dos formas |
+| Contacto | Los dos teléfonos, dirección, complemento y ciudad, tal como quedaron. Los cuatro opcionales **presentes y nulos** cuando no se declararon: la ausencia del campo obligaría al cliente a tratar dos formas |
 | País | El país registrado, con su identificador, su código y su nombre. **Se devuelve resuelto y no como identificador suelto**: quien acaba de registrar tiene que poder leer qué quedó escrito sin una segunda consulta al catálogo, igual que ocurre con los roles |
 | Cambio de contraseña pendiente | Indicador de que la persona debe cambiar su credencial en el primer inicio de sesión |
 
@@ -253,9 +255,11 @@ No se ofrece el camino de dar de alta el país sobre la marcha: el catálogo es 
 | `CA-SP-572` | El sistema **rechaza** el alta que no indica país, y la que indica uno inexistente, citando `RN-SP-034` |
 | `CA-SP-573` | El sistema rechaza el alta que indica un país **inactivo**, y lo hace con un error distinto del que produce un país inexistente |
 | `CA-SP-574` | El alta devuelve el país **resuelto** —identificador, código y nombre— y no un identificador suelto |
-| `CA-SP-590` | El sistema **rechaza** el alta sin tipo de documento, sin número o sin teléfono, y **acepta** la que no declara dirección, complemento ni ciudad |
+| `CA-SP-590` | El sistema **rechaza** el alta sin tipo de documento, sin número o sin teléfono personal, y **acepta** la que no declara dirección, complemento ni ciudad |
 | `CA-SP-591` | El sistema rechaza el alta cuyo par tipo+número **ya tiene otra persona**, y lo rechaza igual cuando esa persona está **eliminada**, con la misma respuesta |
-| `CA-SP-592` | El alta devuelve el tipo de documento **resuelto** —abreviación y nombre—, el número normalizado en mayúsculas y los cuatro campos de contacto, con los opcionales **presentes y nulos** cuando no se declararon |
+| `CA-SP-592` | El alta devuelve el tipo de documento **resuelto** —abreviación y nombre—, el número normalizado en mayúsculas y los cinco campos de contacto, con los opcionales **presentes y nulos** cuando no se declararon |
+| `CA-SP-677` | El alta **acepta** el teléfono de la empresa, lo persiste **normalizado** con el mismo criterio que el personal y lo devuelve en el contacto |
+| `CA-SP-678` | El alta que **no** declara teléfono de la empresa se **acepta**, y el campo sale **presente y nulo** — no ausente: es opcional, y su falta no es un dato pendiente |
 | `CA-SP-202` | El sistema rechaza el alta a un actor sin el permiso de creación de usuarios |
 
 ## 13. Casos límite
@@ -277,7 +281,7 @@ No se ofrece el camino de dar de alta el país sobre la marcha: el catálogo es 
 - **El mismo número con dos tipos distintos:** se admite. La unicidad va sobre el **par**, no sobre el número: dos catálogos distintos pueden numerar igual, y prohibirlo rechazaría documentos legítimos.
 - **Persona que solo tiene tarjeta de identidad:** no se registra, y es el comportamiento buscado. La salida **no** es añadir ese tipo al catálogo — eso desactivaría la regla para todo el sistema (`RF-SP-051` `spec.md` §2).
 - **Persona sin dirección conocida:** se registra con normalidad. Es el caso de cualquier funcionario interno, y es la razón de que los tres campos de dirección sean opcionales.
-- **El superadministrador de `V22` y la semilla de desarrollo:** no tienen documento ni teléfono, y **el esquema lo admite** aunque la API no. Inventarles un número sería escribir algo falso sobre la identidad de una persona; el nulo es la verdad sobre esas filas (`requirements/sp.md` §10.16).
+- **El superadministrador de `V22` y la semilla de desarrollo:** no tienen documento ni teléfono, y **el esquema lo admite** aunque la API no. Inventarles un número sería escribir algo falso sobre la identidad de una persona; el nulo es la verdad sobre esas filas (`requirements/sp.md` §10.16). **El teléfono de la empresa es distinto y conviene no confundirlos**: ahí el nulo no es una fila vieja pendiente de completar, sino el hecho de que esa persona no tiene uno — nace nulo para todos y seguirá nulo para quien no lo declare.
 - **Primer usuario del sistema:** no se crea por esta funcionalidad. El superadministrador inicial se siembra por migración, porque esta operación exige un actor autenticado con `users:create` y no habría ninguno.
 
 ## 14. Preguntas abiertas

@@ -170,10 +170,10 @@ public class UserController {
           dependen de qué roles se concedan**: su ausencia es `400`, nunca un
           `409` condicional.
 
-          **`addressLine1`, `addressLine2` y `city` son opcionales.** Exigir una
-          dirección postal a un funcionario interno bloquearía su alta sin que
-          nadie la necesite. `city` es **texto libre**: no hay catálogo de
-          ciudades.
+          **`companyPhone`, `addressLine1`, `addressLine2` y `city` son
+          opcionales.** Exigir una dirección postal a un funcionario interno
+          bloquearía su alta sin que nadie la necesite. `city` es **texto
+          libre**: no hay catálogo de ciudades.
 
           **El tipo de documento sale de `GET /api/v1/document-types`, y ese
           catálogo contiene SOLO documentos de persona mayor de edad.** Ahí está
@@ -189,11 +189,16 @@ public class UserController {
           El `409` que produce **no dice de quién es** el documento, ni si esa
           persona sigue vigente.
 
-          El número de documento se guarda **recortado y en mayúsculas**, y el
-          teléfono **normalizado a dígitos con un `+` opcional** —fuera espacios,
-          guiones y paréntesis—. La dirección y la ciudad solo se recortan.
+          El número de documento se guarda **recortado y en mayúsculas**, y
+          los **dos teléfonos** —`phone`, el personal, y `companyPhone`, el de la
+          empresa— **normalizados a dígitos con un `+` opcional**, fuera espacios,
+          guiones y paréntesis. La dirección y la ciudad solo se recortan.
 
-          **El teléfono no se valida contra el país**: eso exigiría un catálogo de
+          **`companyPhone` es OPCIONAL y `phone` no** (`RN-SP-037`): exigir un
+          teléfono de empresa bloquearía el alta de todo el que no tenga una. Sale
+          **presente y en nulo** cuando no se declara, nunca ausente.
+
+          **Ningún teléfono se valida contra el país**: eso exigiría un catálogo de
           prefijos que no existe.
 
           La respuesta agrupa `country`, `document` y `contact` en tres objetos, y
@@ -333,6 +338,12 @@ public class UserController {
           Devuelve el perfil de **quien porta el token**, con sus **permisos
           efectivos**.
 
+          Su `contact` lleva **dos teléfonos** —`phone`, el personal, y
+          `companyPhone`, el de la empresa, este último **opcional** y por tanto
+          presente y en nulo cuando no se declaró— junto a la dirección. Es lo que
+          permite precargar el formulario de `PATCH /api/v1/users/me` sin
+          reescribir nada de memoria.
+
           `me` es un **literal**, no un identificador: no se admite pedir el
           propio detalle por la ruta con identificador, que es otra operación y
           exige permiso de lectura de usuarios.
@@ -392,7 +403,7 @@ public class UserController {
       description =
           """
           Corrige el **propio** nombre, apellidos, correo y **datos de contacto**
-          —teléfono, dirección, complemento y ciudad—. Autenticado y **sin
+          —los **dos teléfonos**, dirección, complemento y ciudad—. Autenticado y **sin
           ningún permiso**: `RF-SP-027` hace el mismo cambio pero exige
           `users:update`, que es un permiso de administración, de modo que
           concedérselo a alguien para que arregle su propio apellido le daría de
@@ -426,15 +437,20 @@ public class UserController {
           documento es con lo que figura en la auditoría, y el país decide qué
           medios de pago se le ofrecen.
 
-          **El teléfono NO exige `currentPassword`**, al contrario que el correo.
+          **Ningún teléfono exige `currentPassword`**, al contrario que el correo.
           La contraseña se pide cuando el campo **es una vía de acceso**, y el
           teléfono hoy no lo es. El día que exista verificación por SMS o segundo
           factor telefónico, esta decisión se revisa.
 
           **El nulo explícito no significa lo mismo en todo el cuerpo.**
-          `addressLine1`, `addressLine2` y `city` **lo aceptan y vacían el campo**
+          `addressLine1`, `addressLine2`, `city` y `companyPhone` **lo aceptan y vacían**
           —«ya no vivo ahí» es un hecho que hay que poder registrar—; el nombre,
-          los apellidos, el correo y el **teléfono** lo rechazan con `400`.
+          los apellidos, el correo y el **teléfono personal** lo rechazan con `400`.
+
+          **`companyPhone` cae del lado que vacía aunque sea un teléfono**, y ahí
+          está toda la diferencia: lo que decide no es qué dato es, sino si
+          `RN-SP-037` lo exige. «Ya no tengo teléfono de empresa» es un hecho que
+          hay que poder registrar.
 
           Devuelve el perfil ya actualizado, con **la misma forma** que
           `GET /api/v1/users/me`.
@@ -562,7 +578,10 @@ public class UserController {
           la cuenta no está bloqueada, o lo está **por decisión de un actor** y
           por tanto sin expiración. El estado desambigua.
 
-          Trae el `country`, el `document` y el `contact` de la persona.
+          Trae el `country`, el `document` y el `contact` de la persona. El
+          contacto lleva **dos teléfonos**: `phone`, el personal, y `companyPhone`,
+          el de la empresa — este último **opcional**, de modo que llega presente y
+          en nulo cuando la persona no lo declaró.
 
           **`country` nunca es nulo y `document` sí puede serlo**: quienes se
           registraron antes de que el documento fuera obligatorio no lo tienen, y
@@ -632,9 +651,14 @@ public class UserController {
             `countryId`, `documentTypeId`, `documentNumber` y `phone`. Su columna
             no admite ausencia, y aceptarlo produciría un `500` en lugar del `400`
             que corresponde.
-          - **Lo aceptan y VACÍAN el campo**: `addressLine1`, `addressLine2` y
-            `city`. Son opcionales, y «ya no vive ahí» es un hecho que hay que
-            poder registrar.
+          - **Lo aceptan y VACÍAN el campo**: `addressLine1`, `addressLine2`,
+            `city` y `companyPhone`. Son opcionales, y «ya no vive ahí» —o «ya no
+            tiene ese número»— es un hecho que hay que poder registrar.
+
+          **`companyPhone` cae del lado que vacía aunque sea un teléfono**, y es la
+          comprobación de que la línea está bien trazada: comparte forma y
+          validación con `phone` y aun así va del otro lado, porque lo que decide
+          no es qué dato es sino si `RN-SP-037` lo exige.
 
           **El tipo y el número de documento se envían juntos o no se envían.**
           Enviar uno solo devuelve `400`: un número sin decir de qué documento es

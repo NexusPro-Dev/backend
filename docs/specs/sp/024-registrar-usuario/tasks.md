@@ -286,6 +286,32 @@ Decisión del responsable del proyecto: **toda persona se identifica con un docu
 - **No añade la ciudad como catálogo.** Es texto libre; un catálogo de ciudades exigiría decidir su relación con el país y su unicidad, y ningún requerimiento lo respalda.
 - **No toca el listado de `RF-SP-025`.** Ni publica el documento en cada fila ni permite buscar por él. Es la decisión más discutible de la enmienda y se toma a conciencia: buscar a alguien por su documento es una necesidad administrativa real y **nadie la ha pedido**, y publicarlo en un listado paginado lo expone mucho más que devolverlo en un detalle. La condición para abrirlo queda escrita.
 
+## 4.septies El teléfono de la empresa — enmienda del 10-09-2026
+
+Decisión del responsable del proyecto: **toda persona puede declarar dos teléfonos**, el personal y el de la empresa (`requirements/sp.md` §10.16, `RN-SP-037` enmendada).
+
+**Es una ampliación y no una ruptura**, y esa es la diferencia con la enmienda anterior: `phone` conserva su nombre y su significado en las seis posiciones del contrato, de modo que ningún consumidor tiene que cambiar nada para seguir funcionando. Lo único que aparece es un campo más.
+
+**Las tareas vuelven a ser de este requerimiento porque la columna lo es**, aunque cambien de comportamiento otros cuatro. Mismo reparto que el 08-09-2026.
+
+**Estados:** `Pendiente` · `En curso` · `Hecha` · `Bloqueada`.
+
+| ID | Tarea | Depende de | Verificación | Estado |
+|---|---|---|---|---|
+| `T-63` | **`V83__usuario_con_telefono_de_empresa.sql`**: la columna `company_phone` **nulable** y `ck_users_company_phone_format`, con la misma expresión que la del personal | `T-53` | La migración aplica sobre una base con datos y **ninguna fila cambia**: nace nula para todos. El `CHECK` rechaza `abc` y admite `+576012345678` | Pendiente |
+| `T-64` | `domain`: `ContactDetails` gana `companyPhone` **como `Patchable` y no como `Optional`**, y `User` lo aplica en `create` y en `changeContact` | `T-63` | El tipo es lo que hace observable la regla: el personal **no se puede vaciar** y este **sí**. Con `Optional` el vaciado sería inexpresable y `RF-SP-027` no podría cumplir `CA-SP-679` | Pendiente |
+| `T-65` | `RF-SP-024` y `RF-SP-026`: el campo entra en el alta y en el detalle, **opcional** y **presente aunque vaya nulo** | `T-64` | `CA-SP-677` y `CA-SP-678`. El alta sin el campo devuelve `201` y el contacto lo trae en nulo, no ausente | Pendiente |
+| `T-66` | `RF-SP-027` y `RF-SP-044`: es **patchable con vaciado**, en la familia de la dirección y no en la del teléfono personal | `T-64` | `CA-SP-679` y `CA-SP-680`. El nulo explícito lo borra; el titular lo cambia **sin** contraseña actual, igual que el personal | Pendiente |
+| `T-67` | `RF-SP-045`: el registro público **NO lo admite**, y enviarlo es `400` por propiedad desconocida | `T-64` | `CA-SP-681`. No basta con no leerlo: ignorarlo en silencio haría creer a quien lo envía que quedó guardado | Pendiente |
+| `T-68` | El contrato OpenAPI se regenera y la prosa de las `@Operation` se reescribe a mano | `T-65` a `T-67` | `OpenApiContractIT` en verde. **El esquema se regenera solo y la prosa no**: hay que decir en ella cuál es cuál, o el contrato publicará dos teléfonos sin explicar la diferencia | Pendiente |
+
+**Lo que esta enmienda NO hace:**
+
+- **No declara `NOT NULL` nunca**, y no es una condición pendiente como la de `V71`: `RN-SP-037` deja este teléfono opcional **para siempre**. Confundir los dos nulos —el de la transición y el del hecho— llevaría a endurecer una columna que no debe endurecerse.
+- **No lo pide en `RF-SP-045`.** Quien se registra por un enlace es un cliente, y el formulario público no debe preguntar por el teléfono de una empresa que no tiene. Puede añadirlo después desde su perfil.
+- **No lo añade al listado de `RF-SP-025`** ni como columna ni como criterio de búsqueda, por lo mismo que el personal.
+- **No toca la semilla de desarrollo.** Las diecinueve personas de prueba nacen sin él, que es exactamente el caso que hay que poder ver: el campo en nulo.
+
 ## 5. Definición de terminado
 
 El requerimiento no está terminado hasta cumplir **todas** las condiciones de la constitución §16:

@@ -12,6 +12,7 @@
 | Reabierto el | 07-09-2026 — `RN-SP-034`: la respuesta incorpora `country`, ver §4 (Art. I.7) |
 | Reabierto el | 08-09-2026 — `RN-SP-035` y `RN-SP-037`: la respuesta incorpora `document` y `contact`, ver §4 (Art. I.7) |
 
+| Reabierto el | 10-09-2026 — el contacto publica **dos teléfonos**: entra `companyPhone`, que es lo que permite precargar el formulario de `RF-SP-044` con los dos (Art. I.7) |
 ---
 
 ## 1. Enfoque
@@ -71,6 +72,7 @@ Y una asimetría que hay que conocer y no corregir: **el perfil puede mostrar me
   },
   "contact": {
     "phone": "+573001234567",
+    "companyPhone": "+576012345678",
     "addressLine1": "Calle 100 # 15-20",
     "addressLine2": "Torre B, apto 502",
     "city": "Bogotá"
