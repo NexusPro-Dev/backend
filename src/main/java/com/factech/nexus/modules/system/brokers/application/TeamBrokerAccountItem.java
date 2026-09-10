@@ -2,6 +2,7 @@ package com.factech.nexus.modules.system.brokers.application;
 
 import com.factech.nexus.modules.system.brokers.domain.models.UserBrokerStatus;
 import com.fasterxml.jackson.annotation.JsonInclude;
+import io.swagger.v3.oas.annotations.media.Schema;
 import java.time.OffsetDateTime;
 import java.util.UUID;
 
@@ -33,6 +34,16 @@ public record TeamBrokerAccountItem(
     UserBrokerStatus status,
     OffsetDateTime declaredAt) {
 
-  /** El titular de la cuenta, con lo justo para identificarlo en una lista. */
+  /**
+   * El titular de la cuenta, con lo justo para identificarlo en una lista.
+   *
+   * <p><b>Se publica con nombre declarado a mano</b> y no como {@code Holder}, que es lo que
+   * springdoc emitiría: los esquemas viven en un espacio de nombres <b>plano y compartido por todos
+   * los módulos</b> (`api/index.md` §6), y «Holder» es genérico — el día que otro módulo publique
+   * un titular saldrían {@code Holder} y {@code Holder_1} <b>sin garantizar cuál es cuál</b>, y el
+   * cliente generado cambiaría de tipo sin que nada fallara. Mismo cuidado que {@code
+   * RegistrationBrokerAccount} y {@code SaleParty}.
+   */
+  @Schema(name = "BrokerAccountHolder")
   public record Holder(UUID id, String username, String firstName, String lastName) {}
 }

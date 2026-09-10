@@ -68,6 +68,24 @@
         },
         "type" : "object"
       },
+      "BrokerAccountHolder" : {
+        "properties" : {
+          "firstName" : {
+            "type" : "string"
+          },
+          "id" : {
+            "format" : "uuid",
+            "type" : "string"
+          },
+          "lastName" : {
+            "type" : "string"
+          },
+          "username" : {
+            "type" : "string"
+          }
+        },
+        "type" : "object"
+      },
       "BrokerAccountItem" : {
         "properties" : {
           "accountId" : {
@@ -1541,6 +1559,36 @@
         },
         "type" : "object"
       },
+      "PageResponseTeamBrokerAccountItem" : {
+        "properties" : {
+          "content" : {
+            "items" : {
+              "$ref" : "#/components/schemas/TeamBrokerAccountItem"
+            },
+            "type" : "array"
+          },
+          "page" : {
+            "format" : "int32",
+            "type" : "integer"
+          },
+          "size" : {
+            "format" : "int32",
+            "type" : "integer"
+          },
+          "totalElements" : {
+            "format" : "int64",
+            "type" : "integer"
+          },
+          "totalIsExact" : {
+            "type" : "boolean"
+          },
+          "totalPages" : {
+            "format" : "int32",
+            "type" : "integer"
+          }
+        },
+        "type" : "object"
+      },
       "PasswordRecoveryConfirmation" : {
         "properties" : {
           "newPassword" : {
@@ -2814,6 +2862,35 @@
           "decimalPlaces" : {
             "format" : "int32",
             "type" : "integer"
+          }
+        },
+        "type" : "object"
+      },
+      "TeamBrokerAccountItem" : {
+        "properties" : {
+          "accountId" : {
+            "type" : "string"
+          },
+          "broker" : {
+            "$ref" : "#/components/schemas/BrokerRef"
+          },
+          "brokerUsername" : {
+            "type" : "string"
+          },
+          "declaredAt" : {
+            "format" : "date-time",
+            "type" : "string"
+          },
+          "id" : {
+            "format" : "uuid",
+            "type" : "string"
+          },
+          "status" : {
+            "enum" : [ "REGISTER", "FIRST_DEPOSIT" ],
+            "type" : "string"
+          },
+          "user" : {
+            "$ref" : "#/components/schemas/BrokerAccountHolder"
           }
         },
         "type" : "object"
@@ -7134,7 +7211,7 @@
             "content" : {
               "*/*" : {
                 "schema" : {
-                  "$ref" : "#/components/schemas/PageResponse"
+                  "$ref" : "#/components/schemas/PageResponseTeamBrokerAccountItem"
                 }
               }
             },

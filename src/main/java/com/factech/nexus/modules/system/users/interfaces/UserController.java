@@ -1303,12 +1303,16 @@ public class UserController {
           confirmado», no «sin nombre».
           """)
   @ApiResponses({
+    // SIN `@Schema(implementation = PageResponse.class)`, y la ausencia importa:
+    // ese anotado publica la envoltura CRUDA —`content` sin tipo—, de modo que
+    // el cliente generado no sabría qué hay en cada fila. Dejando que springdoc
+    // use el tipo de retorno emite `PageResponseTeamBrokerAccountItem`, con la
+    // fila dentro. Es lo que ya hace `GET /api/v1/movements/mine`.
     @ApiResponse(
         responseCode = "200",
         description =
             "Página de cuentas del equipo directo, ordenada por titular, broker e identificador"
-                + " de cuenta. Vacía si el actor no tiene equipo.",
-        content = @Content(schema = @Schema(implementation = PageResponse.class))),
+                + " de cuenta. Vacía si el actor no tiene equipo."),
     @ApiResponse(
         responseCode = "400",
         description =

@@ -3752,7 +3752,7 @@ paths:
           content:
             '*/*':
               schema:
-                $ref: "#/components/schemas/PageResponse"
+                $ref: "#/components/schemas/PageResponseTeamBrokerAccountItem"
         "400":
           description: "`status` fuera de `REGISTER`/`FIRST_DEPOSIT` (`VAL-001`),\
             \ `brokerId` malformado o paginación fuera de límites (`VAL-003`)"
@@ -6465,6 +6465,61 @@ components:
           format: uuid
         name:
           type: string
+    BrokerAccountHolder:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        username:
+          type: string
+        firstName:
+          type: string
+        lastName:
+          type: string
+    PageResponseTeamBrokerAccountItem:
+      type: object
+      properties:
+        content:
+          type: array
+          items:
+            $ref: "#/components/schemas/TeamBrokerAccountItem"
+        totalElements:
+          type: integer
+          format: int64
+        totalPages:
+          type: integer
+          format: int32
+        page:
+          type: integer
+          format: int32
+        size:
+          type: integer
+          format: int32
+        totalIsExact:
+          type: boolean
+    TeamBrokerAccountItem:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        user:
+          $ref: "#/components/schemas/BrokerAccountHolder"
+        broker:
+          $ref: "#/components/schemas/BrokerRef"
+        accountId:
+          type: string
+        brokerUsername:
+          type: string
+        status:
+          type: string
+          enum:
+          - REGISTER
+          - FIRST_DEPOSIT
+        declaredAt:
+          type: string
+          format: date-time
     ListUserCommissionRatesRequest:
       type: object
       properties:
