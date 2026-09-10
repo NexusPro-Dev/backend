@@ -72,6 +72,25 @@ class EndpointPermissionsIT extends IntegrationTestBase {
                   + " dos catálogos. `brokers:read` nació el mismo día y quedó sin endpoint que lo"
                   + " exija, como `products:hotlink`"),
           Map.entry(
+              "GET /api/v1/users/{id}/broker-accounts",
+              "SIN @PreAuthorize A PROPÓSITO (`RF-SP-055`, 10-09-2026), y es el primero de todo el"
+                  + " sistema por este motivo: la autorización no es una función del actor sino"
+                  + " DEL PAR (actor, persona consultada) —`broker-accounts:read`, o ser su"
+                  + " SUPERIOR COMERCIAL VIGENTE (`RN-SP-046`)—, y expresarla en SpEL metería una"
+                  + " consulta a la base dentro de una anotación, donde no se prueba ni se depura."
+                  + " Vive en `GetBrokerAccountsService`. Quien no es ninguna de las dos cosas"
+                  + " recibe `404`, indistinguible del de una persona inexistente: con `403`,"
+                  + " cualquier vendedor podría recorrer identificadores y saber cuáles son"
+                  + " personas reales"),
+          Map.entry(
+              "GET /api/v1/users/me/team/broker-accounts",
+              "Solo estar autenticado (`RF-SP-056`, 10-09-2026): NO ADMITE DECIR SOBRE QUIÉN se"
+                  + " pregunta —el equipo es el del actor—, de modo que no hay alcance que"
+                  + " autorizar. `broker-accounts:read` NO la gobierna: quien lo tenga ve las"
+                  + " cuentas de cualquiera por `GET /api/v1/users/{id}/broker-accounts`, persona"
+                  + " a persona, y no el equipo ajeno de una vez. Es el mismo criterio que"
+                  + " `GET /api/v1/movements/mine`"),
+          Map.entry(
               "POST /api/v1/auth/password-recovery",
               "Público por definición (`RF-SP-040`): quien olvidó su contraseña no puede"
                   + " autenticarse para pedir recuperarla"),
@@ -105,12 +124,15 @@ class EndpointPermissionsIT extends IntegrationTestBase {
                   + " ajena es `RF-SP-038`, y esa sí exige `users:reset-password`"),
           Map.entry(
               "GET /api/v1/payment-methods",
-              "Un catálogo cerrado de tres filas (`RF-MV-009`): con qué se puede pagar. No exige"
-                  + " permiso por lo mismo que `RF-MV-002` no lo exige — quien compra lo suyo"
-                  + " tiene que poder ver las opciones. `movements:read` gobierna VER VENTAS y hoy"
-                  + " está reservado al superadministrador (`requirements/mv.md` §6.1), de modo"
-                  + " que exigirlo aquí dejaría la pantalla de compra propia sin poder pintar su"
-                  + " selector"),
+              "PÚBLICO POR DECISIÓN desde el 09-09-2026 (`RF-MV-009`, `RN-MV-024`): el formulario"
+                  + " de registro por enlace elige CON QUÉ SE PAGA antes de que exista la cuenta,"
+                  + " igual que elige país, tipo de documento y broker. Ya no exigía permiso"
+                  + " —`movements:read` gobierna VER VENTAS y está reservado al"
+                  + " superadministrador—, de modo que abrirlo NO DEJA NINGÚN PERMISO HUÉRFANO:"
+                  + " es la diferencia con los tres catálogos de `SP`. Lo que sostiene que no"
+                  + " publique nada es el predicado de la consulta, que lleva los DOS EJES —activo"
+                  + " y visibilidad `PUBLICO`—: el anónimo recibe exactamente lo que recibía el"
+                  + " autenticado"),
           Map.entry(
               "GET /api/v1/movements/mine",
               "Los movimientos del actor y de nadie más (`RF-MV-008`): no admite decir sobre"

@@ -97,17 +97,21 @@ public class RateLimitFilter extends OncePerRequestFilter {
   private static final String HOTLINKS = "/api/v1/hotlinks/";
 
   /**
-   * Los tres catálogos que se leen <b>sin token</b> desde el 08-09-2026.
+   * Los catálogos que se leen <b>sin token</b>: tres desde el 08-09-2026 y <b>cuatro</b> desde el
+   * 09-09-2026, cuando el de métodos de pago se abrió (`RN-MV-024`).
    *
    * <p><b>Se acotan por lo mismo que el refresco y no por lo mismo que el hotlink</b>: aquí no hay
-   * nada que sondear —son listas de opciones que no identifican a nadie—, pero son rutas públicas
-   * que <b>consultan la base en cada llamada</b>. Lo que se corta es el bucle.
+   * nada que sondear —son listas de opciones que no identifican a nadie, y la respuesta es la misma
+   * para todo el mundo—, pero son rutas públicas que <b>consultan la base en cada llamada</b>. Lo
+   * que se corta es el bucle.
    *
    * <p><b>Comparten política y NO comparten cubo</b>: el ámbito es la ruta, de modo que agotar el
-   * de países no deja sin brokers a quien está rellenando el mismo formulario.
+   * de países no deja sin brokers —ni sin métodos de pago— a quien está rellenando el mismo
+   * formulario. Es la razón de que el cuarto no necesite política propia: la naturaleza es idéntica
+   * y lo único que hace falta es <b>otro cubo</b>.
    */
   private static final String[] CATALOGOS_PUBLICOS = {
-    "/api/v1/countries", "/api/v1/document-types", "/api/v1/brokers"
+    "/api/v1/countries", "/api/v1/document-types", "/api/v1/brokers", "/api/v1/payment-methods"
   };
 
   /** Un cuerpo de autenticación son decenas de bytes; esto es holgura, no un límite funcional. */

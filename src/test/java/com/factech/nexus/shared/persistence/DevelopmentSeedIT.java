@@ -87,10 +87,10 @@ class DevelopmentSeedIT extends IntegrationTestBase {
     // asignación de la semilla no tendría a qué apuntar. Se reponen por
     // identificador literal —los de `V46`— para que esta clase no dependa del
     // orden de ejecución. El orden de la cadena es el que dejó `V47`: ORO arriba
-    // y FREE abajo.
+    // y BECA abajo.
     //
     // SE VACÍA PRIMERO, y desde el 05-09-2026 hace falta: quien haya corrido
-    // antes pudo dejar a FREE SOLA Y SIN PADRE —así la repone `reponerElSuelo`,
+    // antes pudo dejar a BECA SOLA Y SIN PADRE —así la repone `reponerElSuelo`,
     // porque `RN-SP-018` exige que exista—, y entonces el ORO de aquí abajo, que
     // también va sin padre, chocaría con `uq_memberships_parent`. Un `ON CONFLICT
     // (id)` no lo ve: el choque no es de identificador.
@@ -106,7 +106,7 @@ class DevelopmentSeedIT extends IntegrationTestBase {
            '01a04ad0-e800-7004-9c4f-5e7ad7000004', 2, 'B0BEC5'),
           ('01a04ad0-e800-7002-9c4f-5e7ad7000002', 'VIP', 'VIP', 'Primer nivel de pago.',
            '01a04ad0-e800-7003-9c4f-5e7ad7000003', 3, '7E57C2'),
-          ('01a04ad0-e800-7001-9c4f-5e7ad7000001', 'FREE', 'Free', 'Nivel de entrada.',
+          ('01a04ad0-e800-7001-9c4f-5e7ad7000001', 'BECA', 'Free', 'Nivel de entrada.',
            '01a04ad0-e800-7002-9c4f-5e7ad7000002', 4, '9E9E9E')
         ON CONFLICT (id) DO NOTHING
         """);
@@ -185,7 +185,7 @@ class DevelopmentSeedIT extends IntegrationTestBase {
 
     // Con los tres en el mismo nivel, la mitad de `RF-PM-007` —qué upgrades se
     // pueden ofrecer por encima del nivel vigente— quedaría sin ejercitar.
-    assertThat(niveles).containsExactly("FREE", "VIP", "PLATINO");
+    assertThat(niveles).containsExactly("BECA", "VIP", "PLATINO");
   }
 
   @Test

@@ -2,9 +2,12 @@ package com.factech.nexus.modules.system.users.domain.service;
 
 import com.factech.nexus.modules.system.users.application.UpdateUserRequest;
 import com.factech.nexus.modules.system.users.application.UserResponse;
+import com.factech.nexus.modules.system.users.domain.models.ContactDetails;
+import com.factech.nexus.modules.system.users.domain.models.DocumentIdentity;
 import com.factech.nexus.modules.system.users.domain.models.Email;
 import com.factech.nexus.modules.system.users.domain.models.User;
 import com.factech.nexus.modules.system.users.domain.repository.AssignableCountry;
+import com.factech.nexus.modules.system.users.domain.repository.AssignableDocumentType;
 import com.factech.nexus.modules.system.users.domain.repository.AssignableRole;
 import com.factech.nexus.modules.system.users.domain.repository.RoleCatalog;
 import com.factech.nexus.modules.system.users.domain.repository.UserRepository;
@@ -64,13 +67,18 @@ public class UpdateUserService {
   private final UserRepository usuarios;
   private final RoleCatalog roles;
   private final AssignableCountry paises;
+  private final AssignableDocumentType paisesDocumento;
   private final AuditWriter auditoria;
   private final Clock reloj;
 
   @Autowired
   public UpdateUserService(
-      UserRepository usuarios, RoleCatalog roles, AuditWriter auditoria, AssignableCountry paises) {
-    this(usuarios, roles, auditoria, paises, Clock.systemUTC());
+      UserRepository usuarios,
+      RoleCatalog roles,
+      AuditWriter auditoria,
+      AssignableCountry paises,
+      AssignableDocumentType documentos) {
+    this(usuarios, roles, auditoria, paises, documentos, Clock.systemUTC());
   }
 
   UpdateUserService(
@@ -78,10 +86,12 @@ public class UpdateUserService {
       RoleCatalog roles,
       AuditWriter auditoria,
       AssignableCountry paises,
+      AssignableDocumentType documentos,
       Clock reloj) {
     this.usuarios = usuarios;
     this.roles = roles;
     this.paises = paises;
+    this.paisesDocumento = documentos;
     this.auditoria = auditoria;
     this.reloj = reloj;
   }
@@ -102,6 +112,28 @@ public class UpdateUserService {
     // mismo: `country_id` es `NOT NULL` y el estado «persona sin país» no
     // existe (`RN-SP-034`). Aceptarlo en silencio daría un `500` por violación
     // de integridad en lugar del `400` que corresponde.
+    // EL TIPO Y EL NÚMERO VAN JUNTOS O NO VAN. Enviar uno solo es `400` y no un
+    // cambio a medias: `ck_users_document_pair` lo impediría de todas formas, y
+    // dejarlo llegar al motor daría un `500` sobre una regla de negocio.
+    boolean pideTipo = peticion.documentTypeId().presente();
+    boolean pideNumero = peticion.documentNumber().presente();
+    if (pideTipo != pideNumero) {
+      problemas.add(
+          new FieldError(
+              pideTipo ? "documentNumber" : "documentTypeId",
+              "VAL-007",
+              "El tipo y el número de documento se informan juntos."));
+    }
+    if ((pideTipo && peticion.documentTypeId().valor() == null)
+        || (pideNumero && peticion.documentNumber().valor() == null)) {
+      problemas.add(
+          new FieldError("documentTypeId", "VAL-007", "El documento no puede quedar vacío."));
+    }
+    // El teléfono es obligatorio (`RN-SP-037`): su nulo explícito se rechaza.
+    if (peticion.phone().presente() && peticion.phone().valor() == null) {
+      problemas.add(new FieldError("phone", "VAL-008", "El teléfono no puede quedar vacío."));
+    }
+
     UUID paisPedido = null;
     if (peticion.countryId().presente()) {
       paisPedido = peticion.countryId().valor();
@@ -152,6 +184,35 @@ public class UpdateUserService {
       usuario.changeCountry(paisPedido, ahora);
     }
 
+    UUID tipoAnterior = usuario.getDocumentTypeId();
+    String numeroAnterior = usuario.getDocumentNumber();
+    boolean cambiaDocumento = false;
+    if (pideTipo && pideNumero) {
+      DocumentIdentity pedido =
+          new DocumentIdentity(
+              peticion.documentTypeId().valor(), peticion.documentNumber().valor());
+      // Solo se verifica si CAMBIA: reenviar el propio documento no consulta el
+      // catálogo, no audita y no puede fallar aunque ese tipo esté hoy inactivo.
+      if (pedido.completa()
+          && (!pedido.typeId().equals(tipoAnterior) || !pedido.number().equals(numeroAnterior))) {
+        verificarDocumento(pedido, userId);
+        cambiaDocumento = usuario.changeDocument(pedido, ahora);
+      }
+    }
+
+    String telefonoAnterior = usuario.getPhone();
+    String linea1Anterior = usuario.getAddressLine1();
+    String linea2Anterior = usuario.getAddressLine2();
+    String ciudadAnterior = usuario.getCity();
+    boolean cambiaContacto =
+        usuario.changeContact(
+            new ContactDetails(
+                java.util.Optional.ofNullable(peticion.phone().valor()),
+                peticion.addressLine1(),
+                peticion.addressLine2(),
+                peticion.city()),
+            ahora);
+
     if (cambiaCorreo) {
       verificarCorreoLibre(correo);
       usuario.changeEmail(correo, ahora);
@@ -166,7 +227,7 @@ public class UpdateUserService {
       usuarios.flushChanges();
     }
 
-    if (cambiaNombre || cambiaCorreo || cambiaPais) {
+    if (cambiaNombre || cambiaCorreo || cambiaPais || cambiaDocumento || cambiaContacto) {
       auditar(
           usuario,
           nombreAnterior,
@@ -176,10 +237,17 @@ public class UpdateUserService {
           cambiaNombre,
           cambiaCorreo,
           cambiaPais);
+
+      if (cambiaDocumento) {
+        anotarDocumento(usuario, tipoAnterior, numeroAnterior);
+      }
+      if (cambiaContacto) {
+        anotarContacto(usuario, telefonoAnterior, linea1Anterior, linea2Anterior, ciudadAnterior);
+      }
     }
 
     List<AssignableRole> catalogo = roles.findAllById(roles.roleIdsOf(userId));
-    return UserResponses.de(usuario, catalogo, usuarios, paises, userId);
+    return UserResponses.de(usuario, catalogo, usuarios, paises, paisesDocumento, userId);
   }
 
   /**
@@ -209,6 +277,48 @@ public class UpdateUserService {
       return null;
     }
     return contenido;
+  }
+
+  /**
+   * `EX-004` → {@code 422} si el tipo no existe, {@code 409} si está inactivo o si el par ya lo
+   * tiene otra persona (`RN-SP-035`).
+   *
+   * <p><b>Ignora a la persona que se está editando</b>: reenviar su propio documento no es un
+   * conflicto consigo misma, igual que ocurre con el correo.
+   *
+   * <p><b>Y el documento anterior NO queda libre.</b> Corregir una errata es legítimo y la unicidad
+   * sigue siendo total sobre todas las personas, incluidas las eliminadas: un documento identifica
+   * a alguien en el mundo real, y liberarlo permitiría que otra ficha lo tomara. Es la diferencia
+   * deliberada con el correo, que sí se libera al cambiarlo (`spec.md` §14, resolución 2).
+   */
+  private void verificarDocumento(DocumentIdentity documento, UUID userId) {
+    var tipo =
+        paisesDocumento
+            .find(documento.typeId())
+            .orElseThrow(
+                () ->
+                    new UnprocessableEntityException(
+                        "EX-004",
+                        "El tipo de documento indicado no existe.",
+                        List.of(
+                            new FieldError(
+                                "documentTypeId",
+                                "EX-004",
+                                "El tipo de documento '"
+                                    + documento.typeId()
+                                    + "' no existe en el catálogo."))));
+
+    if (!tipo.active()) {
+      String mensaje = "El tipo de documento '" + tipo.abbreviation() + "' está inactivo.";
+      throw new BusinessRuleException(
+          "RN-SP-035", mensaje, List.of(new FieldError("documentTypeId", "RN-SP-035", mensaje)));
+    }
+
+    if (usuarios.existsDocumentForOther(documento, userId)) {
+      String mensaje = "Ese documento ya está registrado.";
+      throw new BusinessRuleException(
+          "RN-SP-035", mensaje, List.of(new FieldError("documentNumber", "RN-SP-035", mensaje)));
+    }
   }
 
   /**
@@ -259,6 +369,78 @@ public class UpdateUserService {
       throw new BusinessRuleException(
           "RN-SP-016", mensaje, List.of(new FieldError("email", "RN-SP-016", mensaje)));
     }
+  }
+
+  /**
+   * El cambio de documento, en `audit_change_log` y NO en el de seguridad.
+   *
+   * <p>Es el campo que más se parece al correo —los dos los corrige un tercero, los dos cambian
+   * cómo la persona figura en el sistema— y aun así no emite evento de seguridad: <b>el correo es
+   * una vía de acceso y el documento no</b>. Con el documento no se entra. Meterlo en {@code
+   * audit_security_log} diluiría un registro que existe para credenciales y vías de acceso, y que
+   * no se purga sin decisión documentada (Art. XV.8).
+   *
+   * <p>Se emite <b>aparte</b> del evento principal y no dentro de él porque el diff se compone en
+   * dos momentos: {@code auditar} ya escribió lo suyo cuando esto se llama.
+   */
+  private void anotarDocumento(User usuario, UUID tipoAnterior, String numeroAnterior) {
+    Map<String, Object> cambios = new HashMap<>();
+    cambios.put(
+        "document_type_id",
+        mapaCambio(
+            tipoAnterior == null ? null : tipoAnterior.toString(),
+            usuario.getDocumentTypeId().toString()));
+    cambios.put("document_number", mapaCambio(numeroAnterior, usuario.getDocumentNumber()));
+
+    auditoria.recordChange(
+        new ChangeEvent(MODULO, ENTIDAD, usuario.getId(), ChangeAction.UPDATE, cambios));
+  }
+
+  /**
+   * El cambio de contacto.
+   *
+   * <p><b>El vaciado se audita como cualquier cambio</b>, con el después en nulo: es lo que
+   * distingue «se borró la dirección» de «nunca la hubo», y sin él la única forma de saberlo sería
+   * comparar dos instantáneas.
+   */
+  private void anotarContacto(
+      User usuario,
+      String telefonoAnterior,
+      String linea1Anterior,
+      String linea2Anterior,
+      String ciudadAnterior) {
+
+    Map<String, Object> cambios = new HashMap<>();
+    anotarSiCambia(cambios, "phone", telefonoAnterior, usuario.getPhone());
+    anotarSiCambia(cambios, "address_line1", linea1Anterior, usuario.getAddressLine1());
+    anotarSiCambia(cambios, "address_line2", linea2Anterior, usuario.getAddressLine2());
+    anotarSiCambia(cambios, "city", ciudadAnterior, usuario.getCity());
+
+    if (cambios.isEmpty()) {
+      return;
+    }
+    auditoria.recordChange(
+        new ChangeEvent(MODULO, ENTIDAD, usuario.getId(), ChangeAction.UPDATE, cambios));
+  }
+
+  private static void anotarSiCambia(
+      Map<String, Object> cambios, String campo, String antes, String despues) {
+    if (!java.util.Objects.equals(antes, despues)) {
+      cambios.put(campo, mapaCambio(antes, despues));
+    }
+  }
+
+  /**
+   * {@code Map.of} NO admite nulos, y el vaciado de un campo opcional los produce por definición.
+   *
+   * <p>Usarlo aquí lanzaría {@link NullPointerException} justo en la rama que esta enmienda existe
+   * para soportar — y el fallo saldría como {@code 500} sobre una operación correcta.
+   */
+  private static Map<String, Object> mapaCambio(String antes, String despues) {
+    Map<String, Object> cambio = new HashMap<>();
+    cambio.put("before", antes);
+    cambio.put("after", despues);
+    return cambio;
   }
 
   /**

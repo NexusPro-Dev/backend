@@ -136,6 +136,34 @@ public abstract class IntegrationTestBase {
       java.util.UUID.fromString("01a07bbd-5200-7001-9c4f-5e7ad3000101");
 
   /**
+   * Cédula de ciudadanía, sembrada por {@code V70__create_document_types.sql} (`RN-SP-035`).
+   *
+   * <p>Es fijo por lo mismo que {@link #COLOMBIA}: toda alta de persona exige un tipo de documento,
+   * y una prueba que tuviera que consultarlo antes estaría probando el catálogo en lugar de lo
+   * suyo.
+   *
+   * <p><b>El catálogo solo contiene documentos de mayor de edad</b>, y esa ausencia es la
+   * validación entera: no existe constante equivalente para una tarjeta de identidad porque <b>esa
+   * fila no está</b>.
+   */
+  protected static final java.util.UUID CEDULA =
+      java.util.UUID.fromString("01a080e3-ae00-7001-9c4f-5e7ad6000001");
+
+  private static final java.util.concurrent.atomic.AtomicInteger SECUENCIA_DE_DOCUMENTO =
+      new java.util.concurrent.atomic.AtomicInteger();
+
+  /**
+   * Un número de documento distinto en cada llamada.
+   *
+   * <p>{@code uq_users_document} es <b>total</b> —no libera al eliminar (`RN-SP-035`)— y la base es
+   * compartida por toda la suite, de modo que un literal repetido haría fallar la segunda prueba
+   * que lo usara, y el fallo dependería del orden de ejecución.
+   */
+  protected static String documentoNuevo() {
+    return "DOC" + String.format("%07d", SECUENCIA_DE_DOCUMENTO.incrementAndGet());
+  }
+
+  /**
    * Los dos permisos con los que nace un {@link #crearRolAcotado rol acotado}: los de lectura de
    * auditoría, que es el par más pequeño que el catálogo ofrece y que ningún endpoint de negocio
    * abre.
@@ -186,7 +214,7 @@ public abstract class IntegrationTestBase {
   }
 
   /**
-   * Repone la membresía de arranque, <b>la de código {@code FREE}</b>, con el identificador literal
+   * Repone la membresía de arranque, <b>la de código {@code BECA}</b>, con el identificador literal
    * que `V46` siembra.
    *
    * <p><b>Hace falta porque la suite comparte una sola base y dos docenas de clases hacen {@code
@@ -202,7 +230,7 @@ public abstract class IntegrationTestBase {
     jdbc.update(
         """
         INSERT INTO memberships (id, code, name, description, parent_membership_id, level, color)
-        VALUES ('01a04ad0-e800-7001-9c4f-5e7ad7000001', 'FREE', 'Free', 'Nivel de entrada.',
+        VALUES ('01a04ad0-e800-7001-9c4f-5e7ad7000001', 'BECA', 'Free', 'Nivel de entrada.',
                 NULL, 1, '9E9E9E')
         ON CONFLICT (id) DO NOTHING
         """);
@@ -221,7 +249,7 @@ public abstract class IntegrationTestBase {
     jdbc.update(
         """
         INSERT INTO user_memberships (id, user_id, membership_id)
-        SELECT gen_random_uuid(), ?, id FROM memberships WHERE code = 'FREE'
+        SELECT gen_random_uuid(), ?, id FROM memberships WHERE code = 'BECA'
         """,
         userId);
   }

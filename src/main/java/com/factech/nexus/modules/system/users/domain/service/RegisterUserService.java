@@ -3,10 +3,12 @@ package com.factech.nexus.modules.system.users.domain.service;
 import com.factech.nexus.modules.system.roles.application.AuthenticatedActor;
 import com.factech.nexus.modules.system.users.application.RegisterUserCommand;
 import com.factech.nexus.modules.system.users.application.UserResponse;
+import com.factech.nexus.modules.system.users.domain.models.DocumentIdentity;
 import com.factech.nexus.modules.system.users.domain.models.Email;
 import com.factech.nexus.modules.system.users.domain.models.User;
 import com.factech.nexus.modules.system.users.domain.models.Username;
 import com.factech.nexus.modules.system.users.domain.repository.AssignableCountry;
+import com.factech.nexus.modules.system.users.domain.repository.AssignableDocumentType;
 import com.factech.nexus.modules.system.users.domain.repository.AssignableRole;
 import com.factech.nexus.modules.system.users.domain.repository.MembershipCatalog;
 import com.factech.nexus.modules.system.users.domain.repository.RoleCatalog;
@@ -75,6 +77,7 @@ public class RegisterUserService {
   private final RoleCatalog roles;
   private final MembershipCatalog membresias;
   private final AssignableCountry paises;
+  private final AssignableDocumentType documentos;
   private final CommercialStructure estructura;
   private final AuthenticatedActor actor;
   private final PasswordPolicy politica;
@@ -95,7 +98,8 @@ public class RegisterUserService {
       PasswordHasher hasher,
       AuditWriter auditoria,
       UuidV7Generator ids,
-      AssignableCountry paises) {
+      AssignableCountry paises,
+      AssignableDocumentType documentos) {
     this(
         usuarios,
         roles,
@@ -107,6 +111,7 @@ public class RegisterUserService {
         auditoria,
         ids,
         paises,
+        documentos,
         Clock.systemUTC());
   }
 
@@ -121,11 +126,13 @@ public class RegisterUserService {
       AuditWriter auditoria,
       UuidV7Generator ids,
       AssignableCountry paises,
+      AssignableDocumentType documentos,
       Clock reloj) {
     this.usuarios = usuarios;
     this.roles = roles;
     this.membresias = membresias;
     this.paises = paises;
+    this.documentos = documentos;
     this.estructura = estructura;
     this.actor = actor;
     this.politica = politica;
@@ -165,6 +172,11 @@ public class RegisterUserService {
     // al motor daría un `500` sobre una regla de negocio.
     verificarPais(comando.countryId());
 
+    // `RN-SP-035`. Va después del país y antes de la escritura, por lo mismo:
+    // `fk_users_document_type` no distingue «no existe» de «está inactivo», y
+    // `uq_users_document` daría un `500` sobre una regla de negocio.
+    verificarDocumento(comando.documento());
+
     OffsetDateTime ahora = OffsetDateTime.now(reloj);
     User usuario =
         usuarios.save(
@@ -176,6 +188,8 @@ public class RegisterUserService {
                 comando.lastName(),
                 hasher.hash(comando.password()),
                 comando.countryId(),
+                comando.documento(),
+                comando.contacto(),
                 comando.roleIds(),
                 ahora));
 
@@ -192,7 +206,7 @@ public class RegisterUserService {
     // sin nada.
     auditar(usuario, concedidos, membresia, superior);
 
-    return UserResponses.de(usuario, concedidos, usuarios, paises, usuario.getId());
+    return UserResponses.de(usuario, concedidos, usuarios, paises, documentos, usuario.getId());
   }
 
   // ---------------------------------------------------------------------------
@@ -233,6 +247,53 @@ public class RegisterUserService {
           "RN-SP-034",
           "countryId",
           "El país '" + pais.code() + "' está inactivo y no se puede asignar.");
+    }
+  }
+
+  /**
+   * `RN-SP-035` → {@code 422} si el tipo no existe, {@code 409} si está inactivo o si el par ya lo
+   * tiene alguien.
+   *
+   * <p><b>Y aquí NO hay ninguna comprobación de mayoría de edad</b>, que es lo que da sentido a
+   * todo el diseño. El catálogo de `RF-SP-051` <b>solo contiene documentos de adulto</b>, de modo
+   * que declarar el de un menor no llega a este método como un caso a rechazar: llega como un tipo
+   * que no existe, igual que un identificador inventado. La regla vive en el contenido de una tabla
+   * y en {@code fk_users_document_type}, no en un {@code if} que alguien pueda olvidar.
+   *
+   * <p>La unicidad se consulta <b>para el mensaje</b>; la garantiza {@code uq_users_document} en la
+   * escritura, igual que el nombre de usuario. Entre esta lectura y el {@code INSERT} hay una
+   * ventana que dos altas simultáneas atraviesan, y el adaptador traduce esa violación al mismo
+   * {@code 409} distinguiéndola <b>por nombre de restricción</b>.
+   */
+  private void verificarDocumento(DocumentIdentity documento) {
+    var tipo =
+        documentos
+            .find(documento.typeId())
+            .orElseThrow(
+                () ->
+                    new UnprocessableEntityException(
+                        "EX-010",
+                        "El tipo de documento indicado no existe.",
+                        List.of(
+                            new FieldError(
+                                "documentTypeId",
+                                "EX-010",
+                                "El tipo de documento '"
+                                    + documento.typeId()
+                                    + "' no existe en el catálogo."))));
+
+    if (!tipo.active()) {
+      throw conflicto(
+          "RN-SP-035",
+          "documentTypeId",
+          "El tipo de documento '" + tipo.abbreviation() + "' está inactivo.");
+    }
+
+    // NO DICE DE QUIÉN ES, y no distingue si esa persona está vigente o
+    // eliminada: decirlo informaría de la existencia de una cuenta, y
+    // `RN-SP-035` no libera el documento al eliminar.
+    if (usuarios.existsDocument(documento)) {
+      throw conflicto("RN-SP-035", "documentNumber", "Ese documento ya está registrado.");
     }
   }
 
@@ -400,6 +461,17 @@ public class RegisterUserService {
     // vive en otra tabla que `RN-SP-009` deja intacta, de modo que resolverlo al
     // leer la auditoría da siempre la misma respuesta.
     estado.put("country_id", usuario.getCountryId().toString());
+    // EL IDENTIFICADOR DEL TIPO Y EL NÚMERO, que es lo que quedó en las
+    // columnas. La abreviación vive en otra tabla y resolverla al leer la
+    // auditoría da siempre la misma respuesta.
+    estado.put(
+        "document_type_id",
+        usuario.getDocumentTypeId() == null ? null : usuario.getDocumentTypeId().toString());
+    estado.put("document_number", usuario.getDocumentNumber());
+    estado.put("phone", usuario.getPhone());
+    estado.put("address_line1", usuario.getAddressLine1());
+    estado.put("address_line2", usuario.getAddressLine2());
+    estado.put("city", usuario.getCity());
     estado.put("status", usuario.getStatus().name());
     estado.put("must_change_password", usuario.isMustChangePassword());
     estado.put("roles", codigos(concedidos));

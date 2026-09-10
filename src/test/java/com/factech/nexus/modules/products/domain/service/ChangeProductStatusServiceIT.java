@@ -46,7 +46,7 @@ class ChangeProductStatusServiceIT extends IntegrationTestBase {
     // El SUELO de la cadena: es el origen de todo upgrade que se siembre
     // aqui. Va encadenado bajo `oro` porque `uq_memberships_parent` es
     // UNIQUE NULLS NOT DISTINCT — dos raices revientan en el COMMIT.
-    free = membresia("FREE", "Free", 2, oro);
+    free = membresia("BECA", "Beca", 2, oro);
 
     estadisticas = sessionFactory.getStatistics();
     estadisticas.setStatisticsEnabled(true);

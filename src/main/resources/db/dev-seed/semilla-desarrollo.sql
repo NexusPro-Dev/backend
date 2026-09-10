@@ -119,7 +119,9 @@ insertadas AS (
   -- Se resuelve POR CODIGO y no por identificador literal: en una base donde
   -- Colombia ya se hubiera registrado por la API, la fila buena es la suya.
   INSERT INTO users (id, username, email, first_name, last_name, password_hash,
-                     must_change_password, status, country_id)
+                     must_change_password, status, country_id,
+                     document_type_id, document_number, phone,
+                     address_line1, city)
   SELECT p.id,
          p.usuario,
          p.usuario || '@factech.co',
@@ -128,7 +130,21 @@ insertadas AS (
          (SELECT password_hash FROM users WHERE username = 'superadmin'),
          false,
          'ACTIVO',
-         (SELECT id FROM countries WHERE code = 'COL')
+         (SELECT id FROM countries WHERE code = 'COL'),
+         -- `RN-SP-035` y `RN-SP-037`: el documento y el telefono son obligatorios
+         -- en la API, de modo que la semilla los declara EXPLICITAMENTE. `V71`
+         -- rellena las filas que YA EXISTIAN; estas se crean despues.
+         --
+         -- CADA PERSONA CON UN NUMERO DISTINTO: repetirlos violaria
+         -- `uq_users_document` y la semilla fallaria a medias. Se deriva del
+         -- nombre de usuario, que ya es unico por construccion.
+         (SELECT id FROM document_types WHERE abbreviation = 'CC'),
+         upper(regexp_replace(p.usuario, '[^A-Za-z0-9]', '', 'g')),
+         -- Telefono con la forma que `ck_users_phone_format` admite: digitos con
+         -- un `+` opcional, hasta quince.
+         '+57300' || lpad((abs(hashtext(p.usuario)) % 10000000)::text, 7, '0'),
+         'Calle ' || p.indice || ' # 10-20',
+         'Bogota'
     FROM personas p
   RETURNING id, username
 )
@@ -270,9 +286,9 @@ SELECT (
         || substr(md5(random()::text || u.id::text || m.id::text), 1, 12)
        )::uuid,
        u.id, m.id
-  FROM (VALUES ('superadmin', 'FREE'), ('admin1', 'FREE'), ('manager1', 'FREE'),
-               ('director1', 'FREE'), ('agente1', 'FREE'), ('agente2', 'FREE'), ('agente3', 'FREE'),
-               ('cliente1', 'FREE'), ('cliente2', 'VIP'), ('cliente3', 'PLATINO'))
+  FROM (VALUES ('superadmin', 'BECA'), ('admin1', 'BECA'), ('manager1', 'BECA'),
+               ('director1', 'BECA'), ('agente1', 'BECA'), ('agente2', 'BECA'), ('agente3', 'BECA'),
+               ('cliente1', 'BECA'), ('cliente2', 'VIP'), ('cliente3', 'PLATINO'))
        AS asignacion(usuario, membresia)
   JOIN users u ON u.username = asignacion.usuario
   JOIN memberships m ON m.code = asignacion.membresia

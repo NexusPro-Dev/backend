@@ -274,16 +274,18 @@ nexus:
         por-origen: 60
         ventana: PT1M
 
-      # Los tres catálogos que el formulario de registro lee SIN TOKEN desde el
-      # 08-09-2026: países, tipos de documento y brokers. Se acotan por lo mismo
-      # que el refresco —son públicas y consultan la base en cada llamada— y NO
-      # por lo mismo que el hotlink: aquí no hay nada que sondear, son listas de
-      # opciones que no identifican a nadie.
+      # Los CUATRO catálogos que el formulario de registro lee SIN TOKEN: países,
+      # tipos de documento y brokers desde el 08-09-2026, y los MÉTODOS DE PAGO
+      # desde el 09-09-2026 (`RN-MV-024`). Se acotan por lo mismo que el refresco
+      # —son públicas y consultan la base en cada llamada— y NO por lo mismo que
+      # el hotlink: aquí no hay nada que sondear, son listas de opciones que no
+      # identifican a nadie y que responden lo mismo a todo el mundo.
       #
       # El número más holgado del sistema, y a propósito: UNA sola carga del
-      # formulario pide los tres, y detrás de una dirección de salida compartida
+      # formulario los pide todos, y detrás de una dirección de salida compartida
       # eso son muchas cargas por minuto. Cada catálogo lleva su propio cubo, de
-      # modo que agotar el de países no deja sin brokers al mismo formulario.
+      # modo que agotar el de países no deja sin métodos de pago al mismo
+      # formulario. El cuarto no estrenó política: solo cubo.
       public-catalog:
         por-origen: 120
         ventana: PT1M

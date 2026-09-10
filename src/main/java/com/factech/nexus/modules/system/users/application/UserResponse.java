@@ -35,6 +35,8 @@ public record UserResponse(
     boolean mustChangePassword,
     List<RoleRef> roles,
     CountryRef country,
+    DocumentRef document,
+    ContactRef contact,
     MembershipRef membership,
     SupervisorRef supervisor,
     OffsetDateTime createdAt,
@@ -62,6 +64,39 @@ public record UserResponse(
   @JsonInclude(JsonInclude.Include.ALWAYS)
   public record CountryRef(UUID id, String code, String name) {}
 
+  /**
+   * La identidad documental (`RN-SP-035`), con el tipo <b>resuelto</b>.
+   *
+   * <p>Mismo trato que {@code CountryRef} y por lo mismo: quien acaba de registrar o de editar
+   * tiene que poder comprobar qué quedó escrito sin llamar al catálogo — que además exige {@code
+   * document-types:read}, un permiso que quien tiene {@code users:create} no necesariamente porta.
+   *
+   * <p><b>A diferencia de {@code CountryRef}, este objeto SÍ puede ser nulo</b>: las personas
+   * registradas antes del 08-09-2026 no tienen documento, y el esquema lo admite a propósito porque
+   * inventarles uno sería escribir algo falso sobre su identidad.
+   */
+  @JsonInclude(JsonInclude.Include.ALWAYS)
+  public record DocumentRef(DocumentTypeRef type, String number) {}
+
+  /** El tipo, con su abreviación —que es su código— y su nombre. */
+  @JsonInclude(JsonInclude.Include.ALWAYS)
+  public record DocumentTypeRef(UUID id, String abbreviation, String name) {}
+
+  /**
+   * Los datos de contacto (`RN-SP-037`).
+   *
+   * <p><b>El objeto está siempre presente aunque sus cuatro campos vengan nulos.</b> Un objeto que
+   * aparece y desaparece obliga al cliente a comprobar dos cosas antes de leer un teléfono.
+   *
+   * <p><b>Va agrupado y no como cuatro campos sueltos en la raíz</b>, igual que {@code document}, y
+   * esa es la única decisión de forma de esta enmienda: son dos conjuntos con significados
+   * distintos —identidad y contacto— que se editan por caminos distintos —`RF-SP-027` el primero,
+   * también `RF-SP-044` el segundo—, y agruparlos deja esa diferencia <b>visible en el contrato</b>
+   * en lugar de escrita solo en una regla.
+   */
+  @JsonInclude(JsonInclude.Include.ALWAYS)
+  public record ContactRef(String phone, String addressLine1, String addressLine2, String city) {}
+
   /** {@code endsAt} nulo significa <b>indefinida</b>, no «sin fecha conocida». */
   @JsonInclude(JsonInclude.Include.ALWAYS)
   public record MembershipRef(UUID id, String code, String name, OffsetDateTime endsAt) {}
@@ -73,6 +108,8 @@ public record UserResponse(
       User usuario,
       List<RoleRef> roles,
       CountryRef pais,
+      DocumentRef documento,
+      ContactRef contacto,
       MembershipRef membresia,
       SupervisorRef superior) {
     return new UserResponse(
@@ -85,6 +122,8 @@ public record UserResponse(
         usuario.isMustChangePassword(),
         roles,
         pais,
+        documento,
+        contacto,
         membresia,
         superior,
         enUtc(usuario.getCreatedAt()),

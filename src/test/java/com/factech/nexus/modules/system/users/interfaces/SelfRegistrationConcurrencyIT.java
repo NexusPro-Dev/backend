@@ -48,7 +48,7 @@ class SelfRegistrationConcurrencyIT extends IntegrationTestBase {
   void sembrar() {
     limpiar();
     UUID oro = membresia("ORO", "Oro", 1, null, "D4AF37");
-    free = membresia("FREE", "Free", 2, oro, "9E9E9E");
+    free = membresia("BECA", "Beca", 2, oro, "9E9E9E");
     producto(free);
     vendedor();
   }
@@ -97,19 +97,33 @@ class SelfRegistrationConcurrencyIT extends IntegrationTestBase {
   private MockHttpServletRequestBuilder registro(String usuario, String correo, int cuenta) {
     String cuerpo =
         """
-        {"product":"REG_FREE","referrer":"reg-agente",
-         "firstName":"Ana","lastName":"Ruiz",
+        {"firstName":"Ana","lastName":"Ruiz",
          "username":"%s","email":"%s","password":"ClaveSegura2026!",
          "countryCode":"%s","documentType":"CC","documentNumber":"%s",
          "phone":"+573001234567",
-         "brokerAccounts":[{"brokerId":"%s","accountId":"cuenta-%d"}]}
+         "brokerAccounts":[{"brokerId":"%s","accountId":"cuenta-%d"}],
+         "movement":{"productId":"%s","paymentMethodId":null,
+                     "sellerUsername":"reg-agente","movementTypeCode":"VENTA"}}
         """
             .formatted(
-                usuario, correo, pais(), Integer.toString(correo.hashCode()), BROKER, cuenta);
+                usuario,
+                correo,
+                pais(),
+                Integer.toString(correo.hashCode()),
+                BROKER,
+                cuenta,
+                // El producto vale cero: sin método de pago, que lo pone `MV`
+                // (`RN-MV-022`).
+                idDelProducto());
 
     return post("/api/v1/auth/registration")
         .contentType(MediaType.APPLICATION_JSON)
         .content(cuerpo);
+  }
+
+  private String idDelProducto() {
+    return jdbc.queryForObject(
+        "SELECT id::text FROM products WHERE code = 'REG_FREE'", String.class);
   }
 
   private String pais() {
@@ -167,6 +181,10 @@ class SelfRegistrationConcurrencyIT extends IntegrationTestBase {
   }
 
   private void limpiar() {
+    // Antes que los productos y las personas: sus claves foráneas son RESTRICT.
+    jdbc.update("DELETE FROM movement_details");
+    jdbc.update("DELETE FROM movements");
+    jdbc.update("DELETE FROM audit_change_log WHERE module = 'MV'");
     jdbc.update("DELETE FROM user_brokers");
     jdbc.update("DELETE FROM refresh_tokens");
     jdbc.update("DELETE FROM user_supervisors");

@@ -97,23 +97,23 @@ Esta migración **no emite auditoría**, igual que `V3`: un permiso no tiene lí
 | Cambio | Definición | Por qué |
 |---|---|---|
 | `source_membership_id` | `uuid NULL` | **Sin `NOT NULL` a propósito**: en un bot tiene que estar vacía. Quien exige su presencia es el `CHECK`, que es el único capaz de decir «obligatoria aquí y prohibida allá» |
-| Relleno | `UPDATE … SET source_membership_id = (SELECT id FROM memberships WHERE code = 'FREE')` sobre los upgrades existentes | **Es una decisión, no una deducción**: bajo el modelo anterior esos productos **no tenían** origen. Se elige el suelo de la cadena porque conserva la oferta de quien está en `FREE`, que es el caso más común |
+| Relleno | `UPDATE … SET source_membership_id = (SELECT id FROM memberships WHERE code = 'BECA')` sobre los upgrades existentes | **Es una decisión, no una deducción**: bajo el modelo anterior esos productos **no tenían** origen. Se elige el suelo de la cadena porque conserva la oferta de quien está en `BECA`, que es el caso más común |
 | `ck_products_type_target` | Se **reescribe entera** para exigir las dos membresías en el upgrade y prohibirlas las dos en el bot | Añadir un segundo `CHECK` al lado se leería como dos reglas, y `RN-PM-002` es **una** |
 | `fk_products_source_membership` | `source_membership_id → memberships(id)` | Lo mismo que su gemela del destino, y por el mismo motivo |
-| `ck_products_origen_distinto` | `source_membership_id IS NULL OR source_membership_id <> target_membership_id` | La mitad de `RN-PM-017` que el motor **sí** puede sostener: un upgrade de `FREE` a `FREE` vende nada |
-| `uq_products_upgrade_target` | Se rehace sobre **`(source_membership_id, target_membership_id)`** | La versión anterior prohibía **exactamente lo que el origen existe para permitir**: dos upgrades activos hacia `ORO`, uno desde `FREE` y otro desde `PLATINO` |
+| `ck_products_origen_distinto` | `source_membership_id IS NULL OR source_membership_id <> target_membership_id` | La mitad de `RN-PM-017` que el motor **sí** puede sostener: un upgrade de `BECA` a `BECA` vende nada |
+| `uq_products_upgrade_target` | Se rehace sobre **`(source_membership_id, target_membership_id)`** | La versión anterior prohibía **exactamente lo que el origen existe para permitir**: dos upgrades activos hacia `ORO`, uno desde `BECA` y otro desde `PLATINO` |
 
 !!! danger "El coste del relleno, escrito para que nadie lo descubra en producción"
 
-    Dar `FREE` a todos los upgrades existentes significa que **quien esté en `VIP` deja de verlos**. No recibe ningún error: simplemente dejan de ofrecerse, y el catálogo se ve perfectamente bien desde administración. La alternativa considerada —el nivel inmediatamente inferior al destino, derivable de la cadena— estrecha igual y además deja a `FREE` sin nada.
+    Dar `BECA` a todos los upgrades existentes significa que **quien esté en `VIP` deja de verlos**. No recibe ningún error: simplemente dejan de ofrecerse, y el catálogo se ve perfectamente bien desde administración. La alternativa considerada —el nivel inmediatamente inferior al destino, derivable de la cadena— estrecha igual y además deja a `BECA` sin nada.
 
-    **Y la migración puede detenerse**: si existe un upgrade cuyo destino es `FREE`, el relleno lo deja apuntando a sí mismo y `ck_products_origen_distinto` la aborta. Es lo correcto — ese producto vendía un descenso llamándolo upgrade, y qué hacer con él es una decisión del negocio, no de una migración.
+    **Y la migración puede detenerse**: si existe un upgrade cuyo destino es `BECA`, el relleno lo deja apuntando a sí mismo y `ck_products_origen_distinto` la aborta. Es lo correcto — ese producto vendía un descenso llamándolo upgrade, y qué hacer con él es una decisión del negocio, no de una migración.
 
 !!! important "La otra mitad de `RN-PM-017` no cabe en el esquema"
 
     «El origen está por debajo del destino» obliga a leer el `level` de **dos filas de `memberships`**, y un `CHECK` no consulta otra tabla. Vive en el caso de uso, por el mismo motivo exacto que los decimales de la moneda en `RN-PM-007`.
 
-    Y va con el reparto de `V47` delante: **`level` numera desde la cima** —`ORO` es el 1 y `FREE` el 4—, de modo que «por debajo» es **número mayor**. Escribir la comparación al revés produce un sistema que acepta descensos y rechaza ascensos, y las dos mitades fallan calladas.
+    Y va con el reparto de `V47` delante: **`level` numera desde la cima** —`ORO` es el 1 y `BECA` el 4—, de modo que «por debajo» es **número mayor**. Escribir la comparación al revés produce un sistema que acepta descensos y rechaza ascensos, y las dos mitades fallan calladas.
 
 ### 2.4 `V59__products_scope_and_implementation.sql` — enmienda del 07-09-2026
 
@@ -123,7 +123,7 @@ Esta migración **no emite auditoría**, igual que `V3`: un permiso no tiene lí
 |---|---|---|
 | `scope` | `varchar(20) NOT NULL`, en **tres pasos**: se añade nula, se rellena, y solo entonces se marca `NOT NULL` | Una columna `NOT NULL` no se puede añadir de golpe a una tabla con filas sin darle un `DEFAULT`, y **el `DEFAULT` es justo lo que no queremos** — ver la fila del relleno |
 | `implementation` | `varchar(20) NOT NULL`, con la misma secuencia | Lo mismo |
-| Relleno | `TIENDA` y `MANUAL` sobre todo lo existente | **Es una decisión, no una deducción**, como el `FREE` de `V53`: bajo el modelo anterior estos productos **no tenían** ni alcance ni implementación. `TIENDA` es el alcance **más corto** y conserva **exactamente** la oferta de hoy; `MANUAL` es la implementación que **no entrega sola** |
+| Relleno | `TIENDA` y `MANUAL` sobre todo lo existente | **Es una decisión, no una deducción**, como el `BECA` de `V53`: bajo el modelo anterior estos productos **no tenían** ni alcance ni implementación. `TIENDA` es el alcance **más corto** y conserva **exactamente** la oferta de hoy; `MANUAL` es la implementación que **no entrega sola** |
 | `ck_products_scope` | `scope IN ('TIENDA','HOTLINKS')` | `RN-PM-019` |
 | `ck_products_implementation` | `implementation IN ('AUTOMATICA','MANUAL')` | `RN-PM-020` |
 
@@ -157,7 +157,7 @@ Esta migración **no emite auditoría**, igual que `V3`: un permiso no tiene lí
 
 !!! important "No se toca `uq_products_upgrade_target`"
 
-    `(FREE, FREE)` es una pareja como cualquier otra. La unicidad sigue siendo **un producto activo por pareja origen→destino**, de modo que no pueden coexistir dos renovaciones activas de la misma membresía — que es justo lo que `RN-PM-004` existe para evitar: dos precios simultáneos para lo mismo.
+    `(BECA, BECA)` es una pareja como cualquier otra. La unicidad sigue siendo **un producto activo por pareja origen→destino**, de modo que no pueden coexistir dos renovaciones activas de la misma membresía — que es justo lo que `RN-PM-004` existe para evitar: dos precios simultáneos para lo mismo.
 
 **Y el agregado pierde una comprobación sin ganarla en otro sitio.** `Product.verificarTipoYMembresias` rechazaba `origen.equals(destino)` con `VAL-014`; esa comparación **dejó de decir nada**. Quien decide es el caso de uso, que es el único que conoce los dos `level`, y su comparación pasa de `origen.level() <= destino.level()` a `origen.level() < destino.level()`.
 
@@ -180,7 +180,7 @@ Esta migración **no emite auditoría**, igual que `V3`: un permiso no tiene lí
 
 !!! important "No hay relleno, y esa es la diferencia con `V53` y `V59`"
 
-    Aquellas migraciones tuvieron que **decidir un valor** para las filas existentes —`FREE` como origen, `TIENDA` y `MANUAL`—, porque las columnas quedaban obligatorias. Aquí no hace falta ninguna decisión: **el nulo ya significa lo correcto** para todo producto ya registrado —«se anuncia con el precio del sistema»—, que es exactamente lo que hacían ayer.
+    Aquellas migraciones tuvieron que **decidir un valor** para las filas existentes —`BECA` como origen, `TIENDA` y `MANUAL`—, porque las columnas quedaban obligatorias. Aquí no hace falta ninguna decisión: **el nulo ya significa lo correcto** para todo producto ya registrado —«se anuncia con el precio del sistema»—, que es exactamente lo que hacían ayer.
 
     Es el argumento que sostiene que la columna sea opcional, visto desde la migración.
 
@@ -262,7 +262,7 @@ Se añade a `LayerRulesTest`: **ninguna clase de `..modules.products..` depende 
   "type": "UPGRADE_MEMBRESIA",
   "name": "Ascenso a Oro",
   "description": "Acceso a los contenidos de nivel oro.",
-  "sourceMembership": { "id": "018f3a2b-…", "code": "FREE", "name": "Free", "level": 4 },
+  "sourceMembership": { "id": "018f3a2b-…", "code": "BECA", "name": "Beca", "level": 4 },
   "targetMembership": { "id": "018f3a2b-…", "code": "ORO", "name": "Oro", "level": 1 },
   "price": 49.99,
   "publicPrice": 59.99,
@@ -346,7 +346,7 @@ Una sola transacción para el `INSERT` y su evento de auditoría. Las lecturas c
 | Los once criterios de `spec.md` §12 | API | `MockMvc` con permiso concedido |
 | La condición cruzada de `RN-PM-002` | API | **En los cuatro sentidos**: upgrade sin origen, upgrade sin destino, bot con destino y bot con origen — y el `field` de cada rechazo, porque un mensaje que no distinga obliga a probar los dos |
 | `RN-PM-017` — el origen por debajo del destino | API | Origen **igual** al destino (`400`, lo ve el agregado) y origen **por encima** (`422`, hace falta el `level` de las dos filas). Un descenso vendido como upgrade |
-| `RN-PM-018` — saltar niveles es legítimo | API | `FREE → ORO` con **dos eslabones de por medio**, y la premisa comprobada: sin afirmar que la cadena los tiene, el salto lo sería solo de nombre |
+| `RN-PM-018` — saltar niveles es legítimo | API | `BECA → ORO` con **dos eslabones de por medio**, y la premisa comprobada: sin afirmar que la cadena los tiene, el salto lo sería solo de nombre |
 | El producto nace `INACTIVO` | API | Y enviar `status` devuelve `400`, no se ignora |
 | Código único **incluso contra eliminados** | Integración | Se retira un producto y se intenta reutilizar su código |
 | Traducción por nombre de restricción | Integración | El duplicado produce `409` con el campo correcto, distinguiendo código de nombre |

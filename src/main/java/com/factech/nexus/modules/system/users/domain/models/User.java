@@ -278,6 +278,7 @@ public class User {
       DocumentIdentity documento,
       ContactDetails contacto,
       Collection<UUID> roleIds,
+      UserStatus estadoInicial,
       OffsetDateTime ahora) {
 
     User usuario =
@@ -295,7 +296,7 @@ public class User {
             ahora);
 
     usuario.mustChangePassword = false;
-    usuario.status = UserStatus.FTD_PENDIENTE;
+    usuario.status = estadoInicial;
     return usuario;
   }
 

@@ -1,5 +1,9 @@
 package com.factech.nexus.modules.system.users.interfaces;
 
+import com.factech.nexus.modules.system.brokers.application.BrokerAccountsResponse;
+import com.factech.nexus.modules.system.brokers.application.TeamBrokerAccountItem;
+import com.factech.nexus.modules.system.brokers.domain.service.GetBrokerAccountsService;
+import com.factech.nexus.modules.system.brokers.domain.service.GetTeamBrokerAccountsService;
 import com.factech.nexus.modules.system.users.application.AssignMembershipRequest;
 import com.factech.nexus.modules.system.users.application.AssignRolesRequest;
 import com.factech.nexus.modules.system.users.application.AssignSupervisorRequest;
@@ -35,6 +39,7 @@ import com.factech.nexus.modules.system.users.domain.service.UpdateOwnProfileSer
 import com.factech.nexus.modules.system.users.domain.service.UpdateUserService;
 import com.factech.nexus.shared.pagination.PageResponse;
 import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.media.Content;
 import io.swagger.v3.oas.annotations.media.Schema;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
@@ -42,6 +47,7 @@ import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import java.net.URI;
+import java.util.List;
 import java.util.UUID;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -88,6 +94,13 @@ public class UserController {
   private final UpdateOwnProfileService edicionPropia;
   private final ResetUserPasswordService restablecimiento;
 
+  // Los dos servicios viven en el submódulo de BROKERS, que es el dueño del
+  // dato, y se orquestan desde aquí porque las dos rutas cuelgan de
+  // `/api/v1/users`: las cuentas de broker no existen sin su titular
+  // (`RF-SP-055` · `plan.md` §3).
+  private final GetBrokerAccountsService cuentasDeBroker;
+  private final GetTeamBrokerAccountsService cuentasDelEquipo;
+
   public UserController(
       RegisterUserService alta,
       AssignUserRolesService asignacion,
@@ -103,7 +116,11 @@ public class UserController {
       DeleteUserService eliminacion,
       GetOwnProfileService perfilPropio,
       UpdateOwnProfileService edicionPropia,
-      ResetUserPasswordService restablecimiento) {
+      ResetUserPasswordService restablecimiento,
+      GetBrokerAccountsService cuentasDeBroker,
+      GetTeamBrokerAccountsService cuentasDelEquipo) {
+    this.cuentasDeBroker = cuentasDeBroker;
+    this.cuentasDelEquipo = cuentasDelEquipo;
     this.alta = alta;
     this.asignacion = asignacion;
     this.retiro = retiro;
@@ -135,17 +152,54 @@ public class UserController {
           envían; enviarlos devuelve `400`.
           **`membershipId` es OPCIONAL, y el superior es condicional.** Desde el
           05-09-2026 toda persona nace con nivel: si no se indica ninguno, se le
-          concede el de arranque (`FREE`). Ya no hay rechazo por indicarlo sin rol
+          concede el de arranque (`BECA`). Ya no hay rechazo por indicarlo sin rol
           de consumidor ni por omitirlo teniéndolo — esa exigencia murió con
           `RN-SP-013`.
 
           El rol de vendedor y el superior comercial **sí siguen siendo
           condicionales en los dos sentidos**: indicar uno sin el otro devuelve
           `409`, no se ignora.
-          Indicar uno sin el otro devuelve `409`, no se ignora.
 
           El superior debe portar el **rol padre inmediato** del rol vendedor de
           mayor rango de la persona, y estar activo.
+
+          ## Identidad, contacto y país
+
+          **`countryId`, `documentTypeId`, `documentNumber` y `phone` son
+          obligatorios**, y a diferencia de la membresía y el superior **no
+          dependen de qué roles se concedan**: su ausencia es `400`, nunca un
+          `409` condicional.
+
+          **`addressLine1`, `addressLine2` y `city` son opcionales.** Exigir una
+          dirección postal a un funcionario interno bloquearía su alta sin que
+          nadie la necesite. `city` es **texto libre**: no hay catálogo de
+          ciudades.
+
+          **El tipo de documento sale de `GET /api/v1/document-types`, y ese
+          catálogo contiene SOLO documentos de persona mayor de edad.** Ahí está
+          la validación de mayoría de edad del sistema entero: no hay ninguna
+          marca que diga cuáles acreditan y cuáles no, porque **los que no
+          acreditan no están**. Registrar a un menor no se rechaza — no se puede
+          expresar, porque no hay identificador que enviar. Un desplegable
+          alimentado por ese catálogo no puede ofrecer una opción que el alta vaya
+          a rechazar.
+
+          **El par tipo + número es único entre TODAS las personas, incluidas las
+          eliminadas** (`RN-SP-035`), igual que el nombre de usuario y el correo.
+          El `409` que produce **no dice de quién es** el documento, ni si esa
+          persona sigue vigente.
+
+          El número de documento se guarda **recortado y en mayúsculas**, y el
+          teléfono **normalizado a dígitos con un `+` opcional** —fuera espacios,
+          guiones y paréntesis—. La dirección y la ciudad solo se recortan.
+
+          **El teléfono no se valida contra el país**: eso exigiría un catálogo de
+          prefijos que no existe.
+
+          La respuesta agrupa `country`, `document` y `contact` en tres objetos, y
+          devuelve el **tipo de documento resuelto** —abreviación y nombre— para
+          que no haga falta una segunda llamada al catálogo, que además exige otro
+          permiso.
 
           La contraseña no se recorta: un espacio al principio o al final es parte
           de ella.
@@ -158,8 +212,9 @@ public class UserController {
     @ApiResponse(
         responseCode = "400",
         description =
-            "Formato u obligatoriedad incumplidos, contraseña que no cumple la política, o campo"
-                + " no admitido en el cuerpo",
+            "Formato u obligatoriedad incumplidos —incluidos país, tipo y número de documento y"
+                + " teléfono, que son obligatorios (`VAL-014` a `VAL-017`)—, contraseña que no"
+                + " cumple la política, o campo no admitido en el cuerpo",
         content = @Content),
     @ApiResponse(
         responseCode = "401",
@@ -172,14 +227,18 @@ public class UserController {
     @ApiResponse(
         responseCode = "409",
         description =
-            "Identidad ya en uso (`RN-SP-016`), rol que excede los privilegios del actor"
-                + " (`RN-SEG-010`), vendedor sin"
-                + " superior o al revés (`RN-SP-019`), o superior que no porta el rol padre"
-                + " (`RN-SP-020`)",
+            "Identidad ya en uso (`RN-SP-016`), documento ya registrado por otra persona —vigente"
+                + " o eliminada— o tipo de documento inactivo (`RN-SP-035`), país inactivo"
+                + " (`RN-SP-034`), rol que excede los privilegios del actor (`RN-SEG-010`),"
+                + " vendedor sin superior o al revés (`RN-SP-019`), o superior que no porta el rol"
+                + " padre (`RN-SP-020`)",
         content = @Content),
     @ApiResponse(
         responseCode = "422",
-        description = "Algún rol no existe o no está activo (`EX-003`)",
+        description =
+            "Algún rol no existe o no está activo (`EX-003`), el país no existe (`EX-009`) o el"
+                + " tipo de documento no existe (`EX-010`) — referencias que no resuelven, frente"
+                + " al `409` de las que resuelven y una regla rechaza",
         content = @Content),
     @ApiResponse(
         responseCode = "500",
@@ -209,9 +268,24 @@ public class UserController {
           de cambio obligatorio produciría la lista de quien no ha cambiado su
           contraseña inicial.
 
-          **`roleId` y `membershipId` no se validan contra su catálogo.** Un
-          filtro por algo inexistente devuelve la colección vacía y no es un
-          error.
+          **`roleId`, `membershipId` y `countryId` no se validan contra su
+          catálogo.** Un filtro por algo inexistente devuelve la colección vacía y
+          no es un error.
+
+          **`countryId` NO se acota a países activos**, y va contra la intuición:
+          filtrar solo por los activos convertiría desactivar un país en una forma
+          de **esconder a su gente**, y este listado es justamente la herramienta
+          con la que se busca a quien quedó dentro para moverlo. Quien esté en un
+          país retirado aparece con normalidad.
+
+          Cada fila trae su `country` **resuelto y nunca nulo** — es el único
+          objeto anidado de la fila del que se puede decir eso: `roles` puede venir
+          vacía y `membership` y `deletedAt` pueden venir nulos.
+
+          **El listado NO publica el documento ni los datos de contacto**, y no se
+          puede buscar por ellos. Es deliberado: exponer un documento en un listado
+          paginado alcanza a mucha más gente que devolverlo en un detalle. Quien
+          necesite el documento de una persona usa `GET /api/v1/users/{id}`.
 
           La búsqueda va sobre nombre de usuario, correo y nombre completo,
           **sin distinguir acentos ni mayúsculas**, y por fragmento.
@@ -278,6 +352,17 @@ public class UserController {
           reporta uno es un dato del actor; quiénes dependen de uno es un conjunto
           de terceros.
 
+          Trae además el `country`, el `document` y el `contact` del actor.
+          **`country` nunca falta y `document` sí puede faltar**: las personas
+          registradas antes de que el documento fuera obligatorio no lo tienen, y
+          el campo llega ausente. El navegador tiene que contemplarlo.
+
+          **El `contact` se publica aquí para que la pantalla de edición pueda
+          precargarse**: es exactamente lo que `PATCH /api/v1/users/me` deja
+          corregir. El `document` viaja en la misma respuesta y **no** es
+          editable por el titular — esa diferencia es la razón de que los dos
+          vayan en objetos separados en lugar de como campos sueltos.
+
           `lastLoginAt` es un dato **informativo de la sesión en curso**, no una
           señal de intrusión: el inicio de sesión sobrescribe ese valor al entrar.
           """)
@@ -306,7 +391,8 @@ public class UserController {
       summary = "Editar el propio perfil",
       description =
           """
-          Corrige el **propio** nombre, apellidos y correo. Autenticado y **sin
+          Corrige el **propio** nombre, apellidos, correo y **datos de contacto**
+          —teléfono, dirección, complemento y ciudad—. Autenticado y **sin
           ningún permiso**: `RF-SP-027` hace el mismo cambio pero exige
           `users:update`, que es un permiso de administración, de modo que
           concedérselo a alguien para que arregle su propio apellido le daría de
@@ -327,6 +413,28 @@ public class UserController {
           el valor no cambie se sabe después de mirarlo, y condicionar la
           exigencia a eso daría una forma de averiguar el correo vigente probando
           valores.
+
+          ## Qué se puede cambiar aquí y qué no
+
+          **El contacto sí; la identidad no.** El tipo y el número de documento y
+          el país **no están en este cuerpo**: son identidad, no contacto, y los
+          corrige un administrador por `PATCH /api/v1/users/{id}`. Enviarlos
+          devuelve `400` por propiedad desconocida, no se ignoran.
+
+          La línea no es técnica: un teléfono nuevo o una mudanza son hechos que
+          la persona conoce mejor que nadie y no deberían costar un ticket; el
+          documento es con lo que figura en la auditoría, y el país decide qué
+          medios de pago se le ofrecen.
+
+          **El teléfono NO exige `currentPassword`**, al contrario que el correo.
+          La contraseña se pide cuando el campo **es una vía de acceso**, y el
+          teléfono hoy no lo es. El día que exista verificación por SMS o segundo
+          factor telefónico, esta decisión se revisa.
+
+          **El nulo explícito no significa lo mismo en todo el cuerpo.**
+          `addressLine1`, `addressLine2` y `city` **lo aceptan y vacían el campo**
+          —«ya no vivo ahí» es un hecho que hay que poder registrar—; el nombre,
+          los apellidos, el correo y el **teléfono** lo rechazan con `400`.
 
           Devuelve el perfil ya actualizado, con **la misma forma** que
           `GET /api/v1/users/me`.
@@ -454,6 +562,18 @@ public class UserController {
           la cuenta no está bloqueada, o lo está **por decisión de un actor** y
           por tanto sin expiración. El estado desambigua.
 
+          Trae el `country`, el `document` y el `contact` de la persona.
+
+          **`country` nunca es nulo y `document` sí puede serlo**: quienes se
+          registraron antes de que el documento fuera obligatorio no lo tienen, y
+          **esta pantalla es donde esa ausencia se ve** — es la que sirve para
+          saber a quién hay que completar.
+
+          **El país y el tipo de documento se devuelven aunque estén inactivos.**
+          Retirarlos del catálogo los quita de los desplegables del alta; no
+          cambia dónde está ni con qué se identifica quien ya los tenía, ni lo
+          oculta a quien administra.
+
           **No devuelve intentos fallidos** —diría cuántos le quedan a una cuenta
           antes de bloquearse—, **ni dato alguno de la credencial**, **ni el
           superior comercial**, que tiene su propio endpoint.
@@ -497,16 +617,41 @@ public class UserController {
       summary = "Editar los datos de una persona",
       description =
           """
-          Modifica el nombre, los apellidos y el correo. `PATCH` y no `PUT`:
+          Modifica el nombre, los apellidos, el correo, el país, la **identidad
+          documental** y los **datos de contacto**. `PATCH` y no `PUT`:
           `PUT` obligaría a enviar el recurso completo —incluidos el nombre de
           usuario, el estado y los roles, que esta operación **no** puede
           modificar— y habría que decidir qué hacer si llegaran con otros valores.
 
-          **Los tres campos son opcionales y ninguno admite vaciarse.** El campo
-          ausente no se toca; el campo con nulo explícito o en blanco devuelve
-          `400`. Es la diferencia con la edición de un rol, donde el nulo sí era
-          una orden: aquí las columnas son `NOT NULL` y aceptarlo produciría un
-          `500` en lugar del `400` que corresponde.
+          **Todos los campos son opcionales, y el nulo explícito NO significa lo
+          mismo en todos.** El campo ausente nunca se toca; con el nulo hay **dos
+          familias**, y la línea que las separa es la de lo obligatorio y lo
+          opcional:
+
+          - **Lo rechazan con `400`**: `firstName`, `lastName`, `email`,
+            `countryId`, `documentTypeId`, `documentNumber` y `phone`. Su columna
+            no admite ausencia, y aceptarlo produciría un `500` en lugar del `400`
+            que corresponde.
+          - **Lo aceptan y VACÍAN el campo**: `addressLine1`, `addressLine2` y
+            `city`. Son opcionales, y «ya no vive ahí» es un hecho que hay que
+            poder registrar.
+
+          **El tipo y el número de documento se envían juntos o no se envían.**
+          Enviar uno solo devuelve `400`: un número sin decir de qué documento es
+          no significa nada.
+
+          **Esta es la ÚNICA operación que cambia el documento y el país.** El
+          titular no puede tocarlos desde `PATCH /api/v1/users/me`.
+
+          **Se comprueba el destino, nunca el actual.** Un país o un tipo de
+          documento inactivos se rechazan **como destino**; que los vigentes de
+          la persona lo estén no impide editarla — es justamente para eso que
+          existe esta operación.
+
+          **Corregir el documento no libera el anterior.** Es la diferencia
+          deliberada con el correo, que sí queda libre: un documento identifica a
+          alguien en el mundo real, y liberarlo permitiría que otra ficha lo
+          tomara.
 
           **El nombre de usuario no se puede cambiar**, y enviarlo devuelve `400`
           por propiedad desconocida en lugar de ignorarse en silencio. Lo mismo
@@ -528,8 +673,11 @@ public class UserController {
     @ApiResponse(
         responseCode = "400",
         description =
-            "Ningún campo informado (`VAL-001`), campo vaciado (`VAL-002`), correo inválido"
-                + " (`VAL-003`), longitud excedida (`VAL-005`) o campo desconocido",
+            "Ningún campo informado (`VAL-001`), campo vaciado que no admite vaciarse (`VAL-002`,"
+                + " `VAL-006` país, `VAL-007` documento, `VAL-008` teléfono), tipo y número de"
+                + " documento sin su pareja (`VAL-007`), correo inválido (`VAL-003`), longitud"
+                + " excedida (`VAL-005`) o campo desconocido —incluidos el nombre de usuario, el"
+                + " estado, los roles y la contraseña",
         content = @Content),
     @ApiResponse(
         responseCode = "401",
@@ -897,7 +1045,7 @@ public class UserController {
           """
           **Devuelve al nivel de arranque, y no deja a nadie sin nivel.** Desde el
           05-09-2026 `RN-SP-018` exige que **toda** persona tenga membresía, de
-          modo que esta operación cierra la que tenga y le abre una `FREE`.
+          modo que esta operación cierra la que tenga y le abre una `BECA`.
 
           Existe para **corregir un nivel concedido por error**. Bajar a alguien a
           un nivel intermedio es la operación de membresía, que admite indicar
@@ -1030,18 +1178,35 @@ public class UserController {
           Devolver la rama completa publicaría de una vez la estructura de la
           empresa por un permiso de lectura de usuarios.
 
-          **Sin filtros.** El listado general de usuarios ya filtra; replicar esa
-          semántica sobre un subconjunto que cabe en una o dos páginas obligaría
-          a mantener dos filtrados sincronizados sin responder nada nuevo.
+          **Cada persona lleva `roles`: TODOS los que porta**, con `id`, `code`
+          y `name`, ordenados por código y **presentes aunque la lista vaya
+          vacía**. Es el mismo objeto que devuelve `GET /api/v1/users` en cada
+          fila. **Sustituye a `roleCode`** (10-09-2026), que traía uno solo y
+          únicamente si era de la fuerza comercial: la cartera de clientes
+          llegaba con el rol en nulo y era indistinguible de un vendedor sin rol.
+
+          **`roles` es además el único filtro**, y acota **el equipo**. Se pasan
+          **códigos**, varios admitidos —`?roles=AGENTE,CLIENTE` o repitiendo el
+          parámetro—, y entra quien porte **alguno** de ellos. `totalElements`
+          **cuenta lo filtrado**. Un código que no existe devuelve el equipo
+          vacío con `200`, **no un error**: es el mismo criterio que el filtro
+          por rol de `GET /api/v1/users`.
+
+          **El filtro NO toca al superior ni a la persona consultada.** Los dos
+          se devuelven igual aunque no porten ninguno de los roles pedidos, y eso
+          es contrato: `supervisor` va **ausente**, no en nulo, **solo** cuando
+          la persona es la cúspide comercial, que es lo que distingue «no depende
+          de nadie» de «no se pudo resolver».
+
+          **Ningún otro filtro.** Ni búsqueda por nombre, ni estado, ni país: el
+          listado general de usuarios ya los tiene, y replicarlos aquí obligaría
+          a mantener dos semánticas sincronizadas.
 
           **Sin historial de superiores.**
 
-          `supervisor` va **ausente**, no en nulo, cuando la persona es la cúspide
-          comercial: es lo que distingue «no depende de nadie» de «no se pudo
-          resolver».
-
           Quien no pertenece a la fuerza comercial recibe `200` con la estructura
-          vacía, no `404` ni `409`.
+          vacía, no `404` ni `409` — **con sus roles a la vista**: no tener
+          estructura comercial no es no tener roles.
 
           **El alcance es global** mientras la decisión D-22 siga abierta: quien
           posea el permiso ve el equipo de cualquiera, no solo el suyo.
@@ -1049,7 +1214,9 @@ public class UserController {
   @ApiResponses({
     @ApiResponse(
         responseCode = "200",
-        description = "La estructura, con el equipo paginado.",
+        description =
+            "La estructura, con el equipo paginado y los roles de cada persona. El filtro por"
+                + " roles acota el equipo y su total, nunca al superior.",
         content = @Content(schema = @Schema(implementation = CommercialStructureResponse.class))),
     @ApiResponse(
         responseCode = "400",
@@ -1074,8 +1241,172 @@ public class UserController {
   })
   public CommercialStructureResponse equipo(
       @PathVariable UUID id,
+      // SIN validar contra el catálogo de roles, a propósito: un código que no
+      // existe devuelve el equipo vacío y no un 400. Validarlo añadiría una
+      // consulta por petición para producir un fallo que la especificación no
+      // quiere, y `RF-SP-025` ya decidió lo mismo para su filtro por rol.
+      @Parameter(
+              description =
+                  "Códigos de rol que acotan el equipo. Varios admitidos, con semántica O.")
+          @RequestParam(required = false)
+          List<String> roles,
       @RequestParam(required = false) Integer page,
       @RequestParam(required = false) Integer size) {
-    return equipoACargo.team(id, page, size);
+    return equipoACargo.team(id, roles, page, size);
+  }
+
+  @GetMapping("/me/team/broker-accounts")
+  @PreAuthorize("isAuthenticated()")
+  @Operation(
+      summary = "Consultar las cuentas de broker de mi equipo",
+      description =
+          """
+          Devuelve, **paginadas**, las cuentas de broker de todas las personas
+          que dependen **directamente** del actor, **cada fila con su titular**.
+
+          **No hay identificador en la ruta y no lo habrá**: el conjunto de datos
+          lo determina el sistema a partir de quién pregunta. Quien deba ver las
+          cuentas de otra persona usa `GET /api/v1/users/{id}/broker-accounts`
+          con `broker-accounts:read`.
+
+          **No exige ningún permiso**, solo estar autenticado: el alcance lo pone
+          la estructura comercial (`RN-SP-046`). Quien **no tiene equipo** recibe
+          `200` con la página vacía, no `404` ni `403`.
+
+          **Un solo nivel**, el equipo directo. Las cuentas de quien depende de
+          un subordinado del actor **no aparecen**: devolver la rama completa
+          publicaría de una vez la estructura de la empresa.
+
+          **Es un listado de CUENTAS y no de personas.** Quien está en el equipo
+          y no declaró ninguna cuenta **no aparece**, y quien declaró dos aparece
+          **dos veces**. Quién hay en el equipo lo responde
+          `GET /api/v1/users/{id}/team`.
+
+          **Filtros, ambos opcionales y combinables con Y:**
+
+          - `status` — `REGISTER` o `FIRST_DEPOSIT`. **Cualquier otro valor es
+            `400`**, no una página vacía: una página vacía sería indistinguible
+            de «nadie está en ese estado».
+          - `brokerId` — un broker del catálogo. **Un identificador inexistente
+            devuelve la página vacía sin error**, al revés que `status`: es una
+            pregunta legítima con respuesta vacía.
+
+          `totalElements` **cuenta lo filtrado**.
+
+          **Hoy todas las cuentas están en `REGISTER`**, y no es un fallo de esta
+          consulta: quien mueve una cuenta a `FIRST_DEPOSIT` es el webhook del
+          broker, que todavía no existe. Mientras no exista, ninguna cuenta tiene
+          depósito confirmado.
+
+          **`brokerUsername` llega en nulo** mientras el broker no lo haya
+          confirmado, y el campo **está presente**: su nulo significa «aún no
+          confirmado», no «sin nombre».
+          """)
+  @ApiResponses({
+    @ApiResponse(
+        responseCode = "200",
+        description =
+            "Página de cuentas del equipo directo, ordenada por titular, broker e identificador"
+                + " de cuenta. Vacía si el actor no tiene equipo.",
+        content = @Content(schema = @Schema(implementation = PageResponse.class))),
+    @ApiResponse(
+        responseCode = "400",
+        description =
+            "`status` fuera de `REGISTER`/`FIRST_DEPOSIT` (`VAL-001`), `brokerId` malformado o"
+                + " paginación fuera de límites (`VAL-003`)",
+        content = @Content),
+    @ApiResponse(
+        responseCode = "401",
+        description = "Token ausente o inválido (`AUTH-001`)",
+        content = @Content),
+    @ApiResponse(
+        responseCode = "500",
+        description = "Fallo no controlado (`ERR-500`)",
+        content = @Content)
+  })
+  public PageResponse<TeamBrokerAccountItem> cuentasDeBrokerDelEquipo(
+      @Parameter(description = "Estado de la cuenta: `REGISTER` o `FIRST_DEPOSIT`.")
+          @RequestParam(required = false)
+          String status,
+      @Parameter(description = "Broker del catálogo. Uno inexistente devuelve la página vacía.")
+          @RequestParam(required = false)
+          UUID brokerId,
+      @RequestParam(required = false) Integer page,
+      @RequestParam(required = false) Integer size) {
+    return cuentasDelEquipo.ofMyTeam(status, brokerId, page, size);
+  }
+
+  // SIN @PreAuthorize A PROPÓSITO, y no es un olvido: la autorización de esta
+  // ruta no es una función del actor sino DEL PAR (actor, persona consultada)
+  // —el permiso, o ser su superior vigente—, y expresarla en SpEL metería una
+  // consulta a la base dentro de una anotación, donde no se prueba ni se
+  // depura. Vive en `GetBrokerAccountsService`. Consta así en
+  // `EndpointPermissionsIT`.
+  @GetMapping("/{id}/broker-accounts")
+  @Operation(
+      summary = "Consultar las cuentas de broker de una persona",
+      description =
+          """
+          Devuelve las cuentas de broker de esa persona: **broker, identificador
+          de cuenta, nombre de usuario en el broker y estado**, ordenadas por
+          nombre de broker e identificador de cuenta.
+
+          **Quién puede consultarlas** (`RN-SP-046`): **su superior comercial
+          vigente**, sin ningún permiso, o quien traiga **`broker-accounts:read`**
+          sobre cualquiera. Es la primera lectura del sistema cuyo alcance sale
+          de la estructura comercial, y **solo alcanza a esta**.
+
+          **Quien no es ninguna de las dos cosas recibe `404`, no `403`**, y es
+          deliberado: el mismo `404` que si la persona no existiera. Un `403`
+          dejaría a cualquier vendedor recorrer identificadores y averiguar
+          cuáles corresponden a personas reales. Los dos cuerpos son idénticos.
+
+          **Quien FUE su superior y ya no lo es recibe `404`**: el historial de
+          la estructura no concede lectura.
+
+          **El titular NO ve aquí sus propias cuentas** salvo que traiga el
+          permiso: esta lectura se definió sobre el equipo.
+
+          **Una persona sin cuentas devuelve `200` con la colección vacía**, no
+          `404`: solo el registro por un enlace de beca obliga a declararlas.
+
+          **Hoy el estado es siempre `REGISTER`**, y no es un fallo: quien mueve
+          una cuenta a `FIRST_DEPOSIT` es el webhook del broker, que todavía no
+          existe.
+
+          **`brokerUsername` llega en nulo** mientras el broker no lo haya
+          confirmado, y el campo **está presente**: su nulo significa «aún no
+          confirmado», no «sin nombre».
+
+          **No se pagina**: una persona tiene unas pocas cuentas. El listado
+          paginado es `GET /api/v1/users/me/team/broker-accounts`.
+          """)
+  @ApiResponses({
+    @ApiResponse(
+        responseCode = "200",
+        description = "Las cuentas de la persona, ordenadas. Vacía si no declaró ninguna.",
+        content = @Content(schema = @Schema(implementation = BrokerAccountsResponse.class))),
+    @ApiResponse(
+        responseCode = "400",
+        description = "Identificador malformado (`VAL-001`)",
+        content = @Content),
+    @ApiResponse(
+        responseCode = "401",
+        description = "Token ausente o inválido (`AUTH-001`)",
+        content = @Content),
+    @ApiResponse(
+        responseCode = "404",
+        description =
+            "La persona no existe, está eliminada, **o el actor no es su superior vigente ni"
+                + " posee `broker-accounts:read`** (`VAL-002`). Los tres casos responden lo"
+                + " mismo, a propósito.",
+        content = @Content),
+    @ApiResponse(
+        responseCode = "500",
+        description = "Fallo no controlado (`ERR-500`)",
+        content = @Content)
+  })
+  public BrokerAccountsResponse cuentasDeBrokerDe(@PathVariable UUID id) {
+    return cuentasDeBroker.of(id);
   }
 }

@@ -6,6 +6,8 @@
 | Especificación | [`spec.md`](spec.md) |
 | Estado | **Aprobado** |
 | Enmendado el | 09-09-2026 — **la cuenta de broker** (`RN-SP-042`) y **los tres catálogos públicos**, que cierran el bloqueo 6 |
+| Enmendado el | 09-09-2026 — **el movimiento del alta** (`RN-SP-043`) y **el camino de pago** (`RN-SP-044`): dos componentes nuevos, la segunda inversión de dirección de la tripleta y un sexto hecho en la transacción |
+| Enmendado el | 09-09-2026 — **mueren `product` y `referrer` del primer nivel**: el enlace viaja entero dentro de `movement`, y con el duplicado se van `VAL-016` y la mitad de `EX-010` |
 | Autor | Responsable técnico |
 | Aprobado por | Responsable del proyecto |
 | Fecha de aprobación | 01-09-2026 |
@@ -50,7 +52,7 @@ De ahí salen las tres decisiones del plan: **una sola transacción**, **límite
 |---|---|---|
 | `modules/system/users/application` | `RegistrableProductLookup` | **Puerto nuevo, declarado en `SP`**: el producto por código o identificador, con su destino, su vigencia y su estado |
 | `modules/products/domain/repository` | `PublishedProductCatalog` | **Lo implementa `PM`**, que es quien tiene el dato |
-| `modules/system/users/application` | `SelfRegistrationRequest` | Los seis datos de la persona más producto y vendedor |
+| `modules/system/users/application` | `SelfRegistrationRequest` | Los datos de la persona, sus cuentas de broker y el **bloque `movement`**, que desde el 09-09-2026 es también **de donde sale el enlace** — producto y vendedor |
 | `modules/system/users/domain/service` | `RegisterClientByLinkService` | El caso de uso, en una transacción |
 | `modules/system/users/domain/repository` | `UserRepository` | **Se reutiliza**: `assignSupervisor` ya existe para `RF-SP-041`, y colgar un cliente es la misma escritura |
 | `modules/system/users/domain/security` | `CommercialStructure` | **Gana la rama de consumidor** de `RN-SP-020`: hoy solo sabe resolver el rol vendedor de mayor rango, y un cliente no tiene ninguno |
@@ -60,6 +62,11 @@ De ahí salen las tres decisiones del plan: **una sola transacción**, **límite
 | `shared/security` | `SecurityConfig` | Una ruta pública más |
 | `modules/system/brokers/application` | `BrokerAccountRegistrar` | **Puerto nuevo**: declara la cuenta de broker de una persona. Lo implementa el submódulo de brokers, que es de quien es la tabla |
 | `shared/security/ratelimit` | — | La política del endpoint nuevo |
+| `modules/system/users/application` | `RegistrationSaleRegistrar` | **Puerto nuevo, declarado en `SP`**: la venta del alta. **Segunda inversión de dirección** de esta tripleta, por lo mismo que `RegistrableProductLookup` — `SP` es la raíz del grafo y no consume de nadie |
+| `modules/movements/domain/service` | `PublishedRegistrationSaleRegistrar` | **Lo implementa `MV`**, y **delega en `RegisterSaleService`**: no reimplementa la venta. Verifica el tipo y el vendedor (`EX-010`) |
+| `modules/movements/domain/service` | `RegisterSaleService` | Gana una entrada **de paquete** para la venta del alta, exenta de `RN-MV-008`. Todo lo demás es idéntico |
+| `modules/system/users/domain/models` | `User` | `selfRegister` recibe el **estado inicial**: ya no es siempre el mismo (`RN-SP-044`) |
+| `modules/system/memberships/application` | `MembershipCatalog` | **Se reutiliza**: `floor()` da la membresía del suelo, que es la que recibe el camino de pago |
 
 !!! danger "`puedeEntrar()` es la línea más delicada de este requerimiento"
 
@@ -75,8 +82,6 @@ De ahí salen las tres decisiones del plan: **una sola transacción**, **límite
 
 ```json
 {
-  "product": "UPGRADE_FREE",
-  "referrer": "agente.martinez",
   "firstName": "Ana", "lastName": "Ruiz",
   "username": "ana.ruiz", "email": "ana@ejemplo.com",
   "password": "…",
@@ -88,13 +93,19 @@ De ahí salen las tres decisiones del plan: **una sola transacción**, **límite
   "brokerAccounts": [
     { "brokerId": "01a081f0-6000-7101-9c4f-5e7adb000001", "accountId": "12345678" },
     { "brokerId": "01a081f0-6000-7102-9c4f-5e7adb000002", "accountId": "87654321" }
-  ]
+  ],
+  "movement": {
+    "productId": "01a06f2c-1800-7001-9c4f-5e7ad8000001",
+    "paymentMethodId": null,
+    "sellerUsername": "agente.martinez",
+    "movementTypeCode": "VENTA"
+  }
 }
 ```
 
 **Cuelga de `/auth` y no de `/users`.** Las seis rutas públicas del sistema viven ahí y esta es la séptima; colgarla de `/users` la pondría al lado de `POST /api/v1/users`, que exige `users:create` — dos altas de persona bajo el mismo recurso, una abierta y otra no, es la clase de vecindad que produce el `@PreAuthorize` olvidado.
 
-**`product` admite código o identificador en el mismo campo**, resuelto por forma: lo que parece un UUID se busca por identificador, lo demás por código. Es lo que ya hace el inicio de sesión con `identifier`, que acepta nombre de usuario o correo. Dos campos opcionales y excluyentes habrían obligado a validar que llega exactamente uno.
+**`product` y `referrer` DESAPARECIERON del primer nivel** (09-09-2026): decían lo mismo que `movement.productId` y `movement.sellerUsername`, y dos campos para un dato son dos valores que pueden discrepar. El enlace viaja **entero dentro de `movement`**, y con el duplicado se fueron las dos comprobaciones que lo vigilaban (`VAL-016` y la mitad de `EX-010`). **El producto pasa a ir por identificador**, como `brokerId` y por el mismo argumento: el formulario tiene que leer el producto antes de pintarse, de modo que ya lo tiene. `findRegistrable` **sigue admitiendo código o identificador** —resuelto por forma— porque la capacidad es del puerto y no de este cuerpo. Es lo que ya hace el inicio de sesión con `identifier`, que acepta nombre de usuario o correo. Dos campos opcionales y excluyentes habrían obligado a validar que llega exactamente uno.
 
 **`documentType` va por abreviación, como el país por código y el producto por el suyo**: los cuatro campos de referencia de este cuerpo evitan los UUID, porque es un formulario público al que no se le pide conocer identificadores internos.
 
@@ -107,7 +118,7 @@ De ahí salen las tres decisiones del plan: **una sola transacción**, **límite
 
 **`brokerId` va por IDENTIFICADOR y no por nombre**, y es el único campo de referencia de este cuerpo que lo hace. Los otros tres —producto, vendedor, país— evitan los UUID porque quien rellena el formulario los teclea o los trae el enlace; **el broker lo elige de un desplegable** que acaba de leer del catálogo público, de modo que el identificador ya lo tiene en la mano. Y es lo correcto por lo que el catálogo declara de sí mismo: **el nombre es su clave de negocio y renombrar un broker es una migración**, de modo que referenciarlo por nombre desde un formulario ataría el registro a una cadena que puede cambiar.
 
-**Es una LISTA y se exige AL MENOS UNA** cuando el producto del enlace es `FREE → FREE` (`RN-SP-042`): una persona puede operar con varios brokers, y este formulario es hoy la única vía para declararlos. **La comprobación se hace DESPUÉS de resolver el producto**, no en la validación del cuerpo: no cabe en una anotación porque depende de un dato que hay que ir a buscar.
+**Es una LISTA y se exige AL MENOS UNA** cuando el producto del enlace es `BECA → BECA` (`RN-SP-042`): una persona puede operar con varios brokers, y este formulario es hoy la única vía para declararlos. **La comprobación se hace DESPUÉS de resolver el producto**, no en la validación del cuerpo: no cabe en una anotación porque depende de un dato que hay que ir a buscar.
 
 **Las repetidas dentro de la misma petición se rechazan como dato inválido** y no con el `409` del índice, aunque el índice también las cazaría: ese mensaje dice «ya está declarada por otra persona», y ahí la otra persona sería ella misma dos líneas más arriba del mismo formulario.
 
@@ -123,7 +134,7 @@ La respuesta lleva la cuenta creada y **su estado**, y **no lleva credenciales d
 
 **Límite de tasa**, con la política que ya usa la recuperación de contraseña (`RF-SP-040`): por origen. Sin él, este endpoint crea usuarios en bucle. `RATE_LIMIT_EXCEEDED` ya existe en el catálogo de eventos, de modo que no hace falta migración.
 
-**Verificación al arrancar de que la membresía gratuita existe.** La decisión del responsable (01-09-2026) es identificarla por el código `FREE`, y el precedente para sostener una convención así ya está en el sistema: `CurrencyCatalogStartupCheck` comprueba al iniciar que hay una moneda por defecto activa. El equivalente aquí convierte «alguien renombró el nivel» en **un arranque que falla**, en lugar de en un registro que revienta en producción con un `500` que no dice nada.
+**Verificación al arrancar de que la membresía gratuita existe.** La decisión del responsable (01-09-2026) es identificarla por el código `BECA`, y el precedente para sostener una convención así ya está en el sistema: `CurrencyCatalogStartupCheck` comprueba al iniciar que hay una moneda por defecto activa. El equivalente aquí convierte «alguien renombró el nivel» en **un arranque que falla**, en lugar de en un registro que revienta en producción con un `500` que no dice nada.
 
 ## 6. Auditoría
 
@@ -138,10 +149,12 @@ La respuesta lleva la cuenta creada y **su estado**, y **no lleva credenciales d
 
 ## 7. Transaccionalidad
 
-**Una sola transacción** para los CINCO hechos: cuenta, rol, membresía, atribución y **cuenta de broker** (09-09-2026).
+**Una sola transacción** para los SEIS hechos: cuenta, rol, membresía, atribución, **cuenta de broker** y **la venta** (09-09-2026).
 
 No es una preferencia: **cualquier corte deja un estado que ninguna regla admite**. Una cuenta con rol de consumidor y sin membresía viola `RN-SP-018`; una con membresía y sin atribución es el cliente huérfano que `EX-002` existe para evitar. `CA-SP-519` lo verifica desde fuera — tras un rechazo, ninguna de las cuatro tablas tiene una fila nueva.
 **Y la cuenta de broker entra en la MISMA**, aunque su fallo llegue del motor y no de una regla: si el índice de `RN-SP-038` rechaza la cuenta —ya la declaró otro—, lo que no puede quedar es una persona registrada, con membresía y atribución, y sin la cuenta que su producto exigía. El estado `FTD_PENDIENTE` la dejaría esperando un depósito que nadie podría atribuirle.
+
+**Y la venta también, y es la ÚLTIMA que se ejecuta.** El orden importa: `RN-MV-003` saca el vendedor del superior del cliente y `RN-MV-007` mira la oferta de su membresía, de modo que la venta necesita la persona, su nivel y su atribución **ya escritos**. Y necesita estar dentro: **registrar a alguien cuya venta no se pudo anotar** y **anotar una venta de alguien que no existe** son los dos estados que esta transacción evita, y el segundo no lo evitaría ningún otro orden.
 
 
 La auditoría de seguridad va **después de confirmar**, como en el resto del sistema: un registro que sobreviviera al fallo afirmaría un alta que no ocurrió.
@@ -191,7 +204,7 @@ La auditoría de seguridad va **después de confirmar**, como en el resto del si
 |---|---|
 | Persistir el enlace como artefacto emitido, con caducidad y usos | Es la defensa correcta **si el enlace concede algo**, y no concede: el camino de pago pasa por pasarela y el gratuito produce una cuenta que no opera (`spec.md` §2). Queda como condición de reapertura en §14 |
 | «Sin depósito» como marca aparte del estado | Recomendada y **descartada por el responsable** (01-09-2026). Deja escrito su coste: `users.status` no puede expresar «sin depósito **y además** bloqueada», porque un solo eje vuelve excluyentes dos hechos que no lo son |
-| Una columna en `memberships` que diga cuál es la gratuita | Recomendada y **descartada por el responsable** a favor del código `FREE`. Se mitiga con la verificación al arrancar de §5 |
+| Una columna en `memberships` que diga cuál es la gratuita | Recomendada y **descartada por el responsable** a favor del código `BECA`. Se mitiga con la verificación al arrancar de §5 |
 | Devolver credenciales de sesión al registrar | Duplicaría la emisión de sesiones en dos requerimientos, y el segundo acabaría olvidando alguna regla del primero |
 | Un tipo de evento de auditoría propio | Una migración sobre el `CHECK` de `audit_security_log` para distinguir un **detalle** de un hecho que ya tiene tipo, y obligaría a que toda consulta de altas preguntara por dos |
 | Una tabla propia para la atribución (`client_referrals`) | **Propuesta y descartada por el responsable** (01-09-2026). El argumento a favor era formal —`RN-SP-020` exige un rol padre que un `CONSUMIDOR` no porta—, pero eso es un problema de la regla y no de la tabla. Con dos estructuras, subir de un cliente hasta el manager que cobra por él exige un join y **un caso especial en la hoja**, que es donde está el dinero y donde un caso especial se implementa mal |
@@ -203,7 +216,7 @@ La auditoría de seguridad va **después de confirmar**, como en el resto del si
 |---|---|---|
 | 1 | **`puedeEntrar()` se escribe en negativo** y todo estado futuro nace autenticando | Lista explícita de los que autentican, y prueba de que `INACTIVO` y `BLOQUEADO` siguen sin poder |
 | 2 | El endpoint público **crea usuarios en bucle** | Límite de tasa por origen desde la primera versión, no «después» |
-| 3 | La convención del código `FREE` se rompe al renombrar el nivel | Verificación al arrancar: falla el arranque, no el registro |
+| 3 | La convención del código `BECA` se rompe al renombrar el nivel | Verificación al arrancar: falla el arranque, no el registro |
 | 4 | Una transacción parcial deja un consumidor **sin membresía** | Una sola transacción, y `CA-SP-519` lo comprueba desde fuera tras un rechazo |
 | 5 | El renombrado del estado alcanza al **inicio de sesión de todo el sistema** | La suite de `SP` entera debe seguir en verde sin cambios; cualquier ajuste ahí es señal de que el cambio se coló donde no debía |
 | 6 | La atribución forjable ensucia la base de comisiones | Aceptado y declarado (`spec.md` §14), con su condición de reapertura escrita |
@@ -218,10 +231,11 @@ La auditoría de seguridad va **después de confirmar**, como en el resto del si
 | **El rechazo no deja nada escrito** | Integración | Contar las cuatro tablas antes y después de cada excepción |
 | **La persona registrada autentica** | API | Registro y luego `POST /auth/login`, con la cuenta en `FTD_PENDIENTE` |
 | **`INACTIVO` y `BLOQUEADO` siguen sin autenticar** | API | La prueba que impide que el riesgo 1 pase inadvertido |
-| Código e identificador dan el mismo resultado | API | El mismo producto por las dos vías |
+| ~~Código e identificador dan el mismo resultado~~ | — | **Retirada el 09-09-2026**: el cuerpo ya no nombra el producto por código |
+| El producto y el vendedor del movimiento son obligatorios | API | Sin `productId`, `VAL-001`; sin `sellerUsername`, `VAL-002` |
 | Los tres rechazos de producto comparten respuesta | API | Inexistente, inactivo y retirado, comparados entre sí |
 | La membresía de pago dice que exige pago | API | La asimetría deliberada con lo anterior |
 | Vigencia con y sin `validity_days` | Integración | Fecha de fin poblada y nula |
 | Unicidad bajo concurrencia | Integración | Dos registros simultáneos con el mismo nombre de usuario |
-| El arranque falla sin la membresía `FREE` | Integración | Contexto que no levanta |
+| El arranque falla sin la membresía `BECA` | Integración | Contexto que no levanta |
 | **La suite de `SP` sigue en verde sin tocarla** | Toda | Es lo que verifica el riesgo 5 |

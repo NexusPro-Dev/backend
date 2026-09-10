@@ -93,6 +93,19 @@ public class JpaUserQueryRepository implements UserQueryRepository {
               (UUID) fila.get("c_id"),
               ((String) fila.get("c_code")).trim(),
               (String) fila.get("c_name"),
+              // EL LISTADO NO PUBLICA EL DOCUMENTO NI EL CONTACTO, y es una
+              // decisión: buscar a alguien por su documento es una necesidad
+              // administrativa real que NADIE HA PEDIDO, y publicarlo en un
+              // listado paginado lo expone mucho más que devolverlo en un
+              // detalle. La condición para abrirlo está en `tasks.md` §4.sexies.
+              null,
+              null,
+              null,
+              null,
+              null,
+              null,
+              null,
+              null,
               (UUID) fila.get("m_id"),
               (String) fila.get("m_code"),
               (String) fila.get("m_name"),
@@ -162,12 +175,21 @@ public class JpaUserQueryRepository implements UserQueryRepository {
                        u.last_login_at AS last_login_at, u.locked_until AS locked_until,
                        u.created_at AS created_at, u.updated_at AS updated_at,
                        c.id AS c_id, c.code AS c_code, c.name AS c_name,
+                       dt.id AS d_id, dt.abbreviation AS d_abbr, dt.name AS d_name,
+                       u.document_number AS d_number, u.phone AS phone,
+                       u.address_line1 AS address1, u.address_line2 AS address2,
+                       u.city AS city,
                        m.id AS m_id, m.code AS m_code, m.name AS m_name, m.level AS m_level,
                        um.ends_at AS m_ends_at,
                        (um.user_id IS NOT NULL AND (um.ends_at IS NULL OR um.ends_at > now()))
                          AS m_current
                   FROM users u
                   JOIN countries c              ON c.id = u.country_id
+                  -- LEFT Y NO INTERNO: las personas anteriores a `V71` no tienen
+                  -- documento, y un JOIN interno las HARÍA DESAPARECER del
+                  -- detalle. No fallaría: ocultaría, que es el error más caro
+                  -- posible en la pantalla desde la que se administra.
+                  LEFT JOIN document_types dt   ON dt.id = u.document_type_id
                   LEFT JOIN user_memberships um ON um.user_id = u.id AND um.closed_at IS NULL
                   LEFT JOIN memberships m       ON m.id = um.membership_id
                  WHERE u.id = :id AND u.deleted_at IS NULL
@@ -194,6 +216,14 @@ public class JpaUserQueryRepository implements UserQueryRepository {
                     (UUID) fila.get("c_id"),
                     ((String) fila.get("c_code")).trim(),
                     (String) fila.get("c_name"),
+                    (UUID) fila.get("d_id"),
+                    (String) fila.get("d_abbr"),
+                    (String) fila.get("d_name"),
+                    (String) fila.get("d_number"),
+                    (String) fila.get("phone"),
+                    (String) fila.get("address1"),
+                    (String) fila.get("address2"),
+                    (String) fila.get("city"),
                     (UUID) fila.get("m_id"),
                     (String) fila.get("m_code"),
                     (String) fila.get("m_name"),

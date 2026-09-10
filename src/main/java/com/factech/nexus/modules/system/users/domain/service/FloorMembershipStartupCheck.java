@@ -8,7 +8,7 @@ import org.springframework.boot.ApplicationRunner;
 import org.springframework.stereotype.Component;
 
 /**
- * La membresía gratuita existe y se llama {@code FREE} (`RF-SP-045` · `T-10`, `CL-005`).
+ * La membresía gratuita existe y se llama {@code BECA} (`RF-SP-045` · `T-10`, `CL-005`).
  *
  * <h2>Por qué una comprobación al arrancar y no un {@code if} en el caso de uso</h2>
  *
@@ -27,16 +27,16 @@ import org.springframework.stereotype.Component;
  * implementar {@link ApplicationRunner}, no el paquete donde viva.
  */
 @Component
-public class FreeMembershipStartupCheck implements ApplicationRunner {
+public class FloorMembershipStartupCheck implements ApplicationRunner {
 
-  private static final Logger LOG = LoggerFactory.getLogger(FreeMembershipStartupCheck.class);
+  private static final Logger LOG = LoggerFactory.getLogger(FloorMembershipStartupCheck.class);
 
   /** El mismo literal que usa {@link RegisterClientByLinkService}. */
-  private static final String MEMBRESIA_GRATUITA = "FREE";
+  private static final String MEMBRESIA_GRATUITA = "BECA";
 
   private final MembershipCatalog membresias;
 
-  public FreeMembershipStartupCheck(MembershipCatalog membresias) {
+  public FloorMembershipStartupCheck(MembershipCatalog membresias) {
     this.membresias = membresias;
   }
 

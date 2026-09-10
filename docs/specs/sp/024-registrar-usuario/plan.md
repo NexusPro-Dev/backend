@@ -164,12 +164,12 @@ INSERT INTO user_memberships (id, user_id, membership_id, started_at, created_at
 SELECT <v7 desde now()>, u.id, m.id, now(), now(), now()
   FROM users u
   CROSS JOIN memberships m
- WHERE m.code = 'FREE'
+ WHERE m.code = 'BECA'
    AND NOT EXISTS (SELECT 1 FROM user_memberships um
                     WHERE um.user_id = u.id AND um.closed_at IS NULL);
 ```
 
-**Alcanza también a las personas eliminadas, y es deliberado.** `users` conserva la fila del borrado lógico, y dejarlas fuera obligaría a que toda consulta futura del invariante llevara `AND deleted_at IS NULL` — una excepción que se olvida. Darles `FREE` no les concede nada: una cuenta eliminada no autentica.
+**Alcanza también a las personas eliminadas, y es deliberado.** `users` conserva la fila del borrado lógico, y dejarlas fuera obligaría a que toda consulta futura del invariante llevara `AND deleted_at IS NULL` — una excepción que se olvida. Darles `BECA` no les concede nada: una cuenta eliminada no autentica.
 
 **Y alcanza al superadministrador sembrado en `V22`**, que hasta hoy no tenía membresía. No se corrige `V22` en el sitio: está aplicada, Flyway la valida por suma de comprobación y editarla haría fallar el arranque de toda base existente. Además, `V22` no **podría** hacerlo aunque se editara — las membresías no existen hasta `V46`.
 
@@ -177,7 +177,7 @@ SELECT <v7 desde now()>, u.id, m.id, now(), now(), now()
 |---|---|---|
 | — | Ninguna restricción nueva | **El invariante no es expresable en el esquema**, y conviene dejarlo escrito porque el Art. V.6 empuja a intentarlo: «toda fila de `users` tiene una abierta en `user_memberships`» es una comprobación **entre tablas** que ningún `CHECK` alcanza, y la clave foránea inversa no existe porque la fila de la membresía nace **después** que la persona. Lo sostienen este relleno y las tres operaciones que crean personas |
 
-**El suelo se resuelve por `code = 'FREE'` y no por la forma de la cadena.** `RN-SP-007` permite registrar una membresía **por debajo** de `FREE`, con lo que «la que no tiene padre» es un blanco móvil: registrar un nivel nuevo cambiaría en silencio con qué arranca la gente. El código no se mueve —`uq_memberships_code` lo hace único y `RN-SP-008` impide borrar la fila—, y `V46` la siembra en todos los entornos. **El precio queda escrito**: si alguien registra un nivel por debajo, el **suelo de la cadena** y el **nivel de arranque** dejan de ser el mismo.
+**El suelo se resuelve por `code = 'BECA'` y no por la forma de la cadena.** `RN-SP-007` permite registrar una membresía **por debajo** de `BECA`, con lo que «la que no tiene padre» es un blanco móvil: registrar un nivel nuevo cambiaría en silencio con qué arranca la gente. El código no se mueve —`uq_memberships_code` lo hace único y `RN-SP-008` impide borrar la fila—, y `V46` la siembra en todos los entornos. **El precio queda escrito**: si alguien registra un nivel por debajo, el **suelo de la cadena** y el **nivel de arranque** dejan de ser el mismo.
 
 ### 2.4 `V21__create_user_supervisors.sql`
 
@@ -253,9 +253,9 @@ Cinco decisiones:
 
 **Lo que esta migración NO hace, y hay que decirlo:** no toca `V18`, que está aplicada y validada por suma de comprobación. Mismo criterio que `V42` sobre `V16` y `V38` sobre `V13`.
 
-### 2.7 `V68__usuario_con_documento_y_contacto.sql` — enmienda del 08-09-2026
+### 2.7 `V71__usuario_con_documento_y_contacto.sql` — enmienda del 08-09-2026
 
-`RN-SP-035` y `RN-SP-037` añaden a `users` la identidad documental y los datos de contacto. **Depende de `V67`**, que crea `document_types` (`RF-SP-051` §2.1): la clave foránea apunta a una tabla que aquella migración siembra.
+`RN-SP-035` y `RN-SP-037` añaden a `users` la identidad documental y los datos de contacto. **Depende de `V70`**, que crea `document_types` (`RF-SP-051` §2.1): la clave foránea apunta a una tabla que aquella migración siembra.
 
 ```sql
 ALTER TABLE users

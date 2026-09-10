@@ -34,9 +34,9 @@ Se hereda entera la forma de [`RF-SP-019`](../019-consultar-monedas/plan.md): pr
 
 ## 2. Cambios de esquema
 
-Tres migraciones. `V66__seed_exchange_rates_permissions.sql` es la última comprometida.
+Tres migraciones. `V67__products_precio_publico.sql` es la última comprometida — y las mías se corrieron de `V67` a `V70` el mismo día, porque aquella se escribió primero. El número no se reserva anotándolo: se reserva escribiéndolo.
 
-### 2.1 `V67__create_document_types.sql`
+### 2.1 `V70__create_document_types.sql`
 
 ```sql
 CREATE TABLE document_types (
@@ -66,7 +66,7 @@ Cinco decisiones:
 - **`is_active` con `DEFAULT true`, y ninguna operación de la API lo escribe.** Existe porque **sin ella no hay retirada posible**: `fk_users_document_type` bloquea el borrado en cuanto una persona lo referencie, de modo que la alternativa no es «no tener la columna», es «no poder retirar nunca». Y **no es una columna dormida** de las que `RF-SP-024` §2 advierte: la lee esta misma consulta desde el primer día.
 - **Sin `deleted_at`.** Mismo criterio que `countries` y `currencies`: un tipo de documento no se elimina, se retira de la circulación.
 
-### 2.2 `V67`, segunda mitad — la siembra, que **es** la regla
+### 2.2 `V70`, segunda mitad — la siembra, que **es** la regla
 
 ```sql
 INSERT INTO document_types (id, abbreviation, name) VALUES
@@ -88,11 +88,11 @@ INSERT INTO document_types (id, abbreviation, name) VALUES
 
     **Y el límite queda declarado en lugar de fingirse:** `PA` y `NIT` **no prueban** mayoría de edad —un pasaporte lo tiene un niño—; están porque el negocio los admite como identificación. Lo que la lista compra es que **el camino barato para colar a un menor —declarar su tarjeta de identidad— no existe**. La prueba de verdad exige fecha de nacimiento, y la condición para registrarla está escrita en `spec.md` §14, pregunta 2.
 
-### 2.3 `V68__usuario_con_documento_y_contacto.sql`
+### 2.3 `V71__usuario_con_documento_y_contacto.sql`
 
-Las seis columnas de `users`. Se declara en su propia migración porque **no es de este requerimiento**: es de la enmienda a `RF-SP-024`, y allí está razonada. Se nombra aquí solo para fijar el orden — `V68` depende de `V67`, porque su clave foránea apunta a una tabla que la anterior crea.
+Las seis columnas de `users`. Se declara en su propia migración porque **no es de este requerimiento**: es de la enmienda a `RF-SP-024`, y allí está razonada. Se nombra aquí solo para fijar el orden — `V71` depende de `V70`, porque su clave foránea apunta a una tabla que la anterior crea.
 
-### 2.4 `V69__seed_document_types_permission.sql`
+### 2.4 `V72__seed_document_types_permission.sql`
 
 El permiso `document-types:read` con su UUID v7 literal, **y su asociación a `SUPERADMIN` y `ADMIN` en la misma migración**, con la guarda que aborta si falta alguna de las filas. Es el patrón de `V40`, `V45`, `V51`, `V60` y `V66`.
 

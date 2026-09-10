@@ -56,6 +56,35 @@ public class JpaExchangeRateRepository implements ExchangeRateRepository, Exchan
    */
   private static final String ESTADO_EXCLUSION = "23P01";
 
+  /**
+   * {@code 40P01} — <b>interbloqueo</b>, y es la MISMA carrera resuelta de otra forma.
+   *
+   * <h2>Por qué un solo {@code INSERT} puede producir un interbloqueo</h2>
+   *
+   * <p>Esta operación inserta <b>una fila y nada más</b> —no cierra la anterior, no actualiza
+   * nada—, de modo que el interbloqueo clásico de dos transacciones tomando dos candados en orden
+   * opuesto <b>no puede ocurrir aquí</b>. Lo que ocurre es propio de las restricciones {@code
+   * EXCLUDE}: PostgreSQL las comprueba con una <b>inserción especulativa</b>, y cuando encuentra
+   * una fila en conflicto de una transacción <b>todavía sin confirmar</b>, se queda <b>esperando a
+   * esa transacción</b>. Con dos altas simultáneas del mismo par, cada una acaba esperando a la
+   * otra — y el detector de interbloqueos mata a una.
+   *
+   * <p><b>Es la misma situación que {@link #ESTADO_EXCLUSION}</b>, y solo cambia quién la detecta:
+   * en un caso el conflicto se resuelve porque la otra ya confirmó, y en el otro porque ninguna ha
+   * confirmado todavía. Las dos significan **alguien llegó primero**, y por eso comparten
+   * respuesta.
+   *
+   * <p><b>Y por eso el {@code 409} es correcto y no un reintento disfrazado</b>: quien vuelva a
+   * intentarlo se topará con la verificación previa, porque para entonces la ganadora ya está
+   * confirmada. La respuesta que daría el reintento es exactamente esta.
+   *
+   * <p><b>Lo destapó una prueba intermitente</b>: `T-12` fallaba aproximadamente una de cada tres
+   * ejecuciones con un {@code 500}, y las otras dos pasaban porque la carrera se resolvía por el
+   * camino de {@code 23P01}. Es la clase de defecto que solo existe con dos peticiones a la vez y
+   * que además <b>no se manifiesta siempre</b>.
+   */
+  private static final String ESTADO_INTERBLOQUEO = "40P01";
+
   private final EntityManager em;
 
   public JpaExchangeRateRepository(EntityManager em) {
@@ -229,9 +258,14 @@ public class JpaExchangeRateRepository implements ExchangeRateRepository, Exchan
   /**
    * ¿Es la violación del no solapamiento?
    *
-   * <p><b>Se mira por dos vías, y la segunda es la que de verdad dispara</b>: el nombre de la
-   * restricción —que es lo que el proyecto exige— y, cuando Hibernate no lo da, el {@code SQLState}
-   * de exclusión. Ver {@link #ESTADO_EXCLUSION} para por qué no basta con el nombre.
+   * <p><b>Se mira por tres vías, y la primera casi nunca dispara</b>: el nombre de la restricción
+   * —que es lo que el proyecto exige— y, cuando Hibernate no lo da, dos {@code SQLState}: el de
+   * <b>exclusión</b> y el de <b>interbloqueo</b>. Ver {@link #ESTADO_EXCLUSION} para por qué no
+   * basta con el nombre, y {@link #ESTADO_INTERBLOQUEO} para por qué un solo {@code INSERT} puede
+   * acabar en un interbloqueo y por qué es la misma carrera.
+   *
+   * <p><b>Ninguna de las tres mira el texto del driver</b>, que es la regla del proyecto: el nombre
+   * y el estado son estructurales, y el estado es además estándar.
    */
   private static boolean esSolapamiento(Throwable fallo) {
     for (Throwable causa = fallo; causa != null; causa = causa.getCause()) {
@@ -240,7 +274,8 @@ public class JpaExchangeRateRepository implements ExchangeRateRepository, Exchan
         return true;
       }
       if (causa instanceof java.sql.SQLException sql
-          && ESTADO_EXCLUSION.equals(sql.getSQLState())) {
+          && (ESTADO_EXCLUSION.equals(sql.getSQLState())
+              || ESTADO_INTERBLOQUEO.equals(sql.getSQLState()))) {
         return true;
       }
     }

@@ -6,7 +6,7 @@
 --
 -- El motivo no es simetría con `RN-SP-010` —que deja las monedas fuera de la
 -- API porque son un catálogo estable— sino una NECESIDAD: el contenido de
--- `document_types` ES la validación de mayoría de edad (`V67`), de modo que un
+-- `document_types` ES la validación de mayoría de edad (`V70`), de modo que un
 -- `document-types:create` dejaría que cualquiera con ese permiso añadiera
 -- «Tarjeta de Identidad» y LA VALIDACIÓN DESAPARECERÍA sin cambiar ninguna
 -- regla, sin migración y sin que nadie lo notara.
@@ -20,7 +20,7 @@
 --
 -- IDENTIFICADOR LITERAL, no generado (Art. V.11). UUID v7 con marca de tiempo
 -- 2026-09-08T12:00:00Z (01a080e3-ae00), versión 7 y variante RFC 9562,
--- CONTINUANDO LA SERIE DE `V67` con el sufijo `5e7ad6`: aquella sembró del
+-- CONTINUANDO LA SERIE DE `V70` con el sufijo `5e7ad6`: aquella sembró del
 -- `...000001` al `...000004`, y este es el QUINTO.
 --
 -- SE ASOCIA A SUPERADMIN Y A ADMIN EN ESTA MISMA MIGRACIÓN, que `security.md`
@@ -86,7 +86,7 @@ BEGIN
 
     IF filas <> 2 THEN
         RAISE EXCEPTION
-            'V69: se esperaban 2 asociaciones de document-types:read y hay %. '
+            'V72: se esperaban 2 asociaciones de document-types:read y hay %. '
             'Sin la de ADMIN, ese rol no puede conceder lo que no tiene.', filas;
     END IF;
 END $$;

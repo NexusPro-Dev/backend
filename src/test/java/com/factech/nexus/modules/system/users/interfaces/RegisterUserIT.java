@@ -68,11 +68,11 @@ class RegisterUserIT extends IntegrationTestBase {
     jdbc.update("DELETE FROM user_memberships");
     jdbc.update("DELETE FROM user_roles WHERE user_id <> ?", SUPERADMIN);
     jdbc.update("DELETE FROM users WHERE id <> ?", SUPERADMIN);
-    // FREE SOBREVIVE AL BARRIDO desde el 05-09-2026: `RN-SP-018` da nivel a toda
+    // BECA SOBREVIVE AL BARRIDO desde el 05-09-2026: `RN-SP-018` da nivel a toda
     // persona y el alta lo resuelve por código, de modo que un catálogo vacío ya
     // no es un estado del que el sistema pueda salir. Borrarla aquí probaría algo
     // que `RN-SP-008` no deja ocurrir: la membresía sembrada no se elimina.
-    // BARRIDO TOTAL Y REPOSICIÓN, en ese orden: conservar FREE haría depender esta
+    // BARRIDO TOTAL Y REPOSICIÓN, en ese orden: conservar BECA haría depender esta
     // clase del ORDEN DE EJECUCIÓN — según quién haya corrido antes, la fila queda
     // colgando de VIP (`V47`) o suelta, y el barrido choca con `fk_memberships_parent`.
     jdbc.update("DELETE FROM memberships");
@@ -277,7 +277,7 @@ class RegisterUserIT extends IntegrationTestBase {
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(cuerpo("cliente", "cliente@factech.co", "\"" + consumidor + "\"")))
         .andExpect(status().isCreated())
-        .andExpect(jsonPath("$.membership.code").value("FREE"));
+        .andExpect(jsonPath("$.membership.code").value("BECA"));
   }
 
   @Test
@@ -285,14 +285,14 @@ class RegisterUserIT extends IntegrationTestBase {
   void elFuncionarioTambienNaceConNivel() throws Exception {
     // La recíproca de la prueba anterior, y la que más cambia: antes, indicar
     // membresía sin rol de consumidor era un `409`. Ahora ni siquiera hace falta
-    // indicarla — quien no es consumidor de nada tiene `FREE` igual.
+    // indicarla — quien no es consumidor de nada tiene `BECA` igual.
     mvc.perform(
             post("/api/v1/users")
                 .with(superadmin())
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(cuerpo("otro", "otro@factech.co", "\"" + ADMIN + "\"")))
         .andExpect(status().isCreated())
-        .andExpect(jsonPath("$.membership.code").value("FREE"));
+        .andExpect(jsonPath("$.membership.code").value("BECA"));
   }
 
   @Test
@@ -308,9 +308,10 @@ class RegisterUserIT extends IntegrationTestBase {
                 .content(
                     """
                     {"username":"cliente","email":"cliente@factech.co","firstName":"C","lastName":"L",
-                     "password":"%s","countryId":"%s","roleIds":["%s"],"membershipId":"%s"}
+                     "password":"%s","countryId":"%s","documentTypeId":"%s","documentNumber":"%s","phone":"+573001234567","roleIds":["%s"],"membershipId":"%s"}
                     """
-                        .formatted(CONTRASENA, COLOMBIA, consumidor, membresia)))
+                        .formatted(
+                            CONTRASENA, COLOMBIA, CEDULA, documentoNuevo(), consumidor, membresia)))
         .andExpect(status().isCreated())
         .andExpect(jsonPath("$.membership.code").value("ORO"));
 
@@ -354,9 +355,15 @@ class RegisterUserIT extends IntegrationTestBase {
                 .content(
                     """
                     {"username":"contable2","email":"contable2@factech.co","firstName":"C","lastName":"D",
-                     "password":"%s","countryId":"%s","roleIds":["%s"],"supervisorId":"%s"}
+                     "password":"%s","countryId":"%s","documentTypeId":"%s","documentNumber":"%s","phone":"+573001234567","roleIds":["%s"],"supervisorId":"%s"}
                     """
-                        .formatted(CONTRASENA, COLOMBIA, rolAcotado, SUPERADMIN)))
+                        .formatted(
+                            CONTRASENA,
+                            COLOMBIA,
+                            CEDULA,
+                            documentoNuevo(),
+                            rolAcotado,
+                            SUPERADMIN)))
         .andExpect(status().isConflict())
         .andExpect(jsonPath("$.errors[0].code").value("RN-SP-019"));
   }
@@ -555,9 +562,10 @@ class RegisterUserIT extends IntegrationTestBase {
                 .content(
                     """
                     {"username":"paisfantasma","email":"pf@factech.co","firstName":"P","lastName":"F",
-                     "password":"%s","countryId":"%s","roleIds":["%s"]}
+                     "password":"%s","countryId":"%s","documentTypeId":"%s","documentNumber":"%s","phone":"+573001234567","roleIds":["%s"]}
                     """
-                        .formatted(CONTRASENA, UUID.randomUUID(), rolAcotado)))
+                        .formatted(
+                            CONTRASENA, UUID.randomUUID(), CEDULA, documentoNuevo(), rolAcotado)))
         .andExpect(status().isUnprocessableEntity())
         .andExpect(jsonPath("$.errors[0].code").value("EX-009"))
         .andExpect(jsonPath("$.errors[0].field").value("countryId"));
@@ -578,9 +586,9 @@ class RegisterUserIT extends IntegrationTestBase {
                 .content(
                     """
                     {"username":"paisinactivo","email":"pi@factech.co","firstName":"P","lastName":"I",
-                     "password":"%s","countryId":"%s","roleIds":["%s"]}
+                     "password":"%s","countryId":"%s","documentTypeId":"%s","documentNumber":"%s","phone":"+573001234567","roleIds":["%s"]}
                     """
-                        .formatted(CONTRASENA, inactivo, rolAcotado)))
+                        .formatted(CONTRASENA, inactivo, CEDULA, documentoNuevo(), rolAcotado)))
         .andExpect(status().isConflict())
         .andExpect(jsonPath("$.errors[0].code").value("RN-SP-034"))
         .andExpect(jsonPath("$.errors[0].field").value("countryId"));
@@ -644,9 +652,9 @@ class RegisterUserIT extends IntegrationTestBase {
         .content(
             """
             {"username":"%s","email":"%s","firstName":"Juan","lastName":"Pérez",
-             "password":"%s","countryId":"%s","roleIds":["%s"]}
+             "password":"%s","countryId":"%s","documentTypeId":"%s","documentNumber":"%s","phone":"+573001234567","roleIds":["%s"]}
             """
-                .formatted(username, email, contrasena, COLOMBIA, rol));
+                .formatted(username, email, contrasena, COLOMBIA, CEDULA, documentoNuevo(), rol));
   }
 
   private MockHttpServletRequestBuilder altaConSuperior(
@@ -657,17 +665,25 @@ class RegisterUserIT extends IntegrationTestBase {
         .content(
             """
             {"username":"%s","email":"%s","firstName":"A","lastName":"B",
-             "password":"%s","countryId":"%s","roleIds":["%s"],"supervisorId":"%s"}
+             "password":"%s","countryId":"%s","documentTypeId":"%s","documentNumber":"%s","phone":"+573001234567","roleIds":["%s"],"supervisorId":"%s"}
             """
-                .formatted(username, email, CONTRASENA, COLOMBIA, rol, superior));
+                .formatted(
+                    username,
+                    email,
+                    CONTRASENA,
+                    COLOMBIA,
+                    CEDULA,
+                    documentoNuevo(),
+                    rol,
+                    superior));
   }
 
   private static String cuerpo(String username, String email, String roles) {
     return """
         {"username":"%s","email":"%s","firstName":"A","lastName":"B",
-         "password":"%s","countryId":"%s","roleIds":[%s]}
+         "password":"%s","countryId":"%s","documentTypeId":"%s","documentNumber":"%s","phone":"+573001234567","roleIds":[%s]}
         """
-        .formatted(username, email, CONTRASENA, COLOMBIA, roles);
+        .formatted(username, email, CONTRASENA, COLOMBIA, CEDULA, documentoNuevo(), roles);
   }
 
   /** Crea una persona directamente en la base, para usarla como actor o como superior. */
@@ -705,7 +721,7 @@ class RegisterUserIT extends IntegrationTestBase {
     jdbc.update(
         """
         INSERT INTO memberships (id, code, name, parent_membership_id, level, color)
-        VALUES (?, 'ORO', 'Oro', (SELECT id FROM memberships WHERE code = 'FREE'), 2, 'D4AF37')
+        VALUES (?, 'ORO', 'Oro', (SELECT id FROM memberships WHERE code = 'BECA'), 2, 'D4AF37')
         """,
         id);
     return id.toString();

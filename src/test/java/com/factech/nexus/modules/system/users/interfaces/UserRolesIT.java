@@ -76,11 +76,11 @@ class UserRolesIT extends IntegrationTestBase {
     jdbc.update(
         "DELETE FROM role_permissions WHERE role_id IN (SELECT id FROM roles WHERE is_system = false)");
     jdbc.update("DELETE FROM roles WHERE is_system = false");
-    // FREE SOBREVIVE AL BARRIDO desde el 05-09-2026: `RN-SP-018` da nivel a toda
+    // BECA SOBREVIVE AL BARRIDO desde el 05-09-2026: `RN-SP-018` da nivel a toda
     // persona y el alta lo resuelve por código, de modo que un catálogo vacío ya
     // no es un estado del que el sistema pueda salir. Borrarla aquí probaría algo
     // que `RN-SP-008` no deja ocurrir: la membresía sembrada no se elimina.
-    // BARRIDO TOTAL Y REPOSICIÓN, en ese orden: conservar FREE haría depender esta
+    // BARRIDO TOTAL Y REPOSICIÓN, en ese orden: conservar BECA haría depender esta
     // clase del ORDEN DE EJECUCIÓN — según quién haya corrido antes, la fila queda
     // colgando de VIP (`V47`) o suelta, y el barrido choca con `fk_memberships_parent`.
     jdbc.update("DELETE FROM memberships");
@@ -115,7 +115,7 @@ class UserRolesIT extends IntegrationTestBase {
         // distinguirse de «este endpoint no lo informa». LA MEMBRESÍA ya no puede
         // ser nula desde el 05-09-2026 —toda persona tiene nivel—, de modo que lo
         // que se fija aquí es que viaje, y que sea el suelo.
-        .andExpect(jsonPath("$.membership.code").value("FREE"))
+        .andExpect(jsonPath("$.membership.code").value("BECA"))
         .andExpect(jsonPath("$.supervisor").value(org.hamcrest.Matchers.nullValue()));
 
     assertThat(rolesDe(persona)).containsExactly(rolAcotado);
@@ -288,7 +288,7 @@ class UserRolesIT extends IntegrationTestBase {
     // y exigirlo otra vez aquí sería pedir lo que ya está.
     mvc.perform(asignar(persona, consumidor))
         .andExpect(status().isOk())
-        .andExpect(jsonPath("$.membership.code").value("FREE"));
+        .andExpect(jsonPath("$.membership.code").value("BECA"));
   }
 
   @Test
@@ -550,7 +550,7 @@ class UserRolesIT extends IntegrationTestBase {
     assertThat(rolesDe(persona)).isEmpty();
 
     // LA MEMBRESÍA YA NO ENTRA EN ESTA TRANSACCIÓN, y por eso lo que se
-    // comprueba es que sigue siendo LA DEL ALTA: la persona conserva su `FREE`
+    // comprueba es que sigue siendo LA DEL ALTA: la persona conserva su `BECA`
     // pase lo que pase con los roles. Antes se exigía cero filas, porque la
     // operación podía escribirla y el fallo tenía que revertirla.
     String nivel =
@@ -559,7 +559,7 @@ class UserRolesIT extends IntegrationTestBase {
                 + " WHERE um.user_id = ? AND um.closed_at IS NULL",
             String.class,
             persona);
-    assertThat(nivel).isEqualTo("FREE");
+    assertThat(nivel).isEqualTo("BECA");
   }
 
   @Test
@@ -989,7 +989,7 @@ class UserRolesIT extends IntegrationTestBase {
     UUID id = UUID.randomUUID();
     jdbc.update(
         "INSERT INTO memberships (id, code, name, parent_membership_id, level, color)"
-            + " VALUES (?, 'ORO', 'Oro', (SELECT id FROM memberships WHERE code = 'FREE'), 2,"
+            + " VALUES (?, 'ORO', 'Oro', (SELECT id FROM memberships WHERE code = 'BECA'), 2,"
             + " 'D4AF37')",
         id);
     return id.toString();

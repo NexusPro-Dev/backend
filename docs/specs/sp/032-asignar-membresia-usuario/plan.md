@@ -14,11 +14,11 @@
 
 !!! warning "Enmendado el 05-09-2026 — `EX-001` desaparece"
 
-    `RN-SP-013` queda **retirada** (`requirements/sp.md` v1.36.0): asignar una membresía **ya no exige** que la persona porte ningún rol `CONSUMIDOR`. Con `RN-SP-018` reescrita —toda persona tiene nivel— esa exigencia se contradecía con la regla que la sustituye: el superadministrador tiene `FREE` y no es consumidor de nada.
+    `RN-SP-013` queda **retirada** (`requirements/sp.md` v1.36.0): asignar una membresía **ya no exige** que la persona porte ningún rol `CONSUMIDOR`. Con `RN-SP-018` reescrita —toda persona tiene nivel— esa exigencia se contradecía con la regla que la sustituye: el superadministrador tiene `BECA` y no es consumidor de nada.
 
     **`EX-001` sale del contrato de esta operación**, con su `409` y su mensaje. Lo que queda es más corto de lo que parece: comprobar que la persona existe, que la membresía existe y que la vigencia es futura.
 
-    **`FA-001` cambia de significado sin cambiar de texto.** Decía «primera membresía», y ese caso **ya no ocurre**: cuando llega esta petición la persona siempre tiene una abierta, aunque sea `FREE`. Toda invocación es ahora una sustitución o una corrección de fecha — los dos caminos que §2 declara.
+    **`FA-001` cambia de significado sin cambiar de texto.** Decía «primera membresía», y ese caso **ya no ocurre**: cuando llega esta petición la persona siempre tiene una abierta, aunque sea `BECA`. Toda invocación es ahora una sustitución o una corrección de fecha — los dos caminos que §2 declara.
 
 ## 1. Enfoque
 

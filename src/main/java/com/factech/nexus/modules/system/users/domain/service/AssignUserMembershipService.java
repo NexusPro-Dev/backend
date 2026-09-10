@@ -123,7 +123,7 @@ public class AssignUserMembershipService {
     // 4. `EX-001` SE RETIRÓ EL 05-09-2026, con `RN-SP-013`. Exigía que la
     //    persona portara algún rol de consumidor, y esa exigencia se contradice
     //    con la regla que la sustituye: `RN-SP-018` reescrita da nivel a TODA
-    //    persona, y el superadministrador tiene `FREE` sin ser consumidor de
+    //    persona, y el superadministrador tiene `BECA` sin ser consumidor de
     //    nada. La numeración de los pasos no se recoloca: `spec.md` los cita.
 
     Optional<UserMembership> anterior = usuarios.findMembership(userId);

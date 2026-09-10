@@ -95,7 +95,7 @@ class ListProductsServiceIT extends IntegrationTestBase {
   @DisplayName("`T-05` — y sigue costando lo mismo con los seis filtros puestos a la vez")
   void dosSentenciasConTodosLosFiltros() {
     UUID destino = membresia("ORO", "Oro", 1);
-    UUID origen = membresia("FREE", "Free", 2, destino);
+    UUID origen = membresia("BECA", "Beca", 2, destino);
     sembrar(5);
     jdbc.update(
         "UPDATE products SET type = 'UPGRADE_MEMBRESIA',"

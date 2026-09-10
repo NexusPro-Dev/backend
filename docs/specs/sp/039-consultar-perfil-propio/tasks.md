@@ -127,7 +127,7 @@ Y el <b>recorrido completo</b>, que ninguno de los tres requerimientos verifica 
 
 **Lo que sí es de este requerimiento**: el contacto se publica aquí **para que `RF-SP-044` pueda precargarse**. Sin él, quien quisiera cambiar solo su ciudad tendría que reescribir de memoria el resto del formulario.
 
-Y la simetría con lo de ayer conviene verla: `country` **no puede** llegar nulo y `document` **sí**. Los dos viajan en la misma respuesta con inclusión `NON_NULL`, y en el primero un nulo sería una violación de integridad mientras que en el segundo es la verdad sobre una persona anterior a `V68`.
+Y la simetría con lo de ayer conviene verla: `country` **no puede** llegar nulo y `document` **sí**. Los dos viajan en la misma respuesta con inclusión `NON_NULL`, y en el primero un nulo sería una violación de integridad mientras que en el segundo es la verdad sobre una persona anterior a `V71`.
 
 ## 5. Definición de terminado
 

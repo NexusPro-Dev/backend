@@ -27,10 +27,11 @@ import org.springframework.test.web.servlet.request.RequestPostProcessor;
 /**
  * Registrar una venta (`RF-MV-001` · `T-15`).
  *
- * <p>Cubre los criterios de `spec.md` §12 salvo <b>`CA-MV-008`</b>, que no se puede escribir: el
- * estado {@code FTD_PENDIENTE} no existe todavía —lo estrena `RF-SP-045`, que no tiene una línea de
- * código— y {@code ck_users_status} lo rechazaría. La rama que lo comprueba <b>sí está escrita</b>
- * en {@code RegisterSaleService}; lo que falta es el dato que la alcance.
+ * <p>Cubre los criterios de `spec.md` §12, <b>`CA-MV-008` incluido desde el 09-09-2026</b>. Hasta
+ * entonces era el único que no se podía escribir: el estado {@code FTD_PENDIENTE} no existía —lo
+ * estrenaba `RF-SP-045`, que no tenía una línea de código— y {@code ck_users_status} lo rechazaba.
+ * `V77` lo admite y el registro por enlace lo produce, de modo que la rama dejó de ser
+ * inalcanzable.
  *
  * <h2>El catálogo y la estructura se siembran POR LA BASE</h2>
  *
@@ -40,7 +41,7 @@ import org.springframework.test.web.servlet.request.RequestPostProcessor;
  *
  * <h2>La cadena es la que fijó `V47`: 1 es la CIMA</h2>
  *
- * <p>{@code ORO(1) > PLATINO(2) > VIP(3) > FREE(4)}. Subir es ir a un número <b>menor</b>.
+ * <p>{@code ORO(1) > PLATINO(2) > VIP(3) > BECA(4)}. Subir es ir a un número <b>menor</b>.
  */
 @AutoConfigureMockMvc
 class RegisterSaleIT extends IntegrationTestBase {
@@ -102,7 +103,7 @@ class RegisterSaleIT extends IntegrationTestBase {
     // que cada prueba quiere ejercitar. Es un SALTO, que `RN-PM-018` admite.
     upgrade("VTA_UP_ORO", "Ascenso a Oro", free, oro, "100.00", 365, "ACTIVO", false);
 
-    // Lleva a FREE, que es el nivel que el cliente YA tiene: la oferta no lo
+    // Lleva a BECA, que es el nivel que el cliente YA tiene: la oferta no lo
     // incluye —su ORIGEN es `sotano`, no `free`—, y es lo que hace verificable
     // `EX-004` de punta a punta. La mitad de `CA-MV-011` que se comprueba aquí
     // dejó de ser «el mismo nivel» el 07-09-2026: eso es una RENOVACIÓN y se
@@ -316,6 +317,27 @@ class RegisterSaleIT extends IntegrationTestBase {
   }
 
   @Test
+  @DisplayName("CA-MV-008: a una cuenta FTD_PENDIENTE no se le vende, y el mensaje dice qué falta")
+  void clienteQueNoPuedeOperar() throws Exception {
+    // ESTA PRUEBA NO SE PODÍA ESCRIBIR HASTA EL 09-09-2026, y `tasks.md` §4 lo
+    // dejó anotado: `ck_users_status` no admitía `FTD_PENDIENTE` y ningún camino
+    // lo producía. `V77` lo admite y `RF-SP-045` lo produce, de modo que la
+    // única rama inalcanzable de este servicio dejó de serlo.
+    jdbc.update("UPDATE users SET status = 'FTD_PENDIENTE' WHERE id = ?::uuid", cliente.toString());
+
+    mvc.perform(venta(cliente, TARJETA, linea(botSenales, 1)))
+        .andExpect(status().isConflict())
+        .andExpect(jsonPath("$.errors[0].code").value("EX-002"))
+        // Dice QUÉ LE FALTA y no solo que no se puede: la salida es confirmar el
+        // depósito, no reintentar.
+        .andExpect(
+            jsonPath("$.errors[0].message")
+                .value(org.hamcrest.Matchers.containsString("depósito")));
+
+    assertThat(jdbc.queryForObject("SELECT count(*) FROM movements", Integer.class)).isZero();
+  }
+
+  @Test
   @DisplayName("CA-MV-017: sin vendedor la venta SE REGISTRA, sin atribución y sin error")
   void compraSinVendedor() throws Exception {
     // INVERTIDO EL 04-09-2026. Hasta entonces esto devolvía `409 EX-003`, con
@@ -393,7 +415,7 @@ class RegisterSaleIT extends IntegrationTestBase {
   @Test
   @DisplayName("CA-MV-011: un upgrade que no sube de nivel se rechaza AL REGISTRAR")
   void elUpgradeQueNoSube() throws Exception {
-    // Lleva a FREE, que es el nivel que el cliente ya tiene.
+    // Lleva a BECA, que es el nivel que el cliente ya tiene.
     //
     // HOY LO RECHAZA `EX-004` Y NO `EX-005`, y no es un defecto: la oferta de
     // `RF-PM-007` ya excluye lo que no sube, de modo que la petición no llega a

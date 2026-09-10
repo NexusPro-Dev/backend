@@ -55,6 +55,14 @@ public interface UserQueryRepository {
       UUID countryId,
       String countryCode,
       String countryName,
+      UUID documentTypeId,
+      String documentTypeAbbreviation,
+      String documentTypeName,
+      String documentNumber,
+      String phone,
+      String addressLine1,
+      String addressLine2,
+      String city,
       UUID membershipId,
       String membershipCode,
       String membershipName,
@@ -75,6 +83,16 @@ public interface UserQueryRepository {
      */
     public boolean tienePais() {
       return countryId != null;
+    }
+
+    /**
+     * ¿Tiene documento? <b>Y aquí sí hace falta preguntarlo</b>, al contrario que con el país.
+     *
+     * <p>Las personas registradas antes de `V71` no lo tienen, y el esquema lo admite a propósito:
+     * inventarles un número sería escribir algo falso sobre su identidad (`RN-SP-035`).
+     */
+    public boolean tieneDocumento() {
+      return documentTypeId != null;
     }
   }
 

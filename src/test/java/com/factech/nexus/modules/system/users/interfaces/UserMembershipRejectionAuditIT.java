@@ -82,7 +82,7 @@ class UserMembershipRejectionAuditIT extends IntegrationTestBase {
     jdbc.update(
         "INSERT INTO memberships (id, code, name, level, parent_membership_id, color)"
             + " VALUES (?, 'BASICA', 'Basica', 2,"
-            + " (SELECT id FROM memberships WHERE code = 'FREE'), '1234AB')",
+            + " (SELECT id FROM memberships WHERE code = 'BECA'), '1234AB')",
         membresia);
   }
 
@@ -197,7 +197,7 @@ class UserMembershipRejectionAuditIT extends IntegrationTestBase {
     jdbc.update("DELETE FROM users WHERE id <> ?", SUPERADMIN);
     // La cadena de membresías también: esta clase crea su primer eslabón, y sin
     // barrerlo la segunda prueba choca contra `uq_memberships_code`.
-    // BARRIDO TOTAL Y REPOSICIÓN, en ese orden: conservar FREE haría depender esta
+    // BARRIDO TOTAL Y REPOSICIÓN, en ese orden: conservar BECA haría depender esta
     // clase del ORDEN DE EJECUCIÓN — según quién haya corrido antes, la fila queda
     // colgando de VIP (`V47`) o suelta, y el barrido choca con `fk_memberships_parent`.
     jdbc.update("DELETE FROM memberships");

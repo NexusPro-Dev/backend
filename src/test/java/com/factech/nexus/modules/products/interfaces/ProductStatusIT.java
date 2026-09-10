@@ -52,7 +52,7 @@ class ProductStatusIT extends IntegrationTestBase {
     oro = membresia("ORO", "Oro", 1);
     plata = membresia("PLATA", "Plata", 2, oro);
     // El SUELO de la cadena: el origen de todo upgrade que se siembre aqui.
-    free = membresia("FREE", "Free", 3, plata);
+    free = membresia("BECA", "Beca", 3, plata);
   }
 
   @AfterEach

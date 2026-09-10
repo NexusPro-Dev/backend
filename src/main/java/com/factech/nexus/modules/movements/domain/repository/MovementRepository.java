@@ -61,6 +61,16 @@ public interface MovementRepository {
   Optional<PaymentMethodView> findPaymentMethod(UUID id);
 
   /**
+   * El método por su <b>código</b>, para resolver el pago gratuito (`RN-MV-022`).
+   *
+   * <p>Por código y no por identificador porque <b>nadie puede aportar ese identificador</b>: el
+   * catálogo de `RF-MV-009` no publica lo `INTERNO` (`RN-MV-023`), de modo que el caso de uso lo
+   * resuelve por la convención que `V78` siembra — mismo criterio que {@code
+   * MembershipCatalog.floor()} con `BECA`.
+   */
+  Optional<PaymentMethodView> findPaymentMethodByCode(String code);
+
+  /**
    * Los métodos de pago <b>activos</b>, cada uno con los países en los que no vale (`RF-MV-009`).
    *
    * <p><b>Solo los activos.</b> Quien consume esto pinta un selector, y un elemento que no se puede
@@ -105,7 +115,15 @@ public interface MovementRepository {
   record ExcludedCountryView(UUID id, String code) {}
 
   /** El método de pago, con la marca que `RN-MV-018` obliga a mirar al vender. */
-  record PaymentMethodView(UUID id, String code, String name, boolean active) {}
+  /**
+   * Un método de pago ya elegido o ya asignado.
+   *
+   * <p><b>Lleva la visibilidad aunque esta lectura no filtre por ella</b>: quien la consume es el
+   * registro de una venta, y `RN-MV-022` necesita saber si el método es el gratuito para rechazarlo
+   * en una venta con importe. El catálogo de `RF-MV-009` sí filtra, y lo hace en su propia
+   * consulta.
+   */
+  record PaymentMethodView(UUID id, String code, String name, boolean active, String visibility) {}
 
   // ---------------------------------------------------------------------------
   // `RF-MV-008` — los movimientos propios

@@ -10,6 +10,7 @@
 | Rama | `feature/tasas-de-cambio` |
 | Autor | Responsable técnico |
 | Enmendadas | 08-09-2026 — `T-04` y `plan.md` §3 y §10: la traducción del `EXCLUDE` necesita el `SQLState` `23P01`, porque Hibernate no da el nombre de la restricción en una violación de exclusión. Lo destapó `T-12` |
+| Enmendadas | 09-09-2026 — `T-04` otra vez: la traducción necesita **también** el `SQLState` `40P01`, el del **interbloqueo**. Es la MISMA carrera resuelta de otra forma —dos inserciones especulativas contra el `EXCLUDE` esperándose la una a la otra— y hasta ahora daba `500`. Lo destapó `T-12` **por segunda vez**, y esta fallando **una de cada tres ejecuciones** |
 
 ---
 
@@ -29,6 +30,7 @@
 | `T-10` | **Prueba del borde exacto de `'[]'`**: una tasa que termina el día **antes** de que empiece la otra se admite; una que termina **el mismo día** se rechaza | `T-01` | `CA-SP-539`. Es la única que distingue `'[]'` de `'[)'`, y sin ella el error pasaría | **Hecha el 08-09-2026** |
 | `T-11` | **Prueba de la escala de punta a punta**: `0,00024096` se envía, se guarda y se lee sin redondear | `T-08` | `CA-SP-535`, leyendo de la base y no solo de la respuesta | **Hecha el 08-09-2026** |
 | `T-12` | Prueba concurrente: **dos altas simultáneas del mismo par y periodo** | `T-08` | Una queda y la otra recibe `409`. **No basta la verificación previa**: la garantía es el `EXCLUDE` | **Hecha el 08-09-2026** |
+| `T-12.bis` | **Que la carrera dé `409` también cuando el motor la resuelve como INTERBLOQUEO** (09-09-2026) | `T-12` | El `EXCLUDE` se comprueba con una **inserción especulativa** que espera a la transacción en conflicto; con dos altas a la vez, cada una espera a la otra y PostgreSQL mata a una con `40P01`. Es la misma situación que `23P01` —**alguien llegó primero**— y merece la misma respuesta. **`T-12` no lo veía siempre**: fallaba una de cada tres, y las otras dos la carrera se resolvía por `23P01` | **Hecha el 09-09-2026** |
 | `T-13` | Documentación OpenAPI del endpoint, con los seis campos y los estados `400`, `403`, `409` y `422` | `T-09` | `OpenApiContractIT` regenera el contrato y declara el endpoint. **La prosa dice que `validTo` nulo es vitalicia y que la inversa no se deduce** | **Hecha el 07-09-2026** |
 | `T-14` | Ampliar las cuatro listas cerradas del catálogo de permisos: `PermissionsSeedIT`, `PermissionIT`, `JpaPermissionQueryRepositoryIT` y `ListPermissionsServiceIT` | `T-02` | Las cuatro cuentan **cuarenta y dos**. Esa fricción es deliberada: un permiso que aparezca sin que nadie toque esas listas es uno que nadie revisó | **Hecha el 07-09-2026** |
 | `T-15` | Actualizar la matriz de `docs/requirements.md` | `T-09` | La fila de `RF-SP-047` refleja el estado | **Hecha el 08-09-2026** |

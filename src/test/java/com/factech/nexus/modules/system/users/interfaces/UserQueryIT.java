@@ -55,7 +55,7 @@ class UserQueryIT extends IntegrationTestBase {
     jdbc.update(
         "DELETE FROM role_permissions WHERE role_id IN (SELECT id FROM roles WHERE is_system = false)");
     jdbc.update("DELETE FROM roles WHERE is_system = false");
-    // BARRIDO TOTAL Y REPOSICIÓN, en ese orden: conservar FREE haría depender esta
+    // BARRIDO TOTAL Y REPOSICIÓN, en ese orden: conservar BECA haría depender esta
     // clase del ORDEN DE EJECUCIÓN — según quién haya corrido antes, la fila queda
     // colgando de VIP (`V47`) o suelta, y el barrido choca con `fk_memberships_parent`.
     jdbc.update("DELETE FROM memberships");
@@ -604,7 +604,7 @@ class UserQueryIT extends IntegrationTestBase {
     UUID id = UUID.randomUUID();
     jdbc.update(
         "INSERT INTO memberships (id, code, name, parent_membership_id, level, color)"
-            + " VALUES (?, 'ORO', 'Oro', (SELECT id FROM memberships WHERE code = 'FREE'), 2,"
+            + " VALUES (?, 'ORO', 'Oro', (SELECT id FROM memberships WHERE code = 'BECA'), 2,"
             + " 'D4AF37')",
         id);
     return id.toString();

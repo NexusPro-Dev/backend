@@ -159,7 +159,7 @@ BEGIN
     SELECT count(*) INTO activos FROM document_types WHERE is_active;
     IF activos = 0 THEN
         RAISE EXCEPTION
-            'V67: el catálogo de tipos de documento quedó vacío. Sin al menos uno activo, '
+            'V70: el catálogo de tipos de documento quedó vacío. Sin al menos uno activo, '
             'RN-SP-035 hace irrealizable el alta de personas.';
     END IF;
 
@@ -169,7 +169,7 @@ BEGIN
 
     IF menores IS NOT NULL THEN
         RAISE EXCEPTION
-            'V67: el catálogo contiene documentos de MENOR de edad (%). Ese catálogo ES la '
+            'V70: el catálogo contiene documentos de MENOR de edad (%). Ese catálogo ES la '
             'validación de RN-SP-035: añadirlos la desactiva para todo el sistema.', menores;
     END IF;
 END $$;

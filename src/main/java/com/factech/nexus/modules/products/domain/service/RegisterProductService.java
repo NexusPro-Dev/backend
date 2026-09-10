@@ -220,7 +220,7 @@ public class RegisterProductService {
    * conoce —ni debe—, y un {@code CHECK} tampoco puede consultarla. Es el mismo reparto que
    * `RN-PM-007` hace con los decimales de la moneda.
    *
-   * <p><b>La cadena numera desde la cima</b> (`V47`): `ORO` es 1 y `FREE` es 4, de modo que «el
+   * <p><b>La cadena numera desde la cima</b> (`V47`): `ORO` es 1 y `BECA` es 4, de modo que «el
    * origen está por debajo del destino» se escribe con el {@code level} del origen <b>mayor</b>.
    * Leerlo al revés es el error fácil de esta comprobación, y no fallaría de forma visible —
    * aceptaría exactamente los descensos que la regla existe para rechazar.

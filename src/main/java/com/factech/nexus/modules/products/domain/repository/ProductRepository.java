@@ -83,7 +83,7 @@ public interface ProductRepository {
    * accionable—, no para garantizarlo: entre esta lectura y la escritura cabe otra transacción. La
    * garantía la da el índice único parcial, y este predicado tiene que mirar exactamente lo mismo
    * que él —la pareja completa, no solo el destino—, porque desde el 02-09-2026 la unicidad dejó de
-   * ser por destino: `FREE → ORO` y `VIP → ORO` son parejas distintas y las dos pueden estar
+   * ser por destino: `BECA → ORO` y `VIP → ORO` son parejas distintas y las dos pueden estar
    * activas a la vez.
    *
    * @param excluido el producto que se está activando, que no debe contarse a sí mismo

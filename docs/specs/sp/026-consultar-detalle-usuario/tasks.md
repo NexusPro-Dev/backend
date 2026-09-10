@@ -145,7 +145,7 @@ graph LR
 
 **La tarea no se duplica aquí.** Es `T-57` de [`../024-registrar-usuario/tasks.md`](../024-registrar-usuario/tasks.md) §4.sexies.
 
-**Lo que sí es decisión de este requerimiento** y queda en `plan.md` §4: el tipo de documento se resuelve con un **`LEFT JOIN` y no con uno interno**. Puede faltar —las personas anteriores a `V68` no tienen documento—, y un `JOIN` interno **haría desaparecer del detalle** a toda persona sin él. No fallaría: ocultaría, que es el error más caro posible en la pantalla desde la que se administra.
+**Lo que sí es decisión de este requerimiento** y queda en `plan.md` §4: el tipo de documento se resuelve con un **`LEFT JOIN` y no con uno interno**. Puede faltar —las personas anteriores a `V71` no tienen documento—, y un `JOIN` interno **haría desaparecer del detalle** a toda persona sin él. No fallaría: ocultaría, que es el error más caro posible en la pantalla desde la que se administra.
 
 ## 5. Definición de terminado
 

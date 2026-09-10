@@ -37,6 +37,12 @@ import java.util.UUID;
  *       creado una segunda fuente del mismo dato.
  * </ul>
  *
+ * <p><b>{@code document} puede ser nulo y {@code country} no</b>, y la diferencia es información:
+ * las personas registradas antes del 08-09-2026 no tienen documento, y esta pantalla es donde esa
+ * ausencia <b>se ve</b> — quien administra la usa para saber a quién hay que completar. Por eso el
+ * tipo se resuelve con un {@code LEFT JOIN} y no con uno interno: un {@code JOIN} interno haría
+ * <b>desaparecer del detalle</b> a toda persona sin documento, y eso no falla, oculta.
+ *
  * <p><b>{@code lockedUntil} nulo significa dos cosas distintas, y eso es información:</b> la cuenta
  * no está bloqueada, o lo está <b>por decisión de un actor</b> y por tanto sin expiración. El
  * estado desambigua — {@code BLOQUEADO} con {@code lockedUntil} nulo es un bloqueo manual, que no
@@ -53,6 +59,8 @@ public record UserDetailResponse(
     List<RoleRef> roles,
     List<String> effectivePermissions,
     CountryRef country,
+    UserResponse.DocumentRef document,
+    UserResponse.ContactRef contact,
     MembershipRef membership,
     OffsetDateTime lastLoginAt,
     OffsetDateTime lockedUntil,

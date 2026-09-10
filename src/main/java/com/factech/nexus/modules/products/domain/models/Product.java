@@ -107,7 +107,7 @@ public class Product {
    * El precio que <b>se cobra</b> (`RN-PM-023`).
    *
    * <p><b>Admite cero desde el 08-09-2026</b> (`RN-PM-006`, `V67`). Lo que tumbó el «mayor que
-   * cero» no fue el precio público sino la <b>renovación</b>: un {@code FREE → FREE} es un producto
+   * cero» no fue el precio público sino la <b>renovación</b>: un {@code BECA → BECA} es un producto
    * legítimo que vale eso, y prohibirlo obligaba a inventarle un céntimo.
    */
   @Column(name = "price", nullable = false, precision = 14, scale = 4)

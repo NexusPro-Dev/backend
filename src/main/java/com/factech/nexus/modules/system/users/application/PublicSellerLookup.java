@@ -32,13 +32,13 @@ public interface PublicSellerLookup {
    * El IDENTIFICADOR del vendedor, para colgar de él a quien se registra (`RF-SP-045`).
    *
    * <p><b>Aplica exactamente la misma regla que { #findSellerByUsername}</b> —existe, no está
-   * eliminado y porta un rol de tipo { VENDEDOR}—, y por eso vive aquí y no en una consulta
-   * propia del registro: la definición de «fuerza comercial» no puede existir en dos sitios, porque
-   * el segundo se queda atrás sin que nada falle.
+   * eliminado y porta un rol de tipo { VENDEDOR}—, y por eso vive aquí y no en una consulta propia
+   * del registro: la definición de «fuerza comercial» no puede existir en dos sitios, porque el
+   * segundo se queda atrás sin que nada falle.
    *
-   * <p><b>El hotlink NO lo llama, y eso no lo contradice</b>: aquel no publica el identificador en su
-   * respuesta, que es una decisión sobre lo que sale por una ruta pública. Esto es un dato interno
-   * que nunca se serializa.
+   * <p><b>El hotlink NO lo llama, y eso no lo contradice</b>: aquel no publica el identificador en
+   * su respuesta, que es una decisión sobre lo que sale por una ruta pública. Esto es un dato
+   * interno que nunca se serializa.
    */
   Optional<UUID> sellerIdByUsername(String username);
 

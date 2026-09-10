@@ -3,6 +3,7 @@ package com.factech.nexus.modules.system.users.domain.service;
 import com.factech.nexus.modules.system.users.application.UserResponse;
 import com.factech.nexus.modules.system.users.domain.models.User;
 import com.factech.nexus.modules.system.users.domain.repository.AssignableCountry;
+import com.factech.nexus.modules.system.users.domain.repository.AssignableDocumentType;
 import com.factech.nexus.modules.system.users.domain.repository.AssignableRole;
 import com.factech.nexus.modules.system.users.domain.repository.UserRepository;
 import java.util.Comparator;
@@ -35,6 +36,7 @@ final class UserResponses {
       List<AssignableRole> roles,
       UserRepository usuarios,
       AssignableCountry paises,
+      AssignableDocumentType documentos,
       UUID userId) {
     return UserResponse.from(
         usuario,
@@ -46,6 +48,26 @@ final class UserResponses {
             .find(usuario.getCountryId())
             .map(pais -> new UserResponse.CountryRef(pais.id(), pais.code(), pais.name()))
             .orElse(null),
+        // NULO CUANDO LA PERSONA NO TIENE DOCUMENTO, que es el estado legítimo
+        // de quien se registró antes de `V71`. Es la diferencia con el país,
+        // que nunca puede faltar.
+        usuario.getDocumentTypeId() == null
+            ? null
+            : documentos
+                .find(usuario.getDocumentTypeId())
+                .map(
+                    tipo ->
+                        new UserResponse.DocumentRef(
+                            new UserResponse.DocumentTypeRef(
+                                tipo.id(), tipo.abbreviation(), tipo.name()),
+                            usuario.getDocumentNumber()))
+                .orElse(null),
+        // El contacto SIEMPRE presente, aunque sus cuatro campos vengan nulos.
+        new UserResponse.ContactRef(
+            usuario.getPhone(),
+            usuario.getAddressLine1(),
+            usuario.getAddressLine2(),
+            usuario.getCity()),
         usuarios
             .findMembership(userId)
             .map(

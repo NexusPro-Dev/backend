@@ -644,7 +644,7 @@ class ProductTest {
     assertThatCode(() -> conPrecios(BigDecimal.ZERO, BigDecimal.ZERO)).doesNotThrowAnyException();
 
     // Hasta el 08-09-2026 esto era imposible, y lo que lo hizo posible no fue el
-    // precio público sino la renovación: un `FREE → FREE` vale cero.
+    // precio público sino la renovación: un `BECA → BECA` vale cero.
     assertThat(conPrecios(BigDecimal.ZERO, null).getDisplayPrice()).isEqualByComparingTo("0");
   }
 

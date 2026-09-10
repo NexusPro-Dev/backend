@@ -14,6 +14,7 @@ import com.factech.nexus.modules.system.roles.domain.models.RoleType;
 import com.factech.nexus.modules.system.users.application.AssignRolesRequest;
 import com.factech.nexus.modules.system.users.domain.models.User;
 import com.factech.nexus.modules.system.users.domain.repository.AssignableCountry;
+import com.factech.nexus.modules.system.users.domain.repository.AssignableDocumentType;
 import com.factech.nexus.modules.system.users.domain.repository.AssignableRole;
 import com.factech.nexus.modules.system.users.domain.repository.RoleCatalog;
 import com.factech.nexus.modules.system.users.domain.repository.UserRepository;
@@ -73,6 +74,10 @@ class AssignUserRolesOrderTest {
   // ya haya ocurrido. El doble está para poder construir el servicio.
   private final AssignableCountry paises = mock(AssignableCountry.class);
 
+  // Tampoco participa en ningun orden: el documento entra al componer la
+  // respuesta, despues de todo lo que esta prueba verifica.
+  private final AssignableDocumentType documentos = mock(AssignableDocumentType.class);
+
   private final AssignUserRolesService servicio =
       new AssignUserRolesService(
           usuarios,
@@ -82,6 +87,7 @@ class AssignUserRolesOrderTest {
           auditoria,
           ids,
           paises,
+          documentos,
           Clock.fixed(Instant.parse("2026-08-27T10:00:00Z"), ZoneOffset.UTC));
 
   @Nested

@@ -13,11 +13,11 @@ import org.springframework.transaction.annotation.Transactional;
  * Adaptador del catálogo de tipos de documento.
  *
  * <p><b>Una sola sentencia y sin agregado por medio</b>, igual que el catálogo de países y el de
- * monedas: lo que se devuelve es una proyección, y cargar entidades para leer cuatro filas es
- * pagar un mapeo que nadie usa.
+ * monedas: lo que se devuelve es una proyección, y cargar entidades para leer cuatro filas es pagar
+ * un mapeo que nadie usa.
  *
  * <p><b>El orden lo decide la columna y no la consulta.</b> {@code name} está declarada con la
- * intercalación {@code es-x-icu} (`V67`), de modo que un {@code ORDER BY name} corriente ordena
+ * intercalación {@code es-x-icu} (`V70`), de modo que un {@code ORDER BY name} corriente ordena
  * bien los acentos. Sin ella, «Ñ» y cualquier vocal acentuada caerían al final y el desplegable
  * parecería roto.
  */

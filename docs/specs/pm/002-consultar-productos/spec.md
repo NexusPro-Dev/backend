@@ -70,7 +70,7 @@ Con `RF-PM-001` se puede **crear** un producto y no **verlo**: quien administra 
 | Tipo | No | Filtra por upgrade o por bot | Uno de los dos valores admitidos |
 | Estado | No | Filtra por activo o inactivo | Uno de los valores admitidos |
 | Membresía destino | No | Filtra los upgrades que **llevan** a ese nivel | Un destino que no existe devuelve una colección vacía, no un error |
-| Membresía de origen | No | Filtra los upgrades que **salen** de ese nivel | Igual. Es la pregunta «qué puede comprar quien está en `FREE`» hecha desde administración, y **no sustituye a `RF-PM-007`**: aquella responde sobre quien llama y esta sobre cualquiera |
+| Membresía de origen | No | Filtra los upgrades que **salen** de ese nivel | Igual. Es la pregunta «qué puede comprar quien está en `BECA`» hecha desde administración, y **no sustituye a `RF-PM-007`**: aquella responde sobre quien llama y esta sobre cualquiera |
 | Alcance | No | Filtra por hasta dónde se muestra el producto | Uno de los valores admitidos. **Es el único sitio donde este dato se consulta hoy**: `RF-PM-007` no lo filtra y el canal de hotlinks no existe todavía |
 | Implementación | No | Filtra por si lo comprado se aplica solo o espera autorización | Uno de los valores admitidos |
 | Búsqueda | No | Coincidencia parcial sobre el nombre | En blanco equivale a ausente |

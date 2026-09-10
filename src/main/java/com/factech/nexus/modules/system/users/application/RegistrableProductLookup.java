@@ -45,7 +45,7 @@ public interface RegistrableProductLookup {
    * @param upgrade si es un producto de tipo upgrade. Un bot no declara membresía destino, y sin
    *     ella la cuenta violaría `RN-SP-018` en el instante de nacer (`EX-003`)
    * @param sourceMembershipCode el código de la membresía <b>de origen</b>, que es lo que permite
-   *     saber si el enlace es un `FREE → FREE` y por tanto si exige cuenta de broker (`RN-SP-042`)
+   *     saber si el enlace es un `BECA → BECA` y por tanto si exige cuenta de broker (`RN-SP-042`)
    * @param validityDays días de vigencia de la membresía que concede, o {@code null} si no caduca
    */
   record RegistrableProductView(

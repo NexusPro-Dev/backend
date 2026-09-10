@@ -36,10 +36,18 @@ import java.util.UUID;
  *     código del comprobante</b> (`RN-MV-016`). Por omisión, ahora. No puede estar en el futuro
  *     (`VAL-007`), porque una venta que aún no ha ocurrido no es un hecho; el pasado remoto sí se
  *     admite, que es justo lo que hace falta para registrar lo que ya ocurrió
+ * @param paymentMethodId <b>condicional en los dos sentidos</b> desde el 09-09-2026 (`RN-MV-022`):
+ *     <b>prohibido</b> si el importe total es cero —esa venta se registra con el pago gratuito, que
+ *     asigna el sistema— y <b>obligatorio</b> si tiene importe. Es la forma que `RN-SP-019` usa
+ *     para el superior comercial, y por el mismo motivo: indicar uno sin el otro no significa nada.
+ *     <p><b>Ya no lleva {@code @NotNull}</b>, y esa ausencia no es un relajamiento: la exigencia se
+ *     mudó al caso de uso porque <b>depende del importe</b>, y el importe no se conoce mirando el
+ *     cuerpo. Bean Validation no puede expresar «obligatorio salvo que la suma de las líneas sea
+ *     cero».
  */
 public record RegisterSaleRequest(
     @NotNull(message = "VAL-001: El cliente de la venta es obligatorio.") UUID clientId,
-    @NotNull(message = "VAL-002: El método de pago es obligatorio.") UUID paymentMethodId,
+    UUID paymentMethodId,
     @NotEmpty(message = "VAL-003: Una venta debe llevar al menos un producto.") @Valid
         List<Line> lines,
     OffsetDateTime occurredAt) {

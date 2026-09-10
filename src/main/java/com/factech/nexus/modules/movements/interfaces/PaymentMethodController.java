@@ -32,11 +32,33 @@ public class PaymentMethodController {
     this.catalogo = catalogo;
   }
 
+  // SIN @PreAuthorize, y desde el 09-09-2026 tampoco hace falta token: la ruta
+  // es PÚBLICA (`RN-MV-024`, ver `SecurityConfig.CATALOGOS_PUBLICOS`). Lo que
+  // sostiene que abrirla no publique nada es el predicado de la consulta —los
+  // dos ejes, `is_active` y `visibility`—, no este filtro.
   @Operation(
       summary = "Consultar los métodos de pago",
       description =
           """
-          Devuelve los métodos de pago **activos**, sin paginar y ordenados por código.
+          Devuelve los métodos de pago **activos y de visibilidad `PUBLICO`**, sin
+          paginar y ordenados por código.
+
+          **Es una consulta PÚBLICA** (`RN-MV-024`): responde **sin token**, porque
+          el formulario de registro por enlace elige con qué se paga antes de que
+          exista la cuenta. **Con sesión devuelve exactamente lo mismo** — no hay
+          un catálogo para el anónimo y otro para quien ha entrado, y no existe
+          parámetro que cambie lo que sale.
+
+          **Lo que NO devuelve, y no hay forma de pedirlo**: ni los métodos
+          desactivados —un método retirado no se puede usar en una venta nueva— ni
+          los de visibilidad `INTERNO` (`RN-MV-023`). Estos últimos **sirven para
+          pagar y no los elige ninguna persona**: los pone el sistema. Es el caso
+          de `GRATIS`, con el que se anotan las ventas de importe cero
+          (`RN-MV-022`): quien depure una de esas verá un `paymentMethodId` que
+          **este catálogo no resuelve**, y eso es deliberado.
+
+          **La respuesta no publica el campo de visibilidad.** Si todo lo que sale
+          es `PUBLICO`, declararlo sugeriría que puede salir otra cosa.
 
           **`excludedCountries` dice dónde NO vale cada medio.** Una lista vacía
           significa que vale en todos los países, y el campo **viaja siempre**:
@@ -51,15 +73,20 @@ public class PaymentMethodController {
           **No admite parámetros**, y en particular no admite un país: filtrar aquí
           haría creer que el servidor sabe cuál corresponde.
 
-          **No exige permiso**, solo estar autenticado. `movements:read` gobierna ver
-          ventas y hoy está reservado al superadministrador; exigirlo aquí dejaría sin
-          métodos de pago a la pantalla de compra propia, que no pide ningún permiso.
+          **Está acotada por origen** —120 peticiones por minuto, con cubo propio—,
+          como los demás catálogos públicos: superar la cota responde `429`.
           """)
   @ApiResponses({
-    @ApiResponse(responseCode = "200", description = "El catálogo de métodos de pago activos."),
     @ApiResponse(
-        responseCode = "401",
-        description = "Sin token.",
+        responseCode = "200",
+        description =
+            "El catálogo de métodos de pago activos y públicos. Se responde igual con token y"
+                + " sin él."),
+    @ApiResponse(
+        responseCode = "429",
+        description =
+            "Se superó la cota de peticiones por origen (120 por minuto). La cabecera"
+                + " `Retry-After` dice cuánto esperar.",
         content = @io.swagger.v3.oas.annotations.media.Content())
   })
   @GetMapping

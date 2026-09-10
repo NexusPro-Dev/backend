@@ -59,7 +59,7 @@ class ProductListIT extends IntegrationTestBase {
     oro = membresia("ORO", "Oro", 1, null);
     plata = membresia("PLATA", "Plata", 2, oro);
     // El SUELO de la cadena: el origen de todo upgrade que se siembre aqui.
-    free = membresia("FREE", "Free", 3, plata);
+    free = membresia("BECA", "Beca", 3, plata);
 
     // Cinco productos, cada uno una hora después del anterior: el orden de alta
     // queda determinado y las pruebas de orden pueden afirmar cuál va primero.

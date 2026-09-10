@@ -123,7 +123,7 @@ paths:
       description: |
         **Devuelve al nivel de arranque, y no deja a nadie sin nivel.** Desde el
         05-09-2026 `RN-SP-018` exige que **toda** persona tenga membresía, de
-        modo que esta operación cierra la que tenga y le abre una `FREE`.
+        modo que esta operación cierra la que tenga y le abre una `BECA`.
 
         Existe para **corregir un nivel concedido por error**. Bajar a alguien a
         un nivel intermedio es la operación de membresía, que admite indicar
@@ -297,7 +297,7 @@ paths:
         envían; enviarlos devuelve `400`.
         **`membershipId` es OPCIONAL, y el superior es condicional.** Desde el
         05-09-2026 toda persona nace con nivel: si no se indica ninguno, se le
-        concede el de arranque (`FREE`). Ya no hay rechazo por indicarlo sin rol
+        concede el de arranque (`BECA`). Ya no hay rechazo por indicarlo sin rol
         de consumidor ni por omitirlo teniéndolo — esa exigencia murió con
         `RN-SP-013`.
 
@@ -1980,21 +1980,28 @@ paths:
         que un vendedor reparte. Es el **primer endpoint público del sistema
         que escribe**.
 
-        El enlace lleva dos datos y **ninguno es un secreto**: el producto —por
-        su código o su identificador, en el mismo campo— y el vendedor, por su
-        **nombre de usuario**. Los cuatro campos de referencia de este cuerpo
-        evitan los UUID —producto, vendedor, `countryCode` alfa-3 y
-        `documentType` por abreviación— porque es un formulario público al que
-        no se le puede pedir que conozca los identificadores del sistema. La
-        excepción es el broker de cada cuenta, que se elige de un desplegable
-        leído del catálogo público de brokers.
+        El enlace lleva dos datos y **ninguno es un secreto**: el producto y el
+        vendedor. **Los dos viajan dentro de `movement`** (`productId` y
+        `sellerUsername`) y no en el primer nivel: hasta el 09-09-2026 estaban
+        además duplicados como `product` y `referrer`, y dos campos para un
+        dato son dos valores que pueden discrepar.
+
+        `countryCode` va en alfa-3 y `documentType` por abreviación, porque es
+        un formulario público al que no se le puede pedir que conozca los
+        identificadores del sistema. Los que sí son UUID son los de lo que el
+        formulario **acaba de leer de un catálogo**: el broker de cada cuenta y
+        el producto.
+
+        **El registro anota una venta** (`RN-SP-043`), siempre — también en el
+        enlace gratuito. Nace `PENDIENTE`, de modo que registrarse **no paga
+        nada**, y su código se devuelve en `sale`.
 
         **`brokerAccounts` es una LISTA: se declaran UNA O MÁS cuentas** en el
         mismo registro, porque una persona puede operar con varios brokers y
         esta es hoy la única vía para declararlos.
 
         **Es obligatoria —al menos una— cuando el producto del enlace es una
-        membresía `FREE → FREE`** (`RN-SP-042`), y solo entonces. El motivo es
+        membresía `BECA → BECA`** (`RN-SP-042`), y solo entonces. El motivo es
         el estado en el que nace la cuenta: sin cuenta de broker declarada,
         nadie podrá atribuirle el depósito que la saca de `FTD_PENDIENTE`. Con
         otro producto **se admiten igualmente** las que se envíen.
@@ -2006,9 +2013,13 @@ paths:
         y no con el `409` del índice: ese mensaje diría «ya está declarada por
         otra persona», y la otra persona sería ella misma.
 
-        **La cuenta nace en `FTD_PENDIENTE`**, que **autentica y no opera**:
-        quien se registra puede iniciar sesión y ver lo suyo, y lo que le falta
-        para operar es el primer depósito.
+        **El estado en que nace la cuenta depende del producto**
+        (`RN-SP-044`). Con un enlace `BECA → BECA` nace en `FTD_PENDIENTE`, que
+        **autentica y no opera**: quien se registra puede iniciar sesión y ver
+        lo suyo, y lo que le falta para operar es el primer depósito. Con un
+        producto **de pago** nace **`ACTIVO`** —no hay ningún depósito que
+        esperar— y recibe la membresía **del suelo**, no la comprada: esa la
+        concede **confirmar la venta**, y no registrarse.
 
         **La contraseña la elige la persona**, y por eso la cuenta **no** queda
         marcada para cambio obligatorio — se marca lo que fijó otro, no lo que
@@ -2018,14 +2029,13 @@ paths:
         sesión. Quien acaba de crear su cuenta pasa por el inicio de sesión
         como todo el mundo.
 
-        **Los rechazos no dicen qué pasó, salvo tres.** Producto inexistente,
+        **Los rechazos no dicen qué pasó, salvo dos.** Producto inexistente,
         inactivo o retirado comparten respuesta, y lo mismo el vendedor que no
         existe y el que no es fuerza comercial: distinguirlos convertiría este
         endpoint en una forma de enumerar el catálogo y la plantilla. **Sí
         dicen** cuál de las dos identidades —nombre de usuario o correo— está
-        en uso, que el producto exige pago, y que la cuenta de broker ya está
-        declarada por otra persona: los tres los necesita quien se registra
-        para poder corregir.
+        en uso, y que la cuenta de broker ya está declarada por otra persona:
+        los dos los necesita quien se registra para poder corregir.
       operationId: registrar_8
       requestBody:
         content:
@@ -2035,7 +2045,8 @@ paths:
         required: true
       responses:
         "201":
-          description: "Cuenta creada, en estado `FTD_PENDIENTE`"
+          description: "Cuenta creada —`FTD_PENDIENTE` con el enlace gratuito, `ACTIVO`\
+            \ con uno de pago— y venta anotada en estado `PENDIENTE`"
           content:
             '*/*':
               schema:
@@ -2047,15 +2058,16 @@ paths:
               schema:
                 $ref: "#/components/schemas/SelfRegistrationResponse"
         "409":
-          description: "Nombre de usuario o correo en uso (`EX-005`), o cuenta de\
-            \ broker ya declarada (`EX-009`)"
+          description: "Nombre de usuario o correo en uso (`EX-005`), cuenta de broker\
+            \ ya declarada (`EX-009`), o la venta no procede — método de pago en una\
+            \ venta gratuita, o ausente en una con importe (`RN-MV-022`)"
           content:
             '*/*':
               schema:
                 $ref: "#/components/schemas/SelfRegistrationResponse"
         "422":
           description: "El enlace no procede (`EX-001`, `EX-002`, `EX-003`, `EX-006`,\
-            \ `EX-007`, `EX-008`) o el producto exige pago (`EX-004`)"
+            \ `EX-007`, `EX-008`) o el movimiento no procede (`EX-010`)"
           content:
             '*/*':
               schema:
@@ -3516,18 +3528,35 @@ paths:
         Devolver la rama completa publicaría de una vez la estructura de la
         empresa por un permiso de lectura de usuarios.
 
-        **Sin filtros.** El listado general de usuarios ya filtra; replicar esa
-        semántica sobre un subconjunto que cabe en una o dos páginas obligaría
-        a mantener dos filtrados sincronizados sin responder nada nuevo.
+        **Cada persona lleva `roles`: TODOS los que porta**, con `id`, `code`
+        y `name`, ordenados por código y **presentes aunque la lista vaya
+        vacía**. Es el mismo objeto que devuelve `GET /api/v1/users` en cada
+        fila. **Sustituye a `roleCode`** (10-09-2026), que traía uno solo y
+        únicamente si era de la fuerza comercial: la cartera de clientes
+        llegaba con el rol en nulo y era indistinguible de un vendedor sin rol.
+
+        **`roles` es además el único filtro**, y acota **el equipo**. Se pasan
+        **códigos**, varios admitidos —`?roles=AGENTE,CLIENTE` o repitiendo el
+        parámetro—, y entra quien porte **alguno** de ellos. `totalElements`
+        **cuenta lo filtrado**. Un código que no existe devuelve el equipo
+        vacío con `200`, **no un error**: es el mismo criterio que el filtro
+        por rol de `GET /api/v1/users`.
+
+        **El filtro NO toca al superior ni a la persona consultada.** Los dos
+        se devuelven igual aunque no porten ninguno de los roles pedidos, y eso
+        es contrato: `supervisor` va **ausente**, no en nulo, **solo** cuando
+        la persona es la cúspide comercial, que es lo que distingue «no depende
+        de nadie» de «no se pudo resolver».
+
+        **Ningún otro filtro.** Ni búsqueda por nombre, ni estado, ni país: el
+        listado general de usuarios ya los tiene, y replicarlos aquí obligaría
+        a mantener dos semánticas sincronizadas.
 
         **Sin historial de superiores.**
 
-        `supervisor` va **ausente**, no en nulo, cuando la persona es la cúspide
-        comercial: es lo que distingue «no depende de nadie» de «no se pudo
-        resolver».
-
         Quien no pertenece a la fuerza comercial recibe `200` con la estructura
-        vacía, no `404` ni `409`.
+        vacía, no `404` ni `409` — **con sus roles a la vista**: no tener
+        estructura comercial no es no tener roles.
 
         **El alcance es global** mientras la decisión D-22 siga abierta: quien
         posea el permiso ve el equipo de cualquiera, no solo el suyo.
@@ -3536,6 +3565,171 @@ paths:
       - name: id
         in: path
         required: true
+        schema:
+          type: string
+          format: uuid
+      - name: roles
+        in: query
+        description: "Códigos de rol que acotan el equipo. Varios admitidos, con semá\
+          ntica O."
+        required: false
+        schema:
+          type: array
+          items:
+            type: string
+      - name: page
+        in: query
+        required: false
+        schema:
+          type: integer
+          format: int32
+      - name: size
+        in: query
+        required: false
+        schema:
+          type: integer
+          format: int32
+      responses:
+        "200":
+          description: "La estructura, con el equipo paginado y los roles de cada\
+            \ persona. El filtro por roles acota el equipo y su total, nunca al superior."
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/CommercialStructureResponse"
+        "400":
+          description: Identificador malformado o paginación fuera de límites (`VAL-003`)
+        "401":
+          description: Token ausente o inválido (`AUTH-001`)
+        "403":
+          description: Autenticado sin `users:read` (`AUTH-002`)
+        "404":
+          description: La persona no existe o está eliminada (`VAL-002`)
+        "500":
+          description: Fallo no controlado (`ERR-500`)
+  /api/v1/users/{id}/broker-accounts:
+    get:
+      tags:
+      - Usuarios
+      summary: Consultar las cuentas de broker de una persona
+      description: |
+        Devuelve las cuentas de broker de esa persona: **broker, identificador
+        de cuenta, nombre de usuario en el broker y estado**, ordenadas por
+        nombre de broker e identificador de cuenta.
+
+        **Quién puede consultarlas** (`RN-SP-046`): **su superior comercial
+        vigente**, sin ningún permiso, o quien traiga **`broker-accounts:read`**
+        sobre cualquiera. Es la primera lectura del sistema cuyo alcance sale
+        de la estructura comercial, y **solo alcanza a esta**.
+
+        **Quien no es ninguna de las dos cosas recibe `404`, no `403`**, y es
+        deliberado: el mismo `404` que si la persona no existiera. Un `403`
+        dejaría a cualquier vendedor recorrer identificadores y averiguar
+        cuáles corresponden a personas reales. Los dos cuerpos son idénticos.
+
+        **Quien FUE su superior y ya no lo es recibe `404`**: el historial de
+        la estructura no concede lectura.
+
+        **El titular NO ve aquí sus propias cuentas** salvo que traiga el
+        permiso: esta lectura se definió sobre el equipo.
+
+        **Una persona sin cuentas devuelve `200` con la colección vacía**, no
+        `404`: solo el registro por un enlace de beca obliga a declararlas.
+
+        **Hoy el estado es siempre `REGISTER`**, y no es un fallo: quien mueve
+        una cuenta a `FIRST_DEPOSIT` es el webhook del broker, que todavía no
+        existe.
+
+        **`brokerUsername` llega en nulo** mientras el broker no lo haya
+        confirmado, y el campo **está presente**: su nulo significa «aún no
+        confirmado», no «sin nombre».
+
+        **No se pagina**: una persona tiene unas pocas cuentas. El listado
+        paginado es `GET /api/v1/users/me/team/broker-accounts`.
+      operationId: cuentasDeBrokerDe
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      responses:
+        "200":
+          description: "Las cuentas de la persona, ordenadas. Vacía si no declaró\
+            \ ninguna."
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/BrokerAccountsResponse"
+        "400":
+          description: Identificador malformado (`VAL-001`)
+        "401":
+          description: Token ausente o inválido (`AUTH-001`)
+        "404":
+          description: "La persona no existe, está eliminada, **o el actor no es su\
+            \ superior vigente ni posee `broker-accounts:read`** (`VAL-002`). Los\
+            \ tres casos responden lo mismo, a propósito."
+        "500":
+          description: Fallo no controlado (`ERR-500`)
+  /api/v1/users/me/team/broker-accounts:
+    get:
+      tags:
+      - Usuarios
+      summary: Consultar las cuentas de broker de mi equipo
+      description: |
+        Devuelve, **paginadas**, las cuentas de broker de todas las personas
+        que dependen **directamente** del actor, **cada fila con su titular**.
+
+        **No hay identificador en la ruta y no lo habrá**: el conjunto de datos
+        lo determina el sistema a partir de quién pregunta. Quien deba ver las
+        cuentas de otra persona usa `GET /api/v1/users/{id}/broker-accounts`
+        con `broker-accounts:read`.
+
+        **No exige ningún permiso**, solo estar autenticado: el alcance lo pone
+        la estructura comercial (`RN-SP-046`). Quien **no tiene equipo** recibe
+        `200` con la página vacía, no `404` ni `403`.
+
+        **Un solo nivel**, el equipo directo. Las cuentas de quien depende de
+        un subordinado del actor **no aparecen**: devolver la rama completa
+        publicaría de una vez la estructura de la empresa.
+
+        **Es un listado de CUENTAS y no de personas.** Quien está en el equipo
+        y no declaró ninguna cuenta **no aparece**, y quien declaró dos aparece
+        **dos veces**. Quién hay en el equipo lo responde
+        `GET /api/v1/users/{id}/team`.
+
+        **Filtros, ambos opcionales y combinables con Y:**
+
+        - `status` — `REGISTER` o `FIRST_DEPOSIT`. **Cualquier otro valor es
+          `400`**, no una página vacía: una página vacía sería indistinguible
+          de «nadie está en ese estado».
+        - `brokerId` — un broker del catálogo. **Un identificador inexistente
+          devuelve la página vacía sin error**, al revés que `status`: es una
+          pregunta legítima con respuesta vacía.
+
+        `totalElements` **cuenta lo filtrado**.
+
+        **Hoy todas las cuentas están en `REGISTER`**, y no es un fallo de esta
+        consulta: quien mueve una cuenta a `FIRST_DEPOSIT` es el webhook del
+        broker, que todavía no existe. Mientras no exista, ninguna cuenta tiene
+        depósito confirmado.
+
+        **`brokerUsername` llega en nulo** mientras el broker no lo haya
+        confirmado, y el campo **está presente**: su nulo significa «aún no
+        confirmado», no «sin nombre».
+      operationId: cuentasDeBrokerDelEquipo
+      parameters:
+      - name: status
+        in: query
+        description: "Estado de la cuenta: `REGISTER` o `FIRST_DEPOSIT`."
+        required: false
+        schema:
+          type: string
+      - name: brokerId
+        in: query
+        description: Broker del catálogo. Uno inexistente devuelve la página vacía.
+        required: false
         schema:
           type: string
           format: uuid
@@ -3553,19 +3747,17 @@ paths:
           format: int32
       responses:
         "200":
-          description: "La estructura, con el equipo paginado."
+          description: "Página de cuentas del equipo directo, ordenada por titular,\
+            \ broker e identificador de cuenta. Vacía si el actor no tiene equipo."
           content:
             '*/*':
               schema:
-                $ref: "#/components/schemas/CommercialStructureResponse"
+                $ref: "#/components/schemas/PageResponse"
         "400":
-          description: Identificador malformado o paginación fuera de límites (`VAL-003`)
+          description: "`status` fuera de `REGISTER`/`FIRST_DEPOSIT` (`VAL-001`),\
+            \ `brokerId` malformado o paginación fuera de límites (`VAL-003`)"
         "401":
           description: Token ausente o inválido (`AUTH-001`)
-        "403":
-          description: Autenticado sin `users:read` (`AUTH-002`)
-        "404":
-          description: La persona no existe o está eliminada (`VAL-002`)
         "500":
           description: Fallo no controlado (`ERR-500`)
   /api/v1/products/available:
@@ -3823,7 +4015,25 @@ paths:
       - Métodos de pago
       summary: Consultar los métodos de pago
       description: |
-        Devuelve los métodos de pago **activos**, sin paginar y ordenados por código.
+        Devuelve los métodos de pago **activos y de visibilidad `PUBLICO`**, sin
+        paginar y ordenados por código.
+
+        **Es una consulta PÚBLICA** (`RN-MV-024`): responde **sin token**, porque
+        el formulario de registro por enlace elige con qué se paga antes de que
+        exista la cuenta. **Con sesión devuelve exactamente lo mismo** — no hay
+        un catálogo para el anónimo y otro para quien ha entrado, y no existe
+        parámetro que cambie lo que sale.
+
+        **Lo que NO devuelve, y no hay forma de pedirlo**: ni los métodos
+        desactivados —un método retirado no se puede usar en una venta nueva— ni
+        los de visibilidad `INTERNO` (`RN-MV-023`). Estos últimos **sirven para
+        pagar y no los elige ninguna persona**: los pone el sistema. Es el caso
+        de `GRATIS`, con el que se anotan las ventas de importe cero
+        (`RN-MV-022`): quien depure una de esas verá un `paymentMethodId` que
+        **este catálogo no resuelve**, y eso es deliberado.
+
+        **La respuesta no publica el campo de visibilidad.** Si todo lo que sale
+        es `PUBLICO`, declararlo sugeriría que puede salir otra cosa.
 
         **`excludedCountries` dice dónde NO vale cada medio.** Una lista vacía
         significa que vale en todos los países, y el campo **viaja siempre**:
@@ -3838,19 +4048,20 @@ paths:
         **No admite parámetros**, y en particular no admite un país: filtrar aquí
         haría creer que el servidor sabe cuál corresponde.
 
-        **No exige permiso**, solo estar autenticado. `movements:read` gobierna ver
-        ventas y hoy está reservado al superadministrador; exigirlo aquí dejaría sin
-        métodos de pago a la pantalla de compra propia, que no pide ningún permiso.
+        **Está acotada por origen** —120 peticiones por minuto, con cubo propio—,
+        como los demás catálogos públicos: superar la cota responde `429`.
       operationId: consultar_2
       responses:
         "200":
-          description: El catálogo de métodos de pago activos.
+          description: El catálogo de métodos de pago activos y públicos. Se responde
+            igual con token y sin él.
           content:
             '*/*':
               schema:
                 $ref: "#/components/schemas/PaymentMethodCatalogResponse"
-        "401":
-          description: Sin token.
+        "429":
+          description: Se superó la cota de peticiones por origen (120 por minuto).
+            La cabecera `Retry-After` dice cuánto esperar.
   /api/v1/movements/mine:
     get:
       tags:
@@ -5304,7 +5515,6 @@ components:
       required:
       - clientId
       - lines
-      - paymentMethodId
     SaleLineRequest:
       type: object
       properties:
@@ -5638,7 +5848,7 @@ components:
       properties:
         reason:
           type: string
-    BrokerAccount:
+    RegistrationBrokerAccount:
       type: object
       properties:
         brokerId:
@@ -5646,15 +5856,26 @@ components:
           format: uuid
         accountId:
           type: string
+    RegistrationMovement:
+      type: object
+      properties:
+        productId:
+          type: string
+          format: uuid
+        paymentMethodId:
+          type: string
+          format: uuid
+        sellerUsername:
+          type: string
+          minLength: 1
+        movementTypeCode:
+          type: string
+      required:
+      - productId
+      - sellerUsername
     SelfRegistrationRequest:
       type: object
       properties:
-        product:
-          type: string
-          minLength: 1
-        referrer:
-          type: string
-          minLength: 1
         firstName:
           type: string
           minLength: 1
@@ -5691,7 +5912,9 @@ components:
         brokerAccounts:
           type: array
           items:
-            $ref: "#/components/schemas/BrokerAccount"
+            $ref: "#/components/schemas/RegistrationBrokerAccount"
+        movement:
+          $ref: "#/components/schemas/RegistrationMovement"
       required:
       - countryCode
       - documentNumber
@@ -5699,10 +5922,9 @@ components:
       - email
       - firstName
       - lastName
+      - movement
       - password
       - phone
-      - product
-      - referrer
       - username
     SelfRegistrationResponse:
       type: object
@@ -5715,6 +5937,8 @@ components:
         status:
           type: string
         pending:
+          type: string
+        sale:
           type: string
     RefreshRequest:
       type: object
@@ -5866,8 +6090,10 @@ components:
           type: string
         lastName:
           type: string
-        roleCode:
-          type: string
+        roles:
+          type: array
+          items:
+            $ref: "#/components/schemas/RoleRef"
         status:
           type: string
         since:
@@ -6204,6 +6430,41 @@ components:
         updatedAt:
           type: string
           format: date-time
+    BrokerAccountItem:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        broker:
+          $ref: "#/components/schemas/BrokerRef"
+        accountId:
+          type: string
+        brokerUsername:
+          type: string
+        status:
+          type: string
+          enum:
+          - REGISTER
+          - FIRST_DEPOSIT
+        declaredAt:
+          type: string
+          format: date-time
+    BrokerAccountsResponse:
+      type: object
+      properties:
+        content:
+          type: array
+          items:
+            $ref: "#/components/schemas/BrokerAccountItem"
+    BrokerRef:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        name:
+          type: string
     ListUserCommissionRatesRequest:
       type: object
       properties:

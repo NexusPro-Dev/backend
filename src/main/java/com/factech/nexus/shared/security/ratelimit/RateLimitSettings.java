@@ -40,13 +40,16 @@ import org.springframework.boot.context.properties.ConfigurationProperties;
  *       que pueden compartir la dirección de salida de su operador, de modo que una cota estrecha
  *       dejaría fuera a lectores legítimos antes que a nadie más. Y <b>sin penalización</b> por lo
  *       mismo: una espera fija convertiría una ráfaga de lectores en un corte de cinco minutos para
- *   <li><b>Catálogos públicos — 120/min por origen y por catálogo, sin penalización.</b> Los tres
- *       que el formulario de registro lee sin token desde el 08-09-2026: países, tipos de documento
- *       y brokers (`RF-SP-045`). <b>Se acotan por lo mismo que el refresco</b> —son públicas y
- *       consultan la base en cada llamada—, y <b>no</b> por lo mismo que el hotlink: aquí no hay
- *       nada que sondear. El número es el más holgado del sistema porque una sola carga del
- *       formulario pide los tres, y detrás de una salida compartida eso son muchas cargas por
- *       minuto. todos los que salen por esa dirección.
+ *       todos los que salen por esa dirección.
+ *   <li><b>Catálogos públicos — 120/min por origen y por catálogo, sin penalización.</b> Los que se
+ *       leen sin token: países, tipos de documento y brokers desde el 08-09-2026 (`RF-SP-045`), y
+ *       <b>los métodos de pago desde el 09-09-2026</b> (`RF-MV-009`, `RN-MV-024`). <b>Se acotan por
+ *       lo mismo que el refresco</b> —son públicas y consultan la base en cada llamada—, y
+ *       <b>no</b> por lo mismo que el hotlink: aquí no hay nada que sondear. El número es el más
+ *       holgado del sistema porque <b>una sola carga del formulario los pide todos</b>, y detrás de
+ *       una salida compartida eso son muchas cargas por minuto. El cuarto no estrena política y sí
+ *       cubo: la naturaleza es idéntica, y lo que hace falta es que agotar uno no deje sin los
+ *       otros al mismo formulario.
  * </ul>
  *
  * <p><b>Las dos cotas de recuperación se aplican desde el 26-08-2026</b>, al existir sus endpoints:

@@ -24,11 +24,11 @@ class PermissionsSeedIT extends IntegrationTestBase {
 
   @Test
   @DisplayName(
-      "el catálogo tiene exactamente cuarenta y cuatro: TREINTA de SP, seis de PM, cuatro de"
+      "el catálogo tiene exactamente cuarenta y cinco: TREINTA Y UNO de SP, seis de PM, cuatro de"
           + " CM y cuatro de MV")
   void catalogoCompleto() {
     assertThat(jdbc.queryForObject("SELECT count(*) FROM permissions", Integer.class))
-        .isEqualTo(44);
+        .isEqualTo(45);
   }
 
   @Test
@@ -73,6 +73,12 @@ class PermissionsSeedIT extends IntegrationTestBase {
             // deja el catálogo de brokers fuera de la API porque son pocos y
             // cambian poco, no porque su contenido sea una regla.
             "brokers:read",
+            // El CUARTO recurso sin ninguna acción de escritura, y el PRIMERO
+            // cuyo recurso no es un catálogo: gobierna una LECTURA de datos
+            // ajenos (`RF-SP-055`). No hay `create` porque la cuenta la declara
+            // su titular al registrarse, sin sesión; no hay `update` porque
+            // quien la completa es el webhook del broker, que no porta roles.
+            "broker-accounts:read",
             "countries:create",
             "countries:read",
             "countries:update",
@@ -119,7 +125,7 @@ class PermissionsSeedIT extends IntegrationTestBase {
   void identificadoresUuidV7() {
     List<UUID> ids = jdbc.queryForList("SELECT id FROM permissions", UUID.class);
 
-    assertThat(ids).hasSize(44).doesNotHaveDuplicates();
+    assertThat(ids).hasSize(45).doesNotHaveDuplicates();
     assertThat(ids).allSatisfy(id -> assertThat(id.version()).isEqualTo(7));
     // variant() == 2 es la variante RFC 9562 (bits 10xx).
     assertThat(ids).allSatisfy(id -> assertThat(id.variant()).isEqualTo(2));

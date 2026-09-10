@@ -39,7 +39,7 @@ import org.springframework.test.web.servlet.request.RequestPostProcessor;
  *
  * <h2>Y el orden de la cadena es el que fijó `V47`: 1 es la CIMA</h2>
  *
- * <p>{@code ORO(1) > PLATINO(2) > VIP(3) > FREE(4)}. Subir es ir a un número <b>menor</b>. Esa es
+ * <p>{@code ORO(1) > PLATINO(2) > VIP(3) > BECA(4)}. Subir es ir a un número <b>menor</b>. Esa es
  * la comparación que el riesgo 1 del plan advierte que puede escribirse al revés, y {@link
  * #losTresCasosDeNivel()} es la prueba que lo detecta: sin ella, ofrecer bajadas en lugar de
  * subidas pasaría todo lo demás.
@@ -81,7 +81,7 @@ class ProductOfferIT extends IntegrationTestBase {
     oro = membresia("ORO", "Oro", 1, null);
     platino = membresia("PLATINO", "Platino", 2, oro);
     vip = membresia("VIP", "Vip", 3, platino);
-    free = membresia("FREE", "Free", 4, vip);
+    free = membresia("BECA", "Beca", 4, vip);
     // Solo para que `UP_FREE` tenga un origen por debajo del suyo (`RN-PM-002`
     // exige las dos membresías desde el 02-09-2026): nadie se asigna aquí, y la
     // comparación que decide esta prueba sigue siendo por NIVEL, no por origen
@@ -89,10 +89,10 @@ class ProductOfferIT extends IntegrationTestBase {
     // aserción.
     UUID sotano = membresia("SOTANO", "Sótano de prueba", 5, free);
 
-    // TODA LA OFERTA DE `enFree` SE DECLARA DESDE `FREE`, y eso es lo que la
+    // TODA LA OFERTA DE `enFree` SE DECLARA DESDE `BECA`, y eso es lo que la
     // coincidencia por origen exige de esta siembra (`T-20`, 07-09-2026): antes
     // bastaba con que el DESTINO estuviera por encima, y ahora tiene que
-    // coincidir el ORIGEN. Cuatro productos desde `FREE`, del salto cero al más
+    // coincidir el ORIGEN. Cuatro productos desde `BECA`, del salto cero al más
     // largo:
     upgrade("UP_RENOVAR", "Renovar Free", free, free, "5.00", 30, "ACTIVO", BASE, false);
     upgrade("UP_VIP", "Ascenso a Vip", free, vip, "20.00", null, "ACTIVO", BASE, false);
@@ -125,7 +125,7 @@ class ProductOfferIT extends IntegrationTestBase {
         false);
     upgrade("UP_FREE", "Ascenso a Free", sotano, free, "5.00", 7, "ACTIVO", BASE, false);
 
-    // Lo que NO debe salir nunca (`CA-PM-058`). Se declaran DESDE `FREE` a
+    // Lo que NO debe salir nunca (`CA-PM-058`). Se declaran DESDE `BECA` a
     // propósito: con otro origen quedarían fuera por la coincidencia y la prueba
     // no comprobaría nada. No chocan con `UP_ORO` porque
     // `uq_products_upgrade_target` es un índice PARCIAL: solo alcanza a los
@@ -198,7 +198,7 @@ class ProductOfferIT extends IntegrationTestBase {
         // El declarado desde PLATINO no es suyo, aunque lleve más arriba.
         .andExpect(
             jsonPath("$.upgrades.content[*].code", Matchers.not(Matchers.hasItem("UP_AJENO"))))
-        // Ni los declarados desde FREE, que llevan a donde él ya llegó.
+        // Ni los declarados desde BECA, que llevan a donde él ya llegó.
         .andExpect(jsonPath("$.upgrades.content[*].code", Matchers.not(Matchers.hasItem("UP_VIP"))))
         // Y ninguna bajada: la sostiene `RN-PM-017` AL REGISTRAR, no este filtro.
         .andExpect(
@@ -242,10 +242,10 @@ class ProductOfferIT extends IntegrationTestBase {
     mvc.perform(oferta(enFree))
         .andExpect(status().isOk())
         .andExpect(jsonPath("$.upgrades.content[0].code").value("UP_RENOVAR"))
-        .andExpect(jsonPath("$.upgrades.content[0].targetMembership.code").value("FREE"))
+        .andExpect(jsonPath("$.upgrades.content[0].targetMembership.code").value("BECA"))
         .andExpect(jsonPath("$.upgrades.content[0].validityDays").value(30));
 
-    // Y no se la ve nadie más: su origen es `FREE`.
+    // Y no se la ve nadie más: su origen es `BECA`.
     mvc.perform(oferta(enVip))
         .andExpect(status().isOk())
         .andExpect(
@@ -290,7 +290,7 @@ class ProductOfferIT extends IntegrationTestBase {
     // Vencer no es lo mismo que no tener, pero para decidir «a dónde puede
     // subir» produce el mismo resultado. Esta prueba es la que se apoya en que
     // `PM` NO reimplementa la vigencia: si la copiara mal, esta persona
-    // aparecería en FREE y vería tres upgrades.
+    // aparecería en BECA y vería tres upgrades.
     mvc.perform(oferta(conMembresiaVencida))
         .andExpect(status().isOk())
         .andExpect(jsonPath("$.upgrades.content.length()").value(0))
@@ -349,7 +349,7 @@ class ProductOfferIT extends IntegrationTestBase {
     mvc.perform(oferta(enFree))
         .andExpect(status().isOk())
         // Los upgrades, del salto más corto al más largo: VIP(3), PLATINO(2),
-        // ORO(1) — y con la RENOVACIÓN delante, que es el salto cero: FREE(4).
+        // ORO(1) — y con la RENOVACIÓN delante, que es el salto cero: BECA(4).
         // Es el único orden en el que «subir» significa algo — ni el
         // precio ni el nombre lo expresan.
         .andExpect(

@@ -22,7 +22,7 @@ public interface MembershipCatalog {
    * <b>El suelo: la membresía con la que arranca toda persona</b> (`RN-SP-018`, reescrita el
    * 05-09-2026).
    *
-   * <p><b>Se resuelve por el código {@code FREE} y no por la forma de la cadena</b>, y esa es la
+   * <p><b>Se resuelve por el código {@code BECA} y no por la forma de la cadena</b>, y esa es la
    * única decisión de este método. Lo natural sería «la que no tiene padre», y es un blanco móvil:
    * `RN-SP-007` permite <b>registrar una por debajo</b> de Free, y entonces el suelo se mueve y con
    * él cambiaría, en silencio, el nivel con el que arranca todo el mundo. El código no se mueve —

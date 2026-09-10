@@ -298,16 +298,23 @@ class OpenApiContractIT extends IntegrationTestBase {
   }
 
   @Test
-  @DisplayName("el superior NO se puede retirar ni fijar con PUT, y el equipo NO admite filtros")
+  @DisplayName("el superior NO se puede retirar ni fijar con PUT, y el equipo SOLO filtra por rol")
   void losLimitesDeLaEstructuraComercial() throws Exception {
     // `PUT` invitaría a pensar que se puede enviar el periodo, que lo fija el
     // sistema. Un `DELETE` publicaría un «vendedor sin superior» que no existe.
-    // Y un filtro sobre el equipo replicaría la semántica de `RF-SP-025` sobre un
-    // subconjunto, obligando a mantener dos filtrados sincronizados.
+    //
+    // Y el equipo publica UN filtro desde el 10-09-2026 —`roles`, por códigos—
+    // y ninguno más: replicar aquí el filtrado del listado general obligaría a
+    // mantener dos semánticas sincronizadas. Esta prueba decía justo lo
+    // contrario hasta hoy, y NO habría fallado sola: solo miraba `search` y
+    // `status`, que siguen sin estar.
     mvc.perform(get("/v3/api-docs").with(user("doc")))
         .andExpect(status().isOk())
         .andExpect(jsonPath("$.paths['/api/v1/users/{id}/supervisor'].put").doesNotExist())
         .andExpect(jsonPath("$.paths['/api/v1/users/{id}/supervisor'].delete").doesNotExist())
+        .andExpect(
+            jsonPath("$.paths['/api/v1/users/{id}/team'].get.parameters[?(@.name == 'roles')]")
+                .exists())
         .andExpect(
             jsonPath("$.paths['/api/v1/users/{id}/team'].get.parameters[?(@.name == 'search')]")
                 .doesNotExist())

@@ -8,6 +8,7 @@
 | Autor | Responsable técnico |
 | Aprobada por | Responsable técnico |
 | Fecha de aprobación | 22-08-2026 |
+| Enmendada | 10-09-2026 — **de rebote, por `RF-SP-042`**: comparten `CommercialStructureResponse`. Cada persona de la respuesta pierde el `roleCode` único y gana `roles`, la lista completa. El comportamiento de este requerimiento **no cambia** |
 
 ---
 
@@ -75,9 +76,9 @@ Se desaparca porque es el dato del que dependen tres cosas que llegarán: las co
 
 | Dato | Descripción |
 |---|---|
-| Subordinado | Persona afectada, con el nombre y el rol comercial que porta |
-| Superior vigente | Persona que queda a cargo, con el rol que porta, y desde cuándo |
-| Superior anterior | Persona que dejó de tenerla a cargo, y hasta cuándo, cuando la hubo |
+| Subordinado | Persona afectada, con el nombre y **la lista completa de sus roles** (10-09-2026; antes, el rol comercial que portaba) |
+| Superior vigente | Persona que queda a cargo, con **sus roles**, y desde cuándo |
+| Superior anterior | Persona que dejó de tenerla a cargo, con **sus roles**, y hasta cuándo, cuando la hubo |
 
 ## 7. Precondiciones y postcondiciones
 

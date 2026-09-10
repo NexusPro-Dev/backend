@@ -60,11 +60,11 @@ class UserMembershipIT extends IntegrationTestBase {
     jdbc.update(
         "DELETE FROM role_permissions WHERE role_id IN (SELECT id FROM roles WHERE is_system = false)");
     jdbc.update("DELETE FROM roles WHERE is_system = false");
-    // FREE SOBREVIVE AL BARRIDO desde el 05-09-2026: `RN-SP-018` da nivel a toda
+    // BECA SOBREVIVE AL BARRIDO desde el 05-09-2026: `RN-SP-018` da nivel a toda
     // persona y el alta lo resuelve por código, de modo que un catálogo vacío ya
     // no es un estado del que el sistema pueda salir. Borrarla aquí probaría algo
     // que `RN-SP-008` no deja ocurrir: la membresía sembrada no se elimina.
-    // BARRIDO TOTAL Y REPOSICIÓN, en ese orden: conservar FREE haría depender esta
+    // BARRIDO TOTAL Y REPOSICIÓN, en ese orden: conservar BECA haría depender esta
     // clase del ORDEN DE EJECUCIÓN — según quién haya corrido antes, la fila queda
     // colgando de VIP (`V47`) o suelta, y el barrido choca con `fk_memberships_parent`.
     jdbc.update("DELETE FROM memberships");
@@ -76,11 +76,11 @@ class UserMembershipIT extends IntegrationTestBase {
 
     persona = crearPersona("jperez");
     consumidor = crearRolConsumidor();
-    // CUELGAN DE FREE, que sobrevive al barrido desde el 05-09-2026:
+    // CUELGAN DE BECA, que sobrevive al barrido desde el 05-09-2026:
     // `uq_memberships_parent` va con NULLS NOT DISTINCT y solo admite UN suelo en
     // toda la cadena, de modo que ya no se puede crear otra sin padre.
     String suelo =
-        jdbc.queryForObject("SELECT id::text FROM memberships WHERE code = 'FREE'", String.class);
+        jdbc.queryForObject("SELECT id::text FROM memberships WHERE code = 'BECA'", String.class);
     oro = crearMembresia("ORO", "Oro", 2, suelo);
     plata = crearMembresia("PLATA", "Plata", 3, oro);
   }
@@ -97,7 +97,7 @@ class UserMembershipIT extends IntegrationTestBase {
     mvc.perform(fijar(persona, oro, null))
         .andExpect(status().isOk())
         .andExpect(jsonPath("$.code").value("ORO"))
-        // ORO cuelga de FREE, que sobrevive al barrido: por eso su nivel es 2.
+        // ORO cuelga de BECA, que sobrevive al barrido: por eso su nivel es 2.
         .andExpect(jsonPath("$.level").value(2))
         // Presente y en nulo: «indefinida» tiene que distinguirse de «este
         // endpoint no informa de la vigencia».
@@ -275,7 +275,7 @@ class UserMembershipIT extends IntegrationTestBase {
 
     // Hasta el 05-09-2026 esto era un `409` con código `RN-SP-013`. La regla se
     // retiró porque se contradice con la que la sustituye: `RN-SP-018` da nivel a
-    // TODA persona, y el superadministrador tiene `FREE` sin ser consumidor.
+    // TODA persona, y el superadministrador tiene `BECA` sin ser consumidor.
     mvc.perform(fijar(persona, oro, null))
         .andExpect(status().isOk())
         .andExpect(jsonPath("$.code").value("ORO"));
@@ -345,7 +345,7 @@ class UserMembershipIT extends IntegrationTestBase {
   // ---------------------------------------------------------------------------
 
   @Test
-  @DisplayName("CA-SP-281 — devuelve al suelo y responde 200 con la membresía FREE")
+  @DisplayName("CA-SP-281 — devuelve al suelo y responde 200 con la membresía BECA")
   void devuelveAlSuelo() throws Exception {
     hacerConsumidor(persona);
     mvc.perform(fijar(persona, oro, null)).andExpect(status().isOk());
@@ -354,9 +354,9 @@ class UserMembershipIT extends IntegrationTestBase {
     // nivel de arranque. Quien llama necesita saber en qué quedó la persona.
     mvc.perform(retirar(persona))
         .andExpect(status().isOk())
-        .andExpect(jsonPath("$.code").value("FREE"));
+        .andExpect(jsonPath("$.code").value("BECA"));
 
-    assertThat(codigoDe(persona)).isEqualTo("FREE");
+    assertThat(codigoDe(persona)).isEqualTo("BECA");
 
     // La membresía sigue existiendo en la cadena: se cerró la asignación, no la
     // membresía.
@@ -377,21 +377,21 @@ class UserMembershipIT extends IntegrationTestBase {
     // queda en el suelo—, de modo que la precondición no protegía nada.
     mvc.perform(retirar(persona))
         .andExpect(status().isOk())
-        .andExpect(jsonPath("$.code").value("FREE"));
+        .andExpect(jsonPath("$.code").value("BECA"));
 
-    assertThat(codigoDe(persona)).isEqualTo("FREE");
+    assertThat(codigoDe(persona)).isEqualTo("BECA");
   }
 
   @Test
   @DisplayName("es idempotente: sobre quien ya está en el suelo no escribe ni audita")
   void devolverAlSueloEsIdempotente() throws Exception {
-    // La persona nace en FREE, de modo que esta es la primera invocación y ya no
+    // La persona nace en BECA, de modo que esta es la primera invocación y ya no
     // hay nada que cambiar. Antes esto era `FA-001` —sin membresía previa— y ese
     // estado dejó de existir.
     UUID correlacion = UUID.randomUUID();
     mvc.perform(retirar(persona).header("X-Correlation-Id", correlacion.toString()))
         .andExpect(status().isOk())
-        .andExpect(jsonPath("$.code").value("FREE"));
+        .andExpect(jsonPath("$.code").value("BECA"));
 
     Integer eliminaciones =
         jdbc.queryForObject(
@@ -449,7 +449,7 @@ class UserMembershipIT extends IntegrationTestBase {
         persona);
 
     mvc.perform(retirar(persona)).andExpect(status().isOk());
-    assertThat(codigoDe(persona)).isEqualTo("FREE");
+    assertThat(codigoDe(persona)).isEqualTo("BECA");
   }
 
   @Test

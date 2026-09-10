@@ -52,7 +52,7 @@ class ProductsIT extends IntegrationTestBase {
     oro = crearMembresia("ORO", "Oro", 1, null);
     platino = crearMembresia("PLATINO", "Platino", 2, oro);
     vip = crearMembresia("VIP", "Vip", 3, platino);
-    free = crearMembresia("FREE", "Free", 4, vip);
+    free = crearMembresia("BECA", "Beca", 4, vip);
   }
 
   @Test
@@ -71,7 +71,7 @@ class ProductsIT extends IntegrationTestBase {
         .andExpect(
             header().string("Location", org.hamcrest.Matchers.startsWith("/api/v1/products/")))
         .andExpect(jsonPath("$.code").value("UPGRADE_ORO"))
-        .andExpect(jsonPath("$.sourceMembership.code").value("FREE"))
+        .andExpect(jsonPath("$.sourceMembership.code").value("BECA"))
         .andExpect(jsonPath("$.sourceMembership.level").value(4))
         .andExpect(jsonPath("$.targetMembership.code").value("ORO"))
         .andExpect(jsonPath("$.targetMembership.level").value(1))
@@ -227,7 +227,7 @@ class ProductsIT extends IntegrationTestBase {
   @DisplayName("`CA-PM-102` — `RN-PM-018`: el upgrade puede SALTAR niveles, y no solo el contiguo")
   void saltarNivelesEsLegitimo() throws Exception {
     // La premisa que hace valer la prueba: entre el origen y el destino hay dos
-    // eslabones. Sin comprobarla, `FREE -> ORO` sería un salto de nombre.
+    // eslabones. Sin comprobarla, `BECA -> ORO` sería un salto de nombre.
     assertThat(cuantasMembresias()).isEqualTo(4);
 
     mvc.perform(
@@ -274,7 +274,7 @@ class ProductsIT extends IntegrationTestBase {
   @Test
   @DisplayName("`CA-PM-104` — `RN-PM-017`: un descenso vendido como upgrade se rechaza")
   void elOrigenNoPuedeEstarPorEncimaDelDestino() throws Exception {
-    // Origen POR ENCIMA del destino: `ORO` es el nivel 1 y `FREE` el 4. Un
+    // Origen POR ENCIMA del destino: `ORO` es el nivel 1 y `BECA` el 4. Un
     // descenso con la etiqueta de ascenso. Hace falta leer el `level` de las
     // dos filas, y es 422 porque el dato existe: lo que no vale es la relación
     // entre los dos.
@@ -336,7 +336,7 @@ class ProductsIT extends IntegrationTestBase {
   @DisplayName("`CA-PM-149` — el precio de CERO se admite en los dos importes")
   void precioCero() throws Exception {
     // Hasta el 08-09-2026 esto era un 400, y lo que lo cambió no fue el precio
-    // público sino la RENOVACIÓN: un `FREE → FREE` es un producto legítimo que
+    // público sino la RENOVACIÓN: un `BECA → BECA` es un producto legítimo que
     // vale cero, y prohibirlo obligaba a inventarle un céntimo (`RN-PM-006`).
     mvc.perform(
             alta(

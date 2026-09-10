@@ -54,6 +54,8 @@ public record OwnProfileResponse(
     List<RoleRef> roles,
     List<String> permissions,
     CountryRef country,
+    DocumentRef document,
+    ContactRef contact,
     MembershipRef membership,
     OffsetDateTime lastLoginAt,
     SupervisorRef supervisor,
@@ -78,6 +80,29 @@ public record OwnProfileResponse(
    * cambiarse de mercado.
    */
   public record CountryRef(UUID id, String code, String name) {}
+
+  /**
+   * El documento del actor (`RN-SP-035`). <b>Puede llegar nulo</b>, al contrario que el país.
+   *
+   * <p>La inclusión {@code NON_NULL} de este registro hará que desaparezca del JSON, y aquí eso es
+   * correcto: «no lo declaro» y «no lo tengo» son lo mismo para quien mira su propio perfil.
+   */
+  public record DocumentRef(DocumentTypeRef type, String number) {}
+
+  public record DocumentTypeRef(UUID id, String abbreviation, String name) {}
+
+  /**
+   * El contacto del actor (`RN-SP-037`), y <b>es lo que `RF-SP-044` deja corregir</b>.
+   *
+   * <p>Publicarlo aquí es lo que hace utilizable la pantalla de perfil: sin él, el formulario de
+   * edición no podría precargarse y quien quisiera cambiar solo su ciudad tendría que reescribir el
+   * resto de memoria.
+   *
+   * <p>Que el documento viaje en la misma respuesta y <b>no</b> sea editable es exactamente por qué
+   * los dos van agrupados en objetos separados: la forma del contrato enseña la regla.
+   */
+  @JsonInclude(JsonInclude.Include.ALWAYS)
+  public record ContactRef(String phone, String addressLine1, String addressLine2, String city) {}
 
   /** Con su estado: es lo que explica que un rol asignado no aparezca en {@code permissions}. */
   public record RoleRef(String code, String name, String status) {}

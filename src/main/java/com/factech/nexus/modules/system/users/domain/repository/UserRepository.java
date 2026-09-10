@@ -1,5 +1,6 @@
 package com.factech.nexus.modules.system.users.domain.repository;
 
+import com.factech.nexus.modules.system.users.domain.models.DocumentIdentity;
 import com.factech.nexus.modules.system.users.domain.models.Email;
 import com.factech.nexus.modules.system.users.domain.models.User;
 import com.factech.nexus.modules.system.users.domain.models.Username;
@@ -39,6 +40,22 @@ public interface UserRepository {
   boolean existsUsername(Username username);
 
   boolean existsEmail(Email email);
+
+  /**
+   * ¿Hay ya alguien con ese par tipo+número de documento? (`RN-SP-035`)
+   *
+   * <p><b>Mira a TODAS las personas, incluidas las eliminadas</b>, con el mismo criterio que {@link
+   * #existsUsername} y {@link #existsEmail}: `RN-SP-035` no libera el documento al eliminar, porque
+   * reutilizarlo permitiría que la actividad de dos personas quedara bajo la misma identidad en la
+   * auditoría.
+   *
+   * <p>Existe <b>para el mensaje</b>. La garantía la da {@code uq_users_document}; esta consulta
+   * solo permite responder un {@code 409} legible en lugar de traducir una violación de índice.
+   */
+  boolean existsDocument(DocumentIdentity documento);
+
+  /** Igual que el anterior, ignorando a una persona: la que se está editando (`RF-SP-027`). */
+  boolean existsDocumentForOther(DocumentIdentity documento, UUID excepto);
 
   /**
    * La persona, si existe, no está eliminada y está <b>ACTIVA</b>.
@@ -165,12 +182,34 @@ public interface UserRepository {
   int countSupervisees(UUID supervisorId);
 
   /**
+   * El mismo conteo, acotado por <b>códigos de rol</b> (`RF-SP-042`, 10-09-2026).
+   *
+   * <p><b>Es el mismo método y no otro</b>: con la lista vacía cuenta el equipo entero, que es
+   * exactamente lo que {@link #countSupervisees(UUID)} responde. Escribir dos consultas para la
+   * misma pregunta las haría divergir, y `CA-SP-447` exige que el total del equipo y el número que
+   * informa el rechazo de `RN-SP-022` sean <b>el mismo</b>.
+   *
+   * <p>Cuenta <b>personas y no asignaciones</b>: quien porte dos de los códigos pedidos cuenta una
+   * vez. Es lo que obliga a filtrar con {@code EXISTS} y no con un {@code JOIN} a {@code
+   * user_roles} — el mismo cuidado que `RF-SP-025` documenta en su predicado.
+   */
+  int countTeam(UUID supervisorId, List<String> roleCodes);
+
+  /**
    * El equipo directo, paginado y con un orden estable.
    *
    * <p>Estable no es cosmético: sin un desempate determinista, dos páginas consecutivas pueden
    * repetir a una persona y omitir a otra sin que nada falle.
+   *
+   * <p><b>{@code roleCodes} acota por rol</b> (10-09-2026): entra quien porte <b>alguno</b> de los
+   * códigos, y una lista vacía no acota nada. Un código que no existe no es un error — devuelve la
+   * página vacía, mismo criterio que el filtro por rol de `RF-SP-025`.
+   *
+   * <p><b>No resuelve los roles de cada persona</b>, y no es un olvido: los trae por lote {@code
+   * UserQueryRepository.rolesOf}, de modo que la página entera cuesta una consulta y no una por
+   * fila.
    */
-  List<TeamMember> findTeam(UUID supervisorId, int offset, int limit);
+  List<TeamMember> findTeam(UUID supervisorId, List<String> roleCodes, int offset, int limit);
 
   /**
    * La persona, bloqueada para escritura.

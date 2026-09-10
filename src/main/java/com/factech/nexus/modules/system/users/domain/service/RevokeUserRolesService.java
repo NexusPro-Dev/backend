@@ -5,6 +5,7 @@ import com.factech.nexus.modules.system.users.application.RevokeRolesRequest;
 import com.factech.nexus.modules.system.users.application.UserResponse;
 import com.factech.nexus.modules.system.users.domain.models.User;
 import com.factech.nexus.modules.system.users.domain.repository.AssignableCountry;
+import com.factech.nexus.modules.system.users.domain.repository.AssignableDocumentType;
 import com.factech.nexus.modules.system.users.domain.repository.AssignableRole;
 import com.factech.nexus.modules.system.users.domain.repository.RoleCatalog;
 import com.factech.nexus.modules.system.users.domain.repository.UserRepository;
@@ -76,6 +77,7 @@ public class RevokeUserRolesService {
   private final UserRepository usuarios;
   private final RoleCatalog roles;
   private final AssignableCountry paises;
+  private final AssignableDocumentType documentos;
   private final CommercialStructure estructura;
   private final RootAdministratorPresence raiz;
   private final SessionRevoker sesiones;
@@ -92,8 +94,19 @@ public class RevokeUserRolesService {
       SessionRevoker sesiones,
       AuthenticatedActor actor,
       AuditWriter auditoria,
-      AssignableCountry paises) {
-    this(usuarios, roles, estructura, raiz, sesiones, actor, auditoria, paises, Clock.systemUTC());
+      AssignableCountry paises,
+      AssignableDocumentType documentos) {
+    this(
+        usuarios,
+        roles,
+        estructura,
+        raiz,
+        sesiones,
+        actor,
+        auditoria,
+        paises,
+        documentos,
+        Clock.systemUTC());
   }
 
   RevokeUserRolesService(
@@ -105,10 +118,12 @@ public class RevokeUserRolesService {
       AuthenticatedActor actor,
       AuditWriter auditoria,
       AssignableCountry paises,
+      AssignableDocumentType documentos,
       Clock reloj) {
     this.usuarios = usuarios;
     this.roles = roles;
     this.paises = paises;
+    this.documentos = documentos;
     this.estructura = estructura;
     this.raiz = raiz;
     this.sesiones = sesiones;
@@ -142,7 +157,8 @@ public class RevokeUserRolesService {
       // `FA-001`: nada que retirar. No se escribe, no se audita y no se revocan
       // sesiones — echar a alguien de su sesión por una petición que no cambió
       // nada sería un efecto sin causa.
-      return UserResponses.de(usuario, roles.findAllById(actuales), usuarios, paises, userId);
+      return UserResponses.de(
+          usuario, roles.findAllById(actuales), usuarios, paises, documentos, userId);
     }
 
     Set<UUID> resultantes = RoleAssignment.resultadoTrasRetirar(actuales, aRetirar);
@@ -189,7 +205,7 @@ public class RevokeUserRolesService {
 
     auditar(usuario, retirados, catalogoResultante, cierraSuperior, sesionesRevocadas);
 
-    return UserResponses.de(usuario, catalogoResultante, usuarios, paises, userId);
+    return UserResponses.de(usuario, catalogoResultante, usuarios, paises, documentos, userId);
   }
 
   // ---------------------------------------------------------------------------

@@ -75,11 +75,11 @@ class UserConcurrencyIT extends IntegrationTestBase {
     jdbc.update("DELETE FROM user_memberships");
     jdbc.update("DELETE FROM user_roles WHERE user_id <> ?", SUPERADMIN);
     jdbc.update("DELETE FROM users WHERE id <> ?", SUPERADMIN);
-    // FREE SOBREVIVE AL BARRIDO desde el 05-09-2026: `RN-SP-018` da nivel a toda
+    // BECA SOBREVIVE AL BARRIDO desde el 05-09-2026: `RN-SP-018` da nivel a toda
     // persona y el alta lo resuelve por código, de modo que un catálogo vacío ya
     // no es un estado del que el sistema pueda salir. Borrarla aquí probaría algo
     // que `RN-SP-008` no deja ocurrir: la membresía sembrada no se elimina.
-    // BARRIDO TOTAL Y REPOSICIÓN, en ese orden: conservar FREE haría depender esta
+    // BARRIDO TOTAL Y REPOSICIÓN, en ese orden: conservar BECA haría depender esta
     // clase del ORDEN DE EJECUCIÓN — según quién haya corrido antes, la fila queda
     // colgando de VIP (`V47`) o suelta, y el barrido choca con `fk_memberships_parent`.
     jdbc.update("DELETE FROM memberships");
@@ -436,9 +436,9 @@ class UserConcurrencyIT extends IntegrationTestBase {
         .content(
             """
             {"username":"%s","email":"%s","firstName":"Juan","lastName":"Pérez",
-             "password":"%s","countryId":"%s","roleIds":["%s"]}
+             "password":"%s","countryId":"%s","documentTypeId":"%s","documentNumber":"%s","phone":"+573001234567","roleIds":["%s"]}
             """
-                .formatted(username, email, CLAVE, COLOMBIA, rol));
+                .formatted(username, email, CLAVE, COLOMBIA, CEDULA, documentoNuevo(), rol));
   }
 
   private MockHttpServletRequestBuilder altaConSuperior(
@@ -449,9 +449,10 @@ class UserConcurrencyIT extends IntegrationTestBase {
         .content(
             """
             {"username":"%s","email":"%s","firstName":"Juan","lastName":"Pérez",
-             "password":"%s","countryId":"%s","roleIds":["%s"],"supervisorId":"%s"}
+             "password":"%s","countryId":"%s","documentTypeId":"%s","documentNumber":"%s","phone":"+573001234567","roleIds":["%s"],"supervisorId":"%s"}
             """
-                .formatted(username, email, CLAVE, COLOMBIA, rol, superior));
+                .formatted(
+                    username, email, CLAVE, COLOMBIA, CEDULA, documentoNuevo(), rol, superior));
   }
 
   private MockHttpServletRequestBuilder editarCorreo(UUID id, String correo) {
@@ -599,7 +600,7 @@ class UserConcurrencyIT extends IntegrationTestBase {
     jdbc.update(
         """
         INSERT INTO memberships (id, code, name, level, parent_membership_id, color)
-        VALUES (?, 'BRONCE', 'Bronce', 2, (SELECT id FROM memberships WHERE code = 'FREE'), 'CD7F32')
+        VALUES (?, 'BRONCE', 'Bronce', 2, (SELECT id FROM memberships WHERE code = 'BECA'), 'CD7F32')
         """,
         id);
     return id.toString();

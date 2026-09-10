@@ -20,6 +20,23 @@ import java.util.UUID;
  * que rechazarlo</b>, porque produciría una violación de integridad traducida a {@code 500} en
  * lugar del {@code 400} que corresponde.
  *
+ * <p><b>Desde el 08-09-2026 el nulo explícito deja de significar lo mismo en todo el cuerpo</b>, y
+ * es la novedad que hay que tener presente al leer esta clase. Hasta hoy la regla era única y
+ * cómoda —el nulo siempre se rechaza— porque todas las columnas eran {@code NOT NULL}. Con el
+ * contacto entran <b>tres columnas nulables</b>, y en ellas el nulo <b>sí es una orden</b>: «ya no
+ * vive ahí» es un hecho que hay que poder registrar, y rechazarlo dejaría la dirección vieja pegada
+ * para siempre.
+ *
+ * <p>De modo que el cuerpo tiene ahora <b>dos familias</b>: {@code firstName}, {@code lastName},
+ * {@code email}, {@code countryId}, {@code documentTypeId}, {@code documentNumber} y {@code phone}
+ * <b>rechazan</b> el nulo; {@code addressLine1}, {@code addressLine2} y {@code city} lo <b>aceptan
+ * y vacían</b>. La línea que las separa no es técnica sino de negocio — es la de lo obligatorio y
+ * lo opcional de `RN-SP-035` y `RN-SP-037`.
+ *
+ * <p><b>El tipo y el número de documento se validan como una unidad</b>: enviar uno solo es {@code
+ * 400} y no un cambio a medias. {@code ck_users_document_pair} lo impediría de todas formas, y
+ * dejarlo llegar al motor daría un {@code 500} sobre una regla de negocio.
+ *
  * <p><b>{@code countryId} es el cuarto campo y hereda el trato de los otros tres</b> (`RN-SP-034`,
  * 07-09-2026): {@code {"countryId": null}} se rechaza con {@code 400}, porque {@code country_id} es
  * {@code NOT NULL} y el estado «persona sin país» no existe. Es además <b>el único campo del cuerpo
@@ -36,7 +53,13 @@ public record UpdateUserRequest(
     @JsonDeserialize(using = PatchableStringDeserializer.class) Patchable<String> firstName,
     @JsonDeserialize(using = PatchableStringDeserializer.class) Patchable<String> lastName,
     @JsonDeserialize(using = PatchableStringDeserializer.class) Patchable<String> email,
-    @JsonDeserialize(using = PatchableUuidDeserializer.class) Patchable<UUID> countryId) {
+    @JsonDeserialize(using = PatchableUuidDeserializer.class) Patchable<UUID> countryId,
+    @JsonDeserialize(using = PatchableUuidDeserializer.class) Patchable<UUID> documentTypeId,
+    @JsonDeserialize(using = PatchableStringDeserializer.class) Patchable<String> documentNumber,
+    @JsonDeserialize(using = PatchableStringDeserializer.class) Patchable<String> phone,
+    @JsonDeserialize(using = PatchableStringDeserializer.class) Patchable<String> addressLine1,
+    @JsonDeserialize(using = PatchableStringDeserializer.class) Patchable<String> addressLine2,
+    @JsonDeserialize(using = PatchableStringDeserializer.class) Patchable<String> city) {
 
   /**
    * El campo que Jackson no vio llega como {@code null} al constructor canónico. Convertirlo aquí
@@ -47,10 +70,25 @@ public record UpdateUserRequest(
     lastName = lastName == null ? Patchable.ausente() : lastName;
     email = email == null ? Patchable.ausente() : email;
     countryId = countryId == null ? Patchable.ausente() : countryId;
+    documentTypeId = documentTypeId == null ? Patchable.ausente() : documentTypeId;
+    documentNumber = documentNumber == null ? Patchable.ausente() : documentNumber;
+    phone = phone == null ? Patchable.ausente() : phone;
+    addressLine1 = addressLine1 == null ? Patchable.ausente() : addressLine1;
+    addressLine2 = addressLine2 == null ? Patchable.ausente() : addressLine2;
+    city = city == null ? Patchable.ausente() : city;
   }
 
-  /** ¿Se envió alguno de los cuatro, con el valor que sea? */
+  /** ¿Se envió alguno de los diez, con el valor que sea? */
   public boolean informaAlgo() {
-    return firstName.presente() || lastName.presente() || email.presente() || countryId.presente();
+    return firstName.presente()
+        || lastName.presente()
+        || email.presente()
+        || countryId.presente()
+        || documentTypeId.presente()
+        || documentNumber.presente()
+        || phone.presente()
+        || addressLine1.presente()
+        || addressLine2.presente()
+        || city.presente();
   }
 }

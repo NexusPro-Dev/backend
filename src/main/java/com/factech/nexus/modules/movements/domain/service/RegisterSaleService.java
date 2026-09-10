@@ -77,6 +77,9 @@ import org.springframework.transaction.annotation.Transactional;
 @Service
 public class RegisterSaleService {
 
+  /** El código del pago gratuito. Literal a propósito: `V78` lo siembra en todos los entornos. */
+  private static final String CODIGO_GRATUITO = "GRATIS";
+
   private static final String MODULO = "MV";
   private static final String ENTIDAD = "movements";
 
@@ -143,13 +146,41 @@ public class RegisterSaleService {
 
   @Transactional
   public SaleResponse register(RegisterSaleRequest peticion) {
+    return register(peticion, false);
+  }
+
+  /**
+   * La venta <b>con la que la cuenta acaba de nacer</b> (`RF-SP-045`), que es la única exenta de
+   * `RN-MV-008`.
+   *
+   * <h2>Por qué existe esta puerta, y por qué es tan estrecha</h2>
+   *
+   * <p>`RN-MV-008` impide vender a una cuenta {@code FTD_PENDIENTE}, y el registro por enlace
+   * gratuito <b>crea la cuenta en ese estado</b> y anota su venta a continuación. Con la regla
+   * aplicada tal cual, <b>ninguna alta gratuita sería posible</b>: la venta que la origina se
+   * rechazaría a sí misma.
+   *
+   * <p><b>La regla no está mal, estaba mal alcanzada.</b> Lo que prohíbe es que una cuenta a la
+   * espera de su depósito <b>siga comprando</b>; la venta del alta es anterior a que haya nada que
+   * esperar — es el hecho que pone a la cuenta en ese estado, no una compra posterior.
+   *
+   * <p><b>Y no se relaja: se acota.</b> Es de paquete a propósito, de modo que solo lo alcanza
+   * {@link PublishedRegistrationSaleRegistrar}: ni el controlador de `RF-MV-001` —que vive en
+   * {@code interfaces}— ni ningún otro módulo pueden llamarla. Todo lo demás —oferta, nivel,
+   * moneda, método de pago, comprobante— es idéntico, de modo que sigue habiendo <b>una sola
+   * definición de vender</b>.
+   */
+  @Transactional
+  SaleResponse registrarAltaDeCliente(RegisterSaleRequest peticion) {
+    return register(peticion, true);
+  }
+
+  private SaleResponse register(RegisterSaleRequest peticion, boolean altaDelCliente) {
     OffsetDateTime ahora = OffsetDateTime.now(reloj);
     OffsetDateTime ocurrioEn = fechaDelHecho(peticion.occurredAt(), ahora);
 
-    ClientView cliente = verificarCliente(peticion.clientId());
+    ClientView cliente = verificarCliente(peticion.clientId(), altaDelCliente);
     Optional<SellerView> vendedor = resolverVendedor(cliente);
-    PaymentMethodView metodo = verificarMetodoDePago(peticion.paymentMethodId());
-
     List<RegisterSaleRequest.Line> lineas = peticion.lines();
     verificarSinRepetidos(lineas);
 
@@ -164,6 +195,13 @@ public class RegisterSaleService {
     SaleView referencia = catalogo.get(lineas.get(0).productId());
     verificarMonedaUnica(lineas, catalogo, referencia);
 
+    // EL MÉTODO DE PAGO SE RESUELVE AQUÍ Y NO AL PRINCIPIO, y ese cambio de
+    // orden es contrato (`plan.md` §4): `RN-MV-022` necesita el importe, y el
+    // importe sale de las líneas ya copiadas. Hasta el 09-09-2026 el método era
+    // lo tercero que se comprobaba.
+    List<MovementLine> copiadas = copiar(lineas, catalogo, referencia.currencyDecimalPlaces());
+    PaymentMethodView metodo = resolverMetodoDePago(peticion.paymentMethodId(), total(copiadas));
+
     MovementTypeView tipo = tipoDeVenta();
     Movement venta =
         Movement.registrar(
@@ -173,7 +211,7 @@ public class RegisterSaleService {
             metodo.id(),
             referencia.currencyId(),
             MovementCode.generar(tipo.prefix(), ocurrioEn),
-            copiar(lineas, catalogo, referencia.currencyDecimalPlaces()),
+            copiadas,
             referencia.currencyDecimalPlaces(),
             ocurrioEn,
             ahora);
@@ -196,7 +234,7 @@ public class RegisterSaleService {
   // ---------------------------------------------------------------------------
 
   /** `EX-001` y `EX-002`, que se distinguen a propósito (`CA-MV-009`). */
-  private ClientView verificarCliente(UUID clientId) {
+  private ClientView verificarCliente(UUID clientId, boolean altaDelCliente) {
     ClientView cliente =
         clientes
             .findClient(clientId)
@@ -212,7 +250,10 @@ public class RegisterSaleService {
     // `RN-MV-008`. El mensaje dice QUE LE FALTA, y no solo que no se puede:
     // quien intenta vender necesita saber que la salida es confirmar el
     // depósito, no reintentar. Ver el Javadoc de FTD_PENDIENTE.
-    if (FTD_PENDIENTE.equals(cliente.status())) {
+    //
+    // SALVO EN EL ALTA, que es la venta que PONE a la cuenta en ese estado y no
+    // una compra posterior desde él. Ver `registrarAltaDeCliente`.
+    if (!altaDelCliente && FTD_PENDIENTE.equals(cliente.status())) {
       String mensaje =
           "Esa cuenta todavía no puede operar: le falta la confirmación de su depósito.";
       throw new BusinessRuleException(
@@ -254,6 +295,82 @@ public class RegisterSaleService {
   // ---------------------------------------------------------------------------
   // 3. Con qué se paga
   // ---------------------------------------------------------------------------
+
+  /**
+   * `RN-MV-022` — importe cero y pago gratuito son lo mismo, <b>en los dos sentidos</b>.
+   *
+   * <p><b>Qué cierra.</b> `RN-PM-006` admite el precio cero desde el 08-09-2026 —lo tumbó la
+   * renovación `BECA → BECA`— y {@code movements.payment_method_id} es {@code NOT NULL}. Desde
+   * entonces, toda compra gratuita estaba <b>obligada a declarar tarjeta, PSE o puntos</b>, y las
+   * tres son falsas. No fallaba nada: el padrón dejaba de poder decir qué se cobró, y `CM`
+   * comisionaría sobre un cobro que nunca ocurrió.
+   *
+   * <p><b>La segunda mitad es la que menos se ve y la más grave.</b> Una venta <b>cobrada</b> que
+   * declarara pago gratuito diría que no se cobró nada — y esa mentira va en la dirección en la que
+   * alguien gana algo. Por eso el rechazo es en los dos sentidos y no solo en uno.
+   *
+   * @param pedido el método que llegó en el cuerpo, o {@code null} si no vino
+   * @param total el importe ya calculado sobre las líneas copiadas
+   */
+  private PaymentMethodView resolverMetodoDePago(UUID pedido, BigDecimal total) {
+    if (total.signum() == 0) {
+      // NO SE ADMITE ENVIARLO, y no es rigidez: el método gratuito no es
+      // descubrible —`RF-MV-009` no lo devuelve (`RN-MV-023`)—, de modo que
+      // cualquier valor que llegue aquí es necesariamente uno equivocado.
+      if (pedido != null) {
+        String mensaje =
+            "Una venta de importe cero no admite método de pago: se registra como gratuita.";
+        throw new BusinessRuleException(
+            "RN-MV-022", mensaje, List.of(new FieldError("paymentMethodId", "RN-MV-022", mensaje)));
+      }
+      return metodoGratuito();
+    }
+
+    if (pedido == null) {
+      String mensaje = "El método de pago es obligatorio cuando la venta tiene importe.";
+      throw new BusinessRuleException(
+          "RN-MV-022", mensaje, List.of(new FieldError("paymentMethodId", "RN-MV-022", mensaje)));
+    }
+
+    PaymentMethodView metodo = verificarMetodoDePago(pedido);
+
+    // La otra mitad de `RN-MV-022`. En la práctica nadie puede llegar aquí con
+    // el gratuito —el catálogo no lo publica—, y la comprobación existe igual:
+    // la regla no se sostiene en que el catálogo lo esconda, sino en que el caso
+    // de uso lo rechace. Esconder es una defensa; rechazar es la regla.
+    if (CODIGO_GRATUITO.equals(metodo.code())) {
+      String mensaje = "El pago gratuito solo vale para ventas de importe cero.";
+      throw new BusinessRuleException(
+          "RN-MV-022", mensaje, List.of(new FieldError("paymentMethodId", "RN-MV-022", mensaje)));
+    }
+    return metodo;
+  }
+
+  /**
+   * El pago gratuito, por <b>código</b> y no por identificador.
+   *
+   * <p>Mismo criterio que {@code MembershipCatalog.floor()} con `BECA`: el literal vive en un solo
+   * sitio, {@code uq_payment_methods_code} lo hace único y `V78` lo siembra en todos los entornos.
+   *
+   * <p><b>No devuelve vacío.</b> Que falte no es un caso de negocio que quien llama deba resolver:
+   * es una base mal construida, y `V78` levanta excepción al aplicarse justamente para que no
+   * llegue a ocurrir.
+   */
+  private PaymentMethodView metodoGratuito() {
+    return movimientos
+        .findPaymentMethodByCode(CODIGO_GRATUITO)
+        .orElseThrow(
+            () ->
+                new IllegalStateException(
+                    "RN-MV-022: falta el método de pago " + CODIGO_GRATUITO + " en el catálogo."));
+  }
+
+  /** El importe de la venta, que es lo que `RN-MV-022` necesita para decidir. */
+  private static BigDecimal total(List<MovementLine> lineas) {
+    return lineas.stream()
+        .map(MovementLine::getLineAmount)
+        .reduce(BigDecimal.ZERO, BigDecimal::add);
+  }
 
   /**
    * `EX-010`, con los dos casos separados: inexistente es {@code 422} y desactivado es {@code 409}.

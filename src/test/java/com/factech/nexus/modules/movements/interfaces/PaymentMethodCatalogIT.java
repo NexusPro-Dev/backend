@@ -20,12 +20,20 @@ import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.request.RequestPostProcessor;
 
 /**
- * El catálogo de métodos de pago (`RF-MV-009` · `T-07`).
+ * El catálogo de métodos de pago (`RF-MV-009` · `T-07` y `T-14`).
  *
- * <p>Cubre `CA-MV-027` a `CA-MV-033`. <b>`CA-MV-034` no está aquí</b>, y no por descuido: afirma
- * que <b>registrar una venta con un método excluido se registra igual</b>, de modo que vive donde
- * está la siembra de una venta — {@code RegisterSaleIT}. Es el criterio que sostiene la decisión
- * entera de este requerimiento.
+ * <p>Cubre `CA-MV-027` a `CA-MV-033` y `CA-MV-049` a `CA-MV-052`. <b>`CA-MV-034` no está aquí</b>,
+ * y no por descuido: afirma que <b>registrar una venta con un método excluido se registra
+ * igual</b>, de modo que vive donde está la siembra de una venta — {@code RegisterSaleIT}. Es el
+ * criterio que sostiene la decisión entera de este requerimiento.
+ *
+ * <h2>Desde el 09-09-2026 la mitad de lo que se comprueba es SIN TOKEN</h2>
+ *
+ * <p>La ruta es pública (`RN-MV-024`), de modo que `CA-MV-033` afirma lo contrario de lo que
+ * afirmaba —`200` en lugar de `401`— y nacen dos criterios que solo tienen sentido para el anónimo:
+ * que reciba <b>lo mismo</b> que el autenticado (`CA-MV-051`) y que los <b>dos ejes</b> sigan
+ * puestos para él (`CA-MV-052`). Lo segundo es lo que impide que abrir la ruta publique el pago
+ * gratuito, que es con lo que se anota una venta de importe cero.
  *
  * <h2>Esta prueba NO da por sabido qué métodos siembra la migración</h2>
  *
@@ -67,7 +75,13 @@ class PaymentMethodCatalogIT extends IntegrationTestBase {
     // sembrado, que es lo que de verdad promete el contrato.
     List<String> esperados =
         jdbc.queryForList(
-            "SELECT code FROM payment_methods WHERE is_active = true ORDER BY code ASC",
+            // EL PREDICADO LLEVA LOS DOS EJES desde el 09-09-2026 (`RN-MV-023`):
+            // `is_active` dice si SIRVE y `visibility` si SE OFRECE, y son
+            // preguntas distintas. Con solo la primera, esta prueba esperaba
+            // ver el pago gratuito en el selector — que es justo lo que la
+            // regla existe para impedir.
+            "SELECT code FROM payment_methods"
+                + " WHERE is_active = true AND visibility = 'PUBLICO' ORDER BY code ASC",
             String.class);
 
     mvc.perform(get("/api/v1/payment-methods").with(actor()))
@@ -79,6 +93,48 @@ class PaymentMethodCatalogIT extends IntegrationTestBase {
         .andExpect(jsonPath("$.content[*].code").value(Matchers.contains(esperados.toArray())))
         .andExpect(jsonPath("$.content[0].id").exists())
         .andExpect(jsonPath("$.content[0].name").exists());
+  }
+
+  @Test
+  @DisplayName("CA-MV-049: el pago gratuito NO aparece, y no hay parámetro que lo traiga")
+  void elGratuitoNoSeOfrece() throws Exception {
+    // Está sembrado por `V78`, está ACTIVO y sirve para pagar. Y no se ofrece,
+    // porque es INTERNO (`RN-MV-023`): lo elige el sistema, no una persona.
+    Integer activo =
+        jdbc.queryForObject(
+            "SELECT count(*) FROM payment_methods WHERE code = 'GRATIS' AND is_active",
+            Integer.class);
+    org.assertj.core.api.Assertions.assertThat(activo).isEqualTo(1);
+
+    mvc.perform(get("/api/v1/payment-methods").with(actor()))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.content[?(@.code == 'GRATIS')]").isEmpty());
+
+    // Y NO HAY PARÁMETRO QUE LO TRAIGA. Se prueban los dos nombres que alguien
+    // añadiría «por simetría con los países y las monedas»: un parámetro
+    // desconocido se ignora, de modo que la respuesta debe seguir sin él.
+    for (String intento : new String[] {"includeInactive=true", "includeHidden=true"}) {
+      mvc.perform(get("/api/v1/payment-methods?" + intento).with(actor()))
+          .andExpect(status().isOk())
+          .andExpect(jsonPath("$.content[?(@.code == 'GRATIS')]").isEmpty());
+    }
+  }
+
+  @Test
+  @DisplayName("CA-MV-050: la respuesta no publica el campo de visibilidad")
+  void noPublicaLaVisibilidad() throws Exception {
+    // Si todo lo que sale es PUBLICO, declararlo sugiere que puede salir otra
+    // cosa — y el día que alguien construya sobre ese campo, estará filtrando
+    // por algo que nunca varía.
+    String cuerpo =
+        mvc.perform(get("/api/v1/payment-methods").with(actor()))
+            .andReturn()
+            .getResponse()
+            .getContentAsString();
+
+    org.assertj.core.api.Assertions.assertThat(cuerpo)
+        .doesNotContain("visibility")
+        .doesNotContain("INTERNO");
   }
 
   @Test
@@ -142,9 +198,66 @@ class PaymentMethodCatalogIT extends IntegrationTestBase {
   }
 
   @Test
-  @DisplayName("CA-MV-033: sin token responde 401")
+  @DisplayName("CA-MV-033 — INVERTIDO: sin token responde 200, porque la consulta es pública")
   void sinToken() throws Exception {
-    mvc.perform(get("/api/v1/payment-methods")).andExpect(status().isUnauthorized());
+    // Decía «sin token responde 401» hasta el 09-09-2026, cuando el responsable
+    // del proyecto abrió el catálogo (`RN-MV-024`): el formulario de registro
+    // por enlace elige con qué se paga antes de que exista la cuenta.
+    //
+    // La prueba NO se borra, se invierte —igual que `CA-SP-143` y `CA-SP-606`
+    // cuando se abrieron los tres catálogos de `SP`—: lo que había que comprobar
+    // era que la puerta estaba cerrada, y ahora hay que comprobar que está
+    // abierta, para que el día que alguien la cierre por descuido falle aquí y
+    // no en el formulario de producción.
+    mvc.perform(get("/api/v1/payment-methods")).andExpect(status().isOk());
+  }
+
+  @Test
+  @DisplayName("CA-MV-051: sin token sale exactamente lo mismo que con token")
+  void elAnonimoRecibeLoMismo() throws Exception {
+    UUID excluido = metodo("PM_EXCLUIDO", "Método con exclusiones", true);
+    metodo("PM_LIBRE", "Método sin exclusiones", true);
+    metodo("PM_RETIRADO", "Método retirado", false);
+    excluir(excluido, mexico);
+
+    // Las dos respuestas se comparan ENTRE SÍ y no contra una lista escrita a
+    // mano: lo que se promete no es un contenido concreto —el sembrado cambia—
+    // sino que estar autenticado NO cambia nada. Un catálogo que enseñara más a
+    // quien ha entrado obligaría a mantener dos verdades sobre lo mismo, y el
+    // selector del registro podría discrepar del de la pantalla de compra.
+    String conToken =
+        mvc.perform(get("/api/v1/payment-methods").with(actor()))
+            .andExpect(status().isOk())
+            .andReturn()
+            .getResponse()
+            .getContentAsString();
+
+    String sinToken =
+        mvc.perform(get("/api/v1/payment-methods"))
+            .andExpect(status().isOk())
+            .andReturn()
+            .getResponse()
+            .getContentAsString();
+
+    org.assertj.core.api.Assertions.assertThat(sinToken).isEqualTo(conToken);
+  }
+
+  @Test
+  @DisplayName("CA-MV-052: sin token tampoco salen el desactivado ni lo INTERNO")
+  void elAnonimoNoVeLoQueNoSeOfrece() throws Exception {
+    UUID retirado = metodo("PM_RETIRADO", "Método retirado", false);
+    excluir(retirado, mexico);
+
+    // `CA-MV-028` y `CA-MV-049` comprueban los dos ejes CON sesión; este los
+    // comprueba SIN ella, que es el único camino por el que un descuido futuro
+    // —un filtro que se relaje «solo para el público»— llegaría hasta alguien
+    // que no ha entrado. Y es el que más importa desde que la ruta es pública:
+    // publicar `GRATIS` sería publicar con qué se anota una venta gratuita.
+    mvc.perform(get("/api/v1/payment-methods"))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.content[?(@.code == 'GRATIS')]").isEmpty())
+        .andExpect(
+            jsonPath("$.content[*].code").value(Matchers.not(Matchers.hasItem("PM_RETIRADO"))));
   }
 
   @Test

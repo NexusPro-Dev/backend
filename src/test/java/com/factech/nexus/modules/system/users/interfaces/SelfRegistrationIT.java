@@ -1,6 +1,7 @@
 package com.factech.nexus.modules.system.users.interfaces;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.hamcrest.Matchers.hasItem;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
@@ -26,7 +27,7 @@ import org.springframework.test.web.servlet.request.MockHttpServletRequestBuilde
  * pruebas vigilan: que la cuenta nazca sin poder operar, que los rechazos no delaten el catálogo ni
  * la plantilla, y que <b>ningún rechazo deje nada escrito</b>.
  *
- * <p>La siembra la hace SQL: hace falta un producto `FREE → FREE`, un vendedor con rol de tipo
+ * <p>La siembra la hace SQL: hace falta un producto `BECA → BECA`, un vendedor con rol de tipo
  * {@code VENDEDOR} y un broker, y ninguno de los tres se puede crear por HTTP sin credenciales.
  */
 @AutoConfigureMockMvc
@@ -43,6 +44,12 @@ class SelfRegistrationIT extends IntegrationTestBase {
 
   private static final String USD = "01a03336-6d00-7001-9c4f-5e7ad3000001";
 
+  /** `CREDIT_CARD`, sembrado por `V54`: el método del camino de pago. */
+  private static final String TARJETA = "01a061ba-3400-7002-9c4f-5e7ad7000021";
+
+  /** El precio de `REG_ORO`, para comprobar el importe de la venta. */
+  private static final java.math.BigDecimal CIEN = new java.math.BigDecimal("100.00");
+
   @Autowired private MockMvc mvc;
   @Autowired private JdbcTemplate jdbc;
 
@@ -58,13 +65,15 @@ class SelfRegistrationIT extends IntegrationTestBase {
     // Colores distintos: `uq_memberships_color` es único, y dos iguales revientan
     // en el segundo INSERT y no en lo que la prueba comprueba.
     oro = membresia("ORO", "Oro", 1, null, "D4AF37");
-    free = membresia("FREE", "Free", 2, oro, "9E9E9E");
+    free = membresia("BECA", "Beca", 2, oro, "9E9E9E");
 
-    // El producto del enlace: `FREE → FREE`, que es la renovación y el único
-    // que este registro admite hoy.
-    producto("REG_FREE", free, free, 30);
-    // Uno que lleva a una membresía DE PAGO: lo rechaza `EX-004`.
-    producto("REG_ORO", free, oro, 365);
+    // El producto del enlace gratuito: `BECA → BECA`, la renovación. Vale CERO,
+    // y de ahí sale que su venta se anote con el pago gratuito (`RN-MV-022`).
+    producto("REG_FREE", free, free, 30, "0.00");
+    // Uno DE PAGO. Hasta el 09-09-2026 lo rechazaba `EX-004`; desde que el
+    // registro anota la venta, este camino se admite y lo que cambia es el
+    // estado en que nace la cuenta y qué membresía se concede.
+    producto("REG_ORO", free, oro, 365, "100.00");
 
     vendedor("reg-agente");
     // Una persona que existe y NO es fuerza comercial: `EX-002` no la distingue
@@ -153,16 +162,23 @@ class SelfRegistrationIT extends IntegrationTestBase {
   }
 
   @Test
-  @DisplayName("`CA-SP-514` — el producto se admite por CÓDIGO y por IDENTIFICADOR")
-  void productoPorCodigoOIdentificador() throws Exception {
-    String id =
+  @DisplayName("`CA-SP-623` — el producto y el vendedor salen del MOVIMIENTO, y son obligatorios")
+  void elProductoYElVendedorSonDelMovimiento() throws Exception {
+    String producto =
         jdbc.queryForObject("SELECT id::text FROM products WHERE code = 'REG_FREE'", String.class);
 
-    mvc.perform(registro(cuerpo("ana.ruiz", "ana@ejemplo.com", "12345678")))
-        .andExpect(status().isCreated());
+    // Desde el 09-09-2026 no hay `product` ni `referrer` en el primer nivel:
+    // decían lo mismo que estos dos, y dos campos para un dato son dos valores
+    // que pueden discrepar.
+    mvc.perform(registro(conMovimiento(movimientoCrudo(null, null, "reg-agente", "VENTA"))))
+        .andExpect(status().isBadRequest())
+        .andExpect(jsonPath("$.errors[*].code").value(hasItem("VAL-001")));
 
-    mvc.perform(registro(cuerpoCon(id, "beto.paz", "beto@ejemplo.com", "87654321", BROKER)))
-        .andExpect(status().isCreated());
+    mvc.perform(registro(conMovimiento(movimientoCrudo(producto, null, null, "VENTA"))))
+        .andExpect(status().isBadRequest())
+        .andExpect(jsonPath("$.errors[*].code").value(hasItem("VAL-002")));
+
+    assertThat(cuantasPersonas()).isZero();
   }
 
   @Test
@@ -199,7 +215,7 @@ class SelfRegistrationIT extends IntegrationTestBase {
   // ---------------------------------------------------------------------------
 
   @Test
-  @DisplayName("`CA-SP-609` — el enlace FREE → FREE exige AL MENOS UNA cuenta de broker")
+  @DisplayName("`CA-SP-609` — el enlace BECA → BECA exige AL MENOS UNA cuenta de broker")
   void elBrokerEsObligatorio() throws Exception {
     // Lista vacía: es lo que envía un formulario donde nadie declaró ninguna.
     mvc.perform(registro(cuerpoCon("REG_FREE", "ana.ruiz", "ana@ejemplo.com", null, BROKER)))
@@ -404,14 +420,139 @@ class SelfRegistrationIT extends IntegrationTestBase {
         .andExpect(jsonPath("$.errors[0].code").value("EX-003"));
   }
 
+  // ---------------------------------------------------------------------------
+  // El movimiento — `RN-SP-043`
+  // ---------------------------------------------------------------------------
+
   @Test
-  @DisplayName("`CA-SP-517` — un producto hacia una membresía DE PAGO dice que exige pago")
-  void elProductoDePagoSeRechazaDiciendolo() throws Exception {
-    // Es la única excepción del enlace que sí dice qué pasó: quien llega con un
-    // producto de pago tiene un enlace legítimo.
+  @DisplayName("`CA-SP-617` — el registro gratuito anota su venta, PENDIENTE y con pago gratuito")
+  void elRegistroGratuitoAnotaSuVenta() throws Exception {
+    String codigo =
+        objeto(
+            mvc.perform(registro(cuerpo("ana.ruiz", "ana@ejemplo.com", "12345678")))
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.sale").isNotEmpty())
+                .andReturn()
+                .getResponse()
+                .getContentAsString(),
+            "sale");
+
+    Map<String, Object> venta =
+        jdbc.queryForMap(
+            "SELECT m.code, m.status, pm.code AS metodo, m.total_amount,"
+                + " c.username AS cliente, v.username AS vendedor"
+                + " FROM movements m"
+                + " JOIN payment_methods pm ON pm.id = m.payment_method_id"
+                + " JOIN users c ON c.id = m.client_id"
+                + " JOIN users v ON v.id = m.seller_id"
+                + " WHERE c.username = 'ana.ruiz'");
+
+    assertThat(venta.get("code")).isEqualTo(codigo);
+    // `RN-MV-004`: registrar NO concede nada. Que nazca pendiente es lo que
+    // sostiene que la membresía comprada llegue al confirmar y no antes.
+    assertThat(venta.get("status")).isEqualTo("PENDIENTE");
+    // `RN-MV-022`: importe cero y pago gratuito son lo mismo. El formulario no
+    // lo envía —no puede: el catálogo público no lo devuelve— y lo pone `MV`.
+    assertThat(venta.get("metodo")).isEqualTo("GRATIS");
+    assertThat(((java.math.BigDecimal) venta.get("total_amount")).signum()).isZero();
+    // El vendedor NO se impone: `RN-MV-003` lo saca del superior que el registro
+    // acaba de asignar, y aquí se comprueba que son el mismo.
+    assertThat(venta.get("vendedor")).isEqualTo("reg-agente");
+  }
+
+  @Test
+  @DisplayName("`CA-SP-618` — el enlace DE PAGO se admite: cuenta ACTIVA y membresía del SUELO")
+  void elEnlaceDePagoSeAdmite() throws Exception {
+    // Hasta el 09-09-2026 esto era `EX-004`: «ese producto exige un pago» y no
+    // había con qué cobrarlo. Ahora el registro anota la venta.
     mvc.perform(registro(cuerpoCon("REG_ORO", "ana.ruiz", "ana@ejemplo.com", "12345678", BROKER)))
+        .andExpect(status().isCreated())
+        .andExpect(jsonPath("$.status").value("ACTIVO"))
+        .andExpect(jsonPath("$.sale").isNotEmpty());
+
+    // Quien paga no tiene ningún depósito que esperar: su cuenta nace operativa.
+    assertThat(
+            jdbc.queryForObject(
+                "SELECT status FROM users WHERE username = 'ana.ruiz'", String.class))
+        .isEqualTo("ACTIVO");
+
+    // Y NO recibe lo comprado: `RN-SP-018` le da el SUELO, y la de ORO se la
+    // concederá confirmar la venta (`RN-MV-020`). Concederla aquí sería premiar
+    // un pago que nadie ha comprobado.
+    Map<String, Object> nivel =
+        jdbc.queryForMap(
+            "SELECT ms.code, um.ends_at FROM user_memberships um"
+                + " JOIN memberships ms ON ms.id = um.membership_id"
+                + " JOIN users u ON u.id = um.user_id WHERE u.username = 'ana.ruiz'");
+
+    assertThat(nivel.get("code")).isEqualTo("BECA");
+    // Sin vigencia: el suelo no caduca. La del producto comprado sí, y llegará
+    // con la confirmación.
+    assertThat(nivel.get("ends_at")).isNull();
+
+    Map<String, Object> venta =
+        jdbc.queryForMap(
+            "SELECT m.status, pm.code AS metodo, m.total_amount FROM movements m"
+                + " JOIN payment_methods pm ON pm.id = m.payment_method_id"
+                + " JOIN users c ON c.id = m.client_id WHERE c.username = 'ana.ruiz'");
+
+    assertThat(venta.get("status")).isEqualTo("PENDIENTE");
+    assertThat(venta.get("metodo")).isEqualTo("CREDIT_CARD");
+    assertThat(((java.math.BigDecimal) venta.get("total_amount")).compareTo(CIEN)).isZero();
+  }
+
+  @Test
+  @DisplayName("`CA-SP-620` — el bloque del movimiento y su tipo son obligatorios")
+  void elMovimientoEsObligatorio() throws Exception {
+    mvc.perform(registro(conMovimiento("null")))
+        .andExpect(status().isBadRequest())
+        .andExpect(jsonPath("$.errors[0].code").value("VAL-015"));
+
+    String producto =
+        jdbc.queryForObject("SELECT id::text FROM products WHERE code = 'REG_FREE'", String.class);
+
+    mvc.perform(registro(conMovimiento(movimientoCrudo(producto, null, "reg-agente", null))))
+        .andExpect(status().isBadRequest())
+        .andExpect(jsonPath("$.errors[0].code").value("VAL-017"));
+
+    assertThat(cuantasPersonas()).isZero();
+  }
+
+  @Test
+  @DisplayName("`CA-SP-621` — un tipo que no es VENTA se rechaza, y no deja NADA escrito")
+  void elTipoQueNoEsVentaSeRechaza() throws Exception {
+    String producto =
+        jdbc.queryForObject("SELECT id::text FROM products WHERE code = 'REG_FREE'", String.class);
+
+    // Hoy el catálogo solo tiene `VENTA`. El día que tenga más, mandar aquí un
+    // `DEPOSITO` tiene que fallar y no colarse como venta.
+    mvc.perform(registro(conMovimiento(movimientoCrudo(producto, null, "reg-agente", "DEPOSITO"))))
         .andExpect(status().isUnprocessableEntity())
-        .andExpect(jsonPath("$.errors[0].code").value("EX-004"));
+        .andExpect(jsonPath("$.errors[0].code").value("EX-010"));
+
+    assertThat(cuantasPersonas()).isZero();
+    assertThat(jdbc.queryForObject("SELECT count(*) FROM movements", Integer.class)).isZero();
+  }
+
+  @Test
+  @DisplayName("una venta rechazada deshace el registro ENTERO: ni persona, ni broker, ni nivel")
+  void laVentaRechazadaDeshaceElRegistro() throws Exception {
+    String producto =
+        jdbc.queryForObject("SELECT id::text FROM products WHERE code = 'REG_FREE'", String.class);
+
+    // La venta es lo ÚLTIMO que ocurre, con la persona, su membresía, su
+    // atribución y su cuenta de broker ya escritas. Registrar a alguien cuya
+    // venta no se pudo anotar es el estado que la transacción evita.
+    // El método de pago sobra: el producto vale cero y `RN-MV-022` lo rechaza.
+    mvc.perform(registro(conMovimiento(movimientoCrudo(producto, TARJETA, "reg-agente", "VENTA"))))
+        .andExpect(status().isConflict())
+        .andExpect(jsonPath("$.errors[0].code").value("RN-MV-022"));
+
+    assertThat(cuantasPersonas()).isZero();
+    assertThat(jdbc.queryForObject("SELECT count(*) FROM user_brokers", Integer.class)).isZero();
+    assertThat(jdbc.queryForObject("SELECT count(*) FROM user_memberships", Integer.class))
+        .isZero();
+    assertThat(jdbc.queryForObject("SELECT count(*) FROM movements", Integer.class)).isZero();
   }
 
   @Test
@@ -506,6 +647,112 @@ class SelfRegistrationIT extends IntegrationTestBase {
     return plantilla(producto, "reg-agente", usuario, correo, cuenta, broker, paisSembrado(), "CC");
   }
 
+  // ---------------------------------------------------------------------------
+  // El bloque del movimiento
+  // ---------------------------------------------------------------------------
+
+  /**
+   * El movimiento que acompaña al registro, <b>derivado del producto del enlace</b>.
+   *
+   * <p>Se construye así y no con valores fijos porque los dos campos que lleva dependen del
+   * producto: {@code productId} tiene que ser <b>el del enlace</b> (`VAL-016`) y el método de pago
+   * <b>solo va cuando la venta tiene importe</b> (`RN-MV-022`) — el gratuito lo pone `MV`, y el
+   * formulario ni siquiera puede conocerlo.
+   */
+  /** El cuerpo de siempre, con el bloque del movimiento escrito a mano. */
+  private String conMovimiento(String movimientoJson) {
+    return """
+        {"firstName":"Ana","lastName":"Ruiz",
+         "username":"ana.ruiz","email":"ana@ejemplo.com","password":"ClaveSegura2026!",
+         "countryCode":"%s","documentType":"CC","documentNumber":"%s",
+         "phone":"+573001234567",
+         "addressLine1":null,"addressLine2":null,"city":null,
+         "brokerAccounts":[{"brokerId":"%s","accountId":"12345678"}],
+         "movement":%s}
+        """
+        .formatted(
+            paisSembrado(),
+            Integer.toString(Math.abs("ana.ruiz".hashCode())),
+            BROKER,
+            movimientoJson);
+  }
+
+  private static String movimientoCrudo(
+      String productoId, String metodo, String vendedor, String tipo) {
+    return "{\"productId\":"
+        + comillas(productoId)
+        + ",\"paymentMethodId\":"
+        + comillas(metodo)
+        + ",\"sellerUsername\":"
+        + comillas(vendedor)
+        + ",\"movementTypeCode\":"
+        + comillas(tipo)
+        + "}";
+  }
+
+  /** Un campo de primer nivel de la respuesta, sin traerse un lector de JSON entero. */
+  private static String objeto(String cuerpo, String campo) {
+    var m =
+        java.util.regex.Pattern.compile("\"" + campo + "\"\\s*:\\s*\"([^\"]*)\"").matcher(cuerpo);
+    assertThat(m.find()).isTrue();
+    return m.group(1);
+  }
+
+  private String movimiento(String productoRef, String vendedor) {
+    String id = idDeProducto(productoRef);
+    return "{\"productId\":"
+        + comillas(id)
+        + ",\"paymentMethodId\":"
+        + comillas(metodoDePagoPara(id))
+        + ",\"sellerUsername\":\""
+        + vendedor
+        + "\",\"movementTypeCode\":\"VENTA\"}";
+  }
+
+  /**
+   * El identificador del producto referido, venga por código o ya por identificador.
+   *
+   * <p>Una referencia que no corresponde a ningún producto —la de `CA-SP-515`— produce un
+   * identificador inventado: esa petición se rechaza por `EX-001` <b>antes</b> de mirar el
+   * movimiento, y lo que lleve aquí da igual mientras sea un UUID.
+   */
+  private String idDeProducto(String referencia) {
+    if (esUuid(referencia)) {
+      return referencia;
+    }
+    return jdbc
+        .queryForList("SELECT id::text FROM products WHERE code = ?", String.class, referencia)
+        .stream()
+        .findFirst()
+        .orElseGet(() -> UUID.randomUUID().toString());
+  }
+
+  /** Nulo si el producto vale cero, y `CREDIT_CARD` si tiene importe (`RN-MV-022`). */
+  private String metodoDePagoPara(String productoId) {
+    Boolean gratuito =
+        jdbc
+            .queryForList(
+                "SELECT price = 0 FROM products WHERE id = ?::uuid", Boolean.class, productoId)
+            .stream()
+            .findFirst()
+            .orElse(true);
+
+    return Boolean.TRUE.equals(gratuito) ? null : TARJETA;
+  }
+
+  private static boolean esUuid(String valor) {
+    try {
+      UUID.fromString(valor);
+      return true;
+    } catch (IllegalArgumentException e) {
+      return false;
+    }
+  }
+
+  private static String comillas(String valor) {
+    return valor == null ? "null" : "\"" + valor + "\"";
+  }
+
   private String cuerpoConVendedor(String vendedor) {
     return plantilla(
         "REG_FREE",
@@ -535,7 +782,7 @@ class SelfRegistrationIT extends IntegrationTestBase {
         abreviacion);
   }
 
-  private static String plantilla(
+  private String plantilla(
       String producto,
       String vendedor,
       String usuario,
@@ -546,17 +793,15 @@ class SelfRegistrationIT extends IntegrationTestBase {
       String documento) {
 
     return """
-        {"product":"%s","referrer":"%s",
-         "firstName":"Ana","lastName":"Ruiz",
+        {"firstName":"Ana","lastName":"Ruiz",
          "username":"%s","email":"%s","password":"ClaveSegura2026!",
          "countryCode":"%s","documentType":"%s","documentNumber":"%s",
          "phone":"+573001234567",
          "addressLine1":null,"addressLine2":null,"city":null,
-         "brokerAccounts":%s}
+         "brokerAccounts":%s,
+         "movement":%s}
         """
         .formatted(
-            producto,
-            vendedor,
             usuario,
             correo,
             pais,
@@ -564,7 +809,8 @@ class SelfRegistrationIT extends IntegrationTestBase {
             // El número de documento se deriva del nombre de usuario para que
             // dos registros distintos no choquen por `uq_users_document`.
             Integer.toString(Math.abs(usuario.hashCode())),
-            cuentas(broker, cuenta));
+            cuentas(broker, cuenta),
+            movimiento(producto, vendedor));
   }
 
   private String plantillaConCuentas(String cuentasJson) {
@@ -574,20 +820,21 @@ class SelfRegistrationIT extends IntegrationTestBase {
   /** El cuerpo con una lista de cuentas escrita a mano, para los casos de varias. */
   private String plantillaConCuentas(String usuario, String correo, String cuentasJson) {
     return """
-        {"product":"REG_FREE","referrer":"reg-agente",
-         "firstName":"Ana","lastName":"Ruiz",
+        {"firstName":"Ana","lastName":"Ruiz",
          "username":"%s","email":"%s","password":"ClaveSegura2026!",
          "countryCode":"%s","documentType":"CC","documentNumber":"%s",
          "phone":"+573001234567",
          "addressLine1":null,"addressLine2":null,"city":null,
-         "brokerAccounts":%s}
+         "brokerAccounts":%s,
+         "movement":%s}
         """
         .formatted(
             usuario,
             correo,
             paisSembrado(),
             Integer.toString(Math.abs(usuario.hashCode())),
-            cuentasJson);
+            cuentasJson,
+            movimiento("REG_FREE", "reg-agente"));
   }
 
   /**
@@ -630,18 +877,19 @@ class SelfRegistrationIT extends IntegrationTestBase {
     return id;
   }
 
-  private void producto(String codigo, UUID origen, UUID destino, Integer vigencia) {
+  private void producto(String codigo, UUID origen, UUID destino, Integer vigencia, String precio) {
     jdbc.update(
         "INSERT INTO products (id, code, type, name, source_membership_id, target_membership_id,"
             + " price, currency_id, validity_days, status, scope, implementation)"
             + " VALUES (CAST(? AS uuid), ?, 'UPGRADE_MEMBRESIA', ?, CAST(? AS uuid),"
-            + " CAST(? AS uuid), 0.00, CAST(? AS uuid), CAST(? AS integer), 'ACTIVO', 'TIENDA',"
-            + " 'AUTOMATICA')",
+            + " CAST(? AS uuid), CAST(? AS numeric), CAST(? AS uuid), CAST(? AS integer), 'ACTIVO',"
+            + " 'TIENDA', 'AUTOMATICA')",
         UUID.randomUUID().toString(),
         codigo,
         "Producto " + codigo,
         origen.toString(),
         destino.toString(),
+        precio,
         USD,
         vigencia);
   }
@@ -674,6 +922,13 @@ class SelfRegistrationIT extends IntegrationTestBase {
   }
 
   private void limpiar() {
+    // Los movimientos ANTES que los productos y las personas: sus claves
+    // foráneas son RESTRICT a propósito, para que un borrado físico no se lleve
+    // por delante la atribución de una venta. Desde el 09-09-2026 todo registro
+    // deja uno, de modo que esta prueba ya los produce.
+    jdbc.update("DELETE FROM movement_details");
+    jdbc.update("DELETE FROM movements");
+    jdbc.update("DELETE FROM audit_change_log WHERE module = 'MV'");
     jdbc.update("DELETE FROM user_brokers");
     jdbc.update("DELETE FROM refresh_tokens");
     jdbc.update("DELETE FROM user_supervisors");

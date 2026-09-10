@@ -48,21 +48,28 @@ public class RegistrationController {
           que un vendedor reparte. Es el **primer endpoint público del sistema
           que escribe**.
 
-          El enlace lleva dos datos y **ninguno es un secreto**: el producto —por
-          su código o su identificador, en el mismo campo— y el vendedor, por su
-          **nombre de usuario**. Los cuatro campos de referencia de este cuerpo
-          evitan los UUID —producto, vendedor, `countryCode` alfa-3 y
-          `documentType` por abreviación— porque es un formulario público al que
-          no se le puede pedir que conozca los identificadores del sistema. La
-          excepción es el broker de cada cuenta, que se elige de un desplegable
-          leído del catálogo público de brokers.
+          El enlace lleva dos datos y **ninguno es un secreto**: el producto y el
+          vendedor. **Los dos viajan dentro de `movement`** (`productId` y
+          `sellerUsername`) y no en el primer nivel: hasta el 09-09-2026 estaban
+          además duplicados como `product` y `referrer`, y dos campos para un
+          dato son dos valores que pueden discrepar.
+
+          `countryCode` va en alfa-3 y `documentType` por abreviación, porque es
+          un formulario público al que no se le puede pedir que conozca los
+          identificadores del sistema. Los que sí son UUID son los de lo que el
+          formulario **acaba de leer de un catálogo**: el broker de cada cuenta y
+          el producto.
+
+          **El registro anota una venta** (`RN-SP-043`), siempre — también en el
+          enlace gratuito. Nace `PENDIENTE`, de modo que registrarse **no paga
+          nada**, y su código se devuelve en `sale`.
 
           **`brokerAccounts` es una LISTA: se declaran UNA O MÁS cuentas** en el
           mismo registro, porque una persona puede operar con varios brokers y
           esta es hoy la única vía para declararlos.
 
           **Es obligatoria —al menos una— cuando el producto del enlace es una
-          membresía `FREE → FREE`** (`RN-SP-042`), y solo entonces. El motivo es
+          membresía `BECA → BECA`** (`RN-SP-042`), y solo entonces. El motivo es
           el estado en el que nace la cuenta: sin cuenta de broker declarada,
           nadie podrá atribuirle el depósito que la saca de `FTD_PENDIENTE`. Con
           otro producto **se admiten igualmente** las que se envíen.
@@ -74,9 +81,13 @@ public class RegistrationController {
           y no con el `409` del índice: ese mensaje diría «ya está declarada por
           otra persona», y la otra persona sería ella misma.
 
-          **La cuenta nace en `FTD_PENDIENTE`**, que **autentica y no opera**:
-          quien se registra puede iniciar sesión y ver lo suyo, y lo que le falta
-          para operar es el primer depósito.
+          **El estado en que nace la cuenta depende del producto**
+          (`RN-SP-044`). Con un enlace `BECA → BECA` nace en `FTD_PENDIENTE`, que
+          **autentica y no opera**: quien se registra puede iniciar sesión y ver
+          lo suyo, y lo que le falta para operar es el primer depósito. Con un
+          producto **de pago** nace **`ACTIVO`** —no hay ningún depósito que
+          esperar— y recibe la membresía **del suelo**, no la comprada: esa la
+          concede **confirmar la venta**, y no registrarse.
 
           **La contraseña la elige la persona**, y por eso la cuenta **no** queda
           marcada para cambio obligatorio — se marca lo que fijó otro, no lo que
@@ -86,31 +97,33 @@ public class RegistrationController {
           sesión. Quien acaba de crear su cuenta pasa por el inicio de sesión
           como todo el mundo.
 
-          **Los rechazos no dicen qué pasó, salvo tres.** Producto inexistente,
+          **Los rechazos no dicen qué pasó, salvo dos.** Producto inexistente,
           inactivo o retirado comparten respuesta, y lo mismo el vendedor que no
           existe y el que no es fuerza comercial: distinguirlos convertiría este
           endpoint en una forma de enumerar el catálogo y la plantilla. **Sí
           dicen** cuál de las dos identidades —nombre de usuario o correo— está
-          en uso, que el producto exige pago, y que la cuenta de broker ya está
-          declarada por otra persona: los tres los necesita quien se registra
-          para poder corregir.
+          en uso, y que la cuenta de broker ya está declarada por otra persona:
+          los dos los necesita quien se registra para poder corregir.
           """)
   @ApiResponses({
     @ApiResponse(
         responseCode = "201",
-        description = "Cuenta creada, en estado `FTD_PENDIENTE`",
+        description =
+            "Cuenta creada —`FTD_PENDIENTE` con el enlace gratuito, `ACTIVO` con uno de pago— y"
+                + " venta anotada en estado `PENDIENTE`",
         content = @Content(schema = @Schema(implementation = SelfRegistrationResponse.class))),
     @ApiResponse(responseCode = "400", description = "Datos inválidos (serie `VAL-nnn`)"),
     @ApiResponse(
         responseCode = "409",
         description =
-            "Nombre de usuario o correo en uso (`EX-005`), o cuenta de broker ya declarada"
-                + " (`EX-009`)"),
+            "Nombre de usuario o correo en uso (`EX-005`), cuenta de broker ya declarada"
+                + " (`EX-009`), o la venta no procede — método de pago en una venta gratuita, o"
+                + " ausente en una con importe (`RN-MV-022`)"),
     @ApiResponse(
         responseCode = "422",
         description =
             "El enlace no procede (`EX-001`, `EX-002`, `EX-003`, `EX-006`, `EX-007`, `EX-008`) o"
-                + " el producto exige pago (`EX-004`)"),
+                + " el movimiento no procede (`EX-010`)"),
     @ApiResponse(responseCode = "429", description = "Demasiadas peticiones desde este origen")
   })
   public SelfRegistrationResponse registrar(@Valid @RequestBody SelfRegistrationRequest peticion) {

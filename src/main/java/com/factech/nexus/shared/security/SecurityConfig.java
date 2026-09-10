@@ -93,7 +93,8 @@ public class SecurityConfig {
   };
 
   /**
-   * Los tres catálogos que el formulario de registro necesita <b>antes</b> de que exista la cuenta.
+   * Los <b>cuatro</b> catálogos que el formulario de registro necesita <b>antes</b> de que exista
+   * la cuenta.
    *
    * <p><b>Van aparte de {@link #RUTAS_PUBLICAS} porque aquí el MÉTODO importa</b>, y esa es toda la
    * razón de que exista esta segunda lista. {@code /api/v1/countries} responde a tres verbos: el
@@ -115,9 +116,29 @@ public class SecurityConfig {
    * document-types:read} y {@code brokers:read} <b>dejan de gobernar estas lecturas</b>. Los
    * permisos siguen sembrados —retirarlos rompería los roles que ya los tengan—, y quedan como los
    * cuatro de `movements:` y `products:hotlink`: sembrados y sin endpoint que los exija.
+   *
+   * <p><b>EL CUARTO ENTRA EL 09-09-2026 Y ES EL DE MÉTODOS DE PAGO</b> (`RF-MV-009`, `RN-MV-024`),
+   * por lo mismo que los otros tres: el mismo formulario elige <b>con qué se paga</b> antes de que
+   * exista la cuenta. Se aparta de ellos en dos cosas, y las dos conviene tenerlas escritas:
+   *
+   * <ul>
+   *   <li><b>No deja ningún permiso huérfano</b>, porque <b>nunca exigió uno</b>: no hubo
+   *       {@code @PreAuthorize} que retirar. Los cuatro permisos de {@code movements:} gobiernan
+   *       ventas, y ninguno gobernaba esta lectura.
+   *   <li><b>Hoy esa ruta solo responde a un {@code GET}</b>, de modo que las dos listas se
+   *       comportarían igual y la elección parece indiferente. No lo es: el catálogo de métodos de
+   *       pago <b>está aplazado, no descartado</b> como recurso administrable (`requirements/mv.md`
+   *       §5.3), y el día que tenga alta, esa escritura respondería {@code 403} en lugar de {@code
+   *       401} si la ruta estuviera abierta entera. Se ata ahora, que cuesta una línea.
+   * </ul>
+   *
+   * <p><b>Y lo que hace que abrirlo no publique nada no está aquí</b>, sino en la consulta: la
+   * respuesta lleva <b>dos ejes</b> —{@code is_active} y {@code visibility = 'PUBLICO'}
+   * (`RN-MV-023`)—, de modo que el anónimo recibe exactamente lo que recibía el autenticado. Con un
+   * solo eje, esta línea habría puesto el método {@code GRATIS} delante de cualquiera.
    */
   private static final String[] CATALOGOS_PUBLICOS = {
-    "/api/v1/countries", "/api/v1/document-types", "/api/v1/brokers"
+    "/api/v1/countries", "/api/v1/document-types", "/api/v1/brokers", "/api/v1/payment-methods"
   };
 
   /**

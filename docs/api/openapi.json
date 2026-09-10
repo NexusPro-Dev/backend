@@ -68,14 +68,39 @@
         },
         "type" : "object"
       },
-      "BrokerAccount" : {
+      "BrokerAccountItem" : {
         "properties" : {
           "accountId" : {
             "type" : "string"
           },
-          "brokerId" : {
+          "broker" : {
+            "$ref" : "#/components/schemas/BrokerRef"
+          },
+          "brokerUsername" : {
+            "type" : "string"
+          },
+          "declaredAt" : {
+            "format" : "date-time",
+            "type" : "string"
+          },
+          "id" : {
             "format" : "uuid",
             "type" : "string"
+          },
+          "status" : {
+            "enum" : [ "REGISTER", "FIRST_DEPOSIT" ],
+            "type" : "string"
+          }
+        },
+        "type" : "object"
+      },
+      "BrokerAccountsResponse" : {
+        "properties" : {
+          "content" : {
+            "items" : {
+              "$ref" : "#/components/schemas/BrokerAccountItem"
+            },
+            "type" : "array"
           }
         },
         "type" : "object"
@@ -99,6 +124,18 @@
           },
           "isActive" : {
             "type" : "boolean"
+          },
+          "name" : {
+            "type" : "string"
+          }
+        },
+        "type" : "object"
+      },
+      "BrokerRef" : {
+        "properties" : {
+          "id" : {
+            "format" : "uuid",
+            "type" : "string"
           },
           "name" : {
             "type" : "string"
@@ -1619,8 +1656,11 @@
           "lastName" : {
             "type" : "string"
           },
-          "roleCode" : {
-            "type" : "string"
+          "roles" : {
+            "items" : {
+              "$ref" : "#/components/schemas/RoleRef"
+            },
+            "type" : "array"
           },
           "since" : {
             "format" : "date-time",
@@ -2155,7 +2195,7 @@
             "type" : "string"
           }
         },
-        "required" : [ "clientId", "lines", "paymentMethodId" ],
+        "required" : [ "clientId", "lines" ],
         "type" : "object"
       },
       "RegisterUserCommissionRateRequest" : {
@@ -2265,6 +2305,39 @@
           }
         },
         "required" : [ "countryId", "documentNumber", "documentTypeId", "email", "firstName", "lastName", "password", "phone", "roleIds", "username" ],
+        "type" : "object"
+      },
+      "RegistrationBrokerAccount" : {
+        "properties" : {
+          "accountId" : {
+            "type" : "string"
+          },
+          "brokerId" : {
+            "format" : "uuid",
+            "type" : "string"
+          }
+        },
+        "type" : "object"
+      },
+      "RegistrationMovement" : {
+        "properties" : {
+          "movementTypeCode" : {
+            "type" : "string"
+          },
+          "paymentMethodId" : {
+            "format" : "uuid",
+            "type" : "string"
+          },
+          "productId" : {
+            "format" : "uuid",
+            "type" : "string"
+          },
+          "sellerUsername" : {
+            "minLength" : 1,
+            "type" : "string"
+          }
+        },
+        "required" : [ "productId", "sellerUsername" ],
         "type" : "object"
       },
       "ResetPasswordRequest" : {
@@ -2613,7 +2686,7 @@
           },
           "brokerAccounts" : {
             "items" : {
-              "$ref" : "#/components/schemas/BrokerAccount"
+              "$ref" : "#/components/schemas/RegistrationBrokerAccount"
             },
             "type" : "array"
           },
@@ -2644,6 +2717,9 @@
             "minLength" : 1,
             "type" : "string"
           },
+          "movement" : {
+            "$ref" : "#/components/schemas/RegistrationMovement"
+          },
           "password" : {
             "minLength" : 1,
             "type" : "string"
@@ -2652,20 +2728,12 @@
             "minLength" : 1,
             "type" : "string"
           },
-          "product" : {
-            "minLength" : 1,
-            "type" : "string"
-          },
-          "referrer" : {
-            "minLength" : 1,
-            "type" : "string"
-          },
           "username" : {
             "minLength" : 1,
             "type" : "string"
           }
         },
-        "required" : [ "countryCode", "documentNumber", "documentType", "email", "firstName", "lastName", "password", "phone", "product", "referrer", "username" ],
+        "required" : [ "countryCode", "documentNumber", "documentType", "email", "firstName", "lastName", "movement", "password", "phone", "username" ],
         "type" : "object"
       },
       "SelfRegistrationResponse" : {
@@ -2675,6 +2743,9 @@
             "type" : "string"
           },
           "pending" : {
+            "type" : "string"
+          },
+          "sale" : {
             "type" : "string"
           },
           "status" : {
@@ -3963,7 +4034,7 @@
     },
     "/api/v1/auth/registration" : {
       "post" : {
-        "description" : "Crea una cuenta de cliente **sin autenticación**, a partir del enlace\nque un vendedor reparte. Es el **primer endpoint público del sistema\nque escribe**.\n\nEl enlace lleva dos datos y **ninguno es un secreto**: el producto —por\nsu código o su identificador, en el mismo campo— y el vendedor, por su\n**nombre de usuario**. Los cuatro campos de referencia de este cuerpo\nevitan los UUID —producto, vendedor, `countryCode` alfa-3 y\n`documentType` por abreviación— porque es un formulario público al que\nno se le puede pedir que conozca los identificadores del sistema. La\nexcepción es el broker de cada cuenta, que se elige de un desplegable\nleído del catálogo público de brokers.\n\n**`brokerAccounts` es una LISTA: se declaran UNA O MÁS cuentas** en el\nmismo registro, porque una persona puede operar con varios brokers y\nesta es hoy la única vía para declararlos.\n\n**Es obligatoria —al menos una— cuando el producto del enlace es una\nmembresía `FREE → FREE`** (`RN-SP-042`), y solo entonces. El motivo es\nel estado en el que nace la cuenta: sin cuenta de broker declarada,\nnadie podrá atribuirle el depósito que la saca de `FTD_PENDIENTE`. Con\notro producto **se admiten igualmente** las que se envíen.\n\n**El nombre de usuario en el broker no se pide**: lo rellena después el\nwebhook del propio broker.\n\n**Dos cuentas iguales en la misma petición se rechazan** con `VAL-014`,\ny no con el `409` del índice: ese mensaje diría «ya está declarada por\notra persona», y la otra persona sería ella misma.\n\n**La cuenta nace en `FTD_PENDIENTE`**, que **autentica y no opera**:\nquien se registra puede iniciar sesión y ver lo suyo, y lo que le falta\npara operar es el primer depósito.\n\n**La contraseña la elige la persona**, y por eso la cuenta **no** queda\nmarcada para cambio obligatorio — se marca lo que fijó otro, no lo que\nuno fijó.\n\n**No devuelve credenciales de sesión**: registrarse no es iniciar\nsesión. Quien acaba de crear su cuenta pasa por el inicio de sesión\ncomo todo el mundo.\n\n**Los rechazos no dicen qué pasó, salvo tres.** Producto inexistente,\ninactivo o retirado comparten respuesta, y lo mismo el vendedor que no\nexiste y el que no es fuerza comercial: distinguirlos convertiría este\nendpoint en una forma de enumerar el catálogo y la plantilla. **Sí\ndicen** cuál de las dos identidades —nombre de usuario o correo— está\nen uso, que el producto exige pago, y que la cuenta de broker ya está\ndeclarada por otra persona: los tres los necesita quien se registra\npara poder corregir.\n",
+        "description" : "Crea una cuenta de cliente **sin autenticación**, a partir del enlace\nque un vendedor reparte. Es el **primer endpoint público del sistema\nque escribe**.\n\nEl enlace lleva dos datos y **ninguno es un secreto**: el producto y el\nvendedor. **Los dos viajan dentro de `movement`** (`productId` y\n`sellerUsername`) y no en el primer nivel: hasta el 09-09-2026 estaban\nademás duplicados como `product` y `referrer`, y dos campos para un\ndato son dos valores que pueden discrepar.\n\n`countryCode` va en alfa-3 y `documentType` por abreviación, porque es\nun formulario público al que no se le puede pedir que conozca los\nidentificadores del sistema. Los que sí son UUID son los de lo que el\nformulario **acaba de leer de un catálogo**: el broker de cada cuenta y\nel producto.\n\n**El registro anota una venta** (`RN-SP-043`), siempre — también en el\nenlace gratuito. Nace `PENDIENTE`, de modo que registrarse **no paga\nnada**, y su código se devuelve en `sale`.\n\n**`brokerAccounts` es una LISTA: se declaran UNA O MÁS cuentas** en el\nmismo registro, porque una persona puede operar con varios brokers y\nesta es hoy la única vía para declararlos.\n\n**Es obligatoria —al menos una— cuando el producto del enlace es una\nmembresía `BECA → BECA`** (`RN-SP-042`), y solo entonces. El motivo es\nel estado en el que nace la cuenta: sin cuenta de broker declarada,\nnadie podrá atribuirle el depósito que la saca de `FTD_PENDIENTE`. Con\notro producto **se admiten igualmente** las que se envíen.\n\n**El nombre de usuario en el broker no se pide**: lo rellena después el\nwebhook del propio broker.\n\n**Dos cuentas iguales en la misma petición se rechazan** con `VAL-014`,\ny no con el `409` del índice: ese mensaje diría «ya está declarada por\notra persona», y la otra persona sería ella misma.\n\n**El estado en que nace la cuenta depende del producto**\n(`RN-SP-044`). Con un enlace `BECA → BECA` nace en `FTD_PENDIENTE`, que\n**autentica y no opera**: quien se registra puede iniciar sesión y ver\nlo suyo, y lo que le falta para operar es el primer depósito. Con un\nproducto **de pago** nace **`ACTIVO`** —no hay ningún depósito que\nesperar— y recibe la membresía **del suelo**, no la comprada: esa la\nconcede **confirmar la venta**, y no registrarse.\n\n**La contraseña la elige la persona**, y por eso la cuenta **no** queda\nmarcada para cambio obligatorio — se marca lo que fijó otro, no lo que\nuno fijó.\n\n**No devuelve credenciales de sesión**: registrarse no es iniciar\nsesión. Quien acaba de crear su cuenta pasa por el inicio de sesión\ncomo todo el mundo.\n\n**Los rechazos no dicen qué pasó, salvo dos.** Producto inexistente,\ninactivo o retirado comparten respuesta, y lo mismo el vendedor que no\nexiste y el que no es fuerza comercial: distinguirlos convertiría este\nendpoint en una forma de enumerar el catálogo y la plantilla. **Sí\ndicen** cuál de las dos identidades —nombre de usuario o correo— está\nen uso, y que la cuenta de broker ya está declarada por otra persona:\nlos dos los necesita quien se registra para poder corregir.\n",
         "operationId" : "registrar_8",
         "requestBody" : {
           "content" : {
@@ -3984,7 +4055,7 @@
                 }
               }
             },
-            "description" : "Cuenta creada, en estado `FTD_PENDIENTE`"
+            "description" : "Cuenta creada —`FTD_PENDIENTE` con el enlace gratuito, `ACTIVO` con uno de pago— y venta anotada en estado `PENDIENTE`"
           },
           "400" : {
             "content" : {
@@ -4004,7 +4075,7 @@
                 }
               }
             },
-            "description" : "Nombre de usuario o correo en uso (`EX-005`), o cuenta de broker ya declarada (`EX-009`)"
+            "description" : "Nombre de usuario o correo en uso (`EX-005`), cuenta de broker ya declarada (`EX-009`), o la venta no procede — método de pago en una venta gratuita, o ausente en una con importe (`RN-MV-022`)"
           },
           "422" : {
             "content" : {
@@ -4014,7 +4085,7 @@
                 }
               }
             },
-            "description" : "El enlace no procede (`EX-001`, `EX-002`, `EX-003`, `EX-006`, `EX-007`, `EX-008`) o el producto exige pago (`EX-004`)"
+            "description" : "El enlace no procede (`EX-001`, `EX-002`, `EX-003`, `EX-006`, `EX-007`, `EX-008`) o el movimiento no procede (`EX-010`)"
           },
           "429" : {
             "content" : {
@@ -5216,7 +5287,7 @@
     },
     "/api/v1/payment-methods" : {
       "get" : {
-        "description" : "Devuelve los métodos de pago **activos**, sin paginar y ordenados por código.\n\n**`excludedCountries` dice dónde NO vale cada medio.** Una lista vacía\nsignifica que vale en todos los países, y el campo **viaja siempre**:\nno hay que distinguir «sin exclusiones» de «no vino el campo».\n\n**Esta restricción es informativa y el servidor NO la aplica.** Registrar\nuna venta con un método excluido en algún país **se registra con\nnormalidad**: quien decide qué ofrecer es el cliente que consume esta\nrespuesta. El servidor no sabe de qué país es quien compra — ninguna\npersona del sistema tiene país todavía.\n\n**No admite parámetros**, y en particular no admite un país: filtrar aquí\nharía creer que el servidor sabe cuál corresponde.\n\n**No exige permiso**, solo estar autenticado. `movements:read` gobierna ver\nventas y hoy está reservado al superadministrador; exigirlo aquí dejaría sin\nmétodos de pago a la pantalla de compra propia, que no pide ningún permiso.\n",
+        "description" : "Devuelve los métodos de pago **activos y de visibilidad `PUBLICO`**, sin\npaginar y ordenados por código.\n\n**Es una consulta PÚBLICA** (`RN-MV-024`): responde **sin token**, porque\nel formulario de registro por enlace elige con qué se paga antes de que\nexista la cuenta. **Con sesión devuelve exactamente lo mismo** — no hay\nun catálogo para el anónimo y otro para quien ha entrado, y no existe\nparámetro que cambie lo que sale.\n\n**Lo que NO devuelve, y no hay forma de pedirlo**: ni los métodos\ndesactivados —un método retirado no se puede usar en una venta nueva— ni\nlos de visibilidad `INTERNO` (`RN-MV-023`). Estos últimos **sirven para\npagar y no los elige ninguna persona**: los pone el sistema. Es el caso\nde `GRATIS`, con el que se anotan las ventas de importe cero\n(`RN-MV-022`): quien depure una de esas verá un `paymentMethodId` que\n**este catálogo no resuelve**, y eso es deliberado.\n\n**La respuesta no publica el campo de visibilidad.** Si todo lo que sale\nes `PUBLICO`, declararlo sugeriría que puede salir otra cosa.\n\n**`excludedCountries` dice dónde NO vale cada medio.** Una lista vacía\nsignifica que vale en todos los países, y el campo **viaja siempre**:\nno hay que distinguir «sin exclusiones» de «no vino el campo».\n\n**Esta restricción es informativa y el servidor NO la aplica.** Registrar\nuna venta con un método excluido en algún país **se registra con\nnormalidad**: quien decide qué ofrecer es el cliente que consume esta\nrespuesta. El servidor no sabe de qué país es quien compra — ninguna\npersona del sistema tiene país todavía.\n\n**No admite parámetros**, y en particular no admite un país: filtrar aquí\nharía creer que el servidor sabe cuál corresponde.\n\n**Está acotada por origen** —120 peticiones por minuto, con cubo propio—,\ncomo los demás catálogos públicos: superar la cota responde `429`.\n",
         "operationId" : "consultar_2",
         "responses" : {
           "200" : {
@@ -5227,10 +5298,10 @@
                 }
               }
             },
-            "description" : "El catálogo de métodos de pago activos."
+            "description" : "El catálogo de métodos de pago activos y públicos. Se responde igual con token y sin él."
           },
-          "401" : {
-            "description" : "Sin token."
+          "429" : {
+            "description" : "Se superó la cota de peticiones por origen (120 por minuto). La cabecera `Retry-After` dice cuánto esperar."
           }
         },
         "summary" : "Consultar los métodos de pago",
@@ -6902,7 +6973,7 @@
         "tags" : [ "Usuarios" ]
       },
       "post" : {
-        "description" : "Registra una persona con sus roles iniciales.\n\nLa cuenta nace **activa** y **marcada para cambio obligatorio de\ncontraseña**: quien prepara el alta conoce la credencial, y esa ventana\nse cierra en el primer inicio de sesión. Ni el estado ni la marca se\nenvían; enviarlos devuelve `400`.\n**`membershipId` es OPCIONAL, y el superior es condicional.** Desde el\n05-09-2026 toda persona nace con nivel: si no se indica ninguno, se le\nconcede el de arranque (`FREE`). Ya no hay rechazo por indicarlo sin rol\nde consumidor ni por omitirlo teniéndolo — esa exigencia murió con\n`RN-SP-013`.\n\nEl rol de vendedor y el superior comercial **sí siguen siendo\ncondicionales en los dos sentidos**: indicar uno sin el otro devuelve\n`409`, no se ignora.\n\nEl superior debe portar el **rol padre inmediato** del rol vendedor de\nmayor rango de la persona, y estar activo.\n\n## Identidad, contacto y país\n\n**`countryId`, `documentTypeId`, `documentNumber` y `phone` son\nobligatorios**, y a diferencia de la membresía y el superior **no\ndependen de qué roles se concedan**: su ausencia es `400`, nunca un\n`409` condicional.\n\n**`addressLine1`, `addressLine2` y `city` son opcionales.** Exigir una\ndirección postal a un funcionario interno bloquearía su alta sin que\nnadie la necesite. `city` es **texto libre**: no hay catálogo de\nciudades.\n\n**El tipo de documento sale de `GET /api/v1/document-types`, y ese\ncatálogo contiene SOLO documentos de persona mayor de edad.** Ahí está\nla validación de mayoría de edad del sistema entero: no hay ninguna\nmarca que diga cuáles acreditan y cuáles no, porque **los que no\nacreditan no están**. Registrar a un menor no se rechaza — no se puede\nexpresar, porque no hay identificador que enviar. Un desplegable\nalimentado por ese catálogo no puede ofrecer una opción que el alta vaya\na rechazar.\n\n**El par tipo + número es único entre TODAS las personas, incluidas las\neliminadas** (`RN-SP-035`), igual que el nombre de usuario y el correo.\nEl `409` que produce **no dice de quién es** el documento, ni si esa\npersona sigue vigente.\n\nEl número de documento se guarda **recortado y en mayúsculas**, y el\nteléfono **normalizado a dígitos con un `+` opcional** —fuera espacios,\nguiones y paréntesis—. La dirección y la ciudad solo se recortan.\n\n**El teléfono no se valida contra el país**: eso exigiría un catálogo de\nprefijos que no existe.\n\nLa respuesta agrupa `country`, `document` y `contact` en tres objetos, y\ndevuelve el **tipo de documento resuelto** —abreviación y nombre— para\nque no haga falta una segunda llamada al catálogo, que además exige otro\npermiso.\n\nLa contraseña no se recorta: un espacio al principio o al final es parte\nde ella.\n",
+        "description" : "Registra una persona con sus roles iniciales.\n\nLa cuenta nace **activa** y **marcada para cambio obligatorio de\ncontraseña**: quien prepara el alta conoce la credencial, y esa ventana\nse cierra en el primer inicio de sesión. Ni el estado ni la marca se\nenvían; enviarlos devuelve `400`.\n**`membershipId` es OPCIONAL, y el superior es condicional.** Desde el\n05-09-2026 toda persona nace con nivel: si no se indica ninguno, se le\nconcede el de arranque (`BECA`). Ya no hay rechazo por indicarlo sin rol\nde consumidor ni por omitirlo teniéndolo — esa exigencia murió con\n`RN-SP-013`.\n\nEl rol de vendedor y el superior comercial **sí siguen siendo\ncondicionales en los dos sentidos**: indicar uno sin el otro devuelve\n`409`, no se ignora.\n\nEl superior debe portar el **rol padre inmediato** del rol vendedor de\nmayor rango de la persona, y estar activo.\n\n## Identidad, contacto y país\n\n**`countryId`, `documentTypeId`, `documentNumber` y `phone` son\nobligatorios**, y a diferencia de la membresía y el superior **no\ndependen de qué roles se concedan**: su ausencia es `400`, nunca un\n`409` condicional.\n\n**`addressLine1`, `addressLine2` y `city` son opcionales.** Exigir una\ndirección postal a un funcionario interno bloquearía su alta sin que\nnadie la necesite. `city` es **texto libre**: no hay catálogo de\nciudades.\n\n**El tipo de documento sale de `GET /api/v1/document-types`, y ese\ncatálogo contiene SOLO documentos de persona mayor de edad.** Ahí está\nla validación de mayoría de edad del sistema entero: no hay ninguna\nmarca que diga cuáles acreditan y cuáles no, porque **los que no\nacreditan no están**. Registrar a un menor no se rechaza — no se puede\nexpresar, porque no hay identificador que enviar. Un desplegable\nalimentado por ese catálogo no puede ofrecer una opción que el alta vaya\na rechazar.\n\n**El par tipo + número es único entre TODAS las personas, incluidas las\neliminadas** (`RN-SP-035`), igual que el nombre de usuario y el correo.\nEl `409` que produce **no dice de quién es** el documento, ni si esa\npersona sigue vigente.\n\nEl número de documento se guarda **recortado y en mayúsculas**, y el\nteléfono **normalizado a dígitos con un `+` opcional** —fuera espacios,\nguiones y paréntesis—. La dirección y la ciudad solo se recortan.\n\n**El teléfono no se valida contra el país**: eso exigiría un catálogo de\nprefijos que no existe.\n\nLa respuesta agrupa `country`, `document` y `contact` en tres objetos, y\ndevuelve el **tipo de documento resuelto** —abreviación y nombre— para\nque no haga falta una segunda llamada al catálogo, que además exige otro\npermiso.\n\nLa contraseña no se recorta: un espacio al principio o al final es parte\nde ella.\n",
         "operationId" : "registrar",
         "requestBody" : {
           "content" : {
@@ -7020,6 +7091,69 @@
         "tags" : [ "Usuarios" ]
       }
     },
+    "/api/v1/users/me/team/broker-accounts" : {
+      "get" : {
+        "description" : "Devuelve, **paginadas**, las cuentas de broker de todas las personas\nque dependen **directamente** del actor, **cada fila con su titular**.\n\n**No hay identificador en la ruta y no lo habrá**: el conjunto de datos\nlo determina el sistema a partir de quién pregunta. Quien deba ver las\ncuentas de otra persona usa `GET /api/v1/users/{id}/broker-accounts`\ncon `broker-accounts:read`.\n\n**No exige ningún permiso**, solo estar autenticado: el alcance lo pone\nla estructura comercial (`RN-SP-046`). Quien **no tiene equipo** recibe\n`200` con la página vacía, no `404` ni `403`.\n\n**Un solo nivel**, el equipo directo. Las cuentas de quien depende de\nun subordinado del actor **no aparecen**: devolver la rama completa\npublicaría de una vez la estructura de la empresa.\n\n**Es un listado de CUENTAS y no de personas.** Quien está en el equipo\ny no declaró ninguna cuenta **no aparece**, y quien declaró dos aparece\n**dos veces**. Quién hay en el equipo lo responde\n`GET /api/v1/users/{id}/team`.\n\n**Filtros, ambos opcionales y combinables con Y:**\n\n- `status` — `REGISTER` o `FIRST_DEPOSIT`. **Cualquier otro valor es\n  `400`**, no una página vacía: una página vacía sería indistinguible\n  de «nadie está en ese estado».\n- `brokerId` — un broker del catálogo. **Un identificador inexistente\n  devuelve la página vacía sin error**, al revés que `status`: es una\n  pregunta legítima con respuesta vacía.\n\n`totalElements` **cuenta lo filtrado**.\n\n**Hoy todas las cuentas están en `REGISTER`**, y no es un fallo de esta\nconsulta: quien mueve una cuenta a `FIRST_DEPOSIT` es el webhook del\nbroker, que todavía no existe. Mientras no exista, ninguna cuenta tiene\ndepósito confirmado.\n\n**`brokerUsername` llega en nulo** mientras el broker no lo haya\nconfirmado, y el campo **está presente**: su nulo significa «aún no\nconfirmado», no «sin nombre».\n",
+        "operationId" : "cuentasDeBrokerDelEquipo",
+        "parameters" : [ {
+          "description" : "Estado de la cuenta: `REGISTER` o `FIRST_DEPOSIT`.",
+          "in" : "query",
+          "name" : "status",
+          "required" : false,
+          "schema" : {
+            "type" : "string"
+          }
+        }, {
+          "description" : "Broker del catálogo. Uno inexistente devuelve la página vacía.",
+          "in" : "query",
+          "name" : "brokerId",
+          "required" : false,
+          "schema" : {
+            "format" : "uuid",
+            "type" : "string"
+          }
+        }, {
+          "in" : "query",
+          "name" : "page",
+          "required" : false,
+          "schema" : {
+            "format" : "int32",
+            "type" : "integer"
+          }
+        }, {
+          "in" : "query",
+          "name" : "size",
+          "required" : false,
+          "schema" : {
+            "format" : "int32",
+            "type" : "integer"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/PageResponse"
+                }
+              }
+            },
+            "description" : "Página de cuentas del equipo directo, ordenada por titular, broker e identificador de cuenta. Vacía si el actor no tiene equipo."
+          },
+          "400" : {
+            "description" : "`status` fuera de `REGISTER`/`FIRST_DEPOSIT` (`VAL-001`), `brokerId` malformado o paginación fuera de límites (`VAL-003`)"
+          },
+          "401" : {
+            "description" : "Token ausente o inválido (`AUTH-001`)"
+          },
+          "500" : {
+            "description" : "Fallo no controlado (`ERR-500`)"
+          }
+        },
+        "summary" : "Consultar las cuentas de broker de mi equipo",
+        "tags" : [ "Usuarios" ]
+      }
+    },
     "/api/v1/users/{id}" : {
       "get" : {
         "description" : "Sus roles **con el estado de cada uno**, sus permisos efectivos, su\nmembresía y el contexto de su acceso.\n\nLas dos primeras juntas son lo único que explica por qué una persona\n**con roles** no puede hacer nada: porque todos están inactivos y la\nlista de permisos llega vacía.\n\nLos permisos efectivos salen del **mismo componente que autoriza**, de\nmodo que esta respuesta no puede contradecir a lo que el sistema hará\ncon la siguiente petición de esa persona.\n\n`lockedUntil` nulo significa dos cosas distintas y eso es información:\nla cuenta no está bloqueada, o lo está **por decisión de un actor** y\npor tanto sin expiración. El estado desambigua.\n\nTrae el `country`, el `document` y el `contact` de la persona.\n\n**`country` nunca es nulo y `document` sí puede serlo**: quienes se\nregistraron antes de que el documento fuera obligatorio no lo tienen, y\n**esta pantalla es donde esa ausencia se ve** — es la que sirve para\nsaber a quién hay que completar.\n\n**El país y el tipo de documento se devuelven aunque estén inactivos.**\nRetirarlos del catálogo los quita de los desplegables del alta; no\ncambia dónde está ni con qué se identifica quien ya los tenía, ni lo\noculta a quien administra.\n\n**No devuelve intentos fallidos** —diría cuántos le quedan a una cuenta\nantes de bloquearse—, **ni dato alguno de la credencial**, **ni el\nsuperior comercial**, que tiene su propio endpoint.\n\nUna persona eliminada devuelve el **mismo** `404` que una inexistente,\nsin ninguna pista de que existió.\n",
@@ -7119,6 +7253,47 @@
         "tags" : [ "Usuarios" ]
       }
     },
+    "/api/v1/users/{id}/broker-accounts" : {
+      "get" : {
+        "description" : "Devuelve las cuentas de broker de esa persona: **broker, identificador\nde cuenta, nombre de usuario en el broker y estado**, ordenadas por\nnombre de broker e identificador de cuenta.\n\n**Quién puede consultarlas** (`RN-SP-046`): **su superior comercial\nvigente**, sin ningún permiso, o quien traiga **`broker-accounts:read`**\nsobre cualquiera. Es la primera lectura del sistema cuyo alcance sale\nde la estructura comercial, y **solo alcanza a esta**.\n\n**Quien no es ninguna de las dos cosas recibe `404`, no `403`**, y es\ndeliberado: el mismo `404` que si la persona no existiera. Un `403`\ndejaría a cualquier vendedor recorrer identificadores y averiguar\ncuáles corresponden a personas reales. Los dos cuerpos son idénticos.\n\n**Quien FUE su superior y ya no lo es recibe `404`**: el historial de\nla estructura no concede lectura.\n\n**El titular NO ve aquí sus propias cuentas** salvo que traiga el\npermiso: esta lectura se definió sobre el equipo.\n\n**Una persona sin cuentas devuelve `200` con la colección vacía**, no\n`404`: solo el registro por un enlace de beca obliga a declararlas.\n\n**Hoy el estado es siempre `REGISTER`**, y no es un fallo: quien mueve\nuna cuenta a `FIRST_DEPOSIT` es el webhook del broker, que todavía no\nexiste.\n\n**`brokerUsername` llega en nulo** mientras el broker no lo haya\nconfirmado, y el campo **está presente**: su nulo significa «aún no\nconfirmado», no «sin nombre».\n\n**No se pagina**: una persona tiene unas pocas cuentas. El listado\npaginado es `GET /api/v1/users/me/team/broker-accounts`.\n",
+        "operationId" : "cuentasDeBrokerDe",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "id",
+          "required" : true,
+          "schema" : {
+            "format" : "uuid",
+            "type" : "string"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/BrokerAccountsResponse"
+                }
+              }
+            },
+            "description" : "Las cuentas de la persona, ordenadas. Vacía si no declaró ninguna."
+          },
+          "400" : {
+            "description" : "Identificador malformado (`VAL-001`)"
+          },
+          "401" : {
+            "description" : "Token ausente o inválido (`AUTH-001`)"
+          },
+          "404" : {
+            "description" : "La persona no existe, está eliminada, **o el actor no es su superior vigente ni posee `broker-accounts:read`** (`VAL-002`). Los tres casos responden lo mismo, a propósito."
+          },
+          "500" : {
+            "description" : "Fallo no controlado (`ERR-500`)"
+          }
+        },
+        "summary" : "Consultar las cuentas de broker de una persona",
+        "tags" : [ "Usuarios" ]
+      }
+    },
     "/api/v1/users/{id}/deletion" : {
       "post" : {
         "description" : "Eliminación **lógica** y con motivo declarado. `POST` sobre un\nsubrecurso y no `DELETE` con cuerpo: RFC 9110 no define semántica para\nel cuerpo de un `DELETE` y un intermediario puede descartarlo,\nconvirtiendo la petición en un rechazo por motivo ausente que el actor\nno puede entender. Y tampoco por *query string*, o el motivo acabaría en\nlos registros de acceso de los proxies.\n\n**El motivo se verifica el primero de todo**, antes incluso de saber si\nla persona existe.\n\nLa operación **retira sus roles y su membresía**, **cierra** su\nasignación de superior —cerrarla, nunca borrarla: es historial de\nmando— y **revoca sus sesiones**, todo en la misma transacción y con la\nmisma marca de tiempo.\n\n**El estado NO se toca**: se conserva como estaba para que el registro\nde eliminación diga en qué situación estaba la persona cuando se la\neliminó.\n\nEl `404` **no distingue** «nunca existió» de «ya estaba eliminada».\n",
@@ -7171,7 +7346,7 @@
     },
     "/api/v1/users/{id}/membership" : {
       "delete" : {
-        "description" : "**Devuelve al nivel de arranque, y no deja a nadie sin nivel.** Desde el\n05-09-2026 `RN-SP-018` exige que **toda** persona tenga membresía, de\nmodo que esta operación cierra la que tenga y le abre una `FREE`.\n\nExiste para **corregir un nivel concedido por error**. Bajar a alguien a\nun nivel intermedio es la operación de membresía, que admite indicar\ncuál.\n\n**Responde `200` con la membresía resultante**, no `204`: devolver un\ncuerpo vacío diría que no queda nada, y queda el nivel de arranque —\nquien llama necesita saber en qué quedó la persona sin volver a\npreguntar.\n\n**Es idempotente.** Aplicada sobre quien ya está en el suelo no escribe\nni audita, y devuelve lo mismo.\n\n**Ya no rechaza a los consumidores.** Hasta el 05-09-2026 exigía que la\npersona **no** portara ningún rol de consumidor, porque la regla de\nentonces no admitía consumidores sin nivel; retirada `RN-SP-013`, esa\nprecondición no protege nada.\n\n**Conserva el `DELETE`** y no le alcanza la enmienda del retiro de\nroles: esta operación no lleva cuerpo, de modo que el problema que\naquella evitaba no existe aquí.\n",
+        "description" : "**Devuelve al nivel de arranque, y no deja a nadie sin nivel.** Desde el\n05-09-2026 `RN-SP-018` exige que **toda** persona tenga membresía, de\nmodo que esta operación cierra la que tenga y le abre una `BECA`.\n\nExiste para **corregir un nivel concedido por error**. Bajar a alguien a\nun nivel intermedio es la operación de membresía, que admite indicar\ncuál.\n\n**Responde `200` con la membresía resultante**, no `204`: devolver un\ncuerpo vacío diría que no queda nada, y queda el nivel de arranque —\nquien llama necesita saber en qué quedó la persona sin volver a\npreguntar.\n\n**Es idempotente.** Aplicada sobre quien ya está en el suelo no escribe\nni audita, y devuelve lo mismo.\n\n**Ya no rechaza a los consumidores.** Hasta el 05-09-2026 exigía que la\npersona **no** portara ningún rol de consumidor, porque la regla de\nentonces no admitía consumidores sin nivel; retirada `RN-SP-013`, esa\nprecondición no protege nada.\n\n**Conserva el `DELETE`** y no le alcanza la enmienda del retiro de\nroles: esta operación no lleva cuerpo, de modo que el problema que\naquella evitaba no existe aquí.\n",
         "operationId" : "devolverMembresiaAlSuelo",
         "parameters" : [ {
           "in" : "path",
@@ -7551,7 +7726,7 @@
     },
     "/api/v1/users/{id}/team" : {
       "get" : {
-        "description" : "Devuelve el superior inmediato y el **equipo directo** de la persona,\npaginado.\n\n**Un solo nivel, nunca el árbol descendente**, y **sin conteo\nindirecto**: `totalElements` cuenta a quienes reportan directamente.\nDevolver la rama completa publicaría de una vez la estructura de la\nempresa por un permiso de lectura de usuarios.\n\n**Sin filtros.** El listado general de usuarios ya filtra; replicar esa\nsemántica sobre un subconjunto que cabe en una o dos páginas obligaría\na mantener dos filtrados sincronizados sin responder nada nuevo.\n\n**Sin historial de superiores.**\n\n`supervisor` va **ausente**, no en nulo, cuando la persona es la cúspide\ncomercial: es lo que distingue «no depende de nadie» de «no se pudo\nresolver».\n\nQuien no pertenece a la fuerza comercial recibe `200` con la estructura\nvacía, no `404` ni `409`.\n\n**El alcance es global** mientras la decisión D-22 siga abierta: quien\nposea el permiso ve el equipo de cualquiera, no solo el suyo.\n",
+        "description" : "Devuelve el superior inmediato y el **equipo directo** de la persona,\npaginado.\n\n**Un solo nivel, nunca el árbol descendente**, y **sin conteo\nindirecto**: `totalElements` cuenta a quienes reportan directamente.\nDevolver la rama completa publicaría de una vez la estructura de la\nempresa por un permiso de lectura de usuarios.\n\n**Cada persona lleva `roles`: TODOS los que porta**, con `id`, `code`\ny `name`, ordenados por código y **presentes aunque la lista vaya\nvacía**. Es el mismo objeto que devuelve `GET /api/v1/users` en cada\nfila. **Sustituye a `roleCode`** (10-09-2026), que traía uno solo y\núnicamente si era de la fuerza comercial: la cartera de clientes\nllegaba con el rol en nulo y era indistinguible de un vendedor sin rol.\n\n**`roles` es además el único filtro**, y acota **el equipo**. Se pasan\n**códigos**, varios admitidos —`?roles=AGENTE,CLIENTE` o repitiendo el\nparámetro—, y entra quien porte **alguno** de ellos. `totalElements`\n**cuenta lo filtrado**. Un código que no existe devuelve el equipo\nvacío con `200`, **no un error**: es el mismo criterio que el filtro\npor rol de `GET /api/v1/users`.\n\n**El filtro NO toca al superior ni a la persona consultada.** Los dos\nse devuelven igual aunque no porten ninguno de los roles pedidos, y eso\nes contrato: `supervisor` va **ausente**, no en nulo, **solo** cuando\nla persona es la cúspide comercial, que es lo que distingue «no depende\nde nadie» de «no se pudo resolver».\n\n**Ningún otro filtro.** Ni búsqueda por nombre, ni estado, ni país: el\nlistado general de usuarios ya los tiene, y replicarlos aquí obligaría\na mantener dos semánticas sincronizadas.\n\n**Sin historial de superiores.**\n\nQuien no pertenece a la fuerza comercial recibe `200` con la estructura\nvacía, no `404` ni `409` — **con sus roles a la vista**: no tener\nestructura comercial no es no tener roles.\n\n**El alcance es global** mientras la decisión D-22 siga abierta: quien\nposea el permiso ve el equipo de cualquiera, no solo el suyo.\n",
         "operationId" : "equipo",
         "parameters" : [ {
           "in" : "path",
@@ -7560,6 +7735,17 @@
           "schema" : {
             "format" : "uuid",
             "type" : "string"
+          }
+        }, {
+          "description" : "Códigos de rol que acotan el equipo. Varios admitidos, con semántica O.",
+          "in" : "query",
+          "name" : "roles",
+          "required" : false,
+          "schema" : {
+            "items" : {
+              "type" : "string"
+            },
+            "type" : "array"
           }
         }, {
           "in" : "query",
@@ -7587,7 +7773,7 @@
                 }
               }
             },
-            "description" : "La estructura, con el equipo paginado."
+            "description" : "La estructura, con el equipo paginado y los roles de cada persona. El filtro por roles acota el equipo y su total, nunca al superior."
           },
           "400" : {
             "description" : "Identificador malformado o paginación fuera de límites (`VAL-003`)"

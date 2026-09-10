@@ -6,7 +6,7 @@
 | Especificación | [`spec.md`](spec.md) |
 | Plan | [`plan.md`](plan.md) |
 | `plan.md` aprobado el | 01-09-2026 |
-| Estado | **Construido el 09-09-2026** — `T-01` a `T-20` **Hecha** salvo `T-02`, que no hizo falta. Suite completa en verde: **1126** |
+| Estado | **Construido el 09-09-2026** — `T-01` a `T-24` **Hecha** salvo `T-02`, que no hizo falta. Suite completa en verde: **1136** |
 | Issue | Pendiente de crear |
 | Rama | `feature/registro-de-clientes-por-enlace` |
 | Aprobadas por | **Hecha el 09-09-2026** |
@@ -24,9 +24,9 @@
 | `T-05` | **`SP` declara `RegistrableProductLookup`** y **`PM` lo implementa** — producto por código o identificador, con destino, vigencia y estado. **La dependencia va invertida a propósito**: al revés abriría el ciclo `SP` → `PM` → `SP` | — | La regla de ArchUnit sigue en verde, y `ProductCatalog` **no se toca**: la suite de `CM`, que lo consume, no cambia | **Hecha el 09-09-2026** |
 | `T-06` | **Revisar las tres suites que `RN-SP-022` empieza a alcanzar**: `RF-SP-028`, `RF-SP-029` y `RF-SP-031` | `T-02` | Sus datos de prueba desactivan o eliminan personas sin mirar si tienen gente a cargo; con clientes en la tabla pueden empezar a chocar. **Es la tarea que más probable es que se olvide** | **Hecha el 09-09-2026** — verificada por la suite entera en verde (1126), que es lo que la tarea pedía: ninguna de las tres suites cambió de comportamiento |
 | `T-07` | `RegisterClientByLinkService`: los cuatro hechos en **una** transacción | `T-03`, `T-05`, `T-06` | `CA-SP-519`: contar las cuatro tablas antes y después de cada rechazo | **Hecha el 09-09-2026** |
-| `T-08` | Resolución del producto **por código o identificador** en el mismo campo | `T-05` | `CA-SP-514`: el mismo producto por las dos vías da el mismo resultado | **Hecha el 09-09-2026** |
-| `T-09` | Las cinco excepciones, con `EX-001` y `EX-002` **compartiendo respuesta** y `EX-004` diciendo qué pasó | `T-07` | `CA-SP-515`, `CA-SP-517`, `CA-SP-518`. La asimetría es deliberada y hay que probarla como tal | **Hecha el 09-09-2026** |
-| `T-10` | Verificación al arrancar de que existe la membresía `FREE` | — | El contexto **no levanta** sin ella (`CL-005`). Precedente: `CurrencyCatalogStartupCheck` | **Hecha el 09-09-2026** |
+| `T-08` | Resolución del producto **por código o identificador** en el mismo campo | `T-05` | ~~`CA-SP-514`~~. **El cuerpo dejó de usarla el 09-09-2026** (`T-24`): el producto va por identificador. La capacidad **se conserva en el puerto** —`findRegistrable` sigue admitiendo las dos vías— porque no es suya la decisión y otros consumidores pueden necesitarla | **Hecha el 09-09-2026** |
+| `T-09` | Las excepciones del enlace, con `EX-001` y `EX-002` **compartiendo respuesta** | `T-07` | `CA-SP-515`, `CA-SP-516`, `CA-SP-518`. Que compartan respuesta es deliberado y hay que probarlo como tal. **`EX-004` formaba parte de esta tarea y se retiró el mismo día** (`T-22`) | **Hecha el 09-09-2026** |
+| `T-10` | Verificación al arrancar de que existe la membresía `BECA` | — | El contexto **no levanta** sin ella (`CL-005`). Precedente: `CurrencyCatalogStartupCheck` | **Hecha el 09-09-2026** |
 | `T-11` | `interfaces`: `POST /api/v1/auth/registration`, público, y su entrada en `RUTAS_PUBLICAS` | `T-07` | Responde **sin token**, y figura en la lista blanca de `EndpointPermissionsIT` con su motivo | **Hecha el 09-09-2026** |
 | `T-12` | Límite de tasa por origen, con la política de `RF-SP-040` | `T-11` | Riesgo 2: sin esto el endpoint crea usuarios en bucle | **Hecha el 09-09-2026** |
 | `T-13` | Auditoría: `USER_CREATED` con `selfRegistered`, vendedor y producto; los cambios bajo el mismo `correlation_id` | `T-07` | `CA-SP-523`. **Sin migración**: no se añade tipo de evento | **Hecha el 09-09-2026** |
@@ -37,6 +37,10 @@
 | `T-18` | Aplicar las enmiendas de `plan.md` §8 y actualizar la matriz | `T-16` | Cinco documentos, cada uno con su fila de control de cambios | **Hecha el 09-09-2026** |
 | `T-19` | **Las cuentas de broker en el registro** (`RN-SP-042`, 09-09-2026): puerto `BrokerAccountRegistrar`, y la declaración de **UNA O MÁS** cuentas **en la misma transacción** que los otros cuatro hechos | `T-07`, `RF-SP-052` | `CA-SP-609`, `CA-SP-610`. El nombre de usuario del broker queda **en nulo**: lo rellena el webhook | **Hecha el 09-09-2026** |
 | `T-20` | **Las dos excepciones del broker**: `EX-008` —inexistente o inactivo, con la MISMA respuesta— y `EX-009` —cuenta ya declarada, que sí dice qué pasó— | `T-19` | `CA-SP-611` a `CA-SP-613`. El rechazo **no deja nada escrito**, que es lo que exige que las cinco escrituras vayan en una transacción | **Hecha el 09-09-2026** |
+| `T-21` | **El movimiento del registro** (`RN-SP-043`, 09-09-2026): `SP` declara `RegistrationSaleRegistrar` y **`MV` lo implementa**, delegando en `RegisterSaleService` — no reimplementándolo. Con la verificación del **tipo** y del **vendedor**, que comparten `EX-010`. Es la **segunda** inversión de dirección de esta tripleta, y por el mismo motivo que `T-05` | `T-07` | `CA-SP-617`, `CA-SP-619` a `CA-SP-622`. **Reimplementar la venta aquí daría dos definiciones de vender**, y la segunda se quedaría atrás sin que nada fallara |
+| `T-22` | **El camino de pago** (`RN-SP-044`): muere `EX-004`; el estado inicial y la membresía concedida pasan a depender del producto —`FTD_PENDIENTE` + la del producto, o `ACTIVO` + la del suelo— | `T-21` | `CA-SP-618`. La membresía comprada **no** se concede aquí: la concede `RN-MV-020` |
+| `T-23` | **Exención de `RN-MV-008` para la venta del alta**, de paquete, en `MV` | `T-21` | Sin ella **ninguna alta gratuita es posible**: la venta que la origina se rechazaría a sí misma. Y con ella `CA-MV-008` deja de ser inalcanzable y **gana su prueba** en `RegisterSaleIT` |
+| `T-24` | **Mueren `product` y `referrer` del primer nivel** (09-09-2026): el enlace viaja entero dentro de `movement`, y `VAL-001` y `VAL-002` se mudan allí. Se retiran `VAL-016` y la mitad de `EX-010` | `T-21` | `CA-SP-623`. **Lo que no se puede expresar no hay que comprobarlo**: las dos comprobaciones existían solo para vigilar que los dos campos duplicados no discreparan |
 
 ## 2. Orden de ejecución
 
@@ -54,14 +58,19 @@
 | `CA-SP-512` | `T-07` |
 | `CA-SP-513` | `T-07` |
 | `CA-SP-525`, `CA-SP-526` | `T-06` |
-| `CA-SP-514` | `T-08` |
-| `CA-SP-515` a `CA-SP-518` | `T-09` |
+| ~~`CA-SP-514`~~ | **Retirado el 09-09-2026**: el cuerpo ya no nombra el producto por código |
+| `CA-SP-515`, `CA-SP-516`, `CA-SP-518` | `T-09` |
+| ~~`CA-SP-517`~~ | **Retirado el 09-09-2026**: comprobaba `EX-004`, que murió con `RN-SP-044` |
 | `CA-SP-519` | `T-07` |
 | `CA-SP-520` | `T-15`, `T-16` |
 | `CA-SP-521` | `T-11` |
 | `CA-SP-522` | `T-03`, `T-14` |
 | `CA-SP-523` | `T-13` |
 | `CA-SP-524` | `T-04` |
+| `CA-SP-617`, `CA-SP-620`, `CA-SP-621` | `T-21` |
+| `CA-SP-623` | `T-24` |
+| ~~`CA-SP-619`~~, ~~`CA-SP-622`~~ | **Retirados el 09-09-2026**: comprobaban divergencias que el cuerpo ya no puede expresar |
+| `CA-SP-618` | `T-22` |
 
 ## 4. Bloqueos
 

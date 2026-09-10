@@ -88,7 +88,7 @@ Una sola sentencia, con la membresía del actor como parámetro:
 
     Lo desatascó la **renovación** (`requirements/pm.md` §5.2.3), porque **un `X → X` no se puede ofrecer comparando niveles**: abrir la comparación a «inferior o igual» le daría a quien está en `ORO` un `PLATINO → ORO`, que no es suyo. La coincidencia exacta era la única forma, y ya estaba decidida.
 
-    **Con ella la renovación no cuesta ni una condición**: `FREE → FREE` coincide con quien está en `FREE` igual que coincidiría `FREE → ORO`. El filtro no sabe que una es una renovación, y no necesita saberlo.
+    **Con ella la renovación no cuesta ni una condición**: `BECA → BECA` coincide con quien está en `BECA` igual que coincidiría `BECA → ORO`. El filtro no sabe que una es una renovación, y no necesita saberlo.
 
 ## 6. Autorización
 

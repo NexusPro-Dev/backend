@@ -97,6 +97,21 @@ public class GetOwnProfileService {
         // usa inclusión NON_NULL, de modo que un país nulo DESAPARECERÍA del
         // JSON en silencio en lugar de fallar.
         new OwnProfileResponse.CountryRef(fila.countryId(), fila.countryCode(), fila.countryName()),
+        // Puede llegar nulo, al contrario que el país: con inclusión NON_NULL
+        // desaparecerá del JSON, y aquí eso es correcto — «no lo declaro» y «no
+        // lo tengo» son lo mismo para quien mira su propio perfil.
+        fila.tieneDocumento()
+            ? new OwnProfileResponse.DocumentRef(
+                new OwnProfileResponse.DocumentTypeRef(
+                    fila.documentTypeId(),
+                    fila.documentTypeAbbreviation(),
+                    fila.documentTypeName()),
+                fila.documentNumber())
+            : null,
+        // El contacto SIEMPRE presente: es lo que `RF-SP-044` deja corregir, y
+        // sin publicarlo el formulario de edición no podría precargarse.
+        new OwnProfileResponse.ContactRef(
+            fila.phone(), fila.addressLine1(), fila.addressLine2(), fila.city()),
         fila.tieneMembresia()
             ? new OwnProfileResponse.MembershipRef(
                 fila.membershipCode(),

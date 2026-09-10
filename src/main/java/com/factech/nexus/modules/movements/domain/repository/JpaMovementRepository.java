@@ -181,6 +181,14 @@ public class JpaMovementRepository implements MovementRepository {
                   LEFT JOIN payment_method_exclusions e ON e.payment_method_id = m.id
                   LEFT JOIN countries c ON c.id = e.country_id
                  WHERE m.is_active = true
+                   -- `RN-MV-023`: lo INTERNO NO SE OFRECE NUNCA, y no hay parámetro
+                   -- que lo traiga. Es la asimetría deliberada con `is_active`
+                   -- —que se podría exponer bajo petición— y con `RN-MV-019`,
+                   -- donde la exclusión por país se publica y el cliente filtra.
+                   -- Aquí el cliente no filtra porque NO LO VE: lo elige el
+                   -- sistema, no una persona, y publicarlo solo daría ocasión de
+                   -- ofrecerlo por error en el selector de pago.
+                   AND m.visibility = 'PUBLICO'
                  ORDER BY m.code ASC, c.code ASC
                 """,
                 Tuple.class)
@@ -209,6 +217,39 @@ public class JpaMovementRepository implements MovementRepository {
     return List.copyOf(porMetodo.values());
   }
 
+  /**
+   * El método por su <b>código</b>, para resolver el pago gratuito (`RN-MV-022`).
+   *
+   * <p>Por código y no por identificador porque <b>nadie puede aportar ese identificador</b>: el
+   * catálogo de `RF-MV-009` no publica lo `INTERNO` (`RN-MV-023`). Mismo criterio que {@code
+   * MembershipCatalog.floor()} con `BECA` — el literal vive en un solo sitio y `V78` lo siembra en
+   * todos los entornos.
+   */
+  @Override
+  public Optional<PaymentMethodView> findPaymentMethodByCode(String code) {
+    if (code == null || code.isBlank()) {
+      return Optional.empty();
+    }
+    List<Tuple> filas =
+        em.createNativeQuery(
+                "SELECT id, code, name, is_active, visibility FROM payment_methods"
+                    + " WHERE code = :code",
+                Tuple.class)
+            .setParameter("code", code.trim().toUpperCase())
+            .getResultList();
+
+    return filas.stream().findFirst().map(JpaMovementRepository::aVista);
+  }
+
+  private static PaymentMethodView aVista(Tuple fila) {
+    return new PaymentMethodView(
+        (UUID) fila.get("id"),
+        (String) fila.get("code"),
+        (String) fila.get("name"),
+        (Boolean) fila.get("is_active"),
+        (String) fila.get("visibility"));
+  }
+
   @Override
   public Optional<PaymentMethodView> findPaymentMethod(UUID id) {
     if (id == null) {
@@ -216,7 +257,13 @@ public class JpaMovementRepository implements MovementRepository {
     }
     List<Tuple> filas =
         em.createNativeQuery(
-                "SELECT id, code, name, is_active FROM payment_methods WHERE id = :id", Tuple.class)
+                // SIN filtro de visibilidad, al contrario que el catálogo de
+                // arriba: esta lectura RESUELVE UN MÉTODO YA ELEGIDO —el que la
+                // venta declara o el que el sistema asigna— y no ofrece nada.
+                // Filtrarlo aquí haría irresoluble el pago gratuito, que es
+                // justo el que nadie puede elegir.
+                "SELECT id, code, name, is_active, visibility FROM payment_methods WHERE id = :id",
+                Tuple.class)
             .setParameter("id", id)
             .getResultList();
 
@@ -228,7 +275,8 @@ public class JpaMovementRepository implements MovementRepository {
                     (UUID) fila.get("id"),
                     (String) fila.get("code"),
                     (String) fila.get("name"),
-                    (Boolean) fila.get("is_active")));
+                    (Boolean) fila.get("is_active"),
+                    (String) fila.get("visibility")));
   }
 
   // ---------------------------------------------------------------------------

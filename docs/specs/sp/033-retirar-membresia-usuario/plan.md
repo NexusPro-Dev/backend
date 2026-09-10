@@ -16,9 +16,9 @@
 
     Segunda enmienda del mismo día, y encima de la anterior. `RN-SP-018` pasa a exigir que **toda** persona tenga nivel, de modo que esta operación **ya no puede dejar a nadie sin membresía**.
 
-    **Cierra la que hay y abre una de código `FREE`**, en la misma transacción — la misma escritura de dos sentencias que `RF-SP-032` usa para sustituir.
+    **Cierra la que hay y abre una de código `BECA`**, en la misma transacción — la misma escritura de dos sentencias que `RF-SP-032` usa para sustituir.
 
-    **Responde `200` con la membresía `FREE`, no `204` sin cuerpo.** Devolver `204` diría que no queda nada, y queda algo: el nivel de arranque. Quien llama necesita saber en qué quedó la persona sin tener que volver a preguntar.
+    **Responde `200` con la membresía `BECA`, no `204` sin cuerpo.** Devolver `204` diría que no queda nada, y queda algo: el nivel de arranque. Quien llama necesita saber en qué quedó la persona sin tener que volver a preguntar.
 
     **`EX-001` desaparece**, y con él la rareza que definía este requerimiento: exigía que la persona **no** portara ningún rol `CONSUMIDOR` —lo contrario de lo que sugiere su nombre— porque `RN-SP-018` no admitía consumidores sin nivel. Retirada `RN-SP-013` y reescrita `RN-SP-018`, esa precondición no protege nada: bajar a alguien al suelo es válido lo porte o no.
 

@@ -145,7 +145,7 @@ class UpdateOwnProfileIT extends IntegrationTestBase {
             + " SELECT ?, id, role_type FROM roles WHERE code = 'CLIENTE'",
         juan);
     // NO se depende del catálogo sembrado: varias clases de la suite hacen
-    // `DELETE FROM memberships`, de modo que `FREE` puede no existir según el
+    // `DELETE FROM memberships`, de modo que `BECA` puede no existir según el
     // orden de ejecución. Se crea una propia si la tabla quedó vacía, y se
     // asigna la primera que haya.
     jdbc.update(

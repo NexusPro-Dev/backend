@@ -5,7 +5,7 @@
 -- `users` gana seis columnas: el tipo y el número de documento, dos líneas de
 -- dirección, la ciudad y el teléfono.
 --
--- DEPENDE DE `V67`, que crea y siembra `document_types`: la clave foránea de
+-- DEPENDE DE `V70`, que crea y siembra `document_types`: la clave foránea de
 -- abajo apunta a una tabla que aquella migración crea.
 --
 -- -----------------------------------------------------------------------------
@@ -44,7 +44,7 @@ ALTER TABLE users
 -- -----------------------------------------------------------------------------
 -- La clave foránea, que es DONDE VIVE LA VALIDACIÓN DE MAYORÍA DE EDAD.
 --
--- El catálogo de `V67` no ofrece documentos de menor, y esto es lo que impide
+-- El catálogo de `V70` no ofrece documentos de menor, y esto es lo que impide
 -- apuntar a uno. No hay comprobación de edad en ningún caso de uso porque no
 -- hay nada que comprobar.
 --
@@ -131,7 +131,7 @@ COMMENT ON COLUMN users.document_type_id IS
 COMMENT ON COLUMN users.document_number IS
     'Normalizado en mayúsculas. Único CON el tipo, y no se libera al eliminar (RN-SP-035).';
 COMMENT ON COLUMN users.phone IS
-    'Obligatorio en la API (RN-SP-037), nulable en el esquema por las filas anteriores a V68.';
+    'Obligatorio en la API (RN-SP-037), nulable en el esquema por las filas anteriores a V71.';
 COMMENT ON COLUMN users.address_line2 IS
     'Complemento. Opcional POR NATURALEZA: una dirección puede no tenerlo, y eso no es un dato que falte.';
 

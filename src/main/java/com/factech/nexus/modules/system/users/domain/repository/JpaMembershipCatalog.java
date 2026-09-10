@@ -18,10 +18,13 @@ public class JpaMembershipCatalog implements MembershipCatalog {
 
   /**
    * El código de la membresía de arranque (`RN-SP-018`). <b>Es un literal a propósito</b>: `V46` la
-   * siembra con ese código en todos los entornos, `uq_memberships_code` lo hace único y `RN-SP-008`
-   * impide borrar la fila.
+   * siembra, `uq_memberships_code` lo hace único y `RN-SP-008` impide borrar la fila.
+   *
+   * <p><b>Se llamó `BECA` hasta el 09-09-2026</b>, y `V79` lo renombró a `BECA` por decisión del
+   * responsable del proyecto. El renombrado tuvo que ser una migración porque `RN-SP-008` hace las
+   * membresías inmutables: no hay operación de la API que edite una.
    */
-  private static final String CODIGO_SUELO = "FREE";
+  private static final String CODIGO_SUELO = "BECA";
 
   private final EntityManager em;
 

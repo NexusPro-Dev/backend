@@ -61,7 +61,7 @@ class ProductDetailIT extends IntegrationTestBase {
     // El SUELO de la cadena: es el origen de todo upgrade que se siembre
     // aqui. Va encadenado bajo `oro` porque `uq_memberships_parent` es
     // UNIQUE NULLS NOT DISTINCT — dos raices revientan en el COMMIT.
-    free = membresia("FREE", "Free", 2, oro);
+    free = membresia("BECA", "Beca", 2, oro);
 
     upgrade = producto("UPGRADE_ORO", "UPGRADE_MEMBRESIA", "Ascenso a Oro", oro, "49.99", 30, USD);
     bot = producto("SOPORTE", "BOT", "Soporte prioritario", null, "99.50", null, USD);

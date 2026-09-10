@@ -71,6 +71,21 @@ Es el **primer requerimiento del módulo** y el que pone en el sistema el objeto
 - **Pagar con puntos**, que es la etapa 3 del módulo.
 - **Registrar un depósito**, que es la etapa 2 y es otra cosa: no lleva producto y no la origina una venta.
 
+!!! danger "Enmienda del 09-09-2026 — el importe cero y el pago gratuito son lo mismo (`RN-MV-022`)"
+
+    **`paymentMethodId` deja de ser obligatorio y pasa a ser condicional en los dos sentidos:**
+
+    - Si el importe total es **cero**, el campo **no se admite** y el sistema asigna el método `GRATIS`. Enviarlo es `409`.
+    - Si el importe total es **mayor que cero**, el campo es **obligatorio**, y el método `GRATIS` no es elegible — de hecho no es ni descubrible: `RF-MV-009` no lo devuelve (`RN-MV-023`).
+
+    Es la forma que `RN-SP-019` ya usa para el superior comercial, y por el mismo motivo: los dos son pares donde indicar uno sin el otro **no significa nada**.
+
+    **Qué cierra esto.** `RN-PM-006` admite el precio cero desde el 08-09-2026 —lo tumbó la renovación `BECA → BECA`— y `movements.payment_method_id` es `NOT NULL`. Desde entonces, **toda compra gratuita estaba obligada a declarar tarjeta, PSE o puntos**, y las tres son falsas. No fallaba nada: el padrón simplemente dejaba de poder decir qué se cobró, y `CM` comisionaría sobre un cobro que nunca ocurrió.
+
+    **La segunda mitad de la regla es la que menos se ve y la más grave.** Una venta **cobrada** que declarara pago gratuito diría que no se cobró nada — y esa mentira va en la dirección en la que alguien gana algo. Por eso el rechazo es en los dos sentidos y no solo en uno.
+
+    **Y arrastra un cambio de orden que es contrato** (`plan.md` §4): el método de pago **deja de verificarse el primero**. La regla necesita el importe, y el importe sale de resolver los productos — de modo que la verificación del método baja a después del cálculo del total.
+
 ## 5. Reglas de negocio aplicables
 
 | ID | Regla | Origen |
