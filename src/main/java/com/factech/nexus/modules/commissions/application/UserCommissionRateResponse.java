@@ -3,7 +3,6 @@ package com.factech.nexus.modules.commissions.application;
 import com.factech.nexus.modules.commissions.domain.models.CommissionRateType;
 import com.factech.nexus.modules.commissions.domain.models.UserCommissionRate;
 import com.factech.nexus.modules.commissions.domain.repository.UserCommissionRateQueryRepository.UserRateRow;
-import com.factech.nexus.modules.products.application.ProductCatalog.ProductView;
 import com.factech.nexus.modules.system.users.application.UserCatalog.UserView;
 import com.fasterxml.jackson.annotation.JsonInclude;
 import java.math.BigDecimal;
@@ -25,7 +24,6 @@ import java.util.UUID;
 public record UserCommissionRateResponse(
     UUID id,
     UserRef user,
-    ProductRef product,
     CommissionRateType rateType,
     BigDecimal percentage,
     BigDecimal fixedAmount,
@@ -36,16 +34,10 @@ public record UserCommissionRateResponse(
   @JsonInclude(JsonInclude.Include.ALWAYS)
   public record UserRef(UUID id, String username, String fullName) {}
 
-  /** El producto, resuelto. Mismo criterio que la persona y por lo mismo. */
-  @JsonInclude(JsonInclude.Include.ALWAYS)
-  public record ProductRef(UUID id, String code, String name) {}
-
-  public static UserCommissionRateResponse from(
-      UserCommissionRate tasa, UserView persona, ProductView producto) {
+  public static UserCommissionRateResponse from(UserCommissionRate tasa, UserView persona) {
     return new UserCommissionRateResponse(
         tasa.getId(),
         new UserRef(persona.id(), persona.username(), persona.fullName()),
-        new ProductRef(producto.id(), producto.code(), producto.name()),
         tasa.getValue().getRateType(),
         tasa.getPercentage(),
         tasa.getFixedAmount(),
@@ -58,7 +50,6 @@ public record UserCommissionRateResponse(
     return new UserCommissionRateResponse(
         fila.id(),
         new UserRef(fila.userId(), fila.username(), fila.userFullName()),
-        new ProductRef(fila.productId(), fila.productCode(), fila.productName()),
         fila.rateType(),
         fila.percentage(),
         fila.fixedAmount(),

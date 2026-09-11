@@ -49,30 +49,15 @@ public class UserCommissionRate {
   private UUID userId;
 
   /**
-   * Sobre qué producto rige la excepción (`RN-CM-014`, 11-09-2026).
-   *
-   * <p><b>Una columna propia y no una tabla de asociación</b>, al revés que la tasa de rol. La
-   * asimetría es deliberada: aquella es <b>catálogo reutilizable</b> —una fila que rige en muchos
-   * productos— mientras que esta ya es de una sola persona y <b>no hay nada que reutilizar</b>.
-   *
-   * <p><b>No se puede corregir</b>, igual que la persona y el inicio de vigencia: es parte de lo
-   * que la tasa <b>es</b>. Cambiarlo convertiría una excepción sobre un producto en otra sobre
-   * otro, con el historial de la primera pegado detrás.
-   */
-  @Column(name = "product_id", nullable = false, updatable = false)
-  private UUID productId;
-
-  /**
    * <b>El mismo objeto que incrusta la tasa de rol</b>, y no un gemelo (`RN-CM-016`).
    *
    * <p>Que sea el mismo es lo que permite a `RF-CM-005` devolver la comisión resuelta <b>sin saber
    * de cuál de las dos tablas salió</b>. Dos objetos iguales obligarían a la resolución a elegir
    * uno o a inventar un tercero al que convertir los dos.
    *
-   * <p><b>Y un importe fijo aquí ya no pesa más que en el catálogo</b>: desde el 11-09-2026 esta
-   * tasa declara su producto (`RN-CM-014`), de modo que conoce un precio contra el que acotarse
-   * (`RN-CM-019`) y una sola moneda en la que leerse (`RN-CM-017`). Hasta esa fecha no se ataba a
-   * nada y se interpretaba en tantas monedas como hubiera en el catálogo.
+   * <p><b>Y aquí un importe fijo pesa más que en el catálogo</b>: esta tasa no se asocia a ningún
+   * producto (`RN-CM-014`), de modo que rige sobre todo lo que su titular venda y se interpreta en
+   * <b>tantas monedas como haya en el catálogo</b>.
    */
   @Embedded private CommissionValue value;
 
@@ -107,7 +92,6 @@ public class UserCommissionRate {
   public static UserCommissionRate create(
       UUID id,
       UUID userId,
-      UUID productId,
       CommissionValue value,
       LocalDate validFrom,
       LocalDate validTo,
@@ -119,7 +103,6 @@ public class UserCommissionRate {
     UserCommissionRate tasa = new UserCommissionRate();
     tasa.id = id;
     tasa.userId = userId;
-    tasa.productId = productId;
     tasa.value = value;
     tasa.validFrom = validFrom;
     tasa.validTo = validTo;
@@ -201,7 +184,6 @@ public class UserCommissionRate {
   public Map<String, Object> instantanea() {
     Map<String, Object> estado = new LinkedHashMap<>();
     estado.put("user_id", userId.toString());
-    estado.put("product_id", productId.toString());
     estado.put("rate_type", value.getRateType().name());
     estado.put("value", value.cifra().toPlainString());
     estado.put("valid_from", validFrom.toString());
@@ -256,10 +238,6 @@ public class UserCommissionRate {
 
   public UUID getUserId() {
     return userId;
-  }
-
-  public UUID getProductId() {
-    return productId;
   }
 
   public CommissionValue getValue() {

@@ -26,10 +26,13 @@ public class JpaCommissionResolutionRepository implements CommissionResolutionRe
   /**
    * `RN-CM-004`, escrita una vez.
    *
-   * <p><b>Las dos ramas filtran ya por producto</b> (11-09-2026), y eso hace la regla más simple de
-   * enunciar y no más compleja. Hasta esa fecha la rama de la persona <b>no</b> lo hacía —la tasa
-   * personalizada ganaba vendiera lo que vendiera—, de modo que una excepción tapaba el catálogo
-   * entero de su titular y la rama del rol no llegaba a mirarse nunca.
+   * <p><b>Las dos ramas exigen ya la ASOCIACIÓN</b> (11-09-2026), y con ello `RN-CM-012` deja de
+   * tener excepción: ninguna tasa rige donde no se la asoció. Hasta esa fecha la rama de la persona
+   * no miraba el producto —la personalizada ganaba vendiera lo que vendiera—, de modo que tapaba el
+   * catálogo entero de su titular y la rama del rol no llegaba a mirarse nunca.
+   *
+   * <p><b>Cada una entra por su propia tabla de asociación</b>, y son gemelas: {@code
+   * user_commission_rate_products} la de la persona, {@code product_commission_rates} la del rol.
    *
    * <p><b>Lo que la rama de la persona sigue sin filtrar es el rol</b>, y esa ausencia sí es la
    * regla: desde el 01-09-2026 estas tasas no llevan rol, de modo que siguen rigiendo aunque su
@@ -72,9 +75,11 @@ public class JpaCommissionResolutionRepository implements CommissionResolutionRe
              u.valid_from   AS valid_from,
              u.valid_to     AS valid_to
         FROM user_commission_rates u
+        JOIN user_commission_rate_products ua
+          ON ua.user_commission_rate_id = u.id
        WHERE u.deleted_at IS NULL
          AND u.user_id = :persona
-         AND u.product_id = :producto
+         AND ua.product_id = :producto
          AND u.valid_from <= CAST(:fecha AS date)
          AND (u.valid_to IS NULL OR u.valid_to >= CAST(:fecha AS date))
 

@@ -2,7 +2,7 @@
 
 | Campo | Valor |
 |---|---|
-| Versión | 0.39.0 |
+| Versión | 0.40.0 |
 | Estado | **Borrador** |
 | Responsable | Bonilla Diaz William Steven |
 | Fecha de creación | 21-08-2026 |
@@ -436,7 +436,8 @@ erDiagram
     commission_rates ||--o{ product_commission_rates : "rige sobre"
     products ||--o{ product_commission_rates : "paga esa tasa"
     users    ||--o{ user_commission_rates : "excepción de"
-    products ||--o{ user_commission_rates : "excepción SOBRE"
+    user_commission_rates ||--o{ user_commission_rate_products : "rige sobre"
+    products ||--o{ user_commission_rate_products : "paga esa excepción"
 
     products {
         uuid id PK
@@ -471,13 +472,18 @@ erDiagram
     user_commission_rates {
         uuid id PK
         uuid user_id FK "SIN rol: es de la persona"
-        uuid product_id FK "OBLIGATORIO desde 11-09-2026 · la excepción es de ESTE producto"
         varchar rate_type "PORCENTAJE o FIJO"
         numeric percentage "5,2 · NULL si es FIJO"
         numeric fixed_amount "14,4 · NULL si es PORCENTAJE · toma la moneda de SU producto"
         date valid_from "la ÚNICA tabla con vigencia"
         date valid_to "NULL = indefinidamente"
         timestamptz deleted_at "lógico"
+    }
+
+    user_commission_rate_products {
+        uuid user_commission_rate_id PK,FK "la PK es la regla: no se asocia dos veces"
+        uuid product_id PK,FK "y SIN role_id: aqui no hay nada copiado que pueda mentir"
+        timestamptz created_at "sin retiro logico: desasociar BORRA"
     }
 ```
 
@@ -489,7 +495,7 @@ erDiagram
 
 - **`rate_type` es una columna y no algo deducido de qué campo esté lleno.** Sin ella, «una forma y solo una» sería una propiedad emergente de dos nulos, y una fila con los dos vacíos no permitiría saber **cuál** de las dos quiso declarar quien la insertó.
 - **`fixed_amount` comparte forma con `products.price`, `numeric(14,4)`, y no por simetría.** El precio tiene esa forma porque **la escala real la decide la moneda** —`currencies.decimal_places` va de 0 a 4— y un importe de comisión es dinero en esa misma moneda. Con menos decimales, una comisión en una moneda de cuatro no se podría expresar.
-- **Y no lleva moneda.** La toma del producto que se vende, de modo que **la misma fila paga cosas distintas** según a cuál se aplique. Es consecuencia aceptada (`cm.md` §1.1.1), no defecto. **En `user_commission_rates` esa consecuencia se cerró el 11-09-2026**: al ganar `product_id` la fila pasó a conocer **un** producto y por tanto **una** moneda; antes, al no atarse a nada, su importe se interpretaba en tantas monedas como hubiera en el catálogo.
+- **Y no lleva moneda.** La toma del producto que se vende, de modo que **la misma fila paga cosas distintas** según a cuál se aplique. Es consecuencia aceptada (`cm.md` §1.1.1), no defecto, y **alcanza por igual a las dos clases de tasa** desde el 11-09-2026: las dos se asocian a varios productos, y un importe fijo se lee en la moneda de cada uno.
 
 !!! danger "Y aparece una asimetría con `products` que ninguna restricción puede cerrar"
 
@@ -735,3 +741,4 @@ La secuencia no es continua —falta el tramo `V8` a `V12`— y no es un descuid
 | 0.37.0 | 10-09-2026 | **`user_supervisors` se lee por primera vez EN PROFUNDIDAD, y `user_brokers` gana su índice de búsqueda** (`RN-SP-047`, [`requirements/sp.md`](requirements/sp.md) v1.50.0). Ninguna tabla ni columna nueva; el modelo sigue en **treinta**. Lo que cambia es **cómo se lee** una tabla que lleva desde `V21` respondiendo siempre a un solo nivel: `RF-SP-057` recorre la rama entera con una **recursiva**, la primera del sistema. **Dos consecuencias de modelado quedan escritas por adelantado**: la terminación **no descansa en que los datos sean acíclicos** —lo son, porque `RN-SP-020` ata esta cadena a la de roles— sino en que la recursión acumule con **`UNION`** y no con `UNION ALL`; y el predicado **`ended_at IS NULL` tiene que ir en los DOS brazos**, porque el índice parcial de `V28` es el que sostiene el recorrido y omitirlo en el recursivo haría descender por la estructura **de ayer** sin que nada fallara. Se declara además **`ix_user_brokers_busqueda`**, gin de trigramas sobre `f_unaccent(lower(external_id))`, con las **expresiones del predicado** y no otras — la lección que `ix_users_busqueda` dejó escrita en `V29`: si divergen, el índice existe, el planificador no lo usa nunca, y el defecto no sale como error sino como lentitud que nadie relaciona con su migración. | Responsable del proyecto |
 | 0.38.0 | 10-09-2026 | **`users` gana `company_phone`** \(`V83`\): el teléfono de la empresa, junto al personal que ya existía. Misma forma que `phone` —`varchar(20)`, normalizado a dígitos con `+` opcional, `ck_users_company_phone_format`— y **opcional**, al revés que aquel: `RN-SP-037` exige el personal y no este, porque exigirlo bloquearía el alta de quien no tenga empresa. **Sin índice**, como `phone`: ninguna consulta filtra ni ordena por él. | Responsable técnico |
 | 0.39.0 | 11-09-2026 | **`user_commission_rates` gana `product_id` `NOT NULL`** \(`V84`\): la excepción por persona deja de regir sobre todo el catálogo y pasa a declarar **su** producto. **Columna propia y no tabla de asociación**, y la asimetría con la tasa de rol es deliberada: aquella es **catálogo reutilizable** —una fila que rige en muchos productos, y por eso tiene `product_commission_rates`—, mientras que una personalizada ya es de **una sola persona** y no hay nada que reutilizar; una tabla intermedia solo añadiría un salto. **El `EXCLUDE` se rehace con el producto dentro**: pasa de «una vigente por persona» a «una vigente por persona **y producto**», de modo que la misma persona puede tener varias a la vez sobre productos distintos. Se cierra además la consecuencia de no declarar moneda que este documento tenía anotada para esta tabla: al conocer un producto, conoce una moneda. **La migración ABORTA si hay filas vivas**: no hay dato que inventar —a qué producto pertenecía una tasa que valía para todos no se puede adivinar— y rellenarlas produciría filas plausibles y falsas, que es exactamente lo que `V49` evitó vaciando en lugar de traducir. | Responsable técnico |
+| 0.40.0 | 11-09-2026 | **Corrige a v0.39.0 el mismo día, y las dos quedan para que el cambio se vea.** Aquella dio a la excepción por persona una **columna `product_id`**; el responsable del proyecto corrigió la forma: la personalizada debe asociarse a productos **con el mismo mecanismo que la de rol**. La columna se retira y nace **`user_commission_rate_products`** \(`V85`\), gemela de `product_commission_rates` — el sistema llega a **veintiséis tablas**. **Lo que la gemela tiene y esta no es el `role_id` copiado**: allí existe para que `RN-CM-013` pueda declararse en el esquema, con una clave foránea compuesta que le impide divergir; aquí no hay nada equivalente que copiar, porque la regla hermana habla de **persona y fechas** y las fechas no caben en una clave primaria. **Y por eso el `EXCLUDE` de `user_commission_rates` SE RETIRA sin sustituto**: `RN-CM-006` cruza ahora dos tablas, y este documento ya lo había anticipado en v0.15.0 — «sacar el producto fuera lo habría hecho cruzar dos tablas, que ningún índice hace». La regla pasa al caso de uso con un bloqueo consultivo. **No se sustituye por un `EXCLUDE` sobre `(user_id, daterange)`**, que es la tentación: prohibiría dos tasas simultáneas de la misma persona sobre productos **distintos**, que es justo lo que la enmienda existe para permitir. | Responsable técnico |

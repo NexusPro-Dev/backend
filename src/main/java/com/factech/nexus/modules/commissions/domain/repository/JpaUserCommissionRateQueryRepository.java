@@ -21,7 +21,6 @@ public class JpaUserCommissionRateQueryRepository implements UserCommissionRateQ
       """
       t.id AS id, t.user_id AS user_id, u.username AS username,
       u.first_name AS user_nombre, u.last_name AS user_apellido,
-      t.product_id AS product_id, p.code AS product_code, p.name AS product_name,
       t.rate_type AS rate_type, t.percentage AS percentage, t.fixed_amount AS fixed_amount,
       t.valid_from AS valid_from, t.valid_to AS valid_to,
       t.deleted_at AS deleted_at
@@ -31,7 +30,6 @@ public class JpaUserCommissionRateQueryRepository implements UserCommissionRateQ
       """
       user_commission_rates t
       LEFT JOIN users u ON u.id = t.user_id
-      LEFT JOIN products p ON p.id = t.product_id
       """;
 
   private final EntityManager em;
@@ -118,9 +116,6 @@ public class JpaUserCommissionRateQueryRepository implements UserCommissionRateQ
         (String) fila.get("username"),
         CommissionRows.nombreCompleto(
             (String) fila.get("user_nombre"), (String) fila.get("user_apellido")),
-        (UUID) fila.get("product_id"),
-        (String) fila.get("product_code"),
-        (String) fila.get("product_name"),
         CommissionRows.forma(fila.get("rate_type")),
         (BigDecimal) fila.get("percentage"),
         (BigDecimal) fila.get("fixed_amount"),

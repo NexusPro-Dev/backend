@@ -117,35 +117,38 @@ final class CommissionFixtures {
         tasa.toString());
   }
 
+  /**
+   * Asocia una tasa personalizada a un producto (`RN-CM-014`, 11-09-2026).
+   *
+   * <p>Gemela de {@link #asociar}. <b>Sin ella la tasa no rige en ninguna parte</b> (`RN-CM-012`),
+   * de modo que una prueba que siembre una personalizada y no la asocie no está probando lo que
+   * cree: está probando que no se paga nada.
+   */
+  static void asociarPersonal(JdbcTemplate jdbc, UUID tasa, UUID producto) {
+    jdbc.update(
+        "INSERT INTO user_commission_rate_products (user_commission_rate_id, product_id)"
+            + " VALUES (CAST(? AS uuid), CAST(? AS uuid))",
+        tasa.toString(),
+        producto.toString());
+  }
+
   static UUID sembrarTasaPersonal(
-      JdbcTemplate jdbc,
-      UUID persona,
-      UUID producto,
-      String porcentaje,
-      String desde,
-      String hasta) {
-    return sembrarTasaPersonal(jdbc, persona, producto, "PORCENTAJE", porcentaje, desde, hasta);
+      JdbcTemplate jdbc, UUID persona, String porcentaje, String desde, String hasta) {
+    return sembrarTasaPersonal(jdbc, persona, "PORCENTAJE", porcentaje, desde, hasta);
   }
 
   /** La personalizada en la forma que se pida. Ver {@link #sembrarTasaDeRol}. */
   static UUID sembrarTasaPersonal(
-      JdbcTemplate jdbc,
-      UUID persona,
-      UUID producto,
-      String forma,
-      String valor,
-      String desde,
-      String hasta) {
+      JdbcTemplate jdbc, UUID persona, String forma, String valor, String desde, String hasta) {
     UUID id = UUID.randomUUID();
     boolean esPorcentaje = "PORCENTAJE".equals(forma);
     jdbc.update(
         "INSERT INTO user_commission_rates"
-            + " (id, user_id, product_id, rate_type, percentage, fixed_amount, valid_from, valid_to)"
-            + " VALUES (CAST(? AS uuid), CAST(? AS uuid), CAST(? AS uuid), ?, CAST(? AS numeric),"
+            + " (id, user_id, rate_type, percentage, fixed_amount, valid_from, valid_to)"
+            + " VALUES (CAST(? AS uuid), CAST(? AS uuid), ?, CAST(? AS numeric),"
             + " CAST(? AS numeric), CAST(? AS date), CAST(? AS date))",
         id.toString(),
         persona.toString(),
-        producto.toString(),
         forma,
         esPorcentaje ? valor : null,
         esPorcentaje ? null : valor,
@@ -159,6 +162,7 @@ final class CommissionFixtures {
    * asociación apunta a la tasa y al producto, de modo que va la primera.
    */
   static void limpiar(JdbcTemplate jdbc, UUID superadmin) {
+    jdbc.update("DELETE FROM user_commission_rate_products");
     jdbc.update("DELETE FROM product_commission_rates");
     jdbc.update("DELETE FROM user_commission_rates");
     jdbc.update("DELETE FROM commission_rates");

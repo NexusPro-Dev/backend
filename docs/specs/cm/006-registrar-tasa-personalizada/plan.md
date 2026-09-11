@@ -5,8 +5,9 @@
 | Requerimiento | `RF-CM-006` |
 | Especificación | [`spec.md`](spec.md) |
 | `spec.md` aprobada el | 02-09-2026 |
-| Versión | 0.3.0 |
+| Versión | 0.4.0 |
 | Reabierto el | 11-09-2026 — `user_commission_rates` gana `product_id` `NOT NULL` (`V84`): la personalizada declara su producto, ver §2.bis (Art. I.7) |
+| Reabierto el | 11-09-2026 — **corrige la forma del mismo día**: la personalizada se ASOCIA a productos en lugar de declarar uno. `V85` deshace `V84`, ver §2.ter (Art. I.7) |
 | Estado | **Aprobado** |
 | Autor | Responsable técnico |
 | Aprobado por | Responsable del proyecto |
@@ -110,6 +111,45 @@ ALTER TABLE user_commission_rates
 **Sin índice propio sobre `product_id`.** El `EXCLUDE` crea uno GiST que ya lleva la columna, y la resolución busca por persona, producto y fecha a la vez.
 
 **Numeración: `V84`.** La reserva de números por requerimiento quedó muerta el 24-08-2026 (ver `V28`).
+
+## 2.ter `V85__tasa_personalizada_se_asocia_a_productos.sql` — corrección del 11-09-2026
+
+**Deshace §2.bis, que se aplicó ese mismo día**, y las dos migraciones existen en lugar de editar aquella porque **una migración aplicada no se edita nunca**: Flyway valida por suma de comprobación, y tocarla haría fallar el arranque de toda base que ya la ejecutó con un «validación fallida» que no dice quién la editó (ver la cabecera de `V30`). El historial conserva el paso en falso, que es lo correcto: se ve que hubo dos formas y cuál ganó.
+
+**El fondo no cambia.** `V84` quitó a la personalizada el regir sobre todo el catálogo, y eso se mantiene. Cambia **la forma**: aquella le dio una columna fijada al crearla; esta le da una **tabla de asociación**, gemela de `product_commission_rates`.
+
+```sql
+-- El EXCLUDE va PRIMERO: `V84` lo redefinió SOBRE `product_id`, de modo que
+-- soltar la columna se lo llevaría por delante en silencio.
+ALTER TABLE user_commission_rates DROP CONSTRAINT uq_user_commission_rates_vigente;
+ALTER TABLE user_commission_rates DROP CONSTRAINT fk_user_commission_rates_product;
+ALTER TABLE user_commission_rates DROP COLUMN product_id;
+
+CREATE TABLE user_commission_rate_products (
+    user_commission_rate_id  uuid         NOT NULL,
+    product_id               uuid         NOT NULL,
+    created_at               timestamptz  NOT NULL DEFAULT now(),
+    CONSTRAINT pk_user_commission_rate_products
+        PRIMARY KEY (user_commission_rate_id, product_id),
+    CONSTRAINT fk_user_commission_rate_products_rate
+        FOREIGN KEY (user_commission_rate_id) REFERENCES user_commission_rates (id),
+    CONSTRAINT fk_user_commission_rate_products_product
+        FOREIGN KEY (product_id) REFERENCES products (id)
+);
+
+CREATE INDEX ix_user_commission_rate_products_producto
+    ON user_commission_rate_products (product_id);
+```
+
+**El orden de los tres primeros `DROP` no es cosmético, y costó una ejecución roja:** `V84` había redefinido el `EXCLUDE` **sobre `product_id`**, de modo que soltar la columna se lo lleva por delante en cascada y el `DROP CONSTRAINT` posterior falla con «no existe». Retirarlo explícitamente y **antes** deja las dos decisiones separadas y visibles.
+
+**El `EXCLUDE` se retira SIN SUSTITUTO, y es lo que esta corrección cuesta.** `RN-CM-006` habla de persona, vigencia **y producto**; con el producto en otra tabla la regla **cruza dos**, y ningún índice hace eso. No se sustituye por uno sobre `(user_id, daterange)`, que es la tentación: eso prohibiría dos tasas simultáneas de la misma persona sobre productos **distintos**, que es justamente lo que esta corrección existe para permitir. La regla pasa a `AssociateUserProductService` con un **bloqueo consultivo por persona** — el mismo patrón que `ProductCommissionCapGuard` ya usaba por producto.
+
+**Sin guarda que aborte, al revés que `V84`.** Allí la guarda existía porque había que **inventar** un dato que no se podía deducir; aquí se quita una columna, y lo que se pierde —a qué producto se ató una tasa— se vuelve a declarar asociándola. Y hay una garantía extra: que `V84` naciera con esa guarda significa que **ninguna base pudo aplicarla teniendo personalizadas vivas**.
+
+**La tabla no copia el `role_id` de su gemela.** Allí esa columna viaja copiada para que `RN-CM-013` pueda declararse en el esquema, con una clave foránea compuesta que le impide divergir. Aquí **no hay nada equivalente que copiar**: la regla hermana habla de persona y **fechas**, y las fechas no caben en una clave primaria sin volver a necesitar el `EXCLUDE` que se acaba de retirar.
+
+**El índice por producto sí se crea**, y la clave primaria no lo da: la resolución de `RF-CM-005` entra por `(persona, producto)` y la comprobación de `RN-CM-006` pregunta «qué tasas vivas de esta persona tocan **este** producto». Los dos caminos empiezan por el producto, y la primaria empieza por la tasa.
 
 ## 3. Componentes afectados
 

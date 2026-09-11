@@ -4,12 +4,13 @@
 |---|---|
 | Requerimiento | `RF-CM-005` |
 | Módulo | `CM` — Comisiones |
-| Versión | 0.4.0 |
+| Versión | 0.5.0 |
 | Estado | **Aprobada** |
 | Autor | Responsable técnico |
 | Aprobada por | Responsable del proyecto |
 | Fecha de aprobación | 02-09-2026 |
 | Enmendada | 11-09-2026 — **la personalizada también se resuelve POR PRODUCTO**: los dos niveles de la precedencia preguntan ya por él. `FA-003` y `FA-006` cambian, y nacen `CA-CM-122` y `CA-CM-123` (Art. I.7) |
+| Enmendada | 11-09-2026 — corrige la enmienda anterior del mismo día: la personalizada se resuelve **por ASOCIACIÓN**, no por un producto declarado en la tasa. `RN-CM-012` deja de tener excepción y nace `CA-CM-124` (Art. I.7) |
 
 !!! info "Qué va en este documento"
 
@@ -41,7 +42,7 @@ Es el requerimiento que hace que las dos piezas del módulo signifiquen algo. Si
 
 **La precedencia es ahora una pregunta y una respuesta de reserva**, donde antes eran cuatro grados ordenados. Si la persona tiene una tasa personalizada vigente ese día **para ese producto**, es esa. Si no, la que su rol vendedor tenga **asociada a ese producto**. Si tampoco, no hay tarifa.
 
-**Desde el 11-09-2026 los dos niveles preguntan por el producto**, y eso hace la regla más simple de enunciar, no más compleja: hasta esa fecha el primero lo ignoraba, de modo que una excepción tapaba el catálogo entero de esa persona y la del rol no llegaba a mirarse nunca.
+**Desde el 11-09-2026 los dos niveles exigen ASOCIACIÓN**, y eso hace la regla más simple de enunciar, no más compleja: hasta esa fecha el primero no miraba el producto, de modo que una excepción tapaba el catálogo entero de esa persona y la del rol no llegaba a mirarse nunca. Con ello `RN-CM-012` —ninguna tasa rige donde no se la asoció— **deja de tener excepción**, y aparece un caso que antes no existía: una personalizada **creada y sin asociar no paga nada**.
 
 **Y hay un cambio de significado que esta consulta hereda y no puede suavizar.** Antes, una tarifa sin producto valía para todo el catálogo, de modo que un rol con tarifa por omisión siempre tenía respuesta. Ahora **no hay tarifa por omisión**: sin asociación no hay nada que devolver, aunque el catálogo tenga una tasa para ese rol con su porcentaje.
 
@@ -229,8 +230,9 @@ Es el requerimiento que hace que las dos piezas del módulo signifiquen algo. Si
 | `CA-CM-044` | Una personalizada **vencida** deja de ganar, y vuelve a mandar la del rol |
 | `CA-CM-045` | **Quien no porta rol vendedor pero tiene personalizada viva COBRA**, y el rol llega nulo |
 | `CA-CM-046` | Sin rol vendedor y sin personalizada, el desenlace es «no comisiona» |
-| `CA-CM-122` | La personalizada **NO gana fuera de su producto**: en otro producto la misma persona resuelve por la tasa de su **rol**, con fuente `ROL` |
-| `CA-CM-123` | Con personalizadas sobre **dos productos distintos** y la misma fecha, cada consulta devuelve **la suya** |
+| `CA-CM-122` | La personalizada **NO gana donde no está asociada**: en otro producto la misma persona resuelve por la tasa de su **rol**, con fuente `ROL` |
+| `CA-CM-123` | Una **misma** tasa personalizada rige en **varios** productos: las dos consultas devuelven la misma tasa |
+| `CA-CM-124` | Una personalizada **sin asociar no paga nada**: existe, está vigente, y el desenlace es «sin tarifa» (`RN-CM-012`) |
 | `CA-CM-047` | El porcentaje **cero** resuelve, y se distingue de no tener tasa |
 | `CA-CM-048` | Una tasa **retirada** deja de resolver aunque su asociación exista |
 | `CA-CM-049` | Un producto **retirado** se resuelve con normalidad |
@@ -288,3 +290,4 @@ Si algún día se revierte, **lo que cambia es solo esta especificación**: un c
 | 0.2.0 | 02-09-2026 | **Reescrita sobre el modelo de `cm.md` v0.4.0**, y después de construirse el código. La precedencia pasa de **cuatro grados a dos** y el campo que la explicaba deja de ser el **grado** de la tarifa para ser la **fuente** de la resolución — son dos conceptos distintos y por eso no se reutiliza el nombre. Entra el cambio de significado que esta consulta hereda: **desaparece la tarifa por omisión del rol**, de modo que «sin tarifa» pasa a significar casi siempre **«nadie la asoció»** y no «nadie la declaró». **Y se registra lo que construirla destapó**: nace `FA-003`, que la v0.1.0 no podía tener — quien **no porta rol vendedor pero tiene personalizada viva cobra**, porque esas tasas dejaron de llevar rol y con ello dejaron de morir con el de su titular. Lo que `cm.md` §5.3 llamaba «se queda callada» resultó ser **«sigue pagando»**, y la consecuencia visible es que el rol puede llegar **nulo junto a un desenlace resuelto**. §13 recoge además que este requerimiento **depende de dos reglas ajenas para ser determinista** —`RN-SP-025` y `RN-CM-006`— y que la fecha en el pasado **ya no responde de verdad** sobre las tasas de rol. | Responsable técnico |
 | 0.3.0 | 02-09-2026 | **Entra el valor fijo** (`cm.md` v0.7.0), antes del código, y **no toca la precedencia ni una línea**: lo que cambia es la respuesta. Lo que se devuelve deja de ser un número y pasa a ser **una forma y un valor**, porque «10» no significa nada sin saber si son diez por ciento o diez unidades de dinero. §6.2 se rehace entera alrededor de una decisión del responsable del proyecto: **el valor es UN campo y no dos**, al revés que en el catálogo (`RF-CM-002` §6.2), porque con dos campos el nulo tendría **dos causas** —una tasa de importe fijo dejaría vacío el porcentaje sin que eso signifique «nadie la tomó»— y el aviso que impide pagar cero donde no había tarifa dejaría de poder escribirse. La asimetría entre las dos lecturas es deliberada y queda documentada. §14 registra la otra decisión que se preguntó: **la respuesta no devuelve la moneda**, aunque esta consulta reciba el producto y sea **el único punto del sistema donde el importe y su moneda existen a la vez** — se descartó porque devolverla empezaría a mezclar la tarifa con la venta (`cm.md` §1.4), y la consecuencia se escribe en lugar de disimularse: `FA-006` y `CA-CM-104` fijan que **dos productos de monedas distintas obtienen la misma respuesta sin señal alguna**. `CA-CM-101` es el criterio nuevo que protege lo viejo: **cruza las formas** entre las dos ramas de la precedencia, porque una reescritura de la consulta podría invertirlas y las demás pruebas de precedencia —que usan la misma forma en las dos— seguirían pasando. | Responsable del proyecto |
 | 0.4.0 | 11-09-2026 | **La personalizada también se resuelve por producto**, por decisión del responsable del proyecto (`cm.md` v0.10.0). Los **dos** niveles de la precedencia preguntan ya por el producto, y la regla queda más simple de enunciar y no más compleja: hasta hoy el primero lo ignoraba, de modo que **una excepción tapaba el catálogo entero de esa persona** y la del rol no llegaba a mirarse nunca. `FA-006` —el importe fijo leído en dos monedas— **deja de aplicar a la personalizada** y sobrevive solo para la tasa de rol asociada a dos productos de monedas distintas. Nacen `CA-CM-122` —la personalizada NO gana fuera de su producto— y `CA-CM-123`. El caso límite de las dos personalizadas el mismo día **deja de ser imposible**: lo es solo sobre el mismo producto. | Responsable del proyecto |
+| 0.5.0 | 11-09-2026 | **Corrige a v0.4.0 el mismo día**: la personalizada se resuelve **por asociación**, no por un producto declarado en la tasa. La rama de la persona entra por `user_commission_rate_products`, gemela de la tabla por la que ya entraba la del rol, de modo que **las dos ramas son ahora la misma forma con distinta tabla**. `RN-CM-012` deja de tener excepción y con ello aparece un desenlace que antes no existía: una personalizada **creada y sin asociar** devuelve **sin tarifa** — `CA-CM-124`. `CA-CM-123` cambia de significado: ya no es «dos tasas, una por producto» sino «**una misma** tasa rigiendo en varios», que es lo que la columna no permitía. | Responsable del proyecto |

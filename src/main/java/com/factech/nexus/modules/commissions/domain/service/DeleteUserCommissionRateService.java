@@ -3,6 +3,7 @@ package com.factech.nexus.modules.commissions.domain.service;
 import com.factech.nexus.modules.commissions.application.DeleteCommissionRateRequest;
 import com.factech.nexus.modules.commissions.domain.models.UserCommissionRate;
 import com.factech.nexus.modules.commissions.domain.repository.UserCommissionRateRepository;
+import com.factech.nexus.modules.commissions.domain.repository.UserRateProductRepository;
 import com.factech.nexus.shared.audit.AuditEnums.DeletionType;
 import com.factech.nexus.shared.audit.AuditEvents.DeletionEvent;
 import com.factech.nexus.shared.audit.AuditWriter;
@@ -36,18 +37,25 @@ public class DeleteUserCommissionRateService {
   private static final int MAX_MOTIVO = 500;
 
   private final UserCommissionRateRepository tasas;
+  private final UserRateProductRepository asociaciones;
   private final AuditWriter auditoria;
   private final Clock reloj;
 
   @Autowired
   public DeleteUserCommissionRateService(
-      UserCommissionRateRepository tasas, AuditWriter auditoria) {
-    this(tasas, auditoria, Clock.systemUTC());
+      UserCommissionRateRepository tasas,
+      UserRateProductRepository asociaciones,
+      AuditWriter auditoria) {
+    this(tasas, asociaciones, auditoria, Clock.systemUTC());
   }
 
   DeleteUserCommissionRateService(
-      UserCommissionRateRepository tasas, AuditWriter auditoria, Clock reloj) {
+      UserCommissionRateRepository tasas,
+      UserRateProductRepository asociaciones,
+      AuditWriter auditoria,
+      Clock reloj) {
     this.tasas = tasas;
+    this.asociaciones = asociaciones;
     this.auditoria = auditoria;
     this.reloj = reloj;
   }
@@ -81,6 +89,23 @@ public class DeleteUserCommissionRateService {
     // escrito sobre un hecho anterior.
     if (tasa.estaRetirada()) {
       throw new BusinessRuleException("EX-002", "La tasa ya estaba retirada.");
+    }
+
+    // `RN-CM-015`, que alcanza a esta tasa desde el 11-09-2026, cuando ganó
+    // asociaciones. La asociación NO TIENE RETIRO LÓGICO y sobreviviría
+    // apuntando a una fila que la resolución ya no mira: su titular volvería en
+    // silencio a la tarifa de su rol, sin que nada lo dijera.
+    //
+    // Se rechaza en lugar de borrarlas en cascada, y es la misma decisión que
+    // tomó la tasa de rol: borrar en cascada destruye configuración que nadie
+    // pidió destruir. El coste son dos operaciones donde había una, y se paga a
+    // la vista.
+    if (asociaciones.tieneAsociaciones(id)) {
+      String mensaje =
+          "La tasa está asociada a uno o más productos. Retire primero esas asociaciones: de otro"
+              + " modo dejaría de regir sin que nada lo dijera.";
+      throw new BusinessRuleException(
+          "EX-003", mensaje, List.of(new FieldError("id", "EX-003", mensaje)));
     }
 
     // La instantánea se toma ANTES de retirar: debe describir la tasa tal como

@@ -4,7 +4,7 @@
 |---|---|
 | Requerimiento | `RF-CM-006` |
 | Plan | [`plan.md`](plan.md), aprobado el 02-09-2026 |
-| Versión | 0.3.0 |
+| Versión | 0.4.0 |
 | Estado | **En revisión** |
 | Autor | Responsable técnico |
 | Aprobadas por | Pendiente |
@@ -142,3 +142,26 @@ Decisión del responsable del proyecto (`cm.md` v0.10.0): **una excepción por p
 - **No cierra `RN-CM-011`.** Ninguna fila de la cadena puede pasarse por su cuenta, pero sumar la cadena exige saber **quiénes la componen**, y eso no se sabe al configurar.
 - **No admite cambiar el producto de una tasa ya registrada.** Es parte de lo que la tasa es, como la persona y el inicio de vigencia.
 - **No traduce las personalizadas que ya existieran.** La migración **aborta**: a qué producto pertenecía una que valía para todos no se puede adivinar.
+
+## 7. La personalizada se asocia, como la de rol — corrección del 11-09-2026
+
+**Corrige §6, escrita unas horas antes.** El fondo se mantiene —una excepción ya no rige sobre todo el catálogo— y cambia la forma: en lugar de declarar **su** producto al crearse, **se asocia** a los que haga falta, con el mismo mecanismo que la tasa de rol. Lo pidió el responsable del proyecto: «tenemos un catálogo de comisiones que funcionaría para asociar a un producto… que sea seleccionar a qué producto se le puede llegar a asociar, así como en las comisiones generales».
+
+**Estados:** `Pendiente` · `En curso` · `Hecha` · `Bloqueada`.
+
+| ID | Tarea | Depende de | Verificación | Estado |
+|---|---|---|---|---|
+| `T-26` | **`V85`**: deshace `V84` —fuera `product_id` y su clave foránea—, **retira el `EXCLUDE` sin sustituto** y crea `user_commission_rate_products` con su índice por producto | `T-20` | Aplica sobre una base con `V84` puesta. **El `EXCLUDE` se suelta ANTES que la columna**: al revés falla con «no existe», porque `V84` lo había redefinido sobre ella | **Hecha** — 11-09-2026 |
+| `T-27` | `domain`: `UserCommissionRate` **devuelve** su `productId`; nace `UserRateProduct`, gemela de `ProductCommissionRate` y **sin `role_id` copiado** | `T-26` | Compila y el alta vuelve a no pedir producto | **Hecha** — 11-09-2026 |
+| `T-28` | **`RN-CM-006` fuera del motor**: `haySolape` en el adaptador y el **bloqueo consultivo por persona** en `AssociateUserProductService`, tomado **antes** de mirar | `T-27` | `CommissionRateConcurrencyIT`: dos asociaciones simultáneas que se solapan → **una 201 y una 409, nunca dos 201 ni un 500**. Es la prueba que sostiene la garantía entera desde que el índice no está | **Hecha** — 11-09-2026 |
+| `T-29` | Asociar y desasociar: producto existente y no retirado, `RN-CM-019` individual al asociar, y la **lista completa resuelta** en la respuesta | `T-28` | `CA-CM-118` a `CA-CM-121` | **Hecha** — 11-09-2026 |
+| `T-30` | `RF-CM-005`: la rama personalizada **entra por la tabla de asociación** | `T-26` | `CA-CM-122` a `CA-CM-124`. Una tasa sin asociar devuelve **sin tarifa** | **Hecha** — 11-09-2026 |
+| `T-31` | `RN-CM-015` alcanza a esta tasa: **asociada no se retira** | `T-29` | `CA-CM-125` | **Hecha** — 11-09-2026 |
+| `T-32` | Al **corregir**, revalidar `RN-CM-006` y `RN-CM-019` en **todos** los productos donde ya rige; si cualquiera se pasaría, se rechaza entera | `T-29` | Alargar la vigencia o subir un importe fijo puede romper algo que estaba bien, y las dos cosas eran imposibles antes de que esta tasa tuviera asociaciones | **Hecha** — 11-09-2026 |
+| `T-33` | El contrato se regenera y la prosa se reescribe **otra vez**: la de ayer decía que el alta exigía producto | `T-29` a `T-32` | `OpenApiContractIT` en verde, con los dos endpoints nuevos publicados | **Hecha** — 11-09-2026 |
+
+**Lo que esta corrección cuesta, y queda dicho:**
+
+- **`RN-CM-006` deja de estar garantizada por el motor.** Era la única regla del módulo que no dependía de que alguien se acordara de comprobarla. Ahora depende de un bloqueo en un caso de uso, y `CommissionRateConcurrencyIT` es el único sitio donde se nota si alguien lo quita.
+- **Una tasa creada y no asociada parece configurada y no paga nada.** Es `RN-CM-012` alcanzando por fin a esta pieza, con el mismo silencio que ya tenía la de rol: no falla — se descubre liquidando.
+- **Retirar pasa a ser dos operaciones** cuando la tasa está asociada (`RN-CM-015`).

@@ -22,11 +22,10 @@ import java.time.LocalDate;
  *
  * <h2>Los dos inmutables están declarados A PROPÓSITO</h2>
  *
- * <p>{@code userId}, {@code productId} y {@code validFrom} <b>no se corrigen</b>: cambiarlos no
- * corrige la tasa, crea otra, y reescribiría a quién se le pagó qué. <b>El producto entró en esta
- * lista el 11-09-2026</b>, por el mismo motivo que los otros dos: es parte de lo que la tasa ES. Se
- * declaran igualmente para poder rechazarlos con <b>su</b> mensaje: sin ellos, quien intentara
- * cambiar la persona leería «propiedad desconocida» y creería que se equivocó de nombre.
+ * <p>{@code userId} y {@code validFrom} <b>no se corrigen</b>: cambiarlos no corrige la tasa, crea
+ * otra, y reescribiría a quién se le pagó qué. Se declaran igualmente para poder rechazarlos con
+ * <b>su</b> mensaje: sin ellos, quien intentara cambiar la persona leería «propiedad desconocida» y
+ * creería que se equivocó de nombre.
  */
 public record UpdateUserCommissionRateRequest(
     @JsonDeserialize(using = PatchableDeserializer.class) Patchable<CommissionRateType> rateType,
@@ -34,8 +33,7 @@ public record UpdateUserCommissionRateRequest(
     @JsonDeserialize(using = PatchableDeserializer.class) Patchable<BigDecimal> fixedAmount,
     @JsonDeserialize(using = PatchableDeserializer.class) Patchable<LocalDate> validTo,
     @JsonDeserialize(using = PatchableDeserializer.class) Patchable<Object> userId,
-    @JsonDeserialize(using = PatchableDeserializer.class) Patchable<Object> validFrom,
-    @JsonDeserialize(using = PatchableDeserializer.class) Patchable<Object> productId) {
+    @JsonDeserialize(using = PatchableDeserializer.class) Patchable<Object> validFrom) {
 
   public UpdateUserCommissionRateRequest {
     rateType = rateType == null ? Patchable.ausente() : rateType;
@@ -44,12 +42,11 @@ public record UpdateUserCommissionRateRequest(
     validTo = validTo == null ? Patchable.ausente() : validTo;
     userId = userId == null ? Patchable.ausente() : userId;
     validFrom = validFrom == null ? Patchable.ausente() : validFrom;
-    productId = productId == null ? Patchable.ausente() : productId;
   }
 
   /** ¿Trae alguno de los dos que no se pueden corregir? (`VAL-009`) */
   public boolean traeInmutables() {
-    return userId.presente() || validFrom.presente() || productId.presente();
+    return userId.presente() || validFrom.presente();
   }
 
   /** ¿Se envió algún campo corregible, con el valor que sea? */
