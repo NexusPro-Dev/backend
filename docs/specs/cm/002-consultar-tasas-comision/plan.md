@@ -5,7 +5,8 @@
 | Requerimiento | `RF-CM-002` |
 | Especificación | [`spec.md`](spec.md) |
 | `spec.md` aprobada el | 02-09-2026 |
-| Versión | 1.0.0 |
+| Versión | 1.1.0 |
+| Reabierto el | 11-09-2026 — la tasa personalizada lleva producto: el listado lo publica y admite filtrar por él; corregirlo se rechaza (Art. I.7) |
 | Estado | **Aprobado** |
 | Autor | Responsable técnico |
 | Aprobado por | Responsable del proyecto |

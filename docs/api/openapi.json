@@ -2408,6 +2408,10 @@
             "minimum" : 0.0,
             "type" : "number"
           },
+          "productId" : {
+            "format" : "uuid",
+            "type" : "string"
+          },
           "rateType" : {
             "enum" : [ "PORCENTAJE", "FIJO" ],
             "type" : "string"
@@ -2425,7 +2429,7 @@
             "type" : "string"
           }
         },
-        "required" : [ "rateType", "userId", "validFrom" ],
+        "required" : [ "productId", "rateType", "userId", "validFrom" ],
         "type" : "object"
       },
       "RegisterUserRequest" : {
@@ -3163,6 +3167,9 @@
           "percentage" : {
             "$ref" : "#/components/schemas/PatchableBigDecimal"
           },
+          "productId" : {
+            "$ref" : "#/components/schemas/PatchableObject"
+          },
           "rateType" : {
             "$ref" : "#/components/schemas/PatchableCommissionRateType"
           },
@@ -3294,6 +3301,9 @@
           },
           "percentage" : {
             "type" : "number"
+          },
+          "product" : {
+            "$ref" : "#/components/schemas/ProductRef"
           },
           "rateType" : {
             "enum" : [ "PORCENTAJE", "FIJO" ],
@@ -4993,7 +5003,7 @@
     },
     "/api/v1/commissions/effective" : {
       "get" : {
-        "description" : "Responde **cuánto le corresponde a una persona por vender un producto un\ndía concreto**, y **por qué**: devuelve la tasa que ganó y de cuál de las\ndos piezas salió.\n\n**La precedencia son dos niveles:** si la persona tiene una tasa\n**personalizada** vigente ese día, es esa — **sin mirar el producto**. Si\nno, la que su **rol vendedor** tenga **asociada a ese producto**.\n\n**Tres desenlaces, y ninguno es un error:**\n\n- `RESUELTA`: hay tasa. `source` dice si fue `PERSONALIZADA` o `ROL`. El\n  porcentaje puede ser **cero**, y eso significa «no comisiona» — es una\n  decisión declarada.\n- `SIN_TARIFA`: la persona vende y **no hay tasa aplicable**. La causa más\n  probable **no es que nadie la declarara**, sino que **nadie la asoció** a\n  ese producto: la tasa puede existir en el catálogo y no regir. El\n  porcentaje llega **nulo y presente**, nunca cero.\n- `NO_COMISIONA`: la persona **no porta rol vendedor** y **tampoco tiene\n  tasa personalizada**.\n\n**`roleId` puede llegar nulo con `outcome` igual a `RESUELTA`**, y no es\nincoherente: significa que ganó la tasa personalizada de alguien que ya no\nporta rol vendedor. Las personalizadas dejaron de llevar rol el\n01-09-2026, y **siguen rigiendo aunque su titular deje de vender**.\n\n**Nulo y cero no son lo mismo**, y quien consuma esto va a pagar con esa\ncifra.\n\nSin `onDate`, se resuelve con la fecha de hoy. Un producto **retirado** se\nresuelve con normalidad: preguntar qué se pagaba por algo que ya no se\nvende es legítimo.\n",
+        "description" : "Responde **cuánto le corresponde a una persona por vender un producto un\ndía concreto**, y **por qué**: devuelve la tasa que ganó y de cuál de las\ndos piezas salió.\n\n**La precedencia son dos niveles, y los dos miran el producto:** si la\npersona tiene una tasa **personalizada** vigente ese día **para ese\nproducto**, es esa. Si no, la que su **rol vendedor** tenga **asociada a\nese producto**.\n\n**Hasta el 11-09-2026 el primer nivel NO miraba el producto**, de modo\nque una excepción tapaba el catálogo entero de su titular y el segundo\nnivel no llegaba a consultarse nunca.\n\n**Tres desenlaces, y ninguno es un error:**\n\n- `RESUELTA`: hay tasa. `source` dice si fue `PERSONALIZADA` o `ROL`. El\n  porcentaje puede ser **cero**, y eso significa «no comisiona» — es una\n  decisión declarada.\n- `SIN_TARIFA`: la persona vende y **no hay tasa aplicable**. La causa más\n  probable **no es que nadie la declarara**, sino que **nadie la asoció** a\n  ese producto: la tasa puede existir en el catálogo y no regir. El\n  porcentaje llega **nulo y presente**, nunca cero.\n- `NO_COMISIONA`: la persona **no porta rol vendedor** y **tampoco tiene\n  tasa personalizada**.\n\n**`roleId` puede llegar nulo con `outcome` igual a `RESUELTA`**, y no es\nincoherente: significa que ganó la tasa personalizada de alguien que ya no\nporta rol vendedor. Las personalizadas dejaron de llevar rol el\n01-09-2026, y **siguen rigiendo aunque su titular deje de vender**.\n\n**Nulo y cero no son lo mismo**, y quien consuma esto va a pagar con esa\ncifra.\n\nSin `onDate`, se resuelve con la fecha de hoy. Un producto **retirado** se\nresuelve con normalidad: preguntar qué se pagaba por algo que ya no se\nvende es legítimo.\n",
         "operationId" : "efectiva",
         "parameters" : [ {
           "in" : "query",
@@ -7132,7 +7142,7 @@
         "tags" : [ "Comisiones" ]
       },
       "post" : {
-        "description" : "Declara que **esta persona** gana este porcentaje, **venda lo que venda**.\n\n**Gana siempre sobre la tasa de su rol** y **sin mirar el producto**\n(`RN-CM-004`). No se asocia a productos, y por eso **paga desde el primer\ndía**: no necesita nada más.\n\n**No lleva rol, y eso tiene una consecuencia que conviene conocer**: la\ntasa sigue rigiendo aunque su titular pase a un rol que no comisiona.\nHasta el 01-09-2026 el rol era obligatorio precisamente para impedirlo.\n\n**Una sola viva por persona en cada fecha** (`RN-CM-006`): puede haber\nvarias consecutivas —son el historial—, pero **ningún día puede estar\ncubierto dos veces**. Si una termina el 31, la siguiente empieza el 1.\n\n`validFrom` es obligatorio; sin `validTo`, rige indefinidamente.\n",
+        "description" : "Declara que **esta persona** gana este porcentaje **en ESTE producto**.\n\n**Gana sobre la tasa de su rol, y solo en el producto que declara**\n(`RN-CM-004`). En el resto del catálogo esa persona vuelve a cobrar por\nsu rol. Quien quiera una excepción en tres productos declara tres.\n\n**`productId` es obligatorio desde el 11-09-2026.** Hasta esa fecha esta\ntasa **no nombraba ningún producto** y regía sobre todo lo que su titular\nvendiera; una excepción sin producto ya no se puede expresar. El producto\ndebe existir y **no estar retirado** (`RN-CM-002`, `RN-CM-010`).\n\n**Paga desde el primer día**, al revés que una tasa de rol: no hay que\nasociarla a nada después, porque ya nombra su producto.\n\n**No lleva rol, y eso tiene una consecuencia que conviene conocer**: la\ntasa sigue rigiendo aunque su titular pase a un rol que no comisiona.\nHasta el 01-09-2026 el rol era obligatorio precisamente para impedirlo.\n\n**Una sola viva por persona Y PRODUCTO en cada fecha** (`RN-CM-006`):\npuede haber varias consecutivas —son el historial— y varias simultáneas\n**sobre productos distintos**, pero **ningún día puede estar cubierto dos\nveces para el mismo producto**. Si una termina el 31, la siguiente\nempieza el 1.\n\n**Un `fixedAmount` no puede superar el precio del producto**\n(`RN-CM-019`, 11-09-2026). Hasta hoy no tenía tope por arriba, y la razón\nescrita era que esta tasa «no conoce el precio de nada»: al atarla a un\nproducto, esa excusa desapareció. Sobre un producto **gratuito** solo se\nadmite el cero.\n\n`validFrom` es obligatorio; sin `validTo`, rige indefinidamente.\n",
         "operationId" : "registrar_1",
         "requestBody" : {
           "content" : {
@@ -7183,7 +7193,7 @@
                 }
               }
             },
-            "description" : "Se solapa con otra tasa viva de esa persona"
+            "description" : "Se solapa con otra tasa viva de esa persona sobre ese producto"
           },
           "422" : {
             "content" : {
@@ -7193,7 +7203,7 @@
                 }
               }
             },
-            "description" : "La persona no existe"
+            "description" : "La persona o el producto no existen, o el producto está retirado"
           }
         },
         "summary" : "Registrar la tasa personalizada de una persona",

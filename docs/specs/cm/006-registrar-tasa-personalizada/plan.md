@@ -5,7 +5,8 @@
 | Requerimiento | `RF-CM-006` |
 | Especificación | [`spec.md`](spec.md) |
 | `spec.md` aprobada el | 02-09-2026 |
-| Versión | 0.2.0 |
+| Versión | 0.3.0 |
+| Reabierto el | 11-09-2026 — `user_commission_rates` gana `product_id` `NOT NULL` (`V84`): la personalizada declara su producto, ver §2.bis (Art. I.7) |
 | Estado | **Aprobado** |
 | Autor | Responsable técnico |
 | Aprobado por | Responsable del proyecto |
@@ -61,6 +62,54 @@ Tres detalles que parecen cosméticos y no lo son:
 ### 2.3 Sin `role_id`
 
 Por decisión del responsable del proyecto. **Lo que cuesta está en `spec.md` §13** y no se repite aquí, salvo la consecuencia técnica: **no hay ninguna restricción del esquema que pueda atar esta tasa al rol de su titular**, porque el rol vive en `user_roles` y una clave foránea no expresa «y que además siga teniéndolo».
+
+## 2.bis `V84__tasa_personalizada_por_producto.sql` — enmienda del 11-09-2026
+
+```sql
+-- 1. GUARDA PRIMERO: aborta si hay algo que no se pueda traducir.
+DO $guarda$
+DECLARE vivas int;
+BEGIN
+    SELECT count(*) INTO vivas FROM user_commission_rates WHERE deleted_at IS NULL;
+    IF vivas > 0 THEN
+        RAISE EXCEPTION
+            'Hay % tasas personalizadas vivas y ninguna declara producto. No se puede adivinar a cual pertenecian: retirelas o asigneles producto a mano antes de migrar.', vivas;
+    END IF;
+END
+$guarda$;
+
+-- 2. La columna, y la restriccion que la vuelve obligatoria.
+ALTER TABLE user_commission_rates
+    ADD COLUMN product_id uuid NOT NULL,
+    ADD CONSTRAINT fk_user_commission_rates_product
+        FOREIGN KEY (product_id) REFERENCES products (id);
+
+-- 3. El EXCLUDE se rehace CON el producto dentro.
+ALTER TABLE user_commission_rates
+    DROP CONSTRAINT uq_user_commission_rates_vigente;
+
+ALTER TABLE user_commission_rates
+    ADD CONSTRAINT uq_user_commission_rates_vigente
+    EXCLUDE USING gist (
+        user_id    WITH =,
+        product_id WITH =,
+        daterange(valid_from, valid_to, '[]') WITH &&
+    ) WHERE (deleted_at IS NULL);
+```
+
+**La guarda va PRIMERA y aborta el arranque, y es la decisión de esta migración.** `NOT NULL` sobre una tabla con filas exige un valor, y **aquí no hay ninguno que no sea mentira**: a qué producto se refería una tasa que valía para todos no se puede deducir de la fila, ni de la persona, ni de nada. Las tres salidas alternativas son peores y conviene decir por qué se descartan: rellenar con un producto cualquiera produce **filas plausibles y falsas** —exactamente lo que `V49` evitó vaciando en lugar de traducir—; retirarlas en silencio deja a alguien **sin cobrar su excepción** hasta la siguiente liquidación, que es cuando ya no se puede arreglar; y dejar la columna nulable conserva para siempre las dos formas y con ellas la precedencia de tres niveles que la decisión descartó.
+
+**Que aborte el arranque no es un efecto secundario, es el punto.** Un despliegue que no puede migrar sin inventar datos **debe pararse y decirlo**, con un mensaje que diga qué hacer. Es el mismo criterio de `V22` con la credencial del superadministrador y de `V7` con el rol raíz.
+
+**`NOT NULL` y no un `CHECK`.** La ausencia no significa nada aquí —no hay «excepción global» que expresar— y una columna nulable con un `CHECK` que exige valor es la misma restricción escrita dos veces.
+
+**El `EXCLUDE` se rehace y no se añade otro.** Con dos restricciones —la vieja por persona y una nueva por persona y producto— la vieja seguiría prohibiendo lo que la enmienda quiere permitir, y el motor rechazaría con un mensaje que habla de una regla que ya no existe. Rehacerlo deja **una sola** definición de «solapada».
+
+**La clave foránea es simple y no compuesta**, al revés que la de `product_commission_rates`. Allí es compuesta porque `role_id` viaja **copiado** de la tasa y podría divergir de ella; aquí no hay nada copiado que pueda mentir: la fila declara su producto y punto.
+
+**Sin índice propio sobre `product_id`.** El `EXCLUDE` crea uno GiST que ya lleva la columna, y la resolución busca por persona, producto y fecha a la vez.
+
+**Numeración: `V84`.** La reserva de números por requerimiento quedó muerta el 24-08-2026 (ver `V28`).
 
 ## 3. Componentes afectados
 

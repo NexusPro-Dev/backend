@@ -21,15 +21,18 @@ import java.util.UUID;
  * <p><b>No hay {@code roleId}, y no falta</b>: la tasa es de la persona y punto (`cm.md` §7.2).
  * Quien la tiene gana lo mismo venda lo que venda — y sigue ganándolo aunque deje de vender.
  *
- * <p><b>Tampoco hay {@code productId}</b>, y eso sí es una regla: una tasa personalizada <b>no se
- * acota a un producto</b> (`RN-CM-014`).
+ * <p><b>Y hay {@code productId}, desde el 11-09-2026</b>, que es justo lo contrario de lo que este
+ * javadoc decía: la personalizada <b>sí se acota a un producto</b> y es obligatorio (`RN-CM-014`
+ * invertida). Una excepción sin producto ya no se puede expresar — antes regía sobre el catálogo
+ * entero, y esa era la queja: no había forma de decir «a esta persona, en ESTE producto».
  *
- * <h2>La forma es la misma elección que en una tasa de rol, y aquí pesa más</h2>
+ * <h2>La forma es la misma elección que en una tasa de rol, y aquí ya no pesa más</h2>
  *
  * <p>Los motivos para declararla en vez de deducirla están en {@link RegisterCommissionRateRequest}
- * y no se repiten. Lo propio de esta pieza es lo que un {@code FIJO} significa aquí: como no se
- * asocia a ningún producto, <b>rige sobre todo el catálogo</b> y su importe se interpreta en tantas
- * monedas como haya (`RN-CM-017`). No hay ninguna validación que lo advierta, y no puede haberla.
+ * y no se repiten. Lo que sí cambió es lo que un {@code FIJO} significa aquí: al declarar un
+ * producto, la tasa conoce <b>un</b> precio y <b>una</b> moneda, de modo que se acota contra ese
+ * precio (`RN-CM-019`) y se lee en esa moneda (`RN-CM-017`). Hasta el 11-09-2026 no conocía ninguno
+ * de los dos y no había validación que lo advirtiera, porque no podía haberla.
  *
  * <p><b>La ausencia del valor de la otra forma no significa nada</b>, al revés que la del fin de
  * vigencia: un fin vacío declara «indefinidamente»; un porcentaje vacío en una tasa {@code FIJO} es
@@ -37,6 +40,7 @@ import java.util.UUID;
  */
 public record RegisterUserCommissionRateRequest(
     @NotNull(message = "VAL-001: La persona de la tasa es obligatoria.") UUID userId,
+    @NotNull(message = "VAL-018: El producto de la tasa es obligatorio.") UUID productId,
     @NotNull(message = "VAL-002: La forma de la comisión es obligatoria: porcentaje o valor fijo.")
         CommissionRateType rateType,
     @DecimalMin(value = "0.00", message = "VAL-003: El porcentaje debe estar entre cero y cien.")

@@ -5,7 +5,8 @@
 | Requerimiento | `RF-CM-005` |
 | Especificación | [`spec.md`](spec.md) |
 | `spec.md` aprobada el | 02-09-2026 |
-| Versión | 0.3.0 |
+| Versión | 0.4.0 |
+| Reabierto el | 11-09-2026 — la consulta de resolución filtra la rama personalizada **también por producto**: una línea de SQL, y es todo el cambio (Art. I.7) |
 | Estado | **Aprobado** |
 | Autor | Responsable técnico |
 | Aprobado por | Responsable del proyecto |

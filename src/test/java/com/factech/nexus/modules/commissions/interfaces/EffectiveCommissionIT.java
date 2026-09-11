@@ -46,6 +46,45 @@ class EffectiveCommissionIT extends IntegrationTestBase {
     producto = CommissionFixtures.sembrarProducto(jdbc, "BOT_A");
   }
 
+  @Test
+  @DisplayName("`CA-CM-122` — la personalizada NO gana fuera de su producto: manda la del rol")
+  void laPersonalizadaNoSaleDeSuProducto() throws Exception {
+    // Es la prueba de la enmienda del 11-09-2026, y la que habría fallado el día
+    // anterior: hasta entonces la rama de la persona no filtraba por producto, de
+    // modo que esta consulta habría devuelto PERSONALIZADA y 18.00.
+    UUID otroProducto = CommissionFixtures.sembrarProducto(jdbc, "BOT_B");
+
+    UUID delRol = CommissionFixtures.sembrarTasaDeRol(jdbc, MANAGER, "10.00");
+    CommissionFixtures.asociar(jdbc, delRol, otroProducto, MANAGER);
+
+    CommissionFixtures.sembrarTasaPersonal(jdbc, vendedora, producto, "18.00", "2026-01-01", null);
+
+    mvc.perform(efectiva(vendedora, otroProducto, "2026-05-01"))
+        .andExpect(jsonPath("$.outcome").value("RESUELTA"))
+        .andExpect(jsonPath("$.source").value("ROL"))
+        .andExpect(jsonPath("$.value").value(10.00));
+  }
+
+  @Test
+  @DisplayName("`CA-CM-123` — dos personalizadas sobre productos distintos: cada una en el suyo")
+  void unaPersonalizadaPorProducto() throws Exception {
+    UUID otroProducto = CommissionFixtures.sembrarProducto(jdbc, "BOT_B");
+
+    CommissionFixtures.sembrarTasaPersonal(jdbc, vendedora, producto, "18.00", "2026-01-01", null);
+    CommissionFixtures.sembrarTasaPersonal(
+        jdbc, vendedora, otroProducto, "25.00", "2026-01-01", null);
+
+    // La misma persona, la misma fecha, dos respuestas distintas. Antes del
+    // 11-09-2026 esto era IMPOSIBLE de declarar: `RN-CM-006` lo prohibía.
+    mvc.perform(efectiva(vendedora, producto, "2026-05-01"))
+        .andExpect(jsonPath("$.source").value("PERSONALIZADA"))
+        .andExpect(jsonPath("$.value").value(18.00));
+
+    mvc.perform(efectiva(vendedora, otroProducto, "2026-05-01"))
+        .andExpect(jsonPath("$.source").value("PERSONALIZADA"))
+        .andExpect(jsonPath("$.value").value(25.00));
+  }
+
   @AfterEach
   void devolverElEstadoASuSitio() {
     CommissionFixtures.limpiar(jdbc, SUPERADMIN);
@@ -110,7 +149,8 @@ class EffectiveCommissionIT extends IntegrationTestBase {
     CommissionFixtures.asociar(jdbc, delRol, producto, MANAGER);
 
     UUID personal =
-        CommissionFixtures.sembrarTasaPersonal(jdbc, vendedora, "18.00", "2026-01-01", null);
+        CommissionFixtures.sembrarTasaPersonal(
+            jdbc, vendedora, producto, "18.00", "2026-01-01", null);
 
     mvc.perform(efectiva(vendedora, producto, "2026-05-01"))
         .andExpect(jsonPath("$.outcome").value("RESUELTA"))
@@ -122,7 +162,7 @@ class EffectiveCommissionIT extends IntegrationTestBase {
   @Test
   @DisplayName("la personalizada gana incluso sobre un producto SIN asociación")
   void laPersonalizadaIgnoraElProducto() throws Exception {
-    CommissionFixtures.sembrarTasaPersonal(jdbc, vendedora, "18.00", "2026-01-01", null);
+    CommissionFixtures.sembrarTasaPersonal(jdbc, vendedora, producto, "18.00", "2026-01-01", null);
 
     // El producto no paga a nadie, y ella cobra igual: gana lo mismo venda lo
     // que venda.
@@ -136,7 +176,8 @@ class EffectiveCommissionIT extends IntegrationTestBase {
   void laPersonalizadaVencida() throws Exception {
     UUID delRol = CommissionFixtures.sembrarTasaDeRol(jdbc, MANAGER, "10.00");
     CommissionFixtures.asociar(jdbc, delRol, producto, MANAGER);
-    CommissionFixtures.sembrarTasaPersonal(jdbc, vendedora, "18.00", "2026-01-01", "2026-03-31");
+    CommissionFixtures.sembrarTasaPersonal(
+        jdbc, vendedora, producto, "18.00", "2026-01-01", "2026-03-31");
 
     mvc.perform(efectiva(vendedora, producto, "2026-02-15"))
         .andExpect(jsonPath("$.source").value("PERSONALIZADA"));
@@ -150,7 +191,7 @@ class EffectiveCommissionIT extends IntegrationTestBase {
   @DisplayName("QUIEN NO VENDE PUEDE COBRAR su personalizada: es lo que costó quitarle el rol")
   void laPersonalizadaSobreviveAlRol() throws Exception {
     UUID ajena = CommissionFixtures.sembrarPersonaConRol(jdbc, "ajena", null);
-    CommissionFixtures.sembrarTasaPersonal(jdbc, ajena, "18.00", "2026-01-01", null);
+    CommissionFixtures.sembrarTasaPersonal(jdbc, ajena, producto, "18.00", "2026-01-01", null);
 
     // No porta rol vendedor, y aun así RESUELVE. Hasta el 01-09-2026 la tarifa
     // decía «esta persona, EN ESTE ROL» y esto habría sido NO_COMISIONA.
@@ -218,7 +259,7 @@ class EffectiveCommissionIT extends IntegrationTestBase {
   @Test
   @DisplayName("sin `onDate` se resuelve con la fecha de hoy")
   void sinFecha() throws Exception {
-    CommissionFixtures.sembrarTasaPersonal(jdbc, vendedora, "18.00", "2020-01-01", null);
+    CommissionFixtures.sembrarTasaPersonal(jdbc, vendedora, producto, "18.00", "2020-01-01", null);
 
     mvc.perform(
             get("/api/v1/commissions/effective")
@@ -290,7 +331,7 @@ class EffectiveCommissionIT extends IntegrationTestBase {
     UUID deRol = CommissionFixtures.sembrarTasaDeRol(jdbc, MANAGER, "FIJO", "10000");
     CommissionFixtures.asociar(jdbc, deRol, producto, MANAGER);
     CommissionFixtures.sembrarTasaPersonal(
-        jdbc, vendedora, "PORCENTAJE", "18.00", "2026-01-01", null);
+        jdbc, vendedora, producto, "PORCENTAJE", "18.00", "2026-01-01", null);
 
     mvc.perform(efectiva(vendedora, producto, "2026-05-01"))
         .andExpect(jsonPath("$.source").value("PERSONALIZADA"))
@@ -302,7 +343,8 @@ class EffectiveCommissionIT extends IntegrationTestBase {
     jdbc.update("DELETE FROM product_commission_rates");
     UUID enPorcentaje = CommissionFixtures.sembrarTasaDeRol(jdbc, MANAGER, "PORCENTAJE", "10.00");
     CommissionFixtures.asociar(jdbc, enPorcentaje, producto, MANAGER);
-    CommissionFixtures.sembrarTasaPersonal(jdbc, vendedora, "FIJO", "5000", "2026-01-01", null);
+    CommissionFixtures.sembrarTasaPersonal(
+        jdbc, vendedora, producto, "FIJO", "5000", "2026-01-01", null);
 
     mvc.perform(efectiva(vendedora, producto, "2026-05-01"))
         .andExpect(jsonPath("$.source").value("PERSONALIZADA"))
@@ -352,7 +394,8 @@ class EffectiveCommissionIT extends IntegrationTestBase {
     // dos respuestas idénticas están garantizadas por construcción y comparar
     // dos monedas no verificaba nada. Lo único capaz de fallar es la línea de
     // abajo, el día que alguien revierta la decisión.
-    CommissionFixtures.sembrarTasaPersonal(jdbc, vendedora, "FIJO", "10000", "2026-01-01", null);
+    CommissionFixtures.sembrarTasaPersonal(
+        jdbc, vendedora, producto, "FIJO", "10000", "2026-01-01", null);
 
     mvc.perform(efectiva(vendedora, producto, "2026-05-01"))
         .andExpect(status().isOk())

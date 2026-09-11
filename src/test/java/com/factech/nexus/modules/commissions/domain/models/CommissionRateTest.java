@@ -28,6 +28,9 @@ class CommissionRateTest {
   private static final UUID ROL = UUID.randomUUID();
   private static final UUID PERSONA = UUID.randomUUID();
 
+  /** El producto de la excepción, obligatorio desde el 11-09-2026 (`RN-CM-014`). */
+  private static final UUID PRODUCTO = UUID.randomUUID();
+
   private static CommissionValue diezPorCiento() {
     return CommissionValue.porcentaje(new BigDecimal("10.00"));
   }
@@ -245,7 +248,8 @@ class CommissionRateTest {
     @DisplayName("una que rigió un solo día es válida")
     void unSoloDia() {
       LocalDate dia = LocalDate.of(2026, 3, 1);
-      UserCommissionRate tasa = UserCommissionRate.create(ID, PERSONA, DOCE, dia, dia, AHORA);
+      UserCommissionRate tasa =
+          UserCommissionRate.create(ID, PERSONA, PRODUCTO, DOCE, dia, dia, AHORA);
 
       assertThat(tasa.getValidTo()).isEqualTo(dia);
     }
@@ -257,6 +261,7 @@ class CommissionRateTest {
           UserCommissionRate.create(
               ID,
               PERSONA,
+              PRODUCTO,
               CommissionValue.fijo(new BigDecimal("10000")),
               LocalDate.of(2026, 1, 1),
               null,
@@ -272,7 +277,13 @@ class CommissionRateTest {
       assertThatThrownBy(
               () ->
                   UserCommissionRate.create(
-                      ID, PERSONA, DOCE, LocalDate.of(2026, 6, 1), LocalDate.of(2026, 1, 1), AHORA))
+                      ID,
+                      PERSONA,
+                      PRODUCTO,
+                      DOCE,
+                      LocalDate.of(2026, 6, 1),
+                      LocalDate.of(2026, 1, 1),
+                      AHORA))
           .isInstanceOf(ValidationException.class);
     }
 
@@ -281,7 +292,13 @@ class CommissionRateTest {
     void losDosNulosSeTratanAlReves() {
       UserCommissionRate tasa =
           UserCommissionRate.create(
-              ID, PERSONA, DOCE, LocalDate.of(2026, 1, 1), LocalDate.of(2026, 6, 30), AHORA);
+              ID,
+              PERSONA,
+              PRODUCTO,
+              DOCE,
+              LocalDate.of(2026, 1, 1),
+              LocalDate.of(2026, 6, 30),
+              AHORA);
 
       Map<String, Object> cambios =
           tasa.update(Patchable.ausente(), Patchable.de(null), AHORA.plusDays(1));
@@ -298,7 +315,8 @@ class CommissionRateTest {
     @DisplayName("retirar NO toca la vigencia: el registro debe decir qué periodo cubría")
     void retirarNoCierraLaVigencia() {
       UserCommissionRate tasa =
-          UserCommissionRate.create(ID, PERSONA, DOCE, LocalDate.of(2026, 1, 1), null, AHORA);
+          UserCommissionRate.create(
+              ID, PERSONA, PRODUCTO, DOCE, LocalDate.of(2026, 1, 1), null, AHORA);
 
       tasa.delete(AHORA.plusDays(1));
 
@@ -310,10 +328,16 @@ class CommissionRateTest {
     @DisplayName("la instantánea lleva la forma y la vigencia, y el nulo viaja como nulo")
     void laInstantanea() {
       Map<String, Object> foto =
-          UserCommissionRate.create(ID, PERSONA, DOCE, LocalDate.of(2026, 1, 1), null, AHORA)
+          UserCommissionRate.create(
+                  ID, PERSONA, PRODUCTO, DOCE, LocalDate.of(2026, 1, 1), null, AHORA)
               .instantanea();
 
-      assertThat(foto).containsOnlyKeys("user_id", "rate_type", "value", "valid_from", "valid_to");
+      // `product_id` entra el 11-09-2026, y la auditoría tiene que llevarlo: sin
+      // él, el asiento de un alta no diría sobre qué producto se declaró la
+      // excepción, y una tasa por persona ya no basta para identificarla.
+      assertThat(foto)
+          .containsOnlyKeys(
+              "user_id", "product_id", "rate_type", "value", "valid_from", "valid_to");
       assertThat(foto.get("rate_type")).isEqualTo("PORCENTAJE");
       assertThat(foto.get("valid_to")).isNull();
     }

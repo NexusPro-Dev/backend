@@ -4,11 +4,12 @@
 |---|---|
 | Requerimiento | `RF-CM-006` |
 | Módulo | `CM` — Comisiones |
-| Versión | 0.2.0 |
+| Versión | 0.3.0 |
 | Estado | **Aprobada** |
 | Autor | Responsable técnico |
 | Aprobada por | Responsable del proyecto |
 | Fecha de aprobación | 02-09-2026 |
+| Enmendada | 11-09-2026 — **la tasa personalizada declara SU producto** y deja de regir sobre todo el catálogo. `RN-CM-014` queda invertida, `RN-CM-006` se afloja a «una por persona y producto», y el valor fijo gana el tope de `RN-CM-019` (Art. I.7) |
 
 !!! info "Qué va en este documento"
 
@@ -62,10 +63,11 @@ El catálogo por rol dice lo que gana un `AGENTE`. Pero se negocia con personas,
 
 ### 4.1 Incluye
 
-- Registrar la tasa personalizada de una persona, con **su forma, su valor** y su **vigencia**.
+- Registrar la tasa personalizada de una persona **sobre un producto**, con **su forma, su valor** y su **vigencia**.
 - Verificar que **se declara una forma y solo una**, y que el valor es el que esa forma admite.
-- Verificar que la persona existe.
-- Garantizar que **ningún día queda cubierto por dos tasas vivas de la misma persona**.
+- Verificar que la persona existe, y que **el producto existe y no está retirado** (`RN-CM-002`, `RN-CM-010`).
+- Garantizar que **ningún día queda cubierto por dos tasas vivas de la misma persona sobre el mismo producto**.
+- Garantizar que **lo que se paga no supera el precio del producto**, cuando la forma es un valor fijo (`RN-CM-019`).
 - **Corregir** el valor —**y su forma**— y el fin de vigencia de una tasa ya registrada.
 - **Retirar** una tasa con motivo obligatorio.
 - Dejar constancia de todo ello en la auditoría.
@@ -74,8 +76,8 @@ El catálogo por rol dice lo que gana un `AGENTE`. Pero se negocia con personas,
 
 ### 4.2 No incluye
 
-- **Acotarla a un producto.** Una tasa personalizada **no se acota** (`RN-CM-014`): quien la tiene gana lo mismo venda lo que venda.
-- **Declarar en qué moneda se paga un valor fijo.** No es un campo de esta tasa, y aquí **no podría serlo**: no hay ningún producto del que tomarla ni con el que compararla. Ver §2.
+- **Cambiar el producto de una tasa ya registrada.** El producto es, junto con la persona y el inicio de vigencia, parte de **lo que la tasa es**: cambiarlo convertiría una excepción sobre un producto en otra sobre otro, con el historial de la primera pegado detrás. Se retira y se registra otra (`EX-005`).
+- **Declarar en qué moneda se paga un valor fijo.** Sigue sin ser un campo de esta tasa, y ya no hace falta que lo sea: desde el 11-09-2026 la toma **del producto que declara**, que es uno solo (`RN-CM-017`).
 - **Exigir que la persona sea vendedora.** Se consideró y **se descartó al quitarle el rol**. Ver §13.
 - **Resolver cuál se aplica.** Es `RF-CM-005`.
 - **Calcular ni liquidar.**
@@ -105,13 +107,14 @@ El catálogo por rol dice lo que gana un `AGENTE`. Pero se negocia con personas,
 | Dato | Obligatorio | Descripción | Restricción de negocio |
 |---|---|---|---|
 | Persona | Sí | De quién es la tasa | Debe existir. **No se le exige portar rol vendedor** |
+| Producto | Sí | Sobre qué producto rige la excepción | Debe existir y **no estar retirado** (`RN-CM-002`, `RN-CM-010`). **Obligatorio desde el 11-09-2026**: una excepción sin producto ya no se puede expresar |
 | Forma | Sí | Si gana **una proporción de la venta** o **una cantidad de dinero** | Una de las dos, y **solo una** (`RN-CM-016`) |
 | Porcentaje | **Solo si la forma es proporción** | Qué proporción gana | De **cero a cien** (`RN-CM-007`) |
-| Valor fijo | **Solo si la forma es cantidad** | Cuánto dinero gana por venta | **Cero o más, sin tope** (`RN-CM-018`). **Sin moneda** (`RN-CM-017`) |
+| Valor fijo | **Solo si la forma es cantidad** | Cuánto dinero gana por venta | **Cero o más**, y **no puede superar el precio del producto** (`RN-CM-019`, 11-09-2026): atarla a un producto le dio por fin un precio contra el que compararse. **Sin moneda** (`RN-CM-017`): toma la del producto que declara |
 | Inicio de vigencia | Sí | Desde qué día rige | Una fecha. Puede ser pasada o futura |
 | Fin de vigencia | No | Hasta qué día rige, **inclusive** | No puede ser anterior al inicio. **Sin él, rige indefinidamente** (`RN-CM-009`) |
 
-**No hay rol ni producto**, y su ausencia no significa nada: **no son campos de esta tasa.** Es distinto de la ausencia en el modelo anterior, donde sí significaba «para todos».
+**No hay rol**, y su ausencia no significa nada: no es un campo de esta tasa. **El producto SÍ lo es desde el 11-09-2026**, y con él desaparece la última ausencia que significaba «para todos» — la misma que el modelo anterior tenía y que `RN-CM-012` ya había quitado de la tasa de rol.
 
 **La forma es exactamente la misma elección que en una tasa de rol**, con los mismos motivos para declararla en vez de deducirla del campo que venga lleno. Están en `RF-CM-001` §6.1 y no se repiten.
 
@@ -124,6 +127,7 @@ El catálogo por rol dice lo que gana un `AGENTE`. Pero se negocia con personas,
 | Tasa | Identificador y vigencia |
 | Forma y valor | **En qué forma gana y cuánto**, siempre juntos. El valor de la otra forma viaja **vacío, no omitido** |
 | Persona resuelta | Nombre de usuario y nombre |
+| Producto resuelto | Identificador, código y nombre. **Resuelto y no un identificador suelto**, con el mismo criterio que la persona: quien acaba de declarar la excepción tiene que poder comprobar sobre qué quedó, sin una segunda consulta |
 
 **El fin de vigencia viaja vacío y presente** cuando la tasa rige indefinidamente: un campo que desaparece del resultado es indistinguible de uno que el cliente no conoce, y aquí significa algo.
 
@@ -223,8 +227,10 @@ El catálogo por rol dice lo que gana un `AGENTE`. Pero se negocia con personas,
 
 ### EX-002 — La tasa se solapa con otra
 
-**Condición:** ya existe una tasa viva de esa persona que cubre alguno de los días declarados.
-**Respuesta del sistema:** rechaza la operación diciendo que esa persona ya tiene una tasa viva en parte de ese periodo, y no registra nada.
+**Condición:** ya existe una tasa viva de esa persona **sobre ese mismo producto** que cubre alguno de los días declarados.
+**Respuesta del sistema:** rechaza la operación diciendo que esa persona ya tiene una tasa viva en parte de ese periodo para ese producto, y no registra nada.
+
+**Sobre OTRO producto no se solapa**, y desde el 11-09-2026 eso es lo normal y no una excepción: la misma persona puede tener varias tasas vivas a la vez mientras hablen de productos distintos.
 
 ### EX-003 — La tasa no existe o está retirada
 
@@ -236,10 +242,12 @@ El catálogo por rol dice lo que gana un `AGENTE`. Pero se negocia con personas,
 **Condición:** al retirar, la tasa existe y ya fue retirada.
 **Respuesta del sistema:** rechaza el retiro diciendo que ya estaba retirada. **No es idempotente a propósito**: dos motivos distintos sobre un mismo hecho harían que el registro mienta.
 
-### EX-005 — Se intenta cambiar la persona o el inicio de vigencia
+### EX-005 — Se intenta cambiar la persona, el producto o el inicio de vigencia
 
-**Condición:** la corrección trae alguno de los dos.
+**Condición:** la corrección trae alguno de los tres — la persona, el producto o el inicio de vigencia.
 **Respuesta del sistema:** los rechaza diciendo que no se pueden corregir. **Se rechazan y no se ignoran.**
+
+**El producto entró en esta lista el 11-09-2026**, y por el mismo motivo que los otros dos: es parte de lo que la tasa ES. Cambiarlo convertiría una excepción sobre un producto en otra sobre otro, arrastrando detrás el historial de la primera.
 
 ## 11. Validaciones
 
@@ -265,14 +273,18 @@ El catálogo por rol dice lo que gana un `AGENTE`. Pero se negocia con personas,
 
 | ID | Criterio |
 |---|---|
-| `CA-CM-051` | Registra la tasa de una persona, con la persona resuelta y **sin rol ni producto** |
+| `CA-CM-051` | Registra la tasa de una persona **sobre un producto**, con la persona y el producto **resueltos** y **sin rol** |
 | `CA-CM-052` | El fin de vigencia ausente viaja **vacío y presente**, y significa «indefinidamente» |
 | `CA-CM-053` | **Admite a quien no porta rol vendedor**, y esa tasa queda registrada |
-| `CA-CM-054` | Rechaza dos tasas de la misma persona que **comparten algún día** |
+| `CA-CM-054` | Rechaza dos tasas de la misma persona **sobre el mismo producto** que **comparten algún día** |
 | `CA-CM-055` | **El día de corte cuenta**: si una termina el 30, la siguiente no empieza el 30 |
 | `CA-CM-056` | Admite **varias consecutivas**: son el historial |
 | `CA-CM-057` | Dos **personas distintas** pueden solapar sin conflicto |
 | `CA-CM-058` | Retirar **libera los días** que ocupaba |
+| `CA-CM-118` | **Sobre productos distintos NO se solapan**: la misma persona tiene dos tasas vivas a la vez, una por producto, y las dos quedan registradas |
+| `CA-CM-119` | Rechaza la tasa cuyo **producto no existe**, y la de un producto **retirado**, con respuestas distintas |
+| `CA-CM-120` | Rechaza el **valor fijo que supera el precio** del producto que declara, y lo admite cuando es igual; sobre un producto **gratuito** solo admite el cero |
+| `CA-CM-121` | La corrección **rechaza el producto** igual que rechaza la persona y el inicio de vigencia, y no lo ignora |
 | `CA-CM-059` | Retirar **no cierra la vigencia** |
 | `CA-CM-060` | Corregir **vacía** el fin de vigencia, y la tasa vuelve a regir indefinidamente |
 | `CA-CM-061` | Rechaza corregir la persona o el inicio de vigencia |
@@ -330,3 +342,4 @@ Aquí cuesta menos que en el catálogo por rol —hay vigencia, y `FA-006` descr
 |---|---|---|---|
 | 0.1.0 | 02-09-2026 | Redacción inicial, **después de construirse el requerimiento** — excepción al Art. I.1 declarada en cabecera. Recoge la pieza que nació al partir el alta en dos el 01-09-2026: la **excepción por persona**, con vigencia, sin rol y sin producto. §4.1 argumenta por qué su corrección y su retiro viven aquí y no en `RF-CM-003` y `RF-CM-004` — **se comportan distinto**, y describirlos juntos habría llenado aquellos documentos de «salvo en el caso de». §13 recoge, con la evidencia que dio construir `RF-CM-005`, **la protección que se perdió al quitarle el rol**: la tasa no «se queda callada» cuando su titular deja de vender, **sigue pagando**, y cerrarla exige un acto deliberado. §14 deja escrito qué habría que deshacer para revertir esa decisión. | Responsable técnico |
 | 0.2.0 | 02-09-2026 | **Entra el valor fijo** (`cm.md` v0.7.0), y esta vez **antes del código**. La mecánica de la elección es la de `RF-CM-001` §6.1 y se hereda sin repetirla; lo que este documento tiene que decir es **por qué aquí no significa lo mismo**. §2 lo recoge: una tasa de rol en importe fijo se interpreta en la moneda de los productos que alguien le asoció, y **esta no se asocia a nada** (`RN-CM-014`), de modo que «10.000 fijos» son **diez mil de cada moneda del catálogo**. §5 avisa de que eso lo dicen `RN-CM-014` y `RN-CM-017` **juntas** y ninguna de las dos por su cuenta, y `CA-CM-089` lo fija como prueba que afirma que **nada lo advierte**. Nace `FA-006` —cambiar de forma a partir de una fecha—, que es la única operación del módulo donde un cambio de forma **deja historial**, y distingue las dos maneras de hacerlo: cerrar y abrir, que conserva el pasado, frente a corregir, que lo reescribe. §14 declara la decisión que `cm.md` no fija y que este documento toma: **la forma se puede corregir**, con lo que habría que cambiar si el responsable prefiere lo contrario. `VAL-002` cambia de significado conservando el identificador y **sus dos caras**, y `VAL-011` y `VAL-012` se reutilizan de `RF-CM-001` **con el mismo texto**, para que el mismo error no se cuente de dos maneras. | Responsable técnico |
+| 0.3.0 | 11-09-2026 | **La tasa personalizada declara SU producto y deja de regir sobre todo el catálogo**, por decisión del responsable del proyecto. El producto entra en §6.1 como **obligatorio** y en §6.2 **resuelto**; §4.2 invierte su primer punto —«acotarla a un producto» pasa de estar fuera de alcance a ser el alcance— y gana en su lugar «cambiar el producto de una tasa ya registrada», que es lo que ahora **no** se puede. `EX-002` solapa **por persona y producto**, `EX-005` rechaza también el producto, y nacen `CA-CM-118` a `CA-CM-121`. **El valor fijo gana tope**: hasta hoy su única cota escrita era «no puede conocer el precio de nada», y atarla a un producto se la quita. | Responsable del proyecto |

@@ -4,7 +4,7 @@
 |---|---|
 | Requerimiento | `RF-CM-006` |
 | Plan | [`plan.md`](plan.md), aprobado el 02-09-2026 |
-| Versión | 0.2.0 |
+| Versión | 0.3.0 |
 | Estado | **En revisión** |
 | Autor | Responsable técnico |
 | Aprobadas por | Pendiente |
@@ -120,3 +120,25 @@ Las tres comparten una propiedad: **su fallo no se parece a su causa**. Por eso 
 - Las veintiuna primeras tareas `Hecha` con su verificación pasando. `./mvnw clean verify` en verde, **incluida la concurrente de `T-18`**. Comprobado el 02-09-2026: 278 unitarias y 876 de integración.
 - **Las ocho del valor fijo, `Hecha` con su verificación pasando**, sobre `V50` ya aplicada. **Comprobado el 02-09-2026**: 287 unitarias y 902 de integración, suite entera en verde.
 - La matriz, `cm.md` y el contrato publicado al día.
+
+## 6. La tasa personalizada declara su producto — enmienda del 11-09-2026
+
+Decisión del responsable del proyecto (`cm.md` v0.10.0): **una excepción por persona pasa a ser una excepción por persona y producto**. Hasta hoy regía sobre todo el catálogo, y no había forma de decir «a esta persona, en **este** producto».
+
+**Estados:** `Pendiente` · `En curso` · `Hecha` · `Bloqueada`.
+
+| ID | Tarea | Depende de | Verificación | Estado |
+|---|---|---|---|---|
+| `T-20` | **`V84__tasa_personalizada_por_producto.sql`**: la guarda que aborta, `product_id` `NOT NULL` con su clave foránea, y el `EXCLUDE` rehecho **con el producto dentro** | — | La migración **aborta con mensaje** sobre una base con personalizadas vivas, y aplica limpia sobre una sin ellas. El `EXCLUDE` admite dos vigentes de la misma persona en productos distintos y rechaza dos en el mismo | **Hecha** — 11-09-2026 |
+| `T-21` | `domain`: `UserCommissionRate` gana `productId` **no corregible**, y entra en la instantánea de auditoría | `T-20` | `CommissionRateTest`: la foto lleva `product_id`. Sin él, el asiento de un alta no diría sobre qué se declaró la excepción | **Hecha** — 11-09-2026 |
+| `T-22` | `RF-CM-006`: el alta exige el producto, lo verifica **existente y no retirado** y lo devuelve **resuelto** | `T-21` | `CA-CM-051`, `CA-CM-118` y `CA-CM-119`. El inexistente y el retirado se distinguen | **Hecha** — 11-09-2026 |
+| `T-23` | `RN-CM-019` **individual**: un valor fijo personalizado no supera el precio de su producto, ni al declararlo ni al corregirlo | `T-22` | `CA-CM-120`. **No es una suma**: las personalizadas de personas distintas sobre el mismo producto son alternativas entre sí | **Hecha** — 11-09-2026 |
+| `T-24` | `RF-CM-005`: la rama personalizada de la consulta de resolución filtra **también por producto** | `T-20` | `CA-CM-122` y `CA-CM-123`. Es **una línea** de SQL, y es todo el cambio de la resolución | **Hecha** — 11-09-2026 |
+| `T-25` | El contrato se regenera y la prosa de las `@Operation` se reescribe a mano | `T-22` a `T-24` | `OpenApiContractIT` en verde. **El esquema se regenera solo y la prosa no**: había cuatro sitios diciendo «venda lo que venda» | **Hecha** — 11-09-2026 |
+
+**Lo que esta enmienda NO hace:**
+
+- **No suma las personalizadas en el tope del producto.** Son alternativas entre personas distintas, no cosas que se paguen a la vez; sumarlas rechazaría configuraciones legítimas.
+- **No cierra `RN-CM-011`.** Ninguna fila de la cadena puede pasarse por su cuenta, pero sumar la cadena exige saber **quiénes la componen**, y eso no se sabe al configurar.
+- **No admite cambiar el producto de una tasa ya registrada.** Es parte de lo que la tasa es, como la persona y el inicio de vigencia.
+- **No traduce las personalizadas que ya existieran.** La migración **aborta**: a qué producto pertenecía una que valía para todos no se puede adivinar.

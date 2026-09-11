@@ -26,9 +26,14 @@ public class JpaCommissionResolutionRepository implements CommissionResolutionRe
   /**
    * `RN-CM-004`, escrita una vez.
    *
-   * <p><b>La rama de la persona no filtra por rol ni por producto</b>, y las dos ausencias son la
-   * regla: la tasa personalizada <b>gana venda lo que venda</b>, y desde el 01-09-2026 <b>ya no
-   * lleva rol</b>, de modo que sigue rigiendo aunque su titular haya dejado de vender.
+   * <p><b>Las dos ramas filtran ya por producto</b> (11-09-2026), y eso hace la regla más simple de
+   * enunciar y no más compleja. Hasta esa fecha la rama de la persona <b>no</b> lo hacía —la tasa
+   * personalizada ganaba vendiera lo que vendiera—, de modo que una excepción tapaba el catálogo
+   * entero de su titular y la rama del rol no llegaba a mirarse nunca.
+   *
+   * <p><b>Lo que la rama de la persona sigue sin filtrar es el rol</b>, y esa ausencia sí es la
+   * regla: desde el 01-09-2026 estas tasas no llevan rol, de modo que siguen rigiendo aunque su
+   * titular haya dejado de vender.
    *
    * <p><b>La rama del rol exige la asociación</b>, que es `RN-CM-012`: sin fila en {@code
    * product_commission_rates} no hay tarifa, por mucho que el catálogo tenga una tasa para ese rol.
@@ -69,6 +74,7 @@ public class JpaCommissionResolutionRepository implements CommissionResolutionRe
         FROM user_commission_rates u
        WHERE u.deleted_at IS NULL
          AND u.user_id = :persona
+         AND u.product_id = :producto
          AND u.valid_from <= CAST(:fecha AS date)
          AND (u.valid_to IS NULL OR u.valid_to >= CAST(:fecha AS date))
 

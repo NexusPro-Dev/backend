@@ -5,6 +5,7 @@ import com.factech.nexus.modules.commissions.application.UserCommissionRateRespo
 import com.factech.nexus.modules.commissions.domain.models.UserCommissionRate;
 import com.factech.nexus.modules.commissions.domain.repository.UserCommissionRateQueryRepository;
 import com.factech.nexus.modules.commissions.domain.repository.UserCommissionRateRepository;
+import com.factech.nexus.modules.products.application.ProductCatalog;
 import com.factech.nexus.shared.audit.AuditEnums.ChangeAction;
 import com.factech.nexus.shared.audit.AuditEvents.ChangeEvent;
 import com.factech.nexus.shared.audit.AuditWriter;
@@ -36,6 +37,8 @@ public class UpdateUserCommissionRateService {
 
   private final UserCommissionRateRepository tasas;
   private final UserCommissionRateQueryRepository consultas;
+  private final ProductCatalog productos;
+  private final ProductCommissionCapGuard tope;
   private final AuditWriter auditoria;
   private final Clock reloj;
 
@@ -43,17 +46,23 @@ public class UpdateUserCommissionRateService {
   public UpdateUserCommissionRateService(
       UserCommissionRateRepository tasas,
       UserCommissionRateQueryRepository consultas,
+      ProductCatalog productos,
+      ProductCommissionCapGuard tope,
       AuditWriter auditoria) {
-    this(tasas, consultas, auditoria, Clock.systemUTC());
+    this(tasas, consultas, productos, tope, auditoria, Clock.systemUTC());
   }
 
   UpdateUserCommissionRateService(
       UserCommissionRateRepository tasas,
       UserCommissionRateQueryRepository consultas,
+      ProductCatalog productos,
+      ProductCommissionCapGuard tope,
       AuditWriter auditoria,
       Clock reloj) {
     this.tasas = tasas;
     this.consultas = consultas;
+    this.productos = productos;
+    this.tope = tope;
     this.auditoria = auditoria;
     this.reloj = reloj;
   }
@@ -64,7 +73,8 @@ public class UpdateUserCommissionRateService {
     // consulta enterarse de que la petición pedía algo que no se puede hacer.
     if (peticion.traeInmutables()) {
       String mensaje =
-          "La persona y el inicio de vigencia de una tasa personalizada no se pueden corregir.";
+          "La persona, el producto y el inicio de vigencia de una tasa personalizada no se"
+              + " pueden corregir.";
       throw new ValidationException(
           "VAL-009", mensaje, List.of(new FieldError("userId", "VAL-009", mensaje)));
     }
@@ -80,6 +90,19 @@ public class UpdateUserCommissionRateService {
             .orElseThrow(
                 () -> new ResourceNotFoundException("EX-404", "La tasa indicada no existe."));
 
+    // `RN-CM-019` (11-09-2026): corregir el valor puede pasarse del precio del
+    // producto igual que declararlo. Se comprueba ANTES de tocar la entidad —el
+    // rechazo tiene que llegar antes de que haya nada que deshacer— y solo si la
+    // corrección trae valor: cambiar únicamente el fin de vigencia no mueve lo
+    // que se paga.
+    if (peticion.valor().presente() && peticion.valor().valor() != null) {
+      productos
+          .find(tasa.getProductId())
+          .ifPresent(
+              producto ->
+                  tope.verificarIndividual(
+                      producto.id(), producto.code(), peticion.valor().valor(), "EX-006"));
+    }
     // EL BLOQUEO SE TOMA ANTES DE TOCAR LA ENTIDAD, y el orden no es cosmético:
     // `lockUser` es una consulta nativa, y Hibernate vuelca lo pendiente antes
     // de ejecutar una. Tomándolo después de `update(...)`, ese volcado ocurriría

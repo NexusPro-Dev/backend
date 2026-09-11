@@ -680,19 +680,35 @@ paths:
       - Comisiones
       summary: Registrar la tasa personalizada de una persona
       description: |
-        Declara que **esta persona** gana este porcentaje, **venda lo que venda**.
+        Declara que **esta persona** gana este porcentaje **en ESTE producto**.
 
-        **Gana siempre sobre la tasa de su rol** y **sin mirar el producto**
-        (`RN-CM-004`). No se asocia a productos, y por eso **paga desde el primer
-        día**: no necesita nada más.
+        **Gana sobre la tasa de su rol, y solo en el producto que declara**
+        (`RN-CM-004`). En el resto del catálogo esa persona vuelve a cobrar por
+        su rol. Quien quiera una excepción en tres productos declara tres.
+
+        **`productId` es obligatorio desde el 11-09-2026.** Hasta esa fecha esta
+        tasa **no nombraba ningún producto** y regía sobre todo lo que su titular
+        vendiera; una excepción sin producto ya no se puede expresar. El producto
+        debe existir y **no estar retirado** (`RN-CM-002`, `RN-CM-010`).
+
+        **Paga desde el primer día**, al revés que una tasa de rol: no hay que
+        asociarla a nada después, porque ya nombra su producto.
 
         **No lleva rol, y eso tiene una consecuencia que conviene conocer**: la
         tasa sigue rigiendo aunque su titular pase a un rol que no comisiona.
         Hasta el 01-09-2026 el rol era obligatorio precisamente para impedirlo.
 
-        **Una sola viva por persona en cada fecha** (`RN-CM-006`): puede haber
-        varias consecutivas —son el historial—, pero **ningún día puede estar
-        cubierto dos veces**. Si una termina el 31, la siguiente empieza el 1.
+        **Una sola viva por persona Y PRODUCTO en cada fecha** (`RN-CM-006`):
+        puede haber varias consecutivas —son el historial— y varias simultáneas
+        **sobre productos distintos**, pero **ningún día puede estar cubierto dos
+        veces para el mismo producto**. Si una termina el 31, la siguiente
+        empieza el 1.
+
+        **Un `fixedAmount` no puede superar el precio del producto**
+        (`RN-CM-019`, 11-09-2026). Hasta hoy no tenía tope por arriba, y la razón
+        escrita era que esta tasa «no conoce el precio de nada»: al atarla a un
+        producto, esa excusa desapareció. Sobre un producto **gratuito** solo se
+        admite el cero.
 
         `validFrom` es obligatorio; sin `validTo`, rige indefinidamente.
       operationId: registrar_1
@@ -722,13 +738,13 @@ paths:
               schema:
                 $ref: "#/components/schemas/UserCommissionRateResponse"
         "409":
-          description: Se solapa con otra tasa viva de esa persona
+          description: Se solapa con otra tasa viva de esa persona sobre ese producto
           content:
             '*/*':
               schema:
                 $ref: "#/components/schemas/UserCommissionRateResponse"
         "422":
-          description: La persona no existe
+          description: "La persona o el producto no existen, o el producto está retirado"
           content:
             '*/*':
               schema:
@@ -4394,9 +4410,14 @@ paths:
         día concreto**, y **por qué**: devuelve la tasa que ganó y de cuál de las
         dos piezas salió.
 
-        **La precedencia son dos niveles:** si la persona tiene una tasa
-        **personalizada** vigente ese día, es esa — **sin mirar el producto**. Si
-        no, la que su **rol vendedor** tenga **asociada a ese producto**.
+        **La precedencia son dos niveles, y los dos miran el producto:** si la
+        persona tiene una tasa **personalizada** vigente ese día **para ese
+        producto**, es esa. Si no, la que su **rol vendedor** tenga **asociada a
+        ese producto**.
+
+        **Hasta el 11-09-2026 el primer nivel NO miraba el producto**, de modo
+        que una excepción tapaba el catálogo entero de su titular y el segundo
+        nivel no llegaba a consultarse nunca.
 
         **Tres desenlaces, y ninguno es un error:**
 
@@ -5501,6 +5522,9 @@ components:
         userId:
           type: string
           format: uuid
+        productId:
+          type: string
+          format: uuid
         rateType:
           type: string
           enum:
@@ -5520,9 +5544,42 @@ components:
           type: string
           format: date
       required:
+      - productId
       - rateType
       - userId
       - validFrom
+    ProductRef:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        code:
+          type: string
+        type:
+          type: string
+          enum:
+          - UPGRADE_MEMBRESIA
+          - BOT
+        name:
+          type: string
+        description:
+          type: string
+        icon:
+          type: string
+        validityDays:
+          type: integer
+          format: int32
+        membership:
+          $ref: "#/components/schemas/MembershipBadge"
+        price:
+          type: number
+        publicPrice:
+          type: number
+        currency:
+          $ref: "#/components/schemas/CurrencyRef"
+        exchange:
+          $ref: "#/components/schemas/ExchangeRef"
     UserCommissionRateResponse:
       type: object
       properties:
@@ -5531,6 +5588,8 @@ components:
           format: uuid
         user:
           $ref: "#/components/schemas/UserRef"
+        product:
+          $ref: "#/components/schemas/ProductRef"
         rateType:
           type: string
           enum:
@@ -6133,38 +6192,6 @@ components:
           type: array
           items:
             $ref: "#/components/schemas/ProductAssociationItem"
-    ProductRef:
-      type: object
-      properties:
-        id:
-          type: string
-          format: uuid
-        code:
-          type: string
-        type:
-          type: string
-          enum:
-          - UPGRADE_MEMBRESIA
-          - BOT
-        name:
-          type: string
-        description:
-          type: string
-        icon:
-          type: string
-        validityDays:
-          type: integer
-          format: int32
-        membership:
-          $ref: "#/components/schemas/MembershipBadge"
-        price:
-          type: number
-        publicPrice:
-          type: number
-        currency:
-          $ref: "#/components/schemas/CurrencyRef"
-        exchange:
-          $ref: "#/components/schemas/ExchangeRef"
     DissociateProductRequest:
       type: object
       properties:
@@ -6524,6 +6551,8 @@ components:
         userId:
           $ref: "#/components/schemas/PatchableObject"
         validFrom:
+          $ref: "#/components/schemas/PatchableObject"
+        productId:
           $ref: "#/components/schemas/PatchableObject"
     UpdateRoleRequest:
       type: object

@@ -65,19 +65,35 @@ public class UserCommissionRateController {
       summary = "Registrar la tasa personalizada de una persona",
       description =
           """
-          Declara que **esta persona** gana este porcentaje, **venda lo que venda**.
+          Declara que **esta persona** gana este porcentaje **en ESTE producto**.
 
-          **Gana siempre sobre la tasa de su rol** y **sin mirar el producto**
-          (`RN-CM-004`). No se asocia a productos, y por eso **paga desde el primer
-          día**: no necesita nada más.
+          **Gana sobre la tasa de su rol, y solo en el producto que declara**
+          (`RN-CM-004`). En el resto del catálogo esa persona vuelve a cobrar por
+          su rol. Quien quiera una excepción en tres productos declara tres.
+
+          **`productId` es obligatorio desde el 11-09-2026.** Hasta esa fecha esta
+          tasa **no nombraba ningún producto** y regía sobre todo lo que su titular
+          vendiera; una excepción sin producto ya no se puede expresar. El producto
+          debe existir y **no estar retirado** (`RN-CM-002`, `RN-CM-010`).
+
+          **Paga desde el primer día**, al revés que una tasa de rol: no hay que
+          asociarla a nada después, porque ya nombra su producto.
 
           **No lleva rol, y eso tiene una consecuencia que conviene conocer**: la
           tasa sigue rigiendo aunque su titular pase a un rol que no comisiona.
           Hasta el 01-09-2026 el rol era obligatorio precisamente para impedirlo.
 
-          **Una sola viva por persona en cada fecha** (`RN-CM-006`): puede haber
-          varias consecutivas —son el historial—, pero **ningún día puede estar
-          cubierto dos veces**. Si una termina el 31, la siguiente empieza el 1.
+          **Una sola viva por persona Y PRODUCTO en cada fecha** (`RN-CM-006`):
+          puede haber varias consecutivas —son el historial— y varias simultáneas
+          **sobre productos distintos**, pero **ningún día puede estar cubierto dos
+          veces para el mismo producto**. Si una termina el 31, la siguiente
+          empieza el 1.
+
+          **Un `fixedAmount` no puede superar el precio del producto**
+          (`RN-CM-019`, 11-09-2026). Hasta hoy no tenía tope por arriba, y la razón
+          escrita era que esta tasa «no conoce el precio de nada»: al atarla a un
+          producto, esa excusa desapareció. Sobre un producto **gratuito** solo se
+          admite el cero.
 
           `validFrom` es obligatorio; sin `validTo`, rige indefinidamente.
           """)
@@ -85,8 +101,12 @@ public class UserCommissionRateController {
     @ApiResponse(responseCode = "201", description = "Tasa registrada"),
     @ApiResponse(responseCode = "400", description = "Datos inválidos"),
     @ApiResponse(responseCode = "403", description = "Sin permiso"),
-    @ApiResponse(responseCode = "409", description = "Se solapa con otra tasa viva de esa persona"),
-    @ApiResponse(responseCode = "422", description = "La persona no existe")
+    @ApiResponse(
+        responseCode = "409",
+        description = "Se solapa con otra tasa viva de esa persona sobre ese producto"),
+    @ApiResponse(
+        responseCode = "422",
+        description = "La persona o el producto no existen, o el producto está retirado")
   })
   @PostMapping
   @PreAuthorize("hasAuthority('commissions:create')")

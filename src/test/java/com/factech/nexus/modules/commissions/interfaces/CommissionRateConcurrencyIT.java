@@ -44,10 +44,14 @@ class CommissionRateConcurrencyIT extends IntegrationTestBase {
 
   private UUID vendedora;
 
+  /** El producto de la excepción, obligatorio desde el 11-09-2026 (`RN-CM-014`). */
+  private UUID productoPersonal;
+
   @BeforeEach
   void preparar() {
     limpiar();
     vendedora = CommissionFixtures.sembrarPersonaConRol(jdbc, "vendedora", MANAGER);
+    productoPersonal = CommissionFixtures.sembrarProducto(jdbc, "BOT_PERS");
   }
 
   @AfterEach
@@ -163,6 +167,8 @@ class CommissionRateConcurrencyIT extends IntegrationTestBase {
             .content(
                 "{\"userId\":\""
                     + vendedora
+                    + "\",\"productId\":\""
+                    + productoPersonal
                     + "\",\"rateType\":\"PORCENTAJE\",\"percentage\":"
                     + porcentaje
                     + ",\"validFrom\":\""

@@ -136,6 +136,53 @@ public class ProductCommissionCapGuard {
   }
 
   /**
+   * El tope de <b>una sola</b> tasa contra el precio de su producto (`RN-CM-019`, 11-09-2026).
+   *
+   * <p>Lo usa la tasa <b>personalizada</b>, que desde esa fecha declara su producto y por tanto
+   * conoce un precio contra el que compararse. Hasta entonces no lo conocía, y esa era la razón
+   * literal por la que `RN-CM-018` la dejaba <b>sin tope por arriba</b>: atarla a un producto le
+   * quitó la excusa.
+   *
+   * <h2>Es individual y NO una suma, y la diferencia es de negocio</h2>
+   *
+   * <p>{@link #verificar} suma <b>todas</b> las tasas de rol de un producto porque una venta las
+   * paga <b>a la vez</b>: una por cada nivel de la cadena. Las personalizadas de personas distintas
+   * sobre el mismo producto <b>no</b> son eso: son <b>alternativas entre sí</b> —cada una sustituye
+   * a la del rol de su titular— y sumarlas rechazaría configuraciones perfectamente legítimas, como
+   * dar el 60 % a un vendedor y el 60 % a otro que nunca aparecen en la misma cadena.
+   *
+   * <p><b>Y por eso no bloquea el producto.</b> {@link #verificar} necesita un bloqueo consultivo
+   * porque lee filas ajenas y dos asociaciones simultáneas podrían sumar mal; aquí no se lee
+   * ninguna fila ajena, de modo que no hay carrera que cerrar.
+   *
+   * <p>Lo que sí comparte es el cálculo: {@link #ocupado} y el mismo trato del <b>precio cero</b>
+   * —cualquier importe fijo mayor que cero sobre un producto gratuito pasa del cien por cien de lo
+   * que ese producto cobra—.
+   */
+  public void verificarIndividual(
+      UUID productId, String productCode, CommissionValue valor, String errorCode) {
+
+    if (valor.getRateType() != CommissionRateType.FIJO) {
+      // Un porcentaje ya lo acota `RN-CM-007` de cero a cien por su cuenta, y
+      // no divide por ningún precio: no hay nada que comprobar aquí.
+      return;
+    }
+
+    BigDecimal ocupa =
+        ocupado(
+            valor.getRateType(),
+            valor.getPercentage(),
+            valor.getFixedAmount(),
+            precioDe(productId));
+
+    if (ocupa.compareTo(CIEN) > 0) {
+      String mensaje = "La tasa pagaría más del 100 % del precio del producto " + productCode + ".";
+      throw new BusinessRuleException(
+          errorCode, mensaje, List.of(new FieldError("fixedAmount", errorCode, mensaje)));
+    }
+  }
+
+  /**
    * El porcentaje que una fila ocupa.
    *
    * <h2>El precio SÍ puede ser cero desde el 08-09-2026, y esta clase decía por escrito que no</h2>
