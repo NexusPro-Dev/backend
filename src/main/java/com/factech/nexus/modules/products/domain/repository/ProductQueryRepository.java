@@ -57,10 +57,9 @@ public interface ProductQueryRepository {
    * sostiene `RN-PM-017` al <b>registrar</b>. Un producto declarado desde mi membresía no puede
    * apuntar por debajo, porque no habría podido darse de alta.
    *
-   * <p><b>El importe que devuelve en {@code price} es EL QUE SE MUESTRA</b> (`RN-PM-024`): el
-   * público si el producto lo declara, y el del sistema si no. La consulta lo resuelve con un
-   * {@code COALESCE} y <b>no selecciona el otro</b>, de modo que por esta lectura solo viaja un
-   * número.
+   * <p><b>No selecciona el precio de compra</b> (`RN-PM-024`): es el costo de NEXUS, y por esta
+   * lectura solo viaja {@code price}, el que se cobra. {@code purchasePrice} llega <b>nulo a
+   * propósito</b> en cada fila.
    *
    * @param membresia el identificador de la membresía <b>vigente</b> del actor, o {@code null} si
    *     no tiene ninguna. Nulo <b>no</b> significa «sin filtro»: no coincide con ningún origen, y
@@ -77,10 +76,9 @@ public interface ProductQueryRepository {
    *
    * <p><b>El código se compara sin distinguir mayúsculas</b>: un enlace se teclea.
    *
-   * <p><b>Y el importe que devuelve en {@code price} es EL QUE SE MUESTRA</b> (`RN-PM-024`),
-   * resuelto con un {@code COALESCE} igual que en {@link #findOffer}. Aquí no es prudencia sino
-   * condición del requerimiento: es la única lectura del módulo <b>sin token</b>, y un precio del
-   * sistema publicado por descuido no se puede retirar después.
+   * <p><b>Y tampoco selecciona el precio de compra</b> (`RN-PM-024`), igual que {@link #findOffer}.
+   * Aquí no es prudencia sino condición del requerimiento: es la única lectura del módulo <b>sin
+   * token</b>, y un costo publicado por descuido —el margen— no se puede retirar después.
    *
    * @return vacío si no existe o si no procede — <b>los cuatro casos iguales</b>, para que el
    *     {@code 404} de arriba no pueda filtrarse en respuestas distintas
@@ -103,19 +101,19 @@ public interface ProductQueryRepository {
    * no responde cuándo se tocó cada fila por última vez, y seleccionarlo para descartarlo sería
    * pagar por un dato que nadie lee. Es el mismo trato que {@code UserRow} da a los suyos.
    *
-   * <h2>{@code publicPrice} llega nulo desde las DOS lecturas públicas, y ahí no significa lo mismo
-   * </h2>
+   * <h2>{@code purchasePrice} llega nulo desde las DOS lecturas públicas, y ahí no significa lo
+   * mismo</h2>
    *
-   * <p>Desde el listado y el detalle es <b>el dato</b>: nulo significa que el producto no declara
-   * precio público. Desde {@link #findOffer} y {@link #findPublishedByCode} llega <b>siempre</b>
-   * nulo porque esas consultas <b>no lo seleccionan</b>: resuelven el importe a mostrar con un
-   * {@code COALESCE} y lo entregan en {@code price}, de modo que por ahí <b>solo viaja un
-   * número</b> (`RN-PM-024`).
+   * <p>Desde el listado y el detalle es <b>el dato</b>: nulo significa que no se conoce el costo.
+   * Desde {@link #findOffer} y {@link #findPublishedByCode} llega <b>siempre</b> nulo porque esas
+   * consultas <b>no lo seleccionan</b>: es lo que NEXUS paga por el producto, y por ahí <b>solo
+   * viaja {@code price}</b> (`RN-PM-024`, 12-09-2026).
    *
-   * <p>Es deliberado y no una asimetría por descuido: si esas dos lecturas trajeran los dos
-   * importes, el precio del sistema estaría dentro del objeto que se serializa —a un campo de
-   * distancia de publicarse— y en el hotlink eso ocurre <b>sin token</b>. Quien lea una de esas
-   * filas debe usar {@code price} y no preguntar por el otro.
+   * <p>Es deliberado y no una asimetría por descuido: si esas dos lecturas trajeran el costo,
+   * estaría dentro del objeto que se serializa —a un campo de distancia de publicar el margen— y en
+   * el hotlink eso ocurre <b>sin token</b>. Quien lea una de esas filas debe usar {@code price} y
+   * no preguntar por el otro. Del 08-09-2026 al 12-09-2026 este campo se llamó {@code publicPrice}
+   * y las dos lecturas públicas sí lo seleccionaban, cuando era lo que se anunciaba.
    */
   record ProductRow(
       UUID id,
@@ -135,7 +133,7 @@ public interface ProductQueryRepository {
       Integer targetMembershipLevel,
       String targetMembershipColor,
       BigDecimal price,
-      BigDecimal publicPrice,
+      BigDecimal purchasePrice,
       UUID currencyId,
       String currencyCode,
       int currencyDecimalPlaces,

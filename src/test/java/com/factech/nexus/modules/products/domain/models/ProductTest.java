@@ -602,40 +602,47 @@ class ProductTest {
   }
 
   // ---------------------------------------------------------------------------
-  // Los dos precios (`RN-PM-023`, `RN-PM-006`) — 08-09-2026
+  // Los dos precios (`RN-PM-023`, `RN-PM-006`) — 08-09-2026; el segundo es el
+  // de COMPRA desde el 12-09-2026
   // ---------------------------------------------------------------------------
 
   @Test
-  @DisplayName("`RN-PM-023` — sin precio público el producto se anuncia con el del sistema")
-  void sinPrecioPublicoSeAnunciaConElDelSistema() {
+  @DisplayName("`RN-PM-023` — sin precio de compra el costo NO SE CONOCE, y eso no es cero")
+  void sinPrecioDeCompraElCostoNoSeConoce() {
     Product producto = bot("ASESORIA");
 
     // El nulo se CONSERVA y no se normaliza a cero: son dos estados distintos,
-    // y aquí el nulo significa «este producto no declara precio público».
-    assertThat(producto.getPublicPrice()).isNull();
-    assertThat(producto.getDisplayPrice()).isEqualByComparingTo("49.99");
+    // y aquí el nulo significa «este producto todavía no tiene costo declarado».
+    assertThat(producto.getPurchasePrice()).isNull();
+    assertThat(producto.getPrice()).isEqualByComparingTo("49.99");
   }
 
   @Test
-  @DisplayName("`RN-PM-023` — con precio público, lo que se muestra es ESE y no el del sistema")
-  void conPrecioPublicoSeMuestraElPublico() {
-    Product producto = conPrecios(new BigDecimal("49.99"), new BigDecimal("59.99"));
+  @DisplayName("`RN-PM-023` — el precio de compra se guarda aparte y no toca el que se cobra")
+  void elPrecioDeCompraNoTocaElQueSeCobra() {
+    Product producto = conPrecios(new BigDecimal("49.99"), new BigDecimal("30.00"));
 
     assertThat(producto.getPrice()).isEqualByComparingTo("49.99");
-    assertThat(producto.getPublicPrice()).isEqualByComparingTo("59.99");
-    assertThat(producto.getDisplayPrice()).isEqualByComparingTo("59.99");
+    assertThat(producto.getPurchasePrice()).isEqualByComparingTo("30.00");
   }
 
   @Test
-  @DisplayName(
-      "`RN-PM-023` — un precio público de CERO se muestra, y no se confunde con no tenerlo")
-  void elPrecioPublicoCeroSeMuestra() {
+  @DisplayName("`RN-PM-023` — un precio de compra de CERO se conserva, y no se confunde con nulo")
+  void elPrecioDeCompraCeroSeConserva() {
     Product producto = conPrecios(new BigDecimal("49.99"), BigDecimal.ZERO);
 
-    // Anunciar «gratis» y «no declarar precio público» son dos cosas distintas,
-    // y la diferencia se ve en la tienda.
-    assertThat(producto.getPublicPrice()).isEqualByComparingTo("0");
-    assertThat(producto.getDisplayPrice()).isEqualByComparingTo("0");
+    // «No costó nada» y «no se conoce el costo» son dos cosas distintas, y un
+    // informe de márgenes las trata distinto.
+    assertThat(producto.getPurchasePrice()).isEqualByComparingTo("0");
+  }
+
+  @Test
+  @DisplayName("`RN-PM-023` — un precio de compra POR ENCIMA del de venta se admite: nadie compara")
+  void elPrecioDeCompraPuedeSuperarAlDeVenta() {
+    // Vender por debajo del costo es una decisión comercial, y el sistema la
+    // registra en vez de impedirla (`requirements/pm.md` §5.2.6).
+    assertThatCode(() -> conPrecios(new BigDecimal("49.99"), new BigDecimal("80.00")))
+        .doesNotThrowAnyException();
   }
 
   @Test
@@ -644,27 +651,31 @@ class ProductTest {
     assertThatCode(() -> conPrecios(BigDecimal.ZERO, BigDecimal.ZERO)).doesNotThrowAnyException();
 
     // Hasta el 08-09-2026 esto era imposible, y lo que lo hizo posible no fue el
-    // precio público sino la renovación: un `BECA → BECA` vale cero.
-    assertThat(conPrecios(BigDecimal.ZERO, null).getDisplayPrice()).isEqualByComparingTo("0");
+    // segundo precio sino la renovación: un `BECA → BECA` vale cero.
+    assertThat(conPrecios(BigDecimal.ZERO, null).getPrice()).isEqualByComparingTo("0");
   }
 
   @Test
-  @DisplayName("`CA-PM-150` — la instantánea lleva el precio público, y lo escribe NULO si no hay")
-  void laInstantaneaLlevaElPrecioPublico() {
-    assertThat(conPrecios(new BigDecimal("49.99"), new BigDecimal("59.99")).instantanea())
+  @DisplayName(
+      "`CA-PM-150` — la instantánea lleva el precio de compra, y lo escribe NULO si no hay")
+  void laInstantaneaLlevaElPrecioDeCompra() {
+    assertThat(conPrecios(new BigDecimal("49.99"), new BigDecimal("30.00")).instantanea())
         .containsEntry("price", "49.99")
-        .containsEntry("public_price", "59.99");
+        .containsEntry("purchase_price", "30.00")
+        // La clave vieja NO vuelve: los eventos anteriores al 12-09-2026 la
+        // llevan, los nuevos no.
+        .doesNotContainKey("public_price");
 
     // La clave está PRESENTE con valor nulo: sin ella no habría contra qué
-    // contrastar una reclamación por «lo vi a otro precio».
-    Map<String, Object> sinPublico = bot("ASESORIA").instantanea();
-    assertThat(sinPublico).containsKey("public_price");
-    assertThat(sinPublico.get("public_price")).isNull();
+    // contrastar una revisión de márgenes.
+    Map<String, Object> sinCompra = bot("ASESORIA").instantanea();
+    assertThat(sinCompra).containsKey("purchase_price");
+    assertThat(sinCompra.get("purchase_price")).isNull();
   }
 
   @Test
-  @DisplayName("`CA-PM-153` — corregir el precio público no toca el del sistema, y se audita")
-  void corregirElPrecioPublico() {
+  @DisplayName("`CA-PM-153` — corregir el precio de compra no toca el del sistema, y se audita")
+  void corregirElPrecioDeCompra() {
     Product producto = conPrecios(new BigDecimal("49.99"), new BigDecimal("59.99"));
 
     Map<String, Object> cambios =
@@ -680,16 +691,17 @@ class ProductTest {
             Patchable.ausente(),
             AHORA.plusDays(1));
 
-    assertThat(cambios).containsOnlyKeys("public_price");
-    assertThat(cambios.get("public_price")).isEqualTo(Map.of("before", "59.99", "after", "69.99"));
+    assertThat(cambios).containsOnlyKeys("purchase_price");
+    assertThat(cambios.get("purchase_price"))
+        .isEqualTo(Map.of("before", "59.99", "after", "69.99"));
     assertThat(producto.getPrice()).isEqualByComparingTo("49.99");
-    assertThat(producto.getPublicPrice()).isEqualByComparingTo("69.99");
+    assertThat(producto.getPurchasePrice()).isEqualByComparingTo("69.99");
   }
 
   @Test
   @DisplayName(
-      "`CA-PM-154` — el nulo explícito VACÍA el precio público, y eso NO es ponerlo a cero")
-  void vaciarElPrecioPublico() {
+      "`CA-PM-154` — el nulo explícito VACÍA el precio de compra, y eso NO es ponerlo a cero")
+  void vaciarElPrecioDeCompra() {
     Product producto = conPrecios(new BigDecimal("49.99"), new BigDecimal("59.99"));
 
     Map<String, Object> cambios =
@@ -705,18 +717,18 @@ class ProductTest {
             Patchable.ausente(),
             AHORA.plusDays(1));
 
-    assertThat(cambios).containsOnlyKeys("public_price");
-    assertThat(cambios.get("public_price")).isEqualTo(Map.of("before", "59.99", "after", ""));
+    assertThat(cambios).containsOnlyKeys("purchase_price");
+    assertThat(cambios.get("purchase_price")).isEqualTo(Map.of("before", "59.99", "after", ""));
 
-    // El producto vuelve a anunciarse con el precio del sistema. Ponerlo a cero
-    // lo habría dejado anunciando que es gratis, que es lo contrario.
-    assertThat(producto.getPublicPrice()).isNull();
-    assertThat(producto.getDisplayPrice()).isEqualByComparingTo("49.99");
+    // El costo pasa a «no se conoce». Ponerlo a cero lo habría dejado diciendo
+    // que no costó nada, que es lo contrario.
+    assertThat(producto.getPurchasePrice()).isNull();
+    assertThat(producto.getPrice()).isEqualByComparingTo("49.99");
   }
 
   @Test
-  @DisplayName("`CA-PM-156` — corregir el precio público a CERO es un cambio, y no un vaciado")
-  void corregirElPrecioPublicoACero() {
+  @DisplayName("`CA-PM-156` — corregir el precio de compra a CERO es un cambio, y no un vaciado")
+  void corregirElPrecioDeCompraACero() {
     Product producto = conPrecios(new BigDecimal("49.99"), new BigDecimal("59.99"));
 
     producto.update(
@@ -731,12 +743,11 @@ class ProductTest {
         Patchable.ausente(),
         AHORA.plusDays(1));
 
-    assertThat(producto.getPublicPrice()).isEqualByComparingTo("0");
-    assertThat(producto.getDisplayPrice()).isEqualByComparingTo("0");
+    assertThat(producto.getPurchasePrice()).isEqualByComparingTo("0");
   }
 
   @Test
-  @DisplayName("vaciar un precio público que no existía NO es un cambio: no entra en el diff")
+  @DisplayName("vaciar un precio de compra que no existía NO es un cambio: no entra en el diff")
   void vaciarLoQueNoHabiaNoEsUnCambio() {
     Product producto = bot("ASESORIA");
     OffsetDateTime antes = producto.getUpdatedAt();
@@ -759,8 +770,8 @@ class ProductTest {
   }
 
   @Test
-  @DisplayName("el precio público se compara por VALOR: `59.99` y `59.9900` no son un cambio")
-  void elPrecioPublicoSeComparaPorValor() {
+  @DisplayName("el precio de compra se compara por VALOR: `59.99` y `59.9900` no son un cambio")
+  void elPrecioDeCompraSeComparaPorValor() {
     Product producto = conPrecios(new BigDecimal("49.99"), new BigDecimal("59.99"));
 
     Map<String, Object> cambios =
@@ -781,7 +792,7 @@ class ProductTest {
     assertThat(cambios).isEmpty();
   }
 
-  private static Product conPrecios(BigDecimal precio, BigDecimal precioPublico) {
+  private static Product conPrecios(BigDecimal precio, BigDecimal precioDeCompra) {
     return Product.create(
         UUID.randomUUID(),
         "UPGRADE_ORO",
@@ -792,7 +803,7 @@ class ProductTest {
         ORIGEN,
         DESTINO,
         precio,
-        precioPublico,
+        precioDeCompra,
         MONEDA,
         null,
         ProductScope.TIENDA,

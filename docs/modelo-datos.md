@@ -2,11 +2,11 @@
 
 | Campo | Valor |
 |---|---|
-| Versión | 0.40.0 |
+| Versión | 0.41.0 |
 | Estado | **Borrador** |
 | Responsable | Bonilla Diaz William Steven |
 | Fecha de creación | 21-08-2026 |
-| Última actualización | 10-09-2026 |
+| Última actualización | 12-09-2026 |
 
 !!! info "Qué va en este documento"
 
@@ -449,7 +449,7 @@ erDiagram
         uuid target_membership_id FK "obligatorio en upgrade, PROHIBIDO en bot · A DONDE lleva"
         uuid source_membership_id FK "obligatorio en upgrade, PROHIBIDO en bot · DE DONDE sale"
         numeric price "14,4 · EL QUE SE COBRA · la escala la decide la MONEDA"
-        numeric public_price "14,4 · SOLO SE MUESTRA · NULL = se anuncia con price"
+        numeric purchase_price "14,4 · LO QUE PAGA NEXUS · NULL = no se conoce · solo administracion"
         integer validity_days "NULL = no caduca"
         timestamptz deleted_at "lógico · RN-PM-010"
     }
@@ -513,11 +513,13 @@ erDiagram
 
     **Y `RN-PM-017` ya no cabe en el motor NI A MEDIAS, desde el 07-09-2026.** Aquel `CHECK` exigía que las dos membresías **no fueran la misma**, y eso es exactamente lo que la **renovación** admite: `V61` lo retira (`requirements/pm.md` §5.2.3). La mitad que sobrevive —«el origen no está por encima del destino»— **nunca** cupo aquí, porque obliga a leer el `level` de **dos filas de `memberships`** y un `CHECK` no consulta otra tabla. De modo que la regla pasa a vivir **entera en el caso de uso**, sin la red que tenía. Es el mismo reparto que `RN-PM-007` con los decimales de la moneda, y conviene tenerlo escrito: **una regla crítica sin una sola línea en el esquema** depende de que nadie inserte en esta tabla saltándose la aplicación.
 
-!!! danger "`products` tiene DOS PRECIOS desde el 08-09-2026, y solo uno de ellos es dinero"
+!!! danger "`products` tiene DOS PRECIOS desde el 08-09-2026, y solo uno de ellos se cobra"
 
-    `price` es **el que se cobra**: lo copia `movement_details.unit_price` y sobre él calcula `RN-CM-019`. `public_price` es **lo que se anuncia**, es **opcional**, y **ninguna otra tabla lo lee** (`requirements/pm.md` §5.2.4).
+    `price` es **el que se cobra**: lo copia `movement_details.unit_price` y sobre él calcula `RN-CM-019`. `purchase_price` es **lo que NEXUS paga por el producto** cuando tiene que comprarlo —ahí se guarda lo que costó—, es **opcional**, **ninguna otra tabla lo lee** y **no sale de administración**: lo devuelven `RF-PM-002` y `RF-PM-003`, y la oferta y el hotlink **no lo seleccionan** (`RN-PM-024`, `requirements/pm.md` §5.2.6).
 
-    **Comparten forma —`numeric(14,4)`— y también moneda**: no hay una segunda `currency_id`, porque un importe en otra moneda no sería un rótulo sino un segundo precio de verdad, con su tasa y su vigencia. Lo que no comparten es la obligatoriedad, y ahí está toda la decisión: **el nulo de `public_price` significa «este producto no declara precio público»** —y entonces se anuncia con `price`—, no «vale cero». Los dos estados existen y son distintos, y por eso la columna admite nulo en lugar de llevar `DEFAULT 0`.
+    **Nació como `public_price` el 08-09-2026 —lo que se anunciaba— y se renombró el 12-09-2026 al cambiar de significado.** El renombrado no es cosmético: cuando el número era un rótulo, publicarlo sin token era una decisión de forma; ahora que es el costo, publicarlo enseña el margen. La columna cambia de significado **vacía de él** — lo que el hotlink llegó a devolver era el rótulo, no un costo.
+
+    **Comparten forma —`numeric(14,4)`— y también moneda**: no hay una segunda `currency_id`; si NEXUS paga en otra moneda, quien registra el costo lo convierte al declararlo, y una compra con su moneda, su tasa y su fecha es una tabla de compras, no una columna de esta. Lo que no comparten es la obligatoriedad, y ahí está toda la decisión: **el nulo de `purchase_price` significa «no se conoce»** —el producto no se ha comprado todavía, o no aplica—, no «costó cero». Los dos estados existen y son distintos, y por eso la columna admite nulo en lugar de llevar `DEFAULT 0`.
 
     **Y aparece la tercera columna de esta tabla cuya regla el esquema no puede sostener**, junto a `RN-PM-007` y `RN-PM-017`: que un importe **no se cobre** no es expresable en ninguna restricción. Lo único que lo sostiene es **dónde no aparece** — `movement_details` copia `price`, y el puerto que `PM` publica para vender (`ProductCatalog.saleViewOf`) no lleva el otro. Añadirlo ahí bastaría para que empezara a cobrarse sin que nada fallara.
 
@@ -742,3 +744,4 @@ La secuencia no es continua —falta el tramo `V8` a `V12`— y no es un descuid
 | 0.38.0 | 10-09-2026 | **`users` gana `company_phone`** \(`V83`\): el teléfono de la empresa, junto al personal que ya existía. Misma forma que `phone` —`varchar(20)`, normalizado a dígitos con `+` opcional, `ck_users_company_phone_format`— y **opcional**, al revés que aquel: `RN-SP-037` exige el personal y no este, porque exigirlo bloquearía el alta de quien no tenga empresa. **Sin índice**, como `phone`: ninguna consulta filtra ni ordena por él. | Responsable técnico |
 | 0.39.0 | 11-09-2026 | **`user_commission_rates` gana `product_id` `NOT NULL`** \(`V84`\): la excepción por persona deja de regir sobre todo el catálogo y pasa a declarar **su** producto. **Columna propia y no tabla de asociación**, y la asimetría con la tasa de rol es deliberada: aquella es **catálogo reutilizable** —una fila que rige en muchos productos, y por eso tiene `product_commission_rates`—, mientras que una personalizada ya es de **una sola persona** y no hay nada que reutilizar; una tabla intermedia solo añadiría un salto. **El `EXCLUDE` se rehace con el producto dentro**: pasa de «una vigente por persona» a «una vigente por persona **y producto**», de modo que la misma persona puede tener varias a la vez sobre productos distintos. Se cierra además la consecuencia de no declarar moneda que este documento tenía anotada para esta tabla: al conocer un producto, conoce una moneda. **La migración ABORTA si hay filas vivas**: no hay dato que inventar —a qué producto pertenecía una tasa que valía para todos no se puede adivinar— y rellenarlas produciría filas plausibles y falsas, que es exactamente lo que `V49` evitó vaciando en lugar de traducir. | Responsable técnico |
 | 0.40.0 | 11-09-2026 | **Corrige a v0.39.0 el mismo día, y las dos quedan para que el cambio se vea.** Aquella dio a la excepción por persona una **columna `product_id`**; el responsable del proyecto corrigió la forma: la personalizada debe asociarse a productos **con el mismo mecanismo que la de rol**. La columna se retira y nace **`user_commission_rate_products`** \(`V85`\), gemela de `product_commission_rates` — el sistema llega a **veintiséis tablas**. **Lo que la gemela tiene y esta no es el `role_id` copiado**: allí existe para que `RN-CM-013` pueda declararse en el esquema, con una clave foránea compuesta que le impide divergir; aquí no hay nada equivalente que copiar, porque la regla hermana habla de **persona y fechas** y las fechas no caben en una clave primaria. **Y por eso el `EXCLUDE` de `user_commission_rates` SE RETIRA sin sustituto**: `RN-CM-006` cruza ahora dos tablas, y este documento ya lo había anticipado en v0.15.0 — «sacar el producto fuera lo habría hecho cruzar dos tablas, que ningún índice hace». La regla pasa al caso de uso con un bloqueo consultivo. **No se sustituye por un `EXCLUDE` sobre `(user_id, daterange)`**, que es la tentación: prohibiría dos tasas simultáneas de la misma persona sobre productos **distintos**, que es justo lo que la enmienda existe para permitir. | Responsable técnico |
+| 0.41.0 | 12-09-2026 | **`products.public_price` se renombra a `purchase_price` y cambia de significado: de lo que se anuncia a lo que NEXUS paga** (`RN-PM-023`, `RN-PM-024`, [`requirements/pm.md`](requirements/pm.md) v0.23.0 §5.2.6). Decisión del responsable del proyecto. La columna conserva forma, opcionalidad y `CHECK` —que se renombra con ella, `ck_products_purchase_price_no_negativo`—, y lo que cambia es **quién puede leerla**: solo las dos lecturas de administración; la oferta y el hotlink **no la seleccionan**, porque es el costo y publicarlo enseñaría el margen, en el hotlink sin token. **El nulo pasa de «se anuncia con `price`» a «no se conoce»**: un producto que todavía no se ha comprado no tiene costo que declarar, y por eso la migración sigue sin rellenar nada. **Desaparece «el importe que se muestra»**: fuera de administración `price` es lo único que se muestra y la conversión se calcula siempre sobre él. Ninguna tabla nueva: el sistema sigue en veintiséis. | Responsable del proyecto |

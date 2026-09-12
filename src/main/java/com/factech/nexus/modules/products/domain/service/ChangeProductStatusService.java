@@ -198,10 +198,7 @@ public class ChangeProductStatusService {
                     null,
                     conversiones
                         .para(java.util.List.of(fila.currencyId()))
-                        .de(
-                            fila.currencyId(),
-                            ProductExchangeResolver.importeMostrado(
-                                fila.price(), fila.publicPrice()))))
+                        .de(fila.currencyId(), fila.price())))
         .orElseThrow(
             () ->
                 new ResourceNotFoundException(

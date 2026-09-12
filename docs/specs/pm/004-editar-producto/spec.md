@@ -11,6 +11,7 @@
 | Enmendada el | 28-08-2026 — ver §15 |
 | Enmendada el | 07-09-2026 — **el alcance y la implementación son corregibles** (`RN-PM-019`, `RN-PM-020`), y **no admiten vaciarse**. Ver §15 |
 | Enmendada el | 08-09-2026 — **el precio público es corregible Y SÍ admite vaciarse** (`RN-PM-023`), y `RN-PM-006` deja de exigir «mayor que cero». Ver §15 |
+| Enmendada el | 12-09-2026 — **el segundo precio es el de COMPRA** (`RN-PM-023`): `purchasePrice` sustituye a `publicPrice`, corregible y vaciable igual, y es **donde se guarda lo que costó**. Ver §15 |
 
 ---
 
@@ -58,7 +59,7 @@ Un producto se equivoca de nombre, se le escapa una falta en la descripción o c
 | `RN-PM-005` | Nombre único entre los vivos | `requirements/pm.md` §5.1 |
 | `RN-PM-006` | **Ningún precio es negativo**, y el cero se admite | `requirements/pm.md` §5.1 |
 | `RN-PM-007` | **Los dos precios respetan** los decimales de su moneda | `requirements/pm.md` §5.1 |
-| `RN-PM-023` | **El precio público es opcional, se corrige y se puede vaciar** | `requirements/pm.md` §5.1 |
+| `RN-PM-023` | **El precio de compra es opcional, se corrige y se puede vaciar** — es lo que NEXUS paga por el producto, y esta edición es donde hoy se registra | `requirements/pm.md` §5.1 |
 | `RN-PM-008` | La moneda debe estar activa al declararla | `requirements/pm.md` §5.1 |
 | `RN-PM-015` | La vigencia se mide en días y es opcional | `requirements/pm.md` §5.1 |
 | `RN-PM-019` | El alcance dice hasta dónde se muestra, y **se corrige** | `requirements/pm.md` §5.1 |
@@ -75,15 +76,15 @@ Un producto se equivoca de nombre, se le escapa una falta en la descripción o c
 | Descripción | No | Descripción nueva | **Sí admite vaciarse**, porque es opcional |
 | Icono | No | Nombre del icono nuevo | **Sí admite vaciarse.** Solo en el upgrade: en un producto de tipo bot, cualquier valor distinto de nulo se rechaza (`RN-PM-016`) |
 | Precio **del sistema** | No | Precio nuevo, el que se cobra | **No negativo** y con los decimales de su moneda. **NO admite vaciarse**: la columna es obligatoria, y «bórralo» no tiene ningún estado al que llevar el producto |
-| Precio **público** | No | Precio anunciado nuevo | Mismas condiciones de importe. **SÍ admite vaciarse**, y ahí va con la descripción y la vigencia: su nulo es un estado legítimo —«se anuncia con el precio del sistema»— de modo que el nulo explícito **es una orden** (`RN-PM-023`) |
+| Precio **de compra** | No | Lo que NEXUS pagó por el producto | Mismas condiciones de importe. **SÍ admite vaciarse**, y ahí va con la descripción y la vigencia: su nulo es un estado legítimo —«no se conoce el costo»— de modo que el nulo explícito **es una orden** (`RN-PM-023`). **Es donde se guarda el precio cuando el producto se compra**: hoy lo escribe quien administra, con esta operación |
 | Moneda | No | Moneda nueva | Debe existir y estar activa. **Cambiarla reinterpreta los dos importes**, y los dos se miden contra sus decimales |
 | Vigencia | No | Vigencia nueva, en días | Mayor que cero. **Sí admite vaciarse**, y hacerlo convierte el producto en uno que no caduca |
 | Alcance | No | Alcance nuevo | **NO admite vaciarse**: es obligatorio en la columna, de modo que el nulo explícito se rechaza en lugar de borrar (`RN-PM-019`) |
 | Implementación | No | Implementación nueva | Igual. **NO admite vaciarse** (`RN-PM-020`) |
 
-**Ausente y vacío no son lo mismo.** No enviar un campo significa «déjalo como está»; enviarlo vacío significa «bórralo», y solo lo admiten **la descripción, el icono, la vigencia y el precio público**. Confundir los dos estados hace que corregir un nombre borre la descripción sin que nadie lo pida.
+**Ausente y vacío no son lo mismo.** No enviar un campo significa «déjalo como está»; enviarlo vacío significa «bórralo», y solo lo admiten **la descripción, el icono, la vigencia y el precio de compra**. Confundir los dos estados hace que corregir un nombre borre la descripción sin que nadie lo pida.
 
-**Y en el precio público esa distinción decide algo que se ve en la tienda**: vaciarlo no es ponerlo a cero — es **devolver el producto a anunciarse con el precio del sistema**. Los dos son estados alcanzables desde esta operación y no significan lo mismo: uno anuncia «gratis» y el otro anuncia lo que cuesta.
+**Y en el precio de compra esa distinción decide algo que se ve en el margen**: vaciarlo no es ponerlo a cero — es **declarar que el costo no se conoce**. Los dos son estados alcanzables desde esta operación y no significan lo mismo: uno dice «no costó nada» y el otro dice «no sé cuánto costó», y un informe de márgenes los trata distinto.
 
 ### 6.2 Salida
 
@@ -158,7 +159,7 @@ Un producto se equivoca de nombre, se le escapa una falta en la descripción o c
 | `VAL-001` | Identificador con formato válido | El identificador indicado no tiene un formato válido. |
 | `VAL-002` | El nombre no admite vaciarse | El nombre del producto no puede quedar vacío. |
 | `VAL-003` | Longitud del nombre y de la descripción | El valor excede la longitud admitida. |
-| `VAL-004` | **Ningún precio negativo**, y el del sistema **no admite vaciarse** | El precio no puede ser negativo. **Con el campo que lo incumple** — `price` o `publicPrice` |
+| `VAL-004` | **Ningún precio negativo**, y el del sistema **no admite vaciarse** | El precio no puede ser negativo. **Con el campo que lo incumple** — `price` o `purchasePrice` |
 | `VAL-005` | Decimales **de cada precio** según su moneda | El precio no admite más decimales que los de su moneda. **Con el campo que lo incumple** |
 | `VAL-006` | El tipo, el código y el destino no se admiten | El tipo, el código y la membresía destino no se pueden modificar. |
 | `VAL-007` | El alcance no admite vaciarse, y debe estar dentro del dominio | El alcance del producto es obligatorio y debe ser uno de los admitidos. |
@@ -187,11 +188,11 @@ Un producto se equivoca de nombre, se le escapa una falta en la descripción o c
 | `CA-PM-120` | El sistema **rechaza vaciarlas** con nulo explícito, al revés que la descripción, el icono y la vigencia: son obligatorias y no admiten ausencia |
 | `CA-PM-121` | El sistema rechaza un valor **fuera del dominio** en cualquiera de las dos, y no aplica ninguno de los demás cambios enviados |
 | `CA-PM-122` | El sistema **no registra evento** cuando la corrección envía el mismo alcance o la misma implementación que el producto ya tenía |
-| `CA-PM-153` | El sistema **corrige el precio público** sin tocar el del sistema, y el evento registra el valor anterior y el nuevo |
-| `CA-PM-154` | El sistema **vacía el precio público** con nulo explícito, y el producto vuelve a anunciarse con el del sistema — **vaciarlo no es ponerlo a cero**, y los dos casos se prueban por separado |
-| `CA-PM-155` | El sistema **rechaza vaciar el precio del sistema** con nulo explícito, al revés que el público |
+| `CA-PM-153` | El sistema **corrige el precio de compra** sin tocar el del sistema, y el evento registra el valor anterior y el nuevo |
+| `CA-PM-154` | El sistema **vacía el precio de compra** con nulo explícito, y el producto queda sin costo conocido — **vaciarlo no es ponerlo a cero**, y los dos casos se prueban por separado |
+| `CA-PM-155` | El sistema **rechaza vaciar el precio del sistema** con nulo explícito, al revés que el de compra |
 | `CA-PM-156` | El sistema **admite corregir cualquiera de los dos a cero**, y no lo confunde con vaciarlo |
-| `CA-PM-157` | El sistema rechaza un **precio público** que no cabe en los decimales de la **moneda nueva**, aunque el del sistema sí quepa, y **no aplica ninguno** de los demás cambios |
+| `CA-PM-157` | El sistema rechaza un **precio de compra** que no cabe en los decimales de la **moneda nueva**, aunque el del sistema sí quepa, y **no aplica ninguno** de los demás cambios |
 
 ## 13. Casos límite
 
@@ -199,9 +200,10 @@ Un producto se equivoca de nombre, se le escapa una falta en la descripción o c
 - **Nombre que solo difiere en mayúsculas o acentos del actual:** sí es un cambio —`Plan Oro` a `Plan oro`— y debe admitirse, porque el choque es contra **otros** productos, no contra uno mismo.
 - **Cambiar la moneda sin cambiar el precio:** el importe se reinterpreta en la moneda nueva y **su valor no se convierte**. Debe quedar escrito que el sistema no hace conversión de divisa: cambiar de moneda es declarar que ese número siempre estuvo en la otra.
 - **Precio con más decimales de los que admite la moneda nueva:** cambiar moneda y precio a la vez obliga a validar el precio contra la moneda **nueva**, no contra la anterior.
-- **Cambiar solo la moneda con un precio público ya guardado:** el que hay que medir contra la moneda nueva **es el que nadie tocó**. Es el caso que se olvida al añadir el segundo importe: se valida el que llega en la petición y se deja pasar el otro, que queda con más decimales de los que su moneda admite y **sin que nada falle**.
-- **Vaciar el precio público de un producto que nunca lo tuvo:** no cambia nada y **no emite evento**, como cualquier otra corrección que no corrige (`CA-PM-038`).
-- **Poner el precio público a cero:** es un cambio y se registra. **No equivale a vaciarlo**: uno anuncia «gratis» y el otro anuncia lo que cuesta.
+- **Cambiar solo la moneda con un precio de compra ya guardado:** el que hay que medir contra la moneda nueva **es el que nadie tocó**. Es el caso que se olvida al añadir el segundo importe: se valida el que llega en la petición y se deja pasar el otro, que queda con más decimales de los que su moneda admite y **sin que nada falle**.
+- **Vaciar el precio de compra de un producto que nunca lo tuvo:** no cambia nada y **no emite evento**, como cualquier otra corrección que no corrige (`CA-PM-038`).
+- **Poner el precio de compra a cero:** es un cambio y se registra. **No equivale a vaciarlo**: uno dice «no costó nada» y el otro dice «no se conoce».
+- **Precio de compra por encima del de venta:** se admite y no avisa. Vender por debajo del costo es una decisión comercial, y **ninguna regla compara los dos importes** (`requirements/pm.md` §5.2.6).
 - **Dos correcciones simultáneas del mismo producto:** la última debe quedar entera, y no una mezcla de las dos.
 
 ## 14. Preguntas abiertas
@@ -227,3 +229,4 @@ Ninguna. Dos se resolvieron el 26-08-2026 y **las otras dos quedaron respondidas
 | 0.4.0 | 28-08-2026 | **El icono se suma a lo corregible** (`RN-PM-016`), y con el criterio opuesto al del tipo: el tipo no se corrige porque define qué otorga el producto, mientras que el icono es su **aspecto** y cambiarlo no reescribe lo comprado. Admite vaciarse con nulo explícito, como la descripción y la vigencia. Lo que **no** admite excepción es la regla: en un producto de tipo bot el icono se rechaza con `VAL-013` aunque llegue en un `PATCH`. Entran `CA-PM-099` y `CA-PM-100`. | Responsable técnico |
 | 0.5.0 | 07-09-2026 | **El alcance y la implementación entran del lado corregible** (`RN-PM-019`, `RN-PM-020`), y esa es la única decisión de esta enmienda. La frontera de esta spec era «lo que define **qué derecho otorga** el producto no se toca»: el tipo, el código y las dos membresías. **Ninguna de las dos nuevas lo define** —una dice hasta dónde se muestra y la otra quién lo aplica—, de modo que congelarlas habría obligado a **registrar un producto nuevo para mover un enlace de sitio**, con lo vendido colgando del viejo. **Y no admiten vaciarse**, que es donde se apartan de la descripción, el icono y la vigencia: son obligatorias en la columna, y un nulo explícito no puede ser una orden de borrado de algo que no puede faltar — se rechaza con `VAL-007` y `VAL-008`. **Lo que se corrige aquí no reescribe ninguna venta anterior**, porque `RN-MV-002` obliga a que la venta **copie la implementación en su línea**; esa copia **todavía no está construida** (`requirements/mv.md` §5.4) y hasta que lo esté nadie lee este valor desde `MV`. Entran `CA-PM-119` a `CA-PM-122`. | Responsable del proyecto |
 | 0.6.0 | 08-09-2026 | **El precio público entra del lado corregible, y SÍ admite vaciarse** (`RN-PM-023`), por decisión del responsable del proyecto. Ahí va con la descripción, el icono y la vigencia y **no con el precio del sistema**: su nulo es un estado legítimo de la columna —«se anuncia con el precio del sistema»— de modo que el nulo explícito **es una orden** y no un error, mientras que el del sistema no tiene ningún estado al que «bórralo» pueda llevar el producto. **Y esa distinción decide algo que se ve en la tienda**: vaciarlo **no es ponerlo a cero** — uno anuncia lo que cuesta y el otro anuncia «gratis»—, de modo que los dos casos se prueban por separado (`CA-PM-154`, `CA-PM-156`). **`RN-PM-006` se relaja**: `VAL-004` pasa de «mayor que cero» a «no negativo» y **nombra el campo** que incumple, porque con dos importes un mensaje que no distingue obliga a probar los dos. **El paso 5 del flujo cambia de forma y ese es el cambio con más filo del día**: ya no se validan «los campos que llegan» sino **los importes que van a quedar** medidos contra la **moneda final**. Con dos precios aparece un caso que con uno no existía —cambiar **solo la moneda** deja sin caber a un importe que nadie tocó—, y el defecto **no falla**: guarda un precio con más decimales de los que su moneda admite. Entran `CA-PM-153` a `CA-PM-157` y cuatro casos límite. | Responsable del proyecto |
+| 0.7.0 | 12-09-2026 | **El segundo precio pasa a ser el de COMPRA**, por decisión del responsable del proyecto (`requirements/pm.md` v0.23.0 §5.2.6): lo que NEXUS paga por el producto cuando tiene que comprarlo. `purchasePrice` **sustituye** a `publicPrice`, y **esta operación es donde hoy se registra lo que costó**: corregible y vaciable exactamente como lo era el público, porque la forma era correcta — lo que cambia es lo que significa cada estado. **El nulo pasa de «se anuncia con el del sistema» a «no se conoce el costo»**, y el cero de «gratis» a «no costó nada»; siguen siendo dos estados distintos y se siguen probando por separado (`CA-PM-154`, `CA-PM-156`). `CA-PM-153` a `CA-PM-157` cambian de nombre de campo sin cambiar de forma; §13 gana el caso del costo por encima del precio, que se admite sin aviso. | Responsable del proyecto |

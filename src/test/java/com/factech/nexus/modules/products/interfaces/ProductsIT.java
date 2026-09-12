@@ -342,12 +342,12 @@ class ProductsIT extends IntegrationTestBase {
             alta(
                 """
                 {"scope":"TIENDA","implementation":"AUTOMATICA","code":"ASESORIA","type":"BOT","name":"Asesoría",
-                 "price":0,"publicPrice":0,"currencyId":"%s"}
+                 "price":0,"purchasePrice":0,"currencyId":"%s"}
                 """
                     .formatted(USD)))
         .andExpect(status().isCreated())
         .andExpect(jsonPath("$.price").value(0))
-        .andExpect(jsonPath("$.publicPrice").value(0));
+        .andExpect(jsonPath("$.purchasePrice").value(0));
   }
 
   @Test
@@ -357,22 +357,22 @@ class ProductsIT extends IntegrationTestBase {
             alta(
                 """
                 {"scope":"TIENDA","implementation":"AUTOMATICA","code":"ASESORIA","type":"BOT","name":"Asesoría",
-                 "price":49.99,"publicPrice":59.99,"currencyId":"%s"}
+                 "price":49.99,"purchasePrice":59.99,"currencyId":"%s"}
                 """
                     .formatted(USD)))
         .andExpect(status().isCreated())
         // Los dos con los decimales de SU moneda, no con la escala de la
         // columna: `59.99`, no `59.9900`.
         .andExpect(jsonPath("$.price").value(49.99))
-        .andExpect(jsonPath("$.publicPrice").value(59.99));
+        .andExpect(jsonPath("$.purchasePrice").value(59.99));
   }
 
   @Test
-  @DisplayName("`CA-PM-146` — sin precio público el campo llega PRESENTE y nulo, no ausente")
-  void sinPrecioPublico() throws Exception {
-    // Su nulo SIGNIFICA «se anuncia con el precio del sistema», y un campo que
-    // desaparece del JSON no puede decir eso — sería indistinguible de uno que
-    // el cliente no conoce.
+  @DisplayName("`CA-PM-146` — sin precio de compra el campo llega PRESENTE y nulo, no ausente")
+  void sinPrecioDeCompra() throws Exception {
+    // Su nulo SIGNIFICA «no se conoce el costo», y un campo que desaparece del
+    // JSON no puede decir eso — sería indistinguible de uno que el cliente no
+    // conoce.
     mvc.perform(
             alta(
                 """
@@ -381,61 +381,61 @@ class ProductsIT extends IntegrationTestBase {
                 """
                     .formatted(USD)))
         .andExpect(status().isCreated())
-        .andExpect(jsonPath("$.publicPrice").doesNotExist())
-        .andExpect(jsonPath("$").value(org.hamcrest.Matchers.hasKey("publicPrice")));
+        .andExpect(jsonPath("$.purchasePrice").doesNotExist())
+        .andExpect(jsonPath("$").value(org.hamcrest.Matchers.hasKey("purchasePrice")));
   }
 
   @Test
-  @DisplayName("`CA-PM-147` — un precio público negativo se rechaza, y el error nombra SU campo")
-  void precioPublicoNegativo() throws Exception {
+  @DisplayName("`CA-PM-147` — un precio de compra negativo se rechaza, y el error nombra SU campo")
+  void precioDeCompraNegativo() throws Exception {
     mvc.perform(
             alta(
                 """
                 {"scope":"TIENDA","implementation":"AUTOMATICA","code":"ASESORIA","type":"BOT","name":"Asesoría",
-                 "price":49.99,"publicPrice":-1,"currencyId":"%s"}
+                 "price":49.99,"purchasePrice":-1,"currencyId":"%s"}
                 """
                     .formatted(USD)))
         .andExpect(status().isBadRequest())
         // Con dos importes, un mensaje que no distingue obliga a probar los dos.
-        .andExpect(jsonPath("$.errors[0].field").value("publicPrice"));
+        .andExpect(jsonPath("$.errors[0].field").value("purchasePrice"));
 
     assertThat(cuantosProductos()).isZero();
   }
 
   @Test
   @DisplayName(
-      "`CA-PM-148` — el precio público con decimales de más se rechaza aunque el otro quepa")
-  void decimalesDelPrecioPublico() throws Exception {
+      "`CA-PM-148` — el precio de compra con decimales de más se rechaza aunque el otro quepa")
+  void decimalesDelPrecioDeCompra() throws Exception {
     mvc.perform(
             alta(
                 """
                 {"scope":"TIENDA","implementation":"AUTOMATICA","code":"ASESORIA","type":"BOT","name":"Asesoría",
-                 "price":10.00,"publicPrice":10.005,"currencyId":"%s"}
+                 "price":10.00,"purchasePrice":10.005,"currencyId":"%s"}
                 """
                     .formatted(USD)))
         .andExpect(status().isBadRequest())
         .andExpect(jsonPath("$.errors[0].code").value("VAL-005"))
         // El del sistema SÍ cabe: sin el campo en el error, quien lo recibe
         // tendría que probar los dos para saber cuál corregir.
-        .andExpect(jsonPath("$.errors[0].field").value("publicPrice"));
+        .andExpect(jsonPath("$.errors[0].field").value("purchasePrice"));
 
     assertThat(cuantosProductos()).isZero();
   }
 
   @Test
-  @DisplayName("`CA-PM-150` — la instantánea del evento de creación incluye el precio público")
-  void laInstantaneaLlevaElPrecioPublico() throws Exception {
+  @DisplayName("`CA-PM-150` — la instantánea del evento de creación incluye el precio de compra")
+  void laInstantaneaLlevaElPrecioDeCompra() throws Exception {
     mvc.perform(
             alta(
                 """
                 {"scope":"TIENDA","implementation":"AUTOMATICA","code":"ASESORIA","type":"BOT","name":"Asesoría",
-                 "price":49.99,"publicPrice":59.99,"currencyId":"%s"}
+                 "price":49.99,"purchasePrice":59.99,"currencyId":"%s"}
                 """
                     .formatted(USD)))
         .andExpect(status().isCreated());
 
-    // Es el único sitio donde queda escrito CON QUÉ SE ANUNCIABA un producto
-    // que después se corrige.
+    // Es el único sitio donde queda escrito CUÁNTO COSTÓ un producto cuyo costo
+    // después se corrige.
     String cambios =
         jdbc.queryForObject(
             """
@@ -444,7 +444,25 @@ class ProductsIT extends IntegrationTestBase {
              ORDER BY occurred_at DESC LIMIT 1
             """,
             String.class);
-    assertThat(cambios).contains("public_price").contains("59.99");
+    assertThat(cambios).contains("purchase_price").contains("59.99");
+    // La clave vieja no vuelve: los eventos anteriores al 12-09-2026 la llevan.
+    assertThat(cambios).doesNotContain("public_price");
+  }
+
+  @Test
+  @DisplayName("`publicPrice` dejó de existir el 12-09-2026: es una propiedad desconocida y es 400")
+  void elNombreViejoDelSegundoPrecioSeRechaza() throws Exception {
+    // El segundo precio pasó de «lo que se anuncia» a «lo que NEXUS paga», y con
+    // el significado cambió el nombre. Ignorar el viejo en silencio dejaría a un
+    // cliente creyendo que declaró un precio público que ya no existe.
+    mvc.perform(
+            alta(
+                """
+                {"scope":"TIENDA","implementation":"AUTOMATICA","code":"ASESORIA","type":"BOT","name":"Asesoría",
+                 "price":49.99,"publicPrice":59.99,"currencyId":"%s"}
+                """
+                    .formatted(USD)))
+        .andExpect(status().isBadRequest());
   }
 
   @Test

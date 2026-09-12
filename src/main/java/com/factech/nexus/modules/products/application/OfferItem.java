@@ -44,7 +44,6 @@ public record OfferItem(
     String icon,
     ProductResponse.MembershipRef targetMembership,
     BigDecimal price,
-    BigDecimal publicPrice,
     ProductResponse.CurrencyRef currency,
     ExchangeRef exchange,
     Integer validityDays,
@@ -63,14 +62,16 @@ public record OfferItem(
    * alcance a propósito. La única transformación es la escala, que la decide la <b>moneda</b> y no
    * la columna, y la aplica {@link ProductPrice} para las tres respuestas del módulo por igual.
    *
-   * <p><b>Y desde el 08-09-2026 viajan LOS DOS importes</b> (`RN-PM-024`, reescrita ese mismo día):
-   * {@code price} es el del sistema —el que se cobra— y {@code publicPrice} el anunciado,
-   * <b>nulo</b> cuando el producto no lo declara. Durante unas horas esta lectura publicó <b>uno
-   * solo</b>, resuelto por un {@code COALESCE} en la consulta; ahora la consulta selecciona los dos
-   * y aquí no se elige nada.
+   * <p><b>Viaja UN importe, y el precio de compra no tiene dónde ir</b> (`RN-PM-024`, 12-09-2026):
+   * este registro <b>no tiene el campo</b>, y {@code findOffer} <b>no selecciona la columna</b>, de
+   * modo que {@code fila.purchasePrice()} llega nulo a propósito. Es lo único que sostiene que el
+   * costo de NEXUS —el margen— no salga a quien compra: añadir el campo aquí «por simetría» con
+   * {@code ProductItem} lo publicaría sin que nada fallara, y `CA-PM-160` existe para que falle.
+   * Entre el 08-09-2026 y el 12-09-2026 este registro tuvo {@code publicPrice}, cuando ese importe
+   * era lo que se anunciaba.
    *
-   * <p><b>Lo que sí elige un solo importe es la conversión</b>: se calcula sobre el que se muestra
-   * —el público si existe y el del sistema si no—, y por eso llega ya resuelta desde el servicio.
+   * <p><b>La conversión se calcula sobre {@code price}</b>, y por eso llega ya resuelta desde el
+   * servicio.
    */
   public static OfferItem from(ProductRow fila, ExchangeRef conversion) {
     return new OfferItem(
@@ -89,9 +90,6 @@ public record OfferItem(
                 fila.targetMembershipLevel(),
                 fila.targetMembershipColor()),
         ProductPrice.enLaEscalaDe(fila.price(), fila.currencyDecimalPlaces()),
-        fila.publicPrice() == null
-            ? null
-            : ProductPrice.enLaEscalaDe(fila.publicPrice(), fila.currencyDecimalPlaces()),
         new ProductResponse.CurrencyRef(
             fila.currencyId(), fila.currencyCode(), fila.currencyDecimalPlaces()),
         conversion,

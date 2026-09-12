@@ -16,8 +16,9 @@ import java.util.UUID;
  *     es bot
  * @param targetMembershipId a cuál lleva. Mismas condiciones
  * @param icon identificador del icono; opcional en el upgrade y prohibido en el bot (`RN-PM-016`)
- * @param publicPrice el precio con el que el producto se anuncia; {@code null} significa que se
- *     anuncia con el del sistema, y <b>no</b> que valga cero (`RN-PM-023`). No se cobra
+ * @param purchasePrice lo que NEXUS paga por el producto cuando tiene que comprarlo; {@code null}
+ *     significa que no se conoce, y <b>no</b> que costara cero (`RN-PM-023`). No se cobra y no sale
+ *     de administración (`RN-PM-024`)
  * @param validityDays días que dura lo adquirido; {@code null} significa que no caduca
  * @param scope hasta dónde se muestra el producto. Obligatorio en los dos tipos (`RN-PM-019`)
  * @param implementation si lo comprado se aplica solo o espera autorización (`RN-PM-020`)
@@ -31,7 +32,7 @@ public record RegisterProductCommand(
     UUID sourceMembershipId,
     UUID targetMembershipId,
     BigDecimal price,
-    BigDecimal publicPrice,
+    BigDecimal purchasePrice,
     UUID currencyId,
     Integer validityDays,
     ProductScope scope,

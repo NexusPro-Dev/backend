@@ -8,7 +8,7 @@
 | Estado | **Aprobado** |
 | Autor | Responsable técnico |
 | Aprobado por | Responsable del proyecto |
-| Enmendado el | 27-08-2026 — `RN-PM-015`; 02-09-2026 — **la oferta deja de comparar niveles**; 02-09-2026 — `products:sale`; 07-09-2026 — el **alcance** y la **implementación** en la respuesta, **sin filtro** (`RN-PM-019`, `RN-PM-020`), y **construida la coincidencia por ORIGEN** (`T-20`) con la **renovación** dentro; 08-09-2026 — **un solo importe, el que se muestra** (`RN-PM-023`, `RN-PM-024`), §4 y §5 |
+| Enmendado el | 27-08-2026 — `RN-PM-015`; 02-09-2026 — **la oferta deja de comparar niveles**; 02-09-2026 — `products:sale`; 07-09-2026 — el **alcance** y la **implementación** en la respuesta, **sin filtro** (`RN-PM-019`, `RN-PM-020`), y **construida la coincidencia por ORIGEN** (`T-20`) con la **renovación** dentro; 08-09-2026 — **un solo importe, el que se muestra** (`RN-PM-023`, `RN-PM-024`), §4 y §5; 12-09-2026 — **el segundo precio es el de COMPRA y no se selecciona** (`RN-PM-024`), §4 y §5 |
 | Fecha de aprobación | 26-08-2026 |
 
 ---
@@ -57,7 +57,7 @@ Es la tercera y última lectura de D-25, y la única que este requerimiento estr
 - **`currentMembership` es `null` presente** en quien no tiene nivel, no ausente.
 - **Los upgrades ordenados por nivel destino; los bots por fecha de alta** (`CA-PM-078`). El orden **sí** sigue mirando el `level` del destino, y no contradice lo anterior: ordenar no es filtrar. Presenta primero el salto más alto, que es la información que quien compra quiere ver arriba.
 - **La membresía de origen no viaja en cada producto**: es siempre la del actor, que ya va en `currentMembership`. Repetirla en cada fila sería decir tres veces lo mismo, y la tercera acabaría desincronizada.
-- **`price` y `publicPrice` viajan los dos, y con ellos `exchange`** (08-09-2026, `RN-PM-024` **reescrita**): `price` es el del sistema —el que se cobra— y `publicPrice` el anunciado, **nulo** cuando el producto no lo declara. La consulta **selecciona los dos** y ya no resuelve ningún `COALESCE`. `OfferItem` gana **dos campos**: `publicPrice` y `exchange`.
+- **`price` viaja solo, y con él `exchange`** (12-09-2026, `RN-PM-024` reescrita por tercera vez): `price` es el que se cobra y `exchange` su conversión. **El precio de compra no viaja**: `OfferItem` **no tiene el campo** y la consulta **no lo selecciona**. Entre el 08-09-2026 y el 12-09-2026 `OfferItem` tuvo `publicPrice`, cuando ese importe era lo que se anunciaba; convertido en el costo de NEXUS, publicarlo enseñaría el margen (`requirements/pm.md` §5.2.6).
 - **Y la conversión de la página se resuelve en DOS consultas, no en una por fila**: la moneda de casa una vez y las tasas de todas las monedas presentes en una sola sentencia. El diseño está escrito una sola vez, en [`002-consultar-productos/plan.md` §4.1](../002-consultar-productos/plan.md), porque es el mismo aquí y allí y duplicarlo dejaría dos versiones que divergen. Lo mide `CA-PM-168` **contando sentencias**, no leyendo el cuerpo.
 
 !!! important "Por qué el campo NO se renombra a `displayPrice`"
@@ -66,7 +66,7 @@ Es la tercera y última lectura de D-25, y la única que este requerimiento estr
 
     Lo que sí cambia —y por eso se escribe aquí y en `spec.md` §13— es que **ese número puede no ser el que la venta cobre**. Quien construya la pantalla de compra tiene que saberlo: el importe que confirme `RF-MV-002` sale de `products.price`, no de este campo.
 
-- **Y la resolución va en el `SELECT` y no en el modelo de lectura**, aunque `ProductRow` ya lleve los dos importes para el catálogo administrativo. El motivo es cuál de las dos formas puede equivocarse en silencio: con la elección hecha en Java, `OfferItem` recibe **los dos** y elige uno — y el día que alguien añada un campo al registro, el otro sale publicado sin que ninguna prueba lo note. Con `COALESCE` en la consulta, **por esta lectura solo viaja un número**.
+- **Y la exclusión va en el `SELECT` y no en el modelo de lectura**, aunque `ProductRow` lleve el precio de compra para el catálogo administrativo. El motivo es cuál de las dos formas puede equivocarse en silencio: si la consulta lo trajera y `OfferItem` lo callara, el costo estaría dentro del objeto que se serializa, **a un campo de distancia** — y el día que alguien añada el campo al registro «por simetría», el margen sale publicado sin que ninguna prueba lo note. Con la columna fuera del `SELECT`, `ProductRow.purchasePrice` llega **nulo** desde esta lectura y **no hay nada que publicar**. Es el mismo argumento que sostuvo el `COALESCE` el 08-09-2026 por la mañana, con el otro importe.
 
 !!! warning "`/products/available` compite con `/products/{id}`"
 
@@ -80,7 +80,7 @@ Una sola sentencia, con la membresía del actor como parámetro:
 - **Upgrades**: solo aquellos cuyo `source_membership_id` **es** la membresía vigente del actor. Coincidencia exacta, sin comparar niveles y sin recorrer la cadena. Quien declaró el producto ya dijo a quién va dirigido.
 - **Sin membresía** —el actor no tiene ninguna vigente—: **cero upgrades** y todos los bots (`FA-001`), y **sale del propio filtro**: el nulo no coincide con ningún origen. Antes había que escribirlo aparte.
 - **Bots**: todos los activos, sin filtro (`spec.md` §14, resolución 2).
-- **Los dos importes se seleccionan por separado**: `p.price AS price` y `p.public_price AS public_price`. Hasta el 08-09-2026 esta consulta resolvía `COALESCE(p.public_price, p.price)` y **no seleccionaba el segundo**; con `RN-PM-024` reescrita los dos llegan a `ProductRow` y los dos viajan.
+- **Solo se selecciona `p.price`** (12-09-2026). Entre el 08-09-2026 y esa fecha la consulta seleccionaba también `p.public_price`; con el segundo importe convertido en `purchase_price` —el costo— **sale del `SELECT`**, y `ProductRow.purchasePrice` llega nulo a propósito desde esta lectura.
 
 !!! success "Escrito el 02-09-2026, construido el 07-09-2026 — y lo que lo desatascó fue la renovación"
 
@@ -122,7 +122,7 @@ Ninguna.
 | 1 | **Un nivel se queda sin oferta y nadie se entera**: si nadie declara un upgrade desde `VIP`, quien esté en `VIP` no ve ninguna subida — sin error y sin aviso, y el catálogo se ve bien desde administración | Es el coste aceptado de la enmienda del 02-09-2026, escrito en la cabecera de `spec.md`. La cobertura de la cadena **deja de ser automática** y pasa a ser una responsabilidad de quien mantiene el catálogo |
 | 2 | La cadena se reordena entre dos consultas y la oferta cambia sin que nadie tocara productos | Es correcto y está en `spec.md` §13. La prueba lo fija para que nadie lo «arregle» |
 | 3 | Los bots crecen y la respuesta se vuelve grande | La envoltura permite paginar después sin romper el contrato; el disparador es que los bots activos pasen de unas decenas |
-| 4 | **El precio del sistema acaba publicado sin autenticar**, por un campo añadido a `OfferItem` «por simetría» con el catálogo administrativo | La única defensa es que el registro **no tenga** ese campo y que la consulta **no lo seleccione**. `CA-PM-160` prueba la ausencia; sin esa prueba, el defecto entra en cualquier ampliación rutinaria y **no falla nada** |
+| 4 | **El precio de compra acaba publicado**, por un campo añadido a `OfferItem` «por simetría» con el catálogo administrativo, y con él el margen de NEXUS | La única defensa es que el registro **no tenga** ese campo y que la consulta **no lo seleccione**. `CA-PM-160` prueba la ausencia con un producto que **sí** lo tiene declarado; sin esa prueba, el defecto entra en cualquier ampliación rutinaria y **no falla nada**. Entre el 08-09-2026 y el 12-09-2026 este riesgo no existía porque el segundo importe se publicaba a propósito |
 | 5 | **Se enseña un importe y se cobra otro**, y quien construye la pantalla no lo sabe | Es consecuencia aceptada (`requirements/pm.md` §5.2.4) y **no se corrige aquí**. Queda escrito en §4 y en `spec.md` §13, que es lo único que este plan puede hacer: el importe que confirma `RF-MV-002` sale de `products.price` |
 
 ## 11. Estrategia de prueba
@@ -142,5 +142,5 @@ Ninguna.
 | Parámetros ignorados | API | Enviar `userId` no cambia la respuesta |
 | La ruta literal no se confunde con `{id}` | API | `available` responde `200`, no `400` |
 | Colecciones envueltas | API | La respuesta tiene `upgrades.content`, no un arreglo en la raíz |
-| **El precio que se publica** | API | Un producto **con** precio público publica ese (`CA-PM-158`); uno **sin** él publica el del sistema (`CA-PM-159`) |
-| **Que no se publique el otro** | API | El cuerpo trae **un** campo de importe por producto: se comprueba la **ausencia** del segundo (`CA-PM-160`), que es lo único que sostiene `RN-PM-024` |
+| **El precio que se publica** | API | `price`, tenga o no el producto precio de compra declarado (`CA-PM-158`) |
+| **Que no se publique el otro** | API | El cuerpo trae **un** campo de importe por producto: se comprueba la **ausencia** de `purchasePrice` con un producto que sí lo declara (`CA-PM-160`), que es lo único que sostiene `RN-PM-024` |

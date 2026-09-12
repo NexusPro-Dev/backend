@@ -42,7 +42,7 @@ public record ProductItem(
     ProductResponse.MembershipRef sourceMembership,
     ProductResponse.MembershipRef targetMembership,
     BigDecimal price,
-    BigDecimal publicPrice,
+    BigDecimal purchasePrice,
     ProductResponse.CurrencyRef currency,
     ExchangeRef exchange,
     Integer validityDays,
@@ -84,10 +84,11 @@ public record ProductItem(
                 fila.targetMembershipLevel(),
                 fila.targetMembershipColor()),
         ProductPrice.enLaEscalaDe(fila.price(), fila.currencyDecimalPlaces()),
-        // Nulo y presente donde el producto no lo declara (`CA-PM-151`).
-        fila.publicPrice() == null
+        // El precio de compra, nulo y presente donde no se conoce (`CA-PM-151`).
+        // Viaja porque este listado exige `products:read` (`RN-PM-024`).
+        fila.purchasePrice() == null
             ? null
-            : ProductPrice.enLaEscalaDe(fila.publicPrice(), fila.currencyDecimalPlaces()),
+            : ProductPrice.enLaEscalaDe(fila.purchasePrice(), fila.currencyDecimalPlaces()),
         new ProductResponse.CurrencyRef(
             fila.currencyId(), fila.currencyCode(), fila.currencyDecimalPlaces()),
         conversion,

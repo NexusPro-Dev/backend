@@ -8,7 +8,7 @@
 | Estado | **Aprobado** |
 | Autor | Responsable técnico |
 | Aprobado por | Responsable del proyecto |
-| Enmendado el | 27-08-2026 — `RN-PM-015`; 02-09-2026 — la membresía de **origen** (`RN-PM-017`, `RN-PM-018`); 07-09-2026 — el **alcance** y la **implementación**, corregibles y **no vaciables** (`RN-PM-019`, `RN-PM-020`); 08-09-2026 — el **precio público**, corregible y **sí vaciable** (`RN-PM-023`), y el paso 5 reescrito, §5 |
+| Enmendado el | 27-08-2026 — `RN-PM-015`; 02-09-2026 — la membresía de **origen** (`RN-PM-017`, `RN-PM-018`); 07-09-2026 — el **alcance** y la **implementación**, corregibles y **no vaciables** (`RN-PM-019`, `RN-PM-020`); 08-09-2026 — el **precio público**, corregible y **sí vaciable** (`RN-PM-023`), y el paso 5 reescrito, §5; 12-09-2026 — **el segundo precio es el de COMPRA** (`purchasePrice`), §4 |
 | Fecha de aprobación | 26-08-2026 |
 
 ---
@@ -43,7 +43,7 @@ Aquí la distinción decide dos comportamientos opuestos: **la descripción admi
 - **`description: null` la borra; `name: null` se rechaza** (`VAL-002`).
 - **No se exige motivo** (`spec.md` §14, resolución 2).
 - **El alcance y la implementación se corrigen, y el nulo explícito NO los vacía.** Son los dos primeros campos `Patchable` del módulo con **tres** estados en los que el tercero es un rechazo: ausente deja como está, con valor corrige, y **presente con nulo devuelve `400`** — al revés que la descripción, el icono y la vigencia, donde el nulo es una orden de borrado. La diferencia no es de gusto: aquellos admiten faltar en la columna y estos no, de modo que «bórralo» no tiene ningún estado al que llevar el producto.
-- **`publicPrice` se corrige y el nulo explícito SÍ lo vacía** (08-09-2026). Va con la descripción, el icono y la vigencia, **no** con el alcance y la implementación: la columna admite nulo, y ese nulo **significa** «se anuncia con el precio del sistema». `price`, en cambio, se suma a los campos cuyo nulo se rechaza — es `NOT NULL`, y dejarlo pasar produciría un fallo de integridad, un `500` donde corresponde un `400` que nombre el campo.
+- **`purchasePrice` se corrige y el nulo explícito SÍ lo vacía** (08-09-2026, con el nombre nuevo desde el 12-09-2026). Va con la descripción, el icono y la vigencia, **no** con el alcance y la implementación: la columna admite nulo, y ese nulo **significa** «no se conoce el costo». Es el campo donde se guarda **lo que NEXUS pagó** por el producto, y esta operación es hoy la única que lo escribe. `price`, en cambio, se suma a los campos cuyo nulo se rechaza — es `NOT NULL`, y dejarlo pasar produciría un fallo de integridad, un `500` donde corresponde un `400` que nombre el campo. **`publicPrice` es desde el 12-09-2026 una propiedad desconocida** y devuelve `400`.
 - **El diff los lleva como cualquier otro campo**, con `before` y `after`, y por el motivo de siempre: el diff lo devuelve **quien aplica el cambio** y no el caso de uso comparando antes y después, de modo que un campo que no entre en el diff es un campo que no se audita — y eso se ve en la misma línea en que se asigna.
 
 ## 5. Orden de verificación
@@ -63,14 +63,14 @@ Es el contrato de esta operación, y por eso se escribe:
 
     | Llega | Qué hay que medir contra la moneda final |
     |---|---|
-    | `price` | El `price` nuevo **y** el `publicPrice` que ya estaba |
-    | `publicPrice` | El `publicPrice` nuevo **y** el `price` que ya estaba |
+    | `price` | El `price` nuevo **y** el `purchasePrice` que ya estaba |
+    | `purchasePrice` | El `purchasePrice` nuevo **y** el `price` que ya estaba |
     | Solo `currencyId` | **Los dos que ya estaban** |
-    | `publicPrice: null` | Solo el `price` que ya estaba: el otro **desaparece**, y un importe que no existe no tiene decimales que medir |
+    | `purchasePrice: null` | Solo el `price` que ya estaba: el otro **desaparece**, y un importe que no existe no tiene decimales que medir |
 
     El defecto que esto evita **no falla**: guarda en la fila un importe con más decimales de los que su moneda admite, y ese producto sale del catálogo con un precio que `RN-PM-007` prohíbe — descubierto meses después, al mirar por qué un total no cuadra.
 
-    Y el rechazo **nombra el campo que no cabe** (`VAL-005` sobre `price` o sobre `publicPrice`): con dos importes y un solo mensaje, quien lo recibe tiene que probar los dos para saber cuál corregir.
+    Y el rechazo **nombra el campo que no cabe** (`VAL-005` sobre `price` o sobre `purchasePrice`): con dos importes y un solo mensaje, quien lo recibe tiene que probar los dos para saber cuál corregir.
 
 !!! warning "La unicidad del nombre se comprueba ANTES de tocar el agregado"
 
@@ -107,8 +107,8 @@ Consume el **catálogo de monedas** de `SP` cuando llega precio o moneda. Ningun
 |---|---|---|
 | 1 | La unicidad excluyendo al propio producto se olvida, y corregir la descripción sin tocar el nombre acaba rechazándose | Prueba dedicada: enviar el nombre actual no es un duplicado consigo mismo |
 | 2 | Cambiar moneda y precio a la vez se valida contra la moneda anterior | El orden de §5 lo fija, y la prueba usa monedas de distinta escala |
-| 3 | **Se valida el importe que llega y se deja pasar el otro.** Es el riesgo propio de tener dos precios, y no falla: guarda un importe con más decimales de los que su moneda admite | El paso 5 mide **los dos importes finales** contra la moneda final, y la prueba cambia **solo la moneda** con un precio público ya guardado que no cabe en la nueva (`CA-PM-157`) |
-| 4 | **Vaciar el precio público se confunde con ponerlo a cero** en la implementación o en la prueba | Son dos criterios distintos y separados a propósito (`CA-PM-154` y `CA-PM-156`): uno deja la columna nula y el otro le escribe un cero, y en la tienda uno anuncia lo que cuesta y el otro anuncia «gratis» |
+| 3 | **Se valida el importe que llega y se deja pasar el otro.** Es el riesgo propio de tener dos precios, y no falla: guarda un importe con más decimales de los que su moneda admite | El paso 5 mide **los dos importes finales** contra la moneda final, y la prueba cambia **solo la moneda** con un precio de compra ya guardado que no cabe en la nueva (`CA-PM-157`) |
+| 4 | **Vaciar el precio de compra se confunde con ponerlo a cero** en la implementación o en la prueba | Son dos criterios distintos y separados a propósito (`CA-PM-154` y `CA-PM-156`): uno deja la columna nula y el otro le escribe un cero, y en un informe de márgenes uno dice «no se conoce» y el otro «no costó nada» |
 
 ## 11. Estrategia de prueba
 
@@ -118,8 +118,8 @@ Consume el **catálogo de monedas** de `SP` cuando llega precio o moneda. Ningun
 | **Ausente ≠ vacío** | API | Vaciar la descripción la borra; el nombre vacío se rechaza; el campo ausente no se toca |
 | Tipo, código, origen o destino en la petición | API | `400`, no se ignoran |
 | Nombre igual al actual | API | No es duplicado consigo mismo |
-| Moneda nueva con otra escala | API | **Los dos** precios se validan contra la **nueva**, y el caso central es cambiar **solo la moneda** con un precio público ya guardado |
-| El precio público, en sus cuatro estados | API | Corregido, **vaciado con nulo**, puesto a **cero** y ausente. Los dos primeros son criterios distintos: uno devuelve el producto a anunciarse con el precio del sistema y el otro lo anuncia gratis |
+| Moneda nueva con otra escala | API | **Los dos** precios se validan contra la **nueva**, y el caso central es cambiar **solo la moneda** con un precio de compra ya guardado |
+| El precio de compra, en sus cuatro estados | API | Corregido, **vaciado con nulo**, puesto a **cero** y ausente. Los dos primeros son criterios distintos: uno deja el costo sin conocer y el otro declara que no costó nada |
 | `price: null` | API | `400` con `VAL-004` sobre `price`, y **ningún** otro cambio aplicado |
 | Número de sentencias | Integración | Bloqueo, unicidad **solo si el nombre cambió**, `UPDATE` y evento |
 | Sin evento si nada cambió | Integración | `audit_change_log` no crece |

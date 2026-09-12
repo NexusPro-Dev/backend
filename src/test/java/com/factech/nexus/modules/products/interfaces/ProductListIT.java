@@ -477,10 +477,10 @@ class ProductListIT extends IntegrationTestBase {
   }
 
   @Test
-  @DisplayName("`CA-PM-151` — cada fila trae los DOS precios, y el público nulo y presente")
+  @DisplayName("`CA-PM-151` — cada fila trae los DOS precios, y el de compra nulo y presente")
   void cadaFilaTraeLosDosPrecios() throws Exception {
     jdbc.update(
-        "UPDATE products SET public_price = CAST('59.99' AS numeric) WHERE code = 'UPGRADE_ORO'");
+        "UPDATE products SET purchase_price = CAST('59.99' AS numeric) WHERE code = 'UPGRADE_ORO'");
 
     // El listado y el detalle son los DOS ÚNICOS sitios donde los dos importes
     // se ven juntos, y lo que los separa de la oferta es `products:read`.
@@ -488,15 +488,15 @@ class ProductListIT extends IntegrationTestBase {
         .andExpect(status().isOk())
         .andExpect(jsonPath("$.content[0].code").value("UPGRADE_ORO"))
         .andExpect(jsonPath("$.content[0].price").exists())
-        .andExpect(jsonPath("$.content[0].publicPrice").value(59.99));
+        .andExpect(jsonPath("$.content[0].purchasePrice").value(59.99));
 
     // Y en un producto que no lo declara, el campo va PRESENTE con nulo: su
-    // nulo significa «se anuncia con el precio del sistema».
+    // nulo significa «no se conoce el costo».
     mvc.perform(listado().param("targetMembershipId", plata.toString()))
         .andExpect(status().isOk())
         .andExpect(jsonPath("$.content[0].code").value("UPGRADE_PLATA"))
-        .andExpect(jsonPath("$.content[0].publicPrice").doesNotExist())
-        .andExpect(jsonPath("$.content[0]").value(org.hamcrest.Matchers.hasKey("publicPrice")));
+        .andExpect(jsonPath("$.content[0].purchasePrice").doesNotExist())
+        .andExpect(jsonPath("$.content[0]").value(org.hamcrest.Matchers.hasKey("purchasePrice")));
   }
 
   private MockHttpServletRequestBuilder listado() {

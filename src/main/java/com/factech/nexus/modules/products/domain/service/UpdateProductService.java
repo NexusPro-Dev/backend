@@ -120,7 +120,7 @@ public class UpdateProductService {
             peticion.description(),
             peticion.icon(),
             peticion.price(),
-            peticion.publicPrice(),
+            peticion.purchasePrice(),
             peticion.currencyId(),
             peticion.validityDays(),
             peticion.scope(),
@@ -148,10 +148,7 @@ public class UpdateProductService {
                     null,
                     conversiones
                         .para(java.util.List.of(fila.currencyId()))
-                        .de(
-                            fila.currencyId(),
-                            ProductExchangeResolver.importeMostrado(
-                                fila.price(), fila.publicPrice()))))
+                        .de(fila.currencyId(), fila.price())))
         .orElseThrow(
             () ->
                 new ResourceNotFoundException(
@@ -266,7 +263,7 @@ public class UpdateProductService {
     // EL DEL SISTEMA NO ADMITE VACIARSE: la columna es `NOT NULL` y «bórralo»
     // no tiene ningún estado al que llevar el producto. Y desde el 08-09-2026
     // ADMITE CERO (`RN-PM-006`): lo que tumbó el «mayor que cero» fue la
-    // renovación de una membresía gratuita, no el precio público.
+    // renovación de una membresía gratuita, no el segundo precio.
     if (peticion.price().presente()) {
       BigDecimal valor = peticion.price().valor();
       if (valor == null) {
@@ -276,15 +273,15 @@ public class UpdateProductService {
       }
     }
 
-    // EL PÚBLICO SÍ ADMITE VACIARSE, y ahí va con la descripción, el icono y la
-    // vigencia: el nulo explícito es una ORDEN —«devuélvelo a anunciarse con el
-    // precio del sistema»— y no un error. Lo único que se rechaza es el
-    // negativo.
-    if (peticion.publicPrice().presente()) {
-      BigDecimal valor = peticion.publicPrice().valor();
+    // EL DE COMPRA SÍ ADMITE VACIARSE, y ahí va con la descripción, el icono y
+    // la vigencia: el nulo explícito es una ORDEN —«el costo no se conoce»— y
+    // no un error. Lo único que se rechaza es el negativo.
+    if (peticion.purchasePrice().presente()) {
+      BigDecimal valor = peticion.purchasePrice().valor();
       if (valor != null && valor.compareTo(BigDecimal.ZERO) < 0) {
         problemas.add(
-            new FieldError("publicPrice", "VAL-004", "El precio público no puede ser negativo."));
+            new FieldError(
+                "purchasePrice", "VAL-004", "El precio de compra no puede ser negativo."));
       }
     }
 
@@ -366,10 +363,10 @@ public class UpdateProductService {
   private void verificarPrecioYMoneda(UpdateProductRequest peticion, Product producto) {
     boolean cambiaMoneda = presenteConValor(peticion.currencyId());
     boolean cambiaPrecio = presenteConValor(peticion.price());
-    // El público entra en el disparador aunque llegue NULO, porque vaciarlo
+    // El de compra entra en el disparador aunque llegue NULO, porque vaciarlo
     // también cambia lo que va a quedar — deja de haber un importe que medir.
-    boolean tocaPublico = peticion.publicPrice().presente();
-    if (!cambiaMoneda && !cambiaPrecio && !tocaPublico) {
+    boolean tocaCompra = peticion.purchasePrice().presente();
+    if (!cambiaMoneda && !cambiaPrecio && !tocaCompra) {
       return;
     }
 
@@ -402,11 +399,11 @@ public class UpdateProductService {
     // que su moneda admite, y ese producto sale del catálogo con un precio que
     // `RN-PM-007` prohíbe.
     BigDecimal precioFinal = cambiaPrecio ? peticion.price().valor() : producto.getPrice();
-    BigDecimal publicoFinal =
-        tocaPublico ? peticion.publicPrice().valor() : producto.getPublicPrice();
+    BigDecimal compraFinal =
+        tocaCompra ? peticion.purchasePrice().valor() : producto.getPurchasePrice();
 
     verificarDecimales(precioFinal, "price", moneda);
-    verificarDecimales(publicoFinal, "publicPrice", moneda);
+    verificarDecimales(compraFinal, "purchasePrice", moneda);
   }
 
   /**

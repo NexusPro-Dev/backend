@@ -14,6 +14,7 @@
 | Enmendada el | 07-09-2026 — **el color de las membresías, incluida la del actor** (`RN-SP-024`). Ver §15 |
 | Enmendada el | 08-09-2026 — **la oferta publica UN precio, y es el que se muestra** (`RN-PM-023`, `RN-PM-024`). Ver §15 |
 | Enmendada el | 08-09-2026 — **los DOS precios y la conversión** al reescribirse `RN-PM-024`; `CA-PM-160` se retira y nacen `CA-PM-167` y `CA-PM-168`. Ver §15 |
+| Enmendada el | 12-09-2026 — **el segundo precio es el de COMPRA y SALE de la oferta** (`RN-PM-024`, reescrita por tercera vez): `publicPrice` desaparece, `CA-PM-160` vuelve como prueba de ausencia y `CA-PM-159` se retira. Ver §15 |
 
 ---
 
@@ -71,8 +72,8 @@ El catálogo de `RF-PM-002` lo lee quien administra y contiene todo. Lo que un c
 | `RN-PM-011` | **La oferta coincide por ORIGEN**, no compara niveles | `requirements/pm.md` §5.1 |
 | `RN-PM-019` | El alcance es **acumulativo**, y por eso **no filtra** esta consulta | `requirements/pm.md` §5.2.2 |
 | `RN-PM-020` | La implementación dice si lo comprado se aplica solo o espera autorización | `requirements/pm.md` §5.1 |
-| `RN-PM-023` | **El precio público es opcional y no se cobra** | `requirements/pm.md` §5.1 |
-| `RN-PM-024` | **Toda lectura devuelve los dos precios y la conversión** (reescrita el 08-09-2026) | `requirements/pm.md` §5.1 |
+| `RN-PM-023` | **El precio de compra es opcional y no se cobra** — es lo que NEXUS paga por el producto, y esta lectura no lo conoce | `requirements/pm.md` §5.1 |
+| `RN-PM-024` | **El precio de compra no sale de administración; el precio y la conversión salen en toda lectura** (reescrita el 12-09-2026) — la oferta devuelve `price` y `exchange`, y **no selecciona** el de compra | `requirements/pm.md` §5.1 |
 | `RN-SP-018` | Todo consumidor tiene membresía | `requirements/sp.md` §5.1 |
 
 ## 6. Datos
@@ -85,8 +86,8 @@ El catálogo de `RF-PM-002` lo lee quien administra y contiene todo. Lo que un c
 
 | Dato | Descripción |
 |---|---|
-| Productos ofrecibles | Identificador, código, tipo, nombre, descripción, **los dos precios** con su moneda y **vigencia en días**. **El precio no se ajusta por nivel**: dos personas ven el mismo importe para el mismo producto |
-| **Los DOS importes, y la conversión** | `price` —el del sistema, el que se cobra— y `publicPrice` —el anunciado, **nulo** si el producto no lo declara— (`RN-PM-024`, reescrita el 08-09-2026). Hasta esa fecha viajaba **uno solo**, resuelto por un `COALESCE` que el cliente no veía. Viaja además `exchange`, la conversión a la moneda por omisión del importe **que se muestra**, **presente y nula** cuando no hay nada que convertir |
+| Productos ofrecibles | Identificador, código, tipo, nombre, descripción, **el precio** con su moneda y **vigencia en días**. **El precio no se ajusta por nivel**: dos personas ven el mismo importe para el mismo producto |
+| **UN importe, y la conversión** | `price` —el que se cobra— y `exchange`, su conversión a la moneda por omisión, **presente y nula** cuando no hay nada que convertir (`RN-PM-024`, reescrita el 12-09-2026). **El precio de compra no viaja ni se selecciona**: es lo que NEXUS paga por el producto, y quien compra no tiene por qué conocer el margen. Entre el 08-09-2026 y el 12-09-2026 viajó un segundo importe, `publicPrice`, cuando ese importe era lo que se anunciaba |
 | Alcance e implementación | Los dos, en cada producto. **El alcance no filtra esta consulta** —es acumulativo y los dos valores llegan a la tienda—; la implementación viaja para que quien compra sepa **antes de pagar** si lo que se lleva se le entrega en el acto |
 | Orden | **Agrupados por tipo**: primero los upgrades ordenados por **nivel destino**, después los bots por fecha de alta |
 | Membresía destino | En los upgrades: código, nombre y **nivel**, para que quien mira entienda a dónde sube |
@@ -172,10 +173,10 @@ Ninguna: la consulta no admite entrada.
 | `CA-PM-108` | Un upgrade **hacia** la membresía del actor, declarado desde una inferior, **no se le ofrece**: ya está ahí |
 | `CA-PM-123` | El sistema devuelve **el alcance y la implementación** de cada producto ofrecido, en los dos tipos |
 | `CA-PM-124` | El sistema ofrece **los productos de los dos alcances**: uno de `TIENDA` y otro de `HOTLINKS` aparecen los dos, porque la escala es acumulativa y esta consulta **no filtra por ella** |
-| `CA-PM-158` | El sistema publica **los dos importes** de un producto que declara precio público: `price` con el del sistema y `publicPrice` con el anunciado |
-| `CA-PM-159` | El sistema publica `publicPrice` **nulo y presente** en un producto que no declara precio público, y `price` con el del sistema |
-| ~~`CA-PM-160`~~ | ~~La respuesta trae **un solo campo de importe** por producto~~ — **retirado el 08-09-2026** al reescribirse `RN-PM-024`: trae los dos |
-| `CA-PM-167` | El sistema devuelve la **conversión** de cada producto, calculada sobre el importe que se muestra, y **presente y nula** cuando no hay nada que convertir |
+| `CA-PM-158` | El sistema publica `price` —el que se cobra— de cada producto, con los decimales de su moneda, **tenga o no** precio de compra declarado |
+| ~~`CA-PM-159`~~ | ~~El sistema publica `publicPrice` **nulo y presente** en un producto que no declara precio público~~ — **retirado el 12-09-2026**: el campo ya no existe en esta respuesta |
+| `CA-PM-160` | La respuesta trae **un solo campo de importe** por producto: `purchasePrice` **no aparece en el cuerpo** aunque el producto lo tenga declarado — **retirado el 08-09-2026 y REPUESTO el 12-09-2026**, cuando el segundo importe pasó a ser el costo |
+| `CA-PM-167` | El sistema devuelve la **conversión** de cada producto, calculada **sobre `price`**, y **presente y nula** cuando no hay nada que convertir |
 | `CA-PM-168` | El sistema resuelve la conversión de una página **sin una consulta por producto**: la moneda de casa una vez y las tasas en una sola sentencia |
 
 ## 13. Casos límite
@@ -185,8 +186,9 @@ Ninguna: la consulta no admite entrada.
 - **Dos upgrades activos hacia niveles distintos, ambos superiores:** se ofrecen los dos. `RN-PM-004` acota un upgrade por **destino**, no uno en total.
 - **Un upgrade se desactiva mientras el actor mira la pantalla:** la consulta siguiente ya no lo trae. No hay reserva ni bloqueo: esta consulta no promete que lo que devuelve seguirá disponible.
 - **Actor sin ningún rol de consumidor pero con membresía:** `RN-SP-018` lo hace imposible. Se enumera para que quede escrito que no se defiende ese caso.
-- **Un producto con precio público 0 y precio del sistema mayor:** se publica **el cero**, porque es lo que el producto declara como anuncio. La oferta no compara los dos importes ni «corrige» el que le parezca raro: quien los declara es quien decide (`requirements/pm.md` §5.2.4).
-- **El precio público se corrige mientras el actor mira la pantalla:** la consulta siguiente trae el nuevo. Esta consulta no reserva ni promete nada, igual que con la desactivación de un producto.
+- **Un producto con precio de compra por encima del precio:** se publica **`price`** y nada más. La oferta no conoce el costo ni avisa de que se vende por debajo de él: quien los declara es quien decide (`requirements/pm.md` §5.2.6).
+- **El precio se corrige mientras el actor mira la pantalla:** la consulta siguiente trae el nuevo. Esta consulta no reserva ni promete nada, igual que con la desactivación de un producto.
+- **El precio de compra se declara o se vacía entre dos consultas:** la respuesta **no cambia en nada**. Es la prueba de que el campo no se selecciona: un cambio en él no puede notarse desde aquí.
 - **Lo que esta consulta enseña puede no ser lo que la venta cobre.** Es la consecuencia aceptada del cambio del 08-09-2026, y **no se corrige aquí**: la venta cobra el precio del sistema (`RF-MV-001`, `RF-MV-002`) y el comprobante lo dice. Queda escrito para que nadie lo interprete como un defecto de esta spec.
 
 ## 14. Preguntas abiertas
@@ -217,3 +219,4 @@ Ninguna. Las cinco se resolvieron el 26-08-2026, antes de aprobar la especificac
 | 0.6.0 | 07-09-2026 | **La oferta trae el COLOR de las membresías** (`RN-SP-024`): el del destino de cada upgrade **y el de la membresía vigente de quien mira**, que viaja en `currentMembership`. Es donde más se nota: la pantalla de venta pinta «estás en X, sube a Y» y hasta hoy no tenía con qué colorear ninguno de los dos. Sale de `CurrentMembershipLookup` y del `LEFT JOIN` que la consulta ya hace, **sin ninguna llamada extra**. Entra `CA-PM-144`. | Responsable del proyecto |
 | 0.7.0 | 08-09-2026 | **La oferta publica UN precio, y es el que se muestra** (`RN-PM-023`, `RN-PM-024`), por decisión del responsable del proyecto: el **público** si el producto lo declara y el **del sistema** si no. **No viajan los dos, ni un indicador de cuál es**, y esa es toda la regla: publicar el par enseñaría **la diferencia entre lo que se anuncia y lo que se cobra**, que es la decisión comercial que el segundo precio existe para no enseñar. Lo que separa esta respuesta del catálogo administrativo —donde los dos sí se ven— es `products:read`. **El campo no se renombra**, y se descartó hacerlo: quien consume esta respuesta siempre ha leído «el precio que se le enseña a esta persona», y cambiarle el nombre rompería a todo cliente de la tienda por un cambio que no cambia lo que el campo significa **para quien lo lee**. Lo que sí cambia, y queda escrito en §13, es que **ese número puede no ser el que la venta cobre**: es la consecuencia aceptada de `requirements/pm.md` §5.2.4, no se corrige aquí, y el comprobante de `RF-MV-002` sí dice el importe cobrado. **`CA-PM-090` se reescribe sin cambiar de sentido**: el precio sigue sin ajustarse **por quién mira** — cuál de los dos se publica lo decide **el producto**, no el actor, de modo que dos personas de niveles distintos siguen viendo el mismo importe. Entran `CA-PM-158` a `CA-PM-160`, y el tercero prueba una **ausencia**: que la respuesta no tenga un segundo campo de importe es lo único que sostiene la regla. | Responsable del proyecto |
 | 0.8.0 | 08-09-2026 | **La oferta publica los DOS precios y la conversión**, por decisión del responsable del proyecto y **sobre la advertencia de lo que cuesta** ([`requirements/pm.md`](../../../requirements/pm.md) v0.22.0 §5.2.5). Es la reversión de la enmienda 0.7.0, tomada el mismo día: `RN-PM-024` pasa de «un solo importe» a «los dos y la conversión». `CA-PM-158` y `CA-PM-159` cambian de sentido —ahora afirman que **los dos** campos llegan, con `publicPrice` **nulo y presente** cuando no se declara— y **`CA-PM-160` muere**, porque exigía justo lo contrario. Nacen `CA-PM-167`, la conversión de cada producto, y **`CA-PM-168`, que es la que tiene filo**: la oferta es una **lista**, de modo que resolver la conversión por fila sería el `N+1` que este módulo lleva seis requerimientos evitando. Se resuelve con **la moneda de casa una vez y las tasas de todas las monedas presentes en una sola sentencia**, y el criterio se mide contando sentencias, no leyendo el cuerpo — porque el cuerpo sería idéntico con veinte consultas. | Responsable del proyecto |
+| 0.9.0 | 12-09-2026 | **El segundo precio pasa a ser el de COMPRA y sale de la oferta**, por decisión del responsable del proyecto ([`requirements/pm.md`](../../../requirements/pm.md) v0.23.0 §5.2.6). Cuando el segundo importe era lo que se anunciaba, publicarlo aquí era una decisión de forma (0.8.0); ahora que es **lo que NEXUS paga**, publicarlo enseña el margen a quien compra. `OfferItem` **pierde `publicPrice`**, `findOffer` **deja de seleccionar** el segundo importe, y la conversión se calcula **sobre `price`**. `CA-PM-158` se reescribe —publica `price`, tenga o no costo—, `CA-PM-159` se retira, **`CA-PM-160` vuelve** como prueba de ausencia y `CA-PM-167` deja de hablar de «el que se muestra». §13 gana el caso de que declarar o vaciar el costo **no cambia esta respuesta**. | Responsable del proyecto |

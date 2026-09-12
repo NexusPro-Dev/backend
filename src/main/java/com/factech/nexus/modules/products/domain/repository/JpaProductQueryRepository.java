@@ -56,7 +56,7 @@ public class JpaProductQueryRepository implements ProductQueryRepository {
                m.level AS m_level, m.color AS m_color,
                p.source_membership_id AS s_id, s.code AS s_code, s.name AS s_name,
                s.level AS s_level, s.color AS s_color,
-               p.price AS price, p.public_price AS public_price,
+               p.price AS price, p.purchase_price AS purchase_price,
                p.currency_id AS c_id, c.code AS c_code,
                c.decimal_places AS c_decimales,
                p.validity_days AS validity_days, p.scope AS scope,
@@ -101,7 +101,9 @@ public class JpaProductQueryRepository implements ProductQueryRepository {
               entero(fila.get("m_level")),
               (String) fila.get("m_color"),
               (BigDecimal) fila.get("price"),
-              (BigDecimal) fila.get("public_price"),
+              // El precio de compra viaja SOLO en las dos lecturas de
+              // administración —esta y el detalle— (`RN-PM-024`).
+              (BigDecimal) fila.get("purchase_price"),
               (UUID) fila.get("c_id"),
               (String) fila.get("c_code"),
               ((Number) fila.get("c_decimales")).intValue(),
@@ -148,7 +150,7 @@ public class JpaProductQueryRepository implements ProductQueryRepository {
                        m.level AS m_level, m.color AS m_color, m.color AS m_color,
                        p.source_membership_id AS s_id, s.code AS s_code, s.name AS s_name,
                        s.level AS s_level, s.color AS s_color, s.color AS s_color,
-                       p.price AS price, p.public_price AS public_price,
+                       p.price AS price, p.purchase_price AS purchase_price,
                        p.currency_id AS c_id, c.code AS c_code,
                        c.decimal_places AS c_decimales,
                        p.validity_days AS validity_days, p.scope AS scope,
@@ -187,7 +189,7 @@ public class JpaProductQueryRepository implements ProductQueryRepository {
                     entero(fila.get("m_level")),
                     (String) fila.get("m_color"),
                     (BigDecimal) fila.get("price"),
-                    (BigDecimal) fila.get("public_price"),
+                    (BigDecimal) fila.get("purchase_price"),
                     (UUID) fila.get("c_id"),
                     (String) fila.get("c_code"),
                     ((Number) fila.get("c_decimales")).intValue(),
@@ -252,7 +254,7 @@ public class JpaProductQueryRepository implements ProductQueryRepository {
                        s.level AS s_level, s.color AS s_color, s.color AS s_color,
                        p.target_membership_id AS m_id, m.code AS m_code, m.name AS m_name,
                        m.level AS m_level, m.color AS m_color, m.color AS m_color,
-                       p.price AS price, p.public_price AS public_price,
+                       p.price AS price,
                        p.currency_id AS c_id, c.code AS c_code,
                        c.decimal_places AS c_decimales,
                        p.validity_days AS validity_days, p.scope AS scope,
@@ -296,11 +298,13 @@ public class JpaProductQueryRepository implements ProductQueryRepository {
               entero(fila.get("m_level")),
               (String) fila.get("m_color"),
               (BigDecimal) fila.get("price"),
-              // Los DOS importes desde el 08-09-2026 (`RN-PM-024` reescrita).
-              // Hasta esa fecha aquí iba `null` y el de arriba venía resuelto
-              // con un `COALESCE`, para que por esta lectura solo viajara un
-              // número: era la oferta, y la decisión se revirtió a conciencia.
-              (BigDecimal) fila.get("public_price"),
+              // NULO A PROPÓSITO: el precio de compra es el costo de NEXUS y
+              // esta consulta NO LO SELECCIONA (`RN-PM-024`, 12-09-2026). Si lo
+              // trajera, estaría a un campo de distancia de publicarse en la
+              // oferta. Entre el 08-09-2026 y el 12-09-2026 aquí viajó el
+              // precio público, cuando el segundo importe era lo que se
+              // anunciaba.
+              null,
               (UUID) fila.get("c_id"),
               (String) fila.get("c_code"),
               ((Number) fila.get("c_decimales")).intValue(),
@@ -346,7 +350,7 @@ public class JpaProductQueryRepository implements ProductQueryRepository {
                        m.level AS m_level, m.color AS m_color,
                        p.source_membership_id AS s_id, s.code AS s_code, s.name AS s_name,
                        s.level AS s_level, s.color AS s_color,
-                       p.price AS price, p.public_price AS public_price,
+                       p.price AS price,
                        p.currency_id AS c_id, c.code AS c_code,
                        c.decimal_places AS c_decimales,
                        p.validity_days AS validity_days, p.scope AS scope,
@@ -371,11 +375,11 @@ public class JpaProductQueryRepository implements ProductQueryRepository {
   /**
    * La proyección, en un solo sitio: dos copias divergirían campo a campo.
    *
-   * <p><b>La usa solo {@code findPublishedByCode}</b>, que es la lectura <b>pública</b>. Desde el
-   * 08-09-2026 selecciona <b>los dos importes</b> (`RN-PM-024` reescrita): hasta entonces resolvía
-   * el que se muestra con un {@code COALESCE} y dejaba {@code publicPrice} nulo a propósito, para
-   * que por esta lectura no pudiera viajar el precio del sistema ni por descuido. Ahora viaja <b>a
-   * propósito</b>, sin token, y lo que eso publica está en `requirements/pm.md` §5.2.5.
+   * <p><b>La usa solo {@code findPublishedByCode}</b>, que es la lectura <b>pública</b>. <b>No
+   * selecciona el precio de compra</b> y deja {@code purchasePrice} nulo a propósito (`RN-PM-024`,
+   * 12-09-2026): es el costo de NEXUS, y por esta lectura —<b>sin token</b>— no debe poder viajar
+   * ni por descuido. Entre el 08-09-2026 y el 12-09-2026 seleccionó los dos importes, cuando el
+   * segundo era lo que se anunciaba (`requirements/pm.md` §5.2.5 y §5.2.6).
    */
   private static ProductRow fila(Tuple fila) {
     return new ProductRow(
@@ -396,9 +400,9 @@ public class JpaProductQueryRepository implements ProductQueryRepository {
         entero(fila.get("m_level")),
         (String) fila.get("m_color"),
         (BigDecimal) fila.get("price"),
-        // Los DOS importes desde el 08-09-2026: aquí iba `null` a propósito
-        // mientras `RN-PM-024` prohibía publicar el del sistema sin token.
-        (BigDecimal) fila.get("public_price"),
+        // NULO A PROPÓSITO: el costo no se selecciona en la lectura sin token
+        // (`RN-PM-024`, 12-09-2026). Ver el Javadoc de arriba.
+        null,
         (UUID) fila.get("c_id"),
         (String) fila.get("c_code"),
         ((Number) fila.get("c_decimales")).intValue(),

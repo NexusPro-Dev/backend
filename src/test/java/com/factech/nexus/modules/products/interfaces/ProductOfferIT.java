@@ -416,31 +416,61 @@ class ProductOfferIT extends IntegrationTestBase {
   }
 
   // ---------------------------------------------------------------------------
-  // El precio que se publica (`RN-PM-024`) — 08-09-2026
+  // El precio que se publica (`RN-PM-024`) — 08-09-2026; el de compra SALE de
+  // aquí desde el 12-09-2026
   // ---------------------------------------------------------------------------
 
   @Test
-  @DisplayName("`CA-PM-158` — con precio público viajan LOS DOS importes")
-  void publicaLosDosImportes() throws Exception {
-    declararPrecioPublico("UP_ORO", "149.00");
+  @DisplayName("`CA-PM-158` — se publica `price`, tenga o no el producto precio de compra")
+  void publicaElPrecioQueSeCobra() throws Exception {
+    declararPrecioDeCompra("UP_ORO", "60.00");
 
     mvc.perform(oferta(enFree))
         .andExpect(status().isOk())
         .andExpect(jsonPath("$.upgrades.content[3].code").value("UP_ORO"))
-        // `price` es SIEMPRE el del sistema desde el 08-09-2026, y ya no «el
-        // que se muestra»: hasta ese día aquí se esperaba 149,00.
-        .andExpect(jsonPath("$.upgrades.content[3].price").value(100.00))
-        .andExpect(jsonPath("$.upgrades.content[3].publicPrice").value(149.00));
+        // `price` es SIEMPRE el que se cobra, y el costo no lo altera.
+        .andExpect(jsonPath("$.upgrades.content[3].price").value(100.00));
   }
 
   @Test
-  @DisplayName("`CA-PM-159` — sin precio público, `publicPrice` llega NULO Y PRESENTE")
-  void elPublicoLlegaNuloYPresente() throws Exception {
-    mvc.perform(oferta(enFree))
-        .andExpect(status().isOk())
-        .andExpect(jsonPath("$.upgrades.content[3].code").value("UP_ORO"))
-        .andExpect(jsonPath("$.upgrades.content[3].price").value(100.00))
-        .andExpect(jsonPath("$.upgrades.content[3].publicPrice").value(Matchers.nullValue()));
+  @DisplayName(
+      "`CA-PM-160` — el precio de compra NO aparece en el cuerpo, aunque el producto lo declare")
+  void elPrecioDeCompraNoViaja() throws Exception {
+    // Se declara A PROPÓSITO antes de mirar: la ausencia solo prueba algo si
+    // había un valor que ocultar. Es el costo de NEXUS —el margen—, y lo único
+    // que sostiene que no salga es que `OfferItem` no tenga el campo y la
+    // consulta no lo seleccione. Un campo añadido «por simetría» con el listado
+    // haría fallar esta prueba, que es para lo que existe.
+    declararPrecioDeCompra("UP_ORO", "60.00");
+
+    String cuerpo =
+        mvc.perform(oferta(enFree))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.upgrades.content[3].code").value("UP_ORO"))
+            .andExpect(jsonPath("$.upgrades.content[3].price").value(100.00))
+            .andExpect(jsonPath("$.upgrades.content[3].purchasePrice").doesNotExist())
+            .andExpect(jsonPath("$.upgrades.content[3].publicPrice").doesNotExist())
+            .andReturn()
+            .getResponse()
+            .getContentAsString();
+
+    // Ni bajo el nombre nuevo, ni bajo el viejo, ni el importe suelto en
+    // ninguna otra clave.
+    assertThat(cuerpo).doesNotContain("purchasePrice").doesNotContain("publicPrice");
+    assertThat(cuerpo).doesNotContain("60.00").doesNotContain("60.0,");
+  }
+
+  @Test
+  @DisplayName("declarar o vaciar el precio de compra NO cambia la respuesta de la oferta")
+  void elCostoNoSeNotaDesdeLaOferta() throws Exception {
+    String antes = mvc.perform(oferta(enFree)).andReturn().getResponse().getContentAsString();
+    declararPrecioDeCompra("UP_ORO", "60.00");
+    String despues = mvc.perform(oferta(enFree)).andReturn().getResponse().getContentAsString();
+
+    // Es la prueba de que la columna no se selecciona: un cambio en ella no
+    // puede notarse desde aquí, ni siquiera en la conversión, que se calcula
+    // sobre `price`.
+    assertThat(despues).isEqualTo(antes);
   }
 
   @Test
@@ -489,10 +519,10 @@ class ProductOfferIT extends IntegrationTestBase {
     assertThat(estadisticas.getPrepareStatementCount()).isLessThanOrEqualTo(4);
   }
 
-  /** Le pone precio público a un producto ya sembrado, que es lo que la siembra no hace. */
-  private void declararPrecioPublico(String codigo, String importe) {
+  /** Le pone precio de compra a un producto ya sembrado, que es lo que la siembra no hace. */
+  private void declararPrecioDeCompra(String codigo, String importe) {
     jdbc.update(
-        "UPDATE products SET public_price = CAST(? AS numeric) WHERE code = ?", importe, codigo);
+        "UPDATE products SET purchase_price = CAST(? AS numeric) WHERE code = ?", importe, codigo);
   }
 
   // ---------------------------------------------------------------------------

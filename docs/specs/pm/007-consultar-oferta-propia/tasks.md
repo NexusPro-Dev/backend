@@ -3,7 +3,7 @@
 | Campo | Valor |
 |---|---|
 | Requerimiento | `RF-PM-007` |
-| Enmendadas | 02-09-2026 — `pm.md` §5.2.1 declara que la oferta pasará a coincidir por **origen** (`T-20`); 07-09-2026 — `T-21` por el **alcance** y la **implementación**, que se publican y **no filtran**, y `T-22` por la **renovación**; ese mismo día se **cierra `T-20`**, cinco días después de escribirse; 08-09-2026 — `T-24` y `T-25` por el **precio a mostrar** |
+| Enmendadas | 02-09-2026 — `pm.md` §5.2.1 declara que la oferta pasará a coincidir por **origen** (`T-20`); 07-09-2026 — `T-21` por el **alcance** y la **implementación**, que se publican y **no filtran**, y `T-22` por la **renovación**; ese mismo día se **cierra `T-20`**, cinco días después de escribirse; 08-09-2026 — `T-24` y `T-25` por el **precio a mostrar**; 12-09-2026 — `T-28` porque el segundo precio es el **de compra** y sale de la oferta |
 | Plan | [`plan.md`](plan.md), aprobado el 26-08-2026 |
 | Estado | **En curso** — `T-01` a `T-22` `Hecha`. `T-20` se cerró el 07-09-2026, y con ella la coincidencia por origen |
 | Autor | Responsable técnico |
@@ -50,6 +50,7 @@
 | `T-21` | El **alcance** y la **implementación** en `OfferItem` y en la sentencia de `findOffer`, **sin añadir ningún predicado sobre ellos** | `RF-PM-001 · T-28` | `CA-PM-123` y `CA-PM-124`: las dos llegan en cada producto ofrecido, y un producto de `TIENDA` y otro de `HOTLINKS` **aparecen los dos** — la prueba que verifica que nadie añadió el filtro «por simetría» con `RF-PM-002` | **Hecha el 07-09-2026** |
 | `T-26` | **Los dos importes y la conversión en la oferta**: `findOffer` selecciona `p.price` y `p.public_price` por separado —sin `COALESCE`— y `OfferItem` gana `publicPrice` y `exchange` | `RF-PM-002 · T-21` | `CA-PM-158` y `CA-PM-159` reescritos, `CA-PM-167` nuevo | **Hecha el 08-09-2026** |
 | `T-27` | **La prueba de sentencias de la oferta** | `T-26` | `CA-PM-168`: la conversión de la página cuesta **dos consultas** y no dos por producto | **Hecha el 08-09-2026** |
+| `T-28` | **El precio de compra sale de la oferta** (12-09-2026): `OfferItem` pierde `publicPrice`, `findOffer` deja de seleccionar el segundo importe, la conversión se calcula sobre `price`, y la prosa de la `@Operation` deja de hablar de dos importes | `RF-PM-001 · T-38` | `CA-PM-158` reescrito, **`CA-PM-160` repuesto**: con un producto que tiene costo declarado, el cuerpo **no trae** `purchasePrice` ni `publicPrice`. Es `T-25` de vuelta | **Hecha el 12-09-2026** |
 
 ## 2. Orden de ejecución
 
@@ -61,7 +62,7 @@
 
 ## 3. Cobertura de los criterios de aceptación
 
-> `CA-PM-158`, `CA-PM-159` y `CA-PM-167` → `T-26` · `CA-PM-168` → `T-27` · ~~`CA-PM-160`~~ retirado el 08-09-2026.
+> `CA-PM-158`, `CA-PM-159` y `CA-PM-167` → `T-26` · `CA-PM-168` → `T-27` · ~~`CA-PM-160`~~ retirado el 08-09-2026 · **`CA-PM-160` repuesto y `CA-PM-159` retirado el 12-09-2026** → `T-28`.
 
 | Criterio | Tareas |
 |---|---|
@@ -83,8 +84,8 @@
 | `CA-PM-126` | `T-22` |
 | `CA-PM-123`, `CA-PM-124` | `T-21` |
 | `CA-PM-144` | `T-23` |
-| `CA-PM-158`, `CA-PM-159` | `T-24` |
-| `CA-PM-160` | `T-25` |
+| `CA-PM-158`, ~~`CA-PM-159`~~ | `T-24`, `T-26`, `T-28` |
+| `CA-PM-160` | `T-25`, `T-28` |
 
 ## 4. Bloqueos
 

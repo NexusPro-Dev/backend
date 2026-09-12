@@ -9,7 +9,7 @@
 | Autor | Responsable técnico |
 | Aprobadas por | Responsable del proyecto |
 | Fecha de aprobación | 26-08-2026 |
-| Enmendadas | 28-08-2026 — `T-16` por el icono corregible; 07-09-2026 — `T-17` y `T-18` por el **alcance** y la **implementación**; 08-09-2026 — `T-19` a `T-21` por el **precio público** |
+| Enmendadas | 28-08-2026 — `T-16` por el icono corregible; 07-09-2026 — `T-17` y `T-18` por el **alcance** y la **implementación**; 08-09-2026 — `T-19` a `T-21` por el **precio público**; 12-09-2026 — `T-22` porque el segundo precio es el **de compra** |
 
 ---
 
@@ -38,6 +38,7 @@
 | `T-19` | El **precio público corregible y vaciable**: `Patchable<BigDecimal>` en el DTO, en `Product.update` y en el diff. **El nulo explícito lo VACÍA**, al revés que el alcance; y `price` se suma a los campos cuyo nulo se **rechaza** | `RF-PM-001 · T-34` | `CA-PM-153` a `CA-PM-156`. El vaciado y el cero son **dos pruebas distintas**: una deja la columna nula y la otra le escribe un cero | **Hecha el 08-09-2026** |
 | `T-20` | El paso 5 reescrito: **los dos importes finales** medidos contra la **moneda final**, con el `field` del que no cabe | `T-19` | `CA-PM-157`, y la prueba que lo destapa: cambiar **solo la moneda** con un precio público ya guardado que no cabe en la nueva. **Sin esta tarea el defecto no falla** — guarda un importe que `RN-PM-007` prohíbe | **Hecha el 08-09-2026** |
 | `T-21` | Documentación OpenAPI del campo corregible y **vaciable**, y de que `price` no lo es | `T-19`, `T-20` | El contrato distingue los dos: uno admite `null` y el otro lo rechaza | **Hecha el 08-09-2026** |
+| `T-22` | **El segundo precio es el de compra**: `purchasePrice` sustituye a `publicPrice` en `UpdateProductRequest`, en `UpdateProductService` —validación, paso 5 y `field` de los errores— y en el diff de `Product.update` (`purchase_price`); la prosa de la `@Operation` deja de decir «se anuncia» y dice que es donde se guarda lo que costó | `RF-PM-001 · T-38` | `CA-PM-153` a `CA-PM-157` con el nombre nuevo, en `ProductUpdateIT`. Enviar `publicPrice` es `400` por propiedad desconocida | **Hecha el 12-09-2026** |
 
 ## 2. Orden de ejecución
 
@@ -60,8 +61,8 @@
 | `CA-PM-083` | `T-10` |
 | `CA-PM-084` | `T-10` |
 | `CA-PM-119` a `CA-PM-122` | `T-17`, `T-18` |
-| `CA-PM-153` a `CA-PM-156` | `T-19` |
-| `CA-PM-157` | `T-20` |
+| `CA-PM-153` a `CA-PM-156` | `T-19`, `T-22` |
+| `CA-PM-157` | `T-20`, `T-22` |
 
 ## 4. Bloqueos
 

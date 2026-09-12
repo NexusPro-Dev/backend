@@ -24,9 +24,9 @@ import java.util.UUID;
  * consultas extra, porque la validación del alta ya lo trajo del catálogo que `SP` publica.
  *
  * <p><b>Lleva los DOS precios porque esta respuesta exige `products:create`</b> (`RN-PM-024`), que
- * solo tiene quien administra el catálogo. La oferta de `RF-PM-007` y el hotlink de `RF-PM-008`
- * devuelven <b>uno solo</b>: publicar el par enseñaría la diferencia entre lo que se anuncia y lo
- * que se cobra.
+ * solo tiene quien administra el catálogo. {@code purchasePrice} es lo que NEXUS paga por el
+ * producto —el costo—, y la oferta de `RF-PM-007` y el hotlink de `RF-PM-008` <b>no lo
+ * devuelven</b>: publicarlo enseñaría el margen a quien compra.
  */
 @JsonInclude(JsonInclude.Include.ALWAYS)
 public record ProductResponse(
@@ -39,7 +39,7 @@ public record ProductResponse(
     MembershipRef sourceMembership,
     MembershipRef targetMembership,
     BigDecimal price,
-    BigDecimal publicPrice,
+    BigDecimal purchasePrice,
     CurrencyRef currency,
     ExchangeRef exchange,
     Integer validityDays,
@@ -73,10 +73,12 @@ public record ProductResponse(
         ref(origen),
         ref(destino),
         enLaEscalaDe(producto.getPrice(), moneda),
-        // Nulo y PRESENTE cuando el producto no lo declara: su nulo SIGNIFICA
-        // «se anuncia con el precio del sistema», y un campo ausente no puede
-        // decir eso (`CA-PM-146`).
-        producto.getPublicPrice() == null ? null : enLaEscalaDe(producto.getPublicPrice(), moneda),
+        // Nulo y PRESENTE cuando no se conoce: su nulo SIGNIFICA «todavía no
+        // tiene costo declarado», y un campo ausente no puede decir eso
+        // (`CA-PM-146`).
+        producto.getPurchasePrice() == null
+            ? null
+            : enLaEscalaDe(producto.getPurchasePrice(), moneda),
         new CurrencyRef(moneda.id(), moneda.code(), moneda.decimalPlaces()),
         conversion,
         producto.getValidityDays(),

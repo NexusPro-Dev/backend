@@ -125,7 +125,7 @@ public class RegisterProductService {
                 comando.sourceMembershipId(),
                 comando.targetMembershipId(),
                 comando.price(),
-                comando.publicPrice(),
+                comando.purchasePrice(),
                 comando.currencyId(),
                 comando.validityDays(),
                 comando.scope(),
@@ -141,11 +141,7 @@ public class RegisterProductService {
         moneda,
         // El alta responde con la misma forma que las lecturas: quien acaba de
         // registrar un producto ve su conversión sin tener que volver a pedirlo.
-        conversiones
-            .para(java.util.List.of(moneda.id()))
-            .de(
-                moneda.id(),
-                ProductExchangeResolver.importeMostrado(nuevo.getPrice(), nuevo.getPublicPrice())));
+        conversiones.para(java.util.List.of(moneda.id())).de(moneda.id(), nuevo.getPrice()));
   }
 
   /**
@@ -179,10 +175,10 @@ public class RegisterProductService {
     //
     // LOS DOS IMPORTES, y cada rechazo NOMBRA SU CAMPO: con dos precios, un
     // mensaje que no distingue obliga a probar los dos para saber cuál corregir.
-    // El público solo se mide si llega — nulo significa que no se declara, y un
-    // importe que no existe no tiene decimales.
+    // El de compra solo se mide si llega — nulo significa que no se conoce, y
+    // un importe que no existe no tiene decimales.
     verificarDecimales(comando.price(), "price", moneda);
-    verificarDecimales(comando.publicPrice(), "publicPrice", moneda);
+    verificarDecimales(comando.purchasePrice(), "purchasePrice", moneda);
     return moneda;
   }
 

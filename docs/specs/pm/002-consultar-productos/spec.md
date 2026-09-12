@@ -12,6 +12,7 @@
 | Enmendada el | 07-09-2026 — **las membresías resueltas traen su color** (`RN-SP-024`). Ver §15 |
 | Enmendada el | 07-09-2026 — **dos filtros nuevos: alcance e implementación** (`RN-PM-019`, `RN-PM-020`). Ver §15 |
 | Enmendada el | 08-09-2026 — **cada fila trae los DOS precios** (`RN-PM-023`, `RN-PM-024`). Ver §15 |
+| Enmendada el | 12-09-2026 — **el segundo precio es el de COMPRA** (`RN-PM-023`, `RN-PM-024`): `purchasePrice` sustituye a `publicPrice`, y la conversión se calcula siempre sobre `price`. Ver §15 |
 
 ---
 
@@ -56,8 +57,8 @@ Con `RF-PM-001` se puede **crear** un producto y no **verlo**: quien administra 
 | `RN-PM-010` | El producto no desaparece: el retiro es lógico | `requirements/pm.md` §5.1 |
 | `RN-PM-019` | El alcance dice hasta dónde se muestra, y es **acumulativo** | `requirements/pm.md` §5.1 |
 | `RN-PM-020` | La implementación dice si lo comprado se aplica solo o espera autorización | `requirements/pm.md` §5.1 |
-| `RN-PM-023` | **El precio público es opcional y no se cobra** | `requirements/pm.md` §5.1 |
-| `RN-PM-024` | **Toda lectura devuelve los dos precios y la conversión** | `requirements/pm.md` §5.1 |
+| `RN-PM-023` | **El precio de compra es opcional y no se cobra** — es lo que NEXUS paga por el producto | `requirements/pm.md` §5.1 |
+| `RN-PM-024` | **El precio de compra no sale de administración; el precio y la conversión salen en toda lectura** — este listado es una de las dos lecturas que lo devuelven | `requirements/pm.md` §5.1 |
 | `RN-PM-024` | **El precio del sistema no sale de administración** — y este listado **es** administración | `requirements/pm.md` §5.1 |
 
 ## 6. Datos
@@ -75,14 +76,14 @@ Con `RF-PM-001` se puede **crear** un producto y no **verlo**: quien administra 
 | Implementación | No | Filtra por si lo comprado se aplica solo o espera autorización | Uno de los valores admitidos |
 | Búsqueda | No | Coincidencia parcial sobre el nombre | En blanco equivale a ausente |
 | Incluir retirados | No | Si se devuelven también los productos eliminados | Por omisión **no** se devuelven |
-| Orden | No | Por qué campo se ordena y en qué sentido | **Lista cerrada**: nombre, precio o fecha de alta. Cualquier otro valor se rechaza. **`precio` es el del sistema**, y el público **no se añade a la lista**: ordenar por lo que se anuncia no responde ninguna pregunta de quien administra, y la lista se amplía cuando alguien la necesite y no antes |
+| Orden | No | Por qué campo se ordena y en qué sentido | **Lista cerrada**: nombre, precio o fecha de alta. Cualquier otro valor se rechaza. **`precio` es el del sistema**, y el de compra **no se añade a la lista**: ordenar por costo puede responder una pregunta de quien administra —qué margen deja cada producto—, pero ordenar por una columna que admite nulos obliga a decidir dónde van los que no lo conocen, y la lista se amplía cuando alguien la necesite y con esa decisión escrita |
 
 ### 6.2 Salida
 
 | Dato | Descripción |
 |---|---|
 | Productos | Identificador, tipo, nombre, descripción, **icono**, **los dos precios** con su moneda, **vigencia en días**, estado y —en los upgrades— la membresía destino con su nombre y su nivel |
-| Los dos precios | El **del sistema** —el que se cobra— y el **público** —el que se anuncia—, este **presente y nulo** cuando el producto no lo declara (`RN-PM-023`). **Este listado y el detalle son los dos únicos sitios donde se pueden ver juntos**, y por eso exigen `products:read` (`RN-PM-024`) |
+| Los dos precios | El **del sistema** —el que se cobra— y el **de compra** —lo que NEXUS paga por el producto—, este **presente y nulo** cuando no se conoce (`RN-PM-023`). **Este listado y el detalle son los dos únicos sitios donde se pueden ver juntos**, y por eso exigen `products:read`: la oferta y el hotlink **no devuelven** el de compra, porque es el margen (`RN-PM-024`, 12-09-2026) |
 | Alcance e implementación | En **todas** las filas y en los dos tipos: hasta dónde se muestra el producto y quién aplica lo que otorga |
 | Marca de retiro | En los retirados, que lo están y desde cuándo |
 | Total | Cuántos productos cumplen el filtro |
@@ -161,8 +162,8 @@ Con `RF-PM-001` se puede **crear** un producto y no **verlo**: quien administra 
 | `CA-PM-116` | El sistema filtra por **implementación**, admite el valor en minúsculas y **rechaza el que está fuera del dominio junto al resto de parámetros inválidos**, no por separado |
 | `CA-PM-117` | Cada fila del listado devuelve **el alcance y la implementación**, en los dos tipos de producto |
 | `CA-PM-142` | El sistema devuelve el **color** de las dos membresías de cada upgrade, resueltas en la misma sentencia |
-| `CA-PM-151` | Cada fila devuelve **los dos precios**: el del sistema siempre, y el público **presente y nulo** en los productos que no lo declaran |
-| `CA-PM-164` | Cada fila devuelve la **conversión** a la moneda por omisión —moneda, tasa e importe—, calculada sobre el importe **que se muestra**, y **presente y nula** cuando el producto ya está en esa moneda o cuando no hay tasa vigente |
+| `CA-PM-151` | Cada fila devuelve **los dos precios**: el del sistema siempre, y el de compra —`purchasePrice`— **presente y nulo** en los productos que no lo conocen |
+| `CA-PM-164` | Cada fila devuelve la **conversión** a la moneda por omisión —moneda, tasa e importe—, calculada **sobre `price`** —el de compra nunca se convierte—, y **presente y nula** cuando el producto ya está en esa moneda o cuando no hay tasa vigente |
 | `CA-PM-165` | El sistema resuelve la conversión de una página **sin una consulta por fila**: la moneda por omisión una vez y las tasas de todas las monedas presentes en una sola sentencia |
 
 ## 13. Casos límite
@@ -198,3 +199,4 @@ Ninguna. Las cuatro se resolvieron el 26-08-2026, antes de aprobar la especifica
 | 0.5.0 | 07-09-2026 | **Las membresías resueltas del listado traen su COLOR** (`RN-SP-024`). Sale del mismo `LEFT JOIN` que ya trae el código, el nombre y el nivel, de modo que **no cuesta ninguna consulta más** — que es exactamente el motivo por el que el destino entra por un `JOIN` y no fila a fila por el puerto. Entra `CA-PM-142`. | Responsable del proyecto |
 | 0.6.0 | 08-09-2026 | **Cada fila trae los DOS precios** (`RN-PM-023`, `RN-PM-024`): el del sistema —el que se cobra— y el público —el que se anuncia—, este **presente y nulo** en los productos que no lo declaran. **Este listado y `RF-PM-003` son los dos únicos sitios donde se pueden ver juntos**, y eso no es un detalle de forma: `RF-PM-007` y `RF-PM-008` devuelven **uno solo**, porque publicar el par enseñaría la diferencia entre lo que se anuncia y lo que se cobra. Lo que separa unos de otros es `products:read`. **El orden no crece**: la lista cerrada sigue siendo nombre, precio y fecha de alta, y su `precio` es **el del sistema** — ordenar por lo anunciado no responde ninguna pregunta de quien administra, y la lista se ampliará cuando alguien la necesite y no antes. **Tampoco entra un filtro por precio público**: el filtro por rango de precio salió del alcance el 26-08-2026 y este cambio no lo reabre. Entra `CA-PM-151`. | Responsable del proyecto |
 | 0.7.0 | 08-09-2026 | **Cada fila trae además la CONVERSIÓN** (`RN-PM-024`, reescrita el mismo día): moneda por omisión, tasa aplicada e importe convertido, **presente y nulo** cuando no hay nada que convertir. Los dos precios ya venían de 0.6.0; lo que entra ahora es la conversión, que hasta hoy **solo existía en el hotlink** — de modo que el catálogo enseñaba importes en monedas distintas sin nada que los hiciera comparables. Nacen dos criterios y **el segundo es el que importa**: `CA-PM-164` mide el dato y **`CA-PM-165` mide el coste**. Un listado que resuelva la conversión por fila devuelve **exactamente el mismo cuerpo** con cuarenta consultas que con dos, de modo que ninguna prueba de API lo distingue; se mide contando sentencias, como ya se hace con los `JOIN` de esta misma consulta. El diseño está en [`plan.md` §4.1](plan.md) y lo comparten `RF-PM-003`, `RF-PM-007` y `RF-PM-008`. | Responsable del proyecto |
+| 0.8.0 | 12-09-2026 | **El segundo precio pasa a ser el de COMPRA**, por decisión del responsable del proyecto (`requirements/pm.md` v0.23.0 §5.2.6): lo que NEXUS paga por el producto. `purchasePrice` **sustituye** a `publicPrice` en cada fila, con la misma forma —presente y nulo cuando no se conoce—. **Este listado vuelve a ser uno de los dos únicos sitios donde se ven los dos importes**, y ahora el motivo es más fuerte que el 08-09-2026: el segundo es el margen. **La conversión se calcula siempre sobre `price`** (`CA-PM-164` reescrito): el costo no se compara con la moneda de casa. El orden por el segundo precio sigue fuera, con el argumento reescrito — ya no es que no responda ninguna pregunta, es que la columna admite nulos. | Responsable del proyecto |

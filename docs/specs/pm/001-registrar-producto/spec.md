@@ -14,6 +14,7 @@
 | Enmendada el | 07-09-2026 — **el origen puede ser el destino: la renovación** (`RN-PM-017`). Ver §15 |
 | Enmendada el | 07-09-2026 — **la membresía resuelta trae su color** (`RN-SP-024`). Ver §15 |
 | Enmendada el | 08-09-2026 — **el alta admite un SEGUNDO precio, el público** (`RN-PM-023`), y **`RN-PM-006` deja de exigir «mayor que cero»**. Ver §15 |
+| Enmendada el | 12-09-2026 — **el segundo precio pasa a ser el de COMPRA**: lo que NEXUS paga por el producto (`RN-PM-023`, `RN-PM-024`). `purchasePrice` sustituye a `publicPrice`. Ver §15 |
 
 !!! danger "Un upgrade dice ahora DE DONDE sale, y eso cambia quien puede comprarlo"
 
@@ -71,7 +72,8 @@ Hoy la plataforma no tiene **nada que vender**. La membresía de una persona sol
 | `RN-PM-005` | Nombre único entre los vivos | `requirements/pm.md` §5.1 |
 | `RN-PM-006` | **Ningún precio es negativo**, y el cero se admite | `requirements/pm.md` §5.1 |
 | `RN-PM-007` | **Los dos precios respetan** los decimales de su moneda | `requirements/pm.md` §5.1 |
-| `RN-PM-023` | **El precio público es opcional y no se cobra** | `requirements/pm.md` §5.1 |
+| `RN-PM-023` | **El precio de compra es opcional y no se cobra** — es lo que NEXUS paga por el producto | `requirements/pm.md` §5.1 |
+| `RN-PM-024` | **El precio de compra no sale de administración** — el alta lo devuelve porque exige `products:create` | `requirements/pm.md` §5.1 |
 | `RN-PM-008` | La moneda debe estar activa al declararla | `requirements/pm.md` §5.1 |
 | `RN-PM-012` | El producto nace inactivo | `requirements/pm.md` §5.1 |
 | `RN-PM-013` | El código no se libera nunca | `requirements/pm.md` §5.1 |
@@ -94,8 +96,8 @@ Hoy la plataforma no tiene **nada que vender**. La membresía de una persona sol
 | Membresía **destino** | **Depende del tipo** | Nivel al que lleva el upgrade | Mismas condiciones. **No tiene por qué ser el inmediatamente superior al origen** (`RN-PM-018`) |
 | Icono | No | **Nombre** del icono con el que el frontend pinta el producto, no una imagen | Minúsculas, dígitos y guion medio, empezando por letra, hasta 50 caracteres. **Solo en el upgrade**, y opcional incluso ahí (`RN-PM-016`) |
 | Precio **del sistema** | Sí | Cuánto cuesta, y **lo que se cobra** | **No negativo** (`RN-PM-006`) —el cero se admite desde el 08-09-2026, porque una renovación de una membresía gratuita vale eso—, con los decimales que admita su moneda (`RN-PM-007`) |
-| Precio **público** | **No** | Con qué importe se anuncia el producto a quien no administra el catálogo | Mismas condiciones que el anterior y **en la misma moneda** (`RN-PM-007`). **Ausente o nulo significan lo mismo**: el producto se anuncia con el precio del sistema (`RN-PM-023`). **No se cobra**, y ningún cálculo lo lee |
-| Moneda | Sí | En qué moneda se expresan **los dos** precios | Debe existir y estar **activa** (`RN-PM-008`). **No hay una segunda moneda para el precio público** |
+| Precio **de compra** | **No** | Lo que NEXUS paga por el producto cuando tiene que comprarlo; ahí se guarda lo que costó | Mismas condiciones que el anterior y **en la misma moneda** (`RN-PM-007`). **Ausente o nulo significan lo mismo**: no se conoce todavía —el producto se registra antes de comprarse— (`RN-PM-023`). **No se cobra**, ningún cálculo lo lee y **no sale de administración** (`RN-PM-024`). **Decía «precio público» hasta el 12-09-2026** |
+| Moneda | Sí | En qué moneda se expresan **los dos** precios | Debe existir y estar **activa** (`RN-PM-008`). **No hay una segunda moneda para el precio de compra** |
 | Vigencia | No | Cuántos días dura lo que el producto otorga, contados desde la compra | Entero mayor que cero. **Sin ella, lo adquirido no caduca** (`RN-PM-015`) |
 | Alcance | **Sí** | Hasta dónde se muestra el producto | `TIENDA` o `HOTLINKS`, **en los dos tipos y sin valor por omisión**. Es **acumulativo**: `HOTLINKS` incluye la tienda (`RN-PM-019`) |
 | Implementación | **Sí** | Si lo comprado se aplica solo o espera a que alguien lo autorice | `AUTOMATICA` o `MANUAL`, **en los dos tipos y sin valor por omisión** (`RN-PM-020`) |
@@ -181,7 +183,7 @@ Hoy la plataforma no tiene **nada que vender**. La membresía de una persona sol
 | `VAL-001` | Tipo obligatorio y dentro del dominio | El tipo de producto es obligatorio y debe ser uno de los admitidos. |
 | `VAL-002` | Nombre obligatorio | El nombre del producto es obligatorio. |
 | `VAL-003` | Longitud del nombre y de la descripción | El nombre no puede exceder la longitud admitida. |
-| `VAL-004` | Precio del sistema obligatorio, y **ningún precio negativo** | El precio no puede ser negativo. **El campo del error dice cuál de los dos** —`price` o `publicPrice`—, porque un mensaje que no lo distinga obliga a probar los dos |
+| `VAL-004` | Precio del sistema obligatorio, y **ningún precio negativo** | El precio no puede ser negativo. **El campo del error dice cuál de los dos** —`price` o `purchasePrice`—, porque un mensaje que no lo distinga obliga a probar los dos |
 | `VAL-005` | Decimales **de cada precio** según su moneda | El precio no admite más decimales que los de su moneda. **Con el campo que lo incumple**, por lo mismo |
 | `VAL-006` | Moneda obligatoria | La moneda es obligatoria. |
 | `VAL-007` | **Origen y destino** obligatorios en el upgrade | Un producto de upgrade debe declarar su membresía de origen y su membresía destino. |
@@ -233,19 +235,20 @@ Hoy la plataforma no tiene **nada que vender**. La membresía de una persona sol
 | `CA-PM-113` | El sistema registra un **bot** con alcance `HOTLINKS` e implementación `MANUAL` sin queja: ninguna de las dos depende del tipo |
 | `CA-PM-114` | La respuesta del alta devuelve las dos, y el **evento de creación las incluye en la instantánea** |
 | `CA-PM-145` | El sistema registra un producto **con los dos precios** y la respuesta devuelve los dos, cada uno con los decimales de la moneda |
-| `CA-PM-146` | El sistema registra un producto **sin precio público**, y ese campo llega **presente y nulo** — no ausente, y no cero |
-| `CA-PM-147` | El sistema rechaza un **precio público negativo**, y el error **nombra `publicPrice`** y no `price` |
-| `CA-PM-148` | El sistema rechaza un **precio público con más decimales** de los que admite la moneda, aunque el del sistema sí quepa |
+| `CA-PM-146` | El sistema registra un producto **sin precio de compra**, y `purchasePrice` llega **presente y nulo** — no ausente, y no cero |
+| `CA-PM-147` | El sistema rechaza un **precio de compra negativo**, y el error **nombra `purchasePrice`** y no `price` |
+| `CA-PM-148` | El sistema rechaza un **precio de compra con más decimales** de los que admite la moneda, aunque el del sistema sí quepa |
 | `CA-PM-149` | El sistema **admite un precio de cero** en los dos importes: es lo que hace registrable una renovación de una membresía gratuita |
-| `CA-PM-150` | La **instantánea del evento de creación incluye `public_price`**, y lo distingue del ausente escribiéndolo nulo |
+| `CA-PM-150` | La **instantánea del evento de creación incluye `purchase_price`**, y lo distingue del ausente escribiéndolo nulo |
 
 ## 13. Casos límite
 
 - **Nombre con espacios al inicio o al final:** se recortan antes de comparar la unicidad. Sin ese recorte, un espacio burlaría la regla y el catálogo mostraría dos productos que se leen igual.
-- **Precio con muchos decimales sobre una moneda sin fracción:** el rechazo debe existir aunque la moneda por defecto tenga dos decimales; el caso se prueba con una moneda de cero. **Vale igual para el precio público**, que se mide contra la misma moneda.
-- **Precio público idéntico al del sistema:** se admite y **no se normaliza a nulo**. Declarar el mismo número dos veces es una decisión legítima —dice «este producto se anuncia por lo que cuesta»— y convertirlo en nulo por parecerse haría que corregir después el del sistema arrastrase en silencio al anunciado.
-- **Precio público menor que el del sistema:** se admite. **Ninguna regla compara los dos importes** (`requirements/pm.md` §5.2.4), y quien lo declara se lleva la consecuencia entera: el comprador ve uno y paga otro.
-- **Precio del sistema en cero con precio público informado:** se admite. Es el producto que se anuncia con un valor de referencia y no se cobra — y es el caso que obliga a `CM` a dejar de dividir a ciegas (`RN-CM-019`).
+- **Precio con muchos decimales sobre una moneda sin fracción:** el rechazo debe existir aunque la moneda por defecto tenga dos decimales; el caso se prueba con una moneda de cero. **Vale igual para el precio de compra**, que se mide contra la misma moneda.
+- **Precio de compra idéntico al del sistema:** se admite y **no se normaliza a nulo**. Es un producto que se revende sin margen, y convertirlo en nulo por parecerse borraría un costo que sí se conoce.
+- **Precio de compra mayor que el del sistema:** se admite. **Ninguna regla compara los dos importes** (`requirements/pm.md` §5.2.6): vender por debajo del costo es una decisión comercial, y el sistema la registra en vez de impedirla.
+- **Precio del sistema en cero con precio de compra informado:** se admite. Es el producto que costó algo y se concede gratis — y es el caso que obliga a `CM` a dejar de dividir a ciegas (`RN-CM-019`).
+- **Precio de compra en cero:** se admite y **no es lo mismo que nulo**. Cero dice «no costó nada»; nulo dice «no se conoce».
 - **Dos altas simultáneas del mismo upgrade:** dos administradores registran a la vez un upgrade hacia el mismo destino. Una debe quedar y la otra ser rechazada; que las dos queden activas es el desenlace que `RN-PM-004` existe para impedir.
 - **Dos altas simultáneas con el mismo nombre:** mismo caso sobre la unicidad de nombre.
 - **La membresía destino se elimina mientras se registra:** las membresías no se eliminan (`RN-SP-008`), de modo que este caso no existe. Se escribe para que nadie lo busque.
@@ -278,3 +281,4 @@ Ninguna. Las cinco se resolvieron el 26-08-2026, antes de aprobar la especificac
 | 0.7.0 | 07-09-2026 | **El origen puede ser el destino: nace la RENOVACIÓN** (`RN-PM-017`, `requirements/pm.md` §5.2.3). Aquella regla tenía **dos mitades metidas en una** —«no bajes» y «no repitas»— y solo la primera protegía algo: la segunda impedía cobrar por **tiempo**, que es un producto legítimo. La comparación del caso de uso pasa de `<=` a `<`, `VAL-014` estrecha su mensaje y `CA-PM-104` **se parte**: se queda con el descenso, que sigue rechazándose, y nace `CA-PM-125` para el mismo nivel, que ahora se admite. **`V61` retira `ck_products_origen_distinto`**, con lo que **de `RN-PM-017` no queda nada declarado en el esquema**: la mitad superviviente necesita el `level` de dos filas de `memberships` y un `CHECK` no consulta otra tabla, de modo que la regla vive **entera en el caso de uso**, sin la red que tenía. Es el mismo reparto que `RN-PM-007` con los decimales de la moneda, con la diferencia de que aquel nunca tuvo red. **El agregado pierde una comprobación y no la gana en otro sitio**: comparar dos identificadores dejó de decir nada, y quien decide es `RegisterProductService`, que es el único que conoce los dos niveles. | Responsable del proyecto |
 | 0.8.0 | 07-09-2026 | **La membresía resuelta trae su COLOR** (`RN-SP-024`), por decisión del responsable del proyecto. `MembershipView` —el puerto que `SP` publica por **D-25**— gana el campo, y con él la referencia que las cinco respuestas del módulo comparten. **Es un dato puramente estético y aun así cruza por el puerto y no por un `JOIN` de conveniencia**: quien decide qué se sabe de una membresía es `SP`, y abrir una excepción «porque solo es un color» sería la primera grieta en la única regla que sostiene D-25. **El cambio es aditivo**: quien ya consume el puerto sigue leyendo los cuatro campos que leía. Entra `CA-PM-141`. | Responsable del proyecto |
 | 0.9.0 | 08-09-2026 | **El alta admite un SEGUNDO precio, el público** (`RN-PM-023`), por decisión del responsable del proyecto, y **`RN-PM-006` deja de exigir «mayor que cero»**. El precio público es **opcional** —y ahí se aparta del alcance y la implementación, que entraron obligatorias el día anterior: omitirlo no deja ninguna decisión sin tomar, porque un producto sin él **se anuncia con el del sistema**, que es lo que hoy hacen todos—. Se expresa en **la misma moneda**, obedece a las mismas dos reglas de importe, y **no se cobra**: ningún cálculo lo lee. **Su nulo significa algo y no es cero**, de modo que §6.2 lo devuelve **presente y nulo**. `VAL-004` y `VAL-005` dejan de hablar de «el precio» y pasan a **nombrar el campo** que incumple, porque con dos importes un mensaje que no distingue obliga a probar los dos. **`CA-PM-005` se reescribe**: decía «rechaza un precio de cero o negativo» y el cero pasó a admitirse — lo que tumbó aquella mitad no fue este cambio sino la **renovación**, porque un `BECA → BECA` es un producto legítimo que vale cero y prohibirlo obligaba a inventarle un céntimo. Entran `CA-PM-145` a `CA-PM-150`, y §13 gana **cuatro casos límite que son decisiones**: el precio público **igual** al del sistema se admite y no se normaliza a nulo; **menor**, también, porque ninguna regla los compara; y el del sistema en **cero** con público informado es el caso que obliga a `CM` a dejar de dividir a ciegas. | Responsable del proyecto |
+| 0.10.0 | 12-09-2026 | **El segundo precio pasa a ser el de COMPRA**, por decisión del responsable del proyecto (`requirements/pm.md` v0.23.0 §5.2.6): lo que NEXUS paga por el producto cuando tiene que comprarlo, y donde se guarda lo que costó. `purchasePrice` **sustituye** a `publicPrice` en el cuerpo y en la respuesta —ruptura de contrato aceptada—, con la misma forma: opcional, no negativo, decimales de la moneda del producto. **El nulo cambia de significado**: de «se anuncia con el del sistema» a «no se conoce todavía», que es el estado natural de un producto que se registra antes de comprarse. Entra `RN-PM-024` en las reglas aplicables porque el alta lo devuelve **solo** porque exige `products:create`. `CA-PM-146` a `CA-PM-148` y `CA-PM-150` cambian de nombre de campo sin cambiar de forma; los casos límite del par se reescriben —**mayor** que el del sistema en vez de menor, porque lo que se admite a conciencia ahora es vender por debajo del costo— y nace el del cero frente al nulo. | Responsable del proyecto |

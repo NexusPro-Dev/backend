@@ -302,36 +302,36 @@ class ProductUpdateIT extends IntegrationTestBase {
   }
 
   // ---------------------------------------------------------------------------
-  // El precio público (`RN-PM-023`) — 08-09-2026
+  // El precio de compra (`RN-PM-023`) — 08-09-2026
   // ---------------------------------------------------------------------------
 
   @Test
-  @DisplayName("`CA-PM-153` — corregir el precio público no toca el del sistema, y se audita")
-  void corrigeElPrecioPublico() throws Exception {
-    mvc.perform(corregir(producto, "{\"publicPrice\":59.99}"))
+  @DisplayName("`CA-PM-153` — corregir el precio de compra no toca el del sistema, y se audita")
+  void corrigeElPrecioDeCompra() throws Exception {
+    mvc.perform(corregir(producto, "{\"purchasePrice\":59.99}"))
         .andExpect(status().isOk())
         .andExpect(jsonPath("$.price").value(49.99))
-        .andExpect(jsonPath("$.publicPrice").value(59.99));
+        .andExpect(jsonPath("$.purchasePrice").value(59.99));
 
-    assertThat(ultimoCambio()).contains("public_price").contains("59.99");
+    assertThat(ultimoCambio()).contains("purchase_price").contains("59.99");
   }
 
   @Test
-  @DisplayName("`CA-PM-154` — el nulo explícito VACÍA el precio público, y no lo pone a cero")
-  void vaciaElPrecioPublico() throws Exception {
-    mvc.perform(corregir(producto, "{\"publicPrice\":59.99}")).andExpect(status().isOk());
+  @DisplayName("`CA-PM-154` — el nulo explícito VACÍA el precio de compra, y no lo pone a cero")
+  void vaciaElPrecioDeCompra() throws Exception {
+    mvc.perform(corregir(producto, "{\"purchasePrice\":59.99}")).andExpect(status().isOk());
 
-    mvc.perform(corregir(producto, "{\"publicPrice\":null}"))
+    mvc.perform(corregir(producto, "{\"purchasePrice\":null}"))
         .andExpect(status().isOk())
-        // Vuelve a anunciarse con el precio del sistema. Ponerlo a cero lo
-        // habría dejado anunciando que es gratis, que es lo contrario.
-        .andExpect(jsonPath("$.publicPrice").value(Matchers.nullValue()));
+        // El costo pasa a «no se conoce». Ponerlo a cero lo habría dejado
+        // diciendo que no costó nada, que es lo contrario.
+        .andExpect(jsonPath("$.purchasePrice").value(Matchers.nullValue()));
 
-    assertThat(precioPublicoDe(producto)).isNull();
+    assertThat(precioDeCompraDe(producto)).isNull();
   }
 
   @Test
-  @DisplayName("`CA-PM-155` — el precio del sistema NO admite vaciarse, al revés que el público")
+  @DisplayName("`CA-PM-155` — el precio del sistema NO admite vaciarse, al revés que el de compra")
   void elPrecioDelSistemaNoSeVacia() throws Exception {
     mvc.perform(corregir(producto, "{\"price\":null}"))
         .andExpect(status().isBadRequest())
@@ -344,35 +344,36 @@ class ProductUpdateIT extends IntegrationTestBase {
   }
 
   @Test
-  @DisplayName("`CA-PM-156` — corregir el precio público a CERO es un cambio, no un vaciado")
-  void elPrecioPublicoACero() throws Exception {
-    mvc.perform(corregir(producto, "{\"publicPrice\":0}"))
+  @DisplayName("`CA-PM-156` — corregir el precio de compra a CERO es un cambio, no un vaciado")
+  void elPrecioDeCompraACero() throws Exception {
+    mvc.perform(corregir(producto, "{\"purchasePrice\":0}"))
         .andExpect(status().isOk())
-        .andExpect(jsonPath("$.publicPrice").value(0));
+        .andExpect(jsonPath("$.purchasePrice").value(0));
 
-    assertThat(ultimoCambio()).contains("public_price");
+    assertThat(ultimoCambio()).contains("purchase_price");
   }
 
   @Test
-  @DisplayName("`CA-PM-157` — cambiar SOLO la moneda mide también el precio público que nadie tocó")
-  void elPrecioPublicoContraLaMonedaNueva() throws Exception {
+  @DisplayName(
+      "`CA-PM-157` — cambiar SOLO la moneda mide también el precio de compra que nadie tocó")
+  void elPrecioDeCompraContraLaMonedaNueva() throws Exception {
     String pesos = monedaSinDecimales();
 
     // El del sistema se deja en un importe que SÍ cabe en una moneda de cero
-    // decimales, y el público en uno que no. Con dos importes, el caso que se
+    // decimales, y el de compra en uno que no. Con dos importes, el caso que se
     // olvida es este: se valida el que llega y se deja pasar el otro.
-    mvc.perform(corregir(producto, "{\"price\":50,\"publicPrice\":59.99}"))
+    mvc.perform(corregir(producto, "{\"price\":50,\"purchasePrice\":59.99}"))
         .andExpect(status().isOk());
 
     mvc.perform(corregir(producto, "{\"currencyId\":\"" + pesos + "\"}"))
         .andExpect(status().isBadRequest())
         .andExpect(jsonPath("$.errors[0].code").value("VAL-005"))
         // Y el rechazo NOMBRA el campo que no cabe: el del sistema sí cabía.
-        .andExpect(jsonPath("$.errors[0].field").value("publicPrice"));
+        .andExpect(jsonPath("$.errors[0].field").value("purchasePrice"));
 
     // El defecto que esto evita NO FALLA: guardaría un importe con más
     // decimales de los que su moneda admite.
-    assertThat(precioPublicoDe(producto)).isEqualByComparingTo("59.99");
+    assertThat(precioDeCompraDe(producto)).isEqualByComparingTo("59.99");
   }
 
   /** El `changes` del último evento de corrección de este producto. */
@@ -568,9 +569,9 @@ class ProductUpdateIT extends IntegrationTestBase {
         id.toString());
   }
 
-  private java.math.BigDecimal precioPublicoDe(UUID id) {
+  private java.math.BigDecimal precioDeCompraDe(UUID id) {
     return jdbc.queryForObject(
-        "SELECT public_price FROM products WHERE id = CAST(? AS uuid)",
+        "SELECT purchase_price FROM products WHERE id = CAST(? AS uuid)",
         java.math.BigDecimal.class,
         id.toString());
   }

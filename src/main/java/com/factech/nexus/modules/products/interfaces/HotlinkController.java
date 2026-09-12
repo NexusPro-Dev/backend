@@ -59,11 +59,12 @@ public class HotlinkController {
           porque tiene ocho decimales y un número JSON pasa por coma flotante en
           cualquier cliente JavaScript.
 
-          **Vienen LOS DOS importes** (`RN-PM-024`, 08-09-2026): `price` es el
-          del sistema —el que se cobra— y `publicPrice` el que el producto
-          anuncia, **nulo y presente** cuando no lo declara. Hasta esa fecha
-          viajaba uno solo. **La conversión se calcula sobre el que se muestra**
-          —el público si existe y el del sistema si no—, y no sobre los dos.
+          **Viene UN importe** (`RN-PM-024`, reescrita el 12-09-2026): `price`,
+          el que se cobra. **El precio de compra no viaja por aquí ni se
+          consulta**: es lo que NEXUS paga por el producto, y este endpoint es
+          público. Entre el 08-09-2026 y el 12-09-2026 viajó también
+          `publicPrice`, cuando ese importe era lo que se anunciaba; ese campo
+          **ya no existe**. **La conversión se calcula sobre `price`.**
 
           **La conversión es INFORMATIVA**: lo que se cobra no es ese número. Una
           venta va en una sola moneda y congela su importe al registrarse; esta

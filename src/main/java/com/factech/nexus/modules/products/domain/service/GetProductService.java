@@ -66,10 +66,8 @@ public class GetProductService {
     return ProductDetailResponse.from(
         fila,
         motivo,
-        conversiones
-            .para(List.of(fila.currencyId()))
-            .de(
-                fila.currencyId(),
-                ProductExchangeResolver.importeMostrado(fila.price(), fila.publicPrice())));
+        // La conversión se calcula sobre `price`, nunca sobre el precio de
+        // compra (`RN-PM-024`, 12-09-2026).
+        conversiones.para(List.of(fila.currencyId())).de(fila.currencyId(), fila.price()));
   }
 }

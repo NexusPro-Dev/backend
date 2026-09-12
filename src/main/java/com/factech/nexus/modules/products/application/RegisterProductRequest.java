@@ -35,7 +35,7 @@ import java.util.UUID;
  * columna admite. Los de verdad los decide el caso de uso, <b>para los dos importes</b>.
  *
  * <p><b>El cero se admite en los dos precios</b> desde el 08-09-2026 (`RN-PM-006`): lo que tumbó el
- * «mayor que cero» no fue el precio público sino la <b>renovación</b> de una membresía gratuita.
+ * «mayor que cero» no fue el segundo precio sino la <b>renovación</b> de una membresía gratuita.
  *
  * @param validityDays días que dura lo adquirido. Ausente o nulo significan lo mismo: no caduca
  */
@@ -69,16 +69,16 @@ public record RegisterProductRequest(
             message = "VAL-005: El precio admite como mucho cuatro decimales.")
         BigDecimal price,
     // SIN `@NotNull`, y ahí se aparta de `scope` e `implementation`: es
-    // OPCIONAL, y ausente o nulo significan lo mismo — el producto se anuncia
-    // con el precio del sistema (`RN-PM-023`). Omitirlo no deja ninguna
-    // decisión sin tomar, porque hay un comportamiento correcto y evidente para
-    // el producto que no lo declara.
-    @DecimalMin(value = "0.0", message = "VAL-004: El precio público no puede ser negativo.")
+    // OPCIONAL, y ausente o nulo significan lo mismo — no se conoce el costo
+    // (`RN-PM-023`). Omitirlo no deja ninguna decisión sin tomar, porque un
+    // producto se registra antes de comprarse. Se llamó `publicPrice` hasta el
+    // 12-09-2026; el nombre viejo es una propiedad desconocida y devuelve 400.
+    @DecimalMin(value = "0.0", message = "VAL-004: El precio de compra no puede ser negativo.")
         @Digits(
             integer = 10,
             fraction = 4,
-            message = "VAL-005: El precio público admite como mucho cuatro decimales.")
-        BigDecimal publicPrice,
+            message = "VAL-005: El precio de compra admite como mucho cuatro decimales.")
+        BigDecimal purchasePrice,
     @NotNull(message = "VAL-006: La moneda es obligatoria.") UUID currencyId,
     @Min(value = 1, message = "VAL-011: La vigencia debe ser un número de días mayor que cero.")
         Integer validityDays,
@@ -115,7 +115,7 @@ public record RegisterProductRequest(
         sourceMembershipId,
         targetMembershipId,
         price,
-        publicPrice,
+        purchasePrice,
         currencyId,
         validityDays,
         scope,

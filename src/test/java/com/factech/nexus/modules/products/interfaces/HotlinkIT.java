@@ -176,80 +176,90 @@ class HotlinkIT extends IntegrationTestBase {
   }
 
   // ---------------------------------------------------------------------------
-  // El precio que se publica (`RN-PM-024`) — 08-09-2026
+  // El precio que se publica (`RN-PM-024`) — 08-09-2026; el de compra SALE de
+  // aquí desde el 12-09-2026
   // ---------------------------------------------------------------------------
 
   @Test
-  @DisplayName("`CA-PM-161` — se publican LOS DOS importes cuando el producto declara el público")
-  void publicaLosDosImportes() throws Exception {
+  @DisplayName("`CA-PM-161` — se publica `price` aunque el producto tenga precio de compra")
+  void publicaElPrecioQueSeCobra() throws Exception {
     jdbc.update(
-        "UPDATE products SET price = 49.99, public_price = 59.99 WHERE code = 'HL_UPGRADE'");
+        "UPDATE products SET price = 49.99, purchase_price = 30.00 WHERE code = 'HL_UPGRADE'");
 
     mvc.perform(get("/api/v1/hotlinks/{u}/{c}", "hl-vendedora", "HL_UPGRADE"))
         .andExpect(status().isOk())
-        // `price` es SIEMPRE el del sistema, y ya no «el que se muestra».
-        .andExpect(jsonPath("$.product.price").value(49.99))
-        .andExpect(jsonPath("$.product.publicPrice").value(59.99));
+        // `price` es SIEMPRE el que se cobra, y el costo no lo altera.
+        .andExpect(jsonPath("$.product.price").value(49.99));
   }
 
   @Test
-  @DisplayName("`CA-PM-161` — sin precio público, `publicPrice` llega NULO Y PRESENTE")
-  void elPublicoLlegaNuloYPresente() throws Exception {
-    jdbc.update("UPDATE products SET price = 49.99, public_price = NULL WHERE code = 'HL_UPGRADE'");
-
-    String cuerpo =
+  @DisplayName("`CA-PM-161` — sin precio de compra, la respuesta es exactamente la misma")
+  void sinPrecioDeCompraLaRespuestaNoCambia() throws Exception {
+    jdbc.update(
+        "UPDATE products SET price = 49.99, purchase_price = NULL WHERE code = 'HL_UPGRADE'");
+    String sinCosto =
         mvc.perform(get("/api/v1/hotlinks/{u}/{c}", "hl-vendedora", "HL_UPGRADE"))
             .andExpect(status().isOk())
             .andExpect(jsonPath("$.product.price").value(49.99))
-            .andExpect(jsonPath("$.product.publicPrice").value(org.hamcrest.Matchers.nullValue()))
             .andReturn()
             .getResponse()
             .getContentAsString();
 
-    // Presente y nulo, no ausente: el nulo SIGNIFICA «este producto se anuncia
-    // con el precio del sistema», y un campo que falta no puede decir eso.
-    assertThat(cuerpo).contains("\"publicPrice\":null");
+    jdbc.update("UPDATE products SET purchase_price = 30.00 WHERE code = 'HL_UPGRADE'");
+    String conCosto =
+        mvc.perform(get("/api/v1/hotlinks/{u}/{c}", "hl-vendedora", "HL_UPGRADE"))
+            .andReturn()
+            .getResponse()
+            .getContentAsString();
+
+    // Es la prueba de que la columna NO SE SELECCIONA: un cambio en el costo no
+    // puede notarse desde un enlace público, ni en el precio ni en la
+    // conversión.
+    assertThat(conCosto).isEqualTo(sinCosto);
   }
 
   @Test
-  @DisplayName("`CA-PM-162` — la conversión se calcula sobre el importe que SE PUBLICA")
-  void laConversionSaleDelImportePublicado() throws Exception {
+  @DisplayName("`CA-PM-162` — la conversión se calcula sobre `price`, nunca sobre el costo")
+  void laConversionSaleDelPrecio() throws Exception {
     productoEnMoneda("HL_DOS_PRECIOS", "Dos precios", cop, "1000.00");
-    jdbc.update("UPDATE products SET public_price = 2000.00 WHERE code = 'HL_DOS_PRECIOS'");
+    jdbc.update("UPDATE products SET purchase_price = 2000.00 WHERE code = 'HL_DOS_PRECIOS'");
     tasa(cop, USD, "0.00024096", LocalDate.now().minusDays(1), null);
 
-    // Convertir uno y publicar el otro dejaría en la MISMA respuesta dos
-    // números que no se corresponden, y con la tasa delante cualquiera podría
-    // deducir la diferencia entre lo anunciado y lo cobrado — sin token.
+    // Si la conversión saliera del costo, con la tasa delante cualquiera podría
+    // deducirlo aunque el campo no viajara — sin token. Por eso se prueba con
+    // un costo que da un resultado DISTINTO al del precio.
     mvc.perform(get("/api/v1/hotlinks/{u}/{c}", "hl-vendedora", "HL_DOS_PRECIOS"))
         .andExpect(status().isOk())
-        // Los dos viajan, y la conversión sale del ANUNCIADO.
         .andExpect(jsonPath("$.product.price").value(1000.00))
-        .andExpect(jsonPath("$.product.publicPrice").value(2000.00))
-        // 2000,00 × 0,00024096 = 0,48192 → 0,48. Con el precio del sistema
-        // habría dado 0,24, que es exactamente la mitad.
-        .andExpect(jsonPath("$.product.exchange.amount").value(0.48));
+        // 1000,00 × 0,00024096 = 0,24096 → 0,24. Con el costo habría dado 0,48,
+        // que es exactamente el doble.
+        .andExpect(jsonPath("$.product.exchange.amount").value(0.24));
   }
 
   @Test
-  @DisplayName("`CA-PM-169` — los dos importes viajan SIN TOKEN, y la diferencia queda a la vista")
-  void losDosImportesViajanSinToken() throws Exception {
+  @DisplayName("`CA-PM-163` — el precio de compra NO aparece en el cuerpo, bajo ningún nombre")
+  void elPrecioDeCompraNoViajaSinToken() throws Exception {
     jdbc.update(
-        "UPDATE products SET price = 49.99, public_price = 59.99 WHERE code = 'HL_UPGRADE'");
+        "UPDATE products SET price = 49.99, purchase_price = 30.00 WHERE code = 'HL_UPGRADE'");
 
     String cuerpo =
         mvc.perform(get("/api/v1/hotlinks/{u}/{c}", "hl-vendedora", "HL_UPGRADE"))
             .andExpect(status().isOk())
+            .andExpect(jsonPath("$.product.purchasePrice").doesNotExist())
+            .andExpect(jsonPath("$.product.publicPrice").doesNotExist())
             .andReturn()
             .getResponse()
             .getContentAsString();
 
-    // Esta prueba AFIRMA la fuga, y es lo contrario de lo que afirmaba hasta el
-    // 08-09-2026: `CA-PM-163` exigía que el precio del sistema no apareciera.
-    // Se invierte en vez de borrarse para que el día que alguien decida volver
-    // a ocultarlo tenga que decidirlo — y no lo descubra el frontend.
-    assertThat(cuerpo).contains("49.99").contains("59.99");
-    assertThat(cuerpo).contains("publicPrice");
+    // Esta prueba se ha INVERTIDO DOS VECES. Hasta el 08-09-2026 exigía que el
+    // precio del sistema no apareciera; ese día pasó a AFIRMAR que viajaban los
+    // dos (`CA-PM-169`); el 12-09-2026, con el segundo importe convertido en el
+    // costo de NEXUS, vuelve a exigir la ausencia. Se invierte en vez de
+    // borrarse para que la tercera vez haga falta decidirlo — y no lo descubra
+    // quien reciba un enlace por mensajería.
+    assertThat(cuerpo).contains("49.99");
+    assertThat(cuerpo).doesNotContain("30.00").doesNotContain("30.0,");
+    assertThat(cuerpo).doesNotContain("purchasePrice").doesNotContain("publicPrice");
   }
 
   @Test

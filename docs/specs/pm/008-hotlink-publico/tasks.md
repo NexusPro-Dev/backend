@@ -9,7 +9,7 @@
 | Issue | Pendiente de crear |
 | Rama | `feature/hotlink-publico` |
 | Autor | Responsable técnico |
-| Enmendadas | 07-09-2026 — `T-05b` por el **color de la membresía**; 08-09-2026 — `T-17` y `T-18` por el **precio a mostrar** (`RN-PM-024`), y `T-13` y `plan.md` §9 por el **número real de consultas**: son cuatro y no tres, y una sola cuando el vendedor no procede |
+| Enmendadas | 07-09-2026 — `T-05b` por el **color de la membresía**; 08-09-2026 — `T-17` y `T-18` por el **precio a mostrar** (`RN-PM-024`), y `T-13` y `plan.md` §9 por el **número real de consultas**: son cuatro y no tres, y una sola cuando el vendedor no procede; 12-09-2026 — `T-21` porque el segundo precio es el **de compra** y sale del hotlink |
 
 ---
 
@@ -38,6 +38,7 @@
 | ~~`T-18`~~ | ~~Prueba de que el precio del sistema **no aparece en el cuerpo**~~ — **retirada el 08-09-2026** con `CA-PM-163`: aparece a propósito | `T-17` | La prueba **se invierte** en `T-20` en vez de borrarse | **Retirada el 08-09-2026** |
 | `T-19` | **Los dos importes en la respuesta**: `findPublishedByCode` selecciona `p.price` y `p.public_price` por separado —sin `COALESCE`— y `ProductRef` gana `publicPrice`. La conversión se sigue calculando sobre **el que se muestra** | `T-17` | `CA-PM-161` y `CA-PM-162` reescritos: los dos importes llegan, y el convertido dividido por la tasa devuelve el mostrado | **Hecha el 08-09-2026** |
 | `T-20` | **La prueba de la fuga aceptada**: los dos importes viajan **sin token** y la diferencia entre ellos es visible. Es `T-18` del revés | `T-19` | `CA-PM-169`. Se escribe **afirmando** lo que se publica, para que el día que alguien decida volver a ocultarlo la prueba falle y obligue a decidirlo | **Hecha el 08-09-2026** |
+| `T-21` | **El precio de compra sale del hotlink** (12-09-2026): `ProductRef` pierde `publicPrice`, `findPublishedByCode` deja de seleccionar el segundo importe, la conversión se calcula sobre `price`, y la prosa de la `@Operation` deja de hablar de dos importes. La prueba de `T-20` **se invierte de vuelta**: es `T-18` otra vez, con el costo en lugar del precio del sistema | `RF-PM-001 · T-38` | `CA-PM-161` y `CA-PM-162` reescritos; **`CA-PM-163` repuesto**: con un producto que tiene costo declarado, el cuerpo **no trae** `purchasePrice` ni `publicPrice`. El oráculo de los seis `404` no cambia | **Hecha el 12-09-2026** |
 
 ## 2. Orden de ejecución
 
@@ -61,9 +62,9 @@
 | `CA-PM-136` | `T-08` |
 | `CA-PM-137` | `T-10` |
 | `CA-PM-138` a `CA-PM-140` | `T-05b` |
-| `CA-PM-161`, `CA-PM-162` | `T-17`, `T-19` |
-| ~~`CA-PM-163`~~ | ~~`T-18`~~ — retirados el 08-09-2026 |
-| `CA-PM-169` | `T-20` |
+| `CA-PM-161`, `CA-PM-162` | `T-17`, `T-19`, `T-21` |
+| `CA-PM-163` | ~~`T-18`~~ — retirado el 08-09-2026; **repuesto el 12-09-2026** → `T-21` |
+| ~~`CA-PM-169`~~ | `T-20` — **retirado el 12-09-2026**: su prueba se invierte de vuelta en `T-21` |
 
 ## 4. Bloqueos
 

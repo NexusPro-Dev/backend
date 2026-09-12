@@ -92,12 +92,11 @@ public class GetHotlinkService {
                 fila.targetMembershipCode(),
                 fila.targetMembershipName(),
                 fila.targetMembershipColor()),
+        // UN importe (`RN-PM-024`, 12-09-2026): el precio de compra es el costo
+        // de NEXUS, `ProductRef` no tiene dónde ponerlo y la consulta no lo
+        // selecciona. Es la lectura SIN TOKEN: lo que salga por aquí no se
+        // retira después.
         ProductPrice.enLaEscalaDe(fila.price(), fila.currencyDecimalPlaces()),
-        // Los DOS importes desde el 08-09-2026 (`RN-PM-024` reescrita), y el
-        // público NULO Y PRESENTE cuando el producto no lo declara.
-        fila.publicPrice() == null
-            ? null
-            : ProductPrice.enLaEscalaDe(fila.publicPrice(), fila.currencyDecimalPlaces()),
         moneda,
         conversion(fila));
   }
@@ -115,13 +114,9 @@ public class GetHotlinkService {
    */
   private ExchangeRef conversion(ProductRow fila) {
     // El cálculo salió de aquí el 08-09-2026, al dejar de ser cosa del hotlink:
-    // lo hace `ProductExchangeResolver` para las cuatro lecturas. Este método se
-    // queda porque el importe SOBRE EL QUE se convierte sí es decisión de cada
-    // lectura, y aquí es el que se muestra.
-    return conversiones
-        .para(List.of(fila.currencyId()))
-        .de(
-            fila.currencyId(),
-            ProductExchangeResolver.importeMostrado(fila.price(), fila.publicPrice()));
+    // lo hace `ProductExchangeResolver` para las cuatro lecturas. Se convierte
+    // SIEMPRE `price` (12-09-2026): fuera de administración es el único importe
+    // que se muestra, y el de compra nunca se convierte.
+    return conversiones.para(List.of(fila.currencyId())).de(fila.currencyId(), fila.price());
   }
 }

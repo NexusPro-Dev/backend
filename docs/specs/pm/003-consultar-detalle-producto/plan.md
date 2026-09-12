@@ -8,7 +8,7 @@
 | Estado | **Aprobado** |
 | Autor | Responsable técnico |
 | Aprobado por | Responsable del proyecto |
-| Enmendado el | 27-08-2026 — `RN-PM-015`; 02-09-2026 — la membresía de **origen** (`RN-PM-017`, `RN-PM-018`); 07-09-2026 — el **alcance** y la **implementación** en la respuesta (`RN-PM-019`, `RN-PM-020`); 08-09-2026 — **los dos precios** (`RN-PM-023`, `RN-PM-024`), §5 |
+| Enmendado el | 27-08-2026 — `RN-PM-015`; 02-09-2026 — la membresía de **origen** (`RN-PM-017`, `RN-PM-018`); 07-09-2026 — el **alcance** y la **implementación** en la respuesta (`RN-PM-019`, `RN-PM-020`); 08-09-2026 — **los dos precios** (`RN-PM-023`, `RN-PM-024`), §5; 12-09-2026 — **el segundo es el de COMPRA** (`purchasePrice`), §5 |
 | Fecha de aprobación | 26-08-2026 |
 
 ---
@@ -56,7 +56,7 @@ Si esta salida no se aprueba, la alternativa es **añadir `deletion_reason` a `p
 - **Las dos membresías y la moneda llegan resueltas** con `LEFT JOIN`, en la misma sentencia. Mismo criterio y misma justificación que `RF-PM-002` §8. **Aquí el origen sí viaja**, al revés que en `RF-PM-007`: el detalle es la vista de administración de un producto, y de qué salto se vende es media identidad del producto.
 - **`targetMembership` viaja como `null` presente** en los bots, no ausente.
 - **El precio va como número, con los decimales de su moneda** y no con la escala de la columna (`CA-PM-082`): `49.99`, no `49.9900`. La escala se aplica al serializar, leyendo `decimalPlaces` de la moneda que ya viene en la misma fila.
-- **Desde el 08-09-2026 los precios son dos**, y el criterio anterior alcanza a los dos **con la misma función** (`ProductPrice`): escrita dos veces, el mismo producto acabaría enseñando su precio del sistema con dos decimales y el público con cuatro. `publicPrice` viaja **`null` presente** cuando el producto no lo declara, como `targetMembership` en los bots — su nulo significa «se anuncia con el del sistema», y un campo ausente no puede decir eso.
+- **Desde el 08-09-2026 los precios son dos**, y el criterio anterior alcanza a los dos **con la misma función** (`ProductPrice`): escrita dos veces, el mismo producto acabaría enseñando su precio del sistema con dos decimales y el público con cuatro. `purchasePrice` viaja **`null` presente** cuando no se conoce, como `targetMembership` en los bots — su nulo significa «no se conoce el costo», y un campo ausente no puede decir eso. **Se llamó `publicPrice` y significaba lo que se anunciaba hasta el 12-09-2026**; desde entonces es lo que NEXUS paga, y el detalle lo devuelve porque exige `products:read` (`RN-PM-024`). La conversión se calcula **sobre `price`**, nunca sobre el costo.
 - **`deletedAt` y `deletionReason` solo aparecen si el producto está retirado**, y `deletionReason` se pide al puerto **solo entonces**: en un producto vivo esa consulta no se ejecuta.
 - **No devuelve autoría** (`CA-PM-081`), ni siquiera resuelta desde la auditoría.
 

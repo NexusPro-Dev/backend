@@ -114,7 +114,8 @@ public class Product {
   private BigDecimal price;
 
   /**
-   * El precio con el que el producto <b>se anuncia</b> (`RN-PM-023`).
+   * Lo que <b>NEXUS paga</b> por el producto cuando tiene que comprarlo: el precio de compra
+   * (`RN-PM-023`). Ahí se guarda lo que costó.
    *
    * <p><b>No se cobra.</b> Ningún cálculo lo lee: la venta copia {@link #price} y sobre ese mismo
    * calcula `RN-CM-019`. Que un importe no se cobre <b>no es expresable en el esquema</b>, de modo
@@ -122,15 +123,24 @@ public class Product {
    * ProductCatalog.saleViewOf} no lo lleva, y añadirlo ahí bastaría para que empezara a cobrarse
    * sin que nada fallara.
    *
-   * <p><b>Nulo no es cero</b>, y esa distinción decide lo que se ve en la tienda: el nulo significa
-   * «este producto no declara precio público» —y entonces se anuncia con {@link #price}—, mientras
-   * que el cero anuncia que es gratis. Los dos estados son alcanzables desde `RF-PM-004`.
+   * <p><b>Y no sale de administración</b> (`RN-PM-024`): lo devuelven el listado y el detalle, bajo
+   * {@code products:read}; la oferta y el hotlink <b>no lo seleccionan</b>, porque es el margen y
+   * en el hotlink eso sería sin token. Tampoco es expresable en el esquema, y lo sostiene lo mismo:
+   * que {@code OfferItem} y la respuesta del hotlink <b>no tengan el campo</b>.
    *
-   * <p><b>Y va en la misma moneda</b>: no hay una segunda {@code currency_id}, porque un importe en
-   * otra moneda no sería un rótulo sino un segundo precio de verdad, con su tasa y su vigencia.
+   * <p><b>Nulo no es cero</b>: el nulo significa «no se conoce» —el producto no se ha comprado
+   * todavía, o no aplica—, mientras que el cero dice que no costó nada. Los dos estados son
+   * alcanzables desde `RF-PM-004`, que es hoy donde se registra lo que costó.
+   *
+   * <p><b>Y va en la misma moneda</b>: no hay una segunda {@code currency_id}. Si NEXUS paga en
+   * otra, quien registra el costo lo convierte al declararlo.
+   *
+   * <p><b>Se llamó {@code publicPrice} —lo que se anunciaba— del 08-09-2026 al 12-09-2026</b>
+   * (`V67` → `V86`). La forma es la misma; lo que cambió es qué es el número y quién puede verlo
+   * (`requirements/pm.md` §5.2.6).
    */
-  @Column(name = "public_price", precision = 14, scale = 4)
-  private BigDecimal publicPrice;
+  @Column(name = "purchase_price", precision = 14, scale = 4)
+  private BigDecimal purchasePrice;
 
   @Column(name = "currency_id", nullable = false)
   private UUID currencyId;
@@ -210,7 +220,7 @@ public class Product {
       UUID sourceMembershipId,
       UUID targetMembershipId,
       BigDecimal price,
-      BigDecimal publicPrice,
+      BigDecimal purchasePrice,
       UUID currencyId,
       Integer validityDays,
       ProductScope scope,
@@ -230,11 +240,10 @@ public class Product {
     producto.targetMembershipId = targetMembershipId;
     producto.price = price;
     // Ausente y nulo significan LO MISMO aquí, y ahí se aparta del alcance y de
-    // la implementación: omitirlo no deja ninguna decisión sin tomar, porque hay
-    // un comportamiento correcto y evidente para el producto que no lo declara
-    // — anunciarse con el precio del sistema, que es lo que hacen todos los del
-    // catálogo de hoy.
-    producto.publicPrice = publicPrice;
+    // la implementación: omitirlo no deja ninguna decisión sin tomar, porque un
+    // producto se registra antes de comprarse y el costo se declara cuando se
+    // conoce (`RF-PM-004`).
+    producto.purchasePrice = purchasePrice;
     producto.currencyId = currencyId;
     producto.validityDays = validityDays;
     producto.scope = scope;
@@ -307,7 +316,7 @@ public class Product {
       Patchable<String> nuevaDescripcion,
       Patchable<String> nuevoIcono,
       Patchable<BigDecimal> nuevoPrecio,
-      Patchable<BigDecimal> nuevoPrecioPublico,
+      Patchable<BigDecimal> nuevoPrecioDeCompra,
       Patchable<UUID> nuevaMoneda,
       Patchable<Integer> nuevaVigencia,
       Patchable<ProductScope> nuevoAlcance,
@@ -353,19 +362,19 @@ public class Product {
       }
     }
     // EL NULO EXPLICITO SI LO VACIA, al revés que el precio del sistema: la
-    // columna admite nulo y ese nulo SIGNIFICA «se anuncia con el precio del
-    // sistema», de modo que «bórralo» tiene un estado al que llevar el producto.
-    // Va con la descripción, el icono y la vigencia, no con `price`.
+    // columna admite nulo y ese nulo SIGNIFICA «no se conoce el costo», de modo
+    // que «bórralo» tiene un estado al que llevar el producto. Va con la
+    // descripción, el icono y la vigencia, no con `price`.
     //
-    // Y VACIARLO NO ES PONERLO A CERO: uno anuncia lo que cuesta y el otro
-    // anuncia gratis. Los dos casos son alcanzables desde aquí y no se
+    // Y VACIARLO NO ES PONERLO A CERO: uno dice «no sé cuánto costó» y el otro
+    // «no costó nada». Los dos casos son alcanzables desde aquí y no se
     // confunden — el cero entra por la rama de abajo, con su `compareTo`.
-    if (nuevoPrecioPublico.presente()) {
-      BigDecimal valor = nuevoPrecioPublico.valor();
-      if (!mismoImporte(publicPrice, valor)) {
+    if (nuevoPrecioDeCompra.presente()) {
+      BigDecimal valor = nuevoPrecioDeCompra.valor();
+      if (!mismoImporte(purchasePrice, valor)) {
         cambios.put(
-            "public_price", Map.of("before", importe(publicPrice), "after", importe(valor)));
-        publicPrice = valor;
+            "purchase_price", Map.of("before", importe(purchasePrice), "after", importe(valor)));
+        purchasePrice = valor;
       }
     }
     if (nuevaMoneda.presente() && nuevaMoneda.valor() != null) {
@@ -443,7 +452,7 @@ public class Product {
    *
    * <p>Lo primero porque {@code BigDecimal} serializado a JSON puede perder la escala; lo segundo
    * porque {@code Map.of} rechaza los nulos y, aunque los admitiera, una clave que desaparece haría
-   * indistinguible «se vació el precio público» de «no se tocó».
+   * indistinguible «se vació el precio de compra» de «no se tocó».
    */
   private static String importe(BigDecimal valor) {
     return valor == null ? "" : valor.toPlainString();
@@ -510,11 +519,11 @@ public class Product {
         "source_membership_id", sourceMembershipId == null ? null : sourceMembershipId.toString());
     estado.put("price", price.toPlainString());
     // ENTRA AUNQUE NO SE COBRE, y no por simetría: es el único sitio donde
-    // queda escrito CON QUÉ SE ANUNCIABA un producto que después se corrige, y
-    // sin él una reclamación por «lo vi a otro precio» no tendría contra qué
-    // contrastarse. Nulo cuando no se declaró — `LinkedHashMap` sí lo admite,
-    // al revés que `Map.of`.
-    estado.put("public_price", publicPrice == null ? null : publicPrice.toPlainString());
+    // queda escrito CUÁNTO COSTÓ un producto cuyo costo después se corrige, y
+    // sin él una revisión de márgenes no tendría contra qué contrastarse. Nulo
+    // cuando no se conoce — `LinkedHashMap` sí lo admite, al revés que
+    // `Map.of`. Los eventos anteriores al 12-09-2026 llevan `public_price`.
+    estado.put("purchase_price", purchasePrice == null ? null : purchasePrice.toPlainString());
     estado.put("currency_id", currencyId.toString());
     estado.put("validity_days", validityDays);
     estado.put("status", status.name());
@@ -710,21 +719,12 @@ public class Product {
     return price;
   }
 
-  /** El precio con el que se anuncia. Nulo: se anuncia con el del sistema (`RN-PM-023`). */
-  public BigDecimal getPublicPrice() {
-    return publicPrice;
-  }
-
   /**
-   * El importe que se le enseña a quien no administra el catálogo (`RN-PM-024`).
-   *
-   * <p>Vive en el agregado y <b>no se usa en ninguna respuesta</b>: `RF-PM-007` y `RF-PM-008`
-   * resuelven lo mismo con un {@code COALESCE} en su consulta, para que por esas lecturas <b>solo
-   * viaje un número</b>. Está aquí porque la regla es del producto y no de una consulta, y quien
-   * escriba la siguiente lectura pública debe encontrarla sin tener que deducirla.
+   * Lo que NEXUS pagó por el producto. Nulo: no se conoce (`RN-PM-023`). <b>No sale de
+   * administración</b> (`RN-PM-024`): ninguna lectura pública debe leerlo.
    */
-  public BigDecimal getDisplayPrice() {
-    return publicPrice == null ? price : publicPrice;
+  public BigDecimal getPurchasePrice() {
+    return purchasePrice;
   }
 
   public UUID getCurrencyId() {

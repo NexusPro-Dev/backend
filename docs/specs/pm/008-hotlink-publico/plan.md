@@ -62,7 +62,6 @@ La búsqueda del producto por código **ya está cubierta** por `uq_products_cod
     "validityDays": 30,
     "membership": { "code": "ORO", "name": "Oro", "color": "D4AF37" },
     "price": 60.00,
-    "publicPrice": 49.99,
     "currency": { "code": "USD", "decimalPlaces": 2 },
     "exchange": {
       "currency": { "code": "COP", "decimalPlaces": 2 },
@@ -78,10 +77,13 @@ La búsqueda del producto por código **ya está cubierta** por `uq_products_cod
 - **`rate` viaja como cadena y no como número.** Es el único campo del sistema que lo hace, y por un motivo: tiene **ocho decimales**, y un número JSON pasa por coma flotante de doble precisión en cualquier cliente JavaScript. Como cadena, la tasa que se muestra es la que se declaró.
 - **`amount` sí es número**, redondeado a los decimales de la **moneda de destino** con `ProductPrice`, que es el componente que ya hace eso para las respuestas del módulo.
 - **Ningún parámetro de consulta**, y ninguna cabecera que cambie la respuesta.
-- **`price` y `publicPrice` viajan los dos** (08-09-2026, `RN-PM-024` reescrita): `price` es el del sistema —el que se cobra— y `publicPrice` el anunciado, **nulo** cuando el producto no lo declara. La consulta **selecciona los dos** y ya no resuelve ningún `COALESCE`.
-- **Y `amount` se calcula sobre el importe QUE SE MUESTRA** —`publicPrice` si existe, `price` si no—, no sobre los dos. Dar dos importes convertidos obligaría a decir en la respuesta cuál corresponde a cuál, que es la ambigüedad que este cambio viene a quitar.
+- **`price` viaja solo** (12-09-2026, `RN-PM-024` reescrita por tercera vez): es el que se cobra. **El precio de compra no viaja ni se selecciona**: `ProductRef` no tiene el campo y `findPublishedByCode` no trae la columna, de modo que `ProductRow.purchasePrice` llega nulo a propósito desde esta lectura y **no hay nada que publicar**. Entre el 08-09-2026 y el 12-09-2026 viajó también `publicPrice`, cuando ese importe era lo que se anunciaba; convertido en el costo de NEXUS, publicarlo sin token enseñaría el margen a cualquiera (`requirements/pm.md` §5.2.6).
+- **Y `amount` se calcula sobre `price`**, que es el único importe que se enseña. Desaparece «el importe que se muestra» y con él `ProductExchangeResolver.importeMostrado`.
 
-!!! warning "Este apartado decía lo contrario hasta el 08-09-2026, y conviene saber qué cambió"
+!!! warning "Este apartado se ha invertido dos veces, y la segunda deshace la primera"
+
+    **El 12-09-2026 volvió a la forma original, con el otro importe.** La consulta **no selecciona** `purchase_price`, por el mismo motivo por el que el 08-09-2026 por la mañana no seleccionaba `public_price`: traer el costo hasta el servicio lo dejaría a un campo de distancia de publicarse **sin token**. Lo que sigue es la historia de la inversión intermedia.
+
 
     Decía que la consulta debía resolver `COALESCE(public_price, price)` y **no seleccionar el otro**, porque traer los dos importes hasta el servicio dejaba el del sistema «a un campo de distancia de publicarse» en una ruta sin token.
 
@@ -142,7 +144,7 @@ La ruta se acota **por origen** en `RateLimitFilter`, y no por identidad: no hay
 | 3 | **`rate` se serializa como número** y el cliente lo redondea | Viaja como **cadena**, y `CA-PM-128` comprueba los ocho decimales |
 | 4 | El puerto de `SP` devuelve a **cualquier** persona | La regla vive en `SP`; `CA-PM-133` prueba el cliente y `CA-PM-135` que no viaja nada más que el nombre |
 | 5 | **Se construye antes que `RF-SP-047`** y la conversión queda siempre vacía | Declarado como bloqueo en `tasks.md` §4 |
-| ~~6~~ | ~~**Se publica el precio del sistema sin token**~~ — **dejó de ser un riesgo el 08-09-2026**: se publica **a propósito** (`RN-PM-024` reescrita). Lo que queda no es un riesgo sino una consecuencia aceptada | `CA-PM-169` la deja escrita: los dos importes viajan sin token y la diferencia entre ellos es visible. `CA-PM-163`, que probaba la ausencia, se retira |
+| 6 | **Se publica el precio de compra sin token** — el margen de NEXUS, a la vista de quien reciba un enlace por mensajería. **Vuelve a ser un riesgo el 12-09-2026**: entre el 08-09-2026 y esa fecha el segundo importe se publicaba a propósito, cuando era lo que se anunciaba | La única defensa es que `ProductRef` **no tenga** el campo y que la consulta **no lo seleccione**. `CA-PM-163` prueba la ausencia con un producto que **sí** tiene costo declarado; `CA-PM-169`, que afirmaba la presencia, se invierte de vuelta |
 | 7 | **Se convierte un importe y se publica el otro** | `CA-PM-162` comprueba la cuenta al revés: el importe convertido **dividido por la tasa** devuelve el publicado. Con `rate` en la respuesta, cualquier descuadre es deducible desde fuera |
 
 ## 12. Estrategia de prueba
@@ -150,6 +152,6 @@ La ruta se acota **por origen** en `RateLimitFilter`, y no por identidad: no hay
 - **Integración de API**: los once criterios de `spec.md` §12.
 - **La prueba del oráculo**: los **seis** casos que no proceden, comparando el cuerpo entero entre ellos. Es la prueba que define el requerimiento.
 - **De la conversión**: con tasa, sin tasa, y con el producto ya en la moneda de casa.
-- **Del precio que se publica**: con precio público y sin él (`CA-PM-161`), que la conversión sale del importe publicado (`CA-PM-162`), y que el precio del sistema **no aparece en el cuerpo** (`CA-PM-163`).
+- **Del precio que se publica**: `price` con precio de compra declarado y sin él (`CA-PM-161`), que la conversión sale de `price` (`CA-PM-162`), y que el precio de compra **no aparece en el cuerpo** bajo ningún nombre (`CA-PM-163`).
 - **De número de consultas**: tres, y **dos** cuando el vendedor no procede — la tasa no se pide si no hay a quién enseñársela.
 - **Del límite de tasa**: el exceso desde un origen recibe `429`.

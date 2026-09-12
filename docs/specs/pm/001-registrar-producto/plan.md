@@ -8,7 +8,7 @@
 | Estado | **Aprobado** |
 | Autor | Responsable técnico |
 | Aprobado por | Responsable del proyecto |
-| Enmendado el | 27-08-2026 — `RN-PM-015`; 02-09-2026 — la membresía de **origen** (`RN-PM-017`, `RN-PM-018`); 07-09-2026 — **el alcance y la implementación** (`RN-PM-019`, `RN-PM-020`), §2.4, y **la renovación** —el origen puede ser el destino (`RN-PM-017`)—, §2.5; 08-09-2026 — **el segundo precio, el público** (`RN-PM-023`) y **`RN-PM-006` relajada**, §2.6 |
+| Enmendado el | 27-08-2026 — `RN-PM-015`; 02-09-2026 — la membresía de **origen** (`RN-PM-017`, `RN-PM-018`); 07-09-2026 — **el alcance y la implementación** (`RN-PM-019`, `RN-PM-020`), §2.4, y **la renovación** —el origen puede ser el destino (`RN-PM-017`)—, §2.5; 08-09-2026 — **el segundo precio, el público** (`RN-PM-023`) y **`RN-PM-006` relajada**, §2.6; 12-09-2026 — **el segundo precio pasa a ser el de COMPRA** (`RN-PM-023`, `RN-PM-024`), §2.7 |
 | Fecha de aprobación | 26-08-2026 |
 
 !!! info "Qué va en este documento"
@@ -190,6 +190,22 @@ Esta migración **no emite auditoría**, igual que `V3`: un permiso no tiene lí
 
     Se corrige en el mismo pase (`RN-CM-019` llevada a su límite: sobre precio cero, cualquier valor fijo mayor que cero pasa del 100 %). Queda anotado aquí porque **el `SQL` es donde el defecto nace**, y quien lea esta migración dentro de un año tiene que poder llegar hasta él.
 
+### 2.7 `V86__products_precio_de_compra.sql` — enmienda del 12-09-2026
+
+**Un renombrado de columna y de su `CHECK`, y nada más — porque lo que cambia es el significado, y eso no se migra.**
+
+| Cambio | Definición | Por qué |
+|---|---|---|
+| `public_price` → `purchase_price` | `ALTER TABLE … RENAME COLUMN` | El número deja de ser lo que se anuncia y pasa a ser **lo que NEXUS paga por el producto** (`RN-PM-023`, `requirements/pm.md` §5.2.6). Conserva tipo, escala y opcionalidad: la forma era correcta y sigue siéndolo |
+| `ck_products_public_price_no_negativo` → `ck_products_purchase_price_no_negativo` | `ALTER TABLE … RENAME CONSTRAINT` | Por lo mismo que `ck_products_price_positive` se renombró con su umbral: un nombre que dice «público» sobre un costo **miente**, y el que lo lea en un error del motor buscará una columna que ya no existe |
+| `COMMENT ON COLUMN` | Reescrito | El comentario decía «se anuncia»; ahora dice qué es y qué significa su nulo |
+
+**No es una migración nueva sobre `V67`, y `V67` no se toca.** Reescribir una migración aplicada es el error que Flyway existe para impedir; el renombrado va en su propia migración, con el número que le toque el día que se escriba — que este plan **no reserva**, porque una migración reservada no está reservada (§2.6).
+
+!!! important "No hay relleno, otra vez, y esta vez por un motivo distinto"
+
+    `V67` no rellenó nada porque el nulo ya significaba «se anuncia con el precio del sistema» para todo producto existente. Hoy tampoco se rellena, pero el argumento es otro: **ningún producto de hoy tiene un costo declarado**, porque hasta ayer la columna guardaba otra cosa. Lo que hubiera en ella —un precio anunciado— **no es un costo**, y dejarlo ahí con el nombre nuevo sería mentir con datos. La migración, por tanto, **vacía la columna** (`UPDATE products SET purchase_price = NULL`) antes de que nadie la lea como costo. Es la única sentencia que no es un renombrado, y es la que hace que la columna cambie de significado **vacía del anterior**.
+
 ## 3. Componentes afectados
 
 ### 3.1 En `PM` — `modules/products`
@@ -236,7 +252,7 @@ Se añade a `LayerRulesTest`: **ninguna clase de `..modules.products..` depende 
   "sourceMembershipId": "018f3a2b-7c41-7000-9a3d-1f2e5b8c9d24",
   "targetMembershipId": "018f3a2b-7c41-7000-9a3d-1f2e5b8c9d20",
   "price": 49.99,
-  "publicPrice": 59.99,
+  "purchasePrice": 30.00,
   "validityDays": 30,
   "currencyId": "01a03336-6d00-7001-9c4f-5e7ad3000001"
 }
@@ -245,7 +261,7 @@ Se añade a `LayerRulesTest`: **ninguna clase de `..modules.products..` depende 
 - **No existe campo `status`**, y el DTO se deserializa con `FAIL_ON_UNKNOWN_PROPERTIES` activo: enviarlo devuelve `400` y no se ignora en silencio (`CA-PM-068`). Es lo mismo que `RF-SP-001` hizo con `status` e `isSystem`, y es lo que hace verificable que **el estado inicial no se pueda forzar desde fuera**.
 - `code` se **recorta y se pasa a mayúsculas** antes de validar; `name` y `description` se recortan. Sin el recorte, `"Ascenso "` y `"Ascenso"` serían dos nombres distintos para `uq_products_name`.
 - `price` llega como **número**. La escala admisible **no la fija el DTO**, la fija la moneda (`RN-PM-007`), y por eso se valida en el caso de uso y no con una anotación.
-- **`publicPrice` es opcional, y ausente y nulo significan lo mismo**: el producto se anuncia con el precio del sistema (`RN-PM-023`). Aquí **sí** se aparta de `scope` e `implementation` —que son obligatorias y donde ausente y nulo significan «falta»—, y el motivo es que **su omisión no deja ninguna decisión sin tomar**: hay un comportamiento correcto y evidente para el producto que no lo declara, y es el que tienen todos los del catálogo de hoy.
+- **`purchasePrice` es opcional, y ausente y nulo significan lo mismo**: no se conoce el costo todavía (`RN-PM-023`). Aquí **sí** se aparta de `scope` e `implementation` —que son obligatorias y donde ausente y nulo significan «falta»—, y el motivo es que **su omisión no deja ninguna decisión sin tomar**: un producto se registra antes de comprarse, y el costo se declara cuando se conoce (`RF-PM-004`). **Se llamó `publicPrice` hasta el 12-09-2026** y significaba otra cosa; el nombre viejo es una propiedad desconocida y devuelve `400`.
 - **El DTO acota de los dos importes lo que es cierto para cualquier moneda** —no negativo y hasta cuatro decimales, que es lo que la columna admite— y **nada más**. Los decimales de verdad los decide el caso de uso contra `currencies.decimal_places`, para los **dos**.
 - **`validityDays` es opcional en los dos tipos.** Ausente o `null` significa lo mismo: el producto no caduca. Se valida en el DTO —entero mayor que cero— porque su regla no depende de ningún otro campo, al revés que el precio.
 - `sourceMembershipId` y `targetMembershipId` son **obligatorios los dos o prohibidos los dos** según `type`, y **la condición se comprueba en el caso de uso y no con validación declarativa**: una anotación de Bean Validation no puede expresar «obligatorio si otro campo vale X» sin un validador de clase, y el mensaje que produce no distingue cuál de las cuatro mitades se incumplió. Con dos campos el mensaje **dice cuál**: `VAL-007` y `VAL-008` viajan con el `field` que falta o que sobra, porque uno que no distinga obliga a probar los dos.
@@ -265,7 +281,7 @@ Se añade a `LayerRulesTest`: **ninguna clase de `..modules.products..` depende 
   "sourceMembership": { "id": "018f3a2b-…", "code": "BECA", "name": "Beca", "level": 4 },
   "targetMembership": { "id": "018f3a2b-…", "code": "ORO", "name": "Oro", "level": 1 },
   "price": 49.99,
-  "publicPrice": 59.99,
+  "purchasePrice": 30.00,
   "validityDays": 30,
   "currency": { "id": "01a03336-…", "code": "USD", "decimalPlaces": 2 },
   "status": "INACTIVO",
@@ -277,8 +293,8 @@ Se añade a `LayerRulesTest`: **ninguna clase de `..modules.products..` depende 
 - **Las dos membresías llegan resueltas** y no como identificadores sueltos, con los datos que el puerto ya devolvió: resolverlas cuesta cero consultas extra porque la validación ya las trajo. En el ejemplo, `level` 4 → 1 es un **salto de tres escalones**, y es legítimo (`RN-PM-018`).
 - **`sourceMembership` y `targetMembership` viajan como `null` presentes** en los bots, no ausentes: un campo que falta es indistinguible de uno que el cliente no conoce.
 - **El precio se serializa con los decimales de su moneda** y no con la escala de la columna (`CA-PM-082`): `49.99`, no `49.9900`. **Vale para los dos importes, con la misma función y en el mismo sitio** (`ProductPrice`): escrita dos veces, el mismo producto acabaría enseñando sus dos precios con escalas distintas.
-- **`publicPrice` viaja como `null` presente** cuando el producto no lo declara, no ausente (`CA-PM-146`). Su nulo **significa** «se anuncia con el precio del sistema», y un campo que desaparece no puede decir eso.
-- **Esta respuesta lleva los DOS precios porque exige `products:create`**, que solo tiene quien administra el catálogo. `RN-PM-024` acota a `RF-PM-007` y `RF-PM-008`, que no piden ningún permiso de administración.
+- **`purchasePrice` viaja como `null` presente** cuando el producto no lo declara, no ausente (`CA-PM-146`). Su nulo **significa** «no se conoce el costo», y un campo que desaparece no puede decir eso.
+- **Esta respuesta lleva los DOS precios porque exige `products:create`**, que solo tiene quien administra el catálogo. `RN-PM-024` acota el precio de compra a administración: `RF-PM-007` y `RF-PM-008`, que no piden ningún permiso de administración, **no lo devuelven** (12-09-2026).
 
 ## 5. Autorización
 
@@ -288,7 +304,7 @@ Se añade a `LayerRulesTest`: **ninguna clase de `..modules.products..` depende 
 
 Un evento `CREATE` en `audit_change_log`, en la misma transacción, con el **estado inicial completo**: código, tipo, nombre, descripción, **origen**, destino, **los dos precios**, moneda y estado (`CA-PM-011`, `CA-PM-150`).
 
-**El precio público entra en la instantánea aunque no se cobre**, y no por simetría: es el único sitio donde queda escrito **con qué se anunciaba** un producto que después se corrige, y sin él una reclamación por «lo vi a otro precio» no tendría contra qué contrastarse. Va como texto y nulo cuando no se declaró, igual que el resto — `Map.of` rechaza los nulos, de modo que la instantánea usa un mapa que sí los admite.
+**El precio de compra entra en la instantánea aunque no se cobre**, y no por simetría: es el único sitio donde queda escrito **cuánto costó** un producto cuyo costo después se corrige, y sin él una revisión de márgenes no tendría contra qué contrastarse. Va como texto y nulo cuando no se declaró, igual que el resto — `Map.of` rechaza los nulos, de modo que la instantánea usa un mapa que sí los admite. La clave es `purchase_price` desde el 12-09-2026; los eventos anteriores conservan `public_price`, porque una instantánea es lo que era, no lo que es.
 
 **Sin evento de seguridad**, y no es una omisión: `spec.md` §14 resolución 5 lo decidió. Un producto no concede privilegios sobre el sistema y el catálogo de `security.md` §8.1 es cerrado. Quién puso un precio lo responde este mismo evento.
 
@@ -306,7 +322,7 @@ Una sola transacción para el `INSERT` y su evento de auditoría. Las lecturas c
 
 **`CM` cambia, y no porque este requerimiento se lo pida** (08-09-2026). `ProductCommissionCapGuard` convierte un valor fijo a porcentaje con `fixed_amount ÷ precio`, y dependía **por escrito** de `ck_products_price_positive` para que ese divisor no fuera cero. `V67` retira esa garantía, de modo que la corrección viaja en el mismo pase: sobre un producto de precio cero, cualquier valor fijo mayor que cero **paga más del 100 % de lo que el producto cobra** y se rechaza con el mensaje de `RN-CM-019`; uno de cero ocupa cero. No hace falta ninguna regla nueva — es lo que aquella ya decía, llevado al límite.
 
-**`MV` no cambia.** Sigue copiando `price` en `movement_details.unit_price`, y el precio público **no entra en el puerto de venta**: `ProductCatalog.saleViewOf` no lo lleva, y eso es lo único que impide que empiece a cobrarse.
+**`MV` no cambia.** Sigue copiando `price` en `movement_details.unit_price`, y el precio de compra **no entra en el puerto de venta**: `ProductCatalog.saleViewOf` no lo lleva, y eso es lo único que impide que empiece a cobrarse.
 
 **El contrato OpenAPI crece** con el endpoint y sus esquemas, y `OpenApiContractIT` lo regenera en `docs/api/`.
 
@@ -319,10 +335,11 @@ Una sola transacción para el `INSERT` y su evento de auditoría. Las lecturas c
 | Un endpoint por tipo (`/products/upgrades`, `/products/services`) | Duplicaría el contrato y la mitad del caso de uso para una diferencia de un campo. La spec ya resolvió que es **un** requerimiento |
 | Guardar el precio como `numeric(12,2)` | Fijaría en dos los decimales de toda moneda, cuando `currencies.decimal_places` existe justamente para no asumirlo |
 | Que `PM` consultara `memberships` con su propio repositorio | Es lo que D-25 prohíbe: ataría `PM` al esquema de `SP` y un cambio allí lo rompería en silencio |
-| **Guardar solo el precio anunciado y calcular el otro** —o al revés—, con un porcentaje o un margen | No hay ninguna operación que relacione los dos importes: **la relación es una decisión comercial que se toma producto a producto** y puede ser cualquiera. Lo único que puede guardarla es una segunda columna (`requirements/pm.md` §5.2.4) |
-| **`public_price NOT NULL DEFAULT 0`**, o rellenar con el precio del sistema | Los dos borran una distinción que significa algo: «no declara precio público» **no es** «vale cero», y con el relleno tampoco sería «se anuncia con el del sistema» — sería una **copia** que dejaría de seguirlo en cuanto alguien corrigiera el precio, en silencio y sin que nadie lo hubiera pedido |
-| **Un `CHECK` de `public_price >= price`** | Cierra el caso que el campo existe para permitir: anunciar por debajo de lo que se cobra es tan legítimo como lo contrario, y quién decide eso es quien pone los precios. Se descarta **hoy**, no para siempre — es una migración de tres líneas el día que se decida (`requirements/pm.md` §5.2.4) |
-| **Una segunda moneda para el precio público** | Un importe en otra moneda no es un rótulo: es un segundo precio de verdad, con su tasa y su vigencia. Eso ya lo resuelve `RF-SP-047` para el hotlink, y no es algo que esta tabla deba guardar |
+| **Guardar solo el costo y calcular el precio con un margen** —o al revés— | No hay ninguna operación que relacione los dos importes: **la relación es una decisión comercial que se toma producto a producto** y puede ser cualquiera. Lo único que puede guardarla es una segunda columna (`requirements/pm.md` §5.2.4) |
+| **`purchase_price NOT NULL DEFAULT 0`**, o rellenar con el precio del sistema | Los dos borran una distinción que significa algo: «no se conoce el costo» **no es** «costó cero», y rellenar con el precio de venta inventaría un margen de cero que nadie declaró |
+| **Un `CHECK` de `price >= purchase_price`** | Cierra un caso legítimo: vender por debajo del costo es una decisión comercial, y el sistema la registra en vez de impedirla. Se descarta **hoy**, no para siempre — es una migración de tres líneas el día que se decida (`requirements/pm.md` §5.2.6) |
+| **Una segunda moneda para el precio de compra** | Si NEXUS paga en otra moneda, quien registra el costo lo convierte al declararlo. Una compra con su moneda, su tasa y su fecha es una **tabla de compras**, no una columna de esta |
+| **Una columna nueva en vez de renombrar `public_price`** (12-09-2026) | Dejaría una columna huérfana que nadie lee y que seguiría llamándose «público», y obligaría a decidir qué hacer con ella. El renombrado con vaciado deja **una** columna con **un** significado |
 
 ## 10. Riesgos
 
@@ -332,7 +349,8 @@ Una sola transacción para el `INSERT` y su evento de auditoría. Las lecturas c
 | 2 | **Los puertos de `SP` son código nuevo en un módulo ya implementado** | Son de solo lectura y no tocan ningún caso de uso existente. La suite de `SP` debe seguir en verde sin cambios |
 | 3 | **Una moneda desactivada después del alta deja productos con moneda inactiva** | Es deliberado (`RN-PM-008`): desactivar no invalida lo registrado. Lo que no puede es usarse en un alta nueva |
 | 4 | **Dos altas simultáneas del mismo código** | Las serializa `uq_products_code`; la prueba concurrente es obligatoria y no basta con la verificación previa |
-| 5 | **El precio público acaba cobrándose sin que nada falle.** Basta con añadirlo al puerto que `PM` publica para vender (`ProductCatalog.saleViewOf`) o con leerlo desde `MV`: no hay restricción, tipo ni prueba que lo impida, porque «este número no se cobra» no es expresable en el esquema | La única defensa es **dónde no está**: `SaleView` no lleva el campo, y `RN-PM-023` lo declara. Se prueba **por el efecto**: corregir el precio público **no cambia** el importe de una venta registrada después (§11) |
+| 5 | **El precio de compra acaba cobrándose sin que nada falle.** Basta con añadirlo al puerto que `PM` publica para vender (`ProductCatalog.saleViewOf`) o con leerlo desde `MV`: no hay restricción, tipo ni prueba que lo impida, porque «este número no se cobra» no es expresable en el esquema | La única defensa es **dónde no está**: `SaleView` no lleva el campo, y `RN-PM-023` lo declara. Se prueba **por el efecto**: corregir el precio de compra **no cambia** el importe de una venta registrada después (§11) |
+| 6 | **El precio de compra acaba publicándose sin que nada falle** (12-09-2026). Basta con añadir el campo a `OfferItem` o a la respuesta del hotlink «por simetría» con las de administración, y el margen de NEXUS sale sin token | La misma defensa, en el otro sentido: **las dos proyecciones públicas no tienen el campo y sus consultas no lo seleccionan**. Se prueba por la **ausencia** en el cuerpo (`CA-PM-160`, `CA-PM-163`), con un producto que sí lo tiene declarado |
 | 6 | **Un producto de precio cero rompía la conversión de un valor fijo en `CM`** | Se corrige `ProductCommissionCapGuard` en el mismo pase, con `RN-CM-019` llevada a su límite. Ver §2.6 y §8 |
 
 ## 11. Estrategia de prueba
@@ -341,7 +359,7 @@ Una sola transacción para el `INSERT` y su evento de auditoría. Las lecturas c
 |---|---|---|
 | Normalización y formato del código, y del nombre | Unitaria | Sobre `Product`, sin Spring |
 | Decimales del precio según la moneda | Unitaria | Dos monedas: una de dos decimales y otra de **cero**. **Contra los dos importes**, y con el caso que solo aparece con dos: el del sistema cabe y el público no |
-| El precio público, en sus cuatro estados | API | Informado, **ausente**, **nulo explícito** y negativo. Los dos primeros terminan en la misma fila; el tercero tiene que llegar **presente y nulo** en la respuesta, y el cuarto nombrar `publicPrice` |
+| El precio de compra, en sus cuatro estados | API | Informado, **ausente**, **nulo explícito** y negativo. Los dos primeros terminan en la misma fila; el tercero tiene que llegar **presente y nulo** en la respuesta, y el cuarto nombrar `purchasePrice` |
 | El precio **cero** | API | Se admite en los dos importes (`CA-PM-149`). Es la renovación de una membresía gratuita, y hasta hoy era un `400` |
 | Los once criterios de `spec.md` §12 | API | `MockMvc` con permiso concedido |
 | La condición cruzada de `RN-PM-002` | API | **En los cuatro sentidos**: upgrade sin origen, upgrade sin destino, bot con destino y bot con origen — y el `field` de cada rechazo, porque un mensaje que no distinga obliga a probar los dos |

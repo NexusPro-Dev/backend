@@ -107,12 +107,7 @@ public class GetOwnOfferService {
         conversiones.para(filas.stream().map(ProductRow::currencyId).toList());
 
     for (ProductRow fila : filas) {
-      OfferItem producto =
-          OfferItem.from(
-              fila,
-              conversor.de(
-                  fila.currencyId(),
-                  ProductExchangeResolver.importeMostrado(fila.price(), fila.publicPrice())));
+      OfferItem producto = OfferItem.from(fila, conversor.de(fila.currencyId(), fila.price()));
       if (producto.type() == ProductType.UPGRADE_MEMBRESIA) {
         upgrades.add(producto);
       } else {

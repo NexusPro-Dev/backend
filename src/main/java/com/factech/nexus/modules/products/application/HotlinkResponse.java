@@ -44,15 +44,15 @@ public record HotlinkResponse(SellerRef seller, ProductRef product) {
   /**
    * El producto que el enlace señala.
    *
-   * <p><b>Lleva los DOS importes desde el 08-09-2026</b> (`RN-PM-024` reescrita): {@code price} es
-   * el del sistema —el que se cobra— y {@code publicPrice} el anunciado, <b>nulo</b> cuando el
-   * producto no lo declara. Hasta esa fecha viajaba <b>uno solo</b>, resuelto con un {@code
-   * COALESCE} en la consulta, y el del sistema no salía por aquí a propósito.
+   * <p><b>Lleva UN importe, y el precio de compra no tiene dónde ir</b> (`RN-PM-024`, 12-09-2026):
+   * {@code price} es el que se cobra, y este registro <b>no tiene campo</b> para el costo de NEXUS
+   * ni {@code findPublishedByCode} <b>selecciona la columna</b>. Es una ruta <b>sin token</b>: un
+   * costo publicado aquí es el margen a la vista de quien reciba el enlace por mensajería, y no se
+   * retira después. `CA-PM-163` prueba la ausencia con un producto que sí lo tiene declarado.
    *
-   * <p><b>Lo que eso publica está decidido y escrito</b> (`requirements/pm.md` §5.2.5): en una ruta
-   * sin token, cualquiera resta un importe del otro y ve la diferencia entre lo anunciado y lo
-   * cobrado. No es un descuido de esta clase — es lo pedido, y `CA-PM-169` lo deja comprobado para
-   * que el día que se decida lo contrario haga falta decidirlo.
+   * <p>Entre el 08-09-2026 y el 12-09-2026 este registro tuvo {@code publicPrice} —lo que se
+   * anunciaba— por decisión escrita en `requirements/pm.md` §5.2.5; convertido ese importe en el
+   * costo, salió de aquí (§5.2.6). Ningún costo llegó a publicarse.
    */
   @JsonInclude(JsonInclude.Include.ALWAYS)
   public record ProductRef(
@@ -65,7 +65,6 @@ public record HotlinkResponse(SellerRef seller, ProductRef product) {
       Integer validityDays,
       MembershipBadge membership,
       BigDecimal price,
-      BigDecimal publicPrice,
       CurrencyRef currency,
       ExchangeRef exchange) {}
 }

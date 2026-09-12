@@ -114,14 +114,7 @@ public class ListProductsService {
     return ProductPageResponse.de(
         PageResponse.de(
             filas.stream()
-                .map(
-                    fila ->
-                        ProductItem.from(
-                            fila,
-                            conversor.de(
-                                fila.currencyId(),
-                                ProductExchangeResolver.importeMostrado(
-                                    fila.price(), fila.publicPrice()))))
+                .map(fila -> ProductItem.from(fila, conversor.de(fila.currencyId(), fila.price())))
                 .toList(),
             consultas.count(canonicos),
             trozo.page(),

@@ -107,11 +107,13 @@ public class ProductExchangeResolver {
      * vigente</b> para esa moneda. El tercero es el que más fácil se convierte en un `404` por
      * descuido: escondería un producto perfectamente vendible porque falta un dato de otro módulo.
      *
-     * @param importeMostrado el importe sobre el que se convierte, que es <b>el que se muestra</b>
-     *     —el público si el producto lo declara y el del sistema si no—, nunca los dos
+     * @param importe el importe sobre el que se convierte. Desde el 12-09-2026 es <b>siempre {@code
+     *     price}</b>: fuera de administración es el único que se muestra, y el precio de compra —el
+     *     costo— no se convierte nunca (`RN-PM-024`). Hasta esa fecha era «el que se muestra», el
+     *     público si existía, y la elección vivía en {@code importeMostrado}
      */
-    public ExchangeRef de(UUID monedaDelProducto, BigDecimal importeMostrado) {
-      if (destino == null || monedaDelProducto == null || importeMostrado == null) {
+    public ExchangeRef de(UUID monedaDelProducto, BigDecimal importe) {
+      if (destino == null || monedaDelProducto == null || importe == null) {
         return null;
       }
       if (destino.id().equals(monedaDelProducto)) {
@@ -122,8 +124,8 @@ public class ProductExchangeResolver {
         return null;
       }
 
-      BigDecimal importe =
-          importeMostrado
+      BigDecimal convertido =
+          importe
               .multiply(tasa.price())
               // A los decimales de la moneda de DESTINO, que es en la que queda
               // expresado el importe. La escala de la tasa —ocho— no manda aquí:
@@ -135,19 +137,7 @@ public class ProductExchangeResolver {
           // Como CADENA: ocho decimales no sobreviven a la coma flotante de
           // doble precisión de un cliente JavaScript.
           tasa.price().toPlainString(),
-          importe);
+          convertido);
     }
-  }
-
-  /**
-   * El importe que se muestra: el público si el producto lo declara y el del sistema si no.
-   *
-   * <p><b>Vive aquí y no en cada lectura</b> porque es la definición de «el que se muestra», y
-   * cuatro copias de un {@code if} son cuatro sitios donde alguien puede invertirlo. Lo usan las
-   * cuatro para decidir sobre qué importe se convierte — <b>no</b> para elegir cuál publicar, que
-   * desde el 08-09-2026 son los dos.
-   */
-  public static BigDecimal importeMostrado(BigDecimal precioSistema, BigDecimal precioPublico) {
-    return precioPublico != null ? precioPublico : precioSistema;
   }
 }

@@ -116,10 +116,14 @@ public class ProductController {
 
           **Un producto lleva DOS precios y solo uno se cobra.** `price` es el
           del sistema —el que copia la venta y sobre el que se comisiona— y
-          `publicPrice` es con el que **se anuncia**: es **opcional**, no
-          interviene en ningún cálculo y se expresa en la **misma moneda**.
-          Ausente o nulo significan lo mismo —el producto se anuncia con el del
-          sistema—, y **eso no es «vale cero»** (`RN-PM-023`).
+          `purchasePrice` es el **precio de compra**: lo que NEXUS paga por el
+          producto cuando tiene que comprarlo, y donde se guarda lo que costó.
+          Es **opcional**, no interviene en ningún cálculo, se expresa en la
+          **misma moneda** y **no sale de administración**: la oferta y el
+          hotlink no lo devuelven. Ausente o nulo significan lo mismo —no se
+          conoce todavía—, y **eso no es «costó cero»** (`RN-PM-023`). Se llamó
+          `publicPrice` hasta el 12-09-2026; ese nombre es hoy una propiedad
+          desconocida y devuelve `400`.
 
           Los dos importes se validan igual: **no negativos** —el **cero se
           admite** desde que existe la renovación de una membresía gratuita— y
@@ -171,20 +175,23 @@ public class ProductController {
           exige un permiso propio**: basta `products:read`.
 
           Cada fila trae **los dos precios**: `price` —el que se cobra— y
-          `publicPrice` —el que se anuncia—, este **presente y nulo** en los
-          productos que no lo declaran. Desde el 08-09-2026 los devuelven **las
-          cuatro lecturas** del módulo y no solo esta (`RN-PM-024`).
+          `purchasePrice` —el **precio de compra**, lo que NEXUS paga por el
+          producto—, este **presente y nulo** en los productos cuyo costo no se
+          conoce. Este listado y el detalle son **los dos únicos sitios** donde
+          se ven juntos: la oferta y el hotlink no devuelven el de compra
+          (`RN-PM-024`, 12-09-2026).
 
           Y trae **`exchange`**, la conversión a la moneda por omisión con la
-          tasa vigente hoy, calculada sobre el importe **que se muestra** —el
-          público si existe y el del sistema si no—. Llega **presente y nula**
-          cuando el producto ya está en esa moneda o cuando nadie declaró una
-          tasa: eso **no es un error** y el producto se devuelve igual.
+          tasa vigente hoy, calculada **sobre `price`** —el de compra nunca se
+          convierte—. Llega **presente y nula** cuando el producto ya está en
+          esa moneda o cuando nadie declaró una tasa: eso **no es un error** y
+          el producto se devuelve igual.
 
           Solo se puede ordenar por la lista blanca —`name`, `price`,
-          `createdAt`—, con `,asc` o `,desc`. **`publicPrice` no está en ella**:
-          ordenar por lo que se anuncia no responde ninguna pregunta de quien
-          administra. **Un campo fuera de la lista se rechaza y no se ignora**:
+          `createdAt`—, con `,asc` o `,desc`. **`purchasePrice` no está en
+          ella**: ordenar por una columna que admite nulos obligaría a decidir
+          dónde van los productos sin costo conocido, y nadie lo ha decidido.
+          **Un campo fuera de la lista se rechaza y no se ignora**:
           ignorarlo devolvería un orden distinto del pedido sin decirlo. Por omisión se ordena por **fecha de alta
           descendente**, y el orden aplicado viaja en la respuesta.
 
@@ -305,20 +312,19 @@ public class ProductController {
           mira sería un descuento, y los descuentos son promociones, que están
           fuera de alcance.
 
-          **Vienen LOS DOS importes** (`RN-PM-024`, reescrita el 08-09-2026):
-          `price` es el del sistema —el que la venta cobra— y `publicPrice` el
-          que el producto anuncia, **nulo y presente** cuando no lo declara.
-          Hasta esa fecha esta respuesta publicaba **uno solo**, resuelto por la
-          consulta, y quien la leía no sabía cuál de los dos era.
+          **Viene UN importe** (`RN-PM-024`, reescrita el 12-09-2026): `price`,
+          el que la venta cobra. **El precio de compra no viaja por aquí**: es
+          lo que NEXUS paga por el producto, y quien compra no tiene por qué
+          conocer el margen. Entre el 08-09-2026 y el 12-09-2026 esta respuesta
+          traía también `publicPrice`, cuando ese importe era lo que se
+          anunciaba; ese campo **ya no existe**.
 
-          Y viene **`exchange`**, la conversión a la moneda por omisión con la
-          tasa vigente hoy, calculada sobre el importe **que se muestra** —el
-          público si existe y el del sistema si no—. **Presente y nula** cuando
-          no hay nada que convertir.
+          Y viene **`exchange`**, la conversión de `price` a la moneda por
+          omisión con la tasa vigente hoy. **Presente y nula** cuando no hay
+          nada que convertir.
 
           **Quien construya la pantalla de compra tiene que saberlo**: el
-          importe que confirma la venta es `price`, y puede no ser el que se le
-          está enseñando a quien compra.
+          importe que confirma la venta es `price`, el mismo que se enseña.
 
           Las dos colecciones viajan **envueltas en un objeto** y no como
           arreglos en la raíz: hoy la oferta no se pagina, y así el día que
@@ -355,12 +361,14 @@ public class ProductController {
           Devuelve el producto con su membresía destino y su moneda **resueltas**,
           sin exigir una segunda consulta.
 
-          Trae **los dos precios** —`price`, el que se cobra, y `publicPrice`,
-          el que se anuncia y llega **nulo y presente** si no se declara— y
-          **`exchange`**, la conversión a la moneda por omisión con la tasa
-          vigente hoy, calculada sobre el importe **que se muestra**. La
+          Trae **los dos precios** —`price`, el que se cobra, y `purchasePrice`,
+          el **precio de compra**: lo que NEXUS paga por el producto, que llega
+          **nulo y presente** si no se conoce— y **`exchange`**, la conversión
+          de `price` a la moneda por omisión con la tasa vigente hoy. La
           conversión llega **presente y nula** cuando el producto ya está en esa
-          moneda o cuando nadie declaró una tasa (`RN-PM-024`, 08-09-2026).
+          moneda o cuando nadie declaró una tasa (`RN-PM-024`). El precio de
+          compra solo se ve aquí y en el listado: la oferta y el hotlink no lo
+          devuelven.
 
           **Un producto retirado se devuelve marcado como tal**, no como
           inexistente: `deletedAt` dice desde cuándo y `deletionReason` **por
@@ -428,13 +436,17 @@ public class ProductController {
 
           **Distingue el campo ausente del enviado vacío**, y de ahí salen dos
           comportamientos opuestos: `description: null`, `icon: null`,
-          `validityDays: null` y `publicPrice: null` **vacían** el campo,
+          `validityDays: null` y `purchasePrice: null` **vacían** el campo,
           mientras que `name: null` y `price: null` se **rechazan**, porque un
           producto sin nombre o sin precio del sistema no puede existir.
 
-          **Vaciar `publicPrice` NO es ponerlo a cero**: con nulo el producto
-          vuelve a anunciarse con el precio del sistema, y con cero se anuncia
-          gratis. Son dos estados distintos y los dos se alcanzan desde aquí.
+          **`purchasePrice` es el precio de compra** —lo que NEXUS paga por el
+          producto— y esta operación es donde hoy se registra lo que costó.
+          **Vaciarlo NO es ponerlo a cero**: con nulo el costo pasa a «no se
+          conoce», y con cero a «no costó nada». Son dos estados distintos y
+          los dos se alcanzan desde aquí. Se llamó `publicPrice` hasta el
+          12-09-2026; ese nombre es hoy una propiedad desconocida y devuelve
+          `400`.
 
           **`scope: null` e `implementation: null` también se rechazan**, y ahí
           van con el nombre y no con la descripción: son obligatorios en la
