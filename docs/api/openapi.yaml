@@ -649,6 +649,18 @@ paths:
 
         **Filtrar por persona devuelve las declaradas PARA esa persona**, no la que
         le aplica hoy sobre un producto.
+
+        **Filtrar por producto (`productId`) devuelve las ASOCIADAS a ese producto**,
+        de cualquier persona: es la respuesta a «quién tiene excepción aquí». Se
+        combina con los demás filtros — persona y producto juntos responden
+        «¿tiene esta persona excepción en este producto?», con su historial. Un
+        producto donde nadie tiene excepción devuelve la página vacía, y **no
+        significa que no comisione**: significa que todos cobran por su rol.
+
+        Cada fila trae **`associatedProducts`**, sobre cuántos productos rige.
+        **Cero significa que esa excepción no paga nada** — es el estado en que
+        nace, hasta que se asocia. Los productos van contados y no listados; la
+        lista está en `GET /api/v1/user-commission-rates/{id}/products`.
       operationId: listar_1
       parameters:
       - name: filtros
@@ -740,6 +752,48 @@ paths:
               schema:
                 $ref: "#/components/schemas/UserCommissionRateResponse"
   /api/v1/user-commission-rates/{id}/products:
+    get:
+      tags:
+      - Comisiones
+      summary: Consultar sobre qué productos rige una tasa personalizada
+      description: |
+        Devuelve los productos a los que está asociada esa tasa, **con la misma
+        forma que devuelven asociar y desasociar**: la lista completa, resuelta con
+        `id`, `code` y `name` y ordenada por código.
+
+        **Una lista vacía significa que esa excepción no paga nada** — está
+        declarada y no rige sobre ningún producto (`RN-CM-012`). Es la lectura que
+        revela una personalizada a medio configurar.
+
+        **No comprueba que la tasa exista**: con un identificador que no es de
+        nada responde `200` y lista vacía, igual que su gemela de rol en
+        `GET /api/v1/commission-rates/{id}/products`. Distinguir «no existe» de
+        «no tiene asociaciones» costaría una consulta para no cambiar lo que el
+        cliente hace después.
+
+        Para la pregunta inversa —qué personas tienen excepción en un producto—
+        use `GET /api/v1/user-commission-rates?productId=`.
+      operationId: productosDeLaTasa
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      responses:
+        "200":
+          description: Los productos de la tasa
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/UserRateProductsResponse"
+        "403":
+          description: Sin permiso
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/UserRateProductsResponse"
     post:
       tags:
       - Comisiones
@@ -1939,7 +1993,7 @@ paths:
         que tenga porcentaje.
 
         No se pagina: una tasa se asocia a un puñado de productos.
-      operationId: productosDeLaTasa
+      operationId: productosDeLaTasa_1
       parameters:
       - name: id
         in: path
@@ -4050,9 +4104,11 @@ paths:
         — ni siquiera a los roles que tienen tasa en el catálogo, si nadie la
         asoció (`RN-CM-012`).
 
-        **Esto no resuelve la comisión de una persona.** Una tasa personalizada
-        gana sobre todas estas y no aparece aquí, porque no se asocia a productos.
-        Para saber qué cobra alguien concreto, use
+        **Esto no resuelve la comisión de una persona, y solo devuelve roles.** Las
+        tasas personalizadas también se asocian a productos desde el 11-09-2026 y
+        ganan sobre estas, pero **no aparecen aquí**: qué personas tienen excepción
+        en este producto lo responde `GET /api/v1/user-commission-rates?productId=`,
+        paginado y con su historial. Para saber qué cobra alguien concreto, use
         `GET /api/v1/commissions/effective`.
       operationId: porProducto
       parameters:
@@ -7030,6 +7086,9 @@ components:
         userId:
           type: string
           format: uuid
+        productId:
+          type: string
+          format: uuid
         onDate:
           type: string
           format: date
@@ -7058,6 +7117,9 @@ components:
         validTo:
           type: string
           format: date
+        associatedProducts:
+          type: integer
+          format: int64
         deletedAt:
           type: string
           format: date-time

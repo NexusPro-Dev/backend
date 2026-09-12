@@ -1041,6 +1041,10 @@
             "format" : "int32",
             "type" : "integer"
           },
+          "productId" : {
+            "format" : "uuid",
+            "type" : "string"
+          },
           "size" : {
             "format" : "int32",
             "type" : "integer"
@@ -3222,6 +3226,10 @@
       },
       "UserCommissionRateItem" : {
         "properties" : {
+          "associatedProducts" : {
+            "format" : "int64",
+            "type" : "integer"
+          },
           "deletedAt" : {
             "format" : "date-time",
             "type" : "string"
@@ -4839,7 +4847,7 @@
     "/api/v1/commission-rates/{id}/products" : {
       "get" : {
         "description" : "**Una lista vacía significa que la tasa no paga nada a nadie**, por mucho\nque tenga porcentaje.\n\nNo se pagina: una tasa se asocia a un puñado de productos.\n",
-        "operationId" : "productosDeLaTasa",
+        "operationId" : "productosDeLaTasa_1",
         "parameters" : [ {
           "in" : "path",
           "name" : "id",
@@ -5917,7 +5925,7 @@
     },
     "/api/v1/product-commission-rates" : {
       "get" : {
-        "description" : "Devuelve una entrada **por cada rol** que cobra comisión por ese producto,\ncon el porcentaje ya resuelto.\n\n**Una lista vacía significa que ese producto no paga comisión a nadie**\n— ni siquiera a los roles que tienen tasa en el catálogo, si nadie la\nasoció (`RN-CM-012`).\n\n**Esto no resuelve la comisión de una persona.** Una tasa personalizada\ngana sobre todas estas y no aparece aquí, porque no se asocia a productos.\nPara saber qué cobra alguien concreto, use\n`GET /api/v1/commissions/effective`.\n",
+        "description" : "Devuelve una entrada **por cada rol** que cobra comisión por ese producto,\ncon el porcentaje ya resuelto.\n\n**Una lista vacía significa que ese producto no paga comisión a nadie**\n— ni siquiera a los roles que tienen tasa en el catálogo, si nadie la\nasoció (`RN-CM-012`).\n\n**Esto no resuelve la comisión de una persona, y solo devuelve roles.** Las\ntasas personalizadas también se asocian a productos desde el 11-09-2026 y\nganan sobre estas, pero **no aparecen aquí**: qué personas tienen excepción\nen este producto lo responde `GET /api/v1/user-commission-rates?productId=`,\npaginado y con su historial. Para saber qué cobra alguien concreto, use\n`GET /api/v1/commissions/effective`.\n",
         "operationId" : "porProducto",
         "parameters" : [ {
           "in" : "query",
@@ -7105,7 +7113,7 @@
     },
     "/api/v1/user-commission-rates" : {
       "get" : {
-        "description" : "Devuelve las tasas **tal como se declararon**, y no resuelve cuál se\naplica: para eso está `GET /api/v1/commissions/effective`.\n\n**Incluye el historial**: las vencidas viajan junto a la vigente salvo que\nse filtre por fecha con `onDate`. Y es **el único historial que le queda al\nmódulo** — las tasas de rol perdieron la vigencia.\n\n**Filtrar por persona devuelve las declaradas PARA esa persona**, no la que\nle aplica hoy sobre un producto.\n",
+        "description" : "Devuelve las tasas **tal como se declararon**, y no resuelve cuál se\naplica: para eso está `GET /api/v1/commissions/effective`.\n\n**Incluye el historial**: las vencidas viajan junto a la vigente salvo que\nse filtre por fecha con `onDate`. Y es **el único historial que le queda al\nmódulo** — las tasas de rol perdieron la vigencia.\n\n**Filtrar por persona devuelve las declaradas PARA esa persona**, no la que\nle aplica hoy sobre un producto.\n\n**Filtrar por producto (`productId`) devuelve las ASOCIADAS a ese producto**,\nde cualquier persona: es la respuesta a «quién tiene excepción aquí». Se\ncombina con los demás filtros — persona y producto juntos responden\n«¿tiene esta persona excepción en este producto?», con su historial. Un\nproducto donde nadie tiene excepción devuelve la página vacía, y **no\nsignifica que no comisione**: significa que todos cobran por su rol.\n\nCada fila trae **`associatedProducts`**, sobre cuántos productos rige.\n**Cero significa que esa excepción no paga nada** — es el estado en que\nnace, hasta que se asocia. Los productos van contados y no listados; la\nlista está en `GET /api/v1/user-commission-rates/{id}/products`.\n",
         "operationId" : "listar_1",
         "parameters" : [ {
           "in" : "query",
@@ -7332,6 +7340,43 @@
       }
     },
     "/api/v1/user-commission-rates/{id}/products" : {
+      "get" : {
+        "description" : "Devuelve los productos a los que está asociada esa tasa, **con la misma\nforma que devuelven asociar y desasociar**: la lista completa, resuelta con\n`id`, `code` y `name` y ordenada por código.\n\n**Una lista vacía significa que esa excepción no paga nada** — está\ndeclarada y no rige sobre ningún producto (`RN-CM-012`). Es la lectura que\nrevela una personalizada a medio configurar.\n\n**No comprueba que la tasa exista**: con un identificador que no es de\nnada responde `200` y lista vacía, igual que su gemela de rol en\n`GET /api/v1/commission-rates/{id}/products`. Distinguir «no existe» de\n«no tiene asociaciones» costaría una consulta para no cambiar lo que el\ncliente hace después.\n\nPara la pregunta inversa —qué personas tienen excepción en un producto—\nuse `GET /api/v1/user-commission-rates?productId=`.\n",
+        "operationId" : "productosDeLaTasa",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "id",
+          "required" : true,
+          "schema" : {
+            "format" : "uuid",
+            "type" : "string"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/UserRateProductsResponse"
+                }
+              }
+            },
+            "description" : "Los productos de la tasa"
+          },
+          "403" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/UserRateProductsResponse"
+                }
+              }
+            },
+            "description" : "Sin permiso"
+          }
+        },
+        "summary" : "Consultar sobre qué productos rige una tasa personalizada",
+        "tags" : [ "Comisiones" ]
+      },
       "post" : {
         "description" : "**Es la operación que pone la tasa en vigor.** Hasta que se asocia no\npaga nada a nadie (`RN-CM-012`) — igual que una tasa de rol, y desde el\n11-09-2026 sin excepción: hasta esa fecha la personalizada pagaba desde\nel primer día sobre **todo el catálogo**.\n\n**Un producto por petición, y admite varios en llamadas sucesivas.**\nDonde esté asociada gana sobre la tasa del rol de esa persona; donde no,\nesa persona cobra por su rol como cualquier otra.\n\n**Devuelve la lista COMPLETA de productos** tras la operación, no solo el\nque se acaba de añadir: quien asocia el tercero tiene que poder ver los\ntres sin una segunda llamada.\n\n**`RN-CM-006` se comprueba aquí**: esa persona no puede tener dos tasas\nvivas que cubran el mismo día **sobre el mismo producto**. Sobre\nproductos distintos sí, y es lo normal. La comprobación se hace **al\nasociar y no al registrar**, porque sin producto no hay solapamiento\nposible.\n\n**Un `fixedAmount` no puede superar el precio del producto**\n(`RN-CM-019`). Es el mismo tope que las de rol, y es **individual, no una\nsuma**: las personalizadas de personas distintas sobre el mismo producto\nson alternativas entre sí, no cosas que se paguen a la vez.\n\nEl producto debe existir y **no estar retirado**: configurar lo que nadie\npuede vender no falla nunca y no sirve nunca.\n",
         "operationId" : "asociar",

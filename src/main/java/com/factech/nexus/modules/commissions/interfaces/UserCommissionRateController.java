@@ -13,6 +13,7 @@ import com.factech.nexus.modules.commissions.domain.service.AssociateUserProduct
 import com.factech.nexus.modules.commissions.domain.service.DeleteUserCommissionRateService;
 import com.factech.nexus.modules.commissions.domain.service.DissociateUserProductService;
 import com.factech.nexus.modules.commissions.domain.service.ListUserCommissionRatesService;
+import com.factech.nexus.modules.commissions.domain.service.ListUserRateProductsService;
 import com.factech.nexus.modules.commissions.domain.service.RegisterUserCommissionRateService;
 import com.factech.nexus.modules.commissions.domain.service.UpdateUserCommissionRateService;
 import io.swagger.v3.oas.annotations.Operation;
@@ -56,6 +57,7 @@ public class UserCommissionRateController {
   private final DeleteUserCommissionRateService retiro;
   private final AssociateUserProductService asociacion;
   private final DissociateUserProductService desasociacion;
+  private final ListUserRateProductsService productos;
 
   public UserCommissionRateController(
       RegisterUserCommissionRateService alta,
@@ -63,13 +65,15 @@ public class UserCommissionRateController {
       UpdateUserCommissionRateService correccion,
       DeleteUserCommissionRateService retiro,
       AssociateUserProductService asociacion,
-      DissociateUserProductService desasociacion) {
+      DissociateUserProductService desasociacion,
+      ListUserRateProductsService productos) {
     this.alta = alta;
     this.listado = listado;
     this.correccion = correccion;
     this.retiro = retiro;
     this.asociacion = asociacion;
     this.desasociacion = desasociacion;
+    this.productos = productos;
   }
 
   @Operation(
@@ -132,6 +136,18 @@ public class UserCommissionRateController {
 
           **Filtrar por persona devuelve las declaradas PARA esa persona**, no la que
           le aplica hoy sobre un producto.
+
+          **Filtrar por producto (`productId`) devuelve las ASOCIADAS a ese producto**,
+          de cualquier persona: es la respuesta a «quién tiene excepción aquí». Se
+          combina con los demás filtros — persona y producto juntos responden
+          «¿tiene esta persona excepción en este producto?», con su historial. Un
+          producto donde nadie tiene excepción devuelve la página vacía, y **no
+          significa que no comisione**: significa que todos cobran por su rol.
+
+          Cada fila trae **`associatedProducts`**, sobre cuántos productos rige.
+          **Cero significa que esa excepción no paga nada** — es el estado en que
+          nace, hasta que se asocia. Los productos van contados y no listados; la
+          lista está en `GET /api/v1/user-commission-rates/{id}/products`.
           """)
   @ApiResponses({
     @ApiResponse(responseCode = "200", description = "Página de tasas personalizadas"),
@@ -256,6 +272,37 @@ public class UserCommissionRateController {
   public UserRateProductsResponse asociar(
       @PathVariable UUID id, @Valid @RequestBody AssociateUserProductRequest peticion) {
     return asociacion.associate(id, peticion);
+  }
+
+  @Operation(
+      summary = "Consultar sobre qué productos rige una tasa personalizada",
+      description =
+          """
+          Devuelve los productos a los que está asociada esa tasa, **con la misma
+          forma que devuelven asociar y desasociar**: la lista completa, resuelta con
+          `id`, `code` y `name` y ordenada por código.
+
+          **Una lista vacía significa que esa excepción no paga nada** — está
+          declarada y no rige sobre ningún producto (`RN-CM-012`). Es la lectura que
+          revela una personalizada a medio configurar.
+
+          **No comprueba que la tasa exista**: con un identificador que no es de
+          nada responde `200` y lista vacía, igual que su gemela de rol en
+          `GET /api/v1/commission-rates/{id}/products`. Distinguir «no existe» de
+          «no tiene asociaciones» costaría una consulta para no cambiar lo que el
+          cliente hace después.
+
+          Para la pregunta inversa —qué personas tienen excepción en un producto—
+          use `GET /api/v1/user-commission-rates?productId=`.
+          """)
+  @ApiResponses({
+    @ApiResponse(responseCode = "200", description = "Los productos de la tasa"),
+    @ApiResponse(responseCode = "403", description = "Sin permiso")
+  })
+  @GetMapping("/{id}/products")
+  @PreAuthorize("hasAuthority('commissions:read')")
+  public UserRateProductsResponse productosDeLaTasa(@PathVariable UUID id) {
+    return productos.byRate(id);
   }
 
   @Operation(

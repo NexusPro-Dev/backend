@@ -50,9 +50,11 @@ public class ProductCommissionRateController {
           — ni siquiera a los roles que tienen tasa en el catálogo, si nadie la
           asoció (`RN-CM-012`).
 
-          **Esto no resuelve la comisión de una persona.** Una tasa personalizada
-          gana sobre todas estas y no aparece aquí, porque no se asocia a productos.
-          Para saber qué cobra alguien concreto, use
+          **Esto no resuelve la comisión de una persona, y solo devuelve roles.** Las
+          tasas personalizadas también se asocian a productos desde el 11-09-2026 y
+          ganan sobre estas, pero **no aparecen aquí**: qué personas tienen excepción
+          en este producto lo responde `GET /api/v1/user-commission-rates?productId=`,
+          paginado y con su historial. Para saber qué cobra alguien concreto, use
           `GET /api/v1/commissions/effective`.
           """)
   @ApiResponses({

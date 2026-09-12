@@ -368,6 +368,137 @@ class UserCommissionRateIT extends IntegrationTestBase {
 
   // ---------------------------------------------------------------------------
 
+  // ---------------------------------------------------------------------------
+  // La asociación se puede LEER (`RF-CM-002` v1.1.0) — 12-09-2026
+  // ---------------------------------------------------------------------------
+
+  @Test
+  @DisplayName("CA-CM-126 · el listado filtra por producto, y se combina con la persona")
+  void elListadoFiltraPorProducto() throws Exception {
+    UUID otra = CommissionFixtures.sembrarPersonaConRol(jdbc, "otra", MANAGER);
+    UUID uno = CommissionFixtures.sembrarProducto(jdbc, "BOT_F1");
+    UUID dos = CommissionFixtures.sembrarProducto(jdbc, "BOT_F2");
+    UUID tasaVendedora = altaDevuelve(cuerpo(vendedora, "12.00", "2026-01-01", null));
+    UUID tasaOtra = altaDevuelve(cuerpo(otra, "15.00", "2026-01-01", null));
+    mvc.perform(asociar(tasaVendedora, uno)).andExpect(status().isCreated());
+    mvc.perform(asociar(tasaOtra, dos)).andExpect(status().isCreated());
+
+    // «Quién tiene excepción en este producto»: de cualquier persona.
+    mvc.perform(listado().param("productId", dos.toString()))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.totalElements").value(1))
+        .andExpect(jsonPath("$.content[0].id").value(tasaOtra.toString()))
+        .andExpect(jsonPath("$.content[0].user.username").value("otra"));
+
+    // Combinado con la persona: «¿tiene esta persona excepción en este producto?».
+    mvc.perform(listado().param("productId", uno.toString()).param("userId", vendedora.toString()))
+        .andExpect(jsonPath("$.totalElements").value(1));
+    mvc.perform(listado().param("productId", dos.toString()).param("userId", vendedora.toString()))
+        .andExpect(jsonPath("$.totalElements").value(0));
+
+    // Un producto donde nadie tiene excepción: vacío, y no es un error.
+    UUID nadie = CommissionFixtures.sembrarProducto(jdbc, "BOT_F3");
+    mvc.perform(listado().param("productId", nadie.toString()))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.totalElements").value(0));
+
+    // Sin el filtro, siguen saliendo las dos.
+    mvc.perform(listado()).andExpect(jsonPath("$.totalElements").value(2));
+  }
+
+  @Test
+  @DisplayName("CA-CM-127 · cada fila cuenta sus productos, y la cuenta NO multiplica las filas")
+  void laCuentaDeAsociadosNoMultiplica() throws Exception {
+    UUID tasa = altaDevuelve(cuerpo(vendedora, "12.00", "2026-01-01", null));
+    UUID uno = CommissionFixtures.sembrarProducto(jdbc, "BOT_C1");
+    UUID dos = CommissionFixtures.sembrarProducto(jdbc, "BOT_C2");
+
+    // Recién nacida: cero, que significa «no paga nada» (`RN-CM-012`).
+    mvc.perform(listado())
+        .andExpect(jsonPath("$.totalElements").value(1))
+        .andExpect(jsonPath("$.content[0].associatedProducts").value(0));
+
+    mvc.perform(asociar(tasa, uno)).andExpect(status().isCreated());
+    mvc.perform(asociar(tasa, dos)).andExpect(status().isCreated());
+
+    // Con dos asociaciones aparece UNA vez, con 2, y el total cuadra con el
+    // contenido: es la trampa que `CA-CM-011` cerró en el catálogo de rol.
+    mvc.perform(listado())
+        .andExpect(jsonPath("$.totalElements").value(1))
+        .andExpect(jsonPath("$.content.length()").value(1))
+        .andExpect(jsonPath("$.content[0].associatedProducts").value(2));
+
+    // Y filtrando por uno de los dos productos, la cuenta sigue siendo 2: la
+    // cuenta es de la tasa, no del filtro.
+    mvc.perform(listado().param("productId", uno.toString()))
+        .andExpect(jsonPath("$.totalElements").value(1))
+        .andExpect(jsonPath("$.content[0].associatedProducts").value(2));
+  }
+
+  @Test
+  @DisplayName(
+      "CA-CM-128 · los productos de una tasa se leen con la misma forma que devuelve asociar")
+  void losProductosDeUnaTasaSeLeen() throws Exception {
+    UUID tasa = altaDevuelve(cuerpo(vendedora, "12.00", "2026-01-01", null));
+    UUID uno = CommissionFixtures.sembrarProducto(jdbc, "BOT_L2");
+    UUID dos = CommissionFixtures.sembrarProducto(jdbc, "BOT_L1");
+    mvc.perform(asociar(tasa, uno)).andExpect(status().isCreated());
+    String alAsociar =
+        mvc.perform(asociar(tasa, dos))
+            .andExpect(status().isCreated())
+            .andReturn()
+            .getResponse()
+            .getContentAsString();
+
+    String alLeer =
+        mvc.perform(productosDe(tasa))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.rateId").value(tasa.toString()))
+            .andExpect(jsonPath("$.products.length()").value(2))
+            // Por código, no por orden de asociación.
+            .andExpect(jsonPath("$.products[0].code").value("BOT_L1"))
+            .andExpect(jsonPath("$.products[1].code").value("BOT_L2"))
+            .andExpect(jsonPath("$.products[0].id").value(dos.toString()))
+            .andExpect(jsonPath("$.products[0].name").isNotEmpty())
+            .andReturn()
+            .getResponse()
+            .getContentAsString();
+
+    // La misma forma: un cliente tiene UN modelo para el mismo dato.
+    assertThat(alLeer).isEqualTo(alAsociar);
+
+    // Desasociar se refleja en la lectura.
+    mvc.perform(desasociar(tasa, uno, "Ya no aplica")).andExpect(status().isNoContent());
+    mvc.perform(productosDe(tasa)).andExpect(jsonPath("$.products.length()").value(1));
+  }
+
+  @Test
+  @DisplayName(
+      "CA-CM-129 · la lectura exige el permiso, y un identificador que no es de nada da vacío")
+  void losProductosDeUnaTasaExigenPermiso() throws Exception {
+    UUID tasa = altaDevuelve(cuerpo(vendedora, "12.00", "2026-01-01", null));
+
+    // Recién nacida, sin asociar: lista vacía, que significa «no paga nada».
+    mvc.perform(productosDe(tasa))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.products").isEmpty());
+
+    // Un identificador que no es de nada: 200 y vacío, como la gemela de rol.
+    mvc.perform(productosDe(UUID.randomUUID()))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.products").isEmpty());
+
+    mvc.perform(
+            get("/api/v1/user-commission-rates/" + tasa + "/products")
+                .with(user(SUPERADMIN.toString()).authorities(() -> "commissions:update")))
+        .andExpect(status().isForbidden());
+  }
+
+  private MockHttpServletRequestBuilder productosDe(UUID tasa) {
+    return get("/api/v1/user-commission-rates/" + tasa + "/products")
+        .with(user(SUPERADMIN.toString()).authorities(() -> "commissions:read"));
+  }
+
   private static String cuerpo(UUID persona, String porcentaje, String desde, String hasta) {
     StringBuilder json = new StringBuilder("{\"userId\":\"").append(persona).append("\"");
     json.append(",\"rateType\":\"PORCENTAJE\",\"percentage\":").append(porcentaje);
