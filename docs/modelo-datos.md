@@ -494,6 +494,8 @@ erDiagram
         uuid user_id FK "el AUTOR, no el actor · solo el toca la fila"
         smallint rating "1 a 5 · el promedio NO se guarda: se cuenta"
         text comment "1 a 1000 sin espacios de los extremos"
+        timestamptz created_at "cuando se escribio"
+        timestamptz updated_at "cuando se corrigio por ultima vez · solo la mueve el autor"
         timestamptz deleted_at "logico · SIN motivo declarado: Art. V.13, contenido propio"
     }
 ```

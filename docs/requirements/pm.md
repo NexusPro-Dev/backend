@@ -5,7 +5,7 @@
 | Módulo | `PM` — Productos y Mercadeo |
 | Paquete | `modules/products` |
 | Prefijos de permiso | `products:` |
-| Versión | 0.24.0 |
+| Versión | 0.25.0 |
 | Estado | **Borrador** |
 | Responsable | Bonilla Diaz William Steven |
 | Fecha de creación | 26-08-2026 |
@@ -471,11 +471,11 @@ No se copian: se referencian, porque dos copias de una regla acaban divergiendo.
 | `RF-PM-006` | Eliminar producto | Media | `products:delete` | **En desarrollo** |
 | `RF-PM-007` | Consultar la oferta disponible para uno mismo | Alta | `products:sale` | **En desarrollo** |
 | `RF-PM-008` | Consultar un hotlink: producto y vendedor, sin autenticación | Alta | **Público** | **En desarrollo** |
-| `RF-PM-009` | Reseñar un producto | Alta | `products:comment` | Pendiente |
-| `RF-PM-010` | Corregir la reseña propia | Media | `products:comment` | Pendiente |
-| `RF-PM-011` | Retirar la reseña propia | Media | `products:comment` | Pendiente |
-| `RF-PM-012` | Consultar las reseñas de un producto, sin autenticación | Alta | **Público** | Pendiente |
-| `RF-PM-013` | Consultar la reseña propia sobre un producto | Media | `products:comment` | Pendiente |
+| `RF-PM-009` | Reseñar un producto | Alta | `products:comment` | **Spec en revisión** |
+| `RF-PM-010` | Corregir la reseña propia | Media | `products:comment` | **Spec en revisión** |
+| `RF-PM-011` | Retirar la reseña propia | Media | `products:comment` | **Spec en revisión** |
+| `RF-PM-012` | Consultar las reseñas de un producto, sin autenticación | Alta | **Público** | **Spec en revisión** |
+| `RF-PM-013` | Consultar la reseña propia sobre un producto | Media | `products:comment` | **Spec en revisión** |
 
 **Prioridades:** Crítica · Alta · Media · Baja.
 **Estados:** los de [`requirements.md` §4](../requirements.md#4-matriz-de-trazabilidad), que es su autoridad.
@@ -667,7 +667,7 @@ Devuelve, en **una** llamada y **sin token**, el producto que el enlace señala 
 | Reglas aplicables | `RN-PM-025`, `RN-PM-026`, `RN-PM-028`, `RN-PM-031` |
 | Depende de | `RF-PM-001` |
 | Tripleta | `docs/specs/pm/009-resenar-producto/` |
-| Estado | Pendiente |
+| Estado | **Spec en revisión** (14-09-2026) |
 
 Registra **la** reseña del actor sobre un producto: puntuación entera de uno a cinco y texto de uno a mil caracteres, las dos obligatorias (`RN-PM-025`). Responde sobre quien llama y sobre nadie más —el autor sale del token, no del cuerpo—, y **rechaza la segunda** sobre el mismo producto mientras la primera siga viva (`RN-PM-026`): quien quiera cambiar de opinión corrige. Solo se reseña un producto **activo y no retirado** (`RN-PM-028`).
 
@@ -684,7 +684,7 @@ Registra **la** reseña del actor sobre un producto: puntuación entera de uno a
 | Reglas aplicables | `RN-PM-025`, `RN-PM-027` |
 | Depende de | `RF-PM-009` |
 | Tripleta | `docs/specs/pm/010-corregir-resena-propia/` |
-| Estado | Pendiente |
+| Estado | **Spec en revisión** (14-09-2026) |
 
 Corrige la puntuación, el texto o los dos, **solo si quien llama es el autor** (`RN-PM-027`): con el permiso y sin ser el autor, `403`. Una reseña ajena no se distingue de la propia en la respuesta —el `403` dice «no es tuya», y eso es lo único que dice—. **Se corrige aunque el producto ya no se venda**: la reseña sobrevive al retiro del producto (`RN-PM-028`), y lo que se escribió sigue siendo del autor.
 
@@ -699,7 +699,7 @@ Corrige la puntuación, el texto o los dos, **solo si quien llama es el autor** 
 | Reglas aplicables | `RN-PM-027`, `RN-PM-029`, `RN-PM-031` |
 | Depende de | `RF-PM-009` |
 | Tripleta | `docs/specs/pm/011-retirar-resena-propia/` |
-| Estado | Pendiente |
+| Estado | **Spec en revisión** (14-09-2026) |
 
 Retira lógicamente la reseña **sin motivo declarado** (`RN-PM-029`, tercera excepción del Art. V.13): es la primera eliminación de una entidad de negocio del sistema que no pide `reason`, y por eso es un `DELETE` sin cuerpo y no un `POST /deletion` — la razón por la que el retiro del producto es un `POST` es que el cuerpo lleva el motivo, y aquí no hay motivo que llevar. El registro de eliminación se escribe igual, con la instantánea y un motivo fijo. Solo el autor (`RN-PM-027`). Retirada la suya, la persona puede escribir otra (`RN-PM-026`), y el promedio del producto la deja de contar en el acto (`RN-PM-031`).
 
@@ -714,7 +714,7 @@ Retira lógicamente la reseña **sin motivo declarado** (`RN-PM-029`, tercera ex
 | Reglas aplicables | `RN-PM-028`, `RN-PM-030` |
 | Depende de | `RF-PM-009` |
 | Tripleta | `docs/specs/pm/012-consultar-resenas-producto/` |
-| Estado | Pendiente |
+| Estado | **Spec en revisión** (14-09-2026) |
 
 Devuelve las reseñas **vivas** de un producto, **paginadas** y de la más reciente a la más antigua, con la puntuación, el texto, las fechas de escritura y de última corrección, y **del autor solo nombre y apellido** (`RN-PM-030`). Responde solo sobre un producto **activo y no retirado**, y lo demás recibe el `404` uniforme del hotlink (`RN-PM-028`). **La misma respuesta con token que sin él**, y por eso no marca cuál es la del actor: para eso está `RF-PM-013`. Es la **segunda ruta pública del módulo**, y entra en la cota de tasa de los catálogos públicos, no en la del hotlink: aquí no hay nombres que sondear.
 
@@ -729,7 +729,7 @@ Devuelve las reseñas **vivas** de un producto, **paginadas** y de la más recie
 | Reglas aplicables | `RN-PM-026`, `RN-PM-027` |
 | Depende de | `RF-PM-009` |
 | Tripleta | `docs/specs/pm/013-consultar-resena-propia/` |
-| Estado | Pendiente |
+| Estado | **Spec en revisión** (14-09-2026) |
 
 Devuelve **la** reseña viva del actor sobre un producto —una, por `RN-PM-026`— con su identificador, que es lo que las dos escrituras necesitan. **No admite parámetro de persona**: responde sobre quien llama, como `RF-PM-007` y `RF-SP-039`. Sin reseña propia responde `404`, y ese `404` **no dice nada del producto**: lo dice igual si el producto no existe, porque a quien pregunta «¿ya opiné?» la respuesta es la misma. **Sí responde sobre un producto inactivo o retirado** cuando la reseña existe: el autor tiene que poder llegar a la suya para corregirla o retirarla (`RN-PM-028`).
 ## 7. Requerimientos no funcionales
@@ -975,3 +975,4 @@ Se declaran en la base de datos, no solo en Java (Art. V.6).
 | 0.22.0 | 08-09-2026 | **`RN-PM-024` se reescribe y dice lo contrario: los dos precios se publican en toda lectura, y la conversión con ellos.** Decisión del responsable del proyecto, tomada **el mismo día** que la anterior y **sobre la advertencia de lo que cuesta**. Las cuatro lecturas del módulo —`RF-PM-002`, `RF-PM-003`, `RF-PM-007` y `RF-PM-008`— devuelven `price` —el que se cobra—, `publicPrice` —el que se anuncia, **nulo** si no se declara— y `exchange`, la conversión a la moneda por omisión con la tasa vigente de `RF-SP-047`, **presente y nula** cuando no hay nada que convertir. **Lo que se gana es una sola forma**: hasta hoy `price` significaba dos cosas según el endpoint —el del sistema en el catálogo, «el que se muestra» en la oferta y el hotlink, resuelto por un `COALESCE` que el cliente no veía—, y **nada en la respuesta decía cuál era cuál**. **Lo que cuesta está escrito entero en §5.2.5 y no se disimula**: la diferencia entre lo anunciado y lo cobrado queda visible **sin token** en el hotlink, que es exactamente lo que la regla anterior existía para impedir; se retira a conciencia, y lo que un endpoint público devolvió una vez ya no se recupera. `RN-PM-024` **baja de Crítica a Alta**, porque la regla nueva es de forma de la respuesta —faltan campos o no faltan, y eso se ve— mientras que la vieja lo era por lo contrario: incumplirla **no fallaba, publicaba**. **La conversión se calcula sobre el importe que se muestra** —el público si existe y el del sistema si no— y no sobre los dos, porque dar dos importes convertidos obligaría a decir cuál corresponde a cuál, que es la ambigüedad que el cambio viene a quitar. **Y trae una condición de implantación que el listado impone**: la moneda por omisión se resuelve **una vez por página** y las tasas de todas las monedas presentes **en una sola sentencia**, porque preguntar por fila sería el `N+1` que `RF-PM-002` existe para evitar. El aviso de §5.2.4 sobre el comprobante **deja de aplicar**: sin regla que acote el precio del sistema, `RF-MV-002` ya no es una excepción a nada. | Responsable del proyecto |
 | 0.23.0 | 12-09-2026 | **El precio público se convierte en precio de compra: la misma columna, otro significado, y por eso otro alcance de visibilidad.** Decisión del responsable del proyecto, con tres respuestas que se le preguntaron antes de escribir: el segundo importe es **lo que NEXUS paga por el producto** cuando tiene que comprarlo —el costo, no lo que paga el cliente, que sigue siendo `price` y lo único que la venta copia—; **solo se ve en administración** —`RF-PM-002` y `RF-PM-003`, bajo `products:read`— y **sale de la oferta propia y del hotlink**, que desde el 08-09-2026 lo publicaban sin token; y **sigue siendo opcional**, porque un producto que todavía no se ha comprado no tiene costo que declarar y la migración no tiene ningún valor honesto que inventar. `public_price` se renombra a `purchase_price` con su `CHECK`, en una migración nueva y no reescribiendo `V67`. **`RN-PM-023` se reescribe** —«su precio de compra», y el nulo pasa de «se anuncia con el del sistema» a «no se conoce»— y **`RN-PM-024` se reescribe por tercera vez y vuelve a Crítica**: recupera su forma original —«el otro precio no sale de administración»— con el costo en el lugar del precio del sistema, y por el mismo motivo: incumplirla **no falla, publica** el margen, y en el hotlink sin token. **Lo que se simplifica**: desaparece «el importe que se muestra», porque fuera de administración `price` es lo único que se muestra y `exchange` se calcula siempre sobre él; la advertencia de §5.2.4 —«quien compra ve un importe y se le cobra el otro»— deja de aplicar. **Lo que vuelve**: `OfferItem` y la respuesta del hotlink pierden el campo, sus consultas dejan de seleccionarlo, y `CA-PM-160` y `CA-PM-163` vuelven a exigir la **ausencia**, con la prueba de `CA-PM-169` invertida de vuelta en vez de borrada. **Queda escrito que ningún costo llegó a publicarse**: lo que el hotlink devolvió entre el 08-09-2026 y hoy era lo que se anunciaba, y la columna cambia de significado vacía de él. §5.2.6 nueva; §5.2.4 y §5.2.5 se conservan con su aviso al frente. | Responsable del proyecto |
 | 0.24.0 | 14-09-2026 | **Nacen las RESEÑAS: un producto se puntúa de uno a cinco y se comenta, y solo el autor toca lo suyo.** Por decisión del responsable del proyecto, con **cuatro respuestas preguntadas antes de escribir** (§5.2.7): quien reseña es quien porta **`products:comment`**, un permiso nuevo y el primero de escritura del módulo que no es de administración —se descartó `products:sale`, porque ver la oferta y opinar son dos capacidades, y «solo quien compró», porque `PM` no puede leer a `MV` sin cerrar el ciclo—; **una reseña por persona y producto, y se corrige** (`RN-PM-026`); **se retira SIN motivo**, y para eso **se enmienda el Art. V.13** con una tercera excepción, el **contenido propio** (`RN-PM-029`, `constitution.md` v0.8.0) — se descartó exigirlo como en `RF-PM-006` porque pedirle a un cliente que justifique por qué borra lo suyo produce «lo borro» en cada fila—; y **la lista es pública y el producto publica promedio y cantidad en sus cuatro lecturas** (`RN-PM-030`, `RN-PM-031`). Nace el submódulo **Reseñas** con cinco requerimientos, `RF-PM-009` a `RF-PM-013`, siete reglas —`RN-PM-025` a `RN-PM-031`, dos críticas— y la tabla **`product_comments`** (§10.4), la segunda del módulo y la primera con clave foránea a `users`. **Lo que la decisión de la moderación cuesta está escrito entero y no se tapa**: nadie —ni la administración— retira una reseña ajena, y la salida es otro requerimiento con otro permiso, no una excepción a `RN-PM-027`. Queda escrito también que **`user_id` es el autor y no el actor**, y por qué eso no infringe el Art. V.7; que **el promedio es una cuenta y no una columna**, para que la copia que se quedara atrás no pueda mentir; y que las reseñas de un producto de alcance `TIENDA` **se leen sin token aunque el producto no**, con la salida barata escrita. El retiro es el **primer `DELETE`** del módulo, y lo es por lo mismo que el del producto es un `POST`: sin motivo no hay cuerpo que proteger. Los cinco requerimientos nacen en `Pendiente`; las tripletas son el paso siguiente. | Responsable del proyecto |
+| 0.25.0 | 14-09-2026 | **Las cinco `spec.md` de las reseñas quedan redactadas** y `RF-PM-009` a `RF-PM-013` pasan a `Spec en revisión`. Cuatro decisiones de forma que las cinco comparten y que conviene revisar juntas: **el `404` del producto es uniforme** —inexistente, inactivo, retirado— tanto al reseñar como en la lista pública, porque quien reseña es un cliente y ve la oferta, que tampoco distingue; **primero «existe» (`404`) y después «es tuya» (`403`)** en la corrección y el retiro, y el `403` no revela nada porque la lista pública ya enseña la reseña con su identificador; **retirar dos veces responde `404` y no `409`**, al revés que el producto, porque la reseña retirada no la devuelve nadie; y **la lectura de la propia no consulta el producto**, de modo que cuesta una sentencia y responde sobre productos que ya no se venden — la única que le da al autor el camino a la suya. `RF-PM-009` es además el que **enmienda las cuatro lecturas** con `rating` (`RN-PM-031`), calculado en la misma sentencia para que el número de consultas de los listados no suba. Nacen `CA-PM-170` a `CA-PM-218`. §10.4 no cambia: `created_at` y `updated_at` ya estaban declaradas, y el diagrama de `modelo-datos.md` las incorpora hoy. | Responsable técnico |
