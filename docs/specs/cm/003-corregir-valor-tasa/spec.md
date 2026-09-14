@@ -4,12 +4,13 @@
 |---|---|
 | Requerimiento | `RF-CM-003` |
 | Módulo | `CM` — Comisiones |
-| Versión | 0.5.0 |
+| Versión | 0.6.0 |
 | Estado | **Aprobada** |
 | Autor | Responsable técnico |
 | Aprobada por | Responsable del proyecto |
 | Fecha de aprobación | 03-09-2026 |
 | Enmendada el | 08-09-2026 — **el producto de precio cero existe** (`RN-PM-006` relajada), y `RN-CM-019` lo resuelve en su límite. Ver §15 |
+| Enmendada el | 14-09-2026 — **el producto gratuito SÍ comisiona, y solo por importe fijo** (`RN-CM-020`, `cm.md` v0.13.0): se invierte lo del 08-09-2026. Ver §15 |
 
 !!! info "Qué va en este documento"
 
@@ -237,6 +238,13 @@ Quien necesite conservar qué se pagó antes tiene **una sola vía, y está fuer
 
 **Es distinta de las demás excepciones de esta operación en una cosa: mira otras tablas.** `EX-001` a `EX-005` se resuelven con la petición y, como mucho, la propia fila de la tasa. `EX-006` necesita leer `product_commission_rates` de cada producto asociado y el precio que `PM` publica de cada uno — es la misma comprobación que `RF-CM-007` hace al asociar, aplicada aquí a **todos** los productos de la tasa a la vez en lugar de a uno solo.
 
+### EX-008 — La corrección dejaría un porcentaje sobre un producto gratuito
+
+**Condición:** la tasa —de rol o personalizada— está asociada a al menos un producto de **precio cero** y la corrección la deja **de porcentaje** (`RN-CM-020`).
+**Respuesta del sistema:** rechaza la corrección **entera**, como `EX-006`, nombrando el producto gratuito: sobre él solo caben comisiones de importe fijo.
+
+**La otra dirección se admite sin tope**: corregir a valor fijo —del importe que sea— una tasa asociada a un producto gratuito **pasa**, porque no hay cien por ciento de cero. Es exactamente lo contrario de lo que esta spec decía entre el 08-09-2026 y el 14-09-2026, y `CA-CM-117` lo recoge.
+
 ## 11. Validaciones
 
 | ID | Regla | Mensaje |
@@ -275,7 +283,9 @@ Quien necesite conservar qué se pagó antes tiene **una sola vía, y está fuer
 | `CA-CM-112` | Corregir una tasa asociada a **veinte** productos revisa el tope en los veinte; si uno solo se pasaría, la corrección se rechaza entera |
 | `CA-CM-113` | El valor fijo entra en la suma convertido contra el precio de **cada** producto asociado, no como cifra directa |
 | `CA-CM-114` | Corregir una tasa **sin ninguna asociación** no comprueba ningún tope, y se comporta como antes de esta versión |
-| `CA-CM-117` | Corregir a **valor fijo mayor que cero** una tasa asociada a un producto de **precio cero** se rechaza con el tope, **y no con un error del servidor**; la corrección no se aplica en **ningún** producto |
+| `CA-CM-117` | Corregir a **valor fijo mayor que cero** una tasa asociada a un producto de **precio cero** **se admite, sin tope** y no con un error del servidor; y corregirla a **porcentaje** **se rechaza entera** con `EX-008`, aunque el resto de sus productos la admitieran — **reescrito el 14-09-2026**: decía justo lo contrario |
+| `CA-CM-132` | Una tasa asociada a un gratuito **y** a uno con precio: corregirla a valor fijo comprueba el tope **solo contra el que tiene precio**; el gratuito no entra en ninguna cuenta |
+| `CA-CM-133` | La **personalizada** obedece lo mismo al corregirse: a fijo sobre un gratuito pasa, a porcentaje se rechaza con `EX-008` |
 
 !!! danger "`CA-CM-091` es el criterio más importante de los seis, y el único que puede fallar en silencio"
 
@@ -333,3 +343,4 @@ Lo que se paga a cambio está escrito y es real: `CA-CM-095` deja constancia de 
 | 0.3.0 | 02-09-2026 | **Entra el valor fijo** (`cm.md` v0.7.0), **antes del código**, y el requerimiento **cambia de nombre**: «corregir el porcentaje» dejó de describir lo que hace. Lo que se corrige es **el valor y su forma, como una sola cosa** — §6.1 rompe a propósito la costumbre del proyecto de que una corrección sea parcial, porque un importe suelto sobre una tasa de porcentaje se escribe igual tanto si se quiso cambiar la forma como si se erró el campo, y **corregir es donde deducirlo sale más caro**: al registrar solo se pierde un alta, aquí se cambia lo que ya paga. De ahí sale la pieza central de esta versión, `FA-004` y `CA-CM-091`: pasar una tasa de `10 %` a `10` de importe fijo **es un cambio de los grandes y los dos números comparan iguales**, de modo que una comparación que mire solo la cifra **devuelve éxito sin cambiar, sin auditar y sin mover la marca de modificación**. Es el contrario exacto de `FA-002`, que con esos mismos números pide lo opuesto, y por eso se prueban las dos. §5 declara que esta versión **agrava `RN-CM-008`**: lo que la liquidación tiene que copiar pasa de un número a **tres cosas**, y la tercera —la moneda— no está en ninguna tabla de `CM` ni la devuelve la resolución. §14 registra la decisión del responsable del proyecto de que **la forma se pueda corregir**, con la tabla de los cuatro pasos que la prohibición obligaría a dar y la ventana en la que los productos no comisionarían. | Responsable del proyecto |
 | 0.4.0 | 03-09-2026 | **Nace `RN-CM-019`** (`cm.md` v0.8.0), y esta operación es la segunda que la comprueba, junto a `RF-CM-007`. §4.1 y §7 la suman a lo que corregir garantiza; §8 gana un paso nuevo, **antes** de escribir (paso 7), que revisa el tope en **todos** los productos donde la tasa está asociada y rechaza la corrección entera si alguno se pasaría de cien. Nace `EX-006`, la primera excepción de esta operación que necesita leer otras tablas —`product_commission_rates` de cada producto y el precio que `PM` publica de cada uno—, y `FA-005` documenta el camino feliz de una tasa sobre varios productos que caben todos. §13 **corrige** un caso límite que decía lo contrario: hasta ayer, corregir a un importe fijo mayor que el precio de un producto asociado se admitía a propósito porque «el sistema no lo hace»; desde hoy **sí lo hace**, y lo que queda sin comprobar es solo que el precio cambie **después**. Se aprovecha para resolver una ambigüedad de nombres que §14 dejaba abierta desde la v0.3.0: el identificador `RN-CM-019` que ahí se mencionaba como una regla hipotética y descartada ya tiene dueño, y es otra. | Responsable del proyecto |
 | 0.5.0 | 08-09-2026 | **El producto de precio cero existe desde hoy** (`RN-PM-006` relajada por `V67`, `requirements/pm.md` §5.2.4), y la conversión `fixed_amount ÷ precio` que esta operación hace para comprobar `RN-CM-019` **puede dividir entre cero**. Se resuelve **sin regla nueva**, llevando aquella a su límite: un producto que no cobra nada no puede pagar ningún importe fijo, de modo que un valor fijo mayor que cero pasa del 100 % y la corrección **se rechaza entera** —como con cualquier otro producto que se pasara—; uno de cero ocupa cero, y corregir a **porcentaje** no se ve afectado. Entra `CA-CM-117` y un caso límite. | Responsable del proyecto |
+| 0.6.0 | 14-09-2026 | **El producto gratuito SÍ comisiona, y solo por importe fijo** (`RN-CM-020`, [`cm.md`](../../../requirements/cm.md) v0.13.0), por decisión del responsable del proyecto: v0.5.0 se invierte. Nace `EX-008` —corregir hacia porcentaje una tasa asociada a un producto de precio cero se rechaza entera, en las dos clases—, y corregir hacia valor fijo **pasa sin tope**. `CA-CM-117` se reescribe en vez de borrarse; nacen `CA-CM-132` y `CA-CM-133`. | Responsable del proyecto |

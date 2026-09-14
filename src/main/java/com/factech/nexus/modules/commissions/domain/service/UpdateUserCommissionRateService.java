@@ -116,7 +116,11 @@ public class UpdateUserCommissionRateService {
             .ifPresent(
                 producto ->
                     tope.verificarIndividual(
-                        producto.id(), producto.code(), peticion.valor().valor(), "EX-007"));
+                        producto.id(),
+                        producto.code(),
+                        peticion.valor().valor(),
+                        "EX-007",
+                        "EX-008"));
       }
     }
   }

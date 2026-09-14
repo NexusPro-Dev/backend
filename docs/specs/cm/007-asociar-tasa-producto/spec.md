@@ -4,12 +4,13 @@
 |---|---|
 | Requerimiento | `RF-CM-007` |
 | Módulo | `CM` — Comisiones |
-| Versión | 0.3.0 |
+| Versión | 0.4.0 |
 | Estado | **Aprobada** |
 | Autor | Responsable técnico |
 | Aprobada por | Responsable del proyecto |
 | Fecha de aprobación | 03-09-2026 |
 | Enmendada el | 08-09-2026 — **el producto de precio cero existe** (`RN-PM-006` relajada), y `RN-CM-019` lo resuelve en su límite. Ver §15 |
+| Enmendada el | 14-09-2026 — **el producto gratuito SÍ comisiona, y solo por importe fijo** (`RN-CM-020`, `cm.md` v0.13.0): se invierte lo del 08-09-2026. Ver §15 |
 
 !!! info "Qué va en este documento"
 
@@ -181,6 +182,13 @@ Es la operación más pequeña del módulo y la que lo sostiene entero. **Sin el
 
 **No es el mismo conflicto que `EX-004`.** Ahí el problema es que ese rol ya cobra por ese producto; aquí el rol es nuevo y el problema está en la **suma con los demás roles** que ya cobran. Pueden darse los dos a la vez —un rol repetido que además haría pasar la suma de cien— y el sistema informa el que encuentra primero: `RN-CM-019` se comprueba **antes** de escribir (§8, paso 4), y `RN-CM-013` la cierra la clave primaria **al escribir** (§8, paso 6). Un rol repetido cuya tasa además haría pasar la suma de cien se rechaza como `EX-005`, no como `EX-004` — la petición nunca llega a intentar el `INSERT` que `EX-004` traduce.
 
+### EX-006 — El producto es gratuito y la tasa es un porcentaje
+
+**Condición:** el producto tiene precio **cero** (`RN-PM-006`) y la tasa que se quiere asociar es de **porcentaje**.
+**Respuesta del sistema:** rechaza la asociación diciendo que ese producto es gratuito y solo admite comisiones de importe fijo (`RN-CM-020`).
+
+**Un porcentaje de nada es nada.** Asociarlo no fallaría: configuraría algo que no paga, y nadie lo vería hasta una liquidación que no existe. Es el mismo silencio que `RN-CM-012` existe para evitar, y por eso se rechaza en lugar de admitirse pagando cero. **El importe fijo, en cambio, entra sin tope** sobre ese producto: no hay cien por ciento de cero, y `EX-005` **no aplica** a los gratuitos.
+
 ## 11. Validaciones
 
 | ID | Regla | Mensaje |
@@ -206,8 +214,10 @@ Es la operación más pequeña del módulo y la que lo sostiene entero. **Sin el
 | `CA-CM-107` | La suma cuenta un **valor fijo** convertido a `fixed_amount ÷ precio × 100` **contra el precio de ese producto**, no como cifra directa |
 | `CA-CM-108` | Dos asociaciones **simultáneas** al mismo producto, cada una dentro del tope por separado pero **juntas fuera**: solo una entra |
 | `CA-CM-109` | Asociar sobre un producto **sin ninguna asociación previa** solo compara contra la tasa que se está asociando |
-| `CA-CM-115` | Asociar una tasa de **valor fijo mayor que cero** a un producto de **precio cero** se rechaza con `EX-006`, **y no con un error del servidor**: es más del 100 % de lo que ese producto cobra |
-| `CA-CM-116` | Asociar una tasa de **valor fijo cero** a un producto de **precio cero** se admite: ocupa cero por ciento. Y un **porcentaje** sobre ese mismo producto se comporta como sobre cualquier otro |
+| `CA-CM-115` | Asociar una tasa de **valor fijo mayor que cero** a un producto de **precio cero** **se admite, sin tope**, y no con un error del servidor — **reescrito el 14-09-2026**: entre el 08-09-2026 y esa fecha decía que se rechazaba con el tope, porque `RN-CM-019` llevada al límite lo daba por «más del 100 % de cero» |
+| `CA-CM-116` | Asociar una tasa de **porcentaje** a un producto de **precio cero** **se rechaza con `EX-006`**, y no queda ninguna fila — **reescrito el 14-09-2026**: decía que el porcentaje «se comportaba como sobre cualquier otro». Un valor fijo de **cero** sigue admitiéndose |
+| `CA-CM-130` | Sobre un producto de **precio cero**, **varias** tasas de valor fijo de roles distintos se asocian **sin que ninguna suma las detenga**: el tope de `RN-CM-019` no aplica a los gratuitos |
+| `CA-CM-131` | La **misma** tasa de porcentaje que se rechaza sobre el gratuito **se asocia con normalidad** a un producto con precio: lo que decide es el producto, no la tasa |
 
 
 
@@ -241,3 +251,4 @@ Es la operación más pequeña del módulo y la que lo sostiene entero. **Sin el
 | 0.1.0 | 02-09-2026 | Redacción inicial, **después de construirse el requerimiento** — excepción al Art. I.1 declarada en cabecera, y **este es el requerimiento que la justifica**: sin él el catálogo no paga nada y el módulo no se puede probar de punta a punta. Recoge la operación que nació al invertirse el significado de la ausencia el 01-09-2026, y §2 explica por qué el producto salió de la tasa: es una relación de muchos a muchos, y como columna habría obligado a duplicar la tasa una vez por producto. §6.1 declara por qué **el rol no se recibe**, y §10 por qué el conflicto de `EX-004` habla del **rol** y no de la tasa. §13 recoge las dos asimetrías con `RN-CM-010` y `RN-CM-015`: el producto retirado **conserva** sus asociaciones pero no admite nuevas, y la tasa retirada **no puede** tenerlas. | Responsable técnico |
 | 0.2.0 | 03-09-2026 | **Nace `RN-CM-019`** (`cm.md` v0.8.0), y esta operación es una de las dos que la comprueban. §4.1 y §7 la suman a lo que asociar garantiza; §8 gana un paso nuevo, **antes** de escribir, que suma el porcentaje ocupado de las asociaciones vivas del producto —convirtiendo cada valor fijo contra el precio que `PM` publica— más el de la tasa entrante, y rechaza si pasa de cien. `FA-002` **se corrige**: decía que la suma de varios roles sobre un producto podía pasar de cien sin que nada lo impidiera, y desde hoy **sí hay algo que lo impide**, aunque no todo — se aclara que una tasa **personalizada** en la cadena sigue fuera de esta suma, porque no se asocia a ningún producto. Nace `EX-005`, distinto de `EX-004`: aquí el rol es nuevo y el conflicto está en la suma con los demás roles que ya cobran, no en que ese rol repita asociación. §13 suma tres casos límite: el precio cero —que resulta **imposible**, porque `ck_products_price_positive` (`PM`, `V39`) ya lo impedía—; el precio que cambia después de asociar, que **nadie vuelve a comprobar**; y la cadena con una tasa personalizada, que esta suma no alcanza. §14 registra la decisión de cerrar con un **bloqueo consultivo de Postgres** la ventana que abre comprobar una suma antes de escribir — la primera vez que el módulo usa ese mecanismo en lugar de una restricción del esquema, porque una suma agregada entre filas hermanas, que además lee el precio de otro módulo, no cabe en ningún `CHECK` ni `EXCLUDE`. | Responsable del proyecto |
 | 0.3.0 | 08-09-2026 | **El producto de precio cero deja de ser imposible, y esta spec afirmaba que lo era.** §13 decía —con el nombre de la restricción y todo— que la conversión de un valor fijo «nunca divide entre cero» porque `ck_products_price_positive` exigía `price > 0` en `PM`. **`V67` relajó esa restricción** a `price >= 0` para admitir la renovación de una membresía gratuita (`RN-PM-006`, `requirements/pm.md` §5.2.4), de modo que la división existe. **No hace falta ninguna regla nueva**: es `RN-CM-019` llevada a su límite — un producto que no cobra nada **no puede pagar ningún importe fijo**, y cualquier valor fijo mayor que cero se rechaza con `EX-006`, el mismo mensaje que cualquier otro exceso; uno de cero ocupa cero. Entran `CA-CM-115` y `CA-CM-116`. **Y queda escrita la lección, que vale más que el arreglo**: la dependencia estaba **documentada** —en este caso límite y en el Javadoc de `ProductCommissionCapGuard`— y aun así el cambio pudo llegar sin que nada fallara al compilar ni al probar. Lo que lo destapó fue leer el comentario. | Responsable del proyecto |
+| 0.4.0 | 14-09-2026 | **El producto gratuito SÍ comisiona, y solo por importe fijo** (`RN-CM-020`, [`cm.md`](../../../requirements/cm.md) v0.13.0), por decisión del responsable del proyecto, e **invierte** lo que v0.3.0 resolvió seis días antes. Nace `EX-006`: el porcentaje sobre un producto de precio cero se rechaza, porque un porcentaje de nada es nada y admitirlo configuraría algo mudo. El importe fijo entra **sin tope**: `EX-005` no aplica a los gratuitos, no hay cien por ciento de cero. **`CA-CM-115` y `CA-CM-116` se reescriben en vez de borrarse** —la misma prueba dijo dos cosas opuestas en seis días, y queda escrito por qué— y nacen `CA-CM-130` y `CA-CM-131`. | Responsable del proyecto |

@@ -178,13 +178,24 @@ public class UserCommissionRateController {
 
           **La persona y el inicio de vigencia no se corrigen**, y enviarlos devuelve
           `400`.
+
+          **Si la tasa está asociada y cambia de valor, se revisa cada producto**:
+          un `fixedAmount` que supere el precio de alguno se rechaza con `409`
+          (`EX-007`), y sobre un producto **gratuito** (precio cero) solo cabe el
+          importe fijo (`RN-CM-020`, 14-09-2026): dejarla de porcentaje se rechaza
+          con `409` (`EX-008`), y el fijo entra del importe que sea.
           """)
   @ApiResponses({
     @ApiResponse(responseCode = "200", description = "Tasa corregida"),
     @ApiResponse(responseCode = "400", description = "Datos inválidos o campos no corregibles"),
     @ApiResponse(responseCode = "403", description = "Sin permiso"),
     @ApiResponse(responseCode = "404", description = "No existe, o está retirada"),
-    @ApiResponse(responseCode = "409", description = "La vigencia resultante se solapa")
+    @ApiResponse(
+        responseCode = "409",
+        description =
+            "La vigencia resultante se solapa (`EX-006`), el valor pasaría del precio de algún"
+                + " producto asociado (`EX-007`), o dejaría de porcentaje una tasa asociada a un"
+                + " producto gratuito (`EX-008`)")
   })
   @PatchMapping("/{id}")
   @PreAuthorize("hasAuthority('commissions:update')")
@@ -249,7 +260,10 @@ public class UserCommissionRateController {
           **Un `fixedAmount` no puede superar el precio del producto**
           (`RN-CM-019`). Es el mismo tope que las de rol, y es **individual, no una
           suma**: las personalizadas de personas distintas sobre el mismo producto
-          son alternativas entre sí, no cosas que se paguen a la vez.
+          son alternativas entre sí, no cosas que se paguen a la vez. **Sobre un
+          producto GRATUITO (precio cero) ese tope no aplica y solo cabe el importe
+          fijo** (`RN-CM-020`, 14-09-2026): un `fixedAmount` entra del importe que
+          sea y un porcentaje se rechaza con `409` (`EX-008`).
 
           El producto debe existir y **no estar retirado**: configurar lo que nadie
           puede vender no falla nunca y no sirve nunca.
@@ -263,7 +277,8 @@ public class UserCommissionRateController {
         responseCode = "409",
         description =
             "Ya estaba asociada, se solapa con otra tasa viva de esa persona en ese producto, el"
-                + " producto está retirado, o pagaría más del precio del producto"),
+                + " producto está retirado, pagaría más del precio del producto (`EX-007`), o es un"
+                + " porcentaje sobre un producto gratuito (`EX-008`)"),
     @ApiResponse(responseCode = "422", description = "El producto no existe")
   })
   @PostMapping("/{id}/products")

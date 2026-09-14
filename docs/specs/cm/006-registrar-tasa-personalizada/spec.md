@@ -4,12 +4,13 @@
 |---|---|
 | Requerimiento | `RF-CM-006` |
 | Módulo | `CM` — Comisiones |
-| Versión | 0.4.0 |
+| Versión | 0.5.0 |
 | Estado | **Aprobada** |
 | Autor | Responsable técnico |
 | Aprobada por | Responsable del proyecto |
 | Fecha de aprobación | 02-09-2026 |
 | Enmendada | 11-09-2026 — **la tasa personalizada SE ASOCIA a productos**, con el mismo mecanismo que la de rol: se crea sin producto y se asocia después, a uno o a varios. Entra el ciclo de asociar y desasociar, `RN-CM-012` y `RN-CM-015` la alcanzan, y `RN-CM-006` pasa a comprobarse **al asociar** (Art. I.7) |
+| Enmendada | 14-09-2026 — **el producto gratuito SÍ comisiona, y solo por importe fijo** (`RN-CM-020`, `cm.md` v0.13.0): se invierte lo del 08-09-2026. Ver §15 |
 
 !!! info "Qué va en este documento"
 
@@ -286,6 +287,8 @@ El catálogo por rol dice lo que gana un `AGENTE`. Pero se negocia con personas,
 | `CA-CM-118` | Una tasa **se asocia a varios productos**, y la respuesta trae la **lista completa** tras cada operación. Asociar dos veces el mismo se rechaza |
 | `CA-CM-119` | Al asociar, el **producto inexistente** y el **retirado** se rechazan con respuestas **distintas** |
 | `CA-CM-120` | Al asociar, rechaza el **valor fijo que supera el precio** de ese producto — y **la misma tasa** entra en otro más caro: lo que decide es el producto |
+| `CA-CM-134` | Al asociar a un producto de **precio cero**, una personalizada de **valor fijo** entra **sin tope** —el importe que sea— (`RN-CM-020`, 14-09-2026) |
+| `CA-CM-135` | Al asociar a un producto de **precio cero**, una personalizada de **porcentaje** se rechaza con `EX-008`, y **la misma tasa** entra en un producto con precio: lo que decide es el producto |
 | `CA-CM-121` | **Desasociar deja de regir ahí y la tasa sigue viva**: puede volver a asociarse. Sin motivo se rechaza, y lo que no estaba asociado da `404` |
 | `CA-CM-124` | Una tasa **sin asociar no paga nada** (`RN-CM-012`): existe, está vigente, y la resolución devuelve «sin tarifa» |
 | `CA-CM-125` | `RN-CM-015`: una tasa **asociada no se retira**; desasociada, sí |
@@ -348,3 +351,4 @@ Aquí cuesta menos que en el catálogo por rol —hay vigencia, y `FA-006` descr
 | 0.2.0 | 02-09-2026 | **Entra el valor fijo** (`cm.md` v0.7.0), y esta vez **antes del código**. La mecánica de la elección es la de `RF-CM-001` §6.1 y se hereda sin repetirla; lo que este documento tiene que decir es **por qué aquí no significa lo mismo**. §2 lo recoge: una tasa de rol en importe fijo se interpreta en la moneda de los productos que alguien le asoció, y **esta no se asocia a nada** (`RN-CM-014`), de modo que «10.000 fijos» son **diez mil de cada moneda del catálogo**. §5 avisa de que eso lo dicen `RN-CM-014` y `RN-CM-017` **juntas** y ninguna de las dos por su cuenta, y `CA-CM-089` lo fija como prueba que afirma que **nada lo advierte**. Nace `FA-006` —cambiar de forma a partir de una fecha—, que es la única operación del módulo donde un cambio de forma **deja historial**, y distingue las dos maneras de hacerlo: cerrar y abrir, que conserva el pasado, frente a corregir, que lo reescribe. §14 declara la decisión que `cm.md` no fija y que este documento toma: **la forma se puede corregir**, con lo que habría que cambiar si el responsable prefiere lo contrario. `VAL-002` cambia de significado conservando el identificador y **sus dos caras**, y `VAL-011` y `VAL-012` se reutilizan de `RF-CM-001` **con el mismo texto**, para que el mismo error no se cuente de dos maneras. | Responsable técnico |
 | 0.3.0 | 11-09-2026 | **Corregida el mismo día por v0.4.0, y se conserva para que el cambio quede a la vista.** Declaró que la tasa personalizada dejaba de regir sobre todo el catálogo —eso se mantiene— y lo resolvió con un `productId` **obligatorio en el alta** e inmutable. El responsable del proyecto corrigió la forma, no el fondo. | Responsable del proyecto |
 | 0.4.0 | 11-09-2026 | **La tasa personalizada SE ASOCIA a productos, con el mismo mecanismo que la de rol.** Se crea sin producto y se asocia después, a uno o a varios, con su operación de **desasociar**. §4.1 gana el ciclo entero; §4.2 cambia de contenido —lo que ya no se puede es cambiar la persona o el inicio de vigencia, y el producto **sale** de esa lista porque se añade y se quita—; §6.1 pierde la fila de producto y el valor fijo vuelve a no tener tope **en el alta** (`RN-CM-018`), que se lo pone `RN-CM-019` **al asociar**; §6.2 publica la lista de productos en la respuesta de asociar y desasociar, no en la del alta. **`EX-002` se muda al asociar** y deja escrito que al registrar no puede ocurrir. Nacen `CA-CM-118` a `CA-CM-121`, `CA-CM-124` —una tasa sin asociar **no paga nada**, que es `RN-CM-012` alcanzando por fin a esta pieza— y `CA-CM-125` —`RN-CM-015`: asociada no se retira—. | Responsable del proyecto |
+| 0.5.0 | 14-09-2026 | **El producto gratuito SÍ comisiona, y solo por importe fijo** (`RN-CM-020`, [`cm.md`](../../../requirements/cm.md) v0.13.0), por decisión del responsable del proyecto. Al asociar una personalizada a un producto de precio cero, el **valor fijo entra sin tope** —el tope individual del 11-09-2026 no aplica a los gratuitos— y el **porcentaje se rechaza** con `EX-008`. Nacen `CA-CM-134` y `CA-CM-135`. | Responsable del proyecto |

@@ -384,25 +384,46 @@ class CommissionRateLifecycleIT extends IntegrationTestBase {
 
   @Test
   @DisplayName(
-      "CA-CM-117 · corregir a valor fijo con un producto de PRECIO CERO asociado se rechaza"
-          + " entero, y no con un 500")
-  void corregirAValorFijoConProductoGratuito() throws Exception {
-    // El producto de precio cero existe desde el 08-09-2026 (`V67` relajó
-    // `RN-PM-006` para la renovación gratuita), y la conversión de esta
-    // comprobación dividiría entre cero.
+      "CA-CM-117 · con un producto de PRECIO CERO asociado, corregir a valor fijo se ADMITE sin"
+          + " tope y corregir a porcentaje se rechaza entera — reescrito el 14-09-2026")
+  void corregirConProductoGratuito() throws Exception {
+    // Del 08-09-2026 al 14-09-2026 esta prueba decía justo lo contrario
+    // (`RN-CM-020`, cm.md v0.13.0): un producto gratuito existe para captar,
+    // y quien lo coloca cobra por colocarlo — con un importe, porque un
+    // porcentaje de cero es cero.
     UUID gratis = CommissionFixtures.sembrarProducto(jdbc, "BOT_GRATIS", false, "0.0000");
     CommissionFixtures.asociar(jdbc, tasa, gratis, MANAGER);
 
-    // `RN-CM-019` en su límite: un producto que no cobra nada no puede pagar
-    // ningún importe fijo. Y se rechaza ENTERA, como con cualquier otro
-    // producto que se pasara.
-    mvc.perform(correccion(tasa, "{\"rateType\":\"FIJO\",\"fixedAmount\":1}"))
+    mvc.perform(correccion(tasa, "{\"rateType\":\"FIJO\",\"fixedAmount\":75000}"))
+        .andExpect(status().isOk());
+    assertThat(fixedAmountEnBase()).isEqualByComparingTo("75000");
+
+    // A porcentaje se rechaza ENTERA, como el tope: sobre un gratuito no cabe.
+    mvc.perform(correccion(tasa, "{\"rateType\":\"PORCENTAJE\",\"percentage\":10}"))
+        .andExpect(status().isConflict())
+        .andExpect(jsonPath("$.errors[0].code").value("EX-008"));
+    assertThat(fixedAmountEnBase()).isEqualByComparingTo("75000");
+  }
+
+  @Test
+  @DisplayName(
+      "CA-CM-132 · asociada a un gratuito Y a uno con precio, la corrección a fijo comprueba el tope"
+          + " solo contra el que tiene precio")
+  void elGratuitoNoEntraEnNingunaCuenta() throws Exception {
+    UUID gratis = CommissionFixtures.sembrarProducto(jdbc, "BOT_GRATIS", false, "0.0000");
+    UUID barato = CommissionFixtures.sembrarProducto(jdbc, "BOT_BARATO", false, "100.0000");
+    CommissionFixtures.asociar(jdbc, tasa, gratis, MANAGER);
+    CommissionFixtures.asociar(jdbc, tasa, barato, MANAGER);
+
+    // 100 sobre 100 es exactamente el cien por cien del barato: pasa. El
+    // gratuito no suma nada ni frena nada.
+    mvc.perform(correccion(tasa, "{\"rateType\":\"FIJO\",\"fixedAmount\":100}"))
+        .andExpect(status().isOk());
+
+    // 101 sobre 100 se pasa POR EL BARATO, no por el gratuito: el código es el del tope.
+    mvc.perform(correccion(tasa, "{\"rateType\":\"FIJO\",\"fixedAmount\":101}"))
         .andExpect(status().isConflict())
         .andExpect(jsonPath("$.errors[0].code").value("EX-006"));
-
-    // Corregir a PORCENTAJE no se ve afectado: no divide por nada.
-    mvc.perform(correccion(tasa, "{\"rateType\":\"PORCENTAJE\",\"percentage\":10}"))
-        .andExpect(status().isOk());
   }
 
   @Test

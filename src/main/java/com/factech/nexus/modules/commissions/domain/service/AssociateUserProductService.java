@@ -116,7 +116,7 @@ public class AssociateUserProductService {
     }
 
     // `RN-CM-019`, individual y no una suma: ver `verificarIndividual`.
-    tope.verificarIndividual(producto.id(), producto.code(), tasa.getValue(), "EX-007");
+    tope.verificarIndividual(producto.id(), producto.code(), tasa.getValue(), "EX-007", "EX-008");
 
     asociaciones.save(UserRateProduct.create(rateId, producto.id(), OffsetDateTime.now(reloj)));
 

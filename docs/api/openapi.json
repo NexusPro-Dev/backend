@@ -4899,7 +4899,7 @@
     },
     "/api/v1/commission-rates/{id}" : {
       "patch" : {
-        "description" : "Corrige el **porcentaje**, que es lo único corregible.\n\n**Esta operación borra el pasado.** Las tasas de rol no tienen vigencia:\npasar un `AGENTE` de 10 a 12 **borra el 10**. No hay dos filas contando\ncada una su parte; hay una que ahora dice otra cosa.\n\nLo único que preserva lo ya pagado es que la liquidación haya copiado el\nporcentaje que aplicó — y esa liquidación **todavía no existe**.\n\n`percentage: null` se **rechaza**. **El rol no se corrige**, y enviarlo\ndevuelve `400`: se rechaza y no se ignora, porque ignorarlo haría creer\nque el cambio se aplicó.\n\n**Si la tasa está asociada, revisa el tope de cien en TODOS sus\nproductos a la vez** (`RN-CM-019`): si el nuevo valor dejaría a alguno\npagando más del 100 % de sí mismo, la corrección se rechaza **entera**\ny devuelve `409` — ninguno de los productos cambia, ni siquiera los que\nsí cabían.\n",
+        "description" : "Corrige el **porcentaje**, que es lo único corregible.\n\n**Esta operación borra el pasado.** Las tasas de rol no tienen vigencia:\npasar un `AGENTE` de 10 a 12 **borra el 10**. No hay dos filas contando\ncada una su parte; hay una que ahora dice otra cosa.\n\nLo único que preserva lo ya pagado es que la liquidación haya copiado el\nporcentaje que aplicó — y esa liquidación **todavía no existe**.\n\n`percentage: null` se **rechaza**. **El rol no se corrige**, y enviarlo\ndevuelve `400`: se rechaza y no se ignora, porque ignorarlo haría creer\nque el cambio se aplicó.\n\n**Si la tasa está asociada, revisa el tope de cien en TODOS sus\nproductos a la vez** (`RN-CM-019`): si el nuevo valor dejaría a alguno\npagando más del 100 % de sí mismo, la corrección se rechaza **entera**\ny devuelve `409` — ninguno de los productos cambia, ni siquiera los que\nsí cabían.\n\n**Un producto GRATUITO (precio cero) solo admite importe fijo**\n(`RN-CM-020`, 14-09-2026): si la tasa está asociada a uno y la corrección\nla deja de porcentaje, se rechaza **entera** con `409` (`EX-008`).\nCorregirla a valor fijo, del importe que sea, pasa: no hay cien por\nciento de cero, y el gratuito no entra en ninguna suma.\n",
         "operationId" : "corregir_2",
         "parameters" : [ {
           "in" : "path",
@@ -4969,7 +4969,7 @@
                 }
               }
             },
-            "description" : "El nuevo valor dejaría a algún producto asociado pagando más de cien"
+            "description" : "El nuevo valor dejaría a algún producto asociado pagando más de cien (`EX-006`), o dejaría de porcentaje una tasa asociada a un producto gratuito (`EX-008`)"
           }
         },
         "summary" : "Corregir el porcentaje de una tasa de rol",
@@ -5058,7 +5058,7 @@
         "tags" : [ "Comisiones" ]
       },
       "post" : {
-        "description" : "**Es lo único que pone una tasa en vigor** (`RN-CM-012`). Sin esto, la tasa\nexiste en el catálogo y no paga nada a nadie.\n\n**El rol no se envía**: se toma de la tasa que nombra la ruta, y el esquema\nhace imposible que diverja del que ella declara.\n\n**Un solo porcentaje por rol y producto** (`RN-CM-013`): si ese rol ya\ntiene otra tasa asociada a ese producto, devuelve `409`. Retire la\nasociación existente antes de declarar otra.\n\n**No se asocia a un producto retirado** ni desde una tasa retirada.\n\n**El producto no puede quedar pagando más del 100 % de sí mismo**\n(`RN-CM-019`): suma el porcentaje de sus tasas de rol ya asociadas\n—convirtiendo cada valor fijo contra el precio del producto— más el de\nesta, y devuelve `409` si pasa de cien.\n\nDevuelve **todas** las asociaciones de la tasa, no solo la nueva.\n",
+        "description" : "**Es lo único que pone una tasa en vigor** (`RN-CM-012`). Sin esto, la tasa\nexiste en el catálogo y no paga nada a nadie.\n\n**El rol no se envía**: se toma de la tasa que nombra la ruta, y el esquema\nhace imposible que diverja del que ella declara.\n\n**Un solo porcentaje por rol y producto** (`RN-CM-013`): si ese rol ya\ntiene otra tasa asociada a ese producto, devuelve `409`. Retire la\nasociación existente antes de declarar otra.\n\n**No se asocia a un producto retirado** ni desde una tasa retirada.\n\n**El producto no puede quedar pagando más del 100 % de sí mismo**\n(`RN-CM-019`): suma el porcentaje de sus tasas de rol ya asociadas\n—convirtiendo cada valor fijo contra el precio del producto— más el de\nesta, y devuelve `409` si pasa de cien.\n\n**Sobre un producto GRATUITO (precio cero) el tope no aplica y solo cabe\nel importe fijo** (`RN-CM-020`, 14-09-2026): un valor fijo entra sin\ntope —del importe que sea, y varios roles a la vez—, y un porcentaje se\nrechaza con `409` (`EX-006`), porque un porcentaje de nada es nada.\n\nDevuelve **todas** las asociaciones de la tasa, no solo la nueva.\n",
         "operationId" : "asociar_1",
         "parameters" : [ {
           "in" : "path",
@@ -5128,7 +5128,7 @@
                 }
               }
             },
-            "description" : "Ese rol ya paga por ese producto, el producto está retirado, o la suma pasaría de cien"
+            "description" : "Ese rol ya paga por ese producto, el producto está retirado, la suma pasaría de cien (`EX-005`), o es un porcentaje sobre un producto gratuito (`EX-006`)"
           },
           "422" : {
             "content" : {
@@ -7640,7 +7640,7 @@
     },
     "/api/v1/user-commission-rates/{id}" : {
       "patch" : {
-        "description" : "Corrige el **porcentaje** y el **fin de vigencia**. Se aplica lo que llega\ny se deja intacto lo que no.\n\n**Corregir no es cambiar**, y aquí la distinción sigue viva: corregir\narregla un error y reescribe lo que esa tasa dice que rigió; cambiar lo que\ngana alguien a partir de una fecha es **cerrar la vigente y registrar\notra**.\n\n`validTo: null` **vacía** el fin de vigencia y la tasa vuelve a regir\nindefinidamente; `percentage: null` se **rechaza**.\n\n**La persona y el inicio de vigencia no se corrigen**, y enviarlos devuelve\n`400`.\n",
+        "description" : "Corrige el **porcentaje** y el **fin de vigencia**. Se aplica lo que llega\ny se deja intacto lo que no.\n\n**Corregir no es cambiar**, y aquí la distinción sigue viva: corregir\narregla un error y reescribe lo que esa tasa dice que rigió; cambiar lo que\ngana alguien a partir de una fecha es **cerrar la vigente y registrar\notra**.\n\n`validTo: null` **vacía** el fin de vigencia y la tasa vuelve a regir\nindefinidamente; `percentage: null` se **rechaza**.\n\n**La persona y el inicio de vigencia no se corrigen**, y enviarlos devuelve\n`400`.\n\n**Si la tasa está asociada y cambia de valor, se revisa cada producto**:\nun `fixedAmount` que supere el precio de alguno se rechaza con `409`\n(`EX-007`), y sobre un producto **gratuito** (precio cero) solo cabe el\nimporte fijo (`RN-CM-020`, 14-09-2026): dejarla de porcentaje se rechaza\ncon `409` (`EX-008`), y el fijo entra del importe que sea.\n",
         "operationId" : "corregir",
         "parameters" : [ {
           "in" : "path",
@@ -7710,7 +7710,7 @@
                 }
               }
             },
-            "description" : "La vigencia resultante se solapa"
+            "description" : "La vigencia resultante se solapa (`EX-006`), el valor pasaría del precio de algún producto asociado (`EX-007`), o dejaría de porcentaje una tasa asociada a un producto gratuito (`EX-008`)"
           }
         },
         "summary" : "Corregir una tasa personalizada",
@@ -7799,7 +7799,7 @@
         "tags" : [ "Comisiones" ]
       },
       "post" : {
-        "description" : "**Es la operación que pone la tasa en vigor.** Hasta que se asocia no\npaga nada a nadie (`RN-CM-012`) — igual que una tasa de rol, y desde el\n11-09-2026 sin excepción: hasta esa fecha la personalizada pagaba desde\nel primer día sobre **todo el catálogo**.\n\n**Un producto por petición, y admite varios en llamadas sucesivas.**\nDonde esté asociada gana sobre la tasa del rol de esa persona; donde no,\nesa persona cobra por su rol como cualquier otra.\n\n**Devuelve la lista COMPLETA de productos** tras la operación, no solo el\nque se acaba de añadir: quien asocia el tercero tiene que poder ver los\ntres sin una segunda llamada.\n\n**`RN-CM-006` se comprueba aquí**: esa persona no puede tener dos tasas\nvivas que cubran el mismo día **sobre el mismo producto**. Sobre\nproductos distintos sí, y es lo normal. La comprobación se hace **al\nasociar y no al registrar**, porque sin producto no hay solapamiento\nposible.\n\n**Un `fixedAmount` no puede superar el precio del producto**\n(`RN-CM-019`). Es el mismo tope que las de rol, y es **individual, no una\nsuma**: las personalizadas de personas distintas sobre el mismo producto\nson alternativas entre sí, no cosas que se paguen a la vez.\n\nEl producto debe existir y **no estar retirado**: configurar lo que nadie\npuede vender no falla nunca y no sirve nunca.\n",
+        "description" : "**Es la operación que pone la tasa en vigor.** Hasta que se asocia no\npaga nada a nadie (`RN-CM-012`) — igual que una tasa de rol, y desde el\n11-09-2026 sin excepción: hasta esa fecha la personalizada pagaba desde\nel primer día sobre **todo el catálogo**.\n\n**Un producto por petición, y admite varios en llamadas sucesivas.**\nDonde esté asociada gana sobre la tasa del rol de esa persona; donde no,\nesa persona cobra por su rol como cualquier otra.\n\n**Devuelve la lista COMPLETA de productos** tras la operación, no solo el\nque se acaba de añadir: quien asocia el tercero tiene que poder ver los\ntres sin una segunda llamada.\n\n**`RN-CM-006` se comprueba aquí**: esa persona no puede tener dos tasas\nvivas que cubran el mismo día **sobre el mismo producto**. Sobre\nproductos distintos sí, y es lo normal. La comprobación se hace **al\nasociar y no al registrar**, porque sin producto no hay solapamiento\nposible.\n\n**Un `fixedAmount` no puede superar el precio del producto**\n(`RN-CM-019`). Es el mismo tope que las de rol, y es **individual, no una\nsuma**: las personalizadas de personas distintas sobre el mismo producto\nson alternativas entre sí, no cosas que se paguen a la vez. **Sobre un\nproducto GRATUITO (precio cero) ese tope no aplica y solo cabe el importe\nfijo** (`RN-CM-020`, 14-09-2026): un `fixedAmount` entra del importe que\nsea y un porcentaje se rechaza con `409` (`EX-008`).\n\nEl producto debe existir y **no estar retirado**: configurar lo que nadie\npuede vender no falla nunca y no sirve nunca.\n",
         "operationId" : "asociar",
         "parameters" : [ {
           "in" : "path",
@@ -7869,7 +7869,7 @@
                 }
               }
             },
-            "description" : "Ya estaba asociada, se solapa con otra tasa viva de esa persona en ese producto, el producto está retirado, o pagaría más del precio del producto"
+            "description" : "Ya estaba asociada, se solapa con otra tasa viva de esa persona en ese producto, el producto está retirado, pagaría más del precio del producto (`EX-007`), o es un porcentaje sobre un producto gratuito (`EX-008`)"
           },
           "422" : {
             "content" : {

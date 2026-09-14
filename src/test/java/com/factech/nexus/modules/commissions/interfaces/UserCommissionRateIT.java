@@ -326,6 +326,60 @@ class UserCommissionRateIT extends IntegrationTestBase {
   }
 
   @Test
+  @DisplayName("CA-CM-134 · al asociar a un producto de PRECIO CERO, el valor fijo entra sin tope")
+  void elValorFijoEntraSinTopeEnElGratuito() throws Exception {
+    UUID tasa =
+        altaDevuelve(
+            "{\"userId\":\""
+                + vendedora
+                + "\",\"rateType\":\"FIJO\",\"fixedAmount\":250000,"
+                + "\"validFrom\":\"2026-01-01\"}");
+
+    // `RN-CM-020`: no hay cien por ciento de cero, y el tope individual del
+    // 11-09-2026 no aplica a los gratuitos.
+    UUID gratis = CommissionFixtures.sembrarProducto(jdbc, "BOT_GRATIS", false, "0.0000");
+    mvc.perform(asociar(tasa, gratis)).andExpect(status().isCreated());
+  }
+
+  @Test
+  @DisplayName(
+      "CA-CM-135 · al asociar a un producto de PRECIO CERO, el porcentaje se rechaza con EX-008 y"
+          + " la misma tasa entra en uno con precio")
+  void elPorcentajeNoEntraEnElGratuito() throws Exception {
+    UUID tasa = altaDevuelve(cuerpo(vendedora, "12.00", "2026-01-01", null));
+
+    UUID gratis = CommissionFixtures.sembrarProducto(jdbc, "BOT_GRATIS", false, "0.0000");
+    mvc.perform(asociar(tasa, gratis))
+        .andExpect(status().isConflict())
+        .andExpect(jsonPath("$.errors[0].code").value("EX-008"));
+
+    UUID conPrecio = CommissionFixtures.sembrarProducto(jdbc, "BOT_PAGO", false, "100.0000");
+    mvc.perform(asociar(tasa, conPrecio)).andExpect(status().isCreated());
+  }
+
+  @Test
+  @DisplayName(
+      "CA-CM-133 · la personalizada asociada a un gratuito: corregir a fijo pasa, a porcentaje se"
+          + " rechaza con EX-008")
+  void corregirLaPersonalizadaConProductoGratuito() throws Exception {
+    UUID tasa =
+        altaDevuelve(
+            "{\"userId\":\""
+                + vendedora
+                + "\",\"rateType\":\"FIJO\",\"fixedAmount\":1000,"
+                + "\"validFrom\":\"2026-01-01\"}");
+    UUID gratis = CommissionFixtures.sembrarProducto(jdbc, "BOT_GRATIS", false, "0.0000");
+    mvc.perform(asociar(tasa, gratis)).andExpect(status().isCreated());
+
+    mvc.perform(correccion(tasa, "{\"rateType\":\"FIJO\",\"fixedAmount\":900000}"))
+        .andExpect(status().isOk());
+
+    mvc.perform(correccion(tasa, "{\"rateType\":\"PORCENTAJE\",\"percentage\":10}"))
+        .andExpect(status().isConflict())
+        .andExpect(jsonPath("$.errors[0].code").value("EX-008"));
+  }
+
+  @Test
   @DisplayName("CA-CM-121 · desasociar deja de regir ahí y la tasa sigue viva")
   void desasociarNoRetiraLaTasa() throws Exception {
     UUID tasa = altaDevuelve(cuerpo(vendedora, "12.00", "2026-01-01", null));

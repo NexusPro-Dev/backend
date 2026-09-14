@@ -43,19 +43,6 @@ public class ProductCommissionCapGuard {
 
   private static final BigDecimal CIEN = new BigDecimal("100");
 
-  /**
-   * Lo que ocupa un valor fijo mayor que cero sobre un producto de <b>precio cero</b>.
-   *
-   * <p>No es un número arbitrario ni un centinela: es la respuesta correcta a la pregunta que hace
-   * {@link #ocupado}. Un producto que no cobra nada no puede pagar ningún importe, de modo que
-   * cualquier importe fijo es <b>más</b> del cien por cien de lo que cobra — y basta con que la
-   * suma lo supere para que `RN-CM-019` lo rechace con su mensaje de siempre.
-   *
-   * <p>Se elige un valor que <b>por sí solo</b> pasa del tope para que no dependa de lo que sumen
-   * las demás tasas: con `100` exacto, una fila así pasaría inadvertida si fuera la única.
-   */
-  private static final BigDecimal MAS_DE_CIEN = new BigDecimal("101");
-
   private static final MathContext PRECISION = new MathContext(20, RoundingMode.HALF_UP);
 
   /**
@@ -94,21 +81,22 @@ public class ProductCommissionCapGuard {
       String productCode,
       UUID rateIdExcluido,
       CommissionValue valorEntrante,
-      String errorCode) {
+      String errorCode,
+      String errorCodeGratuito) {
 
     bloquear(productId);
 
     List<AssociationRow> asociaciones = consultas.findByProduct(productId);
 
-    boolean necesitaPrecio =
-        valorEntrante.getRateType() == CommissionRateType.FIJO
-            || asociaciones.stream()
-                .anyMatch(
-                    fila ->
-                        !Objects.equals(fila.commissionRateId(), rateIdExcluido)
-                            && fila.rateType() == CommissionRateType.FIJO);
-
-    BigDecimal precio = necesitaPrecio ? precioDe(productId) : null;
+    // EL PRECIO SE LEE SIEMPRE desde el 14-09-2026. Hasta entonces se ahorraba
+    // cuando nada dividía —todo porcentajes—, y ahora hace falta antes de sumar:
+    // saber si el producto es gratuito decide qué FORMA se admite (`RN-CM-020`).
+    BigDecimal precio = precioDe(productId);
+    if (esGratuito(precio)) {
+      rechazarSiEsPorcentaje(valorEntrante, productCode, errorCodeGratuito);
+      // Un fijo sobre un gratuito entra SIN TOPE: no hay cien por ciento de cero.
+      return;
+    }
 
     BigDecimal suma = BigDecimal.ZERO;
     for (AssociationRow fila : asociaciones) {
@@ -160,7 +148,20 @@ public class ProductCommissionCapGuard {
    * que ese producto cobra—.
    */
   public void verificarIndividual(
-      UUID productId, String productCode, CommissionValue valor, String errorCode) {
+      UUID productId,
+      String productCode,
+      CommissionValue valor,
+      String errorCode,
+      String errorCodeGratuito) {
+
+    BigDecimal precio = precioDe(productId);
+    if (esGratuito(precio)) {
+      // `RN-CM-020`: sobre un gratuito, el porcentaje se rechaza y el fijo entra
+      // sin tope. Se mira ANTES que la forma, porque aquí el porcentaje sí tiene
+      // algo que comprobar.
+      rechazarSiEsPorcentaje(valor, productCode, errorCodeGratuito);
+      return;
+    }
 
     if (valor.getRateType() != CommissionRateType.FIJO) {
       // Un porcentaje ya lo acota `RN-CM-007` de cero a cien por su cuenta, y
@@ -169,11 +170,7 @@ public class ProductCommissionCapGuard {
     }
 
     BigDecimal ocupa =
-        ocupado(
-            valor.getRateType(),
-            valor.getPercentage(),
-            valor.getFixedAmount(),
-            precioDe(productId));
+        ocupado(valor.getRateType(), valor.getPercentage(), valor.getFixedAmount(), precio);
 
     if (ocupa.compareTo(CIEN) > 0) {
       String mensaje = "La tasa pagaría más del 100 % del precio del producto " + productCode + ".";
@@ -192,11 +189,12 @@ public class ProductCommissionCapGuard {
    * la sustituyó por {@code ck_products_price_no_negativo} (`RN-PM-006`), para admitir la
    * renovación de una membresía gratuita: la división de abajo pasó a poder ser <b>entre cero</b>.
    *
-   * <p><b>La resolución no necesita ninguna regla nueva</b>: es `RN-CM-019` llevada a su límite. Un
-   * producto que <b>no cobra nada</b> no puede pagar ningún importe fijo, de modo que cualquier
-   * valor fijo mayor que cero ocupa <b>más del cien por cien</b> de lo que ese producto cobra y lo
-   * rechaza el mismo tope, con el mismo mensaje que cualquier otro exceso. Un valor fijo de
-   * <b>cero</b> ocupa cero. Un <b>porcentaje</b> no se ve afectado: no divide por nada.
+   * <p><b>Del 08-09-2026 al 14-09-2026 se resolvió aquí, llevando `RN-CM-019` al límite</b>: un
+   * valor fijo mayor que cero sobre un gratuito ocupaba «más de cien» y lo rechazaba el tope.
+   * <b>Desde el 14-09-2026 ningún gratuito llega a este método</b>: `RN-CM-020` decide antes, por
+   * la forma —el porcentaje se rechaza, el fijo entra sin tope—, porque un producto gratuito existe
+   * para captar y quien lo coloca cobra por colocarlo. La división de abajo vuelve a ser segura por
+   * construcción, y {@link #esGratuito} es la guarda que lo garantiza.
    *
    * <p>Lo que hay que leer de esto no es el arreglo: es que <b>una clase de `CM` dependía de una
    * restricción de `PM`</b>, lo decía en su Javadoc con el nombre de la restricción, y aun así el
@@ -207,13 +205,36 @@ public class ProductCommissionCapGuard {
     if (tipo == CommissionRateType.PORCENTAJE) {
       return percentage;
     }
-    if (precio.compareTo(BigDecimal.ZERO) == 0) {
-      // `compareTo` y no `equals`: `0`, `0.00` y `0.0000` son el mismo cero con
-      // distinta escala, y `equals` los daría por distintos — la fila leída de
-      // la base llega con la escala de la columna, `numeric(14,4)`.
-      return fixedAmount.compareTo(BigDecimal.ZERO) == 0 ? BigDecimal.ZERO : MAS_DE_CIEN;
+    if (esGratuito(precio)) {
+      throw new IllegalStateException(
+          "Un producto gratuito no entra en la suma del tope: `RN-CM-020` decide antes.");
     }
     return fixedAmount.divide(precio, PRECISION).multiply(CIEN);
+  }
+
+  /**
+   * `compareTo` y no `equals`: `0`, `0.00` y `0.0000` son el mismo cero con distinta escala, y
+   * `equals` los daría por distintos — la fila leída de la base llega con la escala de la columna,
+   * `numeric(14,4)`.
+   */
+  private static boolean esGratuito(BigDecimal precio) {
+    return precio.compareTo(BigDecimal.ZERO) == 0;
+  }
+
+  /**
+   * `RN-CM-020`: sobre un producto gratuito solo caben comisiones de importe fijo. Un porcentaje de
+   * nada es nada, y asociarlo configuraría algo que no paga sin que nadie lo dijera.
+   */
+  private static void rechazarSiEsPorcentaje(
+      CommissionValue valor, String productCode, String errorCode) {
+    if (valor.getRateType() == CommissionRateType.PORCENTAJE) {
+      String mensaje =
+          "El producto "
+              + productCode
+              + " es gratuito: solo admite comisiones de importe fijo, no de porcentaje.";
+      throw new BusinessRuleException(
+          errorCode, mensaje, List.of(new FieldError("productId", errorCode, mensaje)));
+    }
   }
 
   private BigDecimal precioDe(UUID productId) {

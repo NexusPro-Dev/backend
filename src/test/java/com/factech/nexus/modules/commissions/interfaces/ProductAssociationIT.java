@@ -317,39 +317,77 @@ class ProductAssociationIT extends IntegrationTestBase {
 
   @Test
   @DisplayName(
-      "CA-CM-115 · un valor fijo sobre un producto de PRECIO CERO se rechaza con el tope, no con"
-          + " un 500")
+      "CA-CM-115 · un valor fijo sobre un producto de PRECIO CERO se ADMITE, sin tope y sin un"
+          + " 500 — reescrito el 14-09-2026")
   void valorFijoSobreProductoGratuito() throws Exception {
-    // El producto de precio cero EXISTE desde el 08-09-2026: `V67` relajó
-    // `RN-PM-006` para admitir la renovación de una membresía gratuita. Esta
-    // clase dependía POR ESCRITO de que no existiera —`fixed_amount ÷ precio`—
-    // y con él la división es entre cero.
+    // Del 08-09-2026 al 14-09-2026 esta prueba afirmaba lo contrario: que
+    // `RN-CM-019` llevada al límite rechazaba cualquier fijo sobre un gratuito
+    // como «más del 100 % de cero». Era aritméticamente impecable y
+    // comercialmente inútil: un producto gratuito existe para captar, y quien
+    // lo coloca cobra por colocarlo (`RN-CM-020`, cm.md v0.13.0).
     UUID gratis = CommissionFixtures.sembrarProducto(jdbc, "BOT_GRATIS", false, "0.0000");
     UUID fijo = CommissionFixtures.sembrarTasaDeRol(jdbc, MANAGER, "FIJO", "1.0000");
 
-    // No hace falta ninguna regla nueva: es `RN-CM-019` en su límite. Un
-    // producto que no cobra nada no puede pagar ningún importe fijo.
-    mvc.perform(asociacion(fijo, gratis))
-        .andExpect(status().isConflict())
-        .andExpect(jsonPath("$.errors[0].code").value("EX-005"));
+    mvc.perform(asociacion(fijo, gratis)).andExpect(status().isCreated());
 
-    assertThat(cuantasAsociaciones()).isZero();
+    assertThat(cuantasAsociaciones()).isEqualTo(1);
   }
 
   @Test
   @DisplayName(
-      "CA-CM-116 · sobre precio cero, un valor fijo de CERO ocupa cero y un porcentaje se comporta"
-          + " igual que siempre")
-  void valorFijoCeroYPorcentajeSobreProductoGratuito() throws Exception {
+      "CA-CM-116 · sobre precio cero, un PORCENTAJE se rechaza con EX-006 y un fijo de cero sigue"
+          + " entrando — reescrito el 14-09-2026")
+  void porcentajeSobreProductoGratuito() throws Exception {
     UUID gratis = CommissionFixtures.sembrarProducto(jdbc, "BOT_GRATIS", false, "0.0000");
     UUID fijoCero = CommissionFixtures.sembrarTasaDeRol(jdbc, MANAGER, "FIJO", "0.0000");
     UUID porcentaje = CommissionFixtures.sembrarTasaDeRol(jdbc, DIRECTOR, "60.00");
 
     mvc.perform(asociacion(fijoCero, gratis)).andExpect(status().isCreated());
-    // Un porcentaje no divide por nada: el precio cero no lo afecta.
-    mvc.perform(asociacion(porcentaje, gratis)).andExpect(status().isCreated());
 
-    assertThat(cuantasAsociaciones()).isEqualTo(2);
+    // Un porcentaje de nada es nada: asociarlo configuraría algo que no paga
+    // sin que nadie lo dijera, y por eso se rechaza en vez de admitirse.
+    mvc.perform(asociacion(porcentaje, gratis))
+        .andExpect(status().isConflict())
+        .andExpect(jsonPath("$.errors[0].code").value("EX-006"))
+        .andExpect(
+            jsonPath("$.detail")
+                .value(
+                    "El producto BOT_GRATIS es gratuito: solo admite comisiones de importe fijo, no"
+                        + " de porcentaje."));
+
+    assertThat(cuantasAsociaciones()).isEqualTo(1);
+  }
+
+  @Test
+  @DisplayName(
+      "CA-CM-130 · sobre precio cero, varios fijos de roles distintos entran sin que ninguna suma los pare")
+  void variosFijosSobreProductoGratuito() throws Exception {
+    UUID gratis = CommissionFixtures.sembrarProducto(jdbc, "BOT_GRATIS", false, "0.0000");
+    UUID deManager = CommissionFixtures.sembrarTasaDeRol(jdbc, MANAGER, "FIJO", "50000.0000");
+    UUID deDirector = CommissionFixtures.sembrarTasaDeRol(jdbc, DIRECTOR, "FIJO", "80000.0000");
+    UUID deAgente = CommissionFixtures.sembrarTasaDeRol(jdbc, AGENTE, "FIJO", "99999.9999");
+
+    // El tope de `RN-CM-019` no aplica a los gratuitos: no hay cien por ciento de cero.
+    mvc.perform(asociacion(deManager, gratis)).andExpect(status().isCreated());
+    mvc.perform(asociacion(deDirector, gratis)).andExpect(status().isCreated());
+    mvc.perform(asociacion(deAgente, gratis)).andExpect(status().isCreated());
+
+    assertThat(cuantasAsociaciones()).isEqualTo(3);
+  }
+
+  @Test
+  @DisplayName(
+      "CA-CM-131 · el MISMO porcentaje que se rechaza sobre el gratuito entra en uno con precio")
+  void elMismoPorcentajeEntraEnUnoConPrecio() throws Exception {
+    UUID gratis = CommissionFixtures.sembrarProducto(jdbc, "BOT_GRATIS", false, "0.0000");
+    UUID conPrecio = CommissionFixtures.sembrarProducto(jdbc, "BOT_PAGO", false, "100.0000");
+    UUID porcentaje = CommissionFixtures.sembrarTasaDeRol(jdbc, DIRECTOR, "60.00");
+
+    mvc.perform(asociacion(porcentaje, gratis)).andExpect(status().isConflict());
+    // Lo que decide es el producto, no la tasa.
+    mvc.perform(asociacion(porcentaje, conPrecio)).andExpect(status().isCreated());
+
+    assertThat(cuantasAsociaciones()).isEqualTo(1);
   }
 
   // ---------------------------------------------------------------------------

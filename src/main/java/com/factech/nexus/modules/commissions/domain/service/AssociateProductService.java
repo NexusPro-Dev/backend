@@ -106,7 +106,7 @@ public class AssociateProductService {
     // `RN-CM-019`: se comprueba ANTES de escribir, con el mismo criterio que el
     // paso 5 de `spec.md` §8 — comprobar después dejaría la asociación creada si
     // el rechazo llegara tarde.
-    tope.verificar(producto.id(), producto.code(), null, tasa.getValue(), "EX-005");
+    tope.verificar(producto.id(), producto.code(), null, tasa.getValue(), "EX-005", "EX-006");
 
     asociaciones.save(ProductCommissionRate.create(producto.id(), tasa, OffsetDateTime.now(reloj)));
 
