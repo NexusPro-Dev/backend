@@ -5,6 +5,7 @@ import com.factech.nexus.modules.products.domain.models.ProductImplementation;
 import com.factech.nexus.modules.products.domain.models.ProductScope;
 import com.factech.nexus.modules.products.domain.models.ProductStatus;
 import com.factech.nexus.modules.products.domain.models.ProductType;
+import com.factech.nexus.modules.products.domain.models.RatingSummary;
 import com.factech.nexus.modules.system.currencies.application.CurrencyCatalog.CurrencyView;
 import com.factech.nexus.modules.system.memberships.application.MembershipCatalog.MembershipView;
 import com.fasterxml.jackson.annotation.JsonInclude;
@@ -46,6 +47,11 @@ public record ProductResponse(
     ProductScope scope,
     ProductImplementation implementation,
     ProductStatus status,
+    /**
+     * `RN-PM-031`: promedio y cantidad de reseñas vivas. Presente siempre; `average` nulo sin
+     * reseñas.
+     */
+    RatingSummary rating,
     OffsetDateTime createdAt,
     OffsetDateTime updatedAt) {
 
@@ -85,6 +91,10 @@ public record ProductResponse(
         producto.getScope(),
         producto.getImplementation(),
         producto.getStatus(),
+        // Un producto recién creado no tiene reseñas por definición (`RF-PM-001`
+        // devuelve esta forma), y consultarlo sería pagar una sentencia por un
+        // cero. Las demás lecturas traen el agregado en su propia consulta.
+        RatingSummary.vacio(),
         enUtc(producto.getCreatedAt()),
         enUtc(producto.getUpdatedAt()));
   }

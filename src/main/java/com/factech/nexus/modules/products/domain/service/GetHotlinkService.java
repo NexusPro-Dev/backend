@@ -98,7 +98,9 @@ public class GetHotlinkService {
         // retira después.
         ProductPrice.enLaEscalaDe(fila.price(), fila.currencyDecimalPlaces()),
         moneda,
-        conversion(fila));
+        conversion(fila),
+        // `RN-PM-031`, sin token: viene en la misma sentencia que el producto.
+        fila.rating());
   }
 
   /**

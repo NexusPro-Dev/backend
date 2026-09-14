@@ -4,6 +4,7 @@ import com.factech.nexus.modules.products.domain.models.ProductImplementation;
 import com.factech.nexus.modules.products.domain.models.ProductScope;
 import com.factech.nexus.modules.products.domain.models.ProductStatus;
 import com.factech.nexus.modules.products.domain.models.ProductType;
+import com.factech.nexus.modules.products.domain.models.RatingSummary;
 import com.factech.nexus.modules.products.domain.repository.ProductQueryRepository.ProductRow;
 import com.fasterxml.jackson.annotation.JsonInclude;
 import java.math.BigDecimal;
@@ -57,6 +58,7 @@ public record ProductDetailResponse(
     ProductScope scope,
     ProductImplementation implementation,
     ProductStatus status,
+    RatingSummary rating,
     OffsetDateTime createdAt,
     OffsetDateTime updatedAt,
     @JsonInclude(JsonInclude.Include.NON_NULL) OffsetDateTime deletedAt,
@@ -115,6 +117,7 @@ public record ProductDetailResponse(
         ProductScope.valueOf(fila.scope()),
         ProductImplementation.valueOf(fila.implementation()),
         ProductStatus.valueOf(fila.status()),
+        fila.rating(),
         enUtc(fila.createdAt()),
         enUtc(fila.updatedAt()),
         enUtc(fila.deletedAt()),

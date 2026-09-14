@@ -1,6 +1,7 @@
 package com.factech.nexus.modules.products.application;
 
 import com.factech.nexus.modules.products.domain.models.ProductType;
+import com.factech.nexus.modules.products.domain.models.RatingSummary;
 import com.fasterxml.jackson.annotation.JsonInclude;
 import java.math.BigDecimal;
 import java.util.UUID;
@@ -66,5 +67,10 @@ public record HotlinkResponse(SellerRef seller, ProductRef product) {
       MembershipBadge membership,
       BigDecimal price,
       CurrencyRef currency,
-      ExchangeRef exchange) {}
+      ExchangeRef exchange,
+      /**
+       * `RN-PM-031`, y aquí SIN TOKEN: no es un dato de la persona ni del costo, es del producto, y
+       * una pantalla pública de venta sin estrellas es lo que las reseñas existen para evitar.
+       */
+      RatingSummary rating) {}
 }

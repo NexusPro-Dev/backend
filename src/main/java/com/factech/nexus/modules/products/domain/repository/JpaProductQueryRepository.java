@@ -61,11 +61,17 @@ public class JpaProductQueryRepository implements ProductQueryRepository {
                c.decimal_places AS c_decimales,
                p.validity_days AS validity_days, p.scope AS scope,
                p.implementation AS implementation, p.status AS status,
-               p.created_at AS created_at, p.deleted_at AS deleted_at
+               p.created_at AS created_at, p.deleted_at AS deleted_at,
+               r.rating_avg AS rating_avg, r.rating_count AS rating_count
           FROM products p
           LEFT JOIN memberships m ON m.id = p.target_membership_id
           LEFT JOIN memberships s ON s.id = p.source_membership_id
           LEFT JOIN currencies  c ON c.id = p.currency_id
+          LEFT JOIN LATERAL (
+              SELECT avg(pc.rating) AS rating_avg, count(*) AS rating_count
+                FROM product_comments pc
+               WHERE pc.product_id = p.id AND pc.deleted_at IS NULL
+          ) r ON true
          WHERE """
             // El espacio va aquí y no al final del bloque de texto: Java recorta
             // el espacio final de cada línea, y sin él la sentencia dice `WHEREp`.
@@ -115,7 +121,9 @@ public class JpaProductQueryRepository implements ProductQueryRepository {
               // El listado no selecciona `updated_at`: nadie pregunta a una
               // lista cuándo se tocó cada fila por última vez.
               null,
-              momento(fila.get("deleted_at"))));
+              momento(fila.get("deleted_at")),
+              decimal(fila.get("rating_avg")),
+              contador(fila.get("rating_count"))));
     }
     return resultado;
   }
@@ -156,11 +164,17 @@ public class JpaProductQueryRepository implements ProductQueryRepository {
                        p.validity_days AS validity_days, p.scope AS scope,
                        p.implementation AS implementation, p.status AS status,
                        p.created_at AS created_at, p.updated_at AS updated_at,
-                       p.deleted_at AS deleted_at
+                       p.deleted_at AS deleted_at,
+                       r.rating_avg AS rating_avg, r.rating_count AS rating_count
                   FROM products p
                   LEFT JOIN memberships m ON m.id = p.target_membership_id
                   LEFT JOIN memberships s ON s.id = p.source_membership_id
                   LEFT JOIN currencies  c ON c.id = p.currency_id
+                  LEFT JOIN LATERAL (
+                      SELECT avg(pc.rating) AS rating_avg, count(*) AS rating_count
+                        FROM product_comments pc
+                       WHERE pc.product_id = p.id AND pc.deleted_at IS NULL
+                  ) r ON true
                  WHERE p.id = :id
                 """,
                 Tuple.class)
@@ -199,7 +213,9 @@ public class JpaProductQueryRepository implements ProductQueryRepository {
                     (String) fila.get("status"),
                     momento(fila.get("created_at")),
                     momento(fila.get("updated_at")),
-                    momento(fila.get("deleted_at"))));
+                    momento(fila.get("deleted_at")),
+                    decimal(fila.get("rating_avg")),
+                    contador(fila.get("rating_count"))));
   }
 
   /**
@@ -259,11 +275,17 @@ public class JpaProductQueryRepository implements ProductQueryRepository {
                        c.decimal_places AS c_decimales,
                        p.validity_days AS validity_days, p.scope AS scope,
                        p.implementation AS implementation, p.status AS status,
-                       p.created_at AS created_at
+                       p.created_at AS created_at,
+                       r.rating_avg AS rating_avg, r.rating_count AS rating_count
                   FROM products p
                   LEFT JOIN memberships s ON s.id = p.source_membership_id
                   LEFT JOIN memberships m ON m.id = p.target_membership_id
                   LEFT JOIN currencies  c ON c.id = p.currency_id
+                  LEFT JOIN LATERAL (
+                      SELECT avg(pc.rating) AS rating_avg, count(*) AS rating_count
+                        FROM product_comments pc
+                       WHERE pc.product_id = p.id AND pc.deleted_at IS NULL
+                  ) r ON true
                  WHERE p.deleted_at IS NULL
                    AND p.status = 'ACTIVO'
                    AND ( p.type = 'BOT'
@@ -317,7 +339,9 @@ public class JpaProductQueryRepository implements ProductQueryRepository {
               // El segundo es siempre nulo aquí —el predicado ya lo exige— y
               // seleccionarlo para descartarlo sugeriría que puede no serlo.
               null,
-              null));
+              null,
+              decimal(fila.get("rating_avg")),
+              contador(fila.get("rating_count"))));
     }
     return resultado;
   }
@@ -355,11 +379,17 @@ public class JpaProductQueryRepository implements ProductQueryRepository {
                        c.decimal_places AS c_decimales,
                        p.validity_days AS validity_days, p.scope AS scope,
                        p.implementation AS implementation, p.status AS status,
-                       p.created_at AS created_at
+                       p.created_at AS created_at,
+                       r.rating_avg AS rating_avg, r.rating_count AS rating_count
                   FROM products p
                   LEFT JOIN memberships m ON m.id = p.target_membership_id
                   LEFT JOIN memberships s ON s.id = p.source_membership_id
                   LEFT JOIN currencies  c ON c.id = p.currency_id
+                  LEFT JOIN LATERAL (
+                      SELECT avg(pc.rating) AS rating_avg, count(*) AS rating_count
+                        FROM product_comments pc
+                       WHERE pc.product_id = p.id AND pc.deleted_at IS NULL
+                  ) r ON true
                  WHERE upper(p.code) = upper(:codigo)
                    AND p.status = 'ACTIVO'
                    AND p.deleted_at IS NULL
@@ -412,7 +442,9 @@ public class JpaProductQueryRepository implements ProductQueryRepository {
         (String) fila.get("status"),
         momento(fila.get("created_at")),
         null,
-        null);
+        null,
+        decimal(fila.get("rating_avg")),
+        contador(fila.get("rating_count")));
   }
 
   // ---------------------------------------------------------------------------
@@ -501,6 +533,19 @@ public class JpaProductQueryRepository implements ProductQueryRepository {
    */
   private static String escapar(String termino) {
     return termino.replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_");
+  }
+
+  /**
+   * {@code avg()} llega como {@code BigDecimal} —o nulo sin filas— y se redondea en {@code
+   * RatingSummary}, no aquí.
+   */
+  private static BigDecimal decimal(Object valor) {
+    return valor == null ? null : new BigDecimal(valor.toString());
+  }
+
+  /** {@code count(*)} llega como {@code Long}; cero sin filas, sin {@code COALESCE}. */
+  private static long contador(Object valor) {
+    return valor == null ? 0L : ((Number) valor).longValue();
   }
 
   private static Integer entero(Object valor) {

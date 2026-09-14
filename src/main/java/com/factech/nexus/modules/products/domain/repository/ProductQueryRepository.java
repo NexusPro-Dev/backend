@@ -143,5 +143,16 @@ public interface ProductQueryRepository {
       String status,
       OffsetDateTime createdAt,
       OffsetDateTime updatedAt,
-      OffsetDateTime deletedAt) {}
+      OffsetDateTime deletedAt,
+      // `RN-PM-031`: el agregado de las reseñas VIVAS, calculado EN LA MISMA
+      // sentencia por un LEFT JOIN LATERAL. `ratingAverage` llega bruto —el
+      // redondeo es de `RatingSummary`— y nulo sin reseñas; `ratingCount`, cero.
+      BigDecimal ratingAverage,
+      long ratingCount) {
+
+    public com.factech.nexus.modules.products.domain.models.RatingSummary rating() {
+      return com.factech.nexus.modules.products.domain.models.RatingSummary.de(
+          ratingAverage, ratingCount);
+    }
+  }
 }

@@ -3,6 +3,7 @@ package com.factech.nexus.modules.products.application;
 import com.factech.nexus.modules.products.domain.models.ProductImplementation;
 import com.factech.nexus.modules.products.domain.models.ProductScope;
 import com.factech.nexus.modules.products.domain.models.ProductType;
+import com.factech.nexus.modules.products.domain.models.RatingSummary;
 import com.factech.nexus.modules.products.domain.repository.ProductQueryRepository.ProductRow;
 import com.fasterxml.jackson.annotation.JsonInclude;
 import java.math.BigDecimal;
@@ -48,7 +49,12 @@ public record OfferItem(
     ExchangeRef exchange,
     Integer validityDays,
     ProductScope scope,
-    ProductImplementation implementation) {
+    ProductImplementation implementation,
+    /**
+     * `RN-PM-031`: promedio y cantidad de reseñas vivas, para pintar las estrellas sin otra
+     * llamada.
+     */
+    RatingSummary rating) {
 
   /**
    * Proyecta la fila leída, con el destino y la moneda que trajo la <b>misma</b> sentencia.
@@ -105,6 +111,7 @@ public record OfferItem(
         // La implementación viaja para que quien compra sepa ANTES DE PAGAR si
         // lo que se lleva se le entrega en el acto. Ocultarlo no evita la
         // espera: la convierte en una incidencia de soporte.
-        ProductImplementation.valueOf(fila.implementation()));
+        ProductImplementation.valueOf(fila.implementation()),
+        fila.rating());
   }
 }
