@@ -137,6 +137,9 @@ public class ProductCommentController {
   }
 
   @GetMapping
+  // `security: []` en el contrato: la única de las cinco que no exige el esquema
+  // global. Es lo que le dice al cliente generado que no envíe token aquí.
+  @io.swagger.v3.oas.annotations.security.SecurityRequirements
   @Operation(
       summary = "Consultar las reseñas de un producto",
       description =
