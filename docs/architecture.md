@@ -5,11 +5,11 @@
 | Proyecto | NEXUS — Renovación de plataforma |
 | Empresa | FACTECH GROUP SAS |
 | Documento | `architecture.md` |
-| Versión | 0.29.0 |
+| Versión | 0.30.0 |
 | Estado | Borrador |
 | Responsable técnico | Bonilla Diaz William Steven |
 | Fecha de creación | 19-08-2026 |
-| Última actualización | 04-09-2026 |
+| Última actualización | 14-09-2026 |
 | Documento superior | `constitution.md` v0.5.0 |
 | Documento relacionado | `security.md` v0.3.0 |
 
@@ -273,7 +273,7 @@ Tres reglas que evitan huecos y ruido:
 |---|---|---|
 | `module`, `entity`, `entity_id` | | Igual que en `audit_change_log` |
 | `deletion_type` | `varchar` | `LOGICAL`, `PHYSICAL` o `ASSOCIATION` |
-| `reason` | `text` | Motivo declarado por el actor. Obligatorio salvo en `ASSOCIATION` (Art. V.13) |
+| `reason` | `text` | Motivo declarado por el actor. Obligatorio salvo en `ASSOCIATION` (Art. V.13). **En el contenido propio —tercera excepción, 14-09-2026— la columna se rellena igual, con un valor fijo que la especificación declara**, y el `CHECK` de abajo no cambia |
 | `snapshot` | `jsonb` **NOT NULL** | Estado completo del registro al momento de eliminarse |
 
 El motivo es obligatorio en el esquema para las entidades de negocio, y no basta con enviarlo en blanco:
@@ -286,6 +286,8 @@ CONSTRAINT ck_deletion_reason CHECK (
 ```
 
 La restricción exige contenido, no longitud. Un motivo de un solo carácter la satisface, de modo que la garantía es formal: obliga a escribir algo, no a que ese algo informe. Se decidió no elevar el mínimo para no imponer fricción a quien sí redacta un motivo útil.
+
+**La tercera excepción del Art. V.13 no toca esta restricción, y es deliberado** (14-09-2026, `constitution.md` v0.8.0). El **contenido propio** —una reseña que retira su autor, `RN-PM-029`— se elimina **sin que el actor declare motivo**, y aun así la fila de este registro lleva `deletion_type = 'LOGICAL'` y un `reason` con contenido: un valor fijo, `Retirada por su autor`, que el caso de uso escribe y la especificación declara. Se descartó relajar el `CHECK` —no puede saber si quien elimina es el autor— y se descartó un cuarto `deletion_type`, porque esa columna dice **cómo** se eliminó y no **por qué se exime del motivo**. Lo que distingue estas filas de una baja con motivo declarado es el texto, y quien lea la auditoría lo lee: el actor de la fila **es** el autor de la instantánea.
 
 **El `reason IS NOT NULL` no es redundante, y su ausencia era un defecto.** Hasta el 22-08-2026 esta restricción se escribía solo con la comparación de longitud, y con el motivo en nulo esa comparación da `NULL`: `FALSE OR NULL` es `NULL`, y un `CHECK` que evalúa a `NULL` **acepta la fila**. Es decir, la obligación del Art. V.13 podía saltarse sin más que omitir el campo — exactamente lo contrario de lo que la restricción existe para impedir. Se detectó al implementar `RF-SP-001` · `T-01`, que es quien crea la tabla, y su prueba de integración ejercita hoy los tres casos: en blanco, solo espacios y nulo.
 
@@ -904,3 +906,4 @@ D-08 quedó cerrada en `security.md` §12, junto con las decisiones D-12 a D-15 
 | 0.27.0 | 01-09-2026 | **§15.1.1 fija la zona horaria de la operación**: **todo el sistema opera en `America/Bogota`**, por decisión del responsable del proyecto. **El almacenamiento no cambia** —`timestamptz` sigue guardando UTC con desplazamiento, que es lo que no admite ambigüedad— y lo que la zona decide es **dónde se corta el día**, que solo importa allí donde una fecha se vuelve una decisión de negocio. Con UTC, una operación hecha a las **23:30 en Bogotá** caería en el día siguiente, y un cierre de periodo ocurriría a las **19:00** del último día del mes. Va **por configuración y no cableada**, como toda decisión de entorno de este proyecto. Y queda escrito lo que **no** alcanza: `ExpiredTokenPurgeJob` corre con `zone = "UTC"` y **no hay que cambiarlo** — purgar tokens caducados no es una decisión de negocio y le da igual dónde se corte el día. **La zona gobierna las operaciones que producen fechas visibles**, no todo lo que tiene un reloj. | Responsable del proyecto |
 | 0.28.0 | 02-09-2026 | **§15.2 gana tres lecturas cruzadas, las primeras de `MV`**: dos hacia `PM` —los productos que se venden, con lo que hay que copiarles, y **si están en la oferta de quien compra**— y una hacia `SP` —el estado del cliente, **de qué vendedor cuelga** y de qué nivel parte—. Las trae `RF-MV-001` y las hereda `RF-MV-002`. **Las tres siguen la norma** —el módulo dueño del dato declara la interfaz— y la segunda merece leerse dos veces: `MV` **no recalcula la oferta**, la pregunta. Recalcularla crearía dos definiciones de «lo que alguien puede comprar», y el día que una cambiara la otra seguiría vendiendo lo que la primera ya no ofrece — el mismo defecto que §15.2 existe para evitar, un nivel más arriba. **Y las tres se preguntan por lote**: una venta de cinco productos que consultara cinco veces sería una `N+1` que no parece una, porque cada llamada es un método Java y solo se ve entera en el registro de sentencias. **Lo que estas lecturas NO incluyen es escribir**: conceder el nivel comprado sigue siendo la decisión abierta que `MV` reabrió como **D-26**, y no la trae este pase — `RF-MV-001` y `RF-MV-002` solo leen. | Responsable técnico |
 | 0.29.0 | 04-09-2026 | **`MV` construye la primera de sus lecturas cruzadas, y §15.2 gana DOS filas y no las tres que su versión anterior anunciaba.** La tercera —el nivel de membresía del cliente— no se declaró: **ese puerto ya existía** desde `RF-PM-007` · `T-01`, con su borde fijado por prueba, y declararlo otra vez habría creado la segunda definición de «vigente» — que es exactamente lo que esta sección existe para impedir un nivel más abajo. Queda escrita la lección, porque la norma de «una interfaz por lectura» facilita añadir puertos y eso mismo hace fácil añadir el que ya está: **antes de publicar una lectura, hay que mirar si el módulo dueño ya la publica**. **La segunda fila merece leerse dos veces y ahora está construida**: `ProductCatalog.offeredTo` **no escribe ningún `SELECT` propio** — resuelve la membresía por el mismo puerto que `RF-PM-007` y pide la oferta al mismo `findOffer`, de modo que el día que `T-20` de aquel requerimiento cambie el criterio de nivel a origen, `MV` cambia con él sin que nadie lo toque. **Y la regla de ArchUnit que cerraba D-25 deja de cubrir solo a `PM`**: `movements` no puede depender de `system..domain..` ni de `products..domain..`. Sin ella, «pregunta la oferta, no la recalcules» es una frase de este documento — un `SELECT` propio sobre `products` compilaría igual, pasaría las pruebas igual, y el defecto que produciría **no falla**: vende de más, en silencio. | Responsable técnico |
+| 0.30.0 | 14-09-2026 | **§6.6.3 — la tercera excepción del Art. V.13 no cambia `ck_deletion_reason`.** Con las reseñas de producto (`requirements/pm.md` v0.24.0 §5.2.7) nace el **contenido propio**, que se retira sin motivo declarado; la fila de `audit_deletion_log` sigue siendo `LOGICAL` y su `reason` lleva un valor fijo que la especificación declara. Se descartó relajar el `CHECK` —no sabe quién ejecuta— y un cuarto `deletion_type` —esa columna dice cómo, no por qué se exime—. | Responsable del proyecto |

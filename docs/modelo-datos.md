@@ -2,11 +2,11 @@
 
 | Campo | Valor |
 |---|---|
-| Versión | 0.41.0 |
+| Versión | 0.42.0 |
 | Estado | **Borrador** |
 | Responsable | Bonilla Diaz William Steven |
 | Fecha de creación | 21-08-2026 |
-| Última actualización | 12-09-2026 |
+| Última actualización | 14-09-2026 |
 
 !!! info "Qué va en este documento"
 
@@ -438,6 +438,8 @@ erDiagram
     users    ||--o{ user_commission_rates : "excepción de"
     user_commission_rates ||--o{ user_commission_rate_products : "rige sobre"
     products ||--o{ user_commission_rate_products : "paga esa excepción"
+    products ||--o{ product_comments : "se reseña"
+    users    ||--o{ product_comments : "escribe UNA por producto"
 
     products {
         uuid id PK
@@ -485,7 +487,24 @@ erDiagram
         uuid product_id PK,FK "y SIN role_id: aqui no hay nada copiado que pueda mentir"
         timestamptz created_at "sin retiro logico: desasociar BORRA"
     }
+
+    product_comments {
+        uuid id PK
+        uuid product_id FK "activo y no retirado AL ESCRIBIR; la resena sobrevive al retiro"
+        uuid user_id FK "el AUTOR, no el actor · solo el toca la fila"
+        smallint rating "1 a 5 · el promedio NO se guarda: se cuenta"
+        text comment "1 a 1000 sin espacios de los extremos"
+        timestamptz deleted_at "logico · SIN motivo declarado: Art. V.13, contenido propio"
+    }
 ```
+
+!!! info "`product_comments` es la primera tabla de `PM` que apunta a `users`, y la primera del sistema que retira sin motivo declarado"
+
+    Nace el 14-09-2026 (`requirements/pm.md` v0.24.0 §10.4). **`user_id` es el autor de la opinión y no el actor del cambio**: sin él la fila no significa nada, igual que `user_commission_rates.user_id`; quién corrigió o retiró sigue en la auditoría (Art. V.7), y coincide con el autor porque `RN-PM-027` lo obliga.
+
+    **Una reseña por persona y producto entre las vivas** —`uq_product_comments_autor`, único y **parcial** sobre `(product_id, user_id) WHERE deleted_at IS NULL`—, de modo que retirada la suya la persona puede escribir otra, y **por parcial no admite `DEFERRABLE`**: la carrera muerde en el segundo `INSERT`.
+
+    **Y el promedio no es una columna de `products`.** `rating.average` y `rating.count` se cuentan sobre las vivas en la misma sentencia que trae el producto; una columna desnormalizada obligaría a mantenerla en tres operaciones, y la que se quedara atrás no fallaría, mentiría.
 
 !!! info "Las cuatro columnas de `rate_type` y `fixed_amount` las escribe `V50`"
 
@@ -645,11 +664,11 @@ flowchart TB
 |---|---|---|
 | `SP` | `permissions`, `roles`, `role_permissions`, `users`, `user_roles`, `memberships`, `user_memberships`, `currencies`, `countries`, `document_types`, `user_supervisors`, `refresh_tokens`, `password_reset_permits`, `exchange_rates`, `brokers`, `user_brokers` | **16, escritas** |
 | `SP` · auditoría | `audit_change_log`, `audit_deletion_log`, `audit_error_log`, `audit_security_log`, `request_log` | **5, escritas** |
-| `PM` | `products` | **1, escrita** |
+| `PM` | `products`, `product_comments` | **2, escritas** (`V39`, `V87`) |
 | `CM` | `commission_rates`, `user_commission_rates`, `product_commission_rates` | **3, escritas** (`V49`) |
 | `MV` | `movements`, `movement_types`, `movement_details`, `payment_methods`, `payment_method_exclusions` | **5, escritas** (`V54`, `V55`) |
 
-**Un módulo, una a cinco tablas.** `SP` tiene diecisiete y los otros tres juntos tienen nueve, y eso no es desequilibrio: `SP` es dueño del acceso, de los catálogos transversales y de la auditoría entera, que es infraestructura que todos usan y nadie duplica.
+**Un módulo, una a cinco tablas.** `SP` tiene diecisiete y los otros tres juntos tienen diez, y eso no es desequilibrio: `SP` es dueño del acceso, de los catálogos transversales y de la auditoría entera, que es infraestructura que todos usan y nadie duplica.
 
 ### 5.2 Lo que cambió en `SP` el 01-09-2026, sin tabla nueva
 
@@ -664,7 +683,7 @@ Dos cambios que **no añaden ninguna tabla** y sí cambian lo que el modelo sign
 
 ### 5.3 Dónde apunta cada clave foránea que cruza un módulo
 
-Son **ocho**, y todas van en la misma dirección: **hacia `SP` y hacia `PM`**, nunca al revés.
+Son las que siguen —**y desde el 14-09-2026 una de `PM` apunta a `users`**—, y todas van en la misma dirección: **hacia `SP` y hacia `PM`**, nunca al revés.
 
 | Desde | Hacia | Módulo |
 |---|---|---|
@@ -674,6 +693,7 @@ Son **ocho**, y todas van en la misma dirección: **hacia `SP` y hacia `PM`**, n
 | `commission_rates.role_id` | `roles` | `CM` → `SP` |
 | `user_commission_rates.user_id` | `users` | `CM` → `SP` |
 | `product_commission_rates.product_id` | `products` | `CM` → `PM` |
+| `product_comments.user_id` | `users` | `PM` → `SP` — **la primera de `PM` hacia una persona** (14-09-2026) |
 
 
 
@@ -745,3 +765,4 @@ La secuencia no es continua —falta el tramo `V8` a `V12`— y no es un descuid
 | 0.39.0 | 11-09-2026 | **`user_commission_rates` gana `product_id` `NOT NULL`** \(`V84`\): la excepción por persona deja de regir sobre todo el catálogo y pasa a declarar **su** producto. **Columna propia y no tabla de asociación**, y la asimetría con la tasa de rol es deliberada: aquella es **catálogo reutilizable** —una fila que rige en muchos productos, y por eso tiene `product_commission_rates`—, mientras que una personalizada ya es de **una sola persona** y no hay nada que reutilizar; una tabla intermedia solo añadiría un salto. **El `EXCLUDE` se rehace con el producto dentro**: pasa de «una vigente por persona» a «una vigente por persona **y producto**», de modo que la misma persona puede tener varias a la vez sobre productos distintos. Se cierra además la consecuencia de no declarar moneda que este documento tenía anotada para esta tabla: al conocer un producto, conoce una moneda. **La migración ABORTA si hay filas vivas**: no hay dato que inventar —a qué producto pertenecía una tasa que valía para todos no se puede adivinar— y rellenarlas produciría filas plausibles y falsas, que es exactamente lo que `V49` evitó vaciando en lugar de traducir. | Responsable técnico |
 | 0.40.0 | 11-09-2026 | **Corrige a v0.39.0 el mismo día, y las dos quedan para que el cambio se vea.** Aquella dio a la excepción por persona una **columna `product_id`**; el responsable del proyecto corrigió la forma: la personalizada debe asociarse a productos **con el mismo mecanismo que la de rol**. La columna se retira y nace **`user_commission_rate_products`** \(`V85`\), gemela de `product_commission_rates` — el sistema llega a **veintiséis tablas**. **Lo que la gemela tiene y esta no es el `role_id` copiado**: allí existe para que `RN-CM-013` pueda declararse en el esquema, con una clave foránea compuesta que le impide divergir; aquí no hay nada equivalente que copiar, porque la regla hermana habla de **persona y fechas** y las fechas no caben en una clave primaria. **Y por eso el `EXCLUDE` de `user_commission_rates` SE RETIRA sin sustituto**: `RN-CM-006` cruza ahora dos tablas, y este documento ya lo había anticipado en v0.15.0 — «sacar el producto fuera lo habría hecho cruzar dos tablas, que ningún índice hace». La regla pasa al caso de uso con un bloqueo consultivo. **No se sustituye por un `EXCLUDE` sobre `(user_id, daterange)`**, que es la tentación: prohibiría dos tasas simultáneas de la misma persona sobre productos **distintos**, que es justo lo que la enmienda existe para permitir. | Responsable técnico |
 | 0.41.0 | 12-09-2026 | **`products.public_price` se renombra a `purchase_price` y cambia de significado: de lo que se anuncia a lo que NEXUS paga** (`RN-PM-023`, `RN-PM-024`, [`requirements/pm.md`](requirements/pm.md) v0.23.0 §5.2.6). Decisión del responsable del proyecto. La columna conserva forma, opcionalidad y `CHECK` —que se renombra con ella, `ck_products_purchase_price_no_negativo`—, y lo que cambia es **quién puede leerla**: solo las dos lecturas de administración; la oferta y el hotlink **no la seleccionan**, porque es el costo y publicarlo enseñaría el margen, en el hotlink sin token. **El nulo pasa de «se anuncia con `price`» a «no se conoce»**: un producto que todavía no se ha comprado no tiene costo que declarar, y por eso la migración sigue sin rellenar nada. **Desaparece «el importe que se muestra»**: fuera de administración `price` es lo único que se muestra y la conversión se calcula siempre sobre él. Ninguna tabla nueva: el sistema sigue en veintiséis. | Responsable del proyecto |
+| 0.42.0 | 14-09-2026 | **Nace `product_comments`, la segunda tabla de `PM`** ([`requirements/pm.md`](requirements/pm.md) v0.24.0 §10.4): las reseñas de producto, con puntuación de uno a cinco, texto, autor y las tres marcas de tiempo. Por decisión del responsable del proyecto. **Tres cosas del dibujo**: `user_id` es el **autor y no el actor**, y por eso no infringe el Art. V.7; la unicidad «una por persona y producto» es un índice **parcial** sobre las vivas, que no admite `DEFERRABLE`; y **el promedio no se guarda en `products`**: se cuenta sobre las vivas en cada lectura, para que la copia que se quedara atrás no pueda mentir. **Es la primera tabla del sistema que se retira sin motivo declarado** —`Art. V.13` enmendado, `constitution.md` v0.8.0—, y **el esquema de la auditoría no cambia**: el `reason` de `audit_deletion_log` lleva un valor fijo que la especificación declara. §5.1 pasa `PM` a dos tablas; §5.3 registra la primera clave foránea de `PM` hacia `users`. | Responsable del proyecto |

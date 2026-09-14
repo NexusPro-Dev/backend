@@ -5,11 +5,11 @@
 | Proyecto | NEXUS — Renovación de plataforma |
 | Empresa | FACTECH GROUP SAS |
 | Documento | `modules.md` |
-| Versión | 0.18.0 |
+| Versión | 0.19.0 |
 | Estado | Borrador |
 | Responsable técnico | Bonilla Diaz William Steven |
 | Fecha de creación | 20-08-2026 |
-| Última actualización | 02-09-2026 |
+| Última actualización | 14-09-2026 |
 | Documento superior | `constitution.md` v0.7.0 |
 | Documentos relacionados | `architecture.md` v0.17.0, `requirements.md` v0.51.0 |
 
@@ -167,8 +167,10 @@ Se resolvió el 20-08-2026, antes de redactar el primer requerimiento: el códig
 |---|---|---|
 | Productos | Alta, consulta, edición, estado y retiro del catálogo | `products` |
 | Oferta | Qué puede comprar quien mira, que no es el catálogo completo | `products`, y la membresía vigente que `SP` publique |
+| Hotlinks | El enlace público que un vendedor reparte (07-09-2026) | `products`, y el vendedor que `SP` publique |
+| Reseñas | Lo que quien compra dice del producto: una puntuación y un texto por persona, que solo su autor toca (14-09-2026) | `product_comments` |
 
-**Dependencias.** `SP`, y solo `SP`: valida contra sus **membresías** el destino de un upgrade, contra sus **monedas** el precio, y necesita la **membresía vigente del actor** para decidir la oferta. La dependencia es acíclica, porque `SP` no consume a nadie.
+**Dependencias.** `SP`, y solo `SP`: valida contra sus **membresías** el destino de un upgrade, contra sus **monedas** el precio, necesita la **membresía vigente del actor** para decidir la oferta y, desde el 14-09-2026, referencia a la **persona** que escribe una reseña. La dependencia es acíclica, porque `SP` no consume a nadie. **Y no consume a `MV`**, aunque tentó: exigir haber comprado para reseñar cerraría el ciclo `MV → PM → MV`, y se descartó por eso (`requirements/pm.md` §5.2.7).
 
 !!! success "Cómo la consume — D-25, cerrada el 26-08-2026"
 
@@ -396,3 +398,4 @@ El orden importa: el módulo precede al requerimiento, el requerimiento precede 
 | 0.16.0 | 01-09-2026 | **`CM` se rehace**, por decisión del responsable del proyecto, y su ficha §5.3 lo recoge: donde había **una** tabla ahora hay **tres** —el catálogo por rol, la excepción por persona y la asociación con el producto— y el módulo gana un submódulo, **Asociación**, que es lo único que pone una tasa en vigor. **El cambio invalida la implementación**: los cinco requerimientos están construidos desde el 28-08-2026 con 45 pruebas, y la forma de `commission_rates` cambia. El detalle, en [`requirements/cm.md`](requirements/cm.md) v0.4.0. | Responsable del proyecto |
 | 0.17.0 | 02-09-2026 | **`CM` pasa de rediseñado a construido**, y su ficha §5.3 lo recoge: es dueño de **tres tablas** —el catálogo por rol, la excepción por persona y la asociación con el producto— donde el 01-09-2026 tenía una diseñada y dos por escribir. Con `V49` el módulo tiene sus **ocho requerimientos con endpoint funcionando** y **75 pruebas** propias. **La frontera de D-25 se estrenó en su forma más exigente y aguantó**: `CM` es el primer módulo que depende de dos, y al rehacerlo consume `RoleCatalog`, `UserCatalog`, `SellerRoleCatalog` y `ProductCatalog` sin importar una sola entidad ajena — mientras sus consultas siguen uniendo `roles`, `users` y `products` en la misma sentencia, que es lo que impide las `N+1` y **no rompe la frontera**, porque lo que §7 defiende es la del código y no la del motor. El detalle, en [`requirements/cm.md`](requirements/cm.md) v0.5.0. | Responsable técnico |
 | 0.18.0 | 02-09-2026 | **`MV` — Movimientos vuelve al inventario**, por decisión del responsable del proyecto, un día después de haberse retirado entero. Recupera su ficha (§5.4, y la plantilla vuelve a §5.5) y su fila, y **«Finanzas» vuelve a quedar absorbido** en §6: el módulo declara como alcance **todo hecho económico** —no solo la venta—, de modo que retiros, pagos y balances son etapas suyas. Lo que cambia respecto del primer intento **no es el alcance sino el orden**: aquel escribió el libro completo antes de que existiera una sola venta, y este declara el destino y **construye por etapas, empezando por vender**. El código `MV` **se reutiliza**, y el precio queda escrito en la ficha: `RF-MV-001` existió una vez como «registrar un depósito» y hoy es «registrar una venta» — se acepta porque el borrado se llevó **todos** los identificadores anteriores y ninguno sobrevive en ninguna parte. Vuelve además **D-26 con su número original**, porque es literalmente la misma pregunta: conceder el nivel comprado obliga a **escribir en `SP`**, y todas las interfaces entre módulos son de solo lectura. | Responsable del proyecto |
+| 0.19.0 | 14-09-2026 | **`PM` gana el submódulo Reseñas** ([`requirements/pm.md`](requirements/pm.md) v0.24.0): una puntuación y un texto por persona y producto, que solo su autor corrige y retira, con la tabla `product_comments`. §5.2 registra además el submódulo Hotlinks, que faltaba desde el 07-09-2026. Queda escrito por qué `PM` **no** consume a `MV` para exigir la compra antes de la opinión: cerraría el ciclo que §7 prohíbe. | Responsable del proyecto |
