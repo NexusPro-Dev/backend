@@ -30,25 +30,26 @@ class ProductsPermissionsSeedIT extends IntegrationTestBase {
   private static final UUID SUPERADMIN = UUID.fromString("01a02a33-4c00-7001-9c4f-5e7ad1000001");
   private static final UUID ADMIN = UUID.fromString("01a02a33-4c00-7002-9c4f-5e7ad1000002");
 
-  private static final List<String> LOS_SEIS =
+  private static final List<String> LOS_SIETE =
       List.of(
           "products:read",
           "products:create",
           "products:update",
           "products:delete",
           "products:sale",
-          "products:hotlink");
+          "products:hotlink",
+          "products:comment");
 
   @Autowired private JdbcTemplate jdbc;
 
   @Test
-  @DisplayName("los seis permisos de pm.md §4 están sembrados, y no hay un séptimo")
+  @DisplayName("los siete permisos de pm.md §4 están sembrados, y no hay un octavo")
   void losSeisSembrados() {
     List<String> codigos =
         jdbc.queryForList(
             "SELECT code FROM permissions WHERE resource = 'products' ORDER BY code", String.class);
 
-    assertThat(codigos).containsExactlyInAnyOrderElementsOf(LOS_SEIS);
+    assertThat(codigos).containsExactlyInAnyOrderElementsOf(LOS_SIETE);
   }
 
   @Test
@@ -64,13 +65,24 @@ class ProductsPermissionsSeedIT extends IntegrationTestBase {
   }
 
   @Test
-  @DisplayName("los seis están asociados a SUPERADMIN, que acota el catálogo completo")
-  void losSeisEnSuperadmin() {
-    assertThat(permisosDe(SUPERADMIN)).containsAll(LOS_SEIS);
+  @DisplayName(
+      "`products:comment` lleva identificador literal y estable, y es el séptimo de la serie")
+  void commentConIdentificadorEstable() {
+    // `V88`: el primer permiso de escritura de PM que no es de administración.
+    assertThat(
+            jdbc.queryForObject(
+                "SELECT id::text FROM permissions WHERE code = 'products:comment'", String.class))
+        .isEqualTo("01a09d97-2400-7001-9c4f-5e7ad5000007");
   }
 
   @Test
-  @DisplayName("los seis están asociados a ADMIN: el catálogo comercial NO es reserva de la raíz")
+  @DisplayName("los siete están asociados a SUPERADMIN, que acota el catálogo completo")
+  void losSeisEnSuperadmin() {
+    assertThat(permisosDe(SUPERADMIN)).containsAll(LOS_SIETE);
+  }
+
+  @Test
+  @DisplayName("los siete están asociados a ADMIN: el catálogo comercial NO es reserva de la raíz")
   void losSeisEnAdmin() {
     // Es la mitad que se olvida, y no falla al aplicar la migración: deja a
     // `ADMIN` incapaz de conceder lo que no tiene, y `RN-SEG-003` rechaza la
@@ -79,7 +91,7 @@ class ProductsPermissionsSeedIT extends IntegrationTestBase {
     // Y es lo que separa a `PM` de las tres reservas del superadministrador
     // (`security.md` §4.4): ver o gobernar un catálogo comercial es
     // administración ordinaria.
-    assertThat(permisosDe(ADMIN)).containsAll(LOS_SEIS);
+    assertThat(permisosDe(ADMIN)).containsAll(LOS_SIETE);
   }
 
   private List<String> permisosDe(UUID rol) {

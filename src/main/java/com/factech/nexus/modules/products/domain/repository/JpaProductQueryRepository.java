@@ -552,6 +552,20 @@ public class JpaProductQueryRepository implements ProductQueryRepository {
     return valor == null ? null : ((Number) valor).intValue();
   }
 
+  @Override
+  @Transactional(readOnly = true)
+  public boolean isPurchasable(UUID productId) {
+    if (productId == null) {
+      return false;
+    }
+    return !em.createNativeQuery(
+            "SELECT 1 FROM products WHERE id = :id AND status = 'ACTIVO' AND deleted_at IS NULL")
+        .setParameter("id", productId)
+        .setMaxResults(1)
+        .getResultList()
+        .isEmpty();
+  }
+
   private static OffsetDateTime momento(Object valor) {
     return switch (valor) {
       case null -> null;

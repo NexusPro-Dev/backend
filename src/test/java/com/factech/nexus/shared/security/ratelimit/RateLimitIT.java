@@ -42,7 +42,9 @@ import org.springframework.test.web.servlet.MockMvc;
       "nexus.security.rate-limit.refresh.por-origen=2",
       "nexus.security.rate-limit.refresh.ventana=PT1M",
       "nexus.security.rate-limit.hotlink.por-origen=2",
-      "nexus.security.rate-limit.hotlink.ventana=PT1M"
+      "nexus.security.rate-limit.hotlink.ventana=PT1M",
+      "nexus.security.rate-limit.public-catalog.por-origen=2",
+      "nexus.security.rate-limit.public-catalog.ventana=PT1M"
     })
 class RateLimitIT extends IntegrationTestBase {
 
@@ -263,6 +265,45 @@ class RateLimitIT extends IntegrationTestBase {
     assertThat(detalles).hasSize(1);
     assertThat(detalles).allMatch(detalle -> detalle.contains("GET /api/v1/hotlinks/"));
     assertThat(detalles).noneMatch(detalle -> detalle.contains("carlos"));
+  }
+
+  @Test
+  @DisplayName("reseñas — identificadores distintos topan con la MISMA cota: se cuenta por familia")
+  void lasResenasSeAcotanPorFamiliaYNoPorProducto() throws Exception {
+    // `CA-PM-208`. Como en el hotlink, lo que se afirma son los IDENTIFICADORES
+    // DISTINTOS: quien recorre productos al azar buscando cuales responden 200
+    // no repite ninguno, y una cota por URI le daria un cubo nuevo cada vez.
+    atendida(resenas(java.util.UUID.randomUUID()));
+    atendida(resenas(java.util.UUID.randomUUID()));
+
+    java.util.UUID tercero = java.util.UUID.randomUUID();
+    resenas(tercero)
+        .andExpect(status().isTooManyRequests())
+        .andExpect(header().exists("Retry-After"))
+        .andExpect(jsonPath("$.instance").value("/api/v1/products/" + tercero + "/comments"));
+  }
+
+  @Test
+  @DisplayName("reseñas — la familia no alcanza a la reseña propia ni al POST")
+  void laFamiliaNoAlcanzaALasRutasHermanas() throws Exception {
+    atendida(resenas(java.util.UUID.randomUUID()));
+    atendida(resenas(java.util.UUID.randomUUID()));
+
+    // Sin token responden 401, no 429: el filtro de tasa no las mira.
+    mvc.perform(get("/api/v1/products/{id}/comments/mine", java.util.UUID.randomUUID()))
+        .andExpect(status().isUnauthorized());
+    mvc.perform(
+            org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post(
+                    "/api/v1/products/{id}/comments", java.util.UUID.randomUUID())
+                .contentType(org.springframework.http.MediaType.APPLICATION_JSON)
+                .content("{}"))
+        .andExpect(status().isUnauthorized());
+  }
+
+  private org.springframework.test.web.servlet.ResultActions resenas(java.util.UUID producto)
+      throws Exception {
+    // El producto no existe, y da igual: lo atendido responde 404 y lo cortado 429.
+    return mvc.perform(get("/api/v1/products/{id}/comments", producto));
   }
 
   private org.springframework.test.web.servlet.ResultActions hotlink(String usuario, String codigo)

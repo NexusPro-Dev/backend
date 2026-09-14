@@ -142,6 +142,22 @@ public class SecurityConfig {
   };
 
   /**
+   * Las reseñas de un producto (`RF-PM-012`, 14-09-2026): la <b>segunda ruta pública que publica el
+   * nombre de una persona</b>, después del hotlink, y por eso hereda sus dos decisiones — del autor
+   * solo nombre y apellido (`RN-PM-030`), y {@code 404} uniforme (`RN-PM-028`).
+   *
+   * <p><b>Va en la lista por método y solo en {@code GET}</b>, por lo mismo que los catálogos: la
+   * misma ruta responde a un {@code POST} que exige {@code products:comment}, y abrirla entera
+   * dejaría al anónimo recibiendo {@code 403} donde debe recibir {@code 401}. <b>El patrón es de UN
+   * segmento</b> y termina en {@code /comments}: no alcanza a {@code /comments/mine} ni a {@code
+   * /comments/{commentId}}, y {@code EndpointPermissionsIT} lo comprueba con los tres.
+   *
+   * <p>Es pública por <b>decisión</b> —la pantalla del hotlink las necesita y no tiene con qué
+   * autenticarse— y no deja ningún permiso huérfano: nunca exigió uno.
+   */
+  private static final String RESENAS_PUBLICAS = "/api/v1/products/*/comments";
+
+  /**
    * Documentación de la API: pública solo donde se habilite de forma explícita.
    *
    * <p><b>{@code /v3/api-docs.yaml} se declara aparte y no sobra.</b> No casa con el literal exacto
@@ -205,6 +221,8 @@ public class SecurityConfig {
               // de países siguen exigiendo token, y siguen respondiendo `401`
               // sin él en lugar de `403`.
               auth.requestMatchers(HttpMethod.GET, CATALOGOS_PUBLICOS).permitAll();
+              // Solo el GET y solo esa ruta: ver `RESENAS_PUBLICAS`.
+              auth.requestMatchers(HttpMethod.GET, RESENAS_PUBLICAS).permitAll();
               if (documentacionPublica) {
                 auth.requestMatchers(RUTAS_DOCUMENTACION).permitAll();
               }

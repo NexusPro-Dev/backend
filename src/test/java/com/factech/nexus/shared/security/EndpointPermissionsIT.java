@@ -148,6 +148,15 @@ class EndpointPermissionsIT extends IntegrationTestBase {
                   + " HOTLINKS (`RN-PM-021`) y solo el nombre de quien es fuerza comercial"
                   + " (`RN-PM-022`). El recorrido a ciegas lo acota el límite de tasa por origen"),
           Map.entry(
+              "GET /api/v1/products/{id}/comments",
+              "PÚBLICO POR DECISIÓN (`RF-PM-012`, 14-09-2026): la pantalla del hotlink necesita"
+                  + " las reseñas y no tiene con qué autenticarse. Es la SEGUNDA ruta pública que"
+                  + " publica el nombre de una persona, y hereda del hotlink sus dos decisiones —"
+                  + " del autor solo nombre y apellido (`RN-PM-030`) y 404 uniforme para el producto"
+                  + " inexistente, inactivo o retirado (`RN-PM-028`)—. Solo el GET: el POST de la"
+                  + " misma ruta, `/comments/mine` y el PATCH/DELETE de `/comments/{commentId}`"
+                  + " exigen `products:comment`. La cota de tasa se cuenta por la familia"),
+          Map.entry(
               "GET /api/v1/movements/mine/{id}",
               "El detalle de lo propio (`RF-MV-008`): el alcance va dentro de la consulta y un"
                   + " movimiento ajeno responde `404`, igual que uno inexistente. Sin esta ruta el"

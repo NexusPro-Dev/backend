@@ -114,6 +114,24 @@ public class RateLimitFilter extends OncePerRequestFilter {
     "/api/v1/countries", "/api/v1/document-types", "/api/v1/brokers", "/api/v1/payment-methods"
   };
 
+  /**
+   * Las reseñas de un producto (`RF-PM-012`, 14-09-2026): <b>el número de los catálogos y la llave
+   * del hotlink</b>.
+   *
+   * <p>La política es {@code public-catalog} —120 por minuto y por origen— porque la naturaleza es
+   * la misma: una ruta pública que consulta la base y no identifica a nadie que no haya decidido
+   * publicar su nombre. La llave <b>no</b> es la ruta sino la <b>familia</b>: la ruta lleva el
+   * identificador del producto, y contar por URI daría un cubo por producto — quien recorriera
+   * identificadores al azar buscando cuáles responden {@code 200} no toparía jamás. Con la familia,
+   * mil identificadores distintos caen en el mismo sitio. No hace falta política nueva: lo distinto
+   * es la llave, no el número.
+   */
+  private static final String RESENAS_PREFIJO = "/api/v1/products/";
+
+  private static final String RESENAS_SUFIJO = "/comments";
+
+  private static final String RESENAS_FAMILIA = "/api/v1/products/*/comments";
+
   /** Un cuerpo de autenticación son decenas de bytes; esto es holgura, no un límite funcional. */
   private static final int TOPE_DEL_CUERPO = 8 * 1024;
 
@@ -216,6 +234,20 @@ public class RateLimitFilter extends OncePerRequestFilter {
    * origen</b>, porque su cuerpo no lleva identidad ninguna —lleva un permiso— y lo que hay que
    * cortar ahí es probar permisos al azar.
    */
+  /**
+   * {@code /api/v1/products/{id}/comments} y nada más: un solo segmento entre el prefijo y el
+   * sufijo. {@code /comments/mine} no termina en el sufijo, y {@code /products/available} no lo
+   * lleva.
+   */
+  private static boolean esListaDeResenas(String ruta) {
+    if (!ruta.startsWith(RESENAS_PREFIJO) || !ruta.endsWith(RESENAS_SUFIJO)) {
+      return false;
+    }
+    String medio =
+        ruta.substring(RESENAS_PREFIJO.length(), ruta.length() - RESENAS_SUFIJO.length());
+    return !medio.isEmpty() && medio.indexOf('/') < 0;
+  }
+
   private Regla reglaDe(HttpServletRequest peticion) {
     String ruta = peticion.getRequestURI();
 
@@ -232,6 +264,10 @@ public class RateLimitFilter extends OncePerRequestFilter {
           // agotar uno no deje sin los otros al mismo formulario.
           return new Regla(ruta, ajustes.publicCatalog());
         }
+      }
+      if (esListaDeResenas(ruta)) {
+        // La FAMILIA como llave, como en el hotlink: ver `RESENAS_FAMILIA`.
+        return new Regla(RESENAS_FAMILIA, ajustes.publicCatalog());
       }
       return null;
     }
