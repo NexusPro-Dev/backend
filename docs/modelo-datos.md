@@ -2,7 +2,7 @@
 
 | Campo | Valor |
 |---|---|
-| Versión | 0.44.0 |
+| Versión | 0.45.0 |
 | Estado | **Borrador** |
 | Responsable | Bonilla Diaz William Steven |
 | Fecha de creación | 21-08-2026 |
@@ -510,7 +510,37 @@ erDiagram
         bytea content "1 byte a 5 MB · TAL CUAL se subio: sin recorte ni conversion"
         timestamptz created_at "cuando se subio · SIN updated_at ni deleted_at: no se modifica, se REEMPLAZA y la vieja se BORRA"
     }
+
+    currencies ||--o{ product_packages : "todo el paquete se expresa en"
+    product_packages ||--o{ product_package_items : "contiene"
+    products ||--o{ product_package_items : "entra con su descuento en"
+
+    product_packages {
+        uuid id PK
+        varchar code UK "no se libera JAMAS, como el producto"
+        varchar name "unico entre vivos"
+        uuid currency_id FK "OBLIGATORIA e INMUTABLE: solo reune productos en esta moneda"
+        varchar status "nace INACTIVO · activar exige DOS productos y descripcion"
+        varchar scope "TIENDA o HOTLINKS · decide si llega al hotlink"
+        timestamptz deleted_at "logico, con motivo · SIN price: se CALCULA"
+    }
+
+    product_package_items {
+        uuid package_id PK,FK "la PK es la regla:"
+        uuid product_id PK,FK "un producto UNA vez por paquete, sin cantidad"
+        varchar discount_type "PORCENTAJE o FIJO"
+        numeric discount_value "14,4 · 0..100 si porcentaje · 0..precio del producto si fijo"
+        timestamptz updated_at "el descuento se corrige · desasociar BORRA la fila"
+    }
 ```
+
+!!! info "`product_packages` no tiene precio, y esa ausencia es la regla"
+
+    Diseñadas el 14-09-2026 (`requirements/pm.md` v0.31.0 §10.6); las creará la migración de `RF-PM-017`. **El precio del paquete es Σ(precio de hoy del producto − su descuento)** y se calcula en cada lectura, en Java y en un solo sitio (`RN-PM-036`): una columna obligaría a mantenerla en seis operaciones, y la que se quedara atrás no fallaría, mentiría.
+
+    **La moneda sí es columna, aunque se deduzca de los productos**: un paquete vacío también tiene moneda, y es contra la que se comprueba cada asociación (`RN-PM-035`). No se convierte: sumar monedas distintas con la tasa del día haría que el paquete valiera distinto cada mañana.
+
+    **`product_package_items` es una asociación con datos**: la clave primaria es «un producto una vez por paquete» (`RN-PM-038`), el descuento se corrige con auditoría de cambio, y desasociar **borra la fila** y la registra como `ASSOCIATION` sin motivo (Art. V.13, `RN-PM-042`). El techo del descuento fijo —el precio del producto— **no cabe en un `CHECK`**: está en otra tabla, y vive en el caso de uso.
 
 !!! info "`product_comments` es la primera tabla de `PM` que apunta a `users`, y la primera del sistema que retira sin motivo declarado"
 
@@ -692,7 +722,7 @@ flowchart TB
 |---|---|---|
 | `SP` | `permissions`, `roles`, `role_permissions`, `users`, `user_roles`, `memberships`, `user_memberships`, `currencies`, `countries`, `document_types`, `user_supervisors`, `refresh_tokens`, `password_reset_permits`, `exchange_rates`, `brokers`, `user_brokers` | **16, escritas** |
 | `SP` · auditoría | `audit_change_log`, `audit_deletion_log`, `audit_error_log`, `audit_security_log`, `request_log` | **5, escritas** |
-| `PM` | `products`, `product_comments`, `product_images` | **2 escritas** (`V39`, `V87`) **y una diseñada**: `product_images`, que creará `V90` con `RF-PM-014` (14-09-2026) |
+| `PM` | `products`, `product_comments`, `product_images`, `product_packages`, `product_package_items` | **2 escritas** (`V39`, `V87`) **y tres diseñadas**: `product_images`, que creará `V90` con `RF-PM-014`, y las dos de los paquetes, que creará la migración de `RF-PM-017` (14-09-2026) |
 | `CM` | `commission_rates`, `user_commission_rates`, `product_commission_rates` | **3, escritas** (`V49`) |
 | `MV` | `movements`, `movement_types`, `movement_details`, `payment_methods`, `payment_method_exclusions` | **5, escritas** (`V54`, `V55`) |
 
@@ -722,6 +752,7 @@ Son las que siguen —**y desde el 14-09-2026 una de `PM` apunta a `users`**—,
 | `user_commission_rates.user_id` | `users` | `CM` → `SP` |
 | `product_commission_rates.product_id` | `products` | `CM` → `PM` |
 | `product_comments.user_id` | `users` | `PM` → `SP` — **la primera de `PM` hacia una persona** (14-09-2026) |
+| `product_packages.currency_id` | `currencies` | `PM` → `SP` — la moneda del paquete entero (14-09-2026, diseñada) |
 
 
 
@@ -796,3 +827,4 @@ La secuencia no es continua —falta el tramo `V8` a `V12`— y no es un descuid
 | 0.42.0 | 14-09-2026 | **Nace `product_comments`, la segunda tabla de `PM`** ([`requirements/pm.md`](requirements/pm.md) v0.24.0 §10.4): las reseñas de producto, con puntuación de uno a cinco, texto, autor y las tres marcas de tiempo. Por decisión del responsable del proyecto. **Tres cosas del dibujo**: `user_id` es el **autor y no el actor**, y por eso no infringe el Art. V.7; la unicidad «una por persona y producto» es un índice **parcial** sobre las vivas, que no admite `DEFERRABLE`; y **el promedio no se guarda en `products`**: se cuenta sobre las vivas en cada lectura, para que la copia que se quedara atrás no pueda mentir. **Es la primera tabla del sistema que se retira sin motivo declarado** —`Art. V.13` enmendado, `constitution.md` v0.8.0—, y **el esquema de la auditoría no cambia**: el `reason` de `audit_deletion_log` lleva un valor fijo que la especificación declara. §5.1 pasa `PM` a dos tablas; §5.3 registra la primera clave foránea de `PM` hacia `users`. | Responsable del proyecto |
 | 0.43.0 | 14-09-2026 | **`products` gana `video_url`: la dirección de un video que presenta el producto** (`RN-PM-032`, [`requirements/pm.md`](requirements/pm.md) v0.27.0 §5.2.8). Decisión del responsable del proyecto. `varchar(500)`, nulo cuando no hay, con `ck_products_video_url_format` —`http://` o `https://` y sin espacios, con la rama `IS NULL` delante—. **Es una dirección y no un archivo**, por el camino de `icon`, y el sistema **no la sigue**: comprueba la forma y nada más. **Al revés que `purchase_price`, se publica en las cuatro lecturas**, hotlink sin token incluido, porque es material de venta y no un costo. Ninguna tabla nueva. | Responsable del proyecto |
 | 0.44.0 | 14-09-2026 | **Nace `product_images`, diseñada y pendiente de escribir: la portada de un producto, y la primera tabla del sistema que guarda un archivo** ([`requirements/pm.md`](requirements/pm.md) v0.29.0 §5.2.9 y §10.5). Decisión del responsable del proyecto con seis respuestas preguntadas antes de escribir: **se guarda la imagen y no su dirección** —el video tiene quien lo aloje, la portada no—, **en PostgreSQL con `bytea`** y no en disco ni en un bucket, **por endpoints propios después del alta**, y **servida sin token por identificador de imagen** con caché inmutable. `products` gana `cover_image_id`, **único** y sin `ON DELETE`. **La frase «el sistema no almacena binarios» deja de ser cierta a propósito**, y lo que sobrevive de la frontera es que **no interpreta el contenido**: los bytes se guardan tal cual, el tipo lo deciden sus primeros bytes, y ni recorte ni conversión. **Lo que hay que leer del dibujo es lo que la tabla no tiene**: ni `updated_at` ni `deleted_at`, porque una fila no se modifica —reemplazar es otra fila, y la vieja **se borra físicamente**—, y eso **no es una baja lógica**: se corrige el valor de una columna de `products`, y la auditoría conserva el identificador, no los bytes. **`RN-PM-034` —un upgrade siempre tiene portada o icono— cabe en un `CHECK` y no se declara**: hay filas anteriores que lo violan, y un `CHECK NOT VALID` daría un `500` al activarlas. §5 pasa `PM` a tres tablas —el diagrama de conjunto llevaba a `product_comments` sin dibujar desde la v0.42.0— y la cabecera vuelve a advertir que hay una diseñada sin escribir. | Responsable del proyecto |
+| 0.45.0 | 14-09-2026 | **Se diseñan `product_packages` y `product_package_items`**, los paquetes de productos ([`requirements/pm.md`](requirements/pm.md) v0.31.0 §10.6), por decisión del responsable del proyecto. **El paquete no tiene precio**: es Σ(precio de hoy − descuento) calculada en cada lectura (`RN-PM-036`), por lo mismo que el promedio de reseñas no es una columna. **Tiene moneda propia, obligatoria e inmutable** (`RN-PM-035`), porque un paquete vacío también la tiene y porque no se convierte. La tabla de asociación lleva el descuento —forma y valor— y su clave primaria es «un producto una vez por paquete» (`RN-PM-038`); desasociar borra la fila como `ASSOCIATION`. §5.1 pasa `PM` a cinco tablas, dos escritas y tres diseñadas; §5.3 registra la clave foránea del paquete a `currencies`. | Responsable del proyecto |
