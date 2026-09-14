@@ -830,7 +830,8 @@ class ProductTest {
   }
 
   @Test
-  @DisplayName("`VAL-017` — el video sin forma de URL absoluta http(s) se rechaza, nombrando el campo")
+  @DisplayName(
+      "`VAL-017` — el video sin forma de URL absoluta http(s) se rechaza, nombrando el campo")
   void videoConFormaInvalida() {
     String[] malos = {
       "/videos/asesoria.mp4",
@@ -854,7 +855,8 @@ class ProductTest {
   }
 
   @Test
-  @DisplayName("el video vale en un BOT y en un UPGRADE: no hay condición cruzada, al revés que el icono")
+  @DisplayName(
+      "el video vale en un BOT y en un UPGRADE: no hay condición cruzada, al revés que el icono")
   void videoEnLosDosTipos() {
     assertThat(botConVideo("https://vimeo.com/1").getVideoUrl()).isEqualTo("https://vimeo.com/1");
     Product upgrade = upgradeConIcono("crown");
@@ -893,8 +895,7 @@ class ProductTest {
     // Y el código de la corrección es el de `RF-PM-004`, no el del alta.
     ValidationException fallo =
         catchThrowableOfType(
-            () -> corregirVideo(producto, Patchable.de("sin-esquema")),
-            ValidationException.class);
+            () -> corregirVideo(producto, Patchable.de("sin-esquema")), ValidationException.class);
     assertThat(fallo.errorCode()).isEqualTo("VAL-009");
   }
 
