@@ -5,7 +5,7 @@
 | Requerimiento | `RF-PM-010` |
 | Especificación | [`spec.md`](spec.md) |
 | Plan | [`plan.md`](plan.md), aprobado el 14-09-2026 |
-| Estado | **En revisión** |
+| Estado | **Hecha** — todas las tareas `Hecha` el 14-09-2026; queda el Pull Request |
 | Issue | Pendiente de crear |
 | Rama | `feature/venta-de-productos` |
 | Autor | Responsable técnico |
@@ -16,17 +16,17 @@
 
 | ID | Tarea | Depende de | Verificación | Estado |
 |---|---|---|---|---|
-| `T-01` | `application/UpdateProductCommentRequest`: `Patchable<Integer> rating`, `Patchable<String> comment`, con `PatchableDeserializer` | `RF-PM-009 · T-07` | Unitaria de deserialización: ausente, nulo y con valor llegan como tres estados distintos | Pendiente |
-| `T-02` | `ProductComment.corregir(Patchable rating, Patchable comment, ahora)`: **rechaza el nulo explícito** de cualquiera (`VAL-002`, `VAL-003`), aplica lo presente, recorta el texto, avanza `updatedAt` **solo si algo cambió**, y **devuelve** el mapa de cambios `{campo: {before, after}}` | `RF-PM-009 · T-03` | Unitaria: cambia uno, cambia los dos, no cambia nada —mapa vacío y `updatedAt` intacto—, nulo explícito lanza | Pendiente |
-| `T-03` | `ProductCommentRepository.findLiveByIdAndProductForUpdate(commentId, productId)`: `SELECT … FOR UPDATE` con `deleted_at IS NULL` **y `product_id = :producto`** | `RF-PM-009 · T-05` | Integración: no encuentra la retirada ni la de otro producto; bloquea la fila | Pendiente |
-| `T-04` | `domain/service/UpdateProductCommentService`: resolver (`EX-001`), **propiedad** (`EX-002`, `ForbiddenException`), corregir, escribir y auditar `UPDATE` **solo si el mapa no está vacío** | `T-01`, `T-02`, `T-03` | `CA-PM-184`, `CA-PM-189`, `CA-PM-190` | Pendiente |
-| `T-05` | `ProductCommentController`: `PATCH /api/v1/products/{id}/comments/{commentId}`, `@PreAuthorize("hasAuthority('products:comment')")`, `200` | `T-04` | La ruta entra en `EndpointPermissionsIT` con su permiso | Pendiente |
-| `T-06` | **LA PRUEBA DE LA PROPIEDAD** (`ProductCommentUpdateIT`): otro cliente con el permiso, y **un administrador con el permiso**, sobre una reseña ajena | `T-05` | `CA-PM-185`, `CA-PM-186`: `403`, reseña intacta, evento de seguridad registrado. **Es la prueba que define el requerimiento** | Pendiente |
-| `T-07` | Prueba del `404` uniforme: inexistente, **retirada por su propio autor**, de otro producto — comparando el cuerpo | `T-05` | `CA-PM-187` | Pendiente |
-| `T-08` | Pruebas de los criterios restantes: nulo explícito, sin cambios, `rating` del producto, producto inactivo y retirado | `T-05` | `CA-PM-188`, `CA-PM-189`, `CA-PM-191`, `CA-PM-192` | Pendiente |
-| `T-09` | Concurrencia: dos correcciones simultáneas del mismo autor, en `ProductCommentConcurrencyIT` | `T-05` | Las dos responden `200`; gana la última; dos filas de auditoría | Pendiente |
-| `T-10` | Documentación OpenAPI. **La prosa dice** que solo el autor puede y que el permiso no basta, que ningún campo admite nulo, y que un cuerpo vacío responde `200` sin cambiar nada | `T-05` | El contrato declara `200`, `400`, `403`, `404` | Pendiente |
-| `T-11` | Actualizar la matriz de `docs/requirements.md` y `docs/api/index.md` | `T-08` | La fila de `RF-PM-010` refleja el estado | Pendiente |
+| `T-01` | `application/UpdateProductCommentRequest`: `Patchable<Integer> rating`, `Patchable<String> comment`, con `PatchableRatingDeserializer` —entero estricto: `4.5` y `"5"` se rechazan— y `PatchableStringDeserializer` | `RF-PM-009 · T-07` | Unitaria de deserialización: ausente, nulo y con valor llegan como tres estados distintos | **Hecha el 14-09-2026** |
+| `T-02` | `ProductComment.corregir(Patchable rating, Patchable comment, ahora)`: **rechaza el nulo explícito** de cualquiera (`VAL-002`, `VAL-003`), aplica lo presente, recorta el texto, avanza `updatedAt` **solo si algo cambió**, y **devuelve** el mapa de cambios `{campo: {before, after}}` | `RF-PM-009 · T-03` | Unitaria: cambia uno, cambia los dos, no cambia nada —mapa vacío y `updatedAt` intacto—, nulo explícito lanza | **Hecha el 14-09-2026** |
+| `T-03` | `ProductCommentRepository.findLiveByIdAndProductForUpdate(commentId, productId)`: `SELECT … FOR UPDATE` con `deleted_at IS NULL` **y `product_id = :producto`** | `RF-PM-009 · T-05` | Integración: no encuentra la retirada ni la de otro producto; bloquea la fila | **Hecha el 14-09-2026** |
+| `T-04` | `domain/service/UpdateProductCommentService`: resolver (`EX-001`), **propiedad** (`EX-002`, `ForbiddenException`), corregir, escribir y auditar `UPDATE` **solo si el mapa no está vacío** | `T-01`, `T-02`, `T-03` | `CA-PM-184`, `CA-PM-189`, `CA-PM-190` | **Hecha el 14-09-2026** |
+| `T-05` | `ProductCommentController`: `PATCH /api/v1/products/{id}/comments/{commentId}`, `@PreAuthorize("hasAuthority('products:comment')")`, `200` | `T-04` | La ruta entra en `EndpointPermissionsIT` con su permiso | **Hecha el 14-09-2026** |
+| `T-06` | **LA PRUEBA DE LA PROPIEDAD** (`ProductCommentUpdateIT`): otro cliente con el permiso, y **un administrador con el permiso**, sobre una reseña ajena | `T-05` | `CA-PM-185`, `CA-PM-186`: `403`, reseña intacta, evento de seguridad registrado. **Es la prueba que define el requerimiento** | **Hecha el 14-09-2026** |
+| `T-07` | Prueba del `404` uniforme: inexistente, **retirada por su propio autor**, de otro producto — comparando el cuerpo | `T-05` | `CA-PM-187` | **Hecha el 14-09-2026** |
+| `T-08` | Pruebas de los criterios restantes: nulo explícito, sin cambios, `rating` del producto, producto inactivo y retirado | `T-05` | `CA-PM-188`, `CA-PM-189`, `CA-PM-191`, `CA-PM-192` | **Hecha el 14-09-2026** |
+| `T-09` | Concurrencia: dos correcciones simultáneas del mismo autor, en `ProductCommentConcurrencyIT` | `T-05` | Las dos responden `200`; gana la última; dos filas de auditoría | **Hecha el 14-09-2026** |
+| `T-10` | Documentación OpenAPI. **La prosa dice** que solo el autor puede y que el permiso no basta, que ningún campo admite nulo, y que un cuerpo vacío responde `400` mientras uno sin cambios responde `200` sin cambiar nada | `T-05` | El contrato declara `200`, `400`, `403`, `404` | **Hecha el 14-09-2026** |
+| `T-11` | Actualizar la matriz de `docs/requirements.md` y `docs/api/index.md` | `T-08` | La fila de `RF-PM-010` refleja el estado | **Hecha el 14-09-2026** |
 
 ## 2. Orden de ejecución
 
@@ -50,7 +50,7 @@
 
 | # | Bloqueo | Desde | Responsable | Estado |
 |---|---|---|---|---|
-| 1 | Depende de `RF-PM-009` construido: entidad, repositorio, forma de respuesta y tabla | 14-09-2026 | Responsable técnico | **Abierto** hasta `RF-PM-009 · T-09` |
+| 1 | Depende de `RF-PM-009` construido: entidad, repositorio, forma de respuesta y tabla | 14-09-2026 | Responsable técnico | **Cerrado el 14-09-2026** |
 
 ## 5. Definición de terminado
 

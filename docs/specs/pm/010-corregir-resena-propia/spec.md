@@ -8,6 +8,7 @@
 | Autor | Responsable técnico |
 | Aprobada por | — |
 | Fecha de aprobación | — |
+| Enmendada el | 14-09-2026 — **el cuerpo vacío responde `400`, como en `RF-PM-004`**, y no `200`. Ver §15 |
 
 ---
 
@@ -65,7 +66,7 @@ Que quien escribió una reseña **cambie de opinión sin escribir dos veces**: c
 
 **Semántica de `PATCH`: lo que no viene no cambia.** Es la misma forma que `RF-PM-004`, con una diferencia que la simplifica: aquí **ningún campo admite el nulo explícito**, porque los dos son obligatorios en la columna (`RN-PM-025`). Los tres estados de un campo —ausente, nulo, con valor— se reducen a dos, y el nulo es un error de validación y no una orden.
 
-**Un cuerpo sin ningún campo** no cambia nada y responde `200` con la reseña tal como está. No es un error: es una corrección vacía, y rechazarla obligaría al front a distinguir «no toqué nada» de «toqué y volví a dejar lo mismo», que el sistema no distingue tampoco.
+**Un cuerpo sin ningún campo responde `400`** (`VAL-005`), como la edición del producto: el módulo entero corrige con «al menos uno», y una petición que no informa nada es una petición mal formada, no una corrección. **Lo que sí responde `200` sin escribir** es el cuerpo cuyos valores **coinciden con los guardados**: eso es una corrección que no corrige nada, y el sistema no distingue «no toqué nada» de «toqué y volví a dejar lo mismo» — ni tiene por qué. (Decía «`200`» para el cuerpo vacío hasta el 14-09-2026; se alineó con `RF-PM-004` al construirlo.)
 
 ### 6.2 Salida
 
@@ -111,7 +112,7 @@ Que quien escribió una reseña **cambie de opinión sin escribir dos veces**: c
 
 ### FA-003 — Nada cambia de valor
 
-**Condición:** los campos presentes traen lo mismo que hay guardado, o el cuerpo está vacío.
+**Condición:** los campos presentes traen lo mismo que hay guardado.
 **Comportamiento:** `200` con la reseña, **sin escribir** y sin fila de auditoría. `updated_at` **no avanza**: una corrección que no corrige nada no es una corrección.
 
 ## 10. Excepciones
@@ -143,6 +144,7 @@ Que quien escribió una reseña **cambie de opinión sin escribir dos veces**: c
 | `VAL-002` | Puntuación, si viene, entera entre uno y cinco y **no nula** | La puntuación debe ser un entero entre 1 y 5. |
 | `VAL-003` | Texto, si viene, de uno a mil caracteres tras recortar y **no nulo** | El texto de la reseña es obligatorio y no puede superar los 1000 caracteres. |
 | `VAL-004` | Ningún campo desconocido — en particular, **ni `productId` ni `userId`** | El cuerpo de la petición contiene campos no admitidos. |
+| `VAL-005` | Al menos un campo corregible en el cuerpo | Debe informar al menos uno de los campos corregibles. |
 
 ## 12. Criterios de aceptación
 
@@ -153,7 +155,7 @@ Que quien escribió una reseña **cambie de opinión sin escribir dos veces**: c
 | `CA-PM-186` | El sistema responde `403` a un **administrador** con `products:comment` sobre una reseña ajena: el permiso habilita, no autoriza |
 | `CA-PM-187` | El sistema responde `404` a una reseña inexistente, a una **retirada** —también a su autor— y a una que **no es del producto de la ruta**, con el mismo cuerpo |
 | `CA-PM-188` | El sistema rechaza con `400` el nulo explícito en `rating` y en `comment`: ninguno admite vaciarse |
-| `CA-PM-189` | Un cuerpo vacío o sin cambios de valor responde `200` **sin** avanzar `updatedAt` y **sin** fila de auditoría |
+| `CA-PM-189` | Un cuerpo **vacío** responde `400`; uno **sin cambios de valor** responde `200` **sin** avanzar `updatedAt` y **sin** fila de auditoría |
 | `CA-PM-190` | El sistema registra una fila `UPDATE` en `audit_change_log` con el antes y el después de cada campo tocado |
 | `CA-PM-191` | Corregir la puntuación mueve `rating.average` del producto en el acto, y `count` no cambia |
 | `CA-PM-192` | El autor corrige su reseña sobre un producto **inactivo** y sobre uno **retirado** |
@@ -181,3 +183,4 @@ Que quien escribió una reseña **cambie de opinión sin escribir dos veces**: c
 | Versión | Fecha | Cambio | Responsable |
 |---|---|---|---|
 | 0.1.0 | 14-09-2026 | Redacción inicial. **La excepción que define el requerimiento es `EX-002`**: el permiso habilita y ser el autor autoriza, y como `RN-PM-027` no cabe en el esquema lo único que la defiende es la prueba que intenta corregir una ajena con el permiso puesto — en particular con un administrador—. Primero «existe» (`404`) y después «es tuya» (`403`), y el `403` no revela nada porque la lista pública ya enseña la reseña con su identificador. **Ningún campo admite el nulo explícito**, al revés que en `RF-PM-004`, porque los dos son obligatorios en la columna; un cuerpo vacío es una corrección vacía y responde `200` sin escribir. **La retirada responde «no existe» también a su autor**: no se puede revivir, y distinguirlo no le daría nada que hacer. **Y se corrige aunque el producto ya no se venda**, que es la asimetría deliberada con el alta. | Responsable técnico |
+| 0.2.0 | 14-09-2026 | **El cuerpo vacío responde `400` y no `200`.** Al construir se vio que `RF-PM-004` rechaza la edición sin ningún campo con «Debe informar al menos uno de los campos corregibles», y esta spec decía lo contrario citándolo como precedente. Se alinea: el módulo entero corrige con «al menos uno». Lo que sigue respondiendo `200` sin escribir es el cuerpo **sin cambios de valor**, que es la corrección que no corrige nada. Nace `VAL-005`; `FA-003` y `CA-PM-189` se reescriben. | Responsable técnico |

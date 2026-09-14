@@ -5,7 +5,7 @@
 | Requerimiento | `RF-PM-013` |
 | Especificación | [`spec.md`](spec.md) |
 | Plan | [`plan.md`](plan.md), aprobado el 14-09-2026 |
-| Estado | **En revisión** |
+| Estado | **Hecha** — todas las tareas `Hecha` el 14-09-2026; queda el Pull Request |
 | Issue | Pendiente de crear |
 | Rama | `feature/venta-de-productos` |
 | Autor | Responsable técnico |
@@ -16,15 +16,15 @@
 
 | ID | Tarea | Depende de | Verificación | Estado |
 |---|---|---|---|---|
-| `T-01` | `ProductCommentRepository.findLiveByProductAndUser(productId, userId)`: `Optional`, sin bloqueo, con `deleted_at IS NULL` | `RF-PM-009 · T-05` | Integración: devuelve la viva y no la retirada; vacío si no hay | Pendiente |
-| `T-02` | `domain/service/GetOwnProductCommentService`: actor del token, una consulta, `EX-001` si vacío. **No consulta el producto** | `T-01` | `CA-PM-213`, `CA-PM-214`, `CA-PM-218` | Pendiente |
-| `T-03` | `ProductCommentController`: `GET /api/v1/products/{id}/comments/mine`, `@PathVariable UUID id`, `@PreAuthorize("hasAuthority('products:comment')")`, **declarado antes que `/{commentId}`** | `T-02` | `CA-PM-212`, `CA-PM-216`; la ruta entra en `EndpointPermissionsIT` con su permiso | Pendiente |
-| `T-04` | **La prueba de la ruta literal**: `GET /comments/mine` responde `200` o `404` de negocio, nunca `405` ni `400` por identificador inválido | `T-03` | `CA-PM-217`, junto a la de `/products/available` en `ProductOfferIT` | Pendiente |
-| `T-05` | **La prueba de los dos autores** (`ProductCommentMineIT`): dos personas, el mismo producto, cada una recibe la suya | `T-03` | `CA-PM-215`. Es la que define el requerimiento | Pendiente |
-| `T-06` | Pruebas de los criterios restantes: sin reseña, retirada, producto inexistente —**mismo cuerpo**—, producto inactivo y retirado con reseña | `T-03` | `CA-PM-213`, `CA-PM-214` | Pendiente |
-| `T-07` | Prueba de **número de sentencias**: una | `T-02` | `CA-PM-218` | Pendiente |
-| `T-08` | Documentación OpenAPI. **La prosa dice** que responde sobre quien llama, que el `404` no dice nada del producto, y que sí responde sobre productos que ya no se venden | `T-03` | El contrato declara `200`, `400`, `403`, `404` y **ningún parámetro de consulta** | Pendiente |
-| `T-09` | Actualizar la matriz de `docs/requirements.md` y `docs/api/index.md` | `T-06` | La fila de `RF-PM-013` refleja el estado | Pendiente |
+| `T-01` | `ProductCommentRepository.findLiveByProductAndUser(productId, userId)`: `Optional`, sin bloqueo, con `deleted_at IS NULL` | `RF-PM-009 · T-05` | Integración: devuelve la viva y no la retirada; vacío si no hay | **Hecha el 14-09-2026** |
+| `T-02` | `domain/service/GetOwnProductCommentService`: actor del token, una consulta, `EX-001` si vacío. **No consulta el producto** | `T-01` | `CA-PM-213`, `CA-PM-214`, `CA-PM-218` | **Hecha el 14-09-2026** |
+| `T-03` | `ProductCommentController`: `GET /api/v1/products/{id}/comments/mine`, `@PathVariable UUID id`, `@PreAuthorize("hasAuthority('products:comment')")`, **declarado antes que `/{commentId}`** | `T-02` | `CA-PM-212`, `CA-PM-216`; la ruta entra en `EndpointPermissionsIT` con su permiso | **Hecha el 14-09-2026** |
+| `T-04` | **La prueba de la ruta literal**: `GET /comments/mine` responde `200` o `404` de negocio, nunca `405` ni `400` por identificador inválido | `T-03` | `CA-PM-217`, junto a la de `/products/available` en `ProductOfferIT` | **Hecha el 14-09-2026** |
+| `T-05` | **La prueba de los dos autores** (`ProductCommentMineIT`): dos personas, el mismo producto, cada una recibe la suya | `T-03` | `CA-PM-215`. Es la que define el requerimiento | **Hecha el 14-09-2026** |
+| `T-06` | Pruebas de los criterios restantes: sin reseña, retirada, producto inexistente —**mismo cuerpo**—, producto inactivo y retirado con reseña | `T-03` | `CA-PM-213`, `CA-PM-214` | **Hecha el 14-09-2026** |
+| `T-07` | Prueba de **número de sentencias**: una | `T-02` | `CA-PM-218` | **Hecha el 14-09-2026** |
+| `T-08` | Documentación OpenAPI. **La prosa dice** que responde sobre quien llama, que el `404` no dice nada del producto, y que sí responde sobre productos que ya no se venden | `T-03` | El contrato declara `200`, `400`, `403`, `404` y **ningún parámetro de consulta** | **Hecha el 14-09-2026** |
+| `T-09` | Actualizar la matriz de `docs/requirements.md` y `docs/api/index.md` | `T-06` | La fila de `RF-PM-013` refleja el estado | **Hecha el 14-09-2026** |
 
 ## 2. Orden de ejecución
 
@@ -45,7 +45,7 @@ Lineal: `T-01` → `T-02` → `T-03`, y las pruebas después. **`T-04` va junto 
 
 | # | Bloqueo | Desde | Responsable | Estado |
 |---|---|---|---|---|
-| 1 | Depende de `RF-PM-009 · T-05` (repositorio) y `T-07` (forma de respuesta) | 14-09-2026 | Responsable técnico | **Abierto** |
+| 1 | Depende de `RF-PM-009 · T-05` (repositorio) y `T-07` (forma de respuesta) | 14-09-2026 | Responsable técnico | **Cerrado el 14-09-2026** |
 
 ## 5. Definición de terminado
 

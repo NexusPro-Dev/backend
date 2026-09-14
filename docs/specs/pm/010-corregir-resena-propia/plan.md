@@ -42,7 +42,8 @@ La forma se hereda entera del `PATCH` del producto —los campos que no vienen n
 `200` con `ProductCommentResponse`, la misma forma que el alta, con `updatedAt` avanzado.
 
 - **Los tres estados de cada campo se reducen a dos.** `Patchable` distingue ausente, nulo y con valor; aquí el nulo explícito de cualquiera de los dos es `VAL-002` o `VAL-003` con `400`. Se conserva `Patchable` en lugar de `Integer`/`String` a secas **para que el nulo se rechace con el mensaje de la spec** y no se confunda con ausente — que es exactamente el fallo silencioso que `RF-SP-027` pagó con `Optional`.
-- **Cuerpo vacío**: `200` sin escribir. **Campos desconocidos**: `400`, por `fail-on-unknown-properties` — y con eso `productId` y `userId` en el cuerpo quedan rechazados sin una línea propia.
+- **Cuerpo vacío**: `400` (`VAL-005`), como en `RF-PM-004` — el módulo entero corrige con «al menos uno»; el cuerpo **sin cambios de valor** es el que responde `200` sin escribir. **Campos desconocidos**: `400`, por `fail-on-unknown-properties` — y con eso `productId` y `userId` en el cuerpo quedan rechazados sin una línea propia.
+- **La puntuación se deserializa con un entero estricto** (`PatchableRatingDeserializer`): Jackson convierte `4.5` en `4` por omisión, y la spec dice que se rechaza.
 
 ## 5. Autorización
 
@@ -78,7 +79,7 @@ La forma se hereda entera del `PATCH` del producto —los campos que no vienen n
 | **`PUT` con los dos campos obligatorios** | Obliga al front a reenviar el texto entero para cambiar una estrella, y rompe la forma del módulo, que corrige con `PATCH` |
 | **Resolver la fila con `AND user_id = :actor`** | La ajena respondería `404` en lugar de `403`; ver §5 |
 | **Consulta propia en la URL: `PATCH /comments/mine`** | Elimina el `commentId` de la ruta y con él la comprobación de propiedad… y también la posibilidad de que un cliente cachee o comparta la referencia. Se descartó por coherencia con el retiro, que necesita el identificador para que la lista pública y las dos escrituras hablen de lo mismo |
-| **Rechazar el cuerpo vacío con `400`** | Obligaría al front a distinguir «no toqué nada» de «lo dejé igual», que el servidor tampoco distingue |
+| **Aceptar el cuerpo vacío con `200`** | Era lo que el plan decía al aprobarse; se descartó al construir porque `RF-PM-004` lo rechaza con «al menos uno» y el módulo debe corregir igual en las dos operaciones. Lo que sí se acepta con `200` es el cuerpo sin cambios de valor |
 | **Auditar también las correcciones sin cambio** | Ruido en `audit_change_log`, sin ninguna pregunta que responda |
 
 ## 10. Riesgos

@@ -188,7 +188,7 @@ Desde la primera reseña escrita, `RF-PM-002`, `RF-PM-003`, `RF-PM-007` y `RF-PM
 | ID | Criterio |
 |---|---|
 | `CA-PM-170` | El sistema registra la reseña con `201` y devuelve su identificador, la puntuación, el texto recortado y las dos fechas iguales |
-| `CA-PM-171` | El sistema rechaza con `400` una puntuación fuera de `1..5`, decimal o ausente, con el mensaje que dice qué se admite |
+| `CA-PM-171` | El sistema rechaza con `400` una puntuación fuera de `1..5` o ausente **con el mensaje que dice qué se admite**, y una decimal o entre comillas **con el `400` de cuerpo ilegible**: Jackson convertiría `4.5` en `4` por omisión, y el deserializador estricto de la puntuación es lo que lo impide |
 | `CA-PM-172` | El sistema rechaza con `400` un texto ausente, vacío, de solo espacios o de más de mil caracteres tras recortar |
 | `CA-PM-173` | El sistema rechaza con `409` la **segunda** reseña del mismo actor sobre el mismo producto mientras la primera esté viva |
 | `CA-PM-174` | El sistema **admite** una reseña nueva del mismo actor cuando la anterior está **retirada**, y es otra fila con otro identificador |
@@ -229,3 +229,4 @@ Desde la primera reseña escrita, `RF-PM-002`, `RF-PM-003`, `RF-PM-007` y `RF-PM
 | Versión | Fecha | Cambio | Responsable |
 |---|---|---|---|
 | 0.1.0 | 14-09-2026 | Redacción inicial. **La operación la define `RN-PM-026`**: una por persona y producto entre las vivas, comprobada dos veces —consulta previa para el mensaje, índice parcial para la carrera— y las dos responden el mismo `409`. **Las dos entradas son obligatorias** para que no existan dos clases de reseña. **El `404` del producto es uniforme** —inexistente, inactivo, retirado— por lo mismo que en la lista pública: quien reseña es un cliente y ve la oferta, que tampoco distingue. **Y es el requerimiento que enmienda las cuatro lecturas con `rating`** (`RN-PM-031`): promedio con dos decimales y nulo sin reseñas, cantidad con cero, calculados en la misma sentencia para que el número de consultas de los listados no suba. Queda anotado que el front **debe escapar** el texto al pintarlo, porque la lista es pública. | Responsable técnico |
+| 0.2.0 | 14-09-2026 | **Construida.** Una precisión que dejó la construcción: `CA-PM-171` distingue el `400` de rango —con el mensaje de `VAL-003`— del `400` de forma para el decimal y la cadena, porque Jackson convierte `4.5` en `4` y `"5"` en `5` **por omisión** (`ACCEPT_FLOAT_AS_INT`, coerción de escalares) y hubo que escribir un deserializador estricto para que la spec se cumpliera. Las pruebas de `rating` en las cuatro lecturas viven en `ProductRatingIT`, una clase propia, y no repartidas en las cuatro suites; las de número de sentencias siguen siendo las de aquellas. | Responsable técnico |
