@@ -11,6 +11,7 @@
 | Enmendada | 07-09-2026 — `RN-SP-034`: el perfil publica el país del actor; `CA-SP-581` (Art. I.7) |
 | Enmendada | 08-09-2026 — `RN-SP-035` y `RN-SP-037`: el perfil publica el documento y el contacto; `CA-SP-597` (Art. I.7) |
 | Enmendada | 10-09-2026 — el contacto publica **dos teléfonos**: el personal y el de la empresa. Es lo que permite precargar el formulario de `RF-SP-044` con los dos (Art. I.7) |
+| Enmendada | 14-09-2026 — la membresía publica **su nombre y su color** (`RN-SP-024`), además del código y el nivel; `CA-SP-682` (Art. I.7). Ver §15 |
 
 ---
 
@@ -83,7 +84,7 @@ Ninguna. La identidad del actor se resuelve a partir de su autenticación, y **n
 | Documento | El tipo **resuelto** y el número, del propio actor. Puede faltar entero |
 | Contacto | Los dos teléfonos —el personal y el de la empresa—, dirección, complemento y ciudad. Es lo que `RF-SP-044` deja corregir, de modo que sin publicarlo aquí la pantalla de edición **no podría precargarse** |
 | País | El país del actor, resuelto —identificador, código y nombre—. **Está siempre** (`RN-SP-034`). Lo necesita la interfaz por el mismo motivo por el que necesitó el identificador: `RN-MV-019` decide **qué medios de pago se le ofrecen** según dónde esté, y sin este campo el navegador no puede pintar la pantalla de pago sin preguntar por otra vía que un cliente no tiene |
-| Membresía | Membresía vigente y su nivel, cuando la persona tiene una |
+| Membresía | Membresía vigente, cuando la persona tiene una: **código, nombre, nivel y color** (`RN-SP-024`), y su fin de vigencia si lo tiene. **Nombre y color entran el 14-09-2026**, por decisión del responsable del proyecto: la pantalla de «mi perfil» pinta el nivel con su color y lo llama por su nombre, y hasta entonces tenía que pedir la cadena entera de `RF-SP-017` para conseguir los dos. Son los mismos dos campos que la oferta y el hotlink ya publican de una membresía (`RF-PM-007`, `RF-PM-008`); no es una forma nueva del dato, es la misma |
 | Último inicio de sesión | Momento registrado por `RF-SP-034` en el acceso en curso. Se sobrescribe en cada entrada: no revela accesos anteriores |
 | Superior comercial | Persona que la tiene a cargo y el rol que porta, cuando existe. Solo el **vigente**: el historial que conserva `RN-SP-021` no se devuelve aquí |
 | Cambio de contraseña pendiente | Indicador de que debe ejecutar `RF-SP-037` antes de poder operar |
@@ -176,6 +177,7 @@ Ninguna. La consulta no recibe datos de entrada.
 | `CA-SP-472` | La consulta **no** admite ninguna operación de escritura sobre los datos del actor |
 | `CA-SP-473` | El perfil devuelve el **identificador del actor**, y es **el mismo** con el que `RF-SP-026` lo consulta |
 | `CA-SP-597` | El perfil devuelve el **documento y el contacto del actor**, y el documento **en nulo** si la persona no lo tiene |
+| `CA-SP-682` | El perfil devuelve, dentro de `membership`, el **nombre** y el **color** de la membresía vigente —el color con la forma de `RN-SP-024`, seis hexadecimales sin `#`—, junto al código y el nivel que ya devolvía |
 | `CA-SP-581` | El perfil devuelve el **país del actor**, resuelto, y **no admite cambiarlo**: la operación sigue siendo de solo lectura y `RF-SP-044` tampoco lo acepta |
 
 ## 13. Casos límite
@@ -199,3 +201,11 @@ Ninguna. Las tres se resolvieron el 22-08-2026, antes de aprobar la especificaci
 | 1 | ¿Devuelve lo mismo que `RF-SP-026` sobre uno mismo, o un subconjunto? | **Subconjunto, más el último inicio de sesión.** Fuera quedan las fechas de creación y modificación —contexto administrativo que solo sirve a quien administra— y el momento en que expira un bloqueo, que es **imposible por construcción**: una cuenta bloqueada no puede autenticarse y por tanto no llega hasta aquí. El último acceso sí entra, pero **con su alcance corregido**: `RF-SP-034` sobrescribe ese valor en cada entrada, de modo que lo que el titular ve es el inicio de **su sesión en curso**, no un acceso anterior. Es un dato informativo, no la señal de intrusión que parecía al plantear la pregunta. Detectar un acceso ajeno exigiría conservar además el penúltimo, y eso reabriría `RF-SP-034`, ya aprobada: se deja como **hueco declarado** en §4.2 y §13, no como alcance de esta consulta. `CA-SP-440` y `CA-SP-471` lo verifican por ambos lados |
 | 2 | ¿Incluye su posición en la estructura comercial? | **Solo el superior vigente**, nunca el equipo. La distinción es la que sostiene la reserva de D-22: a quién reporta uno **es un dato del actor**; quiénes dependen de uno **es un conjunto de terceros acotado por quien pregunta**, que es la definición misma de alcance por persona (`security.md` §6). Se asume que la pregunta siguiente será por el equipo propio y que habrá que sostener la negativa hasta que D-22 se cierre. `CA-SP-441` y `CA-SP-470` fijan ambos lados |
 | 3 | ¿Puede una persona corregir aquí su propio correo o su nombre? | **No, y no se registra ningún requerimiento para ello.** La autoedición del perfil no existe en el sistema: quien necesite corregir su ficha se lo pide a quien administra usuarios (`RF-SP-027`). Se descartó tanto resolverlo aquí —convertiría una consulta sin entrada, imposible de desviar hacia una lectura ajena, en una escritura con reglas propias— como abrir un requerimiento nuevo. **Es un hueco aceptado a conciencia**, y §13 declara su síntoma: tráfico de soporte por correcciones triviales. Si aparece, el momento de registrarlo será ese |
+
+## 15. Control de cambios
+
+Las tres primeras enmiendas están resumidas en la cabecera; desde la cuarta se registran aquí.
+
+| Versión | Fecha | Cambio | Responsable |
+|---|---|---|---|
+| 0.4.0 | 14-09-2026 | **La membresía del perfil publica su nombre y su color** (`RN-SP-024`), por decisión del responsable del proyecto. Hasta hoy `membership` traía código, nivel y fin de vigencia, y la pantalla de «mi perfil» tenía que pedir la cadena entera de `RF-SP-017` para pintar el nivel con su color y llamarlo por su nombre. Son los dos campos que la oferta y el hotlink ya publican de una membresía: la misma forma, no otra. **Es aditivo** —ningún cliente que leyera `code` y `level` cambia—, y `CA-SP-682` lo prueba. La consulta ya traía el nombre y no lo publicaba; el color entra en la misma sentencia, sin consulta nueva. | Responsable del proyecto |

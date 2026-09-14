@@ -67,6 +67,9 @@ public interface UserQueryRepository {
       UUID membershipId,
       String membershipCode,
       String membershipName,
+      // `RN-SP-024`: seis hexadecimales sin `#`. Lo publica el perfil propio desde el
+      // 14-09-2026 (`RF-SP-039`), y viaja en la misma sentencia que el nombre.
+      String membershipColor,
       Short membershipLevel,
       OffsetDateTime membershipEndsAt,
       Boolean membershipCurrent) {

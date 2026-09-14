@@ -486,6 +486,25 @@ class OwnCredentialsIT extends IntegrationTestBase {
   }
 
   @Test
+  @DisplayName(
+      "CA-SP-682 — la membresía del perfil trae su NOMBRE y su COLOR, junto al código y el nivel")
+  void laMembresiaTraeNombreYColor() throws Exception {
+    // `reponerElSuelo` deja BECA con el color de `V46`; a Juan se le da el suelo.
+    darElSuelo(jdbc, juan);
+
+    mvc.perform(perfil(juan))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.membership.code").value("BECA"))
+        .andExpect(jsonPath("$.membership.name").value("Free"))
+        .andExpect(jsonPath("$.membership.level").value(1))
+        // `RN-SP-024`: seis hexadecimales sin `#`.
+        .andExpect(jsonPath("$.membership.color").value("9E9E9E"))
+        .andExpect(
+            jsonPath("$.membership.color")
+                .value(org.hamcrest.Matchers.matchesPattern("^[0-9A-F]{6}$")));
+  }
+
+  @Test
   @DisplayName("sin membresía y sin superior, los dos campos van AUSENTES y no en nulo")
   void ausentesYNoNulos() throws Exception {
     String cuerpo = mvc.perform(perfil(juan)).andReturn().getResponse().getContentAsString();

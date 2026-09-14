@@ -55,6 +55,7 @@ public class JpaUserQueryRepository implements UserQueryRepository {
                u.status AS status, u.deleted_at AS deleted_at,
                c.id AS c_id, c.code AS c_code, c.name AS c_name,
                m.id AS m_id, m.code AS m_code, m.name AS m_name, m.level AS m_level,
+               m.color AS m_color,
                um.ends_at AS m_ends_at,
                (um.user_id IS NOT NULL AND (um.ends_at IS NULL OR um.ends_at > now())) AS m_current
           FROM users u
@@ -111,6 +112,7 @@ public class JpaUserQueryRepository implements UserQueryRepository {
               (UUID) fila.get("m_id"),
               (String) fila.get("m_code"),
               (String) fila.get("m_name"),
+              (String) fila.get("m_color"),
               nivel(fila.get("m_level")),
               momento(fila.get("m_ends_at")),
               (Boolean) fila.get("m_current")));
@@ -183,6 +185,7 @@ public class JpaUserQueryRepository implements UserQueryRepository {
                        u.address_line1 AS address1, u.address_line2 AS address2,
                        u.city AS city,
                        m.id AS m_id, m.code AS m_code, m.name AS m_name, m.level AS m_level,
+               m.color AS m_color,
                        um.ends_at AS m_ends_at,
                        (um.user_id IS NOT NULL AND (um.ends_at IS NULL OR um.ends_at > now()))
                          AS m_current
@@ -231,6 +234,7 @@ public class JpaUserQueryRepository implements UserQueryRepository {
                     (UUID) fila.get("m_id"),
                     (String) fila.get("m_code"),
                     (String) fila.get("m_name"),
+                    (String) fila.get("m_color"),
                     nivel(fila.get("m_level")),
                     momento(fila.get("m_ends_at")),
                     (Boolean) fila.get("m_current")))

@@ -3136,6 +3136,13 @@ paths:
         permite precargar el formulario de `PATCH /api/v1/users/me` sin
         reescribir nada de memoria.
 
+        Su `membership` —**ausente**, no nula, cuando la persona no tiene una
+        vigente— trae `code`, `name`, `level`, `color` y `endsAt`. `name` y
+        `color` entran el 14-09-2026: son lo que la pantalla de «mi perfil»
+        necesita para pintar el nivel con su color y llamarlo por su nombre sin
+        pedir la cadena entera de membresías. El color son seis hexadecimales
+        sin `#`.
+
         `me` es un **literal**, no un identificador: no se admite pedir el
         propio detalle por la ruta con identificador, que es otra operación y
         exige permiso de lectura de usuarios.

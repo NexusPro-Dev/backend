@@ -119,7 +119,9 @@ public class GetOwnProfileService {
         fila.tieneMembresia()
             ? new OwnProfileResponse.MembershipRef(
                 fila.membershipCode(),
+                fila.membershipName(),
                 fila.membershipLevel() == null ? 0 : fila.membershipLevel(),
+                fila.membershipColor(),
                 fila.membershipEndsAt())
             : null,
         fila.lastLoginAt(),

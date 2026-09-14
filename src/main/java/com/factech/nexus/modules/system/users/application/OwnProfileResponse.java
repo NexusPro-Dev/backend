@@ -109,7 +109,14 @@ public record OwnProfileResponse(
   public record RoleRef(String code, String name, String status) {}
 
   @JsonInclude(JsonInclude.Include.NON_NULL)
-  public record MembershipRef(String code, short level, OffsetDateTime endsAt) {}
+  /**
+   * La membresía vigente. Desde el 14-09-2026 con su <b>nombre</b> y su <b>color</b> (`RN-SP-024`,
+   * `CA-SP-682`): es lo que la pantalla de «mi perfil» necesita para pintar el nivel sin pedir la
+   * cadena entera de `RF-SP-017`. Son los mismos dos campos que la oferta y el hotlink publican de
+   * una membresía — la misma forma, no otra.
+   */
+  public record MembershipRef(
+      String code, String name, short level, String color, OffsetDateTime endsAt) {}
 
   /**
    * <b>Solo el superior, nunca el equipo.</b>
