@@ -16,6 +16,7 @@
 | Enmendada el | 08-09-2026 — **el alta admite un SEGUNDO precio, el público** (`RN-PM-023`), y **`RN-PM-006` deja de exigir «mayor que cero»**. Ver §15 |
 | Enmendada el | 12-09-2026 — **el segundo precio pasa a ser el de COMPRA**: lo que NEXUS paga por el producto (`RN-PM-023`, `RN-PM-024`). `purchasePrice` sustituye a `publicPrice`. Ver §15 |
 | Enmendada el | 14-09-2026 — **el alta devuelve `rating` **vacío** — `average` nulo y `count` cero — sin consulta** (`RN-PM-031`, `RF-PM-009`). Ver §15 |
+| Enmendada el | 14-09-2026 — **el alta admite el ENLACE DE UN VIDEO** (`RN-PM-032`): opcional, en los dos tipos, validado solo en su forma. Ver §15 |
 
 !!! danger "Un upgrade dice ahora DE DONDE sale, y eso cambia quien puede comprarlo"
 
@@ -82,6 +83,7 @@ Hoy la plataforma no tiene **nada que vender**. La membresía de una persona sol
 | `RN-PM-016` | El icono solo existe en el upgrade | `requirements/pm.md` §5.1 |
 | `RN-PM-019` | **El alcance dice hasta dónde se muestra, y es acumulativo** | `requirements/pm.md` §5.1 |
 | `RN-PM-020` | **La implementación dice si lo comprado se aplica solo o espera autorización** | `requirements/pm.md` §5.1 |
+| `RN-PM-032` | **Un producto puede enlazar un video, y el enlace sale en toda lectura** — aquí, que se admite en el alta, en los dos tipos, y que se valida **solo la forma** | `requirements/pm.md` §5.1 |
 
 ## 6. Datos
 
@@ -96,6 +98,7 @@ Hoy la plataforma no tiene **nada que vender**. La membresía de una persona sol
 | Membresía **de origen** | **Depende del tipo** | Nivel desde el que se compra el upgrade | **Obligatoria** si el tipo es upgrade, **prohibida** si es bot (`RN-PM-002`). Debe existir (`RN-PM-003`) y **no estar por encima** del destino (`RN-PM-017`) — **puede ser la misma**, y entonces el producto es una renovación |
 | Membresía **destino** | **Depende del tipo** | Nivel al que lleva el upgrade | Mismas condiciones. **No tiene por qué ser el inmediatamente superior al origen** (`RN-PM-018`) |
 | Icono | No | **Nombre** del icono con el que el frontend pinta el producto, no una imagen | Minúsculas, dígitos y guion medio, empezando por letra, hasta 50 caracteres. **Solo en el upgrade**, y opcional incluso ahí (`RN-PM-016`) |
+| Enlace del video | No | **La dirección** de un video que presenta el producto, no el video | URL **absoluta** `http` o `https`, **sin espacios**, hasta 500 caracteres, de cualquier dominio. **En los dos tipos**, sin la condición cruzada del icono. **Ausente o nulo significan lo mismo**: no tiene video. **El sistema no sigue el enlace**: comprueba la forma y nada más (`RN-PM-032`) |
 | Precio **del sistema** | Sí | Cuánto cuesta, y **lo que se cobra** | **No negativo** (`RN-PM-006`) —el cero se admite desde el 08-09-2026, porque una renovación de una membresía gratuita vale eso—, con los decimales que admita su moneda (`RN-PM-007`) |
 | Precio **de compra** | **No** | Lo que NEXUS paga por el producto cuando tiene que comprarlo; ahí se guarda lo que costó | Mismas condiciones que el anterior y **en la misma moneda** (`RN-PM-007`). **Ausente o nulo significan lo mismo**: no se conoce todavía —el producto se registra antes de comprarse— (`RN-PM-023`). **No se cobra**, ningún cálculo lo lee y **no sale de administración** (`RN-PM-024`). **Decía «precio público» hasta el 12-09-2026** |
 | Moneda | Sí | En qué moneda se expresan **los dos** precios | Debe existir y estar **activa** (`RN-PM-008`). **No hay una segunda moneda para el precio de compra** |
@@ -104,6 +107,8 @@ Hoy la plataforma no tiene **nada que vender**. La membresía de una persona sol
 | Implementación | **Sí** | Si lo comprado se aplica solo o espera a que alguien lo autorice | `AUTOMATICA` o `MANUAL`, **en los dos tipos y sin valor por omisión** (`RN-PM-020`) |
 
 ### 6.2 Salida
+
+**Y desde el 14-09-2026 lleva también `videoUrl`** (`RN-PM-032`): el enlace **tal cual se guardó** —recortado, sin normalizar nada más—, y **presente y nulo** cuando no se declaró, por lo mismo que el precio de compra: un campo que falta no puede decir «no tiene video».
 
 **Desde el 14-09-2026 la respuesta lleva `rating`** (`RN-PM-031`): el alta devuelve `rating` **vacío** — `average` nulo y `count` cero — sin consulta. Es un objeto **presente siempre**, con `average` —dos decimales, **nulo** cuando no hay reseñas— y `count` —**cero** cuando no hay—. Cuentan solo las reseñas **vivas**: una retirada sale de la cuenta en el acto. La enmienda la construye `RF-PM-009` (`T-10`, `T-11`), y lo que este requerimiento tiene que conservar es su número de sentencias: el agregado viaja **en la misma consulta** que el producto.
 
@@ -199,6 +204,7 @@ Hoy la plataforma no tiene **nada que vender**. La membresía de una persona sol
 | `VAL-013` | Icono prohibido en el bot | Un producto de tipo bot no puede declarar icono. |
 | `VAL-015` | Alcance obligatorio y dentro del dominio | El alcance del producto es obligatorio y debe ser uno de los admitidos. |
 | `VAL-016` | Implementación obligatoria y dentro del dominio | La implementación del producto es obligatoria y debe ser una de las admitidas. |
+| `VAL-017` | Formato del enlace del video | El enlace del video debe ser una dirección absoluta http o https, sin espacios y de hasta 500 caracteres. |
 
 ## 12. Criterios de aceptación
 
@@ -243,6 +249,10 @@ Hoy la plataforma no tiene **nada que vender**. La membresía de una persona sol
 | `CA-PM-148` | El sistema rechaza un **precio de compra con más decimales** de los que admite la moneda, aunque el del sistema sí quepa |
 | `CA-PM-149` | El sistema **admite un precio de cero** en los dos importes: es lo que hace registrable una renovación de una membresía gratuita |
 | `CA-PM-150` | La **instantánea del evento de creación incluye `purchase_price`**, y lo distingue del ausente escribiéndolo nulo |
+| `CA-PM-219` | El sistema registra un producto **con el enlace de un video** —también uno de tipo **bot**, al revés que el icono— y la respuesta lo devuelve **tal cual**, recortado y sin normalizar |
+| `CA-PM-220` | El sistema registra un producto **sin video**, y `videoUrl` llega **presente y nulo** — no ausente, y no cadena vacía |
+| `CA-PM-221` | El sistema rechaza un enlace **que no tiene forma de URL absoluta `http` o `https`** —relativo, sin esquema, con otro esquema, con espacios, o de más de 500 caracteres— con `VAL-017`, y el error **nombra `videoUrl`** |
+| `CA-PM-222` | La **instantánea del evento de creación incluye `video_url`**, nulo cuando no se declaró |
 
 ## 13. Casos límite
 
@@ -252,6 +262,7 @@ Hoy la plataforma no tiene **nada que vender**. La membresía de una persona sol
 - **Precio de compra mayor que el del sistema:** se admite. **Ninguna regla compara los dos importes** (`requirements/pm.md` §5.2.6): vender por debajo del costo es una decisión comercial, y el sistema la registra en vez de impedirla.
 - **Precio del sistema en cero con precio de compra informado:** se admite. Es el producto que costó algo y se concede gratis — y es el caso que obliga a `CM` a dejar de dividir a ciegas (`RN-CM-019`).
 - **Precio de compra en cero:** se admite y **no es lo mismo que nulo**. Cero dice «no costó nada»; nulo dice «no se conoce».
+- **Enlace del video con espacios alrededor:** se recortan, como el nombre; **`" "` es un enlace ausente**, no uno con forma inválida. **Un enlace con forma y que no lleva a ningún sitio se admite**: el sistema no lo sigue, y esto no es un descuido sino la decisión de `pm.md` §5.2.8.
 - **Dos altas simultáneas del mismo upgrade:** dos administradores registran a la vez un upgrade hacia el mismo destino. Una debe quedar y la otra ser rechazada; que las dos queden activas es el desenlace que `RN-PM-004` existe para impedir.
 - **Dos altas simultáneas con el mismo nombre:** mismo caso sobre la unicidad de nombre.
 - **La membresía destino se elimina mientras se registra:** las membresías no se eliminan (`RN-SP-008`), de modo que este caso no existe. Se escribe para que nadie lo busque.
@@ -286,3 +297,4 @@ Ninguna. Las cinco se resolvieron el 26-08-2026, antes de aprobar la especificac
 | 0.9.0 | 08-09-2026 | **El alta admite un SEGUNDO precio, el público** (`RN-PM-023`), por decisión del responsable del proyecto, y **`RN-PM-006` deja de exigir «mayor que cero»**. El precio público es **opcional** —y ahí se aparta del alcance y la implementación, que entraron obligatorias el día anterior: omitirlo no deja ninguna decisión sin tomar, porque un producto sin él **se anuncia con el del sistema**, que es lo que hoy hacen todos—. Se expresa en **la misma moneda**, obedece a las mismas dos reglas de importe, y **no se cobra**: ningún cálculo lo lee. **Su nulo significa algo y no es cero**, de modo que §6.2 lo devuelve **presente y nulo**. `VAL-004` y `VAL-005` dejan de hablar de «el precio» y pasan a **nombrar el campo** que incumple, porque con dos importes un mensaje que no distingue obliga a probar los dos. **`CA-PM-005` se reescribe**: decía «rechaza un precio de cero o negativo» y el cero pasó a admitirse — lo que tumbó aquella mitad no fue este cambio sino la **renovación**, porque un `BECA → BECA` es un producto legítimo que vale cero y prohibirlo obligaba a inventarle un céntimo. Entran `CA-PM-145` a `CA-PM-150`, y §13 gana **cuatro casos límite que son decisiones**: el precio público **igual** al del sistema se admite y no se normaliza a nulo; **menor**, también, porque ninguna regla los compara; y el del sistema en **cero** con público informado es el caso que obliga a `CM` a dejar de dividir a ciegas. | Responsable del proyecto |
 | 0.10.0 | 12-09-2026 | **El segundo precio pasa a ser el de COMPRA**, por decisión del responsable del proyecto (`requirements/pm.md` v0.23.0 §5.2.6): lo que NEXUS paga por el producto cuando tiene que comprarlo, y donde se guarda lo que costó. `purchasePrice` **sustituye** a `publicPrice` en el cuerpo y en la respuesta —ruptura de contrato aceptada—, con la misma forma: opcional, no negativo, decimales de la moneda del producto. **El nulo cambia de significado**: de «se anuncia con el del sistema» a «no se conoce todavía», que es el estado natural de un producto que se registra antes de comprarse. Entra `RN-PM-024` en las reglas aplicables porque el alta lo devuelve **solo** porque exige `products:create`. `CA-PM-146` a `CA-PM-148` y `CA-PM-150` cambian de nombre de campo sin cambiar de forma; los casos límite del par se reescriben —**mayor** que el del sistema en vez de menor, porque lo que se admite a conciencia ahora es vender por debajo del costo— y nace el del cero frente al nulo. | Responsable del proyecto |
 | 0.11.0 | 14-09-2026 | **Entra `rating` en la respuesta** —el promedio y la cantidad de reseñas vivas del producto— por `RN-PM-031` ([`requirements/pm.md`](../../../requirements/pm.md) v0.24.0 §5.2.7): el alta devuelve `rating` **vacío** — `average` nulo y `count` cero — sin consulta. Enmienda de Art. I.7 declarada por el plan de [`RF-PM-009`](../009-resenar-producto/plan.md) §4.1 y construida por sus tareas `T-10` y `T-11`; los criterios que la prueban son `CA-PM-180` a `CA-PM-182` de aquella tripleta. **El promedio no se guarda en `products`**: se cuenta, por un `LEFT JOIN LATERAL` sobre el índice parcial de `product_comments`, para que ninguna copia pueda quedarse atrás. | Responsable del proyecto |
+| 0.12.0 | 14-09-2026 | **El alta admite el ENLACE DE UN VIDEO** (`RN-PM-032`, [`requirements/pm.md`](../../../requirements/pm.md) v0.27.0 §5.2.8), por decisión del responsable del proyecto: **opcional, en los dos tipos** —sin la condición cruzada del icono— y validado **solo en su forma**, URL absoluta `http` o `https`, sin espacios, hasta 500 caracteres. **Es una dirección, no un archivo, y el sistema no la sigue.** Ausente y nulo significan lo mismo; la respuesta lo devuelve presente y nulo, como el precio de compra. Nacen `VAL-017` y `CA-PM-219` a `CA-PM-222`. Enmienda de Art. I.7. | Responsable del proyecto |

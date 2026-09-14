@@ -84,6 +84,8 @@ public class GetHotlinkService {
         fila.name(),
         fila.description(),
         fila.icon(),
+        // `RN-PM-032`: se publica sin token y sin seguirlo (`CA-PM-229`).
+        fila.videoUrl(),
         fila.validityDays(),
         // Solo en el upgrade: un bot no lleva ninguna, y llega presente y nula.
         fila.targetMembershipId() == null

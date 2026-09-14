@@ -63,6 +63,12 @@ public record HotlinkResponse(SellerRef seller, ProductRef product) {
       String name,
       String description,
       String icon,
+      /**
+       * `RN-PM-032`, sin token: la dirección que administración escribió, TAL CUAL. Es la única
+       * columna opcional de {@code products} que esta lectura trae y {@code purchase_price} no: el
+       * costo enseñaría el margen, el video existe para que lo vean (`pm.md` §5.2.8).
+       */
+      String videoUrl,
       Integer validityDays,
       MembershipBadge membership,
       BigDecimal price,

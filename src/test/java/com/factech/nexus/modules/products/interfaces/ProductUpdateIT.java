@@ -376,6 +376,83 @@ class ProductUpdateIT extends IntegrationTestBase {
     assertThat(precioDeCompraDe(producto)).isEqualByComparingTo("59.99");
   }
 
+  // ---------------------------------------------------------------------------
+  // El enlace del video (`RN-PM-032`) — 14-09-2026
+  // ---------------------------------------------------------------------------
+
+  @Test
+  @DisplayName("`CA-PM-225` — el enlace del video se corrige, también en un BOT, y se audita")
+  void corrigeElVideo() throws Exception {
+    // En un bot a propósito: es donde el icono se rechaza (`CA-PM-100`) y el
+    // video no — no hay condición cruzada que lo acompañe.
+    UUID asesoria = bot("ASESORIA", "Asesoría", null);
+
+    mvc.perform(corregir(asesoria, "{\"videoUrl\":\"  https://vimeo.com/123456  \"}"))
+        .andExpect(status().isOk())
+        // Recortado y NADA MÁS: ni minúsculas ni barra final.
+        .andExpect(jsonPath("$.videoUrl").value("https://vimeo.com/123456"));
+
+    mvc.perform(corregir(asesoria, "{\"videoUrl\":\"https://Vimeo.com/999/\"}"))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.videoUrl").value("https://Vimeo.com/999/"));
+
+    assertThat(ultimoCambio())
+        .contains("video_url")
+        .contains("https://vimeo.com/123456")
+        .contains("https://Vimeo.com/999/");
+  }
+
+  @Test
+  @DisplayName(
+      "`CA-PM-226` — el nulo explícito Y la cadena vacía VACÍAN el video; el mismo enlace no es"
+          + " cambio")
+  void vaciaElVideo() throws Exception {
+    mvc.perform(corregir(producto, "{\"videoUrl\":\"https://vimeo.com/123456\"}"))
+        .andExpect(status().isOk());
+
+    // El mismo enlace otra vez no es un cambio: `audit_change_log` no crece.
+    long antes = eventosDe(producto);
+    mvc.perform(corregir(producto, "{\"videoUrl\":\"https://vimeo.com/123456\"}"))
+        .andExpect(status().isOk());
+    assertThat(eventosDe(producto)).isEqualTo(antes);
+
+    mvc.perform(corregir(producto, "{\"videoUrl\":null}"))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.videoUrl").value(Matchers.nullValue()));
+    assertThat(videoDe(producto)).isNull();
+
+    // Y `""` es un vaciado, no un enlace con forma inválida: quien borra el
+    // contenido del campo en un formulario está vaciando.
+    mvc.perform(corregir(producto, "{\"videoUrl\":\"https://vimeo.com/123456\"}"))
+        .andExpect(status().isOk());
+    mvc.perform(corregir(producto, "{\"videoUrl\":\"   \"}"))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.videoUrl").value(Matchers.nullValue()));
+    assertThat(videoDe(producto)).isNull();
+  }
+
+  @Test
+  @DisplayName(
+      "`CA-PM-227` — un enlace sin forma se rechaza con VAL-009, nombra `videoUrl` y NO aplica lo"
+          + " demás")
+  void videoConFormaInvalidaNoAplicaNada() throws Exception {
+    mvc.perform(
+            corregir(
+                producto, "{\"name\":\"Otro nombre\",\"videoUrl\":\"www.youtube.com/watch?v=x\"}"))
+        .andExpect(status().isBadRequest())
+        .andExpect(jsonPath("$.errors[0].code").value("VAL-009"))
+        .andExpect(jsonPath("$.errors[0].field").value("videoUrl"));
+
+    // El nombre válido que venía en la misma petición no se aplicó.
+    assertThat(nombreDe(producto)).isEqualTo("Ascenso a Oro");
+    assertThat(videoDe(producto)).isNull();
+  }
+
+  private String videoDe(UUID id) {
+    return jdbc.queryForObject(
+        "SELECT video_url FROM products WHERE id = CAST(? AS uuid)", String.class, id.toString());
+  }
+
   /** El `changes` del último evento de corrección de este producto. */
   private String ultimoCambio() {
     return jdbc.queryForObject(

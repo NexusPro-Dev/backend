@@ -13,6 +13,7 @@
 | Enmendada el | 08-09-2026 — **el precio público es corregible Y SÍ admite vaciarse** (`RN-PM-023`), y `RN-PM-006` deja de exigir «mayor que cero». Ver §15 |
 | Enmendada el | 12-09-2026 — **el segundo precio es el de COMPRA** (`RN-PM-023`): `purchasePrice` sustituye a `publicPrice`, corregible y vaciable igual, y es **donde se guarda lo que costó**. Ver §15 |
 | Enmendada el | 14-09-2026 — **la respuesta de la edición devuelve `rating`, que la edición no toca** (`RN-PM-031`, `RF-PM-009`). Ver §15 |
+| Enmendada el | 14-09-2026 — **el enlace del video se corrige y SÍ admite vaciarse** (`RN-PM-032`), en los dos tipos. Ver §15 |
 
 ---
 
@@ -65,6 +66,7 @@ Un producto se equivoca de nombre, se le escapa una falta en la descripción o c
 | `RN-PM-015` | La vigencia se mide en días y es opcional | `requirements/pm.md` §5.1 |
 | `RN-PM-019` | El alcance dice hasta dónde se muestra, y **se corrige** | `requirements/pm.md` §5.1 |
 | `RN-PM-020` | La implementación dice si lo comprado se aplica solo, y **se corrige** | `requirements/pm.md` §5.1 |
+| `RN-PM-032` | Un producto puede enlazar un video — **se corrige y se vacía**, en los dos tipos, con la misma comprobación de forma que en el alta | `requirements/pm.md` §5.1 |
 
 ## 6. Datos
 
@@ -76,6 +78,7 @@ Un producto se equivoca de nombre, se le escapa una falta en la descripción o c
 | Nombre | No | Nombre nuevo | Único entre los vivos (`RN-PM-005`); **no admite vaciarse** |
 | Descripción | No | Descripción nueva | **Sí admite vaciarse**, porque es opcional |
 | Icono | No | Nombre del icono nuevo | **Sí admite vaciarse.** Solo en el upgrade: en un producto de tipo bot, cualquier valor distinto de nulo se rechaza (`RN-PM-016`) |
+| Enlace del video | No | Dirección nueva del video | **Sí admite vaciarse**, y la cadena vacía vacía igual. **En los dos tipos**, sin la condición cruzada del icono. Misma forma que en el alta: URL absoluta `http` o `https`, sin espacios, hasta 500 caracteres (`RN-PM-032`) |
 | Precio **del sistema** | No | Precio nuevo, el que se cobra | **No negativo** y con los decimales de su moneda. **NO admite vaciarse**: la columna es obligatoria, y «bórralo» no tiene ningún estado al que llevar el producto |
 | Precio **de compra** | No | Lo que NEXUS pagó por el producto | Mismas condiciones de importe. **SÍ admite vaciarse**, y ahí va con la descripción y la vigencia: su nulo es un estado legítimo —«no se conoce el costo»— de modo que el nulo explícito **es una orden** (`RN-PM-023`). **Es donde se guarda el precio cuando el producto se compra**: hoy lo escribe quien administra, con esta operación |
 | Moneda | No | Moneda nueva | Debe existir y estar activa. **Cambiarla reinterpreta los dos importes**, y los dos se miden contra sus decimales |
@@ -167,6 +170,7 @@ Un producto se equivoca de nombre, se le escapa una falta en la descripción o c
 | `VAL-006` | El tipo, el código y el destino no se admiten | El tipo, el código y la membresía destino no se pueden modificar. |
 | `VAL-007` | El alcance no admite vaciarse, y debe estar dentro del dominio | El alcance del producto es obligatorio y debe ser uno de los admitidos. |
 | `VAL-008` | La implementación no admite vaciarse, y debe estar dentro del dominio | La implementación del producto es obligatoria y debe ser una de las admitidas. |
+| `VAL-009` | Formato del enlace del video | El enlace del video debe ser una dirección absoluta http o https, sin espacios y de hasta 500 caracteres. |
 
 ## 12. Criterios de aceptación
 
@@ -196,6 +200,9 @@ Un producto se equivoca de nombre, se le escapa una falta en la descripción o c
 | `CA-PM-155` | El sistema **rechaza vaciar el precio del sistema** con nulo explícito, al revés que el de compra |
 | `CA-PM-156` | El sistema **admite corregir cualquiera de los dos a cero**, y no lo confunde con vaciarlo |
 | `CA-PM-157` | El sistema rechaza un **precio de compra** que no cabe en los decimales de la **moneda nueva**, aunque el del sistema sí quepa, y **no aplica ninguno** de los demás cambios |
+| `CA-PM-225` | El sistema **corrige el enlace del video** —también en un producto de tipo **bot**— y el evento registra el valor anterior y el nuevo |
+| `CA-PM-226` | El sistema **vacía el enlace del video** con nulo explícito **o con cadena vacía**, el producto queda sin video, y enviar el mismo enlace que ya tenía **no registra evento** |
+| `CA-PM-227` | El sistema rechaza un enlace **sin forma de URL absoluta `http` o `https`** con `VAL-009`, nombra `videoUrl`, y **no aplica ninguno** de los demás cambios enviados |
 
 ## 13. Casos límite
 
@@ -234,3 +241,4 @@ Ninguna. Dos se resolvieron el 26-08-2026 y **las otras dos quedaron respondidas
 | 0.6.0 | 08-09-2026 | **El precio público entra del lado corregible, y SÍ admite vaciarse** (`RN-PM-023`), por decisión del responsable del proyecto. Ahí va con la descripción, el icono y la vigencia y **no con el precio del sistema**: su nulo es un estado legítimo de la columna —«se anuncia con el precio del sistema»— de modo que el nulo explícito **es una orden** y no un error, mientras que el del sistema no tiene ningún estado al que «bórralo» pueda llevar el producto. **Y esa distinción decide algo que se ve en la tienda**: vaciarlo **no es ponerlo a cero** — uno anuncia lo que cuesta y el otro anuncia «gratis»—, de modo que los dos casos se prueban por separado (`CA-PM-154`, `CA-PM-156`). **`RN-PM-006` se relaja**: `VAL-004` pasa de «mayor que cero» a «no negativo» y **nombra el campo** que incumple, porque con dos importes un mensaje que no distingue obliga a probar los dos. **El paso 5 del flujo cambia de forma y ese es el cambio con más filo del día**: ya no se validan «los campos que llegan» sino **los importes que van a quedar** medidos contra la **moneda final**. Con dos precios aparece un caso que con uno no existía —cambiar **solo la moneda** deja sin caber a un importe que nadie tocó—, y el defecto **no falla**: guarda un precio con más decimales de los que su moneda admite. Entran `CA-PM-153` a `CA-PM-157` y cuatro casos límite. | Responsable del proyecto |
 | 0.7.0 | 12-09-2026 | **El segundo precio pasa a ser el de COMPRA**, por decisión del responsable del proyecto (`requirements/pm.md` v0.23.0 §5.2.6): lo que NEXUS paga por el producto cuando tiene que comprarlo. `purchasePrice` **sustituye** a `publicPrice`, y **esta operación es donde hoy se registra lo que costó**: corregible y vaciable exactamente como lo era el público, porque la forma era correcta — lo que cambia es lo que significa cada estado. **El nulo pasa de «se anuncia con el del sistema» a «no se conoce el costo»**, y el cero de «gratis» a «no costó nada»; siguen siendo dos estados distintos y se siguen probando por separado (`CA-PM-154`, `CA-PM-156`). `CA-PM-153` a `CA-PM-157` cambian de nombre de campo sin cambiar de forma; §13 gana el caso del costo por encima del precio, que se admite sin aviso. | Responsable del proyecto |
 | 0.8.0 | 14-09-2026 | **Entra `rating` en la respuesta** —el promedio y la cantidad de reseñas vivas del producto— por `RN-PM-031` ([`requirements/pm.md`](../../../requirements/pm.md) v0.24.0 §5.2.7): la respuesta de la edición devuelve `rating`, que la edición no toca. Enmienda de Art. I.7 declarada por el plan de [`RF-PM-009`](../009-resenar-producto/plan.md) §4.1 y construida por sus tareas `T-10` y `T-11`; los criterios que la prueban son `CA-PM-180` a `CA-PM-182` de aquella tripleta. **El promedio no se guarda en `products`**: se cuenta, por un `LEFT JOIN LATERAL` sobre el índice parcial de `product_comments`, para que ninguna copia pueda quedarse atrás. | Responsable del proyecto |
+| 0.9.0 | 14-09-2026 | **El enlace del video entra del lado corregible, y SÍ admite vaciarse** (`RN-PM-032`, [`requirements/pm.md`](../../../requirements/pm.md) v0.27.0 §5.2.8), por decisión del responsable del proyecto. Va con la descripción, el icono, la vigencia y el precio de compra: su nulo es un estado legítimo —«no tiene video»— y el nulo explícito es una orden. **En los dos tipos**, sin la condición cruzada del icono, y con la misma forma que en el alta (`VAL-009`). Nacen `CA-PM-225` a `CA-PM-227`. Enmienda de Art. I.7. | Responsable del proyecto |

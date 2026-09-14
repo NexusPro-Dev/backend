@@ -3,7 +3,7 @@
 | Campo | Valor |
 |---|---|
 | Requerimiento | `RF-PM-002` |
-| Enmendadas | 12-09-2026 — `T-23` porque el segundo precio es el **de compra**; 08-09-2026 — `T-19` por los **dos precios**; 02-09-2026 — el filtro por membresía de **origen**; 07-09-2026 — `T-16` y `T-17` por los filtros de **alcance** e **implementación** |
+| Enmendadas | 12-09-2026 — `T-23` porque el segundo precio es el **de compra**; 08-09-2026 — `T-19` por los **dos precios**; 02-09-2026 — el filtro por membresía de **origen**; 07-09-2026 — `T-16` y `T-17` por los filtros de **alcance** e **implementación**; 14-09-2026 — `T-24` por el **enlace del video** |
 | Plan | [`plan.md`](plan.md), aprobado el 26-08-2026 |
 | Estado | **Aprobadas** |
 | Autor | Responsable técnico |
@@ -39,6 +39,7 @@
 | `T-20` | **El puerto por lotes en `SP`**: `ExchangeRateLookup.ratesOn(monedas, destino, día)` devuelve un mapa en **una sola sentencia**. `rateOn` se conserva para las lecturas de una fila | `RF-SP-047` | Integración: pedir cinco monedas cuesta **una** consulta, y las que no tienen tasa vigente **faltan del mapa** en vez de venir nulas | **Hecha el 08-09-2026** |
 | `T-21` | **El resolutor de conversión de `PM`**: resuelve la moneda de casa una vez, pide las tasas por lotes y construye el `exchange` de cada fila sobre el importe **que se muestra** | `T-20` | `CA-PM-164`. Lo comparten las cuatro lecturas del módulo: escribirlo dos veces dejaría dos versiones que divergen | **Hecha el 08-09-2026** |
 | `T-22` | **La prueba de sentencias del listado** | `T-21` | `CA-PM-165`: una página de varios productos en monedas distintas cuesta **dos consultas más** y no dos por fila. Es la única forma de verlo — el cuerpo es idéntico con cuarenta | **Hecha el 08-09-2026** |
+| `T-24` | **El enlace del video en cada fila** (`RF-PM-001` `T-39` trae la columna): `videoUrl` en `ProductRow`, en el `SELECT` del listado y en `ProductItem`; y la prosa de la `@Operation` lo nombra | `T-23` | `CA-PM-223` en `ProductListIT`: una página con un producto con enlace y otro sin él. **El contrato regenerado declara `videoUrl` en `ProductItem`** | **Hecha el 14-09-2026** |
 
 ## 2. Orden de ejecución
 
@@ -66,6 +67,7 @@
 | `CA-PM-117` | `T-16`, `T-17` |
 | `CA-PM-142` | `T-18` |
 | `CA-PM-151` | `T-19`, `T-23` |
+| `CA-PM-223` | `T-24` |
 
 ## 4. Bloqueos
 

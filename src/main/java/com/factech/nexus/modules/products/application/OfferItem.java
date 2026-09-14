@@ -43,6 +43,11 @@ public record OfferItem(
     String name,
     String description,
     String icon,
+    /**
+     * `RN-PM-032`: el enlace del video SÍ viaja por aquí, al revés que el precio de compra. Es
+     * material de venta —existe para que lo vea quien compra— y no un costo.
+     */
+    String videoUrl,
     ProductResponse.MembershipRef targetMembership,
     BigDecimal price,
     ProductResponse.CurrencyRef currency,
@@ -87,6 +92,7 @@ public record OfferItem(
         fila.name(),
         fila.description(),
         fila.icon(),
+        fila.videoUrl(),
         fila.targetMembershipId() == null
             ? null
             : new ProductResponse.MembershipRef(

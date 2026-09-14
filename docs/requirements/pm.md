@@ -5,7 +5,7 @@
 | Módulo | `PM` — Productos y Mercadeo |
 | Paquete | `modules/products` |
 | Prefijos de permiso | `products:` |
-| Versión | 0.26.0 |
+| Versión | 0.27.0 |
 | Estado | **Borrador** |
 | Responsable | Bonilla Diaz William Steven |
 | Fecha de creación | 26-08-2026 |
@@ -187,6 +187,7 @@ La dependencia es **acíclica**: `PM` consume `SP` y `SP` no consume nada ([`mod
 | `RN-PM-029` | **La reseña se retira sin motivo declarado, y no desaparece** | Al retirar | Eliminación **lógica** (`deleted_at`) y **sin motivo** que declare quien la ejecuta: es la **tercera excepción del Art. V.13**, enmendado el 14-09-2026 para el **contenido propio**. El registro de eliminación se escribe igual —instantánea incluida—, con el motivo **suplido por un valor fijo** que la especificación declara, porque el único «por qué» posible ya está en el evento: quien retira y quien escribió son la misma persona | Alta |
 | `RN-PM-030` | **Del autor solo se publica su nombre y apellido** | Al leer las reseñas | La lista es **pública** (`RF-PM-012`), y de quien escribió cada reseña viaja **nombre y apellido** y nada más — ni identificador, ni nombre de usuario, ni correo, ni estado, ni roles—. Es `RN-PM-022` aplicada a otra persona: allí el vendedor, aquí el autor. Y por lo mismo, **la lista no dice cuál es la del actor**: la propia se lee aparte, con token (`RF-PM-013`) | **Crítica** |
 | `RN-PM-031` | **El producto publica el promedio y la cantidad de sus reseñas vivas, en toda lectura** | Siempre que se consulte un producto, con token o sin él | Las cuatro lecturas del módulo devuelven `rating` con `average` —**dos decimales**, **nulo** cuando no hay ninguna— y `count`. Cuentan solo las **vivas**: una reseña retirada sale del promedio en el acto. Se calcula **en la misma sentencia** que trae el producto, y no con una consulta por fila: un listado que preguntara producto a producto sería el `N+1` que `RF-PM-002` existe para evitar | Alta |
+| `RN-PM-032` | **Un producto puede enlazar un video, y el enlace sale en toda lectura** | Al registrar, al editar y siempre que se consulte un producto, con token o sin él | Todo producto —**de los dos tipos**— puede declarar **la dirección de un video** que lo presenta: una **URL absoluta `http` o `https`, sin espacios y de hasta 500 caracteres**, de cualquier dominio. Es **opcional**, se corrige y **se vacía** (`RF-PM-004`), su nulo significa «no tiene video» y **no condiciona la activación**. **Es un enlace, no un archivo**: el sistema comprueba su forma y **no lo sigue** —no comprueba que exista, no lo descarga, no lo incrusta—. Las **cuatro** lecturas lo devuelven, **presente y nulo** cuando no hay, **incluido el hotlink sin token**: es material de venta, no un costo (§5.2.8) | Media |
 
 ### 5.2 Por qué las críticas son críticas
 
@@ -442,6 +443,27 @@ Las reseñas de un producto se leen **sin token** porque la pantalla del hotlink
 
 `rating.average` y `rating.count` **no se guardan en `products`**: se calculan sobre las reseñas vivas cada vez, en la misma sentencia que trae el producto. Una columna desnormalizada obligaría a mantenerla en el alta, la corrección y el retiro de cada reseña, y **la que se quedara atrás no fallaría, mentiría** — que es la marca de todo lo que este catálogo decide no duplicar. El coste es un agregado por producto en cada lectura, y con un índice por `(product_id) WHERE deleted_at IS NULL` es una lectura de índice; el día que el catálogo tenga cien mil reseñas por producto se revisa, y ese día no es hoy.
 
+### 5.2.8 El video — 14-09-2026
+
+**Decisión del responsable del proyecto.** Un producto puede enlazar un video: **la dirección donde el video vive, no el video**. Es la segunda cosa que el producto declara para que el frontend la pinte y que el sistema no sabe interpretar —la primera fue el icono (`RN-PM-016`)—, y como entonces, cuatro cosas se preguntaron antes de escribir una línea. Las cuatro quedaron decididas por él, y las cuatro del lado más abierto:
+
+| Pregunta | Decisión | Lo que se descartó, y por qué |
+|---|---|---|
+| **¿Dónde se ve?** | **En las cuatro lecturas**, incluido el hotlink sin token (`RN-PM-032`) | *Solo administración, como el precio de compra* — el video es **material de venta**: existe para que lo vea quien compra, y esconderlo de la oferta y del hotlink lo dejaría justo donde nadie lo necesita. *Solo oferta y hotlink* — administración no podría revisar lo que publica |
+| **¿Qué se valida?** | **Una URL absoluta `http` o `https`, sin espacios y de hasta 500 caracteres, de cualquier dominio** | *Solo YouTube y Vimeo* — cada plataforma nueva sería una migración, y el sistema no gana nada sabiendo dónde está alojado el video: no lo descarga ni lo incrusta. *Texto libre con tope* — el front recibiría algo que no es un enlace y fallaría al pintarlo, y el esquema no podría decir nada de la columna |
+| **¿En qué tipos?** | **En los dos**, `BOT` y `UPGRADE_MEMBRESIA` | *Solo en uno, como el icono es solo del upgrade* — el icono tiene esa mitad porque nadie decidió dónde iría en un bot; un video explica igual una prestación que una subida de nivel, y no hay ninguna condición cruzada que justificar |
+| **¿Es obligatorio?** | **No: opcional, se corrige y se vacía** (`RF-PM-004`), y **no condiciona la activación** | *Obligatorio al activar, como la descripción (`RN-PM-014`)* — la descripción es lo mínimo para saber qué se compra; el video es un complemento, y exigirlo dejaría sin publicar todo producto que no tenga uno. *Obligatorio siempre* — la migración no tiene ningún enlace honesto que inventar para lo ya registrado |
+
+#### Es un enlace, y el sistema no lo sigue
+
+Como el icono es un nombre y no una imagen, **el video es una dirección y no un archivo**: el sistema guarda lo que se declaró, comprueba que tiene forma de enlace y **nada más**. No comprueba que el video exista, no lo descarga, no lo incrusta y no sabe si el enlace sigue vivo mañana. Es la frontera de siempre —el sistema no almacena binarios— llevada un paso más allá: **tampoco los consulta**. Hacerlo obligaría al backend a salir a Internet en cada alta y en cada corrección, con lo que un producto no podría registrarse mientras la plataforma del video esté caída, y dejaría al sistema dependiendo de un tercero para algo que el frontend resuelve solo al pintar el enlace.
+
+!!! warning "Lo que se publica sin token es una dirección que alguien escribió"
+
+    El hotlink devuelve el enlace **tal cual se declaró**, a cualquiera y sin token. Quien administra el catálogo puede escribir cualquier dirección `https://`, y el sistema **no la sigue ni la valida más allá de su forma**: un enlace roto, o uno que lleve a otro sitio, se publica igual. Es el mismo trato que la descripción —texto que escribe administración y lee el público— y se acepta por lo mismo: la confianza está en `products:create` y `products:update`, no en el dato.
+
+**Y `RN-PM-024` no se toca.** El video va a las cuatro lecturas precisamente porque **no es el costo**: aquella regla dice qué no sale de administración, y el enlace de un video es lo contrario de un margen — es lo que se quiere que vean. Lo que sí hereda de aquella es la forma del nulo: **presente y nulo** cuando no hay video, en las cuatro, porque un campo que desaparece es indistinguible de uno que el cliente no conoce.
+
 ### 5.3 Reglas de otros documentos que este módulo aplica
 
 No se copian: se referencian, porque dos copias de una regla acaban divergiendo.
@@ -502,7 +524,7 @@ El alta crea la tabla y el catálogo, y sin catálogo no hay nada que consultar.
 | Actor | Administrador |
 | Permiso requerido | `products:create` |
 | Prioridad | **Crítica** |
-| Reglas aplicables | `RN-PM-001` a `RN-PM-008`, `RN-PM-012`, `RN-PM-013`, `RN-PM-019`, `RN-PM-020`, `RN-PM-023` |
+| Reglas aplicables | `RN-PM-001` a `RN-PM-008`, `RN-PM-012`, `RN-PM-013`, `RN-PM-019`, `RN-PM-020`, `RN-PM-023`, `RN-PM-032` |
 | Depende de | — |
 | Tripleta | `docs/specs/pm/001-registrar-producto/` |
 | Estado | **Tasks aprobadas** (26-08-2026) |
@@ -513,6 +535,8 @@ Registra un producto declarando su **tipo**, su nombre, su precio y su moneda; s
 
 **Y desde el 08-09-2026 admite un segundo precio** (`RN-PM-023`), que **sí es opcional** y ahí se aparta de las dos anteriores: omitirlo no deja ninguna decisión sin tomar. **Desde el 12-09-2026 ese segundo precio es el de compra** —lo que NEXUS paga por el producto—, y su nulo significa «no se conoce todavía», que es el estado natural de un producto que se registra antes de comprarse. Los dos importes se validan igual —no negativos, y con los decimales de la **única** moneda del producto—, y el alta devuelve los dos porque quien registra tiene `products:read`.
 
+**Desde el 14-09-2026 admite también el enlace de un video** (`RN-PM-032`), **opcional y en los dos tipos**, validado **solo en su forma**: URL absoluta `http` o `https`, sin espacios, hasta 500 caracteres. Ausente y nulo significan lo mismo —«no tiene video»— y el alta lo devuelve **presente y nulo**, como el precio de compra. El sistema no sigue el enlace (§5.2.8).
+
 #### `RF-PM-002` — Consultar productos
 
 | Campo | Valor |
@@ -521,7 +545,7 @@ Registra un producto declarando su **tipo**, su nombre, su precio y su moneda; s
 | Actor | Administrador · fuerza comercial |
 | Permiso requerido | `products:read` |
 | Prioridad | **Crítica** |
-| Reglas aplicables | `RN-PM-024` |
+| Reglas aplicables | `RN-PM-024`, `RN-PM-032` |
 | Depende de | `RF-PM-001` |
 | Tripleta | `docs/specs/pm/002-consultar-productos/` |
 | Estado | **Tasks aprobadas** (26-08-2026) |
@@ -531,6 +555,8 @@ Devuelve el catálogo **paginado**, con filtros por tipo, estado, membresía **d
 **Devuelve los DOS precios y la conversión vigente** (`RN-PM-024`). Desde el 12-09-2026 **vuelve a ser uno de los dos únicos sitios donde se ven juntos**: el de venta y el de compra, con la conversión calculada sobre el primero. Lo que distingue a esta de la oferta y del hotlink es el costo **y** lo demás —el estado, lo retirado, la membresía de origen—. **No se filtra por ninguno de los dos precios**: el filtro por rango quedó fuera del alcance el 26-08-2026 y el precio de compra no lo reabre.
 
 **La conversión llega resuelta y no cuesta una consulta por fila** (§5.2.5): la moneda por omisión se pide **una vez** por página y las tasas de todas las monedas presentes **en una sola sentencia**. Un listado que preguntara por producto sería el `N+1` que `RF-PM-002` existe para evitar.
+
+**Cada fila trae el enlace del video** (`RN-PM-032`, 14-09-2026), **presente y nulo** en los productos que no lo declaran. **No es un filtro**: se selecciona en la misma sentencia y la consulta no gana ninguna condición.
 
 **Los dos filtros nuevos entran con las columnas** (07-09-2026) y no en una ampliación posterior. El del alcance es el **único sitio del sistema donde ese dato se puede consultar hoy**: `RF-PM-007` no lo filtra —no puede, §5.2.2— y el canal de hotlinks que lo consumirá todavía no existe, de modo que sin este filtro el alcance sería un dato que se declara, se corrige y no se puede ver.
 
@@ -542,7 +568,7 @@ Devuelve el catálogo **paginado**, con filtros por tipo, estado, membresía **d
 | Actor | Administrador · fuerza comercial |
 | Permiso requerido | `products:read` |
 | Prioridad | Alta |
-| Reglas aplicables | `RN-PM-024` |
+| Reglas aplicables | `RN-PM-024`, `RN-PM-032` |
 | Depende de | `RF-PM-001` |
 | Tripleta | `docs/specs/pm/003-consultar-detalle-producto/` |
 | Estado | **Tasks aprobadas** (26-08-2026) |
@@ -555,6 +581,8 @@ Devuelve además **el alcance y la implementación** (`RN-PM-019`, `RN-PM-020`):
 
 **Desde el 08-09-2026 devuelve también la conversión** (`RN-PM-024`), con el mismo trato: **presente y nula** cuando el producto ya está en la moneda por omisión o cuando no hay tasa vigente. Cuesta **una consulta más** —la moneda de casa— y una segunda **solo si hay algo que convertir**.
 
+**Y desde el 14-09-2026 devuelve el enlace del video** (`RN-PM-032`), presente y nulo cuando el producto no lo tiene, sin ninguna consulta más.
+
 #### `RF-PM-004` — Editar producto
 
 | Campo | Valor |
@@ -563,16 +591,18 @@ Devuelve además **el alcance y la implementación** (`RN-PM-019`, `RN-PM-020`):
 | Actor | Administrador |
 | Permiso requerido | `products:update` |
 | Prioridad | Alta |
-| Reglas aplicables | `RN-PM-001`, `RN-PM-005` a `RN-PM-008`, `RN-PM-019`, `RN-PM-020`, `RN-PM-023` |
+| Reglas aplicables | `RN-PM-001`, `RN-PM-005` a `RN-PM-008`, `RN-PM-019`, `RN-PM-020`, `RN-PM-023`, `RN-PM-032` |
 | Depende de | `RF-PM-001` |
 | Tripleta | `docs/specs/pm/004-editar-producto/` |
 | Estado | **Tasks aprobadas** (26-08-2026) |
 
-Permite corregir **nombre, descripción, icono, los dos precios, moneda, vigencia, alcance e implementación**. **No permite cambiar el tipo** (`RN-PM-001`) **ni ninguna de las dos membresías**: las tres definen qué derecho otorga el producto, y cambiarlas convierte lo comprado en otra cosa. Quien necesite otro origen u otro destino registra otro producto y retira el anterior.
+Permite corregir **nombre, descripción, icono, el enlace del video, los dos precios, moneda, vigencia, alcance e implementación**. **No permite cambiar el tipo** (`RN-PM-001`) **ni ninguna de las dos membresías**: las tres definen qué derecho otorga el producto, y cambiarlas convierte lo comprado en otra cosa. Quien necesite otro origen u otro destino registra otro producto y retira el anterior.
 
 **El alcance y la implementación entran del lado corregible** (07-09-2026), y esa es la línea que las separa de los tres inmutables: ninguna cambia **qué derecho otorga** el producto —una dice hasta dónde se muestra y la otra quién lo aplica—, de modo que corregirlas no reescribe lo que compró quien lo compró. Congelarlas habría obligado a registrar un producto nuevo para mover un enlace de sitio, y a retirar el viejo con lo vendido colgando de él.
 
 **El precio de compra se corrige y además se puede VACIAR** (`RN-PM-023`), y en eso va con la descripción, el icono y la vigencia y no con el precio del sistema: su nulo es un estado legítimo —«no se conoce el costo»— de modo que el nulo explícito **es una orden** y no un error. Es también **donde se guarda lo que costó** cuando el producto se compra: hoy lo escribe quien administra, con esta edición. El del sistema no admite vaciarse: la columna es obligatoria y «bórralo» no tiene ningún estado al que llevar el producto.
+
+**El enlace del video se corrige y se vacía** (`RN-PM-032`, 14-09-2026), y va con la descripción, el icono, la vigencia y el precio de compra: su nulo es un estado legítimo —«no tiene video»— de modo que el nulo explícito **es una orden**. Se corrige **en los dos tipos**, sin la condición cruzada del icono, y con la misma comprobación de forma que en el alta.
 
 **Y no reescriben ninguna venta anterior, porque la venta copia la implementación en su línea** —como el importe y la vigencia—: quien compró algo que se entregaba solo lo sigue teniendo así aunque el catálogo cambie de criterio mañana. Es la condición que §5.2.2 impone a `MV`, y **todavía no está construida**.
 
@@ -614,7 +644,7 @@ Elimina lógicamente un producto **exigiendo motivo** (Art. V.13), que viaja al 
 | Actor | Cualquier persona autenticada con `products:sale` |
 | Permiso requerido | `products:sale` |
 | Prioridad | Alta |
-| Reglas aplicables | `RN-PM-009`, `RN-PM-011`, `RN-PM-019`, `RN-PM-020`, `RN-PM-024` |
+| Reglas aplicables | `RN-PM-009`, `RN-PM-011`, `RN-PM-019`, `RN-PM-020`, `RN-PM-024`, `RN-PM-032` |
 | Depende de | `RF-PM-001` |
 | Tripleta | `docs/specs/pm/007-consultar-oferta-propia/` |
 | Estado | **Tasks aprobadas** (26-08-2026) |
@@ -622,6 +652,8 @@ Elimina lógicamente un producto **exigiendo motivo** (Art. V.13), que viaja al 
 Devuelve **solo productos activos**, y de los de tipo upgrade **solo aquellos cuyo origen es la membresía vigente del actor** (`RN-PM-011`) — lo que incluye su **renovación**, si existe declarada. No admite parámetro de persona: responde sobre quien llama y sobre nadie más, como `RF-SP-039`. Nunca devuelve el motivo de retiro, ni lo inactivo, ni la membresía de terceros.
 
 **Publica UN precio y la conversión** (`RN-PM-024`, reescrita el 12-09-2026): `price` es el que se cobra y `exchange` su conversión a la moneda de casa. **El precio de compra no viaja por aquí ni se selecciona**: es el costo de NEXUS y quien compra no tiene por qué conocer el margen (§5.2.6). Entre el 08-09-2026 y el 12-09-2026 publicó también el segundo importe, cuando ese importe era lo que se anunciaba; con el cambio de significado dejó de tener sentido y se retiró.
+
+**Publica el enlace del video** (`RN-PM-032`, 14-09-2026), presente y nulo cuando no hay. Es lo contrario del precio de compra: material de venta, que existe para que lo vea quien compra, y por eso **sí se selecciona** aquí.
 
 **Publica el alcance y la implementación de cada producto, y no filtra por ninguno de los dos** (`RN-PM-019`, `RN-PM-020`). El alcance **no puede** filtrar aquí: bajo la escala acumulativa los dos valores llegan a la tienda, de modo que un predicado sobre él devolvería siempre lo mismo que no ponerlo. La implementación sí viaja en la respuesta, y por un motivo que no es de simetría: quien compra tiene que poder saber **antes de pagar** que lo que se lleva no se le entrega en el acto. Ocultarlo no evita la espera — la convierte en una incidencia de soporte.
 
@@ -635,7 +667,7 @@ Devuelve **solo productos activos**, y de los de tipo upgrade **solo aquellos cu
 | Actor | **Cualquiera, sin autenticar** |
 | Permiso requerido | **Ninguno: es público** |
 | Prioridad | Alta |
-| Reglas aplicables | `RN-PM-009`, `RN-PM-019`, `RN-PM-021`, `RN-PM-022`, `RN-PM-024` |
+| Reglas aplicables | `RN-PM-009`, `RN-PM-019`, `RN-PM-021`, `RN-PM-022`, `RN-PM-024`, `RN-PM-032` |
 | Depende de | `RF-PM-001`, **`RF-SP-047`** |
 | Tripleta | `docs/specs/pm/008-hotlink-publico/` |
 | Estado | **Tasks en revisión** (07-09-2026) |
@@ -645,6 +677,8 @@ Devuelve, en **una** llamada y **sin token**, el producto que el enlace señala 
 **Devuelve UN precio, y esto es lo que volvió a cambiar el 12-09-2026** (`RN-PM-024`): `price` y su conversión. Entre el 08-09-2026 y esa fecha viajaron dos —`price` y `publicPrice`—; convertido el segundo en **precio de compra**, **precisamente porque este endpoint es público** es el último sitio donde puede aparecer el costo de NEXUS. **No se selecciona en la consulta**, no solo se omite en la respuesta (§5.2.6).
 
 **La conversión se calcula sobre `price`**, que es el único número que se enseña.
+
+**Publica el enlace del video, sin token** (`RN-PM-032`, 14-09-2026): la dirección que administración escribió, **tal cual**, presente y nula cuando no hay. El sistema no la sigue ni la valida más allá de su forma, y lo que eso significa en una ruta pública está escrito en §5.2.8.
 
 **Es el primer endpoint público del módulo, y el primero del sistema que publica el nombre de una persona.** De ahí salen las dos reglas que lo gobiernan: solo se publica lo que tiene alcance `HOTLINKS` (`RN-PM-021`) y solo el nombre de quien es fuerza comercial (`RN-PM-022`).
 
@@ -819,6 +853,7 @@ Ninguna otra. `memberships`, `currencies` y —desde el 14-09-2026— `users` se
 | `source_membership_id` | `uuid` | No | Sí | Sí | — | `memberships` |
 | `price` | `numeric(14,4)` | No | No | No | — | — |
 | `purchase_price` | `numeric(14,4)` | No | No | **Sí** | — | — |
+| `video_url` | `varchar(500)` | No | No | Sí | — | — |
 | `currency_id` | `uuid` | No | Sí | No | — | `currencies` |
 | `status` | `varchar(20)` | No | No | No | `ACTIVO` | — |
 | `scope` | `varchar(20)` | No | No | No | — | — |
@@ -862,6 +897,8 @@ Sin columnas de actor, y **sin columna de motivo**: quién retiró el producto y
 
 **Y no hay columna de moneda para el precio de compra.** Se expresa en `currency_id`, la del producto. Es una simplificación asumida: si NEXUS paga en otra moneda, quien registra el costo lo convierte al declararlo; una segunda moneda con su tasa y su vigencia es una tabla de compras, no una columna de esta.
 
+**`video_url` es `varchar(500)` y admite nulo** (`RN-PM-032`, 14-09-2026). Es **la dirección de un video, no el video**, por el mismo camino por el que `icon` es un nombre y no una imagen: el sistema no almacena binarios y, desde hoy, **tampoco los consulta** (§5.2.8). El tope de quinientos es el de un enlace que alguien puede repartir —un enlace que no cabe ahí no es uno que nadie vaya a escribir a mano—, y subirlo, el día que haga falta, es un `ALTER` de solo metadatos en PostgreSQL y no una reescritura, al revés que estrechar. **No hay valor por omisión ni cadena vacía**: el nulo significa «no tiene video», y `ck_products_video_url_format` hace que la columna guarde un enlace con forma o nada — la cadena vacía y el texto que no empieza por `http` no caben.
+
 ### 10.2 Restricciones exigidas en el esquema
 
 | Restricción | Sobre | Regla que implementa |
@@ -871,6 +908,7 @@ Sin columnas de actor, y **sin columna de motivo**: quién retiró el producto y
 | `ck_products_type_target` | `(type = 'UPGRADE_MEMBRESIA' AND target_membership_id IS NOT NULL AND source_membership_id IS NOT NULL) OR (type = 'BOT' AND target_membership_id IS NULL AND source_membership_id IS NULL)` | `RN-PM-002` |
 | `ck_products_icon_solo_upgrade` | `icon IS NULL OR type = 'UPGRADE_MEMBRESIA'` | `RN-PM-016`. La rama `IS NULL` va **delante y explícita** por lo mismo que en la vigencia: un `CHECK` que evalúa a `NULL` **acepta** la fila |
 | `ck_products_icon_format` | `icon IS NULL OR icon ~ '^[a-z][a-z0-9-]*$'` | `RN-PM-016`. El valor se guarda ya normalizado, de modo que el `CHECK` puede ser una comprobación de forma corriente |
+| `ck_products_video_url_format` | `video_url IS NULL OR video_url ~ '^https?://[^[:space:]]+$'` | `RN-PM-032`. La rama `IS NULL` va **delante y explícita**, como en el icono. Comprueba **la forma y nada más** —esquema `http` o `https`, y ningún espacio—; que el enlace resuelva a algo no es cosa del esquema ni del dominio (§5.2.8). El tope de longitud lo da el tipo de la columna |
 | `ck_products_scope` | `scope IN ('TIENDA','HOTLINKS')` | `RN-PM-019` |
 | `ck_products_implementation` | `implementation IN ('AUTOMATICA','MANUAL')` | `RN-PM-020`. **Ninguna de las dos lleva `DEFAULT`**, al revés que `status`: aquel lo tiene porque una regla lo exige (`RN-PM-012`), y aquí un valor por omisión sería **una decisión comercial tomada por la columna** — hasta dónde se muestra un producto y quién lo entrega los declara quien lo registra |
 | ~~`ck_products_price_positive`~~ → `ck_products_price_no_negativo` | `price >= 0`. **Cambia de umbral Y de nombre el 08-09-2026 en `V67`**: la restricción dejó de decir «positivo», y dejarle el nombre viejo habría hecho que quien lo leyera creyera que el cero sigue prohibido. Su relajación es lo que obliga a `ProductCommissionCapGuard` a dejar de dividir a ciegas (§5.2.4) | `RN-PM-006` |
@@ -977,3 +1015,4 @@ Se declaran en la base de datos, no solo en Java (Art. V.6).
 | 0.24.0 | 14-09-2026 | **Nacen las RESEÑAS: un producto se puntúa de uno a cinco y se comenta, y solo el autor toca lo suyo.** Por decisión del responsable del proyecto, con **cuatro respuestas preguntadas antes de escribir** (§5.2.7): quien reseña es quien porta **`products:comment`**, un permiso nuevo y el primero de escritura del módulo que no es de administración —se descartó `products:sale`, porque ver la oferta y opinar son dos capacidades, y «solo quien compró», porque `PM` no puede leer a `MV` sin cerrar el ciclo—; **una reseña por persona y producto, y se corrige** (`RN-PM-026`); **se retira SIN motivo**, y para eso **se enmienda el Art. V.13** con una tercera excepción, el **contenido propio** (`RN-PM-029`, `constitution.md` v0.8.0) — se descartó exigirlo como en `RF-PM-006` porque pedirle a un cliente que justifique por qué borra lo suyo produce «lo borro» en cada fila—; y **la lista es pública y el producto publica promedio y cantidad en sus cuatro lecturas** (`RN-PM-030`, `RN-PM-031`). Nace el submódulo **Reseñas** con cinco requerimientos, `RF-PM-009` a `RF-PM-013`, siete reglas —`RN-PM-025` a `RN-PM-031`, dos críticas— y la tabla **`product_comments`** (§10.4), la segunda del módulo y la primera con clave foránea a `users`. **Lo que la decisión de la moderación cuesta está escrito entero y no se tapa**: nadie —ni la administración— retira una reseña ajena, y la salida es otro requerimiento con otro permiso, no una excepción a `RN-PM-027`. Queda escrito también que **`user_id` es el autor y no el actor**, y por qué eso no infringe el Art. V.7; que **el promedio es una cuenta y no una columna**, para que la copia que se quedara atrás no pueda mentir; y que las reseñas de un producto de alcance `TIENDA` **se leen sin token aunque el producto no**, con la salida barata escrita. El retiro es el **primer `DELETE`** del módulo, y lo es por lo mismo que el del producto es un `POST`: sin motivo no hay cuerpo que proteger. Los cinco requerimientos nacen en `Pendiente`; las tripletas son el paso siguiente. | Responsable del proyecto |
 | 0.25.0 | 14-09-2026 | **Las cinco `spec.md` de las reseñas quedan redactadas** y `RF-PM-009` a `RF-PM-013` pasan a `Spec en revisión`. Cuatro decisiones de forma que las cinco comparten y que conviene revisar juntas: **el `404` del producto es uniforme** —inexistente, inactivo, retirado— tanto al reseñar como en la lista pública, porque quien reseña es un cliente y ve la oferta, que tampoco distingue; **primero «existe» (`404`) y después «es tuya» (`403`)** en la corrección y el retiro, y el `403` no revela nada porque la lista pública ya enseña la reseña con su identificador; **retirar dos veces responde `404` y no `409`**, al revés que el producto, porque la reseña retirada no la devuelve nadie; y **la lectura de la propia no consulta el producto**, de modo que cuesta una sentencia y responde sobre productos que ya no se venden — la única que le da al autor el camino a la suya. `RF-PM-009` es además el que **enmienda las cuatro lecturas** con `rating` (`RN-PM-031`), calculado en la misma sentencia para que el número de consultas de los listados no suba. Nacen `CA-PM-170` a `CA-PM-218`. §10.4 no cambia: `created_at` y `updated_at` ya estaban declaradas, y el diagrama de `modelo-datos.md` las incorpora hoy. | Responsable técnico |
 | 0.26.0 | 14-09-2026 | **Los cinco `plan.md` aprobados y las cinco `tasks.md` redactadas**: la tripleta de las reseñas está completa y `RF-PM-009` a `RF-PM-013` pasan a `Tasks en revisión`. **Cincuenta y nueve tareas.** Tres decisiones de los planes alcanzan más allá de su requerimiento: **el agregado de `rating` entra en las cuatro sentencias por un `LEFT JOIN LATERAL`** sobre el índice parcial, con el redondeo en Java y en un solo sitio, para que el número de consultas de los listados no suba (`RF-PM-009` §4.1); **el `403` de propiedad se hace después de resolver la fila y nunca filtrando por actor en la consulta**, porque eso convertiría la ajena en `404` sin que nadie lo decidiera (`RF-PM-010` §5); y **la lista pública entra en la lista por método de `SecurityConfig` y no en `RUTAS_PUBLICAS`**, con la cota de tasa contada por la familia y la política de los catálogos (`RF-PM-012` §5, §8). **Las enmiendas Art. I.7 por `rating` se aplican en este mismo pase**, y no con el código: las specs de `RF-PM-001` a `RF-PM-004`, `RF-PM-007` y `RF-PM-008` ganan su fila y su párrafo de §6.2 citando `RF-PM-009`. Orden de construcción: `009 → 012 → 013 → 010 → 011`, con `T-10` y `T-11` de `009` —la enmienda a lo ya construido— **antes** que su servicio de alta. | Responsable del proyecto |
+| 0.27.0 | 14-09-2026 | **Un producto puede enlazar un VIDEO, y el enlace sale en las cuatro lecturas.** Por decisión del responsable del proyecto, con **cuatro respuestas preguntadas antes de escribir** (§5.2.8), y las cuatro del lado más abierto: **se ve en las cuatro lecturas** —catálogo, detalle, oferta y hotlink sin token— porque es material de venta y no un costo, al revés que el precio de compra; **se valida solo la forma** —URL absoluta `http` o `https`, sin espacios, hasta 500 caracteres, de cualquier dominio— y el sistema **no sigue el enlace**: no comprueba que exista, no lo descarga, no lo incrusta; **en los dos tipos**, sin la condición cruzada del icono; y **opcional, corregible y vaciable**, sin condicionar la activación. Nace **`RN-PM-032`**. §10 gana `video_url` —`varchar(500)`, nulo cuando no hay— y `ck_products_video_url_format`, con la rama `IS NULL` delante. **`RN-PM-024` no se toca**: el enlace va a las cuatro lecturas precisamente porque no es el costo. Queda escrito lo que se acepta al publicarlo sin token: **es una dirección que alguien con `products:update` escribió, tal cual**, con el mismo trato que la descripción. Enmienda las tripletas de `RF-PM-001` a `RF-PM-004`, `RF-PM-007` y `RF-PM-008` (Art. I.7). | Responsable del proyecto |

@@ -466,6 +466,127 @@ class ProductsIT extends IntegrationTestBase {
   }
 
   @Test
+  @DisplayName(
+      "`CA-PM-219` — el alta admite el enlace de un video, también en un BOT, y lo devuelve TAL"
+          + " CUAL")
+  void conVideo() throws Exception {
+    // En un bot, a propósito: es donde el icono NO cabe (`RN-PM-016`) y el
+    // video SÍ (`RN-PM-032`), y una prueba sobre un upgrade no distinguiría las
+    // dos reglas. Con mayúsculas en el identificador y espacios alrededor: lo
+    // que se guarda es lo recortado y NADA MÁS — un enlace «arreglado» puede
+    // dejar de resolver.
+    mvc.perform(
+            alta(
+                """
+                {"scope":"TIENDA","implementation":"AUTOMATICA","code":"ASESORIA","type":"BOT","name":"Asesoría",
+                 "price":49.99,"currencyId":"%s",
+                 "videoUrl":"  https://www.youtube.com/watch?v=dQw4w9WgXcQ  "}
+                """
+                    .formatted(USD)))
+        .andExpect(status().isCreated())
+        .andExpect(jsonPath("$.videoUrl").value("https://www.youtube.com/watch?v=dQw4w9WgXcQ"));
+
+    assertThat(
+            jdbc.queryForObject(
+                "SELECT video_url FROM products WHERE code = 'ASESORIA'", String.class))
+        .isEqualTo("https://www.youtube.com/watch?v=dQw4w9WgXcQ");
+  }
+
+  @Test
+  @DisplayName("`CA-PM-220` — sin video el campo llega PRESENTE y nulo, no ausente ni vacío")
+  void sinVideo() throws Exception {
+    // Como el precio de compra: un campo que desaparece del JSON no puede decir
+    // «no tiene video». Y `""` tampoco es un estado: el esquema no lo admite.
+    mvc.perform(
+            alta(
+                """
+                {"scope":"TIENDA","implementation":"AUTOMATICA","code":"ASESORIA","type":"BOT","name":"Asesoría",
+                 "price":49.99,"currencyId":"%s"}
+                """
+                    .formatted(USD)))
+        .andExpect(status().isCreated())
+        .andExpect(jsonPath("$.videoUrl").doesNotExist())
+        .andExpect(jsonPath("$").value(org.hamcrest.Matchers.hasKey("videoUrl")));
+
+    // Y el nulo explícito significa exactamente lo mismo que el ausente.
+    mvc.perform(
+            alta(
+                """
+                {"scope":"TIENDA","implementation":"AUTOMATICA","code":"ASESORIA2","type":"BOT","name":"Asesoría 2",
+                 "price":49.99,"currencyId":"%s","videoUrl":null}
+                """
+                    .formatted(USD)))
+        .andExpect(status().isCreated())
+        .andExpect(jsonPath("$").value(org.hamcrest.Matchers.hasKey("videoUrl")));
+  }
+
+  @Test
+  @DisplayName(
+      "`CA-PM-221` — un enlace sin forma de URL absoluta http(s) se rechaza con VAL-017, nombrando"
+          + " `videoUrl`")
+  void videoConFormaInvalida() throws Exception {
+    // Las cinco variantes que la estrategia de prueba enumera: relativo, sin
+    // esquema, con otro esquema, con un espacio dentro, y de 501 caracteres.
+    // Se comprueba SOLO la forma: un enlace con forma y sin destino se admite
+    // (`CA-PM-219` no resuelve a nada en esta suite), y eso es la decisión de
+    // `pm.md` §5.2.8, no un descuido.
+    String[] invalidos = {
+      "/videos/asesoria.mp4",
+      "www.youtube.com/watch?v=x",
+      "ftp://videos.example.com/asesoria.mp4",
+      "https://www.youtube.com/watch?v=dQw4 w9WgXcQ",
+      "https://example.com/" + "a".repeat(481)
+    };
+    for (String invalido : invalidos) {
+      mvc.perform(
+              alta(
+                  """
+                  {"scope":"TIENDA","implementation":"AUTOMATICA","code":"ASESORIA","type":"BOT","name":"Asesoría",
+                   "price":49.99,"currencyId":"%s","videoUrl":"%s"}
+                  """
+                      .formatted(USD, invalido)))
+          .andExpect(status().isBadRequest())
+          .andExpect(jsonPath("$.errors[0].code").value("VAL-017"))
+          .andExpect(jsonPath("$.errors[0].field").value("videoUrl"));
+    }
+    assertThat(cuantosProductos()).isZero();
+
+    // El límite exacto —500— SÍ cabe: la prueba anterior no demuestra nada si
+    // el tope se hubiera puesto un carácter por debajo.
+    mvc.perform(
+            alta(
+                """
+                {"scope":"TIENDA","implementation":"AUTOMATICA","code":"ASESORIA","type":"BOT","name":"Asesoría",
+                 "price":49.99,"currencyId":"%s","videoUrl":"%s"}
+                """
+                    .formatted(USD, "https://example.com/" + "a".repeat(480))))
+        .andExpect(status().isCreated());
+  }
+
+  @Test
+  @DisplayName("`CA-PM-222` — la instantánea del evento de creación incluye `video_url`")
+  void laInstantaneaLlevaElVideo() throws Exception {
+    mvc.perform(
+            alta(
+                """
+                {"scope":"TIENDA","implementation":"AUTOMATICA","code":"ASESORIA","type":"BOT","name":"Asesoría",
+                 "price":49.99,"currencyId":"%s","videoUrl":"https://vimeo.com/123456"}
+                """
+                    .formatted(USD)))
+        .andExpect(status().isCreated());
+
+    String cambios =
+        jdbc.queryForObject(
+            """
+            SELECT changes::text FROM audit_change_log
+             WHERE module = 'PM' AND entity = 'products' AND action = 'CREATE'
+             ORDER BY occurred_at DESC LIMIT 1
+            """,
+            String.class);
+    assertThat(cambios).contains("video_url").contains("https://vimeo.com/123456");
+  }
+
+  @Test
   @DisplayName("`CA-PM-006` — el precio con más decimales de los que admite su moneda se rechaza")
   void decimalesSegunLaMoneda() throws Exception {
     // USD declara dos decimales: tres no caben, y no lo puede decir un CHECK

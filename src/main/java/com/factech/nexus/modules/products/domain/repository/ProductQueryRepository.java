@@ -86,10 +86,10 @@ public interface ProductQueryRepository {
   Optional<ProductRow> findPublishedByCode(String code);
 
   /**
-   * `RN-PM-028`: ¿se puede comprar? Existe, está {@code ACTIVO} y no está retirado. Una lectura
-   * por clave, sin {@code JOIN}. La usan el alta de la reseña (`RF-PM-009`) y la lista pública
-   * (`RF-PM-012`), y los tres casos en que responde falso son indistinguibles a propósito: los
-   * dos requerimientos responden el mismo {@code 404} a los tres.
+   * `RN-PM-028`: ¿se puede comprar? Existe, está {@code ACTIVO} y no está retirado. Una lectura por
+   * clave, sin {@code JOIN}. La usan el alta de la reseña (`RF-PM-009`) y la lista pública
+   * (`RF-PM-012`), y los tres casos en que responde falso son indistinguibles a propósito: los dos
+   * requerimientos responden el mismo {@code 404} a los tres.
    */
   boolean isPurchasable(UUID productId);
 
@@ -130,6 +130,10 @@ public interface ProductQueryRepository {
       String name,
       String description,
       String icon,
+      // `RN-PM-032`: SE SELECCIONA EN LAS CUATRO lecturas, la oferta y el
+      // hotlink incluidos — al revés que `purchasePrice`, que las dos públicas
+      // dejan nulo a propósito. Nulo cuando el producto no tiene video.
+      String videoUrl,
       UUID sourceMembershipId,
       String sourceMembershipCode,
       String sourceMembershipName,

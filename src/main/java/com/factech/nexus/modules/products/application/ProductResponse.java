@@ -37,6 +37,11 @@ public record ProductResponse(
     String name,
     String description,
     String icon,
+    /**
+     * `RN-PM-032`: la dirección del video, tal cual se guardó, y nula y presente cuando no hay. Al
+     * revés que {@code purchasePrice}, sale en las cuatro lecturas.
+     */
+    String videoUrl,
     MembershipRef sourceMembership,
     MembershipRef targetMembership,
     BigDecimal price,
@@ -76,6 +81,7 @@ public record ProductResponse(
         producto.getName(),
         producto.getDescription(),
         producto.getIcon(),
+        producto.getVideoUrl(),
         ref(origen),
         ref(destino),
         enLaEscalaDe(producto.getPrice(), moneda),

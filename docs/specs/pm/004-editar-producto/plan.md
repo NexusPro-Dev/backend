@@ -8,7 +8,7 @@
 | Estado | **Aprobado** |
 | Autor | Responsable técnico |
 | Aprobado por | Responsable del proyecto |
-| Enmendado el | 27-08-2026 — `RN-PM-015`; 02-09-2026 — la membresía de **origen** (`RN-PM-017`, `RN-PM-018`); 07-09-2026 — el **alcance** y la **implementación**, corregibles y **no vaciables** (`RN-PM-019`, `RN-PM-020`); 08-09-2026 — el **precio público**, corregible y **sí vaciable** (`RN-PM-023`), y el paso 5 reescrito, §5; 12-09-2026 — **el segundo precio es el de COMPRA** (`purchasePrice`), §4 |
+| Enmendado el | 27-08-2026 — `RN-PM-015`; 02-09-2026 — la membresía de **origen** (`RN-PM-017`, `RN-PM-018`); 07-09-2026 — el **alcance** y la **implementación**, corregibles y **no vaciables** (`RN-PM-019`, `RN-PM-020`); 08-09-2026 — el **precio público**, corregible y **sí vaciable** (`RN-PM-023`), y el paso 5 reescrito, §5; 12-09-2026 — **el segundo precio es el de COMPRA** (`purchasePrice`), §4; 14-09-2026 — **el enlace del video**, corregible y **sí vaciable** (`RN-PM-032`), §4 |
 | Fecha de aprobación | 26-08-2026 |
 
 ---
@@ -43,6 +43,7 @@ Aquí la distinción decide dos comportamientos opuestos: **la descripción admi
 - **`description: null` la borra; `name: null` se rechaza** (`VAL-002`).
 - **No se exige motivo** (`spec.md` §14, resolución 2).
 - **El alcance y la implementación se corrigen, y el nulo explícito NO los vacía.** Son los dos primeros campos `Patchable` del módulo con **tres** estados en los que el tercero es un rechazo: ausente deja como está, con valor corrige, y **presente con nulo devuelve `400`** — al revés que la descripción, el icono y la vigencia, donde el nulo es una orden de borrado. La diferencia no es de gusto: aquellos admiten faltar en la columna y estos no, de modo que «bórralo» no tiene ningún estado al que llevar el producto.
+- **`videoUrl` se corrige y el nulo explícito SÍ lo vacía** (14-09-2026, `RN-PM-032`), y **la cadena vacía también**: `Product.update` lo recorta y trata `""` como vaciado, exactamente como hace con el icono — quien borra el contenido del campo en un formulario está vaciando, no enviando un enlace con forma inválida. `Patchable<String>` en el DTO, `normalizarEnlaceDeVideo` en el agregado —la misma función que usa el alta, con `VAL-009` aquí y `VAL-017` allí—, y `video_url` en el diff de auditoría con `before`/`after`. **Se corrige en los dos tipos**: no hay `verificarTipoEIcono` que lo acompañe.
 - **`purchasePrice` se corrige y el nulo explícito SÍ lo vacía** (08-09-2026, con el nombre nuevo desde el 12-09-2026). Va con la descripción, el icono y la vigencia, **no** con el alcance y la implementación: la columna admite nulo, y ese nulo **significa** «no se conoce el costo». Es el campo donde se guarda **lo que NEXUS pagó** por el producto, y esta operación es hoy la única que lo escribe. `price`, en cambio, se suma a los campos cuyo nulo se rechaza — es `NOT NULL`, y dejarlo pasar produciría un fallo de integridad, un `500` donde corresponde un `400` que nombre el campo. **`publicPrice` es desde el 12-09-2026 una propiedad desconocida** y devuelve `400`.
 - **El diff los lleva como cualquier otro campo**, con `before` y `after`, y por el motivo de siempre: el diff lo devuelve **quien aplica el cambio** y no el caso de uso comparando antes y después, de modo que un campo que no entre en el diff es un campo que no se audita — y eso se ve en la misma línea en que se asigna.
 
@@ -123,4 +124,5 @@ Consume el **catálogo de monedas** de `SP` cuando llega precio o moneda. Ningun
 | `price: null` | API | `400` con `VAL-004` sobre `price`, y **ningún** otro cambio aplicado |
 | Número de sentencias | Integración | Bloqueo, unicidad **solo si el nombre cambió**, `UPDATE` y evento |
 | Sin evento si nada cambió | Integración | `audit_change_log` no crece |
+| El enlace del video | API | Corregido en un **bot** (`CA-PM-225`); vaciado con `null` y con `""` (`CA-PM-226`); y con forma inválida junto a un cambio de nombre válido, que **no se aplica** (`CA-PM-227`) |
 | Dos correcciones simultáneas | Concurrencia | La última queda **entera**, no una mezcla |

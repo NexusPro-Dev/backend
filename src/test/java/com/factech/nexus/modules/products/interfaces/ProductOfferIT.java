@@ -461,6 +461,34 @@ class ProductOfferIT extends IntegrationTestBase {
   }
 
   @Test
+  @DisplayName(
+      "`CA-PM-228` — la oferta trae `videoUrl` tal cual, nulo y presente sin él, y sigue sin"
+          + " `purchasePrice`")
+  void laOfertaTraeElVideo() throws Exception {
+    // Las dos columnas opcionales juntas, a propósito: una SÍ viaja y la otra
+    // NO, y la línea entre las dos es la de `pm.md` §5.2.8 — el costo enseña el
+    // margen; el video existe para que lo vean.
+    declararPrecioDeCompra("UP_ORO", "60.00");
+    jdbc.update("UPDATE products SET video_url = 'https://vimeo.com/123456' WHERE code = 'UP_ORO'");
+
+    String cuerpo =
+        mvc.perform(oferta(enFree))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.upgrades.content[3].code").value("UP_ORO"))
+            .andExpect(jsonPath("$.upgrades.content[3].videoUrl").value("https://vimeo.com/123456"))
+            .andExpect(jsonPath("$.upgrades.content[3].purchasePrice").doesNotExist())
+            // `UP_VIP` no tiene video: la clave existe y vale nulo.
+            .andExpect(jsonPath("$.upgrades.content[1].code").value("UP_VIP"))
+            .andExpect(jsonPath("$.upgrades.content[1].videoUrl").doesNotExist())
+            .andExpect(jsonPath("$.upgrades.content[1]").value(Matchers.hasKey("videoUrl")))
+            .andReturn()
+            .getResponse()
+            .getContentAsString();
+
+    assertThat(cuerpo).doesNotContain("purchasePrice").doesNotContain("60.00");
+  }
+
+  @Test
   @DisplayName("declarar o vaciar el precio de compra NO cambia la respuesta de la oferta")
   void elCostoNoSeNotaDesdeLaOferta() throws Exception {
     String antes = mvc.perform(oferta(enFree)).andReturn().getResponse().getContentAsString();

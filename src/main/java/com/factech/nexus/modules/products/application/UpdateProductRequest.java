@@ -28,6 +28,10 @@ import java.util.UUID;
  * valor distinto de nulo se rechaza con `VAL-013` — `RN-PM-016` no admite excepción por venir en un
  * `PATCH`.
  *
+ * <p><b>El enlace del video se corrige y SÍ admite vaciarse</b> (`RN-PM-032`, 14-09-2026), con nulo
+ * explícito o con cadena vacía, como el icono — y al revés que el icono, <b>en los dos tipos</b>:
+ * no hay condición cruzada que lo acompañe. La forma se comprueba en el dominio con `VAL-009`.
+ *
  * <p><b>No se vuelve a intentar con {@code Optional}</b>: falló en `RF-SP-027` y falló en silencio,
  * porque Jackson entrega {@code Optional.empty()} tanto para el campo ausente como para el nulo
  * explícito.
@@ -48,6 +52,7 @@ public record UpdateProductRequest(
     @JsonDeserialize(using = PatchableDeserializer.class) Patchable<String> name,
     @JsonDeserialize(using = PatchableDeserializer.class) Patchable<String> description,
     @JsonDeserialize(using = PatchableDeserializer.class) Patchable<String> icon,
+    @JsonDeserialize(using = PatchableDeserializer.class) Patchable<String> videoUrl,
     @JsonDeserialize(using = PatchableDeserializer.class) Patchable<BigDecimal> price,
     @JsonDeserialize(using = PatchableDeserializer.class) Patchable<BigDecimal> purchasePrice,
     @JsonDeserialize(using = PatchableDeserializer.class) Patchable<UUID> currencyId,
@@ -70,6 +75,7 @@ public record UpdateProductRequest(
     name = name == null ? Patchable.ausente() : name;
     description = description == null ? Patchable.ausente() : description;
     icon = icon == null ? Patchable.ausente() : icon;
+    videoUrl = videoUrl == null ? Patchable.ausente() : videoUrl;
     price = price == null ? Patchable.ausente() : price;
     purchasePrice = purchasePrice == null ? Patchable.ausente() : purchasePrice;
     currencyId = currencyId == null ? Patchable.ausente() : currencyId;
@@ -95,6 +101,7 @@ public record UpdateProductRequest(
     return name.presente()
         || description.presente()
         || icon.presente()
+        || videoUrl.presente()
         || price.presente()
         || purchasePrice.presente()
         || currencyId.presente()

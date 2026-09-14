@@ -55,6 +55,8 @@ tags:
   description: El enlace público que un vendedor reparte
 - name: Métodos de pago
   description: "Con qué se puede pagar, y en qué países no vale cada medio."
+- name: Reseñas
+  description: Lo que quien compra dice de un producto.
 - name: Comisiones
   description: Resolución de la comisión efectiva de una persona sobre un producto.
 - name: Monedas
@@ -1346,6 +1348,10 @@ paths:
         esa moneda o cuando nadie declaró una tasa: eso **no es un error** y
         el producto se devuelve igual.
 
+        Cada fila trae también **`videoUrl`**, la dirección del video que
+        presenta el producto, **tal cual se guardó** y **presente y nula**
+        cuando no tiene (`RN-PM-032`). **No es un filtro.**
+
         Solo se puede ordenar por la lista blanca —`name`, `price`,
         `createdAt`—, con `,asc` o `,desc`. **`purchasePrice` no está en
         ella**: ordenar por una columna que admite nulos obligaría a decidir
@@ -1474,6 +1480,16 @@ paths:
         `icon` es el **nombre** del icono con el que el frontend pinta el producto
         —no una imagen—, en minúsculas y guion medio. Es **opcional**, y solo un
         `UPGRADE_MEMBRESIA` puede llevarlo: en un `BOT` se rechaza (`RN-PM-016`).
+
+        `videoUrl` es **la dirección de un video** que presenta el producto —no
+        el video—. Es **opcional y vale en los dos tipos**, sin la condición
+        del icono. Se comprueba **solo la forma**: una URL absoluta `http` o
+        `https`, sin espacios y de hasta 500 caracteres; lo demás se rechaza
+        con `VAL-017`. **El sistema no sigue el enlace** —no comprueba que el
+        video exista ni lo descarga—, y lo guarda **tal cual se escribió**,
+        recortado y sin normalizar nada más. Ausente o nulo significan lo
+        mismo: no tiene video. **Al revés que el precio de compra, sale en las
+        cuatro lecturas**, el hotlink sin token incluido (`RN-PM-032`).
 
         La vigencia es opcional en los dos tipos: sin ella, lo adquirido no caduca.
 
@@ -1610,6 +1626,132 @@ paths:
           description: El producto ya estaba retirado (`EX-002`)
         "500":
           description: Fallo no controlado (`ERR-500`)
+  /api/v1/products/{id}/comments:
+    get:
+      tags:
+      - Reseñas
+      summary: Consultar las reseñas de un producto
+      description: |
+        Devuelve, **sin token**, las reseñas vivas de un producto, paginadas y de la más
+        reciente a la más antigua. **Es público por decisión** (`RF-PM-012`): la pantalla
+        del hotlink las necesita y no tiene con qué autenticarse.
+
+        **Del autor solo viaja su nombre y apellido** (`RN-PM-030`): ni identificador, ni
+        nombre de usuario, ni correo, ni estado, ni roles. Es la segunda ruta pública del
+        sistema que publica el nombre de una persona, después del hotlink, y hereda sus dos
+        decisiones.
+
+        **La misma respuesta con token que sin él.** No marca cuál reseña es la de quien
+        llama; para eso está `GET .../comments/mine`.
+
+        **El `404` es uniforme**: producto inexistente, inactivo, retirado o identificador
+        mal formado responden **el mismo cuerpo** (`RN-PM-028`). Un anónimo no debe poder
+        saber si un identificador corresponde a un producto en preparación.
+
+        `updatedAt` distinto de `createdAt` significa «corregida»; no hay campo aparte.
+
+        **El texto NO está saneado**: escápelo al pintarlo.
+
+        Acotada por origen: 120 por minuto sobre la familia `/api/v1/products/*/comments`.
+      operationId: list
+      parameters:
+      - name: id
+        in: path
+        description: Identificador del producto (UUID)
+        required: true
+        schema:
+          type: string
+      - name: page
+        in: query
+        required: false
+        schema:
+          type: integer
+          format: int32
+      - name: size
+        in: query
+        required: false
+        schema:
+          type: integer
+          format: int32
+      responses:
+        "200":
+          description: Página de reseñas vivas del producto.
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/PageResponseProductCommentPublicItem"
+        "400":
+          description: Paginación inválida (`VAL-003` de `shared/pagination`)
+        "404":
+          description: "El producto no existe, está inactivo, está retirado o el identificador\
+            \ está mal formado (`EX-001`) — el mismo cuerpo en los cuatro casos"
+        "429":
+          description: Límite de tasa por origen superado
+    post:
+      tags:
+      - Reseñas
+      summary: Reseñar un producto
+      description: |
+        Registra **la** reseña de quien llama sobre un producto: una puntuación entera de
+        1 a 5 y un texto de 1 a 1000 caracteres, **las dos obligatorias** (`RN-PM-025`).
+
+        **El autor sale del token.** El cuerpo no admite campo de persona: un `userId`
+        es un campo desconocido y se rechaza con `400`. No existe forma de reseñar en
+        nombre de otro.
+
+        **Una por persona y producto, entre las vivas** (`RN-PM-026`). La segunda sobre el
+        mismo producto responde `409` mientras la primera siga viva; quien cambie de
+        opinión la corrige (`PATCH .../comments/{commentId}`). Retirada la suya, puede
+        escribir otra.
+
+        **Solo se reseña lo que se puede comprar** (`RN-PM-028`): un producto activo y no
+        retirado. **El `404` no distingue** entre inexistente, inactivo y retirado — quien
+        reseña es un cliente y ve la oferta, que tampoco distingue.
+
+        **Un decimal en la puntuación se rechaza, no se redondea**, y una cadena tampoco es
+        una puntuación: los dos responden `400`.
+
+        Desde la primera reseña escrita, las cuatro lecturas del producto publican
+        `rating` con el promedio (dos decimales, **nulo** sin reseñas) y la cantidad de
+        reseñas **vivas** (`RN-PM-031`).
+
+        **El texto se guarda tal cual y NO se sanea.** La lista es pública: el front debe
+        escaparlo al pintarlo.
+      operationId: create
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateProductCommentRequest"
+        required: true
+      responses:
+        "201":
+          description: "Reseña registrada. Sin autor: quien la recibe es quien la\
+            \ escribió."
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/ProductCommentResponse"
+        "400":
+          description: "Identificador mal formado (`VAL-001`), puntuación ausente\
+            \ (`VAL-002`) o fuera de 1..5 (`VAL-003`), texto vacío (`VAL-004`) o de\
+            \ más de 1000 caracteres (`VAL-005`), o campos no admitidos en el cuerpo\
+            \ (`VAL-006`)"
+        "401":
+          description: Token ausente o inválido (`AUTH-001`)
+        "403":
+          description: Autenticado sin el permiso `products:comment` (`AUTH-002`)
+        "404":
+          description: "El producto no existe, está inactivo o está retirado (`EX-001`)"
+        "409":
+          description: Quien llama ya tiene una reseña viva sobre este producto (`EX-002`)
   /api/v1/movements:
     post:
       tags:
@@ -3378,6 +3520,10 @@ paths:
         compra solo se ve aquí y en el listado: la oferta y el hotlink no lo
         devuelven.
 
+        Trae **`videoUrl`**, la dirección del video que presenta el producto,
+        **tal cual se guardó** y **presente y nula** cuando no tiene
+        (`RN-PM-032`) — también en un producto retirado.
+
         **Un producto retirado se devuelve marcado como tal**, no como
         inexistente: `deletedAt` dice desde cuándo y `deletionReason` **por
         qué**. Los dos campos **solo aparecen si el producto está retirado** —
@@ -3430,14 +3576,15 @@ paths:
       - Productos
       summary: Corregir un producto
       description: |
-        Corrige el **nombre**, la **descripción**, el **icono**, **los dos
-        precios**, la **moneda**, la **vigencia**, el **alcance** y la
-        **implementación**. Se aplica lo que llega y se deja intacto lo que
-        no.
+        Corrige el **nombre**, la **descripción**, el **icono**, el **enlace
+        del video**, **los dos precios**, la **moneda**, la **vigencia**, el
+        **alcance** y la **implementación**. Se aplica lo que llega y se deja
+        intacto lo que no.
 
         **Distingue el campo ausente del enviado vacío**, y de ahí salen dos
         comportamientos opuestos: `description: null`, `icon: null`,
-        `validityDays: null` y `purchasePrice: null` **vacían** el campo,
+        `videoUrl: null`, `validityDays: null` y `purchasePrice: null`
+        **vacían** el campo,
         mientras que `name: null` y `price: null` se **rechazan**, porque un
         producto sin nombre o sin precio del sistema no puede existir.
 
@@ -3462,6 +3609,13 @@ paths:
         **El icono sí se corrige, aunque el tipo no**: es el aspecto del
         producto y no lo que otorga. En un `BOT`, cualquier valor distinto de
         nulo se rechaza con `VAL-013` (`RN-PM-016`).
+
+        **`videoUrl` se corrige y se vacía en los DOS tipos** —con `null` o
+        con `""`, que aquí también es un vaciado— y sin la condición del
+        icono (`RN-PM-032`). Se comprueba **solo la forma** —URL absoluta
+        `http` o `https`, sin espacios, hasta 500 caracteres— y lo demás se
+        rechaza con `VAL-009` **sin aplicar ningún otro cambio** de la misma
+        petición. Se guarda tal cual, recortado, y el sistema no lo sigue.
 
         **El tipo, el código y la membresía destino NO se pueden corregir**, y
         enviarlos devuelve `400` con `VAL-006`. Se rechazan y no se ignoran:
@@ -3583,6 +3737,115 @@ paths:
           description: Ya hay otro upgrade activo hacia esa membresía destino (`EX-002`)
         "500":
           description: Fallo no controlado (`ERR-500`)
+  /api/v1/products/{id}/comments/{commentId}:
+    delete:
+      tags:
+      - Reseñas
+      summary: Retirar la reseña propia
+      description: |
+        Retira lógicamente la reseña de quien llama, **sin motivo y sin cuerpo**. Es la
+        primera baja de una entidad de negocio del sistema que no pide `reason`: el
+        Art. V.13 admite desde el 14-09-2026 el **contenido propio** como excepción, porque
+        el único «por qué» posible —su autor ya no la quiere ahí— está en el propio evento.
+        El registro de eliminación se escribe igual, con la instantánea y un motivo fijo.
+
+        Por eso es un `DELETE` y no un `POST /deletion`: el retiro del producto usa `POST`
+        porque su cuerpo lleva el motivo, y aquí no hay cuerpo que proteger. Un cuerpo, si
+        llega, se ignora.
+
+        **Solo el autor** (`RN-PM-027`), sin excepción: el superadministrador recibe `403`
+        sobre una ajena. **No existe moderación.**
+
+        **Retirar dos veces responde `404`**, no `409`: la reseña retirada no la devuelve
+        nadie, de modo que «retirada» y «no existe» son lo mismo. Retirada la suya, la
+        persona puede escribir otra, y el promedio del producto la deja de contar en el
+        acto.
+      operationId: delete
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      - name: commentId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      responses:
+        "204":
+          description: Reseña retirada.
+        "400":
+          description: Identificador mal formado (`VAL-001`)
+        "401":
+          description: Token ausente o inválido (`AUTH-001`)
+        "403":
+          description: "Autenticado sin el permiso `products:comment` (`AUTH-002`),\
+            \ o **con él pero sin ser el autor** (`EX-002`)"
+        "404":
+          description: "La reseña no existe, ya está retirada o no es del producto\
+            \ de la ruta (`EX-001`)"
+    patch:
+      tags:
+      - Reseñas
+      summary: Corregir la reseña propia
+      description: |
+        Corrige la puntuación, el texto o los dos. **Lo que no viene no cambia**, y
+        **ningún campo admite el nulo explícito**: los dos son obligatorios. Un cuerpo sin
+        ningún campo responde `400`, como en la edición del producto.
+
+        **Solo el autor** (`RN-PM-027`). El permiso `products:comment` habilita la operación;
+        ser el autor la autoriza, y son dos cosas distintas: un administrador con el
+        permiso corrige las suyas y recibe `403` en las ajenas. **No existe moderación.**
+
+        Primero «existe» (`404`) y después «es tuya» (`403`). Una reseña **retirada**
+        responde `404` también a su autor: no se revive corrigiendo. La reseña debe ser
+        **del producto de la ruta**; si no, `404`.
+
+        **Se corrige aunque el producto ya no se venda.** Un cuerpo cuyos valores
+        coinciden con los guardados responde `200` sin escribir nada y sin avanzar
+        `updatedAt`.
+      operationId: update
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      - name: commentId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateProductCommentRequest"
+      responses:
+        "200":
+          description: "La reseña corregida, con `updatedAt` avanzado si algo cambió\
+            ."
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/ProductCommentResponse"
+        "400":
+          description: "Identificador mal formado (`VAL-001`), puntuación nula o fuera\
+            \ de 1..5 (`VAL-002`, `VAL-003`), texto nulo, vacío o largo (`VAL-004`),\
+            \ campos no admitidos (`VAL-006`) o cuerpo sin ningún campo (`VAL-005`)"
+        "401":
+          description: Token ausente o inválido (`AUTH-001`)
+        "403":
+          description: "Autenticado sin el permiso `products:comment` (`AUTH-002`),\
+            \ o **con él pero sin ser el autor** (`EX-002`)"
+        "404":
+          description: "La reseña no existe, está retirada o no es del producto de\
+            \ la ruta (`EX-001`)"
   /api/v1/currencies/{id}/status:
     patch:
       tags:
@@ -3998,6 +4261,43 @@ paths:
           description: Token ausente o inválido (`AUTH-001`)
         "500":
           description: Fallo no controlado (`ERR-500`)
+  /api/v1/products/{id}/comments/mine:
+    get:
+      tags:
+      - Reseñas
+      summary: Consultar la reseña propia sobre un producto
+      description: |
+        Devuelve **la** reseña viva de quien llama sobre el producto, con su identificador —
+        que es lo que la corrección y el retiro reciben en la ruta—. **No admite parámetro
+        de persona**: responde sobre quien llama y sobre nadie más.
+
+        **El `404` no dice nada del producto**: responde igual si quien llama no ha
+        reseñado, si retiró la suya o si el producto no existe. Y **sí responde** sobre un
+        producto inactivo o retirado cuando la reseña existe: el autor tiene que poder
+        llegar a la suya para corregirla o retirarla (`RN-PM-028`).
+      operationId: mine
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      responses:
+        "200":
+          description: La reseña de quien llama.
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/ProductCommentResponse"
+        "400":
+          description: Identificador mal formado (`VAL-001`)
+        "401":
+          description: Token ausente o inválido (`AUTH-001`)
+        "403":
+          description: Autenticado sin el permiso `products:comment` (`AUTH-002`)
+        "404":
+          description: Quien llama no tiene reseña viva sobre este producto (`EX-001`)
   /api/v1/products/available:
     get:
       tags:
@@ -4040,6 +4340,12 @@ paths:
 
         **Bots: todos los activos, para cualquiera.** No dependen del nivel de
         quien mira ni de que tenga uno.
+
+        **Cada producto trae `videoUrl`**, la dirección del video que lo
+        presenta, tal cual se guardó y **presente y nula** cuando no tiene
+        (`RN-PM-032`). Es lo contrario del precio de compra: material de
+        venta, que existe para que lo vea quien compra, y por eso **sí** viaja
+        por aquí.
 
         **Publica `scope` e `implementation` de cada producto y NO filtra por
         ninguno de los dos.** El alcance no puede filtrar aquí: `HOTLINKS`
@@ -4148,7 +4454,7 @@ paths:
         Los tres filtros son opcionales y ninguno se valida: un valor que no
         corresponda a ningún permiso produce una colección vacía, no un error.
         Los parámetros de paginación no se admiten y se ignoran.
-      operationId: list
+      operationId: list_1
       parameters:
       - name: request
         in: query
@@ -4465,6 +4771,14 @@ paths:
         público. Entre el 08-09-2026 y el 12-09-2026 viajó también
         `publicPrice`, cuando ese importe era lo que se anunciaba; ese campo
         **ya no existe**. **La conversión se calcula sobre `price`.**
+
+        **Viene `videoUrl`, y sin token** (`RN-PM-032`): la dirección del video
+        que presenta el producto, **tal cual la escribió administración** y
+        **presente y nula** cuando no tiene. El sistema no la sigue ni la
+        valida más allá de su forma: un enlace roto se publica igual. Es la
+        única columna opcional del producto que este endpoint trae y el
+        precio de compra no — el costo enseñaría el margen; el video existe
+        para que lo vean.
 
         **La conversión es INFORMATIVA**: lo que se cobra no es ese número. Una
         venta va en una sola moneda y congela su importe al registrarse; esta
@@ -5795,6 +6109,8 @@ components:
           type: string
         icon:
           type: string
+        videoUrl:
+          type: string
         validityDays:
           type: integer
           format: int32
@@ -5806,6 +6122,8 @@ components:
           $ref: "#/components/schemas/CurrencyRef"
         exchange:
           $ref: "#/components/schemas/ExchangeRef"
+        rating:
+          $ref: "#/components/schemas/RatingSummary"
     UserRateProductsResponse:
       type: object
       properties:
@@ -5960,6 +6278,8 @@ components:
           type: string
           maxLength: 50
           minLength: 0
+        videoUrl:
+          type: string
         sourceMembershipId:
           type: string
           format: uuid
@@ -6033,6 +6353,8 @@ components:
           type: string
         icon:
           type: string
+        videoUrl:
+          type: string
         sourceMembership:
           $ref: "#/components/schemas/MembershipRef"
         targetMembership:
@@ -6063,12 +6385,22 @@ components:
           enum:
           - ACTIVO
           - INACTIVO
+        rating:
+          $ref: "#/components/schemas/RatingSummary"
         createdAt:
           type: string
           format: date-time
         updatedAt:
           type: string
           format: date-time
+    RatingSummary:
+      type: object
+      properties:
+        average:
+          type: number
+        count:
+          type: integer
+          format: int64
     TargetCurrency:
       type: object
       properties:
@@ -6082,6 +6414,44 @@ components:
       properties:
         reason:
           type: string
+    CreateProductCommentRequest:
+      type: object
+      properties:
+        rating:
+          type: integer
+          format: int32
+          description: "Puntuación entera de 1 a 5. Un decimal se rechaza, no se redondea."
+          maximum: 5
+          minimum: 1
+        comment:
+          type: string
+          description: "El texto de la reseña, de 1 a 1000 caracteres sin contar los\
+            \ espacios de los extremos. Se guarda tal cual y NO se sanea: el front\
+            \ debe escaparlo al pintarlo, porque la lista es pública."
+          maxLength: 1000
+      required:
+      - comment
+      - rating
+    ProductCommentResponse:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        productId:
+          type: string
+          format: uuid
+        rating:
+          type: integer
+          format: int32
+        comment:
+          type: string
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
     RegisterSaleRequest:
       type: object
       properties:
@@ -6788,6 +7158,8 @@ components:
           $ref: "#/components/schemas/PatchableString"
         icon:
           $ref: "#/components/schemas/PatchableString"
+        videoUrl:
+          $ref: "#/components/schemas/PatchableString"
         price:
           $ref: "#/components/schemas/PatchableBigDecimal"
         purchasePrice:
@@ -6827,6 +7199,8 @@ components:
           type: string
         icon:
           type: string
+        videoUrl:
+          type: string
         sourceMembership:
           $ref: "#/components/schemas/MembershipRef"
         targetMembership:
@@ -6857,6 +7231,8 @@ components:
           enum:
           - ACTIVO
           - INACTIVO
+        rating:
+          $ref: "#/components/schemas/RatingSummary"
         createdAt:
           type: string
           format: date-time
@@ -6876,6 +7252,16 @@ components:
           minLength: 1
       required:
       - status
+    UpdateProductCommentRequest:
+      type: object
+      properties:
+        rating:
+          $ref: "#/components/schemas/PatchableInteger"
+          description: "Puntuación nueva, entera de 1 a 5. No admite nulo."
+        comment:
+          $ref: "#/components/schemas/PatchableString"
+          description: "Texto nuevo, de 1 a 1000 caracteres tras recortar. No admite\
+            \ nulo."
     ChangeCurrencyStatusRequest:
       type: object
       properties:
@@ -7201,6 +7587,8 @@ components:
           type: string
         icon:
           type: string
+        videoUrl:
+          type: string
         sourceMembership:
           $ref: "#/components/schemas/MembershipRef"
         targetMembership:
@@ -7231,6 +7619,8 @@ components:
           enum:
           - ACTIVO
           - INACTIVO
+        rating:
+          $ref: "#/components/schemas/RatingSummary"
         createdAt:
           type: string
           format: date-time
@@ -7260,6 +7650,53 @@ components:
           type: boolean
         sort:
           type: string
+    Author:
+      type: object
+      properties:
+        firstName:
+          type: string
+        lastName:
+          type: string
+    PageResponseProductCommentPublicItem:
+      type: object
+      properties:
+        content:
+          type: array
+          items:
+            $ref: "#/components/schemas/ProductCommentPublicItem"
+        totalElements:
+          type: integer
+          format: int64
+        totalPages:
+          type: integer
+          format: int32
+        page:
+          type: integer
+          format: int32
+        size:
+          type: integer
+          format: int32
+        totalIsExact:
+          type: boolean
+    ProductCommentPublicItem:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        rating:
+          type: integer
+          format: int32
+        comment:
+          type: string
+        author:
+          $ref: "#/components/schemas/Author"
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
     OfferItem:
       type: object
       properties:
@@ -7278,6 +7715,8 @@ components:
         description:
           type: string
         icon:
+          type: string
+        videoUrl:
           type: string
         targetMembership:
           $ref: "#/components/schemas/MembershipRef"
@@ -7300,6 +7739,8 @@ components:
           enum:
           - AUTOMATICA
           - MANUAL
+        rating:
+          $ref: "#/components/schemas/RatingSummary"
     OfferResponse:
       type: object
       properties:

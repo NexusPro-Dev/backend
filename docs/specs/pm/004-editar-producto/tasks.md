@@ -9,7 +9,7 @@
 | Autor | Responsable técnico |
 | Aprobadas por | Responsable del proyecto |
 | Fecha de aprobación | 26-08-2026 |
-| Enmendadas | 28-08-2026 — `T-16` por el icono corregible; 07-09-2026 — `T-17` y `T-18` por el **alcance** y la **implementación**; 08-09-2026 — `T-19` a `T-21` por el **precio público**; 12-09-2026 — `T-22` porque el segundo precio es el **de compra** |
+| Enmendadas | 28-08-2026 — `T-16` por el icono corregible; 07-09-2026 — `T-17` y `T-18` por el **alcance** y la **implementación**; 08-09-2026 — `T-19` a `T-21` por el **precio público**; 12-09-2026 — `T-22` porque el segundo precio es el **de compra**; 14-09-2026 — `T-23` por el **enlace del video** |
 
 ---
 
@@ -39,6 +39,7 @@
 | `T-20` | El paso 5 reescrito: **los dos importes finales** medidos contra la **moneda final**, con el `field` del que no cabe | `T-19` | `CA-PM-157`, y la prueba que lo destapa: cambiar **solo la moneda** con un precio público ya guardado que no cabe en la nueva. **Sin esta tarea el defecto no falla** — guarda un importe que `RN-PM-007` prohíbe | **Hecha el 08-09-2026** |
 | `T-21` | Documentación OpenAPI del campo corregible y **vaciable**, y de que `price` no lo es | `T-19`, `T-20` | El contrato distingue los dos: uno admite `null` y el otro lo rechaza | **Hecha el 08-09-2026** |
 | `T-22` | **El segundo precio es el de compra**: `purchasePrice` sustituye a `publicPrice` en `UpdateProductRequest`, en `UpdateProductService` —validación, paso 5 y `field` de los errores— y en el diff de `Product.update` (`purchase_price`); la prosa de la `@Operation` deja de decir «se anuncia» y dice que es donde se guarda lo que costó | `RF-PM-001 · T-38` | `CA-PM-153` a `CA-PM-157` con el nombre nuevo, en `ProductUpdateIT`. Enviar `publicPrice` es `400` por propiedad desconocida | **Hecha el 12-09-2026** |
+| `T-23` | **El enlace del video, corregible y vaciable** (`plan.md` §4): `Patchable<String> videoUrl` en `UpdateProductRequest` —contando en `informaAlgo`—, en `Product.update` con `normalizarEnlaceDeVideo` y `VAL-009`, y `video_url` en el diff de auditoría; la prosa de la `@Operation` lo suma a lo que se vacía | `T-22` | `CA-PM-225` a `CA-PM-227` en `ProductUpdateIT`. **El contrato regenerado declara `videoUrl` en el cuerpo del `PATCH`** | **Hecha el 14-09-2026** |
 
 ## 2. Orden de ejecución
 
@@ -63,6 +64,7 @@
 | `CA-PM-119` a `CA-PM-122` | `T-17`, `T-18` |
 | `CA-PM-153` a `CA-PM-156` | `T-19`, `T-22` |
 | `CA-PM-157` | `T-20`, `T-22` |
+| `CA-PM-225` a `CA-PM-227` | `T-23` |
 
 ## 4. Bloqueos
 

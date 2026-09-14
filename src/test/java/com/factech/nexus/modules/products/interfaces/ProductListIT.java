@@ -499,6 +499,26 @@ class ProductListIT extends IntegrationTestBase {
         .andExpect(jsonPath("$.content[0]").value(org.hamcrest.Matchers.hasKey("purchasePrice")));
   }
 
+  @Test
+  @DisplayName("`CA-PM-223` — cada fila trae `videoUrl` tal cual, y nulo y presente en los que no")
+  void cadaFilaTraeElVideo() throws Exception {
+    jdbc.update(
+        "UPDATE products SET video_url = 'https://vimeo.com/123456' WHERE code = 'UPGRADE_ORO'");
+
+    mvc.perform(listado().param("targetMembershipId", oro.toString()))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.content[0].code").value("UPGRADE_ORO"))
+        .andExpect(jsonPath("$.content[0].videoUrl").value("https://vimeo.com/123456"));
+
+    // Sin video, el campo va PRESENTE con nulo: «no tiene video» es un estado,
+    // y un campo que falta no puede decirlo.
+    mvc.perform(listado().param("targetMembershipId", plata.toString()))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.content[0].code").value("UPGRADE_PLATA"))
+        .andExpect(jsonPath("$.content[0].videoUrl").doesNotExist())
+        .andExpect(jsonPath("$.content[0]").value(Matchers.hasKey("videoUrl")));
+  }
+
   private MockHttpServletRequestBuilder listado() {
     return get("/api/v1/products")
         .with(user(UUID.randomUUID().toString()).authorities(() -> "products:read"));

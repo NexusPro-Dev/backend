@@ -66,6 +66,14 @@ public class HotlinkController {
           `publicPrice`, cuando ese importe era lo que se anunciaba; ese campo
           **ya no existe**. **La conversión se calcula sobre `price`.**
 
+          **Viene `videoUrl`, y sin token** (`RN-PM-032`): la dirección del video
+          que presenta el producto, **tal cual la escribió administración** y
+          **presente y nula** cuando no tiene. El sistema no la sigue ni la
+          valida más allá de su forma: un enlace roto se publica igual. Es la
+          única columna opcional del producto que este endpoint trae y el
+          precio de compra no — el costo enseñaría el margen; el video existe
+          para que lo vean.
+
           **La conversión es INFORMATIVA**: lo que se cobra no es ese número. Una
           venta va en una sola moneda y congela su importe al registrarse; esta
           conversión se calcula al vuelo, cambia el día que cambie la tasa y **no

@@ -55,6 +55,12 @@ public record RegisterProductRequest(
     @Size(max = 1000, message = "VAL-003: La descripción no puede exceder 1000 caracteres.")
         String description,
     @Size(max = 50, message = "VAL-012: El icono no puede exceder 50 caracteres.") String icon,
+    // SIN anotación de forma, y es deliberado: `@URL` admite cualquier esquema y
+    // no distingue una relativa, y `@Pattern` no puede decir «hasta 500» sin
+    // repetir el tope. La forma la comprueba el dominio, en un sitio y con un
+    // mensaje (`VAL-017`), como hace con el icono. Opcional en los DOS tipos;
+    // ausente y nulo significan lo mismo: no tiene video (`RN-PM-032`).
+    String videoUrl,
     // NINGUNA DE LAS DOS LLEVA `@NotNull`, y es deliberado: su obligatoriedad
     // depende del TIPO (`RN-PM-002`), que Bean Validation no puede mirar sin una
     // restricción de clase. La comprueba el dominio, que es donde vive la regla
@@ -103,6 +109,7 @@ public record RegisterProductRequest(
     name = name == null ? null : name.trim();
     description = description == null ? null : description.trim();
     icon = icon == null ? null : icon.trim();
+    videoUrl = videoUrl == null ? null : videoUrl.trim();
   }
 
   public RegisterProductCommand toCommand() {
@@ -112,6 +119,7 @@ public record RegisterProductRequest(
         name,
         description,
         icon,
+        videoUrl,
         sourceMembershipId,
         targetMembershipId,
         price,

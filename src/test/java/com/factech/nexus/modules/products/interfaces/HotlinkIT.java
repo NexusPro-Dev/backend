@@ -237,6 +237,37 @@ class HotlinkIT extends IntegrationTestBase {
   }
 
   @Test
+  @DisplayName("`CA-PM-229` — el hotlink publica `videoUrl` sin token, tal cual, y sin el costo")
+  void elVideoViajaSinToken() throws Exception {
+    // Sin video: presente y nulo, también sin token.
+    String sinVideo =
+        mvc.perform(get("/api/v1/hotlinks/{u}/{c}", "hl-vendedora", "HL_BOT"))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.product.videoUrl").doesNotExist())
+            .andReturn()
+            .getResponse()
+            .getContentAsString();
+    assertThat(sinVideo).contains("\"videoUrl\":null");
+
+    // Con video y con costo declarado: viaja el primero TAL CUAL —la dirección
+    // que administración escribió, sin seguirla— y el segundo no. Es la única
+    // pareja de columnas opcionales que esta lectura separa (`pm.md` §5.2.8).
+    jdbc.update(
+        "UPDATE products SET purchase_price = 30.00,"
+            + " video_url = 'https://Vimeo.com/123456/' WHERE code = 'HL_BOT'");
+
+    String cuerpo =
+        mvc.perform(get("/api/v1/hotlinks/{u}/{c}", "hl-vendedora", "HL_BOT"))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.product.videoUrl").value("https://Vimeo.com/123456/"))
+            .andExpect(jsonPath("$.product.purchasePrice").doesNotExist())
+            .andReturn()
+            .getResponse()
+            .getContentAsString();
+    assertThat(cuerpo).doesNotContain("purchasePrice").doesNotContain("30.00");
+  }
+
+  @Test
   @DisplayName("`CA-PM-163` — el precio de compra NO aparece en el cuerpo, bajo ningún nombre")
   void elPrecioDeCompraNoViajaSinToken() throws Exception {
     jdbc.update(

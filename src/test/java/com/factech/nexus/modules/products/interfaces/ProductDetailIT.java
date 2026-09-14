@@ -224,6 +224,30 @@ class ProductDetailIT extends IntegrationTestBase {
   }
 
   @Test
+  @DisplayName("`CA-PM-224` — el detalle devuelve `videoUrl`, nulo y presente sin él, y retirado")
+  void elDetalleTraeElVideo() throws Exception {
+    mvc.perform(detalle(bot))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.videoUrl").doesNotExist())
+        .andExpect(content().string(Matchers.containsString("\"videoUrl\":null")));
+
+    // Tal cual se guardó: ni minúsculas ni barra final.
+    jdbc.update(
+        "UPDATE products SET video_url = 'https://Vimeo.com/123456/' WHERE id = CAST(? AS uuid)",
+        bot.toString());
+    mvc.perform(detalle(bot))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.videoUrl").value("https://Vimeo.com/123456/"));
+
+    // Y en uno retirado sigue legible, como el resto de su configuración.
+    retirar(bot, "Se descontinúa el servicio.");
+    mvc.perform(detalle(bot))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.deletedAt").exists())
+        .andExpect(jsonPath("$.videoUrl").value("https://Vimeo.com/123456/"));
+  }
+
+  @Test
   @DisplayName("el precio de una moneda de CERO decimales llega sin parte decimal")
   void precioEnMonedaSinDecimales() throws Exception {
     String pesos = monedaSinDecimales();

@@ -3,7 +3,7 @@
 | Campo | Valor |
 |---|---|
 | Requerimiento | `RF-PM-003` |
-| Enmendadas | 02-09-2026 — el detalle resuelve **las dos** membresías; 07-09-2026 — `T-13` por el **alcance** y la **implementación**; 08-09-2026 — `T-15` por el **precio público**; 12-09-2026 — `T-18` porque el segundo precio es el **de compra** |
+| Enmendadas | 02-09-2026 — el detalle resuelve **las dos** membresías; 07-09-2026 — `T-13` por el **alcance** y la **implementación**; 08-09-2026 — `T-15` por el **precio público**; 12-09-2026 — `T-18` porque el segundo precio es el **de compra**; 14-09-2026 — `T-19` por el **enlace del video** |
 | Plan | [`plan.md`](plan.md), aprobado el 26-08-2026 |
 | Estado | **Aprobadas** |
 | Autor | Responsable técnico |
@@ -34,6 +34,7 @@
 | `T-18` | **El segundo precio es el de compra**: `purchasePrice` sustituye a `publicPrice` en `ProductDetailResponse` y en el `SELECT` del detalle; la conversión se calcula **sobre `price`**; la prosa de la `@Operation` deja de decir «se anuncia» | `RF-PM-001 · T-38` | `CA-PM-152` y `CA-PM-166` con el nombre nuevo. `ProductDetailIT` comprueba `purchasePrice` presente y nulo | **Hecha el 12-09-2026** |
 | `T-16` | **La conversión en el detalle**: el mismo resolutor que el listado (`RF-PM-002 · T-21`), con una sola moneda | `RF-PM-002 · T-21` | `CA-PM-166`: llega presente y nula cuando el producto ya está en la moneda de casa o cuando no hay tasa vigente | **Hecha el 08-09-2026** |
 | `T-17` | **Actualizar `GetProductServiceIT`**: el detalle pasa de **una** sentencia a **tres** | `T-16` | El criterio de esa prueba **no cambia** —el motivo de retiro no se consulta en un producto vivo—; cambia el número, y se actualiza en vez de relajar la prueba | **Hecha el 08-09-2026** |
+| `T-19` | **El enlace del video en el detalle** (`RF-PM-001` `T-39` trae la columna): `videoUrl` en el `SELECT` del detalle y en `ProductDetailResponse`; y la prosa de la `@Operation` lo nombra | `T-18` | `CA-PM-224` en `ProductDetailIT`. **El contrato regenerado declara `videoUrl` en `ProductDetailResponse`** | **Hecha el 14-09-2026** |
 
 ## 2. Orden de ejecución
 
@@ -58,6 +59,7 @@ El resto es rutina y depende de `RF-PM-001` y `RF-PM-002`.
 | `CA-PM-118` | `T-13` |
 | `CA-PM-143` | `T-14` |
 | `CA-PM-152` | `T-15`, `T-18` |
+| `CA-PM-224` | `T-19` |
 
 ## 4. Bloqueos
 

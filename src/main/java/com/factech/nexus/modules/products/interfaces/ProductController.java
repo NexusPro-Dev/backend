@@ -106,6 +106,16 @@ public class ProductController {
           —no una imagen—, en minúsculas y guion medio. Es **opcional**, y solo un
           `UPGRADE_MEMBRESIA` puede llevarlo: en un `BOT` se rechaza (`RN-PM-016`).
 
+          `videoUrl` es **la dirección de un video** que presenta el producto —no
+          el video—. Es **opcional y vale en los dos tipos**, sin la condición
+          del icono. Se comprueba **solo la forma**: una URL absoluta `http` o
+          `https`, sin espacios y de hasta 500 caracteres; lo demás se rechaza
+          con `VAL-017`. **El sistema no sigue el enlace** —no comprueba que el
+          video exista ni lo descarga—, y lo guarda **tal cual se escribió**,
+          recortado y sin normalizar nada más. Ausente o nulo significan lo
+          mismo: no tiene video. **Al revés que el precio de compra, sale en las
+          cuatro lecturas**, el hotlink sin token incluido (`RN-PM-032`).
+
           La vigencia es opcional en los dos tipos: sin ella, lo adquirido no caduca.
 
           `scope` e `implementation` son **obligatorios y en los dos tipos**, y
@@ -186,6 +196,10 @@ public class ProductController {
           convierte—. Llega **presente y nula** cuando el producto ya está en
           esa moneda o cuando nadie declaró una tasa: eso **no es un error** y
           el producto se devuelve igual.
+
+          Cada fila trae también **`videoUrl`**, la dirección del video que
+          presenta el producto, **tal cual se guardó** y **presente y nula**
+          cuando no tiene (`RN-PM-032`). **No es un filtro.**
 
           Solo se puede ordenar por la lista blanca —`name`, `price`,
           `createdAt`—, con `,asc` o `,desc`. **`purchasePrice` no está en
@@ -293,6 +307,12 @@ public class ProductController {
           **Bots: todos los activos, para cualquiera.** No dependen del nivel de
           quien mira ni de que tenga uno.
 
+          **Cada producto trae `videoUrl`**, la dirección del video que lo
+          presenta, tal cual se guardó y **presente y nula** cuando no tiene
+          (`RN-PM-032`). Es lo contrario del precio de compra: material de
+          venta, que existe para que lo vea quien compra, y por eso **sí** viaja
+          por aquí.
+
           **Publica `scope` e `implementation` de cada producto y NO filtra por
           ninguno de los dos.** El alcance no puede filtrar aquí: `HOTLINKS`
           incluye `TIENDA`, de modo que los dos valores llegan a esta vista y un
@@ -370,6 +390,10 @@ public class ProductController {
           compra solo se ve aquí y en el listado: la oferta y el hotlink no lo
           devuelven.
 
+          Trae **`videoUrl`**, la dirección del video que presenta el producto,
+          **tal cual se guardó** y **presente y nula** cuando no tiene
+          (`RN-PM-032`) — también en un producto retirado.
+
           **Un producto retirado se devuelve marcado como tal**, no como
           inexistente: `deletedAt` dice desde cuándo y `deletionReason` **por
           qué**. Los dos campos **solo aparecen si el producto está retirado** —
@@ -429,14 +453,15 @@ public class ProductController {
       summary = "Corregir un producto",
       description =
           """
-          Corrige el **nombre**, la **descripción**, el **icono**, **los dos
-          precios**, la **moneda**, la **vigencia**, el **alcance** y la
-          **implementación**. Se aplica lo que llega y se deja intacto lo que
-          no.
+          Corrige el **nombre**, la **descripción**, el **icono**, el **enlace
+          del video**, **los dos precios**, la **moneda**, la **vigencia**, el
+          **alcance** y la **implementación**. Se aplica lo que llega y se deja
+          intacto lo que no.
 
           **Distingue el campo ausente del enviado vacío**, y de ahí salen dos
           comportamientos opuestos: `description: null`, `icon: null`,
-          `validityDays: null` y `purchasePrice: null` **vacían** el campo,
+          `videoUrl: null`, `validityDays: null` y `purchasePrice: null`
+          **vacían** el campo,
           mientras que `name: null` y `price: null` se **rechazan**, porque un
           producto sin nombre o sin precio del sistema no puede existir.
 
@@ -461,6 +486,13 @@ public class ProductController {
           **El icono sí se corrige, aunque el tipo no**: es el aspecto del
           producto y no lo que otorga. En un `BOT`, cualquier valor distinto de
           nulo se rechaza con `VAL-013` (`RN-PM-016`).
+
+          **`videoUrl` se corrige y se vacía en los DOS tipos** —con `null` o
+          con `""`, que aquí también es un vaciado— y sin la condición del
+          icono (`RN-PM-032`). Se comprueba **solo la forma** —URL absoluta
+          `http` o `https`, sin espacios, hasta 500 caracteres— y lo demás se
+          rechaza con `VAL-009` **sin aplicar ningún otro cambio** de la misma
+          petición. Se guarda tal cual, recortado, y el sistema no lo sigue.
 
           **El tipo, el código y la membresía destino NO se pueden corregir**, y
           enviarlos devuelve `400` con `VAL-006`. Se rechazan y no se ignoran:

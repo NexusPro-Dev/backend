@@ -13,6 +13,7 @@
 | Enmendada el | 08-09-2026 — **los DOS precios se publican** al reescribirse `RN-PM-024`; `CA-PM-163` se retira y nace `CA-PM-169`. Ver §15 |
 | Enmendada el | 12-09-2026 — **el segundo precio es el de COMPRA y SALE del hotlink** (`RN-PM-024`, reescrita por tercera vez): `publicPrice` desaparece, `CA-PM-163` vuelve y `CA-PM-169` se invierte de vuelta. Ver §15 |
 | Enmendada el | 14-09-2026 — **el producto del hotlink trae `rating` **sin token**: es del producto, no de la persona ni del costo** (`RN-PM-031`, `RF-PM-009`). Ver §15 |
+| Enmendada el | 14-09-2026 — **el producto del hotlink trae `videoUrl`, sin token**: la dirección que administración escribió, tal cual (`RN-PM-032`). Ver §15 |
 
 ---
 
@@ -60,6 +61,7 @@ Que **un enlace repartido por un vendedor abra una pantalla**: qué se vende, cu
 | `RN-PM-021` | **El hotlink solo publica lo activo y de alcance `HOTLINKS`** | `requirements/pm.md` §5.1 |
 | `RN-PM-022` | **De la persona solo el nombre, y solo si es fuerza comercial** | `requirements/pm.md` §5.1 |
 | `RN-PM-024` | **El precio de compra no sale de administración; el precio y la conversión salen en toda lectura** (reescrita el 12-09-2026) — y aquí pesa más que en ninguna otra, porque es **sin token** | `requirements/pm.md` §5.1 |
+| `RN-PM-032` | **Un producto puede enlazar un video, y el enlace sale en toda lectura** — también aquí, **sin token**: es material de venta, no un costo, y lo que se acepta al publicarlo está en `pm.md` §5.2.8 | `requirements/pm.md` §5.1 |
 | `RN-SP-032` | Dos tasas vigentes del mismo par no se solapan | `requirements/sp.md` §5.2 |
 
 **`RN-SP-032` es la que hace que «la tasa vigente» sea una y no varias.** Sin ella esta consulta tendría que elegir entre dos precios simultáneos para el mismo cambio, y elegiría el que el índice listara primero.
@@ -82,7 +84,7 @@ Que **un enlace repartido por un vendedor abra una pantalla**: qué se vende, cu
 | Dato | Descripción |
 |---|---|
 | Vendedor | **Nombre y apellido**, y nada más |
-| Producto | Código, tipo, nombre, descripción, icono, vigencia en días |
+| Producto | Código, tipo, nombre, descripción, icono, **el enlace del video**, vigencia en días |
 | Precio | **UN importe en la moneda del producto** (`RN-PM-024`, reescrita el 12-09-2026): `price`, el que se cobra. **El precio de compra no viaja ni se selecciona**: es lo que NEXUS paga por el producto, y este es el último sitio del sistema donde puede aparecer el margen. Entre el 08-09-2026 y el 12-09-2026 viajaron dos, cuando el segundo era lo que se anunciaba |
 | Conversión | La moneda de destino, **la tasa aplicada** y el **importe convertido**. **Vacía y presente** cuando no hay conversión que hacer. **Se calcula sobre `price`**, que es el único importe que se enseña |
 | Membresía destino | **Solo en los upgrades**: código, nombre y **color**. **Vacía y presente en los bots**, que no llevan ninguna |
@@ -194,6 +196,7 @@ Que **un enlace repartido por un vendedor abra una pantalla**: qué se vende, cu
 | `CA-PM-161` | El sistema publica **un importe**: `price`, el que se cobra, con los decimales de su moneda, **tenga o no** el producto precio de compra declarado |
 | `CA-PM-162` | El sistema calcula la **conversión sobre `price`**: el importe convertido dividido por la tasa devuelve `price`, **también** en un producto con precio de compra declarado |
 | `CA-PM-163` | La respuesta **no lleva** el precio de compra en ningún campo, ni como `purchasePrice` ni como `publicPrice`, aunque el producto lo tenga declarado — **retirado el 08-09-2026 y REPUESTO el 12-09-2026**, cuando el segundo importe pasó a ser el costo |
+| `CA-PM-229` | La respuesta lleva **`videoUrl`** sin token, **tal cual se guardó**, y **presente y nulo** cuando el producto no lo declara — y sigue sin llevar `purchasePrice` |
 | ~~`CA-PM-169`~~ | ~~El sistema publica los dos importes **sin token**~~ — **retirado el 12-09-2026**: su prueba **se invierte de vuelta** y es la de `CA-PM-163`. Se conserva la fila para que quede escrito que se invirtió dos veces, y por qué |
 
 ## 13. Casos límite
@@ -230,3 +233,4 @@ Que **un enlace repartido por un vendedor abra una pantalla**: qué se vende, cu
 | 0.4.0 | 08-09-2026 | **Los dos precios se publican, y `CA-PM-163` se retira.** Decisión del responsable del proyecto sobre la advertencia de lo que cuesta ([`requirements/pm.md`](../../../requirements/pm.md) v0.22.0 §5.2.5): `RN-PM-024` se reescribe y este endpoint pasa de publicar **un** importe a publicar **los dos** —`price` y `publicPrice`, este último **nulo** cuando el producto no lo declara—. `CA-PM-161` cambia de sentido, `CA-PM-162` conserva el suyo —la conversión sigue calculándose sobre **el importe que se muestra**, no sobre los dos— y **`CA-PM-163` muere**: exigía que el precio del sistema no apareciera, y ahora aparece a propósito; su prueba no se borra sino que **se invierte**, porque lo que hay que dejar comprobado es que la fuga es deliberada y no un descuido. Nace `CA-PM-169`, que la nombra: **sin token, cualquiera resta un importe del otro**. Es el criterio más incómodo de la tripleta y por eso está escrito. | Responsable del proyecto |
 | 0.5.0 | 12-09-2026 | **El segundo precio pasa a ser el de COMPRA y sale del hotlink**, por decisión del responsable del proyecto ([`requirements/pm.md`](../../../requirements/pm.md) v0.23.0 §5.2.6). Cuando el segundo importe era lo que se anunciaba, publicarlo sin token era una decisión de forma que se tomó sobre aviso (0.4.0); ahora que es **lo que NEXUS paga**, es el margen, y **precisamente porque este endpoint es público** es el último sitio donde puede aparecer. `ProductRef` **pierde `publicPrice`**, `findPublishedByCode` **deja de seleccionar** el segundo importe, y la conversión se calcula **sobre `price`**. `CA-PM-161` y `CA-PM-162` se reescriben, **`CA-PM-163` vuelve** —la ausencia, ahora del costo— y `CA-PM-169` se retira: su prueba **se invierte de vuelta**, que es la segunda inversión de la misma prueba en cuatro días, y queda escrito para que la tercera se decida sabiéndolo. **Ningún costo llegó a publicarse**: lo que este endpoint devolvió entre el 08-09-2026 y hoy era el rótulo. | Responsable del proyecto |
 | 0.6.0 | 14-09-2026 | **Entra `rating` en la respuesta** —el promedio y la cantidad de reseñas vivas del producto— por `RN-PM-031` ([`requirements/pm.md`](../../../requirements/pm.md) v0.24.0 §5.2.7): el producto del hotlink trae `rating` **sin token**: es del producto, no de la persona ni del costo. Enmienda de Art. I.7 declarada por el plan de [`RF-PM-009`](../009-resenar-producto/plan.md) §4.1 y construida por sus tareas `T-10` y `T-11`; los criterios que la prueban son `CA-PM-180` a `CA-PM-182` de aquella tripleta. **El promedio no se guarda en `products`**: se cuenta, por un `LEFT JOIN LATERAL` sobre el índice parcial de `product_comments`, para que ninguna copia pueda quedarse atrás. | Responsable del proyecto |
+| 0.7.0 | 14-09-2026 | **El producto del hotlink trae `videoUrl`, sin token** (`RN-PM-032`, [`requirements/pm.md`](../../../requirements/pm.md) v0.27.0 §5.2.8): la dirección que administración escribió, **tal cual**, presente y nula cuando no hay. El sistema no la sigue ni la valida más allá de su forma, y lo que eso significa en una ruta pública queda escrito en el módulo. Nace `CA-PM-229`. Enmienda de Art. I.7. | Responsable del proyecto |

@@ -52,6 +52,17 @@ public class Product {
    */
   private static final Pattern PATRON_ICONO = Pattern.compile("^[a-z][a-z0-9-]*$");
 
+  /**
+   * Una URL absoluta {@code http} o {@code https} sin espacios (`RN-PM-032`).
+   *
+   * <p>Es la misma expresión que {@code ck_products_video_url_format}, para que lo que el dominio
+   * admite y lo que el esquema admite sean exactamente lo mismo. <b>Comprueba la forma y nada
+   * más</b>: que el enlace resuelva a algo no es cosa del sistema (`pm.md` §5.2.8).
+   */
+  private static final Pattern PATRON_ENLACE_DE_VIDEO = Pattern.compile("^https?://\\S+$");
+
+  private static final int LARGO_MAXIMO_ENLACE_DE_VIDEO = 500;
+
   @Id
   @Column(name = "id", nullable = false, updatable = false)
   private UUID id;
@@ -81,6 +92,19 @@ public class Product {
    */
   @Column(name = "icon", length = 50)
   private String icon;
+
+  /**
+   * La dirección de un video que presenta el producto (`RN-PM-032`).
+   *
+   * <p><b>Es una dirección, no un archivo</b>, por el mismo camino que el icono es un nombre y no
+   * una imagen. Y el sistema <b>no la sigue</b>: comprueba que tiene forma de enlace y nada más.
+   *
+   * <p><b>En los dos tipos y opcional</b>, sin la condición cruzada del icono. Nulo significa «no
+   * tiene video». <b>Al revés que el precio de compra, sale en las cuatro lecturas</b>, hotlink sin
+   * token incluido: es material de venta, no un costo.
+   */
+  @Column(name = "video_url", length = 500)
+  private String videoUrl;
 
   /**
    * Identificador y no una asociación {@code @ManyToOne}: apunta a una tabla de otro módulo, y una
@@ -217,6 +241,7 @@ public class Product {
       String name,
       String description,
       String icon,
+      String videoUrl,
       UUID sourceMembershipId,
       UUID targetMembershipId,
       BigDecimal price,
@@ -236,6 +261,8 @@ public class Product {
     verificarTipoYMembresias(type, sourceMembershipId, targetMembershipId);
     producto.icon = normalizarIcono(icon);
     verificarTipoEIcono(type, producto.icon);
+    // Sin `verificarTipo…` que lo acompañe: el video vale en los dos tipos.
+    producto.videoUrl = normalizarEnlaceDeVideo(videoUrl, "VAL-017");
     producto.sourceMembershipId = sourceMembershipId;
     producto.targetMembershipId = targetMembershipId;
     producto.price = price;
@@ -315,6 +342,7 @@ public class Product {
       Patchable<String> nuevoNombre,
       Patchable<String> nuevaDescripcion,
       Patchable<String> nuevoIcono,
+      Patchable<String> nuevoEnlaceDeVideo,
       Patchable<BigDecimal> nuevoPrecio,
       Patchable<BigDecimal> nuevoPrecioDeCompra,
       Patchable<UUID> nuevaMoneda,
@@ -348,6 +376,17 @@ public class Product {
       if (!java.util.Objects.equals(valor, icon)) {
         cambios.put("icon", Map.of("before", texto(icon), "after", texto(valor)));
         icon = valor;
+      }
+    }
+    if (nuevoEnlaceDeVideo.presente()) {
+      // Como el icono: el nulo explícito Y la cadena vacía son un vaciado, y
+      // por eso se normaliza antes de mirar si cambió. Sin condición de tipo:
+      // el video vale en un bot y en un upgrade (`RN-PM-032`). El código es el
+      // de la corrección (`RF-PM-004` §11) y no el del alta.
+      String valor = normalizarEnlaceDeVideo(nuevoEnlaceDeVideo.valor(), "VAL-009");
+      if (!java.util.Objects.equals(valor, videoUrl)) {
+        cambios.put("video_url", Map.of("before", texto(videoUrl), "after", texto(valor)));
+        videoUrl = valor;
       }
     }
     if (nuevoPrecio.presente() && nuevoPrecio.valor() != null) {
@@ -524,6 +563,8 @@ public class Product {
     // cuando no se conoce — `LinkedHashMap` sí lo admite, al revés que
     // `Map.of`. Los eventos anteriores al 12-09-2026 llevan `public_price`.
     estado.put("purchase_price", purchasePrice == null ? null : purchasePrice.toPlainString());
+    // Nulo cuando no hay video; los eventos anteriores al 14-09-2026 no lo llevan.
+    estado.put("video_url", videoUrl);
     estado.put("currency_id", currencyId.toString());
     estado.put("validity_days", validityDays);
     estado.put("status", status.name());
@@ -669,6 +710,40 @@ public class Product {
   }
 
   /**
+   * Recorta y comprueba la forma del enlace del video (`RN-PM-032`), <b>y no normaliza nada
+   * más</b>.
+   *
+   * <p>Ni mayúsculas, ni barra final, ni parámetros: lo que se guarda es lo que se escribió, porque
+   * un enlace que el sistema «arregla» puede dejar de resolver — un identificador de video
+   * distingue mayúsculas. En eso se aparta del icono, que sí se pasa a minúsculas.
+   *
+   * <p><b>El vacío se convierte en nulo y no se rechaza</b>, como en el icono: quien envía {@code
+   * ""} está vaciando el enlace, no enviando uno con forma inválida.
+   *
+   * <p><b>Nada sigue el enlace.</b> Comprobar que resuelve obligaría a salir a Internet en cada
+   * alta y cada corrección (`pm.md` §5.2.8).
+   *
+   * @param codigo el código de validación de la operación que llama: `VAL-017` en el alta
+   *     (`RF-PM-001` §11) y `VAL-009` en la corrección (`RF-PM-004` §11). Es la misma comprobación
+   *     con el número que cada especificación le dio
+   */
+  private static String normalizarEnlaceDeVideo(String valor, String codigo) {
+    String recortado = recortar(valor);
+    if (recortado == null) {
+      return null;
+    }
+    if (recortado.length() > LARGO_MAXIMO_ENLACE_DE_VIDEO
+        || !PATRON_ENLACE_DE_VIDEO.matcher(recortado).matches()) {
+      String mensaje =
+          "El enlace del video debe ser una dirección absoluta http o https, sin espacios y de"
+              + " hasta 500 caracteres.";
+      throw new ValidationException(
+          codigo, mensaje, List.of(new FieldError("videoUrl", codigo, mensaje)));
+    }
+    return recortado;
+  }
+
+  /**
    * Recorta espacios al inicio y al final.
    *
    * <p>Sin este recorte, {@code "Plan Oro "} y {@code "Plan Oro"} serían dos nombres distintos para
@@ -704,6 +779,11 @@ public class Product {
 
   public String getIcon() {
     return icon;
+  }
+
+  /** La dirección del video que presenta el producto. Nulo: no tiene (`RN-PM-032`). */
+  public String getVideoUrl() {
+    return videoUrl;
   }
 
   public UUID getTargetMembershipId() {

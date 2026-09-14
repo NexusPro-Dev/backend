@@ -14,6 +14,7 @@
 | Enmendada el | 08-09-2026 — **cada fila trae los DOS precios** (`RN-PM-023`, `RN-PM-024`). Ver §15 |
 | Enmendada el | 12-09-2026 — **el segundo precio es el de COMPRA** (`RN-PM-023`, `RN-PM-024`): `purchasePrice` sustituye a `publicPrice`, y la conversión se calcula siempre sobre `price`. Ver §15 |
 | Enmendada el | 14-09-2026 — **cada fila trae `rating` —promedio y cantidad de reseñas vivas— **en la misma sentencia**, y el número de consultas no sube** (`RN-PM-031`, `RF-PM-009`). Ver §15 |
+| Enmendada el | 14-09-2026 — **cada fila trae `videoUrl`, el enlace del video** (`RN-PM-032`), presente y nulo cuando no hay. Ver §15 |
 
 ---
 
@@ -61,6 +62,7 @@ Con `RF-PM-001` se puede **crear** un producto y no **verlo**: quien administra 
 | `RN-PM-023` | **El precio de compra es opcional y no se cobra** — es lo que NEXUS paga por el producto | `requirements/pm.md` §5.1 |
 | `RN-PM-024` | **El precio de compra no sale de administración; el precio y la conversión salen en toda lectura** — este listado es una de las dos lecturas que lo devuelven | `requirements/pm.md` §5.1 |
 | `RN-PM-024` | **El precio del sistema no sale de administración** — y este listado **es** administración | `requirements/pm.md` §5.1 |
+| `RN-PM-032` | **Un producto puede enlazar un video, y el enlace sale en toda lectura** — cada fila lo trae, presente y nulo cuando no hay | `requirements/pm.md` §5.1 |
 
 ## 6. Datos
 
@@ -85,7 +87,7 @@ Con `RF-PM-001` se puede **crear** un producto y no **verlo**: quien administra 
 
 | Dato | Descripción |
 |---|---|
-| Productos | Identificador, tipo, nombre, descripción, **icono**, **los dos precios** con su moneda, **vigencia en días**, estado y —en los upgrades— la membresía destino con su nombre y su nivel |
+| Productos | Identificador, tipo, nombre, descripción, **icono**, **el enlace del video**, **los dos precios** con su moneda, **vigencia en días**, estado y —en los upgrades— la membresía destino con su nombre y su nivel |
 | Los dos precios | El **del sistema** —el que se cobra— y el **de compra** —lo que NEXUS paga por el producto—, este **presente y nulo** cuando no se conoce (`RN-PM-023`). **Este listado y el detalle son los dos únicos sitios donde se pueden ver juntos**, y por eso exigen `products:read`: la oferta y el hotlink **no devuelven** el de compra, porque es el margen (`RN-PM-024`, 12-09-2026) |
 | Alcance e implementación | En **todas** las filas y en los dos tipos: hasta dónde se muestra el producto y quién aplica lo que otorga |
 | Marca de retiro | En los retirados, que lo están y desde cuándo |
@@ -168,6 +170,7 @@ Con `RF-PM-001` se puede **crear** un producto y no **verlo**: quien administra 
 | `CA-PM-151` | Cada fila devuelve **los dos precios**: el del sistema siempre, y el de compra —`purchasePrice`— **presente y nulo** en los productos que no lo conocen |
 | `CA-PM-164` | Cada fila devuelve la **conversión** a la moneda por omisión —moneda, tasa e importe—, calculada **sobre `price`** —el de compra nunca se convierte—, y **presente y nula** cuando el producto ya está en esa moneda o cuando no hay tasa vigente |
 | `CA-PM-165` | El sistema resuelve la conversión de una página **sin una consulta por fila**: la moneda por omisión una vez y las tasas de todas las monedas presentes en una sola sentencia |
+| `CA-PM-223` | Cada fila devuelve **`videoUrl`** tal cual se guardó, y **presente y nulo** en los productos que no lo declaran |
 
 ## 13. Casos límite
 
@@ -204,3 +207,4 @@ Ninguna. Las cuatro se resolvieron el 26-08-2026, antes de aprobar la especifica
 | 0.7.0 | 08-09-2026 | **Cada fila trae además la CONVERSIÓN** (`RN-PM-024`, reescrita el mismo día): moneda por omisión, tasa aplicada e importe convertido, **presente y nulo** cuando no hay nada que convertir. Los dos precios ya venían de 0.6.0; lo que entra ahora es la conversión, que hasta hoy **solo existía en el hotlink** — de modo que el catálogo enseñaba importes en monedas distintas sin nada que los hiciera comparables. Nacen dos criterios y **el segundo es el que importa**: `CA-PM-164` mide el dato y **`CA-PM-165` mide el coste**. Un listado que resuelva la conversión por fila devuelve **exactamente el mismo cuerpo** con cuarenta consultas que con dos, de modo que ninguna prueba de API lo distingue; se mide contando sentencias, como ya se hace con los `JOIN` de esta misma consulta. El diseño está en [`plan.md` §4.1](plan.md) y lo comparten `RF-PM-003`, `RF-PM-007` y `RF-PM-008`. | Responsable del proyecto |
 | 0.8.0 | 12-09-2026 | **El segundo precio pasa a ser el de COMPRA**, por decisión del responsable del proyecto (`requirements/pm.md` v0.23.0 §5.2.6): lo que NEXUS paga por el producto. `purchasePrice` **sustituye** a `publicPrice` en cada fila, con la misma forma —presente y nulo cuando no se conoce—. **Este listado vuelve a ser uno de los dos únicos sitios donde se ven los dos importes**, y ahora el motivo es más fuerte que el 08-09-2026: el segundo es el margen. **La conversión se calcula siempre sobre `price`** (`CA-PM-164` reescrito): el costo no se compara con la moneda de casa. El orden por el segundo precio sigue fuera, con el argumento reescrito — ya no es que no responda ninguna pregunta, es que la columna admite nulos. | Responsable del proyecto |
 | 0.9.0 | 14-09-2026 | **Entra `rating` en la respuesta** —el promedio y la cantidad de reseñas vivas del producto— por `RN-PM-031` ([`requirements/pm.md`](../../../requirements/pm.md) v0.24.0 §5.2.7): cada fila trae `rating` —promedio y cantidad de reseñas vivas— **en la misma sentencia**, y el número de consultas no sube. Enmienda de Art. I.7 declarada por el plan de [`RF-PM-009`](../009-resenar-producto/plan.md) §4.1 y construida por sus tareas `T-10` y `T-11`; los criterios que la prueban son `CA-PM-180` a `CA-PM-182` de aquella tripleta. **El promedio no se guarda en `products`**: se cuenta, por un `LEFT JOIN LATERAL` sobre el índice parcial de `product_comments`, para que ninguna copia pueda quedarse atrás. | Responsable del proyecto |
+| 0.10.0 | 14-09-2026 | **Cada fila trae `videoUrl`, el enlace del video** (`RN-PM-032`, [`requirements/pm.md`](../../../requirements/pm.md) v0.27.0 §5.2.8), presente y nulo cuando no hay. **No es un filtro** y no cuesta ninguna consulta: se selecciona en la misma sentencia. Nace `CA-PM-223`. Enmienda de Art. I.7. | Responsable del proyecto |

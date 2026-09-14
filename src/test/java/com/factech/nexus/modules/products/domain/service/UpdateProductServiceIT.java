@@ -98,6 +98,7 @@ class UpdateProductServiceIT extends IntegrationTestBase {
             Patchable.ausente(),
             Patchable.ausente(),
             Patchable.ausente(),
+            Patchable.ausente(),
             Patchable.ausente()));
 
     // El nombre llega, pero es el mismo: no hay nada contra lo que chocar, y no
@@ -143,6 +144,7 @@ class UpdateProductServiceIT extends IntegrationTestBase {
             Patchable.ausente(),
             Patchable.ausente(),
             Patchable.ausente(),
+            Patchable.ausente(),
             Patchable.de(new BigDecimal("99.99")),
             Patchable.ausente(),
             Patchable.ausente(),
@@ -175,6 +177,7 @@ class UpdateProductServiceIT extends IntegrationTestBase {
         Patchable.ausente(),
         Patchable.ausente(),
         Patchable.ausente(),
+        Patchable.ausente(),
         Patchable.ausente());
   }
 
@@ -182,6 +185,7 @@ class UpdateProductServiceIT extends IntegrationTestBase {
     return new UpdateProductRequest(
         Patchable.ausente(),
         Patchable.de(descripcion),
+        Patchable.ausente(),
         Patchable.ausente(),
         Patchable.ausente(),
         Patchable.ausente(),

@@ -119,6 +119,7 @@ public class UpdateProductService {
             peticion.name(),
             peticion.description(),
             peticion.icon(),
+            peticion.videoUrl(),
             peticion.price(),
             peticion.purchasePrice(),
             peticion.currencyId(),

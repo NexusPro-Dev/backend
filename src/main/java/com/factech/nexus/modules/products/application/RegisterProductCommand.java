@@ -16,6 +16,9 @@ import java.util.UUID;
  *     es bot
  * @param targetMembershipId a cuál lleva. Mismas condiciones
  * @param icon identificador del icono; opcional en el upgrade y prohibido en el bot (`RN-PM-016`)
+ * @param videoUrl la dirección de un video que presenta el producto; opcional en los dos tipos y
+ *     {@code null} cuando no tiene. Es un enlace, no un archivo, y el sistema no lo sigue
+ *     (`RN-PM-032`)
  * @param purchasePrice lo que NEXUS paga por el producto cuando tiene que comprarlo; {@code null}
  *     significa que no se conoce, y <b>no</b> que costara cero (`RN-PM-023`). No se cobra y no sale
  *     de administración (`RN-PM-024`)
@@ -29,6 +32,7 @@ public record RegisterProductCommand(
     String name,
     String description,
     String icon,
+    String videoUrl,
     UUID sourceMembershipId,
     UUID targetMembershipId,
     BigDecimal price,

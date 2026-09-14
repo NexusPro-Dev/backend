@@ -122,6 +122,7 @@ public class RegisterProductService {
                 comando.name(),
                 comando.description(),
                 comando.icon(),
+                comando.videoUrl(),
                 comando.sourceMembershipId(),
                 comando.targetMembershipId(),
                 comando.price(),

@@ -40,6 +40,7 @@ public record ProductItem(
     String name,
     String description,
     String icon,
+    String videoUrl,
     ProductResponse.MembershipRef sourceMembership,
     ProductResponse.MembershipRef targetMembership,
     BigDecimal price,
@@ -69,6 +70,8 @@ public record ProductItem(
         fila.name(),
         fila.description(),
         fila.icon(),
+        // El enlace del video, tal cual y nulo presente cuando no hay (`CA-PM-223`).
+        fila.videoUrl(),
         fila.sourceMembershipId() == null
             ? null
             : new ProductResponse.MembershipRef(
