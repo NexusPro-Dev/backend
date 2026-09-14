@@ -6520,6 +6520,7 @@
             "description" : "Límite de tasa por origen superado"
           }
         },
+        "security" : [ ],
         "summary" : "Consultar las reseñas de un producto",
         "tags" : [ "Reseñas" ]
       },

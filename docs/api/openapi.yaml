@@ -1687,6 +1687,7 @@ paths:
             \ está mal formado (`EX-001`) — el mismo cuerpo en los cuatro casos"
         "429":
           description: Límite de tasa por origen superado
+      security: []
     post:
       tags:
       - Reseñas

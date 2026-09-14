@@ -5,7 +5,7 @@
 | Módulo | `PM` — Productos y Mercadeo |
 | Paquete | `modules/products` |
 | Prefijos de permiso | `products:` |
-| Versión | 0.27.0 |
+| Versión | 0.28.0 |
 | Estado | **Borrador** |
 | Responsable | Bonilla Diaz William Steven |
 | Fecha de creación | 26-08-2026 |
@@ -493,11 +493,11 @@ No se copian: se referencian, porque dos copias de una regla acaban divergiendo.
 | `RF-PM-006` | Eliminar producto | Media | `products:delete` | **En desarrollo** |
 | `RF-PM-007` | Consultar la oferta disponible para uno mismo | Alta | `products:sale` | **En desarrollo** |
 | `RF-PM-008` | Consultar un hotlink: producto y vendedor, sin autenticación | Alta | **Público** | **En desarrollo** |
-| `RF-PM-009` | Reseñar un producto | Alta | `products:comment` | **Tasks en revisión** |
-| `RF-PM-010` | Corregir la reseña propia | Media | `products:comment` | **Tasks en revisión** |
-| `RF-PM-011` | Retirar la reseña propia | Media | `products:comment` | **Tasks en revisión** |
-| `RF-PM-012` | Consultar las reseñas de un producto, sin autenticación | Alta | **Público** | **Tasks en revisión** |
-| `RF-PM-013` | Consultar la reseña propia sobre un producto | Media | `products:comment` | **Tasks en revisión** |
+| `RF-PM-009` | Reseñar un producto | Alta | `products:comment` | **En desarrollo** |
+| `RF-PM-010` | Corregir la reseña propia | Media | `products:comment` | **En desarrollo** |
+| `RF-PM-011` | Retirar la reseña propia | Media | `products:comment` | **En desarrollo** |
+| `RF-PM-012` | Consultar las reseñas de un producto, sin autenticación | Alta | **Público** | **En desarrollo** |
+| `RF-PM-013` | Consultar la reseña propia sobre un producto | Media | `products:comment` | **En desarrollo** |
 
 **Prioridades:** Crítica · Alta · Media · Baja.
 **Estados:** los de [`requirements.md` §4](../requirements.md#4-matriz-de-trazabilidad), que es su autoridad.
@@ -701,7 +701,7 @@ Devuelve, en **una** llamada y **sin token**, el producto que el enlace señala 
 | Reglas aplicables | `RN-PM-025`, `RN-PM-026`, `RN-PM-028`, `RN-PM-031` |
 | Depende de | `RF-PM-001` |
 | Tripleta | `docs/specs/pm/009-resenar-producto/` |
-| Estado | **Tasks en revisión** (14-09-2026) |
+| Estado | **En desarrollo** (14-09-2026) |
 
 Registra **la** reseña del actor sobre un producto: puntuación entera de uno a cinco y texto de uno a mil caracteres, las dos obligatorias (`RN-PM-025`). Responde sobre quien llama y sobre nadie más —el autor sale del token, no del cuerpo—, y **rechaza la segunda** sobre el mismo producto mientras la primera siga viva (`RN-PM-026`): quien quiera cambiar de opinión corrige. Solo se reseña un producto **activo y no retirado** (`RN-PM-028`).
 
@@ -718,7 +718,7 @@ Registra **la** reseña del actor sobre un producto: puntuación entera de uno a
 | Reglas aplicables | `RN-PM-025`, `RN-PM-027` |
 | Depende de | `RF-PM-009` |
 | Tripleta | `docs/specs/pm/010-corregir-resena-propia/` |
-| Estado | **Tasks en revisión** (14-09-2026) |
+| Estado | **En desarrollo** (14-09-2026) |
 
 Corrige la puntuación, el texto o los dos, **solo si quien llama es el autor** (`RN-PM-027`): con el permiso y sin ser el autor, `403`. Una reseña ajena no se distingue de la propia en la respuesta —el `403` dice «no es tuya», y eso es lo único que dice—. **Se corrige aunque el producto ya no se venda**: la reseña sobrevive al retiro del producto (`RN-PM-028`), y lo que se escribió sigue siendo del autor.
 
@@ -733,7 +733,7 @@ Corrige la puntuación, el texto o los dos, **solo si quien llama es el autor** 
 | Reglas aplicables | `RN-PM-027`, `RN-PM-029`, `RN-PM-031` |
 | Depende de | `RF-PM-009` |
 | Tripleta | `docs/specs/pm/011-retirar-resena-propia/` |
-| Estado | **Tasks en revisión** (14-09-2026) |
+| Estado | **En desarrollo** (14-09-2026) |
 
 Retira lógicamente la reseña **sin motivo declarado** (`RN-PM-029`, tercera excepción del Art. V.13): es la primera eliminación de una entidad de negocio del sistema que no pide `reason`, y por eso es un `DELETE` sin cuerpo y no un `POST /deletion` — la razón por la que el retiro del producto es un `POST` es que el cuerpo lleva el motivo, y aquí no hay motivo que llevar. El registro de eliminación se escribe igual, con la instantánea y un motivo fijo. Solo el autor (`RN-PM-027`). Retirada la suya, la persona puede escribir otra (`RN-PM-026`), y el promedio del producto la deja de contar en el acto (`RN-PM-031`).
 
@@ -748,7 +748,7 @@ Retira lógicamente la reseña **sin motivo declarado** (`RN-PM-029`, tercera ex
 | Reglas aplicables | `RN-PM-028`, `RN-PM-030` |
 | Depende de | `RF-PM-009` |
 | Tripleta | `docs/specs/pm/012-consultar-resenas-producto/` |
-| Estado | **Tasks en revisión** (14-09-2026) |
+| Estado | **En desarrollo** (14-09-2026) |
 
 Devuelve las reseñas **vivas** de un producto, **paginadas** y de la más reciente a la más antigua, con la puntuación, el texto, las fechas de escritura y de última corrección, y **del autor solo nombre y apellido** (`RN-PM-030`). Responde solo sobre un producto **activo y no retirado**, y lo demás recibe el `404` uniforme del hotlink (`RN-PM-028`). **La misma respuesta con token que sin él**, y por eso no marca cuál es la del actor: para eso está `RF-PM-013`. Es la **segunda ruta pública del módulo**, y entra en la cota de tasa de los catálogos públicos, no en la del hotlink: aquí no hay nombres que sondear.
 
@@ -763,7 +763,7 @@ Devuelve las reseñas **vivas** de un producto, **paginadas** y de la más recie
 | Reglas aplicables | `RN-PM-026`, `RN-PM-027` |
 | Depende de | `RF-PM-009` |
 | Tripleta | `docs/specs/pm/013-consultar-resena-propia/` |
-| Estado | **Tasks en revisión** (14-09-2026) |
+| Estado | **En desarrollo** (14-09-2026) |
 
 Devuelve **la** reseña viva del actor sobre un producto —una, por `RN-PM-026`— con su identificador, que es lo que las dos escrituras necesitan. **No admite parámetro de persona**: responde sobre quien llama, como `RF-PM-007` y `RF-SP-039`. Sin reseña propia responde `404`, y ese `404` **no dice nada del producto**: lo dice igual si el producto no existe, porque a quien pregunta «¿ya opiné?» la respuesta es la misma. **Sí responde sobre un producto inactivo o retirado** cuando la reseña existe: el autor tiene que poder llegar a la suya para corregirla o retirarla (`RN-PM-028`).
 ## 7. Requerimientos no funcionales
@@ -1016,3 +1016,4 @@ Se declaran en la base de datos, no solo en Java (Art. V.6).
 | 0.25.0 | 14-09-2026 | **Las cinco `spec.md` de las reseñas quedan redactadas** y `RF-PM-009` a `RF-PM-013` pasan a `Spec en revisión`. Cuatro decisiones de forma que las cinco comparten y que conviene revisar juntas: **el `404` del producto es uniforme** —inexistente, inactivo, retirado— tanto al reseñar como en la lista pública, porque quien reseña es un cliente y ve la oferta, que tampoco distingue; **primero «existe» (`404`) y después «es tuya» (`403`)** en la corrección y el retiro, y el `403` no revela nada porque la lista pública ya enseña la reseña con su identificador; **retirar dos veces responde `404` y no `409`**, al revés que el producto, porque la reseña retirada no la devuelve nadie; y **la lectura de la propia no consulta el producto**, de modo que cuesta una sentencia y responde sobre productos que ya no se venden — la única que le da al autor el camino a la suya. `RF-PM-009` es además el que **enmienda las cuatro lecturas** con `rating` (`RN-PM-031`), calculado en la misma sentencia para que el número de consultas de los listados no suba. Nacen `CA-PM-170` a `CA-PM-218`. §10.4 no cambia: `created_at` y `updated_at` ya estaban declaradas, y el diagrama de `modelo-datos.md` las incorpora hoy. | Responsable técnico |
 | 0.26.0 | 14-09-2026 | **Los cinco `plan.md` aprobados y las cinco `tasks.md` redactadas**: la tripleta de las reseñas está completa y `RF-PM-009` a `RF-PM-013` pasan a `Tasks en revisión`. **Cincuenta y nueve tareas.** Tres decisiones de los planes alcanzan más allá de su requerimiento: **el agregado de `rating` entra en las cuatro sentencias por un `LEFT JOIN LATERAL`** sobre el índice parcial, con el redondeo en Java y en un solo sitio, para que el número de consultas de los listados no suba (`RF-PM-009` §4.1); **el `403` de propiedad se hace después de resolver la fila y nunca filtrando por actor en la consulta**, porque eso convertiría la ajena en `404` sin que nadie lo decidiera (`RF-PM-010` §5); y **la lista pública entra en la lista por método de `SecurityConfig` y no en `RUTAS_PUBLICAS`**, con la cota de tasa contada por la familia y la política de los catálogos (`RF-PM-012` §5, §8). **Las enmiendas Art. I.7 por `rating` se aplican en este mismo pase**, y no con el código: las specs de `RF-PM-001` a `RF-PM-004`, `RF-PM-007` y `RF-PM-008` ganan su fila y su párrafo de §6.2 citando `RF-PM-009`. Orden de construcción: `009 → 012 → 013 → 010 → 011`, con `T-10` y `T-11` de `009` —la enmienda a lo ya construido— **antes** que su servicio de alta. | Responsable del proyecto |
 | 0.27.0 | 14-09-2026 | **Un producto puede enlazar un VIDEO, y el enlace sale en las cuatro lecturas.** Por decisión del responsable del proyecto, con **cuatro respuestas preguntadas antes de escribir** (§5.2.8), y las cuatro del lado más abierto: **se ve en las cuatro lecturas** —catálogo, detalle, oferta y hotlink sin token— porque es material de venta y no un costo, al revés que el precio de compra; **se valida solo la forma** —URL absoluta `http` o `https`, sin espacios, hasta 500 caracteres, de cualquier dominio— y el sistema **no sigue el enlace**: no comprueba que exista, no lo descarga, no lo incrusta; **en los dos tipos**, sin la condición cruzada del icono; y **opcional, corregible y vaciable**, sin condicionar la activación. Nace **`RN-PM-032`**. §10 gana `video_url` —`varchar(500)`, nulo cuando no hay— y `ck_products_video_url_format`, con la rama `IS NULL` delante. **`RN-PM-024` no se toca**: el enlace va a las cuatro lecturas precisamente porque no es el costo. Queda escrito lo que se acepta al publicarlo sin token: **es una dirección que alguien con `products:update` escribió, tal cual**, con el mismo trato que la descripción. Enmienda las tripletas de `RF-PM-001` a `RF-PM-004`, `RF-PM-007` y `RF-PM-008` (Art. I.7). | Responsable del proyecto |
+| 0.28.0 | 14-09-2026 | **Las reseñas quedan CONSTRUIDAS**: `V87` crea `product_comments`, `V88` siembra `products:comment`, y `RF-PM-009` a `RF-PM-013` pasan a `En desarrollo` con **58 pruebas** propias en verde (seis suites de API, una de concurrencia, `ProductRatingIT` para el promedio en las cuatro lecturas, y dos unitarias). **Tres cosas que dejó la construcción y que las tripletas ya recogen**: el cuerpo vacío de la corrección responde `400` y no `200`, alineado con `RF-PM-004` (`RF-PM-010` v0.2.0); la puntuación se deserializa con un **entero estricto**, porque Jackson convierte `4.5` en `4` por omisión y `RN-PM-025` dice que el decimal se rechaza (`RF-PM-009` v0.2.0); y `rating` entró en las cuatro sentencias por un `LEFT JOIN LATERAL` **sin que ninguna suite de lecturas cambiara de número de sentencias**. El `403` de propiedad se prueba con un administrador en la corrección y con el **superadministrador** en el retiro. Los cinco siguen sin Pull Request, como todo el módulo. | Responsable técnico |

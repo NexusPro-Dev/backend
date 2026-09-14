@@ -50,14 +50,14 @@ class PermissionIT extends IntegrationTestBase {
   }
 
   @Test
-  @DisplayName("el mapeo alcanza los cuarenta y cinco permisos del catálogo")
+  @DisplayName("el mapeo alcanza los cuarenta y seis permisos del catálogo")
   void alcanzaElCatalogoCompleto() {
     Long total =
         entityManager
             .createQuery("SELECT count(p) FROM Permission p", Long.class)
             .getSingleResult();
 
-    assertThat(total).isEqualTo(45L);
+    assertThat(total).isEqualTo(46L);
   }
 
   @Test
