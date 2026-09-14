@@ -68,6 +68,26 @@ class DevelopmentSeedIT extends IntegrationTestBase {
           "manager3");
 
   /** Cuántas de las diecinueve había ANTES de que esta clase tocara nada. */
+  /** Los dieciséis códigos de `semilla-productos.sql`, en el mismo orden que el guion. */
+  private static final List<String> PRODUCTOS =
+      List.of(
+          "UPGRADE_BECA_VIP",
+          "UPGRADE_BECA_PLATINO",
+          "UPGRADE_BECA_ORO",
+          "UPGRADE_VIP_PLATINO",
+          "UPGRADE_VIP_ORO",
+          "UPGRADE_PLATINO_ORO",
+          "RENOVAR_BECA",
+          "RENOVAR_VIP",
+          "RENOVAR_PLATINO",
+          "RENOVAR_ORO",
+          "UPGRADE_BECA_VIP_ANUAL",
+          "BOT_SENALES",
+          "BOT_COPY_TRADING",
+          "BOT_ALERTAS",
+          "BOT_PRO_ANUAL",
+          "BOT_LEGADO");
+
   private static int alArrancar = -1;
 
   @Autowired private JdbcTemplate jdbc;
@@ -94,6 +114,10 @@ class DevelopmentSeedIT extends IntegrationTestBase {
     // porque `RN-SP-018` exige que exista—, y entonces el ORO de aquí abajo, que
     // también va sin padre, chocaría con `uq_memberships_parent`. Un `ON CONFLICT
     // (id)` no lo ve: el choque no es de identificador.
+    // Y ANTES QUE LAS MEMBRESÍAS, los productos sembrados: los upgrades las
+    // referencian por clave foránea, y sin esto el DELETE de abajo fallaría.
+    // Se vuelven a sembrar en la prueba que los mira, ya con la cadena entera.
+    borrarLosProductos(jdbc);
     jdbc.update("DELETE FROM user_memberships");
     jdbc.update("DELETE FROM memberships");
     jdbc.update(
@@ -114,6 +138,7 @@ class DevelopmentSeedIT extends IntegrationTestBase {
 
   @AfterAll
   static void devolverLaBaseASuSitio(@Autowired JdbcTemplate jdbc) {
+    borrarLosProductos(jdbc);
     borrarLasDiecinueve(jdbc);
   }
 
@@ -204,6 +229,86 @@ class DevelopmentSeedIT extends IntegrationTestBase {
     // No es un detalle de comodidad: es exactamente lo que hace que este guion
     // no pueda llegar a producción. Un alta real por la API nace retenida.
     assertThat(retenidas).isZero();
+  }
+
+  @Test
+  @DisplayName("el catálogo de prueba: once upgrades con sus dos membresías resueltas y cinco bots")
+  void elCatalogoDeProductos() {
+    // La cadena entera acaba de reponerse en `@BeforeEach`, de modo que los
+    // once upgrades encuentran sus dos membresías por CÓDIGO.
+    semilla.run(null);
+
+    assertThat(cuantosProductos(jdbc)).isEqualTo(16);
+
+    List<java.util.Map<String, Object>> upgrades =
+        jdbc.queryForList(
+            """
+            SELECT p.code, o.code AS origen, d.code AS destino, p.status, p.price
+              FROM products p
+              JOIN memberships o ON o.id = p.source_membership_id
+              JOIN memberships d ON d.id = p.target_membership_id
+             WHERE p.type = 'UPGRADE_MEMBRESIA' AND p.code = ANY (?)
+            """,
+            (Object) PRODUCTOS.toArray(String[]::new));
+    assertThat(upgrades).hasSize(11);
+
+    // Un upgrade declarado DESDE cada membresía: es lo que hace que los tres
+    // clientes escalonados vean ofertas distintas (`RN-PM-011`).
+    assertThat(upgrades.stream().map(u -> u.get("origen")).distinct())
+        .containsExactlyInAnyOrder("BECA", "VIP", "PLATINO", "ORO");
+
+    // Las cuatro renovaciones, y la de BECA es el producto GRATUITO.
+    assertThat(upgrades.stream().filter(u -> u.get("origen").equals(u.get("destino"))).count())
+        .isEqualTo(4);
+    assertThat(
+            jdbc.queryForObject(
+                "SELECT price FROM products WHERE code = 'RENOVAR_BECA'",
+                java.math.BigDecimal.class))
+        .isEqualByComparingTo("0");
+
+    // Los bots no llevan membresía (`RN-PM-002`), y uno declara su precio de compra.
+    assertThat(
+            jdbc.queryForObject(
+                "SELECT count(*) FROM products WHERE type = 'BOT' AND code = ANY (?)"
+                    + " AND source_membership_id IS NULL AND target_membership_id IS NULL",
+                Integer.class,
+                (Object) PRODUCTOS.toArray(String[]::new)))
+        .isEqualTo(5);
+    assertThat(
+            jdbc.queryForObject(
+                "SELECT purchase_price FROM products WHERE code = 'BOT_PRO_ANUAL'",
+                java.math.BigDecimal.class))
+        .isEqualByComparingTo("250");
+
+    // El inactivo comparte par con un activo —el índice único es parcial— y el
+    // retirado tiene su marca: son lo que el catálogo administrativo lista y la
+    // oferta no.
+    assertThat(
+            jdbc.queryForObject(
+                "SELECT status FROM products WHERE code = 'UPGRADE_BECA_VIP_ANUAL'", String.class))
+        .isEqualTo("INACTIVO");
+    assertThat(
+            jdbc.queryForObject(
+                "SELECT deleted_at IS NOT NULL FROM products WHERE code = 'BOT_LEGADO'",
+                Boolean.class))
+        .isTrue();
+
+    // Todos los activos llevan descripción, que es lo que `RN-PM-014` exige.
+    assertThat(
+            jdbc.queryForObject(
+                "SELECT count(*) FROM products WHERE status = 'ACTIVO' AND code = ANY (?)"
+                    + " AND (description IS NULL OR btrim(description) = '')",
+                Integer.class,
+                (Object) PRODUCTOS.toArray(String[]::new)))
+        .isZero();
+  }
+
+  @Test
+  @DisplayName("el catálogo también es IDEMPOTENTE: dos arranques, dieciséis productos")
+  void elCatalogoEsIdempotente() {
+    semilla.run(null);
+    semilla.run(null);
+    assertThat(cuantosProductos(jdbc)).isEqualTo(16);
   }
 
   @Test
@@ -352,6 +457,20 @@ class DevelopmentSeedIT extends IntegrationTestBase {
             Integer.class,
             (Object) USUARIOS.toArray(String[]::new));
     return total == null ? 0 : total;
+  }
+
+  private static int cuantosProductos(JdbcTemplate jdbc) {
+    Integer filas =
+        jdbc.queryForObject(
+            "SELECT count(*) FROM products WHERE code = ANY (?)",
+            Integer.class,
+            (Object) PRODUCTOS.toArray(String[]::new));
+    return filas == null ? 0 : filas;
+  }
+
+  private static void borrarLosProductos(JdbcTemplate jdbc) {
+    jdbc.update(
+        "DELETE FROM products WHERE code = ANY (?)", (Object) PRODUCTOS.toArray(String[]::new));
   }
 
   private static void borrarLasDiecinueve(JdbcTemplate jdbc) {
