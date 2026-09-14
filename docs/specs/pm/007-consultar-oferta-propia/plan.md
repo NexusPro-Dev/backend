@@ -8,7 +8,7 @@
 | Estado | **Aprobado** |
 | Autor | Responsable técnico |
 | Aprobado por | Responsable del proyecto |
-| Enmendado el | 27-08-2026 — `RN-PM-015`; 02-09-2026 — **la oferta deja de comparar niveles**; 02-09-2026 — `products:sale`; 07-09-2026 — el **alcance** y la **implementación** en la respuesta, **sin filtro** (`RN-PM-019`, `RN-PM-020`), y **construida la coincidencia por ORIGEN** (`T-20`) con la **renovación** dentro; 08-09-2026 — **un solo importe, el que se muestra** (`RN-PM-023`, `RN-PM-024`), §4 y §5; 12-09-2026 — **el segundo precio es el de COMPRA y no se selecciona** (`RN-PM-024`), §4 y §5; 14-09-2026 — **`videoUrl` sí se selecciona y viaja** (`RN-PM-032`), §4 y §5 |
+| Enmendado el | 27-08-2026 — `RN-PM-015`; 02-09-2026 — **la oferta deja de comparar niveles**; 02-09-2026 — `products:sale`; 07-09-2026 — el **alcance** y la **implementación** en la respuesta, **sin filtro** (`RN-PM-019`, `RN-PM-020`), y **construida la coincidencia por ORIGEN** (`T-20`) con la **renovación** dentro; 08-09-2026 — **un solo importe, el que se muestra** (`RN-PM-023`, `RN-PM-024`), §4 y §5; 12-09-2026 — **el segundo precio es el de COMPRA y no se selecciona** (`RN-PM-024`), §4 y §5; 14-09-2026 — **`videoUrl` sí se selecciona y viaja** (`RN-PM-032`), §4 y §5; 14-09-2026 — **`coverImageUrl` viaja** (`RN-PM-033`), §5 |
 | Fecha de aprobación | 26-08-2026 |
 
 ---
@@ -80,6 +80,7 @@ Una sola sentencia, con la membresía del actor como parámetro:
 - **Upgrades**: solo aquellos cuyo `source_membership_id` **es** la membresía vigente del actor. Coincidencia exacta, sin comparar niveles y sin recorrer la cadena. Quien declaró el producto ya dijo a quién va dirigido.
 - **Sin membresía** —el actor no tiene ninguna vigente—: **cero upgrades** y todos los bots (`FA-001`), y **sale del propio filtro**: el nulo no coincide con ningún origen. Antes había que escribirlo aparte.
 - **Bots**: todos los activos, sin filtro (`spec.md` §14, resolución 2).
+- **Y `p.cover_image_id` también se selecciona** (14-09-2026, `RN-PM-033`, enmienda de `RF-PM-014`): `OfferItem` gana `coverImageUrl`, convertido con `ProductImageUrls.de(...)`, **presente y nulo** cuando no hay. **Nada de `product_images`** en la sentencia: la oferta devuelve la dirección y el navegador va a buscar la imagen a `RF-PM-016`, que es público — la oferta exige `products:sale` y la imagen no exige nada, y eso es lo que hace que un `<img>` funcione sin cabecera.
 - **Y `p.video_url` SÍ se selecciona** (14-09-2026, `RN-PM-032`), en la misma sentencia y sin condición nueva. Que esta consulta excluya una columna opcional y traiga otra es la línea entera de `pm.md` §5.2.8: una se esconde porque enseñaría el margen; la otra se publica porque existe para que la vean. `OfferItem` gana `videoUrl`, presente y nulo cuando no hay.
 - **Solo se selecciona `p.price`** (12-09-2026). Entre el 08-09-2026 y esa fecha la consulta seleccionaba también `p.public_price`; con el segundo importe convertido en `purchase_price` —el costo— **sale del `SELECT`**, y `ProductRow.purchasePrice` llega nulo a propósito desde esta lectura.
 

@@ -14,6 +14,7 @@
 | Enmendada el | 12-09-2026 — **el segundo precio es el de COMPRA** (`RN-PM-023`): `purchasePrice` sustituye a `publicPrice`, corregible y vaciable igual, y es **donde se guarda lo que costó**. Ver §15 |
 | Enmendada el | 14-09-2026 — **la respuesta de la edición devuelve `rating`, que la edición no toca** (`RN-PM-031`, `RF-PM-009`). Ver §15 |
 | Enmendada el | 14-09-2026 — **el enlace del video se corrige y SÍ admite vaciarse** (`RN-PM-032`), en los dos tipos. Ver §15 |
+| Enmendada el | 14-09-2026 — **el icono de un upgrade solo se vacía si hay PORTADA** (`RN-PM-034`, `RF-PM-014`); la portada no se corrige por aquí, y la respuesta gana `coverImageUrl`. Ver §15 |
 
 ---
 
@@ -67,6 +68,9 @@ Un producto se equivoca de nombre, se le escapa una falta en la descripción o c
 | `RN-PM-019` | El alcance dice hasta dónde se muestra, y **se corrige** | `requirements/pm.md` §5.1 |
 | `RN-PM-020` | La implementación dice si lo comprado se aplica solo, y **se corrige** | `requirements/pm.md` §5.1 |
 | `RN-PM-032` | Un producto puede enlazar un video — **se corrige y se vacía**, en los dos tipos, con la misma comprobación de forma que en el alta | `requirements/pm.md` §5.1 |
+| `RN-PM-034` | **Un upgrade siempre tiene con qué pintarse: portada o icono** — aquí, que **el icono de un upgrade sin portada no se vacía** | `requirements/pm.md` §5.1 |
+| `RN-PM-016` | El icono solo existe en el upgrade — sigue rechazándose en el bot, y **enmendada**: en el upgrade es obligatorio mientras no haya portada | `requirements/pm.md` §5.1 |
+| `RN-PM-033` | **La portada es un archivo** — **no se corrige por aquí**: tiene sus endpoints (`RF-PM-014`, `RF-PM-015`); la respuesta la devuelve en `coverImageUrl` | `requirements/pm.md` §5.1 |
 
 ## 6. Datos
 
@@ -77,7 +81,8 @@ Un producto se equivoca de nombre, se le escapa una falta en la descripción o c
 | Identificador del producto | Sí | Cuál se corrige | Debe existir y no estar retirado |
 | Nombre | No | Nombre nuevo | Único entre los vivos (`RN-PM-005`); **no admite vaciarse** |
 | Descripción | No | Descripción nueva | **Sí admite vaciarse**, porque es opcional |
-| Icono | No | Nombre del icono nuevo | **Sí admite vaciarse.** Solo en el upgrade: en un producto de tipo bot, cualquier valor distinto de nulo se rechaza (`RN-PM-016`) |
+| Icono | No | Nombre del icono nuevo | **Sí admite vaciarse, pero en un upgrade solo si tiene portada** (`RN-PM-034`, 14-09-2026): sin portada, el nulo y la cadena vacía se rechazan. Solo en el upgrade: en un producto de tipo bot, cualquier valor distinto de nulo se rechaza (`RN-PM-016`), y el nulo sigue siendo un vaciado sin efecto |
+| ~~Portada~~ | — | **No entra por aquí.** Es un archivo, no un campo del cuerpo JSON: se sube con `RF-PM-014` y se quita con `RF-PM-015`. Un `coverImageUrl` en el cuerpo se ignora como cualquier campo desconocido | La respuesta la devuelve, como todas las lecturas |
 | Enlace del video | No | Dirección nueva del video | **Sí admite vaciarse**, y la cadena vacía vacía igual. **En los dos tipos**, sin la condición cruzada del icono. Misma forma que en el alta: URL absoluta `http` o `https`, sin espacios, hasta 500 caracteres (`RN-PM-032`) |
 | Precio **del sistema** | No | Precio nuevo, el que se cobra | **No negativo** y con los decimales de su moneda. **NO admite vaciarse**: la columna es obligatoria, y «bórralo» no tiene ningún estado al que llevar el producto |
 | Precio **de compra** | No | Lo que NEXUS pagó por el producto | Mismas condiciones de importe. **SÍ admite vaciarse**, y ahí va con la descripción y la vigencia: su nulo es un estado legítimo —«no se conoce el costo»— de modo que el nulo explícito **es una orden** (`RN-PM-023`). **Es donde se guarda el precio cuando el producto se compra**: hoy lo escribe quien administra, con esta operación |
@@ -171,6 +176,7 @@ Un producto se equivoca de nombre, se le escapa una falta en la descripción o c
 | `VAL-007` | El alcance no admite vaciarse, y debe estar dentro del dominio | El alcance del producto es obligatorio y debe ser uno de los admitidos. |
 | `VAL-008` | La implementación no admite vaciarse, y debe estar dentro del dominio | La implementación del producto es obligatoria y debe ser una de las admitidas. |
 | `VAL-009` | Formato del enlace del video | El enlace del video debe ser una dirección absoluta http o https, sin espacios y de hasta 500 caracteres. |
+| `VAL-010` | **El icono de un upgrade sin portada no se vacía** | Un upgrade sin portada no puede quedarse sin icono: suba primero una portada. |
 
 ## 12. Criterios de aceptación
 
@@ -203,6 +209,9 @@ Un producto se equivoca de nombre, se le escapa una falta en la descripción o c
 | `CA-PM-225` | El sistema **corrige el enlace del video** —también en un producto de tipo **bot**— y el evento registra el valor anterior y el nuevo |
 | `CA-PM-226` | El sistema **vacía el enlace del video** con nulo explícito **o con cadena vacía**, el producto queda sin video, y enviar el mismo enlace que ya tenía **no registra evento** |
 | `CA-PM-227` | El sistema rechaza un enlace **sin forma de URL absoluta `http` o `https`** con `VAL-009`, nombra `videoUrl`, y **no aplica ninguno** de los demás cambios enviados |
+| `CA-PM-234` | El sistema **rechaza vaciar el icono** —nulo o cadena vacía— de un upgrade **sin portada** con `VAL-010`, nombra `icon`, y **no aplica ninguno** de los demás cambios enviados; y **corregirlo por otro** sigue admitiéndose |
+| `CA-PM-235` | El sistema **vacía el icono** de un upgrade **con portada**, y lo audita; y en un **bot**, `icon: null` sigue siendo un vaciado sin efecto y sin `VAL-010` |
+| `CA-PM-236` | La respuesta de la corrección trae **`coverImageUrl`** —la dirección cuando hay portada, nulo y presente cuando no—, y un `coverImageUrl` en el cuerpo **se ignora** sin cambiar nada |
 
 ## 13. Casos límite
 
@@ -242,3 +251,4 @@ Ninguna. Dos se resolvieron el 26-08-2026 y **las otras dos quedaron respondidas
 | 0.7.0 | 12-09-2026 | **El segundo precio pasa a ser el de COMPRA**, por decisión del responsable del proyecto (`requirements/pm.md` v0.23.0 §5.2.6): lo que NEXUS paga por el producto cuando tiene que comprarlo. `purchasePrice` **sustituye** a `publicPrice`, y **esta operación es donde hoy se registra lo que costó**: corregible y vaciable exactamente como lo era el público, porque la forma era correcta — lo que cambia es lo que significa cada estado. **El nulo pasa de «se anuncia con el del sistema» a «no se conoce el costo»**, y el cero de «gratis» a «no costó nada»; siguen siendo dos estados distintos y se siguen probando por separado (`CA-PM-154`, `CA-PM-156`). `CA-PM-153` a `CA-PM-157` cambian de nombre de campo sin cambiar de forma; §13 gana el caso del costo por encima del precio, que se admite sin aviso. | Responsable del proyecto |
 | 0.8.0 | 14-09-2026 | **Entra `rating` en la respuesta** —el promedio y la cantidad de reseñas vivas del producto— por `RN-PM-031` ([`requirements/pm.md`](../../../requirements/pm.md) v0.24.0 §5.2.7): la respuesta de la edición devuelve `rating`, que la edición no toca. Enmienda de Art. I.7 declarada por el plan de [`RF-PM-009`](../009-resenar-producto/plan.md) §4.1 y construida por sus tareas `T-10` y `T-11`; los criterios que la prueban son `CA-PM-180` a `CA-PM-182` de aquella tripleta. **El promedio no se guarda en `products`**: se cuenta, por un `LEFT JOIN LATERAL` sobre el índice parcial de `product_comments`, para que ninguna copia pueda quedarse atrás. | Responsable del proyecto |
 | 0.9.0 | 14-09-2026 | **El enlace del video entra del lado corregible, y SÍ admite vaciarse** (`RN-PM-032`, [`requirements/pm.md`](../../../requirements/pm.md) v0.27.0 §5.2.8), por decisión del responsable del proyecto. Va con la descripción, el icono, la vigencia y el precio de compra: su nulo es un estado legítimo —«no tiene video»— y el nulo explícito es una orden. **En los dos tipos**, sin la condición cruzada del icono, y con la misma forma que en el alta (`VAL-009`). Nacen `CA-PM-225` a `CA-PM-227`. Enmienda de Art. I.7. | Responsable del proyecto |
+| 0.10.0 | 14-09-2026 | **El icono de un upgrade solo se vacía si hay portada** (`RN-PM-034`, [`requirements/pm.md`](../../../requirements/pm.md) v0.29.0 §5.2.9), por decisión del responsable del proyecto: un upgrade siempre tiene portada o icono, **al registrar y en cada corrección**. Es la segunda cara de la regla —la primera es el alta, `RF-PM-001` v0.13.0; la tercera, quitar la portada, `RF-PM-015`— y vive en `Product.update`, que es el único que ve las dos columnas. **Nace `VAL-010`** y se rechaza **sin aplicar nada más**, como todo rechazo de esta operación; en el bot nada cambia. **La portada no se corrige por aquí**: es un archivo con sus endpoints. La respuesta gana `coverImageUrl`. `CA-PM-234` a `CA-PM-236`. Enmienda que construye `RF-PM-014` (Art. I.7). | Responsable del proyecto |

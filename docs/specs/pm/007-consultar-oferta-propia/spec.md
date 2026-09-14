@@ -17,6 +17,7 @@
 | Enmendada el | 12-09-2026 — **el segundo precio es el de COMPRA y SALE de la oferta** (`RN-PM-024`, reescrita por tercera vez): `publicPrice` desaparece, `CA-PM-160` vuelve como prueba de ausencia y `CA-PM-159` se retira. Ver §15 |
 | Enmendada el | 14-09-2026 — **cada producto de la oferta trae `rating`, en la misma sentencia y sin subir el número de consultas** (`RN-PM-031`, `RF-PM-009`). Ver §15 |
 | Enmendada el | 14-09-2026 — **cada producto de la oferta trae `videoUrl`, el enlace del video** (`RN-PM-032`): es material de venta, y al revés que el precio de compra **sí se selecciona**. Ver §15 |
+| Enmendada el | 14-09-2026 — **cada producto de la oferta trae `coverImageUrl`, la dirección de la portada** (`RN-PM-033`, `RF-PM-014`), por lo mismo. Ver §15 |
 
 ---
 
@@ -77,6 +78,7 @@ El catálogo de `RF-PM-002` lo lee quien administra y contiene todo. Lo que un c
 | `RN-PM-023` | **El precio de compra es opcional y no se cobra** — es lo que NEXUS paga por el producto, y esta lectura no lo conoce | `requirements/pm.md` §5.1 |
 | `RN-PM-024` | **El precio de compra no sale de administración; el precio y la conversión salen en toda lectura** (reescrita el 12-09-2026) — la oferta devuelve `price` y `exchange`, y **no selecciona** el de compra | `requirements/pm.md` §5.1 |
 | `RN-PM-032` | **Un producto puede enlazar un video, y el enlace sale en toda lectura** — la oferta lo publica: es lo que se quiere que vea quien compra | `requirements/pm.md` §5.1 |
+| `RN-PM-033` | **La portada es un archivo y se publica por su identificador** — la oferta publica su dirección, `coverImageUrl`, y la imagen la sirve `RF-PM-016` sin token, de modo que quien ve la oferta la pinta sin una segunda credencial | `requirements/pm.md` §5.1 |
 | `RN-SP-018` | Todo consumidor tiene membresía | `requirements/sp.md` §5.1 |
 
 ## 6. Datos
@@ -91,7 +93,7 @@ El catálogo de `RF-PM-002` lo lee quien administra y contiene todo. Lo que un c
 
 | Dato | Descripción |
 |---|---|
-| Productos ofrecibles | Identificador, código, tipo, nombre, descripción, **el enlace del video**, **el precio** con su moneda y **vigencia en días**. **El precio no se ajusta por nivel**: dos personas ven el mismo importe para el mismo producto |
+| Productos ofrecibles | Identificador, código, tipo, nombre, descripción, **el enlace del video**, **la dirección de la portada**, **el precio** con su moneda y **vigencia en días**. **El precio no se ajusta por nivel**: dos personas ven el mismo importe para el mismo producto |
 | **UN importe, y la conversión** | `price` —el que se cobra— y `exchange`, su conversión a la moneda por omisión, **presente y nula** cuando no hay nada que convertir (`RN-PM-024`, reescrita el 12-09-2026). **El precio de compra no viaja ni se selecciona**: es lo que NEXUS paga por el producto, y quien compra no tiene por qué conocer el margen. Entre el 08-09-2026 y el 12-09-2026 viajó un segundo importe, `publicPrice`, cuando ese importe era lo que se anunciaba |
 | Alcance e implementación | Los dos, en cada producto. **El alcance no filtra esta consulta** —es acumulativo y los dos valores llegan a la tienda—; la implementación viaja para que quien compra sepa **antes de pagar** si lo que se lleva se le entrega en el acto |
 | Orden | **Agrupados por tipo**: primero los upgrades ordenados por **nivel destino**, después los bots por fecha de alta |
@@ -184,6 +186,7 @@ Ninguna: la consulta no admite entrada.
 | `CA-PM-167` | El sistema devuelve la **conversión** de cada producto, calculada **sobre `price`**, y **presente y nula** cuando no hay nada que convertir |
 | `CA-PM-168` | El sistema resuelve la conversión de una página **sin una consulta por producto**: la moneda de casa una vez y las tasas en una sola sentencia |
 | `CA-PM-228` | Cada producto de la oferta devuelve **`videoUrl`** tal cual se guardó, y **presente y nulo** cuando no lo declara — **sin que `purchasePrice` aparezca**, que sigue ausente (`CA-PM-160`) |
+| `CA-PM-237` | Cada producto de la oferta devuelve **`coverImageUrl`** con la forma `/api/v1/product-images/{uuid}` cuando hay portada, y **presente y nulo** cuando no — en los upgrades y en los bots—, **sin que `purchasePrice` aparezca**, y sin que el número de sentencias suba |
 
 ## 13. Casos límite
 
@@ -228,3 +231,4 @@ Ninguna. Las cinco se resolvieron el 26-08-2026, antes de aprobar la especificac
 | 0.9.0 | 12-09-2026 | **El segundo precio pasa a ser el de COMPRA y sale de la oferta**, por decisión del responsable del proyecto ([`requirements/pm.md`](../../../requirements/pm.md) v0.23.0 §5.2.6). Cuando el segundo importe era lo que se anunciaba, publicarlo aquí era una decisión de forma (0.8.0); ahora que es **lo que NEXUS paga**, publicarlo enseña el margen a quien compra. `OfferItem` **pierde `publicPrice`**, `findOffer` **deja de seleccionar** el segundo importe, y la conversión se calcula **sobre `price`**. `CA-PM-158` se reescribe —publica `price`, tenga o no costo—, `CA-PM-159` se retira, **`CA-PM-160` vuelve** como prueba de ausencia y `CA-PM-167` deja de hablar de «el que se muestra». §13 gana el caso de que declarar o vaciar el costo **no cambia esta respuesta**. | Responsable del proyecto |
 | 0.10.0 | 14-09-2026 | **Entra `rating` en la respuesta** —el promedio y la cantidad de reseñas vivas del producto— por `RN-PM-031` ([`requirements/pm.md`](../../../requirements/pm.md) v0.24.0 §5.2.7): cada producto de la oferta trae `rating`, en la misma sentencia y sin subir el número de consultas. Enmienda de Art. I.7 declarada por el plan de [`RF-PM-009`](../009-resenar-producto/plan.md) §4.1 y construida por sus tareas `T-10` y `T-11`; los criterios que la prueban son `CA-PM-180` a `CA-PM-182` de aquella tripleta. **El promedio no se guarda en `products`**: se cuenta, por un `LEFT JOIN LATERAL` sobre el índice parcial de `product_comments`, para que ninguna copia pueda quedarse atrás. | Responsable del proyecto |
 | 0.11.0 | 14-09-2026 | **Cada producto de la oferta trae `videoUrl`, el enlace del video** (`RN-PM-032`, [`requirements/pm.md`](../../../requirements/pm.md) v0.27.0 §5.2.8). Es lo contrario del precio de compra: material de venta, que existe para que lo vea quien compra, y por eso **sí se selecciona** aquí. Presente y nulo cuando no hay. Nace `CA-PM-228`. Enmienda de Art. I.7. | Responsable del proyecto |
+| 0.12.0 | 14-09-2026 | **Cada producto de la oferta trae `coverImageUrl`, la dirección de la portada** (`RN-PM-033`, [`requirements/pm.md`](../../../requirements/pm.md) v0.29.0 §5.2.9), por lo mismo que el video: material de venta, que existe para que lo vea quien compra. La imagen la sirve `RF-PM-016` **sin token**, de modo que la pantalla de la oferta la pinta con un `<img>` y ninguna credencial más. Presente y nula cuando no hay, en los dos tipos. `CA-PM-237`. Enmienda que construye `RF-PM-014` (Art. I.7). | Responsable del proyecto |

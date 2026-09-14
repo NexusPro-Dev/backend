@@ -8,7 +8,7 @@
 | Autor | Responsable técnico |
 | Aprobadas por | Responsable del proyecto |
 | Fecha de aprobación | 26-08-2026 |
-| Enmendadas | 28-08-2026 — `T-19` a `T-22` por el renombrado a `BOT` y el icono del upgrade; 02-09-2026 — `T-23` a `T-26` por la membresía de **origen**; 07-09-2026 — `T-27` a `T-30` por el **alcance** y la **implementación**, y `T-31` por la **renovación**; 08-09-2026 — `T-33` a `T-37` por el **precio público** y la relajación de `RN-PM-006`; 12-09-2026 — `T-38` porque el segundo precio pasa a ser el **de compra**; 14-09-2026 — `T-39` por el **enlace del video** |
+| Enmendadas | 28-08-2026 — `T-19` a `T-22` por el renombrado a `BOT` y el icono del upgrade; 02-09-2026 — `T-23` a `T-26` por la membresía de **origen**; 07-09-2026 — `T-27` a `T-30` por el **alcance** y la **implementación**, y `T-31` por la **renovación**; 08-09-2026 — `T-33` a `T-37` por el **precio público** y la relajación de `RN-PM-006`; 12-09-2026 — `T-38` porque el segundo precio pasa a ser el **de compra**; 14-09-2026 — `T-39` por el **enlace del video**; 14-09-2026 — `T-40` por el **icono obligatorio en el upgrade** (`RN-PM-034`) |
 
 !!! info "Qué va en este documento"
 
@@ -59,6 +59,7 @@
 | `T-37` | **En `CM`**: `ProductCommissionCapGuard` deja de dividir a ciegas. Sobre precio cero, un valor fijo **mayor que cero** ocupa más del 100 % y se rechaza con el mensaje de `RN-CM-019`; uno de cero ocupa cero | `T-33` | `CA-CM-115` y `CA-CM-116`. **Sin esta tarea, asociar una tasa fija a un producto gratuito es un `500`** — la clase lo daba por imposible **por escrito**, citando la restricción que `T-33` relaja | **Hecha el 08-09-2026** |
 | `T-38` | **El segundo precio pasa a ser el de compra** (`plan.md` §2.7): migración `V86__products_precio_de_compra.sql` —renombra `public_price` a `purchase_price` y su `CHECK`, y **vacía la columna** porque lo que había no era un costo—; `purchasePrice` sustituye a `publicPrice` en `Product`, `RegisterProductRequest`/`Command`, las tres respuestas de administración, la instantánea (`purchase_price`) y los mensajes de `VAL-004`/`VAL-005`; y la prosa de las `@Operation` deja de decir «se anuncia» | `T-36` | `CA-PM-146` a `CA-PM-148` y `CA-PM-150` con el nombre nuevo. Enviar `publicPrice` es `400` por propiedad desconocida. `flyway:info` lista `V86` aplicada y `\d products` no tiene `public_price`. **El contrato regenerado no declara `publicPrice` en ningún esquema** | **Hecha el 12-09-2026** |
 | `T-39` | **El enlace del video** (`plan.md` §2.8): migración `V89__products_video_url.sql` —`video_url varchar(500) NULL`, `ck_products_video_url_format` con la rama `IS NULL` delante, y el comentario—; `videoUrl` en `Product` —campo, fábrica, instantánea `video_url`, `normalizarEnlaceDeVideo` con `VAL-017`—, en `RegisterProductRequest`/`Command` y en `ProductResponse`; y la prosa de la `@Operation` del alta dice qué es y que no se sigue | `T-38` | `CA-PM-219` a `CA-PM-222` en `ProductsIT`, y la unitaria de la forma en `ProductTest`. `\d products` muestra la columna y el `CHECK`. **El contrato regenerado declara `videoUrl` en el cuerpo del alta y en `ProductResponse`** | **Hecha el 14-09-2026** |
+| `T-40` | **El icono obligatorio en el upgrade** (`plan.md` §2.9, enmienda de `RF-PM-014`): `Product.create` rechaza un upgrade sin icono con `VAL-018` nombrando `icon`; `ProductResponse` gana `coverImageUrl` —siempre nulo aquí— y la instantánea `cover_image_id`; `CA-PM-098` se retira de `ProductsIT` y entran `CA-PM-230` y `CA-PM-231`; la prosa de la `@Operation` del alta dice que el icono es obligatorio en el upgrade mientras no haya portada, y que la portada se sube después | `T-39`, `RF-PM-014 · T-05` | `CA-PM-230`, `CA-PM-231` en `ProductsIT`; la unitaria en `ProductTest`: upgrade sin icono lanza, bot sin icono no | Pendiente |
 
 ## 2. Orden de ejecución
 
@@ -96,6 +97,7 @@
 | `CA-PM-113` | `T-29`, `T-30` |
 | `CA-PM-114` | `T-29`, `T-30` |
 | `CA-PM-219` a `CA-PM-222` | `T-39` |
+| `CA-PM-230`, `CA-PM-231` | `T-40` |
 
 ## 4. Bloqueos
 

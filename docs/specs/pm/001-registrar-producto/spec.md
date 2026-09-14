@@ -17,6 +17,7 @@
 | Enmendada el | 12-09-2026 — **el segundo precio pasa a ser el de COMPRA**: lo que NEXUS paga por el producto (`RN-PM-023`, `RN-PM-024`). `purchasePrice` sustituye a `publicPrice`. Ver §15 |
 | Enmendada el | 14-09-2026 — **el alta devuelve `rating` **vacío** — `average` nulo y `count` cero — sin consulta** (`RN-PM-031`, `RF-PM-009`). Ver §15 |
 | Enmendada el | 14-09-2026 — **el alta admite el ENLACE DE UN VIDEO** (`RN-PM-032`): opcional, en los dos tipos, validado solo en su forma. Ver §15 |
+| Enmendada el | 14-09-2026 — **el icono pasa a ser OBLIGATORIO en un upgrade** (`RN-PM-034`, `RF-PM-014`): la portada llega después del alta, y sin ella el icono es lo único que puede pintar el producto. La respuesta gana `coverImageUrl`, siempre nulo aquí. Ver §15 |
 
 !!! danger "Un upgrade dice ahora DE DONDE sale, y eso cambia quien puede comprarlo"
 
@@ -80,7 +81,9 @@ Hoy la plataforma no tiene **nada que vender**. La membresía de una persona sol
 | `RN-PM-012` | El producto nace inactivo | `requirements/pm.md` §5.1 |
 | `RN-PM-013` | El código no se libera nunca | `requirements/pm.md` §5.1 |
 | `RN-PM-015` | La vigencia se mide en días y es opcional | `requirements/pm.md` §5.1 |
-| `RN-PM-016` | El icono solo existe en el upgrade | `requirements/pm.md` §5.1 |
+| `RN-PM-016` | El icono solo existe en el upgrade — **enmendada el 14-09-2026**: en el upgrade es obligatorio mientras no haya portada | `requirements/pm.md` §5.1 |
+| `RN-PM-034` | **Un upgrade siempre tiene con qué pintarse: portada o icono** — en el alta no puede haber portada, de modo que **el icono es obligatorio en un upgrade** | `requirements/pm.md` §5.1 |
+| `RN-PM-033` | **La portada es un archivo y se publica por su identificador** — aquí solo que la respuesta trae `coverImageUrl`, nulo: la portada se sube después (`RF-PM-014`) | `requirements/pm.md` §5.1 |
 | `RN-PM-019` | **El alcance dice hasta dónde se muestra, y es acumulativo** | `requirements/pm.md` §5.1 |
 | `RN-PM-020` | **La implementación dice si lo comprado se aplica solo o espera autorización** | `requirements/pm.md` §5.1 |
 | `RN-PM-032` | **Un producto puede enlazar un video, y el enlace sale en toda lectura** — aquí, que se admite en el alta, en los dos tipos, y que se valida **solo la forma** | `requirements/pm.md` §5.1 |
@@ -97,7 +100,7 @@ Hoy la plataforma no tiene **nada que vender**. La membresía de una persona sol
 | Descripción | No | Qué se lleva quien lo compra | Con longitud acotada. Opcional al registrar; **sin ella el producto no podrá publicarse** (`RN-PM-014`) |
 | Membresía **de origen** | **Depende del tipo** | Nivel desde el que se compra el upgrade | **Obligatoria** si el tipo es upgrade, **prohibida** si es bot (`RN-PM-002`). Debe existir (`RN-PM-003`) y **no estar por encima** del destino (`RN-PM-017`) — **puede ser la misma**, y entonces el producto es una renovación |
 | Membresía **destino** | **Depende del tipo** | Nivel al que lleva el upgrade | Mismas condiciones. **No tiene por qué ser el inmediatamente superior al origen** (`RN-PM-018`) |
-| Icono | No | **Nombre** del icono con el que el frontend pinta el producto, no una imagen | Minúsculas, dígitos y guion medio, empezando por letra, hasta 50 caracteres. **Solo en el upgrade**, y opcional incluso ahí (`RN-PM-016`) |
+| Icono | **Depende del tipo** | **Nombre** del icono con el que el frontend pinta el producto, no una imagen | Minúsculas, dígitos y guion medio, empezando por letra, hasta 50 caracteres. **Obligatorio en el upgrade y prohibido en el bot** (`RN-PM-016`, `RN-PM-034`). **Decía «opcional incluso ahí» hasta el 14-09-2026**: desde que existe la portada, un upgrade sin portada —y en el alta ninguno la tiene— necesita el icono para pintarse |
 | Enlace del video | No | **La dirección** de un video que presenta el producto, no el video | URL **absoluta** `http` o `https`, **sin espacios**, hasta 500 caracteres, de cualquier dominio. **En los dos tipos**, sin la condición cruzada del icono. **Ausente o nulo significan lo mismo**: no tiene video. **El sistema no sigue el enlace**: comprueba la forma y nada más (`RN-PM-032`) |
 | Precio **del sistema** | Sí | Cuánto cuesta, y **lo que se cobra** | **No negativo** (`RN-PM-006`) —el cero se admite desde el 08-09-2026, porque una renovación de una membresía gratuita vale eso—, con los decimales que admita su moneda (`RN-PM-007`) |
 | Precio **de compra** | **No** | Lo que NEXUS paga por el producto cuando tiene que comprarlo; ahí se guarda lo que costó | Mismas condiciones que el anterior y **en la misma moneda** (`RN-PM-007`). **Ausente o nulo significan lo mismo**: no se conoce todavía —el producto se registra antes de comprarse— (`RN-PM-023`). **No se cobra**, ningún cálculo lo lee y **no sale de administración** (`RN-PM-024`). **Decía «precio público» hasta el 12-09-2026** |
@@ -109,6 +112,8 @@ Hoy la plataforma no tiene **nada que vender**. La membresía de una persona sol
 ### 6.2 Salida
 
 **Y desde el 14-09-2026 lleva también `videoUrl`** (`RN-PM-032`): el enlace **tal cual se guardó** —recortado, sin normalizar nada más—, y **presente y nulo** cuando no se declaró, por lo mismo que el precio de compra: un campo que falta no puede decir «no tiene video».
+
+**Y `coverImageUrl`, que en el alta es siempre nulo y presente** (`RN-PM-033`): la portada no entra por aquí —el alta sigue siendo JSON— y se sube después con `RF-PM-014`. El campo va igualmente, para que la respuesta del alta tenga **la misma forma** que el detalle y el cliente no distinga dos productos.
 
 **Desde el 14-09-2026 la respuesta lleva `rating`** (`RN-PM-031`): el alta devuelve `rating` **vacío** — `average` nulo y `count` cero — sin consulta. Es un objeto **presente siempre**, con `average` —dos decimales, **nulo** cuando no hay reseñas— y `count` —**cero** cuando no hay—. Cuentan solo las reseñas **vivas**: una retirada sale de la cuenta en el acto. La enmienda la construye `RF-PM-009` (`T-10`, `T-11`), y lo que este requerimiento tiene que conservar es su número de sentencias: el agregado viaja **en la misma consulta** que el producto.
 
@@ -205,6 +210,7 @@ Hoy la plataforma no tiene **nada que vender**. La membresía de una persona sol
 | `VAL-015` | Alcance obligatorio y dentro del dominio | El alcance del producto es obligatorio y debe ser uno de los admitidos. |
 | `VAL-016` | Implementación obligatoria y dentro del dominio | La implementación del producto es obligatoria y debe ser una de las admitidas. |
 | `VAL-017` | Formato del enlace del video | El enlace del video debe ser una dirección absoluta http o https, sin espacios y de hasta 500 caracteres. |
+| `VAL-018` | **Icono obligatorio en el upgrade** | Un producto de upgrade debe declarar su icono mientras no tenga portada. |
 
 ## 12. Criterios de aceptación
 
@@ -220,7 +226,7 @@ Hoy la plataforma no tiene **nada que vender**. La membresía de una persona sol
 | `CA-PM-008` | El sistema rechaza un nombre que solo difiere de otro existente en mayúsculas o acentos |
 | `CA-PM-096` | El sistema registra un upgrade con su icono, **normalizado a minúsculas** |
 | `CA-PM-097` | El sistema rechaza un producto de tipo bot **con** icono |
-| `CA-PM-098` | El sistema registra un upgrade **sin** icono, que llega nulo y presente |
+| ~~`CA-PM-098`~~ | ~~El sistema registra un upgrade **sin** icono, que llega nulo y presente~~ **Invertido el 14-09-2026** por `RN-PM-034`: ver `CA-PM-230`. La forma «nulo y presente» del icono sigue viva en el bot (`CA-PM-231`) |
 | ~~`CA-PM-009`~~ | **Retirado el 26-08-2026**: el producto nace inactivo, de modo que el alta no puede chocar con un upgrade activo. El criterio vive en `RF-PM-005` con número propio. El identificador no se reutiliza |
 | `CA-PM-010` | El sistema rechaza un upgrade cuya membresía destino no existe, y lo hace como dato inválido y no como recurso no encontrado |
 | `CA-PM-011` | El sistema registra en la auditoría de cambios un evento de creación con el estado inicial completo del producto |
@@ -253,6 +259,8 @@ Hoy la plataforma no tiene **nada que vender**. La membresía de una persona sol
 | `CA-PM-220` | El sistema registra un producto **sin video**, y `videoUrl` llega **presente y nulo** — no ausente, y no cadena vacía |
 | `CA-PM-221` | El sistema rechaza un enlace **que no tiene forma de URL absoluta `http` o `https`** —relativo, sin esquema, con otro esquema, con espacios, o de más de 500 caracteres— con `VAL-017`, y el error **nombra `videoUrl`** |
 | `CA-PM-222` | La **instantánea del evento de creación incluye `video_url`**, nulo cuando no se declaró |
+| `CA-PM-230` | El sistema **rechaza un upgrade sin icono** —ausente, nulo o vacío— con `VAL-018` nombrando `icon`, y no registra nada |
+| `CA-PM-231` | El sistema registra un **bot sin icono**, que llega nulo y presente; y la respuesta del alta trae **`coverImageUrl` presente y nulo** en los dos tipos, y la instantánea `cover_image_id` nulo |
 
 ## 13. Casos límite
 
@@ -298,3 +306,4 @@ Ninguna. Las cinco se resolvieron el 26-08-2026, antes de aprobar la especificac
 | 0.10.0 | 12-09-2026 | **El segundo precio pasa a ser el de COMPRA**, por decisión del responsable del proyecto (`requirements/pm.md` v0.23.0 §5.2.6): lo que NEXUS paga por el producto cuando tiene que comprarlo, y donde se guarda lo que costó. `purchasePrice` **sustituye** a `publicPrice` en el cuerpo y en la respuesta —ruptura de contrato aceptada—, con la misma forma: opcional, no negativo, decimales de la moneda del producto. **El nulo cambia de significado**: de «se anuncia con el del sistema» a «no se conoce todavía», que es el estado natural de un producto que se registra antes de comprarse. Entra `RN-PM-024` en las reglas aplicables porque el alta lo devuelve **solo** porque exige `products:create`. `CA-PM-146` a `CA-PM-148` y `CA-PM-150` cambian de nombre de campo sin cambiar de forma; los casos límite del par se reescriben —**mayor** que el del sistema en vez de menor, porque lo que se admite a conciencia ahora es vender por debajo del costo— y nace el del cero frente al nulo. | Responsable del proyecto |
 | 0.11.0 | 14-09-2026 | **Entra `rating` en la respuesta** —el promedio y la cantidad de reseñas vivas del producto— por `RN-PM-031` ([`requirements/pm.md`](../../../requirements/pm.md) v0.24.0 §5.2.7): el alta devuelve `rating` **vacío** — `average` nulo y `count` cero — sin consulta. Enmienda de Art. I.7 declarada por el plan de [`RF-PM-009`](../009-resenar-producto/plan.md) §4.1 y construida por sus tareas `T-10` y `T-11`; los criterios que la prueban son `CA-PM-180` a `CA-PM-182` de aquella tripleta. **El promedio no se guarda en `products`**: se cuenta, por un `LEFT JOIN LATERAL` sobre el índice parcial de `product_comments`, para que ninguna copia pueda quedarse atrás. | Responsable del proyecto |
 | 0.12.0 | 14-09-2026 | **El alta admite el ENLACE DE UN VIDEO** (`RN-PM-032`, [`requirements/pm.md`](../../../requirements/pm.md) v0.27.0 §5.2.8), por decisión del responsable del proyecto: **opcional, en los dos tipos** —sin la condición cruzada del icono— y validado **solo en su forma**, URL absoluta `http` o `https`, sin espacios, hasta 500 caracteres. **Es una dirección, no un archivo, y el sistema no la sigue.** Ausente y nulo significan lo mismo; la respuesta lo devuelve presente y nulo, como el precio de compra. Nacen `VAL-017` y `CA-PM-219` a `CA-PM-222`. Enmienda de Art. I.7. | Responsable del proyecto |
+| 0.13.0 | 14-09-2026 | **El icono pasa a ser OBLIGATORIO en un upgrade** (`RN-PM-034`, [`requirements/pm.md`](../../../requirements/pm.md) v0.29.0 §5.2.9), por decisión del responsable del proyecto: un upgrade siempre tiene portada o icono, **al registrar y en cada corrección**, y como la portada llega **después** del alta (`RF-PM-014`), en el alta el icono es lo único que puede estar. `RN-PM-016` pierde su «opcional incluso ahí»; el bot sigue sin declararlo. **`CA-PM-098` se invierte** y lo sustituye `CA-PM-230`; nace `VAL-018`. La respuesta gana `coverImageUrl`, aquí **siempre nulo y presente**, para que el alta y el detalle tengan la misma forma (`CA-PM-231`). Es una enmienda que construye `RF-PM-014` (Art. I.7), y la instantánea del alta gana `cover_image_id`. | Responsable del proyecto |

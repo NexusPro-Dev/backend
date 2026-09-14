@@ -5,7 +5,7 @@
 | Módulo | `PM` — Productos y Mercadeo |
 | Paquete | `modules/products` |
 | Prefijos de permiso | `products:` |
-| Versión | 0.28.0 |
+| Versión | 0.29.0 |
 | Estado | **Borrador** |
 | Responsable | Bonilla Diaz William Steven |
 | Fecha de creación | 26-08-2026 |
@@ -56,6 +56,7 @@ Hoy la membresía de una persona solo cambia porque un administrador se la asign
 - Retirar un producto por eliminación lógica y con motivo.
 - **Publicar a cada persona la oferta que le aplica**, que en los upgrades son **los declarados desde su membresía vigente** — su salto y su renovación.
 - **Reseñar un producto**: una puntuación de uno a cinco y un texto, **una por persona y producto**, que su autor corrige y retira; **leer las reseñas** de un producto sin autenticación, y ver en cada lectura del producto **su promedio y cuántas tiene**.
+- **Ponerle portada a un producto** (14-09-2026): subir la imagen, reemplazarla y quitarla, y **servirla sin autenticación** por su identificador. Es **lo primero que el sistema guarda como archivo** (§5.2.9).
 
 **No incluye**
 
@@ -67,6 +68,7 @@ Hoy la membresía de una persona solo cambia porque un administrador se la asign
 - **La moderación de las reseñas.** Nadie distinto del autor retira una reseña —ni un administrador— (`RN-PM-027`), y no hay denuncia, ocultación ni respuesta del vendedor. Es una decisión del responsable del proyecto, tomada sabiendo lo que cuesta (§5.2.7), y el día que haga falta será **otro requerimiento con otro permiso**, no una excepción a esta regla.
 - **Exigir haber comprado para reseñar.** `PM` no puede leer las ventas de `MV` sin cerrar el ciclo `MV → PM → MV` que `modules.md` §7 prohíbe. Quien opina es quien porta el permiso, no quien pagó (§5.2.7).
 - **Hilos, respuestas y votos de utilidad.** Una reseña es una opinión sobre el producto, no una conversación.
+- **Tratar la imagen de portada.** Ni recorte, ni redimensión, ni miniaturas, ni conversión de formato: el sistema guarda los bytes que recibe y los devuelve tal cual. **Y una galería tampoco**: es **una** imagen por producto, la portada.
 
 ### 1.4 La frontera, y por qué está donde está
 
@@ -173,7 +175,7 @@ La dependencia es **acíclica**: `PM` consume `SP` y `SP` no consume nada ([`mod
 | `RN-PM-013` | El código no se libera nunca | Siempre | Todo producto lleva un **código corto, estable e inmutable**, único **incluso frente a los eliminados** — al revés que el nombre. Es la referencia desde la que una factura o una comisión dirán qué se vendió, y el nombre no sirve porque `RF-PM-004` lo deja corregir | **Crítica** |
 | `RN-PM-014` | No se publica lo que no se explica | Al activar | Un producto **sin descripción no puede activarse**. Registrarlo sin ella es legítimo —está preparándose—; ofrecérselo a un cliente sin decirle qué se lleva, no | Media |
 | `RN-PM-015` | La vigencia se mide en días y es opcional | Al registrar y al editar | Un producto puede declarar **cuántos días dura lo que otorga**, contados desde la compra. Es **opcional en los dos tipos**: sin ella, lo adquirido **no caduca**. Si se declara, es un entero **mayor que cero** | Alta |
-| `RN-PM-016` | El icono solo existe en el upgrade | Al registrar y al editar | Un `UPGRADE_MEMBRESIA` **puede** declarar el icono con el que el frontend lo pinta; un `BOT` **no puede**. Es un **identificador**, no una imagen, y es **opcional** incluso donde se admite | Media |
+| `RN-PM-016` | El icono solo existe en el upgrade | Al registrar y al editar | Un `UPGRADE_MEMBRESIA` **puede** declarar el icono con el que el frontend lo pinta; un `BOT` **no puede**. Es un **identificador**, no una imagen. **Decía «opcional incluso donde se admite» hasta el 14-09-2026**: desde entonces en el upgrade es **obligatorio mientras no haya portada** (`RN-PM-034`), y en el bot sigue prohibido — el bot tiene el suyo por omisión en el frontend, y no lo declara | Media |
 | `RN-PM-019` | **El alcance dice hasta dónde se muestra el producto, y es acumulativo** | Al registrar y al editar | Todo producto declara `TIENDA` o `HOTLINKS`, **obligatorio en los dos tipos y sin valor por omisión**. No son dos canales que se reparten el catálogo: `HOTLINKS` **incluye** la tienda, de modo que la escala crece. Se corrige libremente (§5.2.2) | Alta |
 | `RN-PM-020` | **La implementación dice si lo comprado se aplica solo o espera autorización** | Al registrar y al editar | Todo producto declara `AUTOMATICA` o `MANUAL`, **obligatorio en los dos tipos y sin valor por omisión**. Gobierna qué hace `MV` al confirmar una venta: `RN-MV-020` concede la membresía **solo** si el producto es automático, y con `MANUAL` lo comprado queda esperando a que un funcionario lo autorice | **Crítica** |
 | `RN-PM-021` | **El hotlink solo publica lo activo y de alcance `HOTLINKS`** | Al responder el enlace público (`RF-PM-008`) | Un producto inactivo, retirado o de alcance `TIENDA` **no se publica sin autenticación**, y su ausencia se responde con el **mismo `404`** que un código inexistente. Es el primer sitio donde `RN-PM-019` **filtra de verdad**: hasta hoy el alcance se declaraba y no acotaba ninguna consulta | **Crítica** |
@@ -188,6 +190,8 @@ La dependencia es **acíclica**: `PM` consume `SP` y `SP` no consume nada ([`mod
 | `RN-PM-030` | **Del autor solo se publica su nombre y apellido** | Al leer las reseñas | La lista es **pública** (`RF-PM-012`), y de quien escribió cada reseña viaja **nombre y apellido** y nada más — ni identificador, ni nombre de usuario, ni correo, ni estado, ni roles—. Es `RN-PM-022` aplicada a otra persona: allí el vendedor, aquí el autor. Y por lo mismo, **la lista no dice cuál es la del actor**: la propia se lee aparte, con token (`RF-PM-013`) | **Crítica** |
 | `RN-PM-031` | **El producto publica el promedio y la cantidad de sus reseñas vivas, en toda lectura** | Siempre que se consulte un producto, con token o sin él | Las cuatro lecturas del módulo devuelven `rating` con `average` —**dos decimales**, **nulo** cuando no hay ninguna— y `count`. Cuentan solo las **vivas**: una reseña retirada sale del promedio en el acto. Se calcula **en la misma sentencia** que trae el producto, y no con una consulta por fila: un listado que preguntara producto a producto sería el `N+1` que `RF-PM-002` existe para evitar | Alta |
 | `RN-PM-032` | **Un producto puede enlazar un video, y el enlace sale en toda lectura** | Al registrar, al editar y siempre que se consulte un producto, con token o sin él | Todo producto —**de los dos tipos**— puede declarar **la dirección de un video** que lo presenta: una **URL absoluta `http` o `https`, sin espacios y de hasta 500 caracteres**, de cualquier dominio. Es **opcional**, se corrige y **se vacía** (`RF-PM-004`), su nulo significa «no tiene video» y **no condiciona la activación**. **Es un enlace, no un archivo**: el sistema comprueba su forma y **no lo sigue** —no comprueba que exista, no lo descarga, no lo incrusta—. Las **cuatro** lecturas lo devuelven, **presente y nulo** cuando no hay, **incluido el hotlink sin token**: es material de venta, no un costo (§5.2.8) | Media |
+| `RN-PM-033` | **La portada es un archivo —el primero que el sistema guarda— y se publica por su identificador** | Al subir, al quitar y siempre que se consulte un producto, con token o sin él | Todo producto —**de los dos tipos**— puede llevar **una** imagen de portada, y **el sistema guarda los bytes**: `JPEG`, `PNG` o `WebP`, **de hasta 5 MB**, y **el tipo lo deciden los bytes y no la cabecera** que los acompaña. Se sube y se reemplaza (`RF-PM-014`) y se quita (`RF-PM-015`) con `products:update`; **cada subida estrena identificador**, y la reemplazada **se borra**. **No se trata**: ni recorte, ni redimensión, ni conversión. Se sirve **sin token** por su identificador (`RF-PM-016`), con caché inmutable, y las **cuatro** lecturas devuelven su dirección como `coverImageUrl`, **presente y nula** cuando no hay (§5.2.9) | Alta |
+| `RN-PM-034` | **Un upgrade siempre tiene con qué pintarse: portada o icono** | Al registrar, en cada corrección y al quitar la portada | Un `UPGRADE_MEMBRESIA` **no puede quedarse sin portada y sin icono a la vez**. Como la portada llega **después** del alta (`RF-PM-014`), **el alta exige el icono**; con portada, el icono **se puede vaciar**; sin icono, la portada **no se puede quitar**. **Un `BOT` no entra**: no declara icono (`RN-PM-016`) y el frontend le pinta el suyo por omisión, de modo que la portada le es opcional sin condición. **No condiciona la activación**: un upgrade registrado antes del 14-09-2026 sin icono se activa y se retira igual, y la regla lo alcanza **en su primera corrección**, que no aplicará nada hasta que reciba un icono o una portada (§5.2.9) | Alta |
 
 ### 5.2 Por qué las críticas son críticas
 
@@ -464,6 +468,55 @@ Como el icono es un nombre y no una imagen, **el video es una dirección y no un
 
 **Y `RN-PM-024` no se toca.** El video va a las cuatro lecturas precisamente porque **no es el costo**: aquella regla dice qué no sale de administración, y el enlace de un video es lo contrario de un margen — es lo que se quiere que vean. Lo que sí hereda de aquella es la forma del nulo: **presente y nulo** cuando no hay video, en las cuatro, porque un campo que desaparece es indistinguible de uno que el cliente no conoce.
 
+### 5.2.9 La portada — 14-09-2026
+
+**Decisión del responsable del proyecto.** Un producto lleva una **imagen de portada**, y **si no la tiene, el icono es obligatorio**. Es la tercera cosa que el producto declara para que el frontend la pinte —después del icono y del video—, y **la primera que el sistema guarda como archivo**: hasta hoy `RN-PM-016` decía «el sistema no almacena binarios» y §5.2.8 lo llevó un paso más allá —«tampoco los consulta»—; con la portada esa frontera **se mueve a propósito**, y conviene que quede escrito hasta dónde. Seis cosas se preguntaron antes de escribir una línea, y las seis quedaron decididas por él:
+
+| Pregunta | Decisión | Lo que se descartó, y por qué |
+|---|---|---|
+| **¿Se guarda la imagen, o su dirección como el video?** | **La imagen: el archivo se sube al backend** (`RN-PM-033`) | *Una URL, como `video_url`* — era la opción que menos costaba y la que mantenía la frontera intacta, y **se descartó porque el video tiene quien lo aloje y la portada no**: un video vive en una plataforma que ya lo sirve; una foto de portada la hace administración y no hay un tercero al que señalar. Exigir que primero se subiera a otro sitio sería empujar fuera del sistema un dato del catálogo |
+| **¿Dónde viven los bytes?** | **En PostgreSQL, en una tabla propia con `bytea`** (`product_images`, §10.5) | *En disco, en un volumen del contenedor* — un segundo lugar que respaldar, y que **se desincroniza** de la base sin que nada falle: una fila sin archivo, un archivo sin fila. *En S3 o MinIO* — un bucket, credenciales en `.env`, un SDK y un servicio más que operar; es lo correcto a escala grande, y este catálogo son **decenas** de productos con una portada de pocos MB cada uno. En la base viajan **en el mismo volumen y la misma copia de seguridad** que el producto, y la subida es **transaccional** con él |
+| **¿Cómo llega la imagen al producto?** | **Por un endpoint propio, después del alta** (`RF-PM-014`, `RF-PM-015`) | *El alta pasa a `multipart` con la imagen dentro* — rompía el contrato de `RF-PM-001` para todo cliente y mezclaba dos validaciones en una petición; y una petición de alta que falle por la imagen deja sin registrar un producto cuyos datos eran correctos |
+| **¿Cómo la devuelven las cuatro lecturas?** | **Una dirección a un `GET` público por identificador de imagen**: `coverImageUrl` (`RF-PM-016`) | *Una dirección por producto* (`/products/{id}/cover`) — más legible, pero **no cambia al reemplazar la imagen**, y el navegador enseñaría la portada vieja hasta que su caché caducara. *Los bytes en `base64` dentro del JSON* — cada listado, cada oferta y cada hotlink pesarían megas |
+| **¿Y el bot, que no puede tener icono?** | **Puede llevar portada; sigue sin declarar icono** — `RN-PM-016` no se toca, y `RN-PM-034` **solo rige en el upgrade** | *Abrir el icono a los dos tipos* — reescribía `RN-PM-016`, retiraba `VAL-013` e invertía `CA-PM-100`, para un dato que en el bot **ya tiene respuesta**: el frontend le pinta un icono por omisión, y por eso no le falta nada. *Exigirle portada al bot* — más estricto que con el upgrade, que sí tiene alternativa |
+| **¿Cuándo muerde «sin imagen, el icono es obligatorio»?** | **Al registrar y en cada corrección** (`RN-PM-034`) | *Al activar, como la descripción (`RN-PM-014`)* — habría dejado registrar y corregir un upgrade sin ninguno de los dos y rechazado solo publicarlo. Se descartó porque un upgrade sin nada que pintar **no es un estado en preparación sino un dato incompleto**, y el momento de decirlo es cuando se escribe |
+
+#### Lo que la frontera cede, y lo que no
+
+**El sistema guarda bytes por primera vez, y guarda solo eso.** Recibe un archivo, comprueba que **es una imagen de uno de tres formatos** —`JPEG`, `PNG`, `WebP`— mirando **los primeros bytes** y no la cabecera `Content-Type` que los acompaña, comprueba que **no pasa de 5 MB**, y lo guarda **tal cual**. No lo recorta, no lo redimensiona, no lo convierte, no genera miniaturas, y no sabe si la imagen es una portada razonable o una foto en vertical: **el sistema no interpreta el contenido**, que es la mitad de la frontera vieja que se conserva. Tratar la imagen exigiría una biblioteca de imágenes en el servidor, con su superficie de ataque y su tiempo de proceso en cada subida, para una decisión —cómo se ve la portada— que es del frontend y del diseño.
+
+**Por qué esos tres formatos y no más.** `JPEG` para fotografías, `PNG` para lo que lleva transparencia, `WebP` porque es lo que un frontend moderno exporta. **`SVG` queda fuera a propósito**: un `SVG` puede llevar código, y servirlo *inline* desde el propio origen del sistema —que es lo que `RF-PM-016` hace— sería servir código de quien lo subió. **`GIF` queda fuera** porque una portada animada es una decisión de diseño que nadie tomó, y añadirlo después es una constante más. **Y el tipo lo deciden los bytes**: la cabecera de la petición la escribe el cliente y se puede equivocar o mentir; los ocho primeros bytes de un `PNG` no.
+
+**Por qué 5 MB.** Es el tope de un `JPEG` de cámara de teléfono sin comprimir, que es lo peor que administración va a subir sin querer. Es también el límite que **el esquema declara** (`ck_product_images_size`), de modo que ninguna otra ruta —una siembra, otro caso de uso— puede meter algo mayor. Subirlo es reemplazar una restricción y una constante; no es una migración de datos.
+
+#### Cada subida estrena identificador, y la reemplazada se borra
+
+La portada **no tiene identidad propia**: es **el valor de una columna** de `products`, como la descripción, y por eso se sube y se quita con `products:update` y no con un permiso propio. Reemplazarla es **corregir ese valor**: se inserta la imagen nueva, `products.cover_image_id` pasa a señalarla, y **la fila vieja se borra físicamente**, en la misma transacción. La auditoría de cambios recoge el **antes y el después** del identificador, como con cualquier columna.
+
+!!! warning "Lo que la auditoría conserva de una portada reemplazada es su identificador, no sus bytes"
+
+    Es la consecuencia de borrar la fila vieja, y se acepta a conciencia. Con la descripción, el diff de `audit_change_log` guarda el texto anterior entero; con la portada guarda **el identificador** de una imagen que ya no existe. Conservar todas las imágenes que alguna vez fueron portada haría crecer la base con cada reemplazo —cinco megas por cada intento de acertar con la foto— para guardar algo que nadie va a volver a mirar. **Esto NO es una baja lógica ni cabe en el Art. V.13**: no se retira una entidad, se corrige el valor de un campo, y la constitución no exige conservar el valor anterior de un campo fuera del diff.
+
+**Y por eso la dirección es por imagen y no por producto.** `coverImageUrl` señala **una imagen concreta** —`/api/v1/product-images/{imageId}`—, que **no cambia nunca**: el día que se reemplace la portada, la dirección será otra. Eso permite que `RF-PM-016` responda con **caché inmutable** —el navegador guarda la imagen un año y no vuelve a preguntar— sin que ningún cliente pueda enseñar una portada vieja, porque la vieja **tiene otra dirección**, y además ya no existe.
+
+#### El icono es el respaldo de la portada, y solo en el upgrade
+
+`RN-PM-034` dice una sola cosa: **un upgrade siempre tiene algo con qué pintarse**. La portada llega después del alta —es otra petición—, de modo que **en el alta, el icono es obligatorio para un upgrade**: es lo único que puede estar. Con una portada subida, el icono **se puede vaciar**; sin icono, la portada **no se puede quitar** — `RF-PM-015` lo rechaza en lugar de dejar el producto sin nada. Las tres comprobaciones son la misma regla mirada desde tres operaciones, y viven **en el agregado**, que es el único que ve las dos columnas a la vez.
+
+**El bot no entra, y no es una excepción sino una consecuencia.** `RN-PM-016` sigue diciendo que un bot no declara icono, y la razón de que eso no lo deje sin nada que pintar es que **el frontend le pinta el suyo por omisión** — el mismo para todos los bots, porque son prestaciones del sistema y no niveles. De modo que al bot la portada le es opcional **sin condición**: con ella se ve su foto, sin ella su icono, y `RN-PM-034` no tiene nada que exigirle.
+
+!!! warning "Lo que la regla le hace a lo ya registrado"
+
+    **Hay upgrades registrados antes del 14-09-2026 sin icono**, porque hasta hoy era opcional. `RN-PM-034` **no los toca mientras nadie los corrija**: se activan, se desactivan y se retiran igual, porque la regla no condiciona la activación. Lo que ocurre es que **su primera corrección no aplicará nada** —ni el nombre, ni el precio— hasta que en esa misma petición llegue un icono, o hasta que antes se les haya subido una portada. Es el precio de «al registrar y en cada corrección», y se aceptó sabiéndolo.
+
+    **Y por eso la regla no vive en el esquema** (§10.3). Un `CHECK` normal no se puede declarar porque esas filas lo violan; un `CHECK NOT VALID` se declararía, pero mordería en **cualquier `UPDATE`** de esas filas —activar, retirar—, con un `500` justo donde el dominio dice que no pasa nada.
+
+#### Lo que se publica sin token es una imagen, y se publica por identificador
+
+`RF-PM-016` sirve la imagen **a cualquiera** que tenga su identificador, **sin mirar el producto**: no comprueba si está activo, si es de alcance `HOTLINKS` o si sigue vivo. Lo que se publica es **una imagen que administración subió para que se viera**, y el identificador es un UUID que **no se lista en ningún sitio sin token** —el hotlink lo devuelve solo para lo que ya publica—. Comprobar el producto en cada imagen costaría una sentencia más por cada `<img>` de cada pantalla, para proteger algo que no es un dato personal ni un costo. **Es la misma decisión que las reseñas de un producto de alcance `TIENDA`** (§5.2.7): quien tenga el identificador puede leer; el identificador no se publica.
+
+**Y `RN-PM-024` sigue sin tocarse.** La portada va a las cuatro lecturas y al `GET` público por lo mismo que el video: **es material de venta**, lo contrario de un margen.
+
 ### 5.3 Reglas de otros documentos que este módulo aplica
 
 No se copian: se referencian, porque dos copias de una regla acaban divergiendo.
@@ -498,6 +551,9 @@ No se copian: se referencian, porque dos copias de una regla acaban divergiendo.
 | `RF-PM-011` | Retirar la reseña propia | Media | `products:comment` | **En desarrollo** |
 | `RF-PM-012` | Consultar las reseñas de un producto, sin autenticación | Alta | **Público** | **En desarrollo** |
 | `RF-PM-013` | Consultar la reseña propia sobre un producto | Media | `products:comment` | **En desarrollo** |
+| `RF-PM-014` | Subir o reemplazar la portada de un producto | Alta | `products:update` | **Tasks en revisión** |
+| `RF-PM-015` | Quitar la portada de un producto | Media | `products:update` | **Tasks en revisión** |
+| `RF-PM-016` | Obtener la imagen de una portada, sin autenticación | Alta | **Público** | **Tasks en revisión** |
 
 **Prioridades:** Crítica · Alta · Media · Baja.
 **Estados:** los de [`requirements.md` §4](../requirements.md#4-matriz-de-trazabilidad), que es su autoridad.
@@ -514,6 +570,8 @@ El alta crea la tabla y el catálogo, y sin catálogo no hay nada que consultar.
 
 **Las reseñas van en su propio orden**: `RF-PM-009` → `RF-PM-012` → `RF-PM-013` → `RF-PM-010` → `RF-PM-011`. El alta crea la tabla y siembra el permiso; la lista pública va segunda porque es la que enseña el resultado y la que obliga a resolver el `JOIN` a `users`; la propia, tercera, porque las dos escrituras que siguen la necesitan para saber qué corregir. **`RN-PM-031` —el promedio en las cuatro lecturas— se construye con `RF-PM-009`** y no con la lista: es una enmienda a cuatro requerimientos ya construidos (Art. I.7), y conviene que exista desde la primera reseña escrita.
 
+**La portada va `RF-PM-014` → `RF-PM-016` → `RF-PM-015`.** La subida crea la tabla, la columna y la comprobación de los bytes; el `GET` público va segundo porque sin él `coverImageUrl` señalaría a una ruta que no existe; y quitarla, al final, porque es la única operación que tiene algo que rechazar (`RN-PM-034`). **`RN-PM-034` en el alta y en la corrección —el icono obligatorio sin portada— se construye con `RF-PM-014`**, como enmienda a `RF-PM-001` y `RF-PM-004` (Art. I.7): es la misma regla, y conviene que exista desde el primer producto con portada.
+
 ### 6.2 Fichas
 
 #### `RF-PM-001` — Registrar producto
@@ -524,7 +582,7 @@ El alta crea la tabla y el catálogo, y sin catálogo no hay nada que consultar.
 | Actor | Administrador |
 | Permiso requerido | `products:create` |
 | Prioridad | **Crítica** |
-| Reglas aplicables | `RN-PM-001` a `RN-PM-008`, `RN-PM-012`, `RN-PM-013`, `RN-PM-019`, `RN-PM-020`, `RN-PM-023`, `RN-PM-032` |
+| Reglas aplicables | `RN-PM-001` a `RN-PM-008`, `RN-PM-012`, `RN-PM-013`, `RN-PM-016`, `RN-PM-019`, `RN-PM-020`, `RN-PM-023`, `RN-PM-032`, `RN-PM-034` |
 | Depende de | — |
 | Tripleta | `docs/specs/pm/001-registrar-producto/` |
 | Estado | **Tasks aprobadas** (26-08-2026) |
@@ -537,6 +595,8 @@ Registra un producto declarando su **tipo**, su nombre, su precio y su moneda; s
 
 **Desde el 14-09-2026 admite también el enlace de un video** (`RN-PM-032`), **opcional y en los dos tipos**, validado **solo en su forma**: URL absoluta `http` o `https`, sin espacios, hasta 500 caracteres. Ausente y nulo significan lo mismo —«no tiene video»— y el alta lo devuelve **presente y nulo**, como el precio de compra. El sistema no sigue el enlace (§5.2.8).
 
+**Y desde ese mismo día el icono es obligatorio en un upgrade** (`RN-PM-034`): la portada llega después del alta, de modo que en el alta el icono es lo único que puede pintar el producto, y un upgrade sin él se rechaza. En el bot sigue prohibido (`RN-PM-016`). **La portada no entra por aquí**: el alta sigue siendo JSON, y la imagen se sube después con `RF-PM-014`; la respuesta trae `coverImageUrl` **presente y nulo**, que es lo único que puede traer un producto recién registrado (§5.2.9).
+
 #### `RF-PM-002` — Consultar productos
 
 | Campo | Valor |
@@ -545,7 +605,7 @@ Registra un producto declarando su **tipo**, su nombre, su precio y su moneda; s
 | Actor | Administrador · fuerza comercial |
 | Permiso requerido | `products:read` |
 | Prioridad | **Crítica** |
-| Reglas aplicables | `RN-PM-024`, `RN-PM-032` |
+| Reglas aplicables | `RN-PM-024`, `RN-PM-032`, `RN-PM-033` |
 | Depende de | `RF-PM-001` |
 | Tripleta | `docs/specs/pm/002-consultar-productos/` |
 | Estado | **Tasks aprobadas** (26-08-2026) |
@@ -558,6 +618,8 @@ Devuelve el catálogo **paginado**, con filtros por tipo, estado, membresía **d
 
 **Cada fila trae el enlace del video** (`RN-PM-032`, 14-09-2026), **presente y nulo** en los productos que no lo declaran. **No es un filtro**: se selecciona en la misma sentencia y la consulta no gana ninguna condición.
 
+**Y trae la dirección de la portada**, `coverImageUrl` (`RN-PM-033`, 14-09-2026): la del `GET` público de `RF-PM-016`, construida sobre `cover_image_id` **sin ninguna consulta más** —los bytes no se seleccionan nunca en un listado—, y **presente y nula** cuando el producto no tiene. Tampoco es un filtro.
+
 **Los dos filtros nuevos entran con las columnas** (07-09-2026) y no en una ampliación posterior. El del alcance es el **único sitio del sistema donde ese dato se puede consultar hoy**: `RF-PM-007` no lo filtra —no puede, §5.2.2— y el canal de hotlinks que lo consumirá todavía no existe, de modo que sin este filtro el alcance sería un dato que se declara, se corrige y no se puede ver.
 
 #### `RF-PM-003` — Consultar el detalle de un producto
@@ -568,7 +630,7 @@ Devuelve el catálogo **paginado**, con filtros por tipo, estado, membresía **d
 | Actor | Administrador · fuerza comercial |
 | Permiso requerido | `products:read` |
 | Prioridad | Alta |
-| Reglas aplicables | `RN-PM-024`, `RN-PM-032` |
+| Reglas aplicables | `RN-PM-024`, `RN-PM-032`, `RN-PM-033` |
 | Depende de | `RF-PM-001` |
 | Tripleta | `docs/specs/pm/003-consultar-detalle-producto/` |
 | Estado | **Tasks aprobadas** (26-08-2026) |
@@ -581,7 +643,7 @@ Devuelve además **el alcance y la implementación** (`RN-PM-019`, `RN-PM-020`):
 
 **Desde el 08-09-2026 devuelve también la conversión** (`RN-PM-024`), con el mismo trato: **presente y nula** cuando el producto ya está en la moneda por omisión o cuando no hay tasa vigente. Cuesta **una consulta más** —la moneda de casa— y una segunda **solo si hay algo que convertir**.
 
-**Y desde el 14-09-2026 devuelve el enlace del video** (`RN-PM-032`), presente y nulo cuando el producto no lo tiene, sin ninguna consulta más.
+**Y desde el 14-09-2026 devuelve el enlace del video** (`RN-PM-032`), presente y nulo cuando el producto no lo tiene, sin ninguna consulta más. **Y la dirección de la portada**, `coverImageUrl` (`RN-PM-033`), con el mismo trato: presente y nula, sin consulta más, y también en un producto retirado.
 
 #### `RF-PM-004` — Editar producto
 
@@ -591,7 +653,7 @@ Devuelve además **el alcance y la implementación** (`RN-PM-019`, `RN-PM-020`):
 | Actor | Administrador |
 | Permiso requerido | `products:update` |
 | Prioridad | Alta |
-| Reglas aplicables | `RN-PM-001`, `RN-PM-005` a `RN-PM-008`, `RN-PM-019`, `RN-PM-020`, `RN-PM-023`, `RN-PM-032` |
+| Reglas aplicables | `RN-PM-001`, `RN-PM-005` a `RN-PM-008`, `RN-PM-016`, `RN-PM-019`, `RN-PM-020`, `RN-PM-023`, `RN-PM-032`, `RN-PM-034` |
 | Depende de | `RF-PM-001` |
 | Tripleta | `docs/specs/pm/004-editar-producto/` |
 | Estado | **Tasks aprobadas** (26-08-2026) |
@@ -603,6 +665,8 @@ Permite corregir **nombre, descripción, icono, el enlace del video, los dos pre
 **El precio de compra se corrige y además se puede VACIAR** (`RN-PM-023`), y en eso va con la descripción, el icono y la vigencia y no con el precio del sistema: su nulo es un estado legítimo —«no se conoce el costo»— de modo que el nulo explícito **es una orden** y no un error. Es también **donde se guarda lo que costó** cuando el producto se compra: hoy lo escribe quien administra, con esta edición. El del sistema no admite vaciarse: la columna es obligatoria y «bórralo» no tiene ningún estado al que llevar el producto.
 
 **El enlace del video se corrige y se vacía** (`RN-PM-032`, 14-09-2026), y va con la descripción, el icono, la vigencia y el precio de compra: su nulo es un estado legítimo —«no tiene video»— de modo que el nulo explícito **es una orden**. Se corrige **en los dos tipos**, sin la condición cruzada del icono, y con la misma comprobación de forma que en el alta.
+
+**El icono de un upgrade solo se vacía si hay portada** (`RN-PM-034`, 14-09-2026). Vaciarlo sin portada dejaría el producto sin nada que pintar, y se rechaza **sin aplicar ningún otro cambio** de la misma petición, como todo rechazo de esta operación. **Y la portada no se corrige por aquí**: tiene sus propios endpoints (`RF-PM-014`, `RF-PM-015`), porque es un archivo y no un campo del cuerpo JSON. La respuesta la devuelve, como todas, en `coverImageUrl`.
 
 **Y no reescriben ninguna venta anterior, porque la venta copia la implementación en su línea** —como el importe y la vigencia—: quien compró algo que se entregaba solo lo sigue teniendo así aunque el catálogo cambie de criterio mañana. Es la condición que §5.2.2 impone a `MV`, y **todavía no está construida**.
 
@@ -644,7 +708,7 @@ Elimina lógicamente un producto **exigiendo motivo** (Art. V.13), que viaja al 
 | Actor | Cualquier persona autenticada con `products:sale` |
 | Permiso requerido | `products:sale` |
 | Prioridad | Alta |
-| Reglas aplicables | `RN-PM-009`, `RN-PM-011`, `RN-PM-019`, `RN-PM-020`, `RN-PM-024`, `RN-PM-032` |
+| Reglas aplicables | `RN-PM-009`, `RN-PM-011`, `RN-PM-019`, `RN-PM-020`, `RN-PM-024`, `RN-PM-032`, `RN-PM-033` |
 | Depende de | `RF-PM-001` |
 | Tripleta | `docs/specs/pm/007-consultar-oferta-propia/` |
 | Estado | **Tasks aprobadas** (26-08-2026) |
@@ -653,7 +717,7 @@ Devuelve **solo productos activos**, y de los de tipo upgrade **solo aquellos cu
 
 **Publica UN precio y la conversión** (`RN-PM-024`, reescrita el 12-09-2026): `price` es el que se cobra y `exchange` su conversión a la moneda de casa. **El precio de compra no viaja por aquí ni se selecciona**: es el costo de NEXUS y quien compra no tiene por qué conocer el margen (§5.2.6). Entre el 08-09-2026 y el 12-09-2026 publicó también el segundo importe, cuando ese importe era lo que se anunciaba; con el cambio de significado dejó de tener sentido y se retiró.
 
-**Publica el enlace del video** (`RN-PM-032`, 14-09-2026), presente y nulo cuando no hay. Es lo contrario del precio de compra: material de venta, que existe para que lo vea quien compra, y por eso **sí se selecciona** aquí.
+**Publica el enlace del video** (`RN-PM-032`, 14-09-2026), presente y nulo cuando no hay. Es lo contrario del precio de compra: material de venta, que existe para que lo vea quien compra, y por eso **sí se selecciona** aquí. **Y publica la dirección de la portada** (`RN-PM-033`), `coverImageUrl`, por lo mismo y con el mismo trato — la imagen la sirve `RF-PM-016` sin token, de modo que quien ve la oferta puede pintarla sin una segunda credencial.
 
 **Publica el alcance y la implementación de cada producto, y no filtra por ninguno de los dos** (`RN-PM-019`, `RN-PM-020`). El alcance **no puede** filtrar aquí: bajo la escala acumulativa los dos valores llegan a la tienda, de modo que un predicado sobre él devolvería siempre lo mismo que no ponerlo. La implementación sí viaja en la respuesta, y por un motivo que no es de simetría: quien compra tiene que poder saber **antes de pagar** que lo que se lleva no se le entrega en el acto. Ocultarlo no evita la espera — la convierte en una incidencia de soporte.
 
@@ -667,7 +731,7 @@ Devuelve **solo productos activos**, y de los de tipo upgrade **solo aquellos cu
 | Actor | **Cualquiera, sin autenticar** |
 | Permiso requerido | **Ninguno: es público** |
 | Prioridad | Alta |
-| Reglas aplicables | `RN-PM-009`, `RN-PM-019`, `RN-PM-021`, `RN-PM-022`, `RN-PM-024`, `RN-PM-032` |
+| Reglas aplicables | `RN-PM-009`, `RN-PM-019`, `RN-PM-021`, `RN-PM-022`, `RN-PM-024`, `RN-PM-032`, `RN-PM-033` |
 | Depende de | `RF-PM-001`, **`RF-SP-047`** |
 | Tripleta | `docs/specs/pm/008-hotlink-publico/` |
 | Estado | **Tasks en revisión** (07-09-2026) |
@@ -680,6 +744,8 @@ Devuelve, en **una** llamada y **sin token**, el producto que el enlace señala 
 
 **Publica el enlace del video, sin token** (`RN-PM-032`, 14-09-2026): la dirección que administración escribió, **tal cual**, presente y nula cuando no hay. El sistema no la sigue ni la valida más allá de su forma, y lo que eso significa en una ruta pública está escrito en §5.2.8.
 
+**Y publica la dirección de la portada, sin token** (`RN-PM-033`): `coverImageUrl`, presente y nula cuando no hay. Es la única de las cuatro lecturas en la que **la imagen y su dirección se sirven las dos sin token** —`RF-PM-016` no exige nada—, y es a propósito: la pantalla del hotlink no tiene con qué autenticarse (§5.2.9).
+
 **Es el primer endpoint público del módulo, y el primero del sistema que publica el nombre de una persona.** De ahí salen las dos reglas que lo gobiernan: solo se publica lo que tiene alcance `HOTLINKS` (`RN-PM-021`) y solo el nombre de quien es fuerza comercial (`RN-PM-022`).
 
 !!! danger "Todo lo que no procede responde el MISMO `404`, y esa uniformidad es la mitad de la seguridad"
@@ -689,6 +755,53 @@ Devuelve, en **una** llamada y **sin token**, el producto que el enlace señala 
     Lo que la uniformidad **no** evita es que alguien recorra nombres de usuario a ciegas; eso lo acota `RateLimitFilter` **por origen**, y queda escrito que **acotar no es impedir**.
 
 **`SP` publica dos lecturas nuevas por la vía de D-25**, y no se leen sus tablas: **el vendedor por nombre de usuario** —que devuelve vacío si no es fuerza comercial, de modo que la regla de quién es publicable vive en `SP`, que es de quien son los roles— y **la tasa vigente entre dos monedas**. Las tareas que las escriben pertenecen a este requerimiento aunque el código viva en paquetes de `SP`, como ocurrió con las tres de `RF-PM-001` y `RF-PM-007`.
+
+#### `RF-PM-014` — Subir o reemplazar la portada de un producto
+
+| Campo | Valor |
+|---|---|
+| Objetivo | Que un producto tenga una foto con la que presentarse, y que se pueda cambiar sin dejar rastro de la anterior |
+| Actor | Administrador |
+| Permiso requerido | `products:update` |
+| Prioridad | Alta |
+| Reglas aplicables | `RN-PM-033`, `RN-PM-034` |
+| Depende de | `RF-PM-001` |
+| Tripleta | `docs/specs/pm/014-subir-portada-producto/` |
+| Estado | **Tasks en revisión** (14-09-2026) |
+
+Recibe **un archivo** —`multipart/form-data`, una sola parte— y lo convierte en la portada del producto: comprueba por **sus primeros bytes** que es `JPEG`, `PNG` o `WebP`, que **no pasa de 5 MB**, y lo guarda **tal cual**, sin tratarlo (`RN-PM-033`). Si el producto ya tenía portada, **la reemplaza**: la nueva estrena identificador y **la vieja se borra** en la misma transacción. Responde con el producto, como la corrección, y `coverImageUrl` trae la dirección nueva. **En los dos tipos**, sin condición: subir una portada nunca puede dejar a un producto peor de lo que estaba.
+
+**Es el requerimiento que crea la tabla `product_images`, la columna `cover_image_id` y la comprobación de los bytes**, y **el que construye `RN-PM-034` en el alta y en la corrección** (Art. I.7): el icono obligatorio en un upgrade sin portada nace aquí, porque es cuando por primera vez hay una portada con la que no tenerlo.
+
+#### `RF-PM-015` — Quitar la portada de un producto
+
+| Campo | Valor |
+|---|---|
+| Objetivo | Que un producto vuelva a pintarse con su icono, sin dejar la imagen huérfana |
+| Actor | Administrador |
+| Permiso requerido | `products:update` |
+| Prioridad | Media |
+| Reglas aplicables | `RN-PM-033`, `RN-PM-034` |
+| Depende de | `RF-PM-014` |
+| Tripleta | `docs/specs/pm/015-quitar-portada-producto/` |
+| Estado | **Tasks en revisión** (14-09-2026) |
+
+Quita la portada: `cover_image_id` vuelve a nulo y **la fila de la imagen se borra**, en la misma transacción. **Es la única de las tres operaciones que tiene algo que rechazar**: un upgrade **sin icono** no puede quedarse sin portada (`RN-PM-034`), y la petición se rechaza en lugar de dejar el producto sin nada que pintar; a un bot se le quita siempre. Sin portada que quitar, **responde igual y no escribe nada** — «quítala» sobre un producto que no la tiene ya ha conseguido lo que quería. Responde con el producto, con `coverImageUrl` nulo.
+
+#### `RF-PM-016` — Obtener la imagen de una portada, sin autenticación
+
+| Campo | Valor |
+|---|---|
+| Objetivo | Que la dirección que las cuatro lecturas devuelven se pueda poner en un `<img>` y funcione, con token o sin él |
+| Actor | **Cualquiera, sin autenticar** |
+| Permiso requerido | **Ninguno: es público** |
+| Prioridad | Alta |
+| Reglas aplicables | `RN-PM-033` |
+| Depende de | `RF-PM-014` |
+| Tripleta | `docs/specs/pm/016-imagen-de-portada-publica/` |
+| Estado | **Tasks en revisión** (14-09-2026) |
+
+Devuelve **los bytes de la imagen** con su `Content-Type` real —el que se detectó al subirla—, **sin mirar el producto**: no comprueba estado, alcance ni retiro (§5.2.9). Responde con **caché inmutable** —un año, `immutable`— porque la dirección señala una imagen concreta que no cambia nunca: reemplazar la portada es otra dirección. Un identificador que no existe —o que existió y se reemplazó— responde `404`. **Es la tercera ruta pública del módulo** y la primera del sistema que sirve algo que no es JSON; entra en la cota de tasa de los catálogos públicos, contada por la familia, como las reseñas.
 
 #### `RF-PM-009` — Reseñar un producto
 
@@ -773,7 +886,7 @@ Definidos en [`security.md` §11](../security.md) y en la constitución. Los que
 | ID | Requerimiento |
 |---|---|
 | `RNF-SEG-001` | Autenticación y autorización basada en roles y permisos |
-| `RNF-SEG-002` | Todo endpoint no declarado como público exige autenticación. **Este módulo publica DOS**: `RF-PM-008`, el hotlink, desde el 07-09-2026, y `RF-PM-012`, la lista de reseñas de un producto, desde el 14-09-2026. Las dos declaraciones van en `SecurityConfig` con el motivo escrito al lado, y la segunda **solo en `GET`**: la misma ruta responde a un `POST` que exige `products:comment` |
+| `RNF-SEG-002` | Todo endpoint no declarado como público exige autenticación. **Este módulo publica TRES**: `RF-PM-008`, el hotlink, desde el 07-09-2026; `RF-PM-012`, la lista de reseñas de un producto, desde el 14-09-2026; y `RF-PM-016`, la imagen de una portada, desde ese mismo día. Las tres declaraciones van en `SecurityConfig` con el motivo escrito al lado; la segunda **solo en `GET`** —la misma ruta responde a un `POST` que exige `products:comment`— y la tercera es la **única ruta del sistema que sirve bytes y no JSON** |
 | `RNF-PERF-001` | Lectura p95 < 500 ms, escritura p95 < 1 s (Art. XV.9) |
 | `RNF-MAN-001` | Ninguna regla de negocio del módulo vive en el controlador (`architecture.md` §5) |
 
@@ -806,6 +919,15 @@ Ninguna con sistemas externos. La pasarela de pago, que sería la primera, perte
 | `GET` | `/api/v1/products/{id}/comments/mine` | `RF-PM-013` | `products:comment` |
 | `PATCH` | `/api/v1/products/{id}/comments/{commentId}` | `RF-PM-010` | `products:comment` **y ser el autor** |
 | `DELETE` | `/api/v1/products/{id}/comments/{commentId}` | `RF-PM-011` | `products:comment` **y ser el autor** |
+| `PUT` | `/api/v1/products/{id}/cover` | `RF-PM-014` | `products:update` |
+| `DELETE` | `/api/v1/products/{id}/cover` | `RF-PM-015` | `products:update` |
+| `GET` | `/api/v1/product-images/{imageId}` | `RF-PM-016` | **Público** |
+
+!!! note "La portada es un `PUT`, y la imagen vive en un recurso propio"
+
+    **`PUT /cover` y no `POST`**: la portada es **un solo hueco** por producto, y subir una imagen es **poner** lo que hay en ese hueco — repetir la misma petición deja el mismo resultado, que es lo que un `PUT` promete. `DELETE /cover` lo vacía, sin cuerpo, por lo mismo que el retiro de la reseña: no hay motivo que proteger. **Los dos responden con el producto**, como `PATCH /products/{id}`, porque lo que cambió es un campo del producto y el cliente lo repinta con lo que vuelve.
+
+    **`/product-images/{imageId}` cuelga de su propio recurso** y no de `/products/{id}/cover`, y el motivo está en §5.2.9: la dirección señala **una imagen concreta** que no cambia nunca, de modo que se puede servir con caché inmutable; una dirección por producto cambiaría de contenido al reemplazar la portada y obligaría a pelear con la caché del navegador. **Y no revela el identificador del producto**, que el hotlink se cuida de no publicar.
 
 !!! note "El retiro de la reseña SÍ es un `DELETE`, y el del producto no, por la misma razón"
 
@@ -835,6 +957,7 @@ El contrato detallado de cada endpoint se define en el `plan.md` de su tripleta.
 |---|---|---|
 | `products` | El catálogo: qué se vende, de qué tipo, a qué precio | Este módulo |
 | `product_comments` | Las reseñas: qué dijo cada persona de cada producto, con qué puntuación, y cuándo lo escribió, lo corrigió y lo retiró (14-09-2026, §10.4) | Este módulo |
+| `product_images` | Los bytes de las portadas, con su tipo real (14-09-2026, §10.5). **La primera tabla del sistema que guarda un archivo** | Este módulo |
 
 Ninguna otra. `memberships`, `currencies` y —desde el 14-09-2026— `users` se **referencian** por clave foránea y pertenecen a `SP`.
 
@@ -854,6 +977,7 @@ Ninguna otra. `memberships`, `currencies` y —desde el 14-09-2026— `users` se
 | `price` | `numeric(14,4)` | No | No | No | — | — |
 | `purchase_price` | `numeric(14,4)` | No | No | **Sí** | — | — |
 | `video_url` | `varchar(500)` | No | No | Sí | — | — |
+| `cover_image_id` | `uuid` | No | Sí | Sí | — | `product_images` |
 | `currency_id` | `uuid` | No | Sí | No | — | `currencies` |
 | `status` | `varchar(20)` | No | No | No | `ACTIVO` | — |
 | `scope` | `varchar(20)` | No | No | No | — | — |
@@ -908,6 +1032,8 @@ Sin columnas de actor, y **sin columna de motivo**: quién retiró el producto y
 | `ck_products_type_target` | `(type = 'UPGRADE_MEMBRESIA' AND target_membership_id IS NOT NULL AND source_membership_id IS NOT NULL) OR (type = 'BOT' AND target_membership_id IS NULL AND source_membership_id IS NULL)` | `RN-PM-002` |
 | `ck_products_icon_solo_upgrade` | `icon IS NULL OR type = 'UPGRADE_MEMBRESIA'` | `RN-PM-016`. La rama `IS NULL` va **delante y explícita** por lo mismo que en la vigencia: un `CHECK` que evalúa a `NULL` **acepta** la fila |
 | `ck_products_icon_format` | `icon IS NULL OR icon ~ '^[a-z][a-z0-9-]*$'` | `RN-PM-016`. El valor se guarda ya normalizado, de modo que el `CHECK` puede ser una comprobación de forma corriente |
+| `fk_products_cover_image` | `cover_image_id` → `product_images(id)` | `RN-PM-033`. **Sin `ON DELETE`**: la fila de la imagen se borra **después** de que la columna deje de señalarla, en la misma transacción, y nunca al revés — un `ON DELETE SET NULL` dejaría que borrar una imagen quitara una portada sin pasar por `RN-PM-034` |
+| `uq_products_cover_image` | `products(cover_image_id)`, único **total** —el nulo no cuenta en un único de PostgreSQL— | `RN-PM-033`. Una imagen es portada de **un** producto como máximo, y eso es lo que hace **seguro** borrar la reemplazada: nadie más la señala |
 | `ck_products_video_url_format` | `video_url IS NULL OR video_url ~ '^https?://[^[:space:]]+$'` | `RN-PM-032`. La rama `IS NULL` va **delante y explícita**, como en el icono. Comprueba **la forma y nada más** —esquema `http` o `https`, y ningún espacio—; que el enlace resuelva a algo no es cosa del esquema ni del dominio (§5.2.8). El tope de longitud lo da el tipo de la columna |
 | `ck_products_scope` | `scope IN ('TIENDA','HOTLINKS')` | `RN-PM-019` |
 | `ck_products_implementation` | `implementation IN ('AUTOMATICA','MANUAL')` | `RN-PM-020`. **Ninguna de las dos lleva `DEFAULT`**, al revés que `status`: aquel lo tiene porque una regla lo exige (`RN-PM-012`), y aquí un valor por omisión sería **una decisión comercial tomada por la columna** — hasta dónde se muestra un producto y quién lo entrega los declara quien lo registra |
@@ -941,6 +1067,7 @@ Se declaran en la base de datos, no solo en Java (Art. V.6).
 | `RN-PM-008` — la moneda debe estar **activa** | La clave foránea garantiza que existe, no que esté vigente | En el caso de uso, contra la interfaz que `SP` publique (**D-25**) |
 | `RN-PM-011` — la oferta coincide por origen | Es una consulta, no una restricción de integridad | En el caso de uso de `RF-PM-007`, con prueba sobre los cuatro casos: origen que coincide, origen ajeno, **renovación** y actor sin membresía |
 | `RN-PM-017` — el origen no está por encima | **Desde el 07-09-2026 no queda NADA de ella en el esquema**: `ck_products_origen_distinto` se retiró con la renovación, y la mitad que sobrevive necesita el `level` de **dos** filas de `memberships`, que un `CHECK` no puede consultar | En `RegisterProductService.verificarOrigen`, con prueba del descenso —que se rechaza— y del mismo nivel —que se admite— |
+| `RN-PM-034` — un upgrade siempre tiene portada o icono | **Cabría en un `CHECK`** —`type <> 'UPGRADE_MEMBRESIA' OR icon IS NOT NULL OR cover_image_id IS NOT NULL`— **y no se declara**, porque hay filas anteriores al 14-09-2026 que lo violan y no hay ningún icono honesto que inventarles. Un `CHECK NOT VALID` se podría declarar sin validarlas, pero PostgreSQL lo comprueba en **todo `UPDATE`** de esas filas, y activar o retirar uno de esos upgrades daría un `500` justo donde la regla dice que no pasa nada (§5.2.9) | En el agregado, en las tres operaciones: `Product.create` —upgrade sin icono, `VAL-018` de `RF-PM-001`—, `Product.update` —vaciar el icono sin portada, `VAL-010` de `RF-PM-004`— y `Product.quitarPortada` —sin icono, `VAL-002` de `RF-PM-015`—, con prueba unitaria de cada una y del bot, que pasa en las tres |
 
 ### 10.4 `product_comments` — la reseña (14-09-2026)
 
@@ -983,6 +1110,40 @@ Se declaran en la base de datos, no solo en Java (Art. V.6).
 | `RN-PM-030` — del autor solo el nombre | Ninguna restricción puede declarar que una columna no se publique. Lo sostiene que la proyección de la lista **no tenga** `userId` ni `username` | En la prueba de la lista, comprobando el cuerpo entero y no solo los campos esperados |
 | `RN-PM-031` — el promedio en toda lectura | Es una cuenta, no una restricción, y **no se guarda** (§5.2.7) | En las cuatro lecturas: promedio y cantidad con reseñas vivas, **nulo y cero** sin ninguna, y una reseña retirada que **sale de la cuenta**; y la prueba de sentencias de `RF-PM-002`, que no debe subir |
 
+### 10.5 `product_images` — la portada (14-09-2026)
+
+| Campo | Tipo | PK | FK | Nullable | Default | Entidad relacional |
+|---|---|---|---|---|---|---|
+| `id` | `uuid` | Sí | No | No | — | — |
+| `content_type` | `varchar(30)` | No | No | No | — | — |
+| `content` | `bytea` | No | No | No | — | — |
+| `created_at` | `timestamptz` | No | No | No | `now()` | — |
+
+**Es la primera tabla del sistema que guarda un archivo**, y la primera de `PM` que **no es una entidad**: es el valor de una columna de `products` sacado a una tabla propia porque los bytes no caben con dignidad en una fila del catálogo — un listado que seleccionara `products.*` arrastraría cinco megas por fila. **La relación va de `products` hacia aquí** (`products.cover_image_id`) y no al revés: un `product_id` en esta tabla sería un segundo puntero que podría divergir del primero, y el único que hace falta es el que el catálogo lee.
+
+**Sin `updated_at` ni `deleted_at`, y no es un olvido.** Una fila de esta tabla **no se modifica nunca**: reemplazar la portada es **otra fila** con otro identificador —para que la dirección pública sea inmutable, §5.2.9— y la anterior **se borra físicamente**, en la misma transacción y después de que la columna deje de señalarla. No es una baja lógica ni cabe en el Art. V.13: no se retira una entidad, se corrige el valor de un campo, y la auditoría de cambios de `products` conserva el antes y el después del identificador.
+
+**`content_type` es el tipo real, detectado en los bytes**, y no la cabecera de la petición. Es lo que `RF-PM-016` devuelve al servir la imagen, y por eso tiene que ser verdad: servir un `PNG` diciendo que es un `JPEG` es un error del navegador que nadie va a saber rastrear hasta aquí.
+
+**`created_at` es cuándo se subió**, que coincide con cuándo pasó a ser portada: la fila nace señalada. Quién la subió vive en la auditoría de cambios (Art. V.7), en el diff de `cover_image_id`.
+
+#### Restricciones exigidas en el esquema
+
+| Restricción | Sobre | Regla que implementa |
+|---|---|---|
+| `ck_product_images_content_type` | `content_type IN ('image/jpeg','image/png','image/webp')` | `RN-PM-033`. Los tres formatos, y ninguno más: `SVG` puede llevar código y `GIF` es una decisión de diseño que nadie tomó (§5.2.9). Añadir uno es reemplazar esta restricción **y** enseñarle al detector sus primeros bytes |
+| `ck_product_images_size` | `octet_length(content) BETWEEN 1 AND 5242880` | `RN-PM-033`. **Cinco megabytes exactos, y ningún byte de cero**: un archivo vacío no es una imagen. Va en el esquema para que ninguna otra ruta que la de `RF-PM-014` pueda meter algo mayor |
+
+**Y lo que no hay**: ningún `CHECK` sobre los bytes mismos. Que el contenido **sea** un `PNG` y no un texto con ese tipo declarado lo comprueba el dominio, mirando la firma del archivo, porque un `CHECK` sobre los primeros bytes de un `bytea` sería posible y **también sería la única línea de SQL del sistema que sabe lo que es un archivo de imagen**, que es exactamente el conocimiento que se decidió dejar en un solo sitio.
+
+#### Lo que no se declara en el esquema
+
+| Regla | Por qué no | Cómo se verifica |
+|---|---|---|
+| `RN-PM-033` — el tipo lo deciden los bytes | Un `CHECK` sobre la firma del archivo es posible y no se escribe, por lo de arriba | En el dominio, con prueba unitaria de las tres firmas válidas, de un `GIF`, de un `SVG` y de un texto con extensión `.png`, que se rechazan |
+| `RN-PM-033` — cada subida estrena identificador y la reemplazada se borra | Es una secuencia de tres escrituras en una transacción, no una restricción | En la prueba de `RF-PM-014`: tras reemplazar, la dirección vieja responde `404`, la nueva `200`, y `product_images` tiene **una** fila para ese producto |
+| `RN-PM-034` — un upgrade siempre tiene portada o icono | Ver §10.3 | Ver §10.3 |
+
 ---
 
 ## 11. Control de cambios
@@ -1017,3 +1178,4 @@ Se declaran en la base de datos, no solo en Java (Art. V.6).
 | 0.26.0 | 14-09-2026 | **Los cinco `plan.md` aprobados y las cinco `tasks.md` redactadas**: la tripleta de las reseñas está completa y `RF-PM-009` a `RF-PM-013` pasan a `Tasks en revisión`. **Cincuenta y nueve tareas.** Tres decisiones de los planes alcanzan más allá de su requerimiento: **el agregado de `rating` entra en las cuatro sentencias por un `LEFT JOIN LATERAL`** sobre el índice parcial, con el redondeo en Java y en un solo sitio, para que el número de consultas de los listados no suba (`RF-PM-009` §4.1); **el `403` de propiedad se hace después de resolver la fila y nunca filtrando por actor en la consulta**, porque eso convertiría la ajena en `404` sin que nadie lo decidiera (`RF-PM-010` §5); y **la lista pública entra en la lista por método de `SecurityConfig` y no en `RUTAS_PUBLICAS`**, con la cota de tasa contada por la familia y la política de los catálogos (`RF-PM-012` §5, §8). **Las enmiendas Art. I.7 por `rating` se aplican en este mismo pase**, y no con el código: las specs de `RF-PM-001` a `RF-PM-004`, `RF-PM-007` y `RF-PM-008` ganan su fila y su párrafo de §6.2 citando `RF-PM-009`. Orden de construcción: `009 → 012 → 013 → 010 → 011`, con `T-10` y `T-11` de `009` —la enmienda a lo ya construido— **antes** que su servicio de alta. | Responsable del proyecto |
 | 0.27.0 | 14-09-2026 | **Un producto puede enlazar un VIDEO, y el enlace sale en las cuatro lecturas.** Por decisión del responsable del proyecto, con **cuatro respuestas preguntadas antes de escribir** (§5.2.8), y las cuatro del lado más abierto: **se ve en las cuatro lecturas** —catálogo, detalle, oferta y hotlink sin token— porque es material de venta y no un costo, al revés que el precio de compra; **se valida solo la forma** —URL absoluta `http` o `https`, sin espacios, hasta 500 caracteres, de cualquier dominio— y el sistema **no sigue el enlace**: no comprueba que exista, no lo descarga, no lo incrusta; **en los dos tipos**, sin la condición cruzada del icono; y **opcional, corregible y vaciable**, sin condicionar la activación. Nace **`RN-PM-032`**. §10 gana `video_url` —`varchar(500)`, nulo cuando no hay— y `ck_products_video_url_format`, con la rama `IS NULL` delante. **`RN-PM-024` no se toca**: el enlace va a las cuatro lecturas precisamente porque no es el costo. Queda escrito lo que se acepta al publicarlo sin token: **es una dirección que alguien con `products:update` escribió, tal cual**, con el mismo trato que la descripción. Enmienda las tripletas de `RF-PM-001` a `RF-PM-004`, `RF-PM-007` y `RF-PM-008` (Art. I.7). | Responsable del proyecto |
 | 0.28.0 | 14-09-2026 | **Las reseñas quedan CONSTRUIDAS**: `V87` crea `product_comments`, `V88` siembra `products:comment`, y `RF-PM-009` a `RF-PM-013` pasan a `En desarrollo` con **58 pruebas** propias en verde (seis suites de API, una de concurrencia, `ProductRatingIT` para el promedio en las cuatro lecturas, y dos unitarias). **Tres cosas que dejó la construcción y que las tripletas ya recogen**: el cuerpo vacío de la corrección responde `400` y no `200`, alineado con `RF-PM-004` (`RF-PM-010` v0.2.0); la puntuación se deserializa con un **entero estricto**, porque Jackson convierte `4.5` en `4` por omisión y `RN-PM-025` dice que el decimal se rechaza (`RF-PM-009` v0.2.0); y `rating` entró en las cuatro sentencias por un `LEFT JOIN LATERAL` **sin que ninguna suite de lecturas cambiara de número de sentencias**. El `403` de propiedad se prueba con un administrador en la corrección y con el **superadministrador** en el retiro. Los cinco siguen sin Pull Request, como todo el módulo. | Responsable técnico |
+| 0.29.0 | 14-09-2026 | **Un producto lleva PORTADA, y si no la tiene el icono es obligatorio.** Por decisión del responsable del proyecto, con **seis respuestas preguntadas antes de escribir** (§5.2.9). **Es la primera vez que el sistema guarda un archivo**: la frontera que `RN-PM-016` y §5.2.8 declaraban —«el sistema no almacena binarios»— **se mueve a propósito** y queda escrito hasta dónde: se guardan los bytes de una imagen `JPEG`, `PNG` o `WebP` de hasta 5 MB, **el tipo lo deciden los bytes y no la cabecera**, y **no se trata** — ni recorte, ni redimensión, ni conversión. **En PostgreSQL**, en `product_images` con `bytea` (§10.5), y no en disco ni en un bucket: mismo volumen, misma copia, misma transacción. **Por endpoints propios después del alta** —`PUT` y `DELETE /products/{id}/cover`, `RF-PM-014` y `RF-PM-015`— y **servida sin token por identificador de imagen** —`GET /product-images/{imageId}`, `RF-PM-016`, la tercera ruta pública del módulo—, con **caché inmutable** porque cada subida estrena identificador y la reemplazada **se borra**. Nacen **`RN-PM-033`** y **`RN-PM-034`** —un upgrade siempre tiene portada o icono, **al registrar y en cada corrección**: el alta exige el icono, con portada se vacía, sin icono la portada no se quita—; **`RN-PM-016` se enmienda** —el icono deja de ser opcional en el upgrade— y **el bot no entra**: sigue sin declarar icono, tiene el suyo por omisión en el frontend, y la portada le es opcional sin condición. `RN-PM-034` **no vive en el esquema** y §10.3 dice por qué: hay upgrades anteriores sin icono, y un `CHECK NOT VALID` los rompería al activarlos. Las cuatro lecturas ganan `coverImageUrl`. **`RN-PM-024` no se toca.** Los tres requerimientos nuevos nacen con tripleta completa, en `Tasks en revisión`, y las seis de `RF-PM-001`, `002`, `003`, `004`, `007` y `008` quedan enmendadas. | Responsable del proyecto |

@@ -2,7 +2,7 @@
 
 | Campo | Valor |
 |---|---|
-| Versión | 0.43.0 |
+| Versión | 0.44.0 |
 | Estado | **Borrador** |
 | Responsable | Bonilla Diaz William Steven |
 | Fecha de creación | 21-08-2026 |
@@ -14,7 +14,9 @@
 
     Es una **vista derivada**, no normativa. Sale de [`requirements/sp.md` §10](requirements/sp.md), [`security.md` §9](security.md) y [`architecture.md` §6.6](architecture.md). La fuente de verdad del esquema son las **migraciones Flyway** (Art. V.3), y donde ya existen mandan ellas.
 
-!!! success "Veintiocho tablas escritas, y ninguna diseñada pendiente de escribir"
+!!! warning "Veintiocho tablas escritas, y UNA diseñada pendiente de escribir: `product_images` (14-09-2026)"
+
+    **`product_images` —la portada de un producto, y la primera tabla del sistema que guarda un archivo— está diseñada en [`requirements/pm.md` §10.5](requirements/pm.md) y la creará `V90` con `RF-PM-014`**, junto con la columna `products.cover_image_id`. Es la situación de siempre entre la decisión y la migración, y vuelve a marcarse en cabecera para que nadie lea el mapa como si ya estuviera escrita.
 
     `V49` cerró las tres de `CM` —creó `user_commission_rates` y `product_commission_rates`, y **rehízo `commission_rates`** quitándole el producto, la persona y la vigencia—, y el 04-09-2026 **`V54__create_movements.sql`** creó las cuatro de `MV`: `movements`, `movement_types`, `movement_details` y `payment_methods`, con sus dos catálogos sembrados en la misma migración (`RF-MV-001`).
 
@@ -440,6 +442,7 @@ erDiagram
     products ||--o{ user_commission_rate_products : "paga esa excepción"
     products ||--o{ product_comments : "se reseña"
     users    ||--o{ product_comments : "escribe UNA por producto"
+    product_images |o--o| products : "es la PORTADA de · DISEÑADA, V90"
 
     products {
         uuid id PK
@@ -453,6 +456,7 @@ erDiagram
         numeric price "14,4 · EL QUE SE COBRA · la escala la decide la MONEDA"
         numeric purchase_price "14,4 · LO QUE PAGA NEXUS · NULL = no se conoce · solo administracion"
         varchar video_url "500 · la DIRECCION de un video, no el video · NULL = no tiene · en las CUATRO lecturas"
+        uuid cover_image_id FK "DISEÑADA, V90 · la portada · NULL = no tiene · UNICO: una imagen es portada de UN producto"
         integer validity_days "NULL = no caduca"
         timestamptz deleted_at "lógico · RN-PM-010"
     }
@@ -498,6 +502,13 @@ erDiagram
         timestamptz created_at "cuando se escribio"
         timestamptz updated_at "cuando se corrigio por ultima vez · solo la mueve el autor"
         timestamptz deleted_at "logico · SIN motivo declarado: Art. V.13, contenido propio"
+    }
+
+    product_images {
+        uuid id PK "cada subida ESTRENA uno · la direccion publica es inmutable"
+        varchar content_type "image/jpeg, png o webp · el REAL, detectado en los bytes"
+        bytea content "1 byte a 5 MB · TAL CUAL se subio: sin recorte ni conversion"
+        timestamptz created_at "cuando se subio · SIN updated_at ni deleted_at: no se modifica, se REEMPLAZA y la vieja se BORRA"
     }
 ```
 
@@ -548,6 +559,14 @@ erDiagram
 !!! info "`video_url` es una dirección, no un archivo, y va a las CUATRO lecturas (14-09-2026)"
 
     `products.video_url` —`varchar(500)`, nulo cuando no hay— guarda **la dirección de un video que presenta el producto**, no el video (`RN-PM-032`, `requirements/pm.md` §5.2.8). Es `icon` otra vez: el sistema no almacena binarios, y con el video **tampoco los consulta** — `ck_products_video_url_format` comprueba que empiece por `http://` o `https://` y no lleve espacios, y nada comprueba que el enlace resuelva a algo. **Al revés que `purchase_price`, sale de administración**: lo devuelven las cuatro lecturas, el hotlink sin token incluido, porque es material de venta y no un costo. Es el único par de columnas opcionales de esta tabla que se separan exactamente en eso: una se esconde porque enseñaría el margen, la otra se publica porque existe para que la vean.
+
+!!! info "`product_images` es la primera tabla del sistema que guarda un archivo, y NO es una entidad (14-09-2026, diseñada)"
+
+    Nace en [`requirements/pm.md` §10.5](requirements/pm.md) por decisión del responsable del proyecto (§5.2.9 de aquel): **la portada de un producto se sube al backend y los bytes viven en PostgreSQL**, en `bytea`, y no en disco ni en un bucket — mismo volumen, misma copia de seguridad, misma transacción que el producto. **La frase «el sistema no almacena binarios», que este documento repitió con el icono y con el video, deja de ser cierta a propósito**, y lo que se conserva de aquella frontera es la otra mitad: **el sistema no interpreta el contenido**. Guarda lo que recibe —`JPEG`, `PNG` o `WebP`, hasta 5 MB, y el tipo lo deciden **los primeros bytes** y no la cabecera— y lo devuelve tal cual.
+
+    **Tres cosas del dibujo.** La relación va **de `products` hacia la imagen** —`cover_image_id`, nulo cuando no hay— y no al revés: un `product_id` aquí sería un segundo puntero que podría divergir del único que el catálogo lee. **`cover_image_id` es único**: una imagen es portada de un producto como máximo, y eso es lo que hace seguro **borrar físicamente** la reemplazada — nadie más la señala. **Y la tabla no lleva `updated_at` ni `deleted_at`**: una fila no se modifica nunca; reemplazar la portada es **otra fila** con otro identificador, para que la dirección pública `/api/v1/product-images/{id}` sea **inmutable** y se pueda servir con caché de un año, y la anterior se borra en la misma transacción. **No es una baja lógica ni cabe en el Art. V.13**: no se retira una entidad, se corrige el valor de una columna de `products`, y la auditoría de cambios conserva el antes y el después del identificador — **el identificador, no los bytes**, que es lo que se acepta a cambio de no guardar cinco megas por cada intento de acertar con la foto.
+
+    **La regla que la acompaña tampoco vive en el esquema**: `RN-PM-034` —un upgrade siempre tiene portada o icono— cabría en un `CHECK` y no se declara, porque hay upgrades anteriores al 14-09-2026 sin icono, y un `CHECK NOT VALID` los rompería en el primer `UPDATE` —activar, retirar— con un `500` donde el dominio dice que no pasa nada. Vive en el agregado, en las tres operaciones que pueden dejar al producto sin nada que pintar.
 
     **`ck_products_price_positive` deja de existir con su nombre**: `V67` lo renombra a `ck_products_price_no_negativo` y lo relaja a `price >= 0` (`RN-PM-006`), porque una **renovación** de una membresía gratuita vale cero. El nombre cambia con el umbral a propósito — dejarle el viejo haría que quien lo leyera creyera que el cero sigue prohibido, que es justo lo que `ProductCommissionCapGuard` creía por escrito.
 
@@ -632,8 +651,10 @@ flowchart TB
         end
     end
 
-    subgraph PM["PM · 1 tabla"]
+    subgraph PM["PM · 3 tablas · una DISEÑADA"]
         P1["products"]
+        P2["product_comments"]
+        P3["product_images · V90"]
     end
 
     subgraph CM["CM · 3 tablas · dos DISEÑADAS"]
@@ -671,7 +692,7 @@ flowchart TB
 |---|---|---|
 | `SP` | `permissions`, `roles`, `role_permissions`, `users`, `user_roles`, `memberships`, `user_memberships`, `currencies`, `countries`, `document_types`, `user_supervisors`, `refresh_tokens`, `password_reset_permits`, `exchange_rates`, `brokers`, `user_brokers` | **16, escritas** |
 | `SP` · auditoría | `audit_change_log`, `audit_deletion_log`, `audit_error_log`, `audit_security_log`, `request_log` | **5, escritas** |
-| `PM` | `products`, `product_comments` | **2, escritas** (`V39`, `V87`) |
+| `PM` | `products`, `product_comments`, `product_images` | **2 escritas** (`V39`, `V87`) **y una diseñada**: `product_images`, que creará `V90` con `RF-PM-014` (14-09-2026) |
 | `CM` | `commission_rates`, `user_commission_rates`, `product_commission_rates` | **3, escritas** (`V49`) |
 | `MV` | `movements`, `movement_types`, `movement_details`, `payment_methods`, `payment_method_exclusions` | **5, escritas** (`V54`, `V55`) |
 
@@ -774,3 +795,4 @@ La secuencia no es continua —falta el tramo `V8` a `V12`— y no es un descuid
 | 0.41.0 | 12-09-2026 | **`products.public_price` se renombra a `purchase_price` y cambia de significado: de lo que se anuncia a lo que NEXUS paga** (`RN-PM-023`, `RN-PM-024`, [`requirements/pm.md`](requirements/pm.md) v0.23.0 §5.2.6). Decisión del responsable del proyecto. La columna conserva forma, opcionalidad y `CHECK` —que se renombra con ella, `ck_products_purchase_price_no_negativo`—, y lo que cambia es **quién puede leerla**: solo las dos lecturas de administración; la oferta y el hotlink **no la seleccionan**, porque es el costo y publicarlo enseñaría el margen, en el hotlink sin token. **El nulo pasa de «se anuncia con `price`» a «no se conoce»**: un producto que todavía no se ha comprado no tiene costo que declarar, y por eso la migración sigue sin rellenar nada. **Desaparece «el importe que se muestra»**: fuera de administración `price` es lo único que se muestra y la conversión se calcula siempre sobre él. Ninguna tabla nueva: el sistema sigue en veintiséis. | Responsable del proyecto |
 | 0.42.0 | 14-09-2026 | **Nace `product_comments`, la segunda tabla de `PM`** ([`requirements/pm.md`](requirements/pm.md) v0.24.0 §10.4): las reseñas de producto, con puntuación de uno a cinco, texto, autor y las tres marcas de tiempo. Por decisión del responsable del proyecto. **Tres cosas del dibujo**: `user_id` es el **autor y no el actor**, y por eso no infringe el Art. V.7; la unicidad «una por persona y producto» es un índice **parcial** sobre las vivas, que no admite `DEFERRABLE`; y **el promedio no se guarda en `products`**: se cuenta sobre las vivas en cada lectura, para que la copia que se quedara atrás no pueda mentir. **Es la primera tabla del sistema que se retira sin motivo declarado** —`Art. V.13` enmendado, `constitution.md` v0.8.0—, y **el esquema de la auditoría no cambia**: el `reason` de `audit_deletion_log` lleva un valor fijo que la especificación declara. §5.1 pasa `PM` a dos tablas; §5.3 registra la primera clave foránea de `PM` hacia `users`. | Responsable del proyecto |
 | 0.43.0 | 14-09-2026 | **`products` gana `video_url`: la dirección de un video que presenta el producto** (`RN-PM-032`, [`requirements/pm.md`](requirements/pm.md) v0.27.0 §5.2.8). Decisión del responsable del proyecto. `varchar(500)`, nulo cuando no hay, con `ck_products_video_url_format` —`http://` o `https://` y sin espacios, con la rama `IS NULL` delante—. **Es una dirección y no un archivo**, por el camino de `icon`, y el sistema **no la sigue**: comprueba la forma y nada más. **Al revés que `purchase_price`, se publica en las cuatro lecturas**, hotlink sin token incluido, porque es material de venta y no un costo. Ninguna tabla nueva. | Responsable del proyecto |
+| 0.44.0 | 14-09-2026 | **Nace `product_images`, diseñada y pendiente de escribir: la portada de un producto, y la primera tabla del sistema que guarda un archivo** ([`requirements/pm.md`](requirements/pm.md) v0.29.0 §5.2.9 y §10.5). Decisión del responsable del proyecto con seis respuestas preguntadas antes de escribir: **se guarda la imagen y no su dirección** —el video tiene quien lo aloje, la portada no—, **en PostgreSQL con `bytea`** y no en disco ni en un bucket, **por endpoints propios después del alta**, y **servida sin token por identificador de imagen** con caché inmutable. `products` gana `cover_image_id`, **único** y sin `ON DELETE`. **La frase «el sistema no almacena binarios» deja de ser cierta a propósito**, y lo que sobrevive de la frontera es que **no interpreta el contenido**: los bytes se guardan tal cual, el tipo lo deciden sus primeros bytes, y ni recorte ni conversión. **Lo que hay que leer del dibujo es lo que la tabla no tiene**: ni `updated_at` ni `deleted_at`, porque una fila no se modifica —reemplazar es otra fila, y la vieja **se borra físicamente**—, y eso **no es una baja lógica**: se corrige el valor de una columna de `products`, y la auditoría conserva el identificador, no los bytes. **`RN-PM-034` —un upgrade siempre tiene portada o icono— cabe en un `CHECK` y no se declara**: hay filas anteriores que lo violan, y un `CHECK NOT VALID` daría un `500` al activarlas. §5 pasa `PM` a tres tablas —el diagrama de conjunto llevaba a `product_comments` sin dibujar desde la v0.42.0— y la cabecera vuelve a advertir que hay una diseñada sin escribir. | Responsable del proyecto |

@@ -9,7 +9,7 @@
 | Issue | Pendiente de crear |
 | Rama | `feature/hotlink-publico` |
 | Autor | Responsable técnico |
-| Enmendadas | 07-09-2026 — `T-05b` por el **color de la membresía**; 08-09-2026 — `T-17` y `T-18` por el **precio a mostrar** (`RN-PM-024`), y `T-13` y `plan.md` §9 por el **número real de consultas**: son cuatro y no tres, y una sola cuando el vendedor no procede; 12-09-2026 — `T-21` porque el segundo precio es el **de compra** y sale del hotlink; 14-09-2026 — `T-22` por el **enlace del video** |
+| Enmendadas | 07-09-2026 — `T-05b` por el **color de la membresía**; 08-09-2026 — `T-17` y `T-18` por el **precio a mostrar** (`RN-PM-024`), y `T-13` y `plan.md` §9 por el **número real de consultas**: son cuatro y no tres, y una sola cuando el vendedor no procede; 12-09-2026 — `T-21` porque el segundo precio es el **de compra** y sale del hotlink; 14-09-2026 — `T-22` por el **enlace del video**; 14-09-2026 — `T-23` por la **dirección de la portada** (`RN-PM-033`) |
 
 ---
 
@@ -40,6 +40,7 @@
 | `T-20` | **La prueba de la fuga aceptada**: los dos importes viajan **sin token** y la diferencia entre ellos es visible. Es `T-18` del revés | `T-19` | `CA-PM-169`. Se escribe **afirmando** lo que se publica, para que el día que alguien decida volver a ocultarlo la prueba falle y obligue a decidirlo | **Hecha el 08-09-2026** |
 | `T-21` | **El precio de compra sale del hotlink** (12-09-2026): `ProductRef` pierde `publicPrice`, `findPublishedByCode` deja de seleccionar el segundo importe, la conversión se calcula sobre `price`, y la prosa de la `@Operation` deja de hablar de dos importes. La prueba de `T-20` **se invierte de vuelta**: es `T-18` otra vez, con el costo en lugar del precio del sistema | `RF-PM-001 · T-38` | `CA-PM-161` y `CA-PM-162` reescritos; **`CA-PM-163` repuesto**: con un producto que tiene costo declarado, el cuerpo **no trae** `purchasePrice` ni `publicPrice`. El oráculo de los seis `404` no cambia | **Hecha el 12-09-2026** |
 | `T-22` | **El enlace del video en el hotlink** (`RF-PM-001` `T-39` trae la columna): `findPublishedByCode` selecciona `p.video_url`, `HotlinkResponse.ProductRef` gana `videoUrl`, `GetHotlinkService` lo copia; y la prosa de la `@Operation` lo nombra | `T-21` | `CA-PM-229` en `HotlinkIT`, en la misma prueba que sigue comprobando la ausencia de `purchasePrice`. **El contrato regenerado declara `videoUrl` en `ProductRef` y sigue sin declarar `purchasePrice`** | **Hecha el 14-09-2026** |
+| `T-23` | **La dirección de la portada en el hotlink** (`RF-PM-014` `T-01` trae la columna, `T-09` y `T-10` la proyección y el conversor): `findPublishedByCode` selecciona `p.cover_image_id`, `HotlinkResponse.ProductRef` gana `coverImageUrl`, `GetHotlinkService` lo pasa; y la prosa de la `@Operation` dice que la imagen se sirve sin token y que la dirección no revela el producto | `T-22`, `RF-PM-014 · T-10`, `RF-PM-016 · T-02` | `CA-PM-238` en `HotlinkIT`, con la lectura sin token de la dirección. **El contrato regenerado declara `coverImageUrl` en `ProductRef`** | Pendiente |
 
 ## 2. Orden de ejecución
 
@@ -66,6 +67,7 @@
 | `CA-PM-161`, `CA-PM-162` | `T-17`, `T-19`, `T-21` |
 | `CA-PM-163` | ~~`T-18`~~ — retirado el 08-09-2026; **repuesto el 12-09-2026** → `T-21` |
 | `CA-PM-229` | `T-22` |
+| `CA-PM-238` | `T-23` |
 | ~~`CA-PM-169`~~ | `T-20` — **retirado el 12-09-2026**: su prueba se invierte de vuelta en `T-21` |
 
 ## 4. Bloqueos

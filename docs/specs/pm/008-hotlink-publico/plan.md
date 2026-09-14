@@ -8,7 +8,7 @@
 | Autor | Responsable técnico |
 | Aprobado por | Responsable del proyecto |
 | Fecha de aprobación | 07-09-2026 |
-| Enmendado el | 14-09-2026 — **`videoUrl` en el producto, sin token** (`RN-PM-032`), §4 |
+| Enmendado el | 14-09-2026 — **`videoUrl` en el producto, sin token** (`RN-PM-032`), §4; 14-09-2026 — **`coverImageUrl` en el producto, sin token** (`RN-PM-033`), §4 |
 
 ---
 
@@ -79,6 +79,7 @@ La búsqueda del producto por código **ya está cubierta** por `uq_products_cod
 - **`rate` viaja como cadena y no como número.** Es el único campo del sistema que lo hace, y por un motivo: tiene **ocho decimales**, y un número JSON pasa por coma flotante de doble precisión en cualquier cliente JavaScript. Como cadena, la tasa que se muestra es la que se declaró.
 - **`amount` sí es número**, redondeado a los decimales de la **moneda de destino** con `ProductPrice`, que es el componente que ya hace eso para las respuestas del módulo.
 - **Ningún parámetro de consulta**, y ninguna cabecera que cambie la respuesta.
+- **`coverImageUrl` viaja, y sin token** (14-09-2026, `RN-PM-033`, enmienda de `RF-PM-014`): `findPublishedByCode` selecciona `p.cover_image_id` y `ProductRef` gana el campo convertido con `ProductImageUrls.de(...)`, **presente y nulo** cuando no hay. **La dirección señala una imagen y no un producto** —`/api/v1/product-images/{imageId}`—, de modo que publicarla no publica el identificador del producto, que `ProductRef` sigue sin llevar (§4). Y `RF-PM-016` la sirve sin token, que es lo que hace que la pantalla del hotlink pueda pintarla.
 - **`videoUrl` viaja, y sin token** (14-09-2026, `RN-PM-032`): `findPublishedByCode` selecciona `p.video_url` y `ProductRef` gana el campo, **presente y nulo** cuando no hay. Es la única columna opcional de `products` que esta consulta trae y `purchase_price` no, y la línea que las separa es la de `pm.md` §5.2.8: el costo enseñaría el margen, el video existe para que lo vean. **Se publica tal cual se escribió**, sin seguirlo ni reescribirlo.
 - **`price` viaja solo** (12-09-2026, `RN-PM-024` reescrita por tercera vez): es el que se cobra. **El precio de compra no viaja ni se selecciona**: `ProductRef` no tiene el campo y `findPublishedByCode` no trae la columna, de modo que `ProductRow.purchasePrice` llega nulo a propósito desde esta lectura y **no hay nada que publicar**. Entre el 08-09-2026 y el 12-09-2026 viajó también `publicPrice`, cuando ese importe era lo que se anunciaba; convertido en el costo de NEXUS, publicarlo sin token enseñaría el margen a cualquiera (`requirements/pm.md` §5.2.6).
 - **Y `amount` se calcula sobre `price`**, que es el único importe que se enseña. Desaparece «el importe que se muestra» y con él `ProductExchangeResolver.importeMostrado`.

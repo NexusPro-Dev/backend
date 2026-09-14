@@ -8,7 +8,7 @@
 | Estado | **Aprobado** |
 | Autor | Responsable técnico |
 | Aprobado por | Responsable del proyecto |
-| Enmendado el | 27-08-2026 — `RN-PM-015`; 02-09-2026 — la membresía de **origen** (`RN-PM-017`, `RN-PM-018`); 07-09-2026 — **el alcance y la implementación** (`RN-PM-019`, `RN-PM-020`), §2.4, y **la renovación** —el origen puede ser el destino (`RN-PM-017`)—, §2.5; 08-09-2026 — **el segundo precio, el público** (`RN-PM-023`) y **`RN-PM-006` relajada**, §2.6; 12-09-2026 — **el segundo precio pasa a ser el de COMPRA** (`RN-PM-023`, `RN-PM-024`), §2.7; 14-09-2026 — **el enlace de un video** (`RN-PM-032`), §2.8 y §4 |
+| Enmendado el | 27-08-2026 — `RN-PM-015`; 02-09-2026 — la membresía de **origen** (`RN-PM-017`, `RN-PM-018`); 07-09-2026 — **el alcance y la implementación** (`RN-PM-019`, `RN-PM-020`), §2.4, y **la renovación** —el origen puede ser el destino (`RN-PM-017`)—, §2.5; 08-09-2026 — **el segundo precio, el público** (`RN-PM-023`) y **`RN-PM-006` relajada**, §2.6; 12-09-2026 — **el segundo precio pasa a ser el de COMPRA** (`RN-PM-023`, `RN-PM-024`), §2.7; 14-09-2026 — **el enlace de un video** (`RN-PM-032`), §2.8 y §4; 14-09-2026 — **el icono obligatorio en el upgrade** (`RN-PM-034`), §2.9 |
 | Fecha de aprobación | 26-08-2026 |
 
 !!! info "Qué va en este documento"
@@ -217,6 +217,14 @@ Esta migración **no emite auditoría**, igual que `V3`: un permiso no tiene lí
 | `COMMENT ON COLUMN` | Qué es, qué significa su nulo y **dónde sí se ve** | Al revés que `purchase_price`, este sale en las cuatro lecturas, hotlink sin token incluido — y conviene que quien lea el esquema lo sepa sin abrir el código |
 
 **No hay relleno**, por el motivo más simple de los tres que este plan ya ha dado: ningún producto de hoy tiene video, y el nulo lo dice. **El número `V89` cuenta con que `V87` y `V88` —las reseñas, en construcción el mismo día— se queden como están**; si aquel trabajo cambia de número, este lo sigue. Es la única reserva de número que este plan hace, y la hace porque las dos migraciones se escriben el mismo día en el mismo árbol.
+
+### 2.9 `RN-PM-034` en el alta — enmienda del 14-09-2026, sin cambio de esquema propio
+
+**La columna y la tabla las trae `V90` (`RF-PM-014` §2); esta enmienda es de dominio.** `Product.create` gana una comprobación al lado de `verificarTipoEIcono`: si el tipo es `UPGRADE_MEMBRESIA` y el icono normalizado es nulo, `VAL-018` nombrando `icon`. Va **en el agregado y no en el DTO** por lo mismo que el resto de reglas cruzadas del tipo: un `@NotBlank` no puede depender del tipo, y la regla tiene tres caras —alta, corrección, retiro de la portada— que viven juntas en `Product`.
+
+**Y no hay relleno de `V90` para los upgrades sin icono que ya existen**: no hay ningún icono honesto que inventarles, y `RN-PM-034` no condiciona la activación — los alcanza en su primera corrección ([`requirements/pm.md` §5.2.9](../../../requirements/pm.md)). Es también el motivo de que la regla **no viva en el esquema** (§10.3 de aquel).
+
+**`ProductResponse` gana `coverImageUrl`**, construido con `ProductImageUrls.de(cover_image_id)` y **siempre nulo en el alta**: no hay forma de que un producto nazca con portada. El campo va para que el alta y el detalle tengan la misma forma. La instantánea del evento de creación gana `cover_image_id`.
 
 ## 3. Componentes afectados
 
