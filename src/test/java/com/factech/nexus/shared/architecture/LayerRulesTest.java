@@ -171,4 +171,30 @@ class LayerRulesTest {
         .because("D-25: PM consume SP por sus interfaces publicadas, nunca por sus tablas")
         .check(clases);
   }
+
+  @Test
+  @DisplayName("MV consume SP y PM por sus interfaces publicadas, nunca por sus tablas (D-25)")
+  void mvNoEntraEnElDominioDeNadie() {
+    // `MV` es el módulo que MÁS cruza fronteras del sistema: lee de `SP` —el
+    // estado del cliente y de qué vendedor cuelga— y de `PM` —el precio, la
+    // moneda, la vigencia y la oferta—, y con lo que lee ESCRIBE. Es también el
+    // primero que se apoya en una decisión de otro módulo (`RF-PM-007`) en
+    // lugar de en un dato suyo.
+    //
+    // Sin esta regla, «pregunta la oferta, no la recalcules» es una frase de un
+    // documento: un `SELECT` propio sobre `products` compilaría igual, pasaría
+    // las pruebas igual, y crearía la SEGUNDA definición de lo que alguien
+    // puede comprar — la que el día que `RF-PM-007` · `T-20` cambie el criterio
+    // seguiría vendiendo por el viejo, sin fallar.
+    noClasses()
+        .that()
+        .resideInAPackage("com.factech.nexus.modules.movements..")
+        .should()
+        .dependOnClassesThat()
+        .resideInAnyPackage(
+            "com.factech.nexus.modules.system..domain..",
+            "com.factech.nexus.modules.products..domain..")
+        .because("D-25: MV consume SP y PM por sus interfaces publicadas, nunca por sus tablas")
+        .check(clases);
+  }
 }

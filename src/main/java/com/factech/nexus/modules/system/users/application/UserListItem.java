@@ -25,6 +25,14 @@ import java.util.UUID;
  * persona sin roles es un estado válido, y distinguirlo con la ausencia del campo obligaría al
  * cliente a tratar dos formas del mismo recurso.
  *
+ * <p><b>{@code country} nunca es nulo, y es el único objeto anidado de esta fila del que se puede
+ * decir eso</b> (`RN-SP-034`). {@code roles} puede venir vacía, {@code membership} puede venir nula
+ * y {@code deletedAt} también; el país está siempre, porque la columna es {@code NOT NULL}. La
+ * consecuencia para quien consuma el listado es que <b>no tiene que escribir la rama del país
+ * ausente</b>, y por eso la consulta lo trae con una unión interna y no con un {@code LEFT JOIN}:
+ * aquel sugeriría que la ausencia es posible y taparía con un nulo lo que sería una violación de
+ * integridad.
+ *
  * <p>{@code deletedAt} está <b>siempre presente</b> y vale nulo en las personas vigentes. La
  * especificación dice que informa «solo cuando se piden los eliminados»; se interpreta como que es
  * entonces cuando <b>dice algo</b>, no como que el campo aparece y desaparece.
@@ -38,6 +46,7 @@ public record UserListItem(
     String lastName,
     String status,
     List<UserResponse.RoleRef> roles,
+    UserResponse.CountryRef country,
     MembershipRef membership,
     OffsetDateTime deletedAt) {
 

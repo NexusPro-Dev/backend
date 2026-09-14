@@ -27,8 +27,26 @@ public record AuthUser(
     OffsetDateTime provisionalExpiresAt,
     List<String> roleCodes) {
 
+  /**
+   * ¿Esta cuenta puede autenticarse?
+   *
+   * <p><b>Es una LISTA EXPLÍCITA de los estados que entran, y no la negación de los que no</b>
+   * —{@code !INACTIVO && !BLOQUEADO}—, y esa forma es la decisión. Con la negada, <b>todo estado
+   * futuro nace autenticando</b> sin que nadie lo decida: bastaría añadir un valor al {@code CHECK}
+   * para abrir el inicio de sesión sin tocar esta línea. Con la lista, añadir un estado lo deja
+   * fuera hasta que alguien lo escriba aquí.
+   *
+   * <p><b>{@code FTD_PENDIENTE} entra desde el 09-09-2026</b> (`RF-SP-045`), y es la primera vez
+   * que un estado distinto de {@code ACTIVO} autentica. Quien se registra por enlace <b>entra</b> —
+   * puede ver su cuenta y su membresía— y <b>no opera</b>: lo que le falta es el primer depósito.
+   * Impedirle entrar dejaría una cuenta que existe y a la que su titular no puede asomarse.
+   *
+   * <p><b>Lo leen dos sitios y no uno</b>: {@code LoginService} al entrar y {@code
+   * SessionService.refresh} en cada rotación. Que los dos consulten este método es lo que impide
+   * que una sesión abierta sobreviva a un cambio de estado.
+   */
   public boolean puedeEntrar() {
-    return !deleted && "ACTIVO".equals(status);
+    return !deleted && ("ACTIVO".equals(status) || "FTD_PENDIENTE".equals(status));
   }
 
   /**

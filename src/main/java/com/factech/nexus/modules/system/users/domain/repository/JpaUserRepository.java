@@ -1,5 +1,6 @@
 package com.factech.nexus.modules.system.users.domain.repository;
 
+import com.factech.nexus.modules.system.users.domain.models.DocumentIdentity;
 import com.factech.nexus.modules.system.users.domain.models.Email;
 import com.factech.nexus.modules.system.users.domain.models.User;
 import com.factech.nexus.modules.system.users.domain.models.UserStatus;
@@ -8,6 +9,7 @@ import com.factech.nexus.shared.error.BusinessRuleException;
 import com.factech.nexus.shared.error.FieldError;
 import jakarta.persistence.EntityManager;
 import jakarta.persistence.PersistenceException;
+import jakarta.persistence.Query;
 import jakarta.persistence.Tuple;
 import java.sql.Timestamp;
 import java.time.Instant;
@@ -69,6 +71,34 @@ public class JpaUserRepository implements UserRepository {
         .setMaxResults(1)
         .getResultList()
         .isEmpty();
+  }
+
+  @Override
+  public boolean existsDocument(DocumentIdentity documento) {
+    return existsDocumentForOther(documento, null);
+  }
+
+  @Override
+  public boolean existsDocumentForOther(DocumentIdentity documento, UUID excepto) {
+    if (documento == null || !documento.completa()) {
+      return false;
+    }
+    // SIN filtro por `deleted_at`: `RN-SP-035` no libera el documento al
+    // eliminar. Es la misma decisión que `uq_users_document`, que tampoco lo
+    // lleva, y la simetría entre las dos es lo que hace que el mensaje y la
+    // garantía digan lo mismo.
+    String jpql =
+        "SELECT 1 FROM User u WHERE u.documentTypeId = :tipo AND u.documentNumber = :numero"
+            + (excepto == null ? "" : " AND u.id <> :excepto");
+
+    var consulta =
+        em.createQuery(jpql, Integer.class)
+            .setParameter("tipo", documento.typeId())
+            .setParameter("numero", documento.number());
+    if (excepto != null) {
+      consulta.setParameter("excepto", excepto);
+    }
+    return !consulta.setMaxResults(1).getResultList().isEmpty();
   }
 
   @Override
@@ -152,22 +182,40 @@ public class JpaUserRepository implements UserRepository {
 
   @Override
   public void assignMembership(
-      UUID userId, UUID membershipId, OffsetDateTime endsAt, OffsetDateTime ahora) {
+      UUID id, UUID userId, UUID membershipId, OffsetDateTime endsAt, OffsetDateTime ahora) {
+    // 1. CIERRA LA ABIERTA, SIN CONDICIÓN DE VIGENCIA. Cierra también la vencida:
+    //    dejarla abierta produciría dos filas actuales, que `uq_user_memberships_abierta`
+    //    rechaza y que antes de eso ya habría hecho que el listado de usuarios
+    //    devolviera a esa persona dos veces.
+    cerrarMembresiaAbierta(userId, ahora);
+
+    // 2. ABRE LA NUEVA. `started_at` y el cierre de arriba comparten instante, y por
+    //    eso `ck_user_memberships_cierre` admite la igualdad.
     em.createNativeQuery(
             """
             INSERT INTO user_memberships
-                   (user_id, membership_id, started_at, ends_at, created_at, updated_at)
-            VALUES (:usuario, :membresia, :ahora, :fin, :ahora, :ahora)
-            ON CONFLICT (user_id) DO UPDATE
-               SET membership_id = EXCLUDED.membership_id,
-                   started_at    = EXCLUDED.started_at,
-                   ends_at       = EXCLUDED.ends_at,
-                   updated_at    = EXCLUDED.updated_at
+                   (id, user_id, membership_id, started_at, ends_at, created_at, updated_at)
+            VALUES (:id, :usuario, :membresia, :ahora, :fin, :ahora, :ahora)
             """)
+        .setParameter("id", id)
         .setParameter("usuario", userId)
         .setParameter("membresia", membershipId)
         .setParameter("fin", endsAt)
         .setParameter("ahora", ahora)
+        .executeUpdate();
+  }
+
+  @Override
+  public void updateMembershipEnd(UUID userId, OffsetDateTime endsAt, OffsetDateTime ahora) {
+    em.createNativeQuery(
+            """
+            UPDATE user_memberships
+               SET ends_at = :fin, updated_at = :ahora
+             WHERE user_id = :usuario AND closed_at IS NULL
+            """)
+        .setParameter("fin", endsAt)
+        .setParameter("ahora", ahora)
+        .setParameter("usuario", userId)
         .executeUpdate();
   }
 
@@ -177,10 +225,11 @@ public class JpaUserRepository implements UserRepository {
         em.createNativeQuery(
                 """
                 SELECT m.id AS id, m.code AS code, m.name AS name, m.level AS level,
+                       m.color AS color,
                        um.ends_at AS ends_at
                   FROM user_memberships um
                   JOIN memberships m ON m.id = um.membership_id
-                 WHERE um.user_id = :usuario
+                 WHERE um.user_id = :usuario AND um.closed_at IS NULL
                 """,
                 Tuple.class)
             .setParameter("usuario", userId)
@@ -194,13 +243,30 @@ public class JpaUserRepository implements UserRepository {
                     (String) fila.get("code"),
                     (String) fila.get("name"),
                     ((Number) fila.get("level")).shortValue(),
+                    (String) fila.get("color"),
                     momento(fila.get("ends_at"))))
         .findFirst();
   }
 
   @Override
-  public void removeMembership(UUID userId) {
-    em.createNativeQuery("DELETE FROM user_memberships WHERE user_id = :usuario")
+  public void closeMembership(UUID userId, OffsetDateTime ahora) {
+    cerrarMembresiaAbierta(userId, ahora);
+  }
+
+  /**
+   * El cierre, escrito una vez.
+   *
+   * <p>Lo comparten conceder —que cierra antes de abrir— y retirar. <b>No toca {@code ends_at}</b>:
+   * la fila cerrada sigue diciendo hasta cuándo se había pagado.
+   */
+  private void cerrarMembresiaAbierta(UUID userId, OffsetDateTime ahora) {
+    em.createNativeQuery(
+            """
+            UPDATE user_memberships
+               SET closed_at = :ahora, updated_at = :ahora
+             WHERE user_id = :usuario AND closed_at IS NULL
+            """)
+        .setParameter("ahora", ahora)
         .setParameter("usuario", userId)
         .executeUpdate();
   }
@@ -286,59 +352,69 @@ public class JpaUserRepository implements UserRepository {
    */
   @Override
   public int countSupervisees(UUID supervisorId) {
-    Object total =
-        em.createNativeQuery(
-                """
-                SELECT count(*)
-                  FROM user_supervisors us
-                  JOIN users u ON u.id = us.user_id
-                 WHERE us.supervisor_id = :superior
-                   AND us.ended_at IS NULL
-                   AND u.deleted_at IS NULL
-                """)
-            .setParameter("superior", supervisorId)
-            .getSingleResult();
+    return countTeam(supervisorId, List.of());
+  }
 
-    return ((Number) total).intValue();
+  @Override
+  public int countTeam(UUID supervisorId, List<String> roleCodes) {
+    Query consulta =
+        em.createNativeQuery(
+            """
+            SELECT count(*)
+              FROM user_supervisors us
+              JOIN users u ON u.id = us.user_id
+             WHERE us.supervisor_id = :superior
+               AND us.ended_at IS NULL
+               AND u.deleted_at IS NULL
+            """
+                + filtroDeRoles(roleCodes));
+    consulta.setParameter("superior", supervisorId);
+    enlazarRoles(consulta, roleCodes);
+
+    return ((Number) consulta.getSingleResult()).intValue();
   }
 
   /**
-   * El equipo directo, con el rol comercial de mayor rango de cada persona.
+   * El equipo directo, acotado por códigos de rol cuando vienen.
    *
-   * <p>«De mayor rango» se resuelve por el <b>nivel de profundidad</b> del rol en la cadena, que es
-   * el orden que la jerarquía ya codifica: cuanto más abajo, más específico. Se toma uno solo
-   * porque la respuesta describe la posición de cada persona en la estructura, no su lista de
-   * roles.
+   * <p><b>Ya no resuelve el rol de cada persona</b> (10-09-2026). Lo hacía con una subconsulta que
+   * tomaba el primer rol de clasificación {@code VENDEDOR} por orden alfabético, y eso fallaba en
+   * las dos direcciones: devolvía <b>nulo</b> para la cartera de clientes —que cuelga de esta misma
+   * estructura desde `RF-SP-045`— y elegía {@code AGENTE} sobre {@code DIRECTOR} para quien portara
+   * los dos, pese a que el javadoc afirmaba resolverlo «por nivel de profundidad». Los roles los
+   * trae ahora {@code UserQueryRepository.rolesOf}, completos y por lote.
    *
    * <p>El orden desempata por {@code username} y no solo por apellido: sin un desempate único, dos
    * páginas consecutivas pueden repetir a alguien y omitir a otro sin que nada falle.
    */
   @Override
-  public List<TeamMember> findTeam(UUID supervisorId, int offset, int limit) {
-    List<Tuple> filas =
+  public List<TeamMember> findTeam(
+      UUID supervisorId, List<String> roleCodes, int offset, int limit) {
+    Query consulta =
         em.createNativeQuery(
-                """
-                SELECT u.id AS id, u.username AS username,
-                       u.first_name AS first_name, u.last_name AS last_name,
-                       u.status AS status,
-                       (SELECT r.code
-                          FROM user_roles ur JOIN roles r ON r.id = ur.role_id
-                         WHERE ur.user_id = u.id AND r.role_type = 'VENDEDOR'
-                         ORDER BY r.code
-                         LIMIT 1) AS role_code
-                  FROM user_supervisors us
-                  JOIN users u ON u.id = us.user_id
-                 WHERE us.supervisor_id = :superior
-                   AND us.ended_at IS NULL
-                   AND u.deleted_at IS NULL
+            """
+            SELECT u.id AS id, u.username AS username,
+                   u.first_name AS first_name, u.last_name AS last_name,
+                   u.status AS status
+              FROM user_supervisors us
+              JOIN users u ON u.id = us.user_id
+             WHERE us.supervisor_id = :superior
+               AND us.ended_at IS NULL
+               AND u.deleted_at IS NULL
+            """
+                + filtroDeRoles(roleCodes)
+                + """
                  ORDER BY u.last_name, u.first_name, u.username
                  OFFSET :salto LIMIT :tope
                 """,
-                Tuple.class)
-            .setParameter("superior", supervisorId)
-            .setParameter("salto", offset)
-            .setParameter("tope", limit)
-            .getResultList();
+            Tuple.class);
+    consulta.setParameter("superior", supervisorId);
+    consulta.setParameter("salto", offset);
+    consulta.setParameter("tope", limit);
+    enlazarRoles(consulta, roleCodes);
+
+    @SuppressWarnings("unchecked")
+    List<Tuple> filas = consulta.getResultList();
 
     return filas.stream()
         .map(
@@ -348,9 +424,37 @@ public class JpaUserRepository implements UserRepository {
                     (String) fila.get("username"),
                     (String) fila.get("first_name"),
                     (String) fila.get("last_name"),
-                    (String) fila.get("role_code"),
                     (String) fila.get("status")))
         .toList();
+  }
+
+  /**
+   * El predicado del filtro por rol, o nada cuando no hay filtro.
+   *
+   * <p><b>{@code EXISTS} y no {@code JOIN}</b>, que es la misma lección que `RF-SP-025` dejó
+   * escrita en su predicado: un {@code JOIN} a {@code user_roles} multiplica la fila de la persona
+   * por cada rol suyo que case, de modo que quien porte dos de los códigos pedidos <b>saldría dos
+   * veces</b> y el conteo contaría asignaciones en lugar de personas. Con un solo código el
+   * resultado parece correcto, y por eso el fallo no aparece hasta que alguien filtra por dos.
+   *
+   * <p><b>Sin `r.deleted_at IS NULL`</b>: un rol eliminado no lo porta nadie —`RF-SP-009` retira
+   * las asignaciones—, y añadir la condición sugeriría que el caso existe.
+   */
+  private static String filtroDeRoles(List<String> roleCodes) {
+    return roleCodes == null || roleCodes.isEmpty()
+        ? ""
+        : """
+           AND EXISTS (SELECT 1
+                         FROM user_roles ur
+                         JOIN roles r ON r.id = ur.role_id
+                        WHERE ur.user_id = u.id AND r.code IN (:roles))
+          """;
+  }
+
+  private static void enlazarRoles(Query consulta, List<String> roleCodes) {
+    if (roleCodes != null && !roleCodes.isEmpty()) {
+      consulta.setParameter("roles", roleCodes);
+    }
   }
 
   @Override

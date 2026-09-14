@@ -12,6 +12,15 @@ import java.util.UUID;
  * <p><b>Filtrar por persona devuelve las declaradas PARA esa persona</b>, incluido su historial —
  * no la que <b>le aplica</b> hoy sobre un producto. Lo segundo es `RF-CM-005`, y confundirlos haría
  * que este listado empezara a resolver precedencias por su cuenta.
+ *
+ * <p><b>Filtrar por producto devuelve las ASOCIADAS a ese producto</b> (12-09-2026), de cualquier
+ * persona: es la respuesta a «quién tiene excepción aquí». Se combina con los demás — persona y
+ * producto juntos responden «¿tiene esta persona excepción en este producto?», con su historial.
  */
 public record ListUserCommissionRatesRequest(
-    Integer page, Integer size, UUID userId, LocalDate onDate, Boolean includeDeleted) {}
+    Integer page,
+    Integer size,
+    UUID userId,
+    UUID productId,
+    LocalDate onDate,
+    Boolean includeDeleted) {}

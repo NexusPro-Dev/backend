@@ -24,11 +24,11 @@ class PermissionsSeedIT extends IntegrationTestBase {
 
   @Test
   @DisplayName(
-      "el catálogo tiene exactamente treinta y siete: veinticuatro de SP, cinco de PM, cuatro de"
+      "el catálogo tiene exactamente cuarenta y seis: TREINTA Y UNO de SP, SIETE de PM, cuatro de"
           + " CM y cuatro de MV")
   void catalogoCompleto() {
     assertThat(jdbc.queryForObject("SELECT count(*) FROM permissions", Integer.class))
-        .isEqualTo(37);
+        .isEqualTo(46);
   }
 
   @Test
@@ -68,9 +68,29 @@ class PermissionsSeedIT extends IntegrationTestBase {
             "commissions:delete",
             "commissions:read",
             "commissions:update",
+            // El SEGUNDO recurso sin ninguna acción de escritura, por el mismo
+            // motivo estructural y no por el mismo motivo de negocio: `RN-SP-039`
+            // deja el catálogo de brokers fuera de la API porque son pocos y
+            // cambian poco, no porque su contenido sea una regla.
+            "brokers:read",
+            // El CUARTO recurso sin ninguna acción de escritura, y el PRIMERO
+            // cuyo recurso no es un catálogo: gobierna una LECTURA de datos
+            // ajenos (`RF-SP-055`). No hay `create` porque la cuenta la declara
+            // su titular al registrarse, sin sesión; no hay `update` porque
+            // quien la completa es el webhook del broker, que no porta roles.
+            "broker-accounts:read",
             "countries:create",
             "countries:read",
             "countries:update",
+            // El ÚNICO recurso del catálogo sin ninguna acción de escritura, y no
+            // es que falten: `RN-SP-036` las prohíbe, porque el contenido de
+            // `document_types` ES la validación de mayoría de edad. Un
+            // `document-types:create` la desactivaría sin cambiar ninguna regla.
+            "document-types:read",
+            "exchange-rates:create",
+            "exchange-rates:delete",
+            "exchange-rates:read",
+            "exchange-rates:update",
             "currencies:read",
             "currencies:update",
             "memberships:create",
@@ -80,8 +100,10 @@ class PermissionsSeedIT extends IntegrationTestBase {
             "movements:read",
             "movements:void",
             "permissions:read",
+            "products:comment",
             "products:create",
             "products:delete",
+            "products:hotlink",
             "products:read",
             "products:sale",
             "products:update",
@@ -104,7 +126,7 @@ class PermissionsSeedIT extends IntegrationTestBase {
   void identificadoresUuidV7() {
     List<UUID> ids = jdbc.queryForList("SELECT id FROM permissions", UUID.class);
 
-    assertThat(ids).hasSize(37).doesNotHaveDuplicates();
+    assertThat(ids).hasSize(46).doesNotHaveDuplicates();
     assertThat(ids).allSatisfy(id -> assertThat(id.version()).isEqualTo(7));
     // variant() == 2 es la variante RFC 9562 (bits 10xx).
     assertThat(ids).allSatisfy(id -> assertThat(id.variant()).isEqualTo(2));

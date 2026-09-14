@@ -4,13 +4,14 @@
 |---|---|
 | Requerimiento | `RF-CM-002` |
 | Plan | [`plan.md`](plan.md), aprobado el 02-09-2026 |
-| Versión | 1.0.0 |
+| Versión | 1.1.0 |
 | Estado | **En revisión** |
 | Autor | Responsable técnico |
 | Aprobadas por | Pendiente |
 | Fecha de aprobación | Pendiente |
 | Issue | Pendiente de crear |
-| Rama | `feature/flujos-de-pm-y-cm` (`T-01`–`T-16`) · `feature/comision-en-valor-fijo` (`T-17`–`T-22`) |
+| Rama | `feature/flujos-de-pm-y-cm` (`T-01`–`T-16`) · `feature/comision-en-valor-fijo` (`T-17`–`T-22`) · `feature/venta-de-productos` (`T-23`–`T-26`) |
+| Enmendadas | 12-09-2026 — `T-23` a `T-26` porque **la asociación de la personalizada se puede leer** (`plan.md` v1.2.0) |
 
 !!! info "Qué va en este documento"
 
@@ -54,6 +55,15 @@
 | `T-21` | Pruebas de los criterios nuevos, **`CA-CM-098` con un importe fijo pequeño** | `T-18`, `T-20` | `CA-CM-096` a `CA-CM-099` | **Hecha el 02-09-2026** |
 | `T-22` | OpenAPI: el filtro, el orden nuevo, y que **las cifras de un producto no se suman** | `T-20` | La descripción de la lectura por producto lo dice | **Hecha el 02-09-2026** |
 
+**La asociación de la personalizada se puede leer — 12-09-2026**
+
+| ID | Tarea | Depende de | Verificación | Estado |
+|---|---|---|---|---|
+| `T-23` | **El filtro por producto y la cuenta de asociados** en `UserCommissionRateQueryRepository` y su adaptador: `productId` en `UserRateFilters` como `EXISTS` sobre `user_commission_rate_products`, y `associatedProducts` como subconsulta correlacionada en `UserRateRow` | `T-05`, `RF-CM-006` · `V85` | `CA-CM-126`, `CA-CM-127`. La tasa con dos productos aparece **una vez** y el total cuadra | **Hecha el 12-09-2026** |
+| `T-24` | `productId` en `ListUserCommissionRatesRequest` y `associatedProducts` en `UserCommissionRateItem`; el servicio los pasa sin tocarlos | `T-23` | El listado sin filtro sigue devolviendo lo mismo, más la cuenta | **Hecha el 12-09-2026** |
+| `T-25` | **La quinta lectura**: `ListUserRateProductsService` sobre `UserRateProductRepository.asociadosDe`, y `GET /api/v1/user-commission-rates/{id}/products` con `commissions:read`, devolviendo `UserRateProductsResponse` | `RF-CM-006` · `V85` | `CA-CM-128`, `CA-CM-129`. Sin el permiso, `403`; con un identificador que no es de nada, `200` y lista vacía | **Hecha el 12-09-2026** |
+| `T-26` | OpenAPI: el filtro y la cuenta en el listado, la quinta lectura, y **corregir la prosa de `GET /product-commission-rates`**, que desde el 11-09-2026 decía que la personalizada «no se asocia a productos» | `T-24`, `T-25` | La descripción de la lectura por producto remite al filtro del listado de personalizadas para «quién tiene excepción aquí» | **Hecha el 12-09-2026** |
+
 ## 2. Orden de ejecución
 
 **`T-02` es la tarea con más riesgo escondido del requerimiento**, y su verificación no es la obvia. No comprueba que la cuenta sea correcta —eso es `CA-CM-010`— sino que **la tasa aparezca una sola vez**. Con un `LEFT JOIN` agrupado mal, el `LIMIT` de la paginación contaría filas del producto cartesiano y **pedir veinte tasas devolvería menos de veinte**. El síntoma no se parece a la causa: nadie miraría la cuenta de asociaciones al investigar por qué la paginación devuelve de menos.
@@ -93,6 +103,8 @@
 | `CA-CM-097` | `T-20`, `T-21` |
 | `CA-CM-098` | `T-18`, `T-21` |
 | `CA-CM-099` | `T-17`, `T-21` |
+| `CA-CM-126`, `CA-CM-127` | `T-23`, `T-24` |
+| `CA-CM-128`, `CA-CM-129` | `T-25` |
 
 **`CA-CM-013` aparece dos veces porque cambió de contenido sin cambiar de identificador.** Decía «dentro de cada rol, de mayor a menor porcentaje» y ahora dice «luego por forma, y dentro de cada forma de mayor a menor valor». Se conserva el identificador —es el mismo criterio, el orden del catálogo— y **se deja constancia de que la prueba que lo verificaba ya no basta**.
 

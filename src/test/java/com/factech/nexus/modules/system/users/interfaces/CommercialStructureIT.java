@@ -41,6 +41,7 @@ class CommercialStructureIT extends IntegrationTestBase {
   private static final String MANAGER = "01a02a33-4c00-7005-9c4f-5e7ad1000003";
   private static final String DIRECTOR = "01a02a33-4c00-7006-9c4f-5e7ad1000004";
   private static final String AGENTE = "01a02a33-4c00-7007-9c4f-5e7ad1000005";
+  private static final String CLIENTE = "01a02a33-4c00-7008-9c4f-5e7ad1000008";
 
   @Autowired private MockMvc mvc;
   @Autowired private JdbcTemplate jdbc;
@@ -318,7 +319,7 @@ class CommercialStructureIT extends IntegrationTestBase {
     mvc.perform(equipo(medio))
         .andExpect(status().isOk())
         .andExpect(jsonPath("$.user.username").value("amartinez"))
-        .andExpect(jsonPath("$.user.roleCode").value("DIRECTOR"))
+        .andExpect(jsonPath("$.user.roles[0].code").value("DIRECTOR"))
         .andExpect(jsonPath("$.supervisor.username").value("rlopez"))
         .andExpect(jsonPath("$.supervisor.since").isNotEmpty())
         .andExpect(jsonPath("$.team.content[0].username").value("lgarcia"))
@@ -354,7 +355,9 @@ class CommercialStructureIT extends IntegrationTestBase {
 
     mvc.perform(equipo(contable))
         .andExpect(status().isOk())
-        .andExpect(jsonPath("$.user.roleCode").doesNotExist())
+        // Tiene rol, y NO comercial: por eso no hay estructura. Sus roles salen
+        // igual — no tener estructura comercial no es no tener roles.
+        .andExpect(jsonPath("$.user.roles[0].code").value("ADMIN"))
         .andExpect(jsonPath("$.supervisor").doesNotExist())
         .andExpect(jsonPath("$.team.totalElements").value(0));
   }
@@ -417,8 +420,12 @@ class CommercialStructureIT extends IntegrationTestBase {
   }
 
   @Test
-  @DisplayName("CA-SP-455 — no admite filtros: un parámetro de filtro no cambia el resultado")
-  void sinFiltros() throws Exception {
+  @DisplayName("CA-SP-455 — SOLO filtra por rol: search y status siguen sin cambiar el resultado")
+  void soloFiltraPorRol() throws Exception {
+    // Invertido el 10-09-2026. La prueba NO se borra: lo que antes afirmaba
+    // —«ningún filtro se aplica»— sigue siendo cierto para todos menos uno, y
+    // es justo lo que hay que seguir defendiendo para que el filtrado del
+    // listado general no se cuele aquí a trozos.
     mvc.perform(
             get("/api/v1/users/{id}/team", medio)
                 .with(lector())
@@ -426,6 +433,93 @@ class CommercialStructureIT extends IntegrationTestBase {
                 .param("status", "INACTIVO"))
         .andExpect(status().isOk())
         .andExpect(jsonPath("$.team.totalElements").value(1));
+
+    mvc.perform(get("/api/v1/users/{id}/team", medio).with(lector()).param("roles", "MANAGER"))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.team.totalElements").value(0));
+  }
+
+  @Test
+  @DisplayName("CA-SP-624 y CA-SP-625 — cada persona lleva TODOS sus roles, y el cliente ya no")
+  void cadaPersonaLlevaSusRoles() throws Exception {
+    // `CA-SP-625` es la que habría fallado antes del 10-09-2026: el rol salía de
+    // una subconsulta limitada a la clasificación VENDEDOR, de modo que un
+    // cliente de la cartera llegaba con el rol EN NULO — indistinguible de un
+    // vendedor sin rol.
+    UUID cliente = crearPersona("cperez", CLIENTE);
+    reportar(cliente, medio);
+
+    mvc.perform(equipo(medio))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.user.roles[0].code").value("DIRECTOR"))
+        .andExpect(jsonPath("$.user.roles[0].id").isNotEmpty())
+        .andExpect(jsonPath("$.user.roles[0].name").isNotEmpty())
+        .andExpect(jsonPath("$.supervisor.roles[0].code").value("MANAGER"))
+        .andExpect(jsonPath("$.team.content[0].username").value("cperez"))
+        .andExpect(jsonPath("$.team.content[0].roles[0].code").value("CLIENTE"))
+        .andExpect(jsonPath("$.team.content[1].roles[0].code").value("AGENTE"))
+        // El campo viejo no sobrevive en ninguna de las tres posiciones.
+        .andExpect(jsonPath("$.user.roleCode").doesNotExist())
+        .andExpect(jsonPath("$.supervisor.roleCode").doesNotExist())
+        .andExpect(jsonPath("$.team.content[0].roleCode").doesNotExist());
+  }
+
+  @Test
+  @DisplayName("CA-SP-626 — un código: solo quienes lo portan, y el total cuenta lo filtrado")
+  void filtroPorUnRol() throws Exception {
+    UUID cliente = crearPersona("cperez", CLIENTE);
+    reportar(cliente, medio);
+
+    mvc.perform(equipo(medio).param("roles", "CLIENTE"))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.team.totalElements").value(1))
+        .andExpect(jsonPath("$.team.content[0].username").value("cperez"));
+
+    // En minúsculas significa lo mismo: los códigos se persisten en mayúsculas,
+    // y un vacío se leería como «no hay clientes» en lugar de como un error.
+    mvc.perform(equipo(medio).param("roles", "cliente"))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.team.totalElements").value(1));
+
+    // Sin el parámetro, el equipo entero.
+    mvc.perform(equipo(medio)).andExpect(jsonPath("$.team.totalElements").value(2));
+  }
+
+  @Test
+  @DisplayName("CA-SP-627 — dos códigos son O, y quien porta los dos NO aparece dos veces")
+  void filtroPorVariosRoles() throws Exception {
+    UUID cliente = crearPersona("cperez", CLIENTE);
+    reportar(cliente, medio);
+    // `base` porta AGENTE y además CLIENTE: es el caso que distingue EXISTS de
+    // un JOIN. Con JOIN saldría dos veces y el total contaría asignaciones.
+    conceder(base, CLIENTE);
+
+    mvc.perform(equipo(medio).param("roles", "AGENTE,CLIENTE"))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.team.totalElements").value(2))
+        .andExpect(jsonPath("$.team.content.length()").value(2));
+
+    // Repetir el parámetro significa lo mismo que separarlo por comas.
+    mvc.perform(equipo(medio).param("roles", "AGENTE").param("roles", "CLIENTE"))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.team.totalElements").value(2));
+  }
+
+  @Test
+  @DisplayName("CA-SP-628 — un rol inexistente da equipo vacío y 200; el superior sale igual")
+  void filtroPorUnRolQueNoExiste() throws Exception {
+    // Validarlo contra el catálogo añadiría una consulta por petición para
+    // producir un fallo que la especificación no quiere. `RF-SP-025` ya decidió
+    // lo mismo para su filtro por rol.
+    mvc.perform(equipo(medio).param("roles", "NO_EXISTE"))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.team.totalElements").value(0))
+        .andExpect(jsonPath("$.team.content.length()").value(0))
+        // Ni el superior ni la persona consultada se ven afectados por el
+        // filtro: `supervisor` sigue estando, y su ausencia sigue significando
+        // «es la cúspide» y nada más (`CA-SP-445`).
+        .andExpect(jsonPath("$.supervisor.username").value("rlopez"))
+        .andExpect(jsonPath("$.user.roles[0].code").value("DIRECTOR"));
   }
 
   @Test
@@ -476,8 +570,8 @@ class CommercialStructureIT extends IntegrationTestBase {
     jdbc.update(
         """
         INSERT INTO users (id, username, email, first_name, last_name, password_hash,
-                           must_change_password, status)
-        VALUES (?, ?, ?, 'Nombre', 'Apellido', 'x', false, 'ACTIVO')
+                           must_change_password, status, country_id)
+        VALUES (?, ?, ?, 'Nombre', 'Apellido', 'x', false, 'ACTIVO', (SELECT id FROM countries WHERE code = 'COL'))
         """,
         id,
         username,
@@ -487,6 +581,14 @@ class CommercialStructureIT extends IntegrationTestBase {
         id,
         rol);
     return id;
+  }
+
+  /** Un rol MÁS a quien ya tiene otro: es lo que hace observable la semántica O. */
+  private void conceder(UUID persona, String rol) {
+    jdbc.update(
+        "INSERT INTO user_roles (user_id, role_id, role_type) SELECT ?, r.id, r.role_type FROM roles r WHERE r.id = ?::uuid",
+        persona,
+        rol);
   }
 
   private void reportar(UUID subordinado, UUID superior) {

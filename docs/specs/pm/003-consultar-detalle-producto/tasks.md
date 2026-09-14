@@ -3,7 +3,7 @@
 | Campo | Valor |
 |---|---|
 | Requerimiento | `RF-PM-003` |
-| Enmendadas | 02-09-2026 — el detalle resuelve **las dos** membresías |
+| Enmendadas | 02-09-2026 — el detalle resuelve **las dos** membresías; 07-09-2026 — `T-13` por el **alcance** y la **implementación**; 08-09-2026 — `T-15` por el **precio público**; 12-09-2026 — `T-18` porque el segundo precio es el **de compra**; 14-09-2026 — `T-19` por el **enlace del video**; 14-09-2026 — `T-20` por la **dirección de la portada** (`RN-PM-033`) |
 | Plan | [`plan.md`](plan.md), aprobado el 26-08-2026 |
 | Estado | **Aprobadas** |
 | Autor | Responsable técnico |
@@ -28,6 +28,14 @@
 | `T-10` | Documentación OpenAPI del endpoint | `T-07` | El contrato declara el `200`, el `404` y el `400` | Hecha |
 | `T-11` | Actualizar la matriz de trazabilidad | `T-07` | La fila refleja el estado | Hecha |
 | `T-12` | La **vigencia** viaja en el detalle | `T-03` | Vacía y presente en los productos que no caducan | Hecha |
+| `T-13` | El **alcance** y la **implementación** en `ProductDetailResponse` y en la proyección `ProductRow`, con la sentencia del detalle seleccionándolas | `RF-PM-001 · T-28` | `CA-PM-118`: las dos llegan en un upgrade, en un bot y en un producto **retirado**, y el detalle sigue costando **una** sentencia | **Hecha el 07-09-2026** |
+| `T-14` | El **color** de las dos membresías en el detalle | `RF-PM-001 · T-32` | `CA-PM-143`, y el detalle sigue costando **una** sentencia | **Hecha el 07-09-2026** |
+| `T-15` | El **precio público** en `ProductDetailResponse` y en el `SELECT` del detalle, con la escala de la misma moneda | `RF-PM-001 · T-34` | `CA-PM-152`: los dos importes, y el público **nulo y presente** donde no se declaró. El detalle sigue costando **una** sentencia más el motivo | **Hecha el 08-09-2026** |
+| `T-18` | **El segundo precio es el de compra**: `purchasePrice` sustituye a `publicPrice` en `ProductDetailResponse` y en el `SELECT` del detalle; la conversión se calcula **sobre `price`**; la prosa de la `@Operation` deja de decir «se anuncia» | `RF-PM-001 · T-38` | `CA-PM-152` y `CA-PM-166` con el nombre nuevo. `ProductDetailIT` comprueba `purchasePrice` presente y nulo | **Hecha el 12-09-2026** |
+| `T-16` | **La conversión en el detalle**: el mismo resolutor que el listado (`RF-PM-002 · T-21`), con una sola moneda | `RF-PM-002 · T-21` | `CA-PM-166`: llega presente y nula cuando el producto ya está en la moneda de casa o cuando no hay tasa vigente | **Hecha el 08-09-2026** |
+| `T-17` | **Actualizar `GetProductServiceIT`**: el detalle pasa de **una** sentencia a **tres** | `T-16` | El criterio de esa prueba **no cambia** —el motivo de retiro no se consulta en un producto vivo—; cambia el número, y se actualiza en vez de relajar la prueba | **Hecha el 08-09-2026** |
+| `T-19` | **El enlace del video en el detalle** (`RF-PM-001` `T-39` trae la columna): `videoUrl` en el `SELECT` del detalle y en `ProductDetailResponse`; y la prosa de la `@Operation` lo nombra | `T-18` | `CA-PM-224` en `ProductDetailIT`. **El contrato regenerado declara `videoUrl` en `ProductDetailResponse`** | **Hecha el 14-09-2026** |
+| `T-20` | **La dirección de la portada en el detalle** (`RF-PM-014` `T-01` trae la columna, `T-09` y `T-10` la proyección y el conversor): `p.cover_image_id` en el `SELECT` del detalle y `coverImageUrl` en `ProductDetailResponse`; y la prosa de la `@Operation` lo nombra | `T-19`, `RF-PM-014 · T-10` | `CA-PM-233` en `ProductDetailIT`, con el retirado. **El contrato regenerado declara `coverImageUrl` en `ProductDetailResponse`** | Pendiente |
 
 ## 2. Orden de ejecución
 
@@ -36,6 +44,8 @@
 El resto es rutina y depende de `RF-PM-001` y `RF-PM-002`.
 
 ## 3. Cobertura de los criterios de aceptación
+
+> `CA-PM-166` → `T-16` (añadido el 08-09-2026 con la conversión).
 
 | Criterio | Tareas |
 |---|---|
@@ -47,6 +57,11 @@ El resto es rutina y depende de `RF-PM-001` y `RF-PM-002`.
 | `CA-PM-080` | `T-01`, `T-05` |
 | `CA-PM-081` | `T-09` |
 | `CA-PM-082` | `T-03` |
+| `CA-PM-118` | `T-13` |
+| `CA-PM-143` | `T-14` |
+| `CA-PM-152` | `T-15`, `T-18` |
+| `CA-PM-224` | `T-19` |
+| `CA-PM-233` | `T-20` |
 
 ## 4. Bloqueos
 

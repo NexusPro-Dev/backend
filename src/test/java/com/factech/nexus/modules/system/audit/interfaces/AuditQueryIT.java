@@ -569,9 +569,9 @@ class AuditQueryIT extends IntegrationTestBase {
     UUID id = UUID.randomUUID();
     jdbc.update(
         "INSERT INTO users (id, username, email, first_name, last_name, password_hash, status,"
-            + " deleted_at) VALUES (CAST(? AS uuid), ?, ?, ?, ?, 'x', 'ACTIVO', "
+            + " deleted_at, country_id) VALUES (CAST(? AS uuid), ?, ?, ?, ?, 'x', 'ACTIVO', "
             + (retirada ? "now()" : "NULL")
-            + ")",
+            + ", (SELECT id FROM countries WHERE code = 'COL'))",
         id.toString(),
         usuario,
         usuario + "@factech.co",

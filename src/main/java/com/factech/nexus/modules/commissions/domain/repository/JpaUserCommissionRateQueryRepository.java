@@ -23,6 +23,8 @@ public class JpaUserCommissionRateQueryRepository implements UserCommissionRateQ
       u.first_name AS user_nombre, u.last_name AS user_apellido,
       t.rate_type AS rate_type, t.percentage AS percentage, t.fixed_amount AS fixed_amount,
       t.valid_from AS valid_from, t.valid_to AS valid_to,
+      (SELECT count(*) FROM user_commission_rate_products ap
+        WHERE ap.user_commission_rate_id = t.id) AS asociados,
       t.deleted_at AS deleted_at
       """;
 
@@ -95,6 +97,19 @@ public class JpaUserCommissionRateQueryRepository implements UserCommissionRateQ
     Filtro filtro = new Filtro();
     filtro.igual("t.user_id", "persona", f.userId());
 
+    // EXISTS y no JOIN, a propósito: un JOIN filtra bien mientras se filtre
+    // por UN producto —una fila por tasa—, y el día que alguien admitiera
+    // varios volvería a multiplicar filas sin que ninguna prueba de un solo
+    // producto lo notara. La cuenta de arriba es subconsulta por lo mismo que
+    // en el catálogo de rol (`RF-CM-002 plan.md` §5).
+    if (f.productId() != null) {
+      filtro.condicion(
+          "EXISTS (SELECT 1 FROM user_commission_rate_products ap"
+              + " WHERE ap.user_commission_rate_id = t.id AND ap.product_id = :producto)",
+          "producto",
+          f.productId());
+    }
+
     if (!f.includeDeleted()) {
       filtro.crudo("t.deleted_at IS NULL");
     }
@@ -121,6 +136,7 @@ public class JpaUserCommissionRateQueryRepository implements UserCommissionRateQ
         (BigDecimal) fila.get("fixed_amount"),
         CommissionRows.fecha(fila.get("valid_from")),
         CommissionRows.fecha(fila.get("valid_to")),
+        ((Number) fila.get("asociados")).longValue(),
         CommissionRows.momento(fila.get("deleted_at")));
   }
 

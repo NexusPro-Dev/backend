@@ -18,14 +18,16 @@ servers:
 security:
 - bearerAuth: []
 tags:
+- name: Tipos de documento
+  description: "Catálogo de documentos de identidad admitidos. Solo lectura: su contenido\
+    \ es la validación de mayoría de edad (RN-SP-036)."
 - name: Productos
   description: "Catálogo de venta: upgrades de membresía y bots."
 - name: Roles
   description: Registro y administración de los roles del sistema.
-- name: Usuarios
-  description: Alta y administración de las personas del sistema.
-- name: Permisos
-  description: Catálogo de permisos del sistema. Solo lectura.
+- name: Movimientos
+  description: "El libro de hechos económicos: qué se vendió, a quién y a quién se\
+    \ le atribuye."
 - name: Auditoría
   description: "Los cuatro registros de auditoría del sistema. Solo lectura, y cada\
     \ uno con su permiso."
@@ -35,14 +37,34 @@ tags:
   description: Catálogo de países. Inmutable salvo su estado.
 - name: Comisiones
   description: "Tasas de comisión personalizadas: la excepción por persona."
+- name: Cuentas de broker
+  description: "Todas las cuentas de broker del sistema, para quien administra. Las\
+    \ del propio equipo se consultan sin permiso en GET /api/v1/users/me/team/broker-accounts."
+- name: Brokers
+  description: "Catálogo de los brokers con los que opera la plataforma. Solo lectura:\
+    \ se puebla por migración (RN-SP-039)."
 - name: Membresías
   description: Cadena lineal de niveles de consumidor. Inmutable salvo el reordenamiento.
+- name: Usuarios
+  description: Alta y administración de las personas del sistema.
+- name: Permisos
+  description: Catálogo de permisos del sistema. Solo lectura.
+- name: Tasas de cambio
+  description: A cuánto se cambia una moneda por otra
+- name: Hotlinks
+  description: El enlace público que un vendedor reparte
+- name: Métodos de pago
+  description: "Con qué se puede pagar, y en qué países no vale cada medio."
+- name: Reseñas
+  description: Lo que quien compra dice de un producto.
 - name: Comisiones
   description: Resolución de la comisión efectiva de una persona sobre un producto.
 - name: Monedas
   description: Catálogo de monedas. Inmutable por API salvo su estado.
 - name: Sesión
   description: "Inicio, renovación y cierre de sesión."
+- name: Registro por enlace
+  description: Alta de un cliente desde el enlace de un vendedor. Público (RF-SP-045).
 paths:
   /api/v1/users/{id}/membership:
     put:
@@ -52,7 +74,7 @@ paths:
       description: |
         **`PUT` y no `POST`**, al revés que la asignación de roles, y la
         diferencia no es de gusto: aquí el cuerpo **sí** representa el estado
-        final. La persona tiene una membresía o ninguna, de modo que enviar una
+        final. La persona tiene siempre exactamente una, de modo que enviar una
         la deja como la única — y de ahí sale gratis la idempotencia.
 
         `endsAt` es opcional. **Ausente significa indefinida**: enviarlo ausente
@@ -95,9 +117,6 @@ paths:
           description: Autenticado sin `users:assign-membership` (`AUTH-002`)
         "404":
           description: La persona no existe o está eliminada (`VAL-004`)
-        "409":
-          description: La persona no porta ningún rol de consumidor (`RN-SP-013`).
-            El cuerpo indica que primero corresponde asignarle uno
         "422":
           description: La membresía indicada no existe en la cadena (`VAL-002`)
         "500":
@@ -105,24 +124,33 @@ paths:
     delete:
       tags:
       - Usuarios
-      summary: Retirar la membresía de una persona
+      summary: Devolver la membresía de una persona al suelo
       description: |
-        **Rechaza a quien SÍ es consumidor**, que es lo contrario de lo que
-        sugiere el nombre. No existe el estado «consumidor sin nivel», de modo
-        que esta operación solo sirve para **corregir un estado incoherente**:
-        alguien con membresía que ya no porta ningún rol de consumidor.
+        **Devuelve al nivel de arranque, y no deja a nadie sin nivel.** Desde el
+        05-09-2026 `RN-SP-018` exige que **toda** persona tenga membresía, de
+        modo que esta operación cierra la que tenga y le abre una `BECA`.
 
-        Las dos salidas reales para un consumidor en activo son bajarlo de nivel
-        con la operación de membresía, o retirarle el rol — el retiro arrastra la
-        membresía por su cuenta. El cuerpo del `409` las cita.
+        Existe para **corregir un nivel concedido por error**. Bajar a alguien a
+        un nivel intermedio es la operación de membresía, que admite indicar
+        cuál.
 
-        Sin membresía previa devuelve `204` igual: la operación es idempotente y
-        su resultado ya se cumplía.
+        **Responde `200` con la membresía resultante**, no `204`: devolver un
+        cuerpo vacío diría que no queda nada, y queda el nivel de arranque —
+        quien llama necesita saber en qué quedó la persona sin volver a
+        preguntar.
+
+        **Es idempotente.** Aplicada sobre quien ya está en el suelo no escribe
+        ni audita, y devuelve lo mismo.
+
+        **Ya no rechaza a los consumidores.** Hasta el 05-09-2026 exigía que la
+        persona **no** portara ningún rol de consumidor, porque la regla de
+        entonces no admitía consumidores sin nivel; retirada `RN-SP-013`, esa
+        precondición no protege nada.
 
         **Conserva el `DELETE`** y no le alcanza la enmienda del retiro de
         roles: esta operación no lleva cuerpo, de modo que el problema que
         aquella evitaba no existe aquí.
-      operationId: retirarMembresia
+      operationId: devolverMembresiaAlSuelo
       parameters:
       - name: id
         in: path
@@ -131,8 +159,12 @@ paths:
           type: string
           format: uuid
       responses:
-        "204":
-          description: Membresía retirada.
+        "200":
+          description: "La persona queda en el nivel de arranque, que se devuelve."
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/UserMembershipResponse"
         "400":
           description: Identificador malformado (`VAL-001`)
         "401":
@@ -141,8 +173,6 @@ paths:
           description: Autenticado sin `users:assign-membership` (`AUTH-002`)
         "404":
           description: La persona no existe o está eliminada (`VAL-002`)
-        "409":
-          description: La persona porta al menos un rol de consumidor (`RN-SP-018`)
         "500":
           description: Fallo no controlado (`ERR-500`)
   /api/v1/users:
@@ -163,9 +193,24 @@ paths:
         de cambio obligatorio produciría la lista de quien no ha cambiado su
         contraseña inicial.
 
-        **`roleId` y `membershipId` no se validan contra su catálogo.** Un
-        filtro por algo inexistente devuelve la colección vacía y no es un
-        error.
+        **`roleId`, `membershipId` y `countryId` no se validan contra su
+        catálogo.** Un filtro por algo inexistente devuelve la colección vacía y
+        no es un error.
+
+        **`countryId` NO se acota a países activos**, y va contra la intuición:
+        filtrar solo por los activos convertiría desactivar un país en una forma
+        de **esconder a su gente**, y este listado es justamente la herramienta
+        con la que se busca a quien quedó dentro para moverlo. Quien esté en un
+        país retirado aparece con normalidad.
+
+        Cada fila trae su `country` **resuelto y nunca nulo** — es el único
+        objeto anidado de la fila del que se puede decir eso: `roles` puede venir
+        vacía y `membership` y `deletedAt` pueden venir nulos.
+
+        **El listado NO publica el documento ni los datos de contacto**, y no se
+        puede buscar por ellos. Es deliberado: exponer un documento en un listado
+        paginado alcanza a mucha más gente que devolverlo en un detalle. Quien
+        necesite el documento de una persona usa `GET /api/v1/users/{id}`.
 
         La búsqueda va sobre nombre de usuario, correo y nombre completo,
         **sin distinguir acentos ni mayúsculas**, y por fragmento.
@@ -211,6 +256,12 @@ paths:
         schema:
           type: string
           format: uuid
+      - name: countryId
+        in: query
+        required: false
+        schema:
+          type: string
+          format: uuid
       - name: search
         in: query
         required: false
@@ -249,14 +300,61 @@ paths:
         contraseña**: quien prepara el alta conoce la credencial, y esa ventana
         se cierra en el primer inicio de sesión. Ni el estado ni la marca se
         envían; enviarlos devuelve `400`.
+        **`membershipId` es OPCIONAL, y el superior es condicional.** Desde el
+        05-09-2026 toda persona nace con nivel: si no se indica ninguno, se le
+        concede el de arranque (`BECA`). Ya no hay rechazo por indicarlo sin rol
+        de consumidor ni por omitirlo teniéndolo — esa exigencia murió con
+        `RN-SP-013`.
 
-        **La membresía y el superior son condicionales en los dos sentidos.**
-        Un rol de consumidor exige membresía y la membresía exige un rol de
-        consumidor; lo mismo con el rol de vendedor y el superior comercial.
-        Indicar uno sin el otro devuelve `409`, no se ignora.
+        El rol de vendedor y el superior comercial **sí siguen siendo
+        condicionales en los dos sentidos**: indicar uno sin el otro devuelve
+        `409`, no se ignora.
 
         El superior debe portar el **rol padre inmediato** del rol vendedor de
         mayor rango de la persona, y estar activo.
+
+        ## Identidad, contacto y país
+
+        **`countryId`, `documentTypeId`, `documentNumber` y `phone` son
+        obligatorios**, y a diferencia de la membresía y el superior **no
+        dependen de qué roles se concedan**: su ausencia es `400`, nunca un
+        `409` condicional.
+
+        **`companyPhone`, `addressLine1`, `addressLine2` y `city` son
+        opcionales.** Exigir una dirección postal a un funcionario interno
+        bloquearía su alta sin que nadie la necesite. `city` es **texto
+        libre**: no hay catálogo de ciudades.
+
+        **El tipo de documento sale de `GET /api/v1/document-types`, y ese
+        catálogo contiene SOLO documentos de persona mayor de edad.** Ahí está
+        la validación de mayoría de edad del sistema entero: no hay ninguna
+        marca que diga cuáles acreditan y cuáles no, porque **los que no
+        acreditan no están**. Registrar a un menor no se rechaza — no se puede
+        expresar, porque no hay identificador que enviar. Un desplegable
+        alimentado por ese catálogo no puede ofrecer una opción que el alta vaya
+        a rechazar.
+
+        **El par tipo + número es único entre TODAS las personas, incluidas las
+        eliminadas** (`RN-SP-035`), igual que el nombre de usuario y el correo.
+        El `409` que produce **no dice de quién es** el documento, ni si esa
+        persona sigue vigente.
+
+        El número de documento se guarda **recortado y en mayúsculas**, y
+        los **dos teléfonos** —`phone`, el personal, y `companyPhone`, el de la
+        empresa— **normalizados a dígitos con un `+` opcional**, fuera espacios,
+        guiones y paréntesis. La dirección y la ciudad solo se recortan.
+
+        **`companyPhone` es OPCIONAL y `phone` no** (`RN-SP-037`): exigir un
+        teléfono de empresa bloquearía el alta de todo el que no tenga una. Sale
+        **presente y en nulo** cuando no se declara, nunca ausente.
+
+        **Ningún teléfono se valida contra el país**: eso exigiría un catálogo de
+        prefijos que no existe.
+
+        La respuesta agrupa `country`, `document` y `contact` en tres objetos, y
+        devuelve el **tipo de documento resuelto** —abreviación y nombre— para
+        que no haga falta una segunda llamada al catálogo, que además exige otro
+        permiso.
 
         La contraseña no se recorta: un espacio al principio o al final es parte
         de ella.
@@ -275,19 +373,24 @@ paths:
               schema:
                 $ref: "#/components/schemas/UserResponse"
         "400":
-          description: "Formato u obligatoriedad incumplidos, contraseña que no cumple\
-            \ la política, o campo no admitido en el cuerpo"
+          description: "Formato u obligatoriedad incumplidos —incluidos país, tipo\
+            \ y número de documento y teléfono, que son obligatorios (`VAL-014` a\
+            \ `VAL-017`)—, contraseña que no cumple la política, o campo no admitido\
+            \ en el cuerpo"
         "401":
           description: Token ausente o inválido (`AUTH-001`)
         "403":
           description: Autenticado sin el permiso de creación de usuarios (`AUTH-002`)
         "409":
-          description: "Identidad ya en uso (`RN-SP-016`), rol que excede los privilegios\
-            \ del actor (`RN-SEG-010`), consumidor sin membresía o al revés (`RN-SP-018`),\
-            \ vendedor sin superior o al revés (`RN-SP-019`), o superior que no porta\
-            \ el rol padre (`RN-SP-020`)"
+          description: "Identidad ya en uso (`RN-SP-016`), documento ya registrado\
+            \ por otra persona —vigente o eliminada— o tipo de documento inactivo\
+            \ (`RN-SP-035`), país inactivo (`RN-SP-034`), rol que excede los privilegios\
+            \ del actor (`RN-SEG-010`), vendedor sin superior o al revés (`RN-SP-019`),\
+            \ o superior que no porta el rol padre (`RN-SP-020`)"
         "422":
-          description: Algún rol no existe o no está activo (`EX-003`)
+          description: "Algún rol no existe o no está activo (`EX-003`), el país no\
+            \ existe (`EX-009`) o el tipo de documento no existe (`EX-010`) — referencias\
+            \ que no resuelven, frente al `409` de las que resuelven y una regla rechaza"
         "500":
           description: Fallo no controlado (`ERR-500`)
   /api/v1/users/{id}/roles:
@@ -303,12 +406,16 @@ paths:
         Pedir un rol que la persona ya tiene no es un error: no cambia nada y
         no deja rastro en la auditoría.
 
-        `membershipId`, `membershipEndsAt` y `supervisorId` son
-        **condicionales**: obligatorios exactamente cuando la operación
-        convierte a la persona en consumidor o cambia su rango comercial, y no
-        admitidos en cualquier otro caso. Su admisibilidad depende del estado
-        de la persona y no del cuerpo, de modo que su incumplimiento es `422` y
-        nunca `400`.
+        **Esta operación no toca la membresía**, y desde el 05-09-2026 tampoco
+        la admite: `membershipId` y `membershipEndsAt` se retiraron del cuerpo.
+        Toda persona tiene nivel desde el alta, de modo que cuando llega esta
+        petición ya lo tiene; cambiarlo es la operación de membresía, que tiene
+        su propio permiso.
+
+        `supervisorId` es **condicional**: obligatorio exactamente cuando la
+        operación cambia el rango comercial de la persona, y no admitido en
+        cualquier otro caso. Su admisibilidad depende del estado de la persona
+        y no del cuerpo, de modo que su incumplimiento es `422` y nunca `400`.
 
         Un **ascenso** —que cambia el rol vendedor de mayor rango— exige
         declarar de nuevo el superior: el anterior puede haber dejado de ser
@@ -346,10 +453,8 @@ paths:
           description: Algún rol concede permisos que el actor no posee (`RN-SEG-010`).
             El cuerpo enumera cuáles
         "422":
-          description: "Rol inexistente (`EX-002`), rol inactivo (`EX-003`), consumidor\
-            \ sin membresía (`RN-SP-018`), membresía indicada sin que corresponda\
-            \ (`EX-006`), vendedor sin superior (`RN-SP-019`), o superior inadmisible\
-            \ (`VAL-007`, `RN-SP-020`)"
+          description: "Rol inexistente (`EX-002`), rol inactivo (`EX-003`), vendedor\
+            \ sin superior (`RN-SP-019`), o superior inadmisible (`VAL-007`, `RN-SP-020`)"
         "500":
           description: Fallo no controlado (`ERR-500`)
   /api/v1/users/{id}/roles/revocations:
@@ -358,10 +463,14 @@ paths:
       - Usuarios
       summary: Retirar roles de una persona
       description: |
-        Retira roles y **arrastra las cascadas**: quedarse sin ningún rol de
-        consumidor borra la membresía, y quedarse sin ningún rol de vendedor
-        cierra la asignación de superior comercial —cerrarla, nunca borrarla:
-        esa fila dice a quién se atribuía cada resultado—.
+        Retira roles y **arrastra UNA cascada**: quedarse sin ningún rol de
+        vendedor cierra la asignación de superior comercial —cerrarla, nunca
+        borrarla: esa fila dice a quién se atribuía cada resultado—.
+
+        **La membresía ya no se arrastra** (05-09-2026). Quien deja de ser
+        consumidor **conserva el nivel que tenía**, incluido uno comprado: toda
+        persona debe tener membresía, y bajarla al suelo sería quitarle algo
+        que pagó.
 
         **Revoca todas las sesiones de la persona.** Asignar no lo hace;
         retirar sí, porque el refresh token sobrevive al cambio de permisos y
@@ -542,6 +651,18 @@ paths:
 
         **Filtrar por persona devuelve las declaradas PARA esa persona**, no la que
         le aplica hoy sobre un producto.
+
+        **Filtrar por producto (`productId`) devuelve las ASOCIADAS a ese producto**,
+        de cualquier persona: es la respuesta a «quién tiene excepción aquí». Se
+        combina con los demás filtros — persona y producto juntos responden
+        «¿tiene esta persona excepción en este producto?», con su historial. Un
+        producto donde nadie tiene excepción devuelve la página vacía, y **no
+        significa que no comisione**: significa que todos cobran por su rol.
+
+        Cada fila trae **`associatedProducts`**, sobre cuántos productos rige.
+        **Cero significa que esa excepción no paga nada** — es el estado en que
+        nace, hasta que se asocia. Los productos van contados y no listados; la
+        lista está en `GET /api/v1/user-commission-rates/{id}/products`.
       operationId: listar_1
       parameters:
       - name: filtros
@@ -573,19 +694,31 @@ paths:
       - Comisiones
       summary: Registrar la tasa personalizada de una persona
       description: |
-        Declara que **esta persona** gana este porcentaje, **venda lo que venda**.
+        Declara que **esta persona** gana este porcentaje, y **deja la tasa
+        creada sin que rija todavía en ninguna parte**.
 
-        **Gana siempre sobre la tasa de su rol** y **sin mirar el producto**
-        (`RN-CM-004`). No se asocia a productos, y por eso **paga desde el primer
-        día**: no necesita nada más.
+        **Para ponerla en vigor hay que asociarla a productos**, con
+        `POST /api/v1/user-commission-rates/{id}/products`. Es exactamente el
+        mismo mecanismo que las tasas de rol, y desde el 11-09-2026 sin
+        excepción: `RN-CM-012` dice que **ninguna tasa rige hasta que se
+        asocia**, y esta era la única que se saltaba la regla — pagaba desde el
+        primer día sobre **todo el catálogo**.
+
+        **Lo que eso cuesta conviene saberlo**: una tasa creada y no asociada
+        **parece configurada y no paga nada**, y eso no falla — se descubre
+        liquidando.
 
         **No lleva rol, y eso tiene una consecuencia que conviene conocer**: la
         tasa sigue rigiendo aunque su titular pase a un rol que no comisiona.
         Hasta el 01-09-2026 el rol era obligatorio precisamente para impedirlo.
 
-        **Una sola viva por persona en cada fecha** (`RN-CM-006`): puede haber
-        varias consecutivas —son el historial—, pero **ningún día puede estar
-        cubierto dos veces**. Si una termina el 31, la siguiente empieza el 1.
+        **Aquí NO se comprueba el solapamiento**, y es deliberado: sin producto
+        no hay solapamiento posible. Dos tasas de la misma persona con fechas que
+        se pisan son legítimas mientras rijan en productos distintos, y
+        `RN-CM-006` se verifica **al asociar**.
+
+        **Tampoco se acota el `fixedAmount`**: una tasa sin asociar no conoce el
+        precio de nada (`RN-CM-018`). El tope lo pone `RN-CM-019` al asociarla.
 
         `validFrom` es obligatorio; sin `validTo`, rige indefinidamente.
       operationId: registrar_1
@@ -614,18 +747,187 @@ paths:
             '*/*':
               schema:
                 $ref: "#/components/schemas/UserCommissionRateResponse"
-        "409":
-          description: Se solapa con otra tasa viva de esa persona
-          content:
-            '*/*':
-              schema:
-                $ref: "#/components/schemas/UserCommissionRateResponse"
         "422":
           description: La persona no existe
           content:
             '*/*':
               schema:
                 $ref: "#/components/schemas/UserCommissionRateResponse"
+  /api/v1/user-commission-rates/{id}/products:
+    get:
+      tags:
+      - Comisiones
+      summary: Consultar sobre qué productos rige una tasa personalizada
+      description: |
+        Devuelve los productos a los que está asociada esa tasa, **con la misma
+        forma que devuelven asociar y desasociar**: la lista completa, resuelta con
+        `id`, `code` y `name` y ordenada por código.
+
+        **Una lista vacía significa que esa excepción no paga nada** — está
+        declarada y no rige sobre ningún producto (`RN-CM-012`). Es la lectura que
+        revela una personalizada a medio configurar.
+
+        **No comprueba que la tasa exista**: con un identificador que no es de
+        nada responde `200` y lista vacía, igual que su gemela de rol en
+        `GET /api/v1/commission-rates/{id}/products`. Distinguir «no existe» de
+        «no tiene asociaciones» costaría una consulta para no cambiar lo que el
+        cliente hace después.
+
+        Para la pregunta inversa —qué personas tienen excepción en un producto—
+        use `GET /api/v1/user-commission-rates?productId=`.
+      operationId: productosDeLaTasa
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      responses:
+        "200":
+          description: Los productos de la tasa
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/UserRateProductsResponse"
+        "403":
+          description: Sin permiso
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/UserRateProductsResponse"
+    post:
+      tags:
+      - Comisiones
+      summary: Asociar una tasa personalizada a un producto
+      description: |
+        **Es la operación que pone la tasa en vigor.** Hasta que se asocia no
+        paga nada a nadie (`RN-CM-012`) — igual que una tasa de rol, y desde el
+        11-09-2026 sin excepción: hasta esa fecha la personalizada pagaba desde
+        el primer día sobre **todo el catálogo**.
+
+        **Un producto por petición, y admite varios en llamadas sucesivas.**
+        Donde esté asociada gana sobre la tasa del rol de esa persona; donde no,
+        esa persona cobra por su rol como cualquier otra.
+
+        **Devuelve la lista COMPLETA de productos** tras la operación, no solo el
+        que se acaba de añadir: quien asocia el tercero tiene que poder ver los
+        tres sin una segunda llamada.
+
+        **`RN-CM-006` se comprueba aquí**: esa persona no puede tener dos tasas
+        vivas que cubran el mismo día **sobre el mismo producto**. Sobre
+        productos distintos sí, y es lo normal. La comprobación se hace **al
+        asociar y no al registrar**, porque sin producto no hay solapamiento
+        posible.
+
+        **Un `fixedAmount` no puede superar el precio del producto**
+        (`RN-CM-019`). Es el mismo tope que las de rol, y es **individual, no una
+        suma**: las personalizadas de personas distintas sobre el mismo producto
+        son alternativas entre sí, no cosas que se paguen a la vez. **Sobre un
+        producto GRATUITO (precio cero) ese tope no aplica y solo cabe el importe
+        fijo** (`RN-CM-020`, 14-09-2026): un `fixedAmount` entra del importe que
+        sea y un porcentaje se rechaza con `409` (`EX-008`).
+
+        El producto debe existir y **no estar retirado**: configurar lo que nadie
+        puede vender no falla nunca y no sirve nunca.
+      operationId: asociar
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AssociateUserProductRequest"
+        required: true
+      responses:
+        "201":
+          description: "Asociada, con la lista completa"
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/UserRateProductsResponse"
+        "400":
+          description: Producto ausente
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/UserRateProductsResponse"
+        "403":
+          description: Sin permiso
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/UserRateProductsResponse"
+        "404":
+          description: La tasa no existe o está retirada
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/UserRateProductsResponse"
+        "409":
+          description: "Ya estaba asociada, se solapa con otra tasa viva de esa persona\
+            \ en ese producto, el producto está retirado, pagaría más del precio del\
+            \ producto (`EX-007`), o es un porcentaje sobre un producto gratuito (`EX-008`)"
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/UserRateProductsResponse"
+        "422":
+          description: El producto no existe
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/UserRateProductsResponse"
+  /api/v1/user-commission-rates/{id}/products/{productId}/deletion:
+    post:
+      tags:
+      - Comisiones
+      summary: Retirar la asociación de una tasa personalizada con un producto
+      description: |
+        **Deja de regir ahí, y la tasa sigue viva.** Puede volver a asociarse a
+        ese producto o a otro; retirarla es otra operación.
+
+        **El motivo es obligatorio.** La fila se borra de verdad —una asociación
+        es configuración vigente, no un hecho del pasado— de modo que este texto
+        es **el único sitio** donde quedará escrito por qué esa persona dejó de
+        tener su excepción en ese producto.
+
+        **`404` y no `409` si ya no estaba**: con el borrado físico no queda nada
+        que distinga «nunca existió» de «ya se borró», y un `409` afirmaría algo
+        que no se sabe.
+      operationId: desasociar
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      - name: productId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/DissociateProductRequest"
+      responses:
+        "204":
+          description: Desasociada
+        "400":
+          description: "Motivo ausente, en blanco o demasiado largo"
+        "403":
+          description: Sin permiso
+        "404":
+          description: Esa tasa no está asociada a ese producto
   /api/v1/user-commission-rates/{id}/deletion:
     post:
       tags:
@@ -1036,10 +1338,29 @@ paths:
         bloque sería una exportación de decisiones comerciales—. Verlos **no
         exige un permiso propio**: basta `products:read`.
 
+        Cada fila trae **los dos precios**: `price` —el que se cobra— y
+        `purchasePrice` —el **precio de compra**, lo que NEXUS paga por el
+        producto—, este **presente y nulo** en los productos cuyo costo no se
+        conoce. Este listado y el detalle son **los dos únicos sitios** donde
+        se ven juntos: la oferta y el hotlink no devuelven el de compra
+        (`RN-PM-024`, 12-09-2026).
+
+        Y trae **`exchange`**, la conversión a la moneda por omisión con la
+        tasa vigente hoy, calculada **sobre `price`** —el de compra nunca se
+        convierte—. Llega **presente y nula** cuando el producto ya está en
+        esa moneda o cuando nadie declaró una tasa: eso **no es un error** y
+        el producto se devuelve igual.
+
+        Cada fila trae también **`videoUrl`**, la dirección del video que
+        presenta el producto, **tal cual se guardó** y **presente y nula**
+        cuando no tiene (`RN-PM-032`). **No es un filtro.**
+
         Solo se puede ordenar por la lista blanca —`name`, `price`,
-        `createdAt`—, con `,asc` o `,desc`. **Un campo fuera de ella se
-        rechaza y no se ignora**: ignorarlo devolvería un orden distinto del
-        pedido sin decirlo. Por omisión se ordena por **fecha de alta
+        `createdAt`—, con `,asc` o `,desc`. **`purchasePrice` no está en
+        ella**: ordenar por una columna que admite nulos obligaría a decidir
+        dónde van los productos sin costo conocido, y nadie lo ha decidido.
+        **Un campo fuera de la lista se rechaza y no se ignora**:
+        ignorarlo devolvería un orden distinto del pedido sin decirlo. Por omisión se ordena por **fecha de alta
         descendente**, y el orden aplicado viaja en la respuesta.
 
         **`targetMembershipId` no se valida contra el catálogo de membresías.**
@@ -1049,6 +1370,12 @@ paths:
 
         La búsqueda va sobre el nombre, **sin distinguir acentos ni
         mayúsculas** y por fragmento. En blanco equivale a no filtrar.
+
+        **`scope` e `implementation` filtran como `type` y `status`**: se
+        admiten en cualquier caja y un valor fuera de dominio se rechaza junto
+        al resto de parámetros inválidos, no en una vuelta aparte. El de
+        alcance es **el único sitio donde ese dato se consulta hoy** — la
+        oferta de `RF-PM-007` no filtra por él.
 
         Un filtro sin coincidencias devuelve `200` con la colección vacía, y
         una página más allá de la última hace lo mismo **con el total real**.
@@ -1078,6 +1405,16 @@ paths:
         schema:
           type: string
       - name: status
+        in: query
+        required: false
+        schema:
+          type: string
+      - name: scope
+        in: query
+        required: false
+        schema:
+          type: string
+      - name: implementation
         in: query
         required: false
         schema:
@@ -1131,13 +1468,58 @@ paths:
         operación (`RF-PM-005`).
 
         El tipo decide qué campos son obligatorios: un `UPGRADE_MEMBRESIA` debe
-        declarar su membresía destino y un `BOT` no puede declararla.
+        declarar **las dos** membresías —de qué nivel sale y a cuál lleva— y un
+        `BOT` no puede declarar ninguna.
+
+        **El origen no puede estar por encima del destino**: eso sería vender un
+        descenso llamándolo upgrade, y se rechaza con `422` (`EX-006`). **Sí
+        puede ser el MISMO**, y entonces el producto es una **renovación**: lo
+        que vende es tiempo —su `validityDays`— y no un cambio de nivel.
+
+        **Y no tiene por qué ser el inmediatamente inferior**: saltar niveles es
+        legítimo, y es la razón de que el origen se declare en lugar de
+        deducirse de la cadena.
 
         `icon` es el **nombre** del icono con el que el frontend pinta el producto
         —no una imagen—, en minúsculas y guion medio. Es **opcional**, y solo un
         `UPGRADE_MEMBRESIA` puede llevarlo: en un `BOT` se rechaza (`RN-PM-016`).
 
+        `videoUrl` es **la dirección de un video** que presenta el producto —no
+        el video—. Es **opcional y vale en los dos tipos**, sin la condición
+        del icono. Se comprueba **solo la forma**: una URL absoluta `http` o
+        `https`, sin espacios y de hasta 500 caracteres; lo demás se rechaza
+        con `VAL-017`. **El sistema no sigue el enlace** —no comprueba que el
+        video exista ni lo descarga—, y lo guarda **tal cual se escribió**,
+        recortado y sin normalizar nada más. Ausente o nulo significan lo
+        mismo: no tiene video. **Al revés que el precio de compra, sale en las
+        cuatro lecturas**, el hotlink sin token incluido (`RN-PM-032`).
+
         La vigencia es opcional en los dos tipos: sin ella, lo adquirido no caduca.
+
+        `scope` e `implementation` son **obligatorios y en los dos tipos**, y
+        **no tienen valor por omisión**: `scope` dice hasta dónde se muestra el
+        producto —`HOTLINKS` **incluye** `TIENDA`, no la sustituye— e
+        `implementation` dice si lo comprado se aplica solo (`AUTOMATICA`) o
+        espera a que un funcionario lo autorice (`MANUAL`).
+
+        **Un producto lleva DOS precios y solo uno se cobra.** `price` es el
+        del sistema —el que copia la venta y sobre el que se comisiona— y
+        `purchasePrice` es el **precio de compra**: lo que NEXUS paga por el
+        producto cuando tiene que comprarlo, y donde se guarda lo que costó.
+        Es **opcional**, no interviene en ningún cálculo, se expresa en la
+        **misma moneda** y **no sale de administración**: la oferta y el
+        hotlink no lo devuelven. Ausente o nulo significan lo mismo —no se
+        conoce todavía—, y **eso no es «costó cero»** (`RN-PM-023`). Se llamó
+        `publicPrice` hasta el 12-09-2026; ese nombre es hoy una propiedad
+        desconocida y devuelve `400`.
+
+        Los dos importes se validan igual: **no negativos** —el **cero se
+        admite** desde que existe la renovación de una membresía gratuita— y
+        con los decimales que declare su moneda. El rechazo **nombra el
+        campo** que incumple.
+
+        **Los dos solo se ven desde administración** (`RN-PM-024`): la oferta
+        de un cliente y el hotlink público devuelven **uno**.
       operationId: register
       requestBody:
         content:
@@ -1177,8 +1559,8 @@ paths:
               schema:
                 $ref: "#/components/schemas/ProductResponse"
         "422":
-          description: "Membresía destino o moneda inexistente o inactiva (`EX-002`,\
-            \ `EX-003`)"
+          description: "Membresía inexistente, moneda inexistente o inactiva, o un\
+            \ origen POR ENCIMA del destino (`EX-002`, `EX-003`, `EX-006`)"
           content:
             '*/*':
               schema:
@@ -1247,6 +1629,187 @@ paths:
           description: El producto ya estaba retirado (`EX-002`)
         "500":
           description: Fallo no controlado (`ERR-500`)
+  /api/v1/products/{id}/comments:
+    get:
+      tags:
+      - Reseñas
+      summary: Consultar las reseñas de un producto
+      description: |
+        Devuelve, **sin token**, las reseñas vivas de un producto, paginadas y de la más
+        reciente a la más antigua. **Es público por decisión** (`RF-PM-012`): la pantalla
+        del hotlink las necesita y no tiene con qué autenticarse.
+
+        **Del autor solo viaja su nombre y apellido** (`RN-PM-030`): ni identificador, ni
+        nombre de usuario, ni correo, ni estado, ni roles. Es la segunda ruta pública del
+        sistema que publica el nombre de una persona, después del hotlink, y hereda sus dos
+        decisiones.
+
+        **La misma respuesta con token que sin él.** No marca cuál reseña es la de quien
+        llama; para eso está `GET .../comments/mine`.
+
+        **El `404` es uniforme**: producto inexistente, inactivo, retirado o identificador
+        mal formado responden **el mismo cuerpo** (`RN-PM-028`). Un anónimo no debe poder
+        saber si un identificador corresponde a un producto en preparación.
+
+        `updatedAt` distinto de `createdAt` significa «corregida»; no hay campo aparte.
+
+        **El texto NO está saneado**: escápelo al pintarlo.
+
+        Acotada por origen: 120 por minuto sobre la familia `/api/v1/products/*/comments`.
+      operationId: list
+      parameters:
+      - name: id
+        in: path
+        description: Identificador del producto (UUID)
+        required: true
+        schema:
+          type: string
+      - name: page
+        in: query
+        required: false
+        schema:
+          type: integer
+          format: int32
+      - name: size
+        in: query
+        required: false
+        schema:
+          type: integer
+          format: int32
+      responses:
+        "200":
+          description: Página de reseñas vivas del producto.
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/PageResponseProductCommentPublicItem"
+        "400":
+          description: Paginación inválida (`VAL-003` de `shared/pagination`)
+        "404":
+          description: "El producto no existe, está inactivo, está retirado o el identificador\
+            \ está mal formado (`EX-001`) — el mismo cuerpo en los cuatro casos"
+        "429":
+          description: Límite de tasa por origen superado
+      security: []
+    post:
+      tags:
+      - Reseñas
+      summary: Reseñar un producto
+      description: |
+        Registra **la** reseña de quien llama sobre un producto: una puntuación entera de
+        1 a 5 y un texto de 1 a 1000 caracteres, **las dos obligatorias** (`RN-PM-025`).
+
+        **El autor sale del token.** El cuerpo no admite campo de persona: un `userId`
+        es un campo desconocido y se rechaza con `400`. No existe forma de reseñar en
+        nombre de otro.
+
+        **Una por persona y producto, entre las vivas** (`RN-PM-026`). La segunda sobre el
+        mismo producto responde `409` mientras la primera siga viva; quien cambie de
+        opinión la corrige (`PATCH .../comments/{commentId}`). Retirada la suya, puede
+        escribir otra.
+
+        **Solo se reseña lo que se puede comprar** (`RN-PM-028`): un producto activo y no
+        retirado. **El `404` no distingue** entre inexistente, inactivo y retirado — quien
+        reseña es un cliente y ve la oferta, que tampoco distingue.
+
+        **Un decimal en la puntuación se rechaza, no se redondea**, y una cadena tampoco es
+        una puntuación: los dos responden `400`.
+
+        Desde la primera reseña escrita, las cuatro lecturas del producto publican
+        `rating` con el promedio (dos decimales, **nulo** sin reseñas) y la cantidad de
+        reseñas **vivas** (`RN-PM-031`).
+
+        **El texto se guarda tal cual y NO se sanea.** La lista es pública: el front debe
+        escaparlo al pintarlo.
+      operationId: create
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateProductCommentRequest"
+        required: true
+      responses:
+        "201":
+          description: "Reseña registrada. Sin autor: quien la recibe es quien la\
+            \ escribió."
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/ProductCommentResponse"
+        "400":
+          description: "Identificador mal formado (`VAL-001`), puntuación ausente\
+            \ (`VAL-002`) o fuera de 1..5 (`VAL-003`), texto vacío (`VAL-004`) o de\
+            \ más de 1000 caracteres (`VAL-005`), o campos no admitidos en el cuerpo\
+            \ (`VAL-006`)"
+        "401":
+          description: Token ausente o inválido (`AUTH-001`)
+        "403":
+          description: Autenticado sin el permiso `products:comment` (`AUTH-002`)
+        "404":
+          description: "El producto no existe, está inactivo o está retirado (`EX-001`)"
+        "409":
+          description: Quien llama ya tiene una reseña viva sobre este producto (`EX-002`)
+  /api/v1/movements:
+    post:
+      tags:
+      - Movimientos
+      summary: Registrar una venta a nombre de un cliente
+      description: |
+        Deja constancia de **qué le vendió la empresa a un cliente**, como un hecho que
+        **todavía no está pagado**.
+
+        **La venta nace `PENDIENTE`, y eso significa que no concede nada.** No sube de
+        nivel a nadie, no habilita ninguna cuenta y no comisiona: registrar una venta
+        **no cambia absolutamente nada fuera de este módulo**. Confirmarla es otra
+        operación.
+
+        **El precio no se envía: se toma del catálogo.** Se indica qué productos y
+        cuántos, nunca cuánto cuestan — un precio que llegara en la petición sería un
+        descuento sin autorización y sin rastro. Tampoco se envían la moneda, la
+        vigencia ni el vendedor: la moneda y la vigencia salen del producto, y **el
+        vendedor sale del cliente** y se congela en la venta.
+
+        **Lo copiado queda congelado.** Corregir mañana el precio de un producto, o
+        reasignar el cliente a otro agente, no cambia lo que se vendió hoy.
+
+        Reglas de composición: **como mucho un upgrade** por venta y con cantidad uno,
+        sin productos repetidos y todas las líneas en la misma moneda.
+      operationId: registrar_3
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/RegisterSaleRequest"
+        required: true
+      responses:
+        "201":
+          description: "Venta registrada, pendiente de pago."
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/SaleResponse"
+        "400":
+          description: "Lo que se ve mirando la petición: falta el cliente o el mé\
+            todo de pago, no hay líneas, la cantidad no es positiva, un producto se\
+            \ repite, o la fecha del hecho está en el futuro."
+        "403":
+          description: Sin el permiso `movements:create`.
+        "409":
+          description: "Lo que solo se sabe después de resolver: la cuenta no puede\
+            \ operar todavía, el cliente no cuelga de ningún vendedor, un producto\
+            \ no está en su oferta, el upgrade BAJA de nivel —renovar el mismo sí\
+            \ se admite—, hay dos upgrades, las monedas difieren, o el método de pago\
+            \ está desactivado."
+        "422":
+          description: "Un dato bien formado que no resuelve: el cliente, un producto\
+            \ o el método de pago no existen."
   /api/v1/memberships:
     get:
       tags:
@@ -1293,7 +1856,7 @@ paths:
 
         El nivel y la superior **no se envían**: los calcula el sistema. Enviar
         `level` o `parentMembershipId` devuelve `400`.
-      operationId: registrar_3
+      operationId: registrar_4
       requestBody:
         content:
           application/json:
@@ -1321,6 +1884,82 @@ paths:
           description: La membresía hija indicada no existe (`EX-002`)
         "500":
           description: Fallo no controlado (`ERR-500`)
+  /api/v1/exchange-rates:
+    post:
+      tags:
+      - Tasas de cambio
+      summary: Registrar una tasa de cambio
+      description: |
+        Declara **a cuánto se cambia una moneda por otra y desde cuándo**.
+
+        `price` es **cuántas unidades de la moneda de destino da UNA de la de
+        origen**: `USD → COP` a `4150` significa que un dólar da cuatro mil
+        ciento cincuenta pesos. **La dirección contraria no se deduce** — la
+        inversa aritmética casi nunca es la tasa real, y calcularla produciría
+        un número plausible y falso. Quien necesite las dos declara **dos
+        tasas**.
+
+        **Ocho decimales**, y no los de ninguna moneda: una tasa **no es un
+        importe**, es un cociente entre dos monedas. Con cuatro, `COP → USD`
+        se guardaría redondeada y una moneda más devaluada, como cero.
+
+        **`validFrom` es obligatoria y `validTo` no**: sin ella la tasa es
+        **vitalicia**. Ausente y `null` significan lo mismo. Una vigencia que
+        empieza y termina el mismo día es legítima, y una que **empieza en el
+        futuro** también — es lo que hace innecesario un estado «programada».
+
+        **`isActive` es opcional y por omisión verdadero.**
+
+        **Dos tasas activas del mismo par no pueden solaparse** (`RN-SP-032`),
+        y los **dos extremos de la vigencia cuentan**: una que termina el 30 de
+        junio choca con otra que empieza el 30 de junio. El choque devuelve
+        `409` y **no registra nada**: el sistema **no** cierra ni recorta la
+        tasa anterior, porque resolver el conflicto es una decisión de quien
+        administra, no del servidor.
+      operationId: registrar_5
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/RegisterExchangeRateRequest"
+        required: true
+      responses:
+        "201":
+          description: Tasa registrada.
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/ExchangeRateResponse"
+        "400":
+          description: Datos inválidos (serie `VAL-nnn`)
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/ExchangeRateResponse"
+        "401":
+          description: Token ausente o inválido (`AUTH-001`)
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/ExchangeRateResponse"
+        "403":
+          description: Autenticado sin el permiso `exchange-rates:create` (`AUTH-002`)
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/ExchangeRateResponse"
+        "409":
+          description: Se solapa con una tasa vigente del mismo par (`EX-002`)
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/ExchangeRateResponse"
+        "422":
+          description: Moneda inexistente o desactivada (`EX-001`)
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/ExchangeRateResponse"
   /api/v1/countries:
     get:
       tags:
@@ -1373,7 +2012,7 @@ paths:
         alguna, pero **no puede coincidir** con otro ya registrado ignorando
         mayúsculas y acentos: el catálogo no se edita, y el duplicado sería
         permanente.
-      operationId: registrar_4
+      operationId: registrar_6
       requestBody:
         content:
           application/json:
@@ -1458,7 +2097,7 @@ paths:
 
         **El porcentaje cero es válido** y significa «esto no comisiona», que **no
         es lo mismo** que no declarar la tasa.
-      operationId: registrar_5
+      operationId: registrar_7
       requestBody:
         content:
           application/json:
@@ -1500,7 +2139,7 @@ paths:
         que tenga porcentaje.
 
         No se pagina: una tasa se asocia a un puñado de productos.
-      operationId: productosDeLaTasa
+      operationId: productosDeLaTasa_1
       parameters:
       - name: id
         in: path
@@ -1543,8 +2182,13 @@ paths:
         —convirtiendo cada valor fijo contra el precio del producto— más el de
         esta, y devuelve `409` si pasa de cien.
 
+        **Sobre un producto GRATUITO (precio cero) el tope no aplica y solo cabe
+        el importe fijo** (`RN-CM-020`, 14-09-2026): un valor fijo entra sin
+        tope —del importe que sea, y varios roles a la vez—, y un porcentaje se
+        rechaza con `409` (`EX-006`), porque un porcentaje de nada es nada.
+
         Devuelve **todas** las asociaciones de la tasa, no solo la nueva.
-      operationId: asociar
+      operationId: asociar_1
       parameters:
       - name: id
         in: path
@@ -1585,7 +2229,8 @@ paths:
                 $ref: "#/components/schemas/ProductAssociationResponse"
         "409":
           description: "Ese rol ya paga por ese producto, el producto está retirado,\
-            \ o la suma pasaría de cien"
+            \ la suma pasaría de cien (`EX-005`), o es un porcentaje sobre un producto\
+            \ gratuito (`EX-006`)"
           content:
             '*/*':
               schema:
@@ -1612,7 +2257,7 @@ paths:
         Si esa tasa no está asociada a ese producto devuelve `404` — y no `409`,
         porque al no quedar rastro no puede distinguirse «nunca existió» de «ya se
         borró».
-      operationId: desasociar
+      operationId: desasociar_1
       parameters:
       - name: id
         in: path
@@ -1682,6 +2327,122 @@ paths:
           description: La tasa no existe
         "409":
           description: "Ya estaba retirada, o sigue asociada a algún producto"
+  /api/v1/auth/registration:
+    post:
+      tags:
+      - Registro por enlace
+      summary: Registrarse desde el enlace de un vendedor
+      description: |
+        Crea una cuenta de cliente **sin autenticación**, a partir del enlace
+        que un vendedor reparte. Es el **primer endpoint público del sistema
+        que escribe**.
+
+        El enlace lleva dos datos y **ninguno es un secreto**: el producto y el
+        vendedor. **Los dos viajan dentro de `movement`** (`productId` y
+        `sellerUsername`) y no en el primer nivel: hasta el 09-09-2026 estaban
+        además duplicados como `product` y `referrer`, y dos campos para un
+        dato son dos valores que pueden discrepar.
+
+        `countryCode` va en alfa-3 y `documentType` por abreviación, porque es
+        un formulario público al que no se le puede pedir que conozca los
+        identificadores del sistema. Los que sí son UUID son los de lo que el
+        formulario **acaba de leer de un catálogo**: el broker de cada cuenta y
+        el producto.
+
+        **`companyPhone` NO se admite aquí**, y enviarlo devuelve `400` por
+        propiedad desconocida. El resto del sistema lo declara desde el
+        10-09-2026, pero quien se registra por un enlace es un cliente y
+        preguntarle por el teléfono de una empresa que no tiene añadiría un
+        campo que nadie rellenaría. Puede ponerlo después desde su propio perfil
+        (`PATCH /api/v1/users/me`). **Ignorarlo en silencio sería peor que
+        rechazarlo**: haría creer a quien lo manda que quedó guardado.
+
+        **El registro anota una venta** (`RN-SP-043`), siempre — también en el
+        enlace gratuito. Nace `PENDIENTE`, de modo que registrarse **no paga
+        nada**, y su código se devuelve en `sale`.
+
+        **`brokerAccounts` es una LISTA: se declaran UNA O MÁS cuentas** en el
+        mismo registro, porque una persona puede operar con varios brokers y
+        esta es hoy la única vía para declararlos.
+
+        **Es obligatoria —al menos una— cuando el producto del enlace es una
+        membresía `BECA → BECA`** (`RN-SP-042`), y solo entonces. El motivo es
+        el estado en el que nace la cuenta: sin cuenta de broker declarada,
+        nadie podrá atribuirle el depósito que la saca de `FTD_PENDIENTE`. Con
+        otro producto **se admiten igualmente** las que se envíen.
+
+        **El nombre de usuario en el broker no se pide**: lo rellena después el
+        webhook del propio broker.
+
+        **Dos cuentas iguales en la misma petición se rechazan** con `VAL-014`,
+        y no con el `409` del índice: ese mensaje diría «ya está declarada por
+        otra persona», y la otra persona sería ella misma.
+
+        **El estado en que nace la cuenta depende del producto**
+        (`RN-SP-044`). Con un enlace `BECA → BECA` nace en `FTD_PENDIENTE`, que
+        **autentica y no opera**: quien se registra puede iniciar sesión y ver
+        lo suyo, y lo que le falta para operar es el primer depósito. Con un
+        producto **de pago** nace **`ACTIVO`** —no hay ningún depósito que
+        esperar— y recibe la membresía **del suelo**, no la comprada: esa la
+        concede **confirmar la venta**, y no registrarse.
+
+        **La contraseña la elige la persona**, y por eso la cuenta **no** queda
+        marcada para cambio obligatorio — se marca lo que fijó otro, no lo que
+        uno fijó.
+
+        **No devuelve credenciales de sesión**: registrarse no es iniciar
+        sesión. Quien acaba de crear su cuenta pasa por el inicio de sesión
+        como todo el mundo.
+
+        **Los rechazos no dicen qué pasó, salvo dos.** Producto inexistente,
+        inactivo o retirado comparten respuesta, y lo mismo el vendedor que no
+        existe y el que no es fuerza comercial: distinguirlos convertiría este
+        endpoint en una forma de enumerar el catálogo y la plantilla. **Sí
+        dicen** cuál de las dos identidades —nombre de usuario o correo— está
+        en uso, y que la cuenta de broker ya está declarada por otra persona:
+        los dos los necesita quien se registra para poder corregir.
+      operationId: registrar_8
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/SelfRegistrationRequest"
+        required: true
+      responses:
+        "201":
+          description: "Cuenta creada —`FTD_PENDIENTE` con el enlace gratuito, `ACTIVO`\
+            \ con uno de pago— y venta anotada en estado `PENDIENTE`"
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/SelfRegistrationResponse"
+        "400":
+          description: Datos inválidos (serie `VAL-nnn`)
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/SelfRegistrationResponse"
+        "409":
+          description: "Nombre de usuario o correo en uso (`EX-005`), cuenta de broker\
+            \ ya declarada (`EX-009`), o la venta no procede — método de pago en una\
+            \ venta gratuita, o ausente en una con importe (`RN-MV-022`)"
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/SelfRegistrationResponse"
+        "422":
+          description: "El enlace no procede (`EX-001`, `EX-002`, `EX-003`, `EX-006`,\
+            \ `EX-007`, `EX-008`) o el movimiento no procede (`EX-010`)"
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/SelfRegistrationResponse"
+        "429":
+          description: Demasiadas peticiones desde este origen
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/SelfRegistrationResponse"
   /api/v1/auth/refresh:
     post:
       tags:
@@ -1973,6 +2734,21 @@ paths:
         la cuenta no está bloqueada, o lo está **por decisión de un actor** y
         por tanto sin expiración. El estado desambigua.
 
+        Trae el `country`, el `document` y el `contact` de la persona. El
+        contacto lleva **dos teléfonos**: `phone`, el personal, y `companyPhone`,
+        el de la empresa — este último **opcional**, de modo que llega presente y
+        en nulo cuando la persona no lo declaró.
+
+        **`country` nunca es nulo y `document` sí puede serlo**: quienes se
+        registraron antes de que el documento fuera obligatorio no lo tienen, y
+        **esta pantalla es donde esa ausencia se ve** — es la que sirve para
+        saber a quién hay que completar.
+
+        **El país y el tipo de documento se devuelven aunque estén inactivos.**
+        Retirarlos del catálogo los quita de los desplegables del alta; no
+        cambia dónde está ni con qué se identifica quien ya los tenía, ni lo
+        oculta a quien administra.
+
         **No devuelve intentos fallidos** —diría cuántos le quedan a una cuenta
         antes de bloquearse—, **ni dato alguno de la credencial**, **ni el
         superior comercial**, que tiene su propio endpoint.
@@ -2009,16 +2785,46 @@ paths:
       - Usuarios
       summary: Editar los datos de una persona
       description: |
-        Modifica el nombre, los apellidos y el correo. `PATCH` y no `PUT`:
+        Modifica el nombre, los apellidos, el correo, el país, la **identidad
+        documental** y los **datos de contacto**. `PATCH` y no `PUT`:
         `PUT` obligaría a enviar el recurso completo —incluidos el nombre de
         usuario, el estado y los roles, que esta operación **no** puede
         modificar— y habría que decidir qué hacer si llegaran con otros valores.
 
-        **Los tres campos son opcionales y ninguno admite vaciarse.** El campo
-        ausente no se toca; el campo con nulo explícito o en blanco devuelve
-        `400`. Es la diferencia con la edición de un rol, donde el nulo sí era
-        una orden: aquí las columnas son `NOT NULL` y aceptarlo produciría un
-        `500` en lugar del `400` que corresponde.
+        **Todos los campos son opcionales, y el nulo explícito NO significa lo
+        mismo en todos.** El campo ausente nunca se toca; con el nulo hay **dos
+        familias**, y la línea que las separa es la de lo obligatorio y lo
+        opcional:
+
+        - **Lo rechazan con `400`**: `firstName`, `lastName`, `email`,
+          `countryId`, `documentTypeId`, `documentNumber` y `phone`. Su columna
+          no admite ausencia, y aceptarlo produciría un `500` en lugar del `400`
+          que corresponde.
+        - **Lo aceptan y VACÍAN el campo**: `addressLine1`, `addressLine2`,
+          `city` y `companyPhone`. Son opcionales, y «ya no vive ahí» —o «ya no
+          tiene ese número»— es un hecho que hay que poder registrar.
+
+        **`companyPhone` cae del lado que vacía aunque sea un teléfono**, y es la
+        comprobación de que la línea está bien trazada: comparte forma y
+        validación con `phone` y aun así va del otro lado, porque lo que decide
+        no es qué dato es sino si `RN-SP-037` lo exige.
+
+        **El tipo y el número de documento se envían juntos o no se envían.**
+        Enviar uno solo devuelve `400`: un número sin decir de qué documento es
+        no significa nada.
+
+        **Esta es la ÚNICA operación que cambia el documento y el país.** El
+        titular no puede tocarlos desde `PATCH /api/v1/users/me`.
+
+        **Se comprueba el destino, nunca el actual.** Un país o un tipo de
+        documento inactivos se rechazan **como destino**; que los vigentes de
+        la persona lo estén no impide editarla — es justamente para eso que
+        existe esta operación.
+
+        **Corregir el documento no libera el anterior.** Es la diferencia
+        deliberada con el correo, que sí queda libre: un documento identifica a
+        alguien en el mundo real, y liberarlo permitiría que otra ficha lo
+        tomara.
 
         **El nombre de usuario no se puede cambiar**, y enviarlo devuelve `400`
         por propiedad desconocida en lugar de ignorarse en silencio. Lo mismo
@@ -2053,8 +2859,12 @@ paths:
               schema:
                 $ref: "#/components/schemas/UserResponse"
         "400":
-          description: "Ningún campo informado (`VAL-001`), campo vaciado (`VAL-002`),\
-            \ correo inválido (`VAL-003`), longitud excedida (`VAL-005`) o campo desconocido"
+          description: "Ningún campo informado (`VAL-001`), campo vaciado que no admite\
+            \ vaciarse (`VAL-002`, `VAL-006` país, `VAL-007` documento, `VAL-008`\
+            \ teléfono), tipo y número de documento sin su pareja (`VAL-007`), correo\
+            \ inválido (`VAL-003`), longitud excedida (`VAL-005`) o campo desconocido\
+            \ —incluidos el nombre de usuario, el estado, los roles y la contraseñ\
+            a"
         "401":
           description: Token ausente o inválido (`AUTH-001`)
         "403":
@@ -2210,6 +3020,12 @@ paths:
         Devuelve el perfil de **quien porta el token**, con sus **permisos
         efectivos**.
 
+        Su `contact` lleva **dos teléfonos** —`phone`, el personal, y
+        `companyPhone`, el de la empresa, este último **opcional** y por tanto
+        presente y en nulo cuando no se declaró— junto a la dirección. Es lo que
+        permite precargar el formulario de `PATCH /api/v1/users/me` sin
+        reescribir nada de memoria.
+
         `me` es un **literal**, no un identificador: no se admite pedir el
         propio detalle por la ruta con identificador, que es otra operación y
         exige permiso de lectura de usuarios.
@@ -2228,6 +3044,17 @@ paths:
         Devuelve **solo el superior comercial, nunca el equipo**: a quién
         reporta uno es un dato del actor; quiénes dependen de uno es un conjunto
         de terceros.
+
+        Trae además el `country`, el `document` y el `contact` del actor.
+        **`country` nunca falta y `document` sí puede faltar**: las personas
+        registradas antes de que el documento fuera obligatorio no lo tienen, y
+        el campo llega ausente. El navegador tiene que contemplarlo.
+
+        **El `contact` se publica aquí para que la pantalla de edición pueda
+        precargarse**: es exactamente lo que `PATCH /api/v1/users/me` deja
+        corregir. El `document` viaja en la misma respuesta y **no** es
+        editable por el titular — esa diferencia es la razón de que los dos
+        vayan en objetos separados en lugar de como campos sueltos.
 
         `lastLoginAt` es un dato **informativo de la sesión en curso**, no una
         señal de intrusión: el inicio de sesión sobrescribe ese valor al entrar.
@@ -2250,7 +3077,8 @@ paths:
       - Usuarios
       summary: Editar el propio perfil
       description: |
-        Corrige el **propio** nombre, apellidos y correo. Autenticado y **sin
+        Corrige el **propio** nombre, apellidos, correo y **datos de contacto**
+        —los **dos teléfonos**, dirección, complemento y ciudad—. Autenticado y **sin
         ningún permiso**: `RF-SP-027` hace el mismo cambio pero exige
         `users:update`, que es un permiso de administración, de modo que
         concedérselo a alguien para que arregle su propio apellido le daría de
@@ -2271,6 +3099,33 @@ paths:
         el valor no cambie se sabe después de mirarlo, y condicionar la
         exigencia a eso daría una forma de averiguar el correo vigente probando
         valores.
+
+        ## Qué se puede cambiar aquí y qué no
+
+        **El contacto sí; la identidad no.** El tipo y el número de documento y
+        el país **no están en este cuerpo**: son identidad, no contacto, y los
+        corrige un administrador por `PATCH /api/v1/users/{id}`. Enviarlos
+        devuelve `400` por propiedad desconocida, no se ignoran.
+
+        La línea no es técnica: un teléfono nuevo o una mudanza son hechos que
+        la persona conoce mejor que nadie y no deberían costar un ticket; el
+        documento es con lo que figura en la auditoría, y el país decide qué
+        medios de pago se le ofrecen.
+
+        **Ningún teléfono exige `currentPassword`**, al contrario que el correo.
+        La contraseña se pide cuando el campo **es una vía de acceso**, y el
+        teléfono hoy no lo es. El día que exista verificación por SMS o segundo
+        factor telefónico, esta decisión se revisa.
+
+        **El nulo explícito no significa lo mismo en todo el cuerpo.**
+        `addressLine1`, `addressLine2`, `city` y `companyPhone` **lo aceptan y vacían**
+        —«ya no vivo ahí» es un hecho que hay que poder registrar—; el nombre,
+        los apellidos, el correo y el **teléfono personal** lo rechazan con `400`.
+
+        **`companyPhone` cae del lado que vacía aunque sea un teléfono**, y ahí
+        está toda la diferencia: lo que decide no es qué dato es, sino si
+        `RN-SP-037` lo exige. «Ya no tengo teléfono de empresa» es un hecho que
+        hay que poder registrar.
 
         Devuelve el perfil ya actualizado, con **la misma forma** que
         `GET /api/v1/users/me`.
@@ -2323,6 +3178,12 @@ paths:
 
         **La persona y el inicio de vigencia no se corrigen**, y enviarlos devuelve
         `400`.
+
+        **Si la tasa está asociada y cambia de valor, se revisa cada producto**:
+        un `fixedAmount` que supere el precio de alguno se rechaza con `409`
+        (`EX-007`), y sobre un producto **gratuito** (precio cero) solo cabe el
+        importe fijo (`RN-CM-020`, 14-09-2026): dejarla de porcentaje se rechaza
+        con `409` (`EX-008`), y el fijo entra del importe que sea.
       operationId: corregir
       parameters:
       - name: id
@@ -2363,7 +3224,9 @@ paths:
               schema:
                 $ref: "#/components/schemas/UserCommissionRateResponse"
         "409":
-          description: La vigencia resultante se solapa
+          description: "La vigencia resultante se solapa (`EX-006`), el valor pasarí\
+            a del precio de algún producto asociado (`EX-007`), o dejaría de porcentaje\
+            \ una tasa asociada a un producto gratuito (`EX-008`)"
           content:
             '*/*':
               schema:
@@ -2666,6 +3529,19 @@ paths:
         Devuelve el producto con su membresía destino y su moneda **resueltas**,
         sin exigir una segunda consulta.
 
+        Trae **los dos precios** —`price`, el que se cobra, y `purchasePrice`,
+        el **precio de compra**: lo que NEXUS paga por el producto, que llega
+        **nulo y presente** si no se conoce— y **`exchange`**, la conversión
+        de `price` a la moneda por omisión con la tasa vigente hoy. La
+        conversión llega **presente y nula** cuando el producto ya está en esa
+        moneda o cuando nadie declaró una tasa (`RN-PM-024`). El precio de
+        compra solo se ve aquí y en el listado: la oferta y el hotlink no lo
+        devuelven.
+
+        Trae **`videoUrl`**, la dirección del video que presenta el producto,
+        **tal cual se guardó** y **presente y nula** cuando no tiene
+        (`RN-PM-032`) — también en un producto retirado.
+
         **Un producto retirado se devuelve marcado como tal**, no como
         inexistente: `deletedAt` dice desde cuándo y `deletionReason` **por
         qué**. Los dos campos **solo aparecen si el producto está retirado** —
@@ -2718,29 +3594,58 @@ paths:
       - Productos
       summary: Corregir un producto
       description: |
-        Corrige el **nombre**, la **descripción**, el **icono**, el **precio**,
-        la **moneda** y la **vigencia**. Se aplica lo que llega y se deja
+        Corrige el **nombre**, la **descripción**, el **icono**, el **enlace
+        del video**, **los dos precios**, la **moneda**, la **vigencia**, el
+        **alcance** y la **implementación**. Se aplica lo que llega y se deja
         intacto lo que no.
 
         **Distingue el campo ausente del enviado vacío**, y de ahí salen dos
-        comportamientos opuestos: `description: null`, `icon: null` y
-        `validityDays: null` **vacían** el campo —el producto pasa a no
-        caducar—, mientras que `name: null` se **rechaza**, porque un producto
-        sin nombre no puede existir.
+        comportamientos opuestos: `description: null`, `icon: null`,
+        `videoUrl: null`, `validityDays: null` y `purchasePrice: null`
+        **vacían** el campo,
+        mientras que `name: null` y `price: null` se **rechazan**, porque un
+        producto sin nombre o sin precio del sistema no puede existir.
+
+        **`purchasePrice` es el precio de compra** —lo que NEXUS paga por el
+        producto— y esta operación es donde hoy se registra lo que costó.
+        **Vaciarlo NO es ponerlo a cero**: con nulo el costo pasa a «no se
+        conoce», y con cero a «no costó nada». Son dos estados distintos y
+        los dos se alcanzan desde aquí. Se llamó `publicPrice` hasta el
+        12-09-2026; ese nombre es hoy una propiedad desconocida y devuelve
+        `400`.
+
+        **`scope: null` e `implementation: null` también se rechazan**, y ahí
+        van con el nombre y no con la descripción: son obligatorios en la
+        columna, de modo que «bórralo» no tiene ningún estado al que llevar el
+        producto. Devuelven `400` con `VAL-007` y `VAL-008`.
+
+        **El alcance y la implementación SÍ se corrigen, aunque el tipo y las
+        membresías no**: ninguna de las dos define qué derecho otorga el
+        producto —una dice hasta dónde se muestra y la otra quién lo aplica—,
+        de modo que corregirlas no reescribe lo que compró quien lo compró.
 
         **El icono sí se corrige, aunque el tipo no**: es el aspecto del
         producto y no lo que otorga. En un `BOT`, cualquier valor distinto de
         nulo se rechaza con `VAL-013` (`RN-PM-016`).
+
+        **`videoUrl` se corrige y se vacía en los DOS tipos** —con `null` o
+        con `""`, que aquí también es un vaciado— y sin la condición del
+        icono (`RN-PM-032`). Se comprueba **solo la forma** —URL absoluta
+        `http` o `https`, sin espacios, hasta 500 caracteres— y lo demás se
+        rechaza con `VAL-009` **sin aplicar ningún otro cambio** de la misma
+        petición. Se guarda tal cual, recortado, y el sistema no lo sigue.
 
         **El tipo, el código y la membresía destino NO se pueden corregir**, y
         enviarlos devuelve `400` con `VAL-006`. Se rechazan y no se ignoran:
         ignorarlos haría creer que el cambio se aplicó. Definen qué derecho
         otorga el producto, y cambiarlos convertiría lo comprado en otra cosa.
 
-        **El precio se valida contra la moneda NUEVA** cuando llegan las dos.
-        Y el importe **no se convierte**: el sistema no hace conversión de
-        divisa — cambiar de moneda es declarar que ese número siempre estuvo
-        en la otra.
+        **Los DOS importes se validan contra la moneda que va a quedar**, y no
+        solo el que llega en la petición: cambiar **solo** la moneda puede
+        dejar sin caber a un precio que nadie tocó, y el rechazo **nombra el
+        campo** que no cabe. Y el importe **no se convierte**: el sistema no
+        hace conversión de divisa — cambiar de moneda es declarar que ese
+        número siempre estuvo en la otra.
 
         **Un producto retirado no se corrige**: lo que se retiró debe quedar
         como estaba para que lo que lo referencie siga diciendo la verdad.
@@ -2771,9 +3676,9 @@ paths:
         "400":
           description: "Identificador sin forma canónica (`VAL-001`), nombre vací\
             o o ningún campo informado (`VAL-002`), longitud excedida (`VAL-003`),\
-            \ precio no positivo (`VAL-004`), decimales que la moneda no admite (`VAL-005`),\
-            \ campos inmutables en la petición (`VAL-006`) o vigencia no positiva\
-            \ (`VAL-011`)"
+            \ precio negativo o precio del sistema vaciado (`VAL-004`), decimales\
+            \ que la moneda no admite (`VAL-005`), campos inmutables en la petició\
+            n (`VAL-006`) o vigencia no positiva (`VAL-011`)"
         "401":
           description: Token ausente o inválido (`AUTH-001`)
         "403":
@@ -2850,6 +3755,115 @@ paths:
           description: Ya hay otro upgrade activo hacia esa membresía destino (`EX-002`)
         "500":
           description: Fallo no controlado (`ERR-500`)
+  /api/v1/products/{id}/comments/{commentId}:
+    delete:
+      tags:
+      - Reseñas
+      summary: Retirar la reseña propia
+      description: |
+        Retira lógicamente la reseña de quien llama, **sin motivo y sin cuerpo**. Es la
+        primera baja de una entidad de negocio del sistema que no pide `reason`: el
+        Art. V.13 admite desde el 14-09-2026 el **contenido propio** como excepción, porque
+        el único «por qué» posible —su autor ya no la quiere ahí— está en el propio evento.
+        El registro de eliminación se escribe igual, con la instantánea y un motivo fijo.
+
+        Por eso es un `DELETE` y no un `POST /deletion`: el retiro del producto usa `POST`
+        porque su cuerpo lleva el motivo, y aquí no hay cuerpo que proteger. Un cuerpo, si
+        llega, se ignora.
+
+        **Solo el autor** (`RN-PM-027`), sin excepción: el superadministrador recibe `403`
+        sobre una ajena. **No existe moderación.**
+
+        **Retirar dos veces responde `404`**, no `409`: la reseña retirada no la devuelve
+        nadie, de modo que «retirada» y «no existe» son lo mismo. Retirada la suya, la
+        persona puede escribir otra, y el promedio del producto la deja de contar en el
+        acto.
+      operationId: delete
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      - name: commentId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      responses:
+        "204":
+          description: Reseña retirada.
+        "400":
+          description: Identificador mal formado (`VAL-001`)
+        "401":
+          description: Token ausente o inválido (`AUTH-001`)
+        "403":
+          description: "Autenticado sin el permiso `products:comment` (`AUTH-002`),\
+            \ o **con él pero sin ser el autor** (`EX-002`)"
+        "404":
+          description: "La reseña no existe, ya está retirada o no es del producto\
+            \ de la ruta (`EX-001`)"
+    patch:
+      tags:
+      - Reseñas
+      summary: Corregir la reseña propia
+      description: |
+        Corrige la puntuación, el texto o los dos. **Lo que no viene no cambia**, y
+        **ningún campo admite el nulo explícito**: los dos son obligatorios. Un cuerpo sin
+        ningún campo responde `400`, como en la edición del producto.
+
+        **Solo el autor** (`RN-PM-027`). El permiso `products:comment` habilita la operación;
+        ser el autor la autoriza, y son dos cosas distintas: un administrador con el
+        permiso corrige las suyas y recibe `403` en las ajenas. **No existe moderación.**
+
+        Primero «existe» (`404`) y después «es tuya» (`403`). Una reseña **retirada**
+        responde `404` también a su autor: no se revive corrigiendo. La reseña debe ser
+        **del producto de la ruta**; si no, `404`.
+
+        **Se corrige aunque el producto ya no se venda.** Un cuerpo cuyos valores
+        coinciden con los guardados responde `200` sin escribir nada y sin avanzar
+        `updatedAt`.
+      operationId: update
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      - name: commentId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateProductCommentRequest"
+      responses:
+        "200":
+          description: "La reseña corregida, con `updatedAt` avanzado si algo cambió\
+            ."
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/ProductCommentResponse"
+        "400":
+          description: "Identificador mal formado (`VAL-001`), puntuación nula o fuera\
+            \ de 1..5 (`VAL-002`, `VAL-003`), texto nulo, vacío o largo (`VAL-004`),\
+            \ campos no admitidos (`VAL-006`) o cuerpo sin ningún campo (`VAL-005`)"
+        "401":
+          description: Token ausente o inválido (`AUTH-001`)
+        "403":
+          description: "Autenticado sin el permiso `products:comment` (`AUTH-002`),\
+            \ o **con él pero sin ser el autor** (`EX-002`)"
+        "404":
+          description: "La reseña no existe, está retirada o no es del producto de\
+            \ la ruta (`EX-001`)"
   /api/v1/currencies/{id}/status:
     patch:
       tags:
@@ -2973,6 +3987,12 @@ paths:
         pagando más del 100 % de sí mismo, la corrección se rechaza **entera**
         y devuelve `409` — ninguno de los productos cambia, ni siquiera los que
         sí cabían.
+
+        **Un producto GRATUITO (precio cero) solo admite importe fijo**
+        (`RN-CM-020`, 14-09-2026): si la tasa está asociada a uno y la corrección
+        la deja de porcentaje, se rechaza **entera** con `409` (`EX-008`).
+        Corregirla a valor fijo, del importe que sea, pasa: no hay cien por
+        ciento de cero, y el gratuito no entra en ninguna suma.
       operationId: corregir_2
       parameters:
       - name: id
@@ -3013,8 +4033,9 @@ paths:
               schema:
                 $ref: "#/components/schemas/CommissionRateResponse"
         "409":
-          description: El nuevo valor dejaría a algún producto asociado pagando más
-            de cien
+          description: "El nuevo valor dejaría a algún producto asociado pagando má\
+            s de cien (`EX-006`), o dejaría de porcentaje una tasa asociada a un producto\
+            \ gratuito (`EX-008`)"
           content:
             '*/*':
               schema:
@@ -3033,18 +4054,35 @@ paths:
         Devolver la rama completa publicaría de una vez la estructura de la
         empresa por un permiso de lectura de usuarios.
 
-        **Sin filtros.** El listado general de usuarios ya filtra; replicar esa
-        semántica sobre un subconjunto que cabe en una o dos páginas obligaría
-        a mantener dos filtrados sincronizados sin responder nada nuevo.
+        **Cada persona lleva `roles`: TODOS los que porta**, con `id`, `code`
+        y `name`, ordenados por código y **presentes aunque la lista vaya
+        vacía**. Es el mismo objeto que devuelve `GET /api/v1/users` en cada
+        fila. **Sustituye a `roleCode`** (10-09-2026), que traía uno solo y
+        únicamente si era de la fuerza comercial: la cartera de clientes
+        llegaba con el rol en nulo y era indistinguible de un vendedor sin rol.
+
+        **`roles` es además el único filtro**, y acota **el equipo**. Se pasan
+        **códigos**, varios admitidos —`?roles=AGENTE,CLIENTE` o repitiendo el
+        parámetro—, y entra quien porte **alguno** de ellos. `totalElements`
+        **cuenta lo filtrado**. Un código que no existe devuelve el equipo
+        vacío con `200`, **no un error**: es el mismo criterio que el filtro
+        por rol de `GET /api/v1/users`.
+
+        **El filtro NO toca al superior ni a la persona consultada.** Los dos
+        se devuelven igual aunque no porten ninguno de los roles pedidos, y eso
+        es contrato: `supervisor` va **ausente**, no en nulo, **solo** cuando
+        la persona es la cúspide comercial, que es lo que distingue «no depende
+        de nadie» de «no se pudo resolver».
+
+        **Ningún otro filtro.** Ni búsqueda por nombre, ni estado, ni país: el
+        listado general de usuarios ya los tiene, y replicarlos aquí obligaría
+        a mantener dos semánticas sincronizadas.
 
         **Sin historial de superiores.**
 
-        `supervisor` va **ausente**, no en nulo, cuando la persona es la cúspide
-        comercial: es lo que distingue «no depende de nadie» de «no se pudo
-        resolver».
-
         Quien no pertenece a la fuerza comercial recibe `200` con la estructura
-        vacía, no `404` ni `409`.
+        vacía, no `404` ni `409` — **con sus roles a la vista**: no tener
+        estructura comercial no es no tener roles.
 
         **El alcance es global** mientras la decisión D-22 siga abierta: quien
         posea el permiso ve el equipo de cualquiera, no solo el suyo.
@@ -3053,6 +4091,171 @@ paths:
       - name: id
         in: path
         required: true
+        schema:
+          type: string
+          format: uuid
+      - name: roles
+        in: query
+        description: "Códigos de rol que acotan el equipo. Varios admitidos, con semá\
+          ntica O."
+        required: false
+        schema:
+          type: array
+          items:
+            type: string
+      - name: page
+        in: query
+        required: false
+        schema:
+          type: integer
+          format: int32
+      - name: size
+        in: query
+        required: false
+        schema:
+          type: integer
+          format: int32
+      responses:
+        "200":
+          description: "La estructura, con el equipo paginado y los roles de cada\
+            \ persona. El filtro por roles acota el equipo y su total, nunca al superior."
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/CommercialStructureResponse"
+        "400":
+          description: Identificador malformado o paginación fuera de límites (`VAL-003`)
+        "401":
+          description: Token ausente o inválido (`AUTH-001`)
+        "403":
+          description: Autenticado sin `users:read` (`AUTH-002`)
+        "404":
+          description: La persona no existe o está eliminada (`VAL-002`)
+        "500":
+          description: Fallo no controlado (`ERR-500`)
+  /api/v1/users/{id}/broker-accounts:
+    get:
+      tags:
+      - Usuarios
+      summary: Consultar las cuentas de broker de una persona
+      description: |
+        Devuelve las cuentas de broker de esa persona: **broker, identificador
+        de cuenta, nombre de usuario en el broker y estado**, ordenadas por
+        nombre de broker e identificador de cuenta.
+
+        **Quién puede consultarlas** (`RN-SP-046`): **su superior comercial
+        vigente**, sin ningún permiso, o quien traiga **`broker-accounts:read`**
+        sobre cualquiera. Es la primera lectura del sistema cuyo alcance sale
+        de la estructura comercial, y **solo alcanza a esta**.
+
+        **Quien no es ninguna de las dos cosas recibe `404`, no `403`**, y es
+        deliberado: el mismo `404` que si la persona no existiera. Un `403`
+        dejaría a cualquier vendedor recorrer identificadores y averiguar
+        cuáles corresponden a personas reales. Los dos cuerpos son idénticos.
+
+        **Quien FUE su superior y ya no lo es recibe `404`**: el historial de
+        la estructura no concede lectura.
+
+        **El titular NO ve aquí sus propias cuentas** salvo que traiga el
+        permiso: esta lectura se definió sobre el equipo.
+
+        **Una persona sin cuentas devuelve `200` con la colección vacía**, no
+        `404`: solo el registro por un enlace de beca obliga a declararlas.
+
+        **Hoy el estado es siempre `REGISTER`**, y no es un fallo: quien mueve
+        una cuenta a `FIRST_DEPOSIT` es el webhook del broker, que todavía no
+        existe.
+
+        **`brokerUsername` llega en nulo** mientras el broker no lo haya
+        confirmado, y el campo **está presente**: su nulo significa «aún no
+        confirmado», no «sin nombre».
+
+        **No se pagina**: una persona tiene unas pocas cuentas. El listado
+        paginado es `GET /api/v1/users/me/team/broker-accounts`.
+      operationId: cuentasDeBrokerDe
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      responses:
+        "200":
+          description: "Las cuentas de la persona, ordenadas. Vacía si no declaró\
+            \ ninguna."
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/BrokerAccountsResponse"
+        "400":
+          description: Identificador malformado (`VAL-001`)
+        "401":
+          description: Token ausente o inválido (`AUTH-001`)
+        "404":
+          description: "La persona no existe, está eliminada, **o el actor no es su\
+            \ superior vigente ni posee `broker-accounts:read`** (`VAL-002`). Los\
+            \ tres casos responden lo mismo, a propósito."
+        "500":
+          description: Fallo no controlado (`ERR-500`)
+  /api/v1/users/me/team/broker-accounts:
+    get:
+      tags:
+      - Usuarios
+      summary: Consultar las cuentas de broker de mi equipo
+      description: |
+        Devuelve, **paginadas**, las cuentas de broker de todas las personas
+        que dependen **directamente** del actor, **cada fila con su titular**.
+
+        **No hay identificador en la ruta y no lo habrá**: el conjunto de datos
+        lo determina el sistema a partir de quién pregunta. Quien deba ver las
+        cuentas de otra persona usa `GET /api/v1/users/{id}/broker-accounts`
+        con `broker-accounts:read`.
+
+        **No exige ningún permiso**, solo estar autenticado: el alcance lo pone
+        la estructura comercial (`RN-SP-046`). Quien **no tiene equipo** recibe
+        `200` con la página vacía, no `404` ni `403`.
+
+        **Un solo nivel**, el equipo directo. Las cuentas de quien depende de
+        un subordinado del actor **no aparecen**: devolver la rama completa
+        publicaría de una vez la estructura de la empresa.
+
+        **Es un listado de CUENTAS y no de personas.** Quien está en el equipo
+        y no declaró ninguna cuenta **no aparece**, y quien declaró dos aparece
+        **dos veces**. Quién hay en el equipo lo responde
+        `GET /api/v1/users/{id}/team`.
+
+        **Filtros, ambos opcionales y combinables con Y:**
+
+        - `status` — `REGISTER` o `FIRST_DEPOSIT`. **Cualquier otro valor es
+          `400`**, no una página vacía: una página vacía sería indistinguible
+          de «nadie está en ese estado».
+        - `brokerId` — un broker del catálogo. **Un identificador inexistente
+          devuelve la página vacía sin error**, al revés que `status`: es una
+          pregunta legítima con respuesta vacía.
+
+        `totalElements` **cuenta lo filtrado**.
+
+        **Hoy todas las cuentas están en `REGISTER`**, y no es un fallo de esta
+        consulta: quien mueve una cuenta a `FIRST_DEPOSIT` es el webhook del
+        broker, que todavía no existe. Mientras no exista, ninguna cuenta tiene
+        depósito confirmado.
+
+        **`brokerUsername` llega en nulo** mientras el broker no lo haya
+        confirmado, y el campo **está presente**: su nulo significa «aún no
+        confirmado», no «sin nombre».
+      operationId: cuentasDeBrokerDelEquipo
+      parameters:
+      - name: status
+        in: query
+        description: "Estado de la cuenta: `REGISTER` o `FIRST_DEPOSIT`."
+        required: false
+        schema:
+          type: string
+      - name: brokerId
+        in: query
+        description: Broker del catálogo. Uno inexistente devuelve la página vacía.
+        required: false
         schema:
           type: string
           format: uuid
@@ -3070,21 +4273,56 @@ paths:
           format: int32
       responses:
         "200":
-          description: "La estructura, con el equipo paginado."
+          description: "Página de cuentas del equipo directo, ordenada por titular,\
+            \ broker e identificador de cuenta. Vacía si el actor no tiene equipo."
           content:
             '*/*':
               schema:
-                $ref: "#/components/schemas/CommercialStructureResponse"
+                $ref: "#/components/schemas/PageResponseTeamBrokerAccountItem"
         "400":
-          description: Identificador malformado o paginación fuera de límites (`VAL-003`)
+          description: "`status` fuera de `REGISTER`/`FIRST_DEPOSIT` (`VAL-001`),\
+            \ `brokerId` malformado o paginación fuera de límites (`VAL-003`)"
+        "401":
+          description: Token ausente o inválido (`AUTH-001`)
+        "500":
+          description: Fallo no controlado (`ERR-500`)
+  /api/v1/products/{id}/comments/mine:
+    get:
+      tags:
+      - Reseñas
+      summary: Consultar la reseña propia sobre un producto
+      description: |
+        Devuelve **la** reseña viva de quien llama sobre el producto, con su identificador —
+        que es lo que la corrección y el retiro reciben en la ruta—. **No admite parámetro
+        de persona**: responde sobre quien llama y sobre nadie más.
+
+        **El `404` no dice nada del producto**: responde igual si quien llama no ha
+        reseñado, si retiró la suya o si el producto no existe. Y **sí responde** sobre un
+        producto inactivo o retirado cuando la reseña existe: el autor tiene que poder
+        llegar a la suya para corregirla o retirarla (`RN-PM-028`).
+      operationId: mine
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      responses:
+        "200":
+          description: La reseña de quien llama.
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/ProductCommentResponse"
+        "400":
+          description: Identificador mal formado (`VAL-001`)
         "401":
           description: Token ausente o inválido (`AUTH-001`)
         "403":
-          description: Autenticado sin `users:read` (`AUTH-002`)
+          description: Autenticado sin el permiso `products:comment` (`AUTH-002`)
         "404":
-          description: La persona no existe o está eliminada (`VAL-002`)
-        "500":
-          description: Fallo no controlado (`ERR-500`)
+          description: Quien llama no tiene reseña viva sobre este producto (`EX-001`)
   /api/v1/products/available:
     get:
       tags:
@@ -3105,17 +4343,41 @@ paths:
         **Solo lo activo.** Ni lo inactivo ni lo retirado aparecen aquí,
         aunque el catálogo de `RF-PM-002` sí los muestre a quien administra.
 
-        **Upgrades: todos los que llevan a un nivel superior**, no solo el
-        inmediato. Quien está en el peldaño más bajo ve todos los de arriba y
-        elige cuánto saltar; el precio de cada uno ya expresa el salto. Llegan
-        ordenados **del salto más corto al más largo**.
+        **Upgrades: los declarados DESDE la membresía vigente de quien mira**,
+        y ninguno más. La coincidencia es exacta: no se comparan niveles ni se
+        recorre la cadena. Quien registró el producto ya decidió a quién va
+        dirigido.
 
-        **El upgrade hacia el nivel que ya se tiene no se ofrece**, ni los que
-        llevan a niveles inferiores: sería cobrar por quedarse donde se está o
-        por bajar.
+        Eso incluye **todos** los declarados desde ahí y no solo el inmediato
+        —quien está en el peldaño más bajo elige cuánto saltar, y el precio de
+        cada uno ya expresa el salto—, y llegan ordenados **del salto más
+        corto al más largo**.
+
+        **La RENOVACIÓN entra aquí**, y va primera: un producto `X → X`
+        declarado desde su propia membresía es el salto de longitud cero. Lo
+        que vende es **tiempo** —su `validityDays`— y no un cambio de nivel.
+
+        **Un upgrade hacia el nivel que ya se tiene NO se ofrece cuando su
+        origen no es el suyo**: sería el salto de otra persona que acaba donde
+        quien mira ya está. Y **ninguna bajada** llega hasta aquí, aunque este
+        filtro ya no la mire: lo impide `RN-PM-017` **al registrar**, porque un
+        producto declarado desde mi membresía no puede apuntar por debajo.
 
         **Bots: todos los activos, para cualquiera.** No dependen del nivel de
         quien mira ni de que tenga uno.
+
+        **Cada producto trae `videoUrl`**, la dirección del video que lo
+        presenta, tal cual se guardó y **presente y nula** cuando no tiene
+        (`RN-PM-032`). Es lo contrario del precio de compra: material de
+        venta, que existe para que lo vea quien compra, y por eso **sí** viaja
+        por aquí.
+
+        **Publica `scope` e `implementation` de cada producto y NO filtra por
+        ninguno de los dos.** El alcance no puede filtrar aquí: `HOTLINKS`
+        incluye `TIENDA`, de modo que los dos valores llegan a esta vista y un
+        filtro devolvería siempre lo mismo que no ponerlo. La implementación
+        viaja para que quien compra sepa **antes de pagar** si lo que se lleva
+        se le entrega en el acto.
 
         **Quien no tiene membresía vigente —incluida la vencida— no ve ningún
         upgrade**, y sí todos los bots. No hay nivel desde el que subir, y
@@ -3125,9 +4387,23 @@ paths:
         **Quien está en la cima recibe la lista de upgrades vacía.** No es un
         error ni un mensaje especial: es una lista vacía.
 
-        **El precio es el del producto, igual para todos.** Un importe
-        distinto según quién mira sería un descuento, y los descuentos son
-        promociones, que están fuera de alcance.
+        **El precio es igual para todos**: un importe distinto según quién
+        mira sería un descuento, y los descuentos son promociones, que están
+        fuera de alcance.
+
+        **Viene UN importe** (`RN-PM-024`, reescrita el 12-09-2026): `price`,
+        el que la venta cobra. **El precio de compra no viaja por aquí**: es
+        lo que NEXUS paga por el producto, y quien compra no tiene por qué
+        conocer el margen. Entre el 08-09-2026 y el 12-09-2026 esta respuesta
+        traía también `publicPrice`, cuando ese importe era lo que se
+        anunciaba; ese campo **ya no existe**.
+
+        Y viene **`exchange`**, la conversión de `price` a la moneda por
+        omisión con la tasa vigente hoy. **Presente y nula** cuando no hay
+        nada que convertir.
+
+        **Quien construya la pantalla de compra tiene que saberlo**: el
+        importe que confirma la venta es `price`, el mismo que se enseña.
 
         Las dos colecciones viajan **envueltas en un objeto** y no como
         arreglos en la raíz: hoy la oferta no se pagina, y así el día que
@@ -3159,9 +4435,11 @@ paths:
         — ni siquiera a los roles que tienen tasa en el catálogo, si nadie la
         asoció (`RN-CM-012`).
 
-        **Esto no resuelve la comisión de una persona.** Una tasa personalizada
-        gana sobre todas estas y no aparece aquí, porque no se asocia a productos.
-        Para saber qué cobra alguien concreto, use
+        **Esto no resuelve la comisión de una persona, y solo devuelve roles.** Las
+        tasas personalizadas también se asocian a productos desde el 11-09-2026 y
+        ganan sobre estas, pero **no aparecen aquí**: qué personas tienen excepción
+        en este producto lo responde `GET /api/v1/user-commission-rates?productId=`,
+        paginado y con su historial. Para saber qué cobra alguien concreto, use
         `GET /api/v1/commissions/effective`.
       operationId: porProducto
       parameters:
@@ -3201,7 +4479,7 @@ paths:
         Los tres filtros son opcionales y ninguno se valida: un valor que no
         corresponda a ningún permiso produce una colección vacía, no un error.
         Los parámetros de paginación no se admiten y se ignoran.
-      operationId: list
+      operationId: list_1
       parameters:
       - name: request
         in: query
@@ -3301,6 +4579,154 @@ paths:
             '*/*':
               schema:
                 $ref: "#/components/schemas/PermissionResponse"
+  /api/v1/payment-methods:
+    get:
+      tags:
+      - Métodos de pago
+      summary: Consultar los métodos de pago
+      description: |
+        Devuelve los métodos de pago **activos y de visibilidad `PUBLICO`**, sin
+        paginar y ordenados por código.
+
+        **Es una consulta PÚBLICA** (`RN-MV-024`): responde **sin token**, porque
+        el formulario de registro por enlace elige con qué se paga antes de que
+        exista la cuenta. **Con sesión devuelve exactamente lo mismo** — no hay
+        un catálogo para el anónimo y otro para quien ha entrado, y no existe
+        parámetro que cambie lo que sale.
+
+        **Lo que NO devuelve, y no hay forma de pedirlo**: ni los métodos
+        desactivados —un método retirado no se puede usar en una venta nueva— ni
+        los de visibilidad `INTERNO` (`RN-MV-023`). Estos últimos **sirven para
+        pagar y no los elige ninguna persona**: los pone el sistema. Es el caso
+        de `GRATIS`, con el que se anotan las ventas de importe cero
+        (`RN-MV-022`): quien depure una de esas verá un `paymentMethodId` que
+        **este catálogo no resuelve**, y eso es deliberado.
+
+        **La respuesta no publica el campo de visibilidad.** Si todo lo que sale
+        es `PUBLICO`, declararlo sugeriría que puede salir otra cosa.
+
+        **`excludedCountries` dice dónde NO vale cada medio.** Una lista vacía
+        significa que vale en todos los países, y el campo **viaja siempre**:
+        no hay que distinguir «sin exclusiones» de «no vino el campo».
+
+        **Esta restricción es informativa y el servidor NO la aplica.** Registrar
+        una venta con un método excluido en algún país **se registra con
+        normalidad**: quien decide qué ofrecer es el cliente que consume esta
+        respuesta. El servidor no sabe de qué país es quien compra — ninguna
+        persona del sistema tiene país todavía.
+
+        **No admite parámetros**, y en particular no admite un país: filtrar aquí
+        haría creer que el servidor sabe cuál corresponde.
+
+        **Está acotada por origen** —120 peticiones por minuto, con cubo propio—,
+        como los demás catálogos públicos: superar la cota responde `429`.
+      operationId: consultar_2
+      responses:
+        "200":
+          description: El catálogo de métodos de pago activos y públicos. Se responde
+            igual con token y sin él.
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/PaymentMethodCatalogResponse"
+        "429":
+          description: Se superó la cota de peticiones por origen (120 por minuto).
+            La cabecera `Retry-After` dice cuánto esperar.
+  /api/v1/movements/mine:
+    get:
+      tags:
+      - Movimientos
+      summary: Consultar los movimientos propios
+      description: |
+        Devuelve **los movimientos en los que usted participó**, paginados y del más
+        reciente al más antiguo.
+
+        **«Propio» son DOS papeles.** Un movimiento lleva a quien recibe lo comprado y a
+        quien lo vendió, y usted puede ser cualquiera de los dos — o **los dos a la vez**,
+        si compró para sí mismo algo que se le atribuye. Cada movimiento dice en qué papel
+        aparece usted con `role`: `BUYER`, `SELLER` o `BOTH`. El que es las dos cosas
+        **aparece una sola vez**.
+
+        **No hay forma de preguntar por otra persona**, ni indicándola ni teniendo
+        permisos: quien pregunta sale de la credencial. Consultar las ventas de terceros es
+        otra operación, con su permiso.
+
+        **Las líneas no viajan aquí.** Una venta puede llevar varias, y meterlas
+        multiplicaría la respuesta por un dato que solo se mira al abrir uno: están en el
+        detalle.
+
+        **El vendedor puede ser nulo**, y viaja igual: es el caso normal de quien no cuelga
+        de ningún vendedor.
+
+        El orden es fijo y no se puede cambiar. `status` filtra por estado.
+      operationId: mios
+      parameters:
+      - name: page
+        in: query
+        required: false
+        schema:
+          type: integer
+          format: int32
+      - name: size
+        in: query
+        required: false
+        schema:
+          type: integer
+          format: int32
+      - name: status
+        in: query
+        required: false
+        schema:
+          type: string
+      responses:
+        "200":
+          description: La página de movimientos propios.
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/PageResponseMyMovement"
+        "400":
+          description: Paginación inválida (`VAL-002`) o estado no admitido (`VAL-003`)
+        "401":
+          description: Token ausente o inválido (`AUTH-001`)
+        "500":
+          description: Fallo no controlado (`ERR-500`)
+  /api/v1/movements/mine/{id}:
+    get:
+      tags:
+      - Movimientos
+      summary: Consultar el detalle de un movimiento propio
+      description: |
+        Devuelve **lo mismo que devuelve registrar una venta**, con sus líneas: qué
+        productos, cuántos, a qué precio y con qué vigencia. Quien registró una venta y
+        quien la consulta después ven la misma forma.
+
+        **Un movimiento que no es suyo responde `404`**, exactamente igual que uno que no
+        existe. No es un descuido: un `403` confirmaría que el identificador existe.
+      operationId: mio
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      responses:
+        "200":
+          description: "El movimiento, con sus líneas."
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/SaleResponse"
+        "400":
+          description: Identificador malformado (`VAL-001`)
+        "401":
+          description: Token ausente o inválido (`AUTH-001`)
+        "404":
+          description: No existe **o no es suyo** (`VAL-002`). Las dos son la misma
+            respuesta
+        "500":
+          description: Fallo no controlado (`ERR-500`)
   /api/v1/memberships/{id}:
     get:
       tags:
@@ -3336,6 +4762,135 @@ paths:
           description: No existe membresía con ese identificador (`EX-001`)
         "500":
           description: Fallo no controlado (`ERR-500`)
+  /api/v1/hotlinks/{username}/{code}:
+    get:
+      tags:
+      - Hotlinks
+      summary: Consultar un hotlink
+      description: |
+        Devuelve, **sin token**, el producto que el enlace señala y el **nombre
+        y apellido** de quien lo reparte.
+
+        **Es público por decisión, no por definición.** Las otras cinco rutas
+        públicas del sistema lo son porque quien las llama no puede portar
+        todavía un token; esta lo es porque un enlace se abre antes de
+        registrarse.
+
+        **Solo publica productos activos y de alcance `HOTLINKS`**, y solo el
+        nombre de quien porta un rol de tipo `VENDEDOR`. Ni correo, ni
+        identificador, ni estado, ni roles.
+
+        **De la membresía se publican tres campos** —código, nombre y color—,
+        y no los cinco que devuelven los otros endpoints: el identificador no
+        sirve a quien no puede llamar a nada más, y el nivel publicaría la
+        forma de la cadena comercial sin token.
+
+        **El precio llega en la moneda del producto y, si hay tasa vigente,
+        convertido a la moneda por omisión.** `rate` viaja como **cadena**
+        porque tiene ocho decimales y un número JSON pasa por coma flotante en
+        cualquier cliente JavaScript.
+
+        **Viene UN importe** (`RN-PM-024`, reescrita el 12-09-2026): `price`,
+        el que se cobra. **El precio de compra no viaja por aquí ni se
+        consulta**: es lo que NEXUS paga por el producto, y este endpoint es
+        público. Entre el 08-09-2026 y el 12-09-2026 viajó también
+        `publicPrice`, cuando ese importe era lo que se anunciaba; ese campo
+        **ya no existe**. **La conversión se calcula sobre `price`.**
+
+        **Viene `videoUrl`, y sin token** (`RN-PM-032`): la dirección del video
+        que presenta el producto, **tal cual la escribió administración** y
+        **presente y nula** cuando no tiene. El sistema no la sigue ni la
+        valida más allá de su forma: un enlace roto se publica igual. Es la
+        única columna opcional del producto que este endpoint trae y el
+        precio de compra no — el costo enseñaría el margen; el video existe
+        para que lo vean.
+
+        **La conversión es INFORMATIVA**: lo que se cobra no es ese número. Una
+        venta va en una sola moneda y congela su importe al registrarse; esta
+        conversión se calcula al vuelo, cambia el día que cambie la tasa y **no
+        reserva nada**. Cuando no hay tasa vigente —o el producto ya está en la
+        moneda de casa— `exchange` llega **presente y nulo**, y el producto se
+        devuelve igual.
+
+        **Todo lo que no procede responde el MISMO `404`**: usuario
+        inexistente, persona que no es vendedora, código inexistente, producto
+        inactivo, retirado o de alcance `TIENDA`. **No dice cuál falló**, y esa
+        uniformidad es deliberada — distinguirlos convertiría el enlace en un
+        oráculo que dice quién existe.
+      operationId: hotlink
+      parameters:
+      - name: username
+        in: path
+        required: true
+        schema:
+          type: string
+      - name: code
+        in: path
+        required: true
+        schema:
+          type: string
+      responses:
+        "200":
+          description: "El enlace, con su producto y su vendedor."
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/HotlinkResponse"
+        "404":
+          description: El enlace no lleva a ninguna parte. **El mismo cuerpo en los
+            seis casos** (`EX-001`)
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/HotlinkResponse"
+        "429":
+          description: Demasiadas peticiones desde ese origen
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/HotlinkResponse"
+  /api/v1/document-types:
+    get:
+      tags:
+      - Tipos de documento
+      summary: Consultar el catálogo de tipos de documento
+      description: |
+        Devuelve los documentos de identidad con los que una persona puede
+        registrarse, con su **nombre** y su **abreviación**.
+
+        **El catálogo contiene solo documentos de persona mayor de edad**, y esa
+        es la validación entera: no hay ninguna marca que distinga cuáles sí y
+        cuáles no, porque los que no están **no están**. Registrar a un menor no
+        se rechaza — no se puede expresar.
+
+        **No se administra por API** (`RN-SP-036`): no hay alta, ni edición, ni
+        eliminación, ni cambio de estado. Se puebla por migración, y lo que deja
+        de admitirse se retira también por migración. Es la asimetría deliberada
+        con los catálogos de países y monedas, que sí tienen operación para
+        cambiar su estado.
+
+        **No se pagina**: son unos pocos elementos, y partirlos obligaría a dos
+        llamadas para pintar un desplegable.
+      operationId: listar_5
+      parameters:
+      - name: includeInactive
+        in: query
+        required: false
+        schema:
+          type: boolean
+      responses:
+        "200":
+          description: "Catálogo completo, ordenado por nombre"
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/DocumentTypeCatalogResponse"
+        "401":
+          description: Token ausente o inválido
+        "403":
+          description: El actor no posee `document-types:read`
+        "500":
+          description: Fallo no controlado (`ERR-500`)
   /api/v1/currencies:
     get:
       tags:
@@ -3350,7 +4905,7 @@ paths:
         Las monedas inactivas no aparecen salvo que se pidan con
         `includeInactive=true`, que **añade** a las activas en lugar de
         sustituirlas.
-      operationId: consultar_2
+      operationId: consultar_3
       parameters:
       - name: peticion
         in: query
@@ -3383,9 +4938,16 @@ paths:
         día concreto**, y **por qué**: devuelve la tasa que ganó y de cuál de las
         dos piezas salió.
 
-        **La precedencia son dos niveles:** si la persona tiene una tasa
-        **personalizada** vigente ese día, es esa — **sin mirar el producto**. Si
-        no, la que su **rol vendedor** tenga **asociada a ese producto**.
+        **La precedencia son dos niveles, y los dos exigen ASOCIACIÓN:** si la
+        persona tiene una tasa **personalizada** vigente ese día **asociada a ese
+        producto**, es esa. Si no, la que su **rol vendedor** tenga **asociada a
+        ese producto**. Si ninguna, no hay tarifa.
+
+        **Hasta el 11-09-2026 el primer nivel no miraba el producto**: una
+        excepción tapaba el catálogo entero de su titular y el segundo nivel no
+        llegaba a consultarse nunca. Desde esa fecha las dos clases de tasa se
+        asocian igual, y `RN-CM-012` —ninguna tasa rige hasta que se asocia—
+        deja de tener excepción.
 
         **Tres desenlaces, y ninguno es un error:**
 
@@ -3455,6 +5017,332 @@ paths:
             '*/*':
               schema:
                 $ref: "#/components/schemas/EffectiveCommissionResponse"
+  /api/v1/brokers:
+    get:
+      tags:
+      - Brokers
+      summary: Consultar el catálogo de brokers
+      description: |
+        Devuelve los brokers con los que opera la plataforma, **ordenados por
+        nombre**.
+
+        **Un broker guarda de momento solo su nombre**, y eso tiene una
+        consecuencia que conviene conocer antes de integrarse: **el nombre es la
+        clave de negocio**, no un texto descriptivo. No hay un `code` estable
+        frente a un cambio de nombre comercial — quien necesite referenciar un
+        broker debe hacerlo por su **identificador**.
+
+        **No se administra por API** (`RN-SP-039`): no hay alta, ni edición, ni
+        eliminación, ni cambio de estado. Se puebla por migración, igual que los
+        catálogos de monedas y de tipos de documento, y cada alta queda en el
+        historial del repositorio en lugar de en una fila que alguien insertó.
+
+        **Puede responder la colección vacía**, y eso no es un fallo: es el
+        estado de un catálogo que todavía no se ha sembrado.
+
+        **No se pagina**: son unos pocos elementos y partirlos obligaría a dos
+        llamadas para pintar un desplegable.
+      operationId: listar_6
+      parameters:
+      - name: includeInactive
+        in: query
+        required: false
+        schema:
+          type: boolean
+      responses:
+        "200":
+          description: "Catálogo, ordenado por nombre"
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/BrokerCatalogResponse"
+        "401":
+          description: Token ausente o inválido
+        "403":
+          description: El actor no posee `brokers:read`
+        "500":
+          description: Fallo no controlado (`ERR-500`)
+  /api/v1/broker-accounts:
+    get:
+      tags:
+      - Cuentas de broker
+      summary: Consultar y filtrar todas las cuentas de broker
+      description: |
+        Devuelve **todas** las cuentas de broker del sistema, paginadas y con
+        su titular en cada fila. **Sin ningún filtro devuelve el sistema
+        entero**: es lo que `broker-accounts:read` significa.
+
+        **`supervisorId` devuelve LA RED ENTERA de esa persona, en
+        profundidad** (`RN-SP-047`): sus subordinados, los subordinados de
+        estos, y así hasta abajo. **No es un solo nivel**, al revés que
+        `GET /api/v1/users/{id}/team` y que
+        `GET /api/v1/users/me/team/broker-accounts` — aquellos se autorizan
+        por la estructura y por eso se acotan; este se autoriza por permiso,
+        que ya alcanza a todos, de modo que la profundidad **ahorra recorrer
+        el árbol y no concede nada**.
+
+        **La raíz NO se incluye en su red.** Preguntar por la red de alguien
+        devuelve la de los suyos; sus propias cuentas se piden con `userId`, y
+        **los dos filtros se combinan** — juntos responden «de la red de este
+        vendedor, las cuentas de esta persona».
+
+        **Solo la estructura vigente.** Quien dejó la red ayer no aparece, ni
+        los que colgaban de él por esa vía. Y una persona **eliminada** no
+        aparece **sin que su rama se corte**: quienes dependían de ella siguen
+        saliendo.
+
+        **Filtros, todos opcionales y combinables con Y:**
+
+        - `supervisorId` — la red, en profundidad.
+        - `userId` — una persona concreta.
+        - `status` — `REGISTER` o `FIRST_DEPOSIT`. **Cualquier otro valor es
+          `400`**, no una página vacía.
+        - `brokerId` — un broker del catálogo.
+        - `search` — fragmento de **número de cuenta**, nombre de usuario,
+          correo o nombre completo. Sin acentos y sin distinguir mayúsculas.
+        - `from` / `to` — **cuándo se declaró la cuenta**. Son **instantes con
+          zona**, no fechas sueltas, y el rango es **semiabierto**: incluye
+          `from`, excluye `to`. `from` posterior a `to` es `400`.
+
+        **Un identificador inexistente devuelve la página vacía sin error** —
+        `supervisorId`, `userId` y `brokerId` no se validan contra su tabla—,
+        al revés que `status` y que el rango: aquellos son preguntas legítimas
+        con respuesta vacía y estos son preguntas mal escritas.
+
+        `totalElements` **cuenta lo filtrado**.
+
+        **La respuesta lleva además un `summary` con TRES totales y sus
+        desgloses por broker**, los tres con la misma forma —un `total` y un
+        `byBroker`—:
+
+        - `summary.accounts` — cuántos registros cumplen el filtro. Su
+          `total` es **el mismo número que `totalElements`**, y sale de la
+          misma consulta: no pueden discrepar.
+        - `summary.register` — cuántos de esos están en `REGISTER`.
+        - `summary.firstDeposit` — cuántos de esos están en `FIRST_DEPOSIT`.
+
+        **`accounts` es siempre `register` + `firstDeposit`**, total a total y
+        broker a broker. La redundancia es deliberada: van los dos estados
+        para no obligar a restar, y va el total porque es la pregunta que más
+        se hace.
+
+        **El resumen respeta TODOS los filtros, incluido `status`**, y de ahí
+        sale lo único que hay que saber antes de pintarlo: **con
+        `?status=REGISTER`, `summary.firstDeposit.total` vale SIEMPRE cero**,
+        y con `?status=FIRST_DEPOSIT` vale siempre el total. **Ese cero no
+        significa «nadie ha depositado»: significa «no pediste ninguno».** Un
+        tablero que lo enseñe sin decirlo miente; para ver el embudo completo,
+        consulte **sin** el filtro `status`.
+
+        **`byBroker` trae TODOS los brokers del catálogo**, ordenado por
+        nombre y **con cero donde el filtro no deja ninguna**: su longitud
+        **no cambia** al filtrar, de modo que las columnas de una tabla se
+        arman una vez y no bailan. Un broker **desactivado sigue apareciendo**
+        — apagarlo no borra lo que ya se declaró en él. Los tres desgloses
+        **suman exactamente** su `total`.
+
+        **Con la página vacía el resumen va en ceros**, no ausente: el
+        `byBroker` sigue trayendo el catálogo entero, todo a cero.
+
+        **La fila es idéntica campo por campo a la de
+        `GET /api/v1/users/me/team/broker-accounts`**, a propósito: las dos
+        pantallas se pintan con el mismo componente. **Lo que aquella no
+        lleva es el `summary`**: el resumen se pidió para el listado de
+        administración.
+
+        **Hoy todas las cuentas están en `REGISTER`**: quien mueve una a
+        `FIRST_DEPOSIT` es el webhook del broker, que todavía no existe.
+
+        **Esta ruta no sustituye a `GET /api/v1/users/{id}/broker-accounts`**,
+        que existe para **el superior comercial sin permiso**.
+      operationId: listar_7
+      parameters:
+      - name: page
+        in: query
+        required: false
+        schema:
+          type: integer
+          format: int32
+      - name: size
+        in: query
+        required: false
+        schema:
+          type: integer
+          format: int32
+      - name: supervisorId
+        in: query
+        required: false
+        schema:
+          type: string
+          format: uuid
+      - name: userId
+        in: query
+        required: false
+        schema:
+          type: string
+          format: uuid
+      - name: status
+        in: query
+        required: false
+        schema:
+          type: string
+      - name: brokerId
+        in: query
+        required: false
+        schema:
+          type: string
+          format: uuid
+      - name: search
+        in: query
+        required: false
+        schema:
+          type: string
+      - name: from
+        in: query
+        required: false
+        schema:
+          type: string
+          format: date-time
+      - name: to
+        in: query
+        required: false
+        schema:
+          type: string
+          format: date-time
+      responses:
+        "200":
+          description: "Página de cuentas, ordenada por titular, broker e identificador\
+            \ de cuenta, **con su resumen**. Vacía —y el resumen en ceros— si ningú\
+            n registro cumple el filtro."
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/BrokerAccountsPage"
+        "400":
+          description: "`status` fuera de `REGISTER`/`FIRST_DEPOSIT`, `from` posterior\
+            \ a `to`, identificador malformado (`VAL-001`) o paginación fuera de lí\
+            mites (`VAL-003`)"
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/BrokerAccountsPage"
+        "401":
+          description: Token ausente o inválido (`AUTH-001`)
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/BrokerAccountsPage"
+        "403":
+          description: Autenticado sin `broker-accounts:read` (`AUTH-002`)
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/BrokerAccountsPage"
+        "500":
+          description: Fallo no controlado (`ERR-500`)
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/BrokerAccountsPage"
+  /api/v1/broker-accounts/indicators:
+    get:
+      tags:
+      - Cuentas de broker
+      summary: Consultar los indicadores de la red comercial
+      description: |
+        Devuelve **el árbol de la fuerza comercial**, cada nodo con dos
+        bloques de números: `own` —lo que cuelga **directamente** de esa
+        persona— y `network` —esa persona **y todo lo que cuelga de ella**, a
+        cualquier profundidad—.
+
+        **La regla es una sola en todos los niveles**: el `network` de alguien
+        es su `own` más la suma de los `network` de sus hijos. Un agente
+        recibe lo de sus clientes directos; un director, lo suyo más lo de sus
+        agentes; un manager, lo suyo más lo de sus directores.
+
+        **NO SUME LA COLUMNA `network` DE UNA LISTA.** El `network` de un
+        director **ya contiene** el de sus agentes, de modo que sumar totales
+        de distintos niveles cuenta dos veces. Para agregar, sume `own`; para
+        leer el total de una rama, use su `network`.
+
+        **Qué cuenta como uno:** `accounts` cuenta **cuentas** y `consumers`
+        cuenta **personas**, y no tienen por qué coincidir — un cliente con
+        dos cuentas es una persona y dos cuentas. **Solo cuentan las cuentas
+        de consumidores**: la cuenta personal de un vendedor no entra en
+        ningún indicador.
+
+        **Los consumidores no son nodos.** Aportan el número y no aparecen: el
+        árbol es de la fuerza comercial.
+
+        **`conversion` es `ftd / accounts`, un cociente entre 0 y 1 —no un
+        porcentaje— y es NULA cuando no hay cuentas**, no cero: cero se lee
+        como «nadie convirtió» y la verdad sería «no hay nada que convertir».
+        Se recalcula en cada nodo sobre sus propios totales; **no es el
+        promedio de las de sus hijos**.
+
+        **`unassigned` es lo que hace que los números cuadren**: las cuentas
+        de consumidores que no cuelgan de ningún vendedor no entran en ningún
+        nodo. Se cumple que `totals` + `unassigned` es igual al
+        `totalElements` de `GET /api/v1/broker-accounts` sin filtros. Se omite
+        cuando se pide una rama con `rootId`, donde no significa nada.
+
+        **`rootId` acota el árbol a esa rama e INCLUYE a la persona como
+        raíz**, al revés que el `supervisorId` de `GET /api/v1/broker-accounts`:
+        allí se piden las cuentas de su red —y las suyas no son de su red— y
+        aquí se pide el nodo que lleva sus números.
+
+        **Hoy `ftd` será cero en todas partes** y el embudo se verá entero en
+        `pending`: quien mueve una cuenta a `FIRST_DEPOSIT` es el webhook del
+        broker, que todavía no existe. Es el estado real, no un fallo del
+        indicador.
+      operationId: indicadoresDeLaRed
+      parameters:
+      - name: rootId
+        in: query
+        description: "Acota el árbol a la rama de esa persona, ella incluida."
+        required: false
+        schema:
+          type: string
+          format: uuid
+      responses:
+        "200":
+          description: "El árbol, con los totales y lo no atribuido. `nodes` vací\
+            o si no hay fuerza comercial."
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/NetworkIndicatorsResponse"
+        "400":
+          description: '`rootId` malformado (`VAL-001`)'
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/NetworkIndicatorsResponse"
+        "401":
+          description: Token ausente o inválido (`AUTH-001`)
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/NetworkIndicatorsResponse"
+        "403":
+          description: Autenticado sin `broker-accounts:read` (`AUTH-002`)
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/NetworkIndicatorsResponse"
+        "404":
+          description: "`rootId` no designa a nadie de la fuerza comercial, o está\
+            \ eliminado (`VAL-002`)"
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/NetworkIndicatorsResponse"
+        "500":
+          description: Fallo no controlado (`ERR-500`)
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/NetworkIndicatorsResponse"
   /api/v1/audit/security:
     get:
       tags:
@@ -3954,6 +5842,36 @@ components:
         password:
           type: string
           minLength: 1
+        countryId:
+          type: string
+          format: uuid
+        documentTypeId:
+          type: string
+          format: uuid
+        documentNumber:
+          type: string
+          maxLength: 30
+          minLength: 0
+        phone:
+          type: string
+          maxLength: 25
+          minLength: 0
+        companyPhone:
+          type: string
+          maxLength: 25
+          minLength: 0
+        addressLine1:
+          type: string
+          maxLength: 150
+          minLength: 0
+        addressLine2:
+          type: string
+          maxLength: 150
+          minLength: 0
+        city:
+          type: string
+          maxLength: 100
+          minLength: 0
         roleIds:
           type: array
           items:
@@ -3968,12 +5886,56 @@ components:
           type: string
           format: uuid
       required:
+      - countryId
+      - documentNumber
+      - documentTypeId
       - email
       - firstName
       - lastName
       - password
+      - phone
       - roleIds
       - username
+    ContactRef:
+      type: object
+      properties:
+        phone:
+          type: string
+        companyPhone:
+          type: string
+        addressLine1:
+          type: string
+        addressLine2:
+          type: string
+        city:
+          type: string
+    CountryRef:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        code:
+          type: string
+        name:
+          type: string
+    DocumentRef:
+      type: object
+      properties:
+        type:
+          $ref: "#/components/schemas/DocumentTypeRef"
+        number:
+          type: string
+    DocumentTypeRef:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        abbreviation:
+          type: string
+        name:
+          type: string
     MembershipRef:
       type: object
       properties:
@@ -3987,6 +5949,8 @@ components:
         level:
           type: integer
           format: int32
+        color:
+          type: string
     RoleRef:
       type: object
       properties:
@@ -4029,6 +5993,12 @@ components:
           type: array
           items:
             $ref: "#/components/schemas/RoleRef"
+        country:
+          $ref: "#/components/schemas/CountryRef"
+        document:
+          $ref: "#/components/schemas/DocumentRef"
+        contact:
+          $ref: "#/components/schemas/ContactRef"
         membership:
           $ref: "#/components/schemas/MembershipRef"
         supervisor:
@@ -4049,12 +6019,6 @@ components:
             format: uuid
           maxItems: 100
           minItems: 0
-        membershipId:
-          type: string
-          format: uuid
-        membershipEndsAt:
-          type: string
-          format: date-time
         supervisorId:
           type: string
           format: uuid
@@ -4142,6 +6106,63 @@ components:
         username:
           type: string
         fullName:
+          type: string
+    AssociateUserProductRequest:
+      type: object
+      properties:
+        productId:
+          type: string
+          format: uuid
+      required:
+      - productId
+    ProductRef:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        code:
+          type: string
+        type:
+          type: string
+          enum:
+          - UPGRADE_MEMBRESIA
+          - BOT
+        name:
+          type: string
+        description:
+          type: string
+        icon:
+          type: string
+        videoUrl:
+          type: string
+        validityDays:
+          type: integer
+          format: int32
+        membership:
+          $ref: "#/components/schemas/MembershipBadge"
+        price:
+          type: number
+        currency:
+          $ref: "#/components/schemas/CurrencyRef"
+        exchange:
+          $ref: "#/components/schemas/ExchangeRef"
+        rating:
+          $ref: "#/components/schemas/RatingSummary"
+    UserRateProductsResponse:
+      type: object
+      properties:
+        rateId:
+          type: string
+          format: uuid
+        products:
+          type: array
+          items:
+            $ref: "#/components/schemas/ProductRef"
+    DissociateProductRequest:
+      type: object
+      properties:
+        reason:
           type: string
     DeleteCommissionRateRequest:
       type: object
@@ -4282,6 +6303,8 @@ components:
           type: string
           maxLength: 50
           minLength: 0
+        videoUrl:
+          type: string
         sourceMembershipId:
           type: string
           format: uuid
@@ -4291,6 +6314,9 @@ components:
         price:
           type: number
           minimum: 0.0
+        purchasePrice:
+          type: number
+          minimum: 0.0
         currencyId:
           type: string
           format: uuid
@@ -4298,23 +6324,41 @@ components:
           type: integer
           format: int32
           minimum: 1
+        scope:
+          type: string
+          enum:
+          - TIENDA
+          - HOTLINKS
+        implementation:
+          type: string
+          enum:
+          - AUTOMATICA
+          - MANUAL
       required:
       - code
       - currencyId
+      - implementation
       - name
       - price
+      - scope
       - type
     CurrencyRef:
       type: object
       properties:
-        id:
-          type: string
-          format: uuid
         code:
           type: string
         decimalPlaces:
           type: integer
           format: int32
+    ExchangeRef:
+      type: object
+      properties:
+        currency:
+          $ref: "#/components/schemas/TargetCurrency"
+        rate:
+          type: string
+        amount:
+          type: number
     ProductResponse:
       type: object
       properties:
@@ -4334,33 +6378,216 @@ components:
           type: string
         icon:
           type: string
+        videoUrl:
+          type: string
         sourceMembership:
           $ref: "#/components/schemas/MembershipRef"
         targetMembership:
           $ref: "#/components/schemas/MembershipRef"
         price:
           type: number
+        purchasePrice:
+          type: number
         currency:
           $ref: "#/components/schemas/CurrencyRef"
+        exchange:
+          $ref: "#/components/schemas/ExchangeRef"
         validityDays:
           type: integer
           format: int32
+        scope:
+          type: string
+          enum:
+          - TIENDA
+          - HOTLINKS
+        implementation:
+          type: string
+          enum:
+          - AUTOMATICA
+          - MANUAL
         status:
           type: string
           enum:
           - ACTIVO
           - INACTIVO
+        rating:
+          $ref: "#/components/schemas/RatingSummary"
         createdAt:
           type: string
           format: date-time
         updatedAt:
           type: string
           format: date-time
+    RatingSummary:
+      type: object
+      properties:
+        average:
+          type: number
+        count:
+          type: integer
+          format: int64
+    TargetCurrency:
+      type: object
+      properties:
+        code:
+          type: string
+        decimalPlaces:
+          type: integer
+          format: int32
     DeleteProductRequest:
       type: object
       properties:
         reason:
           type: string
+    CreateProductCommentRequest:
+      type: object
+      properties:
+        rating:
+          type: integer
+          format: int32
+          description: "Puntuación entera de 1 a 5. Un decimal se rechaza, no se redondea."
+          maximum: 5
+          minimum: 1
+        comment:
+          type: string
+          description: "El texto de la reseña, de 1 a 1000 caracteres sin contar los\
+            \ espacios de los extremos. Se guarda tal cual y NO se sanea: el front\
+            \ debe escaparlo al pintarlo, porque la lista es pública."
+          maxLength: 1000
+      required:
+      - comment
+      - rating
+    ProductCommentResponse:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        productId:
+          type: string
+          format: uuid
+        rating:
+          type: integer
+          format: int32
+        comment:
+          type: string
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+    RegisterSaleRequest:
+      type: object
+      properties:
+        clientId:
+          type: string
+          format: uuid
+        paymentMethodId:
+          type: string
+          format: uuid
+        lines:
+          type: array
+          items:
+            $ref: "#/components/schemas/SaleLineRequest"
+          minItems: 1
+        occurredAt:
+          type: string
+          format: date-time
+      required:
+      - clientId
+      - lines
+    SaleLineRequest:
+      type: object
+      properties:
+        productId:
+          type: string
+          format: uuid
+        quantity:
+          type: integer
+          format: int32
+          minimum: 1
+      required:
+      - productId
+      - quantity
+    SaleCurrency:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        code:
+          type: string
+    SaleLineResponse:
+      type: object
+      properties:
+        productId:
+          type: string
+          format: uuid
+        productCode:
+          type: string
+        productName:
+          type: string
+        quantity:
+          type: integer
+          format: int32
+        unitPrice:
+          type: number
+        lineAmount:
+          type: number
+        validityDays:
+          type: integer
+          format: int32
+    SaleParty:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        username:
+          type: string
+        name:
+          type: string
+    SaleResponse:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        code:
+          type: string
+        status:
+          type: string
+        client:
+          $ref: "#/components/schemas/SaleParty"
+        seller:
+          type:
+          - object
+          - "null"
+          $ref: "#/components/schemas/SaleParty"
+          description: "A quién se atribuye la venta. NULO cuando quien compra no\
+            \ cuelga de ningún vendedor — un agente, o la cúspide de la fuerza comercial.\
+            \ Esa venta NO comisiona a nadie."
+        currency:
+          $ref: "#/components/schemas/SaleCurrency"
+        paymentMethod:
+          type: string
+        lines:
+          type: array
+          items:
+            $ref: "#/components/schemas/SaleLineResponse"
+        totalAmount:
+          type: number
+        discountAmount:
+          type: number
+        payableAmount:
+          type: number
+        occurredAt:
+          type: string
+          format: date-time
+        createdAt:
+          type: string
+          format: date-time
     RegisterMembershipRequest:
       type: object
       properties:
@@ -4417,6 +6644,51 @@ components:
         updatedAt:
           type: string
           format: date-time
+    RegisterExchangeRateRequest:
+      type: object
+      properties:
+        sourceCurrencyId:
+          type: string
+          format: uuid
+        targetCurrencyId:
+          type: string
+          format: uuid
+        price:
+          type: number
+          minimum: 0.0
+        validFrom:
+          type: string
+          format: date
+        validTo:
+          type: string
+          format: date
+        isActive:
+          type: boolean
+      required:
+      - price
+      - sourceCurrencyId
+      - targetCurrencyId
+      - validFrom
+    ExchangeRateResponse:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        sourceCurrency:
+          $ref: "#/components/schemas/CurrencyRef"
+        targetCurrency:
+          $ref: "#/components/schemas/CurrencyRef"
+        price:
+          type: number
+        validFrom:
+          type: string
+          format: date
+        validTo:
+          type: string
+          format: date
+        isActive:
+          type: boolean
     RegisterCountryRequest:
       type: object
       properties:
@@ -4521,20 +6793,97 @@ components:
           type: array
           items:
             $ref: "#/components/schemas/ProductAssociationItem"
-    ProductRef:
+    RegistrationBrokerAccount:
+      type: object
+      properties:
+        brokerId:
+          type: string
+          format: uuid
+        accountId:
+          type: string
+    RegistrationMovement:
+      type: object
+      properties:
+        productId:
+          type: string
+          format: uuid
+        paymentMethodId:
+          type: string
+          format: uuid
+        sellerUsername:
+          type: string
+          minLength: 1
+        movementTypeCode:
+          type: string
+      required:
+      - productId
+      - sellerUsername
+    SelfRegistrationRequest:
+      type: object
+      properties:
+        firstName:
+          type: string
+          minLength: 1
+        lastName:
+          type: string
+          minLength: 1
+        username:
+          type: string
+          minLength: 1
+        email:
+          type: string
+          minLength: 1
+        password:
+          type: string
+          minLength: 1
+        countryCode:
+          type: string
+          minLength: 1
+        documentType:
+          type: string
+          minLength: 1
+        documentNumber:
+          type: string
+          minLength: 1
+        phone:
+          type: string
+          minLength: 1
+        addressLine1:
+          type: string
+        addressLine2:
+          type: string
+        city:
+          type: string
+        brokerAccounts:
+          type: array
+          items:
+            $ref: "#/components/schemas/RegistrationBrokerAccount"
+        movement:
+          $ref: "#/components/schemas/RegistrationMovement"
+      required:
+      - countryCode
+      - documentNumber
+      - documentType
+      - email
+      - firstName
+      - lastName
+      - movement
+      - password
+      - phone
+      - username
+    SelfRegistrationResponse:
       type: object
       properties:
         id:
           type: string
           format: uuid
-        code:
+        username:
           type: string
-        name:
+        status:
           type: string
-    DissociateProductRequest:
-      type: object
-      properties:
-        reason:
+        pending:
+          type: string
+        sale:
           type: string
     RefreshRequest:
       type: object
@@ -4605,6 +6954,7 @@ components:
       - identifier
       - password
     PatchableString: {}
+    PatchableUUID: {}
     UpdateUserRequest:
       type: object
       properties:
@@ -4613,6 +6963,22 @@ components:
         lastName:
           $ref: "#/components/schemas/PatchableString"
         email:
+          $ref: "#/components/schemas/PatchableString"
+        countryId:
+          $ref: "#/components/schemas/PatchableUUID"
+        documentTypeId:
+          $ref: "#/components/schemas/PatchableUUID"
+        documentNumber:
+          $ref: "#/components/schemas/PatchableString"
+        phone:
+          $ref: "#/components/schemas/PatchableString"
+        companyPhone:
+          $ref: "#/components/schemas/PatchableString"
+        addressLine1:
+          $ref: "#/components/schemas/PatchableString"
+        addressLine2:
+          $ref: "#/components/schemas/PatchableString"
+        city:
           $ref: "#/components/schemas/PatchableString"
     AssignSupervisorRequest:
       type: object
@@ -4671,8 +7037,10 @@ components:
           type: string
         lastName:
           type: string
-        roleCode:
-          type: string
+        roles:
+          type: array
+          items:
+            $ref: "#/components/schemas/RoleRef"
         status:
           type: string
         since:
@@ -4710,11 +7078,24 @@ components:
           $ref: "#/components/schemas/PatchableString"
         email:
           $ref: "#/components/schemas/PatchableString"
+        phone:
+          $ref: "#/components/schemas/PatchableString"
+        companyPhone:
+          $ref: "#/components/schemas/PatchableString"
+        addressLine1:
+          $ref: "#/components/schemas/PatchableString"
+        addressLine2:
+          $ref: "#/components/schemas/PatchableString"
+        city:
+          $ref: "#/components/schemas/PatchableString"
         currentPassword:
           type: string
     OwnProfileResponse:
       type: object
       properties:
+        id:
+          type: string
+          format: uuid
         username:
           type: string
         email:
@@ -4733,6 +7114,12 @@ components:
           type: array
           items:
             type: string
+        country:
+          $ref: "#/components/schemas/CountryRef"
+        document:
+          $ref: "#/components/schemas/DocumentRef"
+        contact:
+          $ref: "#/components/schemas/ContactRef"
         membership:
           $ref: "#/components/schemas/MembershipRef"
         lastLoginAt:
@@ -4785,7 +7172,8 @@ components:
       required:
       - parentRoleId
     PatchableInteger: {}
-    PatchableUUID: {}
+    PatchableProductImplementation: {}
+    PatchableProductScope: {}
     UpdateProductRequest:
       type: object
       properties:
@@ -4795,12 +7183,20 @@ components:
           $ref: "#/components/schemas/PatchableString"
         icon:
           $ref: "#/components/schemas/PatchableString"
+        videoUrl:
+          $ref: "#/components/schemas/PatchableString"
         price:
+          $ref: "#/components/schemas/PatchableBigDecimal"
+        purchasePrice:
           $ref: "#/components/schemas/PatchableBigDecimal"
         currencyId:
           $ref: "#/components/schemas/PatchableUUID"
         validityDays:
           $ref: "#/components/schemas/PatchableInteger"
+        scope:
+          $ref: "#/components/schemas/PatchableProductScope"
+        implementation:
+          $ref: "#/components/schemas/PatchableProductImplementation"
         type:
           $ref: "#/components/schemas/PatchableObject"
         code:
@@ -4828,22 +7224,40 @@ components:
           type: string
         icon:
           type: string
+        videoUrl:
+          type: string
         sourceMembership:
           $ref: "#/components/schemas/MembershipRef"
         targetMembership:
           $ref: "#/components/schemas/MembershipRef"
         price:
           type: number
+        purchasePrice:
+          type: number
         currency:
           $ref: "#/components/schemas/CurrencyRef"
+        exchange:
+          $ref: "#/components/schemas/ExchangeRef"
         validityDays:
           type: integer
           format: int32
+        scope:
+          type: string
+          enum:
+          - TIENDA
+          - HOTLINKS
+        implementation:
+          type: string
+          enum:
+          - AUTOMATICA
+          - MANUAL
         status:
           type: string
           enum:
           - ACTIVO
           - INACTIVO
+        rating:
+          $ref: "#/components/schemas/RatingSummary"
         createdAt:
           type: string
           format: date-time
@@ -4863,6 +7277,16 @@ components:
           minLength: 1
       required:
       - status
+    UpdateProductCommentRequest:
+      type: object
+      properties:
+        rating:
+          $ref: "#/components/schemas/PatchableInteger"
+          description: "Puntuación nueva, entera de 1 a 5. No admite nulo."
+        comment:
+          $ref: "#/components/schemas/PatchableString"
+          description: "Texto nuevo, de 1 a 1000 caracteres tras recortar. No admite\
+            \ nulo."
     ChangeCurrencyStatusRequest:
       type: object
       properties:
@@ -4951,6 +7375,12 @@ components:
           type: array
           items:
             type: string
+        country:
+          $ref: "#/components/schemas/CountryRef"
+        document:
+          $ref: "#/components/schemas/DocumentRef"
+        contact:
+          $ref: "#/components/schemas/ContactRef"
         membership:
           $ref: "#/components/schemas/MembershipRef"
         lastLoginAt:
@@ -4965,6 +7395,96 @@ components:
         updatedAt:
           type: string
           format: date-time
+    BrokerAccountItem:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        broker:
+          $ref: "#/components/schemas/BrokerRef"
+        accountId:
+          type: string
+        brokerUsername:
+          type: string
+        status:
+          type: string
+          enum:
+          - REGISTER
+          - FIRST_DEPOSIT
+        declaredAt:
+          type: string
+          format: date-time
+    BrokerAccountsResponse:
+      type: object
+      properties:
+        content:
+          type: array
+          items:
+            $ref: "#/components/schemas/BrokerAccountItem"
+    BrokerRef:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        name:
+          type: string
+    BrokerAccountHolder:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        username:
+          type: string
+        firstName:
+          type: string
+        lastName:
+          type: string
+    PageResponseTeamBrokerAccountItem:
+      type: object
+      properties:
+        content:
+          type: array
+          items:
+            $ref: "#/components/schemas/TeamBrokerAccountItem"
+        totalElements:
+          type: integer
+          format: int64
+        totalPages:
+          type: integer
+          format: int32
+        page:
+          type: integer
+          format: int32
+        size:
+          type: integer
+          format: int32
+        totalIsExact:
+          type: boolean
+    TeamBrokerAccountItem:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        user:
+          $ref: "#/components/schemas/BrokerAccountHolder"
+        broker:
+          $ref: "#/components/schemas/BrokerRef"
+        accountId:
+          type: string
+        brokerUsername:
+          type: string
+        status:
+          type: string
+          enum:
+          - REGISTER
+          - FIRST_DEPOSIT
+        declaredAt:
+          type: string
+          format: date-time
     ListUserCommissionRatesRequest:
       type: object
       properties:
@@ -4975,6 +7495,9 @@ components:
           type: integer
           format: int32
         userId:
+          type: string
+          format: uuid
+        productId:
           type: string
           format: uuid
         onDate:
@@ -5005,6 +7528,9 @@ components:
         validTo:
           type: string
           format: date
+        associatedProducts:
+          type: integer
+          format: int64
         deletedAt:
           type: string
           format: date-time
@@ -5086,22 +7612,40 @@ components:
           type: string
         icon:
           type: string
+        videoUrl:
+          type: string
         sourceMembership:
           $ref: "#/components/schemas/MembershipRef"
         targetMembership:
           $ref: "#/components/schemas/MembershipRef"
         price:
           type: number
+        purchasePrice:
+          type: number
         currency:
           $ref: "#/components/schemas/CurrencyRef"
+        exchange:
+          $ref: "#/components/schemas/ExchangeRef"
         validityDays:
           type: integer
           format: int32
+        scope:
+          type: string
+          enum:
+          - TIENDA
+          - HOTLINKS
+        implementation:
+          type: string
+          enum:
+          - AUTOMATICA
+          - MANUAL
         status:
           type: string
           enum:
           - ACTIVO
           - INACTIVO
+        rating:
+          $ref: "#/components/schemas/RatingSummary"
         createdAt:
           type: string
           format: date-time
@@ -5131,6 +7675,53 @@ components:
           type: boolean
         sort:
           type: string
+    Author:
+      type: object
+      properties:
+        firstName:
+          type: string
+        lastName:
+          type: string
+    PageResponseProductCommentPublicItem:
+      type: object
+      properties:
+        content:
+          type: array
+          items:
+            $ref: "#/components/schemas/ProductCommentPublicItem"
+        totalElements:
+          type: integer
+          format: int64
+        totalPages:
+          type: integer
+          format: int32
+        page:
+          type: integer
+          format: int32
+        size:
+          type: integer
+          format: int32
+        totalIsExact:
+          type: boolean
+    ProductCommentPublicItem:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        rating:
+          type: integer
+          format: int32
+        comment:
+          type: string
+        author:
+          $ref: "#/components/schemas/Author"
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
     OfferItem:
       type: object
       properties:
@@ -5150,15 +7741,31 @@ components:
           type: string
         icon:
           type: string
+        videoUrl:
+          type: string
         targetMembership:
           $ref: "#/components/schemas/MembershipRef"
         price:
           type: number
         currency:
           $ref: "#/components/schemas/CurrencyRef"
+        exchange:
+          $ref: "#/components/schemas/ExchangeRef"
         validityDays:
           type: integer
           format: int32
+        scope:
+          type: string
+          enum:
+          - TIENDA
+          - HOTLINKS
+        implementation:
+          type: string
+          enum:
+          - AUTOMATICA
+          - MANUAL
+        rating:
+          $ref: "#/components/schemas/RatingSummary"
     OfferResponse:
       type: object
       properties:
@@ -5191,6 +7798,114 @@ components:
           type: array
           items:
             $ref: "#/components/schemas/PermissionResponse"
+    ExcludedCountry:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        code:
+          type: string
+    PaymentMethodCatalogResponse:
+      type: object
+      properties:
+        content:
+          type: array
+          items:
+            $ref: "#/components/schemas/PaymentMethodResponse"
+    PaymentMethodResponse:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        code:
+          type: string
+        name:
+          type: string
+        excludedCountries:
+          type: array
+          items:
+            $ref: "#/components/schemas/ExcludedCountry"
+    MyMovement:
+      type: object
+      description: Un movimiento en el que participa quien consulta.
+      properties:
+        id:
+          type: string
+          format: uuid
+        code:
+          type: string
+        status:
+          type: string
+        role:
+          type: string
+          description: El papel de quien consulta en ESTE movimiento.
+          enum:
+          - BUYER
+          - SELLER
+          - BOTH
+        client:
+          $ref: "#/components/schemas/MyMovementParty"
+        seller:
+          type:
+          - object
+          - "null"
+          $ref: "#/components/schemas/MyMovementParty"
+          description: A quién se atribuye. NULO cuando quien compró no cuelga de
+            ningún vendedor.
+        currency:
+          $ref: "#/components/schemas/MyMovementCurrency"
+        paymentMethod:
+          type: string
+        totalAmount:
+          type: number
+        discountAmount:
+          type: number
+        payableAmount:
+          type: number
+        occurredAt:
+          type: string
+          format: date-time
+    MyMovementCurrency:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        code:
+          type: string
+    MyMovementParty:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        username:
+          type: string
+        name:
+          type: string
+    PageResponseMyMovement:
+      type: object
+      properties:
+        content:
+          type: array
+          items:
+            $ref: "#/components/schemas/MyMovement"
+        totalElements:
+          type: integer
+          format: int64
+        totalPages:
+          type: integer
+          format: int32
+        page:
+          type: integer
+          format: int32
+        size:
+          type: integer
+          format: int32
+        totalIsExact:
+          type: boolean
     ListMembershipsRequest:
       type: object
       properties:
@@ -5262,6 +7977,48 @@ components:
           format: int32
         color:
           type: string
+    HotlinkResponse:
+      type: object
+      properties:
+        seller:
+          $ref: "#/components/schemas/SellerRef"
+        product:
+          $ref: "#/components/schemas/ProductRef"
+    MembershipBadge:
+      type: object
+      properties:
+        code:
+          type: string
+        name:
+          type: string
+        color:
+          type: string
+    SellerRef:
+      type: object
+      properties:
+        firstName:
+          type: string
+        lastName:
+          type: string
+    DocumentTypeCatalogResponse:
+      type: object
+      properties:
+        content:
+          type: array
+          items:
+            $ref: "#/components/schemas/DocumentTypeItem"
+    DocumentTypeItem:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        abbreviation:
+          type: string
+        name:
+          type: string
+        isActive:
+          type: boolean
     ListCurrenciesRequest:
       type: object
       properties:
@@ -5388,6 +8145,128 @@ components:
         totalIsExact:
           type: boolean
         sort:
+          type: string
+    BrokerCatalogResponse:
+      type: object
+      properties:
+        content:
+          type: array
+          items:
+            $ref: "#/components/schemas/BrokerItem"
+    BrokerItem:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        name:
+          type: string
+        isActive:
+          type: boolean
+    BrokerAccountsByBroker:
+      type: object
+      properties:
+        broker:
+          $ref: "#/components/schemas/BrokerRef"
+        total:
+          type: integer
+          format: int64
+    BrokerAccountsPage:
+      type: object
+      properties:
+        content:
+          type: array
+          items:
+            $ref: "#/components/schemas/TeamBrokerAccountItem"
+        totalElements:
+          type: integer
+          format: int64
+        totalPages:
+          type: integer
+          format: int32
+        page:
+          type: integer
+          format: int32
+        size:
+          type: integer
+          format: int32
+        totalIsExact:
+          type: boolean
+        summary:
+          $ref: "#/components/schemas/BrokerAccountsSummary"
+    BrokerAccountsSummary:
+      type: object
+      properties:
+        accounts:
+          $ref: "#/components/schemas/BrokerAccountsTotals"
+        register:
+          $ref: "#/components/schemas/BrokerAccountsTotals"
+        firstDeposit:
+          $ref: "#/components/schemas/BrokerAccountsTotals"
+    BrokerAccountsTotals:
+      type: object
+      properties:
+        total:
+          type: integer
+          format: int64
+        byBroker:
+          type: array
+          items:
+            $ref: "#/components/schemas/BrokerAccountsByBroker"
+    NetworkIndicators:
+      type: object
+      properties:
+        accounts:
+          type: integer
+          format: int32
+        ftd:
+          type: integer
+          format: int32
+        pending:
+          type: integer
+          format: int32
+        conversion:
+          type: number
+        consumers:
+          type: integer
+          format: int32
+    NetworkIndicatorsResponse:
+      type: object
+      properties:
+        nodes:
+          type: array
+          items:
+            $ref: "#/components/schemas/NetworkNode"
+        totals:
+          $ref: "#/components/schemas/NetworkIndicators"
+        unassigned:
+          $ref: "#/components/schemas/NetworkIndicators"
+    NetworkNode:
+      type: object
+      properties:
+        user:
+          $ref: "#/components/schemas/NetworkNodeUser"
+        roleCode:
+          type: string
+        own:
+          $ref: "#/components/schemas/NetworkIndicators"
+        network:
+          $ref: "#/components/schemas/NetworkIndicators"
+        children:
+          type: array
+          items:
+            $ref: "#/components/schemas/NetworkNode"
+    NetworkNodeUser:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        username:
+          type: string
+        firstName:
+          type: string
+        lastName:
           type: string
     AuditActor:
       type: object

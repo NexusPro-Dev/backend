@@ -46,6 +46,55 @@ class EffectiveCommissionIT extends IntegrationTestBase {
     producto = CommissionFixtures.sembrarProducto(jdbc, "BOT_A");
   }
 
+  @Test
+  @DisplayName("`CA-CM-122` — la personalizada NO gana donde no está asociada: manda la del rol")
+  void laPersonalizadaNoSaleDeSusProductos() throws Exception {
+    // Es la prueba de la enmienda, y la que habría fallado el 10-09-2026: hasta
+    // entonces la rama de la persona no miraba el producto, de modo que esta
+    // consulta habría devuelto PERSONALIZADA y 18.00.
+    UUID otroProducto = CommissionFixtures.sembrarProducto(jdbc, "BOT_B");
+
+    UUID delRol = CommissionFixtures.sembrarTasaDeRol(jdbc, MANAGER, "10.00");
+    CommissionFixtures.asociar(jdbc, delRol, otroProducto, MANAGER);
+
+    conAsociacion(vendedora, producto, "18.00", "2026-01-01", null);
+
+    mvc.perform(efectiva(vendedora, otroProducto, "2026-05-01"))
+        .andExpect(jsonPath("$.outcome").value("RESUELTA"))
+        .andExpect(jsonPath("$.source").value("ROL"))
+        .andExpect(jsonPath("$.value").value(10.00));
+  }
+
+  @Test
+  @DisplayName("`CA-CM-123` — una misma tasa personalizada rige en VARIOS productos")
+  void unaTasaVariosProductos() throws Exception {
+    // Es lo que la columna `product_id` de `V84` no permitía y la asociación sí:
+    // una sola excepción declarada una vez, vigente en dos productos.
+    UUID otroProducto = CommissionFixtures.sembrarProducto(jdbc, "BOT_B");
+
+    UUID tasa = conAsociacion(vendedora, producto, "18.00", "2026-01-01", null);
+    CommissionFixtures.asociarPersonal(jdbc, tasa, otroProducto);
+
+    for (UUID donde : java.util.List.of(producto, otroProducto)) {
+      mvc.perform(efectiva(vendedora, donde, "2026-05-01"))
+          .andExpect(jsonPath("$.source").value("PERSONALIZADA"))
+          .andExpect(jsonPath("$.rateId").value(tasa.toString()))
+          .andExpect(jsonPath("$.value").value(18.00));
+    }
+  }
+
+  @Test
+  @DisplayName("`CA-CM-124` — una personalizada SIN ASOCIAR no paga nada: RN-CM-012 sin excepción")
+  void sinAsociarNoPagaNada() throws Exception {
+    // El caso que la enmienda introduce y que antes no existía: la tasa está
+    // creada, viva y vigente, y NO RIGE EN NINGUNA PARTE. No falla — se descubre
+    // liquidando, que es justo lo que `RN-CM-012` advierte de las de rol.
+    CommissionFixtures.sembrarTasaPersonal(jdbc, vendedora, "18.00", "2026-01-01", null);
+
+    mvc.perform(efectiva(vendedora, producto, "2026-05-01"))
+        .andExpect(jsonPath("$.outcome").value("SIN_TARIFA"));
+  }
+
   @AfterEach
   void devolverElEstadoASuSitio() {
     CommissionFixtures.limpiar(jdbc, SUPERADMIN);
@@ -109,8 +158,7 @@ class EffectiveCommissionIT extends IntegrationTestBase {
     UUID delRol = CommissionFixtures.sembrarTasaDeRol(jdbc, MANAGER, "10.00");
     CommissionFixtures.asociar(jdbc, delRol, producto, MANAGER);
 
-    UUID personal =
-        CommissionFixtures.sembrarTasaPersonal(jdbc, vendedora, "18.00", "2026-01-01", null);
+    UUID personal = conAsociacion(vendedora, producto, "18.00", "2026-01-01", null);
 
     mvc.perform(efectiva(vendedora, producto, "2026-05-01"))
         .andExpect(jsonPath("$.outcome").value("RESUELTA"))
@@ -122,10 +170,13 @@ class EffectiveCommissionIT extends IntegrationTestBase {
   @Test
   @DisplayName("la personalizada gana incluso sobre un producto SIN asociación")
   void laPersonalizadaIgnoraElProducto() throws Exception {
-    CommissionFixtures.sembrarTasaPersonal(jdbc, vendedora, "18.00", "2026-01-01", null);
+    conAsociacion(vendedora, producto, "18.00", "2026-01-01", null);
 
-    // El producto no paga a nadie, y ella cobra igual: gana lo mismo venda lo
-    // que venda.
+    // El producto no paga a nadie POR ROL, y ella cobra igual: su excepción no
+    // necesita que exista una tasa de rol debajo.
+    //
+    // Lo que SÍ necesita desde el 11-09-2026 es estar ASOCIADA a este producto:
+    // ver `CA-CM-122`, que es la mitad que antes no se podía escribir.
     mvc.perform(efectiva(vendedora, producto, "2026-05-01"))
         .andExpect(jsonPath("$.outcome").value("RESUELTA"))
         .andExpect(jsonPath("$.source").value("PERSONALIZADA"));
@@ -136,7 +187,7 @@ class EffectiveCommissionIT extends IntegrationTestBase {
   void laPersonalizadaVencida() throws Exception {
     UUID delRol = CommissionFixtures.sembrarTasaDeRol(jdbc, MANAGER, "10.00");
     CommissionFixtures.asociar(jdbc, delRol, producto, MANAGER);
-    CommissionFixtures.sembrarTasaPersonal(jdbc, vendedora, "18.00", "2026-01-01", "2026-03-31");
+    conAsociacion(vendedora, producto, "18.00", "2026-01-01", "2026-03-31");
 
     mvc.perform(efectiva(vendedora, producto, "2026-02-15"))
         .andExpect(jsonPath("$.source").value("PERSONALIZADA"));
@@ -150,7 +201,7 @@ class EffectiveCommissionIT extends IntegrationTestBase {
   @DisplayName("QUIEN NO VENDE PUEDE COBRAR su personalizada: es lo que costó quitarle el rol")
   void laPersonalizadaSobreviveAlRol() throws Exception {
     UUID ajena = CommissionFixtures.sembrarPersonaConRol(jdbc, "ajena", null);
-    CommissionFixtures.sembrarTasaPersonal(jdbc, ajena, "18.00", "2026-01-01", null);
+    conAsociacion(ajena, producto, "18.00", "2026-01-01", null);
 
     // No porta rol vendedor, y aun así RESUELVE. Hasta el 01-09-2026 la tarifa
     // decía «esta persona, EN ESTE ROL» y esto habría sido NO_COMISIONA.
@@ -218,7 +269,7 @@ class EffectiveCommissionIT extends IntegrationTestBase {
   @Test
   @DisplayName("sin `onDate` se resuelve con la fecha de hoy")
   void sinFecha() throws Exception {
-    CommissionFixtures.sembrarTasaPersonal(jdbc, vendedora, "18.00", "2020-01-01", null);
+    conAsociacion(vendedora, producto, "18.00", "2020-01-01", null);
 
     mvc.perform(
             get("/api/v1/commissions/effective")
@@ -289,8 +340,7 @@ class EffectiveCommissionIT extends IntegrationTestBase {
     // Personalizada en PORCENTAJE contra rol en FIJO: gana la personalizada.
     UUID deRol = CommissionFixtures.sembrarTasaDeRol(jdbc, MANAGER, "FIJO", "10000");
     CommissionFixtures.asociar(jdbc, deRol, producto, MANAGER);
-    CommissionFixtures.sembrarTasaPersonal(
-        jdbc, vendedora, "PORCENTAJE", "18.00", "2026-01-01", null);
+    conAsociacion(vendedora, producto, "PORCENTAJE", "18.00", "2026-01-01", null);
 
     mvc.perform(efectiva(vendedora, producto, "2026-05-01"))
         .andExpect(jsonPath("$.source").value("PERSONALIZADA"))
@@ -298,11 +348,13 @@ class EffectiveCommissionIT extends IntegrationTestBase {
         .andExpect(jsonPath("$.value").value(18.00));
 
     // Y al revés: personalizada en FIJO contra rol en PORCENTAJE.
+    // La asociación apunta a la tasa, de modo que va primero (`V85`).
+    jdbc.update("DELETE FROM user_commission_rate_products");
     jdbc.update("DELETE FROM user_commission_rates");
     jdbc.update("DELETE FROM product_commission_rates");
     UUID enPorcentaje = CommissionFixtures.sembrarTasaDeRol(jdbc, MANAGER, "PORCENTAJE", "10.00");
     CommissionFixtures.asociar(jdbc, enPorcentaje, producto, MANAGER);
-    CommissionFixtures.sembrarTasaPersonal(jdbc, vendedora, "FIJO", "5000", "2026-01-01", null);
+    conAsociacion(vendedora, producto, "FIJO", "5000", "2026-01-01", null);
 
     mvc.perform(efectiva(vendedora, producto, "2026-05-01"))
         .andExpect(jsonPath("$.source").value("PERSONALIZADA"))
@@ -352,13 +404,34 @@ class EffectiveCommissionIT extends IntegrationTestBase {
     // dos respuestas idénticas están garantizadas por construcción y comparar
     // dos monedas no verificaba nada. Lo único capaz de fallar es la línea de
     // abajo, el día que alguien revierta la decisión.
-    CommissionFixtures.sembrarTasaPersonal(jdbc, vendedora, "FIJO", "10000", "2026-01-01", null);
+    conAsociacion(vendedora, producto, "FIJO", "10000", "2026-01-01", null);
 
     mvc.perform(efectiva(vendedora, producto, "2026-05-01"))
         .andExpect(status().isOk())
         .andExpect(jsonPath("$.rateType").value("FIJO"))
         .andExpect(jsonPath("$.value").value(10000))
         .andExpect(jsonPath("$.currency").doesNotExist());
+  }
+
+  /**
+   * Una tasa personalizada <b>ya asociada</b> al producto donde debe regir.
+   *
+   * <p>Desde el 11-09-2026 sembrar la tasa no basta: sin asociación no rige en ninguna parte
+   * (`RN-CM-012`), y una prueba que se saltara este paso estaría comprobando que no se paga nada.
+   */
+  private UUID conAsociacion(
+      UUID persona, UUID enProducto, String porcentaje, String desde, String hasta) {
+    UUID tasa = CommissionFixtures.sembrarTasaPersonal(jdbc, persona, porcentaje, desde, hasta);
+    CommissionFixtures.asociarPersonal(jdbc, tasa, enProducto);
+    return tasa;
+  }
+
+  /** La misma, en la forma que se pida. */
+  private UUID conAsociacion(
+      UUID persona, UUID enProducto, String forma, String valor, String desde, String hasta) {
+    UUID tasa = CommissionFixtures.sembrarTasaPersonal(jdbc, persona, forma, valor, desde, hasta);
+    CommissionFixtures.asociarPersonal(jdbc, tasa, enProducto);
+    return tasa;
   }
 
   private MockHttpServletRequestBuilder efectiva(UUID persona, UUID producto, String fecha) {

@@ -71,12 +71,17 @@ class GetProductServiceIT extends IntegrationTestBase {
   }
 
   @Test
-  @DisplayName("`T-05` — un producto VIVO cuesta UNA sentencia: no se consulta el registro")
-  void elProductoVivoCuestaUna() {
+  @DisplayName("`T-05` — un producto VIVO cuesta DOS: no se consulta el registro de retiro")
+  void elProductoVivoCuestaDos() {
     var detalle = service.detail(vivo);
 
     assertThat(detalle.deletionReason()).isNull();
-    assertThat(estadisticas.getPrepareStatementCount()).isEqualTo(1);
+    // Era UNA hasta el 08-09-2026, y desde que `RN-PM-024` obliga a devolver la
+    // conversión son DOS: el detalle y la moneda de casa. La consulta de tasas
+    // no se paga porque el producto está en esa misma moneda. El criterio de
+    // esta prueba NO cambia —un producto vivo no paga la consulta del motivo—,
+    // y se sigue viendo en la diferencia con la prueba siguiente.
+    assertThat(estadisticas.getPrepareStatementCount()).isEqualTo(2);
   }
 
   @Test
@@ -86,17 +91,19 @@ class GetProductServiceIT extends IntegrationTestBase {
 
     assertThat(detalle.deletionReason()).isEqualTo("Se descontinuó.");
     assertThat(detalle.deletedAt()).isNotNull();
-    assertThat(estadisticas.getPrepareStatementCount()).isEqualTo(2);
+    // Una más que el vivo, que es lo único que esta pareja de pruebas afirma.
+    assertThat(estadisticas.getPrepareStatementCount()).isEqualTo(3);
   }
 
   @Test
   @DisplayName("`T-04` — el destino y la moneda vienen en LA MISMA sentencia, no en una por dato")
   void destinoYMonedaEnLaMisma() {
-    // Dos uniones externas: si alguna se resolviera aparte, aquí habría tres
-    // sentencias y la respuesta sería exactamente la misma.
+    // Dos uniones externas: si alguna se resolviera aparte, aquí habría una
+    // sentencia más y la respuesta sería exactamente la misma.
     service.detail(vivo);
 
-    assertThat(estadisticas.getPrepareStatementCount()).isEqualTo(1);
+    // Dos: el detalle con sus tres `JOIN` y la moneda de casa.
+    assertThat(estadisticas.getPrepareStatementCount()).isEqualTo(2);
   }
 
   @Test
@@ -132,10 +139,10 @@ class GetProductServiceIT extends IntegrationTestBase {
   private UUID producto(String codigo, String nombre) {
     UUID id = UUID.randomUUID();
     jdbc.update(
-        "INSERT INTO products (id, code, type, name, source_membership_id,"
+        "INSERT INTO products (scope, implementation, id, code, type, name, source_membership_id,"
             + " target_membership_id, price, currency_id,"
             + " validity_days, status, created_at, updated_at)"
-            + " VALUES (CAST(? AS uuid), ?, 'BOT', ?, NULL, NULL, 10.00, CAST(? AS uuid), NULL,"
+            + " VALUES ('TIENDA', 'MANUAL', CAST(? AS uuid), ?, 'BOT', ?, NULL, NULL, 10.00, CAST(? AS uuid), NULL,"
             + " 'INACTIVO', ?, ?)",
         id.toString(),
         codigo,

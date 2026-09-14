@@ -77,6 +77,13 @@ public class GetOwnProfileService {
     Set<String> efectivos = permisos.forUser(quien).orElseGet(Set::of);
 
     return new OwnProfileResponse(
+        // Sale de LA FILA y no de `quien`, aunque sean el mismo valor: es el
+        // identificador con el que `RF-SP-026` consulta a esta persona, que es
+        // lo que `CA-SP-473` exige. Tomarlo del token daría hoy lo mismo y
+        // dejaría de darlo el día que la identidad del token y la de la ficha
+        // pudieran diferir — y ese día nadie se enteraría, porque un `uuid`
+        // plausible y equivocado deja comprar a nombre de otro sin fallar.
+        fila.id(),
         fila.username(),
         fila.email(),
         fila.firstName(),
@@ -86,6 +93,29 @@ public class GetOwnProfileService {
             .map(rol -> new OwnProfileResponse.RoleRef(rol.code(), rol.name(), rol.status()))
             .toList(),
         efectivos.stream().sorted().toList(),
+        // Sin condicional, y aquí importa más que en los otros dos: este registro
+        // usa inclusión NON_NULL, de modo que un país nulo DESAPARECERÍA del
+        // JSON en silencio en lugar de fallar.
+        new OwnProfileResponse.CountryRef(fila.countryId(), fila.countryCode(), fila.countryName()),
+        // Puede llegar nulo, al contrario que el país: con inclusión NON_NULL
+        // desaparecerá del JSON, y aquí eso es correcto — «no lo declaro» y «no
+        // lo tengo» son lo mismo para quien mira su propio perfil.
+        fila.tieneDocumento()
+            ? new OwnProfileResponse.DocumentRef(
+                new OwnProfileResponse.DocumentTypeRef(
+                    fila.documentTypeId(),
+                    fila.documentTypeAbbreviation(),
+                    fila.documentTypeName()),
+                fila.documentNumber())
+            : null,
+        // El contacto SIEMPRE presente: es lo que `RF-SP-044` deja corregir, y
+        // sin publicarlo el formulario de edición no podría precargarse.
+        new OwnProfileResponse.ContactRef(
+            fila.phone(),
+            fila.companyPhone(),
+            fila.addressLine1(),
+            fila.addressLine2(),
+            fila.city()),
         fila.tieneMembresia()
             ? new OwnProfileResponse.MembershipRef(
                 fila.membershipCode(),

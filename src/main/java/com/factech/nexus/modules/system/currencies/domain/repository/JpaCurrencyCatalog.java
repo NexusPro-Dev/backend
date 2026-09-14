@@ -41,6 +41,26 @@ public class JpaCurrencyCatalog implements CurrencyCatalog {
                 new CurrencyView(
                     moneda.getId(),
                     moneda.getCode(),
+                    moneda.getName(),
+                    moneda.getDecimalPlaces(),
+                    moneda.isActive()));
+  }
+
+  @Override
+  @Transactional(readOnly = true)
+  public Optional<CurrencyView> findDefault() {
+    return em
+        .createQuery("SELECT c FROM Currency c WHERE c.isDefault = true", Currency.class)
+        .setMaxResults(1)
+        .getResultList()
+        .stream()
+        .findFirst()
+        .map(
+            moneda ->
+                new CurrencyView(
+                    moneda.getId(),
+                    moneda.getCode(),
+                    moneda.getName(),
                     moneda.getDecimalPlaces(),
                     moneda.isActive()));
   }

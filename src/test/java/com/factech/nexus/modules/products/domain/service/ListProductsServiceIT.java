@@ -74,25 +74,28 @@ class ListProductsServiceIT extends IntegrationTestBase {
   }
 
   @Test
-  @DisplayName("`T-05` — la consulta cuesta DOS sentencias SIN filtros: la página y el conteo")
-  void dosSentenciasSinFiltros() {
+  @DisplayName("`T-05` y `CA-PM-165` — TRES sentencias sin filtros, y ninguna por fila")
+  void tresSentenciasSinFiltros() {
     sembrar(5);
     estadisticas.clear();
 
     ProductPageResponse pagina = service.list(peticion(null, null, null));
 
     assertThat(pagina.content()).hasSize(5);
-    // Dos y no siete: el destino y la moneda viajan en el LEFT JOIN de la misma
-    // consulta. Resolverlos fila a fila contra el puerto de `SP` daría una
-    // consulta por producto, y el JSON sería idéntico.
-    assertThat(estadisticas.getPrepareStatementCount()).isEqualTo(2);
+    // TRES y no trece: la página, su conteo y la moneda de casa. Las tasas no
+    // se piden porque los cinco productos están en la moneda por omisión y no
+    // hay nada que convertir; con monedas distintas sería UNA más, nunca una
+    // por fila. El destino y la moneda viajan en el LEFT JOIN de la misma
+    // consulta, y resolver cualquiera de esas cosas fila a fila daría una
+    // consulta por producto con el JSON idéntico (`CA-PM-165`).
+    assertThat(estadisticas.getPrepareStatementCount()).isEqualTo(3);
   }
 
   @Test
-  @DisplayName("`T-05` — y sigue costando DOS con los seis filtros puestos a la vez")
+  @DisplayName("`T-05` — y sigue costando lo mismo con los seis filtros puestos a la vez")
   void dosSentenciasConTodosLosFiltros() {
     UUID destino = membresia("ORO", "Oro", 1);
-    UUID origen = membresia("FREE", "Free", 2, destino);
+    UUID origen = membresia("BECA", "Beca", 2, destino);
     sembrar(5);
     jdbc.update(
         "UPDATE products SET type = 'UPGRADE_MEMBRESIA',"
@@ -111,13 +114,15 @@ class ListProductsServiceIT extends IntegrationTestBase {
                 "name,asc",
                 "UPGRADE_MEMBRESIA",
                 "ACTIVO",
+                null,
+                null,
                 origen,
                 destino,
                 "Producto",
                 true));
 
     assertThat(pagina.content()).hasSize(1);
-    assertThat(estadisticas.getPrepareStatementCount()).isEqualTo(2);
+    assertThat(estadisticas.getPrepareStatementCount()).isEqualTo(3);
   }
 
   @Test
@@ -127,7 +132,8 @@ class ListProductsServiceIT extends IntegrationTestBase {
     estadisticas.clear();
 
     ProductPageResponse pagina =
-        service.list(new ListProductsRequest(99, 20, null, null, null, null, null, null, null));
+        service.list(
+            new ListProductsRequest(99, 20, null, null, null, null, null, null, null, null, null));
 
     assertThat(pagina.content()).isEmpty();
     // Y no 1980, que es lo que daría deducir el total del desplazamiento: un
@@ -136,6 +142,10 @@ class ListProductsServiceIT extends IntegrationTestBase {
     assertThat(pagina.totalIsExact()).isTrue();
     // El atajo de `RF-SP-002` —omitir el conteo cuando la página no se llena—
     // NO se aplica aquí: se cuenta siempre, también con la página vacía.
+    //
+    // Y siguen siendo DOS pese a la conversión: sin filas no hay monedas que
+    // convertir, de modo que no se pide ni la moneda de casa. Una página vacía
+    // cuesta lo mismo que antes de que la conversión existiera.
     assertThat(estadisticas.getPrepareStatementCount()).isEqualTo(2);
   }
 
@@ -244,7 +254,9 @@ class ListProductsServiceIT extends IntegrationTestBase {
     List<UUID> vistos = new ArrayList<>();
     for (int pagina = 0; pagina < paginas; pagina++) {
       service
-          .list(new ListProductsRequest(pagina, tamano, orden, null, null, null, null, null, null))
+          .list(
+              new ListProductsRequest(
+                  pagina, tamano, orden, null, null, null, null, null, null, null, null))
           .content()
           .stream()
           .map(ProductItem::id)
@@ -254,7 +266,8 @@ class ListProductsServiceIT extends IntegrationTestBase {
   }
 
   private static ListProductsRequest peticion(Integer tamano, String orden, String estado) {
-    return new ListProductsRequest(0, tamano, orden, null, estado, null, null, null, null);
+    return new ListProductsRequest(
+        0, tamano, orden, null, estado, null, null, null, null, null, null);
   }
 
   private UUID membresia(String codigo, String nombre, int nivel) {
@@ -297,10 +310,10 @@ class ListProductsServiceIT extends IntegrationTestBase {
           });
     }
     jdbc.batchUpdate(
-        "INSERT INTO products (id, code, type, name, source_membership_id,"
+        "INSERT INTO products (scope, implementation, id, code, type, name, source_membership_id,"
             + " target_membership_id, price, currency_id,"
             + " status, created_at, updated_at)"
-            + " VALUES (CAST(? AS uuid), ?, 'BOT', ?, NULL, NULL, ?, CAST(? AS uuid), 'ACTIVO',"
+            + " VALUES ('TIENDA', 'MANUAL', CAST(? AS uuid), ?, 'BOT', ?, NULL, NULL, ?, CAST(? AS uuid), 'ACTIVO',"
             + " ?, ?)",
         filas);
   }

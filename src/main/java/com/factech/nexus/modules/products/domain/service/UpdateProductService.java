@@ -41,8 +41,8 @@ import org.springframework.transaction.annotation.Transactional;
  *   <li>El producto existe y <b>no está retirado</b> (`EX-001`).
  *   <li>Cada campo recibido, contra su regla.
  *   <li>Si llega nombre: unicidad <b>excluyendo al propio producto</b>.
- *   <li>Si llega precio o moneda: la moneda existe, está activa, y los decimales cuadran <b>con la
- *       moneda nueva</b>.
+ *   <li>Si llega <b>cualquiera de los dos precios</b> o la moneda: la moneda existe, está activa, y
+ *       <b>los dos importes que van a quedar</b> caben en los decimales de la <b>moneda final</b>.
  *   <li>Se aplica, y <b>solo si algo cambió</b> se emite el evento.
  * </ol>
  *
@@ -70,14 +70,16 @@ public class UpdateProductService {
   private final CurrencyCatalog monedas;
   private final AuditWriter auditoria;
   private final Clock reloj;
+  private final ProductExchangeResolver conversiones;
 
   @Autowired
   public UpdateProductService(
       ProductRepository productos,
       ProductQueryRepository consultas,
       CurrencyCatalog monedas,
-      AuditWriter auditoria) {
-    this(productos, consultas, monedas, auditoria, Clock.systemUTC());
+      AuditWriter auditoria,
+      ProductExchangeResolver conversiones) {
+    this(productos, consultas, monedas, auditoria, conversiones, Clock.systemUTC());
   }
 
   UpdateProductService(
@@ -85,11 +87,13 @@ public class UpdateProductService {
       ProductQueryRepository consultas,
       CurrencyCatalog monedas,
       AuditWriter auditoria,
+      ProductExchangeResolver conversiones,
       Clock reloj) {
     this.productos = productos;
     this.consultas = consultas;
     this.monedas = monedas;
     this.auditoria = auditoria;
+    this.conversiones = conversiones;
     this.reloj = reloj;
   }
 
@@ -115,9 +119,13 @@ public class UpdateProductService {
             peticion.name(),
             peticion.description(),
             peticion.icon(),
+            peticion.videoUrl(),
             peticion.price(),
+            peticion.purchasePrice(),
             peticion.currencyId(),
             peticion.validityDays(),
+            peticion.scope(),
+            peticion.implementation(),
             OffsetDateTime.now(reloj));
 
     if (cambios.containsKey("name")) {
@@ -134,7 +142,14 @@ public class UpdateProductService {
 
     return consultas
         .findDetail(producto.getId())
-        .map(fila -> ProductDetailResponse.from(fila, null))
+        .map(
+            fila ->
+                ProductDetailResponse.from(
+                    fila,
+                    null,
+                    conversiones
+                        .para(java.util.List.of(fila.currencyId()))
+                        .de(fila.currencyId(), fila.price())))
         .orElseThrow(
             () ->
                 new ResourceNotFoundException(
@@ -246,12 +261,28 @@ public class UpdateProductService {
       }
     }
 
+    // EL DEL SISTEMA NO ADMITE VACIARSE: la columna es `NOT NULL` y «bórralo»
+    // no tiene ningún estado al que llevar el producto. Y desde el 08-09-2026
+    // ADMITE CERO (`RN-PM-006`): lo que tumbó el «mayor que cero» fue la
+    // renovación de una membresía gratuita, no el segundo precio.
     if (peticion.price().presente()) {
       BigDecimal valor = peticion.price().valor();
       if (valor == null) {
         problemas.add(new FieldError("price", "VAL-004", "El precio es obligatorio."));
-      } else if (valor.compareTo(BigDecimal.ZERO) <= 0) {
-        problemas.add(new FieldError("price", "VAL-004", "El precio debe ser mayor que cero."));
+      } else if (valor.compareTo(BigDecimal.ZERO) < 0) {
+        problemas.add(new FieldError("price", "VAL-004", "El precio no puede ser negativo."));
+      }
+    }
+
+    // EL DE COMPRA SÍ ADMITE VACIARSE, y ahí va con la descripción, el icono y
+    // la vigencia: el nulo explícito es una ORDEN —«el costo no se conoce»— y
+    // no un error. Lo único que se rechaza es el negativo.
+    if (peticion.purchasePrice().presente()) {
+      BigDecimal valor = peticion.purchasePrice().valor();
+      if (valor != null && valor.compareTo(BigDecimal.ZERO) < 0) {
+        problemas.add(
+            new FieldError(
+                "purchasePrice", "VAL-004", "El precio de compra no puede ser negativo."));
       }
     }
 
@@ -270,6 +301,27 @@ public class UpdateProductService {
                 "VAL-011",
                 "La vigencia debe ser un número de días mayor que cero."));
       }
+    }
+
+    // EL ALCANCE Y LA IMPLEMENTACIÓN NO ADMITEN VACIARSE, y ahí van al revés
+    // que la descripción, el icono y la vigencia. Aquellos pueden faltar en la
+    // columna, de modo que el nulo explícito tiene un estado al que llevarlos;
+    // estos son `NOT NULL`, y «bórralo» no significa nada — dejarlo pasar
+    // produciría un fallo de integridad, un 500 donde corresponde un 400 que
+    // nombre el campo.
+    //
+    // El valor FUERA DE DOMINIO no llega hasta aquí: lo rechaza Jackson al
+    // deserializar el enumerado, y esta comprobación solo ve el nulo.
+    if (peticion.scope().presente() && peticion.scope().valor() == null) {
+      problemas.add(
+          new FieldError("scope", "VAL-007", "El alcance del producto no puede quedar vacío."));
+    }
+    if (peticion.implementation().presente() && peticion.implementation().valor() == null) {
+      problemas.add(
+          new FieldError(
+              "implementation",
+              "VAL-008",
+              "La implementación del producto no puede quedar vacía."));
     }
 
     if (!problemas.isEmpty()) {
@@ -312,7 +364,10 @@ public class UpdateProductService {
   private void verificarPrecioYMoneda(UpdateProductRequest peticion, Product producto) {
     boolean cambiaMoneda = presenteConValor(peticion.currencyId());
     boolean cambiaPrecio = presenteConValor(peticion.price());
-    if (!cambiaMoneda && !cambiaPrecio) {
+    // El de compra entra en el disparador aunque llegue NULO, porque vaciarlo
+    // también cambia lo que va a quedar — deja de haber un importe que medir.
+    boolean tocaCompra = peticion.purchasePrice().presente();
+    if (!cambiaMoneda && !cambiaPrecio && !tocaCompra) {
       return;
     }
 
@@ -338,14 +393,35 @@ public class UpdateProductService {
           "EX-003", mensaje, List.of(new FieldError("currencyId", "EX-003", mensaje)));
     }
 
+    // LOS DOS IMPORTES QUE VAN A QUEDAR, no los que llegan. Con un solo precio
+    // esto ya importaba —cambiar SOLO la moneda obliga a revalidar el que nadie
+    // tocó—; con dos, el mismo caso aparece DOS VECES y el segundo es el que se
+    // olvida. El defecto NO FALLA: guarda un importe con más decimales de los
+    // que su moneda admite, y ese producto sale del catálogo con un precio que
+    // `RN-PM-007` prohíbe.
     BigDecimal precioFinal = cambiaPrecio ? peticion.price().valor() : producto.getPrice();
-    if (!ProductPrice.cabeEn(precioFinal, moneda.decimalPlaces())) {
-      String mensaje =
-          "El precio no admite más de %d decimales en %s."
-              .formatted(moneda.decimalPlaces(), moneda.code());
-      throw new ValidationException(
-          "VAL-005", mensaje, List.of(new FieldError("price", "VAL-005", mensaje)));
+    BigDecimal compraFinal =
+        tocaCompra ? peticion.purchasePrice().valor() : producto.getPurchasePrice();
+
+    verificarDecimales(precioFinal, "price", moneda);
+    verificarDecimales(compraFinal, "purchasePrice", moneda);
+  }
+
+  /**
+   * `RN-PM-007` sobre un importe, <b>con el campo del error</b>.
+   *
+   * <p>Un nulo no se mide: significa que ese importe no va a existir —el público vaciado— y un
+   * importe que no existe no tiene decimales que quepan o dejen de caber.
+   */
+  private static void verificarDecimales(BigDecimal importe, String campo, CurrencyView moneda) {
+    if (importe == null || ProductPrice.cabeEn(importe, moneda.decimalPlaces())) {
+      return;
     }
+    String mensaje =
+        "El precio no admite más de %d decimales en %s."
+            .formatted(moneda.decimalPlaces(), moneda.code());
+    throw new ValidationException(
+        "VAL-005", mensaje, List.of(new FieldError(campo, "VAL-005", mensaje)));
   }
 
   private static boolean presenteConValor(Patchable<?> campo) {

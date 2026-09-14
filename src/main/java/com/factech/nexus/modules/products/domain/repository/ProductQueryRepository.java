@@ -37,7 +37,13 @@ public interface ProductQueryRepository {
   Optional<ProductRow> findDetail(UUID id);
 
   /**
-   * La oferta que le corresponde a quien mira desde ese nivel (`RF-PM-007` · `T-03`).
+   * La oferta que le corresponde a quien mira desde <b>esa membresía</b> (`RF-PM-007` · `T-20`).
+   *
+   * <p><b>Coincidencia exacta por ORIGEN, no comparación de niveles</b> (`RN-PM-011`, reescrita el
+   * 07-09-2026). Se devuelven los upgrades cuyo {@code source_membership_id} <b>es</b> la membresía
+   * del actor, y ninguno más. Comparar niveles ofrecía a quien está en {@code ORO} un {@code
+   * PLATINO → ORO}, que no es suyo, y sobre todo <b>no podía expresar la renovación</b>: un {@code
+   * X → X} obliga a abrir la comparación a «igual», y ahí entra el salto ajeno.
    *
    * <p><b>Una sola sentencia para los dos tipos</b>, y no dos consultas: el filtro que los separa
    * es una condición, no una pregunta distinta, y dos sentencias acabarían con dos criterios de
@@ -47,19 +53,53 @@ public interface ProductQueryRepository {
    * `CA-PM-078` y `CA-PM-079`: primero los upgrades por nivel de destino, después los bots por
    * fecha de alta. Quien la consume solo tiene que separar por tipo, sin reordenar.
    *
-   * @param nivel el nivel de la membresía <b>vigente</b> del actor, o {@code null} si no tiene
-   *     ninguno. Nulo <b>no</b> significa «sin filtro»: significa que no hay peldaño desde el que
-   *     subir, y por tanto <b>cero upgrades</b> y todos los bots (`FA-001`, `FA-003`)
+   * <p><b>Que no se ofrezcan bajadas ya no lo sostiene esta consulta</b>, y conviene saberlo: lo
+   * sostiene `RN-PM-017` al <b>registrar</b>. Un producto declarado desde mi membresía no puede
+   * apuntar por debajo, porque no habría podido darse de alta.
+   *
+   * <p><b>No selecciona el precio de compra</b> (`RN-PM-024`): es el costo de NEXUS, y por esta
+   * lectura solo viaja {@code price}, el que se cobra. {@code purchasePrice} llega <b>nulo a
+   * propósito</b> en cada fila.
+   *
+   * @param membresia el identificador de la membresía <b>vigente</b> del actor, o {@code null} si
+   *     no tiene ninguna. Nulo <b>no</b> significa «sin filtro»: no coincide con ningún origen, y
+   *     por tanto <b>cero upgrades</b> y todos los bots (`FA-001`, `FA-003`)
    */
-  List<ProductRow> findOffer(Integer nivel);
+  List<ProductRow> findOffer(UUID membresia);
+
+  /**
+   * El producto que un hotlink señala, por su <b>código</b> (`RF-PM-008` · `T-04`).
+   *
+   * <p><b>Exige activo, no retirado y de alcance {@code HOTLINKS}</b> (`RN-PM-021`), y por eso
+   * devuelve vacío en los tres casos: un producto de alcance {@code TIENDA} <b>no se publica sin
+   * autenticación</b>. Es el primer sitio donde `RN-PM-019` filtra de verdad.
+   *
+   * <p><b>El código se compara sin distinguir mayúsculas</b>: un enlace se teclea.
+   *
+   * <p><b>Y tampoco selecciona el precio de compra</b> (`RN-PM-024`), igual que {@link #findOffer}.
+   * Aquí no es prudencia sino condición del requerimiento: es la única lectura del módulo <b>sin
+   * token</b>, y un costo publicado por descuido —el margen— no se puede retirar después.
+   *
+   * @return vacío si no existe o si no procede — <b>los cuatro casos iguales</b>, para que el
+   *     {@code 404} de arriba no pueda filtrarse en respuestas distintas
+   */
+  Optional<ProductRow> findPublishedByCode(String code);
+
+  /**
+   * `RN-PM-028`: ¿se puede comprar? Existe, está {@code ACTIVO} y no está retirado. Una lectura por
+   * clave, sin {@code JOIN}. La usan el alta de la reseña (`RF-PM-009`) y la lista pública
+   * (`RF-PM-012`), y los tres casos en que responde falso son indistinguibles a propósito: los dos
+   * requerimientos responden el mismo {@code 404} a los tres.
+   */
+  boolean isPurchasable(UUID productId);
 
   /**
    * Proyección de un producto del listado.
    *
-   * <p><b>{@code type} y {@code status} son texto y no sus enumerados.</b> La proyección es lo que
-   * la base devuelve; convertir a enumerado es decisión del modelo de lectura, y hacerlo aquí
-   * pondría a fallar la consulta entera —con un {@code 500}— si algún día el esquema admitiera un
-   * valor que el código todavía no conoce.
+   * <p><b>{@code type}, {@code status}, {@code scope} e {@code implementation} son texto y no sus
+   * enumerados.</b> La proyección es lo que la base devuelve; convertir a enumerado es decisión del
+   * modelo de lectura, y hacerlo aquí pondría a fallar la consulta entera —con un {@code 500}— si
+   * algún día el esquema admitiera un valor que el código todavía no conoce.
    *
    * <p><b>No lleva el motivo del retiro</b> (`CA-PM-077`): la sentencia ni siquiera lo selecciona,
    * que es lo único que hace verificable el criterio. Cuando el detalle lo necesita, entra por el
@@ -68,6 +108,20 @@ public interface ProductQueryRepository {
    * <p>{@code updatedAt} llega <b>nulo desde el listado</b> y relleno desde el detalle: una lista
    * no responde cuándo se tocó cada fila por última vez, y seleccionarlo para descartarlo sería
    * pagar por un dato que nadie lee. Es el mismo trato que {@code UserRow} da a los suyos.
+   *
+   * <h2>{@code purchasePrice} llega nulo desde las DOS lecturas públicas, y ahí no significa lo
+   * mismo</h2>
+   *
+   * <p>Desde el listado y el detalle es <b>el dato</b>: nulo significa que no se conoce el costo.
+   * Desde {@link #findOffer} y {@link #findPublishedByCode} llega <b>siempre</b> nulo porque esas
+   * consultas <b>no lo seleccionan</b>: es lo que NEXUS paga por el producto, y por ahí <b>solo
+   * viaja {@code price}</b> (`RN-PM-024`, 12-09-2026).
+   *
+   * <p>Es deliberado y no una asimetría por descuido: si esas dos lecturas trajeran el costo,
+   * estaría dentro del objeto que se serializa —a un campo de distancia de publicar el margen— y en
+   * el hotlink eso ocurre <b>sin token</b>. Quien lea una de esas filas debe usar {@code price} y
+   * no preguntar por el otro. Del 08-09-2026 al 12-09-2026 este campo se llamó {@code publicPrice}
+   * y las dos lecturas públicas sí lo seleccionaban, cuando era lo que se anunciaba.
    */
   record ProductRow(
       UUID id,
@@ -76,21 +130,41 @@ public interface ProductQueryRepository {
       String name,
       String description,
       String icon,
+      // `RN-PM-032`: SE SELECCIONA EN LAS CUATRO lecturas, la oferta y el
+      // hotlink incluidos — al revés que `purchasePrice`, que las dos públicas
+      // dejan nulo a propósito. Nulo cuando el producto no tiene video.
+      String videoUrl,
       UUID sourceMembershipId,
       String sourceMembershipCode,
       String sourceMembershipName,
       Integer sourceMembershipLevel,
+      String sourceMembershipColor,
       UUID targetMembershipId,
       String targetMembershipCode,
       String targetMembershipName,
       Integer targetMembershipLevel,
+      String targetMembershipColor,
       BigDecimal price,
+      BigDecimal purchasePrice,
       UUID currencyId,
       String currencyCode,
       int currencyDecimalPlaces,
       Integer validityDays,
+      String scope,
+      String implementation,
       String status,
       OffsetDateTime createdAt,
       OffsetDateTime updatedAt,
-      OffsetDateTime deletedAt) {}
+      OffsetDateTime deletedAt,
+      // `RN-PM-031`: el agregado de las reseñas VIVAS, calculado EN LA MISMA
+      // sentencia por un LEFT JOIN LATERAL. `ratingAverage` llega bruto —el
+      // redondeo es de `RatingSummary`— y nulo sin reseñas; `ratingCount`, cero.
+      BigDecimal ratingAverage,
+      long ratingCount) {
+
+    public com.factech.nexus.modules.products.domain.models.RatingSummary rating() {
+      return com.factech.nexus.modules.products.domain.models.RatingSummary.de(
+          ratingAverage, ratingCount);
+    }
+  }
 }

@@ -1,13 +1,19 @@
 package com.factech.nexus.modules.commissions.interfaces;
 
+import com.factech.nexus.modules.commissions.application.AssociateUserProductRequest;
 import com.factech.nexus.modules.commissions.application.DeleteCommissionRateRequest;
+import com.factech.nexus.modules.commissions.application.DissociateProductRequest;
 import com.factech.nexus.modules.commissions.application.ListUserCommissionRatesRequest;
 import com.factech.nexus.modules.commissions.application.RegisterUserCommissionRateRequest;
 import com.factech.nexus.modules.commissions.application.UpdateUserCommissionRateRequest;
 import com.factech.nexus.modules.commissions.application.UserCommissionRatePageResponse;
 import com.factech.nexus.modules.commissions.application.UserCommissionRateResponse;
+import com.factech.nexus.modules.commissions.application.UserRateProductsResponse;
+import com.factech.nexus.modules.commissions.domain.service.AssociateUserProductService;
 import com.factech.nexus.modules.commissions.domain.service.DeleteUserCommissionRateService;
+import com.factech.nexus.modules.commissions.domain.service.DissociateUserProductService;
 import com.factech.nexus.modules.commissions.domain.service.ListUserCommissionRatesService;
+import com.factech.nexus.modules.commissions.domain.service.ListUserRateProductsService;
 import com.factech.nexus.modules.commissions.domain.service.RegisterUserCommissionRateService;
 import com.factech.nexus.modules.commissions.domain.service.UpdateUserCommissionRateService;
 import io.swagger.v3.oas.annotations.Operation;
@@ -49,35 +55,56 @@ public class UserCommissionRateController {
   private final ListUserCommissionRatesService listado;
   private final UpdateUserCommissionRateService correccion;
   private final DeleteUserCommissionRateService retiro;
+  private final AssociateUserProductService asociacion;
+  private final DissociateUserProductService desasociacion;
+  private final ListUserRateProductsService productos;
 
   public UserCommissionRateController(
       RegisterUserCommissionRateService alta,
       ListUserCommissionRatesService listado,
       UpdateUserCommissionRateService correccion,
-      DeleteUserCommissionRateService retiro) {
+      DeleteUserCommissionRateService retiro,
+      AssociateUserProductService asociacion,
+      DissociateUserProductService desasociacion,
+      ListUserRateProductsService productos) {
     this.alta = alta;
     this.listado = listado;
     this.correccion = correccion;
     this.retiro = retiro;
+    this.asociacion = asociacion;
+    this.desasociacion = desasociacion;
+    this.productos = productos;
   }
 
   @Operation(
       summary = "Registrar la tasa personalizada de una persona",
       description =
           """
-          Declara que **esta persona** gana este porcentaje, **venda lo que venda**.
+          Declara que **esta persona** gana este porcentaje, y **deja la tasa
+          creada sin que rija todavía en ninguna parte**.
 
-          **Gana siempre sobre la tasa de su rol** y **sin mirar el producto**
-          (`RN-CM-004`). No se asocia a productos, y por eso **paga desde el primer
-          día**: no necesita nada más.
+          **Para ponerla en vigor hay que asociarla a productos**, con
+          `POST /api/v1/user-commission-rates/{id}/products`. Es exactamente el
+          mismo mecanismo que las tasas de rol, y desde el 11-09-2026 sin
+          excepción: `RN-CM-012` dice que **ninguna tasa rige hasta que se
+          asocia**, y esta era la única que se saltaba la regla — pagaba desde el
+          primer día sobre **todo el catálogo**.
+
+          **Lo que eso cuesta conviene saberlo**: una tasa creada y no asociada
+          **parece configurada y no paga nada**, y eso no falla — se descubre
+          liquidando.
 
           **No lleva rol, y eso tiene una consecuencia que conviene conocer**: la
           tasa sigue rigiendo aunque su titular pase a un rol que no comisiona.
           Hasta el 01-09-2026 el rol era obligatorio precisamente para impedirlo.
 
-          **Una sola viva por persona en cada fecha** (`RN-CM-006`): puede haber
-          varias consecutivas —son el historial—, pero **ningún día puede estar
-          cubierto dos veces**. Si una termina el 31, la siguiente empieza el 1.
+          **Aquí NO se comprueba el solapamiento**, y es deliberado: sin producto
+          no hay solapamiento posible. Dos tasas de la misma persona con fechas que
+          se pisan son legítimas mientras rijan en productos distintos, y
+          `RN-CM-006` se verifica **al asociar**.
+
+          **Tampoco se acota el `fixedAmount`**: una tasa sin asociar no conoce el
+          precio de nada (`RN-CM-018`). El tope lo pone `RN-CM-019` al asociarla.
 
           `validFrom` es obligatorio; sin `validTo`, rige indefinidamente.
           """)
@@ -85,7 +112,6 @@ public class UserCommissionRateController {
     @ApiResponse(responseCode = "201", description = "Tasa registrada"),
     @ApiResponse(responseCode = "400", description = "Datos inválidos"),
     @ApiResponse(responseCode = "403", description = "Sin permiso"),
-    @ApiResponse(responseCode = "409", description = "Se solapa con otra tasa viva de esa persona"),
     @ApiResponse(responseCode = "422", description = "La persona no existe")
   })
   @PostMapping
@@ -110,6 +136,18 @@ public class UserCommissionRateController {
 
           **Filtrar por persona devuelve las declaradas PARA esa persona**, no la que
           le aplica hoy sobre un producto.
+
+          **Filtrar por producto (`productId`) devuelve las ASOCIADAS a ese producto**,
+          de cualquier persona: es la respuesta a «quién tiene excepción aquí». Se
+          combina con los demás filtros — persona y producto juntos responden
+          «¿tiene esta persona excepción en este producto?», con su historial. Un
+          producto donde nadie tiene excepción devuelve la página vacía, y **no
+          significa que no comisione**: significa que todos cobran por su rol.
+
+          Cada fila trae **`associatedProducts`**, sobre cuántos productos rige.
+          **Cero significa que esa excepción no paga nada** — es el estado en que
+          nace, hasta que se asocia. Los productos van contados y no listados; la
+          lista está en `GET /api/v1/user-commission-rates/{id}/products`.
           """)
   @ApiResponses({
     @ApiResponse(responseCode = "200", description = "Página de tasas personalizadas"),
@@ -140,13 +178,24 @@ public class UserCommissionRateController {
 
           **La persona y el inicio de vigencia no se corrigen**, y enviarlos devuelve
           `400`.
+
+          **Si la tasa está asociada y cambia de valor, se revisa cada producto**:
+          un `fixedAmount` que supere el precio de alguno se rechaza con `409`
+          (`EX-007`), y sobre un producto **gratuito** (precio cero) solo cabe el
+          importe fijo (`RN-CM-020`, 14-09-2026): dejarla de porcentaje se rechaza
+          con `409` (`EX-008`), y el fijo entra del importe que sea.
           """)
   @ApiResponses({
     @ApiResponse(responseCode = "200", description = "Tasa corregida"),
     @ApiResponse(responseCode = "400", description = "Datos inválidos o campos no corregibles"),
     @ApiResponse(responseCode = "403", description = "Sin permiso"),
     @ApiResponse(responseCode = "404", description = "No existe, o está retirada"),
-    @ApiResponse(responseCode = "409", description = "La vigencia resultante se solapa")
+    @ApiResponse(
+        responseCode = "409",
+        description =
+            "La vigencia resultante se solapa (`EX-006`), el valor pasaría del precio de algún"
+                + " producto asociado (`EX-007`), o dejaría de porcentaje una tasa asociada a un"
+                + " producto gratuito (`EX-008`)")
   })
   @PatchMapping("/{id}")
   @PreAuthorize("hasAuthority('commissions:update')")
@@ -183,5 +232,123 @@ public class UserCommissionRateController {
   public void retirar(
       @PathVariable UUID id, @RequestBody(required = false) DeleteCommissionRateRequest peticion) {
     retiro.delete(id, peticion);
+  }
+
+  @Operation(
+      summary = "Asociar una tasa personalizada a un producto",
+      description =
+          """
+          **Es la operación que pone la tasa en vigor.** Hasta que se asocia no
+          paga nada a nadie (`RN-CM-012`) — igual que una tasa de rol, y desde el
+          11-09-2026 sin excepción: hasta esa fecha la personalizada pagaba desde
+          el primer día sobre **todo el catálogo**.
+
+          **Un producto por petición, y admite varios en llamadas sucesivas.**
+          Donde esté asociada gana sobre la tasa del rol de esa persona; donde no,
+          esa persona cobra por su rol como cualquier otra.
+
+          **Devuelve la lista COMPLETA de productos** tras la operación, no solo el
+          que se acaba de añadir: quien asocia el tercero tiene que poder ver los
+          tres sin una segunda llamada.
+
+          **`RN-CM-006` se comprueba aquí**: esa persona no puede tener dos tasas
+          vivas que cubran el mismo día **sobre el mismo producto**. Sobre
+          productos distintos sí, y es lo normal. La comprobación se hace **al
+          asociar y no al registrar**, porque sin producto no hay solapamiento
+          posible.
+
+          **Un `fixedAmount` no puede superar el precio del producto**
+          (`RN-CM-019`). Es el mismo tope que las de rol, y es **individual, no una
+          suma**: las personalizadas de personas distintas sobre el mismo producto
+          son alternativas entre sí, no cosas que se paguen a la vez. **Sobre un
+          producto GRATUITO (precio cero) ese tope no aplica y solo cabe el importe
+          fijo** (`RN-CM-020`, 14-09-2026): un `fixedAmount` entra del importe que
+          sea y un porcentaje se rechaza con `409` (`EX-008`).
+
+          El producto debe existir y **no estar retirado**: configurar lo que nadie
+          puede vender no falla nunca y no sirve nunca.
+          """)
+  @ApiResponses({
+    @ApiResponse(responseCode = "201", description = "Asociada, con la lista completa"),
+    @ApiResponse(responseCode = "400", description = "Producto ausente"),
+    @ApiResponse(responseCode = "403", description = "Sin permiso"),
+    @ApiResponse(responseCode = "404", description = "La tasa no existe o está retirada"),
+    @ApiResponse(
+        responseCode = "409",
+        description =
+            "Ya estaba asociada, se solapa con otra tasa viva de esa persona en ese producto, el"
+                + " producto está retirado, pagaría más del precio del producto (`EX-007`), o es un"
+                + " porcentaje sobre un producto gratuito (`EX-008`)"),
+    @ApiResponse(responseCode = "422", description = "El producto no existe")
+  })
+  @PostMapping("/{id}/products")
+  @ResponseStatus(HttpStatus.CREATED)
+  @PreAuthorize("hasAuthority('commissions:update')")
+  public UserRateProductsResponse asociar(
+      @PathVariable UUID id, @Valid @RequestBody AssociateUserProductRequest peticion) {
+    return asociacion.associate(id, peticion);
+  }
+
+  @Operation(
+      summary = "Consultar sobre qué productos rige una tasa personalizada",
+      description =
+          """
+          Devuelve los productos a los que está asociada esa tasa, **con la misma
+          forma que devuelven asociar y desasociar**: la lista completa, resuelta con
+          `id`, `code` y `name` y ordenada por código.
+
+          **Una lista vacía significa que esa excepción no paga nada** — está
+          declarada y no rige sobre ningún producto (`RN-CM-012`). Es la lectura que
+          revela una personalizada a medio configurar.
+
+          **No comprueba que la tasa exista**: con un identificador que no es de
+          nada responde `200` y lista vacía, igual que su gemela de rol en
+          `GET /api/v1/commission-rates/{id}/products`. Distinguir «no existe» de
+          «no tiene asociaciones» costaría una consulta para no cambiar lo que el
+          cliente hace después.
+
+          Para la pregunta inversa —qué personas tienen excepción en un producto—
+          use `GET /api/v1/user-commission-rates?productId=`.
+          """)
+  @ApiResponses({
+    @ApiResponse(responseCode = "200", description = "Los productos de la tasa"),
+    @ApiResponse(responseCode = "403", description = "Sin permiso")
+  })
+  @GetMapping("/{id}/products")
+  @PreAuthorize("hasAuthority('commissions:read')")
+  public UserRateProductsResponse productosDeLaTasa(@PathVariable UUID id) {
+    return productos.byRate(id);
+  }
+
+  @Operation(
+      summary = "Retirar la asociación de una tasa personalizada con un producto",
+      description =
+          """
+          **Deja de regir ahí, y la tasa sigue viva.** Puede volver a asociarse a
+          ese producto o a otro; retirarla es otra operación.
+
+          **El motivo es obligatorio.** La fila se borra de verdad —una asociación
+          es configuración vigente, no un hecho del pasado— de modo que este texto
+          es **el único sitio** donde quedará escrito por qué esa persona dejó de
+          tener su excepción en ese producto.
+
+          **`404` y no `409` si ya no estaba**: con el borrado físico no queda nada
+          que distinga «nunca existió» de «ya se borró», y un `409` afirmaría algo
+          que no se sabe.
+          """)
+  @ApiResponses({
+    @ApiResponse(responseCode = "204", description = "Desasociada"),
+    @ApiResponse(responseCode = "400", description = "Motivo ausente, en blanco o demasiado largo"),
+    @ApiResponse(responseCode = "403", description = "Sin permiso"),
+    @ApiResponse(responseCode = "404", description = "Esa tasa no está asociada a ese producto")
+  })
+  @PostMapping("/{id}/products/{productId}/deletion")
+  @ResponseStatus(HttpStatus.NO_CONTENT)
+  @PreAuthorize("hasAuthority('commissions:update')")
+  public void desasociar(
+      @PathVariable UUID id,
+      @PathVariable UUID productId,
+      @RequestBody(required = false) DissociateProductRequest peticion) {
+    desasociacion.dissociate(id, productId, peticion);
   }
 }

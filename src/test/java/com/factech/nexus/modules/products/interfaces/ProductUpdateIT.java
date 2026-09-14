@@ -56,7 +56,7 @@ class ProductUpdateIT extends IntegrationTestBase {
     // El SUELO de la cadena: es el origen de todo upgrade que se siembre
     // aqui. Va encadenado bajo `oro` porque `uq_memberships_parent` es
     // UNIQUE NULLS NOT DISTINCT — dos raices revientan en el COMMIT.
-    free = membresia("FREE", "Free", 2, oro);
+    free = membresia("BECA", "Beca", 2, oro);
     producto = upgrade("UPGRADE_ORO", "Ascenso a Oro", oro, "Sube al nivel oro.", 30);
   }
 
@@ -288,13 +288,180 @@ class ProductUpdateIT extends IntegrationTestBase {
   }
 
   @Test
-  @DisplayName("`VAL-004` — un precio de cero o negativo se rechaza")
-  void precioNoPositivo() throws Exception {
-    mvc.perform(corregir(producto, "{\"price\":0}"))
+  @DisplayName("`VAL-004` — un precio NEGATIVO se rechaza. El cero se admite desde el 08-09-2026")
+  void precioNegativo() throws Exception {
+    mvc.perform(corregir(producto, "{\"price\":-1}"))
         .andExpect(status().isBadRequest())
         .andExpect(jsonPath("$.errors[0].code").value("VAL-004"));
 
-    mvc.perform(corregir(producto, "{\"price\":-1}")).andExpect(status().isBadRequest());
+    // `RN-PM-006` dejó de exigir «mayor que cero» con la renovación: un
+    // `BECA → BECA` es un producto legítimo que vale cero.
+    mvc.perform(corregir(producto, "{\"price\":0}"))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.price").value(0));
+  }
+
+  // ---------------------------------------------------------------------------
+  // El precio de compra (`RN-PM-023`) — 08-09-2026
+  // ---------------------------------------------------------------------------
+
+  @Test
+  @DisplayName("`CA-PM-153` — corregir el precio de compra no toca el del sistema, y se audita")
+  void corrigeElPrecioDeCompra() throws Exception {
+    mvc.perform(corregir(producto, "{\"purchasePrice\":59.99}"))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.price").value(49.99))
+        .andExpect(jsonPath("$.purchasePrice").value(59.99));
+
+    assertThat(ultimoCambio()).contains("purchase_price").contains("59.99");
+  }
+
+  @Test
+  @DisplayName("`CA-PM-154` — el nulo explícito VACÍA el precio de compra, y no lo pone a cero")
+  void vaciaElPrecioDeCompra() throws Exception {
+    mvc.perform(corregir(producto, "{\"purchasePrice\":59.99}")).andExpect(status().isOk());
+
+    mvc.perform(corregir(producto, "{\"purchasePrice\":null}"))
+        .andExpect(status().isOk())
+        // El costo pasa a «no se conoce». Ponerlo a cero lo habría dejado
+        // diciendo que no costó nada, que es lo contrario.
+        .andExpect(jsonPath("$.purchasePrice").value(Matchers.nullValue()));
+
+    assertThat(precioDeCompraDe(producto)).isNull();
+  }
+
+  @Test
+  @DisplayName("`CA-PM-155` — el precio del sistema NO admite vaciarse, al revés que el de compra")
+  void elPrecioDelSistemaNoSeVacia() throws Exception {
+    mvc.perform(corregir(producto, "{\"price\":null}"))
+        .andExpect(status().isBadRequest())
+        .andExpect(jsonPath("$.errors[0].code").value("VAL-004"))
+        .andExpect(jsonPath("$.errors[0].field").value("price"));
+
+    // Y no se aplica nada: la columna es `NOT NULL` y «bórralo» no tiene
+    // ningún estado al que llevar el producto.
+    assertThat(precioDe(producto)).isEqualByComparingTo("49.99");
+  }
+
+  @Test
+  @DisplayName("`CA-PM-156` — corregir el precio de compra a CERO es un cambio, no un vaciado")
+  void elPrecioDeCompraACero() throws Exception {
+    mvc.perform(corregir(producto, "{\"purchasePrice\":0}"))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.purchasePrice").value(0));
+
+    assertThat(ultimoCambio()).contains("purchase_price");
+  }
+
+  @Test
+  @DisplayName(
+      "`CA-PM-157` — cambiar SOLO la moneda mide también el precio de compra que nadie tocó")
+  void elPrecioDeCompraContraLaMonedaNueva() throws Exception {
+    String pesos = monedaSinDecimales();
+
+    // El del sistema se deja en un importe que SÍ cabe en una moneda de cero
+    // decimales, y el de compra en uno que no. Con dos importes, el caso que se
+    // olvida es este: se valida el que llega y se deja pasar el otro.
+    mvc.perform(corregir(producto, "{\"price\":50,\"purchasePrice\":59.99}"))
+        .andExpect(status().isOk());
+
+    mvc.perform(corregir(producto, "{\"currencyId\":\"" + pesos + "\"}"))
+        .andExpect(status().isBadRequest())
+        .andExpect(jsonPath("$.errors[0].code").value("VAL-005"))
+        // Y el rechazo NOMBRA el campo que no cabe: el del sistema sí cabía.
+        .andExpect(jsonPath("$.errors[0].field").value("purchasePrice"));
+
+    // El defecto que esto evita NO FALLA: guardaría un importe con más
+    // decimales de los que su moneda admite.
+    assertThat(precioDeCompraDe(producto)).isEqualByComparingTo("59.99");
+  }
+
+  // ---------------------------------------------------------------------------
+  // El enlace del video (`RN-PM-032`) — 14-09-2026
+  // ---------------------------------------------------------------------------
+
+  @Test
+  @DisplayName("`CA-PM-225` — el enlace del video se corrige, también en un BOT, y se audita")
+  void corrigeElVideo() throws Exception {
+    // En un bot a propósito: es donde el icono se rechaza (`CA-PM-100`) y el
+    // video no — no hay condición cruzada que lo acompañe.
+    UUID asesoria = bot("ASESORIA", "Asesoría", null);
+
+    mvc.perform(corregir(asesoria, "{\"videoUrl\":\"  https://vimeo.com/123456  \"}"))
+        .andExpect(status().isOk())
+        // Recortado y NADA MÁS: ni minúsculas ni barra final.
+        .andExpect(jsonPath("$.videoUrl").value("https://vimeo.com/123456"));
+
+    mvc.perform(corregir(asesoria, "{\"videoUrl\":\"https://Vimeo.com/999/\"}"))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.videoUrl").value("https://Vimeo.com/999/"));
+
+    assertThat(ultimoCambio())
+        .contains("video_url")
+        .contains("https://vimeo.com/123456")
+        .contains("https://Vimeo.com/999/");
+  }
+
+  @Test
+  @DisplayName(
+      "`CA-PM-226` — el nulo explícito Y la cadena vacía VACÍAN el video; el mismo enlace no es"
+          + " cambio")
+  void vaciaElVideo() throws Exception {
+    mvc.perform(corregir(producto, "{\"videoUrl\":\"https://vimeo.com/123456\"}"))
+        .andExpect(status().isOk());
+
+    // El mismo enlace otra vez no es un cambio: `audit_change_log` no crece.
+    long antes = eventosDe(producto);
+    mvc.perform(corregir(producto, "{\"videoUrl\":\"https://vimeo.com/123456\"}"))
+        .andExpect(status().isOk());
+    assertThat(eventosDe(producto)).isEqualTo(antes);
+
+    mvc.perform(corregir(producto, "{\"videoUrl\":null}"))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.videoUrl").value(Matchers.nullValue()));
+    assertThat(videoDe(producto)).isNull();
+
+    // Y `""` es un vaciado, no un enlace con forma inválida: quien borra el
+    // contenido del campo en un formulario está vaciando.
+    mvc.perform(corregir(producto, "{\"videoUrl\":\"https://vimeo.com/123456\"}"))
+        .andExpect(status().isOk());
+    mvc.perform(corregir(producto, "{\"videoUrl\":\"   \"}"))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.videoUrl").value(Matchers.nullValue()));
+    assertThat(videoDe(producto)).isNull();
+  }
+
+  @Test
+  @DisplayName(
+      "`CA-PM-227` — un enlace sin forma se rechaza con VAL-009, nombra `videoUrl` y NO aplica lo"
+          + " demás")
+  void videoConFormaInvalidaNoAplicaNada() throws Exception {
+    mvc.perform(
+            corregir(
+                producto, "{\"name\":\"Otro nombre\",\"videoUrl\":\"www.youtube.com/watch?v=x\"}"))
+        .andExpect(status().isBadRequest())
+        .andExpect(jsonPath("$.errors[0].code").value("VAL-009"))
+        .andExpect(jsonPath("$.errors[0].field").value("videoUrl"));
+
+    // El nombre válido que venía en la misma petición no se aplicó.
+    assertThat(nombreDe(producto)).isEqualTo("Ascenso a Oro");
+    assertThat(videoDe(producto)).isNull();
+  }
+
+  private String videoDe(UUID id) {
+    return jdbc.queryForObject(
+        "SELECT video_url FROM products WHERE id = CAST(? AS uuid)", String.class, id.toString());
+  }
+
+  /** El `changes` del último evento de corrección de este producto. */
+  private String ultimoCambio() {
+    return jdbc.queryForObject(
+        """
+        SELECT changes::text FROM audit_change_log
+         WHERE module = 'PM' AND entity = 'products' AND action = 'UPDATE'
+         ORDER BY occurred_at DESC LIMIT 1
+        """,
+        String.class);
   }
 
   @Test
@@ -398,6 +565,62 @@ class ProductUpdateIT extends IntegrationTestBase {
     assertThat(nombreDe(producto)).isEqualTo("Ascenso a Oro");
   }
 
+  @Test
+  @DisplayName("`CA-PM-119` — corrige alcance e implementación, y el diff registra antes y después")
+  void corrigeAlcanceEImplementacion() throws Exception {
+    mvc.perform(corregir(producto, "{\"scope\":\"HOTLINKS\",\"implementation\":\"AUTOMATICA\"}"))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.scope").value("HOTLINKS"))
+        .andExpect(jsonPath("$.implementation").value("AUTOMATICA"));
+
+    // Van del lado CORREGIBLE porque ninguna define qué derecho otorga el
+    // producto: una dice dónde se ve y la otra quién lo entrega.
+    assertThat(ultimoCambio(producto))
+        .contains("scope")
+        .contains("TIENDA")
+        .contains("HOTLINKS")
+        .contains("implementation")
+        .contains("AUTOMATICA");
+  }
+
+  @Test
+  @DisplayName("`CA-PM-120` — el nulo explícito NO las vacía: se rechaza, al revés que el icono")
+  void nulaExplicitaSeRechaza() throws Exception {
+    mvc.perform(corregir(producto, "{\"scope\":null}"))
+        .andExpect(status().isBadRequest())
+        .andExpect(jsonPath("$.errors[0].field").value("scope"));
+
+    mvc.perform(corregir(producto, "{\"implementation\":null}"))
+        .andExpect(status().isBadRequest())
+        .andExpect(jsonPath("$.errors[0].field").value("implementation"));
+  }
+
+  @Test
+  @DisplayName("`CA-PM-121` — el valor fuera de dominio se rechaza y NO aplica lo demás")
+  void fueraDeDominioNoAplicaNada() throws Exception {
+    mvc.perform(corregir(producto, "{\"name\":\"Otro nombre\",\"scope\":\"TIENDAS\"}"))
+        .andExpect(status().isBadRequest());
+
+    // `CA-PM-034` con otro disparador: ningún rechazo deja el producto a medias.
+    assertThat(
+            jdbc.queryForObject(
+                "SELECT name FROM products WHERE id = CAST(? AS uuid)",
+                String.class,
+                producto.toString()))
+        .isEqualTo("Ascenso a Oro");
+  }
+
+  @Test
+  @DisplayName("`CA-PM-122` — enviar el MISMO alcance no cambia nada y no registra evento")
+  void elMismoValorNoEsCambio() throws Exception {
+    long antes = eventosDe(producto);
+
+    mvc.perform(corregir(producto, "{\"scope\":\"TIENDA\",\"implementation\":\"MANUAL\"}"))
+        .andExpect(status().isOk());
+
+    assertThat(eventosDe(producto)).as("`audit_change_log` no debía crecer").isEqualTo(antes);
+  }
+
   // ---------------------------------------------------------------------------
 
   private MockHttpServletRequestBuilder corregir(UUID id, String cuerpo) {
@@ -414,6 +637,20 @@ class ProductUpdateIT extends IntegrationTestBase {
   private String nombreDe(UUID id) {
     return jdbc.queryForObject(
         "SELECT name FROM products WHERE id = CAST(? AS uuid)", String.class, id.toString());
+  }
+
+  private java.math.BigDecimal precioDe(UUID id) {
+    return jdbc.queryForObject(
+        "SELECT price FROM products WHERE id = CAST(? AS uuid)",
+        java.math.BigDecimal.class,
+        id.toString());
+  }
+
+  private java.math.BigDecimal precioDeCompraDe(UUID id) {
+    return jdbc.queryForObject(
+        "SELECT purchase_price FROM products WHERE id = CAST(? AS uuid)",
+        java.math.BigDecimal.class,
+        id.toString());
   }
 
   private String descripcionDe(UUID id) {
@@ -520,10 +757,10 @@ class ProductUpdateIT extends IntegrationTestBase {
     // deriva del destino en lugar de ser un parametro mas — nunca puede
     // quedar uno sin el otro, que es lo que `ck_products_type_target` mira.
     jdbc.update(
-        "INSERT INTO products (id, code, type, name, description, source_membership_id,"
+        "INSERT INTO products (scope, implementation, id, code, type, name, description, source_membership_id,"
             + " target_membership_id, price,"
             + " currency_id, validity_days, status, created_at, updated_at)"
-            + " VALUES (CAST(? AS uuid), ?, ?, ?, CAST(? AS text),"
+            + " VALUES ('TIENDA', 'MANUAL', CAST(? AS uuid), ?, ?, ?, CAST(? AS text),"
             + " CAST(? AS uuid), CAST(? AS uuid), 49.99,"
             + " CAST(? AS uuid), CAST(? AS integer), 'INACTIVO', ?, ?)",
         id.toString(),

@@ -43,32 +43,125 @@ class EndpointPermissionsIT extends IntegrationTestBase {
    * persona autenticada —o para nadie autenticado, si además es público—, y el motivo queda escrito
    * al lado. Es la diferencia entre una excepción y un olvido.
    */
+  // `Map.ofEntries` Y NO `Map.of`: aquella se acaba en diez pares, y la lista
+  // llegó a once el 05-09-2026 con las dos rutas de `RF-MV-008`. El límite no
+  // avisa con un mensaje útil — dice que no hay método aplicable— y perder el
+  // rato con eso una segunda vez no hace falta.
   private static final Map<String, String> SIN_PERMISO_A_PROPOSITO =
-      Map.of(
-          "POST /api/v1/auth/password-recovery",
-          "Público por definición (`RF-SP-040`): quien olvidó su contraseña no puede"
-              + " autenticarse para pedir recuperarla",
-          "POST /api/v1/auth/password-recovery/confirmation",
-          "Público a propósito (`RF-SP-040`): lo que autoriza es el permiso temporal que la"
-              + " solicitud envió al correo de la cuenta, no un token",
-          "POST /api/v1/auth/login",
-          "Público por definición: no puede exigirse credencial para obtener una credencial",
-          "POST /api/v1/auth/refresh",
-          "Público por definición: quien renueva no porta todavía un token de acceso válido",
-          "POST /api/v1/auth/logout",
-          "Público a propósito (`RF-SP-036`): exigir token vigente impediría cerrar la sesión"
-              + " justo cuando más falta hace, que es cuando se sospecha que la robaron",
-          "GET /api/v1/users/me",
-          "El actor y solo el actor (`RF-SP-039`): no admite parámetro, de modo que no hay"
-              + " nada que autorizar más allá de estar autenticado",
-          "PATCH /api/v1/users/me",
-          "El actor y solo el actor (`RF-SP-044`): toma la persona del token y no admite"
-              + " identificador, de modo que no hay nadie más a quien pudiera editar. Editar la"
-              + " ficha ajena es `RF-SP-027`, y esa sí exige `users:update`",
-          "POST /api/v1/auth/password",
-          "La propia contraseña (`RF-SP-037` §5): «no hay permiso asociado más allá de estar"
-              + " autenticado. Nadie cambia la contraseña de otro por este camino». Cambiar la"
-              + " ajena es `RF-SP-038`, y esa sí exige `users:reset-password`");
+      Map.ofEntries(
+          Map.entry(
+              "POST /api/v1/auth/registration",
+              "PÚBLICO POR DEFINICIÓN (`RF-SP-045`, 09-09-2026): quien se registra no tiene cuenta con"
+                  + " la que autenticarse. Es el PRIMER endpoint público que ESCRIBE, y lo que"
+                  + " sostiene que no sea un agujero no es un token: la cuenta nace en"
+                  + " `FTD_PENDIENTE` —autentica y no opera— y el origen está acotado por"
+                  + " `RateLimitFilter`"),
+          Map.entry(
+              "GET /api/v1/countries",
+              "PÚBLICO POR DECISIÓN desde el 08-09-2026: el formulario de registro elige país"
+                  + " antes de que exista la cuenta (`RF-SP-045`). Es una lista de opciones y no"
+                  + " identifica a nadie. `countries:read` sigue sembrado y deja de gobernar esta"
+                  + " lectura; el `POST` y el `PATCH` de países NO se abren"),
+          Map.entry(
+              "GET /api/v1/document-types",
+              "PÚBLICO POR DECISIÓN desde el 08-09-2026, por lo mismo que el de países: sin él,"
+                  + " el formulario de registro no tiene de dónde sacar el tipo de documento"),
+          Map.entry(
+              "GET /api/v1/brokers",
+              "PÚBLICO POR DECISIÓN desde el 08-09-2026 (`RF-SP-052`), por lo mismo que los otros"
+                  + " dos catálogos. `brokers:read` nació el mismo día y quedó sin endpoint que lo"
+                  + " exija, como `products:hotlink`"),
+          Map.entry(
+              "GET /api/v1/users/{id}/broker-accounts",
+              "SIN @PreAuthorize A PROPÓSITO (`RF-SP-055`, 10-09-2026), y es el primero de todo el"
+                  + " sistema por este motivo: la autorización no es una función del actor sino"
+                  + " DEL PAR (actor, persona consultada) —`broker-accounts:read`, o ser su"
+                  + " SUPERIOR COMERCIAL VIGENTE (`RN-SP-046`)—, y expresarla en SpEL metería una"
+                  + " consulta a la base dentro de una anotación, donde no se prueba ni se depura."
+                  + " Vive en `GetBrokerAccountsService`. Quien no es ninguna de las dos cosas"
+                  + " recibe `404`, indistinguible del de una persona inexistente: con `403`,"
+                  + " cualquier vendedor podría recorrer identificadores y saber cuáles son"
+                  + " personas reales"),
+          Map.entry(
+              "GET /api/v1/users/me/team/broker-accounts",
+              "Solo estar autenticado (`RF-SP-056`, 10-09-2026): NO ADMITE DECIR SOBRE QUIÉN se"
+                  + " pregunta —el equipo es el del actor—, de modo que no hay alcance que"
+                  + " autorizar. `broker-accounts:read` NO la gobierna: quien lo tenga ve las"
+                  + " cuentas de cualquiera por `GET /api/v1/users/{id}/broker-accounts`, persona"
+                  + " a persona, y no el equipo ajeno de una vez. Es el mismo criterio que"
+                  + " `GET /api/v1/movements/mine`"),
+          Map.entry(
+              "POST /api/v1/auth/password-recovery",
+              "Público por definición (`RF-SP-040`): quien olvidó su contraseña no puede"
+                  + " autenticarse para pedir recuperarla"),
+          Map.entry(
+              "POST /api/v1/auth/password-recovery/confirmation",
+              "Público a propósito (`RF-SP-040`): lo que autoriza es el permiso temporal que la"
+                  + " solicitud envió al correo de la cuenta, no un token"),
+          Map.entry(
+              "POST /api/v1/auth/login",
+              "Público por definición: no puede exigirse credencial para obtener una credencial"),
+          Map.entry(
+              "POST /api/v1/auth/refresh",
+              "Público por definición: quien renueva no porta todavía un token de acceso válido"),
+          Map.entry(
+              "POST /api/v1/auth/logout",
+              "Público a propósito (`RF-SP-036`): exigir token vigente impediría cerrar la sesión"
+                  + " justo cuando más falta hace, que es cuando se sospecha que la robaron"),
+          Map.entry(
+              "GET /api/v1/users/me",
+              "El actor y solo el actor (`RF-SP-039`): no admite parámetro, de modo que no hay"
+                  + " nada que autorizar más allá de estar autenticado"),
+          Map.entry(
+              "PATCH /api/v1/users/me",
+              "El actor y solo el actor (`RF-SP-044`): toma la persona del token y no admite"
+                  + " identificador, de modo que no hay nadie más a quien pudiera editar. Editar"
+                  + " la ficha ajena es `RF-SP-027`, y esa sí exige `users:update`"),
+          Map.entry(
+              "POST /api/v1/auth/password",
+              "La propia contraseña (`RF-SP-037` §5): «no hay permiso asociado más allá de estar"
+                  + " autenticado. Nadie cambia la contraseña de otro por este camino». Cambiar la"
+                  + " ajena es `RF-SP-038`, y esa sí exige `users:reset-password`"),
+          Map.entry(
+              "GET /api/v1/payment-methods",
+              "PÚBLICO POR DECISIÓN desde el 09-09-2026 (`RF-MV-009`, `RN-MV-024`): el formulario"
+                  + " de registro por enlace elige CON QUÉ SE PAGA antes de que exista la cuenta,"
+                  + " igual que elige país, tipo de documento y broker. Ya no exigía permiso"
+                  + " —`movements:read` gobierna VER VENTAS y está reservado al"
+                  + " superadministrador—, de modo que abrirlo NO DEJA NINGÚN PERMISO HUÉRFANO:"
+                  + " es la diferencia con los tres catálogos de `SP`. Lo que sostiene que no"
+                  + " publique nada es el predicado de la consulta, que lleva los DOS EJES —activo"
+                  + " y visibilidad `PUBLICO`—: el anónimo recibe exactamente lo que recibía el"
+                  + " autenticado"),
+          Map.entry(
+              "GET /api/v1/movements/mine",
+              "Los movimientos del actor y de nadie más (`RF-MV-008`): no admite decir sobre"
+                  + " quién se pregunta, de modo que no hay alcance que autorizar. Exigir"
+                  + " `movements:read` obligaría a concederle a todo vendedor un permiso de"
+                  + " ADMINISTRACIÓN que le daría de paso las ventas de sus compañeros — y a un"
+                  + " cliente, las de todo el mundo"),
+          Map.entry(
+              "GET /api/v1/hotlinks/{username}/{code}",
+              "PÚBLICO POR DECISIÓN y no por definición (`RF-PM-008`): un enlace se abre antes de"
+                  + " registrarse. Es el primero del sistema que publica el nombre de una persona,"
+                  + " y su alcance está acotado dos veces — solo productos activos de alcance"
+                  + " HOTLINKS (`RN-PM-021`) y solo el nombre de quien es fuerza comercial"
+                  + " (`RN-PM-022`). El recorrido a ciegas lo acota el límite de tasa por origen"),
+          Map.entry(
+              "GET /api/v1/products/{id}/comments",
+              "PÚBLICO POR DECISIÓN (`RF-PM-012`, 14-09-2026): la pantalla del hotlink necesita"
+                  + " las reseñas y no tiene con qué autenticarse. Es la SEGUNDA ruta pública que"
+                  + " publica el nombre de una persona, y hereda del hotlink sus dos decisiones —"
+                  + " del autor solo nombre y apellido (`RN-PM-030`) y 404 uniforme para el producto"
+                  + " inexistente, inactivo o retirado (`RN-PM-028`)—. Solo el GET: el POST de la"
+                  + " misma ruta, `/comments/mine` y el PATCH/DELETE de `/comments/{commentId}`"
+                  + " exigen `products:comment`. La cota de tasa se cuenta por la familia"),
+          Map.entry(
+              "GET /api/v1/movements/mine/{id}",
+              "El detalle de lo propio (`RF-MV-008`): el alcance va dentro de la consulta y un"
+                  + " movimiento ajeno responde `404`, igual que uno inexistente. Sin esta ruta el"
+                  + " listado no llevaría a ninguna parte, porque `RF-MV-007` exige"
+                  + " `movements:read`"));
 
   // `GET /api/v1/products/available` (`RF-PM-007`) figuraba aquí hasta el
   // 02-09-2026: exigía solo estar autenticado. Desde `products:sale`

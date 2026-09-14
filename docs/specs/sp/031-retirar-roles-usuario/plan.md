@@ -12,6 +12,16 @@
 
 ---
 
+!!! warning "Enmendado el 05-09-2026 — se retira la cascada de la membresía"
+
+    `RN-SP-015` queda **retirada** (`requirements/sp.md` v1.36.0). Decía que quedarse sin ningún rol `CONSUMIDOR` **retiraba la membresía en la misma transacción**, y este plan la implementaba con la escritura que compartía con `RF-SP-033`.
+
+    **Con `RN-SP-018` reescrita esa cascada no puede existir**: dejaría sin nivel a alguien que debe tener uno.
+
+    **Lo que se hace en su lugar es NO HACER NADA, y es una decisión.** Quien deja de ser consumidor **conserva la membresía que tenía**, incluida una comprada. Bajarla al suelo sería quitarle algo que pagó, y ninguna regla lo pide. `FA-003` deja de existir como caso.
+
+    **La cascada del superior comercial se queda.** `RN-SP-019` no se tocó: retirar el último rol `VENDEDOR` **sigue cerrando** el superior en la misma transacción y bajo el mismo identificador de correlación. Las dos cascadas eran simétricas y ahora solo hay una — leer este plan esperando la otra es el error que esta nota existe para evitar.
+
 ## 1. Enfoque
 
 Es la operación inversa de `RF-SP-030` y **no es su simétrica**. Conceder solo amplía, y ampliar nunca deja nada inconsistente. Retirar sí, y por eso este requerimiento tiene tres reglas que la asignación no necesita y una decisión de sesión que allí se resolvió al revés.

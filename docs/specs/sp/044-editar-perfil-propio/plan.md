@@ -10,7 +10,16 @@
 | Fecha de aprobación | 31-08-2026 |
 | Spec | [`spec.md`](spec.md) |
 
+| Reabierto el | 10-09-2026 — entra `companyPhone`, y **sí se puede vaciar**: es opcional, al revés que el personal. Tampoco exige contraseña actual (Art. I.7) |
 ---
+
+!!! important "Enmienda del 08-09-2026 — el contacto entra y el documento no"
+
+    `RN-SP-037` reparte los siete campos nuevos de `users` entre dos operaciones, y la línea **no es técnica**: el **contacto** —teléfono, dirección, complemento y ciudad— lo corrige el titular desde aquí, y la **identidad** —tipo y número de documento, y el país— solo un administrador desde `RF-SP-027`.
+
+    **Los dos teléfonos no exigen contraseña actual**, al contrario que el correo. La condición que este plan ya usaba sigue siendo la misma y basta con leerla: la contraseña se exige cuando el campo **es una vía de acceso**, porque cambiarlo altera cómo se entra y cómo se recupera la cuenta. El teléfono hoy no lo es. **Y la condición para que deje de ser así queda escrita**: el día que exista verificación por SMS o segundo factor telefónico, el teléfono pasa a la familia del correo y esta decisión se revisa.
+
+    **El documento y el país devuelven `400` por propiedad desconocida** y no se ignoran en silencio, que es el mismo trato que este cuerpo ya da al nombre de usuario: sin ese rechazo, quien los enviara creería haberlos cambiado.
 
 ## 1. Enfoque
 

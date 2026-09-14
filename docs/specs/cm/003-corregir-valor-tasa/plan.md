@@ -5,7 +5,8 @@
 | Requerimiento | `RF-CM-003` |
 | Especificación | [`spec.md`](spec.md) |
 | `spec.md` aprobada el | 03-09-2026 |
-| Versión | 0.4.0 |
+| Versión | 0.5.0 |
+| Reabierto el | 11-09-2026 — corregir una personalizada **no puede cambiar su producto**, igual que no puede cambiar la persona ni el inicio de vigencia (Art. I.7) |
 | Estado | **Aprobado** |
 | Autor | Responsable técnico |
 | Aprobado por | Responsable del proyecto |

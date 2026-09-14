@@ -249,20 +249,28 @@ class OpenApiContractIT extends IntegrationTestBase {
   }
 
   @Test
-  @DisplayName("la membresía de una persona se fija con PUT y se retira con DELETE")
+  @DisplayName("la membresía de una persona se fija con PUT y se devuelve al suelo con DELETE")
   void laMembresiaDeUnaPersonaEstaDocumentada() throws Exception {
     // `PUT` y no `POST` porque el cuerpo **sí** representa el estado final: la
-    // persona tiene una membresía o ninguna. Y `DELETE` se conserva porque esta
+    // persona tiene exactamente una membresía. Y `DELETE` se conserva porque esta
     // operación no lleva cuerpo, de modo que el problema que obligó a cambiarlo
     // en el retiro de roles no existe aquí.
     mvc.perform(get("/v3/api-docs").with(user("doc")))
         .andExpect(status().isOk())
         .andExpect(jsonPath("$.paths['/api/v1/users/{id}/membership'].put").exists())
-        .andExpect(jsonPath("$.paths['/api/v1/users/{id}/membership'].put.responses.409").exists())
+        // EL `409` DESAPARECIÓ DEL `PUT` el 05-09-2026, con `RN-SP-013`: asignar
+        // una membresía ya no puede chocar con ninguna regla de negocio.
+        .andExpect(
+            jsonPath("$.paths['/api/v1/users/{id}/membership'].put.responses.409").doesNotExist())
         .andExpect(jsonPath("$.paths['/api/v1/users/{id}/membership'].put.responses.422").exists())
         .andExpect(jsonPath("$.paths['/api/v1/users/{id}/membership'].delete").exists())
+        // Y EL `DELETE` PASÓ DE `204` A `200`: ya no retira, devuelve al suelo, y
+        // el cuerpo dice en qué nivel quedó la persona.
         .andExpect(
-            jsonPath("$.paths['/api/v1/users/{id}/membership'].delete.responses.204").exists());
+            jsonPath("$.paths['/api/v1/users/{id}/membership'].delete.responses.200").exists())
+        .andExpect(
+            jsonPath("$.paths['/api/v1/users/{id}/membership'].delete.responses.204")
+                .doesNotExist());
   }
 
   @Test
@@ -290,16 +298,23 @@ class OpenApiContractIT extends IntegrationTestBase {
   }
 
   @Test
-  @DisplayName("el superior NO se puede retirar ni fijar con PUT, y el equipo NO admite filtros")
+  @DisplayName("el superior NO se puede retirar ni fijar con PUT, y el equipo SOLO filtra por rol")
   void losLimitesDeLaEstructuraComercial() throws Exception {
     // `PUT` invitaría a pensar que se puede enviar el periodo, que lo fija el
     // sistema. Un `DELETE` publicaría un «vendedor sin superior» que no existe.
-    // Y un filtro sobre el equipo replicaría la semántica de `RF-SP-025` sobre un
-    // subconjunto, obligando a mantener dos filtrados sincronizados.
+    //
+    // Y el equipo publica UN filtro desde el 10-09-2026 —`roles`, por códigos—
+    // y ninguno más: replicar aquí el filtrado del listado general obligaría a
+    // mantener dos semánticas sincronizadas. Esta prueba decía justo lo
+    // contrario hasta hoy, y NO habría fallado sola: solo miraba `search` y
+    // `status`, que siguen sin estar.
     mvc.perform(get("/v3/api-docs").with(user("doc")))
         .andExpect(status().isOk())
         .andExpect(jsonPath("$.paths['/api/v1/users/{id}/supervisor'].put").doesNotExist())
         .andExpect(jsonPath("$.paths['/api/v1/users/{id}/supervisor'].delete").doesNotExist())
+        .andExpect(
+            jsonPath("$.paths['/api/v1/users/{id}/team'].get.parameters[?(@.name == 'roles')]")
+                .exists())
         .andExpect(
             jsonPath("$.paths['/api/v1/users/{id}/team'].get.parameters[?(@.name == 'search')]")
                 .doesNotExist())

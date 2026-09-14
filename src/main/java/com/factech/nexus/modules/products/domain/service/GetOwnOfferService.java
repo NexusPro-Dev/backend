@@ -52,11 +52,17 @@ public class GetOwnOfferService {
   private final CurrentMembershipLookup membresias;
   private final CurrentActor actor;
 
+  private final ProductExchangeResolver conversiones;
+
   public GetOwnOfferService(
-      ProductQueryRepository consultas, CurrentMembershipLookup membresias, CurrentActor actor) {
+      ProductQueryRepository consultas,
+      CurrentMembershipLookup membresias,
+      CurrentActor actor,
+      ProductExchangeResolver conversiones) {
     this.consultas = consultas;
     this.membresias = membresias;
     this.actor = actor;
+    this.conversiones = conversiones;
   }
 
   /**
@@ -75,11 +81,16 @@ public class GetOwnOfferService {
 
     Optional<CurrentMembershipView> actual = membresias.currentMembershipOf(quien);
 
-    // Nulo NO es «sin filtro»: es «no hay peldaño desde el que subir», y la
-    // consulta lo traduce en cero upgrades y todos los bots (`FA-001`,
-    // `FA-003`). Quien no tiene nivel no lo obtiene comprando un salto, sino
-    // recibiendo un rol de consumidor (`RN-SP-018`).
-    Integer nivel = actual.map(CurrentMembershipView::level).orElse(null);
+    // Nulo NO es «sin filtro»: es «ninguna coincidencia posible», y la consulta
+    // lo traduce en cero upgrades y todos los bots (`FA-001`, `FA-003`). Quien
+    // no tiene nivel no lo obtiene comprando un salto, sino recibiendo un rol de
+    // consumidor (`RN-SP-018`).
+    //
+    // ES EL IDENTIFICADOR Y NO EL NIVEL desde el 07-09-2026 (`T-20`): la oferta
+    // coincide por ORIGEN. El nivel no podía expresar la renovación —un
+    // `X → X` obliga a comparar «igual», y ahí entra el salto ajeno que acaba
+    // donde el actor ya está—.
+    UUID membresia = actual.map(CurrentMembershipView::id).orElse(null);
 
     List<OfferItem> upgrades = new ArrayList<>();
     List<OfferItem> bots = new ArrayList<>();
@@ -87,8 +98,16 @@ public class GetOwnOfferService {
     // Se separa por tipo SIN reordenar: la sentencia ya devolvió los upgrades
     // por nivel de destino y los bots por fecha de alta (`CA-PM-078`), y volver
     // a ordenar aquí sería una segunda copia de ese criterio.
-    for (ProductRow fila : consultas.findOffer(nivel)) {
-      OfferItem producto = OfferItem.from(fila);
+    List<ProductRow> filas = consultas.findOffer(membresia);
+
+    // La conversión de TODA la oferta en dos consultas, y no dos por producto.
+    // El cuerpo sería idéntico con cuarenta, de modo que esto solo se ve
+    // contando sentencias (`CA-PM-168`).
+    ProductExchangeResolver.Conversor conversor =
+        conversiones.para(filas.stream().map(ProductRow::currencyId).toList());
+
+    for (ProductRow fila : filas) {
+      OfferItem producto = OfferItem.from(fila, conversor.de(fila.currencyId(), fila.price()));
       if (producto.type() == ProductType.UPGRADE_MEMBRESIA) {
         upgrades.add(producto);
       } else {
@@ -109,6 +128,6 @@ public class GetOwnOfferService {
    */
   private static ProductResponse.MembershipRef referencia(CurrentMembershipView membresia) {
     return new ProductResponse.MembershipRef(
-        membresia.id(), membresia.code(), membresia.name(), membresia.level());
+        membresia.id(), membresia.code(), membresia.name(), membresia.level(), membresia.color());
   }
 }

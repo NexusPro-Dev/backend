@@ -5,7 +5,8 @@
 | Requerimiento | `RF-CM-002` |
 | Especificación | [`spec.md`](spec.md) |
 | `spec.md` aprobada el | 02-09-2026 |
-| Versión | 1.0.0 |
+| Versión | 1.2.0 |
+| Reabierto el | ~~11-09-2026 — la tasa personalizada lleva producto: el listado lo publica y admite filtrar por él~~ — **aquella forma se deshizo el mismo día** (`V85`: la personalizada se asocia, no declara); 12-09-2026 — **la asociación de la personalizada se puede LEER**: filtro por producto y cuenta en el listado, y la quinta lectura (Art. I.7) |
 | Estado | **Aprobado** |
 | Autor | Responsable técnico |
 | Aprobado por | Responsable del proyecto |
@@ -34,14 +35,16 @@ Cuatro consultas de solo lectura, dos paginadas y dos no.
 | Capa | Componente | Nuevo / Modificado | Responsabilidad |
 |---|---|---|---|
 | `domain/repository` | `CommissionRateQueryRepository` y su adaptador | **Rehechos** | El catálogo, con la cuenta de asociaciones |
-| `domain/repository` | `UserCommissionRateQueryRepository` y su adaptador | Nuevos | Las personalizadas, con vigencia |
+| `domain/repository` | `UserCommissionRateQueryRepository` y su adaptador | Nuevos; **modificados el 12-09-2026** | Las personalizadas, con vigencia; desde el 12-09-2026 con el filtro por producto y la cuenta de asociados |
+| `domain/repository` | `UserRateProductRepository.asociadosDe` | Existente, **reutilizado** | Los productos de una personalizada — es la misma lectura que ya usaban asociar y desasociar para responder |
 | `domain/repository` | `ProductCommissionRateQueryRepository` y su adaptador | Nuevos | Las dos direcciones de la asociación |
 | `domain/service` | `ListCommissionRatesService` | **Rehecho** | El catálogo |
 | `domain/service` | `ListUserCommissionRatesService` | Nuevo | Las personalizadas |
+| `domain/service` | `ListUserRateProductsService` | **Nuevo el 12-09-2026** | La quinta lectura |
 | `domain/service` | `ListProductAssociationsService` | Nuevo | Las dos lecturas de la asociación |
 | `application` | Los DTO de página e ítem de cada listado | **Rehechos y nuevos** | — |
 | `interfaces` | `CommissionRateController` | **Modificado** | El catálogo y las asociaciones de una tasa |
-| `interfaces` | `UserCommissionRateController` | Nuevo | Las personalizadas |
+| `interfaces` | `UserCommissionRateController` | Nuevo; **modificado el 12-09-2026** | Las personalizadas, y desde el 12-09-2026 sus asociaciones |
 | `interfaces` | `ProductCommissionRateController` | Nuevo | Las asociaciones de un producto |
 
 **Tres puertos de consulta y no uno con tres métodos**, porque las tres filas que devuelven no se parecen: una tiene asociaciones y no vigencia, otra vigencia y no rol, y la tercera ni siquiera tiene identificador propio. Un puerto único devolvería un tipo con la mitad de los campos vacíos en cada caso.
@@ -68,16 +71,26 @@ Con un `LEFT JOIN` sobre la asociación, **cada tasa aparecería una vez por pro
 
 **El síntoma no se parece a la causa**: nadie miraría la cuenta de asociaciones al investigar por qué la paginación devuelve de menos. De ahí que `CA-CM-011` no verifique que el número sea correcto —eso lo hace `CA-CM-010`— sino que **la tasa aparezca una sola vez**.
 
+**La misma trampa aparece dos veces más el 12-09-2026, en el listado de personalizadas**, y se cierra igual las dos veces:
+
+- **La cuenta de asociados** va como subconsulta correlacionada sobre `user_commission_rate_products`, por lo mismo de arriba (`CA-CM-127`).
+- **El filtro por producto** va como `EXISTS` sobre la misma tabla, y **no como `JOIN`**: un `JOIN` filtraría bien mientras se filtre por **un** producto —una fila por tasa—, y el día que alguien admitiera varios productos en el filtro volvería a multiplicar sin que ninguna prueba de un solo producto lo notara. El `EXISTS` no tiene esa deuda escondida.
+
 ## 6. Contrato de API
 
 | Verbo y ruta | Devuelve |
 |---|---|
 | `GET /api/v1/commission-rates` | Página del catálogo |
 | `GET /api/v1/user-commission-rates` | Página de personalizadas |
-| `GET /api/v1/commission-rates/{id}/products` | Las asociaciones de esa tasa |
-| `GET /api/v1/product-commission-rates?productId=` | Las asociaciones de ese producto |
+| `GET /api/v1/commission-rates/{id}/products` | Las asociaciones de esa tasa de rol |
+| `GET /api/v1/user-commission-rates/{id}/products` | Los productos de esa tasa personalizada (12-09-2026), **con la forma de `UserRateProductsResponse`** — la misma que devuelven asociar y desasociar |
+| `GET /api/v1/product-commission-rates?productId=` | Las asociaciones de ese producto — **solo los roles** |
 
 Todas `200 OK`; `400` por parámetros inválidos y `403` sin el permiso `commissions:read`.
+
+**`GET /api/v1/user-commission-rates` gana `productId`** (12-09-2026), combinable con `userId`, `onDate` e `includeDeleted`, y **cada fila gana `associatedProducts`**, la cuenta. **No gana la lista de productos**: es un listado paginado y la lista de cada fila está a una llamada de distancia en la quinta lectura.
+
+**La quinta lectura no comprueba que la tasa exista** y devuelve la colección vacía si el identificador no es de nada, igual que la de rol: distinguir «no existe» de «no tiene asociaciones» costaría una consulta para no cambiar lo que el cliente hace después (`spec.md` `FA-001`). **Y vive en el recurso de la personalizada** —`/user-commission-rates/{id}/products`— y no bajo `/commission-rates`, porque los identificadores son de tablas distintas y un mismo recurso para las dos habría dejado ambiguo de qué tabla es el `{id}`.
 
 **La lectura por producto tiene recurso raíz propio y no es `/commission-rates/by-product/{id}`.** Ese camino habría competido en forma con `/commission-rates/{id}`: Spring resuelve antes el segmento literal y funcionaría, pero **el día que alguien lo renombrara el síntoma sería un `400` por identificador inválido en una ruta que nadie tocó**. Es el mismo riesgo que `PM` aceptó a propósito en `/products/available` —y allí con una prueba que lo vigila—; aquí se evita en lugar de vigilarse, porque no había motivo para colgarlo de ese recurso.
 
@@ -89,7 +102,8 @@ Todas `200 OK`; `400` por parámetros inválidos y `403` sin el permiso `commiss
 |---|---|---|
 | Catálogo | Código de rol ascendente, **luego la forma**, y dentro de cada forma el valor de mayor a menor | Un catálogo se lee **agrupado por a quién paga**, y desde v0.3.0 también **por en qué paga** |
 | Personalizadas | Inicio de vigencia descendente, desempate por identificador | El historial se lee **del presente hacia atrás** |
-| Asociaciones de una tasa | Código de producto | — |
+| Asociaciones de una tasa de rol | Código de producto | — |
+| Asociaciones de una tasa personalizada | Código de producto | Como la de rol: `asociadosDe` ya ordenaba así para las respuestas de asociar y desasociar |
 | Asociaciones de un producto | Código de rol | — |
 
 **El orden se publica en la respuesta** de las dos paginadas, para que quien recibe una página sepa sobre qué está paginando.
@@ -110,7 +124,7 @@ La cláusula es `role_code ASC, rate_type ASC, COALESCE(percentage, fixed_amount
 
 ## 8. Autorización
 
-Permiso `commissions:read` en las cuatro. Alcance global explícito.
+Permiso `commissions:read` en las cinco. Alcance global explícito.
 
 **El día que D-22 se cierre, el filtro entra aquí.** El predicado de cada listado vive en un solo método a propósito: hay uno que tocar por listado y no tres.
 
@@ -132,6 +146,9 @@ Permiso `commissions:read` en las cuatro. Alcance global explícito.
 | Resolver el rol y la persona llamando a los puertos publicados | `N+1` consultas. Que la llamada sea a un puerto no la hace barata |
 | No devolver la cuenta de asociaciones | Deja `RN-CM-012` sin ningún sitio donde verse: no produce error en ninguna parte |
 | `/commission-rates/by-product/{id}` | Compite en forma con `/commission-rates/{id}`. Ver §6 |
+| **Devolver las personalizadas dentro de `GET /product-commission-rates`**, en una segunda colección (12-09-2026) | Responde «todo lo que comisiona este producto» en una llamada, y se descartó porque mezcla dos formas de fila —con rol y con persona— en una respuesta que hoy es homogénea, y porque **no pagina**: en un producto con muchas excepciones la respuesta crecería sin tope. El filtro `productId` del listado de personalizadas responde lo mismo, paginado y con el historial |
+| **Una lista de productos en cada fila del listado de personalizadas** en vez de la cuenta | Multiplica el cuerpo de una página por el número de asociaciones sin decir nada que la quinta lectura no diga mejor. El catálogo de rol ya había tomado la misma decisión y por el mismo motivo |
+| **`JOIN` en vez de `EXISTS` para el filtro por producto** | Filtra bien con un producto y multiplica filas con varios, y ninguna prueba de un solo producto lo detecta. Ver §5 |
 | Paginar las asociaciones | Complejidad sin cliente. La colección va envuelta para poder añadirla sin romper |
 | Devolver el motivo del retiro en el listado | En bloque sería una exportación de decisiones comerciales. Mismo criterio que `RF-PM-002` |
 | Un interruptor «solo vigentes» junto al filtro por fecha | Podrían contradecirse, y esa contradicción no la detecta nada |
@@ -170,6 +187,10 @@ Permiso `commissions:read` en las cuatro. Alcance global explícito.
 | Filtro por forma | Integración | `CA-CM-097`: filtra, y **ausente no filtra** |
 | **El orden no intercala las formas** | Integración | `CA-CM-098`: con `50 %` y `100` fijos del **mismo rol**. Ver abajo |
 | La forma en la lectura por producto | Integración | `CA-CM-099` |
+| **Filtro por producto de las personalizadas** | Integración | `CA-CM-126`: dos personas con excepción en productos distintos, y el filtro devuelve **una**; combinado con `userId`, la de esa persona o nada |
+| **La cuenta de asociados de la personalizada no multiplica** | Integración | `CA-CM-127`: una tasa con **dos** productos aparece **una vez** con `2`, y `totalElements` cuadra con el contenido |
+| Los productos de una personalizada | Integración | `CA-CM-128`: la misma forma que la respuesta de asociar, ordenada por código |
+| Permiso y el identificador que no es de nada | Integración | `CA-CM-129` |
 
 !!! danger "`CA-CM-098` solo verifica algo si sus datos se cruzan, y por eso los datos van escritos aquí"
 

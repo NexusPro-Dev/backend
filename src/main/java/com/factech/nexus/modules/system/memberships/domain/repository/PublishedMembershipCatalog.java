@@ -57,6 +57,7 @@ public class PublishedMembershipCatalog implements MembershipCatalog {
                     membresia.getId(),
                     membresia.getCode(),
                     membresia.getName(),
-                    membresia.getLevel()));
+                    membresia.getLevel(),
+                    membresia.getColor()));
   }
 }

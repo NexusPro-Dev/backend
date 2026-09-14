@@ -1,7 +1,10 @@
 package com.factech.nexus.modules.products.application;
 
+import com.factech.nexus.modules.products.domain.models.ProductImplementation;
+import com.factech.nexus.modules.products.domain.models.ProductScope;
 import com.factech.nexus.modules.products.domain.models.ProductStatus;
 import com.factech.nexus.modules.products.domain.models.ProductType;
+import com.factech.nexus.modules.products.domain.models.RatingSummary;
 import com.factech.nexus.modules.products.domain.repository.ProductQueryRepository.ProductRow;
 import com.fasterxml.jackson.annotation.JsonInclude;
 import java.math.BigDecimal;
@@ -45,12 +48,18 @@ public record ProductDetailResponse(
     String name,
     String description,
     String icon,
+    String videoUrl,
     ProductResponse.MembershipRef sourceMembership,
     ProductResponse.MembershipRef targetMembership,
     BigDecimal price,
+    BigDecimal purchasePrice,
     ProductResponse.CurrencyRef currency,
+    ExchangeRef exchange,
     Integer validityDays,
+    ProductScope scope,
+    ProductImplementation implementation,
     ProductStatus status,
+    RatingSummary rating,
     OffsetDateTime createdAt,
     OffsetDateTime updatedAt,
     @JsonInclude(JsonInclude.Include.NON_NULL) OffsetDateTime deletedAt,
@@ -65,7 +74,7 @@ public record ProductDetailResponse(
    *
    * @param motivo el motivo del retiro, o nulo si el producto está vivo o no se registró ninguno
    */
-  public static ProductDetailResponse from(ProductRow fila, String motivo) {
+  public static ProductDetailResponse from(ProductRow fila, String motivo, ExchangeRef conversion) {
     return new ProductDetailResponse(
         fila.id(),
         fila.code(),
@@ -73,6 +82,8 @@ public record ProductDetailResponse(
         fila.name(),
         fila.description(),
         fila.icon(),
+        // El enlace del video, tal cual y nulo presente cuando no hay (`CA-PM-224`).
+        fila.videoUrl(),
         fila.sourceMembershipId() == null
             ? null
             : new ProductResponse.MembershipRef(
@@ -81,7 +92,8 @@ public record ProductDetailResponse(
                 fila.sourceMembershipName(),
                 // Igual que el destino: el nivel es el ACTUAL. Ver la nota de
                 // abajo — vale para las dos y por el mismo motivo.
-                fila.sourceMembershipLevel()),
+                fila.sourceMembershipLevel(),
+                fila.sourceMembershipColor()),
         fila.targetMembershipId() == null
             ? null
             : new ProductResponse.MembershipRef(
@@ -92,12 +104,23 @@ public record ProductDetailResponse(
                 // producto: la cadena se reordena al insertar un eslabón
                 // (`RN-SP-007`), y devolver el de entonces obligaría a
                 // guardarlo, que es duplicar un dato que cambia.
-                fila.targetMembershipLevel()),
+                fila.targetMembershipLevel(),
+                fila.targetMembershipColor()),
         ProductPrice.enLaEscalaDe(fila.price(), fila.currencyDecimalPlaces()),
+        // El precio de compra, nulo y presente donde no se conoce (`CA-PM-152`),
+        // como el destino de un bot y la vigencia de lo que no caduca. Viaja
+        // porque el detalle exige `products:read` (`RN-PM-024`).
+        fila.purchasePrice() == null
+            ? null
+            : ProductPrice.enLaEscalaDe(fila.purchasePrice(), fila.currencyDecimalPlaces()),
         new ProductResponse.CurrencyRef(
             fila.currencyId(), fila.currencyCode(), fila.currencyDecimalPlaces()),
+        conversion,
         fila.validityDays(),
+        ProductScope.valueOf(fila.scope()),
+        ProductImplementation.valueOf(fila.implementation()),
         ProductStatus.valueOf(fila.status()),
+        fila.rating(),
         enUtc(fila.createdAt()),
         enUtc(fila.updatedAt()),
         enUtc(fila.deletedAt()),

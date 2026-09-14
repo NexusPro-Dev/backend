@@ -1,7 +1,10 @@
 package com.factech.nexus.modules.products.application;
 
 import java.math.BigDecimal;
+import java.util.Collection;
+import java.util.List;
 import java.util.Optional;
+import java.util.Set;
 import java.util.UUID;
 
 /**
@@ -42,6 +45,81 @@ public interface ProductCatalog {
    */
   Optional<BigDecimal> findPrice(UUID id);
 
+  /**
+   * Lo que hace falta saber de un producto <b>para venderlo</b> (`RF-MV-001` · `T-05`).
+   *
+   * <p><b>Es un método nuevo y no una ampliación de {@link ProductView}</b>, y ahí está la
+   * decisión. `CM` ya consume aquella vista y no necesita ni el precio, ni la moneda, ni la
+   * vigencia, ni el destino: un registro compartido que crece por cada consumidor acaba llevando
+   * campos que a la mitad no le sirven, y obliga a recompilar a quien no pidió nada. Una interfaz
+   * por lectura, que es lo mismo que hicieron {@link #findPrice} y los tres puertos de `SP`.
+   *
+   * <p><b>Recibe un lote y no un identificador</b> (`RF-MV-001` · `plan.md` §9). Una venta de cinco
+   * productos que preguntara cinco veces cruzaría la frontera cinco veces para lo mismo: es una
+   * {@code N+1} que no se ve —cada llamada es un método Java— y que aparece entera en el registro
+   * de sentencias.
+   *
+   * <p><b>No filtra nada</b>: devuelve lo que encuentre, retirado o inactivo incluido. Quién puede
+   * comprar qué lo responde {@link #offeredTo}, y colapsar las dos preguntas haría indistinguible
+   * un producto inexistente de uno que existe y no corresponde — que es justo la distinción que
+   * `EX-004` y `EX-011` de `RF-MV-001` existen para mantener.
+   *
+   * @param ids identificadores a resolver; una colección nula o vacía devuelve la lista vacía
+   * @return los que existen, sin orden garantizado y sin marcador para los que no
+   */
+  List<SaleView> saleViewOf(Collection<UUID> ids);
+
+  /**
+   * De esos productos, <b>cuáles puede comprar esa persona</b> (`RF-MV-001` · `T-06`).
+   *
+   * <p><b>Recibe la persona y no su nivel</b>, y es lo que hace que esta interfaz siga valiendo el
+   * día que `RF-PM-007` · `T-20` reescriba la oferta para que coincida por <b>origen</b> en lugar
+   * de comparar niveles: quien pregunta no sabe con qué criterio se decide, de modo que el criterio
+   * puede cambiar sin que cambie ni una línea en `MV`.
+   *
+   * <p><b>Y responde con la MISMA consulta que `RF-PM-007`</b>, no con una equivalente. Recalcular
+   * la oferta en el consumidor crearía <b>dos definiciones de «lo que alguien puede comprar»</b>, y
+   * el día que una cambiara la otra seguiría vendiendo lo que la primera ya no ofrece — un defecto
+   * que no falla: vende de más, en silencio, y se descubre al reclamar.
+   *
+   * @param userId la persona por la que se pregunta; un valor nulo devuelve el conjunto vacío
+   * @param ids productos a comprobar; una colección nula o vacía devuelve el conjunto vacío
+   * @return el subconjunto de {@code ids} que hoy se le ofrece a esa persona
+   */
+  Set<UUID> offeredTo(UUID userId, Collection<UUID> ids);
+
   /** Lo que cruza la frontera: datos planos, sin comportamiento y sin entidad. */
   record ProductView(UUID id, String code, String name, boolean retired) {}
+
+  /**
+   * La vista de venta: lo que se <b>copia</b> y lo que se <b>comprueba</b>.
+   *
+   * <p><b>{@code upgrade} viaja explícito y no se deduce de que haya destino</b>, aunque hoy {@code
+   * ck_products_type_target} haga las dos cosas equivalentes. Deducirlo ataría `MV` a una
+   * restricción de una tabla de `PM` que nadie le prometió mantener; declararlo lo convierte en
+   * parte del contrato.
+   *
+   * <p><b>{@code targetMembershipLevel} viaja porque `RN-MV-006` es de `MV` y no de `PM`.</b> Que
+   * una venta no baje a nadie de nivel se comprueba aunque la oferta ya lo garantice hoy: la oferta
+   * es una decisión de `PM` y puede ampliarse —renovaciones del mismo nivel, por ejemplo—, y esta
+   * regla no puede depender de que otro módulo siga decidiendo lo mismo.
+   *
+   * <p><b>{@code price} llega con la escala de la columna</b> ({@code numeric(14,4)}), de modo que
+   * {@code 49.99} llega como {@code 49.9900}. Quien lo compare con los decimales de su moneda debe
+   * usar {@link ProductPrice#cabeEn}, que mide la escala significativa.
+   *
+   * <p>{@code validityDays} nulo significa <b>no caduca</b> (`RN-PM-015`), no «sin dato».
+   */
+  record SaleView(
+      UUID id,
+      String code,
+      String name,
+      boolean upgrade,
+      BigDecimal price,
+      UUID currencyId,
+      String currencyCode,
+      int currencyDecimalPlaces,
+      Integer validityDays,
+      UUID targetMembershipId,
+      Integer targetMembershipLevel) {}
 }

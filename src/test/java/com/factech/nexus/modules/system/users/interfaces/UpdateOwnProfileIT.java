@@ -145,7 +145,7 @@ class UpdateOwnProfileIT extends IntegrationTestBase {
             + " SELECT ?, id, role_type FROM roles WHERE code = 'CLIENTE'",
         juan);
     // NO se depende del catálogo sembrado: varias clases de la suite hacen
-    // `DELETE FROM memberships`, de modo que `FREE` puede no existir según el
+    // `DELETE FROM memberships`, de modo que `BECA` puede no existir según el
     // orden de ejecución. Se crea una propia si la tabla quedó vacía, y se
     // asigna la primera que haya.
     jdbc.update(
@@ -156,8 +156,8 @@ class UpdateOwnProfileIT extends IntegrationTestBase {
         """,
         UUID.randomUUID());
     jdbc.update(
-        "INSERT INTO user_memberships (user_id, membership_id)"
-            + " SELECT ?, id FROM memberships ORDER BY level LIMIT 1",
+        "INSERT INTO user_memberships (id, user_id, membership_id)"
+            + " SELECT gen_random_uuid(), ?, id FROM memberships ORDER BY level LIMIT 1",
         juan);
     jdbc.update(
         "INSERT INTO user_supervisors (id, user_id, supervisor_id) VALUES (?, ?, ?)",
@@ -276,6 +276,35 @@ class UpdateOwnProfileIT extends IntegrationTestBase {
     return "{\"email\":\"" + correo + "\",\"currentPassword\":\"" + clave + "\"}";
   }
 
+  @Test
+  @DisplayName("CA-SP-680 · el titular cambia y VACÍA su teléfono de empresa sin contraseña")
+  void elTelefonoDeLaEmpresaSeCambiaYSeVacia() throws Exception {
+    // Lo pone quien no lo tenía, y sin `currentPassword`: no es una vía de
+    // acceso, igual que el personal.
+    mvc.perform(editar(juan, "{\"companyPhone\":\"+57 (601) 234-5678\"}"))
+        .andExpect(status().isOk())
+        // Normalizado con el mismo criterio que el personal: fuera espacios,
+        // guiones y paréntesis.
+        .andExpect(jsonPath("$.contact.companyPhone").value("+576012345678"));
+
+    assertThat(campo(juan, "company_phone")).isEqualTo("+576012345678");
+
+    // Y el NULO EXPLÍCITO lo borra, que es lo único que lo separa del personal:
+    // `RN-SP-037` lo deja opcional, de modo que «ya no tengo» es registrable.
+    mvc.perform(editar(juan, "{\"companyPhone\":null}"))
+        .andExpect(status().isOk())
+        // PRESENTE Y EN NULO, no ausente: `contact` publica sus cinco campos
+        // siempre, y un objeto que aparece y desaparece obligaría al cliente a
+        // comprobar dos cosas antes de leer una.
+        .andExpect(jsonPath("$.contact.companyPhone").value(org.hamcrest.Matchers.nullValue()));
+
+    assertThat(campo(juan, "company_phone")).isNull();
+
+    // El personal sigue rechazando el vaciado en la misma operación. Sin esta
+    // comprobación, un cambio que unificara las dos familias pasaría inadvertido.
+    mvc.perform(editar(juan, "{\"phone\":null}")).andExpect(status().isBadRequest());
+  }
+
   private String campo(UUID quien, String columna) {
     return jdbc.queryForObject(
         "SELECT " + columna + " FROM users WHERE id = ?", String.class, quien);
@@ -295,8 +324,8 @@ class UpdateOwnProfileIT extends IntegrationTestBase {
     jdbc.update(
         """
         INSERT INTO users (id, username, email, first_name, last_name, password_hash,
-                           must_change_password, status)
-        VALUES (?, ?, ?, 'Juan', 'Pérez', ?, false, 'ACTIVO')
+                           must_change_password, status, country_id)
+        VALUES (?, ?, ?, 'Juan', 'Pérez', ?, false, 'ACTIVO', (SELECT id FROM countries WHERE code = 'COL'))
         """,
         id,
         username,

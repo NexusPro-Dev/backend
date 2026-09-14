@@ -79,31 +79,45 @@ class UserCommissionRateIT extends IntegrationTestBase {
   }
 
   @Test
-  @DisplayName("`RN-CM-006` — dos tasas de la misma persona no pueden cubrir el mismo día")
-  void noSolapan() throws Exception {
-    mvc.perform(alta(cuerpo(vendedora, "12.00", "2026-01-01", "2026-06-30")))
-        .andExpect(status().isCreated());
+  @DisplayName("`RN-CM-006` — dos tasas de la misma persona no cubren el mismo día EN UN PRODUCTO")
+  void noSolapanEnElMismoProducto() throws Exception {
+    // LA REGLA SE COMPROBABA AL REGISTRAR Y AHORA SE COMPRUEBA AL ASOCIAR, y
+    // esta prueba es donde se ve: las dos altas PASAN, porque sin producto no
+    // hay solapamiento posible.
+    UUID primera = altaDevuelve(cuerpo(vendedora, "12.00", "2026-01-01", "2026-06-30"));
+    UUID segunda = altaDevuelve(cuerpo(vendedora, "15.00", "2026-06-01", null));
 
-    mvc.perform(alta(cuerpo(vendedora, "15.00", "2026-06-01", null)))
+    UUID producto = CommissionFixtures.sembrarProducto(jdbc, "BOT_SOL");
+
+    mvc.perform(asociar(primera, producto)).andExpect(status().isCreated());
+
+    // Y aquí choca, que es donde tiene que chocar.
+    mvc.perform(asociar(segunda, producto))
         .andExpect(status().isConflict())
-        .andExpect(jsonPath("$.errors[0].code").value("EX-003"));
+        .andExpect(jsonPath("$.errors[0].code").value("EX-006"));
 
-    assertThat(cuantas()).isEqualTo(1);
+    // Sobre OTRO producto la misma segunda tasa entra sin problema: dos
+    // excepciones simultáneas de la misma persona son legítimas mientras hablen
+    // de productos distintos.
+    UUID otro = CommissionFixtures.sembrarProducto(jdbc, "BOT_SOL2");
+    mvc.perform(asociar(segunda, otro)).andExpect(status().isCreated());
   }
 
   @Test
   @DisplayName("el día de corte cuenta: si una termina el 30, la siguiente no empieza el 30")
   void elDiaDeCorteCuenta() throws Exception {
-    mvc.perform(alta(cuerpo(vendedora, "12.00", "2026-01-01", "2026-06-30")))
-        .andExpect(status().isCreated());
+    UUID primera = altaDevuelve(cuerpo(vendedora, "12.00", "2026-01-01", "2026-06-30"));
+    UUID elMismoDia = altaDevuelve(cuerpo(vendedora, "15.00", "2026-06-30", null));
+    UUID elSiguiente = altaDevuelve(cuerpo(vendedora, "15.00", "2026-07-01", null));
 
-    // El rango lleva los dos extremos incluidos. Con el semiabierto que
-    // PostgreSQL usa por omisión, este día quedaría cubierto dos veces.
-    mvc.perform(alta(cuerpo(vendedora, "15.00", "2026-06-30", null)))
-        .andExpect(status().isConflict());
+    UUID producto = CommissionFixtures.sembrarProducto(jdbc, "BOT_CORTE");
+    mvc.perform(asociar(primera, producto)).andExpect(status().isCreated());
 
-    mvc.perform(alta(cuerpo(vendedora, "15.00", "2026-07-01", null)))
-        .andExpect(status().isCreated());
+    // El rango lleva los dos extremos incluidos, y la expresión es LA MISMA que
+    // usaba el `EXCLUDE` antes de `V85`: conservarla igual es lo que hace que la
+    // regla no cambie de significado al cambiar de sitio.
+    mvc.perform(asociar(elMismoDia, producto)).andExpect(status().isConflict());
+    mvc.perform(asociar(elSiguiente, producto)).andExpect(status().isCreated());
   }
 
   @Test
@@ -245,6 +259,299 @@ class UserCommissionRateIT extends IntegrationTestBase {
   // ---------------------------------------------------------------------------
   // Utilidades
   // ---------------------------------------------------------------------------
+  // La asociación a productos (`cm.md` v0.11.0, 11-09-2026)
+  // ---------------------------------------------------------------------------
+
+  @Test
+  @DisplayName("CA-CM-118 · una tasa se asocia a VARIOS productos, y la respuesta los trae todos")
+  void seAsociaAVariosProductos() throws Exception {
+    UUID tasa = altaDevuelve(cuerpo(vendedora, "12.00", "2026-01-01", null));
+    UUID uno = CommissionFixtures.sembrarProducto(jdbc, "BOT_UNO");
+    UUID dos = CommissionFixtures.sembrarProducto(jdbc, "BOT_DOS");
+
+    mvc.perform(asociar(tasa, uno))
+        .andExpect(status().isCreated())
+        .andExpect(jsonPath("$.products.length()").value(1));
+
+    // La respuesta trae la lista COMPLETA, no solo lo que se acaba de añadir.
+    mvc.perform(asociar(tasa, dos))
+        .andExpect(status().isCreated())
+        .andExpect(jsonPath("$.products.length()").value(2))
+        .andExpect(jsonPath("$.products[0].code").value("BOT_DOS"))
+        .andExpect(jsonPath("$.products[1].code").value("BOT_UNO"));
+
+    // Dos veces el mismo producto no: lo cierra la clave primaria.
+    mvc.perform(asociar(tasa, uno))
+        .andExpect(status().isConflict())
+        .andExpect(jsonPath("$.errors[0].code").value("EX-005"));
+  }
+
+  @Test
+  @DisplayName("CA-CM-119 · el producto inexistente y el retirado se rechazan DISTINTO")
+  void productoInexistenteYRetirado() throws Exception {
+    UUID tasa = altaDevuelve(cuerpo(vendedora, "12.00", "2026-01-01", null));
+
+    // Se distinguen a propósito: quien recibe el rechazo tiene que saber si se
+    // equivocó de identificador o si el producto ya no se vende.
+    mvc.perform(asociar(tasa, UUID.randomUUID()))
+        .andExpect(status().isUnprocessableEntity())
+        .andExpect(jsonPath("$.errors[0].code").value("EX-003"));
+
+    UUID retirado = CommissionFixtures.sembrarProducto(jdbc, "BOT_RET", true);
+    mvc.perform(asociar(tasa, retirado))
+        .andExpect(status().isConflict())
+        .andExpect(jsonPath("$.errors[0].code").value("EX-004"));
+  }
+
+  @Test
+  @DisplayName("CA-CM-120 · al asociar, el valor fijo NO puede superar el precio del producto")
+  void elValorFijoSeAcotaAlAsociar() throws Exception {
+    // `RN-CM-018` dejaba esta tasa SIN TOPE, y su razón escrita era que «no
+    // conoce el precio de nada». Asociarla se la quita.
+    UUID tasa =
+        altaDevuelve(
+            "{\"userId\":\""
+                + vendedora
+                + "\",\"rateType\":\"FIJO\",\"fixedAmount\":5001,"
+                + "\"validFrom\":\"2026-01-01\"}");
+
+    UUID barato = CommissionFixtures.sembrarProducto(jdbc, "BOT_BARATO", false, "5000.00");
+    mvc.perform(asociar(tasa, barato))
+        .andExpect(status().isConflict())
+        .andExpect(jsonPath("$.errors[0].code").value("EX-007"));
+
+    // Y en uno caro entra: la MISMA tasa, y lo que decide es el producto.
+    UUID caro = CommissionFixtures.sembrarProducto(jdbc, "BOT_CARO", false, "100000.00");
+    mvc.perform(asociar(tasa, caro)).andExpect(status().isCreated());
+  }
+
+  @Test
+  @DisplayName("CA-CM-134 · al asociar a un producto de PRECIO CERO, el valor fijo entra sin tope")
+  void elValorFijoEntraSinTopeEnElGratuito() throws Exception {
+    UUID tasa =
+        altaDevuelve(
+            "{\"userId\":\""
+                + vendedora
+                + "\",\"rateType\":\"FIJO\",\"fixedAmount\":250000,"
+                + "\"validFrom\":\"2026-01-01\"}");
+
+    // `RN-CM-020`: no hay cien por ciento de cero, y el tope individual del
+    // 11-09-2026 no aplica a los gratuitos.
+    UUID gratis = CommissionFixtures.sembrarProducto(jdbc, "BOT_GRATIS", false, "0.0000");
+    mvc.perform(asociar(tasa, gratis)).andExpect(status().isCreated());
+  }
+
+  @Test
+  @DisplayName(
+      "CA-CM-135 · al asociar a un producto de PRECIO CERO, el porcentaje se rechaza con EX-008 y"
+          + " la misma tasa entra en uno con precio")
+  void elPorcentajeNoEntraEnElGratuito() throws Exception {
+    UUID tasa = altaDevuelve(cuerpo(vendedora, "12.00", "2026-01-01", null));
+
+    UUID gratis = CommissionFixtures.sembrarProducto(jdbc, "BOT_GRATIS", false, "0.0000");
+    mvc.perform(asociar(tasa, gratis))
+        .andExpect(status().isConflict())
+        .andExpect(jsonPath("$.errors[0].code").value("EX-008"));
+
+    UUID conPrecio = CommissionFixtures.sembrarProducto(jdbc, "BOT_PAGO", false, "100.0000");
+    mvc.perform(asociar(tasa, conPrecio)).andExpect(status().isCreated());
+  }
+
+  @Test
+  @DisplayName(
+      "CA-CM-133 · la personalizada asociada a un gratuito: corregir a fijo pasa, a porcentaje se"
+          + " rechaza con EX-008")
+  void corregirLaPersonalizadaConProductoGratuito() throws Exception {
+    UUID tasa =
+        altaDevuelve(
+            "{\"userId\":\""
+                + vendedora
+                + "\",\"rateType\":\"FIJO\",\"fixedAmount\":1000,"
+                + "\"validFrom\":\"2026-01-01\"}");
+    UUID gratis = CommissionFixtures.sembrarProducto(jdbc, "BOT_GRATIS", false, "0.0000");
+    mvc.perform(asociar(tasa, gratis)).andExpect(status().isCreated());
+
+    mvc.perform(correccion(tasa, "{\"rateType\":\"FIJO\",\"fixedAmount\":900000}"))
+        .andExpect(status().isOk());
+
+    mvc.perform(correccion(tasa, "{\"rateType\":\"PORCENTAJE\",\"percentage\":10}"))
+        .andExpect(status().isConflict())
+        .andExpect(jsonPath("$.errors[0].code").value("EX-008"));
+  }
+
+  @Test
+  @DisplayName("CA-CM-121 · desasociar deja de regir ahí y la tasa sigue viva")
+  void desasociarNoRetiraLaTasa() throws Exception {
+    UUID tasa = altaDevuelve(cuerpo(vendedora, "12.00", "2026-01-01", null));
+    UUID producto = CommissionFixtures.sembrarProducto(jdbc, "BOT_DES");
+
+    mvc.perform(asociar(tasa, producto)).andExpect(status().isCreated());
+    mvc.perform(desasociar(tasa, producto, "Ya no aplica")).andExpect(status().isNoContent());
+
+    // La tasa sigue viva y se puede volver a asociar.
+    assertThat(cuantas()).isEqualTo(1);
+    mvc.perform(asociar(tasa, producto)).andExpect(status().isCreated());
+
+    // Sin motivo no se desasocia: es el único sitio donde quedará escrito por qué.
+    mvc.perform(desasociar(tasa, producto, "")).andExpect(status().isBadRequest());
+
+    // Y lo que no está asociado da 404, no 409: con el borrado físico no queda
+    // nada que distinga «nunca existió» de «ya se borró».
+    UUID otro = CommissionFixtures.sembrarProducto(jdbc, "BOT_DES2");
+    mvc.perform(desasociar(tasa, otro, "No estaba")).andExpect(status().isNotFound());
+  }
+
+  @Test
+  @DisplayName("CA-CM-125 · `RN-CM-015` — una tasa ASOCIADA no se retira")
+  void laTasaAsociadaNoSeRetira() throws Exception {
+    UUID tasa = altaDevuelve(cuerpo(vendedora, "12.00", "2026-01-01", null));
+    UUID producto = CommissionFixtures.sembrarProducto(jdbc, "BOT_RN15");
+    mvc.perform(asociar(tasa, producto)).andExpect(status().isCreated());
+
+    // La asociación no tiene retiro lógico: sobreviviría apuntando a una tasa
+    // que la resolución ya no mira, y su titular volvería EN SILENCIO a la
+    // tarifa de su rol.
+    mvc.perform(retiro(tasa, "Se declaró por error"))
+        .andExpect(status().isConflict())
+        .andExpect(jsonPath("$.errors[0].code").value("EX-003"));
+
+    // Desasociada, sí.
+    mvc.perform(desasociar(tasa, producto, "Antes de retirar")).andExpect(status().isNoContent());
+    mvc.perform(retiro(tasa, "Se declaró por error")).andExpect(status().isNoContent());
+  }
+
+  // ---------------------------------------------------------------------------
+
+  // ---------------------------------------------------------------------------
+  // La asociación se puede LEER (`RF-CM-002` v1.1.0) — 12-09-2026
+  // ---------------------------------------------------------------------------
+
+  @Test
+  @DisplayName("CA-CM-126 · el listado filtra por producto, y se combina con la persona")
+  void elListadoFiltraPorProducto() throws Exception {
+    UUID otra = CommissionFixtures.sembrarPersonaConRol(jdbc, "otra", MANAGER);
+    UUID uno = CommissionFixtures.sembrarProducto(jdbc, "BOT_F1");
+    UUID dos = CommissionFixtures.sembrarProducto(jdbc, "BOT_F2");
+    UUID tasaVendedora = altaDevuelve(cuerpo(vendedora, "12.00", "2026-01-01", null));
+    UUID tasaOtra = altaDevuelve(cuerpo(otra, "15.00", "2026-01-01", null));
+    mvc.perform(asociar(tasaVendedora, uno)).andExpect(status().isCreated());
+    mvc.perform(asociar(tasaOtra, dos)).andExpect(status().isCreated());
+
+    // «Quién tiene excepción en este producto»: de cualquier persona.
+    mvc.perform(listado().param("productId", dos.toString()))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.totalElements").value(1))
+        .andExpect(jsonPath("$.content[0].id").value(tasaOtra.toString()))
+        .andExpect(jsonPath("$.content[0].user.username").value("otra"));
+
+    // Combinado con la persona: «¿tiene esta persona excepción en este producto?».
+    mvc.perform(listado().param("productId", uno.toString()).param("userId", vendedora.toString()))
+        .andExpect(jsonPath("$.totalElements").value(1));
+    mvc.perform(listado().param("productId", dos.toString()).param("userId", vendedora.toString()))
+        .andExpect(jsonPath("$.totalElements").value(0));
+
+    // Un producto donde nadie tiene excepción: vacío, y no es un error.
+    UUID nadie = CommissionFixtures.sembrarProducto(jdbc, "BOT_F3");
+    mvc.perform(listado().param("productId", nadie.toString()))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.totalElements").value(0));
+
+    // Sin el filtro, siguen saliendo las dos.
+    mvc.perform(listado()).andExpect(jsonPath("$.totalElements").value(2));
+  }
+
+  @Test
+  @DisplayName("CA-CM-127 · cada fila cuenta sus productos, y la cuenta NO multiplica las filas")
+  void laCuentaDeAsociadosNoMultiplica() throws Exception {
+    UUID tasa = altaDevuelve(cuerpo(vendedora, "12.00", "2026-01-01", null));
+    UUID uno = CommissionFixtures.sembrarProducto(jdbc, "BOT_C1");
+    UUID dos = CommissionFixtures.sembrarProducto(jdbc, "BOT_C2");
+
+    // Recién nacida: cero, que significa «no paga nada» (`RN-CM-012`).
+    mvc.perform(listado())
+        .andExpect(jsonPath("$.totalElements").value(1))
+        .andExpect(jsonPath("$.content[0].associatedProducts").value(0));
+
+    mvc.perform(asociar(tasa, uno)).andExpect(status().isCreated());
+    mvc.perform(asociar(tasa, dos)).andExpect(status().isCreated());
+
+    // Con dos asociaciones aparece UNA vez, con 2, y el total cuadra con el
+    // contenido: es la trampa que `CA-CM-011` cerró en el catálogo de rol.
+    mvc.perform(listado())
+        .andExpect(jsonPath("$.totalElements").value(1))
+        .andExpect(jsonPath("$.content.length()").value(1))
+        .andExpect(jsonPath("$.content[0].associatedProducts").value(2));
+
+    // Y filtrando por uno de los dos productos, la cuenta sigue siendo 2: la
+    // cuenta es de la tasa, no del filtro.
+    mvc.perform(listado().param("productId", uno.toString()))
+        .andExpect(jsonPath("$.totalElements").value(1))
+        .andExpect(jsonPath("$.content[0].associatedProducts").value(2));
+  }
+
+  @Test
+  @DisplayName(
+      "CA-CM-128 · los productos de una tasa se leen con la misma forma que devuelve asociar")
+  void losProductosDeUnaTasaSeLeen() throws Exception {
+    UUID tasa = altaDevuelve(cuerpo(vendedora, "12.00", "2026-01-01", null));
+    UUID uno = CommissionFixtures.sembrarProducto(jdbc, "BOT_L2");
+    UUID dos = CommissionFixtures.sembrarProducto(jdbc, "BOT_L1");
+    mvc.perform(asociar(tasa, uno)).andExpect(status().isCreated());
+    String alAsociar =
+        mvc.perform(asociar(tasa, dos))
+            .andExpect(status().isCreated())
+            .andReturn()
+            .getResponse()
+            .getContentAsString();
+
+    String alLeer =
+        mvc.perform(productosDe(tasa))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.rateId").value(tasa.toString()))
+            .andExpect(jsonPath("$.products.length()").value(2))
+            // Por código, no por orden de asociación.
+            .andExpect(jsonPath("$.products[0].code").value("BOT_L1"))
+            .andExpect(jsonPath("$.products[1].code").value("BOT_L2"))
+            .andExpect(jsonPath("$.products[0].id").value(dos.toString()))
+            .andExpect(jsonPath("$.products[0].name").isNotEmpty())
+            .andReturn()
+            .getResponse()
+            .getContentAsString();
+
+    // La misma forma: un cliente tiene UN modelo para el mismo dato.
+    assertThat(alLeer).isEqualTo(alAsociar);
+
+    // Desasociar se refleja en la lectura.
+    mvc.perform(desasociar(tasa, uno, "Ya no aplica")).andExpect(status().isNoContent());
+    mvc.perform(productosDe(tasa)).andExpect(jsonPath("$.products.length()").value(1));
+  }
+
+  @Test
+  @DisplayName(
+      "CA-CM-129 · la lectura exige el permiso, y un identificador que no es de nada da vacío")
+  void losProductosDeUnaTasaExigenPermiso() throws Exception {
+    UUID tasa = altaDevuelve(cuerpo(vendedora, "12.00", "2026-01-01", null));
+
+    // Recién nacida, sin asociar: lista vacía, que significa «no paga nada».
+    mvc.perform(productosDe(tasa))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.products").isEmpty());
+
+    // Un identificador que no es de nada: 200 y vacío, como la gemela de rol.
+    mvc.perform(productosDe(UUID.randomUUID()))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.products").isEmpty());
+
+    mvc.perform(
+            get("/api/v1/user-commission-rates/" + tasa + "/products")
+                .with(user(SUPERADMIN.toString()).authorities(() -> "commissions:update")))
+        .andExpect(status().isForbidden());
+  }
+
+  private MockHttpServletRequestBuilder productosDe(UUID tasa) {
+    return get("/api/v1/user-commission-rates/" + tasa + "/products")
+        .with(user(SUPERADMIN.toString()).authorities(() -> "commissions:read"));
+  }
 
   private static String cuerpo(UUID persona, String porcentaje, String desde, String hasta) {
     StringBuilder json = new StringBuilder("{\"userId\":\"").append(persona).append("\"");
@@ -379,6 +686,31 @@ class UserCommissionRateIT extends IntegrationTestBase {
         .with(user(SUPERADMIN.toString()).authorities(() -> "commissions:create"))
         .contentType(MediaType.APPLICATION_JSON)
         .content(json);
+  }
+
+  /** El alta, devolviendo el identificador de la tasa creada. */
+  private UUID altaDevuelve(String cuerpo) throws Exception {
+    String json =
+        mvc.perform(alta(cuerpo))
+            .andExpect(status().isCreated())
+            .andReturn()
+            .getResponse()
+            .getContentAsString();
+    return UUID.fromString(com.jayway.jsonpath.JsonPath.read(json, "$.id"));
+  }
+
+  private MockHttpServletRequestBuilder asociar(UUID tasa, UUID producto) {
+    return post("/api/v1/user-commission-rates/" + tasa + "/products")
+        .with(user(SUPERADMIN.toString()).authorities(() -> "commissions:update"))
+        .contentType(MediaType.APPLICATION_JSON)
+        .content("{\"productId\":\"" + producto + "\"}");
+  }
+
+  private MockHttpServletRequestBuilder desasociar(UUID tasa, UUID producto, String motivo) {
+    return post("/api/v1/user-commission-rates/" + tasa + "/products/" + producto + "/deletion")
+        .with(user(SUPERADMIN.toString()).authorities(() -> "commissions:update"))
+        .contentType(MediaType.APPLICATION_JSON)
+        .content("{\"reason\":\"" + motivo + "\"}");
   }
 
   private MockHttpServletRequestBuilder correccion(UUID id, String json) {

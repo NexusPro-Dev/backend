@@ -18,9 +18,16 @@ import java.util.UUID;
  *
  * <p>{@code endsAt} nulo significa <b>indefinida</b>, no «sin fecha conocida». Nadie retira la
  * vencida: la vigencia se evalúa al consultarla (`V20`).
+ *
+ * <p><b>Este registro describe siempre la fila ABIERTA</b>, y por eso no lleva {@code closedAt}:
+ * {@link UserRepository#findMembership} filtra por {@code closed_at IS NULL} y no puede devolver
+ * otra cosa. Añadir el campo sería añadir uno que siempre vale nulo. Desde `V56` la tabla es un
+ * historial —una fila por membresía que alguien tuvo—, y <b>abierta no es vigente</b>: una
+ * membresía vencida sigue abierta, ocupa la plaza y no concede nivel. Lo segundo lo decide {@link
+ * #isCurrentAt}, y lo primero ya lo decidió la consulta.
  */
 public record UserMembership(
-    UUID membershipId, String code, String name, short level, OffsetDateTime endsAt) {
+    UUID membershipId, String code, String name, short level, String color, OffsetDateTime endsAt) {
 
   /** ¿Sigue valiendo en ese instante? */
   public boolean isCurrentAt(OffsetDateTime instante) {

@@ -161,6 +161,12 @@ public class CommissionRateController {
           pagando más del 100 % de sí mismo, la corrección se rechaza **entera**
           y devuelve `409` — ninguno de los productos cambia, ni siquiera los que
           sí cabían.
+
+          **Un producto GRATUITO (precio cero) solo admite importe fijo**
+          (`RN-CM-020`, 14-09-2026): si la tasa está asociada a uno y la corrección
+          la deja de porcentaje, se rechaza **entera** con `409` (`EX-008`).
+          Corregirla a valor fijo, del importe que sea, pasa: no hay cien por
+          ciento de cero, y el gratuito no entra en ninguna suma.
           """)
   @ApiResponses({
     @ApiResponse(responseCode = "200", description = "Tasa corregida"),
@@ -169,7 +175,9 @@ public class CommissionRateController {
     @ApiResponse(responseCode = "404", description = "No existe, o está retirada"),
     @ApiResponse(
         responseCode = "409",
-        description = "El nuevo valor dejaría a algún producto asociado pagando más de cien")
+        description =
+            "El nuevo valor dejaría a algún producto asociado pagando más de cien (`EX-006`), o"
+                + " dejaría de porcentaje una tasa asociada a un producto gratuito (`EX-008`)")
   })
   @PatchMapping("/{id}")
   @PreAuthorize("hasAuthority('commissions:update')")
@@ -233,6 +241,11 @@ public class CommissionRateController {
           —convirtiendo cada valor fijo contra el precio del producto— más el de
           esta, y devuelve `409` si pasa de cien.
 
+          **Sobre un producto GRATUITO (precio cero) el tope no aplica y solo cabe
+          el importe fijo** (`RN-CM-020`, 14-09-2026): un valor fijo entra sin
+          tope —del importe que sea, y varios roles a la vez—, y un porcentaje se
+          rechaza con `409` (`EX-006`), porque un porcentaje de nada es nada.
+
           Devuelve **todas** las asociaciones de la tasa, no solo la nueva.
           """)
   @ApiResponses({
@@ -243,8 +256,8 @@ public class CommissionRateController {
     @ApiResponse(
         responseCode = "409",
         description =
-            "Ese rol ya paga por ese producto, el producto está retirado, o la suma pasaría de"
-                + " cien"),
+            "Ese rol ya paga por ese producto, el producto está retirado, la suma pasaría de"
+                + " cien (`EX-005`), o es un porcentaje sobre un producto gratuito (`EX-006`)"),
     @ApiResponse(responseCode = "422", description = "El producto no existe")
   })
   @PostMapping("/{id}/products")

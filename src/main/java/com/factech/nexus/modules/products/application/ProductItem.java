@@ -1,7 +1,10 @@
 package com.factech.nexus.modules.products.application;
 
+import com.factech.nexus.modules.products.domain.models.ProductImplementation;
+import com.factech.nexus.modules.products.domain.models.ProductScope;
 import com.factech.nexus.modules.products.domain.models.ProductStatus;
 import com.factech.nexus.modules.products.domain.models.ProductType;
+import com.factech.nexus.modules.products.domain.models.RatingSummary;
 import com.factech.nexus.modules.products.domain.repository.ProductQueryRepository.ProductRow;
 import com.fasterxml.jackson.annotation.JsonInclude;
 import java.math.BigDecimal;
@@ -37,12 +40,18 @@ public record ProductItem(
     String name,
     String description,
     String icon,
+    String videoUrl,
     ProductResponse.MembershipRef sourceMembership,
     ProductResponse.MembershipRef targetMembership,
     BigDecimal price,
+    BigDecimal purchasePrice,
     ProductResponse.CurrencyRef currency,
+    ExchangeRef exchange,
     Integer validityDays,
+    ProductScope scope,
+    ProductImplementation implementation,
     ProductStatus status,
+    RatingSummary rating,
     OffsetDateTime createdAt,
     OffsetDateTime deletedAt) {
 
@@ -53,7 +62,7 @@ public record ProductItem(
    * puerto de `SP` es el problema de las {@code N+1} consultas con otro nombre —cien productos,
    * cien llamadas—, y por eso viaja en el {@code LEFT JOIN}.
    */
-  public static ProductItem from(ProductRow fila) {
+  public static ProductItem from(ProductRow fila, ExchangeRef conversion) {
     return new ProductItem(
         fila.id(),
         fila.code(),
@@ -61,25 +70,38 @@ public record ProductItem(
         fila.name(),
         fila.description(),
         fila.icon(),
+        // El enlace del video, tal cual y nulo presente cuando no hay (`CA-PM-223`).
+        fila.videoUrl(),
         fila.sourceMembershipId() == null
             ? null
             : new ProductResponse.MembershipRef(
                 fila.sourceMembershipId(),
                 fila.sourceMembershipCode(),
                 fila.sourceMembershipName(),
-                fila.sourceMembershipLevel()),
+                fila.sourceMembershipLevel(),
+                fila.sourceMembershipColor()),
         fila.targetMembershipId() == null
             ? null
             : new ProductResponse.MembershipRef(
                 fila.targetMembershipId(),
                 fila.targetMembershipCode(),
                 fila.targetMembershipName(),
-                fila.targetMembershipLevel()),
+                fila.targetMembershipLevel(),
+                fila.targetMembershipColor()),
         ProductPrice.enLaEscalaDe(fila.price(), fila.currencyDecimalPlaces()),
+        // El precio de compra, nulo y presente donde no se conoce (`CA-PM-151`).
+        // Viaja porque este listado exige `products:read` (`RN-PM-024`).
+        fila.purchasePrice() == null
+            ? null
+            : ProductPrice.enLaEscalaDe(fila.purchasePrice(), fila.currencyDecimalPlaces()),
         new ProductResponse.CurrencyRef(
             fila.currencyId(), fila.currencyCode(), fila.currencyDecimalPlaces()),
+        conversion,
         fila.validityDays(),
+        ProductScope.valueOf(fila.scope()),
+        ProductImplementation.valueOf(fila.implementation()),
         ProductStatus.valueOf(fila.status()),
+        fila.rating(),
         enUtc(fila.createdAt()),
         enUtc(fila.deletedAt()));
   }

@@ -75,7 +75,15 @@ class UserConcurrencyIT extends IntegrationTestBase {
     jdbc.update("DELETE FROM user_memberships");
     jdbc.update("DELETE FROM user_roles WHERE user_id <> ?", SUPERADMIN);
     jdbc.update("DELETE FROM users WHERE id <> ?", SUPERADMIN);
-    jdbc.update("DELETE FROM memberships WHERE level > 0");
+    // BECA SOBREVIVE AL BARRIDO desde el 05-09-2026: `RN-SP-018` da nivel a toda
+    // persona y el alta lo resuelve por código, de modo que un catálogo vacío ya
+    // no es un estado del que el sistema pueda salir. Borrarla aquí probaría algo
+    // que `RN-SP-008` no deja ocurrir: la membresía sembrada no se elimina.
+    // BARRIDO TOTAL Y REPOSICIÓN, en ese orden: conservar BECA haría depender esta
+    // clase del ORDEN DE EJECUCIÓN — según quién haya corrido antes, la fila queda
+    // colgando de VIP (`V47`) o suelta, y el barrido choca con `fk_memberships_parent`.
+    jdbc.update("DELETE FROM memberships");
+    reponerElSuelo(jdbc);
     // Los permisos del rol van antes que el rol: otras pruebas de la suite dejan
     // roles no sistémicos CON permisos, y la clave foránea es RESTRICT.
     jdbc.update(
@@ -399,8 +407,16 @@ class UserConcurrencyIT extends IntegrationTestBase {
                 """,
                 persona)
             > 0;
+    // `closed_at IS NULL` NO ES UN DETALLE DE LA CONSULTA, ES LA MITAD DE LA
+    // AFIRMACIÓN. Desde `V56` retirar CIERRA la fila en lugar de borrarla, de
+    // modo que contarlas todas diría que esta persona «tiene membresía» para
+    // siempre y `RN-SP-018` parecería rota en cuanto alguien deja de ser
+    // consumidor. Lo que el invariante mira es la fila ABIERTA.
     boolean tieneMembresia =
-        contar("SELECT count(*) FROM user_memberships WHERE user_id = ?", persona) > 0;
+        contar(
+                "SELECT count(*) FROM user_memberships WHERE user_id = ? AND closed_at IS NULL",
+                persona)
+            > 0;
 
     assertThat(esConsumidor)
         .as(
@@ -420,9 +436,9 @@ class UserConcurrencyIT extends IntegrationTestBase {
         .content(
             """
             {"username":"%s","email":"%s","firstName":"Juan","lastName":"Pérez",
-             "password":"%s","roleIds":["%s"]}
+             "password":"%s","countryId":"%s","documentTypeId":"%s","documentNumber":"%s","phone":"+573001234567","roleIds":["%s"]}
             """
-                .formatted(username, email, CLAVE, rol));
+                .formatted(username, email, CLAVE, COLOMBIA, CEDULA, documentoNuevo(), rol));
   }
 
   private MockHttpServletRequestBuilder altaConSuperior(
@@ -433,9 +449,10 @@ class UserConcurrencyIT extends IntegrationTestBase {
         .content(
             """
             {"username":"%s","email":"%s","firstName":"Juan","lastName":"Pérez",
-             "password":"%s","roleIds":["%s"],"supervisorId":"%s"}
+             "password":"%s","countryId":"%s","documentTypeId":"%s","documentNumber":"%s","phone":"+573001234567","roleIds":["%s"],"supervisorId":"%s"}
             """
-                .formatted(username, email, CLAVE, rol, superior));
+                .formatted(
+                    username, email, CLAVE, COLOMBIA, CEDULA, documentoNuevo(), rol, superior));
   }
 
   private MockHttpServletRequestBuilder editarCorreo(UUID id, String correo) {
@@ -531,8 +548,8 @@ class UserConcurrencyIT extends IntegrationTestBase {
     UUID id = UUID.randomUUID();
     jdbc.update(
         """
-        INSERT INTO users (id, username, email, first_name, last_name, password_hash, status)
-        VALUES (?, ?, ?, 'N', 'N', '$argon2id$sin-uso', 'ACTIVO')
+        INSERT INTO users (id, username, email, first_name, last_name, password_hash, status, country_id)
+        VALUES (?, ?, ?, 'N', 'N', '$argon2id$sin-uso', 'ACTIVO', (SELECT id FROM countries WHERE code = 'COL'))
         """,
         id,
         username,
@@ -549,8 +566,8 @@ class UserConcurrencyIT extends IntegrationTestBase {
     UUID id = UUID.randomUUID();
     jdbc.update(
         """
-        INSERT INTO users (id, username, email, first_name, last_name, password_hash, status)
-        VALUES (?, ?, ?, 'N', 'N', ?, 'ACTIVO')
+        INSERT INTO users (id, username, email, first_name, last_name, password_hash, status, country_id)
+        VALUES (?, ?, ?, 'N', 'N', ?, 'ACTIVO', (SELECT id FROM countries WHERE code = 'COL'))
         """,
         id,
         username,
@@ -583,7 +600,7 @@ class UserConcurrencyIT extends IntegrationTestBase {
     jdbc.update(
         """
         INSERT INTO memberships (id, code, name, level, parent_membership_id, color)
-        VALUES (?, 'BRONCE', 'Bronce', 1, NULL, 'CD7F32')
+        VALUES (?, 'BRONCE', 'Bronce', 2, (SELECT id FROM memberships WHERE code = 'BECA'), 'CD7F32')
         """,
         id);
     return id.toString();
@@ -591,7 +608,8 @@ class UserConcurrencyIT extends IntegrationTestBase {
 
   private void darMembresia(UUID persona, String membresia) {
     jdbc.update(
-        "INSERT INTO user_memberships (user_id, membership_id) VALUES (?, ?::uuid)",
+        "INSERT INTO user_memberships (id, user_id, membership_id)"
+            + " VALUES (gen_random_uuid(), ?, ?::uuid)",
         persona,
         membresia);
   }

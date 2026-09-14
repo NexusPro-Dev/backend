@@ -148,6 +148,7 @@ public class UpdateCommissionRateService {
         .sorted(Comparator.comparing(AssociationRow::productId))
         .forEach(
             fila ->
-                tope.verificar(fila.productId(), fila.productCode(), rateId, valorNuevo, "EX-006"));
+                tope.verificar(
+                    fila.productId(), fila.productCode(), rateId, valorNuevo, "EX-006", "EX-008"));
   }
 }

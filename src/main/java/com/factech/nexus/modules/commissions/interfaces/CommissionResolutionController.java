@@ -47,9 +47,16 @@ public class CommissionResolutionController {
           día concreto**, y **por qué**: devuelve la tasa que ganó y de cuál de las
           dos piezas salió.
 
-          **La precedencia son dos niveles:** si la persona tiene una tasa
-          **personalizada** vigente ese día, es esa — **sin mirar el producto**. Si
-          no, la que su **rol vendedor** tenga **asociada a ese producto**.
+          **La precedencia son dos niveles, y los dos exigen ASOCIACIÓN:** si la
+          persona tiene una tasa **personalizada** vigente ese día **asociada a ese
+          producto**, es esa. Si no, la que su **rol vendedor** tenga **asociada a
+          ese producto**. Si ninguna, no hay tarifa.
+
+          **Hasta el 11-09-2026 el primer nivel no miraba el producto**: una
+          excepción tapaba el catálogo entero de su titular y el segundo nivel no
+          llegaba a consultarse nunca. Desde esa fecha las dos clases de tasa se
+          asocian igual, y `RN-CM-012` —ninguna tasa rige hasta que se asocia—
+          deja de tener excepción.
 
           **Tres desenlaces, y ninguno es un error:**
 

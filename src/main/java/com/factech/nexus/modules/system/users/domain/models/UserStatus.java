@@ -7,14 +7,19 @@ package com.factech.nexus.modules.system.users.domain.models;
  * a seguridad— y no son sinónimos: quien deja la empresa queda inactivo; quien tropieza cinco veces
  * con su contraseña queda bloqueado. Fijado al aprobarse `RF-SP-028`.
  *
- * <p><b>{@code PENDIENTE} está declarado y sin usar a propósito</b> (`RF-SP-024` spec.md §14): el
- * alta deja la cuenta {@code ACTIVO} y marcada para cambio obligatorio. Existe en el dominio
- * cerrado para que el día que un requerimiento lo estrene no haga falta alterar el {@code CHECK} de
- * una tabla en uso.
+ * <p><b>{@code FTD_PENDIENTE} lo estrena `RF-SP-045` el 09-09-2026</b>, y hasta entonces se llamó
+ * {@code PENDIENTE} y no lo usaba nadie. El nombre cambió porque el viejo no decía pendiente <b>de
+ * qué</b>: este estado significa una cosa muy concreta —la cuenta existe, <b>autentica</b> y <b>no
+ * opera</b> hasta que haya un primer depósito confirmado—, y un nombre que no lo diga acaba
+ * usándose para «pendiente de revisión» o «pendiente de correo». <b>FTD</b> es el primer depósito.
+ *
+ * <p><b>Es el primer estado distinto de {@code ACTIVO} que puede autenticarse</b>, y esa es la
+ * consecuencia que hay que tener presente al leer {@code AuthUser.puedeEntrar()}: quien se registra
+ * por enlace entra al sistema desde el primer momento, y lo que no puede es operar.
  */
 public enum UserStatus {
   ACTIVO,
   INACTIVO,
   BLOQUEADO,
-  PENDIENTE
+  FTD_PENDIENTE
 }

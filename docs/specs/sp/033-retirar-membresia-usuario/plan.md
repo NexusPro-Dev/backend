@@ -12,6 +12,20 @@
 
 ---
 
+!!! warning "Enmendado el 05-09-2026 — deja de retirar y pasa a DEVOLVER AL SUELO"
+
+    Segunda enmienda del mismo día, y encima de la anterior. `RN-SP-018` pasa a exigir que **toda** persona tenga nivel, de modo que esta operación **ya no puede dejar a nadie sin membresía**.
+
+    **Cierra la que hay y abre una de código `BECA`**, en la misma transacción — la misma escritura de dos sentencias que `RF-SP-032` usa para sustituir.
+
+    **Responde `200` con la membresía `BECA`, no `204` sin cuerpo.** Devolver `204` diría que no queda nada, y queda algo: el nivel de arranque. Quien llama necesita saber en qué quedó la persona sin tener que volver a preguntar.
+
+    **`EX-001` desaparece**, y con él la rareza que definía este requerimiento: exigía que la persona **no** portara ningún rol `CONSUMIDOR` —lo contrario de lo que sugiere su nombre— porque `RN-SP-018` no admitía consumidores sin nivel. Retirada `RN-SP-013` y reescrita `RN-SP-018`, esa precondición no protege nada: bajar a alguien al suelo es válido lo porte o no.
+
+    **`FA-001` —sin membresía previa— deja de ser alcanzable**, por la misma razón. No se elimina del texto: describe un estado que el sistema ya no admite, y saber que se contempló vale más que un hueco.
+
+    **Y el requerimiento cambia de nombre**: «Retirar la membresía de un usuario» pasa a «**Devolver la membresía de un usuario al suelo**». El verbo importaba: `DELETE` sobre `/membership` ya no borra una relación, la **restablece**.
+
 ## 1. Enfoque
 
 Es el requerimiento más pequeño del módulo y el que más fácil es implementar mal, porque su nombre promete una operación corriente y lo que hace es lo contrario: **retira la membresía exactamente cuando la persona no es consumidora**, y la rechaza cuando lo es.
@@ -24,11 +38,28 @@ Su uso es **excepcional por diseño**, y de ahí sale casi todo lo demás: no ha
 
 ## 2. Cambios de esquema
 
-**Ninguno.**
+**Ninguno propio.** La tabla la crea `V20__create_user_memberships.sql` y `V56` la convierte en historial, ambas declaradas en el plan de `RF-SP-024` (§2.3 y §2.3.bis).
 
-`user_memberships` la crea `V20__create_user_memberships.sql` (`RF-SP-024`) y este requerimiento solo borra filas de ella.
+!!! warning "Enmendado el 05-09-2026 — el retiro deja de ser un `DELETE`"
 
-**El retiro es un `DELETE` de la fila**, no un `UPDATE`. La clave primaria de `user_memberships` es `user_id` (`requirements/sp.md` §10.12): no existe un estado «sin membresía» que escribir, existe la ausencia de fila. Es la misma decisión que toma `RF-SP-031` al aplicar la cascada de `RN-SP-015`, y por el mismo motivo — de hecho **es la misma escritura**, y §3 la comparte.
+    Esta sección decía: «**El retiro es un `DELETE` de la fila**, no un `UPDATE`. La clave primaria de `user_memberships` es `user_id`: no existe un estado “sin membresía” que escribir, existe la ausencia de fila.»
+
+    **El argumento era correcto y su premisa desapareció.** `user_memberships` es ahora un historial (`RN-SP-014`, reescrita), y en un historial sí existe algo que escribir: **cuándo dejó de tenerla**.
+
+**El retiro CIERRA la fila abierta y no la borra:**
+
+```sql
+UPDATE user_memberships
+   SET closed_at = now(), updated_at = now()
+ WHERE user_id = ? AND closed_at IS NULL
+```
+
+**No toca `ends_at`, y esa es la decisión de la enmienda.** La fila cerrada sigue diciendo **hasta cuándo se había pagado**, de modo que retirar la membresía de alguien el día doce de un mes pagado hasta el treinta deja constancia de las dos cosas. Machacar `ends_at` con el instante del retiro haría indistinguible **vencer** de **que te la quiten**, que es precisamente la diferencia que `closed_at` existe para guardar.
+
+**Y borrar era peor de lo que parecía.** Este requerimiento es «la salida correctiva» y su uso es excepcional por diseño (§1): son justamente los casos raros —un nivel concedido por error, un cliente al que se le retira— **los que alguien va a querer reconstruir después**, y el `DELETE` los hacía desaparecer sin dejar nada. Es el mismo criterio con el que `endSupervisor` nunca fue un `DELETE` (`V21`): la fila cerrada dice a quién se atribuía qué en cada periodo.
+
+**Sigue siendo la misma escritura que `RF-SP-031`**, y §3 la sigue compartiendo. Lo que cambia es que las dos pasan de borrar a cerrar, y con ellas `RF-SP-029`.
+
 
 ## 3. Componentes afectados
 
@@ -38,7 +69,7 @@ Su uso es **excepcional por diseño**, y de ahí sale casi todo lo demás: no ha
 | `domain` | `UserMembership` | Sin cambios | Agregado de `RF-SP-032`. Aporta el estado que viaja en el `snapshot` de la auditoría |
 | `domain` | `UserRepository` | Sin cambios | Puerto de `RF-SP-024`, ampliado por `RF-SP-031` con el borrado de la asignación de membresía. **Este requerimiento reutiliza esa misma operación** |
 | `application` | `RevokeUserMembershipService` | Nuevo | Caso de uso. `@Transactional`, verifica `EX-001` y emite la auditoría |
-| `infrastructure` | `JpaUserRepository` | Sin cambios | El `DELETE` sobre `user_memberships` lo aporta `RF-SP-031` |
+| `infrastructure` | `JpaUserRepository` | Sin cambios | El cierre de `user_memberships` lo aporta `RF-SP-031`. **Era un `DELETE` hasta el 05-09-2026** (§2) |
 | `api` | `UserController` | Modificado | Añade `DELETE /api/v1/users/{id}/membership` |
 
 **No hay DTO de entrada**, y su ausencia es la implementación de `spec.md` §6.1: no se indica cuál membresía se retira porque solo puede haber una, y no se declara motivo porque es la eliminación de una asociación (Art. V.13). Un cuerpo vacío que nadie lee sería una invitación a que alguien empiece a mandar algo por él.
@@ -105,7 +136,7 @@ Es el **mismo permiso** que la asignación, como declara `requirements/sp.md` §
 
 | Elemento | Transacción |
 |---|---|
-| `DELETE` de `user_memberships` y su evento en `audit_deletion_log` | **La misma** (Art. V.14) |
+| El cierre de `user_memberships` y su evento en `audit_deletion_log` | **La misma** (Art. V.14). El evento **no cambia de nombre**: para quien lee la auditoría el hecho sigue siendo que a esa persona le retiraron su membresía, y que la fila sobreviva cerrada es un detalle de cómo se guarda |
 | Auditoría del rechazo | **Independiente**, `REQUIRES_NEW` |
 | Revocación de sesiones | **No aplica**: la membresía no viaja en el token ni afecta a los permisos efectivos |
 
@@ -113,7 +144,7 @@ Nada más. Es el requerimiento con la transaccionalidad más simple del módulo,
 
 ## 8. Impacto sobre otros módulos
 
-- **`RF-SP-031`** aporta el `DELETE` sobre `user_memberships` y `RF-SP-032` aporta `UserMembership` y `User.hasConsumerRole()`. Este requerimiento no crea nada propio (§3).
+- **`RF-SP-031`** aporta el cierre de `user_memberships` —un `DELETE` hasta el 05-09-2026— y `RF-SP-032` aporta `UserMembership` y `User.hasConsumerRole()`. Este requerimiento no crea nada propio (§3).
 - **`RF-SP-031` es la puerta de salida real** del estado de consumidor, no esta operación. Su `FA-003` hace en cascada lo que aquí se rechaza, y las dos cosas son coherentes: allí el rol desaparece y aquí permanece.
 - **`RF-SP-029`** ya retira la membresía al eliminar a una persona, de modo que un usuario eliminado nunca llega aquí (`spec.md` §13).
 - **`RF-SP-026`** es donde se consulta el estado resultante. Esta operación devuelve `204` precisamente para no convertirse en una segunda vía de lectura.

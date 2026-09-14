@@ -185,22 +185,32 @@ public class ChangeUserStatusService {
   // ---------------------------------------------------------------------------
 
   /**
-   * `PENDIENTE` se rechaza aunque el esquema lo admita.
+   * `FTD_PENDIENTE` se rechaza como DESTINO, y sí se admite como origen.
    *
-   * <p>Ningún requerimiento lo produce, y admitirlo aquí abriría <b>el único camino</b> hacia un
-   * estado del que nadie sabe salir.
+   * <p>La distinción es la enmienda que `RF-SP-045` trae a este requerimiento (09-09-2026), y hay
+   * que leerla en los dos sentidos:
+   *
+   * <ul>
+   *   <li><b>Como destino se rechaza</b>, igual que se rechazaba `PENDIENTE`: ese estado lo produce
+   *       el <b>registro por enlace</b> y nadie más. Admitirlo aquí dejaría a un administrador
+   *       metiendo a cualquiera en una espera que solo un depósito puede terminar.
+   *   <li><b>Como ORIGEN se admite, y es lo que hace falta</b>: llevar una cuenta de {@code
+   *       FTD_PENDIENTE} a {@code ACTIVO} por esta vía es hoy <b>la única forma de sacar a alguien
+   *       de ahí</b>, mientras el webhook del bróker no exista (`RF-SP-054`). Sale gratis: este
+   *       método solo mira el destino.
+   * </ul>
    */
   private static UserStatus estadoDestino(String valor) {
     Optional<UserStatus> resuelto =
         java.util.Arrays.stream(UserStatus.values())
             .filter(estado -> estado.name().equalsIgnoreCase(valor == null ? "" : valor.trim()))
-            .filter(estado -> estado != UserStatus.PENDIENTE)
+            .filter(estado -> estado != UserStatus.FTD_PENDIENTE)
             .findFirst();
 
     return resuelto.orElseThrow(
         () -> {
           String mensaje =
-              "El estado debe ser ACTIVO, INACTIVO o BLOQUEADO. PENDIENTE no se admite.";
+              "El estado debe ser ACTIVO, INACTIVO o BLOQUEADO. FTD_PENDIENTE no se admite.";
           return new ValidationException(
               "VAL-001", mensaje, List.of(new FieldError("status", "VAL-001", mensaje)));
         });

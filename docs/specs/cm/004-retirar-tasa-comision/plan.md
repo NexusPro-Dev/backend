@@ -5,7 +5,8 @@
 | Requerimiento | `RF-CM-004` |
 | Especificación | [`spec.md`](spec.md) |
 | `spec.md` aprobada el | 02-09-2026 |
-| Versión | 0.2.0 |
+| Versión | 0.3.0 |
+| Reabierto el | 11-09-2026 — retirar una personalizada libera sus días **en su producto**, no en todo el catálogo (Art. I.7) |
 | Estado | **Aprobado** |
 | Autor | Responsable técnico |
 | Aprobado por | Responsable del proyecto |

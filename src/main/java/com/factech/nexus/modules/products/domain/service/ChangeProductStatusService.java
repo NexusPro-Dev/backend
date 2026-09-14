@@ -59,21 +59,27 @@ public class ChangeProductStatusService {
   private final ProductQueryRepository consultas;
   private final AuditWriter auditoria;
   private final Clock reloj;
+  private final ProductExchangeResolver conversiones;
 
   @Autowired
   public ChangeProductStatusService(
-      ProductRepository productos, ProductQueryRepository consultas, AuditWriter auditoria) {
-    this(productos, consultas, auditoria, Clock.systemUTC());
+      ProductRepository productos,
+      ProductQueryRepository consultas,
+      AuditWriter auditoria,
+      ProductExchangeResolver conversiones) {
+    this(productos, consultas, auditoria, conversiones, Clock.systemUTC());
   }
 
   ChangeProductStatusService(
       ProductRepository productos,
       ProductQueryRepository consultas,
       AuditWriter auditoria,
+      ProductExchangeResolver conversiones,
       Clock reloj) {
     this.productos = productos;
     this.consultas = consultas;
     this.auditoria = auditoria;
+    this.conversiones = conversiones;
     this.reloj = reloj;
   }
 
@@ -185,7 +191,14 @@ public class ChangeProductStatusService {
   private ProductDetailResponse detalleDe(UUID id) {
     return consultas
         .findDetail(id)
-        .map(fila -> ProductDetailResponse.from(fila, null))
+        .map(
+            fila ->
+                ProductDetailResponse.from(
+                    fila,
+                    null,
+                    conversiones
+                        .para(java.util.List.of(fila.currencyId()))
+                        .de(fila.currencyId(), fila.price())))
         .orElseThrow(
             () ->
                 new ResourceNotFoundException(

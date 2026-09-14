@@ -258,6 +258,52 @@ nexus:
         por-origen: 30
         ventana: PT1H
 
+      # La única cota que no protege un endpoint de autenticación. Lo que acota
+      # es el RECORRIDO A CIEGAS de nombres de usuario: el hotlink responde el
+      # mismo 404 a los seis casos que no proceden, de modo que barrer nombres
+      # es lo único que le queda a quien sondea, y esta cota es su única
+      # mitigación (`RF-PM-008`, `CA-PM-137`).
+      #
+      # El número es HOLGADO a propósito, y sin penalización: un hotlink se
+      # reparte por mensajería y lo abren muchas personas que pueden compartir
+      # la dirección de salida de su operador. Una cota estrecha —o una espera
+      # fija al superarla— dejaría fuera a lectores legítimos antes que a nadie
+      # más. Se cuenta por la FAMILIA de rutas y no por enlace: ver `HOTLINKS`
+      # en `RateLimitFilter`.
+      hotlink:
+        por-origen: 60
+        ventana: PT1M
+
+      # Los CUATRO catálogos que el formulario de registro lee SIN TOKEN: países,
+      # tipos de documento y brokers desde el 08-09-2026, y los MÉTODOS DE PAGO
+      # desde el 09-09-2026 (`RN-MV-024`). Se acotan por lo mismo que el refresco
+      # —son públicas y consultan la base en cada llamada— y NO por lo mismo que
+      # el hotlink: aquí no hay nada que sondear, son listas de opciones que no
+      # identifican a nadie y que responden lo mismo a todo el mundo.
+      #
+      # El número más holgado del sistema, y a propósito: UNA sola carga del
+      # formulario los pide todos, y detrás de una dirección de salida compartida
+      # eso son muchas cargas por minuto. Cada catálogo lleva su propio cubo, de
+      # modo que agotar el de países no deja sin métodos de pago al mismo
+      # formulario. El cuarto no estrenó política: solo cubo.
+      public-catalog:
+        por-origen: 120
+        ventana: PT1M
+
+      # EL REGISTRO POR ENLACE (`RF-SP-045`), y se acota por lo mismo que la
+      # recuperación y no por lo mismo que el refresco: no es que consulte la
+      # base, es que ESCRIBE. Sin cota, un origen puede crear cuentas en masa
+      # —cada una con su membresía, su atribución y su cuenta de broker— y
+      # ensuciar el árbol comercial sobre el que `CM` comisionará.
+      #
+      # Diez por hora: registrarse es algo que una persona hace UNA VEZ. El
+      # margen deja sitio a quien se equivoca y vuelve a intentarlo, y no deja
+      # sitio a una carga masiva. Detrás de una salida compartida —un locutorio,
+      # una oficina— diez familias al día siguen cabiendo.
+      registration:
+        por-origen: 10
+        ventana: PT1H
+
     # Orígenes que el navegador puede usar para llamar a esta API, separados
     # por coma y con la forma esquema://host[:puerto]. Cambian por entorno, de
     # modo que llegan por variable y NO se escriben en el código (Art. IX.1).

@@ -68,7 +68,15 @@ class RegisterUserIT extends IntegrationTestBase {
     jdbc.update("DELETE FROM user_memberships");
     jdbc.update("DELETE FROM user_roles WHERE user_id <> ?", SUPERADMIN);
     jdbc.update("DELETE FROM users WHERE id <> ?", SUPERADMIN);
-    jdbc.update("DELETE FROM memberships WHERE level > 0");
+    // BECA SOBREVIVE AL BARRIDO desde el 05-09-2026: `RN-SP-018` da nivel a toda
+    // persona y el alta lo resuelve por código, de modo que un catálogo vacío ya
+    // no es un estado del que el sistema pueda salir. Borrarla aquí probaría algo
+    // que `RN-SP-008` no deja ocurrir: la membresía sembrada no se elimina.
+    // BARRIDO TOTAL Y REPOSICIÓN, en ese orden: conservar BECA haría depender esta
+    // clase del ORDEN DE EJECUCIÓN — según quién haya corrido antes, la fila queda
+    // colgando de VIP (`V47`) o suelta, y el barrido choca con `fk_memberships_parent`.
+    jdbc.update("DELETE FROM memberships");
+    reponerElSuelo(jdbc);
     jdbc.update(
         "DELETE FROM role_permissions WHERE role_id IN"
             + " (SELECT id FROM roles WHERE is_system = false)");
@@ -252,12 +260,44 @@ class RegisterUserIT extends IntegrationTestBase {
   }
 
   // ---------------------------------------------------------------------------
-  // Membresía y superior — condicionales en los dos sentidos
+  // Membresía — el alta SIEMPRE concede una (`RN-SP-018`, reescrita)
   // ---------------------------------------------------------------------------
 
   @Test
-  @DisplayName("RN-SP-018 — el consumidor exige membresía, y la membresía exige consumidor")
-  void consumidorYMembresiaSonInseparables() throws Exception {
+  @DisplayName("RN-SP-018 — sin membresía indicada, la persona nace en el suelo")
+  void sinMembresiaNaceEnElSuelo() throws Exception {
+    String consumidor = crearRolConsumidor();
+
+    // Hasta el 05-09-2026 esto era un `409` con código `RN-SP-018`: el rol de
+    // consumidor EXIGÍA indicar membresía. Ahora no la exige nadie, porque toda
+    // persona nace con una.
+    mvc.perform(
+            post("/api/v1/users")
+                .with(superadmin())
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(cuerpo("cliente", "cliente@factech.co", "\"" + consumidor + "\"")))
+        .andExpect(status().isCreated())
+        .andExpect(jsonPath("$.membership.code").value("BECA"));
+  }
+
+  @Test
+  @DisplayName("RN-SP-013 retirada — un FUNCIONARIO también nace con nivel")
+  void elFuncionarioTambienNaceConNivel() throws Exception {
+    // La recíproca de la prueba anterior, y la que más cambia: antes, indicar
+    // membresía sin rol de consumidor era un `409`. Ahora ni siquiera hace falta
+    // indicarla — quien no es consumidor de nada tiene `BECA` igual.
+    mvc.perform(
+            post("/api/v1/users")
+                .with(superadmin())
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(cuerpo("otro", "otro@factech.co", "\"" + ADMIN + "\"")))
+        .andExpect(status().isCreated())
+        .andExpect(jsonPath("$.membership.code").value("BECA"));
+  }
+
+  @Test
+  @DisplayName("la membresía indicada se respeta, y es la única fila abierta de esa persona")
+  void laMembresiaIndicadaSeRespeta() throws Exception {
     String consumidor = crearRolConsumidor();
     String membresia = crearMembresia();
 
@@ -265,38 +305,24 @@ class RegisterUserIT extends IntegrationTestBase {
             post("/api/v1/users")
                 .with(superadmin())
                 .contentType(MediaType.APPLICATION_JSON)
-                .content(cuerpo("cliente", "cliente@factech.co", "\"" + consumidor + "\"")))
-        .andExpect(status().isConflict())
-        .andExpect(jsonPath("$.errors[0].code").value("RN-SP-018"));
-
-    // Y la recíproca: membresía sin rol de consumidor tampoco se ignora.
-    mvc.perform(
-            post("/api/v1/users")
-                .with(superadmin())
-                .contentType(MediaType.APPLICATION_JSON)
-                .content(
-                    """
-                    {"username":"otro","email":"otro@factech.co","firstName":"O","lastName":"P",
-                     "password":"%s","roleIds":["%s"],"membershipId":"%s"}
-                    """
-                        .formatted(CONTRASENA, rolAcotado, membresia)))
-        .andExpect(status().isConflict())
-        .andExpect(jsonPath("$.errors[0].code").value("RN-SP-018"));
-
-    // Juntos, sí.
-    mvc.perform(
-            post("/api/v1/users")
-                .with(superadmin())
-                .contentType(MediaType.APPLICATION_JSON)
                 .content(
                     """
                     {"username":"cliente","email":"cliente@factech.co","firstName":"C","lastName":"L",
-                     "password":"%s","roleIds":["%s"],"membershipId":"%s"}
+                     "password":"%s","countryId":"%s","documentTypeId":"%s","documentNumber":"%s","phone":"+573001234567","roleIds":["%s"],"membershipId":"%s"}
                     """
-                        .formatted(CONTRASENA, consumidor, membresia)))
-        .andExpect(status().isCreated());
+                        .formatted(
+                            CONTRASENA, COLOMBIA, CEDULA, documentoNuevo(), consumidor, membresia)))
+        .andExpect(status().isCreated())
+        .andExpect(jsonPath("$.membership.code").value("ORO"));
 
-    Integer filas = jdbc.queryForObject("SELECT count(*) FROM user_memberships", Integer.class);
+    // UNA POR PERSONA, no una en toda la tabla: desde `V57` el superadministrador
+    // sembrado también tiene la suya, de modo que contar filas sin acotar por
+    // persona mide otra cosa.
+    Integer filas =
+        jdbc.queryForObject(
+            "SELECT count(*) FROM user_memberships um JOIN users u ON u.id = um.user_id"
+                + " WHERE u.username = 'cliente' AND um.closed_at IS NULL",
+            Integer.class);
     assertThat(filas).isEqualTo(1);
   }
 
@@ -329,9 +355,15 @@ class RegisterUserIT extends IntegrationTestBase {
                 .content(
                     """
                     {"username":"contable2","email":"contable2@factech.co","firstName":"C","lastName":"D",
-                     "password":"%s","roleIds":["%s"],"supervisorId":"%s"}
+                     "password":"%s","countryId":"%s","documentTypeId":"%s","documentNumber":"%s","phone":"+573001234567","roleIds":["%s"],"supervisorId":"%s"}
                     """
-                        .formatted(CONTRASENA, rolAcotado, SUPERADMIN)))
+                        .formatted(
+                            CONTRASENA,
+                            COLOMBIA,
+                            CEDULA,
+                            documentoNuevo(),
+                            rolAcotado,
+                            SUPERADMIN)))
         .andExpect(status().isConflict())
         .andExpect(jsonPath("$.errors[0].code").value("RN-SP-019"));
   }
@@ -501,6 +533,144 @@ class RegisterUserIT extends IntegrationTestBase {
   }
 
   // ---------------------------------------------------------------------------
+  // `RN-SP-034` — toda persona pertenece a un país
+  // ---------------------------------------------------------------------------
+
+  @Test
+  @DisplayName("CA-SP-572 — sin país es 400, y con uno inexistente es 422")
+  void paisObligatorioYExistente() throws Exception {
+    // Sin el campo: es `400` y NO un `409` condicional. Es la diferencia con la
+    // membresía y el superior, que dependen de qué roles se concedan.
+    mvc.perform(
+            post("/api/v1/users")
+                .with(superadmin())
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(
+                    """
+                    {"username":"sinpais","email":"sinpais@factech.co","firstName":"S","lastName":"P",
+                     "password":"%s","roleIds":["%s"]}
+                    """
+                        .formatted(CONTRASENA, rolAcotado)))
+        .andExpect(status().isBadRequest());
+
+    // Con un país que no está en el catálogo: `422`, porque es una referencia
+    // que no resuelve — mismo trato que un rol inexistente.
+    mvc.perform(
+            post("/api/v1/users")
+                .with(superadmin())
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(
+                    """
+                    {"username":"paisfantasma","email":"pf@factech.co","firstName":"P","lastName":"F",
+                     "password":"%s","countryId":"%s","documentTypeId":"%s","documentNumber":"%s","phone":"+573001234567","roleIds":["%s"]}
+                    """
+                        .formatted(
+                            CONTRASENA, UUID.randomUUID(), CEDULA, documentoNuevo(), rolAcotado)))
+        .andExpect(status().isUnprocessableEntity())
+        .andExpect(jsonPath("$.errors[0].code").value("EX-009"))
+        .andExpect(jsonPath("$.errors[0].field").value("countryId"));
+  }
+
+  @Test
+  @DisplayName("CA-SP-573 — un país inactivo es 409, y NO el mismo error que uno inexistente")
+  void paisInactivo() throws Exception {
+    UUID inactivo = sembrarPais("XIA", "Pais Inactivo Del Alta", false);
+
+    // `409` y no `422`: el país existe, y lo que lo rechaza es una regla de
+    // negocio. El cliente los corrige distinto — ante el `422` releería el
+    // catálogo; ante este sabe que alguien lo retiró de la circulación.
+    mvc.perform(
+            post("/api/v1/users")
+                .with(superadmin())
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(
+                    """
+                    {"username":"paisinactivo","email":"pi@factech.co","firstName":"P","lastName":"I",
+                     "password":"%s","countryId":"%s","documentTypeId":"%s","documentNumber":"%s","phone":"+573001234567","roleIds":["%s"]}
+                    """
+                        .formatted(CONTRASENA, inactivo, CEDULA, documentoNuevo(), rolAcotado)))
+        .andExpect(status().isConflict())
+        .andExpect(jsonPath("$.errors[0].code").value("RN-SP-034"))
+        .andExpect(jsonPath("$.errors[0].field").value("countryId"));
+  }
+
+  @Test
+  @DisplayName("CA-SP-574 — el alta devuelve el país RESUELTO, no un identificador suelto")
+  void paisResueltoEnLaRespuesta() throws Exception {
+    mvc.perform(alta("conpais", "conpais@factech.co", rolAcotado))
+        .andExpect(status().isCreated())
+        .andExpect(jsonPath("$.country.id").value(COLOMBIA.toString()))
+        .andExpect(jsonPath("$.country.code").value("COL"))
+        .andExpect(jsonPath("$.country.name").value("Colombia"))
+        // Y NO el identificador suelto: quien recibe esto no tiene que llamar al
+        // catálogo —que además exige `countries:read`— para saber qué quedó.
+        .andExpect(jsonPath("$.countryId").doesNotExist());
+  }
+
+  // ---------------------------------------------------------------------------
+
+  /**
+   * Registra un país de prueba y devuelve su identificador.
+   *
+   * <p><b>Los códigos son del bloque de USO PRIVADO de ISO 3166-1</b> —los que empiezan por {@code
+   * X}—, que ningún país real ocupa jamás. La base de estas pruebas es compartida y los países
+   * <b>no se pueden borrar</b> (`RN-SP-009`): sembrar aquí «Panamá» chocaría con {@code
+   * uq_countries_name} en cuanto otra clase lo hubiera hecho antes, y el fallo aparecería o no
+   * según el orden de ejecución.
+   *
+   * <p>Y es <b>idempotente</b> por lo mismo: el país sobrevive a la prueba que lo creó.
+   */
+  private java.util.UUID sembrarPais(String codigo, String nombre, boolean activo) {
+    jdbc.update(
+        "INSERT INTO countries (id, code, name, is_active) VALUES (?, ?, ?, ?)"
+            + " ON CONFLICT (code) DO UPDATE SET is_active = EXCLUDED.is_active",
+        java.util.UUID.randomUUID(),
+        codigo,
+        nombre,
+        activo);
+    return jdbc.queryForObject(
+        "SELECT id FROM countries WHERE code = ?", java.util.UUID.class, codigo);
+  }
+
+  @Test
+  @DisplayName(
+      "CA-SP-677 y CA-SP-678 · el teléfono de la empresa entra, se normaliza y es OPCIONAL")
+  void elTelefonoDeLaEmpresa() throws Exception {
+    // Con el campo: se acepta y se persiste NORMALIZADO, con el mismo criterio
+    // que el personal — fuera espacios, guiones y paréntesis.
+    mvc.perform(
+            post("/api/v1/users")
+                .with(superadmin())
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(
+                    """
+                    {"username":"conempresa","email":"conempresa@factech.co","firstName":"A","lastName":"B",
+                     "password":"%s","countryId":"%s","documentTypeId":"%s","documentNumber":"%s",
+                     "phone":"+573001234567","companyPhone":"+57 (601) 234-5678","roleIds":["%s"]}
+                    """
+                        .formatted(CONTRASENA, COLOMBIA, CEDULA, documentoNuevo(), ADMIN)))
+        .andExpect(status().isCreated())
+        .andExpect(jsonPath("$.contact.phone").value("+573001234567"))
+        .andExpect(jsonPath("$.contact.companyPhone").value("+576012345678"));
+
+    assertThat(
+            jdbc.queryForObject(
+                "SELECT company_phone FROM users WHERE username = 'conempresa'", String.class))
+        .isEqualTo("+576012345678");
+
+    // Sin el campo: se acepta igual —`RN-SP-037` lo deja OPCIONAL— y sale
+    // PRESENTE Y EN NULO, no ausente. Exigirlo bloquearía el alta de todo el
+    // que no tenga empresa; devolverlo ausente obligaría al cliente a
+    // distinguir dos formas para pintar lo mismo.
+    mvc.perform(altaCon("sinempresa", "sinempresa@factech.co", ADMIN, CONTRASENA))
+        .andExpect(status().isCreated())
+        .andExpect(jsonPath("$.contact.companyPhone").value(org.hamcrest.Matchers.nullValue()));
+
+    assertThat(
+            jdbc.queryForObject(
+                "SELECT company_phone FROM users WHERE username = 'sinempresa'", String.class))
+        .isNull();
+  }
 
   private static final String CONTRASENA = "ClaveLargaYSegura2026";
 
@@ -522,9 +692,9 @@ class RegisterUserIT extends IntegrationTestBase {
         .content(
             """
             {"username":"%s","email":"%s","firstName":"Juan","lastName":"Pérez",
-             "password":"%s","roleIds":["%s"]}
+             "password":"%s","countryId":"%s","documentTypeId":"%s","documentNumber":"%s","phone":"+573001234567","roleIds":["%s"]}
             """
-                .formatted(username, email, contrasena, rol));
+                .formatted(username, email, contrasena, COLOMBIA, CEDULA, documentoNuevo(), rol));
   }
 
   private MockHttpServletRequestBuilder altaConSuperior(
@@ -535,17 +705,25 @@ class RegisterUserIT extends IntegrationTestBase {
         .content(
             """
             {"username":"%s","email":"%s","firstName":"A","lastName":"B",
-             "password":"%s","roleIds":["%s"],"supervisorId":"%s"}
+             "password":"%s","countryId":"%s","documentTypeId":"%s","documentNumber":"%s","phone":"+573001234567","roleIds":["%s"],"supervisorId":"%s"}
             """
-                .formatted(username, email, CONTRASENA, rol, superior));
+                .formatted(
+                    username,
+                    email,
+                    CONTRASENA,
+                    COLOMBIA,
+                    CEDULA,
+                    documentoNuevo(),
+                    rol,
+                    superior));
   }
 
   private static String cuerpo(String username, String email, String roles) {
     return """
         {"username":"%s","email":"%s","firstName":"A","lastName":"B",
-         "password":"%s","roleIds":[%s]}
+         "password":"%s","countryId":"%s","documentTypeId":"%s","documentNumber":"%s","phone":"+573001234567","roleIds":[%s]}
         """
-        .formatted(username, email, CONTRASENA, roles);
+        .formatted(username, email, CONTRASENA, COLOMBIA, CEDULA, documentoNuevo(), roles);
   }
 
   /** Crea una persona directamente en la base, para usarla como actor o como superior. */
@@ -553,8 +731,8 @@ class RegisterUserIT extends IntegrationTestBase {
     UUID id = UUID.randomUUID();
     jdbc.update(
         """
-        INSERT INTO users (id, username, email, first_name, last_name, password_hash, status)
-        VALUES (?, ?, ?, 'N', 'N', '$argon2id$sin-uso', 'ACTIVO')
+        INSERT INTO users (id, username, email, first_name, last_name, password_hash, status, country_id)
+        VALUES (?, ?, ?, 'N', 'N', '$argon2id$sin-uso', 'ACTIVO', (SELECT id FROM countries WHERE code = 'COL'))
         """,
         id,
         username,
@@ -583,7 +761,7 @@ class RegisterUserIT extends IntegrationTestBase {
     jdbc.update(
         """
         INSERT INTO memberships (id, code, name, parent_membership_id, level, color)
-        VALUES (?, 'ORO', 'Oro', NULL, 1, 'D4AF37')
+        VALUES (?, 'ORO', 'Oro', (SELECT id FROM memberships WHERE code = 'BECA'), 2, 'D4AF37')
         """,
         id);
     return id.toString();

@@ -32,6 +32,24 @@ import org.springframework.boot.context.properties.ConfigurationProperties;
  *       número</b>: cinco por minuto sin ella son setenta y dos mil correos al día; con ella el
  *       ritmo sostenido es de cinco cada cinco minutos, unos sesenta a la hora. Era de tres a la
  *       hora.
+ *   <li><b>Hotlink — 60/min por origen, sin penalización.</b> La única cota que no protege un
+ *       endpoint de autenticación (`RF-PM-008`, 08-09-2026). Lo que acota es el <b>recorrido a
+ *       ciegas de nombres de usuario</b>: la respuesta es un {@code 404} uniforme, de modo que
+ *       barrer nombres es lo único que queda, y esta cota es su única mitigación. El número es
+ *       holgado <b>a propósito</b>: un hotlink se reparte por mensajería y lo abren muchas personas
+ *       que pueden compartir la dirección de salida de su operador, de modo que una cota estrecha
+ *       dejaría fuera a lectores legítimos antes que a nadie más. Y <b>sin penalización</b> por lo
+ *       mismo: una espera fija convertiría una ráfaga de lectores en un corte de cinco minutos para
+ *       todos los que salen por esa dirección.
+ *   <li><b>Catálogos públicos — 120/min por origen y por catálogo, sin penalización.</b> Los que se
+ *       leen sin token: países, tipos de documento y brokers desde el 08-09-2026 (`RF-SP-045`), y
+ *       <b>los métodos de pago desde el 09-09-2026</b> (`RF-MV-009`, `RN-MV-024`). <b>Se acotan por
+ *       lo mismo que el refresco</b> —son públicas y consultan la base en cada llamada—, y
+ *       <b>no</b> por lo mismo que el hotlink: aquí no hay nada que sondear. El número es el más
+ *       holgado del sistema porque <b>una sola carga del formulario los pide todos</b>, y detrás de
+ *       una salida compartida eso son muchas cargas por minuto. El cuarto no estrena política y sí
+ *       cubo: la naturaleza es idéntica, y lo que hace falta es que agotar uno no deje sin los
+ *       otros al mismo formulario.
  * </ul>
  *
  * <p><b>Las dos cotas de recuperación se aplican desde el 26-08-2026</b>, al existir sus endpoints:
@@ -50,7 +68,10 @@ public record RateLimitSettings(
     Politica login,
     Politica refresh,
     Politica recovery,
-    Politica recoveryConfirmation) {
+    Politica recoveryConfirmation,
+    Politica hotlink,
+    Politica publicCatalog,
+    Politica registration) {
 
   /**
    * Una política: cuántas peticiones por ventana, por origen y por identidad.

@@ -8,6 +8,9 @@
 | Autor | Responsable técnico |
 | Aprobada por | Responsable del proyecto |
 | Fecha de aprobación | 22-08-2026 |
+| Enmendada | 07-09-2026 — `RN-SP-034`: el perfil publica el país del actor; `CA-SP-581` (Art. I.7) |
+| Enmendada | 08-09-2026 — `RN-SP-035` y `RN-SP-037`: el perfil publica el documento y el contacto; `CA-SP-597` (Art. I.7) |
+| Enmendada | 10-09-2026 — el contacto publica **dos teléfonos**: el personal y el de la empresa. Es lo que permite precargar el formulario de `RF-SP-044` con los dos (Art. I.7) |
 
 ---
 
@@ -72,14 +75,26 @@ Ninguna. La identidad del actor se resuelve a partir de su autenticación, y **n
 
 | Dato | Descripción |
 |---|---|
+| **Identificador** | El `uuid` del actor. **Añadido el 04-09-2026** — ver el aviso de abajo |
 | Identidad | Nombre de usuario, correo y nombre de la persona |
 | Estado | Estado de la cuenta. Siempre `ACTIVO`: ningún otro estado permite llegar hasta aquí |
 | Roles | Roles asignados, cada uno con su estado |
 | Permisos efectivos | Unión de los permisos de sus roles **activos**, ya resuelta |
+| Documento | El tipo **resuelto** y el número, del propio actor. Puede faltar entero |
+| Contacto | Los dos teléfonos —el personal y el de la empresa—, dirección, complemento y ciudad. Es lo que `RF-SP-044` deja corregir, de modo que sin publicarlo aquí la pantalla de edición **no podría precargarse** |
+| País | El país del actor, resuelto —identificador, código y nombre—. **Está siempre** (`RN-SP-034`). Lo necesita la interfaz por el mismo motivo por el que necesitó el identificador: `RN-MV-019` decide **qué medios de pago se le ofrecen** según dónde esté, y sin este campo el navegador no puede pintar la pantalla de pago sin preguntar por otra vía que un cliente no tiene |
 | Membresía | Membresía vigente y su nivel, cuando la persona tiene una |
 | Último inicio de sesión | Momento registrado por `RF-SP-034` en el acceso en curso. Se sobrescribe en cada entrada: no revela accesos anteriores |
 | Superior comercial | Persona que la tiene a cargo y el rol que porta, cuando existe. Solo el **vigente**: el historial que conserva `RN-SP-021` no se devuelve aquí |
 | Cambio de contraseña pendiente | Indicador de que debe ejecutar `RF-SP-037` antes de poder operar |
+
+!!! important "El identificador se añadió el 04-09-2026, y el motivo por el que faltaba era falso"
+
+    Esta consulta nació **sin** devolver el `uuid`, con un argumento escrito: «quien pregunta ya sabe quién es». Suena razonable y **no lo es**. Quien pregunta sabe su nombre de usuario; el identificador viaja **dentro del token**, y leerlo desde una interfaz obliga a descomponer un JWT — que es exactamente lo que un cliente no debe hacer con una credencial.
+
+    Lo destapó el frontend al construir la compra propia (`R-28`): `POST /api/v1/movements` exige `clientId`, de modo que **quien compraba para sí mismo no podía decir quién era**. El rodeo disponible —buscarse en el listado de usuarios— exige `users:read`, que un cliente no tiene, y habría derivado en el navegador un dato que el contrato no publicaba.
+
+    **No abre alcance, y conviene que quede dicho por qué.** El identificador es **del propio actor**, se resuelve del token igual que todo lo demás de esta respuesta, y la operación **sigue sin admitir parámetros**: no hay forma de señalar a otra persona. `CA-SP-434` sigue valiendo intacto.
 
 ## 7. Precondiciones y postcondiciones
 
@@ -159,6 +174,9 @@ Ninguna. La consulta no recibe datos de entrada.
 | `CA-SP-470` | La respuesta **no** contiene el equipo a cargo de la persona, ni ningún dato de terceros que dependan de ella |
 | `CA-SP-471` | La respuesta **no** contiene fechas de creación ni de modificación de la cuenta, ni momento de expiración de bloqueo |
 | `CA-SP-472` | La consulta **no** admite ninguna operación de escritura sobre los datos del actor |
+| `CA-SP-473` | El perfil devuelve el **identificador del actor**, y es **el mismo** con el que `RF-SP-026` lo consulta |
+| `CA-SP-597` | El perfil devuelve el **documento y el contacto del actor**, y el documento **en nulo** si la persona no lo tiene |
+| `CA-SP-581` | El perfil devuelve el **país del actor**, resuelto, y **no admite cambiarlo**: la operación sigue siendo de solo lectura y `RF-SP-044` tampoco lo acepta |
 
 ## 13. Casos límite
 

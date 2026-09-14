@@ -13,8 +13,9 @@ import com.factech.nexus.modules.system.roles.application.AuthenticatedActor;
 import com.factech.nexus.modules.system.roles.domain.models.RoleType;
 import com.factech.nexus.modules.system.users.application.AssignRolesRequest;
 import com.factech.nexus.modules.system.users.domain.models.User;
+import com.factech.nexus.modules.system.users.domain.repository.AssignableCountry;
+import com.factech.nexus.modules.system.users.domain.repository.AssignableDocumentType;
 import com.factech.nexus.modules.system.users.domain.repository.AssignableRole;
-import com.factech.nexus.modules.system.users.domain.repository.MembershipCatalog;
 import com.factech.nexus.modules.system.users.domain.repository.RoleCatalog;
 import com.factech.nexus.modules.system.users.domain.repository.UserRepository;
 import com.factech.nexus.modules.system.users.domain.security.CommercialStructure;
@@ -62,21 +63,31 @@ class AssignUserRolesOrderTest {
 
   private final UserRepository usuarios = mock(UserRepository.class);
   private final RoleCatalog roles = mock(RoleCatalog.class);
-  private final MembershipCatalog membresias = mock(MembershipCatalog.class);
+
   private final CommercialStructure estructura = mock(CommercialStructure.class);
   private final AuthenticatedActor actor = mock(AuthenticatedActor.class);
   private final AuditWriter auditoria = mock(AuditWriter.class);
   private final UuidV7Generator ids = mock(UuidV7Generator.class);
 
+  // El país no participa en NINGUNO de los órdenes que esta prueba fija: entra
+  // solo al componer la respuesta, después de que todo lo que aquí se verifica
+  // ya haya ocurrido. El doble está para poder construir el servicio.
+  private final AssignableCountry paises = mock(AssignableCountry.class);
+
+  // Tampoco participa en ningun orden: el documento entra al componer la
+  // respuesta, despues de todo lo que esta prueba verifica.
+  private final AssignableDocumentType documentos = mock(AssignableDocumentType.class);
+
   private final AssignUserRolesService servicio =
       new AssignUserRolesService(
           usuarios,
           roles,
-          membresias,
           estructura,
           actor,
           auditoria,
           ids,
+          paises,
+          documentos,
           Clock.fixed(Instant.parse("2026-08-27T10:00:00Z"), ZoneOffset.UTC));
 
   @Nested
@@ -96,7 +107,7 @@ class AssignUserRolesOrderTest {
        * trabajo tirado, y además abriría una vía para averiguar qué roles hay
        * en el catálogo desde una ruta que responde `404`.
        */
-      verifyNoInteractions(roles, membresias, estructura, actor, auditoria);
+      verifyNoInteractions(roles, estructura, actor, auditoria);
     }
   }
 
@@ -115,7 +126,7 @@ class AssignUserRolesOrderTest {
           .isInstanceOf(UnprocessableEntityException.class)
           .hasMessageContaining("no existen");
 
-      verifyNoInteractions(membresias, estructura);
+      verifyNoInteractions(estructura);
       verify(actor, never()).permissions();
     }
 
@@ -130,7 +141,7 @@ class AssignUserRolesOrderTest {
           .isInstanceOf(UnprocessableEntityException.class)
           .hasMessageContaining("inactivos");
 
-      verifyNoInteractions(membresias, estructura);
+      verifyNoInteractions(estructura);
       verify(actor, never()).permissions();
     }
   }
@@ -159,7 +170,7 @@ class AssignUserRolesOrderTest {
           .isInstanceOf(BusinessRuleException.class)
           .hasMessageContaining("exceden sus propios permisos");
 
-      verifyNoInteractions(membresias, estructura);
+      verifyNoInteractions(estructura);
       verify(usuarios, never()).addRoles(any(), anySet());
       verifyNoInteractions(auditoria);
     }
@@ -176,7 +187,7 @@ class AssignUserRolesOrderTest {
           .isInstanceOf(BusinessRuleException.class);
 
       verify(usuarios, never()).addRoles(any(), anySet());
-      verify(usuarios, never()).assignMembership(any(), any(), any(), any());
+      verify(usuarios, never()).assignMembership(any(), any(), any(), any(), any());
       verify(usuarios, never()).assignSupervisor(any(), any(), any(), any());
     }
   }
@@ -198,6 +209,6 @@ class AssignUserRolesOrderTest {
   }
 
   private static AssignRolesRequest peticion() {
-    return new AssignRolesRequest(List.of(ROL), null, null, null);
+    return new AssignRolesRequest(List.of(ROL), null);
   }
 }

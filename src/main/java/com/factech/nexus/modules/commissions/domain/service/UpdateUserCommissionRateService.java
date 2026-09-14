@@ -5,13 +5,17 @@ import com.factech.nexus.modules.commissions.application.UserCommissionRateRespo
 import com.factech.nexus.modules.commissions.domain.models.UserCommissionRate;
 import com.factech.nexus.modules.commissions.domain.repository.UserCommissionRateQueryRepository;
 import com.factech.nexus.modules.commissions.domain.repository.UserCommissionRateRepository;
+import com.factech.nexus.modules.commissions.domain.repository.UserRateProductRepository;
+import com.factech.nexus.modules.products.application.ProductCatalog;
 import com.factech.nexus.shared.audit.AuditEnums.ChangeAction;
 import com.factech.nexus.shared.audit.AuditEvents.ChangeEvent;
 import com.factech.nexus.shared.audit.AuditWriter;
+import com.factech.nexus.shared.error.BusinessRuleException;
 import com.factech.nexus.shared.error.FieldError;
 import com.factech.nexus.shared.error.ResourceNotFoundException;
 import com.factech.nexus.shared.error.ValidationException;
 import java.time.Clock;
+import java.time.LocalDate;
 import java.time.OffsetDateTime;
 import java.util.List;
 import java.util.Map;
@@ -36,6 +40,9 @@ public class UpdateUserCommissionRateService {
 
   private final UserCommissionRateRepository tasas;
   private final UserCommissionRateQueryRepository consultas;
+  private final UserRateProductRepository asociaciones;
+  private final ProductCatalog productos;
+  private final ProductCommissionCapGuard tope;
   private final AuditWriter auditoria;
   private final Clock reloj;
 
@@ -43,19 +50,79 @@ public class UpdateUserCommissionRateService {
   public UpdateUserCommissionRateService(
       UserCommissionRateRepository tasas,
       UserCommissionRateQueryRepository consultas,
+      UserRateProductRepository asociaciones,
+      ProductCatalog productos,
+      ProductCommissionCapGuard tope,
       AuditWriter auditoria) {
-    this(tasas, consultas, auditoria, Clock.systemUTC());
+    this(tasas, consultas, asociaciones, productos, tope, auditoria, Clock.systemUTC());
   }
 
   UpdateUserCommissionRateService(
       UserCommissionRateRepository tasas,
       UserCommissionRateQueryRepository consultas,
+      UserRateProductRepository asociaciones,
+      ProductCatalog productos,
+      ProductCommissionCapGuard tope,
       AuditWriter auditoria,
       Clock reloj) {
     this.tasas = tasas;
     this.consultas = consultas;
+    this.asociaciones = asociaciones;
+    this.productos = productos;
+    this.tope = tope;
     this.auditoria = auditoria;
     this.reloj = reloj;
+  }
+
+  /**
+   * Revalida `RN-CM-006` y `RN-CM-019` en <b>todos</b> los productos donde la tasa ya rige.
+   *
+   * <p><b>Alargar la vigencia puede pisar a otra tasa</b> de la misma persona en alguno de esos
+   * productos, y <b>subir un importe fijo</b> puede pasarse del precio de alguno. Las dos cosas
+   * eran imposibles antes de que esta tasa tuviera asociaciones.
+   *
+   * <p><b>Si cualquiera de los productos se pasaría, la corrección se rechaza entera</b>, que es el
+   * mismo criterio que `RF-CM-003` aplica a la tasa de rol: corregir a medias dejaría la tasa
+   * diciendo una cosa en unos productos y otra en otros.
+   *
+   * <p>El bloqueo por persona lo toma {@code update} justo después, y basta: entre esta lectura y
+   * la escritura no hay otro punto de entrada que pueda insertar una asociación de esta persona.
+   */
+  private void revalidar(UserCommissionRate tasa, UpdateUserCommissionRateRequest peticion) {
+    List<UUID> donde = asociaciones.productosDe(tasa.getId());
+    if (donde.isEmpty()) {
+      // Sin asociaciones no rige en ninguna parte (`RN-CM-012`): no hay nada
+      // contra lo que chocar.
+      return;
+    }
+
+    boolean cambiaVigencia = peticion.validTo().presente();
+    LocalDate hasta = cambiaVigencia ? peticion.validTo().valor() : tasa.getValidTo();
+    boolean cambiaValor = peticion.valor().presente() && peticion.valor().valor() != null;
+
+    for (UUID productId : donde) {
+      if (cambiaVigencia
+          && asociaciones.haySolape(
+              tasa.getUserId(), productId, tasa.getId(), tasa.getValidFrom(), hasta)) {
+        String mensaje =
+            "Con esa vigencia la tasa pisaría a otra viva de la misma persona en alguno de sus"
+                + " productos.";
+        throw new BusinessRuleException(
+            "EX-006", mensaje, List.of(new FieldError("validTo", "EX-006", mensaje)));
+      }
+      if (cambiaValor) {
+        productos
+            .find(productId)
+            .ifPresent(
+                producto ->
+                    tope.verificarIndividual(
+                        producto.id(),
+                        producto.code(),
+                        peticion.valor().valor(),
+                        "EX-007",
+                        "EX-008"));
+      }
+    }
   }
 
   @Transactional
@@ -81,6 +148,15 @@ public class UpdateUserCommissionRateService {
                 () -> new ResourceNotFoundException("EX-404", "La tasa indicada no existe."));
 
     // EL BLOQUEO SE TOMA ANTES DE TOCAR LA ENTIDAD, y el orden no es cosmético:
+
+    // LO QUE LA CORRECCIÓN PUEDE ROMPER EN LOS PRODUCTOS DONDE YA RIGE, y que
+    // hay que revalidar ANTES de tocar la entidad (11-09-2026).
+    //
+    // Antes de `V85` nada de esto hacía falta aquí: `RN-CM-006` la garantizaba
+    // el motor y `RN-CM-019` no alcanzaba a esta tasa porque no conocía ningún
+    // precio. Con la asociación, las dos pasan a depender de que este caso de
+    // uso se acuerde — y ese es el coste que la enmienda declara.
+    revalidar(tasa, peticion);
     // `lockUser` es una consulta nativa, y Hibernate vuelca lo pendiente antes
     // de ejecutar una. Tomándolo después de `update(...)`, ese volcado ocurriría
     // DENTRO del bloqueo y fuera de todo try, y la violación del solapamiento

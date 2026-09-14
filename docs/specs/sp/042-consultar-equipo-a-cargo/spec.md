@@ -8,6 +8,7 @@
 | Autor | Responsable técnico |
 | Aprobada por | Responsable del proyecto |
 | Fecha de aprobación | 22-08-2026 |
+| Enmendada | 10-09-2026 — el equipo se **filtra por códigos de rol** y cada persona lleva **la lista completa de sus roles** en lugar de un `roleCode` único. `CA-SP-455` queda **invertido**; entran `CA-SP-624` a `CA-SP-628`; se rehace la resolución 3 de §14 |
 
 ---
 
@@ -38,7 +39,8 @@ Mientras tanto esta consulta cubre lo que hoy hace falta de verdad: administrar 
 
 - El **superior inmediato** de la persona consultada, cuando lo tiene.
 - Su **equipo directo**: las personas de las que es superior hoy.
-- El rol comercial que porta cada una, que es lo que hace legible la estructura.
+- **La lista completa de roles** de cada persona de la respuesta —la consultada, su superior y cada miembro del equipo—, con identificador, código y nombre. Es lo que hace legible la estructura, y desde el 10-09-2026 sustituye al rol comercial único.
+- **Un filtro por códigos de rol** sobre el equipo directo, con varios códigos a la vez.
 
 ### 4.2 No incluye
 
@@ -46,7 +48,8 @@ Mientras tanto esta consulta cubre lo que hoy hace falta de verdad: administrar 
 - **El conteo de la rama indirecta**, ni siquiera como número sin nombres. Obligaría a recorrer el árbol, que es exactamente lo que D-22 debe gobernar, y un total también informa: revela el tamaño de la red de cada mando.
 - **Una variante «mi equipo»** resuelta contra el actor: es alcance por persona (`security.md` §6).
 - **El historial de superiores anteriores.** Solo se devuelve lo vigente. El dato se conserva (`RN-SP-021`) y hará falta, pero quien lo consultará es una auditoría de reparto de comisiones, con su propio permiso y sus propios filtros por fecha; no esta pantalla.
-- **Filtros sobre el equipo directo**, por estado de cuenta o por rol comercial. `RF-SP-025` ya filtra el listado general de usuarios; duplicar esa semántica sobre un subconjunto paginado añadiría superficie que hay que mantener sincronizada sin resolver una pregunta nueva.
+- **Filtrar el equipo por cualquier cosa que no sea el rol** —por estado de cuenta, por nombre, por país—. El filtro por rol entró el 10-09-2026 porque responde una pregunta que el listado general **no sabe responder**: «de la gente que cuelga de este agente, enséñame solo los clientes». Los demás filtros siguen fuera por el argumento original: `RF-SP-025` ya los tiene sobre el listado general, y replicarlos aquí obligaría a mantener dos semánticas sincronizadas.
+- **Filtrar al superior o a la persona consultada.** El filtro acota **el equipo** y nada más. El superior es uno solo y su **ausencia ya significa otra cosa** —«no depende de nadie»—; omitirlo por no casar con el filtro haría indistinguible la cúspide de un superior descartado, que es justo la distinción que `CA-SP-445` obliga a preservar.
 - **La cadena ascendente completa** —el superior del superior, y así hasta la cúspide—. Se obtiene encadenando consultas, y devolverla entera invitaría a usarla como sustituto del modelo de alcance que falta.
 - Cambiar la estructura → `RF-SP-041`.
 - Las personas que no pertenecen a la fuerza comercial: no tienen estructura que consultar.
@@ -66,15 +69,16 @@ Conviene dejarlo escrito de forma explícita, por el mismo motivo que lo hace `R
 | Identificador | Sí | Persona cuya estructura se consulta | Debe existir y no estar eliminada |
 | Página | No | Página del equipo directo | Por defecto la primera |
 | Tamaño | No | Elementos por página | Por defecto 20, máximo 100 (`architecture.md` §7.4) |
+| Roles | No | Códigos de rol por los que se acota **el equipo directo** | Varios admitidos. Entra quien porte **alguno** (semántica O). Un código inexistente **no es un error**: devuelve el equipo vacío, mismo criterio que `RF-SP-025` con su filtro por rol |
 
 ### 6.2 Salida
 
 | Dato | Descripción |
 |---|---|
-| Persona consultada | Nombre de usuario, nombre y el rol comercial que porta |
-| Superior inmediato | Quién la tiene a cargo hoy, con su rol comercial, y desde cuándo. Ausente si es la cúspide |
-| Equipo directo | Personas de las que es superior hoy, cada una con su nombre, su rol comercial y su estado de cuenta |
-| Total del equipo | Cuántas personas tiene a cargo, incluso cuando la página devuelta no las contenga todas |
+| Persona consultada | Nombre de usuario, nombre y **la lista completa de sus roles**, cada uno con identificador, código y nombre |
+| Superior inmediato | Quién la tiene a cargo hoy, con **sus roles**, y desde cuándo. Ausente si es la cúspide. **No se ve afectado por el filtro** |
+| Equipo directo | Personas de las que es superior hoy, cada una con su nombre, **sus roles** y su estado de cuenta. **Acotado por el filtro de roles, si viene** |
+| Total del equipo | Cuántas personas tiene a cargo, incluso cuando la página devuelta no las contenga todas. **Cuenta lo filtrado**: con un filtro por roles, cuenta a quienes lo cumplen |
 | Paginación | Total de elementos, total de páginas y página actual |
 
 ## 7. Precondiciones y postcondiciones
@@ -151,7 +155,12 @@ Conviene dejarlo escrito de forma explícita, por el mismo motivo que lo hace `R
 | `CA-SP-452` | El sistema rechaza la consulta a un actor sin `users:read` |
 | `CA-SP-453` | La respuesta **no** contiene superiores anteriores ni tramos cerrados: solo la asignación vigente |
 | `CA-SP-454` | La respuesta **no** contiene ningún conteo de la rama indirecta, ni siquiera como número agregado |
-| `CA-SP-455` | La consulta **no** admite filtros sobre el equipo directo: se devuelve entero y paginado |
+| `CA-SP-455` | **Invertido el 10-09-2026.** La consulta **sí** admite un filtro por códigos de rol sobre el equipo directo, y **sigue sin admitir** ningún otro: un `search` o un `status` no cambian el resultado |
+| `CA-SP-624` | Cada persona de la respuesta —la consultada, su superior y cada miembro del equipo— lleva **la lista completa de sus roles**, con identificador, código y nombre, ordenada por código y **presente aunque vaya vacía**. La respuesta **ya no publica un rol único** |
+| `CA-SP-625` | Un cliente de la cartera llega con **su rol a la vista** y no en nulo, que es lo que permite distinguirlo de un vendedor sin rol |
+| `CA-SP-626` | El filtro por un solo código devuelve **solo** a quienes lo portan, y el total del equipo **cuenta lo filtrado** |
+| `CA-SP-627` | Varios códigos se combinan con **O**: entra quien porte alguno, y **quien porte dos no aparece dos veces** |
+| `CA-SP-628` | Un código de rol inexistente devuelve el equipo vacío con `200`, **no un error**; y ni el superior ni la persona consultada se ven afectados por el filtro |
 
 ## 13. Casos límite
 
@@ -159,16 +168,18 @@ Conviene dejarlo escrito de forma explícita, por el mismo motivo que lo hace `R
 - **Subordinado eliminado:** no aparece. `RF-SP-029` cierra su asignación al eliminarlo, y esta consulta solo devuelve las vigentes.
 - **Persona con equipo grande:** se pagina. Un manager con decenas de directores no puede devolverse en una sola respuesta, y el total va aparte precisamente para que la primera página baste cuando lo único que se necesita es el número.
 - **Consulta durante una reasignación:** la operación de `RF-SP-041` cierra y abre en la misma transacción, de modo que esta consulta ve el estado anterior o el posterior, nunca a la persona sin superior ni con dos.
-- **Persona que porta rol comercial y además otro de otra clasificación:** se devuelve su estructura con normalidad; los roles no comerciales no intervienen.
+- **Persona que porta rol comercial y además otro de otra clasificación:** se devuelve su estructura con normalidad. Los roles no comerciales **no intervienen** en la estructura —quién depende de quién sigue saliendo de `user_supervisors`—, pero desde el 10-09-2026 **sí se publican**: `roles` los lleva todos, y filtrar por uno de ellos acota el equipo igual que filtrar por uno comercial.
 - **Identificador con formato incorrecto:** se rechaza por validación, no se trata como persona inexistente. Mismo criterio que `RF-SP-026`.
 
 ## 14. Preguntas abiertas
 
-Ninguna. Las cuatro se resolvieron el 22-08-2026, antes de aprobar la especificación. Las cuatro respuestas fueron restrictivas, y conviene ver por qué juntas: **esta consulta se mantiene deliberadamente pequeña** para no convertirse en el sustituto informal del modelo de alcance que falta.
+Ninguna. Las cuatro se resolvieron el 22-08-2026, antes de aprobar la especificación, y las cuatro respuestas fueron restrictivas: **esta consulta se mantiene deliberadamente pequeña** para no convertirse en el sustituto informal del modelo de alcance que falta.
+
+**La tercera se rehízo el 10-09-2026**, y conviene ver por qué eso no rompe el criterio: no se relajó «porque los datos ya estaban ahí» —que es exactamente lo que el enfoque original temía—, sino porque **cambió el contenido de la estructura**. Cuando se respondió que no, esta tabla relacionaba vendedores entre sí; desde `RF-SP-045` contiene también la cartera de clientes, y con ella apareció una pregunta que el listado general no sabe responder. Las otras tres siguen resueltas como estaban.
 
 | # | Pregunta | Resolución |
 |---|---|---|
 | 1 | ¿Devuelve el historial de superiores anteriores? | **No, solo lo vigente.** Esta consulta sirve para dos cosas —administrar la estructura y saber a quién reasignar antes de dar de baja a alguien (`RN-SP-022`)—, y el historial no ayuda a ninguna. Quien lo necesitará es una auditoría del reparto de comisiones, con permiso propio y filtros por fecha, que hoy no existe. El dato queda conservado por `RN-SP-021` y **sin ninguna vía de lectura** hasta entonces: es un hueco aceptado, no un olvido |
 | 2 | ¿Devuelve el conteo del equipo indirecto? | **No, ni siquiera como número.** «¿De cuánta gente respondo?» es la pregunta de un mando comercial, y el actor de esta consulta es un administrador revisando una ficha. Responderla exige recorrer el árbol, que es justo lo que **D-22** debe gobernar, y adelantarlo aquí crearía el precedente que la reserva de `security.md` §6 quiere evitar. Además un total tampoco es inocuo: revela el tamaño de la red de cada mando |
-| 3 | ¿El equipo directo admite filtros? | **No.** `RF-SP-025` ya filtra el listado general de usuarios por estado y por rol; replicar esa semántica sobre un subconjunto que cabe en una o dos páginas obligaría a mantener dos filtrados sincronizados sin responder ninguna pregunta nueva. Quien busque a alguien concreto tiene el listado general |
+| 3 | ¿El equipo directo admite filtros? | **Sí desde el 10-09-2026, y solo por rol** (decisión del responsable del proyecto). La resolución original decía que no, con el argumento de que `RF-SP-025` ya filtra el listado general por estado y por rol. **El argumento dejó de valer cuando la cartera de clientes entró en esta estructura** (`RF-SP-045`, 01-09-2026): el listado general sabe responder «enséñame a los clientes» y **no** sabe responder «de la gente que cuelga de este agente, enséñame solo los clientes», que es la pregunta de esta pantalla. Lo que la resolución protegía —no mantener dos semánticas de filtrado sincronizadas— se conserva acotando el filtro **al rol y a nada más**: ni `search`, ni `status`, ni país. Y no toca al superior, porque su ausencia ya significa otra cosa |
 | 4 | ¿Se admite consultar la estructura de una persona eliminada? | **No: se trata como inexistente**, mismo criterio que `RF-SP-026` y `RF-SP-003`. `RF-SP-029` cierra su asignación al eliminarla, de modo que no queda estructura **vigente** que devolver, y esta consulta solo devuelve lo vigente por la resolución 1. Reconstruir de quién dependía alguien que ya no está es una pregunta de auditoría, y llegará por la misma vía que el historial |
