@@ -3,6 +3,7 @@ package com.factech.nexus.modules.products.interfaces;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.header;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
@@ -265,6 +266,48 @@ class HotlinkIT extends IntegrationTestBase {
             .getResponse()
             .getContentAsString();
     assertThat(cuerpo).doesNotContain("purchasePrice").doesNotContain("30.00");
+  }
+
+  @Test
+  @DisplayName(
+      "`CA-PM-238` — el hotlink publica `coverImageUrl` sin token, y la imagen tampoco lo pide")
+  void laPortadaViajaSinToken() throws Exception {
+    String sinPortada =
+        mvc.perform(get("/api/v1/hotlinks/{u}/{c}", "hl-vendedora", "HL_BOT"))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.product.coverImageUrl").doesNotExist())
+            .andReturn()
+            .getResponse()
+            .getContentAsString();
+    assertThat(sinPortada).contains("\"coverImageUrl\":null");
+
+    UUID imagen = UUID.randomUUID();
+    jdbc.update(
+        "INSERT INTO product_images (id, content_type, content) VALUES (CAST(? AS uuid),"
+            + " 'image/png', decode('89504E470D0A1A0A00', 'hex'))",
+        imagen.toString());
+    jdbc.update(
+        "UPDATE products SET cover_image_id = CAST(? AS uuid), purchase_price = 30.00"
+            + " WHERE code = 'HL_BOT'",
+        imagen.toString());
+
+    String cuerpo =
+        mvc.perform(get("/api/v1/hotlinks/{u}/{c}", "hl-vendedora", "HL_BOT"))
+            .andExpect(status().isOk())
+            .andExpect(
+                jsonPath("$.product.coverImageUrl").value("/api/v1/product-images/" + imagen))
+            .andReturn()
+            .getResponse()
+            .getContentAsString();
+    assertThat(cuerpo).doesNotContain("purchasePrice").doesNotContain("30.00");
+
+    // Y la dirección que publica responde sin token (`RF-PM-016`).
+    mvc.perform(get("/api/v1/product-images/{id}", imagen))
+        .andExpect(status().isOk())
+        .andExpect(header().string("Content-Type", "image/png"));
+
+    jdbc.update("UPDATE products SET cover_image_id = NULL, purchase_price = NULL");
+    jdbc.update("DELETE FROM product_images");
   }
 
   @Test

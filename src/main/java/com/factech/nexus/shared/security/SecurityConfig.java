@@ -158,6 +158,21 @@ public class SecurityConfig {
   private static final String RESENAS_PUBLICAS = "/api/v1/products/*/comments";
 
   /**
+   * La imagen de portada de un producto (`RF-PM-016`, 14-09-2026): la única ruta del sistema que
+   * sirve bytes y no JSON, y la tercera pública de `PM`.
+   *
+   * <p>Es pública por lo mismo que las reseñas: una de las cuatro lecturas que devuelven su
+   * dirección es el hotlink, que no tiene con qué autenticarse, y un {@code <img>} no lleva
+   * cabecera {@code Authorization}. <b>Solo en {@code GET}</b> y en la lista por método, no en
+   * {@code RUTAS_PUBLICAS}: {@code /product-images/} no tiene hoy ninguna escritura —subir y quitar
+   * la portada viven en {@code /products/{id}/cover} bajo {@code products:update}—, y el día que la
+   * tenga no debe nacer abierta por un patrón demasiado ancho. Lo que la protege está en {@code
+   * security.md} §6: solo tres tipos —{@code SVG} fuera—, {@code nosniff}, y la cota de tasa por la
+   * familia. <b>No se solapa con {@code RESENAS_PUBLICAS}</b>: otro recurso.
+   */
+  private static final String PORTADAS_PUBLICAS = "/api/v1/product-images/*";
+
+  /**
    * Documentación de la API: pública solo donde se habilite de forma explícita.
    *
    * <p><b>{@code /v3/api-docs.yaml} se declara aparte y no sobra.</b> No casa con el literal exacto
@@ -223,6 +238,8 @@ public class SecurityConfig {
               auth.requestMatchers(HttpMethod.GET, CATALOGOS_PUBLICOS).permitAll();
               // Solo el GET y solo esa ruta: ver `RESENAS_PUBLICAS`.
               auth.requestMatchers(HttpMethod.GET, RESENAS_PUBLICAS).permitAll();
+              // Solo el GET: ver `PORTADAS_PUBLICAS`. Sirve bytes, no JSON.
+              auth.requestMatchers(HttpMethod.GET, PORTADAS_PUBLICAS).permitAll();
               if (documentacionPublica) {
                 auth.requestMatchers(RUTAS_DOCUMENTACION).permitAll();
               }

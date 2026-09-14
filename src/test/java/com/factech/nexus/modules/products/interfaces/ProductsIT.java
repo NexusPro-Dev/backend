@@ -46,6 +46,9 @@ class ProductsIT extends IntegrationTestBase {
   void prepararCatalogo() {
     jdbc.update("DELETE FROM currencies WHERE is_default = false");
     jdbc.update("DELETE FROM products");
+    // Antes que las membresías: `user_memberships` las referencia (`V57`), y
+    // sin esto la suite solo pasaba cuando otra las había vaciado antes.
+    jdbc.update("DELETE FROM user_memberships");
     jdbc.update("DELETE FROM memberships");
     // LA CADENA ENTERA, y no solo la cima: `RN-PM-018` dice que un upgrade
     // puede saltar niveles, y eso no se puede probar sin niveles que saltar.
@@ -61,7 +64,7 @@ class ProductsIT extends IntegrationTestBase {
     mvc.perform(
             alta(
                 """
-                {"scope":"TIENDA","implementation":"AUTOMATICA","code":"UPGRADE_ORO","type":"UPGRADE_MEMBRESIA","name":"Ascenso a Oro",
+                {"scope":"TIENDA","implementation":"AUTOMATICA","code":"UPGRADE_ORO","type":"UPGRADE_MEMBRESIA","icon":"crown","name":"Ascenso a Oro",
                  "description":"Acceso al nivel oro.","sourceMembershipId":"%s",
                  "targetMembershipId":"%s","price":49.99,"currencyId":"%s",
                  "validityDays":30}
@@ -127,18 +130,58 @@ class ProductsIT extends IntegrationTestBase {
   }
 
   @Test
-  @DisplayName("`CA-PM-098` — el icono es opcional: un upgrade sin él llega null y presente")
-  void elIconoEsOpcional() throws Exception {
-    mvc.perform(
-            alta(
-                """
-                {"scope":"TIENDA","implementation":"AUTOMATICA","code":"UPGRADE_ORO","type":"UPGRADE_MEMBRESIA","name":"Ascenso a Oro",
-                 "sourceMembershipId":"%s","targetMembershipId":"%s","price":49.99,
-                 "currencyId":"%s"}
-                """
-                    .formatted(free, oro, USD)))
-        .andExpect(status().isCreated())
-        .andExpect(jsonPath("$.icon").value(org.hamcrest.Matchers.nullValue()));
+  @DisplayName(
+      "`CA-PM-230` — `RN-PM-034`: un upgrade SIN icono se rechaza con VAL-018 y no registra")
+  void elIconoEsObligatorioEnElUpgrade() throws Exception {
+    // Era `CA-PM-098` —«el icono es opcional»— hasta el 14-09-2026. Desde la
+    // portada, en el alta el icono es lo único que puede pintar un upgrade:
+    // la portada llega después (`RF-PM-014`). Ausente, nulo y vacío, los tres.
+    for (String icono : new String[] {"", ",\"icon\":null", ",\"icon\":\"   \""}) {
+      mvc.perform(
+              alta(
+                  """
+                  {"scope":"TIENDA","implementation":"AUTOMATICA","code":"UPGRADE_ORO","type":"UPGRADE_MEMBRESIA","name":"Ascenso a Oro",
+                   "sourceMembershipId":"%s","targetMembershipId":"%s","price":49.99,
+                   "currencyId":"%s"%s}
+                  """
+                      .formatted(free, oro, USD, icono)))
+          .andExpect(status().isBadRequest())
+          .andExpect(jsonPath("$.errors[0].code").value("VAL-018"))
+          .andExpect(jsonPath("$.errors[0].field").value("icon"));
+    }
+    assertThat(cuantosProductos()).isZero();
+  }
+
+  @Test
+  @DisplayName(
+      "`CA-PM-231` — el bot sigue sin icono, y el alta trae `coverImageUrl` nulo y presente")
+  void elBotSinIconoYLaPortadaNula() throws Exception {
+    // La forma «nulo y presente» del icono sigue viva en el bot; y la portada
+    // no entra por aquí: el alta la devuelve siempre presente y nula, para que
+    // tenga la misma forma que el detalle.
+    String cuerpo =
+        mvc.perform(
+                alta(
+                    """
+                    {"scope":"TIENDA","implementation":"AUTOMATICA","code":"ASESORIA","type":"BOT","name":"Asesoría",
+                     "price":49.99,"currencyId":"%s"}
+                    """
+                        .formatted(USD)))
+            .andExpect(status().isCreated())
+            .andExpect(jsonPath("$.icon").value(org.hamcrest.Matchers.nullValue()))
+            .andExpect(jsonPath("$.coverImageUrl").value(org.hamcrest.Matchers.nullValue()))
+            .andReturn()
+            .getResponse()
+            .getContentAsString();
+    assertThat(cuerpo).contains("\"icon\":null").contains("\"coverImageUrl\":null");
+
+    // Y la instantánea del alta lleva `cover_image_id`, nulo.
+    String instantanea =
+        jdbc.queryForObject(
+            "SELECT changes::text FROM audit_change_log WHERE module = 'PM' AND action = 'CREATE'"
+                + " ORDER BY occurred_at DESC LIMIT 1",
+            String.class);
+    assertThat(instantanea).contains("\"cover_image_id\": null");
   }
 
   @Test
@@ -187,7 +230,7 @@ class ProductsIT extends IntegrationTestBase {
     mvc.perform(
             alta(
                 """
-                {"scope":"TIENDA","implementation":"AUTOMATICA","code":"UPGRADE_ORO","type":"UPGRADE_MEMBRESIA","name":"Ascenso",
+                {"scope":"TIENDA","implementation":"AUTOMATICA","code":"UPGRADE_ORO","type":"UPGRADE_MEMBRESIA","icon":"crown","name":"Ascenso",
                  "price":49.99,"currencyId":"%s"}
                 """
                     .formatted(USD)))
@@ -233,7 +276,7 @@ class ProductsIT extends IntegrationTestBase {
     mvc.perform(
             alta(
                 """
-                {"scope":"TIENDA","implementation":"AUTOMATICA","code":"SALTO_ORO","type":"UPGRADE_MEMBRESIA","name":"De Free a Oro",
+                {"scope":"TIENDA","implementation":"AUTOMATICA","code":"SALTO_ORO","type":"UPGRADE_MEMBRESIA","icon":"crown","name":"De Free a Oro",
                  "sourceMembershipId":"%s","targetMembershipId":"%s","price":99.99,
                  "currencyId":"%s"}
                 """
@@ -249,7 +292,7 @@ class ProductsIT extends IntegrationTestBase {
     mvc.perform(
             alta(
                 """
-                {"scope":"TIENDA","implementation":"AUTOMATICA","code":"SIN_ORIGEN","type":"UPGRADE_MEMBRESIA","name":"Sin origen",
+                {"scope":"TIENDA","implementation":"AUTOMATICA","code":"SIN_ORIGEN","type":"UPGRADE_MEMBRESIA","icon":"crown","name":"Sin origen",
                  "targetMembershipId":"%s","price":49.99,"currencyId":"%s"}
                 """
                     .formatted(oro, USD)))
@@ -260,7 +303,7 @@ class ProductsIT extends IntegrationTestBase {
     mvc.perform(
             alta(
                 """
-                {"scope":"TIENDA","implementation":"AUTOMATICA","code":"SIN_DESTINO","type":"UPGRADE_MEMBRESIA","name":"Sin destino",
+                {"scope":"TIENDA","implementation":"AUTOMATICA","code":"SIN_DESTINO","type":"UPGRADE_MEMBRESIA","icon":"crown","name":"Sin destino",
                  "sourceMembershipId":"%s","price":49.99,"currencyId":"%s"}
                 """
                     .formatted(free, USD)))
@@ -284,7 +327,7 @@ class ProductsIT extends IntegrationTestBase {
     mvc.perform(
             alta(
                 """
-                {"scope":"TIENDA","implementation":"AUTOMATICA","code":"DESCENSO","type":"UPGRADE_MEMBRESIA","name":"Bajada disfrazada",
+                {"scope":"TIENDA","implementation":"AUTOMATICA","code":"DESCENSO","type":"UPGRADE_MEMBRESIA","icon":"crown","name":"Bajada disfrazada",
                  "sourceMembershipId":"%s","targetMembershipId":"%s","price":49.99,
                  "currencyId":"%s"}
                 """
@@ -305,7 +348,7 @@ class ProductsIT extends IntegrationTestBase {
     mvc.perform(
             alta(
                 """
-                {"scope":"TIENDA","implementation":"AUTOMATICA","code":"RENOVAR_ORO","type":"UPGRADE_MEMBRESIA","name":"Renovar Oro",
+                {"scope":"TIENDA","implementation":"AUTOMATICA","code":"RENOVAR_ORO","type":"UPGRADE_MEMBRESIA","icon":"crown","name":"Renovar Oro",
                  "sourceMembershipId":"%s","targetMembershipId":"%s","price":49.99,
                  "currencyId":"%s","validityDays":30}
                 """
@@ -619,7 +662,7 @@ class ProductsIT extends IntegrationTestBase {
     mvc.perform(
             alta(
                 """
-                {"scope":"TIENDA","implementation":"AUTOMATICA","code":"UPGRADE_X","type":"UPGRADE_MEMBRESIA","name":"Ascenso",
+                {"scope":"TIENDA","implementation":"AUTOMATICA","code":"UPGRADE_X","type":"UPGRADE_MEMBRESIA","icon":"crown","name":"Ascenso",
                  "sourceMembershipId":"%s","targetMembershipId":"%s","price":49.99,
                  "currencyId":"%s"}
                 """
@@ -740,7 +783,7 @@ class ProductsIT extends IntegrationTestBase {
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(
                     """
-                    {"scope":"TIENDA","implementation":"AUTOMATICA","code":"UPGRADE_ORO","type":"UPGRADE_MEMBRESIA","name":"Ascenso a Oro",
+                    {"scope":"TIENDA","implementation":"AUTOMATICA","code":"UPGRADE_ORO","type":"UPGRADE_MEMBRESIA","icon":"crown","name":"Ascenso a Oro",
                      "sourceMembershipId":"%s","targetMembershipId":"%s","price":49.99,
                      "currencyId":"%s","validityDays":30}
                     """
@@ -891,7 +934,7 @@ class ProductsIT extends IntegrationTestBase {
                 .content(
                     """
                     {"scope":"HOTLINKS","implementation":"MANUAL","code":"UPGRADE_ORO",
-                     "type":"UPGRADE_MEMBRESIA","name":"Ascenso a Oro","sourceMembershipId":"%s",
+                     "type":"UPGRADE_MEMBRESIA","icon":"crown","name":"Ascenso a Oro","sourceMembershipId":"%s",
                      "targetMembershipId":"%s","price":49.99,"currencyId":"%s"}
                     """
                         .formatted(free, oro, USD)))
@@ -923,7 +966,7 @@ class ProductsIT extends IntegrationTestBase {
     mvc.perform(
             alta(
                 """
-                {"scope":"TIENDA","implementation":"AUTOMATICA","code":"UPGRADE_ORO","type":"UPGRADE_MEMBRESIA","name":"Ascenso a Oro",
+                {"scope":"TIENDA","implementation":"AUTOMATICA","code":"UPGRADE_ORO","type":"UPGRADE_MEMBRESIA","icon":"crown","name":"Ascenso a Oro",
                  "sourceMembershipId":"%s","targetMembershipId":"%s","price":49.99,
                  "currencyId":"%s"}
                 """

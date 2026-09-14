@@ -300,6 +300,38 @@ class RateLimitIT extends IntegrationTestBase {
         .andExpect(status().isUnauthorized());
   }
 
+  @Test
+  @DisplayName(
+      "portadas — identificadores distintos topan con la MISMA cota: se cuenta por familia")
+  void lasPortadasSeAcotanPorFamiliaYNoPorImagen() throws Exception {
+    // `CA-PM-260`. La octava cota, y la primera que acota bytes: la ruta lleva
+    // el identificador de la imagen, y contar por URI daria un cubo por imagen.
+    atendida(portada(java.util.UUID.randomUUID()));
+    atendida(portada(java.util.UUID.randomUUID()));
+
+    java.util.UUID tercera = java.util.UUID.randomUUID();
+    portada(tercera)
+        .andExpect(status().isTooManyRequests())
+        .andExpect(header().exists("Retry-After"))
+        .andExpect(jsonPath("$.instance").value("/api/v1/product-images/" + tercera));
+
+    // Y el registro del rechazo lleva el prefijo, no la ruta con el identificador.
+    java.util.List<String> detalles =
+        jdbc.queryForList(
+            "SELECT detail::text FROM audit_security_log"
+                + " WHERE event_type = 'RATE_LIMIT_EXCEEDED'",
+            String.class);
+    assertThat(detalles).hasSize(1);
+    assertThat(detalles).allMatch(detalle -> detalle.contains("GET /api/v1/product-images/"));
+    assertThat(detalles).noneMatch(detalle -> detalle.contains(tercera.toString()));
+  }
+
+  private org.springframework.test.web.servlet.ResultActions portada(java.util.UUID imagen)
+      throws Exception {
+    // La imagen no existe, y da igual: lo atendido responde 404 y lo cortado 429.
+    return mvc.perform(get("/api/v1/product-images/{id}", imagen));
+  }
+
   private org.springframework.test.web.servlet.ResultActions resenas(java.util.UUID producto)
       throws Exception {
     // El producto no existe, y da igual: lo atendido responde 404 y lo cortado 429.

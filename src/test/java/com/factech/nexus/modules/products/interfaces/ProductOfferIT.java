@@ -489,6 +489,38 @@ class ProductOfferIT extends IntegrationTestBase {
   }
 
   @Test
+  @DisplayName("`CA-PM-237` — la oferta trae `coverImageUrl`, nulo y presente sin ella, sin costo")
+  void laOfertaTraeLaPortada() throws Exception {
+    UUID imagen = UUID.randomUUID();
+    jdbc.update(
+        "INSERT INTO product_images (id, content_type, content) VALUES (CAST(? AS uuid),"
+            + " 'image/png', decode('89504E470D0A1A0A00', 'hex'))",
+        imagen.toString());
+    jdbc.update(
+        "UPDATE products SET cover_image_id = CAST(? AS uuid) WHERE code = 'UP_ORO'",
+        imagen.toString());
+    declararPrecioDeCompra("UP_ORO", "60.00");
+
+    String cuerpo =
+        mvc.perform(oferta(enFree))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.upgrades.content[3].code").value("UP_ORO"))
+            .andExpect(
+                jsonPath("$.upgrades.content[3].coverImageUrl")
+                    .value("/api/v1/product-images/" + imagen))
+            .andExpect(jsonPath("$.upgrades.content[1].code").value("UP_VIP"))
+            .andExpect(jsonPath("$.upgrades.content[1].coverImageUrl").doesNotExist())
+            .andExpect(jsonPath("$.upgrades.content[1]").value(Matchers.hasKey("coverImageUrl")))
+            .andReturn()
+            .getResponse()
+            .getContentAsString();
+    assertThat(cuerpo).doesNotContain("purchasePrice").doesNotContain("60.00");
+
+    jdbc.update("UPDATE products SET cover_image_id = NULL");
+    jdbc.update("DELETE FROM product_images");
+  }
+
+  @Test
   @DisplayName("declarar o vaciar el precio de compra NO cambia la respuesta de la oferta")
   void elCostoNoSeNotaDesdeLaOferta() throws Exception {
     String antes = mvc.perform(oferta(enFree)).andReturn().getResponse().getContentAsString();

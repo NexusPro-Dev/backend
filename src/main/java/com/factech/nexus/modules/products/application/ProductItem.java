@@ -41,6 +41,11 @@ public record ProductItem(
     String description,
     String icon,
     String videoUrl,
+    /**
+     * La dirección de la portada (`RN-PM-033`): la ruta pública de `RF-PM-016`, construida sobre
+     * `cover_image_id` sin tocar `product_images`. Presente y nula cuando no hay.
+     */
+    String coverImageUrl,
     ProductResponse.MembershipRef sourceMembership,
     ProductResponse.MembershipRef targetMembership,
     BigDecimal price,
@@ -72,6 +77,7 @@ public record ProductItem(
         fila.icon(),
         // El enlace del video, tal cual y nulo presente cuando no hay (`CA-PM-223`).
         fila.videoUrl(),
+        ProductImageUrls.de(fila.coverImageId()),
         fila.sourceMembershipId() == null
             ? null
             : new ProductResponse.MembershipRef(

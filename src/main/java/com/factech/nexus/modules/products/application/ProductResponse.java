@@ -42,6 +42,11 @@ public record ProductResponse(
      * revés que {@code purchasePrice}, sale en las cuatro lecturas.
      */
     String videoUrl,
+    /**
+     * La dirección de la portada (`RN-PM-033`): la ruta pública de `RF-PM-016`, construida sobre
+     * `cover_image_id` sin tocar `product_images`. Presente y nula cuando no hay.
+     */
+    String coverImageUrl,
     MembershipRef sourceMembership,
     MembershipRef targetMembership,
     BigDecimal price,
@@ -82,6 +87,7 @@ public record ProductResponse(
         producto.getDescription(),
         producto.getIcon(),
         producto.getVideoUrl(),
+        ProductImageUrls.de(producto.getCoverImageId()),
         ref(origen),
         ref(destino),
         enLaEscalaDe(producto.getPrice(), moneda),

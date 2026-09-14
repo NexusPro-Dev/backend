@@ -107,6 +107,23 @@ public class Product {
   private String videoUrl;
 
   /**
+   * La portada del producto: la fila de {@code product_images} cuyos bytes se sirven sin token
+   * (`RN-PM-033`, `V90`).
+   *
+   * <p><b>Es un identificador y no una asociación</b>, por lo mismo que las membresías: la imagen
+   * es un valor que se reemplaza y se borra, y una asociación {@code @OneToOne} la cargaría —cinco
+   * megas— en cada lectura del agregado. Nulo significa «no tiene portada», que es el estado de
+   * todo producto anterior al 14-09-2026.
+   *
+   * <p><b>En los dos tipos y sin condición</b> para subirla. La condición está en el otro sentido:
+   * un upgrade <b>sin</b> portada necesita icono (`RN-PM-034`), y ese cruce vive en las tres
+   * operaciones de este agregado que pueden dejarlo sin nada que pintar — {@link #create}, {@link
+   * #update} y {@link #quitarPortada}.
+   */
+  @Column(name = "cover_image_id")
+  private UUID coverImageId;
+
+  /**
    * Identificador y no una asociación {@code @ManyToOne}: apunta a una tabla de otro módulo, y una
    * asociación traería aquí su entidad — que es exactamente lo que D-25 impide. Los datos del
    * destino entran por la interfaz que `SP` publica.
@@ -261,6 +278,9 @@ public class Product {
     verificarTipoYMembresias(type, sourceMembershipId, targetMembershipId);
     producto.icon = normalizarIcono(icon);
     verificarTipoEIcono(type, producto.icon);
+    // `RN-PM-034`: en el alta no puede haber portada —llega después, con
+    // `RF-PM-014`—, de modo que un upgrade necesita el icono. El bot no entra.
+    verificarQuePuedePintarse(type, producto.icon, null, "VAL-018");
     // Sin `verificarTipo…` que lo acompañe: el video vale en los dos tipos.
     producto.videoUrl = normalizarEnlaceDeVideo(videoUrl, "VAL-017");
     producto.sourceMembershipId = sourceMembershipId;
@@ -373,6 +393,11 @@ public class Product {
       // `" "` que llega como icono es un vaciado, no un valor con formato malo.
       String valor = normalizarIcono(nuevoIcono.valor());
       verificarTipoEIcono(type, valor);
+      // `RN-PM-034`: se mira EL ESTADO QUE QUEDA, no el que había — un upgrade
+      // con portada vacía el icono sin queja; sin portada, no. Y un upgrade
+      // viejo sin icono ni portada que envíe `icon: null` recibe el rechazo,
+      // que es lo que `pm.md` §5.2.9 acepta para lo ya registrado.
+      verificarQuePuedePintarse(type, valor, coverImageId, "VAL-010");
       if (!java.util.Objects.equals(valor, icon)) {
         cambios.put("icon", Map.of("before", texto(icon), "after", texto(valor)));
         icon = valor;
@@ -565,6 +590,8 @@ public class Product {
     estado.put("purchase_price", purchasePrice == null ? null : purchasePrice.toPlainString());
     // Nulo cuando no hay video; los eventos anteriores al 14-09-2026 no lo llevan.
     estado.put("video_url", videoUrl);
+    // Como las membresías: el identificador como texto, nulo cuando no hay portada.
+    estado.put("cover_image_id", coverImageId == null ? null : coverImageId.toString());
     estado.put("currency_id", currencyId.toString());
     estado.put("validity_days", validityDays);
     estado.put("status", status.name());
@@ -652,6 +679,103 @@ public class Product {
       String mensaje = "Un producto de tipo bot no puede declarar membresía de origen.";
       throw new ValidationException(
           "VAL-008", mensaje, List.of(new FieldError("sourceMembershipId", "VAL-008", mensaje)));
+    }
+  }
+
+  /**
+   * Lo que devuelven las dos operaciones de la portada: qué imagen había, y el diff.
+   *
+   * @param anterior la imagen que dejó de ser portada, o nulo si no había; es la que el caso de uso
+   *     tiene que borrar <b>después</b> de volcar el cambio, por la clave foránea
+   * @param cambios el diff de auditoría: {@code cover_image_id} con antes y después, o vacío si no
+   *     cambió nada
+   */
+  public record CambioDePortada(UUID anterior, Map<String, Object> cambios) {
+
+    public boolean huboCambio() {
+      return !cambios.isEmpty();
+    }
+  }
+
+  /**
+   * Pone o reemplaza la portada (`RF-PM-014`).
+   *
+   * <p><b>Sin condición de tipo ni de estado</b>: subir una portada nunca deja al producto peor de
+   * lo que estaba, y por eso esta es la única de las tres operaciones de la portada que {@code
+   * RN-PM-034} no mira. Siempre hay cambio, porque cada subida estrena identificador.
+   */
+  public CambioDePortada asignarPortada(UUID nueva, OffsetDateTime ahora) {
+    UUID anterior = coverImageId;
+    coverImageId = nueva;
+    updatedAt = ahora;
+    return new CambioDePortada(anterior, diffDePortada(anterior, nueva));
+  }
+
+  /**
+   * Quita la portada (`RF-PM-015`).
+   *
+   * <p><b>Primero «¿hay portada?» y después la regla</b>, y el orden no es un detalle: un upgrade
+   * anterior al 14-09-2026 sin icono ni portada tiene que recibir «no hay nada que quitar» y no un
+   * rechazo por algo que esta operación no puede arreglar (`spec.md` §8). Sin portada, devuelve un
+   * diff vacío y no toca {@code updatedAt}: «quítala» sobre un producto sin portada ya ha
+   * conseguido lo que quería.
+   *
+   * <p>Con portada, `RN-PM-034`: un upgrade sin icono no se queda sin nada que pintar (`VAL-002`,
+   * que nombra {@code icon} —lo que falta— y no la portada —lo que se pide—). El bot se la quita
+   * siempre.
+   */
+  public CambioDePortada quitarPortada(OffsetDateTime ahora) {
+    if (coverImageId == null) {
+      return new CambioDePortada(null, Map.of());
+    }
+    verificarQuePuedePintarse(type, icon, null, "VAL-002");
+    UUID anterior = coverImageId;
+    coverImageId = null;
+    updatedAt = ahora;
+    return new CambioDePortada(anterior, diffDePortada(anterior, null));
+  }
+
+  private static Map<String, Object> diffDePortada(UUID antes, UUID despues) {
+    Map<String, Object> cambios = new LinkedHashMap<>();
+    cambios.put(
+        "cover_image_id",
+        Map.of(
+            "before", antes == null ? "" : antes.toString(),
+            "after", despues == null ? "" : despues.toString()));
+    return cambios;
+  }
+
+  /**
+   * `RN-PM-034`: un upgrade siempre tiene con qué pintarse — portada o icono.
+   *
+   * <p><b>Una regla, tres caras, un solo método</b>: el alta (`VAL-018`, sin portada posible), la
+   * corrección del icono (`VAL-010`) y el retiro de la portada (`VAL-002` de `RF-PM-015`). Las tres
+   * miran <b>el estado que quedaría</b> —el icono y la portada que habrá después de la operación— y
+   * viven aquí porque el agregado es el único que ve las dos columnas a la vez.
+   *
+   * <p><b>El bot no entra, y no es una excepción sino una consecuencia</b>: no declara icono
+   * (`RN-PM-016`) y el frontend le pinta el suyo por omisión, de modo que la portada le es opcional
+   * sin condición (`requirements/pm.md` §5.2.9).
+   *
+   * <p>El campo que se nombra es siempre {@code icon}: es lo que falta, aunque lo que se pida sea
+   * quitar la portada.
+   */
+  private static void verificarQuePuedePintarse(
+      ProductType tipo, String icono, UUID portada, String codigo) {
+    if (tipo.admiteIcono() && icono == null && portada == null) {
+      String mensaje =
+          switch (codigo) {
+            case "VAL-018" ->
+                "Un producto de upgrade debe declarar su icono mientras no tenga" + " portada.";
+            case "VAL-010" ->
+                "Un upgrade sin portada no puede quedarse sin icono: suba primero una"
+                    + " portada.";
+            default ->
+                "Un upgrade sin icono no puede quedarse sin portada: declare primero el"
+                    + " icono.";
+          };
+      throw new ValidationException(
+          codigo, mensaje, List.of(new FieldError("icon", codigo, mensaje)));
     }
   }
 
@@ -784,6 +908,11 @@ public class Product {
   /** La dirección del video que presenta el producto. Nulo: no tiene (`RN-PM-032`). */
   public String getVideoUrl() {
     return videoUrl;
+  }
+
+  /** La imagen de portada. Nulo: no tiene (`RN-PM-033`). */
+  public UUID getCoverImageId() {
+    return coverImageId;
   }
 
   public UUID getTargetMembershipId() {

@@ -132,6 +132,19 @@ public class RateLimitFilter extends OncePerRequestFilter {
 
   private static final String RESENAS_FAMILIA = "/api/v1/products/*/comments";
 
+  /**
+   * La imagen de portada de un producto (`RF-PM-016`, 14-09-2026): <b>la octava cota, y la primera
+   * que acota bytes y no solo sentencias</b>.
+   *
+   * <p>El número es el de los catálogos —{@code public-catalog}, 120 por minuto y por origen— y la
+   * llave es la <b>familia</b>, como el hotlink y las reseñas: la ruta lleva un identificador y
+   * contar por URI daría un cubo por imagen. Lo que la distingue es lo que cuesta cada acierto —
+   * hasta cinco megas—, y lo que hace que ese número baste es la caché inmutable con la que la ruta
+   * responde: la carga ocurre una vez por navegador y no una por pantalla (`security.md` §5.5.1).
+   * Es un <b>prefijo</b> y no un patrón de un segmento: no hay ninguna otra ruta bajo él.
+   */
+  private static final String PORTADAS = "/api/v1/product-images/";
+
   /** Un cuerpo de autenticación son decenas de bytes; esto es holgura, no un límite funcional. */
   private static final int TOPE_DEL_CUERPO = 8 * 1024;
 
@@ -268,6 +281,10 @@ public class RateLimitFilter extends OncePerRequestFilter {
       if (esListaDeResenas(ruta)) {
         // La FAMILIA como llave, como en el hotlink: ver `RESENAS_FAMILIA`.
         return new Regla(RESENAS_FAMILIA, ajustes.publicCatalog());
+      }
+      if (ruta.startsWith(PORTADAS)) {
+        // El prefijo como llave y el número de los catálogos: ver `PORTADAS`.
+        return new Regla(PORTADAS, ajustes.publicCatalog());
       }
       return null;
     }

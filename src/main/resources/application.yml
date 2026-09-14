@@ -15,6 +15,20 @@ spring:
     # el proceso a la fuerza.
     timeout-per-shutdown-phase: 30s
 
+  servlet:
+    multipart:
+      # La portada de un producto (`RF-PM-014`) es el único archivo que el
+      # sistema recibe. El tope de NEGOCIO son 5 MB (`RN-PM-033`,
+      # `ck_product_images_size`) y lo comprueba el dominio con su `VAL-004`;
+      # estos dos van POR ENCIMA a propósito, para que un archivo de 5,5 MB
+      # llegue al controlador y reciba ese rechazo con su cuerpo, y no un corte
+      # del contenedor sin explicación. Lo que pase de aquí lo corta Spring
+      # antes del controlador y `GlobalExceptionHandler` lo traduce al MISMO
+      # `VAL-004`: el cliente recibe siempre la misma respuesta por «demasiado
+      # grande», venga de donde venga.
+      max-file-size: 6MB
+      max-request-size: 7MB
+
   datasource:
     url: ${DATABASE_URL}
     username: ${DATABASE_USER}

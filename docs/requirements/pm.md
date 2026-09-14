@@ -5,7 +5,7 @@
 | Módulo | `PM` — Productos y Mercadeo |
 | Paquete | `modules/products` |
 | Prefijos de permiso | `products:` |
-| Versión | 0.31.0 |
+| Versión | 0.32.0 |
 | Estado | **Borrador** |
 | Responsable | Bonilla Diaz William Steven |
 | Fecha de creación | 26-08-2026 |
@@ -620,9 +620,9 @@ No se copian: se referencian, porque dos copias de una regla acaban divergiendo.
 | `RF-PM-011` | Retirar la reseña propia | Media | `products:comment` | **En desarrollo** |
 | `RF-PM-012` | Consultar las reseñas de un producto, sin autenticación | Alta | **Público** | **En desarrollo** |
 | `RF-PM-013` | Consultar la reseña propia sobre un producto | Media | `products:comment` | **En desarrollo** |
-| `RF-PM-014` | Subir o reemplazar la portada de un producto | Alta | `products:update` | **Tasks en revisión** |
-| `RF-PM-015` | Quitar la portada de un producto | Media | `products:update` | **Tasks en revisión** |
-| `RF-PM-016` | Obtener la imagen de una portada, sin autenticación | Alta | **Público** | **Tasks en revisión** |
+| `RF-PM-014` | Subir o reemplazar la portada de un producto | Alta | `products:update` | **En desarrollo** |
+| `RF-PM-015` | Quitar la portada de un producto | Media | `products:update` | **En desarrollo** |
+| `RF-PM-016` | Obtener la imagen de una portada, sin autenticación | Alta | **Público** | **En desarrollo** |
 | `RF-PM-017` | Registrar paquete | **Crítica** | `packages:create` | Pendiente |
 | `RF-PM-018` | Consultar paquetes | Alta | `packages:read` | Pendiente |
 | `RF-PM-019` | Consultar el detalle de un paquete | Alta | `packages:read` | Pendiente |
@@ -848,7 +848,7 @@ Devuelve, en **una** llamada y **sin token**, el producto que el enlace señala 
 | Reglas aplicables | `RN-PM-033`, `RN-PM-034` |
 | Depende de | `RF-PM-001` |
 | Tripleta | `docs/specs/pm/014-subir-portada-producto/` |
-| Estado | **Tasks en revisión** (14-09-2026) |
+| Estado | **En desarrollo** (14-09-2026) |
 
 Recibe **un archivo** —`multipart/form-data`, una sola parte— y lo convierte en la portada del producto: comprueba por **sus primeros bytes** que es `JPEG`, `PNG` o `WebP`, que **no pasa de 5 MB**, y lo guarda **tal cual**, sin tratarlo (`RN-PM-033`). Si el producto ya tenía portada, **la reemplaza**: la nueva estrena identificador y **la vieja se borra** en la misma transacción. Responde con el producto, como la corrección, y `coverImageUrl` trae la dirección nueva. **En los dos tipos**, sin condición: subir una portada nunca puede dejar a un producto peor de lo que estaba.
 
@@ -865,7 +865,7 @@ Recibe **un archivo** —`multipart/form-data`, una sola parte— y lo convierte
 | Reglas aplicables | `RN-PM-033`, `RN-PM-034` |
 | Depende de | `RF-PM-014` |
 | Tripleta | `docs/specs/pm/015-quitar-portada-producto/` |
-| Estado | **Tasks en revisión** (14-09-2026) |
+| Estado | **En desarrollo** (14-09-2026) |
 
 Quita la portada: `cover_image_id` vuelve a nulo y **la fila de la imagen se borra**, en la misma transacción. **Es la única de las tres operaciones que tiene algo que rechazar**: un upgrade **sin icono** no puede quedarse sin portada (`RN-PM-034`), y la petición se rechaza en lugar de dejar el producto sin nada que pintar; a un bot se le quita siempre. Sin portada que quitar, **responde igual y no escribe nada** — «quítala» sobre un producto que no la tiene ya ha conseguido lo que quería. Responde con el producto, con `coverImageUrl` nulo.
 
@@ -880,7 +880,7 @@ Quita la portada: `cover_image_id` vuelve a nulo y **la fila de la imagen se bor
 | Reglas aplicables | `RN-PM-033` |
 | Depende de | `RF-PM-014` |
 | Tripleta | `docs/specs/pm/016-imagen-de-portada-publica/` |
-| Estado | **Tasks en revisión** (14-09-2026) |
+| Estado | **En desarrollo** (14-09-2026) |
 
 Devuelve **los bytes de la imagen** con su `Content-Type` real —el que se detectó al subirla—, **sin mirar el producto**: no comprueba estado, alcance ni retiro (§5.2.9). Responde con **caché inmutable** —un año, `immutable`— porque la dirección señala una imagen concreta que no cambia nunca: reemplazar la portada es otra dirección. Un identificador que no existe —o que existió y se reemplazó— responde `404`. **Es la tercera ruta pública del módulo** y la primera del sistema que sirve algo que no es JSON; entra en la cota de tasa de los catálogos públicos, contada por la familia, como las reseñas.
 
@@ -1488,3 +1488,4 @@ Se declaran en la base de datos, no solo en Java (Art. V.6).
 | 0.29.0 | 14-09-2026 | **Un producto lleva PORTADA, y si no la tiene el icono es obligatorio.** Por decisión del responsable del proyecto, con **seis respuestas preguntadas antes de escribir** (§5.2.9). **Es la primera vez que el sistema guarda un archivo**: la frontera que `RN-PM-016` y §5.2.8 declaraban —«el sistema no almacena binarios»— **se mueve a propósito** y queda escrito hasta dónde: se guardan los bytes de una imagen `JPEG`, `PNG` o `WebP` de hasta 5 MB, **el tipo lo deciden los bytes y no la cabecera**, y **no se trata** — ni recorte, ni redimensión, ni conversión. **En PostgreSQL**, en `product_images` con `bytea` (§10.5), y no en disco ni en un bucket: mismo volumen, misma copia, misma transacción. **Por endpoints propios después del alta** —`PUT` y `DELETE /products/{id}/cover`, `RF-PM-014` y `RF-PM-015`— y **servida sin token por identificador de imagen** —`GET /product-images/{imageId}`, `RF-PM-016`, la tercera ruta pública del módulo—, con **caché inmutable** porque cada subida estrena identificador y la reemplazada **se borra**. Nacen **`RN-PM-033`** y **`RN-PM-034`** —un upgrade siempre tiene portada o icono, **al registrar y en cada corrección**: el alta exige el icono, con portada se vacía, sin icono la portada no se quita—; **`RN-PM-016` se enmienda** —el icono deja de ser opcional en el upgrade— y **el bot no entra**: sigue sin declarar icono, tiene el suyo por omisión en el frontend, y la portada le es opcional sin condición. `RN-PM-034` **no vive en el esquema** y §10.3 dice por qué: hay upgrades anteriores sin icono, y un `CHECK NOT VALID` los rompería al activarlos. Las cuatro lecturas ganan `coverImageUrl`. **`RN-PM-024` no se toca.** Los tres requerimientos nuevos nacen con tripleta completa, en `Tasks en revisión`, y las seis de `RF-PM-001`, `002`, `003`, `004`, `007` y `008` quedan enmendadas. | Responsable del proyecto |
 | 0.30.0 | 14-09-2026 | **`CM` invierte lo que §5.2.4 decía del precio cero**: nace `RN-CM-020` ([`requirements/cm.md`](cm.md) v0.13.0) y un producto gratuito **sí comisiona, solo por importe fijo**. Este módulo no cambia de regla —`RN-PM-006` sigue admitiendo el cero—; se anota para que el párrafo que decía «cualquier fijo mayor que cero se rechaza» no siga leyéndose como vigente. | Responsable técnico |
 | 0.31.0 | 14-09-2026 | **Nacen los PAQUETES: varios productos bajo un código, cada uno con su descuento, y el paquete vale la suma de los productos rebajados.** Por decisión del responsable del proyecto, con **cuatro respuestas preguntadas antes de escribir** (§5.2.10): **se define y se publica** en la oferta y el hotlink, y la compra queda para otra tanda —una venta multilínea es de `MV` y `CM`—; **el precio se calcula siempre** y no se guarda (`RN-PM-036`, crítica por lo mismo que el promedio de reseñas: la copia que se quedara atrás mentiría); **permisos propios `packages:*`**, cuatro, para poder dar el catálogo sin los paquetes; y **el descuento no deja a ningún producto por debajo de cero** (`RN-PM-037`), porcentaje de cero a cien o fijo de cero al precio, con el cero admitido y el gratuito solo con cero. Nace el submódulo **Paquetes** con **diez requerimientos**, `RF-PM-017` a `RF-PM-026`, **diez reglas**, `RN-PM-035` a `RN-PM-044` —dos críticas: el precio se calcula, y **el paquete se ofrece entero o no se ofrece**, porque incumplirla no falla, promete—, y **dos tablas** (§10.6): `product_packages`, **sin precio y con moneda propia e inmutable**, y `product_package_items`, cuya clave primaria es la regla de «una vez por paquete». Decisiones de diseño declaradas: **la moneda no se convierte**, un paquete solo reúne productos en la suya (`RN-PM-035`); **la cuenta se hace en Java en un solo sitio** y el `máx(0, …)` del fijo es el hueco temporal aceptado; **los upgrades de un paquete comparten origen** (`RN-PM-044`) para que la oferta pueda aplicar `RN-PM-011` al paquete entero y no exista el paquete que nadie puede comprar; **un paquete de un producto es una promoción** y no se activa (`RN-PM-040`); y **el paquete puede quedar oculto sin que su estado cambie**, con el detalle como única señal — aceptado y escrito. La oferta (`RF-PM-007`) se enmendará con una colección `packages`, y `RF-PM-026` cuelga de la familia de hotlinks sin estrenar cota. Los diez nacen en `Pendiente`; las tripletas son el paso siguiente. | Responsable del proyecto |
+| 0.32.0 | 14-09-2026 | **La portada queda CONSTRUIDA**: `V90` crea `product_images` y `products.cover_image_id`, y `RF-PM-014` a `RF-PM-016` pasan a `En desarrollo` con **28 pruebas** propias en verde y las seis enmiendas en sus suites. **Lo que dejó la construcción**: `ImageSignature` es todo lo que el sistema sabe de una imagen —tres firmas, doce bytes— y `ProductImage` la única entidad del sistema sin `updated_at`; `RN-PM-034` vive **en un solo método del agregado** con sus tres caras (`VAL-018`, `VAL-010`, `VAL-002`); la ruta pública se declara **por método** y **no negocia** —sin `produces`, para que un `Accept: application/json` no reciba `406`—; y el tope del contenedor (`6MB`) va por encima del de negocio para que «demasiado grande» responda siempre `VAL-004`. Dos precisiones a las tripletas: un `coverImageUrl` en el cuerpo del `PATCH` **se rechaza con `400`** —`FAIL_ON_UNKNOWN_PROPERTIES`— y no se ignora; y el hotlink **sí publica el identificador del producto** (lo necesitan las reseñas), de modo que lo que la dirección de la imagen no revela es de qué producto es. | Responsable técnico |

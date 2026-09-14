@@ -52,6 +52,7 @@ public class JpaProductQueryRepository implements ProductQueryRepository {
         """
         SELECT p.id AS id, p.code AS code, p.type AS type, p.name AS name,
                p.description AS description, p.icon AS icon, p.video_url AS video_url,
+               p.cover_image_id AS cover_image_id,
                p.target_membership_id AS m_id, m.code AS m_code, m.name AS m_name,
                m.level AS m_level, m.color AS m_color,
                p.source_membership_id AS s_id, s.code AS s_code, s.name AS s_name,
@@ -97,6 +98,7 @@ public class JpaProductQueryRepository implements ProductQueryRepository {
               (String) fila.get("description"),
               (String) fila.get("icon"),
               (String) fila.get("video_url"),
+              (UUID) fila.get("cover_image_id"),
               (UUID) fila.get("s_id"),
               (String) fila.get("s_code"),
               (String) fila.get("s_name"),
@@ -155,6 +157,7 @@ public class JpaProductQueryRepository implements ProductQueryRepository {
                 """
                 SELECT p.id AS id, p.code AS code, p.type AS type, p.name AS name,
                        p.description AS description, p.icon AS icon, p.video_url AS video_url,
+               p.cover_image_id AS cover_image_id,
                        p.target_membership_id AS m_id, m.code AS m_code, m.name AS m_name,
                        m.level AS m_level, m.color AS m_color, m.color AS m_color,
                        p.source_membership_id AS s_id, s.code AS s_code, s.name AS s_name,
@@ -194,6 +197,7 @@ public class JpaProductQueryRepository implements ProductQueryRepository {
                     (String) fila.get("description"),
                     (String) fila.get("icon"),
                     (String) fila.get("video_url"),
+                    (UUID) fila.get("cover_image_id"),
                     (UUID) fila.get("s_id"),
                     (String) fila.get("s_code"),
                     (String) fila.get("s_name"),
@@ -268,6 +272,7 @@ public class JpaProductQueryRepository implements ProductQueryRepository {
                 """
                 SELECT p.id AS id, p.code AS code, p.type AS type, p.name AS name,
                        p.description AS description, p.icon AS icon, p.video_url AS video_url,
+               p.cover_image_id AS cover_image_id,
                        p.source_membership_id AS s_id, s.code AS s_code, s.name AS s_name,
                        s.level AS s_level, s.color AS s_color, s.color AS s_color,
                        p.target_membership_id AS m_id, m.code AS m_code, m.name AS m_name,
@@ -312,6 +317,7 @@ public class JpaProductQueryRepository implements ProductQueryRepository {
               (String) fila.get("description"),
               (String) fila.get("icon"),
               (String) fila.get("video_url"),
+              (UUID) fila.get("cover_image_id"),
               (UUID) fila.get("s_id"),
               (String) fila.get("s_code"),
               (String) fila.get("s_name"),
@@ -373,6 +379,7 @@ public class JpaProductQueryRepository implements ProductQueryRepository {
                 """
                 SELECT p.id AS id, p.code AS code, p.type AS type, p.name AS name,
                        p.description AS description, p.icon AS icon, p.video_url AS video_url,
+               p.cover_image_id AS cover_image_id,
                        p.target_membership_id AS m_id, m.code AS m_code, m.name AS m_name,
                        m.level AS m_level, m.color AS m_color,
                        p.source_membership_id AS s_id, s.code AS s_code, s.name AS s_name,
@@ -423,6 +430,7 @@ public class JpaProductQueryRepository implements ProductQueryRepository {
         (String) fila.get("description"),
         (String) fila.get("icon"),
         (String) fila.get("video_url"),
+        (UUID) fila.get("cover_image_id"),
         (UUID) fila.get("s_id"),
         (String) fila.get("s_code"),
         (String) fila.get("s_name"),

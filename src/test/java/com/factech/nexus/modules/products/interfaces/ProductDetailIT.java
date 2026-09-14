@@ -248,6 +248,39 @@ class ProductDetailIT extends IntegrationTestBase {
   }
 
   @Test
+  @DisplayName(
+      "`CA-PM-233` — el detalle devuelve `coverImageUrl`, nulo y presente sin ella, y retirado")
+  void elDetalleTraeLaPortada() throws Exception {
+    mvc.perform(detalle(bot))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.coverImageUrl").doesNotExist())
+        .andExpect(content().string(Matchers.containsString("\"coverImageUrl\":null")));
+
+    UUID imagen = UUID.randomUUID();
+    jdbc.update(
+        "INSERT INTO product_images (id, content_type, content) VALUES (CAST(? AS uuid),"
+            + " 'image/png', decode('89504E470D0A1A0A00', 'hex'))",
+        imagen.toString());
+    jdbc.update(
+        "UPDATE products SET cover_image_id = CAST(? AS uuid) WHERE id = CAST(? AS uuid)",
+        imagen.toString(),
+        bot.toString());
+    mvc.perform(detalle(bot))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.coverImageUrl").value("/api/v1/product-images/" + imagen));
+
+    // En uno retirado sigue: la portada es parte de lo que el producto era.
+    retirar(bot, "Se descontinúa el servicio.");
+    mvc.perform(detalle(bot))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.deletedAt").exists())
+        .andExpect(jsonPath("$.coverImageUrl").value("/api/v1/product-images/" + imagen));
+
+    jdbc.update("UPDATE products SET cover_image_id = NULL");
+    jdbc.update("DELETE FROM product_images");
+  }
+
+  @Test
   @DisplayName("el precio de una moneda de CERO decimales llega sin parte decimal")
   void precioEnMonedaSinDecimales() throws Exception {
     String pesos = monedaSinDecimales();

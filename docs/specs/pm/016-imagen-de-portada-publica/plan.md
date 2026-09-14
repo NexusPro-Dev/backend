@@ -35,7 +35,7 @@ No hay caso de uso que decidir: la ruta lee una fila y la devuelve. Lo que este 
 
 `GET /api/v1/product-images/{imageId}` — **público**. `200` con `image/jpeg`, `image/png` o `image/webp`; `404` con el sobre de errores JSON.
 
-- **`produces = {image/jpeg, image/png, image/webp}`** en la anotación, para que el contrato OpenAPI declare **por primera vez** una respuesta que no es JSON: `content` con los tres tipos y `schema: {type: string, format: binary}`.
+- **Sin `produces` en el mapeo, y los tres tipos en `@ApiResponse`** (enmienda de construcción, 14-09-2026): con `produces`, un `Accept: application/json` recibiría `406` antes de llegar al controlador, y la spec dice que la ruta **no negocia** (§13). El contrato declara igualmente **por primera vez** una respuesta que no es JSON: `content` con los tres tipos y `schema: {type: string, format: binary}`, desde la anotación de la respuesta y no desde el mapeo.
 - **`security: []`** en la operación, como el hotlink y la lista de reseñas: el esquema global de seguridad no aplica, y `OpenApiContractIT` lo comprueba con las otras dos.
 - **Las cabeceras se escriben a mano** en el `ResponseEntity`: `CacheControl.maxAge(365, DAYS).cachePublic().immutable()`, `X-Content-Type-Options: nosniff`, `Content-Disposition: inline`, `Content-Length` lo pone Spring con el `byte[]`.
 - **La prosa de la `@Operation` dice tres cosas**: que la dirección la dan las lecturas del producto y no se lista en ningún sitio; que es inmutable y por eso se cachea un año —y que reemplazar la portada es otra dirección—; y que no mira el producto.

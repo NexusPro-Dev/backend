@@ -48,6 +48,11 @@ public record OfferItem(
      * material de venta —existe para que lo vea quien compra— y no un costo.
      */
     String videoUrl,
+    /**
+     * La dirección de la portada (`RN-PM-033`): la ruta pública de `RF-PM-016`, construida sobre
+     * `cover_image_id` sin tocar `product_images`. Presente y nula cuando no hay.
+     */
+    String coverImageUrl,
     ProductResponse.MembershipRef targetMembership,
     BigDecimal price,
     ProductResponse.CurrencyRef currency,
@@ -93,6 +98,7 @@ public record OfferItem(
         fila.description(),
         fila.icon(),
         fila.videoUrl(),
+        ProductImageUrls.de(fila.coverImageId()),
         fila.targetMembershipId() == null
             ? null
             : new ProductResponse.MembershipRef(

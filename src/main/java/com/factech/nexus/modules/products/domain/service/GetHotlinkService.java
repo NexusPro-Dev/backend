@@ -6,6 +6,7 @@ import com.factech.nexus.modules.products.application.HotlinkResponse.CurrencyRe
 import com.factech.nexus.modules.products.application.HotlinkResponse.MembershipBadge;
 import com.factech.nexus.modules.products.application.HotlinkResponse.ProductRef;
 import com.factech.nexus.modules.products.application.HotlinkResponse.SellerRef;
+import com.factech.nexus.modules.products.application.ProductImageUrls;
 import com.factech.nexus.modules.products.application.ProductPrice;
 import com.factech.nexus.modules.products.domain.models.ProductType;
 import com.factech.nexus.modules.products.domain.repository.ProductQueryRepository;
@@ -86,6 +87,8 @@ public class GetHotlinkService {
         fila.icon(),
         // `RN-PM-032`: se publica sin token y sin seguirlo (`CA-PM-229`).
         fila.videoUrl(),
+        // `RN-PM-033`: la dirección de la portada, sin token (`CA-PM-238`).
+        ProductImageUrls.de(fila.coverImageId()),
         fila.validityDays(),
         // Solo en el upgrade: un bot no lleva ninguna, y llega presente y nula.
         fila.targetMembershipId() == null

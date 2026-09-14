@@ -69,6 +69,11 @@ public record HotlinkResponse(SellerRef seller, ProductRef product) {
        * costo enseñaría el margen, el video existe para que lo vean (`pm.md` §5.2.8).
        */
       String videoUrl,
+      /**
+       * `RN-PM-033`, sin token: la dirección de la portada, que `RF-PM-016` sirve también sin
+       * token. Señala una imagen y no un producto. Presente y nula cuando no hay.
+       */
+      String coverImageUrl,
       Integer validityDays,
       MembershipBadge membership,
       BigDecimal price,

@@ -115,7 +115,7 @@ class ProductTest {
             ProductType.UPGRADE_MEMBRESIA,
             "Ascenso mensual",
             null,
-            null,
+            "crown",
             null,
             ORIGEN,
             DESTINO,
@@ -273,7 +273,7 @@ class ProductTest {
             ProductType.UPGRADE_MEMBRESIA,
             "Ascenso a Oro",
             "Sube al nivel oro.",
-            null,
+            "crown",
             null,
             ORIGEN,
             DESTINO,
@@ -520,10 +520,21 @@ class ProductTest {
   }
 
   @Test
-  @DisplayName("`RN-PM-016` — el icono es OPCIONAL en el upgrade: sin él el producto es válido")
-  void iconoOpcionalEnUpgrade() {
-    assertThat(upgrade("UPGRADE_ORO", DESTINO).getIcon()).isNull();
+  @DisplayName("`RN-PM-034` · `CA-PM-230` — un upgrade SIN icono se rechaza con VAL-018 en el alta")
+  void iconoObligatorioEnUpgrade() {
+    // Hasta el 14-09-2026 era opcional (`CA-PM-098`). Desde la portada, en el
+    // alta el icono es lo único que puede pintar un upgrade: la portada llega
+    // después. El bot no entra: no declara icono y tiene el suyo por omisión.
+    for (String sinIcono : new String[] {null, "", "   "}) {
+      ValidationException fallo =
+          catchThrowableOfType(() -> upgradeConIcono(sinIcono), ValidationException.class);
+
+      assertThat(fallo).as("debía rechazar «%s»", sinIcono).isNotNull();
+      assertThat(fallo.errorCode()).isEqualTo("VAL-018");
+      assertThat(fallo.errors()).extracting(FieldError::field).containsExactly("icon");
+    }
     assertThat(upgradeConIcono("crown").getIcon()).isEqualTo("crown");
+    assertThat(bot("ASESORIA").getIcon()).isNull();
   }
 
   @Test
@@ -531,9 +542,6 @@ class ProductTest {
   void iconoNormalizado() {
     assertThat(upgradeConIcono("  Crown  ").getIcon()).isEqualTo("crown");
     assertThat(upgradeConIcono("ARROW-UP-CIRCLE").getIcon()).isEqualTo("arrow-up-circle");
-
-    // El vacío no es un formato malo: es un icono que no se declara.
-    assertThat(upgradeConIcono("   ").getIcon()).isNull();
   }
 
   @Test
@@ -571,6 +579,19 @@ class ProductTest {
     assertThat(cambios).containsKey("icon");
     assertThat(cambios.get("icon")).isEqualTo(Map.of("before", "crown", "after", "rocket"));
 
+    // `RN-PM-034` (`CA-PM-234`): sin portada, el icono de un upgrade NO se
+    // vacía — ni con nulo ni con vacío — y el rechazo nombra `icon`.
+    for (String vacio : new String[] {null, "   "}) {
+      ValidationException fallo =
+          catchThrowableOfType(() -> corregirIcono(producto, vacio), ValidationException.class);
+      assertThat(fallo).as("debía rechazar «%s»", vacio).isNotNull();
+      assertThat(fallo.errorCode()).isEqualTo("VAL-010");
+      assertThat(fallo.errors()).extracting(FieldError::field).containsExactly("icon");
+    }
+    assertThat(producto.getIcon()).isEqualTo("rocket");
+
+    // Con portada sí (`CA-PM-235`): hay con qué pintarse.
+    producto.asignarPortada(UUID.randomUUID(), AHORA.plusDays(1));
     Map<String, Object> vaciado =
         producto.update(
             Patchable.ausente(),
@@ -942,6 +963,99 @@ class ProductTest {
         AHORA);
   }
 
+  // ---------------------------------------------------------------------------
+  // La portada (`RN-PM-033`, `RN-PM-034`) — 14-09-2026
+  // ---------------------------------------------------------------------------
+
+  @Test
+  @DisplayName("`RF-PM-014` — asignar la portada devuelve la anterior y el diff, y la instantánea")
+  void asignarPortada() {
+    Product producto = upgradeConIcono("crown");
+    assertThat(producto.getCoverImageId()).isNull();
+    assertThat(producto.instantanea()).containsEntry("cover_image_id", null);
+
+    UUID primera = UUID.randomUUID();
+    Product.CambioDePortada cambio = producto.asignarPortada(primera, AHORA.plusDays(1));
+    assertThat(cambio.anterior()).isNull();
+    assertThat(cambio.huboCambio()).isTrue();
+    assertThat(cambio.cambios())
+        .containsExactly(
+            Map.entry("cover_image_id", Map.of("before", "", "after", primera.toString())));
+    assertThat(producto.getCoverImageId()).isEqualTo(primera);
+    assertThat(producto.getUpdatedAt()).isEqualTo(AHORA.plusDays(1));
+    assertThat(producto.instantanea()).containsEntry("cover_image_id", primera.toString());
+
+    // Reemplazar: la anterior sale para que el caso de uso la borre DESPUÉS.
+    UUID segunda = UUID.randomUUID();
+    Product.CambioDePortada reemplazo = producto.asignarPortada(segunda, AHORA.plusDays(2));
+    assertThat(reemplazo.anterior()).isEqualTo(primera);
+    assertThat(reemplazo.cambios().get("cover_image_id"))
+        .isEqualTo(Map.of("before", primera.toString(), "after", segunda.toString()));
+
+    // Sin condición de tipo: un bot también.
+    assertThat(bot("ASESORIA").asignarPortada(primera, AHORA).huboCambio()).isTrue();
+  }
+
+  @Test
+  @DisplayName("`RF-PM-015` — quitar la portada: con icono sí, sin icono VAL-002, el bot siempre")
+  void quitarPortada() {
+    UUID imagen = UUID.randomUUID();
+
+    // Upgrade con icono y portada: se quita y el diff lo recoge.
+    Product conIcono = upgradeConIcono("crown");
+    conIcono.asignarPortada(imagen, AHORA);
+    Product.CambioDePortada cambio = conIcono.quitarPortada(AHORA.plusDays(1));
+    assertThat(cambio.anterior()).isEqualTo(imagen);
+    assertThat(cambio.cambios().get("cover_image_id"))
+        .isEqualTo(Map.of("before", imagen.toString(), "after", ""));
+    assertThat(conIcono.getCoverImageId()).isNull();
+
+    // Upgrade con portada y SIN icono (`CA-PM-251`): no se queda sin nada que
+    // pintar. El campo que se nombra es `icon`, que es lo que falta.
+    Product sinIcono = upgradeConIcono("crown");
+    sinIcono.asignarPortada(imagen, AHORA);
+    corregirIcono(sinIcono, null);
+    ValidationException fallo =
+        catchThrowableOfType(
+            () -> sinIcono.quitarPortada(AHORA.plusDays(1)), ValidationException.class);
+    assertThat(fallo.errorCode()).isEqualTo("VAL-002");
+    assertThat(fallo.errors()).extracting(FieldError::field).containsExactly("icon");
+    assertThat(sinIcono.getCoverImageId()).isEqualTo(imagen);
+
+    // El bot, siempre (`CA-PM-252`).
+    Product asesoria = bot("ASESORIA");
+    asesoria.asignarPortada(imagen, AHORA);
+    assertThat(asesoria.quitarPortada(AHORA.plusDays(1)).huboCambio()).isTrue();
+  }
+
+  @Test
+  @DisplayName("`CA-PM-253` — sin portada no hay nada que quitar, tampoco en un upgrade sin icono")
+  void quitarPortadaSinPortada() {
+    Product producto = upgradeConIcono("crown");
+    Product.CambioDePortada nada = producto.quitarPortada(AHORA.plusDays(1));
+    assertThat(nada.huboCambio()).isFalse();
+    assertThat(nada.anterior()).isNull();
+    assertThat(producto.getUpdatedAt()).isEqualTo(AHORA);
+
+    // El upgrade viejo sin icono NI portada —que existe en la base y no se
+    // puede construir desde aquí— se prueba en `ProductCoverIT` (`CA-PM-253`).
+  }
+
+  private static Map<String, Object> corregirIcono(Product producto, String icono) {
+    return producto.update(
+        Patchable.ausente(),
+        Patchable.ausente(),
+        Patchable.de(icono),
+        Patchable.ausente(),
+        Patchable.ausente(),
+        Patchable.ausente(),
+        Patchable.ausente(),
+        Patchable.ausente(),
+        Patchable.ausente(),
+        Patchable.ausente(),
+        AHORA.plusDays(1));
+  }
+
   private static Product conPrecios(BigDecimal precio, BigDecimal precioDeCompra) {
     return Product.create(
         UUID.randomUUID(),
@@ -949,7 +1063,7 @@ class ProductTest {
         ProductType.UPGRADE_MEMBRESIA,
         "Ascenso a Oro",
         null,
-        null,
+        "crown",
         null,
         ORIGEN,
         DESTINO,
@@ -993,7 +1107,7 @@ class ProductTest {
         ProductType.UPGRADE_MEMBRESIA,
         "Ascenso a Oro",
         null,
-        null,
+        "crown",
         null,
         origen,
         destino,

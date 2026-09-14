@@ -151,7 +151,7 @@ Sin parámetros de consulta. Ninguno se admite y ninguno se rechaza: se ignoran,
 
 | # | Pregunta | Resolución |
 |---|---|---|
-| 1 | ¿Por qué la ruta es `/product-images/{id}` y no `/products/{productId}/cover`? | **Porque la dirección tiene que señalar una imagen que no cambia**, y así se puede cachear un año (`requirements/pm.md` §9). Y porque no revela el identificador del producto, que el hotlink se cuida de no publicar |
+| 1 | ¿Por qué la ruta es `/product-images/{id}` y no `/products/{productId}/cover`? | **Porque la dirección tiene que señalar una imagen que no cambia**, y así se puede cachear un año (`requirements/pm.md` §9). Y porque una dirección de imagen no dice de qué producto es: quien la tenga no obtiene con ella nada más |
 | 2 | ¿No debería el `GET` comprobar el producto, como el hotlink? | **No**, y §5.2.9 dice por qué: no identifica a nadie, no es un costo, y costaría una sentencia por `<img>`. La salida está escrita: si un día se decide, es un `JOIN` a `products` y un `404` más, no otra ruta |
 | 3 | ¿Se sirve con `Content-Security-Policy`? | **No hace falta**: `nosniff` y la lista de tres tipos bastan para que lo servido sea siempre una imagen de mapa de bits, que no ejecuta nada. Una `CSP` es cosa de las páginas que la incrustan, y esas no son de este sistema |
 | 4 | ¿Y cuando haya miniaturas? | Será **otra columna o tabla y otra ruta** (`RF-PM-014` §14.4), no un parámetro aquí: esta ruta sirve lo que se subió y no interpreta nada |
@@ -160,4 +160,5 @@ Sin parámetros de consulta. Ninguno se admite y ninguno se rechaza: se ignoran,
 
 | Versión | Fecha | Cambio | Responsable |
 |---|---|---|---|
+| 0.2.0 | 14-09-2026 | **Construida.** Dos precisiones de construcción: la ruta se mapea **sin `produces`** —con él, un `Accept: application/json` recibiría `406` y §13 dice que no negocia—, y los tres tipos los declara el contrato en la respuesta; y lo que la dirección de una imagen **no revela es de qué producto es** —el hotlink sí publica el identificador del producto, que la pantalla necesita para las reseñas— (§14.1 corregida). | Responsable técnico |
 | 0.1.0 | 14-09-2026 | Redacción inicial. **Es la primera ruta del sistema que sirve bytes y no JSON**, y la tercera pública del módulo, pública porque el hotlink lo es y un `<img>` no lleva token. **No mira el producto** (`requirements/pm.md` §5.2.9), y lo que la protege son tres cosas: solo tres tipos con `SVG` fuera, `nosniff`, y la octava cota de tasa por la familia. **Caché inmutable de un año**, posible porque cada subida estrena identificador y la reemplazada se borra: una dirección sirve siempre lo mismo o `404`. Seis criterios, `CA-PM-255` a `CA-PM-260`. | Responsable técnico |

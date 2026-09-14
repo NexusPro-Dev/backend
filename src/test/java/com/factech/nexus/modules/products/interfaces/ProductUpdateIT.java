@@ -63,6 +63,7 @@ class ProductUpdateIT extends IntegrationTestBase {
   @AfterEach
   void vaciarCatalogo() {
     jdbc.update("DELETE FROM products");
+    jdbc.update("DELETE FROM product_images");
     jdbc.update("DELETE FROM audit_change_log WHERE module = 'PM'");
   }
 
@@ -120,15 +121,65 @@ class ProductUpdateIT extends IntegrationTestBase {
   }
 
   @Test
-  @DisplayName("`CA-PM-099` — el icono se corrige y se vacía con nulo explícito")
+  @DisplayName("`CA-PM-099` — el icono se corrige; y se vacía con nulo explícito SI hay portada")
   void corregirElIcono() throws Exception {
     mvc.perform(corregir(producto, "{\"icon\":\"  CROWN  \"}"))
         .andExpect(status().isOk())
         .andExpect(jsonPath("$.icon").value("crown"));
 
+    // Desde el 14-09-2026 (`RN-PM-034`) el vaciado exige portada: `CA-PM-235`.
+    ponerPortada(producto);
     mvc.perform(corregir(producto, "{\"icon\":null}"))
         .andExpect(status().isOk())
-        .andExpect(jsonPath("$.icon").value(Matchers.nullValue()));
+        .andExpect(jsonPath("$.icon").value(Matchers.nullValue()))
+        .andExpect(
+            jsonPath("$.coverImageUrl").value(Matchers.startsWith("/api/v1/product-images/")));
+    assertThat(ultimoCambio(producto)).contains("\"icon\"");
+  }
+
+  @Test
+  @DisplayName("`CA-PM-234` — `RN-PM-034`: sin portada, el icono de un upgrade NO se vacía")
+  void elIconoNoSeVaciaSinPortada() throws Exception {
+    mvc.perform(corregir(producto, "{\"icon\":\"crown\"}")).andExpect(status().isOk());
+    long antes = eventosDe(producto);
+
+    for (String vacio : new String[] {"null", "\"\"", "\"   \""}) {
+      mvc.perform(corregir(producto, "{\"name\":\"Otro nombre\",\"icon\":" + vacio + "}"))
+          .andExpect(status().isBadRequest())
+          .andExpect(jsonPath("$.errors[0].code").value("VAL-010"))
+          .andExpect(jsonPath("$.errors[0].field").value("icon"));
+    }
+    // Nada de la misma petición se aplicó, y no hay auditoría del intento.
+    assertThat(nombreDe(producto)).isEqualTo("Ascenso a Oro");
+    assertThat(iconoDe(producto)).isEqualTo("crown");
+    assertThat(eventosDe(producto)).isEqualTo(antes);
+
+    // Corregirlo por otro sigue admitiéndose: no deja al producto sin nada.
+    mvc.perform(corregir(producto, "{\"icon\":\"rocket\"}"))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.icon").value("rocket"));
+  }
+
+  @Test
+  @DisplayName("`CA-PM-236` — la respuesta trae `coverImageUrl`, y en el cuerpo se ignora")
+  void laRespuestaTraeLaPortadaYElCuerpoLaIgnora() throws Exception {
+    mvc.perform(corregir(producto, "{\"name\":\"Ascenso a Oro II\"}"))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.coverImageUrl").value(Matchers.nullValue()));
+
+    // Un `coverImageUrl` en el cuerpo no es un campo del producto que se
+    // corrija por JSON: se ignora como cualquier desconocido, y no cambia nada.
+    mvc.perform(
+            corregir(
+                producto,
+                "{\"coverImageUrl\":\"/api/v1/product-images/" + UUID.randomUUID() + "\"}"))
+        .andExpect(status().isBadRequest());
+    assertThat(portadaDe(producto)).isNull();
+
+    UUID imagen = ponerPortada(producto);
+    mvc.perform(corregir(producto, "{\"name\":\"Ascenso a Oro III\"}"))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.coverImageUrl").value("/api/v1/product-images/" + imagen));
   }
 
   @Test
@@ -446,6 +497,32 @@ class ProductUpdateIT extends IntegrationTestBase {
     // El nombre válido que venía en la misma petición no se aplicó.
     assertThat(nombreDe(producto)).isEqualTo("Ascenso a Oro");
     assertThat(videoDe(producto)).isNull();
+  }
+
+  private String iconoDe(UUID id) {
+    return jdbc.queryForObject(
+        "SELECT icon FROM products WHERE id = CAST(? AS uuid)", String.class, id.toString());
+  }
+
+  private UUID portadaDe(UUID id) {
+    return jdbc.queryForObject(
+        "SELECT cover_image_id FROM products WHERE id = CAST(? AS uuid)",
+        UUID.class,
+        id.toString());
+  }
+
+  /** Una portada por la base, sin pasar por `RF-PM-014`: aquí se prueba la corrección. */
+  private UUID ponerPortada(UUID producto) {
+    UUID imagen = UUID.randomUUID();
+    jdbc.update(
+        "INSERT INTO product_images (id, content_type, content) VALUES (CAST(? AS uuid),"
+            + " 'image/png', decode('89504E470D0A1A0A00', 'hex'))",
+        imagen.toString());
+    jdbc.update(
+        "UPDATE products SET cover_image_id = CAST(? AS uuid) WHERE id = CAST(? AS uuid)",
+        imagen.toString(),
+        producto.toString());
+    return imagen;
   }
 
   private String videoDe(UUID id) {

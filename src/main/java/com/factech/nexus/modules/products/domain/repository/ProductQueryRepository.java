@@ -134,6 +134,10 @@ public interface ProductQueryRepository {
       // hotlink incluidos — al revés que `purchasePrice`, que las dos públicas
       // dejan nulo a propósito. Nulo cuando el producto no tiene video.
       String videoUrl,
+      // `RN-PM-033`: el IDENTIFICADOR de la portada y nada más — ninguna de las
+      // cuatro sentencias toca `product_images`. La dirección la construye la
+      // respuesta. Nulo cuando el producto no tiene portada.
+      UUID coverImageId,
       UUID sourceMembershipId,
       String sourceMembershipCode,
       String sourceMembershipName,

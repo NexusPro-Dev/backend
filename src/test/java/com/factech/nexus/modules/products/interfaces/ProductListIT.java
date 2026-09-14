@@ -519,6 +519,36 @@ class ProductListIT extends IntegrationTestBase {
         .andExpect(jsonPath("$.content[0]").value(Matchers.hasKey("videoUrl")));
   }
 
+  @Test
+  @DisplayName(
+      "`CA-PM-232` — cada fila trae `coverImageUrl` por imagen, y nulo y presente sin ella")
+  void cadaFilaTraeLaPortada() throws Exception {
+    UUID imagen = UUID.randomUUID();
+    jdbc.update(
+        "INSERT INTO product_images (id, content_type, content) VALUES (CAST(? AS uuid),"
+            + " 'image/png', decode('89504E470D0A1A0A00', 'hex'))",
+        imagen.toString());
+    jdbc.update(
+        "UPDATE products SET cover_image_id = CAST(? AS uuid) WHERE code = 'UPGRADE_ORO'",
+        imagen.toString());
+
+    mvc.perform(listado().param("targetMembershipId", oro.toString()))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.content[0].code").value("UPGRADE_ORO"))
+        .andExpect(
+            jsonPath("$.content[0].coverImageUrl").value("/api/v1/product-images/" + imagen));
+
+    // Sin portada, presente y nulo: «no tiene portada» es un estado.
+    mvc.perform(listado().param("targetMembershipId", plata.toString()))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.content[0].code").value("UPGRADE_PLATA"))
+        .andExpect(jsonPath("$.content[0].coverImageUrl").doesNotExist())
+        .andExpect(jsonPath("$.content[0]").value(Matchers.hasKey("coverImageUrl")));
+
+    jdbc.update("UPDATE products SET cover_image_id = NULL");
+    jdbc.update("DELETE FROM product_images");
+  }
+
   private MockHttpServletRequestBuilder listado() {
     return get("/api/v1/products")
         .with(user(UUID.randomUUID().toString()).authorities(() -> "products:read"));

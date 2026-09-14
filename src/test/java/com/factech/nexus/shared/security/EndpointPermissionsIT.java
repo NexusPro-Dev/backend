@@ -157,6 +157,16 @@ class EndpointPermissionsIT extends IntegrationTestBase {
                   + " misma ruta, `/comments/mine` y el PATCH/DELETE de `/comments/{commentId}`"
                   + " exigen `products:comment`. La cota de tasa se cuenta por la familia"),
           Map.entry(
+              "GET /api/v1/product-images/{imageId}",
+              "PÚBLICO POR DECISIÓN (`RF-PM-016`, 14-09-2026): las cuatro lecturas del producto"
+                  + " devuelven la dirección de su portada en `coverImageUrl`, una de ellas —el"
+                  + " hotlink— es pública, y un `<img>` no lleva token. Es la ÚNICA ruta del"
+                  + " sistema que sirve bytes y no JSON, y no identifica a nadie: sirve una imagen"
+                  + " que administración subió para que se viera, sin mirar el producto. Solo el"
+                  + " GET: subir y quitar la portada viven en `/products/{id}/cover` bajo"
+                  + " `products:update`. Solo tres tipos —SVG fuera—, `nosniff`, y la cota de tasa"
+                  + " por la familia (`security.md` §6)"),
+          Map.entry(
               "GET /api/v1/movements/mine/{id}",
               "El detalle de lo propio (`RF-MV-008`): el alcance va dentro de la consulta y un"
                   + " movimiento ajeno responde `404`, igual que uno inexistente. Sin esta ruta el"

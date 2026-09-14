@@ -175,6 +175,116 @@ paths:
           description: La persona no existe o está eliminada (`VAL-002`)
         "500":
           description: Fallo no controlado (`ERR-500`)
+  /api/v1/products/{id}/cover:
+    put:
+      tags:
+      - Productos
+      summary: Subir o reemplazar la portada de un producto
+      description: |
+        Recibe **un archivo** —`multipart/form-data`, una sola parte llamada
+        `file`— y lo convierte en la portada del producto. **Es el primer
+        archivo que el sistema guarda** (`RN-PM-033`, `requirements/pm.md`
+        §5.2.9), y lo guarda **tal cual**: ni recorte, ni redimensión, ni
+        conversión.
+
+        **El tipo lo deciden los bytes, no la cabecera**: `JPEG`, `PNG` o
+        `WebP`, reconocidos por su firma; la cabecera `Content-Type` de la
+        parte y el nombre del archivo se ignoran. Un `GIF`, un `SVG` o un
+        texto con extensión `.png` se rechazan con `VAL-003`. **Hasta 5 MB**
+        (`VAL-004`); sin archivo o vacío, `VAL-002`. Los tres nombran `file`.
+
+        **Si el producto ya tenía portada, la reemplaza**: la nueva estrena
+        identificador, **la anterior se borra** y **la dirección cambia** —
+        `coverImageUrl` señala una imagen concreta, no «la portada del
+        producto», y por eso `GET /api/v1/product-images/{imageId}` se sirve
+        con caché inmutable. **En los dos tipos y sin condición**: subir una
+        portada nunca deja al producto peor.
+
+        **El alta no admite la imagen**: `POST /api/v1/products` sigue siendo
+        JSON, y la portada se sube después con esta operación. Responde con
+        el producto, como la corrección, y **un producto retirado no admite
+        portada**.
+      operationId: subirPortada
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      requestBody:
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              properties:
+                file:
+                  type: string
+                  format: binary
+      responses:
+        "200":
+          description: "El producto, con `coverImageUrl` señalando la imagen nueva."
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/ProductDetailResponse"
+        "400":
+          description: "Identificador sin forma canónica (`VAL-001`), sin archivo\
+            \ o vacío (`VAL-002`), ni JPEG ni PNG ni WebP por sus bytes (`VAL-003`),\
+            \ más de 5 MB (`VAL-004`) o petición que no es `multipart/form-data` (`EX-003`)"
+        "401":
+          description: Token ausente o inválido (`AUTH-001`)
+        "403":
+          description: Autenticado sin el permiso `products:update` (`AUTH-002`)
+        "404":
+          description: No existe un producto vivo con ese identificador (`EX-001`)
+        "500":
+          description: Fallo no controlado (`ERR-500`)
+    delete:
+      tags:
+      - Productos
+      summary: Quitar la portada de un producto
+      description: |
+        Vacía la portada: el producto vuelve a pintarse con su icono —o con el
+        que el frontend le pone por omisión, si es un bot— y **la imagen se
+        borra**: su dirección deja de servir.
+
+        **Es la única de las tres operaciones de la portada que puede decir
+        que no**: un upgrade **sin icono** no puede quedarse sin portada
+        (`RN-PM-034`), y se rechaza con `VAL-002` nombrando `icon` — lo que
+        falta. El orden para arreglarlo es declarar el icono con
+        `PATCH /api/v1/products/{id}` y después quitar la portada. A un bot
+        se le quita siempre.
+
+        **Sin portada responde igual y no escribe nada**: ni auditoría ni
+        `updatedAt`. Responde `200` con el producto, y no `204`: se vacía un
+        campo, no se retira una entidad. Sin cuerpo; si llega uno, se ignora.
+      operationId: quitarPortada
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      responses:
+        "200":
+          description: "El producto, con `coverImageUrl` nulo."
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/ProductDetailResponse"
+        "400":
+          description: Identificador sin forma canónica (`VAL-001`) o upgrade sin
+            icono que se quedaría sin nada que pintar (`VAL-002`)
+        "401":
+          description: Token ausente o inválido (`AUTH-001`)
+        "403":
+          description: Autenticado sin el permiso `products:update` (`AUTH-002`)
+        "404":
+          description: No existe un producto vivo con ese identificador (`EX-001`)
+        "500":
+          description: Fallo no controlado (`ERR-500`)
   /api/v1/users:
     get:
       tags:
@@ -4422,6 +4532,75 @@ paths:
           description: Autenticado sin el permiso `products:sale` (`AUTH-002`)
         "500":
           description: Fallo no controlado (`ERR-500`)
+  /api/v1/product-images/{imageId}:
+    get:
+      tags:
+      - Productos
+      summary: "Obtener la imagen de una portada, sin autenticación"
+      description: |
+        Devuelve **los bytes** de la imagen de portada de un producto, con el
+        `Content-Type` real —el detectado al subirla— y **sin token**: la
+        dirección la dan las cuatro lecturas del producto en `coverImageUrl`,
+        y una de ellas —el hotlink— es pública, de modo que un `<img>` tiene
+        que poder pintarla sin credencial. Con token responde lo mismo.
+
+        **La dirección señala una imagen concreta y no «la portada de un
+        producto»**: cada subida estrena identificador y la reemplazada se
+        borra, de modo que una dirección **nunca cambia de contenido** — o
+        sirve siempre la misma imagen, o responde `404`. Por eso se sirve con
+        `Cache-Control: public, max-age=31536000, immutable`: el navegador la
+        guarda un año y no vuelve a preguntar, y una portada nueva es otra
+        dirección.
+
+        **No mira el producto**: sirve la imagen aunque el producto esté
+        inactivo, retirado o sea de alcance `TIENDA` (`requirements/pm.md`
+        §5.2.9). El identificador no se lista en ningún sitio sin token para
+        lo que no se publica. `404` con el mismo cuerpo para un identificador
+        inexistente, reemplazado o quitado. Solo `JPEG`, `PNG` y `WebP`, con
+        `X-Content-Type-Options: nosniff`.
+      operationId: imagen
+      parameters:
+      - name: imageId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      responses:
+        "200":
+          description: "Los bytes de la imagen, con su tipo real y caché inmutable\
+            \ de un año."
+          content:
+            image/jpeg:
+              schema:
+                type: string
+                format: binary
+            image/png:
+              schema:
+                type: string
+                format: binary
+            image/webp:
+              schema:
+                type: string
+                format: binary
+        "400":
+          description: Identificador sin forma canónica (`VAL-001`)
+          content:
+            application/problem+json: {}
+        "404":
+          description: "La imagen no existe — nunca existió, se reemplazó o se quitó\
+            \ (`EX-001`)"
+          content:
+            application/problem+json: {}
+        "429":
+          description: Demasiadas peticiones desde ese origen
+          content:
+            application/problem+json: {}
+        "500":
+          description: Fallo no controlado (`ERR-500`)
+          content:
+            application/problem+json: {}
+      security: []
   /api/v1/product-commission-rates:
     get:
       tags:
@@ -5822,6 +6001,123 @@ components:
         endsAt:
           type: string
           format: date-time
+    CurrencyRef:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        code:
+          type: string
+        decimalPlaces:
+          type: integer
+          format: int32
+    ExchangeRef:
+      type: object
+      properties:
+        currency:
+          $ref: "#/components/schemas/TargetCurrency"
+        rate:
+          type: string
+        amount:
+          type: number
+    MembershipRef:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        code:
+          type: string
+        name:
+          type: string
+        level:
+          type: integer
+          format: int32
+        color:
+          type: string
+    ProductDetailResponse:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        code:
+          type: string
+        type:
+          type: string
+          enum:
+          - UPGRADE_MEMBRESIA
+          - BOT
+        name:
+          type: string
+        description:
+          type: string
+        icon:
+          type: string
+        videoUrl:
+          type: string
+        coverImageUrl:
+          type: string
+        sourceMembership:
+          $ref: "#/components/schemas/MembershipRef"
+        targetMembership:
+          $ref: "#/components/schemas/MembershipRef"
+        price:
+          type: number
+        purchasePrice:
+          type: number
+        currency:
+          $ref: "#/components/schemas/CurrencyRef"
+        exchange:
+          $ref: "#/components/schemas/ExchangeRef"
+        validityDays:
+          type: integer
+          format: int32
+        scope:
+          type: string
+          enum:
+          - TIENDA
+          - HOTLINKS
+        implementation:
+          type: string
+          enum:
+          - AUTOMATICA
+          - MANUAL
+        status:
+          type: string
+          enum:
+          - ACTIVO
+          - INACTIVO
+        rating:
+          $ref: "#/components/schemas/RatingSummary"
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+        deletedAt:
+          type: string
+          format: date-time
+        deletionReason:
+          type: string
+    RatingSummary:
+      type: object
+      properties:
+        average:
+          type: number
+        count:
+          type: integer
+          format: int64
+    TargetCurrency:
+      type: object
+      properties:
+        code:
+          type: string
+        decimalPlaces:
+          type: integer
+          format: int32
     RegisterUserRequest:
       type: object
       properties:
@@ -5935,21 +6231,6 @@ components:
         abbreviation:
           type: string
         name:
-          type: string
-    MembershipRef:
-      type: object
-      properties:
-        id:
-          type: string
-          format: uuid
-        code:
-          type: string
-        name:
-          type: string
-        level:
-          type: integer
-          format: int32
-        color:
           type: string
     RoleRef:
       type: object
@@ -6135,6 +6416,8 @@ components:
         icon:
           type: string
         videoUrl:
+          type: string
+        coverImageUrl:
           type: string
         validityDays:
           type: integer
@@ -6342,23 +6625,6 @@ components:
       - price
       - scope
       - type
-    CurrencyRef:
-      type: object
-      properties:
-        code:
-          type: string
-        decimalPlaces:
-          type: integer
-          format: int32
-    ExchangeRef:
-      type: object
-      properties:
-        currency:
-          $ref: "#/components/schemas/TargetCurrency"
-        rate:
-          type: string
-        amount:
-          type: number
     ProductResponse:
       type: object
       properties:
@@ -6379,6 +6645,8 @@ components:
         icon:
           type: string
         videoUrl:
+          type: string
+        coverImageUrl:
           type: string
         sourceMembership:
           $ref: "#/components/schemas/MembershipRef"
@@ -6418,22 +6686,6 @@ components:
         updatedAt:
           type: string
           format: date-time
-    RatingSummary:
-      type: object
-      properties:
-        average:
-          type: number
-        count:
-          type: integer
-          format: int64
-    TargetCurrency:
-      type: object
-      properties:
-        code:
-          type: string
-        decimalPlaces:
-          type: integer
-          format: int32
     DeleteProductRequest:
       type: object
       properties:
@@ -7205,70 +7457,6 @@ components:
           $ref: "#/components/schemas/PatchableObject"
         sourceMembershipId:
           $ref: "#/components/schemas/PatchableObject"
-    ProductDetailResponse:
-      type: object
-      properties:
-        id:
-          type: string
-          format: uuid
-        code:
-          type: string
-        type:
-          type: string
-          enum:
-          - UPGRADE_MEMBRESIA
-          - BOT
-        name:
-          type: string
-        description:
-          type: string
-        icon:
-          type: string
-        videoUrl:
-          type: string
-        sourceMembership:
-          $ref: "#/components/schemas/MembershipRef"
-        targetMembership:
-          $ref: "#/components/schemas/MembershipRef"
-        price:
-          type: number
-        purchasePrice:
-          type: number
-        currency:
-          $ref: "#/components/schemas/CurrencyRef"
-        exchange:
-          $ref: "#/components/schemas/ExchangeRef"
-        validityDays:
-          type: integer
-          format: int32
-        scope:
-          type: string
-          enum:
-          - TIENDA
-          - HOTLINKS
-        implementation:
-          type: string
-          enum:
-          - AUTOMATICA
-          - MANUAL
-        status:
-          type: string
-          enum:
-          - ACTIVO
-          - INACTIVO
-        rating:
-          $ref: "#/components/schemas/RatingSummary"
-        createdAt:
-          type: string
-          format: date-time
-        updatedAt:
-          type: string
-          format: date-time
-        deletedAt:
-          type: string
-          format: date-time
-        deletionReason:
-          type: string
     ChangeProductStatusRequest:
       type: object
       properties:
@@ -7614,6 +7802,8 @@ components:
           type: string
         videoUrl:
           type: string
+        coverImageUrl:
+          type: string
         sourceMembership:
           $ref: "#/components/schemas/MembershipRef"
         targetMembership:
@@ -7742,6 +7932,8 @@ components:
         icon:
           type: string
         videoUrl:
+          type: string
+        coverImageUrl:
           type: string
         targetMembership:
           $ref: "#/components/schemas/MembershipRef"

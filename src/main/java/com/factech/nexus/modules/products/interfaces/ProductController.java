@@ -15,7 +15,9 @@ import com.factech.nexus.modules.products.domain.service.GetOwnOfferService;
 import com.factech.nexus.modules.products.domain.service.GetProductService;
 import com.factech.nexus.modules.products.domain.service.ListProductsService;
 import com.factech.nexus.modules.products.domain.service.RegisterProductService;
+import com.factech.nexus.modules.products.domain.service.RemoveProductCoverService;
 import com.factech.nexus.modules.products.domain.service.UpdateProductService;
+import com.factech.nexus.modules.products.domain.service.UploadProductCoverService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.media.Content;
 import io.swagger.v3.oas.annotations.media.Schema;
@@ -23,20 +25,27 @@ import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
+import java.io.IOException;
+import java.io.UncheckedIOException;
 import java.net.URI;
 import java.util.UUID;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.ModelAttribute;
 import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestPart;
 import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.multipart.MultipartFile;
 
 /**
  * El catálogo de productos (`PM`).
@@ -62,6 +71,8 @@ public class ProductController {
   private final DeleteProductService retiro;
   private final UpdateProductService correccion;
   private final GetOwnOfferService ofertaPropia;
+  private final UploadProductCoverService portada;
+  private final RemoveProductCoverService quitarPortada;
 
   public ProductController(
       RegisterProductService alta,
@@ -70,7 +81,9 @@ public class ProductController {
       ChangeProductStatusService estado,
       DeleteProductService retiro,
       UpdateProductService correccion,
-      GetOwnOfferService ofertaPropia) {
+      GetOwnOfferService ofertaPropia,
+      UploadProductCoverService portada,
+      RemoveProductCoverService quitarPortada) {
     this.alta = alta;
     this.listado = listado;
     this.detalle = detalle;
@@ -78,6 +91,8 @@ public class ProductController {
     this.retiro = retiro;
     this.correccion = correccion;
     this.ofertaPropia = ofertaPropia;
+    this.portada = portada;
+    this.quitarPortada = quitarPortada;
   }
 
   @PostMapping
@@ -621,6 +636,144 @@ public class ProductController {
   public ProductDetailResponse cambiarEstado(
       @PathVariable UUID id, @Valid @RequestBody ChangeProductStatusRequest peticion) {
     return estado.change(id, peticion);
+  }
+
+  @PutMapping(value = "/{id}/cover", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+  @PreAuthorize("hasAuthority('products:update')")
+  @Operation(
+      summary = "Subir o reemplazar la portada de un producto",
+      description =
+          """
+          Recibe **un archivo** —`multipart/form-data`, una sola parte llamada
+          `file`— y lo convierte en la portada del producto. **Es el primer
+          archivo que el sistema guarda** (`RN-PM-033`, `requirements/pm.md`
+          §5.2.9), y lo guarda **tal cual**: ni recorte, ni redimensión, ni
+          conversión.
+
+          **El tipo lo deciden los bytes, no la cabecera**: `JPEG`, `PNG` o
+          `WebP`, reconocidos por su firma; la cabecera `Content-Type` de la
+          parte y el nombre del archivo se ignoran. Un `GIF`, un `SVG` o un
+          texto con extensión `.png` se rechazan con `VAL-003`. **Hasta 5 MB**
+          (`VAL-004`); sin archivo o vacío, `VAL-002`. Los tres nombran `file`.
+
+          **Si el producto ya tenía portada, la reemplaza**: la nueva estrena
+          identificador, **la anterior se borra** y **la dirección cambia** —
+          `coverImageUrl` señala una imagen concreta, no «la portada del
+          producto», y por eso `GET /api/v1/product-images/{imageId}` se sirve
+          con caché inmutable. **En los dos tipos y sin condición**: subir una
+          portada nunca deja al producto peor.
+
+          **El alta no admite la imagen**: `POST /api/v1/products` sigue siendo
+          JSON, y la portada se sube después con esta operación. Responde con
+          el producto, como la corrección, y **un producto retirado no admite
+          portada**.
+          """)
+  @ApiResponses({
+    @ApiResponse(
+        responseCode = "200",
+        description = "El producto, con `coverImageUrl` señalando la imagen nueva.",
+        content = @Content(schema = @Schema(implementation = ProductDetailResponse.class))),
+    @ApiResponse(
+        responseCode = "400",
+        description =
+            "Identificador sin forma canónica (`VAL-001`), sin archivo o vacío (`VAL-002`), ni"
+                + " JPEG ni PNG ni WebP por sus bytes (`VAL-003`), más de 5 MB (`VAL-004`) o"
+                + " petición que no es `multipart/form-data` (`EX-003`)",
+        content = @Content),
+    @ApiResponse(
+        responseCode = "401",
+        description = "Token ausente o inválido (`AUTH-001`)",
+        content = @Content),
+    @ApiResponse(
+        responseCode = "403",
+        description = "Autenticado sin el permiso `products:update` (`AUTH-002`)",
+        content = @Content),
+    @ApiResponse(
+        responseCode = "404",
+        description = "No existe un producto vivo con ese identificador (`EX-001`)",
+        content = @Content),
+    @ApiResponse(
+        responseCode = "500",
+        description = "Fallo no controlado (`ERR-500`)",
+        content = @Content)
+  })
+  public ProductDetailResponse subirPortada(
+      @PathVariable UUID id, @RequestPart(value = "file", required = false) MultipartFile file) {
+    // `required = false` a propósito: la parte ausente es `VAL-002` con el
+    // sobre de errores del sistema, no el `400` genérico de Spring sin cuerpo
+    // útil. El resto del módulo no sabe que existió una petición HTTP: recibe
+    // bytes.
+    return portada.upload(id, bytesDe(file));
+  }
+
+  @DeleteMapping("/{id}/cover")
+  @PreAuthorize("hasAuthority('products:update')")
+  @Operation(
+      summary = "Quitar la portada de un producto",
+      description =
+          """
+          Vacía la portada: el producto vuelve a pintarse con su icono —o con el
+          que el frontend le pone por omisión, si es un bot— y **la imagen se
+          borra**: su dirección deja de servir.
+
+          **Es la única de las tres operaciones de la portada que puede decir
+          que no**: un upgrade **sin icono** no puede quedarse sin portada
+          (`RN-PM-034`), y se rechaza con `VAL-002` nombrando `icon` — lo que
+          falta. El orden para arreglarlo es declarar el icono con
+          `PATCH /api/v1/products/{id}` y después quitar la portada. A un bot
+          se le quita siempre.
+
+          **Sin portada responde igual y no escribe nada**: ni auditoría ni
+          `updatedAt`. Responde `200` con el producto, y no `204`: se vacía un
+          campo, no se retira una entidad. Sin cuerpo; si llega uno, se ignora.
+          """)
+  @ApiResponses({
+    @ApiResponse(
+        responseCode = "200",
+        description = "El producto, con `coverImageUrl` nulo.",
+        content = @Content(schema = @Schema(implementation = ProductDetailResponse.class))),
+    @ApiResponse(
+        responseCode = "400",
+        description =
+            "Identificador sin forma canónica (`VAL-001`) o upgrade sin icono que se quedaría sin"
+                + " nada que pintar (`VAL-002`)",
+        content = @Content),
+    @ApiResponse(
+        responseCode = "401",
+        description = "Token ausente o inválido (`AUTH-001`)",
+        content = @Content),
+    @ApiResponse(
+        responseCode = "403",
+        description = "Autenticado sin el permiso `products:update` (`AUTH-002`)",
+        content = @Content),
+    @ApiResponse(
+        responseCode = "404",
+        description = "No existe un producto vivo con ese identificador (`EX-001`)",
+        content = @Content),
+    @ApiResponse(
+        responseCode = "500",
+        description = "Fallo no controlado (`ERR-500`)",
+        content = @Content)
+  })
+  public ProductDetailResponse quitarPortada(@PathVariable UUID id) {
+    return quitarPortada.remove(id);
+  }
+
+  /**
+   * Los bytes de la parte, o nulo si no llegó: el dominio convierte el nulo en `VAL-002`.
+   *
+   * <p>Un fallo de lectura del cuerpo no es un dato inválido sino un fallo de transporte, y sube
+   * como no controlado.
+   */
+  private static byte[] bytesDe(MultipartFile file) {
+    if (file == null) {
+      return null;
+    }
+    try {
+      return file.getBytes();
+    } catch (IOException fallo) {
+      throw new UncheckedIOException("No se pudo leer la imagen de portada de la petición.", fallo);
+    }
   }
 
   @PostMapping("/{id}/deletion")

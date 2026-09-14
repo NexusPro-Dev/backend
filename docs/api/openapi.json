@@ -620,6 +620,10 @@
           "decimalPlaces" : {
             "format" : "int32",
             "type" : "integer"
+          },
+          "id" : {
+            "format" : "uuid",
+            "type" : "string"
           }
         },
         "type" : "object"
@@ -1415,6 +1419,9 @@
           "code" : {
             "type" : "string"
           },
+          "coverImageUrl" : {
+            "type" : "string"
+          },
           "currency" : {
             "$ref" : "#/components/schemas/CurrencyRef"
           },
@@ -2050,6 +2057,9 @@
           "code" : {
             "type" : "string"
           },
+          "coverImageUrl" : {
+            "type" : "string"
+          },
           "createdAt" : {
             "format" : "date-time",
             "type" : "string"
@@ -2128,6 +2138,9 @@
       "ProductItem" : {
         "properties" : {
           "code" : {
+            "type" : "string"
+          },
+          "coverImageUrl" : {
             "type" : "string"
           },
           "createdAt" : {
@@ -2236,6 +2249,9 @@
           "code" : {
             "type" : "string"
           },
+          "coverImageUrl" : {
+            "type" : "string"
+          },
           "currency" : {
             "$ref" : "#/components/schemas/CurrencyRef"
           },
@@ -2281,6 +2297,9 @@
       "ProductResponse" : {
         "properties" : {
           "code" : {
+            "type" : "string"
+          },
+          "coverImageUrl" : {
             "type" : "string"
           },
           "createdAt" : {
@@ -6147,6 +6166,73 @@
         "tags" : [ "Comisiones" ]
       }
     },
+    "/api/v1/product-images/{imageId}" : {
+      "get" : {
+        "description" : "Devuelve **los bytes** de la imagen de portada de un producto, con el\n`Content-Type` real —el detectado al subirla— y **sin token**: la\ndirección la dan las cuatro lecturas del producto en `coverImageUrl`,\ny una de ellas —el hotlink— es pública, de modo que un `<img>` tiene\nque poder pintarla sin credencial. Con token responde lo mismo.\n\n**La dirección señala una imagen concreta y no «la portada de un\nproducto»**: cada subida estrena identificador y la reemplazada se\nborra, de modo que una dirección **nunca cambia de contenido** — o\nsirve siempre la misma imagen, o responde `404`. Por eso se sirve con\n`Cache-Control: public, max-age=31536000, immutable`: el navegador la\nguarda un año y no vuelve a preguntar, y una portada nueva es otra\ndirección.\n\n**No mira el producto**: sirve la imagen aunque el producto esté\ninactivo, retirado o sea de alcance `TIENDA` (`requirements/pm.md`\n§5.2.9). El identificador no se lista en ningún sitio sin token para\nlo que no se publica. `404` con el mismo cuerpo para un identificador\ninexistente, reemplazado o quitado. Solo `JPEG`, `PNG` y `WebP`, con\n`X-Content-Type-Options: nosniff`.\n",
+        "operationId" : "imagen",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "imageId",
+          "required" : true,
+          "schema" : {
+            "format" : "uuid",
+            "type" : "string"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "content" : {
+              "image/jpeg" : {
+                "schema" : {
+                  "format" : "binary",
+                  "type" : "string"
+                }
+              },
+              "image/png" : {
+                "schema" : {
+                  "format" : "binary",
+                  "type" : "string"
+                }
+              },
+              "image/webp" : {
+                "schema" : {
+                  "format" : "binary",
+                  "type" : "string"
+                }
+              }
+            },
+            "description" : "Los bytes de la imagen, con su tipo real y caché inmutable de un año."
+          },
+          "400" : {
+            "content" : {
+              "application/problem+json" : { }
+            },
+            "description" : "Identificador sin forma canónica (`VAL-001`)"
+          },
+          "404" : {
+            "content" : {
+              "application/problem+json" : { }
+            },
+            "description" : "La imagen no existe — nunca existió, se reemplazó o se quitó (`EX-001`)"
+          },
+          "429" : {
+            "content" : {
+              "application/problem+json" : { }
+            },
+            "description" : "Demasiadas peticiones desde ese origen"
+          },
+          "500" : {
+            "content" : {
+              "application/problem+json" : { }
+            },
+            "description" : "Fallo no controlado (`ERR-500`)"
+          }
+        },
+        "security" : [ ],
+        "summary" : "Obtener la imagen de una portada, sin autenticación",
+        "tags" : [ "Productos" ]
+      }
+    },
     "/api/v1/products" : {
       "get" : {
         "description" : "Devuelve el catálogo **paginado**, con el destino de cada upgrade y la\nmoneda de cada precio ya resueltos: no hace falta una segunda consulta.\n\n**Los retirados quedan fuera salvo que se pidan** con `includeDeleted`.\nAl pedirlos se indica **desde cuándo** lo están; el **motivo** no viaja\nen el listado —uno a uno lo devuelve el detalle (`RF-PM-003`), en\nbloque sería una exportación de decisiones comerciales—. Verlos **no\nexige un permiso propio**: basta `products:read`.\n\nCada fila trae **los dos precios**: `price` —el que se cobra— y\n`purchasePrice` —el **precio de compra**, lo que NEXUS paga por el\nproducto—, este **presente y nulo** en los productos cuyo costo no se\nconoce. Este listado y el detalle son **los dos únicos sitios** donde\nse ven juntos: la oferta y el hotlink no devuelven el de compra\n(`RN-PM-024`, 12-09-2026).\n\nY trae **`exchange`**, la conversión a la moneda por omisión con la\ntasa vigente hoy, calculada **sobre `price`** —el de compra nunca se\nconvierte—. Llega **presente y nula** cuando el producto ya está en\nesa moneda o cuando nadie declaró una tasa: eso **no es un error** y\nel producto se devuelve igual.\n\nCada fila trae también **`videoUrl`**, la dirección del video que\npresenta el producto, **tal cual se guardó** y **presente y nula**\ncuando no tiene (`RN-PM-032`). **No es un filtro.**\n\nSolo se puede ordenar por la lista blanca —`name`, `price`,\n`createdAt`—, con `,asc` o `,desc`. **`purchasePrice` no está en\nella**: ordenar por una columna que admite nulos obligaría a decidir\ndónde van los productos sin costo conocido, y nadie lo ha decidido.\n**Un campo fuera de la lista se rechaza y no se ignora**:\nignorarlo devolvería un orden distinto del pedido sin decirlo. Por omisión se ordena por **fecha de alta\ndescendente**, y el orden aplicado viaja en la respuesta.\n\n**`targetMembershipId` no se valida contra el catálogo de membresías.**\nFiltrar por un destino inexistente devuelve la colección vacía y no es\nun error; combinarlo con `type=BOT` también, porque ningún\nbot tiene destino.\n\nLa búsqueda va sobre el nombre, **sin distinguir acentos ni\nmayúsculas** y por fragmento. En blanco equivale a no filtrar.\n\n**`scope` e `implementation` filtran como `type` y `status`**: se\nadmiten en cualquier caja y un valor fuera de dominio se rechaza junto\nal resto de parámetros inválidos, no en una vuelta aparte. El de\nalcance es **el único sitio donde ese dato se consulta hoy** — la\noferta de `RF-PM-007` no filtra por él.\n\nUn filtro sin coincidencias devuelve `200` con la colección vacía, y\nuna página más allá de la última hace lo mismo **con el total real**.\nNo hay `404` ni `422`.\n",
@@ -6714,6 +6800,107 @@
         },
         "summary" : "Corregir la reseña propia",
         "tags" : [ "Reseñas" ]
+      }
+    },
+    "/api/v1/products/{id}/cover" : {
+      "delete" : {
+        "description" : "Vacía la portada: el producto vuelve a pintarse con su icono —o con el\nque el frontend le pone por omisión, si es un bot— y **la imagen se\nborra**: su dirección deja de servir.\n\n**Es la única de las tres operaciones de la portada que puede decir\nque no**: un upgrade **sin icono** no puede quedarse sin portada\n(`RN-PM-034`), y se rechaza con `VAL-002` nombrando `icon` — lo que\nfalta. El orden para arreglarlo es declarar el icono con\n`PATCH /api/v1/products/{id}` y después quitar la portada. A un bot\nse le quita siempre.\n\n**Sin portada responde igual y no escribe nada**: ni auditoría ni\n`updatedAt`. Responde `200` con el producto, y no `204`: se vacía un\ncampo, no se retira una entidad. Sin cuerpo; si llega uno, se ignora.\n",
+        "operationId" : "quitarPortada",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "id",
+          "required" : true,
+          "schema" : {
+            "format" : "uuid",
+            "type" : "string"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ProductDetailResponse"
+                }
+              }
+            },
+            "description" : "El producto, con `coverImageUrl` nulo."
+          },
+          "400" : {
+            "description" : "Identificador sin forma canónica (`VAL-001`) o upgrade sin icono que se quedaría sin nada que pintar (`VAL-002`)"
+          },
+          "401" : {
+            "description" : "Token ausente o inválido (`AUTH-001`)"
+          },
+          "403" : {
+            "description" : "Autenticado sin el permiso `products:update` (`AUTH-002`)"
+          },
+          "404" : {
+            "description" : "No existe un producto vivo con ese identificador (`EX-001`)"
+          },
+          "500" : {
+            "description" : "Fallo no controlado (`ERR-500`)"
+          }
+        },
+        "summary" : "Quitar la portada de un producto",
+        "tags" : [ "Productos" ]
+      },
+      "put" : {
+        "description" : "Recibe **un archivo** —`multipart/form-data`, una sola parte llamada\n`file`— y lo convierte en la portada del producto. **Es el primer\narchivo que el sistema guarda** (`RN-PM-033`, `requirements/pm.md`\n§5.2.9), y lo guarda **tal cual**: ni recorte, ni redimensión, ni\nconversión.\n\n**El tipo lo deciden los bytes, no la cabecera**: `JPEG`, `PNG` o\n`WebP`, reconocidos por su firma; la cabecera `Content-Type` de la\nparte y el nombre del archivo se ignoran. Un `GIF`, un `SVG` o un\ntexto con extensión `.png` se rechazan con `VAL-003`. **Hasta 5 MB**\n(`VAL-004`); sin archivo o vacío, `VAL-002`. Los tres nombran `file`.\n\n**Si el producto ya tenía portada, la reemplaza**: la nueva estrena\nidentificador, **la anterior se borra** y **la dirección cambia** —\n`coverImageUrl` señala una imagen concreta, no «la portada del\nproducto», y por eso `GET /api/v1/product-images/{imageId}` se sirve\ncon caché inmutable. **En los dos tipos y sin condición**: subir una\nportada nunca deja al producto peor.\n\n**El alta no admite la imagen**: `POST /api/v1/products` sigue siendo\nJSON, y la portada se sube después con esta operación. Responde con\nel producto, como la corrección, y **un producto retirado no admite\nportada**.\n",
+        "operationId" : "subirPortada",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "id",
+          "required" : true,
+          "schema" : {
+            "format" : "uuid",
+            "type" : "string"
+          }
+        } ],
+        "requestBody" : {
+          "content" : {
+            "multipart/form-data" : {
+              "schema" : {
+                "properties" : {
+                  "file" : {
+                    "format" : "binary",
+                    "type" : "string"
+                  }
+                },
+                "type" : "object"
+              }
+            }
+          }
+        },
+        "responses" : {
+          "200" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ProductDetailResponse"
+                }
+              }
+            },
+            "description" : "El producto, con `coverImageUrl` señalando la imagen nueva."
+          },
+          "400" : {
+            "description" : "Identificador sin forma canónica (`VAL-001`), sin archivo o vacío (`VAL-002`), ni JPEG ni PNG ni WebP por sus bytes (`VAL-003`), más de 5 MB (`VAL-004`) o petición que no es `multipart/form-data` (`EX-003`)"
+          },
+          "401" : {
+            "description" : "Token ausente o inválido (`AUTH-001`)"
+          },
+          "403" : {
+            "description" : "Autenticado sin el permiso `products:update` (`AUTH-002`)"
+          },
+          "404" : {
+            "description" : "No existe un producto vivo con ese identificador (`EX-001`)"
+          },
+          "500" : {
+            "description" : "Fallo no controlado (`ERR-500`)"
+          }
+        },
+        "summary" : "Subir o reemplazar la portada de un producto",
+        "tags" : [ "Productos" ]
       }
     },
     "/api/v1/products/{id}/deletion" : {
