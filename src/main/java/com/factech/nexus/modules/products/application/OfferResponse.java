@@ -32,10 +32,17 @@ import java.util.List;
  *     error ni un mensaje especial (`FA-001`, `FA-002`)
  * @param services los bots activos, <b>todos, para cualquiera</b>: no dependen del nivel de quien
  *     mira ni de que tenga uno (`spec.md` §14, resolución 2)
+ * @param packages la tercera colección, desde el 15-09-2026 (`RF-PM-007` v0.13.0): los paquetes que
+ *     hoy se pueden ofrecer <b>a esta persona</b> —ofrecibles, y con sus upgrades saliendo de su
+ *     membresía o sin upgrades (`RN-PM-044`)—, con la cuenta hecha. Envuelta como las otras dos y
+ *     <b>presente aunque vacía</b> (`CA-PM-335`)
  */
 @JsonInclude(JsonInclude.Include.ALWAYS)
 public record OfferResponse(
-    ProductResponse.MembershipRef currentMembership, Offered upgrades, Offered services) {
+    ProductResponse.MembershipRef currentMembership,
+    Offered upgrades,
+    Offered services,
+    OfferedPackages packages) {
 
   /**
    * La envoltura de una colección de la oferta.
@@ -45,8 +52,15 @@ public record OfferResponse(
    */
   public record Offered(List<OfferItem> content) {}
 
+  /** La envoltura de los paquetes: otro tipo porque el elemento es otro, con la misma forma. */
+  public record OfferedPackages(List<OfferPackageItem> content) {}
+
   public static OfferResponse de(
-      ProductResponse.MembershipRef actual, List<OfferItem> upgrades, List<OfferItem> bots) {
-    return new OfferResponse(actual, new Offered(upgrades), new Offered(bots));
+      ProductResponse.MembershipRef actual,
+      List<OfferItem> upgrades,
+      List<OfferItem> bots,
+      List<OfferPackageItem> paquetes) {
+    return new OfferResponse(
+        actual, new Offered(upgrades), new Offered(bots), new OfferedPackages(paquetes));
   }
 }

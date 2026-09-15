@@ -60,6 +60,12 @@ public interface ProductRepository {
    * <p>Excluye los retirados: un producto retirado no vuelve a la venta cambiándole el estado
    * (`EX-001`).
    */
+  /**
+   * El producto, sin bloqueo y en cualquier estado: es lo que lee quien no va a escribirlo —la
+   * asociación a un paquete (`RF-PM-023`) lo comprueba y no lo toca.
+   */
+  Optional<Product> findById(UUID id);
+
   Optional<Product> findAliveByIdForUpdate(UUID id);
 
   /**

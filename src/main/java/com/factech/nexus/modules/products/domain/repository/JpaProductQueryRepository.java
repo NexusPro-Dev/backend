@@ -485,7 +485,7 @@ public class JpaProductQueryRepository implements ProductQueryRepository {
    * ni por descuido. Entre el 08-09-2026 y el 12-09-2026 seleccionó los dos importes, cuando el
    * segundo era lo que se anunciaba (`requirements/pm.md` §5.2.5 y §5.2.6).
    */
-  private static ProductRow fila(Tuple fila) {
+  static ProductRow fila(Tuple fila) {
     return new ProductRow(
         (UUID) fila.get("id"),
         (String) fila.get("code"),

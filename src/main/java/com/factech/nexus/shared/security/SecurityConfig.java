@@ -89,7 +89,19 @@ public class SecurityConfig {
     //
     // El recorrido a ciegas lo acota `RateLimitFilter` POR ORIGEN, y queda
     // escrito que acotar no es impedir (`spec.md` §10).
-    "/api/v1/hotlinks/*/*"
+    "/api/v1/hotlinks/*/*",
+    // EL HOTLINK DEL PAQUETE (`RF-PM-026`, 15-09-2026): `/{username}/packages/{code}`.
+    // Cuelga de la misma familia y hereda su COTA —`RateLimitFilter` decide por
+    // prefijo—, pero NO la declaración de arriba: un `*` de Ant es UN segmento,
+    // el patrón del producto tiene dos y esta ruta tiene tres. Sin esta línea
+    // respondería `401` a todo el mundo. Se añade el patrón de tres AL LADO del
+    // de dos y no se sustituye por `/**`: un `/**` bajo `hotlinks/` dejaría
+    // pública cualquier ruta futura de la familia sin que nadie la declarara.
+    //
+    // Mismo alcance acotado dos veces —paquete activo, vivo y de alcance
+    // `HOTLINK` o `AMBOS`, y solo el nombre de quien es fuerza comercial— y el
+    // mismo `404` uniforme, también para el paquete que hoy no se puede ofrecer.
+    "/api/v1/hotlinks/*/packages/*"
   };
 
   /**

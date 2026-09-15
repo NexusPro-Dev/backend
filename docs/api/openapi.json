@@ -47,6 +47,23 @@
         "required" : [ "supervisorId" ],
         "type" : "object"
       },
+      "AssociatePackageProductRequest" : {
+        "properties" : {
+          "discountType" : {
+            "enum" : [ "PORCENTAJE", "FIJO" ],
+            "type" : "string"
+          },
+          "discountValue" : {
+            "type" : "number"
+          },
+          "productId" : {
+            "format" : "uuid",
+            "type" : "string"
+          }
+        },
+        "required" : [ "discountType", "discountValue", "productId" ],
+        "type" : "object"
+      },
       "AssociateProductRequest" : {
         "properties" : {
           "productId" : {
@@ -320,6 +337,16 @@
         "required" : [ "isActive" ],
         "type" : "object"
       },
+      "ChangePackageStatusRequest" : {
+        "properties" : {
+          "status" : {
+            "minLength" : 1,
+            "type" : "string"
+          }
+        },
+        "required" : [ "status" ],
+        "type" : "object"
+      },
       "ChangePasswordRequest" : {
         "properties" : {
           "currentPassword" : {
@@ -502,6 +529,19 @@
         },
         "type" : "object"
       },
+      "CorrectPackageDiscountRequest" : {
+        "properties" : {
+          "discountType" : {
+            "enum" : [ "PORCENTAJE", "FIJO" ],
+            "type" : "string"
+          },
+          "discountValue" : {
+            "type" : "number"
+          }
+        },
+        "required" : [ "discountType", "discountValue" ],
+        "type" : "object"
+      },
       "CountryCatalogResponse" : {
         "properties" : {
           "content" : {
@@ -664,6 +704,14 @@
         },
         "type" : "object"
       },
+      "DeletePackageRequest" : {
+        "properties" : {
+          "reason" : {
+            "type" : "string"
+          }
+        },
+        "type" : "object"
+      },
       "DeleteProductRequest" : {
         "properties" : {
           "reason" : {
@@ -733,6 +781,18 @@
           },
           "userAgent" : {
             "type" : "string"
+          }
+        },
+        "type" : "object"
+      },
+      "DiscountRef" : {
+        "properties" : {
+          "type" : {
+            "enum" : [ "PORCENTAJE", "FIJO" ],
+            "type" : "string"
+          },
+          "value" : {
+            "type" : "number"
           }
         },
         "type" : "object"
@@ -975,38 +1035,33 @@
       },
       "Item" : {
         "properties" : {
-          "childMembershipId" : {
-            "format" : "uuid",
-            "type" : "string"
+          "discount" : {
+            "$ref" : "#/components/schemas/DiscountRef"
           },
-          "code" : {
-            "type" : "string"
+          "priceInPackage" : {
+            "type" : "number"
           },
-          "color" : {
-            "type" : "string"
-          },
-          "description" : {
-            "type" : "string"
-          },
-          "id" : {
-            "format" : "uuid",
-            "type" : "string"
-          },
-          "level" : {
-            "format" : "int32",
-            "type" : "integer"
-          },
-          "name" : {
-            "type" : "string"
-          },
-          "parentMembershipId" : {
-            "format" : "uuid",
-            "type" : "string"
+          "product" : {
+            "$ref" : "#/components/schemas/ProductRef"
           }
         },
         "type" : "object"
       },
       "JsonNode" : { },
+      "Line" : {
+        "properties" : {
+          "discount" : {
+            "$ref" : "#/components/schemas/DiscountRef"
+          },
+          "priceInPackage" : {
+            "type" : "number"
+          },
+          "product" : {
+            "$ref" : "#/components/schemas/OfferItem"
+          }
+        },
+        "type" : "object"
+      },
       "ListCommissionRatesRequest" : {
         "properties" : {
           "includeDeleted" : {
@@ -1463,7 +1518,7 @@
             "$ref" : "#/components/schemas/RatingSummary"
           },
           "scope" : {
-            "enum" : [ "TIENDA", "HOTLINKS" ],
+            "enum" : [ "TIENDA", "HOTLINK", "AMBOS", "NINGUNO" ],
             "type" : "string"
           },
           "targetMembership" : {
@@ -1483,10 +1538,48 @@
         },
         "type" : "object"
       },
+      "OfferPackageItem" : {
+        "properties" : {
+          "code" : {
+            "type" : "string"
+          },
+          "currency" : {
+            "$ref" : "#/components/schemas/CurrencyRef"
+          },
+          "description" : {
+            "type" : "string"
+          },
+          "exchange" : {
+            "$ref" : "#/components/schemas/ExchangeRef"
+          },
+          "items" : {
+            "items" : {
+              "$ref" : "#/components/schemas/Line"
+            },
+            "type" : "array"
+          },
+          "listPrice" : {
+            "type" : "number"
+          },
+          "name" : {
+            "type" : "string"
+          },
+          "price" : {
+            "type" : "number"
+          },
+          "savings" : {
+            "type" : "number"
+          }
+        },
+        "type" : "object"
+      },
       "OfferResponse" : {
         "properties" : {
           "currentMembership" : {
             "$ref" : "#/components/schemas/MembershipRef"
+          },
+          "packages" : {
+            "$ref" : "#/components/schemas/OfferedPackages"
           },
           "services" : {
             "$ref" : "#/components/schemas/Offered"
@@ -1502,6 +1595,17 @@
           "content" : {
             "items" : {
               "$ref" : "#/components/schemas/OfferItem"
+            },
+            "type" : "array"
+          }
+        },
+        "type" : "object"
+      },
+      "OfferedPackages" : {
+        "properties" : {
+          "content" : {
+            "items" : {
+              "$ref" : "#/components/schemas/OfferPackageItem"
             },
             "type" : "array"
           }
@@ -1562,6 +1666,252 @@
           },
           "username" : {
             "type" : "string"
+          }
+        },
+        "type" : "object"
+      },
+      "PackageDetailResponse" : {
+        "properties" : {
+          "code" : {
+            "type" : "string"
+          },
+          "createdAt" : {
+            "format" : "date-time",
+            "type" : "string"
+          },
+          "currency" : {
+            "$ref" : "#/components/schemas/CurrencyRef"
+          },
+          "deletedAt" : {
+            "format" : "date-time",
+            "type" : "string"
+          },
+          "deletionReason" : {
+            "type" : "string"
+          },
+          "description" : {
+            "type" : "string"
+          },
+          "exchange" : {
+            "$ref" : "#/components/schemas/ExchangeRef"
+          },
+          "id" : {
+            "format" : "uuid",
+            "type" : "string"
+          },
+          "items" : {
+            "items" : {
+              "$ref" : "#/components/schemas/PackageItemResponse"
+            },
+            "type" : "array"
+          },
+          "listPrice" : {
+            "type" : "number"
+          },
+          "name" : {
+            "type" : "string"
+          },
+          "offerable" : {
+            "type" : "boolean"
+          },
+          "offerableReason" : {
+            "type" : "string"
+          },
+          "price" : {
+            "type" : "number"
+          },
+          "savings" : {
+            "type" : "number"
+          },
+          "scope" : {
+            "enum" : [ "TIENDA", "HOTLINK", "AMBOS", "NINGUNO" ],
+            "type" : "string"
+          },
+          "status" : {
+            "enum" : [ "ACTIVO", "INACTIVO" ],
+            "type" : "string"
+          },
+          "updatedAt" : {
+            "format" : "date-time",
+            "type" : "string"
+          }
+        },
+        "type" : "object"
+      },
+      "PackageHotlinkResponse" : {
+        "properties" : {
+          "package" : {
+            "$ref" : "#/components/schemas/PackageRef"
+          },
+          "seller" : {
+            "$ref" : "#/components/schemas/SellerRef"
+          }
+        },
+        "type" : "object"
+      },
+      "PackageItemResponse" : {
+        "properties" : {
+          "discount" : {
+            "$ref" : "#/components/schemas/DiscountRef"
+          },
+          "priceInPackage" : {
+            "type" : "number"
+          },
+          "product" : {
+            "$ref" : "#/components/schemas/PackageProductRef"
+          }
+        },
+        "type" : "object"
+      },
+      "PackageItemSummary" : {
+        "properties" : {
+          "code" : {
+            "type" : "string"
+          },
+          "createdAt" : {
+            "format" : "date-time",
+            "type" : "string"
+          },
+          "currency" : {
+            "$ref" : "#/components/schemas/CurrencyRef"
+          },
+          "deletedAt" : {
+            "format" : "date-time",
+            "type" : "string"
+          },
+          "exchange" : {
+            "$ref" : "#/components/schemas/ExchangeRef"
+          },
+          "id" : {
+            "format" : "uuid",
+            "type" : "string"
+          },
+          "itemCount" : {
+            "format" : "int32",
+            "type" : "integer"
+          },
+          "listPrice" : {
+            "type" : "number"
+          },
+          "name" : {
+            "type" : "string"
+          },
+          "offerable" : {
+            "type" : "boolean"
+          },
+          "price" : {
+            "type" : "number"
+          },
+          "savings" : {
+            "type" : "number"
+          },
+          "scope" : {
+            "enum" : [ "TIENDA", "HOTLINK", "AMBOS", "NINGUNO" ],
+            "type" : "string"
+          },
+          "status" : {
+            "enum" : [ "ACTIVO", "INACTIVO" ],
+            "type" : "string"
+          }
+        },
+        "type" : "object"
+      },
+      "PackagePageResponse" : {
+        "properties" : {
+          "content" : {
+            "items" : {
+              "$ref" : "#/components/schemas/PackageItemSummary"
+            },
+            "type" : "array"
+          },
+          "page" : {
+            "format" : "int32",
+            "type" : "integer"
+          },
+          "size" : {
+            "format" : "int32",
+            "type" : "integer"
+          },
+          "sort" : {
+            "type" : "string"
+          },
+          "totalElements" : {
+            "format" : "int64",
+            "type" : "integer"
+          },
+          "totalIsExact" : {
+            "type" : "boolean"
+          },
+          "totalPages" : {
+            "format" : "int32",
+            "type" : "integer"
+          }
+        },
+        "type" : "object"
+      },
+      "PackageProductRef" : {
+        "properties" : {
+          "code" : {
+            "type" : "string"
+          },
+          "deleted" : {
+            "type" : "boolean"
+          },
+          "id" : {
+            "format" : "uuid",
+            "type" : "string"
+          },
+          "name" : {
+            "type" : "string"
+          },
+          "price" : {
+            "type" : "number"
+          },
+          "purchasePrice" : {
+            "type" : "number"
+          },
+          "status" : {
+            "enum" : [ "ACTIVO", "INACTIVO" ],
+            "type" : "string"
+          },
+          "type" : {
+            "enum" : [ "UPGRADE_MEMBRESIA", "BOT" ],
+            "type" : "string"
+          }
+        },
+        "type" : "object"
+      },
+      "PackageRef" : {
+        "properties" : {
+          "code" : {
+            "type" : "string"
+          },
+          "currency" : {
+            "$ref" : "#/components/schemas/CurrencyRef"
+          },
+          "description" : {
+            "type" : "string"
+          },
+          "exchange" : {
+            "$ref" : "#/components/schemas/ExchangeRef"
+          },
+          "items" : {
+            "items" : {
+              "$ref" : "#/components/schemas/Item"
+            },
+            "type" : "array"
+          },
+          "listPrice" : {
+            "type" : "number"
+          },
+          "name" : {
+            "type" : "string"
+          },
+          "price" : {
+            "type" : "number"
+          },
+          "savings" : {
+            "type" : "number"
           }
         },
         "type" : "object"
@@ -2115,7 +2465,7 @@
             "$ref" : "#/components/schemas/RatingSummary"
           },
           "scope" : {
-            "enum" : [ "TIENDA", "HOTLINKS" ],
+            "enum" : [ "TIENDA", "HOTLINK", "AMBOS", "NINGUNO" ],
             "type" : "string"
           },
           "sourceMembership" : {
@@ -2195,7 +2545,7 @@
             "$ref" : "#/components/schemas/RatingSummary"
           },
           "scope" : {
-            "enum" : [ "TIENDA", "HOTLINKS" ],
+            "enum" : [ "TIENDA", "HOTLINK", "AMBOS", "NINGUNO" ],
             "type" : "string"
           },
           "sourceMembership" : {
@@ -2350,7 +2700,7 @@
             "$ref" : "#/components/schemas/RatingSummary"
           },
           "scope" : {
-            "enum" : [ "TIENDA", "HOTLINKS" ],
+            "enum" : [ "TIENDA", "HOTLINK", "AMBOS", "NINGUNO" ],
             "type" : "string"
           },
           "sourceMembership" : {
@@ -2502,6 +2852,36 @@
         "required" : [ "code", "color", "name" ],
         "type" : "object"
       },
+      "RegisterPackageRequest" : {
+        "properties" : {
+          "code" : {
+            "maxLength" : 50,
+            "minLength" : 0,
+            "pattern" : "^[A-Za-z][A-Za-z0-9_]*$",
+            "type" : "string"
+          },
+          "currencyId" : {
+            "format" : "uuid",
+            "type" : "string"
+          },
+          "description" : {
+            "maxLength" : 1000,
+            "minLength" : 0,
+            "type" : "string"
+          },
+          "name" : {
+            "maxLength" : 150,
+            "minLength" : 0,
+            "type" : "string"
+          },
+          "scope" : {
+            "enum" : [ "TIENDA", "HOTLINK", "AMBOS", "NINGUNO" ],
+            "type" : "string"
+          }
+        },
+        "required" : [ "code", "currencyId", "name", "scope" ],
+        "type" : "object"
+      },
       "RegisterProductRequest" : {
         "properties" : {
           "code" : {
@@ -2542,7 +2922,7 @@
             "type" : "number"
           },
           "scope" : {
-            "enum" : [ "TIENDA", "HOTLINKS" ],
+            "enum" : [ "TIENDA", "HOTLINK", "AMBOS", "NINGUNO" ],
             "type" : "string"
           },
           "sourceMembershipId" : {
@@ -3293,6 +3673,26 @@
           },
           "phone" : {
             "$ref" : "#/components/schemas/PatchableString"
+          }
+        },
+        "type" : "object"
+      },
+      "UpdatePackageRequest" : {
+        "properties" : {
+          "code" : {
+            "$ref" : "#/components/schemas/PatchableObject"
+          },
+          "currencyId" : {
+            "$ref" : "#/components/schemas/PatchableObject"
+          },
+          "description" : {
+            "$ref" : "#/components/schemas/PatchableString"
+          },
+          "name" : {
+            "$ref" : "#/components/schemas/PatchableString"
+          },
+          "scope" : {
+            "$ref" : "#/components/schemas/PatchableProductScope"
           }
         },
         "type" : "object"
@@ -4576,7 +4976,7 @@
     "/api/v1/broker-accounts" : {
       "get" : {
         "description" : "Devuelve **todas** las cuentas de broker del sistema, paginadas y con\nsu titular en cada fila. **Sin ningún filtro devuelve el sistema\nentero**: es lo que `broker-accounts:read` significa.\n\n**`supervisorId` devuelve LA RED ENTERA de esa persona, en\nprofundidad** (`RN-SP-047`): sus subordinados, los subordinados de\nestos, y así hasta abajo. **No es un solo nivel**, al revés que\n`GET /api/v1/users/{id}/team` y que\n`GET /api/v1/users/me/team/broker-accounts` — aquellos se autorizan\npor la estructura y por eso se acotan; este se autoriza por permiso,\nque ya alcanza a todos, de modo que la profundidad **ahorra recorrer\nel árbol y no concede nada**.\n\n**La raíz NO se incluye en su red.** Preguntar por la red de alguien\ndevuelve la de los suyos; sus propias cuentas se piden con `userId`, y\n**los dos filtros se combinan** — juntos responden «de la red de este\nvendedor, las cuentas de esta persona».\n\n**Solo la estructura vigente.** Quien dejó la red ayer no aparece, ni\nlos que colgaban de él por esa vía. Y una persona **eliminada** no\naparece **sin que su rama se corte**: quienes dependían de ella siguen\nsaliendo.\n\n**Filtros, todos opcionales y combinables con Y:**\n\n- `supervisorId` — la red, en profundidad.\n- `userId` — una persona concreta.\n- `status` — `REGISTER` o `FIRST_DEPOSIT`. **Cualquier otro valor es\n  `400`**, no una página vacía.\n- `brokerId` — un broker del catálogo.\n- `search` — fragmento de **número de cuenta**, nombre de usuario,\n  correo o nombre completo. Sin acentos y sin distinguir mayúsculas.\n- `from` / `to` — **cuándo se declaró la cuenta**. Son **instantes con\n  zona**, no fechas sueltas, y el rango es **semiabierto**: incluye\n  `from`, excluye `to`. `from` posterior a `to` es `400`.\n\n**Un identificador inexistente devuelve la página vacía sin error** —\n`supervisorId`, `userId` y `brokerId` no se validan contra su tabla—,\nal revés que `status` y que el rango: aquellos son preguntas legítimas\ncon respuesta vacía y estos son preguntas mal escritas.\n\n`totalElements` **cuenta lo filtrado**.\n\n**La respuesta lleva además un `summary` con TRES totales y sus\ndesgloses por broker**, los tres con la misma forma —un `total` y un\n`byBroker`—:\n\n- `summary.accounts` — cuántos registros cumplen el filtro. Su\n  `total` es **el mismo número que `totalElements`**, y sale de la\n  misma consulta: no pueden discrepar.\n- `summary.register` — cuántos de esos están en `REGISTER`.\n- `summary.firstDeposit` — cuántos de esos están en `FIRST_DEPOSIT`.\n\n**`accounts` es siempre `register` + `firstDeposit`**, total a total y\nbroker a broker. La redundancia es deliberada: van los dos estados\npara no obligar a restar, y va el total porque es la pregunta que más\nse hace.\n\n**El resumen respeta TODOS los filtros, incluido `status`**, y de ahí\nsale lo único que hay que saber antes de pintarlo: **con\n`?status=REGISTER`, `summary.firstDeposit.total` vale SIEMPRE cero**,\ny con `?status=FIRST_DEPOSIT` vale siempre el total. **Ese cero no\nsignifica «nadie ha depositado»: significa «no pediste ninguno».** Un\ntablero que lo enseñe sin decirlo miente; para ver el embudo completo,\nconsulte **sin** el filtro `status`.\n\n**`byBroker` trae TODOS los brokers del catálogo**, ordenado por\nnombre y **con cero donde el filtro no deja ninguna**: su longitud\n**no cambia** al filtrar, de modo que las columnas de una tabla se\narman una vez y no bailan. Un broker **desactivado sigue apareciendo**\n— apagarlo no borra lo que ya se declaró en él. Los tres desgloses\n**suman exactamente** su `total`.\n\n**Con la página vacía el resumen va en ceros**, no ausente: el\n`byBroker` sigue trayendo el catálogo entero, todo a cero.\n\n**La fila es idéntica campo por campo a la de\n`GET /api/v1/users/me/team/broker-accounts`**, a propósito: las dos\npantallas se pintan con el mismo componente. **Lo que aquella no\nlleva es el `summary`**: el resumen se pidió para el listado de\nadministración.\n\n**Hoy todas las cuentas están en `REGISTER`**: quien mueve una a\n`FIRST_DEPOSIT` es el webhook del broker, que todavía no existe.\n\n**Esta ruta no sustituye a `GET /api/v1/users/{id}/broker-accounts`**,\nque existe para **el superior comercial sin permiso**.\n",
-        "operationId" : "listar_7",
+        "operationId" : "listar_8",
         "parameters" : [ {
           "in" : "query",
           "name" : "page",
@@ -4787,7 +5187,7 @@
     "/api/v1/brokers" : {
       "get" : {
         "description" : "Devuelve los brokers con los que opera la plataforma, **ordenados por\nnombre**.\n\n**Un broker guarda de momento solo su nombre**, y eso tiene una\nconsecuencia que conviene conocer antes de integrarse: **el nombre es la\nclave de negocio**, no un texto descriptivo. No hay un `code` estable\nfrente a un cambio de nombre comercial — quien necesite referenciar un\nbroker debe hacerlo por su **identificador**.\n\n**No se administra por API** (`RN-SP-039`): no hay alta, ni edición, ni\neliminación, ni cambio de estado. Se puebla por migración, igual que los\ncatálogos de monedas y de tipos de documento, y cada alta queda en el\nhistorial del repositorio en lugar de en una fila que alguien insertó.\n\n**Puede responder la colección vacía**, y eso no es un fallo: es el\nestado de un catálogo que todavía no se ha sembrado.\n\n**No se pagina**: son unos pocos elementos y partirlos obligaría a dos\nllamadas para pintar un desplegable.\n",
-        "operationId" : "listar_6",
+        "operationId" : "listar_7",
         "parameters" : [ {
           "in" : "query",
           "name" : "includeInactive",
@@ -4824,7 +5224,7 @@
     "/api/v1/commission-rates" : {
       "get" : {
         "description" : "Devuelve el **catálogo**, no lo que rige.\n\n**`associatedProducts` es el campo que hay que mirar**: una tasa con cero\nasociaciones aparece aquí con su porcentaje y **no paga nada a nadie**.\n\nLas tasas **personalizadas** no salen en este listado: están en\n`GET /api/v1/user-commission-rates`.\n\n**No hay filtro por fecha**, porque las tasas de rol no tienen vigencia:\nel catálogo solo sabe lo que dice hoy.\n",
-        "operationId" : "listar_4",
+        "operationId" : "listar_5",
         "parameters" : [ {
           "in" : "query",
           "name" : "filtros",
@@ -4930,7 +5330,7 @@
     "/api/v1/commission-rates/{id}" : {
       "patch" : {
         "description" : "Corrige el **porcentaje**, que es lo único corregible.\n\n**Esta operación borra el pasado.** Las tasas de rol no tienen vigencia:\npasar un `AGENTE` de 10 a 12 **borra el 10**. No hay dos filas contando\ncada una su parte; hay una que ahora dice otra cosa.\n\nLo único que preserva lo ya pagado es que la liquidación haya copiado el\nporcentaje que aplicó — y esa liquidación **todavía no existe**.\n\n`percentage: null` se **rechaza**. **El rol no se corrige**, y enviarlo\ndevuelve `400`: se rechaza y no se ignora, porque ignorarlo haría creer\nque el cambio se aplicó.\n\n**Si la tasa está asociada, revisa el tope de cien en TODOS sus\nproductos a la vez** (`RN-CM-019`): si el nuevo valor dejaría a alguno\npagando más del 100 % de sí mismo, la corrección se rechaza **entera**\ny devuelve `409` — ninguno de los productos cambia, ni siquiera los que\nsí cabían.\n\n**Un producto GRATUITO (precio cero) solo admite importe fijo**\n(`RN-CM-020`, 14-09-2026): si la tasa está asociada a uno y la corrección\nla deja de porcentaje, se rechaza **entera** con `409` (`EX-008`).\nCorregirla a valor fijo, del importe que sea, pasa: no hay cien por\nciento de cero, y el gratuito no entra en ninguna suma.\n",
-        "operationId" : "corregir_2",
+        "operationId" : "corregir_3",
         "parameters" : [ {
           "in" : "path",
           "name" : "id",
@@ -5009,7 +5409,7 @@
     "/api/v1/commission-rates/{id}/deletion" : {
       "post" : {
         "description" : "Retira una tasa que **no debió existir**, con **motivo obligatorio**.\n\n**Una tasa asociada a algún producto no se retira** y devuelve `409`.\nRetire primero esas asociaciones: si no, el producto dejaría de comisionar\n**sin que nada lo indicara**, porque la asociación sobreviviría apuntando a\nuna fila muerta.\n\n**Para dejar de pagar sin destruir la tasa**, use la desasociación\n(`POST /{id}/products/{productId}/deletion`): la tasa sigue en el catálogo\ny disponible para otros productos.\n\n**No es idempotente**: retirar dos veces devuelve `409`.\n",
-        "operationId" : "retirar_2",
+        "operationId" : "retirar_3",
         "parameters" : [ {
           "in" : "path",
           "name" : "id",
@@ -5384,7 +5784,7 @@
     "/api/v1/countries/{id}/status" : {
       "patch" : {
         "description" : "Cambia el estado de un país. Es lo **único** que la API puede modificar\nde un país.\n\nSe envía el estado destino, no una acción: pedir dos veces lo mismo deja\nel mismo estado y **no** registra un segundo evento.\n\n**Desactivar no es corregir**: el código y el nombre permanecen, y los\ndatos que ya los referencian siguen resolviéndolos. Evita que el error se\npropague desde ese momento, no lo repara.\n\nEl cuerpo no admite ningún otro campo ni motivo alguno.\n",
-        "operationId" : "cambiarEstado_4",
+        "operationId" : "cambiarEstado_5",
         "parameters" : [ {
           "in" : "path",
           "name" : "id",
@@ -5478,7 +5878,7 @@
     "/api/v1/currencies/{id}/status" : {
       "patch" : {
         "description" : "Cambia el estado de una moneda del catálogo. Es lo **único** que la API\npuede modificar de una moneda.\n\nSe envía el estado destino, no una acción: pedir dos veces lo mismo deja\nel mismo estado y **no** registra un segundo evento.\n\nLa moneda por defecto **no puede desactivarse**: los importes del sistema\nquedarían sin referencia válida. Cambiar cuál es la moneda por defecto es\nuna operación de migración, no de API.\n\nEl cuerpo no admite ningún otro campo ni motivo alguno.\n",
-        "operationId" : "cambiarEstado_3",
+        "operationId" : "cambiarEstado_4",
         "parameters" : [ {
           "in" : "path",
           "name" : "id",
@@ -5535,7 +5935,7 @@
     "/api/v1/document-types" : {
       "get" : {
         "description" : "Devuelve los documentos de identidad con los que una persona puede\nregistrarse, con su **nombre** y su **abreviación**.\n\n**El catálogo contiene solo documentos de persona mayor de edad**, y esa\nes la validación entera: no hay ninguna marca que distinga cuáles sí y\ncuáles no, porque los que no están **no están**. Registrar a un menor no\nse rechaza — no se puede expresar.\n\n**No se administra por API** (`RN-SP-036`): no hay alta, ni edición, ni\neliminación, ni cambio de estado. Se puebla por migración, y lo que deja\nde admitirse se retira también por migración. Es la asimetría deliberada\ncon los catálogos de países y monedas, que sí tienen operación para\ncambiar su estado.\n\n**No se pagina**: son unos pocos elementos, y partirlos obligaría a dos\nllamadas para pintar un desplegable.\n",
-        "operationId" : "listar_5",
+        "operationId" : "listar_6",
         "parameters" : [ {
           "in" : "query",
           "name" : "includeInactive",
@@ -5649,9 +6049,64 @@
         "tags" : [ "Tasas de cambio" ]
       }
     },
+    "/api/v1/hotlinks/{username}/packages/{code}" : {
+      "get" : {
+        "description" : "Devuelve, **sin token**, el paquete que el enlace señala —con sus productos,\nel descuento de cada uno y **la cuenta hecha**— y el nombre y apellido de\nquien lo reparte.\n\n**Cada producto va en la misma forma que el hotlink del producto**, tal\ncual: código, nombre, descripción, icono, video, portada, membresía en tres\ncampos, precio, conversión y `rating`. A su lado, `discount` y\n`priceInPackage` — lo que vale ese producto **dentro** del paquete, con el\nprecio de catálogo de hoy. `listPrice` es la suma sin descuentos, `price` lo\nque vale el paquete y `savings` la diferencia; `exchange` convierte `price`\na la moneda de casa si hay tasa. **`priceInPackage` es la cuenta de hoy y\nno una reserva**: si un producto cambia de precio, el paquete cambia solo,\ny un fijo que hoy supera su precio cuenta cero.\n\n**Solo publica paquetes activos y de alcance `HOTLINK` o `AMBOS`**, y **el\nalcance de los productos no filtra dentro del paquete**: el canal lo decide\nel paquete. Sin `purchasePrice` ni `status` en ningún nivel.\n\n**Todo lo que no procede responde el MISMO `404`, y el mismo que el hotlink\ndel producto**: usuario inexistente, persona que no es vendedora, código\ninexistente, paquete inactivo, retirado o de alcance `TIENDA` o `NINGUNO`,\ny **también el paquete que hoy no se puede ofrecer** —un producto suyo\ninactivo o retirado, menos de dos productos, sin descripción—. **No dice cuál\nfalló**: distinguirlos publicaría, sin token, que el paquete existe y qué le\npasa. Quien tiene que saberlo es administración, y lo sabe por el detalle.\n",
+        "operationId" : "hotlinkDePaquete",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "username",
+          "required" : true,
+          "schema" : {
+            "type" : "string"
+          }
+        }, {
+          "in" : "path",
+          "name" : "code",
+          "required" : true,
+          "schema" : {
+            "type" : "string"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/PackageHotlinkResponse"
+                }
+              }
+            },
+            "description" : "El enlace, con su paquete y su vendedor."
+          },
+          "404" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/PackageHotlinkResponse"
+                }
+              }
+            },
+            "description" : "El enlace no lleva a ninguna parte. **El mismo cuerpo en todos los casos**, y el mismo que el hotlink del producto (`EX-001`)"
+          },
+          "429" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/PackageHotlinkResponse"
+                }
+              }
+            },
+            "description" : "Demasiadas peticiones desde ese origen"
+          }
+        },
+        "summary" : "Consultar el hotlink de un paquete",
+        "tags" : [ "Hotlinks" ]
+      }
+    },
     "/api/v1/hotlinks/{username}/{code}" : {
       "get" : {
-        "description" : "Devuelve, **sin token**, el producto que el enlace señala y el **nombre\ny apellido** de quien lo reparte.\n\n**Es público por decisión, no por definición.** Las otras cinco rutas\npúblicas del sistema lo son porque quien las llama no puede portar\ntodavía un token; esta lo es porque un enlace se abre antes de\nregistrarse.\n\n**Solo publica productos activos y de alcance `HOTLINKS`**, y solo el\nnombre de quien porta un rol de tipo `VENDEDOR`. Ni correo, ni\nidentificador, ni estado, ni roles.\n\n**De la membresía se publican tres campos** —código, nombre y color—,\ny no los cinco que devuelven los otros endpoints: el identificador no\nsirve a quien no puede llamar a nada más, y el nivel publicaría la\nforma de la cadena comercial sin token.\n\n**El precio llega en la moneda del producto y, si hay tasa vigente,\nconvertido a la moneda por omisión.** `rate` viaja como **cadena**\nporque tiene ocho decimales y un número JSON pasa por coma flotante en\ncualquier cliente JavaScript.\n\n**Viene UN importe** (`RN-PM-024`, reescrita el 12-09-2026): `price`,\nel que se cobra. **El precio de compra no viaja por aquí ni se\nconsulta**: es lo que NEXUS paga por el producto, y este endpoint es\npúblico. Entre el 08-09-2026 y el 12-09-2026 viajó también\n`publicPrice`, cuando ese importe era lo que se anunciaba; ese campo\n**ya no existe**. **La conversión se calcula sobre `price`.**\n\n**Viene `videoUrl`, y sin token** (`RN-PM-032`): la dirección del video\nque presenta el producto, **tal cual la escribió administración** y\n**presente y nula** cuando no tiene. El sistema no la sigue ni la\nvalida más allá de su forma: un enlace roto se publica igual. Es la\núnica columna opcional del producto que este endpoint trae y el\nprecio de compra no — el costo enseñaría el margen; el video existe\npara que lo vean.\n\n**La conversión es INFORMATIVA**: lo que se cobra no es ese número. Una\nventa va en una sola moneda y congela su importe al registrarse; esta\nconversión se calcula al vuelo, cambia el día que cambie la tasa y **no\nreserva nada**. Cuando no hay tasa vigente —o el producto ya está en la\nmoneda de casa— `exchange` llega **presente y nulo**, y el producto se\ndevuelve igual.\n\n**Todo lo que no procede responde el MISMO `404`**: usuario\ninexistente, persona que no es vendedora, código inexistente, producto\ninactivo, retirado o de alcance `TIENDA`. **No dice cuál falló**, y esa\nuniformidad es deliberada — distinguirlos convertiría el enlace en un\noráculo que dice quién existe.\n",
+        "description" : "Devuelve, **sin token**, el producto que el enlace señala y el **nombre\ny apellido** de quien lo reparte.\n\n**Es público por decisión, no por definición.** Las otras cinco rutas\npúblicas del sistema lo son porque quien las llama no puede portar\ntodavía un token; esta lo es porque un enlace se abre antes de\nregistrarse.\n\n**Solo publica productos activos y de alcance `HOTLINK` o `AMBOS`**\n(`HOTLINKS` hasta el 15-09-2026), y solo el\nnombre de quien porta un rol de tipo `VENDEDOR`. Ni correo, ni\nidentificador, ni estado, ni roles.\n\n**De la membresía se publican tres campos** —código, nombre y color—,\ny no los cinco que devuelven los otros endpoints: el identificador no\nsirve a quien no puede llamar a nada más, y el nivel publicaría la\nforma de la cadena comercial sin token.\n\n**El precio llega en la moneda del producto y, si hay tasa vigente,\nconvertido a la moneda por omisión.** `rate` viaja como **cadena**\nporque tiene ocho decimales y un número JSON pasa por coma flotante en\ncualquier cliente JavaScript.\n\n**Viene UN importe** (`RN-PM-024`, reescrita el 12-09-2026): `price`,\nel que se cobra. **El precio de compra no viaja por aquí ni se\nconsulta**: es lo que NEXUS paga por el producto, y este endpoint es\npúblico. Entre el 08-09-2026 y el 12-09-2026 viajó también\n`publicPrice`, cuando ese importe era lo que se anunciaba; ese campo\n**ya no existe**. **La conversión se calcula sobre `price`.**\n\n**Viene `videoUrl`, y sin token** (`RN-PM-032`): la dirección del video\nque presenta el producto, **tal cual la escribió administración** y\n**presente y nula** cuando no tiene. El sistema no la sigue ni la\nvalida más allá de su forma: un enlace roto se publica igual. Es la\núnica columna opcional del producto que este endpoint trae y el\nprecio de compra no — el costo enseñaría el margen; el video existe\npara que lo vean.\n\n**La conversión es INFORMATIVA**: lo que se cobra no es ese número. Una\nventa va en una sola moneda y congela su importe al registrarse; esta\nconversión se calcula al vuelo, cambia el día que cambie la tasa y **no\nreserva nada**. Cuando no hay tasa vigente —o el producto ya está en la\nmoneda de casa— `exchange` llega **presente y nulo**, y el producto se\ndevuelve igual.\n\n**Todo lo que no procede responde el MISMO `404`**: usuario\ninexistente, persona que no es vendedora, código inexistente, producto\ninactivo, retirado o de alcance `TIENDA` o `NINGUNO`. **No dice cuál falló**, y esa\nuniformidad es deliberada — distinguirlos convertiría el enlace en un\noráculo que dice quién existe.\n",
         "operationId" : "hotlink",
         "parameters" : [ {
           "in" : "path",
@@ -5967,6 +6422,756 @@
         "tags" : [ "Movimientos" ]
       }
     },
+    "/api/v1/packages" : {
+      "get" : {
+        "description" : "La lista de administración de los paquetes, paginada, **con la cuenta hecha\npor fila**: cada paquete con `itemCount`, `listPrice`, `price`, `savings`,\n`exchange` y `offerable`, y sin sus líneas — para eso está el detalle. Los\nimportes salen de la misma cuenta que el detalle y cuadran con él.\n\nFiltra por `status`, `scope`, `currencyId` y `q` —búsqueda por nombre, sin\ndistinguir mayúsculas ni acentos—, y se combinan. **Excluye los retirados**\nsalvo `includeDeleted=true`, y entonces los trae con `deletedAt`.\n**`offerable` no es filtro**: quien administra quiere ver precisamente los\nque no se ofrecen; se queda como columna, y el motivo lo da el detalle.\n\nOrden: `createdAt` (omisión, descendente), `name` y `price`, con\n`,asc`/`,desc`. **El orden por `price` ordena por el precio calculado**: el\nprecio no está en ninguna columna, de modo que un paquete cuyo producto\ncambió de precio cambia de posición en la siguiente lectura. Se ordena con\nla suma sin redondear; la diferencia con el importe que viaja cabe en un\ncéntimo por producto y puede alterar el orden entre paquetes casi iguales.\n\nLos filtros inválidos se devuelven **juntos** con `400`. Exige\n`packages:read`; `products:read` no habilita.\n",
+        "operationId" : "listar_4",
+        "parameters" : [ {
+          "in" : "query",
+          "name" : "page",
+          "required" : false,
+          "schema" : {
+            "format" : "int32",
+            "type" : "integer"
+          }
+        }, {
+          "in" : "query",
+          "name" : "size",
+          "required" : false,
+          "schema" : {
+            "format" : "int32",
+            "type" : "integer"
+          }
+        }, {
+          "in" : "query",
+          "name" : "sort",
+          "required" : false,
+          "schema" : {
+            "type" : "string"
+          }
+        }, {
+          "in" : "query",
+          "name" : "status",
+          "required" : false,
+          "schema" : {
+            "type" : "string"
+          }
+        }, {
+          "in" : "query",
+          "name" : "scope",
+          "required" : false,
+          "schema" : {
+            "type" : "string"
+          }
+        }, {
+          "in" : "query",
+          "name" : "currencyId",
+          "required" : false,
+          "schema" : {
+            "format" : "uuid",
+            "type" : "string"
+          }
+        }, {
+          "in" : "query",
+          "name" : "q",
+          "required" : false,
+          "schema" : {
+            "type" : "string"
+          }
+        }, {
+          "in" : "query",
+          "name" : "includeDeleted",
+          "required" : false,
+          "schema" : {
+            "type" : "boolean"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/PackagePageResponse"
+                }
+              }
+            },
+            "description" : "La página de paquetes."
+          },
+          "400" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/PackagePageResponse"
+                }
+              }
+            },
+            "description" : "Filtros, orden o paginación inválidos, juntos (`VAL-001` a `VAL-005`)"
+          },
+          "401" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/PackagePageResponse"
+                }
+              }
+            },
+            "description" : "Token ausente o inválido (`AUTH-001`)"
+          },
+          "403" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/PackagePageResponse"
+                }
+              }
+            },
+            "description" : "Autenticado sin el permiso `packages:read` (`AUTH-002`)"
+          }
+        },
+        "summary" : "Consultar los paquetes",
+        "tags" : [ "Paquetes" ]
+      },
+      "post" : {
+        "description" : "Registra un paquete de productos, **vacío e inactivo**: los productos entran\nuno a uno después (`POST /packages/{id}/products`) y publicarlo es otra\noperación (`PATCH /packages/{id}/status`), que exige descripción y al menos\ndos productos.\n\n**El paquete no declara precio: se calcula.** Su `price` es la suma de sus\nproductos con su descuento, `listPrice` la suma sin descuentos y `savings` la\ndiferencia, todo con el precio de catálogo **de hoy** y redondeado por\nproducto a los decimales de la moneda. No se guarda en ninguna columna: si un\nproducto cambia de precio, el paquete cambia solo. Enviar `price` —o `products`,\no `status`— responde `400`.\n\n**La moneda es obligatoria e inmutable**, y solo se le asocian productos en\nesa moneda: un paquete recién creado no tiene productos y aun así sabe en qué\nse expresa. `scope` dice en qué vistas se publica —`TIENDA`, `HOTLINK`, `AMBOS`\no `NINGUNO`, que existe y se activa pero no se ofrece en ninguna— y es del\npaquete: el alcance de sus productos no filtra dentro de él.\n\nLa respuesta es la misma forma que el detalle: `items` vacío, los tres\nimportes en cero, `exchange` nulo, y `offerable: false` con su motivo — «menos\nde dos productos». `offerable` y `offerableReason` viajan **siempre**.\n\nExige `packages:create`. **Los `products:` no habilitan**: un actor con los\ncuatro permisos del catálogo y ninguno de paquetes recibe `403`.\n",
+        "operationId" : "register_1",
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/RegisterPackageRequest"
+              }
+            }
+          },
+          "required" : true
+        },
+        "responses" : {
+          "201" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/PackageDetailResponse"
+                }
+              }
+            },
+            "description" : "Paquete registrado, vacío y en estado `INACTIVO`."
+          },
+          "400" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/PackageDetailResponse"
+                }
+              }
+            },
+            "description" : "Datos inválidos, juntos (`VAL-001` a `VAL-004`), o un cuerpo con `price`, `products` o `status` (`VAL-005`)"
+          },
+          "401" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/PackageDetailResponse"
+                }
+              }
+            },
+            "description" : "Token ausente o inválido (`AUTH-001`)"
+          },
+          "403" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/PackageDetailResponse"
+                }
+              }
+            },
+            "description" : "Autenticado sin el permiso `packages:create` (`AUTH-002`)"
+          },
+          "409" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/PackageDetailResponse"
+                }
+              }
+            },
+            "description" : "Código ya en uso —también por un paquete retirado— o nombre ya en uso por un paquete vivo (`EX-001`, `EX-002`)"
+          },
+          "422" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/PackageDetailResponse"
+                }
+              }
+            },
+            "description" : "Moneda inexistente o inactiva (`EX-003`)"
+          }
+        },
+        "summary" : "Registrar un paquete",
+        "tags" : [ "Paquetes" ]
+      }
+    },
+    "/api/v1/packages/{id}" : {
+      "get" : {
+        "description" : "El paquete con sus productos y **la cuenta hecha**: cada producto con su\ndescuento y su `priceInPackage`, y `listPrice`, `price` y `savings` que\ncuadran con las líneas. **El precio se calcula en cada lectura** con el\nprecio de catálogo **de hoy** de cada producto: corregir el precio de un\nproducto cambia el paquete sin tocarlo, y un fijo que hoy supera su precio\ncuenta **cero**, nunca negativo. `exchange` es la conversión de `price` a la\nmoneda de casa; nula si el paquete ya está en ella o no hay tasa.\n\nEs la lectura de administración: **devuelve todo**. Un producto inactivo o\nretirado dentro del paquete **se devuelve igual**, con su `status` y su\n`deleted`, y **sigue sumando** — esta es la única pantalla desde la que se\narregla. Y `purchasePrice` de cada producto viaja, presente y nulo cuando\nno se conoce; la oferta y el hotlink no lo llevan.\n\n`offerable` dice si el paquete se puede ofrecer hoy, y `offerableReason` el\n**primer** motivo que lo impide, en un orden fijo: menos de dos productos,\nsin descripción, inactivo, retirado, y un producto inactivo o retirado —\n**nombrado por su código**—. Nulo cuando es ofrecible.\n\n**Un paquete retirado no es un `404`**: se devuelve con `deletedAt` y\n`deletionReason`, como el producto. Exige `packages:read`.\n",
+        "operationId" : "detalle_3",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "id",
+          "required" : true,
+          "schema" : {
+            "format" : "uuid",
+            "type" : "string"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/PackageDetailResponse"
+                }
+              }
+            },
+            "description" : "El paquete con su cuenta hecha."
+          },
+          "400" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/PackageDetailResponse"
+                }
+              }
+            },
+            "description" : "Identificador inválido (`VAL-001`)"
+          },
+          "401" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/PackageDetailResponse"
+                }
+              }
+            },
+            "description" : "Token ausente o inválido (`AUTH-001`)"
+          },
+          "403" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/PackageDetailResponse"
+                }
+              }
+            },
+            "description" : "Autenticado sin el permiso `packages:read` (`AUTH-002`)"
+          },
+          "404" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/PackageDetailResponse"
+                }
+              }
+            },
+            "description" : "El paquete no existe (`EX-001`)"
+          }
+        },
+        "summary" : "Consultar el detalle de un paquete",
+        "tags" : [ "Paquetes" ]
+      },
+      "patch" : {
+        "description" : "Corrige **nombre, descripción y alcance**, por separado o juntos, y devuelve\nel detalle. Cada campo puede venir ausente —no se toca—, con valor, o\n**presente y nulo**: el nulo vacía la descripción y **se rechaza** en nombre\ny alcance, que son obligatorios.\n\n**El código y la moneda no se pueden modificar**, y enviarlos responde `400`\n—se rechazan, no se ignoran—. La moneda es la unidad en la que se suma el\npaquete: cambiarla dejaría los descuentos fijos expresados en otra cosa.\n\n**Vaciar la descripción de un paquete activo se permite**: no lo desactiva,\npero lo saca de la oferta hasta que vuelva a tenerla, y el detalle lo dice\nen `offerableReason`. Cambiar el alcance de `AMBOS` o `HOTLINK` a `TIENDA`\nhace que el hotlink del paquete deje de resolver; la oferta no cambia.\n\nUn cuerpo sin cambios de valor responde `200` sin avanzar `updatedAt` ni\nauditar. Exige `packages:update`.\n",
+        "operationId" : "corregir_2",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "id",
+          "required" : true,
+          "schema" : {
+            "format" : "uuid",
+            "type" : "string"
+          }
+        } ],
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/UpdatePackageRequest"
+              }
+            }
+          },
+          "required" : true
+        },
+        "responses" : {
+          "200" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/PackageDetailResponse"
+                }
+              }
+            },
+            "description" : "El paquete corregido, con su cuenta hecha."
+          },
+          "400" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/PackageDetailResponse"
+                }
+              }
+            },
+            "description" : "Identificador inválido, nombre vacío o de más de 150, alcance nulo o fuera de dominio, cuerpo vacío, o `code`/`currencyId` presentes (`VAL-001` a `VAL-005`, `EX-003`)"
+          },
+          "401" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/PackageDetailResponse"
+                }
+              }
+            },
+            "description" : "Token ausente o inválido (`AUTH-001`)"
+          },
+          "403" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/PackageDetailResponse"
+                }
+              }
+            },
+            "description" : "Autenticado sin el permiso `packages:update` (`AUTH-002`)"
+          },
+          "404" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/PackageDetailResponse"
+                }
+              }
+            },
+            "description" : "El paquete no existe o está retirado (`EX-001`)"
+          },
+          "409" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/PackageDetailResponse"
+                }
+              }
+            },
+            "description" : "El nombre ya lo usa otro paquete vivo (`EX-002`)"
+          }
+        },
+        "summary" : "Corregir un paquete",
+        "tags" : [ "Paquetes" ]
+      }
+    },
+    "/api/v1/packages/{id}/deletion" : {
+      "post" : {
+        "description" : "Retira el paquete con **eliminación lógica y motivo obligatorio** (Art. V.13):\nla fila permanece con su `status` y **sus filas de asociación**, y el detalle\nsigue devolviéndolo con `deletedAt` y `deletionReason`. Sale de la oferta y\ndel hotlink en el acto; **sus productos no cambian** — eran suyos antes del\npaquete y lo siguen siendo después, en el catálogo y en los demás paquetes.\n\nEl motivo se valida **antes de cualquier consulta**. El paquete inexistente\nes `404` y el **ya retirado es `409`**, y se distinguen a propósito: el\ncatálogo devuelve los retirados a quien tiene `packages:read`, y quien\nretira dos veces merece saber que la primera funcionó.\n\n**El código de un paquete retirado no se libera**: un alta con ese código\nresponde `409`. El nombre sí. Exige `packages:delete`.\n",
+        "operationId" : "retirar_2",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "id",
+          "required" : true,
+          "schema" : {
+            "format" : "uuid",
+            "type" : "string"
+          }
+        } ],
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/DeletePackageRequest"
+              }
+            }
+          }
+        },
+        "responses" : {
+          "204" : {
+            "description" : "Paquete retirado."
+          },
+          "400" : {
+            "description" : "Identificador inválido o motivo ausente, vacío o de más de 500 (`VAL-001` a `VAL-003`)"
+          },
+          "401" : {
+            "description" : "Token ausente o inválido (`AUTH-001`)"
+          },
+          "403" : {
+            "description" : "Autenticado sin el permiso `packages:delete` (`AUTH-002`)"
+          },
+          "404" : {
+            "description" : "El paquete no existe (`EX-001`)"
+          },
+          "409" : {
+            "description" : "El paquete ya está retirado (`EX-002`)"
+          }
+        },
+        "summary" : "Retirar un paquete",
+        "tags" : [ "Paquetes" ]
+      }
+    },
+    "/api/v1/packages/{id}/products" : {
+      "post" : {
+        "description" : "Mete un producto en el paquete con su descuento, y devuelve **el paquete\nentero** con el producto nuevo, su `priceInPackage` y los totales rehechos.\nEs la operación que define al paquete: siete verificaciones en fila, cada\nuna con su código.\n\n**Forma y valor van juntos y son obligatorios.** `PORCENTAJE` de `0` a\n`100` con hasta dos decimales; `FIJO` de `0` al precio del producto, con los\ndecimales de la moneda del paquete. **El cero se admite**: es un producto que\nentra al paquete a su precio.\n\n**La cota se comprueba contra el precio de hoy, y nadie la vuelve a\nmirar.** Un fijo mayor que el precio del producto responde `409` (`EX-006`,\nnombrando el precio); sobre un producto **gratuito** solo se admite cero. Si\ndespués el precio del producto baja por debajo de su fijo, el producto\ncuenta **cero** dentro del paquete — nunca negativo — y nada avisa.\n\n**Qué significa cada `409`**: `EX-003` el producto existe pero está inactivo\no retirado — se distingue del inexistente, que es `422` (`EX-002`), porque\nquien llama ve el catálogo entero—; `EX-004` el producto está en otra\nmoneda, y el mensaje nombra las dos; `EX-005` el producto ya está en el\npaquete — corrija su descuento en lugar de asociarlo de nuevo—; `EX-006` el\ndescuento deja al producto por debajo de cero; `EX-007` el upgrade no\ncomparte origen con los upgrades ya dentro (`RN-PM-044`): **el primer\nupgrade fija el origen del paquete**, los siguientes tienen que coincidir, y\nlos bots entran sin mirar orígenes.\n\nSe asocia **a un paquete inactivo** —es el estado en el que un paquete se\narma— y no a uno retirado (`404`). El producto no cambia: la fila es del\npaquete, y el mismo producto puede estar en otros paquetes con otro\ndescuento. Exige `packages:update`.\n",
+        "operationId" : "associate",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "id",
+          "required" : true,
+          "schema" : {
+            "format" : "uuid",
+            "type" : "string"
+          }
+        } ],
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/AssociatePackageProductRequest"
+              }
+            }
+          },
+          "required" : true
+        },
+        "responses" : {
+          "201" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/PackageDetailResponse"
+                }
+              }
+            },
+            "description" : "Producto asociado; el paquete entero con su precio recalculado."
+          },
+          "400" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/PackageDetailResponse"
+                }
+              }
+            },
+            "description" : "Identificador inválido, campos ausentes o forma del descuento inválida (`VAL-001` a `VAL-005`)"
+          },
+          "401" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/PackageDetailResponse"
+                }
+              }
+            },
+            "description" : "Token ausente o inválido (`AUTH-001`)"
+          },
+          "403" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/PackageDetailResponse"
+                }
+              }
+            },
+            "description" : "Autenticado sin el permiso `packages:update` (`AUTH-002`)"
+          },
+          "404" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/PackageDetailResponse"
+                }
+              }
+            },
+            "description" : "El paquete no existe o está retirado (`EX-001`)"
+          },
+          "409" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/PackageDetailResponse"
+                }
+              }
+            },
+            "description" : "Producto inactivo o retirado, en otra moneda, ya en el paquete, descuento por encima del precio, o upgrade de otro origen (`EX-003` a `EX-007`)"
+          },
+          "422" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/PackageDetailResponse"
+                }
+              }
+            },
+            "description" : "El producto no existe (`EX-002`)"
+          }
+        },
+        "summary" : "Asociar un producto al paquete",
+        "tags" : [ "Paquetes" ]
+      }
+    },
+    "/api/v1/packages/{id}/products/{productId}" : {
+      "delete" : {
+        "description" : "Quita el producto del paquete **sin cuerpo y sin motivo** —la fila es una\nasociación (Art. V.13): se borra físicamente y su baja queda en la\nauditoría de eliminación como `ASSOCIATION`, con el descuento y el precio\ndel producto en la instantánea— y responde **`200` con el paquete**, no\n`204`: lo que cambió es su precio.\n\nEl paquete **no cambia de estado** aunque quede con uno o con cero\nproductos: deja de ofrecerse por «menos de dos» y el detalle lo dice. Si se\nquita el único upgrade, el origen del paquete queda **libre**: el siguiente\nupgrade que entre puede ser de otro origen. **El producto no cambia**: sigue\nactivo en el catálogo y en los demás paquetes que lo contengan.\n\nEl producto que no está —también el que ya se quitó— es `404`: con el\nborrado físico no queda nada que los distinga. Exige `packages:update`.\n",
+        "operationId" : "desasociar_2",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "id",
+          "required" : true,
+          "schema" : {
+            "format" : "uuid",
+            "type" : "string"
+          }
+        }, {
+          "in" : "path",
+          "name" : "productId",
+          "required" : true,
+          "schema" : {
+            "format" : "uuid",
+            "type" : "string"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/PackageDetailResponse"
+                }
+              }
+            },
+            "description" : "El paquete sin el producto, con su cuenta rehecha."
+          },
+          "400" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/PackageDetailResponse"
+                }
+              }
+            },
+            "description" : "Identificadores inválidos (`VAL-001`)"
+          },
+          "401" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/PackageDetailResponse"
+                }
+              }
+            },
+            "description" : "Token ausente o inválido (`AUTH-001`)"
+          },
+          "403" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/PackageDetailResponse"
+                }
+              }
+            },
+            "description" : "Autenticado sin el permiso `packages:update` (`AUTH-002`)"
+          },
+          "404" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/PackageDetailResponse"
+                }
+              }
+            },
+            "description" : "El paquete no existe o está retirado, o el producto no está en él (`EX-001`, `EX-002`)"
+          }
+        },
+        "summary" : "Quitar un producto del paquete",
+        "tags" : [ "Paquetes" ]
+      },
+      "patch" : {
+        "description" : "Corrige **forma y valor juntos** —son un solo dato, y los dos son\nobligatorios: no es parcial— y devuelve el paquete entero con su\n`priceInPackage` y sus totales rehechos.\n\n**La cota se comprueba contra el precio de hoy del producto**, no contra el\nque tenía al asociarlo: un fijo que entró cuando el producto valía 100 y hoy\nvale 50 no se puede corregir a 60 — sí a 50 o menos. Es donde el hueco\ntemporal de `RN-PM-037` se cierra solo. Sobre un producto gratuito solo se\nadmite cero.\n\n**No mira el estado del producto**: un producto inactivo dentro del paquete\nse corrige igual — la fila existe y el descuento es del paquete—, y el\npaquete sigue sin ofrecerse por él. `productId` va en la ruta; en el cuerpo\nes un campo desconocido y responde `400`.\n\nEl producto que no está en el paquete es `404`, sin distinguir «no existe»\nde «no está aquí»: lo que se corrige es la pareja. Sin cambio de valor\nresponde `200` sin auditar. Exige `packages:update`.\n",
+        "operationId" : "corregirDescuento",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "id",
+          "required" : true,
+          "schema" : {
+            "format" : "uuid",
+            "type" : "string"
+          }
+        }, {
+          "in" : "path",
+          "name" : "productId",
+          "required" : true,
+          "schema" : {
+            "format" : "uuid",
+            "type" : "string"
+          }
+        } ],
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/CorrectPackageDiscountRequest"
+              }
+            }
+          },
+          "required" : true
+        },
+        "responses" : {
+          "200" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/PackageDetailResponse"
+                }
+              }
+            },
+            "description" : "El paquete con el descuento corregido y su cuenta rehecha."
+          },
+          "400" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/PackageDetailResponse"
+                }
+              }
+            },
+            "description" : "Identificadores inválidos, forma o valor ausentes, o forma inválida (`VAL-001` a `VAL-005`)"
+          },
+          "401" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/PackageDetailResponse"
+                }
+              }
+            },
+            "description" : "Token ausente o inválido (`AUTH-001`)"
+          },
+          "403" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/PackageDetailResponse"
+                }
+              }
+            },
+            "description" : "Autenticado sin el permiso `packages:update` (`AUTH-002`)"
+          },
+          "404" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/PackageDetailResponse"
+                }
+              }
+            },
+            "description" : "El paquete no existe o está retirado, o el producto no está en él (`EX-001`, `EX-002`)"
+          },
+          "409" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/PackageDetailResponse"
+                }
+              }
+            },
+            "description" : "El descuento deja al producto por debajo de cero hoy (`EX-003`)"
+          }
+        },
+        "summary" : "Corregir el descuento de un producto del paquete",
+        "tags" : [ "Paquetes" ]
+      }
+    },
+    "/api/v1/packages/{id}/status" : {
+      "patch" : {
+        "description" : "Cambia el estado del paquete y devuelve el detalle.\n\n**Activar exige descripción y al menos dos productos**, y los dos motivos\nvan **juntos** en el mismo `409` cuando faltan a la vez. **No exige que los\nproductos estén activos hoy**: eso lo mira la oferta cada vez, y un paquete\nactivo con un producto inactivo dentro es un estado legítimo — el detalle lo\ndevuelve `offerable: false` nombrando el producto.\n\n**Desactivar no tiene condiciones**: el paquete sale de la oferta y del\nhotlink, y sus productos no cambian.\n\nPedir el estado que ya tiene responde `200` sin escribir ni auditar. Exige\n`packages:update`.\n",
+        "operationId" : "cambiarEstado_3",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "id",
+          "required" : true,
+          "schema" : {
+            "format" : "uuid",
+            "type" : "string"
+          }
+        } ],
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/ChangePackageStatusRequest"
+              }
+            }
+          },
+          "required" : true
+        },
+        "responses" : {
+          "200" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/PackageDetailResponse"
+                }
+              }
+            },
+            "description" : "El paquete en su estado nuevo, con su cuenta hecha."
+          },
+          "400" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/PackageDetailResponse"
+                }
+              }
+            },
+            "description" : "Identificador inválido o `status` ausente o fuera de dominio (`VAL-001`, `VAL-002`)"
+          },
+          "401" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/PackageDetailResponse"
+                }
+              }
+            },
+            "description" : "Token ausente o inválido (`AUTH-001`)"
+          },
+          "403" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/PackageDetailResponse"
+                }
+              }
+            },
+            "description" : "Autenticado sin el permiso `packages:update` (`AUTH-002`)"
+          },
+          "404" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/PackageDetailResponse"
+                }
+              }
+            },
+            "description" : "El paquete no existe o está retirado (`EX-001`)"
+          },
+          "409" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/PackageDetailResponse"
+                }
+              }
+            },
+            "description" : "Activar sin descripción o con menos de dos productos (`EX-002`, `EX-003`), juntos"
+          }
+        },
+        "summary" : "Activar o desactivar un paquete",
+        "tags" : [ "Paquetes" ]
+      }
+    },
     "/api/v1/payment-methods" : {
       "get" : {
         "description" : "Devuelve los métodos de pago **activos y de visibilidad `PUBLICO`**, sin\npaginar y ordenados por código.\n\n**Es una consulta PÚBLICA** (`RN-MV-024`): responde **sin token**, porque\nel formulario de registro por enlace elige con qué se paga antes de que\nexista la cuenta. **Con sesión devuelve exactamente lo mismo** — no hay\nun catálogo para el anónimo y otro para quien ha entrado, y no existe\nparámetro que cambie lo que sale.\n\n**Lo que NO devuelve, y no hay forma de pedirlo**: ni los métodos\ndesactivados —un método retirado no se puede usar en una venta nueva— ni\nlos de visibilidad `INTERNO` (`RN-MV-023`). Estos últimos **sirven para\npagar y no los elige ninguna persona**: los pone el sistema. Es el caso\nde `GRATIS`, con el que se anotan las ventas de importe cero\n(`RN-MV-022`): quien depure una de esas verá un `paymentMethodId` que\n**este catálogo no resuelve**, y eso es deliberado.\n\n**La respuesta no publica el campo de visibilidad.** Si todo lo que sale\nes `PUBLICO`, declararlo sugeriría que puede salir otra cosa.\n\n**`excludedCountries` dice dónde NO vale cada medio.** Una lista vacía\nsignifica que vale en todos los países, y el campo **viaja siempre**:\nno hay que distinguir «sin exclusiones» de «no vino el campo».\n\n**Esta restricción es informativa y el servidor NO la aplica.** Registrar\nuna venta con un método excluido en algún país **se registra con\nnormalidad**: quien decide qué ofrecer es el cliente que consume esta\nrespuesta. El servidor no sabe de qué país es quien compra — ninguna\npersona del sistema tiene país todavía.\n\n**No admite parámetros**, y en particular no admite un país: filtrar aquí\nharía creer que el servidor sabe cuál corresponde.\n\n**Está acotada por origen** —120 peticiones por minuto, con cubo propio—,\ncomo los demás catálogos públicos: superar la cota responde `429`.\n",
@@ -6246,7 +7451,7 @@
     },
     "/api/v1/products" : {
       "get" : {
-        "description" : "Devuelve el catálogo **paginado**, con el destino de cada upgrade y la\nmoneda de cada precio ya resueltos: no hace falta una segunda consulta.\n\n**Los retirados quedan fuera salvo que se pidan** con `includeDeleted`.\nAl pedirlos se indica **desde cuándo** lo están; el **motivo** no viaja\nen el listado —uno a uno lo devuelve el detalle (`RF-PM-003`), en\nbloque sería una exportación de decisiones comerciales—. Verlos **no\nexige un permiso propio**: basta `products:read`.\n\nCada fila trae **los dos precios**: `price` —el que se cobra— y\n`purchasePrice` —el **precio de compra**, lo que NEXUS paga por el\nproducto—, este **presente y nulo** en los productos cuyo costo no se\nconoce. Este listado y el detalle son **los dos únicos sitios** donde\nse ven juntos: la oferta y el hotlink no devuelven el de compra\n(`RN-PM-024`, 12-09-2026).\n\nY trae **`exchange`**, la conversión a la moneda por omisión con la\ntasa vigente hoy, calculada **sobre `price`** —el de compra nunca se\nconvierte—. Llega **presente y nula** cuando el producto ya está en\nesa moneda o cuando nadie declaró una tasa: eso **no es un error** y\nel producto se devuelve igual.\n\nCada fila trae también **`videoUrl`**, la dirección del video que\npresenta el producto, **tal cual se guardó** y **presente y nula**\ncuando no tiene (`RN-PM-032`). **No es un filtro.**\n\nSolo se puede ordenar por la lista blanca —`name`, `price`,\n`createdAt`—, con `,asc` o `,desc`. **`purchasePrice` no está en\nella**: ordenar por una columna que admite nulos obligaría a decidir\ndónde van los productos sin costo conocido, y nadie lo ha decidido.\n**Un campo fuera de la lista se rechaza y no se ignora**:\nignorarlo devolvería un orden distinto del pedido sin decirlo. Por omisión se ordena por **fecha de alta\ndescendente**, y el orden aplicado viaja en la respuesta.\n\n**`targetMembershipId` no se valida contra el catálogo de membresías.**\nFiltrar por un destino inexistente devuelve la colección vacía y no es\nun error; combinarlo con `type=BOT` también, porque ningún\nbot tiene destino.\n\nLa búsqueda va sobre el nombre, **sin distinguir acentos ni\nmayúsculas** y por fragmento. En blanco equivale a no filtrar.\n\n**`scope` e `implementation` filtran como `type` y `status`**: se\nadmiten en cualquier caja y un valor fuera de dominio se rechaza junto\nal resto de parámetros inválidos, no en una vuelta aparte. El de\nalcance es **el único sitio donde ese dato se consulta hoy** — la\noferta de `RF-PM-007` no filtra por él.\n\nUn filtro sin coincidencias devuelve `200` con la colección vacía, y\nuna página más allá de la última hace lo mismo **con el total real**.\nNo hay `404` ni `422`.\n",
+        "description" : "Devuelve el catálogo **paginado**, con el destino de cada upgrade y la\nmoneda de cada precio ya resueltos: no hace falta una segunda consulta.\n\n**Los retirados quedan fuera salvo que se pidan** con `includeDeleted`.\nAl pedirlos se indica **desde cuándo** lo están; el **motivo** no viaja\nen el listado —uno a uno lo devuelve el detalle (`RF-PM-003`), en\nbloque sería una exportación de decisiones comerciales—. Verlos **no\nexige un permiso propio**: basta `products:read`.\n\nCada fila trae **los dos precios**: `price` —el que se cobra— y\n`purchasePrice` —el **precio de compra**, lo que NEXUS paga por el\nproducto—, este **presente y nulo** en los productos cuyo costo no se\nconoce. Este listado y el detalle son **los dos únicos sitios** donde\nse ven juntos: la oferta y el hotlink no devuelven el de compra\n(`RN-PM-024`, 12-09-2026).\n\nY trae **`exchange`**, la conversión a la moneda por omisión con la\ntasa vigente hoy, calculada **sobre `price`** —el de compra nunca se\nconvierte—. Llega **presente y nula** cuando el producto ya está en\nesa moneda o cuando nadie declaró una tasa: eso **no es un error** y\nel producto se devuelve igual.\n\nCada fila trae también **`videoUrl`**, la dirección del video que\npresenta el producto, **tal cual se guardó** y **presente y nula**\ncuando no tiene (`RN-PM-032`). **No es un filtro.**\n\nSolo se puede ordenar por la lista blanca —`name`, `price`,\n`createdAt`—, con `,asc` o `,desc`. **`purchasePrice` no está en\nella**: ordenar por una columna que admite nulos obligaría a decidir\ndónde van los productos sin costo conocido, y nadie lo ha decidido.\n**Un campo fuera de la lista se rechaza y no se ignora**:\nignorarlo devolvería un orden distinto del pedido sin decirlo. Por omisión se ordena por **fecha de alta\ndescendente**, y el orden aplicado viaja en la respuesta.\n\n**`targetMembershipId` no se valida contra el catálogo de membresías.**\nFiltrar por un destino inexistente devuelve la colección vacía y no es\nun error; combinarlo con `type=BOT` también, porque ningún\nbot tiene destino.\n\nLa búsqueda va sobre el nombre, **sin distinguir acentos ni\nmayúsculas** y por fragmento. En blanco equivale a no filtrar.\n\n**`scope` e `implementation` filtran como `type` y `status`**: se\nadmiten en cualquier caja y un valor fuera de dominio se rechaza junto\nal resto de parámetros inválidos, no en una vuelta aparte. El de\nalcance admite los cuatro valores —`TIENDA`, `HOTLINK`, `AMBOS`,\n`NINGUNO`— y **es la única lectura donde se ve un producto\n`NINGUNO`**, porque ninguna vista de venta lo ofrece.\n\nUn filtro sin coincidencias devuelve `200` con la colección vacía, y\nuna página más allá de la última hace lo mismo **con el total real**.\nNo hay `404` ni `422`.\n",
         "operationId" : "listar_3",
         "parameters" : [ {
           "in" : "query",
@@ -6358,7 +7563,7 @@
         "tags" : [ "Productos" ]
       },
       "post" : {
-        "description" : "Registra un producto del catálogo, **siempre inactivo**: publicarlo es otra\noperación (`RF-PM-005`).\n\nEl tipo decide qué campos son obligatorios: un `UPGRADE_MEMBRESIA` debe\ndeclarar **las dos** membresías —de qué nivel sale y a cuál lleva— y un\n`BOT` no puede declarar ninguna.\n\n**El origen no puede estar por encima del destino**: eso sería vender un\ndescenso llamándolo upgrade, y se rechaza con `422` (`EX-006`). **Sí\npuede ser el MISMO**, y entonces el producto es una **renovación**: lo\nque vende es tiempo —su `validityDays`— y no un cambio de nivel.\n\n**Y no tiene por qué ser el inmediatamente inferior**: saltar niveles es\nlegítimo, y es la razón de que el origen se declare en lugar de\ndeducirse de la cadena.\n\n`icon` es el **nombre** del icono con el que el frontend pinta el producto\n—no una imagen—, en minúsculas y guion medio. Es **opcional**, y solo un\n`UPGRADE_MEMBRESIA` puede llevarlo: en un `BOT` se rechaza (`RN-PM-016`).\n\n`videoUrl` es **la dirección de un video** que presenta el producto —no\nel video—. Es **opcional y vale en los dos tipos**, sin la condición\ndel icono. Se comprueba **solo la forma**: una URL absoluta `http` o\n`https`, sin espacios y de hasta 500 caracteres; lo demás se rechaza\ncon `VAL-017`. **El sistema no sigue el enlace** —no comprueba que el\nvideo exista ni lo descarga—, y lo guarda **tal cual se escribió**,\nrecortado y sin normalizar nada más. Ausente o nulo significan lo\nmismo: no tiene video. **Al revés que el precio de compra, sale en las\ncuatro lecturas**, el hotlink sin token incluido (`RN-PM-032`).\n\nLa vigencia es opcional en los dos tipos: sin ella, lo adquirido no caduca.\n\n`scope` e `implementation` son **obligatorios y en los dos tipos**, y\n**no tienen valor por omisión**: `scope` dice hasta dónde se muestra el\nproducto —`HOTLINKS` **incluye** `TIENDA`, no la sustituye— e\n`implementation` dice si lo comprado se aplica solo (`AUTOMATICA`) o\nespera a que un funcionario lo autorice (`MANUAL`).\n\n**Un producto lleva DOS precios y solo uno se cobra.** `price` es el\ndel sistema —el que copia la venta y sobre el que se comisiona— y\n`purchasePrice` es el **precio de compra**: lo que NEXUS paga por el\nproducto cuando tiene que comprarlo, y donde se guarda lo que costó.\nEs **opcional**, no interviene en ningún cálculo, se expresa en la\n**misma moneda** y **no sale de administración**: la oferta y el\nhotlink no lo devuelven. Ausente o nulo significan lo mismo —no se\nconoce todavía—, y **eso no es «costó cero»** (`RN-PM-023`). Se llamó\n`publicPrice` hasta el 12-09-2026; ese nombre es hoy una propiedad\ndesconocida y devuelve `400`.\n\nLos dos importes se validan igual: **no negativos** —el **cero se\nadmite** desde que existe la renovación de una membresía gratuita— y\ncon los decimales que declare su moneda. El rechazo **nombra el\ncampo** que incumple.\n\n**Los dos solo se ven desde administración** (`RN-PM-024`): la oferta\nde un cliente y el hotlink público devuelven **uno**.\n",
+        "description" : "Registra un producto del catálogo, **siempre inactivo**: publicarlo es otra\noperación (`RF-PM-005`).\n\nEl tipo decide qué campos son obligatorios: un `UPGRADE_MEMBRESIA` debe\ndeclarar **las dos** membresías —de qué nivel sale y a cuál lleva— y un\n`BOT` no puede declarar ninguna.\n\n**El origen no puede estar por encima del destino**: eso sería vender un\ndescenso llamándolo upgrade, y se rechaza con `422` (`EX-006`). **Sí\npuede ser el MISMO**, y entonces el producto es una **renovación**: lo\nque vende es tiempo —su `validityDays`— y no un cambio de nivel.\n\n**Y no tiene por qué ser el inmediatamente inferior**: saltar niveles es\nlegítimo, y es la razón de que el origen se declare en lugar de\ndeducirse de la cadena.\n\n`icon` es el **nombre** del icono con el que el frontend pinta el producto\n—no una imagen—, en minúsculas y guion medio. Es **opcional**, y solo un\n`UPGRADE_MEMBRESIA` puede llevarlo: en un `BOT` se rechaza (`RN-PM-016`).\n\n`videoUrl` es **la dirección de un video** que presenta el producto —no\nel video—. Es **opcional y vale en los dos tipos**, sin la condición\ndel icono. Se comprueba **solo la forma**: una URL absoluta `http` o\n`https`, sin espacios y de hasta 500 caracteres; lo demás se rechaza\ncon `VAL-017`. **El sistema no sigue el enlace** —no comprueba que el\nvideo exista ni lo descarga—, y lo guarda **tal cual se escribió**,\nrecortado y sin normalizar nada más. Ausente o nulo significan lo\nmismo: no tiene video. **Al revés que el precio de compra, sale en las\ncuatro lecturas**, el hotlink sin token incluido (`RN-PM-032`).\n\nLa vigencia es opcional en los dos tipos: sin ella, lo adquirido no caduca.\n\n`scope` e `implementation` son **obligatorios y en los dos tipos**, y\n**no tienen valor por omisión**: `scope` dice **en qué vistas de venta**\nse ofrece el producto —`TIENDA` (solo la oferta), `HOTLINK` (solo el\ncanal de hotlinks), `AMBOS`, o `NINGUNO` (en ninguna: solo lo ve\nadministración, aunque esté activo)— e `implementation` dice si lo\ncomprado se aplica solo (`AUTOMATICA`) o espera a que un funcionario\nlo autorice (`MANUAL`). **`HOTLINKS` dejó de existir el 15-09-2026**\n—lo que significaba se llama `AMBOS`— y se rechaza con `400` como\ncualquier valor fuera del dominio.\n\n**Un producto lleva DOS precios y solo uno se cobra.** `price` es el\ndel sistema —el que copia la venta y sobre el que se comisiona— y\n`purchasePrice` es el **precio de compra**: lo que NEXUS paga por el\nproducto cuando tiene que comprarlo, y donde se guarda lo que costó.\nEs **opcional**, no interviene en ningún cálculo, se expresa en la\n**misma moneda** y **no sale de administración**: la oferta y el\nhotlink no lo devuelven. Ausente o nulo significan lo mismo —no se\nconoce todavía—, y **eso no es «costó cero»** (`RN-PM-023`). Se llamó\n`publicPrice` hasta el 12-09-2026; ese nombre es hoy una propiedad\ndesconocida y devuelve `400`.\n\nLos dos importes se validan igual: **no negativos** —el **cero se\nadmite** desde que existe la renovación de una membresía gratuita— y\ncon los decimales que declare su moneda. El rechazo **nombra el\ncampo** que incumple.\n\n**Los dos solo se ven desde administración** (`RN-PM-024`): la oferta\nde un cliente y el hotlink público devuelven **uno**.\n",
         "operationId" : "register",
         "requestBody" : {
           "content" : {
@@ -6438,7 +7643,7 @@
     },
     "/api/v1/products/available" : {
       "get" : {
-        "description" : "Devuelve lo que **quien llama** puede comprar hoy, y no el catálogo.\n\n**No admite ningún parámetro**: ni de persona, ni de filtro, ni de\npaginación. El actor sale del token, de modo que no hay forma de\npreguntar qué puede comprar otra persona.\n\n**Exige `products:sale`**, un permiso propio de esta vista y no\n`products:read` — ese abre el catálogo administrativo entero, lo\ninactivo, lo retirado y el motivo del retiro, para que alguien pudiera\nver tres líneas.\n\n**Solo lo activo.** Ni lo inactivo ni lo retirado aparecen aquí,\naunque el catálogo de `RF-PM-002` sí los muestre a quien administra.\n\n**Upgrades: los declarados DESDE la membresía vigente de quien mira**,\ny ninguno más. La coincidencia es exacta: no se comparan niveles ni se\nrecorre la cadena. Quien registró el producto ya decidió a quién va\ndirigido.\n\nEso incluye **todos** los declarados desde ahí y no solo el inmediato\n—quien está en el peldaño más bajo elige cuánto saltar, y el precio de\ncada uno ya expresa el salto—, y llegan ordenados **del salto más\ncorto al más largo**.\n\n**La RENOVACIÓN entra aquí**, y va primera: un producto `X → X`\ndeclarado desde su propia membresía es el salto de longitud cero. Lo\nque vende es **tiempo** —su `validityDays`— y no un cambio de nivel.\n\n**Un upgrade hacia el nivel que ya se tiene NO se ofrece cuando su\norigen no es el suyo**: sería el salto de otra persona que acaba donde\nquien mira ya está. Y **ninguna bajada** llega hasta aquí, aunque este\nfiltro ya no la mire: lo impide `RN-PM-017` **al registrar**, porque un\nproducto declarado desde mi membresía no puede apuntar por debajo.\n\n**Bots: todos los activos, para cualquiera.** No dependen del nivel de\nquien mira ni de que tenga uno.\n\n**Cada producto trae `videoUrl`**, la dirección del video que lo\npresenta, tal cual se guardó y **presente y nula** cuando no tiene\n(`RN-PM-032`). Es lo contrario del precio de compra: material de\nventa, que existe para que lo vea quien compra, y por eso **sí** viaja\npor aquí.\n\n**Publica `scope` e `implementation` de cada producto y NO filtra por\nninguno de los dos.** El alcance no puede filtrar aquí: `HOTLINKS`\nincluye `TIENDA`, de modo que los dos valores llegan a esta vista y un\nfiltro devolvería siempre lo mismo que no ponerlo. La implementación\nviaja para que quien compra sepa **antes de pagar** si lo que se lleva\nse le entrega en el acto.\n\n**Quien no tiene membresía vigente —incluida la vencida— no ve ningún\nupgrade**, y sí todos los bots. No hay nivel desde el que subir, y\nofrecerle el primero sería venderle una membresía, que no es lo que un\nupgrade hace.\n\n**Quien está en la cima recibe la lista de upgrades vacía.** No es un\nerror ni un mensaje especial: es una lista vacía.\n\n**El precio es igual para todos**: un importe distinto según quién\nmira sería un descuento, y los descuentos son promociones, que están\nfuera de alcance.\n\n**Viene UN importe** (`RN-PM-024`, reescrita el 12-09-2026): `price`,\nel que la venta cobra. **El precio de compra no viaja por aquí**: es\nlo que NEXUS paga por el producto, y quien compra no tiene por qué\nconocer el margen. Entre el 08-09-2026 y el 12-09-2026 esta respuesta\ntraía también `publicPrice`, cuando ese importe era lo que se\nanunciaba; ese campo **ya no existe**.\n\nY viene **`exchange`**, la conversión de `price` a la moneda por\nomisión con la tasa vigente hoy. **Presente y nula** cuando no hay\nnada que convertir.\n\n**Quien construya la pantalla de compra tiene que saberlo**: el\nimporte que confirma la venta es `price`, el mismo que se enseña.\n\nLas dos colecciones viajan **envueltas en un objeto** y no como\narreglos en la raíz: hoy la oferta no se pagina, y así el día que\nhaya que paginarla no romperá a ningún cliente.\n",
+        "description" : "Devuelve lo que **quien llama** puede comprar hoy, y no el catálogo.\n\n**No admite ningún parámetro**: ni de persona, ni de filtro, ni de\npaginación. El actor sale del token, de modo que no hay forma de\npreguntar qué puede comprar otra persona.\n\n**Exige `products:sale`**, un permiso propio de esta vista y no\n`products:read` — ese abre el catálogo administrativo entero, lo\ninactivo, lo retirado y el motivo del retiro, para que alguien pudiera\nver tres líneas.\n\n**Solo lo activo.** Ni lo inactivo ni lo retirado aparecen aquí,\naunque el catálogo de `RF-PM-002` sí los muestre a quien administra.\n\n**Upgrades: los declarados DESDE la membresía vigente de quien mira**,\ny ninguno más. La coincidencia es exacta: no se comparan niveles ni se\nrecorre la cadena. Quien registró el producto ya decidió a quién va\ndirigido.\n\nEso incluye **todos** los declarados desde ahí y no solo el inmediato\n—quien está en el peldaño más bajo elige cuánto saltar, y el precio de\ncada uno ya expresa el salto—, y llegan ordenados **del salto más\ncorto al más largo**.\n\n**La RENOVACIÓN entra aquí**, y va primera: un producto `X → X`\ndeclarado desde su propia membresía es el salto de longitud cero. Lo\nque vende es **tiempo** —su `validityDays`— y no un cambio de nivel.\n\n**Un upgrade hacia el nivel que ya se tiene NO se ofrece cuando su\norigen no es el suyo**: sería el salto de otra persona que acaba donde\nquien mira ya está. Y **ninguna bajada** llega hasta aquí, aunque este\nfiltro ya no la mire: lo impide `RN-PM-017` **al registrar**, porque un\nproducto declarado desde mi membresía no puede apuntar por debajo.\n\n**Bots: todos los activos, para cualquiera.** No dependen del nivel de\nquien mira ni de que tenga uno.\n\n**Cada producto trae `videoUrl`**, la dirección del video que lo\npresenta, tal cual se guardó y **presente y nula** cuando no tiene\n(`RN-PM-032`). Es lo contrario del precio de compra: material de\nventa, que existe para que lo vea quien compra, y por eso **sí** viaja\npor aquí.\n\n**Publica `scope` e `implementation` de cada producto, y filtra por el\nprimero**: solo `TIENDA` y `AMBOS` (`RN-PM-019`, desde el 15-09-2026).\nUn producto `HOTLINK` o `NINGUNO` no es de la tienda y no aparece\naquí aunque esté activo y sea de la membresía de quien llama. La\nimplementación viaja para que quien compra sepa **antes de pagar** si\nlo que se lleva se le entrega en el acto.\n\n**Quien no tiene membresía vigente —incluida la vencida— no ve ningún\nupgrade**, y sí todos los bots. No hay nivel desde el que subir, y\nofrecerle el primero sería venderle una membresía, que no es lo que un\nupgrade hace.\n\n**Quien está en la cima recibe la lista de upgrades vacía.** No es un\nerror ni un mensaje especial: es una lista vacía.\n\n**El precio es igual para todos**: un importe distinto según quién\nmira sería un descuento, y los descuentos son promociones, que están\nfuera de alcance.\n\n**Viene UN importe** (`RN-PM-024`, reescrita el 12-09-2026): `price`,\nel que la venta cobra. **El precio de compra no viaja por aquí**: es\nlo que NEXUS paga por el producto, y quien compra no tiene por qué\nconocer el margen. Entre el 08-09-2026 y el 12-09-2026 esta respuesta\ntraía también `publicPrice`, cuando ese importe era lo que se\nanunciaba; ese campo **ya no existe**.\n\nY viene **`exchange`**, la conversión de `price` a la moneda por\nomisión con la tasa vigente hoy. **Presente y nula** cuando no hay\nnada que convertir.\n\n**Quien construya la pantalla de compra tiene que saberlo**: el\nimporte que confirma la venta es `price`, el mismo que se enseña.\n\nLas dos colecciones viajan **envueltas en un objeto** y no como\narreglos en la raíz: hoy la oferta no se pagina, y así el día que\nhaya que paginarla no romperá a ningún cliente.\n",
         "operationId" : "oferta",
         "responses" : {
           "200" : {
@@ -6467,7 +7672,7 @@
     },
     "/api/v1/products/hotlinks" : {
       "get" : {
-        "description" : "**Lo que un vendedor puede repartir**: los productos **activos y de\nalcance `HOTLINKS`**, de los dos tipos, en `upgrades` y `services`\n— exactamente el conjunto que `GET /api/v1/hotlinks/{username}/{code}`\nresuelve enlace a enlace (`RN-PM-021`), visto entero y con token.\n\n**No mira la membresía de quien llama**, y ahí se aparta de la oferta\n(`GET /api/v1/products/available`): el vendedor no compra lo que\nreparte, de modo que un `BECA → ORO` le interesa aunque él esté en\n`ORO`. Por eso la respuesta no trae `currentMembership`. Cada producto\nva en la forma de venta —`price`, `exchange`, `videoUrl`,\n`coverImageUrl`, `rating`— y **sin `purchasePrice`** (`RN-PM-024`).\n\n**No trae el enlace armado.** El cliente lo compone con el `username`\nde `GET /api/v1/users/me` y el `code` de cada producto:\n`/api/v1/hotlinks/{username}/{code}`. Que ese enlace resuelva exige\nademás que quien lo reparte sea fuerza comercial (`RN-PM-022`); esta\nlista dice qué se publica, no quién puede publicarlo. **Sin\nparámetros y sin paginar**: es el catálogo publicable, entero. Los\npaquetes llegarán a esta misma respuesta con `RF-PM-026`.\n",
+        "description" : "**Lo que un vendedor puede repartir**: los productos **activos y de\nalcance `HOTLINK` o `AMBOS`**, de los dos tipos, en `upgrades` y `services`\n— exactamente el conjunto que `GET /api/v1/hotlinks/{username}/{code}`\nresuelve enlace a enlace (`RN-PM-021`), visto entero y con token.\n\n**No mira la membresía de quien llama**, y ahí se aparta de la oferta\n(`GET /api/v1/products/available`): el vendedor no compra lo que\nreparte, de modo que un `BECA → ORO` le interesa aunque él esté en\n`ORO`. Por eso la respuesta no trae `currentMembership`. Cada producto\nva en la forma de venta —`price`, `exchange`, `videoUrl`,\n`coverImageUrl`, `rating`— y **sin `purchasePrice`** (`RN-PM-024`).\n\n**No trae el enlace armado.** El cliente lo compone con el `username`\nde `GET /api/v1/users/me` y el `code` de cada producto:\n`/api/v1/hotlinks/{username}/{code}`. Que ese enlace resuelva exige\nademás que quien lo reparte sea fuerza comercial (`RN-PM-022`); esta\nlista dice qué se publica, no quién puede publicarlo. **Sin\nparámetros y sin paginar**: es el catálogo publicable, entero. Los\npaquetes llegarán a esta misma respuesta con `RF-PM-026`.\n",
         "operationId" : "catalogoDeHotlinks",
         "responses" : {
           "200" : {
@@ -6538,7 +7743,7 @@
         "tags" : [ "Productos" ]
       },
       "patch" : {
-        "description" : "Corrige el **nombre**, la **descripción**, el **icono**, el **enlace\ndel video**, **los dos precios**, la **moneda**, la **vigencia**, el\n**alcance** y la **implementación**. Se aplica lo que llega y se deja\nintacto lo que no.\n\n**Distingue el campo ausente del enviado vacío**, y de ahí salen dos\ncomportamientos opuestos: `description: null`, `icon: null`,\n`videoUrl: null`, `validityDays: null` y `purchasePrice: null`\n**vacían** el campo,\nmientras que `name: null` y `price: null` se **rechazan**, porque un\nproducto sin nombre o sin precio del sistema no puede existir.\n\n**`purchasePrice` es el precio de compra** —lo que NEXUS paga por el\nproducto— y esta operación es donde hoy se registra lo que costó.\n**Vaciarlo NO es ponerlo a cero**: con nulo el costo pasa a «no se\nconoce», y con cero a «no costó nada». Son dos estados distintos y\nlos dos se alcanzan desde aquí. Se llamó `publicPrice` hasta el\n12-09-2026; ese nombre es hoy una propiedad desconocida y devuelve\n`400`.\n\n**`scope: null` e `implementation: null` también se rechazan**, y ahí\nvan con el nombre y no con la descripción: son obligatorios en la\ncolumna, de modo que «bórralo» no tiene ningún estado al que llevar el\nproducto. Devuelven `400` con `VAL-007` y `VAL-008`.\n\n**El alcance y la implementación SÍ se corrigen, aunque el tipo y las\nmembresías no**: ninguna de las dos define qué derecho otorga el\nproducto —una dice hasta dónde se muestra y la otra quién lo aplica—,\nde modo que corregirlas no reescribe lo que compró quien lo compró.\n\n**El icono sí se corrige, aunque el tipo no**: es el aspecto del\nproducto y no lo que otorga. En un `BOT`, cualquier valor distinto de\nnulo se rechaza con `VAL-013` (`RN-PM-016`).\n\n**`videoUrl` se corrige y se vacía en los DOS tipos** —con `null` o\ncon `\"\"`, que aquí también es un vaciado— y sin la condición del\nicono (`RN-PM-032`). Se comprueba **solo la forma** —URL absoluta\n`http` o `https`, sin espacios, hasta 500 caracteres— y lo demás se\nrechaza con `VAL-009` **sin aplicar ningún otro cambio** de la misma\npetición. Se guarda tal cual, recortado, y el sistema no lo sigue.\n\n**El tipo, el código y la membresía destino NO se pueden corregir**, y\nenviarlos devuelve `400` con `VAL-006`. Se rechazan y no se ignoran:\nignorarlos haría creer que el cambio se aplicó. Definen qué derecho\notorga el producto, y cambiarlos convertiría lo comprado en otra cosa.\n\n**Los DOS importes se validan contra la moneda que va a quedar**, y no\nsolo el que llega en la petición: cambiar **solo** la moneda puede\ndejar sin caber a un precio que nadie tocó, y el rechazo **nombra el\ncampo** que no cabe. Y el importe **no se convierte**: el sistema no\nhace conversión de divisa — cambiar de moneda es declarar que ese\nnúmero siempre estuvo en la otra.\n\n**Un producto retirado no se corrige**: lo que se retiró debe quedar\ncomo estaba para que lo que lo referencie siga diciendo la verdad.\n\n**No se exige motivo**, ni siquiera al cambiar el precio. Una petición\nque no cambia nada devuelve `200` y **no registra evento**.\n",
+        "description" : "Corrige el **nombre**, la **descripción**, el **icono**, el **enlace\ndel video**, **los dos precios**, la **moneda**, la **vigencia**, el\n**alcance** y la **implementación**. Se aplica lo que llega y se deja\nintacto lo que no.\n\n**Distingue el campo ausente del enviado vacío**, y de ahí salen dos\ncomportamientos opuestos: `description: null`, `icon: null`,\n`videoUrl: null`, `validityDays: null` y `purchasePrice: null`\n**vacían** el campo,\nmientras que `name: null` y `price: null` se **rechazan**, porque un\nproducto sin nombre o sin precio del sistema no puede existir.\n\n**`purchasePrice` es el precio de compra** —lo que NEXUS paga por el\nproducto— y esta operación es donde hoy se registra lo que costó.\n**Vaciarlo NO es ponerlo a cero**: con nulo el costo pasa a «no se\nconoce», y con cero a «no costó nada». Son dos estados distintos y\nlos dos se alcanzan desde aquí. Se llamó `publicPrice` hasta el\n12-09-2026; ese nombre es hoy una propiedad desconocida y devuelve\n`400`.\n\n**`scope: null` e `implementation: null` también se rechazan**, y ahí\nvan con el nombre y no con la descripción: son obligatorios en la\ncolumna, de modo que «bórralo» no tiene ningún estado al que llevar el\nproducto. Devuelven `400` con `VAL-007` y `VAL-008`.\n\n**El alcance y la implementación SÍ se corrigen, aunque el tipo y las\nmembresías no**: ninguna de las dos define qué derecho otorga el\nproducto —una dice en qué vistas se ofrece y la otra quién lo aplica—,\nde modo que corregirlas no reescribe lo que compró quien lo compró.\n`scope` admite `TIENDA`, `HOTLINK`, `AMBOS` y `NINGUNO`; **corregir\nun producto activo a `NINGUNO` no lo desactiva**: sigue activo y deja\nde ofrecerse. `HOTLINKS` se rechaza con `400`, como cualquier valor\nfuera del dominio.\n\n**El icono sí se corrige, aunque el tipo no**: es el aspecto del\nproducto y no lo que otorga. En un `BOT`, cualquier valor distinto de\nnulo se rechaza con `VAL-013` (`RN-PM-016`).\n\n**`videoUrl` se corrige y se vacía en los DOS tipos** —con `null` o\ncon `\"\"`, que aquí también es un vaciado— y sin la condición del\nicono (`RN-PM-032`). Se comprueba **solo la forma** —URL absoluta\n`http` o `https`, sin espacios, hasta 500 caracteres— y lo demás se\nrechaza con `VAL-009` **sin aplicar ningún otro cambio** de la misma\npetición. Se guarda tal cual, recortado, y el sistema no lo sigue.\n\n**El tipo, el código y la membresía destino NO se pueden corregir**, y\nenviarlos devuelve `400` con `VAL-006`. Se rechazan y no se ignoran:\nignorarlos haría creer que el cambio se aplicó. Definen qué derecho\notorga el producto, y cambiarlos convertiría lo comprado en otra cosa.\n\n**Los DOS importes se validan contra la moneda que va a quedar**, y no\nsolo el que llega en la petición: cambiar **solo** la moneda puede\ndejar sin caber a un precio que nadie tocó, y el rechazo **nombra el\ncampo** que no cabe. Y el importe **no se convierte**: el sistema no\nhace conversión de divisa — cambiar de moneda es declarar que ese\nnúmero siempre estuvo en la otra.\n\n**Un producto retirado no se corrige**: lo que se retiró debe quedar\ncomo estaba para que lo que lo referencie siga diciendo la verdad.\n\n**No se exige motivo**, ni siquiera al cambiar el precio. Una petición\nque no cambia nada devuelve `200` y **no registra evento**.\n",
         "operationId" : "corregir_1",
         "parameters" : [ {
           "in" : "path",
@@ -9143,6 +10348,9 @@
   }, {
     "description" : "Lo que quien compra dice de un producto.",
     "name" : "Reseñas"
+  }, {
+    "description" : "Paquetes de productos: varios productos con su descuento.",
+    "name" : "Paquetes"
   }, {
     "description" : "Resolución de la comisión efectiva de una persona sobre un producto.",
     "name" : "Comisiones"

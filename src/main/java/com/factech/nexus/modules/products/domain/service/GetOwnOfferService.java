@@ -1,9 +1,15 @@
 package com.factech.nexus.modules.products.domain.service;
 
 import com.factech.nexus.modules.products.application.OfferItem;
+import com.factech.nexus.modules.products.application.OfferPackageItem;
 import com.factech.nexus.modules.products.application.OfferResponse;
+import com.factech.nexus.modules.products.application.PackageDetailResponse;
 import com.factech.nexus.modules.products.application.ProductResponse;
+import com.factech.nexus.modules.products.domain.models.PackagePricing;
 import com.factech.nexus.modules.products.domain.models.ProductType;
+import com.factech.nexus.modules.products.domain.repository.ProductPackageQueryRepository;
+import com.factech.nexus.modules.products.domain.repository.ProductPackageQueryRepository.PublishedItem;
+import com.factech.nexus.modules.products.domain.repository.ProductPackageQueryRepository.PublishedPackage;
 import com.factech.nexus.modules.products.domain.repository.ProductQueryRepository;
 import com.factech.nexus.modules.products.domain.repository.ProductQueryRepository.ProductRow;
 import com.factech.nexus.modules.system.users.application.CurrentMembershipLookup;
@@ -49,6 +55,7 @@ import org.springframework.transaction.annotation.Transactional;
 public class GetOwnOfferService {
 
   private final ProductQueryRepository consultas;
+  private final ProductPackageQueryRepository paquetes;
   private final CurrentMembershipLookup membresias;
   private final CurrentActor actor;
 
@@ -56,10 +63,12 @@ public class GetOwnOfferService {
 
   public GetOwnOfferService(
       ProductQueryRepository consultas,
+      ProductPackageQueryRepository paquetes,
       CurrentMembershipLookup membresias,
       CurrentActor actor,
       ProductExchangeResolver conversiones) {
     this.consultas = consultas;
+    this.paquetes = paquetes;
     this.membresias = membresias;
     this.actor = actor;
     this.conversiones = conversiones;
@@ -100,11 +109,22 @@ public class GetOwnOfferService {
     // a ordenar aquí sería una segunda copia de ese criterio.
     List<ProductRow> filas = consultas.findOffer(membresia);
 
-    // La conversión de TODA la oferta en dos consultas, y no dos por producto.
-    // El cuerpo sería idéntico con cuarenta, de modo que esto solo se ve
-    // contando sentencias (`CA-PM-168`).
-    ProductExchangeResolver.Conversor conversor =
-        conversiones.para(filas.stream().map(ProductRow::currencyId).toList());
+    // LOS PAQUETES (`RF-PM-007` v0.13.0, `RN-PM-044`): una sentencia más, y el
+    // filtro en Java sobre lo que vino — ofrecible hoy, y con TODOS sus upgrades
+    // saliendo de la membresía del actor, o sin upgrades. Sin membresía solo
+    // pasan los paquetes de bots, igual que sin membresía solo se ven bots.
+    List<PublishedPackage> ofrecibles =
+        paquetes.findOfferable().stream()
+            .filter(p -> p.ofrecibilidad().offerable())
+            .filter(p -> saleDe(p, membresia))
+            .toList();
+
+    // La conversión de TODA la oferta —productos Y paquetes— en dos consultas,
+    // y no dos por fila. El cuerpo sería idéntico con cuarenta, de modo que esto
+    // solo se ve contando sentencias (`CA-PM-168`, `CA-PM-337`).
+    List<UUID> monedas = new ArrayList<>(filas.stream().map(ProductRow::currencyId).toList());
+    ofrecibles.forEach(p -> monedas.add(p.paquete().currencyId()));
+    ProductExchangeResolver.Conversor conversor = conversiones.para(monedas);
 
     for (ProductRow fila : filas) {
       OfferItem producto = OfferItem.from(fila, conversor.de(fila.currencyId(), fila.price()));
@@ -116,7 +136,51 @@ public class GetOwnOfferService {
     }
 
     return OfferResponse.de(
-        actual.map(GetOwnOfferService::referencia).orElse(null), upgrades, bots);
+        actual.map(GetOwnOfferService::referencia).orElse(null),
+        upgrades,
+        bots,
+        ofrecibles.stream().map(p -> paquete(p, conversor)).toList());
+  }
+
+  /**
+   * `RN-PM-044`: el paquete se ofrece a quien tiene el origen de sus upgrades. Como todos comparten
+   * origen —lo garantiza `RF-PM-023` al asociar—, basta mirar el primero; sin upgrades, a todos.
+   */
+  private static boolean saleDe(PublishedPackage paquete, UUID membresia) {
+    return paquete.items().stream()
+        .map(PublishedItem::producto)
+        .filter(p -> ProductType.valueOf(p.type()) == ProductType.UPGRADE_MEMBRESIA)
+        .allMatch(p -> p.sourceMembershipId() != null && p.sourceMembershipId().equals(membresia));
+  }
+
+  private static OfferPackageItem paquete(
+      PublishedPackage publicado, ProductExchangeResolver.Conversor conversor) {
+    PackagePricing cuenta = publicado.precio();
+    UUID moneda = publicado.paquete().currencyId();
+    int decimales = publicado.paquete().currencyDecimalPlaces();
+    return new OfferPackageItem(
+        publicado.paquete().code(),
+        publicado.paquete().name(),
+        publicado.paquete().description(),
+        new ProductResponse.CurrencyRef(moneda, publicado.paquete().currencyCode(), decimales),
+        publicado.items().stream()
+            .map(
+                linea ->
+                    new OfferPackageItem.Line(
+                        // La forma de la oferta, tal cual, con la conversión del
+                        // mismo conversor: todas las líneas están en la moneda
+                        // del paquete.
+                        OfferItem.from(
+                            linea.producto(), conversor.de(moneda, linea.producto().price())),
+                        new PackageDetailResponse.DiscountRef(
+                            linea.descuento().getType(),
+                            linea.descuento().valorEnEscala(decimales)),
+                        cuenta.precioDe(linea.producto().id())))
+            .toList(),
+        cuenta.listPrice(),
+        cuenta.price(),
+        cuenta.savings(),
+        conversor.de(moneda, cuenta.price()));
   }
 
   /**

@@ -57,6 +57,8 @@ tags:
   description: "Con qué se puede pagar, y en qué países no vale cada medio."
 - name: Reseñas
   description: Lo que quien compra dice de un producto.
+- name: Paquetes
+  description: "Paquetes de productos: varios productos con su descuento."
 - name: Comisiones
   description: Resolución de la comisión efectiva de una persona sobre un producto.
 - name: Monedas
@@ -1484,8 +1486,9 @@ paths:
         **`scope` e `implementation` filtran como `type` y `status`**: se
         admiten en cualquier caja y un valor fuera de dominio se rechaza junto
         al resto de parámetros inválidos, no en una vuelta aparte. El de
-        alcance es **el único sitio donde ese dato se consulta hoy** — la
-        oferta de `RF-PM-007` no filtra por él.
+        alcance admite los cuatro valores —`TIENDA`, `HOTLINK`, `AMBOS`,
+        `NINGUNO`— y **es la única lectura donde se ve un producto
+        `NINGUNO`**, porque ninguna vista de venta lo ofrece.
 
         Un filtro sin coincidencias devuelve `200` con la colección vacía, y
         una página más allá de la última hace lo mismo **con el total real**.
@@ -1607,10 +1610,14 @@ paths:
         La vigencia es opcional en los dos tipos: sin ella, lo adquirido no caduca.
 
         `scope` e `implementation` son **obligatorios y en los dos tipos**, y
-        **no tienen valor por omisión**: `scope` dice hasta dónde se muestra el
-        producto —`HOTLINKS` **incluye** `TIENDA`, no la sustituye— e
-        `implementation` dice si lo comprado se aplica solo (`AUTOMATICA`) o
-        espera a que un funcionario lo autorice (`MANUAL`).
+        **no tienen valor por omisión**: `scope` dice **en qué vistas de venta**
+        se ofrece el producto —`TIENDA` (solo la oferta), `HOTLINK` (solo el
+        canal de hotlinks), `AMBOS`, o `NINGUNO` (en ninguna: solo lo ve
+        administración, aunque esté activo)— e `implementation` dice si lo
+        comprado se aplica solo (`AUTOMATICA`) o espera a que un funcionario
+        lo autorice (`MANUAL`). **`HOTLINKS` dejó de existir el 15-09-2026**
+        —lo que significaba se llama `AMBOS`— y se rechaza con `400` como
+        cualquier valor fuera del dominio.
 
         **Un producto lleva DOS precios y solo uno se cobra.** `price` es el
         del sistema —el que copia la venta y sobre el que se comisiona— y
@@ -1866,6 +1873,320 @@ paths:
           description: "El producto no existe, está inactivo o está retirado (`EX-001`)"
         "409":
           description: Quien llama ya tiene una reseña viva sobre este producto (`EX-002`)
+  /api/v1/packages:
+    get:
+      tags:
+      - Paquetes
+      summary: Consultar los paquetes
+      description: |
+        La lista de administración de los paquetes, paginada, **con la cuenta hecha
+        por fila**: cada paquete con `itemCount`, `listPrice`, `price`, `savings`,
+        `exchange` y `offerable`, y sin sus líneas — para eso está el detalle. Los
+        importes salen de la misma cuenta que el detalle y cuadran con él.
+
+        Filtra por `status`, `scope`, `currencyId` y `q` —búsqueda por nombre, sin
+        distinguir mayúsculas ni acentos—, y se combinan. **Excluye los retirados**
+        salvo `includeDeleted=true`, y entonces los trae con `deletedAt`.
+        **`offerable` no es filtro**: quien administra quiere ver precisamente los
+        que no se ofrecen; se queda como columna, y el motivo lo da el detalle.
+
+        Orden: `createdAt` (omisión, descendente), `name` y `price`, con
+        `,asc`/`,desc`. **El orden por `price` ordena por el precio calculado**: el
+        precio no está en ninguna columna, de modo que un paquete cuyo producto
+        cambió de precio cambia de posición en la siguiente lectura. Se ordena con
+        la suma sin redondear; la diferencia con el importe que viaja cabe en un
+        céntimo por producto y puede alterar el orden entre paquetes casi iguales.
+
+        Los filtros inválidos se devuelven **juntos** con `400`. Exige
+        `packages:read`; `products:read` no habilita.
+      operationId: listar_4
+      parameters:
+      - name: page
+        in: query
+        required: false
+        schema:
+          type: integer
+          format: int32
+      - name: size
+        in: query
+        required: false
+        schema:
+          type: integer
+          format: int32
+      - name: sort
+        in: query
+        required: false
+        schema:
+          type: string
+      - name: status
+        in: query
+        required: false
+        schema:
+          type: string
+      - name: scope
+        in: query
+        required: false
+        schema:
+          type: string
+      - name: currencyId
+        in: query
+        required: false
+        schema:
+          type: string
+          format: uuid
+      - name: q
+        in: query
+        required: false
+        schema:
+          type: string
+      - name: includeDeleted
+        in: query
+        required: false
+        schema:
+          type: boolean
+      responses:
+        "200":
+          description: La página de paquetes.
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/PackagePageResponse"
+        "400":
+          description: "Filtros, orden o paginación inválidos, juntos (`VAL-001` a\
+            \ `VAL-005`)"
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/PackagePageResponse"
+        "401":
+          description: Token ausente o inválido (`AUTH-001`)
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/PackagePageResponse"
+        "403":
+          description: Autenticado sin el permiso `packages:read` (`AUTH-002`)
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/PackagePageResponse"
+    post:
+      tags:
+      - Paquetes
+      summary: Registrar un paquete
+      description: |
+        Registra un paquete de productos, **vacío e inactivo**: los productos entran
+        uno a uno después (`POST /packages/{id}/products`) y publicarlo es otra
+        operación (`PATCH /packages/{id}/status`), que exige descripción y al menos
+        dos productos.
+
+        **El paquete no declara precio: se calcula.** Su `price` es la suma de sus
+        productos con su descuento, `listPrice` la suma sin descuentos y `savings` la
+        diferencia, todo con el precio de catálogo **de hoy** y redondeado por
+        producto a los decimales de la moneda. No se guarda en ninguna columna: si un
+        producto cambia de precio, el paquete cambia solo. Enviar `price` —o `products`,
+        o `status`— responde `400`.
+
+        **La moneda es obligatoria e inmutable**, y solo se le asocian productos en
+        esa moneda: un paquete recién creado no tiene productos y aun así sabe en qué
+        se expresa. `scope` dice en qué vistas se publica —`TIENDA`, `HOTLINK`, `AMBOS`
+        o `NINGUNO`, que existe y se activa pero no se ofrece en ninguna— y es del
+        paquete: el alcance de sus productos no filtra dentro de él.
+
+        La respuesta es la misma forma que el detalle: `items` vacío, los tres
+        importes en cero, `exchange` nulo, y `offerable: false` con su motivo — «menos
+        de dos productos». `offerable` y `offerableReason` viajan **siempre**.
+
+        Exige `packages:create`. **Los `products:` no habilitan**: un actor con los
+        cuatro permisos del catálogo y ninguno de paquetes recibe `403`.
+      operationId: register_1
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/RegisterPackageRequest"
+        required: true
+      responses:
+        "201":
+          description: "Paquete registrado, vacío y en estado `INACTIVO`."
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/PackageDetailResponse"
+        "400":
+          description: "Datos inválidos, juntos (`VAL-001` a `VAL-004`), o un cuerpo\
+            \ con `price`, `products` o `status` (`VAL-005`)"
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/PackageDetailResponse"
+        "401":
+          description: Token ausente o inválido (`AUTH-001`)
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/PackageDetailResponse"
+        "403":
+          description: Autenticado sin el permiso `packages:create` (`AUTH-002`)
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/PackageDetailResponse"
+        "409":
+          description: "Código ya en uso —también por un paquete retirado— o nombre\
+            \ ya en uso por un paquete vivo (`EX-001`, `EX-002`)"
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/PackageDetailResponse"
+        "422":
+          description: Moneda inexistente o inactiva (`EX-003`)
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/PackageDetailResponse"
+  /api/v1/packages/{id}/products:
+    post:
+      tags:
+      - Paquetes
+      summary: Asociar un producto al paquete
+      description: |
+        Mete un producto en el paquete con su descuento, y devuelve **el paquete
+        entero** con el producto nuevo, su `priceInPackage` y los totales rehechos.
+        Es la operación que define al paquete: siete verificaciones en fila, cada
+        una con su código.
+
+        **Forma y valor van juntos y son obligatorios.** `PORCENTAJE` de `0` a
+        `100` con hasta dos decimales; `FIJO` de `0` al precio del producto, con los
+        decimales de la moneda del paquete. **El cero se admite**: es un producto que
+        entra al paquete a su precio.
+
+        **La cota se comprueba contra el precio de hoy, y nadie la vuelve a
+        mirar.** Un fijo mayor que el precio del producto responde `409` (`EX-006`,
+        nombrando el precio); sobre un producto **gratuito** solo se admite cero. Si
+        después el precio del producto baja por debajo de su fijo, el producto
+        cuenta **cero** dentro del paquete — nunca negativo — y nada avisa.
+
+        **Qué significa cada `409`**: `EX-003` el producto existe pero está inactivo
+        o retirado — se distingue del inexistente, que es `422` (`EX-002`), porque
+        quien llama ve el catálogo entero—; `EX-004` el producto está en otra
+        moneda, y el mensaje nombra las dos; `EX-005` el producto ya está en el
+        paquete — corrija su descuento en lugar de asociarlo de nuevo—; `EX-006` el
+        descuento deja al producto por debajo de cero; `EX-007` el upgrade no
+        comparte origen con los upgrades ya dentro (`RN-PM-044`): **el primer
+        upgrade fija el origen del paquete**, los siguientes tienen que coincidir, y
+        los bots entran sin mirar orígenes.
+
+        Se asocia **a un paquete inactivo** —es el estado en el que un paquete se
+        arma— y no a uno retirado (`404`). El producto no cambia: la fila es del
+        paquete, y el mismo producto puede estar en otros paquetes con otro
+        descuento. Exige `packages:update`.
+      operationId: associate
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AssociatePackageProductRequest"
+        required: true
+      responses:
+        "201":
+          description: Producto asociado; el paquete entero con su precio recalculado.
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/PackageDetailResponse"
+        "400":
+          description: "Identificador inválido, campos ausentes o forma del descuento\
+            \ inválida (`VAL-001` a `VAL-005`)"
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/PackageDetailResponse"
+        "401":
+          description: Token ausente o inválido (`AUTH-001`)
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/PackageDetailResponse"
+        "403":
+          description: Autenticado sin el permiso `packages:update` (`AUTH-002`)
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/PackageDetailResponse"
+        "404":
+          description: El paquete no existe o está retirado (`EX-001`)
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/PackageDetailResponse"
+        "409":
+          description: "Producto inactivo o retirado, en otra moneda, ya en el paquete,\
+            \ descuento por encima del precio, o upgrade de otro origen (`EX-003`\
+            \ a `EX-007`)"
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/PackageDetailResponse"
+        "422":
+          description: El producto no existe (`EX-002`)
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/PackageDetailResponse"
+  /api/v1/packages/{id}/deletion:
+    post:
+      tags:
+      - Paquetes
+      summary: Retirar un paquete
+      description: |
+        Retira el paquete con **eliminación lógica y motivo obligatorio** (Art. V.13):
+        la fila permanece con su `status` y **sus filas de asociación**, y el detalle
+        sigue devolviéndolo con `deletedAt` y `deletionReason`. Sale de la oferta y
+        del hotlink en el acto; **sus productos no cambian** — eran suyos antes del
+        paquete y lo siguen siendo después, en el catálogo y en los demás paquetes.
+
+        El motivo se valida **antes de cualquier consulta**. El paquete inexistente
+        es `404` y el **ya retirado es `409`**, y se distinguen a propósito: el
+        catálogo devuelve los retirados a quien tiene `packages:read`, y quien
+        retira dos veces merece saber que la primera funcionó.
+
+        **El código de un paquete retirado no se libera**: un alta con ese código
+        responde `409`. El nombre sí. Exige `packages:delete`.
+      operationId: retirar_2
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/DeletePackageRequest"
+      responses:
+        "204":
+          description: Paquete retirado.
+        "400":
+          description: "Identificador inválido o motivo ausente, vacío o de más de\
+            \ 500 (`VAL-001` a `VAL-003`)"
+        "401":
+          description: Token ausente o inválido (`AUTH-001`)
+        "403":
+          description: Autenticado sin el permiso `packages:delete` (`AUTH-002`)
+        "404":
+          description: El paquete no existe (`EX-001`)
+        "409":
+          description: El paquete ya está retirado (`EX-002`)
   /api/v1/movements:
     post:
       tags:
@@ -2162,7 +2483,7 @@ paths:
 
         **No hay filtro por fecha**, porque las tasas de rol no tienen vigencia:
         el catálogo solo sabe lo que dice hoy.
-      operationId: listar_4
+      operationId: listar_5
       parameters:
       - name: filtros
         in: query
@@ -2413,7 +2734,7 @@ paths:
         y disponible para otros productos.
 
         **No es idempotente**: retirar dos veces devuelve `409`.
-      operationId: retirar_2
+      operationId: retirar_3
       parameters:
       - name: id
         in: path
@@ -3738,8 +4059,12 @@ paths:
 
         **El alcance y la implementación SÍ se corrigen, aunque el tipo y las
         membresías no**: ninguna de las dos define qué derecho otorga el
-        producto —una dice hasta dónde se muestra y la otra quién lo aplica—,
+        producto —una dice en qué vistas se ofrece y la otra quién lo aplica—,
         de modo que corregirlas no reescribe lo que compró quien lo compró.
+        `scope` admite `TIENDA`, `HOTLINK`, `AMBOS` y `NINGUNO`; **corregir
+        un producto activo a `NINGUNO` no lo desactiva**: sigue activo y deja
+        de ofrecerse. `HOTLINKS` se rechaza con `400`, como cualquier valor
+        fuera del dominio.
 
         **El icono sí se corrige, aunque el tipo no**: es el aspecto del
         producto y no lo que otorga. En un `BOT`, cualquier valor distinto de
@@ -3981,6 +4306,366 @@ paths:
         "404":
           description: "La reseña no existe, está retirada o no es del producto de\
             \ la ruta (`EX-001`)"
+  /api/v1/packages/{id}:
+    get:
+      tags:
+      - Paquetes
+      summary: Consultar el detalle de un paquete
+      description: |
+        El paquete con sus productos y **la cuenta hecha**: cada producto con su
+        descuento y su `priceInPackage`, y `listPrice`, `price` y `savings` que
+        cuadran con las líneas. **El precio se calcula en cada lectura** con el
+        precio de catálogo **de hoy** de cada producto: corregir el precio de un
+        producto cambia el paquete sin tocarlo, y un fijo que hoy supera su precio
+        cuenta **cero**, nunca negativo. `exchange` es la conversión de `price` a la
+        moneda de casa; nula si el paquete ya está en ella o no hay tasa.
+
+        Es la lectura de administración: **devuelve todo**. Un producto inactivo o
+        retirado dentro del paquete **se devuelve igual**, con su `status` y su
+        `deleted`, y **sigue sumando** — esta es la única pantalla desde la que se
+        arregla. Y `purchasePrice` de cada producto viaja, presente y nulo cuando
+        no se conoce; la oferta y el hotlink no lo llevan.
+
+        `offerable` dice si el paquete se puede ofrecer hoy, y `offerableReason` el
+        **primer** motivo que lo impide, en un orden fijo: menos de dos productos,
+        sin descripción, inactivo, retirado, y un producto inactivo o retirado —
+        **nombrado por su código**—. Nulo cuando es ofrecible.
+
+        **Un paquete retirado no es un `404`**: se devuelve con `deletedAt` y
+        `deletionReason`, como el producto. Exige `packages:read`.
+      operationId: detalle_3
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      responses:
+        "200":
+          description: El paquete con su cuenta hecha.
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/PackageDetailResponse"
+        "400":
+          description: Identificador inválido (`VAL-001`)
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/PackageDetailResponse"
+        "401":
+          description: Token ausente o inválido (`AUTH-001`)
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/PackageDetailResponse"
+        "403":
+          description: Autenticado sin el permiso `packages:read` (`AUTH-002`)
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/PackageDetailResponse"
+        "404":
+          description: El paquete no existe (`EX-001`)
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/PackageDetailResponse"
+    patch:
+      tags:
+      - Paquetes
+      summary: Corregir un paquete
+      description: |
+        Corrige **nombre, descripción y alcance**, por separado o juntos, y devuelve
+        el detalle. Cada campo puede venir ausente —no se toca—, con valor, o
+        **presente y nulo**: el nulo vacía la descripción y **se rechaza** en nombre
+        y alcance, que son obligatorios.
+
+        **El código y la moneda no se pueden modificar**, y enviarlos responde `400`
+        —se rechazan, no se ignoran—. La moneda es la unidad en la que se suma el
+        paquete: cambiarla dejaría los descuentos fijos expresados en otra cosa.
+
+        **Vaciar la descripción de un paquete activo se permite**: no lo desactiva,
+        pero lo saca de la oferta hasta que vuelva a tenerla, y el detalle lo dice
+        en `offerableReason`. Cambiar el alcance de `AMBOS` o `HOTLINK` a `TIENDA`
+        hace que el hotlink del paquete deje de resolver; la oferta no cambia.
+
+        Un cuerpo sin cambios de valor responde `200` sin avanzar `updatedAt` ni
+        auditar. Exige `packages:update`.
+      operationId: corregir_2
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdatePackageRequest"
+        required: true
+      responses:
+        "200":
+          description: "El paquete corregido, con su cuenta hecha."
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/PackageDetailResponse"
+        "400":
+          description: "Identificador inválido, nombre vacío o de más de 150, alcance\
+            \ nulo o fuera de dominio, cuerpo vacío, o `code`/`currencyId` presentes\
+            \ (`VAL-001` a `VAL-005`, `EX-003`)"
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/PackageDetailResponse"
+        "401":
+          description: Token ausente o inválido (`AUTH-001`)
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/PackageDetailResponse"
+        "403":
+          description: Autenticado sin el permiso `packages:update` (`AUTH-002`)
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/PackageDetailResponse"
+        "404":
+          description: El paquete no existe o está retirado (`EX-001`)
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/PackageDetailResponse"
+        "409":
+          description: El nombre ya lo usa otro paquete vivo (`EX-002`)
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/PackageDetailResponse"
+  /api/v1/packages/{id}/status:
+    patch:
+      tags:
+      - Paquetes
+      summary: Activar o desactivar un paquete
+      description: |
+        Cambia el estado del paquete y devuelve el detalle.
+
+        **Activar exige descripción y al menos dos productos**, y los dos motivos
+        van **juntos** en el mismo `409` cuando faltan a la vez. **No exige que los
+        productos estén activos hoy**: eso lo mira la oferta cada vez, y un paquete
+        activo con un producto inactivo dentro es un estado legítimo — el detalle lo
+        devuelve `offerable: false` nombrando el producto.
+
+        **Desactivar no tiene condiciones**: el paquete sale de la oferta y del
+        hotlink, y sus productos no cambian.
+
+        Pedir el estado que ya tiene responde `200` sin escribir ni auditar. Exige
+        `packages:update`.
+      operationId: cambiarEstado_3
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ChangePackageStatusRequest"
+        required: true
+      responses:
+        "200":
+          description: "El paquete en su estado nuevo, con su cuenta hecha."
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/PackageDetailResponse"
+        "400":
+          description: "Identificador inválido o `status` ausente o fuera de dominio\
+            \ (`VAL-001`, `VAL-002`)"
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/PackageDetailResponse"
+        "401":
+          description: Token ausente o inválido (`AUTH-001`)
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/PackageDetailResponse"
+        "403":
+          description: Autenticado sin el permiso `packages:update` (`AUTH-002`)
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/PackageDetailResponse"
+        "404":
+          description: El paquete no existe o está retirado (`EX-001`)
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/PackageDetailResponse"
+        "409":
+          description: "Activar sin descripción o con menos de dos productos (`EX-002`,\
+            \ `EX-003`), juntos"
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/PackageDetailResponse"
+  /api/v1/packages/{id}/products/{productId}:
+    delete:
+      tags:
+      - Paquetes
+      summary: Quitar un producto del paquete
+      description: |
+        Quita el producto del paquete **sin cuerpo y sin motivo** —la fila es una
+        asociación (Art. V.13): se borra físicamente y su baja queda en la
+        auditoría de eliminación como `ASSOCIATION`, con el descuento y el precio
+        del producto en la instantánea— y responde **`200` con el paquete**, no
+        `204`: lo que cambió es su precio.
+
+        El paquete **no cambia de estado** aunque quede con uno o con cero
+        productos: deja de ofrecerse por «menos de dos» y el detalle lo dice. Si se
+        quita el único upgrade, el origen del paquete queda **libre**: el siguiente
+        upgrade que entre puede ser de otro origen. **El producto no cambia**: sigue
+        activo en el catálogo y en los demás paquetes que lo contengan.
+
+        El producto que no está —también el que ya se quitó— es `404`: con el
+        borrado físico no queda nada que los distinga. Exige `packages:update`.
+      operationId: desasociar_2
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      - name: productId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      responses:
+        "200":
+          description: "El paquete sin el producto, con su cuenta rehecha."
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/PackageDetailResponse"
+        "400":
+          description: Identificadores inválidos (`VAL-001`)
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/PackageDetailResponse"
+        "401":
+          description: Token ausente o inválido (`AUTH-001`)
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/PackageDetailResponse"
+        "403":
+          description: Autenticado sin el permiso `packages:update` (`AUTH-002`)
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/PackageDetailResponse"
+        "404":
+          description: "El paquete no existe o está retirado, o el producto no está\
+            \ en él (`EX-001`, `EX-002`)"
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/PackageDetailResponse"
+    patch:
+      tags:
+      - Paquetes
+      summary: Corregir el descuento de un producto del paquete
+      description: |
+        Corrige **forma y valor juntos** —son un solo dato, y los dos son
+        obligatorios: no es parcial— y devuelve el paquete entero con su
+        `priceInPackage` y sus totales rehechos.
+
+        **La cota se comprueba contra el precio de hoy del producto**, no contra el
+        que tenía al asociarlo: un fijo que entró cuando el producto valía 100 y hoy
+        vale 50 no se puede corregir a 60 — sí a 50 o menos. Es donde el hueco
+        temporal de `RN-PM-037` se cierra solo. Sobre un producto gratuito solo se
+        admite cero.
+
+        **No mira el estado del producto**: un producto inactivo dentro del paquete
+        se corrige igual — la fila existe y el descuento es del paquete—, y el
+        paquete sigue sin ofrecerse por él. `productId` va en la ruta; en el cuerpo
+        es un campo desconocido y responde `400`.
+
+        El producto que no está en el paquete es `404`, sin distinguir «no existe»
+        de «no está aquí»: lo que se corrige es la pareja. Sin cambio de valor
+        responde `200` sin auditar. Exige `packages:update`.
+      operationId: corregirDescuento
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      - name: productId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CorrectPackageDiscountRequest"
+        required: true
+      responses:
+        "200":
+          description: El paquete con el descuento corregido y su cuenta rehecha.
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/PackageDetailResponse"
+        "400":
+          description: "Identificadores inválidos, forma o valor ausentes, o forma\
+            \ inválida (`VAL-001` a `VAL-005`)"
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/PackageDetailResponse"
+        "401":
+          description: Token ausente o inválido (`AUTH-001`)
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/PackageDetailResponse"
+        "403":
+          description: Autenticado sin el permiso `packages:update` (`AUTH-002`)
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/PackageDetailResponse"
+        "404":
+          description: "El paquete no existe o está retirado, o el producto no está\
+            \ en él (`EX-001`, `EX-002`)"
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/PackageDetailResponse"
+        "409":
+          description: El descuento deja al producto por debajo de cero hoy (`EX-003`)
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/PackageDetailResponse"
   /api/v1/currencies/{id}/status:
     patch:
       tags:
@@ -3998,7 +4683,7 @@ paths:
         una operación de migración, no de API.
 
         El cuerpo no admite ningún otro campo ni motivo alguno.
-      operationId: cambiarEstado_3
+      operationId: cambiarEstado_4
       parameters:
       - name: id
         in: path
@@ -4049,7 +4734,7 @@ paths:
         propague desde ese momento, no lo repara.
 
         El cuerpo no admite ningún otro campo ni motivo alguno.
-      operationId: cambiarEstado_4
+      operationId: cambiarEstado_5
       parameters:
       - name: id
         in: path
@@ -4110,7 +4795,7 @@ paths:
         la deja de porcentaje, se rechaza **entera** con `409` (`EX-008`).
         Corregirla a valor fijo, del importe que sea, pasa: no hay cien por
         ciento de cero, y el gratuito no entra en ninguna suma.
-      operationId: corregir_2
+      operationId: corregir_3
       parameters:
       - name: id
         in: path
@@ -4447,7 +5132,7 @@ paths:
       summary: Consultar el catálogo de hotlinks
       description: |
         **Lo que un vendedor puede repartir**: los productos **activos y de
-        alcance `HOTLINKS`**, de los dos tipos, en `upgrades` y `services`
+        alcance `HOTLINK` o `AMBOS`**, de los dos tipos, en `upgrades` y `services`
         — exactamente el conjunto que `GET /api/v1/hotlinks/{username}/{code}`
         resuelve enlace a enlace (`RN-PM-021`), visto entero y con token.
 
@@ -4528,12 +5213,12 @@ paths:
         venta, que existe para que lo vea quien compra, y por eso **sí** viaja
         por aquí.
 
-        **Publica `scope` e `implementation` de cada producto y NO filtra por
-        ninguno de los dos.** El alcance no puede filtrar aquí: `HOTLINKS`
-        incluye `TIENDA`, de modo que los dos valores llegan a esta vista y un
-        filtro devolvería siempre lo mismo que no ponerlo. La implementación
-        viaja para que quien compra sepa **antes de pagar** si lo que se lleva
-        se le entrega en el acto.
+        **Publica `scope` e `implementation` de cada producto, y filtra por el
+        primero**: solo `TIENDA` y `AMBOS` (`RN-PM-019`, desde el 15-09-2026).
+        Un producto `HOTLINK` o `NINGUNO` no es de la tienda y no aparece
+        aquí aunque esté activo y sea de la membresía de quien llama. La
+        implementación viaja para que quien compra sepa **antes de pagar** si
+        lo que se lleva se le entrega en el acto.
 
         **Quien no tiene membresía vigente —incluida la vencida— no ve ningún
         upgrade**, y sí todos los bots. No hay nivel desde el que subir, y
@@ -5001,7 +5686,8 @@ paths:
         todavía un token; esta lo es porque un enlace se abre antes de
         registrarse.
 
-        **Solo publica productos activos y de alcance `HOTLINKS`**, y solo el
+        **Solo publica productos activos y de alcance `HOTLINK` o `AMBOS`**
+        (`HOTLINKS` hasta el 15-09-2026), y solo el
         nombre de quien porta un rol de tipo `VENDEDOR`. Ni correo, ni
         identificador, ni estado, ni roles.
 
@@ -5039,7 +5725,7 @@ paths:
 
         **Todo lo que no procede responde el MISMO `404`**: usuario
         inexistente, persona que no es vendedora, código inexistente, producto
-        inactivo, retirado o de alcance `TIENDA`. **No dice cuál falló**, y esa
+        inactivo, retirado o de alcance `TIENDA` o `NINGUNO`. **No dice cuál falló**, y esa
         uniformidad es deliberada — distinguirlos convertiría el enlace en un
         oráculo que dice quién existe.
       operationId: hotlink
@@ -5074,6 +5760,69 @@ paths:
             '*/*':
               schema:
                 $ref: "#/components/schemas/HotlinkResponse"
+  /api/v1/hotlinks/{username}/packages/{code}:
+    get:
+      tags:
+      - Hotlinks
+      summary: Consultar el hotlink de un paquete
+      description: |
+        Devuelve, **sin token**, el paquete que el enlace señala —con sus productos,
+        el descuento de cada uno y **la cuenta hecha**— y el nombre y apellido de
+        quien lo reparte.
+
+        **Cada producto va en la misma forma que el hotlink del producto**, tal
+        cual: código, nombre, descripción, icono, video, portada, membresía en tres
+        campos, precio, conversión y `rating`. A su lado, `discount` y
+        `priceInPackage` — lo que vale ese producto **dentro** del paquete, con el
+        precio de catálogo de hoy. `listPrice` es la suma sin descuentos, `price` lo
+        que vale el paquete y `savings` la diferencia; `exchange` convierte `price`
+        a la moneda de casa si hay tasa. **`priceInPackage` es la cuenta de hoy y
+        no una reserva**: si un producto cambia de precio, el paquete cambia solo,
+        y un fijo que hoy supera su precio cuenta cero.
+
+        **Solo publica paquetes activos y de alcance `HOTLINK` o `AMBOS`**, y **el
+        alcance de los productos no filtra dentro del paquete**: el canal lo decide
+        el paquete. Sin `purchasePrice` ni `status` en ningún nivel.
+
+        **Todo lo que no procede responde el MISMO `404`, y el mismo que el hotlink
+        del producto**: usuario inexistente, persona que no es vendedora, código
+        inexistente, paquete inactivo, retirado o de alcance `TIENDA` o `NINGUNO`,
+        y **también el paquete que hoy no se puede ofrecer** —un producto suyo
+        inactivo o retirado, menos de dos productos, sin descripción—. **No dice cuál
+        falló**: distinguirlos publicaría, sin token, que el paquete existe y qué le
+        pasa. Quien tiene que saberlo es administración, y lo sabe por el detalle.
+      operationId: hotlinkDePaquete
+      parameters:
+      - name: username
+        in: path
+        required: true
+        schema:
+          type: string
+      - name: code
+        in: path
+        required: true
+        schema:
+          type: string
+      responses:
+        "200":
+          description: "El enlace, con su paquete y su vendedor."
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/PackageHotlinkResponse"
+        "404":
+          description: "El enlace no lleva a ninguna parte. **El mismo cuerpo en todos\
+            \ los casos**, y el mismo que el hotlink del producto (`EX-001`)"
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/PackageHotlinkResponse"
+        "429":
+          description: Demasiadas peticiones desde ese origen
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/PackageHotlinkResponse"
   /api/v1/document-types:
     get:
       tags:
@@ -5096,7 +5845,7 @@ paths:
 
         **No se pagina**: son unos pocos elementos, y partirlos obligaría a dos
         llamadas para pintar un desplegable.
-      operationId: listar_5
+      operationId: listar_6
       parameters:
       - name: includeInactive
         in: query
@@ -5267,7 +6016,7 @@ paths:
 
         **No se pagina**: son unos pocos elementos y partirlos obligaría a dos
         llamadas para pintar un desplegable.
-      operationId: listar_6
+      operationId: listar_7
       parameters:
       - name: includeInactive
         in: query
@@ -5380,7 +6129,7 @@ paths:
 
         **Esta ruta no sustituye a `GET /api/v1/users/{id}/broker-accounts`**,
         que existe para **el superior comercial sin permiso**.
-      operationId: listar_7
+      operationId: listar_8
       parameters:
       - name: page
         in: query
@@ -6124,7 +6873,9 @@ components:
           type: string
           enum:
           - TIENDA
-          - HOTLINKS
+          - HOTLINK
+          - AMBOS
+          - NINGUNO
         implementation:
           type: string
           enum:
@@ -6657,7 +7408,9 @@ components:
           type: string
           enum:
           - TIENDA
-          - HOTLINKS
+          - HOTLINK
+          - AMBOS
+          - NINGUNO
         implementation:
           type: string
           enum:
@@ -6713,7 +7466,9 @@ components:
           type: string
           enum:
           - TIENDA
-          - HOTLINKS
+          - HOTLINK
+          - AMBOS
+          - NINGUNO
         implementation:
           type: string
           enum:
@@ -6775,6 +7530,157 @@ components:
         updatedAt:
           type: string
           format: date-time
+    RegisterPackageRequest:
+      type: object
+      properties:
+        code:
+          type: string
+          maxLength: 50
+          minLength: 0
+          pattern: "^[A-Za-z][A-Za-z0-9_]*$"
+        name:
+          type: string
+          maxLength: 150
+          minLength: 0
+        description:
+          type: string
+          maxLength: 1000
+          minLength: 0
+        currencyId:
+          type: string
+          format: uuid
+        scope:
+          type: string
+          enum:
+          - TIENDA
+          - HOTLINK
+          - AMBOS
+          - NINGUNO
+      required:
+      - code
+      - currencyId
+      - name
+      - scope
+    DiscountRef:
+      type: object
+      properties:
+        type:
+          type: string
+          enum:
+          - PORCENTAJE
+          - FIJO
+        value:
+          type: number
+    PackageDetailResponse:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        code:
+          type: string
+        name:
+          type: string
+        description:
+          type: string
+        currency:
+          $ref: "#/components/schemas/CurrencyRef"
+        scope:
+          type: string
+          enum:
+          - TIENDA
+          - HOTLINK
+          - AMBOS
+          - NINGUNO
+        status:
+          type: string
+          enum:
+          - ACTIVO
+          - INACTIVO
+        items:
+          type: array
+          items:
+            $ref: "#/components/schemas/PackageItemResponse"
+        listPrice:
+          type: number
+        price:
+          type: number
+        savings:
+          type: number
+        exchange:
+          $ref: "#/components/schemas/ExchangeRef"
+        offerable:
+          type: boolean
+        offerableReason:
+          type: string
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+        deletedAt:
+          type: string
+          format: date-time
+        deletionReason:
+          type: string
+    PackageItemResponse:
+      type: object
+      properties:
+        product:
+          $ref: "#/components/schemas/PackageProductRef"
+        discount:
+          $ref: "#/components/schemas/DiscountRef"
+        priceInPackage:
+          type: number
+    PackageProductRef:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        code:
+          type: string
+        name:
+          type: string
+        type:
+          type: string
+          enum:
+          - UPGRADE_MEMBRESIA
+          - BOT
+        status:
+          type: string
+          enum:
+          - ACTIVO
+          - INACTIVO
+        deleted:
+          type: boolean
+        price:
+          type: number
+        purchasePrice:
+          type: number
+    AssociatePackageProductRequest:
+      type: object
+      properties:
+        productId:
+          type: string
+          format: uuid
+        discountType:
+          type: string
+          enum:
+          - PORCENTAJE
+          - FIJO
+        discountValue:
+          type: number
+      required:
+      - discountType
+      - discountValue
+      - productId
+    DeletePackageRequest:
+      type: object
+      properties:
+        reason:
+          type: string
     RegisterSaleRequest:
       type: object
       properties:
@@ -7521,6 +8427,40 @@ components:
           $ref: "#/components/schemas/PatchableString"
           description: "Texto nuevo, de 1 a 1000 caracteres tras recortar. No admite\
             \ nulo."
+    UpdatePackageRequest:
+      type: object
+      properties:
+        name:
+          $ref: "#/components/schemas/PatchableString"
+        description:
+          $ref: "#/components/schemas/PatchableString"
+        scope:
+          $ref: "#/components/schemas/PatchableProductScope"
+        code:
+          $ref: "#/components/schemas/PatchableObject"
+        currencyId:
+          $ref: "#/components/schemas/PatchableObject"
+    ChangePackageStatusRequest:
+      type: object
+      properties:
+        status:
+          type: string
+          minLength: 1
+      required:
+      - status
+    CorrectPackageDiscountRequest:
+      type: object
+      properties:
+        discountType:
+          type: string
+          enum:
+          - PORCENTAJE
+          - FIJO
+        discountValue:
+          type: number
+      required:
+      - discountType
+      - discountValue
     ChangeCurrencyStatusRequest:
       type: object
       properties:
@@ -7869,7 +8809,9 @@ components:
           type: string
           enum:
           - TIENDA
-          - HOTLINKS
+          - HOTLINK
+          - AMBOS
+          - NINGUNO
         implementation:
           type: string
           enum:
@@ -8003,7 +8945,9 @@ components:
           type: string
           enum:
           - TIENDA
-          - HOTLINKS
+          - HOTLINK
+          - AMBOS
+          - NINGUNO
         implementation:
           type: string
           enum:
@@ -8018,6 +8962,38 @@ components:
           type: array
           items:
             $ref: "#/components/schemas/OfferItem"
+    Line:
+      type: object
+      properties:
+        product:
+          $ref: "#/components/schemas/OfferItem"
+        discount:
+          $ref: "#/components/schemas/DiscountRef"
+        priceInPackage:
+          type: number
+    OfferPackageItem:
+      type: object
+      properties:
+        code:
+          type: string
+        name:
+          type: string
+        description:
+          type: string
+        currency:
+          $ref: "#/components/schemas/CurrencyRef"
+        items:
+          type: array
+          items:
+            $ref: "#/components/schemas/Line"
+        listPrice:
+          type: number
+        price:
+          type: number
+        savings:
+          type: number
+        exchange:
+          $ref: "#/components/schemas/ExchangeRef"
     OfferResponse:
       type: object
       properties:
@@ -8027,6 +9003,15 @@ components:
           $ref: "#/components/schemas/Offered"
         services:
           $ref: "#/components/schemas/Offered"
+        packages:
+          $ref: "#/components/schemas/OfferedPackages"
+    OfferedPackages:
+      type: object
+      properties:
+        content:
+          type: array
+          items:
+            $ref: "#/components/schemas/OfferPackageItem"
     ListPermissionsRequest:
       type: object
       properties:
@@ -8072,6 +9057,72 @@ components:
           type: array
           items:
             $ref: "#/components/schemas/ExcludedCountry"
+    PackageItemSummary:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        code:
+          type: string
+        name:
+          type: string
+        currency:
+          $ref: "#/components/schemas/CurrencyRef"
+        scope:
+          type: string
+          enum:
+          - TIENDA
+          - HOTLINK
+          - AMBOS
+          - NINGUNO
+        status:
+          type: string
+          enum:
+          - ACTIVO
+          - INACTIVO
+        itemCount:
+          type: integer
+          format: int32
+        listPrice:
+          type: number
+        price:
+          type: number
+        savings:
+          type: number
+        exchange:
+          $ref: "#/components/schemas/ExchangeRef"
+        offerable:
+          type: boolean
+        createdAt:
+          type: string
+          format: date-time
+        deletedAt:
+          type: string
+          format: date-time
+    PackagePageResponse:
+      type: object
+      properties:
+        content:
+          type: array
+          items:
+            $ref: "#/components/schemas/PackageItemSummary"
+        totalElements:
+          type: integer
+          format: int64
+        totalPages:
+          type: integer
+          format: int32
+        page:
+          type: integer
+          format: int32
+        size:
+          type: integer
+          format: int32
+        totalIsExact:
+          type: boolean
+        sort:
+          type: string
     MyMovement:
       type: object
       description: Un movimiento en el que participa quien consulta.
@@ -8159,26 +9210,12 @@ components:
     Item:
       type: object
       properties:
-        id:
-          type: string
-          format: uuid
-        code:
-          type: string
-        name:
-          type: string
-        description:
-          type: string
-        color:
-          type: string
-        level:
-          type: integer
-          format: int32
-        parentMembershipId:
-          type: string
-          format: uuid
-        childMembershipId:
-          type: string
-          format: uuid
+        product:
+          $ref: "#/components/schemas/ProductRef"
+        discount:
+          $ref: "#/components/schemas/DiscountRef"
+        priceInPackage:
+          type: number
     MembershipChainResponse:
       type: object
       properties:
@@ -8245,6 +9282,36 @@ components:
           type: string
         lastName:
           type: string
+    PackageHotlinkResponse:
+      type: object
+      properties:
+        seller:
+          $ref: "#/components/schemas/SellerRef"
+        package:
+          $ref: "#/components/schemas/PackageRef"
+    PackageRef:
+      type: object
+      properties:
+        code:
+          type: string
+        name:
+          type: string
+        description:
+          type: string
+        currency:
+          $ref: "#/components/schemas/CurrencyRef"
+        items:
+          type: array
+          items:
+            $ref: "#/components/schemas/Item"
+        listPrice:
+          type: number
+        price:
+          type: number
+        savings:
+          type: number
+        exchange:
+          $ref: "#/components/schemas/ExchangeRef"
     DocumentTypeCatalogResponse:
       type: object
       properties:

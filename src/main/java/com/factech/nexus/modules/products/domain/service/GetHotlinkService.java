@@ -77,6 +77,15 @@ public class GetHotlinkService {
   }
 
   private ProductRef producto(ProductRow fila) {
+    return producto(fila, conversion(fila));
+  }
+
+  /**
+   * La forma pública del producto a partir de su fila, <b>con la conversión ya resuelta</b>: el
+   * hotlink del paquete (`RF-PM-026`) la reutiliza tal cual para cada línea, con un solo conversor
+   * para todas — están en la moneda del paquete — y sin pagar sentencias por producto.
+   */
+  static ProductRef producto(ProductRow fila, ExchangeRef conversion) {
     CurrencyRef moneda = new CurrencyRef(fila.currencyCode(), fila.currencyDecimalPlaces());
     return new ProductRef(
         fila.id(),
@@ -103,7 +112,7 @@ public class GetHotlinkService {
         // retira después.
         ProductPrice.enLaEscalaDe(fila.price(), fila.currencyDecimalPlaces()),
         moneda,
-        conversion(fila),
+        conversion,
         // `RN-PM-031`, sin token: viene en la misma sentencia que el producto.
         fila.rating());
   }

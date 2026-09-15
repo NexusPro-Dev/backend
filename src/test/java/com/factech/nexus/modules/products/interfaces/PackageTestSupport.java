@@ -25,6 +25,59 @@ final class PackageTestSupport {
     jdbc.update("DELETE FROM product_packages");
   }
 
+  /**
+   * Borra las monedas que no son la de casa, <b>y antes sus tasas</b>: una tasa que sobreviva a su
+   * moneda deja el `DELETE FROM currencies` de la siguiente suite con una violación de integridad.
+   */
+  static void limpiarMonedasDePrueba(JdbcTemplate jdbc) {
+    jdbc.update(
+        "DELETE FROM exchange_rates WHERE source_currency_id IN"
+            + " (SELECT id FROM currencies WHERE is_default = false)"
+            + " OR target_currency_id IN (SELECT id FROM currencies WHERE is_default = false)");
+    jdbc.update("DELETE FROM currencies WHERE is_default = false");
+  }
+
+  /**
+   * Deja el catálogo entero limpio —paquetes, productos, membresías— y levanta la cadena de tres
+   * membresías que las pruebas de paquetes necesitan para hablar de ORÍGENES: {@code ORO} (1),
+   * {@code PLATINO} (2) y {@code BECA} (3).
+   */
+  static Membresias limpiarCatalogoYSembrarMembresias(JdbcTemplate jdbc) {
+    limpiarPaquetes(jdbc);
+    jdbc.update("DELETE FROM product_comments");
+    jdbc.update("DELETE FROM product_images");
+    jdbc.update("DELETE FROM products");
+    // Antes que las membresías: `user_memberships` las referencia (`V57`).
+    jdbc.update("DELETE FROM user_memberships");
+    jdbc.update("DELETE FROM memberships");
+    UUID oro = membresia(jdbc, "ORO", 1, null);
+    UUID platino = membresia(jdbc, "PLATINO", 2, oro);
+    UUID beca = membresia(jdbc, "BECA", 3, platino);
+    return new Membresias(oro, platino, beca);
+  }
+
+  record Membresias(UUID oro, UUID platino, UUID beca) {}
+
+  static UUID membresia(JdbcTemplate jdbc, String codigo, int nivel, UUID superior) {
+    UUID id = UUID.randomUUID();
+    jdbc.update(
+        "INSERT INTO memberships (id, code, name, parent_membership_id, level, color)"
+            + " VALUES (CAST(? AS uuid), ?, ?, CAST(? AS uuid), ?,"
+            + " upper(lpad(to_hex(? * 4919), 6, '0')))",
+        id.toString(),
+        codigo,
+        "Membresía " + codigo,
+        superior == null ? null : superior.toString(),
+        nivel,
+        nivel);
+    return id;
+  }
+
+  /** Un upgrade activo en USD desde `origen` hacia `destino`. */
+  static UUID upgrade(JdbcTemplate jdbc, String codigo, String precio, UUID origen, UUID destino) {
+    return producto(jdbc, codigo, "UPGRADE_MEMBRESIA", precio, origen, destino, "ACTIVO");
+  }
+
   /** Un paquete directo en la tabla, en el estado y con la descripción que se pidan. */
   static UUID paquete(
       JdbcTemplate jdbc, String codigo, String descripcion, String estado, String alcance) {

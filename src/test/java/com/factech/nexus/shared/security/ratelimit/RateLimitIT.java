@@ -247,6 +247,29 @@ class RateLimitIT extends IntegrationTestBase {
   }
 
   @Test
+  @DisplayName(
+      "hotlink del paquete — comparte la cota de la familia: dos de producto y la tercera de paquete topa, y al revés")
+  void elHotlinkDelPaqueteCompartelaCotaDeLaFamilia() throws Exception {
+    // `CA-PM-333`. `RateLimitFilter` decide por PREFIJO y no por patrón, de
+    // modo que la ruta de tres segmentos hereda la cota sin política nueva. Es
+    // la mitad que SÍ era cierta de lo que `pm.md` v0.31.0 decía; la otra —la
+    // declaración pública— la comprueba `PackageHotlinkIT`.
+    atendida(hotlink("ana", "UPGRADE_ORO"));
+    atendida(hotlink("beatriz", "UPGRADE_ORO"));
+    mvc.perform(get("/api/v1/hotlinks/{usuario}/packages/{codigo}", "carlos", "COMBO"))
+        .andExpect(status().isTooManyRequests())
+        .andExpect(jsonPath("$.instance").value("/api/v1/hotlinks/carlos/packages/COMBO"));
+  }
+
+  @Test
+  @DisplayName("hotlink del paquete — y al revés: dos de paquete agotan la tercera de producto")
+  void yAlReves() throws Exception {
+    atendida(mvc.perform(get("/api/v1/hotlinks/{usuario}/packages/{codigo}", "ana", "COMBO")));
+    atendida(mvc.perform(get("/api/v1/hotlinks/{usuario}/packages/{codigo}", "beatriz", "COMBO")));
+    hotlink("carlos", "UPGRADE_ORO").andExpect(status().isTooManyRequests());
+  }
+
+  @Test
   @DisplayName("hotlink — la auditoría del rechazo no se queda con el nombre probado")
   void elRechazoDelHotlinkNoRegistraElNombreProbado() throws Exception {
     atendida(hotlink("ana", "UPGRADE_ORO"));

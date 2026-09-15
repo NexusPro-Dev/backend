@@ -44,7 +44,7 @@ class PackagesIT extends IntegrationTestBase {
   @BeforeEach
   void limpiar() {
     PackageTestSupport.limpiarPaquetes(jdbc);
-    jdbc.update("DELETE FROM currencies WHERE is_default = false");
+    PackageTestSupport.limpiarMonedasDePrueba(jdbc);
   }
 
   @AfterEach
@@ -52,7 +52,7 @@ class PackagesIT extends IntegrationTestBase {
     // Higiene obligatoria: `product_packages` referencia `currencies`, y varias
     // suites de `SP` empiezan borrando las monedas que no son la de casa.
     PackageTestSupport.limpiarPaquetes(jdbc);
-    jdbc.update("DELETE FROM currencies WHERE is_default = false");
+    PackageTestSupport.limpiarMonedasDePrueba(jdbc);
   }
 
   @Test

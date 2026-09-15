@@ -1,7 +1,9 @@
 package com.factech.nexus.modules.products.interfaces;
 
 import com.factech.nexus.modules.products.application.HotlinkResponse;
+import com.factech.nexus.modules.products.application.PackageHotlinkResponse;
 import com.factech.nexus.modules.products.domain.service.GetHotlinkService;
+import com.factech.nexus.modules.products.domain.service.GetPackageHotlinkService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.media.Content;
 import io.swagger.v3.oas.annotations.media.Schema;
@@ -27,9 +29,11 @@ import org.springframework.web.bind.annotation.RestController;
 public class HotlinkController {
 
   private final GetHotlinkService hotlinks;
+  private final GetPackageHotlinkService paquetes;
 
-  public HotlinkController(GetHotlinkService hotlinks) {
+  public HotlinkController(GetHotlinkService hotlinks, GetPackageHotlinkService paquetes) {
     this.hotlinks = hotlinks;
+    this.paquetes = paquetes;
   }
 
   @GetMapping("/{username}/{code}")
@@ -101,5 +105,53 @@ public class HotlinkController {
   })
   public HotlinkResponse hotlink(@PathVariable String username, @PathVariable("code") String code) {
     return hotlinks.hotlink(username, code);
+  }
+
+  @GetMapping("/{username}/packages/{code}")
+  @Operation(
+      summary = "Consultar el hotlink de un paquete",
+      description =
+          """
+          Devuelve, **sin token**, el paquete que el enlace señala —con sus productos,
+          el descuento de cada uno y **la cuenta hecha**— y el nombre y apellido de
+          quien lo reparte.
+
+          **Cada producto va en la misma forma que el hotlink del producto**, tal
+          cual: código, nombre, descripción, icono, video, portada, membresía en tres
+          campos, precio, conversión y `rating`. A su lado, `discount` y
+          `priceInPackage` — lo que vale ese producto **dentro** del paquete, con el
+          precio de catálogo de hoy. `listPrice` es la suma sin descuentos, `price` lo
+          que vale el paquete y `savings` la diferencia; `exchange` convierte `price`
+          a la moneda de casa si hay tasa. **`priceInPackage` es la cuenta de hoy y
+          no una reserva**: si un producto cambia de precio, el paquete cambia solo,
+          y un fijo que hoy supera su precio cuenta cero.
+
+          **Solo publica paquetes activos y de alcance `HOTLINK` o `AMBOS`**, y **el
+          alcance de los productos no filtra dentro del paquete**: el canal lo decide
+          el paquete. Sin `purchasePrice` ni `status` en ningún nivel.
+
+          **Todo lo que no procede responde el MISMO `404`, y el mismo que el hotlink
+          del producto**: usuario inexistente, persona que no es vendedora, código
+          inexistente, paquete inactivo, retirado o de alcance `TIENDA` o `NINGUNO`,
+          y **también el paquete que hoy no se puede ofrecer** —un producto suyo
+          inactivo o retirado, menos de dos productos, sin descripción—. **No dice cuál
+          falló**: distinguirlos publicaría, sin token, que el paquete existe y qué le
+          pasa. Quien tiene que saberlo es administración, y lo sabe por el detalle.
+          """)
+  @ApiResponses({
+    @ApiResponse(
+        responseCode = "200",
+        description = "El enlace, con su paquete y su vendedor.",
+        content = @Content(schema = @Schema(implementation = PackageHotlinkResponse.class))),
+    @ApiResponse(
+        responseCode = "404",
+        description =
+            "El enlace no lleva a ninguna parte. **El mismo cuerpo en todos los casos**, y el"
+                + " mismo que el hotlink del producto (`EX-001`)"),
+    @ApiResponse(responseCode = "429", description = "Demasiadas peticiones desde ese origen")
+  })
+  public PackageHotlinkResponse hotlinkDePaquete(
+      @PathVariable String username, @PathVariable("code") String code) {
+    return paquetes.hotlink(username, code);
   }
 }

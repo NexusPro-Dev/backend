@@ -576,7 +576,9 @@ class ProductOfferIT extends IntegrationTestBase {
     // membresía vigente del actor y —desde el 08-09-2026— la moneda de casa y
     // las tasas, que son dos más y NO dos por producto. Con la conversión
     // resuelta fila a fila serían más de diez, y el cuerpo sería idéntico.
-    assertThat(estadisticas.getPrepareStatementCount()).isLessThanOrEqualTo(4);
+    // Desde el 15-09-2026 UNA más, la de los paquetes (`RF-PM-007` v0.13.0), y
+    // no una por paquete: `PackageOfferIT` la cuenta con tres paquetes.
+    assertThat(estadisticas.getPrepareStatementCount()).isLessThanOrEqualTo(5);
   }
 
   /** Le pone precio de compra a un producto ya sembrado, que es lo que la siembra no hace. */
@@ -716,6 +718,8 @@ class ProductOfferIT extends IntegrationTestBase {
   }
 
   private void limpiar() {
+    // Antes que los productos: `product_package_items` los referencia (`V91`).
+    PackageTestSupport.limpiarPaquetes(jdbc);
     jdbc.update("DELETE FROM products");
     // Antes que las membresías: `user_memberships` las referencia.
     jdbc.update(

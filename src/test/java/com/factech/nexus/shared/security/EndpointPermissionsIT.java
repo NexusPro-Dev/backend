@@ -148,6 +148,15 @@ class EndpointPermissionsIT extends IntegrationTestBase {
                   + " HOTLINK o AMBOS (`RN-PM-021`) y solo el nombre de quien es fuerza comercial"
                   + " (`RN-PM-022`). El recorrido a ciegas lo acota el límite de tasa por origen"),
           Map.entry(
+              "GET /api/v1/hotlinks/{username}/packages/{code}",
+              "PÚBLICO POR DECISIÓN (`RF-PM-026`, 15-09-2026): el hotlink del PAQUETE, la cuarta"
+                  + " ruta pública del módulo. Hereda del hotlink del producto sus dos acotaciones"
+                  + " —paquete activo, vivo y de alcance HOTLINK o AMBOS, y solo el nombre de quien"
+                  + " es fuerza comercial— y su 404 uniforme, que aquí cubre además al paquete que"
+                  + " hoy no se puede ofrecer. Necesitó su PROPIA declaración en RUTAS_PUBLICAS:"
+                  + " el patrón del producto es de dos segmentos y esta ruta tiene tres. La cota"
+                  + " de tasa la hereda, porque el filtro decide por prefijo"),
+          Map.entry(
               "GET /api/v1/products/{id}/comments",
               "PÚBLICO POR DECISIÓN (`RF-PM-012`, 14-09-2026): la pantalla del hotlink necesita"
                   + " las reseñas y no tiene con qué autenticarse. Es la SEGUNDA ruta pública que"
