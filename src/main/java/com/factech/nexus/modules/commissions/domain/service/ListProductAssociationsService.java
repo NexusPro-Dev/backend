@@ -28,10 +28,6 @@ public class ListProductAssociationsService {
   }
 
   /** Sobre qué productos rige esa tasa. */
-  @Transactional(readOnly = true)
-  public ProductAssociationResponse byRate(UUID commissionRateId) {
-    return ProductAssociationResponse.de(consultas.findByRate(commissionRateId));
-  }
 
   /** Qué paga ese producto, y a qué rol. */
   @Transactional(readOnly = true)

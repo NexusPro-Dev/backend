@@ -4,13 +4,14 @@
 |---|---|
 | Requerimiento | `RF-CM-004` |
 | Plan | [`plan.md`](plan.md), aprobado el 02-09-2026 |
-| Versión | 0.2.0 |
+| Versión | 0.3.0 |
 | Estado | **En revisión** |
 | Autor | Responsable técnico |
 | Aprobadas por | Pendiente |
 | Fecha de aprobación | Pendiente |
 | Issue | Pendiente de crear |
 | Rama | `feature/flujos-de-pm-y-cm` |
+| Enmendadas | 15-09-2026 — `T-13` porque **la de rol se retira sin condición** |
 
 !!! info "Qué va en este documento"
 
@@ -40,6 +41,7 @@
 | `T-10` | **Prueba de `RN-CM-015` en su pareja**: rechazo con asociación viva, y éxito tras desasociar | `T-09` | `CA-CM-032` y `CA-CM-033` | **Hecha el 02-09-2026** |
 | `T-11` | Actualizar la matriz de `docs/requirements.md` y `cm.md` §5 con `RN-CM-015` | `T-09` | Las dos filas de control de cambios | **Hecha el 02-09-2026** |
 | `T-12` | Prueba concurrente: dos retiros simultáneos, **un solo registro** | `T-09` | Uno `204` y otro `409` | `Pendiente` |
+| `T-13` | `DeleteCommissionRateService` sin la comprobación de asociación; prosa de la `@Operation` | `RF-CM-001` `T-29` | `CA-CM-143` en `CommissionRateDeletionIT` | **Hecha el 15-09-2026** |
 
 ## 2. Orden de ejecución
 
@@ -62,6 +64,7 @@
 | `CA-CM-034` | `T-03`, `T-09` |
 | `CA-CM-035` | `T-01`, `T-09`, `T-12` |
 | `CA-CM-036` | `T-03`, `T-09` |
+| `CA-CM-143` | `T-13` |
 | `CA-CM-037` | `RF-CM-007` · `T-06` |
 
 ## 4. Bloqueos

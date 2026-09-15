@@ -23,12 +23,12 @@ import org.springframework.test.web.servlet.request.MockHttpServletRequestBuilde
  * La resolución de la comisión efectiva (`RF-CM-005`).
  *
  * <p><b>Aquí es donde el rediseño se ve entero.</b> La precedencia pasó de cuatro grados a dos, y
- * sobre todo <b>la ausencia cambió de significado</b>: una tasa de rol que existe en el catálogo y
- * no está asociada al producto <b>no paga nada</b>, donde antes habría pagado como tarifa por
- * omisión.
+ * sobre todo <b>la ausencia cambió de significado</b>: sin una tasa de rol <b>de ese producto</b>
+ * no se paga nada, donde antes una tasa sin producto habría pagado como tarifa por omisión.
  *
- * <p>La prueba de {@code laTasaSinAsociarNoPaga} es la que clava esa inversión. Si alguien la
- * deshiciera, el sistema empezaría a pagar por productos que nadie configuró — y no fallaría.
+ * <p>Desde el 15-09-2026 la tasa de rol nace con su producto (`RN-CM-021`), y «asociada» en estas
+ * pruebas quiere decir «registrada sobre él»: es la misma resolución, leída de {@code
+ * commission_rates.product_id} en vez de la tabla de asociación que `V94` retiró.
  */
 @AutoConfigureMockMvc
 class EffectiveCommissionIT extends IntegrationTestBase {
@@ -54,8 +54,7 @@ class EffectiveCommissionIT extends IntegrationTestBase {
     // consulta habría devuelto PERSONALIZADA y 18.00.
     UUID otroProducto = CommissionFixtures.sembrarProducto(jdbc, "BOT_B");
 
-    UUID delRol = CommissionFixtures.sembrarTasaDeRol(jdbc, MANAGER, "10.00");
-    CommissionFixtures.asociar(jdbc, delRol, otroProducto, MANAGER);
+    UUID delRol = CommissionFixtures.sembrarTasaDeRol(jdbc, otroProducto, MANAGER, "10.00");
 
     conAsociacion(vendedora, producto, "18.00", "2026-01-01", null);
 
@@ -103,8 +102,7 @@ class EffectiveCommissionIT extends IntegrationTestBase {
   @Test
   @DisplayName("resuelve la tasa del rol cuando está ASOCIADA a ese producto")
   void resuelvePorElRol() throws Exception {
-    UUID tasa = CommissionFixtures.sembrarTasaDeRol(jdbc, MANAGER, "10.00");
-    CommissionFixtures.asociar(jdbc, tasa, producto, MANAGER);
+    UUID tasa = CommissionFixtures.sembrarTasaDeRol(jdbc, producto, MANAGER, "10.00");
 
     mvc.perform(efectiva(vendedora, producto, "2026-05-01"))
         .andExpect(status().isOk())
@@ -117,11 +115,13 @@ class EffectiveCommissionIT extends IntegrationTestBase {
   }
 
   @Test
-  @DisplayName("`RN-CM-012` — LA TASA SIN ASOCIAR NO PAGA NADA, donde antes era la tarifa de todos")
+  @DisplayName(
+      "`RN-CM-012` — SIN TASA SOBRE EL PRODUCTO NO SE PAGA NADA, donde antes era la tarifa de todos")
   void laTasaSinAsociarNoPaga() throws Exception {
-    // Existe, es del rol correcto, tiene porcentaje... y nadie la asoció.
-    CommissionFixtures.sembrarTasaDeRol(jdbc, MANAGER, "10.00");
-
+    // El rol es el correcto y el producto existe... y nadie registró una tasa
+    // sobre él. Hasta el 15-09-2026 esta prueba sembraba una tasa SIN producto
+    // para clavar que no pagaba; hoy esa tasa no puede existir (`RN-CM-021`), y
+    // lo que se clava es lo mismo desde el otro lado.
     mvc.perform(efectiva(vendedora, producto, "2026-05-01"))
         .andExpect(status().isOk())
         .andExpect(jsonPath("$.outcome").value("SIN_TARIFA"))
@@ -134,8 +134,7 @@ class EffectiveCommissionIT extends IntegrationTestBase {
   @DisplayName("la asociación de OTRO producto no sirve para este")
   void laAsociacionEsPorProducto() throws Exception {
     UUID otro = CommissionFixtures.sembrarProducto(jdbc, "BOT_B");
-    UUID tasa = CommissionFixtures.sembrarTasaDeRol(jdbc, MANAGER, "10.00");
-    CommissionFixtures.asociar(jdbc, tasa, otro, MANAGER);
+    UUID tasa = CommissionFixtures.sembrarTasaDeRol(jdbc, otro, MANAGER, "10.00");
 
     mvc.perform(efectiva(vendedora, producto, "2026-05-01"))
         .andExpect(jsonPath("$.outcome").value("SIN_TARIFA"));
@@ -144,8 +143,7 @@ class EffectiveCommissionIT extends IntegrationTestBase {
   @Test
   @DisplayName("la asociación de OTRO rol no sirve para esta persona")
   void laAsociacionEsPorRol() throws Exception {
-    UUID tasa = CommissionFixtures.sembrarTasaDeRol(jdbc, DIRECTOR, "4.00");
-    CommissionFixtures.asociar(jdbc, tasa, producto, DIRECTOR);
+    UUID tasa = CommissionFixtures.sembrarTasaDeRol(jdbc, producto, DIRECTOR, "4.00");
 
     // La vendedora es MANAGER: el producto paga, pero no a ella.
     mvc.perform(efectiva(vendedora, producto, "2026-05-01"))
@@ -155,8 +153,7 @@ class EffectiveCommissionIT extends IntegrationTestBase {
   @Test
   @DisplayName("`RN-CM-004` — la personalizada GANA, y sin mirar el producto")
   void laPersonalizadaGana() throws Exception {
-    UUID delRol = CommissionFixtures.sembrarTasaDeRol(jdbc, MANAGER, "10.00");
-    CommissionFixtures.asociar(jdbc, delRol, producto, MANAGER);
+    UUID delRol = CommissionFixtures.sembrarTasaDeRol(jdbc, producto, MANAGER, "10.00");
 
     UUID personal = conAsociacion(vendedora, producto, "18.00", "2026-01-01", null);
 
@@ -185,8 +182,7 @@ class EffectiveCommissionIT extends IntegrationTestBase {
   @Test
   @DisplayName("la personalizada VENCIDA deja de ganar, y vuelve a mandar la del rol")
   void laPersonalizadaVencida() throws Exception {
-    UUID delRol = CommissionFixtures.sembrarTasaDeRol(jdbc, MANAGER, "10.00");
-    CommissionFixtures.asociar(jdbc, delRol, producto, MANAGER);
+    UUID delRol = CommissionFixtures.sembrarTasaDeRol(jdbc, producto, MANAGER, "10.00");
     conAsociacion(vendedora, producto, "18.00", "2026-01-01", "2026-03-31");
 
     mvc.perform(efectiva(vendedora, producto, "2026-02-15"))
@@ -229,8 +225,7 @@ class EffectiveCommissionIT extends IntegrationTestBase {
   @Test
   @DisplayName("el porcentaje CERO resuelve, y no es lo mismo que no tener tasa")
   void elCeroResuelve() throws Exception {
-    UUID tasa = CommissionFixtures.sembrarTasaDeRol(jdbc, MANAGER, "0.00");
-    CommissionFixtures.asociar(jdbc, tasa, producto, MANAGER);
+    UUID tasa = CommissionFixtures.sembrarTasaDeRol(jdbc, producto, MANAGER, "0.00");
 
     mvc.perform(efectiva(vendedora, producto, "2026-05-01"))
         .andExpect(jsonPath("$.outcome").value("RESUELTA"))
@@ -238,10 +233,9 @@ class EffectiveCommissionIT extends IntegrationTestBase {
   }
 
   @Test
-  @DisplayName("una tasa RETIRADA deja de resolver aunque su asociación exista")
+  @DisplayName("una tasa RETIRADA deja de resolver: el producto deja de pagar a ese rol")
   void laRetiradaNoResuelve() throws Exception {
-    UUID tasa = CommissionFixtures.sembrarTasaDeRol(jdbc, MANAGER, "10.00");
-    CommissionFixtures.asociar(jdbc, tasa, producto, MANAGER);
+    UUID tasa = CommissionFixtures.sembrarTasaDeRol(jdbc, producto, MANAGER, "10.00");
     jdbc.update(
         "UPDATE commission_rates SET deleted_at = now() WHERE id = CAST(? AS uuid)",
         tasa.toString());
@@ -257,8 +251,7 @@ class EffectiveCommissionIT extends IntegrationTestBase {
   @DisplayName("un producto RETIRADO se resuelve con normalidad")
   void elProductoRetiradoResuelve() throws Exception {
     UUID retirado = CommissionFixtures.sembrarProducto(jdbc, "BOT_Z", true);
-    UUID tasa = CommissionFixtures.sembrarTasaDeRol(jdbc, MANAGER, "10.00");
-    CommissionFixtures.asociar(jdbc, tasa, retirado, MANAGER);
+    UUID tasa = CommissionFixtures.sembrarTasaDeRol(jdbc, retirado, MANAGER, "10.00");
 
     // Preguntar qué se pagaba por algo que ya no se vende es legítimo: es la
     // consulta que una liquidación atrasada necesita.
@@ -311,8 +304,7 @@ class EffectiveCommissionIT extends IntegrationTestBase {
   @Test
   @DisplayName("CA-CM-100 · resuelve un IMPORTE FIJO, con la forma junto al valor")
   void resuelveUnImporteFijo() throws Exception {
-    UUID tasa = CommissionFixtures.sembrarTasaDeRol(jdbc, MANAGER, "FIJO", "10000");
-    CommissionFixtures.asociar(jdbc, tasa, producto, MANAGER);
+    UUID tasa = CommissionFixtures.sembrarTasaDeRol(jdbc, producto, MANAGER, "FIJO", "10000");
 
     mvc.perform(efectiva(vendedora, producto, "2026-05-01"))
         .andExpect(status().isOk())
@@ -338,8 +330,7 @@ class EffectiveCommissionIT extends IntegrationTestBase {
     // Aquí las formas se cruzan a propósito.
 
     // Personalizada en PORCENTAJE contra rol en FIJO: gana la personalizada.
-    UUID deRol = CommissionFixtures.sembrarTasaDeRol(jdbc, MANAGER, "FIJO", "10000");
-    CommissionFixtures.asociar(jdbc, deRol, producto, MANAGER);
+    UUID deRol = CommissionFixtures.sembrarTasaDeRol(jdbc, producto, MANAGER, "FIJO", "10000");
     conAsociacion(vendedora, producto, "PORCENTAJE", "18.00", "2026-01-01", null);
 
     mvc.perform(efectiva(vendedora, producto, "2026-05-01"))
@@ -351,9 +342,9 @@ class EffectiveCommissionIT extends IntegrationTestBase {
     // La asociación apunta a la tasa, de modo que va primero (`V85`).
     jdbc.update("DELETE FROM user_commission_rate_products");
     jdbc.update("DELETE FROM user_commission_rates");
-    jdbc.update("DELETE FROM product_commission_rates");
-    UUID enPorcentaje = CommissionFixtures.sembrarTasaDeRol(jdbc, MANAGER, "PORCENTAJE", "10.00");
-    CommissionFixtures.asociar(jdbc, enPorcentaje, producto, MANAGER);
+    jdbc.update("DELETE FROM commission_rates");
+    UUID enPorcentaje =
+        CommissionFixtures.sembrarTasaDeRol(jdbc, producto, MANAGER, "PORCENTAJE", "10.00");
     conAsociacion(vendedora, producto, "FIJO", "5000", "2026-01-01", null);
 
     mvc.perform(efectiva(vendedora, producto, "2026-05-01"))
@@ -374,8 +365,7 @@ class EffectiveCommissionIT extends IntegrationTestBase {
   @Test
   @DisplayName("CA-CM-103 · el CERO en importe fijo resuelve, y se distingue de no tener tasa")
   void elCeroEnImporteFijo() throws Exception {
-    UUID tasa = CommissionFixtures.sembrarTasaDeRol(jdbc, MANAGER, "FIJO", "0");
-    CommissionFixtures.asociar(jdbc, tasa, producto, MANAGER);
+    UUID tasa = CommissionFixtures.sembrarTasaDeRol(jdbc, producto, MANAGER, "FIJO", "0");
 
     mvc.perform(efectiva(vendedora, producto, "2026-05-01"))
         // RESUELTA con cero: alguien DECIDIÓ que esto no comisiona. Es lo

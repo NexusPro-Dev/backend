@@ -34,7 +34,9 @@ import org.springframework.test.web.servlet.MockMvc;
  *
  * <p><b>Y desde el 01-09-2026 son dos reglas y no una.</b> El no solapamiento se mudó a las tasas
  * personalizadas —las de rol perdieron la vigencia y con ella la posibilidad de solaparse—, y nació
- * `RN-CM-013`, que un {@code SELECT} previo burlaría igual de fácil.
+ * `RN-CM-013`, que un {@code SELECT} previo burlaría igual de fácil. Desde el 15-09-2026 esa regla
+ * la cierra {@code uq_commission_rates_product_role} en la propia tabla de tasas (`RN-CM-021`), y
+ * la carrera es entre dos <b>altas</b>, no entre dos asociaciones.
  */
 @AutoConfigureMockMvc
 class CommissionRateConcurrencyIT extends IntegrationTestBase {
@@ -111,25 +113,26 @@ class CommissionRateConcurrencyIT extends IntegrationTestBase {
   }
 
   // ---------------------------------------------------------------------------
-  // `RN-CM-013` — un porcentaje por rol y producto
+  // `RN-CM-013` — un rol por producto
   // ---------------------------------------------------------------------------
 
   @Test
-  @DisplayName("dos asociaciones simultáneas del mismo rol al mismo producto: solo una entra")
-  void dosAsociacionesSimultaneas() throws Exception {
+  @DisplayName(
+      "CA-CM-138 · dos altas simultáneas del mismo rol sobre el mismo producto: solo una entra")
+  void dosAltasSimultaneasDelMismoRol() throws Exception {
     UUID producto = CommissionFixtures.sembrarProducto(jdbc, "BOT_A");
-    UUID primera = CommissionFixtures.sembrarTasaDeRol(jdbc, MANAGER, "10.00");
-    UUID segunda = CommissionFixtures.sembrarTasaDeRol(jdbc, MANAGER, "15.00");
 
     List<Outcome<Integer>> resultados =
-        runTogether(2, indice -> asociar(indice == 0 ? primera : segunda, producto));
+        runTogether(2, indice -> alta(producto, MANAGER, indice == 0 ? "10.00" : "15.00"));
 
     assertThat(resultados).noneMatch(r -> r.succeeded() && r.value() >= 500);
 
     // Si entraran las dos, la resolución tendría dos respuestas válidas para
-    // «qué paga MANAGER por este producto» y elegiría el plan de ejecución. La
-    // clave primaria es lo único que lo impide.
-    assertThat(cuantasAsociaciones()).isEqualTo(1);
+    // «qué paga MANAGER por este producto» y elegiría el plan de ejecución. El
+    // `existsAlive` previo da el mensaje en el camino normal; lo que cierra la
+    // carrera es el índice único parcial —y el bloqueo del producto que toma
+    // el tope, que pone las dos altas en fila.
+    assertThat(cuantasTasas()).isEqualTo(1);
 
     assertThat(resultados.stream().filter(r -> r.succeeded() && r.value() == 201).count())
         .isEqualTo(1);
@@ -143,22 +146,23 @@ class CommissionRateConcurrencyIT extends IntegrationTestBase {
 
   @Test
   @DisplayName(
-      "CA-CM-108 · dos asociaciones simultáneas al mismo producto, dentro del tope por separado"
+      "CA-CM-108 · dos altas simultáneas sobre el mismo producto, dentro del tope por separado"
           + " pero juntas fuera: solo una entra")
-  void dosAsociacionesSimultaneasSePasanDeCienJuntas() throws Exception {
+  void dosAltasSimultaneasSePasanDeCienJuntas() throws Exception {
     UUID producto = CommissionFixtures.sembrarProducto(jdbc, "BOT_CAP");
-    // Cada una, sola, cabe de sobra. Las dos juntas suman 110.
-    UUID sesenta = CommissionFixtures.sembrarTasaDeRol(jdbc, MANAGER, "60.00");
-    UUID cincuenta = CommissionFixtures.sembrarTasaDeRol(jdbc, DIRECTOR, "50.00");
 
+    // Cada una, sola, cabe de sobra. Las dos juntas suman 110.
     List<Outcome<Integer>> resultados =
-        runTogether(2, indice -> asociar(indice == 0 ? sesenta : cincuenta, producto));
+        runTogether(
+            2,
+            indice ->
+                indice == 0 ? alta(producto, MANAGER, "60.00") : alta(producto, DIRECTOR, "50.00"));
 
     // Ninguna puede salir como 500: si el bloqueo consultivo no cerrara la
     // ventana, las dos leerían la suma "antes" y las dos pasarían.
     assertThat(resultados).noneMatch(r -> r.succeeded() && r.value() >= 500);
 
-    assertThat(cuantasAsociaciones()).as("las dos entraron, o no entró ninguna").isEqualTo(1);
+    assertThat(cuantasTasas()).as("las dos entraron, o no entró ninguna").isEqualTo(1);
 
     assertThat(resultados.stream().filter(r -> r.succeeded() && r.value() == 201).count())
         .isEqualTo(1);
@@ -210,12 +214,19 @@ class CommissionRateConcurrencyIT extends IntegrationTestBase {
     return total == null ? 0 : total;
   }
 
-  private int asociar(UUID tasa, UUID producto) {
+  private int alta(UUID producto, String rol, String porcentaje) {
     return estadoDe(
-        post("/api/v1/commission-rates/" + tasa + "/products")
-            .with(user(SUPERADMIN.toString()).authorities(() -> "commissions:update"))
+        post("/api/v1/commission-rates")
+            .with(user(SUPERADMIN.toString()).authorities(() -> "commissions:create"))
             .contentType(MediaType.APPLICATION_JSON)
-            .content("{\"productId\":\"" + producto + "\"}"));
+            .content(
+                "{\"productId\":\""
+                    + producto
+                    + "\",\"roleId\":\""
+                    + rol
+                    + "\",\"rateType\":\"PORCENTAJE\",\"percentage\":"
+                    + porcentaje
+                    + "}"));
   }
 
   private int estadoDe(
@@ -231,8 +242,8 @@ class CommissionRateConcurrencyIT extends IntegrationTestBase {
     return jdbc.queryForObject("SELECT count(*) FROM user_commission_rates", Long.class);
   }
 
-  private long cuantasAsociaciones() {
-    return jdbc.queryForObject("SELECT count(*) FROM product_commission_rates", Long.class);
+  private long cuantasTasas() {
+    return jdbc.queryForObject("SELECT count(*) FROM commission_rates", Long.class);
   }
 
   private void limpiar() {

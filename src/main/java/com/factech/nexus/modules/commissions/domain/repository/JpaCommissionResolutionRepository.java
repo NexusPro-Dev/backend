@@ -26,26 +26,21 @@ public class JpaCommissionResolutionRepository implements CommissionResolutionRe
   /**
    * `RN-CM-004`, escrita una vez.
    *
-   * <p><b>Las dos ramas exigen ya la ASOCIACIÓN</b> (11-09-2026), y con ello `RN-CM-012` deja de
-   * tener excepción: ninguna tasa rige donde no se la asoció. Hasta esa fecha la rama de la persona
-   * no miraba el producto —la personalizada ganaba vendiera lo que vendiera—, de modo que tapaba el
-   * catálogo entero de su titular y la rama del rol no llegaba a mirarse nunca.
-   *
-   * <p><b>Cada una entra por su propia tabla de asociación</b>, y son gemelas: {@code
-   * user_commission_rate_products} la de la persona, {@code product_commission_rates} la del rol.
+   * <p><b>Las dos ramas exigen el PRODUCTO</b>, y con ello `RN-CM-012` no tiene excepción: ninguna
+   * tasa rige donde no se la puso. La de la persona entra por su tabla de asociación ({@code
+   * user_commission_rate_products}, 11-09-2026); hasta esa fecha no miraba el producto —la
+   * personalizada ganaba vendiera lo que vendiera—, de modo que tapaba el catálogo entero de su
+   * titular y la rama del rol no llegaba a mirarse nunca.
    *
    * <p><b>Lo que la rama de la persona sigue sin filtrar es el rol</b>, y esa ausencia sí es la
    * regla: desde el 01-09-2026 estas tasas no llevan rol, de modo que siguen rigiendo aunque su
    * titular haya dejado de vender.
    *
-   * <p><b>La rama del rol exige la asociación</b>, que es `RN-CM-012`: sin fila en {@code
-   * product_commission_rates} no hay tarifa, por mucho que el catálogo tenga una tasa para ese rol.
-   * Aquí no hay ningún {@code OR ... IS NULL} como en el modelo anterior, y esa es exactamente la
-   * inversión de significado.
-   *
-   * <p><b>El {@code JOIN} entra por la clave compuesta</b> —{@code id} y {@code role_id}—, la misma
-   * pareja que declara la clave foránea: así la consulta no puede leer el porcentaje de una tasa
-   * cuyo rol no sea el copiado en la asociación.
+   * <p><b>La rama del rol lee {@code commission_rates.product_id}</b> (`RN-CM-021`, 15-09-2026): la
+   * tasa nace con su producto, y sin tasa viva para ese producto y ese rol no hay tarifa. Hasta esa
+   * fecha entraba por {@code product_commission_rates}, la tabla de asociación que `V94` retiró, y
+   * el {@code JOIN} por clave compuesta que protegía la copia del rol ya no tiene nada que
+   * proteger.
    *
    * <p><b>Y se filtra {@code deleted_at IS NULL} en las dos ramas.</b> Una tasa retirada que
    * siguiera resolviendo pagaría por algo que alguien declaró que no debió existir.
@@ -92,12 +87,10 @@ public class JpaCommissionResolutionRepository implements CommissionResolutionRe
              c.fixed_amount AS fixed_amount,
              NULL           AS valid_from,
              NULL           AS valid_to
-        FROM product_commission_rates a
-        JOIN commission_rates c
-          ON c.id = a.commission_rate_id AND c.role_id = a.role_id
+        FROM commission_rates c
        WHERE c.deleted_at IS NULL
-         AND a.role_id    = CAST(:rol AS uuid)
-         AND a.product_id = :producto
+         AND c.role_id    = CAST(:rol AS uuid)
+         AND c.product_id = :producto
 
        ORDER BY prioridad
        LIMIT 1

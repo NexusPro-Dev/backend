@@ -14,21 +14,19 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 /**
- * La asociación leída <b>desde el producto</b>.
+ * Qué paga un producto, y a qué rol.
  *
- * <p><b>Es la otra dirección de la misma tabla, y es otra pregunta.</b> Desde la tasa se responde
- * «sobre qué productos rige esto», que es lo que mira quien administra el catálogo; desde el
- * producto se responde «qué paga esto a cada rol», que es lo que mira quien va a venderlo o quien
- * revisa por qué una venta pagó lo que pagó.
+ * <p>Hasta el 15-09-2026 era «la otra dirección de la tabla de asociación»; desde `RN-CM-021` la
+ * tasa nace con su producto y esta lectura es la del catálogo filtrada por producto, sin paginar y
+ * con la forma de siempre. Se conserva porque es lo que mira quien va a vender el producto o quien
+ * revisa por qué una venta pagó lo que pagó — y porque retirarla no ahorraría nada a nadie.
  *
  * <p><b>Recurso raíz propio y no {@code /commission-rates/by-product/{id}}</b>: ese camino habría
  * competido en forma con {@code /commission-rates/{id}}, y aunque Spring resuelve antes el segmento
  * literal, el día que alguien lo renombrara el síntoma sería un {@code 400} por identificador
  * inválido en una ruta que no se tocó.
  */
-@Tag(
-    name = "Comisiones",
-    description = "Tasas de comisión por rol y su asociación con los productos.")
+@Tag(name = "Comisiones", description = "Tasas de comisión por rol: qué paga cada producto.")
 @RestController
 @RequestMapping("/api/v1/product-commission-rates")
 public class ProductCommissionRateController {
@@ -44,11 +42,12 @@ public class ProductCommissionRateController {
       description =
           """
           Devuelve una entrada **por cada rol** que cobra comisión por ese producto,
-          con el porcentaje ya resuelto.
+          con el valor ya resuelto: las tasas de rol **vivas** de ese producto
+          (`RN-CM-021`). Es lo mismo que `GET /api/v1/commission-rates?productId=`,
+          sin paginar y con la forma de siempre.
 
           **Una lista vacía significa que ese producto no paga comisión a nadie**
-          — ni siquiera a los roles que tienen tasa en el catálogo, si nadie la
-          asoció (`RN-CM-012`).
+          — nadie registró una tasa sobre él (`RN-CM-012`).
 
           **Esto no resuelve la comisión de una persona, y solo devuelve roles.** Las
           tasas personalizadas también se asocian a productos desde el 11-09-2026 y

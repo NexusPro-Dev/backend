@@ -4,13 +4,14 @@
 |---|---|
 | Requerimiento | `RF-CM-003` |
 | Módulo | `CM` — Comisiones |
-| Versión | 0.6.0 |
+| Versión | 0.7.0 |
 | Estado | **Aprobada** |
 | Autor | Responsable técnico |
 | Aprobada por | Responsable del proyecto |
 | Fecha de aprobación | 03-09-2026 |
 | Enmendada el | 08-09-2026 — **el producto de precio cero existe** (`RN-PM-006` relajada), y `RN-CM-019` lo resuelve en su límite. Ver §15 |
 | Enmendada el | 14-09-2026 — **el producto gratuito SÍ comisiona, y solo por importe fijo** (`RN-CM-020`, `cm.md` v0.13.0): se invierte lo del 08-09-2026. Ver §15 |
+| Enmendada el | 15-09-2026 — **la tasa de rol se corrige contra su único producto** (`RN-CM-021`): tope, gratuito y decimales de la moneda. Ver §15 |
 
 !!! info "Qué va en este documento"
 
@@ -255,8 +256,9 @@ Quien necesite conservar qué se pagó antes tiene **una sola vía, y está fuer
 | `VAL-010` | Petición vacía | Debe enviarse al menos un campo corregible. |
 | `VAL-011` | **El valor corresponde a la forma** | Una comisión por porcentaje lleva porcentaje y no valor fijo; una comisión por valor fijo, al revés. |
 | `VAL-012` | **Valor fijo no negativo** | El valor fijo no puede ser negativo. |
+| `VAL-013` | **Decimales del importe fijo según la moneda del producto** (`RN-CM-017`, 15-09-2026) | El valor fijo no admite más decimales que los de la moneda del producto. |
 
-**`VAL-009` sigue teniendo un solo campo y no dos.** La forma **no** entra en la lista de no corregibles — se preguntó y se decidió que sí se corrige (§14). Lo único inmutable de una tasa de rol sigue siendo **su rol**.
+**`VAL-009` sigue teniendo un solo campo y no dos.** La forma **no** entra en la lista de no corregibles — se preguntó y se decidió que sí se corrige (§14). Lo inmutable de una tasa de rol es **su rol** y, desde el 15-09-2026, **su producto** — que no entra en `VAL-009` porque el cuerpo no lo declara: enviarlo es un campo desconocido y responde `400` sin código (`CA-CM-142`).
 
 **`VAL-003` solo aplica a la mitad de las correcciones.** Si la forma es importe fijo, ni cien ni ningún otro número acotan nada (`RN-CM-018`), y `VAL-012` es todo lo que queda. Es la asimetría de §5.
 
@@ -286,6 +288,7 @@ Quien necesite conservar qué se pagó antes tiene **una sola vía, y está fuer
 | `CA-CM-117` | Corregir a **valor fijo mayor que cero** una tasa asociada a un producto de **precio cero** **se admite, sin tope** y no con un error del servidor; y corregirla a **porcentaje** **se rechaza entera** con `EX-008`, aunque el resto de sus productos la admitieran — **reescrito el 14-09-2026**: decía justo lo contrario |
 | `CA-CM-132` | Una tasa asociada a un gratuito **y** a uno con precio: corregirla a valor fijo comprueba el tope **solo contra el que tiene precio**; el gratuito no entra en ninguna cuenta |
 | `CA-CM-133` | La **personalizada** obedece lo mismo al corregirse: a fijo sobre un gratuito pasa, a porcentaje se rechaza con `EX-008` |
+| `CA-CM-142` | La corrección de una tasa de rol comprueba el tope (`RN-CM-019`), el gratuito (`RN-CM-020`) y **los decimales de la moneda** (`RN-CM-017`) **contra su único producto**; el cuerpo **no admite `productId`** (`400`, es inmutable) |
 
 !!! danger "`CA-CM-091` es el criterio más importante de los seis, y el único que puede fallar en silencio"
 
@@ -344,3 +347,4 @@ Lo que se paga a cambio está escrito y es real: `CA-CM-095` deja constancia de 
 | 0.4.0 | 03-09-2026 | **Nace `RN-CM-019`** (`cm.md` v0.8.0), y esta operación es la segunda que la comprueba, junto a `RF-CM-007`. §4.1 y §7 la suman a lo que corregir garantiza; §8 gana un paso nuevo, **antes** de escribir (paso 7), que revisa el tope en **todos** los productos donde la tasa está asociada y rechaza la corrección entera si alguno se pasaría de cien. Nace `EX-006`, la primera excepción de esta operación que necesita leer otras tablas —`product_commission_rates` de cada producto y el precio que `PM` publica de cada uno—, y `FA-005` documenta el camino feliz de una tasa sobre varios productos que caben todos. §13 **corrige** un caso límite que decía lo contrario: hasta ayer, corregir a un importe fijo mayor que el precio de un producto asociado se admitía a propósito porque «el sistema no lo hace»; desde hoy **sí lo hace**, y lo que queda sin comprobar es solo que el precio cambie **después**. Se aprovecha para resolver una ambigüedad de nombres que §14 dejaba abierta desde la v0.3.0: el identificador `RN-CM-019` que ahí se mencionaba como una regla hipotética y descartada ya tiene dueño, y es otra. | Responsable del proyecto |
 | 0.5.0 | 08-09-2026 | **El producto de precio cero existe desde hoy** (`RN-PM-006` relajada por `V67`, `requirements/pm.md` §5.2.4), y la conversión `fixed_amount ÷ precio` que esta operación hace para comprobar `RN-CM-019` **puede dividir entre cero**. Se resuelve **sin regla nueva**, llevando aquella a su límite: un producto que no cobra nada no puede pagar ningún importe fijo, de modo que un valor fijo mayor que cero pasa del 100 % y la corrección **se rechaza entera** —como con cualquier otro producto que se pasara—; uno de cero ocupa cero, y corregir a **porcentaje** no se ve afectado. Entra `CA-CM-117` y un caso límite. | Responsable del proyecto |
 | 0.6.0 | 14-09-2026 | **El producto gratuito SÍ comisiona, y solo por importe fijo** (`RN-CM-020`, [`cm.md`](../../../requirements/cm.md) v0.13.0), por decisión del responsable del proyecto: v0.5.0 se invierte. Nace `EX-008` —corregir hacia porcentaje una tasa asociada a un producto de precio cero se rechaza entera, en las dos clases—, y corregir hacia valor fijo **pasa sin tope**. `CA-CM-117` se reescribe en vez de borrarse; nacen `CA-CM-132` y `CA-CM-133`. | Responsable del proyecto |
+| 0.7.0 | 15-09-2026 | **La tasa de rol se corrige contra su único producto** (`RN-CM-021`, [`requirements/cm.md`](../../../requirements/cm.md) v0.14.0 §5.4): donde hasta hoy la corrección revisaba **todos** los productos asociados y se rechazaba entera si cualquiera se pasaba, ahora hay uno solo —y el importe fijo gana los decimales de su moneda—. El producto **no se corrige**: un `productId` en el cuerpo es un campo desconocido y responde `400`. `CA-CM-142`. | Responsable del proyecto |

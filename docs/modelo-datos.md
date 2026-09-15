@@ -2,7 +2,7 @@
 
 | Campo | Valor |
 |---|---|
-| Versión | 0.48.0 |
+| Versión | 0.49.0 |
 | Estado | **Borrador** |
 | Responsable | Bonilla Diaz William Steven |
 | Fecha de creación | 21-08-2026 |
@@ -435,8 +435,7 @@ erDiagram
     currencies  ||--o{ products : "el precio se expresa en"
 
     roles    ||--o{ commission_rates : "qué gana ese rol"
-    commission_rates ||--o{ product_commission_rates : "rige sobre"
-    products ||--o{ product_commission_rates : "paga esa tasa"
+    products ||--o{ commission_rates : "paga esa tasa · V94: la tasa de rol NACE con su producto"
     users    ||--o{ user_commission_rates : "excepción de"
     user_commission_rates ||--o{ user_commission_rate_products : "rige sobre"
     products ||--o{ user_commission_rate_products : "paga esa excepción"
@@ -463,18 +462,15 @@ erDiagram
 
     commission_rates {
         uuid id PK
-        uuid role_id FK "catálogo: qué gana ese rol"
+        uuid product_id FK "V94 · de UN producto, y no se corrige · UNICO con role_id entre las vivas"
+        uuid role_id FK "qué gana ese rol POR ESTE PRODUCTO"
         varchar rate_type "PORCENTAJE o FIJO · lo declara, no se deduce"
         numeric percentage "5,2 · NULL si es FIJO · cero es un VALOR"
         numeric fixed_amount "14,4 como products.price · NULL si es PORCENTAJE · SIN MONEDA"
         timestamptz deleted_at "lógico · RN-CM-005"
     }
 
-    product_commission_rates {
-        uuid product_id PK,FK "la PK es la regla:"
-        uuid role_id PK,FK "un porcentaje por rol y producto"
-        uuid commission_rate_id FK "FK COMPUESTA con role_id"
-    }
+
 
     user_commission_rates {
         uuid id PK
@@ -687,10 +683,10 @@ flowchart TB
         P3["product_images"]
     end
 
-    subgraph CM["CM · 3 tablas · dos DISEÑADAS"]
-        M1["commission_rates"]
+    subgraph CM["CM · 3 tablas"]
+        M1["commission_rates · V94: con product_id"]
         M2["user_commission_rates"]
-        M3["product_commission_rates"]
+        M3["user_commission_rate_products"]
     end
 
 
@@ -723,7 +719,7 @@ flowchart TB
 | `SP` | `permissions`, `roles`, `role_permissions`, `users`, `user_roles`, `memberships`, `user_memberships`, `currencies`, `countries`, `document_types`, `user_supervisors`, `refresh_tokens`, `password_reset_permits`, `exchange_rates`, `brokers`, `user_brokers` | **16, escritas** |
 | `SP` · auditoría | `audit_change_log`, `audit_deletion_log`, `audit_error_log`, `audit_security_log`, `request_log` | **5, escritas** |
 | `PM` | `products`, `product_comments`, `product_images`, `product_packages`, `product_package_items` | **3 escritas** (`V39`, `V87`, `V90`) **y dos diseñadas**: las de los paquetes, que creará la migración de `RF-PM-017` (14-09-2026) |
-| `CM` | `commission_rates`, `user_commission_rates`, `product_commission_rates` | **3, escritas** (`V49`) |
+| `CM` | `commission_rates`, `user_commission_rates`, `user_commission_rate_products` | **3, escritas** (`V49`, `V85`). `product_commission_rates` existió de `V49` a `V94` (15-09-2026) |
 | `MV` | `movements`, `movement_types`, `movement_details`, `payment_methods`, `payment_method_exclusions` | **5, escritas** (`V54`, `V55`) |
 
 **Un módulo, una a cinco tablas.** `SP` tiene diecisiete y los otros tres juntos tienen diez, y eso no es desequilibrio: `SP` es dueño del acceso, de los catálogos transversales y de la auditoría entera, que es infraestructura que todos usan y nadie duplica.
@@ -750,7 +746,7 @@ Son las que siguen —**y desde el 14-09-2026 una de `PM` apunta a `users`**—,
 | `products.currency_id` | `currencies` | `PM` → `SP` |
 | `commission_rates.role_id` | `roles` | `CM` → `SP` |
 | `user_commission_rates.user_id` | `users` | `CM` → `SP` |
-| `product_commission_rates.product_id` | `products` | `CM` → `PM` |
+| `commission_rates.product_id` | `products` | `CM` → `PM` — **desde `V94`** (15-09-2026); sustituye a `product_commission_rates.product_id`, que existió de `V49` a `V94` |
 | `product_comments.user_id` | `users` | `PM` → `SP` — **la primera de `PM` hacia una persona** (14-09-2026) |
 | `product_packages.currency_id` | `currencies` | `PM` → `SP` — la moneda del paquete entero (14-09-2026, diseñada) |
 
@@ -831,3 +827,4 @@ La secuencia no es continua —falta el tramo `V8` a `V12`— y no es un descuid
 | 0.46.0 | 14-09-2026 | **`product_images` pasa de diseñada a escrita: `V90`** ([`requirements/pm.md`](requirements/pm.md) v0.32.0). La tabla es la de la v0.44.0 sin cambios —`id`, `content_type`, `content`, `created_at`; `ck_product_images_content_type` y `ck_product_images_size`— y `products.cover_image_id` nace con `fk_products_cover_image` sin `ON DELETE` y `uq_products_cover_image`. El sistema llega a **veintinueve tablas escritas**, y quedan dos diseñadas, las de los paquetes. **Lo que confirmó la construcción**: el orden de las tres escrituras —insertar la nueva, repuntar el producto, **volcar**, borrar la anterior— es el que la clave foránea sin `ON DELETE` exige, y JPA lo respeta solo si el volcado es explícito; y ninguna de las cuatro sentencias del catálogo toca la tabla nueva, que es lo que mantiene el número de consultas de cada lectura. | Responsable técnico |
 | 0.47.0 | 15-09-2026 | **`products.scope` pasa a cuatro valores: `TIENDA`, `HOTLINK`, `AMBOS`, `NINGUNO`** ([`requirements/pm.md`](requirements/pm.md) v0.35.0 §5.2.11), por decisión del responsable del proyecto. **Ninguna columna nueva**: `V92` reemplaza `ck_products_scope` y **antes renombra las filas `HOTLINKS` a `AMBOS`** — un `CHECK` no se puede declarar sobre filas que lo violan, y el orden `UPDATE` → `DROP` → `ADD` es lo que lo hace posible en una sola migración. **El renombrado es fiel**: `HOTLINKS` significaba «tienda y hotlinks», que es lo que `AMBOS` dice con su nombre; ningún producto cambia lo que mostraba. `product_packages.scope` —diseñada, `V91`— nace con el mismo dominio. Lo que conviene leer del cambio: **el campo deja de ser una escala** y pasa a ser un conjunto de vistas, con `NINGUNO` como el conjunto vacío — un producto activo que no se ofrece en ninguna parte, y que existe para venderse por otro camino. | Responsable del proyecto |
 | 0.48.0 | 15-09-2026 | **`V91` crea `product_packages` y `product_package_items`** ([`requirements/pm.md`](requirements/pm.md) v0.36.0, `RF-PM-017`): el modelo pasa de veintinueve a **treinta y una** tablas escritas y no queda ninguna diseñada pendiente. Nacen tal como se diseñaron el 14-09-2026 —**sin columna de precio**, con la moneda obligatoria e inmutable, con la pareja como clave de la asociación y el porcentaje acotado a cien como único techo del esquema— y **ya con `ck_product_packages_scope` de cuatro valores**, el dominio que `V92` llevó a `products` el mismo día. La unicidad del nombre es un índice parcial, como en `products`, y por parcial no admite `DEFERRABLE`: la carrera la traduce el repositorio. Ninguna clave foránea lleva `ON DELETE`; la fila de asociación se borra desde el caso de uso (`RF-PM-025`) con su registro `ASSOCIATION`. | Responsable técnico |
+| 0.49.0 | 15-09-2026 | **La tasa de rol nace con su producto: `commission_rates` gana `product_id` `NOT NULL` y `product_commission_rates` se retira** (`V94`, [`requirements/cm.md`](requirements/cm.md) v0.14.0 §5.4, `RN-CM-021`), por decisión del responsable del proyecto. **Es la segunda migración del proyecto que borra datos a propósito**, y por lo mismo que `V49`: ninguna tasa de rol anterior tenía producto, y clonarlas por cada asociación habría sido una copia plausible decidida por una migración; se vacía para que la pérdida sea visible y administración las registre sabiendo lo que hace. **Lo que hay que leer del dibujo**: la unicidad «un porcentaje por rol y producto» (`RN-CM-013`) deja de ser la clave primaria de una asociación y pasa a ser un índice **parcial** sobre `(product_id, role_id)` entre las vivas —y por parcial no admite `DEFERRABLE`—; la clave foránea compuesta y `uq_commission_rates_id_role`, que existían solo para sostener la asociación, se van con ella. `CM` sigue en tres tablas: la asociación que queda es la de la **personalizada** (`user_commission_rate_products`), que es la única que puede abarcar varios productos. **Y el módulo vuelve a decir la misma cosa de dos maneras a conciencia** —la de rol con columna, la personalizada con tabla—, deshaciendo la simetría de la v0.40.0: son dos preguntas distintas, qué paga un producto y qué gana una persona. | Responsable del proyecto |

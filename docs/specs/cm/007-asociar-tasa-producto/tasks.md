@@ -4,8 +4,8 @@
 |---|---|
 | Requerimiento | `RF-CM-007` |
 | Plan | [`plan.md`](plan.md), aprobado el 03-09-2026 |
-| Versión | 0.2.0 |
-| Estado | **En revisión** |
+| Versión | 0.3.0 |
+| Estado | **Descartado el 15-09-2026** — las tareas quedan como historia |
 | Autor | Responsable técnico |
 | Aprobadas por | Pendiente |
 | Fecha de aprobación | Pendiente |
@@ -106,3 +106,4 @@ Ninguno.
 - Las dieciocho tareas originales `Hecha`, más `T-19` a `T-25` `Hecha` con su verificación pasando.
 - `./mvnw clean verify` en verde, **incluidas las dos concurrentes: `T-16` y `T-24`**.
 - La matriz, `cm.md`, `modelo-datos.md` y el contrato publicado al día.
+| 0.3.0 | 15-09-2026 | **Descartado** con el requerimiento (`RN-CM-021`); el código construido se retira en `RF-CM-001` `T-31`. | Responsable técnico |

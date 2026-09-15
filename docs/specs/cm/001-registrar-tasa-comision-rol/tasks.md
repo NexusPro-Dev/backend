@@ -4,13 +4,14 @@
 |---|---|
 | Requerimiento | `RF-CM-001` |
 | Plan | [`plan.md`](plan.md), aprobado el 02-09-2026 |
-| Versión | 1.0.0 |
+| Versión | 1.1.0 |
 | Estado | **En revisión** |
 | Autor | Responsable técnico |
 | Aprobadas por | Pendiente |
 | Fecha de aprobación | Pendiente |
 | Issue | Pendiente de crear |
 | Rama | `feature/flujos-de-pm-y-cm` (`T-01`–`T-15`) · `feature/comision-en-valor-fijo` (`T-16`–`T-27`) |
+| Enmendadas | 15-09-2026 — `T-28` a `T-31` porque **la tasa de rol nace con su producto** (`RN-CM-021`) |
 
 !!! info "Qué va en este documento"
 
@@ -58,6 +59,10 @@
 | `T-25` | **Prueba de esquema**: un `INSERT` directo **sin** `rate_type` falla | `T-17` | Es la única tarea que puede delatar que `DROP DEFAULT` se cayó de `V50` | **Hecha el 02-09-2026** |
 | `T-26` | Pruebas de los criterios nuevos de `spec.md` §12 | `T-24` | `CA-CM-079` a `CA-CM-084` | **Hecha el 02-09-2026** |
 | `T-27` | OpenAPI: **el cambio incompatible** y que el importe **no lleva moneda** | `T-24` | La descripción dice las dos cosas, y por qué | **Hecha el 02-09-2026** |
+| `T-28` | **`V94__commission_rates_producto.sql`**: vaciar `product_commission_rates` y `commission_rates`, borrar la asociación y `uq_commission_rates_id_role`, `product_id NOT NULL` con `fk_commission_rates_product`, `uq_commission_rates_product_role` parcial, comentarios | — | La migración aplica; un segundo `INSERT` vivo del mismo rol y producto se rechaza; el retirado no estorba | **Hecha el 15-09-2026** |
+| `T-29` | `CommissionRate` con `productId` (inmutable, en la instantánea como `product_id`); `RegisterCommissionRateRequest` y el comando con `productId` (`VAL-013`); `CommissionRateResponse` e `Item` con `product` resuelto; retirar `ProductCommissionRate` y sus repositorios | `T-28` | Compila; `CA-CM-136` | **Hecha el 15-09-2026** |
+| `T-30` | `RegisterCommissionRateService`: producto vivo por `ProductCatalog` (`422` inexistente / retirado), **tope y gratuito en el alta** con `ProductCommissionCapGuard`, **decimales del fijo contra la moneda** (`VAL-014`), y la traducción de `uq_commission_rates_product_role` a `409` en `JpaCommissionRateRepository` | `T-29` | `CA-CM-137` a `CA-CM-140` en `CommissionRatesIT` | **Hecha el 15-09-2026** |
+| `T-31` | Retirar `POST`/`GET /commission-rates/{id}/products` y `POST …/products/{productId}/deletion` con sus servicios; prosa de la `@Operation` del alta; retirar de la suite `CA-CM-002`, `003` y `004` | `T-30` | El contrato regenerado no declara las tres rutas y declara `productId` y `product` | **Hecha el 15-09-2026** |
 
 **La instantánea de auditoría no lleva tarea propia**, y es correcto: la arma el agregado a partir de `CommissionValue` (`plan.md` §6), de modo que `T-22` la actualiza sola. Su verificación va en `T-26`.
 
@@ -92,6 +97,7 @@
 | `CA-CM-080`, `CA-CM-081` | `T-18`, `T-20`, `T-21`, `T-23`, `T-26` |
 | `CA-CM-082`, `CA-CM-083` | `T-18`, `T-26` |
 | `CA-CM-084` | `T-26` |
+| `CA-CM-136` a `CA-CM-140` | `T-28` a `T-31` |
 
 **`T-17`, `T-19`, `T-25` y `T-27` no cubren ningún criterio de aceptación**, y quedan enumeradas para que su ausencia de la tabla no se lea como que sobran. Las tres primeras defienden **cosas que el negocio no puede ver** —que la forma sea obligatoria en el motor, que una restricción vieja siga diciendo la verdad—; la cuarta es el contrato publicado. `T-25` es, además, la única verificación de `T-17`.
 

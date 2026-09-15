@@ -16,9 +16,10 @@ import org.springframework.transaction.annotation.Transactional;
 /**
  * Adaptador de {@link CommissionRateQueryRepository}.
  *
- * <p><b>El rol llega resuelto en la MISMA sentencia</b>, con {@code LEFT JOIN}. Resolverlo fila a
- * fila contra la interfaz de `SP` sería el problema de las {@code N+1} consultas —cien tasas, cien
- * llamadas—, y eso no lo arregla que las llamadas sean a un puerto en lugar de a una tabla.
+ * <p><b>El producto y el rol llegan resueltos en la MISMA sentencia</b>, con {@code LEFT JOIN}.
+ * Resolverlos fila a fila contra las interfaces de `PM` y `SP` sería el problema de las {@code N+1}
+ * consultas —cien tasas, doscientas llamadas—, y eso no lo arregla que las llamadas sean a un
+ * puerto en lugar de a una tabla.
  *
  * <p><b>Y no rompe la frontera de D-25</b>: lo que `modules.md` §7 defiende es la frontera del
  * <b>código</b> —esta clase no importa repositorios ni entidades de otro módulo—, mientras que el
@@ -31,29 +32,27 @@ import org.springframework.transaction.annotation.Transactional;
 public class JpaCommissionRateQueryRepository implements CommissionRateQueryRepository {
 
   /**
-   * La cuenta de asociaciones va como subconsulta correlacionada y no como {@code JOIN} agrupado.
-   *
-   * <p>Con un {@code LEFT JOIN} sobre la asociación, cada tasa aparecería una vez por producto y el
-   * listado tendría que agrupar — y el {@code LIMIT} de la paginación se aplicaría a las filas del
-   * producto cartesiano y no a las tasas, devolviendo <b>menos tasas de las pedidas</b> sin que
-   * nada fallara.
+   * Desde el 15-09-2026 el producto es una columna de la propia tasa (`RN-CM-021`) y se une como el
+   * rol: una fila por tasa, sin subconsulta que contar ni producto cartesiano que agrupar.
    */
   private static final String COLUMNAS =
       """
-      t.id AS id, t.role_id AS role_id, r.code AS role_code, r.name AS role_name,
+      t.id AS id,
+      t.product_id AS product_id, p.code AS product_code, p.name AS product_name,
+      t.role_id AS role_id, r.code AS role_code, r.name AS role_name,
       t.rate_type AS rate_type, t.percentage AS percentage, t.fixed_amount AS fixed_amount,
-      (SELECT count(*) FROM product_commission_rates a
-        WHERE a.commission_rate_id = t.id) AS asociados,
       t.deleted_at AS deleted_at
       """;
 
   /**
    * <b>El orden del catálogo, y por qué ya no puede ordenar por «lo que más paga».</b>
    *
+   * <p>Desde el 15-09-2026 va <b>primero por producto</b>: el catálogo se lee como «qué paga cada
+   * producto» (`RN-CM-021`), y dentro de cada producto, por rol.
+   *
    * <p>Hasta el 02-09-2026 era {@code r.code ASC, t.percentage DESC}: dentro de cada rol, arriba lo
    * que más paga. Con dos formas eso <b>compara cosas que no admiten un «mayor que»</b> — cuál paga
-   * más entre «10 %» y «10.000 fijos» depende del precio del producto, que este listado no conoce y
-   * que además <b>difiere entre los productos asociados a la misma tasa</b>.
+   * más entre «10 %» y «10.000 fijos» depende del precio del producto, que este listado no cruza.
    *
    * <p>Ordenar por la cifra a secas sería <b>peor que no ordenar</b>: produciría una lista que
    * <b>parece</b> de mayor a menor sin serlo, poniendo «100 fijos» por encima de «50 %».
@@ -69,13 +68,14 @@ public class JpaCommissionRateQueryRepository implements CommissionRateQueryRepo
    * que es todo lo que hace falta: lo que importa es que los dos grupos <b>no se intercalen</b>.
    */
   private static final String ORDEN =
-      " ORDER BY r.code ASC, t.rate_type ASC,"
+      " ORDER BY p.code ASC, r.code ASC, t.rate_type ASC,"
           + " COALESCE(t.percentage, t.fixed_amount) DESC, t.id DESC";
 
   private static final String TABLAS =
       """
       commission_rates t
-      LEFT JOIN roles r ON r.id = t.role_id
+      LEFT JOIN products p ON p.id = t.product_id
+      LEFT JOIN roles    r ON r.id = t.role_id
       """;
 
   private final EntityManager em;
@@ -140,6 +140,7 @@ public class JpaCommissionRateQueryRepository implements CommissionRateQueryRepo
 
   private static Filtro predicado(RateFilters f) {
     Filtro filtro = new Filtro();
+    filtro.igual("t.product_id", "producto", f.productId());
     filtro.igual("t.role_id", "rol", f.roleId());
     // El filtro por forma viaja como texto y no como enum: la columna es
     // `varchar(20)` y el driver no tiene por qué saber traducir el tipo de Java.
@@ -153,13 +154,15 @@ public class JpaCommissionRateQueryRepository implements CommissionRateQueryRepo
   private static RateRow comoFila(Tuple fila) {
     return new RateRow(
         (UUID) fila.get("id"),
+        (UUID) fila.get("product_id"),
+        (String) fila.get("product_code"),
+        (String) fila.get("product_name"),
         (UUID) fila.get("role_id"),
         (String) fila.get("role_code"),
         (String) fila.get("role_name"),
         CommissionRows.forma(fila.get("rate_type")),
         (BigDecimal) fila.get("percentage"),
         (BigDecimal) fila.get("fixed_amount"),
-        ((Number) fila.get("asociados")).longValue(),
         CommissionRows.momento(fila.get("deleted_at")));
   }
 

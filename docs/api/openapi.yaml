@@ -31,8 +31,6 @@ tags:
 - name: Auditoría
   description: "Los cuatro registros de auditoría del sistema. Solo lectura, y cada\
     \ uno con su permiso."
-- name: Comisiones
-  description: Tasas de comisión por rol y su asociación con los productos.
 - name: Países
   description: Catálogo de países. Inmutable salvo su estado.
 - name: Comisiones
@@ -43,6 +41,8 @@ tags:
 - name: Brokers
   description: "Catálogo de los brokers con los que opera la plataforma. Solo lectura:\
     \ se puebla por migración (RN-SP-039)."
+- name: Comisiones
+  description: "Tasas de comisión por rol: qué paga cada producto."
 - name: Membresías
   description: Cadena lineal de niveles de consumidor. Inmutable salvo el reordenamiento.
 - name: Usuarios
@@ -2471,18 +2471,20 @@ paths:
     get:
       tags:
       - Comisiones
-      summary: Consultar el catálogo de tasas por rol
+      summary: Consultar las tasas de comisión por rol
       description: |
-        Devuelve el **catálogo**, no lo que rige.
+        Devuelve **todas las tasas de rol que se han configurado**, cada una
+        **con su producto** (`id`, `code`, `name`) y su rol, paginadas. Es lo que
+        el responsable del proyecto pidió leer: qué paga cada producto, en una
+        sola lista. Se filtra por `productId`, `roleId` y `rateType`, y con
+        `includeDeleted` entran las retiradas.
 
-        **`associatedProducts` es el campo que hay que mirar**: una tasa con cero
-        asociaciones aparece aquí con su porcentaje y **no paga nada a nadie**.
+        **Toda tasa viva rige** sobre su producto (`RN-CM-021`): ya no hay un
+        contador de asociaciones que mirar.
 
         Las tasas **personalizadas** no salen en este listado: están en
-        `GET /api/v1/user-commission-rates`.
-
-        **No hay filtro por fecha**, porque las tasas de rol no tienen vigencia:
-        el catálogo solo sabe lo que dice hoy.
+        `GET /api/v1/user-commission-rates`. **No hay filtro por fecha**, porque
+        las tasas de rol no tienen vigencia.
       operationId: listar_5
       parameters:
       - name: filtros
@@ -2512,19 +2514,26 @@ paths:
     post:
       tags:
       - Comisiones
-      summary: Registrar una tasa de comisión por rol
+      summary: Registrar la tasa de comisión de un rol sobre un producto
       description: |
-        Declara cuánto gana un rol de tipo **vendedor** por vender.
+        Declara cuánto gana un rol de tipo **vendedor** por vender **este
+        producto**. **`productId` es obligatorio** (`RN-CM-021`, 15-09-2026): la
+        tasa nace con su producto, **rige sobre él desde este instante** y no
+        cambia de producto — cambiar es retirarla y registrar otra.
 
-        **Registrar una tasa NO la pone en vigor.** Hasta que se asocie a un
-        producto con `POST /{id}/products`, **no paga nada a nadie**. La respuesta
-        lleva `associatedProducts`, que aquí vale siempre cero.
+        **Registrar es poner en vigor.** No hay paso de asociación ni borrador:
+        una tasa registrada «para probar» sobre un producto activo es una
+        comisión real. Hasta el 15-09-2026 la tasa se registraba sin producto y
+        no pagaba nada hasta asociarse; las tasas de aquel catálogo se
+        borraron (`V94`) y hay que registrarlas de nuevo, producto a producto.
 
-        Esto es lo contrario de lo que ocurría antes del 01-09-2026, cuando una
-        tarifa sin producto regía sobre **todo el catálogo**.
-
-        **Varias tasas por rol son legítimas**: el catálogo puede ofrecer
-        `AGENTE 10 %` y `AGENTE 15 %` para asociarlas a productos distintos.
+        **Un solo rol por producto** entre las vivas (`RN-CM-013`): la segunda
+        responde `409`. Y todo lo que antes se comprobaba al asociar se
+        comprueba aquí: producto **vivo y no retirado**, el **tope** —la suma de
+        lo que el producto paga a sus roles no pasa de cien, `RN-CM-019`—, la
+        regla del **gratuito** —solo importe fijo, `RN-CM-020`— y, para un
+        importe fijo, **los decimales de la moneda del producto**
+        (`RN-CM-017`).
 
         **El porcentaje cero es válido** y significa «esto no comisiona», que **no
         es lo mismo** que no declarar la tasa.
@@ -2537,13 +2546,14 @@ paths:
         required: true
       responses:
         "201":
-          description: "Tasa registrada, y todavía sin regir"
+          description: "Tasa registrada, y rigiendo desde ya"
           content:
             '*/*':
               schema:
                 $ref: "#/components/schemas/CommissionRateResponse"
         "400":
-          description: "Datos inválidos, o el rol no es vendedor"
+          description: "Datos inválidos, el rol no es vendedor, o el importe fijo\
+            \ no cabe en los decimales de la moneda del producto (`VAL-014`)"
           content:
             '*/*':
               schema:
@@ -2554,184 +2564,34 @@ paths:
             '*/*':
               schema:
                 $ref: "#/components/schemas/CommissionRateResponse"
-        "422":
-          description: El rol no existe
-          content:
-            '*/*':
-              schema:
-                $ref: "#/components/schemas/CommissionRateResponse"
-  /api/v1/commission-rates/{id}/products:
-    get:
-      tags:
-      - Comisiones
-      summary: Consultar sobre qué productos rige la tasa
-      description: |
-        **Una lista vacía significa que la tasa no paga nada a nadie**, por mucho
-        que tenga porcentaje.
-
-        No se pagina: una tasa se asocia a un puñado de productos.
-      operationId: productosDeLaTasa_1
-      parameters:
-      - name: id
-        in: path
-        required: true
-        schema:
-          type: string
-          format: uuid
-      responses:
-        "200":
-          description: Las asociaciones de la tasa
-          content:
-            '*/*':
-              schema:
-                $ref: "#/components/schemas/ProductAssociationResponse"
-        "403":
-          description: Sin permiso
-          content:
-            '*/*':
-              schema:
-                $ref: "#/components/schemas/ProductAssociationResponse"
-    post:
-      tags:
-      - Comisiones
-      summary: Asociar la tasa a un producto
-      description: |
-        **Es lo único que pone una tasa en vigor** (`RN-CM-012`). Sin esto, la tasa
-        existe en el catálogo y no paga nada a nadie.
-
-        **El rol no se envía**: se toma de la tasa que nombra la ruta, y el esquema
-        hace imposible que diverja del que ella declara.
-
-        **Un solo porcentaje por rol y producto** (`RN-CM-013`): si ese rol ya
-        tiene otra tasa asociada a ese producto, devuelve `409`. Retire la
-        asociación existente antes de declarar otra.
-
-        **No se asocia a un producto retirado** ni desde una tasa retirada.
-
-        **El producto no puede quedar pagando más del 100 % de sí mismo**
-        (`RN-CM-019`): suma el porcentaje de sus tasas de rol ya asociadas
-        —convirtiendo cada valor fijo contra el precio del producto— más el de
-        esta, y devuelve `409` si pasa de cien.
-
-        **Sobre un producto GRATUITO (precio cero) el tope no aplica y solo cabe
-        el importe fijo** (`RN-CM-020`, 14-09-2026): un valor fijo entra sin
-        tope —del importe que sea, y varios roles a la vez—, y un porcentaje se
-        rechaza con `409` (`EX-006`), porque un porcentaje de nada es nada.
-
-        Devuelve **todas** las asociaciones de la tasa, no solo la nueva.
-      operationId: asociar_1
-      parameters:
-      - name: id
-        in: path
-        required: true
-        schema:
-          type: string
-          format: uuid
-      requestBody:
-        content:
-          application/json:
-            schema:
-              $ref: "#/components/schemas/AssociateProductRequest"
-        required: true
-      responses:
-        "201":
-          description: Asociada. Devuelve todas sus asociaciones
-          content:
-            '*/*':
-              schema:
-                $ref: "#/components/schemas/ProductAssociationResponse"
-        "400":
-          description: Datos inválidos
-          content:
-            '*/*':
-              schema:
-                $ref: "#/components/schemas/ProductAssociationResponse"
-        "403":
-          description: Sin permiso
-          content:
-            '*/*':
-              schema:
-                $ref: "#/components/schemas/ProductAssociationResponse"
-        "404":
-          description: La tasa no existe o está retirada
-          content:
-            '*/*':
-              schema:
-                $ref: "#/components/schemas/ProductAssociationResponse"
         "409":
-          description: "Ese rol ya paga por ese producto, el producto está retirado,\
-            \ la suma pasaría de cien (`EX-005`), o es un porcentaje sobre un producto\
-            \ gratuito (`EX-006`)"
+          description: "Ya hay una tasa viva de ese rol sobre ese producto (`EX-007`),\
+            \ el producto pagaría más de cien (`EX-005`), o es gratuito y la tasa\
+            \ es de porcentaje (`EX-006`)"
           content:
             '*/*':
               schema:
-                $ref: "#/components/schemas/ProductAssociationResponse"
+                $ref: "#/components/schemas/CommissionRateResponse"
         "422":
-          description: El producto no existe
+          description: "El rol no existe (`EX-002`), o el producto no existe o está\
+            \ retirado"
           content:
             '*/*':
               schema:
-                $ref: "#/components/schemas/ProductAssociationResponse"
-  /api/v1/commission-rates/{id}/products/{productId}/deletion:
-    post:
-      tags:
-      - Comisiones
-      summary: Retirar la asociación de la tasa con un producto
-      description: |
-        **Es la única forma de dejar de pagar sin retirar la tasa**: sigue en el
-        catálogo y disponible para otros productos.
-
-        **El borrado es físico** y la tabla no tiene retiro lógico, de modo que
-        **el registro de eliminación es lo único que queda** de que esa tasa rigió
-        alguna vez sobre ese producto. De ahí el **motivo obligatorio**.
-
-        Si esa tasa no está asociada a ese producto devuelve `404` — y no `409`,
-        porque al no quedar rastro no puede distinguirse «nunca existió» de «ya se
-        borró».
-      operationId: desasociar_1
-      parameters:
-      - name: id
-        in: path
-        required: true
-        schema:
-          type: string
-          format: uuid
-      - name: productId
-        in: path
-        required: true
-        schema:
-          type: string
-          format: uuid
-      requestBody:
-        content:
-          application/json:
-            schema:
-              $ref: "#/components/schemas/DissociateProductRequest"
-      responses:
-        "204":
-          description: Asociación retirada
-        "400":
-          description: "Motivo ausente, en blanco o demasiado largo"
-        "403":
-          description: Sin permiso
-        "404":
-          description: Esa tasa no está asociada a ese producto
+                $ref: "#/components/schemas/CommissionRateResponse"
   /api/v1/commission-rates/{id}/deletion:
     post:
       tags:
       - Comisiones
-      summary: Retirar una tasa de comisión por rol
+      summary: Retirar una tasa de comisión de rol
       description: |
-        Retira una tasa que **no debió existir**, con **motivo obligatorio**.
+        Retira una tasa con **motivo obligatorio** (`RN-CM-005`), y desde ese
+        instante **el producto deja de pagar a ese rol**: es la única forma de
+        dejar de pagar, a la vista y con instantánea.
 
-        **Una tasa asociada a algún producto no se retira** y devuelve `409`.
-        Retire primero esas asociaciones: si no, el producto dejaría de comisionar
-        **sin que nada lo indicara**, porque la asociación sobreviviría apuntando a
-        una fila muerta.
-
-        **Para dejar de pagar sin destruir la tasa**, use la desasociación
-        (`POST /{id}/products/{productId}/deletion`): la tasa sigue en el catálogo
-        y disponible para otros productos.
+        Hasta el 15-09-2026 una tasa asociada no se retiraba (`RN-CM-015`);
+        desde que la tasa nace con su producto no hay asociación que la
+        sostenga, y esa condición queda solo para la personalizada.
 
         **No es idempotente**: retirar dos veces devuelve `409`.
       operationId: retirar_3
@@ -2757,7 +2617,7 @@ paths:
         "404":
           description: La tasa no existe
         "409":
-          description: "Ya estaba retirada, o sigue asociada a algún producto"
+          description: Ya estaba retirada
   /api/v1/auth/registration:
     post:
       tags:
@@ -4538,7 +4398,7 @@ paths:
 
         El producto que no está —también el que ya se quitó— es `404`: con el
         borrado físico no queda nada que los distinga. Exige `packages:update`.
-      operationId: desasociar_2
+      operationId: desasociar_1
       parameters:
       - name: id
         in: path
@@ -4769,9 +4629,9 @@ paths:
     patch:
       tags:
       - Comisiones
-      summary: Corregir el porcentaje de una tasa de rol
+      summary: Corregir el valor de una tasa de rol
       description: |
-        Corrige el **porcentaje**, que es lo único corregible.
+        Corrige el **valor** —la forma y la cifra—, que es lo único corregible.
 
         **Esta operación borra el pasado.** Las tasas de rol no tienen vigencia:
         pasar un `AGENTE` de 10 a 12 **borra el 10**. No hay dos filas contando
@@ -4780,21 +4640,18 @@ paths:
         Lo único que preserva lo ya pagado es que la liquidación haya copiado el
         porcentaje que aplicó — y esa liquidación **todavía no existe**.
 
-        `percentage: null` se **rechaza**. **El rol no se corrige**, y enviarlo
-        devuelve `400`: se rechaza y no se ignora, porque ignorarlo haría creer
-        que el cambio se aplicó.
+        `rateType: null` se **rechaza**. **Ni el rol ni el producto se corrigen**:
+        enviar `roleId` devuelve `400` con `VAL-009`, y `productId` es un campo
+        desconocido que también responde `400`. Se rechazan y no se ignoran,
+        porque ignorarlos haría creer que el cambio se aplicó.
 
-        **Si la tasa está asociada, revisa el tope de cien en TODOS sus
-        productos a la vez** (`RN-CM-019`): si el nuevo valor dejaría a alguno
-        pagando más del 100 % de sí mismo, la corrección se rechaza **entera**
-        y devuelve `409` — ninguno de los productos cambia, ni siquiera los que
-        sí cabían.
-
-        **Un producto GRATUITO (precio cero) solo admite importe fijo**
-        (`RN-CM-020`, 14-09-2026): si la tasa está asociada a uno y la corrección
-        la deja de porcentaje, se rechaza **entera** con `409` (`EX-008`).
-        Corregirla a valor fijo, del importe que sea, pasa: no hay cien por
-        ciento de cero, y el gratuito no entra en ninguna suma.
+        **El tope se revisa contra su producto** (`RN-CM-019`): si el nuevo valor
+        dejaría al producto pagando más del 100 % de sí mismo entre sus tasas de
+        rol, la corrección se rechaza con `409`. **Un producto GRATUITO solo
+        admite importe fijo** (`RN-CM-020`): corregir a porcentaje una tasa de un
+        producto de precio cero se rechaza con `409` (`EX-008`). Y un importe
+        fijo tiene que **caber en los decimales de la moneda del producto**
+        (`VAL-013`).
       operationId: corregir_3
       parameters:
       - name: id
@@ -4835,9 +4692,8 @@ paths:
               schema:
                 $ref: "#/components/schemas/CommissionRateResponse"
         "409":
-          description: "El nuevo valor dejaría a algún producto asociado pagando má\
-            s de cien (`EX-006`), o dejaría de porcentaje una tasa asociada a un producto\
-            \ gratuito (`EX-008`)"
+          description: "El nuevo valor dejaría al producto pagando más de cien (`EX-006`),\
+            \ o dejaría de porcentaje la tasa de un producto gratuito (`EX-008`)"
           content:
             '*/*':
               schema:
@@ -5339,11 +5195,12 @@ paths:
       summary: "Consultar qué comisiona un producto, y a qué rol"
       description: |
         Devuelve una entrada **por cada rol** que cobra comisión por ese producto,
-        con el porcentaje ya resuelto.
+        con el valor ya resuelto: las tasas de rol **vivas** de ese producto
+        (`RN-CM-021`). Es lo mismo que `GET /api/v1/commission-rates?productId=`,
+        sin paginar y con la forma de siempre.
 
         **Una lista vacía significa que ese producto no paga comisión a nadie**
-        — ni siquiera a los roles que tienen tasa en el catálogo, si nadie la
-        asoció (`RN-CM-012`).
+        — nadie registró una tasa sobre él (`RN-CM-012`).
 
         **Esto no resuelve la comisión de una persona, y solo devuelve roles.** Las
         tasas personalizadas también se asocian a productos desde el 11-09-2026 y
@@ -7922,6 +7779,9 @@ components:
     RegisterCommissionRateRequest:
       type: object
       properties:
+        productId:
+          type: string
+          format: uuid
         roleId:
           type: string
           format: uuid
@@ -7938,6 +7798,7 @@ components:
           type: number
           minimum: 0.0000
       required:
+      - productId
       - rateType
       - roleId
     CommissionRateResponse:
@@ -7946,38 +7807,10 @@ components:
         id:
           type: string
           format: uuid
-        role:
-          $ref: "#/components/schemas/RoleRef"
-        rateType:
-          type: string
-          enum:
-          - PORCENTAJE
-          - FIJO
-        percentage:
-          type: number
-        fixedAmount:
-          type: number
-        associatedProducts:
-          type: integer
-          format: int64
-    AssociateProductRequest:
-      type: object
-      properties:
-        productId:
-          type: string
-          format: uuid
-      required:
-      - productId
-    ProductAssociationItem:
-      type: object
-      properties:
         product:
           $ref: "#/components/schemas/ProductRef"
         role:
           $ref: "#/components/schemas/RoleRef"
-        commissionRateId:
-          type: string
-          format: uuid
         rateType:
           type: string
           enum:
@@ -7987,16 +7820,6 @@ components:
           type: number
         fixedAmount:
           type: number
-        createdAt:
-          type: string
-          format: date-time
-    ProductAssociationResponse:
-      type: object
-      properties:
-        content:
-          type: array
-          items:
-            $ref: "#/components/schemas/ProductAssociationItem"
     RegistrationBrokerAccount:
       type: object
       properties:
@@ -9012,6 +8835,35 @@ components:
           type: array
           items:
             $ref: "#/components/schemas/OfferPackageItem"
+    ProductAssociationItem:
+      type: object
+      properties:
+        product:
+          $ref: "#/components/schemas/ProductRef"
+        role:
+          $ref: "#/components/schemas/RoleRef"
+        commissionRateId:
+          type: string
+          format: uuid
+        rateType:
+          type: string
+          enum:
+          - PORCENTAJE
+          - FIJO
+        percentage:
+          type: number
+        fixedAmount:
+          type: number
+        createdAt:
+          type: string
+          format: date-time
+    ProductAssociationResponse:
+      type: object
+      properties:
+        content:
+          type: array
+          items:
+            $ref: "#/components/schemas/ProductAssociationItem"
     ListPermissionsRequest:
       type: object
       properties:
@@ -9402,6 +9254,9 @@ components:
         size:
           type: integer
           format: int32
+        productId:
+          type: string
+          format: uuid
         roleId:
           type: string
           format: uuid
@@ -9418,6 +9273,8 @@ components:
         id:
           type: string
           format: uuid
+        product:
+          $ref: "#/components/schemas/ProductRef"
         role:
           $ref: "#/components/schemas/RoleRef"
         rateType:
@@ -9429,9 +9286,6 @@ components:
           type: number
         fixedAmount:
           type: number
-        associatedProducts:
-          type: integer
-          format: int64
         deletedAt:
           type: string
           format: date-time

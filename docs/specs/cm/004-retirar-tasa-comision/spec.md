@@ -4,11 +4,12 @@
 |---|---|
 | Requerimiento | `RF-CM-004` |
 | Módulo | `CM` — Comisiones |
-| Versión | 0.2.0 |
+| Versión | 0.3.0 |
 | Estado | **Aprobada** |
 | Autor | Responsable técnico |
 | Aprobada por | Responsable del proyecto |
 | Fecha de aprobación | 02-09-2026 |
+| Enmendada el | 15-09-2026 — **la tasa de rol se retira sin condición de asociación** (`RN-CM-015` queda para la personalizada). Ver §15 |
 
 !!! info "Qué va en este documento"
 
@@ -156,6 +157,7 @@ Esto no lo vio el diseño. Se descubrió construyendo el módulo el 02-09-2026, 
 | `CA-CM-035` | Retirar dos veces devuelve conflicto, y no «no encontrado» |
 | `CA-CM-036` | El sistema rechaza retirar una tasa inexistente |
 | `CA-CM-037` | Una tasa retirada **no se puede asociar** a ningún producto |
+| `CA-CM-143` | El sistema retira una tasa de rol **sin ninguna condición de asociación**, y desde ese instante `RF-CM-005` deja de resolverla para su producto; una personalizada asociada **sigue rechazándose** (`RN-CM-015`) |
 
 ## 13. Casos límite
 
@@ -178,3 +180,4 @@ Esto no lo vio el diseño. Se descubrió construyendo el módulo el 02-09-2026, 
 |---|---|---|---|
 | 0.1.0 | 28-08-2026 | Redacción inicial. | Responsable técnico |
 | 0.2.0 | 02-09-2026 | **Reescrita sobre el modelo de `cm.md` v0.4.0**, y después de construirse el código. El requerimiento **gana una regla que el diseño no había visto**: `RN-CM-015` —una tasa asociada no se retira—, la única de `CM` nacida de construirlo. Su motivo entra en §2 y su rechazo es `EX-003`: la asociación no tiene retiro lógico y sobreviviría apuntando a una tasa muerta, de modo que **el producto dejaría de comisionar sin que nada lo indicara**. La cascada se descartó porque destruye configuración que nadie pidió destruir. **Y el requerimiento cambia de sitio en el módulo**: deja de ser «la forma de dejar de pagar» para ser **la más destructiva de dos**, porque `RF-CM-008` ahora hace lo otro sin destruir nada. Desaparece toda la argumentación sobre la vigencia —la tabla ya no la tiene—, y con ella el criterio de no cerrarla al retirar, que **se conserva en `RF-CM-006`**, donde sigue habiendo vigencia que no tocar. §13 recoge el coste declarado: retirar una tasa que rige sobre veinte productos exige veinte decisiones explícitas antes. | Responsable técnico |
+| 0.3.0 | 15-09-2026 | **La tasa de rol se retira sin condición** (`RN-CM-021`, [`requirements/cm.md`](../../../requirements/cm.md) v0.14.0 §5.4): `RN-CM-015` —una tasa asociada no se retira— queda solo para la personalizada, porque la de rol ya no tiene asociación que la sostenga, y retirarla es **exactamente** la forma de que el producto deje de pagar a ese rol, a la vista y con motivo. `CA-CM-143`. | Responsable del proyecto |

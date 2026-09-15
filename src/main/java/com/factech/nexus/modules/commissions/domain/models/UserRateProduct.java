@@ -13,17 +13,19 @@ import java.util.UUID;
 /**
  * Sobre qué productos rige una tasa personalizada (`RN-CM-014`, 11-09-2026).
  *
- * <p><b>Gemela de {@link ProductCommissionRate}</b>, y esa simetría es la decisión: el módulo pasa
- * a tener <b>una sola manera</b> de decir sobre qué rige una tasa. Se descartó darle a la
- * personalizada una columna {@code product_id} en su propia fila —resolvía lo mismo y obligaba a
- * aprender dos formas.
+ * <p><b>Nació gemela de {@code ProductCommissionRate}</b>, la asociación de la tasa de rol, para
+ * que el módulo tuviera <b>una sola manera</b> de decir sobre qué rige una tasa. Esa gemela se
+ * retiró el 15-09-2026 (`RN-CM-021`): la tasa de rol nace con su producto, en una columna de su
+ * propia fila. La personalizada <b>sigue asociándose</b> por decisión del responsable del proyecto
+ * —una excepción por persona rige sobre varios productos—, y esta es hoy la única asociación del
+ * módulo.
  *
  * <p><b>La identidad es {@code (user_commission_rate_id, product_id)}</b>: la misma tasa no se
  * asocia dos veces al mismo producto, y eso no es algo que alguien comprueba.
  *
- * <p><b>Lo que NO copia de su gemela es el {@code role_id}.</b> Allí esa columna viaja copiada de
- * la tasa para que `RN-CM-013` pudiera declararse en el esquema, con una clave foránea compuesta
- * que impide que diverja. Aquí <b>no hay nada equivalente que copiar</b>: la regla hermana
+ * <p><b>Lo que NO copiaba de su gemela era el {@code role_id}.</b> Allí esa columna viajaba copiada
+ * de la tasa para que `RN-CM-013` pudiera declararse en el esquema, con una clave foránea compuesta
+ * que impedía que divergiera. Aquí <b>no hay nada equivalente que copiar</b>: la regla hermana
  * (`RN-CM-006`) habla de <b>persona y fechas</b>, y las fechas no caben en una clave primaria sin
  * volver a necesitar el {@code EXCLUDE} que `V85` retiró. Copiar {@code user_id} no compraría
  * ninguna restricción y solo añadiría un dato que puede mentir.

@@ -16,24 +16,25 @@ import java.util.Map;
 import java.util.UUID;
 
 /**
- * Una tasa de comisión <b>de rol</b> (`RF-CM-001`).
+ * Una tasa de comisión <b>de rol</b>: qué paga <b>un producto</b> a un rol vendedor (`RF-CM-001`).
  *
- * <p><b>Es catálogo, no configuración aplicada.</b> Existir no la pone en vigor: rige únicamente
- * sobre los productos a los que se la asocia (`RN-CM-012`). Una tasa recién creada y sin asociar
- * <b>no paga nada a nadie</b> — y eso no falla, se descubre liquidando.
+ * <p><b>Nace con su producto y rige solo sobre él, desde que existe</b> (`RN-CM-021`, 15-09-2026).
+ * Hasta esa fecha era catálogo —sin producto— y regía únicamente donde se la asociaba ({@code
+ * product_commission_rates}, retirada en {@code V94}); hoy <b>registrarla es ponerla en vigor</b>,
+ * y el error posible cambió de signo: ya no es «configuré y no paga» sino «registré y paga desde
+ * ya» (`requirements/cm.md` §5.4).
  *
- * <p><b>Ya no lleva producto, ni persona, ni vigencia</b>, que es lo que la distingue de la versión
- * del 28-08-2026. El producto salió a {@link ProductCommissionRate} y la persona a {@link
- * UserCommissionRate}, con su propia vigencia.
+ * <p><b>Sin persona ni vigencia</b>, que es lo que la distingue de la versión del 28-08-2026: la
+ * persona vive en {@link UserCommissionRate}, con su propia vigencia y su propia asociación.
  *
  * <p><b>Y por no llevar vigencia, esta tabla ya no es un historial.</b> No hay dos filas contando
  * cada una su parte: hay una que ahora dice otra cosa. <b>Corregir un porcentaje reescribe lo que
  * rigió siempre</b>, y lo único que puede preservar el pasado es que la liquidación copie el
  * porcentaje que aplicó (`RN-CM-008`) — liquidación que todavía no existe.
  *
- * <p><b>Varias tasas por rol son legítimas</b>: el catálogo puede ofrecer «`AGENTE` 10 %» y
- * «`AGENTE` 15 %» para asociarlas a productos distintos. Lo que no puede repetirse es un rol sobre
- * el <b>mismo</b> producto, y eso lo cierra la clave primaria de la asociación (`RN-CM-013`).
+ * <p><b>Varias tasas por rol son legítimas, una por producto</b>: «`AGENTE` 10 %» en un producto y
+ * «`AGENTE` 15 %» en otro. Lo que no puede repetirse es un rol sobre el <b>mismo</b> producto entre
+ * las vivas, y eso lo cierra {@code uq_commission_rates_product_role} (`RN-CM-013`).
  */
 @Entity
 @Table(name = "commission_rates")
@@ -44,8 +45,19 @@ public class CommissionRate {
   private UUID id;
 
   /**
-   * El rol al que la tasa paga. <b>Inmutable</b>: cambiarlo no corrige la tasa, crea otra — y
-   * arrastraría consigo todas sus asociaciones a un rol que nadie eligió.
+   * El producto que paga esta tasa (`RN-CM-021`, 15-09-2026).
+   *
+   * <p><b>Obligatorio e inmutable</b>: la tasa de rol nace con su producto y rige solo sobre él.
+   * Cambiar de producto es retirar la tasa y registrar otra, porque lo que se pagó por el primero
+   * tiene que seguir resolviendo la misma fila. Identificador y no asociación, por lo mismo que en
+   * {@code Product}: la entidad vive en otro módulo (D-25).
+   */
+  @Column(name = "product_id", nullable = false, updatable = false)
+  private UUID productId;
+
+  /**
+   * El rol al que la tasa paga. <b>Inmutable</b>: cambiarlo no corrige la tasa, crea otra sobre el
+   * mismo producto con un rol que nadie eligió.
    */
   @Column(name = "role_id", nullable = false, updatable = false)
   private UUID roleId;
@@ -77,7 +89,12 @@ public class CommissionRate {
    * @param ahora instante del alta, inyectado para que la prueba pueda fijarlo
    */
   public static CommissionRate create(
-      UUID id, UUID roleId, CommissionValue value, OffsetDateTime ahora) {
+      UUID id, UUID productId, UUID roleId, CommissionValue value, OffsetDateTime ahora) {
+    if (productId == null) {
+      String mensaje = "El producto de la tasa es obligatorio.";
+      throw new ValidationException(
+          "VAL-013", mensaje, List.of(new FieldError("productId", "VAL-013", mensaje)));
+    }
 
     if (value == null) {
       String mensaje = "La forma de la comisión es obligatoria: porcentaje o valor fijo.";
@@ -87,6 +104,7 @@ public class CommissionRate {
 
     CommissionRate tasa = new CommissionRate();
     tasa.id = id;
+    tasa.productId = productId;
     tasa.roleId = roleId;
     tasa.value = value;
     tasa.createdAt = ahora;
@@ -166,6 +184,8 @@ public class CommissionRate {
    */
   public Map<String, Object> instantanea() {
     Map<String, Object> estado = new LinkedHashMap<>();
+    // El producto va delante del rol: es lo que la fila configura (`RN-CM-021`).
+    estado.put("product_id", productId.toString());
     estado.put("role_id", roleId.toString());
     // La forma va SIEMPRE, y no solo el número. Sin ella, un `10` guardado aquí
     // no dice si esa tasa pagaba una décima parte de la venta o diez unidades
@@ -182,6 +202,11 @@ public class CommissionRate {
 
   public UUID getId() {
     return id;
+  }
+
+  /** El producto que paga la tasa (`RN-CM-021`). Nunca nulo. */
+  public UUID getProductId() {
+    return productId;
   }
 
   public UUID getRoleId() {

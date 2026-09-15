@@ -8,13 +8,12 @@ import java.util.UUID;
  * Puerto de escritura del catálogo de tasas por rol.
  *
  * <p><b>Perdió el bloqueo y la consulta de solapamiento</b> que tenía hasta el 01-09-2026, y no es
- * una simplificación gratuita: <b>sin vigencia no hay nada que pueda solaparse</b>. Dos altas
- * simultáneas del mismo rol producen dos tasas distintas del catálogo, que es legítimo — se
- * asociarán a productos distintos o no se asociará ninguna.
+ * una simplificación gratuita: <b>sin vigencia no hay nada que pueda solaparse</b>.
  *
- * <p>Lo que dos peticiones simultáneas <b>sí</b> pueden burlar es «un porcentaje por rol y
- * producto» (`RN-CM-013`), y eso lo cierra la clave primaria de {@code product_commission_rates},
- * no esto.
+ * <p>Lo que dos peticiones simultáneas <b>sí</b> pueden burlar es «un rol por producto»
+ * (`RN-CM-013`), y desde el 15-09-2026 eso lo cierra {@code uq_commission_rates_product_role} en
+ * esta misma tabla: la tasa nace con su producto (`RN-CM-021`), y {@link #existsAlive} es solo el
+ * mensaje del camino normal.
  */
 public interface CommissionRateRepository {
 
@@ -34,12 +33,17 @@ public interface CommissionRateRepository {
   Optional<CommissionRate> findAny(UUID id);
 
   /**
+   * `RN-CM-013`: ¿hay ya una tasa viva de ese rol sobre ese producto? Es la comprobación con
+   * mensaje del camino normal; la carrera la cierra {@code uq_commission_rates_product_role}.
+   */
+  boolean existsAlive(UUID productId, UUID roleId);
+
+  /**
    * ¿La tasa está asociada a algún producto?
    *
    * <p>Lo necesita el retiro: retirar una tasa asociada <b>dejaría de pagar sin que nada lo
    * dijera</b>, porque la asociación seguiría ahí apuntando a una fila muerta.
    */
-  boolean tieneAsociaciones(UUID id);
 
   /**
    * Fuerza el volcado de lo pendiente dentro de la transacción.

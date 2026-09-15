@@ -5,12 +5,13 @@
 | Requerimiento | `RF-CM-002` |
 | Especificación | [`spec.md`](spec.md) |
 | `spec.md` aprobada el | 02-09-2026 |
-| Versión | 1.2.0 |
+| Versión | 1.3.0 |
 | Reabierto el | ~~11-09-2026 — la tasa personalizada lleva producto: el listado lo publica y admite filtrar por él~~ — **aquella forma se deshizo el mismo día** (`V85`: la personalizada se asocia, no declara); 12-09-2026 — **la asociación de la personalizada se puede LEER**: filtro por producto y cuenta en el listado, y la quinta lectura (Art. I.7) |
 | Estado | **Aprobado** |
 | Autor | Responsable técnico |
 | Aprobado por | Responsable del proyecto |
 | Fecha de aprobación | 02-09-2026 |
+| Enmendada el | 15-09-2026 — **la tasa de rol trae su producto** (`RN-CM-021`): el `SELECT` del listado une `products`, y `associatedProducts` sale del contrato |
 
 !!! info "Qué va en este documento"
 
@@ -206,3 +207,4 @@ Permiso `commissions:read` en las cinco. Alcance global explícito.
     De modo que el dato que verifica es **un importe fijo pequeño**: `10` fijo con `50 %` y `80 %`. Correcta: `10 fijo · 80 % · 50 %`. Perezosa: `80 % · 50 % · 10 fijo` — **el importe fijo se cuela entre medias o al final**, y ahí se ve.
 
     Se escribe en el plan y no solo en la prueba porque **una prueba con los datos equivocados pasa siempre y no avisa de nada**.
+| 1.3.0 | 15-09-2026 | **Enmienda por `RN-CM-021`** ([`requirements/cm.md`](../../../requirements/cm.md) v0.14.0 §5.4): `JpaCommissionRateQueryRepository` une `products` por `product_id` y proyecta `product` en cada fila; el filtro `productId` es un predicado más; `ListProductAssociationsService` (`GET /commission-rates/{id}/products`) se retira. `GET /product-commission-rates?productId=` se reimplementa sobre `commission_rates` con la misma forma. | Responsable técnico |

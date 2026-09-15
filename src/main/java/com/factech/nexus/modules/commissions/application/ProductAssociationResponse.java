@@ -9,12 +9,16 @@ import java.util.List;
 import java.util.UUID;
 
 /**
- * Las asociaciones de una tasa o de un producto.
+ * Lo que paga un producto, y a qué rol: sus tasas de rol vivas.
+ *
+ * <p>Hasta el 15-09-2026 eran «las asociaciones» de una tasa o de un producto; desde `RN-CM-021`
+ * solo queda la lectura por producto, con la misma forma, para que ningún cliente tenga que cambiar
+ * de modelo.
  *
  * <p><b>La colección va envuelta y no desnuda</b>, por lo mismo que la oferta de `PM`: hoy no se
- * pagina —una tasa se asocia a un puñado de productos—, y el día que haga falta, añadir los campos
- * de paginación junto a {@code content} no rompe a nadie. Devolver un array en la raíz obligaría a
- * un cambio incompatible.
+ * pagina —un producto tiene tantas tasas como roles vendedores—, y el día que haga falta, añadir
+ * los campos de paginación junto a {@code content} no rompe a nadie. Devolver un array en la raíz
+ * obligaría a un cambio incompatible.
  */
 @JsonInclude(JsonInclude.Include.ALWAYS)
 public record ProductAssociationResponse(List<ProductAssociationItem> content) {
@@ -25,11 +29,10 @@ public record ProductAssociationResponse(List<ProductAssociationItem> content) {
   }
 
   /**
-   * Una asociación, con el producto, el rol y el porcentaje resueltos.
+   * Una tasa vista desde el producto, con el producto, el rol y el valor resueltos.
    *
-   * <p><b>El porcentaje viaja aquí aunque sea de la tasa y no de la asociación</b>, y es lo que
-   * hace útil la lectura por producto: «qué paga este producto a cada rol» se responde de un
-   * vistazo, sin cruzar con el catálogo.
+   * <p>{@code createdAt} es desde cuándo rige: el alta de la tasa, que desde el 15-09-2026 es el
+   * mismo instante.
    */
   @JsonInclude(JsonInclude.Include.ALWAYS)
   public record ProductAssociationItem(

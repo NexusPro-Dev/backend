@@ -5,8 +5,8 @@
 | Requerimiento | `RF-CM-008` |
 | Especificación | [`spec.md`](spec.md) |
 | `spec.md` aprobada el | 02-09-2026 |
-| Versión | 0.1.0 |
-| Estado | **Aprobado** |
+| Versión | 0.2.0 |
+| Estado | **Descartado el 15-09-2026** |
 | Autor | Responsable técnico |
 | Aprobado por | Responsable del proyecto |
 | Fecha de aprobación | 02-09-2026 |
@@ -129,3 +129,4 @@ Registro de **eliminación** de tipo **asociación** —no física—, con motiv
 | Permiso | Integración | `CA-CM-078` |
 
 **`CA-CM-075` comprueba dos cosas y la segunda es la que importa.** Que el tipo sea `ASSOCIATION` es rutina; que **el motivo esté ahí** es lo que verifica la decisión de §6 — porque `ck_deletion_reason` habría aceptado la fila sin él, y un cambio que quitara la validación del caso de uso **no rompería ninguna restricción del motor**.
+| 0.2.0 | 15-09-2026 | **Descartado** con el requerimiento (`RN-CM-021`). | Responsable técnico |

@@ -6,8 +6,7 @@ import com.factech.nexus.modules.commissions.domain.models.CommissionRate;
 import com.factech.nexus.modules.commissions.domain.models.CommissionValue;
 import com.factech.nexus.modules.commissions.domain.repository.CommissionRateQueryRepository;
 import com.factech.nexus.modules.commissions.domain.repository.CommissionRateRepository;
-import com.factech.nexus.modules.commissions.domain.repository.ProductCommissionRateQueryRepository;
-import com.factech.nexus.modules.commissions.domain.repository.ProductCommissionRateQueryRepository.AssociationRow;
+import com.factech.nexus.modules.products.application.ProductCatalog;
 import com.factech.nexus.shared.audit.AuditEnums.ChangeAction;
 import com.factech.nexus.shared.audit.AuditEvents.ChangeEvent;
 import com.factech.nexus.shared.audit.AuditWriter;
@@ -16,7 +15,6 @@ import com.factech.nexus.shared.error.ResourceNotFoundException;
 import com.factech.nexus.shared.error.ValidationException;
 import java.time.Clock;
 import java.time.OffsetDateTime;
-import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
@@ -55,8 +53,9 @@ public class UpdateCommissionRateService {
 
   private final CommissionRateRepository tasas;
   private final CommissionRateQueryRepository consultas;
-  private final ProductCommissionRateQueryRepository asociaciones;
+  private final ProductCatalog productos;
   private final ProductCommissionCapGuard tope;
+  private final ProductCurrencyScale escala;
   private final AuditWriter auditoria;
   private final Clock reloj;
 
@@ -64,23 +63,26 @@ public class UpdateCommissionRateService {
   public UpdateCommissionRateService(
       CommissionRateRepository tasas,
       CommissionRateQueryRepository consultas,
-      ProductCommissionRateQueryRepository asociaciones,
+      ProductCatalog productos,
       ProductCommissionCapGuard tope,
+      ProductCurrencyScale escala,
       AuditWriter auditoria) {
-    this(tasas, consultas, asociaciones, tope, auditoria, Clock.systemUTC());
+    this(tasas, consultas, productos, tope, escala, auditoria, Clock.systemUTC());
   }
 
   UpdateCommissionRateService(
       CommissionRateRepository tasas,
       CommissionRateQueryRepository consultas,
-      ProductCommissionRateQueryRepository asociaciones,
+      ProductCatalog productos,
       ProductCommissionCapGuard tope,
+      ProductCurrencyScale escala,
       AuditWriter auditoria,
       Clock reloj) {
     this.tasas = tasas;
     this.consultas = consultas;
-    this.asociaciones = asociaciones;
+    this.productos = productos;
     this.tope = tope;
+    this.escala = escala;
     this.auditoria = auditoria;
     this.reloj = reloj;
   }
@@ -110,8 +112,10 @@ public class UpdateCommissionRateService {
 
     // `RN-CM-019`: se comprueba con el valor NUEVO, antes de escribirlo. Hacerlo
     // después dejaría la tasa a medio corregir si el rechazo llegara tarde.
-    if (peticion.valor().presente()) {
-      verificarTope(tasa.getId(), peticion.valor().valor());
+    // El nulo (vaciar el valor) se deja pasar al agregado, que lo rechaza con
+    // `VAL-002`: aquí no hay nada que comparar contra el producto.
+    if (peticion.valor().presente() && peticion.valor().valor() != null) {
+      verificarContraSuProducto(tasa, peticion.valor().valor());
     }
 
     Map<String, Object> cambios = tasa.update(peticion.valor(), OffsetDateTime.now(reloj));
@@ -135,20 +139,20 @@ public class UpdateCommissionRateService {
   }
 
   /**
-   * Revisa el tope de `RN-CM-019` en <b>todos</b> los productos donde esta tasa está asociada, con
-   * el valor que va a regir. Si la tasa no está asociada a ninguno, no hay nada que revisar
-   * (`RN-CM-012`).
+   * Revisa el valor que va a regir <b>contra el único producto de la tasa</b> (`RN-CM-021`,
+   * 15-09-2026): los decimales de su moneda (`RN-CM-017`, `VAL-013`), y el tope y el gratuito
+   * (`RN-CM-019`, `RN-CM-020`) excluyendo de la suma la propia tasa, que es la que cambia.
    *
-   * <p><b>Ordenado por producto</b>, el mismo criterio que usa `AssociateProductService`, para que
-   * dos transacciones que se crucen sobre los mismos productos siempre tomen sus bloqueos en la
-   * misma dirección y ninguna acabe esperando a la otra.
+   * <p>Hasta el 15-09-2026 recorría <b>todos</b> los productos asociados y rechazaba la corrección
+   * entera si cualquiera se pasaba; con un producto por tasa, es una comprobación.
    */
-  private void verificarTope(UUID rateId, CommissionValue valorNuevo) {
-    asociaciones.findByRate(rateId).stream()
-        .sorted(Comparator.comparing(AssociationRow::productId))
-        .forEach(
-            fila ->
-                tope.verificar(
-                    fila.productId(), fila.productCode(), rateId, valorNuevo, "EX-006", "EX-008"));
+  private void verificarContraSuProducto(CommissionRate tasa, CommissionValue valorNuevo) {
+    String codigo =
+        productos
+            .find(tasa.getProductId())
+            .map(ProductCatalog.ProductView::code)
+            .orElse(tasa.getProductId().toString());
+    escala.verificar(tasa.getProductId(), valorNuevo, "VAL-013");
+    tope.verificar(tasa.getProductId(), codigo, tasa.getId(), valorNuevo, "EX-006", "EX-008");
   }
 }

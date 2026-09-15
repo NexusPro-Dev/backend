@@ -1,7 +1,12 @@
 package com.factech.nexus.modules.commissions.application;
 
 /**
- * Cuerpo de {@code POST /api/v1/commission-rates/{id}/products/{productId}/deletion} (`RF-CM-008`).
+ * Cuerpo de {@code POST /api/v1/user-commission-rates/{id}/products/{productId}/deletion}
+ * (`RF-CM-006`).
+ *
+ * <p>Nació para `RF-CM-008`, la desasociación de la tasa de rol, retirada el 15-09-2026 con
+ * `RN-CM-021`: la tasa de rol nace con su producto y no se desasocia — se retira. Queda para la
+ * personalizada, que sigue asociándose.
  *
  * <p><b>Es un POST a un subrecurso y no un DELETE</b>, por lo mismo que en `PM`: el motivo es
  * obligatorio (Art. V.13), HTTP no define semántica para el cuerpo de un {@code DELETE} y un

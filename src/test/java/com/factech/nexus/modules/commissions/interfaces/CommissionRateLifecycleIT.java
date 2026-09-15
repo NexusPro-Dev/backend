@@ -26,13 +26,15 @@ import org.springframework.test.web.servlet.request.MockHttpServletRequestBuilde
 /**
  * Corregir y retirar una tasa de rol (`RF-CM-003` y `RF-CM-004`).
  *
- * <p><b>La prueba que más importa de este archivo es la del retiro con asociaciones vivas.</b> Es
- * una condición que `cm.md` no declara y que se añadió al construir el módulo: sin ella, retirar
- * una tasa asociada haría que el producto <b>dejara de comisionar sin que nada lo dijera</b>,
- * porque la asociación sobreviviría apuntando a una fila que la resolución ya no mira.
+ * <p><b>Desde el 15-09-2026 la tasa nace con su producto</b> (`RN-CM-021`), y eso cambia las dos
+ * operaciones: la corrección comprueba el tope, el gratuito y los decimales <b>contra ese único
+ * producto</b> —hasta entonces recorría todos los asociados y se rechazaba entera si cualquiera se
+ * pasaba—, y el retiro <b>ya no tiene condición</b>: retirar es exactamente la forma de que el
+ * producto deje de pagar a ese rol, a la vista y con motivo. `RN-CM-015` queda para la
+ * personalizada.
  *
- * <p>Y la segunda: <b>corregir borra el pasado</b>. Sin vigencia no hay historial, de modo que el
- * registro de auditoría del cambio es hoy el único sitio donde queda escrito el porcentaje
+ * <p>Y sigue la de siempre: <b>corregir borra el pasado</b>. Sin vigencia no hay historial, de modo
+ * que el registro de auditoría del cambio es hoy el único sitio donde queda escrito el porcentaje
  * anterior.
  */
 @AutoConfigureMockMvc
@@ -41,12 +43,14 @@ class CommissionRateLifecycleIT extends IntegrationTestBase {
   @Autowired private MockMvc mvc;
   @Autowired private JdbcTemplate jdbc;
 
+  private UUID producto;
   private UUID tasa;
 
   @BeforeEach
   void preparar() {
     limpiar();
-    tasa = CommissionFixtures.sembrarTasaDeRol(jdbc, MANAGER, "10.00");
+    producto = CommissionFixtures.sembrarProducto(jdbc, "BOT_A", false, "1000.00");
+    tasa = CommissionFixtures.sembrarTasaDeRol(jdbc, producto, MANAGER, "10.00");
   }
 
   @AfterEach
@@ -59,13 +63,14 @@ class CommissionRateLifecycleIT extends IntegrationTestBase {
   // ---------------------------------------------------------------------------
 
   @Test
-  @DisplayName("corrige el porcentaje y devuelve la tasa con el rol resuelto")
+  @DisplayName("corrige el porcentaje y devuelve la tasa con el producto y el rol resueltos")
   void corrigeElPorcentaje() throws Exception {
     mvc.perform(correccion(tasa, "{\"rateType\":\"PORCENTAJE\",\"percentage\":12.50}"))
         .andExpect(status().isOk())
         .andExpect(jsonPath("$.percentage").value(12.50))
+        .andExpect(jsonPath("$.product.code").value("BOT_A"))
         .andExpect(jsonPath("$.role.code").value("MANAGER"))
-        .andExpect(jsonPath("$.associatedProducts").value(0));
+        .andExpect(jsonPath("$.associatedProducts").doesNotExist());
   }
 
   @Test
@@ -104,9 +109,23 @@ class CommissionRateLifecycleIT extends IntegrationTestBase {
         .andExpect(status().isBadRequest())
         .andExpect(jsonPath("$.errors[0].code").value("VAL-009"));
 
-    // Ignorarlo haría creer que el cambio se aplicó, y la tasa habría arrastrado
-    // sus asociaciones a un rol que nadie eligió.
+    // Ignorarlo haría creer que el cambio se aplicó, y el producto habría
+    // pasado a pagar a un rol que nadie eligió.
     assertThat(rolEnBase()).isEqualTo(MANAGER);
+  }
+
+  @Test
+  @DisplayName("CA-CM-142 · el PRODUCTO tampoco se corrige: es un campo desconocido, 400")
+  void elProductoNoSeCorrige() throws Exception {
+    UUID otro = CommissionFixtures.sembrarProducto(jdbc, "BOT_B");
+
+    // La petición no lo declara y el deserializador rechaza lo desconocido en
+    // vez de descartarlo en silencio. Cambiar de producto es retirar la tasa y
+    // registrar otra (`RN-CM-021`).
+    mvc.perform(correccion(tasa, "{\"productId\":\"" + otro + "\"}"))
+        .andExpect(status().isBadRequest());
+
+    assertThat(productoEnBase()).isEqualTo(producto.toString());
   }
 
   @Test
@@ -149,36 +168,29 @@ class CommissionRateLifecycleIT extends IntegrationTestBase {
   }
 
   @Test
-  @DisplayName("UNA TASA ASOCIADA NO SE RETIRA: si no, el producto dejaría de pagar en silencio")
-  void noSeRetiraLoQueRige() throws Exception {
-    UUID producto = CommissionFixtures.sembrarProducto(jdbc, "BOT_A");
-    CommissionFixtures.asociar(jdbc, tasa, producto, MANAGER);
+  @DisplayName(
+      "CA-CM-143 · LA TASA QUE RIGE SE RETIRA SIN CONDICIÓN, y el producto deja de pagar a ese rol"
+          + " — reescrito el 15-09-2026")
+  void retirarEsDejarDePagar() throws Exception {
+    // Hasta el 15-09-2026 esta prueba decía lo contrario: una tasa asociada no
+    // se retiraba (`RN-CM-015`), porque la asociación habría sobrevivido
+    // apuntando a una fila que la resolución ya no mira. Sin asociación no hay
+    // nada que sobreviva: retirar ES la forma de dejar de pagar, a la vista.
+    UUID vendedora = CommissionFixtures.sembrarPersonaConRol(jdbc, "vendedora", MANAGER);
+    mvc.perform(efectiva(vendedora, producto)).andExpect(jsonPath("$.outcome").value("RESUELTA"));
 
-    mvc.perform(retiro(tasa, "ya no aplica"))
-        .andExpect(status().isConflict())
-        .andExpect(jsonPath("$.errors[0].code").value("EX-005"));
+    mvc.perform(retiro(tasa, "ya no aplica")).andExpect(status().isNoContent());
 
-    // Sin esta condición la asociación seguiría ahí apuntando a una fila que la
-    // resolución ya no mira, y el producto pasaría a no comisionar sin que nada
-    // lo indicara. Es la silenciosidad de `RN-CM-012` por la puerta de atrás.
-    assertThat(estaRetirada()).isFalse();
-  }
+    assertThat(estaRetirada()).isTrue();
+    mvc.perform(efectiva(vendedora, producto)).andExpect(jsonPath("$.outcome").value("SIN_TARIFA"));
 
-  @Test
-  @DisplayName("desasociada primero, la misma tasa sí se retira")
-  void desasociarDesbloqueaElRetiro() throws Exception {
-    UUID producto = CommissionFixtures.sembrarProducto(jdbc, "BOT_A");
-    CommissionFixtures.asociar(jdbc, tasa, producto, MANAGER);
-
+    // Y la ruta de desasociar YA NO EXISTE.
     mvc.perform(
             post("/api/v1/commission-rates/" + tasa + "/products/" + producto + "/deletion")
                 .with(user(SUPERADMIN.toString()).authorities(() -> "commissions:update"))
                 .contentType(MediaType.APPLICATION_JSON)
                 .content("{\"reason\":\"deja de comisionar\"}"))
-        .andExpect(status().isNoContent());
-
-    mvc.perform(retiro(tasa, "ya no se usa")).andExpect(status().isNoContent());
-    assertThat(estaRetirada()).isTrue();
+        .andExpect(status().isNotFound());
   }
 
   @Test
@@ -211,10 +223,10 @@ class CommissionRateLifecycleIT extends IntegrationTestBase {
   @Test
   @DisplayName("CA-CM-090 · corrige de porcentaje a IMPORTE FIJO, y la tasa queda en importe fijo")
   void cambiaLaForma() throws Exception {
-    mvc.perform(correccion(tasa, "{\"rateType\":\"FIJO\",\"fixedAmount\":10000}"))
+    mvc.perform(correccion(tasa, "{\"rateType\":\"FIJO\",\"fixedAmount\":500}"))
         .andExpect(status().isOk())
         .andExpect(jsonPath("$.rateType").value("FIJO"))
-        .andExpect(jsonPath("$.fixedAmount").value(10000))
+        .andExpect(jsonPath("$.fixedAmount").value(500))
         .andExpect(jsonPath("$.percentage").value(org.hamcrest.Matchers.nullValue()));
 
     assertThat(formaEnBase()).isEqualTo("FIJO");
@@ -246,7 +258,7 @@ class CommissionRateLifecycleIT extends IntegrationTestBase {
   @Test
   @DisplayName("CA-CM-092 · el evento lleva la FORMA anterior y la nueva, no solo los números")
   void laAuditoriaGuardaLaForma() throws Exception {
-    mvc.perform(correccion(tasa, "{\"rateType\":\"FIJO\",\"fixedAmount\":10000}"))
+    mvc.perform(correccion(tasa, "{\"rateType\":\"FIJO\",\"fixedAmount\":500}"))
         .andExpect(status().isOk());
 
     // Un `before` que dijera «10.00» sin decir que era un PORCENTAJE no conserva
@@ -259,7 +271,7 @@ class CommissionRateLifecycleIT extends IntegrationTestBase {
                 + " AND action = 'UPDATE' ORDER BY occurred_at DESC LIMIT 1",
             String.class);
 
-    assertThat(cambio).contains("PORCENTAJE 10.00").contains("FIJO 10000");
+    assertThat(cambio).contains("PORCENTAJE 10.00").contains("FIJO 500");
   }
 
   @Test
@@ -295,12 +307,9 @@ class CommissionRateLifecycleIT extends IntegrationTestBase {
   // ---------------------------------------------------------------------------
 
   @Test
-  @DisplayName("CA-CM-110 · corregir una tasa asociada, dentro del tope, se admite con normalidad")
+  @DisplayName("CA-CM-110 · corregir dentro del tope de su producto se admite con normalidad")
   void corregirDentroDelTope() throws Exception {
-    UUID producto = CommissionFixtures.sembrarProducto(jdbc, "BOT_A");
-    CommissionFixtures.asociar(jdbc, tasa, producto, MANAGER);
-    UUID otraTasa = CommissionFixtures.sembrarTasaDeRol(jdbc, DIRECTOR, "30.00");
-    CommissionFixtures.asociar(jdbc, otraTasa, producto, DIRECTOR);
+    CommissionFixtures.sembrarTasaDeRol(jdbc, producto, DIRECTOR, "30.00");
 
     // 60 + 30 = 90: cabe.
     mvc.perform(correccion(tasa, "{\"rateType\":\"PORCENTAJE\",\"percentage\":60.00}"))
@@ -310,72 +319,55 @@ class CommissionRateLifecycleIT extends IntegrationTestBase {
   }
 
   @Test
-  @DisplayName(
-      "CA-CM-111 · corregir una tasa que pasaría de cien un producto asociado SE RECHAZA ENTERA")
+  @DisplayName("CA-CM-111 · corregir a un valor que pasaría de cien su producto SE RECHAZA")
   void corregirQuePasaDeCienSeRechaza() throws Exception {
-    UUID producto = CommissionFixtures.sembrarProducto(jdbc, "BOT_A");
-    CommissionFixtures.asociar(jdbc, tasa, producto, MANAGER);
-    UUID otraTasa = CommissionFixtures.sembrarTasaDeRol(jdbc, DIRECTOR, "30.00");
-    CommissionFixtures.asociar(jdbc, otraTasa, producto, DIRECTOR);
+    CommissionFixtures.sembrarTasaDeRol(jdbc, producto, DIRECTOR, "30.00");
 
     // La tasa vale 10.00; corregirla a 71 dejaría 71 + 30 = 101.
     mvc.perform(correccion(tasa, "{\"rateType\":\"PORCENTAJE\",\"percentage\":71.00}"))
         .andExpect(status().isConflict())
         .andExpect(jsonPath("$.errors[0].code").value("EX-006"));
 
-    // Ni el producto que se pasaba, ni la propia tasa, cambiaron.
     assertThat(porcentajeEnBase()).isEqualByComparingTo("10.00");
   }
 
   @Test
-  @DisplayName("CA-CM-112 · corregir revisa el tope en TODOS los productos: uno rechaza los demás")
-  void corregirRevisaTodosLosProductosDeLaTasa() throws Exception {
-    UUID p1 = CommissionFixtures.sembrarProducto(jdbc, "BOT_1");
-    UUID p2 = CommissionFixtures.sembrarProducto(jdbc, "BOT_2");
+  @DisplayName(
+      "CA-CM-142 · el tope se revisa contra SU producto y no contra otros: la misma cifra pasa o no"
+          + " según dónde rija — reescrito el 15-09-2026")
+  void elTopeEsElDeSuProducto() throws Exception {
+    // Hasta el 15-09-2026 (`CA-CM-112`) una tasa regía sobre varios productos
+    // y la corrección se rechazaba entera si CUALQUIERA se pasaba. Hoy una tasa
+    // tiene un producto: la de BOT_A convive con un DIRECTOR de 30 y cabe hasta
+    // 70; la de BOT_3, con un AGENTE de 49, solo hasta 51.
+    CommissionFixtures.sembrarTasaDeRol(jdbc, producto, DIRECTOR, "30.00");
     UUID p3 = CommissionFixtures.sembrarProducto(jdbc, "BOT_3");
-    CommissionFixtures.asociar(jdbc, tasa, p1, MANAGER);
-    CommissionFixtures.asociar(jdbc, tasa, p2, MANAGER);
-    CommissionFixtures.asociar(jdbc, tasa, p3, MANAGER);
+    UUID enP3 = CommissionFixtures.sembrarTasaDeRol(jdbc, p3, MANAGER, "10.00");
+    CommissionFixtures.sembrarTasaDeRol(jdbc, p3, AGENTE, "49.00");
 
-    // Cada producto tiene otro rol ocupando parte de su cien; p3 deja el margen
-    // más estrecho a propósito, para que sea el que rechace la corrección.
-    CommissionFixtures.asociar(
-        jdbc, CommissionFixtures.sembrarTasaDeRol(jdbc, DIRECTOR, "10.00"), p1, DIRECTOR);
-    CommissionFixtures.asociar(
-        jdbc, CommissionFixtures.sembrarTasaDeRol(jdbc, AGENTE, "20.00"), p2, AGENTE);
-    // Otra tasa del mismo rol AGENTE, para el tercer producto: la asociación es
-    // por producto, y dos tasas de un rol pueden convivir mientras rijan sobre
-    // productos distintos (`RN-CM-013`).
-    CommissionFixtures.asociar(
-        jdbc, CommissionFixtures.sembrarTasaDeRol(jdbc, AGENTE, "49.00"), p3, AGENTE);
-
-    // La tasa vale 10.00 en los tres. Corregirla a 52 dejaría: p1 = 62, p2 = 72,
-    // p3 = 101 (52 + 49). El tercero rechaza, y NINGUNO de los tres cambia.
+    // 52 cabe en BOT_A (52 + 30 = 82) y no en BOT_3 (52 + 49 = 101).
     mvc.perform(correccion(tasa, "{\"rateType\":\"PORCENTAJE\",\"percentage\":52.00}"))
+        .andExpect(status().isOk());
+    mvc.perform(correccion(enP3, "{\"rateType\":\"PORCENTAJE\",\"percentage\":52.00}"))
         .andExpect(status().isConflict())
         .andExpect(jsonPath("$.errors[0].code").value("EX-006"));
 
-    assertThat(porcentajeEnBase()).isEqualByComparingTo("10.00");
+    assertThat(porcentajeEnBase()).isEqualByComparingTo("52.00");
   }
 
   @Test
-  @DisplayName("CA-CM-113 · el valor fijo entra en la suma convertido contra CADA producto")
-  void corregirAValorFijoSeConvierteContraCadaProducto() throws Exception {
-    UUID barato = CommissionFixtures.sembrarProducto(jdbc, "BOT_1000", false, "1000.0000");
-    UUID caro = CommissionFixtures.sembrarProducto(jdbc, "BOT_2000", false, "2000.0000");
-    CommissionFixtures.asociar(jdbc, tasa, barato, MANAGER);
-    CommissionFixtures.asociar(jdbc, tasa, caro, MANAGER);
-    CommissionFixtures.asociar(
-        jdbc, CommissionFixtures.sembrarTasaDeRol(jdbc, DIRECTOR, "50.00"), barato, DIRECTOR);
-    CommissionFixtures.asociar(
-        jdbc, CommissionFixtures.sembrarTasaDeRol(jdbc, AGENTE, "50.00"), caro, AGENTE);
+  @DisplayName(
+      "CA-CM-113 · el valor fijo entra en la suma convertido contra el precio del producto")
+  void corregirAValorFijoSeConvierteContraElPrecio() throws Exception {
+    // El producto vale 1000; el DIRECTOR ocupa 50.
+    CommissionFixtures.sembrarTasaDeRol(jdbc, producto, DIRECTOR, "50.00");
 
-    // 400 / 1000 * 100 = 40 (+ 50 = 90); 400 / 2000 * 100 = 20 (+ 50 = 70). Cabe.
+    // 400 / 1000 * 100 = 40 (+ 50 = 90). Cabe.
     mvc.perform(correccion(tasa, "{\"rateType\":\"FIJO\",\"fixedAmount\":400}"))
         .andExpect(status().isOk());
     assertThat(fixedAmountEnBase()).isEqualByComparingTo("400");
 
-    // 600 / 1000 * 100 = 60 (+ 50 = 110): el producto barato se pasa de cien.
+    // 600 / 1000 * 100 = 60 (+ 50 = 110): se pasa de cien.
     mvc.perform(correccion(tasa, "{\"rateType\":\"FIJO\",\"fixedAmount\":600}"))
         .andExpect(status().isConflict())
         .andExpect(jsonPath("$.errors[0].code").value("EX-006"));
@@ -384,56 +376,68 @@ class CommissionRateLifecycleIT extends IntegrationTestBase {
 
   @Test
   @DisplayName(
-      "CA-CM-117 · con un producto de PRECIO CERO asociado, corregir a valor fijo se ADMITE sin"
-          + " tope y corregir a porcentaje se rechaza entera — reescrito el 14-09-2026")
+      "CA-CM-117 · sobre un producto de PRECIO CERO, corregir a valor fijo se ADMITE sin tope y"
+          + " corregir a porcentaje se rechaza — reescrito el 14-09-2026")
   void corregirConProductoGratuito() throws Exception {
     // Del 08-09-2026 al 14-09-2026 esta prueba decía justo lo contrario
     // (`RN-CM-020`, cm.md v0.13.0): un producto gratuito existe para captar,
     // y quien lo coloca cobra por colocarlo — con un importe, porque un
     // porcentaje de cero es cero.
     UUID gratis = CommissionFixtures.sembrarProducto(jdbc, "BOT_GRATIS", false, "0.0000");
-    CommissionFixtures.asociar(jdbc, tasa, gratis, MANAGER);
+    UUID enGratis = CommissionFixtures.sembrarTasaDeRol(jdbc, gratis, MANAGER, "FIJO", "1.00");
 
-    mvc.perform(correccion(tasa, "{\"rateType\":\"FIJO\",\"fixedAmount\":75000}"))
+    mvc.perform(correccion(enGratis, "{\"rateType\":\"FIJO\",\"fixedAmount\":75000}"))
         .andExpect(status().isOk());
-    assertThat(fixedAmountEnBase()).isEqualByComparingTo("75000");
 
-    // A porcentaje se rechaza ENTERA, como el tope: sobre un gratuito no cabe.
-    mvc.perform(correccion(tasa, "{\"rateType\":\"PORCENTAJE\",\"percentage\":10}"))
+    // A porcentaje se rechaza, como el tope: sobre un gratuito no cabe.
+    mvc.perform(correccion(enGratis, "{\"rateType\":\"PORCENTAJE\",\"percentage\":10}"))
         .andExpect(status().isConflict())
         .andExpect(jsonPath("$.errors[0].code").value("EX-008"));
-    assertThat(fixedAmountEnBase()).isEqualByComparingTo("75000");
+
+    assertThat(
+            jdbc.queryForObject(
+                "SELECT fixed_amount FROM commission_rates WHERE id = CAST(? AS uuid)",
+                java.math.BigDecimal.class,
+                enGratis.toString()))
+        .isEqualByComparingTo("75000");
   }
 
   @Test
-  @DisplayName(
-      "CA-CM-132 · asociada a un gratuito Y a uno con precio, la corrección a fijo comprueba el tope"
-          + " solo contra el que tiene precio")
-  void elGratuitoNoEntraEnNingunaCuenta() throws Exception {
-    UUID gratis = CommissionFixtures.sembrarProducto(jdbc, "BOT_GRATIS", false, "0.0000");
-    UUID barato = CommissionFixtures.sembrarProducto(jdbc, "BOT_BARATO", false, "100.0000");
-    CommissionFixtures.asociar(jdbc, tasa, gratis, MANAGER);
-    CommissionFixtures.asociar(jdbc, tasa, barato, MANAGER);
-
-    // 100 sobre 100 es exactamente el cien por cien del barato: pasa. El
-    // gratuito no suma nada ni frena nada.
-    mvc.perform(correccion(tasa, "{\"rateType\":\"FIJO\",\"fixedAmount\":100}"))
+  @DisplayName("CA-CM-114 · la única tasa de su producto solo compara consigo misma al corregir")
+  void laUnicaTasaDelProductoSoloSeComparaConsigoMisma() throws Exception {
+    // Hasta el 15-09-2026 decía «una tasa SIN asociaciones no comprueba ningún
+    // tope»; hoy siempre hay un producto, y con ella sola dentro el tope es el
+    // cien por cien de ese producto: 99.99 % cabe, y en fijo, el precio entero.
+    mvc.perform(correccion(tasa, "{\"rateType\":\"PORCENTAJE\",\"percentage\":99.99}"))
         .andExpect(status().isOk());
 
-    // 101 sobre 100 se pasa POR EL BARATO, no por el gratuito: el código es el del tope.
-    mvc.perform(correccion(tasa, "{\"rateType\":\"FIJO\",\"fixedAmount\":101}"))
+    mvc.perform(correccion(tasa, "{\"rateType\":\"FIJO\",\"fixedAmount\":1000}"))
+        .andExpect(status().isOk());
+
+    mvc.perform(correccion(tasa, "{\"rateType\":\"FIJO\",\"fixedAmount\":1000.01}"))
         .andExpect(status().isConflict())
         .andExpect(jsonPath("$.errors[0].code").value("EX-006"));
   }
 
   @Test
-  @DisplayName("CA-CM-114 · una tasa SIN asociaciones no comprueba ningún tope al corregir")
-  void corregirSinAsociacionesNoComprueboNingunTope() throws Exception {
-    mvc.perform(correccion(tasa, "{\"rateType\":\"PORCENTAJE\",\"percentage\":99.99}"))
-        .andExpect(status().isOk());
+  @DisplayName(
+      "CA-CM-142 · un importe fijo con más decimales que la moneda del producto se rechaza al"
+          + " corregir (VAL-013)")
+  void losDecimalesDeLaMonedaAlCorregir() throws Exception {
+    int decimales =
+        jdbc.queryForObject(
+            "SELECT c.decimal_places FROM products p JOIN currencies c ON c.id = p.currency_id"
+                + " WHERE p.id = CAST(? AS uuid)",
+            Integer.class,
+            producto.toString());
+    String deMas = "1." + "0".repeat(decimales) + "1";
 
-    mvc.perform(correccion(tasa, "{\"rateType\":\"FIJO\",\"fixedAmount\":99999999.9999}"))
-        .andExpect(status().isOk());
+    mvc.perform(correccion(tasa, "{\"rateType\":\"FIJO\",\"fixedAmount\":" + deMas + "}"))
+        .andExpect(status().isBadRequest())
+        .andExpect(jsonPath("$.errors[0].code").value("VAL-013"))
+        .andExpect(jsonPath("$.errors[0].field").value("fixedAmount"));
+
+    assertThat(formaEnBase()).isEqualTo("PORCENTAJE");
   }
 
   // ---------------------------------------------------------------------------
@@ -484,6 +488,22 @@ class CommissionRateLifecycleIT extends IntegrationTestBase {
         "SELECT CAST(role_id AS text) FROM commission_rates WHERE id = CAST(? AS uuid)",
         String.class,
         tasa.toString());
+  }
+
+  private String productoEnBase() {
+    return jdbc.queryForObject(
+        "SELECT CAST(product_id AS text) FROM commission_rates WHERE id = CAST(? AS uuid)",
+        String.class,
+        tasa.toString());
+  }
+
+  private MockHttpServletRequestBuilder efectiva(UUID persona, UUID producto) {
+    return org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get(
+            "/api/v1/commissions/effective")
+        .param("userId", persona.toString())
+        .param("productId", producto.toString())
+        .param("onDate", "2026-09-15")
+        .with(user(SUPERADMIN.toString()).authorities(() -> "commissions:read"));
   }
 
   private Object actualizadaEn() {

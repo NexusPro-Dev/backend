@@ -100,13 +100,10 @@ public class DeleteCommissionRateService {
     // El coste es dos operaciones donde antes había una — desasociar y luego
     // retirar—, y es un coste que se paga a la vista.
     // -------------------------------------------------------------------------
-    if (tasas.tieneAsociaciones(tasa.getId())) {
-      String mensaje =
-          "La tasa está asociada a uno o más productos. Retire primero esas asociaciones: de otro"
-              + " modo el producto dejaría de comisionar sin que nada lo indicara.";
-      throw new BusinessRuleException(
-          "EX-005", mensaje, List.of(new FieldError("id", "EX-005", mensaje)));
-    }
+    // Sin `RN-CM-015` desde el 15-09-2026: la tasa de rol nace con su producto
+    // y no tiene asociación que la sostenga. Retirarla es EXACTAMENTE la forma
+    // de que el producto deje de pagar a ese rol — a la vista, con motivo e
+    // instantánea. La condición sigue viva para la personalizada.
 
     // La instantánea se toma ANTES de retirar: debe describir la tasa tal como
     // estaba, que es lo que el registro de eliminación existe para conservar.
