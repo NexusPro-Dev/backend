@@ -45,7 +45,8 @@ public class HotlinkController {
           todavía un token; esta lo es porque un enlace se abre antes de
           registrarse.
 
-          **Solo publica productos activos y de alcance `HOTLINKS`**, y solo el
+          **Solo publica productos activos y de alcance `HOTLINK` o `AMBOS`**
+          (`HOTLINKS` hasta el 15-09-2026), y solo el
           nombre de quien porta un rol de tipo `VENDEDOR`. Ni correo, ni
           identificador, ni estado, ni roles.
 
@@ -83,7 +84,7 @@ public class HotlinkController {
 
           **Todo lo que no procede responde el MISMO `404`**: usuario
           inexistente, persona que no es vendedora, código inexistente, producto
-          inactivo, retirado o de alcance `TIENDA`. **No dice cuál falló**, y esa
+          inactivo, retirado o de alcance `TIENDA` o `NINGUNO`. **No dice cuál falló**, y esa
           uniformidad es deliberada — distinguirlos convertiría el enlace en un
           oráculo que dice quién existe.
           """)

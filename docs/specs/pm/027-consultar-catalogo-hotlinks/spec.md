@@ -8,6 +8,7 @@
 | Autor | Responsable técnico |
 | Aprobada por | — |
 | Fecha de aprobación | — |
+| Enmendada el | 15-09-2026 — **lista `HOTLINK` y `AMBOS`** (`RN-PM-021` con el alcance de cuatro valores). Ver §15 |
 
 ---
 
@@ -21,7 +22,7 @@ Que un vendedor vea **qué puede repartir**: los productos que se publican por e
 
 **Es la otra mitad de la vista de venta.** El responsable del proyecto lo puso así al revisar las dos lecturas: el consumidor ve **lo de su membresía** (`RF-PM-007`), y el vendedor ve **el catálogo de hotlinks**. Las dos devuelven productos en la misma forma; lo que cambia es **qué conjunto** y **desde dónde se mira**: la oferta coincide por la membresía de quien llama, y esta **no mira la membresía de nadie** — el vendedor no compra lo que reparte, de modo que un `BECA → ORO` le interesa aunque él ya esté en `ORO`.
 
-**Y es `RN-PM-021` vista entera.** Lo que aquí se lista es exactamente lo que el hotlink público resuelve enlace a enlace: activo, no retirado, alcance `HOTLINKS`. Ninguna regla nueva.
+**Y es `RN-PM-021` vista entera.** Lo que aquí se lista es exactamente lo que el hotlink público resuelve enlace a enlace: activo, no retirado, alcance `HOTLINK` o `AMBOS`. Ninguna regla nueva.
 
 ## 3. Actores
 
@@ -35,7 +36,7 @@ Que un vendedor vea **qué puede repartir**: los productos que se publican por e
 
 ### 4.1 Incluye
 
-- Devolver los productos **activos, no retirados y de alcance `HOTLINKS`**, de los dos tipos, separados en `upgrades` y `services`.
+- Devolver los productos **activos, no retirados y de alcance `HOTLINK` o `AMBOS`**, de los dos tipos, separados en `upgrades` y `services`.
 - En la **misma forma que la oferta**: `price` con su moneda y `exchange`, `videoUrl`, `coverImageUrl`, `rating`, vigencia, alcance e implementación; **sin `purchasePrice`** (`RN-PM-024`).
 - Ordenados como la oferta: upgrades por nivel de destino, bots por fecha de alta.
 
@@ -51,8 +52,8 @@ Que un vendedor vea **qué puede repartir**: los productos que se publican por e
 
 | ID | Regla | Origen |
 |---|---|---|
-| `RN-PM-021` | **El hotlink solo publica lo activo y de alcance `HOTLINKS`** — aquí, el conjunto entero de lo que el hotlink publica | `requirements/pm.md` §5.1 |
-| `RN-PM-019` | El alcance es acumulativo: `HOTLINKS` incluye la tienda, y **solo `HOTLINKS` entra aquí** | `requirements/pm.md` §5.1 |
+| `RN-PM-021` | **El hotlink solo publica lo activo y de alcance `HOTLINK` o `AMBOS`** — aquí, el conjunto entero de lo que el hotlink publica | `requirements/pm.md` §5.1 |
+| `RN-PM-019` | El alcance dice en qué vistas está el producto: **solo `HOTLINK` y `AMBOS` entran aquí**; `TIENDA` y `NINGUNO` no | `requirements/pm.md` §5.1 |
 | `RN-PM-009` | Solo se ofrece lo activo | `requirements/pm.md` §5.1 |
 | `RN-PM-024` | El precio de compra no sale de administración: **no se selecciona** | `requirements/pm.md` §5.1 |
 | `RN-PM-031`, `RN-PM-032`, `RN-PM-033` | `rating`, `videoUrl` y `coverImageUrl` en toda lectura | `requirements/pm.md` §5.1 |
@@ -81,7 +82,7 @@ Ninguna. Sin parámetros: responde el catálogo publicable entero.
 ## 8. Flujo principal
 
 1. Llega un `GET` sin parámetros.
-2. El sistema selecciona los productos activos, no retirados y de alcance `HOTLINKS`, con sus membresías, su moneda y su `rating`, en **una sentencia**.
+2. El sistema selecciona los productos activos, no retirados y de alcance `HOTLINK` o `AMBOS`, con sus membresías, su moneda y su `rating`, en **una sentencia**.
 3. El sistema resuelve la conversión de todos en **dos sentencias más** como máximo, como en la oferta.
 4. Devuelve `200` con las dos listas.
 
@@ -113,7 +114,7 @@ Ninguna: no hay entrada.
 
 | ID | Criterio |
 |---|---|
-| `CA-PM-340` | Con `products:hotlink`, el sistema devuelve **los productos activos de alcance `HOTLINKS`** en `upgrades` y `services`, en la forma de la oferta, y **excluye** los de alcance `TIENDA`, los inactivos y los retirados |
+| `CA-PM-340` | Con `products:hotlink`, el sistema devuelve **los productos activos de alcance `HOTLINK` o `AMBOS`** en `upgrades` y `services`, en la forma de la oferta, y **excluye** los de alcance `TIENDA` y `NINGUNO`, los inactivos y los retirados |
 | `CA-PM-341` | La respuesta **no mira la membresía del actor**: un vendedor en `ORO` ve el `BECA → ORO`, y la respuesta **no trae `currentMembership`** |
 | `CA-PM-342` | La respuesta **no trae `purchasePrice`** bajo ningún nombre aunque el producto lo tenga declarado, y sí trae `price`, `exchange`, `videoUrl`, `coverImageUrl` y `rating` |
 | `CA-PM-343` | El orden es el de la oferta: upgrades por nivel de destino y bots por fecha de alta |
@@ -121,6 +122,7 @@ Ninguna: no hay entrada.
 | `CA-PM-345` | Sin `products:hotlink` responde `403` —también con `products:sale` o `products:read`—, y sin token `401` |
 | `CA-PM-346` | `/products/hotlinks` **no cae en `/products/{id}`**: responde el catálogo y no un `400` por identificador inválido |
 | `CA-PM-347` | La lectura cuesta **una sentencia** más las de la conversión, y **no sube** con el número de productos |
+| `CA-PM-353` | Un producto **`HOTLINK`** activo entra en el catálogo aunque no esté en la tienda, y uno **`NINGUNO`** activo no |
 
 ## 13. Casos límite
 
@@ -135,7 +137,7 @@ Ninguna: no hay entrada.
 | # | Pregunta | Resolución |
 |---|---|---|
 | 1 | ¿No debería la respuesta traer el enlace ya armado? | **No, por ahora.** El vendedor conoce su `username` y la ruta pública es contrato; armarlo aquí costaría leer a la persona en cada página. Si el frontend lo pide, es un campo más —`hotlinkPath`— y no otra ruta |
-| 2 | ¿Por qué no reutilizar `RF-PM-002` con `scope=HOTLINKS&status=ACTIVO`? | **Porque exige `products:read`**, que abre el catálogo administrativo entero con el precio de compra dentro. La vista de hotlinks es de venta, y `products:hotlink` existe precisamente para no dar aquel |
+| 2 | ¿Por qué no reutilizar `RF-PM-002` con `scope=AMBOS&status=ACTIVO`? | **Porque exige `products:read`**, que abre el catálogo administrativo entero con el precio de compra dentro. La vista de hotlinks es de venta, y `products:hotlink` existe precisamente para no dar aquel |
 | 3 | ¿Entran los paquetes? | **Con `RF-PM-026`**, como segunda lista, igual que la oferta ganó `packages`. Hoy no existen |
 
 ## 15. Control de cambios
@@ -143,3 +145,4 @@ Ninguna: no hay entrada.
 | Versión | Fecha | Cambio | Responsable |
 |---|---|---|---|
 | 0.1.0 | 15-09-2026 | Redacción inicial. **La otra mitad de la vista de venta**: el consumidor ve lo de su membresía (`RF-PM-007`) y el vendedor ve el catálogo de hotlinks — que `products:hotlink` esperaba sin endpoint desde el 07-09-2026. Es `RN-PM-021` vista entera y con token: sin regla nueva, sin membresía de por medio, sin precio de compra, sin enlace armado. Ocho criterios, `CA-PM-340` a `CA-PM-347`. | Responsable técnico |
+| 0.2.0 | 15-09-2026 | **Lista `HOTLINK` y `AMBOS`** (`RN-PM-021`, con el alcance de cuatro valores de [`requirements/pm.md`](../../../requirements/pm.md) v0.35.0 §5.2.11). Nació el mismo día con `HOTLINKS` y cambia de letra horas después: el predicado pasa a `scope IN ('HOTLINK','AMBOS')`. `CA-PM-353`. | Responsable del proyecto |

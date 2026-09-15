@@ -21,7 +21,7 @@
 --     `X → X`, y la de BECA vale CERO — el producto gratuito que `RN-PM-006`
 --     admite y sobre el que `RN-CM-020` solo deja comisiones de importe fijo.
 --   · EL ALCANCE FILTRA EN EL HOTLINK (`RN-PM-021`): hay productos `TIENDA`
---     que un enlace público NO resuelve, y `HOTLINKS` que sí.
+--     que un enlace público NO resuelve, y `AMBOS` que sí (era `HOTLINKS` hasta V92).
 --   · LA IMPLEMENTACIÓN (`RN-PM-020`): hay bots `MANUAL`, cuya venta confirmada
 --     queda esperando autorización (`RF-MV-010`).
 --   · EL CATÁLOGO ADMINISTRATIVO (`RF-PM-002`): hay un INACTIVO —el mismo par
@@ -110,24 +110,24 @@ SELECT pg_temp.uuid_v7(),
       ('UPGRADE_BECA_VIP', 'UPGRADE_MEMBRESIA', 'Ascenso a VIP',
        'Pasa de Beca a VIP durante treinta días: señales diarias y acceso al canal VIP.',
        'arrow-up-circle', 'BECA', 'VIP',
-       49.00, NULL, 30, 'ACTIVO', 'HOTLINKS', 'AUTOMATICA', NULL, false),
+       49.00, NULL, 30, 'ACTIVO', 'AMBOS', 'AUTOMATICA', NULL, false),
 
       ('UPGRADE_BECA_PLATINO', 'UPGRADE_MEMBRESIA', 'Ascenso a Platino',
        'Salta de Beca a Platino durante treinta días, sin pasar por VIP.',
        'trending-up', 'BECA', 'PLATINO',
-       129.00, NULL, 30, 'ACTIVO', 'HOTLINKS', 'AUTOMATICA', NULL, false),
+       129.00, NULL, 30, 'ACTIVO', 'AMBOS', 'AUTOMATICA', NULL, false),
 
       ('UPGRADE_BECA_ORO', 'UPGRADE_MEMBRESIA', 'Ascenso a Oro',
        'El salto completo: de Beca a Oro durante treinta días, con mentoría incluida.',
        'crown', 'BECA', 'ORO',
-       299.00, NULL, 30, 'ACTIVO', 'HOTLINKS', 'AUTOMATICA',
+       299.00, NULL, 30, 'ACTIVO', 'AMBOS', 'AUTOMATICA',
        'https://videos.factech.co/productos/ascenso-a-oro.mp4', false),
 
       -- ---- Desde VIP y desde PLATINO ----------------------------------------
       ('UPGRADE_VIP_PLATINO', 'UPGRADE_MEMBRESIA', 'De VIP a Platino',
        'Sube un peldaño: de VIP a Platino durante treinta días.',
        'arrow-up-circle', 'VIP', 'PLATINO',
-       89.00, NULL, 30, 'ACTIVO', 'HOTLINKS', 'AUTOMATICA', NULL, false),
+       89.00, NULL, 30, 'ACTIVO', 'AMBOS', 'AUTOMATICA', NULL, false),
 
       ('UPGRADE_VIP_ORO', 'UPGRADE_MEMBRESIA', 'De VIP a Oro',
        'Dos peldaños de golpe: de VIP a Oro durante treinta días.',
@@ -137,7 +137,7 @@ SELECT pg_temp.uuid_v7(),
       ('UPGRADE_PLATINO_ORO', 'UPGRADE_MEMBRESIA', 'De Platino a Oro',
        'El último peldaño: de Platino a Oro durante treinta días.',
        'crown', 'PLATINO', 'ORO',
-       179.00, NULL, 30, 'ACTIVO', 'HOTLINKS', 'MANUAL', NULL, false),
+       179.00, NULL, 30, 'ACTIVO', 'AMBOS', 'MANUAL', NULL, false),
 
       -- ---- Las cuatro renovaciones: se vende TIEMPO, no nivel ---------------
       ('RENOVAR_BECA', 'UPGRADE_MEMBRESIA', 'Renovar Beca',
@@ -172,12 +172,12 @@ SELECT pg_temp.uuid_v7(),
       ('BOT_SENALES', 'BOT', 'Bot de señales',
        'Señales automáticas en tu canal, durante treinta días.',
        NULL, NULL, NULL,
-       39.00, NULL, 30, 'ACTIVO', 'HOTLINKS', 'AUTOMATICA', NULL, false),
+       39.00, NULL, 30, 'ACTIVO', 'AMBOS', 'AUTOMATICA', NULL, false),
 
       ('BOT_COPY_TRADING', 'BOT', 'Bot de copy trading',
        'Replica las operaciones de la mesa en tu cuenta. Un funcionario lo activa tras verificar el broker.',
        NULL, NULL, NULL,
-       79.00, NULL, 30, 'ACTIVO', 'HOTLINKS', 'MANUAL', NULL, false),
+       79.00, NULL, 30, 'ACTIVO', 'AMBOS', 'MANUAL', NULL, false),
 
       ('BOT_ALERTAS', 'BOT', 'Bot de alertas',
        'Alertas de mercado gratuitas, sin caducidad.',
@@ -194,7 +194,7 @@ SELECT pg_temp.uuid_v7(),
       ('BOT_LEGADO', 'BOT', 'Bot legado',
        'La primera versión del bot de señales. Retirado del catálogo.',
        NULL, NULL, NULL,
-       19.00, NULL, 30, 'INACTIVO', 'HOTLINKS', 'AUTOMATICA', NULL, true)
+       19.00, NULL, 30, 'INACTIVO', 'AMBOS', 'AUTOMATICA', NULL, true)
   ) AS p(codigo, tipo, nombre, descripcion, icono, origen, destino,
          precio, costo, dias, estado, alcance, implementacion, video, retirado)
   LEFT JOIN memberships origen  ON origen.code  = p.origen

@@ -8,7 +8,7 @@
 | Estado | **Aprobado** |
 | Autor | Responsable técnico |
 | Aprobado por | Responsable del proyecto |
-| Enmendado el | 27-08-2026 — `RN-PM-015`; 02-09-2026 — la membresía de **origen** (`RN-PM-017`, `RN-PM-018`); 07-09-2026 — el **alcance** y la **implementación**, corregibles y **no vaciables** (`RN-PM-019`, `RN-PM-020`); 08-09-2026 — el **precio público**, corregible y **sí vaciable** (`RN-PM-023`), y el paso 5 reescrito, §5; 12-09-2026 — **el segundo precio es el de COMPRA** (`purchasePrice`), §4; 14-09-2026 — **el enlace del video**, corregible y **sí vaciable** (`RN-PM-032`), §4; 14-09-2026 — **el icono de un upgrade solo se vacía con portada** (`RN-PM-034`), §4 |
+| Enmendado el | 27-08-2026 — `RN-PM-015`; 02-09-2026 — la membresía de **origen** (`RN-PM-017`, `RN-PM-018`); 07-09-2026 — el **alcance** y la **implementación**, corregibles y **no vaciables** (`RN-PM-019`, `RN-PM-020`); 08-09-2026 — el **precio público**, corregible y **sí vaciable** (`RN-PM-023`), y el paso 5 reescrito, §5; 12-09-2026 — **el segundo precio es el de COMPRA** (`purchasePrice`), §4; 14-09-2026 — **el enlace del video**, corregible y **sí vaciable** (`RN-PM-032`), §4; 14-09-2026 — **el icono de un upgrade solo se vacía con portada** (`RN-PM-034`), §4; 15-09-2026 — **el alcance de cuatro valores** (`RN-PM-019`) |
 | Fecha de aprobación | 26-08-2026 |
 
 ---

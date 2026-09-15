@@ -414,15 +414,14 @@ class ProductListIT extends IntegrationTestBase {
   }
 
   @Test
-  @DisplayName("`CA-PM-115` — filtra por alcance, y el filtro es el único sitio donde se consulta")
+  @DisplayName("`CA-PM-115` — filtra por alcance y devuelve solo los del valor pedido")
   void filtraPorAlcance() throws Exception {
-    jdbc.update("UPDATE products SET scope = 'HOTLINKS' WHERE code IN ('ASESORIA', 'SOPORTE')");
+    jdbc.update("UPDATE products SET scope = 'AMBOS' WHERE code IN ('ASESORIA', 'SOPORTE')");
 
-    mvc.perform(listado().param("scope", "HOTLINKS"))
+    mvc.perform(listado().param("scope", "AMBOS"))
         .andExpect(status().isOk())
         .andExpect(jsonPath("$.totalElements").value(2))
-        .andExpect(
-            jsonPath("$.content[*].scope").value(Matchers.everyItem(Matchers.is("HOTLINKS"))));
+        .andExpect(jsonPath("$.content[*].scope").value(Matchers.everyItem(Matchers.is("AMBOS"))));
 
     mvc.perform(listado().param("scope", "TIENDA"))
         .andExpect(status().isOk())
@@ -517,6 +516,35 @@ class ProductListIT extends IntegrationTestBase {
         .andExpect(jsonPath("$.content[0].code").value("UPGRADE_PLATA"))
         .andExpect(jsonPath("$.content[0].videoUrl").doesNotExist())
         .andExpect(jsonPath("$.content[0]").value(Matchers.hasKey("videoUrl")));
+  }
+
+  @Test
+  @DisplayName(
+      "`CA-PM-349` — el filtro admite los cuatro alcances, ve al NINGUNO, y rechaza HOTLINKS")
+  void elFiltroDeAlcanceAdmiteLosCuatro() throws Exception {
+    jdbc.update("UPDATE products SET scope = 'HOTLINK' WHERE code = 'ASESORIA'");
+    jdbc.update("UPDATE products SET scope = 'AMBOS' WHERE code = 'SOPORTE'");
+    jdbc.update(
+        "UPDATE products SET scope = 'NINGUNO', status = 'ACTIVO' WHERE code = 'UPGRADE_ORO'");
+
+    for (String alcance : new String[] {"TIENDA", "HOTLINK", "AMBOS", "NINGUNO"}) {
+      mvc.perform(listado().param("scope", alcance))
+          .andExpect(status().isOk())
+          .andExpect(jsonPath("$.content", Matchers.not(Matchers.empty())))
+          .andExpect(
+              jsonPath("$.content[*].scope").value(Matchers.everyItem(Matchers.is(alcance))));
+    }
+    // El `NINGUNO` activo se ve aquí, y solo aquí: ninguna vista de venta lo ofrece.
+    mvc.perform(listado().param("scope", "NINGUNO"))
+        .andExpect(jsonPath("$.content[0].code").value("UPGRADE_ORO"))
+        .andExpect(jsonPath("$.content[0].status").value("ACTIVO"));
+
+    mvc.perform(listado().param("scope", "HOTLINKS"))
+        .andExpect(status().isBadRequest())
+        .andExpect(jsonPath("$.errors[0].code").value("VAL-006"))
+        .andExpect(jsonPath("$.errors[0].field").value("scope"));
+
+    jdbc.update("UPDATE products SET scope = 'TIENDA'");
   }
 
   @Test

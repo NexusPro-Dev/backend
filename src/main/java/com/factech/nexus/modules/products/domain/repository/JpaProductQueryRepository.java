@@ -295,6 +295,9 @@ public class JpaProductQueryRepository implements ProductQueryRepository {
                   ) r ON true
                  WHERE p.deleted_at IS NULL
                    AND p.status = 'ACTIVO'
+                   -- `RN-PM-019` (15-09-2026): la oferta filtra por alcance por
+                   -- primera vez. HOTLINK y NINGUNO no son de la tienda.
+                   AND p.scope IN ('TIENDA', 'AMBOS')
                    AND ( p.type = 'BOT'
                          OR p.source_membership_id = CAST(:membresia AS uuid) )
                  ORDER BY CASE WHEN p.type = 'UPGRADE_MEMBRESIA' THEN 0 ELSE 1 END,
@@ -351,7 +354,7 @@ public class JpaProductQueryRepository implements ProductQueryRepository {
                   ) r ON true
                  WHERE p.deleted_at IS NULL
                    AND p.status = 'ACTIVO'
-                   AND p.scope = 'HOTLINKS'
+                   AND p.scope IN ('HOTLINK', 'AMBOS')
                  ORDER BY CASE WHEN p.type = 'UPGRADE_MEMBRESIA' THEN 0 ELSE 1 END,
                           m.level DESC,
                           p.created_at ASC,
@@ -464,7 +467,7 @@ public class JpaProductQueryRepository implements ProductQueryRepository {
                  WHERE upper(p.code) = upper(:codigo)
                    AND p.status = 'ACTIVO'
                    AND p.deleted_at IS NULL
-                   AND p.scope = 'HOTLINKS'
+                   AND p.scope IN ('HOTLINK', 'AMBOS')
                 """,
                 Tuple.class)
             .setParameter("codigo", code)

@@ -366,12 +366,11 @@ class ProductDetailIT extends IntegrationTestBase {
       "`CA-PM-118` — el detalle devuelve el alcance y la implementación, retirado incluido")
   void alcanceEImplementacionEnElDetalle() throws Exception {
     jdbc.update(
-        "UPDATE products SET scope = 'HOTLINKS', implementation = 'AUTOMATICA' WHERE id = ?",
-        upgrade);
+        "UPDATE products SET scope = 'AMBOS', implementation = 'AUTOMATICA' WHERE id = ?", upgrade);
 
     mvc.perform(detalle(upgrade))
         .andExpect(status().isOk())
-        .andExpect(jsonPath("$.scope").value("HOTLINKS"))
+        .andExpect(jsonPath("$.scope").value("AMBOS"))
         .andExpect(jsonPath("$.implementation").value("AUTOMATICA"));
 
     // En el bot también: ninguna de las dos depende del tipo.

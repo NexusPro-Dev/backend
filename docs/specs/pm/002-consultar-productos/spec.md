@@ -16,6 +16,7 @@
 | Enmendada el | 14-09-2026 — **cada fila trae `rating` —promedio y cantidad de reseñas vivas— **en la misma sentencia**, y el número de consultas no sube** (`RN-PM-031`, `RF-PM-009`). Ver §15 |
 | Enmendada el | 14-09-2026 — **cada fila trae `videoUrl`, el enlace del video** (`RN-PM-032`), presente y nulo cuando no hay. Ver §15 |
 | Enmendada el | 14-09-2026 — **cada fila trae `coverImageUrl`, la dirección de la portada** (`RN-PM-033`, `RF-PM-014`), presente y nula cuando no hay, sin consulta más. Ver §15 |
+| Enmendada el | 15-09-2026 — **el filtro `scope` admite los cuatro valores** (`RN-PM-019`), y es la única lectura donde se ve un `NINGUNO`. Ver §15 |
 
 ---
 
@@ -165,7 +166,7 @@ Con `RF-PM-001` se puede **crear** un producto y no **verlo**: quien administra 
 | `CA-PM-075` | El sistema ordena por nombre, por precio y por fecha de alta cuando se le pide, y **rechaza cualquier otro campo** en lugar de ignorarlo |
 | `CA-PM-076` | El sistema devuelve las mismas filas sin repetir ni saltarse ninguna al recorrer todas las páginas, aunque varios productos compartan el valor por el que se ordena |
 | `CA-PM-077` | El sistema devuelve los retirados a cualquier actor con el permiso de lectura, **sin exigir uno propio**, y **sin incluir el motivo del retiro** — que sí devuelve el detalle de `RF-PM-003`, uno a uno |
-| `CA-PM-115` | El sistema filtra por **alcance** y devuelve solo los de `TIENDA` o solo los de `HOTLINKS` |
+| `CA-PM-115` | El sistema filtra por **alcance** y devuelve solo los del valor pedido — `TIENDA` o `HOTLINKS` hasta el 15-09-2026; desde entonces, cualquiera de los cuatro (`CA-PM-349`) |
 | `CA-PM-116` | El sistema filtra por **implementación**, admite el valor en minúsculas y **rechaza el que está fuera del dominio junto al resto de parámetros inválidos**, no por separado |
 | `CA-PM-117` | Cada fila del listado devuelve **el alcance y la implementación**, en los dos tipos de producto |
 | `CA-PM-142` | El sistema devuelve el **color** de las dos membresías de cada upgrade, resueltas en la misma sentencia |
@@ -174,6 +175,7 @@ Con `RF-PM-001` se puede **crear** un producto y no **verlo**: quien administra 
 | `CA-PM-165` | El sistema resuelve la conversión de una página **sin una consulta por fila**: la moneda por omisión una vez y las tasas de todas las monedas presentes en una sola sentencia |
 | `CA-PM-223` | Cada fila devuelve **`videoUrl`** tal cual se guardó, y **presente y nulo** en los productos que no lo declaran |
 | `CA-PM-232` | Cada fila devuelve **`coverImageUrl`** con la forma `/api/v1/product-images/{uuid}` en los productos con portada, y **presente y nulo** en los que no; **no es un filtro**, y el listado **no lee `product_images`**: el número de sentencias no sube |
+| `CA-PM-349` | El sistema filtra por **cada uno de los cuatro alcances** y devuelve solo los suyos; un producto `NINGUNO` **activo** aparece aquí y en ninguna vista de venta; y `scope=HOTLINKS` se rechaza con `VAL-006` |
 
 ## 13. Casos límite
 
@@ -212,3 +214,4 @@ Ninguna. Las cuatro se resolvieron el 26-08-2026, antes de aprobar la especifica
 | 0.9.0 | 14-09-2026 | **Entra `rating` en la respuesta** —el promedio y la cantidad de reseñas vivas del producto— por `RN-PM-031` ([`requirements/pm.md`](../../../requirements/pm.md) v0.24.0 §5.2.7): cada fila trae `rating` —promedio y cantidad de reseñas vivas— **en la misma sentencia**, y el número de consultas no sube. Enmienda de Art. I.7 declarada por el plan de [`RF-PM-009`](../009-resenar-producto/plan.md) §4.1 y construida por sus tareas `T-10` y `T-11`; los criterios que la prueban son `CA-PM-180` a `CA-PM-182` de aquella tripleta. **El promedio no se guarda en `products`**: se cuenta, por un `LEFT JOIN LATERAL` sobre el índice parcial de `product_comments`, para que ninguna copia pueda quedarse atrás. | Responsable del proyecto |
 | 0.10.0 | 14-09-2026 | **Cada fila trae `videoUrl`, el enlace del video** (`RN-PM-032`, [`requirements/pm.md`](../../../requirements/pm.md) v0.27.0 §5.2.8), presente y nulo cuando no hay. **No es un filtro** y no cuesta ninguna consulta: se selecciona en la misma sentencia. Nace `CA-PM-223`. Enmienda de Art. I.7. | Responsable del proyecto |
 | 0.11.0 | 14-09-2026 | **Cada fila trae `coverImageUrl`, la dirección de la portada** (`RN-PM-033`, [`requirements/pm.md`](../../../requirements/pm.md) v0.29.0 §5.2.9), presente y nula cuando no hay. Es la dirección del `GET` público de `RF-PM-016`, construida sobre `cover_image_id` **sin consulta más y sin tocar `product_images`**: un listado que arrastrara los bytes de cada portada pesaría megas por página. **No es un filtro.** `CA-PM-232`. Enmienda que construye `RF-PM-014` (Art. I.7). | Responsable del proyecto |
+| 0.12.0 | 15-09-2026 | **El filtro `scope` admite los cuatro valores** (`RN-PM-019` reescrita, [`requirements/pm.md`](../../../requirements/pm.md) v0.35.0 §5.2.11): `TIENDA`, `HOTLINK`, `AMBOS`, `NINGUNO`; `HOTLINKS` se rechaza con `VAL-006`. Es **la única lectura donde se ve un producto `NINGUNO`**, porque ninguna vista de venta lo ofrece. `CA-PM-349`. | Responsable del proyecto |

@@ -15,6 +15,7 @@
 | Enmendada el | 14-09-2026 — **la respuesta de la edición devuelve `rating`, que la edición no toca** (`RN-PM-031`, `RF-PM-009`). Ver §15 |
 | Enmendada el | 14-09-2026 — **el enlace del video se corrige y SÍ admite vaciarse** (`RN-PM-032`), en los dos tipos. Ver §15 |
 | Enmendada el | 14-09-2026 — **el icono de un upgrade solo se vacía si hay PORTADA** (`RN-PM-034`, `RF-PM-014`); la portada no se corrige por aquí, y la respuesta gana `coverImageUrl`. Ver §15 |
+| Enmendada el | 15-09-2026 — **el alcance se corrige a cualquiera de los cuatro valores** (`RN-PM-019`); `HOTLINKS` se rechaza con `400` como valor fuera del dominio. Ver §15 |
 
 ---
 
@@ -212,6 +213,7 @@ Un producto se equivoca de nombre, se le escapa una falta en la descripción o c
 | `CA-PM-234` | El sistema **rechaza vaciar el icono** —nulo o cadena vacía— de un upgrade **sin portada** con `VAL-010`, nombra `icon`, y **no aplica ninguno** de los demás cambios enviados; y **corregirlo por otro** sigue admitiéndose |
 | `CA-PM-235` | El sistema **vacía el icono** de un upgrade **con portada**, y lo audita; y en un **bot**, `icon: null` sigue siendo un vaciado sin efecto y sin `VAL-010` |
 | `CA-PM-236` | La respuesta de la corrección trae **`coverImageUrl`** —la dirección cuando hay portada, nulo y presente cuando no—, y un `coverImageUrl` en el cuerpo **se rechaza con `400`** sin cambiar nada, como todo campo desconocido |
+| `CA-PM-350` | El sistema corrige el alcance a **cada uno de los cuatro valores** —también a `NINGUNO` en un producto activo, que sigue activo y deja de ofrecerse— y rechaza `HOTLINKS` con `400` —valor fuera del dominio del enumerado— sin aplicar nada más |
 
 ## 13. Casos límite
 
@@ -253,3 +255,4 @@ Ninguna. Dos se resolvieron el 26-08-2026 y **las otras dos quedaron respondidas
 | 0.9.0 | 14-09-2026 | **El enlace del video entra del lado corregible, y SÍ admite vaciarse** (`RN-PM-032`, [`requirements/pm.md`](../../../requirements/pm.md) v0.27.0 §5.2.8), por decisión del responsable del proyecto. Va con la descripción, el icono, la vigencia y el precio de compra: su nulo es un estado legítimo —«no tiene video»— y el nulo explícito es una orden. **En los dos tipos**, sin la condición cruzada del icono, y con la misma forma que en el alta (`VAL-009`). Nacen `CA-PM-225` a `CA-PM-227`. Enmienda de Art. I.7. | Responsable del proyecto |
 | 0.11.0 | 14-09-2026 | **Construida la enmienda de la portada** (`T-24`). Una precisión de construcción: un `coverImageUrl` en el cuerpo **se rechaza con `400`** —`FAIL_ON_UNKNOWN_PROPERTIES`— y no se ignora, como todo campo desconocido; ignorarlo haría creer que el cambio se aplicó (`CA-PM-236` reescrito). | Responsable técnico |
 | 0.10.0 | 14-09-2026 | **El icono de un upgrade solo se vacía si hay portada** (`RN-PM-034`, [`requirements/pm.md`](../../../requirements/pm.md) v0.29.0 §5.2.9), por decisión del responsable del proyecto: un upgrade siempre tiene portada o icono, **al registrar y en cada corrección**. Es la segunda cara de la regla —la primera es el alta, `RF-PM-001` v0.13.0; la tercera, quitar la portada, `RF-PM-015`— y vive en `Product.update`, que es el único que ve las dos columnas. **Nace `VAL-010`** y se rechaza **sin aplicar nada más**, como todo rechazo de esta operación; en el bot nada cambia. **La portada no se corrige por aquí**: es un archivo con sus endpoints. La respuesta gana `coverImageUrl`. `CA-PM-234` a `CA-PM-236`. Enmienda que construye `RF-PM-014` (Art. I.7). | Responsable del proyecto |
+| 0.12.0 | 15-09-2026 | **El alcance se corrige a cualquiera de los cuatro valores** (`RN-PM-019` reescrita, [`requirements/pm.md`](../../../requirements/pm.md) v0.35.0 §5.2.11). Corregir un producto activo a `NINGUNO` **no lo desactiva**: sigue activo y deja de ofrecerse, que es exactamente para lo que existe el valor. `HOTLINKS` se rechaza con `400` como valor fuera del dominio. `CA-PM-350`. | Responsable del proyecto |

@@ -130,6 +130,34 @@ class ProductsIT extends IntegrationTestBase {
   }
 
   @Test
+  @DisplayName("`CA-PM-348` — el alta admite los cuatro alcances y rechaza HOTLINKS con VAL-015")
+  void losCuatroAlcances() throws Exception {
+    String[] alcances = {"TIENDA", "HOTLINK", "AMBOS", "NINGUNO"};
+    for (int i = 0; i < alcances.length; i++) {
+      mvc.perform(
+              alta(
+                  """
+                  {"scope":"%s","implementation":"AUTOMATICA","code":"BOT_%d","type":"BOT","name":"Bot %d",
+                   "price":9.99,"currencyId":"%s"}
+                  """
+                      .formatted(alcances[i], i, i, USD)))
+          .andExpect(status().isCreated())
+          .andExpect(jsonPath("$.scope").value(alcances[i]));
+    }
+    mvc.perform(
+            alta(
+                """
+                {"scope":"HOTLINKS","implementation":"AUTOMATICA","code":"BOT_X","type":"BOT","name":"Bot X",
+                 "price":9.99,"currencyId":"%s"}
+                """
+                    .formatted(USD)))
+        // Como cualquier valor fuera del dominio del enumerado (`CA-PM-112`):
+        // el cuerpo no es válido, y no se toma por ausente.
+        .andExpect(status().isBadRequest());
+    assertThat(cuantosProductos()).isEqualTo(4);
+  }
+
+  @Test
   @DisplayName(
       "`CA-PM-230` — `RN-PM-034`: un upgrade SIN icono se rechaza con VAL-018 y no registra")
   void elIconoEsObligatorioEnElUpgrade() throws Exception {
@@ -904,7 +932,7 @@ class ProductsIT extends IntegrationTestBase {
   }
 
   @Test
-  @DisplayName("`CA-PM-113` — un BOT admite `HOTLINKS` y `MANUAL`: ninguna depende del tipo")
+  @DisplayName("`CA-PM-113` — un BOT admite `AMBOS` y `MANUAL`: ninguna depende del tipo")
   void ningunaDependeDelTipo() throws Exception {
     // Es la prueba que separa estas dos reglas de `RN-PM-002` y `RN-PM-016`,
     // que SÍ dependen del tipo. Un bot también se muestra en algún sitio y
@@ -912,12 +940,12 @@ class ProductsIT extends IntegrationTestBase {
     mvc.perform(
             alta(
                 """
-                {"scope":"HOTLINKS","implementation":"MANUAL","code":"ASESORIA","type":"BOT",
+                {"scope":"AMBOS","implementation":"MANUAL","code":"ASESORIA","type":"BOT",
                  "name":"Asesoría","price":10.00,"currencyId":"%s"}
                 """
                     .formatted(USD)))
         .andExpect(status().isCreated())
-        .andExpect(jsonPath("$.scope").value("HOTLINKS"))
+        .andExpect(jsonPath("$.scope").value("AMBOS"))
         .andExpect(jsonPath("$.implementation").value("MANUAL"));
   }
 
@@ -933,13 +961,13 @@ class ProductsIT extends IntegrationTestBase {
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(
                     """
-                    {"scope":"HOTLINKS","implementation":"MANUAL","code":"UPGRADE_ORO",
+                    {"scope":"AMBOS","implementation":"MANUAL","code":"UPGRADE_ORO",
                      "type":"UPGRADE_MEMBRESIA","icon":"crown","name":"Ascenso a Oro","sourceMembershipId":"%s",
                      "targetMembershipId":"%s","price":49.99,"currencyId":"%s"}
                     """
                         .formatted(free, oro, USD)))
         .andExpect(status().isCreated())
-        .andExpect(jsonPath("$.scope").value("HOTLINKS"))
+        .andExpect(jsonPath("$.scope").value("AMBOS"))
         .andExpect(jsonPath("$.implementation").value("MANUAL"));
 
     String cambios =
@@ -953,7 +981,7 @@ class ProductsIT extends IntegrationTestBase {
 
     // La instantánea es el ÚNICO sitio donde queda escrito con qué
     // configuración nació un producto que después `RF-PM-004` puede corregir.
-    assertThat(cambios).contains("HOTLINKS").contains("MANUAL").contains("implementation");
+    assertThat(cambios).contains("AMBOS").contains("MANUAL").contains("implementation");
   }
 
   @Test

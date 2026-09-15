@@ -654,23 +654,30 @@ class ProductOfferIT extends IntegrationTestBase {
   }
 
   @Test
-  @DisplayName("`CA-PM-124` — los DOS alcances llegan a la tienda: la escala no filtra aquí")
-  void laEscalaNoFiltraLaOferta() throws Exception {
-    // Es la prueba que verifica que nadie añadió el filtro «por simetría» con
-    // `RF-PM-002`. `HOTLINKS` INCLUYE la tienda, de modo que un predicado
-    // sobre esta columna devolvería siempre lo mismo que no ponerlo — y quien
-    // lo escribiera dejaría fuera de la tienda productos que deben estar.
-    jdbc.update("UPDATE products SET scope = 'HOTLINKS' WHERE code = 'BOT_SENALES'");
+  @DisplayName(
+      "`CA-PM-351` — la oferta filtra por alcance: solo TIENDA y AMBOS; HOTLINK y NINGUNO no")
+  void laOfertaFiltraPorAlcance() throws Exception {
+    // Era `CA-PM-124` —«la escala no filtra aquí»— hasta el 15-09-2026. Con
+    // cuatro valores explícitos ya no hay escala: `HOTLINK` y `NINGUNO` no son
+    // de la tienda, y esta lectura los deja fuera aunque estén activos y sean
+    // de la membresía de quien llama (`RN-PM-019`).
+    jdbc.update("UPDATE products SET scope = 'AMBOS' WHERE code = 'BOT_SENALES'");
+    jdbc.update("UPDATE products SET scope = 'HOTLINK' WHERE code = 'UP_VIP'");
+    jdbc.update("UPDATE products SET scope = 'NINGUNO' WHERE code = 'UP_PLATINO'");
 
     mvc.perform(oferta(enFree))
         .andExpect(status().isOk())
-        // LOS DOS bots activos siguen ahí: uno de cada alcance, y ninguno se
-        // queda fuera por el suyo.
+        // `AMBOS` entra como `TIENDA`; los dos bots siguen ahí.
         .andExpect(jsonPath("$.services.content.length()").value(2))
         .andExpect(jsonPath("$.services.content[0].code").value("BOT_SENALES"))
-        .andExpect(jsonPath("$.services.content[0].scope").value("HOTLINKS"))
-        .andExpect(jsonPath("$.services.content[1].code").value("BOT_SOPORTE"))
-        .andExpect(jsonPath("$.services.content[1].scope").value("TIENDA"));
+        .andExpect(jsonPath("$.services.content[0].scope").value("AMBOS"))
+        .andExpect(jsonPath("$.services.content[1].scope").value("TIENDA"))
+        // De los cuatro upgrades desde BECA, dos dejaron de ser de la tienda.
+        .andExpect(
+            jsonPath("$.upgrades.content[*].code", Matchers.contains("UP_RENOVAR", "UP_ORO")))
+        .andExpect(jsonPath("$.upgrades.content[*].code", Matchers.not(Matchers.hasItem("UP_VIP"))))
+        .andExpect(
+            jsonPath("$.upgrades.content[*].code", Matchers.not(Matchers.hasItem("UP_PLATINO"))));
   }
 
   // ---------------------------------------------------------------------------

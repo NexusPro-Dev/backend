@@ -8,7 +8,7 @@
 | Autor | Responsable técnico |
 | Aprobado por | Responsable del proyecto |
 | Fecha de aprobación | 07-09-2026 |
-| Enmendado el | 14-09-2026 — **`videoUrl` en el producto, sin token** (`RN-PM-032`), §4; 14-09-2026 — **`coverImageUrl` en el producto, sin token** (`RN-PM-033`), §4 |
+| Enmendado el | 14-09-2026 — **`videoUrl` en el producto, sin token** (`RN-PM-032`), §4; 14-09-2026 — **`coverImageUrl` en el producto, sin token** (`RN-PM-033`), §4; 15-09-2026 — **`HOTLINK` o `AMBOS`** en el predicado (`RN-PM-021`) |
 
 ---
 

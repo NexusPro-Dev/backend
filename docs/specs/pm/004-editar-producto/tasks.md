@@ -3,7 +3,7 @@
 | Campo | Valor |
 |---|---|
 | Requerimiento | `RF-PM-004` |
-| Enmendadas | 02-09-2026 — el origen entra en la lista de inmutables |
+| Enmendadas | 02-09-2026 — el origen entra en la lista de inmutables; 15-09-2026 — `T-25` por el **alcance de cuatro valores** |
 | Plan | [`plan.md`](plan.md), aprobado el 26-08-2026 |
 | Estado | **Aprobadas** |
 | Autor | Responsable técnico |
@@ -41,6 +41,7 @@
 | `T-22` | **El segundo precio es el de compra**: `purchasePrice` sustituye a `publicPrice` en `UpdateProductRequest`, en `UpdateProductService` —validación, paso 5 y `field` de los errores— y en el diff de `Product.update` (`purchase_price`); la prosa de la `@Operation` deja de decir «se anuncia» y dice que es donde se guarda lo que costó | `RF-PM-001 · T-38` | `CA-PM-153` a `CA-PM-157` con el nombre nuevo, en `ProductUpdateIT`. Enviar `publicPrice` es `400` por propiedad desconocida | **Hecha el 12-09-2026** |
 | `T-23` | **El enlace del video, corregible y vaciable** (`plan.md` §4): `Patchable<String> videoUrl` en `UpdateProductRequest` —contando en `informaAlgo`—, en `Product.update` con `normalizarEnlaceDeVideo` y `VAL-009`, y `video_url` en el diff de auditoría; la prosa de la `@Operation` lo suma a lo que se vacía | `T-22` | `CA-PM-225` a `CA-PM-227` en `ProductUpdateIT`. **El contrato regenerado declara `videoUrl` en el cuerpo del `PATCH`** | **Hecha el 14-09-2026** |
 | `T-24` | **El icono de un upgrade solo se vacía con portada** (`plan.md` §4, enmienda de `RF-PM-014`): en `Product.update`, tras normalizar el icono, upgrade + nulo + sin portada → `VAL-010` nombrando `icon`, sin aplicar nada; `ProductDetailResponse` gana `coverImageUrl`; la prosa de la `@Operation` dice que el icono de un upgrade solo se vacía con portada y que la portada tiene sus propios endpoints | `T-23`, `RF-PM-014 · T-05` | `CA-PM-234` a `CA-PM-236` en `ProductUpdateIT`; la unitaria en `ProductTest`: con portada vacía, sin portada lanza, el bot no lanza | **Hecha el 14-09-2026** |
+| `T-25` | **El alcance de cuatro valores en la corrección** (`RF-PM-001` `T-41` trae el enumerado): sin cambio de código propio —`Patchable<ProductScope>` ya deserializa el dominio entero—; la prosa de la `@Operation` nombra los cuatro y dice que `NINGUNO` no desactiva | `T-24` | `CA-PM-350` en `ProductUpdateIT` | **Hecha el 15-09-2026** |
 
 ## 2. Orden de ejecución
 
@@ -67,6 +68,7 @@
 | `CA-PM-157` | `T-20`, `T-22` |
 | `CA-PM-225` a `CA-PM-227` | `T-23` |
 | `CA-PM-234` a `CA-PM-236` | `T-24` |
+| `CA-PM-350` | `T-25` |
 
 ## 4. Bloqueos
 

@@ -15,6 +15,7 @@
 | Enmendada el | 14-09-2026 — **el producto del hotlink trae `rating` **sin token**: es del producto, no de la persona ni del costo** (`RN-PM-031`, `RF-PM-009`). Ver §15 |
 | Enmendada el | 14-09-2026 — **el producto del hotlink trae `videoUrl`, sin token**: la dirección que administración escribió, tal cual (`RN-PM-032`). Ver §15 |
 | Enmendada el | 14-09-2026 — **el producto del hotlink trae `coverImageUrl`, sin token** (`RN-PM-033`, `RF-PM-014`), y la imagen que señala **tampoco exige token** (`RF-PM-016`). Ver §15 |
+| Enmendada el | 15-09-2026 — **publica `HOTLINK` y `AMBOS`** (`RN-PM-021` con el alcance de cuatro valores); `TIENDA` y `NINGUNO` reciben el `404` uniforme. Ver §15 |
 
 ---
 
@@ -59,7 +60,7 @@ Que **un enlace repartido por un vendedor abra una pantalla**: qué se vende, cu
 |---|---|---|
 | `RN-PM-009` | Solo se ofrece lo activo | `requirements/pm.md` §5.1 |
 | `RN-PM-019` | El alcance dice hasta dónde se muestra, y es acumulativo | `requirements/pm.md` §5.1 |
-| `RN-PM-021` | **El hotlink solo publica lo activo y de alcance `HOTLINKS`** | `requirements/pm.md` §5.1 |
+| `RN-PM-021` | **El hotlink solo publica lo activo y de alcance `HOTLINK` o `AMBOS`** (`HOTLINKS` hasta el 15-09-2026) | `requirements/pm.md` §5.1 |
 | `RN-PM-022` | **De la persona solo el nombre, y solo si es fuerza comercial** | `requirements/pm.md` §5.1 |
 | `RN-PM-024` | **El precio de compra no sale de administración; el precio y la conversión salen en toda lectura** (reescrita el 12-09-2026) — y aquí pesa más que en ninguna otra, porque es **sin token** | `requirements/pm.md` §5.1 |
 | `RN-PM-032` | **Un producto puede enlazar un video, y el enlace sale en toda lectura** — también aquí, **sin token**: es material de venta, no un costo, y lo que se acepta al publicarlo está en `pm.md` §5.2.8 | `requirements/pm.md` §5.1 |
@@ -131,7 +132,7 @@ Que **un enlace repartido por un vendedor abra una pantalla**: qué se vende, cu
 
 1. Llega una petición con el nombre de usuario y el código.
 2. El sistema resuelve **el vendedor** por la lectura que `SP` publica. Si esa lectura devuelve vacío —no existe, o existe y no es fuerza comercial—, la respuesta es `404`.
-3. El sistema resuelve **el producto** por su código, exigiendo **activo, no retirado y de alcance `HOTLINKS`**. Si no lo encuentra, `404`.
+3. El sistema resuelve **el producto** por su código, exigiendo **activo, no retirado y de alcance `HOTLINK` o `AMBOS`**. Si no lo encuentra, `404`.
 4. El sistema pide a `SP` **la tasa vigente hoy** desde la moneda del producto hasta la moneda por omisión.
 5. El sistema devuelve el vendedor, el producto y la conversión —si la hubo—.
 
@@ -200,6 +201,7 @@ Que **un enlace repartido por un vendedor abra una pantalla**: qué se vende, cu
 | `CA-PM-163` | La respuesta **no lleva** el precio de compra en ningún campo, ni como `purchasePrice` ni como `publicPrice`, aunque el producto lo tenga declarado — **retirado el 08-09-2026 y REPUESTO el 12-09-2026**, cuando el segundo importe pasó a ser el costo |
 | `CA-PM-229` | La respuesta lleva **`videoUrl`** sin token, **tal cual se guardó**, y **presente y nulo** cuando el producto no lo declara — y sigue sin llevar `purchasePrice` |
 | `CA-PM-238` | La respuesta lleva **`coverImageUrl`** sin token, con la forma `/api/v1/product-images/{uuid}` cuando hay portada y **presente y nulo** cuando no; la dirección **responde `200` sin token** en `RF-PM-016`; y la respuesta sigue sin llevar `purchasePrice` |
+| `CA-PM-352` | El sistema resuelve el enlace de un producto `HOTLINK` y de uno `AMBOS`, y responde el **mismo `404`** para uno `TIENDA` y para uno `NINGUNO`, activos los cuatro |
 | ~~`CA-PM-169`~~ | ~~El sistema publica los dos importes **sin token**~~ — **retirado el 12-09-2026**: su prueba **se invierte de vuelta** y es la de `CA-PM-163`. Se conserva la fila para que quede escrito que se invirtió dos veces, y por qué |
 
 ## 13. Casos límite
@@ -239,3 +241,4 @@ Que **un enlace repartido por un vendedor abra una pantalla**: qué se vende, cu
 | 0.7.0 | 14-09-2026 | **El producto del hotlink trae `videoUrl`, sin token** (`RN-PM-032`, [`requirements/pm.md`](../../../requirements/pm.md) v0.27.0 §5.2.8): la dirección que administración escribió, **tal cual**, presente y nula cuando no hay. El sistema no la sigue ni la valida más allá de su forma, y lo que eso significa en una ruta pública queda escrito en el módulo. Nace `CA-PM-229`. Enmienda de Art. I.7. | Responsable del proyecto |
 | 0.9.0 | 14-09-2026 | **Construida la enmienda de la portada** (`T-23`), con una corrección: la v0.8.0 decía que la dirección de la imagen «no revela el identificador del producto, que este endpoint se cuida de no publicar», y **el hotlink sí lo publica** —la pantalla lo necesita para las reseñas (`RF-PM-012`)—. Lo que la dirección no dice es *de qué producto es*. `CA-PM-238` reescrito. | Responsable técnico |
 | 0.8.0 | 14-09-2026 | **El producto del hotlink trae `coverImageUrl`, sin token** (`RN-PM-033`, [`requirements/pm.md`](../../../requirements/pm.md) v0.29.0 §5.2.9): la dirección de la portada, presente y nula cuando no hay. Es la única lectura del módulo en la que **la dirección y la imagen se sirven las dos sin credencial**, y es a propósito: la pantalla del hotlink no tiene con qué autenticarse y un `<img>` no lleva token. **La dirección señala una imagen y no un producto**: no cambia al reemplazar la portada, y por eso se cachea un año. `CA-PM-238`. Enmienda que construye `RF-PM-014` (Art. I.7). | Responsable del proyecto |
+| 0.10.0 | 15-09-2026 | **Publica `HOTLINK` y `AMBOS`** (`RN-PM-021`, con el alcance de cuatro valores de [`requirements/pm.md`](../../../requirements/pm.md) v0.35.0 §5.2.11). Lo que cambia es la letra del predicado —`scope IN ('HOTLINK','AMBOS')` donde decía `= 'HOTLINKS'`— y lo que gana el canal: un producto puede estar **solo** aquí. `TIENDA` y `NINGUNO` entran en el `404` uniforme. `CA-PM-352`. | Responsable del proyecto |

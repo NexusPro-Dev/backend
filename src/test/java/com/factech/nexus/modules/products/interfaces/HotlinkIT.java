@@ -73,13 +73,13 @@ class HotlinkIT extends IntegrationTestBase {
     persona("vendedora", "Ana", "Ruiz", AGENTE);
     persona("clienta", "Lucia", "Paz", CLIENTE);
 
-    producto("HL_UPGRADE", "Ascenso a Oro", oro, "HOTLINKS", "ACTIVO", false);
+    producto("HL_UPGRADE", "Ascenso a Oro", oro, "AMBOS", "ACTIVO", false);
     // Un BOT y no un upgrade: `uq_products_upgrade_target` solo admite UNA
     // pareja origen-destino activa, y ese no es el punto de esta prueba.
     bot("HL_TIENDA", "Solo tienda", "TIENDA");
-    producto("HL_INACTIVO", "Sin publicar", oro, "HOTLINKS", "INACTIVO", false);
-    producto("HL_RETIRADO", "Retirado", oro, "HOTLINKS", "ACTIVO", true);
-    bot("HL_BOT", "Bot de señales", "HOTLINKS");
+    producto("HL_INACTIVO", "Sin publicar", oro, "AMBOS", "INACTIVO", false);
+    producto("HL_RETIRADO", "Retirado", oro, "AMBOS", "ACTIVO", true);
+    bot("HL_BOT", "Bot de señales", "AMBOS");
   }
 
   @AfterEach
@@ -311,6 +311,32 @@ class HotlinkIT extends IntegrationTestBase {
   }
 
   @Test
+  @DisplayName("`CA-PM-352` — HOTLINK y AMBOS resuelven; TIENDA y NINGUNO reciben el mismo 404")
+  void losCuatroAlcances() throws Exception {
+    // `HL_BOT` nace `AMBOS` (era `HOTLINKS`); se recorre el dominio entero.
+    for (String alcance : new String[] {"HOTLINK", "AMBOS"}) {
+      jdbc.update("UPDATE products SET scope = ? WHERE code = 'HL_BOT'", alcance);
+      mvc.perform(get("/api/v1/hotlinks/{u}/{c}", "hl-vendedora", "HL_BOT"))
+          .andExpect(status().isOk())
+          .andExpect(jsonPath("$.product.code").value("HL_BOT"));
+    }
+    String tienda = cuerpo404("TIENDA");
+    String ninguno = cuerpo404("NINGUNO");
+    assertThat(ninguno).isEqualTo(tienda);
+    jdbc.update("UPDATE products SET scope = 'AMBOS' WHERE code = 'HL_BOT'");
+  }
+
+  private String cuerpo404(String alcance) throws Exception {
+    jdbc.update("UPDATE products SET scope = ? WHERE code = 'HL_BOT'", alcance);
+    return mvc.perform(get("/api/v1/hotlinks/{u}/{c}", "hl-vendedora", "HL_BOT"))
+        .andExpect(status().isNotFound())
+        .andReturn()
+        .getResponse()
+        .getContentAsString()
+        .replaceAll("\"correlationId\":\"[^\"]*\"", "");
+  }
+
+  @Test
   @DisplayName("`CA-PM-163` — el precio de compra NO aparece en el cuerpo, bajo ningún nombre")
   void elPrecioDeCompraNoViajaSinToken() throws Exception {
     jdbc.update(
@@ -534,7 +560,7 @@ class HotlinkIT extends IntegrationTestBase {
   }
 
   private void productoEnMoneda(String codigo, String nombre, String moneda, String precio) {
-    productoCompleto(codigo, nombre, null, "HOTLINKS", "ACTIVO", false, moneda, precio);
+    productoCompleto(codigo, nombre, null, "AMBOS", "ACTIVO", false, moneda, precio);
   }
 
   private void bot(String codigo, String nombre, String alcance) {

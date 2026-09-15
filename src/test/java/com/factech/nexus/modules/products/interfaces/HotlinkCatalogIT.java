@@ -53,18 +53,18 @@ class HotlinkCatalogIT extends IntegrationTestBase {
     UUID vip = membresia("VIP", "Vip", 2, oro);
     free = membresia("BECA", "Beca", 3, vip);
 
-    // ENTRAN: activos y de alcance HOTLINKS, de los dos tipos, con distinto
+    // ENTRAN: activos y de alcance HOTLINK o AMBOS, de los dos tipos, con distinto
     // nivel de destino para que el orden sea observable.
-    producto("HL_VIP", "UPGRADE_MEMBRESIA", free, vip, "20.00", "ACTIVO", "HOTLINKS", BASE, false);
-    producto("HL_ORO", "UPGRADE_MEMBRESIA", free, oro, "100.00", "ACTIVO", "HOTLINKS", BASE, false);
-    producto("HL_BOT_B", "BOT", null, null, "9.00", "ACTIVO", "HOTLINKS", BASE.plusDays(2), false);
-    producto("HL_BOT_A", "BOT", null, null, "7.00", "ACTIVO", "HOTLINKS", BASE.plusDays(1), false);
+    producto("HL_VIP", "UPGRADE_MEMBRESIA", free, vip, "20.00", "ACTIVO", "AMBOS", BASE, false);
+    producto("HL_ORO", "UPGRADE_MEMBRESIA", free, oro, "100.00", "ACTIVO", "AMBOS", BASE, false);
+    producto("HL_BOT_B", "BOT", null, null, "9.00", "ACTIVO", "AMBOS", BASE.plusDays(2), false);
+    producto("HL_BOT_A", "BOT", null, null, "7.00", "ACTIVO", "AMBOS", BASE.plusDays(1), false);
 
     // NO ENTRAN: alcance TIENDA, inactivo, retirado. El de TIENDA sale desde
     // VIP: `uq_products_upgrade_target` admite un solo activo por pareja.
     producto("TIENDA_ORO", "UPGRADE_MEMBRESIA", vip, oro, "90.00", "ACTIVO", "TIENDA", BASE, false);
-    producto("HL_INACTIVO", "BOT", null, null, "1.00", "INACTIVO", "HOTLINKS", BASE, false);
-    producto("HL_RETIRADO", "BOT", null, null, "1.00", "ACTIVO", "HOTLINKS", BASE, true);
+    producto("HL_INACTIVO", "BOT", null, null, "1.00", "INACTIVO", "AMBOS", BASE, false);
+    producto("HL_RETIRADO", "BOT", null, null, "1.00", "ACTIVO", "AMBOS", BASE, true);
 
     imagen = UUID.randomUUID();
     jdbc.update(
@@ -84,7 +84,7 @@ class HotlinkCatalogIT extends IntegrationTestBase {
 
   @Test
   @DisplayName(
-      "`CA-PM-340` · `CA-PM-343` — solo los activos de HOTLINKS, en las dos listas y en orden")
+      "`CA-PM-340` · `CA-PM-343` — solo los activos de HOTLINK o AMBOS, en las dos listas y en orden")
   void elConjuntoYElOrden() throws Exception {
     mvc.perform(catalogo())
         .andExpect(status().isOk())
@@ -141,6 +141,19 @@ class HotlinkCatalogIT extends IntegrationTestBase {
   }
 
   @Test
+  @DisplayName("`CA-PM-353` — un HOTLINK activo entra aunque no esté en la tienda; un NINGUNO no")
+  void soloHotlinkYAmbos() throws Exception {
+    jdbc.update("UPDATE products SET scope = 'HOTLINK' WHERE code = 'HL_VIP'");
+    jdbc.update("UPDATE products SET scope = 'NINGUNO' WHERE code = 'HL_BOT_A'");
+
+    mvc.perform(catalogo())
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.upgrades.content[*].code", Matchers.contains("HL_VIP", "HL_ORO")))
+        .andExpect(jsonPath("$.upgrades.content[0].scope").value("HOTLINK"))
+        .andExpect(jsonPath("$.services.content[*].code", Matchers.contains("HL_BOT_B")));
+  }
+
+  @Test
   @DisplayName("`CA-PM-344` — sin nada publicable, 200 con las dos listas vacías")
   void vacio() throws Exception {
     jdbc.update("UPDATE products SET cover_image_id = NULL");
@@ -181,7 +194,7 @@ class HotlinkCatalogIT extends IntegrationTestBase {
     long conCuatro = estadisticas.getPrepareStatementCount();
 
     for (int i = 0; i < 5; i++) {
-      producto("HL_MAS_" + i, "BOT", null, null, "3.00", "ACTIVO", "HOTLINKS", BASE, false);
+      producto("HL_MAS_" + i, "BOT", null, null, "3.00", "ACTIVO", "AMBOS", BASE, false);
     }
     estadisticas.clear();
     servicio.catalog();

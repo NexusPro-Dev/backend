@@ -138,6 +138,26 @@ class ProductUpdateIT extends IntegrationTestBase {
   }
 
   @Test
+  @DisplayName(
+      "`CA-PM-350` — el alcance se corrige a los cuatro valores; NINGUNO no desactiva; HOTLINKS no")
+  void elAlcanceSeCorrigeALosCuatro() throws Exception {
+    jdbc.update(
+        "UPDATE products SET status = 'ACTIVO' WHERE id = CAST(? AS uuid)", producto.toString());
+    for (String alcance : new String[] {"HOTLINK", "AMBOS", "NINGUNO", "TIENDA"}) {
+      mvc.perform(corregir(producto, "{\"scope\":\"" + alcance + "\"}"))
+          .andExpect(status().isOk())
+          .andExpect(jsonPath("$.scope").value(alcance))
+          // Corregir a `NINGUNO` no desactiva: sigue activo y deja de ofrecerse.
+          .andExpect(jsonPath("$.status").value("ACTIVO"));
+    }
+
+    // Como cualquier valor fuera del dominio del enumerado: 400 sin aplicar nada.
+    mvc.perform(corregir(producto, "{\"name\":\"Otro\",\"scope\":\"HOTLINKS\"}"))
+        .andExpect(status().isBadRequest());
+    assertThat(nombreDe(producto)).isEqualTo("Ascenso a Oro");
+  }
+
+  @Test
   @DisplayName("`CA-PM-234` — `RN-PM-034`: sin portada, el icono de un upgrade NO se vacía")
   void elIconoNoSeVaciaSinPortada() throws Exception {
     mvc.perform(corregir(producto, "{\"icon\":\"crown\"}")).andExpect(status().isOk());
@@ -645,9 +665,9 @@ class ProductUpdateIT extends IntegrationTestBase {
   @Test
   @DisplayName("`CA-PM-119` — corrige alcance e implementación, y el diff registra antes y después")
   void corrigeAlcanceEImplementacion() throws Exception {
-    mvc.perform(corregir(producto, "{\"scope\":\"HOTLINKS\",\"implementation\":\"AUTOMATICA\"}"))
+    mvc.perform(corregir(producto, "{\"scope\":\"AMBOS\",\"implementation\":\"AUTOMATICA\"}"))
         .andExpect(status().isOk())
-        .andExpect(jsonPath("$.scope").value("HOTLINKS"))
+        .andExpect(jsonPath("$.scope").value("AMBOS"))
         .andExpect(jsonPath("$.implementation").value("AUTOMATICA"));
 
     // Van del lado CORREGIBLE porque ninguna define qué derecho otorga el
@@ -655,7 +675,7 @@ class ProductUpdateIT extends IntegrationTestBase {
     assertThat(ultimoCambio(producto))
         .contains("scope")
         .contains("TIENDA")
-        .contains("HOTLINKS")
+        .contains("AMBOS")
         .contains("implementation")
         .contains("AUTOMATICA");
   }

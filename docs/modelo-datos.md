@@ -2,7 +2,7 @@
 
 | Campo | Valor |
 |---|---|
-| Versión | 0.46.0 |
+| Versión | 0.47.0 |
 | Estado | **Borrador** |
 | Responsable | Bonilla Diaz William Steven |
 | Fecha de creación | 21-08-2026 |
@@ -449,7 +449,7 @@ erDiagram
         varchar code UK "no se libera JAMAS"
         varchar type "UPGRADE_MEMBRESIA o BOT"
         varchar status "nace INACTIVO"
-        varchar scope "TIENDA o HOTLINKS · ACUMULATIVO: el segundo incluye al primero"
+        varchar scope "TIENDA, HOTLINK, AMBOS o NINGUNO · en que VISTAS se ofrece · V92 renombro HOTLINKS a AMBOS"
         varchar implementation "AUTOMATICA o MANUAL · decide si confirmar una venta ENTREGA"
         uuid target_membership_id FK "obligatorio en upgrade, PROHIBIDO en bot · A DONDE lleva"
         uuid source_membership_id FK "obligatorio en upgrade, PROHIBIDO en bot · DE DONDE sale"
@@ -521,7 +521,7 @@ erDiagram
         varchar name "unico entre vivos"
         uuid currency_id FK "OBLIGATORIA e INMUTABLE: solo reune productos en esta moneda"
         varchar status "nace INACTIVO · activar exige DOS productos y descripcion"
-        varchar scope "TIENDA o HOTLINKS · decide si llega al hotlink"
+        varchar scope "TIENDA, HOTLINK, AMBOS o NINGUNO · el mismo dominio que products"
         timestamptz deleted_at "logico, con motivo · SIN price: se CALCULA"
     }
 
@@ -829,3 +829,4 @@ La secuencia no es continua —falta el tramo `V8` a `V12`— y no es un descuid
 | 0.44.0 | 14-09-2026 | **Nace `product_images`, diseñada y pendiente de escribir: la portada de un producto, y la primera tabla del sistema que guarda un archivo** ([`requirements/pm.md`](requirements/pm.md) v0.29.0 §5.2.9 y §10.5). Decisión del responsable del proyecto con seis respuestas preguntadas antes de escribir: **se guarda la imagen y no su dirección** —el video tiene quien lo aloje, la portada no—, **en PostgreSQL con `bytea`** y no en disco ni en un bucket, **por endpoints propios después del alta**, y **servida sin token por identificador de imagen** con caché inmutable. `products` gana `cover_image_id`, **único** y sin `ON DELETE`. **La frase «el sistema no almacena binarios» deja de ser cierta a propósito**, y lo que sobrevive de la frontera es que **no interpreta el contenido**: los bytes se guardan tal cual, el tipo lo deciden sus primeros bytes, y ni recorte ni conversión. **Lo que hay que leer del dibujo es lo que la tabla no tiene**: ni `updated_at` ni `deleted_at`, porque una fila no se modifica —reemplazar es otra fila, y la vieja **se borra físicamente**—, y eso **no es una baja lógica**: se corrige el valor de una columna de `products`, y la auditoría conserva el identificador, no los bytes. **`RN-PM-034` —un upgrade siempre tiene portada o icono— cabe en un `CHECK` y no se declara**: hay filas anteriores que lo violan, y un `CHECK NOT VALID` daría un `500` al activarlas. §5 pasa `PM` a tres tablas —el diagrama de conjunto llevaba a `product_comments` sin dibujar desde la v0.42.0— y la cabecera vuelve a advertir que hay una diseñada sin escribir. | Responsable del proyecto |
 | 0.45.0 | 14-09-2026 | **Se diseñan `product_packages` y `product_package_items`**, los paquetes de productos ([`requirements/pm.md`](requirements/pm.md) v0.31.0 §10.6), por decisión del responsable del proyecto. **El paquete no tiene precio**: es Σ(precio de hoy − descuento) calculada en cada lectura (`RN-PM-036`), por lo mismo que el promedio de reseñas no es una columna. **Tiene moneda propia, obligatoria e inmutable** (`RN-PM-035`), porque un paquete vacío también la tiene y porque no se convierte. La tabla de asociación lleva el descuento —forma y valor— y su clave primaria es «un producto una vez por paquete» (`RN-PM-038`); desasociar borra la fila como `ASSOCIATION`. §5.1 pasa `PM` a cinco tablas, dos escritas y tres diseñadas; §5.3 registra la clave foránea del paquete a `currencies`. | Responsable del proyecto |
 | 0.46.0 | 14-09-2026 | **`product_images` pasa de diseñada a escrita: `V90`** ([`requirements/pm.md`](requirements/pm.md) v0.32.0). La tabla es la de la v0.44.0 sin cambios —`id`, `content_type`, `content`, `created_at`; `ck_product_images_content_type` y `ck_product_images_size`— y `products.cover_image_id` nace con `fk_products_cover_image` sin `ON DELETE` y `uq_products_cover_image`. El sistema llega a **veintinueve tablas escritas**, y quedan dos diseñadas, las de los paquetes. **Lo que confirmó la construcción**: el orden de las tres escrituras —insertar la nueva, repuntar el producto, **volcar**, borrar la anterior— es el que la clave foránea sin `ON DELETE` exige, y JPA lo respeta solo si el volcado es explícito; y ninguna de las cuatro sentencias del catálogo toca la tabla nueva, que es lo que mantiene el número de consultas de cada lectura. | Responsable técnico |
+| 0.47.0 | 15-09-2026 | **`products.scope` pasa a cuatro valores: `TIENDA`, `HOTLINK`, `AMBOS`, `NINGUNO`** ([`requirements/pm.md`](requirements/pm.md) v0.35.0 §5.2.11), por decisión del responsable del proyecto. **Ninguna columna nueva**: `V92` reemplaza `ck_products_scope` y **antes renombra las filas `HOTLINKS` a `AMBOS`** — un `CHECK` no se puede declarar sobre filas que lo violan, y el orden `UPDATE` → `DROP` → `ADD` es lo que lo hace posible en una sola migración. **El renombrado es fiel**: `HOTLINKS` significaba «tienda y hotlinks», que es lo que `AMBOS` dice con su nombre; ningún producto cambia lo que mostraba. `product_packages.scope` —diseñada, `V91`— nace con el mismo dominio. Lo que conviene leer del cambio: **el campo deja de ser una escala** y pasa a ser un conjunto de vistas, con `NINGUNO` como el conjunto vacío — un producto activo que no se ofrece en ninguna parte, y que existe para venderse por otro camino. | Responsable del proyecto |

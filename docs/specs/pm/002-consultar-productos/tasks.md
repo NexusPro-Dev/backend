@@ -3,7 +3,7 @@
 | Campo | Valor |
 |---|---|
 | Requerimiento | `RF-PM-002` |
-| Enmendadas | 12-09-2026 — `T-23` porque el segundo precio es el **de compra**; 08-09-2026 — `T-19` por los **dos precios**; 02-09-2026 — el filtro por membresía de **origen**; 07-09-2026 — `T-16` y `T-17` por los filtros de **alcance** e **implementación**; 14-09-2026 — `T-24` por el **enlace del video**; 14-09-2026 — `T-25` por la **dirección de la portada** (`RN-PM-033`) |
+| Enmendadas | 12-09-2026 — `T-23` porque el segundo precio es el **de compra**; 08-09-2026 — `T-19` por los **dos precios**; 02-09-2026 — el filtro por membresía de **origen**; 07-09-2026 — `T-16` y `T-17` por los filtros de **alcance** e **implementación**; 14-09-2026 — `T-24` por el **enlace del video**; 14-09-2026 — `T-25` por la **dirección de la portada** (`RN-PM-033`); 15-09-2026 — `T-26` por el **alcance de cuatro valores** |
 | Plan | [`plan.md`](plan.md), aprobado el 26-08-2026 |
 | Estado | **Aprobadas** |
 | Autor | Responsable técnico |
@@ -41,6 +41,7 @@
 | `T-22` | **La prueba de sentencias del listado** | `T-21` | `CA-PM-165`: una página de varios productos en monedas distintas cuesta **dos consultas más** y no dos por fila. Es la única forma de verlo — el cuerpo es idéntico con cuarenta | **Hecha el 08-09-2026** |
 | `T-24` | **El enlace del video en cada fila** (`RF-PM-001` `T-39` trae la columna): `videoUrl` en `ProductRow`, en el `SELECT` del listado y en `ProductItem`; y la prosa de la `@Operation` lo nombra | `T-23` | `CA-PM-223` en `ProductListIT`: una página con un producto con enlace y otro sin él. **El contrato regenerado declara `videoUrl` en `ProductItem`** | **Hecha el 14-09-2026** |
 | `T-25` | **La dirección de la portada en cada fila** (`RF-PM-014` `T-01` trae la columna, `T-09` y `T-10` la proyección y el conversor): `coverImageId` en `ProductRow`, `p.cover_image_id` en el `SELECT` del listado, `coverImageUrl` en `ProductItem`; y la prosa de la `@Operation` lo nombra y dice que no es un filtro | `T-24`, `RF-PM-014 · T-10` | `CA-PM-232` en `ProductListIT`: una página con un producto con portada y otro sin ella, y la prueba de sentencias sin subir. **El contrato regenerado declara `coverImageUrl` en `ProductItem`** | **Hecha el 14-09-2026** |
+| `T-26` | **El alcance de cuatro valores en el filtro** (`RF-PM-001` `T-41` trae el enumerado): el `canonico` del filtro admite los cuatro por el mismo `ProductScope.values()`; la prosa de la `@Operation` los nombra | `T-25` | `CA-PM-349` en `ProductListIT` | **Hecha el 15-09-2026** |
 
 ## 2. Orden de ejecución
 
@@ -70,6 +71,7 @@
 | `CA-PM-151` | `T-19`, `T-23` |
 | `CA-PM-223` | `T-24` |
 | `CA-PM-232` | `T-25` |
+| `CA-PM-349` | `T-26` |
 
 ## 4. Bloqueos
 

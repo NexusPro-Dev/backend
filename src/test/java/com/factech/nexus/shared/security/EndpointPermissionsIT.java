@@ -145,7 +145,7 @@ class EndpointPermissionsIT extends IntegrationTestBase {
               "PÚBLICO POR DECISIÓN y no por definición (`RF-PM-008`): un enlace se abre antes de"
                   + " registrarse. Es el primero del sistema que publica el nombre de una persona,"
                   + " y su alcance está acotado dos veces — solo productos activos de alcance"
-                  + " HOTLINKS (`RN-PM-021`) y solo el nombre de quien es fuerza comercial"
+                  + " HOTLINK o AMBOS (`RN-PM-021`) y solo el nombre de quien es fuerza comercial"
                   + " (`RN-PM-022`). El recorrido a ciegas lo acota el límite de tasa por origen"),
           Map.entry(
               "GET /api/v1/products/{id}/comments",

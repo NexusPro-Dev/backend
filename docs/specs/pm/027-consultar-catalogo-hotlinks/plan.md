@@ -8,6 +8,7 @@
 | Autor | Responsable técnico |
 | Aprobado por | Responsable del proyecto |
 | Fecha de aprobación | 15-09-2026 |
+| Enmendado el | 15-09-2026 — **`HOTLINK` o `AMBOS`** en el predicado (`RN-PM-021`) |
 
 ---
 
@@ -15,7 +16,7 @@
 
 **La oferta sin la membresía y con el alcance como único predicado.**
 
-`GetOwnOfferService` ya hace todo lo que esta lectura necesita —una sentencia con membresías, moneda y `rating`, la conversión en bloque, la separación en dos listas sin reordenar— salvo dos cosas: mira la membresía del actor y no mira el alcance. El servicio nuevo (`GetHotlinkCatalogService`) es esa misma secuencia sin el primer paso y con `scope = 'HOTLINKS'` en el `WHERE`. **Se reutiliza la forma (`OfferItem`) y no la sentencia**: la de la oferta lleva el origen como parámetro y su predicado de tipo, y meterle un modo «sin membresía y por alcance» la convertiría en dos consultas en una, que es lo que este módulo ha evitado siempre (`RF-PM-002` §9). Una sentencia más en `JpaProductQueryRepository`, la sexta, con el mismo `SELECT` y otro `WHERE`.
+`GetOwnOfferService` ya hace todo lo que esta lectura necesita —una sentencia con membresías, moneda y `rating`, la conversión en bloque, la separación en dos listas sin reordenar— salvo dos cosas: mira la membresía del actor y no mira el alcance. El servicio nuevo (`GetHotlinkCatalogService`) es esa misma secuencia sin el primer paso y con `scope IN ('HOTLINK','AMBOS')` en el `WHERE`. **Se reutiliza la forma (`OfferItem`) y no la sentencia**: la de la oferta lleva el origen como parámetro y su predicado de tipo, y meterle un modo «sin membresía y por alcance» la convertiría en dos consultas en una, que es lo que este módulo ha evitado siempre (`RF-PM-002` §9). Una sentencia más en `JpaProductQueryRepository`, la sexta, con el mismo `SELECT` y otro `WHERE`.
 
 ## 2. Cambios de esquema
 
@@ -59,7 +60,7 @@ Ninguna: lectura.
 
 | Alternativa | Por qué se descartó |
 |---|---|
-| **`RF-PM-002` con `scope=HOTLINKS&status=ACTIVO`** | Exige `products:read`, que abre el catálogo administrativo con el precio de compra dentro. `products:hotlink` existe para no dar aquel (`spec.md` §14.2) |
+| **`RF-PM-002` con `scope=AMBOS&status=ACTIVO`** | Exige `products:read`, que abre el catálogo administrativo con el precio de compra dentro. `products:hotlink` existe para no dar aquel (`spec.md` §14.2) |
 | **Un parámetro en `/products/available`** («modo vendedor») | La oferta responde sobre quien llama y su membresía; un modo que la ignore es otra lectura con otro permiso metida en la misma ruta |
 | **Reutilizar `findOffer` con un modo** | Dos consultas en una: el predicado de origen y el de alcance no se combinan, se sustituyen. Una sentencia propia cuesta veinte líneas y se lee sola |
 | **Componer `hotlinkPath` en la respuesta** | Una lectura de la persona por página para una concatenación que el frontend hace con el `username` que ya tiene (`spec.md` §14.1). Si se pide, es un campo más |

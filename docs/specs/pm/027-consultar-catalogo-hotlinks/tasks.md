@@ -9,6 +9,7 @@
 | Issue | Pendiente de crear |
 | Rama | `feature/venta-de-productos` |
 | Autor | Responsable técnico |
+| Enmendadas | 15-09-2026 — `T-11` por el **alcance de cuatro valores** |
 
 ---
 
@@ -26,6 +27,7 @@
 | `T-08` | Pruebas de permiso y ruta: vacío → `200` con listas vacías; sin permiso, con `products:sale` y con `products:read` → `403`; sin token → `401`; `/hotlinks` no cae en `/{id}` | `T-04` | `CA-PM-344`, `CA-PM-345`, `CA-PM-346` | **Hecha el 15-09-2026** |
 | `T-09` | Prueba de sentencias: con tres y con ocho productos, el mismo número | `T-04` | `CA-PM-347` | **Hecha el 15-09-2026** |
 | `T-10` | Actualizar `requirements/pm.md` (§4, §6.1, ficha, §9), la matriz de `docs/requirements.md`, `security.md` y `docs/api/index.md` | `T-08` | Las filas reflejan el estado | **Hecha el 15-09-2026** |
+| `T-11` | **`HOTLINK` o `AMBOS`** (`RN-PM-021`): `findHotlinkCatalog` con `p.scope IN ('HOTLINK','AMBOS')`; la prosa de la `@Operation` lo dice | `T-04`, `RF-PM-001` `T-41` | `CA-PM-353` en `HotlinkCatalogIT` | **Hecha el 15-09-2026** |
 
 ## 2. Orden de ejecución
 
@@ -40,6 +42,7 @@
 | `CA-PM-342` | `T-07` |
 | `CA-PM-344`, `CA-PM-345`, `CA-PM-346` | `T-08` |
 | `CA-PM-347` | `T-03`, `T-09` |
+| `CA-PM-353` | `T-11` |
 
 ## 4. Bloqueos
 

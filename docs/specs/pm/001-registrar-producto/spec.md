@@ -18,6 +18,7 @@
 | Enmendada el | 14-09-2026 — **el alta devuelve `rating` **vacío** — `average` nulo y `count` cero — sin consulta** (`RN-PM-031`, `RF-PM-009`). Ver §15 |
 | Enmendada el | 14-09-2026 — **el alta admite el ENLACE DE UN VIDEO** (`RN-PM-032`): opcional, en los dos tipos, validado solo en su forma. Ver §15 |
 | Enmendada el | 14-09-2026 — **el icono pasa a ser OBLIGATORIO en un upgrade** (`RN-PM-034`, `RF-PM-014`): la portada llega después del alta, y sin ella el icono es lo único que puede pintar el producto. La respuesta gana `coverImageUrl`, siempre nulo aquí. Ver §15 |
+| Enmendada el | 15-09-2026 — **el alcance pasa a cuatro valores explícitos**: `TIENDA`, `HOTLINK`, `AMBOS`, `NINGUNO` (`RN-PM-019` reescrita). `HOTLINKS` deja de admitirse. Ver §15 |
 
 !!! danger "Un upgrade dice ahora DE DONDE sale, y eso cambia quien puede comprarlo"
 
@@ -106,7 +107,7 @@ Hoy la plataforma no tiene **nada que vender**. La membresía de una persona sol
 | Precio **de compra** | **No** | Lo que NEXUS paga por el producto cuando tiene que comprarlo; ahí se guarda lo que costó | Mismas condiciones que el anterior y **en la misma moneda** (`RN-PM-007`). **Ausente o nulo significan lo mismo**: no se conoce todavía —el producto se registra antes de comprarse— (`RN-PM-023`). **No se cobra**, ningún cálculo lo lee y **no sale de administración** (`RN-PM-024`). **Decía «precio público» hasta el 12-09-2026** |
 | Moneda | Sí | En qué moneda se expresan **los dos** precios | Debe existir y estar **activa** (`RN-PM-008`). **No hay una segunda moneda para el precio de compra** |
 | Vigencia | No | Cuántos días dura lo que el producto otorga, contados desde la compra | Entero mayor que cero. **Sin ella, lo adquirido no caduca** (`RN-PM-015`) |
-| Alcance | **Sí** | Hasta dónde se muestra el producto | `TIENDA` o `HOTLINKS`, **en los dos tipos y sin valor por omisión**. Es **acumulativo**: `HOTLINKS` incluye la tienda (`RN-PM-019`) |
+| Alcance | **Sí** | En qué vistas de venta se ofrece el producto | `TIENDA`, `HOTLINK`, `AMBOS` o `NINGUNO`, **en los dos tipos y sin valor por omisión** (`RN-PM-019`, reescrita el 15-09-2026: dejó de ser una escala). **`HOTLINKS` se rechaza** desde ese día como cualquier valor fuera del dominio (`400`, `CA-PM-112`) |
 | Implementación | **Sí** | Si lo comprado se aplica solo o espera a que alguien lo autorice | `AUTOMATICA` o `MANUAL`, **en los dos tipos y sin valor por omisión** (`RN-PM-020`) |
 
 ### 6.2 Salida
@@ -247,7 +248,7 @@ Hoy la plataforma no tiene **nada que vender**. La membresía de una persona sol
 | `CA-PM-110` | El sistema **rechaza un alta sin alcance**, en los dos tipos, y el rechazo nombra el campo |
 | `CA-PM-111` | El sistema **rechaza un alta sin implementación**, en los dos tipos, y el rechazo nombra el campo |
 | `CA-PM-112` | El sistema rechaza un valor **fuera del dominio** en cualquiera de las dos, y no lo interpreta como ausente |
-| `CA-PM-113` | El sistema registra un **bot** con alcance `HOTLINKS` e implementación `MANUAL` sin queja: ninguna de las dos depende del tipo |
+| `CA-PM-113` | El sistema registra un **bot** con alcance `AMBOS` (`HOTLINKS` hasta el 15-09-2026) e implementación `MANUAL` sin queja: ninguna de las dos depende del tipo |
 | `CA-PM-114` | La respuesta del alta devuelve las dos, y el **evento de creación las incluye en la instantánea** |
 | `CA-PM-145` | El sistema registra un producto **con los dos precios** y la respuesta devuelve los dos, cada uno con los decimales de la moneda |
 | `CA-PM-146` | El sistema registra un producto **sin precio de compra**, y `purchasePrice` llega **presente y nulo** — no ausente, y no cero |
@@ -261,6 +262,7 @@ Hoy la plataforma no tiene **nada que vender**. La membresía de una persona sol
 | `CA-PM-222` | La **instantánea del evento de creación incluye `video_url`**, nulo cuando no se declaró |
 | `CA-PM-230` | El sistema **rechaza un upgrade sin icono** —ausente, nulo o vacío— con `VAL-018` nombrando `icon`, y no registra nada |
 | `CA-PM-231` | El sistema registra un **bot sin icono**, que llega nulo y presente; y la respuesta del alta trae **`coverImageUrl` presente y nulo** en los dos tipos, y la instantánea `cover_image_id` nulo |
+| `CA-PM-348` | El sistema registra un producto con **cada uno de los cuatro alcances** —`TIENDA`, `HOTLINK`, `AMBOS`, `NINGUNO`— y rechaza **`HOTLINKS`** con `400`, como cualquier valor fuera del dominio (`CA-PM-112`) |
 
 ## 13. Casos límite
 
@@ -307,3 +309,4 @@ Ninguna. Las cinco se resolvieron el 26-08-2026, antes de aprobar la especificac
 | 0.11.0 | 14-09-2026 | **Entra `rating` en la respuesta** —el promedio y la cantidad de reseñas vivas del producto— por `RN-PM-031` ([`requirements/pm.md`](../../../requirements/pm.md) v0.24.0 §5.2.7): el alta devuelve `rating` **vacío** — `average` nulo y `count` cero — sin consulta. Enmienda de Art. I.7 declarada por el plan de [`RF-PM-009`](../009-resenar-producto/plan.md) §4.1 y construida por sus tareas `T-10` y `T-11`; los criterios que la prueban son `CA-PM-180` a `CA-PM-182` de aquella tripleta. **El promedio no se guarda en `products`**: se cuenta, por un `LEFT JOIN LATERAL` sobre el índice parcial de `product_comments`, para que ninguna copia pueda quedarse atrás. | Responsable del proyecto |
 | 0.12.0 | 14-09-2026 | **El alta admite el ENLACE DE UN VIDEO** (`RN-PM-032`, [`requirements/pm.md`](../../../requirements/pm.md) v0.27.0 §5.2.8), por decisión del responsable del proyecto: **opcional, en los dos tipos** —sin la condición cruzada del icono— y validado **solo en su forma**, URL absoluta `http` o `https`, sin espacios, hasta 500 caracteres. **Es una dirección, no un archivo, y el sistema no la sigue.** Ausente y nulo significan lo mismo; la respuesta lo devuelve presente y nulo, como el precio de compra. Nacen `VAL-017` y `CA-PM-219` a `CA-PM-222`. Enmienda de Art. I.7. | Responsable del proyecto |
 | 0.13.0 | 14-09-2026 | **El icono pasa a ser OBLIGATORIO en un upgrade** (`RN-PM-034`, [`requirements/pm.md`](../../../requirements/pm.md) v0.29.0 §5.2.9), por decisión del responsable del proyecto: un upgrade siempre tiene portada o icono, **al registrar y en cada corrección**, y como la portada llega **después** del alta (`RF-PM-014`), en el alta el icono es lo único que puede estar. `RN-PM-016` pierde su «opcional incluso ahí»; el bot sigue sin declararlo. **`CA-PM-098` se invierte** y lo sustituye `CA-PM-230`; nace `VAL-018`. La respuesta gana `coverImageUrl`, aquí **siempre nulo y presente**, para que el alta y el detalle tengan la misma forma (`CA-PM-231`). Es una enmienda que construye `RF-PM-014` (Art. I.7), y la instantánea del alta gana `cover_image_id`. | Responsable del proyecto |
+| 0.14.0 | 15-09-2026 | **El alcance pasa a cuatro valores explícitos** (`RN-PM-019` reescrita, [`requirements/pm.md`](../../../requirements/pm.md) v0.35.0 §5.2.11), por decisión del responsable del proyecto: `TIENDA`, `HOTLINK`, `AMBOS` y `NINGUNO`. El alta los admite todos y **rechaza `HOTLINKS`** con `400`, que dejó de existir — las filas que lo declaraban pasaron a `AMBOS` en `V92`. `CA-PM-113` se reescribe con `AMBOS`; nace `CA-PM-348`. | Responsable del proyecto |

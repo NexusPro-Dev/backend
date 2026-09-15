@@ -139,10 +139,14 @@ public class ProductController {
           La vigencia es opcional en los dos tipos: sin ella, lo adquirido no caduca.
 
           `scope` e `implementation` son **obligatorios y en los dos tipos**, y
-          **no tienen valor por omisión**: `scope` dice hasta dónde se muestra el
-          producto —`HOTLINKS` **incluye** `TIENDA`, no la sustituye— e
-          `implementation` dice si lo comprado se aplica solo (`AUTOMATICA`) o
-          espera a que un funcionario lo autorice (`MANUAL`).
+          **no tienen valor por omisión**: `scope` dice **en qué vistas de venta**
+          se ofrece el producto —`TIENDA` (solo la oferta), `HOTLINK` (solo el
+          canal de hotlinks), `AMBOS`, o `NINGUNO` (en ninguna: solo lo ve
+          administración, aunque esté activo)— e `implementation` dice si lo
+          comprado se aplica solo (`AUTOMATICA`) o espera a que un funcionario
+          lo autorice (`MANUAL`). **`HOTLINKS` dejó de existir el 15-09-2026**
+          —lo que significaba se llama `AMBOS`— y se rechaza con `400` como
+          cualquier valor fuera del dominio.
 
           **Un producto lleva DOS precios y solo uno se cobra.** `price` es el
           del sistema —el que copia la venta y sobre el que se comisiona— y
@@ -240,8 +244,9 @@ public class ProductController {
           **`scope` e `implementation` filtran como `type` y `status`**: se
           admiten en cualquier caja y un valor fuera de dominio se rechaza junto
           al resto de parámetros inválidos, no en una vuelta aparte. El de
-          alcance es **el único sitio donde ese dato se consulta hoy** — la
-          oferta de `RF-PM-007` no filtra por él.
+          alcance admite los cuatro valores —`TIENDA`, `HOTLINK`, `AMBOS`,
+          `NINGUNO`— y **es la única lectura donde se ve un producto
+          `NINGUNO`**, porque ninguna vista de venta lo ofrece.
 
           Un filtro sin coincidencias devuelve `200` con la colección vacía, y
           una página más allá de la última hace lo mismo **con el total real**.
@@ -333,12 +338,12 @@ public class ProductController {
           venta, que existe para que lo vea quien compra, y por eso **sí** viaja
           por aquí.
 
-          **Publica `scope` e `implementation` de cada producto y NO filtra por
-          ninguno de los dos.** El alcance no puede filtrar aquí: `HOTLINKS`
-          incluye `TIENDA`, de modo que los dos valores llegan a esta vista y un
-          filtro devolvería siempre lo mismo que no ponerlo. La implementación
-          viaja para que quien compra sepa **antes de pagar** si lo que se lleva
-          se le entrega en el acto.
+          **Publica `scope` e `implementation` de cada producto, y filtra por el
+          primero**: solo `TIENDA` y `AMBOS` (`RN-PM-019`, desde el 15-09-2026).
+          Un producto `HOTLINK` o `NINGUNO` no es de la tienda y no aparece
+          aquí aunque esté activo y sea de la membresía de quien llama. La
+          implementación viaja para que quien compra sepa **antes de pagar** si
+          lo que se lleva se le entrega en el acto.
 
           **Quien no tiene membresía vigente —incluida la vencida— no ve ningún
           upgrade**, y sí todos los bots. No hay nivel desde el que subir, y
@@ -401,7 +406,7 @@ public class ProductController {
       description =
           """
           **Lo que un vendedor puede repartir**: los productos **activos y de
-          alcance `HOTLINKS`**, de los dos tipos, en `upgrades` y `services`
+          alcance `HOTLINK` o `AMBOS`**, de los dos tipos, en `upgrades` y `services`
           — exactamente el conjunto que `GET /api/v1/hotlinks/{username}/{code}`
           resuelve enlace a enlace (`RN-PM-021`), visto entero y con token.
 
@@ -550,8 +555,12 @@ public class ProductController {
 
           **El alcance y la implementación SÍ se corrigen, aunque el tipo y las
           membresías no**: ninguna de las dos define qué derecho otorga el
-          producto —una dice hasta dónde se muestra y la otra quién lo aplica—,
+          producto —una dice en qué vistas se ofrece y la otra quién lo aplica—,
           de modo que corregirlas no reescribe lo que compró quien lo compró.
+          `scope` admite `TIENDA`, `HOTLINK`, `AMBOS` y `NINGUNO`; **corregir
+          un producto activo a `NINGUNO` no lo desactiva**: sigue activo y deja
+          de ofrecerse. `HOTLINKS` se rechaza con `400`, como cualquier valor
+          fuera del dominio.
 
           **El icono sí se corrige, aunque el tipo no**: es el aspecto del
           producto y no lo que otorga. En un `BOT`, cualquier valor distinto de

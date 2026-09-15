@@ -8,7 +8,7 @@
 | Estado | **Aprobado** |
 | Autor | Responsable técnico |
 | Aprobado por | Responsable del proyecto |
-| Enmendado el | 27-08-2026 — `RN-PM-015`; 02-09-2026 — la membresía de **origen** (`RN-PM-017`, `RN-PM-018`); 07-09-2026 — **el alcance y la implementación** (`RN-PM-019`, `RN-PM-020`), §2.4, y **la renovación** —el origen puede ser el destino (`RN-PM-017`)—, §2.5; 08-09-2026 — **el segundo precio, el público** (`RN-PM-023`) y **`RN-PM-006` relajada**, §2.6; 12-09-2026 — **el segundo precio pasa a ser el de COMPRA** (`RN-PM-023`, `RN-PM-024`), §2.7; 14-09-2026 — **el enlace de un video** (`RN-PM-032`), §2.8 y §4; 14-09-2026 — **el icono obligatorio en el upgrade** (`RN-PM-034`), §2.9 |
+| Enmendado el | 27-08-2026 — `RN-PM-015`; 02-09-2026 — la membresía de **origen** (`RN-PM-017`, `RN-PM-018`); 07-09-2026 — **el alcance y la implementación** (`RN-PM-019`, `RN-PM-020`), §2.4, y **la renovación** —el origen puede ser el destino (`RN-PM-017`)—, §2.5; 08-09-2026 — **el segundo precio, el público** (`RN-PM-023`) y **`RN-PM-006` relajada**, §2.6; 12-09-2026 — **el segundo precio pasa a ser el de COMPRA** (`RN-PM-023`, `RN-PM-024`), §2.7; 14-09-2026 — **el enlace de un video** (`RN-PM-032`), §2.8 y §4; 14-09-2026 — **el icono obligatorio en el upgrade** (`RN-PM-034`), §2.9; 15-09-2026 — **el alcance pasa a cuatro valores** (`RN-PM-019`), `V92` |
 | Fecha de aprobación | 26-08-2026 |
 
 !!! info "Qué va en este documento"
@@ -124,7 +124,7 @@ Esta migración **no emite auditoría**, igual que `V3`: un permiso no tiene lí
 | `scope` | `varchar(20) NOT NULL`, en **tres pasos**: se añade nula, se rellena, y solo entonces se marca `NOT NULL` | Una columna `NOT NULL` no se puede añadir de golpe a una tabla con filas sin darle un `DEFAULT`, y **el `DEFAULT` es justo lo que no queremos** — ver la fila del relleno |
 | `implementation` | `varchar(20) NOT NULL`, con la misma secuencia | Lo mismo |
 | Relleno | `TIENDA` y `MANUAL` sobre todo lo existente | **Es una decisión, no una deducción**, como el `BECA` de `V53`: bajo el modelo anterior estos productos **no tenían** ni alcance ni implementación. `TIENDA` es el alcance **más corto** y conserva **exactamente** la oferta de hoy; `MANUAL` es la implementación que **no entrega sola** |
-| `ck_products_scope` | `scope IN ('TIENDA','HOTLINKS')` | `RN-PM-019` |
+| `ck_products_scope` | `scope IN ('TIENDA','HOTLINKS')` — **reemplazada en `V92` (15-09-2026)** por `scope IN ('TIENDA','HOTLINK','AMBOS','NINGUNO')`, tras renombrar las filas `HOTLINKS` a `AMBOS` | `RN-PM-019` |
 | `ck_products_implementation` | `implementation IN ('AUTOMATICA','MANUAL')` | `RN-PM-020` |
 
 !!! danger "Por qué el relleno de la implementación es `MANUAL` y no `AUTOMATICA`"
