@@ -4440,6 +4440,45 @@ paths:
           description: Autenticado sin el permiso `products:comment` (`AUTH-002`)
         "404":
           description: Quien llama no tiene reseña viva sobre este producto (`EX-001`)
+  /api/v1/products/hotlinks:
+    get:
+      tags:
+      - Productos
+      summary: Consultar el catálogo de hotlinks
+      description: |
+        **Lo que un vendedor puede repartir**: los productos **activos y de
+        alcance `HOTLINKS`**, de los dos tipos, en `upgrades` y `services`
+        — exactamente el conjunto que `GET /api/v1/hotlinks/{username}/{code}`
+        resuelve enlace a enlace (`RN-PM-021`), visto entero y con token.
+
+        **No mira la membresía de quien llama**, y ahí se aparta de la oferta
+        (`GET /api/v1/products/available`): el vendedor no compra lo que
+        reparte, de modo que un `BECA → ORO` le interesa aunque él esté en
+        `ORO`. Por eso la respuesta no trae `currentMembership`. Cada producto
+        va en la forma de venta —`price`, `exchange`, `videoUrl`,
+        `coverImageUrl`, `rating`— y **sin `purchasePrice`** (`RN-PM-024`).
+
+        **No trae el enlace armado.** El cliente lo compone con el `username`
+        de `GET /api/v1/users/me` y el `code` de cada producto:
+        `/api/v1/hotlinks/{username}/{code}`. Que ese enlace resuelva exige
+        además que quien lo reparte sea fuerza comercial (`RN-PM-022`); esta
+        lista dice qué se publica, no quién puede publicarlo. **Sin
+        parámetros y sin paginar**: es el catálogo publicable, entero. Los
+        paquetes llegarán a esta misma respuesta con `RF-PM-026`.
+      operationId: catalogoDeHotlinks
+      responses:
+        "200":
+          description: "El catálogo de hotlinks: upgrades y bots publicables."
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/HotlinkCatalogResponse"
+        "401":
+          description: Token ausente o inválido (`AUTH-001`)
+        "403":
+          description: Autenticado sin el permiso `products:hotlink` (`AUTH-002`)
+        "500":
+          description: Fallo no controlado (`ERR-500`)
   /api/v1/products/available:
     get:
       tags:
@@ -7919,6 +7958,13 @@ components:
         updatedAt:
           type: string
           format: date-time
+    HotlinkCatalogResponse:
+      type: object
+      properties:
+        upgrades:
+          $ref: "#/components/schemas/Offered"
+        services:
+          $ref: "#/components/schemas/Offered"
     OfferItem:
       type: object
       properties:
@@ -7965,6 +8011,13 @@ components:
           - MANUAL
         rating:
           $ref: "#/components/schemas/RatingSummary"
+    Offered:
+      type: object
+      properties:
+        content:
+          type: array
+          items:
+            $ref: "#/components/schemas/OfferItem"
     OfferResponse:
       type: object
       properties:
@@ -7974,13 +8027,6 @@ components:
           $ref: "#/components/schemas/Offered"
         services:
           $ref: "#/components/schemas/Offered"
-    Offered:
-      type: object
-      properties:
-        content:
-          type: array
-          items:
-            $ref: "#/components/schemas/OfferItem"
     ListPermissionsRequest:
       type: object
       properties:

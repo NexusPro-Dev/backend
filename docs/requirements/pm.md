@@ -5,7 +5,7 @@
 | Módulo | `PM` — Productos y Mercadeo |
 | Paquete | `modules/products` |
 | Prefijos de permiso | `products:` |
-| Versión | 0.33.0 |
+| Versión | 0.34.0 |
 | Estado | **Borrador** |
 | Responsable | Bonilla Diaz William Steven |
 | Fecha de creación | 26-08-2026 |
@@ -145,11 +145,11 @@ La dependencia es **acíclica**: `PM` consume `SP` y `SP` no consume nada ([`mod
 
 **Nace `products:hotlink` el 07-09-2026**, por decisión del responsable del proyecto: es el **segundo permiso de vista** del módulo y gobierna la **vista de hotlinks** —los productos cuyo alcance llega a ese canal (`RN-PM-019`)—, igual que `products:sale` gobierna la de venta. No reutiliza `products:read` por el mismo motivo de siempre: aquel abre el catálogo administrativo entero.
 
-!!! info "Nace sin endpoint que lo exija, y es deliberado"
+!!! info "Nació sin endpoint que lo exigiera, y lo exige `RF-PM-027` desde el 15-09-2026"
 
-    **El canal de hotlinks todavía no está construido.** Sembrar el permiso antes **no rompe nada** —el catálogo de permisos es datos, y su único efecto es poder concederse— y es exactamente lo que hizo `V51` con los cuatro `movements:`, adelantados al resto de su módulo.
+    **El canal de hotlinks no estuvo construido hasta el 15-09-2026.** Sembrar el permiso antes **no rompió nada** —el catálogo de permisos es datos, y su único efecto es poder concederse— y es exactamente lo que hizo `V51` con los cuatro `movements:`, adelantados al resto de su módulo. Lo que evitó es la alternativa: llegar al requerimiento que lo necesita y tener que sembrar el permiso **y** construir la vista en el mismo Pull Request — y así fue: `RF-PM-027` **no siembra nada**, solo declara el permiso sobre su ruta.
 
-    Lo que evita es la alternativa: llegar al requerimiento que lo necesite y tener que sembrar el permiso **y** construir la vista en el mismo Pull Request.
+    **Quién lo porta lo decide quien administra roles** (`RF-SP-006`), y el destinatario natural son los roles de tipo `VENDEDOR`: la vista de hotlinks existe para que un vendedor sepa **qué puede repartir**. Un administrador con el permiso ve lo mismo, y su enlace no resolvería (`RN-PM-022`): la lista dice qué se publica, no quién puede publicarlo.
 
     **Se asocia a `SUPERADMIN` y a `ADMIN`** en `V60`, sin reserva ([`security.md` §4.4](../security.md#44-catalogo-de-permisos)): decidirlo de otro modo habría creado la cuarta reserva del superadministrador, y ver qué se publica en un canal comercial no es una operación que deba quedar exclusiva de la raíz. **A `CLIENTE` no**, por lo mismo que `products:sale`.
 
@@ -633,6 +633,7 @@ No se copian: se referencian, porque dos copias de una regla acaban divergiendo.
 | `RF-PM-024` | Corregir el descuento de un producto del paquete | Media | `packages:update` | **Tasks en revisión** |
 | `RF-PM-025` | Desasociar un producto de un paquete | Media | `packages:update` | **Tasks en revisión** |
 | `RF-PM-026` | Consultar el hotlink de un paquete, sin autenticación | Alta | **Público** | **Tasks en revisión** |
+| `RF-PM-027` | Consultar el catálogo de hotlinks | Alta | `products:hotlink` | **En desarrollo** |
 
 **Prioridades:** Crítica · Alta · Media · Baja.
 **Estados:** los de [`requirements.md` §4](../requirements.md#4-matriz-de-trazabilidad), que es su autoridad.
@@ -1109,6 +1110,23 @@ Quita la asociación **sin motivo** —es una fila de relación, Art. V.13— y 
 | Estado | **Tasks en revisión** — tripleta escrita el 15-09-2026 |
 
 Es `RF-PM-008` aplicado al paquete: por nombre de usuario y código, **sin token**, devuelve el vendedor —nombre y apellido— y el paquete con sus productos, su precio, su precio de lista, su ahorro y la conversión. Responde **solo** un paquete **activo, de alcance `HOTLINKS` y ofrecible hoy** (`RN-PM-039`), y todo lo que no procede recibe **el mismo `404`** que el hotlink del producto — la uniformidad es la misma decisión de seguridad. **Vive bajo la misma familia de rutas** (`/api/v1/hotlinks/…`) y hereda su cota de tasa sin política nueva. De cada producto publica lo que el hotlink del producto publica, y nunca el costo (`RN-PM-043`).
+#### `RF-PM-027` — Consultar el catálogo de hotlinks
+
+| Campo | Valor |
+|---|---|
+| Objetivo | Que un vendedor vea **qué puede repartir**: los productos que se publican por el canal de hotlinks, para armar sus enlaces |
+| Actor | Fuerza comercial, con `products:hotlink` |
+| Permiso requerido | `products:hotlink` |
+| Prioridad | Alta |
+| Reglas aplicables | `RN-PM-009`, `RN-PM-019`, `RN-PM-021`, `RN-PM-024`, `RN-PM-031`, `RN-PM-032`, `RN-PM-033` |
+| Depende de | `RF-PM-008` |
+| Tripleta | `docs/specs/pm/027-consultar-catalogo-hotlinks/` |
+| Estado | **En desarrollo** (15-09-2026) |
+
+Devuelve **los productos activos de alcance `HOTLINKS`**, de los dos tipos, en la forma de la oferta —`price` y `exchange`, `videoUrl`, `coverImageUrl`, `rating`— y **sin el precio de compra** (`RN-PM-024`): es una vista de venta, no de administración. **No mira la membresía de quien llama**: al revés que `RF-PM-007`, el vendedor no compra lo que reparte, de modo que un upgrade `BECA → ORO` le interesa aunque él esté en `ORO`. Es exactamente el conjunto que `RF-PM-008` resuelve enlace a enlace (`RN-PM-021`), visto entero y con token.
+
+**Es la pieza que faltaba delante del hotlink.** Desde el 07-09-2026 el sistema resuelve un enlace ya repartido (`RF-PM-008`), pero nada le decía al vendedor qué enlaces podía repartir: `products:hotlink` nació ese día sin endpoint (§4), y este es el suyo. **No devuelve el enlace armado**: el vendedor ya conoce su nombre de usuario (`RF-SP-039`) y la forma de la ruta pública, y componer aquí `/hotlinks/{username}/{code}` costaría una lectura de la persona por página para ahorrarle al frontend una concatenación. **Los paquetes no entran todavía**: cuando `RF-PM-026` exista, esta lectura ganará su segunda lista, como la oferta ganó `packages`.
+
 ## 7. Requerimientos no funcionales
 
 Definidos en [`security.md` §11](../security.md) y en la constitución. Los que este módulo debe satisfacer:
@@ -1162,6 +1180,7 @@ Ninguna con sistemas externos. La pasarela de pago, que sería la primera, perte
 | `PATCH` | `/api/v1/packages/{id}/products/{productId}` | `RF-PM-024` | `packages:update` |
 | `DELETE` | `/api/v1/packages/{id}/products/{productId}` | `RF-PM-025` | `packages:update` |
 | `GET` | `/api/v1/hotlinks/{username}/packages/{code}` | `RF-PM-026` | **Público** |
+| `GET` | `/api/v1/products/hotlinks` | `RF-PM-027` | `products:hotlink` |
 
 !!! note "Los paquetes copian la forma del producto, verbo a verbo, y el hotlink del paquete es un segmento más"
 
@@ -1187,7 +1206,7 @@ Ninguna con sistemas externos. La pasarela de pago, que sería la primera, perte
 
 El contrato detallado de cada endpoint se define en el `plan.md` de su tripleta.
 
-!!! warning "`/products/available` compite con `/products/{id}`, y el orden importa"
+!!! warning "`/products/available` y `/products/hotlinks` compiten con `/products/{id}`, y el orden importa"
 
     Las dos rutas coinciden en forma. Spring resuelve primero el patrón **más específico** —el segmento literal gana a la variable de ruta—, de modo que `/products/available` no se interpreta como un identificador. Es correcto, y **por eso mismo debe tener prueba**: si alguien reordena o renombra, el síntoma sería un `400` por identificador inválido en la única ruta que un cliente usa a diario.
 
@@ -1490,3 +1509,4 @@ Se declaran en la base de datos, no solo en Java (Art. V.6).
 | 0.31.0 | 14-09-2026 | **Nacen los PAQUETES: varios productos bajo un código, cada uno con su descuento, y el paquete vale la suma de los productos rebajados.** Por decisión del responsable del proyecto, con **cuatro respuestas preguntadas antes de escribir** (§5.2.10): **se define y se publica** en la oferta y el hotlink, y la compra queda para otra tanda —una venta multilínea es de `MV` y `CM`—; **el precio se calcula siempre** y no se guarda (`RN-PM-036`, crítica por lo mismo que el promedio de reseñas: la copia que se quedara atrás mentiría); **permisos propios `packages:*`**, cuatro, para poder dar el catálogo sin los paquetes; y **el descuento no deja a ningún producto por debajo de cero** (`RN-PM-037`), porcentaje de cero a cien o fijo de cero al precio, con el cero admitido y el gratuito solo con cero. Nace el submódulo **Paquetes** con **diez requerimientos**, `RF-PM-017` a `RF-PM-026`, **diez reglas**, `RN-PM-035` a `RN-PM-044` —dos críticas: el precio se calcula, y **el paquete se ofrece entero o no se ofrece**, porque incumplirla no falla, promete—, y **dos tablas** (§10.6): `product_packages`, **sin precio y con moneda propia e inmutable**, y `product_package_items`, cuya clave primaria es la regla de «una vez por paquete». Decisiones de diseño declaradas: **la moneda no se convierte**, un paquete solo reúne productos en la suya (`RN-PM-035`); **la cuenta se hace en Java en un solo sitio** y el `máx(0, …)` del fijo es el hueco temporal aceptado; **los upgrades de un paquete comparten origen** (`RN-PM-044`) para que la oferta pueda aplicar `RN-PM-011` al paquete entero y no exista el paquete que nadie puede comprar; **un paquete de un producto es una promoción** y no se activa (`RN-PM-040`); y **el paquete puede quedar oculto sin que su estado cambie**, con el detalle como única señal — aceptado y escrito. La oferta (`RF-PM-007`) se enmendará con una colección `packages`, y `RF-PM-026` cuelga de la familia de hotlinks sin estrenar cota. Los diez nacen en `Pendiente`; las tripletas son el paso siguiente. | Responsable del proyecto |
 | 0.32.0 | 14-09-2026 | **La portada queda CONSTRUIDA**: `V90` crea `product_images` y `products.cover_image_id`, y `RF-PM-014` a `RF-PM-016` pasan a `En desarrollo` con **28 pruebas** propias en verde y las seis enmiendas en sus suites. **Lo que dejó la construcción**: `ImageSignature` es todo lo que el sistema sabe de una imagen —tres firmas, doce bytes— y `ProductImage` la única entidad del sistema sin `updated_at`; `RN-PM-034` vive **en un solo método del agregado** con sus tres caras (`VAL-018`, `VAL-010`, `VAL-002`); la ruta pública se declara **por método** y **no negocia** —sin `produces`, para que un `Accept: application/json` no reciba `406`—; y el tope del contenedor (`6MB`) va por encima del de negocio para que «demasiado grande» responda siempre `VAL-004`. Dos precisiones a las tripletas: un `coverImageUrl` en el cuerpo del `PATCH` **se rechaza con `400`** —`FAIL_ON_UNKNOWN_PROPERTIES`— y no se ignora; y el hotlink **sí publica el identificador del producto** (lo necesitan las reseñas), de modo que lo que la dirección de la imagen no revela es de qué producto es. | Responsable técnico |
 | 0.33.0 | 15-09-2026 | **Las diez tripletas de los paquetes quedan escritas**: diez `spec.md` en revisión, diez `plan.md` aprobados y diez `tasks.md` en revisión en `docs/specs/pm/017` a `026`, **setenta y ocho criterios** (`CA-PM-261` a `CA-PM-338`) y noventa y tres tareas, y las diez filas de §6.1 pasan de `Pendiente` a **Tasks en revisión**. Decisiones tomadas al escribirlas, todas dentro de lo que la v0.31.0 dejó decidido: **el precio del paquete lo hace `PackagePricing` y la ofrecibilidad `PackageOfferability`**, dos objetos de dominio que el detalle publica y la oferta y el hotlink solo consultan, con el **orden fijo de motivos** —menos de dos, sin descripción, inactivo, retirado, producto no ofrecible nombrado—; **corregir un descuento exige forma y valor juntos** (`RF-PM-024`), porque son un solo dato; **desasociar responde `200` con el paquete** y no `204`, porque lo que cambió es su precio; **el hotlink del paquete responde el mismo `404` del producto también al paquete que hoy no se puede ofrecer**, y **el alcance de los productos no filtra dentro del paquete**: el canal lo decide el paquete. La oferta (`RF-PM-007`) queda **enmendada** con la colección `packages` (v0.13.0, `CA-PM-335` a `CA-PM-338`), y la construye `RF-PM-019`. **Y una corrección a §7**: `RF-PM-026` sí estrena declaración pública de ruta —tres segmentos frente a los dos del producto—, aunque no cota. | Responsable técnico |
+| 0.34.0 | 15-09-2026 | **Nace `RF-PM-027`, el catálogo de hotlinks, y con él `products:hotlink` deja de ser un permiso sin endpoint.** Por decisión del responsable del proyecto, al revisar las dos vistas de venta: el consumidor ve **lo de su membresía** (`RF-PM-007`, construido) y el vendedor debía ver **el catálogo de hotlinks** — y eso no existía: el sistema resolvía un enlace repartido (`RF-PM-008`) sin decirle a nadie qué enlaces podía repartir. `GET /api/v1/products/hotlinks` devuelve los productos activos de alcance `HOTLINKS`, de los dos tipos, en la forma de la oferta y sin el precio de compra, **sin mirar la membresía de quien llama** — el vendedor no compra lo que reparte. **No devuelve el enlace armado** —el vendedor ya conoce su nombre de usuario— y **los paquetes entrarán con `RF-PM-026`**. Ninguna regla nueva: es `RN-PM-021` vista entera y con token. §4 reescribe la caja del permiso: quién lo porta lo decide `RF-SP-006`, y el destinatario natural es el rol de tipo `VENDEDOR`. Nace construido, con tripleta en `docs/specs/pm/027-consultar-catalogo-hotlinks/`. | Responsable del proyecto |

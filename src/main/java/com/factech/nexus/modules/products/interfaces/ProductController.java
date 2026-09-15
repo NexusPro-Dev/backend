@@ -2,6 +2,7 @@ package com.factech.nexus.modules.products.interfaces;
 
 import com.factech.nexus.modules.products.application.ChangeProductStatusRequest;
 import com.factech.nexus.modules.products.application.DeleteProductRequest;
+import com.factech.nexus.modules.products.application.HotlinkCatalogResponse;
 import com.factech.nexus.modules.products.application.ListProductsRequest;
 import com.factech.nexus.modules.products.application.OfferResponse;
 import com.factech.nexus.modules.products.application.ProductDetailResponse;
@@ -11,6 +12,7 @@ import com.factech.nexus.modules.products.application.RegisterProductRequest;
 import com.factech.nexus.modules.products.application.UpdateProductRequest;
 import com.factech.nexus.modules.products.domain.service.ChangeProductStatusService;
 import com.factech.nexus.modules.products.domain.service.DeleteProductService;
+import com.factech.nexus.modules.products.domain.service.GetHotlinkCatalogService;
 import com.factech.nexus.modules.products.domain.service.GetOwnOfferService;
 import com.factech.nexus.modules.products.domain.service.GetProductService;
 import com.factech.nexus.modules.products.domain.service.ListProductsService;
@@ -73,6 +75,7 @@ public class ProductController {
   private final GetOwnOfferService ofertaPropia;
   private final UploadProductCoverService portada;
   private final RemoveProductCoverService quitarPortada;
+  private final GetHotlinkCatalogService catalogoDeHotlinks;
 
   public ProductController(
       RegisterProductService alta,
@@ -83,7 +86,8 @@ public class ProductController {
       UpdateProductService correccion,
       GetOwnOfferService ofertaPropia,
       UploadProductCoverService portada,
-      RemoveProductCoverService quitarPortada) {
+      RemoveProductCoverService quitarPortada,
+      GetHotlinkCatalogService catalogoDeHotlinks) {
     this.alta = alta;
     this.listado = listado;
     this.detalle = detalle;
@@ -93,6 +97,7 @@ public class ProductController {
     this.ofertaPropia = ofertaPropia;
     this.portada = portada;
     this.quitarPortada = quitarPortada;
+    this.catalogoDeHotlinks = catalogoDeHotlinks;
   }
 
   @PostMapping
@@ -385,6 +390,56 @@ public class ProductController {
   })
   public OfferResponse oferta() {
     return ofertaPropia.offer();
+  }
+
+  // Segmento literal bajo `/products`, como `/available`: Spring lo resuelve
+  // antes que `/{id}`, y por eso mismo tiene prueba (`CA-PM-346`).
+  @GetMapping("/hotlinks")
+  @PreAuthorize("hasAuthority('products:hotlink')")
+  @Operation(
+      summary = "Consultar el catálogo de hotlinks",
+      description =
+          """
+          **Lo que un vendedor puede repartir**: los productos **activos y de
+          alcance `HOTLINKS`**, de los dos tipos, en `upgrades` y `services`
+          — exactamente el conjunto que `GET /api/v1/hotlinks/{username}/{code}`
+          resuelve enlace a enlace (`RN-PM-021`), visto entero y con token.
+
+          **No mira la membresía de quien llama**, y ahí se aparta de la oferta
+          (`GET /api/v1/products/available`): el vendedor no compra lo que
+          reparte, de modo que un `BECA → ORO` le interesa aunque él esté en
+          `ORO`. Por eso la respuesta no trae `currentMembership`. Cada producto
+          va en la forma de venta —`price`, `exchange`, `videoUrl`,
+          `coverImageUrl`, `rating`— y **sin `purchasePrice`** (`RN-PM-024`).
+
+          **No trae el enlace armado.** El cliente lo compone con el `username`
+          de `GET /api/v1/users/me` y el `code` de cada producto:
+          `/api/v1/hotlinks/{username}/{code}`. Que ese enlace resuelva exige
+          además que quien lo reparte sea fuerza comercial (`RN-PM-022`); esta
+          lista dice qué se publica, no quién puede publicarlo. **Sin
+          parámetros y sin paginar**: es el catálogo publicable, entero. Los
+          paquetes llegarán a esta misma respuesta con `RF-PM-026`.
+          """)
+  @ApiResponses({
+    @ApiResponse(
+        responseCode = "200",
+        description = "El catálogo de hotlinks: upgrades y bots publicables.",
+        content = @Content(schema = @Schema(implementation = HotlinkCatalogResponse.class))),
+    @ApiResponse(
+        responseCode = "401",
+        description = "Token ausente o inválido (`AUTH-001`)",
+        content = @Content),
+    @ApiResponse(
+        responseCode = "403",
+        description = "Autenticado sin el permiso `products:hotlink` (`AUTH-002`)",
+        content = @Content),
+    @ApiResponse(
+        responseCode = "500",
+        description = "Fallo no controlado (`ERR-500`)",
+        content = @Content)
+  })
+  public HotlinkCatalogResponse catalogoDeHotlinks() {
+    return catalogoDeHotlinks.catalog();
   }
 
   @GetMapping("/{id}")

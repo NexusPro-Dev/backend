@@ -951,6 +951,17 @@
         },
         "type" : "object"
       },
+      "HotlinkCatalogResponse" : {
+        "properties" : {
+          "services" : {
+            "$ref" : "#/components/schemas/Offered"
+          },
+          "upgrades" : {
+            "$ref" : "#/components/schemas/Offered"
+          }
+        },
+        "type" : "object"
+      },
       "HotlinkResponse" : {
         "properties" : {
           "product" : {
@@ -6451,6 +6462,35 @@
           }
         },
         "summary" : "Consultar la oferta disponible para uno mismo",
+        "tags" : [ "Productos" ]
+      }
+    },
+    "/api/v1/products/hotlinks" : {
+      "get" : {
+        "description" : "**Lo que un vendedor puede repartir**: los productos **activos y de\nalcance `HOTLINKS`**, de los dos tipos, en `upgrades` y `services`\n— exactamente el conjunto que `GET /api/v1/hotlinks/{username}/{code}`\nresuelve enlace a enlace (`RN-PM-021`), visto entero y con token.\n\n**No mira la membresía de quien llama**, y ahí se aparta de la oferta\n(`GET /api/v1/products/available`): el vendedor no compra lo que\nreparte, de modo que un `BECA → ORO` le interesa aunque él esté en\n`ORO`. Por eso la respuesta no trae `currentMembership`. Cada producto\nva en la forma de venta —`price`, `exchange`, `videoUrl`,\n`coverImageUrl`, `rating`— y **sin `purchasePrice`** (`RN-PM-024`).\n\n**No trae el enlace armado.** El cliente lo compone con el `username`\nde `GET /api/v1/users/me` y el `code` de cada producto:\n`/api/v1/hotlinks/{username}/{code}`. Que ese enlace resuelva exige\nademás que quien lo reparte sea fuerza comercial (`RN-PM-022`); esta\nlista dice qué se publica, no quién puede publicarlo. **Sin\nparámetros y sin paginar**: es el catálogo publicable, entero. Los\npaquetes llegarán a esta misma respuesta con `RF-PM-026`.\n",
+        "operationId" : "catalogoDeHotlinks",
+        "responses" : {
+          "200" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/HotlinkCatalogResponse"
+                }
+              }
+            },
+            "description" : "El catálogo de hotlinks: upgrades y bots publicables."
+          },
+          "401" : {
+            "description" : "Token ausente o inválido (`AUTH-001`)"
+          },
+          "403" : {
+            "description" : "Autenticado sin el permiso `products:hotlink` (`AUTH-002`)"
+          },
+          "500" : {
+            "description" : "Fallo no controlado (`ERR-500`)"
+          }
+        },
+        "summary" : "Consultar el catálogo de hotlinks",
         "tags" : [ "Productos" ]
       }
     },

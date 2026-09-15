@@ -306,6 +306,67 @@ public class JpaProductQueryRepository implements ProductQueryRepository {
             .setParameter("membresia", membresia)
             .getResultList();
 
+    return filasDeVenta(filas);
+  }
+
+  /**
+   * `RF-PM-027`: el catálogo de hotlinks — lo que un vendedor puede repartir.
+   *
+   * <p><b>La oferta sin la membresía y con el alcance como único predicado</b>: activo, no retirado
+   * y de alcance {@code HOTLINKS}, de los dos tipos, en el mismo orden y con la misma proyección de
+   * venta —<b>sin `purchase_price`</b> (`RN-PM-024`)—. Es `RN-PM-021` vista entera: exactamente el
+   * conjunto que {@link #findPublishedByCode} resuelve enlace a enlace.
+   *
+   * <p><b>Es una sentencia propia y no un modo de {@link #findOffer}</b>: el predicado de origen y
+   * el de alcance no se combinan, se sustituyen, y una consulta con dos modos es la que este módulo
+   * ha evitado siempre. Lo que sí comparten es el mapeo (`filasDeVenta`).
+   */
+  @Override
+  public List<ProductRow> findHotlinkCatalog() {
+    List<Tuple> filas =
+        em.createNativeQuery(
+                """
+                SELECT p.id AS id, p.code AS code, p.type AS type, p.name AS name,
+                       p.description AS description, p.icon AS icon, p.video_url AS video_url,
+                       p.cover_image_id AS cover_image_id,
+                       p.source_membership_id AS s_id, s.code AS s_code, s.name AS s_name,
+                       s.level AS s_level, s.color AS s_color,
+                       p.target_membership_id AS m_id, m.code AS m_code, m.name AS m_name,
+                       m.level AS m_level, m.color AS m_color,
+                       p.price AS price,
+                       p.currency_id AS c_id, c.code AS c_code,
+                       c.decimal_places AS c_decimales,
+                       p.validity_days AS validity_days, p.scope AS scope,
+                       p.implementation AS implementation, p.status AS status,
+                       p.created_at AS created_at,
+                       r.rating_avg AS rating_avg, r.rating_count AS rating_count
+                  FROM products p
+                  LEFT JOIN memberships s ON s.id = p.source_membership_id
+                  LEFT JOIN memberships m ON m.id = p.target_membership_id
+                  LEFT JOIN currencies  c ON c.id = p.currency_id
+                  LEFT JOIN LATERAL (
+                      SELECT avg(pc.rating) AS rating_avg, count(*) AS rating_count
+                        FROM product_comments pc
+                       WHERE pc.product_id = p.id AND pc.deleted_at IS NULL
+                  ) r ON true
+                 WHERE p.deleted_at IS NULL
+                   AND p.status = 'ACTIVO'
+                   AND p.scope = 'HOTLINKS'
+                 ORDER BY CASE WHEN p.type = 'UPGRADE_MEMBRESIA' THEN 0 ELSE 1 END,
+                          m.level DESC,
+                          p.created_at ASC,
+                          p.id ASC
+                """,
+                Tuple.class)
+            .getResultList();
+    return filasDeVenta(filas);
+  }
+
+  /**
+   * El mapeo de las dos lecturas de venta —la oferta y el catálogo de hotlinks—, que comparten
+   * proyección: sin `purchase_price`, sin `updated_at` ni `deleted_at`.
+   */
+  private static List<ProductRow> filasDeVenta(List<Tuple> filas) {
     List<ProductRow> resultado = new ArrayList<>(filas.size());
     for (Tuple fila : filas) {
       resultado.add(

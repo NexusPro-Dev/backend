@@ -68,6 +68,13 @@ public interface ProductQueryRepository {
   List<ProductRow> findOffer(UUID membresia);
 
   /**
+   * `RF-PM-027`: los productos activos de alcance `HOTLINKS`, de los dos tipos, en la proyección de
+   * venta y en el orden de la oferta. <b>Sin la membresía de nadie</b>: el vendedor no compra lo
+   * que reparte.
+   */
+  List<ProductRow> findHotlinkCatalog();
+
+  /**
    * El producto que un hotlink señala, por su <b>código</b> (`RF-PM-008` · `T-04`).
    *
    * <p><b>Exige activo, no retirado y de alcance {@code HOTLINKS}</b> (`RN-PM-021`), y por eso
