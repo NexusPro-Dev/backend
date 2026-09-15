@@ -5,11 +5,11 @@
 | Módulo | `PM` — Productos y Mercadeo |
 | Paquete | `modules/products` |
 | Prefijos de permiso | `products:` |
-| Versión | 0.32.0 |
+| Versión | 0.33.0 |
 | Estado | **Borrador** |
 | Responsable | Bonilla Diaz William Steven |
 | Fecha de creación | 26-08-2026 |
-| Última actualización | 14-09-2026 |
+| Última actualización | 15-09-2026 |
 
 !!! info "Qué va en este documento"
 
@@ -623,16 +623,16 @@ No se copian: se referencian, porque dos copias de una regla acaban divergiendo.
 | `RF-PM-014` | Subir o reemplazar la portada de un producto | Alta | `products:update` | **En desarrollo** |
 | `RF-PM-015` | Quitar la portada de un producto | Media | `products:update` | **En desarrollo** |
 | `RF-PM-016` | Obtener la imagen de una portada, sin autenticación | Alta | **Público** | **En desarrollo** |
-| `RF-PM-017` | Registrar paquete | **Crítica** | `packages:create` | Pendiente |
-| `RF-PM-018` | Consultar paquetes | Alta | `packages:read` | Pendiente |
-| `RF-PM-019` | Consultar el detalle de un paquete | Alta | `packages:read` | Pendiente |
-| `RF-PM-020` | Editar paquete | Media | `packages:update` | Pendiente |
-| `RF-PM-021` | Cambiar el estado de un paquete | Alta | `packages:update` | Pendiente |
-| `RF-PM-022` | Eliminar paquete | Media | `packages:delete` | Pendiente |
-| `RF-PM-023` | Asociar un producto a un paquete, con su descuento | **Crítica** | `packages:update` | Pendiente |
-| `RF-PM-024` | Corregir el descuento de un producto del paquete | Media | `packages:update` | Pendiente |
-| `RF-PM-025` | Desasociar un producto de un paquete | Media | `packages:update` | Pendiente |
-| `RF-PM-026` | Consultar el hotlink de un paquete, sin autenticación | Alta | **Público** | Pendiente |
+| `RF-PM-017` | Registrar paquete | **Crítica** | `packages:create` | **Tasks en revisión** |
+| `RF-PM-018` | Consultar paquetes | Alta | `packages:read` | **Tasks en revisión** |
+| `RF-PM-019` | Consultar el detalle de un paquete | Alta | `packages:read` | **Tasks en revisión** |
+| `RF-PM-020` | Editar paquete | Media | `packages:update` | **Tasks en revisión** |
+| `RF-PM-021` | Cambiar el estado de un paquete | Alta | `packages:update` | **Tasks en revisión** |
+| `RF-PM-022` | Eliminar paquete | Media | `packages:delete` | **Tasks en revisión** |
+| `RF-PM-023` | Asociar un producto a un paquete, con su descuento | **Crítica** | `packages:update` | **Tasks en revisión** |
+| `RF-PM-024` | Corregir el descuento de un producto del paquete | Media | `packages:update` | **Tasks en revisión** |
+| `RF-PM-025` | Desasociar un producto de un paquete | Media | `packages:update` | **Tasks en revisión** |
+| `RF-PM-026` | Consultar el hotlink de un paquete, sin autenticación | Alta | **Público** | **Tasks en revisión** |
 
 **Prioridades:** Crítica · Alta · Media · Baja.
 **Estados:** los de [`requirements.md` §4](../requirements.md#4-matriz-de-trazabilidad), que es su autoridad.
@@ -971,7 +971,7 @@ Devuelve **la** reseña viva del actor sobre un producto —una, por `RN-PM-026`
 | Reglas aplicables | `RN-PM-035`, `RN-PM-041` |
 | Depende de | `RF-PM-001` |
 | Tripleta | `docs/specs/pm/017-registrar-paquete/` |
-| Estado | Pendiente |
+| Estado | **Tasks en revisión** — tripleta escrita el 15-09-2026 |
 
 Registra un paquete con **código, nombre, moneda y alcance**, obligatorios, y descripción opcional. **Nace `INACTIVO` y vacío**: los productos se le asocian después (`RF-PM-023`) y se publica con `RF-PM-021`, cuando tenga al menos dos y descripción. Es el requerimiento que **crea las dos tablas** —`product_packages` y `product_package_items`— y **siembra los cuatro permisos `packages:`**, asociados a `SUPERADMIN` y `ADMIN` en la misma migración. La moneda se valida contra `SP` como la del producto (`RN-PM-008`) y **no se corrige después**.
 
@@ -986,7 +986,7 @@ Registra un paquete con **código, nombre, moneda y alcance**, obligatorios, y d
 | Reglas aplicables | `RN-PM-036`, `RN-PM-039` |
 | Depende de | `RF-PM-017` |
 | Tripleta | `docs/specs/pm/018-consultar-paquetes/` |
-| Estado | Pendiente |
+| Estado | **Tasks en revisión** — tripleta escrita el 15-09-2026 |
 
 Devuelve los paquetes **paginados**, con filtros por estado, alcance, moneda y búsqueda por nombre, e **incluye lo inactivo y excluye lo retirado salvo que se pida**, como el catálogo de productos. Cada fila trae `price`, `listPrice`, `savings` **calculados** (`RN-PM-036`), **cuántos productos** contiene y si **hoy se puede ofrecer** (`offerable`, `RN-PM-039`). La cuenta de todos los paquetes de la página se resuelve **en una sentencia** sobre las filas de asociación, no una por paquete.
 
@@ -1001,7 +1001,7 @@ Devuelve los paquetes **paginados**, con filtros por estado, alcance, moneda y b
 | Reglas aplicables | `RN-PM-036`, `RN-PM-037`, `RN-PM-039`, `RN-PM-040` |
 | Depende de | `RF-PM-017`, `RF-PM-023` |
 | Tripleta | `docs/specs/pm/019-consultar-detalle-paquete/` |
-| Estado | Pendiente |
+| Estado | **Tasks en revisión** — tripleta escrita el 15-09-2026 |
 
 Devuelve el paquete con **sus productos resueltos** —código, nombre, tipo, precio de catálogo, descuento y **precio dentro del paquete**—, los tres totales, la conversión de `price` a la moneda por omisión, y **`offerable` con su motivo** cuando no se puede ofrecer: qué producto está inactivo o retirado, o que tiene menos de dos, o que le falta descripción. Es la lectura de administración, y por eso **sí** trae el `purchasePrice` de cada producto y el motivo del retiro del paquete. **Aquí nace la cuenta de `RN-PM-036`**, en un componente que la oferta y el hotlink reutilizan.
 
@@ -1016,7 +1016,7 @@ Devuelve el paquete con **sus productos resueltos** —código, nombre, tipo, pr
 | Reglas aplicables | `RN-PM-035`, `RN-PM-041` |
 | Depende de | `RF-PM-017` |
 | Tripleta | `docs/specs/pm/020-editar-paquete/` |
-| Estado | Pendiente |
+| Estado | **Tasks en revisión** — tripleta escrita el 15-09-2026 |
 
 Corrige **nombre, descripción y alcance**. **No corrige el código ni la moneda**: el código por `RN-PM-013`, y la moneda porque los productos ya asociados están en ella (`RN-PM-035`) — cambiarla dejaría un paquete que suma monedas distintas. Los productos y sus descuentos se corrigen por `RF-PM-023` a `RF-PM-025`, no por aquí.
 
@@ -1031,7 +1031,7 @@ Corrige **nombre, descripción y alcance**. **No corrige el código ni la moneda
 | Reglas aplicables | `RN-PM-039`, `RN-PM-040`, `RN-PM-041` |
 | Depende de | `RF-PM-017` |
 | Tripleta | `docs/specs/pm/021-cambiar-estado-paquete/` |
-| Estado | Pendiente |
+| Estado | **Tasks en revisión** — tripleta escrita el 15-09-2026 |
 
 Activa o desactiva un paquete. **Activar exige descripción y al menos dos productos asociados** (`RN-PM-040`); no exige que todos estén activos hoy — eso lo mira la oferta en cada lectura (`RN-PM-039`), porque un paquete puede activarse mientras se repone uno de sus productos. Desactivar lo retira de la oferta sin tocar nada.
 
@@ -1046,7 +1046,7 @@ Activa o desactiva un paquete. **Activar exige descripción y al menos dos produ
 | Reglas aplicables | `RN-PM-041` |
 | Depende de | `RF-PM-017` |
 | Tripleta | `docs/specs/pm/022-eliminar-paquete/` |
-| Estado | Pendiente |
+| Estado | **Tasks en revisión** — tripleta escrita el 15-09-2026 |
 
 Elimina lógicamente el paquete **con motivo** (Art. V.13), y **sus filas de asociación permanecen**: el paquete retirado sigue diciendo qué contenía, que es lo que una venta pasada necesitará resolver. No exige desasociar antes ni desactivar antes, por lo mismo que el producto (`RF-PM-006`).
 
@@ -1061,7 +1061,7 @@ Elimina lógicamente el paquete **con motivo** (Art. V.13), y **sus filas de aso
 | Reglas aplicables | `RN-PM-035`, `RN-PM-037`, `RN-PM-038`, `RN-PM-039`, `RN-PM-044` |
 | Depende de | `RF-PM-017` |
 | Tripleta | `docs/specs/pm/023-asociar-producto-paquete/` |
-| Estado | Pendiente |
+| Estado | **Tasks en revisión** — tripleta escrita el 15-09-2026 |
 
 Asocia un producto **activo, no retirado y en la moneda del paquete** a un paquete **vivo** (activo o inactivo), declarando la **forma del descuento** —`PORCENTAJE` o `FIJO`— y su **valor**, que no puede dejar al producto por debajo de cero (`RN-PM-037`). Un producto ya asociado se rechaza (`RN-PM-038`): su descuento se corrige con `RF-PM-024`. Si es un upgrade, **su origen debe coincidir** con el de los upgrades ya dentro (`RN-PM-044`). Devuelve el paquete entero con su cuenta rehecha. **Es la operación que define al paquete**, y por eso es crítica: aquí se decide qué se promete y a qué precio.
 
@@ -1076,7 +1076,7 @@ Asocia un producto **activo, no retirado y en la moneda del paquete** a un paque
 | Reglas aplicables | `RN-PM-037`, `RN-PM-042` |
 | Depende de | `RF-PM-023` |
 | Tripleta | `docs/specs/pm/024-corregir-descuento-paquete/` |
-| Estado | Pendiente |
+| Estado | **Tasks en revisión** — tripleta escrita el 15-09-2026 |
 
 Corrige la forma o el valor del descuento de un producto que ya está en el paquete, con las mismas cotas del alta (`RN-PM-037`) contra el precio **de hoy** del producto. Se audita como cambio, con antes y después (`RN-PM-042`). No cambia el producto ni el paquete: solo la fila que los une.
 
@@ -1091,7 +1091,7 @@ Corrige la forma o el valor del descuento de un producto que ya está en el paqu
 | Reglas aplicables | `RN-PM-040`, `RN-PM-042` |
 | Depende de | `RF-PM-023` |
 | Tripleta | `docs/specs/pm/025-desasociar-producto-paquete/` |
-| Estado | Pendiente |
+| Estado | **Tasks en revisión** — tripleta escrita el 15-09-2026 |
 
 Quita la asociación **sin motivo** —es una fila de relación, Art. V.13— y la registra en la auditoría de eliminación como `ASSOCIATION` con su instantánea (`RN-PM-042`). Si el paquete queda con **menos de dos** productos **no se desactiva**: deja de ofrecerse por `RN-PM-039` mientras siga así, y el detalle lo dice (`RN-PM-040`). Un producto que no estaba asociado responde `404`.
 
@@ -1106,7 +1106,7 @@ Quita la asociación **sin motivo** —es una fila de relación, Art. V.13— y 
 | Reglas aplicables | `RN-PM-021` y `RN-PM-022` por extensión, `RN-PM-036`, `RN-PM-039`, `RN-PM-043` |
 | Depende de | `RF-PM-008`, `RF-PM-019` |
 | Tripleta | `docs/specs/pm/026-hotlink-paquete/` |
-| Estado | Pendiente |
+| Estado | **Tasks en revisión** — tripleta escrita el 15-09-2026 |
 
 Es `RF-PM-008` aplicado al paquete: por nombre de usuario y código, **sin token**, devuelve el vendedor —nombre y apellido— y el paquete con sus productos, su precio, su precio de lista, su ahorro y la conversión. Responde **solo** un paquete **activo, de alcance `HOTLINKS` y ofrecible hoy** (`RN-PM-039`), y todo lo que no procede recibe **el mismo `404`** que el hotlink del producto — la uniformidad es la misma decisión de seguridad. **Vive bajo la misma familia de rutas** (`/api/v1/hotlinks/…`) y hereda su cota de tasa sin política nueva. De cada producto publica lo que el hotlink del producto publica, y nunca el costo (`RN-PM-043`).
 ## 7. Requerimientos no funcionales
@@ -1116,7 +1116,7 @@ Definidos en [`security.md` §11](../security.md) y en la constitución. Los que
 | ID | Requerimiento |
 |---|---|
 | `RNF-SEG-001` | Autenticación y autorización basada en roles y permisos |
-| `RNF-SEG-002` | Todo endpoint no declarado como público exige autenticación. **Este módulo publica TRES**: `RF-PM-008`, el hotlink, desde el 07-09-2026; `RF-PM-012`, la lista de reseñas de un producto, desde el 14-09-2026; y `RF-PM-016`, la imagen de una portada, desde ese mismo día. Las tres declaraciones van en `SecurityConfig` con el motivo escrito al lado; la segunda **solo en `GET`** —la misma ruta responde a un `POST` que exige `products:comment`— y la tercera es la **única ruta del sistema que sirve bytes y no JSON**. **Y una cuarta, diseñada**: `RF-PM-026`, el hotlink de un paquete, que **cuelga de la familia `/api/v1/hotlinks/`** y por eso no estrena ni declaración de ruta ni cota: hereda las del hotlink del producto |
+| `RNF-SEG-002` | Todo endpoint no declarado como público exige autenticación. **Este módulo publica TRES**: `RF-PM-008`, el hotlink, desde el 07-09-2026; `RF-PM-012`, la lista de reseñas de un producto, desde el 14-09-2026; y `RF-PM-016`, la imagen de una portada, desde ese mismo día. Las tres declaraciones van en `SecurityConfig` con el motivo escrito al lado; la segunda **solo en `GET`** —la misma ruta responde a un `POST` que exige `products:comment`— y la tercera es la **única ruta del sistema que sirve bytes y no JSON**. **Y una cuarta, diseñada**: `RF-PM-026`, el hotlink de un paquete, que **cuelga de la familia `/api/v1/hotlinks/`** y hereda su **cota** sin política nueva —`RateLimitFilter` decide por prefijo—, pero **sí estrena declaración de ruta**: el patrón público del producto es de dos segmentos (`/api/v1/hotlinks/*/*`) y este tiene tres, de modo que `SecurityConfig` gana `/api/v1/hotlinks/*/packages/*` al lado del otro, con el motivo escrito. **Corregido el 15-09-2026** al escribir la tripleta de `RF-PM-026`: la v0.31.0 decía que no estrenaba ninguna de las dos |
 | `RNF-PERF-001` | Lectura p95 < 500 ms, escritura p95 < 1 s (Art. XV.9) |
 | `RNF-MAN-001` | Ninguna regla de negocio del módulo vive en el controlador (`architecture.md` §5) |
 
@@ -1489,3 +1489,4 @@ Se declaran en la base de datos, no solo en Java (Art. V.6).
 | 0.30.0 | 14-09-2026 | **`CM` invierte lo que §5.2.4 decía del precio cero**: nace `RN-CM-020` ([`requirements/cm.md`](cm.md) v0.13.0) y un producto gratuito **sí comisiona, solo por importe fijo**. Este módulo no cambia de regla —`RN-PM-006` sigue admitiendo el cero—; se anota para que el párrafo que decía «cualquier fijo mayor que cero se rechaza» no siga leyéndose como vigente. | Responsable técnico |
 | 0.31.0 | 14-09-2026 | **Nacen los PAQUETES: varios productos bajo un código, cada uno con su descuento, y el paquete vale la suma de los productos rebajados.** Por decisión del responsable del proyecto, con **cuatro respuestas preguntadas antes de escribir** (§5.2.10): **se define y se publica** en la oferta y el hotlink, y la compra queda para otra tanda —una venta multilínea es de `MV` y `CM`—; **el precio se calcula siempre** y no se guarda (`RN-PM-036`, crítica por lo mismo que el promedio de reseñas: la copia que se quedara atrás mentiría); **permisos propios `packages:*`**, cuatro, para poder dar el catálogo sin los paquetes; y **el descuento no deja a ningún producto por debajo de cero** (`RN-PM-037`), porcentaje de cero a cien o fijo de cero al precio, con el cero admitido y el gratuito solo con cero. Nace el submódulo **Paquetes** con **diez requerimientos**, `RF-PM-017` a `RF-PM-026`, **diez reglas**, `RN-PM-035` a `RN-PM-044` —dos críticas: el precio se calcula, y **el paquete se ofrece entero o no se ofrece**, porque incumplirla no falla, promete—, y **dos tablas** (§10.6): `product_packages`, **sin precio y con moneda propia e inmutable**, y `product_package_items`, cuya clave primaria es la regla de «una vez por paquete». Decisiones de diseño declaradas: **la moneda no se convierte**, un paquete solo reúne productos en la suya (`RN-PM-035`); **la cuenta se hace en Java en un solo sitio** y el `máx(0, …)` del fijo es el hueco temporal aceptado; **los upgrades de un paquete comparten origen** (`RN-PM-044`) para que la oferta pueda aplicar `RN-PM-011` al paquete entero y no exista el paquete que nadie puede comprar; **un paquete de un producto es una promoción** y no se activa (`RN-PM-040`); y **el paquete puede quedar oculto sin que su estado cambie**, con el detalle como única señal — aceptado y escrito. La oferta (`RF-PM-007`) se enmendará con una colección `packages`, y `RF-PM-026` cuelga de la familia de hotlinks sin estrenar cota. Los diez nacen en `Pendiente`; las tripletas son el paso siguiente. | Responsable del proyecto |
 | 0.32.0 | 14-09-2026 | **La portada queda CONSTRUIDA**: `V90` crea `product_images` y `products.cover_image_id`, y `RF-PM-014` a `RF-PM-016` pasan a `En desarrollo` con **28 pruebas** propias en verde y las seis enmiendas en sus suites. **Lo que dejó la construcción**: `ImageSignature` es todo lo que el sistema sabe de una imagen —tres firmas, doce bytes— y `ProductImage` la única entidad del sistema sin `updated_at`; `RN-PM-034` vive **en un solo método del agregado** con sus tres caras (`VAL-018`, `VAL-010`, `VAL-002`); la ruta pública se declara **por método** y **no negocia** —sin `produces`, para que un `Accept: application/json` no reciba `406`—; y el tope del contenedor (`6MB`) va por encima del de negocio para que «demasiado grande» responda siempre `VAL-004`. Dos precisiones a las tripletas: un `coverImageUrl` en el cuerpo del `PATCH` **se rechaza con `400`** —`FAIL_ON_UNKNOWN_PROPERTIES`— y no se ignora; y el hotlink **sí publica el identificador del producto** (lo necesitan las reseñas), de modo que lo que la dirección de la imagen no revela es de qué producto es. | Responsable técnico |
+| 0.33.0 | 15-09-2026 | **Las diez tripletas de los paquetes quedan escritas**: diez `spec.md` en revisión, diez `plan.md` aprobados y diez `tasks.md` en revisión en `docs/specs/pm/017` a `026`, **setenta y ocho criterios** (`CA-PM-261` a `CA-PM-338`) y noventa y tres tareas, y las diez filas de §6.1 pasan de `Pendiente` a **Tasks en revisión**. Decisiones tomadas al escribirlas, todas dentro de lo que la v0.31.0 dejó decidido: **el precio del paquete lo hace `PackagePricing` y la ofrecibilidad `PackageOfferability`**, dos objetos de dominio que el detalle publica y la oferta y el hotlink solo consultan, con el **orden fijo de motivos** —menos de dos, sin descripción, inactivo, retirado, producto no ofrecible nombrado—; **corregir un descuento exige forma y valor juntos** (`RF-PM-024`), porque son un solo dato; **desasociar responde `200` con el paquete** y no `204`, porque lo que cambió es su precio; **el hotlink del paquete responde el mismo `404` del producto también al paquete que hoy no se puede ofrecer**, y **el alcance de los productos no filtra dentro del paquete**: el canal lo decide el paquete. La oferta (`RF-PM-007`) queda **enmendada** con la colección `packages` (v0.13.0, `CA-PM-335` a `CA-PM-338`), y la construye `RF-PM-019`. **Y una corrección a §7**: `RF-PM-026` sí estrena declaración pública de ruta —tres segmentos frente a los dos del producto—, aunque no cota. | Responsable técnico |

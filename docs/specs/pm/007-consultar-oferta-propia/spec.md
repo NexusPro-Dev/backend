@@ -18,6 +18,7 @@
 | Enmendada el | 14-09-2026 — **cada producto de la oferta trae `rating`, en la misma sentencia y sin subir el número de consultas** (`RN-PM-031`, `RF-PM-009`). Ver §15 |
 | Enmendada el | 14-09-2026 — **cada producto de la oferta trae `videoUrl`, el enlace del video** (`RN-PM-032`): es material de venta, y al revés que el precio de compra **sí se selecciona**. Ver §15 |
 | Enmendada el | 14-09-2026 — **cada producto de la oferta trae `coverImageUrl`, la dirección de la portada** (`RN-PM-033`, `RF-PM-014`), por lo mismo. Ver §15 |
+| Enmendada el | 15-09-2026 — **la oferta gana una tercera colección, `packages`**: los paquetes que hoy se pueden ofrecer a quien mira, con su cuenta hecha (`RN-PM-039`, `RN-PM-043`, `RN-PM-044`; `RF-PM-019`). Ver §15 |
 
 ---
 
@@ -80,6 +81,9 @@ El catálogo de `RF-PM-002` lo lee quien administra y contiene todo. Lo que un c
 | `RN-PM-032` | **Un producto puede enlazar un video, y el enlace sale en toda lectura** — la oferta lo publica: es lo que se quiere que vea quien compra | `requirements/pm.md` §5.1 |
 | `RN-PM-033` | **La portada es un archivo y se publica por su identificador** — la oferta publica su dirección, `coverImageUrl`, y la imagen la sirve `RF-PM-016` sin token, de modo que quien ve la oferta la pinta sin una segunda credencial | `requirements/pm.md` §5.1 |
 | `RN-SP-018` | Todo consumidor tiene membresía | `requirements/sp.md` §5.1 |
+| `RN-PM-039` | **(Desde el 15-09-2026)** El paquete no se ofrece si algo suyo dejó de poderse comprar — aquí, **no aparece** | `requirements/pm.md` §5.1 |
+| `RN-PM-043` | **(Desde el 15-09-2026)** La oferta publica el paquete con su cuenta hecha, y sin el costo de nadie | `requirements/pm.md` §5.1 |
+| `RN-PM-044` | **(Desde el 15-09-2026)** Los upgrades de un paquete comparten origen, y el paquete se ofrece a quien tiene ese origen — `RN-PM-011` aplicada al paquete | `requirements/pm.md` §5.1 |
 
 ## 6. Datos
 
@@ -100,6 +104,13 @@ El catálogo de `RF-PM-002` lo lee quien administra y contiene todo. Lo que un c
 | Membresía destino | En los upgrades: código, nombre y **nivel**, para que quien mira entienda a dónde sube |
 | Membresía de origen | **No viaja.** Es siempre la del actor, que ya va en la respuesta: repetirla en cada producto sería decir tres veces lo mismo |
 | Nivel actual del actor | Cuál es su membresía hoy, o que no tiene ninguna |
+| **`packages`** (desde el 15-09-2026) | La **tercera colección**, envuelta como las otras dos: los paquetes que hoy se pueden ofrecer **a esta persona**. Cada uno con código, nombre, descripción, moneda, `items` —el producto en **la misma forma que los productos de la oferta**, `discount` y **`priceInPackage`**—, `listPrice`, `price`, `savings` y `exchange` de `price`. **Sin `purchasePrice` en ningún nivel** (`RN-PM-043`). Ordenados por **fecha de alta** |
+
+**Qué paquetes entran (desde el 15-09-2026).** Un paquete aparece si **se puede ofrecer hoy** —activo, vivo, con descripción, con dos productos al menos, y **todos** ellos activos y vivos (`RN-PM-039`, `RN-PM-040`)— **y** si esta persona puede comprarlo entero: **sus upgrades salen de la membresía del actor** (`RN-PM-044`, que es `RN-PM-011` aplicada al paquete), y un paquete **solo de bots** se ofrece a todo el mundo, como los bots — también a quien no tiene membresía. **El alcance no filtra**, como con los productos: los dos valores llegan a la tienda. **Un paquete que no se puede ofrecer no aparece, y nada lo dice**: quien tiene que saberlo lo sabe por el detalle administrativo (`RF-PM-019`), con `offerableReason`.
+
+**El producto de cada línea es la forma de la oferta, reutilizada tal cual**, por lo mismo que el hotlink del paquete reutiliza la del hotlink del producto (`RF-PM-026` §14.3): lo que se publica de un producto a quien compra ya está decidido aquí, enmienda a enmienda, y una segunda forma obligaría a repetir cada enmienda futura dos veces.
+
+**Y el número de sentencias sube en dos, y no en una por paquete**: los paquetes ofrecibles en una, sus líneas en otra (`findItemsOf`, de `RF-PM-018`), y **las monedas de los paquetes entran en la misma sentencia de tasas** que las de los productos (`CA-PM-168`).
 
 ## 7. Precondiciones y postcondiciones
 
@@ -118,7 +129,8 @@ El catálogo de `RF-PM-002` lo lee quien administra y contiene todo. Lo que un c
 3. El sistema toma los productos activos.
 4. De los upgrades, conserva solo aquellos **cuyo origen es la membresía del actor** — coincidencia exacta, sin comparar niveles.
 5. El sistema agrupa el resultado por tipo: los upgrades por nivel destino, los bots por fecha de alta.
-6. El sistema devuelve los productos resultantes junto con el nivel actual del actor.
+6. **(Desde el 15-09-2026)** El sistema toma los paquetes **activos y vivos** con sus líneas, descarta los que hoy no se pueden ofrecer (`PackageOfferability`) y los que tienen upgrades **de otro origen** que la membresía del actor, y calcula la cuenta de cada uno (`PackagePricing`).
+7. El sistema devuelve los productos y los paquetes resultantes junto con el nivel actual del actor.
 
 ## 9. Flujos alternativos
 
@@ -187,6 +199,10 @@ Ninguna: la consulta no admite entrada.
 | `CA-PM-168` | El sistema resuelve la conversión de una página **sin una consulta por producto**: la moneda de casa una vez y las tasas en una sola sentencia |
 | `CA-PM-228` | Cada producto de la oferta devuelve **`videoUrl`** tal cual se guardó, y **presente y nulo** cuando no lo declara — **sin que `purchasePrice` aparezca**, que sigue ausente (`CA-PM-160`) |
 | `CA-PM-237` | Cada producto de la oferta devuelve **`coverImageUrl`** con la forma `/api/v1/product-images/{uuid}` cuando hay portada, y **presente y nulo** cuando no — en los upgrades y en los bots—, **sin que `purchasePrice` aparezca**, y sin que el número de sentencias suba |
+| `CA-PM-335` | La oferta devuelve **`packages`**, envuelta y **presente aunque vacía**, y cada paquete con cada producto en **la forma de la oferta**, su `discount` y su `priceInPackage`, y con `listPrice`, `price` y `savings` que **cuadran** con las líneas y `exchange` calculada sobre `price` — **sin `purchasePrice` en ningún nivel** |
+| `CA-PM-336` | La oferta **no devuelve** un paquete inactivo, retirado, con menos de dos productos, ni con un producto **inactivo o retirado** dentro, **y lo vuelve a devolver** cuando ese producto se reactiva; el alcance del paquete **no filtra** |
+| `CA-PM-337` | La oferta devuelve a quien está en `PLATINO` el paquete cuyos upgrades salen de `PLATINO` y **no** el que sale de `ORO`; y devuelve un paquete **solo de bots** a todo el mundo, **incluido quien no tiene membresía** |
+| `CA-PM-338` | Con tres paquetes ofrecibles en dos monedas distintas, el número de sentencias sube **exactamente en dos** respecto de la oferta sin paquetes: ni una por paquete ni una por moneda |
 
 ## 13. Casos límite
 
@@ -232,3 +248,4 @@ Ninguna. Las cinco se resolvieron el 26-08-2026, antes de aprobar la especificac
 | 0.10.0 | 14-09-2026 | **Entra `rating` en la respuesta** —el promedio y la cantidad de reseñas vivas del producto— por `RN-PM-031` ([`requirements/pm.md`](../../../requirements/pm.md) v0.24.0 §5.2.7): cada producto de la oferta trae `rating`, en la misma sentencia y sin subir el número de consultas. Enmienda de Art. I.7 declarada por el plan de [`RF-PM-009`](../009-resenar-producto/plan.md) §4.1 y construida por sus tareas `T-10` y `T-11`; los criterios que la prueban son `CA-PM-180` a `CA-PM-182` de aquella tripleta. **El promedio no se guarda en `products`**: se cuenta, por un `LEFT JOIN LATERAL` sobre el índice parcial de `product_comments`, para que ninguna copia pueda quedarse atrás. | Responsable del proyecto |
 | 0.11.0 | 14-09-2026 | **Cada producto de la oferta trae `videoUrl`, el enlace del video** (`RN-PM-032`, [`requirements/pm.md`](../../../requirements/pm.md) v0.27.0 §5.2.8). Es lo contrario del precio de compra: material de venta, que existe para que lo vea quien compra, y por eso **sí se selecciona** aquí. Presente y nulo cuando no hay. Nace `CA-PM-228`. Enmienda de Art. I.7. | Responsable del proyecto |
 | 0.12.0 | 14-09-2026 | **Cada producto de la oferta trae `coverImageUrl`, la dirección de la portada** (`RN-PM-033`, [`requirements/pm.md`](../../../requirements/pm.md) v0.29.0 §5.2.9), por lo mismo que el video: material de venta, que existe para que lo vea quien compra. La imagen la sirve `RF-PM-016` **sin token**, de modo que la pantalla de la oferta la pinta con un `<img>` y ninguna credencial más. Presente y nula cuando no hay, en los dos tipos. `CA-PM-237`. Enmienda que construye `RF-PM-014` (Art. I.7). | Responsable del proyecto |
+| 0.13.0 | 15-09-2026 | **La oferta gana una tercera colección, `packages`** ([`requirements/pm.md`](../../../requirements/pm.md) v0.31.0 §5.2.10): los paquetes que hoy se pueden ofrecer **a esta persona**, con la cuenta hecha —cada producto con su `priceInPackage`, `listPrice`, `price`, `savings` y la conversión de `price`— y **sin el costo de nadie** (`RN-PM-043`). Entra el que se puede ofrecer hoy (`RN-PM-039`, `RN-PM-040`) **y** el que esta persona puede comprar entero: sus upgrades salen de **su** membresía (`RN-PM-044`, que es `RN-PM-011` aplicada al paquete), y el paquete solo de bots se ofrece a todo el mundo. **Lo que no se puede ofrecer no aparece y nada lo dice**; el detalle administrativo lo nombra. El producto de cada línea es **la forma de la oferta, reutilizada tal cual**. El número de sentencias sube **en dos y no en una por paquete**, con las monedas de los paquetes en la misma sentencia de tasas. Nacen `CA-PM-335` a `CA-PM-338`. Enmienda de Art. I.7 declarada al escribir las tripletas de los paquetes y que construye `RF-PM-019` (`T-11`, `T-12`). | Responsable técnico |
