@@ -56,7 +56,7 @@ Es `RF-PM-004` para paquetes, con una frontera más corta. Allí lo inmutable er
 | Identificador | Sí | Cuál | Ruta. Paquete **vivo** |
 | `name` | No | Nombre nuevo | Hasta 150 tras recortar; **no admite vaciarse**; único entre vivos |
 | `description` | No | Descripción nueva | **Admite vaciarse** con nulo explícito |
-| `scope` | No | Alcance nuevo | `TIENDA` o `HOTLINKS`; **no admite vaciarse** |
+| `scope` | No | Alcance nuevo | `TIENDA`, `HOTLINK`, `AMBOS` o `NINGUNO`; **no admite vaciarse** |
 
 Los tres estados de un campo —ausente, nulo, con valor— importan como en `RF-PM-004`: el nombre y el alcance rechazan el nulo; la descripción lo toma como orden. **Un cuerpo sin ningún campo corregible responde `400`**, como en toda corrección del módulo.
 
@@ -85,7 +85,7 @@ Los tres estados de un campo —ausente, nulo, con valor— importan como en `RF
 
 **Comportamiento:** se vacía. El paquete **no cambia de estado**, pero **deja de ofrecerse** (`RN-PM-040`, `RN-PM-039`) hasta que vuelva a tener descripción, y el detalle lo dice. Es lo mismo que hace `RF-PM-004` con un producto activo.
 
-### FA-002 — Cambiar el alcance de `HOTLINKS` a `TIENDA`
+### FA-002 — Cambiar el alcance de `AMBOS` o `HOTLINK` a `TIENDA`
 
 **Comportamiento:** el hotlink del paquete deja de resolver (`RF-PM-026`); la oferta no cambia. Es lo que `RN-PM-019` existe para permitir.
 
@@ -109,7 +109,7 @@ Los tres estados de un campo —ausente, nulo, con valor— importan como en `RF
 |---|---|---|
 | `VAL-001` | Identificador con formato válido | El identificador indicado no tiene un formato válido. |
 | `VAL-002` | El nombre no admite vaciarse y cabe en 150 | El nombre del paquete no puede quedar vacío ni superar los 150 caracteres. |
-| `VAL-003` | El alcance no admite vaciarse y está en el dominio | El alcance del paquete es obligatorio y debe ser TIENDA u HOTLINKS. |
+| `VAL-003` | El alcance no admite vaciarse y está en el dominio | El alcance del paquete es obligatorio y debe ser TIENDA, HOTLINK, AMBOS o NINGUNO. |
 | `VAL-004` | Ni `code` ni `currencyId` | El código y la moneda del paquete no se pueden modificar. |
 | `VAL-005` | Al menos un campo corregible | Debe informar al menos uno de los campos corregibles. |
 
@@ -142,3 +142,4 @@ Los tres estados de un campo —ausente, nulo, con valor— importan como en `RF
 | Versión | Fecha | Cambio | Responsable |
 |---|---|---|---|
 | 0.1.0 | 15-09-2026 | Redacción inicial. Hereda `RF-PM-004` con una frontera más corta: inmutables el **código** y la **moneda** —también en un paquete vacío, para no tener una regla con «mientras»—. Vaciar la descripción de un activo no lo desactiva: lo deja sin poder ofrecerse y el detalle lo dice. | Responsable técnico |
+| 0.2.0 | 15-09-2026 | **Construida** (`PackageUpdateIT`). Enmienda de Art. I.7 al construir: **el alcance adopta los cuatro valores** de [`requirements/pm.md`](../../../requirements/pm.md) v0.35.0 §5.2.11 (`VAL-003`, `FA-002`); a `NINGUNO` el paquete deja de ofrecerse en las dos vistas sin cambiar de estado. | Responsable técnico |

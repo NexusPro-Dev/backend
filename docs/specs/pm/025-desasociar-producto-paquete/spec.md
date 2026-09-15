@@ -130,3 +130,4 @@ Es `RF-CM-008` para paquetes. La fila `(paquete, producto, descuento)` es una **
 | Versión | Fecha | Cambio | Responsable |
 |---|---|---|---|
 | 0.1.0 | 15-09-2026 | Redacción inicial. Hereda `RF-CM-008`: asociación, sin motivo, borrado físico, `ASSOCIATION` con instantánea —que aquí lleva el descuento—. Responde `200` con el paquete porque lo que cambió es su precio. Dejar el paquete con menos de dos no lo desactiva: lo saca de la oferta y el detalle lo dice. | Responsable técnico |
+| 0.2.0 | 15-09-2026 | **Construida** (`PackageDissociationIT`). Sin enmiendas de comportamiento. La fila `ASSOCIATION` lleva `reason` nulo y, en la instantánea, paquete, producto, forma, valor y el precio del producto en ese instante; su `entity_id` es el del paquete. | Responsable técnico |

@@ -25,7 +25,7 @@
 
 | Capa | Elemento | Módulo |
 |---|---|---|
-| `domain/repository` | `ProductPackageQueryRepository.findPublishedByCode(String)` — el paquete **activo, vivo y `HOTLINKS`** con sus productos como `ProductRow` + descuento, en una sentencia | `PM` |
+| `domain/repository` | `ProductPackageQueryRepository.findPublishedByCode(String)` — el paquete **activo, vivo y de alcance `HOTLINK` o `AMBOS`** con sus productos como `ProductRow` + descuento, en una sentencia | `PM` |
 | `domain/service` | `GetPackageHotlinkService` | `PM` |
 | `application` | `PackageHotlinkResponse` — `seller` (`HotlinkResponse.SellerRef`), `package` con `items[{product: HotlinkResponse.ProductRef, discount, priceInPackage}]`, `listPrice`, `price`, `savings`, `exchange` (`HotlinkResponse.ExchangeRef`) | `PM` |
 | `interfaces` | `HotlinkController` — `GET /api/v1/hotlinks/{username}/packages/{code}`, `@SecurityRequirements` | `PM` |

@@ -3,7 +3,7 @@
 | Campo | Valor |
 |---|---|
 | Módulo | `PM` — Productos y Mercadeo |
-| Versión | 0.3.0 |
+| Versión | 0.4.0 |
 | Estado | **Borrador** |
 | Responsable | Bonilla Diaz William Steven |
 | Fecha de creación | 01-09-2026 |
@@ -296,7 +296,7 @@ flowchart TD
     V2 -->|no| E2["EX-002 · 409"]
     V2 -->|sí| V3{"¿la moneda existe<br/>y está ACTIVA? · SP"}
     V3 -->|no| E3["EX-003 · 422"]
-    V3 -->|sí| P1["Inserta el paquete<br/>INACTIVO · SIN precio · SIN productos<br/>la moneda queda FIJADA · RN-PM-035"]
+    V3 -->|sí| P1["Inserta el paquete<br/>INACTIVO · SIN precio · SIN productos<br/>la moneda queda FIJADA · RN-PM-035<br/>alcance: TIENDA, HOTLINK, AMBOS o NINGUNO"]
     P1 --> P2["Auditoría de cambios"]
     P2 --> FIN(["201 · el paquete vacío<br/>items vacío · totales en cero · offerable false"])
     A -.->|"FA-001 · sin descripción<br/>se registra igual"| V0
@@ -466,7 +466,7 @@ flowchart TD
     P1 --> P2["Auditoría de cambios<br/>antes y después"]
     P2 --> FIN(["200 · el detalle"])
     P1 -.->|"FA-001 · vaciar la descripción de un ACTIVO<br/>no cambia de estado · DEJA DE OFRECERSE"| P2
-    P1 -.->|"FA-002 · HOTLINKS → TIENDA<br/>el hotlink deja de resolver · la oferta no cambia"| P2
+    P1 -.->|"FA-002 · AMBOS → TIENDA<br/>el hotlink deja de resolver · la oferta no cambia"| P2
 
     classDef ex fill:#F7E9E5,stroke:#A33B2A,color:#7A2B1E
     classDef ok fill:#E5EEF0,stroke:#2D5A6B,color:#141B1E
@@ -573,7 +573,7 @@ flowchart TD
     A --> S1["1 · PublicSellerLookup"]
     S1 --> V1{"¿existe y es<br/>fuerza comercial?"}
     V1 -->|no| E["EX-001 · 404<br/>EL MISMO CUERPO en todos los casos,<br/>y el mismo que el hotlink del producto"]
-    V1 -->|sí| S2["2 · el paquete por código · sin distinguir mayúsculas<br/>ACTIVO, vivo y HOTLINKS · con sus productos<br/>como ProductRow · rating incluido"]
+    V1 -->|sí| S2["2 · el paquete por código · sin distinguir mayúsculas<br/>ACTIVO, vivo y de alcance HOTLINK o AMBOS<br/>con sus productos como ProductRow · rating incluido"]
     S2 --> V2{"¿vino?"}
     V2 -->|no| E
     V2 -->|sí| O{"PackageOfferability<br/>¿ofrecible HOY?<br/>decidido en Java, no en el WHERE"}
@@ -602,7 +602,7 @@ El diagrama de §2 no cambia; **se le añade una tercera colección** con su pro
 ```mermaid
 flowchart TD
     A(["Actor con token · la oferta"])
-    A --> Q["Los paquetes ACTIVOS y vivos con sus líneas<br/>dos sentencias · las monedas van a la MISMA sentencia de tasas"]
+    A --> Q["Los paquetes ACTIVOS, vivos y de alcance TIENDA o AMBOS<br/>con sus líneas · UNA sentencia · las monedas van a la MISMA sentencia de tasas"]
     Q --> O{"PackageOfferability<br/>¿ofrecible HOY?"}
     O -->|no| OUT["No aparece · nada lo dice"]
     O -->|"sí"| M{"¿sus upgrades salen de<br/>LA membresía del actor?<br/>RN-PM-044"}
@@ -642,6 +642,7 @@ flowchart TD
 
 | Versión | Fecha | Cambio | Responsable |
 |---|---|---|---|
+| 0.4.0 | 15-09-2026 | **Los diez casos quedan construidos** y tres diagramas se retocan con lo que cambió entre el dibujo y el código: el **alta** nombra los cuatro valores del alcance, el **hotlink del paquete** publica `HOTLINK` o `AMBOS`, y la **oferta** trae los paquetes de alcance `TIENDA` o `AMBOS` en **una** sentencia y no dos. El resto se construyó como estaba dibujado; las cuentas de sentencias reales quedaron en `CA-PM-284` y `CA-PM-338`. | Responsable técnico |
 | 0.3.0 | 15-09-2026 | **Diez casos nuevos: los paquetes** (`RF-PM-017` a `RF-PM-026`), transcritos de las §8, §9 y §10 de sus tripletas y dibujados **en el orden de construcción**, más el diagrama de la **enmienda de `RF-PM-007`** —la oferta gana `packages`—. El que más aporta es `RF-PM-023`, la asociación: **siete rombos en fila** que cambian de `422` a `409` sobre el mismo producto y terminan en el que evita el paquete que nadie podría comprar. Le sigue `RF-PM-026`, con **un solo recuadro rojo al que llegan cuatro flechas**. §4 gana cinco observaciones, entre ellas que la misma pregunta sobre la cota del descuento aparece en tres diagramas con tres efectos. | Responsable técnico |
 | 0.2.0 | 02-09-2026 | **El upgrade declara de dónde sale**, y tres diagramas cambian. El del **alta** gana un rombo —`RN-PM-017`, el origen por debajo del destino— que produce **dos códigos distintos a propósito**: origen igual al destino es `400` porque lo ve el agregado, y origen por encima es `422` porque exige el `level` de dos filas de `memberships`. El del **cambio de estado** deja de contar «un upgrade activo por destino» y pasa a contarlo **por pareja origen→destino**: dos upgrades hacia `ORO`, uno desde `BECA` y otro desde `PLATINO`, ya no compiten. Y el de la **oferta propia** pierde su comparación de niveles entera: pasa a ser una **coincidencia exacta** por origen, con lo que `FA-001` y el upgrade hacia el nivel que ya se tiene salen **del propio filtro** en lugar de estar escritos aparte. Queda anotado lo que se paga: si nadie declara un upgrade desde `VIP`, quien esté en `VIP` no ve ninguna subida — sin error y sin aviso. | Responsable técnico |
 | 0.1.0 | 01-09-2026 | Creación. Un diagrama por cada uno de los **siete** casos de uso, transcritos de las §8, §9 y §10 de sus tripletas. Los dos que más aportan son `RF-PM-005` —donde se ve que las condiciones **dependen del estado al que se va y no del actual**, cosa que un diagrama de estados simétrico esconde— y `RF-PM-001`, que pone en pasos consecutivos **dos unicidades con criterios opuestos**. §3 recoge seis observaciones, entre ellas el **hueco deliberado de `EX-004`**, tachada porque su regla migró a otro requerimiento. | Responsable técnico |

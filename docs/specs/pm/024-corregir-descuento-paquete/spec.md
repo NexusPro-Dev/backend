@@ -143,3 +143,4 @@ Cambiar la rebaja de un producto que ya está en el paquete **sin sacarlo y volv
 | Versión | Fecha | Cambio | Responsable |
 |---|---|---|---|
 | 0.1.0 | 15-09-2026 | Redacción inicial. **Forma y valor obligatorios**: son un solo dato, y corregir uno sin el otro invita al despiste. La cota se comprueba contra el precio **de hoy**, que es donde el hueco temporal de `RN-PM-037` se cierra solo. El producto inactivo dentro del paquete se corrige igual. | Responsable técnico |
+| 0.2.0 | 15-09-2026 | **Construida** (`PackageDiscountIT`). Sin enmiendas de comportamiento. El registro `UPDATE` lleva `product_id`, `type` y `value` con su antes y su después, y como `entity_id` el del paquete, igual que la asociación. | Responsable técnico |

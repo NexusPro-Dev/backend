@@ -3,7 +3,7 @@
 | Campo | Valor |
 |---|---|
 | Módulo | `PM` — Productos y Mercadeo |
-| Versión | 0.3.0 |
+| Versión | 0.4.0 |
 | Estado | **Borrador** |
 | Responsable | Bonilla Diaz William Steven |
 | Fecha de creación | 01-09-2026 |
@@ -231,12 +231,12 @@ flowchart LR
     end
 
     subgraph OF["RF-PM-007 · la oferta · con token, sin permiso"]
-        B1["Solo lo ofrecible HOY"] --> B2["Y solo lo que esta persona<br/>puede comprar ENTERO:<br/>sus upgrades salen de SU membresía · RN-PM-044<br/>solo bots → a todo el mundo"]
+        B1["Solo lo ofrecible HOY,<br/>ACTIVO y de alcance TIENDA o AMBOS"] --> B2["Y solo lo que esta persona<br/>puede comprar ENTERO:<br/>sus upgrades salen de SU membresía · RN-PM-044<br/>solo bots → a todo el mundo"]
         B2 --> B3["Cada producto en la forma de la oferta<br/>SIN purchasePrice · RN-PM-043"]
     end
 
     subgraph HL["RF-PM-026 · el hotlink · SIN token"]
-        C1["Solo lo ofrecible HOY,<br/>ACTIVO y de alcance HOTLINKS"] --> C2["Cada producto en la forma<br/>del hotlink del producto, tal cual"]
+        C1["Solo lo ofrecible HOY,<br/>ACTIVO y de alcance HOTLINK o AMBOS"] --> C2["Cada producto en la forma<br/>del hotlink del producto, tal cual"]
         C2 --> C3["Lo demás es 404<br/>UNIFORME · no dice cuál falló"]
     end
 
@@ -244,7 +244,7 @@ flowchart LR
     class A3,B3,C3 ok
 ```
 
-**El alcance de los productos no filtra dentro del paquete.** Un paquete `HOTLINKS` con un producto `TIENDA` dentro **se resuelve por hotlink entero**: el canal lo decide el paquete. Filtrarlos crearía paquetes impublicables sin motivo nombrado.
+**El alcance de los productos no filtra dentro del paquete.** Un paquete `HOTLINK` o `AMBOS` con un producto `TIENDA` dentro **se resuelve por hotlink entero**: el canal lo decide el paquete. Y el alcance es, desde el 15-09-2026, el mismo dominio de cuatro valores del producto: `TIENDA` y `AMBOS` llegan a la oferta, `HOTLINK` y `AMBOS` al hotlink, `NINGUNO` a ninguna vista. Filtrarlos crearía paquetes impublicables sin motivo nombrado.
 
 **Y el origen se comprueba al asociar, no en la oferta** (`RN-PM-044`): un paquete con upgrades de dos orígenes no se le podría ofrecer a nadie, y la oferta lo ocultaría siempre sin que nada lo dijera. Rechazarlo en `RF-PM-023` es el único sitio donde el error tiene a alguien delante.
 
@@ -311,6 +311,7 @@ flowchart LR
 
 | Versión | Fecha | Cambio | Responsable |
 |---|---|---|---|
+| 0.4.0 | 15-09-2026 | **Los paquetes quedan construidos**, y el documento se pone al día con dos cosas que cambiaron entre el dibujo y el código: **el alcance es de cuatro valores** (`requirements/pm.md` v0.35.0) —la oferta recibe `TIENDA` y `AMBOS`, el hotlink `HOTLINK` y `AMBOS`, y `NINGUNO` no llega a ninguna vista—, y **la siembra de permisos es `V93`**. Lo demás se construyó como estaba dibujado: `PackagePricing`, `PackageOfferability` con su orden fijo, el `200` de la desasociación, la declaración pública de tres segmentos. | Responsable técnico |
 | 0.3.0 | 15-09-2026 | **Nacen los paquetes** (`requirements/pm.md` v0.31.0 a v0.33.0; tripletas `RF-PM-017` a `RF-PM-026`). §6 dibuja el **ciclo de vida del paquete** —que copia el del producto a propósito y se arma inactivo—, y **los dos objetos que hacen la cuenta**: `PackagePricing`, que redondea por producto y suma, y `PackageOfferability`, con su orden fijo de motivos y las cuatro lecturas que lo consumen de cuatro formas distintas. §7 pone al lado lo que ve administración, la oferta y el hotlink, el **orden de construcción** `017 → 023 → 019 → …` y qué deja cada operación — con el único borrado físico del módulo. §8 gana cinco observaciones, entre ellas que **el hotlink del paquete sí necesitó declaración pública propia** (tres segmentos frente a dos), y deja anotado que `RF-PM-008` a `RF-PM-016` siguen sin dibujar. | Responsable técnico |
 | 0.2.0 | 02-09-2026 | **El upgrade declara su membresía de ORIGEN.** El ciclo de vida lo nota en la transición a `ACTIVO`: `RN-PM-004` deja de contarse por destino y pasa a contarse **por pareja origen→destino**, de modo que dos saltos distintos hacia el mismo nivel conviven activos. La **oferta propia** deja de comparar niveles y filtra por coincidencia exacta de origen; el orden sigue mirando el `level` del destino, porque ordenar no es filtrar. Y el mapa de dependencias con `SP` lo refleja: de `memberships` entran ahora **dos** identificadores por upgrade, no uno. | Responsable técnico |
 | 0.1.0 | 01-09-2026 | Creación. `PM` era, junto a `CM`, uno de los dos módulos sin documentos de flujo pese a tener sus siete requerimientos construidos. Se dibujan el **ciclo de vida del producto** —con `RN-PM-004` comprobándose en un solo sitio, que es el motivo de que nazca inactivo—, la **separación entre catálogo y oferta**, y **lo que este módulo congeló para un módulo que todavía no existe**. §6 recoge cinco observaciones, entre ellas el **hueco deliberado en la numeración de excepciones de `RF-PM-001`**: `EX-004` está tachada porque la regla migró a `RF-PM-005`. | Responsable técnico |

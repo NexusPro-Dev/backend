@@ -38,7 +38,7 @@ CREATE TABLE product_packages (
     CONSTRAINT uq_product_packages_code        UNIQUE (code),
     CONSTRAINT ck_product_packages_code_format CHECK (code ~ '^[A-Z][A-Z0-9_]*$'),
     CONSTRAINT ck_product_packages_status      CHECK (status IN ('ACTIVO','INACTIVO')),
-    CONSTRAINT ck_product_packages_scope       CHECK (scope IN ('TIENDA','HOTLINKS')),
+    CONSTRAINT ck_product_packages_scope       CHECK (scope IN ('TIENDA','HOTLINK','AMBOS','NINGUNO')),
     CONSTRAINT fk_product_packages_currency    FOREIGN KEY (currency_id) REFERENCES currencies (id)
 );
 CREATE UNIQUE INDEX uq_product_packages_name
@@ -66,7 +66,9 @@ CREATE INDEX ix_product_package_items_product ON product_package_items (product_
 - **`ck_product_package_items_percentage` es el único techo que cabe en el esquema.** El del fijo —el precio del producto— está en otra tabla y vive en el caso de uso de `RF-PM-023`.
 - La segunda tabla se crea aquí aunque la use `RF-PM-023`: las dos definen el paquete, y una migración por tabla dejaría en el historial un estado en el que existe el paquete y no puede contener nada.
 
-### `V92__seed_packages_permissions.sql`
+### `V93__seed_packages_permissions.sql`
+
+> **Al construir (15-09-2026)** fue `V93`: `V92` la tomó el alcance de cuatro valores de los productos el mismo día. El resto de esta sección se escribió antes de eso y se conserva.
 
 Cuatro filas con identificador literal —la serie de `PM` continúa: `…000008` a `…000011`—, asociadas a `SUPERADMIN` y `ADMIN` en la misma migración y **con la guarda** que cuenta ocho asociaciones. **A `CLIENTE` no**, por lo mismo de siempre.
 
@@ -90,7 +92,7 @@ Cuatro filas con identificador literal —la serie de `PM` continúa: `…000008
 `POST /api/v1/packages` — `packages:create`.
 
 ```json
-{ "code": "COMBO_ORO", "name": "Combo Oro", "description": "…", "currencyId": "…", "scope": "HOTLINKS" }
+{ "code": "COMBO_ORO", "name": "Combo Oro", "description": "…", "currencyId": "…", "scope": "AMBOS" }
 ```
 
 `201` con `PackageDetailResponse`:
@@ -99,7 +101,7 @@ Cuatro filas con identificador literal —la serie de `PM` continúa: `…000008
 {
   "id": "…", "code": "COMBO_ORO", "name": "Combo Oro", "description": "…",
   "currency": { "id": "…", "code": "USD", "decimalPlaces": 2 },
-  "scope": "HOTLINKS", "status": "INACTIVO",
+  "scope": "AMBOS", "status": "INACTIVO",
   "items": [],
   "price": 0.00, "listPrice": 0.00, "savings": 0.00, "exchange": null,
   "offerable": false, "offerableReason": "El paquete tiene menos de dos productos.",

@@ -62,7 +62,7 @@ Las cuatro decisiones que dan forma al submódulo están en [`requirements/pm.md
 | Nombre (`name`) | Sí | Cómo se llama | Hasta 150 tras recortar; **único entre los vivos** sin distinguir mayúsculas ni acentos |
 | Descripción (`description`) | No | Qué se lleva quien lo compra | Texto libre; **obligatoria para activar**, no para registrar |
 | Moneda (`currencyId`) | Sí | En qué se expresa el paquete entero | Debe existir y estar activa (`RN-PM-008`); **inmutable** |
-| Alcance (`scope`) | Sí | Hasta dónde se muestra | `TIENDA` o `HOTLINKS`, **sin valor por omisión** (`RN-PM-019`) |
+| Alcance (`scope`) | Sí | En qué vistas se publica | `TIENDA`, `HOTLINK`, `AMBOS` o `NINGUNO` —el mismo dominio que el producto desde el 15-09-2026—, **sin valor por omisión** (`RN-PM-019`) |
 
 **Ni precio, ni implementación, ni productos.** Un `price` en el cuerpo es un campo desconocido y se rechaza como tal.
 
@@ -122,7 +122,7 @@ Los pasos 3 y 4 tienen su red en el esquema —`uq_product_packages_code` total 
 | `VAL-001` | Código presente y con la forma admitida | El código es obligatorio y debe empezar por una letra mayúscula y contener solo letras mayúsculas, dígitos y guion bajo. |
 | `VAL-002` | Nombre presente y de hasta 150 caracteres tras recortar | El nombre es obligatorio y no puede superar los 150 caracteres. |
 | `VAL-003` | Moneda presente | La moneda es obligatoria. |
-| `VAL-004` | Alcance presente y dentro del dominio | El alcance es obligatorio y debe ser TIENDA u HOTLINKS. |
+| `VAL-004` | Alcance presente y dentro del dominio | El alcance es obligatorio y debe ser TIENDA, HOTLINK, AMBOS o NINGUNO. |
 | `VAL-005` | Ningún campo desconocido — en particular, ni `price` ni `products` ni `status` | El cuerpo de la petición contiene campos no admitidos. |
 
 Las cuatro primeras se devuelven **juntas**: quien se equivocó en dos corrige una vez.
@@ -162,3 +162,4 @@ Las cuatro primeras se devuelven **juntas**: quien se equivocó en dos corrige u
 | Versión | Fecha | Cambio | Responsable |
 |---|---|---|---|
 | 0.1.0 | 15-09-2026 | Redacción inicial. **El paquete nace vacío y sin precio**: asociar es otra operación con reglas propias, y el precio no existe como campo (`RN-PM-036`). Hereda la forma del producto —código inmutable y no liberado, nombre único entre vivos, nace inactivo, alcance sin omisión— y **la moneda es propia e inmutable** aunque se deduzca de los productos, porque un paquete vacío también la tiene. Crea las dos tablas y siembra los cuatro `packages:` con la guarda de siempre. | Responsable técnico |
+| 0.2.0 | 15-09-2026 | **Construida** (`V91`, `V93`, `PackagesIT`). Dos enmiendas de Art. I.7 al construir: **el alcance adopta los cuatro valores** de [`requirements/pm.md`](../../../requirements/pm.md) v0.35.0 §5.2.11 —`VAL-004` cambia de mensaje y `ck_product_packages_scope` nace ya con los cuatro—; y **la siembra de permisos es `V93` y no `V92`**, porque `V92` la tomó el alcance de los productos el mismo día («una migración reservada no está reservada», como el plan advertía). Los identificadores de los permisos son los previstos: `…000008` a `…000011`. | Responsable técnico |

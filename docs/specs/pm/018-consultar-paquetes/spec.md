@@ -56,7 +56,7 @@ Es `RF-PM-002` para paquetes: el catálogo de administración, paginado, con fil
 | Dato | Obligatorio | Descripción | Restricción |
 |---|---|---|---|
 | `status` | No | `ACTIVO` o `INACTIVO` | Fuera del dominio, `400` |
-| `scope` | No | `TIENDA` o `HOTLINKS` | Ídem |
+| `scope` | No | `TIENDA`, `HOTLINK`, `AMBOS` o `NINGUNO` | Ídem |
 | `currencyId` | No | Solo los de esa moneda | UUID |
 | `q` | No | Búsqueda por nombre | Sin distinguir mayúsculas ni acentos, por contenido |
 | `includeDeleted` | No | Incluir retirados | Por omisión `false` |
@@ -104,7 +104,7 @@ Ninguna de negocio: filtros y paginación inválidos son `400`.
 |---|---|---|
 | `VAL-001` | Paginación dentro de rango | Los de `shared/pagination` |
 | `VAL-002` | `status` dentro del dominio | El estado debe ser ACTIVO o INACTIVO. |
-| `VAL-003` | `scope` dentro del dominio | El alcance debe ser TIENDA u HOTLINKS. |
+| `VAL-003` | `scope` dentro del dominio | El alcance debe ser TIENDA, HOTLINK, AMBOS o NINGUNO. |
 | `VAL-004` | `currencyId` con formato válido | El identificador de la moneda no tiene un formato válido. |
 | `VAL-005` | `sort` en la lista cerrada | El campo de ordenamiento no es admitido. |
 
@@ -144,3 +144,4 @@ Las cuatro primeras se devuelven **juntas**.
 | Versión | Fecha | Cambio | Responsable |
 |---|---|---|---|
 | 0.1.0 | 15-09-2026 | Redacción inicial. Hereda de `RF-PM-002` el orden total, los retirados bajo petición y la conversión por página; y del detalle, la cuenta y la ofrecibilidad, resueltas **para toda la página en una sentencia de filas**. Dos decisiones propias: **`offerable` es columna y no filtro** —filtrar después de paginar rompería el total, y filtrar en SQL repetiría la regla— y **el orden por precio usa la suma sin redondear como criterio de la base**, con la diferencia de redondeo aceptada y escrita. | Responsable técnico |
+| 0.2.0 | 15-09-2026 | **Construida** (`PackageListIT`). Enmiendas de Art. I.7 al construir: **el alcance filtra por los cuatro valores** de [`requirements/pm.md`](../../../requirements/pm.md) v0.35.0; y **el orden por precio se resuelve en la sentencia de paquetes con una subconsulta** —la suma sin redondear, como el plan §4 ya decía— y no invirtiendo el orden de las dos sentencias como sugería `FA-002`: la página cuesta **cuatro** sentencias en cualquier orden (la página, sus filas, el total y la moneda de casa; la tasa solo si hay otra moneda), y `CA-PM-274` las cuenta con una y con veinte. | Responsable técnico |

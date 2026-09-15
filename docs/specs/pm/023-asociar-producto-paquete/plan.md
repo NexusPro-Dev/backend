@@ -58,7 +58,7 @@ Se hereda la forma de la asociación de tasas —producto por el puerto, `422` p
 
 ## 7. Transaccionalidad
 
-`@Transactional`. **Seis sentencias**: el paquete con `FOR UPDATE`, el producto, las filas hermanas —para la unicidad y el origen, **una sola lectura**—, el `INSERT`, la auditoría, y la relectura del detalle. La comprobación de unicidad se hace sobre las hermanas ya leídas y no con una sentencia aparte.
+`@Transactional`. **Siete sentencias** *(seis en la redacción original; corregido al construir, 15-09-2026)*: el paquete con `FOR UPDATE`, **la moneda del paquete por el puerto de `SP`** —sus decimales acotan la forma del fijo y su código nombra la cota—, el producto, las filas hermanas —para la unicidad y el origen, **una sola lectura**—, el `INSERT`, la auditoría, y la relectura del detalle. La comprobación de unicidad se hace sobre las hermanas ya leídas y no con una sentencia aparte.
 
 **El bloqueo es del paquete** (`SELECT … FOR UPDATE` sobre `product_packages`): dos asociaciones simultáneas al mismo paquete se ordenan, y `RN-PM-044` se comprueba sobre el estado que dejó la primera. El producto no se bloquea: no se escribe. Y la clave primaria es la red de la unicidad si dos peticiones leyeran las hermanas antes de que ninguna escribiera — no ocurre con el bloqueo, y se traduce igual por si alguien lo quita.
 

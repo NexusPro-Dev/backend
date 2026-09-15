@@ -2,11 +2,11 @@
 
 | Campo | Valor |
 |---|---|
-| Versión | 0.47.0 |
+| Versión | 0.48.0 |
 | Estado | **Borrador** |
 | Responsable | Bonilla Diaz William Steven |
 | Fecha de creación | 21-08-2026 |
-| Última actualización | 14-09-2026 |
+| Última actualización | 15-09-2026 |
 
 !!! info "Qué va en este documento"
 
@@ -14,9 +14,9 @@
 
     Es una **vista derivada**, no normativa. Sale de [`requirements/sp.md` §10](requirements/sp.md), [`security.md` §9](security.md) y [`architecture.md` §6.6](architecture.md). La fuente de verdad del esquema son las **migraciones Flyway** (Art. V.3), y donde ya existen mandan ellas.
 
-!!! warning "Veintinueve tablas escritas, y DOS diseñadas pendientes de escribir: las de los paquetes (14-09-2026)"
+!!! warning "Treinta y una tablas escritas: las dos de los paquetes las creó `V91` el 15-09-2026"
 
-    **`product_images` —la portada de un producto, y la primera tabla del sistema que guarda un archivo— la creó `V90` con `RF-PM-014`** el 14-09-2026, junto con la columna `products.cover_image_id`. Quedan diseñadas y sin escribir las dos de los paquetes, `product_packages` y `product_package_items`, que creará la migración de `RF-PM-017`.
+    **`product_images` —la portada de un producto, y la primera tabla del sistema que guarda un archivo— la creó `V90` con `RF-PM-014`** el 14-09-2026, junto con la columna `products.cover_image_id`. **Las dos de los paquetes, `product_packages` y `product_package_items`, las creó `V91` con `RF-PM-017`** el 15-09-2026, ya con el alcance de cuatro valores; `V93` sembró sus cuatro permisos. No queda ninguna tabla diseñada sin escribir.
 
     `V49` cerró las tres de `CM` —creó `user_commission_rates` y `product_commission_rates`, y **rehízo `commission_rates`** quitándole el producto, la persona y la vigencia—, y el 04-09-2026 **`V54__create_movements.sql`** creó las cuatro de `MV`: `movements`, `movement_types`, `movement_details` y `payment_methods`, con sus dos catálogos sembrados en la misma migración (`RF-MV-001`).
 
@@ -536,7 +536,7 @@ erDiagram
 
 !!! info "`product_packages` no tiene precio, y esa ausencia es la regla"
 
-    Diseñadas el 14-09-2026 (`requirements/pm.md` v0.31.0 §10.6); las creará la migración de `RF-PM-017`. **El precio del paquete es Σ(precio de hoy del producto − su descuento)** y se calcula en cada lectura, en Java y en un solo sitio (`RN-PM-036`): una columna obligaría a mantenerla en seis operaciones, y la que se quedara atrás no fallaría, mentiría.
+    Diseñadas el 14-09-2026 (`requirements/pm.md` v0.31.0 §10.6) y **creadas por `V91` el 15-09-2026** (`RF-PM-017`), tal como estaban diseñadas y con `ck_product_packages_scope` de cuatro valores desde el primer día. **El precio del paquete es Σ(precio de hoy del producto − su descuento)** y se calcula en cada lectura, en Java y en un solo sitio (`RN-PM-036`): una columna obligaría a mantenerla en seis operaciones, y la que se quedara atrás no fallaría, mentiría.
 
     **La moneda sí es columna, aunque se deduzca de los productos**: un paquete vacío también tiene moneda, y es contra la que se comprueba cada asociación (`RN-PM-035`). No se convierte: sumar monedas distintas con la tasa del día haría que el paquete valiera distinto cada mañana.
 
@@ -830,3 +830,4 @@ La secuencia no es continua —falta el tramo `V8` a `V12`— y no es un descuid
 | 0.45.0 | 14-09-2026 | **Se diseñan `product_packages` y `product_package_items`**, los paquetes de productos ([`requirements/pm.md`](requirements/pm.md) v0.31.0 §10.6), por decisión del responsable del proyecto. **El paquete no tiene precio**: es Σ(precio de hoy − descuento) calculada en cada lectura (`RN-PM-036`), por lo mismo que el promedio de reseñas no es una columna. **Tiene moneda propia, obligatoria e inmutable** (`RN-PM-035`), porque un paquete vacío también la tiene y porque no se convierte. La tabla de asociación lleva el descuento —forma y valor— y su clave primaria es «un producto una vez por paquete» (`RN-PM-038`); desasociar borra la fila como `ASSOCIATION`. §5.1 pasa `PM` a cinco tablas, dos escritas y tres diseñadas; §5.3 registra la clave foránea del paquete a `currencies`. | Responsable del proyecto |
 | 0.46.0 | 14-09-2026 | **`product_images` pasa de diseñada a escrita: `V90`** ([`requirements/pm.md`](requirements/pm.md) v0.32.0). La tabla es la de la v0.44.0 sin cambios —`id`, `content_type`, `content`, `created_at`; `ck_product_images_content_type` y `ck_product_images_size`— y `products.cover_image_id` nace con `fk_products_cover_image` sin `ON DELETE` y `uq_products_cover_image`. El sistema llega a **veintinueve tablas escritas**, y quedan dos diseñadas, las de los paquetes. **Lo que confirmó la construcción**: el orden de las tres escrituras —insertar la nueva, repuntar el producto, **volcar**, borrar la anterior— es el que la clave foránea sin `ON DELETE` exige, y JPA lo respeta solo si el volcado es explícito; y ninguna de las cuatro sentencias del catálogo toca la tabla nueva, que es lo que mantiene el número de consultas de cada lectura. | Responsable técnico |
 | 0.47.0 | 15-09-2026 | **`products.scope` pasa a cuatro valores: `TIENDA`, `HOTLINK`, `AMBOS`, `NINGUNO`** ([`requirements/pm.md`](requirements/pm.md) v0.35.0 §5.2.11), por decisión del responsable del proyecto. **Ninguna columna nueva**: `V92` reemplaza `ck_products_scope` y **antes renombra las filas `HOTLINKS` a `AMBOS`** — un `CHECK` no se puede declarar sobre filas que lo violan, y el orden `UPDATE` → `DROP` → `ADD` es lo que lo hace posible en una sola migración. **El renombrado es fiel**: `HOTLINKS` significaba «tienda y hotlinks», que es lo que `AMBOS` dice con su nombre; ningún producto cambia lo que mostraba. `product_packages.scope` —diseñada, `V91`— nace con el mismo dominio. Lo que conviene leer del cambio: **el campo deja de ser una escala** y pasa a ser un conjunto de vistas, con `NINGUNO` como el conjunto vacío — un producto activo que no se ofrece en ninguna parte, y que existe para venderse por otro camino. | Responsable del proyecto |
+| 0.48.0 | 15-09-2026 | **`V91` crea `product_packages` y `product_package_items`** ([`requirements/pm.md`](requirements/pm.md) v0.36.0, `RF-PM-017`): el modelo pasa de veintinueve a **treinta y una** tablas escritas y no queda ninguna diseñada pendiente. Nacen tal como se diseñaron el 14-09-2026 —**sin columna de precio**, con la moneda obligatoria e inmutable, con la pareja como clave de la asociación y el porcentaje acotado a cien como único techo del esquema— y **ya con `ck_product_packages_scope` de cuatro valores**, el dominio que `V92` llevó a `products` el mismo día. La unicidad del nombre es un índice parcial, como en `products`, y por parcial no admite `DEFERRABLE`: la carrera la traduce el repositorio. Ninguna clave foránea lleva `ON DELETE`; la fila de asociación se borra desde el caso de uso (`RF-PM-025`) con su registro `ASSOCIATION`. | Responsable técnico |

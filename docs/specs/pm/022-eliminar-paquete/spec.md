@@ -126,3 +126,4 @@ Es `RF-PM-006` para paquetes, y hereda entero su razonamiento: eliminación **l�
 | Versión | Fecha | Cambio | Responsable |
 |---|---|---|---|
 | 0.1.0 | 15-09-2026 | Redacción inicial. Hereda `RF-PM-006` entero; lo propio es que **las filas de asociación permanecen** y que la instantánea las lleva, porque una venta pasada las necesitará. | Responsable técnico |
+| 0.2.0 | 15-09-2026 | **Construida** (`PackageDeletionIT`). Sin enmiendas de comportamiento. La instantánea lleva el paquete y, bajo `items`, cada fila con producto, forma y valor; `CA-PM-299` comprueba que el motivo inválido no cuesta ni una sentencia. | Responsable técnico |

@@ -135,7 +135,7 @@ Es la lectura **de administración**, y por eso —al revés que la oferta y el 
 | `CA-PM-281` | `offerable: false` con el motivo en su **orden**: menos de dos, sin descripción, inactivo, retirado, y un producto no ofrecible **nombrado por su código** |
 | `CA-PM-282` | Un producto **inactivo** o **retirado** dentro del paquete se devuelve con su estado y **sigue sumando**, y `offerable` es falso por él |
 | `CA-PM-283` | El detalle devuelve `purchasePrice` de cada producto —presente y nulo cuando no se conoce—, y `exchange` calculado sobre `price`, nulo si el paquete ya está en la moneda de casa |
-| `CA-PM-284` | El paquete **retirado** se devuelve con su motivo; el **inexistente** responde `404`; y la lectura cuesta **tres** sentencias —cuatro con conversión, cinco con motivo de retiro— |
+| `CA-PM-284` | El paquete **retirado** se devuelve con su motivo; el **inexistente** responde `404`; y la lectura cuesta **dos** sentencias —el paquete con sus filas y la moneda de casa—, **tres** con conversión y **una más** con motivo de retiro; el paquete vacío cuesta **una** |
 
 ## 13. Casos límite
 
@@ -159,3 +159,4 @@ Es la lectura **de administración**, y por eso —al revés que la oferta y el 
 | Versión | Fecha | Cambio | Responsable |
 |---|---|---|---|
 | 0.1.0 | 15-09-2026 | Redacción inicial. **Aquí nace la cuenta de `RN-PM-036`** —`PackagePricing`, un solo sitio— y **`offerable` con su motivo en orden fijo**, que es la única señal de que un paquete activo no se está ofreciendo. `priceInPackage` se publica por producto porque es lo que una línea de venta copiará. **El redondeo es por producto** y el total es la suma de los redondeados, para que cuadre con las líneas. Queda anotado el hueco del producto que cambia de moneda después de asociado. | Responsable técnico |
+| 0.2.0 | 15-09-2026 | **Construida** (`PackageDetailIT`, `PackageOfferabilityTest`), y con ella la enmienda de `RF-PM-007` (`PackageOfferIT`). Enmienda de Art. I.7 al construir: **`CA-PM-284` cuenta lo que la lectura cuesta de verdad** —dos sentencias en la moneda de casa, tres con conversión, una más con motivo, y una sola para el paquete vacío, que no pide conversión sobre cero—; la redacción anterior («tres, cuatro, cinco») contaba la tasa dos veces. `PackageOfferability` nombra el producto por su código en el motivo. | Responsable técnico |

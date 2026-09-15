@@ -137,3 +137,4 @@ Los dos van **juntos** en la misma respuesta cuando ocurren a la vez, como `RF-P
 | Versión | Fecha | Cambio | Responsable |
 |---|---|---|---|
 | 0.1.0 | 15-09-2026 | Redacción inicial. Hereda `RF-PM-005` con la condición de `RN-PM-040` —dos productos y descripción, y los dos motivos juntos—. **Activar no exige productos activos**: eso cambia con el tiempo, lo mira la oferta y lo dice el detalle. | Responsable técnico |
+| 0.2.0 | 15-09-2026 | **Construida** (`PackageStatusIT`). Sin enmiendas de comportamiento. Nota de construcción: la cuenta de productos para `EX-003` sale de la misma lectura de hermanas que usa la asociación (`findSiblings`), y los dos motivos viajan como dos `errors` en un solo `409` (`CA-PM-293`). | Responsable técnico |

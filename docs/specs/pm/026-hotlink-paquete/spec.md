@@ -19,7 +19,7 @@ Que **un enlace repartido por un vendedor abra la pantalla de un paquete**: qué
 
 Es `RF-PM-008` aplicado al paquete, y **hereda sus decisiones enteras**: el `404` uniforme, el vendedor reducido a nombre y apellido, la conversión informativa, la ausencia de token y de auditoría, la cota por origen. Lo que añade es lo que un paquete tiene y un producto no: **la cuenta** de `RN-PM-036` —cada producto con su precio dentro del paquete, `price`, `listPrice`, `savings`— y **la ofrecibilidad** de `RN-PM-039`: un paquete no se resuelve mientras cualquiera de sus productos no esté activo y vivo, porque el enlace prometería algo que no se puede entregar.
 
-**Es el segundo sitio donde el alcance filtra.** `RN-PM-021` se aplica por extensión: el hotlink del paquete publica solo lo **activo y de alcance `HOTLINKS`** —del paquete, no de sus productos: el alcance de un producto dice hasta dónde se muestra **ese producto por sí solo**, y dentro de un paquete quien decide el canal es el paquete (§13).
+**Es el segundo sitio donde el alcance filtra.** `RN-PM-021` se aplica por extensión: el hotlink del paquete publica solo lo **activo y de alcance `HOTLINK` o `AMBOS`** —del paquete, no de sus productos: el alcance de un producto dice hasta dónde se muestra **ese producto por sí solo**, y dentro de un paquete quien decide el canal es el paquete (§13).
 
 **Vive bajo la misma familia de rutas.** `/api/v1/hotlinks/{username}/packages/{code}` no compite con `/api/v1/hotlinks/{username}/{code}`: tiene tres segmentos tras la familia y aquel dos, de modo que ningún código de producto puede confundirse con la palabra `packages`. La cota de tasa se aplica **por prefijo de familia** y por eso no estrena política (`CA-PM-333`).
 
@@ -50,7 +50,7 @@ Es `RF-PM-008` aplicado al paquete, y **hereda sus decisiones enteras**: el `404
 
 | ID | Regla | Origen |
 |---|---|---|
-| `RN-PM-021` | **Por extensión**: el hotlink solo publica el paquete activo y de alcance `HOTLINKS` | `requirements/pm.md` §5.1 |
+| `RN-PM-021` | **Por extensión**: el hotlink solo publica el paquete activo y de alcance `HOTLINK` o `AMBOS` | `requirements/pm.md` §5.1 |
 | `RN-PM-022` | **Por extensión**: de la persona solo el nombre, y solo si es fuerza comercial | `requirements/pm.md` §5.1 |
 | `RN-PM-036` | **El precio se calcula siempre**: la cuenta se hace en esta lectura | `requirements/pm.md` §5.1 |
 | `RN-PM-039` | **El paquete no se ofrece si algo suyo dejó de poderse comprar** — aquí, **no se resuelve** | `requirements/pm.md` §5.1 |
@@ -100,7 +100,7 @@ Es `RF-PM-008` aplicado al paquete, y **hereda sus decisiones enteras**: el `404
 
 1. Llega una petición con el nombre de usuario y el código.
 2. El sistema resuelve **el vendedor** por `PublicSellerLookup`. Vacío → `404`.
-3. El sistema resuelve **el paquete con sus productos** por su código, exigiendo **activo, no retirado y de alcance `HOTLINKS`**, en una sentencia que trae de cada producto lo que el hotlink del producto trae — `rating` incluido. Vacío → `404`.
+3. El sistema resuelve **el paquete con sus productos** por su código, exigiendo **activo, no retirado y de alcance `HOTLINK` o `AMBOS`**, en una sentencia que trae de cada producto lo que el hotlink del producto trae — `rating` incluido. Vacío → `404`.
 4. El sistema decide la **ofrecibilidad** con `PackageOfferability`: si el paquete no es ofrecible hoy —un producto inactivo o retirado, menos de dos productos, sin descripción— → **el mismo `404`**.
 5. El sistema calcula, en `PackagePricing`, el precio dentro del paquete de cada producto y los tres totales.
 6. El sistema pide la conversión de `price` a la moneda por omisión.
@@ -178,3 +178,4 @@ Es `RF-PM-008` aplicado al paquete, y **hereda sus decisiones enteras**: el `404
 | Versión | Fecha | Cambio | Responsable |
 |---|---|---|---|
 | 0.1.0 | 15-09-2026 | Redacción inicial. Hereda `RF-PM-008` entero y añade lo que un paquete tiene y un producto no: la **cuenta** de `RN-PM-036` y la **ofrecibilidad** de `RN-PM-039`, que aquí es un **`404` uniforme** y no un campo — lo público no dice qué le pasa a lo que no se publica. **El producto de cada línea es la forma del hotlink del producto, reutilizada tal cual**, para que ninguna enmienda futura tenga que hacerse dos veces. **El alcance de los productos no filtra dentro del paquete**: el canal lo decide el paquete. Y una corrección a `pm.md` §7: la ruta **sí estrena declaración pública** —tres segmentos, el patrón del producto cubre dos—, aunque no cota. | Responsable técnico |
+| 0.2.0 | 15-09-2026 | **Construida** (`PackageHotlinkIT`, `RateLimitIT`, `EndpointPermissionsIT`). Enmienda de Art. I.7 al construir: **el alcance publicable es `HOTLINK` o `AMBOS`** ([`requirements/pm.md`](../../../requirements/pm.md) v0.35.0 §5.2.11; `TIENDA` y `NINGUNO` responden el `404` uniforme). Lo que §14.4 anunció se confirmó al escribir la prueba sin token: **`SecurityConfig.RUTAS_PUBLICAS` gana `/api/v1/hotlinks/*/packages/*`**, al lado del patrón de dos segmentos y no en su lugar. El cuerpo del `404` se compara con el del hotlink del producto ignorando `instance` y `correlationId`, que son por petición. | Responsable técnico |

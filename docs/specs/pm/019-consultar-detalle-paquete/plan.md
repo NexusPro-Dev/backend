@@ -78,7 +78,7 @@ El detalle del producto (`RF-PM-003`) resuelve sus membresías con `JOIN`; el de
 
 ## 7. Transaccionalidad
 
-`@Transactional(readOnly = true)`. **Tres sentencias** —el paquete con sus filas, la moneda de casa, la tasa solo si hay algo que convertir—, **cuatro** con conversión y **cinco** cuando está retirado y hay que leer el motivo. `CA-PM-284` las cuenta.
+`@Transactional(readOnly = true)`. **Dos sentencias** —el paquete con sus filas y la moneda de casa—, **tres** con conversión y **una más** cuando está retirado y hay que leer el motivo; el paquete vacío cuesta **una**, porque sobre cero no se pide conversión. `CA-PM-284` las cuenta. *(Corregido al construir, 15-09-2026: la redacción original contaba la tasa dos veces.)*
 
 ## 8. Impacto sobre otros módulos
 
@@ -88,7 +88,7 @@ El detalle del producto (`RF-PM-003`) resuelve sus membresías con `JOIN`; el de
 
 `requirements/pm.md` §5.2.10 decidió que el paquete **se publica donde se publican los productos**, y la oferta es el primer sitio. La enmienda ya está escrita en [`007-consultar-oferta-propia/spec.md`](../007-consultar-oferta-propia/spec.md) v0.13.0 (`CA-PM-335` a `CA-PM-338`) y se construye **aquí**, con `T-11` y `T-12`, porque las dos piezas que necesita —`PackagePricing` y `PackageOfferability`— nacen en esta tripleta y en la del alta, y la oferta es su primer consumidor fuera del detalle.
 
-**Lo que se construye**: `ProductPackageQueryRepository.findOfferable()` —los paquetes activos y vivos con sus líneas en **dos** sentencias (la segunda es `findItemsOf`, de `RF-PM-018`)—; en `GetOfferService`, el filtro por `PackageOfferability` y por **origen** (`RN-PM-044`: todos los upgrades del paquete con `source_membership_id` igual a la membresía del actor, o ninguno), la cuenta con `PackagePricing`, y **las monedas de los paquetes añadidas al conjunto** que ya se pasa a `ExchangeRateLookup` para que la sentencia de tasas siga siendo una; y `OfferResponse.packages`, envuelta, con `OfferPackageItem{product: OfferItem, discount, priceInPackage}`.
+**Lo que se construye**: `ProductPackageQueryRepository.findOfferable()` —los paquetes activos, vivos y de alcance `TIENDA` o `AMBOS` con sus líneas en **una** sentencia, la misma proyección pública que el hotlink del paquete (`SELECT_PUBLICADO`), y no dos como se previó—; en `GetOfferService`, el filtro por `PackageOfferability` y por **origen** (`RN-PM-044`: todos los upgrades del paquete con `source_membership_id` igual a la membresía del actor, o ninguno), la cuenta con `PackagePricing`, y **las monedas de los paquetes añadidas al conjunto** que ya se pasa a `ExchangeRateLookup` para que la sentencia de tasas siga siendo una; y `OfferResponse.packages`, envuelta, con `OfferPackageItem{product: OfferItem, discount, priceInPackage}`.
 
 ## 9. Alternativas consideradas
 
