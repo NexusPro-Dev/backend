@@ -8,6 +8,7 @@
 | Autor | Responsable técnico |
 | Aprobada por | — |
 | Fecha de aprobación | — |
+| Enmendada el | 16-09-2026 — **la respuesta trae `coverImageUrl`, presente y nula**: la portada llega después del alta (`RN-PM-045`, `RF-PM-028`). Ver §15 |
 
 ---
 
@@ -71,6 +72,8 @@ Las cuatro decisiones que dan forma al submódulo están en [`requirements/pm.md
 `201` con el paquete en la **misma forma del detalle** (`RF-PM-019`): identificador, código, nombre, descripción, moneda resuelta, alcance, estado `INACTIVO`, `items` vacío, `price`, `listPrice` y `savings` en **cero**, `exchange` nulo y presente, `offerable: false` con `offerableReason` diciendo que faltan productos, y las dos fechas iguales.
 
 **Se devuelve la forma completa aunque esté vacía**, para que el front trate «acabo de crearlo» y «lo abrí» igual, como hace el alta del producto.
+
+**Y desde el 16-09-2026 trae `coverImageUrl`, presente y nula** (`RN-PM-045`): el alta sigue siendo JSON y la portada se sube después con `RF-PM-028`, de modo que nula es lo único que puede traer un paquete recién registrado — como el producto desde `RF-PM-014`. **El cuerpo no admite la imagen ni un icono ni un color**: el paquete no declara ninguno de los dos, y sin portada el frontend pinta los suyos por omisión.
 
 ## 7. Precondiciones y postcondiciones
 
@@ -139,6 +142,7 @@ Las cuatro primeras se devuelven **juntas**: quien se equivocó en dos corrige u
 | `CA-PM-266` | El sistema rechaza con `400` un cuerpo que traiga `price`, `products` o `status` |
 | `CA-PM-267` | El sistema registra una fila `CREATE` en `audit_change_log` con el actor, en la misma transacción |
 | `CA-PM-268` | Los cuatro permisos `packages:` están sembrados con identificador estable y asociados a `SUPERADMIN` y `ADMIN`, y **no** a `CLIENTE`; sin `packages:create` el alta responde `403` aunque el actor porte los cuatro `products:` |
+| `CA-PM-371` | La respuesta del alta trae **`coverImageUrl` presente y nula** (16-09-2026) |
 
 ## 13. Casos límite
 
@@ -163,3 +167,4 @@ Las cuatro primeras se devuelven **juntas**: quien se equivocó en dos corrige u
 |---|---|---|---|
 | 0.1.0 | 15-09-2026 | Redacción inicial. **El paquete nace vacío y sin precio**: asociar es otra operación con reglas propias, y el precio no existe como campo (`RN-PM-036`). Hereda la forma del producto —código inmutable y no liberado, nombre único entre vivos, nace inactivo, alcance sin omisión— y **la moneda es propia e inmutable** aunque se deduzca de los productos, porque un paquete vacío también la tiene. Crea las dos tablas y siembra los cuatro `packages:` con la guarda de siempre. | Responsable técnico |
 | 0.2.0 | 15-09-2026 | **Construida** (`V91`, `V93`, `PackagesIT`). Dos enmiendas de Art. I.7 al construir: **el alcance adopta los cuatro valores** de [`requirements/pm.md`](../../../requirements/pm.md) v0.35.0 §5.2.11 —`VAL-004` cambia de mensaje y `ck_product_packages_scope` nace ya con los cuatro—; y **la siembra de permisos es `V93` y no `V92`**, porque `V92` la tomó el alcance de los productos el mismo día («una migración reservada no está reservada», como el plan advertía). Los identificadores de los permisos son los previstos: `…000008` a `…000011`. | Responsable técnico |
+| 0.3.0 | 16-09-2026 | **La respuesta trae `coverImageUrl`, presente y nula** (`RN-PM-045`, [`requirements/pm.md`](../../../requirements/pm.md) v0.37.0 §5.2.12): la portada del paquete llega después del alta, con `RF-PM-028`, y el alta sigue siendo JSON. Sin icono ni color en el cuerpo: el paquete no los declara. `CA-PM-371`. Enmienda que construye `RF-PM-028` (Art. I.7). | Responsable del proyecto |

@@ -17,7 +17,9 @@ import com.factech.nexus.modules.products.domain.service.DissociatePackageProduc
 import com.factech.nexus.modules.products.domain.service.GetPackageService;
 import com.factech.nexus.modules.products.domain.service.ListPackagesService;
 import com.factech.nexus.modules.products.domain.service.RegisterPackageService;
+import com.factech.nexus.modules.products.domain.service.RemovePackageCoverService;
 import com.factech.nexus.modules.products.domain.service.UpdatePackageService;
+import com.factech.nexus.modules.products.domain.service.UploadPackageCoverService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.media.Content;
 import io.swagger.v3.oas.annotations.media.Schema;
@@ -25,9 +27,12 @@ import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
+import java.io.IOException;
+import java.io.UncheckedIOException;
 import java.net.URI;
 import java.util.UUID;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.DeleteMapping;
@@ -36,14 +41,19 @@ import org.springframework.web.bind.annotation.ModelAttribute;
 import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestPart;
 import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.multipart.MultipartFile;
 
 /**
- * Los paquetes de productos (`PM`, `RF-PM-017` a `RF-PM-025`): las nueve operaciones de
- * administración. El hotlink público del paquete (`RF-PM-026`) vive en {@link HotlinkController}.
+ * Los paquetes de productos (`PM`, `RF-PM-017` a `RF-PM-025`, `RF-PM-028` y `RF-PM-029`): las once
+ * operaciones de administración. El hotlink público del paquete (`RF-PM-026`) vive en {@link
+ * HotlinkController}, y la imagen de la portada la sirve {@link ProductImageController} — la misma
+ * ruta que la del producto.
  *
  * <p><b>Un recurso propio con sus cuatro permisos</b> (`packages:`), por decisión del responsable
  * del proyecto: armar combos y tocar el catálogo son dos capacidades, y los {@code products:} no
@@ -67,6 +77,8 @@ public class PackageController {
   private final AssociatePackageProductService asociacion;
   private final CorrectPackageDiscountService descuento;
   private final DissociatePackageProductService desasociacion;
+  private final UploadPackageCoverService portada;
+  private final RemovePackageCoverService quitarPortada;
 
   public PackageController(
       RegisterPackageService alta,
@@ -77,7 +89,9 @@ public class PackageController {
       DeletePackageService retiro,
       AssociatePackageProductService asociacion,
       CorrectPackageDiscountService descuento,
-      DissociatePackageProductService desasociacion) {
+      DissociatePackageProductService desasociacion,
+      UploadPackageCoverService portada,
+      RemovePackageCoverService quitarPortada) {
     this.alta = alta;
     this.listado = listado;
     this.detalle = detalle;
@@ -87,6 +101,8 @@ public class PackageController {
     this.asociacion = asociacion;
     this.descuento = descuento;
     this.desasociacion = desasociacion;
+    this.portada = portada;
+    this.quitarPortada = quitarPortada;
   }
 
   @PostMapping
@@ -528,5 +544,131 @@ public class PackageController {
   })
   public PackageDetailResponse desasociar(@PathVariable UUID id, @PathVariable UUID productId) {
     return desasociacion.dissociate(id, productId);
+  }
+
+  @PutMapping(value = "/{id}/cover", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+  @PreAuthorize("hasAuthority('packages:update')")
+  @Operation(
+      summary = "Subir o reemplazar la portada de un paquete",
+      description =
+          """
+          **La misma imagen que la del producto, con las mismas condiciones y la
+          misma ruta** (`RN-PM-045`, `requirements/pm.md` §5.2.12): recibe **un
+          archivo** —`multipart/form-data`, una sola parte llamada `file`—,
+          `JPEG`, `PNG` o `WebP` **reconocidos por sus bytes** (la cabecera y el
+          nombre se ignoran; `VAL-003`), **hasta 5 MB** (`VAL-004`), sin archivo
+          o vacío `VAL-002`, y lo guarda **tal cual**. La imagen se sirve sin token
+          en `GET /api/v1/product-images/{imageId}`, que no sabe si lo que sirve es
+          la portada de un producto o de un paquete.
+
+          **Si el paquete ya tenía portada, la reemplaza**: la nueva estrena
+          identificador, **la anterior se borra** y **la dirección cambia**. **Sin
+          condición de estado ni de contenido**: un paquete inactivo, vacío o sin
+          descripción la admite igual, y la activación sigue sin mirarla.
+
+          **El paquete no declara icono ni color.** Cuando `coverImageUrl` es
+          nula, el cliente pinta **el icono de promoción y el color por omisión
+          del sistema**, los mismos para todos los paquetes — y por eso quitar la
+          portada nunca se rechaza. El alta no admite la imagen: `POST
+          /api/v1/packages` sigue siendo JSON. Responde con el paquete entero, con
+          su cuenta hecha, como todas sus escrituras; **un paquete retirado no
+          admite portada**.
+          """)
+  @ApiResponses({
+    @ApiResponse(
+        responseCode = "200",
+        description = "El paquete, con `coverImageUrl` señalando la imagen nueva.",
+        content = @Content(schema = @Schema(implementation = PackageDetailResponse.class))),
+    @ApiResponse(
+        responseCode = "400",
+        description =
+            "Identificador sin forma canónica (`VAL-001`), sin archivo o vacío (`VAL-002`), ni"
+                + " JPEG ni PNG ni WebP por sus bytes (`VAL-003`), más de 5 MB (`VAL-004`) o"
+                + " petición que no es `multipart/form-data` (`EX-003`)",
+        content = @Content),
+    @ApiResponse(
+        responseCode = "401",
+        description = "Token ausente o inválido (`AUTH-001`)",
+        content = @Content),
+    @ApiResponse(
+        responseCode = "403",
+        description = "Autenticado sin el permiso `packages:update` (`AUTH-002`)",
+        content = @Content),
+    @ApiResponse(
+        responseCode = "404",
+        description = "No existe un paquete vivo con ese identificador (`EX-001`)",
+        content = @Content),
+    @ApiResponse(
+        responseCode = "500",
+        description = "Fallo no controlado (`ERR-500`)",
+        content = @Content)
+  })
+  public PackageDetailResponse subirPortada(
+      @PathVariable UUID id, @RequestPart(value = "file", required = false) MultipartFile file) {
+    // `required = false` a propósito, como en el producto: la parte ausente es
+    // `VAL-002` con el sobre de errores del sistema.
+    return portada.upload(id, bytesDe(file));
+  }
+
+  @DeleteMapping("/{id}/cover")
+  @PreAuthorize("hasAuthority('packages:update')")
+  @Operation(
+      summary = "Quitar la portada de un paquete",
+      description =
+          """
+          Vacía la portada y **la imagen se borra**: su dirección deja de servir.
+          El paquete vuelve a pintarse con **el icono de promoción y el color por
+          omisión** que el cliente le pone cuando `coverImageUrl` es nula.
+
+          **Nunca responde `400` por el estado del paquete** — es la única
+          diferencia con `DELETE /api/v1/products/{id}/cover`: el paquete no
+          declara icono ni color (`RN-PM-045`), de modo que no puede quedarse sin
+          nada con qué pintarse. Un paquete activo y ofrecible sigue activo y
+          ofrecible sin portada.
+
+          **Sin portada responde igual y no escribe nada**: ni auditoría ni
+          `updatedAt`. Responde `200` con el paquete, y no `204`: se vacía un
+          campo, no se retira una entidad. Sin cuerpo; si llega uno, se ignora.
+          """)
+  @ApiResponses({
+    @ApiResponse(
+        responseCode = "200",
+        description = "El paquete, con `coverImageUrl` nulo.",
+        content = @Content(schema = @Schema(implementation = PackageDetailResponse.class))),
+    @ApiResponse(
+        responseCode = "400",
+        description = "Identificador sin forma canónica (`VAL-001`)",
+        content = @Content),
+    @ApiResponse(
+        responseCode = "401",
+        description = "Token ausente o inválido (`AUTH-001`)",
+        content = @Content),
+    @ApiResponse(
+        responseCode = "403",
+        description = "Autenticado sin el permiso `packages:update` (`AUTH-002`)",
+        content = @Content),
+    @ApiResponse(
+        responseCode = "404",
+        description = "No existe un paquete vivo con ese identificador (`EX-001`)",
+        content = @Content),
+    @ApiResponse(
+        responseCode = "500",
+        description = "Fallo no controlado (`ERR-500`)",
+        content = @Content)
+  })
+  public PackageDetailResponse quitarPortada(@PathVariable UUID id) {
+    return quitarPortada.remove(id);
+  }
+
+  /** Los bytes de la parte, o nulo si no llegó: el dominio convierte el nulo en `VAL-002`. */
+  private static byte[] bytesDe(MultipartFile file) {
+    if (file == null) {
+      return null;
+    }
+    try {
+      return file.getBytes();
+    } catch (IOException fallo) {
+      throw new UncheckedIOException("No se pudo leer la imagen de portada de la petición.", fallo);
+    }
   }
 }

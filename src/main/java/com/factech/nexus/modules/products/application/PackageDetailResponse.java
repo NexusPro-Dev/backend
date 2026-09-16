@@ -29,6 +29,9 @@ import java.util.UUID;
  * nulo; {@code false} con el <b>primer</b> motivo en el orden fijo de {@link PackageOfferability}.
  * <b>{@code purchasePrice} presente y nulo</b> cuando no se conoce: es la lectura de administración
  * (`RN-PM-043`), y las dos públicas no lo llevan.
+ *
+ * <p><b>{@code coverImageUrl} siempre presente</b> (`RN-PM-045`): la dirección de la portada del
+ * paquete, o nula — y entonces el frontend pinta el icono de promoción y el color por omisión.
  */
 @JsonInclude(JsonInclude.Include.ALWAYS)
 public record PackageDetailResponse(
@@ -36,6 +39,7 @@ public record PackageDetailResponse(
     String code,
     String name,
     String description,
+    String coverImageUrl,
     ProductResponse.CurrencyRef currency,
     ProductScope scope,
     PackageStatus status,
@@ -94,6 +98,7 @@ public record PackageDetailResponse(
         paquete.code(),
         paquete.name(),
         paquete.description(),
+        ProductImageUrls.de(paquete.coverImageId()),
         new ProductResponse.CurrencyRef(paquete.currencyId(), paquete.currencyCode(), decimales),
         ProductScope.valueOf(paquete.scope()),
         paquete.estado(),

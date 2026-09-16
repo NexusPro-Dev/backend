@@ -96,12 +96,18 @@ public interface ProductPackageQueryRepository {
     }
   }
 
-  /** El paquete, con su moneda resuelta. */
+  /**
+   * El paquete, con su moneda resuelta.
+   *
+   * <p>{@code coverImageId} es el identificador y nada más (`RN-PM-045`): las lecturas lo
+   * convierten en una dirección, y {@code product_images} no se une nunca.
+   */
   record PackageRow(
       UUID id,
       String code,
       String name,
       String description,
+      UUID coverImageId,
       UUID currencyId,
       String currencyCode,
       int currencyDecimalPlaces,

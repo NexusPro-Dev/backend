@@ -975,7 +975,7 @@ class ProductTest {
     assertThat(producto.instantanea()).containsEntry("cover_image_id", null);
 
     UUID primera = UUID.randomUUID();
-    Product.CambioDePortada cambio = producto.asignarPortada(primera, AHORA.plusDays(1));
+    CambioDePortada cambio = producto.asignarPortada(primera, AHORA.plusDays(1));
     assertThat(cambio.anterior()).isNull();
     assertThat(cambio.huboCambio()).isTrue();
     assertThat(cambio.cambios())
@@ -987,7 +987,7 @@ class ProductTest {
 
     // Reemplazar: la anterior sale para que el caso de uso la borre DESPUÉS.
     UUID segunda = UUID.randomUUID();
-    Product.CambioDePortada reemplazo = producto.asignarPortada(segunda, AHORA.plusDays(2));
+    CambioDePortada reemplazo = producto.asignarPortada(segunda, AHORA.plusDays(2));
     assertThat(reemplazo.anterior()).isEqualTo(primera);
     assertThat(reemplazo.cambios().get("cover_image_id"))
         .isEqualTo(Map.of("before", primera.toString(), "after", segunda.toString()));
@@ -1004,7 +1004,7 @@ class ProductTest {
     // Upgrade con icono y portada: se quita y el diff lo recoge.
     Product conIcono = upgradeConIcono("crown");
     conIcono.asignarPortada(imagen, AHORA);
-    Product.CambioDePortada cambio = conIcono.quitarPortada(AHORA.plusDays(1));
+    CambioDePortada cambio = conIcono.quitarPortada(AHORA.plusDays(1));
     assertThat(cambio.anterior()).isEqualTo(imagen);
     assertThat(cambio.cambios().get("cover_image_id"))
         .isEqualTo(Map.of("before", imagen.toString(), "after", ""));
@@ -1032,7 +1032,7 @@ class ProductTest {
   @DisplayName("`CA-PM-253` — sin portada no hay nada que quitar, tampoco en un upgrade sin icono")
   void quitarPortadaSinPortada() {
     Product producto = upgradeConIcono("crown");
-    Product.CambioDePortada nada = producto.quitarPortada(AHORA.plusDays(1));
+    CambioDePortada nada = producto.quitarPortada(AHORA.plusDays(1));
     assertThat(nada.huboCambio()).isFalse();
     assertThat(nada.anterior()).isNull();
     assertThat(producto.getUpdatedAt()).isEqualTo(AHORA);

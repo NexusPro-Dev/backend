@@ -52,6 +52,18 @@ public class ProductPackage {
   @Column(name = "description")
   private String description;
 
+  /**
+   * La portada del paquete: la fila de {@code product_images} cuyos bytes se sirven sin token
+   * (`RN-PM-045`, `V11`) — la misma tabla y la misma ruta que la del producto.
+   *
+   * <p><b>Identificador y no asociación</b>, por lo mismo que en {@link Product}. Nulo significa
+   * «no tiene portada», y entonces el frontend pinta <b>el icono de promoción y el color por
+   * omisión del sistema</b>: el paquete no declara ninguno de los dos, y por eso aquí no hay
+   * ninguna regla como `RN-PM-034` — quitar la portada nunca se rechaza.
+   */
+  @Column(name = "cover_image_id")
+  private UUID coverImageId;
+
   @Column(name = "currency_id", nullable = false, updatable = false)
   private UUID currencyId;
 
@@ -176,6 +188,38 @@ public class ProductPackage {
     return true;
   }
 
+  /**
+   * Pone o reemplaza la portada (`RF-PM-028`).
+   *
+   * <p><b>Sin condición de estado ni de contenido</b>: subir una portada nunca deja al paquete peor
+   * de lo que estaba, y un paquete inactivo, vacío o sin descripción la admite igual. Siempre hay
+   * cambio, porque cada subida estrena identificador.
+   */
+  public CambioDePortada asignarPortada(UUID nueva, OffsetDateTime ahora) {
+    UUID anterior = coverImageId;
+    coverImageId = nueva;
+    updatedAt = ahora;
+    return CambioDePortada.de(anterior, nueva);
+  }
+
+  /**
+   * Quita la portada (`RF-PM-029`), <b>y nunca se rechaza</b>.
+   *
+   * <p>Es {@link Product#quitarPortada} sin el paso de regla: el paquete no declara icono ni color,
+   * de modo que no puede quedarse sin nada con qué pintarse (`RN-PM-045`). Sin portada, devuelve un
+   * diff vacío y no toca {@code updatedAt}: «quítala» sobre un paquete sin portada ya ha conseguido
+   * lo que quería.
+   */
+  public CambioDePortada quitarPortada(OffsetDateTime ahora) {
+    if (coverImageId == null) {
+      return CambioDePortada.ninguno();
+    }
+    UUID anterior = coverImageId;
+    coverImageId = null;
+    updatedAt = ahora;
+    return CambioDePortada.de(anterior, null);
+  }
+
   public boolean estaRetirado() {
     return deletedAt != null;
   }
@@ -190,6 +234,7 @@ public class ProductPackage {
     estado.put("code", code);
     estado.put("name", name);
     estado.put("description", description);
+    estado.put("cover_image_id", coverImageId == null ? null : coverImageId.toString());
     estado.put("currency_id", currencyId.toString());
     estado.put("status", status.name());
     estado.put("scope", scope.name());
@@ -234,6 +279,10 @@ public class ProductPackage {
 
   public String getDescription() {
     return description;
+  }
+
+  public UUID getCoverImageId() {
+    return coverImageId;
   }
 
   public UUID getCurrencyId() {

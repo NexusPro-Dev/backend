@@ -27,6 +27,7 @@ public record PackageHotlinkResponse(
       String code,
       String name,
       String description,
+      String coverImageUrl,
       HotlinkResponse.CurrencyRef currency,
       List<Item> items,
       BigDecimal listPrice,

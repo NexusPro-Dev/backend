@@ -4,6 +4,7 @@ import com.factech.nexus.modules.products.application.OfferItem;
 import com.factech.nexus.modules.products.application.OfferPackageItem;
 import com.factech.nexus.modules.products.application.OfferResponse;
 import com.factech.nexus.modules.products.application.PackageDetailResponse;
+import com.factech.nexus.modules.products.application.ProductImageUrls;
 import com.factech.nexus.modules.products.application.ProductResponse;
 import com.factech.nexus.modules.products.domain.models.PackagePricing;
 import com.factech.nexus.modules.products.domain.models.ProductType;
@@ -162,6 +163,7 @@ public class GetOwnOfferService {
         publicado.paquete().code(),
         publicado.paquete().name(),
         publicado.paquete().description(),
+        ProductImageUrls.de(publicado.paquete().coverImageId()),
         new ProductResponse.CurrencyRef(moneda, publicado.paquete().currencyCode(), decimales),
         publicado.items().stream()
             .map(

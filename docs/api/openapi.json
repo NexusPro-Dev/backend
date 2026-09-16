@@ -1569,6 +1569,9 @@
           "code" : {
             "type" : "string"
           },
+          "coverImageUrl" : {
+            "type" : "string"
+          },
           "currency" : {
             "$ref" : "#/components/schemas/CurrencyRef"
           },
@@ -1701,6 +1704,9 @@
           "code" : {
             "type" : "string"
           },
+          "coverImageUrl" : {
+            "type" : "string"
+          },
           "createdAt" : {
             "format" : "date-time",
             "type" : "string"
@@ -1792,6 +1798,9 @@
       "PackageItemSummary" : {
         "properties" : {
           "code" : {
+            "type" : "string"
+          },
+          "coverImageUrl" : {
             "type" : "string"
           },
           "createdAt" : {
@@ -1910,6 +1919,9 @@
       "PackageRef" : {
         "properties" : {
           "code" : {
+            "type" : "string"
+          },
+          "coverImageUrl" : {
             "type" : "string"
           },
           "currency" : {
@@ -6620,6 +6632,107 @@
           }
         },
         "summary" : "Corregir un paquete",
+        "tags" : [ "Paquetes" ]
+      }
+    },
+    "/api/v1/packages/{id}/cover" : {
+      "delete" : {
+        "description" : "Vacía la portada y **la imagen se borra**: su dirección deja de servir.\nEl paquete vuelve a pintarse con **el icono de promoción y el color por\nomisión** que el cliente le pone cuando `coverImageUrl` es nula.\n\n**Nunca responde `400` por el estado del paquete** — es la única\ndiferencia con `DELETE /api/v1/products/{id}/cover`: el paquete no\ndeclara icono ni color (`RN-PM-045`), de modo que no puede quedarse sin\nnada con qué pintarse. Un paquete activo y ofrecible sigue activo y\nofrecible sin portada.\n\n**Sin portada responde igual y no escribe nada**: ni auditoría ni\n`updatedAt`. Responde `200` con el paquete, y no `204`: se vacía un\ncampo, no se retira una entidad. Sin cuerpo; si llega uno, se ignora.\n",
+        "operationId" : "quitarPortada_1",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "id",
+          "required" : true,
+          "schema" : {
+            "format" : "uuid",
+            "type" : "string"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/PackageDetailResponse"
+                }
+              }
+            },
+            "description" : "El paquete, con `coverImageUrl` nulo."
+          },
+          "400" : {
+            "description" : "Identificador sin forma canónica (`VAL-001`)"
+          },
+          "401" : {
+            "description" : "Token ausente o inválido (`AUTH-001`)"
+          },
+          "403" : {
+            "description" : "Autenticado sin el permiso `packages:update` (`AUTH-002`)"
+          },
+          "404" : {
+            "description" : "No existe un paquete vivo con ese identificador (`EX-001`)"
+          },
+          "500" : {
+            "description" : "Fallo no controlado (`ERR-500`)"
+          }
+        },
+        "summary" : "Quitar la portada de un paquete",
+        "tags" : [ "Paquetes" ]
+      },
+      "put" : {
+        "description" : "**La misma imagen que la del producto, con las mismas condiciones y la\nmisma ruta** (`RN-PM-045`, `requirements/pm.md` §5.2.12): recibe **un\narchivo** —`multipart/form-data`, una sola parte llamada `file`—,\n`JPEG`, `PNG` o `WebP` **reconocidos por sus bytes** (la cabecera y el\nnombre se ignoran; `VAL-003`), **hasta 5 MB** (`VAL-004`), sin archivo\no vacío `VAL-002`, y lo guarda **tal cual**. La imagen se sirve sin token\nen `GET /api/v1/product-images/{imageId}`, que no sabe si lo que sirve es\nla portada de un producto o de un paquete.\n\n**Si el paquete ya tenía portada, la reemplaza**: la nueva estrena\nidentificador, **la anterior se borra** y **la dirección cambia**. **Sin\ncondición de estado ni de contenido**: un paquete inactivo, vacío o sin\ndescripción la admite igual, y la activación sigue sin mirarla.\n\n**El paquete no declara icono ni color.** Cuando `coverImageUrl` es\nnula, el cliente pinta **el icono de promoción y el color por omisión\ndel sistema**, los mismos para todos los paquetes — y por eso quitar la\nportada nunca se rechaza. El alta no admite la imagen: `POST\n/api/v1/packages` sigue siendo JSON. Responde con el paquete entero, con\nsu cuenta hecha, como todas sus escrituras; **un paquete retirado no\nadmite portada**.\n",
+        "operationId" : "subirPortada_1",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "id",
+          "required" : true,
+          "schema" : {
+            "format" : "uuid",
+            "type" : "string"
+          }
+        } ],
+        "requestBody" : {
+          "content" : {
+            "multipart/form-data" : {
+              "schema" : {
+                "properties" : {
+                  "file" : {
+                    "format" : "binary",
+                    "type" : "string"
+                  }
+                },
+                "type" : "object"
+              }
+            }
+          }
+        },
+        "responses" : {
+          "200" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/PackageDetailResponse"
+                }
+              }
+            },
+            "description" : "El paquete, con `coverImageUrl` señalando la imagen nueva."
+          },
+          "400" : {
+            "description" : "Identificador sin forma canónica (`VAL-001`), sin archivo o vacío (`VAL-002`), ni JPEG ni PNG ni WebP por sus bytes (`VAL-003`), más de 5 MB (`VAL-004`) o petición que no es `multipart/form-data` (`EX-003`)"
+          },
+          "401" : {
+            "description" : "Token ausente o inválido (`AUTH-001`)"
+          },
+          "403" : {
+            "description" : "Autenticado sin el permiso `packages:update` (`AUTH-002`)"
+          },
+          "404" : {
+            "description" : "No existe un paquete vivo con ese identificador (`EX-001`)"
+          },
+          "500" : {
+            "description" : "Fallo no controlado (`ERR-500`)"
+          }
+        },
+        "summary" : "Subir o reemplazar la portada de un paquete",
         "tags" : [ "Paquetes" ]
       }
     },

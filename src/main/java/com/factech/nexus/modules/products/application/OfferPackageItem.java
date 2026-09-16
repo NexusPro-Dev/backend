@@ -17,6 +17,7 @@ public record OfferPackageItem(
     String code,
     String name,
     String description,
+    String coverImageUrl,
     ProductResponse.CurrencyRef currency,
     List<Line> items,
     BigDecimal listPrice,

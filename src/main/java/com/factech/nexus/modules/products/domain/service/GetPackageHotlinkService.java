@@ -5,6 +5,7 @@ import com.factech.nexus.modules.products.application.PackageDetailResponse.Disc
 import com.factech.nexus.modules.products.application.PackageHotlinkResponse;
 import com.factech.nexus.modules.products.application.PackageHotlinkResponse.Item;
 import com.factech.nexus.modules.products.application.PackageHotlinkResponse.PackageRef;
+import com.factech.nexus.modules.products.application.ProductImageUrls;
 import com.factech.nexus.modules.products.domain.models.PackagePricing;
 import com.factech.nexus.modules.products.domain.repository.ProductPackageQueryRepository;
 import com.factech.nexus.modules.products.domain.repository.ProductPackageQueryRepository.PublishedPackage;
@@ -84,6 +85,7 @@ public class GetPackageHotlinkService {
             publicado.paquete().code(),
             publicado.paquete().name(),
             publicado.paquete().description(),
+            ProductImageUrls.de(publicado.paquete().coverImageId()),
             new HotlinkResponse.CurrencyRef(
                 publicado.paquete().currencyCode(), publicado.paquete().currencyDecimalPlaces()),
             items,

@@ -26,6 +26,7 @@ public record PackageItemSummary(
     UUID id,
     String code,
     String name,
+    String coverImageUrl,
     ProductResponse.CurrencyRef currency,
     ProductScope scope,
     PackageStatus status,
@@ -46,6 +47,7 @@ public record PackageItemSummary(
         paquete.id(),
         paquete.code(),
         paquete.name(),
+        ProductImageUrls.de(paquete.coverImageId()),
         new ProductResponse.CurrencyRef(
             paquete.currencyId(), paquete.currencyCode(), paquete.currencyDecimalPlaces()),
         ProductScope.valueOf(paquete.scope()),

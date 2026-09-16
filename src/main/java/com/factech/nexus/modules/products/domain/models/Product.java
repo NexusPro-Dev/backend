@@ -683,21 +683,6 @@ public class Product {
   }
 
   /**
-   * Lo que devuelven las dos operaciones de la portada: qué imagen había, y el diff.
-   *
-   * @param anterior la imagen que dejó de ser portada, o nulo si no había; es la que el caso de uso
-   *     tiene que borrar <b>después</b> de volcar el cambio, por la clave foránea
-   * @param cambios el diff de auditoría: {@code cover_image_id} con antes y después, o vacío si no
-   *     cambió nada
-   */
-  public record CambioDePortada(UUID anterior, Map<String, Object> cambios) {
-
-    public boolean huboCambio() {
-      return !cambios.isEmpty();
-    }
-  }
-
-  /**
    * Pone o reemplaza la portada (`RF-PM-014`).
    *
    * <p><b>Sin condición de tipo ni de estado</b>: subir una portada nunca deja al producto peor de
@@ -708,7 +693,7 @@ public class Product {
     UUID anterior = coverImageId;
     coverImageId = nueva;
     updatedAt = ahora;
-    return new CambioDePortada(anterior, diffDePortada(anterior, nueva));
+    return CambioDePortada.de(anterior, nueva);
   }
 
   /**
@@ -726,23 +711,13 @@ public class Product {
    */
   public CambioDePortada quitarPortada(OffsetDateTime ahora) {
     if (coverImageId == null) {
-      return new CambioDePortada(null, Map.of());
+      return CambioDePortada.ninguno();
     }
     verificarQuePuedePintarse(type, icon, null, "VAL-002");
     UUID anterior = coverImageId;
     coverImageId = null;
     updatedAt = ahora;
-    return new CambioDePortada(anterior, diffDePortada(anterior, null));
-  }
-
-  private static Map<String, Object> diffDePortada(UUID antes, UUID despues) {
-    Map<String, Object> cambios = new LinkedHashMap<>();
-    cambios.put(
-        "cover_image_id",
-        Map.of(
-            "before", antes == null ? "" : antes.toString(),
-            "after", despues == null ? "" : despues.toString()));
-    return cambios;
+    return CambioDePortada.de(anterior, null);
   }
 
   /**

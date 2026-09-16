@@ -33,6 +33,7 @@ public class JpaProductPackageQueryRepository implements ProductPackageQueryRepo
   private static final String COLUMNAS_PAQUETE =
       """
       k.id AS id, k.code AS code, k.name AS name, k.description AS description,
+      k.cover_image_id AS cover_image_id,
       k.currency_id AS c_id, c.code AS c_code, c.decimal_places AS c_decimales,
       k.status AS status, k.scope AS scope,
       k.created_at AS created_at, k.updated_at AS updated_at, k.deleted_at AS deleted_at
@@ -145,6 +146,7 @@ public class JpaProductPackageQueryRepository implements ProductPackageQueryRepo
       """
       SELECT k.id AS k_id, k.code AS k_code, k.name AS k_name,
              k.description AS k_description,
+             k.cover_image_id AS k_cover_image_id,
              k.currency_id AS k_c_id, kc.code AS k_c_code,
              kc.decimal_places AS k_c_decimales,
              k.status AS k_status, k.scope AS k_scope,
@@ -236,6 +238,7 @@ public class JpaProductPackageQueryRepository implements ProductPackageQueryRepo
                     (String) fila.get("k_code"),
                     (String) fila.get("k_name"),
                     (String) fila.get("k_description"),
+                    (UUID) fila.get("k_cover_image_id"),
                     (UUID) fila.get("k_c_id"),
                     (String) fila.get("k_c_code"),
                     ((Number) fila.get("k_c_decimales")).intValue(),
@@ -331,6 +334,7 @@ public class JpaProductPackageQueryRepository implements ProductPackageQueryRepo
         (String) fila.get("code"),
         (String) fila.get("name"),
         (String) fila.get("description"),
+        (UUID) fila.get("cover_image_id"),
         (UUID) fila.get("c_id"),
         (String) fila.get("c_code"),
         ((Number) fila.get("c_decimales")).intValue(),

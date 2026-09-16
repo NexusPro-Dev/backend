@@ -108,4 +108,55 @@ class ProductPackageTest {
     assertThat(paquete.delete(AHORA)).isFalse();
     assertThat(paquete.estaRetirado()).isTrue();
   }
+
+  @Test
+  @DisplayName("asignarPortada devuelve la anterior y el diff; la instantánea lleva cover_image_id")
+  void asignaLaPortada() {
+    ProductPackage paquete =
+        ProductPackage.create(
+            UUID.randomUUID(), "COMBO", "Combo", null, USD, ProductScope.TIENDA, AHORA);
+    assertThat(paquete.instantanea()).containsEntry("cover_image_id", null);
+
+    UUID primera = UUID.randomUUID();
+    CambioDePortada cambio = paquete.asignarPortada(primera, AHORA.plusDays(1));
+    assertThat(cambio.anterior()).isNull();
+    assertThat(cambio.huboCambio()).isTrue();
+    assertThat(cambio.cambios())
+        .containsEntry("cover_image_id", Map.of("before", "", "after", primera.toString()));
+    assertThat(paquete.getCoverImageId()).isEqualTo(primera);
+    assertThat(paquete.getUpdatedAt()).isEqualTo(AHORA.plusDays(1));
+    assertThat(paquete.instantanea()).containsEntry("cover_image_id", primera.toString());
+
+    UUID segunda = UUID.randomUUID();
+    CambioDePortada reemplazo = paquete.asignarPortada(segunda, AHORA.plusDays(2));
+    assertThat(reemplazo.anterior()).isEqualTo(primera);
+    assertThat(reemplazo.cambios())
+        .containsEntry(
+            "cover_image_id", Map.of("before", primera.toString(), "after", segunda.toString()));
+  }
+
+  @Test
+  @DisplayName(
+      "quitarPortada nunca rechaza (RN-PM-045): con portada devuelve la anterior; sin portada, nada")
+  void quitaLaPortadaSiempre() {
+    ProductPackage paquete =
+        ProductPackage.create(
+            UUID.randomUUID(), "COMBO", "Combo", null, USD, ProductScope.TIENDA, AHORA);
+
+    // Sin portada: vacío, sin diff, sin excepción y sin mover updatedAt.
+    CambioDePortada nada = paquete.quitarPortada(AHORA.plusDays(1));
+    assertThat(nada.anterior()).isNull();
+    assertThat(nada.huboCambio()).isFalse();
+    assertThat(paquete.getUpdatedAt()).isEqualTo(AHORA);
+
+    // Con portada —y sin icono ni color que exigir—: se quita.
+    UUID imagen = UUID.randomUUID();
+    paquete.asignarPortada(imagen, AHORA.plusDays(1));
+    CambioDePortada cambio = paquete.quitarPortada(AHORA.plusDays(2));
+    assertThat(cambio.anterior()).isEqualTo(imagen);
+    assertThat(cambio.cambios())
+        .containsEntry("cover_image_id", Map.of("before", imagen.toString(), "after", ""));
+    assertThat(paquete.getCoverImageId()).isNull();
+    assertThat(paquete.getUpdatedAt()).isEqualTo(AHORA.plusDays(2));
+  }
 }

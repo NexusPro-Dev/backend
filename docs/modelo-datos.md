@@ -2,7 +2,7 @@
 
 | Campo | Valor |
 |---|---|
-| Versión | 0.52.0 |
+| Versión | 0.53.0 |
 | Estado | **Borrador** |
 | Responsable | Bonilla Diaz William Steven |
 | Fecha de creación | 21-08-2026 |
@@ -451,6 +451,7 @@ erDiagram
     products ||--o{ product_comments : "se reseña"
     users    ||--o{ product_comments : "escribe UNA por producto"
     product_images |o--o| products : "es la PORTADA de · V90"
+    product_images |o--o| product_packages : "es la PORTADA de · V11 · la MISMA tabla, sin saber de quien es cada una"
 
     products {
         uuid id PK
@@ -522,6 +523,7 @@ erDiagram
         uuid currency_id FK "OBLIGATORIA e INMUTABLE: solo reune productos en esta moneda"
         varchar status "nace INACTIVO · activar exige DOS productos y descripcion"
         varchar scope "TIENDA, HOTLINK, AMBOS o NINGUNO · el mismo dominio que products"
+        uuid cover_image_id FK "V11 · la portada · NULL = no tiene · UNICO · SIN icon ni color: sin portada el frontend pinta los suyos por omision"
         timestamptz deleted_at "logico, con motivo · SIN price: se CALCULA"
     }
 
@@ -541,6 +543,8 @@ erDiagram
     **La moneda sí es columna, aunque se deduzca de los productos**: un paquete vacío también tiene moneda, y es contra la que se comprueba cada asociación (`RN-PM-035`). No se convierte: sumar monedas distintas con la tasa del día haría que el paquete valiera distinto cada mañana.
 
     **`product_package_items` es una asociación con datos**: la clave primaria es «un producto una vez por paquete» (`RN-PM-038`), el descuento se corrige con auditoría de cambio, y desasociar **borra la fila** y la registra como `ASSOCIATION` sin motivo (Art. V.13, `RN-PM-042`). El techo del descuento fijo —el precio del producto— **no cabe en un `CHECK`**: está en otra tabla, y vive en el caso de uso.
+
+    **Y desde el 16-09-2026 el paquete lleva portada, con la misma forma que el producto** (`V11`, [`requirements/pm.md` §5.2.12](requirements/pm.md)): `cover_image_id` señala una fila de `product_images` —**la misma tabla**, que no sabe si lo que guarda es la portada de un producto o de un paquete: quien la señala lo dice—, nulo cuando no hay, con `fk_product_packages_cover_image` **sin `ON DELETE`** y `uq_product_packages_cover_image` total. **Sin `icon` ni `color` al lado**, y es la decisión que distingue esta portada de la del producto: sin imagen, el frontend pinta **el icono de promoción y el color por omisión del sistema**, los mismos para todos los paquetes, de modo que no hay ninguna regla como `RN-PM-034` que sostener y quitar la portada nunca se rechaza (`RN-PM-045`). Lo que ningún `UNIQUE` puede decir —que una imagen no sea a la vez portada de un producto y de un paquete— no hace falta declararlo: una fila de `product_images` solo nace por una subida, que la señala desde una entidad y solo una.
 
 !!! info "`product_comments` es la primera tabla de `PM` que apunta a `users`, y la primera del sistema que retira sin motivo declarado"
 
@@ -754,6 +758,8 @@ Son las que siguen —**y desde el 14-09-2026 una de `PM` apunta a `users`**—,
 | `product_comments.user_id` | `users` | `PM` → `SP` — **la primera de `PM` hacia una persona** (14-09-2026) |
 | `product_packages.currency_id` | `currencies` | `PM` → `SP` — la moneda del paquete entero (14-09-2026, diseñada) |
 
+**Y una que no cruza ningún módulo pero conviene ver aquí**: `product_packages.cover_image_id` → `product_images` (`PM` → `PM`, `V11`, 16-09-2026), la segunda columna que señala esa tabla. Junto con `products.cover_image_id`, hace de `product_images` **el valor de dos columnas de dos tablas**, sin que la tabla sepa de cuál viene cada fila.
+
 
 
 **Las claves foráneas sí cruzan; los repositorios no.** Es la distinción de D-25 y conviene tenerla clara mirando este cuadro: la integridad referencial la defiende el motor, y la frontera de código la defiende una regla de ArchUnit. Que una tabla apunte a otra de otro módulo **no autoriza a leerla desde Java**.
@@ -780,7 +786,7 @@ Son las que siguen —**y desde el 14-09-2026 una de `PM` apunta a `users`**—,
 
 Los documentos que citan una migración vieja por su número —specs, controles de cambios, `security.md`— cuentan **historia**, y no se reescribieron: esta tabla es la traducción.
 
-**Y desde `V10` la numeración sigue hacia adelante**, sin reutilizar nunca un número: `V10__cm_personalizada_producto` (16-09-2026) es la primera migración posterior a la consolidación, y cambia `user_commission_rates` en lugar de reescribir `V6`, porque una migración aplicada no se toca.
+**Y desde `V10` la numeración sigue hacia adelante**, sin reutilizar nunca un número: `V10__cm_personalizada_producto` (16-09-2026) es la primera migración posterior a la consolidación, y cambia `user_commission_rates` en lugar de reescribir `V6`, porque una migración aplicada no se toca. **`V11__pm_portada_paquete`** (16-09-2026) es la segunda: añade `product_packages.cover_image_id` con su clave foránea y su único, en lugar de reescribir `V5`.
 
 
 ## 6. Lo que el modelo deja pendiente
@@ -855,3 +861,4 @@ Los documentos que citan una migración vieja por su número —specs, controles
 | 0.50.0 | 15-09-2026 | **El esquema se consolida desde cero en nueve migraciones** (`V1` a `V9`, por módulo: funciones, auditoría, catálogos de SP, seguridad de SP, PM, CM, MV, semilla de permisos y roles, semillas de catálogos y superadministrador), por decisión del responsable del proyecto y como excepción registrada al Art. V.5 ([`constitution.md`](constitution.md) v0.9.0). **Ni una tabla, columna, restricción o índice cambia** —los `pg_dump` del esquema viejo y del nuevo se compararon sentencia a sentencia—, salvo `idx_movements_client`, redundante con `ix_movements_client`, que se retira; los identificadores literales de las semillas se conservan. §5.4 gana la tabla de traducción migración vieja → migración de hoy, para leer los documentos que citan números viejos. `mvn clean verify`: 370 unitarias y 1413 de integración en verde, salvo `DevelopmentSeedIT` por una edición sin confirmar de la semilla de desarrollo. | Responsable del proyecto |
 | 0.51.0 | 16-09-2026 | **La personalizada nace con su producto: `user_commission_rates` gana `product_id` `NOT NULL` y `user_commission_rate_products` se retira** (`V10`, [`requirements/cm.md`](requirements/cm.md) v0.15.0 §5.5), por decisión del responsable del proyecto. `CM` queda en **dos tablas**, las dos con el producto como columna; **`uq_user_commission_rates_vigente` vuelve** como `EXCLUDE` sobre `(user_id, product_id, daterange)` entre las vivas —`RN-CM-006` otra vez en el motor, seis días después de salir—; nace `fk_user_commission_rates_product`. Las personalizadas que había se borran con su asociación. Primera migración posterior a la consolidación: la numeración sigue desde `V10`. | Responsable del proyecto |
 | 0.52.0 | 16-09-2026 | **Un cliente tiene un agente principal y varios vendedores vinculados** ([`requirements/sp.md`](requirements/sp.md) v1.56.0 `RN-SP-049`, [`requirements/mv.md`](requirements/mv.md) v0.15.0 `RN-MV-025`), por decisión del responsable del proyecto. Nace **diseñada** `client_sellers` —la pareja como clave, `origin` `REGISTRO` o `HOTLINK`, `first_movement_id` y **sin fin**—, que **no sustituye a `user_supervisors`**: aquella sigue significando mando y atribución por defecto —un superior vigente, historial con cierre—, y esta significa «le vendió», que no manda nada y no se cierra. La escribirá la migración de `RF-MV-011`, la compra por hotlink de un cliente con cuenta, y será la **primera tabla de `SP` con clave foránea hacia `MV`** (`first_movement_id`). El modelo sigue en treinta y una tablas escritas y una diseñada. | Responsable del proyecto |
+| 0.53.0 | 16-09-2026 | **El paquete lleva portada: `product_packages` gana `cover_image_id`** (`V11`, [`requirements/pm.md`](requirements/pm.md) v0.37.0 §5.2.12, `RN-PM-045`), por decisión del responsable del proyecto. **Ninguna tabla nueva**: los bytes van a `product_images`, la misma tabla, que desde hoy es el valor de dos columnas de dos tablas y no sabe de cuál viene cada fila — quien la señala lo dice. Nacen `fk_product_packages_cover_image` —sin `ON DELETE`, como la del producto— y `uq_product_packages_cover_image`, total. **Sin `icon` ni `color`**: sin portada, el frontend pinta el icono de promoción y el color por omisión del sistema, y por eso no hay regla de tres caras que sostener ni un `CHECK` que dejar de declarar. El diagrama gana la segunda relación de `product_images` y la columna; §5.3 anota la única clave foránea de `PM` hacia `PM` que merece verse ahí; §5.4 registra `V11` como la segunda migración posterior a la consolidación. | Responsable del proyecto |

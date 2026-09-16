@@ -8,6 +8,7 @@
 | Autor | Responsable técnico |
 | Aprobada por | — |
 | Fecha de aprobación | — |
+| Enmendada el | 16-09-2026 — **el paquete trae `coverImageUrl`, la dirección de su portada**, también retirado (`RN-PM-045`, `RF-PM-028`). Ver §15 |
 
 ---
 
@@ -65,7 +66,7 @@ Es la lectura **de administración**, y por eso —al revés que la oferta y el 
 
 | Dato | Descripción |
 |---|---|
-| Paquete | Identificador, código, nombre, descripción, moneda resuelta (`id`, `code`, `decimalPlaces`), alcance, estado, fechas, `deletedAt` y `deletionReason` cuando está retirado |
+| Paquete | Identificador, código, nombre, descripción, **`coverImageUrl`** (desde el 16-09-2026: la dirección de la portada, `/api/v1/product-images/{imageId}`, **presente y nula** cuando no hay, también en un retirado — `RN-PM-045`), moneda resuelta (`id`, `code`, `decimalPlaces`), alcance, estado, fechas, `deletedAt` y `deletionReason` cuando está retirado |
 | `items` | Un elemento por producto, en el orden en que se asociaron: `product` (`id`, `code`, `name`, `type`, `status`, `deleted`, `price`, `purchasePrice`), `discount` (`type`, `value`) y **`priceInPackage`** |
 | `listPrice` | Σ `product.price` |
 | `price` | Σ `priceInPackage` — **lo que costaría el paquete** |
@@ -136,6 +137,7 @@ Es la lectura **de administración**, y por eso —al revés que la oferta y el 
 | `CA-PM-282` | Un producto **inactivo** o **retirado** dentro del paquete se devuelve con su estado y **sigue sumando**, y `offerable` es falso por él |
 | `CA-PM-283` | El detalle devuelve `purchasePrice` de cada producto —presente y nulo cuando no se conoce—, y `exchange` calculado sobre `price`, nulo si el paquete ya está en la moneda de casa |
 | `CA-PM-284` | El paquete **retirado** se devuelve con su motivo; el **inexistente** responde `404`; y la lectura cuesta **dos** sentencias —el paquete con sus filas y la moneda de casa—, **tres** con conversión y **una más** con motivo de retiro; el paquete vacío cuesta **una** |
+| `CA-PM-368` | El detalle devuelve **`coverImageUrl`** con la forma `/api/v1/product-images/{uuid}` cuando el paquete tiene portada, y **presente y nula** cuando no — también en un paquete **retirado**—, sin que el número de sentencias suba (16-09-2026) |
 
 ## 13. Casos límite
 
@@ -160,3 +162,4 @@ Es la lectura **de administración**, y por eso —al revés que la oferta y el 
 |---|---|---|---|
 | 0.1.0 | 15-09-2026 | Redacción inicial. **Aquí nace la cuenta de `RN-PM-036`** —`PackagePricing`, un solo sitio— y **`offerable` con su motivo en orden fijo**, que es la única señal de que un paquete activo no se está ofreciendo. `priceInPackage` se publica por producto porque es lo que una línea de venta copiará. **El redondeo es por producto** y el total es la suma de los redondeados, para que cuadre con las líneas. Queda anotado el hueco del producto que cambia de moneda después de asociado. | Responsable técnico |
 | 0.2.0 | 15-09-2026 | **Construida** (`PackageDetailIT`, `PackageOfferabilityTest`), y con ella la enmienda de `RF-PM-007` (`PackageOfferIT`). Enmienda de Art. I.7 al construir: **`CA-PM-284` cuenta lo que la lectura cuesta de verdad** —dos sentencias en la moneda de casa, tres con conversión, una más con motivo, y una sola para el paquete vacío, que no pide conversión sobre cero—; la redacción anterior («tres, cuatro, cinco») contaba la tasa dos veces. `PackageOfferability` nombra el producto por su código en el motivo. | Responsable técnico |
+| 0.3.0 | 16-09-2026 | **El paquete trae `coverImageUrl`, la dirección de su portada** (`RN-PM-045`, [`requirements/pm.md`](../../../requirements/pm.md) v0.37.0 §5.2.12), presente y nula cuando no hay, también retirado. Es la respuesta de las ocho operaciones del paquete —y desde hoy de diez: la subida y el retiro de la portada la devuelven—. `CA-PM-368`. Enmienda que construye `RF-PM-028` (Art. I.7). | Responsable del proyecto |

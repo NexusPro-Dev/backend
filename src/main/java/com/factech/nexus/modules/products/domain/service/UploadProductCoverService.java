@@ -1,8 +1,8 @@
 package com.factech.nexus.modules.products.domain.service;
 
 import com.factech.nexus.modules.products.application.ProductDetailResponse;
+import com.factech.nexus.modules.products.domain.models.CambioDePortada;
 import com.factech.nexus.modules.products.domain.models.Product;
-import com.factech.nexus.modules.products.domain.models.Product.CambioDePortada;
 import com.factech.nexus.modules.products.domain.models.ProductImage;
 import com.factech.nexus.modules.products.domain.repository.ProductImageRepository;
 import com.factech.nexus.modules.products.domain.repository.ProductQueryRepository;

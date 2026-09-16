@@ -5,11 +5,11 @@
 | Módulo | `PM` — Productos y Mercadeo |
 | Paquete | `modules/products` |
 | Prefijos de permiso | `products:` |
-| Versión | 0.36.0 |
+| Versión | 0.37.0 |
 | Estado | **Borrador** |
 | Responsable | Bonilla Diaz William Steven |
 | Fecha de creación | 26-08-2026 |
-| Última actualización | 15-09-2026 |
+| Última actualización | 16-09-2026 |
 
 !!! info "Qué va en este documento"
 
@@ -60,6 +60,7 @@ Hoy la membresía de una persona solo cambia porque un administrador se la asign
 - **Reseñar un producto**: una puntuación de uno a cinco y un texto, **una por persona y producto**, que su autor corrige y retira; **leer las reseñas** de un producto sin autenticación, y ver en cada lectura del producto **su promedio y cuántas tiene**.
 - **Agrupar productos en paquetes** (14-09-2026): registrar un paquete con su moneda, **asociarle productos con un descuento cada uno** —porcentaje o importe fijo—, corregir ese descuento, desasociarlos, y consultar, corregir, activar, desactivar y retirar el paquete; **publicarlo en la oferta y en el hotlink** con su precio calculado, su precio de lista y lo que se ahorra.
 - **Ponerle portada a un producto** (14-09-2026): subir la imagen, reemplazarla y quitarla, y **servirla sin autenticación** por su identificador. Es **lo primero que el sistema guarda como archivo** (§5.2.9).
+- **Ponerle portada a un paquete** (16-09-2026): la misma imagen, subida, reemplazada y quitada con las mismas condiciones, guardada en la misma tabla y servida por la misma ruta. **Sin icono ni color propios**: sin portada, el paquete se pinta con lo que el frontend pone por omisión (§5.2.12).
 
 **No incluye**
 
@@ -74,7 +75,8 @@ Hoy la membresía de una persona solo cambia porque un administrador se la asign
 - **La moderación de las reseñas.** Nadie distinto del autor retira una reseña —ni un administrador— (`RN-PM-027`), y no hay denuncia, ocultación ni respuesta del vendedor. Es una decisión del responsable del proyecto, tomada sabiendo lo que cuesta (§5.2.7), y el día que haga falta será **otro requerimiento con otro permiso**, no una excepción a esta regla.
 - **Exigir haber comprado para reseñar.** `PM` no puede leer las ventas de `MV` sin cerrar el ciclo `MV → PM → MV` que `modules.md` §7 prohíbe. Quien opina es quien porta el permiso, no quien pagó (§5.2.7).
 - **Hilos, respuestas y votos de utilidad.** Una reseña es una opinión sobre el producto, no una conversación.
-- **Tratar la imagen de portada.** Ni recorte, ni redimensión, ni miniaturas, ni conversión de formato: el sistema guarda los bytes que recibe y los devuelve tal cual. **Y una galería tampoco**: es **una** imagen por producto, la portada.
+- **Tratar la imagen de portada.** Ni recorte, ni redimensión, ni miniaturas, ni conversión de formato: el sistema guarda los bytes que recibe y los devuelve tal cual. **Y una galería tampoco**: es **una** imagen por producto —y **una** por paquete—, la portada.
+- **Un icono o un color propios del paquete.** El producto declara un icono porque un upgrade tiene que distinguirse de otro; el paquete no declara ninguno, y **el color de un paquete no lo decide nadie**: sin portada, el frontend le pone **su icono de promoción y el color por omisión del sistema**, los mismos para todos (§5.2.12). Guardar los dos sería guardar un dato que solo tiene un valor.
 
 ### 1.4 La frontera, y por qué está donde está
 
@@ -99,7 +101,7 @@ Según [`modules.md` §5](../modules.md#5-fichas-de-modulo).
 | Oferta | Qué puede comprar quien mira, que no es el catálogo completo | `RF-PM-007` |
 | **Hotlinks** | El enlace público que un vendedor reparte: un producto y quién lo ofrece, sin autenticación | `RF-PM-008` |
 | **Reseñas** | Lo que quien compra dice del producto: una puntuación y un texto por persona, que solo su autor toca, y que se leen sin token | `RF-PM-009` a `RF-PM-013` |
-| **Paquetes** | Varios productos bajo un mismo código, cada uno con su descuento, que valen la suma de sus productos rebajados y se publican donde se publican los productos | `RF-PM-017` a `RF-PM-026` |
+| **Paquetes** | Varios productos bajo un mismo código, cada uno con su descuento, que valen la suma de sus productos rebajados y se publican donde se publican los productos — **con portada propia desde el 16-09-2026** | `RF-PM-017` a `RF-PM-026`, `RF-PM-028` y `RF-PM-029` |
 
 **Por qué la oferta es un submódulo y no una consulta más.** Responde una pregunta distinta y a otro actor: el catálogo lo lee quien administra y contiene todo —lo inactivo, lo retirado, el motivo del retiro—; la oferta la lee el cliente y contiene **solo lo que le aplica a él**. Separarlas evita el error que consiste en filtrar la respuesta en el navegador.
 
@@ -211,6 +213,7 @@ La dependencia es **acíclica**: `PM` consume `SP` y `SP` no consume nada ([`mod
 | `RN-PM-042` | **Desasociar un producto no pide motivo, y el descuento que se corrige se audita** | Al desasociar y al corregir un descuento | La fila del paquete-producto es una **asociación** (Art. V.13): quitarla se borra físicamente y se registra en la auditoría de eliminación como `ASSOCIATION`, con la instantánea y sin motivo. Corregir el descuento es un `UPDATE` corriente con su antes y su después en `audit_change_log` | Media |
 | `RN-PM-043` | **La oferta y el hotlink publican el paquete con su cuenta hecha, y sin el costo de nadie** | Al publicar la oferta y al responder el hotlink | Viajan `price`, `listPrice`, `savings`, la conversión de `price` a la moneda por omisión (`RN-PM-024`), y **cada producto con su precio dentro del paquete**, para que quien compra vea qué paga por cada cosa. **`purchasePrice` de los productos no viaja ni se selecciona** (`RN-PM-024`): sigue siendo el costo de NEXUS | Alta |
 | `RN-PM-044` | **Los upgrades de un paquete comparten origen, y el paquete se ofrece a quien tiene ese origen** | Al asociar un upgrade, y al publicar la oferta | Un paquete puede mezclar upgrades y bots, pero **todos sus upgrades salen de la misma membresía**: al asociar un upgrade cuyo origen no coincide con el de los ya asociados, se rechaza. Así la oferta aplica `RN-PM-011` al paquete entero: se ofrece a quien tenga **esa** membresía vigente. **Un paquete solo de bots se ofrece a todo el mundo**, como los bots. Sin esta regla habría paquetes que no se podrían ofrecer a nadie sin que nada lo dijera | Alta |
+| `RN-PM-045` | **El paquete lleva portada, y sin ella se pinta con lo que el frontend pone por omisión** | Al subir y al quitar la portada del paquete, y siempre que se consulte un paquete, con token o sin él | Un paquete **puede** llevar **una** imagen de portada, con **las mismas condiciones que la del producto** (`RN-PM-033`): `JPEG`, `PNG` o `WebP` de hasta 5 MB, el tipo por los bytes, sin tratar, **cada subida estrena identificador** y la reemplazada **se borra**. Se sube y se reemplaza (`RF-PM-028`) y se quita (`RF-PM-029`) con `packages:update`, los bytes viven en **la misma tabla** que los del producto y se sirven por **la misma ruta pública** (`RF-PM-016`), sin token. **El paquete no declara icono ni color**: sin portada, el frontend lo pinta con **su icono de promoción y el color por omisión del sistema**, los mismos para todos los paquetes —como hace con el bot—, de modo que la portada le es **opcional sin condición** y quitarla **nunca se rechaza**. Las cuatro lecturas del paquete —listado, detalle, oferta y hotlink— devuelven `coverImageUrl`, **presente y nula** cuando no hay (§5.2.12) | Alta |
 
 ### 5.2 Por qué las críticas son críticas
 
@@ -608,6 +611,28 @@ Cada producto tiene **un precio dentro del paquete**, y es ese —no el del cat�
 
 **Y `RN-PM-021` cambia de letra, no de fuerza.** Sigue siendo crítica y sigue diciendo lo mismo: sin token se publica solo lo que el alcance manda al canal de hotlinks. Lo que cambia es que ahora un producto puede estar **solo** ahí.
 
+### 5.2.12 La portada del paquete — 16-09-2026
+
+**Decisión del responsable del proyecto.** Un paquete lleva **una imagen de portada, como el producto**, y **cuando no la tiene se pinta con un icono de promoción y con el color por omisión del sistema** — los dos del frontend, ninguno declarado. Es §5.2.9 aplicada a otra entidad, y por eso casi todo lo que aquella sección decidió se hereda sin volver a preguntarse: se guarda la imagen y no su dirección, en PostgreSQL, por un endpoint propio después del alta, y se sirve sin token por identificador de imagen. Tres cosas **sí** se preguntaron, porque el paquete no es un producto, y las tres quedaron decididas por él:
+
+| Pregunta | Decisión | Lo que se descartó, y por qué |
+|---|---|---|
+| **¿El paquete declara icono y color, como el upgrade declara icono?** | **No.** Sin portada, el frontend pinta **su icono de promoción** y **el color por omisión del sistema**, los mismos para todos los paquetes (`RN-PM-045`) | *`icon` y `color` en `product_packages`, con la regla de `RN-PM-034` encima* — el upgrade declara icono porque **un upgrade tiene que distinguirse de otro** y su color se lo da la membresía destino; un paquete es una promoción, y una promoción se reconoce **por serlo**, no por cuál es. Dos columnas cuyo valor iba a ser siempre el mismo, una regla de tres caras para sostenerlas, y una decisión —qué color— que nadie tenía que tomar. **Es exactamente el caso del bot**: «el frontend le pinta el suyo por omisión, y por eso no le falta nada» |
+| **¿Dónde viven los bytes?** | **En `product_images`, la misma tabla** (§10.5): `product_packages.cover_image_id` la señala como `products.cover_image_id` | *Una tabla `package_images`* — idéntica columna a columna, con las mismas dos restricciones y el mismo detector de firma delante, para que una imagen supiera de qué entidad es. **No necesita saberlo**: la tabla no es una entidad sino el valor de una columna, y quien la señala es quien dice de quién es. Dos tablas iguales son dos sitios que mantener cuando cambie el tope o entre un formato |
+| **¿Se sirve por la misma ruta pública?** | **Sí**: `GET /api/v1/product-images/{imageId}` (`RF-PM-016`), **sin cambios** | *Una ruta `/package-images/{imageId}`* — una declaración más en `SecurityConfig` y una cota más en `security.md` para servir **los mismos bytes con las mismas cabeceras**. §5.2.9 ya dejó escrito que **la dirección no dice de qué producto es**: señala una imagen, y desde hoy tampoco dice si es de un producto o de un paquete. Nada de lo que la ruta hace mira a la entidad que la señala |
+
+#### Lo que se hereda, y lo que se decide distinto
+
+**Las condiciones del archivo son las mismas, y por eso viven en el mismo sitio.** `JPEG`, `PNG` o `WebP` por sus primeros bytes, hasta 5 MB, sin tratar: lo comprueba **el mismo objeto de dominio** que la portada del producto, y el esquema lo repite con las mismas dos restricciones, porque son la misma tabla. Cada subida estrena identificador y la reemplazada se borra, en el mismo orden y por la misma clave foránea: apuntar a la nueva, soltar la vieja, borrar la vieja. Y **la auditoría conserva el identificador y no los bytes**, con la misma advertencia de §5.2.9.
+
+**Lo único que se decide distinto es que quitar la portada nunca se rechaza**, y no es una excepción sino la consecuencia de la primera pregunta. `RF-PM-015` rechaza quitarle la portada a un upgrade sin icono porque el upgrade **se quedaría sin nada con qué pintarse**; el paquete **siempre tiene con qué**: el icono de promoción y el color por omisión no se declaran, de modo que no pueden faltar. Es la mitad del bot de `RN-PM-034`, entera: la portada le es opcional **sin condición**, en la subida y en el retiro.
+
+#### Una imagen es portada de una sola cosa, y el esquema lo dice a medias
+
+`uq_products_cover_image` garantiza que una imagen es portada de **un** producto como máximo, y `uq_product_packages_cover_image` hace lo mismo con los paquetes. **Lo que ningún `UNIQUE` puede decir es que una imagen no sea a la vez portada de un producto y de un paquete**: son dos tablas, y una restricción no cruza tablas. No hace falta declararlo, porque **ninguna operación del sistema puede producirlo**: la única forma de que una fila de `product_images` exista es que la acabe de crear una subida, y esa subida la señala desde una entidad y solo una. Una imagen nunca se «asigna» a nada — nace señalada, y muere cuando la dejan de señalar. Es lo que hace **seguro** borrar la reemplazada desde cualquiera de las dos operaciones, y queda escrito aquí en lugar de en un `CHECK` que no se puede escribir.
+
+**Y `RN-PM-043` sigue sin tocarse.** La portada del paquete va a sus cuatro lecturas —incluidas las dos públicas— por lo mismo que la del producto: es material de venta, lo contrario de un costo.
+
 ### 5.3 Reglas de otros documentos que este módulo aplica
 
 No se copian: se referencian, porque dos copias de una regla acaban divergiendo.
@@ -656,6 +681,8 @@ No se copian: se referencian, porque dos copias de una regla acaban divergiendo.
 | `RF-PM-025` | Desasociar un producto de un paquete | Media | `packages:update` | **En desarrollo** |
 | `RF-PM-026` | Consultar el hotlink de un paquete, sin autenticación | Alta | **Público** | **En desarrollo** |
 | `RF-PM-027` | Consultar el catálogo de hotlinks | Alta | `products:hotlink` | **En desarrollo** |
+| `RF-PM-028` | Subir o reemplazar la portada de un paquete | Media | `packages:update` | **En desarrollo** |
+| `RF-PM-029` | Quitar la portada de un paquete | Media | `packages:update` | **En desarrollo** |
 
 **Prioridades:** Crítica · Alta · Media · Baja.
 **Estados:** los de [`requirements.md` §4](../requirements.md#4-matriz-de-trazabilidad), que es su autoridad.
@@ -675,6 +702,8 @@ El alta crea la tabla y el catálogo, y sin catálogo no hay nada que consultar.
 **Los paquetes van `RF-PM-017` → `RF-PM-023` → `RF-PM-019` → `RF-PM-018` → `RF-PM-021` → `RF-PM-024` → `RF-PM-025` → `RF-PM-020` → `RF-PM-022` → `RF-PM-026`, y la oferta (`RF-PM-007`) se enmienda con `RF-PM-019`.** El alta crea las dos tablas y siembra los cuatro permisos; la asociación va segunda porque sin productos dentro un paquete no tiene precio que enseñar; el detalle, tercera, porque es donde nace la cuenta de `RN-PM-036` que todo lo demás reutiliza — la oferta incluida. El hotlink del paquete va al final porque compone lo que ya existe.
 
 **La portada va `RF-PM-014` → `RF-PM-016` → `RF-PM-015`.** La subida crea la tabla, la columna y la comprobación de los bytes; el `GET` público va segundo porque sin él `coverImageUrl` señalaría a una ruta que no existe; y quitarla, al final, porque es la única operación que tiene algo que rechazar (`RN-PM-034`). **`RN-PM-034` en el alta y en la corrección —el icono obligatorio sin portada— se construye con `RF-PM-014`**, como enmienda a `RF-PM-001` y `RF-PM-004` (Art. I.7): es la misma regla, y conviene que exista desde el primer producto con portada.
+
+**La portada del paquete va `RF-PM-028` → `RF-PM-029`**, y no necesita un tercero: la tabla, el detector y la ruta pública ya existen. La subida añade la columna y **enmienda las cuatro lecturas del paquete** —`RF-PM-018`, `RF-PM-019`, `RF-PM-026` y la colección `packages` de `RF-PM-007`— con `coverImageUrl` (Art. I.7); quitarla va después y no tiene nada que rechazar (`RN-PM-045`).
 
 ### 6.2 Fichas
 
@@ -812,7 +841,7 @@ Elimina lógicamente un producto **exigiendo motivo** (Art. V.13), que viaja al 
 | Actor | Cualquier persona autenticada con `products:sale` |
 | Permiso requerido | `products:sale` |
 | Prioridad | Alta |
-| Reglas aplicables | `RN-PM-009`, `RN-PM-011`, `RN-PM-019`, `RN-PM-020`, `RN-PM-024`, `RN-PM-032`, `RN-PM-033` |
+| Reglas aplicables | `RN-PM-009`, `RN-PM-011`, `RN-PM-019`, `RN-PM-020`, `RN-PM-024`, `RN-PM-032`, `RN-PM-033`, `RN-PM-045` |
 | Depende de | `RF-PM-001` |
 | Tripleta | `docs/specs/pm/007-consultar-oferta-propia/` |
 | Estado | **Tasks aprobadas** (26-08-2026) |
@@ -824,6 +853,8 @@ Devuelve **solo productos activos**, y de los de tipo upgrade **solo aquellos cu
 **Publica el enlace del video** (`RN-PM-032`, 14-09-2026), presente y nulo cuando no hay. Es lo contrario del precio de compra: material de venta, que existe para que lo vea quien compra, y por eso **sí se selecciona** aquí. **Y publica la dirección de la portada** (`RN-PM-033`), `coverImageUrl`, por lo mismo y con el mismo trato — la imagen la sirve `RF-PM-016` sin token, de modo que quien ve la oferta puede pintarla sin una segunda credencial.
 
 **Publica el alcance y la implementación de cada producto, y desde el 15-09-2026 filtra por el primero** (`RN-PM-019`, `RN-PM-020`): solo `TIENDA` y `AMBOS`. Hasta ese día el alcance **no podía** filtrar aquí —bajo la escala acumulativa los dos valores llegaban a la tienda—; con cuatro valores explícitos, un producto `HOTLINK` o `NINGUNO` **no es de la tienda**, y esta lectura lo deja fuera (§5.2.11). La implementación sí viaja en la respuesta, y por un motivo que no es de simetría: quien compra tiene que poder saber **antes de pagar** que lo que se lleva no se le entrega en el acto. Ocultarlo no evita la espera — la convierte en una incidencia de soporte.
+
+**Y cada paquete de la colección `packages` trae su propia `coverImageUrl`** (`RN-PM-045`, 16-09-2026), presente y nula cuando no hay, con el mismo trato que la de cada producto: material de venta, sin consulta más.
 
 ---
 
@@ -996,7 +1027,7 @@ Devuelve **la** reseña viva del actor sobre un producto —una, por `RN-PM-026`
 | Tripleta | `docs/specs/pm/017-registrar-paquete/` |
 | Estado | **En desarrollo** (15-09-2026) — construida y probada; queda el Pull Request |
 
-Registra un paquete con **código, nombre, moneda y alcance**, obligatorios, y descripción opcional. **Nace `INACTIVO` y vacío**: los productos se le asocian después (`RF-PM-023`) y se publica con `RF-PM-021`, cuando tenga al menos dos y descripción. Es el requerimiento que **crea las dos tablas** —`product_packages` y `product_package_items`— y **siembra los cuatro permisos `packages:`**, asociados a `SUPERADMIN` y `ADMIN` en la misma migración. La moneda se valida contra `SP` como la del producto (`RN-PM-008`) y **no se corrige después**.
+Registra un paquete con **código, nombre, moneda y alcance**, obligatorios, y descripción opcional. **Nace `INACTIVO` y vacío**: los productos se le asocian después (`RF-PM-023`) y se publica con `RF-PM-021`, cuando tenga al menos dos y descripción. Es el requerimiento que **crea las dos tablas** —`product_packages` y `product_package_items`— y **siembra los cuatro permisos `packages:`**, asociados a `SUPERADMIN` y `ADMIN` en la misma migración. La moneda se valida contra `SP` como la del producto (`RN-PM-008`) y **no se corrige después**. **La portada no entra por aquí** (16-09-2026): el alta sigue siendo JSON y la imagen se sube después con `RF-PM-028`; la respuesta trae `coverImageUrl` **presente y nulo**, que es lo único que puede traer un paquete recién registrado (`RN-PM-045`).
 
 #### `RF-PM-018` — Consultar paquetes
 
@@ -1006,12 +1037,12 @@ Registra un paquete con **código, nombre, moneda y alcance**, obligatorios, y d
 | Actor | Administrador · fuerza comercial |
 | Permiso requerido | `packages:read` |
 | Prioridad | Alta |
-| Reglas aplicables | `RN-PM-036`, `RN-PM-039` |
+| Reglas aplicables | `RN-PM-036`, `RN-PM-039`, `RN-PM-045` |
 | Depende de | `RF-PM-017` |
 | Tripleta | `docs/specs/pm/018-consultar-paquetes/` |
 | Estado | **En desarrollo** (15-09-2026) — construida y probada; queda el Pull Request |
 
-Devuelve los paquetes **paginados**, con filtros por estado, alcance, moneda y búsqueda por nombre, e **incluye lo inactivo y excluye lo retirado salvo que se pida**, como el catálogo de productos. Cada fila trae `price`, `listPrice`, `savings` **calculados** (`RN-PM-036`), **cuántos productos** contiene y si **hoy se puede ofrecer** (`offerable`, `RN-PM-039`). La cuenta de todos los paquetes de la página se resuelve **en una sentencia** sobre las filas de asociación, no una por paquete.
+Devuelve los paquetes **paginados**, con filtros por estado, alcance, moneda y búsqueda por nombre, e **incluye lo inactivo y excluye lo retirado salvo que se pida**, como el catálogo de productos. Cada fila trae `price`, `listPrice`, `savings` **calculados** (`RN-PM-036`), **cuántos productos** contiene y si **hoy se puede ofrecer** (`offerable`, `RN-PM-039`). La cuenta de todos los paquetes de la página se resuelve **en una sentencia** sobre las filas de asociación, no una por paquete. **Y desde el 16-09-2026 trae la dirección de la portada**, `coverImageUrl` (`RN-PM-045`), construida sobre `cover_image_id` **sin ninguna consulta más** y **presente y nula** cuando el paquete no tiene. Tampoco es un filtro.
 
 #### `RF-PM-019` — Consultar el detalle de un paquete
 
@@ -1021,12 +1052,12 @@ Devuelve los paquetes **paginados**, con filtros por estado, alcance, moneda y b
 | Actor | Administrador · fuerza comercial |
 | Permiso requerido | `packages:read` |
 | Prioridad | Alta |
-| Reglas aplicables | `RN-PM-036`, `RN-PM-037`, `RN-PM-039`, `RN-PM-040` |
+| Reglas aplicables | `RN-PM-036`, `RN-PM-037`, `RN-PM-039`, `RN-PM-040`, `RN-PM-045` |
 | Depende de | `RF-PM-017`, `RF-PM-023` |
 | Tripleta | `docs/specs/pm/019-consultar-detalle-paquete/` |
 | Estado | **En desarrollo** (15-09-2026) — construida y probada; queda el Pull Request |
 
-Devuelve el paquete con **sus productos resueltos** —código, nombre, tipo, precio de catálogo, descuento y **precio dentro del paquete**—, los tres totales, la conversión de `price` a la moneda por omisión, y **`offerable` con su motivo** cuando no se puede ofrecer: qué producto está inactivo o retirado, o que tiene menos de dos, o que le falta descripción. Es la lectura de administración, y por eso **sí** trae el `purchasePrice` de cada producto y el motivo del retiro del paquete. **Aquí nace la cuenta de `RN-PM-036`**, en un componente que la oferta y el hotlink reutilizan.
+Devuelve el paquete con **sus productos resueltos** —código, nombre, tipo, precio de catálogo, descuento y **precio dentro del paquete**—, los tres totales, la conversión de `price` a la moneda por omisión, y **`offerable` con su motivo** cuando no se puede ofrecer: qué producto está inactivo o retirado, o que tiene menos de dos, o que le falta descripción. Es la lectura de administración, y por eso **sí** trae el `purchasePrice` de cada producto y el motivo del retiro del paquete. **Aquí nace la cuenta de `RN-PM-036`**, en un componente que la oferta y el hotlink reutilizan. **Y desde el 16-09-2026 devuelve la dirección de la portada del paquete**, `coverImageUrl` (`RN-PM-045`): presente y nula, sin consulta más, y también en un paquete retirado — es la respuesta de las ocho operaciones del paquete, y por eso la subida y el retiro de la portada la devuelven.
 
 #### `RF-PM-020` — Editar paquete
 
@@ -1126,12 +1157,12 @@ Quita la asociación **sin motivo** —es una fila de relación, Art. V.13— y 
 | Actor | **Cualquiera, sin autenticar** |
 | Permiso requerido | **Ninguno: es público** |
 | Prioridad | Alta |
-| Reglas aplicables | `RN-PM-021` y `RN-PM-022` por extensión, `RN-PM-036`, `RN-PM-039`, `RN-PM-043` |
+| Reglas aplicables | `RN-PM-021` y `RN-PM-022` por extensión, `RN-PM-036`, `RN-PM-039`, `RN-PM-043`, `RN-PM-045` |
 | Depende de | `RF-PM-008`, `RF-PM-019` |
 | Tripleta | `docs/specs/pm/026-hotlink-paquete/` |
 | Estado | **En desarrollo** (15-09-2026) — construida y probada; queda el Pull Request |
 
-Es `RF-PM-008` aplicado al paquete: por nombre de usuario y código, **sin token**, devuelve el vendedor —nombre y apellido— y el paquete con sus productos, su precio, su precio de lista, su ahorro y la conversión. Responde **solo** un paquete **activo, de alcance `HOTLINKS` y ofrecible hoy** (`RN-PM-039`), y todo lo que no procede recibe **el mismo `404`** que el hotlink del producto — la uniformidad es la misma decisión de seguridad. **Vive bajo la misma familia de rutas** (`/api/v1/hotlinks/…`) y hereda su cota de tasa sin política nueva. De cada producto publica lo que el hotlink del producto publica, y nunca el costo (`RN-PM-043`).
+Es `RF-PM-008` aplicado al paquete: por nombre de usuario y código, **sin token**, devuelve el vendedor —nombre y apellido— y el paquete con sus productos, su precio, su precio de lista, su ahorro y la conversión. Responde **solo** un paquete **activo, de alcance `HOTLINKS` y ofrecible hoy** (`RN-PM-039`), y todo lo que no procede recibe **el mismo `404`** que el hotlink del producto — la uniformidad es la misma decisión de seguridad. **Vive bajo la misma familia de rutas** (`/api/v1/hotlinks/…`) y hereda su cota de tasa sin política nueva. De cada producto publica lo que el hotlink del producto publica, y nunca el costo (`RN-PM-043`). **Y desde el 16-09-2026 publica la dirección de la portada del paquete, sin token** (`RN-PM-045`): `coverImageUrl`, presente y nula cuando no hay, servida por la misma ruta pública que la del producto — la pantalla del hotlink no tiene con qué autenticarse, y la pinta con un `<img>` y ninguna credencial más.
 #### `RF-PM-027` — Consultar el catálogo de hotlinks
 
 | Campo | Valor |
@@ -1148,6 +1179,36 @@ Es `RF-PM-008` aplicado al paquete: por nombre de usuario y código, **sin token
 Devuelve **los productos activos de alcance `HOTLINK` o `AMBOS`** (`HOTLINKS` hasta el 15-09-2026), de los dos tipos, en la forma de la oferta —`price` y `exchange`, `videoUrl`, `coverImageUrl`, `rating`— y **sin el precio de compra** (`RN-PM-024`): es una vista de venta, no de administración. **No mira la membresía de quien llama**: al revés que `RF-PM-007`, el vendedor no compra lo que reparte, de modo que un upgrade `BECA → ORO` le interesa aunque él esté en `ORO`. Es exactamente el conjunto que `RF-PM-008` resuelve enlace a enlace (`RN-PM-021`), visto entero y con token.
 
 **Es la pieza que faltaba delante del hotlink.** Desde el 07-09-2026 el sistema resuelve un enlace ya repartido (`RF-PM-008`), pero nada le decía al vendedor qué enlaces podía repartir: `products:hotlink` nació ese día sin endpoint (§4), y este es el suyo. **No devuelve el enlace armado**: el vendedor ya conoce su nombre de usuario (`RF-SP-039`) y la forma de la ruta pública, y componer aquí `/hotlinks/{username}/{code}` costaría una lectura de la persona por página para ahorrarle al frontend una concatenación. **Los paquetes no entran todavía**: cuando `RF-PM-026` exista, esta lectura ganará su segunda lista, como la oferta ganó `packages`.
+
+#### `RF-PM-028` — Subir o reemplazar la portada de un paquete
+
+| Campo | Valor |
+|---|---|
+| Objetivo | Que un paquete tenga una foto con la que presentarse, y que se pueda cambiar sin dejar rastro de la anterior |
+| Actor | Administrador |
+| Permiso requerido | `packages:update` |
+| Prioridad | Media |
+| Reglas aplicables | `RN-PM-045`, `RN-PM-033` por extensión |
+| Depende de | `RF-PM-014`, `RF-PM-016`, `RF-PM-017` |
+| Tripleta | `docs/specs/pm/028-subir-portada-paquete/` |
+| Estado | **En desarrollo** (16-09-2026) — construida y probada; queda el Pull Request |
+
+Es `RF-PM-014` aplicado al paquete, **con la misma forma y el mismo archivo**: recibe **un archivo** —`multipart/form-data`, una sola parte `file`—, comprueba por **sus primeros bytes** que es `JPEG`, `PNG` o `WebP` y que **no pasa de 5 MB**, y lo guarda **tal cual** en `product_images` (`RN-PM-045`). Si el paquete ya tenía portada, **la reemplaza**: la nueva estrena identificador y **la vieja se borra** en la misma transacción. Responde con el paquete —la respuesta de las ocho operaciones, con su cuenta hecha— y `coverImageUrl` trae la dirección nueva, que es la de `RF-PM-016`. **Sin condición de estado**: subir una portada nunca deja al paquete peor de lo que estaba, y un paquete inactivo, vacío o sin descripción la admite igual. **Es el requerimiento que añade la columna `product_packages.cover_image_id`** y **el que enmienda las cuatro lecturas del paquete** con `coverImageUrl` (Art. I.7).
+
+#### `RF-PM-029` — Quitar la portada de un paquete
+
+| Campo | Valor |
+|---|---|
+| Objetivo | Que un paquete vuelva a pintarse con el icono de promoción y el color por omisión, sin dejar la imagen huérfana |
+| Actor | Administrador |
+| Permiso requerido | `packages:update` |
+| Prioridad | Media |
+| Reglas aplicables | `RN-PM-045` |
+| Depende de | `RF-PM-028` |
+| Tripleta | `docs/specs/pm/029-quitar-portada-paquete/` |
+| Estado | **En desarrollo** (16-09-2026) — construida y probada; queda el Pull Request |
+
+Quita la portada: `cover_image_id` vuelve a nulo y **la fila de la imagen se borra**, en la misma transacción. **A diferencia de `RF-PM-015`, no tiene nada que rechazar** (`RN-PM-045`): el paquete no declara icono ni color, y sin portada el frontend le pone los suyos por omisión, de modo que nunca se queda sin nada que pintar — es la mitad del bot, entera. Sin portada que quitar, **responde igual y no escribe nada**. Responde con el paquete, con `coverImageUrl` nulo.
 
 ## 7. Requerimientos no funcionales
 
@@ -1203,6 +1264,8 @@ Ninguna con sistemas externos. La pasarela de pago, que sería la primera, perte
 | `DELETE` | `/api/v1/packages/{id}/products/{productId}` | `RF-PM-025` | `packages:update` |
 | `GET` | `/api/v1/hotlinks/{username}/packages/{code}` | `RF-PM-026` | **Público** |
 | `GET` | `/api/v1/products/hotlinks` | `RF-PM-027` | `products:hotlink` |
+| `PUT` | `/api/v1/packages/{id}/cover` | `RF-PM-028` | `packages:update` |
+| `DELETE` | `/api/v1/packages/{id}/cover` | `RF-PM-029` | `packages:update` |
 
 !!! note "Los paquetes copian la forma del producto, verbo a verbo, y el hotlink del paquete es un segmento más"
 
@@ -1212,7 +1275,7 @@ Ninguna con sistemas externos. La pasarela de pago, que sería la primera, perte
 
     **`PUT /cover` y no `POST`**: la portada es **un solo hueco** por producto, y subir una imagen es **poner** lo que hay en ese hueco — repetir la misma petición deja el mismo resultado, que es lo que un `PUT` promete. `DELETE /cover` lo vacía, sin cuerpo, por lo mismo que el retiro de la reseña: no hay motivo que proteger. **Los dos responden con el producto**, como `PATCH /products/{id}`, porque lo que cambió es un campo del producto y el cliente lo repinta con lo que vuelve.
 
-    **`/product-images/{imageId}` cuelga de su propio recurso** y no de `/products/{id}/cover`, y el motivo está en §5.2.9: la dirección señala **una imagen concreta** que no cambia nunca, de modo que se puede servir con caché inmutable; una dirección por producto cambiaría de contenido al reemplazar la portada y obligaría a pelear con la caché del navegador. **Y la dirección no dice de qué producto es**: señala una imagen, y quien la tenga no obtiene con ella nada que el hotlink no publique ya.
+    **`/product-images/{imageId}` cuelga de su propio recurso** y no de `/products/{id}/cover`, y el motivo está en §5.2.9: la dirección señala **una imagen concreta** que no cambia nunca, de modo que se puede servir con caché inmutable; una dirección por producto cambiaría de contenido al reemplazar la portada y obligaría a pelear con la caché del navegador. **Y la dirección no dice de qué producto es**: señala una imagen, y quien la tenga no obtiene con ella nada que el hotlink no publique ya. **Desde el 16-09-2026 tampoco dice si es de un producto o de un paquete**: `PUT` y `DELETE /packages/{id}/cover` (`RF-PM-028`, `RF-PM-029`) copian la forma del producto verbo a verbo, y la imagen que suben se sirve por esta misma ruta, sin una segunda (§5.2.12).
 
 !!! note "El retiro de la reseña SÍ es un `DELETE`, y el del producto no, por la misma razón"
 
@@ -1408,7 +1471,7 @@ Se declaran en la base de datos, no solo en Java (Art. V.6).
 | `content` | `bytea` | No | No | No | — | — |
 | `created_at` | `timestamptz` | No | No | No | `now()` | — |
 
-**Es la primera tabla del sistema que guarda un archivo**, y la primera de `PM` que **no es una entidad**: es el valor de una columna de `products` sacado a una tabla propia porque los bytes no caben con dignidad en una fila del catálogo — un listado que seleccionara `products.*` arrastraría cinco megas por fila. **La relación va de `products` hacia aquí** (`products.cover_image_id`) y no al revés: un `product_id` en esta tabla sería un segundo puntero que podría divergir del primero, y el único que hace falta es el que el catálogo lee.
+**Es la primera tabla del sistema que guarda un archivo**, y la primera de `PM` que **no es una entidad**: es el valor de una columna de `products` sacado a una tabla propia porque los bytes no caben con dignidad en una fila del catálogo — un listado que seleccionara `products.*` arrastraría cinco megas por fila. **La relación va de `products` hacia aquí** (`products.cover_image_id`) y no al revés: un `product_id` en esta tabla sería un segundo puntero que podría divergir del primero, y el único que hace falta es el que el catálogo lee. **Y desde el 16-09-2026 también la señala `product_packages.cover_image_id`** (§5.2.12, `V11`): la tabla guarda las portadas del catálogo, del producto y del paquete, **sin saber de cuál es cada una** — quien la señala es quien lo dice, y por eso no lleva ni `product_id` ni `package_id`. El nombre se conserva: renombrarla costaría una migración y todos los sitios que la citan, para decir lo que la columna que la señala ya dice.
 
 **Sin `updated_at` ni `deleted_at`, y no es un olvido.** Una fila de esta tabla **no se modifica nunca**: reemplazar la portada es **otra fila** con otro identificador —para que la dirección pública sea inmutable, §5.2.9— y la anterior **se borra físicamente**, en la misma transacción y después de que la columna deje de señalarla. No es una baja lógica ni cabe en el Art. V.13: no se retira una entidad, se corrige el valor de un campo, y la auditoría de cambios de `products` conserva el antes y el después del identificador.
 
@@ -1432,6 +1495,7 @@ Se declaran en la base de datos, no solo en Java (Art. V.6).
 | `RN-PM-033` — el tipo lo deciden los bytes | Un `CHECK` sobre la firma del archivo es posible y no se escribe, por lo de arriba | En el dominio, con prueba unitaria de las tres firmas válidas, de un `GIF`, de un `SVG` y de un texto con extensión `.png`, que se rechazan |
 | `RN-PM-033` — cada subida estrena identificador y la reemplazada se borra | Es una secuencia de tres escrituras en una transacción, no una restricción | En la prueba de `RF-PM-014`: tras reemplazar, la dirección vieja responde `404`, la nueva `200`, y `product_images` tiene **una** fila para ese producto |
 | `RN-PM-034` — un upgrade siempre tiene portada o icono | Ver §10.3 | Ver §10.3 |
+| `RN-PM-045` — una imagen no es a la vez portada de un producto y de un paquete | Un `UNIQUE` no cruza tablas (§5.2.12). No hace falta: una fila solo nace por una subida, que la señala desde una entidad y solo una | En las pruebas de `RF-PM-014` y `RF-PM-028`: tras reemplazar, `product_images` tiene **una** fila por entidad, y la dirección vieja responde `404` |
 
 ### 10.6 `product_packages` y `product_package_items` — los paquetes (14-09-2026)
 
@@ -1443,6 +1507,7 @@ Se declaran en la base de datos, no solo en Java (Art. V.6).
 | `code` | `varchar(50)` | No | No | No | — | — |
 | `name` | `varchar(150)` | No | No | No | — | — |
 | `description` | `text` | No | No | Sí | — | — |
+| `cover_image_id` | `uuid` | No | Sí | Sí | — | `product_images` |
 | `currency_id` | `uuid` | No | Sí | No | — | `currencies` |
 | `status` | `varchar(20)` | No | No | No | `INACTIVO` | — |
 | `scope` | `varchar(20)` | No | No | No | — | — |
@@ -1450,7 +1515,7 @@ Se declaran en la base de datos, no solo en Java (Art. V.6).
 | `updated_at` | `timestamptz` | No | No | No | `now()` | — |
 | `deleted_at` | `timestamptz` | No | No | Sí | — | — |
 
-**Sin `price`**, y esa ausencia es `RN-PM-036`. **Sin `implementation`**: la implementación es de cada producto, y un paquete se entrega producto a producto. **Con `currency_id` propio** aunque se deduzca de sus productos: un paquete vacío también tiene moneda (`RN-PM-035`), y es la columna contra la que se comprueba cada asociación.
+**Sin `price`**, y esa ausencia es `RN-PM-036`. **Sin `implementation`**: la implementación es de cada producto, y un paquete se entrega producto a producto. **Con `currency_id` propio** aunque se deduzca de sus productos: un paquete vacío también tiene moneda (`RN-PM-035`), y es la columna contra la que se comprueba cada asociación. **Con `cover_image_id` desde el 16-09-2026** (`V11`, §5.2.12): la portada, con la misma forma que en `products` —un identificador y no una asociación, nulo cuando no hay— y **sin `icon` ni `color` al lado**: sin portada, el frontend pinta los suyos por omisión (`RN-PM-045`).
 
 #### `product_package_items`
 
@@ -1475,6 +1540,8 @@ Se declaran en la base de datos, no solo en Java (Art. V.6).
 | `ck_product_packages_status` | `status IN ('ACTIVO','INACTIVO')`, `DEFAULT 'INACTIVO'` | `RN-PM-041` (`RN-PM-012` por extensión) |
 | `ck_product_packages_scope` | `scope IN ('TIENDA','HOTLINK','AMBOS','NINGUNO')`, **sin `DEFAULT`** — el mismo dominio que `products` desde el 15-09-2026 (§5.2.11) | `RN-PM-041` (`RN-PM-019` por extensión) |
 | `fk_product_packages_currency` | `currency_id` → `currencies(id)` | `RN-PM-035` |
+| `fk_product_packages_cover_image` | `cover_image_id` → `product_images(id)`. **Sin `ON DELETE`**, como `fk_products_cover_image`: la fila de la imagen se borra **después** de que la columna deje de señalarla, en la misma transacción | `RN-PM-045` |
+| `uq_product_packages_cover_image` | `product_packages(cover_image_id)`, único **total** —el nulo no cuenta— | `RN-PM-045`. Una imagen es portada de **un** paquete como máximo; que tampoco sea a la vez la de un producto no cabe en un `UNIQUE` (§5.2.12) |
 | `pk_product_package_items` | `(package_id, product_id)` | `RN-PM-038` |
 | `fk_product_package_items_package` | `package_id` → `product_packages(id)` | — |
 | `fk_product_package_items_product` | `product_id` → `products(id)`. **Sin `ON DELETE`**: ni el producto ni el paquete se borran físicamente | — |
@@ -1536,3 +1603,4 @@ Se declaran en la base de datos, no solo en Java (Art. V.6).
 | 0.34.0 | 15-09-2026 | **Nace `RF-PM-027`, el catálogo de hotlinks, y con él `products:hotlink` deja de ser un permiso sin endpoint.** Por decisión del responsable del proyecto, al revisar las dos vistas de venta: el consumidor ve **lo de su membresía** (`RF-PM-007`, construido) y el vendedor debía ver **el catálogo de hotlinks** — y eso no existía: el sistema resolvía un enlace repartido (`RF-PM-008`) sin decirle a nadie qué enlaces podía repartir. `GET /api/v1/products/hotlinks` devuelve los productos activos de alcance `HOTLINKS`, de los dos tipos, en la forma de la oferta y sin el precio de compra, **sin mirar la membresía de quien llama** — el vendedor no compra lo que reparte. **No devuelve el enlace armado** —el vendedor ya conoce su nombre de usuario— y **los paquetes entrarán con `RF-PM-026`**. Ninguna regla nueva: es `RN-PM-021` vista entera y con token. §4 reescribe la caja del permiso: quién lo porta lo decide `RF-SP-006`, y el destinatario natural es el rol de tipo `VENDEDOR`. Nace construido, con tripleta en `docs/specs/pm/027-consultar-catalogo-hotlinks/`. | Responsable del proyecto |
 | 0.35.0 | 15-09-2026 | **El alcance pasa a CUATRO valores explícitos: `TIENDA`, `HOTLINK`, `AMBOS` y `NINGUNO`** (§5.2.11). Por decisión del responsable del proyecto, con tres respuestas preguntadas antes de escribir: los nombres y **la migración `HOTLINKS` → `AMBOS`** —fiel al significado, y una ruptura del contrato declarada—; **`NINGUNO` existe y se activa pero no se ofrece en ninguna vista**, solo lo ve administración; y **los paquetes adoptan el mismo dominio**. **`RN-PM-019` reescrita** —deja de ser una escala— y **`RN-PM-021` cambia de letra**: `HOTLINK` o `AMBOS`. **La oferta filtra por alcance por primera vez** (`TIENDA` y `AMBOS`), el hotlink y su catálogo publican `HOTLINK` y `AMBOS`, y el listado admite los cuatro. `ck_products_scope` se reemplaza en `V92`. Quedan enmendadas las tripletas de `RF-PM-001`, `002`, `004`, `007`, `008` y `027`; las de los paquetes las enmienda su tanda. | Responsable del proyecto |
 | 0.36.0 | 15-09-2026 | **Los diez requerimientos de los paquetes quedan construidos** (`RF-PM-017` a `RF-PM-026`, de `Tasks en revisión` a **En desarrollo**), y con ellos la enmienda de `RF-PM-007`: la oferta devuelve `packages`. `V91` crea `product_packages` y `product_package_items` —**ya con el alcance de cuatro valores** de §5.2.11— y **`V93`** siembra los cuatro `packages:` (`…000008` a `…000011`; el catálogo pasa de 46 a **50**): es `V93` y no `V92` porque el alcance de los productos tomó `V92` el mismo día, que es lo que el plan de `RF-PM-017` llamó «una migración reservada no está reservada». Once rutas: nueve bajo `/api/v1/packages` con los `packages:`, `GET /api/v1/hotlinks/{username}/packages/{code}` pública —**estrena `/api/v1/hotlinks/*/packages/*` en `SecurityConfig`**, como §7 anunció el 15-09-2026, y hereda la cota— y la oferta. **Lo que se decidió al construir**, todo dentro de lo escrito: el precio lo hace `PackagePricing` y la ofrecibilidad `PackageOfferability` —un solo objeto para el detalle, la lista, la oferta y el hotlink—; `findPublishedByCode` y `findOfferable` comparten **la sexta copia del `SELECT` de productos**; el alcance del paquete filtra en la oferta (`TIENDA`, `AMBOS`) y en el hotlink (`HOTLINK`, `AMBOS`) y **el de sus productos no filtra dentro de él**; el registro de auditoría de una fila de asociación lleva como `entity_id` el del paquete. Cuatro enmiendas menores de Art. I.7 quedan escritas en las specs (`CA-PM-284` y `CA-PM-338` cuentan las sentencias reales; `RF-PM-023` cuesta siete y no seis; el orden por precio de `RF-PM-018` va en la sentencia de paquetes). `mvn verify`: 370 unitarias y 1422 de integración, con `PackagesIT`, `PackageListIT`, `PackageDetailIT`, `PackageUpdateIT`, `PackageStatusIT`, `PackageDeletionIT`, `PackageProductsIT`, `PackageDiscountIT`, `PackageDissociationIT`, `PackageHotlinkIT`, `PackageOfferIT` y `PackageConcurrencyIT` en verde. `flujos/pm` v0.4.0. | Responsable técnico |
+| 0.37.0 | 16-09-2026 | **El paquete lleva PORTADA, y sin ella se pinta con el icono de promoción y el color por omisión del frontend** (§5.2.12). Por decisión del responsable del proyecto, con tres respuestas preguntadas antes de escribir: **el paquete no declara icono ni color** —sin portada, el frontend le pone los suyos por omisión, los mismos para todos, como hace con el bot—; **los bytes viven en `product_images`**, la misma tabla, que desde hoy guarda las portadas del catálogo sin saber de qué entidad es cada una; y **se sirven por la misma ruta pública**, `RF-PM-016` sin cambios. Nace **`RN-PM-045`**, y con ella **`RF-PM-028`** —subir o reemplazar, `PUT /api/v1/packages/{id}/cover`— y **`RF-PM-029`** —quitar, `DELETE`—, los dos con `packages:update` y **nacidos construidos** con tripleta en `docs/specs/pm/028-…` y `029-…`. **Quitar la portada de un paquete nunca se rechaza**: es la consecuencia de no declarar icono, y la única diferencia con `RF-PM-015`. `V11` añade `product_packages.cover_image_id` con `fk_product_packages_cover_image` y `uq_product_packages_cover_image` (§10.6). Quedan enmendadas con `coverImageUrl` las cuatro lecturas del paquete —`RF-PM-018`, `RF-PM-019`, `RF-PM-026` y la colección `packages` de `RF-PM-007`— y el alta `RF-PM-017`, que la devuelve nula. §1.3 gana lo que incluye y lo que no —**un icono o un color propios del paquete**—, §2 suma los dos requerimientos al submódulo, y §9 gana las dos rutas. | Responsable del proyecto |
