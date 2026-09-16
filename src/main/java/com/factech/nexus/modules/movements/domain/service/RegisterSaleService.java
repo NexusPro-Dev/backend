@@ -634,7 +634,10 @@ public class RegisterSaleService {
               producto.id(),
               vendedorId,
               producto.code(),
+              // El nombre y la descripción SE COPIAN (`RN-MV-002`): lo que el
+              // catálogo dice ahora, congelado. El código no: es inmutable.
               producto.name(),
+              producto.description(),
               linea.quantity(),
               ProductPrice.enLaEscalaDe(precio, decimales),
               producto.validityDays()));

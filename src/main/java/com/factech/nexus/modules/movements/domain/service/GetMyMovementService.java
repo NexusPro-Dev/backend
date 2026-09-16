@@ -66,11 +66,11 @@ public class GetMyMovementService {
               linea.productId(),
               linea.productCode(),
               linea.productName(),
+              linea.productDescription(),
               linea.quantity(),
               linea.unitPrice(),
               linea.lineAmount(),
               linea.validityDays(),
-              linea.packageId(),
               linea.lineDiscount(),
               rebajas,
               // Nulo solo en los tipos de movimiento que no venden nada; en una
@@ -93,6 +93,7 @@ public class GetMyMovementService {
             cabecera.userUsername(),
             ListMyMovementsService.nombreCompleto(
                 cabecera.userFirstName(), cabecera.userLastName())),
+        cabecera.packageId(),
         new SaleResponse.Money(cabecera.currencyId(), cabecera.currencyCode()),
         cabecera.paymentMethod(),
         lineas,

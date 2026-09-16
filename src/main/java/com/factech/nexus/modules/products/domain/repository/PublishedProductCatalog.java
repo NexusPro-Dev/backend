@@ -111,7 +111,8 @@ public class PublishedProductCatalog implements ProductCatalog, RegistrableProdu
     List<Tuple> filas =
         em.createNativeQuery(
                 """
-                SELECT p.id AS id, p.code AS code, p.name AS name, p.type AS type,
+                SELECT p.id AS id, p.code AS code, p.name AS name,
+                       p.description AS description, p.type AS type,
                        p.price AS price,
                        p.currency_id AS c_id, c.code AS c_code,
                        c.decimal_places AS c_decimales,
@@ -133,6 +134,7 @@ public class PublishedProductCatalog implements ProductCatalog, RegistrableProdu
               (UUID) fila.get("id"),
               (String) fila.get("code"),
               (String) fila.get("name"),
+              (String) fila.get("description"),
               "UPGRADE_MEMBRESIA".equals(fila.get("type")),
               (BigDecimal) fila.get("price"),
               (UUID) fila.get("c_id"),

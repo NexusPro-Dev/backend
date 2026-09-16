@@ -159,6 +159,9 @@ class RegisterSaleIT extends IntegrationTestBase {
             .andExpect(jsonPath("$.code").value(org.hamcrest.Matchers.matchesPattern(CODIGO)))
             .andExpect(jsonPath("$.lines.length()").value(1))
             .andExpect(jsonPath("$.lines[0].unitPrice").value(15.50))
+            // El nombre y la descripción son COPIAS de la línea (`RN-MV-002`).
+            .andExpect(jsonPath("$.lines[0].productName").isNotEmpty())
+            .andExpect(jsonPath("$.lines[0].packageId").doesNotExist())
             .andExpect(jsonPath("$.lines[0].lineDiscount").value(0.00))
             .andExpect(jsonPath("$.lines[0].lineAmount").value(31.00))
             .andExpect(jsonPath("$.totalAmount").value(31.00))
@@ -173,8 +176,10 @@ class RegisterSaleIT extends IntegrationTestBase {
             .getContentAsString();
 
     // `RN-MV-027`: esta entrada no aplica descuentos, y la forma viaja igual —
-    // lista vacía y paquete nulo, PRESENTES, comprobado sobre el JSON en crudo.
+    // lista vacía PRESENTE, comprobado sobre el JSON en crudo. Y el paquete va
+    // en la CABECERA (`RN-MV-028`), nulo y presente porque esto no es un paquete.
     assertThat(cuerpo).contains("\"discounts\":[]").contains("\"packageId\":null");
+    assertThat(cuerpo).doesNotContain("\"lines\":[{\"packageId\"");
 
     // Y en la base la línea queda con la resta en cero y sin rebajas.
     assertThat(jdbc.queryForObject("SELECT count(*) FROM movement_detail_discounts", Integer.class))

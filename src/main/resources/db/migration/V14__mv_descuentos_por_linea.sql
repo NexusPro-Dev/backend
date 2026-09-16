@@ -1,6 +1,7 @@
 -- ---------------------------------------------------------------------------
--- V14 — el descuento es de la LÍNEA, y la línea recuerda de qué paquete salió
--- (RN-MV-027, RN-MV-013 enmendada, 16-09-2026).
+-- V14 — el descuento es de la LÍNEA, el movimiento recuerda su paquete, y la
+-- línea congela el nombre y la descripción de lo que se vendió
+-- (RN-MV-027, RN-MV-002 y RN-MV-013 enmendadas, 16-09-2026).
 --
 -- Decisión del responsable del proyecto, que cierra la pregunta que mv.md §7.1
 -- dejó abierta el 02-09-2026: el descuento NO es de cabecera. Cada rebaja de
@@ -10,9 +11,20 @@
 -- line_amount = quantity × unit_price − line_discount. La cabecera pasa a ser
 -- suma de las líneas en sus tres cifras; ck_movements_payable no cambia.
 --
--- `package_id` es una REFERENCIA y no una copia (RN-MV-002): el paquete no se
--- borra, se retira; lo que sí cambia de él —el descuento de cada producto— queda
--- congelado aquí. Nulo cuando el producto se compró suelto, que hoy es siempre.
+-- `movements.package_id` es una REFERENCIA y no una copia (RN-MV-002): el
+-- paquete no se borra, se retira; lo que sí cambia de él —el descuento de cada
+-- producto— queda congelado en las líneas. Va en la CABECERA porque una venta
+-- lleva UN paquete y nada más (RN-MV-028), y con el producto de cada línea
+-- forma la pareja que identifica su asociación en product_package_items
+-- (RN-PM-038) — que no tiene identificador propio y cuya fila se borra al
+-- desasociar (RN-PM-042), de modo que una clave foránea hacia ella prohibiría
+-- desasociar lo ya vendido. Nulo en toda venta que no sea de un paquete.
+--
+-- Y la línea congela el NOMBRE y la DESCRIPCIÓN del producto, que es
+-- RN-MV-002 aplicada sin excepción: RF-PM-004 los corrige, de modo que leerlos
+-- del catálogo al mostrar una venta de hace un año reescribiría lo que alguien
+-- compró. EL CÓDIGO NO SE COPIA y se sigue leyendo de products: RN-PM-013 lo
+-- declara inmutable, y lo inmutable se referencia.
 --
 -- HOY NADIE ESCRIBE DESCUENTOS: las tres entradas registran la línea con
 -- line_discount = 0 y sin rebajas. El DEFAULT 0 es lo que deja válidas las
@@ -20,12 +32,20 @@
 -- consolidación (V1..V9); enmienda V7 y V12 en lugar de reescribirlas.
 -- ---------------------------------------------------------------------------
 
--- 1. La línea gana su paquete y su descuento.
+-- 1. La cabecera recuerda el paquete que se compró.
+ALTER TABLE movements
+    ADD COLUMN package_id uuid NULL,
+    ADD CONSTRAINT fk_movements_package
+        FOREIGN KEY (package_id) REFERENCES product_packages (id) ON DELETE RESTRICT;
+
+COMMENT ON COLUMN movements.package_id IS
+    'RN-MV-028: el paquete que se compro; NULL en toda venta que no sea de un paquete. Con el product_id de cada linea forma la pareja de product_package_items (RN-PM-038).';
+
+-- 2. La línea gana su descuento y congela lo que puede cambiar del producto.
 ALTER TABLE movement_details
-    ADD COLUMN package_id    uuid          NULL,
-    ADD COLUMN line_discount numeric(14,2) NOT NULL DEFAULT 0,
-    ADD CONSTRAINT fk_movement_details_package
-        FOREIGN KEY (package_id) REFERENCES product_packages (id) ON DELETE RESTRICT,
+    ADD COLUMN product_name        varchar(150)  NULL,
+    ADD COLUMN product_description text          NULL,
+    ADD COLUMN line_discount       numeric(14,2) NOT NULL DEFAULT 0,
     -- Ningún descuento deja la línea por debajo de cero, y ninguno es negativo:
     -- un descuento negativo es un recargo disfrazado.
     ADD CONSTRAINT ck_movement_details_discount
@@ -35,14 +55,31 @@ ALTER TABLE movement_details
     ADD CONSTRAINT ck_movement_details_amount
         CHECK (line_amount = quantity * unit_price - line_discount);
 
-COMMENT ON COLUMN movement_details.package_id IS
-    'De que paquete salio la linea; NULL si el producto se compro suelto. Referencia y no copia (RN-MV-002).';
+-- Lo ya vendido se rellena con el nombre y la descripcion de HOY, que es lo
+-- unico que se sabe de aquellas lineas: no se congelaron entonces, y este es el
+-- valor mas cercano al de aquel dia. Despues el nombre queda OBLIGATORIO, con
+-- el mismo orden que V13 uso con la vigencia del paquete: anadir, rellenar,
+-- exigir. La descripcion sigue admitiendo nulo porque products.description
+-- tambien lo admite: ahi el nulo significa «este producto no la declara».
+UPDATE movement_details d
+   SET product_name = p.name,
+       product_description = p.description
+  FROM products p
+ WHERE p.id = d.product_id;
+
+ALTER TABLE movement_details
+    ALTER COLUMN product_name SET NOT NULL;
+
+COMMENT ON COLUMN movement_details.product_name IS
+    'COPIA del nombre del producto en el momento de la venta (RN-MV-002): RF-PM-004 lo corrige, y una venta pasada no se reescribe.';
+COMMENT ON COLUMN movement_details.product_description IS
+    'COPIA de la descripcion en el momento de la venta (RN-MV-002). NULL tambien cuando el producto no la tenia: products.description admite nulo.';
 COMMENT ON COLUMN movement_details.line_discount IS
     'RN-MV-027: quantity x la suma en dinero de las rebajas de movement_detail_discounts. CONGELADO. Hoy siempre cero.';
 COMMENT ON COLUMN movement_details.line_amount IS
     'quantity x unit_price - line_discount. Se guarda aunque se derive: es el numero que se imprimio (RN-MV-013).';
 
--- 2. Las rebajas de cada línea: como se pactaron y como se cobraron.
+-- 3. Las rebajas de cada línea: como se pactaron y como se cobraron.
 CREATE TABLE movement_detail_discounts (
     id                 uuid          PRIMARY KEY,
     movement_detail_id uuid          NOT NULL,

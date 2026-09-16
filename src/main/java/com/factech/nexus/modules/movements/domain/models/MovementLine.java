@@ -25,16 +25,19 @@ import java.util.UUID;
  * el total en la cabecera: es el número que se imprimió. Recalcularlo al leer hace que un cambio de
  * redondeo reescriba comprobantes ya entregados.
  *
- * <h2>El descuento es de la línea, y la línea recuerda su paquete</h2>
+ * <h2>El descuento es de la línea</h2>
  *
  * <p>Desde el 16-09-2026 (`RN-MV-027`) cada rebaja es un {@link LineDiscount}, y de la lista salen
  * las dos cifras congeladas: {@code lineDiscount = quantity × Σ discountValue} y {@code lineAmount
  * = quantity × unitPrice − lineDiscount}. <b>No hay constructor que las reciba</b>, por lo mismo
  * que {@link Movement} suma su total: si llegaran por parámetro, existiría una línea cuyo importe
- * no corresponde a sus rebajas. Ninguna rebaja deja la línea por debajo de cero. {@code packageId}
- * es el paquete del que salió la línea —una referencia, no una copia— y nulo si el producto se
- * compró suelto; hoy es siempre nulo y la lista siempre vacía, porque ninguna entrada aplica
- * descuentos.
+ * no corresponde a sus rebajas. Ninguna rebaja deja la línea por debajo de cero. Hoy la lista va
+ * siempre vacía, porque ninguna entrada aplica descuentos.
+ *
+ * <p><b>El paquete no está aquí: está en la cabecera</b> (`RN-MV-028`). Una venta lleva un paquete
+ * y nada más, y {@code movements.package_id} con el {@code productId} de cada línea forma la pareja
+ * que identifica su asociación en {@code product_package_items} (`RN-PM-038`) — que no tiene
+ * identificador propio, y cuya fila se borra al desasociar (`RN-PM-042`).
  *
  * <h2>El vendedor es de la línea, y en una venta siempre lo hay</h2>
  *
@@ -47,25 +50,29 @@ import java.util.UUID;
  *
  * <p>No es una entidad JPA, por el mismo motivo que {@link Movement}: ver su Javadoc.
  *
- * <h2>{@code productCode} y {@code productName} NO se guardan, y no son copias</h2>
+ * <h2>El nombre y la descripción SÍ se copian; el código NO</h2>
  *
- * <p>{@code movement_details} no tiene esas columnas (`requirements/mv.md` §7.3) y no es un olvido:
- * el nombre de un producto <b>no</b> es de lo que se congela, porque corregir una errata no
- * reescribe lo que alguien compró. Viajan aquí porque la respuesta de la venta los devuelve
- * (`RF-MV-001` · §6.2) y la lectura que resolvió el catálogo ya los tenía: volver a pedirlos sería
- * una consulta más para un dato que está en la mano.
+ * <p>Desde el 16-09-2026 {@code productName} y {@code productDescription} se congelan en la línea,
+ * y es `RN-MV-002` aplicada sin excepción: `RF-PM-004` los corrige, de modo que leerlos del
+ * catálogo al mostrar una venta de hace un año <b>reescribiría lo que alguien compró</b>. Hasta ese
+ * día viajaban por aquí sin guardarse, con el argumento de que corregir una errata no cambia lo
+ * vendido — cierto para la errata y falso para el caso que importa: un producto renombrado de
+ * verdad.
  *
- * <p>La distinción importa al leer este código: <b>lo que se persiste desde aquí es lo copiado</b>
- * —precio unitario, importe y vigencia—, y lo demás es presentación.
+ * <p><b>{@code productCode} no se copia</b>, y esa asimetría es el mismo criterio y no una
+ * excepción: `RN-PM-013` declara el código <b>inmutable</b>, y lo inmutable se referencia. Se lee
+ * de {@code products} al mostrar la venta y da siempre el mismo valor; copiarlo solo añadiría un
+ * sitio donde el dato pudiera discrepar de sí mismo. Viaja por aquí porque la lectura que resolvió
+ * el catálogo ya lo tenía.
  */
 public final class MovementLine {
 
   private final UUID id;
   private final UUID productId;
   private final UUID sellerId;
-  private final UUID packageId;
   private final String productCode;
   private final String productName;
+  private final String productDescription;
   private final int quantity;
   private final BigDecimal unitPrice;
   private final BigDecimal lineDiscount;
@@ -77,9 +84,9 @@ public final class MovementLine {
       UUID id,
       UUID productId,
       UUID sellerId,
-      UUID packageId,
       String productCode,
       String productName,
+      String productDescription,
       int quantity,
       BigDecimal unitPrice,
       Integer validityDays,
@@ -87,9 +94,9 @@ public final class MovementLine {
     this.id = id;
     this.productId = productId;
     this.sellerId = sellerId;
-    this.packageId = packageId;
     this.productCode = productCode;
     this.productName = productName;
+    this.productDescription = productDescription;
     this.quantity = quantity;
     this.unitPrice = unitPrice;
     this.validityDays = validityDays;
@@ -127,6 +134,8 @@ public final class MovementLine {
    *     quien resuelve la venta, que es quien conoce la moneda
    * @param sellerId quien vendió <b>esta</b> línea (`RN-MV-003`), <b>obligatorio</b>: no hay línea
    *     de venta sin vendedor, y quien no cuelga de nadie es el suyo
+   * @param productName y {@code productDescription} <b>se copian</b> (`RN-MV-002`): son lo que el
+   *     catálogo decía el día de la venta, y `RF-PM-004` puede corregirlos mañana
    * @param validityDays nulo significa que lo adquirido <b>no caduca</b> (`RN-PM-015`)
    */
   public static MovementLine copiarDe(
@@ -134,22 +143,16 @@ public final class MovementLine {
       UUID sellerId,
       String productCode,
       String productName,
+      String productDescription,
       int quantity,
       BigDecimal precio,
       Integer validityDays) {
-    if (sellerId == null) {
-      // No es una validación de entrada: el vendedor no viene de la petición.
-      // Protege de que un camino futuro arme una línea de venta sin atribución,
-      // que es justo el estado que la enmienda del 16-09-2026 retiró.
-      throw new IllegalArgumentException("Una línea de venta no existe sin vendedor.");
-    }
-    return new MovementLine(
-        UUID.randomUUID(),
+    return copiarDe(
         productId,
         sellerId,
-        null,
         productCode,
         productName,
+        productDescription,
         quantity,
         precio,
         validityDays,
@@ -157,30 +160,38 @@ public final class MovementLine {
   }
 
   /**
-   * Copia el producto en una línea <b>que salió de un paquete</b>, con las rebajas que ese paquete
-   * le declara (`RN-MV-027`). Hoy no la usa ninguna entrada: es la forma que la compra de paquetes
-   * necesitará, escrita junto a la otra para que las dos cuenten igual.
+   * Copia el producto en una línea <b>con las rebajas que se le aplican</b> (`RN-MV-027`). Hoy no
+   * la usa ninguna entrada con rebajas: es la forma que la compra de paquetes necesitará, escrita
+   * junto a la otra para que las dos cuenten igual.
    */
   public static MovementLine copiarDe(
       UUID productId,
       UUID sellerId,
-      UUID packageId,
       String productCode,
       String productName,
+      String productDescription,
       int quantity,
       BigDecimal precio,
       Integer validityDays,
       List<LineDiscount> rebajas) {
     if (sellerId == null) {
+      // No es una validación de entrada: el vendedor no viene de la petición.
+      // Protege de que un camino futuro arme una línea de venta sin atribución,
+      // que es justo el estado que la enmienda del 16-09-2026 retiró.
       throw new IllegalArgumentException("Una línea de venta no existe sin vendedor.");
+    }
+    if (productName == null || productName.isBlank()) {
+      // Se copia, y una copia vacía no es una copia: sin esto, una línea podría
+      // quedar sin decir qué se vendió y el nulo solo aparecería al leerla.
+      throw new IllegalArgumentException("Una línea congela el nombre de lo que se vendió.");
     }
     return new MovementLine(
         UUID.randomUUID(),
         productId,
         sellerId,
-        packageId,
         productCode,
         productName,
+        productDescription,
         quantity,
         precio,
         validityDays,
@@ -194,10 +205,11 @@ public final class MovementLine {
     // La clave decide A QUIÉN SE LE PAGA por esta línea, y por eso se escribe
     // aquí y no en la cabecera desde el 16-09-2026 (`RN-MV-003`).
     datos.put("seller_id", sellerId.toString());
-    // Nulo y presente cuando el producto se compró suelto, por lo mismo que la
-    // vigencia: la clave ausente se leería como «esta versión no lo registraba».
-    datos.put("package_id", packageId == null ? null : packageId.toString());
     datos.put("product_code", productCode);
+    // Copias, y por eso están en la instantánea: lo que el catálogo decía ese
+    // día, no lo que diga cuando alguien lea este registro (`RN-MV-002`).
+    datos.put("product_name", productName);
+    datos.put("product_description", productDescription);
     datos.put("quantity", quantity);
     datos.put("unit_price", unitPrice.toPlainString());
     datos.put("line_discount", lineDiscount.toPlainString());
@@ -235,8 +247,8 @@ public final class MovementLine {
     return sellerId;
   }
 
-  public UUID getPackageId() {
-    return packageId;
+  public String getProductDescription() {
+    return productDescription;
   }
 
   public BigDecimal getLineDiscount() {

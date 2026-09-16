@@ -244,7 +244,10 @@ class MyMovementsIT extends IntegrationTestBase {
         .andExpect(jsonPath("$.status").value("PENDIENTE"))
         .andExpect(jsonPath("$.lines.length()").value(1))
         .andExpect(jsonPath("$.lines[0].productCode").value("MINE_BOT"))
+        // EL NOMBRE Y LA DESCRIPCION SALEN DE LA LINEA (`RN-MV-002`): son copias,
+        // y por eso el producto del catálogo puede renombrarse sin cambiar esto.
         .andExpect(jsonPath("$.lines[0].productName").value("Bot de prueba"))
+        .andExpect(jsonPath("$.lines[0].productDescription").value("Lo que decia el catalogo"))
         .andExpect(jsonPath("$.lines[0].quantity").value(1))
         .andExpect(jsonPath("$.lines[0].unitPrice").value(100.00))
         // El vendedor es de la línea (`RN-MV-003`), y el detalle lo trae ahí.
@@ -396,9 +399,10 @@ class MyMovementsIT extends IntegrationTestBase {
   private void linea(UUID movimiento, UUID producto, UUID vendedor) {
     jdbc.update(
         """
-        INSERT INTO movement_details (id, movement_id, product_id, seller_id, quantity, unit_price,
+        INSERT INTO movement_details (id, movement_id, product_id, seller_id, product_name,
+                                      product_description, quantity, unit_price,
                                       line_amount, validity_days)
-        VALUES (?, ?, ?, ?, 1, 100.00, 100.00, NULL)
+        VALUES (?, ?, ?, ?, 'Bot de prueba', 'Lo que decia el catalogo', 1, 100.00, 100.00, NULL)
         """,
         UUID.randomUUID(),
         movimiento,

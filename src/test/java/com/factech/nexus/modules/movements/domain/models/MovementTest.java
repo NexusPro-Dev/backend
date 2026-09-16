@@ -85,11 +85,56 @@ class MovementTest {
     assertThat(lineas).hasSize(1);
     assertThat(lineas.get(0).get("unit_price")).isEqualTo("20.00");
     assertThat(lineas.get(0).get("validity_days")).isEqualTo(30);
-    // `RN-MV-027`: el descuento y el paquete se escriben aunque estén vacíos,
-    // con la clave presente, por lo mismo que la vigencia.
+    // `RN-MV-027`: el descuento se escribe aunque esté vacío, con la clave
+    // presente, por lo mismo que la vigencia.
     assertThat(lineas.get(0)).containsEntry("line_discount", "0.00");
-    assertThat(lineas.get(0)).containsEntry("package_id", null);
     assertThat(lineas.get(0).get("discounts")).isEqualTo(List.of());
+    // `RN-MV-002`: el nombre y la descripción son COPIAS y están en la línea;
+    // el paquete está en la cabecera y aquí no (`RN-MV-028`).
+    assertThat(lineas.get(0)).containsEntry("product_name", "Producto UP_VIP");
+    assertThat(lineas.get(0)).containsEntry("product_description", "Lo que decía UP_VIP");
+    assertThat(lineas.get(0)).doesNotContainKey("package_id");
+    assertThat(venta.instantanea()).containsEntry("package_id", null);
+  }
+
+  @Test
+  @DisplayName("El paquete es de la cabecera, y la instantánea lo escribe presente y en nulo")
+  void elPaqueteEsDeLaCabecera() {
+    UUID paquete = UUID.randomUUID();
+    Movement venta =
+        Movement.registrar(
+            UUID.randomUUID(),
+            UUID.randomUUID(),
+            paquete,
+            UUID.randomUUID(),
+            UUID.randomUUID(),
+            "VTA-20260904-K7M2QX",
+            List.of(linea("BOT_A", 1, "10.00", null)),
+            2,
+            AHORA,
+            AHORA);
+
+    assertThat(venta.getPackageId()).isEqualTo(paquete);
+    assertThat(venta.instantanea()).containsEntry("package_id", paquete.toString());
+  }
+
+  @Test
+  @DisplayName("Una línea no se construye sin el nombre de lo que se vendió")
+  void sinNombreNoHayLinea() {
+    // Se copia, y una copia vacía no es una copia: sin esto la línea podría
+    // quedar sin decir qué se vendió y el nulo solo aparecería al leerla.
+    assertThatThrownBy(
+            () ->
+                MovementLine.copiarDe(
+                    UUID.randomUUID(),
+                    VENDEDOR,
+                    "UP_VIP",
+                    "  ",
+                    "Una descripción",
+                    1,
+                    new BigDecimal("20.00"),
+                    30))
+        .isInstanceOf(IllegalArgumentException.class);
   }
 
   // ---------------------------------------------------------------------------
@@ -159,15 +204,13 @@ class MovementTest {
   void laInstantaneaDeLaRebaja() {
     LineDiscount diez =
         LineDiscount.de(MovementDiscountType.PORCENTAJE, new BigDecimal("10"), precio("20.00"), 2);
-    UUID paquete = UUID.randomUUID();
-    Movement venta = registrar(lineaConRebajas("BOT_A", 1, "20.00", paquete, List.of(diez)));
+    Movement venta = registrar(lineaConRebajas("BOT_A", 1, "20.00", List.of(diez)));
 
     @SuppressWarnings("unchecked")
     List<Map<String, Object>> lineas = (List<Map<String, Object>>) venta.instantanea().get("lines");
     @SuppressWarnings("unchecked")
     List<Map<String, Object>> rebajas = (List<Map<String, Object>>) lineas.get(0).get("discounts");
 
-    assertThat(lineas.get(0)).containsEntry("package_id", paquete.toString());
     assertThat(lineas.get(0)).containsEntry("line_discount", "2.00");
     assertThat(rebajas).hasSize(1);
     assertThat(rebajas.get(0)).containsEntry("type", "PORCENTAJE");
@@ -181,17 +224,12 @@ class MovementTest {
 
   private static MovementLine lineaConRebajas(
       String codigo, int cantidad, String precio, List<LineDiscount> rebajas) {
-    return lineaConRebajas(codigo, cantidad, precio, null, rebajas);
-  }
-
-  private static MovementLine lineaConRebajas(
-      String codigo, int cantidad, String precio, UUID paquete, List<LineDiscount> rebajas) {
     return MovementLine.copiarDe(
         UUID.randomUUID(),
         VENDEDOR,
-        paquete,
         codigo,
         "Producto " + codigo,
+        "Lo que decía " + codigo,
         cantidad,
         new BigDecimal(precio),
         null,
@@ -236,7 +274,14 @@ class MovementTest {
     assertThatThrownBy(
             () ->
                 MovementLine.copiarDe(
-                    UUID.randomUUID(), null, "UP_VIP", "Producto", 1, new BigDecimal("20.00"), 30))
+                    UUID.randomUUID(),
+                    null,
+                    "UP_VIP",
+                    "Producto",
+                    "Una descripción",
+                    1,
+                    new BigDecimal("20.00"),
+                    30))
         .isInstanceOf(IllegalArgumentException.class);
   }
 
@@ -261,6 +306,7 @@ class MovementTest {
         VENDEDOR,
         codigo,
         "Producto " + codigo,
+        "Lo que decía " + codigo,
         cantidad,
         new BigDecimal(precio),
         vigencia);

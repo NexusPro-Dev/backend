@@ -7599,6 +7599,13 @@ components:
           type: string
         productName:
           type: string
+          description: COPIA del nombre que el producto tenía el día de la venta.
+        productDescription:
+          type:
+          - string
+          - "null"
+          description: COPIA de la descripción del día de la venta. NULA si el producto
+            no la declaraba.
         quantity:
           type: integer
           format: int32
@@ -7609,13 +7616,6 @@ components:
         validityDays:
           type: integer
           format: int32
-        packageId:
-          type:
-          - string
-          - "null"
-          format: uuid
-          description: El paquete del que salió esta línea. NULO cuando el producto
-            se compró suelto.
         lineDiscount:
           type: number
           description: "Lo que se rebajó a la línea: quantity × la suma de sus rebajas."
@@ -7658,6 +7658,14 @@ components:
           $ref: "#/components/schemas/SaleParty"
           description: "El SUJETO del movimiento: a nombre de quién es. En una venta,\
             \ quien compra. Nunca quien la registró desde oficina."
+        packageId:
+          type:
+          - string
+          - "null"
+          format: uuid
+          description: El paquete que se compró. NULO en toda venta que no sea de
+            un paquete. Con el productId de cada línea identifica qué asociación le
+            dio su descuento.
         currency:
           $ref: "#/components/schemas/SaleCurrency"
         paymentMethod:

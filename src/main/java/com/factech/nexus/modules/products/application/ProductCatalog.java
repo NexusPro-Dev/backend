@@ -109,11 +109,17 @@ public interface ProductCatalog {
    * usar {@link ProductPrice#cabeEn}, que mide la escala significativa.
    *
    * <p>{@code validityDays} nulo significa <b>no caduca</b> (`RN-PM-015`), no «sin dato».
+   *
+   * <p><b>{@code name} y {@code description} viajan porque `MV` los CONGELA en la línea</b> desde
+   * el 16-09-2026 (`RN-MV-002`): esta lectura es la que resuelve el catálogo al registrar, y
+   * pedirlos otra vez sería una consulta más para un dato que está en la mano. {@code description}
+   * admite nulo, que significa que el producto no la declara.
    */
   record SaleView(
       UUID id,
       String code,
       String name,
+      String description,
       boolean upgrade,
       BigDecimal price,
       UUID currencyId,

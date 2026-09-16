@@ -52,6 +52,7 @@ public final class Movement {
   private final UUID id;
   private final UUID movementTypeId;
   private final UUID userId;
+  private final UUID packageId;
   private final UUID paymentMethodId;
   private final UUID currencyId;
   private final MovementStatus status;
@@ -76,6 +77,7 @@ public final class Movement {
       UUID id,
       UUID movementTypeId,
       UUID userId,
+      UUID packageId,
       UUID paymentMethodId,
       UUID currencyId,
       String code,
@@ -86,6 +88,7 @@ public final class Movement {
     this.id = id;
     this.movementTypeId = movementTypeId;
     this.userId = userId;
+    this.packageId = packageId;
     this.paymentMethodId = paymentMethodId;
     this.currencyId = currencyId;
     this.code = code;
@@ -143,6 +146,41 @@ public final class Movement {
       int decimales,
       OffsetDateTime occurredAt,
       OffsetDateTime ahora) {
+    return registrar(
+        movementTypeId,
+        userId,
+        null,
+        paymentMethodId,
+        currencyId,
+        code,
+        lines,
+        decimales,
+        occurredAt,
+        ahora);
+  }
+
+  /**
+   * Registra la venta <b>de un paquete</b> (`RN-MV-028`).
+   *
+   * <p><b>El paquete va en la cabecera y no en las líneas</b>: una venta lleva uno y nada más, de
+   * modo que repetirlo en cada línea sería el mismo dato escrito tantas veces como productos tenga
+   * — y con ello la posibilidad de que dos líneas de la misma venta dijeran paquetes distintos. Con
+   * el {@code productId} de cada línea forma la pareja que identifica su asociación en {@code
+   * product_package_items} (`RN-PM-038`), que no tiene identificador propio.
+   *
+   * @param packageId el paquete comprado, o nulo si la venta no es de un paquete
+   */
+  public static Movement registrar(
+      UUID movementTypeId,
+      UUID userId,
+      UUID packageId,
+      UUID paymentMethodId,
+      UUID currencyId,
+      String code,
+      List<MovementLine> lines,
+      int decimales,
+      OffsetDateTime occurredAt,
+      OffsetDateTime ahora) {
     if (lines == null || lines.isEmpty()) {
       // No es una validación de entrada duplicada: `VAL-003` rechaza la
       // PETICION sin líneas, y esto rechaza el AGREGADO sin líneas. Lo segundo
@@ -154,6 +192,7 @@ public final class Movement {
         UUID.randomUUID(),
         movementTypeId,
         userId,
+        packageId,
         paymentMethodId,
         currencyId,
         code,
@@ -191,6 +230,9 @@ public final class Movement {
     datos.put("code", code);
     datos.put("status", status.name());
     datos.put("user_id", userId.toString());
+    // Nulo y presente: la clave ausente se leería como «esta versión no lo
+    // registraba», y aquí el nulo dice «esta venta no es de un paquete».
+    datos.put("package_id", packageId == null ? null : packageId.toString());
     datos.put("payment_method_id", paymentMethodId.toString());
     datos.put("currency_id", currencyId.toString());
     datos.put("total_amount", totalAmount.toPlainString());
@@ -216,6 +258,10 @@ public final class Movement {
 
   public UUID getUserId() {
     return userId;
+  }
+
+  public UUID getPackageId() {
+    return packageId;
   }
 
   public UUID getPaymentMethodId() {

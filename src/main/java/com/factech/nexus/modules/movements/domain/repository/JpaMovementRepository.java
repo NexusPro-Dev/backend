@@ -83,17 +83,18 @@ public class JpaMovementRepository implements MovementRepository {
   private int insertarCabecera(Movement venta) {
     return em.createNativeQuery(
             """
-            INSERT INTO movements (id, movement_type_id, user_id,
+            INSERT INTO movements (id, movement_type_id, user_id, package_id,
                                    payment_method_id, currency_id, code, status,
                                    total_amount, discount_amount, payable_amount,
                                    occurred_at, created_at)
-            VALUES (:id, :tipo, :sujeto, :metodo, :moneda, :codigo, :estado,
+            VALUES (:id, :tipo, :sujeto, :paquete, :metodo, :moneda, :codigo, :estado,
                     :total, :descuento, :aPagar, :ocurrio, :creado)
             ON CONFLICT (code) DO NOTHING
             """)
         .setParameter("id", venta.getId())
         .setParameter("tipo", venta.getMovementTypeId())
         .setParameter("sujeto", venta.getUserId())
+        .setParameter("paquete", venta.getPackageId())
         .setParameter("metodo", venta.getPaymentMethodId())
         .setParameter("moneda", venta.getCurrencyId())
         .setParameter("codigo", venta.getCode())
@@ -121,17 +122,19 @@ public class JpaMovementRepository implements MovementRepository {
     for (MovementLine linea : venta.getLines()) {
       em.createNativeQuery(
               """
-              INSERT INTO movement_details (id, movement_id, product_id, seller_id, package_id,
+              INSERT INTO movement_details (id, movement_id, product_id, seller_id,
+                                            product_name, product_description,
                                             quantity, unit_price, line_discount, line_amount,
                                             validity_days)
-              VALUES (:id, :venta, :producto, :vendedor, :paquete, :cantidad, :precio,
-                      :descuento, :importe, :vigencia)
+              VALUES (:id, :venta, :producto, :vendedor, :nombre, :descripcion, :cantidad,
+                      :precio, :descuento, :importe, :vigencia)
               """)
           .setParameter("id", linea.getId())
           .setParameter("venta", venta.getId())
           .setParameter("producto", linea.getProductId())
           .setParameter("vendedor", linea.getSellerId())
-          .setParameter("paquete", linea.getPackageId())
+          .setParameter("nombre", linea.getProductName())
+          .setParameter("descripcion", linea.getProductDescription())
           .setParameter("cantidad", linea.getQuantity())
           .setParameter("precio", linea.getUnitPrice())
           .setParameter("descuento", linea.getLineDiscount())
@@ -361,6 +364,7 @@ public class JpaMovementRepository implements MovementRepository {
              END AS role,
              suj.id AS suj_id, suj.username AS suj_username,
              suj.first_name AS suj_first, suj.last_name AS suj_last,
+             m.package_id AS paquete,
              cur.id AS cur_id, cur.code AS cur_code, pm.name AS pm_name,
              m.total_amount AS total, m.discount_amount AS descuento,
              m.payable_amount AS pagar,
@@ -479,12 +483,16 @@ public class JpaMovementRepository implements MovementRepository {
         em.createNativeQuery(
                 """
                 SELECT d.id AS linea_id, d.product_id AS product_id, p.code AS p_code,
-                       p.name AS p_name, d.quantity AS cantidad, d.unit_price AS precio,
+                       d.product_name AS p_name, d.product_description AS p_desc,
+                       d.quantity AS cantidad, d.unit_price AS precio,
                        d.line_discount AS descuento, d.line_amount AS importe,
-                       d.validity_days AS vigencia, d.package_id AS paquete,
+                       d.validity_days AS vigencia,
                        v.id AS ven_id, v.username AS ven_username,
                        v.first_name AS ven_first, v.last_name AS ven_last
                   FROM movement_details d
+                  -- EL NOMBRE Y LA DESCRIPCION SALEN DE LA LINEA desde el
+                  -- 16-09-2026 (`RN-MV-002`): son copias. De `products` solo se
+                  -- lee el CODIGO, que `RN-PM-013` declara inmutable.
                   JOIN products p ON p.id = d.product_id
                   -- LEFT: la columna admite nulo por los tipos de movimiento que
                   -- no venden nada; en una venta el vendedor siempre está.
@@ -504,12 +512,12 @@ public class JpaMovementRepository implements MovementRepository {
               (UUID) linea.get("product_id"),
               (String) linea.get("p_code"),
               (String) linea.get("p_name"),
+              (String) linea.get("p_desc"),
               ((Number) linea.get("cantidad")).intValue(),
               (BigDecimal) linea.get("precio"),
               (BigDecimal) linea.get("descuento"),
               (BigDecimal) linea.get("importe"),
               linea.get("vigencia") == null ? null : ((Number) linea.get("vigencia")).intValue(),
-              (UUID) linea.get("paquete"),
               (UUID) linea.get("ven_id"),
               (String) linea.get("ven_username"),
               (String) linea.get("ven_first"),
@@ -559,6 +567,7 @@ public class JpaMovementRepository implements MovementRepository {
         (String) fila.get("suj_username"),
         (String) fila.get("suj_first"),
         (String) fila.get("suj_last"),
+        (UUID) fila.get("paquete"),
         (UUID) fila.get("cur_id"),
         (String) fila.get("cur_code"),
         (String) fila.get("pm_name"),

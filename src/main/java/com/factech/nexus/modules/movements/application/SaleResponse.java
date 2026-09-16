@@ -32,6 +32,13 @@ import java.util.UUID;
  * depósito la llevará vacía. Y viaja <b>en nulo y no ausente</b>: por eso este registro lleva
  * {@code @JsonInclude(ALWAYS)} y se aparta del {@code non_null} global de {@code application.yml}.
  *
+ * <h2>El paquete es de la cabecera</h2>
+ *
+ * <p>{@code packageId} dice qué paquete se compró, y es nulo en toda venta que no lo sea. Va aquí y
+ * no en cada línea porque <b>una venta lleva un paquete y nada más</b> (`RN-MV-028`): repetirlo en
+ * las líneas sería el mismo dato tantas veces como productos tenga, con la posibilidad de que dos
+ * dijeran paquetes distintos.
+ *
  * <h2>El descuento se devuelve aunque valga siempre cero</h2>
  *
  * <p>Omitirlo obligaría a añadirlo al contrato el día que exista, y a que todos los consumidores lo
@@ -51,6 +58,13 @@ public record SaleResponse(
                 "El SUJETO del movimiento: a nombre de quién es. En una venta, quien compra."
                     + " Nunca quien la registró desde oficina.")
         Party user,
+    @Schema(
+            types = {"string", "null"},
+            format = "uuid",
+            description =
+                "El paquete que se compró. NULO en toda venta que no sea de un paquete. Con el"
+                    + " productId de cada línea identifica qué asociación le dio su descuento.")
+        UUID packageId,
     Money currency,
     String paymentMethod,
     @Schema(description = "Las líneas, cada una con el vendedor al que se atribuye.")
@@ -86,6 +100,7 @@ public record SaleResponse(
         venta.getCode(),
         venta.getStatus().name(),
         sujeto,
+        venta.getPackageId(),
         moneda,
         metodoDePago,
         lineas,

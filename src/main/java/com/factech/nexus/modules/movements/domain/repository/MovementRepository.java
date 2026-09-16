@@ -182,6 +182,7 @@ public interface MovementRepository {
       String userUsername,
       String userFirstName,
       String userLastName,
+      UUID packageId,
       UUID currencyId,
       String currencyCode,
       String paymentMethod,
@@ -201,10 +202,14 @@ public interface MovementRepository {
   /**
    * Una línea del detalle.
    *
-   * <p><b>El código y el nombre del producto salen de {@code products}, no de la línea</b>, y hay
-   * que saberlo: `V54` no los congela — {@code movement_details} guarda el identificador, la
-   * cantidad, el precio y la vigencia, y nada más. La consecuencia está declarada en `tasks.md` §3
-   * y no se resuelve aquí: renombrar un producto cambia cómo se ve una venta pasada.
+   * <p><b>El nombre y la descripción salen de la LÍNEA</b> desde el 16-09-2026 (`RN-MV-002`): son
+   * copias, y `RF-PM-004` puede corregir el catálogo sin reescribir lo vendido. <b>El código sigue
+   * saliendo de {@code products}</b> porque `RN-PM-013` lo declara inmutable — lo inmutable se
+   * referencia.
+   *
+   * <p><b>Hasta el 16-09-2026 los dos salían del catálogo</b>, porque `V54` no los congelaba, y la
+   * consecuencia estaba declarada sin resolver en `tasks.md` §3: renombrar un producto cambiaba
+   * cómo se veía una venta pasada. `V14` lo cierra para el nombre y la descripción.
    *
    * <p><b>El vendedor sí es de la línea</b> (`RN-MV-003`, `V12`) y se lee de ella; nulo solo en los
    * tipos de movimiento que no venden nada. <b>Y el descuento también</b> (`RN-MV-027`, `V14`):
@@ -215,12 +220,12 @@ public interface MovementRepository {
       UUID productId,
       String productCode,
       String productName,
+      String productDescription,
       int quantity,
       BigDecimal unitPrice,
       BigDecimal lineDiscount,
       BigDecimal lineAmount,
       Integer validityDays,
-      UUID packageId,
       UUID sellerId,
       String sellerUsername,
       String sellerFirstName,

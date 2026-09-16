@@ -3434,19 +3434,19 @@
             "description" : "Lo que se rebajó a la línea: quantity × la suma de sus rebajas.",
             "type" : "number"
           },
-          "packageId" : {
-            "description" : "El paquete del que salió esta línea. NULO cuando el producto se compró suelto.",
-            "format" : "uuid",
-            "type" : [ "string", "null" ]
-          },
           "productCode" : {
             "type" : "string"
+          },
+          "productDescription" : {
+            "description" : "COPIA de la descripción del día de la venta. NULA si el producto no la declaraba.",
+            "type" : [ "string", "null" ]
           },
           "productId" : {
             "format" : "uuid",
             "type" : "string"
           },
           "productName" : {
+            "description" : "COPIA del nombre que el producto tenía el día de la venta.",
             "type" : "string"
           },
           "quantity" : {
@@ -3512,6 +3512,11 @@
           "occurredAt" : {
             "format" : "date-time",
             "type" : "string"
+          },
+          "packageId" : {
+            "description" : "El paquete que se compró. NULO en toda venta que no sea de un paquete. Con el productId de cada línea identifica qué asociación le dio su descuento.",
+            "format" : "uuid",
+            "type" : [ "string", "null" ]
           },
           "payableAmount" : {
             "type" : "number"

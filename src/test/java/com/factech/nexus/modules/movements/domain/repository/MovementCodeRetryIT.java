@@ -124,7 +124,14 @@ class MovementCodeRetryIT extends IntegrationTestBase {
         codigo,
         List.of(
             MovementLine.copiarDe(
-                producto, vendedor, "RTY_BOT", "Bot de prueba", 1, new BigDecimal("10.00"), null)),
+                producto,
+                vendedor,
+                "RTY_BOT",
+                "Bot de prueba",
+                "Un bot para la prueba",
+                1,
+                new BigDecimal("10.00"),
+                null)),
         2,
         AHORA,
         AHORA);

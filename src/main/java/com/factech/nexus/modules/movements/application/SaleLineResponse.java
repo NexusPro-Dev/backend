@@ -26,11 +26,16 @@ import java.util.UUID;
  * declara nulable porque el contrato es del libro y un depósito lo llevará vacío. Y viaja en nulo y
  * no ausente, por lo mismo que en {@link SaleResponse}.
  *
- * <p><b>{@code lineDiscount} y {@code discounts} son el descuento de la línea, y {@code packageId}
- * de qué paquete salió</b> (`RN-MV-027`, 16-09-2026). La suma en dinero y las rebajas que la
- * explican viajan juntas: la primera es lo que se restó, las segundas por qué. Hoy la suma es cero,
- * la lista va vacía y el paquete en nulo, y <b>viajan igual</b>: la lista nunca es nula y el nulo
- * del paquete se declara a mano, por lo mismo que el vendedor.
+ * <p><b>{@code lineDiscount} y {@code discounts} son el descuento de la línea</b> (`RN-MV-027`,
+ * 16-09-2026). La suma en dinero y las rebajas que la explican viajan juntas: la primera es lo que
+ * se restó, las segundas por qué. Hoy la suma es cero y la lista va vacía, y <b>viajan igual</b>:
+ * la lista nunca es nula. <b>El paquete no está aquí</b>, sino en la cabecera ({@link
+ * SaleResponse#packageId()}), porque una venta lleva uno y nada más (`RN-MV-028`).
+ *
+ * <p><b>{@code productName} y {@code productDescription} son copias</b> desde el 16-09-2026
+ * (`RN-MV-002`): lo que el catálogo decía el día de la venta, y no lo que diga hoy. {@code
+ * productCode} <b>no</b> lo es — se lee del catálogo, que `RN-PM-013` declara inmutable—, y esa
+ * asimetría es el mismo criterio: se copia lo que puede cambiar.
  *
  * <p><b>La membresía destino no viaja</b>, y su ausencia es coherente con que no se copie: quien
  * necesite saber a qué nivel lleva un upgrade lo pregunta al catálogo, donde `RF-PM-004` garantiza
@@ -40,17 +45,17 @@ import java.util.UUID;
 public record SaleLineResponse(
     UUID productId,
     String productCode,
-    String productName,
+    @Schema(description = "COPIA del nombre que el producto tenía el día de la venta.")
+        String productName,
+    @Schema(
+            types = {"string", "null"},
+            description =
+                "COPIA de la descripción del día de la venta. NULA si el producto no la declaraba.")
+        String productDescription,
     int quantity,
     BigDecimal unitPrice,
     BigDecimal lineAmount,
     Integer validityDays,
-    @Schema(
-            types = {"string", "null"},
-            format = "uuid",
-            description =
-                "El paquete del que salió esta línea. NULO cuando el producto se compró suelto.")
-        UUID packageId,
     @Schema(description = "Lo que se rebajó a la línea: quantity × la suma de sus rebajas.")
         BigDecimal lineDiscount,
     @Schema(description = "Las rebajas que explican lineDiscount. VACÍA —nunca nula— si no hubo.")
@@ -83,11 +88,11 @@ public record SaleLineResponse(
         linea.getProductId(),
         linea.getProductCode(),
         linea.getProductName(),
+        linea.getProductDescription(),
         linea.getQuantity(),
         linea.getUnitPrice(),
         linea.getLineAmount(),
         linea.getValidityDays(),
-        linea.getPackageId(),
         linea.getLineDiscount(),
         rebajas,
         vendedor);
