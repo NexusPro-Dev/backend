@@ -2,11 +2,11 @@
 
 | Campo | Valor |
 |---|---|
-| Versión | 0.50.0 |
+| Versión | 0.52.0 |
 | Estado | **Borrador** |
 | Responsable | Bonilla Diaz William Steven |
 | Fecha de creación | 21-08-2026 |
-| Última actualización | 15-09-2026 |
+| Última actualización | 16-09-2026 |
 
 !!! info "Qué va en este documento"
 
@@ -64,6 +64,8 @@ erDiagram
     users ||--o{ password_reset_permits : "pide restablecer · RF-SP-040"
     users ||--o{ user_supervisors : "está a cargo de alguien"
     users ||--o{ user_supervisors : "tiene gente a cargo"
+    users ||--o{ client_sellers : "le compró a · cliente"
+    users ||--o{ client_sellers : "le vendió a · vendedor"
     countries ||--o{ users : "está en · RN-SP-034 · exactamente uno, obligatorio"
     document_types ||--o{ users : "se identifica con · RN-SP-035 · columnas en §2"
     brokers        ||--o{ user_brokers : "tiene cuentas en · RN-SP-038"
@@ -81,6 +83,14 @@ erDiagram
         smallint level "orden materializado · se recalcula al insertar"
         timestamptz created_at "now"
         timestamptz updated_at "now"
+    }
+
+    client_sellers {
+        uuid client_id PK,FK "DISEÑADA 16-09-2026 · el cliente"
+        uuid seller_id PK,FK "el vendedor · el principal tambien tiene fila"
+        varchar origin "REGISTRO o HOTLINK"
+        uuid first_movement_id FK "la venta que creo el vinculo · nula solo si se rellena a mano"
+        timestamptz created_at "SIN fin: un vinculo es un hecho"
     }
 
     permissions {
@@ -847,3 +857,4 @@ Los documentos que citan una migración vieja por su número —specs, controles
 | 0.48.0 | 15-09-2026 | **`V91` crea `product_packages` y `product_package_items`** ([`requirements/pm.md`](requirements/pm.md) v0.36.0, `RF-PM-017`): el modelo pasa de veintinueve a **treinta y una** tablas escritas y no queda ninguna diseñada pendiente. Nacen tal como se diseñaron el 14-09-2026 —**sin columna de precio**, con la moneda obligatoria e inmutable, con la pareja como clave de la asociación y el porcentaje acotado a cien como único techo del esquema— y **ya con `ck_product_packages_scope` de cuatro valores**, el dominio que `V92` llevó a `products` el mismo día. La unicidad del nombre es un índice parcial, como en `products`, y por parcial no admite `DEFERRABLE`: la carrera la traduce el repositorio. Ninguna clave foránea lleva `ON DELETE`; la fila de asociación se borra desde el caso de uso (`RF-PM-025`) con su registro `ASSOCIATION`. | Responsable técnico |
 | 0.49.0 | 15-09-2026 | **La tasa de rol nace con su producto: `commission_rates` gana `product_id` `NOT NULL` y `product_commission_rates` se retira** (`V94`, [`requirements/cm.md`](requirements/cm.md) v0.14.0 §5.4, `RN-CM-021`), por decisión del responsable del proyecto. **Es la segunda migración del proyecto que borra datos a propósito**, y por lo mismo que `V49`: ninguna tasa de rol anterior tenía producto, y clonarlas por cada asociación habría sido una copia plausible decidida por una migración; se vacía para que la pérdida sea visible y administración las registre sabiendo lo que hace. **Lo que hay que leer del dibujo**: la unicidad «un porcentaje por rol y producto» (`RN-CM-013`) deja de ser la clave primaria de una asociación y pasa a ser un índice **parcial** sobre `(product_id, role_id)` entre las vivas —y por parcial no admite `DEFERRABLE`—; la clave foránea compuesta y `uq_commission_rates_id_role`, que existían solo para sostener la asociación, se van con ella. `CM` sigue en tres tablas: la asociación que queda es la de la **personalizada** (`user_commission_rate_products`), que es la única que puede abarcar varios productos. **Y el módulo vuelve a decir la misma cosa de dos maneras a conciencia** —la de rol con columna, la personalizada con tabla—, deshaciendo la simetría de la v0.40.0: son dos preguntas distintas, qué paga un producto y qué gana una persona. | Responsable del proyecto |
 | 0.50.0 | 15-09-2026 | **El esquema se consolida desde cero en nueve migraciones** (`V1` a `V9`, por módulo: funciones, auditoría, catálogos de SP, seguridad de SP, PM, CM, MV, semilla de permisos y roles, semillas de catálogos y superadministrador), por decisión del responsable del proyecto y como excepción registrada al Art. V.5 ([`constitution.md`](constitution.md) v0.9.0). **Ni una tabla, columna, restricción o índice cambia** —los `pg_dump` del esquema viejo y del nuevo se compararon sentencia a sentencia—, salvo `idx_movements_client`, redundante con `ix_movements_client`, que se retira; los identificadores literales de las semillas se conservan. §5.4 gana la tabla de traducción migración vieja → migración de hoy, para leer los documentos que citan números viejos. `mvn clean verify`: 370 unitarias y 1413 de integración en verde, salvo `DevelopmentSeedIT` por una edición sin confirmar de la semilla de desarrollo. | Responsable del proyecto |
+| 0.52.0 | 16-09-2026 | **Un cliente tiene un agente principal y varios vendedores vinculados** ([`requirements/sp.md`](requirements/sp.md) v1.56.0 `RN-SP-049`, [`requirements/mv.md`](requirements/mv.md) v0.15.0 `RN-MV-025`), por decisión del responsable del proyecto. Nace **diseñada** `client_sellers` —la pareja como clave, `origin` `REGISTRO` o `HOTLINK`, `first_movement_id` y **sin fin**—, que **no sustituye a `user_supervisors`**: aquella sigue significando mando y atribución por defecto —un superior vigente, historial con cierre—, y esta significa «le vendió», que no manda nada y no se cierra. La escribirá la migración de `RF-MV-011`, la compra por hotlink de un cliente con cuenta, y será la **primera tabla de `SP` con clave foránea hacia `MV`** (`first_movement_id`). El modelo sigue en treinta y una tablas escritas y una diseñada. | Responsable del proyecto |
