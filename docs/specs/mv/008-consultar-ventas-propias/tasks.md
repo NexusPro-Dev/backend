@@ -6,7 +6,7 @@
 | Especificación | [`spec.md`](spec.md) v0.1.0 |
 | Plan | [`plan.md`](plan.md) v0.1.0 |
 | `plan.md` aprobado el | 05-09-2026 |
-| Estado | **En revisión** — `T-01` a `T-12` `Hecha`; **`T-13` a `T-16` pendientes** (§1.1) |
+| Estado | **En revisión** — `T-01` a `T-12` `Hecha`; `T-13` a `T-16` `Hecha` el 16-09-2026 (§1.1) |
 | Rama | `feature/venta-de-productos` |
 
 !!! info "Qué va en este documento"
@@ -42,10 +42,10 @@ Enmienda del Art. I.7 sobre este requerimiento ya construido, por decisión del 
 
 | ID | Tarea | Depende de | Verificación | Estado |
 |---|---|---|---|---|
-| `T-13` | `JpaMovementRepository`: `findMine`, `countMine` y `findMineById` pasan de `client_id = ? OR seller_id = ?` a `user_id = ? OR EXISTS (… movement_details … seller_id = ?)`, y el `CASE` del papel con el mismo `EXISTS` | `RF-MV-001` · `T-25` | Una venta con dos líneas del mismo vendedor **cuenta una vez** (`CA-MV-040`); el `BOTH` sale para quien se vende a sí mismo (`CA-MV-037`) | **Pendiente** |
-| `T-14` | `MyMovementResponse`: `client` → `user`; `seller` → `sellers`, lista **nunca nula** y sin repetir, leída con una segunda consulta por los movimientos de la página | `T-13` | El contrato declara `sellers` como lista obligatoria; `user` sustituye a `client` | **Pendiente** |
-| `T-15` | `MyMovementsIT`: rehacer los criterios que miraban `client` y `seller`, y añadir la venta de quien no cuelga de nadie con papel `BOTH` | `T-14` | `CA-MV-035` a `CA-MV-037` y `CA-MV-043` en verde con la forma nueva; `sellers` vacía **y presente** comprobada sobre el JSON en crudo | **Pendiente** |
-| `T-16` | Contrato OpenAPI: esquema regenerado y **prosa reescrita** — `user` es el sujeto, `sellers` son los de sus líneas | `T-14` | Las `@Operation` de los dos `GET` no nombran `client` ni un `seller` de cabecera | **Pendiente** |
+| `T-13` | `JpaMovementRepository`: `findMine`, `countMine` y `findMineById` pasan de `client_id = ? OR seller_id = ?` a `user_id = ? OR EXISTS (… movement_details … seller_id = ?)`, y el `CASE` del papel con el mismo `EXISTS` | `RF-MV-001` · `T-25` | Una venta con dos líneas del mismo vendedor **cuenta una vez** (`CA-MV-040`); el `BOTH` sale para quien se vende a sí mismo (`CA-MV-037`) | **Hecha** — 16-09-2026 |
+| `T-14` | `MyMovementResponse`: `client` → `user`; `seller` → `sellers`, lista **nunca nula** y sin repetir, leída con una segunda consulta por los movimientos de la página | `T-13` | El contrato declara `sellers` como lista obligatoria; `user` sustituye a `client` | **Hecha** — 16-09-2026 |
+| `T-15` | `MyMovementsIT`: rehacer los criterios que miraban `client` y `seller`, y añadir la venta de quien no cuelga de nadie con papel `BOTH` | `T-14` | `CA-MV-035` a `CA-MV-037` y `CA-MV-043` en verde con la forma nueva; `sellers` vacía **y presente** comprobada sobre el JSON en crudo | **Hecha** — 16-09-2026 |
+| `T-16` | Contrato OpenAPI: esquema regenerado y **prosa reescrita** — `user` es el sujeto, `sellers` son los de sus líneas | `T-14` | Las `@Operation` de los dos `GET` no nombran `client` ni un `seller` de cabecera | **Hecha** — 16-09-2026 |
 
 ---
 
@@ -53,11 +53,11 @@ Enmienda del Art. I.7 sobre este requerimiento ya construido, por decisión del 
 
 | Criterio | Tarea |
 |---|---|
-| `CA-MV-035`, `CA-MV-036`, `CA-MV-037` | `T-06`, `T-10`, `T-13`, `T-15` — **pendientes de rehacer** con el vendedor en la línea |
+| `CA-MV-035`, `CA-MV-036`, `CA-MV-037` | `T-06`, `T-10`, `T-13`, `T-15` — rehechos el 16-09-2026 con el vendedor en la línea; `MyMovementsIT` gana la venta con dos líneas del mismo vendedor, que cuenta una vez |
 | `CA-MV-038` | `T-05`, `T-10` |
 | `CA-MV-039`, `CA-MV-040`, `CA-MV-041` | `T-07`, `T-10` |
 | `CA-MV-042` | `T-05`, `T-10` |
-| `CA-MV-043` | `T-04`, `T-10`, `T-14`, `T-15` — **pendiente de rehacer**: sujeto y lista de vendedores |
+| `CA-MV-043` | `T-04`, `T-10`, `T-14`, `T-15` — rehecho el 16-09-2026: `user` y `sellers`, con la lista vacía comprobada sobre el JSON en crudo |
 | `CA-MV-044`, `CA-MV-045` | `T-07`, `T-10` |
 | `CA-MV-046`, `CA-MV-047` | `T-09`, `T-10` |
 

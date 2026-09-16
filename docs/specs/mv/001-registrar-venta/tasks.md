@@ -5,7 +5,7 @@
 | Requerimiento | `RF-MV-001` |
 | Plan | [`plan.md`](plan.md), aprobado el 02-09-2026 |
 | Versión | 0.4.0 |
-| Estado | **En curso** — `T-01` a `T-18` `Hecha`; `CA-MV-008` queda **sin prueba** hasta `RF-SP-045`; **`T-25` a `T-30` pendientes** (§1.3) |
+| Estado | **En curso** — `T-01` a `T-18` `Hecha`; `CA-MV-008` queda **sin prueba** hasta `RF-SP-045`; `T-25` a `T-30` `Hecha` el 16-09-2026 (§1.3) |
 | Autor | Responsable técnico |
 | Aprobadas por | Responsable del proyecto |
 | Fecha de aprobación | 04-09-2026 |
@@ -82,12 +82,12 @@ Enmienda del Art. I.7 sobre este requerimiento ya construido, por decisión del 
 
 | ID | Tarea | Depende de | Verificación | Estado |
 |---|---|---|---|---|
-| `T-25` | **`V12__mv_sujeto_y_vendedor_por_linea.sql`**: `client_id` → `user_id` (FK e índice renombrados), `movement_details.seller_id` con FK e índice parcial, copia `COALESCE(seller_id, client_id)` a las líneas, `DROP` de `movements.seller_id` e `ix_movements_seller` | — | Una base con ventas anteriores conserva la atribución de todas y **ninguna línea de venta queda en nulo**. `V7` intacta | **Pendiente** |
-| `T-26` | `Movement` pierde `clientId`/`sellerId` y gana `userId`; `MovementLine` gana `sellerId` **obligatorio en `copiarDe`**; la instantánea escribe `user_id` en la cabecera y `seller_id` en cada línea | `T-25` | `MovementTest`: no existe forma de construir una línea de venta sin vendedor; la instantánea lleva la clave en cada línea | **Pendiente** |
-| `T-27` | `RegisterSaleService` y `RegisterSaleRequest`: el cuerpo pide `userId`; el vendedor se resuelve **una vez** —superior vigente, o **el propio comprador** si no lo hay— y se pone en cada línea | `T-26` | `CA-MV-002` y `CA-MV-017`: la línea de un cliente lleva a su agente; la de quien no cuelga de nadie lo lleva a él mismo. `VAL-001` dice «comprador» | **Pendiente** |
-| `T-28` | `SaleResponse`: `client` → `user`, `seller` sale de la cabecera; `SaleLineResponse` gana `seller` (`SaleParty`), con la nulabilidad declarada por `types` como estaba | `T-27` | `RegisterSaleIT` comprueba `lines[0].seller` y la ausencia de `seller` en la cabecera **sobre el JSON en crudo** | **Pendiente** |
-| `T-29` | Repositorio: `INSERT` de cabecera y líneas con las columnas nuevas; `PublishedRegistrationSaleRegistrar` y `RegistrationSaleRegistrar` (`RF-SP-045`) siguen el puerto | `T-26` | `SelfRegistrationIT` en verde: la venta del alta lleva al dueño del enlace en su línea | **Pendiente** |
-| `T-30` | Contrato OpenAPI: el esquema se regenera y **la prosa se reescribe** — `userId` es el sujeto, `seller` vive en la línea y nunca es nulo en una venta | `T-28` | `docs/api/openapi.*` salen modificados y las `@Operation` no describen `client` ni un `seller` de cabecera | **Pendiente** |
+| `T-25` | **`V12__mv_sujeto_y_vendedor_por_linea.sql`**: `client_id` → `user_id` (FK e índice renombrados), `movement_details.seller_id` con FK e índice parcial, copia `COALESCE(seller_id, client_id)` a las líneas, `DROP` de `movements.seller_id` e `ix_movements_seller` | — | Una base con ventas anteriores conserva la atribución de todas y **ninguna línea de venta queda en nulo**. `V7` intacta | **Hecha** — 16-09-2026 |
+| `T-26` | `Movement` pierde `clientId`/`sellerId` y gana `userId`; `MovementLine` gana `sellerId` **obligatorio en `copiarDe`**; la instantánea escribe `user_id` en la cabecera y `seller_id` en cada línea | `T-25` | `MovementTest`: no existe forma de construir una línea de venta sin vendedor; la instantánea lleva la clave en cada línea | **Hecha** — 16-09-2026 |
+| `T-27` | `RegisterSaleService` y `RegisterSaleRequest`: el cuerpo pide `userId`; el vendedor se resuelve **una vez** —superior vigente, o **el propio comprador** si no lo hay— y se pone en cada línea | `T-26` | `CA-MV-002` y `CA-MV-017`: la línea de un cliente lleva a su agente; la de quien no cuelga de nadie lo lleva a él mismo. `VAL-001` dice «comprador» | **Hecha** — 16-09-2026 |
+| `T-28` | `SaleResponse`: `client` → `user`, `seller` sale de la cabecera; `SaleLineResponse` gana `seller` (`SaleParty`), con la nulabilidad declarada por `types` como estaba | `T-27` | `RegisterSaleIT` comprueba `lines[0].seller` y la ausencia de `seller` en la cabecera **sobre el JSON en crudo** | **Hecha** — 16-09-2026 |
+| `T-29` | Repositorio: `INSERT` de cabecera y líneas con las columnas nuevas; `PublishedRegistrationSaleRegistrar` y `RegistrationSaleRegistrar` (`RF-SP-045`) siguen el puerto | `T-26` | `SelfRegistrationIT` en verde: la venta del alta lleva al dueño del enlace en su línea | **Hecha** — 16-09-2026 |
+| `T-30` | Contrato OpenAPI: el esquema se regenera y **la prosa se reescribe** — `userId` es el sujeto, `seller` vive en la línea y nunca es nulo en una venta | `T-28` | `docs/api/openapi.*` salen modificados y las `@Operation` no describen `client` ni un `seller` de cabecera | **Hecha** — 16-09-2026 |
 
 **`T-27` resuelve el vendedor una sola vez y lo repite en cada línea a propósito.** `RN-MV-003` admite que las líneas difieran, y hoy ninguna entrada lo produce: la resolución es de la venta, y el modelo es de la línea. Ponerlo línea a línea desde el primer día es lo que evita que el día que un carrito mezcle enlaces haya que cambiar la forma del agregado.
 
@@ -119,7 +119,7 @@ Queda declarado lo que esto obliga: **las lecturas de `RF-MV-006` y `RF-MV-007` 
 | Criterio | Tareas | Estado |
 |---|---|---|
 | `CA-MV-001` | `T-02`, `T-10`, `T-13`, `T-15` | Cubierto |
-| `CA-MV-002` | `T-07`, `T-11`, `T-12`, `T-15`, `T-27`, `T-28` | Cubierto hasta el 16-09-2026; **pendiente de rehacer** con el vendedor en la línea |
+| `CA-MV-002` | `T-07`, `T-11`, `T-12`, `T-15`, `T-27`, `T-28` | Cubierto; desde el 16-09-2026 mira `lines[0].seller` y la ausencia de `seller` en la cabecera |
 | `CA-MV-003` | `T-05`, `T-08`, `T-11`, `T-15` | Cubierto — **se prueba corrigiendo el producto DESPUÉS** |
 | `CA-MV-004` | `T-02`, `T-08`, `T-15` | Cubierto |
 | `CA-MV-005` | `T-03`, `T-11`, `T-15` | Cubierto |
@@ -133,8 +133,8 @@ Queda declarado lo que esto obliga: **las lecturas de `RF-MV-006` y `RF-MV-007` 
 | `CA-MV-014` | `T-05`, `T-11`, `T-15` | Cubierto |
 | `CA-MV-015` | `T-01`, `T-11`, `T-15` | Cubierto — inexistente `422`, desactivado `409` |
 | `CA-MV-016` | `T-12`, `T-13`, `T-15` | Cubierto |
-| `CA-MV-017` | `T-07`, `T-11`, `T-15`, `T-24`, `T-27` | Cubierto con el sentido del 04-09-2026; **pendiente de rehacer**: desde el 16-09-2026 afirma que la venta se registra **atribuida a quien compra** |
-| `CA-MV-018` | `T-08`, `T-14`, `T-15`, `T-26` | Cubierto; **pendiente de rehacer** con `user_id` y el vendedor en cada línea de la instantánea |
+| `CA-MV-017` | `T-07`, `T-11`, `T-15`, `T-24`, `T-27` | Cubierto; desde el 16-09-2026 afirma que la venta se registra **atribuida a quien compra**, en la respuesta y en `movement_details.seller_id` |
+| `CA-MV-018` | `T-08`, `T-14`, `T-15`, `T-26` | Cubierto; la instantánea lleva `user_id` en la cabecera y `seller_id` en cada línea, y ya no lleva `client_id` |
 
 **`CA-MV-011` necesita dos pruebas, y merece leerse dos veces.** Por HTTP, un upgrade que no sube **nunca llega** a `RN-MV-006`: la oferta de `RF-PM-007` ya lo excluyó, y el rechazo que se ve es `EX-004`. La prueba de integración lo comprueba así porque es lo que hoy ocurre de verdad, y el criterio queda satisfecho — se rechaza **al registrar**, que es lo que exige.
 
