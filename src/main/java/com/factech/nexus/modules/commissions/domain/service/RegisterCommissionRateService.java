@@ -6,6 +6,7 @@ import com.factech.nexus.modules.commissions.domain.models.CommissionRate;
 import com.factech.nexus.modules.commissions.domain.repository.CommissionRateRepository;
 import com.factech.nexus.modules.products.application.ProductCatalog;
 import com.factech.nexus.modules.products.application.ProductCatalog.ProductView;
+import com.factech.nexus.modules.products.application.ProductCatalog.SaleView;
 import com.factech.nexus.modules.system.roles.application.RoleCatalog;
 import com.factech.nexus.modules.system.roles.application.RoleCatalog.RoleView;
 import com.factech.nexus.shared.audit.AuditEnums.ChangeAction;
@@ -114,7 +115,20 @@ public class RegisterCommissionRateService {
 
     auditoria.recordChange(
         new ChangeEvent(MODULO, ENTIDAD, nueva.getId(), ChangeAction.CREATE, nueva.instantanea()));
-    return CommissionRateResponse.from(nueva, rol, producto);
+    return CommissionRateResponse.from(nueva, rol, vistaDeVenta(producto.id()));
+  }
+
+  /**
+   * La vista de venta del producto, que es la lectura del puerto que trae la moneda. Se pide una
+   * vez, al final: el producto ya se comprobó vivo, de modo que no puede faltar.
+   */
+  private SaleView vistaDeVenta(UUID productId) {
+    List<SaleView> vistas = productos.saleViewOf(List.of(productId));
+    if (vistas.isEmpty()) {
+      throw new IllegalStateException(
+          "El producto " + productId + " no tiene vista de venta: no debería llegar aquí.");
+    }
+    return vistas.get(0);
   }
 
   private RoleView verificarRol(RegisterCommissionRateRequest peticion) {

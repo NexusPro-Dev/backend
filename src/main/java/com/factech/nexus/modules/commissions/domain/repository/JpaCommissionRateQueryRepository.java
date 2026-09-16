@@ -39,6 +39,8 @@ public class JpaCommissionRateQueryRepository implements CommissionRateQueryRepo
       """
       t.id AS id,
       t.product_id AS product_id, p.code AS product_code, p.name AS product_name,
+      p.price AS product_price,
+      p.currency_id AS currency_id, c.code AS currency_code, c.decimal_places AS decimal_places,
       t.role_id AS role_id, r.code AS role_code, r.name AS role_name,
       t.rate_type AS rate_type, t.percentage AS percentage, t.fixed_amount AS fixed_amount,
       t.deleted_at AS deleted_at
@@ -74,8 +76,9 @@ public class JpaCommissionRateQueryRepository implements CommissionRateQueryRepo
   private static final String TABLAS =
       """
       commission_rates t
-      LEFT JOIN products p ON p.id = t.product_id
-      LEFT JOIN roles    r ON r.id = t.role_id
+      LEFT JOIN products   p ON p.id = t.product_id
+      LEFT JOIN currencies c ON c.id = p.currency_id
+      LEFT JOIN roles      r ON r.id = t.role_id
       """;
 
   private final EntityManager em;
@@ -157,6 +160,10 @@ public class JpaCommissionRateQueryRepository implements CommissionRateQueryRepo
         (UUID) fila.get("product_id"),
         (String) fila.get("product_code"),
         (String) fila.get("product_name"),
+        (BigDecimal) fila.get("product_price"),
+        (UUID) fila.get("currency_id"),
+        (String) fila.get("currency_code"),
+        ((Number) fila.get("decimal_places")).intValue(),
         (UUID) fila.get("role_id"),
         (String) fila.get("role_code"),
         (String) fila.get("role_name"),

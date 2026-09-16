@@ -4,7 +4,7 @@
 |---|---|
 | Requerimiento | `RF-CM-002` |
 | Plan | [`plan.md`](plan.md), aprobado el 02-09-2026 |
-| Versión | 1.2.0 |
+| Versión | 1.3.0 |
 | Estado | **En revisión** |
 | Autor | Responsable técnico |
 | Aprobadas por | Pendiente |
@@ -12,7 +12,7 @@
 | Issue | Pendiente de crear |
 | Rama | `feature/flujos-de-pm-y-cm` (`T-01`–`T-16`) · `feature/comision-en-valor-fijo` (`T-17`–`T-22`) · `feature/venta-de-productos` (`T-23`–`T-26`) |
 | Enmendadas | 12-09-2026 — `T-23` a `T-26` porque **la asociación de la personalizada se puede leer** (`plan.md` v1.2.0) |
-| Enmendadas | 15-09-2026 — `T-27` porque **la tasa de rol trae su producto** |
+| Enmendadas | 15-09-2026 — `T-27` porque **la tasa de rol trae su producto**; `T-28` porque **el producto trae su precio y su moneda** |
 
 !!! info "Qué va en este documento"
 
@@ -65,6 +65,7 @@
 | `T-25` | **La quinta lectura**: `ListUserRateProductsService` sobre `UserRateProductRepository.asociadosDe`, y `GET /api/v1/user-commission-rates/{id}/products` con `commissions:read`, devolviendo `UserRateProductsResponse` | `RF-CM-006` · `V85` | `CA-CM-128`, `CA-CM-129`. Sin el permiso, `403`; con un identificador que no es de nada, `200` y lista vacía | **Hecha el 12-09-2026** |
 | `T-26` | OpenAPI: el filtro y la cuenta en el listado, la quinta lectura, y **corregir la prosa de `GET /product-commission-rates`**, que desde el 11-09-2026 decía que la personalizada «no se asocia a productos» | `T-24`, `T-25` | La descripción de la lectura por producto remite al filtro del listado de personalizadas para «quién tiene excepción aquí» | **Hecha el 12-09-2026** |
 | `T-27` | Listado con `product` resuelto y filtro `productId`; retirar `GET /commission-rates/{id}/products`; `GET /product-commission-rates?productId=` sobre la tabla nueva; prosa de las `@Operation` | `RF-CM-001` `T-29` | `CA-CM-141` en `CommissionRatesListIT` | **Hecha el 15-09-2026** |
+| `T-28` | `price` y `currency` dentro de `product`: `currencies` en el `JOIN` del catálogo, `RateRow` y `ProductRef`/`CurrencyRef`; el alta pasa por la `SaleView`; prosa de la `@Operation` del listado | `T-27` | `CA-CM-145` en `CommissionRateListIT`, y el alta y la corrección lo devuelven | **Hecha el 15-09-2026** |
 
 ## 2. Orden de ejecución
 
@@ -108,6 +109,7 @@
 | `CA-CM-126`, `CA-CM-127` | `T-23`, `T-24` |
 | `CA-CM-128`, `CA-CM-129` | `T-25` |
 | `CA-CM-141` | `T-27` |
+| `CA-CM-145` | `T-28` |
 
 **`CA-CM-013` aparece dos veces porque cambió de contenido sin cambiar de identificador.** Decía «dentro de cada rol, de mayor a menor porcentaje» y ahora dice «luego por forma, y dentro de cada forma de mayor a menor valor». Se conserva el identificador —es el mismo criterio, el orden del catálogo— y **se deja constancia de que la prueba que lo verificaba ya no basta**.
 

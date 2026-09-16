@@ -68,6 +68,10 @@ class CommissionRatesIT extends IntegrationTestBase {
         .andExpect(jsonPath("$.product.id").value(producto.toString()))
         .andExpect(jsonPath("$.product.code").value("BOT_A"))
         .andExpect(jsonPath("$.product.name").value("Producto BOT_A"))
+        // Con su precio y su moneda (`CA-CM-145`): la misma forma que el listado.
+        .andExpect(jsonPath("$.product.price").value(10.00))
+        .andExpect(jsonPath("$.product.currency.code").isNotEmpty())
+        .andExpect(jsonPath("$.product.currency.decimalPlaces").isNumber())
         .andExpect(jsonPath("$.role.code").value("MANAGER"))
         .andExpect(jsonPath("$.percentage").value(10.00))
         // El contador desapareció con la asociación: no hay nada que contar.

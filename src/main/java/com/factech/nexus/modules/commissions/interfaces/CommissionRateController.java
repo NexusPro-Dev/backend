@@ -120,9 +120,13 @@ public class CommissionRateController {
       description =
           """
           Devuelve **todas las tasas de rol que se han configurado**, cada una
-          **con su producto** (`id`, `code`, `name`) y su rol, paginadas. Es lo que
-          el responsable del proyecto pidió leer: qué paga cada producto, en una
-          sola lista. Se filtra por `productId`, `roleId` y `rateType`, y con
+          **con su producto** (`id`, `code`, `name`, su **`price`** y su
+          **`currency`**: `id`, `code`, `decimalPlaces`) y su rol, paginadas. Es
+          lo que el responsable del proyecto pidió leer: qué paga cada producto,
+          en una sola lista —y sobre qué precio y en qué moneda, porque un
+          porcentaje es una parte del precio y un importe fijo es dinero en la
+          moneda del producto—.
+          Se filtra por `productId`, `roleId` y `rateType`, y con
           `includeDeleted` entran las retiradas.
 
           **Toda tasa viva rige** sobre su producto (`RN-CM-021`): ya no hay un

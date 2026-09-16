@@ -70,6 +70,38 @@ class CommissionRateListIT extends IntegrationTestBase {
   }
 
   @Test
+  @DisplayName(
+      "CA-CM-145 · el producto de cada fila trae su PRECIO y su MONEDA, sea cual sea la forma")
+  void elProductoTraePrecioYMoneda() throws Exception {
+    // Un porcentaje es una parte del precio y un importe fijo es dinero en la
+    // moneda del producto: sin los dos, la cifra de la fila no dice cuánto es.
+    UUID caro = CommissionFixtures.sembrarProducto(jdbc, "BOT_CARO", false, "1500.50");
+    CommissionFixtures.sembrarTasaDeRol(jdbc, caro, AGENTE, "FIJO", "300.00");
+    var moneda =
+        jdbc.queryForMap(
+            "SELECT CAST(c.id AS text) AS id, c.code, c.decimal_places FROM products p"
+                + " JOIN currencies c ON c.id = p.currency_id WHERE p.id = CAST(? AS uuid)",
+            caro.toString());
+
+    mvc.perform(listado().param("productId", caro.toString()))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.content[0].rateType").value("FIJO"))
+        .andExpect(jsonPath("$.content[0].product.price").value(1500.50))
+        .andExpect(jsonPath("$.content[0].product.currency.id").value(moneda.get("id")))
+        .andExpect(jsonPath("$.content[0].product.currency.code").value(moneda.get("code")))
+        .andExpect(
+            jsonPath("$.content[0].product.currency.decimalPlaces")
+                .value(((Number) moneda.get("decimal_places")).intValue()));
+
+    // Y en porcentaje viaja igual: el cliente no pregunta la forma para saber
+    // si el campo estará.
+    mvc.perform(listado().param("productId", productoA.toString()))
+        .andExpect(jsonPath("$.content[0].rateType").value("PORCENTAJE"))
+        .andExpect(jsonPath("$.content[0].product.price").value(10.00))
+        .andExpect(jsonPath("$.content[0].product.currency.code").value(moneda.get("code")));
+  }
+
+  @Test
   @DisplayName("CA-CM-141 · el filtro por producto devuelve solo las de ese producto")
   void elFiltroPorProducto() throws Exception {
     mvc.perform(listado().param("productId", productoA.toString()))

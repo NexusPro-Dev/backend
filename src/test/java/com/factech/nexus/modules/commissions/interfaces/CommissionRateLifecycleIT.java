@@ -69,6 +69,8 @@ class CommissionRateLifecycleIT extends IntegrationTestBase {
         .andExpect(status().isOk())
         .andExpect(jsonPath("$.percentage").value(12.50))
         .andExpect(jsonPath("$.product.code").value("BOT_A"))
+        .andExpect(jsonPath("$.product.price").value(1000.00))
+        .andExpect(jsonPath("$.product.currency.code").isNotEmpty())
         .andExpect(jsonPath("$.role.code").value("MANAGER"))
         .andExpect(jsonPath("$.associatedProducts").doesNotExist());
   }

@@ -427,14 +427,14 @@
             "type" : "number"
           },
           "product" : {
-            "$ref" : "#/components/schemas/ProductRef"
+            "$ref" : "#/components/schemas/CommissionRateProduct"
           },
           "rateType" : {
             "enum" : [ "PORCENTAJE", "FIJO" ],
             "type" : "string"
           },
           "role" : {
-            "$ref" : "#/components/schemas/RoleRef"
+            "$ref" : "#/components/schemas/CommissionRateRole"
           }
         },
         "type" : "object"
@@ -472,6 +472,43 @@
         },
         "type" : "object"
       },
+      "CommissionRateProduct" : {
+        "properties" : {
+          "code" : {
+            "type" : "string"
+          },
+          "currency" : {
+            "$ref" : "#/components/schemas/CommissionRateProductCurrency"
+          },
+          "id" : {
+            "format" : "uuid",
+            "type" : "string"
+          },
+          "name" : {
+            "type" : "string"
+          },
+          "price" : {
+            "type" : "number"
+          }
+        },
+        "type" : "object"
+      },
+      "CommissionRateProductCurrency" : {
+        "properties" : {
+          "code" : {
+            "type" : "string"
+          },
+          "decimalPlaces" : {
+            "format" : "int32",
+            "type" : "integer"
+          },
+          "id" : {
+            "format" : "uuid",
+            "type" : "string"
+          }
+        },
+        "type" : "object"
+      },
       "CommissionRateResponse" : {
         "properties" : {
           "fixedAmount" : {
@@ -485,14 +522,29 @@
             "type" : "number"
           },
           "product" : {
-            "$ref" : "#/components/schemas/ProductRef"
+            "$ref" : "#/components/schemas/CommissionRateProduct"
           },
           "rateType" : {
             "enum" : [ "PORCENTAJE", "FIJO" ],
             "type" : "string"
           },
           "role" : {
-            "$ref" : "#/components/schemas/RoleRef"
+            "$ref" : "#/components/schemas/CommissionRateRole"
+          }
+        },
+        "type" : "object"
+      },
+      "CommissionRateRole" : {
+        "properties" : {
+          "code" : {
+            "type" : "string"
+          },
+          "id" : {
+            "format" : "uuid",
+            "type" : "string"
+          },
+          "name" : {
+            "type" : "string"
           }
         },
         "type" : "object"
@@ -5219,7 +5271,7 @@
     },
     "/api/v1/commission-rates" : {
       "get" : {
-        "description" : "Devuelve **todas las tasas de rol que se han configurado**, cada una\n**con su producto** (`id`, `code`, `name`) y su rol, paginadas. Es lo que\nel responsable del proyecto pidió leer: qué paga cada producto, en una\nsola lista. Se filtra por `productId`, `roleId` y `rateType`, y con\n`includeDeleted` entran las retiradas.\n\n**Toda tasa viva rige** sobre su producto (`RN-CM-021`): ya no hay un\ncontador de asociaciones que mirar.\n\nLas tasas **personalizadas** no salen en este listado: están en\n`GET /api/v1/user-commission-rates`. **No hay filtro por fecha**, porque\nlas tasas de rol no tienen vigencia.\n",
+        "description" : "Devuelve **todas las tasas de rol que se han configurado**, cada una\n**con su producto** (`id`, `code`, `name`, su **`price`** y su\n**`currency`**: `id`, `code`, `decimalPlaces`) y su rol, paginadas. Es\nlo que el responsable del proyecto pidió leer: qué paga cada producto,\nen una sola lista —y sobre qué precio y en qué moneda, porque un\nporcentaje es una parte del precio y un importe fijo es dinero en la\nmoneda del producto—.\nSe filtra por `productId`, `roleId` y `rateType`, y con\n`includeDeleted` entran las retiradas.\n\n**Toda tasa viva rige** sobre su producto (`RN-CM-021`): ya no hay un\ncontador de asociaciones que mirar.\n\nLas tasas **personalizadas** no salen en este listado: están en\n`GET /api/v1/user-commission-rates`. **No hay filtro por fecha**, porque\nlas tasas de rol no tienen vigencia.\n",
         "operationId" : "listar_5",
         "parameters" : [ {
           "in" : "query",
