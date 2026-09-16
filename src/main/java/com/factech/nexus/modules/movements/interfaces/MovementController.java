@@ -75,6 +75,11 @@ public class MovementController {
           **Lo copiado queda congelado.** Corregir mañana el precio de un producto, o
           reasignar al comprador a otro agente, no cambia lo que se vendió hoy.
 
+          **Esta entrada no aplica descuentos.** Cada línea trae su descuento (`lineDiscount`,
+          hoy cero), las rebajas que lo explican (`discounts`, hoy vacía) y el paquete del que
+          salió (`packageId`, hoy nulo); la cabecera es la suma de las líneas en las tres
+          cifras. La primera entrada que rebaje será la compra de paquetes.
+
           Reglas de composición: **como mucho un upgrade** por venta y con cantidad uno,
           sin productos repetidos y todas las líneas en la misma moneda.
           """)

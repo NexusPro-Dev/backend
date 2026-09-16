@@ -152,20 +152,37 @@ class RegisterSaleIT extends IntegrationTestBase {
   @Test
   @DisplayName("CA-MV-001 y CA-MV-004: la venta nace PENDIENTE, con su código y sus importes")
   void ventaSimple() throws Exception {
-    mvc.perform(venta(cliente, TARJETA, linea(botCopy, 2)))
-        .andExpect(status().isCreated())
-        .andExpect(jsonPath("$.status").value("PENDIENTE"))
-        .andExpect(jsonPath("$.code").value(org.hamcrest.Matchers.matchesPattern(CODIGO)))
-        .andExpect(jsonPath("$.lines.length()").value(1))
-        .andExpect(jsonPath("$.lines[0].unitPrice").value(15.50))
-        .andExpect(jsonPath("$.lines[0].lineAmount").value(31.00))
-        .andExpect(jsonPath("$.totalAmount").value(31.00))
-        // El descuento se devuelve AUNQUE VALGA SIEMPRE CERO: omitirlo obligaría
-        // a añadirlo al contrato el día que exista.
-        .andExpect(jsonPath("$.discountAmount").value(0.00))
-        .andExpect(jsonPath("$.payableAmount").value(31.00))
-        .andExpect(jsonPath("$.currency.code").value("USD"))
-        .andExpect(jsonPath("$.paymentMethod").value("CREDIT_CARD"));
+    String cuerpo =
+        mvc.perform(venta(cliente, TARJETA, linea(botCopy, 2)))
+            .andExpect(status().isCreated())
+            .andExpect(jsonPath("$.status").value("PENDIENTE"))
+            .andExpect(jsonPath("$.code").value(org.hamcrest.Matchers.matchesPattern(CODIGO)))
+            .andExpect(jsonPath("$.lines.length()").value(1))
+            .andExpect(jsonPath("$.lines[0].unitPrice").value(15.50))
+            .andExpect(jsonPath("$.lines[0].lineDiscount").value(0.00))
+            .andExpect(jsonPath("$.lines[0].lineAmount").value(31.00))
+            .andExpect(jsonPath("$.totalAmount").value(31.00))
+            // El descuento se devuelve AUNQUE VALGA SIEMPRE CERO: omitirlo obligaría
+            // a añadirlo al contrato el día que exista.
+            .andExpect(jsonPath("$.discountAmount").value(0.00))
+            .andExpect(jsonPath("$.payableAmount").value(31.00))
+            .andExpect(jsonPath("$.currency.code").value("USD"))
+            .andExpect(jsonPath("$.paymentMethod").value("CREDIT_CARD"))
+            .andReturn()
+            .getResponse()
+            .getContentAsString();
+
+    // `RN-MV-027`: esta entrada no aplica descuentos, y la forma viaja igual —
+    // lista vacía y paquete nulo, PRESENTES, comprobado sobre el JSON en crudo.
+    assertThat(cuerpo).contains("\"discounts\":[]").contains("\"packageId\":null");
+
+    // Y en la base la línea queda con la resta en cero y sin rebajas.
+    assertThat(jdbc.queryForObject("SELECT count(*) FROM movement_detail_discounts", Integer.class))
+        .isZero();
+    assertThat(
+            jdbc.queryForObject(
+                "SELECT line_discount FROM movement_details", java.math.BigDecimal.class))
+        .isEqualByComparingTo("0.00");
   }
 
   @Test

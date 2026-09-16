@@ -1,5 +1,6 @@
 package com.factech.nexus.modules.movements.domain.repository;
 
+import com.factech.nexus.modules.movements.domain.models.LineDiscount;
 import com.factech.nexus.modules.movements.domain.models.Movement;
 import com.factech.nexus.modules.movements.domain.models.MovementLine;
 import jakarta.persistence.EntityManager;
@@ -120,18 +121,42 @@ public class JpaMovementRepository implements MovementRepository {
     for (MovementLine linea : venta.getLines()) {
       em.createNativeQuery(
               """
-              INSERT INTO movement_details (id, movement_id, product_id, seller_id, quantity,
-                                            unit_price, line_amount, validity_days)
-              VALUES (:id, :venta, :producto, :vendedor, :cantidad, :precio, :importe, :vigencia)
+              INSERT INTO movement_details (id, movement_id, product_id, seller_id, package_id,
+                                            quantity, unit_price, line_discount, line_amount,
+                                            validity_days)
+              VALUES (:id, :venta, :producto, :vendedor, :paquete, :cantidad, :precio,
+                      :descuento, :importe, :vigencia)
               """)
           .setParameter("id", linea.getId())
           .setParameter("venta", venta.getId())
           .setParameter("producto", linea.getProductId())
           .setParameter("vendedor", linea.getSellerId())
+          .setParameter("paquete", linea.getPackageId())
           .setParameter("cantidad", linea.getQuantity())
           .setParameter("precio", linea.getUnitPrice())
+          .setParameter("descuento", linea.getLineDiscount())
           .setParameter("importe", linea.getLineAmount())
           .setParameter("vigencia", linea.getValidityDays())
+          .executeUpdate();
+      insertarRebajas(linea);
+    }
+  }
+
+  // Hoy ninguna entrada produce rebajas y el bucle no gira; existe para que la
+  // compra de paquetes no tenga que tocar el repositorio (`RN-MV-027`).
+  private void insertarRebajas(MovementLine linea) {
+    for (LineDiscount rebaja : linea.getDiscounts()) {
+      em.createNativeQuery(
+              """
+              INSERT INTO movement_detail_discounts (id, movement_detail_id, type, value,
+                                                     discount_value)
+              VALUES (:id, :linea, :tipo, :valor, :dinero)
+              """)
+          .setParameter("id", rebaja.getId())
+          .setParameter("linea", linea.getId())
+          .setParameter("tipo", rebaja.getType().name())
+          .setParameter("valor", rebaja.getValue())
+          .setParameter("dinero", rebaja.getDiscountValue())
           .executeUpdate();
     }
   }
@@ -453,9 +478,10 @@ public class JpaMovementRepository implements MovementRepository {
     List<Tuple> lineas =
         em.createNativeQuery(
                 """
-                SELECT d.product_id AS product_id, p.code AS p_code, p.name AS p_name,
-                       d.quantity AS cantidad, d.unit_price AS precio,
-                       d.line_amount AS importe, d.validity_days AS vigencia,
+                SELECT d.id AS linea_id, d.product_id AS product_id, p.code AS p_code,
+                       p.name AS p_name, d.quantity AS cantidad, d.unit_price AS precio,
+                       d.line_discount AS descuento, d.line_amount AS importe,
+                       d.validity_days AS vigencia, d.package_id AS paquete,
                        v.id AS ven_id, v.username AS ven_username,
                        v.first_name AS ven_first, v.last_name AS ven_last
                   FROM movement_details d
@@ -470,6 +496,7 @@ public class JpaMovementRepository implements MovementRepository {
             .setParameter("movimiento", movementId)
             .getResultList();
 
+    Map<UUID, List<LineDiscountRow>> rebajas = rebajasDe(movementId);
     List<MovementLineRow> detalle = new ArrayList<>(lineas.size());
     for (Tuple linea : lineas) {
       detalle.add(
@@ -479,18 +506,49 @@ public class JpaMovementRepository implements MovementRepository {
               (String) linea.get("p_name"),
               ((Number) linea.get("cantidad")).intValue(),
               (BigDecimal) linea.get("precio"),
+              (BigDecimal) linea.get("descuento"),
               (BigDecimal) linea.get("importe"),
               linea.get("vigencia") == null ? null : ((Number) linea.get("vigencia")).intValue(),
+              (UUID) linea.get("paquete"),
               (UUID) linea.get("ven_id"),
               (String) linea.get("ven_username"),
               (String) linea.get("ven_first"),
-              (String) linea.get("ven_last")));
+              (String) linea.get("ven_last"),
+              rebajas.getOrDefault((UUID) linea.get("linea_id"), List.of())));
     }
 
     return Optional.of(new MovementDetailView(cabecera(cabecera.get(0)), detalle));
   }
 
   /** El mapeo de la cabecera, escrito una vez: el listado y el detalle piden lo mismo. */
+  /** Las rebajas de todas las líneas del movimiento, por línea. Una consulta y no una por línea. */
+  private Map<UUID, List<LineDiscountRow>> rebajasDe(UUID movementId) {
+    List<Tuple> filas =
+        em.createNativeQuery(
+                """
+                SELECT r.movement_detail_id AS linea_id, r.type AS tipo, r.value AS valor,
+                       r.discount_value AS dinero
+                  FROM movement_detail_discounts r
+                  JOIN movement_details d ON d.id = r.movement_detail_id
+                 WHERE d.movement_id = :movimiento
+                 ORDER BY r.created_at ASC, r.id ASC
+                """,
+                Tuple.class)
+            .setParameter("movimiento", movementId)
+            .getResultList();
+    Map<UUID, List<LineDiscountRow>> porLinea = new LinkedHashMap<>();
+    for (Tuple fila : filas) {
+      porLinea
+          .computeIfAbsent((UUID) fila.get("linea_id"), id -> new ArrayList<>())
+          .add(
+              new LineDiscountRow(
+                  (String) fila.get("tipo"),
+                  (BigDecimal) fila.get("valor"),
+                  (BigDecimal) fila.get("dinero")));
+    }
+    return porLinea;
+  }
+
   private static MyMovementRow cabecera(Tuple fila) {
     return new MyMovementRow(
         (UUID) fila.get("id"),

@@ -5,9 +5,9 @@
 | Requerimiento | `RF-MV-001` |
 | Especificación | [`spec.md`](spec.md) |
 | `spec.md` aprobada el | 02-09-2026 |
-| Versión | 0.3.0 |
+| Versión | 0.4.0 |
 | Estado | **Aprobado** |
-| Enmendado el | 16-09-2026 — `V12`: `user_id` en la cabecera, `seller_id` en cada línea (§2.4) |
+| Enmendado el | 16-09-2026 — `V12`: `user_id` en la cabecera, `seller_id` en cada línea (§2.4); `V14`: el descuento de la línea, sus rebajas y su paquete (§2.5) |
 | Autor | Responsable técnico |
 | Aprobado por | Responsable del proyecto |
 | Fecha de aprobación | 02-09-2026 |
@@ -87,6 +87,23 @@ Enmienda del Art. I.7 sobre un requerimiento construido, por decisión del respo
 **Lo que el esquema no puede sostener queda declarado**: «obligatorio en `VENTA`» exige mirar `movement_types`, y un `CHECK` no consulta otras tablas. Lo sostienen `RegisterSaleService` —que no construye una línea sin vendedor— y `MovementLine`, que no ofrece la forma de construirla sin él.
 
 **El orden de las sentencias importa y va en la migración**: renombrar, añadir la columna a la línea, copiar, borrar la de la cabecera. Copiar después de borrar no es posible, y borrar antes de copiar pierde la atribución de todo lo vendido hasta hoy.
+
+### 2.5 `V14`: el descuento es de la línea, y la línea recuerda su paquete — 16-09-2026
+
+Enmienda del Art. I.7 sobre un requerimiento construido, por decisión del responsable del proyecto ([`requirements/mv.md`](../../../requirements/mv.md) v0.17.0: `RN-MV-027` nueva, `RN-MV-013` enmendada). `V14__mv_descuentos_por_linea.sql` enmienda `V7` y `V12`, y **es la primera migración de `MV` que crea una tabla después de la consolidación**:
+
+| Cambio | Cómo | Por qué así |
+|---|---|---|
+| `movement_details.package_id` | `uuid NULL`, FK a `product_packages` `ON DELETE RESTRICT` | Referencia y no copia (`RN-MV-002`): el paquete no se borra, se retira. Nulo cuando el producto se compró suelto, que hoy es siempre |
+| `movement_details.line_discount` | `numeric(14,2) NOT NULL DEFAULT 0`, con `ck_movement_details_discount` (`>= 0` y `<= quantity * unit_price`) | El `DEFAULT 0` **no es comodidad**: es lo que hace que las filas ya existentes y las de las pruebas que insertan en crudo sigan siendo válidas sin reescribirlas. Ninguna línea vendida hasta hoy tuvo rebaja |
+| `ck_movement_details_amount` | `line_amount = quantity * unit_price - line_discount` | La igualdad de la cabecera, bajada a la línea. Las filas existentes la cumplen con el cero |
+| `movement_detail_discounts` | `id`, `movement_detail_id` (FK `ON DELETE CASCADE`, como la línea con su venta), `type`, `value numeric(14,4)`, `discount_value numeric(14,2)`, `created_at`; `CHECK` de tipo, de rango y de signo; índice por `movement_detail_id` | Una fila por rebaja. La cascada significa lo mismo que en `movement_details`: nada borra ventas, y el esquema no admite rebajas huérfanas |
+
+**Lo que el esquema no puede sostener**: que `line_discount` sea exactamente `quantity × Σ discount_value` de sus rebajas cruza dos tablas, y un `CHECK` no lo hace. Lo sostiene `MovementLine`, que calcula las dos cifras desde las rebajas y **no ofrece constructor que las reciba**, con el mismo argumento con el que `Movement` suma su total.
+
+**El agregado cambia y el caso de uso apenas**: `Movement` deja de fijar `discountAmount` en cero y lo suma de las líneas; `RegisterSaleService` construye cada línea **sin rebajas**, que es lo que esta operación decide. La conversión de un porcentaje a dinero vive en `LineDiscount` con la regla de `ProductPrice` —mitad hacia arriba a los decimales de la moneda— y **no se reimplementa la cuenta de `PM`**: `MV` recibe el tipo y el valor y congela el resultado; cómo se rebaja dentro de un paquete lo decide `RN-PM-036`.
+
+**`MV` no depende de `products..domain..`** (regla de ArchUnit, `T-19`), de modo que el tipo de descuento se declara aquí —`MovementDiscountType`— con los mismos dos valores que `DiscountType` de `PM`. Es un duplicado de dos literales y no un modelo compartido, y es el precio de que la frontera siga siendo verificable.
 
 ## 3. Componentes afectados
 

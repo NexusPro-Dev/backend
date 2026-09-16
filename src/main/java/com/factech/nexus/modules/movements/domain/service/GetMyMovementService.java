@@ -1,8 +1,10 @@
 package com.factech.nexus.modules.movements.domain.service;
 
+import com.factech.nexus.modules.movements.application.SaleDiscountResponse;
 import com.factech.nexus.modules.movements.application.SaleLineResponse;
 import com.factech.nexus.modules.movements.application.SaleResponse;
 import com.factech.nexus.modules.movements.domain.repository.MovementRepository;
+import com.factech.nexus.modules.movements.domain.repository.MovementRepository.LineDiscountRow;
 import com.factech.nexus.modules.movements.domain.repository.MovementRepository.MovementDetailView;
 import com.factech.nexus.modules.movements.domain.repository.MovementRepository.MovementLineRow;
 import com.factech.nexus.modules.movements.domain.repository.MovementRepository.MyMovementRow;
@@ -54,6 +56,11 @@ public class GetMyMovementService {
 
     List<SaleLineResponse> lineas = new ArrayList<>(detalle.lines().size());
     for (MovementLineRow linea : detalle.lines()) {
+      List<SaleDiscountResponse> rebajas = new ArrayList<>(linea.discounts().size());
+      for (LineDiscountRow rebaja : linea.discounts()) {
+        rebajas.add(
+            new SaleDiscountResponse(rebaja.type(), rebaja.value(), rebaja.discountValue()));
+      }
       lineas.add(
           new SaleLineResponse(
               linea.productId(),
@@ -63,6 +70,9 @@ public class GetMyMovementService {
               linea.unitPrice(),
               linea.lineAmount(),
               linea.validityDays(),
+              linea.packageId(),
+              linea.lineDiscount(),
+              rebajas,
               // Nulo solo en los tipos de movimiento que no venden nada; en una
               // venta la línea siempre lo trae (`RN-MV-003`).
               linea.sellerId() == null

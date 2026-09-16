@@ -4,8 +4,8 @@
 |---|---|
 | Requerimiento | `RF-MV-001` |
 | Plan | [`plan.md`](plan.md), aprobado el 02-09-2026 |
-| Versión | 0.4.0 |
-| Estado | **En curso** — `T-01` a `T-18` `Hecha`; `CA-MV-008` queda **sin prueba** hasta `RF-SP-045`; `T-25` a `T-30` `Hecha` el 16-09-2026 (§1.3) |
+| Versión | 0.5.0 |
+| Estado | **En curso** — `T-01` a `T-18` `Hecha`; `CA-MV-008` queda **sin prueba** hasta `RF-SP-045`; `T-25` a `T-30` `Hecha` el 16-09-2026 (§1.3); `T-31` a `T-35` (§1.4) |
 | Autor | Responsable técnico |
 | Aprobadas por | Responsable del proyecto |
 | Fecha de aprobación | 04-09-2026 |
@@ -90,6 +90,18 @@ Enmienda del Art. I.7 sobre este requerimiento ya construido, por decisión del 
 | `T-30` | Contrato OpenAPI: el esquema se regenera y **la prosa se reescribe** — `userId` es el sujeto, `seller` vive en la línea y nunca es nulo en una venta | `T-28` | `docs/api/openapi.*` salen modificados y las `@Operation` no describen `client` ni un `seller` de cabecera | **Hecha** — 16-09-2026 |
 
 **`T-27` resuelve el vendedor una sola vez y lo repite en cada línea a propósito.** `RN-MV-003` admite que las líneas difieran, y hoy ninguna entrada lo produce: la resolución es de la venta, y el modelo es de la línea. Ponerlo línea a línea desde el primer día es lo que evita que el día que un carrito mezcle enlaces haya que cambiar la forma del agregado.
+
+### 1.4 El descuento es de la línea, y la línea recuerda su paquete — 16-09-2026
+
+Enmienda del Art. I.7 sobre este requerimiento ya construido, por decisión del responsable del proyecto (`requirements/mv.md` v0.17.0, `plan.md` §2.5). **Esta operación no aplica ningún descuento**; lo que se construye es la forma para que la compra de paquetes pueda aplicarlos sin tocar el libro.
+
+| ID | Tarea | Depende de | Verificación | Estado |
+|---|---|---|---|---|
+| `T-31` | **`V14__mv_descuentos_por_linea.sql`**: `package_id` y `line_discount` en la línea con sus `CHECK`, y la tabla `movement_detail_discounts` | — | Las filas existentes siguen válidas con `line_discount = 0`; `V7` y `V12` intactas | **Pendiente** |
+| `T-32` | `MovementDiscountType` y `LineDiscount` en `MV`; `MovementLine` gana `packageId` y la lista de rebajas, y calcula `lineDiscount` y `lineAmount` desde ellas; `Movement` suma el descuento de las líneas | `T-31` | `MovementTest`: un 10 % sobre 20.00 rebaja 2.00 por unidad; un fijo de 5.00 rebaja 5.00; con cantidad dos la línea rebaja el doble; la cabecera suma; una rebaja que deja la línea en negativo se rechaza; la instantánea lleva `package_id`, `line_discount` y `discounts` | **Pendiente** |
+| `T-33` | Repositorio: `INSERT` de la línea con las dos columnas nuevas y de sus rebajas; el detalle propio (`RF-MV-008`) las lee | `T-32` | `MovementCodeRetryIT` sigue en verde; el detalle de `MyMovementsIT` devuelve `lineDiscount` y `discounts` | **Pendiente** |
+| `T-34` | `SaleLineResponse` gana `packageId` (nulable declarado con `types`), `lineDiscount` y `discounts` (lista nunca nula); `RegisterSaleService` construye cada línea sin rebajas | `T-32` | `RegisterSaleIT`: `lines[0].lineDiscount` es `0.00`, `discounts` es `[]` **presente** y `packageId` es nulo **presente**, sobre el JSON en crudo | **Pendiente** |
+| `T-35` | Contrato OpenAPI: esquema regenerado y prosa de `POST /movements` con la frase «esta entrada no aplica descuentos» | `T-34` | `docs/api/openapi.*` declaran los tres campos nuevos de la línea | **Pendiente** |
 
 ## 2. Lo que se apartó del plan, y por qué
 

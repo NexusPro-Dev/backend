@@ -207,7 +207,9 @@ public interface MovementRepository {
    * y no se resuelve aquí: renombrar un producto cambia cómo se ve una venta pasada.
    *
    * <p><b>El vendedor sí es de la línea</b> (`RN-MV-003`, `V12`) y se lee de ella; nulo solo en los
-   * tipos de movimiento que no venden nada.
+   * tipos de movimiento que no venden nada. <b>Y el descuento también</b> (`RN-MV-027`, `V14`):
+   * {@code lineDiscount} es la suma congelada y {@code discounts} son las rebajas que la explican,
+   * como se pactaron y como se cobraron.
    */
   record MovementLineRow(
       UUID productId,
@@ -215,10 +217,16 @@ public interface MovementRepository {
       String productName,
       int quantity,
       BigDecimal unitPrice,
+      BigDecimal lineDiscount,
       BigDecimal lineAmount,
       Integer validityDays,
+      UUID packageId,
       UUID sellerId,
       String sellerUsername,
       String sellerFirstName,
-      String sellerLastName) {}
+      String sellerLastName,
+      List<LineDiscountRow> discounts) {}
+
+  /** Una rebaja de una línea, tal como quedó. */
+  record LineDiscountRow(String type, BigDecimal value, BigDecimal discountValue) {}
 }

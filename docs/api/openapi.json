@@ -3386,6 +3386,23 @@
         },
         "type" : "object"
       },
+      "SaleDiscount" : {
+        "properties" : {
+          "discountValue" : {
+            "description" : "Lo que valió en dinero POR UNIDAD, congelado el día de la venta.",
+            "type" : "number"
+          },
+          "type" : {
+            "description" : "PORCENTAJE o FIJO.",
+            "type" : "string"
+          },
+          "value" : {
+            "description" : "Lo pactado: 10 si es porcentaje, 5.00 si es fijo.",
+            "type" : "number"
+          }
+        },
+        "type" : "object"
+      },
       "SaleLineRequest" : {
         "properties" : {
           "productId" : {
@@ -3403,8 +3420,24 @@
       },
       "SaleLineResponse" : {
         "properties" : {
+          "discounts" : {
+            "description" : "Las rebajas que explican lineDiscount. VACÍA —nunca nula— si no hubo.",
+            "items" : {
+              "$ref" : "#/components/schemas/SaleDiscount"
+            },
+            "type" : "array"
+          },
           "lineAmount" : {
             "type" : "number"
+          },
+          "lineDiscount" : {
+            "description" : "Lo que se rebajó a la línea: quantity × la suma de sus rebajas.",
+            "type" : "number"
+          },
+          "packageId" : {
+            "description" : "El paquete del que salió esta línea. NULO cuando el producto se compró suelto.",
+            "format" : "uuid",
+            "type" : [ "string", "null" ]
           },
           "productCode" : {
             "type" : "string"
@@ -6208,7 +6241,7 @@
     },
     "/api/v1/movements" : {
       "post" : {
-        "description" : "Deja constancia de **qué le vendió la empresa a alguien**, como un hecho que\n**todavía no está pagado**. `userId` es **a nombre de quién** es la venta —quien\ncompra—, nunca quien la registra desde oficina.\n\n**La venta nace `PENDIENTE`, y eso significa que no concede nada.** No sube de\nnivel a nadie, no habilita ninguna cuenta y no comisiona: registrar una venta\n**no cambia absolutamente nada fuera de este módulo**. Confirmarla es otra\noperación.\n\n**El precio no se envía: se toma del catálogo.** Se indica qué productos y\ncuántos, nunca cuánto cuestan — un precio que llegara en la petición sería un\ndescuento sin autorización y sin rastro. Tampoco se envían la moneda, la\nvigencia ni el vendedor: la moneda y la vigencia salen del producto, y **el\nvendedor sale de quien compra** —su superior vigente, o **él mismo** si no cuelga\nde nadie— y se congela **en cada línea** (`lines[].seller`). En una venta ninguna\nlínea viene sin vendedor.\n\n**Lo copiado queda congelado.** Corregir mañana el precio de un producto, o\nreasignar al comprador a otro agente, no cambia lo que se vendió hoy.\n\nReglas de composición: **como mucho un upgrade** por venta y con cantidad uno,\nsin productos repetidos y todas las líneas en la misma moneda.\n",
+        "description" : "Deja constancia de **qué le vendió la empresa a alguien**, como un hecho que\n**todavía no está pagado**. `userId` es **a nombre de quién** es la venta —quien\ncompra—, nunca quien la registra desde oficina.\n\n**La venta nace `PENDIENTE`, y eso significa que no concede nada.** No sube de\nnivel a nadie, no habilita ninguna cuenta y no comisiona: registrar una venta\n**no cambia absolutamente nada fuera de este módulo**. Confirmarla es otra\noperación.\n\n**El precio no se envía: se toma del catálogo.** Se indica qué productos y\ncuántos, nunca cuánto cuestan — un precio que llegara en la petición sería un\ndescuento sin autorización y sin rastro. Tampoco se envían la moneda, la\nvigencia ni el vendedor: la moneda y la vigencia salen del producto, y **el\nvendedor sale de quien compra** —su superior vigente, o **él mismo** si no cuelga\nde nadie— y se congela **en cada línea** (`lines[].seller`). En una venta ninguna\nlínea viene sin vendedor.\n\n**Lo copiado queda congelado.** Corregir mañana el precio de un producto, o\nreasignar al comprador a otro agente, no cambia lo que se vendió hoy.\n\n**Esta entrada no aplica descuentos.** Cada línea trae su descuento (`lineDiscount`,\nhoy cero), las rebajas que lo explican (`discounts`, hoy vacía) y el paquete del que\nsalió (`packageId`, hoy nulo); la cabecera es la suma de las líneas en las tres\ncifras. La primera entrada que rebaje será la compra de paquetes.\n\nReglas de composición: **como mucho un upgrade** por venta y con cantidad uno,\nsin productos repetidos y todas las líneas en la misma moneda.\n",
         "operationId" : "registrar_3",
         "requestBody" : {
           "content" : {

@@ -1,9 +1,12 @@
 package com.factech.nexus.modules.movements.application;
 
+import com.factech.nexus.modules.movements.domain.models.LineDiscount;
 import com.factech.nexus.modules.movements.domain.models.MovementLine;
 import com.fasterxml.jackson.annotation.JsonInclude;
 import io.swagger.v3.oas.annotations.media.Schema;
 import java.math.BigDecimal;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.UUID;
 
 /**
@@ -23,6 +26,12 @@ import java.util.UUID;
  * declara nulable porque el contrato es del libro y un depósito lo llevará vacío. Y viaja en nulo y
  * no ausente, por lo mismo que en {@link SaleResponse}.
  *
+ * <p><b>{@code lineDiscount} y {@code discounts} son el descuento de la línea, y {@code packageId}
+ * de qué paquete salió</b> (`RN-MV-027`, 16-09-2026). La suma en dinero y las rebajas que la
+ * explican viajan juntas: la primera es lo que se restó, las segundas por qué. Hoy la suma es cero,
+ * la lista va vacía y el paquete en nulo, y <b>viajan igual</b>: la lista nunca es nula y el nulo
+ * del paquete se declara a mano, por lo mismo que el vendedor.
+ *
  * <p><b>La membresía destino no viaja</b>, y su ausencia es coherente con que no se copie: quien
  * necesite saber a qué nivel lleva un upgrade lo pregunta al catálogo, donde `RF-PM-004` garantiza
  * que no ha cambiado.
@@ -36,6 +45,16 @@ public record SaleLineResponse(
     BigDecimal unitPrice,
     BigDecimal lineAmount,
     Integer validityDays,
+    @Schema(
+            types = {"string", "null"},
+            format = "uuid",
+            description =
+                "El paquete del que salió esta línea. NULO cuando el producto se compró suelto.")
+        UUID packageId,
+    @Schema(description = "Lo que se rebajó a la línea: quantity × la suma de sus rebajas.")
+        BigDecimal lineDiscount,
+    @Schema(description = "Las rebajas que explican lineDiscount. VACÍA —nunca nula— si no hubo.")
+        List<SaleDiscountResponse> discounts,
     // LA NULABILIDAD SE DECLARA A MANO, y hay que hacerlo: springdoc no la
     // deduce. Un campo de un `record` sale como un `$ref` pelado —sin
     // `required` y sin tipo—, de modo que el contrato publicado NO DIRÍA que
@@ -56,6 +75,10 @@ public record SaleLineResponse(
         SaleResponse.Party seller) {
 
   static SaleLineResponse de(MovementLine linea, SaleResponse.Party vendedor) {
+    List<SaleDiscountResponse> rebajas = new ArrayList<>(linea.getDiscounts().size());
+    for (LineDiscount rebaja : linea.getDiscounts()) {
+      rebajas.add(SaleDiscountResponse.de(rebaja));
+    }
     return new SaleLineResponse(
         linea.getProductId(),
         linea.getProductCode(),
@@ -64,6 +87,9 @@ public record SaleLineResponse(
         linea.getUnitPrice(),
         linea.getLineAmount(),
         linea.getValidityDays(),
+        linea.getPackageId(),
+        linea.getLineDiscount(),
+        rebajas,
         vendedor);
   }
 }

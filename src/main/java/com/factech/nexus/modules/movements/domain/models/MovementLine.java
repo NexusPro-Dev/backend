@@ -2,7 +2,9 @@ package com.factech.nexus.modules.movements.domain.models;
 
 import java.math.BigDecimal;
 import java.math.RoundingMode;
+import java.util.ArrayList;
 import java.util.LinkedHashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 
@@ -22,6 +24,17 @@ import java.util.UUID;
  * <p><b>{@code lineAmount} se guarda aunque sea {@code quantity × unitPrice}</b>, por lo mismo que
  * el total en la cabecera: es el número que se imprimió. Recalcularlo al leer hace que un cambio de
  * redondeo reescriba comprobantes ya entregados.
+ *
+ * <h2>El descuento es de la línea, y la línea recuerda su paquete</h2>
+ *
+ * <p>Desde el 16-09-2026 (`RN-MV-027`) cada rebaja es un {@link LineDiscount}, y de la lista salen
+ * las dos cifras congeladas: {@code lineDiscount = quantity × Σ discountValue} y {@code lineAmount
+ * = quantity × unitPrice − lineDiscount}. <b>No hay constructor que las reciba</b>, por lo mismo
+ * que {@link Movement} suma su total: si llegaran por parámetro, existiría una línea cuyo importe
+ * no corresponde a sus rebajas. Ninguna rebaja deja la línea por debajo de cero. {@code packageId}
+ * es el paquete del que salió la línea —una referencia, no una copia— y nulo si el producto se
+ * compró suelto; hoy es siempre nulo y la lista siempre vacía, porque ninguna entrada aplica
+ * descuentos.
  *
  * <h2>El vendedor es de la línea, y en una venta siempre lo hay</h2>
  *
@@ -50,31 +63,55 @@ public final class MovementLine {
   private final UUID id;
   private final UUID productId;
   private final UUID sellerId;
+  private final UUID packageId;
   private final String productCode;
   private final String productName;
   private final int quantity;
   private final BigDecimal unitPrice;
+  private final BigDecimal lineDiscount;
   private final BigDecimal lineAmount;
   private final Integer validityDays;
+  private final List<LineDiscount> discounts;
 
   private MovementLine(
       UUID id,
       UUID productId,
       UUID sellerId,
+      UUID packageId,
       String productCode,
       String productName,
       int quantity,
       BigDecimal unitPrice,
-      Integer validityDays) {
+      Integer validityDays,
+      List<LineDiscount> discounts) {
     this.id = id;
     this.productId = productId;
     this.sellerId = sellerId;
+    this.packageId = packageId;
     this.productCode = productCode;
     this.productName = productName;
     this.quantity = quantity;
     this.unitPrice = unitPrice;
     this.validityDays = validityDays;
-    this.lineAmount = unitPrice.multiply(BigDecimal.valueOf(quantity));
+    this.discounts = List.copyOf(discounts);
+    // `RN-MV-027`: LAS DOS CIFRAS SALEN DE LAS REBAJAS, aquí y en ningún otro
+    // sitio. Cada rebaja ya viene en dinero por unidad y en la escala de la
+    // moneda; la línea multiplica por la cantidad y resta.
+    BigDecimal porUnidad =
+        discounts.stream()
+            .map(LineDiscount::getDiscountValue)
+            // La identidad lleva la escala del precio: una línea sin rebajas
+            // dice «0.00» y no «0», igual que el descuento de la cabecera.
+            .reduce(BigDecimal.ZERO.setScale(unitPrice.scale()), BigDecimal::add);
+    BigDecimal cantidad = BigDecimal.valueOf(quantity);
+    BigDecimal bruto = unitPrice.multiply(cantidad);
+    this.lineDiscount = porUnidad.multiply(cantidad);
+    if (this.lineDiscount.compareTo(bruto) > 0) {
+      // Es lo que `ck_movement_details_discount` rechazaría en el commit; se
+      // rechaza aquí para que el error aparezca donde se cometió.
+      throw new IllegalArgumentException("Ningún descuento deja la línea por debajo de cero.");
+    }
+    this.lineAmount = bruto.subtract(this.lineDiscount);
   }
 
   /**
@@ -110,11 +147,44 @@ public final class MovementLine {
         UUID.randomUUID(),
         productId,
         sellerId,
+        null,
         productCode,
         productName,
         quantity,
         precio,
-        validityDays);
+        validityDays,
+        List.of());
+  }
+
+  /**
+   * Copia el producto en una línea <b>que salió de un paquete</b>, con las rebajas que ese paquete
+   * le declara (`RN-MV-027`). Hoy no la usa ninguna entrada: es la forma que la compra de paquetes
+   * necesitará, escrita junto a la otra para que las dos cuenten igual.
+   */
+  public static MovementLine copiarDe(
+      UUID productId,
+      UUID sellerId,
+      UUID packageId,
+      String productCode,
+      String productName,
+      int quantity,
+      BigDecimal precio,
+      Integer validityDays,
+      List<LineDiscount> rebajas) {
+    if (sellerId == null) {
+      throw new IllegalArgumentException("Una línea de venta no existe sin vendedor.");
+    }
+    return new MovementLine(
+        UUID.randomUUID(),
+        productId,
+        sellerId,
+        packageId,
+        productCode,
+        productName,
+        quantity,
+        precio,
+        validityDays,
+        rebajas == null ? List.of() : rebajas);
   }
 
   /** Lo que de esta línea entra en la instantánea de auditoría. */
@@ -124,10 +194,19 @@ public final class MovementLine {
     // La clave decide A QUIÉN SE LE PAGA por esta línea, y por eso se escribe
     // aquí y no en la cabecera desde el 16-09-2026 (`RN-MV-003`).
     datos.put("seller_id", sellerId.toString());
+    // Nulo y presente cuando el producto se compró suelto, por lo mismo que la
+    // vigencia: la clave ausente se leería como «esta versión no lo registraba».
+    datos.put("package_id", packageId == null ? null : packageId.toString());
     datos.put("product_code", productCode);
     datos.put("quantity", quantity);
     datos.put("unit_price", unitPrice.toPlainString());
+    datos.put("line_discount", lineDiscount.toPlainString());
     datos.put("line_amount", lineAmount.toPlainString());
+    List<Map<String, Object>> rebajas = new ArrayList<>(discounts.size());
+    for (LineDiscount rebaja : discounts) {
+      rebajas.add(rebaja.instantanea());
+    }
+    datos.put("discounts", rebajas);
     // Se escribe la clave con nulo y no se omite: la ausencia de la clave se
     // leería como «esta versión no lo registraba», y el nulo dice «no caduca».
     datos.put("validity_days", validityDays);
@@ -154,6 +233,18 @@ public final class MovementLine {
 
   public UUID getSellerId() {
     return sellerId;
+  }
+
+  public UUID getPackageId() {
+    return packageId;
+  }
+
+  public BigDecimal getLineDiscount() {
+    return lineDiscount;
+  }
+
+  public List<LineDiscount> getDiscounts() {
+    return discounts;
   }
 
   public String getProductCode() {

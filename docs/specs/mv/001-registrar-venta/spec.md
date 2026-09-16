@@ -4,12 +4,12 @@
 |---|---|
 | Requerimiento | `RF-MV-001` |
 | Módulo | `MV` — Movimientos |
-| Versión | 0.4.0 |
+| Versión | 0.5.0 |
 | Estado | **Aprobada** |
 | Autor | Responsable técnico |
 | Aprobada por | Responsable del proyecto |
 | Fecha de aprobación | 02-09-2026 |
-| Enmendada el | 16-09-2026 — **el vendedor es de cada línea y en una venta siempre lo hay; la cabecera lleva un sujeto** (`RN-MV-003`, `RN-MV-026`). Ver §15 |
+| Enmendada el | 16-09-2026 — **el vendedor es de cada línea y en una venta siempre lo hay; la cabecera lleva un sujeto** (`RN-MV-003`, `RN-MV-026`); y **el descuento es de la línea, y la línea recuerda su paquete** (`RN-MV-027`). Ver §15 |
 
 !!! info "Qué va en este documento"
 
@@ -67,7 +67,7 @@ Es el **primer requerimiento del módulo** y el que pone en el sistema el objeto
 - **Confirmarla, rechazarla o anularla.** Son `RF-MV-003`, `RF-MV-004` y `RF-MV-005`.
 - **Conceder el nivel comprado.** Eso ocurre **al confirmar** y solo entonces (`RN-MV-004`).
 - **Que el cliente compre por su cuenta**, que es `RF-MV-002`.
-- **Descuentos e impuestos**: no existen (`requirements/mv.md` §1.3). El importe a pagar es siempre igual al total.
+- **Descuentos e impuestos**: no se aplican (`requirements/mv.md` §1.3). **Desde el 16-09-2026 el descuento tiene forma** —es de cada línea, `RN-MV-027`— y esta operación **sigue sin aplicar ninguno**: registra cada línea sin rebajas, de modo que el importe a pagar es igual al total. La primera entrada que rebaje será la compra de paquetes.
 - **Pagar con puntos**, que es la etapa 3 del módulo.
 - **Registrar un depósito**, que es la etapa 2 y es otra cosa: no lleva producto y no la origina una venta.
 
@@ -139,7 +139,7 @@ Es el **primer requerimiento del módulo** y el que pone en el sistema el objeto
 | Venta | La venta registrada, con su identificador y su **código de comprobante** |
 | Estado | **Pendiente**, siempre. No hay ningún camino por el que esta operación devuelva otra cosa |
 | Cliente resuelto | Quién compró, con su nombre, y no solo su identificador |
-| Líneas | Cada producto con su nombre, su cantidad, **el precio que se le copió**, la vigencia copiada, el importe de la línea **y el vendedor al que se atribuye**, con su nombre |
+| Líneas | Cada producto con su nombre, su cantidad, **el precio que se le copió**, la vigencia copiada, **el descuento de la línea y sus rebajas** —hoy cero y ninguna—, **el paquete del que salió** —hoy ninguno—, el importe de la línea **y el vendedor al que se atribuye**, con su nombre |
 | Moneda | La de la venta, resuelta |
 | Importes | Total, descuento e importe a pagar |
 | Fecha del hecho | La que se registró, sea la enviada o la de ahora |
@@ -148,7 +148,7 @@ Es el **primer requerimiento del módulo** y el que pone en el sistema el objeto
 
 **Y desde ese mismo día nunca viene vacío en una venta.** Entre el 04-09-2026 y el 16-09-2026 podía venir en nulo, cuando quien compraba no colgaba de nadie; ahora esa persona **es su propio vendedor** y la línea lo dice. La regla de que viaje **en nulo y no ausente** se conserva para los tipos de movimiento que no venden nada, que es donde el nulo sigue significando algo.
 
-**El descuento se devuelve aunque valga siempre cero.** Omitirlo obligaría a añadirlo al contrato el día que exista, y a que todos los consumidores lo traten como opcional para siempre.
+**El descuento se devuelve aunque valga siempre cero**, en la cabecera y en cada línea. Omitirlo obligaría a añadirlo al contrato el día que exista, y a que todos los consumidores lo traten como opcional para siempre. **Desde el 16-09-2026 cada línea trae además la lista de sus rebajas** —tipo, valor pactado y valor en dinero— y **el paquete del que salió**: hoy la lista va vacía y el paquete en nulo, y viajan igual, por lo mismo.
 
 ## 7. Precondiciones y postcondiciones
 
@@ -363,3 +363,4 @@ Es el **primer requerimiento del módulo** y el que pone en el sistema el objeto
 | 0.2.0 | 04-09-2026 | **El vendedor deja de ser obligatorio, y con él se retira `EX-003`** (Art. I.7, sobre un requerimiento ya construido). Lo decidió el responsable del proyecto: **comprar no es cosa solo de los clientes** — un agente también compra. El motivo por el que `EX-003` existía sigue leyéndose bien —«una promesa de otro módulo no es una comprobación de este»— y **su premisa estaba incompleta**: daba por hecho que quien compra es siempre un cliente. `RN-SP-019` declara desde el principio que **la cúspide de la fuerza comercial no declara superior**, de modo que con esa excepción en pie esa persona **no podía comprar nada**. `CA-MV-017` **invierte su sentido**: afirmaba que la venta se rechazaba y ahora afirma que se registra, sin atribución y sin error. El vendedor sigue viajando en la respuesta y **puede venir en nulo**, nunca ausente: la diferencia entre «no tiene vendedor» y «no vino el campo» es la que decide si alguien cobra. **Lo que cuesta queda en §13**: una venta sin vendedor **no comisiona a nadie**, porque `RN-CM-011` recorre la cadena hacia arriba desde él. Se acepta a conciencia — la alternativa era inventar una atribución, y una comisión pagada a quien no vendió **no se detecta**. **El número de la excepción no se reutiliza** y el hueco queda a la vista, para que nadie lea `EX-004` creyendo que es la tercera. | Responsable del proyecto |
 | 0.3.0 | 07-09-2026 | **`RN-MV-006` pierde la mitad de «igual»**: `EX-005` pasa de rechazar una membresía «igual o inferior» a rechazar **solo la inferior**, y `CA-MV-011` con ella. Nace `CA-MV-048`: comprar la **misma** membresía vigente se **admite**, porque es una **renovación** y lo que se paga ahí es **tiempo y no nivel** (`requirements/pm.md` §5.2.3, donde `PM` abre el catálogo a `X → X`). La mitad que se retira **no protegía a nadie**; la que se queda —**una venta no baja a nadie de nivel**— es la que evita cobrar por algo que quita. **El resto de la spec no cambia**: la venta sigue copiando importe y vigencia, `RN-MV-010` sigue admitiendo un solo upgrade, y `RN-MV-020` entrega la renovación sin nada nuevo — cierra la membresía abierta e inserta la comprada, que aquí es del mismo nivel. | Responsable del proyecto |
 | 0.4.0 | 16-09-2026 | **El vendedor baja de la cabecera a cada línea, y en una venta siempre lo hay** (Art. I.7, sobre un requerimiento construido), por decisión del responsable del proyecto y con `requirements/mv.md` v0.16.0. **Dos cosas.** La primera es de forma: `RN-MV-026` deja la cabecera con **un sujeto** —a nombre de quién es la venta— y `RN-MV-003` lleva el vendedor **a cada línea**, porque ahí se le creará la comisión y porque los tipos de movimiento que vienen no venden nada. §6.2 mueve el «vendedor resuelto» de la cabecera a las líneas, `CA-MV-002` y `CA-MV-018` lo siguen. La segunda **deshace la v0.2.0 en lo que costaba**: quien no cuelga de nadie ya no produce una venta sin atribución sino que **se vende a sí mismo** — `CA-MV-017` vuelve a enmendarse, §7 deja de exigir que el cliente cuelgue de alguien, y el caso límite de §13 pasa de «no comisiona a nadie» a «lo decide `CM`». `EX-003` sigue retirada: en ninguna de las dos versiones se rechaza nada. `VAL-001` pasa a decir «comprador» porque el dato que viaja ya no se llama cliente. **Lo que no cambia**: el vendedor **no se envía** y **se congela**, y el precio tampoco. | Responsable del proyecto |
+| 0.5.0 | 16-09-2026 | **El descuento es de la línea, y la línea recuerda de qué paquete salió** (`RN-MV-027`, `RN-MV-013` enmendada; `requirements/mv.md` v0.17.0), por decisión del responsable del proyecto. Para esta operación **no cambia lo que hace**: sigue sin aplicar rebajas y sin admitir el precio como entrada. Lo que cambia es **la forma de lo que devuelve** —cada línea trae su descuento (cero), sus rebajas (ninguna) y su paquete (nulo), y viajan aunque estén vacíos— y **lo que la cabecera significa**: total, descuento y a pagar son ahora **sumas de las líneas**, con la misma igualdad de siempre. §4.2 deja de decir que los descuentos «no existen» y pasa a decir que **esta entrada no los aplica**, que es lo cierto desde hoy. | Responsable del proyecto |

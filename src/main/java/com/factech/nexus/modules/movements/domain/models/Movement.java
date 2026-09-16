@@ -94,22 +94,25 @@ public final class Movement {
     this.occurredAt = occurredAt;
     this.createdAt = createdAt;
 
-    // `RN-MV-013`: EL TOTAL ES LA SUMA DE LAS LINEAS, aquí y en ningún otro
-    // sitio. Se lleva a la escala de la moneda una sola vez, sobre la suma:
-    // redondear línea a línea y sumar después da un número distinto del que
-    // aparece impreso al pie del comprobante.
-    BigDecimal suma =
-        lines.stream()
-            .map(MovementLine::getLineAmount)
-            .reduce(BigDecimal.ZERO, BigDecimal::add)
-            .setScale(decimales, RoundingMode.UNNECESSARY);
-
-    this.totalAmount = suma;
-    // Hoy siempre cero, por decisión del responsable del proyecto del
-    // 02-09-2026: no hay descuentos. No se recibe por parámetro porque un
-    // descuento que se pudiera pasar sería un descuento sin autorización y sin
-    // rastro, que es exactamente lo que `spec.md` §2 descarta.
-    this.discountAmount = BigDecimal.ZERO.setScale(decimales, RoundingMode.UNNECESSARY);
+    // `RN-MV-013`: LAS TRES CIFRAS SON SUMAS DE LAS LINEAS, aquí y en ningún
+    // otro sitio. Se llevan a la escala de la moneda una sola vez, sobre la
+    // suma: redondear línea a línea y sumar después da un número distinto del
+    // que aparece impreso al pie del comprobante.
+    //
+    // El total es LO QUE VALE LO VENDIDO a precio de catálogo, y el descuento
+    // es la suma de lo que cada línea rebajó (`RN-MV-027`, desde el 16-09-2026);
+    // a pagar es la resta, que coincide con la suma de los importes de línea.
+    // Ninguno se recibe por parámetro: un descuento que se pudiera pasar sería
+    // un descuento sin autorización y sin rastro, que es lo que `spec.md` §2
+    // descarta — el rastro son las rebajas de cada línea.
+    BigDecimal bruto = BigDecimal.ZERO;
+    BigDecimal rebajado = BigDecimal.ZERO;
+    for (MovementLine linea : lines) {
+      bruto = bruto.add(linea.getUnitPrice().multiply(BigDecimal.valueOf(linea.getQuantity())));
+      rebajado = rebajado.add(linea.getLineDiscount());
+    }
+    this.totalAmount = bruto.setScale(decimales, RoundingMode.UNNECESSARY);
+    this.discountAmount = rebajado.setScale(decimales, RoundingMode.UNNECESSARY);
     this.payableAmount = this.totalAmount.subtract(this.discountAmount);
   }
 
