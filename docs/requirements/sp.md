@@ -5,7 +5,7 @@
 | Módulo | `SP` — Sistema Principal |
 | Paquete | `modules/system` |
 | Prefijos de permiso | `roles:`, `permissions:`, `audit:`, `memberships:`, `currencies:`, `countries:`, `users:`, `exchange-rates:`, `document-types:`, `brokers:`, `broker-accounts:` |
-| Versión | 1.56.0 |
+| Versión | 1.57.0 |
 | Estado | **Aprobado** |
 | Responsable | Bonilla Diaz William Steven |
 | Fecha de creación | 20-08-2026 |
@@ -154,7 +154,7 @@ Las reglas de autorización están definidas en [`security.md` §4.3](../securit
 | `RN-SEG-008` | No se elimina un rol con hijos o con usuarios asignados | `RF-SP-009` |
 | `RN-SEG-010` | Nadie asigna permisos que no posee | `RF-SP-005` |
 | `RN-SEG-011` | Nadie modifica los permisos de un rol que tiene asignado | `RF-SP-004` a `RF-SP-009` |
-| `RN-SEG-012` | Los roles de sistema no se modifican ni eliminan por la API | `RF-SP-004` a `RF-SP-009` |
+| `RN-SEG-012` | Los roles de sistema no se editan, reubican, desactivan ni eliminan por la API; **sus permisos sí se administran** | `RF-SP-004`, `RF-SP-007` a `RF-SP-009` |
 | `RN-SEG-013` | Cambiar el rol padre revalida `RN-SEG-003` contra el nuevo padre | `RF-SP-008` |
 
 !!! note "Por qué estas reglas llevan `SEG` y no `SP`"
@@ -473,12 +473,12 @@ Modifica nombre y descripción. **No** modifica permisos, estado ni rol padre: c
 | Actor | Administrador |
 | Permiso requerido | `roles:update` |
 | Prioridad | Crítica |
-| Reglas aplicables | `RN-SEG-003`, `RN-SEG-004`, `RN-SEG-010`, `RN-SEG-011`, `RN-SEG-012` |
+| Reglas aplicables | `RN-SEG-003`, `RN-SEG-004`, `RN-SEG-010`, `RN-SEG-011` |
 | Depende de | `RF-SP-001`, `RF-SP-010` |
 | Tripleta | `docs/specs/sp/005-asignar-permisos/` |
 | Estado | Pendiente |
 
-Agrega permisos a un rol. La operación se rechaza si algún permiso no está contenido en el rol padre (`RN-SEG-003`) o en los permisos efectivos del actor (`RN-SEG-010`). Es el requerimiento donde se materializa el modelo de contención.
+Agrega permisos a un rol. La operación se rechaza si algún permiso no está contenido en el rol padre (`RN-SEG-003`) o en los permisos efectivos del actor (`RN-SEG-010`). Es el requerimiento donde se materializa el modelo de contención. **Alcanza también a los roles de sistema** (desde el 16-09-2026): `V8` los siembra sin permisos a la espera de esta operación, y `RN-SEG-012` protege su identidad y su posición, no lo que conceden.
 
 #### `RF-SP-006` — Revocar permisos de un rol
 
@@ -488,7 +488,7 @@ Agrega permisos a un rol. La operación se rechaza si algún permiso no está co
 | Actor | Administrador |
 | Permiso requerido | `roles:update` |
 | Prioridad | Alta |
-| Reglas aplicables | `RN-SEG-005`, `RN-SEG-011`, `RN-SEG-012` |
+| Reglas aplicables | `RN-SEG-005`, `RN-SEG-011` |
 | Depende de | `RF-SP-005` |
 | Tripleta | `docs/specs/sp/006-revocar-permisos/` |
 | Estado | Pendiente |
@@ -1912,3 +1912,4 @@ Diseñada el 16-09-2026 (`RN-SP-049`); la creará la migración de `RF-MV-011`, 
 | 1.54.0 | 10-09-2026 | **Toda persona puede declarar DOS teléfonos: el personal y el de la empresa**, por decisión del responsable del proyecto. Nace la columna `users.company_phone` \(§10.16, `V83`\) con la misma forma que `phone` —mismo largo, misma normalización a dígitos con `+` opcional, misma restricción `ck_users_company_phone_format`— y **`RN-SP-037` queda enmendada** \(Art. I.7\): el teléfono **personal** sigue siendo obligatorio y el de la empresa es **opcional**, porque exigirlo bloquearía el alta de todo el que no tenga una. **Es una ampliación y NO una ruptura**: `phone` conserva su nombre y su significado en las seis posiciones del contrato, de modo que el frontend sigue funcionando sin tocar nada. **`company_phone` es el único de los cinco campos de contacto que se puede vaciar de vuelta**: al ser opcional, su nulo explícito es una orden de borrado en `RF-SP-027` y `RF-SP-044`, el mismo trato que ya recibe la dirección — y por eso entra en el dominio como `Patchable` y no como el `Optional` del personal. **`RF-SP-045` NO lo pide**, y es deliberado: el formulario público de registro por enlace da de alta a un cliente, y preguntarle por el teléfono de su empresa sería preguntar por algo que no tiene; puede añadirlo después desde su perfil. Quedan enmendadas las tripletas de `RF-SP-024`, `RF-SP-026`, `RF-SP-027`, `RF-SP-039` y `RF-SP-044`, y la de `RF-SP-045` para dejar escrito **por qué no**. | Responsable del proyecto |
 | 1.55.0 | 14-09-2026 | **El perfil propio publica el nombre y el color de la membresía vigente** (`RF-SP-039` v0.4.0, `RN-SP-024`), por decisión del responsable del proyecto. Hasta hoy `membership` traía código, nivel y fin de vigencia, y la pantalla de «mi perfil» tenía que pedir la cadena de `RF-SP-017` para pintar el nivel. Son los dos campos que `PM` ya publica de una membresía en la oferta y el hotlink: la misma forma. Aditivo; sin consulta nueva —la sentencia del perfil ya traía el nombre y gana el color—. Nace `CA-SP-682`. | Responsable del proyecto |
 | 1.56.0 | 16-09-2026 | **Un cliente tiene un agente principal y varios vendedores vinculados**, por decisión del responsable del proyecto. El vendedor sigue con **un solo superior**; el consumidor conserva **un principal** —su fila vigente de `user_supervisors`, la de quien lo registró— y gana **un vínculo por cada vendedor por cuyo hotlink compre**, en la tabla nueva `client_sellers` (§10.19): una fila por pareja, con origen y fecha, sin fin, y el principal también con su fila. Nace **`RN-SP-049`** y se acotan tres reglas que ya existían para decir que **la estructura comercial mira solo a `user_supervisors`**: el equipo y la protección al retirar (`RN-SP-022`), las cuentas de broker (`RN-SP-046`) y el principal como único superior del cliente (`RN-SP-021`); los indicadores (`RN-SP-048`) no cambian. Lo que el vínculo decide es **la atribución de la venta**: hotlink → su dueño, tienda → el principal (`requirements/mv.md` v0.15.0, `RF-MV-011`, `RN-MV-003`). Un vendedor solo vinculado ve a ese cliente únicamente en sus propios movimientos. Nace **`RF-SP-059`** —consultar los vendedores de un cliente— como pendiente. **Y se repara el documento**: desde antes del 12-09-2026 arrastraba **cuatro copias** de §10.9 a §11 —las tres últimas con el control de cambios detenido en 1.40.0 y §10.16 sin `company_phone`—; se conserva la copia vigente de cada parte y el archivo pasa de 2.755 a 1.874 líneas sin perder una fila de historia. | Responsable del proyecto |
+| 1.57.0 | 16-09-2026 | **`RN-SEG-012` deja de alcanzar a los permisos de un rol de sistema**, por decisión del responsable del proyecto ([`security.md`](../security.md) v0.58.0). La regla y la semilla se contradecían desde el primer día: `V8` siembra a `MANAGER`, `DIRECTOR`, `AGENTE` y `CLIENTE` **sin permisos a propósito**, «a la espera de `RF-SP-005`», y `RF-SP-005` los rechazaba con `409` por ser de sistema. Ningún vendedor ni ningún cliente podía tener nunca un permiso, y nadie lo notó hasta intentar darle `products:sale` a `CLIENTE`. La regla queda acotada a **editar, reubicar, desactivar y eliminar** —lo que sostiene la jerarquía y lo que una migración necesita encontrar donde lo dejó— y sale de las reglas aplicables de `RF-SP-005` y `RF-SP-006`, que conservan sus tres cotas: `RN-SEG-003`, `RN-SEG-010` y `RN-SEG-011`. Consecuencia práctica que conviene tener escrita: **para que `AGENTE` tenga un permiso hay que dárselo antes a `MANAGER` y a `DIRECTOR`**, porque la contención se valida contra el padre inmediato (`RN-SEG-004`); `CLIENTE` cuelga de la raíz y no necesita escala. Quedan enmendadas las tripletas de `RF-SP-005` y `RF-SP-006`: `EX-004` y `EX-002` se retiran, `CA-SP-036` y `CA-SP-047` se invierten en `CA-SP-683` a `CA-SP-685`. Sin migración. | Responsable del proyecto |

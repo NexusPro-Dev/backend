@@ -8650,7 +8650,7 @@
     },
     "/api/v1/roles/{id}/permissions" : {
       "post" : {
-        "description" : "Asocia permisos al rol. **La operación se aplica entera o no se\naplica**: un solo permiso que incumpla la contención rechaza la\npetición completa, porque aplicar los válidos dejaría el rol en un\nestado que nadie pidió.\n\nCada permiso debe estar **contenido en los del rol padre**\n(`RN-SEG-003`) y **en los permisos efectivos de quien ejecuta la\noperación** (`RN-SEG-010`). Lo segundo no lo concede `roles:update`:\nese permiso habilita a modificar roles, no a decidir con qué alcance.\n\n**El rol raíz omite la primera comprobación** —no tiene cota superior—\ny conserva la segunda.\n\n**Es idempotente y nunca retira nada**: los permisos ya declarados se\nignoran sin error, y si no queda ninguno por agregar no se registra\nevento. Hasta 100 por petición.\n",
+        "description" : "Asocia permisos al rol. **La operación se aplica entera o no se\naplica**: un solo permiso que incumpla la contención rechaza la\npetición completa, porque aplicar los válidos dejaría el rol en un\nestado que nadie pidió.\n\nCada permiso debe estar **contenido en los del rol padre**\n(`RN-SEG-003`) y **en los permisos efectivos de quien ejecuta la\noperación** (`RN-SEG-010`). Lo segundo no lo concede `roles:update`:\nese permiso habilita a modificar roles, no a decidir con qué alcance.\n\n**El rol raíz omite la primera comprobación** —no tiene cota superior—\ny conserva la segunda.\n\n**Es idempotente y nunca retira nada**: los permisos ya declarados se\nignoran sin error, y si no queda ninguno por agregar no se registra\nevento. Hasta 100 por petición.\n\n**Los roles de sistema también reciben permisos** por aquí: `RN-SEG-012`\nprotege su identidad y su posición, no lo que conceden. Los rangos de\nla fuerza comercial y `CLIENTE` nacen sin ninguno, y esta es su única\nvía. Para `AGENTE` hay que pasar antes por `MANAGER` y `DIRECTOR`,\nporque la contención se valida contra el padre inmediato.\n",
         "operationId" : "agregarPermisos",
         "parameters" : [ {
           "in" : "path",
@@ -8723,7 +8723,7 @@
                 }
               }
             },
-            "description" : "Rol de sistema (`RN-SEG-012`), permiso fuera del rol padre (`RN-SEG-003`) o fuera del alcance del actor (`RN-SEG-010`)"
+            "description" : "Permiso fuera del rol padre (`RN-SEG-003`) o fuera del alcance del actor (`RN-SEG-010`)"
           },
           "422" : {
             "content" : {
@@ -8752,7 +8752,7 @@
     },
     "/api/v1/roles/{id}/permissions/revocations" : {
       "post" : {
-        "description" : "Desasocia permisos del rol, con **eliminación física** de la asociación\ny **sin exigir motivo**: es una asociación y no una entidad de negocio.\n\n**Se rechaza si un rol hijo directo declara alguno de los permisos que\nse retiran** (`RN-SEG-005`), y el error dice **qué rol** declara **qué\npermiso**: sin ese detalle no habría forma de saber qué corregir. Los\nhijos **inactivos cuentan igual** que los activos —el invariante vale\nsiempre—, y los eliminados no.\n\n**No hay cascada**: nunca se retiran permisos de los descendientes.\nUsted decide en qué orden hacerlo.\n\n**Es idempotente**: los permisos que el rol no declaraba se ignoran sin\nerror. Hasta 100 por petición, el mismo límite que al agregarlos.\n\n**`POST` sobre un subrecurso y no `DELETE`**: la operación recibe una\nlista en el cuerpo, y RFC 9110 no define semántica para el cuerpo de un\n`DELETE`.\n",
+        "description" : "Desasocia permisos del rol, con **eliminación física** de la asociación\ny **sin exigir motivo**: es una asociación y no una entidad de negocio.\n\n**Se rechaza si un rol hijo directo declara alguno de los permisos que\nse retiran** (`RN-SEG-005`), y el error dice **qué rol** declara **qué\npermiso**: sin ese detalle no habría forma de saber qué corregir. Los\nhijos **inactivos cuentan igual** que los activos —el invariante vale\nsiempre—, y los eliminados no.\n\n**No hay cascada**: nunca se retiran permisos de los descendientes.\nUsted decide en qué orden hacerlo.\n\n**Es idempotente**: los permisos que el rol no declaraba se ignoran sin\nerror. Hasta 100 por petición, el mismo límite que al agregarlos.\n\n**`POST` sobre un subrecurso y no `DELETE`**: la operación recibe una\nlista en el cuerpo, y RFC 9110 no define semántica para el cuerpo de un\n`DELETE`.\n\n**Alcanza también a los roles de sistema**: lo que se les concede tiene\nque poder corregirse por el mismo camino.\n",
         "operationId" : "retirarPermisos",
         "parameters" : [ {
           "in" : "path",
@@ -8825,7 +8825,7 @@
                 }
               }
             },
-            "description" : "Rol de sistema (`RN-SEG-012`), o un rol dependiente declara el permiso (`RN-SEG-005`)"
+            "description" : "Un rol dependiente declara el permiso (`RN-SEG-005`)"
           },
           "500" : {
             "content" : {

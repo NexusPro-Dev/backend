@@ -256,13 +256,33 @@ class RolePermissionsIT extends IntegrationTestBase {
   }
 
   @Test
-  @DisplayName("las dos operaciones cruzan las mismas puertas: sistema, actor y rol inexistente")
-  void puertasComunes() throws Exception {
-    mvc.perform(agregar(UUID.fromString(ADMIN_ROL), heredables))
-        .andExpect(status().isConflict())
-        .andExpect(jsonPath("$.errors[0].code").value("RN-SEG-012"));
-    mvc.perform(retirar(UUID.fromString(MANAGER), heredables)).andExpect(status().isConflict());
+  @DisplayName("CA-SP-683 y CA-SP-685 — un rol de sistema recibe y pierde permisos como cualquiera")
+  void rolDeSistema() throws Exception {
+    // MANAGER cuelga de ADMIN y V8 lo siembra VACÍO «a la espera de RF-SP-005».
+    // Hasta el 16-09-2026 esta misma petición era 409 por RN-SEG-012, y ningún
+    // vendedor ni ningún cliente podía tener nunca un permiso. La prueba se
+    // invierte en lugar de borrarse: si alguien vuelve a cerrar la puerta,
+    // falla aquí.
+    UUID manager = UUID.fromString(MANAGER);
+    assertThat(permisosDe(manager)).isZero();
 
+    mvc.perform(agregar(manager, heredables))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.permissions.length()").value(heredables.size()));
+    assertThat(permisosDe(manager)).isEqualTo(heredables.size());
+
+    // Fuera de ADMIN sigue siendo 409: la marca de sistema no relaja la contención.
+    mvc.perform(agregar(manager, List.of(ajeno)))
+        .andExpect(status().isConflict())
+        .andExpect(jsonPath("$.errors[0].code").value("RN-SEG-003"));
+
+    mvc.perform(retirar(manager, heredables)).andExpect(status().isOk());
+    assertThat(permisosDe(manager)).isZero();
+  }
+
+  @Test
+  @DisplayName("CA-SP-037, CA-SP-684 y CA-SP-173 — rol propio del actor y rol inexistente")
+  void puertasComunes() throws Exception {
     mvc.perform(agregar(UUID.randomUUID(), heredables)).andExpect(status().isNotFound());
     mvc.perform(retirar(UUID.randomUUID(), heredables)).andExpect(status().isNotFound());
 
@@ -349,6 +369,13 @@ class RolePermissionsIT extends IntegrationTestBase {
             + " (SELECT id FROM roles WHERE is_system = false)");
     jdbc.update("DELETE FROM roles WHERE is_system = false");
     jdbc.update("UPDATE roles SET status = 'ACTIVO', deleted_at = NULL WHERE is_system = true");
+    // Los cuatro roles de sistema que V8 siembra SIN permisos vuelven a estar
+    // vacíos: desde el 16-09-2026 se les puede conceder, y lo que una prueba
+    // les deje lo ve la siguiente.
+    jdbc.update(
+        "DELETE FROM role_permissions WHERE role_id IN"
+            + " (SELECT id FROM roles WHERE is_system = true"
+            + "   AND code IN ('MANAGER', 'DIRECTOR', 'AGENTE', 'CLIENTE'))");
     jdbc.update(
         "INSERT INTO user_roles (user_id, role_id, role_type) SELECT ?, r.id, r.role_type FROM roles r WHERE r.id = ?::uuid ON CONFLICT DO NOTHING",
         SUPERADMIN,

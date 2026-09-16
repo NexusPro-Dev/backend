@@ -43,6 +43,7 @@ Sin migración: `role_permissions` la crea `V6__create_role_permissions.sql` (`R
 | `T-12` | Pruebas de los casos límite de `spec.md` §13: rechazo parcial, duplicados, cadena profunda, actor superadministrador y reparto en varias peticiones | `T-10` | Con una cadena de tres roles, la operación consulta al padre y **no** al abuelo; partir la petición en dos produce el mismo estado final | Hecha |
 | `T-13` | Documentación OpenAPI del endpoint: cuerpo, respuesta `200` y los estados `400`, `401`, `403`, `404`, `409`, `422` y `500` | `T-11` | El contrato publicado coincide con el comportamiento real (Art. VIII.6) | Hecha |
 | `T-14` | Actualizar la matriz de trazabilidad de `docs/requirements.md` | `T-11` | La fila de `RF-SP-005` refleja el estado y enlaza esta tripleta | Hecha |
+| `T-15` | **Enmienda del 16-09-2026** (`spec.md` v0.3.0): `RoleWriteAccess.cargarConPermisosModificables(...)` —primera y tercera puerta, sin la de `RN-SEG-012`—, usado por `GrantRolePermissionsService` y por el servicio de `RF-SP-006`; el `409` de `EX-004` sale del contrato OpenAPI; `RolePermissionsIT` **invierte** la prueba de `CA-SP-036` en `CA-SP-683` y repone el rol de sistema al terminar | `T-10` | Prueba de API: conceder a `MANAGER` un permiso de `ADMIN` devuelve `200` y deja la fila; las otras cuatro escrituras de `RoleAdministrationIT` siguen devolviendo `409` sobre `ADMIN` | Hecha |
 
 **Estados:** `Pendiente` · `En curso` · `Hecha` · `Bloqueada`.
 
@@ -76,7 +77,8 @@ graph LR
 | `CA-SP-033` | `T-01`, `T-03`, `T-10`, `T-11` |
 | `CA-SP-034` | `T-01`, `T-05`, `T-11` |
 | `CA-SP-035` | `T-01`, `T-11` |
-| `CA-SP-036` | `T-04`, `T-11` |
+| ~~`CA-SP-036`~~ | ~~`T-04`, `T-11`~~ — retirado el 16-09-2026 |
+| `CA-SP-683` | `T-15` |
 | `CA-SP-037` | `T-04`, `T-11` |
 | `CA-SP-038` | `T-08`, `T-11` |
 | `CA-SP-039` | `T-06`, `T-11` |

@@ -3,7 +3,7 @@
 | Campo | Valor |
 |---|---|
 | Módulo | `SP` — Sistema Principal |
-| Versión | 0.4.0 |
+| Versión | 0.5.0 |
 | Estado | **Borrador** |
 | Responsable | Bonilla Diaz William Steven |
 | Fecha de creación | 21-08-2026 |
@@ -151,9 +151,7 @@ flowchart TD
     A(["Actor · solicita agregar<br/>permisos a un rol"])
     A --> V1{"¿el rol existe?"}
     V1 -->|no| E0["El rol no existe<br/>sin excepción tipificada"]
-    V1 -->|sí| V2{"¿es un rol<br/>de sistema?"}
-    V2 -->|sí| E4["EX-004 · RN-SEG-012"]
-    V2 -->|no| V3{"¿el actor tiene<br/>ese rol asignado?"}
+    V1 -->|sí| V3{"¿el actor tiene<br/>ese rol asignado?"}
     V3 -->|sí| E5["EX-005 · RN-SEG-011"]
     V3 -->|no| V4{"¿todos los permisos<br/>están en el catálogo?"}
     V4 -->|no| E3["EX-003 · informa cuáles<br/>no existen"]
@@ -170,9 +168,11 @@ flowchart TD
 
     classDef ex fill:#F7E9E5,stroke:#A33B2A,color:#7A2B1E
     classDef ok fill:#E5EEF0,stroke:#2D5A6B,color:#141B1E
-    class E0,E1,E2,E3,E4,E5 ex
+    class E0,E1,E2,E3,E5 ex
     class FIN ok
 ```
+
+No hay puerta de rol de sistema desde el 16-09-2026: `RN-SEG-012` protege la identidad y la posición del rol, no lo que concede, y es aquí donde los vendedores y `CLIENTE` —sembrados vacíos— reciben los suyos.
 
 Los roles hijos no se tocan: la contención sigue valiendo porque el conjunto del padre solo creció.
 
@@ -187,9 +187,7 @@ flowchart TD
     A(["Actor · solicita retirar<br/>permisos de un rol"])
     A --> V1{"¿el rol existe<br/>y está vigente?"}
     V1 -->|no| E4["EX-004 · el rol no existe"]
-    V1 -->|sí| V2{"¿es un rol<br/>de sistema?"}
-    V2 -->|sí| E2["EX-002 · RN-SEG-012"]
-    V2 -->|no| V3{"¿el actor tiene<br/>ese rol asignado?"}
+    V1 -->|sí| V3{"¿el actor tiene<br/>ese rol asignado?"}
     V3 -->|sí| E3["EX-003 · RN-SEG-011"]
     V3 -->|no| V4{"¿algún rol hijo directo declara<br/>alguno de los permisos que se retiran?<br/>activo o inactivo, da igual"}
     V4 -->|sí| E1["EX-001 · RN-SEG-005 · informa qué roles<br/>lo impiden y qué permisos son"]
@@ -200,7 +198,7 @@ flowchart TD
 
     classDef ex fill:#F7E9E5,stroke:#A33B2A,color:#7A2B1E
     classDef ok fill:#E5EEF0,stroke:#2D5A6B,color:#141B1E
-    class E1,E2,E3,E4 ex
+    class E1,E3,E4 ex
     class FIN ok
 ```
 
@@ -1360,3 +1358,4 @@ Nueve asimetrías entre specs que solo se ven al poner los 42 flujos en la misma
 | 0.1.0 | 21-08-2026 | Creación inicial. Un diagrama por cada uno de los 21 casos de uso, transcritos de las §8, §9 y §10 de sus specs, y cinco inconsistencias de tipificación detectadas al normalizar la notación. | Responsable técnico |
 | 0.2.0 | 22-08-2026 | Los 21 casos de uso restantes, de `RF-SP-022` a `RF-SP-042`: cambio de estado de país y moneda, las siete operaciones sobre usuarios, las cuatro de roles y membresía de una persona, las seis de sesión y credenciales, y las dos de estructura comercial. Cuatro secciones nuevas —Usuarios, Roles y membresía de una persona, Sesión y credenciales, Estructura comercial— y cuatro observaciones nuevas en §10. | Responsable técnico |
 | 0.4.0 | 01-09-2026 | **Dos casos nuevos, y son los dos que rompen un supuesto que el resto del documento daba por bueno.** §10 dibuja `RF-SP-045` —el **primer endpoint público del sistema que escribe**— y `RF-SP-046`, la retención de quien no ha depositado. El primero enseña de un vistazo una asimetría que hay que leer despacio: **`EX-001` y `EX-002` funden tres casos cada una porque el endpoint es público** —distinguirlos lo convertiría en una forma de enumerar el catálogo comercial o la plantilla probando valores— mientras que **`EX-005` sí distingue, contradiciéndolas a propósito**, porque quien se registra necesita saber cuál de sus dos identidades chocó. El segundo **no tiene endpoint**: es un filtro con la forma exacta de `MustChangePasswordFilter`, y lo que hay que revisar de él no es el filtro sino **la lista blanca**, sin la cual la cuenta queda sin salida. Los dos comparten una propiedad que ningún otro caso de este documento tiene: **la transición que los libera no está decidida**. El filtro sabe retener y nadie sabe soltar, salvo a mano por `RF-SP-028`. | Responsable técnico |
+| 0.5.0 | 16-09-2026 | **La puerta «¿es un rol de sistema?» sale de `RF-SP-005` y `RF-SP-006`** (`requirements/sp.md` v1.57.0, `security.md` v0.58.0): `RN-SEG-012` protege la identidad y la posición del rol, no lo que concede, y esas dos operaciones son justo donde los vendedores y `CLIENTE` —sembrados vacíos por `V8`— reciben sus permisos. Las otras cuatro escrituras la conservan. | Responsable técnico |

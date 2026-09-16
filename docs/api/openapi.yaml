@@ -1185,6 +1185,12 @@ paths:
         **Es idempotente y nunca retira nada**: los permisos ya declarados se
         ignoran sin error, y si no queda ninguno por agregar no se registra
         evento. Hasta 100 por petición.
+
+        **Los roles de sistema también reciben permisos** por aquí: `RN-SEG-012`
+        protege su identidad y su posición, no lo que conceden. Los rangos de
+        la fuerza comercial y `CLIENTE` nacen sin ninguno, y esta es su única
+        vía. Para `AGENTE` hay que pasar antes por `MANAGER` y `DIRECTOR`,
+        porque la contención se valida contra el padre inmediato.
       operationId: agregarPermisos
       parameters:
       - name: id
@@ -1228,8 +1234,8 @@ paths:
               schema:
                 $ref: "#/components/schemas/RoleResponse"
         "409":
-          description: "Rol de sistema (`RN-SEG-012`), permiso fuera del rol padre\
-            \ (`RN-SEG-003`) o fuera del alcance del actor (`RN-SEG-010`)"
+          description: Permiso fuera del rol padre (`RN-SEG-003`) o fuera del alcance
+            del actor (`RN-SEG-010`)
           content:
             '*/*':
               schema:
@@ -1270,6 +1276,9 @@ paths:
         **`POST` sobre un subrecurso y no `DELETE`**: la operación recibe una
         lista en el cuerpo, y RFC 9110 no define semántica para el cuerpo de un
         `DELETE`.
+
+        **Alcanza también a los roles de sistema**: lo que se les concede tiene
+        que poder corregirse por el mismo camino.
       operationId: retirarPermisos
       parameters:
       - name: id
@@ -1313,8 +1322,7 @@ paths:
               schema:
                 $ref: "#/components/schemas/RoleResponse"
         "409":
-          description: "Rol de sistema (`RN-SEG-012`), o un rol dependiente declara\
-            \ el permiso (`RN-SEG-005`)"
+          description: Un rol dependiente declara el permiso (`RN-SEG-005`)
           content:
             '*/*':
               schema:

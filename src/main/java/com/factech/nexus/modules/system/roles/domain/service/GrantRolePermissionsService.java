@@ -37,7 +37,10 @@ import org.springframework.transaction.annotation.Transactional;
  * <p>Orden de verificación:
  *
  * <ol>
- *   <li>Las tres puertas comunes: rol vigente, no de sistema, no del actor.
+ *   <li>Dos de las tres puertas comunes: rol vigente y no del actor. La de `RN-SEG-012` no se cruza
+ *       desde el 16-09-2026 —ver {@link RoleWriteAccess}—: un rol de sistema recibe permisos como
+ *       cualquier otro, y es la única vía por la que los vendedores y {@code CLIENTE} pueden tener
+ *       alguno.
  *   <li>Los permisos existen en el catálogo (`EX-003` → {@code 422}), enumerando <b>todos</b> los
  *       ausentes.
  *   <li>Contención en el rol padre (`RN-SEG-003` → {@code 409}) — omitida en la raíz, que no tiene
@@ -89,7 +92,7 @@ public class GrantRolePermissionsService {
 
   @Transactional
   public RoleResponse grant(UUID roleId, RolePermissionsRequest peticion) {
-    Role rol = acceso.cargarModificable(roleId, "EX-006");
+    Role rol = acceso.cargarConPermisosModificables(roleId, "EX-006");
 
     List<PermissionItem> solicitados = resolver(peticion.permissionIds());
     Role padre = acceso.padreDe(rol);
