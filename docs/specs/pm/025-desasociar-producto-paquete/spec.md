@@ -8,6 +8,7 @@
 | Autor | Responsable técnico |
 | Aprobada por | — |
 | Fecha de aprobación | — |
+| Enmendada el | 16-09-2026 — **un paquete lleva UN upgrade como máximo** (`RN-PM-046`): quitar el upgrade **libera el sitio**; `FA-002` y `CA-PM-325` se reescriben. Ver §15 |
 
 ---
 
@@ -46,7 +47,8 @@ Es `RF-CM-008` para paquetes. La fila `(paquete, producto, descuento)` es una **
 | `RN-PM-042` | Desasociar no pide motivo; se borra y se registra como asociación | `requirements/pm.md` §5.1 |
 | `RN-PM-040` | Con menos de dos, el paquete deja de ofrecerse y no se desactiva | `requirements/pm.md` §5.1 |
 | `RN-PM-036` | La respuesta trae la cuenta rehecha | `requirements/pm.md` §5.1 |
-| `RN-PM-044` | Sin upgrades dentro, el origen del paquete queda libre | `requirements/pm.md` §5.1 |
+| `RN-PM-046` | **(Desde el 16-09-2026)** Un paquete lleva un upgrade como máximo — quitarlo **libera el sitio** | `requirements/pm.md` §5.1 |
+| `RN-PM-044` | El upgrade del paquete decide a quién se ofrece — sin upgrade, a todo el mundo | `requirements/pm.md` §5.1 |
 
 ## 6. Datos
 
@@ -81,9 +83,9 @@ Es `RF-CM-008` para paquetes. La fila `(paquete, producto, descuento)` es una **
 
 **Comportamiento:** se desasocia igual. El paquete sigue en su estado, `offerable: false` con «menos de dos», y la oferta no lo enseña.
 
-### FA-002 — Se quita el único upgrade
+### FA-002 — Se quita el upgrade
 
-**Comportamiento:** el origen del paquete queda **libre**: el siguiente upgrade que entre puede ser de otro origen (`RN-PM-044`).
+**Comportamiento:** el sitio de upgrade del paquete queda **libre** (`RN-PM-046`): el siguiente upgrade que entre puede ser de cualquier origen, y mientras no entre ninguno el paquete —solo bots— se ofrece a todo el mundo (`RN-PM-044`). *(Hasta el 16-09-2026 «el origen quedaba libre», porque podía haber varios upgrades y todos compartían origen.)*
 
 ## 10. Excepciones
 
@@ -109,7 +111,7 @@ Es `RF-CM-008` para paquetes. La fila `(paquete, producto, descuento)` es una **
 | `CA-PM-322` | `audit_deletion_log` tiene la fila `ASSOCIATION` sin motivo, con forma, valor y precio del producto en la instantánea |
 | `CA-PM-323` | El sistema responde `404` al producto que **no está** —también al que **ya se quitó**— y al paquete retirado |
 | `CA-PM-324` | Desasociar hasta dejar **uno** no cambia el estado del paquete y lo deja `offerable: false` por «menos de dos» |
-| `CA-PM-325` | Quitado el único upgrade, entra otro de **otro origen** |
+| `CA-PM-325` | **(Reescrito el 16-09-2026)** Quitado el upgrade, entra otro — de **otro origen** también —, que antes de quitarlo se rechazaba con `EX-007` por ser el segundo |
 | `CA-PM-326` | El producto sigue activo en el catálogo y en los demás paquetes que lo contengan |
 
 ## 13. Casos límite
@@ -131,3 +133,4 @@ Es `RF-CM-008` para paquetes. La fila `(paquete, producto, descuento)` es una **
 |---|---|---|---|
 | 0.1.0 | 15-09-2026 | Redacción inicial. Hereda `RF-CM-008`: asociación, sin motivo, borrado físico, `ASSOCIATION` con instantánea —que aquí lleva el descuento—. Responde `200` con el paquete porque lo que cambió es su precio. Dejar el paquete con menos de dos no lo desactiva: lo saca de la oferta y el detalle lo dice. | Responsable técnico |
 | 0.2.0 | 15-09-2026 | **Construida** (`PackageDissociationIT`). Sin enmiendas de comportamiento. La fila `ASSOCIATION` lleva `reason` nulo y, en la instantánea, paquete, producto, forma, valor y el precio del producto en ese instante; su `entity_id` es el del paquete. | Responsable técnico |
+| 0.3.0 | 16-09-2026 | **Un paquete lleva UN upgrade como máximo** ([`requirements/pm.md`](../../../requirements/pm.md) v0.38.0 §5.2.10, `RN-PM-046`). Lo que cambia aquí es la letra, no el comportamiento: quitar el upgrade **libera el sitio** en lugar de «liberar el origen», y `CA-PM-325` se reescribe para que el `409` previo sea el del segundo upgrade y no el de otro origen. Sin tarea nueva: la prueba se reescribe desde `RF-PM-023 · T-14`. | Responsable del proyecto |

@@ -111,9 +111,10 @@ public class GetOwnOfferService {
     List<ProductRow> filas = consultas.findOffer(membresia);
 
     // LOS PAQUETES (`RF-PM-007` v0.13.0, `RN-PM-044`): una sentencia más, y el
-    // filtro en Java sobre lo que vino — ofrecible hoy, y con TODOS sus upgrades
-    // saliendo de la membresía del actor, o sin upgrades. Sin membresía solo
-    // pasan los paquetes de bots, igual que sin membresía solo se ven bots.
+    // filtro en Java sobre lo que vino — ofrecible hoy, y con SU upgrade —uno
+    // como máximo, `RN-PM-046`— saliendo de la membresía del actor, o sin
+    // upgrade. Sin membresía solo pasan los paquetes de bots, igual que sin
+    // membresía solo se ven bots.
     List<PublishedPackage> ofrecibles =
         paquetes.findOfferable().stream()
             .filter(p -> p.ofrecibilidad().offerable())
@@ -144,8 +145,10 @@ public class GetOwnOfferService {
   }
 
   /**
-   * `RN-PM-044`: el paquete se ofrece a quien tiene el origen de sus upgrades. Como todos comparten
-   * origen —lo garantiza `RF-PM-023` al asociar—, basta mirar el primero; sin upgrades, a todos.
+   * `RN-PM-044`: el paquete se ofrece a quien tiene el origen de su upgrade. Hay uno como máximo
+   * —lo garantiza `RF-PM-023` al asociar, `RN-PM-046`—, y el `allMatch` lo mira; sin upgrade, a
+   * todos. Se deja el `allMatch` y no un `findFirst`: si algún día una fila vieja o una carga a
+   * mano dejara dos, el paquete no se ofrecería a quien no puede comprarlo entero.
    */
   private static boolean saleDe(PublishedPackage paquete, UUID membresia) {
     return paquete.items().stream()

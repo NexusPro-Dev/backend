@@ -3,11 +3,11 @@
 | Campo | Valor |
 |---|---|
 | Módulo | `PM` — Productos y Mercadeo |
-| Versión | 0.4.0 |
+| Versión | 0.5.0 |
 | Estado | **Borrador** |
 | Responsable | Bonilla Diaz William Steven |
 | Fecha de creación | 01-09-2026 |
-| Última actualización | 15-09-2026 |
+| Última actualización | 16-09-2026 |
 
 !!! info "Qué va en este documento"
 
@@ -335,9 +335,9 @@ flowchart TD
     V6 -->|no| E6["EX-006 · 409 · RN-PM-037<br/>nombra el precio"]
     V6 -->|sí| D{"¿upgrade?"}
     D -->|"BOT · FA-004"| P1
-    D -->|"sí"| V7{"¿comparte ORIGEN con los<br/>upgrades ya asociados?"}
-    V7 -->|no| E7["EX-007 · 409 · RN-PM-044<br/>nombra los dos orígenes"]
-    V7 -->|"sí · o es el primero · FA-003"| P1["Inserta la asociación<br/>la clave primaria es la red de EX-005"]
+    D -->|"sí"| V7{"¿el paquete YA tiene<br/>un upgrade? · RN-PM-046"}
+    V7 -->|sí| E7["EX-007 · 409 · RN-PM-046<br/>nombra el que ya está"]
+    V7 -->|"no · ocupa el único sitio · FA-003"| P1["Inserta la asociación<br/>la clave primaria es la red de EX-005"]
     P1 --> P2["Auditoría de cambios"]
     P2 --> FIN(["201 · el paquete ENTERO<br/>con su precio recalculado"])
     V0 -.->|"FA-001 · descuento cero<br/>entra a su precio"| V1
@@ -605,9 +605,9 @@ flowchart TD
     A --> Q["Los paquetes ACTIVOS, vivos y de alcance TIENDA o AMBOS<br/>con sus líneas · UNA sentencia · las monedas van a la MISMA sentencia de tasas"]
     Q --> O{"PackageOfferability<br/>¿ofrecible HOY?"}
     O -->|no| OUT["No aparece · nada lo dice"]
-    O -->|"sí"| M{"¿sus upgrades salen de<br/>LA membresía del actor?<br/>RN-PM-044"}
+    O -->|"sí"| M{"¿SU upgrade —uno como máximo, RN-PM-046—<br/>sale de LA membresía del actor?<br/>RN-PM-044"}
     M -->|"no"| OUT
-    M -->|"sí · o no tiene upgrades:<br/>solo bots → a todo el mundo"| C["PackagePricing · cada producto en la<br/>forma de la oferta · SIN purchasePrice"]
+    M -->|"sí · o no tiene upgrade:<br/>solo bots → a todo el mundo"| C["PackagePricing · cada producto en la<br/>forma de la oferta · SIN purchasePrice"]
     C --> FIN(["packages · envuelta · presente aunque vacía<br/>ordenada por fecha de alta"])
 
     classDef mal fill:#F7E9E5,stroke:#A33B2A,color:#7A2B1E
@@ -616,7 +616,7 @@ flowchart TD
     class FIN ok
 ```
 
-**Es `RN-PM-011` aplicada al paquete entero.** Un paquete se ofrece a quien puede comprarlo **todo**: como sus upgrades comparten origen (`RN-PM-044`, comprobado al asociar), basta comparar ese origen con la membresía vigente del actor. Sin membresía solo se ven los paquetes de bots — igual que sin membresía solo se ven bots. **La construye `RF-PM-019`** (`T-11`, `T-12`), porque es donde nacen las dos piezas que necesita.
+**Es `RN-PM-011` aplicada al paquete entero.** Un paquete se ofrece a quien puede comprarlo **todo**: como lleva un upgrade como máximo (`RN-PM-046`, comprobado al asociar desde el 16-09-2026; antes, «comparten origen»), basta comparar el origen de ese upgrade con la membresía vigente del actor (`RN-PM-044`). Sin membresía solo se ven los paquetes de bots — igual que sin membresía solo se ven bots. **La construye `RF-PM-019`** (`T-11`, `T-12`), porque es donde nacen las dos piezas que necesita.
 
 ---
 
@@ -642,6 +642,7 @@ flowchart TD
 
 | Versión | Fecha | Cambio | Responsable |
 |---|---|---|---|
+| 0.5.0 | 16-09-2026 | **Un paquete lleva UN upgrade como máximo** (`requirements/pm.md` v0.38.0, `RN-PM-046`): en el diagrama de `RF-PM-023` el rombo del origen pasa a «¿ya tiene un upgrade?» y `EX-007` nombra el que está; en el de la oferta (`RF-PM-007`) el filtro mira **el** upgrade. | Responsable técnico |
 | 0.4.0 | 15-09-2026 | **Los diez casos quedan construidos** y tres diagramas se retocan con lo que cambió entre el dibujo y el código: el **alta** nombra los cuatro valores del alcance, el **hotlink del paquete** publica `HOTLINK` o `AMBOS`, y la **oferta** trae los paquetes de alcance `TIENDA` o `AMBOS` en **una** sentencia y no dos. El resto se construyó como estaba dibujado; las cuentas de sentencias reales quedaron en `CA-PM-284` y `CA-PM-338`. | Responsable técnico |
 | 0.3.0 | 15-09-2026 | **Diez casos nuevos: los paquetes** (`RF-PM-017` a `RF-PM-026`), transcritos de las §8, §9 y §10 de sus tripletas y dibujados **en el orden de construcción**, más el diagrama de la **enmienda de `RF-PM-007`** —la oferta gana `packages`—. El que más aporta es `RF-PM-023`, la asociación: **siete rombos en fila** que cambian de `422` a `409` sobre el mismo producto y terminan en el que evita el paquete que nadie podría comprar. Le sigue `RF-PM-026`, con **un solo recuadro rojo al que llegan cuatro flechas**. §4 gana cinco observaciones, entre ellas que la misma pregunta sobre la cota del descuento aparece en tres diagramas con tres efectos. | Responsable técnico |
 | 0.2.0 | 02-09-2026 | **El upgrade declara de dónde sale**, y tres diagramas cambian. El del **alta** gana un rombo —`RN-PM-017`, el origen por debajo del destino— que produce **dos códigos distintos a propósito**: origen igual al destino es `400` porque lo ve el agregado, y origen por encima es `422` porque exige el `level` de dos filas de `memberships`. El del **cambio de estado** deja de contar «un upgrade activo por destino» y pasa a contarlo **por pareja origen→destino**: dos upgrades hacia `ORO`, uno desde `BECA` y otro desde `PLATINO`, ya no compiten. Y el de la **oferta propia** pierde su comparación de niveles entera: pasa a ser una **coincidencia exacta** por origen, con lo que `FA-001` y el upgrade hacia el nivel que ya se tiene salen **del propio filtro** en lugar de estar escritos aparte. Queda anotado lo que se paga: si nadie declara un upgrade desde `VIP`, quien esté en `VIP` no ve ninguna subida — sin error y sin aviso. | Responsable técnico |

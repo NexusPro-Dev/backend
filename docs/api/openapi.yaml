@@ -2017,10 +2017,14 @@ paths:
         quien llama ve el catálogo entero—; `EX-004` el producto está en otra
         moneda, y el mensaje nombra las dos; `EX-005` el producto ya está en el
         paquete — corrija su descuento en lugar de asociarlo de nuevo—; `EX-006` el
-        descuento deja al producto por debajo de cero; `EX-007` el upgrade no
-        comparte origen con los upgrades ya dentro (`RN-PM-044`): **el primer
-        upgrade fija el origen del paquete**, los siguientes tienen que coincidir, y
-        los bots entran sin mirar orígenes.
+        descuento deja al producto por debajo de cero; `EX-007` **el paquete ya
+        tiene un upgrade** (`RN-PM-046`, desde el 16-09-2026): un paquete lleva **un
+        solo `UPGRADE_MEMBRESIA`** —del origen y el destino que sea, y aunque hoy esté
+        inactivo: el sitio lo ocupa la fila— y cuantos bots se quiera. El mensaje
+        **nombra el código** del upgrade que ya está, y el sitio se libera al
+        desasociarlo. Hasta el 16-09-2026 este código significaba «el upgrade no
+        comparte origen con los ya dentro»; con uno solo no hay orígenes que
+        comparar. Los bots entran sin mirar cuántos upgrades hay.
 
         Se asocia **a un paquete inactivo** —es el estado en el que un paquete se
         arma— y no a uno retirado (`404`). El producto no cambia: la fila es del
@@ -2074,7 +2078,7 @@ paths:
                 $ref: "#/components/schemas/PackageDetailResponse"
         "409":
           description: "Producto inactivo o retirado, en otra moneda, ya en el paquete,\
-            \ descuento por encima del precio, o upgrade de otro origen (`EX-003`\
+            \ descuento por encima del precio, o el paquete ya tiene un upgrade (`EX-003`\
             \ a `EX-007`)"
           content:
             '*/*':
@@ -4344,8 +4348,9 @@ paths:
 
         El paquete **no cambia de estado** aunque quede con uno o con cero
         productos: deja de ofrecerse por «menos de dos» y el detalle lo dice. Si se
-        quita el único upgrade, el origen del paquete queda **libre**: el siguiente
-        upgrade que entre puede ser de otro origen. **El producto no cambia**: sigue
+        quita el upgrade, **el sitio queda libre** (`RN-PM-046`): el siguiente
+        upgrade que entre puede ser de cualquier origen, y mientras no entre ninguno
+        el paquete —solo bots— se ofrece a todo el mundo. **El producto no cambia**: sigue
         activo en el catálogo y en los demás paquetes que lo contengan.
 
         El producto que no está —también el que ya se quitó— es `404`: con el

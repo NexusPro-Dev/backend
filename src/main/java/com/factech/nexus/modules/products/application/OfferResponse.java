@@ -33,9 +33,9 @@ import java.util.List;
  * @param services los bots activos, <b>todos, para cualquiera</b>: no dependen del nivel de quien
  *     mira ni de que tenga uno (`spec.md` §14, resolución 2)
  * @param packages la tercera colección, desde el 15-09-2026 (`RF-PM-007` v0.13.0): los paquetes que
- *     hoy se pueden ofrecer <b>a esta persona</b> —ofrecibles, y con sus upgrades saliendo de su
- *     membresía o sin upgrades (`RN-PM-044`)—, con la cuenta hecha. Envuelta como las otras dos y
- *     <b>presente aunque vacía</b> (`CA-PM-335`)
+ *     hoy se pueden ofrecer <b>a esta persona</b> —ofrecibles, y con su upgrade —uno como máximo,
+ *     `RN-PM-046`— saliendo de su membresía, o sin upgrade (`RN-PM-044`)—, con la cuenta hecha.
+ *     Envuelta como las otras dos y <b>presente aunque vacía</b> (`CA-PM-335`)
  */
 @JsonInclude(JsonInclude.Include.ALWAYS)
 public record OfferResponse(

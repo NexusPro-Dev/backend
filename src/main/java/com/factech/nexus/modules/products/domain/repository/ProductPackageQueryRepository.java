@@ -56,8 +56,8 @@ public interface ProductPackageQueryRepository {
   /**
    * Los paquetes de la oferta (`RF-PM-007` v0.13.0): <b>activos, vivos y de alcance `TIENDA` o
    * `AMBOS`</b>, con sus productos en la forma de la oferta, por fecha de alta, <b>en una
-   * sentencia</b>. Ni la ofrecibilidad ni el origen se deciden aquí: los decide el caso de uso
-   * sobre las filas, para que `RN-PM-039` y `RN-PM-044` vivan en un solo sitio.
+   * sentencia</b>. Ni la ofrecibilidad ni a quién se ofrece se deciden aquí: los decide el caso de
+   * uso sobre las filas, para que `RN-PM-039` y `RN-PM-044` vivan en un solo sitio.
    */
   List<PublishedPackage> findOfferable();
 

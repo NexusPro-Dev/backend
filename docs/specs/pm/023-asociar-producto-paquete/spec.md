@@ -8,6 +8,7 @@
 | Autor | Responsable técnico |
 | Aprobada por | — |
 | Fecha de aprobación | — |
+| Enmendada el | 16-09-2026 — **un paquete lleva UN upgrade como máximo** (`RN-PM-046`): `EX-007` cambia de significado, `RN-PM-044` deja de comprobarse aquí, `FA-003`, `CA-PM-313`, §13 y §14. Ver §15 |
 
 ---
 
@@ -17,7 +18,7 @@ Meter un producto en un paquete **diciendo cuánto se rebaja** —un porcentaje 
 
 ## 2. Contexto
 
-**Es la operación que define al paquete.** El alta (`RF-PM-017`) crea un envase vacío; aquí se decide **qué se promete y a qué precio**, y por eso concentra cinco reglas: la moneda (`RN-PM-035`), el descuento (`RN-PM-037`), la unicidad por pareja (`RN-PM-038`), qué se puede asociar (`RN-PM-039`) y el origen común de los upgrades (`RN-PM-044`). Cada una existe para que la oferta pueda enseñar el paquete entero a alguien que pueda comprarlo entero.
+**Es la operación que define al paquete.** El alta (`RF-PM-017`) crea un envase vacío; aquí se decide **qué se promete y a qué precio**, y por eso concentra cinco reglas: la moneda (`RN-PM-035`), el descuento (`RN-PM-037`), la unicidad por pareja (`RN-PM-038`), qué se puede asociar (`RN-PM-039`) y **un solo upgrade por paquete** (`RN-PM-046`, desde el 16-09-2026; hasta entonces, el origen común de los upgrades, `RN-PM-044`). Cada una existe para que la oferta pueda enseñar el paquete entero a alguien que pueda comprarlo entero — y la última, además, para que la venta del paquete sea **una** línea de membresía y no varias.
 
 ## 3. Actores
 
@@ -31,7 +32,7 @@ Meter un producto en un paquete **diciendo cuánto se rebaja** —un porcentaje 
 
 - Asociar un producto **activo, no retirado y en la moneda del paquete** a un paquete **vivo**, activo o inactivo.
 - Declarar el descuento: **forma** (`PORCENTAJE` | `FIJO`) y **valor**, con las cotas de `RN-PM-037`.
-- Rechazar el producto que ya está en el paquete, y el upgrade cuyo origen no coincide con el de los ya asociados.
+- Rechazar el producto que ya está en el paquete, y **el segundo upgrade** cuando el paquete ya tiene uno (`RN-PM-046`).
 - Devolver el paquete entero con su cuenta rehecha.
 
 ### 4.2 No incluye
@@ -50,7 +51,8 @@ Meter un producto en un paquete **diciendo cuánto se rebaja** —un porcentaje 
 | `RN-PM-037` | **El descuento no deja a ningún producto por debajo de cero**: porcentaje `0..100`, fijo `0..precio`; el gratuito solo cero | `requirements/pm.md` §5.1 |
 | `RN-PM-038` | **Un producto entra una vez por paquete** | `requirements/pm.md` §5.1 |
 | `RN-PM-039` | **Solo se asocia lo que se puede comprar**: activo y no retirado | `requirements/pm.md` §5.1 |
-| `RN-PM-044` | **Los upgrades de un paquete comparten origen** | `requirements/pm.md` §5.1 |
+| `RN-PM-046` | **(Desde el 16-09-2026)** **Un paquete lleva un upgrade como máximo**; el sitio se libera al desasociarlo | `requirements/pm.md` §5.1 |
+| `RN-PM-044` | El upgrade del paquete decide a quién se ofrece — **ya no se comprueba aquí**: con un solo upgrade no hay orígenes que comparar. Entre el 15-09-2026 y el 16-09-2026 esta operación rechazaba el upgrade de otro origen | `requirements/pm.md` §5.1 |
 | `RN-PM-036` | El precio se calcula — la respuesta trae la cuenta rehecha | `requirements/pm.md` §5.1 |
 | `RN-PM-007` | El importe respeta los decimales de su moneda — el descuento fijo también | `requirements/pm.md` §5.1 |
 
@@ -75,7 +77,7 @@ Meter un producto en un paquete **diciendo cuánto se rebaja** —un porcentaje 
 
 ## 7. Precondiciones y postcondiciones
 
-**Precondiciones:** actor con `packages:update`; paquete vivo; producto activo, no retirado, en la moneda del paquete y no asociado; descuento dentro de cota; si es upgrade, origen igual al de los upgrades ya dentro.
+**Precondiciones:** actor con `packages:update`; paquete vivo; producto activo, no retirado, en la moneda del paquete y no asociado; descuento dentro de cota; si es upgrade, **ningún otro upgrade** dentro.
 
 **Postcondiciones:** existe la fila `(paquete, producto)` con su descuento; `audit_change_log` tiene una fila `CREATE` de `product_package_items` con la instantánea de la asociación; el paquete —que **no cambia de estado**— vale la nueva suma en todas sus lecturas, en la misma transacción.
 
@@ -87,11 +89,11 @@ Meter un producto en un paquete **diciendo cuánto se rebaja** —un porcentaje 
 4. El sistema resuelve el producto (`EX-002`) y comprueba que está **activo y no retirado** (`EX-003`) y **en la moneda del paquete** (`EX-004`).
 5. El sistema comprueba que el producto **no está ya** en el paquete (`EX-005`).
 6. El sistema comprueba el **descuento contra el precio de hoy** del producto (`EX-006`).
-7. Si el producto es un upgrade, el sistema comprueba que **su origen coincide** con el de los upgrades ya asociados (`EX-007`).
+7. Si el producto es un upgrade, el sistema comprueba que **el paquete no tiene ya otro** (`EX-007`, `RN-PM-046`).
 8. El sistema inserta la asociación y la registra en la auditoría, en la misma transacción.
 9. Devuelve `201` con el paquete entero.
 
-**El paquete se bloquea y el producto no.** Dos asociaciones simultáneas al mismo paquete se ordenan por el bloqueo del paso 3 —la segunda ve a la primera, y `RN-PM-044` se comprueba sobre el estado real—; el producto no se escribe, de modo que no hay nada que proteger en él. La unicidad por pareja tiene además su red en la clave primaria: si dos peticiones pasaran el paso 5 a la vez, el segundo `INSERT` muerde y se traduce al mismo `EX-005`.
+**El paquete se bloquea y el producto no.** Dos asociaciones simultáneas al mismo paquete se ordenan por el bloqueo del paso 3 —la segunda ve a la primera, y `RN-PM-046` se comprueba sobre el estado real—; el producto no se escribe, de modo que no hay nada que proteger en él. La unicidad por pareja tiene además su red en la clave primaria: si dos peticiones pasaran el paso 5 a la vez, el segundo `INSERT` muerde y se traduce al mismo `EX-005`.
 
 ## 9. Flujos alternativos
 
@@ -103,14 +105,14 @@ Meter un producto en un paquete **diciendo cuánto se rebaja** —un porcentaje 
 
 **Comportamiento:** se asocia igual. Es el estado en el que un paquete **se arma**: exigir que esté activo para meterle productos, cuando activarlo exige tener dos, sería un círculo.
 
-### FA-003 — El primer upgrade del paquete
+### FA-003 — El upgrade del paquete
 
-**Condición:** no hay todavía ningún upgrade dentro.
-**Comportamiento:** su origen **fija** el del paquete: los siguientes upgrades tendrán que coincidir con él. Los bots no fijan nada.
+**Condición:** el producto es un upgrade y no hay todavía ninguno dentro.
+**Comportamiento:** entra, y **ocupa el único sitio** de upgrade del paquete (`RN-PM-046`): el siguiente upgrade se rechaza, sea del origen que sea. Da igual si entra primero, en medio o al final de los bots. *(Hasta el 16-09-2026 «fijaba el origen» y los siguientes tenían que coincidir.)* Y su origen es, desde ese momento, **a quién se ofrece el paquete** (`RN-PM-044`).
 
 ### FA-004 — El producto es un bot
 
-**Comportamiento:** entra sin mirar orígenes (`RN-PM-044` es solo sobre upgrades).
+**Comportamiento:** entra sin mirar cuántos upgrades hay ni de dónde salen (`RN-PM-046` es solo sobre upgrades). Un paquete puede tener cuantos bots se quiera.
 
 ## 10. Excepciones
 
@@ -139,14 +141,16 @@ Meter un producto en un paquete **diciendo cuánto se rebaja** —un porcentaje 
 **Condición:** `FIJO` mayor que el precio del producto; o cualquier valor mayor que cero sobre un producto **gratuito**.
 **Respuesta del sistema:** `409` — *«El descuento supera el precio del producto (`49.00 USD`).»* Nombra el precio para que quien corrige no tenga que buscarlo. El porcentaje mayor que cien no llega aquí: es `VAL-003`.
 
-### EX-007 — El upgrade no comparte origen
+### EX-007 — El paquete ya tiene un upgrade
 
-**Condición:** el producto es un upgrade y su membresía de origen no es la de los upgrades ya asociados.
-**Respuesta del sistema:** `409` — *«Los upgrades de un paquete salen de la misma membresía: este sale de `PLATINO` y el paquete ya tiene upgrades desde `BECA`.»*
+**Condición:** el producto es un upgrade y el paquete ya tiene otro — **del origen y el destino que sean**.
+**Respuesta del sistema:** `409` — *«Un paquete lleva un solo upgrade, y este ya tiene `UPGRADE_BECA_ORO`. Quítelo antes de asociar otro.»* Nombra **el código** del que ya está, para que quien corrige no tenga que abrir el detalle.
 
-!!! danger "Por qué se rechaza aquí y no se resuelve en la oferta"
+*(Hasta el 16-09-2026 este código significaba «el upgrade no comparte origen» y nombraba las dos membresías. El código se conserva porque ocupa el mismo sitio del flujo —el paso 7— y protege lo mismo por un camino más corto: un paquete con dos upgrades de orígenes distintos es, antes que nada, un paquete con dos upgrades.)*
 
-    Un paquete con upgrades de dos orígenes **no se le puede ofrecer a nadie**: quien está en `BECA` no puede comprar el que sale de `PLATINO`, y al revés. Dejarlo asociar produciría un paquete perfectamente configurado que la oferta oculta siempre, sin que nada lo diga — el defecto que este catálogo llama «no falla, calla». Rechazarlo al asociar es el único sitio donde el error tiene a alguien delante.
+!!! danger "Por qué se rechaza aquí y no al activar ni al vender"
+
+    Dos upgrades en un paquete son **dos cambios de membresía vendidos a la vez a la misma persona**: uno pisaría al otro, o se aplicarían en un orden que nadie decidió, y quien pagó los dos recibiría uno. Rechazarlo al activar dejaría armar un paquete que nunca se podrá publicar, y el error saldría a quien activa y no a quien lo armó; rechazarlo al vender es el sitio donde ya hay dinero de por medio. Al asociar es el único sitio donde el error tiene a alguien delante — el mismo argumento que sostenía la comprobación de origen que esta regla reemplaza.
 
 ## 11. Validaciones
 
@@ -171,7 +175,7 @@ Meter un producto en un paquete **diciendo cuánto se rebaja** —un porcentaje 
 | `CA-PM-310` | El sistema rechaza con `409` un producto **inactivo** y uno **retirado**, distinguiéndolos del **inexistente**, que es `422` |
 | `CA-PM-311` | El sistema rechaza con `409` un producto en **otra moneda**, nombrando las dos |
 | `CA-PM-312` | El sistema rechaza con `409` el producto que **ya está** en el paquete, y dos asociaciones **simultáneas** del mismo producto dejan **una** fila y un `409` |
-| `CA-PM-313` | El sistema rechaza con `409` un upgrade cuyo **origen** no es el de los upgrades ya dentro, y admite bots sin mirar orígenes; el **primer** upgrade fija el origen |
+| `CA-PM-313` | **(Reescrito el 16-09-2026)** El sistema rechaza con `409` el **segundo upgrade** de un paquete —del **mismo** origen y de **otro**, nombrando el código del que ya está—, admite bots antes y después del upgrade sin mirar cuántos hay, y **quitado el upgrade entra otro**, del origen que sea |
 | `CA-PM-314` | El sistema asocia a un paquete **inactivo**, rechaza con `404` uno **retirado**, y registra una fila `CREATE` de `product_package_items` en `audit_change_log` |
 
 ## 13. Casos límite
@@ -180,8 +184,10 @@ Meter un producto en un paquete **diciendo cuánto se rebaja** —un porcentaje 
 |---|---|
 | El precio del producto **baja** después por debajo del fijo | El producto cuenta cero (`RN-PM-037`), nadie vuelve a comprobar. Es el hueco temporal declarado |
 | El producto se **desactiva** después | La fila permanece; el paquete deja de ofrecerse (`RN-PM-039`) y el detalle dice cuál lo detiene |
-| El paquete tiene solo bots y entra el primer upgrade | Fija el origen; los bots ya dentro no se ven afectados |
-| Se quita el único upgrade y entra otro de **otro** origen | Se admite: el origen del paquete lo fijan los upgrades **que hay**, no los que hubo |
+| El paquete tiene solo bots y entra el upgrade | Ocupa el único sitio de upgrade; los bots ya dentro no se ven afectados, y siguen entrando bots después |
+| Se quita el upgrade y entra otro de **otro** origen | Se admite: el sitio se libera (`RN-PM-046`), y a quién se ofrece el paquete lo decide el upgrade **que hay**, no el que hubo |
+| Dos upgrades del **mismo** origen hacia destinos distintos —`BECA → VIP` y `BECA → ORO`— | **Se rechaza el segundo** (desde el 16-09-2026). Hasta entonces se admitía y se dejaba a la venta decidir qué hacer con dos membresías sucesivas; ahora no hay nada que decidir |
+| Un paquete con un upgrade **inactivo** dentro, y entra otro upgrade | Se rechaza igual: el sitio lo ocupa la fila, no el estado del producto. Lo que procede es desasociar el inactivo (`RF-PM-025`) |
 | Un porcentaje de `100` | Se admite: el producto entra gratis dentro del paquete. Es exactamente lo que un «te regalamos el bot» necesita |
 | El mismo producto en **otro** paquete | Se admite con otro descuento: el descuento es del paquete (`RN-PM-038`) |
 | El producto tiene precio `0.00` y descuento `0` | Entra y suma cero. Un paquete puede regalar cosas |
@@ -190,7 +196,7 @@ Meter un producto en un paquete **diciendo cuánto se rebaja** —un porcentaje 
 
 | # | Pregunta | Resolución |
 |---|---|---|
-| 1 | ¿Un paquete puede tener **dos upgrades hacia destinos distintos** con el mismo origen —`BECA → VIP` y `BECA → ORO`—? | **Sí se puede asociar**, y queda escrito lo que significa: quien lo compre recibiría dos membresías sucesivas, y qué hace `MV` con eso es de la venta, que no existe. Rechazarlo aquí sería decidir por `MV`. Se anota como la primera pregunta que la venta del paquete tendrá que responder |
+| 1 | ¿Un paquete puede tener **dos upgrades hacia destinos distintos** con el mismo origen —`BECA → VIP` y `BECA → ORO`—? | **Resuelta el 16-09-2026 por el responsable del proyecto: no** (`RN-PM-046`). La resolución original del 15-09-2026 decía «sí se puede asociar, y qué hace `MV` con dos membresías sucesivas es de la venta, que no existe»; la decisión cierra la pregunta antes de que la venta exista y por el lado que no inventa nada: un paquete vende la membresía **una vez** |
 | 2 | ¿El descuento puede depender de quién compra? | **No.** Sería una promoción por persona, fuera del alcance desde el 26-08-2026 |
 | 3 | ¿Por qué el producto inexistente es `422` y el inactivo `409`? | El inexistente es un dato del cuerpo que no es de nada, como en `RF-CM-007`; el inactivo **existe** y choca con una regla. Distinguirlos aquí es correcto porque quien llama ve el catálogo entero; en la lista pública y en las reseñas no lo es, y por eso allí es un solo `404` |
 
@@ -200,3 +206,4 @@ Meter un producto en un paquete **diciendo cuánto se rebaja** —un porcentaje 
 |---|---|---|---|
 | 0.1.0 | 15-09-2026 | Redacción inicial. **Es la operación que define al paquete** y concentra cinco reglas. Las decisiones propias: **forma y valor obligatorios incluso en cero**, porque «sin rebaja» es una declaración; **el paquete se bloquea y el producto no**, con la clave primaria como red de la unicidad; **el primer upgrade fija el origen** y el que no coincide se rechaza **aquí** y no en la oferta, porque un paquete que nadie puede comprar es un defecto que calla; **el inactivo se distingue del inexistente** —`409` y `422`— porque quien llama ve el catálogo entero; y se devuelve el paquete entero, porque lo que cambió es su precio. Queda anotada la primera pregunta que la venta tendrá que responder: dos upgrades con el mismo origen y destinos distintos se pueden asociar. | Responsable técnico |
 | 0.2.0 | 15-09-2026 | **Construida** (`PackageProductsIT`, `PackageConcurrencyIT`, `DiscountValueTest`). Enmienda de Art. I.7 al construir, sobre el plan §7: la operación cuesta **siete** sentencias y no seis, porque **la moneda del paquete se lee por el puerto de `SP`** antes de validar la forma del descuento —sus decimales son los que acotan el fijo (`VAL-004`) y su código el que nombra la cota (`EX-006`)—. El registro de auditoría de la fila lleva como `entity_id` **el del paquete**, porque la fila no tiene identificador propio, y `product_id` va dentro. | Responsable técnico |
+| 0.3.0 | 16-09-2026 | **Un paquete lleva UN upgrade como máximo** ([`requirements/pm.md`](../../../requirements/pm.md) v0.38.0 §5.2.10, `RN-PM-046`), por decisión del responsable del proyecto. **`EX-007` cambia de significado** —«el paquete ya tiene un upgrade», y nombra el código del que está— y conserva su número porque ocupa el mismo paso del flujo y protege lo mismo por un camino más corto. **`RN-PM-044` deja de comprobarse aquí**: con un solo upgrade no hay orígenes que comparar, y la regla queda como la lectura de la oferta. `FA-003` pasa de «fija el origen» a «ocupa el único sitio»; `CA-PM-313` se reescribe —el segundo upgrade del mismo origen y de otro, los bots antes y después, el sitio que se libera—; §13 gana dos casos —dos upgrades del mismo origen, y el upgrade inactivo que sigue ocupando el sitio—; y la **pregunta 1 de §14 queda resuelta por la negativa**, donde el 15-09-2026 se había dejado a la venta. El flujo sigue costando siete sentencias: las hermanas ya se leían. | Responsable del proyecto |

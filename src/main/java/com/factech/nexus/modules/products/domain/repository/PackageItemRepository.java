@@ -26,7 +26,8 @@ public interface PackageItemRepository {
 
   /**
    * Lo que el caso de uso necesita de <b>las hermanas</b> para decidir en una sola lectura: si el
-   * producto ya está (`EX-005`) y de qué origen salen los upgrades que ya hay (`RN-PM-044`).
+   * producto ya está (`EX-005`) y si el paquete ya tiene su upgrade (`RN-PM-046`, `EX-007`). El
+   * código viaja para nombrarlo en el rechazo sin una lectura más.
    */
   List<Hermana> findSiblings(UUID packageId);
 
@@ -35,7 +36,12 @@ public interface PackageItemRepository {
   /** Vacía los cambios pendientes traduciendo la clave, para quien escribe sin {@link #save}. */
   void flush();
 
-  record Hermana(UUID productId, String productType, UUID sourceMembershipId, BigDecimal price) {
+  record Hermana(
+      UUID productId,
+      String productCode,
+      String productType,
+      UUID sourceMembershipId,
+      BigDecimal price) {
 
     public boolean esUpgrade() {
       return "UPGRADE_MEMBRESIA".equals(productType);

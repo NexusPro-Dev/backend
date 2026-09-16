@@ -86,21 +86,21 @@ class PackageConcurrencyIT extends IntegrationTestBase {
 
   @Test
   @DisplayName(
-      "`RN-PM-044` bajo carrera — dos upgrades de orígenes distintos a la vez: un 201 y un 409, y el"
-          + " bloqueo del paquete es lo que los ordena")
-  void dosOrigenesALaVez() throws Exception {
+      "`RN-PM-046` bajo carrera — dos upgrades a la vez, del MISMO origen: un 201 y un 409, y el"
+          + " bloqueo del paquete es lo que los ordena — la regla no tiene red en el esquema")
+  void dosUpgradesALaVez() throws Exception {
     Membresias m = PackageTestSupport.limpiarCatalogoYSembrarMembresias(jdbc);
     UUID paquete = PackageTestSupport.paquete(jdbc, "COMBO", "Descripción", "INACTIVO", "AMBOS");
-    UUID desdeBeca = PackageTestSupport.upgrade(jdbc, "UP_BECA", "100.00", m.beca(), m.platino());
-    UUID desdePlatino =
-        PackageTestSupport.upgrade(jdbc, "UP_PLATINO", "200.00", m.platino(), m.oro());
-    List<UUID> productos = List.of(desdeBeca, desdePlatino);
+    UUID haciaPlatino =
+        PackageTestSupport.upgrade(jdbc, "UP_BECA_PLATINO", "100.00", m.beca(), m.platino());
+    UUID haciaOro = PackageTestSupport.upgrade(jdbc, "UP_BECA_ORO", "200.00", m.beca(), m.oro());
+    List<UUID> productos = List.of(haciaPlatino, haciaOro);
 
     List<Outcome<Integer>> resultados =
         runTogether(2, indice -> estadoDe(asociar(paquete, productos.get(indice), "FIJO", "0")));
 
     assertThat(resultados).noneMatch(r -> r.succeeded() && r.value() >= 500);
-    assertThat(cuantasFilas()).as("solo uno de los dos orígenes puede quedar").isEqualTo(1);
+    assertThat(cuantasFilas()).as("solo un upgrade puede quedar").isEqualTo(1);
     assertThat(resultados.stream().filter(r -> r.succeeded() && r.value() == 409).count())
         .isEqualTo(1);
   }

@@ -59,7 +59,7 @@ public class JpaPackageItemRepository implements PackageItemRepository {
     List<Tuple> filas =
         em.createNativeQuery(
                 """
-                SELECT i.product_id AS product_id, p.type AS type,
+                SELECT i.product_id AS product_id, p.code AS code, p.type AS type,
                        p.source_membership_id AS source_membership_id, p.price AS price
                   FROM product_package_items i
                   JOIN products p ON p.id = i.product_id
@@ -74,6 +74,7 @@ public class JpaPackageItemRepository implements PackageItemRepository {
             fila ->
                 new Hermana(
                     (UUID) fila.get("product_id"),
+                    (String) fila.get("code"),
                     (String) fila.get("type"),
                     (UUID) fila.get("source_membership_id"),
                     (BigDecimal) fila.get("price")))

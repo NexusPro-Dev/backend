@@ -112,8 +112,10 @@ class PackageDissociationIT extends IntegrationTestBase {
   }
 
   @Test
-  @DisplayName("`CA-PM-325` — quitado el único upgrade, entra otro de OTRO origen")
-  void elOrigenQuedaLibre() throws Exception {
+  @DisplayName(
+      "`CA-PM-325` — quitado el upgrade, el sitio queda libre y entra otro, de OTRO origen también"
+          + " (`RN-PM-046`)")
+  void elSitioQuedaLibre() throws Exception {
     UUID desdeBeca =
         PackageTestSupport.upgrade(
             jdbc, "UP_BECA", "100.00", membresias.beca(), membresias.platino());
@@ -121,6 +123,7 @@ class PackageDissociationIT extends IntegrationTestBase {
         PackageTestSupport.upgrade(
             jdbc, "UP_PLATINO", "200.00", membresias.platino(), membresias.oro());
     mvc.perform(asociar(paquete, desdeBeca)).andExpect(status().isCreated());
+    // Mientras el sitio está ocupado, el segundo upgrade es EX-007 (RF-PM-023).
     mvc.perform(asociar(paquete, desdePlatino))
         .andExpect(status().isConflict())
         .andExpect(jsonPath("$.errors[0].code").value("EX-007"));

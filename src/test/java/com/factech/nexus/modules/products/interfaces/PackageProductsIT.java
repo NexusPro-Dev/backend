@@ -28,7 +28,8 @@ import org.springframework.test.web.servlet.request.MockHttpServletRequestBuilde
  * corregir el descuento (`RF-PM-024`) y desasociar (`RF-PM-025`).
  *
  * <p>Las dos pruebas que definen el requerimiento son <b>la del céntimo</b> —el fijo igual al
- * precio pasa y un céntimo más no— y <b>la del origen</b> —el primer upgrade fija el del paquete—.
+ * precio pasa y un céntimo más no— y <b>la del único upgrade</b> —el segundo se rechaza, sea del
+ * origen que sea (`RN-PM-046`, desde el 16-09-2026)—.
  */
 @AutoConfigureMockMvc
 class PackageProductsIT extends IntegrationTestBase {
@@ -235,36 +236,42 @@ class PackageProductsIT extends IntegrationTestBase {
 
   @Test
   @DisplayName(
-      "`CA-PM-313` — LA PRUEBA DEL ORIGEN: el primer upgrade fija; otro origen se rechaza nombrando"
-          + " los dos; un bot entra sin mirar; quitado el único upgrade, entra otro origen")
-  void laPruebaDelOrigen() throws Exception {
+      "`CA-PM-313` — LA PRUEBA DEL ÚNICO UPGRADE: el segundo se rechaza —del mismo origen y de"
+          + " otro— nombrando el que ya está; los bots entran antes y después; quitado el upgrade,"
+          + " entra otro del origen que sea")
+  void laPruebaDelUnicoUpgrade() throws Exception {
     UUID desdeBeca =
         PackageTestSupport.upgrade(
             jdbc, "UP_BECA_PLATINO", "100.00", membresias.beca(), membresias.platino());
-    UUID desdePlatino =
-        PackageTestSupport.upgrade(
-            jdbc, "UP_PLATINO_ORO", "200.00", membresias.platino(), membresias.oro());
     UUID otroDesdeBeca =
         PackageTestSupport.upgrade(
             jdbc, "UP_BECA_ORO", "300.00", membresias.beca(), membresias.oro());
+    UUID desdePlatino =
+        PackageTestSupport.upgrade(
+            jdbc, "UP_PLATINO_ORO", "200.00", membresias.platino(), membresias.oro());
     UUID bot = PackageTestSupport.bot(jdbc, "BOT_A", "10.00");
+    UUID otroBot = PackageTestSupport.bot(jdbc, "BOT_B", "20.00");
 
-    // Un bot primero: no fija nada.
+    // Un bot primero: no cuenta como upgrade.
     mvc.perform(asociar(paquete, bot, "FIJO", "0")).andExpect(status().isCreated());
-    // El primer upgrade fija BECA.
+    // El upgrade ocupa el único sitio.
     mvc.perform(asociar(paquete, desdeBeca, "FIJO", "0")).andExpect(status().isCreated());
-    // El de PLATINO no comparte origen.
+    // Otro del MISMO origen: hasta el 16-09-2026 entraba; hoy es el segundo upgrade.
+    mvc.perform(asociar(paquete, otroDesdeBeca, "PORCENTAJE", "5"))
+        .andExpect(status().isConflict())
+        .andExpect(jsonPath("$.errors[0].code").value("EX-007"))
+        .andExpect(jsonPath("$.detail").value(containsString("UP_BECA_PLATINO")));
+    // Y uno de OTRO origen recibe exactamente el mismo rechazo: el sitio está ocupado.
     mvc.perform(asociar(paquete, desdePlatino, "FIJO", "0"))
         .andExpect(status().isConflict())
         .andExpect(jsonPath("$.errors[0].code").value("EX-007"))
-        .andExpect(jsonPath("$.detail").value(containsString("PLATINO")))
-        .andExpect(jsonPath("$.detail").value(containsString("BECA")));
-    // Otro desde BECA sí, hacia donde sea.
-    mvc.perform(asociar(paquete, otroDesdeBeca, "PORCENTAJE", "5")).andExpect(status().isCreated());
+        .andExpect(jsonPath("$.detail").value(containsString("UP_BECA_PLATINO")));
+    // Los bots siguen entrando después del upgrade.
+    mvc.perform(asociar(paquete, otroBot, "PORCENTAJE", "10")).andExpect(status().isCreated());
+    assertThat(cuantasFilas()).isEqualTo(3);
 
-    // Quitados los dos upgrades de BECA, el origen queda libre (caso límite de §13).
-    jdbc.update(
-        "DELETE FROM product_package_items WHERE product_id IN (?, ?)", desdeBeca, otroDesdeBeca);
+    // Quitado el upgrade, el sitio queda libre y entra otro del origen que sea (§13).
+    jdbc.update("DELETE FROM product_package_items WHERE product_id = ?", desdeBeca);
     mvc.perform(asociar(paquete, desdePlatino, "FIJO", "0")).andExpect(status().isCreated());
   }
 

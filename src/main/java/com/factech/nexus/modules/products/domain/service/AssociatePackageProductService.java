@@ -13,7 +13,6 @@ import com.factech.nexus.modules.products.domain.repository.ProductPackageReposi
 import com.factech.nexus.modules.products.domain.repository.ProductRepository;
 import com.factech.nexus.modules.system.currencies.application.CurrencyCatalog;
 import com.factech.nexus.modules.system.currencies.application.CurrencyCatalog.CurrencyView;
-import com.factech.nexus.modules.system.memberships.application.MembershipCatalog;
 import com.factech.nexus.shared.audit.AuditEnums.ChangeAction;
 import com.factech.nexus.shared.audit.AuditEvents.ChangeEvent;
 import com.factech.nexus.shared.audit.AuditWriter;
@@ -34,8 +33,10 @@ import org.springframework.transaction.annotation.Transactional;
  *
  * <p><b>La operación que define al paquete</b>: siete verificaciones en fila, cada una con su
  * código. <b>El paquete se bloquea y el producto no</b>: dos asociaciones simultáneas al mismo
- * paquete se ordenan por el bloqueo, `RN-PM-044` se comprueba sobre el estado que dejó la primera,
- * y el producto no se escribe, de modo que no hay nada que proteger en él.
+ * paquete se ordenan por el bloqueo, `RN-PM-046` se comprueba sobre el estado que dejó la primera,
+ * y el producto no se escribe, de modo que no hay nada que proteger en él. Ese bloqueo es lo único
+ * que sostiene «un upgrade por paquete»: el tipo vive en `products`, y ningún índice de las filas
+ * puede mirarlo.
  *
  * <p><b>`EX-002` es `422` y `EX-003` es `409`, y el salto es deliberado</b>: el producto
  * inexistente es un dato del cuerpo que no resuelve —el trato de `RF-CM-007`—; el inactivo
@@ -51,7 +52,6 @@ public class AssociatePackageProductService {
   private final PackageItemRepository filas;
   private final ProductRepository productos;
   private final CurrencyCatalog monedas;
-  private final MembershipCatalog membresias;
   private final AuditWriter auditoria;
   private final PackageDetailReader detalle;
   private final Clock reloj;
@@ -62,10 +62,9 @@ public class AssociatePackageProductService {
       PackageItemRepository filas,
       ProductRepository productos,
       CurrencyCatalog monedas,
-      MembershipCatalog membresias,
       AuditWriter auditoria,
       PackageDetailReader detalle) {
-    this(paquetes, filas, productos, monedas, membresias, auditoria, detalle, Clock.systemUTC());
+    this(paquetes, filas, productos, monedas, auditoria, detalle, Clock.systemUTC());
   }
 
   AssociatePackageProductService(
@@ -73,7 +72,6 @@ public class AssociatePackageProductService {
       PackageItemRepository filas,
       ProductRepository productos,
       CurrencyCatalog monedas,
-      MembershipCatalog membresias,
       AuditWriter auditoria,
       PackageDetailReader detalle,
       Clock reloj) {
@@ -81,7 +79,6 @@ public class AssociatePackageProductService {
     this.filas = filas;
     this.productos = productos;
     this.monedas = monedas;
-    this.membresias = membresias;
     this.auditoria = auditoria;
     this.detalle = detalle;
     this.reloj = reloj;
@@ -119,7 +116,7 @@ public class AssociatePackageProductService {
     }
 
     // UNA sola lectura de las hermanas para dos preguntas: si ya está (`EX-005`)
-    // y de qué origen salen los upgrades que ya hay (`EX-007`).
+    // y si el paquete ya tiene su upgrade (`EX-007`).
     List<Hermana> hermanas = filas.findSiblings(paquete.getId());
     if (hermanas.stream().anyMatch(h -> h.productId().equals(producto.getId()))) {
       String mensaje =
@@ -132,7 +129,7 @@ public class AssociatePackageProductService {
     descuento.verificarCota(producto.getPrice(), moneda.code(), "EX-006");
 
     if (producto.getType().exigeDestino()) {
-      verificarOrigen(producto, hermanas);
+      verificarUnicoUpgrade(hermanas);
     }
 
     PackageItem fila =
@@ -156,27 +153,21 @@ public class AssociatePackageProductService {
   }
 
   /**
-   * `RN-PM-044`: todos los upgrades del paquete salen de la misma membresía. El primero fija el
-   * origen; los bots no fijan nada ni lo miran (`FA-003`, `FA-004`).
+   * `RN-PM-046`: un paquete lleva UN upgrade como máximo. El que ya está ocupa el sitio, sea del
+   * origen y el destino que sea —también si hoy está inactivo: el sitio lo ocupa la fila—, y los
+   * bots no cuentan (`FA-003`, `FA-004`). Hasta el 16-09-2026 aquí se comparaban orígenes
+   * (`RN-PM-044`); con un solo upgrade no hay con qué comparar, y `EX-007` cambió de letra.
    */
-  private void verificarOrigen(Product producto, List<Hermana> hermanas) {
-    Hermana referencia = hermanas.stream().filter(Hermana::esUpgrade).findFirst().orElse(null);
-    if (referencia == null
-        || referencia.sourceMembershipId().equals(producto.getSourceMembershipId())) {
+  private static void verificarUnicoUpgrade(List<Hermana> hermanas) {
+    Hermana ocupante = hermanas.stream().filter(Hermana::esUpgrade).findFirst().orElse(null);
+    if (ocupante == null) {
       return;
     }
     String mensaje =
-        ("Los upgrades de un paquete salen de la misma membresía: este sale de %s y el paquete ya"
-                + " tiene upgrades desde %s.")
-            .formatted(
-                codigoDeMembresia(producto.getSourceMembershipId()),
-                codigoDeMembresia(referencia.sourceMembershipId()));
+        "Un paquete lleva un solo upgrade, y este ya tiene %s. Quítelo antes de asociar otro."
+            .formatted(ocupante.productCode());
     throw new BusinessRuleException(
         "EX-007", mensaje, List.of(new FieldError("productId", "EX-007", mensaje)));
-  }
-
-  private String codigoDeMembresia(UUID id) {
-    return membresias.find(id).map(m -> m.code()).orElse(String.valueOf(id));
   }
 
   private String codigoDeMoneda(UUID id) {
