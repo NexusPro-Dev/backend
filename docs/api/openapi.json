@@ -1330,9 +1330,6 @@
       "MyMovement" : {
         "description" : "Un movimiento en el que participa quien consulta.",
         "properties" : {
-          "client" : {
-            "$ref" : "#/components/schemas/MyMovementParty"
-          },
           "code" : {
             "type" : "string"
           },
@@ -1361,16 +1358,22 @@
             "enum" : [ "BUYER", "SELLER", "BOTH" ],
             "type" : "string"
           },
-          "seller" : {
-            "$ref" : "#/components/schemas/MyMovementParty",
-            "description" : "A quién se atribuye. NULO cuando quien compró no cuelga de ningún vendedor.",
-            "type" : [ "object", "null" ]
+          "sellers" : {
+            "description" : "Los vendedores de sus líneas, sin repetir. Hoy una venta lleva uno; la lista va VACÍA —nunca nula— en los movimientos que no tienen vendedor.",
+            "items" : {
+              "$ref" : "#/components/schemas/MyMovementParty"
+            },
+            "type" : "array"
           },
           "status" : {
             "type" : "string"
           },
           "totalAmount" : {
             "type" : "number"
+          },
+          "user" : {
+            "$ref" : "#/components/schemas/MyMovementParty",
+            "description" : "El SUJETO del movimiento: a nombre de quién es. En una venta, quien compra."
           }
         },
         "type" : "object"
@@ -2993,10 +2996,6 @@
       },
       "RegisterSaleRequest" : {
         "properties" : {
-          "clientId" : {
-            "format" : "uuid",
-            "type" : "string"
-          },
           "lines" : {
             "items" : {
               "$ref" : "#/components/schemas/SaleLineRequest"
@@ -3011,9 +3010,13 @@
           "paymentMethodId" : {
             "format" : "uuid",
             "type" : "string"
+          },
+          "userId" : {
+            "format" : "uuid",
+            "type" : "string"
           }
         },
-        "required" : [ "clientId", "lines" ],
+        "required" : [ "lines", "userId" ],
         "type" : "object"
       },
       "RegisterUserCommissionRateRequest" : {
@@ -3377,6 +3380,11 @@
             "format" : "int32",
             "type" : "integer"
           },
+          "seller" : {
+            "$ref" : "#/components/schemas/SaleParty",
+            "description" : "A quién se atribuye ESTA línea, y a quién se le creará la comisión por ella. En una venta nunca es nulo: quien compra sin colgar de nadie es su propio vendedor. NULO solo en los tipos de movimiento que no venden nada.",
+            "type" : [ "object", "null" ]
+          },
           "unitPrice" : {
             "type" : "number"
           },
@@ -3404,9 +3412,6 @@
       },
       "SaleResponse" : {
         "properties" : {
-          "client" : {
-            "$ref" : "#/components/schemas/SaleParty"
-          },
           "code" : {
             "type" : "string"
           },
@@ -3425,6 +3430,7 @@
             "type" : "string"
           },
           "lines" : {
+            "description" : "Las líneas, cada una con el vendedor al que se atribuye.",
             "items" : {
               "$ref" : "#/components/schemas/SaleLineResponse"
             },
@@ -3440,16 +3446,15 @@
           "paymentMethod" : {
             "type" : "string"
           },
-          "seller" : {
-            "$ref" : "#/components/schemas/SaleParty",
-            "description" : "A quién se atribuye la venta. NULO cuando quien compra no cuelga de ningún vendedor — un agente, o la cúspide de la fuerza comercial. Esa venta NO comisiona a nadie.",
-            "type" : [ "object", "null" ]
-          },
           "status" : {
             "type" : "string"
           },
           "totalAmount" : {
             "type" : "number"
+          },
+          "user" : {
+            "$ref" : "#/components/schemas/SaleParty",
+            "description" : "El SUJETO del movimiento: a nombre de quién es. En una venta, quien compra. Nunca quien la registró desde oficina."
           }
         },
         "type" : "object"
@@ -6157,7 +6162,7 @@
     },
     "/api/v1/movements" : {
       "post" : {
-        "description" : "Deja constancia de **qué le vendió la empresa a un cliente**, como un hecho que\n**todavía no está pagado**.\n\n**La venta nace `PENDIENTE`, y eso significa que no concede nada.** No sube de\nnivel a nadie, no habilita ninguna cuenta y no comisiona: registrar una venta\n**no cambia absolutamente nada fuera de este módulo**. Confirmarla es otra\noperación.\n\n**El precio no se envía: se toma del catálogo.** Se indica qué productos y\ncuántos, nunca cuánto cuestan — un precio que llegara en la petición sería un\ndescuento sin autorización y sin rastro. Tampoco se envían la moneda, la\nvigencia ni el vendedor: la moneda y la vigencia salen del producto, y **el\nvendedor sale del cliente** y se congela en la venta.\n\n**Lo copiado queda congelado.** Corregir mañana el precio de un producto, o\nreasignar el cliente a otro agente, no cambia lo que se vendió hoy.\n\nReglas de composición: **como mucho un upgrade** por venta y con cantidad uno,\nsin productos repetidos y todas las líneas en la misma moneda.\n",
+        "description" : "Deja constancia de **qué le vendió la empresa a alguien**, como un hecho que\n**todavía no está pagado**. `userId` es **a nombre de quién** es la venta —quien\ncompra—, nunca quien la registra desde oficina.\n\n**La venta nace `PENDIENTE`, y eso significa que no concede nada.** No sube de\nnivel a nadie, no habilita ninguna cuenta y no comisiona: registrar una venta\n**no cambia absolutamente nada fuera de este módulo**. Confirmarla es otra\noperación.\n\n**El precio no se envía: se toma del catálogo.** Se indica qué productos y\ncuántos, nunca cuánto cuestan — un precio que llegara en la petición sería un\ndescuento sin autorización y sin rastro. Tampoco se envían la moneda, la\nvigencia ni el vendedor: la moneda y la vigencia salen del producto, y **el\nvendedor sale de quien compra** —su superior vigente, o **él mismo** si no cuelga\nde nadie— y se congela **en cada línea** (`lines[].seller`). En una venta ninguna\nlínea viene sin vendedor.\n\n**Lo copiado queda congelado.** Corregir mañana el precio de un producto, o\nreasignar al comprador a otro agente, no cambia lo que se vendió hoy.\n\nReglas de composición: **como mucho un upgrade** por venta y con cantidad uno,\nsin productos repetidos y todas las líneas en la misma moneda.\n",
         "operationId" : "registrar_3",
         "requestBody" : {
           "content" : {
@@ -6181,16 +6186,16 @@
             "description" : "Venta registrada, pendiente de pago."
           },
           "400" : {
-            "description" : "Lo que se ve mirando la petición: falta el cliente o el método de pago, no hay líneas, la cantidad no es positiva, un producto se repite, o la fecha del hecho está en el futuro."
+            "description" : "Lo que se ve mirando la petición: falta el comprador o el método de pago, no hay líneas, la cantidad no es positiva, un producto se repite, o la fecha del hecho está en el futuro."
           },
           "403" : {
             "description" : "Sin el permiso `movements:create`."
           },
           "409" : {
-            "description" : "Lo que solo se sabe después de resolver: la cuenta no puede operar todavía, el cliente no cuelga de ningún vendedor, un producto no está en su oferta, el upgrade BAJA de nivel —renovar el mismo sí se admite—, hay dos upgrades, las monedas difieren, o el método de pago está desactivado."
+            "description" : "Lo que solo se sabe después de resolver: la cuenta no puede operar todavía, un producto no está en su oferta, el upgrade BAJA de nivel —renovar el mismo sí se admite—, hay dos upgrades, las monedas difieren, o el método de pago está desactivado."
           },
           "422" : {
-            "description" : "Un dato bien formado que no resuelve: el cliente, un producto o el método de pago no existen."
+            "description" : "Un dato bien formado que no resuelve: el comprador, un producto o el método de pago no existen."
           }
         },
         "summary" : "Registrar una venta a nombre de un cliente",
@@ -6199,7 +6204,7 @@
     },
     "/api/v1/movements/mine" : {
       "get" : {
-        "description" : "Devuelve **los movimientos en los que usted participó**, paginados y del más\nreciente al más antiguo.\n\n**«Propio» son DOS papeles.** Un movimiento lleva a quien recibe lo comprado y a\nquien lo vendió, y usted puede ser cualquiera de los dos — o **los dos a la vez**,\nsi compró para sí mismo algo que se le atribuye. Cada movimiento dice en qué papel\naparece usted con `role`: `BUYER`, `SELLER` o `BOTH`. El que es las dos cosas\n**aparece una sola vez**.\n\n**No hay forma de preguntar por otra persona**, ni indicándola ni teniendo\npermisos: quien pregunta sale de la credencial. Consultar las ventas de terceros es\notra operación, con su permiso.\n\n**Las líneas no viajan aquí.** Una venta puede llevar varias, y meterlas\nmultiplicaría la respuesta por un dato que solo se mira al abrir uno: están en el\ndetalle.\n\n**El vendedor puede ser nulo**, y viaja igual: es el caso normal de quien no cuelga\nde ningún vendedor.\n\nEl orden es fijo y no se puede cambiar. `status` filtra por estado.\n",
+        "description" : "Devuelve **los movimientos en los que usted participó**, paginados y del más\nreciente al más antiguo.\n\n**«Propio» son DOS papeles.** Un movimiento lleva a su sujeto —`user`, a nombre de\nquién es— y a los vendedores de sus líneas —`sellers`—, y usted puede ser cualquiera\nde los dos — o **los dos a la vez**, si compró algo que se le atribuye, que es lo\nque ocurre siempre que compra quien no cuelga de nadie. Cada movimiento dice en qué\npapel aparece usted con `role`: `BUYER`, `SELLER` o `BOTH`. El que es las dos\ncosas **aparece una sola vez**.\n\n**No hay forma de preguntar por otra persona**, ni indicándola ni teniendo\npermisos: quien pregunta sale de la credencial. Consultar las ventas de terceros es\notra operación, con su permiso.\n\n**Las líneas no viajan aquí.** Una venta puede llevar varias, y meterlas\nmultiplicaría la respuesta por un dato que solo se mira al abrir uno: están en el\ndetalle.\n\n**`sellers` es una lista, sin repetir y nunca nula**: el vendedor es de cada línea y\nuna venta podría llevar varios. Hoy lleva uno. Va **vacía** en los movimientos que\nno tienen vendedor, que no es el caso de ninguna venta.\n\nEl orden es fijo y no se puede cambiar. `status` filtra por estado.\n",
         "operationId" : "mios",
         "parameters" : [ {
           "in" : "query",

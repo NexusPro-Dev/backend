@@ -1,5 +1,6 @@
 package com.factech.nexus.modules.movements.interfaces;
 
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.user;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
@@ -49,7 +50,11 @@ class MyMovementsIT extends IntegrationTestBase {
   /** La que el vendedor se compró a sí mismo: es cliente Y vendedor. */
   private UUID propia;
 
-  /** Una en la que no participa ninguno de los dos. */
+  /**
+   * Una en la que no participa ninguno de los dos, y SIN vendedor en su línea. Ninguna venta se
+   * registra así desde el 16-09-2026 (`RN-MV-003`); se siembra en crudo porque es la forma que
+   * tendrán los tipos de movimiento que no venden nada, y `FA-003` la declara.
+   */
   private UUID deOtros;
 
   @BeforeEach
@@ -138,15 +143,20 @@ class MyMovementsIT extends IntegrationTestBase {
   // ---------------------------------------------------------------------------
 
   @Test
-  @DisplayName("CA-MV-040 y CA-MV-043 — va envuelto, y trae las dos partes")
+  @DisplayName("CA-MV-040 y CA-MV-043 — va envuelto, y trae al sujeto y a sus vendedores")
   void formaDeLaFila() throws Exception {
     mvc.perform(get("/api/v1/movements/mine").with(como(cliente)))
         .andExpect(status().isOk())
         .andExpect(jsonPath("$.page").value(0))
         .andExpect(jsonPath("$.size").isNumber())
         .andExpect(jsonPath("$.totalPages").value(1))
-        .andExpect(jsonPath("$.content[0].client.username").value("mine-cliente"))
-        .andExpect(jsonPath("$.content[0].seller.username").value("mine-vendedor"))
+        .andExpect(jsonPath("$.content[0].user.username").value("mine-cliente"))
+        // Los vendedores son de las líneas y van SIN REPETIR: una lista, porque
+        // una venta podría llevar varios. Hoy lleva uno.
+        .andExpect(jsonPath("$.content[0].sellers.length()").value(1))
+        .andExpect(jsonPath("$.content[0].sellers[0].username").value("mine-vendedor"))
+        .andExpect(jsonPath("$.content[0].client").doesNotExist())
+        .andExpect(jsonPath("$.content[0].seller").doesNotExist())
         .andExpect(jsonPath("$.content[0].currency.code").value("USD"))
         .andExpect(jsonPath("$.content[0].paymentMethod").isNotEmpty())
         .andExpect(jsonPath("$.content[0].payableAmount").value(100.00))
@@ -155,14 +165,36 @@ class MyMovementsIT extends IntegrationTestBase {
   }
 
   @Test
-  @DisplayName("CA-MV-043 — el vendedor viaja NULO Y PRESENTE cuando no lo hay")
-  void ventaSinVendedor() throws Exception {
-    mvc.perform(get("/api/v1/movements/mine").with(como(ajeno)))
+  @DisplayName("CA-MV-043 — la lista de vendedores viaja VACÍA Y PRESENTE cuando no hay ninguno")
+  void movimientoSinVendedor() throws Exception {
+    String cuerpo =
+        mvc.perform(get("/api/v1/movements/mine").with(como(ajeno)))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.content[0].role").value("BUYER"))
+            .andExpect(jsonPath("$.content[0].sellers").isArray())
+            .andExpect(jsonPath("$.content[0].sellers").isEmpty())
+            .andReturn()
+            .getResponse()
+            .getContentAsString();
+
+    // EN CRUDO: «no hay vendedor» tiene que distinguirse de «este endpoint no
+    // informa del vendedor», y la lista vacía lo dice sin que nadie interprete
+    // un nulo. `isEmpty()` sobre un jsonPath pasaría también con la clave ausente.
+    assertThat(cuerpo).contains("\"sellers\":[]");
+  }
+
+  @Test
+  @DisplayName("CA-MV-037 — la venta con dos líneas del mismo vendedor cuenta UNA vez")
+  void variasLineasNoMultiplican() throws Exception {
+    // Es el caso que un JOIN con las líneas habría multiplicado: el EXISTS deja
+    // una fila por movimiento, y la lista de vendedores no repite.
+    segundaLinea(vendida, vendedor);
+
+    mvc.perform(get("/api/v1/movements/mine").with(como(vendedor)))
         .andExpect(status().isOk())
-        .andExpect(jsonPath("$.content[0].role").value("BUYER"))
-        // Presente y en nulo: «no hay vendedor» tiene que distinguirse de «este
-        // endpoint no informa del vendedor».
-        .andExpect(jsonPath("$.content[0].seller").value(org.hamcrest.Matchers.nullValue()));
+        .andExpect(jsonPath("$.totalElements").value(2))
+        .andExpect(jsonPath("$.content[1].id").value(vendida.toString()))
+        .andExpect(jsonPath("$.content[1].sellers.length()").value(1));
   }
 
   @Test
@@ -214,7 +246,10 @@ class MyMovementsIT extends IntegrationTestBase {
         .andExpect(jsonPath("$.lines[0].productCode").value("MINE_BOT"))
         .andExpect(jsonPath("$.lines[0].productName").value("Bot de prueba"))
         .andExpect(jsonPath("$.lines[0].quantity").value(1))
-        .andExpect(jsonPath("$.lines[0].unitPrice").value(100.00));
+        .andExpect(jsonPath("$.lines[0].unitPrice").value(100.00))
+        // El vendedor es de la línea (`RN-MV-003`), y el detalle lo trae ahí.
+        .andExpect(jsonPath("$.lines[0].seller.username").value("mine-vendedor"))
+        .andExpect(jsonPath("$.user.username").value("mine-cliente"));
   }
 
   @Test
@@ -320,17 +355,16 @@ class MyMovementsIT extends IntegrationTestBase {
     UUID id = UUID.randomUUID();
     jdbc.update(
         """
-        INSERT INTO movements (id, movement_type_id, client_id, seller_id, payment_method_id,
+        INSERT INTO movements (id, movement_type_id, user_id, payment_method_id,
                                currency_id, code, status, total_amount, discount_amount,
                                payable_amount, occurred_at, confirmed_at)
-        VALUES (?, CAST(? AS uuid), ?, ?, CAST(? AS uuid), CAST(? AS uuid), ?, ?,
+        VALUES (?, CAST(? AS uuid), ?, CAST(? AS uuid), CAST(? AS uuid), ?, ?,
                 100.00, 0, 100.00, CAST(? AS timestamptz),
                 CASE WHEN ? = 'CONFIRMADA' THEN CAST(? AS timestamptz) ELSE NULL END)
         """,
         id,
         VENTA,
         cliente,
-        vendedor,
         TARJETA,
         USD,
         "VTA-" + id.toString().substring(0, 8).toUpperCase(),
@@ -341,15 +375,34 @@ class MyMovementsIT extends IntegrationTestBase {
         estado,
         cuando.toString());
 
+    linea(id, producto, vendedor);
+    return id;
+  }
+
+  /** Una segunda línea, de otro producto, para el mismo vendedor. */
+  private void segundaLinea(UUID movimiento, UUID vendedor) {
+    UUID otro = UUID.randomUUID();
+    jdbc.update(
+        "INSERT INTO products (scope, implementation, id, code, type, name, description, source_membership_id,"
+            + " target_membership_id, price, currency_id, validity_days, status)"
+            + " VALUES ('TIENDA', 'MANUAL', ?, 'MINE_BOT_2', 'BOT', 'Otro bot', 'Producto de prueba', NULL,"
+            + " NULL, CAST(? AS numeric), CAST(? AS uuid), NULL, 'ACTIVO')",
+        otro,
+        "100.00",
+        USD);
+    linea(movimiento, otro, vendedor);
+  }
+
+  private void linea(UUID movimiento, UUID producto, UUID vendedor) {
     jdbc.update(
         """
-        INSERT INTO movement_details (id, movement_id, product_id, quantity, unit_price,
+        INSERT INTO movement_details (id, movement_id, product_id, seller_id, quantity, unit_price,
                                       line_amount, validity_days)
-        VALUES (?, ?, ?, 1, 100.00, 100.00, NULL)
+        VALUES (?, ?, ?, ?, 1, 100.00, 100.00, NULL)
         """,
         UUID.randomUUID(),
-        id,
-        producto);
-    return id;
+        movimiento,
+        producto,
+        vendedor);
   }
 }

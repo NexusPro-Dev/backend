@@ -24,12 +24,17 @@ import java.util.UUID;
  * campo enviado sino <b>las líneas entre sí</b>: si dos productos vienen en monedas distintas, no
  * hay ninguna venta posible que las contenga.
  *
- * <p><b>No hay vendedor.</b> Sale del cliente (`RN-MV-003`). Pedirlo permitiría atribuirse la venta
- * de otro, que es exactamente lo que congelarlo evita.
+ * <p><b>No hay vendedor.</b> Sale de quien compra (`RN-MV-003`) y se congela <b>en cada línea</b>.
+ * Pedirlo permitiría atribuirse la venta de otro, que es exactamente lo que congelarlo evita. Y
+ * siempre hay uno: quien no cuelga de nadie es su propio vendedor.
  *
  * <p><b>No hay estado.</b> Toda venta nace pendiente y no existe camino por el que esta operación
  * produzca otra cosa (`RN-MV-004`).
  *
+ * @param userId <b>el sujeto</b> de la venta (`RN-MV-026`): a nombre de quién se registra, que es
+ *     quien compra. Hasta el 16-09-2026 se llamó {@code clientId}, y cambió con la columna: este
+ *     endpoint es el libro entero, y en un depósito «cliente» sería un nombre falso. Nunca es quien
+ *     la registra desde oficina — eso va a la auditoría
  * @param occurredAt <b>el único campo opcional</b>, y existe por un caso real: un funcionario
  *     registra el lunes la venta que se cerró el sábado. Sin él, todo lo vendido llevaría la fecha
  *     en que alguien tuvo tiempo de teclearlo — y esa fecha es además <b>la que sale impresa en el
@@ -46,7 +51,7 @@ import java.util.UUID;
  *     cero».
  */
 public record RegisterSaleRequest(
-    @NotNull(message = "VAL-001: El cliente de la venta es obligatorio.") UUID clientId,
+    @NotNull(message = "VAL-001: El comprador de la venta es obligatorio.") UUID userId,
     UUID paymentMethodId,
     @NotEmpty(message = "VAL-003: Una venta debe llevar al menos un producto.") @Valid
         List<Line> lines,

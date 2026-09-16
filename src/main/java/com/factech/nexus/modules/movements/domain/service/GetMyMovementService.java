@@ -62,7 +62,16 @@ public class GetMyMovementService {
               linea.quantity(),
               linea.unitPrice(),
               linea.lineAmount(),
-              linea.validityDays()));
+              linea.validityDays(),
+              // Nulo solo en los tipos de movimiento que no venden nada; en una
+              // venta la línea siempre lo trae (`RN-MV-003`).
+              linea.sellerId() == null
+                  ? null
+                  : new SaleResponse.Party(
+                      linea.sellerId(),
+                      linea.sellerUsername(),
+                      ListMyMovementsService.nombreCompleto(
+                          linea.sellerFirstName(), linea.sellerLastName()))));
     }
 
     return new SaleResponse(
@@ -70,17 +79,10 @@ public class GetMyMovementService {
         cabecera.code(),
         cabecera.status(),
         new SaleResponse.Party(
-            cabecera.clientId(),
-            cabecera.clientUsername(),
+            cabecera.userId(),
+            cabecera.userUsername(),
             ListMyMovementsService.nombreCompleto(
-                cabecera.clientFirstName(), cabecera.clientLastName())),
-        cabecera.sellerId() == null
-            ? null
-            : new SaleResponse.Party(
-                cabecera.sellerId(),
-                cabecera.sellerUsername(),
-                ListMyMovementsService.nombreCompleto(
-                    cabecera.sellerFirstName(), cabecera.sellerLastName())),
+                cabecera.userFirstName(), cabecera.userLastName())),
         new SaleResponse.Money(cabecera.currencyId(), cabecera.currencyCode()),
         cabecera.paymentMethod(),
         lineas,

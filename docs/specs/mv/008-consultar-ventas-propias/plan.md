@@ -5,8 +5,9 @@
 | Requerimiento | `RF-MV-008` |
 | Especificación | [`spec.md`](spec.md) v0.1.0 |
 | `spec.md` aprobada el | 05-09-2026 |
-| Versión | 0.1.0 |
+| Versión | 0.2.0 |
 | Estado | **Aprobado** |
+| Enmendado el | 16-09-2026 — la mitad «lo que vendí» se resuelve por `movement_details.seller_id` (§2.1, §4.1) |
 | Autor | Responsable técnico |
 | Aprobado por | Responsable del proyecto |
 | Fecha de aprobación | 05-09-2026 |
@@ -44,6 +45,16 @@
 
 La migración es `V58__index_movements_por_participante.sql`.
 
+### 2.1 Desde el 16-09-2026 la segunda mitad está en otra tabla
+
+`V12` (`RF-MV-001` · `plan.md` §2.4) renombra `client_id` a `user_id` —con el índice, que pasa a `ix_movements_user`— y **retira `seller_id` de `movements`**: el vendedor es de la línea (`RN-MV-003`). Con él se va `ix_movements_seller`, y lo sustituye **`ix_movement_details_seller`** sobre `movement_details (seller_id, movement_id) WHERE seller_id IS NOT NULL` — parcial por lo mismo de antes, ahora porque los tipos de movimiento que no venden nada llevarán la columna en nulo.
+
+**La condición deja de ser un `OR` sobre dos columnas de la misma fila** y pasa a ser `m.user_id = ? OR EXISTS (SELECT 1 FROM movement_details d WHERE d.movement_id = m.id AND d.seller_id = ?)`. El `EXISTS` y no un `JOIN`: una venta con varias líneas del mismo vendedor **es un movimiento**, y un `JOIN` lo multiplicaría — que es exactamente lo que `FA-002` y `CA-MV-040` prohíben. El índice de la línea responde al `EXISTS` por su primera columna, y la segunda evita volver a la tabla para casar `movement_id`.
+
+**El papel se calcula igual, con el `EXISTS` dentro del `CASE`**: sujeto y vendedor de alguna línea → `BOTH`; solo sujeto → `BUYER`; solo vendedor → `SELLER`. El caso que se olvida sigue siendo `BOTH`, y desde hoy lo produce **toda compra de quien no cuelga de nadie**, que se vende a sí mismo.
+
+**Los vendedores del listado se leen aparte y sin repetir**: una segunda consulta por los movimientos de la página —`SELECT DISTINCT movement_id, seller_id …`— y no un agregado dentro de la primera, para que la sentencia paginada siga siendo la que era. Hoy cada venta trae uno.
+
 ---
 
 ## 3. Componentes afectados
@@ -51,7 +62,7 @@ La migración es `V58__index_movements_por_participante.sql`.
 | Capa | Componente | Cambio | Nota |
 |---|---|---|---|
 | `application` | `MyMovementsRequest` | Nuevo | Página, tamaño y estado. **No lleva identificador de persona**, y esa ausencia es el contrato |
-| `application` | `MyMovementResponse` | Nuevo | La fila del listado, con el papel y las dos partes |
+| `application` | `MyMovementResponse` | Nuevo | La fila del listado, con el papel, **el sujeto y sus vendedores** (desde el 16-09-2026; antes, las dos partes) |
 | `application` | `MovementRole` | Nuevo | `BUYER`, `SELLER`, `BOTH` |
 | `domain/repository` | `MovementRepository` | Modificado | Gana `findMine`, `countMine` y `findMineById` |
 | `domain/repository` | `JpaMovementRepository` | Modificado | Las tres sentencias |
@@ -84,13 +95,13 @@ Devuelve un `PageResponse` con las filas. Cada una:
 |---|---|---|
 | `id`, `code`, `status` | | |
 | `role` | `BUYER` \| `SELLER` \| `BOTH` | El papel de quien pregunta |
-| `client` | objeto | Identificador, nombre de usuario y nombre |
-| `seller` | objeto **o nulo** | Se declara nulable **a mano**, con `types = {"object","null"}` |
+| `user` | objeto | Identificador, nombre de usuario y nombre del **sujeto**. Hasta el 16-09-2026 se llamó `client` |
+| `sellers` | lista de objetos, **nunca nula** | Los vendedores de sus líneas, **sin repetir**. Vacía cuando el tipo de movimiento no vende nada. Hasta el 16-09-2026 fue `seller`, un objeto o nulo |
 | `currency`, `paymentMethod` | | |
 | `totalAmount`, `discountAmount`, `payableAmount` | | |
 | `occurredAt` | | |
 
-**La nulabilidad de `seller` se declara con `types` y no con `nullable`.** Es la trampa que `RF-MV-001` ya pisó y dejó escrita en `SaleResponse`: este contrato se publica como **OpenAPI 3.1**, donde `nullable` dejó de ser palabra clave y **springdoc la descarta en silencio** — la anotación se aplica, el contrato sale igual y nada avisa.
+**`sellers` es una lista y no un objeto nulable, y es a propósito.** `RN-MV-003` admite que las líneas de una venta lleven vendedores distintos, y un objeto obligaría a elegir uno o a mentir. La lista dice la verdad con un elemento hoy y con varios el día que exista el caso, y **vacía** dice «este movimiento no tiene vendedor» sin que ningún consumidor tenga que interpretar un nulo. La trampa de la nulabilidad —`types = {"object","null"}` y no `nullable`, porque este contrato es **OpenAPI 3.1** y springdoc descarta `nullable` en silencio— sigue viva en `SaleLineResponse.seller`, que es donde el nulo todavía significa algo.
 
 ### 4.2 El detalle
 
@@ -150,6 +161,8 @@ Devuelve un `SaleResponse`, idéntico al de `RF-MV-001`.
 | Calcular el papel en el cliente de la API | `spec.md` §6.2: acabaría escrito en cada consumidor, y distinto en cada uno |
 | Reutilizar `RF-MV-006` con un parámetro «solo lo mío» | Daría un endpoint con **dos modelos de seguridad** — el mismo argumento con el que §4.1 de `requirements/mv.md` separó registrar de comprar |
 | Devolver las líneas en el listado | Multiplica la respuesta por un dato que solo se mira al abrir uno |
+| **Un solo `seller` en la fila, el de la primera línea** (16-09-2026) | Elegiría uno cuando puede haber varios, y el consumidor no sabría que hay más. La lista sin repetir cuesta una consulta por página y no miente |
+| **`JOIN` con las líneas en la sentencia paginada** (16-09-2026) | Multiplica el movimiento por sus líneas y rompe `CA-MV-040`. El `EXISTS` deja una fila por movimiento |
 
 ---
 
@@ -159,7 +172,7 @@ Devuelve un `SaleResponse`, idéntico al de `RF-MV-001`.
 |---|---|
 | **Que el alcance se escape** — el defecto que importa | El filtro va en la sentencia; `CA-MV-038` lo ejercita con el permiso de administración puesto |
 | Que `/mine` sea capturado por `/{id}` cuando exista `RF-MV-007` | Prueba propia, como la de `/available` en `RF-PM-007` |
-| Recorrido secuencial de `movements` al crecer | Los dos índices de §2. El síntoma sería lentitud y no un fallo |
+| Recorrido secuencial de `movements` al crecer | Los dos índices de §2 — desde el 16-09-2026, `ix_movements_user` e `ix_movement_details_seller` (§2.1). El síntoma sería lentitud y no un fallo |
 | Que el papel salga mal cuando alguien es las dos cosas | `CA-MV-037` lo fija, y es el caso que se olvida al escribir el `CASE` |
 
 ---

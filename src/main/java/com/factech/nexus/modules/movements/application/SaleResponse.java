@@ -8,22 +8,29 @@ import java.math.BigDecimal;
 import java.time.OffsetDateTime;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 
 /**
  * La venta registrada (`RF-MV-001` · §6.2).
  *
- * <h2>El vendedor se devuelve siempre que lo haya, y no es un adorno</h2>
+ * <h2>La cabecera lleva UN sujeto, y el vendedor va en cada línea</h2>
  *
- * <p>Quien registra la venta <b>no lo eligió</b>: sale de quien compra y se congela (`RN-MV-003`).
- * Esta respuesta es el único momento en que puede ver a quién acaba de atribuirse lo que vendió — y
- * si es el equivocado, el problema está en la estructura comercial y no en esta venta.
+ * <p>{@code user} es <b>a nombre de quién</b> es el movimiento (`RN-MV-026`): en una venta, quien
+ * compra. Hasta el 16-09-2026 se llamó {@code client}, y el nombre cambió con la columna: este
+ * objeto es el del libro entero, y en un depósito o en una comisión «cliente» sería un nombre
+ * falso.
  *
- * <p><b>Desde el 04-09-2026 puede venir en nulo</b>, cuando quien compra no cuelga de nadie. Y
- * viaja <b>en nulo y no ausente</b>: por eso este registro lleva {@code @JsonInclude(ALWAYS)} y se
- * aparta del {@code non_null} global de {@code application.yml}. La diferencia entre «esta venta no
- * tiene vendedor» y «esta respuesta no lo trae» es exactamente la que decide si alguien va a cobrar
- * por ella, y colapsarla dejaría a cada consumidor adivinando.
+ * <p>El vendedor <b>se devuelve en cada línea</b> ({@link SaleLineResponse#seller()}), y no es un
+ * adorno: quien registra la venta <b>no lo eligió</b> —sale de quien compra y se congela,
+ * `RN-MV-003`— y esta respuesta es el único momento en que puede ver a quién acaba de atribuirse lo
+ * que vendió. Va en la línea porque la comisión se devenga por línea y porque cada una puede tener
+ * el suyo; hoy todas las de una venta llevan el mismo.
+ *
+ * <p><b>En una venta nunca viene en nulo</b>: quien no cuelga de nadie es su propio vendedor. La
+ * clave se declara nulable de todos modos, porque el contrato es del libro y no de la venta, y un
+ * depósito la llevará vacía. Y viaja <b>en nulo y no ausente</b>: por eso este registro lleva
+ * {@code @JsonInclude(ALWAYS)} y se aparta del {@code non_null} global de {@code application.yml}.
  *
  * <h2>El descuento se devuelve aunque valga siempre cero</h2>
  *
@@ -39,63 +46,46 @@ public record SaleResponse(
     UUID id,
     String code,
     String status,
-    Party client,
-    // LA NULABILIDAD SE DECLARA A MANO, y hay que hacerlo: springdoc no la
-    // deduce. Un campo de un `record` sale como un `$ref` pelado —sin
-    // `required` y sin tipo—, de modo que el contrato publicado NO DIRÍA que
-    // esta venta puede no tener vendedor, y el cliente generado lo trataría
-    // como «puede no venir», que es otra cosa. Sin esto, un cambio de
-    // comportamiento quedaría acordado fuera del contrato — Art. VIII.7.
-    //
-    // Y se declara con `types` y no con `nullable`, que es lo que uno escribe
-    // primero: este contrato se publica como OPENAPI 3.1, donde `nullable`
-    // DEJÓ DE SER UNA PALABRA CLAVE y springdoc la descarta EN SILENCIO. La
-    // anotación se aplicaba, el contrato salía igual, y nada avisaba.
     @Schema(
-            types = {"object", "null"},
             description =
-                "A quién se atribuye la venta. NULO cuando quien compra no cuelga de ningún"
-                    + " vendedor — un agente, o la cúspide de la fuerza comercial. Esa venta NO"
-                    + " comisiona a nadie.")
-        Party seller,
+                "El SUJETO del movimiento: a nombre de quién es. En una venta, quien compra."
+                    + " Nunca quien la registró desde oficina.")
+        Party user,
     Money currency,
     String paymentMethod,
-    List<SaleLineResponse> lines,
+    @Schema(description = "Las líneas, cada una con el vendedor al que se atribuye.")
+        List<SaleLineResponse> lines,
     BigDecimal totalAmount,
     BigDecimal discountAmount,
     BigDecimal payableAmount,
     OffsetDateTime occurredAt,
     OffsetDateTime createdAt) {
 
-  /**
-   * Una persona de la venta, <b>resuelta</b>.
-   *
-   * <p>Con su nombre y no solo su identificador: quien mira una venta necesita saber a quién se le
-   * vendió y a quién se le atribuye, y devolver dos {@code uuid} obligaría a una consulta más para
-   * responder a la pregunta que la operación acaba de contestar.
-   */
   @Schema(name = "SaleParty")
   public record Party(UUID id, String username, String name) {}
 
-  /** La moneda de la venta, resuelta. Es una sola para toda ella (`RN-MV-012`). */
   @Schema(name = "SaleCurrency")
   public record Money(UUID id, String code) {}
 
-  /** Arma la respuesta a partir del agregado y de lo que se resolvió para construirlo. */
+  /**
+   * @param vendedores los vendedores de las líneas, por identificador. Los resuelve el caso de uso,
+   *     que es quien tiene el catálogo de personas; aquí solo se casan con cada línea
+   */
   public static SaleResponse de(
-      Movement venta, Party cliente, Party vendedor, Money moneda, String metodoDePago) {
-
+      Movement venta,
+      Party sujeto,
+      Map<UUID, Party> vendedores,
+      Money moneda,
+      String metodoDePago) {
     List<SaleLineResponse> lineas = new ArrayList<>(venta.getLines().size());
     for (MovementLine linea : venta.getLines()) {
-      lineas.add(SaleLineResponse.de(linea));
+      lineas.add(SaleLineResponse.de(linea, vendedores.get(linea.getSellerId())));
     }
-
     return new SaleResponse(
         venta.getId(),
         venta.getCode(),
         venta.getStatus().name(),
-        cliente,
-        vendedor,
+        sujeto,
         moneda,
         metodoDePago,
         lineas,

@@ -40,7 +40,7 @@ public interface RegistrationSaleRegistrar {
    *     pueda decir qué quedó anotado
    */
   String registerSale(
-      UUID clientId,
+      UUID userId,
       UUID productId,
       UUID paymentMethodId,
       String movementTypeCode,

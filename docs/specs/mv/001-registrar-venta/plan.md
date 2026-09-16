@@ -5,8 +5,9 @@
 | Requerimiento | `RF-MV-001` |
 | Especificación | [`spec.md`](spec.md) |
 | `spec.md` aprobada el | 02-09-2026 |
-| Versión | 0.2.0 |
+| Versión | 0.3.0 |
 | Estado | **Aprobado** |
+| Enmendado el | 16-09-2026 — `V12`: `user_id` en la cabecera, `seller_id` en cada línea (§2.4) |
 | Autor | Responsable técnico |
 | Aprobado por | Responsable del proyecto |
 | Fecha de aprobación | 02-09-2026 |
@@ -25,7 +26,7 @@ Este plan **funda la mecánica del módulo** y los demás la heredan sin repetir
 
 Un alta con **muchas verificaciones contra dos módulos ajenos** y ninguna comprobación de concurrencia.
 
-Lo que este plan tiene que explicar no es el `INSERT` —que es corriente— sino tres cosas: **de dónde salen los datos que la petición no envía** (precio, vigencia, moneda y vendedor), **cómo se pregunta por la oferta sin volver a calcularla aquí**, y **por qué esta operación no bloquea nada** pese a que dos peticiones simultáneas puedan vender dos veces el mismo upgrade.
+Lo que este plan tiene que explicar no es el `INSERT` —que es corriente— sino tres cosas: **de dónde salen los datos que la petición no envía** (precio, vigencia, moneda y vendedor **de cada línea**), **cómo se pregunta por la oferta sin volver a calcularla aquí**, y **por qué esta operación no bloquea nada** pese a que dos peticiones simultáneas puedan vender dos veces el mismo upgrade.
 
 ## 2. Cambios de esquema
 
@@ -58,7 +59,7 @@ Su forma la fija [`requirements/mv.md` §7](../../../requirements/mv.md) y no se
 | `movements` | **Sin `updated_at` ni `deleted_at`** (`RN-MV-001`). Es la única tabla del sistema que no los lleva, y por eso el gestor de auditoría de la aplicación no puede tratarla como a las demás |
 | `movement_details` | Clave foránea a `movements` **con borrado en cascada**, que aquí no significa nada porque nada borra ventas: está para que el esquema no admita líneas huérfanas |
 
-**Los índices que se crean son dos y solo dos**: `movement_details(movement_id)` —que se recorre siempre entero al leer una venta— y `movements(client_id)`, que es el filtro de `RF-MV-008`. El resto se añadirá cuando `RF-MV-006` decida por qué se lista.
+**Los índices que se crean son dos y solo dos**: `movement_details(movement_id)` —que se recorre siempre entero al leer una venta— y `movements(client_id)`, que es el filtro de `RF-MV-008`. El resto se añadirá cuando `RF-MV-006` decida por qué se lista. **Desde el 16-09-2026 el segundo es `movements(user_id)`** (§2.4).
 
 ### 2.2 Los permisos, en su propia migración y solo para `SUPERADMIN`
 
@@ -71,6 +72,21 @@ Su forma la fija [`requirements/mv.md` §7](../../../requirements/mv.md) y no se
 ### 2.3 `ck_movements_confirmed` se declara ahora aunque la use `RF-MV-003`
 
 La restricción que ata `confirmed_at` al estado `CONFIRMADA` no la ejercita este requerimiento: aquí toda venta nace pendiente y con la fecha vacía. Se declara igual, porque **la coherencia entre una fecha y un estado es del esquema**, y añadirla después obligaría a comprobar antes que ninguna fila la incumpla ya.
+
+### 2.4 `V12`: la cabecera lleva un sujeto y el vendedor baja a la línea — 16-09-2026
+
+Enmienda del Art. I.7 sobre un requerimiento construido, por decisión del responsable del proyecto ([`requirements/mv.md`](../../../requirements/mv.md) v0.16.0: `RN-MV-026` nueva, `RN-MV-003` enmendada). **`V7` no se reescribe** —una migración aplicada no se toca, `modelo-datos.md` §5.4— y `V12__mv_sujeto_y_vendedor_por_linea.sql` lo enmienda:
+
+| Cambio | Cómo | Por qué así |
+|---|---|---|
+| `movements.client_id` → `movements.user_id` | `RENAME COLUMN`, con su FK y su índice renombrados (`fk_movements_user`, `ix_movements_user`) | Es la misma columna con el nombre correcto: **el sujeto** del movimiento, que en una venta es quien compra y mañana será quien deposita o quien cobra. Renombrar conserva las filas y los índices; borrar y crear obligaría a copiar |
+| `movements.seller_id` desaparece | `DROP COLUMN`, tras copiar su valor a las líneas | La cabecera **no puede** llevar al vendedor: una venta puede tener varios (`RN-MV-003`) y los tipos de movimiento que vienen no tienen ninguno |
+| `movement_details.seller_id` nace | `uuid NULL`, FK a `users` `ON DELETE RESTRICT`, índice **parcial** `(seller_id, movement_id) WHERE seller_id IS NOT NULL` | Nula **solo** por los tipos sin vendedor; en `VENTA` la exige el caso de uso. El índice sirve a la mitad «lo que vendí» de `RF-MV-008` y sustituye a `ix_movements_seller`, que se va con la columna |
+| Las filas que ya existen | `UPDATE movement_details d SET seller_id = COALESCE(m.seller_id, m.client_id) FROM movements m WHERE m.id = d.movement_id` **antes** del `DROP` | Ninguna venta pierde su atribución, y **ninguna línea de venta queda sin vendedor**: las que estaban sin él —posibles entre el 04-09 y el 16-09, y solo de quien no colgaba de nadie— reciben **al comprador**, que es exactamente lo que `RN-MV-003` dice hoy de esa persona. No es inventar una atribución: es la única que la regla admite para ese caso |
+
+**Lo que el esquema no puede sostener queda declarado**: «obligatorio en `VENTA`» exige mirar `movement_types`, y un `CHECK` no consulta otras tablas. Lo sostienen `RegisterSaleService` —que no construye una línea sin vendedor— y `MovementLine`, que no ofrece la forma de construirla sin él.
+
+**El orden de las sentencias importa y va en la migración**: renombrar, añadir la columna a la línea, copiar, borrar la de la cabecera. Copiar después de borrar no es posible, y borrar antes de copiar pierde la atribución de todo lo vendido hasta hoy.
 
 ## 3. Componentes afectados
 
@@ -128,7 +144,7 @@ Cuatro datos que la petición no trae, y **ninguno se calcula aquí** ([`archite
 
 | Estado | Cuándo |
 |---|---|
-| `400` | `VAL-001` a `VAL-007`: lo que se ve **mirando la petición** — falta el cliente, no hay líneas, cantidad no positiva, producto repetido, fecha futura |
+| `400` | `VAL-001` a `VAL-007`: lo que se ve **mirando la petición** — falta el comprador, no hay líneas, cantidad no positiva, producto repetido, fecha futura |
 | `403` | Sin el permiso `movements:create` |
 | `409` | Lo que solo se sabe **después de resolver**: cuenta en `FTD_PENDIENTE` (`EX-002`), producto fuera de la oferta (`EX-004`), upgrade que no sube (`EX-005`), dos upgrades (`EX-006`), monedas distintas (`EX-008`), cantidad en un upgrade (`EX-009`), método inactivo (`EX-010`) |
 | `422` | `EX-001`, `EX-011` y el método inexistente: un dato **bien formado que no resuelve** contra otro módulo |
@@ -136,6 +152,8 @@ Cuatro datos que la petición no trae, y **ninguno se calcula aquí** ([`archite
 **El criterio de reparto es el del proyecto, y aquí se aplica a rajatabla**: `400` es forma, `422` es referencia que no existe, `409` es conflicto con el estado del sistema. Lo que empuja tres excepciones al `409` que un lector pondría en `400` —dos upgrades, monedas distintas, cantidad en un upgrade— es que **ninguna de las tres se puede decidir sin haber leído el catálogo**: la petición es idéntica en forma a una correcta, y lo que la hace inválida es qué son esos productos.
 
 **El endpoint es `/movements` y no `/sales`**, aunque este requerimiento solo registre ventas. La tabla es el libro y los depósitos entran por aquí en la etapa 2; un recurso llamado `sales` obligaría a inventar otro para el mismo objeto o a renombrar el publicado.
+
+**Y desde el 16-09-2026 el cuerpo pide `userId` y la respuesta devuelve `user`, no `client`**, por el mismo argumento: el campo nombra **al sujeto** del movimiento (`RN-MV-026`), y `clientId` en un depósito o en una comisión sería un nombre falso sobre un endpoint que ya es el libro. **El vendedor se va de la cabecera de `SaleResponse` a cada `SaleLineResponse`** como `seller`, y en una venta nunca viaja en nulo; la anotación que lo declara nulable se conserva **porque el contrato es del libro y no de la venta**, y un depósito lo llevará vacío.
 
 ## 5. Autorización
 
@@ -145,7 +163,7 @@ Permiso `movements:create`, estrenado por `V51` (§2.2). Alcance global explíci
 
 ## 6. Auditoría
 
-Registro de **cambios**, acción de creación, con la instantánea completa: cliente, **vendedor congelado**, método, importes, código y las líneas con lo copiado.
+Registro de **cambios**, acción de creación, con la instantánea completa: sujeto (`user_id`), método, importes, código y las líneas con lo copiado **y el vendedor congelado de cada una**.
 
 **El vendedor tiene que estar en la instantánea**, y es lo único de esta sección que no es rutina: es un dato que el actor no envió y que determina **a quién se le va a pagar**. Sin él en el registro, la pregunta «¿por qué esta venta se le atribuyó a esta persona?» solo se puede responder reconstruyendo cómo estaba la estructura comercial ese día.
 
@@ -208,7 +226,8 @@ Registro de **cambios**, acción de creación, con la instantánea completa: cli
 | Qué | Nivel | Detalle |
 |---|---|---|
 | Alta de una venta, pendiente y con código | Integración | `CA-MV-001` |
-| **El vendedor resuelto** | Integración | `CA-MV-002`: el que el actor no envió |
+| **El vendedor resuelto en cada línea** | Integración | `CA-MV-002`: el que el actor no envió |
+| **La autoventa de quien no cuelga de nadie** | Integración | `CA-MV-017`: cada línea lleva como vendedor a quien compra |
 | **La copia sobrevive a corregir el producto** | Integración | `CA-MV-003`: se corrige el precio **después** y la venta no cambia. Comparar al registrar no probaría nada |
 | Totales y descuento cero | Integración | `CA-MV-004` |
 | Varias líneas, con y sin upgrade | Integración | `CA-MV-005` |

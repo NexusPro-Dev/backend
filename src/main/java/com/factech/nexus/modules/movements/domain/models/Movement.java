@@ -51,8 +51,7 @@ public final class Movement {
 
   private final UUID id;
   private final UUID movementTypeId;
-  private final UUID clientId;
-  private final UUID sellerId;
+  private final UUID userId;
   private final UUID paymentMethodId;
   private final UUID currencyId;
   private final MovementStatus status;
@@ -76,8 +75,7 @@ public final class Movement {
   private Movement(
       UUID id,
       UUID movementTypeId,
-      UUID clientId,
-      UUID sellerId,
+      UUID userId,
       UUID paymentMethodId,
       UUID currencyId,
       String code,
@@ -87,8 +85,7 @@ public final class Movement {
       OffsetDateTime createdAt) {
     this.id = id;
     this.movementTypeId = movementTypeId;
-    this.clientId = clientId;
-    this.sellerId = sellerId;
+    this.userId = userId;
     this.paymentMethodId = paymentMethodId;
     this.currencyId = currencyId;
     this.code = code;
@@ -124,18 +121,18 @@ public final class Movement {
    * ata al total y al descuento, y recibirlo permitiría escribir una fila que el esquema rechaza —
    * un error que aparecería en el {@code commit} y no aquí.
    *
-   * @param sellerId <b>puede ser nulo</b> desde el 04-09-2026 (`RN-MV-003`): quien compra sin
-   *     colgar de nadie compra igual, y la venta se registra sin atribución. Es un estado legítimo
-   *     y no un dato que falte — <b>lo que implica es que esa venta no comisiona a nadie</b>,
-   *     porque `RN-CM-011` recorre la cadena hacia arriba desde este punto
+   * @param userId <b>el sujeto</b> del movimiento (`RN-MV-026`): a nombre de quién ocurre, que en
+   *     una venta es quien compra. Desde el 16-09-2026 es la única persona de la cabecera — <b>el
+   *     vendedor va en cada línea</b> ({@link MovementLine}), porque puede haber varios y porque
+   *     los tipos de movimiento que vienen no tienen ninguno. Nunca es quien registró la operación
+   *     desde oficina: eso va a la auditoría (`RN-MV-003`)
    * @param lines al menos una (`RN-MV-009`). La comprobación vive aquí y no en el esquema porque un
    *     {@code CHECK} no puede contar filas de otra tabla
    * @param decimales los de la moneda de la venta (`RN-MV-014`)
    */
   public static Movement registrar(
       UUID movementTypeId,
-      UUID clientId,
-      UUID sellerId,
+      UUID userId,
       UUID paymentMethodId,
       UUID currencyId,
       String code,
@@ -153,8 +150,7 @@ public final class Movement {
     return new Movement(
         UUID.randomUUID(),
         movementTypeId,
-        clientId,
-        sellerId,
+        userId,
         paymentMethodId,
         currencyId,
         code,
@@ -179,21 +175,19 @@ public final class Movement {
    * <p>Si cada caso de uso armara su mapa, dos registros describirían la misma venta con claves
    * distintas y compararlos dejaría de ser posible. Es lo mismo que `PM` decidió.
    *
-   * <p><b>El vendedor tiene que estar aquí</b>, y es lo único de esta instantánea que no es rutina:
-   * es un dato que el actor no envió y que determina <b>a quién se le va a pagar</b>. Sin él, la
-   * pregunta «¿por qué esta venta se le atribuyó a esta persona?» solo se puede responder
-   * reconstruyendo cómo estaba la estructura comercial ese día — y `user_supervisors` conserva los
-   * tramos cerrados precisamente porque esa reconstrucción es cara.
+   * <p><b>El vendedor tiene que estar aquí, y está en cada línea</b>: es lo único de esta
+   * instantánea que no es rutina. Es un dato que el actor no envió y que determina <b>a quién se le
+   * va a pagar</b>. Sin él, la pregunta «¿por qué esta venta se le atribuyó a esta persona?» solo
+   * se puede responder reconstruyendo cómo estaba la estructura comercial ese día — y
+   * `user_supervisors` conserva los tramos cerrados precisamente porque esa reconstrucción es cara.
+   * Desde el 16-09-2026 la cabecera lleva {@code user_id} y ninguna clave de vendedor: la clave
+   * {@code seller_id} de cada línea es la que decide.
    */
   public Map<String, Object> instantanea() {
     Map<String, Object> datos = new LinkedHashMap<>();
     datos.put("code", code);
     datos.put("status", status.name());
-    datos.put("client_id", clientId.toString());
-    // La clave se escribe SIEMPRE, en nulo cuando no hay vendedor. Omitirla se
-    // leería como «esta versión no lo registraba», y aquí la diferencia decide
-    // si alguien va a cobrar por esta venta.
-    datos.put("seller_id", sellerId == null ? null : sellerId.toString());
+    datos.put("user_id", userId.toString());
     datos.put("payment_method_id", paymentMethodId.toString());
     datos.put("currency_id", currencyId.toString());
     datos.put("total_amount", totalAmount.toPlainString());
@@ -217,12 +211,8 @@ public final class Movement {
     return movementTypeId;
   }
 
-  public UUID getClientId() {
-    return clientId;
-  }
-
-  public UUID getSellerId() {
-    return sellerId;
+  public UUID getUserId() {
+    return userId;
   }
 
   public UUID getPaymentMethodId() {

@@ -119,13 +119,12 @@ class MovementCodeRetryIT extends IntegrationTestBase {
     return Movement.registrar(
         UUID.fromString(TIPO_VENTA),
         cliente,
-        vendedor,
         UUID.fromString(TARJETA),
         UUID.fromString(USD),
         codigo,
         List.of(
             MovementLine.copiarDe(
-                producto, "RTY_BOT", "Bot de prueba", 1, new BigDecimal("10.00"), null)),
+                producto, vendedor, "RTY_BOT", "Bot de prueba", 1, new BigDecimal("10.00"), null)),
         2,
         AHORA,
         AHORA);
@@ -138,16 +137,15 @@ class MovementCodeRetryIT extends IntegrationTestBase {
   private void insertarVentaCon(String codigo) {
     jdbc.update(
         """
-        INSERT INTO movements (id, movement_type_id, client_id, seller_id, payment_method_id,
+        INSERT INTO movements (id, movement_type_id, user_id, payment_method_id,
                                currency_id, code, status, total_amount, discount_amount,
                                payable_amount, occurred_at)
-        VALUES (CAST(? AS uuid), CAST(? AS uuid), CAST(? AS uuid), CAST(? AS uuid),
+        VALUES (CAST(? AS uuid), CAST(? AS uuid), CAST(? AS uuid),
                 CAST(? AS uuid), CAST(? AS uuid), ?, 'PENDIENTE', 10.00, 0, 10.00, ?)
         """,
         UUID.randomUUID().toString(),
         TIPO_VENTA,
         cliente.toString(),
-        vendedor.toString(),
         TARJETA,
         USD,
         codigo,

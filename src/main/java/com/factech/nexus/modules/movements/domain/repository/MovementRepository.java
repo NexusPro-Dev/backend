@@ -3,6 +3,7 @@ package com.factech.nexus.modules.movements.domain.repository;
 import com.factech.nexus.modules.movements.domain.models.Movement;
 import java.math.BigDecimal;
 import java.time.OffsetDateTime;
+import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
@@ -145,6 +146,16 @@ public interface MovementRepository {
   long countMine(UUID actorId, String status);
 
   /**
+   * Los vendedores de las líneas de esos movimientos, <b>sin repetir</b> por movimiento.
+   *
+   * <p>Es una segunda consulta por página y no un agregado dentro de {@link #findMine}, a
+   * propósito: la sentencia paginada devuelve <b>una fila por movimiento</b> y un {@code JOIN} con
+   * las líneas la multiplicaría. Hoy cada venta trae un vendedor; el día que las líneas difieran
+   * (`RN-MV-003`), esta lectura ya lo dice.
+   */
+  List<MovementSellerRow> findSellersOf(Collection<UUID> movementIds);
+
+  /**
    * El detalle de un movimiento propio, con sus líneas.
    *
    * <p><b>Devuelve vacío tanto si no existe como si es ajeno</b> (`EX-002`): quien llama no puede
@@ -157,22 +168,20 @@ public interface MovementRepository {
    * Una fila del listado propio, con el papel ya resuelto.
    *
    * <p><b>{@code role} llega calculado por el motor</b> y no por Java: el identificador de quien
-   * pregunta ya está atado a la consulta, y resolverlo fuera obligaría a arrastrar los dos
-   * identificadores de las partes solo para compararlos y descartarlos.
+   * pregunta ya está atado a la consulta, y resolverlo fuera obligaría a arrastrar el sujeto y los
+   * vendedores de las líneas solo para compararlos y descartarlos. Desde el 16-09-2026 el vendedor
+   * es de la línea (`RN-MV-003`) y la cabecera lleva solo al sujeto ({@code user_id}, `RN-MV-026`);
+   * los vendedores se piden aparte con {@link #findSellersOf}.
    */
   record MyMovementRow(
       UUID id,
       String code,
       String status,
       String role,
-      UUID clientId,
-      String clientUsername,
-      String clientFirstName,
-      String clientLastName,
-      UUID sellerId,
-      String sellerUsername,
-      String sellerFirstName,
-      String sellerLastName,
+      UUID userId,
+      String userUsername,
+      String userFirstName,
+      String userLastName,
       UUID currencyId,
       String currencyCode,
       String paymentMethod,
@@ -181,6 +190,10 @@ public interface MovementRepository {
       BigDecimal payableAmount,
       OffsetDateTime occurredAt,
       OffsetDateTime createdAt) {}
+
+  /** Un vendedor de las líneas de un movimiento. */
+  record MovementSellerRow(
+      UUID movementId, UUID sellerId, String username, String firstName, String lastName) {}
 
   /** La cabecera y sus líneas. */
   record MovementDetailView(MyMovementRow header, List<MovementLineRow> lines) {}
@@ -192,6 +205,9 @@ public interface MovementRepository {
    * que saberlo: `V54` no los congela — {@code movement_details} guarda el identificador, la
    * cantidad, el precio y la vigencia, y nada más. La consecuencia está declarada en `tasks.md` §3
    * y no se resuelve aquí: renombrar un producto cambia cómo se ve una venta pasada.
+   *
+   * <p><b>El vendedor sí es de la línea</b> (`RN-MV-003`, `V12`) y se lee de ella; nulo solo en los
+   * tipos de movimiento que no venden nada.
    */
   record MovementLineRow(
       UUID productId,
@@ -200,5 +216,9 @@ public interface MovementRepository {
       int quantity,
       BigDecimal unitPrice,
       BigDecimal lineAmount,
-      Integer validityDays) {}
+      Integer validityDays,
+      UUID sellerId,
+      String sellerUsername,
+      String sellerFirstName,
+      String sellerLastName) {}
 }

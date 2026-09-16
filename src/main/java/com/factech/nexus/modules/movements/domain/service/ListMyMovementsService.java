@@ -5,6 +5,7 @@ import com.factech.nexus.modules.movements.application.MyMovementResponse;
 import com.factech.nexus.modules.movements.application.MyMovementsRequest;
 import com.factech.nexus.modules.movements.domain.models.MovementStatus;
 import com.factech.nexus.modules.movements.domain.repository.MovementRepository;
+import com.factech.nexus.modules.movements.domain.repository.MovementRepository.MovementSellerRow;
 import com.factech.nexus.modules.movements.domain.repository.MovementRepository.MyMovementRow;
 import com.factech.nexus.modules.system.roles.application.AuthenticatedActor;
 import com.factech.nexus.shared.error.FieldError;
@@ -12,7 +13,10 @@ import com.factech.nexus.shared.error.ValidationException;
 import com.factech.nexus.shared.pagination.PageResponse;
 import com.factech.nexus.shared.pagination.Pagination;
 import java.util.ArrayList;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
+import java.util.UUID;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -54,9 +58,10 @@ public class ListMyMovementsService {
     // esto es el conjunto de UNA persona, no una tabla que crezca sin límite.
     long total = movimientos.countMine(actor.id(), estado);
 
+    Map<UUID, List<MyMovementResponse.Party>> vendedores = vendedoresDe(filas);
     List<MyMovementResponse> contenido = new ArrayList<>(filas.size());
     for (MyMovementRow fila : filas) {
-      contenido.add(de(fila));
+      contenido.add(de(fila, vendedores.getOrDefault(fila.id(), List.of())));
     }
     return PageResponse.de(contenido, total, pagina.page(), pagina.size());
   }
@@ -79,24 +84,41 @@ public class ListMyMovementsService {
         "VAL-003", mensaje, List.of(new FieldError("status", "VAL-003", mensaje)));
   }
 
-  static MyMovementResponse de(MyMovementRow fila) {
+  /**
+   * Los vendedores de la página, por movimiento y sin repetir: una segunda consulta y no un
+   * agregado en la paginada, para que esta siga devolviendo una fila por movimiento.
+   */
+  private Map<UUID, List<MyMovementResponse.Party>> vendedoresDe(List<MyMovementRow> filas) {
+    List<UUID> ids = new ArrayList<>(filas.size());
+    for (MyMovementRow fila : filas) {
+      ids.add(fila.id());
+    }
+    Map<UUID, List<MyMovementResponse.Party>> porMovimiento = new LinkedHashMap<>();
+    for (MovementSellerRow vendedor : movimientos.findSellersOf(ids)) {
+      porMovimiento
+          .computeIfAbsent(vendedor.movementId(), id -> new ArrayList<>())
+          .add(
+              new MyMovementResponse.Party(
+                  vendedor.sellerId(),
+                  vendedor.username(),
+                  nombreCompleto(vendedor.firstName(), vendedor.lastName())));
+    }
+    return porMovimiento;
+  }
+
+  static MyMovementResponse de(MyMovementRow fila, List<MyMovementResponse.Party> vendedores) {
     return new MyMovementResponse(
         fila.id(),
         fila.code(),
         fila.status(),
         MovementRole.valueOf(fila.role()),
         new MyMovementResponse.Party(
-            fila.clientId(),
-            fila.clientUsername(),
-            nombreCompleto(fila.clientFirstName(), fila.clientLastName())),
-        // NULO Y PRESENTE cuando no hay vendedor (`FA-003`), que es el caso
-        // normal de quien no cuelga de nadie.
-        fila.sellerId() == null
-            ? null
-            : new MyMovementResponse.Party(
-                fila.sellerId(),
-                fila.sellerUsername(),
-                nombreCompleto(fila.sellerFirstName(), fila.sellerLastName())),
+            fila.userId(),
+            fila.userUsername(),
+            nombreCompleto(fila.userFirstName(), fila.userLastName())),
+        // VACÍA Y PRESENTE cuando el movimiento no tiene vendedor (`FA-003`),
+        // que desde el 16-09-2026 no es el caso de ninguna venta.
+        List.copyOf(vendedores),
         new MyMovementResponse.Money(fila.currencyId(), fila.currencyCode()),
         fila.paymentMethod(),
         fila.totalAmount(),

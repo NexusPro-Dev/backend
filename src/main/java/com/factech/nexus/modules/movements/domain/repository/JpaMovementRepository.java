@@ -10,6 +10,7 @@ import java.time.Instant;
 import java.time.OffsetDateTime;
 import java.time.ZoneOffset;
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -81,18 +82,17 @@ public class JpaMovementRepository implements MovementRepository {
   private int insertarCabecera(Movement venta) {
     return em.createNativeQuery(
             """
-            INSERT INTO movements (id, movement_type_id, client_id, seller_id,
+            INSERT INTO movements (id, movement_type_id, user_id,
                                    payment_method_id, currency_id, code, status,
                                    total_amount, discount_amount, payable_amount,
                                    occurred_at, created_at)
-            VALUES (:id, :tipo, :cliente, :vendedor, :metodo, :moneda, :codigo, :estado,
+            VALUES (:id, :tipo, :sujeto, :metodo, :moneda, :codigo, :estado,
                     :total, :descuento, :aPagar, :ocurrio, :creado)
             ON CONFLICT (code) DO NOTHING
             """)
         .setParameter("id", venta.getId())
         .setParameter("tipo", venta.getMovementTypeId())
-        .setParameter("cliente", venta.getClientId())
-        .setParameter("vendedor", venta.getSellerId())
+        .setParameter("sujeto", venta.getUserId())
         .setParameter("metodo", venta.getPaymentMethodId())
         .setParameter("moneda", venta.getCurrencyId())
         .setParameter("codigo", venta.getCode())
@@ -120,13 +120,14 @@ public class JpaMovementRepository implements MovementRepository {
     for (MovementLine linea : venta.getLines()) {
       em.createNativeQuery(
               """
-              INSERT INTO movement_details (id, movement_id, product_id, quantity,
+              INSERT INTO movement_details (id, movement_id, product_id, seller_id, quantity,
                                             unit_price, line_amount, validity_days)
-              VALUES (:id, :venta, :producto, :cantidad, :precio, :importe, :vigencia)
+              VALUES (:id, :venta, :producto, :vendedor, :cantidad, :precio, :importe, :vigencia)
               """)
           .setParameter("id", linea.getId())
           .setParameter("venta", venta.getId())
           .setParameter("producto", linea.getProductId())
+          .setParameter("vendedor", linea.getSellerId())
           .setParameter("cantidad", linea.getQuantity())
           .setParameter("precio", linea.getUnitPrice())
           .setParameter("importe", linea.getLineAmount())
@@ -290,17 +291,23 @@ public class JpaMovementRepository implements MovementRepository {
    * alguien es comprador y vendedor a la vez, y `FA-002` exige que aparezca una sola vez. Evitarlo
    * con un {@code UNION} sin {@code ALL} costaría un ordenamiento completo antes de paginar.
    *
+   * <p><b>Y {@code EXISTS} sobre las líneas, no {@code JOIN}</b>: desde el 16-09-2026 el vendedor
+   * es de la línea (`RN-MV-003`, `V12`), y un {@code JOIN} multiplicaría la venta por sus líneas —
+   * que es lo que `CA-MV-040` prohíbe. El {@code EXISTS} deja una fila por movimiento y lo responde
+   * {@code ix_movement_details_seller} por su primera columna.
+   *
    * <p>El {@code CAST} del estado no es adorno: sin él, PostgreSQL no sabe de qué tipo es el
    * parámetro cuando llega nulo y rechaza la comparación.
    */
   private static final String SELECCION_PROPIA =
       """
       FROM movements m
-      JOIN users cli ON cli.id = m.client_id
-      LEFT JOIN users ven ON ven.id = m.seller_id
+      JOIN users suj ON suj.id = m.user_id
       JOIN currencies cur ON cur.id = m.currency_id
       JOIN payment_methods pm ON pm.id = m.payment_method_id
-      WHERE (m.client_id = :actor OR m.seller_id = :actor)
+      WHERE (m.user_id = :actor OR EXISTS (SELECT 1 FROM movement_details d
+                                            WHERE d.movement_id = m.id
+                                              AND d.seller_id = :actor))
         AND (CAST(:estado AS varchar) IS NULL OR m.status = CAST(:estado AS varchar))
       """;
 
@@ -309,7 +316,9 @@ public class JpaMovementRepository implements MovementRepository {
    *
    * <p><b>La rama de «ambos» va PRIMERO, y ahí está el defecto que se comete.</b> Escrita al final,
    * las dos anteriores ya habrían capturado la fila y nadie lo vería hasta que alguien de la fuerza
-   * comercial se comprara algo a sí mismo — que es exactamente lo que `RF-MV-002` permite.
+   * comercial se comprara algo a sí mismo — que es exactamente lo que `RF-MV-002` permite, y lo que
+   * desde el 16-09-2026 produce <b>toda</b> compra de quien no cuelga de nadie, porque esa persona
+   * es su propio vendedor (`RN-MV-003`).
    *
    * <p><b>Lo calcula SQL y no Java</b>: el identificador de quien pregunta ya está atado a la
    * consulta, y resolverlo fuera obligaría a arrastrar los dos identificadores de las partes solo
@@ -319,14 +328,14 @@ public class JpaMovementRepository implements MovementRepository {
       """
       SELECT m.id AS id, m.code AS code, m.status AS status,
              CASE
-               WHEN m.client_id = :actor AND m.seller_id = :actor THEN 'BOTH'
-               WHEN m.seller_id = :actor                          THEN 'SELLER'
-               ELSE                                                    'BUYER'
+               WHEN m.user_id = :actor AND EXISTS (SELECT 1 FROM movement_details d
+                                                    WHERE d.movement_id = m.id
+                                                      AND d.seller_id = :actor) THEN 'BOTH'
+               WHEN m.user_id = :actor                                          THEN 'BUYER'
+               ELSE                                                                  'SELLER'
              END AS role,
-             cli.id AS cli_id, cli.username AS cli_username,
-             cli.first_name AS cli_first, cli.last_name AS cli_last,
-             ven.id AS ven_id, ven.username AS ven_username,
-             ven.first_name AS ven_first, ven.last_name AS ven_last,
+             suj.id AS suj_id, suj.username AS suj_username,
+             suj.first_name AS suj_first, suj.last_name AS suj_last,
              cur.id AS cur_id, cur.code AS cur_code, pm.name AS pm_name,
              m.total_amount AS total, m.discount_amount AS descuento,
              m.payable_amount AS pagar,
@@ -376,6 +385,39 @@ public class JpaMovementRepository implements MovementRepository {
    */
   @Override
   @Transactional(readOnly = true)
+  public List<MovementSellerRow> findSellersOf(Collection<UUID> movementIds) {
+    if (movementIds == null || movementIds.isEmpty()) {
+      return List.of();
+    }
+    List<Tuple> filas =
+        em.createNativeQuery(
+                """
+                SELECT DISTINCT d.movement_id AS movement_id, u.id AS ven_id,
+                       u.username AS ven_username, u.first_name AS ven_first,
+                       u.last_name AS ven_last
+                  FROM movement_details d
+                  JOIN users u ON u.id = d.seller_id
+                 WHERE d.movement_id IN (:movimientos)
+                 ORDER BY d.movement_id, u.username
+                """,
+                Tuple.class)
+            .setParameter("movimientos", List.copyOf(movementIds))
+            .getResultList();
+    List<MovementSellerRow> resultado = new ArrayList<>(filas.size());
+    for (Tuple fila : filas) {
+      resultado.add(
+          new MovementSellerRow(
+              (UUID) fila.get("movement_id"),
+              (UUID) fila.get("ven_id"),
+              (String) fila.get("ven_username"),
+              (String) fila.get("ven_first"),
+              (String) fila.get("ven_last")));
+    }
+    return resultado;
+  }
+
+  @Override
+  @Transactional(readOnly = true)
   public Optional<MovementDetailView> findMineById(UUID movementId, UUID actorId) {
     if (movementId == null || actorId == null) {
       return Optional.empty();
@@ -386,12 +428,13 @@ public class JpaMovementRepository implements MovementRepository {
                 CABECERA_PROPIA
                     + """
                     FROM movements m
-                    JOIN users cli ON cli.id = m.client_id
-                    LEFT JOIN users ven ON ven.id = m.seller_id
+                    JOIN users suj ON suj.id = m.user_id
                     JOIN currencies cur ON cur.id = m.currency_id
                     JOIN payment_methods pm ON pm.id = m.payment_method_id
                     WHERE m.id = :movimiento
-                      AND (m.client_id = :actor OR m.seller_id = :actor)
+                      AND (m.user_id = :actor OR EXISTS (SELECT 1 FROM movement_details d
+                                                          WHERE d.movement_id = m.id
+                                                            AND d.seller_id = :actor))
                     """,
                 Tuple.class)
             .setParameter("movimiento", movementId)
@@ -412,9 +455,14 @@ public class JpaMovementRepository implements MovementRepository {
                 """
                 SELECT d.product_id AS product_id, p.code AS p_code, p.name AS p_name,
                        d.quantity AS cantidad, d.unit_price AS precio,
-                       d.line_amount AS importe, d.validity_days AS vigencia
+                       d.line_amount AS importe, d.validity_days AS vigencia,
+                       v.id AS ven_id, v.username AS ven_username,
+                       v.first_name AS ven_first, v.last_name AS ven_last
                   FROM movement_details d
                   JOIN products p ON p.id = d.product_id
+                  -- LEFT: la columna admite nulo por los tipos de movimiento que
+                  -- no venden nada; en una venta el vendedor siempre está.
+                  LEFT JOIN users v ON v.id = d.seller_id
                  WHERE d.movement_id = :movimiento
                  ORDER BY p.code ASC
                 """,
@@ -432,7 +480,11 @@ public class JpaMovementRepository implements MovementRepository {
               ((Number) linea.get("cantidad")).intValue(),
               (BigDecimal) linea.get("precio"),
               (BigDecimal) linea.get("importe"),
-              linea.get("vigencia") == null ? null : ((Number) linea.get("vigencia")).intValue()));
+              linea.get("vigencia") == null ? null : ((Number) linea.get("vigencia")).intValue(),
+              (UUID) linea.get("ven_id"),
+              (String) linea.get("ven_username"),
+              (String) linea.get("ven_first"),
+              (String) linea.get("ven_last")));
     }
 
     return Optional.of(new MovementDetailView(cabecera(cabecera.get(0)), detalle));
@@ -445,14 +497,10 @@ public class JpaMovementRepository implements MovementRepository {
         (String) fila.get("code"),
         (String) fila.get("status"),
         (String) fila.get("role"),
-        (UUID) fila.get("cli_id"),
-        (String) fila.get("cli_username"),
-        (String) fila.get("cli_first"),
-        (String) fila.get("cli_last"),
-        (UUID) fila.get("ven_id"),
-        (String) fila.get("ven_username"),
-        (String) fila.get("ven_first"),
-        (String) fila.get("ven_last"),
+        (UUID) fila.get("suj_id"),
+        (String) fila.get("suj_username"),
+        (String) fila.get("suj_first"),
+        (String) fila.get("suj_last"),
         (UUID) fila.get("cur_id"),
         (String) fila.get("cur_code"),
         (String) fila.get("pm_name"),

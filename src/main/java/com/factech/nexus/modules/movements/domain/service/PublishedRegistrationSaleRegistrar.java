@@ -52,7 +52,7 @@ public class PublishedRegistrationSaleRegistrar implements RegistrationSaleRegis
   @Override
   @Transactional
   public String registerSale(
-      UUID clientId,
+      UUID userId,
       UUID productId,
       UUID paymentMethodId,
       String movementTypeCode,
@@ -65,7 +65,7 @@ public class PublishedRegistrationSaleRegistrar implements RegistrationSaleRegis
     var respuesta =
         ventas.registrarAltaDeCliente(
             new RegisterSaleRequest(
-                clientId,
+                userId,
                 paymentMethodId,
                 List.of(new RegisterSaleRequest.Line(productId, 1)),
                 null));
@@ -92,7 +92,8 @@ public class PublishedRegistrationSaleRegistrar implements RegistrationSaleRegis
   }
 
   /**
-   * El vendedor de la venta es el que el registro acaba de asignar como superior.
+   * El vendedor de la venta —el de su única línea, desde el 16-09-2026— es el que el registro acaba
+   * de asignar como superior.
    *
    * <p><b>Desde el 09-09-2026 esta rama NO ES ALCANZABLE desde la petición</b>, y se conserva a
    * propósito. Hasta ese día el cuerpo llevaba <b>dos vendedores</b> —{@code referrer} en el primer
@@ -112,7 +113,10 @@ public class PublishedRegistrationSaleRegistrar implements RegistrationSaleRegis
   private void verificarVendedor(
       com.factech.nexus.modules.movements.application.SaleResponse venta, String esperado) {
 
-    String real = venta.seller() == null ? null : venta.seller().username();
+    // Una sola línea (ver arriba), y su vendedor nunca es nulo en una venta
+    // (`RN-MV-003`); la comprobación se escribe igual, por lo dicho en el Javadoc.
+    var linea = venta.lines().isEmpty() ? null : venta.lines().get(0);
+    String real = linea == null || linea.seller() == null ? null : linea.seller().username();
 
     if (esperado != null && !esperado.isBlank() && !esperado.trim().equalsIgnoreCase(real)) {
       String mensaje = "Los datos del enlace no son válidos.";

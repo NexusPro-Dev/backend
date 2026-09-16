@@ -64,20 +64,24 @@ class MovementTest {
   }
 
   @Test
-  @DisplayName("La instantánea de auditoría lleva el vendedor y las líneas con lo copiado")
+  @DisplayName("La instantánea de auditoría lleva el sujeto, y el vendedor en cada línea")
   void laInstantanea() {
     Movement venta = registrar(linea("UP_VIP", 1, "20.00", 30));
     Map<String, Object> datos = venta.instantanea();
 
-    // Es el dato que el actor no envió y que determina a quién se le va a
-    // pagar: sin él, «¿por qué se le atribuyó a esta persona?» solo se responde
-    // reconstruyendo la estructura comercial de aquel día.
-    assertThat(datos).containsKey("seller_id");
+    // La cabecera lleva UN sujeto (`RN-MV-026`) y ninguna clave de vendedor:
+    // desde el 16-09-2026 esa clave es de la línea.
+    assertThat(datos).containsKey("user_id");
+    assertThat(datos).doesNotContainKeys("client_id", "seller_id");
     assertThat(datos.get("status")).isEqualTo("PENDIENTE");
     assertThat(datos.get("total_amount")).isEqualTo("20.00");
 
     @SuppressWarnings("unchecked")
     List<Map<String, Object>> lineas = (List<Map<String, Object>>) datos.get("lines");
+    // Es el dato que el actor no envió y que determina a quién se le va a
+    // pagar: sin él, «¿por qué se le atribuyó a esta persona?» solo se responde
+    // reconstruyendo la estructura comercial de aquel día.
+    assertThat(lineas.get(0)).containsEntry("seller_id", VENDEDOR.toString());
     assertThat(lineas).hasSize(1);
     assertThat(lineas.get(0).get("unit_price")).isEqualTo("20.00");
     assertThat(lineas.get(0).get("validity_days")).isEqualTo(30);
@@ -113,9 +117,22 @@ class MovementTest {
     assertThat(venta.getTotalAmount()).isEqualByComparingTo(totalAntes);
   }
 
+  @Test
+  @DisplayName("No existe forma de construir una línea de venta sin vendedor")
+  void sinVendedorNoHayLinea() {
+    // `RN-MV-003`: en una venta el vendedor es obligatorio, y el esquema no
+    // puede sostenerlo porque «obligatorio en VENTA» exige mirar otra tabla.
+    assertThatThrownBy(
+            () ->
+                MovementLine.copiarDe(
+                    UUID.randomUUID(), null, "UP_VIP", "Producto", 1, new BigDecimal("20.00"), 30))
+        .isInstanceOf(IllegalArgumentException.class);
+  }
+
+  private static final UUID VENDEDOR = UUID.randomUUID();
+
   private Movement registrar(MovementLine... lineas) {
     return Movement.registrar(
-        UUID.randomUUID(),
         UUID.randomUUID(),
         UUID.randomUUID(),
         UUID.randomUUID(),
@@ -130,6 +147,7 @@ class MovementTest {
   private static MovementLine linea(String codigo, int cantidad, String precio, Integer vigencia) {
     return MovementLine.copiarDe(
         UUID.randomUUID(),
+        VENDEDOR,
         codigo,
         "Producto " + codigo,
         cantidad,

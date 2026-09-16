@@ -47,9 +47,11 @@ import org.springframework.transaction.annotation.Transactional;
  *
  * <ol>
  *   <li>El cliente existe y <b>puede comprar</b> (`EX-001`, `EX-002`).
- *   <li><b>El vendedor</b>, que desde el 04-09-2026 <b>puede no haberlo</b> (`RN-MV-003`). Este
- *       paso ya no puede rechazar nada: se conserva aquí porque es una lectura del mismo cliente
- *       que el paso anterior acaba de verificar, y no porque comprobara algo.
+ *   <li><b>El vendedor</b>, que desde el 16-09-2026 <b>siempre lo hay</b> (`RN-MV-003`): el
+ *       superior vigente de quien compra, o <b>él mismo</b> si no cuelga de nadie. Este paso no
+ *       puede rechazar nada: se conserva aquí porque es una lectura del mismo cliente que el paso
+ *       anterior acaba de verificar, y no porque comprobara algo. Lo que resuelve va a <b>cada
+ *       línea</b>, no a la cabecera.
  *   <li>El método de pago, que es una lectura barata del propio módulo (`EX-010`).
  *   <li>La <b>composición</b> de las líneas: sin repetidos, como mucho un upgrade, cantidad uno en
  *       él (`VAL-006`, `EX-006`, `EX-009`).
@@ -179,8 +181,8 @@ public class RegisterSaleService {
     OffsetDateTime ahora = OffsetDateTime.now(reloj);
     OffsetDateTime ocurrioEn = fechaDelHecho(peticion.occurredAt(), ahora);
 
-    ClientView cliente = verificarCliente(peticion.clientId(), altaDelCliente);
-    Optional<SellerView> vendedor = resolverVendedor(cliente);
+    ClientView cliente = verificarCliente(peticion.userId(), altaDelCliente);
+    SellerView vendedor = resolverVendedor(cliente);
     List<RegisterSaleRequest.Line> lineas = peticion.lines();
     verificarSinRepetidos(lineas);
 
@@ -199,7 +201,8 @@ public class RegisterSaleService {
     // orden es contrato (`plan.md` §4): `RN-MV-022` necesita el importe, y el
     // importe sale de las líneas ya copiadas. Hasta el 09-09-2026 el método era
     // lo tercero que se comprobaba.
-    List<MovementLine> copiadas = copiar(lineas, catalogo, referencia.currencyDecimalPlaces());
+    List<MovementLine> copiadas =
+        copiar(lineas, catalogo, vendedor.id(), referencia.currencyDecimalPlaces());
     PaymentMethodView metodo = resolverMetodoDePago(peticion.paymentMethodId(), total(copiadas));
 
     MovementTypeView tipo = tipoDeVenta();
@@ -207,7 +210,6 @@ public class RegisterSaleService {
         Movement.registrar(
             tipo.id(),
             cliente.id(),
-            vendedor.map(SellerView::id).orElse(null),
             metodo.id(),
             referencia.currencyId(),
             MovementCode.generar(tipo.prefix(), ocurrioEn),
@@ -224,7 +226,12 @@ public class RegisterSaleService {
     return SaleResponse.de(
         venta,
         new SaleResponse.Party(cliente.id(), cliente.username(), nombre(cliente)),
-        vendedor.map(v -> new SaleResponse.Party(v.id(), v.username(), nombre(v))).orElse(null),
+        // Un solo vendedor para todas las líneas: la resolución es de la venta
+        // y el modelo es de la línea (`RN-MV-003`). El mapa ya tiene la forma
+        // del día que un carrito mezcle enlaces.
+        Map.of(
+            vendedor.id(),
+            new SaleResponse.Party(vendedor.id(), vendedor.username(), nombre(vendedor))),
         new SaleResponse.Money(referencia.currencyId(), referencia.currencyCode()),
         metodo.code());
   }
@@ -244,8 +251,7 @@ public class RegisterSaleService {
                         "EX-001",
                         "El cliente indicado no existe.",
                         List.of(
-                            new FieldError(
-                                "clientId", "EX-001", "El cliente indicado no existe."))));
+                            new FieldError("userId", "EX-001", "El cliente indicado no existe."))));
 
     // `RN-MV-008`. El mensaje dice QUE LE FALTA, y no solo que no se puede:
     // quien intenta vender necesita saber que la salida es confirmar el
@@ -257,13 +263,14 @@ public class RegisterSaleService {
       String mensaje =
           "Esa cuenta todavía no puede operar: le falta la confirmación de su depósito.";
       throw new BusinessRuleException(
-          "EX-002", mensaje, List.of(new FieldError("clientId", "EX-002", mensaje)));
+          "EX-002", mensaje, List.of(new FieldError("userId", "EX-002", mensaje)));
     }
     return cliente;
   }
 
   /**
-   * El vendedor, <b>si lo hay</b> (`RN-MV-003`).
+   * El vendedor de la venta (`RN-MV-003`): el superior vigente de quien compra, o <b>quien compra
+   * mismo</b> si no cuelga de nadie.
    *
    * <h2>Aquí había un rechazo, y se retiró el 04-09-2026</h2>
    *
@@ -280,16 +287,23 @@ public class RegisterSaleService {
    * <p><b>Se retiró la exigencia, no la deducción.</b> Quien tiene superior sigue produciendo una
    * venta atribuida a él, exactamente igual que antes.
    *
-   * <p><b>Y lo que cuesta: una venta sin vendedor NO COMISIONA A NADIE.</b> `RN-CM-011` liquida por
-   * <i>override</i> recorriendo la cadena hacia arriba desde el vendedor, y sin punto de partida no
-   * hay cadena. Es correcto —nadie vendió, nadie cobra— y es lo que quien construya la liquidación
-   * tiene que tratar. La alternativa era inventar una atribución, y una comisión pagada a quien no
-   * vendió <b>no se detecta</b>: el dinero sale y el número cuadra.
+   * <h2>Y desde el 16-09-2026 la venta sin vendedor tampoco existe</h2>
    *
-   * @return el vendedor, o vacío si quien compra no cuelga de nadie
+   * <p>Entre las dos fechas, quien no colgaba de nadie producía una venta <b>sin atribución</b>,
+   * que no comisionaba a nadie. Hoy <b>se vende a sí mismo</b>: cada línea lo lleva como vendedor,
+   * `CM` tiene de dónde arrancar la cadena, y qué hace con una autoventa lo decide `CM`. No es
+   * inventar una atribución: es la única que la regla admite para esa persona, y la única que no
+   * puede estar equivocada.
+   *
+   * @return el superior vigente, o el propio comprador
    */
-  private Optional<SellerView> resolverVendedor(ClientView cliente) {
-    return clientes.sellerOf(cliente.id());
+  private SellerView resolverVendedor(ClientView cliente) {
+    return clientes
+        .sellerOf(cliente.id())
+        .orElseGet(
+            () ->
+                new SellerView(
+                    cliente.id(), cliente.username(), cliente.firstName(), cliente.lastName()));
   }
 
   // ---------------------------------------------------------------------------
@@ -597,6 +611,7 @@ public class RegisterSaleService {
   private List<MovementLine> copiar(
       List<RegisterSaleRequest.Line> lineas,
       Map<UUID, SaleView> catalogo,
+      UUID vendedorId,
       int decimalesDeLaMoneda) {
 
     int decimales = Math.min(decimalesDeLaMoneda, DECIMALES_DEL_LIBRO);
@@ -617,6 +632,7 @@ public class RegisterSaleService {
       copiadas.add(
           MovementLine.copiarDe(
               producto.id(),
+              vendedorId,
               producto.code(),
               producto.name(),
               linea.quantity(),

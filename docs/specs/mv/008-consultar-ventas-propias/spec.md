@@ -4,8 +4,9 @@
 |---|---|
 | Requerimiento | `RF-MV-008` |
 | Módulo | `MV` — Movimientos |
-| Versión | 0.1.0 |
+| Versión | 0.2.0 |
 | Estado | **Aprobada** |
+| Enmendada el | 16-09-2026 — el vendedor es de cada línea (`RN-MV-003`) y la cabecera lleva un sujeto (`RN-MV-026`): «lo que vendí» se responde por las líneas. Ver §15 |
 | Autor | Responsable técnico |
 | Aprobada por | Responsable del proyecto |
 | Fecha de aprobación | 05-09-2026 |
@@ -115,8 +116,8 @@ Cada movimiento devuelve:
 | Identificador y código | El código es el que la persona ve y cita |
 | Estado | Pendiente, confirmada, rechazada o anulada |
 | **Papel** | Si quien pregunta es el **comprador**, el **vendedor**, o **ambos** |
-| Comprador | Quién recibe lo comprado |
-| Vendedor | A quién se atribuye. **Puede no haberlo** |
+| Sujeto | A nombre de quién es el movimiento: en una venta, quien compra (`RN-MV-026`) |
+| Vendedores | A quién se atribuye **cada línea**, sin repetir (`RN-MV-003`). Hoy es uno; la lista va **vacía y presente** en los tipos de movimiento que no venden nada |
 | Moneda y método de pago | Con qué se paga |
 | Importes | Total, descuento y lo que se paga de verdad |
 | Cuándo ocurrió | La fecha del movimiento |
@@ -146,7 +147,7 @@ Cada movimiento devuelve:
 
 1. El actor pide sus movimientos.
 2. El sistema resuelve **quién es** a partir de su credencial.
-3. Selecciona los movimientos en los que esa persona es el comprador **o** el vendedor.
+3. Selecciona los movimientos en los que esa persona es el sujeto **o** el vendedor **de alguna de sus líneas**.
 4. Si se indicó un estado, se queda solo con los de ese estado.
 5. Ordena del más reciente al más antiguo y devuelve la página pedida, cada movimiento con su papel.
 
@@ -160,11 +161,11 @@ Devuelve una página **vacía**, no un error. Es el caso de toda cuenta recién 
 
 ### FA-002 — La persona es comprador y vendedor del mismo movimiento
 
-El movimiento aparece **una sola vez**, con papel **ambos**. Ocurre cuando alguien de la fuerza comercial compra para sí mismo y la venta se le atribuye. Duplicar la fila sería contar dos veces un solo hecho, y el total de la página dejaría de significar «cuántos movimientos tengo».
+El movimiento aparece **una sola vez**, con papel **ambos**. Ocurre cuando alguien de la fuerza comercial compra para sí mismo y la venta se le atribuye — y desde el 16-09-2026 es **el caso de toda compra de quien no cuelga de nadie**, porque esa persona es su propio vendedor (`RN-MV-003`). Duplicar la fila sería contar dos veces un solo hecho, y el total de la página dejaría de significar «cuántos movimientos tengo».
 
-### FA-003 — Una venta sin vendedor
+### FA-003 — Un movimiento sin vendedor
 
-El vendedor viaja **nulo y presente**. Es el caso normal de quien no cuelga de nadie, y `RF-MV-001` ya lo declara.
+La lista de vendedores viaja **vacía y presente**. **Desde el 16-09-2026 no es el caso de ninguna venta** —quien no cuelga de nadie se vende a sí mismo, `RN-MV-003`—; queda declarado para los tipos de movimiento que no venden nada, que son los de las etapas siguientes de `requirements/mv.md` §4.2. Entre el 04-09-2026 y el 16-09-2026 era el caso normal de quien no colgaba de nadie.
 
 ---
 
@@ -201,7 +202,7 @@ El vendedor viaja **nulo y presente**. Es el caso normal de quien no cuelga de n
 | `CA-MV-040` | El listado va **paginado y envuelto**, y el total cuenta **movimientos** y no participaciones |
 | `CA-MV-041` | El orden es **del más reciente al más antiguo**, y es estable entre páginas |
 | `CA-MV-042` | El filtro por estado devuelve **solo** los movimientos en ese estado |
-| `CA-MV-043` | Cada movimiento trae **las dos partes**, con el vendedor **nulo y presente** cuando no lo hay |
+| `CA-MV-043` | Cada movimiento trae **el sujeto y sus vendedores sin repetir**; la lista va **vacía y presente** cuando el movimiento no tiene ninguno |
 | `CA-MV-044` | El detalle de un movimiento propio devuelve **sus líneas**, con producto, cantidad, precio y vigencia |
 | `CA-MV-045` | El detalle de un movimiento **ajeno** responde **no encontrado**, igual que uno inexistente |
 | `CA-MV-046` | Responde a **cualquier actor autenticado**, sin exigir ningún permiso |
@@ -216,7 +217,8 @@ El vendedor viaja **nulo y presente**. Es el caso normal de quien no cuelga de n
 | Caso | Comportamiento |
 |---|---|
 | Una venta **anulada** | Aparece, con su estado. Anular no la borra, y ocultarla haría que la persona no pudiera comprobar qué pasó con algo que sí registró |
-| Una venta cuyo **cliente fue eliminado** | Aparece para el vendedor, con los datos de la persona tal como están. `RF-SP-029` es un borrado lógico y la fila sigue ahí |
+| Una venta cuyo **comprador fue eliminado** | Aparece para el vendedor, con los datos de la persona tal como están. `RF-SP-029` es un borrado lógico y la fila sigue ahí |
+| Una venta con **líneas de vendedores distintos** | Aparece **una vez** para cada uno de ellos, con papel vendedor, y su lista de vendedores los trae a todos. Hoy ninguna entrada la produce (`RN-MV-003`); el modelo la admite y esta consulta no tiene que cambiar el día que exista |
 | **Muchos movimientos** de una sola persona | Se pagina. El total es **exacto**: es el conjunto de una persona y no una tabla que crezca sin límite, de modo que no hace falta el conteo acotado de los listados de auditoría |
 | Dos movimientos **en el mismo instante** | El orden entre ellos es estable, y no depende de la página que se pida |
 
@@ -235,3 +237,4 @@ El vendedor viaja **nulo y presente**. Es el caso normal de quien no cuelga de n
 | Versión | Fecha | Cambio | Autor |
 |---|---|---|---|
 | 0.1.0 | 05-09-2026 | Primera versión. **El requerimiento estaba declarado desde el 02-09-2026** en `requirements/mv.md` §4.1 y sin especificar; lo pide el responsable del proyecto. La decisión que carga la spec es que **«propio» son DOS papeles y no uno** (§2.1): comprador y vendedor van en el mismo listado y cada movimiento dice en cuál aparece quien pregunta, porque una misma persona puede estar en los dos —incluso en el mismo movimiento— desde que comprar dejó de ser cosa solo de los clientes. El alcance incluye el **detalle** además del listado: sin él, quien ve que compró algo no podría abrirlo, porque `RF-MV-007` exige `movements:read`. Y `EX-002` fija que un movimiento ajeno responde **lo mismo que uno inexistente**, para no confirmar la existencia de un identificador ajeno. | Responsable del proyecto |
+| 0.2.0 | 16-09-2026 | **«Lo que vendí» pasa a responderse por las líneas** (`requirements/mv.md` v0.16.0: `RN-MV-003` enmendada, `RN-MV-026` nueva; Art. I.7 sobre un requerimiento construido), por decisión del responsable del proyecto. La cabecera de un movimiento lleva **un sujeto** y el vendedor **vive en cada línea**, de modo que ser vendedor de un movimiento es serlo **de alguna de sus líneas**. §6.2 cambia «comprador» por «sujeto» y «vendedor» por **«vendedores, sin repetir»**; `FA-003` deja de describir una venta —ya no existe la venta sin vendedor— y pasa a describir los tipos de movimiento que no venden nada; `CA-MV-043` lo sigue. `FA-002` gana el caso que desde hoy lo produce siempre: quien no cuelga de nadie compra y **es su propio vendedor**. §13 gana la venta con líneas de vendedores distintos, que hoy nadie produce y el modelo admite. **Los tres papeles no cambian**, ni el alcance, ni la paginación. | Responsable del proyecto |

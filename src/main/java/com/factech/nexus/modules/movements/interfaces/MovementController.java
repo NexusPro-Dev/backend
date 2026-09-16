@@ -55,8 +55,9 @@ public class MovementController {
       summary = "Registrar una venta a nombre de un cliente",
       description =
           """
-          Deja constancia de **qué le vendió la empresa a un cliente**, como un hecho que
-          **todavía no está pagado**.
+          Deja constancia de **qué le vendió la empresa a alguien**, como un hecho que
+          **todavía no está pagado**. `userId` es **a nombre de quién** es la venta —quien
+          compra—, nunca quien la registra desde oficina.
 
           **La venta nace `PENDIENTE`, y eso significa que no concede nada.** No sube de
           nivel a nadie, no habilita ninguna cuenta y no comisiona: registrar una venta
@@ -67,10 +68,12 @@ public class MovementController {
           cuántos, nunca cuánto cuestan — un precio que llegara en la petición sería un
           descuento sin autorización y sin rastro. Tampoco se envían la moneda, la
           vigencia ni el vendedor: la moneda y la vigencia salen del producto, y **el
-          vendedor sale del cliente** y se congela en la venta.
+          vendedor sale de quien compra** —su superior vigente, o **él mismo** si no cuelga
+          de nadie— y se congela **en cada línea** (`lines[].seller`). En una venta ninguna
+          línea viene sin vendedor.
 
           **Lo copiado queda congelado.** Corregir mañana el precio de un producto, o
-          reasignar el cliente a otro agente, no cambia lo que se vendió hoy.
+          reasignar al comprador a otro agente, no cambia lo que se vendió hoy.
 
           Reglas de composición: **como mucho un upgrade** por venta y con cantidad uno,
           sin productos repetidos y todas las líneas en la misma moneda.
@@ -80,7 +83,7 @@ public class MovementController {
     @ApiResponse(
         responseCode = "400",
         description =
-            "Lo que se ve mirando la petición: falta el cliente o el método de pago, no hay"
+            "Lo que se ve mirando la petición: falta el comprador o el método de pago, no hay"
                 + " líneas, la cantidad no es positiva, un producto se repite, o la fecha del"
                 + " hecho está en el futuro.",
         content = @io.swagger.v3.oas.annotations.media.Content()),
@@ -91,8 +94,8 @@ public class MovementController {
     @ApiResponse(
         responseCode = "409",
         description =
-            "Lo que solo se sabe después de resolver: la cuenta no puede operar todavía, el"
-                + " cliente no cuelga de ningún vendedor, un producto no está en su oferta, el"
+            "Lo que solo se sabe después de resolver: la cuenta no puede operar todavía, un"
+                + " producto no está en su oferta, el"
                 + " upgrade BAJA de nivel —renovar el mismo sí se admite—, hay dos upgrades, las"
                 + " monedas difieren, o el método"
                 + " de pago está desactivado.",
@@ -100,7 +103,7 @@ public class MovementController {
     @ApiResponse(
         responseCode = "422",
         description =
-            "Un dato bien formado que no resuelve: el cliente, un producto o el método de pago"
+            "Un dato bien formado que no resuelve: el comprador, un producto o el método de pago"
                 + " no existen.",
         content = @io.swagger.v3.oas.annotations.media.Content())
   })
@@ -130,11 +133,12 @@ public class MovementController {
           Devuelve **los movimientos en los que usted participó**, paginados y del más
           reciente al más antiguo.
 
-          **«Propio» son DOS papeles.** Un movimiento lleva a quien recibe lo comprado y a
-          quien lo vendió, y usted puede ser cualquiera de los dos — o **los dos a la vez**,
-          si compró para sí mismo algo que se le atribuye. Cada movimiento dice en qué papel
-          aparece usted con `role`: `BUYER`, `SELLER` o `BOTH`. El que es las dos cosas
-          **aparece una sola vez**.
+          **«Propio» son DOS papeles.** Un movimiento lleva a su sujeto —`user`, a nombre de
+          quién es— y a los vendedores de sus líneas —`sellers`—, y usted puede ser cualquiera
+          de los dos — o **los dos a la vez**, si compró algo que se le atribuye, que es lo
+          que ocurre siempre que compra quien no cuelga de nadie. Cada movimiento dice en qué
+          papel aparece usted con `role`: `BUYER`, `SELLER` o `BOTH`. El que es las dos
+          cosas **aparece una sola vez**.
 
           **No hay forma de preguntar por otra persona**, ni indicándola ni teniendo
           permisos: quien pregunta sale de la credencial. Consultar las ventas de terceros es
@@ -144,8 +148,9 @@ public class MovementController {
           multiplicaría la respuesta por un dato que solo se mira al abrir uno: están en el
           detalle.
 
-          **El vendedor puede ser nulo**, y viaja igual: es el caso normal de quien no cuelga
-          de ningún vendedor.
+          **`sellers` es una lista, sin repetir y nunca nula**: el vendedor es de cada línea y
+          una venta podría llevar varios. Hoy lleva uno. Va **vacía** en los movimientos que
+          no tienen vendedor, que no es el caso de ninguna venta.
 
           El orden es fijo y no se puede cambiar. `status` filtra por estado.
           """)

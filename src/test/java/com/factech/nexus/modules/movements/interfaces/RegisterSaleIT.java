@@ -169,16 +169,26 @@ class RegisterSaleIT extends IntegrationTestBase {
   }
 
   @Test
-  @DisplayName("CA-MV-002: devuelve el vendedor resuelto, que el actor no envió")
+  @DisplayName("CA-MV-002: cada línea devuelve el vendedor resuelto, que el actor no envió")
   void elVendedorSaleDelCliente() throws Exception {
-    mvc.perform(venta(cliente, TARJETA, linea(botSenales, 1)))
-        .andExpect(status().isCreated())
-        .andExpect(jsonPath("$.client.id").value(cliente.toString()))
-        .andExpect(jsonPath("$.seller.id").value(vendedor.toString()))
-        .andExpect(jsonPath("$.seller.username").value("venta-vendedor"))
-        // El nombre y no solo el identificador: la respuesta es el único momento
-        // en que quien registra ve a quién acaba de atribuirse lo que vendió.
-        .andExpect(jsonPath("$.seller.name").value("Ana Ruiz"));
+    String cuerpo =
+        mvc.perform(venta(cliente, TARJETA, linea(botSenales, 1)))
+            .andExpect(status().isCreated())
+            .andExpect(jsonPath("$.user.id").value(cliente.toString()))
+            // EN LA LÍNEA y no en la cabecera (`RN-MV-003`, 16-09-2026): es ahí
+            // donde se le creará la comisión, y cada línea puede tener el suyo.
+            .andExpect(jsonPath("$.lines[0].seller.id").value(vendedor.toString()))
+            .andExpect(jsonPath("$.lines[0].seller.username").value("venta-vendedor"))
+            // El nombre y no solo el identificador: la respuesta es el único momento
+            // en que quien registra ve a quién acaba de atribuirse lo que vendió.
+            .andExpect(jsonPath("$.lines[0].seller.name").value("Ana Ruiz"))
+            .andReturn()
+            .getResponse()
+            .getContentAsString();
+
+    // La cabecera ya no lleva ni `client` ni `seller`, y se mira en crudo: un
+    // `doesNotExist()` sobre `$.seller` pasaría también con la clave en nulo.
+    assertThat(cuerpo).doesNotContain("\"client\":").doesNotContain("\"seller\":null");
   }
 
   @Test
@@ -227,7 +237,7 @@ class RegisterSaleIT extends IntegrationTestBase {
     // el corte en UTC el comprobante llevaría el 12, y el papel que se le
     // entrega al cliente diría un día que no es el de la venta.
     String cuerpo =
-        ("{\"clientId\":\"%s\",\"paymentMethodId\":\"%s\",\"occurredAt\":\"2026-07-12T03:00:00Z\","
+        ("{\"userId\":\"%s\",\"paymentMethodId\":\"%s\",\"occurredAt\":\"2026-07-12T03:00:00Z\","
                 + "\"lines\":[{\"productId\":\"%s\",\"quantity\":1}]}")
             .formatted(cliente, TARJETA, botSenales);
 
@@ -297,7 +307,10 @@ class RegisterSaleIT extends IntegrationTestBase {
     String cambios = (String) fila.get("changes");
     // Sin el vendedor aquí, «¿por qué esta venta se le atribuyó a esta
     // persona?» solo se puede responder reconstruyendo cómo estaba la
-    // estructura comercial ese día.
+    // estructura comercial ese día. Va en la línea, y la cabecera lleva al
+    // sujeto (`RN-MV-026`).
+    assertThat(cambios).contains("\"user_id\": \"" + cliente + "\"");
+    assertThat(cambios).doesNotContain("\"client_id\"");
     assertThat(cambios).contains("\"seller_id\": \"" + vendedor + "\"");
     assertThat(cambios).contains("\"status\": \"PENDIENTE\"");
     assertThat(cambios).contains("\"payable_amount\": \"15.50\"");
@@ -338,51 +351,39 @@ class RegisterSaleIT extends IntegrationTestBase {
   }
 
   @Test
-  @DisplayName("CA-MV-017: sin vendedor la venta SE REGISTRA, sin atribución y sin error")
-  void compraSinVendedor() throws Exception {
-    // INVERTIDO EL 04-09-2026. Hasta entonces esto devolvía `409 EX-003`, con
-    // este argumento: «`RN-SP-027` promete que ningún cliente se registra sin
-    // vendedor, y una promesa de otro módulo no es una comprobación de este».
-    // El argumento era bueno y LA PREMISA ESTABA INCOMPLETA: daba por hecho que
-    // quien compra es siempre un cliente.
+  @DisplayName("CA-MV-017: quien no cuelga de nadie compra, y la venta queda atribuida a él mismo")
+  void compraSinSuperior() throws Exception {
+    // INVERTIDO EL 04-09-2026 Y ENMENDADO EL 16-09-2026. Hasta el 04-09 esto
+    // devolvía `409 EX-003` —«`RN-SP-027` promete que ningún cliente se
+    // registra sin vendedor»—, con una premisa incompleta: daba por hecho que
+    // quien compra es siempre un cliente. Un agente también compra, y
+    // `RN-SP-019` declara que LA CÚSPIDE no declara superior.
     //
-    // No lo es. Un agente también compra, y `RN-SP-019` declara que LA CÚSPIDE
-    // de la fuerza comercial no declara superior — de modo que esa persona no
-    // podía comprar nada.
-    //
-    // El vendedor viaja EN NULO Y NO AUSENTE: la diferencia entre «no tiene
-    // vendedor» y «no vino el campo» es la que decide si alguien cobra por esta
-    // venta, y esta venta NO COMISIONA A NADIE.
-    String cuerpo =
-        mvc.perform(venta(clienteSinVendedor, TARJETA, linea(botSenales, 1)))
-            .andExpect(status().isCreated())
-            .andExpect(jsonPath("$.status").value("PENDIENTE"))
-            .andExpect(jsonPath("$.client.id").value(clienteSinVendedor.toString()))
-            .andExpect(jsonPath("$.code").value(org.hamcrest.Matchers.matchesPattern(CODIGO)))
-            .andReturn()
-            .getResponse()
-            .getContentAsString();
+    // Entre el 04-09 y el 16-09 la venta se registraba SIN atribución, y no
+    // comisionaba a nadie. Desde el 16-09 esa persona ES SU PROPIO VENDEDOR
+    // (`RN-MV-003`): cada línea la atribuye a quien compra, `CM` tiene de
+    // dónde arrancar la cadena, y qué hace con una autoventa lo decide `CM`.
+    mvc.perform(venta(clienteSinVendedor, TARJETA, linea(botSenales, 1)))
+        .andExpect(status().isCreated())
+        .andExpect(jsonPath("$.status").value("PENDIENTE"))
+        .andExpect(jsonPath("$.user.id").value(clienteSinVendedor.toString()))
+        .andExpect(jsonPath("$.lines[0].seller.id").value(clienteSinVendedor.toString()))
+        .andExpect(jsonPath("$.code").value(org.hamcrest.Matchers.matchesPattern(CODIGO)));
 
-    // SE MIRA EL JSON EN CRUDO, y no con `jsonPath(...).doesNotExist()`: ese
-    // matcher da por buenas las dos cosas —el campo ausente y el campo en
-    // nulo— y aquí la diferencia es justamente lo que se quiere fijar. La
-    // respuesta se aparta del `non_null` global de `application.yml` para que
-    // el vendedor viaje siempre.
-    assertThat(cuerpo).contains("\"seller\":null");
-
-    // Y en la base queda sin atribución, que es lo que la liquidación tendrá
-    // que tratar: `RN-CM-011` recorre la cadena hacia arriba desde el vendedor.
+    // Y en la base NINGUNA línea de venta queda sin vendedor: la autoventa es
+    // la única atribución que la regla admite para esa persona.
     assertThat(
             jdbc.queryForObject(
-                "SELECT seller_id FROM movements WHERE client_id = CAST(? AS uuid)",
+                "SELECT d.seller_id FROM movement_details d JOIN movements m ON m.id = d.movement_id"
+                    + " WHERE m.user_id = CAST(? AS uuid)",
                 UUID.class,
                 clienteSinVendedor.toString()))
-        .isNull();
+        .isEqualTo(clienteSinVendedor);
   }
 
   @Test
-  @DisplayName("La auditoría registra la venta sin vendedor con la clave presente y en nulo")
-  void laAuditoriaDeLaVentaSinVendedor() throws Exception {
+  @DisplayName("La auditoría de la autoventa lleva al comprador como vendedor de la línea")
+  void laAuditoriaDeLaAutoventa() throws Exception {
     mvc.perform(venta(clienteSinVendedor, TARJETA, linea(botSenales, 1)))
         .andExpect(status().isCreated());
 
@@ -390,9 +391,9 @@ class RegisterSaleIT extends IntegrationTestBase {
         jdbc.queryForObject(
             "SELECT changes::text FROM audit_change_log WHERE module = 'MV'", String.class);
 
-    // Omitir la clave se leería como «esta versión no lo registraba»; el nulo
-    // dice «esta venta no tiene vendedor», que es lo que ocurrió.
-    assertThat(cambios).contains("\"seller_id\": null");
+    // La clave de la línea dice a quién se le paga, y aquí dice «a quien compró».
+    assertThat(cambios).contains("\"seller_id\": \"" + clienteSinVendedor + "\"");
+    assertThat(cambios).doesNotContain("\"seller_id\": null");
   }
 
   @Test
@@ -495,7 +496,7 @@ class RegisterSaleIT extends IntegrationTestBase {
                 .with(comoActor())
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(
-                    ("{\"clientId\":\"%s\",\"paymentMethodId\":\"%s\","
+                    ("{\"userId\":\"%s\",\"paymentMethodId\":\"%s\","
                             + "\"occurredAt\":\"2099-01-01T00:00:00Z\","
                             + "\"lines\":[{\"productId\":\"%s\",\"quantity\":1}]}")
                         .formatted(cliente, TARJETA, botSenales)))
@@ -534,7 +535,7 @@ class RegisterSaleIT extends IntegrationTestBase {
   }
 
   private static String cuerpo(String clienteId, String metodo, String... lineas) {
-    return "{\"clientId\":\"%s\",\"paymentMethodId\":\"%s\",\"lines\":[%s]}"
+    return "{\"userId\":\"%s\",\"paymentMethodId\":\"%s\",\"lines\":[%s]}"
         .formatted(clienteId, metodo, String.join(",", lineas));
   }
 

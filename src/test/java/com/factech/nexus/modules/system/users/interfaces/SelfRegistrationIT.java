@@ -443,8 +443,11 @@ class SelfRegistrationIT extends IntegrationTestBase {
                 + " c.username AS cliente, v.username AS vendedor"
                 + " FROM movements m"
                 + " JOIN payment_methods pm ON pm.id = m.payment_method_id"
-                + " JOIN users c ON c.id = m.client_id"
-                + " JOIN users v ON v.id = m.seller_id"
+                + " JOIN users c ON c.id = m.user_id"
+                // El vendedor es de la línea (`RN-MV-003`, 16-09-2026); el alta
+                // compra UN producto, de modo que hay una y solo una.
+                + " JOIN movement_details d ON d.movement_id = m.id"
+                + " JOIN users v ON v.id = d.seller_id"
                 + " WHERE c.username = 'ana.ruiz'");
 
     assertThat(venta.get("code")).isEqualTo(codigo);
@@ -494,7 +497,7 @@ class SelfRegistrationIT extends IntegrationTestBase {
         jdbc.queryForMap(
             "SELECT m.status, pm.code AS metodo, m.total_amount FROM movements m"
                 + " JOIN payment_methods pm ON pm.id = m.payment_method_id"
-                + " JOIN users c ON c.id = m.client_id WHERE c.username = 'ana.ruiz'");
+                + " JOIN users c ON c.id = m.user_id WHERE c.username = 'ana.ruiz'");
 
     assertThat(venta.get("status")).isEqualTo("PENDIENTE");
     assertThat(venta.get("metodo")).isEqualTo("CREDIT_CARD");

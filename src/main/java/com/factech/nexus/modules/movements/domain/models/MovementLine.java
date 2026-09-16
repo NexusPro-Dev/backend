@@ -23,6 +23,15 @@ import java.util.UUID;
  * el total en la cabecera: es el número que se imprimió. Recalcularlo al leer hace que un cambio de
  * redondeo reescriba comprobantes ya entregados.
  *
+ * <h2>El vendedor es de la línea, y en una venta siempre lo hay</h2>
+ *
+ * <p>Desde el 16-09-2026 (`RN-MV-003`) {@code sellerId} vive aquí y no en la cabecera: la comisión
+ * se devenga <b>por línea</b>, cada línea puede tener el suyo, y los tipos de movimiento que vienen
+ * —depósito, comisión— no venden nada. La columna admite nulo <b>solo</b> por ellos: una línea de
+ * venta sin vendedor no existe, y {@link #copiarDe} no ofrece la forma de construirla — quien
+ * compra sin colgar de nadie <b>es su propio vendedor</b>. Es lo que el esquema no puede sostener,
+ * porque «obligatorio en {@code VENTA}» exige mirar {@code movement_types}.
+ *
  * <p>No es una entidad JPA, por el mismo motivo que {@link Movement}: ver su Javadoc.
  *
  * <h2>{@code productCode} y {@code productName} NO se guardan, y no son copias</h2>
@@ -40,6 +49,7 @@ public final class MovementLine {
 
   private final UUID id;
   private final UUID productId;
+  private final UUID sellerId;
   private final String productCode;
   private final String productName;
   private final int quantity;
@@ -50,6 +60,7 @@ public final class MovementLine {
   private MovementLine(
       UUID id,
       UUID productId,
+      UUID sellerId,
       String productCode,
       String productName,
       int quantity,
@@ -57,6 +68,7 @@ public final class MovementLine {
       Integer validityDays) {
     this.id = id;
     this.productId = productId;
+    this.sellerId = sellerId;
     this.productCode = productCode;
     this.productName = productName;
     this.quantity = quantity;
@@ -76,23 +88,42 @@ public final class MovementLine {
    * @param precio el precio del catálogo <b>ya llevado a la escala de su moneda</b>. Llega con la
    *     escala de la columna de `PM` —{@code numeric(14,4)}—, y ajustarlo es responsabilidad de
    *     quien resuelve la venta, que es quien conoce la moneda
+   * @param sellerId quien vendió <b>esta</b> línea (`RN-MV-003`), <b>obligatorio</b>: no hay línea
+   *     de venta sin vendedor, y quien no cuelga de nadie es el suyo
    * @param validityDays nulo significa que lo adquirido <b>no caduca</b> (`RN-PM-015`)
    */
   public static MovementLine copiarDe(
       UUID productId,
+      UUID sellerId,
       String productCode,
       String productName,
       int quantity,
       BigDecimal precio,
       Integer validityDays) {
+    if (sellerId == null) {
+      // No es una validación de entrada: el vendedor no viene de la petición.
+      // Protege de que un camino futuro arme una línea de venta sin atribución,
+      // que es justo el estado que la enmienda del 16-09-2026 retiró.
+      throw new IllegalArgumentException("Una línea de venta no existe sin vendedor.");
+    }
     return new MovementLine(
-        UUID.randomUUID(), productId, productCode, productName, quantity, precio, validityDays);
+        UUID.randomUUID(),
+        productId,
+        sellerId,
+        productCode,
+        productName,
+        quantity,
+        precio,
+        validityDays);
   }
 
   /** Lo que de esta línea entra en la instantánea de auditoría. */
   Map<String, Object> instantanea() {
     Map<String, Object> datos = new LinkedHashMap<>();
     datos.put("product_id", productId.toString());
+    // La clave decide A QUIÉN SE LE PAGA por esta línea, y por eso se escribe
+    // aquí y no en la cabecera desde el 16-09-2026 (`RN-MV-003`).
+    datos.put("seller_id", sellerId.toString());
     datos.put("product_code", productCode);
     datos.put("quantity", quantity);
     datos.put("unit_price", unitPrice.toPlainString());
@@ -119,6 +150,10 @@ public final class MovementLine {
 
   public UUID getProductId() {
     return productId;
+  }
+
+  public UUID getSellerId() {
+    return sellerId;
   }
 
   public String getProductCode() {
