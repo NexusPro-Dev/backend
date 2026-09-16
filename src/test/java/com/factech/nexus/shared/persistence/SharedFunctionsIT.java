@@ -11,7 +11,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.jdbc.core.JdbcTemplate;
 
 /**
- * Verificación de {@code V1__create_shared_functions.sql} (`RF-SP-010` · `T-01`).
+ * Verificación de {@code V1__funciones_compartidas.sql} (`RF-SP-010` · `T-01`).
  *
  * <p>Lo que aquí se comprueba no es que la función exista, sino las dos propiedades que la hacen
  * útil: que normaliza los acentos y que <b>es indexable</b>. La segunda es la razón de ser del

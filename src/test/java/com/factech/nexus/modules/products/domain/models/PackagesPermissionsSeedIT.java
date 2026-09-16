@@ -12,7 +12,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.jdbc.core.JdbcTemplate;
 
 /**
- * Verificación de {@code V93__seed_packages_permissions.sql} (`RF-PM-017` · `T-02`, `CA-PM-268`).
+ * Verificación de {@code V8__semilla_permisos_y_roles.sql} (`RF-PM-017` · `T-02`, `CA-PM-268`).
  *
  * <p>Cuatro sembrados, identificadores estables, ocho asociaciones, ninguna a {@code CLIENTE}. La
  * mitad que se olvida es la de {@code ADMIN}: no falla al aplicar la migración, deja a {@code

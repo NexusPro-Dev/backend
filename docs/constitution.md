@@ -6,7 +6,7 @@
 | Proyecto             | NEXUS — Renovación de plataforma                                                           |
 | Empresa              | FACTECH GROUP SAS                                                                          |
 | Documento            | `constitution.md`                                                                          |
-| Versión              | 0.8.0                                                                                      |
+| Versión              | 0.9.0                                                                                      |
 | Estado               | Borrador                                                                                   |
 | Responsable técnico  | Bonilla Diaz William Steven                                                                |
 | Fecha de creación    | 19-08-2026                                                                                 |
@@ -149,7 +149,7 @@ Aplica a todo el código, la documentación, las pruebas, la configuración y lo
 - **V.2** El código NO DEBE depender de características exclusivas de otro motor ni asumir semánticas ajenas a PostgreSQL.
 - **V.3** La **fuente de verdad** del esquema son las migraciones versionadas dentro del repositorio. Cualquier modelo gráfico o diagrama externo es material de referencia y NO DEBE tratarse como autoridad sobre el esquema.
 - **V.4** Todo cambio de esquema DEBE realizarse mediante una migración versionada, incremental y revisada en Pull Request. NO DEBE modificarse el esquema manualmente en ningún entorno.
-- **V.5** Una migración ya integrada en `main` NO DEBE editarse; las correcciones se hacen con una migración nueva.
+- **V.5** Una migración ya integrada en `main` NO DEBE editarse; las correcciones se hacen con una migración nueva. **Excepción registrada, única y ya consumida (15-09-2026):** antes de la primera versión operativa, con todas las bases de datos borrables y por decisión del responsable del proyecto, el esquema se reescribió **una vez** desde cero en nueve migraciones (`modelo-datos.md` §5.4). Desde entonces la regla rige sin excepción.
 - **V.6** El esquema DEBE aplicar integridad referencial explícita (claves foráneas, restricciones de unicidad, `NOT NULL`) en lugar de delegar la integridad únicamente a la capa de aplicación.
 - **V.7** Toda tabla de negocio DEBE incluir marcas de tiempo de creación y de última modificación. El **actor** responsable de cada cambio NO DEBE duplicarse en la tabla: reside únicamente en los registros de auditoría (V.8), única fuente de verdad sobre quién hizo qué.
 - **V.8** La auditoría DEBE resolverse mediante **registros especializados por naturaleza del evento**, NO mediante un registro único genérico ni mediante una tabla por entidad. Se definen cuatro, y solo cuatro:
@@ -435,6 +435,7 @@ docs/
 | 0.6.0   | 20-08-2026 | I.3 incorpora precondiciones y postcondiciones al contenido mínimo de `spec.md`: la plantilla de requerimientos las exigía y la tripleta no las recogía. | Responsable técnico |
 | 0.7.0   | 20-08-2026 | V.13 admite eliminar asociaciones sin motivo declarado. La excepción queda acotada a las filas de relación y no alcanza a las entidades de negocio. | Responsable técnico |
 | 0.8.0   | 14-09-2026 | V.13 admite una **tercera excepción: el contenido propio**. Lo que una persona escribió en nombre propio —una reseña de producto, `requirements/pm.md` §5.2.7— se retira sin motivo declarado, porque el único «por qué» posible ya está en el evento cuando quien elimina y quien escribió coinciden. La excepción se agota en esa coincidencia: la misma fila retirada por otra persona exige motivo. Tramitada por decisión del responsable del proyecto al aprobar las reseñas; el esquema de la auditoría no cambia, el motivo se suple con un valor fijo declarado en la especificación (`architecture.md` §6.6.3). | Responsable del proyecto |
+| 0.9.0   | 15-09-2026 | V.5 registra la **única excepción** a la inmutabilidad de las migraciones: el 15-09-2026, en desarrollo y con todas las bases borrables, las noventa y cuatro migraciones se consolidaron en nueve por módulo, sin cambiar el esquema ni los identificadores de las semillas. La excepción queda consumida; desde la primera versión operativa la regla rige sin excepción. | Responsable del proyecto |
 
 
 ---

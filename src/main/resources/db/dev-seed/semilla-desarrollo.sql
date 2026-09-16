@@ -18,7 +18,7 @@
 -- siembra: sería un agujero.
 --
 -- Las CUATRO MEMBRESÍAS sí son catálogo del negocio y las siembra
--- `V46__seed_memberships.sql`. Este guion las da por existentes.
+-- `V9__semilla_catalogos_y_superadmin.sql`. Este guion las da por existentes.
 --
 -- NO DEJA RASTRO EN LA AUDITORÍA ni pasa por las reglas de negocio: escribe
 -- directamente en las tablas. Para datos de prueba vale; para cualquier otra

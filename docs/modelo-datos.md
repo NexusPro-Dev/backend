@@ -2,7 +2,7 @@
 
 | Campo | Valor |
 |---|---|
-| Versión | 0.49.0 |
+| Versión | 0.50.0 |
 | Estado | **Borrador** |
 | Responsable | Bonilla Diaz William Steven |
 | Fecha de creación | 21-08-2026 |
@@ -14,7 +14,7 @@
 
     Es una **vista derivada**, no normativa. Sale de [`requirements/sp.md` §10](requirements/sp.md), [`security.md` §9](security.md) y [`architecture.md` §6.6](architecture.md). La fuente de verdad del esquema son las **migraciones Flyway** (Art. V.3), y donde ya existen mandan ellas.
 
-!!! warning "Treinta y una tablas escritas: las dos de los paquetes las creó `V91` el 15-09-2026"
+!!! warning "Treinta y una tablas, en NUEVE migraciones desde el 15-09-2026: el esquema se consolidó desde cero"
 
     **`product_images` —la portada de un producto, y la primera tabla del sistema que guarda un archivo— la creó `V90` con `RF-PM-014`** el 14-09-2026, junto con la columna `products.cover_image_id`. **Las dos de los paquetes, `product_packages` y `product_package_items`, las creó `V91` con `RF-PM-017`** el 15-09-2026, ya con el alcance de cuatro valores; `V93` sembró sus cuatro permisos. No queda ninguna tabla diseñada sin escribir.
 
@@ -756,7 +756,25 @@ Son las que siguen —**y desde el 14-09-2026 una de `PM` apunta a `users`**—,
 
 ### 5.4 Sobre la numeración de las migraciones
 
-La secuencia no es continua —falta el tramo `V8` a `V12`— y no es un descuido: son números consumidos por trabajo que se reorganizó. Un número de migración **no se reutiliza jamás**, porque Flyway lo registra en el historial de cada entorno.
+**El 15-09-2026 el esquema se consolidó desde cero**, por decisión del responsable del proyecto: las noventa y cuatro migraciones que lo construyeron entre el 20-08-2026 y el 15-09-2026 (`V1` a `V94`, con huecos) se reescribieron en **nueve**, cada tabla en su estado final y con las decisiones vigentes destiladas en su cabecera. El sistema estaba en desarrollo y ninguna base tenía datos que conservar; toda base existente se borra y se levanta con las nueve. Es una **excepción registrada al Art. V.5** (`constitution.md` v0.9.0), que no se repetirá después de la primera versión operativa: desde ahí, un número de migración no se reutiliza jamás y una migración integrada no se edita.
+
+**Qué no cambió**: ni una tabla, columna, restricción o índice —el `pg_dump` del esquema viejo y el del nuevo son idénticos salvo un índice redundante que se retiró, `idx_movements_client`, cubierto por `ix_movements_client`—, ni un identificador literal de las semillas, ni el mecanismo del superadministrador por marcador de posición. Las cuentas de las suites (cincuenta permisos, seis roles, cuatro membresías…) se conservan.
+
+**Qué cambió de verdad**: los registros de auditoría con los que nacen `ADMIN` y `SUPERADMIN` listan hoy sus cincuenta y cuarenta y cuatro permisos —antes listaban los veinticuatro que existían el día que se sembraron, porque los demás llegaron por migraciones posteriores—; y el superadministrador nace ya con país, membresía `BECA` y su registro completo, en lugar de recibirlos por rellenos sucesivos.
+
+| Migración de hoy | Qué contiene | Migraciones viejas que la formaron |
+|---|---|---|
+| `V1__funciones_compartidas` | extensiones y `f_unaccent` | `V1` |
+| `V2__auditoria` | los cuatro registros, `v_audit_timeline`, `request_log` | `V4`, `V33`, `V34`, `V35`, `V36` |
+| `V3__sp_catalogos` | `memberships`, `currencies`, `exchange_rates`, `countries`, `document_types`, `brokers` | `V13`, `V14`, `V16`, `V17`, `V38`, `V42`, `V47`, `V65`, `V70`, `V73`, `V79` |
+| `V4__sp_seguridad` | `permissions`, `roles`, `role_permissions`, `users`, `user_roles`, `user_memberships`, `user_supervisors`, `user_brokers`, `refresh_tokens`, `password_reset_permits` | `V2`, `V5`, `V6`, `V18` a `V21`, `V26` a `V29`, `V31`, `V32`, `V37`, `V52`, `V56`, `V64`, `V71`, `V74`, `V77`, `V80`, `V82`, `V83` |
+| `V5__pm_productos` | `product_images`, `products`, `product_comments`, `product_packages`, `product_package_items` | `V39`, `V41`, `V43`, `V53`, `V59`, `V61`, `V67`, `V86`, `V87`, `V89`, `V90`, `V91`, `V92` |
+| `V6__cm_comisiones` | `commission_rates`, `user_commission_rates`, `user_commission_rate_products` | `V44`, `V49`, `V50`, `V84`, `V85`, `V94` |
+| `V7__mv_movimientos` | `movement_types`, `payment_methods`, `payment_method_exclusions`, `movements`, `movement_details` | `V54`, `V55`, `V58`, `V78` |
+| `V8__semilla_permisos_y_roles` | los cincuenta permisos por módulo, los seis roles de sistema y sus asociaciones | `V3`, `V7`, `V30`, `V40`, `V45`, `V48`, `V51`, `V60`, `V66`, `V72`, `V75`, `V81`, `V88`, `V93` |
+| `V9__semilla_catalogos_y_superadmin` | USD, la cadena de membresías, COL, los documentos, los brokers, los catálogos de MV y el superadministrador | `V15`, `V22`, `V46`, `V57`, `V76`, y las semillas de `V54`, `V70`, `V78` |
+
+Los documentos que citan una migración vieja por su número —specs, controles de cambios, `security.md`— cuentan **historia**, y no se reescribieron: esta tabla es la traducción.
 
 
 ## 6. Lo que el modelo deja pendiente
@@ -828,3 +846,4 @@ La secuencia no es continua —falta el tramo `V8` a `V12`— y no es un descuid
 | 0.47.0 | 15-09-2026 | **`products.scope` pasa a cuatro valores: `TIENDA`, `HOTLINK`, `AMBOS`, `NINGUNO`** ([`requirements/pm.md`](requirements/pm.md) v0.35.0 §5.2.11), por decisión del responsable del proyecto. **Ninguna columna nueva**: `V92` reemplaza `ck_products_scope` y **antes renombra las filas `HOTLINKS` a `AMBOS`** — un `CHECK` no se puede declarar sobre filas que lo violan, y el orden `UPDATE` → `DROP` → `ADD` es lo que lo hace posible en una sola migración. **El renombrado es fiel**: `HOTLINKS` significaba «tienda y hotlinks», que es lo que `AMBOS` dice con su nombre; ningún producto cambia lo que mostraba. `product_packages.scope` —diseñada, `V91`— nace con el mismo dominio. Lo que conviene leer del cambio: **el campo deja de ser una escala** y pasa a ser un conjunto de vistas, con `NINGUNO` como el conjunto vacío — un producto activo que no se ofrece en ninguna parte, y que existe para venderse por otro camino. | Responsable del proyecto |
 | 0.48.0 | 15-09-2026 | **`V91` crea `product_packages` y `product_package_items`** ([`requirements/pm.md`](requirements/pm.md) v0.36.0, `RF-PM-017`): el modelo pasa de veintinueve a **treinta y una** tablas escritas y no queda ninguna diseñada pendiente. Nacen tal como se diseñaron el 14-09-2026 —**sin columna de precio**, con la moneda obligatoria e inmutable, con la pareja como clave de la asociación y el porcentaje acotado a cien como único techo del esquema— y **ya con `ck_product_packages_scope` de cuatro valores**, el dominio que `V92` llevó a `products` el mismo día. La unicidad del nombre es un índice parcial, como en `products`, y por parcial no admite `DEFERRABLE`: la carrera la traduce el repositorio. Ninguna clave foránea lleva `ON DELETE`; la fila de asociación se borra desde el caso de uso (`RF-PM-025`) con su registro `ASSOCIATION`. | Responsable técnico |
 | 0.49.0 | 15-09-2026 | **La tasa de rol nace con su producto: `commission_rates` gana `product_id` `NOT NULL` y `product_commission_rates` se retira** (`V94`, [`requirements/cm.md`](requirements/cm.md) v0.14.0 §5.4, `RN-CM-021`), por decisión del responsable del proyecto. **Es la segunda migración del proyecto que borra datos a propósito**, y por lo mismo que `V49`: ninguna tasa de rol anterior tenía producto, y clonarlas por cada asociación habría sido una copia plausible decidida por una migración; se vacía para que la pérdida sea visible y administración las registre sabiendo lo que hace. **Lo que hay que leer del dibujo**: la unicidad «un porcentaje por rol y producto» (`RN-CM-013`) deja de ser la clave primaria de una asociación y pasa a ser un índice **parcial** sobre `(product_id, role_id)` entre las vivas —y por parcial no admite `DEFERRABLE`—; la clave foránea compuesta y `uq_commission_rates_id_role`, que existían solo para sostener la asociación, se van con ella. `CM` sigue en tres tablas: la asociación que queda es la de la **personalizada** (`user_commission_rate_products`), que es la única que puede abarcar varios productos. **Y el módulo vuelve a decir la misma cosa de dos maneras a conciencia** —la de rol con columna, la personalizada con tabla—, deshaciendo la simetría de la v0.40.0: son dos preguntas distintas, qué paga un producto y qué gana una persona. | Responsable del proyecto |
+| 0.50.0 | 15-09-2026 | **El esquema se consolida desde cero en nueve migraciones** (`V1` a `V9`, por módulo: funciones, auditoría, catálogos de SP, seguridad de SP, PM, CM, MV, semilla de permisos y roles, semillas de catálogos y superadministrador), por decisión del responsable del proyecto y como excepción registrada al Art. V.5 ([`constitution.md`](constitution.md) v0.9.0). **Ni una tabla, columna, restricción o índice cambia** —los `pg_dump` del esquema viejo y del nuevo se compararon sentencia a sentencia—, salvo `idx_movements_client`, redundante con `ix_movements_client`, que se retira; los identificadores literales de las semillas se conservan. §5.4 gana la tabla de traducción migración vieja → migración de hoy, para leer los documentos que citan números viejos. `mvn clean verify`: 370 unitarias y 1413 de integración en verde, salvo `DevelopmentSeedIT` por una edición sin confirmar de la semilla de desarrollo. | Responsable del proyecto |

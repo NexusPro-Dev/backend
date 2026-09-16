@@ -137,7 +137,7 @@ class AuditQueryIT extends IntegrationTestBase {
   @Test
   @DisplayName("CA-SP-086 — un evento sin origen de red devuelve correlación e IP vacías A LA VEZ")
   void eventoSinOrigenDeRed() throws Exception {
-    // Lo escribe una migración: `V7__seed_system_roles.sql` siembra los roles de
+    // Lo escribe una migración: `V8__semilla_permisos_y_roles.sql` siembra los roles de
     // sistema sin petición HTTP detrás.
     mvc.perform(cambios().param("entity", "roles").param("module", "SP"))
         .andExpect(status().isOk());

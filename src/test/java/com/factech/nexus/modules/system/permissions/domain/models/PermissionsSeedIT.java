@@ -11,9 +11,9 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.jdbc.core.JdbcTemplate;
 
 /**
- * Verificación de {@code V3__seed_permissions.sql} (`RF-SP-010` · `T-03`).
+ * Verificación de {@code V8__semilla_permisos_y_roles.sql} (`RF-SP-010` · `T-03`).
  *
- * <p>El catálogo sembrado es el contrato del que dependen {@code V7__seed_system_roles.sql} y las
+ * <p>El catálogo sembrado es el contrato del que dependen {@code V8__semilla_permisos_y_roles.sql} y las
  * pruebas de `RF-SP-001` y `RF-SP-005`, que referencian permisos por identificador. Que esos
  * identificadores sean estables entre entornos no es una comodidad: es lo que permite que una
  * migración posterior los asocie.
@@ -145,7 +145,7 @@ class PermissionsSeedIT extends IntegrationTestBase {
   void identificadoresEstables() {
     // Si alguien sustituyera los literales por gen_random_uuid(), esta prueba
     // fallaría en el siguiente entorno: es lo que protege la asociación que
-    // V7__seed_system_roles.sql hará por identificador (Art. V.11).
+    // V8__semilla_permisos_y_roles.sql hará por identificador (Art. V.11).
     assertThat(
             jdbc.queryForObject(
                 "SELECT id::text FROM permissions WHERE code = 'roles:create'", String.class))

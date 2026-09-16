@@ -53,7 +53,7 @@ spring:
     # de Flyway es un estado que debe fallar, no que deba asumirse.
     validate-on-migrate: true
 
-    # Credencial inicial del superadministrador (`V22__seed_superadmin.sql`).
+    # Credencial inicial del superadministrador (`V9__semilla_catalogos_y_superadmin.sql`).
     #
     # Entra por marcador de posición y no como literal en la migración: un hash
     # escrito en el repositorio es una credencial en el repositorio (RNF-SEG-003).

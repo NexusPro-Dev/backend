@@ -12,7 +12,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.jdbc.core.JdbcTemplate;
 
 /**
- * Verificación de {@code V7__seed_system_roles.sql} (`RF-SP-001` · `T-04`).
+ * Verificación de {@code V8__semilla_permisos_y_roles.sql} (`RF-SP-001` · `T-04`).
  *
  * <p>El catálogo sembrado se REDUJO el 29-08-2026: {@code CONTABILIDAD} y {@code LIDER_ACADEMICO}
  * se retiraron de `V7` por decisión del responsable del proyecto. Esta clase se reescribió entera

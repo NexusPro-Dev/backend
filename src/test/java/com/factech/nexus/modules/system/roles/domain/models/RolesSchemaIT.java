@@ -12,7 +12,7 @@ import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.jdbc.core.JdbcTemplate;
 
 /**
- * Verificación de {@code V5__create_roles.sql} y {@code V6__create_role_permissions.sql}
+ * Verificación de {@code V4__sp_seguridad.sql} y {@code V4__sp_seguridad.sql}
  * (`RF-SP-001` · `T-02`, `T-03`).
  *
  * <p>Las pruebas comparten un solo PostgreSQL y escriben sin revertir, de modo que cada una usa un

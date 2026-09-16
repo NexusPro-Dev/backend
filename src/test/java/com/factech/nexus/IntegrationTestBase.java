@@ -92,7 +92,7 @@ public abstract class IntegrationTestBase {
     // directamente, que es como se prueba lo que hace y no cuándo lo hace.
     registry.add("TOKEN_PURGE_ENABLED", () -> "false");
 
-    // Credencial inicial del superadministrador, que `V22__seed_superadmin.sql`
+    // Credencial inicial del superadministrador, que `V9__semilla_catalogos_y_superadmin.sql`
     // exige como marcador de posición. Se declara aquí y no en un archivo de
     // propiedades de prueba por lo mismo que las anteriores: lo que se prueba es
     // la configuración real, y solo se le da el origen de los datos.
@@ -108,7 +108,7 @@ public abstract class IntegrationTestBase {
   }
 
   /**
-   * Identificador del superadministrador sembrado por {@code V22__seed_superadmin.sql}.
+   * Identificador del superadministrador sembrado por {@code V9__semilla_catalogos_y_superadmin.sql}.
    *
    * <p>Es fijo a propósito: toda prueba de integración que necesite un actor con permisos reales lo
    * refiere por esta constante en lugar de consultarlo, que es la razón por la que aquella
@@ -117,11 +117,11 @@ public abstract class IntegrationTestBase {
   protected static final java.util.UUID SUPERADMIN =
       java.util.UUID.fromString("01a033a4-4a00-7001-9c4f-5e7ad4000001");
 
-  /** Identificador de {@code ADMIN}, sembrado por {@code V7__seed_system_roles.sql}. */
+  /** Identificador de {@code ADMIN}, sembrado por {@code V8__semilla_permisos_y_roles.sql}. */
   protected static final String ADMIN_SEMBRADO = "01a02a33-4c00-7002-9c4f-5e7ad1000002";
 
   /**
-   * Colombia, el único país sembrado, por {@code V64__usuario_con_pais.sql} (`RN-SP-034`).
+   * Colombia, el único país sembrado, por {@code V4__sp_seguridad.sql} (`RN-SP-034`).
    *
    * <p>Es fijo por el mismo motivo que {@link #SUPERADMIN}: toda alta de persona lo exige, y una
    * prueba que tuviera que consultarlo antes estaría probando el catálogo de países en lugar de lo
@@ -136,7 +136,7 @@ public abstract class IntegrationTestBase {
       java.util.UUID.fromString("01a07bbd-5200-7001-9c4f-5e7ad3000101");
 
   /**
-   * Cédula de ciudadanía, sembrada por {@code V70__create_document_types.sql} (`RN-SP-035`).
+   * Cédula de ciudadanía, sembrada por {@code V3__sp_catalogos.sql} (`RN-SP-035`).
    *
    * <p>Es fijo por lo mismo que {@link #COLOMBIA}: toda alta de persona exige un tipo de documento,
    * y una prueba que tuviera que consultarlo antes estaría probando el catálogo en lugar de lo

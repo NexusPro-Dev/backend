@@ -45,7 +45,7 @@ import org.springframework.stereotype.Repository;
 @Repository
 public class JpaRootRoleHolderRepository implements RootRoleHolderRepository {
 
-  /** El código del rol raíz lo fija `V7__seed_system_roles.sql` y no cambia jamás. */
+  /** El código del rol raíz lo fija `V8__semilla_permisos_y_roles.sql` y no cambia jamás. */
   private static final String ROL_RAIZ = "SUPERADMIN";
 
   private final EntityManager em;
