@@ -108,7 +108,8 @@ public abstract class IntegrationTestBase {
   }
 
   /**
-   * Identificador del superadministrador sembrado por {@code V9__semilla_catalogos_y_superadmin.sql}.
+   * Identificador del superadministrador sembrado por {@code
+   * V9__semilla_catalogos_y_superadmin.sql}.
    *
    * <p>Es fijo a propósito: toda prueba de integración que necesite un actor con permisos reales lo
    * refiere por esta constante en lugar de consultarlo, que es la razón por la que aquella

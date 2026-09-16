@@ -13,8 +13,8 @@ import org.springframework.jdbc.core.JdbcTemplate;
 /**
  * Verificación de {@code V8__semilla_permisos_y_roles.sql} (`RF-SP-010` · `T-03`).
  *
- * <p>El catálogo sembrado es el contrato del que dependen {@code V8__semilla_permisos_y_roles.sql} y las
- * pruebas de `RF-SP-001` y `RF-SP-005`, que referencian permisos por identificador. Que esos
+ * <p>El catálogo sembrado es el contrato del que dependen {@code V8__semilla_permisos_y_roles.sql}
+ * y las pruebas de `RF-SP-001` y `RF-SP-005`, que referencian permisos por identificador. Que esos
  * identificadores sean estables entre entornos no es una comodidad: es lo que permite que una
  * migración posterior los asocie.
  */
