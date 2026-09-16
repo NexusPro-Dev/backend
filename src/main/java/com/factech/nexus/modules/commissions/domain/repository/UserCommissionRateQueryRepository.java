@@ -46,15 +46,17 @@ public interface UserCommissionRateQueryRepository {
       UUID userId,
       String username,
       String userFullName,
+      UUID productId,
+      String productCode,
+      String productName,
+      BigDecimal productPrice,
+      UUID currencyId,
+      String currencyCode,
+      int currencyDecimalPlaces,
       CommissionRateType rateType,
       BigDecimal percentage,
       BigDecimal fixedAmount,
       LocalDate validFrom,
       LocalDate validTo,
-      /**
-       * Sobre cuántos productos rige (12-09-2026). <b>Cero significa que no paga nada</b>, que es
-       * el estado en que una personalizada nace desde que `RN-CM-012` dejó de tener excepción.
-       */
-      long associatedProducts,
       OffsetDateTime deletedAt) {}
 }

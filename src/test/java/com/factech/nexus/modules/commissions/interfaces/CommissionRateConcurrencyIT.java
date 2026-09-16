@@ -58,39 +58,48 @@ class CommissionRateConcurrencyIT extends IntegrationTestBase {
   }
 
   // ---------------------------------------------------------------------------
-  // `RN-CM-006` — el no solapamiento, YA NO EN EL MOTOR
+  // `RN-CM-006` — el no solapamiento, OTRA VEZ EN EL MOTOR (16-09-2026)
   //
-  // Hasta `V85` esta regla la garantizaba un `EXCLUDE`, y estas pruebas
-  // comprobaban que la violación llegaba TRADUCIDA. Desde el 11-09-2026 el
-  // índice no existe —la regla cruza dos tablas— y lo único que la sostiene es
-  // el BLOQUEO CONSULTIVO que toma el caso de uso al asociar.
+  // Hasta `V85` esta regla la garantizaba un `EXCLUDE` y estas pruebas
+  // comprobaban que la violación llegaba TRADUCIDA. Del 11-09-2026 al
+  // 16-09-2026 el índice no existía —la regla cruzaba dos tablas— y lo único que
+  // la sostenía era el bloqueo consultivo del caso de uso al asociar. Desde
+  // `V10` la personalizada nace con su producto y el `EXCLUDE` vuelve, sobre
+  // (persona, producto, rango).
   //
-  // De modo que estas pruebas cambian de sitio y de peso: antes verificaban una
-  // traducción, ahora verifican LA GARANTÍA ENTERA. Si alguien quita el bloqueo,
-  // es aquí y solo aquí donde se nota.
+  // De modo que estas pruebas vuelven a verificar UNA TRADUCCIÓN, y de dos
+  // estados: `23P01` cuando la otra ya confirmó, y `40P01` cuando las dos
+  // inserciones se esperan y PostgreSQL mata a una. La memoria del proyecto
+  // dice que el segundo aparece una de cada pocas ejecuciones: esta prueba se
+  // corre varias veces seguidas antes de darla por buena.
   // ---------------------------------------------------------------------------
 
   @Test
-  @DisplayName("dos asociaciones simultáneas que se solapan: una queda, la otra recibe 409")
-  void dosAsociacionesSimultaneasDelMismoPeriodo() throws Exception {
-    // Las dos altas pasan: sin producto no hay solapamiento posible.
-    UUID primera = altaPersonal("10.00", "2026-01-01", "2026-12-31");
-    UUID segunda = altaPersonal("12.00", "2026-06-01", "2026-12-31");
+  @DisplayName(
+      "CA-CM-147 · dos altas simultáneas de la misma persona sobre el mismo producto y periodo:"
+          + " una queda, la otra recibe 409")
+  void dosAltasSimultaneasDelMismoPeriodo() throws Exception {
     UUID producto = CommissionFixtures.sembrarProducto(jdbc, "BOT_CONC");
 
     List<Outcome<Integer>> resultados =
-        runTogether(2, indice -> asociarPersonal(indice == 0 ? primera : segunda, producto));
+        runTogether(
+            2,
+            indice ->
+                indice == 0
+                    ? altaPersonal(producto, "10.00", "2026-01-01", "2026-12-31")
+                    : altaPersonal(producto, "12.00", "2026-06-01", "2026-12-31"));
 
-    // Ninguna puede salir como 500: sin el bloqueo las dos leerían «no hay
-    // solape» y las dos escribirían, y no habría ni error que traducir.
+    // Ninguna puede salir como 500: la consulta previa del caso de uso no ve
+    // la carrera, y lo que la cierra es el EXCLUDE — que hay que traducir, por
+    // los DOS estados.
     assertThat(resultados).noneMatch(r -> r.succeeded() && r.value() >= 500);
 
-    assertThat(asociacionesDe(producto))
-        .as("las dos asociaciones quedaron, o no quedó ninguna")
+    assertThat(personalizadasSobre(producto))
+        .as("las dos tasas quedaron, o no quedó ninguna")
         .isEqualTo(1);
 
     assertThat(resultados.stream().filter(r -> r.succeeded() && r.value() == 201).count())
-        .as("exactamente una debía asociarse")
+        .as("exactamente una debía registrarse")
         .isEqualTo(1);
 
     assertThat(resultados.stream().filter(r -> r.succeeded() && r.value() == 409).count())
@@ -99,17 +108,20 @@ class CommissionRateConcurrencyIT extends IntegrationTestBase {
   }
 
   @Test
-  @DisplayName("dos asociaciones simultáneas de periodos que NO se tocan: las dos quedan")
-  void dosAsociacionesSimultaneasConsecutivas() throws Exception {
-    UUID primera = altaPersonal("10.00", "2026-01-01", "2026-06-30");
-    UUID segunda = altaPersonal("12.00", "2026-07-01", "2026-12-31");
+  @DisplayName("dos altas simultáneas de periodos que NO se tocan, mismo producto: las dos quedan")
+  void dosAltasSimultaneasConsecutivas() throws Exception {
     UUID producto = CommissionFixtures.sembrarProducto(jdbc, "BOT_CONC2");
 
     List<Outcome<Integer>> resultados =
-        runTogether(2, indice -> asociarPersonal(indice == 0 ? primera : segunda, producto));
+        runTogether(
+            2,
+            indice ->
+                indice == 0
+                    ? altaPersonal(producto, "10.00", "2026-01-01", "2026-06-30")
+                    : altaPersonal(producto, "12.00", "2026-07-01", "2026-12-31"));
 
     assertThat(resultados).allMatch(r -> r.succeeded() && r.value() == 201);
-    assertThat(asociacionesDe(producto)).isEqualTo(2);
+    assertThat(personalizadasSobre(producto)).isEqualTo(2);
   }
 
   // ---------------------------------------------------------------------------
@@ -174,41 +186,30 @@ class CommissionRateConcurrencyIT extends IntegrationTestBase {
   // Utilidades
   // ---------------------------------------------------------------------------
 
-  /** El alta de una personalizada, devolviendo su identificador. */
-  private UUID altaPersonal(String porcentaje, String desde, String hasta) throws Exception {
-    String json =
-        mvc.perform(
-                post("/api/v1/user-commission-rates")
-                    .with(user(SUPERADMIN.toString()).authorities(() -> "commissions:create"))
-                    .contentType(MediaType.APPLICATION_JSON)
-                    .content(
-                        "{\"userId\":\""
-                            + vendedora
-                            + "\",\"rateType\":\"PORCENTAJE\",\"percentage\":"
-                            + porcentaje
-                            + ",\"validFrom\":\""
-                            + desde
-                            + "\",\"validTo\":\""
-                            + hasta
-                            + "\"}"))
-            .andReturn()
-            .getResponse()
-            .getContentAsString();
-    return UUID.fromString(com.jayway.jsonpath.JsonPath.read(json, "$.id"));
-  }
-
-  private int asociarPersonal(UUID tasa, UUID producto) {
+  /** El alta de una personalizada de la vendedora sobre un producto, devolviendo el estado. */
+  private int altaPersonal(UUID producto, String porcentaje, String desde, String hasta) {
     return estadoDe(
-        post("/api/v1/user-commission-rates/" + tasa + "/products")
-            .with(user(SUPERADMIN.toString()).authorities(() -> "commissions:update"))
+        post("/api/v1/user-commission-rates")
+            .with(user(SUPERADMIN.toString()).authorities(() -> "commissions:create"))
             .contentType(MediaType.APPLICATION_JSON)
-            .content("{\"productId\":\"" + producto + "\"}"));
+            .content(
+                "{\"userId\":\""
+                    + vendedora
+                    + "\",\"productId\":\""
+                    + producto
+                    + "\",\"rateType\":\"PORCENTAJE\",\"percentage\":"
+                    + porcentaje
+                    + ",\"validFrom\":\""
+                    + desde
+                    + "\",\"validTo\":\""
+                    + hasta
+                    + "\"}"));
   }
 
-  private long asociacionesDe(UUID producto) {
+  private long personalizadasSobre(UUID producto) {
     Long total =
         jdbc.queryForObject(
-            "SELECT count(*) FROM user_commission_rate_products WHERE product_id = CAST(? AS uuid)",
+            "SELECT count(*) FROM user_commission_rates WHERE product_id = CAST(? AS uuid)",
             Long.class,
             producto.toString());
     return total == null ? 0 : total;

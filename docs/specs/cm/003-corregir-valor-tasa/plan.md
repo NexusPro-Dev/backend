@@ -5,7 +5,7 @@
 | Requerimiento | `RF-CM-003` |
 | Especificación | [`spec.md`](spec.md) |
 | `spec.md` aprobada el | 03-09-2026 |
-| Versión | 0.6.0 |
+| Versión | 0.7.0 |
 | Reabierto el | 11-09-2026 — corregir una personalizada **no puede cambiar su producto**, igual que no puede cambiar la persona ni el inicio de vigencia (Art. I.7) |
 | Estado | **Aprobado** |
 | Autor | Responsable técnico |
@@ -210,3 +210,4 @@ Registro de **cambios**, acción de actualización, con `before` y `after` de ca
 
     Por eso `CA-CM-091` se prueba **también en unitaria**, sobre `CommissionValue` directamente: por la API el fallo se ve como un `200` con la tasa sin cambiar, que **es indistinguible de `FA-001` funcionando bien**.
 | 0.6.0 | 15-09-2026 | **Enmienda por `RN-CM-021`** ([`requirements/cm.md`](../../../requirements/cm.md) v0.14.0 §5.4): `UpdateCommissionRateService` deja de recorrer `product_commission_rates` y evalúa `ProductCommissionCapGuard` sobre `rate.productId`, más los decimales de la moneda del producto para un importe fijo. | Responsable técnico |
+| 0.7.0 | 16-09-2026 | **Enmienda por `RN-CM-021` en la personalizada** (`spec.md` v0.8.0): `UpdateUserCommissionRateService` pierde `UserRateProductRepository` y revalida contra `tasa.getProductId()` —`findOverlapping` por persona y producto si cambia `validTo`; `ProductCommissionCapGuard.verificarIndividual` y `ProductCurrencyScale` si cambia el valor—. El bloqueo por persona se conserva como acompañante; el `EXCLUDE` vuelve a cerrar la carrera y `flushChanges` la traduce. | Responsable técnico |

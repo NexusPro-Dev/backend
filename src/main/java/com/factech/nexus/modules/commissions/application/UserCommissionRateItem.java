@@ -21,12 +21,12 @@ import java.util.UUID;
 public record UserCommissionRateItem(
     UUID id,
     UserCommissionRateResponse.UserRef user,
+    CommissionRateResponse.ProductRef product,
     CommissionRateType rateType,
     BigDecimal percentage,
     BigDecimal fixedAmount,
     LocalDate validFrom,
     LocalDate validTo,
-    long associatedProducts,
     OffsetDateTime deletedAt) {
 
   public static UserCommissionRateItem from(UserRateRow fila) {
@@ -34,12 +34,12 @@ public record UserCommissionRateItem(
     return new UserCommissionRateItem(
         base.id(),
         base.user(),
+        base.product(),
         base.rateType(),
         base.percentage(),
         base.fixedAmount(),
         base.validFrom(),
         base.validTo(),
-        fila.associatedProducts(),
         fila.deletedAt());
   }
 }

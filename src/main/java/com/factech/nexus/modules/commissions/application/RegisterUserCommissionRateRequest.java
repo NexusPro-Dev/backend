@@ -37,6 +37,7 @@ import java.util.UUID;
  */
 public record RegisterUserCommissionRateRequest(
     @NotNull(message = "VAL-001: La persona de la tasa es obligatoria.") UUID userId,
+    @NotNull(message = "VAL-013: El producto de la tasa es obligatorio.") UUID productId,
     @NotNull(message = "VAL-002: La forma de la comisión es obligatoria: porcentaje o valor fijo.")
         CommissionRateType rateType,
     @DecimalMin(value = "0.00", message = "VAL-003: El porcentaje debe estar entre cero y cien.")

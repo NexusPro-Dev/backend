@@ -21,17 +21,20 @@ public class JpaUserCommissionRateQueryRepository implements UserCommissionRateQ
       """
       t.id AS id, t.user_id AS user_id, u.username AS username,
       u.first_name AS user_nombre, u.last_name AS user_apellido,
+      t.product_id AS product_id, p.code AS product_code, p.name AS product_name,
+      p.price AS product_price,
+      p.currency_id AS currency_id, c.code AS currency_code, c.decimal_places AS decimal_places,
       t.rate_type AS rate_type, t.percentage AS percentage, t.fixed_amount AS fixed_amount,
       t.valid_from AS valid_from, t.valid_to AS valid_to,
-      (SELECT count(*) FROM user_commission_rate_products ap
-        WHERE ap.user_commission_rate_id = t.id) AS asociados,
       t.deleted_at AS deleted_at
       """;
 
   private static final String TABLAS =
       """
       user_commission_rates t
-      LEFT JOIN users u ON u.id = t.user_id
+      LEFT JOIN users      u ON u.id = t.user_id
+      LEFT JOIN products   p ON p.id = t.product_id
+      LEFT JOIN currencies c ON c.id = p.currency_id
       """;
 
   private final EntityManager em;
@@ -96,19 +99,8 @@ public class JpaUserCommissionRateQueryRepository implements UserCommissionRateQ
   private static Filtro predicado(UserRateFilters f) {
     Filtro filtro = new Filtro();
     filtro.igual("t.user_id", "persona", f.userId());
-
-    // EXISTS y no JOIN, a propósito: un JOIN filtra bien mientras se filtre
-    // por UN producto —una fila por tasa—, y el día que alguien admitiera
-    // varios volvería a multiplicar filas sin que ninguna prueba de un solo
-    // producto lo notara. La cuenta de arriba es subconsulta por lo mismo que
-    // en el catálogo de rol (`RF-CM-002 plan.md` §5).
-    if (f.productId() != null) {
-      filtro.condicion(
-          "EXISTS (SELECT 1 FROM user_commission_rate_products ap"
-              + " WHERE ap.user_commission_rate_id = t.id AND ap.product_id = :producto)",
-          "producto",
-          f.productId());
-    }
+    // Desde el 16-09-2026 el producto es una columna de la propia tasa.
+    filtro.igual("t.product_id", "producto", f.productId());
 
     if (!f.includeDeleted()) {
       filtro.crudo("t.deleted_at IS NULL");
@@ -131,12 +123,18 @@ public class JpaUserCommissionRateQueryRepository implements UserCommissionRateQ
         (String) fila.get("username"),
         CommissionRows.nombreCompleto(
             (String) fila.get("user_nombre"), (String) fila.get("user_apellido")),
+        (UUID) fila.get("product_id"),
+        (String) fila.get("product_code"),
+        (String) fila.get("product_name"),
+        (BigDecimal) fila.get("product_price"),
+        (UUID) fila.get("currency_id"),
+        (String) fila.get("currency_code"),
+        ((Number) fila.get("decimal_places")).intValue(),
         CommissionRows.forma(fila.get("rate_type")),
         (BigDecimal) fila.get("percentage"),
         (BigDecimal) fila.get("fixed_amount"),
         CommissionRows.fecha(fila.get("valid_from")),
         CommissionRows.fecha(fila.get("valid_to")),
-        ((Number) fila.get("asociados")).longValue(),
         CommissionRows.momento(fila.get("deleted_at")));
   }
 

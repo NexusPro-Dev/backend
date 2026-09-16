@@ -4,7 +4,7 @@
 |---|---|
 | Requerimiento | `RF-CM-002` |
 | Módulo | `CM` — Comisiones |
-| Versión | 1.3.0 |
+| Versión | 1.4.0 |
 | Estado | **Aprobada** |
 | Autor | Responsable técnico |
 | Aprobada por | Responsable del proyecto |
@@ -12,6 +12,7 @@
 | Enmendada el | 12-09-2026 — **la asociación de la tasa personalizada se puede LEER**: filtro por producto y cuenta de asociados en el listado, y una quinta lectura con los productos de una personalizada (`RN-CM-014`). Ver §15 |
 | Enmendada el | 15-09-2026 — **cada tasa de rol trae su producto** y el listado filtra por `productId`; `GET /commission-rates/{id}/products` se retira (`RN-CM-021`). Ver §15 |
 | Enmendada el | 15-09-2026 — **el producto de cada tasa de rol trae su precio y su moneda**, a petición del responsable del proyecto. Ver §15 |
+| Enmendada el | 16-09-2026 — **la personalizada nace con su producto**: el listado de personalizadas trae el producto en cada fila y la lectura «los productos de una personalizada» se retira (`RN-CM-021`). Ver §15 |
 
 !!! info "Qué va en este documento"
 
@@ -51,9 +52,9 @@ Cinco lecturas que responden a la misma pregunta desde cinco sitios:
 | Lectura | Responde a |
 |---|---|
 | **El catálogo por rol** | Qué tasas hay declaradas, para qué rol, y **sobre cuántos productos rige cada una** |
-| **Las tasas personalizadas** | Qué excepciones por persona hay, incluido su **historial**, **sobre cuántos productos rige cada una** y —filtrando— **quién tiene excepción en este producto** |
+| **Las tasas personalizadas** | Qué excepciones por persona hay, incluido su **historial**, **sobre qué producto rige cada una** (16-09-2026) y —filtrando— **quién tiene excepción en este producto** |
 | **Las asociaciones de una tasa de rol** | Sobre qué productos rige esta tasa concreta |
-| **Las asociaciones de una tasa personalizada** | Sobre qué productos rige esta excepción concreta (12-09-2026) |
+| ~~**Las asociaciones de una tasa personalizada**~~ | ~~Sobre qué productos rige esta excepción concreta~~ **Retirada el 16-09-2026**: rige sobre uno, y el listado lo dice |
 | **Las asociaciones de un producto** | **Qué paga este producto, y a qué rol** |
 
 Además: filtrar, paginar los dos primeros, marcar las retiradas sin excluirlas, y devolver el orden aplicado.
@@ -97,7 +98,7 @@ Ninguna. Es una consulta: no decide nada y no cambia nada.
 | Dato | Obligatorio | Descripción | Restricción de negocio |
 |---|---|---|---|
 | Persona | No | Filtra las tasas de una persona | Devuelve **las declaradas para ella**, no la que le aplica |
-| Producto | No | Filtra las tasas **asociadas** a ese producto (12-09-2026) | Devuelve las excepciones que **rigen ahí**, de cualquier persona. Si el producto no existe o nadie tiene excepción en él, la colección vuelve vacía y **no es un error**. **Se combina con los demás**: persona y producto juntos dicen si esa persona tiene excepción en ese producto, y con la fecha, si la tiene hoy |
+| Producto | No | Filtra las tasas **de** ese producto (12-09-2026; desde el 16-09-2026 por la columna de la propia tasa) | Devuelve las excepciones que **rigen ahí**, de cualquier persona. Si el producto no existe o nadie tiene excepción en él, la colección vuelve vacía y **no es un error**. **Se combina con los demás**: persona y producto juntos dicen si esa persona tiene excepción en ese producto, y con la fecha, si la tiene hoy |
 | Las que rigen en una fecha | No | Devuelve únicamente las vigentes ese día | Una fecha |
 | Incluir retiradas | No | Si se piden también las retiradas | Por omisión, **no** |
 | Página y tamaño | No | Paginación | Los límites del sistema |
@@ -138,19 +139,12 @@ Ninguna. Es una consulta: no decide nada y no cambia nada.
 |---|---|
 | Tasas | Identificador, **forma, valor** y **vigencia** |
 | Persona resuelta | Nombre de usuario y nombre |
-| **Productos asociados** | Cuántos hacen que esa excepción rija (12-09-2026). **El cero significa que no paga nada**, exactamente como en el catálogo: desde `RN-CM-012` sin excepción, una personalizada sin asociar es una excepción declarada que **no rige sobre nada** |
+| **Producto resuelto** | Identificador, código y nombre, **con su precio y su moneda** (16-09-2026): la misma forma que en el catálogo por rol (`CA-CM-145`) |
 | Marca de retiro, total y orden | Como en el catálogo |
 
-**No llevan rol**, y no es que falte: una tasa personalizada no tiene ninguno. **Y los productos van contados, no listados**: el listado se pagina y una lista dentro de cada fila multiplicaría el cuerpo sin decir nada que la quinta lectura no diga mejor. Hasta el 12-09-2026 este párrafo decía «ni rol ni producto», y era cierto: la personalizada no se asociaba a nada.
+**No llevan rol**, y no es que falte: una tasa personalizada no tiene ninguno. **Y el producto va uno por fila**, porque es uno por tasa (`RN-CM-021`). Del 12-09-2026 al 16-09-2026 iba **contado** —cuántos productos hacían regir la excepción, con el cero significando «no paga nada»—; hasta el 12-09-2026 este párrafo decía «ni rol ni producto», y era cierto: la personalizada no se asociaba a nada.
 
-**De las asociaciones de una tasa personalizada**
-
-| Dato | Descripción |
-|---|---|
-| Tasa | Su identificador, el mismo que se pidió |
-| Productos resueltos | Identificador, código y nombre de cada uno, **por código** |
-
-**Es la misma forma que devuelven asociar y desasociar** (`RF-CM-006`): la lista completa de productos de esa tasa. Una lectura que devolviera otra forma obligaría al cliente a dos modelos para el mismo dato. **No lleva forma ni valor** porque la tasa es una y ya se conoce; en la lectura por producto viajan porque allí hay una tasa distinta por fila.
+**~~De las asociaciones de una tasa personalizada~~** — la quinta lectura existió del 12-09-2026 al 16-09-2026 y devolvía los productos resueltos de una excepción. Con un producto por tasa, el listado lo dice en cada fila, y la lectura se retira.
 
 **De las asociaciones**
 
@@ -235,10 +229,10 @@ Ninguna propia. Los parámetros mal formados los rechaza la validación de entra
 | `CA-CM-097` | El filtro por forma devuelve solo esa forma, y **ausente no filtra nada** |
 | `CA-CM-098` | **Un catálogo con las dos formas no se ordena por la cifra**: los importes fijos no se intercalan entre los porcentajes |
 | `CA-CM-099` | La lectura por producto devuelve **la forma de cada rol**, de modo que las cifras no se puedan comparar por error |
-| `CA-CM-126` | El listado de personalizadas **filtra por producto**: devuelve las asociadas a él, de cualquier persona, y **se combina** con persona y fecha |
-| `CA-CM-127` | Cada personalizada declara **sobre cuántos productos rige**, el cero significa que no paga nada, y **la cuenta no multiplica las filas**: una tasa con dos asociaciones aparece **una vez** y el total cuadra |
-| `CA-CM-128` | Las asociaciones de una personalizada devuelven **sus productos resueltos**, por código, **con la misma forma** que devuelve asociar |
-| `CA-CM-129` | La quinta lectura exige el permiso de lectura de comisiones, y **un identificador que no es de nada devuelve la colección vacía**, como las otras dos direcciones |
+| `CA-CM-126` | El listado de personalizadas **filtra por producto**: devuelve las de ese producto, de cualquier persona, y **se combina** con persona y fecha |
+| ~~`CA-CM-127`~~ | ~~Cada personalizada declara sobre cuántos productos rige~~ **Superado el 16-09-2026** por `CA-CM-150`: declara **cuál** |
+| ~~`CA-CM-128`~~, ~~`CA-CM-129`~~ | ~~La quinta lectura~~ **Retirada el 16-09-2026** (`CA-CM-150`): `GET /user-commission-rates/{id}/products` responde `404` de ruta |
+| `CA-CM-150` | Cada personalizada del listado trae **su producto** —`id`, `code`, `name`, `price`, `currency`—, sin cuenta de asociados; y `GET /user-commission-rates/{id}/products` **ya no existe** |
 | `CA-CM-141` | Cada tasa de rol del listado trae **su producto** —`id`, `code`, `name`— y el filtro `productId` devuelve solo las de ese producto; `GET /commission-rates/{id}/products` **ya no existe** (`404` de ruta) |
 | `CA-CM-145` | El producto de cada tasa de rol trae **su precio** y **su moneda** —`id`, `code`, `decimalPlaces`—, **sea cual sea la forma de la tasa**; y la misma forma la devuelven el alta y la corrección |
 
@@ -263,7 +257,7 @@ Ninguna propia. Los parámetros mal formados los rechaza la validación de entra
 - **Pedir las asociaciones de un identificador que no es de nada:** colección vacía, igual que si no tuviera ninguna. No se comprueba que la tasa o el producto existan, por lo mismo que en `FA-001`. **Vale igual para la personalizada** (`CA-CM-129`).
 - **Filtrar las personalizadas por un producto donde nadie tiene excepción:** colección vacía. **No significa que ese producto no comisione**: significa que todo el que lo venda cobra por su rol, y eso lo dice la lectura por producto.
 - **Filtrar por persona Y por producto:** cero o una fila viva, porque `RN-CM-006` impide que dos excepciones de la misma persona se solapen en el mismo producto — pero **puede haber varias en el historial**, consecutivas o retiradas. Es el filtro que responde «¿tiene esta persona excepción en este producto?», y responde con el historial, no con un sí o un no.
-- **Una personalizada con dos productos aparece UNA vez en el listado**, con `2` en la cuenta. Es la misma trampa que `CA-CM-011` cerró en el catálogo, y se cierra de la misma forma (`plan.md` §5).
+- **Una persona con excepción en dos productos aparece DOS veces en el listado**, una por tasa (16-09-2026). Hasta entonces era una fila con `2` en la cuenta; hoy no hay cuenta ni producto cartesiano que agrupar.
 
 ## 14. Preguntas abiertas
 
@@ -284,3 +278,4 @@ Ninguna propia. Los parámetros mal formados los rechaza la validación de entra
 | 1.1.0 | 12-09-2026 | **La asociación de la personalizada se puede LEER.** El 11-09-2026 `RN-CM-014` se invirtió y la tasa personalizada pasó a asociarse a productos con el mismo mecanismo que la de rol — con sus dos escrituras y **sin ninguna lectura**. Lo destapó el responsable del proyecto al preguntar si existía un endpoint para consultar las comisiones personalizadas por producto. Entran tres cosas y las tres calcan lo que la de rol ya tenía: el listado de personalizadas **filtra por producto** —«quién tiene excepción aquí», combinable con persona y fecha— y **cuenta los productos asociados** de cada fila —el cero vuelve a significar «no paga nada», ahora también para la excepción—; y nace la **quinta lectura**, los productos de una personalizada, **con la misma forma** que devuelven asociar y desasociar. **Se descarta a propósito** meter las personalizadas en la lectura por producto: mezclar filas con rol y filas con persona en una colección exige un discriminador que nadie necesita, y el filtro del listado responde lo mismo paginado. Nacen `CA-CM-126` a `CA-CM-129`; §6.2 deja de decir que la personalizada «no lleva producto», que dejó de ser cierto el día anterior. | Responsable del proyecto |
 | 1.2.0 | 15-09-2026 | **La tasa de rol trae su producto** (`RN-CM-021`, [`requirements/cm.md`](../../../requirements/cm.md) v0.14.0 §5.4): el listado deja de contar «productos asociados» y pasa a **decir cuál es**, y gana el filtro `productId` — lo que el responsable del proyecto pidió leer es **todas las comisiones que se han configurado**, en una sola lista. La lectura «los productos de una tasa de rol» se retira con `RF-CM-007`; `GET /product-commission-rates?productId=` se conserva, y devuelve solo las **vivas**. **El orden gana el producto delante del rol** (`CA-CM-013`). `CA-CM-141`. | Responsable del proyecto |
 | 1.3.0 | 15-09-2026 | **El producto trae su precio y su moneda**, a petición del responsable del proyecto: un porcentaje es una parte del precio y un importe fijo es dinero en la moneda del producto, y sin los dos la cifra de la fila no dice cuánto es. Van dentro de `product` —`price`, y `currency` con `id`, `code` y `decimalPlaces`, la misma forma que `PM` publica en sus fichas—, **siempre**, sea cual sea la forma. El alta y la corrección devuelven lo mismo. Sin cambio de esquema; la lectura por producto (`GET /product-commission-rates`) **no cambia**. `CA-CM-145`. | Responsable del proyecto |
+| 1.4.0 | 16-09-2026 | **La personalizada nace con su producto** (`RN-CM-021`, [`requirements/cm.md`](../../../requirements/cm.md) v0.15.0 §5.5): el listado de personalizadas deja de contar asociados y **trae el producto** con precio y moneda, como el de rol; el filtro `productId` pasa a la columna; **la quinta lectura se retira** (`GET /user-commission-rates/{id}/products`, `404`). `CA-CM-127` a `CA-CM-129` superados; nace `CA-CM-150`. | Responsable del proyecto |

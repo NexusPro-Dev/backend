@@ -447,8 +447,7 @@ erDiagram
     roles    ||--o{ commission_rates : "qué gana ese rol"
     products ||--o{ commission_rates : "paga esa tasa · V94: la tasa de rol NACE con su producto"
     users    ||--o{ user_commission_rates : "excepción de"
-    user_commission_rates ||--o{ user_commission_rate_products : "rige sobre"
-    products ||--o{ user_commission_rate_products : "paga esa excepción"
+    products ||--o{ user_commission_rates : "paga esa excepción · V10: la personalizada NACE con su producto"
     products ||--o{ product_comments : "se reseña"
     users    ||--o{ product_comments : "escribe UNA por producto"
     product_images |o--o| products : "es la PORTADA de · V90"
@@ -485,18 +484,13 @@ erDiagram
     user_commission_rates {
         uuid id PK
         uuid user_id FK "SIN rol: es de la persona"
+        uuid product_id FK "V10 · de UN producto, y no se corrige · EXCLUDE con user_id y el rango entre las vivas"
         varchar rate_type "PORCENTAJE o FIJO"
         numeric percentage "5,2 · NULL si es FIJO"
-        numeric fixed_amount "14,4 · NULL si es PORCENTAJE · toma la moneda de SU producto"
+        numeric fixed_amount "14,4 · NULL si es PORCENTAJE · en la moneda de SU producto"
         date valid_from "la ÚNICA tabla con vigencia"
         date valid_to "NULL = indefinidamente"
         timestamptz deleted_at "lógico"
-    }
-
-    user_commission_rate_products {
-        uuid user_commission_rate_id PK,FK "la PK es la regla: no se asocia dos veces"
-        uuid product_id PK,FK "y SIN role_id: aqui no hay nada copiado que pueda mentir"
-        timestamptz created_at "sin retiro logico: desasociar BORRA"
     }
 
     product_comments {
@@ -693,10 +687,9 @@ flowchart TB
         P3["product_images"]
     end
 
-    subgraph CM["CM · 3 tablas"]
+    subgraph CM["CM · 2 tablas"]
         M1["commission_rates · V94: con product_id"]
-        M2["user_commission_rates"]
-        M3["user_commission_rate_products"]
+        M2["user_commission_rates · V10: con product_id"]
     end
 
 
@@ -729,7 +722,7 @@ flowchart TB
 | `SP` | `permissions`, `roles`, `role_permissions`, `users`, `user_roles`, `memberships`, `user_memberships`, `currencies`, `countries`, `document_types`, `user_supervisors`, `refresh_tokens`, `password_reset_permits`, `exchange_rates`, `brokers`, `user_brokers` | **16, escritas** |
 | `SP` · auditoría | `audit_change_log`, `audit_deletion_log`, `audit_error_log`, `audit_security_log`, `request_log` | **5, escritas** |
 | `PM` | `products`, `product_comments`, `product_images`, `product_packages`, `product_package_items` | **3 escritas** (`V39`, `V87`, `V90`) **y dos diseñadas**: las de los paquetes, que creará la migración de `RF-PM-017` (14-09-2026) |
-| `CM` | `commission_rates`, `user_commission_rates`, `user_commission_rate_products` | **3, escritas** (`V49`, `V85`). `product_commission_rates` existió de `V49` a `V94` (15-09-2026) |
+| `CM` | `commission_rates`, `user_commission_rates` | **2, escritas** (`V6` del esquema consolidado). `product_commission_rates` existió de `V49` a `V94` (15-09-2026) y `user_commission_rate_products` de `V85` a `V10` (16-09-2026) |
 | `MV` | `movements`, `movement_types`, `movement_details`, `payment_methods`, `payment_method_exclusions` | **5, escritas** (`V54`, `V55`) |
 
 **Un módulo, una a cinco tablas.** `SP` tiene diecisiete y los otros tres juntos tienen diez, y eso no es desequilibrio: `SP` es dueño del acceso, de los catálogos transversales y de la auditoría entera, que es infraestructura que todos usan y nadie duplica.
@@ -757,6 +750,7 @@ Son las que siguen —**y desde el 14-09-2026 una de `PM` apunta a `users`**—,
 | `commission_rates.role_id` | `roles` | `CM` → `SP` |
 | `user_commission_rates.user_id` | `users` | `CM` → `SP` |
 | `commission_rates.product_id` | `products` | `CM` → `PM` — **desde `V94`** (15-09-2026); sustituye a `product_commission_rates.product_id`, que existió de `V49` a `V94` |
+| `user_commission_rates.product_id` | `products` | `CM` → `PM` — **desde `V10`** (16-09-2026); sustituye a `user_commission_rate_products.product_id`, que existió de `V85` a `V10` |
 | `product_comments.user_id` | `users` | `PM` → `SP` — **la primera de `PM` hacia una persona** (14-09-2026) |
 | `product_packages.currency_id` | `currencies` | `PM` → `SP` — la moneda del paquete entero (14-09-2026, diseñada) |
 
@@ -785,6 +779,8 @@ Son las que siguen —**y desde el 14-09-2026 una de `PM` apunta a `users`**—,
 | `V9__semilla_catalogos_y_superadmin` | USD, la cadena de membresías, COL, los documentos, los brokers, los catálogos de MV y el superadministrador | `V15`, `V22`, `V46`, `V57`, `V76`, y las semillas de `V54`, `V70`, `V78` |
 
 Los documentos que citan una migración vieja por su número —specs, controles de cambios, `security.md`— cuentan **historia**, y no se reescribieron: esta tabla es la traducción.
+
+**Y desde `V10` la numeración sigue hacia adelante**, sin reutilizar nunca un número: `V10__cm_personalizada_producto` (16-09-2026) es la primera migración posterior a la consolidación, y cambia `user_commission_rates` en lugar de reescribir `V6`, porque una migración aplicada no se toca.
 
 
 ## 6. Lo que el modelo deja pendiente
@@ -857,4 +853,5 @@ Los documentos que citan una migración vieja por su número —specs, controles
 | 0.48.0 | 15-09-2026 | **`V91` crea `product_packages` y `product_package_items`** ([`requirements/pm.md`](requirements/pm.md) v0.36.0, `RF-PM-017`): el modelo pasa de veintinueve a **treinta y una** tablas escritas y no queda ninguna diseñada pendiente. Nacen tal como se diseñaron el 14-09-2026 —**sin columna de precio**, con la moneda obligatoria e inmutable, con la pareja como clave de la asociación y el porcentaje acotado a cien como único techo del esquema— y **ya con `ck_product_packages_scope` de cuatro valores**, el dominio que `V92` llevó a `products` el mismo día. La unicidad del nombre es un índice parcial, como en `products`, y por parcial no admite `DEFERRABLE`: la carrera la traduce el repositorio. Ninguna clave foránea lleva `ON DELETE`; la fila de asociación se borra desde el caso de uso (`RF-PM-025`) con su registro `ASSOCIATION`. | Responsable técnico |
 | 0.49.0 | 15-09-2026 | **La tasa de rol nace con su producto: `commission_rates` gana `product_id` `NOT NULL` y `product_commission_rates` se retira** (`V94`, [`requirements/cm.md`](requirements/cm.md) v0.14.0 §5.4, `RN-CM-021`), por decisión del responsable del proyecto. **Es la segunda migración del proyecto que borra datos a propósito**, y por lo mismo que `V49`: ninguna tasa de rol anterior tenía producto, y clonarlas por cada asociación habría sido una copia plausible decidida por una migración; se vacía para que la pérdida sea visible y administración las registre sabiendo lo que hace. **Lo que hay que leer del dibujo**: la unicidad «un porcentaje por rol y producto» (`RN-CM-013`) deja de ser la clave primaria de una asociación y pasa a ser un índice **parcial** sobre `(product_id, role_id)` entre las vivas —y por parcial no admite `DEFERRABLE`—; la clave foránea compuesta y `uq_commission_rates_id_role`, que existían solo para sostener la asociación, se van con ella. `CM` sigue en tres tablas: la asociación que queda es la de la **personalizada** (`user_commission_rate_products`), que es la única que puede abarcar varios productos. **Y el módulo vuelve a decir la misma cosa de dos maneras a conciencia** —la de rol con columna, la personalizada con tabla—, deshaciendo la simetría de la v0.40.0: son dos preguntas distintas, qué paga un producto y qué gana una persona. | Responsable del proyecto |
 | 0.50.0 | 15-09-2026 | **El esquema se consolida desde cero en nueve migraciones** (`V1` a `V9`, por módulo: funciones, auditoría, catálogos de SP, seguridad de SP, PM, CM, MV, semilla de permisos y roles, semillas de catálogos y superadministrador), por decisión del responsable del proyecto y como excepción registrada al Art. V.5 ([`constitution.md`](constitution.md) v0.9.0). **Ni una tabla, columna, restricción o índice cambia** —los `pg_dump` del esquema viejo y del nuevo se compararon sentencia a sentencia—, salvo `idx_movements_client`, redundante con `ix_movements_client`, que se retira; los identificadores literales de las semillas se conservan. §5.4 gana la tabla de traducción migración vieja → migración de hoy, para leer los documentos que citan números viejos. `mvn clean verify`: 370 unitarias y 1413 de integración en verde, salvo `DevelopmentSeedIT` por una edición sin confirmar de la semilla de desarrollo. | Responsable del proyecto |
+| 0.51.0 | 16-09-2026 | **La personalizada nace con su producto: `user_commission_rates` gana `product_id` `NOT NULL` y `user_commission_rate_products` se retira** (`V10`, [`requirements/cm.md`](requirements/cm.md) v0.15.0 §5.5), por decisión del responsable del proyecto. `CM` queda en **dos tablas**, las dos con el producto como columna; **`uq_user_commission_rates_vigente` vuelve** como `EXCLUDE` sobre `(user_id, product_id, daterange)` entre las vivas —`RN-CM-006` otra vez en el motor, seis días después de salir—; nace `fk_user_commission_rates_product`. Las personalizadas que había se borran con su asociación. Primera migración posterior a la consolidación: la numeración sigue desde `V10`. | Responsable del proyecto |
 | 0.52.0 | 16-09-2026 | **Un cliente tiene un agente principal y varios vendedores vinculados** ([`requirements/sp.md`](requirements/sp.md) v1.56.0 `RN-SP-049`, [`requirements/mv.md`](requirements/mv.md) v0.15.0 `RN-MV-025`), por decisión del responsable del proyecto. Nace **diseñada** `client_sellers` —la pareja como clave, `origin` `REGISTRO` o `HOTLINK`, `first_movement_id` y **sin fin**—, que **no sustituye a `user_supervisors`**: aquella sigue significando mando y atribución por defecto —un superior vigente, historial con cierre—, y esta significa «le vendió», que no manda nada y no se cierra. La escribirá la migración de `RF-MV-011`, la compra por hotlink de un cliente con cuenta, y será la **primera tabla de `SP` con clave foránea hacia `MV`** (`first_movement_id`). El modelo sigue en treinta y una tablas escritas y una diseñada. | Responsable del proyecto |

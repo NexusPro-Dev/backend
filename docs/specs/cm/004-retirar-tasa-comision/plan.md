@@ -5,7 +5,7 @@
 | Requerimiento | `RF-CM-004` |
 | Especificación | [`spec.md`](spec.md) |
 | `spec.md` aprobada el | 02-09-2026 |
-| Versión | 0.4.0 |
+| Versión | 0.5.0 |
 | Reabierto el | 11-09-2026 — retirar una personalizada libera sus días **en su producto**, no en todo el catálogo (Art. I.7) |
 | Estado | **Aprobado** |
 | Autor | Responsable técnico |
@@ -127,3 +127,4 @@ La instantánea ya no lleva vigencia —no la hay— y se reduce a rol y porcent
 
 **`CA-CM-032` y `CA-CM-033` son una pareja y no dos pruebas sueltas.** La primera sola dejaría demostrado que el sistema rechaza; la segunda es la que demuestra que **hay una salida**, y sin ella la regla sería indistinguible de un requerimiento roto.
 | 0.4.0 | 15-09-2026 | **Enmienda por `RN-CM-021`** ([`requirements/cm.md`](../../../requirements/cm.md) v0.14.0 §5.4): `DeleteCommissionRateService` deja de consultar `product_commission_rates`; la comprobación de `RN-CM-015` sigue en `DeleteUserCommissionRateService`. | Responsable técnico |
+| 0.5.0 | 16-09-2026 | **Enmienda por `RN-CM-021` en la personalizada** (`spec.md` v0.4.0): `DeleteUserCommissionRateService` pierde `UserRateProductRepository` y la comprobación de `RN-CM-015`. | Responsable técnico |

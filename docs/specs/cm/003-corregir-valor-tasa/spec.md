@@ -4,7 +4,7 @@
 |---|---|
 | Requerimiento | `RF-CM-003` |
 | Módulo | `CM` — Comisiones |
-| Versión | 0.7.0 |
+| Versión | 0.8.0 |
 | Estado | **Aprobada** |
 | Autor | Responsable técnico |
 | Aprobada por | Responsable del proyecto |
@@ -12,6 +12,7 @@
 | Enmendada el | 08-09-2026 — **el producto de precio cero existe** (`RN-PM-006` relajada), y `RN-CM-019` lo resuelve en su límite. Ver §15 |
 | Enmendada el | 14-09-2026 — **el producto gratuito SÍ comisiona, y solo por importe fijo** (`RN-CM-020`, `cm.md` v0.13.0): se invierte lo del 08-09-2026. Ver §15 |
 | Enmendada el | 15-09-2026 — **la tasa de rol se corrige contra su único producto** (`RN-CM-021`): tope, gratuito y decimales de la moneda. Ver §15 |
+| Enmendada el | 16-09-2026 — **la personalizada también**: solapamiento, tope, gratuito y decimales contra su único producto. Ver §15 |
 
 !!! info "Qué va en este documento"
 
@@ -241,7 +242,7 @@ Quien necesite conservar qué se pagó antes tiene **una sola vía, y está fuer
 
 ### EX-008 — La corrección dejaría un porcentaje sobre un producto gratuito
 
-**Condición:** la tasa —de rol o personalizada— está asociada a al menos un producto de **precio cero** y la corrección la deja **de porcentaje** (`RN-CM-020`).
+**Condición:** el producto de la tasa —de rol o personalizada— es de **precio cero** y la corrección la deja **de porcentaje** (`RN-CM-020`). Hasta el 16-09-2026 la personalizada podía estar asociada a varios y bastaba con que uno fuera gratuito.
 **Respuesta del sistema:** rechaza la corrección **entera**, como `EX-006`, nombrando el producto gratuito: sobre él solo caben comisiones de importe fijo.
 
 **La otra dirección se admite sin tope**: corregir a valor fijo —del importe que sea— una tasa asociada a un producto gratuito **pasa**, porque no hay cien por ciento de cero. Es exactamente lo contrario de lo que esta spec decía entre el 08-09-2026 y el 14-09-2026, y `CA-CM-117` lo recoge.
@@ -289,6 +290,7 @@ Quien necesite conservar qué se pagó antes tiene **una sola vía, y está fuer
 | `CA-CM-132` | Una tasa asociada a un gratuito **y** a uno con precio: corregirla a valor fijo comprueba el tope **solo contra el que tiene precio**; el gratuito no entra en ninguna cuenta |
 | `CA-CM-133` | La **personalizada** obedece lo mismo al corregirse: a fijo sobre un gratuito pasa, a porcentaje se rechaza con `EX-008` |
 | `CA-CM-142` | La corrección de una tasa de rol comprueba el tope (`RN-CM-019`), el gratuito (`RN-CM-020`) y **los decimales de la moneda** (`RN-CM-017`) **contra su único producto**; el cuerpo **no admite `productId`** (`400`, es inmutable) |
+| `CA-CM-151` | La corrección de una **personalizada** hace lo mismo contra su único producto —tope individual, gratuito y decimales (`VAL-014`)—, y al alargar `validTo` comprueba el solapamiento **con las de la misma persona sobre ese producto** (`409`); `productId` en el cuerpo responde `400` (16-09-2026) |
 
 !!! danger "`CA-CM-091` es el criterio más importante de los seis, y el único que puede fallar en silencio"
 
@@ -348,3 +350,4 @@ Lo que se paga a cambio está escrito y es real: `CA-CM-095` deja constancia de 
 | 0.5.0 | 08-09-2026 | **El producto de precio cero existe desde hoy** (`RN-PM-006` relajada por `V67`, `requirements/pm.md` §5.2.4), y la conversión `fixed_amount ÷ precio` que esta operación hace para comprobar `RN-CM-019` **puede dividir entre cero**. Se resuelve **sin regla nueva**, llevando aquella a su límite: un producto que no cobra nada no puede pagar ningún importe fijo, de modo que un valor fijo mayor que cero pasa del 100 % y la corrección **se rechaza entera** —como con cualquier otro producto que se pasara—; uno de cero ocupa cero, y corregir a **porcentaje** no se ve afectado. Entra `CA-CM-117` y un caso límite. | Responsable del proyecto |
 | 0.6.0 | 14-09-2026 | **El producto gratuito SÍ comisiona, y solo por importe fijo** (`RN-CM-020`, [`cm.md`](../../../requirements/cm.md) v0.13.0), por decisión del responsable del proyecto: v0.5.0 se invierte. Nace `EX-008` —corregir hacia porcentaje una tasa asociada a un producto de precio cero se rechaza entera, en las dos clases—, y corregir hacia valor fijo **pasa sin tope**. `CA-CM-117` se reescribe en vez de borrarse; nacen `CA-CM-132` y `CA-CM-133`. | Responsable del proyecto |
 | 0.7.0 | 15-09-2026 | **La tasa de rol se corrige contra su único producto** (`RN-CM-021`, [`requirements/cm.md`](../../../requirements/cm.md) v0.14.0 §5.4): donde hasta hoy la corrección revisaba **todos** los productos asociados y se rechazaba entera si cualquiera se pasaba, ahora hay uno solo —y el importe fijo gana los decimales de su moneda—. El producto **no se corrige**: un `productId` en el cuerpo es un campo desconocido y responde `400`. `CA-CM-142`. | Responsable del proyecto |
+| 0.8.0 | 16-09-2026 | **La personalizada se corrige contra su único producto** (`RN-CM-021`, [`requirements/cm.md`](../../../requirements/cm.md) v0.15.0 §5.5): donde hasta hoy revalidaba solapamiento y tope en todos los productos asociados, ahora hay uno; el importe fijo gana los decimales de su moneda; el producto no se corrige. `CA-CM-151`. | Responsable del proyecto |

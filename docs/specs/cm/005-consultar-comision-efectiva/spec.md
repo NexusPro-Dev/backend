@@ -4,7 +4,7 @@
 |---|---|
 | Requerimiento | `RF-CM-005` |
 | Módulo | `CM` — Comisiones |
-| Versión | 0.6.0 |
+| Versión | 0.7.0 |
 | Estado | **Aprobada** |
 | Autor | Responsable técnico |
 | Aprobada por | Responsable del proyecto |
@@ -12,6 +12,7 @@
 | Enmendada | 11-09-2026 — **la personalizada también se resuelve POR PRODUCTO**: los dos niveles de la precedencia preguntan ya por él. `FA-003` y `FA-006` cambian, y nacen `CA-CM-122` y `CA-CM-123` (Art. I.7) |
 | Enmendada | 11-09-2026 — corrige la enmienda anterior del mismo día: la personalizada se resuelve **por ASOCIACIÓN**, no por un producto declarado en la tasa. `RN-CM-012` deja de tener excepción y nace `CA-CM-124` (Art. I.7) |
 | Enmendada el | 15-09-2026 — **la tasa de rol se resuelve por (producto, rol) en la propia tabla** (`RN-CM-021`). Ver §15 |
+| Enmendada el | 16-09-2026 — **la personalizada también**: por (persona, producto, fecha) en `user_commission_rates`. Ver §15 |
 
 !!! info "Qué va en este documento"
 
@@ -244,6 +245,7 @@ Es el requerimiento que hace que las dos piezas del módulo signifiquen algo. Si
 | `CA-CM-103` | Un valor **cero en importe fijo** resuelve, con su forma, y se distingue de no tener tasa |
 | `CA-CM-104` | **La misma persona sobre dos productos de monedas distintas obtiene la misma respuesta**, sin señal alguna |
 | `CA-CM-144` | La resolución toma la tasa de rol **viva del producto y del rol** directamente de `commission_rates`; sin tasa para ese producto no hay comisión de rol, y la precedencia de la personalizada (`RN-CM-004`) no cambia |
+| `CA-CM-153` | La resolución toma la personalizada **viva, vigente en la fecha y del producto** directamente de `user_commission_rates` (16-09-2026); una personalizada de la misma persona sobre **otro** producto no gana aquí |
 
 !!! danger "`CA-CM-101` prueba que algo NO pasó, y es el criterio que protege lo único que este requerimiento hace"
 
@@ -256,7 +258,7 @@ Es el requerimiento que hace que las dos piezas del módulo signifiquen algo. Si
 ## 13. Casos límite
 
 - **La vigencia de la tasa que gana llega nula:** es lo normal cuando la fuente es el rol, porque **esas no tienen vigencia**. No es un dato que falte.
-- **Una tasa retirada con su asociación viva:** deja de resolver, y el producto pasa a no comisionar. **Es el estado que `RN-CM-015` existe para impedir**, y este requerimiento es donde se vería el daño — se prueba a propósito, sembrándolo a mano, para dejar constancia de por qué esa regla existe.
+- **Una tasa retirada:** deja de resolver, y el producto pasa a no comisionar a esa persona o a ese rol. Hasta el 16-09-2026 era «retirada con su asociación viva», el estado que `RN-CM-015` existía para impedir; sin asociación es simplemente lo que retirar significa.
 - **La persona porta dos roles vendedores:** no puede (`RN-SP-025`), y este requerimiento **depende de ello**. Sin esa garantía, «el rol vendedor de la persona» no sería una pregunta con una sola respuesta y la resolución elegiría en silencio.
 - **La fecha en el pasado sobre una tasa de rol:** devuelve lo que la tasa dice **hoy**, no lo que decía entonces. Sin vigencia, el catálogo no puede responder a «qué regía». Solo las personalizadas responden de verdad a la fecha.
 - **La suma de la cadena pasa de cien:** este requerimiento no lo ve ni lo puede ver. `RN-CM-011` declara que el tope **queda sin dueño** hasta que exista quien aplique las tarifas, y que cuando lo tenga debe **rechazar y no recortar** — recortar decidiría en silencio a quién se le quita.
@@ -294,3 +296,4 @@ Si algún día se revierte, **lo que cambia es solo esta especificación**: un c
 | 0.4.0 | 11-09-2026 | **La personalizada también se resuelve por producto**, por decisión del responsable del proyecto (`cm.md` v0.10.0). Los **dos** niveles de la precedencia preguntan ya por el producto, y la regla queda más simple de enunciar y no más compleja: hasta hoy el primero lo ignoraba, de modo que **una excepción tapaba el catálogo entero de esa persona** y la del rol no llegaba a mirarse nunca. `FA-006` —el importe fijo leído en dos monedas— **deja de aplicar a la personalizada** y sobrevive solo para la tasa de rol asociada a dos productos de monedas distintas. Nacen `CA-CM-122` —la personalizada NO gana fuera de su producto— y `CA-CM-123`. El caso límite de las dos personalizadas el mismo día **deja de ser imposible**: lo es solo sobre el mismo producto. | Responsable del proyecto |
 | 0.5.0 | 11-09-2026 | **Corrige a v0.4.0 el mismo día**: la personalizada se resuelve **por asociación**, no por un producto declarado en la tasa. La rama de la persona entra por `user_commission_rate_products`, gemela de la tabla por la que ya entraba la del rol, de modo que **las dos ramas son ahora la misma forma con distinta tabla**. `RN-CM-012` deja de tener excepción y con ello aparece un desenlace que antes no existía: una personalizada **creada y sin asociar** devuelve **sin tarifa** — `CA-CM-124`. `CA-CM-123` cambia de significado: ya no es «dos tasas, una por producto» sino «**una misma** tasa rigiendo en varios», que es lo que la columna no permitía. | Responsable del proyecto |
 | 0.6.0 | 15-09-2026 | **La tasa de rol se resuelve en la propia tabla** (`RN-CM-021`, [`requirements/cm.md`](../../../requirements/cm.md) v0.14.0 §5.4): el predicado pasa de `product_commission_rates` a `commission_rates.product_id`, y nada más cambia — ni la precedencia, ni la personalizada, ni la forma de la respuesta. `CA-CM-144`. | Responsable del proyecto |
+| 0.7.0 | 16-09-2026 | **La personalizada se resuelve en su propia tabla** (`RN-CM-021`, [`requirements/cm.md`](../../../requirements/cm.md) v0.15.0 §5.5): la rama de la persona pasa de `user_commission_rate_products` a `user_commission_rates.product_id`, y nada más cambia — ni la precedencia, ni la fecha, ni la forma de la respuesta. `CA-CM-153`. | Responsable del proyecto |

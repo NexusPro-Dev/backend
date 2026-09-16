@@ -1,16 +1,17 @@
-# TASKS — `RF-CM-006` Registrar la tasa personalizada de una persona
+# TASKS — `RF-CM-006` Registrar la tasa personalizada de una persona sobre un producto
 
 | Campo | Valor |
 |---|---|
 | Requerimiento | `RF-CM-006` |
 | Plan | [`plan.md`](plan.md), aprobado el 02-09-2026 |
-| Versión | 0.4.0 |
+| Versión | 0.5.0 |
 | Estado | **En revisión** |
 | Autor | Responsable técnico |
 | Aprobadas por | Pendiente |
 | Fecha de aprobación | Pendiente |
 | Issue | Pendiente de crear |
-| Rama | `feature/flujos-de-pm-y-cm` (`T-01`–`T-21`) · `feature/comision-en-valor-fijo` (`T-22`–`T-29`) |
+| Rama | `feature/flujos-de-pm-y-cm` (`T-01`–`T-21`) · `feature/comision-en-valor-fijo` (`T-22`–`T-29`) · `feature/venta-de-productos` (`T-26`–`T-37`) |
+| Enmendadas | 16-09-2026 — `T-34` a `T-37` porque **la personalizada nace con su producto** (`plan.md` §13) |
 
 !!! info "Qué va en este documento"
 
@@ -104,7 +105,10 @@ Las tres comparten una propiedad: **su fallo no se parece a su causa**. Por eso 
 | `CA-CM-086` | `RF-CM-001` · `T-18` · `T-23`, `T-28` |
 | `CA-CM-087` | `T-22`, `T-28` |
 | `CA-CM-088` | `T-24`, `T-27`, `T-28` |
-| `CA-CM-089` | `T-22`, `T-28` |
+| ~~`CA-CM-089`~~ | ~~`T-22`, `T-28`~~ superado por `CA-CM-148` |
+| `CA-CM-146`, `CA-CM-148` | `T-34`, `T-35` |
+| `CA-CM-147` | `T-34`, `T-36` |
+| `CA-CM-149` | `T-37` |
 
 ## 4. Bloqueos
 
@@ -165,3 +169,18 @@ Decisión del responsable del proyecto (`cm.md` v0.10.0): **una excepción por p
 - **`RN-CM-006` deja de estar garantizada por el motor.** Era la única regla del módulo que no dependía de que alguien se acordara de comprobarla. Ahora depende de un bloqueo en un caso de uso, y `CommissionRateConcurrencyIT` es el único sitio donde se nota si alguien lo quita.
 - **Una tasa creada y no asociada parece configurada y no paga nada.** Es `RN-CM-012` alcanzando por fin a esta pieza, con el mismo silencio que ya tenía la de rol: no falla — se descubre liquidando.
 - **Retirar pasa a ser dos operaciones** cuando la tasa está asociada (`RN-CM-015`).
+
+## 8. La personalizada nace con su producto — enmienda del 16-09-2026
+
+**Deshace §7.** Por decisión del responsable del proyecto, la personalizada es **una por persona y producto**, conservando la vigencia (`plan.md` §13).
+
+**Estados:** `Pendiente` · `En curso` · `Hecha` · `Bloqueada`.
+
+| ID | Tarea | Depende de | Verificación | Estado |
+|---|---|---|---|---|
+| `T-34` | **`V10`**: vacía y borra `user_commission_rate_products`, añade `product_id NOT NULL` con su clave foránea, y **devuelve el `EXCLUDE`** sobre `(user_id, product_id, daterange)` entre las vivas | `T-26` | Aplica sobre la base consolidada (`V1`–`V9`); un `INSERT` sin `product_id` falla | **Hecha el 16-09-2026** |
+| `T-35` | `domain` y alta: `UserCommissionRate` con `productId`; `RegisterUserCommissionRateService` comprueba producto vivo, decimales, solapamiento **por persona y producto**, tope y gratuito; el adaptador traduce `23P01` **y `40P01`**; respuesta con `product` (precio y moneda) | `T-34` | `CA-CM-146`, `CA-CM-148`, `CA-CM-119`, `CA-CM-120`, `CA-CM-134`, `CA-CM-135` en `UserCommissionRateIT` | **Hecha el 16-09-2026** |
+| `T-36` | Corrección y retiro contra **su** producto: `UpdateUserCommissionRateService` revalida solapamiento, tope, gratuito y decimales sin asociaciones; `DeleteUserCommissionRateService` sin `RN-CM-015`; **prueba concurrente de dos altas** | `T-35` | `CA-CM-147` en `CommissionRateConcurrencyIT` (corrida varias veces); `CA-CM-151` (`RF-CM-003`) y `CA-CM-152` (`RF-CM-004`) en `UserCommissionRateIT` | **Hecha el 16-09-2026** |
+| `T-37` | Retirar asociar, desasociar y «los productos de una personalizada» —clases, rutas y prosa—; listado con `product` y sin `associatedProducts`; resolución por `user_commission_rates.product_id`; contrato regenerado | `T-35` | `CA-CM-149`, `CA-CM-150` (`RF-CM-002`) y `CA-CM-153` (`RF-CM-005`) en `EffectiveCommissionIT`; `OpenApiContractIT` en verde sin las tres rutas | **Hecha el 16-09-2026** |
+
+**Lo que esta enmienda devuelve, y queda dicho:** los tres costes de §7 desaparecen. `RN-CM-006` **vuelve a estar garantizada por el motor**; no existe una tasa creada que no pague; y retirar vuelve a ser **una** operación.

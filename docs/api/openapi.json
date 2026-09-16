@@ -64,16 +64,6 @@
         "required" : [ "discountType", "discountValue", "productId" ],
         "type" : "object"
       },
-      "AssociateUserProductRequest" : {
-        "properties" : {
-          "productId" : {
-            "format" : "uuid",
-            "type" : "string"
-          }
-        },
-        "required" : [ "productId" ],
-        "type" : "object"
-      },
       "AuditActor" : {
         "properties" : {
           "fullName" : {
@@ -833,14 +823,6 @@
           },
           "value" : {
             "type" : "number"
-          }
-        },
-        "type" : "object"
-      },
-      "DissociateProductRequest" : {
-        "properties" : {
-          "reason" : {
-            "type" : "string"
           }
         },
         "type" : "object"
@@ -3033,6 +3015,10 @@
             "minimum" : 0.0,
             "type" : "number"
           },
+          "productId" : {
+            "format" : "uuid",
+            "type" : "string"
+          },
           "rateType" : {
             "enum" : [ "PORCENTAJE", "FIJO" ],
             "type" : "string"
@@ -3050,7 +3036,7 @@
             "type" : "string"
           }
         },
-        "required" : [ "rateType", "userId", "validFrom" ],
+        "required" : [ "productId", "rateType", "userId", "validFrom" ],
         "type" : "object"
       },
       "RegisterUserRequest" : {
@@ -3879,10 +3865,6 @@
       },
       "UserCommissionRateItem" : {
         "properties" : {
-          "associatedProducts" : {
-            "format" : "int64",
-            "type" : "integer"
-          },
           "deletedAt" : {
             "format" : "date-time",
             "type" : "string"
@@ -3896,6 +3878,9 @@
           },
           "percentage" : {
             "type" : "number"
+          },
+          "product" : {
+            "$ref" : "#/components/schemas/CommissionRateProduct"
           },
           "rateType" : {
             "enum" : [ "PORCENTAJE", "FIJO" ],
@@ -3959,6 +3944,9 @@
           },
           "percentage" : {
             "type" : "number"
+          },
+          "product" : {
+            "$ref" : "#/components/schemas/CommissionRateProduct"
           },
           "rateType" : {
             "enum" : [ "PORCENTAJE", "FIJO" ],
@@ -4060,21 +4048,6 @@
             "type" : "integer"
           },
           "name" : {
-            "type" : "string"
-          }
-        },
-        "type" : "object"
-      },
-      "UserRateProductsResponse" : {
-        "properties" : {
-          "products" : {
-            "items" : {
-              "$ref" : "#/components/schemas/ProductRef"
-            },
-            "type" : "array"
-          },
-          "rateId" : {
-            "format" : "uuid",
             "type" : "string"
           }
         },
@@ -6798,7 +6771,7 @@
     "/api/v1/packages/{id}/products/{productId}" : {
       "delete" : {
         "description" : "Quita el producto del paquete **sin cuerpo y sin motivo** —la fila es una\nasociación (Art. V.13): se borra físicamente y su baja queda en la\nauditoría de eliminación como `ASSOCIATION`, con el descuento y el precio\ndel producto en la instantánea— y responde **`200` con el paquete**, no\n`204`: lo que cambió es su precio.\n\nEl paquete **no cambia de estado** aunque quede con uno o con cero\nproductos: deja de ofrecerse por «menos de dos» y el detalle lo dice. Si se\nquita el único upgrade, el origen del paquete queda **libre**: el siguiente\nupgrade que entre puede ser de otro origen. **El producto no cambia**: sigue\nactivo en el catálogo y en los demás paquetes que lo contengan.\n\nEl producto que no está —también el que ya se quitó— es `404`: con el\nborrado físico no queda nada que los distinga. Exige `packages:update`.\n",
-        "operationId" : "desasociar_1",
+        "operationId" : "desasociar",
         "parameters" : [ {
           "in" : "path",
           "name" : "id",
@@ -8850,7 +8823,7 @@
     },
     "/api/v1/user-commission-rates" : {
       "get" : {
-        "description" : "Devuelve las tasas **tal como se declararon**, y no resuelve cuál se\naplica: para eso está `GET /api/v1/commissions/effective`.\n\n**Incluye el historial**: las vencidas viajan junto a la vigente salvo que\nse filtre por fecha con `onDate`. Y es **el único historial que le queda al\nmódulo** — las tasas de rol perdieron la vigencia.\n\n**Filtrar por persona devuelve las declaradas PARA esa persona**, no la que\nle aplica hoy sobre un producto.\n\n**Filtrar por producto (`productId`) devuelve las ASOCIADAS a ese producto**,\nde cualquier persona: es la respuesta a «quién tiene excepción aquí». Se\ncombina con los demás filtros — persona y producto juntos responden\n«¿tiene esta persona excepción en este producto?», con su historial. Un\nproducto donde nadie tiene excepción devuelve la página vacía, y **no\nsignifica que no comisione**: significa que todos cobran por su rol.\n\nCada fila trae **`associatedProducts`**, sobre cuántos productos rige.\n**Cero significa que esa excepción no paga nada** — es el estado en que\nnace, hasta que se asocia. Los productos van contados y no listados; la\nlista está en `GET /api/v1/user-commission-rates/{id}/products`.\n",
+        "description" : "Devuelve las tasas **tal como se declararon**, cada una **con su\nproducto** (`id`, `code`, `name`, `price` y `currency`), y no resuelve\ncuál se aplica: para eso está `GET /api/v1/commissions/effective`.\n\n**Incluye el historial**: las vencidas viajan junto a la vigente salvo que\nse filtre por fecha con `onDate`. Y es **el único historial que le queda al\nmódulo** — las tasas de rol perdieron la vigencia.\n\n**Filtrar por persona devuelve las declaradas PARA esa persona**, no la que\nle aplica hoy sobre un producto.\n\n**Filtrar por producto (`productId`) devuelve las de ese producto**, de\ncualquier persona: es la respuesta a «quién tiene excepción aquí». Se\ncombina con los demás filtros — persona y producto juntos responden\n«¿tiene esta persona excepción en este producto?», con su historial. Un\nproducto donde nadie tiene excepción devuelve la página vacía, y **no\nsignifica que no comisione**: significa que todos cobran por su rol.\n\nHasta el 16-09-2026 cada fila traía `associatedProducts`, cuántos\nproductos hacían regir la excepción; hoy trae **cuál**, porque es uno.\n",
         "operationId" : "listar_1",
         "parameters" : [ {
           "in" : "query",
@@ -8896,7 +8869,7 @@
         "tags" : [ "Comisiones" ]
       },
       "post" : {
-        "description" : "Declara que **esta persona** gana este porcentaje, y **deja la tasa\ncreada sin que rija todavía en ninguna parte**.\n\n**Para ponerla en vigor hay que asociarla a productos**, con\n`POST /api/v1/user-commission-rates/{id}/products`. Es exactamente el\nmismo mecanismo que las tasas de rol, y desde el 11-09-2026 sin\nexcepción: `RN-CM-012` dice que **ninguna tasa rige hasta que se\nasocia**, y esta era la única que se saltaba la regla — pagaba desde el\nprimer día sobre **todo el catálogo**.\n\n**Lo que eso cuesta conviene saberlo**: una tasa creada y no asociada\n**parece configurada y no paga nada**, y eso no falla — se descubre\nliquidando.\n\n**No lleva rol, y eso tiene una consecuencia que conviene conocer**: la\ntasa sigue rigiendo aunque su titular pase a un rol que no comisiona.\nHasta el 01-09-2026 el rol era obligatorio precisamente para impedirlo.\n\n**Aquí NO se comprueba el solapamiento**, y es deliberado: sin producto\nno hay solapamiento posible. Dos tasas de la misma persona con fechas que\nse pisan son legítimas mientras rijan en productos distintos, y\n`RN-CM-006` se verifica **al asociar**.\n\n**Tampoco se acota el `fixedAmount`**: una tasa sin asociar no conoce el\nprecio de nada (`RN-CM-018`). El tope lo pone `RN-CM-019` al asociarla.\n\n`validFrom` es obligatorio; sin `validTo`, rige indefinidamente.\n",
+        "description" : "Declara que **esta persona** gana esto —un porcentaje o un importe—\n**por este producto**, desde una fecha y, opcionalmente, hasta otra.\n**`productId` es obligatorio** (`RN-CM-021`, 16-09-2026): la tasa nace\ncon su producto, **rige sobre él desde su inicio de vigencia** y no\ncambia de producto — cambiar es retirarla y registrar otra. Una\nexcepción que abarque varios productos son varias tasas.\n\n**Registrar es poner en vigor.** No hay paso de asociación ni\nborrador. Del 11-09-2026 al 16-09-2026 la tasa se creaba sin producto y\nno pagaba nada hasta asociarse; las de aquel modelo se borraron (`V10`)\ny hay que registrarlas de nuevo, una por producto.\n\n**Una sola vigente por persona, producto y día** (`RN-CM-006`): un\nperiodo que pise a otra tasa viva de esa persona sobre ese producto\nresponde `409` — también cuando las dos llegan a la vez, porque la\nregla vive en el motor. Sobre **otro** producto no hay conflicto, y las\nconsecutivas son el historial.\n\nY todo lo que antes se comprobaba al asociar se comprueba aquí:\nproducto **vivo y no retirado**; el **tope individual** —un importe\nfijo no pasa del precio del producto, `RN-CM-019`—; la regla del\n**gratuito** —solo importe fijo, `RN-CM-020`—; y, para un importe\nfijo, **los decimales de la moneda del producto** (`RN-CM-017`).\n\n**No lleva rol, y eso tiene una consecuencia que conviene conocer**: la\ntasa sigue rigiendo aunque su titular pase a un rol que no comisiona.\nHasta el 01-09-2026 el rol era obligatorio precisamente para impedirlo.\n\n`validFrom` es obligatorio; sin `validTo`, rige indefinidamente.\n",
         "operationId" : "registrar_1",
         "requestBody" : {
           "content" : {
@@ -8917,7 +8890,7 @@
                 }
               }
             },
-            "description" : "Tasa registrada"
+            "description" : "Tasa registrada, y rigiendo desde su inicio"
           },
           "400" : {
             "content" : {
@@ -8927,7 +8900,7 @@
                 }
               }
             },
-            "description" : "Datos inválidos"
+            "description" : "Datos inválidos, o el importe fijo no cabe en los decimales de la moneda del producto (`VAL-014`)"
           },
           "403" : {
             "content" : {
@@ -8939,6 +8912,16 @@
             },
             "description" : "Sin permiso"
           },
+          "409" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/UserCommissionRateResponse"
+                }
+              }
+            },
+            "description" : "Esa persona ya tiene una tasa viva sobre ese producto en parte de ese periodo (`EX-006`), el importe pasa del precio del producto (`EX-007`), o el producto es gratuito y la tasa es de porcentaje (`EX-008`)"
+          },
           "422" : {
             "content" : {
               "*/*" : {
@@ -8947,16 +8930,16 @@
                 }
               }
             },
-            "description" : "La persona no existe"
+            "description" : "La persona no existe (`EX-002`), o el producto no existe (`EX-003`) o está retirado (`EX-004`)"
           }
         },
-        "summary" : "Registrar la tasa personalizada de una persona",
+        "summary" : "Registrar la tasa personalizada de una persona sobre un producto",
         "tags" : [ "Comisiones" ]
       }
     },
     "/api/v1/user-commission-rates/{id}" : {
       "patch" : {
-        "description" : "Corrige el **porcentaje** y el **fin de vigencia**. Se aplica lo que llega\ny se deja intacto lo que no.\n\n**Corregir no es cambiar**, y aquí la distinción sigue viva: corregir\narregla un error y reescribe lo que esa tasa dice que rigió; cambiar lo que\ngana alguien a partir de una fecha es **cerrar la vigente y registrar\notra**.\n\n`validTo: null` **vacía** el fin de vigencia y la tasa vuelve a regir\nindefinidamente; `percentage: null` se **rechaza**.\n\n**La persona y el inicio de vigencia no se corrigen**, y enviarlos devuelve\n`400`.\n\n**Si la tasa está asociada y cambia de valor, se revisa cada producto**:\nun `fixedAmount` que supere el precio de alguno se rechaza con `409`\n(`EX-007`), y sobre un producto **gratuito** (precio cero) solo cabe el\nimporte fijo (`RN-CM-020`, 14-09-2026): dejarla de porcentaje se rechaza\ncon `409` (`EX-008`), y el fijo entra del importe que sea.\n",
+        "description" : "Corrige el **valor** —la forma y la cifra— y el **fin de vigencia**. Se\naplica lo que llega y se deja intacto lo que no.\n\n**Corregir no es cambiar**, y aquí la distinción sigue viva: corregir\narregla un error y reescribe lo que esa tasa dice que rigió; cambiar lo que\ngana alguien a partir de una fecha es **cerrar la vigente y registrar\notra**.\n\n`validTo: null` **vacía** el fin de vigencia y la tasa vuelve a regir\nindefinidamente; `rateType: null` se **rechaza**.\n\n**La persona, el producto y el inicio de vigencia no se corrigen**:\n`userId` y `validFrom` devuelven `400` con `VAL-009`, y `productId` es un\ncampo desconocido que también responde `400`.\n\n**Todo se revisa contra el producto de la tasa** (`RN-CM-021`): alargar\n`validTo` no puede pisar a otra tasa viva de la misma persona sobre él\n(`409`, `EX-006`); un `fixedAmount` que supere su precio se rechaza con\n`409` (`EX-007`); sobre un producto **gratuito** solo cabe el importe\nfijo (`RN-CM-020`): dejarla de porcentaje se rechaza con `409`\n(`EX-008`), y el fijo entra del importe que sea; y un importe fijo tiene\nque **caber en los decimales de la moneda del producto** (`VAL-014`).\n",
         "operationId" : "corregir",
         "parameters" : [ {
           "in" : "path",
@@ -9026,7 +9009,7 @@
                 }
               }
             },
-            "description" : "La vigencia resultante se solapa (`EX-006`), el valor pasaría del precio de algún producto asociado (`EX-007`), o dejaría de porcentaje una tasa asociada a un producto gratuito (`EX-008`)"
+            "description" : "La vigencia resultante se solapa (`EX-006`), el valor pasaría del precio del producto (`EX-007`), o dejaría de porcentaje la tasa de un producto gratuito (`EX-008`)"
           }
         },
         "summary" : "Corregir una tasa personalizada",
@@ -9035,7 +9018,7 @@
     },
     "/api/v1/user-commission-rates/{id}/deletion" : {
       "post" : {
-        "description" : "Retira una tasa que **no debió existir**, con **motivo obligatorio**.\n\n**Retirar no es cerrar la vigencia**: se cierra lo que dejó de regir, se\nretira lo que fue un error. Por eso el retiro **no toca la vigencia** — el\nregistro de eliminación debe poder decir qué periodo cubría lo retirado.\n\nLos días que ocupaba **quedan libres**, de modo que puede declararse otra\ntasa que los cubra.\n\n**No es idempotente**: retirar dos veces devuelve `409`.\n",
+        "description" : "Retira una tasa que **no debió existir**, con **motivo obligatorio**, y\ndesde ese instante **esa persona deja de cobrar por ese producto** por\nesta tasa.\n\n**Retirar no es cerrar la vigencia**: se cierra lo que dejó de regir, se\nretira lo que fue un error. Por eso el retiro **no toca la vigencia** — el\nregistro de eliminación debe poder decir qué periodo cubría lo retirado.\n\nLos días que ocupaba **quedan libres**, de modo que puede declararse otra\ntasa que los cubra. Del 11-09-2026 al 16-09-2026 una tasa asociada no\nse retiraba; sin asociación no hay condición.\n\n**No es idempotente**: retirar dos veces devuelve `409`.\n",
         "operationId" : "retirar",
         "parameters" : [ {
           "in" : "path",
@@ -9073,180 +9056,6 @@
           }
         },
         "summary" : "Retirar una tasa personalizada",
-        "tags" : [ "Comisiones" ]
-      }
-    },
-    "/api/v1/user-commission-rates/{id}/products" : {
-      "get" : {
-        "description" : "Devuelve los productos a los que está asociada esa tasa, **con la misma\nforma que devuelven asociar y desasociar**: la lista completa, resuelta con\n`id`, `code` y `name` y ordenada por código.\n\n**Una lista vacía significa que esa excepción no paga nada** — está\ndeclarada y no rige sobre ningún producto (`RN-CM-012`). Es la lectura que\nrevela una personalizada a medio configurar.\n\n**No comprueba que la tasa exista**: con un identificador que no es de\nnada responde `200` y lista vacía, igual que su gemela de rol en\n`GET /api/v1/commission-rates/{id}/products`. Distinguir «no existe» de\n«no tiene asociaciones» costaría una consulta para no cambiar lo que el\ncliente hace después.\n\nPara la pregunta inversa —qué personas tienen excepción en un producto—\nuse `GET /api/v1/user-commission-rates?productId=`.\n",
-        "operationId" : "productosDeLaTasa",
-        "parameters" : [ {
-          "in" : "path",
-          "name" : "id",
-          "required" : true,
-          "schema" : {
-            "format" : "uuid",
-            "type" : "string"
-          }
-        } ],
-        "responses" : {
-          "200" : {
-            "content" : {
-              "*/*" : {
-                "schema" : {
-                  "$ref" : "#/components/schemas/UserRateProductsResponse"
-                }
-              }
-            },
-            "description" : "Los productos de la tasa"
-          },
-          "403" : {
-            "content" : {
-              "*/*" : {
-                "schema" : {
-                  "$ref" : "#/components/schemas/UserRateProductsResponse"
-                }
-              }
-            },
-            "description" : "Sin permiso"
-          }
-        },
-        "summary" : "Consultar sobre qué productos rige una tasa personalizada",
-        "tags" : [ "Comisiones" ]
-      },
-      "post" : {
-        "description" : "**Es la operación que pone la tasa en vigor.** Hasta que se asocia no\npaga nada a nadie (`RN-CM-012`) — igual que una tasa de rol, y desde el\n11-09-2026 sin excepción: hasta esa fecha la personalizada pagaba desde\nel primer día sobre **todo el catálogo**.\n\n**Un producto por petición, y admite varios en llamadas sucesivas.**\nDonde esté asociada gana sobre la tasa del rol de esa persona; donde no,\nesa persona cobra por su rol como cualquier otra.\n\n**Devuelve la lista COMPLETA de productos** tras la operación, no solo el\nque se acaba de añadir: quien asocia el tercero tiene que poder ver los\ntres sin una segunda llamada.\n\n**`RN-CM-006` se comprueba aquí**: esa persona no puede tener dos tasas\nvivas que cubran el mismo día **sobre el mismo producto**. Sobre\nproductos distintos sí, y es lo normal. La comprobación se hace **al\nasociar y no al registrar**, porque sin producto no hay solapamiento\nposible.\n\n**Un `fixedAmount` no puede superar el precio del producto**\n(`RN-CM-019`). Es el mismo tope que las de rol, y es **individual, no una\nsuma**: las personalizadas de personas distintas sobre el mismo producto\nson alternativas entre sí, no cosas que se paguen a la vez. **Sobre un\nproducto GRATUITO (precio cero) ese tope no aplica y solo cabe el importe\nfijo** (`RN-CM-020`, 14-09-2026): un `fixedAmount` entra del importe que\nsea y un porcentaje se rechaza con `409` (`EX-008`).\n\nEl producto debe existir y **no estar retirado**: configurar lo que nadie\npuede vender no falla nunca y no sirve nunca.\n",
-        "operationId" : "asociar",
-        "parameters" : [ {
-          "in" : "path",
-          "name" : "id",
-          "required" : true,
-          "schema" : {
-            "format" : "uuid",
-            "type" : "string"
-          }
-        } ],
-        "requestBody" : {
-          "content" : {
-            "application/json" : {
-              "schema" : {
-                "$ref" : "#/components/schemas/AssociateUserProductRequest"
-              }
-            }
-          },
-          "required" : true
-        },
-        "responses" : {
-          "201" : {
-            "content" : {
-              "*/*" : {
-                "schema" : {
-                  "$ref" : "#/components/schemas/UserRateProductsResponse"
-                }
-              }
-            },
-            "description" : "Asociada, con la lista completa"
-          },
-          "400" : {
-            "content" : {
-              "*/*" : {
-                "schema" : {
-                  "$ref" : "#/components/schemas/UserRateProductsResponse"
-                }
-              }
-            },
-            "description" : "Producto ausente"
-          },
-          "403" : {
-            "content" : {
-              "*/*" : {
-                "schema" : {
-                  "$ref" : "#/components/schemas/UserRateProductsResponse"
-                }
-              }
-            },
-            "description" : "Sin permiso"
-          },
-          "404" : {
-            "content" : {
-              "*/*" : {
-                "schema" : {
-                  "$ref" : "#/components/schemas/UserRateProductsResponse"
-                }
-              }
-            },
-            "description" : "La tasa no existe o está retirada"
-          },
-          "409" : {
-            "content" : {
-              "*/*" : {
-                "schema" : {
-                  "$ref" : "#/components/schemas/UserRateProductsResponse"
-                }
-              }
-            },
-            "description" : "Ya estaba asociada, se solapa con otra tasa viva de esa persona en ese producto, el producto está retirado, pagaría más del precio del producto (`EX-007`), o es un porcentaje sobre un producto gratuito (`EX-008`)"
-          },
-          "422" : {
-            "content" : {
-              "*/*" : {
-                "schema" : {
-                  "$ref" : "#/components/schemas/UserRateProductsResponse"
-                }
-              }
-            },
-            "description" : "El producto no existe"
-          }
-        },
-        "summary" : "Asociar una tasa personalizada a un producto",
-        "tags" : [ "Comisiones" ]
-      }
-    },
-    "/api/v1/user-commission-rates/{id}/products/{productId}/deletion" : {
-      "post" : {
-        "description" : "**Deja de regir ahí, y la tasa sigue viva.** Puede volver a asociarse a\nese producto o a otro; retirarla es otra operación.\n\n**El motivo es obligatorio.** La fila se borra de verdad —una asociación\nes configuración vigente, no un hecho del pasado— de modo que este texto\nes **el único sitio** donde quedará escrito por qué esa persona dejó de\ntener su excepción en ese producto.\n\n**`404` y no `409` si ya no estaba**: con el borrado físico no queda nada\nque distinga «nunca existió» de «ya se borró», y un `409` afirmaría algo\nque no se sabe.\n",
-        "operationId" : "desasociar",
-        "parameters" : [ {
-          "in" : "path",
-          "name" : "id",
-          "required" : true,
-          "schema" : {
-            "format" : "uuid",
-            "type" : "string"
-          }
-        }, {
-          "in" : "path",
-          "name" : "productId",
-          "required" : true,
-          "schema" : {
-            "format" : "uuid",
-            "type" : "string"
-          }
-        } ],
-        "requestBody" : {
-          "content" : {
-            "application/json" : {
-              "schema" : {
-                "$ref" : "#/components/schemas/DissociateProductRequest"
-              }
-            }
-          }
-        },
-        "responses" : {
-          "204" : {
-            "description" : "Desasociada"
-          },
-          "400" : {
-            "description" : "Motivo ausente, en blanco o demasiado largo"
-          },
-          "403" : {
-            "description" : "Sin permiso"
-          },
-          "404" : {
-            "description" : "Esa tasa no está asociada a ese producto"
-          }
-        },
-        "summary" : "Retirar la asociación de una tasa personalizada con un producto",
         "tags" : [ "Comisiones" ]
       }
     },

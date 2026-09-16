@@ -4,7 +4,7 @@
 |---|---|
 | Requerimiento | `RF-CM-005` |
 | Plan | [`plan.md`](plan.md), aprobado el 02-09-2026 |
-| Versión | 0.4.0 |
+| Versión | 0.5.0 |
 | Estado | **En revisión** |
 | Autor | Responsable técnico |
 | Aprobadas por | Pendiente |
@@ -12,6 +12,7 @@
 | Issue | Pendiente de crear |
 | Rama | `feature/flujos-de-pm-y-cm` (`T-01`–`T-18`) · `feature/comision-en-valor-fijo` (`T-19`–`T-24`) |
 | Enmendadas | 15-09-2026 — `T-25` porque **la de rol se resuelve en la propia tabla** |
+| Enmendadas | 16-09-2026 — `T-26` porque **la personalizada también** |
 
 !!! info "Qué va en este documento"
 
@@ -59,6 +60,7 @@
 | `T-23` | Pruebas de los criterios nuevos, **`CA-CM-101` en las dos direcciones** | `T-21` | `CA-CM-100` a `CA-CM-104` | **Hecha el 02-09-2026** |
 | `T-24` | OpenAPI: el **cambio incompatible**, y por qué este contrato no se parece al del catálogo | `T-21` | La descripción explica la asimetría en lugar de dejarla parecer un descuido | **Hecha el 02-09-2026** |
 | `T-25` | `JpaCommissionResolutionRepository` sin la asociación de rol; prosa de la `@Operation` | `RF-CM-001` `T-29` | `CA-CM-144` en `CommissionResolutionIT` | **Hecha el 15-09-2026** |
+| `T-26` | `JpaCommissionResolutionRepository` sin la asociación de la personalizada: `u.product_id = :producto`; prosa de la `@Operation` | `RF-CM-006` `T-34` | `CA-CM-153` en `EffectiveCommissionIT` | **Hecha el 16-09-2026** |
 
 ## 2. Orden de ejecución
 
@@ -101,6 +103,7 @@
 | `CA-CM-103` | `T-20`, `T-23` |
 | `CA-CM-104` | `T-19`, `T-23` |
 | `CA-CM-144` | `T-25` |
+| `CA-CM-153` | `T-26` |
 
 **`CA-CM-047` sigue cubierto por `T-10` y no se renumera**, aunque `T-21` reescriba ese componente entero: el criterio —«el cero resuelve y se distingue de no tener tasa»— no cambió, y **es el que `T-21` tiene que seguir cumpliendo después de cambiar el campo**. Se deja como estaba para que se vea que sobrevive al cambio.
 

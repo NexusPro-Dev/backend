@@ -116,38 +116,43 @@ final class CommissionFixtures {
     return id;
   }
 
+  /** Una personalizada <b>en porcentaje</b> sobre un producto, escrita directamente. */
+  static UUID sembrarTasaPersonal(
+      JdbcTemplate jdbc,
+      UUID persona,
+      UUID producto,
+      String porcentaje,
+      String desde,
+      String hasta) {
+    return sembrarTasaPersonal(jdbc, persona, producto, "PORCENTAJE", porcentaje, desde, hasta);
+  }
+
   /**
-   * Asocia una tasa personalizada a un producto (`RN-CM-014`, 11-09-2026).
+   * La personalizada sobre un producto, en la forma que se pida. Ver {@link #sembrarTasaDeRol}.
    *
-   * <p><b>Sin ella la tasa no rige en ninguna parte</b> (`RN-CM-012`), de modo que una prueba que
-   * siembre una personalizada y no la asocie no está probando lo que cree: está probando que no se
-   * paga nada. Es la única asociación que queda en el módulo desde el 15-09-2026.
+   * <p><b>Desde el 16-09-2026 lleva el producto</b> (`RN-CM-021`, `V10`): nace con él y rige sobre
+   * él desde su inicio de vigencia. Del 11-09-2026 al 16-09-2026 hacía falta {@code
+   * asociarPersonal} para que pagara algo; esa fixture desapareció con la tabla.
    */
-  static void asociarPersonal(JdbcTemplate jdbc, UUID tasa, UUID producto) {
-    jdbc.update(
-        "INSERT INTO user_commission_rate_products (user_commission_rate_id, product_id)"
-            + " VALUES (CAST(? AS uuid), CAST(? AS uuid))",
-        tasa.toString(),
-        producto.toString());
-  }
-
   static UUID sembrarTasaPersonal(
-      JdbcTemplate jdbc, UUID persona, String porcentaje, String desde, String hasta) {
-    return sembrarTasaPersonal(jdbc, persona, "PORCENTAJE", porcentaje, desde, hasta);
-  }
-
-  /** La personalizada en la forma que se pida. Ver {@link #sembrarTasaDeRol}. */
-  static UUID sembrarTasaPersonal(
-      JdbcTemplate jdbc, UUID persona, String forma, String valor, String desde, String hasta) {
+      JdbcTemplate jdbc,
+      UUID persona,
+      UUID producto,
+      String forma,
+      String valor,
+      String desde,
+      String hasta) {
     UUID id = UUID.randomUUID();
     boolean esPorcentaje = "PORCENTAJE".equals(forma);
     jdbc.update(
         "INSERT INTO user_commission_rates"
-            + " (id, user_id, rate_type, percentage, fixed_amount, valid_from, valid_to)"
-            + " VALUES (CAST(? AS uuid), CAST(? AS uuid), ?, CAST(? AS numeric),"
+            + " (id, user_id, product_id, rate_type, percentage, fixed_amount, valid_from,"
+            + " valid_to)"
+            + " VALUES (CAST(? AS uuid), CAST(? AS uuid), CAST(? AS uuid), ?, CAST(? AS numeric),"
             + " CAST(? AS numeric), CAST(? AS date), CAST(? AS date))",
         id.toString(),
         persona.toString(),
+        producto.toString(),
         forma,
         esPorcentaje ? valor : null,
         esPorcentaje ? null : valor,
@@ -157,12 +162,10 @@ final class CommissionFixtures {
   }
 
   /**
-   * Deja las tablas del módulo vacías, <b>en el orden que las claves foráneas imponen</b>: la
-   * asociación de la personalizada apunta a la tasa y al producto, de modo que va la primera; y las
-   * tasas de rol apuntan al producto, de modo que van antes que {@code products}.
+   * Deja las tablas del módulo vacías, <b>en el orden que las claves foráneas imponen</b>: las dos
+   * tablas de tasas apuntan al producto, de modo que van antes que {@code products}.
    */
   static void limpiar(JdbcTemplate jdbc, UUID superadmin) {
-    jdbc.update("DELETE FROM user_commission_rate_products");
     jdbc.update("DELETE FROM user_commission_rates");
     jdbc.update("DELETE FROM commission_rates");
     jdbc.update("DELETE FROM products");

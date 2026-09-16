@@ -5,7 +5,7 @@
 | Requerimiento | `RF-CM-002` |
 | Especificación | [`spec.md`](spec.md) |
 | `spec.md` aprobada el | 02-09-2026 |
-| Versión | 1.4.0 |
+| Versión | 1.5.0 |
 | Reabierto el | ~~11-09-2026 — la tasa personalizada lleva producto: el listado lo publica y admite filtrar por él~~ — **aquella forma se deshizo el mismo día** (`V85`: la personalizada se asocia, no declara); 12-09-2026 — **la asociación de la personalizada se puede LEER**: filtro por producto y cuenta en el listado, y la quinta lectura (Art. I.7) |
 | Estado | **Aprobado** |
 | Autor | Responsable técnico |
@@ -209,3 +209,4 @@ Permiso `commissions:read` en las cinco. Alcance global explícito.
     Se escribe en el plan y no solo en la prueba porque **una prueba con los datos equivocados pasa siempre y no avisa de nada**.
 | 1.3.0 | 15-09-2026 | **Enmienda por `RN-CM-021`** ([`requirements/cm.md`](../../../requirements/cm.md) v0.14.0 §5.4): `JpaCommissionRateQueryRepository` une `products` por `product_id` y proyecta `product` en cada fila; el filtro `productId` es un predicado más; `ListProductAssociationsService` (`GET /commission-rates/{id}/products`) se retira. `GET /product-commission-rates?productId=` se reimplementa sobre `commission_rates` con la misma forma. | Responsable técnico |
 | 1.4.0 | 15-09-2026 | **El producto trae su precio y su moneda** (`spec.md` v1.3.0): `JpaCommissionRateQueryRepository` une también `currencies` por `p.currency_id` y proyecta `price`, `currency_id`, `code` y `decimal_places` en la misma sentencia —una fila, tres `LEFT JOIN`, ninguna llamada al puerto—; `RateRow` los lleva, y `CommissionRateResponse.ProductRef` gana `price` y `CurrencyRef(id, code, decimalPlaces)`. **El alta cambia de fuente**: `ProductView` no trae precio ni moneda, de modo que `RegisterCommissionRateService` pide la `SaleView` del producto —una vez, al final, sobre un producto ya comprobado vivo— y `from(tasa, rol, SaleView)` la usa. La corrección ya releía por `findRow` y no cambia. | Responsable técnico |
+| 1.5.0 | 16-09-2026 | **Enmienda por `RN-CM-021` en la personalizada** (`spec.md` v1.4.0): `JpaUserCommissionRateQueryRepository` une `products` y `currencies` por `t.product_id` y proyecta el producto en cada fila; el filtro `productId` deja el `EXISTS` sobre la asociación y pasa a `t.product_id = :producto`; la subconsulta de asociados desaparece. `UserRateRow` gana producto, precio y moneda y pierde `associatedProducts`; `UserCommissionRateItem` publica `product` con `CommissionRateResponse.ProductRef`. `ListUserRateProductsService` y su ruta se retiran. | Responsable técnico |

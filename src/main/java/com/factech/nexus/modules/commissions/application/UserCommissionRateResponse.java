@@ -3,6 +3,7 @@ package com.factech.nexus.modules.commissions.application;
 import com.factech.nexus.modules.commissions.domain.models.CommissionRateType;
 import com.factech.nexus.modules.commissions.domain.models.UserCommissionRate;
 import com.factech.nexus.modules.commissions.domain.repository.UserCommissionRateQueryRepository.UserRateRow;
+import com.factech.nexus.modules.products.application.ProductCatalog.SaleView;
 import com.factech.nexus.modules.system.users.application.UserCatalog.UserView;
 import com.fasterxml.jackson.annotation.JsonInclude;
 import java.math.BigDecimal;
@@ -24,6 +25,7 @@ import java.util.UUID;
 public record UserCommissionRateResponse(
     UUID id,
     UserRef user,
+    CommissionRateResponse.ProductRef product,
     CommissionRateType rateType,
     BigDecimal percentage,
     BigDecimal fixedAmount,
@@ -34,10 +36,22 @@ public record UserCommissionRateResponse(
   @JsonInclude(JsonInclude.Include.ALWAYS)
   public record UserRef(UUID id, String username, String fullName) {}
 
-  public static UserCommissionRateResponse from(UserCommissionRate tasa, UserView persona) {
+  /**
+   * Desde el agregado recién creado, con la persona que el alta resolvió y la vista de venta del
+   * producto — la lectura del puerto de `PM` que trae el precio y la moneda.
+   */
+  public static UserCommissionRateResponse from(
+      UserCommissionRate tasa, UserView persona, SaleView producto) {
     return new UserCommissionRateResponse(
         tasa.getId(),
         new UserRef(persona.id(), persona.username(), persona.fullName()),
+        new CommissionRateResponse.ProductRef(
+            producto.id(),
+            producto.code(),
+            producto.name(),
+            producto.price(),
+            new CommissionRateResponse.CurrencyRef(
+                producto.currencyId(), producto.currencyCode(), producto.currencyDecimalPlaces())),
         tasa.getValue().getRateType(),
         tasa.getPercentage(),
         tasa.getFixedAmount(),
@@ -50,6 +64,13 @@ public record UserCommissionRateResponse(
     return new UserCommissionRateResponse(
         fila.id(),
         new UserRef(fila.userId(), fila.username(), fila.userFullName()),
+        new CommissionRateResponse.ProductRef(
+            fila.productId(),
+            fila.productCode(),
+            fila.productName(),
+            fila.productPrice(),
+            new CommissionRateResponse.CurrencyRef(
+                fila.currencyId(), fila.currencyCode(), fila.currencyDecimalPlaces())),
         fila.rateType(),
         fila.percentage(),
         fila.fixedAmount(),

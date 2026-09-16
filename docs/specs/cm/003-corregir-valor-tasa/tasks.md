@@ -4,7 +4,7 @@
 |---|---|
 | Requerimiento | `RF-CM-003` |
 | Plan | [`plan.md`](plan.md), aprobado el 03-09-2026 |
-| Versión | 0.5.0 |
+| Versión | 0.6.0 |
 | Estado | **En revisión** |
 | Autor | Responsable técnico |
 | Aprobadas por | Pendiente |
@@ -12,6 +12,7 @@
 | Issue | Pendiente de crear |
 | Rama | `feature/flujos-de-pm-y-cm` (`T-01`–`T-14`) · `feature/comision-en-valor-fijo` (`T-15`–`T-29`) |
 | Enmendadas | 15-09-2026 — `T-31` porque **la tasa de rol se corrige contra su único producto** |
+| Enmendadas | 16-09-2026 — `T-32` porque **la personalizada también** |
 
 !!! info "Qué va en este documento"
 
@@ -74,6 +75,7 @@
 | `T-29` | Actualizar `cm.md`, `modelo-datos.md` y la matriz de `docs/requirements.md` con `RN-CM-019` | — | Ya hecho en el bloque de documentación | **Hecha el 03-09-2026** |
 | `T-30` | **El producto de precio cero**: `ProductCommissionCapGuard` deja de dividir a ciegas. La corrección a valor fijo mayor que cero sobre un producto gratuito se rechaza con el tope | `RF-PM-001 · T-33` | `CA-CM-117`. **Es la misma tarea que `RF-CM-007 · T-26`**: la clase es una y se cita desde las dos listas para que ninguna la dé por hecha de la otra | **Hecha el 08-09-2026** |
 | `T-31` | `UpdateCommissionRateService` sobre `rate.productId`: tope, gratuito y decimales de la moneda; prosa de la `@Operation` | `RF-CM-001` `T-30` | `CA-CM-142` en `CommissionRateUpdateIT` | **Hecha el 15-09-2026** |
+| `T-32` | `UpdateUserCommissionRateService` sobre `rate.productId`: solapamiento por persona y producto, tope individual, gratuito y decimales; prosa de la `@Operation` | `RF-CM-006` `T-35` | `CA-CM-151` en `UserCommissionRateIT` | **Hecha el 16-09-2026** |
 
 ## 2. Orden de ejecución
 
@@ -122,6 +124,7 @@
 | `CA-CM-114` | `T-24`, `T-26` |
 | `CA-CM-117` | `T-30` |
 | `CA-CM-142` | `T-31` |
+| `CA-CM-151` | `T-32` |
 
 **`CA-CM-024` aparece dos veces y no es un error de la tabla.** Lo cubría `T-02` sola; desde `T-15` lo cubren las dos, porque la comparación que lo satisface es ahora la misma que satisface a `CA-CM-091` y **cualquiera de las dos se puede romper arreglando la otra**.
 

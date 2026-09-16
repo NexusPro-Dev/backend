@@ -5,7 +5,7 @@
 | Requerimiento | `RF-CM-005` |
 | Especificación | [`spec.md`](spec.md) |
 | `spec.md` aprobada el | 02-09-2026 |
-| Versión | 0.6.0 |
+| Versión | 0.7.0 |
 | Reabierto el | 11-09-2026 — la consulta de resolución filtra la rama personalizada **también por producto**: una línea de SQL, y es todo el cambio (Art. I.7) |
 | Reabierto el | 11-09-2026 — corrige lo anterior: la rama personalizada entra por `user_commission_rate_products` y no por una columna de la tasa (Art. I.7) |
 | Estado | **Aprobado** |
@@ -198,3 +198,4 @@ Ninguna de las dos se comprueba aquí, y ninguna debe: son invariantes que sosti
 
 **`CA-CM-048` es la única prueba del módulo que construye a mano un estado que el sistema no permite alcanzar.** No comprueba un comportamiento que alguien vaya a usar: comprueba **qué pasaría si `RN-CM-015` no existiera**, y por eso vale la pena tenerla — es la evidencia de que esa regla no es una precaución teórica.
 | 0.6.0 | 15-09-2026 | **Enmienda por `RN-CM-021`** ([`requirements/cm.md`](../../../requirements/cm.md) v0.14.0 §5.4): `JpaCommissionResolutionRepository` deja de unir `product_commission_rates`; la tasa de rol se lee por `product_id` y `role_id` entre las vivas. | Responsable técnico |
+| 0.7.0 | 16-09-2026 | **Enmienda por `RN-CM-021` en la personalizada** (`spec.md` v0.7.0): la rama `prioridad 0` de `JpaCommissionResolutionRepository` deja el `JOIN` con la asociación y filtra `u.product_id = :producto`. Las dos ramas leen ya su propia tabla. | Responsable técnico |

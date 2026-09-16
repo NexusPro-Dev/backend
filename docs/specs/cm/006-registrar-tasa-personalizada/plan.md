@@ -1,13 +1,14 @@
-# PLAN — `RF-CM-006` Registrar la tasa personalizada de una persona
+# PLAN — `RF-CM-006` Registrar la tasa personalizada de una persona sobre un producto
 
 | Campo | Valor |
 |---|---|
 | Requerimiento | `RF-CM-006` |
 | Especificación | [`spec.md`](spec.md) |
 | `spec.md` aprobada el | 02-09-2026 |
-| Versión | 0.4.0 |
+| Versión | 0.5.0 |
 | Reabierto el | 11-09-2026 — `user_commission_rates` gana `product_id` `NOT NULL` (`V84`): la personalizada declara su producto, ver §2.bis (Art. I.7) |
 | Reabierto el | 11-09-2026 — **corrige la forma del mismo día**: la personalizada se ASOCIA a productos en lugar de declarar uno. `V85` deshace `V84`, ver §2.ter (Art. I.7) |
+| Reabierto el | 16-09-2026 — **la personalizada NACE con su producto** (`spec.md` v0.6.0): `V10` le devuelve `product_id` y el `EXCLUDE`, y retira la asociación. Ver §13 (Art. I.7) |
 | Estado | **Aprobado** |
 | Autor | Responsable técnico |
 | Aprobado por | Responsable del proyecto |
@@ -305,3 +306,52 @@ Es el criterio con el que `RF-PM-006` no toca el estado de un producto al retira
 **`CA-CM-089` es la única prueba de este requerimiento que necesita productos de `PM`**, y no rompe la frontera de D-25: no consulta el catálogo, **resuelve** (`RF-CM-005`) contra dos productos que existen, que es lo que hace un vendedor. Comprobarlo sin productos sería comprobar que un número es igual a sí mismo.
 
 **`CA-CM-088` comprueba el evento y no solo el resultado**, y ahí está su valor. Que la tasa quede en valor fijo lo vería cualquier consulta; que **el registro de auditoría conserve que antes era un porcentaje** es lo único que permitirá entender, meses después, por qué un periodo ya liquidado dice una cosa y la tasa dice otra.
+
+## 13. La personalizada nace con su producto — enmienda del 16-09-2026
+
+**Deshace §2.ter y recupera casi todo §2.bis**, con una diferencia: `V84` conservaba el `EXCLUDE` sobre `(user_id, daterange)` sin el producto; `V10` lo declara sobre **los tres**.
+
+### 13.1 `V10__cm_personalizada_producto.sql`
+
+Es la **primera migración posterior a la consolidación** (`V1`–`V9`, 15-09-2026): un número no se reutiliza y una migración aplicada no se toca, de modo que va como `V10` y no como una reescritura de `V6`.
+
+```sql
+DELETE FROM user_commission_rate_products;
+DELETE FROM user_commission_rates;
+DROP TABLE user_commission_rate_products;
+
+ALTER TABLE user_commission_rates
+    ADD COLUMN product_id uuid NOT NULL,
+    ADD CONSTRAINT fk_user_commission_rates_product FOREIGN KEY (product_id) REFERENCES products (id),
+    ADD CONSTRAINT uq_user_commission_rates_vigente
+        EXCLUDE USING gist (
+            user_id    WITH =,
+            product_id WITH =,
+            daterange(valid_from, valid_to, '[]') WITH &&
+        ) WHERE (deleted_at IS NULL);
+
+CREATE INDEX ix_user_commission_rates_producto ON user_commission_rates (product_id);
+```
+
+**Se vacía antes de añadir la columna**, por lo mismo que `V94` con las de rol: ninguna personalizada existente tiene un producto honesto que ponerle —las que tenían asociaciones tenían varias—, y el `NOT NULL` sin valor por defecto lo exige. El esquema se reconstruye desde cero ese mismo día, de modo que en la práctica no se borra nada.
+
+**El `EXCLUDE` vuelve con `btree_gist`**, que `V1` ya declara. Es el mismo que existió de `V44` a `V85` más la columna del producto, y tiene los mismos dos modos de fallar bajo concurrencia que el adaptador ya traducía: `23P01` (la otra ya confirmó) y `40P01` (las dos inserciones se esperan y PostgreSQL mata a una). `JpaUserCommissionRateRepository` conservó esa traducción como código muerto durante cinco días; hoy vuelve a ejecutarse, y **gana el segundo estado**, que le faltaba.
+
+### 13.2 Componentes
+
+| Componente | Qué cambia |
+|---|---|
+| `UserCommissionRate` | `productId` obligatorio e inmutable (`VAL-013` en el agregado); la instantánea lo lleva |
+| `RegisterUserCommissionRateRequest` | `productId` `@NotNull` |
+| `RegisterUserCommissionRateService` | Persona (`EX-002`) → producto vivo (`EX-003`, `EX-004`) → decimales (`ProductCurrencyScale`, `VAL-014`) → solapamiento previo con mensaje (`findOverlapping` por persona **y producto**, `EX-006`) → tope individual y gratuito (`ProductCommissionCapGuard.verificarIndividual`, `EX-007`, `EX-008`) → `save`. **El bloqueo consultivo por persona se conserva**, pero cambia de papel: ya no es la garantía —lo es el `EXCLUDE`— sino lo que pone en fila a la misma persona para que la carrera no acabe en interbloqueo; el adaptador traduce los dos estados al mismo `409` |
+| `UpdateUserCommissionRateService` | Revalida contra **su** producto: solapamiento si cambia `validTo`, y tope, gratuito y decimales si cambia el valor. Deja de recorrer asociaciones |
+| `DeleteUserCommissionRateService` | Pierde la condición de `RN-CM-015` |
+| `UserCommissionRateRepository` | `findOverlapping(userId, productId, from, to, excluida)`; `lockUser` se conserva |
+| `UserCommissionRateQueryRepository` | `UserRateRow` gana producto, precio y moneda —`products` y `currencies` en el `JOIN`— y pierde `associatedProducts`; el filtro `productId` es un predicado sobre la columna |
+| `UserCommissionRateResponse` / `UserCommissionRateItem` | `product` con la forma de `CommissionRateResponse.ProductRef` (`CommissionRateProduct` en el contrato); sin `associatedProducts` |
+| `JpaCommissionResolutionRepository` | La rama de la persona lee `u.product_id = :producto` |
+| Retirados | `UserRateProduct`, `UserRateProductRepository`, su adaptador, `AssociateUserProductService`, `DissociateUserProductService`, `ListUserRateProductsService`, `AssociateUserProductRequest`, `DissociateProductRequest`, `UserRateProductsResponse`, y las tres rutas `/{id}/products…` |
+
+### 13.3 Pruebas
+
+`UserCommissionRateIT` se reescribe alrededor del alta con producto; `CommissionRateConcurrencyIT` cambia las dos asociaciones simultáneas por **dos altas simultáneas** sobre el mismo producto y periodo, y es la única prueba que verifica que la garantía vive en el motor —**se corre varias veces seguidas** antes de darla por buena, porque el interbloqueo aparece una de cada pocas—; `EffectiveCommissionIT` siembra la personalizada con su producto; `CommissionRateTest` prueba el agregado con producto.
