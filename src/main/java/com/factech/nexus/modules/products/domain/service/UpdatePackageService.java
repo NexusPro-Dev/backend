@@ -83,7 +83,12 @@ public class UpdatePackageService {
 
     Map<String, Object> cambios =
         paquete.update(
-            peticion.name(), peticion.description(), peticion.scope(), OffsetDateTime.now(reloj));
+            peticion.name(),
+            peticion.description(),
+            peticion.scope(),
+            peticion.validFrom(),
+            peticion.validTo(),
+            OffsetDateTime.now(reloj));
 
     if (!cambios.isEmpty()) {
       // El volcado explícito convierte una carrera sobre el nombre en el `409`

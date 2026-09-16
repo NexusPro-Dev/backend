@@ -134,7 +134,10 @@ public class HotlinkController {
           del producto**: usuario inexistente, persona que no es vendedora, código
           inexistente, paquete inactivo, retirado o de alcance `TIENDA` o `NINGUNO`,
           y **también el paquete que hoy no se puede ofrecer** —un producto suyo
-          inactivo o retirado, menos de dos productos, sin descripción—. **No dice cuál
+          inactivo o retirado, menos de dos productos, sin descripción, o **fuera de
+          su vigencia** (`RN-PM-047`): todavía no empieza o ya terminó—. Dentro de
+          ella, `validFrom` y `validTo` viajan para que quien abre el enlace sepa
+          hasta cuándo vale. **No dice cuál
           falló**: distinguirlos publicaría, sin token, que el paquete existe y qué le
           pasa. Quien tiene que saberlo es administración, y lo sabe por el detalle.
           """)

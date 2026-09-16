@@ -5,7 +5,7 @@
 | Requerimiento | `RF-PM-020` |
 | Especificación | [`spec.md`](spec.md) |
 | Plan | [`plan.md`](plan.md), aprobado el 15-09-2026 |
-| Estado | **Hecha** — todas las tareas `Hecha` el 15-09-2026; queda el Pull Request |
+| Estado | **Hecha** — todas las tareas `Hecha` el 15-09-2026; **reabierta el 16-09-2026** por la vigencia (`T-09`); queda el Pull Request |
 | Issue | Pendiente de crear |
 | Rama | `feature/venta-de-productos` |
 | Autor | Responsable técnico |
@@ -24,8 +24,11 @@
 | `T-06` | Pruebas de API (`PackageUpdateIT`) de los seis criterios, con `CA-PM-289` —vaciar la descripción de un activo lo deja `offerable: false`— como la que define el requerimiento | `T-05` | `CA-PM-285` a `CA-PM-290` | **Hecha el 15-09-2026** |
 | `T-07` | Documentación OpenAPI. **La prosa dice** qué se corrige y qué no, que el nulo vacía solo la descripción, y que vaciar la descripción de un activo lo deja sin poder ofrecerse | `T-05` | El contrato declara `200`, `400`, `403`, `404`, `409` | **Hecha el 15-09-2026** |
 | `T-08` | Actualizar la matriz de `docs/requirements.md` y `docs/api/index.md` | `T-06` | La fila de `RF-PM-020` refleja el estado | **Hecha el 15-09-2026** |
+| `T-09` | **Enmienda del 16-09-2026** (`spec.md` v0.3.0, `RN-PM-047`): `UpdatePackageRequest` gana `Patchable<LocalDate> validFrom` y `validTo`; `ProductPackage.update` resuelve la pareja resultante y la verifica antes de aplicar; `validFrom: null` → `VAL-006`, `validTo: null` vacía; auditoría de `valid_from`/`valid_to`; la prosa de la `@Operation` dice que el fin se vacía y que cerrar es poner el fin en ayer | `T-04`, `RF-PM-017 · T-13` | Unitaria de `update` con fechas; `PackageUpdateIT`: `CA-PM-374`, `CA-PM-375` | **Hecha el 16-09-2026** |
 
 **Verificación (15-09-2026):** `PackageUpdateIT` (6), en verde; el `mvn verify` completo queda en 370 unitarias y 1422 de integración, con las únicas rojas fuera del módulo (`DevelopmentSeedIT` por una edición sin confirmar de la semilla, y una prueba de `SP` que desempata mal dos asientos con el mismo instante).
+
+**Verificación de la enmienda (16-09-2026):** `ProductPackageTest` (8) y `PackageUpdateIT` (8), en verde.
 
 ## 2. Orden de ejecución
 
@@ -38,6 +41,7 @@
 | `CA-PM-285`, `CA-PM-290` | `T-02`, `T-04`, `T-06` |
 | `CA-PM-286`, `CA-PM-287` | `T-01`, `T-06` |
 | `CA-PM-288` | `T-03`, `T-04`, `T-06` |
+| `CA-PM-374`, `CA-PM-375` | `T-09` |
 | `CA-PM-289` | `T-06` |
 
 ## 4. Bloqueos

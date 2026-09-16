@@ -1601,6 +1601,14 @@
           },
           "savings" : {
             "type" : "number"
+          },
+          "validFrom" : {
+            "format" : "date",
+            "type" : "string"
+          },
+          "validTo" : {
+            "format" : "date",
+            "type" : "string"
           }
         },
         "type" : "object"
@@ -1769,6 +1777,14 @@
           "updatedAt" : {
             "format" : "date-time",
             "type" : "string"
+          },
+          "validFrom" : {
+            "format" : "date",
+            "type" : "string"
+          },
+          "validTo" : {
+            "format" : "date",
+            "type" : "string"
           }
         },
         "type" : "object"
@@ -1849,6 +1865,14 @@
           },
           "status" : {
             "enum" : [ "ACTIVO", "INACTIVO" ],
+            "type" : "string"
+          },
+          "validFrom" : {
+            "format" : "date",
+            "type" : "string"
+          },
+          "validTo" : {
+            "format" : "date",
             "type" : "string"
           }
         },
@@ -1953,6 +1977,14 @@
           },
           "savings" : {
             "type" : "number"
+          },
+          "validFrom" : {
+            "format" : "date",
+            "type" : "string"
+          },
+          "validTo" : {
+            "format" : "date",
+            "type" : "string"
           }
         },
         "type" : "object"
@@ -2922,9 +2954,17 @@
           "scope" : {
             "enum" : [ "TIENDA", "HOTLINK", "AMBOS", "NINGUNO" ],
             "type" : "string"
+          },
+          "validFrom" : {
+            "format" : "date",
+            "type" : "string"
+          },
+          "validTo" : {
+            "format" : "date",
+            "type" : "string"
           }
         },
-        "required" : [ "code", "currencyId", "name", "scope" ],
+        "required" : [ "code", "currencyId", "name", "scope", "validFrom" ],
         "type" : "object"
       },
       "RegisterProductRequest" : {
@@ -3744,6 +3784,12 @@
           },
           "scope" : {
             "$ref" : "#/components/schemas/PatchableProductScope"
+          },
+          "validFrom" : {
+            "$ref" : "#/components/schemas/PatchableLocalDate"
+          },
+          "validTo" : {
+            "$ref" : "#/components/schemas/PatchableLocalDate"
           }
         },
         "type" : "object"
@@ -5925,7 +5971,7 @@
     },
     "/api/v1/hotlinks/{username}/packages/{code}" : {
       "get" : {
-        "description" : "Devuelve, **sin token**, el paquete que el enlace señala —con sus productos,\nel descuento de cada uno y **la cuenta hecha**— y el nombre y apellido de\nquien lo reparte.\n\n**Cada producto va en la misma forma que el hotlink del producto**, tal\ncual: código, nombre, descripción, icono, video, portada, membresía en tres\ncampos, precio, conversión y `rating`. A su lado, `discount` y\n`priceInPackage` — lo que vale ese producto **dentro** del paquete, con el\nprecio de catálogo de hoy. `listPrice` es la suma sin descuentos, `price` lo\nque vale el paquete y `savings` la diferencia; `exchange` convierte `price`\na la moneda de casa si hay tasa. **`priceInPackage` es la cuenta de hoy y\nno una reserva**: si un producto cambia de precio, el paquete cambia solo,\ny un fijo que hoy supera su precio cuenta cero.\n\n**Solo publica paquetes activos y de alcance `HOTLINK` o `AMBOS`**, y **el\nalcance de los productos no filtra dentro del paquete**: el canal lo decide\nel paquete. Sin `purchasePrice` ni `status` en ningún nivel.\n\n**Todo lo que no procede responde el MISMO `404`, y el mismo que el hotlink\ndel producto**: usuario inexistente, persona que no es vendedora, código\ninexistente, paquete inactivo, retirado o de alcance `TIENDA` o `NINGUNO`,\ny **también el paquete que hoy no se puede ofrecer** —un producto suyo\ninactivo o retirado, menos de dos productos, sin descripción—. **No dice cuál\nfalló**: distinguirlos publicaría, sin token, que el paquete existe y qué le\npasa. Quien tiene que saberlo es administración, y lo sabe por el detalle.\n",
+        "description" : "Devuelve, **sin token**, el paquete que el enlace señala —con sus productos,\nel descuento de cada uno y **la cuenta hecha**— y el nombre y apellido de\nquien lo reparte.\n\n**Cada producto va en la misma forma que el hotlink del producto**, tal\ncual: código, nombre, descripción, icono, video, portada, membresía en tres\ncampos, precio, conversión y `rating`. A su lado, `discount` y\n`priceInPackage` — lo que vale ese producto **dentro** del paquete, con el\nprecio de catálogo de hoy. `listPrice` es la suma sin descuentos, `price` lo\nque vale el paquete y `savings` la diferencia; `exchange` convierte `price`\na la moneda de casa si hay tasa. **`priceInPackage` es la cuenta de hoy y\nno una reserva**: si un producto cambia de precio, el paquete cambia solo,\ny un fijo que hoy supera su precio cuenta cero.\n\n**Solo publica paquetes activos y de alcance `HOTLINK` o `AMBOS`**, y **el\nalcance de los productos no filtra dentro del paquete**: el canal lo decide\nel paquete. Sin `purchasePrice` ni `status` en ningún nivel.\n\n**Todo lo que no procede responde el MISMO `404`, y el mismo que el hotlink\ndel producto**: usuario inexistente, persona que no es vendedora, código\ninexistente, paquete inactivo, retirado o de alcance `TIENDA` o `NINGUNO`,\ny **también el paquete que hoy no se puede ofrecer** —un producto suyo\ninactivo o retirado, menos de dos productos, sin descripción, o **fuera de\nsu vigencia** (`RN-PM-047`): todavía no empieza o ya terminó—. Dentro de\nella, `validFrom` y `validTo` viajan para que quien abre el enlace sepa\nhasta cuándo vale. **No dice cuál\nfalló**: distinguirlos publicaría, sin token, que el paquete existe y qué le\npasa. Quien tiene que saberlo es administración, y lo sabe por el detalle.\n",
         "operationId" : "hotlinkDePaquete",
         "parameters" : [ {
           "in" : "path",
@@ -6298,7 +6344,7 @@
     },
     "/api/v1/packages" : {
       "get" : {
-        "description" : "La lista de administración de los paquetes, paginada, **con la cuenta hecha\npor fila**: cada paquete con `itemCount`, `listPrice`, `price`, `savings`,\n`exchange` y `offerable`, y sin sus líneas — para eso está el detalle. Los\nimportes salen de la misma cuenta que el detalle y cuadran con él.\n\nFiltra por `status`, `scope`, `currencyId` y `q` —búsqueda por nombre, sin\ndistinguir mayúsculas ni acentos—, y se combinan. **Excluye los retirados**\nsalvo `includeDeleted=true`, y entonces los trae con `deletedAt`.\n**`offerable` no es filtro**: quien administra quiere ver precisamente los\nque no se ofrecen; se queda como columna, y el motivo lo da el detalle.\n\nOrden: `createdAt` (omisión, descendente), `name` y `price`, con\n`,asc`/`,desc`. **El orden por `price` ordena por el precio calculado**: el\nprecio no está en ninguna columna, de modo que un paquete cuyo producto\ncambió de precio cambia de posición en la siguiente lectura. Se ordena con\nla suma sin redondear; la diferencia con el importe que viaja cabe en un\ncéntimo por producto y puede alterar el orden entre paquetes casi iguales.\n\nLos filtros inválidos se devuelven **juntos** con `400`. Exige\n`packages:read`; `products:read` no habilita.\n",
+        "description" : "La lista de administración de los paquetes, paginada, **con la cuenta hecha\npor fila**: cada paquete con `itemCount`, `listPrice`, `price`, `savings`,\n`exchange` y `offerable`, y sin sus líneas — para eso está el detalle. Los\nimportes salen de la misma cuenta que el detalle y cuadran con él.\n\nFiltra por `status`, `scope`, `currencyId` y `q` —búsqueda por nombre, sin\ndistinguir mayúsculas ni acentos—, y se combinan. **Excluye los retirados**\nsalvo `includeDeleted=true`, y entonces los trae con `deletedAt`.\n**`offerable` no es filtro**: quien administra quiere ver precisamente los\nque no se ofrecen; se queda como columna, y el motivo lo da el detalle.\n**Tampoco lo es la vigencia**: cada fila trae `validFrom` y `validTo`\n(`RN-PM-047`), y un paquete que empieza mañana o terminó ayer sale con\n`offerable: false` y **sigue listado con su estado**, como uno con un\nproducto inactivo — no hay proceso que lo desactive al vencer.\n\nOrden: `createdAt` (omisión, descendente), `name` y `price`, con\n`,asc`/`,desc`. **El orden por `price` ordena por el precio calculado**: el\nprecio no está en ninguna columna, de modo que un paquete cuyo producto\ncambió de precio cambia de posición en la siguiente lectura. Se ordena con\nla suma sin redondear; la diferencia con el importe que viaja cabe en un\ncéntimo por producto y puede alterar el orden entre paquetes casi iguales.\n\nLos filtros inválidos se devuelven **juntos** con `400`. Exige\n`packages:read`; `products:read` no habilita.\n",
         "operationId" : "listar_4",
         "parameters" : [ {
           "in" : "query",
@@ -6406,7 +6452,7 @@
         "tags" : [ "Paquetes" ]
       },
       "post" : {
-        "description" : "Registra un paquete de productos, **vacío e inactivo**: los productos entran\nuno a uno después (`POST /packages/{id}/products`) y publicarlo es otra\noperación (`PATCH /packages/{id}/status`), que exige descripción y al menos\ndos productos.\n\n**El paquete no declara precio: se calcula.** Su `price` es la suma de sus\nproductos con su descuento, `listPrice` la suma sin descuentos y `savings` la\ndiferencia, todo con el precio de catálogo **de hoy** y redondeado por\nproducto a los decimales de la moneda. No se guarda en ninguna columna: si un\nproducto cambia de precio, el paquete cambia solo. Enviar `price` —o `products`,\no `status`— responde `400`.\n\n**La moneda es obligatoria e inmutable**, y solo se le asocian productos en\nesa moneda: un paquete recién creado no tiene productos y aun así sabe en qué\nse expresa. `scope` dice en qué vistas se publica —`TIENDA`, `HOTLINK`, `AMBOS`\no `NINGUNO`, que existe y se activa pero no se ofrece en ninguna— y es del\npaquete: el alcance de sus productos no filtra dentro de él.\n\nLa respuesta es la misma forma que el detalle: `items` vacío, los tres\nimportes en cero, `exchange` nulo, y `offerable: false` con su motivo — «menos\nde dos productos». `offerable` y `offerableReason` viajan **siempre**.\n\nExige `packages:create`. **Los `products:` no habilitan**: un actor con los\ncuatro permisos del catálogo y ninguno de paquetes recibe `403`.\n",
+        "description" : "Registra un paquete de productos, **vacío e inactivo**: los productos entran\nuno a uno después (`POST /packages/{id}/products`) y publicarlo es otra\noperación (`PATCH /packages/{id}/status`), que exige descripción y al menos\ndos productos.\n\n**El paquete no declara precio: se calcula.** Su `price` es la suma de sus\nproductos con su descuento, `listPrice` la suma sin descuentos y `savings` la\ndiferencia, todo con el precio de catálogo **de hoy** y redondeado por\nproducto a los decimales de la moneda. No se guarda en ninguna columna: si un\nproducto cambia de precio, el paquete cambia solo. Enviar `price` —o `products`,\no `status`— responde `400`.\n\n**La moneda es obligatoria e inmutable**, y solo se le asocian productos en\nesa moneda: un paquete recién creado no tiene productos y aun así sabe en qué\nse expresa. `scope` dice en qué vistas se publica —`TIENDA`, `HOTLINK`, `AMBOS`\no `NINGUNO`, que existe y se activa pero no se ofrece en ninguna— y es del\npaquete: el alcance de sus productos no filtra dentro de él.\n\n**Y declara su vigencia** (`RN-PM-047`, desde el 16-09-2026): `validFrom`,\n**obligatorio**, es el primer día en que se ofrece, y `validTo`, opcional, el\n**último** —nulo es indefinidamente; un fin anterior al inicio responde\n`400`—. **No hay regla contra el pasado**: un inicio futuro programa el\npaquete y un fin de ayer lo deja cerrado, que es raro pero no es un error.\nFuera de esas fechas el paquete **se oculta** de la oferta y del hotlink\ny **no cambia de estado**; el detalle lo dice en `offerableReason`.\n\nLa respuesta es la misma forma que el detalle: `items` vacío, los tres\nimportes en cero, `exchange` nulo, `validFrom` y `validTo` tal como se\ndeclararon, y `offerable: false` con su motivo — «menos de dos productos».\n`offerable` y `offerableReason` viajan **siempre**.\n\nExige `packages:create`. **Los `products:` no habilitan**: un actor con los\ncuatro permisos del catálogo y ninguno de paquetes recibe `403`.\n",
         "operationId" : "register_1",
         "requestBody" : {
           "content" : {
@@ -6486,7 +6532,7 @@
     },
     "/api/v1/packages/{id}" : {
       "get" : {
-        "description" : "El paquete con sus productos y **la cuenta hecha**: cada producto con su\ndescuento y su `priceInPackage`, y `listPrice`, `price` y `savings` que\ncuadran con las líneas. **El precio se calcula en cada lectura** con el\nprecio de catálogo **de hoy** de cada producto: corregir el precio de un\nproducto cambia el paquete sin tocarlo, y un fijo que hoy supera su precio\ncuenta **cero**, nunca negativo. `exchange` es la conversión de `price` a la\nmoneda de casa; nula si el paquete ya está en ella o no hay tasa.\n\nEs la lectura de administración: **devuelve todo**. Un producto inactivo o\nretirado dentro del paquete **se devuelve igual**, con su `status` y su\n`deleted`, y **sigue sumando** — esta es la única pantalla desde la que se\narregla. Y `purchasePrice` de cada producto viaja, presente y nulo cuando\nno se conoce; la oferta y el hotlink no lo llevan.\n\n`offerable` dice si el paquete se puede ofrecer hoy, y `offerableReason` el\n**primer** motivo que lo impide, en un orden fijo: menos de dos productos,\nsin descripción, inactivo, retirado, y un producto inactivo o retirado —\n**nombrado por su código**—. Nulo cuando es ofrecible.\n\n**Un paquete retirado no es un `404`**: se devuelve con `deletedAt` y\n`deletionReason`, como el producto. Exige `packages:read`.\n",
+        "description" : "El paquete con sus productos y **la cuenta hecha**: cada producto con su\ndescuento y su `priceInPackage`, y `listPrice`, `price` y `savings` que\ncuadran con las líneas. **El precio se calcula en cada lectura** con el\nprecio de catálogo **de hoy** de cada producto: corregir el precio de un\nproducto cambia el paquete sin tocarlo, y un fijo que hoy supera su precio\ncuenta **cero**, nunca negativo. `exchange` es la conversión de `price` a la\nmoneda de casa; nula si el paquete ya está en ella o no hay tasa.\n\nEs la lectura de administración: **devuelve todo**. Un producto inactivo o\nretirado dentro del paquete **se devuelve igual**, con su `status` y su\n`deleted`, y **sigue sumando** — esta es la única pantalla desde la que se\narregla. Y `purchasePrice` de cada producto viaja, presente y nulo cuando\nno se conoce; la oferta y el hotlink no lo llevan.\n\n`offerable` dice si el paquete se puede ofrecer hoy, y `offerableReason` el\n**primer** motivo que lo impide, en un orden fijo: menos de dos productos,\nsin descripción, inactivo, retirado, **fuera de su vigencia** —«todavía no\nestá vigente: empieza el …» o «la vigencia terminó el …», con la fecha—, y\nun producto inactivo o retirado —**nombrado por su código**—. Nulo cuando\nes ofrecible. `validFrom` y `validTo` viajan siempre, el fin nulo cuando es\nindefinido, y **el día de fin cuenta entero**: un paquete que termina hoy\nse ofrece hoy. «Hoy» es el día en UTC.\n\n**Un paquete retirado no es un `404`**: se devuelve con `deletedAt` y\n`deletionReason`, como el producto. Exige `packages:read`.\n",
         "operationId" : "detalle_3",
         "parameters" : [ {
           "in" : "path",
@@ -6553,7 +6599,7 @@
         "tags" : [ "Paquetes" ]
       },
       "patch" : {
-        "description" : "Corrige **nombre, descripción y alcance**, por separado o juntos, y devuelve\nel detalle. Cada campo puede venir ausente —no se toca—, con valor, o\n**presente y nulo**: el nulo vacía la descripción y **se rechaza** en nombre\ny alcance, que son obligatorios.\n\n**El código y la moneda no se pueden modificar**, y enviarlos responde `400`\n—se rechazan, no se ignoran—. La moneda es la unidad en la que se suma el\npaquete: cambiarla dejaría los descuentos fijos expresados en otra cosa.\n\n**Vaciar la descripción de un paquete activo se permite**: no lo desactiva,\npero lo saca de la oferta hasta que vuelva a tenerla, y el detalle lo dice\nen `offerableReason`. Cambiar el alcance de `AMBOS` o `HOTLINK` a `TIENDA`\nhace que el hotlink del paquete deje de resolver; la oferta no cambia.\n\nUn cuerpo sin cambios de valor responde `200` sin avanzar `updatedAt` ni\nauditar. Exige `packages:update`.\n",
+        "description" : "Corrige **nombre, descripción, alcance y las dos fechas de vigencia**\n(`validFrom`, `validTo`), por separado o juntos, y devuelve el detalle.\nCada campo puede venir ausente —no se toca—, con valor, o **presente y\nnulo**: el nulo vacía la descripción y el fin de vigencia —que vuelve a\nindefinido— y **se rechaza** en nombre, alcance e inicio de vigencia, que\nson obligatorios. **La pareja de fechas resultante se comprueba entera**:\ncorregir solo el inicio a una fecha posterior al fin que ya había responde\n`400`; quien quiera mover las dos las manda juntas.\n\n**El código y la moneda no se pueden modificar**, y enviarlos responde `400`\n—se rechazan, no se ignoran—. La moneda es la unidad en la que se suma el\npaquete: cambiarla dejaría los descuentos fijos expresados en otra cosa.\n\n**Vaciar la descripción de un paquete activo se permite**: no lo desactiva,\npero lo saca de la oferta hasta que vuelva a tenerla, y el detalle lo dice\nen `offerableReason`. **Cerrar la vigencia es lo mismo con otra fecha**\n(`RN-PM-047`): `validTo` en ayer —o en hoy, para que sea el último día—\nretira el paquete de la oferta y del hotlink **sin desactivarlo**, y vaciar\nel fin lo vuelve a abrir. Cambiar el alcance de `AMBOS` o `HOTLINK` a\n`TIENDA` hace que el hotlink del paquete deje de resolver; la oferta no\ncambia.\n\nUn cuerpo sin cambios de valor responde `200` sin avanzar `updatedAt` ni\nauditar. Exige `packages:update`.\n",
         "operationId" : "corregir_2",
         "parameters" : [ {
           "in" : "path",
@@ -7618,7 +7664,7 @@
     },
     "/api/v1/products/available" : {
       "get" : {
-        "description" : "Devuelve lo que **quien llama** puede comprar hoy, y no el catálogo.\n\n**No admite ningún parámetro**: ni de persona, ni de filtro, ni de\npaginación. El actor sale del token, de modo que no hay forma de\npreguntar qué puede comprar otra persona.\n\n**Exige `products:sale`**, un permiso propio de esta vista y no\n`products:read` — ese abre el catálogo administrativo entero, lo\ninactivo, lo retirado y el motivo del retiro, para que alguien pudiera\nver tres líneas.\n\n**Solo lo activo.** Ni lo inactivo ni lo retirado aparecen aquí,\naunque el catálogo de `RF-PM-002` sí los muestre a quien administra.\n\n**Upgrades: los declarados DESDE la membresía vigente de quien mira**,\ny ninguno más. La coincidencia es exacta: no se comparan niveles ni se\nrecorre la cadena. Quien registró el producto ya decidió a quién va\ndirigido.\n\nEso incluye **todos** los declarados desde ahí y no solo el inmediato\n—quien está en el peldaño más bajo elige cuánto saltar, y el precio de\ncada uno ya expresa el salto—, y llegan ordenados **del salto más\ncorto al más largo**.\n\n**La RENOVACIÓN entra aquí**, y va primera: un producto `X → X`\ndeclarado desde su propia membresía es el salto de longitud cero. Lo\nque vende es **tiempo** —su `validityDays`— y no un cambio de nivel.\n\n**Un upgrade hacia el nivel que ya se tiene NO se ofrece cuando su\norigen no es el suyo**: sería el salto de otra persona que acaba donde\nquien mira ya está. Y **ninguna bajada** llega hasta aquí, aunque este\nfiltro ya no la mire: lo impide `RN-PM-017` **al registrar**, porque un\nproducto declarado desde mi membresía no puede apuntar por debajo.\n\n**Bots: todos los activos, para cualquiera.** No dependen del nivel de\nquien mira ni de que tenga uno.\n\n**Cada producto trae `videoUrl`**, la dirección del video que lo\npresenta, tal cual se guardó y **presente y nula** cuando no tiene\n(`RN-PM-032`). Es lo contrario del precio de compra: material de\nventa, que existe para que lo vea quien compra, y por eso **sí** viaja\npor aquí.\n\n**Publica `scope` e `implementation` de cada producto, y filtra por el\nprimero**: solo `TIENDA` y `AMBOS` (`RN-PM-019`, desde el 15-09-2026).\nUn producto `HOTLINK` o `NINGUNO` no es de la tienda y no aparece\naquí aunque esté activo y sea de la membresía de quien llama. La\nimplementación viaja para que quien compra sepa **antes de pagar** si\nlo que se lleva se le entrega en el acto.\n\n**Quien no tiene membresía vigente —incluida la vencida— no ve ningún\nupgrade**, y sí todos los bots. No hay nivel desde el que subir, y\nofrecerle el primero sería venderle una membresía, que no es lo que un\nupgrade hace.\n\n**Quien está en la cima recibe la lista de upgrades vacía.** No es un\nerror ni un mensaje especial: es una lista vacía.\n\n**El precio es igual para todos**: un importe distinto según quién\nmira sería un descuento, y los descuentos son promociones, que están\nfuera de alcance.\n\n**Viene UN importe** (`RN-PM-024`, reescrita el 12-09-2026): `price`,\nel que la venta cobra. **El precio de compra no viaja por aquí**: es\nlo que NEXUS paga por el producto, y quien compra no tiene por qué\nconocer el margen. Entre el 08-09-2026 y el 12-09-2026 esta respuesta\ntraía también `publicPrice`, cuando ese importe era lo que se\nanunciaba; ese campo **ya no existe**.\n\nY viene **`exchange`**, la conversión de `price` a la moneda por\nomisión con la tasa vigente hoy. **Presente y nula** cuando no hay\nnada que convertir.\n\n**Quien construya la pantalla de compra tiene que saberlo**: el\nimporte que confirma la venta es `price`, el mismo que se enseña.\n\nLas dos colecciones viajan **envueltas en un objeto** y no como\narreglos en la raíz: hoy la oferta no se pagina, y así el día que\nhaya que paginarla no romperá a ningún cliente.\n",
+        "description" : "Devuelve lo que **quien llama** puede comprar hoy, y no el catálogo.\n\n**No admite ningún parámetro**: ni de persona, ni de filtro, ni de\npaginación. El actor sale del token, de modo que no hay forma de\npreguntar qué puede comprar otra persona.\n\n**Exige `products:sale`**, un permiso propio de esta vista y no\n`products:read` — ese abre el catálogo administrativo entero, lo\ninactivo, lo retirado y el motivo del retiro, para que alguien pudiera\nver tres líneas.\n\n**Solo lo activo.** Ni lo inactivo ni lo retirado aparecen aquí,\naunque el catálogo de `RF-PM-002` sí los muestre a quien administra.\n\n**Upgrades: los declarados DESDE la membresía vigente de quien mira**,\ny ninguno más. La coincidencia es exacta: no se comparan niveles ni se\nrecorre la cadena. Quien registró el producto ya decidió a quién va\ndirigido.\n\nEso incluye **todos** los declarados desde ahí y no solo el inmediato\n—quien está en el peldaño más bajo elige cuánto saltar, y el precio de\ncada uno ya expresa el salto—, y llegan ordenados **del salto más\ncorto al más largo**.\n\n**La RENOVACIÓN entra aquí**, y va primera: un producto `X → X`\ndeclarado desde su propia membresía es el salto de longitud cero. Lo\nque vende es **tiempo** —su `validityDays`— y no un cambio de nivel.\n\n**Un upgrade hacia el nivel que ya se tiene NO se ofrece cuando su\norigen no es el suyo**: sería el salto de otra persona que acaba donde\nquien mira ya está. Y **ninguna bajada** llega hasta aquí, aunque este\nfiltro ya no la mire: lo impide `RN-PM-017` **al registrar**, porque un\nproducto declarado desde mi membresía no puede apuntar por debajo.\n\n**Bots: todos los activos, para cualquiera.** No dependen del nivel de\nquien mira ni de que tenga uno.\n\n**Cada producto trae `videoUrl`**, la dirección del video que lo\npresenta, tal cual se guardó y **presente y nula** cuando no tiene\n(`RN-PM-032`). Es lo contrario del precio de compra: material de\nventa, que existe para que lo vea quien compra, y por eso **sí** viaja\npor aquí.\n\n**Publica `scope` e `implementation` de cada producto, y filtra por el\nprimero**: solo `TIENDA` y `AMBOS` (`RN-PM-019`, desde el 15-09-2026).\nUn producto `HOTLINK` o `NINGUNO` no es de la tienda y no aparece\naquí aunque esté activo y sea de la membresía de quien llama. La\nimplementación viaja para que quien compra sepa **antes de pagar** si\nlo que se lleva se le entrega en el acto.\n\n**Quien no tiene membresía vigente —incluida la vencida— no ve ningún\nupgrade**, y sí todos los bots. No hay nivel desde el que subir, y\nofrecerle el primero sería venderle una membresía, que no es lo que un\nupgrade hace.\n\n**Quien está en la cima recibe la lista de upgrades vacía.** No es un\nerror ni un mensaje especial: es una lista vacía.\n\n**El precio es igual para todos**: un importe distinto según quién\nmira sería un descuento, y los descuentos son promociones, que están\nfuera de alcance.\n\n**Viene UN importe** (`RN-PM-024`, reescrita el 12-09-2026): `price`,\nel que la venta cobra. **El precio de compra no viaja por aquí**: es\nlo que NEXUS paga por el producto, y quien compra no tiene por qué\nconocer el margen. Entre el 08-09-2026 y el 12-09-2026 esta respuesta\ntraía también `publicPrice`, cuando ese importe era lo que se\nanunciaba; ese campo **ya no existe**.\n\nY viene **`exchange`**, la conversión de `price` a la moneda por\nomisión con la tasa vigente hoy. **Presente y nula** cuando no hay\nnada que convertir.\n\n**Quien construya la pantalla de compra tiene que saberlo**: el\nimporte que confirma la venta es `price`, el mismo que se enseña.\n\n**Y `packages`**: los paquetes que hoy se pueden ofrecer a quien mira,\ncon su cuenta hecha y cada producto en la forma de esta misma oferta.\nUn paquete aparece si está activo, vivo, con descripción y dos productos\nal menos, todos activos y vivos, **dentro de su vigencia** —`validFrom` y\n`validTo` viajan, el fin nulo cuando es indefinido; uno que empieza mañana\no terminó ayer **no aparece**, y nada lo dice (`RN-PM-047`)— y si su\nupgrade, cuando lo tiene, sale de la membresía de quien mira.\n\nLas colecciones viajan **envueltas en un objeto** y no como\narreglos en la raíz: hoy la oferta no se pagina, y así el día que\nhaya que paginarla no romperá a ningún cliente.\n",
         "operationId" : "oferta",
         "responses" : {
           "200" : {

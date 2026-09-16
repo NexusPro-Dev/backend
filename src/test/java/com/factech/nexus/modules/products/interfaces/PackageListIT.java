@@ -10,6 +10,9 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
 import com.factech.nexus.IntegrationTestBase;
 import com.factech.nexus.modules.products.interfaces.PackageTestSupport.Membresias;
+import java.sql.Date;
+import java.time.LocalDate;
+import java.time.ZoneOffset;
 import java.util.UUID;
 import org.hibernate.SessionFactory;
 import org.hibernate.stat.Statistics;
@@ -225,6 +228,39 @@ class PackageListIT extends IntegrationTestBase {
             get("/api/v1/packages")
                 .with(user(UUID.randomUUID().toString()).authorities(() -> "products:read")))
         .andExpect(status().isForbidden());
+  }
+
+  @Test
+  @DisplayName(
+      "`CA-PM-376` — cada fila trae validFrom y validTo; el vencido ayer y el que empieza mañana salen offerable false y siguen ACTIVO")
+  void vigenciaPorFila() throws Exception {
+    LocalDate hoy = LocalDate.now(ZoneOffset.UTC);
+    mvc.perform(listar("?sort=name"))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.content[0].code").value("BARATO"))
+        .andExpect(jsonPath("$.content[0].validFrom").value(hoy.toString()))
+        .andExpect(jsonPath("$.content[0].validTo").value(nullValue()))
+        .andExpect(jsonPath("$.content[0].offerable").value(true))
+        .andExpect(jsonPath("$.content[1].code").value("CARO"))
+        .andExpect(jsonPath("$.content[1].offerable").value(true));
+
+    jdbc.update(
+        "UPDATE product_packages SET valid_from = ?, valid_to = ? WHERE id = ?",
+        Date.valueOf(hoy.minusDays(10)),
+        Date.valueOf(hoy.minusDays(1)),
+        barato);
+    jdbc.update(
+        "UPDATE product_packages SET valid_from = ? WHERE id = ?",
+        Date.valueOf(hoy.plusDays(1)),
+        caro);
+    mvc.perform(listar("?sort=name"))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.content[0].status").value("ACTIVO"))
+        .andExpect(jsonPath("$.content[0].offerable").value(false))
+        .andExpect(jsonPath("$.content[0].validTo").value(hoy.minusDays(1).toString()))
+        .andExpect(jsonPath("$.content[1].status").value("ACTIVO"))
+        .andExpect(jsonPath("$.content[1].offerable").value(false))
+        .andExpect(jsonPath("$.content[1].validFrom").value(hoy.plusDays(1).toString()));
   }
 
   private MockHttpServletRequestBuilder listar(String query) {

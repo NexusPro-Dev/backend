@@ -9,6 +9,7 @@ import jakarta.persistence.Tuple;
 import java.math.BigDecimal;
 import java.sql.Timestamp;
 import java.time.Instant;
+import java.time.LocalDate;
 import java.time.OffsetDateTime;
 import java.time.ZoneOffset;
 import java.util.ArrayList;
@@ -36,6 +37,7 @@ public class JpaProductPackageQueryRepository implements ProductPackageQueryRepo
       k.cover_image_id AS cover_image_id,
       k.currency_id AS c_id, c.code AS c_code, c.decimal_places AS c_decimales,
       k.status AS status, k.scope AS scope,
+      k.valid_from AS valid_from, k.valid_to AS valid_to,
       k.created_at AS created_at, k.updated_at AS updated_at, k.deleted_at AS deleted_at
       """;
 
@@ -150,6 +152,7 @@ public class JpaProductPackageQueryRepository implements ProductPackageQueryRepo
              k.currency_id AS k_c_id, kc.code AS k_c_code,
              kc.decimal_places AS k_c_decimales,
              k.status AS k_status, k.scope AS k_scope,
+             k.valid_from AS k_valid_from, k.valid_to AS k_valid_to,
              k.created_at AS k_created_at, k.updated_at AS k_updated_at,
              k.deleted_at AS k_deleted_at,
              i.discount_type AS discount_type, i.discount_value AS discount_value,
@@ -244,6 +247,8 @@ public class JpaProductPackageQueryRepository implements ProductPackageQueryRepo
                     ((Number) fila.get("k_c_decimales")).intValue(),
                     (String) fila.get("k_status"),
                     (String) fila.get("k_scope"),
+                    fecha(fila.get("k_valid_from")),
+                    fecha(fila.get("k_valid_to")),
                     momento(fila.get("k_created_at")),
                     momento(fila.get("k_updated_at")),
                     momento(fila.get("k_deleted_at"))),
@@ -340,6 +345,8 @@ public class JpaProductPackageQueryRepository implements ProductPackageQueryRepo
         ((Number) fila.get("c_decimales")).intValue(),
         (String) fila.get("status"),
         (String) fila.get("scope"),
+        fecha(fila.get("valid_from")),
+        fecha(fila.get("valid_to")),
         momento(fila.get("created_at")),
         momento(fila.get("updated_at")),
         momento(fila.get("deleted_at")));
@@ -361,6 +368,16 @@ public class JpaProductPackageQueryRepository implements ProductPackageQueryRepo
         (String) fila.get("discount_type"),
         (BigDecimal) fila.get("discount_value"),
         momento(fila.get("i_created_at")));
+  }
+
+  /** Una columna {@code date}: el conector la entrega como {@code java.sql.Date} o ya local. */
+  private static LocalDate fecha(Object valor) {
+    return switch (valor) {
+      case null -> null;
+      case LocalDate local -> local;
+      case java.sql.Date sql -> sql.toLocalDate();
+      default -> throw new IllegalStateException("Fecha inesperada: " + valor.getClass());
+    };
   }
 
   private static OffsetDateTime momento(Object valor) {

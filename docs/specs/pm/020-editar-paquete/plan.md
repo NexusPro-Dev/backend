@@ -8,6 +8,8 @@
 | Autor | Responsable técnico |
 | Aprobado por | Responsable del proyecto |
 | Fecha de aprobación | 15-09-2026 |
+| Reabierto el | 16-09-2026 — **la vigencia se corrige** (`RN-PM-047`): dos `Patchable` más, ver §3, §4 y §11 (Art. I.7) |
+| Reaprobado el | 16-09-2026 — Responsable del proyecto |
 
 ---
 
@@ -23,17 +25,18 @@
 
 | Capa | Elemento | Módulo |
 |---|---|---|
-| `application` | `UpdatePackageRequest` — `Patchable<String> name`, `Patchable<String> description`, `Patchable<PackageScope> scope`, y `Patchable<Object> code` / `currencyId` para `VAL-004`; `informaAlgo()`, `traeInmutables()` | `PM` |
-| `domain/models` | `ProductPackage.update(...)` que devuelve el mapa de cambios `{campo: {before, after}}` y avanza `updatedAt` solo si no está vacío | `PM` |
+| `application` | `UpdatePackageRequest` — `Patchable<String> name`, `Patchable<String> description`, `Patchable<PackageScope> scope`, **`Patchable<LocalDate> validFrom` y `validTo` (16-09-2026)**, y `Patchable<Object> code` / `currencyId` para `VAL-004`; `informaAlgo()`, `traeInmutables()` | `PM` |
+| `domain/models` | `ProductPackage.update(...)` que devuelve el mapa de cambios `{campo: {before, after}}` y avanza `updatedAt` solo si no está vacío. **(16-09-2026)** Recibe además `Patchable<LocalDate> validFrom` y `validTo`, resuelve la pareja resultante y la pasa por `verificarVigencia` **antes** de aplicar nada, para que un `400` no deje medio cambio en la entidad | `PM` |
 | `domain/repository` | `ProductPackageRepository.existsAliveNameForOther(name, id)` | `PM` |
 | `domain/service` | `UpdatePackageService` | `PM` |
 | `interfaces` | `PackageController` — `PATCH /api/v1/packages/{id}` | `PM` |
 
 ## 4. Contrato de API
 
-`PATCH /api/v1/packages/{id}` — `packages:update`. Cuerpo con cualquiera de `name`, `description`, `scope`; `200` con `PackageDetailResponse`.
+`PATCH /api/v1/packages/{id}` — `packages:update`. Cuerpo con cualquiera de `name`, `description`, `scope`, `validFrom`, `validTo`; `200` con `PackageDetailResponse`.
 
-- `description: null` **vacía**; `name: null` y `scope: null` son `400`.
+- `description: null` y `validTo: null` **vacían**; `name: null`, `scope: null` y `validFrom: null` son `400`.
+- La pareja de vigencia resultante con el fin antes del inicio: `400` con `VAL-007`, también cuando solo viene uno de los dos.
 - `code` y `currencyId` en el cuerpo: `400` con `VAL-004`, **antes** de mirar nada más.
 - Cuerpo vacío: `400` con `VAL-005`.
 
@@ -70,5 +73,5 @@
 
 ## 11. Estrategia de prueba
 
-- **Unitaria**: `ProductPackage.update` — cada campo, el nulo de la descripción, sin cambios.
-- **Integración de API** (`PackageUpdateIT`): los seis criterios; la que define el requerimiento es `CA-PM-289`, porque une la corrección con la ofrecibilidad.
+- **Unitaria**: `ProductPackage.update` — cada campo, el nulo de la descripción, sin cambios; **(16-09-2026)** las dos fechas, el nulo del fin, el nulo del inicio rechazado, y el fin que choca con el inicio que ya había.
+- **Integración de API** (`PackageUpdateIT`): los seis criterios; la que define el requerimiento es `CA-PM-289`, porque une la corrección con la ofrecibilidad — y desde el 16-09-2026 `CA-PM-375` hace lo mismo con la vigencia.

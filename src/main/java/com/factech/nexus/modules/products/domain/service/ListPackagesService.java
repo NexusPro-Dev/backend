@@ -14,12 +14,15 @@ import com.factech.nexus.shared.error.FieldError;
 import com.factech.nexus.shared.error.ValidationException;
 import com.factech.nexus.shared.pagination.PageResponse;
 import com.factech.nexus.shared.pagination.Pagination;
+import java.time.Clock;
+import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 import java.util.stream.Collectors;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -37,14 +40,25 @@ public class ListPackagesService {
   private final ProductPackageQueryRepository consultas;
   private final Pagination paginacion;
   private final ProductExchangeResolver conversiones;
+  private final Clock reloj;
 
+  @Autowired
   public ListPackagesService(
       ProductPackageQueryRepository consultas,
       Pagination paginacion,
       ProductExchangeResolver conversiones) {
+    this(consultas, paginacion, conversiones, Clock.systemUTC());
+  }
+
+  ListPackagesService(
+      ProductPackageQueryRepository consultas,
+      Pagination paginacion,
+      ProductExchangeResolver conversiones,
+      Clock reloj) {
     this.consultas = consultas;
     this.paginacion = paginacion;
     this.conversiones = conversiones;
+    this.reloj = reloj;
   }
 
   @Transactional(readOnly = true)
@@ -84,6 +98,9 @@ public class ListPackagesService {
 
     ProductExchangeResolver.Conversor conversor =
         conversiones.para(pagina.stream().map(PackageRow::currencyId).toList());
+    // UN «hoy» para toda la página (`RN-PM-047`): la vigencia decide `offerable`
+    // por fila con el mismo día, también si la lectura cruza la medianoche.
+    LocalDate hoy = LocalDate.now(reloj);
 
     return PackagePageResponse.de(
         PageResponse.de(
@@ -91,7 +108,7 @@ public class ListPackagesService {
                 .map(
                     d ->
                         PackageItemSummary.from(
-                            d, conversor.de(d.paquete().currencyId(), d.precio().price())))
+                            d, conversor.de(d.paquete().currencyId(), d.precio().price()), hoy))
                 .toList(),
             consultas.count(canonicos),
             trozo.page(),

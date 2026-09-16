@@ -8,6 +8,8 @@
 | Autor | Responsable técnico |
 | Aprobado por | Responsable del proyecto |
 | Fecha de aprobación | 15-09-2026 |
+| Reabierto el | 16-09-2026 — **la vigencia del paquete** (`RN-PM-047`): `V13`, dos campos en el alta y en la respuesta, ver §2, §3, §4 y §11 (Art. I.7) |
+| Reaprobado el | 16-09-2026 — Responsable del proyecto |
 
 ---
 
@@ -72,6 +74,10 @@ CREATE INDEX ix_product_package_items_product ON product_package_items (product_
 
 Cuatro filas con identificador literal —la serie de `PM` continúa: `…000008` a `…000011`—, asociadas a `SUPERADMIN` y `ADMIN` en la misma migración y **con la guarda** que cuenta ocho asociaciones. **A `CLIENTE` no**, por lo mismo de siempre.
 
+### `V13__pm_vigencia_paquete.sql` — 16-09-2026
+
+`ALTER TABLE product_packages ADD COLUMN valid_from date NULL, ADD COLUMN valid_to date NULL`; `UPDATE … SET valid_from = (created_at AT TIME ZONE 'UTC')::date` para las filas que ya había; `ALTER COLUMN valid_from SET NOT NULL`; y `ck_product_packages_validity` (`valid_to IS NULL OR valid_to >= valid_from`). **Sin `DEFAULT`**: el alta declara el inicio siempre, y un `DEFAULT CURRENT_DATE` haría que un `INSERT` que lo olvidara pareciera correcto. **Tres pasos y no uno** porque `NOT NULL` no se puede añadir a una columna nueva sobre una tabla con filas sin darles valor, y el valor que no inventa nada es la fecha de alta: desde que existen se han podido ofrecer. Sobre `V5`, que no se reescribe (`modelo-datos.md` §5.4).
+
 ## 3. Componentes afectados
 
 | Capa | Elemento | Módulo |
@@ -80,6 +86,7 @@ Cuatro filas con identificador literal —la serie de `PM` continúa: `…000008
 | `domain/models` | **`PackagePricing`** — la cuenta de `RN-PM-036` en un solo sitio: por producto y total, con redondeo a la moneda | `PM` |
 | `domain/repository` | `ProductPackageRepository` + `JpaProductPackageRepository`: `save` con traducción de las dos unicidades, `existsCode`, `existsAliveName`, `findAliveByIdForUpdate`, `findByIdForUpdate` | `PM` |
 | `domain/repository` | `ProductPackageQueryRepository` + `Jpa…`: `findDetail(id)` — el paquete con sus filas de asociación y el producto de cada una (**una sentencia**) | `PM` |
+| `domain/models` | **(16-09-2026)** `ProductPackage` gana `validFrom` y `validTo`, `verificarVigencia(desde, hasta)` estática —`VAL-006`, `VAL-007`— que el alta y la corrección comparten; `PackageOfferability` gana el motivo de vigencia (ver `RF-PM-019`) | `PM` |
 | `domain/service` | `RegisterPackageService` | `PM` |
 | `application` | `RegisterPackageRequest`, `PackageDetailResponse` con `PackageItemResponse`, `PackageTotals` | `PM` |
 | `interfaces` | `PackageController` — `POST /api/v1/packages` | `PM` |
@@ -92,7 +99,8 @@ Cuatro filas con identificador literal —la serie de `PM` continúa: `…000008
 `POST /api/v1/packages` — `packages:create`.
 
 ```json
-{ "code": "COMBO_ORO", "name": "Combo Oro", "description": "…", "currencyId": "…", "scope": "AMBOS" }
+{ "code": "COMBO_ORO", "name": "Combo Oro", "description": "…", "currencyId": "…", "scope": "AMBOS",
+  "validFrom": "2026-10-01", "validTo": null }
 ```
 
 `201` con `PackageDetailResponse`:
@@ -102,6 +110,7 @@ Cuatro filas con identificador literal —la serie de `PM` continúa: `…000008
   "id": "…", "code": "COMBO_ORO", "name": "Combo Oro", "description": "…",
   "currency": { "id": "…", "code": "USD", "decimalPlaces": 2 },
   "scope": "AMBOS", "status": "INACTIVO",
+  "validFrom": "2026-10-01", "validTo": null,
   "items": [],
   "price": 0.00, "listPrice": 0.00, "savings": 0.00, "exchange": null,
   "offerable": false, "offerableReason": "El paquete tiene menos de dos productos.",
@@ -112,6 +121,7 @@ Cuatro filas con identificador literal —la serie de `PM` continúa: `…000008
 - **Los tres importes viajan como número** con los decimales de la moneda, como `price` del producto (`RF-PM-003`), y con la misma advertencia: ningún total calculado en el navegador es el que se cobre.
 - **`offerable` y `offerableReason` siempre presentes**: `true` con motivo nulo; `false` con **el primer motivo** encontrado, en un orden fijo — menos de dos productos, sin descripción, inactivo, un producto no ofrecible (nombrándolo).
 - **`exchange` presente y nulo** sobre cero: no hay nada que convertir.
+- **`validFrom` y `validTo` (16-09-2026)**: fechas `AAAA-MM-DD` sin hora; `validTo` **presente y nulo** cuando es indefinido. El día de fin cuenta entero.
 
 ## 5. Autorización
 
@@ -155,3 +165,4 @@ Cuatro filas con identificador literal —la serie de `PM` continúa: `…000008
 - **Integración de API** (`PackagesIT`): los ocho criterios de `spec.md` §12, la traducción de las dos unicidades y el `403` con los `products:`.
 - **Siembra** (`PackagesPermissionsSeedIT`): cuatro permisos, identificadores estables, dos asociaciones cada uno.
 - **Contrato**: el esquema declara `PackageDetailResponse` con `offerable` y `offerableReason`; la prosa dice que nace vacío e inactivo y que el precio se calcula.
+- **Vigencia (16-09-2026)**: unitaria de `verificarVigencia` —sin inicio, fin anterior, mismo día, sin fin—; de API, `CA-PM-372` y `CA-PM-373`, y la migración sobre una fila anterior a `V13` recibe su fecha de alta.

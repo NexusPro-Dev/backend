@@ -83,8 +83,8 @@ final class PackageTestSupport {
       JdbcTemplate jdbc, String codigo, String descripcion, String estado, String alcance) {
     UUID id = UUID.randomUUID();
     jdbc.update(
-        "INSERT INTO product_packages (id, code, name, description, currency_id, status, scope)"
-            + " VALUES (?, ?, ?, ?, CAST(? AS uuid), ?, ?)",
+        "INSERT INTO product_packages (id, code, name, description, currency_id, status, scope,"
+            + " valid_from) VALUES (?, ?, ?, ?, CAST(? AS uuid), ?, ?, (now() AT TIME ZONE 'UTC')::date)",
         id,
         codigo,
         "Paquete " + codigo,

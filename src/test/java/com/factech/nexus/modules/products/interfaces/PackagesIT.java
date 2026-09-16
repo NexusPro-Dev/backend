@@ -12,6 +12,8 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import com.factech.nexus.IntegrationTestBase;
+import java.time.LocalDate;
+import java.time.ZoneOffset;
 import java.util.List;
 import java.util.UUID;
 import org.junit.jupiter.api.AfterEach;
@@ -41,6 +43,8 @@ class PackagesIT extends IntegrationTestBase {
   @Autowired private MockMvc mvc;
   @Autowired private JdbcTemplate jdbc;
 
+  private static final LocalDate HOY = LocalDate.now(ZoneOffset.UTC);
+
   @BeforeEach
   void limpiar() {
     PackageTestSupport.limpiarPaquetes(jdbc);
@@ -63,9 +67,9 @@ class PackagesIT extends IntegrationTestBase {
             alta(
                 """
                 {"code":"combo_oro","name":"  Combo Oro  ","description":"Oro con señales.",
-                 "currencyId":"%s","scope":"AMBOS"}
+                 "currencyId":"%s","scope":"AMBOS","validFrom":"%s"}
                 """
-                    .formatted(USD)))
+                    .formatted(USD, HOY)))
         .andExpect(status().isCreated())
         .andExpect(header().string("Location", startsWith("/api/v1/packages/")))
         .andExpect(jsonPath("$.code").value("COMBO_ORO"))
@@ -81,6 +85,8 @@ class PackagesIT extends IntegrationTestBase {
         .andExpect(jsonPath("$.exchange").value(nullValue()))
         .andExpect(jsonPath("$.offerable").value(false))
         .andExpect(jsonPath("$.offerableReason").value(containsString("menos de dos")))
+        .andExpect(jsonPath("$.validFrom").value(HOY.toString()))
+        .andExpect(jsonPath("$.validTo").value(nullValue()))
         .andExpect(jsonPath("$.deletedAt").doesNotExist())
         .andExpect(jsonPath("$.deletionReason").doesNotExist());
 
@@ -157,18 +163,22 @@ class PackagesIT extends IntegrationTestBase {
         .andExpect(status().isBadRequest())
         .andExpect(
             jsonPath("$.errors[*].field")
-                .value(org.hamcrest.Matchers.hasItems("code", "name", "currencyId", "scope")))
+                .value(
+                    org.hamcrest.Matchers.hasItems(
+                        "code", "name", "currencyId", "scope", "validFrom")))
         .andExpect(
             jsonPath("$.errors[*].code")
-                .value(org.hamcrest.Matchers.hasItems("VAL-001", "VAL-002", "VAL-003", "VAL-004")));
+                .value(
+                    org.hamcrest.Matchers.hasItems(
+                        "VAL-001", "VAL-002", "VAL-003", "VAL-004", "VAL-006")));
 
     // El alcance fuera de dominio también es 400: lo rechaza Jackson.
     mvc.perform(
             alta(
                 """
-        {"code":"COMBO","name":"Combo","currencyId":"%s","scope":"HOTLINKS"}
+        {"code":"COMBO","name":"Combo","currencyId":"%s","scope":"HOTLINKS","validFrom":"%s"}
         """
-                    .formatted(USD)))
+                    .formatted(USD, HOY)))
         .andExpect(status().isBadRequest());
   }
 
@@ -179,9 +189,10 @@ class PackagesIT extends IntegrationTestBase {
       mvc.perform(
               alta(
                   """
-                  {"code":"COMBO","name":"Combo","currencyId":"%s","scope":"TIENDA",%s}
+                  {"code":"COMBO","name":"Combo","currencyId":"%s","scope":"TIENDA",
+                   "validFrom":"%s",%s}
                   """
-                      .formatted(USD, extra)))
+                      .formatted(USD, HOY, extra)))
           .andExpect(status().isBadRequest())
           .andExpect(jsonPath("$.detail").value(containsString("no admite")));
     }
@@ -233,13 +244,77 @@ class PackagesIT extends IntegrationTestBase {
     assertThat(cuantosPaquetes()).isZero();
   }
 
+  @Test
+  @DisplayName(
+      "`CA-PM-372` — con inicio y sin fin, con los dos, con inicio futuro y con fin ya pasado: 201, y las fechas vuelven tal cual")
+  void vigenciaEnElAlta() throws Exception {
+    mvc.perform(alta(cuerpo("SIN_FIN", "Sin fin", USD)))
+        .andExpect(status().isCreated())
+        .andExpect(jsonPath("$.validFrom").value(HOY.toString()))
+        .andExpect(jsonPath("$.validTo").value(nullValue()));
+    mvc.perform(alta(conVigencia("CON_FIN", HOY, HOY.plusDays(30))))
+        .andExpect(status().isCreated())
+        .andExpect(jsonPath("$.validFrom").value(HOY.toString()))
+        .andExpect(jsonPath("$.validTo").value(HOY.plusDays(30).toString()));
+    // Programado: se arma hoy y se ofrece cuando llegue el día.
+    mvc.perform(alta(conVigencia("FUTURO", HOY.plusDays(7), null)))
+        .andExpect(status().isCreated())
+        .andExpect(jsonPath("$.validFrom").value(HOY.plusDays(7).toString()));
+    // Nace cerrado: raro, pero no es un error — cerrar y errar no se distinguen.
+    mvc.perform(alta(conVigencia("CERRADO", HOY.minusDays(30), HOY.minusDays(1))))
+        .andExpect(status().isCreated())
+        .andExpect(jsonPath("$.validTo").value(HOY.minusDays(1).toString()));
+    // Un solo día.
+    mvc.perform(alta(conVigencia("UN_DIA", HOY, HOY))).andExpect(status().isCreated());
+  }
+
+  @Test
+  @DisplayName(
+      "`CA-PM-373` — sin validFrom es 400 con VAL-006 JUNTO a los demás errores de forma; el fin anterior al inicio es 400 con VAL-007")
+  void vigenciaMalDeclarada() throws Exception {
+    mvc.perform(
+            alta(
+                """
+                {"code":"combo-oro","name":"Combo","currencyId":"%s","scope":"TIENDA"}
+                """
+                    .formatted(USD)))
+        .andExpect(status().isBadRequest())
+        .andExpect(
+            jsonPath("$.errors[*].code")
+                .value(org.hamcrest.Matchers.hasItems("VAL-001", "VAL-006")))
+        .andExpect(
+            jsonPath("$.errors[*].field")
+                .value(org.hamcrest.Matchers.hasItems("code", "validFrom")));
+    mvc.perform(alta(conVigencia("AL_REVES", HOY, HOY.minusDays(1))))
+        .andExpect(status().isBadRequest())
+        .andExpect(jsonPath("$.errors[0].code").value("VAL-007"))
+        .andExpect(jsonPath("$.errors[0].field").value("validTo"));
+    // Y una fecha que no es fecha la rechaza Jackson, también con 400.
+    mvc.perform(
+            alta(
+                """
+                {"code":"COMBO","name":"Combo","currencyId":"%s","scope":"TIENDA","validFrom":"ayer"}
+                """
+                    .formatted(USD)))
+        .andExpect(status().isBadRequest());
+    assertThat(cuantosPaquetes()).isZero();
+  }
+
+  private static String conVigencia(String codigo, LocalDate desde, LocalDate hasta) {
+    return """
+        {"code":"%s","name":"Paquete %s","currencyId":"%s","scope":"TIENDA",
+         "validFrom":"%s","validTo":%s}
+        """
+        .formatted(codigo, codigo, USD, desde, hasta == null ? "null" : "\"" + hasta + "\"");
+  }
+
   // ---------------------------------------------------------------------------
 
   static String cuerpo(String codigo, String nombre, String moneda) {
     return """
-        {"code":"%s","name":"%s","currencyId":"%s","scope":"TIENDA"}
+        {"code":"%s","name":"%s","currencyId":"%s","scope":"TIENDA","validFrom":"%s"}
         """
-        .formatted(codigo, nombre, moneda);
+        .formatted(codigo, nombre, moneda, LocalDate.now(ZoneOffset.UTC));
   }
 
   private MockHttpServletRequestBuilder alta(String cuerpo) {

@@ -5,7 +5,7 @@
 | Requerimiento | `RF-PM-026` |
 | Especificación | [`spec.md`](spec.md) |
 | Plan | [`plan.md`](plan.md), aprobado el 15-09-2026 |
-| Estado | **Hecha** — todas las tareas `Hecha` el 15-09-2026; queda el Pull Request |
+| Estado | **Hecha** — todas las tareas `Hecha` el 15-09-2026; **reabierta el 16-09-2026** por la vigencia (`T-09`); queda el Pull Request |
 | Issue | Pendiente de crear |
 | Rama | `feature/venta-de-productos` |
 | Autor | Responsable técnico |
@@ -24,8 +24,11 @@
 | `T-06` | `RateLimitIT`: la cota compartida por familia — dos de producto y la tercera de paquete recibe `429`, y al revés | `T-04` | `CA-PM-333` | **Hecha el 15-09-2026** |
 | `T-07` | Documentación OpenAPI. **La prosa dice** que es público, que el `404` es uniforme y el mismo del hotlink del producto —también para el paquete que hoy no se puede ofrecer—, que el producto de cada línea es la forma del hotlink del producto, que `priceInPackage` es la cuenta de hoy y no una reserva, y que el alcance de los productos no filtra dentro del paquete | `T-04` | El contrato declara `200`, `404`, `429`, y `security: []` | **Hecha el 15-09-2026** |
 | `T-08` | Corregir `requirements/pm.md` §7 (`RNF-SEG-002`): la ruta **sí estrena declaración pública** y no cota; y actualizar la matriz de `docs/requirements.md` y `docs/api/index.md` | `T-05` | La fila de `RF-PM-026` refleja el estado; `security.md` cuenta la ruta entre las públicas | **Hecha el 15-09-2026** |
+| `T-09` | **Enmienda del 16-09-2026** (`spec.md` v0.4.0, `RN-PM-047`): `findPublishedByCode` selecciona `valid_from` y `valid_to`, `PackageHotlinkResponse` los publica, `GetPackageHotlinkService` pasa **hoy** (`Clock` UTC) a `PackageOfferability`; la prosa de la `@Operation` dice que fuera de la vigencia es el mismo `404` | `T-03`, `RF-PM-019 · T-13` | `PackageHotlinkIT`: `CA-PM-379` | **Hecha el 16-09-2026** |
 
 **Verificación (15-09-2026):** `PackageHotlinkIT` (8), `RateLimitIT` (2) y `EndpointPermissionsIT`, en verde; el `mvn verify` completo queda en 370 unitarias y 1422 de integración, con las únicas rojas fuera del módulo (`DevelopmentSeedIT` por una edición sin confirmar de la semilla, y una prueba de `SP` que desempata mal dos asientos con el mismo instante).
+
+**Verificación de la enmienda (16-09-2026):** `PackageHotlinkIT` (9), en verde; el cuerpo del `404` fuera de la vigencia es byte a byte el del hotlink del producto.
 
 ## 2. Orden de ejecución
 
@@ -40,6 +43,7 @@
 | `CA-PM-329`, `CA-PM-330` | `T-03`, `T-05` |
 | `CA-PM-331`, `CA-PM-332` | `T-01`, `T-02`, `T-05` |
 | `CA-PM-333` | `T-04`, `T-06` |
+| `CA-PM-379` | `T-09` |
 
 ## 4. Bloqueos
 

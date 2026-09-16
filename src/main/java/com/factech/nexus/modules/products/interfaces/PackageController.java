@@ -129,9 +129,18 @@ public class PackageController {
           o `NINGUNO`, que existe y se activa pero no se ofrece en ninguna— y es del
           paquete: el alcance de sus productos no filtra dentro de él.
 
+          **Y declara su vigencia** (`RN-PM-047`, desde el 16-09-2026): `validFrom`,
+          **obligatorio**, es el primer día en que se ofrece, y `validTo`, opcional, el
+          **último** —nulo es indefinidamente; un fin anterior al inicio responde
+          `400`—. **No hay regla contra el pasado**: un inicio futuro programa el
+          paquete y un fin de ayer lo deja cerrado, que es raro pero no es un error.
+          Fuera de esas fechas el paquete **se oculta** de la oferta y del hotlink
+          y **no cambia de estado**; el detalle lo dice en `offerableReason`.
+
           La respuesta es la misma forma que el detalle: `items` vacío, los tres
-          importes en cero, `exchange` nulo, y `offerable: false` con su motivo — «menos
-          de dos productos». `offerable` y `offerableReason` viajan **siempre**.
+          importes en cero, `exchange` nulo, `validFrom` y `validTo` tal como se
+          declararon, y `offerable: false` con su motivo — «menos de dos productos».
+          `offerable` y `offerableReason` viajan **siempre**.
 
           Exige `packages:create`. **Los `products:` no habilitan**: un actor con los
           cuatro permisos del catálogo y ninguno de paquetes recibe `403`.
@@ -256,8 +265,12 @@ public class PackageController {
 
           `offerable` dice si el paquete se puede ofrecer hoy, y `offerableReason` el
           **primer** motivo que lo impide, en un orden fijo: menos de dos productos,
-          sin descripción, inactivo, retirado, y un producto inactivo o retirado —
-          **nombrado por su código**—. Nulo cuando es ofrecible.
+          sin descripción, inactivo, retirado, **fuera de su vigencia** —«todavía no
+          está vigente: empieza el …» o «la vigencia terminó el …», con la fecha—, y
+          un producto inactivo o retirado —**nombrado por su código**—. Nulo cuando
+          es ofrecible. `validFrom` y `validTo` viajan siempre, el fin nulo cuando es
+          indefinido, y **el día de fin cuenta entero**: un paquete que termina hoy
+          se ofrece hoy. «Hoy» es el día en UTC.
 
           **Un paquete retirado no es un `404`**: se devuelve con `deletedAt` y
           `deletionReason`, como el producto. Exige `packages:read`.
@@ -294,6 +307,10 @@ public class PackageController {
           salvo `includeDeleted=true`, y entonces los trae con `deletedAt`.
           **`offerable` no es filtro**: quien administra quiere ver precisamente los
           que no se ofrecen; se queda como columna, y el motivo lo da el detalle.
+          **Tampoco lo es la vigencia**: cada fila trae `validFrom` y `validTo`
+          (`RN-PM-047`), y un paquete que empieza mañana o terminó ayer sale con
+          `offerable: false` y **sigue listado con su estado**, como uno con un
+          producto inactivo — no hay proceso que lo desactive al vencer.
 
           Orden: `createdAt` (omisión, descendente), `name` y `price`, con
           `,asc`/`,desc`. **El orden por `price` ordena por el precio calculado**: el
@@ -329,10 +346,14 @@ public class PackageController {
       summary = "Corregir un paquete",
       description =
           """
-          Corrige **nombre, descripción y alcance**, por separado o juntos, y devuelve
-          el detalle. Cada campo puede venir ausente —no se toca—, con valor, o
-          **presente y nulo**: el nulo vacía la descripción y **se rechaza** en nombre
-          y alcance, que son obligatorios.
+          Corrige **nombre, descripción, alcance y las dos fechas de vigencia**
+          (`validFrom`, `validTo`), por separado o juntos, y devuelve el detalle.
+          Cada campo puede venir ausente —no se toca—, con valor, o **presente y
+          nulo**: el nulo vacía la descripción y el fin de vigencia —que vuelve a
+          indefinido— y **se rechaza** en nombre, alcance e inicio de vigencia, que
+          son obligatorios. **La pareja de fechas resultante se comprueba entera**:
+          corregir solo el inicio a una fecha posterior al fin que ya había responde
+          `400`; quien quiera mover las dos las manda juntas.
 
           **El código y la moneda no se pueden modificar**, y enviarlos responde `400`
           —se rechazan, no se ignoran—. La moneda es la unidad en la que se suma el
@@ -340,8 +361,12 @@ public class PackageController {
 
           **Vaciar la descripción de un paquete activo se permite**: no lo desactiva,
           pero lo saca de la oferta hasta que vuelva a tenerla, y el detalle lo dice
-          en `offerableReason`. Cambiar el alcance de `AMBOS` o `HOTLINK` a `TIENDA`
-          hace que el hotlink del paquete deje de resolver; la oferta no cambia.
+          en `offerableReason`. **Cerrar la vigencia es lo mismo con otra fecha**
+          (`RN-PM-047`): `validTo` en ayer —o en hoy, para que sea el último día—
+          retira el paquete de la oferta y del hotlink **sin desactivarlo**, y vaciar
+          el fin lo vuelve a abrir. Cambiar el alcance de `AMBOS` o `HOTLINK` a
+          `TIENDA` hace que el hotlink del paquete deje de resolver; la oferta no
+          cambia.
 
           Un cuerpo sin cambios de valor responde `200` sin avanzar `updatedAt` ni
           auditar. Exige `packages:update`.

@@ -5,7 +5,7 @@
 | Requerimiento | `RF-PM-019` |
 | Especificación | [`spec.md`](spec.md) |
 | Plan | [`plan.md`](plan.md), aprobado el 15-09-2026 |
-| Estado | **Hecha** — todas las tareas `Hecha` el 15-09-2026; queda el Pull Request |
+| Estado | **Hecha** — todas las tareas `Hecha` el 15-09-2026; **reabierta el 16-09-2026** por la vigencia (`T-13`); queda el Pull Request |
 | Issue | Pendiente de crear |
 | Rama | `feature/venta-de-productos` |
 | Autor | Responsable técnico |
@@ -28,8 +28,11 @@
 | `T-10` | Actualizar la matriz de `docs/requirements.md` y `docs/api/index.md` | `T-08` | La fila de `RF-PM-019` refleja el estado | **Hecha el 15-09-2026** |
 | `T-11` | **Enmienda a `RF-PM-007`** (`plan.md` §8.1): `ProductPackageQueryRepository.findOfferable()` en dos sentencias; en `GetOfferService`, filtro por `PackageOfferability` y por **origen** (`RN-PM-044`), cuenta con `PackagePricing`, y las monedas de los paquetes **en la misma sentencia de tasas**; `OfferResponse.packages` envuelta, con el producto en la forma de `OfferItem`, `discount` y `priceInPackage` | `T-01`, `T-03`, `RF-PM-018 · T-02` | `CA-PM-335`, `CA-PM-337` | **Hecha el 15-09-2026** |
 | `T-12` | Pruebas de la oferta con paquetes (`ProductOfferIT`): la cuenta y la ausencia de `purchasePrice`; el paquete que desaparece con un producto inactivo dentro y vuelve al reactivarlo; el origen con el actor en cada membresía y sin ninguna; el número de sentencias, que sube **en dos** | `T-11` | `CA-PM-335` a `CA-PM-338` | **Hecha el 15-09-2026** |
+| `T-13` | **Enmienda del 16-09-2026** (`spec.md` v0.4.0, `RN-PM-047`): `PackageOfferability.decidir` recibe `hoy`, `validFrom` y `validTo` y estrena los dos motivos con fecha, en su sitio del orden; `findDetail` selecciona las dos columnas y `PackageRow` las lleva; `GetPackageService` pasa hoy con un `Clock` UTC; `PackageDetailResponse` publica `validFrom` y `validTo`; la prosa de la `@Operation` añade el motivo al orden | `T-01`, `T-03`, `RF-PM-017 · T-13` | `PackageOfferabilityTest` con hoy fijo; `PackageDetailIT`: `CA-PM-377` | **Hecha el 16-09-2026** |
 
 **Verificación (15-09-2026):** `PackageDetailIT` (10), `PackageOfferabilityTest` (7) y `PackageOfferIT` (4, la enmienda de `RF-PM-007`), en verde; el `mvn verify` completo queda en 370 unitarias y 1422 de integración, con las únicas rojas fuera del módulo (`DevelopmentSeedIT` por una edición sin confirmar de la semilla, y una prueba de `SP` que desempata mal dos asientos con el mismo instante).
+
+**Verificación de la enmienda (16-09-2026):** `PackageOfferabilityTest` (8) y `PackageDetailIT` (11), en verde.
 
 ## 2. Orden de ejecución
 
@@ -47,6 +50,7 @@
 | `CA-PM-283` | `T-03`, `T-04` |
 | `CA-PM-284` | `T-08` |
 | `CA-PM-335` a `CA-PM-338` (enmienda a `RF-PM-007`) | `T-11`, `T-12` |
+| `CA-PM-377` | `T-13` |
 
 ## 4. Bloqueos
 

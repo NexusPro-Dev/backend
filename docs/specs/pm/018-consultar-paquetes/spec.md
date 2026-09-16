@@ -9,6 +9,7 @@
 | Aprobada por | — |
 | Fecha de aprobación | — |
 | Enmendada el | 16-09-2026 — **cada fila trae `coverImageUrl`, la dirección de la portada del paquete** (`RN-PM-045`, `RF-PM-028`). Ver §15 |
+| Enmendada el | 16-09-2026 — **cada fila trae `validFrom` y `validTo`**, y un paquete fuera de su vigencia sale `offerable: false` (`RN-PM-047`). Ver §15 |
 
 ---
 
@@ -49,6 +50,7 @@ Es `RF-PM-002` para paquetes: el catálogo de administración, paginado, con fil
 | `RN-PM-039` | `offerable` por fila | `requirements/pm.md` §5.1 |
 | `RN-PM-041` | Los retirados existen y se listan si se piden | `requirements/pm.md` §5.1 |
 | `RN-PM-024` | La conversión sale en toda lectura | `requirements/pm.md` §5.1 |
+| `RN-PM-047` | **(Desde el 16-09-2026)** Las fechas de vigencia viajan por fila; fuera de ellas `offerable` es falso y el estado no cambia | `requirements/pm.md` §5.1 |
 
 ## 6. Datos
 
@@ -67,9 +69,11 @@ Es `RF-PM-002` para paquetes: el catálogo de administración, paginado, con fil
 
 ### 6.2 Salida
 
-La envoltura de página del sistema, y en `content` cada paquete con: `id`, `code`, `name`, `currency`, `scope`, `status`, **`itemCount`**, `listPrice`, `price`, `savings`, `exchange`, `offerable`, **`coverImageUrl`** (desde el 16-09-2026), `createdAt`, `deletedAt` (`NON_NULL`).
+La envoltura de página del sistema, y en `content` cada paquete con: `id`, `code`, `name`, `currency`, `scope`, `status`, **`itemCount`**, `listPrice`, `price`, `savings`, `exchange`, `offerable`, **`coverImageUrl`**, **`validFrom`**, **`validTo`** (los tres desde el 16-09-2026), `createdAt`, `deletedAt` (`NON_NULL`).
 
 **`coverImageUrl` es la dirección de la portada del paquete** (`RN-PM-045`): `/api/v1/product-images/{imageId}`, la misma ruta que la del producto, construida sobre `cover_image_id` **sin ninguna consulta más** —los bytes no se seleccionan nunca en un listado— y **presente y nula** cuando el paquete no tiene. No es un filtro.
+
+**`validFrom` y `validTo` son las fechas de vigencia** (`RN-PM-047`): el fin **presente y nulo** cuando es indefinido. **Tampoco filtran**, por lo mismo que `offerable` no filtra (§14.1): un paquete vencido sigue siendo un paquete, y `offerable: false` ya resume que hoy no se ofrece — el porqué lo dice el detalle.
 
 **La conversión se resuelve como en `RF-PM-002`**: la moneda por omisión una vez por página y las tasas de todas las monedas presentes en una sentencia. **El precio de la página se resuelve en una sentencia de filas** sobre `product_package_items` para todos los identificadores de la página, y `PackagePricing` la agrupa en Java. Ni la cuenta ni la conversión cuestan una consulta por paquete.
 
@@ -125,6 +129,7 @@ Las cuatro primeras se devuelven **juntas**.
 | `CA-PM-274` | El número de sentencias **no crece** con el tamaño de la página: página de uno y de veinte cuestan lo mismo |
 | `CA-PM-275` | `exchange` llega resuelto por fila, en una sentencia por página |
 | `CA-PM-276` | Los filtros inválidos se devuelven **juntos** con `400`, y sin `packages:read` responde `403` aunque el actor porte `products:read` |
+| `CA-PM-376` | Cada fila devuelve **`validFrom` y `validTo`**, el fin presente y nulo cuando es indefinido; y un paquete activo con todo en regla cuya vigencia **terminó ayer** o **empieza mañana** sale con `offerable: false`, y **sigue listado como `ACTIVO`** (16-09-2026) |
 | `CA-PM-367` | Cada fila devuelve **`coverImageUrl`** con la forma `/api/v1/product-images/{uuid}` cuando el paquete tiene portada, y **presente y nula** cuando no, **sin que el número de sentencias suba** (16-09-2026) |
 
 ## 13. Casos límite
@@ -150,3 +155,4 @@ Las cuatro primeras se devuelven **juntas**.
 | 0.1.0 | 15-09-2026 | Redacción inicial. Hereda de `RF-PM-002` el orden total, los retirados bajo petición y la conversión por página; y del detalle, la cuenta y la ofrecibilidad, resueltas **para toda la página en una sentencia de filas**. Dos decisiones propias: **`offerable` es columna y no filtro** —filtrar después de paginar rompería el total, y filtrar en SQL repetiría la regla— y **el orden por precio usa la suma sin redondear como criterio de la base**, con la diferencia de redondeo aceptada y escrita. | Responsable técnico |
 | 0.2.0 | 15-09-2026 | **Construida** (`PackageListIT`). Enmiendas de Art. I.7 al construir: **el alcance filtra por los cuatro valores** de [`requirements/pm.md`](../../../requirements/pm.md) v0.35.0; y **el orden por precio se resuelve en la sentencia de paquetes con una subconsulta** —la suma sin redondear, como el plan §4 ya decía— y no invirtiendo el orden de las dos sentencias como sugería `FA-002`: la página cuesta **cuatro** sentencias en cualquier orden (la página, sus filas, el total y la moneda de casa; la tasa solo si hay otra moneda), y `CA-PM-274` las cuenta con una y con veinte. | Responsable técnico |
 | 0.3.0 | 16-09-2026 | **Cada fila trae `coverImageUrl`, la dirección de la portada del paquete** (`RN-PM-045`, [`requirements/pm.md`](../../../requirements/pm.md) v0.37.0 §5.2.12): la misma ruta pública que la del producto, sobre `cover_image_id` y sin consulta más; presente y nula cuando no hay. `CA-PM-367`. Enmienda que construye `RF-PM-028` (Art. I.7). | Responsable del proyecto |
+| 0.4.0 | 16-09-2026 | **Cada fila trae `validFrom` y `validTo`, y la vigencia decide `offerable` por fila** (`RN-PM-047`, [`requirements/pm.md`](../../../requirements/pm.md) v0.39.0 §5.2.13): fuera de sus fechas el paquete sale `false` y sigue listado con el estado que alguien decidió, como con un producto inactivo. Sin filtro por vigencia, por lo mismo que sin filtro por `offerable`. `CA-PM-376`. | Responsable del proyecto |

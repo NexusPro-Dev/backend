@@ -9,6 +9,7 @@ import jakarta.persistence.EnumType;
 import jakarta.persistence.Enumerated;
 import jakarta.persistence.Id;
 import jakarta.persistence.Table;
+import java.time.LocalDate;
 import java.time.OffsetDateTime;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -32,6 +33,13 @@ import java.util.regex.Pattern;
  * <p><b>Hereda la forma del producto</b> (`RN-PM-041`): código normalizado e inmutable, nombre
  * recortado, descripción vacía → nula, nace {@link PackageStatus#INACTIVO}, y retiro lógico. Es a
  * la vez agregado y modelo persistente, como {@link Product}.
+ *
+ * <p><b>Y declara su vigencia</b> (`RN-PM-047`, `V13`): desde qué día se ofrece, obligatorio, y
+ * hasta qué día, opcional —nulo es indefinidamente—. Lo que la vigencia hace no está aquí: fuera de
+ * sus fechas el paquete <b>se oculta</b> y no cambia de estado, y eso lo decide {@link
+ * PackageOfferability} con el día que le pasan. Aquí solo se guarda y se comprueba que el fin no
+ * sea anterior al inicio; <b>no hay regla contra el pasado</b>, porque poner el fin en ayer es la
+ * forma de cerrar un paquete sin desactivarlo.
  */
 @Entity
 @Table(name = "product_packages")
@@ -75,6 +83,12 @@ public class ProductPackage {
   @Column(name = "scope", nullable = false, length = 20)
   private ProductScope scope;
 
+  @Column(name = "valid_from", nullable = false)
+  private LocalDate validFrom;
+
+  @Column(name = "valid_to")
+  private LocalDate validTo;
+
   @Column(name = "created_at", nullable = false, updatable = false)
   private OffsetDateTime createdAt;
 
@@ -100,7 +114,10 @@ public class ProductPackage {
       String description,
       UUID currencyId,
       ProductScope scope,
+      LocalDate validFrom,
+      LocalDate validTo,
       OffsetDateTime ahora) {
+    verificarVigencia(validFrom, validTo);
     ProductPackage paquete = new ProductPackage();
     paquete.id = id;
     paquete.code = normalizarCodigo(code);
@@ -108,6 +125,8 @@ public class ProductPackage {
     paquete.description = recortar(description);
     paquete.currencyId = currencyId;
     paquete.scope = scope;
+    paquete.validFrom = validFrom;
+    paquete.validTo = validTo;
     paquete.status = PackageStatus.INACTIVO;
     paquete.createdAt = ahora;
     paquete.updatedAt = ahora;
@@ -115,18 +134,31 @@ public class ProductPackage {
   }
 
   /**
-   * Corrige nombre, descripción y alcance, y devuelve qué cambió (`RF-PM-020`).
+   * Corrige nombre, descripción, alcance y las dos fechas de vigencia, y devuelve qué cambió
+   * (`RF-PM-020`).
    *
    * <p>Como {@link Product#update}: el diff lo devuelve quien aplica el cambio, los ausentes no se
-   * tocan, el nulo explícito vacía la descripción y solo la descripción, y {@code updatedAt} se
-   * mueve únicamente si algo cambió. <b>Código y moneda no tienen mutador</b>: el caso de uso los
-   * rechaza antes de llegar aquí (`EX-003`).
+   * tocan, el nulo explícito vacía la descripción y el fin de vigencia —y solo esos dos—, y {@code
+   * updatedAt} se mueve únicamente si algo cambió. <b>Código y moneda no tienen mutador</b>: el
+   * caso de uso los rechaza antes de llegar aquí (`EX-003`).
+   *
+   * <p><b>La vigencia se comprueba sobre la pareja resultante y ANTES de aplicar nada</b>
+   * (`VAL-007`, desde el 16-09-2026): lo que venga más lo que ya había, para que corregir solo el
+   * inicio a una fecha posterior al fin que ya estaba se rechace, y para que un {@code 400} no deje
+   * medio cambio en la entidad. El inicio <b>no admite vaciarse</b> (`VAL-006`): un paquete siempre
+   * sabe desde cuándo.
    */
   public Map<String, Object> update(
       Patchable<String> nuevoNombre,
       Patchable<String> nuevaDescripcion,
       Patchable<ProductScope> nuevoAlcance,
+      Patchable<LocalDate> nuevoInicio,
+      Patchable<LocalDate> nuevoFin,
       OffsetDateTime ahora) {
+    LocalDate inicio = nuevoInicio.presente() ? nuevoInicio.valor() : validFrom;
+    LocalDate fin = nuevoFin.presente() ? nuevoFin.valor() : validTo;
+    verificarVigencia(inicio, fin);
+
     Map<String, Object> cambios = new LinkedHashMap<>();
     if (nuevoNombre.presente() && nuevoNombre.valor() != null) {
       String valor = recortar(nuevoNombre.valor());
@@ -148,6 +180,14 @@ public class ProductPackage {
         cambios.put("scope", Map.of("before", scope.name(), "after", valor.name()));
         scope = valor;
       }
+    }
+    if (!Objects.equals(inicio, validFrom)) {
+      cambios.put("valid_from", Map.of("before", fecha(validFrom), "after", fecha(inicio)));
+      validFrom = inicio;
+    }
+    if (!Objects.equals(fin, validTo)) {
+      cambios.put("valid_to", Map.of("before", fecha(validTo), "after", fecha(fin)));
+      validTo = fin;
     }
     if (!cambios.isEmpty()) {
       updatedAt = ahora;
@@ -238,7 +278,36 @@ public class ProductPackage {
     estado.put("currency_id", currencyId.toString());
     estado.put("status", status.name());
     estado.put("scope", scope.name());
+    estado.put("valid_from", validFrom.toString());
+    estado.put("valid_to", validTo == null ? null : validTo.toString());
     return estado;
+  }
+
+  /**
+   * `VAL-006` y `VAL-007` (`RN-PM-047`): el inicio es obligatorio y el fin, si lo hay, no es
+   * anterior. <b>Nada más</b>: ni «el fin no puede ser pasado» ni «el inicio no puede ser futuro».
+   * Un fin de ayer cierra el paquete; un inicio de mañana lo programa. Estática y pública por lo
+   * mismo que la de la tasa personalizada: el alta y la corrección la comparten.
+   */
+  public static void verificarVigencia(LocalDate desde, LocalDate hasta) {
+    if (desde == null) {
+      String mensaje = "El inicio de vigencia es obligatorio.";
+      throw new ValidationException(
+          "VAL-006", mensaje, List.of(new FieldError("validFrom", "VAL-006", mensaje)));
+    }
+    if (hasta != null && hasta.isBefore(desde)) {
+      String mensaje = "El fin de vigencia no puede ser anterior a su inicio.";
+      throw new ValidationException(
+          "VAL-007", mensaje, List.of(new FieldError("validTo", "VAL-007", mensaje)));
+    }
+  }
+
+  /**
+   * El nulo se audita como cadena vacía, y no como ausencia: {@code Map.of} no admite nulos, y una
+   * clave ausente haría indistinguible «se quitó el fin de vigencia» de «no se tocó».
+   */
+  private static String fecha(LocalDate valor) {
+    return valor == null ? "" : valor.toString();
   }
 
   private static String texto(String valor) {
@@ -295,6 +364,14 @@ public class ProductPackage {
 
   public ProductScope getScope() {
     return scope;
+  }
+
+  public LocalDate getValidFrom() {
+    return validFrom;
+  }
+
+  public LocalDate getValidTo() {
+    return validTo;
   }
 
   public OffsetDateTime getCreatedAt() {

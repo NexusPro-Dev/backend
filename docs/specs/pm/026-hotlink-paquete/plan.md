@@ -8,6 +8,8 @@
 | Autor | Responsable técnico |
 | Aprobado por | Responsable del proyecto |
 | Fecha de aprobación | 15-09-2026 |
+| Reabierto el | 16-09-2026 — **`validFrom` y `validTo` en la respuesta, y hoy en la ofrecibilidad** (`RN-PM-047`), ver §11 (Art. I.7) |
+| Reaprobado el | 16-09-2026 — Responsable del proyecto |
 
 ---
 

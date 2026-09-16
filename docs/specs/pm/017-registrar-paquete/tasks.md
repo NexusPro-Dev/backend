@@ -5,7 +5,7 @@
 | Requerimiento | `RF-PM-017` |
 | Especificación | [`spec.md`](spec.md) |
 | Plan | [`plan.md`](plan.md), aprobado el 15-09-2026 |
-| Estado | **Hecha** — todas las tareas `Hecha` el 15-09-2026; queda el Pull Request |
+| Estado | **Hecha** — todas las tareas `Hecha` el 15-09-2026; **reabierta el 16-09-2026** por la vigencia (`T-13`); queda el Pull Request |
 | Issue | Pendiente de crear |
 | Rama | `feature/venta-de-productos` |
 | Autor | Responsable técnico |
@@ -28,8 +28,11 @@
 | `T-10` | Pruebas de API (`PackagesIT`) de los ocho criterios, incluida la carrera de dos altas con el mismo código en `PackageConcurrencyIT` | `T-09` | `CA-PM-261` a `CA-PM-268`; la carrera deja una fila y un `409` | **Hecha el 15-09-2026** |
 | `T-11` | Documentación OpenAPI. **La prosa dice** que nace vacío e inactivo, que el precio se calcula y no se declara, que la moneda es inmutable, y que los `products:` no habilitan | `T-09` | El contrato declara `201`, `400`, `401`, `403`, `409`, `422` | **Hecha el 15-09-2026** |
 | `T-12` | Actualizar la matriz de `docs/requirements.md` y `docs/api/index.md` | `T-10` | La fila de `RF-PM-017` refleja el estado; `api/index.md` documenta el recurso `/packages` y los cuatro permisos | **Hecha el 15-09-2026** |
+| `T-13` | **Enmienda del 16-09-2026** (`spec.md` v0.4.0, `RN-PM-047`): migración **`V13__pm_vigencia_paquete.sql`** —`valid_from` y `valid_to`, relleno de las filas existentes con su fecha de alta, `NOT NULL` después, `ck_product_packages_validity`—; `ProductPackage` con las dos fechas y `verificarVigencia`; `RegisterPackageRequest` con `validFrom` y `validTo`; `PackageDetailResponse` con los dos; la prosa de la `@Operation` dice que el inicio es obligatorio, que el fin nulo es indefinido y que no hay regla contra el pasado | `T-08` | Unitaria de `verificarVigencia`; `PackagesIT`: `CA-PM-372`, `CA-PM-373`; la migración deja `valid_from` en una fila anterior | **Hecha el 16-09-2026** |
 
 **Verificación (15-09-2026):** `PackagesIT` (9), `PackageConcurrencyIT` (2 del alta), `PackagesPermissionsSeedIT` (3) y 26 unitarias, en verde; el `mvn verify` completo queda en 370 unitarias y 1422 de integración, con las únicas rojas fuera del módulo (`DevelopmentSeedIT` por una edición sin confirmar de la semilla, y una prueba de `SP` que desempata mal dos asientos con el mismo instante).
+
+**Verificación de la enmienda (16-09-2026):** `ProductPackageTest` (8) y `PackagesIT` (11), en verde; `V13` aplicó sobre la base de las pruebas y las filas sembradas antes de la columna reciben su fecha de alta.
 
 ## 2. Orden de ejecución
 
@@ -47,6 +50,7 @@
 | `CA-PM-265`, `CA-PM-266` | `T-07`, `T-09` |
 | `CA-PM-267` | `T-08` |
 | `CA-PM-268` | `T-02`, `T-09` |
+| `CA-PM-372`, `CA-PM-373` | `T-13` |
 
 ## 4. Bloqueos
 

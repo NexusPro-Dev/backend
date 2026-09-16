@@ -7,8 +7,11 @@ import com.factech.nexus.modules.products.domain.repository.ProductPackageQueryR
 import com.factech.nexus.modules.products.domain.repository.ProductPackageQueryRepository.PackageDetail;
 import com.factech.nexus.shared.audit.DeletionReasonReader;
 import com.factech.nexus.shared.error.ResourceNotFoundException;
+import java.time.Clock;
+import java.time.LocalDate;
 import java.util.List;
 import java.util.UUID;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 
 /**
@@ -30,14 +33,28 @@ public class PackageDetailReader {
   private final ProductPackageQueryRepository consultas;
   private final DeletionReasonReader motivos;
   private final ProductExchangeResolver conversiones;
+  private final Clock reloj;
 
+  @Autowired
   public PackageDetailReader(
       ProductPackageQueryRepository consultas,
       DeletionReasonReader motivos,
       ProductExchangeResolver conversiones) {
+    this(consultas, motivos, conversiones, Clock.systemUTC());
+  }
+
+  // «Hoy» en UTC, el mismo reloj con que `CM` resuelve la vigencia de una tasa
+  // (`RN-PM-047`): el corte del día es una decisión pendiente y única para los
+  // tres módulos, y no se adelanta aquí.
+  PackageDetailReader(
+      ProductPackageQueryRepository consultas,
+      DeletionReasonReader motivos,
+      ProductExchangeResolver conversiones,
+      Clock reloj) {
     this.consultas = consultas;
     this.motivos = motivos;
     this.conversiones = conversiones;
+    this.reloj = reloj;
   }
 
   /** El detalle, o el `404` de `RF-PM-019` `EX-001`. Un retirado <b>no</b> es un `404`. */
@@ -54,7 +71,7 @@ public class PackageDetailReader {
 
   public PackageDetailResponse armar(PackageDetail detalle) {
     PackagePricing cuenta = detalle.precio();
-    PackageOfferability ofrecibilidad = detalle.ofrecibilidad();
+    PackageOfferability ofrecibilidad = detalle.ofrecibilidad(LocalDate.now(reloj));
     UUID moneda = detalle.paquete().currencyId();
     // El nulo aquí significa que el paquete está vivo, y la respuesta lo omite
     // del JSON en lugar de enviarlo en nulo — como el producto (`RF-PM-003`).

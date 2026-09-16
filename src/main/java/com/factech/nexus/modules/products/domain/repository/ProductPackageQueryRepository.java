@@ -7,6 +7,7 @@ import com.factech.nexus.modules.products.domain.models.PackageOfferability;
 import com.factech.nexus.modules.products.domain.models.PackagePricing;
 import com.factech.nexus.modules.products.domain.models.PackageStatus;
 import java.math.BigDecimal;
+import java.time.LocalDate;
 import java.time.OffsetDateTime;
 import java.util.List;
 import java.util.Optional;
@@ -87,11 +88,13 @@ public interface ProductPackageQueryRepository {
           paquete.currencyDecimalPlaces(), items.stream().map(PublishedItem::linea).toList());
     }
 
-    public PackageOfferability ofrecibilidad() {
+    /** «Hoy» viene de fuera (`RN-PM-047`): el objeto de dominio no consulta el reloj. */
+    public PackageOfferability ofrecibilidad(LocalDate hoy) {
       return PackageOfferability.decidir(
           paquete.estado(),
           paquete.retirado(),
           paquete.tieneDescripcion(),
+          paquete.vigencia(hoy),
           items.stream().map(PublishedItem::paraOfrecibilidad).toList());
     }
   }
@@ -113,9 +116,15 @@ public interface ProductPackageQueryRepository {
       int currencyDecimalPlaces,
       String status,
       String scope,
+      LocalDate validFrom,
+      LocalDate validTo,
       OffsetDateTime createdAt,
       OffsetDateTime updatedAt,
       OffsetDateTime deletedAt) {
+
+    public PackageOfferability.Vigencia vigencia(LocalDate hoy) {
+      return new PackageOfferability.Vigencia(hoy, validFrom, validTo);
+    }
 
     public boolean retirado() {
       return deletedAt != null;
@@ -174,11 +183,13 @@ public interface ProductPackageQueryRepository {
           paquete.currencyDecimalPlaces(), items.stream().map(PackageItemRow::linea).toList());
     }
 
-    public PackageOfferability ofrecibilidad() {
+    /** «Hoy» viene de fuera (`RN-PM-047`): el objeto de dominio no consulta el reloj. */
+    public PackageOfferability ofrecibilidad(LocalDate hoy) {
       return PackageOfferability.decidir(
           paquete.estado(),
           paquete.retirado(),
           paquete.tieneDescripcion(),
+          paquete.vigencia(hoy),
           items.stream().map(PackageItemRow::paraOfrecibilidad).toList());
     }
   }

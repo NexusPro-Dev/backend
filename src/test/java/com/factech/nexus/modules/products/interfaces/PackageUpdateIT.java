@@ -9,6 +9,8 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import com.factech.nexus.IntegrationTestBase;
+import java.time.LocalDate;
+import java.time.ZoneOffset;
 import java.util.UUID;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
@@ -33,6 +35,8 @@ class PackageUpdateIT extends IntegrationTestBase {
 
   @Autowired private MockMvc mvc;
   @Autowired private JdbcTemplate jdbc;
+
+  private static final LocalDate HOY = LocalDate.now(ZoneOffset.UTC);
 
   private UUID paquete;
 
@@ -163,6 +167,85 @@ class PackageUpdateIT extends IntegrationTestBase {
                 "SELECT count(*) FROM audit_change_log WHERE module = 'PM' AND action = 'UPDATE'",
                 Integer.class))
         .isZero();
+  }
+
+  @Test
+  @DisplayName(
+      "`CA-PM-374` — corrige las dos fechas por separado y juntas con su antes y su después; validTo:null vacía, validFrom:null se rechaza; la pareja resultante con el fin antes del inicio es 400 aunque venga uno solo")
+  void corrigeLaVigencia() throws Exception {
+    mvc.perform(corregir("{\"validTo\":\"" + HOY.plusDays(30) + "\"}"))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.validFrom").value(HOY.toString()))
+        .andExpect(jsonPath("$.validTo").value(HOY.plusDays(30).toString()));
+    // Solo el inicio, más allá del fin que ya había: 400, y nada cambia.
+    mvc.perform(corregir("{\"validFrom\":\"" + HOY.plusDays(31) + "\"}"))
+        .andExpect(status().isBadRequest())
+        .andExpect(jsonPath("$.errors[0].code").value("VAL-007"))
+        .andExpect(jsonPath("$.errors[0].field").value("validTo"));
+    // Solo el fin, antes del inicio que ya había: lo mismo.
+    mvc.perform(corregir("{\"validTo\":\"" + HOY.minusDays(1) + "\"}"))
+        .andExpect(status().isBadRequest())
+        .andExpect(jsonPath("$.errors[0].code").value("VAL-007"));
+    // Las dos juntas, y pasan.
+    mvc.perform(
+            corregir(
+                "{\"validFrom\":\""
+                    + HOY.plusDays(31)
+                    + "\",\"validTo\":\""
+                    + HOY.plusDays(40)
+                    + "\"}"))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.validFrom").value(HOY.plusDays(31).toString()))
+        .andExpect(jsonPath("$.validTo").value(HOY.plusDays(40).toString()));
+    // El inicio no admite vaciarse; el fin sí, y vuelve a indefinido.
+    mvc.perform(corregir("{\"validFrom\":null}"))
+        .andExpect(status().isBadRequest())
+        .andExpect(jsonPath("$.errors[0].code").value("VAL-006"));
+    mvc.perform(corregir("{\"validTo\":null}"))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.validTo").value(nullValue()));
+
+    String ultimo =
+        jdbc.queryForObject(
+            "SELECT changes::text FROM audit_change_log WHERE module = 'PM' AND entity = 'product_packages'"
+                + " AND action = 'UPDATE' AND entity_id = ? ORDER BY occurred_at DESC LIMIT 1",
+            String.class,
+            paquete);
+    assertThat(ultimo)
+        .contains("\"valid_to\": {\"after\": \"\", \"before\": \"" + HOY.plusDays(40) + "\"}");
+  }
+
+  @Test
+  @DisplayName(
+      "`CA-PM-375` — validTo en ayer deja a un ACTIVO ofrecible con offerable false y la fecha en el motivo, sin cambiar su estado; vaciarlo lo devuelve")
+  void cerrarLaVigenciaDeUnActivo() throws Exception {
+    mvc.perform(corregir("{\"name\":\"Paquete COMBO\"}"))
+        .andExpect(jsonPath("$.offerable").value(true));
+    // El inicio de hoy se mueve atrás para poder cerrar en ayer.
+    mvc.perform(
+            corregir(
+                "{\"validFrom\":\""
+                    + HOY.minusDays(10)
+                    + "\",\"validTo\":\""
+                    + HOY.minusDays(1)
+                    + "\"}"))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.status").value("ACTIVO"))
+        .andExpect(jsonPath("$.offerable").value(false))
+        .andExpect(
+            jsonPath("$.offerableReason")
+                .value("La vigencia del paquete terminó el " + HOY.minusDays(1) + "."));
+    mvc.perform(corregir("{\"validTo\":null}"))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.offerable").value(true));
+    // Y la otra mitad: el inicio en mañana lo programa.
+    mvc.perform(corregir("{\"validFrom\":\"" + HOY.plusDays(1) + "\"}"))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.status").value("ACTIVO"))
+        .andExpect(jsonPath("$.offerable").value(false))
+        .andExpect(
+            jsonPath("$.offerableReason")
+                .value("El paquete todavía no está vigente: empieza el " + HOY.plusDays(1) + "."));
   }
 
   private MockHttpServletRequestBuilder corregir(String json) {

@@ -9,6 +9,7 @@
 | Aprobada por | — |
 | Fecha de aprobación | — |
 | Enmendada el | 16-09-2026 — **la respuesta trae `coverImageUrl`, presente y nula**: la portada llega después del alta (`RN-PM-045`, `RF-PM-028`). Ver §15 |
+| Enmendada el | 16-09-2026 — **el paquete declara su vigencia**: `validFrom` obligatorio y `validTo` opcional (`RN-PM-047`, `V13`). Ver §15 |
 
 ---
 
@@ -32,7 +33,7 @@ Las cuatro decisiones que dan forma al submódulo están en [`requirements/pm.md
 
 ### 4.1 Incluye
 
-- Registrar un paquete con **código, nombre, moneda y alcance**, obligatorios, y **descripción** opcional.
+- Registrar un paquete con **código, nombre, moneda, alcance e inicio de vigencia**, obligatorios, y **descripción** y **fin de vigencia** opcionales (desde el 16-09-2026).
 - Crear `product_packages` y `product_package_items`, y sembrar `packages:read`, `packages:create`, `packages:update` y `packages:delete`.
 - Devolver el paquete recién creado **con su cuenta hecha**: cero productos, precio cero, `offerable: false` con su motivo.
 
@@ -52,6 +53,7 @@ Las cuatro decisiones que dan forma al submódulo están en [`requirements/pm.md
 | `RN-PM-036` | El precio se calcula siempre — y aquí, sobre nada, es cero | `requirements/pm.md` §5.1 |
 | `RN-PM-008` | La moneda debe estar activa al declararla | `requirements/pm.md` §5.1 |
 | `RN-SEG-003` | Los permisos se conceden por rol; ningún rol concede lo que su padre no tiene | `security.md` §4 |
+| `RN-PM-047` | **(Desde el 16-09-2026)** El paquete declara desde cuándo se ofrece, y hasta cuándo si lo sabe: inicio obligatorio, fin opcional y no anterior al inicio, **sin regla contra el pasado** | `requirements/pm.md` §5.1 |
 
 ## 6. Datos
 
@@ -64,12 +66,14 @@ Las cuatro decisiones que dan forma al submódulo están en [`requirements/pm.md
 | Descripción (`description`) | No | Qué se lleva quien lo compra | Texto libre; **obligatoria para activar**, no para registrar |
 | Moneda (`currencyId`) | Sí | En qué se expresa el paquete entero | Debe existir y estar activa (`RN-PM-008`); **inmutable** |
 | Alcance (`scope`) | Sí | En qué vistas se publica | `TIENDA`, `HOTLINK`, `AMBOS` o `NINGUNO` —el mismo dominio que el producto desde el 15-09-2026—, **sin valor por omisión** (`RN-PM-019`) |
+| Inicio de vigencia (`validFrom`) | Sí | Desde qué día se ofrece | Fecha `AAAA-MM-DD`, **sin valor por omisión**: el alta la declara siempre (`RN-PM-047`). Puede ser pasada o futura |
+| Fin de vigencia (`validTo`) | No | Último día en que se ofrece | Fecha; **nula es indefinidamente**; **no anterior a `validFrom`**. Puede ser pasada: el paquete nace cerrado, y es raro pero no es un error |
 
 **Ni precio, ni implementación, ni productos.** Un `price` en el cuerpo es un campo desconocido y se rechaza como tal.
 
 ### 6.2 Salida
 
-`201` con el paquete en la **misma forma del detalle** (`RF-PM-019`): identificador, código, nombre, descripción, moneda resuelta, alcance, estado `INACTIVO`, `items` vacío, `price`, `listPrice` y `savings` en **cero**, `exchange` nulo y presente, `offerable: false` con `offerableReason` diciendo que faltan productos, y las dos fechas iguales.
+`201` con el paquete en la **misma forma del detalle** (`RF-PM-019`): identificador, código, nombre, descripción, moneda resuelta, alcance, estado `INACTIVO`, `items` vacío, `price`, `listPrice` y `savings` en **cero**, `exchange` nulo y presente, `offerable: false` con `offerableReason` diciendo que faltan productos, **`validFrom` y `validTo`** tal como se declararon —el fin presente y nulo cuando no vino— (desde el 16-09-2026), y las dos fechas de auditoría iguales.
 
 **Se devuelve la forma completa aunque esté vacía**, para que el front trate «acabo de crearlo» y «lo abrí» igual, como hace el alta del producto.
 
@@ -79,12 +83,12 @@ Las cuatro decisiones que dan forma al submódulo están en [`requirements/pm.md
 
 **Precondiciones:** actor autenticado con `packages:create`; código libre frente a todos; nombre libre entre los vivos; moneda existente y activa.
 
-**Postcondiciones:** existe la fila en `product_packages` con `status = INACTIVO`, sin filas en `product_package_items`; `audit_change_log` tiene una fila `CREATE` de `product_packages`. Ningún evento de seguridad: un paquete no concede nada.
+**Postcondiciones:** existe la fila en `product_packages` con `status = INACTIVO`, con `valid_from` y `valid_to` como se declararon, sin filas en `product_package_items`; `audit_change_log` tiene una fila `CREATE` de `product_packages`. Ningún evento de seguridad: un paquete no concede nada.
 
 ## 8. Flujo principal
 
-1. Llega la petición con código, nombre, moneda, alcance y —si viene— descripción.
-2. El sistema valida la forma de los cinco (§11).
+1. Llega la petición con código, nombre, moneda, alcance, inicio de vigencia y —si vienen— descripción y fin de vigencia.
+2. El sistema valida la forma de los siete, y que el fin no sea anterior al inicio (§11).
 3. El sistema comprueba que el **código** no existe —ni vivo ni retirado— (`EX-001`).
 4. El sistema comprueba que el **nombre** no lo usa otro paquete vivo (`EX-002`).
 5. El sistema comprueba que la **moneda** existe y está activa, por la interfaz que `SP` publica (`EX-003`).
@@ -127,8 +131,10 @@ Los pasos 3 y 4 tienen su red en el esquema —`uq_product_packages_code` total 
 | `VAL-003` | Moneda presente | La moneda es obligatoria. |
 | `VAL-004` | Alcance presente y dentro del dominio | El alcance es obligatorio y debe ser TIENDA, HOTLINK, AMBOS o NINGUNO. |
 | `VAL-005` | Ningún campo desconocido — en particular, ni `price` ni `products` ni `status` | El cuerpo de la petición contiene campos no admitidos. |
+| `VAL-006` | Inicio de vigencia presente (desde el 16-09-2026) | El inicio de vigencia es obligatorio. |
+| `VAL-007` | Fin de vigencia, si viene, no anterior al inicio (desde el 16-09-2026) | El fin de vigencia no puede ser anterior a su inicio. |
 
-Las cuatro primeras se devuelven **juntas**: quien se equivocó en dos corrige una vez.
+Las cuatro primeras y `VAL-006` se devuelven **juntas**: quien se equivocó en dos corrige una vez. `VAL-007` **va aparte y después**, comprobada por el agregado —como el fin anterior al inicio de la tasa personalizada en `CM`—: es la única que compara dos campos, y el manejador de Bean Validation solo recoge errores de campo, de modo que meterla en la tanda obligaría a colgarla de un campo inventado (precisión de Art. I.7 al construir, `T-13`).
 
 ## 12. Criterios de aceptación
 
@@ -143,6 +149,8 @@ Las cuatro primeras se devuelven **juntas**: quien se equivocó en dos corrige u
 | `CA-PM-267` | El sistema registra una fila `CREATE` en `audit_change_log` con el actor, en la misma transacción |
 | `CA-PM-268` | Los cuatro permisos `packages:` están sembrados con identificador estable y asociados a `SUPERADMIN` y `ADMIN`, y **no** a `CLIENTE`; sin `packages:create` el alta responde `403` aunque el actor porte los cuatro `products:` |
 | `CA-PM-371` | La respuesta del alta trae **`coverImageUrl` presente y nula** (16-09-2026) |
+| `CA-PM-372` | El sistema registra el paquete con `validFrom` y sin `validTo` —la respuesta trae **`validTo` presente y nulo**— y con los dos, y **admite** un inicio futuro y un fin ya pasado (16-09-2026) |
+| `CA-PM-373` | El sistema rechaza con `400` la ausencia de `validFrom` **junto** con los demás errores de forma, y con `400` un `validTo` anterior a `validFrom` (16-09-2026) |
 
 ## 13. Casos límite
 
@@ -152,6 +160,8 @@ Las cuatro primeras se devuelven **juntas**: quien se equivocó en dos corrige u
 | El nombre coincide con el de un **producto** | Se admite: son catálogos distintos y la unicidad es por tabla |
 | La moneda se desactiva **después** | El paquete no se invalida, como el producto (`RN-PM-008`) |
 | Se registra con una descripción de solo espacios | Se guarda como **nula**: recortada queda vacía, y una descripción vacía no permite activar |
+| Se registra con `validTo` de ayer | **Se admite**: nace cerrado, `offerable: false` dirá que la vigencia terminó, y corregir el fin lo abre. Prohibirlo obligaría a distinguir «cerrar» de «equivocarse» (§5.2.13 del módulo) |
+| `validFrom` y `validTo` el mismo día | **Se admite**: un paquete de un solo día. El día de fin cuenta entero |
 
 ## 14. Preguntas abiertas
 
@@ -168,3 +178,4 @@ Las cuatro primeras se devuelven **juntas**: quien se equivocó en dos corrige u
 | 0.1.0 | 15-09-2026 | Redacción inicial. **El paquete nace vacío y sin precio**: asociar es otra operación con reglas propias, y el precio no existe como campo (`RN-PM-036`). Hereda la forma del producto —código inmutable y no liberado, nombre único entre vivos, nace inactivo, alcance sin omisión— y **la moneda es propia e inmutable** aunque se deduzca de los productos, porque un paquete vacío también la tiene. Crea las dos tablas y siembra los cuatro `packages:` con la guarda de siempre. | Responsable técnico |
 | 0.2.0 | 15-09-2026 | **Construida** (`V91`, `V93`, `PackagesIT`). Dos enmiendas de Art. I.7 al construir: **el alcance adopta los cuatro valores** de [`requirements/pm.md`](../../../requirements/pm.md) v0.35.0 §5.2.11 —`VAL-004` cambia de mensaje y `ck_product_packages_scope` nace ya con los cuatro—; y **la siembra de permisos es `V93` y no `V92`**, porque `V92` la tomó el alcance de los productos el mismo día («una migración reservada no está reservada», como el plan advertía). Los identificadores de los permisos son los previstos: `…000008` a `…000011`. | Responsable técnico |
 | 0.3.0 | 16-09-2026 | **La respuesta trae `coverImageUrl`, presente y nula** (`RN-PM-045`, [`requirements/pm.md`](../../../requirements/pm.md) v0.37.0 §5.2.12): la portada del paquete llega después del alta, con `RF-PM-028`, y el alta sigue siendo JSON. Sin icono ni color en el cuerpo: el paquete no los declara. `CA-PM-371`. Enmienda que construye `RF-PM-028` (Art. I.7). | Responsable del proyecto |
+| 0.4.0 | 16-09-2026 | **El paquete declara su vigencia** (`RN-PM-047`, [`requirements/pm.md`](../../../requirements/pm.md) v0.39.0 §5.2.13): `validFrom` obligatorio, `validTo` opcional y no anterior al inicio, las dos en la respuesta, **sin regla contra el pasado** — un fin de ayer es un paquete que nace cerrado, no un error. `VAL-006`, `VAL-007`, `CA-PM-372`, `CA-PM-373`. Es la enmienda que trae `V13` (Art. I.7). | Responsable del proyecto |

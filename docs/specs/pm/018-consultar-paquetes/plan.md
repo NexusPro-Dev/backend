@@ -8,6 +8,8 @@
 | Autor | Responsable técnico |
 | Aprobado por | Responsable del proyecto |
 | Fecha de aprobación | 15-09-2026 |
+| Reabierto el | 16-09-2026 — **`validFrom` y `validTo` por fila** (`RN-PM-047`), y el servicio pasa «hoy» a `PackageOfferability`, ver §4 y §11 (Art. I.7) |
+| Reaprobado el | 16-09-2026 — Responsable del proyecto |
 
 ---
 
@@ -34,7 +36,7 @@
 
 `GET /api/v1/packages?status=&scope=&currencyId=&q=&includeDeleted=&sort=&page=&size=` — `packages:read`.
 
-Envoltura del sistema; cada fila: `id`, `code`, `name`, `currency`, `scope`, `status`, `itemCount`, `listPrice`, `price`, `savings`, `exchange`, `offerable`, `createdAt`, `deletedAt` (`NON_NULL`).
+Envoltura del sistema; cada fila: `id`, `code`, `name`, `currency`, `scope`, `status`, `itemCount`, `listPrice`, `price`, `savings`, `exchange`, `offerable`, `coverImageUrl`, `validFrom`, `validTo` (16-09-2026: el fin presente y nulo), `createdAt`, `deletedAt` (`NON_NULL`).
 
 **El orden por `price`.** El precio no está en la tabla. La sentencia de paquetes ordena por una subconsulta `SUM(p.price − descuento)` **sin redondear** —solo para ordenar— y desempata por identificador; el importe que viaja lo calcula `PackagePricing` después, redondeado por producto. La diferencia entre las dos cuentas cabe en un céntimo por producto y puede alterar el orden entre paquetes casi iguales; `spec.md` §14.2 lo acepta. **La subconsulta se escribe una vez** en una constante del repositorio, y su expresión de descuento es la traducción literal de la de `PackagePricing`, con la prueba `CA-PM-273` como el hilo que las mantiene iguales.
 
@@ -77,3 +79,4 @@ No audita.
 - **Integración de API** (`PackageListIT`): los ocho criterios; **la que define el requerimiento es `CA-PM-274`**, la de sentencias.
 - **De orden por precio**: dos paquetes, cambiar el precio de un producto, ver el cambio de posición (`CA-PM-273`).
 - **De coherencia con el detalle**: los totales de la fila son los del detalle (`CA-PM-269`).
+- **De vigencia (16-09-2026)**: las dos fechas por fila y el `offerable: false` del vencido y del que empieza mañana, sin que el estado cambie (`CA-PM-376`).

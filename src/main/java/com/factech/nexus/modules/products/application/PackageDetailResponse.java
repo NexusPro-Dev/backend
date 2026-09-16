@@ -12,6 +12,7 @@ import com.factech.nexus.modules.products.domain.repository.ProductPackageQueryR
 import com.factech.nexus.modules.products.domain.repository.ProductPackageQueryRepository.PackageRow;
 import com.fasterxml.jackson.annotation.JsonInclude;
 import java.math.BigDecimal;
+import java.time.LocalDate;
 import java.time.OffsetDateTime;
 import java.time.ZoneOffset;
 import java.util.List;
@@ -43,6 +44,8 @@ public record PackageDetailResponse(
     ProductResponse.CurrencyRef currency,
     ProductScope scope,
     PackageStatus status,
+    LocalDate validFrom,
+    LocalDate validTo,
     List<PackageItemResponse> items,
     BigDecimal listPrice,
     BigDecimal price,
@@ -102,6 +105,8 @@ public record PackageDetailResponse(
         new ProductResponse.CurrencyRef(paquete.currencyId(), paquete.currencyCode(), decimales),
         ProductScope.valueOf(paquete.scope()),
         paquete.estado(),
+        paquete.validFrom(),
+        paquete.validTo(),
         items,
         cuenta.listPrice(),
         cuenta.price(),

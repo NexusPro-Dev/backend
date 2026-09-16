@@ -271,7 +271,8 @@ class PackageCoverIT extends IntegrationTestBase {
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(
                     """
-                    {"code":"NUEVO","name":"Nuevo","currencyId":"%s","scope":"TIENDA"}
+                    {"code":"NUEVO","name":"Nuevo","currencyId":"%s","scope":"TIENDA",
+                     "validFrom":"2026-09-16"}
                     """
                         .formatted(PackageTestSupport.USD)))
         .andExpect(status().isCreated())

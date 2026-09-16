@@ -9,6 +9,9 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
 import com.factech.nexus.IntegrationTestBase;
 import com.factech.nexus.modules.products.interfaces.PackageTestSupport.Membresias;
+import java.sql.Date;
+import java.time.LocalDate;
+import java.time.ZoneOffset;
 import java.util.UUID;
 import org.hibernate.SessionFactory;
 import org.hibernate.stat.Statistics;
@@ -258,6 +261,41 @@ class PackageHotlinkIT extends IntegrationTestBase {
   }
 
   // ---------------------------------------------------------------------------
+
+  @Test
+  @DisplayName(
+      "`CA-PM-379` — validFrom y validTo sin token; fuera de la vigencia el MISMO 404, y el que termina hoy resuelve")
+  void fueraDeLaVigenciaElMismo404() throws Exception {
+    LocalDate hoy = LocalDate.now(ZoneOffset.UTC);
+    enlace("hl-vendedora", "PACK_ORO_BOTS")
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.package.validFrom").value(hoy.toString()))
+        .andExpect(jsonPath("$.package.validTo").value(nullValue()));
+    String delProducto =
+        mvc.perform(get("/api/v1/hotlinks/{u}/{c}", "hl-vendedora", "NO_EXISTE"))
+            .andReturn()
+            .getResponse()
+            .getContentAsString();
+
+    jdbc.update(
+        "UPDATE product_packages SET valid_to = ? WHERE id = ?", Date.valueOf(hoy), paquete);
+    enlace("hl-vendedora", "PACK_ORO_BOTS")
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.package.validTo").value(hoy.toString()));
+
+    jdbc.update(
+        "UPDATE product_packages SET valid_from = ?, valid_to = ? WHERE id = ?",
+        Date.valueOf(hoy.minusDays(10)),
+        Date.valueOf(hoy.minusDays(1)),
+        paquete);
+    igualQue(delProducto, "hl-vendedora", "PACK_ORO_BOTS");
+
+    jdbc.update(
+        "UPDATE product_packages SET valid_from = ?, valid_to = NULL WHERE id = ?",
+        Date.valueOf(hoy.plusDays(1)),
+        paquete);
+    igualQue(delProducto, "hl-vendedora", "PACK_ORO_BOTS");
+  }
 
   private ResultActions enlace(String usuario, String codigo) throws Exception {
     return mvc.perform(get("/api/v1/hotlinks/{u}/packages/{c}", usuario, codigo));

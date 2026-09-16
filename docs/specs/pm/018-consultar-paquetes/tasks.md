@@ -5,7 +5,7 @@
 | Requerimiento | `RF-PM-018` |
 | Especificación | [`spec.md`](spec.md) |
 | Plan | [`plan.md`](plan.md), aprobado el 15-09-2026 |
-| Estado | **Hecha** — todas las tareas `Hecha` el 15-09-2026; queda el Pull Request |
+| Estado | **Hecha** — todas las tareas `Hecha` el 15-09-2026; **reabierta el 16-09-2026** por la vigencia (`T-12`); queda el Pull Request |
 | Issue | Pendiente de crear |
 | Rama | `feature/venta-de-productos` |
 | Autor | Responsable técnico |
@@ -27,8 +27,11 @@
 | `T-09` | Pruebas de los criterios restantes: retirados bajo petición, filtros combinados, conversión por fila, permisos | `T-06` | `CA-PM-269` a `CA-PM-271`, `CA-PM-275`, `CA-PM-276` | **Hecha el 15-09-2026** |
 | `T-10` | Documentación OpenAPI. **La prosa dice** que el precio se calcula, que `offerable` es columna y no filtro, y qué significa ordenar por precio | `T-06` | El contrato declara `200`, `400`, `401`, `403` | **Hecha el 15-09-2026** |
 | `T-11` | Actualizar la matriz de `docs/requirements.md` y `docs/api/index.md` | `T-09` | La fila de `RF-PM-018` refleja el estado | **Hecha el 15-09-2026** |
+| `T-12` | **Enmienda del 16-09-2026** (`spec.md` v0.4.0, `RN-PM-047`): `search` selecciona `valid_from` y `valid_to`, `PackageRow` los lleva, `PackageItemSummary` los publica, y `ListPackagesService` pasa **hoy** (`Clock` UTC) a `PackageOfferability`; la prosa de la `@Operation` dice que la vigencia no filtra | `T-04`, `RF-PM-017 · T-13` | `PackageListIT`: `CA-PM-376` | **Hecha el 16-09-2026** |
 
 **Verificación (15-09-2026):** `PackageListIT` (8), en verde; el `mvn verify` completo queda en 370 unitarias y 1422 de integración, con las únicas rojas fuera del módulo (`DevelopmentSeedIT` por una edición sin confirmar de la semilla, y una prueba de `SP` que desempata mal dos asientos con el mismo instante).
+
+**Verificación de la enmienda (16-09-2026):** `PackageListIT` (9), en verde; el número de sentencias no cambia: las dos columnas viajan en la misma fila.
 
 ## 2. Orden de ejecución
 
@@ -42,6 +45,7 @@
 | `CA-PM-272`, `CA-PM-273` | `T-02`, `T-08` |
 | `CA-PM-274` | `T-03`, `T-07` |
 | `CA-PM-276` | `T-01`, `T-09` |
+| `CA-PM-376` | `T-12` |
 
 ## 4. Bloqueos
 

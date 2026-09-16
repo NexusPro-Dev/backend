@@ -78,6 +78,8 @@ public class RegisterPackageService {
                 peticion.description(),
                 moneda.id(),
                 peticion.scope(),
+                peticion.validFrom(),
+                peticion.validTo(),
                 OffsetDateTime.now(reloj)));
 
     // La instantánea la arma el agregado, y es la misma que usa el retiro

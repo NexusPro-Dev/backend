@@ -5,6 +5,7 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import com.factech.nexus.shared.error.ValidationException;
 import com.factech.nexus.shared.patch.Patchable;
+import java.time.LocalDate;
 import java.time.OffsetDateTime;
 import java.time.ZoneOffset;
 import java.util.Map;
@@ -18,6 +19,7 @@ class ProductPackageTest {
   private static final OffsetDateTime AHORA =
       OffsetDateTime.of(2026, 9, 15, 10, 0, 0, 0, ZoneOffset.UTC);
   private static final UUID USD = UUID.randomUUID();
+  private static final LocalDate DESDE = LocalDate.of(2026, 9, 15);
 
   @Test
   @DisplayName("nace INACTIVO, con el código en mayúsculas, el nombre recortado y sin precio")
@@ -30,6 +32,8 @@ class ProductPackageTest {
             "   ",
             USD,
             ProductScope.AMBOS,
+            DESDE,
+            null,
             AHORA);
 
     assertThat(paquete.getStatus()).isEqualTo(PackageStatus.INACTIVO);
@@ -43,7 +47,117 @@ class ProductPackageTest {
     // La instantánea NO lleva precio: no existe (`RN-PM-036`).
     assertThat(paquete.instantanea())
         .doesNotContainKey("price")
-        .containsEntry("status", "INACTIVO");
+        .containsEntry("status", "INACTIVO")
+        .containsEntry("valid_from", "2026-09-15")
+        .containsEntry("valid_to", null);
+    assertThat(paquete.getValidFrom()).isEqualTo(DESDE);
+    assertThat(paquete.getValidTo()).isNull();
+  }
+
+  @Test
+  @DisplayName(
+      "RN-PM-047 — sin inicio VAL-006, fin anterior VAL-007; mismo día, sin fin y pasado se admiten")
+  void vigencia() {
+    assertThatThrownBy(() -> ProductPackage.verificarVigencia(null, null))
+        .isInstanceOfSatisfying(
+            ValidationException.class, e -> assertThat(e.errorCode()).isEqualTo("VAL-006"));
+    assertThatThrownBy(() -> ProductPackage.verificarVigencia(DESDE, DESDE.minusDays(1)))
+        .isInstanceOfSatisfying(
+            ValidationException.class, e -> assertThat(e.errorCode()).isEqualTo("VAL-007"));
+    // Un solo día, indefinido y ya pasado: los tres son legítimos — cerrar un
+    // paquete es poner el fin en ayer, y el alta no distingue cerrar de errar.
+    ProductPackage.verificarVigencia(DESDE, DESDE);
+    ProductPackage.verificarVigencia(DESDE, null);
+    ProductPackage.verificarVigencia(DESDE.minusYears(1), DESDE.minusMonths(6));
+
+    ProductPackage paquete =
+        ProductPackage.create(
+            UUID.randomUUID(),
+            "COMBO",
+            "Combo",
+            null,
+            USD,
+            ProductScope.TIENDA,
+            DESDE,
+            DESDE.plusDays(30),
+            AHORA);
+    assertThat(paquete.getValidTo()).isEqualTo(DESDE.plusDays(30));
+    assertThat(paquete.instantanea()).containsEntry("valid_to", "2026-10-15");
+  }
+
+  @Test
+  @DisplayName(
+      "update corrige las dos fechas, el nulo vacía el fin y se rechaza en el inicio, y la pareja"
+          + " resultante se comprueba ANTES de aplicar nada")
+  void updateDeLaVigencia() {
+    ProductPackage paquete =
+        ProductPackage.create(
+            UUID.randomUUID(),
+            "COMBO",
+            "Combo",
+            null,
+            USD,
+            ProductScope.TIENDA,
+            DESDE,
+            DESDE.plusDays(30),
+            AHORA);
+    OffsetDateTime despues = AHORA.plusMinutes(5);
+
+    // Solo el inicio, a una fecha posterior al fin que ya había: VAL-007 y NADA
+    // cambia — ni el nombre que venía en la misma petición.
+    assertThatThrownBy(
+            () ->
+                paquete.update(
+                    Patchable.de("Otro"),
+                    Patchable.ausente(),
+                    Patchable.ausente(),
+                    Patchable.de(DESDE.plusDays(31)),
+                    Patchable.ausente(),
+                    despues))
+        .isInstanceOfSatisfying(
+            ValidationException.class, e -> assertThat(e.errorCode()).isEqualTo("VAL-007"));
+    assertThat(paquete.getName()).isEqualTo("Combo");
+    assertThat(paquete.getUpdatedAt()).isEqualTo(AHORA);
+
+    // El inicio no admite vaciarse.
+    assertThatThrownBy(
+            () ->
+                paquete.update(
+                    Patchable.ausente(),
+                    Patchable.ausente(),
+                    Patchable.ausente(),
+                    Patchable.de(null),
+                    Patchable.ausente(),
+                    despues))
+        .isInstanceOfSatisfying(
+            ValidationException.class, e -> assertThat(e.errorCode()).isEqualTo("VAL-006"));
+
+    // Las dos juntas, y el fin a nulo: vuelve a indefinido, con su antes y su después.
+    Map<String, Object> cambios =
+        paquete.update(
+            Patchable.ausente(),
+            Patchable.ausente(),
+            Patchable.ausente(),
+            Patchable.de(DESDE.plusDays(1)),
+            Patchable.de(null),
+            despues);
+    assertThat(cambios).containsOnlyKeys("valid_from", "valid_to");
+    assertThat(cambios.get("valid_from"))
+        .isEqualTo(Map.of("before", "2026-09-15", "after", "2026-09-16"));
+    assertThat(cambios.get("valid_to")).isEqualTo(Map.of("before", "2026-10-15", "after", ""));
+    assertThat(paquete.getValidTo()).isNull();
+    assertThat(paquete.getUpdatedAt()).isEqualTo(despues);
+
+    // El mismo valor no es un cambio.
+    assertThat(
+            paquete.update(
+                Patchable.ausente(),
+                Patchable.ausente(),
+                Patchable.ausente(),
+                Patchable.de(DESDE.plusDays(1)),
+                Patchable.de(null),
+                despues.plusMinutes(1)))
+        .isEmpty();
   }
 
   @Test
@@ -52,13 +166,29 @@ class ProductPackageTest {
     assertThatThrownBy(
             () ->
                 ProductPackage.create(
-                    UUID.randomUUID(), "combo-oro", "Combo", null, USD, ProductScope.TIENDA, AHORA))
+                    UUID.randomUUID(),
+                    "combo-oro",
+                    "Combo",
+                    null,
+                    USD,
+                    ProductScope.TIENDA,
+                    DESDE,
+                    null,
+                    AHORA))
         .isInstanceOfSatisfying(
             ValidationException.class, e -> assertThat(e.errorCode()).isEqualTo("VAL-001"));
     assertThatThrownBy(
             () ->
                 ProductPackage.create(
-                    UUID.randomUUID(), null, "Combo", null, USD, ProductScope.TIENDA, AHORA))
+                    UUID.randomUUID(),
+                    null,
+                    "Combo",
+                    null,
+                    USD,
+                    ProductScope.TIENDA,
+                    DESDE,
+                    null,
+                    AHORA))
         .isInstanceOf(ValidationException.class);
   }
 
@@ -73,11 +203,19 @@ class ProductPackageTest {
             "Una descripción",
             USD,
             ProductScope.TIENDA,
+            DESDE,
+            null,
             AHORA);
     OffsetDateTime despues = AHORA.plusMinutes(5);
 
     Map<String, Object> sinCambio =
-        paquete.update(Patchable.de("Combo"), Patchable.ausente(), Patchable.ausente(), despues);
+        paquete.update(
+            Patchable.de("Combo"),
+            Patchable.ausente(),
+            Patchable.ausente(),
+            Patchable.ausente(),
+            Patchable.ausente(),
+            despues);
     assertThat(sinCambio).isEmpty();
     assertThat(paquete.getUpdatedAt()).isEqualTo(AHORA);
 
@@ -86,6 +224,8 @@ class ProductPackageTest {
             Patchable.de("Combo Plus"),
             Patchable.de(null),
             Patchable.de(ProductScope.AMBOS),
+            Patchable.ausente(),
+            Patchable.ausente(),
             despues);
     assertThat(cambios).containsOnlyKeys("name", "description", "scope");
     assertThat(cambios.get("description"))
@@ -100,7 +240,15 @@ class ProductPackageTest {
   void transiciones() {
     ProductPackage paquete =
         ProductPackage.create(
-            UUID.randomUUID(), "COMBO", "Combo", null, USD, ProductScope.TIENDA, AHORA);
+            UUID.randomUUID(),
+            "COMBO",
+            "Combo",
+            null,
+            USD,
+            ProductScope.TIENDA,
+            DESDE,
+            null,
+            AHORA);
     assertThat(paquete.activate(AHORA)).isTrue();
     assertThat(paquete.activate(AHORA)).isFalse();
     assertThat(paquete.deactivate(AHORA)).isTrue();
@@ -114,7 +262,15 @@ class ProductPackageTest {
   void asignaLaPortada() {
     ProductPackage paquete =
         ProductPackage.create(
-            UUID.randomUUID(), "COMBO", "Combo", null, USD, ProductScope.TIENDA, AHORA);
+            UUID.randomUUID(),
+            "COMBO",
+            "Combo",
+            null,
+            USD,
+            ProductScope.TIENDA,
+            DESDE,
+            null,
+            AHORA);
     assertThat(paquete.instantanea()).containsEntry("cover_image_id", null);
 
     UUID primera = UUID.randomUUID();
@@ -141,7 +297,15 @@ class ProductPackageTest {
   void quitaLaPortadaSiempre() {
     ProductPackage paquete =
         ProductPackage.create(
-            UUID.randomUUID(), "COMBO", "Combo", null, USD, ProductScope.TIENDA, AHORA);
+            UUID.randomUUID(),
+            "COMBO",
+            "Combo",
+            null,
+            USD,
+            ProductScope.TIENDA,
+            DESDE,
+            null,
+            AHORA);
 
     // Sin portada: vacío, sin diff, sin excepción y sin mover updatedAt.
     CambioDePortada nada = paquete.quitarPortada(AHORA.plusDays(1));

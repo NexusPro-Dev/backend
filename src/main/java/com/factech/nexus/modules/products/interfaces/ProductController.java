@@ -371,7 +371,15 @@ public class ProductController {
           **Quien construya la pantalla de compra tiene que saberlo**: el
           importe que confirma la venta es `price`, el mismo que se enseña.
 
-          Las dos colecciones viajan **envueltas en un objeto** y no como
+          **Y `packages`**: los paquetes que hoy se pueden ofrecer a quien mira,
+          con su cuenta hecha y cada producto en la forma de esta misma oferta.
+          Un paquete aparece si está activo, vivo, con descripción y dos productos
+          al menos, todos activos y vivos, **dentro de su vigencia** —`validFrom` y
+          `validTo` viajan, el fin nulo cuando es indefinido; uno que empieza mañana
+          o terminó ayer **no aparece**, y nada lo dice (`RN-PM-047`)— y si su
+          upgrade, cuando lo tiene, sale de la membresía de quien mira.
+
+          Las colecciones viajan **envueltas en un objeto** y no como
           arreglos en la raíz: hoy la oferta no se pagina, y así el día que
           haya que paginarla no romperá a ningún cliente.
           """)

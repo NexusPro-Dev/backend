@@ -11,6 +11,9 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
 import com.factech.nexus.IntegrationTestBase;
 import com.factech.nexus.modules.products.interfaces.PackageTestSupport.Membresias;
+import java.sql.Date;
+import java.time.LocalDate;
+import java.time.ZoneOffset;
 import java.util.UUID;
 import org.hibernate.SessionFactory;
 import org.hibernate.stat.Statistics;
@@ -280,6 +283,60 @@ class PackageDetailIT extends IntegrationTestBase {
             get("/api/v1/packages/" + paquete)
                 .with(user(UUID.randomUUID().toString()).authorities(() -> "products:read")))
         .andExpect(status().isForbidden());
+  }
+
+  @Test
+  @DisplayName(
+      "`CA-PM-377` — validFrom y validTo en el detalle; fuera de la vigencia el motivo lleva la fecha y va DESPUÉS de retirado y ANTES del producto; termina hoy e indefinido se ofrecen")
+  void vigenciaEnElDetalle() throws Exception {
+    LocalDate hoy = LocalDate.now(ZoneOffset.UTC);
+    mvc.perform(detalle(paquete))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.validFrom").value(hoy.toString()))
+        .andExpect(jsonPath("$.validTo").value(nullValue()))
+        .andExpect(jsonPath("$.offerable").value(true));
+
+    // Termina hoy: el día de fin cuenta entero.
+    jdbc.update(
+        "UPDATE product_packages SET valid_to = ? WHERE id = ?", Date.valueOf(hoy), paquete);
+    mvc.perform(detalle(paquete))
+        .andExpect(jsonPath("$.validTo").value(hoy.toString()))
+        .andExpect(jsonPath("$.offerable").value(true));
+
+    // Terminó ayer, y además un producto inactivo: gana la vigencia, que es del paquete.
+    jdbc.update("UPDATE products SET status = 'INACTIVO' WHERE id = ?", bot);
+    jdbc.update(
+        "UPDATE product_packages SET valid_from = ?, valid_to = ? WHERE id = ?",
+        Date.valueOf(hoy.minusDays(10)),
+        Date.valueOf(hoy.minusDays(1)),
+        paquete);
+    mvc.perform(detalle(paquete))
+        .andExpect(jsonPath("$.status").value("ACTIVO"))
+        .andExpect(jsonPath("$.offerable").value(false))
+        .andExpect(
+            jsonPath("$.offerableReason")
+                .value("La vigencia del paquete terminó el " + hoy.minusDays(1) + "."));
+    // Y retirado además: gana «retirado».
+    jdbc.update("UPDATE product_packages SET deleted_at = now() WHERE id = ?", paquete);
+    mvc.perform(detalle(paquete))
+        .andExpect(jsonPath("$.offerableReason").value(containsString("retirado")));
+    jdbc.update("UPDATE product_packages SET deleted_at = NULL WHERE id = ?", paquete);
+    jdbc.update("UPDATE products SET status = 'ACTIVO' WHERE id = ?", bot);
+
+    // Empieza mañana.
+    jdbc.update(
+        "UPDATE product_packages SET valid_from = ?, valid_to = NULL WHERE id = ?",
+        Date.valueOf(hoy.plusDays(1)),
+        paquete);
+    mvc.perform(detalle(paquete))
+        .andExpect(jsonPath("$.offerable").value(false))
+        .andExpect(
+            jsonPath("$.offerableReason")
+                .value("El paquete todavía no está vigente: empieza el " + hoy.plusDays(1) + "."));
+    // Empieza hoy, sin fin.
+    jdbc.update(
+        "UPDATE product_packages SET valid_from = ? WHERE id = ?", Date.valueOf(hoy), paquete);
+    mvc.perform(detalle(paquete)).andExpect(jsonPath("$.offerable").value(true));
   }
 
   private MockHttpServletRequestBuilder detalle(UUID id) {

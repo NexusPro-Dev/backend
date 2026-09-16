@@ -3,6 +3,7 @@ package com.factech.nexus.modules.products.application;
 import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import java.math.BigDecimal;
+import java.time.LocalDate;
 import java.util.List;
 
 /**
@@ -28,6 +29,8 @@ public record PackageHotlinkResponse(
       String name,
       String description,
       String coverImageUrl,
+      LocalDate validFrom,
+      LocalDate validTo,
       HotlinkResponse.CurrencyRef currency,
       List<Item> items,
       BigDecimal listPrice,

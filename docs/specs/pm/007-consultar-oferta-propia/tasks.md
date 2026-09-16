@@ -54,6 +54,9 @@
 | `T-29` | **El enlace del video en la oferta** (`RF-PM-001` `T-39` trae la columna): `findOffer` selecciona `p.video_url`, `OfferItem` gana `videoUrl`; y la prosa de la `@Operation` lo nombra junto a lo que **no** viaja | `T-28` | `CA-PM-228` en `ProductOfferIT`, en la misma prueba que sigue comprobando la ausencia de `purchasePrice`. **El contrato regenerado declara `videoUrl` en `OfferItem` y sigue sin declarar `purchasePrice`** | **Hecha el 14-09-2026** |
 | `T-30` | **La dirección de la portada en la oferta** (`RF-PM-014` `T-01` trae la columna, `T-09` y `T-10` la proyección y el conversor): `findOffer` selecciona `p.cover_image_id`, `OfferItem` gana `coverImageUrl`; y la prosa de la `@Operation` dice que la imagen se sirve sin token | `T-29`, `RF-PM-014 · T-10` | `CA-PM-237` en `ProductOfferIT`, en la misma prueba que sigue comprobando la ausencia de `purchasePrice`. **El contrato regenerado declara `coverImageUrl` en `OfferItem`** | **Hecha el 14-09-2026** |
 | `T-31` | **La oferta filtra por alcance** (`RN-PM-019` reescrita): `findOffer` gana `AND p.scope IN ('TIENDA','AMBOS')`, y nada más cambia; la prosa de la `@Operation` dice que `HOTLINK` y `NINGUNO` no entran | `T-30`, `RF-PM-001` `T-41` | `CA-PM-351` en `ProductOfferIT`; `CA-PM-124` retirada de la suite | **Hecha el 15-09-2026** |
+| `T-32` | **La vigencia del paquete en la oferta** (`RN-PM-047`, 16-09-2026; `RF-PM-019` `T-13` trae el motivo en `PackageOfferability` y las columnas en `PackageRow`): `OfferPackageItem` gana `validFrom` y `validTo`, `GetOfferService` pasa **hoy** (`Clock` UTC) a la ofrecibilidad, y la prosa de la `@Operation` dice que un paquete fuera de su vigencia no aparece | `T-31`, `RF-PM-019 · T-13` | `PackageOfferIT`: `CA-PM-378` | **Hecha el 16-09-2026** |
+
+**Verificación de la enmienda de la vigencia (16-09-2026):** `PackageOfferIT` (5), en verde.
 
 ## 2. Orden de ejecución
 
@@ -92,6 +95,7 @@
 | `CA-PM-228` | `T-29` |
 | `CA-PM-237` | `T-30` |
 | `CA-PM-351` | `T-31` |
+| `CA-PM-378` | `T-32` |
 
 ## 4. Bloqueos
 

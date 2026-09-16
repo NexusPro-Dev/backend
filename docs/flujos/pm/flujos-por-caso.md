@@ -3,7 +3,7 @@
 | Campo | Valor |
 |---|---|
 | Módulo | `PM` — Productos y Mercadeo |
-| Versión | 0.5.0 |
+| Versión | 0.6.0 |
 | Estado | **Borrador** |
 | Responsable | Bonilla Diaz William Steven |
 | Fecha de creación | 01-09-2026 |
@@ -381,7 +381,7 @@ flowchart TD
     class FIN,SIN ok
 ```
 
-**Activar mira lo que es del paquete y no lo que es de sus productos.** Descripción y cuántos son suyos; que los productos estén activos hoy es de cada producto, cambia sin que el paquete se entere, y por eso lo mira la oferta **cada vez** (`RN-PM-039`). Los dos motivos del `409` **van juntos**: quien activó un paquete vacío y sin descripción corrige una vez.
+**Activar mira lo que es del paquete y no lo que es de sus productos.** Descripción y cuántos son suyos; que los productos estén activos hoy es de cada producto, cambia sin que el paquete se entere, y por eso lo mira la oferta **cada vez** (`RN-PM-039`). **Tampoco mira la vigencia** (`RN-PM-047`, 16-09-2026): un paquete vencido se activa igual, y es `offerable` quien dice que hoy no se ofrece — se descartó un rombo aquí, por lo mismo que no lo hay para los productos. Los dos motivos del `409` **van juntos**: quien activó un paquete vacío y sin descripción corrige una vez.
 
 ---
 
@@ -642,6 +642,7 @@ flowchart TD
 
 | Versión | Fecha | Cambio | Responsable |
 |---|---|---|---|
+| 0.6.0 | 16-09-2026 | **La vigencia del paquete no añade rombo a ningún caso** (`RN-PM-047`, `requirements/pm.md` v0.39.0 §5.2.13): el alta y la edición validan la pareja de fechas como cualquier otro campo, y **activar no la mira** — queda escrito bajo el diagrama de `RF-PM-021`, junto a la frase que ya decía que activar no mira a los productos. Fuera de la vigencia el paquete se oculta en la oferta y el hotlink por el mismo objeto que decide `RN-PM-039`. | Responsable del proyecto |
 | 0.5.0 | 16-09-2026 | **Un paquete lleva UN upgrade como máximo** (`requirements/pm.md` v0.38.0, `RN-PM-046`): en el diagrama de `RF-PM-023` el rombo del origen pasa a «¿ya tiene un upgrade?» y `EX-007` nombra el que está; en el de la oferta (`RF-PM-007`) el filtro mira **el** upgrade. | Responsable técnico |
 | 0.4.0 | 15-09-2026 | **Los diez casos quedan construidos** y tres diagramas se retocan con lo que cambió entre el dibujo y el código: el **alta** nombra los cuatro valores del alcance, el **hotlink del paquete** publica `HOTLINK` o `AMBOS`, y la **oferta** trae los paquetes de alcance `TIENDA` o `AMBOS` en **una** sentencia y no dos. El resto se construyó como estaba dibujado; las cuentas de sentencias reales quedaron en `CA-PM-284` y `CA-PM-338`. | Responsable técnico |
 | 0.3.0 | 15-09-2026 | **Diez casos nuevos: los paquetes** (`RF-PM-017` a `RF-PM-026`), transcritos de las §8, §9 y §10 de sus tripletas y dibujados **en el orden de construcción**, más el diagrama de la **enmienda de `RF-PM-007`** —la oferta gana `packages`—. El que más aporta es `RF-PM-023`, la asociación: **siete rombos en fila** que cambian de `422` a `409` sobre el mismo producto y terminan en el que evita el paquete que nadie podría comprar. Le sigue `RF-PM-026`, con **un solo recuadro rojo al que llegan cuatro flechas**. §4 gana cinco observaciones, entre ellas que la misma pregunta sobre la cota del descuento aparece en tres diagramas con tres efectos. | Responsable técnico |

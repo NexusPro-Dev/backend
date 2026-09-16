@@ -8,6 +8,8 @@
 | Autor | Responsable técnico |
 | Aprobado por | Responsable del proyecto |
 | Fecha de aprobación | 15-09-2026 |
+| Reabierto el | 16-09-2026 — **la vigencia entra en `PackageOfferability`** (`RN-PM-047`) y el detalle publica las fechas, ver §3, §4 y §11 (Art. I.7) |
+| Reaprobado el | 16-09-2026 — Responsable del proyecto |
 
 ---
 
@@ -26,7 +28,7 @@ El detalle del producto (`RF-PM-003`) resuelve sus membresías con `JOIN`; el de
 | Capa | Elemento | Módulo |
 |---|---|---|
 | `domain/repository` | `ProductPackageQueryRepository.findDetail(id)` (de `RF-PM-017`): devuelve `PackageRow` + `List<PackageItemRow>`, con el producto de cada fila —`code`, `name`, `type`, `status`, `deleted_at`, `price`, `purchase_price`, `currency_id`, `source_membership_id`— en **una sentencia** | `PM` |
-| `domain/models` | `PackagePricing` (de `RF-PM-017`) y **`PackageOfferability`** — la decisión de `offerable` con su motivo en orden fijo, sin dependencias | `PM` |
+| `domain/models` | `PackagePricing` (de `RF-PM-017`) y **`PackageOfferability`** — la decisión de `offerable` con su motivo en orden fijo, sin dependencias. **(16-09-2026)** `decidir(...)` recibe además `hoy`, `validFrom` y `validTo`, y el motivo de vigencia va después del retiro y antes de los productos; **sigue sin dependencias**: el día se lo pasa quien llama, con un `Clock` UTC como los servicios de `CM` | `PM` |
 | `domain/service` | `GetPackageService`: detalle → precio → conversión → ofrecibilidad → motivo de retiro | `PM` |
 | `application` | `PackageDetailResponse` (de `RF-PM-017`) con `PackageItemResponse`, `DiscountRef`, `offerable`, `offerableReason`, `deletionReason` | `PM` |
 | `interfaces` | `PackageController` — `GET /api/v1/packages/{id}` | `PM` |
@@ -43,6 +45,7 @@ El detalle del producto (`RF-PM-003`) resuelve sus membresías con `JOIN`; el de
   "id": "…", "code": "COMBO_ORO", "name": "Combo Oro", "description": "…",
   "currency": { "id": "…", "code": "USD", "decimalPlaces": 2 },
   "scope": "HOTLINKS", "status": "ACTIVO",
+  "validFrom": "2026-09-01", "validTo": "2026-09-30",
   "items": [
     {
       "product": { "id": "…", "code": "UPGRADE_BECA_ORO", "name": "Ascenso a Oro", "type": "UPGRADE_MEMBRESIA",
@@ -67,6 +70,7 @@ El detalle del producto (`RF-PM-003`) resuelve sus membresías con `JOIN`; el de
 - **`deletedAt` y `deletionReason`** con `NON_NULL`, como en `RF-PM-003`: solo cuando el paquete está retirado.
 - **`purchasePrice` presente y nulo** cuando no se conoce: es la lectura de administración.
 - **`discount.value` como número** con la escala de su forma: dos decimales el porcentaje, los de la moneda el fijo.
+- **`validFrom` y `validTo` (16-09-2026)**: fechas sin hora; el fin **presente y nulo** cuando es indefinido. Fuera de ellas, `offerable: false` con el motivo y la fecha.
 
 ## 5. Autorización
 
@@ -110,6 +114,6 @@ El detalle del producto (`RF-PM-003`) resuelve sus membresías con `JOIN`; el de
 
 ## 11. Estrategia de prueba
 
-- **Unitaria**: `PackageOfferability` —cada motivo y su orden— y `PackagePricing` (ya de `RF-PM-017`).
+- **Unitaria**: `PackageOfferability` —cada motivo y su orden— y `PackagePricing` (ya de `RF-PM-017`). **(16-09-2026)** Con `hoy` fijo: empieza mañana, terminó ayer, termina hoy, empieza hoy, indefinido, y el orden frente a «retirado» y frente a un producto inactivo.
 - **Integración de API** (`PackageDetailIT`): los ocho criterios de `spec.md` §12; **la que define el requerimiento es `CA-PM-278`**: el precio se calcula.
 - **De número de sentencias**: tres, cuatro y cinco.

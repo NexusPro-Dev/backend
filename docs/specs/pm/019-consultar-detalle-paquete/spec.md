@@ -9,6 +9,7 @@
 | Aprobada por | — |
 | Fecha de aprobación | — |
 | Enmendada el | 16-09-2026 — **el paquete trae `coverImageUrl`, la dirección de su portada**, también retirado (`RN-PM-045`, `RF-PM-028`). Ver §15 |
+| Enmendada el | 16-09-2026 — **el paquete trae `validFrom` y `validTo`, y la vigencia es un motivo más de `offerableReason`** (`RN-PM-047`). Ver §15 |
 
 ---
 
@@ -53,6 +54,7 @@ Es la lectura **de administración**, y por eso —al revés que la oferta y el 
 | `RN-PM-039` | El paquete no se ofrece si algo suyo dejó de poderse comprar — **y el detalle dice qué** | `requirements/pm.md` §5.1 |
 | `RN-PM-040` | Dos productos y descripción para publicarse — y el detalle lo dice | `requirements/pm.md` §5.1 |
 | `RN-PM-024` | El precio de compra **sí** sale en administración; la conversión sale siempre | `requirements/pm.md` §5.1 |
+| `RN-PM-047` | **(Desde el 16-09-2026)** Fuera de su vigencia el paquete no se ofrece — **y el detalle dice desde cuándo o hasta cuándo** | `requirements/pm.md` §5.1 |
 
 ## 6. Datos
 
@@ -66,16 +68,16 @@ Es la lectura **de administración**, y por eso —al revés que la oferta y el 
 
 | Dato | Descripción |
 |---|---|
-| Paquete | Identificador, código, nombre, descripción, **`coverImageUrl`** (desde el 16-09-2026: la dirección de la portada, `/api/v1/product-images/{imageId}`, **presente y nula** cuando no hay, también en un retirado — `RN-PM-045`), moneda resuelta (`id`, `code`, `decimalPlaces`), alcance, estado, fechas, `deletedAt` y `deletionReason` cuando está retirado |
+| Paquete | Identificador, código, nombre, descripción, **`coverImageUrl`** (desde el 16-09-2026: la dirección de la portada, `/api/v1/product-images/{imageId}`, **presente y nula** cuando no hay, también en un retirado — `RN-PM-045`), moneda resuelta (`id`, `code`, `decimalPlaces`), alcance, estado, **`validFrom` y `validTo`** (desde el 16-09-2026: el fin presente y nulo cuando es indefinido — `RN-PM-047`), fechas, `deletedAt` y `deletionReason` cuando está retirado |
 | `items` | Un elemento por producto, en el orden en que se asociaron: `product` (`id`, `code`, `name`, `type`, `status`, `deleted`, `price`, `purchasePrice`), `discount` (`type`, `value`) y **`priceInPackage`** |
 | `listPrice` | Σ `product.price` |
 | `price` | Σ `priceInPackage` — **lo que costaría el paquete** |
 | `savings` | `listPrice − price` |
 | `exchange` | La conversión de `price` a la moneda por omisión, con la tasa vigente; **nula y presente** si no hay nada que convertir |
 | `offerable` | Si hoy la oferta y el hotlink lo enseñarían |
-| `offerableReason` | **Nulo** cuando `offerable` es verdadero; si no, el **primer** motivo en este orden: menos de dos productos → sin descripción → paquete inactivo → paquete retirado → un producto no ofrecible, **nombrándolo por su código** |
+| `offerableReason` | **Nulo** cuando `offerable` es verdadero; si no, el **primer** motivo en este orden: menos de dos productos → sin descripción → paquete inactivo → paquete retirado → **todavía no vigente o ya vencido, con la fecha** (desde el 16-09-2026) → un producto no ofrecible, **nombrándolo por su código** |
 
-**El orden de los motivos es fijo y está escrito** para que dos lecturas del mismo paquete no digan cosas distintas. Se elige del más estructural al más circunstancial: primero lo que falta al paquete, después lo que le pasa a un producto suyo.
+**El orden de los motivos es fijo y está escrito** para que dos lecturas del mismo paquete no digan cosas distintas. Se elige del más estructural al más circunstancial: primero lo que falta al paquete, después lo que le pasa a un producto suyo. **La vigencia va la última de las del paquete** (16-09-2026): es lo único suyo que cambia solo con el tiempo, y un paquete retirado y vencido dice «retirado», que es lo que hay que arreglar primero. Los dos mensajes llevan la fecha: «El paquete todavía no está vigente: empieza el 2026-10-01.» y «La vigencia del paquete terminó el 2026-09-30.» **El día de fin cuenta entero**: un paquete que termina hoy se ofrece hoy.
 
 **`priceInPackage` es lo que una línea de venta copiará** el día que el paquete se venda (`requirements/pm.md` §5.2.10). Se publica por producto y no solo el total por eso.
 
@@ -137,6 +139,7 @@ Es la lectura **de administración**, y por eso —al revés que la oferta y el 
 | `CA-PM-282` | Un producto **inactivo** o **retirado** dentro del paquete se devuelve con su estado y **sigue sumando**, y `offerable` es falso por él |
 | `CA-PM-283` | El detalle devuelve `purchasePrice` de cada producto —presente y nulo cuando no se conoce—, y `exchange` calculado sobre `price`, nulo si el paquete ya está en la moneda de casa |
 | `CA-PM-284` | El paquete **retirado** se devuelve con su motivo; el **inexistente** responde `404`; y la lectura cuesta **dos** sentencias —el paquete con sus filas y la moneda de casa—, **tres** con conversión y **una más** con motivo de retiro; el paquete vacío cuesta **una** |
+| `CA-PM-377` | El detalle devuelve **`validFrom` y `validTo`**, el fin presente y nulo; con la vigencia que **empieza mañana** o **terminó ayer**, `offerable: false` y el motivo **con la fecha**, en su sitio del orden —después de «retirado», antes del producto no ofrecible—; y con la que **termina hoy** o es **indefinida**, `offerable: true` (16-09-2026) |
 | `CA-PM-368` | El detalle devuelve **`coverImageUrl`** con la forma `/api/v1/product-images/{uuid}` cuando el paquete tiene portada, y **presente y nula** cuando no — también en un paquete **retirado**—, sin que el número de sentencias suba (16-09-2026) |
 
 ## 13. Casos límite
@@ -163,3 +166,4 @@ Es la lectura **de administración**, y por eso —al revés que la oferta y el 
 | 0.1.0 | 15-09-2026 | Redacción inicial. **Aquí nace la cuenta de `RN-PM-036`** —`PackagePricing`, un solo sitio— y **`offerable` con su motivo en orden fijo**, que es la única señal de que un paquete activo no se está ofreciendo. `priceInPackage` se publica por producto porque es lo que una línea de venta copiará. **El redondeo es por producto** y el total es la suma de los redondeados, para que cuadre con las líneas. Queda anotado el hueco del producto que cambia de moneda después de asociado. | Responsable técnico |
 | 0.2.0 | 15-09-2026 | **Construida** (`PackageDetailIT`, `PackageOfferabilityTest`), y con ella la enmienda de `RF-PM-007` (`PackageOfferIT`). Enmienda de Art. I.7 al construir: **`CA-PM-284` cuenta lo que la lectura cuesta de verdad** —dos sentencias en la moneda de casa, tres con conversión, una más con motivo, y una sola para el paquete vacío, que no pide conversión sobre cero—; la redacción anterior («tres, cuatro, cinco») contaba la tasa dos veces. `PackageOfferability` nombra el producto por su código en el motivo. | Responsable técnico |
 | 0.3.0 | 16-09-2026 | **El paquete trae `coverImageUrl`, la dirección de su portada** (`RN-PM-045`, [`requirements/pm.md`](../../../requirements/pm.md) v0.37.0 §5.2.12), presente y nula cuando no hay, también retirado. Es la respuesta de las ocho operaciones del paquete —y desde hoy de diez: la subida y el retiro de la portada la devuelven—. `CA-PM-368`. Enmienda que construye `RF-PM-028` (Art. I.7). | Responsable del proyecto |
+| 0.4.0 | 16-09-2026 | **El paquete trae `validFrom` y `validTo`, y la vigencia es un motivo más de `offerableReason`** (`RN-PM-047`, [`requirements/pm.md`](../../../requirements/pm.md) v0.39.0 §5.2.13), el último de los del paquete y antes del primer producto: es lo único del paquete que cambia solo con el tiempo. Los mensajes llevan la fecha, y el día de fin cuenta entero. `PackageOfferability` recibe **hoy** desde fuera —un reloj UTC, el de `CM`— para seguir sin dependencias y probarse con cualquier día. `CA-PM-377`. | Responsable del proyecto |

@@ -12,8 +12,11 @@ import com.factech.nexus.modules.products.domain.repository.ProductPackageQueryR
 import com.factech.nexus.modules.system.users.application.PublicSellerLookup;
 import com.factech.nexus.modules.system.users.application.PublicSellerLookup.PublicSellerView;
 import com.factech.nexus.shared.error.ResourceNotFoundException;
+import java.time.Clock;
+import java.time.LocalDate;
 import java.util.List;
 import java.util.UUID;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -37,14 +40,25 @@ public class GetPackageHotlinkService {
   private final ProductPackageQueryRepository paquetes;
   private final PublicSellerLookup vendedores;
   private final ProductExchangeResolver conversiones;
+  private final Clock reloj;
 
+  @Autowired
   public GetPackageHotlinkService(
       ProductPackageQueryRepository paquetes,
       PublicSellerLookup vendedores,
       ProductExchangeResolver conversiones) {
+    this(paquetes, vendedores, conversiones, Clock.systemUTC());
+  }
+
+  GetPackageHotlinkService(
+      ProductPackageQueryRepository paquetes,
+      PublicSellerLookup vendedores,
+      ProductExchangeResolver conversiones,
+      Clock reloj) {
     this.paquetes = paquetes;
     this.vendedores = vendedores;
     this.conversiones = conversiones;
+    this.reloj = reloj;
   }
 
   @Transactional(readOnly = true)
@@ -53,8 +67,9 @@ public class GetPackageHotlinkService {
         vendedores.findSellerByUsername(username).orElseThrow(GetPackageHotlinkService::noExiste);
     PublishedPackage publicado =
         paquetes.findPublishedByCode(code).orElseThrow(GetPackageHotlinkService::noExiste);
-    // Decidido en Java y no en el WHERE, para que `RN-PM-039` viva en un sitio.
-    if (!publicado.ofrecibilidad().offerable()) {
+    // Decidido en Java y no en el WHERE, para que `RN-PM-039` viva en un sitio;
+    // la vigencia (`RN-PM-047`) es un motivo más, y el `404` no la distingue.
+    if (!publicado.ofrecibilidad(LocalDate.now(reloj)).offerable()) {
       throw noExiste();
     }
 
@@ -86,6 +101,8 @@ public class GetPackageHotlinkService {
             publicado.paquete().name(),
             publicado.paquete().description(),
             ProductImageUrls.de(publicado.paquete().coverImageId()),
+            publicado.paquete().validFrom(),
+            publicado.paquete().validTo(),
             new HotlinkResponse.CurrencyRef(
                 publicado.paquete().currencyCode(), publicado.paquete().currencyDecimalPlaces()),
             items,

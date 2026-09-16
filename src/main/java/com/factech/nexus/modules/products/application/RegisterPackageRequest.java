@@ -5,6 +5,7 @@ import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Pattern;
 import jakarta.validation.constraints.Size;
+import java.time.LocalDate;
 import java.util.UUID;
 
 /**
@@ -16,8 +17,12 @@ import java.util.UUID;
  * alta de producto intentaría mandar, y los tres tienen respuesta en otro sitio — la cuenta,
  * `RF-PM-023` y `RF-PM-021`.
  *
- * <p>Las cuatro validaciones de forma se devuelven <b>juntas</b> (`CA-PM-265`): quien se equivocó
- * en dos corrige una vez.
+ * <p>Las cuatro validaciones de forma y `VAL-006` se devuelven <b>juntas</b> (`CA-PM-265`,
+ * `CA-PM-373`): quien se equivocó en dos corrige una vez. `VAL-007` —el fin no anterior al inicio—
+ * la comprueba el agregado, después y por separado, como en la tasa personalizada de `CM`.
+ *
+ * <p><b>{@code validFrom} obligatorio y {@code validTo} opcional</b> (`RN-PM-047`, desde el
+ * 16-09-2026): fechas {@code AAAA-MM-DD}, sin regla contra el pasado.
  */
 public record RegisterPackageRequest(
     @NotBlank(
@@ -44,7 +49,9 @@ public record RegisterPackageRequest(
     @NotNull(
             message =
                 "VAL-004: El alcance es obligatorio y debe ser TIENDA, HOTLINK, AMBOS o NINGUNO.")
-        ProductScope scope) {
+        ProductScope scope,
+    @NotNull(message = "VAL-006: El inicio de vigencia es obligatorio.") LocalDate validFrom,
+    LocalDate validTo) {
 
   public RegisterPackageRequest {
     code = code == null ? null : code.trim();

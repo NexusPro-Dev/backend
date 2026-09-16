@@ -2,6 +2,7 @@ package com.factech.nexus.modules.products.interfaces;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.hamcrest.Matchers.hasSize;
+import static org.hamcrest.Matchers.nullValue;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.user;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
@@ -9,6 +10,9 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
 import com.factech.nexus.IntegrationTestBase;
 import com.factech.nexus.modules.products.interfaces.PackageTestSupport.Membresias;
+import java.sql.Date;
+import java.time.LocalDate;
+import java.time.ZoneOffset;
 import java.util.UUID;
 import org.hibernate.SessionFactory;
 import org.hibernate.stat.Statistics;
@@ -236,6 +240,41 @@ class PackageOfferIT extends IntegrationTestBase {
     // con sus líneas siempre se paga; la de tasas la habría pagado igual una
     // oferta con productos en dos monedas—, y no una por paquete ni por moneda.
     assertThat(conPaquetes - sinPaquetes).isLessThanOrEqualTo(1);
+  }
+
+  @Test
+  @DisplayName(
+      "`CA-PM-378` — cada paquete trae validFrom y validTo; el que empieza mañana o terminó ayer no aparece, el que termina hoy sí")
+  void fueraDeLaVigenciaNoAparece() throws Exception {
+    LocalDate hoy = LocalDate.now(ZoneOffset.UTC);
+    oferta(sinMembresia)
+        .andExpect(jsonPath("$.packages.content", hasSize(1)))
+        .andExpect(jsonPath("$.packages.content[0].validFrom").value(hoy.toString()))
+        .andExpect(jsonPath("$.packages.content[0].validTo").value(nullValue()));
+
+    jdbc.update(
+        "UPDATE product_packages SET valid_to = ? WHERE id = ?", Date.valueOf(hoy), soloBots);
+    oferta(sinMembresia)
+        .andExpect(jsonPath("$.packages.content", hasSize(1)))
+        .andExpect(jsonPath("$.packages.content[0].validTo").value(hoy.toString()));
+
+    jdbc.update(
+        "UPDATE product_packages SET valid_from = ?, valid_to = ? WHERE id = ?",
+        Date.valueOf(hoy.minusDays(10)),
+        Date.valueOf(hoy.minusDays(1)),
+        soloBots);
+    oferta(sinMembresia).andExpect(jsonPath("$.packages.content", hasSize(0)));
+
+    jdbc.update(
+        "UPDATE product_packages SET valid_from = ?, valid_to = NULL WHERE id = ?",
+        Date.valueOf(hoy.plusDays(1)),
+        soloBots);
+    oferta(sinMembresia).andExpect(jsonPath("$.packages.content", hasSize(0)));
+    // Y el estado no se movió: sigue ACTIVO, oculto por las fechas.
+    assertThat(
+            jdbc.queryForObject(
+                "SELECT status FROM product_packages WHERE id = ?", String.class, soloBots))
+        .isEqualTo("ACTIVO");
   }
 
   // ---------------------------------------------------------------------------
