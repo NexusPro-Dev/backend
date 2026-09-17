@@ -117,7 +117,8 @@ public class PublishedProductCatalog implements ProductCatalog, RegistrableProdu
                        p.currency_id AS c_id, c.code AS c_code,
                        c.decimal_places AS c_decimales,
                        p.validity_days AS validity_days,
-                       p.target_membership_id AS m_id, m.level AS m_level
+                       p.target_membership_id AS m_id, m.level AS m_level,
+                       p.implementation AS implementation
                   FROM products p
                   LEFT JOIN memberships m ON m.id = p.target_membership_id
                   LEFT JOIN currencies  c ON c.id = p.currency_id
@@ -142,7 +143,8 @@ public class PublishedProductCatalog implements ProductCatalog, RegistrableProdu
               ((Number) fila.get("c_decimales")).intValue(),
               entero(fila.get("validity_days")),
               (UUID) fila.get("m_id"),
-              entero(fila.get("m_level"))));
+              entero(fila.get("m_level")),
+              (String) fila.get("implementation")));
     }
     return resultado;
   }

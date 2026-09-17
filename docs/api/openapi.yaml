@@ -2401,6 +2401,63 @@ paths:
         "422":
           description: "Un dato bien formado que no resuelve: el comprador, un producto\
             \ o el método de pago no existen."
+  /api/v1/movements/{id}/confirmation:
+    post:
+      tags:
+      - Movimientos
+      summary: Confirmar el pago de una venta pendiente
+      description: |
+        Da por **pagada** una venta pendiente y, en el mismo acto, **entrega lo que se
+        pueda entregar**. Sin cuerpo: confirmar es un hecho, no un formulario — el importe
+        es el de la venta, la fecha es ahora y el método ya está en ella.
+
+        **Lo que pasa con cada línea** (`RN-MV-030`), y se ve en la respuesta:
+        - `implementation: MANUAL` → queda `PENDIENTE` de autorización (`RN-MV-021`). La
+          venta confirma igual.
+        - `AUTOMATICA` y **no** es un upgrade → `ENTREGADA`, con `deliveredAt` ahora.
+        - `AUTOMATICA` y es un upgrade → **se concede la membresía** destino del producto,
+          con la vigencia copiada en la línea **contada desde la confirmación** (`RN-MV-020`),
+          cerrando la que la persona tenía — también al renovar el mismo nivel—; **salvo que
+          la comprada sea inferior a la vigente en ese instante**: entonces la venta cobra
+          igual y la línea queda `RETENIDA` con `deliveryNote` (`RN-MV-029`). Nunca baja de
+          nivel a nadie.
+
+        **Confirmar dos veces concede una vez.** La transición es atómica y condicionada al
+        estado anterior: la segunda confirmación —o un webhook reentregado— recibe `409`
+        diciendo en qué estado está, y **no cambia nada**.
+
+        **Lo que NO hace**: no saca a nadie de `FTD_PENDIENTE` (eso lo hace el primer
+        depósito), no devenga comisiones, no adjunta comprobante y no se puede deshacer
+        (`RN-MV-005`).
+      operationId: confirmar
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      responses:
+        "200":
+          description: "Confirmada. El cuerpo dice qué se entregó, qué espera y qué\
+            \ se retuvo."
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/SaleResponse"
+        "400":
+          description: Identificador malformado (`VAL-001`)
+        "401":
+          description: Token ausente o inválido (`AUTH-001`)
+        "403":
+          description: Sin el permiso `movements:confirm`.
+        "404":
+          description: No existe (`EX-001`)
+        "409":
+          description: "No está pendiente (`EX-002`): ya confirmada, rechazada o anulada.\
+            \ El mensaje dice en qué estado está, y nada cambió."
+        "500":
+          description: Conceder la membresía falló; nada quedó escrito (`ERR-500`)
   /api/v1/memberships:
     get:
       tags:
@@ -5684,6 +5741,61 @@ paths:
             respuesta
         "500":
           description: Fallo no controlado (`ERR-500`)
+  /api/v1/movements/mine/products:
+    get:
+      tags:
+      - Movimientos
+      summary: Consultar los productos comprados propios
+      description: |
+        Devuelve **los productos de las ventas a su nombre**, uno por línea de venta, del más
+        reciente al más antiguo, y **en qué estado está cada uno**:
+
+        - `PENDIENTE_PAGO`: la venta no se ha confirmado; todavía no lo tiene.
+        - `PENDIENTE_AUTORIZACION`: pagado, pero el producto es de implementación manual y
+          alguien tiene que autorizar la entrega.
+        - `ACTIVO`: entregado, con `deliveredAt` y —si caduca— `validUntil`, que es la
+          entrega más la vigencia comprada. La vigencia corre **desde la entrega**, no desde
+          la compra.
+        - `VENCIDO`: entregado y con la vigencia pasada.
+        - `RETENIDO`: pagado y **no se entregará** — `deliveryNote` dice por qué (`RN-MV-029`).
+        - `RECHAZADO` / `ANULADO`: la venta terminó así.
+
+        **Solo lo que compró usted** —el sujeto de la venta—: lo que vendió a otros no
+        aparece aquí (está en `/movements/mine` con papel `SELLER`). Dos compras del mismo
+        producto son dos filas, cada una con su vigencia. El nombre es **el que tenía el
+        producto el día de la compra**. `state` filtra por estado; el orden es fijo.
+      operationId: misProductos
+      parameters:
+      - name: page
+        in: query
+        required: false
+        schema:
+          type: integer
+          format: int32
+      - name: size
+        in: query
+        required: false
+        schema:
+          type: integer
+          format: int32
+      - name: state
+        in: query
+        required: false
+        schema:
+          type: string
+      responses:
+        "200":
+          description: La página de productos comprados.
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/PageResponseMyProduct"
+        "400":
+          description: Paginación inválida o estado no admitido (`VAL-002`)
+        "401":
+          description: Token ausente o inválido (`AUTH-001`)
+        "500":
+          description: Fallo no controlado (`ERR-500`)
   /api/v1/memberships/{id}:
     get:
       tags:
@@ -7771,6 +7883,24 @@ components:
             no hubo.
           items:
             $ref: "#/components/schemas/SaleDiscount"
+        implementation:
+          type: string
+          description: "COPIA de cómo se entrega lo comprado: AUTOMATICA se entrega\
+            \ al confirmar el pago; MANUAL espera a que alguien lo autorice."
+        deliveryStatus:
+          type: string
+          description: "PENDIENTE, ENTREGADA o RETENIDA. Al comprar, siempre PENDIENTE."
+        deliveredAt:
+          type:
+          - string
+          - "null"
+          format: date-time
+          description: Desde cuándo se tiene lo comprado. NULO si no está ENTREGADA.
+        deliveryNote:
+          type:
+          - string
+          - "null"
+          description: Por qué se retuvo. NULO si no está RETENIDA.
     PurchaseResponse:
       type: object
       properties:
@@ -7817,6 +7947,12 @@ components:
         occurredAt:
           type: string
           format: date-time
+        confirmedAt:
+          type:
+          - string
+          - "null"
+          format: date-time
+          description: Cuándo entró el dinero. NULO mientras la venta no esté confirmada.
         createdAt:
           type: string
           format: date-time
@@ -7929,6 +8065,27 @@ components:
             \ comisión por ella. En una venta nunca es nulo: quien compra sin colgar\
             \ de nadie es su propio vendedor. NULO solo en los tipos de movimiento\
             \ que no venden nada."
+        implementation:
+          type: string
+          description: "COPIA de cómo se entrega lo vendido (`RN-MV-030`): AUTOMATICA\
+            \ se entrega al confirmar el pago; MANUAL espera a que alguien lo autorice."
+        deliveryStatus:
+          type: string
+          description: "PENDIENTE (no confirmada, o manual sin autorizar), ENTREGADA\
+            \ o RETENIDA (la venta se confirmó y esta línea NO se entregará; deliveryNote\
+            \ dice por qué)."
+        deliveredAt:
+          type:
+          - string
+          - "null"
+          format: date-time
+          description: Desde cuándo se tiene lo comprado. NULO si no está ENTREGADA.
+        deliveryNote:
+          type:
+          - string
+          - "null"
+          description: "Por qué se retuvo, escrito para una persona. NULO si no está\
+            \ RETENIDA."
     SaleResponse:
       type: object
       properties:
@@ -7969,6 +8126,13 @@ components:
         occurredAt:
           type: string
           format: date-time
+        confirmedAt:
+          type:
+          - string
+          - "null"
+          format: date-time
+          description: Cuándo entró el dinero (`RF-MV-003`). Desde aquí corre la vigencia
+            de lo que se entrega solo. NULO en toda venta que no esté confirmada.
         createdAt:
           type: string
           format: date-time
@@ -9490,6 +9654,12 @@ components:
         occurredAt:
           type: string
           format: date-time
+        confirmedAt:
+          type:
+          - string
+          - "null"
+          format: date-time
+          description: Cuándo entró el dinero. NULO mientras no esté confirmado.
     MyMovementCurrency:
       type: object
       properties:
@@ -9515,6 +9685,90 @@ components:
           type: array
           items:
             $ref: "#/components/schemas/MyMovement"
+        totalElements:
+          type: integer
+          format: int64
+        totalPages:
+          type: integer
+          format: int32
+        page:
+          type: integer
+          format: int32
+        size:
+          type: integer
+          format: int32
+        totalIsExact:
+          type: boolean
+    MyProduct:
+      type: object
+      description: "Un producto de una compra propia, con su estado."
+      properties:
+        movementId:
+          type: string
+          format: uuid
+          description: "De qué venta viene; se abre en /movements/mine/{id}."
+        movementCode:
+          type: string
+        movementStatus:
+          type: string
+        product:
+          $ref: "#/components/schemas/MyProductRef"
+        quantity:
+          type: integer
+          format: int32
+        implementation:
+          type: string
+          description: "COPIA de cómo se entrega: AUTOMATICA o MANUAL."
+        state:
+          type: string
+          description: "El estado, calculado de la venta, la entrega y la vigencia."
+          enum:
+          - PENDIENTE_PAGO
+          - PENDIENTE_AUTORIZACION
+          - ACTIVO
+          - VENCIDO
+          - RETENIDO
+          - RECHAZADO
+          - ANULADO
+        purchasedAt:
+          type: string
+          format: date-time
+          description: "Cuándo se compró: la fecha de la venta."
+        deliveredAt:
+          type:
+          - string
+          - "null"
+          format: date-time
+          description: Desde cuándo se tiene. NULO si no se ha entregado.
+        validUntil:
+          type:
+          - string
+          - "null"
+          format: date-time
+          description: "Hasta cuándo se tiene: la entrega más la vigencia comprada.\
+            \ NULO si no se ha entregado o si no caduca."
+        deliveryNote:
+          type:
+          - string
+          - "null"
+          description: Por qué no se entregará. Solo en RETENIDO.
+    MyProductRef:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        code:
+          type: string
+        name:
+          type: string
+    PageResponseMyProduct:
+      type: object
+      properties:
+        content:
+          type: array
+          items:
+            $ref: "#/components/schemas/MyProduct"
         totalElements:
           type: integer
           format: int64

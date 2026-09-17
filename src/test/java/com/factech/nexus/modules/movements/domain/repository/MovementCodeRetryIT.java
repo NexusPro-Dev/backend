@@ -131,7 +131,8 @@ class MovementCodeRetryIT extends IntegrationTestBase {
                 "Un bot para la prueba",
                 1,
                 new BigDecimal("10.00"),
-                null)),
+                null,
+                "MANUAL")),
         2,
         AHORA,
         AHORA);

@@ -191,6 +191,7 @@ public interface MovementRepository {
       BigDecimal discountAmount,
       BigDecimal payableAmount,
       OffsetDateTime occurredAt,
+      OffsetDateTime confirmedAt,
       OffsetDateTime createdAt) {}
 
   /** Un vendedor de las líneas de un movimiento. */
@@ -216,6 +217,10 @@ public interface MovementRepository {
    * tipos de movimiento que no venden nada. <b>Y el descuento también</b> (`RN-MV-027`, `V14`):
    * {@code lineDiscount} es la suma congelada y {@code discounts} son las rebajas que la explican,
    * como se pactaron y como se cobraron.
+   *
+   * <p><b>Y la entrega</b> (`RN-MV-030`, `V16`): {@code implementation} es la copia de cómo se
+   * entrega, y {@code deliveryStatus}, {@code deliveredAt} y {@code deliveryNote} son lo único de
+   * una línea que cambia después de escribirse.
    */
   record MovementLineRow(
       UUID productId,
@@ -231,7 +236,116 @@ public interface MovementRepository {
       String sellerUsername,
       String sellerFirstName,
       String sellerLastName,
-      List<LineDiscountRow> discounts) {}
+      List<LineDiscountRow> discounts,
+      String implementation,
+      String deliveryStatus,
+      OffsetDateTime deliveredAt,
+      String deliveryNote) {}
+
+  // ---------------------------------------------------------------------------
+  // `RF-MV-003` — confirmar
+  // ---------------------------------------------------------------------------
+
+  /**
+   * El detalle de un movimiento <b>sin alcance</b>: para quien confirma, que confirma cualquiera.
+   *
+   * <p>Es la misma proyección que {@link #findMineById} sin el predicado del actor. Vacío solo si
+   * no existe.
+   */
+  Optional<MovementDetailView> findById(UUID movementId);
+
+  /** El estado actual, para decir en el {@code 409} en qué estado está (`EX-002`). */
+  Optional<String> findStatus(UUID movementId);
+
+  /**
+   * La transición, <b>condicionada al estado anterior</b>: {@code PENDIENTE} → {@code CONFIRMADA}
+   * con {@code confirmed_at} en {@code at}, en una sola sentencia que solo acierta si la venta
+   * seguía pendiente.
+   *
+   * <p><b>La cuenta de filas es la decisión.</b> No es un {@code SELECT} seguido de un {@code
+   * UPDATE}: entre los dos puede entrar otra confirmación, y las dos leerían «pendiente». Con la
+   * escritura condicionada, la segunda afecta cero filas y responde `EX-002` sin haber leído nada
+   * antes — que es lo que hace que una pasarela que reentrega no conceda dos veces (`RN-MV-005`).
+   *
+   * @return {@code true} si esta llamada hizo la transición; {@code false} si la venta no estaba
+   *     pendiente (o no existe: quien llama distingue los dos casos con {@link #findStatus})
+   */
+  boolean confirmIfPending(UUID movementId, OffsetDateTime at);
+
+  /**
+   * Las líneas de un movimiento con lo que hace falta para entregarlas: la implementación copiada,
+   * y —para las de upgrade— la membresía destino y su nivel <b>leídos del producto</b>, que no se
+   * copian porque `RF-PM-004` rechaza cambiarlos (`requirements/mv.md` §5.4).
+   *
+   * <p>Se leen <b>después</b> de la transición, no antes: solo quien la ganó recorre las líneas.
+   */
+  List<DeliveryLineRow> findLinesForDelivery(UUID movementId);
+
+  /** {@code PENDIENTE} → {@code ENTREGADA} en {@code at}. */
+  void markDelivered(UUID lineId, OffsetDateTime at);
+
+  /** {@code PENDIENTE} → {@code RETENIDA} con el motivo, escrito para una persona (`RN-MV-029`). */
+  void markRetained(UUID lineId, String note);
+
+  /**
+   * Una línea a punto de entregarse.
+   *
+   * @param upgrade si el producto concede una membresía
+   * @param targetMembershipId la destino del producto; nula si no es un upgrade
+   * @param targetMembershipLevel su nivel; nulo si no es un upgrade
+   */
+  record DeliveryLineRow(
+      UUID lineId,
+      String productCode,
+      String implementation,
+      boolean upgrade,
+      UUID targetMembershipId,
+      String targetMembershipCode,
+      Integer targetMembershipLevel,
+      Integer validityDays) {}
+
+  // ---------------------------------------------------------------------------
+  // `RF-MV-014` — los productos comprados propios
+  // ---------------------------------------------------------------------------
+
+  /**
+   * Los productos de las ventas <b>a nombre de</b> {@code actorId}, una fila por línea, de la
+   * compra más reciente a la más antigua, <b>con el estado ya calculado</b>.
+   *
+   * <p>El estado se calcula en la sentencia y no en Java, por lo mismo que el papel en {@link
+   * #findMine}: el filtro por estado tiene que aplicarse en la consulta para que el total cuente lo
+   * que devuelve. Y {@code now} entra como parámetro y no como {@code now()} de la base: es lo que
+   * permite probar el vencimiento sin esperar y lo que deja el borde fijado — una vigencia que
+   * vence exactamente ahora ya venció, como la membresía en `SP`.
+   *
+   * @param state uno de los seis de {@code PurchasedProductState}, o nulo para todos
+   */
+  List<MyProductRow> findMyProducts(
+      UUID actorId, String state, OffsetDateTime now, int offset, int limit);
+
+  /** Cuántos hay. Exacto: es el conjunto de una persona. */
+  long countMyProducts(UUID actorId, String state, OffsetDateTime now);
+
+  /**
+   * Una fila del registro de lo comprado (`RF-MV-014`).
+   *
+   * @param state calculado por el motor de la venta, la entrega y la vigencia
+   * @param validUntil {@code deliveredAt + validityDays}; nulo si no se entregó o si no caduca
+   */
+  record MyProductRow(
+      UUID movementId,
+      String movementCode,
+      String movementStatus,
+      UUID productId,
+      String productCode,
+      String productName,
+      int quantity,
+      String implementation,
+      String state,
+      OffsetDateTime purchasedAt,
+      OffsetDateTime deliveredAt,
+      OffsetDateTime validUntil,
+      String deliveryNote) {}
 
   /** Una rebaja de una línea, tal como quedó. */
   record LineDiscountRow(String type, BigDecimal value, BigDecimal discountValue) {}

@@ -73,6 +73,13 @@ public record SaleResponse(
     BigDecimal discountAmount,
     BigDecimal payableAmount,
     OffsetDateTime occurredAt,
+    @Schema(
+            types = {"string", "null"},
+            format = "date-time",
+            description =
+                "Cuándo entró el dinero (`RF-MV-003`). Desde aquí corre la vigencia de lo que se"
+                    + " entrega solo. NULO en toda venta que no esté confirmada.")
+        OffsetDateTime confirmedAt,
     OffsetDateTime createdAt) {
 
   @Schema(name = "SaleParty")
@@ -108,6 +115,8 @@ public record SaleResponse(
         venta.getDiscountAmount(),
         venta.getPayableAmount(),
         venta.getOccurredAt(),
+        // Acaba de registrarse: nadie ha confirmado nada.
+        null,
         venta.getCreatedAt());
   }
 }

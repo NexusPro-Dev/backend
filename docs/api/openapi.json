@@ -1427,6 +1427,11 @@
           "code" : {
             "type" : "string"
           },
+          "confirmedAt" : {
+            "description" : "Cuándo entró el dinero. NULO mientras no esté confirmado.",
+            "format" : "date-time",
+            "type" : [ "string", "null" ]
+          },
           "currency" : {
             "$ref" : "#/components/schemas/MyMovementCurrency"
           },
@@ -1494,6 +1499,73 @@
             "type" : "string"
           },
           "username" : {
+            "type" : "string"
+          }
+        },
+        "type" : "object"
+      },
+      "MyProduct" : {
+        "description" : "Un producto de una compra propia, con su estado.",
+        "properties" : {
+          "deliveredAt" : {
+            "description" : "Desde cuándo se tiene. NULO si no se ha entregado.",
+            "format" : "date-time",
+            "type" : [ "string", "null" ]
+          },
+          "deliveryNote" : {
+            "description" : "Por qué no se entregará. Solo en RETENIDO.",
+            "type" : [ "string", "null" ]
+          },
+          "implementation" : {
+            "description" : "COPIA de cómo se entrega: AUTOMATICA o MANUAL.",
+            "type" : "string"
+          },
+          "movementCode" : {
+            "type" : "string"
+          },
+          "movementId" : {
+            "description" : "De qué venta viene; se abre en /movements/mine/{id}.",
+            "format" : "uuid",
+            "type" : "string"
+          },
+          "movementStatus" : {
+            "type" : "string"
+          },
+          "product" : {
+            "$ref" : "#/components/schemas/MyProductRef"
+          },
+          "purchasedAt" : {
+            "description" : "Cuándo se compró: la fecha de la venta.",
+            "format" : "date-time",
+            "type" : "string"
+          },
+          "quantity" : {
+            "format" : "int32",
+            "type" : "integer"
+          },
+          "state" : {
+            "description" : "El estado, calculado de la venta, la entrega y la vigencia.",
+            "enum" : [ "PENDIENTE_PAGO", "PENDIENTE_AUTORIZACION", "ACTIVO", "VENCIDO", "RETENIDO", "RECHAZADO", "ANULADO" ],
+            "type" : "string"
+          },
+          "validUntil" : {
+            "description" : "Hasta cuándo se tiene: la entrega más la vigencia comprada. NULO si no se ha entregado o si no caduca.",
+            "format" : "date-time",
+            "type" : [ "string", "null" ]
+          }
+        },
+        "type" : "object"
+      },
+      "MyProductRef" : {
+        "properties" : {
+          "code" : {
+            "type" : "string"
+          },
+          "id" : {
+            "format" : "uuid",
+            "type" : "string"
+          },
+          "name" : {
             "type" : "string"
           }
         },
@@ -2261,6 +2333,36 @@
         },
         "type" : "object"
       },
+      "PageResponseMyProduct" : {
+        "properties" : {
+          "content" : {
+            "items" : {
+              "$ref" : "#/components/schemas/MyProduct"
+            },
+            "type" : "array"
+          },
+          "page" : {
+            "format" : "int32",
+            "type" : "integer"
+          },
+          "size" : {
+            "format" : "int32",
+            "type" : "integer"
+          },
+          "totalElements" : {
+            "format" : "int64",
+            "type" : "integer"
+          },
+          "totalIsExact" : {
+            "type" : "boolean"
+          },
+          "totalPages" : {
+            "format" : "int32",
+            "type" : "integer"
+          }
+        },
+        "type" : "object"
+      },
       "PageResponsePerson" : {
         "properties" : {
           "content" : {
@@ -2930,12 +3032,29 @@
       },
       "PurchaseLineResponse" : {
         "properties" : {
+          "deliveredAt" : {
+            "description" : "Desde cuándo se tiene lo comprado. NULO si no está ENTREGADA.",
+            "format" : "date-time",
+            "type" : [ "string", "null" ]
+          },
+          "deliveryNote" : {
+            "description" : "Por qué se retuvo. NULO si no está RETENIDA.",
+            "type" : [ "string", "null" ]
+          },
+          "deliveryStatus" : {
+            "description" : "PENDIENTE, ENTREGADA o RETENIDA. Al comprar, siempre PENDIENTE.",
+            "type" : "string"
+          },
           "discounts" : {
             "description" : "Las rebajas que explican lineDiscount. VACÍA —nunca nula— si no hubo.",
             "items" : {
               "$ref" : "#/components/schemas/SaleDiscount"
             },
             "type" : "array"
+          },
+          "implementation" : {
+            "description" : "COPIA de cómo se entrega lo comprado: AUTOMATICA se entrega al confirmar el pago; MANUAL espera a que alguien lo autorice.",
+            "type" : "string"
           },
           "lineAmount" : {
             "description" : "quantity × unitPrice − lineDiscount.",
@@ -2979,6 +3098,11 @@
         "properties" : {
           "code" : {
             "type" : "string"
+          },
+          "confirmedAt" : {
+            "description" : "Cuándo entró el dinero. NULO mientras la venta no esté confirmada.",
+            "format" : "date-time",
+            "type" : [ "string", "null" ]
           },
           "createdAt" : {
             "format" : "date-time",
@@ -3648,12 +3772,29 @@
       },
       "SaleLineResponse" : {
         "properties" : {
+          "deliveredAt" : {
+            "description" : "Desde cuándo se tiene lo comprado. NULO si no está ENTREGADA.",
+            "format" : "date-time",
+            "type" : [ "string", "null" ]
+          },
+          "deliveryNote" : {
+            "description" : "Por qué se retuvo, escrito para una persona. NULO si no está RETENIDA.",
+            "type" : [ "string", "null" ]
+          },
+          "deliveryStatus" : {
+            "description" : "PENDIENTE (no confirmada, o manual sin autorizar), ENTREGADA o RETENIDA (la venta se confirmó y esta línea NO se entregará; deliveryNote dice por qué).",
+            "type" : "string"
+          },
           "discounts" : {
             "description" : "Las rebajas que explican lineDiscount. VACÍA —nunca nula— si no hubo.",
             "items" : {
               "$ref" : "#/components/schemas/SaleDiscount"
             },
             "type" : "array"
+          },
+          "implementation" : {
+            "description" : "COPIA de cómo se entrega lo vendido (`RN-MV-030`): AUTOMATICA se entrega al confirmar el pago; MANUAL espera a que alguien lo autorice.",
+            "type" : "string"
           },
           "lineAmount" : {
             "type" : "number"
@@ -3715,6 +3856,11 @@
         "properties" : {
           "code" : {
             "type" : "string"
+          },
+          "confirmedAt" : {
+            "description" : "Cuándo entró el dinero (`RF-MV-003`). Desde aquí corre la vigencia de lo que se entrega solo. NULO en toda venta que no esté confirmada.",
+            "format" : "date-time",
+            "type" : [ "string", "null" ]
           },
           "createdAt" : {
             "format" : "date-time",
@@ -6668,6 +6814,59 @@
         "tags" : [ "Movimientos" ]
       }
     },
+    "/api/v1/movements/mine/products" : {
+      "get" : {
+        "description" : "Devuelve **los productos de las ventas a su nombre**, uno por línea de venta, del más\nreciente al más antiguo, y **en qué estado está cada uno**:\n\n- `PENDIENTE_PAGO`: la venta no se ha confirmado; todavía no lo tiene.\n- `PENDIENTE_AUTORIZACION`: pagado, pero el producto es de implementación manual y\n  alguien tiene que autorizar la entrega.\n- `ACTIVO`: entregado, con `deliveredAt` y —si caduca— `validUntil`, que es la\n  entrega más la vigencia comprada. La vigencia corre **desde la entrega**, no desde\n  la compra.\n- `VENCIDO`: entregado y con la vigencia pasada.\n- `RETENIDO`: pagado y **no se entregará** — `deliveryNote` dice por qué (`RN-MV-029`).\n- `RECHAZADO` / `ANULADO`: la venta terminó así.\n\n**Solo lo que compró usted** —el sujeto de la venta—: lo que vendió a otros no\naparece aquí (está en `/movements/mine` con papel `SELLER`). Dos compras del mismo\nproducto son dos filas, cada una con su vigencia. El nombre es **el que tenía el\nproducto el día de la compra**. `state` filtra por estado; el orden es fijo.\n",
+        "operationId" : "misProductos",
+        "parameters" : [ {
+          "in" : "query",
+          "name" : "page",
+          "required" : false,
+          "schema" : {
+            "format" : "int32",
+            "type" : "integer"
+          }
+        }, {
+          "in" : "query",
+          "name" : "size",
+          "required" : false,
+          "schema" : {
+            "format" : "int32",
+            "type" : "integer"
+          }
+        }, {
+          "in" : "query",
+          "name" : "state",
+          "required" : false,
+          "schema" : {
+            "type" : "string"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/PageResponseMyProduct"
+                }
+              }
+            },
+            "description" : "La página de productos comprados."
+          },
+          "400" : {
+            "description" : "Paginación inválida o estado no admitido (`VAL-002`)"
+          },
+          "401" : {
+            "description" : "Token ausente o inválido (`AUTH-001`)"
+          },
+          "500" : {
+            "description" : "Fallo no controlado (`ERR-500`)"
+          }
+        },
+        "summary" : "Consultar los productos comprados propios",
+        "tags" : [ "Movimientos" ]
+      }
+    },
     "/api/v1/movements/mine/{id}" : {
       "get" : {
         "description" : "Devuelve **lo mismo que devuelve registrar una venta**, con sus líneas: qué\nproductos, cuántos, a qué precio y con qué vigencia. Quien registró una venta y\nquien la consulta después ven la misma forma.\n\n**Un movimiento que no es suyo responde `404`**, exactamente igual que uno que no\nexiste. No es un descuido: un `403` confirmaría que el identificador existe.\n",
@@ -6706,6 +6905,53 @@
           }
         },
         "summary" : "Consultar el detalle de un movimiento propio",
+        "tags" : [ "Movimientos" ]
+      }
+    },
+    "/api/v1/movements/{id}/confirmation" : {
+      "post" : {
+        "description" : "Da por **pagada** una venta pendiente y, en el mismo acto, **entrega lo que se\npueda entregar**. Sin cuerpo: confirmar es un hecho, no un formulario — el importe\nes el de la venta, la fecha es ahora y el método ya está en ella.\n\n**Lo que pasa con cada línea** (`RN-MV-030`), y se ve en la respuesta:\n- `implementation: MANUAL` → queda `PENDIENTE` de autorización (`RN-MV-021`). La\n  venta confirma igual.\n- `AUTOMATICA` y **no** es un upgrade → `ENTREGADA`, con `deliveredAt` ahora.\n- `AUTOMATICA` y es un upgrade → **se concede la membresía** destino del producto,\n  con la vigencia copiada en la línea **contada desde la confirmación** (`RN-MV-020`),\n  cerrando la que la persona tenía — también al renovar el mismo nivel—; **salvo que\n  la comprada sea inferior a la vigente en ese instante**: entonces la venta cobra\n  igual y la línea queda `RETENIDA` con `deliveryNote` (`RN-MV-029`). Nunca baja de\n  nivel a nadie.\n\n**Confirmar dos veces concede una vez.** La transición es atómica y condicionada al\nestado anterior: la segunda confirmación —o un webhook reentregado— recibe `409`\ndiciendo en qué estado está, y **no cambia nada**.\n\n**Lo que NO hace**: no saca a nadie de `FTD_PENDIENTE` (eso lo hace el primer\ndepósito), no devenga comisiones, no adjunta comprobante y no se puede deshacer\n(`RN-MV-005`).\n",
+        "operationId" : "confirmar",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "id",
+          "required" : true,
+          "schema" : {
+            "format" : "uuid",
+            "type" : "string"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/SaleResponse"
+                }
+              }
+            },
+            "description" : "Confirmada. El cuerpo dice qué se entregó, qué espera y qué se retuvo."
+          },
+          "400" : {
+            "description" : "Identificador malformado (`VAL-001`)"
+          },
+          "401" : {
+            "description" : "Token ausente o inválido (`AUTH-001`)"
+          },
+          "403" : {
+            "description" : "Sin el permiso `movements:confirm`."
+          },
+          "404" : {
+            "description" : "No existe (`EX-001`)"
+          },
+          "409" : {
+            "description" : "No está pendiente (`EX-002`): ya confirmada, rechazada o anulada. El mensaje dice en qué estado está, y nada cambió."
+          },
+          "500" : {
+            "description" : "Conceder la membresía falló; nada quedó escrito (`ERR-500`)"
+          }
+        },
+        "summary" : "Confirmar el pago de una venta pendiente",
         "tags" : [ "Movimientos" ]
       }
     },

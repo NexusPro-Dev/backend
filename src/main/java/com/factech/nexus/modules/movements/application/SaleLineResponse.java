@@ -5,6 +5,7 @@ import com.factech.nexus.modules.movements.domain.models.MovementLine;
 import com.fasterxml.jackson.annotation.JsonInclude;
 import io.swagger.v3.oas.annotations.media.Schema;
 import java.math.BigDecimal;
+import java.time.OffsetDateTime;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
@@ -77,7 +78,26 @@ public record SaleLineResponse(
                 "A quién se atribuye ESTA línea, y a quién se le creará la comisión por ella."
                     + " En una venta nunca es nulo: quien compra sin colgar de nadie es su propio"
                     + " vendedor. NULO solo en los tipos de movimiento que no venden nada.")
-        SaleResponse.Party seller) {
+        SaleResponse.Party seller,
+    @Schema(
+            description =
+                "COPIA de cómo se entrega lo vendido (`RN-MV-030`): AUTOMATICA se entrega al"
+                    + " confirmar el pago; MANUAL espera a que alguien lo autorice.")
+        String implementation,
+    @Schema(
+            description =
+                "PENDIENTE (no confirmada, o manual sin autorizar), ENTREGADA o RETENIDA (la"
+                    + " venta se confirmó y esta línea NO se entregará; deliveryNote dice por qué).")
+        String deliveryStatus,
+    @Schema(
+            types = {"string", "null"},
+            format = "date-time",
+            description = "Desde cuándo se tiene lo comprado. NULO si no está ENTREGADA.")
+        OffsetDateTime deliveredAt,
+    @Schema(
+            types = {"string", "null"},
+            description = "Por qué se retuvo, escrito para una persona. NULO si no está RETENIDA.")
+        String deliveryNote) {
 
   static SaleLineResponse de(MovementLine linea, SaleResponse.Party vendedor) {
     List<SaleDiscountResponse> rebajas = new ArrayList<>(linea.getDiscounts().size());
@@ -95,6 +115,11 @@ public record SaleLineResponse(
         linea.getValidityDays(),
         linea.getLineDiscount(),
         rebajas,
-        vendedor);
+        vendedor,
+        linea.getImplementation().name(),
+        // Acaba de registrarse: nada se entrega antes de confirmar (`RN-MV-004`).
+        "PENDIENTE",
+        null,
+        null);
   }
 }

@@ -46,7 +46,12 @@ public record MyMovementResponse(
     BigDecimal totalAmount,
     BigDecimal discountAmount,
     BigDecimal payableAmount,
-    OffsetDateTime occurredAt) {
+    OffsetDateTime occurredAt,
+    @Schema(
+            types = {"string", "null"},
+            format = "date-time",
+            description = "Cuándo entró el dinero. NULO mientras no esté confirmado.")
+        OffsetDateTime confirmedAt) {
 
   /**
    * Misma forma que {@code SaleResponse.Party}, con nombre propio para no chocar en el contrato.

@@ -5,6 +5,7 @@ import com.factech.nexus.modules.movements.domain.models.MovementLine;
 import com.fasterxml.jackson.annotation.JsonInclude;
 import io.swagger.v3.oas.annotations.media.Schema;
 import java.math.BigDecimal;
+import java.time.OffsetDateTime;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
@@ -43,7 +44,23 @@ public record PurchaseLineResponse(
     @Schema(description = "Lo que se rebajó a la línea: quantity × la suma de sus rebajas.")
         BigDecimal lineDiscount,
     @Schema(description = "Las rebajas que explican lineDiscount. VACÍA —nunca nula— si no hubo.")
-        List<SaleDiscountResponse> discounts) {
+        List<SaleDiscountResponse> discounts,
+    @Schema(
+            description =
+                "COPIA de cómo se entrega lo comprado: AUTOMATICA se entrega al confirmar el"
+                    + " pago; MANUAL espera a que alguien lo autorice.")
+        String implementation,
+    @Schema(description = "PENDIENTE, ENTREGADA o RETENIDA. Al comprar, siempre PENDIENTE.")
+        String deliveryStatus,
+    @Schema(
+            types = {"string", "null"},
+            format = "date-time",
+            description = "Desde cuándo se tiene lo comprado. NULO si no está ENTREGADA.")
+        OffsetDateTime deliveredAt,
+    @Schema(
+            types = {"string", "null"},
+            description = "Por qué se retuvo. NULO si no está RETENIDA.")
+        String deliveryNote) {
 
   static PurchaseLineResponse de(MovementLine linea) {
     List<SaleDiscountResponse> rebajas = new ArrayList<>(linea.getDiscounts().size());
@@ -60,6 +77,10 @@ public record PurchaseLineResponse(
         linea.getLineAmount(),
         linea.getValidityDays(),
         linea.getLineDiscount(),
-        rebajas);
+        rebajas,
+        linea.getImplementation().name(),
+        "PENDIENTE",
+        null,
+        null);
   }
 }

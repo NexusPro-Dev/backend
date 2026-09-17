@@ -178,7 +178,8 @@ class RegisterSaleServiceTest {
         2,
         30,
         UUID.randomUUID(),
-        nivelDestino);
+        nivelDestino,
+        "AUTOMATICA");
   }
 
   private static SaleView bot(String codigo) {
@@ -194,7 +195,8 @@ class RegisterSaleServiceTest {
         2,
         null,
         null,
-        null);
+        null,
+        "MANUAL");
   }
 
   private static RegisterSaleRequest peticion(UUID producto, int cantidad) {

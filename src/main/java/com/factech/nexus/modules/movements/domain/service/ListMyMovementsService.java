@@ -124,7 +124,8 @@ public class ListMyMovementsService {
         fila.totalAmount(),
         fila.discountAmount(),
         fila.payableAmount(),
-        fila.occurredAt());
+        fila.occurredAt(),
+        fila.confirmedAt());
   }
 
   static String nombreCompleto(String nombre, String apellido) {

@@ -98,6 +98,31 @@ class MovementTest {
   }
 
   @Test
+  @DisplayName("Una línea no se construye sin saber cómo se entrega lo que vendió")
+  void sinImplementacionNoHayLinea() {
+    // `RN-MV-030`: sin la copia, confirmar no sabría si concede o espera. Se
+    // rechaza al construirla, no al confirmar con el cobro ya hecho.
+    assertThatThrownBy(
+            () ->
+                MovementLine.copiarDe(
+                    UUID.randomUUID(),
+                    VENDEDOR,
+                    "UP_VIP",
+                    "Producto",
+                    "Una descripción",
+                    1,
+                    new BigDecimal("20.00"),
+                    30,
+                    null))
+        .isInstanceOf(IllegalArgumentException.class);
+
+    assertThat(linea("BOT_A", 1, "10.00", null).getImplementation())
+        .isEqualTo(Implementation.AUTOMATICA);
+    assertThat(linea("BOT_A", 1, "10.00", null).instantanea())
+        .containsEntry("implementation", "AUTOMATICA");
+  }
+
+  @Test
   @DisplayName("El paquete es de la cabecera, y la instantánea lo escribe presente y en nulo")
   void elPaqueteEsDeLaCabecera() {
     UUID paquete = UUID.randomUUID();
@@ -133,7 +158,8 @@ class MovementTest {
                     "Una descripción",
                     1,
                     new BigDecimal("20.00"),
-                    30))
+                    30,
+                    "AUTOMATICA"))
         .isInstanceOf(IllegalArgumentException.class);
   }
 
@@ -245,6 +271,7 @@ class MovementTest {
         cantidad,
         new BigDecimal(precio),
         null,
+        "AUTOMATICA",
         rebajas);
   }
 
@@ -293,7 +320,8 @@ class MovementTest {
                     "Una descripción",
                     1,
                     new BigDecimal("20.00"),
-                    30))
+                    30,
+                    "AUTOMATICA"))
         .isInstanceOf(IllegalArgumentException.class);
   }
 
@@ -321,6 +349,7 @@ class MovementTest {
         "Lo que decía " + codigo,
         cantidad,
         new BigDecimal(precio),
-        vigencia);
+        vigencia,
+        "AUTOMATICA");
   }
 }

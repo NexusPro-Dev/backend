@@ -492,7 +492,10 @@ public class RegisterSaleService {
               producto.description(),
               linea.quantity(),
               ProductPrice.enLaEscalaDe(precio, decimales),
-              producto.validityDays()));
+              producto.validityDays(),
+              // Y CÓMO SE ENTREGA, también copiado (`RN-MV-030`): es lo que
+              // confirmar mira, y el catálogo puede corregirlo después.
+              producto.implementation()));
     }
     return copiadas;
   }

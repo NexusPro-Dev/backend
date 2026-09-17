@@ -78,6 +78,7 @@ public final class MovementLine {
   private final BigDecimal lineDiscount;
   private final BigDecimal lineAmount;
   private final Integer validityDays;
+  private final Implementation implementation;
   private final List<LineDiscount> discounts;
 
   private MovementLine(
@@ -90,6 +91,7 @@ public final class MovementLine {
       int quantity,
       BigDecimal unitPrice,
       Integer validityDays,
+      Implementation implementation,
       List<LineDiscount> discounts) {
     this.id = id;
     this.productId = productId;
@@ -100,6 +102,7 @@ public final class MovementLine {
     this.quantity = quantity;
     this.unitPrice = unitPrice;
     this.validityDays = validityDays;
+    this.implementation = implementation;
     this.discounts = List.copyOf(discounts);
     // `RN-MV-027`: LAS DOS CIFRAS SALEN DE LAS REBAJAS, aquí y en ningún otro
     // sitio. Cada rebaja ya viene en dinero por unidad y en la escala de la
@@ -146,7 +149,8 @@ public final class MovementLine {
       String productDescription,
       int quantity,
       BigDecimal precio,
-      Integer validityDays) {
+      Integer validityDays,
+      String implementation) {
     return copiarDe(
         productId,
         sellerId,
@@ -156,6 +160,7 @@ public final class MovementLine {
         quantity,
         precio,
         validityDays,
+        implementation,
         List.of());
   }
 
@@ -173,6 +178,7 @@ public final class MovementLine {
       int quantity,
       BigDecimal precio,
       Integer validityDays,
+      String implementation,
       List<LineDiscount> rebajas) {
     if (sellerId == null) {
       // No es una validación de entrada: el vendedor no viene de la petición.
@@ -185,6 +191,12 @@ public final class MovementLine {
       // quedar sin decir qué se vendió y el nulo solo aparecería al leerla.
       throw new IllegalArgumentException("Una línea congela el nombre de lo que se vendió.");
     }
+    if (implementation == null) {
+      // Sin la copia, la línea no se puede entregar (`RN-MV-030`): confirmar
+      // no sabría si concede o espera. Se rechaza al construirla y no al
+      // confirmar, que es donde el hueco aparecería con el cobro ya hecho.
+      throw new IllegalArgumentException("Una línea congela cómo se entrega lo que se vendió.");
+    }
     return new MovementLine(
         UUID.randomUUID(),
         productId,
@@ -195,6 +207,7 @@ public final class MovementLine {
         quantity,
         precio,
         validityDays,
+        Implementation.valueOf(implementation),
         rebajas == null ? List.of() : rebajas);
   }
 
@@ -222,6 +235,8 @@ public final class MovementLine {
     // Se escribe la clave con nulo y no se omite: la ausencia de la clave se
     // leería como «esta versión no lo registraba», y el nulo dice «no caduca».
     datos.put("validity_days", validityDays);
+    // Copia, como el precio (`RN-MV-030`): lo vendido se entrega como se vendió.
+    datos.put("implementation", implementation.name());
     return datos;
   }
 
@@ -249,6 +264,10 @@ public final class MovementLine {
 
   public String getProductDescription() {
     return productDescription;
+  }
+
+  public Implementation getImplementation() {
+    return implementation;
   }
 
   public BigDecimal getLineDiscount() {

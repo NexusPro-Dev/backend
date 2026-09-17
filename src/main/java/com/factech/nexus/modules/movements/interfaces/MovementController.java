@@ -4,11 +4,15 @@ import com.factech.nexus.modules.movements.application.ListMovementsRequest;
 import com.factech.nexus.modules.movements.application.MovementResponse;
 import com.factech.nexus.modules.movements.application.MyMovementResponse;
 import com.factech.nexus.modules.movements.application.MyMovementsRequest;
+import com.factech.nexus.modules.movements.application.MyProductResponse;
+import com.factech.nexus.modules.movements.application.MyProductsRequest;
 import com.factech.nexus.modules.movements.application.RegisterSaleRequest;
 import com.factech.nexus.modules.movements.application.SaleResponse;
+import com.factech.nexus.modules.movements.domain.service.ConfirmSaleService;
 import com.factech.nexus.modules.movements.domain.service.GetMyMovementService;
 import com.factech.nexus.modules.movements.domain.service.ListMovementsService;
 import com.factech.nexus.modules.movements.domain.service.ListMyMovementsService;
+import com.factech.nexus.modules.movements.domain.service.ListMyProductsService;
 import com.factech.nexus.modules.movements.domain.service.RegisterSaleService;
 import com.factech.nexus.shared.pagination.PageResponse;
 import io.swagger.v3.oas.annotations.Operation;
@@ -45,19 +49,93 @@ import org.springframework.web.bind.annotation.RestController;
 public class MovementController {
 
   private final RegisterSaleService alta;
+  private final ConfirmSaleService confirmacion;
   private final ListMovementsService libro;
   private final ListMyMovementsService listado;
+  private final ListMyProductsService comprado;
   private final GetMyMovementService detalle;
 
   public MovementController(
       RegisterSaleService alta,
+      ConfirmSaleService confirmacion,
       ListMovementsService libro,
       ListMyMovementsService listado,
+      ListMyProductsService comprado,
       GetMyMovementService detalle) {
     this.alta = alta;
+    this.confirmacion = confirmacion;
     this.libro = libro;
     this.listado = listado;
+    this.comprado = comprado;
     this.detalle = detalle;
+  }
+
+  /**
+   * <b>{@code POST …/confirmation} y no {@code PATCH …/status}</b>, aunque seis recursos del
+   * sistema cambian de estado con el segundo: aquellos tienen un permiso para todas sus
+   * transiciones, y aquí confirmar y rechazar comparten permiso y anular tiene el suyo. Un {@code
+   * PATCH /status} con tres valores tendría dos modelos de seguridad en un endpoint. El precedente
+   * que encaja es {@code POST /{id}/deletion}: una acción con nombre y con su permiso.
+   */
+  @PostMapping("/{id}/confirmation")
+  @PreAuthorize("hasAuthority('movements:confirm')")
+  @Operation(
+      summary = "Confirmar el pago de una venta pendiente",
+      description =
+          """
+          Da por **pagada** una venta pendiente y, en el mismo acto, **entrega lo que se
+          pueda entregar**. Sin cuerpo: confirmar es un hecho, no un formulario — el importe
+          es el de la venta, la fecha es ahora y el método ya está en ella.
+
+          **Lo que pasa con cada línea** (`RN-MV-030`), y se ve en la respuesta:
+          - `implementation: MANUAL` → queda `PENDIENTE` de autorización (`RN-MV-021`). La
+            venta confirma igual.
+          - `AUTOMATICA` y **no** es un upgrade → `ENTREGADA`, con `deliveredAt` ahora.
+          - `AUTOMATICA` y es un upgrade → **se concede la membresía** destino del producto,
+            con la vigencia copiada en la línea **contada desde la confirmación** (`RN-MV-020`),
+            cerrando la que la persona tenía — también al renovar el mismo nivel—; **salvo que
+            la comprada sea inferior a la vigente en ese instante**: entonces la venta cobra
+            igual y la línea queda `RETENIDA` con `deliveryNote` (`RN-MV-029`). Nunca baja de
+            nivel a nadie.
+
+          **Confirmar dos veces concede una vez.** La transición es atómica y condicionada al
+          estado anterior: la segunda confirmación —o un webhook reentregado— recibe `409`
+          diciendo en qué estado está, y **no cambia nada**.
+
+          **Lo que NO hace**: no saca a nadie de `FTD_PENDIENTE` (eso lo hace el primer
+          depósito), no devenga comisiones, no adjunta comprobante y no se puede deshacer
+          (`RN-MV-005`).
+          """)
+  @ApiResponses({
+    @ApiResponse(
+        responseCode = "200",
+        description = "Confirmada. El cuerpo dice qué se entregó, qué espera y qué se retuvo."),
+    @ApiResponse(
+        responseCode = "400",
+        description = "Identificador malformado (`VAL-001`)",
+        content = @Content),
+    @ApiResponse(
+        responseCode = "401",
+        description = "Token ausente o inválido (`AUTH-001`)",
+        content = @Content),
+    @ApiResponse(
+        responseCode = "403",
+        description = "Sin el permiso `movements:confirm`.",
+        content = @Content),
+    @ApiResponse(responseCode = "404", description = "No existe (`EX-001`)", content = @Content),
+    @ApiResponse(
+        responseCode = "409",
+        description =
+            "No está pendiente (`EX-002`): ya confirmada, rechazada o anulada. El mensaje dice"
+                + " en qué estado está, y nada cambió.",
+        content = @Content),
+    @ApiResponse(
+        responseCode = "500",
+        description = "Conceder la membresía falló; nada quedó escrito (`ERR-500`)",
+        content = @Content)
+  })
+  public SaleResponse confirmar(@PathVariable UUID id) {
+    return confirmacion.confirm(id);
   }
 
   /**
@@ -263,6 +341,57 @@ public class MovementController {
       @RequestParam(required = false) Integer size,
       @RequestParam(required = false) String status) {
     return listado.list(new MyMovementsRequest(page, size, status));
+  }
+
+  /**
+   * <b>Antes que {@code /mine/{id}}</b>, por lo mismo que {@code /mine} va antes que {@code /{id}}:
+   * {@code products} no es un identificador, Spring resolvería igual por especificidad, y una
+   * prueba fija el orden para que el síntoma de romperlo —un {@code 400} por identificador
+   * inválido— no aparezca en la ruta que se acaba de estrenar.
+   */
+  @GetMapping("/mine/products")
+  @Operation(
+      summary = "Consultar los productos comprados propios",
+      description =
+          """
+          Devuelve **los productos de las ventas a su nombre**, uno por línea de venta, del más
+          reciente al más antiguo, y **en qué estado está cada uno**:
+
+          - `PENDIENTE_PAGO`: la venta no se ha confirmado; todavía no lo tiene.
+          - `PENDIENTE_AUTORIZACION`: pagado, pero el producto es de implementación manual y
+            alguien tiene que autorizar la entrega.
+          - `ACTIVO`: entregado, con `deliveredAt` y —si caduca— `validUntil`, que es la
+            entrega más la vigencia comprada. La vigencia corre **desde la entrega**, no desde
+            la compra.
+          - `VENCIDO`: entregado y con la vigencia pasada.
+          - `RETENIDO`: pagado y **no se entregará** — `deliveryNote` dice por qué (`RN-MV-029`).
+          - `RECHAZADO` / `ANULADO`: la venta terminó así.
+
+          **Solo lo que compró usted** —el sujeto de la venta—: lo que vendió a otros no
+          aparece aquí (está en `/movements/mine` con papel `SELLER`). Dos compras del mismo
+          producto son dos filas, cada una con su vigencia. El nombre es **el que tenía el
+          producto el día de la compra**. `state` filtra por estado; el orden es fijo.
+          """)
+  @ApiResponses({
+    @ApiResponse(responseCode = "200", description = "La página de productos comprados."),
+    @ApiResponse(
+        responseCode = "400",
+        description = "Paginación inválida o estado no admitido (`VAL-002`)",
+        content = @Content),
+    @ApiResponse(
+        responseCode = "401",
+        description = "Token ausente o inválido (`AUTH-001`)",
+        content = @Content),
+    @ApiResponse(
+        responseCode = "500",
+        description = "Fallo no controlado (`ERR-500`)",
+        content = @Content)
+  })
+  public PageResponse<MyProductResponse> misProductos(
+      @RequestParam(required = false) Integer page,
+      @RequestParam(required = false) Integer size,
+      @RequestParam(required = false) String state) {
+    return comprado.list(new MyProductsRequest(page, size, state));
   }
 
   /**

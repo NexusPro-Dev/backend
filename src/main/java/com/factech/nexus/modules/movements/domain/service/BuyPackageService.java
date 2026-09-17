@@ -395,6 +395,7 @@ public class BuyPackageService {
               1,
               unitario,
               producto.validityDays(),
+              producto.implementation(),
               List.of(rebaja)));
     }
     return lineas;

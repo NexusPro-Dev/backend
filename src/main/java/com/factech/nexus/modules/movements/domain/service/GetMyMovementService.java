@@ -1,17 +1,10 @@
 package com.factech.nexus.modules.movements.domain.service;
 
-import com.factech.nexus.modules.movements.application.SaleDiscountResponse;
-import com.factech.nexus.modules.movements.application.SaleLineResponse;
 import com.factech.nexus.modules.movements.application.SaleResponse;
 import com.factech.nexus.modules.movements.domain.repository.MovementRepository;
-import com.factech.nexus.modules.movements.domain.repository.MovementRepository.LineDiscountRow;
 import com.factech.nexus.modules.movements.domain.repository.MovementRepository.MovementDetailView;
-import com.factech.nexus.modules.movements.domain.repository.MovementRepository.MovementLineRow;
-import com.factech.nexus.modules.movements.domain.repository.MovementRepository.MyMovementRow;
 import com.factech.nexus.modules.system.roles.application.AuthenticatedActor;
 import com.factech.nexus.shared.error.ResourceNotFoundException;
-import java.util.ArrayList;
-import java.util.List;
 import java.util.UUID;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -29,7 +22,8 @@ import org.springframework.transaction.annotation.Transactional;
  *
  * <p><b>Devuelve la misma forma que registrar una venta.</b> Quien la registró y quien la consulta
  * después tienen que ver lo mismo (`spec.md` §6.3), y por eso reutiliza {@code SaleResponse} en
- * lugar de estrenar una respuesta propia.
+ * lugar de estrenar una respuesta propia — armada en {@link SaleDetailMapper}, que desde el
+ * 17-09-2026 comparte con la confirmación (`RF-MV-003`).
  */
 @Service
 public class GetMyMovementService {
@@ -51,56 +45,6 @@ public class GetMyMovementService {
                 () ->
                     new ResourceNotFoundException(
                         "VAL-002", "No existe un movimiento suyo con ese identificador."));
-
-    MyMovementRow cabecera = detalle.header();
-
-    List<SaleLineResponse> lineas = new ArrayList<>(detalle.lines().size());
-    for (MovementLineRow linea : detalle.lines()) {
-      List<SaleDiscountResponse> rebajas = new ArrayList<>(linea.discounts().size());
-      for (LineDiscountRow rebaja : linea.discounts()) {
-        rebajas.add(
-            new SaleDiscountResponse(rebaja.type(), rebaja.value(), rebaja.discountValue()));
-      }
-      lineas.add(
-          new SaleLineResponse(
-              linea.productId(),
-              linea.productCode(),
-              linea.productName(),
-              linea.productDescription(),
-              linea.quantity(),
-              linea.unitPrice(),
-              linea.lineAmount(),
-              linea.validityDays(),
-              linea.lineDiscount(),
-              rebajas,
-              // Nulo solo en los tipos de movimiento que no venden nada; en una
-              // venta la línea siempre lo trae (`RN-MV-003`).
-              linea.sellerId() == null
-                  ? null
-                  : new SaleResponse.Party(
-                      linea.sellerId(),
-                      linea.sellerUsername(),
-                      ListMyMovementsService.nombreCompleto(
-                          linea.sellerFirstName(), linea.sellerLastName()))));
-    }
-
-    return new SaleResponse(
-        cabecera.id(),
-        cabecera.code(),
-        cabecera.status(),
-        new SaleResponse.Party(
-            cabecera.userId(),
-            cabecera.userUsername(),
-            ListMyMovementsService.nombreCompleto(
-                cabecera.userFirstName(), cabecera.userLastName())),
-        cabecera.packageId(),
-        new SaleResponse.Money(cabecera.currencyId(), cabecera.currencyCode()),
-        cabecera.paymentMethod(),
-        lineas,
-        cabecera.totalAmount(),
-        cabecera.discountAmount(),
-        cabecera.payableAmount(),
-        cabecera.occurredAt(),
-        cabecera.createdAt());
+    return SaleDetailMapper.de(detalle);
   }
 }

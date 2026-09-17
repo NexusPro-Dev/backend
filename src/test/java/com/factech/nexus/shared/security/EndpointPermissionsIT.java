@@ -134,6 +134,11 @@ class EndpointPermissionsIT extends IntegrationTestBase {
                   + " y visibilidad `PUBLICO`—: el anónimo recibe exactamente lo que recibía el"
                   + " autenticado"),
           Map.entry(
+              "GET /api/v1/movements/mine/products",
+              "Los productos que compró el actor, con su estado (`RF-MV-014`): la misma"
+                  + " decisión que `/mine`, sobre líneas en lugar de movimientos. El alcance es"
+                  + " el sujeto de la venta, y va dentro de la sentencia"),
+          Map.entry(
               "GET /api/v1/movements/mine",
               "Los movimientos del actor y de nadie más (`RF-MV-008`): no admite decir sobre"
                   + " quién se pregunta, de modo que no hay alcance que autorizar. Exigir"

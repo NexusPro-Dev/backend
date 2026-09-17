@@ -56,6 +56,11 @@ public record PurchaseResponse(
                     + " rebajadas. En un paquete coincide con el `price` que el catálogo publica.")
         BigDecimal payableAmount,
     OffsetDateTime occurredAt,
+    @Schema(
+            types = {"string", "null"},
+            format = "date-time",
+            description = "Cuándo entró el dinero. NULO mientras la venta no esté confirmada.")
+        OffsetDateTime confirmedAt,
     OffsetDateTime createdAt) {
 
   public static PurchaseResponse de(
@@ -77,6 +82,8 @@ public record PurchaseResponse(
         venta.getDiscountAmount(),
         venta.getPayableAmount(),
         venta.getOccurredAt(),
+        // Acaba de comprarse: nadie ha confirmado nada.
+        null,
         venta.getCreatedAt());
   }
 }

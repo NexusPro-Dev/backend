@@ -127,9 +127,9 @@ public class JpaMovementRepository implements MovementRepository {
               INSERT INTO movement_details (id, movement_id, product_id, seller_id,
                                             product_name, product_description,
                                             quantity, unit_price, line_discount, line_amount,
-                                            validity_days)
+                                            validity_days, implementation)
               VALUES (:id, :venta, :producto, :vendedor, :nombre, :descripcion, :cantidad,
-                      :precio, :descuento, :importe, :vigencia)
+                      :precio, :descuento, :importe, :vigencia, :implementacion)
               """)
           .setParameter("id", linea.getId())
           .setParameter("venta", venta.getId())
@@ -142,6 +142,10 @@ public class JpaMovementRepository implements MovementRepository {
           .setParameter("descuento", linea.getLineDiscount())
           .setParameter("importe", linea.getLineAmount())
           .setParameter("vigencia", linea.getValidityDays())
+          // La copia de cómo se entrega (`RN-MV-030`). La entrega misma no se
+          // escribe: `delivery_status` nace `PENDIENTE` por el DEFAULT de `V16`,
+          // y nada se entrega antes de confirmar.
+          .setParameter("implementacion", linea.getImplementation().name())
           .executeUpdate();
       insertarRebajas(linea);
     }
@@ -370,7 +374,8 @@ public class JpaMovementRepository implements MovementRepository {
              cur.id AS cur_id, cur.code AS cur_code, pm.name AS pm_name,
              m.total_amount AS total, m.discount_amount AS descuento,
              m.payable_amount AS pagar,
-             m.occurred_at AS occurred_at, m.created_at AS created_at
+             m.occurred_at AS occurred_at, m.confirmed_at AS confirmed_at,
+             m.created_at AS created_at
       """;
 
   @Override
@@ -453,8 +458,7 @@ public class JpaMovementRepository implements MovementRepository {
     if (movementId == null || actorId == null) {
       return Optional.empty();
     }
-
-    List<Tuple> cabecera =
+    Query cabecera =
         em.createNativeQuery(
                 CABECERA_PROPIA
                     + """
@@ -469,9 +473,42 @@ public class JpaMovementRepository implements MovementRepository {
                     """,
                 Tuple.class)
             .setParameter("movimiento", movementId)
-            .setParameter("actor", actorId)
-            .getResultList();
+            .setParameter("actor", actorId);
+    return detalle(movementId, cabecera);
+  }
 
+  /**
+   * <b>Sin alcance</b>, para quien confirma (`RF-MV-003`): la misma proyección que el detalle
+   * propio sin el predicado del actor. El {@code CASE} del papel queda en la cabecera con el actor
+   * en nulo y resuelve {@code SELLER}, que aquí no significa nada y nadie lee: lo que importa es no
+   * tener dos proyecciones de la misma cabecera.
+   */
+  @Override
+  @Transactional(readOnly = true)
+  public Optional<MovementDetailView> findById(UUID movementId) {
+    if (movementId == null) {
+      return Optional.empty();
+    }
+    Query cabecera =
+        em.createNativeQuery(
+                CABECERA_PROPIA
+                    + """
+                    FROM movements m
+                    JOIN users suj ON suj.id = m.user_id
+                    JOIN currencies cur ON cur.id = m.currency_id
+                    JOIN payment_methods pm ON pm.id = m.payment_method_id
+                    WHERE m.id = :movimiento
+                    """,
+                Tuple.class)
+            .setParameter("movimiento", movementId)
+            .setParameter("actor", (UUID) null);
+    return detalle(movementId, cabecera);
+  }
+
+  /** La cabecera que la consulta dada devuelva, con sus líneas y rebajas. */
+  @SuppressWarnings("unchecked")
+  private Optional<MovementDetailView> detalle(UUID movementId, Query consultaDeCabecera) {
+    List<Tuple> cabecera = consultaDeCabecera.getResultList();
     if (cabecera.isEmpty()) {
       return Optional.empty();
     }
@@ -489,6 +526,8 @@ public class JpaMovementRepository implements MovementRepository {
                        d.quantity AS cantidad, d.unit_price AS precio,
                        d.line_discount AS descuento, d.line_amount AS importe,
                        d.validity_days AS vigencia,
+                       d.implementation AS impl, d.delivery_status AS entrega,
+                       d.delivered_at AS entregada_en, d.delivery_note AS motivo,
                        v.id AS ven_id, v.username AS ven_username,
                        v.first_name AS ven_first, v.last_name AS ven_last
                   FROM movement_details d
@@ -524,10 +563,221 @@ public class JpaMovementRepository implements MovementRepository {
               (String) linea.get("ven_username"),
               (String) linea.get("ven_first"),
               (String) linea.get("ven_last"),
-              rebajas.getOrDefault((UUID) linea.get("linea_id"), List.of())));
+              rebajas.getOrDefault((UUID) linea.get("linea_id"), List.of()),
+              (String) linea.get("impl"),
+              (String) linea.get("entrega"),
+              instante(linea.get("entregada_en")),
+              (String) linea.get("motivo")));
     }
 
     return Optional.of(new MovementDetailView(cabecera(cabecera.get(0)), detalle));
+  }
+
+  // ---------------------------------------------------------------------------
+  // `RF-MV-003` — confirmar
+  // ---------------------------------------------------------------------------
+
+  @Override
+  @Transactional(readOnly = true)
+  public Optional<String> findStatus(UUID movementId) {
+    @SuppressWarnings("unchecked")
+    List<Object> filas =
+        em.createNativeQuery("SELECT status FROM movements WHERE id = :id")
+            .setParameter("id", movementId)
+            .getResultList();
+    return filas.isEmpty() ? Optional.empty() : Optional.of((String) filas.get(0));
+  }
+
+  /**
+   * <b>La cuenta de filas es la decisión.</b> Cero filas significa «no estaba pendiente» —o no
+   * existe—, y se responde sin haber leído nada antes: dos confirmaciones simultáneas no pueden
+   * leer las dos «pendiente», porque ninguna lee. La que llega segunda espera el bloqueo de fila
+   * que la primera tomó, y al despertar encuentra {@code CONFIRMADA} y afecta cero.
+   */
+  @Override
+  @Transactional
+  public boolean confirmIfPending(UUID movementId, OffsetDateTime at) {
+    int filas =
+        em.createNativeQuery(
+                """
+                UPDATE movements
+                   SET status = 'CONFIRMADA', confirmed_at = :ahora
+                 WHERE id = :id AND status = 'PENDIENTE'
+                """)
+            .setParameter("id", movementId)
+            .setParameter("ahora", at)
+            .executeUpdate();
+    return filas == 1;
+  }
+
+  @Override
+  @Transactional(readOnly = true)
+  public List<DeliveryLineRow> findLinesForDelivery(UUID movementId) {
+    @SuppressWarnings("unchecked")
+    List<Tuple> filas =
+        em.createNativeQuery(
+                """
+                SELECT d.id AS linea_id, p.code AS p_code, d.implementation AS impl,
+                       p.type AS p_type, p.target_membership_id AS m_id,
+                       m.code AS m_code, m.level AS m_level,
+                       d.validity_days AS vigencia
+                  FROM movement_details d
+                  JOIN products p ON p.id = d.product_id
+                  -- La membresía destino NO se copia (`RF-PM-004` rechaza cambiarla):
+                  -- se lee del producto, que `RN-PM-010` garantiza que sigue ahí.
+                  LEFT JOIN memberships m ON m.id = p.target_membership_id
+                 WHERE d.movement_id = :movimiento
+                 ORDER BY p.code ASC
+                """,
+                Tuple.class)
+            .setParameter("movimiento", movementId)
+            .getResultList();
+    List<DeliveryLineRow> resultado = new ArrayList<>(filas.size());
+    for (Tuple fila : filas) {
+      resultado.add(
+          new DeliveryLineRow(
+              (UUID) fila.get("linea_id"),
+              (String) fila.get("p_code"),
+              (String) fila.get("impl"),
+              "UPGRADE_MEMBRESIA".equals(fila.get("p_type")),
+              (UUID) fila.get("m_id"),
+              (String) fila.get("m_code"),
+              fila.get("m_level") == null ? null : ((Number) fila.get("m_level")).intValue(),
+              fila.get("vigencia") == null ? null : ((Number) fila.get("vigencia")).intValue()));
+    }
+    return resultado;
+  }
+
+  @Override
+  @Transactional
+  public void markDelivered(UUID lineId, OffsetDateTime at) {
+    // CONDICIONADO a `PENDIENTE`: de `ENTREGADA` o `RETENIDA` no se sale, y una
+    // línea que ya no estuviera pendiente aquí es un fallo, no un caso.
+    int filas =
+        em.createNativeQuery(
+                """
+                UPDATE movement_details
+                   SET delivery_status = 'ENTREGADA', delivered_at = :ahora
+                 WHERE id = :id AND delivery_status = 'PENDIENTE'
+                """)
+            .setParameter("id", lineId)
+            .setParameter("ahora", at)
+            .executeUpdate();
+    if (filas != 1) {
+      throw new IllegalStateException("La línea " + lineId + " no estaba pendiente de entrega.");
+    }
+  }
+
+  @Override
+  @Transactional
+  public void markRetained(UUID lineId, String note) {
+    int filas =
+        em.createNativeQuery(
+                """
+                UPDATE movement_details
+                   SET delivery_status = 'RETENIDA', delivery_note = :motivo
+                 WHERE id = :id AND delivery_status = 'PENDIENTE'
+                """)
+            .setParameter("id", lineId)
+            .setParameter("motivo", note)
+            .executeUpdate();
+    if (filas != 1) {
+      throw new IllegalStateException("La línea " + lineId + " no estaba pendiente de entrega.");
+    }
+  }
+
+  // ---------------------------------------------------------------------------
+  // `RF-MV-014` — los productos comprados propios
+  // ---------------------------------------------------------------------------
+
+  /**
+   * El estado y el «hasta» en la MISMA expresión, para que no puedan discrepar: {@code VENCIDO} es
+   * exactamente «hay hasta y ya pasó», con el borde de `SP` — igual al instante ya venció.
+   *
+   * <p>El alcance es un solo papel, el sujeto (`spec.md` §3): un vendedor no «tiene» lo que colocó.
+   */
+  private static final String PRODUCTOS_PROPIOS =
+      """
+      FROM movement_details d
+      JOIN movements m ON m.id = d.movement_id
+      JOIN products p ON p.id = d.product_id
+      CROSS JOIN LATERAL (
+        SELECT CASE WHEN d.delivered_at IS NULL OR d.validity_days IS NULL THEN NULL
+                    ELSE d.delivered_at + make_interval(days => d.validity_days) END AS hasta
+      ) v
+      CROSS JOIN LATERAL (
+        SELECT CASE
+                 WHEN m.status = 'PENDIENTE'          THEN 'PENDIENTE_PAGO'
+                 WHEN m.status = 'RECHAZADA'          THEN 'RECHAZADO'
+                 WHEN m.status = 'ANULADA'            THEN 'ANULADO'
+                 WHEN d.delivery_status = 'RETENIDA'  THEN 'RETENIDO'
+                 WHEN d.delivery_status = 'PENDIENTE' THEN 'PENDIENTE_AUTORIZACION'
+                 WHEN v.hasta IS NOT NULL AND v.hasta <= CAST(:ahora AS timestamptz)
+                                                      THEN 'VENCIDO'
+                 ELSE                                      'ACTIVO'
+               END AS estado
+      ) e
+      WHERE m.user_id = :actor
+        AND (CAST(:estado AS varchar) IS NULL OR e.estado = CAST(:estado AS varchar))
+      """;
+
+  @Override
+  @Transactional(readOnly = true)
+  public List<MyProductRow> findMyProducts(
+      UUID actorId, String state, OffsetDateTime now, int offset, int limit) {
+    @SuppressWarnings("unchecked")
+    List<Tuple> filas =
+        em.createNativeQuery(
+                """
+                SELECT m.id AS mov_id, m.code AS mov_code, m.status AS mov_status,
+                       d.product_id AS product_id, p.code AS p_code, d.product_name AS p_name,
+                       d.quantity AS cantidad, d.implementation AS impl, e.estado AS estado,
+                       m.occurred_at AS comprado_en, d.delivered_at AS entregado_en,
+                       v.hasta AS hasta, d.delivery_note AS motivo
+                """
+                    + PRODUCTOS_PROPIOS
+                    // De la compra más reciente a la más antigua; el desempate por
+                    // venta y por código de producto es lo que lo hace estable.
+                    + " ORDER BY m.occurred_at DESC, m.id DESC, p.code ASC"
+                    + " LIMIT :limite OFFSET :desde",
+                Tuple.class)
+            .setParameter("actor", actorId)
+            .setParameter("estado", state)
+            .setParameter("ahora", now)
+            .setParameter("limite", limit)
+            .setParameter("desde", offset)
+            .getResultList();
+    List<MyProductRow> resultado = new ArrayList<>(filas.size());
+    for (Tuple fila : filas) {
+      resultado.add(
+          new MyProductRow(
+              (UUID) fila.get("mov_id"),
+              (String) fila.get("mov_code"),
+              (String) fila.get("mov_status"),
+              (UUID) fila.get("product_id"),
+              (String) fila.get("p_code"),
+              (String) fila.get("p_name"),
+              ((Number) fila.get("cantidad")).intValue(),
+              (String) fila.get("impl"),
+              (String) fila.get("estado"),
+              instante(fila.get("comprado_en")),
+              instante(fila.get("entregado_en")),
+              instante(fila.get("hasta")),
+              (String) fila.get("motivo")));
+    }
+    return resultado;
+  }
+
+  @Override
+  @Transactional(readOnly = true)
+  public long countMyProducts(UUID actorId, String state, OffsetDateTime now) {
+    Object total =
+        em.createNativeQuery("SELECT count(*) " + PRODUCTOS_PROPIOS)
+            .setParameter("actor", actorId)
+            .setParameter("estado", state)
+            .setParameter("ahora", now)
+            .getSingleResult();
+    return ((Number) total).longValue();
   }
 
   // ---------------------------------------------------------------------------
@@ -731,6 +981,7 @@ public class JpaMovementRepository implements MovementRepository {
         (BigDecimal) fila.get("descuento"),
         (BigDecimal) fila.get("pagar"),
         instante(fila.get("occurred_at")),
+        instante(fila.get("confirmed_at")),
         instante(fila.get("created_at")));
   }
 

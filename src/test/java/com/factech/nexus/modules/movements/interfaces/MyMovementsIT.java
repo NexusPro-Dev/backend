@@ -401,8 +401,9 @@ class MyMovementsIT extends IntegrationTestBase {
         """
         INSERT INTO movement_details (id, movement_id, product_id, seller_id, product_name,
                                       product_description, quantity, unit_price,
-                                      line_amount, validity_days)
-        VALUES (?, ?, ?, ?, 'Bot de prueba', 'Lo que decia el catalogo', 1, 100.00, 100.00, NULL)
+                                      line_amount, validity_days, implementation)
+        VALUES (?, ?, ?, ?, 'Bot de prueba', 'Lo que decia el catalogo', 1, 100.00, 100.00, NULL,
+                'AUTOMATICA')
         """,
         UUID.randomUUID(),
         movimiento,

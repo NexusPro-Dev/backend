@@ -114,6 +114,11 @@ public interface ProductCatalog {
    * el 16-09-2026 (`RN-MV-002`): esta lectura es la que resuelve el catálogo al registrar, y
    * pedirlos otra vez sería una consulta más para un dato que está en la mano. {@code description}
    * admite nulo, que significa que el producto no la declara.
+   *
+   * <p><b>{@code implementation} viaja porque `MV` también la CONGELA</b> desde el 17-09-2026
+   * (`RN-MV-030`, `V16`): es lo que decide si confirmar el pago entrega —{@code AUTOMATICA}— o
+   * espera a que alguien autorice —{@code MANUAL}— (`RN-MV-021`), y `RF-PM-004` la corrige, de modo
+   * que se copia como el precio. Lo vendido se entrega como se vendió.
    */
   record SaleView(
       UUID id,
@@ -127,5 +132,6 @@ public interface ProductCatalog {
       int currencyDecimalPlaces,
       Integer validityDays,
       UUID targetMembershipId,
-      Integer targetMembershipLevel) {}
+      Integer targetMembershipLevel,
+      String implementation) {}
 }
