@@ -27,12 +27,13 @@ import org.springframework.transaction.annotation.Transactional;
  *
  * <h2>Reutiliza, y no reescribe</h2>
  *
- * <p><b>La sentencia es la del detalle</b> ({@link ProductPackageQueryRepository#findDetail}) y
- * <b>la decisión es la del detalle</b> ({@link PackageDetail#ofrecibilidad}): un paquete vencido,
- * uno inactivo, uno con un producto retirado y uno correcto responden aquí <b>lo mismo</b> que
- * `RF-PM-019` publica en {@code offerable} y {@code offerableReason}. Es la tarea donde se decide
- * si la venta envejece bien: si copiara el predicado, el día que `PM` añada una condición —otra
- * fecha, otro alcance— la venta seguiría con el viejo y <b>nada fallaría</b>.
+ * <p><b>La sentencia es la del detalle</b> ({@link ProductPackageQueryRepository#findDetailByCode},
+ * la misma de {@code findDetail} con el código como predicado) y <b>la decisión es la del
+ * detalle</b> ({@link PackageDetail#ofrecibilidad}): un paquete vencido, uno inactivo, uno con un
+ * producto retirado y uno correcto responden aquí <b>lo mismo</b> que `RF-PM-019` publica en {@code
+ * offerable} y {@code offerableReason}. Es la tarea donde se decide si la venta envejece bien: si
+ * copiara el predicado, el día que `PM` añada una condición —otra fecha, otro alcance— la venta
+ * seguiría con el viejo y <b>nada fallaría</b>.
  *
  * <p><b>Lo único que se añade es el alcance</b>, porque {@link PackageOfferability} no lo mira: la
  * oferta lo filtra en el {@code WHERE} de {@code findOfferable} y el detalle no lo necesita. Aquí
@@ -83,11 +84,11 @@ public class PublishedPackageCatalog implements PackageCatalog {
 
   @Override
   @Transactional(readOnly = true)
-  public Optional<PackageSaleView> storeSaleViewOf(UUID packageId, UUID buyerId) {
-    if (packageId == null || buyerId == null) {
+  public Optional<PackageSaleView> storeSaleViewOf(String code, UUID buyerId) {
+    if (code == null || code.isBlank() || buyerId == null) {
       return Optional.empty();
     }
-    Optional<PackageDetail> detalle = consultas.findDetail(packageId);
+    Optional<PackageDetail> detalle = consultas.findDetailByCode(code);
     // El retirado se colapsa con el inexistente A PROPÓSITO (`EX-001` de
     // `RF-MV-012`): al detalle de administración le sirve distinguirlos porque
     // desde ahí se arregla; a quien compra, un paquete retirado no existe.

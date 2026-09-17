@@ -6683,6 +6683,58 @@
         "tags" : [ "Paquetes" ]
       }
     },
+    "/api/v1/packages/{code}/purchases" : {
+      "post" : {
+        "description" : "**Usted se compra el paquete entero** que su oferta le muestra, pagando **lo que ese\npaquete vale** —la suma de sus productos rebajados, el mismo `price` que publica la\noferta— y recibiendo **cada producto** con el descuento que el paquete le declara,\ncongelado.\n\n**El cuerpo lleva el método de pago y nada más.** El paquete va en la ruta **por su\ncódigo** —el que publica la oferta—, sin distinguir mayúsculas. **No se\nadmiten** productos, cantidades, precios ni descuentos: el paquete se compra\n**entero** —no se elige qué llevarse—, **uno** —no hay cantidad— y **solo** —sin\nproductos sueltos ni un segundo paquete; quien quiera dos cosas hace dos compras—.\nEl descuento es el que el paquete declara, y un descuento enviado no tiene dónde\ncaer. Tampoco viajan el cliente —es usted— ni la fecha —es ahora—.\n\n**`paymentMethodId` es condicional en los dos sentidos.** Obligatorio si el paquete\ntiene importe; **prohibido** si vale cero, que se registra como gratuita: envíe `{}`.\n\n**La venta nace `PENDIENTE`, y eso significa que no concede nada.** No sube de\nnivel, no habilita nada y no comisiona hasta que se confirme el pago. Se registra\n**una línea por producto del paquete**, cantidad uno, cada una con lo copiado del\ncatálogo —nombre, descripción, precio unitario, vigencia— y **su rebaja explicada**:\n`discounts[]` dice cómo se pactó (`type`, `value`) y cuánto valió en dinero\n(`discountValue`), y `lineDiscount` es lo que se restó. `payableAmount` es la suma de\nlas líneas rebajadas; `totalAmount` lo que valdrían sin rebaja; `discountAmount` la\ndiferencia. El paquete queda anotado en `packageId`.\n\n**Lo copiado queda congelado.** Corregir después el descuento del paquete, el precio\nde un producto o quitar un producto del paquete no cambia esta venta.\n\n**Se compra tal como está hoy.** Al registrar se vuelve a comprobar todo lo que la\noferta ya miró: que el paquete esté activo, publicado en la tienda, con sus\nproductos, **dentro de su vigencia**, y que le corresponda a usted por su membresía.\n**Y se compra entero**: si un producto del paquete no procede —inactivo, retirado,\nfuera de su oferta, o un upgrade que baja de nivel— se rechaza la compra completa\nnombrando el producto, y **no se registra nada**.\n\n**La respuesta no lleva el vendedor**: se atribuye a su superior comercial vigente\n—o a usted mismo si no cuelga de nadie— y se congela en cada línea, pero a quien\ncompra no se le enseña. Es la misma forma que devuelve `GET /api/v1/movements/mine/{id}`\nsin `seller`.\n",
+        "operationId" : "comprar",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "code",
+          "required" : true,
+          "schema" : {
+            "type" : "string"
+          }
+        } ],
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/BuyPackageRequest"
+              }
+            }
+          }
+        },
+        "responses" : {
+          "201" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/PurchaseResponse"
+                }
+              }
+            },
+            "description" : "Venta registrada, pendiente de pago."
+          },
+          "400" : {
+            "description" : "Un campo que el cuerpo no admite: productos, cantidad, precio o descuento."
+          },
+          "401" : {
+            "description" : "Token ausente o inválido (`AUTH-001`). Comprar exige sesión."
+          },
+          "409" : {
+            "description" : "Lo que solo se sabe después de resolver: el paquete no se ofrece hoy —inactivo, vencido, sin descripción, con menos de dos productos, fuera de la tienda o con un producto inactivo o retirado— (`EX-002`, con el mismo motivo que publica el catálogo); no le corresponde a usted por su membresía (`EX-003`); un producto no está en su oferta (`EX-004`); el upgrade BAJA de nivel —renovar el mismo sí se admite— (`EX-005`); su cuenta no puede operar todavía (`EX-006`); el método de pago no cuadra con el importe (`RN-MV-022`) o está desactivado (`EX-010`)."
+          },
+          "422" : {
+            "description" : "Una referencia que no resuelve: ningún paquete tiene ese código, o está retirado (`EX-001`); o el método de pago no existe (`EX-010`)."
+          },
+          "500" : {
+            "description" : "Fallo no controlado (`ERR-500`)"
+          }
+        },
+        "summary" : "Comprar un paquete para uno mismo",
+        "tags" : [ "Movimientos" ]
+      }
+    },
     "/api/v1/packages/{id}" : {
       "get" : {
         "description" : "El paquete con sus productos y **la cuenta hecha**: cada producto con su\ndescuento y su `priceInPackage`, y `listPrice`, `price` y `savings` que\ncuadran con las líneas. **El precio se calcula en cada lectura** con el\nprecio de catálogo **de hoy** de cada producto: corregir el precio de un\nproducto cambia el paquete sin tocarlo, y un fijo que hoy supera su precio\ncuenta **cero**, nunca negativo. `exchange` es la conversión de `price` a la\nmoneda de casa; nula si el paquete ya está en ella o no hay tasa.\n\nEs la lectura de administración: **devuelve todo**. Un producto inactivo o\nretirado dentro del paquete **se devuelve igual**, con su `status` y su\n`deleted`, y **sigue sumando** — esta es la única pantalla desde la que se\narregla. Y `purchasePrice` de cada producto viaja, presente y nulo cuando\nno se conoce; la oferta y el hotlink no lo llevan.\n\n`offerable` dice si el paquete se puede ofrecer hoy, y `offerableReason` el\n**primer** motivo que lo impide, en un orden fijo: menos de dos productos,\nsin descripción, inactivo, retirado, **fuera de su vigencia** —«todavía no\nestá vigente: empieza el …» o «la vigencia terminó el …», con la fecha—, y\nun producto inactivo o retirado —**nombrado por su código**—. Nulo cuando\nes ofrecible. `validFrom` y `validTo` viajan siempre, el fin nulo cuando es\nindefinido, y **el día de fin cuenta entero**: un paquete que termina hoy\nse ofrece hoy. «Hoy» es el día en UTC.\n\n**Un paquete retirado no es un `404`**: se devuelve con `deletedAt` y\n`deletionReason`, como el producto. Exige `packages:read`.\n",
@@ -7255,59 +7307,6 @@
         },
         "summary" : "Corregir el descuento de un producto del paquete",
         "tags" : [ "Paquetes" ]
-      }
-    },
-    "/api/v1/packages/{id}/purchases" : {
-      "post" : {
-        "description" : "**Usted se compra el paquete entero** que su oferta le muestra, pagando **lo que ese\npaquete vale** —la suma de sus productos rebajados, el mismo `price` que publica la\noferta— y recibiendo **cada producto** con el descuento que el paquete le declara,\ncongelado.\n\n**El cuerpo lleva el método de pago y nada más.** El paquete va en la ruta. **No se\nadmiten** productos, cantidades, precios ni descuentos: el paquete se compra\n**entero** —no se elige qué llevarse—, **uno** —no hay cantidad— y **solo** —sin\nproductos sueltos ni un segundo paquete; quien quiera dos cosas hace dos compras—.\nEl descuento es el que el paquete declara, y un descuento enviado no tiene dónde\ncaer. Tampoco viajan el cliente —es usted— ni la fecha —es ahora—.\n\n**`paymentMethodId` es condicional en los dos sentidos.** Obligatorio si el paquete\ntiene importe; **prohibido** si vale cero, que se registra como gratuita: envíe `{}`.\n\n**La venta nace `PENDIENTE`, y eso significa que no concede nada.** No sube de\nnivel, no habilita nada y no comisiona hasta que se confirme el pago. Se registra\n**una línea por producto del paquete**, cantidad uno, cada una con lo copiado del\ncatálogo —nombre, descripción, precio unitario, vigencia— y **su rebaja explicada**:\n`discounts[]` dice cómo se pactó (`type`, `value`) y cuánto valió en dinero\n(`discountValue`), y `lineDiscount` es lo que se restó. `payableAmount` es la suma de\nlas líneas rebajadas; `totalAmount` lo que valdrían sin rebaja; `discountAmount` la\ndiferencia. El paquete queda anotado en `packageId`.\n\n**Lo copiado queda congelado.** Corregir después el descuento del paquete, el precio\nde un producto o quitar un producto del paquete no cambia esta venta.\n\n**Se compra tal como está hoy.** Al registrar se vuelve a comprobar todo lo que la\noferta ya miró: que el paquete esté activo, publicado en la tienda, con sus\nproductos, **dentro de su vigencia**, y que le corresponda a usted por su membresía.\n**Y se compra entero**: si un producto del paquete no procede —inactivo, retirado,\nfuera de su oferta, o un upgrade que baja de nivel— se rechaza la compra completa\nnombrando el producto, y **no se registra nada**.\n\n**La respuesta no lleva el vendedor**: se atribuye a su superior comercial vigente\n—o a usted mismo si no cuelga de nadie— y se congela en cada línea, pero a quien\ncompra no se le enseña. Es la misma forma que devuelve `GET /api/v1/movements/mine/{id}`\nsin `seller`.\n",
-        "operationId" : "comprar",
-        "parameters" : [ {
-          "in" : "path",
-          "name" : "id",
-          "required" : true,
-          "schema" : {
-            "format" : "uuid",
-            "type" : "string"
-          }
-        } ],
-        "requestBody" : {
-          "content" : {
-            "application/json" : {
-              "schema" : {
-                "$ref" : "#/components/schemas/BuyPackageRequest"
-              }
-            }
-          }
-        },
-        "responses" : {
-          "201" : {
-            "content" : {
-              "*/*" : {
-                "schema" : {
-                  "$ref" : "#/components/schemas/PurchaseResponse"
-                }
-              }
-            },
-            "description" : "Venta registrada, pendiente de pago."
-          },
-          "400" : {
-            "description" : "Identificador de paquete malformado en la ruta (`VAL-001`)."
-          },
-          "401" : {
-            "description" : "Token ausente o inválido (`AUTH-001`). Comprar exige sesión."
-          },
-          "409" : {
-            "description" : "Lo que solo se sabe después de resolver: el paquete no se ofrece hoy —inactivo, vencido, sin descripción, con menos de dos productos, fuera de la tienda o con un producto inactivo o retirado— (`EX-002`, con el mismo motivo que publica el catálogo); no le corresponde a usted por su membresía (`EX-003`); un producto no está en su oferta (`EX-004`); el upgrade BAJA de nivel —renovar el mismo sí se admite— (`EX-005`); su cuenta no puede operar todavía (`EX-006`); el método de pago no cuadra con el importe (`RN-MV-022`) o está desactivado (`EX-010`)."
-          },
-          "422" : {
-            "description" : "Una referencia bien formada que no resuelve: el paquete no existe o está retirado (`EX-001`), o el método de pago no existe (`EX-010`)."
-          },
-          "500" : {
-            "description" : "Fallo no controlado (`ERR-500`)"
-          }
-        },
-        "summary" : "Comprar un paquete para uno mismo",
-        "tags" : [ "Movimientos" ]
       }
     },
     "/api/v1/packages/{id}/status" : {

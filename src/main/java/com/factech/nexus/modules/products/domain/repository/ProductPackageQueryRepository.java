@@ -31,6 +31,13 @@ public interface ProductPackageQueryRepository {
   Optional<PackageDetail> findDetail(UUID id);
 
   /**
+   * Lo mismo que {@link #findDetail}, <b>por código</b> y sin distinguir mayúsculas, como el
+   * hotlink (`RF-PM-026`). Es la lectura de la venta (`RF-MV-012`): el cliente tiene el código —lo
+   * publica la oferta— y no el identificador. Retirado incluido, por lo mismo que la otra.
+   */
+  Optional<PackageDetail> findDetailByCode(String code);
+
+  /**
    * La página de paquetes (`RF-PM-018`), <b>sin sus filas</b>: solo la tabla y la moneda. El orden
    * llega resuelto por {@code PackageSortField}, y el de precio ordena por una subconsulta porque
    * el precio no está en ninguna columna.

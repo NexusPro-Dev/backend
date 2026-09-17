@@ -152,7 +152,7 @@ public class BuyPackageService {
    * propio vendedor sin una bandera.
    */
   @Transactional
-  public PurchaseResponse buy(UUID packageId, BuyPackageRequest peticion) {
+  public PurchaseResponse buy(String codigoDelPaquete, BuyPackageRequest peticion) {
     UUID quien =
         actor
             .currentActorId()
@@ -160,14 +160,14 @@ public class BuyPackageService {
     ClientView cliente = verificarCliente(quien);
     SellerView vendedor = resolverVendedor(cliente);
     return registrar(
-        cliente, vendedor, packageId, peticion == null ? null : peticion.paymentMethodId());
+        cliente, vendedor, codigoDelPaquete, peticion == null ? null : peticion.paymentMethodId());
   }
 
   PurchaseResponse registrar(
-      ClientView cliente, SellerView vendedor, UUID packageId, UUID metodoDePago) {
+      ClientView cliente, SellerView vendedor, String codigoDelPaquete, UUID metodoDePago) {
     OffsetDateTime ahora = OffsetDateTime.now(reloj);
 
-    PackageSaleView paquete = resolverPaquete(packageId, cliente.id());
+    PackageSaleView paquete = resolverPaquete(codigoDelPaquete, cliente.id());
     verificarQueSeOfrece(paquete);
 
     List<PackageSaleLine> items = paquete.items();
@@ -239,10 +239,15 @@ public class BuyPackageService {
   // 2. El paquete
   // ---------------------------------------------------------------------------
 
-  /** `EX-001`: inexistente o retirado, y los dos son lo mismo para quien compra. */
-  private PackageSaleView resolverPaquete(UUID packageId, UUID compradorId) {
+  /**
+   * `EX-001`: inexistente o retirado, y los dos son lo mismo para quien compra.
+   *
+   * <p><b>Por código</b>: es lo que el cliente tiene delante —la oferta lo publica— y lo que un
+   * enlace puede llevar escrito. El identificador es un dato de administración.
+   */
+  private PackageSaleView resolverPaquete(String codigo, UUID compradorId) {
     return paquetes
-        .storeSaleViewOf(packageId, compradorId)
+        .storeSaleViewOf(codigo, compradorId)
         .orElseThrow(
             () ->
                 new UnprocessableEntityException(

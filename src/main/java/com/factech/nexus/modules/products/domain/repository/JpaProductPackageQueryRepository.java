@@ -66,7 +66,25 @@ public class JpaProductPackageQueryRepository implements ProductPackageQueryRepo
     if (id == null) {
       return Optional.empty();
     }
-    // Sin `k.deleted_at IS NULL`: el retirado se devuelve marcado (`FA-003`).
+    return detalle(" WHERE k.id = :valor", id);
+  }
+
+  @Override
+  @Transactional(readOnly = true)
+  public Optional<PackageDetail> findDetailByCode(String code) {
+    if (code == null || code.isBlank()) {
+      return Optional.empty();
+    }
+    // La unicidad del código es sobre `upper(code)` (`RN-PM-041`), de modo que
+    // hay como mucho una fila y el índice sirve.
+    return detalle(" WHERE upper(k.code) = upper(:valor)", code.trim());
+  }
+
+  /**
+   * La sentencia del detalle con su predicado. Sin `k.deleted_at IS NULL`: el retirado se devuelve
+   * marcado (`FA-003`).
+   */
+  private Optional<PackageDetail> detalle(String predicado, Object valor) {
     List<Tuple> filas =
         em.createNativeQuery(
                 "SELECT "
@@ -78,11 +96,11 @@ public class JpaProductPackageQueryRepository implements ProductPackageQueryRepo
                       JOIN currencies c ON c.id = k.currency_id
                       LEFT JOIN product_package_items i ON i.package_id = k.id
                       LEFT JOIN products p ON p.id = i.product_id
-                     WHERE k.id = :id
                     """
+                    + predicado
                     + ORDEN_DE_FILAS,
                 Tuple.class)
-            .setParameter("id", id)
+            .setParameter("valor", valor)
             .getResultList();
     return desdoblar(filas).stream().findFirst();
   }

@@ -176,7 +176,7 @@ class EndpointPermissionsIT extends IntegrationTestBase {
                   + " `products:update`. Solo tres tipos —SVG fuera—, `nosniff`, y la cota de tasa"
                   + " por la familia (`security.md` §6)"),
           Map.entry(
-              "POST /api/v1/packages/{id}/purchases",
+              "POST /api/v1/packages/{code}/purchases",
               "Solo estar autenticado (`RF-MV-012`, 17-09-2026): es una COMPRA PROPIA, como"
                   + " `RF-MV-002` y `RF-PM-007`. El sujeto no viaja en la petición —sale de la"
                   + " credencial—, de modo que no hay forma de comprar a nombre de otro ni alcance"

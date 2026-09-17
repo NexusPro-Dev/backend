@@ -4,7 +4,7 @@
 |---|---|
 | Requerimiento | `RF-MV-012` |
 | Módulo | `MV` — Movimientos |
-| Versión | 0.1.0 |
+| Versión | 0.2.0 |
 | Estado | **Aprobada** |
 | Autor | Responsable técnico |
 | Aprobada por | Responsable del proyecto |
@@ -111,7 +111,7 @@ Cada línea nace con cantidad **uno**, de modo que `RN-MV-015` —la cantidad es
 
 | Dato | Obligatorio | Descripción | Restricción de negocio |
 |---|---|---|---|
-| Paquete | Sí | Cuál se compra | Debe existir, estar **activo**, publicado donde corresponde, **dentro de su vigencia** y **ofrecible a quien compra** |
+| Paquete | Sí | Cuál se compra, **por su código** (`RN-PM-041`): es lo que el cliente tiene delante —la oferta y el hotlink lo publican— y lo que un enlace puede llevar escrito, sin distinguir mayúsculas | Debe existir, estar **activo**, publicado donde corresponde, **dentro de su vigencia** y **ofrecible a quien compra** |
 | Método de pago | **Condicional** | Con qué se paga | Igual que en `RF-MV-001`: prohibido si el total es cero —se asigna el gratuito— y obligatorio si tiene importe (`RN-MV-022`) |
 
 **Dos campos, y los dos ya existían en otra operación.** Lo que define esta entrada es **todo lo que no admite**: ni cliente, ni fecha, ni productos, ni cantidades, ni precios, ni descuentos. Cada una de esas ausencias está argumentada —las cuatro primeras en `RF-MV-002`, las tres últimas en §2 y §4.2—, y **juntas significan que el cliente no puede negociar nada**: elige un paquete y dice con qué paga.
@@ -195,7 +195,7 @@ La de `RF-MV-002` —la venta sin el vendedor—, **con dos añadidos**:
 
 ### EX-001 — El paquete no existe
 
-**Condición:** el identificador no corresponde a ningún paquete, o está retirado.
+**Condición:** el código no corresponde a ningún paquete, o el paquete está retirado.
 **Respuesta del sistema:** rechaza diciendo que el paquete indicado no existe, y no registra nada.
 
 ### EX-002 — El paquete no se puede ofrecer hoy
@@ -286,3 +286,4 @@ La de `RF-MV-002` —la venta sin el vendedor—, **con dos añadidos**:
 | Versión | Fecha | Cambio | Responsable |
 |---|---|---|---|
 | 0.1.0 | 16-09-2026 | Redacción inicial, sin preguntas abiertas. **Se escribe por diferencias con `RF-MV-002`**, que a su vez hereda de `RF-MV-001`: las cuatro decisiones de aquel —el cliente es quien pide, sin fecha, sin vendedor en la respuesta y sin permiso— valen tal cual y no se repiten. Lo que este documento fija es **lo que el paquete añade**, que es `RN-MV-028` con sus cuatro caras: **entero** —si un producto no procede se rechaza todo, en lugar de vender lo que queda o de recalcular un paquete que nadie configuró—, **uno** —`RN-PM-038` ya decidió que dentro del paquete no hay cantidad—, **solo** —mezclarlo con productos sueltos permitiría dos upgrades por caminos distintos— y **tal como está hoy**, con su vigencia comprobada al registrar porque la oferta que lo pintó no es una promesa. Doce criterios nuevos, `CA-MV-049` a `CA-MV-060`, de los que `CA-MV-050` es el que sostiene todo: **lo que se cobra tiene que ser lo que el catálogo publica**. | Responsable del proyecto |
+| 0.2.0 | 17-09-2026 | **El paquete se indica por su código y no por su identificador** (§6.1, `EX-001`), por decisión del responsable del proyecto el día de la construcción. El código es el nombre público del paquete (`RN-PM-041`: corto, estable, inmutable y único incluso frente a los retirados), es lo que la oferta y el hotlink publican, y es lo que un enlace o una pantalla pueden llevar escrito; el identificador es un dato interno que el cliente no tiene por qué conocer. Es el mismo criterio con el que `RF-MV-013` compra por el código del hotlink. Sin cambio en criterios ni en flujos: lo que se resuelve es lo mismo, y cambia cómo se nombra. | Responsable del proyecto |

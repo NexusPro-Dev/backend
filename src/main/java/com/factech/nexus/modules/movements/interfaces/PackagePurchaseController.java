@@ -10,7 +10,6 @@ import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import java.net.URI;
-import java.util.UUID;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -58,7 +57,8 @@ public class PackagePurchaseController {
           oferta— y recibiendo **cada producto** con el descuento que el paquete le declara,
           congelado.
 
-          **El cuerpo lleva el método de pago y nada más.** El paquete va en la ruta. **No se
+          **El cuerpo lleva el método de pago y nada más.** El paquete va en la ruta **por su
+          código** —el que publica la oferta—, sin distinguir mayúsculas. **No se
           admiten** productos, cantidades, precios ni descuentos: el paquete se compra
           **entero** —no se elige qué llevarse—, **uno** —no hay cantidad— y **solo** —sin
           productos sueltos ni un segundo paquete; quien quiera dos cosas hace dos compras—.
@@ -96,7 +96,7 @@ public class PackagePurchaseController {
     @ApiResponse(responseCode = "201", description = "Venta registrada, pendiente de pago."),
     @ApiResponse(
         responseCode = "400",
-        description = "Identificador de paquete malformado en la ruta (`VAL-001`).",
+        description = "Un campo que el cuerpo no admite: productos, cantidad, precio o descuento.",
         content = @Content),
     @ApiResponse(
         responseCode = "401",
@@ -117,18 +117,18 @@ public class PackagePurchaseController {
     @ApiResponse(
         responseCode = "422",
         description =
-            "Una referencia bien formada que no resuelve: el paquete no existe o está retirado"
-                + " (`EX-001`), o el método de pago no existe (`EX-010`).",
+            "Una referencia que no resuelve: ningún paquete tiene ese código, o está retirado"
+                + " (`EX-001`); o el método de pago no existe (`EX-010`).",
         content = @Content),
     @ApiResponse(
         responseCode = "500",
         description = "Fallo no controlado (`ERR-500`)",
         content = @Content)
   })
-  @PostMapping("/{id}/purchases")
+  @PostMapping("/{code}/purchases")
   public ResponseEntity<PurchaseResponse> comprar(
-      @PathVariable UUID id, @Valid @RequestBody(required = false) BuyPackageRequest peticion) {
-    PurchaseResponse venta = compra.buy(id, peticion);
+      @PathVariable String code, @Valid @RequestBody(required = false) BuyPackageRequest peticion) {
+    PurchaseResponse venta = compra.buy(code, peticion);
     return ResponseEntity.created(URI.create("/api/v1/movements/mine/" + venta.id())).body(venta);
   }
 }

@@ -47,10 +47,14 @@ public interface PackageCatalog {
    * pregunta no sabe con qué criterio se decide `RN-PM-044`, de modo que el criterio puede cambiar
    * sin que cambie una línea en `MV`.
    *
-   * @param packageId el paquete; un valor nulo devuelve vacío en lugar de fallar
+   * <p><b>Por código y no por identificador</b> (desde el 17-09-2026): el código es el nombre
+   * público del paquete (`RN-PM-041`) y lo que la oferta y el hotlink publican; se compara sin
+   * distinguir mayúsculas, como el hotlink (`RF-PM-026`).
+   *
+   * @param code el código del paquete; nulo o en blanco devuelve vacío en lugar de fallar
    * @param buyerId quien compra; un valor nulo devuelve vacío en lugar de fallar
    */
-  Optional<PackageSaleView> storeSaleViewOf(UUID packageId, UUID buyerId);
+  Optional<PackageSaleView> storeSaleViewOf(String code, UUID buyerId);
 
   /**
    * La vista de venta del paquete: lo que se comprueba y lo que se copia.

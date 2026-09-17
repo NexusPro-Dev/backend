@@ -229,9 +229,7 @@ class BuyPackageIT extends IntegrationTestBase {
             .getContentAsString();
 
     for (UUID paquete : List.of(paqRedondeo, paqBots, paqUp)) {
-      String codigo =
-          jdbc.queryForObject(
-              "SELECT code FROM product_packages WHERE id = ?::uuid", String.class, paquete);
+      String codigo = codigoDe(paquete);
       List<Object> publicado =
           JsonPath.read(oferta, "$.packages.content[?(@.code=='" + codigo + "')].price");
       assertThat(publicado).as("la oferta publica " + codigo).hasSize(1);
@@ -457,7 +455,7 @@ class BuyPackageIT extends IntegrationTestBase {
             "\"discount\":99",
             "\"unitPrice\":0.01")) {
       mvc.perform(
-              post("/api/v1/packages/" + paqBots + "/purchases")
+              post("/api/v1/packages/PAQ_BOTS/purchases")
                   .with(user(comprador.toString()))
                   .contentType(MediaType.APPLICATION_JSON)
                   .content("{\"paymentMethodId\":\"" + TARJETA + "\"," + extra + "}"))
@@ -513,7 +511,7 @@ class BuyPackageIT extends IntegrationTestBase {
       "Un paquete gratuito se registra sin método y con GRATIS; enviarle método se rechaza (RN-MV-022)")
   void elPaqueteGratuito() throws Exception {
     mvc.perform(
-            post("/api/v1/packages/" + paqGratis + "/purchases")
+            post("/api/v1/packages/PAQ_GRATIS/purchases")
                 .with(user(comprador.toString()))
                 .contentType(MediaType.APPLICATION_JSON)
                 .content("{}"))
@@ -526,15 +524,14 @@ class BuyPackageIT extends IntegrationTestBase {
         .andExpect(jsonPath("$.lines[1].lineAmount").value(0.00));
 
     // Y sin cuerpo siquiera: no hay nada que decir.
-    mvc.perform(
-            post("/api/v1/packages/" + paqGratis + "/purchases").with(user(comprador.toString())))
+    mvc.perform(post("/api/v1/packages/PAQ_GRATIS/purchases").with(user(comprador.toString())))
         .andExpect(status().isCreated());
 
     assertThat(rechazo(comprador, paqGratis, "RN-MV-022")).contains("gratuita");
 
     // Y al revés: con importe, el método es obligatorio.
     mvc.perform(
-            post("/api/v1/packages/" + paqBots + "/purchases")
+            post("/api/v1/packages/PAQ_BOTS/purchases")
                 .with(user(comprador.toString()))
                 .contentType(MediaType.APPLICATION_JSON)
                 .content("{}"))
@@ -559,21 +556,26 @@ class BuyPackageIT extends IntegrationTestBase {
 
   @Test
   @DisplayName(
-      "EX-001: el paquete inexistente y el retirado son 422, indistinguibles para quien compra")
+      "EX-001: el código que no es de ningún paquete y el del retirado son 422, indistinguibles para quien compra; el código no distingue mayúsculas")
   void paqueteInexistenteORetirado() throws Exception {
-    mvc.perform(
-            post("/api/v1/packages/" + UUID.randomUUID() + "/purchases")
-                .with(user(comprador.toString())))
-        .andExpect(status().isUnprocessableEntity())
-        .andExpect(jsonPath("$.errors[0].code").value("EX-001"));
+    // Es el código y no el identificador: el uuid del paquete, que antes era la
+    // ruta, hoy es un código que no existe.
+    for (String codigo : List.of("NO_EXISTE", paqBots.toString())) {
+      mvc.perform(
+              post("/api/v1/packages/" + codigo + "/purchases").with(user(comprador.toString())))
+          .andExpect(status().isUnprocessableEntity())
+          .andExpect(jsonPath("$.errors[0].code").value("EX-001"));
+    }
+
+    // Sin distinguir mayúsculas, como el hotlink (`RF-PM-026`).
+    comprar(comprador, "paq_bots", TARJETA)
+        .andExpect(status().isCreated())
+        .andExpect(jsonPath("$.packageId").value(paqBots.toString()));
 
     jdbc.update("UPDATE product_packages SET deleted_at = now() WHERE id = ?::uuid", paqBots);
-    mvc.perform(post("/api/v1/packages/" + paqBots + "/purchases").with(user(comprador.toString())))
+    mvc.perform(post("/api/v1/packages/PAQ_BOTS/purchases").with(user(comprador.toString())))
         .andExpect(status().isUnprocessableEntity())
         .andExpect(jsonPath("$.errors[0].code").value("EX-001"));
-
-    mvc.perform(post("/api/v1/packages/no-es-un-uuid/purchases").with(user(comprador.toString())))
-        .andExpect(status().isBadRequest());
   }
 
   @Test
@@ -608,7 +610,7 @@ class BuyPackageIT extends IntegrationTestBase {
       "Comprar exige sesión: sin credencial es 401, y el vendedor no puede comprar a nombre de su cliente")
   void exigeSesion() throws Exception {
     mvc.perform(
-            post("/api/v1/packages/" + paqBots + "/purchases")
+            post("/api/v1/packages/PAQ_BOTS/purchases")
                 .contentType(MediaType.APPLICATION_JSON)
                 .content("{\"paymentMethodId\":\"" + TARJETA + "\"}"))
         .andExpect(status().isUnauthorized());
@@ -629,7 +631,17 @@ class BuyPackageIT extends IntegrationTestBase {
   // ---------------------------------------------------------------------------
 
   private ResultActions comprar(UUID quien, UUID paquete, String metodo) throws Exception {
-    return mvc.perform(peticion(quien, paquete, metodo));
+    return mvc.perform(peticion(quien, codigoDe(paquete), metodo));
+  }
+
+  private ResultActions comprar(UUID quien, String codigo, String metodo) throws Exception {
+    return mvc.perform(peticion(quien, codigo, metodo));
+  }
+
+  /** El código del paquete, que es lo que va en la ruta desde el 17-09-2026. */
+  private String codigoDe(UUID paquete) {
+    return jdbc.queryForObject(
+        "SELECT code FROM product_packages WHERE id = ?::uuid", String.class, paquete);
   }
 
   private String rechazo(UUID quien, UUID paquete, String codigo) throws Exception {
@@ -645,8 +657,8 @@ class BuyPackageIT extends IntegrationTestBase {
   }
 
   /** Sin ninguna autoridad, a propósito: es una compra propia (`CA-MV-049`). */
-  private static MockHttpServletRequestBuilder peticion(UUID quien, UUID paquete, String metodo) {
-    return post("/api/v1/packages/" + paquete + "/purchases")
+  private static MockHttpServletRequestBuilder peticion(UUID quien, String codigo, String metodo) {
+    return post("/api/v1/packages/" + codigo + "/purchases")
         .with(user(quien.toString()))
         .contentType(MediaType.APPLICATION_JSON)
         .content("{\"paymentMethodId\":\"" + metodo + "\"}");

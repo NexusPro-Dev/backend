@@ -4,7 +4,7 @@
 |---|---|
 | Requerimiento | `RF-MV-012` |
 | Plan | [`plan.md`](plan.md), aprobado el 16-09-2026 |
-| Versión | 0.2.0 |
+| Versión | 0.3.0 |
 | Estado | **Aprobadas** |
 | Autor | Responsable técnico |
 | Aprobadas por | Responsable del proyecto |
@@ -34,7 +34,7 @@
 | `T-04` | `BuyPackageService`: el orden de `spec.md` §8 — actor, paquete, productos, oferta, nivel, moneda, copia y congelado, importes, método, alta | `T-01`, `T-03` | Un paquete que no se ofrece **no llega a resolver productos**; un producto fuera de la oferta rechaza **antes** de escribir nada | **Hecha** |
 | `T-05` | Las líneas: una por producto, con nombre y descripción **copiados**, el vendedor del comprador y **la rebaja congelada** con `LineDiscount` | `T-04` | `CA-MV-052`: cada línea trae lo copiado y su rebaja explicada; el dinero por unidad coincide con la fórmula de `RN-PM-036` | **Hecha** |
 | `T-06` | El alta: `Movement.registrar` **con el paquete en la cabecera**, y el mismo repositorio que `RF-MV-001` | `T-05` | `CA-MV-059`: la venta es indistinguible de cualquier otra salvo por su paquete. `CA-MV-060`: la auditoría lleva paquete, líneas y rebajas | **Hecha** |
-| `T-07` | `PackagePurchaseController`: `POST /api/v1/packages/{id}/purchases`, **sin `@PreAuthorize`**, con `Location` al movimiento propio | `T-04` | Documentado, y la ruta **entra en la lista blanca** de `EndpointPermissionsIT` | **Hecha** |
+| `T-07` | `PackagePurchaseController`: `POST /api/v1/packages/{code}/purchases`, **sin `@PreAuthorize`**, con `Location` al movimiento propio | `T-04` | Documentado, y la ruta **entra en la lista blanca** de `EndpointPermissionsIT` | **Hecha** |
 | `T-08` | `BuyPackageIT`: los doce criterios, `CA-MV-049` a `CA-MV-060` | `T-07` | Incluida la que importa — `CA-MV-050`, **comparando con el `price` que el catálogo publica** | **Hecha** |
 | `T-09` | Contrato OpenAPI y matriz: `RF-MV-012` pasa de `Pendiente` a `En desarrollo` | `T-08` | `docs/api/openapi.*` salen modificados y la prosa dice **qué no admite** el cuerpo: ni productos, ni cantidad, ni precio, ni descuento | **Hecha** |
 
@@ -49,6 +49,8 @@
 3. **Las reglas de vender que no dependen de qué se vende salieron de `RegisterSaleService` a `SaleRules`** —la cuenta que opera, el upgrade que no baja, el método que cuadra con el importe, el tipo— y los dos casos de uso las llaman. No es una relajación de `plan.md` §3.3: el caso de uso sigue siendo propio; lo que se comparte son las comprobaciones que eran literalmente las mismas, para no duplicar la clase de defecto que no falla.
 
 Y una cuarta, de `PM`: **`RN-PM-044` se movió de `GetOwnOfferService` a `PackageOfferability.correspondeA`**, porque desde hoy la responden dos lecturas —la oferta y la venta— y tienen que decir lo mismo. La suite de `PM` sigue en verde sin tocar una prueba.
+
+**Enmienda del mismo día (v0.3.0): el paquete entra por su código.** `spec.md` v0.2.0 y `plan.md` v0.2.0 lo fijan; `T-01`, `T-02`, `T-07` y `T-08` se rehicieron en consecuencia —`PackageCatalog.storeSaleViewOf(code, buyerId)`, `ProductPackageQueryRepository.findDetailByCode` sin distinguir mayúsculas, la ruta `{code}` y `BuyPackageIT` comprando por código, también en minúsculas— y las nueve siguen en `Hecha`.
 
 ---
 

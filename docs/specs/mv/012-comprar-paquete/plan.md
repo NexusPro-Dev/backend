@@ -5,11 +5,13 @@
 | Requerimiento | `RF-MV-012` |
 | Especificación | [`spec.md`](spec.md) |
 | `spec.md` aprobada el | 16-09-2026 |
-| Versión | 0.1.0 |
+| Versión | 0.2.0 |
 | Estado | **Aprobado** |
 | Autor | Responsable técnico |
 | Aprobado por | Responsable del proyecto |
 | Fecha de aprobación | 16-09-2026 |
+| Reabierto el | 17-09-2026 — **el paquete entra por su código**: la ruta pasa a `/packages/{code}/purchases` y `PackageCatalog` resuelve por código, ver §3, §4 y §8 (Art. I.7) |
+| Reaprobado el | 17-09-2026 — Responsable del proyecto |
 
 !!! info "Qué va en este documento"
 
@@ -43,12 +45,12 @@
 | `products/domain/repository` | `PublishedPackageCatalog` | **Nuevo, dentro de `PM`** | La implementa, con la misma sentencia que ya resuelve el detalle del paquete |
 | `movements/application` | `BuyPackageRequest` | Nuevo | **Solo el método de pago**: ni paquete en el cuerpo —va en la ruta—, ni cantidad, ni fecha |
 | `movements/domain/service` | `BuyPackageService` | Nuevo | El caso de uso: resuelve, valida, copia, congela y registra |
-| `movements/interfaces` | `PackagePurchaseController` | Nuevo | `POST /api/v1/packages/{id}/purchases`, **sin permiso** |
+| `movements/interfaces` | `PackagePurchaseController` | Nuevo | `POST /api/v1/packages/{code}/purchases`, **sin permiso** |
 | `movements/domain/models` | `MovementLine`, `LineDiscount` | Sin cambio | Ya saben construir una línea con rebajas: los escribió `V14` · `T-32` |
 
 ### 3.1 `PM` publica el paquete, y publica lo que ya sabe
 
-`PackageCatalog` devuelve, para un paquete y una persona: **si hoy se le puede ofrecer** —con su motivo cuando no— y **sus productos**, cada uno con lo que `SaleView` ya trae (código, nombre, descripción, precio, moneda, vigencia, si es upgrade y a qué nivel lleva) **más el descuento que el paquete le declara**: su tipo y su valor.
+`PackageCatalog` devuelve, para un paquete —**por su código**, comparado sin distinguir mayúsculas como el hotlink (`RF-PM-026`)— y una persona: **si hoy se le puede ofrecer** —con su motivo cuando no— y **sus productos**, cada uno con lo que `SaleView` ya trae (código, nombre, descripción, precio, moneda, vigencia, si es upgrade y a qué nivel lleva) **más el descuento que el paquete le declara**: su tipo y su valor.
 
 **Es la misma decisión que `RF-MV-001` tomó con la oferta**: `MV` **pregunta** y no recalcula. Quién puede ver un paquete lo decide `RN-PM-039`, `RN-PM-044` y `RN-PM-047`, y esas tres reglas viven en `PM` con sus pruebas; duplicar el predicado aquí significaría que el día que `PM` lo cambie, la venta seguiría con el viejo **sin que nada falle**.
 
@@ -72,13 +74,14 @@ Lo que **sí** se comparte es todo lo de después: copiar, congelar, sumar, emit
 
 ## 4. Contrato de API
 
-`POST /api/v1/packages/{id}/purchases` · `201 Created`, con `Location` a `/api/v1/movements/mine/{id}`.
+`POST /api/v1/packages/{code}/purchases` · `201 Created`, con `Location` a `/api/v1/movements/mine/{id}`.
+
+**El paquete va por su código y no por su identificador** (desde el 17-09-2026, `spec.md` v0.2.0 §6.1). Las demás rutas de `/api/v1/packages` son de administración y usan el identificador; esta es la del cliente, y el cliente tiene el código —es lo que la oferta y el hotlink publican— y no el identificador. Un código que no resuelve es `EX-001`, y como no hay forma bien formada de no enviarlo, `VAL-001` deja de alcanzarse por HTTP.
 
 **Cuerpo**: `paymentMethodId`, y nada más. **Respuesta**: la venta, con su paquete, sus líneas y sus descuentos explicados (`spec.md` §6.2).
 
 | Estado | Cuándo |
 |---|---|
-| `400` | `VAL-001`: falta el paquete en la ruta |
 | `401` | Sin autenticar |
 | `409` | Lo que solo se sabe **después de resolver**: el paquete no se ofrece hoy (`EX-002`), no le corresponde (`EX-003`), un producto no procede (`EX-004`), el upgrade baja (`EX-005`), la cuenta no opera (`EX-006`), el método no cuadra con el importe (`EX-007`) o está inactivo (`EX-008`) |
 | `422` | `EX-001` y el método de pago inexistente: **una referencia bien formada que no resuelve** |
