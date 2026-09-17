@@ -5,11 +5,11 @@
 | Proyecto | NEXUS — Renovación de plataforma |
 | Empresa | FACTECH GROUP SAS |
 | Documento | `modules.md` |
-| Versión | 0.20.0 |
+| Versión | 0.21.0 |
 | Estado | Borrador |
 | Responsable técnico | Bonilla Diaz William Steven |
 | Fecha de creación | 20-08-2026 |
-| Última actualización | 14-09-2026 |
+| Última actualización | 17-09-2026 |
 | Documento superior | `constitution.md` v0.7.0 |
 | Documentos relacionados | `architecture.md` v0.17.0, `requirements.md` v0.51.0 |
 
@@ -74,11 +74,13 @@ La promoción es una decisión de arquitectura: se registra en `docs/architectur
 graph TD
     SP["<b>SP</b> — Sistema Principal<br/><i>roles, permisos, auditoría</i>"]
     PM["<b>PM</b> — Productos y Mercadeo<br/><i>catálogo de venta</i>"]
+    AC["<b>AC</b> — Academia<br/><i>cursos, módulos y lecciones</i>"]
 
     C1["<b>?</b> — por inventariar"]:::pend
     C2["<b>?</b> — por inventariar"]:::pend
 
     PM --> SP
+    AC --> SP
     C1 -.-> SP
     C2 -.-> SP
 
@@ -101,6 +103,7 @@ Las dependencias apuntan **del consumidor al proveedor** y deben ser acíclicas 
 | `PM` | Productos y Mercadeo | `modules/products` | `products:` | `SP` | En desarrollo |
 | `CM` | Comisiones | `modules/commissions` | `commissions:` | `SP`, `PM` | En desarrollo · **rehecho y construido el 02-09-2026** |
 | `MV` | Movimientos | `modules/movements` | `movements:` | `SP`, `PM` | Propuesto · **renace el 02-09-2026, empezando por la venta** |
+| `AC` | Academia | `modules/academy` | `course-categories:`, `courses:` | `SP` | En diseño · **incorporado el 17-09-2026, empezando por el catálogo de cursos y lo que ve el alumno** |
 
 
 **Estados:** `Propuesto` · `En diseño` · `En desarrollo` · `Implementado` · `Obsoleto`.
@@ -278,7 +281,44 @@ Lo que decidió no fue la elegancia sino el precedente que este mismo párrafo c
 
     El código `MV` **se reutiliza** por decisión del responsable, y el precio queda escrito: el borrado se llevó todos sus identificadores, de modo que `RF-MV-001` existió una vez como «registrar un depósito» y hoy es «registrar una venta». Un identificador que significa dos cosas según la fecha en que se lea es exactamente lo que §2.1 quiere evitar, y aquí se acepta a conciencia porque **ningún `RF-MV-NNN` anterior sobrevive en ninguna parte**.
 
-### 5.5 Plantilla para un módulo nuevo
+### 5.5 `AC` — Academia
+
+**Propósito.** Es dueño de **lo que se enseña**: los cursos, cómo se organizan —en categorías, en módulos, en lecciones— y **a qué nivel de membresía se le abre cada uno**. Es el primer módulo cuyo consumidor principal no es quien administra sino **el alumno**, y por eso nace con las dos caras a la vez: el catálogo que administración construye y la vista con la que el alumno lo recorre.
+
+**Alcance.** Se construye **por etapas**, y hoy solo está escrita la primera: **el catálogo y su lectura**. Categorías con portada, color e icono; cursos con instructor, dificultad, video de introducción y portada, clasificados en categorías, con **cursos recomendados** —qué conviene ver antes— y con la **lista de membresías** que les da acceso; módulos dentro del curso y lecciones —de video o de texto— dentro del módulo, cada una con su duración y con la posibilidad de estar **abierta a todos** como demostración. Y lo que ve el alumno: el catálogo de cursos que se le ofrecen, el detalle de un curso con sus módulos y lecciones, y el contenido de una lección cuando su membresía lo permite o la lección es demostración. Las etapas siguientes, declaradas y sin escribir: **sesiones en vivo** (HU13, HU14), **progreso del alumno** —qué lección completó, qué curso terminó— y **certificados**.
+
+**No incluye.** **Vender un curso**: un curso se abre por la membresía, no por una compra; el día que un curso se venda suelto será un tipo de producto de `PM` que consuma a este módulo, y no al revés. **Conceder la membresía**, que es escribir en `user_memberships`, tabla de `SP`. **Alojar el video**: el sistema guarda **enlaces** a videos que viven en una plataforma que ya los sirve, como hace `PM` con el video del producto (`RN-PM-032`); lo único que guarda como archivo es la portada, por lo mismo que `PM` (`RN-PM-033`). **Interpretar el contenido**: el texto de una lección es Markdown que el backend guarda y devuelve sin tocar. Y **el progreso del alumno**: hoy una recomendación es una sugerencia y no un candado precisamente porque no hay con qué saber si el alumno vio lo recomendado.
+
+| Submódulo | Responsabilidad | Entidades principales |
+|---|---|---|
+| Categorías | Alta, consulta, corrección, retiro y portada | `course_categories` |
+| Cursos | Alta, consulta, corrección, estado, retiro y portada; y sus tres relaciones: **clasificación** en categorías, **recomendaciones** entre cursos y **visibilidad** por membresía | `courses`, `course_category_items`, `course_recommendations`, `course_memberships` |
+| Módulos | Las partes de un curso: alta, corrección, estado, retiro y portada | `course_modules` |
+| Lecciones | Lo que se estudia: de video o de texto, con su duración y su bandera de demostración | `lessons` |
+| Aula | Lo que el alumno ve: el catálogo que se le ofrece, el detalle de un curso y el contenido de una lección | Las anteriores, y la membresía vigente que `SP` publica |
+| Portadas | Los bytes de las portadas de categorías, cursos y módulos, y la ruta pública que los sirve | `academy_images` |
+
+**Dependencias.** `SP`, y solo `SP`. De él necesita los **usuarios** —que el instructor exista y **porte el permiso `courses:teach`**—, las **membresías** —que la que se asocia a un curso exista— y la **membresía vigente** de quien pregunta, para decidir qué se le abre (`CurrentMembershipLookup`, la misma interfaz que consume `PM`). **De `PM` no necesita nada**, y conviene dejarlo escrito: la relación entre academia y productos que §5.2 anticipó —«Academia para saber qué nivel da acceso a qué»— se resolvió en `SP`, porque el nivel es la membresía y la membresía es de `SP`.
+
+**Diseño detallado.** [`requirements/ac.md`](requirements/ac.md).
+
+!!! success "Cómo consume a `SP` — la norma de D-25, con una interfaz que `SP` todavía no publica"
+
+    Sin excepción ni caso nuevo: `SP` publica interfaces de aplicación de solo lectura y `AC` las importa ([`architecture.md` §15.2](architecture.md#152-como-consume-un-modulo-los-datos-de-otro-cierre-de-d-25)). Dos de las tres que necesita **ya existen** —`MembershipCatalog` y `CurrentMembershipLookup`— porque `PM` las pidió antes. **La tercera no**: «¿esta persona porta este permiso?», que ningún consumidor había necesitado hasta que el instructor pasó a exigir `courses:teach`. Esa ampliación pertenece al requerimiento de `AC` que la necesita —el alta del curso— y no a un requerimiento nuevo de `SP`, que es el mismo reparto que se decidió al cerrar D-25 y el que `CM` aplicó con `UserCatalog`.
+
+    Las claves foráneas a `users` y `memberships` **sí** se declaran, por lo mismo que `PM` y `CM` las declaran hacia `SP`: la frontera que §7 defiende es la del **código**, y una clave foránea es integridad declarada en el motor (Art. V.6).
+
+!!! info "Por qué `AC` es un módulo y no un submódulo de `PM` ni de `SP`"
+
+    Cumple las dos condiciones de §2.1. **Es dueño de ocho tablas propias** que ningún otro módulo necesita: `PM` publica su catálogo igual exista o no un curso, y `SP` autoriza igual. Y **otros van a consumirlo**: `PM`, el día que un curso se venda suelto; `MV`, el día que haya que registrar esa venta; y Métricas, cuando exista, para contar qué se estudia.
+
+    **No es de `PM`** aunque comparta con él la forma —catálogo con estado, portada, video y retiro con motivo—: un curso no tiene precio, no se compra y no se ofrece por origen de membresía sino por lista. **No es de `SP`** aunque la visibilidad se decida por membresía: `SP` §5.1 lo dejó escrito desde el 20-08-2026 — «la definición de qué contenidos exige cada nivel de membresía corresponde a los módulos de academia y productos».
+
+!!! warning "El código se fija sabiendo lo que §6 advierte"
+
+    §6 advierte que los códigos de los módulos candidatos **no deberían fijarse hasta conocer el alcance completo** del producto. Se procede igualmente **por decisión del responsable del proyecto**, como con `PM`, `CM` y `MV`, y queda escrito que se procedió sabiéndolo. El riesgo concreto: si el área acaba abarcando las sesiones en vivo con otro nombre —«Formación», «Escuela»— el código `AC` no se cambia jamás. Y una consecuencia que conviene ver ahora: las **sesiones en vivo** de HU13 y HU14 son del mismo candidato, de modo que cuando se escriban serán `RF-AC-NNN` y no un módulo aparte, salvo que resulten dueñas de tablas que el catálogo de cursos no necesite — y entonces se promoverán por §2.3.
+
+### 5.6 Plantilla para un módulo nuevo
 
 ```markdown
 ### `COD` — Nombre del módulo
@@ -312,7 +352,7 @@ La Épica 2 del documento de historias de usuario (HU08–HU14) define siete rol
 | ~~Comisiones~~ | HU08, HU10, HU12 | **Incorporado el 28-08-2026 como `CM`** (§5.3), con las **tarifas**: qué porcentaje gana cada rol vendedor por cada producto, y las excepciones por persona. El **cálculo, la liquidación y los FTDs** siguen fuera, y no por reparto sino porque **no hay sobre qué calcular**: ninguna tabla de ventas existe todavía |
 | ~~Comisiones~~ | HU08, HU10, HU12 | **Incorporado el 28-08-2026 como `CM`** (§5.3), con las **tarifas**: qué porcentaje gana cada rol vendedor por cada producto, y las excepciones por persona. El **cálculo, la liquidación y los FTDs** siguen fuera, y no por reparto sino porque **no hay sobre qué calcular**: ninguna tabla de ventas existe todavía |
 | ~~Finanzas~~ | HU09 | **Absorbido de nuevo el 02-09-2026 por `MV`** (§5.4). El módulo declara como alcance **todo hecho económico** y no solo la venta, de modo que retiros, pagos y balances son sus **etapas posteriores** y no un módulo aparte. Fue candidato otra vez durante un día, entre que `MV` se retiró y volvió |
-| Academia | HU08, HU13, HU14 | Cursos y sesiones en vivo |
+| ~~Academia~~ | HU08, HU13, HU14 | **Incorporado el 17-09-2026 como `AC`** (§5.5), con el **catálogo de cursos** —categorías, cursos, módulos y lecciones— y **lo que ve el alumno**. Las **sesiones en vivo** siguen fuera, y no por reparto: son del mismo módulo y se escribirán como `RF-AC-NNN` cuando llegue su tanda |
 | Señales | HU14 | Publicación y consumo de señales |
 | Métricas | HU08 | Indicadores y reportes de la plataforma |
 
@@ -401,3 +441,4 @@ El orden importa: el módulo precede al requerimiento, el requerimiento precede 
 | 0.18.0 | 02-09-2026 | **`MV` — Movimientos vuelve al inventario**, por decisión del responsable del proyecto, un día después de haberse retirado entero. Recupera su ficha (§5.4, y la plantilla vuelve a §5.5) y su fila, y **«Finanzas» vuelve a quedar absorbido** en §6: el módulo declara como alcance **todo hecho económico** —no solo la venta—, de modo que retiros, pagos y balances son etapas suyas. Lo que cambia respecto del primer intento **no es el alcance sino el orden**: aquel escribió el libro completo antes de que existiera una sola venta, y este declara el destino y **construye por etapas, empezando por vender**. El código `MV` **se reutiliza**, y el precio queda escrito en la ficha: `RF-MV-001` existió una vez como «registrar un depósito» y hoy es «registrar una venta» — se acepta porque el borrado se llevó **todos** los identificadores anteriores y ninguno sobrevive en ninguna parte. Vuelve además **D-26 con su número original**, porque es literalmente la misma pregunta: conceder el nivel comprado obliga a **escribir en `SP`**, y todas las interfaces entre módulos son de solo lectura. | Responsable del proyecto |
 | 0.19.0 | 14-09-2026 | **`PM` gana el submódulo Reseñas** ([`requirements/pm.md`](requirements/pm.md) v0.24.0): una puntuación y un texto por persona y producto, que solo su autor corrige y retira, con la tabla `product_comments`. §5.2 registra además el submódulo Hotlinks, que faltaba desde el 07-09-2026. Queda escrito por qué `PM` **no** consume a `MV` para exigir la compra antes de la opinión: cerraría el ciclo que §7 prohíbe. | Responsable del proyecto |
 | 0.20.0 | 14-09-2026 | **`PM` gana el submódulo Paquetes** ([`requirements/pm.md`](requirements/pm.md) v0.31.0 §5.2.10): varios productos bajo un código, cada uno con su descuento —porcentaje o importe fijo—, y el paquete vale la suma de los productos rebajados, calculada en cada lectura y nunca guardada. Se administra con un recurso de permisos propio, `packages:*`, y se publica donde se publican los productos. **La venta del paquete no es de este submódulo**: es una venta multilínea, de `MV` y `CM`, y queda para otra tanda. | Responsable del proyecto |
+| 0.21.0 | 17-09-2026 | **Se incorpora el módulo `AC` — Academia**, el quinto del sistema, por decisión del responsable del proyecto. Es el candidato que §6 tenía anotado desde el 20-08-2026 (HU08, HU13, HU14) y cumple las dos condiciones de §2.1: **ocho tablas propias** que ni `SP` ni `PM` necesitan, y consumidores previsibles —`PM` y `MV` el día que un curso se venda suelto, Métricas para contar qué se estudia—. Nace con **el catálogo y su lectura**: categorías, cursos con instructor, dificultad, video y portada, clasificados en categorías, con recomendaciones entre cursos y con **una lista explícita de membresías** que les da acceso; módulos dentro del curso, lecciones —de video o de texto— dentro del módulo, con la posibilidad de estar **abiertas a todos** como demostración; y lo que ve el alumno. **Depende de `SP` y solo de `SP`**, y la relación con `PM` que §5.2 anticipó se resolvió en `SP` porque el nivel es la membresía. Tres decisiones quedan escritas en la ficha: el instructor **porta un permiso** (`courses:teach`) y no un rol, para que `SP` no sepa de academia; la portada vive en **una tabla propia** (`academy_images`) y no en la de `PM`, porque §7 prohíbe que un módulo escriba la tabla de otro; y **las sesiones en vivo son del mismo módulo** y se escribirán como `RF-AC-NNN`. Se procede pese a la advertencia de §6 sobre fijar códigos antes de conocer el alcance completo, y queda escrito que se procedió sabiéndolo. | Responsable del proyecto |
