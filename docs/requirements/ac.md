@@ -5,7 +5,7 @@
 | Módulo | `AC` — Academia |
 | Paquete | `modules/academy` |
 | Prefijos de permiso | `course-categories:`, `courses:` |
-| Versión | 0.1.0 |
+| Versión | 0.2.0 |
 | Estado | **Borrador** |
 | Responsable | Bonilla Diaz William Steven |
 | Fecha de creación | 17-09-2026 |
@@ -235,11 +235,11 @@ Se descartó **HTML del editor** porque obliga a sanear en el backend con una bi
 
 | ID | Nombre | Submódulo | Prioridad | Permiso | Estado |
 |---|---|---|---|---|---|
-| `RF-AC-001` | Registrar categoría | Categorías | Alta | `course-categories:create` | Propuesto |
-| `RF-AC-002` | Consultar categorías | Categorías | Alta | `course-categories:read` | Propuesto |
-| `RF-AC-003` | Consultar el detalle de una categoría | Categorías | Media | `course-categories:read` | Propuesto |
-| `RF-AC-004` | Editar categoría | Categorías | Alta | `course-categories:update` | Propuesto |
-| `RF-AC-005` | Eliminar categoría | Categorías | Media | `course-categories:delete` | Propuesto |
+| `RF-AC-001` | Registrar categoría | Categorías | Alta | `course-categories:create` | **Tasks en revisión** (17-09-2026) |
+| `RF-AC-002` | Consultar categorías | Categorías | Alta | `course-categories:read` | **Tasks en revisión** (17-09-2026) |
+| `RF-AC-003` | Consultar el detalle de una categoría | Categorías | Media | `course-categories:read` | **Tasks en revisión** (17-09-2026) |
+| `RF-AC-004` | Editar categoría | Categorías | Alta | `course-categories:update` | **Tasks en revisión** (17-09-2026) |
+| `RF-AC-005` | Eliminar categoría | Categorías | Media | `course-categories:delete` | **Tasks en revisión** (17-09-2026) |
 | `RF-AC-006` | Subir o reemplazar la portada de una categoría | Portadas | Media | `course-categories:update` | Propuesto |
 | `RF-AC-007` | Quitar la portada de una categoría | Portadas | Baja | `course-categories:update` | Propuesto |
 | `RF-AC-008` | Registrar curso | Cursos | Alta | `courses:create` | Propuesto |
@@ -297,7 +297,7 @@ Se descartó **HTML del editor** porque obliga a sanear en el backend con una bi
 | Reglas aplicables | `RN-AC-001`, `RN-AC-002`, `RN-AC-003` |
 | Depende de | — |
 | Tripleta | `docs/specs/ac/001-registrar-categoria/` |
-| Estado | Propuesto |
+| Estado | **Tasks en revisión** (17-09-2026) |
 
 Registra una categoría con **nombre, color, icono y orden**, obligatorios, y descripción opcional. Nace **viva y sin portada** —la imagen se sube después con `RF-AC-006`, y la respuesta trae `coverImageUrl` presente y nulo—. Es el requerimiento que **crea `course_categories`** y **siembra los cuatro permisos `course-categories:`**, asociados a `SUPERADMIN` y a `ADMIN` en la misma migración. El color se normaliza a mayúsculas antes de escribir, como en la membresía.
 
@@ -312,7 +312,7 @@ Registra una categoría con **nombre, color, icono y orden**, obligatorios, y de
 | Reglas aplicables | `RN-AC-002`, `RN-AC-018` |
 | Depende de | `RF-AC-001` |
 | Tripleta | `docs/specs/ac/002-consultar-categorias/` |
-| Estado | Propuesto |
+| Estado | **Tasks en revisión** (17-09-2026) |
 
 Lista paginada **por orden y desempate por identificador** (`RN-AC-002`), con **las retiradas fuera salvo que se pidan**, como el catálogo de productos (`RF-PM-002`). Cada fila trae **cuántos cursos vivos** tiene clasificados, calculado en la misma consulta, y `coverImageUrl`. Filtro por nombre.
 
@@ -327,7 +327,7 @@ Lista paginada **por orden y desempate por identificador** (`RN-AC-002`), con **
 | Reglas aplicables | `RN-AC-002`, `RN-AC-018` |
 | Depende de | `RF-AC-001` |
 | Tripleta | `docs/specs/ac/003-consultar-detalle-categoria/` |
-| Estado | Propuesto |
+| Estado | **Tasks en revisión** (17-09-2026) |
 
 La categoría con todos sus campos, **incluida una retirada**, y **la lista de sus cursos vivos** —identificador, título, estado, orden y `offerable`— en su orden. Es la vista con la que administración decide qué reordenar.
 
@@ -342,7 +342,7 @@ La categoría con todos sus campos, **incluida una retirada**, y **la lista de s
 | Reglas aplicables | `RN-AC-001`, `RN-AC-002`, `RN-AC-003`, `RN-AC-018` |
 | Depende de | `RF-AC-001` |
 | Tripleta | `docs/specs/ac/004-editar-categoria/` |
-| Estado | Propuesto |
+| Estado | **Tasks en revisión** (17-09-2026) |
 
 Corrección **parcial** —solo lo que viene cambia, como `RF-PM-004`— de nombre, descripción, color, icono y orden. **La descripción se vacía** con nulo explícito; los otros cuatro no admiten vaciarse. Una retirada no se corrige. **La portada no se corrige por aquí**: tiene sus endpoints (`RF-AC-006`, `RF-AC-007`).
 
@@ -357,7 +357,7 @@ Corrección **parcial** —solo lo que viene cambia, como `RF-PM-004`— de nomb
 | Reglas aplicables | `RN-AC-010`, `RN-AC-018` |
 | Depende de | `RF-AC-001` |
 | Tripleta | `docs/specs/ac/005-eliminar-categoria/` |
-| Estado | Propuesto |
+| Estado | **Tasks en revisión** (17-09-2026) |
 
 Baja lógica **con motivo** y registro de eliminación (Art. V.13). **No arrastra nada**: los cursos clasificados en ella siguen vivos y ofrecidos, y sus filas de clasificación se conservan y dejan de contar. **Nunca se rechaza por tener cursos**: la categoría es un filtro, y retirar un filtro no puede dejar nada roto. Retirar una ya retirada devuelve `409`.
 
@@ -1006,3 +1006,4 @@ Clave primaria compuesta. **La clave foránea a `memberships` se declara** hacia
 | Versión | Fecha | Cambio | Responsable |
 |---|---|---|---|
 | 0.1.0 | 17-09-2026 | **Nace el documento**, con el módulo incorporado en [`modules.md`](../modules.md) v0.21.0 §5.5 por decisión del responsable del proyecto. **Diecinueve reglas** (`RN-AC-001` a `RN-AC-019`), **treinta y cinco requerimientos** (`RF-AC-001` a `RF-AC-035`) en seis submódulos, **diez permisos** y **ocho tablas**. Las decisiones que lo definen, todas del responsable del proyecto y todas de hoy, están en §5.2: la lección cuelga del módulo y el «contenido» del módulo es su video de presentación; la visibilidad es **una lista explícita** de membresías y no un nivel mínimo, un curso sin lista no se ofrece, y **la demostración es una bandera de la lección** que se abre a cualquier alumno con sesión — con la consecuencia, aceptada entera en §1.4, de que **el catálogo del alumno enseña todos los cursos ofrecidos y la lista cierra el contenido en lugar de esconder el curso**; la portada vive en **`academy_images`**, tabla propia, y el detector de firma de `PM` se mueve a `shared/`; el texto de una lección es **Markdown que el backend no mira**, con la obligación que eso le impone al frontend; el instructor **porta `courses:teach`** y no un rol, lo que exige de `SP` **una interfaz que no publica todavía** —«¿porta este permiso?»— y que pedirá `RF-AC-008`; curso, módulo y lección **nacen inactivos y se activan con contenido**, y **lo que se vacía después no desactiva nada** porque la ofrecibilidad se calcula y no se guarda; retirar **arrastra hacia abajo** con un registro por fila, y la categoría no arrastra. El curso **no lleva código** y la categoría **no tiene estado**. Fuera, y escrito: vender el curso, alojar el video, el progreso del alumno y las sesiones en vivo. | Responsable del proyecto |
+| 0.2.0 | 17-09-2026 | **Las cinco tripletas de Categorías quedan redactadas** (`RF-AC-001` a `RF-AC-005`, bloque 1 de §6.1) y pasan a `Tasks en revisión`. Sin cambio de reglas. Dos precisiones que las tripletas fijan y este documento hereda sin enmienda: `cover_image_id` nace en `course_categories` desde su primera migración, nulable y sin clave foránea hasta que `RF-AC-006` cree `academy_images` (§8.9 ya declara la restricción, que llegará entonces); y el detalle de la categoría (`RF-AC-003`) trae `courses` vacío y `offerable` falso hasta `RF-AC-008`, `RF-AC-016` y el bloque 3, con las tres enmiendas declaradas en su spec. | Responsable del proyecto |
