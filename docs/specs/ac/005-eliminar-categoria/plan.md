@@ -4,7 +4,7 @@
 |---|---|
 | Requerimiento | `RF-AC-005` |
 | Especificación | [`spec.md`](spec.md), en revisión desde el 17-09-2026 |
-| Estado | **Aprobado** |
+| Estado | **Aprobado** — construido el 17-09-2026 |
 | Autor | Responsable técnico |
 | Aprobado por | Responsable del proyecto |
 | Fecha de aprobación | 17-09-2026 |
@@ -38,7 +38,7 @@
 
 | Código | Cuándo |
 |---|---|
-| `400` | `VAL-001`, `VAL-002` |
+| `400` | `VAL-001`, `VAL-002`, `VAL-003` |
 | `401` / `403` | Sin sesión / sin `course-categories:delete` |
 | `404` | `EX-001` |
 | `409` | `EX-002` |
@@ -57,7 +57,7 @@
 
 ## 8. Impacto sobre otros módulos
 
-**`PM` cambia un `import`**: `DeletionReason` pasa a `shared/audit`. Sin cambio de comportamiento; `ProductDeletionIT`, `PackageDeletionIT` y `ProductCommentDeletionIT` en verde son la prueba.
+**`PM` cambia un `import`**: `DeletionReason` pasa a `shared/audit`. Sin cambio de comportamiento; `ProductDeletionIT`, `PackageDeletionIT` y `ProductCommentDeleteIT` en verde son la prueba.
 
 ## 9. Alternativas consideradas
 

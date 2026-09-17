@@ -24,11 +24,11 @@ class PermissionsSeedIT extends IntegrationTestBase {
 
   @Test
   @DisplayName(
-      "el catálogo tiene exactamente cincuenta: TREINTA Y UNO de SP, ONCE de PM, cuatro de"
-          + " CM y cuatro de MV")
+      "el catálogo tiene exactamente cincuenta y cuatro: TREINTA Y UNO de SP, ONCE de PM, cuatro"
+          + " de CM, cuatro de MV y cuatro de AC")
   void catalogoCompleto() {
     assertThat(jdbc.queryForObject("SELECT count(*) FROM permissions", Integer.class))
-        .isEqualTo(50);
+        .isEqualTo(54);
   }
 
   @Test
@@ -53,7 +53,8 @@ class PermissionsSeedIT extends IntegrationTestBase {
   }
 
   @Test
-  @DisplayName("el catálogo sembrado coincide con sp.md §9, pm.md §4, cm.md §6 y mv.md §6")
+  @DisplayName(
+      "el catálogo sembrado coincide con sp.md §9, pm.md §4, cm.md §6, mv.md §6 y ac.md §7")
   void coincideConElCatalogoAprobado() {
     List<String> codigos =
         jdbc.queryForList("SELECT code FROM permissions ORDER BY code", String.class);
@@ -68,6 +69,10 @@ class PermissionsSeedIT extends IntegrationTestBase {
             "commissions:delete",
             "commissions:read",
             "commissions:update",
+            "course-categories:create",
+            "course-categories:delete",
+            "course-categories:read",
+            "course-categories:update",
             // El SEGUNDO recurso sin ninguna acción de escritura, por el mismo
             // motivo estructural y no por el mismo motivo de negocio: `RN-SP-039`
             // deja el catálogo de brokers fuera de la API porque son pocos y
@@ -134,7 +139,7 @@ class PermissionsSeedIT extends IntegrationTestBase {
   void identificadoresUuidV7() {
     List<UUID> ids = jdbc.queryForList("SELECT id FROM permissions", UUID.class);
 
-    assertThat(ids).hasSize(50).doesNotHaveDuplicates();
+    assertThat(ids).hasSize(54).doesNotHaveDuplicates();
     assertThat(ids).allSatisfy(id -> assertThat(id.version()).isEqualTo(7));
     // variant() == 2 es la variante RFC 9562 (bits 10xx).
     assertThat(ids).allSatisfy(id -> assertThat(id.variant()).isEqualTo(2));

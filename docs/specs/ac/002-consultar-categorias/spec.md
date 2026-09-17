@@ -4,7 +4,7 @@
 |---|---|
 | Requerimiento | `RF-AC-002` |
 | Módulo | `AC` — Academia |
-| Estado | **En revisión** |
+| Estado | **En revisión** — **construida el 17-09-2026** |
 | Autor | Responsable técnico |
 | Aprobada por | — |
 | Fecha de aprobación | — |
@@ -135,3 +135,4 @@ La envoltura de página del sistema, y en `content` cada categoría con: `id`, `
 | Versión | Fecha | Cambio | Responsable |
 |---|---|---|---|
 | 0.1.0 | 17-09-2026 | Redacción inicial. Hereda `RF-PM-002` y **cambia el orden por omisión a `displayOrder`**, porque la categoría tiene orden propio y esta es la vista con la que se comprueba. `courseCount` por fila, de los **vivos** y en la misma sentencia; `coverImageUrl` sin consulta más. Dos sentencias fijas. | Responsable técnico |
+| 0.2.0 | 17-09-2026 | **Construida** (`CourseCategoryListIT`). Sin enmiendas de comportamiento. `CA-AC-014` cuenta **dos** sentencias en la página de uno y en la de veinte; `CA-AC-010` es trivial como la spec declaraba y queda para `RF-AC-016`. | Responsable técnico |

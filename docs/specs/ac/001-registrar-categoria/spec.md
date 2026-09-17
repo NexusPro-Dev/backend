@@ -4,7 +4,7 @@
 |---|---|
 | Requerimiento | `RF-AC-001` |
 | Módulo | `AC` — Academia |
-| Estado | **En revisión** |
+| Estado | **En revisión** — **construida el 17-09-2026** |
 | Autor | Responsable técnico |
 | Aprobada por | — |
 | Fecha de aprobación | — |
@@ -62,7 +62,7 @@ Es el **primer requerimiento del módulo**: crea la primera tabla de `AC` y **si
 | Dato | Obligatorio | Descripción | Restricción |
 |---|---|---|---|
 | Nombre (`name`) | Sí | Cómo se llama el cajón | Hasta 150 tras recortar; **único entre las vivas** sin distinguir mayúsculas ni acentos |
-| Descripción (`description`) | No | Qué se encuentra en él | Texto libre; recortada; **de solo espacios se guarda nula** |
+| Descripción (`description`) | No | Qué se encuentra en él | Hasta 1000 caracteres, como la del producto; recortada; **de solo espacios se guarda nula** |
 | Color (`color`) | Sí | Con qué color lo pinta el frontend | **Seis dígitos hexadecimales, sin `#`**; se normaliza a mayúsculas antes de validar y de guardar (`RN-SP-024` por extensión). **No es único** |
 | Icono (`icon`) | Sí | **El nombre** del icono con el que se pinta, no una imagen | Minúsculas, dígitos y guion medio, empezando por letra, hasta 50 — la misma forma que el icono del producto (`RN-PM-016`) |
 | Orden (`displayOrder`) | Sí | En qué lugar se enseña | Entero **mayor o igual que cero**; **no único** |
@@ -121,7 +121,7 @@ El paso 4 tiene su red en el esquema —`uq_course_categories_name`, parcial—:
 
 | ID | Validación | Mensaje esperado |
 |---|---|---|
-| `VAL-001` | Nombre presente y de hasta 150 caracteres tras recortar | El nombre es obligatorio y no puede superar los 150 caracteres. |
+| `VAL-001` | Nombre presente y de hasta 150 caracteres tras recortar; descripción, si viene, de hasta 1000 | El nombre es obligatorio y no puede superar los 150 caracteres. · La descripción no puede exceder 1000 caracteres. |
 | `VAL-002` | Color presente y con la forma admitida, tras normalizar | El color es obligatorio y debe ser seis dígitos hexadecimales sin el símbolo #. |
 | `VAL-003` | Icono presente y con la forma admitida | El icono es obligatorio, solo admite minúsculas, dígitos y guion medio, debe empezar por letra y no puede exceder 50 caracteres. |
 | `VAL-004` | Orden presente y mayor o igual que cero | El orden es obligatorio y debe ser un entero mayor o igual que cero. |
@@ -167,3 +167,4 @@ Las cuatro primeras se devuelven **juntas**: quien se equivocó en dos corrige u
 | Versión | Fecha | Cambio | Responsable |
 |---|---|---|---|
 | 0.1.0 | 17-09-2026 | Redacción inicial. **La categoría nace viva, sin portada y sin cursos**: no tiene estado, la imagen llega por otra petición y clasificar es del curso. **Color e icono obligatorios y sin regla cruzada**: la categoría se pinta siempre con los dos, y la portada es un adorno. El color se normaliza como el de la membresía y **no es único**; el orden no es único y se desempata por identificador. Crea la primera tabla del módulo y siembra los cuatro `course-categories:` con la guarda de siempre. | Responsable técnico |
+| 0.2.0 | 17-09-2026 | **Construida** (`V18`, `V19`, `CourseCategoriesIT`, `CourseCategoryConcurrencyIT`, `CourseCategoriesPermissionsSeedIT`). Una precisión de Art. I.7 al construir: **la descripción se acota a 1000 caracteres**, como la del producto y el paquete, bajo `VAL-001` — la spec decía «texto libre» y la columna es `text`, pero el DTO hereda el tope de `PM` para que un cuerpo de un megabyte no llegue a la base. Los números de migración fueron los previstos: `V18` y `V19`. | Responsable técnico |

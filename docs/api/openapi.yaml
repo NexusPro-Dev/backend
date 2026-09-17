@@ -43,6 +43,8 @@ tags:
     \ se puebla por migración (RN-SP-039)."
 - name: Comisiones
   description: "Tasas de comisión por rol: qué paga cada producto."
+- name: Categorías de cursos
+  description: Los cajones del catálogo de cursos.
 - name: Membresías
   description: Cadena lineal de niveles de consumidor. Inmutable salvo el reordenamiento.
 - name: Usuarios
@@ -2663,6 +2665,193 @@ paths:
             '*/*':
               schema:
                 $ref: "#/components/schemas/ExchangeRateResponse"
+  /api/v1/course-categories:
+    get:
+      tags:
+      - Categorías de cursos
+      summary: Consultar las categorías
+      description: |
+        La lista de administración de las categorías, paginada, **en el orden en que
+        se enseñan**: por `displayOrder` ascendente, con la más antigua primero
+        entre dos que compartan número. Cada fila trae `coverImageUrl` —presente y
+        nulo si no hay— y **`courseCount`, cuántos cursos vivos tiene**: vivos y no
+        ofrecidos; un curso inactivo cuenta, uno retirado no. Sin descripción ni
+        cursos: para eso está el detalle.
+
+        Busca por `q` —nombre, sin distinguir mayúsculas ni acentos—. **Excluye las
+        retiradas** salvo `includeDeleted=true`, y entonces las trae con `deletedAt`.
+        «Vacía» no es filtro: se publica por fila.
+
+        Orden: `displayOrder` (omisión, ascendente), `name` y `createdAt`
+        (descendente por omisión), con `,asc`/`,desc`. Los parámetros inválidos se
+        devuelven **juntos** con `400`. Exige `course-categories:read`;
+        `courses:read` no habilita.
+      operationId: listar_5
+      parameters:
+      - name: page
+        in: query
+        required: false
+        schema:
+          type: integer
+          format: int32
+      - name: size
+        in: query
+        required: false
+        schema:
+          type: integer
+          format: int32
+      - name: sort
+        in: query
+        required: false
+        schema:
+          type: string
+      - name: q
+        in: query
+        required: false
+        schema:
+          type: string
+      - name: includeDeleted
+        in: query
+        required: false
+        schema:
+          type: boolean
+      responses:
+        "200":
+          description: La página de categorías.
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/CourseCategoryPageResponse"
+        "400":
+          description: "Orden o paginación inválidos, juntos (`VAL-001` a `VAL-003`)"
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/CourseCategoryPageResponse"
+        "401":
+          description: Token ausente o inválido (`AUTH-001`)
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/CourseCategoryPageResponse"
+        "403":
+          description: Autenticado sin el permiso `course-categories:read` (`AUTH-002`)
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/CourseCategoryPageResponse"
+    post:
+      tags:
+      - Categorías de cursos
+      summary: Registrar una categoría
+      description: |
+        Registra un cajón del catálogo de cursos con **nombre, color, icono y orden**,
+        obligatorios, y descripción opcional. **Nace viva, sin portada y sin cursos**:
+        la categoría no tiene estado —está o está retirada—, la imagen se sube después
+        con su propia petición, y los cursos se clasifican desde el curso.
+
+        **El color va sin `#` y sale en mayúsculas**: seis dígitos hexadecimales, que
+        se admiten en minúsculas y se normalizan. **No es único**: dos categorías
+        pueden compartir color. **El icono es un nombre**, no una imagen; el backend
+        lo guarda y no sabe pintarlo. **El orden es una posición**: entero mayor o
+        igual que cero, no único, y dos con el mismo número se desempatan por
+        antigüedad.
+
+        El nombre es único entre las categorías **vivas**, sin distinguir mayúsculas
+        ni acentos; una retirada libera el suyo. Enviar `status`, `courses` o
+        `coverImageUrl` responde `400`.
+
+        La respuesta es la misma forma que el detalle: `courseCount` en cero,
+        `courses` vacío y `coverImageUrl` presente y nulo. Exige
+        `course-categories:create`; **los `courses:` no habilitan**.
+      operationId: register_2
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/RegisterCourseCategoryRequest"
+        required: true
+      responses:
+        "201":
+          description: "Categoría registrada, viva y sin cursos."
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/CourseCategoryDetailResponse"
+        "400":
+          description: "Datos inválidos, juntos (`VAL-001` a `VAL-004`), o un cuerpo\
+            \ con `status`, `courses` o `coverImageUrl` (`VAL-005`)"
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/CourseCategoryDetailResponse"
+        "401":
+          description: Token ausente o inválido (`AUTH-001`)
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/CourseCategoryDetailResponse"
+        "403":
+          description: Autenticado sin el permiso `course-categories:create` (`AUTH-002`)
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/CourseCategoryDetailResponse"
+        "409":
+          description: Nombre ya en uso por una categoría viva (`EX-001`)
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/CourseCategoryDetailResponse"
+  /api/v1/course-categories/{id}/deletion:
+    post:
+      tags:
+      - Categorías de cursos
+      summary: Retirar una categoría
+      description: |
+        Baja **lógica y con motivo**: la fila se queda, con `deletedAt` puesto y nada
+        más cambiado, y el motivo y la instantánea —con los identificadores de los
+        cursos que tenía— van a la auditoría de eliminación. **`POST` y no `DELETE`**
+        porque el cuerpo lleva el motivo, que es obligatorio, y un `DELETE` con
+        cuerpo no tiene garantías.
+
+        **No arrastra nada y nunca se rechaza por tener cursos**: la categoría es un
+        filtro del catálogo. Sus cursos siguen vivos y se siguen ofreciendo —un curso
+        sin categoría se ofrece igual—, y sus clasificaciones se conservan y dejan de
+        enseñarse. La portada se queda: el detalle de una retirada la sigue
+        devolviendo.
+
+        El nombre de la retirada **queda libre** para un alta. Sale del listado salvo
+        `includeDeleted=true`, y su detalle trae el motivo. Retirar una ya retirada
+        responde `409`, distinto del `404` de la inexistente: quien retira dos veces
+        merece saber que la primera funcionó. Exige `course-categories:delete`.
+      operationId: retirar_3
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/DeleteCourseCategoryRequest"
+      responses:
+        "204":
+          description: Categoría retirada.
+        "400":
+          description: "Identificador inválido o motivo ausente, vacío o largo (`VAL-001`\
+            \ a `VAL-003`)"
+        "401":
+          description: Token ausente o inválido (`AUTH-001`)
+        "403":
+          description: Autenticado sin el permiso `course-categories:delete` (`AUTH-002`)
+        "404":
+          description: La categoría no existe (`EX-001`)
+        "409":
+          description: La categoría ya está retirada (`EX-002`)
   /api/v1/countries:
     get:
       tags:
@@ -2761,7 +2950,7 @@ paths:
         Las tasas **personalizadas** no salen en este listado: están en
         `GET /api/v1/user-commission-rates`. **No hay filtro por fecha**, porque
         las tasas de rol no tienen vigencia.
-      operationId: listar_5
+      operationId: listar_6
       parameters:
       - name: filtros
         in: query
@@ -2870,7 +3059,7 @@ paths:
         sostenga, y esa condición queda solo para la personalizada.
 
         **No es idempotente**: retirar dos veces devuelve `409`.
-      operationId: retirar_3
+      operationId: retirar_4
       parameters:
       - name: id
         in: path
@@ -4869,6 +5058,139 @@ paths:
           description: Se intenta desactivar la moneda por defecto (`RN-SP-010`)
         "500":
           description: Fallo no controlado (`ERR-500`)
+  /api/v1/course-categories/{id}:
+    get:
+      tags:
+      - Categorías de cursos
+      summary: Consultar el detalle de una categoría
+      description: |
+        La categoría entera: lo suyo, `coverImageUrl` —presente y nulo si no hay— y
+        **sus cursos vivos en el orden en que se enseñan**, cada uno con su `status`
+        y con `offerable`, que es del curso y no de la pareja. Un curso retirado que
+        estuvo clasificado no aparece ni cuenta; uno inactivo aparece con su estado
+        y cuenta.
+
+        **Se devuelve también una retirada**, con `deletedAt` y `deletionReason`
+        —leído de la auditoría de eliminación— y con sus cursos vivos igual: siguen
+        clasificados en ella aunque el aula ya no los enseñe bajo ese cajón. Es la
+        lectura de administración, y quien tiene `course-categories:read` ve el
+        catálogo completo.
+      operationId: detalle_4
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      responses:
+        "200":
+          description: La categoría con sus cursos.
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/CourseCategoryDetailResponse"
+        "400":
+          description: Identificador inválido (`VAL-001`)
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/CourseCategoryDetailResponse"
+        "401":
+          description: Token ausente o inválido (`AUTH-001`)
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/CourseCategoryDetailResponse"
+        "403":
+          description: Autenticado sin el permiso `course-categories:read` (`AUTH-002`)
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/CourseCategoryDetailResponse"
+        "404":
+          description: La categoría no existe (`EX-001`)
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/CourseCategoryDetailResponse"
+    patch:
+      tags:
+      - Categorías de cursos
+      summary: Editar una categoría
+      description: |
+        Corrección **parcial**: solo lo que viene cambia. Admite `name`,
+        `description`, `color`, `icon` y `displayOrder`, por separado o juntos, y
+        exige al menos uno. **Ausente y nulo no significan lo mismo**: ausente es «no
+        lo toques», nulo es «vacíalo» — y **solo la descripción admite vaciarse**; el
+        nulo en los otros cuatro responde `400`, junto con los demás errores de
+        forma.
+
+        **Sin inmutables**: la categoría no lleva código ni moneda. **La portada no
+        se corrige por aquí**: tiene sus propios endpoints, y `coverImageUrl` en el
+        cuerpo responde `400` como campo no admitido. **El color se normaliza antes
+        de comparar**: enviar `1e88e5` sobre `1E88E5` no es un cambio y no se audita.
+
+        **Reordenar es corregir el número**: cambiar el `displayOrder` de una
+        categoría no mueve a ninguna otra; dos con el mismo número se desempatan por
+        antigüedad. El nombre nuevo no puede ser el de **otra** categoría viva —el de
+        una retirada sí, y cambiar solo la caja del propio también—. Una retirada no
+        se corrige (`404`).
+
+        Un cuerpo sin cambios de valor responde `200` sin avanzar `updatedAt` ni
+        auditar. La respuesta es la forma del detalle. Exige `course-categories:update`.
+      operationId: corregir_3
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateCourseCategoryRequest"
+        required: true
+      responses:
+        "200":
+          description: "La categoría corregida, en la forma del detalle."
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/CourseCategoryDetailResponse"
+        "400":
+          description: "Identificador inválido, campos que no admiten vaciarse, cuerpo\
+            \ vacío o campo no admitido (`VAL-001` a `VAL-007`)"
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/CourseCategoryDetailResponse"
+        "401":
+          description: Token ausente o inválido (`AUTH-001`)
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/CourseCategoryDetailResponse"
+        "403":
+          description: Autenticado sin el permiso `course-categories:update` (`AUTH-002`)
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/CourseCategoryDetailResponse"
+        "404":
+          description: La categoría no existe o está retirada (`EX-002`)
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/CourseCategoryDetailResponse"
+        "409":
+          description: Nombre ya en uso por otra categoría viva (`EX-001`)
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/CourseCategoryDetailResponse"
   /api/v1/countries/{id}/status:
     patch:
       tags:
@@ -4944,7 +5266,7 @@ paths:
         producto de precio cero se rechaza con `409` (`EX-008`). Y un importe
         fijo tiene que **caber en los decimales de la moneda del producto**
         (`VAL-013`).
-      operationId: corregir_3
+      operationId: corregir_4
       parameters:
       - name: id
         in: path
@@ -6062,7 +6384,7 @@ paths:
 
         **No se pagina**: son unos pocos elementos, y partirlos obligaría a dos
         llamadas para pintar un desplegable.
-      operationId: listar_6
+      operationId: listar_7
       parameters:
       - name: includeInactive
         in: query
@@ -6233,7 +6555,7 @@ paths:
 
         **No se pagina**: son unos pocos elementos y partirlos obligaría a dos
         llamadas para pintar un desplegable.
-      operationId: listar_7
+      operationId: listar_8
       parameters:
       - name: includeInactive
         in: query
@@ -6346,7 +6668,7 @@ paths:
 
         **Esta ruta no sustituye a `GET /api/v1/users/{id}/broker-accounts`**,
         que existe para **el superior comercial sin permiso**.
-      operationId: listar_8
+      operationId: listar_9
       parameters:
       - name: page
         in: query
@@ -8311,6 +8633,91 @@ components:
           format: date
         isActive:
           type: boolean
+    RegisterCourseCategoryRequest:
+      type: object
+      properties:
+        name:
+          type: string
+          maxLength: 150
+          minLength: 0
+        description:
+          type: string
+          maxLength: 1000
+          minLength: 0
+        color:
+          type: string
+          minLength: 1
+          pattern: "^[0-9A-Fa-f]{6}$"
+        icon:
+          type: string
+          maxLength: 50
+          minLength: 0
+          pattern: "^[a-z][a-z0-9-]*$"
+        displayOrder:
+          type: integer
+          format: int32
+      required:
+      - color
+      - displayOrder
+      - icon
+      - name
+    CategoryCourseItem:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        title:
+          type: string
+        status:
+          type: string
+        displayOrder:
+          type: integer
+          format: int32
+        offerable:
+          type: boolean
+    CourseCategoryDetailResponse:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        name:
+          type: string
+        description:
+          type: string
+        color:
+          type: string
+        icon:
+          type: string
+        displayOrder:
+          type: integer
+          format: int32
+        coverImageUrl:
+          type: string
+        courseCount:
+          type: integer
+          format: int64
+        courses:
+          type: array
+          items:
+            $ref: "#/components/schemas/CategoryCourseItem"
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+        deletedAt:
+          type: string
+          format: date-time
+        deletionReason:
+          type: string
+    DeleteCourseCategoryRequest:
+      type: object
+      properties:
+        reason:
+          type: string
     RegisterCountryRequest:
       type: object
       properties:
@@ -8885,6 +9292,19 @@ components:
           type: boolean
         isActive:
           type: boolean
+    UpdateCourseCategoryRequest:
+      type: object
+      properties:
+        name:
+          $ref: "#/components/schemas/PatchableString"
+        description:
+          $ref: "#/components/schemas/PatchableString"
+        color:
+          $ref: "#/components/schemas/PatchableString"
+        icon:
+          $ref: "#/components/schemas/PatchableString"
+        displayOrder:
+          $ref: "#/components/schemas/PatchableInteger"
     ChangeCountryStatusRequest:
       type: object
       properties:
@@ -10006,6 +10426,55 @@ components:
           type: array
           items:
             $ref: "#/components/schemas/CurrencyResponse"
+    CourseCategoryItem:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        name:
+          type: string
+        color:
+          type: string
+        icon:
+          type: string
+        displayOrder:
+          type: integer
+          format: int32
+        coverImageUrl:
+          type: string
+        courseCount:
+          type: integer
+          format: int64
+        createdAt:
+          type: string
+          format: date-time
+        deletedAt:
+          type: string
+          format: date-time
+    CourseCategoryPageResponse:
+      type: object
+      properties:
+        content:
+          type: array
+          items:
+            $ref: "#/components/schemas/CourseCategoryItem"
+        totalElements:
+          type: integer
+          format: int64
+        totalPages:
+          type: integer
+          format: int32
+        page:
+          type: integer
+          format: int32
+        size:
+          type: integer
+          format: int32
+        totalIsExact:
+          type: boolean
+        sort:
+          type: string
     ListCountriesRequest:
       type: object
       properties:

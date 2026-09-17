@@ -4,7 +4,7 @@
 |---|---|
 | Requerimiento | `RF-AC-004` |
 | Especificación | [`spec.md`](spec.md), en revisión desde el 17-09-2026 |
-| Estado | **Aprobado** |
+| Estado | **Aprobado** — construido el 17-09-2026 |
 | Autor | Responsable técnico |
 | Aprobado por | Responsable del proyecto |
 | Fecha de aprobación | 17-09-2026 |
@@ -41,8 +41,8 @@
 |---|---|
 | `400` | `VAL-001` a `VAL-007` |
 | `401` / `403` | Sin sesión / sin `course-categories:update` |
-| `404` | `EX-001` |
-| `409` | `EX-002` |
+| `404` | `EX-002` |
+| `409` | `EX-001` |
 
 ## 5. Autorización
 

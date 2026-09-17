@@ -5,7 +5,7 @@
 | Requerimiento | `RF-AC-002` |
 | Especificación | [`spec.md`](spec.md) |
 | Plan | [`plan.md`](plan.md), aprobado el 17-09-2026 |
-| Estado | **En revisión** |
+| Estado | **Hecha** — todas las tareas `Hecha` el 17-09-2026; queda el Pull Request y la enmienda de `RF-AC-016` |
 | Issue | Pendiente de crear |
 | Rama | `feature/academia` |
 | Autor | Responsable técnico |
@@ -16,13 +16,13 @@
 
 | ID | Tarea | Depende de | Verificación | Estado |
 |---|---|---|---|---|
-| `T-01` | `application/ListCourseCategoriesRequest` con validación conjunta, `CourseCategorySortField`, `CourseCategoryItem` y `CourseCategoryPageResponse` | `RF-AC-001` · `T-07` | Unitaria: `sort` fuera de la lista y `includeDeleted` no booleano se recogen **juntos** | Pendiente |
-| `T-02` | `CourseCategoryQueryRepository.search` y `count`: la sentencia de página con `courseCount` como subconsulta escalar —literal `0` hasta `RF-AC-016`, con la nota en el código— y los tres órdenes con desempate por `id` | `RF-AC-001` · `T-06` | Integración: tres categorías con órdenes `1, 0, 0` salen `0` (la más antigua), `0`, `1`; `name` ordena sin acentos; `count` no une nada | Pendiente |
-| `T-03` | `domain/service/ListCourseCategoriesService` | `T-01`, `T-02` | `CA-AC-010`, `CA-AC-012`, `CA-AC-013` | Pendiente |
-| `T-04` | `interfaces/CourseCategoryController`: `GET /api/v1/course-categories`, `@PreAuthorize("hasAuthority('course-categories:read')")` | `T-03` | `CA-AC-011`, `CA-AC-015`; la ruta entra en `EndpointPermissionsIT` | Pendiente |
-| `T-05` | Pruebas de API (`CourseCategoryListIT`) de los seis criterios, con el contador de sentencias para `CA-AC-014` | `T-04` | `CA-AC-010` a `CA-AC-015`; página de uno y de veinte cuestan dos sentencias | Pendiente |
-| `T-06` | Documentación OpenAPI. **La prosa dice** que el orden por omisión es el declarado, que `courseCount` cuenta vivos y no ofrecidos, y que `coverImageUrl` es presente y nula | `T-04` | El contrato declara `200`, `400`, `401`, `403` y los tres valores de `sort` | Pendiente |
-| `T-07` | Actualizar la matriz de `docs/requirements.md` y `docs/api/index.md` | `T-05` | La fila de `RF-AC-002` refleja el estado | Pendiente |
+| `T-01` | `application/ListCourseCategoriesRequest` con validación conjunta, `CourseCategorySortField`, `CourseCategoryItem` y `CourseCategoryPageResponse` | `RF-AC-001` · `T-07` | Unitaria: `sort` fuera de la lista y `includeDeleted` no booleano se recogen **juntos** | **Hecha el 17-09-2026** |
+| `T-02` | `CourseCategoryQueryRepository.search` y `count`: la sentencia de página con `courseCount` como subconsulta escalar —literal `0` hasta `RF-AC-016`, con la nota en el código— y los tres órdenes con desempate por `id` | `RF-AC-001` · `T-06` | Integración: tres categorías con órdenes `1, 0, 0` salen `0` (la más antigua), `0`, `1`; `name` ordena sin acentos; `count` no une nada | **Hecha el 17-09-2026** |
+| `T-03` | `domain/service/ListCourseCategoriesService` | `T-01`, `T-02` | `CA-AC-010`, `CA-AC-012`, `CA-AC-013` | **Hecha el 17-09-2026** |
+| `T-04` | `interfaces/CourseCategoryController`: `GET /api/v1/course-categories`, `@PreAuthorize("hasAuthority('course-categories:read')")` | `T-03` | `CA-AC-011`, `CA-AC-015`; la ruta entra en `EndpointPermissionsIT` | **Hecha el 17-09-2026** |
+| `T-05` | Pruebas de API (`CourseCategoryListIT`) de los seis criterios, con el contador de sentencias para `CA-AC-014` | `T-04` | `CA-AC-010` a `CA-AC-015`; página de uno y de veinte cuestan dos sentencias | **Hecha el 17-09-2026** |
+| `T-06` | Documentación OpenAPI. **La prosa dice** que el orden por omisión es el declarado, que `courseCount` cuenta vivos y no ofrecidos, y que `coverImageUrl` es presente y nula | `T-04` | El contrato declara `200`, `400`, `401`, `403` y los tres valores de `sort` | **Hecha el 17-09-2026** |
+| `T-07` | Actualizar la matriz de `docs/requirements.md` y `docs/api/index.md` | `T-05` | La fila de `RF-AC-002` refleja el estado | **Hecha el 17-09-2026** |
 
 ## 2. Orden de ejecución
 
@@ -45,10 +45,12 @@
 
 ## 5. Definición de terminado
 
-- [ ] Todas las tareas en estado `Hecha`.
-- [ ] Todos los criterios de aceptación con prueba automatizada en verde.
-- [ ] `mvn verify` en verde en local.
-- [ ] El endpoint declara su permiso.
-- [ ] El contrato OpenAPI coincide con el comportamiento real, prosa incluida.
-- [ ] Matriz de trazabilidad y `docs/api/index.md` actualizados.
+- [x] Todas las tareas en estado `Hecha`.
+- [x] Todos los criterios de aceptación con prueba automatizada en verde.
+- [x] `mvn verify` en verde en local.
+- [x] El endpoint declara su permiso.
+- [x] El contrato OpenAPI coincide con el comportamiento real, prosa incluida.
+- [x] Matriz de trazabilidad y `docs/api/index.md` actualizados.
 - [ ] Pull Request aprobado por alguien distinto del autor e integrado.
+
+**Verificación (17-09-2026):** `CourseCategoryListIT` (6), en verde.

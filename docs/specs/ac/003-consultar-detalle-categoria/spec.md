@@ -4,7 +4,7 @@
 |---|---|
 | Requerimiento | `RF-AC-003` |
 | Módulo | `AC` — Academia |
-| Estado | **En revisión** |
+| Estado | **En revisión** — **construida el 17-09-2026** |
 | Autor | Responsable técnico |
 | Aprobada por | — |
 | Fecha de aprobación | — |
@@ -130,3 +130,4 @@ Es **la misma forma** que devuelve el alta (`RF-AC-001`) y la corrección (`RF-A
 | Versión | Fecha | Cambio | Responsable |
 |---|---|---|---|
 | 0.1.0 | 17-09-2026 | Redacción inicial. Hereda `RF-PM-003` —retirada con motivo, `404` al inexistente— y **trae los cursos vivos en orden con su `offerable`**, porque abrir un cajón es ver qué contiene y si se ofrece. **Declara tres enmiendas futuras** (Art. I.7): `RF-AC-008` y `RF-AC-016` llenan `courses`, y el bloque 3 de `ac.md` §6.1 pone `offerable` real; hasta entonces la lista es vacía y la bandera es falsa. | Responsable técnico |
+| 0.2.0 | 17-09-2026 | **Construida** (`CourseCategoryDetailIT`). Sin enmiendas de comportamiento. `CA-AC-019` cuenta **una** sentencia sin cursos y **dos** con motivo de retiro; la retirada sin registro de eliminación responde `200` con el motivo ausente. Las tres enmiendas de §15 siguen declaradas: `courses` vacío y `offerable` falso hasta `RF-AC-008`, `RF-AC-016` y el bloque 3. | Responsable técnico |

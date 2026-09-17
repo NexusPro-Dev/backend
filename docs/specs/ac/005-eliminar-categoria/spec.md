@@ -4,7 +4,7 @@
 |---|---|
 | Requerimiento | `RF-AC-005` |
 | Módulo | `AC` — Academia |
-| Estado | **En revisión** |
+| Estado | **En revisión** — **construida el 17-09-2026** |
 | Autor | Responsable técnico |
 | Aprobada por | — |
 | Fecha de aprobación | — |
@@ -101,7 +101,8 @@ Es `RF-PM-022` para categorías y hereda su razonamiento: eliminación **lógica
 | ID | Validación | Mensaje esperado |
 |---|---|---|
 | `VAL-001` | Identificador con formato válido | El identificador indicado no tiene un formato válido. |
-| `VAL-002` | Motivo presente, con contenido y de hasta 500 caracteres | El motivo de la eliminación es obligatorio y no puede superar los 500 caracteres. |
+| `VAL-002` | Motivo presente y con contenido | El motivo de la eliminación es obligatorio. |
+| `VAL-003` | Motivo de hasta 500 caracteres | El motivo no puede exceder 500 caracteres. |
 
 ## 12. Criterios de aceptación
 
@@ -134,3 +135,4 @@ Es `RF-PM-022` para categorías y hereda su razonamiento: eliminación **lógica
 | Versión | Fecha | Cambio | Responsable |
 |---|---|---|---|
 | 0.1.0 | 17-09-2026 | Redacción inicial. Hereda `RF-PM-022` entero; lo propio es que **no arrastra nada ni se rechaza por tener cursos**: la categoría es un filtro y sus cursos se ofrecen igual sin ella. Las filas de clasificación permanecen y la instantánea lleva los identificadores de los cursos. | Responsable técnico |
+| 0.2.0 | 17-09-2026 | **Construida** (`CourseCategoryDeletionIT`, `CourseCategoryConcurrencyIT`). Una precisión de Art. I.7 al construir: **el motivo largo es `VAL-003` y no `VAL-002`**, porque `DeletionReason` —ya en `shared/audit`— distingue el ausente del largo con dos códigos, y son los mismos que `PM` publica desde `RF-PM-006`. `CA-AC-029` comprueba que el motivo inválido no cuesta ni una sentencia. | Responsable técnico |

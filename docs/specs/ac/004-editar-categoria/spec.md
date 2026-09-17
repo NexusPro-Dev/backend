@@ -4,7 +4,7 @@
 |---|---|
 | Requerimiento | `RF-AC-004` |
 | Módulo | `AC` — Academia |
-| Estado | **En revisión** |
+| Estado | **En revisión** — **construida el 17-09-2026** |
 | Autor | Responsable técnico |
 | Aprobada por | — |
 | Fecha de aprobación | — |
@@ -59,7 +59,7 @@ Es `RF-PM-004` para categorías y hereda entera su mecánica: corrección **parc
 |---|---|---|---|
 | Identificador | Sí | Cuál se corrige | Ruta. Categoría **viva** |
 | `name` | No | Nombre nuevo | Hasta 150 tras recortar; único entre los vivos; **no admite nulo** |
-| `description` | No | Descripción nueva | Texto; **nulo explícito la vacía**; de solo espacios queda nula |
+| `description` | No | Descripción nueva | Hasta 1000 caracteres; **nulo explícito la vacía**; de solo espacios queda nula |
 | `color` | No | Color nuevo | Seis hexadecimales sin `#`, normalizado a mayúsculas; **no admite nulo** |
 | `icon` | No | Icono nuevo | La forma del alta; **no admite nulo** |
 | `displayOrder` | No | Orden nuevo | Entero ≥ 0; **no admite nulo** |
@@ -80,8 +80,8 @@ Es `RF-PM-004` para categorías y hereda entera su mecánica: corrección **parc
 
 1. Llega la petición con uno o más campos.
 2. El sistema valida la forma de lo que viene, **juntos**, y que venga al menos uno (§11).
-3. El sistema resuelve la categoría **viva**, bloqueándola: si no existe o está retirada, `EX-001`.
-4. Si viene el nombre, comprueba que no lo usa **otra** categoría viva (`EX-002`).
+3. El sistema resuelve la categoría **viva**, bloqueándola: si no existe o está retirada, `EX-002`.
+4. Si viene el nombre, comprueba que no lo usa **otra** categoría viva (`EX-001`).
 5. El sistema aplica los cambios, y si alguno cambió de valor, escribe y registra el diff en la misma transacción.
 6. Devuelve `200` con el detalle.
 
@@ -101,13 +101,13 @@ Es `RF-PM-004` para categorías y hereda entera su mecánica: corrección **parc
 
 ## 10. Excepciones
 
-### EX-001 — La categoría no existe o está retirada
+### EX-001 — El nombre ya lo usa otra categoría viva
+
+**Respuesta del sistema:** `409` — *«Ya existe una categoría con ese nombre.»* **Es `EX-001` y no `EX-002` desde que se construyó** (§15): es el mismo código que el alta, porque la carrera la traduce el mismo repositorio por el nombre de la misma restricción, y un código por operación obligaría a que el repositorio supiera quién lo llama.
+
+### EX-002 — La categoría no existe o está retirada
 
 **Respuesta del sistema:** `404` — *«No existe una categoría viva con ese identificador.»*
-
-### EX-002 — El nombre ya lo usa otra categoría viva
-
-**Respuesta del sistema:** `409` — *«Ya existe una categoría con ese nombre.»*
 
 ## 11. Validaciones
 
@@ -155,3 +155,4 @@ Todas se devuelven **juntas**.
 | Versión | Fecha | Cambio | Responsable |
 |---|---|---|---|
 | 0.1.0 | 17-09-2026 | Redacción inicial. Hereda `RF-PM-004` —parcial, nulo explícito como orden, unicidad frente a otros, auditoría de lo que cambió— **sin inmutables y sin la regla del icono**: los cinco campos se corrigen y ninguno salvo la descripción se vacía. Reordenar es corregir el número, y no mueve a las demás. | Responsable técnico |
+| 0.2.0 | 17-09-2026 | **Construida** (`CourseCategoryUpdateIT`). Una enmienda de Art. I.7 al construir: **los dos códigos de excepción se intercambian** — el nombre repetido es `EX-001` y la categoría inexistente o retirada `EX-002`—, porque el `409` de la carrera lo traduce `JpaCourseCategoryRepository` por el nombre de `uq_course_categories_name` con el mismo código que el alta, y un repositorio no sabe desde qué operación lo llaman. Y la descripción **se acota a 1000** bajo `VAL-002`, como en el alta. | Responsable técnico |

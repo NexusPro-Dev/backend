@@ -4,7 +4,7 @@
 |---|---|
 | Requerimiento | `RF-AC-002` |
 | Especificación | [`spec.md`](spec.md), en revisión desde el 17-09-2026 |
-| Estado | **Aprobado** |
+| Estado | **Aprobado** — construido el 17-09-2026 |
 | Autor | Responsable técnico |
 | Aprobado por | Responsable del proyecto |
 | Fecha de aprobación | 17-09-2026 |
