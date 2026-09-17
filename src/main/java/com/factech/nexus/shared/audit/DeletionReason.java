@@ -1,4 +1,4 @@
-package com.factech.nexus.modules.products.domain.models;
+package com.factech.nexus.shared.audit;
 
 import com.factech.nexus.shared.error.FieldError;
 import com.factech.nexus.shared.error.ValidationException;

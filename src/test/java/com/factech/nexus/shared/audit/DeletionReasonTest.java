@@ -1,4 +1,4 @@
-package com.factech.nexus.modules.products.domain.models;
+package com.factech.nexus.shared.audit;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.catchThrowableOfType;

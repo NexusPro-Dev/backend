@@ -1,7 +1,6 @@
 package com.factech.nexus.modules.products.domain.service;
 
 import com.factech.nexus.modules.products.application.DeletePackageRequest;
-import com.factech.nexus.modules.products.domain.models.DeletionReason;
 import com.factech.nexus.modules.products.domain.models.PackageItem;
 import com.factech.nexus.modules.products.domain.models.ProductPackage;
 import com.factech.nexus.modules.products.domain.repository.PackageItemRepository;
@@ -9,6 +8,7 @@ import com.factech.nexus.modules.products.domain.repository.ProductPackageReposi
 import com.factech.nexus.shared.audit.AuditEnums.DeletionType;
 import com.factech.nexus.shared.audit.AuditEvents.DeletionEvent;
 import com.factech.nexus.shared.audit.AuditWriter;
+import com.factech.nexus.shared.audit.DeletionReason;
 import com.factech.nexus.shared.error.BusinessRuleException;
 import com.factech.nexus.shared.error.FieldError;
 import com.factech.nexus.shared.error.ResourceNotFoundException;
