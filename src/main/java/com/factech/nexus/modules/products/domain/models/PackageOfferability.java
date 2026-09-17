@@ -2,6 +2,7 @@ package com.factech.nexus.modules.products.domain.models;
 
 import java.time.LocalDate;
 import java.util.List;
+import java.util.UUID;
 
 /**
  * Si el paquete se puede ofrecer hoy, y si no, por qué (`RN-PM-039`, `RN-PM-040`, `RN-PM-047`).
@@ -83,5 +84,28 @@ public record PackageOfferability(boolean offerable, String reason) {
       }
     }
     return OFRECIBLE;
+  }
+
+  /**
+   * `RN-PM-044`: <b>a quién</b> se le ofrece el paquete — a quien tenga vigente la membresía de
+   * origen de su upgrade; sin upgrade, a todos.
+   *
+   * <p>Es la otra pregunta, y por eso no es un motivo de {@link #decidir}: aquella dice si el
+   * paquete se ofrece <b>a alguien</b> y esta si se le ofrece <b>a esta persona</b>. Vive aquí y no
+   * en la oferta porque desde el 17-09-2026 la responden dos lecturas —la oferta (`RF-PM-007`) y la
+   * venta del paquete (`RF-MV-012`), que distingue «no se ofrece» de «no se te ofrece a ti»— y
+   * tienen que decir lo mismo.
+   *
+   * <p>Hay un upgrade como máximo —lo garantiza `RF-PM-023` al asociar, `RN-PM-046`—, y el {@code
+   * allMatch} lo mira. Se deja el {@code allMatch} y no un {@code findFirst}: si algún día una fila
+   * vieja o una carga a mano dejara dos, el paquete no se ofrecería a quien no puede comprarlo
+   * entero.
+   *
+   * @param origenesDeSusUpgrades el origen de cada upgrade del paquete; vacía si no lleva ninguno
+   * @param membresiaVigente la de quien mira, o nula si hoy no tiene nivel
+   */
+  public static boolean correspondeA(List<UUID> origenesDeSusUpgrades, UUID membresiaVigente) {
+    return origenesDeSusUpgrades.stream()
+        .allMatch(origen -> origen != null && origen.equals(membresiaVigente));
   }
 }

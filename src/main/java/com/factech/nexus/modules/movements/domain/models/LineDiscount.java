@@ -64,6 +64,15 @@ public final class LineDiscount {
         type == MovementDiscountType.FIJO
             ? value.setScale(decimales, RoundingMode.HALF_UP)
             : unitPrice.multiply(value).divide(CIEN, decimales, RoundingMode.HALF_UP);
+    // UN FIJO MAYOR QUE EL PRECIO SE COBRA COMO EL PRECIO, y no se rechaza: es
+    // el hueco temporal de `RN-PM-037` —el precio bajó después de asociar— y
+    // `PM` lo cierra publicando el producto a cero (`DiscountValue.precioDentroDe`).
+    // Congelar aquí más de lo que vale dejaría la línea en negativo; congelar
+    // menos que `PM` rompería `CA-MV-050`. Lo declarado (`value`) se guarda tal
+    // cual: lo pactado fue eso, y lo cobrado es esto.
+    if (dinero.compareTo(unitPrice) > 0) {
+      dinero = unitPrice.setScale(decimales, RoundingMode.HALF_UP);
+    }
     return new LineDiscount(UUID.randomUUID(), type, value, dinero);
   }
 

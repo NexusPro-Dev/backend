@@ -176,6 +176,16 @@ class EndpointPermissionsIT extends IntegrationTestBase {
                   + " `products:update`. Solo tres tipos —SVG fuera—, `nosniff`, y la cota de tasa"
                   + " por la familia (`security.md` §6)"),
           Map.entry(
+              "POST /api/v1/packages/{id}/purchases",
+              "Solo estar autenticado (`RF-MV-012`, 17-09-2026): es una COMPRA PROPIA, como"
+                  + " `RF-MV-002` y `RF-PM-007`. El sujeto no viaja en la petición —sale de la"
+                  + " credencial—, de modo que no hay forma de comprar a nombre de otro ni alcance"
+                  + " que autorizar. Cuelga de `/packages`, cuyas demás rutas son de administración"
+                  + " y exigen `packages:*`: compartir prefijo con rutas protegidas es justo donde"
+                  + " se cuela un permiso que sobra o que falta, y por eso la ausencia se declara"
+                  + " aquí y no se deja a la interpretación de quien lea el controlador. NO es"
+                  + " pública: comprar exige sesión, y va en esta lista y no en RUTAS_PUBLICAS"),
+          Map.entry(
               "GET /api/v1/movements/mine/{id}",
               "El detalle de lo propio (`RF-MV-008`): el alcance va dentro de la consulta y un"
                   + " movimiento ajeno responde `404`, igual que uno inexistente. Sin esta ruta el"

@@ -6,10 +6,10 @@ import com.factech.nexus.modules.products.application.OfferResponse;
 import com.factech.nexus.modules.products.application.PackageDetailResponse;
 import com.factech.nexus.modules.products.application.ProductImageUrls;
 import com.factech.nexus.modules.products.application.ProductResponse;
+import com.factech.nexus.modules.products.domain.models.PackageOfferability;
 import com.factech.nexus.modules.products.domain.models.PackagePricing;
 import com.factech.nexus.modules.products.domain.models.ProductType;
 import com.factech.nexus.modules.products.domain.repository.ProductPackageQueryRepository;
-import com.factech.nexus.modules.products.domain.repository.ProductPackageQueryRepository.PublishedItem;
 import com.factech.nexus.modules.products.domain.repository.ProductPackageQueryRepository.PublishedPackage;
 import com.factech.nexus.modules.products.domain.repository.ProductQueryRepository;
 import com.factech.nexus.modules.products.domain.repository.ProductQueryRepository.ProductRow;
@@ -163,16 +163,14 @@ public class GetOwnOfferService {
   }
 
   /**
-   * `RN-PM-044`: el paquete se ofrece a quien tiene el origen de su upgrade. Hay uno como máximo
-   * —lo garantiza `RF-PM-023` al asociar, `RN-PM-046`—, y el `allMatch` lo mira; sin upgrade, a
-   * todos. Se deja el `allMatch` y no un `findFirst`: si algún día una fila vieja o una carga a
-   * mano dejara dos, el paquete no se ofrecería a quien no puede comprarlo entero.
+   * `RN-PM-044`: el paquete se ofrece a quien tiene el origen de su upgrade; sin upgrade, a todos.
+   *
+   * <p>El predicado vive en {@link PackageOfferability#correspondeA} desde el 17-09-2026, porque la
+   * venta del paquete (`RF-MV-012`) responde la misma pregunta al registrar y las dos lecturas
+   * tienen que decir lo mismo: aquí vivía, y aquí solo se llama.
    */
   private static boolean saleDe(PublishedPackage paquete, UUID membresia) {
-    return paquete.items().stream()
-        .map(PublishedItem::producto)
-        .filter(p -> ProductType.valueOf(p.type()) == ProductType.UPGRADE_MEMBRESIA)
-        .allMatch(p -> p.sourceMembershipId() != null && p.sourceMembershipId().equals(membresia));
+    return PackageOfferability.correspondeA(paquete.origenesDeSusUpgrades(), membresia);
   }
 
   private static OfferPackageItem paquete(

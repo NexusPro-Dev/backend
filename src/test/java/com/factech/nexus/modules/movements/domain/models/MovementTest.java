@@ -184,9 +184,21 @@ class MovementTest {
   @Test
   @DisplayName("Ninguna rebaja deja la línea por debajo de cero, ni es negativa, ni pasa de cien")
   void lasRebajasImposibles() {
+    // UN fijo mayor que el precio se cobra como el precio y no se rechaza
+    // (desde el 17-09-2026): es lo que `PM` publica cuando el precio bajó
+    // después de asociar, y `CA-MV-050` exige cobrar lo publicado. Lo pactado
+    // se guarda tal cual.
     LineDiscount seis =
         LineDiscount.de(MovementDiscountType.FIJO, new BigDecimal("6"), precio("5.00"), 2);
-    assertThatThrownBy(() -> lineaConRebajas("BOT_A", 1, "5.00", List.of(seis)))
+    assertThat(seis.getValue()).isEqualByComparingTo("6");
+    assertThat(seis.getDiscountValue()).isEqualByComparingTo("5.00");
+    assertThat(lineaConRebajas("BOT_A", 1, "5.00", List.of(seis)).getLineAmount())
+        .isEqualByComparingTo("0.00");
+    // Lo que sigue sin admitirse es que la SUMA de varias deje la línea en
+    // negativo: cada una cabe sola y juntas no.
+    LineDiscount tres =
+        LineDiscount.de(MovementDiscountType.FIJO, new BigDecimal("3"), precio("5.00"), 2);
+    assertThatThrownBy(() -> lineaConRebajas("BOT_A", 1, "5.00", List.of(tres, tres)))
         .isInstanceOf(IllegalArgumentException.class);
     assertThatThrownBy(
             () ->

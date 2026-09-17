@@ -6,6 +6,7 @@ import com.factech.nexus.modules.products.domain.models.DiscountValue;
 import com.factech.nexus.modules.products.domain.models.PackageOfferability;
 import com.factech.nexus.modules.products.domain.models.PackagePricing;
 import com.factech.nexus.modules.products.domain.models.PackageStatus;
+import com.factech.nexus.modules.products.domain.models.ProductType;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.OffsetDateTime;
@@ -96,6 +97,15 @@ public interface ProductPackageQueryRepository {
           paquete.tieneDescripcion(),
           paquete.vigencia(hoy),
           items.stream().map(PublishedItem::paraOfrecibilidad).toList());
+    }
+
+    /** El origen de cada upgrade del paquete, para `RN-PM-044`. */
+    public List<UUID> origenesDeSusUpgrades() {
+      return items.stream()
+          .map(PublishedItem::producto)
+          .filter(p -> ProductType.valueOf(p.type()) == ProductType.UPGRADE_MEMBRESIA)
+          .map(ProductQueryRepository.ProductRow::sourceMembershipId)
+          .toList();
     }
   }
 
@@ -191,6 +201,14 @@ public interface ProductPackageQueryRepository {
           paquete.tieneDescripcion(),
           paquete.vigencia(hoy),
           items.stream().map(PackageItemRow::paraOfrecibilidad).toList());
+    }
+
+    /** El origen de cada upgrade del paquete, para `RN-PM-044`. */
+    public List<UUID> origenesDeSusUpgrades() {
+      return items.stream()
+          .filter(i -> ProductType.valueOf(i.productType()) == ProductType.UPGRADE_MEMBRESIA)
+          .map(PackageItemRow::productSourceMembershipId)
+          .toList();
     }
   }
 }

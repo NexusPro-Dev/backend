@@ -31,7 +31,6 @@ import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
-import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -79,25 +78,8 @@ import org.springframework.transaction.annotation.Transactional;
 @Service
 public class RegisterSaleService {
 
-  /** El código del pago gratuito. Literal a propósito: `V78` lo siembra en todos los entornos. */
-  private static final String CODIGO_GRATUITO = "GRATIS";
-
   private static final String MODULO = "MV";
   private static final String ENTIDAD = "movements";
-
-  /** Hoy el único tipo del catálogo. Se busca por código y no se constantea su identificador. */
-  private static final String TIPO_VENTA = "VENTA";
-
-  /**
-   * El estado que `RF-SP-045` estrena (`RN-SP-026`).
-   *
-   * <p><b>Hoy ningún camino del sistema lo produce</b>: {@code ck_users_status} todavía no lo
-   * admite y `RF-SP-045` no tiene una línea de código. La comprobación se escribe igualmente,
-   * porque la alternativa es que el día que ese requerimiento aterrice <b>se le empiece a vender a
-   * cuentas que no pueden operar</b> sin que nada falle. Es la única rama de este servicio que hoy
-   * no se puede alcanzar, y por eso `CA-MV-008` queda sin prueba (`tasks.md` §4).
-   */
-  private static final String FTD_PENDIENTE = "FTD_PENDIENTE";
 
   /**
    * Los decimales con los que el libro guarda los importes ({@code numeric(14,2)}).
@@ -120,6 +102,7 @@ public class RegisterSaleService {
   private final CurrentMembershipLookup membresias;
   private final AuditWriter auditoria;
   private final Clock reloj;
+  private final SaleRules reglas;
 
   @Autowired
   public RegisterSaleService(
@@ -144,6 +127,7 @@ public class RegisterSaleService {
     this.membresias = membresias;
     this.auditoria = auditoria;
     this.reloj = reloj;
+    this.reglas = new SaleRules(movimientos, membresias);
   }
 
   @Transactional
@@ -191,7 +175,7 @@ public class RegisterSaleService {
 
     verificarOferta(cliente, lineas, catalogo);
     if (upgrade != null) {
-      verificarQueSube(cliente, upgrade);
+      reglas.verificarQueSube(cliente.id(), upgrade, "EX-005");
     }
 
     SaleView referencia = catalogo.get(lineas.get(0).productId());
@@ -203,9 +187,10 @@ public class RegisterSaleService {
     // lo tercero que se comprobaba.
     List<MovementLine> copiadas =
         copiar(lineas, catalogo, vendedor.id(), referencia.currencyDecimalPlaces());
-    PaymentMethodView metodo = resolverMetodoDePago(peticion.paymentMethodId(), total(copiadas));
+    PaymentMethodView metodo =
+        reglas.resolverMetodoDePago(peticion.paymentMethodId(), total(copiadas));
 
-    MovementTypeView tipo = tipoDeVenta();
+    MovementTypeView tipo = reglas.tipoDeVenta();
     Movement venta =
         Movement.registrar(
             tipo.id(),
@@ -240,7 +225,16 @@ public class RegisterSaleService {
   // 1 y 2. Quién compra y a quién se le atribuye
   // ---------------------------------------------------------------------------
 
-  /** `EX-001` y `EX-002`, que se distinguen a propósito (`CA-MV-009`). */
+  /**
+   * `EX-001` y `EX-002`, que se distinguen a propósito (`CA-MV-009`).
+   *
+   * <p>`EX-002` es `RN-MV-008` —a una cuenta {@code FTD_PENDIENTE} no se le vende— y desde el
+   * 17-09-2026 la comprueba {@link SaleRules#verificarQueOpera}, compartida con la compra de
+   * paquetes; lo que este servicio conserva es <b>la excepción del alta</b>. El estado lo estrenó
+   * `RF-SP-045` (`RN-SP-026`) y hasta el 09-09-2026 ningún camino del sistema lo producía: la
+   * comprobación se escribió igualmente, porque la alternativa era que el día que ese requerimiento
+   * aterrizara <b>se le empezara a vender a cuentas que no pueden operar</b> sin que nada fallara.
+   */
   private ClientView verificarCliente(UUID clientId, boolean altaDelCliente) {
     ClientView cliente =
         clientes
@@ -253,17 +247,10 @@ public class RegisterSaleService {
                         List.of(
                             new FieldError("userId", "EX-001", "El cliente indicado no existe."))));
 
-    // `RN-MV-008`. El mensaje dice QUE LE FALTA, y no solo que no se puede:
-    // quien intenta vender necesita saber que la salida es confirmar el
-    // depósito, no reintentar. Ver el Javadoc de FTD_PENDIENTE.
-    //
-    // SALVO EN EL ALTA, que es la venta que PONE a la cuenta en ese estado y no
+    // `RN-MV-008`, SALVO EN EL ALTA, que es la venta que PONE a la cuenta en ese estado y no
     // una compra posterior desde él. Ver `registrarAltaDeCliente`.
-    if (!altaDelCliente && FTD_PENDIENTE.equals(cliente.status())) {
-      String mensaje =
-          "Esa cuenta todavía no puede operar: le falta la confirmación de su depósito.";
-      throw new BusinessRuleException(
-          "EX-002", mensaje, List.of(new FieldError("userId", "EX-002", mensaje)));
+    if (!altaDelCliente) {
+      reglas.verificarQueOpera(cliente, "EX-002", "userId");
     }
     return cliente;
   }
@@ -310,109 +297,14 @@ public class RegisterSaleService {
   // 3. Con qué se paga
   // ---------------------------------------------------------------------------
 
-  /**
-   * `RN-MV-022` — importe cero y pago gratuito son lo mismo, <b>en los dos sentidos</b>.
-   *
-   * <p><b>Qué cierra.</b> `RN-PM-006` admite el precio cero desde el 08-09-2026 —lo tumbó la
-   * renovación `BECA → BECA`— y {@code movements.payment_method_id} es {@code NOT NULL}. Desde
-   * entonces, toda compra gratuita estaba <b>obligada a declarar tarjeta, PSE o puntos</b>, y las
-   * tres son falsas. No fallaba nada: el padrón dejaba de poder decir qué se cobró, y `CM`
-   * comisionaría sobre un cobro que nunca ocurrió.
-   *
-   * <p><b>La segunda mitad es la que menos se ve y la más grave.</b> Una venta <b>cobrada</b> que
-   * declarara pago gratuito diría que no se cobró nada — y esa mentira va en la dirección en la que
-   * alguien gana algo. Por eso el rechazo es en los dos sentidos y no solo en uno.
-   *
-   * @param pedido el método que llegó en el cuerpo, o {@code null} si no vino
-   * @param total el importe ya calculado sobre las líneas copiadas
-   */
-  private PaymentMethodView resolverMetodoDePago(UUID pedido, BigDecimal total) {
-    if (total.signum() == 0) {
-      // NO SE ADMITE ENVIARLO, y no es rigidez: el método gratuito no es
-      // descubrible —`RF-MV-009` no lo devuelve (`RN-MV-023`)—, de modo que
-      // cualquier valor que llegue aquí es necesariamente uno equivocado.
-      if (pedido != null) {
-        String mensaje =
-            "Una venta de importe cero no admite método de pago: se registra como gratuita.";
-        throw new BusinessRuleException(
-            "RN-MV-022", mensaje, List.of(new FieldError("paymentMethodId", "RN-MV-022", mensaje)));
-      }
-      return metodoGratuito();
-    }
-
-    if (pedido == null) {
-      String mensaje = "El método de pago es obligatorio cuando la venta tiene importe.";
-      throw new BusinessRuleException(
-          "RN-MV-022", mensaje, List.of(new FieldError("paymentMethodId", "RN-MV-022", mensaje)));
-    }
-
-    PaymentMethodView metodo = verificarMetodoDePago(pedido);
-
-    // La otra mitad de `RN-MV-022`. En la práctica nadie puede llegar aquí con
-    // el gratuito —el catálogo no lo publica—, y la comprobación existe igual:
-    // la regla no se sostiene en que el catálogo lo esconda, sino en que el caso
-    // de uso lo rechace. Esconder es una defensa; rechazar es la regla.
-    if (CODIGO_GRATUITO.equals(metodo.code())) {
-      String mensaje = "El pago gratuito solo vale para ventas de importe cero.";
-      throw new BusinessRuleException(
-          "RN-MV-022", mensaje, List.of(new FieldError("paymentMethodId", "RN-MV-022", mensaje)));
-    }
-    return metodo;
-  }
-
-  /**
-   * El pago gratuito, por <b>código</b> y no por identificador.
-   *
-   * <p>Mismo criterio que {@code MembershipCatalog.floor()} con `BECA`: el literal vive en un solo
-   * sitio, {@code uq_payment_methods_code} lo hace único y `V78` lo siembra en todos los entornos.
-   *
-   * <p><b>No devuelve vacío.</b> Que falte no es un caso de negocio que quien llama deba resolver:
-   * es una base mal construida, y `V78` levanta excepción al aplicarse justamente para que no
-   * llegue a ocurrir.
-   */
-  private PaymentMethodView metodoGratuito() {
-    return movimientos
-        .findPaymentMethodByCode(CODIGO_GRATUITO)
-        .orElseThrow(
-            () ->
-                new IllegalStateException(
-                    "RN-MV-022: falta el método de pago " + CODIGO_GRATUITO + " en el catálogo."));
-  }
+  // `RN-MV-022` y `EX-010` viven en {@link SaleRules} desde el 17-09-2026: son
+  // las mismas comprobaciones para vender un producto suelto y un paquete.
 
   /** El importe de la venta, que es lo que `RN-MV-022` necesita para decidir. */
   private static BigDecimal total(List<MovementLine> lineas) {
     return lineas.stream()
         .map(MovementLine::getLineAmount)
         .reduce(BigDecimal.ZERO, BigDecimal::add);
-  }
-
-  /**
-   * `EX-010`, con los dos casos separados: inexistente es {@code 422} y desactivado es {@code 409}.
-   *
-   * <p><b>Un método desactivado no invalida lo ya vendido con él</b> (`RN-MV-018`) — las ventas
-   * viejas lo siguen referenciando y se leen con normalidad—, pero no sirve para vender hoy.
-   */
-  private PaymentMethodView verificarMetodoDePago(UUID id) {
-    PaymentMethodView metodo =
-        movimientos
-            .findPaymentMethod(id)
-            .orElseThrow(
-                () ->
-                    new UnprocessableEntityException(
-                        "EX-010",
-                        "El método de pago indicado no existe.",
-                        List.of(
-                            new FieldError(
-                                "paymentMethodId",
-                                "EX-010",
-                                "El método de pago indicado no existe."))));
-
-    if (!metodo.active()) {
-      String mensaje = "El método de pago indicado está desactivado.";
-      throw new BusinessRuleException(
-          "EX-010", mensaje, List.of(new FieldError("paymentMethodId", "EX-010", mensaje)));
-    }
-    return metodo;
   }
 
   // ---------------------------------------------------------------------------
@@ -526,49 +418,9 @@ public class RegisterSaleService {
     }
   }
 
-  /**
-   * `RN-MV-006` y `EX-005`: <b>no se baja de nivel</b>, y renovar el mismo <b>sí</b> se admite.
-   *
-   * <p><b>Se comprueba aunque la oferta ya lo garantice hoy</b>, y eso no es redundancia por exceso
-   * de celo: la oferta es una decisión de `PM` y puede ampliarse —el día que se vendan renovaciones
-   * del mismo nivel, por ejemplo—, mientras que «una venta no baja a nadie de nivel» es una regla
-   * de `MV` que no puede depender de que otro módulo siga decidiendo lo mismo. Es lo que mantiene
-   * `EX-005` alcanzable: hoy no se llega por la oferta, y se llegaría el día siguiente a que `PM`
-   * la ampliara.
-   *
-   * <p><b>Se rechaza al registrar y no al confirmar</b>, que es lo único que evita cobrarle a
-   * alguien por algo que no le da nada.
-   *
-   * <p>La cadena crece hacia abajo: {@code 1} es la cima, de modo que <b>nivel superior es número
-   * menor</b> (`requirements/sp.md` §10.4).
-   */
-  private void verificarQueSube(ClientView cliente, SaleView upgrade) {
-    Optional<Integer> nivelActual =
-        membresias.currentMembershipOf(cliente.id()).map(m -> (Integer) m.level());
-
-    // Sin membresía no hay nada por debajo de lo que subir, y no es un rechazo:
-    // cualquier destino está por encima de no tener nivel. Que la oferta se lo
-    // haya ofrecido ya es la decisión de `PM`.
-    if (nivelActual.isEmpty()) {
-      return;
-    }
-    Integer destino = upgrade.targetMembershipLevel();
-    // MAYOR ESTRICTO, y el cambio del 07-09-2026 está en ese símbolo. Era
-    // `>=`, que rechazaba también la MISMA membresía; desde que `PM` admite un
-    // `X → X` eso es una RENOVACIÓN —se paga tiempo, no nivel— y registrarla es
-    // legítimo (`requirements/pm.md` §5.2.3).
-    //
-    // Lo que se queda es la mitad que protege a quien paga: UNA VENTA NO BAJA A
-    // NADIE DE NIVEL. El nulo se sigue rechazando — un upgrade sin destino no
-    // debería existir, y si llega aquí es que algo se rompió antes.
-    if (destino == null || destino > nivelActual.get()) {
-      String mensaje =
-          "El producto «%s» lleva a una membresía inferior a la que esa persona ya tiene."
-              .formatted(upgrade.code());
-      throw new BusinessRuleException(
-          "EX-005", mensaje, List.of(new FieldError("lines", "EX-005", mensaje)));
-    }
-  }
+  // `RN-MV-006` y `EX-005` viven en {@link SaleRules#verificarQueSube} desde el
+  // 17-09-2026, con el argumento intacto: se comprueba aunque la oferta ya lo
+  // garantice hoy, porque la oferta es una decisión de `PM` y esta regla es de `MV`.
 
   // ---------------------------------------------------------------------------
   // 7 y 8. La moneda, la copia y los importes
@@ -668,17 +520,6 @@ public class RegisterSaleService {
           "VAL-007", mensaje, List.of(new FieldError("occurredAt", "VAL-007", mensaje)));
     }
     return enviada;
-  }
-
-  private MovementTypeView tipoDeVenta() {
-    return movimientos
-        .findTypeByCode(TIPO_VENTA)
-        .orElseThrow(
-            // No es un error del cliente: la siembra de `V54` lo garantiza, y
-            // su ausencia significa que el catálogo del módulo está roto.
-            () ->
-                new IllegalStateException(
-                    "El tipo de movimiento «%s» no está en el catálogo.".formatted(TIPO_VENTA)));
   }
 
   private static String nombre(ClientView cliente) {

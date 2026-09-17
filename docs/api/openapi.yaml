@@ -2011,6 +2011,88 @@ paths:
             '*/*':
               schema:
                 $ref: "#/components/schemas/PackageDetailResponse"
+  /api/v1/packages/{id}/purchases:
+    post:
+      tags:
+      - Movimientos
+      summary: Comprar un paquete para uno mismo
+      description: |
+        **Usted se compra el paquete entero** que su oferta le muestra, pagando **lo que ese
+        paquete vale** —la suma de sus productos rebajados, el mismo `price` que publica la
+        oferta— y recibiendo **cada producto** con el descuento que el paquete le declara,
+        congelado.
+
+        **El cuerpo lleva el método de pago y nada más.** El paquete va en la ruta. **No se
+        admiten** productos, cantidades, precios ni descuentos: el paquete se compra
+        **entero** —no se elige qué llevarse—, **uno** —no hay cantidad— y **solo** —sin
+        productos sueltos ni un segundo paquete; quien quiera dos cosas hace dos compras—.
+        El descuento es el que el paquete declara, y un descuento enviado no tiene dónde
+        caer. Tampoco viajan el cliente —es usted— ni la fecha —es ahora—.
+
+        **`paymentMethodId` es condicional en los dos sentidos.** Obligatorio si el paquete
+        tiene importe; **prohibido** si vale cero, que se registra como gratuita: envíe `{}`.
+
+        **La venta nace `PENDIENTE`, y eso significa que no concede nada.** No sube de
+        nivel, no habilita nada y no comisiona hasta que se confirme el pago. Se registra
+        **una línea por producto del paquete**, cantidad uno, cada una con lo copiado del
+        catálogo —nombre, descripción, precio unitario, vigencia— y **su rebaja explicada**:
+        `discounts[]` dice cómo se pactó (`type`, `value`) y cuánto valió en dinero
+        (`discountValue`), y `lineDiscount` es lo que se restó. `payableAmount` es la suma de
+        las líneas rebajadas; `totalAmount` lo que valdrían sin rebaja; `discountAmount` la
+        diferencia. El paquete queda anotado en `packageId`.
+
+        **Lo copiado queda congelado.** Corregir después el descuento del paquete, el precio
+        de un producto o quitar un producto del paquete no cambia esta venta.
+
+        **Se compra tal como está hoy.** Al registrar se vuelve a comprobar todo lo que la
+        oferta ya miró: que el paquete esté activo, publicado en la tienda, con sus
+        productos, **dentro de su vigencia**, y que le corresponda a usted por su membresía.
+        **Y se compra entero**: si un producto del paquete no procede —inactivo, retirado,
+        fuera de su oferta, o un upgrade que baja de nivel— se rechaza la compra completa
+        nombrando el producto, y **no se registra nada**.
+
+        **La respuesta no lleva el vendedor**: se atribuye a su superior comercial vigente
+        —o a usted mismo si no cuelga de nadie— y se congela en cada línea, pero a quien
+        compra no se le enseña. Es la misma forma que devuelve `GET /api/v1/movements/mine/{id}`
+        sin `seller`.
+      operationId: comprar
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/BuyPackageRequest"
+      responses:
+        "201":
+          description: "Venta registrada, pendiente de pago."
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/PurchaseResponse"
+        "400":
+          description: Identificador de paquete malformado en la ruta (`VAL-001`).
+        "401":
+          description: Token ausente o inválido (`AUTH-001`). Comprar exige sesión.
+        "409":
+          description: "Lo que solo se sabe después de resolver: el paquete no se\
+            \ ofrece hoy —inactivo, vencido, sin descripción, con menos de dos productos,\
+            \ fuera de la tienda o con un producto inactivo o retirado— (`EX-002`,\
+            \ con el mismo motivo que publica el catálogo); no le corresponde a usted\
+            \ por su membresía (`EX-003`); un producto no está en su oferta (`EX-004`);\
+            \ el upgrade BAJA de nivel —renovar el mismo sí se admite— (`EX-005`);\
+            \ su cuenta no puede operar todavía (`EX-006`); el método de pago no cuadra\
+            \ con el importe (`RN-MV-022`) o está desactivado (`EX-010`)."
+        "422":
+          description: "Una referencia bien formada que no resuelve: el paquete no\
+            \ existe o está retirado (`EX-001`), o el método de pago no existe (`EX-010`)."
+        "500":
+          description: Fallo no controlado (`ERR-500`)
   /api/v1/packages/{id}/products:
     post:
       tags:
@@ -7513,6 +7595,139 @@ components:
       - name
       - scope
       - validFrom
+    BuyPackageRequest:
+      type: object
+      description: "Con qué se paga, y nada más: el paquete va en la ruta, y ni productos,\
+        \ ni cantidad, ni precio, ni descuento se admiten. Vacío (`{}`) cuando el\
+        \ paquete vale cero."
+      properties:
+        paymentMethodId:
+          type:
+          - string
+          - "null"
+          format: uuid
+          description: "Obligatorio si el paquete tiene importe; PROHIBIDO si vale\
+            \ cero, que se registra como gratuito."
+    PurchaseLineResponse:
+      type: object
+      properties:
+        productId:
+          type: string
+          format: uuid
+        productCode:
+          type: string
+        productName:
+          type: string
+          description: COPIA del nombre que el producto tenía el día de la venta.
+        productDescription:
+          type:
+          - string
+          - "null"
+          description: COPIA de la descripción del día de la venta. NULA si el producto
+            no la declaraba.
+        quantity:
+          type: integer
+          format: int32
+        unitPrice:
+          type: number
+        lineAmount:
+          type: number
+          description: quantity × unitPrice − lineDiscount.
+        validityDays:
+          type:
+          - integer
+          - "null"
+          format: int32
+          description: "Vigencia copiada, en días. NULA si lo adquirido no caduca."
+        lineDiscount:
+          type: number
+          description: "Lo que se rebajó a la línea: quantity × la suma de sus rebajas."
+        discounts:
+          type: array
+          description: Las rebajas que explican lineDiscount. VACÍA —nunca nula— si
+            no hubo.
+          items:
+            $ref: "#/components/schemas/SaleDiscount"
+    PurchaseResponse:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        code:
+          type: string
+        status:
+          type: string
+        user:
+          $ref: "#/components/schemas/SaleParty"
+          description: "Quien compró: el sujeto del movimiento, que aquí es tambié\
+            n quien pidió."
+        packageId:
+          type:
+          - string
+          - "null"
+          format: uuid
+          description: El paquete que se compró. NULO en toda venta que no sea de
+            un paquete. Con el productId de cada línea identifica qué asociación le
+            dio su descuento.
+        currency:
+          $ref: "#/components/schemas/SaleCurrency"
+        paymentMethod:
+          type: string
+        lines:
+          type: array
+          description: "Las líneas, una por producto, cada una con su rebaja explicada."
+          items:
+            $ref: "#/components/schemas/PurchaseLineResponse"
+        totalAmount:
+          type: number
+          description: "Lo que valdría lo vendido sin rebaja: la suma de quantity\
+            \ × unitPrice."
+        discountAmount:
+          type: number
+          description: La suma de lo que cada línea rebajó.
+        payableAmount:
+          type: number
+          description: "Lo que se cobra: totalAmount − discountAmount, que es la suma\
+            \ de las líneas rebajadas. En un paquete coincide con el `price` que el\
+            \ catálogo publica."
+        occurredAt:
+          type: string
+          format: date-time
+        createdAt:
+          type: string
+          format: date-time
+    SaleCurrency:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        code:
+          type: string
+    SaleDiscount:
+      type: object
+      properties:
+        type:
+          type: string
+          description: PORCENTAJE o FIJO.
+        value:
+          type: number
+          description: "Lo pactado: 10 si es porcentaje, 5.00 si es fijo."
+        discountValue:
+          type: number
+          description: "Lo que valió en dinero POR UNIDAD, congelado el día de la\
+            \ venta."
+    SaleParty:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        username:
+          type: string
+        name:
+          type: string
     AssociatePackageProductRequest:
       type: object
       properties:
@@ -7568,27 +7783,6 @@ components:
       required:
       - productId
       - quantity
-    SaleCurrency:
-      type: object
-      properties:
-        id:
-          type: string
-          format: uuid
-        code:
-          type: string
-    SaleDiscount:
-      type: object
-      properties:
-        type:
-          type: string
-          description: PORCENTAJE o FIJO.
-        value:
-          type: number
-          description: "Lo pactado: 10 si es porcentaje, 5.00 si es fijo."
-        discountValue:
-          type: number
-          description: "Lo que valió en dinero POR UNIDAD, congelado el día de la\
-            \ venta."
     SaleLineResponse:
       type: object
       properties:
@@ -7634,16 +7828,6 @@ components:
             \ comisión por ella. En una venta nunca es nulo: quien compra sin colgar\
             \ de nadie es su propio vendedor. NULO solo en los tipos de movimiento\
             \ que no venden nada."
-    SaleParty:
-      type: object
-      properties:
-        id:
-          type: string
-          format: uuid
-        username:
-          type: string
-        name:
-          type: string
     SaleResponse:
       type: object
       properties:
