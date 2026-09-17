@@ -494,10 +494,14 @@ class ConfirmSaleIT extends IntegrationTestBase {
         """
         INSERT INTO movements (id, movement_type_id, user_id, payment_method_id,
                                currency_id, code, status, total_amount, discount_amount,
-                               payable_amount, occurred_at, confirmed_at)
+                               payable_amount, occurred_at, confirmed_at,
+                               voided_at, void_reason)
         VALUES (?, CAST(? AS uuid), ?, CAST(? AS uuid), CAST(? AS uuid), ?, ?,
                 100.00, 0, 100.00, CAST(? AS timestamptz),
-                CASE WHEN ? = 'CONFIRMADA' THEN CAST(? AS timestamptz) ELSE NULL END)
+                CASE WHEN ? = 'CONFIRMADA' THEN CAST(? AS timestamptz) ELSE NULL END,
+                -- `ck_movements_voided`: una anulada lleva fecha y motivo, y solo ella.
+                CASE WHEN ? = 'ANULADA' THEN now() ELSE NULL END,
+                CASE WHEN ? = 'ANULADA' THEN 'Sembrada anulada' ELSE NULL END)
         """,
         id,
         VENTA,
@@ -508,7 +512,9 @@ class ConfirmSaleIT extends IntegrationTestBase {
         estado,
         VENDIDA_EL.toString(),
         estado,
-        VENDIDA_EL.toString());
+        VENDIDA_EL.toString(),
+        estado,
+        estado);
     for (UUID producto : productos) {
       jdbc.update(
           """

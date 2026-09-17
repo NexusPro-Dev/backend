@@ -76,6 +76,8 @@ final class SaleDetailMapper {
         cabecera.payableAmount(),
         cabecera.occurredAt(),
         cabecera.confirmedAt(),
+        cabecera.voidedAt(),
+        cabecera.voidReason(),
         cabecera.createdAt());
   }
 }

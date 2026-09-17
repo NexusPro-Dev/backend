@@ -3907,6 +3907,15 @@
           "user" : {
             "$ref" : "#/components/schemas/SaleParty",
             "description" : "El SUJETO del movimiento: a nombre de quién es. En una venta, quien compra. Nunca quien la registró desde oficina."
+          },
+          "voidReason" : {
+            "description" : "Por qué la venta no debía existir, escrito para una persona. NULO en toda venta no anulada.",
+            "type" : [ "string", "null" ]
+          },
+          "voidedAt" : {
+            "description" : "Cuándo se anuló (`RF-MV-005`). NULO en toda venta no anulada.",
+            "format" : "date-time",
+            "type" : [ "string", "null" ]
           }
         },
         "type" : "object"
@@ -4617,6 +4626,15 @@
             "type" : "string"
           },
           "username" : {
+            "type" : "string"
+          }
+        },
+        "type" : "object"
+      },
+      "VoidSaleRequest" : {
+        "properties" : {
+          "reason" : {
+            "description" : "Por qué la venta no debía existir. Obligatorio, hasta 500 caracteres.",
             "type" : "string"
           }
         },
@@ -6952,6 +6970,62 @@
           }
         },
         "summary" : "Confirmar el pago de una venta pendiente",
+        "tags" : [ "Movimientos" ]
+      }
+    },
+    "/api/v1/movements/{id}/voiding" : {
+      "post" : {
+        "description" : "Saca del embudo una venta pendiente que **no debía existir** —se registró por error,\nal cliente equivocado, con el producto equivocado— dejando escrito **cuándo y por\nqué**. `reason` es **obligatorio** (hasta 500 caracteres) y se verifica antes de\ntocar la venta.\n\n**Anular no es rechazar**: una rechazada es un cobro que se intentó y no entró;\nuna anulada es una venta que nunca debió estar. Y **anular no es borrar**: la venta\nse queda con su código, sus líneas y sus importes, en estado `ANULADA`, que es\nfinal. Solo se anula lo **pendiente**: una confirmada ya entregó, y deshacerlo es\nuna operación que no existe.\n\nNada se retira: una pendiente no había concedido nada. Sus líneas siguen\n`PENDIENTE` de entrega y el registro de lo comprado las muestra `ANULADO`.\nAnular dos veces responde `409` diciendo el estado, y no cambia nada.\n",
+        "operationId" : "anular",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "id",
+          "required" : true,
+          "schema" : {
+            "format" : "uuid",
+            "type" : "string"
+          }
+        } ],
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/VoidSaleRequest"
+              }
+            }
+          }
+        },
+        "responses" : {
+          "200" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/SaleResponse"
+                }
+              }
+            },
+            "description" : "Anulada, con `voidedAt` y `voidReason`."
+          },
+          "400" : {
+            "description" : "Identificador malformado (`VAL-001`), motivo vacío (`VAL-002`) o demasiado largo (`VAL-003`)"
+          },
+          "401" : {
+            "description" : "Token ausente o inválido (`AUTH-001`)"
+          },
+          "403" : {
+            "description" : "Sin el permiso `movements:void` (tener `movements:confirm` no basta)."
+          },
+          "404" : {
+            "description" : "No existe (`EX-001`)"
+          },
+          "409" : {
+            "description" : "No está pendiente (`EX-002`): ya confirmada, rechazada o anulada. El mensaje dice en qué estado está, y nada cambió."
+          },
+          "500" : {
+            "description" : "Fallo no controlado (`ERR-500`)"
+          }
+        },
+        "summary" : "Anular una venta pendiente",
         "tags" : [ "Movimientos" ]
       }
     },

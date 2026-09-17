@@ -192,6 +192,8 @@ public interface MovementRepository {
       BigDecimal payableAmount,
       OffsetDateTime occurredAt,
       OffsetDateTime confirmedAt,
+      OffsetDateTime voidedAt,
+      String voidReason,
       OffsetDateTime createdAt) {}
 
   /** Un vendedor de las líneas de un movimiento. */
@@ -280,6 +282,15 @@ public interface MovementRepository {
    * <p>Se leen <b>después</b> de la transición, no antes: solo quien la ganó recorre las líneas.
    */
   List<DeliveryLineRow> findLinesForDelivery(UUID movementId);
+
+  /**
+   * `RF-MV-005`: {@code PENDIENTE} → {@code ANULADA} con el instante y el motivo, en una sola
+   * sentencia condicionada al estado anterior — la misma forma que {@link #confirmIfPending}, y por
+   * lo mismo. No hay líneas que recorrer: una pendiente no concedió nada.
+   *
+   * @return {@code true} si esta llamada anuló; {@code false} si no estaba pendiente o no existe
+   */
+  boolean voidIfPending(UUID movementId, OffsetDateTime at, String reason);
 
   /** {@code PENDIENTE} → {@code ENTREGADA} en {@code at}. */
   void markDelivered(UUID lineId, OffsetDateTime at);

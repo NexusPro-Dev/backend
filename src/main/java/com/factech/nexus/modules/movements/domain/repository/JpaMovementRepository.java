@@ -375,6 +375,7 @@ public class JpaMovementRepository implements MovementRepository {
              m.total_amount AS total, m.discount_amount AS descuento,
              m.payable_amount AS pagar,
              m.occurred_at AS occurred_at, m.confirmed_at AS confirmed_at,
+             m.voided_at AS voided_at, m.void_reason AS void_reason,
              m.created_at AS created_at
       """;
 
@@ -646,6 +647,23 @@ public class JpaMovementRepository implements MovementRepository {
               fila.get("vigencia") == null ? null : ((Number) fila.get("vigencia")).intValue()));
     }
     return resultado;
+  }
+
+  @Override
+  @Transactional
+  public boolean voidIfPending(UUID movementId, OffsetDateTime at, String reason) {
+    int filas =
+        em.createNativeQuery(
+                """
+                UPDATE movements
+                   SET status = 'ANULADA', voided_at = :ahora, void_reason = :motivo
+                 WHERE id = :id AND status = 'PENDIENTE'
+                """)
+            .setParameter("id", movementId)
+            .setParameter("ahora", at)
+            .setParameter("motivo", reason)
+            .executeUpdate();
+    return filas == 1;
   }
 
   @Override
@@ -982,6 +1000,8 @@ public class JpaMovementRepository implements MovementRepository {
         (BigDecimal) fila.get("pagar"),
         instante(fila.get("occurred_at")),
         instante(fila.get("confirmed_at")),
+        instante(fila.get("voided_at")),
+        (String) fila.get("void_reason"),
         instante(fila.get("created_at")));
   }
 

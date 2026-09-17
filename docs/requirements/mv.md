@@ -5,7 +5,7 @@
 | Módulo | `MV` — Movimientos |
 | Paquete | `modules/movements` |
 | Prefijos de permiso | `movements:` |
-| Versión | 0.25.0 |
+| Versión | 0.26.0 |
 | Estado | **Borrador** |
 | Responsable | Bonilla Diaz William Steven |
 | Fecha de creación | 02-09-2026 |
@@ -197,6 +197,21 @@ La dependencia es **acíclica**: `MV` → `PM` → `SP`, y `MV` → `SP`.
 **Entra por `POST /api/v1/movements/{id}/confirmation`**, sin cuerpo: confirmar es un hecho y no un formulario. La transición es **atómica y condicionada al estado anterior** —una sola escritura que solo acierta si la venta seguía `PENDIENTE`—, y eso es lo que hace que dos confirmaciones del mismo pago concedan **una vez**: la segunda encuentra la venta ya confirmada y responde que no está pendiente. En la misma transacción se recorren las líneas: la de un upgrade **automático** concede la membresía destino por `MembershipGrant` **salvo que baje de nivel** (`RN-MV-029`), las demás automáticas quedan **entregadas** en ese instante, y las **manuales** quedan **pendientes de autorización** para `RF-MV-010`. **La vigencia se cuenta desde la entrega**, no desde la venta (§5.4).
 
 **Lo que NO hace, y está escrito para que nadie lo espere**: no saca a nadie de `FTD_PENDIENTE` —eso lo hace el primer depósito, etapa 2—, no devenga comisiones —etapa 5—, no adjunta comprobante —`RF-MV-007` lo declara y no existe— y no revisa nada del método de pago: que el dinero entró lo afirma quien confirma, y **el sistema le cree a una persona lo que mañana le creerá a la pasarela**.
+
+#### `RF-MV-005` — Anular una venta pendiente
+
+| Campo | Valor |
+|---|---|
+| Objetivo | Sacar del embudo una venta pendiente que **no debía existir**, dejando escrito cuándo y por qué, sin borrarla y sin que pueda volver |
+| Actor | Quien administra las ventas |
+| Permiso requerido | `movements:void` — **no** `movements:confirm`: quien concilia no tiene por qué poder hacer desaparecer ventas del embudo (§6) |
+| Prioridad | Alta |
+| Reglas aplicables | `RN-MV-001`, `RN-MV-004`, `RN-MV-005` |
+| Depende de | `RF-MV-001` |
+| Tripleta | [`docs/specs/mv/005-anular-venta/`](../../specs/mv/005-anular-venta/spec.md) |
+| Estado | **En desarrollo** — especificado y **construido el 17-09-2026** |
+
+**Entra por `POST /api/v1/movements/{id}/voiding`** con el motivo en el cuerpo, **obligatorio** y verificado antes de tocar la venta. Es `RF-MV-003` sin la entrega: la misma transición atómica condicionada a `PENDIENTE`, y ningún recorrido de líneas, porque una pendiente no concedió nada (`RN-MV-004`). **Anular no es borrar**: la fila se queda con su código, sus líneas y sus importes, y desde `V17` con `voided_at` y `void_reason`, que es lo que separa «anulada» de «desaparecida» y lo que el detalle y `RF-MV-014` muestran. **Y anular no es rechazar** (§4.1): `RF-MV-004` sigue pendiente, con su significado y su permiso. Que el comprador retire su propia compra pendiente **no es este requerimiento**.
 
 #### `RF-MV-011` — Comprar un producto por el hotlink de un vendedor
 
@@ -497,6 +512,8 @@ Hasta hoy esta regla no distinguía: **toda** venta confirmada con un upgrade co
 | `payable_amount` | `numeric(14,2)` | No | — |
 | `occurred_at` | `timestamptz` | No | — |
 | `confirmed_at` | `timestamptz` | **Sí** | — |
+| `voided_at` | `timestamptz` | **Sí** | — |
+| `void_reason` | `varchar(500)` | **Sí** | — |
 | `created_at` | `timestamptz` | No | — |
 | `reference_id` | `uuid` | **Sí** | **Pendiente de definir** |
 
@@ -666,6 +683,7 @@ Se siembra por migración y **no se administra por API todavía** (§5.3). Lo m�
 | `ck_movements_status` | `status` en (`PENDIENTE`, `CONFIRMADA`, `RECHAZADA`, `ANULADA`) | `RN-MV-005`. El dominio, no la transición |
 | `ck_movements_payable` | `payable_amount = total_amount - discount_amount` | `RN-MV-013`. Cruza tres columnas de la misma fila, que es exactamente lo que un `CHECK` sabe hacer |
 | `ck_movements_amounts` | Los tres importes `>= 0` | Una venta negativa es un retiro disfrazado, y los retiros son la etapa 6 |
+| `ck_movements_voided` | `voided_at IS NOT NULL AND void_reason IS NOT NULL` si y solo si `status = 'ANULADA'` | `RF-MV-005`, `V17`. Como la anterior: una anulada sin motivo o una pendiente con fecha de anulación son estados que el código puede escribir y el negocio no admite. Columnas propias y no un `resolved_at` genérico, para no decidir hoy si rechazar lleva motivo |
 | `ck_movements_confirmed` | `confirmed_at IS NOT NULL` si y solo si `status = 'CONFIRMADA'` | Sin ella, una venta confirmada sin fecha o una pendiente con fecha son estados que el código puede escribir y nadie detecta |
 | `uq_movement_details_producto` | `(movement_id, product_id)` | `RN-MV-011` |
 | `ck_movement_details_quantity` | `quantity > 0` | Una línea de cero unidades no es una línea |
@@ -714,3 +732,4 @@ Se siembra por migración y **no se administra por API todavía** (§5.3). Lo m�
 | 0.23.0 | 17-09-2026 | **`RF-MV-006` se especifica y se construye**, a petición del responsable del proyecto —«un endpoint para consultar todos los movimientos registrados»—. Estaba **declarado desde el 02-09-2026** como «Consultar ventas» y sin tripleta; **se renombra a «Consultar los movimientos»** (§4.1), por lo mismo que `RF-MV-008`. Escrito **por diferencias sobre `RF-MV-008`**, y las diferencias son tres: `movements:read` es lo único que lo abre —`CA-MV-069` lo ejercita con un actor que tiene movimientos propios y recibe `403`—, el alcance es **global y explícito** como §5.3 había decidido para no tocar D-22, y se acota con **seis filtros** combinables (estado, sujeto, vendedor de alguna línea, método de pago, comprobante exacto y periodo semiabierto sobre cuándo ocurrió). La fila gana **el tipo** y **cuándo se confirmó** —nulo y presente en lo no confirmado— y **no lleva el papel**, que valdría siempre lo mismo. **El total es acotado** con el techo de la auditoría, porque el libro crece sin límite. Nace `V15`, `ix_movements_occurred_at` sobre `(occurred_at DESC, id DESC)`: el listado sin filtros ordena la tabla entera y los dos índices de `RF-MV-008` empiezan por una persona. **No se audita**, como `RF-SP-025`: consultar con permiso no es un evento. 18 pruebas de integración en `MovementsIT` y `MovementsBoundedCountIT`. `§6` enmienda la frase de `movements:read`. **Queda declarado lo primero que va a faltar**: `RF-MV-007`, el detalle — quien administra ve la fila y no puede abrirla. | Responsable del proyecto |
 | 0.24.0 | 17-09-2026 | **Confirmar el pago y lo que confirmar entrega: `RF-MV-003` se especifica, nace `RF-MV-014` y se cierran D-26 y los dos huecos de §5.4**, a petición del responsable del proyecto —«un endpoint para confirmar el pago, si se compró la membresía hacerla vigente, y un registro de los productos que he comprado»— y con tres decisiones suyas del mismo día. **(1) D-26: la primera.** `SP` publica `MembershipGrant`, escritura síncrona en la misma transacción que confirmar, con las reglas de conceder dentro de `SP`; la forma queda como norma en `architecture.md` §15.2. **(2) Confirmar no baja de nivel a nadie** (`RN-MV-029`): si la membresía comprada es inferior a la vigente al confirmar, la venta cobra y la línea queda `RETENIDA` con motivo — la salida segura, con su coste **visible** en lugar de silencioso. **(3) El registro de lo comprado lista todo, con su estado** (`RF-MV-014`): se deriva del libro, sin tabla nueva, y cada producto dice si está pendiente de pago, pendiente de autorización, activo hasta cuándo, vencido, retenido, rechazado o anulado. **Y una decisión de diseño que §5.4 había aplazado a `RF-MV-010` y `RF-MV-003` necesita antes**: el estado de la entrega es una **columna de la línea** (`RN-MV-030`: `delivery_status`, `delivered_at`, `delivery_note`), la única de `movement_details` que cambia después de escribirse, acotada por `CHECK`; y **la implementación se copia por fin** (`implementation`, `V16`), como el recuadro de la v0.10.0 exigía. `RN-MV-020` y `RN-MV-021` no cambian de texto: cambian de estar escritas a poder cumplirse. Confirmar **no** saca de `FTD_PENDIENTE`, **no** comisiona y **no** adjunta comprobante — lo que las etapas 2 y 5 y `RF-MV-007` traerán. | Responsable del proyecto |
 | 0.25.0 | 17-09-2026 | **`RF-MV-003` y `RF-MV-014` se construyen**, el mismo día que estrenaron tripleta. `V16` copia la implementación en la línea y rellena lo ya vendido con el valor del catálogo de ese día; `SP` publica `MembershipGrant` con `MANDATORY` —sin transacción del que llama, falla antes de tocar nada— y **cierra e inserta siempre**, también al renovar el mismo nivel, porque una compra es un periodo nuevo pagado; `ConfirmSaleService` hace la transición con un `UPDATE … WHERE status = 'PENDIENTE'` cuya cuenta de filas es la decisión, **lee las líneas después** y no antes, y escribe el resultado de cada una en el asiento de auditoría; `ListMyProductsService` calcula los seis estados en la sentencia con el reloj como parámetro, y el borde del vencimiento es el de `SP`: igual al instante ya venció. Ninguna desviación de los planes. `POST /api/v1/movements/{id}/confirmation` y `GET /api/v1/movements/mine/products`; `SaleResponse`, `PurchaseResponse` y `MyMovement` ganan `confirmedAt`, y cada línea `implementation`, `deliveryStatus`, `deliveredAt` y `deliveryNote`. 14 pruebas en `ConfirmSaleIT`, 1 concurrente, 12 en `MyProductsIT`, 1 en `PublishedMembershipGrantIT`, 2 unitarias. | Responsable del proyecto |
+| 0.26.0 | 17-09-2026 | **`RF-MV-005` se especifica y se construye**, a petición del responsable del proyecto —«¿y para anular un movimiento?»—. Estaba declarado desde el 02-09-2026. Es `RF-MV-003` sin la entrega: la misma transición atómica, sin líneas que recorrer porque una pendiente no concedió nada. Lo que fija: **anular no es borrar** —`V17` añade `voided_at` y `void_reason` a `movements`, atados por `ck_movements_voided`, porque el motivo es lo que separa «anulada» de «desaparecida» y quien mire la venta dentro de un año lo lee ahí y no en la auditoría—; **el motivo es obligatorio** y se verifica antes de tocar nada, con el mismo tope que el de una eliminación; y **son dos permisos**: `CA-MV-115` prueba que `movements:confirm` no anula. `POST /api/v1/movements/{id}/voiding`; `SaleResponse` gana `voidedAt` y `voidReason`. 9 pruebas en `VoidSaleIT`. Queda fuera, declarado: rechazar (`RF-MV-004`) y que el comprador retire lo suyo. | Responsable del proyecto |

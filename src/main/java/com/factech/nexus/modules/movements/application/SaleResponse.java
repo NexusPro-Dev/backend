@@ -80,6 +80,17 @@ public record SaleResponse(
                 "Cuándo entró el dinero (`RF-MV-003`). Desde aquí corre la vigencia de lo que se"
                     + " entrega solo. NULO en toda venta que no esté confirmada.")
         OffsetDateTime confirmedAt,
+    @Schema(
+            types = {"string", "null"},
+            format = "date-time",
+            description = "Cuándo se anuló (`RF-MV-005`). NULO en toda venta no anulada.")
+        OffsetDateTime voidedAt,
+    @Schema(
+            types = {"string", "null"},
+            description =
+                "Por qué la venta no debía existir, escrito para una persona. NULO en toda venta"
+                    + " no anulada.")
+        String voidReason,
     OffsetDateTime createdAt) {
 
   @Schema(name = "SaleParty")
@@ -115,7 +126,9 @@ public record SaleResponse(
         venta.getDiscountAmount(),
         venta.getPayableAmount(),
         venta.getOccurredAt(),
-        // Acaba de registrarse: nadie ha confirmado nada.
+        // Acaba de registrarse: nadie ha confirmado ni anulado nada.
+        null,
+        null,
         null,
         venta.getCreatedAt());
   }

@@ -8,12 +8,14 @@ import com.factech.nexus.modules.movements.application.MyProductResponse;
 import com.factech.nexus.modules.movements.application.MyProductsRequest;
 import com.factech.nexus.modules.movements.application.RegisterSaleRequest;
 import com.factech.nexus.modules.movements.application.SaleResponse;
+import com.factech.nexus.modules.movements.application.VoidSaleRequest;
 import com.factech.nexus.modules.movements.domain.service.ConfirmSaleService;
 import com.factech.nexus.modules.movements.domain.service.GetMyMovementService;
 import com.factech.nexus.modules.movements.domain.service.ListMovementsService;
 import com.factech.nexus.modules.movements.domain.service.ListMyMovementsService;
 import com.factech.nexus.modules.movements.domain.service.ListMyProductsService;
 import com.factech.nexus.modules.movements.domain.service.RegisterSaleService;
+import com.factech.nexus.modules.movements.domain.service.VoidSaleService;
 import com.factech.nexus.shared.pagination.PageResponse;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.media.Content;
@@ -50,6 +52,7 @@ public class MovementController {
 
   private final RegisterSaleService alta;
   private final ConfirmSaleService confirmacion;
+  private final VoidSaleService anulacion;
   private final ListMovementsService libro;
   private final ListMyMovementsService listado;
   private final ListMyProductsService comprado;
@@ -58,12 +61,14 @@ public class MovementController {
   public MovementController(
       RegisterSaleService alta,
       ConfirmSaleService confirmacion,
+      VoidSaleService anulacion,
       ListMovementsService libro,
       ListMyMovementsService listado,
       ListMyProductsService comprado,
       GetMyMovementService detalle) {
     this.alta = alta;
     this.confirmacion = confirmacion;
+    this.anulacion = anulacion;
     this.libro = libro;
     this.listado = listado;
     this.comprado = comprado;
@@ -136,6 +141,65 @@ public class MovementController {
   })
   public SaleResponse confirmar(@PathVariable UUID id) {
     return confirmacion.confirm(id);
+  }
+
+  /**
+   * La misma forma que {@code …/confirmation}: una acción con nombre y con <b>su</b> permiso.
+   * `movements:void` y no `movements:confirm`, porque quien concilia pagos no tiene por qué poder
+   * hacer desaparecer del embudo ventas ajenas (`requirements/mv.md` §6).
+   */
+  @PostMapping("/{id}/voiding")
+  @PreAuthorize("hasAuthority('movements:void')")
+  @Operation(
+      summary = "Anular una venta pendiente",
+      description =
+          """
+          Saca del embudo una venta pendiente que **no debía existir** —se registró por error,
+          al cliente equivocado, con el producto equivocado— dejando escrito **cuándo y por
+          qué**. `reason` es **obligatorio** (hasta 500 caracteres) y se verifica antes de
+          tocar la venta.
+
+          **Anular no es rechazar**: una rechazada es un cobro que se intentó y no entró;
+          una anulada es una venta que nunca debió estar. Y **anular no es borrar**: la venta
+          se queda con su código, sus líneas y sus importes, en estado `ANULADA`, que es
+          final. Solo se anula lo **pendiente**: una confirmada ya entregó, y deshacerlo es
+          una operación que no existe.
+
+          Nada se retira: una pendiente no había concedido nada. Sus líneas siguen
+          `PENDIENTE` de entrega y el registro de lo comprado las muestra `ANULADO`.
+          Anular dos veces responde `409` diciendo el estado, y no cambia nada.
+          """)
+  @ApiResponses({
+    @ApiResponse(responseCode = "200", description = "Anulada, con `voidedAt` y `voidReason`."),
+    @ApiResponse(
+        responseCode = "400",
+        description =
+            "Identificador malformado (`VAL-001`), motivo vacío (`VAL-002`) o demasiado largo"
+                + " (`VAL-003`)",
+        content = @Content),
+    @ApiResponse(
+        responseCode = "401",
+        description = "Token ausente o inválido (`AUTH-001`)",
+        content = @Content),
+    @ApiResponse(
+        responseCode = "403",
+        description = "Sin el permiso `movements:void` (tener `movements:confirm` no basta).",
+        content = @Content),
+    @ApiResponse(responseCode = "404", description = "No existe (`EX-001`)", content = @Content),
+    @ApiResponse(
+        responseCode = "409",
+        description =
+            "No está pendiente (`EX-002`): ya confirmada, rechazada o anulada. El mensaje dice"
+                + " en qué estado está, y nada cambió.",
+        content = @Content),
+    @ApiResponse(
+        responseCode = "500",
+        description = "Fallo no controlado (`ERR-500`)",
+        content = @Content)
+  })
+  public SaleResponse anular(
+      @PathVariable UUID id, @RequestBody(required = false) VoidSaleRequest peticion) {
+    return anulacion.voidSale(id, peticion == null ? null : peticion.reason());
   }
 
   /**

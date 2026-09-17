@@ -2401,6 +2401,61 @@ paths:
         "422":
           description: "Un dato bien formado que no resuelve: el comprador, un producto\
             \ o el método de pago no existen."
+  /api/v1/movements/{id}/voiding:
+    post:
+      tags:
+      - Movimientos
+      summary: Anular una venta pendiente
+      description: |
+        Saca del embudo una venta pendiente que **no debía existir** —se registró por error,
+        al cliente equivocado, con el producto equivocado— dejando escrito **cuándo y por
+        qué**. `reason` es **obligatorio** (hasta 500 caracteres) y se verifica antes de
+        tocar la venta.
+
+        **Anular no es rechazar**: una rechazada es un cobro que se intentó y no entró;
+        una anulada es una venta que nunca debió estar. Y **anular no es borrar**: la venta
+        se queda con su código, sus líneas y sus importes, en estado `ANULADA`, que es
+        final. Solo se anula lo **pendiente**: una confirmada ya entregó, y deshacerlo es
+        una operación que no existe.
+
+        Nada se retira: una pendiente no había concedido nada. Sus líneas siguen
+        `PENDIENTE` de entrega y el registro de lo comprado las muestra `ANULADO`.
+        Anular dos veces responde `409` diciendo el estado, y no cambia nada.
+      operationId: anular
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/VoidSaleRequest"
+      responses:
+        "200":
+          description: "Anulada, con `voidedAt` y `voidReason`."
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/SaleResponse"
+        "400":
+          description: "Identificador malformado (`VAL-001`), motivo vacío (`VAL-002`)\
+            \ o demasiado largo (`VAL-003`)"
+        "401":
+          description: Token ausente o inválido (`AUTH-001`)
+        "403":
+          description: Sin el permiso `movements:void` (tener `movements:confirm`
+            no basta).
+        "404":
+          description: No existe (`EX-001`)
+        "409":
+          description: "No está pendiente (`EX-002`): ya confirmada, rechazada o anulada.\
+            \ El mensaje dice en qué estado está, y nada cambió."
+        "500":
+          description: Fallo no controlado (`ERR-500`)
   /api/v1/movements/{id}/confirmation:
     post:
       tags:
@@ -8133,9 +8188,28 @@ components:
           format: date-time
           description: Cuándo entró el dinero (`RF-MV-003`). Desde aquí corre la vigencia
             de lo que se entrega solo. NULO en toda venta que no esté confirmada.
+        voidedAt:
+          type:
+          - string
+          - "null"
+          format: date-time
+          description: Cuándo se anuló (`RF-MV-005`). NULO en toda venta no anulada.
+        voidReason:
+          type:
+          - string
+          - "null"
+          description: "Por qué la venta no debía existir, escrito para una persona.\
+            \ NULO en toda venta no anulada."
         createdAt:
           type: string
           format: date-time
+    VoidSaleRequest:
+      type: object
+      properties:
+        reason:
+          type: string
+          description: "Por qué la venta no debía existir. Obligatorio, hasta 500\
+            \ caracteres."
     RegisterMembershipRequest:
       type: object
       properties:
