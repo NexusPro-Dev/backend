@@ -2,7 +2,7 @@
 
 | Campo | Valor |
 |---|---|
-| Versión | 0.61.0 |
+| Versión | 0.62.0 |
 | Estado | **Borrador** |
 | Responsable | Bonilla Diaz William Steven |
 | Fecha de creación | 21-08-2026 |
@@ -650,6 +650,99 @@ Ninguna de las dos guarda una venta, y **las dos escribieron condiciones sobre q
     Es la diferencia entre una copia que **protege el pasado** y una que **duplica el presente**.
 
 
+### 4.2 Lo que se enseña — `AC`, 17-09-2026, diseñado
+
+El quinto módulo, incorporado en [`modules.md`](modules.md) v0.21.0 §5.5 y diseñado en [`requirements/ac.md`](requirements/ac.md) §8. **Ocho tablas, ninguna escrita todavía**: se crearán con los requerimientos que las estrenan, en el orden de `ac.md` §6.1 —`course_categories` con `RF-AC-001`, `courses` con `RF-AC-008`, `course_modules` con `RF-AC-022`, `lessons` con `RF-AC-028`, las tres relaciones con el primer requerimiento de cada una, y `academy_images` con `RF-AC-006`—.
+
+```mermaid
+erDiagram
+    users       ||--o{ courses : "ENSEÑA · porta courses:teach al asignarse"
+    memberships }o--o{ courses : "ABRE · lista explicita · course_memberships · sin filas NO se ofrece"
+    course_categories }o--o{ courses : "CLASIFICA · course_category_items · un curso sin categoria se ofrece igual"
+    courses }o--o{ courses : "RECOMIENDA ver antes · course_recommendations · sugerencia, no candado"
+    courses ||--o{ course_modules : "se compone de · no se mueven"
+    course_modules ||--o{ lessons : "se estudia en · no se mueven"
+    academy_images |o--o| course_categories : "es la PORTADA de"
+    academy_images |o--o| courses : "es la PORTADA de"
+    academy_images |o--o| course_modules : "es la PORTADA de · la MISMA tabla, sin saber de quien es cada una"
+
+    course_categories {
+        uuid id PK
+        varchar name UK "150 · unico entre las vivas, sin mayusculas ni acentos"
+        varchar color "6 · formato de RN-SP-024 · NO unico"
+        varchar icon "50 · un identificador, no una imagen"
+        integer display_order "orden GLOBAL · no unico · desempate por id"
+        uuid cover_image_id FK "NULL = no tiene · UNICO"
+        timestamptz deleted_at "logico · SIN status: viva o retirada"
+    }
+
+    courses {
+        uuid id PK
+        varchar title UK "150 · unico entre los vivos · SIN codigo"
+        uuid instructor_id FK "users · porta courses:teach AL ASIGNAR · perderlo despues no toca el curso"
+        varchar difficulty "PRINCIPIANTE, INTERMEDIO o AVANZADO · etiqueta, no orden"
+        varchar short_description "300 · NULL hasta que se escriba · exigida para ACTIVAR"
+        text long_description "NULL hasta que se escriba · exigida para ACTIVAR"
+        varchar intro_video_url "500 · un ENLACE, no el video"
+        integer display_order "orden GLOBAL · vale en todas sus categorias"
+        varchar status "nace INACTIVO · activar exige un modulo ACTIVO"
+        uuid cover_image_id FK "NULL = no tiene · UNICO"
+        timestamptz deleted_at "logico · retirar ARRASTRA modulos y lecciones"
+    }
+
+    course_modules {
+        uuid id PK
+        uuid course_id FK "NO se corrige"
+        varchar title "150 · unico DENTRO del curso"
+        varchar presentation_video_url "500 · el «contenido url» de la lista original"
+        integer display_order "dentro del curso"
+        varchar status "nace INACTIVO · activar exige una leccion ACTIVA"
+        uuid cover_image_id FK "NULL = no tiene · UNICO"
+        timestamptz deleted_at "logico · retirar ARRASTRA lecciones"
+    }
+
+    lessons {
+        uuid id PK
+        uuid module_id FK "NO se corrige"
+        varchar type "VIDEO o TEXTO · el tipo dice como leer content"
+        varchar title "150 · unico DENTRO del modulo"
+        text content "URL si VIDEO, Markdown si TEXTO · el backend NO lo mira · NULL hasta que se prepare · exigido para ACTIVAR"
+        integer duration_minutes "mayor que cero · en los DOS tipos"
+        integer display_order "dentro del modulo"
+        boolean open "false por omision · la DEMO: se abre a cualquier alumno con sesion"
+        varchar status "nace INACTIVO"
+        timestamptz deleted_at "logico · SIN portada"
+    }
+
+    course_category_items {
+        uuid course_id PK
+        uuid category_id PK
+    }
+
+    course_recommendations {
+        uuid course_id PK "al que se ENTRA"
+        uuid recommended_course_id PK "el que conviene ver ANTES · distinto · sin exigir aciclicidad"
+    }
+
+    course_memberships {
+        uuid course_id PK
+        uuid membership_id PK "memberships de SP · la membresia no se retira, la fila no tiene otro lado que muera"
+    }
+
+    academy_images {
+        uuid id PK
+        varchar content_type "image/jpeg, png o webp · detectado en los BYTES"
+        bytea content "de 1 byte a 5 MB · tal cual"
+        timestamptz created_at "sin updated_at ni deleted_at: se reemplaza por OTRA fila y la vieja se BORRA"
+    }
+```
+
+**Cuatro entidades con historia, tres relaciones sin identidad y una tabla que es el valor de una columna.** Las cuatro entidades llevan `deleted_at` y se retiran con motivo y registro; las tres relaciones llevan clave primaria compuesta, sin `id` y sin `deleted_at`, porque dar y quitar una relación **borra la fila** y la auditoría de cambios del curso conserva el antes y el después. `academy_images` es `product_images` columna a columna **en el módulo que la escribe**: la tentación era señalar la tabla de `PM` desde `courses`, y `modules.md` §7 prohíbe que un módulo escriba la tabla de otro. **Lo que sí se comparte es el detector de firma**, que pasa de `PM` a `shared/` con `RF-AC-006`.
+
+**Dos claves foráneas cruzan hacia `SP`** —`courses.instructor_id` y `course_memberships.membership_id`— y ninguna hacia `PM` (§5.3). **Ninguna de las cuatro entidades guarda su ofrecibilidad**: que un curso se ofrezca es una cuenta sobre `courses`, `course_memberships`, `course_modules` y `lessons` que se hace en cada lectura (`RN-AC-015`), como el `offerable` del paquete.
+
+**Y una decisión de columna que conviene ver aquí**: `lessons.content` es **una sola columna para los dos tipos**, y no `video_url` más `body`. `CM` tiene dos columnas —`percentage` y `fixed_amount`— porque una tasa **declara** una de dos formas y hubo que escribir `ck_commission_rates_forma` para que fuera exactamente una y la que corresponde al tipo; una lección **tiene un contenido**, y el tipo dice cómo leerlo. El `CHECK` solo mira que sea una URL cuando el tipo es `VIDEO`.
+
 ## 5. Cómo queda la base de datos
 
 **Veintiuna tablas escritas.** Ninguna se ha retirado nunca.
@@ -732,8 +825,9 @@ flowchart TB
 | `PM` | `products`, `product_comments`, `product_images`, `product_packages`, `product_package_items` | **3 escritas** (`V39`, `V87`, `V90`) **y dos diseñadas**: las de los paquetes, que creará la migración de `RF-PM-017` (14-09-2026) |
 | `CM` | `commission_rates`, `user_commission_rates` | **2, escritas** (`V6` del esquema consolidado). `product_commission_rates` existió de `V49` a `V94` (15-09-2026) y `user_commission_rate_products` de `V85` a `V10` (16-09-2026) |
 | `MV` | `movements`, `movement_types`, `movement_details`, `movement_detail_discounts`, `payment_methods`, `payment_method_exclusions` | **6, escritas** (`V7` del esquema consolidado, y `V14` para las rebajas) |
+| `AC` | `course_categories`, `courses`, `course_category_items`, `course_recommendations`, `course_memberships`, `course_modules`, `lessons`, `academy_images` | **8, diseñadas** (17-09-2026, §4.2): las crearán los requerimientos que las estrenan, en el orden de [`requirements/ac.md`](requirements/ac.md) §6.1 |
 
-**Un módulo, una a cinco tablas.** `SP` tiene diecisiete y los otros tres juntos tienen diez, y eso no es desequilibrio: `SP` es dueño del acceso, de los catálogos transversales y de la auditoría entera, que es infraestructura que todos usan y nadie duplica.
+**Un módulo, una a ocho tablas.** `SP` tiene veintiuna y los otros cuatro juntos tienen veintiuna —ocho de ellas, las de `AC`, todavía en papel—, y eso no es desequilibrio: `SP` es dueño del acceso, de los catálogos transversales y de la auditoría entera, que es infraestructura que todos usan y nadie duplica.
 
 ### 5.2 Lo que cambió en `SP` el 01-09-2026, sin tabla nueva
 
@@ -761,6 +855,8 @@ Son las que siguen —**y desde el 14-09-2026 una de `PM` apunta a `users`**—,
 | `user_commission_rates.product_id` | `products` | `CM` → `PM` — **desde `V10`** (16-09-2026); sustituye a `user_commission_rate_products.product_id`, que existió de `V85` a `V10` |
 | `product_comments.user_id` | `users` | `PM` → `SP` — **la primera de `PM` hacia una persona** (14-09-2026) |
 | `product_packages.currency_id` | `currencies` | `PM` → `SP` — la moneda del paquete entero (14-09-2026, diseñada) |
+| `courses.instructor_id` | `users` | `AC` → `SP` — quién enseña (17-09-2026, diseñada). **Que porte `courses:teach` no cabe en la clave**: lo comprueba el dominio contra la interfaz de `SP` |
+| `course_memberships.membership_id` | `memberships` | `AC` → `SP` — qué nivel abre el curso (17-09-2026, diseñada). La **primera clave foránea hacia `memberships` que no es de `PM`** |
 
 **Y una que no cruza ningún módulo pero conviene ver aquí**: `product_packages.cover_image_id` → `product_images` (`PM` → `PM`, `V11`, 16-09-2026), la segunda columna que señala esa tabla. Junto con `products.cover_image_id`, hace de `product_images` **el valor de dos columnas de dos tablas**, sin que la tabla sepa de cuál viene cada fila.
 
@@ -874,3 +970,4 @@ Los documentos que citan una migración vieja por su número —specs, controles
 | 0.59.0 | 17-09-2026 | **`movements` gana `ix_movements_occurred_at` sobre `(occurred_at DESC, id DESC)`** (`V15`, `RF-MV-006`). Ninguna tabla ni columna. El listado global del libro ordena la tabla entera por fecha y se queda con una página, y los dos índices de `RF-MV-008` —`ix_movements_user` e `ix_movement_details_seller`— empiezan por una persona y no sirven: sin este, cada página es un recorrido completo con ordenamiento parcial en memoria, y el síntoma sería lentitud creciente y no un fallo. Lleva el desempate por `id` que la sentencia usa, de modo que el motor lee el índice en orden y para en el `LIMIT`. **El estado y el método de pago no llevan índice**, a propósito: cardinalidad baja y sin evidencia; el disparador de revisión —`(status, occurred_at DESC)` parcial sobre `PENDIENTE`— queda en el plan del requerimiento. | Responsable del proyecto |
 | 0.60.0 | 17-09-2026 | **`movement_details` gana cuatro columnas, y una de ellas es la única de esa tabla que cambia después de escribirse** ([`requirements/mv.md`](requirements/mv.md) v0.24.0 §7.3, `RN-MV-030`, `V16`, `RF-MV-003`), por decisión del responsable del proyecto. **`implementation`** es la copia que el recuadro de `mv.md` §5.4 exigía desde el 07-09-2026 —`AUTOMATICA` o `MANUAL`, con `CHECK`—: decide si confirmar entrega, y `RF-PM-004` la corrige, de modo que se copia como el precio; `V16` la rellena para lo ya vendido con el valor que el catálogo tiene ese día, que es lo mejor que se puede saber de una venta hecha antes de que la copia existiera. **`delivery_status`** (`PENDIENTE` · `ENTREGADA` · `RETENIDA`), **`delivered_at`** y **`delivery_note`** son el estado de la entrega, **de la línea y no de la venta** —los productos de una misma venta no se entregan igual— y **columna y no tabla**: lo que hay que responder es «¿se entregó, y desde cuándo?», y quién lo hizo va a la auditoría. `ck_movement_details_delivery` ata la fecha a `ENTREGADA` y el motivo a `RETENIDA`. **Es la excepción acotada a `RN-MV-001`**: la venta no se toca, pero su cumplimiento sí — `PENDIENTE` → `ENTREGADA` o `RETENIDA`, y de ahí no se sale. Ninguna tabla nueva; el «registro de productos comprados» de `RF-MV-014` se deriva de estas columnas y no se guarda. | Responsable del proyecto |
 | 0.61.0 | 17-09-2026 | **`movements` gana `voided_at` y `void_reason`** ([`requirements/mv.md`](requirements/mv.md) v0.26.0 §7.1, `V17`, `RF-MV-005`). Anular no es borrar (`RN-MV-001`): la fila se queda, y desde hoy con el motivo, que es lo que separa «anulada» de «desaparecida». `ck_movements_voided` ata las dos columnas al estado, como `ck_movements_confirmed`. **Columnas propias y no un `resolved_at` genérico** para rechazar y anular: un genérico obligaría a decidir hoy si rechazar lleva motivo, y eso es de `RF-MV-004`. Quinientos caracteres, como el motivo de una eliminación. | Responsable del proyecto |
+| 0.62.0 | 17-09-2026 | **Nace `AC` — Academia, con ocho tablas diseñadas** ([`modules.md`](modules.md) v0.21.0 §5.5, [`requirements/ac.md`](requirements/ac.md) v0.1.0 §8), por decisión del responsable del proyecto. §4.2 las dibuja: cuatro entidades con historia —`course_categories`, `courses`, `course_modules`, `lessons`, todas con `deleted_at` y retiro con motivo, **y el retiro arrastra hacia abajo** con un registro por fila—, tres relaciones sin identidad —`course_category_items`, `course_recommendations`, `course_memberships`, con clave compuesta y sin `deleted_at` porque dar y quitar **borra la fila**— y `academy_images`, que es `product_images` columna a columna **en el módulo que la escribe**, porque §7 de `modules.md` prohíbe que `AC` inserte en la tabla de `PM`. **La visibilidad es una tabla y no un nivel mínimo** (`course_memberships`): un curso de un nivel no tiene por qué abrirse a los de arriba, y **sin filas el curso no se ofrece**. **La demostración es una columna de la lección** (`lessons.open`) y no un curso aparte. **`lessons.content` es una sola columna para `VIDEO` y `TEXTO`**, con el tipo diciendo cómo leerla — lo contrario de las dos columnas de `CM`, que declaran dos formas y necesitaron un `CHECK` de exclusión. §5.1 gana la fila de `AC` y §5.3 dos claves foráneas hacia `SP` —el instructor y la membresía—, ninguna hacia `PM`. **Nada se escribe hoy**: cada tabla nace con el requerimiento que la estrena, y las migraciones tomarán el número que esté libre ese día. | Responsable del proyecto |
