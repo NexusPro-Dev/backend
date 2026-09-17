@@ -5,11 +5,11 @@
 | Proyecto | NEXUS — Renovación de plataforma |
 | Empresa | FACTECH GROUP SAS |
 | Documento | `architecture.md` |
-| Versión | 0.30.0 |
+| Versión | 0.31.0 |
 | Estado | Borrador |
 | Responsable técnico | Bonilla Diaz William Steven |
 | Fecha de creación | 19-08-2026 |
-| Última actualización | 14-09-2026 |
+| Última actualización | 17-09-2026 |
 | Documento superior | `constitution.md` v0.5.0 |
 | Documento relacionado | `security.md` v0.3.0 |
 
@@ -824,6 +824,25 @@ El código vive en paquetes de `SP`, y las tareas que lo escriben pertenecen a *
 
 **Lo que esto NO habilita.** Son lecturas. Aplicar un upgrade sobre la membresía de una persona es una **escritura** sobre `user_memberships`, con `RN-SP-018` de por medio, y sigue sin existir: `requirements/pm.md` §1.4 lo deja fuera del alcance, y el día que la compra lo necesite será otra decisión y otro puerto.
 
+### 15.2.1 La primera escritura entre módulos (cierre de D-26)
+
+**Decidido el 17-09-2026 por el responsable del proyecto.** El día llegó con `RF-MV-003`: confirmar el pago de una venta con un upgrade tiene que **conceder la membresía comprada**, y `user_memberships` es de `SP`. De las tres salidas que `requirements/mv.md` §3 puso sobre la mesa —que `SP` publique una operación, que `MV` emita un evento, o que `SP` consulte las ventas— se eligió **la primera**, que es la que el precedente escrito anticipaba: **el módulo dueño del dato publica una operación de aplicación de escritura, y el consumidor la invoca de forma síncrona y dentro de su propia transacción.**
+
+**Por qué síncrona y no un evento.** Un evento desacopla, y a cambio conceder deja de ser inmediato: aparece la pregunta de qué pasa si nadie lo atiende, y **una cuenta que pagó y no subió es la avería que nadie reporta** — no falla, no sale en ningún registro, y se descubre cuando la persona llama. Con la operación en la misma transacción, **o se confirma y se concede, o no pasa ninguna de las dos**. La tercera salida —que `SP` lea las ventas— se descartó de entrada porque abre el ciclo `SP` → `MV` → `SP`.
+
+| Operación | Hace | La declara | La invoca |
+|---|---|---|---|
+| **Conceder el nivel comprado** (`MembershipGrant`) | Cierra la membresía vigente e inserta la comprada, con vigencia desde el instante indicado; audita en `SP` | `SP`, en su capa `application` | `RF-MV-003` |
+
+**Lo que cambia respecto de las lecturas, y lo que no.** Las cuatro reglas de §15.2 siguen valiendo, y dos de ellas se leen distinto cuando lo que cruza es una escritura:
+
+1. **No cruzan entidades en ninguna dirección.** Una lectura devuelve un modelo plano; una escritura **recibe una orden plana** —quién, qué, por cuántos días, desde cuándo— y **devuelve lo que quedó**, también plano. El agregado de `SP` no sale, y el de `MV` no entra: `SP` no sabe qué es una venta.
+2. **La regla se queda con su dueño, y hay DOS dueños.** *Cómo* se concede —cerrar la anterior, abrir la nueva, respetar el suelo, auditar— es de `SP` y vive en la operación; *si* se concede —el producto es automático, la venta se confirmó, el nivel no baja— es de `MV` y se decide **antes de llamar**. Una operación de `SP` que comparase niveles para decidir por `MV` sería la segunda definición de una regla de `MV`, que es el defecto que esta sección existe para impedir.
+3. **La ausencia sigue sin ser una excepción, pero un fallo sí lo es.** Que la persona no exista no puede ocurrir —`MV` la resolvió al registrar— y si ocurre es un fallo del sistema, no un `4xx`: la operación lanza, la transacción se deshace y la venta **no queda confirmada**. Es lo contrario de una lectura, y es deliberado: **una escritura a medias es peor que ninguna**.
+4. **La misma regla de ArchUnit**, sin cambios: `MV` importa una interfaz de `application` de `SP`, y ni un repositorio ni una entidad.
+
+**Y una norma que se fija hoy para las escrituras que vengan**: la operación publicada **no abre su propia transacción** —se une a la del que llama— y **es idempotente por diseño del consumidor y no por el suyo**: `MV` garantiza que confirma una sola vez (`RN-MV-005`, escritura condicionada al estado), y por eso la operación puede ser una escritura simple. Una operación que tuviera que defenderse de ser llamada dos veces tendría que conocer *por qué* la llaman, y eso es exactamente lo que no debe saber.
+
 ---
 
 ## 15.3 Leer el motivo de una eliminación desde el módulo dueño de la entidad
@@ -907,3 +926,4 @@ D-08 quedó cerrada en `security.md` §12, junto con las decisiones D-12 a D-15 
 | 0.28.0 | 02-09-2026 | **§15.2 gana tres lecturas cruzadas, las primeras de `MV`**: dos hacia `PM` —los productos que se venden, con lo que hay que copiarles, y **si están en la oferta de quien compra**— y una hacia `SP` —el estado del cliente, **de qué vendedor cuelga** y de qué nivel parte—. Las trae `RF-MV-001` y las hereda `RF-MV-002`. **Las tres siguen la norma** —el módulo dueño del dato declara la interfaz— y la segunda merece leerse dos veces: `MV` **no recalcula la oferta**, la pregunta. Recalcularla crearía dos definiciones de «lo que alguien puede comprar», y el día que una cambiara la otra seguiría vendiendo lo que la primera ya no ofrece — el mismo defecto que §15.2 existe para evitar, un nivel más arriba. **Y las tres se preguntan por lote**: una venta de cinco productos que consultara cinco veces sería una `N+1` que no parece una, porque cada llamada es un método Java y solo se ve entera en el registro de sentencias. **Lo que estas lecturas NO incluyen es escribir**: conceder el nivel comprado sigue siendo la decisión abierta que `MV` reabrió como **D-26**, y no la trae este pase — `RF-MV-001` y `RF-MV-002` solo leen. | Responsable técnico |
 | 0.29.0 | 04-09-2026 | **`MV` construye la primera de sus lecturas cruzadas, y §15.2 gana DOS filas y no las tres que su versión anterior anunciaba.** La tercera —el nivel de membresía del cliente— no se declaró: **ese puerto ya existía** desde `RF-PM-007` · `T-01`, con su borde fijado por prueba, y declararlo otra vez habría creado la segunda definición de «vigente» — que es exactamente lo que esta sección existe para impedir un nivel más abajo. Queda escrita la lección, porque la norma de «una interfaz por lectura» facilita añadir puertos y eso mismo hace fácil añadir el que ya está: **antes de publicar una lectura, hay que mirar si el módulo dueño ya la publica**. **La segunda fila merece leerse dos veces y ahora está construida**: `ProductCatalog.offeredTo` **no escribe ningún `SELECT` propio** — resuelve la membresía por el mismo puerto que `RF-PM-007` y pide la oferta al mismo `findOffer`, de modo que el día que `T-20` de aquel requerimiento cambie el criterio de nivel a origen, `MV` cambia con él sin que nadie lo toque. **Y la regla de ArchUnit que cerraba D-25 deja de cubrir solo a `PM`**: `movements` no puede depender de `system..domain..` ni de `products..domain..`. Sin ella, «pregunta la oferta, no la recalcules» es una frase de este documento — un `SELECT` propio sobre `products` compilaría igual, pasaría las pruebas igual, y el defecto que produciría **no falla**: vende de más, en silencio. | Responsable técnico |
 | 0.30.0 | 14-09-2026 | **§6.6.3 — la tercera excepción del Art. V.13 no cambia `ck_deletion_reason`.** Con las reseñas de producto (`requirements/pm.md` v0.24.0 §5.2.7) nace el **contenido propio**, que se retira sin motivo declarado; la fila de `audit_deletion_log` sigue siendo `LOGICAL` y su `reason` lleva un valor fijo que la especificación declara. Se descartó relajar el `CHECK` —no sabe quién ejecuta— y un cuarto `deletion_type` —esa columna dice cómo, no por qué se exime—. | Responsable del proyecto |
+| 0.31.0 | 17-09-2026 | **§15.2 gana la primera ESCRITURA entre módulos, y con ella se cierra D-26** (§15.2.1), por decisión del responsable del proyecto. La trae `RF-MV-003`: confirmar el pago tiene que conceder la membresía comprada, y `user_memberships` es de `SP`. De las tres salidas se eligió que **el dueño del dato publique una operación de aplicación de escritura, síncrona y dentro de la transacción del consumidor** — un evento habría dejado «pagó y no subió» como la avería que nadie reporta, y que `SP` leyera las ventas abre el ciclo. **Dos de las cuatro reglas se releen para escrituras**: no cruzan entidades en ninguna dirección —la orden y la respuesta son planas—, y la regla tiene **dos dueños**: *cómo* se concede es de `SP` y vive en la operación; *si* se concede es de `MV` y se decide antes de llamar. **Y una norma nueva**: la operación publicada se une a la transacción del que llama y no se defiende de ser llamada dos veces — la idempotencia es del consumidor (`RN-MV-005`), porque defenderse exigiría saber por qué la llaman. `requirements/sp.md` v1.58.0 §8 y `requirements/mv.md` v0.24.0 §3 lo recogen. | Responsable del proyecto |

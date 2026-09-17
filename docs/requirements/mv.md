@@ -5,7 +5,7 @@
 | Módulo | `MV` — Movimientos |
 | Paquete | `modules/movements` |
 | Prefijos de permiso | `movements:` |
-| Versión | 0.23.0 |
+| Versión | 0.24.0 |
 | Estado | **Borrador** |
 | Responsable | Bonilla Diaz William Steven |
 | Fecha de creación | 02-09-2026 |
@@ -110,7 +110,7 @@ Según [`modules.md` §5](../modules.md).
 
 La dependencia es **acíclica**: `MV` → `PM` → `SP`, y `MV` → `SP`.
 
-!!! danger "D-26 — la primera escritura entre módulos, y hay que decidirla antes del `plan.md`"
+!!! success "D-26 — la primera escritura entre módulos, decidida el 17-09-2026"
 
     Las interfaces publicadas entre módulos hasta hoy son **de solo lectura**, y [`architecture.md` §15.2](../architecture.md) lo declara como norma: se devuelven **modelos de lectura y nunca entidades**, precisamente para no dar **con qué escribir**.
 
@@ -123,6 +123,8 @@ La dependencia es **acíclica**: `MV` → `PM` → `SP`, y `MV` → `SP`.
     | `SP` **consulta** las ventas para decidir | Invierte la dirección y **abre el ciclo** `SP` → `MV` → `SP`. Descartada de entrada |
 
     **La primera es la que sigue el precedente escrito y es la que este documento recomienda.** Queda como decisión abierta porque fija cómo se escribirá entre módulos **para siempre**, y esa forma no la debe fijar un requerimiento de paso. Se retiró junto con el módulo anterior y **vuelve a abrirse con el mismo número, porque es la misma pregunta**.
+
+    **Decidida el 17-09-2026 por el responsable del proyecto: la primera.** `SP` publica **`MembershipGrant`** —«conceder el nivel comprado»— como su primera **interfaz de aplicación de escritura**, síncrona y **en la misma transacción** que confirmar la venta: si conceder falla, no se confirma, y al revés. La regla de **cómo** se concede se queda en `SP` —cerrar la vigente e insertar la nueva (`RN-SP-014`), la vigencia desde el instante que se le indica, el suelo intacto (`RN-SP-018`), y su asiento de auditoría—; lo que `MV` decide **antes de llamarla** es **si** debe conceder (`RN-MV-020`, `RN-MV-021`, `RN-MV-029`). La forma queda escrita como norma en [`architecture.md` §15.2](../architecture.md), con lo que cambia respecto de las lecturas: una escritura publicada **no devuelve entidades ni recibe agregados**, recibe una orden con lo mínimo —quién, qué, por cuántos días, desde cuándo— y responde lo que quedó. La trae `RF-MV-003`.
 
 !!! warning "Este módulo no se puede construir antes que `RF-SP-045`"
 
@@ -151,6 +153,7 @@ La dependencia es **acíclica**: `MV` → `PM` → `SP`, y `MV` → `SP`.
 | `RF-MV-011` | Comprar un producto por el hotlink de un vendedor | Ventas | Autenticado |
 | `RF-MV-012` | Comprar un paquete para uno mismo | Ventas | Autenticado |
 | `RF-MV-013` | Comprar un paquete por el hotlink de un vendedor | Ventas | Autenticado |
+| `RF-MV-014` | Consultar los productos comprados propios | Ventas | Autenticado |
 
 **Registrar y comprar son dos requerimientos y no uno**, y eso **se aparta del precedente** que `PM` y `CM` fijaron —«el alta es una, no dos»—. La razón por la que aquí no aplica no es el contenido de la venta sino **quién la pide y por dónde entra**: una la origina un funcionario sobre la cuenta de otro y exige `movements:create`; la otra la origina el interesado sobre la suya y no exige permiso ninguno, como `RF-SP-039` y `RF-PM-007`. Fundirlas daría un endpoint con **dos modelos de seguridad**, que es donde se cuela el que sobra.
 
@@ -175,6 +178,25 @@ La dependencia es **acíclica**: `MV` → `PM` → `SP`, y `MV` → `SP`.
 **`RF-MV-011` nace el 16-09-2026 y es la compra que cierra el círculo del hotlink.** `RF-PM-008` publica el enlace sin token y `RF-SP-045` registra por él a quien no tiene cuenta; faltaba **quien ya tiene cuenta y compra por el enlace de otro vendedor**. Es `RF-MV-002` con dos diferencias, y solo dos: el producto llega **por el código del hotlink** —nombre de usuario del vendedor y código del producto, resueltos con las mismas reglas que `RF-PM-008`— y **el vendedor de la línea es el dueño del enlace**, no el superior de quien compra (`RN-MV-003` enmendada, `RN-MV-025`). Y deja una huella que `RF-MV-002` no deja: **el vínculo** entre el cliente y ese vendedor (`RN-SP-049`), que es lo que permite que un cliente tenga varios vendedores sin tener varios superiores.
 
 **`RF-MV-006` se especifica y se construye el 17-09-2026, y cambia de nombre.** Estaba registrado como «Consultar ventas» y pasa a **«Consultar los movimientos»**, por lo mismo que `RF-MV-008` se llama «los movimientos propios»: el libro es de todos los hechos económicos (§4.2) y cada fila dice **su tipo**, para que el primer depósito no obligue a renombrar la consulta. Es **el espejo de `RF-MV-008`**: allí el requerimiento es que el alcance no se escape; aquí, que el permiso no falte. Entra por `GET /api/v1/movements` con `movements:read`, responde con **alcance global** —lo que §5.3 decidió el 02-09-2026 para no depender de D-22— y se acota con **seis filtros** que responden una pregunta de operación cada uno: estado, sujeto, vendedor de alguna línea, método de pago, comprobante y periodo. **El total es acotado**, como en la auditoría y al revés que en el listado propio: allí se cuenta el conjunto de una persona; aquí, la tabla entera. Lo que se deja fuera se deja a propósito —buscar por texto, ordenar a elección, sumar— y **el detalle es `RF-MV-007`**, que hoy sigue sin escribirse: quien administra ve la fila y todavía no puede abrirla.
+
+**`RF-MV-003` se especifica el 17-09-2026, y con él se cierra D-26 y se decide lo que §5.4 dejó abierto.** Es la operación que hace que «confirmada» signifique algo: el dinero entró, y **lo comprado se entrega** —la membresía, si el producto es un upgrade automático, por la escritura que `SP` publica; el resto, marcándolo entregado en la línea—. Lo que el responsable del proyecto decidió ese día, y este documento fija: **confirmar no baja de nivel a nadie** (`RN-MV-029`) y **el estado de la entrega vive en la línea** (`RN-MV-030`), de modo que una venta con un upgrade automático y un bot manual confirma **una vez** y entrega **una línea sí y otra todavía no**.
+
+#### `RF-MV-003` — Confirmar una venta pendiente
+
+| Campo | Valor |
+|---|---|
+| Objetivo | Dar por **pagada** una venta pendiente y **entregar lo que se pueda entregar** en ese mismo acto, sin que nada quede a medias ni se conceda dos veces |
+| Actor | Quien concilia pagos: hoy, un funcionario que mira el extracto; mañana, la pasarela por el mismo camino |
+| Permiso requerido | `movements:confirm` |
+| Prioridad | Alta |
+| Reglas aplicables | `RN-MV-001`, `RN-MV-004`, `RN-MV-005`, `RN-MV-020`, `RN-MV-021`, `RN-MV-029`, `RN-MV-030`; `RN-SP-014`, `RN-SP-018` |
+| Depende de | `RF-MV-001`; `SP` publica `MembershipGrant` (**D-26**) |
+| Tripleta | [`docs/specs/mv/003-confirmar-venta/`](../../specs/mv/003-confirmar-venta/spec.md) |
+| Estado | **Tasks en revisión** — especificado el 17-09-2026 |
+
+**Entra por `POST /api/v1/movements/{id}/confirmation`**, sin cuerpo: confirmar es un hecho y no un formulario. La transición es **atómica y condicionada al estado anterior** —una sola escritura que solo acierta si la venta seguía `PENDIENTE`—, y eso es lo que hace que dos confirmaciones del mismo pago concedan **una vez**: la segunda encuentra la venta ya confirmada y responde que no está pendiente. En la misma transacción se recorren las líneas: la de un upgrade **automático** concede la membresía destino por `MembershipGrant` **salvo que baje de nivel** (`RN-MV-029`), las demás automáticas quedan **entregadas** en ese instante, y las **manuales** quedan **pendientes de autorización** para `RF-MV-010`. **La vigencia se cuenta desde la entrega**, no desde la venta (§5.4).
+
+**Lo que NO hace, y está escrito para que nadie lo espere**: no saca a nadie de `FTD_PENDIENTE` —eso lo hace el primer depósito, etapa 2—, no devenga comisiones —etapa 5—, no adjunta comprobante —`RF-MV-007` lo declara y no existe— y no revisa nada del método de pago: que el dinero entró lo afirma quien confirma, y **el sistema le cree a una persona lo que mañana le creerá a la pasarela**.
 
 #### `RF-MV-011` — Comprar un producto por el hotlink de un vendedor
 
@@ -233,6 +255,21 @@ La dependencia es **acíclica**: `MV` → `PM` → `SP`, y `MV` → `SP`.
 
 **Todo lo que no procede responde el mismo `404` del hotlink**, como en `RF-PM-026` y por lo mismo: el enlace que no existe, el paquete que no es de alcance hotlink y el que hoy no se puede ofrecer son indistinguibles desde fuera. **Y comprarse a uno mismo por el propio hotlink se rechaza**, igual que en `RF-MV-011`.
 
+#### `RF-MV-014` — Consultar los productos comprados propios
+
+| Campo | Valor |
+|---|---|
+| Objetivo | Que una persona vea **qué compró, en qué estado está cada cosa y hasta cuándo la tiene**, sin abrir venta por venta |
+| Actor | Cualquier persona autenticada |
+| Permiso requerido | **Autenticado**, sin permiso: es una consulta sobre uno mismo, como `RF-MV-008` |
+| Prioridad | Media |
+| Reglas aplicables | `RN-MV-001`, `RN-MV-004`, `RN-MV-021`, `RN-MV-029`, `RN-MV-030`; `RN-PM-015` |
+| Depende de | `RF-MV-003`, `RF-MV-008` |
+| Tripleta | [`docs/specs/mv/014-productos-comprados-propios/`](../../specs/mv/014-productos-comprados-propios/spec.md) |
+| Estado | **Tasks en revisión** — registrado y especificado el 17-09-2026 |
+
+**Nace el 17-09-2026 a petición del responsable del proyecto** —«quiero tener un registro de yo como usuario los productos que he comprado»— y **no es `RF-MV-008` con otra forma**: aquel responde por **movimientos** y este por **productos**, que es la pregunta que una persona se hace cuando quiere saber si el bot que pagó ya lo tiene. **Se deriva del libro y no se guarda**: una línea de venta ya dice qué se compró, cuándo, por cuántos días y —desde `RN-MV-030`— si se entregó; una tabla aparte de «productos de la persona» sería la copia que se desincroniza. Entra por `GET /api/v1/movements/mine/products` y cada fila trae **un estado** calculado de lo que la venta y la línea ya dicen: `PENDIENTE_PAGO`, `PENDIENTE_AUTORIZACION`, `ACTIVO` con su «vigente hasta», `VENCIDO`, `RETENIDO`, `RECHAZADO` o `ANULADO`. **Lista todo lo comprado, diga lo que diga la venta** (decisión del responsable, 17-09-2026): una sola lista responde «qué tengo y qué me falta».
+
 ### 4.2 Lo que viene después, y lo que ya se decidió de ello
 
 | Etapa | Qué trae | Qué queda ya decidido |
@@ -281,6 +318,8 @@ La dependencia es **acíclica**: `MV` → `PM` → `SP`, y `MV` → `SP`.
 | `RN-MV-026` | **Todo movimiento tiene UN sujeto, y es quien lo protagoniza** | Siempre | Decisión del responsable del proyecto, 16-09-2026. `movements.user_id` es **la persona a cuyo nombre ocurre el hecho**: en una venta, **quien compra**; en un depósito, quien deposita; en una comisión, quien la cobra. Sustituye a `client_id`, que **nombraba un rol que solo la venta tiene** — el sujeto de un depósito no es «cliente» de nadie, y una tabla que llame `client_id` a quien cobra una comisión miente en el nombre. **No es quien ejecutó la operación**: que un funcionario registre la venta de un cliente (`RF-MV-001`) no lo convierte en sujeto de nada, y ese dato va a la auditoría (`RN-MV-003`). **El sistema está hecho para que cada persona sea responsable de lo que compra**, y `user_id` es la columna que lo dice. Es obligatorio en todo tipo: **no existe un movimiento sin sujeto**. Quién vendió cada cosa **no va aquí**: va en la línea, porque puede ser más de uno | **Crítica** |
 | `RN-MV-028` | **Un paquete se compra ENTERO, UNO, y tal como está el día que se compra** | Al comprar un paquete (`RF-MV-012`, `RF-MV-013`) | Decisión del responsable del proyecto, 16-09-2026, con cuatro respuestas. **(1) Entero**: si al registrar un producto del paquete no procede —inactivo, retirado, fuera de la oferta de quien compra, o su upgrade no sube— **se rechaza la compra completa** nombrando el producto, y no se vende lo que queda. Es `RN-PM-044` llevada a la venta: un paquete **se ofrece a quien puede comprarlo todo**, y cobrar el precio del paquete entregando parte de él es un cobro de más que nadie reclama porque el número cuadra. **(2) Uno**: no hay cantidad —`RN-PM-038` ya decidió que dentro del paquete no la hay—, y con ella `RN-MV-015` no tiene nada que comprobar. **(3) Solo**: una venta de paquete **no lleva productos sueltos ni un segundo paquete**; mezclarlos permitiría dos upgrades en la misma venta por caminos distintos y dejaría a `RN-MV-010` comprobando algo que la petición no enseña. **(4) Tal como está hoy**: se comprueban **al registrar** el estado del paquete, su alcance, sus productos y **su vigencia** (`RN-PM-047`) — entre mirar la oferta y pagarla el paquete pudo vencer, y la oferta que lo pintó no es una promesa. **Lo que se cobra es la suma de las líneas rebajadas**, que es lo que `RN-PM-036` publica: el precio del paquete **no se copia como un importe** sino que se reconstruye línea a línea, porque es lo que hace verificable que el total sea lo que el cliente vio | **Crítica** |
 | `RN-MV-027` | **El descuento es de la línea, se declara como se pactó y se congela en dinero** | Al registrar | Decisión del responsable del proyecto, 16-09-2026, que cierra la pregunta que §7.1 dejó abierta el 02-09-2026: **el descuento es de línea, no de cabecera**. Cada rebaja que recibe una línea es una fila de `movement_detail_discounts`: su **`type`** —`PORCENTAJE` o `FIJO`, el vocabulario de `RN-PM-037`—, su **`value`** tal como se declaró —`10` o `5.00`— y su **`discount_value`**, lo que vale **en dinero y por unidad**: si es fijo, el propio valor; si es porcentaje, **`unit_price × value ÷ 100`** redondeado a los decimales de la moneda, a la mitad hacia arriba, como todo importe de `PM`. **`line_discount = quantity × Σ discount_value`** y **`line_amount = quantity × unit_price − line_discount`**, las dos congeladas y las dos con su `CHECK`. Se guardan las tres cifras y no solo el porcentaje **porque un porcentaje sobre un precio que mañana se corrige es un descuento que cambia solo**; y se guarda el porcentaje además del dinero porque «10 %» es lo que se pactó, y mostrar «−5.00» sin decir de dónde sale obliga a adivinarlo. **Ningún descuento deja la línea por debajo de cero** (`line_discount ≤ quantity × unit_price`). **Hoy ninguna entrada escribe descuentos**: `RF-MV-001`, `RF-MV-002` y `RF-MV-011` registran las líneas con `line_discount` en cero y sin filas en la tabla; la primera que los escriba será la compra de paquetes, donde cada producto entra con el descuento que el paquete le declara (`RN-PM-036`). **Sobre qué importe comisiona sigue sin decidirse**, y es de `CM` | Alta |
+| `RN-MV-029` | **Confirmar no baja de nivel a nadie** | Al confirmar (`RF-MV-003`) | Decisión del responsable del proyecto, 17-09-2026, que cierra el caso que §5.4 dejó abierto. `RN-MV-006` comprueba **al registrar** que el upgrade sube; entre registrar y confirmar la persona pudo subir más por otra vía. Si en el instante de confirmar la membresía comprada es **inferior a la vigente**, la venta **se confirma y cobra igual** —el dinero entró— y la línea del upgrade queda **`RETENIDA`** con el motivo escrito (`RN-MV-030`): no se concede, y **queda constancia** de que se pagó algo que no se entregó. Renovar el **mismo** nivel sí concede. Se eligió sobre «conceder siempre lo comprado» a sabiendas de su coste: una venta cobrada que no entregó, y `RN-MV-005` impide corregirla — por eso la retención **se ve** en la venta, en el registro de la persona (`RF-MV-014`) y en la auditoría, en lugar de ocurrir en silencio | **Crítica** |
+| `RN-MV-030` | **El estado de la entrega es de la línea, y son tres** | Al confirmar (`RF-MV-003`), al autorizar (`RF-MV-010`) y al consultar lo comprado (`RF-MV-014`) | Cada línea lleva `delivery_status`: **`PENDIENTE`** —no se ha entregado: la venta no está confirmada, o el producto es manual y nadie lo ha autorizado—, **`ENTREGADA`** —con `delivered_at`, el instante desde el que corre la vigencia— o **`RETENIDA`** —la venta se confirmó y esta línea **no se entregará** por lo que dice `delivery_note` (`RN-MV-029`)—. Es de la **línea** y no de la venta porque los productos de una misma venta **no tienen por qué entregarse igual** (§5.4), y es una **columna** y no una tabla aparte porque lo que hay que responder es «¿se entregó, y desde cuándo?»; quién autorizó y cuándo va a la auditoría, como todo cambio. **La implementación se copia en la línea** (`implementation`), como el precio: es lo que decide si confirmar entrega, y `RF-PM-004` la corrige | **Crítica** |
 
 ### 5.2 Por qué las críticas son críticas
 
@@ -347,19 +386,21 @@ Hasta hoy esta regla no distinguía: **toda** venta confirmada con un upgrade co
 
 **Lo que queda pendiente es la entrega, no el cobro.** La venta pasa a `CONFIRMADA` con normalidad —el dinero entró, y eso es lo que ese estado significa—, de modo que `RN-MV-005` sigue intacta: de `CONFIRMADA` no se sale, y esta regla no abre ninguna puerta para volver atrás.
 
-!!! important "Y por eso el estado de la autorización es de la LÍNEA, no de la venta"
+!!! important "Y por eso el estado de la autorización es de la LÍNEA, no de la venta — decidido dónde el 17-09-2026"
 
     Una venta puede llevar varios productos, y **no tienen por qué implementarse igual**: un upgrade automático y dos bots que alguien tiene que activar a mano. Un quinto estado de `movements` —«confirmada a medias»— obligaría a inventar qué significa cuando una mitad se entregó y la otra no, y a decidirlo **una vez para toda la venta**, que es justo lo que el dato no permite.
 
     Dónde vive exactamente ese estado —una columna en `movement_details`, o una tabla propia con quién autorizó y cuándo— **lo decide `RF-MV-010`**, y este documento no lo fija: es una decisión de diseño con su propia compuerta, y tomarla aquí de paso sería el mismo error que este proyecto ya nombró al escribir tripletas después del código.
 
-!!! danger "La implementación tiene que copiarse en la línea, y HOY NO SE COPIA"
+!!! success "La implementación tiene que copiarse en la línea — y desde el 17-09-2026 se copia"
 
     `RN-MV-002` es explícita: **se copia lo que puede cambiar; lo inmutable se referencia**. La membresía destino se referencia porque `RF-PM-004` rechaza cambiarla; **la implementación se corrige** ([`requirements/pm.md` §5.2.2](pm.md)), de modo que **se copia**, como el precio y la vigencia.
 
     Sin esa copia, corregir un producto de `AUTOMATICA` a `MANUAL` dejaría **esperando autorización a ventas hechas cuando el producto se entregaba solo**, y el cambio contrario **entregaría sin revisión lo que se vendió con revisión prometida**. Ninguno de los dos falla: los dos entregan mal, y con el cobro ya hecho.
 
     **`movement_details` no tiene hoy esa columna** (`V54`), y este cambio **no la escribe**: `RF-MV-003` —el único que leería el valor— está en `Pendiente` y bloqueado por **D-26**, de modo que hoy no hay nadie a quien le falte. Lo que queda declarado es que **la copia debe existir antes de que ese requerimiento se construya**, y que quien lo construya la encontrará ausente si no lee esto. Es el mismo hueco que la v0.8.0 de este documento dejó anotado con el código y el nombre del producto, y conviene cerrar los tres a la vez.
+
+    **Cerrado el 17-09-2026 con `RF-MV-003`**: `V16` añade `movement_details.implementation`, la rellena para lo ya vendido con el valor que el catálogo tiene ese día —es lo mejor que se puede saber de una venta hecha antes de que la copia existiera— y las tres entradas la copian desde entonces. Y responde también a la pregunta del recuadro anterior: el estado vive en **la línea**, como columna —`delivery_status`, `delivered_at`, `delivery_note`— y no en una tabla aparte (`RN-MV-030`). `RF-MV-010` la hereda: autorizar es pasar una línea manual de `PENDIENTE` a `ENTREGADA`.
 
 **El resto de esta sección describe el camino automático**, que es el que concede.
 
@@ -379,7 +420,7 @@ Hasta hoy esta regla no distinguía: **toda** venta confirmada con un upgrade co
 
 **3. Confirmar dos veces no concede dos veces.** Lo sostiene `RN-MV-005` —de `CONFIRMADA` no se sale—, y eso obliga a que la transición sea **atómica**: no un `SELECT` y luego un `UPDATE`, sino una escritura condicionada al estado anterior. Importa más de lo que parece porque **el disparador será una pasarela**, y una pasarela reintenta: sin esa atomicidad, dos webhooks del mismo pago conceden el nivel dos veces y devengan la comisión dos veces.
 
-!!! danger "Un caso sin decidir: confirmar podría BAJAR de nivel a alguien"
+!!! success "Un caso que estuvo sin decidir hasta el 17-09-2026: confirmar podría BAJAR de nivel a alguien"
 
     `RN-MV-006` comprueba **al registrar** que el upgrade sube. **Entre registrar y confirmar puede pasar cualquier cosa**, y una de ellas es que la persona haya subido más por otra vía: compró `BECA → VIP`, y antes de confirmarse le concedieron `PLATINO`. Confirmar la primera venta la **devolvería a `VIP`**.
 
@@ -390,6 +431,8 @@ Hasta hoy esta regla no distinguía: **toda** venta confirmada con un upgrade co
     **El historial no decide esto, pero cambia lo que cuesta equivocarse** (05-09-2026). Antes, conceder lo comprado y bajar a alguien de `PLATINO` a `VIP` **borraba el `PLATINO`**: no quedaba dónde leer que lo tuvo. Ahora queda su fila cerrada, con el periodo que alcanzó a durar, de modo que la salida «conceder siempre lo comprado» pasa a ser **reversible a mano** en lugar de destructiva. Sigue sin ser gratis y **sigue sin estar decidida**: bajar de nivel a quien acaba de subir es un hecho de negocio y no un accidente de esquema.
 
     Lo que **no** puede pasar es que se decida por omisión al escribir el código.
+
+    **Decidido el 17-09-2026 por el responsable del proyecto: no bajar nunca** (`RN-MV-029`). Se eligió la salida segura **con su coste a la vista**, y lo que se hizo con el coste fue **no dejarlo en silencio**: la línea queda `RETENIDA` con el motivo, se ve en el detalle de la venta, en el registro de lo comprado de la persona (`RF-MV-014`) y en la auditoría. Corregirlo —devolver, o entregar a mano— sigue siendo una operación que no existe (§5.3), y ahora al menos se sabe **cuáles** hay que corregir.
 
 ---
 
@@ -510,6 +553,12 @@ Mismo formato de código que `roles`, `memberships` y `products`: `^[A-Z][A-Z0-9
 | `line_discount` | `numeric(14,2)` | No | — |
 | `line_amount` | `numeric(14,2)` | No | — |
 | `validity_days` | `integer` | **Sí** | — |
+| `implementation` | `varchar(20)` | No | — |
+| `delivery_status` | `varchar(20)` | No | — |
+| `delivered_at` | `timestamptz` | **Sí** | — |
+| `delivery_note` | `varchar(200)` | **Sí** | — |
+
+**`implementation` es una copia y `delivery_status` es lo único de esta tabla que cambia después de escribirse** (`RN-MV-030`, `V16`, desde el 17-09-2026). La primera es lo que decide si confirmar entrega —`AUTOMATICA` o `MANUAL`, con `ck_movement_details_implementation`— y se copia porque `RF-PM-004` la corrige, como el precio. La segunda es la **única excepción a `RN-MV-001`** y está acotada en el esquema: `PENDIENTE` → `ENTREGADA` o `RETENIDA`, y de ahí no se sale; `ck_movement_details_delivery` ata `delivered_at` a `ENTREGADA` y `delivery_note` a `RETENIDA`. Ningún importe, ninguna copia y ningún vendedor cambian nunca: lo que cambia es **si lo vendido ya se entregó**, que no es un dato de la venta sino de su cumplimiento.
 
 **`seller_id` es quien le vendió ESTA línea, y a quien se le creará la comisión por ella** (`RN-MV-003`, desde el 16-09-2026). Es la primera columna de esta tabla que apunta a una persona, y está aquí y no en la cabecera por dos motivos que se suman: la comisión se devenga **por línea** (§4.2, etapa 5), y los tipos de movimiento que vienen —depósito, comisión, retiro— **no venden nada**, de modo que una columna de vendedor en `movements` sería nula en la mayoría de las filas del libro. **Admite nulo por eso y solo por eso**: en una venta **siempre está**, y lo comprueba el caso de uso porque un `CHECK` no consulta `movement_types`. Hoy todas las líneas de una venta llevan **el mismo** vendedor —la entrada lo decide, no la línea—, y el modelo **no lo fuerza**: cuando un carrito mezcle productos de enlaces distintos, cada línea sabrá de quién es sin tocar el esquema. Lleva índice `(seller_id, movement_id)` para la mitad «lo que vendí» de `RF-MV-008`, **parcial sobre `seller_id IS NOT NULL`**, que sustituye al que la cabecera tenía.
 
@@ -663,3 +712,4 @@ Se siembra por migración y **no se administra por API todavía** (§5.3). Lo m�
 | 0.21.0 | 17-09-2026 | **`RF-MV-012` pasa a `En desarrollo`: la compra de un paquete está construida**, sin migración y sin cambiar una regla de este documento. Lo que conviene dejar anotado aquí es **dónde quedó cada regla**: `RN-MV-028` vive en `BuyPackageService` —entero: todo rechazo ocurre antes de escribir, y un producto caído no deja ni la cabecera; uno: cada línea nace con cantidad uno; solo: la petición no tiene dónde recibir productos ni un segundo paquete; tal como está hoy: `PM` decide la ofrecibilidad al registrar—; `RN-MV-027` en `LineDiscount`, con una enmienda de conducta: **un fijo mayor que el precio de hoy se congela como el precio** y no se rechaza, que es lo que `RN-PM-036` publica cuando el precio bajó después de asociar, y lo que `CA-MV-050` exige; y `RN-MV-006`, `RN-MV-008` y `RN-MV-022`, que son las mismas para vender un producto suelto y un paquete, salen de `RegisterSaleService` a `SaleRules` para que los dos casos de uso las llamen y ninguna copia se quede atrás. **La respuesta de la compra es `PurchaseResponse`** —la venta sin el vendedor, como `RF-MV-002` §4.3 decidió—, y es otra clase y no un campo nulo. `RF-MV-013` sigue en `Tasks en revisión`, bloqueado por construcción por `RF-MV-011`. | Responsable del proyecto |
 | 0.22.0 | 17-09-2026 | **La compra del paquete recibe el CÓDIGO del paquete y no su identificador** (`RF-MV-012`, `POST /api/v1/packages/{code}/purchases`), por decisión del responsable del proyecto el mismo día en que se construyó. El código es el nombre público del paquete (`RN-PM-041`) y es lo que la oferta y el hotlink publican; el identificador es un dato de administración. Es el mismo criterio con el que `RF-MV-013` comprará por el código del hotlink. Tripleta enmendada (`spec.md` 0.2.0, `plan.md` 0.2.0, `tasks.md` 0.3.0) y código rehecho: `PackageCatalog` resuelve por código sin distinguir mayúsculas. | Responsable del proyecto |
 | 0.23.0 | 17-09-2026 | **`RF-MV-006` se especifica y se construye**, a petición del responsable del proyecto —«un endpoint para consultar todos los movimientos registrados»—. Estaba **declarado desde el 02-09-2026** como «Consultar ventas» y sin tripleta; **se renombra a «Consultar los movimientos»** (§4.1), por lo mismo que `RF-MV-008`. Escrito **por diferencias sobre `RF-MV-008`**, y las diferencias son tres: `movements:read` es lo único que lo abre —`CA-MV-069` lo ejercita con un actor que tiene movimientos propios y recibe `403`—, el alcance es **global y explícito** como §5.3 había decidido para no tocar D-22, y se acota con **seis filtros** combinables (estado, sujeto, vendedor de alguna línea, método de pago, comprobante exacto y periodo semiabierto sobre cuándo ocurrió). La fila gana **el tipo** y **cuándo se confirmó** —nulo y presente en lo no confirmado— y **no lleva el papel**, que valdría siempre lo mismo. **El total es acotado** con el techo de la auditoría, porque el libro crece sin límite. Nace `V15`, `ix_movements_occurred_at` sobre `(occurred_at DESC, id DESC)`: el listado sin filtros ordena la tabla entera y los dos índices de `RF-MV-008` empiezan por una persona. **No se audita**, como `RF-SP-025`: consultar con permiso no es un evento. 18 pruebas de integración en `MovementsIT` y `MovementsBoundedCountIT`. `§6` enmienda la frase de `movements:read`. **Queda declarado lo primero que va a faltar**: `RF-MV-007`, el detalle — quien administra ve la fila y no puede abrirla. | Responsable del proyecto |
+| 0.24.0 | 17-09-2026 | **Confirmar el pago y lo que confirmar entrega: `RF-MV-003` se especifica, nace `RF-MV-014` y se cierran D-26 y los dos huecos de §5.4**, a petición del responsable del proyecto —«un endpoint para confirmar el pago, si se compró la membresía hacerla vigente, y un registro de los productos que he comprado»— y con tres decisiones suyas del mismo día. **(1) D-26: la primera.** `SP` publica `MembershipGrant`, escritura síncrona en la misma transacción que confirmar, con las reglas de conceder dentro de `SP`; la forma queda como norma en `architecture.md` §15.2. **(2) Confirmar no baja de nivel a nadie** (`RN-MV-029`): si la membresía comprada es inferior a la vigente al confirmar, la venta cobra y la línea queda `RETENIDA` con motivo — la salida segura, con su coste **visible** en lugar de silencioso. **(3) El registro de lo comprado lista todo, con su estado** (`RF-MV-014`): se deriva del libro, sin tabla nueva, y cada producto dice si está pendiente de pago, pendiente de autorización, activo hasta cuándo, vencido, retenido, rechazado o anulado. **Y una decisión de diseño que §5.4 había aplazado a `RF-MV-010` y `RF-MV-003` necesita antes**: el estado de la entrega es una **columna de la línea** (`RN-MV-030`: `delivery_status`, `delivered_at`, `delivery_note`), la única de `movement_details` que cambia después de escribirse, acotada por `CHECK`; y **la implementación se copia por fin** (`implementation`, `V16`), como el recuadro de la v0.10.0 exigía. `RN-MV-020` y `RN-MV-021` no cambian de texto: cambian de estar escritas a poder cumplirse. Confirmar **no** saca de `FTD_PENDIENTE`, **no** comisiona y **no** adjunta comprobante — lo que las etapas 2 y 5 y `RF-MV-007` traerán. | Responsable del proyecto |
