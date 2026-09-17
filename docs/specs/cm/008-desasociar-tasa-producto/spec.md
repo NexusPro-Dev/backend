@@ -4,8 +4,8 @@
 |---|---|
 | Requerimiento | `RF-CM-008` |
 | Módulo | `CM` — Comisiones |
-| Versión | 0.1.0 |
-| Estado | **Aprobada** |
+| Versión | 0.2.0 |
+| Estado | **Descartado el 15-09-2026** — sin asociación de rol no hay nada que desasociar (`RN-CM-021`) |
 | Autor | Responsable técnico |
 | Aprobada por | Responsable del proyecto |
 | Fecha de aprobación | 02-09-2026 |
@@ -182,3 +182,4 @@ Es **la única forma de dejar de pagar sin retirar la tasa**, y por eso existe c
 | Versión | Fecha | Cambio | Responsable |
 |---|---|---|---|
 | 0.1.0 | 02-09-2026 | Redacción inicial, **después de construirse el requerimiento** — excepción al Art. I.1 declarada en cabecera. Recoge la operación que el rediseño del 01-09-2026 hizo posible: **dejar de pagar sin destruir la tasa**, que antes no existía porque la tarifa y su alcance eran la misma fila. §2 la contrasta con `RF-CM-004` en alcance y daño, y declara lo propio de este requerimiento: **no queda fila**, de modo que el registro de eliminación **no acompaña a la fila sino que la sustituye**. §10 explica por qué su rechazo es «no encontrado» y no «conflicto», al revés que en los retiros de tasa. §14 declara la asimetría con `ck_deletion_reason`, que **exime** de motivo a las eliminaciones de asociación y que este requerimiento **exige igual**. | Responsable técnico |
+| 0.2.0 | 15-09-2026 | **Descartado.** Sin asociación de rol (`RN-CM-021`, [`requirements/cm.md`](../../../requirements/cm.md) v0.14.0 §5.4) no hay nada que desasociar: el producto deja de pagar a un rol **retirando la tasa** (`RF-CM-004` v0.3.0), a la vista y con motivo. Su ruta se retira del contrato. El número queda consumido. | Responsable del proyecto |

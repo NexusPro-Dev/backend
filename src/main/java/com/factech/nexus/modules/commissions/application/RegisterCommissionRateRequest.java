@@ -40,11 +40,14 @@ import java.util.UUID;
  * <p><b>El cero es válido en las dos formas</b> (`RN-CM-007`): significa «esto no comisiona». De
  * ahí que los dos mínimos sean inclusivos.
  *
- * <p><b>Y {@code fixedAmount} no tiene máximo</b>, que es la asimetría con el porcentaje.
- * `RN-CM-018`: cien es un límite que el negocio conoce sin mirar nada, y para el importe <b>no
- * existe ese número</b>.
+ * <p><b>Y {@code fixedAmount} no tiene máximo aquí</b>, que es la asimetría con el porcentaje: cien
+ * es un límite que el negocio conoce sin mirar nada, y para el importe <b>no existe ese número</b>.
+ * Su tope lo pone el caso de uso contra el precio del producto (`RN-CM-019`), porque desde el
+ * 15-09-2026 <b>la tasa nace con su producto</b> (`RN-CM-021`): {@code productId} es obligatorio, y
+ * por él se comprueban también el gratuito y los decimales de la moneda.
  */
 public record RegisterCommissionRateRequest(
+    @NotNull(message = "VAL-013: El producto de la tasa es obligatorio.") UUID productId,
     @NotNull(message = "VAL-001: El rol de la tasa es obligatorio.") UUID roleId,
     @NotNull(message = "VAL-002: La forma de la comisión es obligatoria: porcentaje o valor fijo.")
         CommissionRateType rateType,

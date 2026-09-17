@@ -30,7 +30,7 @@ import org.springframework.transaction.annotation.Transactional;
  * <p><b>El orden de verificación es el contrato</b> (`plan.md` §4):
  *
  * <ol>
- *   <li>La moneda existe y está <b>activa</b>, y el precio cabe en sus decimales.
+ *   <li>La moneda existe y está <b>activa</b>, y <b>los dos precios</b> caben en sus decimales.
  *   <li>Si es un upgrade, la membresía destino existe.
  *   <li>El código no lo ha tenido nunca otro producto; el nombre no lo tiene ningún producto vivo.
  *   <li>Se registra <b>inactivo</b> y se emite el evento de creación.
@@ -57,6 +57,7 @@ public class RegisterProductService {
   private final AuditWriter auditoria;
   private final UuidV7Generator ids;
   private final Clock reloj;
+  private final ProductExchangeResolver conversiones;
 
   /**
    * Constructor de producción. La anotación es obligatoria porque la clase declara dos
@@ -69,8 +70,9 @@ public class RegisterProductService {
       MembershipCatalog membresias,
       CurrencyCatalog monedas,
       AuditWriter auditoria,
-      UuidV7Generator ids) {
-    this(productos, membresias, monedas, auditoria, ids, Clock.systemUTC());
+      UuidV7Generator ids,
+      ProductExchangeResolver conversiones) {
+    this(productos, membresias, monedas, auditoria, ids, conversiones, Clock.systemUTC());
   }
 
   RegisterProductService(
@@ -79,12 +81,14 @@ public class RegisterProductService {
       CurrencyCatalog monedas,
       AuditWriter auditoria,
       UuidV7Generator ids,
+      ProductExchangeResolver conversiones,
       Clock reloj) {
     this.productos = productos;
     this.membresias = membresias;
     this.monedas = monedas;
     this.auditoria = auditoria;
     this.ids = ids;
+    this.conversiones = conversiones;
     this.reloj = reloj;
   }
 
@@ -118,16 +122,27 @@ public class RegisterProductService {
                 comando.name(),
                 comando.description(),
                 comando.icon(),
+                comando.videoUrl(),
                 comando.sourceMembershipId(),
                 comando.targetMembershipId(),
                 comando.price(),
+                comando.purchasePrice(),
                 comando.currencyId(),
                 comando.validityDays(),
+                comando.scope(),
+                comando.implementation(),
                 OffsetDateTime.now(reloj)));
 
     auditar(nuevo);
 
-    return ProductResponse.from(nuevo, origen, destino, moneda);
+    return ProductResponse.from(
+        nuevo,
+        origen,
+        destino,
+        moneda,
+        // El alta responde con la misma forma que las lecturas: quien acaba de
+        // registrar un producto ve su conversión sin tener que volver a pedirlo.
+        conversiones.para(java.util.List.of(moneda.id())).de(moneda.id(), nuevo.getPrice()));
   }
 
   /**
@@ -158,14 +173,27 @@ public class RegisterProductService {
 
     // `RN-PM-007`. No lo puede comprobar un CHECK: la escala admisible vive en
     // otra tabla, y PostgreSQL no admite subconsultas en una restricción.
-    if (!ProductPrice.cabeEn(comando.price(), moneda.decimalPlaces())) {
-      String mensaje =
-          "El precio no admite más de %d decimales en %s."
-              .formatted(moneda.decimalPlaces(), moneda.code());
-      throw new ValidationException(
-          "VAL-005", mensaje, List.of(new FieldError("price", "VAL-005", mensaje)));
-    }
+    //
+    // LOS DOS IMPORTES, y cada rechazo NOMBRA SU CAMPO: con dos precios, un
+    // mensaje que no distingue obliga a probar los dos para saber cuál corregir.
+    // El de compra solo se mide si llega — nulo significa que no se conoce, y
+    // un importe que no existe no tiene decimales.
+    verificarDecimales(comando.price(), "price", moneda);
+    verificarDecimales(comando.purchasePrice(), "purchasePrice", moneda);
     return moneda;
+  }
+
+  /** `RN-PM-007` sobre un importe, con el campo del error. Un nulo no se mide: no existe. */
+  private static void verificarDecimales(
+      java.math.BigDecimal importe, String campo, CurrencyView moneda) {
+    if (importe == null || ProductPrice.cabeEn(importe, moneda.decimalPlaces())) {
+      return;
+    }
+    String mensaje =
+        "El precio no admite más de %d decimales en %s."
+            .formatted(moneda.decimalPlaces(), moneda.code());
+    throw new ValidationException(
+        "VAL-005", mensaje, List.of(new FieldError(campo, "VAL-005", mensaje)));
   }
 
   /**
@@ -189,7 +217,7 @@ public class RegisterProductService {
    * conoce —ni debe—, y un {@code CHECK} tampoco puede consultarla. Es el mismo reparto que
    * `RN-PM-007` hace con los decimales de la moneda.
    *
-   * <p><b>La cadena numera desde la cima</b> (`V47`): `ORO` es 1 y `FREE` es 4, de modo que «el
+   * <p><b>La cadena numera desde la cima</b> (`V47`): `ORO` es 1 y `BECA` es 4, de modo que «el
    * origen está por debajo del destino» se escribe con el {@code level} del origen <b>mayor</b>.
    * Leerlo al revés es el error fácil de esta comprobación, y no fallaría de forma visible —
    * aceptaría exactamente los descensos que la regla existe para rechazar.
@@ -200,10 +228,18 @@ public class RegisterProductService {
     }
     MembershipView origen = resolver(comando.sourceMembershipId(), "sourceMembershipId", "origen");
 
-    if (origen.level() <= destino.level()) {
+    // ESTRICTAMENTE MENOR, y el cambio del 07-09-2026 está en ese símbolo. Era
+    // `<=`, que rechazaba también el MISMO nivel; ahora la renovación —un
+    // `ORO → ORO`, que vende tiempo y no nivel— se admite, y lo único que se
+    // rechaza es el DESCENSO (`requirements/pm.md` §5.2.3).
+    //
+    // Y desde `V61` esta comparación es LO ÚNICO que sostiene `RN-PM-017`:
+    // `ck_products_origen_distinto` se retiró con la renovación, y la mitad que
+    // sobrevive nunca cupo en un `CHECK`. No hay red debajo.
+    if (origen.level() < destino.level()) {
       String mensaje =
-          "Un upgrade debe subir de nivel: la membresía de origen no puede estar por encima"
-              + " de la de destino ni ser la misma.";
+          "Un upgrade no puede bajar de nivel: la membresía de origen no puede estar por encima"
+              + " de la de destino.";
       throw new UnprocessableEntityException(
           "EX-006", mensaje, List.of(new FieldError("sourceMembershipId", "VAL-014", mensaje)));
     }

@@ -151,6 +151,30 @@ public class UpdateOwnProfileService {
 
     String correo = correoBruto == null ? null : new Email(correoBruto).value();
 
+    // EL TELÉFONO NO EXIGE CONTRASEÑA ACTUAL, al contrario que el correo, y la
+    // condición que esta clase ya usaba sigue valiendo tal cual: se exige cuando
+    // el campo ES UNA VÍA DE ACCESO, porque cambiarlo altera cómo se entra y
+    // cómo se recupera la cuenta. El teléfono hoy no lo es.
+    //
+    // Y su nulo explícito se rechaza —`RN-SP-037` lo hace obligatorio—, mientras
+    // que el de la dirección, el complemento y la ciudad SÍ vacía: son
+    // opcionales, y «ya no vivo ahí» es un hecho que hay que poder registrar.
+    if (peticion.phone().presente() && peticion.phone().valor() == null) {
+      String mensaje = "El teléfono no puede quedar vacío.";
+      throw new com.factech.nexus.shared.error.ValidationException(
+          "VAL-008", mensaje, List.of(new FieldError("phone", "VAL-008", mensaje)));
+    }
+
+    boolean cambiaContacto =
+        usuario.changeContact(
+            new com.factech.nexus.modules.system.users.domain.models.ContactDetails(
+                java.util.Optional.ofNullable(peticion.phone().valor()),
+                peticion.companyPhone(),
+                peticion.addressLine1(),
+                peticion.addressLine2(),
+                peticion.city()),
+            ahora);
+
     boolean cambiaNombre = usuario.rename(nombre, apellido, ahora);
     boolean cambiaCorreo = correo != null && !correo.equals(correoAnterior);
 
@@ -159,7 +183,7 @@ public class UpdateOwnProfileService {
       usuario.changeEmail(correo, ahora);
     }
 
-    if (cambiaNombre || cambiaCorreo) {
+    if (cambiaNombre || cambiaCorreo || cambiaContacto) {
       // El volcado va antes de releer el perfil: la respuesta se construye con
       // otra consulta, y sin esto devolvería los valores de antes.
       usuarios.flushChanges();

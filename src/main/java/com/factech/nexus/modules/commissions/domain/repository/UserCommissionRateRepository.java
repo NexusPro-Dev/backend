@@ -1,7 +1,10 @@
 package com.factech.nexus.modules.commissions.domain.repository;
 
 import com.factech.nexus.modules.commissions.domain.models.UserCommissionRate;
+import com.factech.nexus.shared.error.BusinessRuleException;
+import com.factech.nexus.shared.error.FieldError;
 import java.time.LocalDate;
+import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -32,7 +35,9 @@ public interface UserCommissionRateRepository {
    * <p><b>Existe por algo medido y no previsto en el plan</b> (28-08-2026, sobre la tabla
    * anterior): sin él, dos altas simultáneas con rangos que se solapan <b>se interbloquean</b>
    * —cada una espera a que la otra confirme su entrada en el índice— y PostgreSQL aborta una con
-   * {@code 40P01}. El cliente recibía un {@code 500} en lugar del {@code 409} que le toca.
+   * {@code 40P01}. El cliente recibía un {@code 500} en lugar del {@code 409} que le toca. Del
+   * 11-09-2026 al 16-09-2026, sin el {@code EXCLUDE}, fue la única garantía de `RN-CM-006`; desde
+   * `V10` vuelve a ser el acompañante.
    */
   void lockUser(UUID userId);
 
@@ -57,12 +62,25 @@ public interface UserCommissionRateRepository {
   void flushChanges();
 
   /**
-   * Con qué tasa viva de esa persona se solapa el periodo declarado, si con alguna.
+   * Con qué tasa viva de esa persona <b>sobre ese producto</b> se solapa el periodo declarado, si
+   * con alguna (`RN-CM-006`, por persona y producto desde el 16-09-2026).
    *
-   * <p><b>Se consulta DESPUÉS de capturar la violación</b>, y no antes: hacerlo antes sería la
-   * carrera que la restricción existe para cerrar. En ese punto la otra tasa existe con certeza, y
-   * esto solo sirve para poder decir <b>cuál</b> es en el mensaje.
+   * <p><b>Se consulta ANTES de escribir para dar el mensaje, y no como garantía</b>: la carrera que
+   * esta consulta no puede ver la cierra la restricción del motor, y el adaptador la traduce al
+   * mismo {@link #solapamiento()}.
    */
   Optional<UserCommissionRate> findOverlapping(
-      UUID userId, LocalDate validFrom, LocalDate validTo, UUID excluida);
+      UUID userId, UUID productId, LocalDate validFrom, LocalDate validTo, UUID excluida);
+
+  /**
+   * El {@code 409} de `RN-CM-006`, escrito una sola vez: lo lanza el caso de uso cuando {@link
+   * #findOverlapping} encuentra algo, y el adaptador cuando el motor rechaza la carrera que esa
+   * consulta no pudo ver. Para el cliente es el mismo hecho, llegara por donde llegara.
+   */
+  static BusinessRuleException solapamiento() {
+    String mensaje =
+        "Esa persona ya tiene una tasa viva sobre ese producto en parte de ese periodo.";
+    return new BusinessRuleException(
+        "EX-006", mensaje, List.of(new FieldError("validFrom", "EX-006", mensaje)));
+  }
 }

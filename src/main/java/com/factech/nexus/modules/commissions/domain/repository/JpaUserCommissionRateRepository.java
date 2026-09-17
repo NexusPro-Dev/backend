@@ -1,8 +1,6 @@
 package com.factech.nexus.modules.commissions.domain.repository;
 
 import com.factech.nexus.modules.commissions.domain.models.UserCommissionRate;
-import com.factech.nexus.shared.error.BusinessRuleException;
-import com.factech.nexus.shared.error.FieldError;
 import jakarta.persistence.EntityManager;
 import java.time.LocalDate;
 import java.util.List;
@@ -23,8 +21,19 @@ public class JpaUserCommissionRateRepository implements UserCommissionRateReposi
   /** El nombre exacto de la restricción de `V49`. Si cambia allí, cambia aquí. */
   private static final String EX_SOLAPE = "uq_user_commission_rates_vigente";
 
-  /** `SQLState` estándar de «violación de restricción de exclusión». */
+  /**
+   * Los dos estados con los que el motor dice «alguien llegó primero», y hay que traducir los dos.
+   *
+   * <p>{@code 23P01} es la violación de exclusión: la otra transacción ya confirmó. {@code 40P01}
+   * es el <b>interbloqueo</b>: el {@code EXCLUDE} se comprueba con una inserción especulativa que
+   * espera a la transacción en conflicto, y con dos altas simultáneas cada una espera a la otra
+   * hasta que PostgreSQL mata a una. El bloqueo por persona lo hace improbable, no imposible. Una
+   * violación de exclusión <b>no trae nombre de restricción</b> en Hibernate, de modo que el nombre
+   * es la primera comprobación y los estados, la que de verdad se ejecuta.
+   */
   private static final String ESTADO_EXCLUSION = "23P01";
+
+  private static final String ESTADO_INTERBLOQUEO = "40P01";
 
   private final EntityManager em;
 
@@ -98,7 +107,7 @@ public class JpaUserCommissionRateRepository implements UserCommissionRateReposi
 
   @Override
   public Optional<UserCommissionRate> findOverlapping(
-      UUID userId, LocalDate validFrom, LocalDate validTo, UUID excluida) {
+      UUID userId, UUID productId, LocalDate validFrom, LocalDate validTo, UUID excluida) {
 
     List<?> ids =
         em.createNativeQuery(
@@ -107,12 +116,14 @@ public class JpaUserCommissionRateRepository implements UserCommissionRateReposi
                   FROM user_commission_rates t
                  WHERE t.deleted_at IS NULL
                    AND t.user_id = :persona
+                   AND t.product_id = :producto
                    AND daterange(t.valid_from, t.valid_to, '[]')
                        && daterange(CAST(:desde AS date), CAST(:hasta AS date), '[]')
                    AND (CAST(:excluida AS uuid) IS NULL OR t.id <> CAST(:excluida AS uuid))
                  LIMIT 1
                 """)
             .setParameter("persona", userId)
+            .setParameter("producto", productId)
             .setParameter("desde", validFrom.toString())
             .setParameter("hasta", validTo == null ? null : validTo.toString())
             .setParameter("excluida", excluida == null ? null : excluida.toString())
@@ -132,9 +143,9 @@ public class JpaUserCommissionRateRepository implements UserCommissionRateReposi
    */
   private static RuntimeException traducir(RuntimeException fallo) {
     if (esSolapamiento(fallo)) {
-      String mensaje = "Esa persona ya tiene una tasa personalizada viva en parte de ese periodo.";
-      return new BusinessRuleException(
-          "EX-003", mensaje, List.of(new FieldError("validFrom", "EX-003", mensaje)));
+      // El mismo código y mensaje que la comprobación previa del caso de uso:
+      // para el cliente es el mismo hecho, llegara por donde llegara.
+      return UserCommissionRateRepository.solapamiento();
     }
     return fallo;
   }
@@ -163,7 +174,8 @@ public class JpaUserCommissionRateRepository implements UserCommissionRateReposi
         return true;
       }
       if (causa instanceof java.sql.SQLException sql
-          && ESTADO_EXCLUSION.equals(sql.getSQLState())) {
+          && (ESTADO_EXCLUSION.equals(sql.getSQLState())
+              || ESTADO_INTERBLOQUEO.equals(sql.getSQLState()))) {
         return true;
       }
     }

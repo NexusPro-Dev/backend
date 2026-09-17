@@ -8,7 +8,7 @@
 | Estado | **Aprobado** |
 | Autor | Responsable técnico |
 | Aprobado por | Responsable del proyecto |
-| Enmendado el | 27-08-2026 — `RN-PM-015`; 02-09-2026 — la membresía de **origen** (`RN-PM-017`, `RN-PM-018`) |
+| Enmendado el | 27-08-2026 — `RN-PM-015`; 02-09-2026 — la membresía de **origen** (`RN-PM-017`, `RN-PM-018`); 07-09-2026 — **el alcance y la implementación** (`RN-PM-019`, `RN-PM-020`), §2.4, y **la renovación** —el origen puede ser el destino (`RN-PM-017`)—, §2.5; 08-09-2026 — **el segundo precio, el público** (`RN-PM-023`) y **`RN-PM-006` relajada**, §2.6; 12-09-2026 — **el segundo precio pasa a ser el de COMPRA** (`RN-PM-023`, `RN-PM-024`), §2.7; 14-09-2026 — **el enlace de un video** (`RN-PM-032`), §2.8 y §4; 14-09-2026 — **el icono obligatorio en el upgrade** (`RN-PM-034`), §2.9; 15-09-2026 — **el alcance pasa a cuatro valores** (`RN-PM-019`), `V92` |
 | Fecha de aprobación | 26-08-2026 |
 
 !!! info "Qué va en este documento"
@@ -61,7 +61,7 @@ Restricciones e índices:
 | `ck_products_type` | `type IN ('UPGRADE_MEMBRESIA','BOT')` | `RN-PM-001` |
 | `ck_products_status` | `status IN ('ACTIVO','INACTIVO')` | `RN-PM-009` |
 | `ck_products_type_target` | `(type = 'UPGRADE_MEMBRESIA' AND target_membership_id IS NOT NULL) OR (type = 'BOT' AND target_membership_id IS NULL)` | `RN-PM-002`, en los dos sentidos. **`V53` la reescribe** para que cubra también el origen — ver §2.3 |
-| `ck_products_price_positive` | `price > 0` | `RN-PM-006` |
+| `ck_products_price_positive` | `price > 0` | `RN-PM-006`. **`V67` la retira y la sustituye** por `ck_products_price_no_negativo` con `price >= 0` — ver §2.6 |
 | `ck_products_validity_positive` | `validity_days IS NULL OR validity_days > 0` | `RN-PM-015`. La rama `IS NULL` va **explícita**: la comparación sola también admitiría el nulo —un `CHECK` que evalúa a `NULL` acepta la fila—, y se escribe para que ese permiso sea deliberado |
 | `ck_products_name_length` | `length(name) <= 150` implícito en el tipo; `description` con `CHECK` de 1000 | Sin cota, el listado de `RF-PM-002` devolvería respuestas de tamaño impredecible |
 | `uq_products_upgrade_target` | `CREATE UNIQUE INDEX … ON products (target_membership_id) WHERE type = 'UPGRADE_MEMBRESIA' AND status = 'ACTIVO' AND deleted_at IS NULL` | `RN-PM-004`. Se declara **aquí**, con la tabla, aunque **solo `RF-PM-005` pueda violarla**: el esquema es de quien crea la tabla. **`V53` lo rehace sobre la pareja `(origen, destino)`** — ver §2.3 |
@@ -97,23 +97,134 @@ Esta migración **no emite auditoría**, igual que `V3`: un permiso no tiene lí
 | Cambio | Definición | Por qué |
 |---|---|---|
 | `source_membership_id` | `uuid NULL` | **Sin `NOT NULL` a propósito**: en un bot tiene que estar vacía. Quien exige su presencia es el `CHECK`, que es el único capaz de decir «obligatoria aquí y prohibida allá» |
-| Relleno | `UPDATE … SET source_membership_id = (SELECT id FROM memberships WHERE code = 'FREE')` sobre los upgrades existentes | **Es una decisión, no una deducción**: bajo el modelo anterior esos productos **no tenían** origen. Se elige el suelo de la cadena porque conserva la oferta de quien está en `FREE`, que es el caso más común |
+| Relleno | `UPDATE … SET source_membership_id = (SELECT id FROM memberships WHERE code = 'BECA')` sobre los upgrades existentes | **Es una decisión, no una deducción**: bajo el modelo anterior esos productos **no tenían** origen. Se elige el suelo de la cadena porque conserva la oferta de quien está en `BECA`, que es el caso más común |
 | `ck_products_type_target` | Se **reescribe entera** para exigir las dos membresías en el upgrade y prohibirlas las dos en el bot | Añadir un segundo `CHECK` al lado se leería como dos reglas, y `RN-PM-002` es **una** |
 | `fk_products_source_membership` | `source_membership_id → memberships(id)` | Lo mismo que su gemela del destino, y por el mismo motivo |
-| `ck_products_origen_distinto` | `source_membership_id IS NULL OR source_membership_id <> target_membership_id` | La mitad de `RN-PM-017` que el motor **sí** puede sostener: un upgrade de `FREE` a `FREE` vende nada |
-| `uq_products_upgrade_target` | Se rehace sobre **`(source_membership_id, target_membership_id)`** | La versión anterior prohibía **exactamente lo que el origen existe para permitir**: dos upgrades activos hacia `ORO`, uno desde `FREE` y otro desde `PLATINO` |
+| `ck_products_origen_distinto` | `source_membership_id IS NULL OR source_membership_id <> target_membership_id` | La mitad de `RN-PM-017` que el motor **sí** puede sostener: un upgrade de `BECA` a `BECA` vende nada |
+| `uq_products_upgrade_target` | Se rehace sobre **`(source_membership_id, target_membership_id)`** | La versión anterior prohibía **exactamente lo que el origen existe para permitir**: dos upgrades activos hacia `ORO`, uno desde `BECA` y otro desde `PLATINO` |
 
 !!! danger "El coste del relleno, escrito para que nadie lo descubra en producción"
 
-    Dar `FREE` a todos los upgrades existentes significa que **quien esté en `VIP` deja de verlos**. No recibe ningún error: simplemente dejan de ofrecerse, y el catálogo se ve perfectamente bien desde administración. La alternativa considerada —el nivel inmediatamente inferior al destino, derivable de la cadena— estrecha igual y además deja a `FREE` sin nada.
+    Dar `BECA` a todos los upgrades existentes significa que **quien esté en `VIP` deja de verlos**. No recibe ningún error: simplemente dejan de ofrecerse, y el catálogo se ve perfectamente bien desde administración. La alternativa considerada —el nivel inmediatamente inferior al destino, derivable de la cadena— estrecha igual y además deja a `BECA` sin nada.
 
-    **Y la migración puede detenerse**: si existe un upgrade cuyo destino es `FREE`, el relleno lo deja apuntando a sí mismo y `ck_products_origen_distinto` la aborta. Es lo correcto — ese producto vendía un descenso llamándolo upgrade, y qué hacer con él es una decisión del negocio, no de una migración.
+    **Y la migración puede detenerse**: si existe un upgrade cuyo destino es `BECA`, el relleno lo deja apuntando a sí mismo y `ck_products_origen_distinto` la aborta. Es lo correcto — ese producto vendía un descenso llamándolo upgrade, y qué hacer con él es una decisión del negocio, no de una migración.
 
 !!! important "La otra mitad de `RN-PM-017` no cabe en el esquema"
 
     «El origen está por debajo del destino» obliga a leer el `level` de **dos filas de `memberships`**, y un `CHECK` no consulta otra tabla. Vive en el caso de uso, por el mismo motivo exacto que los decimales de la moneda en `RN-PM-007`.
 
-    Y va con el reparto de `V47` delante: **`level` numera desde la cima** —`ORO` es el 1 y `FREE` el 4—, de modo que «por debajo» es **número mayor**. Escribir la comparación al revés produce un sistema que acepta descensos y rechaza ascensos, y las dos mitades fallan calladas.
+    Y va con el reparto de `V47` delante: **`level` numera desde la cima** —`ORO` es el 1 y `BECA` el 4—, de modo que «por debajo» es **número mayor**. Escribir la comparación al revés produce un sistema que acepta descensos y rechaza ascensos, y las dos mitades fallan calladas.
+
+### 2.4 `V59__products_scope_and_implementation.sql` — enmienda del 07-09-2026
+
+**Un producto declara hasta dónde se muestra y quién aplica lo que otorga** (`RN-PM-019`, `RN-PM-020`). Dos columnas obligatorias, en los **dos** tipos, y **sin valor por omisión**.
+
+| Cambio | Definición | Por qué |
+|---|---|---|
+| `scope` | `varchar(20) NOT NULL`, en **tres pasos**: se añade nula, se rellena, y solo entonces se marca `NOT NULL` | Una columna `NOT NULL` no se puede añadir de golpe a una tabla con filas sin darle un `DEFAULT`, y **el `DEFAULT` es justo lo que no queremos** — ver la fila del relleno |
+| `implementation` | `varchar(20) NOT NULL`, con la misma secuencia | Lo mismo |
+| Relleno | `TIENDA` y `MANUAL` sobre todo lo existente | **Es una decisión, no una deducción**, como el `BECA` de `V53`: bajo el modelo anterior estos productos **no tenían** ni alcance ni implementación. `TIENDA` es el alcance **más corto** y conserva **exactamente** la oferta de hoy; `MANUAL` es la implementación que **no entrega sola** |
+| `ck_products_scope` | `scope IN ('TIENDA','HOTLINKS')` — **reemplazada en `V92` (15-09-2026)** por `scope IN ('TIENDA','HOTLINK','AMBOS','NINGUNO')`, tras renombrar las filas `HOTLINKS` a `AMBOS` | `RN-PM-019` |
+| `ck_products_implementation` | `implementation IN ('AUTOMATICA','MANUAL')` | `RN-PM-020` |
+
+!!! danger "Por qué el relleno de la implementación es `MANUAL` y no `AUTOMATICA`"
+
+    El valor por omisión de una migración **es una decisión de negocio disfrazada de detalle técnico**, y aquí las dos opciones no cuestan lo mismo.
+
+    Con `AUTOMATICA`, el día que `RF-MV-003` se construya **todo producto que existía antes de esta migración entregaría solo** — membresías concedidas por productos que nadie revisó, con el cobro hecho y sin que ninguna decisión lo hubiera dicho. El defecto **no falla: entrega**.
+
+    Con `MANUAL`, lo peor que pasa es que alguien tenga que autorizar una entrega que podría haberse aplicado sola. Eso se nota, se corrige con `RF-PM-004` y no deja nada mal concedido detrás.
+
+!!! important "Ninguna de las dos lleva `DEFAULT`, y no es lo mismo que el relleno"
+
+    El relleno lo escribe **la migración, una vez**, sobre lo que ya existe. Un `DEFAULT` lo escribiría **la columna, siempre**, sobre todo lo que venga — y con él, un alta que olvidara declarar el alcance se guardaría sin error y sin que nadie pudiera distinguirla de una que lo declaró. `status` sí lleva `DEFAULT` porque una regla lo exige (`RN-PM-012`); aquí ninguna regla dice cuál es el valor natural, y ese es precisamente el motivo por el que se declara.
+
+    Es la misma forma que `V53` usó con `source_membership_id`: rellenar y no suponer.
+
+### 2.5 `V61__products_admite_renovacion.sql` — enmienda del 07-09-2026
+
+**Cae `ck_products_origen_distinto`**, y es una migración de una sola sentencia con una consecuencia que merece más líneas que el `SQL`.
+
+| Cambio | Definición | Por qué |
+|---|---|---|
+| `ck_products_origen_distinto` | `DROP CONSTRAINT` | Prohibía `source_membership_id = target_membership_id`, que es **exactamente** lo que la renovación admite (`requirements/pm.md` §5.2.3) |
+
+!!! danger "De `RN-PM-017` no queda NADA en el esquema"
+
+    Esa restricción era **la única mitad de la regla que el motor podía sostener**. La que sobrevive —«el origen no está por encima del destino»— obliga a leer el `level` de **dos filas de `memberships`**, y un `CHECK` no consulta otra tabla: nunca cupo aquí y no va a caber.
+
+    De modo que a partir de esta migración **una regla crítica de este módulo vive entera en `RegisterProductService`**, sin red. Es el mismo reparto que `RN-PM-007` tiene con los decimales de la moneda, con una diferencia que conviene no olvidar: aquel **nunca** tuvo una restricción detrás, y este la pierde. Un `INSERT` directo —una migración, una corrección a mano— puede meter hoy un descenso vendido como upgrade, y nada lo impedirá.
+
+!!! important "No se toca `uq_products_upgrade_target`"
+
+    `(BECA, BECA)` es una pareja como cualquier otra. La unicidad sigue siendo **un producto activo por pareja origen→destino**, de modo que no pueden coexistir dos renovaciones activas de la misma membresía — que es justo lo que `RN-PM-004` existe para evitar: dos precios simultáneos para lo mismo.
+
+**Y el agregado pierde una comprobación sin ganarla en otro sitio.** `Product.verificarTipoYMembresias` rechazaba `origen.equals(destino)` con `VAL-014`; esa comparación **dejó de decir nada**. Quien decide es el caso de uso, que es el único que conoce los dos `level`, y su comparación pasa de `origen.level() <= destino.level()` a `origen.level() < destino.level()`.
+
+### 2.6 `V67__products_precio_publico.sql` — enmienda del 08-09-2026
+
+**Una columna, y dos restricciones donde había una.**
+
+| Cambio | Definición | Por qué |
+|---|---|---|
+| `public_price` | `numeric(14,4) NULL` | El precio con el que se anuncia (`RN-PM-023`). **La misma forma que `price` porque es el mismo dinero en la misma moneda**; nulo porque «no declara precio público» es un estado distinto de «vale cero» |
+| ~~`ck_products_price_positive`~~ | `DROP CONSTRAINT` | Decía `price > 0`, y `RN-PM-006` dejó de exigirlo |
+| `ck_products_price_no_negativo` | `CHECK (price >= 0)` | La misma regla con el umbral nuevo. **Cambia de nombre a propósito**: con el viejo, quien lo leyera creería que el cero sigue prohibido |
+| `ck_products_public_price_no_negativo` | `CHECK (public_price IS NULL OR public_price >= 0)` | La rama `IS NULL` va **delante y explícita**, por lo mismo que en `ck_products_validity_positive`: un `CHECK` que evalúa a `NULL` **acepta** la fila, y el permiso debe ser deliberado |
+
+!!! warning "Y el número volvió a moverse: se escribió `V65` y acabó en `V67`, el mismo día"
+
+    Esta migración se planificó como `V65` con `V64` aplicada. Antes de escribir una línea de `SQL`, las tasas de cambio (`RF-SP-047`) fijaron `V65` para su tabla y `V66` para sus permisos, y este cambio se corrió al **`V67`**.
+
+    Es **la cuarta vez** que le pasa a este proyecto, y [`modelo-datos.md` v0.23.0](../../../modelo-datos.md) ya lo tenía escrito con todas las letras: **una migración reservada no está reservada**. Quien tenga el `SQL` escrito antes se lleva el hueco, y Flyway deja fuera **sin error y sin aviso** una migración con número por debajo del último aplicado.
+
+!!! important "No hay relleno, y esa es la diferencia con `V53` y `V59`"
+
+    Aquellas migraciones tuvieron que **decidir un valor** para las filas existentes —`BECA` como origen, `TIENDA` y `MANUAL`—, porque las columnas quedaban obligatorias. Aquí no hace falta ninguna decisión: **el nulo ya significa lo correcto** para todo producto ya registrado —«se anuncia con el precio del sistema»—, que es exactamente lo que hacían ayer.
+
+    Es el argumento que sostiene que la columna sea opcional, visto desde la migración.
+
+!!! danger "Relajar un `CHECK` rompe una división en OTRO módulo, y estaba escrito"
+
+    `ProductCommissionCapGuard` de `CM` calcula `fixed_amount ÷ precio` y su Javadoc decía que «el precio nunca es cero — `ck_products_price_positive` lo garantiza desde `V39`». **Esta migración retira esa garantía**, y con un producto gratuito esa división es una excepción aritmética: un `500` en una comprobación de negocio.
+
+    Se corrige en el mismo pase (`RN-CM-019` llevada a su límite: sobre precio cero, cualquier valor fijo mayor que cero pasa del 100 %). Queda anotado aquí porque **el `SQL` es donde el defecto nace**, y quien lea esta migración dentro de un año tiene que poder llegar hasta él.
+
+### 2.7 `V86__products_precio_de_compra.sql` — enmienda del 12-09-2026
+
+**Un renombrado de columna y de su `CHECK`, y nada más — porque lo que cambia es el significado, y eso no se migra.**
+
+| Cambio | Definición | Por qué |
+|---|---|---|
+| `public_price` → `purchase_price` | `ALTER TABLE … RENAME COLUMN` | El número deja de ser lo que se anuncia y pasa a ser **lo que NEXUS paga por el producto** (`RN-PM-023`, `requirements/pm.md` §5.2.6). Conserva tipo, escala y opcionalidad: la forma era correcta y sigue siéndolo |
+| `ck_products_public_price_no_negativo` → `ck_products_purchase_price_no_negativo` | `ALTER TABLE … RENAME CONSTRAINT` | Por lo mismo que `ck_products_price_positive` se renombró con su umbral: un nombre que dice «público» sobre un costo **miente**, y el que lo lea en un error del motor buscará una columna que ya no existe |
+| `COMMENT ON COLUMN` | Reescrito | El comentario decía «se anuncia»; ahora dice qué es y qué significa su nulo |
+
+**No es una migración nueva sobre `V67`, y `V67` no se toca.** Reescribir una migración aplicada es el error que Flyway existe para impedir; el renombrado va en su propia migración, con el número que le toque el día que se escriba — que este plan **no reserva**, porque una migración reservada no está reservada (§2.6).
+
+!!! important "No hay relleno, otra vez, y esta vez por un motivo distinto"
+
+    `V67` no rellenó nada porque el nulo ya significaba «se anuncia con el precio del sistema» para todo producto existente. Hoy tampoco se rellena, pero el argumento es otro: **ningún producto de hoy tiene un costo declarado**, porque hasta ayer la columna guardaba otra cosa. Lo que hubiera en ella —un precio anunciado— **no es un costo**, y dejarlo ahí con el nombre nuevo sería mentir con datos. La migración, por tanto, **vacía la columna** (`UPDATE products SET purchase_price = NULL`) antes de que nadie la lea como costo. Es la única sentencia que no es un renombrado, y es la que hace que la columna cambie de significado **vacía del anterior**.
+
+### 2.8 `V89__products_video_url.sql` — enmienda del 14-09-2026
+
+**Una columna opcional, un `CHECK` de forma y un comentario. Sin relleno.**
+
+| Cambio | Definición | Por qué |
+|---|---|---|
+| `video_url` | `varchar(500) NULL` | **La dirección de un video que presenta el producto, no el video** (`RN-PM-032`). `varchar(500)` y no `text`: un enlace que no cabe en quinientos caracteres no es uno que nadie vaya a escribir a mano, y ensanchar un `varchar` es un `ALTER` de solo metadatos en PostgreSQL. Nulo cuando no hay, **sin `DEFAULT`**: la cadena vacía no es un estado |
+| `ck_products_video_url_format` | `CHECK (video_url IS NULL OR video_url ~ '^https?://[^[:space:]]+$')` | Comprueba **la forma y nada más**: esquema `http` o `https`, y ningún espacio. La rama `IS NULL` va **delante y explícita**, como en el icono y en la vigencia. Que el enlace resuelva a algo no es cosa del esquema ni del dominio (`pm.md` §5.2.8) |
+| `COMMENT ON COLUMN` | Qué es, qué significa su nulo y **dónde sí se ve** | Al revés que `purchase_price`, este sale en las cuatro lecturas, hotlink sin token incluido — y conviene que quien lea el esquema lo sepa sin abrir el código |
+
+**No hay relleno**, por el motivo más simple de los tres que este plan ya ha dado: ningún producto de hoy tiene video, y el nulo lo dice. **El número `V89` cuenta con que `V87` y `V88` —las reseñas, en construcción el mismo día— se queden como están**; si aquel trabajo cambia de número, este lo sigue. Es la única reserva de número que este plan hace, y la hace porque las dos migraciones se escriben el mismo día en el mismo árbol.
+
+### 2.9 `RN-PM-034` en el alta — enmienda del 14-09-2026, sin cambio de esquema propio
+
+**La columna y la tabla las trae `V90` (`RF-PM-014` §2); esta enmienda es de dominio.** `Product.create` gana una comprobación al lado de `verificarTipoEIcono`: si el tipo es `UPGRADE_MEMBRESIA` y el icono normalizado es nulo, `VAL-018` nombrando `icon`. Va **en el agregado y no en el DTO** por lo mismo que el resto de reglas cruzadas del tipo: un `@NotBlank` no puede depender del tipo, y la regla tiene tres caras —alta, corrección, retiro de la portada— que viven juntas en `Product`.
+
+**Y no hay relleno de `V90` para los upgrades sin icono que ya existen**: no hay ningún icono honesto que inventarles, y `RN-PM-034` no condiciona la activación — los alcanza en su primera corrección ([`requirements/pm.md` §5.2.9](../../../requirements/pm.md)). Es también el motivo de que la regla **no viva en el esquema** (§10.3 de aquel).
+
+**`ProductResponse` gana `coverImageUrl`**, construido con `ProductImageUrls.de(cover_image_id)` y **siempre nulo en el alta**: no hay forma de que un producto nazca con portada. El campo va para que el alta y el detalle tengan la misma forma. La instantánea del evento de creación gana `cover_image_id`.
 
 ## 3. Componentes afectados
 
@@ -161,6 +272,8 @@ Se añade a `LayerRulesTest`: **ninguna clase de `..modules.products..` depende 
   "sourceMembershipId": "018f3a2b-7c41-7000-9a3d-1f2e5b8c9d24",
   "targetMembershipId": "018f3a2b-7c41-7000-9a3d-1f2e5b8c9d20",
   "price": 49.99,
+  "purchasePrice": 30.00,
+  "videoUrl": "https://www.youtube.com/watch?v=dQw4w9WgXcQ",
   "validityDays": 30,
   "currencyId": "01a03336-6d00-7001-9c4f-5e7ad3000001"
 }
@@ -169,10 +282,15 @@ Se añade a `LayerRulesTest`: **ninguna clase de `..modules.products..` depende 
 - **No existe campo `status`**, y el DTO se deserializa con `FAIL_ON_UNKNOWN_PROPERTIES` activo: enviarlo devuelve `400` y no se ignora en silencio (`CA-PM-068`). Es lo mismo que `RF-SP-001` hizo con `status` e `isSystem`, y es lo que hace verificable que **el estado inicial no se pueda forzar desde fuera**.
 - `code` se **recorta y se pasa a mayúsculas** antes de validar; `name` y `description` se recortan. Sin el recorte, `"Ascenso "` y `"Ascenso"` serían dos nombres distintos para `uq_products_name`.
 - `price` llega como **número**. La escala admisible **no la fija el DTO**, la fija la moneda (`RN-PM-007`), y por eso se valida en el caso de uso y no con una anotación.
+- **`purchasePrice` es opcional, y ausente y nulo significan lo mismo**: no se conoce el costo todavía (`RN-PM-023`). Aquí **sí** se aparta de `scope` e `implementation` —que son obligatorias y donde ausente y nulo significan «falta»—, y el motivo es que **su omisión no deja ninguna decisión sin tomar**: un producto se registra antes de comprarse, y el costo se declara cuando se conoce (`RF-PM-004`). **Se llamó `publicPrice` hasta el 12-09-2026** y significaba otra cosa; el nombre viejo es una propiedad desconocida y devuelve `400`.
+- **El DTO acota de los dos importes lo que es cierto para cualquier moneda** —no negativo y hasta cuatro decimales, que es lo que la columna admite— y **nada más**. Los decimales de verdad los decide el caso de uso contra `currencies.decimal_places`, para los **dos**.
+- **`videoUrl` es opcional en los dos tipos**, y ausente y nulo significan lo mismo: no tiene video (`RN-PM-032`). Se **recorta** antes de validar —`" "` es un enlace ausente, no uno inválido— y **no se normaliza nada más**: ni mayúsculas, ni barra final, ni parámetros; lo que se guarda es lo que se escribió, porque un enlace que el sistema «arregla» puede dejar de resolver. **La forma se comprueba en el dominio con `VAL-017`** —URL absoluta `http` o `https`, sin espacios, hasta 500 caracteres— y no con una anotación: `@URL` de Hibernate Validator admite cualquier esquema y no distingue una relativa, y `@Pattern` no puede decir «hasta 500» sin repetir el tope; el dominio lo comprueba en un sitio y con un mensaje, como hace con el icono. **Y nada sigue el enlace**: comprobar que resuelve obligaría a salir a Internet en cada alta (`pm.md` §5.2.8).
 - **`validityDays` es opcional en los dos tipos.** Ausente o `null` significa lo mismo: el producto no caduca. Se valida en el DTO —entero mayor que cero— porque su regla no depende de ningún otro campo, al revés que el precio.
 - `sourceMembershipId` y `targetMembershipId` son **obligatorios los dos o prohibidos los dos** según `type`, y **la condición se comprueba en el caso de uso y no con validación declarativa**: una anotación de Bean Validation no puede expresar «obligatorio si otro campo vale X» sin un validador de clase, y el mensaje que produce no distingue cuál de las cuatro mitades se incumplió. Con dos campos el mensaje **dice cuál**: `VAL-007` y `VAL-008` viajan con el `field` que falta o que sobra, porque uno que no distinga obliga a probar los dos.
 - **El orden de las comprobaciones importa y está fijado**: moneda → destino → **origen** → unicidad. Que el origen no exista (`EX-002`) y que el origen no esté por debajo del destino (`EX-006`, con `VAL-014`) son dos respuestas distintas, y la segunda no se puede dar sin haber resuelto la primera.
 
+- **`scope` e `implementation` son obligatorios y sin valor por omisión**, en los **dos** tipos. Se validan **con anotación** —`@NotNull` sobre el enumerado— y no en el caso de uso, al revés que las membresías: su obligatoriedad **no depende de ningún otro campo**, de modo que no hay nada que un validador de clase pudiera decir que la anotación no diga. Un valor fuera del dominio lo rechaza Jackson al deserializar el enumerado, con `400`.
+- **Ausente y nulo significan lo mismo aquí: falta.** No se admite el valor por omisión ni en el DTO ni en la columna, y la razón es que el defecto **no se vería**: un producto que se guardó con el alcance supuesto se ve exactamente igual que uno declarado, y nadie descubriría nunca que nadie decidió dónde se publica.
 **Respuesta `201`**, con cabecera `Location: /api/v1/products/{id}`:
 
 ```json
@@ -182,9 +300,11 @@ Se añade a `LayerRulesTest`: **ninguna clase de `..modules.products..` depende 
   "type": "UPGRADE_MEMBRESIA",
   "name": "Ascenso a Oro",
   "description": "Acceso a los contenidos de nivel oro.",
-  "sourceMembership": { "id": "018f3a2b-…", "code": "FREE", "name": "Free", "level": 4 },
+  "sourceMembership": { "id": "018f3a2b-…", "code": "BECA", "name": "Beca", "level": 4 },
   "targetMembership": { "id": "018f3a2b-…", "code": "ORO", "name": "Oro", "level": 1 },
   "price": 49.99,
+  "purchasePrice": 30.00,
+  "videoUrl": "https://www.youtube.com/watch?v=dQw4w9WgXcQ",
   "validityDays": 30,
   "currency": { "id": "01a03336-…", "code": "USD", "decimalPlaces": 2 },
   "status": "INACTIVO",
@@ -195,7 +315,10 @@ Se añade a `LayerRulesTest`: **ninguna clase de `..modules.products..` depende 
 
 - **Las dos membresías llegan resueltas** y no como identificadores sueltos, con los datos que el puerto ya devolvió: resolverlas cuesta cero consultas extra porque la validación ya las trajo. En el ejemplo, `level` 4 → 1 es un **salto de tres escalones**, y es legítimo (`RN-PM-018`).
 - **`sourceMembership` y `targetMembership` viajan como `null` presentes** en los bots, no ausentes: un campo que falta es indistinguible de uno que el cliente no conoce.
-- **El precio se serializa con los decimales de su moneda** y no con la escala de la columna (`CA-PM-082`): `49.99`, no `49.9900`.
+- **El precio se serializa con los decimales de su moneda** y no con la escala de la columna (`CA-PM-082`): `49.99`, no `49.9900`. **Vale para los dos importes, con la misma función y en el mismo sitio** (`ProductPrice`): escrita dos veces, el mismo producto acabaría enseñando sus dos precios con escalas distintas.
+- **`videoUrl` viaja como `null` presente** cuando el producto no lo declara (`CA-PM-220`), por lo mismo. Y al revés que el precio de compra, **esta no es una respuesta de administración por llevarlo**: el enlace sale en las cuatro lecturas (`RN-PM-032`).
+- **`purchasePrice` viaja como `null` presente** cuando el producto no lo declara, no ausente (`CA-PM-146`). Su nulo **significa** «no se conoce el costo», y un campo que desaparece no puede decir eso.
+- **Esta respuesta lleva los DOS precios porque exige `products:create`**, que solo tiene quien administra el catálogo. `RN-PM-024` acota el precio de compra a administración: `RF-PM-007` y `RF-PM-008`, que no piden ningún permiso de administración, **no lo devuelven** (12-09-2026).
 
 ## 5. Autorización
 
@@ -203,7 +326,9 @@ Se añade a `LayerRulesTest`: **ninguna clase de `..modules.products..` depende 
 
 ## 6. Auditoría
 
-Un evento `CREATE` en `audit_change_log`, en la misma transacción, con el **estado inicial completo**: código, tipo, nombre, descripción, **origen**, destino, precio, moneda y estado (`CA-PM-011`).
+Un evento `CREATE` en `audit_change_log`, en la misma transacción, con el **estado inicial completo**: código, tipo, nombre, descripción, **origen**, destino, **los dos precios**, moneda y estado (`CA-PM-011`, `CA-PM-150`).
+
+**El precio de compra entra en la instantánea aunque no se cobre**, y no por simetría: es el único sitio donde queda escrito **cuánto costó** un producto cuyo costo después se corrige, y sin él una revisión de márgenes no tendría contra qué contrastarse. Va como texto y nulo cuando no se declaró, igual que el resto — `Map.of` rechaza los nulos, de modo que la instantánea usa un mapa que sí los admite. La clave es `purchase_price` desde el 12-09-2026; los eventos anteriores conservan `public_price`, porque una instantánea es lo que era, no lo que es.
 
 **Sin evento de seguridad**, y no es una omisión: `spec.md` §14 resolución 5 lo decidió. Un producto no concede privilegios sobre el sistema y el catálogo de `security.md` §8.1 es cerrado. Quién puso un precio lo responde este mismo evento.
 
@@ -219,6 +344,10 @@ Una sola transacción para el `INSERT` y su evento de auditoría. Las lecturas c
 
 **`SP` gana dos interfaces publicadas** y ninguna otra cosa: no cambia ninguna tabla suya, ningún endpoint ni ninguna regla. `requirements/sp.md` anota que quedan publicadas, sin abrir un requerimiento nuevo (D-25).
 
+**`CM` cambia, y no porque este requerimiento se lo pida** (08-09-2026). `ProductCommissionCapGuard` convierte un valor fijo a porcentaje con `fixed_amount ÷ precio`, y dependía **por escrito** de `ck_products_price_positive` para que ese divisor no fuera cero. `V67` retira esa garantía, de modo que la corrección viaja en el mismo pase: sobre un producto de precio cero, cualquier valor fijo mayor que cero **paga más del 100 % de lo que el producto cobra** y se rechaza con el mensaje de `RN-CM-019`; uno de cero ocupa cero. No hace falta ninguna regla nueva — es lo que aquella ya decía, llevado al límite.
+
+**`MV` no cambia.** Sigue copiando `price` en `movement_details.unit_price`, y el precio de compra **no entra en el puerto de venta**: `ProductCatalog.saleViewOf` no lo lleva, y eso es lo único que impide que empiece a cobrarse.
+
 **El contrato OpenAPI crece** con el endpoint y sus esquemas, y `OpenApiContractIT` lo regenera en `docs/api/`.
 
 ## 9. Alternativas consideradas
@@ -230,6 +359,11 @@ Una sola transacción para el `INSERT` y su evento de auditoría. Las lecturas c
 | Un endpoint por tipo (`/products/upgrades`, `/products/services`) | Duplicaría el contrato y la mitad del caso de uso para una diferencia de un campo. La spec ya resolvió que es **un** requerimiento |
 | Guardar el precio como `numeric(12,2)` | Fijaría en dos los decimales de toda moneda, cuando `currencies.decimal_places` existe justamente para no asumirlo |
 | Que `PM` consultara `memberships` con su propio repositorio | Es lo que D-25 prohíbe: ataría `PM` al esquema de `SP` y un cambio allí lo rompería en silencio |
+| **Guardar solo el costo y calcular el precio con un margen** —o al revés— | No hay ninguna operación que relacione los dos importes: **la relación es una decisión comercial que se toma producto a producto** y puede ser cualquiera. Lo único que puede guardarla es una segunda columna (`requirements/pm.md` §5.2.4) |
+| **`purchase_price NOT NULL DEFAULT 0`**, o rellenar con el precio del sistema | Los dos borran una distinción que significa algo: «no se conoce el costo» **no es** «costó cero», y rellenar con el precio de venta inventaría un margen de cero que nadie declaró |
+| **Un `CHECK` de `price >= purchase_price`** | Cierra un caso legítimo: vender por debajo del costo es una decisión comercial, y el sistema la registra en vez de impedirla. Se descarta **hoy**, no para siempre — es una migración de tres líneas el día que se decida (`requirements/pm.md` §5.2.6) |
+| **Una segunda moneda para el precio de compra** | Si NEXUS paga en otra moneda, quien registra el costo lo convierte al declararlo. Una compra con su moneda, su tasa y su fecha es una **tabla de compras**, no una columna de esta |
+| **Una columna nueva en vez de renombrar `public_price`** (12-09-2026) | Dejaría una columna huérfana que nadie lee y que seguiría llamándose «público», y obligaría a decidir qué hacer con ella. El renombrado con vaciado deja **una** columna con **un** significado |
 
 ## 10. Riesgos
 
@@ -239,17 +373,23 @@ Una sola transacción para el `INSERT` y su evento de auditoría. Las lecturas c
 | 2 | **Los puertos de `SP` son código nuevo en un módulo ya implementado** | Son de solo lectura y no tocan ningún caso de uso existente. La suite de `SP` debe seguir en verde sin cambios |
 | 3 | **Una moneda desactivada después del alta deja productos con moneda inactiva** | Es deliberado (`RN-PM-008`): desactivar no invalida lo registrado. Lo que no puede es usarse en un alta nueva |
 | 4 | **Dos altas simultáneas del mismo código** | Las serializa `uq_products_code`; la prueba concurrente es obligatoria y no basta con la verificación previa |
+| 5 | **El precio de compra acaba cobrándose sin que nada falle.** Basta con añadirlo al puerto que `PM` publica para vender (`ProductCatalog.saleViewOf`) o con leerlo desde `MV`: no hay restricción, tipo ni prueba que lo impida, porque «este número no se cobra» no es expresable en el esquema | La única defensa es **dónde no está**: `SaleView` no lleva el campo, y `RN-PM-023` lo declara. Se prueba **por el efecto**: corregir el precio de compra **no cambia** el importe de una venta registrada después (§11) |
+| 6 | **El precio de compra acaba publicándose sin que nada falle** (12-09-2026). Basta con añadir el campo a `OfferItem` o a la respuesta del hotlink «por simetría» con las de administración, y el margen de NEXUS sale sin token | La misma defensa, en el otro sentido: **las dos proyecciones públicas no tienen el campo y sus consultas no lo seleccionan**. Se prueba por la **ausencia** en el cuerpo (`CA-PM-160`, `CA-PM-163`), con un producto que sí lo tiene declarado |
+| 6 | **Un producto de precio cero rompía la conversión de un valor fijo en `CM`** | Se corrige `ProductCommissionCapGuard` en el mismo pase, con `RN-CM-019` llevada a su límite. Ver §2.6 y §8 |
 
 ## 11. Estrategia de prueba
 
 | Qué se prueba | Nivel | Cómo |
 |---|---|---|
 | Normalización y formato del código, y del nombre | Unitaria | Sobre `Product`, sin Spring |
-| Decimales del precio según la moneda | Unitaria | Dos monedas: una de dos decimales y otra de **cero** |
+| Decimales del precio según la moneda | Unitaria | Dos monedas: una de dos decimales y otra de **cero**. **Contra los dos importes**, y con el caso que solo aparece con dos: el del sistema cabe y el público no |
+| El precio de compra, en sus cuatro estados | API | Informado, **ausente**, **nulo explícito** y negativo. Los dos primeros terminan en la misma fila; el tercero tiene que llegar **presente y nulo** en la respuesta, y el cuarto nombrar `purchasePrice` |
+| El precio **cero** | API | Se admite en los dos importes (`CA-PM-149`). Es la renovación de una membresía gratuita, y hasta hoy era un `400` |
+| El enlace del video, en sus cuatro estados | API | Informado en un **bot** —que es donde el icono no cabe y el video sí—, **ausente**, **nulo explícito** y **con forma inválida** en sus cinco variantes: relativo, sin esquema, `ftp://`, con espacio, y de 501 caracteres. El rechazo nombra `videoUrl` (`CA-PM-219` a `CA-PM-221`) |
 | Los once criterios de `spec.md` §12 | API | `MockMvc` con permiso concedido |
 | La condición cruzada de `RN-PM-002` | API | **En los cuatro sentidos**: upgrade sin origen, upgrade sin destino, bot con destino y bot con origen — y el `field` de cada rechazo, porque un mensaje que no distinga obliga a probar los dos |
 | `RN-PM-017` — el origen por debajo del destino | API | Origen **igual** al destino (`400`, lo ve el agregado) y origen **por encima** (`422`, hace falta el `level` de las dos filas). Un descenso vendido como upgrade |
-| `RN-PM-018` — saltar niveles es legítimo | API | `FREE → ORO` con **dos eslabones de por medio**, y la premisa comprobada: sin afirmar que la cadena los tiene, el salto lo sería solo de nombre |
+| `RN-PM-018` — saltar niveles es legítimo | API | `BECA → ORO` con **dos eslabones de por medio**, y la premisa comprobada: sin afirmar que la cadena los tiene, el salto lo sería solo de nombre |
 | El producto nace `INACTIVO` | API | Y enviar `status` devuelve `400`, no se ignora |
 | Código único **incluso contra eliminados** | Integración | Se retira un producto y se intenta reutilizar su código |
 | Traducción por nombre de restricción | Integración | El duplicado produce `409` con el campo correcto, distinguiendo código de nombre |

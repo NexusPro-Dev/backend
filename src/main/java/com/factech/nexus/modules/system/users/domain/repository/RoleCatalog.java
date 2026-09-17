@@ -22,6 +22,16 @@ public interface RoleCatalog {
   /** Un rol concreto, exista o no y sirva o no. */
   Optional<AssignableRole> findById(UUID id);
 
+  /**
+   * Un rol por su CÓDIGO, para el registro por enlace (`RF-SP-045`).
+   *
+   * <p><b>Por código y no por identificador cableado</b>, y es la misma convención que el proyecto
+   * ya eligió para la membresía gratuita el 01-09-2026: un UUID literal en el código de un caso de
+   * uso es un dato de siembra escondido en una clase, y el día que alguien lo cambie el fallo sale
+   * lejos de aquí. El código es estable y se lee.
+   */
+  Optional<AssignableRole> findByCode(String code);
+
   /** Roles que porta una persona. Lo necesita `RN-SP-020` para mirar al superior. */
   Set<UUID> roleIdsOf(UUID userId);
 }

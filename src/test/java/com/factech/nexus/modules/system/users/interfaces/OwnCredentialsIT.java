@@ -71,7 +71,11 @@ class OwnCredentialsIT extends IntegrationTestBase {
     jdbc.update(
         "DELETE FROM role_permissions WHERE role_id IN (SELECT id FROM roles WHERE is_system = false)");
     jdbc.update("DELETE FROM roles WHERE is_system = false");
-    jdbc.update("DELETE FROM memberships WHERE level > 0");
+    // BARRIDO TOTAL Y REPOSICIÓN, en ese orden: conservar BECA haría depender esta
+    // clase del ORDEN DE EJECUCIÓN — según quién haya corrido antes, la fila queda
+    // colgando de VIP (`V47`) o suelta, y el barrido choca con `fk_memberships_parent`.
+    jdbc.update("DELETE FROM memberships");
+    reponerElSuelo(jdbc);
     jdbc.update(
         """
         UPDATE users
@@ -374,6 +378,19 @@ class OwnCredentialsIT extends IntegrationTestBase {
   }
 
   @Test
+  @DisplayName("CA-SP-473 — devuelve el identificador del actor, y es EL MISMO de su ficha")
+  void elPerfilTraeElIdentificador() throws Exception {
+    // No basta con que venga un `uuid`. Este campo existe para poner el
+    // identificador en el cuerpo de una compra (`R-28` del frontend), de modo
+    // que uno PLAUSIBLE Y EQUIVOCADO —el de la sesión, el de otra tabla—
+    // dejaría comprar a nombre de otro sin que nada fallara. Se contrasta
+    // contra el identificador real de la persona, no contra sí mismo.
+    mvc.perform(perfil(juan))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.id").value(juan.toString()));
+  }
+
+  @Test
   @DisplayName("`me` es un literal: no hay parámetros y no acepta el propio identificador")
   void sinParametros() throws Exception {
     // Pedir el propio detalle por la ruta con identificador es otra operación y
@@ -437,6 +454,54 @@ class OwnCredentialsIT extends IntegrationTestBase {
 
     // Lo que ha dejado de valer es la sesión, no la ruta.
     mvc.perform(perfil(juan)).andExpect(status().isUnauthorized());
+  }
+
+  @Test
+  @DisplayName("CA-SP-581 — el perfil publica el país del actor, y NUNCA va ausente")
+  void elPerfilLlevaElPais() throws Exception {
+    // Este registro usa inclusión NON_NULL, de modo que un país nulo
+    // DESAPARECERÍA del JSON en silencio en lugar de fallar. Que no pueda serlo
+    // —`country_id` es NOT NULL— es la única razón por la que la interfaz puede
+    // leerlo sin comprobar si existe.
+    mvc.perform(perfil(juan))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.country.id").value(COLOMBIA.toString()))
+        .andExpect(jsonPath("$.country.code").value("COL"))
+        .andExpect(jsonPath("$.country.name").value("Colombia"));
+  }
+
+  @Test
+  @DisplayName("CA-SP-581 — el perfil propio NO deja cambiar el país")
+  void elPerfilNoCambiaElPais() throws Exception {
+    // Ni esta consulta, que es de solo lectura, ni `RF-SP-044`: el país lo
+    // corrige un administrador por `RF-SP-027`, porque decide qué medios de pago
+    // se ofrecen y cambiárselo uno mismo sería cambiarse de mercado.
+    mvc.perform(
+            org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch(
+                    "/api/v1/users/me")
+                .with(comoActor(juan))
+                .contentType(org.springframework.http.MediaType.APPLICATION_JSON)
+                .content("{\"countryId\":\"" + COLOMBIA + "\"}"))
+        .andExpect(status().isBadRequest());
+  }
+
+  @Test
+  @DisplayName(
+      "CA-SP-682 — la membresía del perfil trae su NOMBRE y su COLOR, junto al código y el nivel")
+  void laMembresiaTraeNombreYColor() throws Exception {
+    // `reponerElSuelo` deja BECA con el color de `V46`; a Juan se le da el suelo.
+    darElSuelo(jdbc, juan);
+
+    mvc.perform(perfil(juan))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.membership.code").value("BECA"))
+        .andExpect(jsonPath("$.membership.name").value("Free"))
+        .andExpect(jsonPath("$.membership.level").value(1))
+        // `RN-SP-024`: seis hexadecimales sin `#`.
+        .andExpect(jsonPath("$.membership.color").value("9E9E9E"))
+        .andExpect(
+            jsonPath("$.membership.color")
+                .value(org.hamcrest.Matchers.matchesPattern("^[0-9A-F]{6}$")));
   }
 
   @Test
@@ -524,8 +589,8 @@ class OwnCredentialsIT extends IntegrationTestBase {
     jdbc.update(
         """
         INSERT INTO users (id, username, email, first_name, last_name, password_hash,
-                           must_change_password, status)
-        VALUES (?, ?, ?, 'Juan', 'Pérez', ?, true, 'ACTIVO')
+                           must_change_password, status, country_id)
+        VALUES (?, ?, ?, 'Juan', 'Pérez', ?, true, 'ACTIVO', (SELECT id FROM countries WHERE code = 'COL'))
         """,
         id,
         username,

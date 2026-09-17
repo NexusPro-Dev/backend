@@ -53,5 +53,5 @@ public interface CurrentMembershipLookup {
    * estructura de la cadena. Crece hacia abajo: {@code 1} es la cima (`requirements/sp.md` §10.4),
    * de modo que <b>nivel superior es número menor</b>.
    */
-  record CurrentMembershipView(UUID id, String code, String name, int level) {}
+  record CurrentMembershipView(UUID id, String code, String name, int level, String color) {}
 }

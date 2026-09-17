@@ -4,7 +4,7 @@
 |---|---|
 | Requerimiento | `RF-MV-002` |
 | Plan | [`plan.md`](plan.md), aprobado el 02-09-2026 |
-| Versión | 0.1.0 |
+| Versión | 0.2.0 |
 | Estado | **En revisión** |
 | Autor | Responsable técnico |
 | Aprobadas por | Pendiente |
@@ -29,8 +29,8 @@
 | ID | Tarea | Depende de | Verificación | Estado |
 |---|---|---|---|---|
 | `T-01` | `RegisterSaleService` recibe **el cliente y la fecha ya resueltos**, y pierde toda rama que pregunte por dónde entró la petición | `RF-MV-001` · `T-11` | El servicio no conoce al actor ni tiene condicionales sobre él | **Pendiente** |
-| `T-02` | `PurchaseRequest`: método de pago y líneas. **Sin cliente y sin fecha** | `T-01` | Un `clientId` en el cuerpo **no tiene dónde caer**: no existe en la representación | **Pendiente** |
-| `T-03` | `PurchaseResponse`: la venta **sin el vendedor**, como clase propia y no como campo vacío | `T-01` | Ningún consumidor tiene que interpretar una ausencia | **Pendiente** |
+| `T-02` | `PurchaseRequest`: método de pago y líneas. **Sin sujeto y sin fecha** | `T-01` | Un `userId` en el cuerpo **no tiene dónde caer**: no existe en la representación | **Pendiente** |
+| `T-03` | `PurchaseResponse`: la venta **sin el vendedor**, como clase propia y no como campo vacío — **tampoco en las líneas**, que desde el 16-09-2026 es donde `SaleResponse` lo lleva | `T-01` | Ningún consumidor tiene que interpretar una ausencia | **Pendiente** |
 | `T-04` | `POST /api/v1/movements/mine`, con el cliente **resuelto del actor antes de mirar el cuerpo** | `T-02`, `T-03` | `201` con `Location`; `401` sin autenticar y **ningún `403`** | **Pendiente** |
 | `T-05` | Pruebas de los criterios de `spec.md` §12 | `T-04` | `CA-MV-019` a `CA-MV-026` | **Pendiente** |
 | `T-06` | Documentación OpenAPI: la operación **no exige permiso**, no admite cliente ni fecha, y **no devuelve el vendedor** | `T-04` | El contrato publicado dice las tres cosas | **Pendiente** |

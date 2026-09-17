@@ -137,7 +137,7 @@ class AuditQueryIT extends IntegrationTestBase {
   @Test
   @DisplayName("CA-SP-086 — un evento sin origen de red devuelve correlación e IP vacías A LA VEZ")
   void eventoSinOrigenDeRed() throws Exception {
-    // Lo escribe una migración: `V7__seed_system_roles.sql` siembra los roles de
+    // Lo escribe una migración: `V8__semilla_permisos_y_roles.sql` siembra los roles de
     // sistema sin petición HTTP detrás.
     mvc.perform(cambios().param("entity", "roles").param("module", "SP"))
         .andExpect(status().isOk());
@@ -569,9 +569,9 @@ class AuditQueryIT extends IntegrationTestBase {
     UUID id = UUID.randomUUID();
     jdbc.update(
         "INSERT INTO users (id, username, email, first_name, last_name, password_hash, status,"
-            + " deleted_at) VALUES (CAST(? AS uuid), ?, ?, ?, ?, 'x', 'ACTIVO', "
+            + " deleted_at, country_id) VALUES (CAST(? AS uuid), ?, ?, ?, ?, 'x', 'ACTIVO', "
             + (retirada ? "now()" : "NULL")
-            + ")",
+            + ", (SELECT id FROM countries WHERE code = 'COL'))",
         id.toString(),
         usuario,
         usuario + "@factech.co",

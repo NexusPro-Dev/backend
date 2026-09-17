@@ -4,8 +4,9 @@
 |---|---|
 | Requerimiento | `RF-MV-002` |
 | Módulo | `MV` — Movimientos |
-| Versión | 0.1.0 |
+| Versión | 0.2.0 |
 | Estado | **Aprobada** |
+| Enmendada el | 16-09-2026 — el vendedor es de cada línea y **siempre lo hay** (`RN-MV-003`); la cabecera lleva un sujeto (`RN-MV-026`). Ver §15 |
 | Autor | Responsable técnico |
 | Aprobada por | Responsable del proyecto |
 | Fecha de aprobación | 02-09-2026 |
@@ -18,7 +19,7 @@
 
 !!! abstract "Esta especificación hereda de `RF-MV-001` y no la repite"
 
-    La venta que produce esta operación es **exactamente la misma**: mismo tipo, mismo estado inicial, mismas reglas, mismo vendedor congelado, mismo comprobante. Lo que cambia es **quién la pide y sobre quién**.
+    La venta que produce esta operación es **exactamente la misma**: mismo tipo, mismo estado inicial, mismas reglas, mismo vendedor congelado **en cada línea**, mismo comprobante. Lo que cambia es **quién la pide y sobre quién**.
 
     Todo lo que no aparezca aquí es idéntico a [`RF-MV-001`](../001-registrar-venta/spec.md) — sus flujos, sus once excepciones y sus casos límite valen tal cual. Este documento recoge **solo las cuatro diferencias**, y las argumenta.
 
@@ -85,7 +86,8 @@ Las dos que cambian de significado práctico:
 
 | Regla | Qué cambia |
 |---|---|
-| `RN-MV-003` | El vendedor se deduce igual. Lo que cambia es que **el cliente no lo ve** |
+| `RN-MV-003` | El vendedor se deduce igual y va en cada línea; quien no cuelga de nadie **es su propio vendedor**. Lo que cambia es que **el cliente no lo ve** |
+| `RN-MV-026` | El sujeto de la venta es **el actor**: la única persona de la cabecera |
 | `RN-MV-008` | Pasa de ser una comprobación rara a **el rechazo más frecuente de esta operación**: la cuenta recién registrada por enlace puede entrar y viene a comprar |
 
 ## 6. Datos
@@ -108,7 +110,7 @@ La de `RF-MV-001` **menos el vendedor** (§4.3): la venta con su código, su est
 **Precondiciones**
 
 - El actor está autenticado. **No necesita ningún permiso.**
-- El actor **no está en `FTD_PENDIENTE`** y cuelga de un vendedor.
+- El actor **no está en `FTD_PENDIENTE`**. Si cuelga de un vendedor, la venta es de ese vendedor; si no, **es suya** (`RN-MV-003`, desde el 16-09-2026).
 - Tiene al menos un producto en su oferta.
 
 **Postcondiciones**
@@ -165,7 +167,7 @@ Las de `RF-MV-001` menos `VAL-001` —cliente obligatorio, que ya no se envía�
 Los de `RF-MV-001`, más dos propios:
 
 - **El cliente compra mientras un funcionario le está registrando la misma venta:** se registran **las dos**, y ninguna de las dos concede nada. Es el mismo caso límite que `RF-MV-001` §13 declara para dos ventas simultáneas del mismo upgrade, y se resuelve en el mismo sitio: al confirmar.
-- **El actor se queda sin vendedor entre que mira la oferta y compra:** la compra se rechaza por `EX-003`. Es raro y es correcto: una venta que no se puede atribuir no debe existir, y menos si la pidió quien no puede arreglarlo.
+- **El actor se queda sin vendedor entre que mira la oferta y compra:** la compra **se registra atribuida a él mismo** (`RN-MV-003`, desde el 16-09-2026). Hasta el 04-09-2026 se rechazaba por `EX-003`, y entre esa fecha y el 16-09 se registraba sin atribución; hoy no existe la venta sin vendedor, y quien no cuelga de nadie es el suyo. Es raro y, si ocurre, el problema está en la estructura comercial y no aquí.
 
 ## 14. Preguntas abiertas
 
@@ -173,10 +175,11 @@ Los de `RF-MV-001`, más dos propios:
 |---|---|---|---|
 | — | Ninguna | — | — |
 
-**Queda declarado el mismo bloqueo de implementación que `RF-MV-001`**: sin `RF-SP-045` no hay clientes que cuelguen de un vendedor, y esta operación **solo la pueden usar clientes**.
+**Queda declarado el mismo bloqueo de implementación que `RF-MV-001`**: sin `RF-SP-045` no hay clientes que cuelguen de un vendedor, y esta operación **solo la pueden usar clientes**. Desde el 16-09-2026 el bloqueo es menor de lo que dice: un actor sin superior compra igual, atribuido a sí mismo.
 
 ## 15. Control de cambios
 
 | Versión | Fecha | Cambio | Responsable |
 |---|---|---|---|
 | 0.1.0 | 02-09-2026 | Redacción inicial, sin preguntas abiertas. Se escribe **por diferencias** con `RF-MV-001` en lugar de repetirlo, y las diferencias son cuatro: el cliente es el actor, **no se admite la fecha del hecho** —porque elegirla es elegir el periodo en que se comisiona—, la respuesta **no devuelve el vendedor** —el cliente no lo eligió y no es información suya— y no hace falta permiso. Lo que **no** cambia es la venta: `CA-MV-026` exige que las dos operaciones produzcan algo indistinguible, que es lo que permite que los siete requerimientos siguientes no se enteren de que hay dos entradas. Queda declarado que **el vendedor cobra por una compra que no hizo**, y por qué eso es lo que significa que un cliente tenga vendedor. | Responsable técnico |
+| 0.2.0 | 16-09-2026 | **El vendedor baja a cada línea y siempre lo hay; la cabecera lleva un sujeto** (`requirements/mv.md` v0.16.0: `RN-MV-026` nueva, `RN-MV-003` enmendada), por decisión del responsable del proyecto. Para esta operación cambia poco y conviene decir qué: **el actor sigue siendo el sujeto** —ahora con nombre de regla— y **la respuesta sigue sin llevar el vendedor** (§4.3), ahora tampoco en las líneas. Lo que se corrige es el caso límite de §13, que **todavía citaba `EX-003`** —retirada de `RF-MV-001` el 04-09-2026— y la precondición de §7: quien no cuelga de nadie **se vende a sí mismo** en lugar de quedarse fuera o sin atribución. | Responsable del proyecto |

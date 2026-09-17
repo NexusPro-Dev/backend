@@ -43,7 +43,10 @@ public class ListUserCommissionRatesService {
 
     UserRateFilters criterios =
         new UserRateFilters(
-            filtros.userId(), filtros.onDate(), Boolean.TRUE.equals(filtros.includeDeleted()));
+            filtros.userId(),
+            filtros.productId(),
+            filtros.onDate(),
+            Boolean.TRUE.equals(filtros.includeDeleted()));
 
     List<UserCommissionRateItem> contenido =
         consultas.search(criterios, trozo.page() * trozo.size(), trozo.size()).stream()

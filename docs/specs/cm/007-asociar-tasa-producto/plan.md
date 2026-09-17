@@ -5,8 +5,8 @@
 | Requerimiento | `RF-CM-007` |
 | Especificación | [`spec.md`](spec.md) |
 | `spec.md` aprobada el | 03-09-2026 |
-| Versión | 0.2.0 |
-| Estado | **Aprobado** |
+| Versión | 0.3.0 |
+| Estado | **Descartado el 15-09-2026** |
 | Autor | Responsable técnico |
 | Aprobado por | Responsable del proyecto |
 | Fecha de aprobación | 03-09-2026 |
@@ -192,3 +192,4 @@ Registro de **cambios**, acción de creación, con el producto, el rol, la tasa 
 | `ProductCommissionCapGuard` | Integración | La suma con valores mixtos porcentaje/fijo, cubierta por `CA-CM-105` a `CA-CM-113` en las dos operaciones que lo llaman — no tiene prueba unitaria propia porque su comportamiento observable **es** el de asociar y corregir bajo `RN-CM-019` |
 
 **`CA-CM-066` usa otra tasa del mismo rol y no la misma dos veces**, y esa elección es la prueba. Repetir la misma tasa fallaría también con una clave primaria mal puesta sobre `(product_id, commission_rate_id)`; **solo el caso de dos tasas distintas distingue la clave correcta de la equivocada**.
+| 0.3.0 | 15-09-2026 | **Descartado** con el requerimiento (`RN-CM-021`). `AssociateProductService`, `DissociateProductService`, `ProductCommissionRate` y sus repositorios se retiran del código; `ProductCommissionCapGuard` sobrevive y pasa a servir al alta y a la corrección de la tasa de rol. | Responsable técnico |

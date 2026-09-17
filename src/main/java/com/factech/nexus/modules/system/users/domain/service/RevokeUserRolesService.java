@@ -4,11 +4,12 @@ import com.factech.nexus.modules.system.roles.application.AuthenticatedActor;
 import com.factech.nexus.modules.system.users.application.RevokeRolesRequest;
 import com.factech.nexus.modules.system.users.application.UserResponse;
 import com.factech.nexus.modules.system.users.domain.models.User;
+import com.factech.nexus.modules.system.users.domain.repository.AssignableCountry;
+import com.factech.nexus.modules.system.users.domain.repository.AssignableDocumentType;
 import com.factech.nexus.modules.system.users.domain.repository.AssignableRole;
 import com.factech.nexus.modules.system.users.domain.repository.RoleCatalog;
 import com.factech.nexus.modules.system.users.domain.repository.UserRepository;
 import com.factech.nexus.modules.system.users.domain.security.CommercialStructure;
-import com.factech.nexus.modules.system.users.domain.security.ConsumerStatus;
 import com.factech.nexus.modules.system.users.domain.security.PrivilegeContainment;
 import com.factech.nexus.modules.system.users.domain.security.RoleAssignment;
 import com.factech.nexus.modules.system.users.domain.security.RootAdministratorPresence;
@@ -75,6 +76,8 @@ public class RevokeUserRolesService {
 
   private final UserRepository usuarios;
   private final RoleCatalog roles;
+  private final AssignableCountry paises;
+  private final AssignableDocumentType documentos;
   private final CommercialStructure estructura;
   private final RootAdministratorPresence raiz;
   private final SessionRevoker sesiones;
@@ -90,8 +93,20 @@ public class RevokeUserRolesService {
       RootAdministratorPresence raiz,
       SessionRevoker sesiones,
       AuthenticatedActor actor,
-      AuditWriter auditoria) {
-    this(usuarios, roles, estructura, raiz, sesiones, actor, auditoria, Clock.systemUTC());
+      AuditWriter auditoria,
+      AssignableCountry paises,
+      AssignableDocumentType documentos) {
+    this(
+        usuarios,
+        roles,
+        estructura,
+        raiz,
+        sesiones,
+        actor,
+        auditoria,
+        paises,
+        documentos,
+        Clock.systemUTC());
   }
 
   RevokeUserRolesService(
@@ -102,9 +117,13 @@ public class RevokeUserRolesService {
       SessionRevoker sesiones,
       AuthenticatedActor actor,
       AuditWriter auditoria,
+      AssignableCountry paises,
+      AssignableDocumentType documentos,
       Clock reloj) {
     this.usuarios = usuarios;
     this.roles = roles;
+    this.paises = paises;
+    this.documentos = documentos;
     this.estructura = estructura;
     this.raiz = raiz;
     this.sesiones = sesiones;
@@ -138,7 +157,8 @@ public class RevokeUserRolesService {
       // `FA-001`: nada que retirar. No se escribe, no se audita y no se revocan
       // sesiones — echar a alguien de su sesión por una petición que no cambió
       // nada sería un efecto sin causa.
-      return UserResponses.de(usuario, roles.findAllById(actuales), usuarios, userId);
+      return UserResponses.de(
+          usuario, roles.findAllById(actuales), usuarios, paises, documentos, userId);
     }
 
     Set<UUID> resultantes = RoleAssignment.resultadoTrasRetirar(actuales, aRetirar);
@@ -163,15 +183,14 @@ public class RevokeUserRolesService {
 
     usuarios.removeRoles(userId, aRetirar);
 
-    boolean pierdeLaMembresia =
-        !ConsumerStatus.esConsumidor(catalogoResultante)
-            && usuarios.findMembership(userId).isPresent();
-    UUID membresiaRetirada =
-        pierdeLaMembresia ? usuarios.findMembership(userId).orElseThrow().membershipId() : null;
-
-    if (pierdeLaMembresia) {
-      usuarios.removeMembership(userId);
-    }
+    // LA CASCADA DE LA MEMBRESÍA SE RETIRÓ EL 05-09-2026, con `RN-SP-015`.
+    // Quien deja de ser consumidor CONSERVA LA MEMBRESÍA QUE TENÍA, incluida una
+    // comprada: `RN-SP-018` reescrita no admite a nadie sin nivel, y bajarla al
+    // suelo sería quitarle a alguien algo que pagó.
+    //
+    // LA DEL SUPERIOR COMERCIAL SE QUEDA, y las dos eran simétricas — leer este
+    // método esperando la otra es el error que este comentario existe para
+    // evitar. `RN-SP-019` no se tocó.
 
     boolean cierraSuperior =
         pierdeLaCondicionDeVendedor && usuarios.findActiveSupervisor(userId).isPresent();
@@ -184,15 +203,9 @@ public class RevokeUserRolesService {
     // deje vivo el acceso que decía haber cortado.
     int sesionesRevocadas = sesiones.revokeAllForAccessChange(userId);
 
-    auditar(
-        usuario,
-        retirados,
-        catalogoResultante,
-        membresiaRetirada,
-        cierraSuperior,
-        sesionesRevocadas);
+    auditar(usuario, retirados, catalogoResultante, cierraSuperior, sesionesRevocadas);
 
-    return UserResponses.de(usuario, catalogoResultante, usuarios, userId);
+    return UserResponses.de(usuario, catalogoResultante, usuarios, paises, documentos, userId);
   }
 
   // ---------------------------------------------------------------------------
@@ -296,13 +309,13 @@ public class RevokeUserRolesService {
   // ---------------------------------------------------------------------------
 
   /**
-   * Eliminación para lo que se borra, cambio para lo que se cierra.
+   * Eliminación para los roles, cambio para lo que se cierra.
    *
-   * <p>La distinción no es formal: la membresía <b>desaparece</b> —`RN-SP-015` dice que quien deja
-   * de ser consumidor no tiene membresía, no que tuviera una que terminó— mientras que la
-   * asignación de superior <b>sobrevive con su fecha de cierre</b>, porque dice a quién se atribuía
-   * cada resultado comercial en cada periodo. Registrar el cierre como una eliminación sugeriría
-   * que esa fila ya no está.
+   * <p><b>La membresía ya no aparece aquí</b> (05-09-2026): esta operación dejó de tocarla cuando
+   * `RN-SP-015` se retiró, de modo que no hay nada suyo que registrar. Hasta entonces se anotaba
+   * como eliminación —«quien deja de ser consumidor no tiene membresía, no que tuviera una que
+   * terminó»— frente al cierre del superior, que <b>sobrevive con su fecha</b> porque dice a quién
+   * se atribuía cada resultado comercial en cada periodo.
    *
    * <p>Las filas de eliminación quedan <b>sin motivo</b>: es la excepción del Art. V.13 que
    * `RN-SP-005` aplicó a las asociaciones, y el endpoint no lo pide.
@@ -311,7 +324,6 @@ public class RevokeUserRolesService {
       User usuario,
       List<AssignableRole> retirados,
       List<AssignableRole> resultantes,
-      UUID membresiaRetirada,
       boolean superiorCerrado,
       int sesionesRevocadas) {
 
@@ -322,17 +334,6 @@ public class RevokeUserRolesService {
     auditoria.recordDeletion(
         new DeletionEvent(
             MODULO, "user_roles", usuario.getId(), DeletionType.ASSOCIATION, null, estadoRoles));
-
-    if (membresiaRetirada != null) {
-      auditoria.recordDeletion(
-          new DeletionEvent(
-              MODULO,
-              "user_memberships",
-              usuario.getId(),
-              DeletionType.ASSOCIATION,
-              null,
-              Map.of("membership_id", membresiaRetirada.toString())));
-    }
 
     if (superiorCerrado) {
       auditoria.recordChange(

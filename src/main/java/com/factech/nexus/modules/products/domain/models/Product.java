@@ -52,6 +52,17 @@ public class Product {
    */
   private static final Pattern PATRON_ICONO = Pattern.compile("^[a-z][a-z0-9-]*$");
 
+  /**
+   * Una URL absoluta {@code http} o {@code https} sin espacios (`RN-PM-032`).
+   *
+   * <p>Es la misma expresión que {@code ck_products_video_url_format}, para que lo que el dominio
+   * admite y lo que el esquema admite sean exactamente lo mismo. <b>Comprueba la forma y nada
+   * más</b>: que el enlace resuelva a algo no es cosa del sistema (`pm.md` §5.2.8).
+   */
+  private static final Pattern PATRON_ENLACE_DE_VIDEO = Pattern.compile("^https?://\\S+$");
+
+  private static final int LARGO_MAXIMO_ENLACE_DE_VIDEO = 500;
+
   @Id
   @Column(name = "id", nullable = false, updatable = false)
   private UUID id;
@@ -83,6 +94,36 @@ public class Product {
   private String icon;
 
   /**
+   * La dirección de un video que presenta el producto (`RN-PM-032`).
+   *
+   * <p><b>Es una dirección, no un archivo</b>, por el mismo camino que el icono es un nombre y no
+   * una imagen. Y el sistema <b>no la sigue</b>: comprueba que tiene forma de enlace y nada más.
+   *
+   * <p><b>En los dos tipos y opcional</b>, sin la condición cruzada del icono. Nulo significa «no
+   * tiene video». <b>Al revés que el precio de compra, sale en las cuatro lecturas</b>, hotlink sin
+   * token incluido: es material de venta, no un costo.
+   */
+  @Column(name = "video_url", length = 500)
+  private String videoUrl;
+
+  /**
+   * La portada del producto: la fila de {@code product_images} cuyos bytes se sirven sin token
+   * (`RN-PM-033`, `V90`).
+   *
+   * <p><b>Es un identificador y no una asociación</b>, por lo mismo que las membresías: la imagen
+   * es un valor que se reemplaza y se borra, y una asociación {@code @OneToOne} la cargaría —cinco
+   * megas— en cada lectura del agregado. Nulo significa «no tiene portada», que es el estado de
+   * todo producto anterior al 14-09-2026.
+   *
+   * <p><b>En los dos tipos y sin condición</b> para subirla. La condición está en el otro sentido:
+   * un upgrade <b>sin</b> portada necesita icono (`RN-PM-034`), y ese cruce vive en las tres
+   * operaciones de este agregado que pueden dejarlo sin nada que pintar — {@link #create}, {@link
+   * #update} y {@link #quitarPortada}.
+   */
+  @Column(name = "cover_image_id")
+  private UUID coverImageId;
+
+  /**
    * Identificador y no una asociación {@code @ManyToOne}: apunta a una tabla de otro módulo, y una
    * asociación traería aquí su entidad — que es exactamente lo que D-25 impide. Los datos del
    * destino entran por la interfaz que `SP` publica.
@@ -103,8 +144,44 @@ public class Product {
   @Column(name = "source_membership_id", updatable = false)
   private UUID sourceMembershipId;
 
+  /**
+   * El precio que <b>se cobra</b> (`RN-PM-023`).
+   *
+   * <p><b>Admite cero desde el 08-09-2026</b> (`RN-PM-006`, `V67`). Lo que tumbó el «mayor que
+   * cero» no fue el precio público sino la <b>renovación</b>: un {@code BECA → BECA} es un producto
+   * legítimo que vale eso, y prohibirlo obligaba a inventarle un céntimo.
+   */
   @Column(name = "price", nullable = false, precision = 14, scale = 4)
   private BigDecimal price;
+
+  /**
+   * Lo que <b>NEXUS paga</b> por el producto cuando tiene que comprarlo: el precio de compra
+   * (`RN-PM-023`). Ahí se guarda lo que costó.
+   *
+   * <p><b>No se cobra.</b> Ningún cálculo lo lee: la venta copia {@link #price} y sobre ese mismo
+   * calcula `RN-CM-019`. Que un importe no se cobre <b>no es expresable en el esquema</b>, de modo
+   * que lo único que sostiene esa regla es <b>dónde no aparece</b> — {@code
+   * ProductCatalog.saleViewOf} no lo lleva, y añadirlo ahí bastaría para que empezara a cobrarse
+   * sin que nada fallara.
+   *
+   * <p><b>Y no sale de administración</b> (`RN-PM-024`): lo devuelven el listado y el detalle, bajo
+   * {@code products:read}; la oferta y el hotlink <b>no lo seleccionan</b>, porque es el margen y
+   * en el hotlink eso sería sin token. Tampoco es expresable en el esquema, y lo sostiene lo mismo:
+   * que {@code OfferItem} y la respuesta del hotlink <b>no tengan el campo</b>.
+   *
+   * <p><b>Nulo no es cero</b>: el nulo significa «no se conoce» —el producto no se ha comprado
+   * todavía, o no aplica—, mientras que el cero dice que no costó nada. Los dos estados son
+   * alcanzables desde `RF-PM-004`, que es hoy donde se registra lo que costó.
+   *
+   * <p><b>Y va en la misma moneda</b>: no hay una segunda {@code currency_id}. Si NEXUS paga en
+   * otra, quien registra el costo lo convierte al declararlo.
+   *
+   * <p><b>Se llamó {@code publicPrice} —lo que se anunciaba— del 08-09-2026 al 12-09-2026</b>
+   * (`V67` → `V86`). La forma es la misma; lo que cambió es qué es el número y quién puede verlo
+   * (`requirements/pm.md` §5.2.6).
+   */
+  @Column(name = "purchase_price", precision = 14, scale = 4)
+  private BigDecimal purchasePrice;
 
   @Column(name = "currency_id", nullable = false)
   private UUID currencyId;
@@ -116,6 +193,34 @@ public class Product {
   @Enumerated(EnumType.STRING)
   @Column(name = "status", nullable = false, length = 20)
   private ProductStatus status;
+
+  /**
+   * Hasta dónde se muestra el producto (`RN-PM-019`).
+   *
+   * <p><b>Obligatorio en los dos tipos</b>, y ahí se aparta de la membresía destino y del icono:
+   * aquellos dependen del tipo, y este no — un bot también se muestra en algún sitio.
+   *
+   * <p><b>Y no lleva valor por omisión</b>, ni aquí ni en la columna. Un producto guardado con el
+   * alcance supuesto se ve <b>exactamente igual</b> que uno declarado, de modo que el defecto no se
+   * vería nunca: nadie descubriría que nadie decidió dónde se publica.
+   */
+  @Enumerated(EnumType.STRING)
+  @Column(name = "scope", nullable = false, length = 20)
+  private ProductScope scope;
+
+  /**
+   * Si lo comprado se aplica solo o espera a que alguien lo autorice (`RN-PM-020`).
+   *
+   * <p><b>Es el campo de este agregado que gobierna a otro módulo</b>: `RN-MV-020` concede la
+   * membresía comprada <b>solo</b> si vale {@link ProductImplementation#AUTOMATICA}.
+   *
+   * <p><b>Se corrige</b> (`RF-PM-004`), y por eso `RN-MV-002` obliga a que la venta lo <b>copie en
+   * su línea</b> en lugar de releerlo del catálogo — esa copia está declarada y todavía no
+   * construida (`requirements/mv.md` §5.4).
+   */
+  @Enumerated(EnumType.STRING)
+  @Column(name = "implementation", nullable = false, length = 20)
+  private ProductImplementation implementation;
 
   @Column(name = "created_at", nullable = false, updatable = false)
   private OffsetDateTime createdAt;
@@ -153,11 +258,15 @@ public class Product {
       String name,
       String description,
       String icon,
+      String videoUrl,
       UUID sourceMembershipId,
       UUID targetMembershipId,
       BigDecimal price,
+      BigDecimal purchasePrice,
       UUID currencyId,
       Integer validityDays,
+      ProductScope scope,
+      ProductImplementation implementation,
       OffsetDateTime ahora) {
 
     Product producto = new Product();
@@ -169,11 +278,23 @@ public class Product {
     verificarTipoYMembresias(type, sourceMembershipId, targetMembershipId);
     producto.icon = normalizarIcono(icon);
     verificarTipoEIcono(type, producto.icon);
+    // `RN-PM-034`: en el alta no puede haber portada —llega después, con
+    // `RF-PM-014`—, de modo que un upgrade necesita el icono. El bot no entra.
+    verificarQuePuedePintarse(type, producto.icon, null, "VAL-018");
+    // Sin `verificarTipo…` que lo acompañe: el video vale en los dos tipos.
+    producto.videoUrl = normalizarEnlaceDeVideo(videoUrl, "VAL-017");
     producto.sourceMembershipId = sourceMembershipId;
     producto.targetMembershipId = targetMembershipId;
     producto.price = price;
+    // Ausente y nulo significan LO MISMO aquí, y ahí se aparta del alcance y de
+    // la implementación: omitirlo no deja ninguna decisión sin tomar, porque un
+    // producto se registra antes de comprarse y el costo se declara cuando se
+    // conoce (`RF-PM-004`).
+    producto.purchasePrice = purchasePrice;
     producto.currencyId = currencyId;
     producto.validityDays = validityDays;
+    producto.scope = scope;
+    producto.implementation = implementation;
     producto.status = ProductStatus.INACTIVO;
     producto.createdAt = ahora;
     producto.updatedAt = ahora;
@@ -241,9 +362,13 @@ public class Product {
       Patchable<String> nuevoNombre,
       Patchable<String> nuevaDescripcion,
       Patchable<String> nuevoIcono,
+      Patchable<String> nuevoEnlaceDeVideo,
       Patchable<BigDecimal> nuevoPrecio,
+      Patchable<BigDecimal> nuevoPrecioDeCompra,
       Patchable<UUID> nuevaMoneda,
       Patchable<Integer> nuevaVigencia,
+      Patchable<ProductScope> nuevoAlcance,
+      Patchable<ProductImplementation> nuevaImplementacion,
       OffsetDateTime ahora) {
 
     Map<String, Object> cambios = new LinkedHashMap<>();
@@ -268,9 +393,25 @@ public class Product {
       // `" "` que llega como icono es un vaciado, no un valor con formato malo.
       String valor = normalizarIcono(nuevoIcono.valor());
       verificarTipoEIcono(type, valor);
+      // `RN-PM-034`: se mira EL ESTADO QUE QUEDA, no el que había — un upgrade
+      // con portada vacía el icono sin queja; sin portada, no. Y un upgrade
+      // viejo sin icono ni portada que envíe `icon: null` recibe el rechazo,
+      // que es lo que `pm.md` §5.2.9 acepta para lo ya registrado.
+      verificarQuePuedePintarse(type, valor, coverImageId, "VAL-010");
       if (!java.util.Objects.equals(valor, icon)) {
         cambios.put("icon", Map.of("before", texto(icon), "after", texto(valor)));
         icon = valor;
+      }
+    }
+    if (nuevoEnlaceDeVideo.presente()) {
+      // Como el icono: el nulo explícito Y la cadena vacía son un vaciado, y
+      // por eso se normaliza antes de mirar si cambió. Sin condición de tipo:
+      // el video vale en un bot y en un upgrade (`RN-PM-032`). El código es el
+      // de la corrección (`RF-PM-004` §11) y no el del alta.
+      String valor = normalizarEnlaceDeVideo(nuevoEnlaceDeVideo.valor(), "VAL-009");
+      if (!java.util.Objects.equals(valor, videoUrl)) {
+        cambios.put("video_url", Map.of("before", texto(videoUrl), "after", texto(valor)));
+        videoUrl = valor;
       }
     }
     if (nuevoPrecio.presente() && nuevoPrecio.valor() != null) {
@@ -282,6 +423,22 @@ public class Product {
         cambios.put(
             "price", Map.of("before", price.toPlainString(), "after", valor.toPlainString()));
         price = valor;
+      }
+    }
+    // EL NULO EXPLICITO SI LO VACIA, al revés que el precio del sistema: la
+    // columna admite nulo y ese nulo SIGNIFICA «no se conoce el costo», de modo
+    // que «bórralo» tiene un estado al que llevar el producto. Va con la
+    // descripción, el icono y la vigencia, no con `price`.
+    //
+    // Y VACIARLO NO ES PONERLO A CERO: uno dice «no sé cuánto costó» y el otro
+    // «no costó nada». Los dos casos son alcanzables desde aquí y no se
+    // confunden — el cero entra por la rama de abajo, con su `compareTo`.
+    if (nuevoPrecioDeCompra.presente()) {
+      BigDecimal valor = nuevoPrecioDeCompra.valor();
+      if (!mismoImporte(purchasePrice, valor)) {
+        cambios.put(
+            "purchase_price", Map.of("before", importe(purchasePrice), "after", importe(valor)));
+        purchasePrice = valor;
       }
     }
     if (nuevaMoneda.presente() && nuevaMoneda.valor() != null) {
@@ -300,6 +457,25 @@ public class Product {
         validityDays = valor;
       }
     }
+    // LAS DOS SE CORRIGEN, y el nulo explícito NO las vacía: son obligatorias
+    // en la columna, de modo que «bórralo» no tiene ningún estado al que llevar
+    // el producto. Quien lo envía recibe un 400 del caso de uso ANTES de llegar
+    // aquí; este método solo trata el caso con valor.
+    if (nuevoAlcance.presente() && nuevoAlcance.valor() != null) {
+      ProductScope valor = nuevoAlcance.valor();
+      if (valor != scope) {
+        cambios.put("scope", Map.of("before", scope.name(), "after", valor.name()));
+        scope = valor;
+      }
+    }
+    if (nuevaImplementacion.presente() && nuevaImplementacion.valor() != null) {
+      ProductImplementation valor = nuevaImplementacion.valor();
+      if (valor != implementation) {
+        cambios.put(
+            "implementation", Map.of("before", implementation.name(), "after", valor.name()));
+        implementation = valor;
+      }
+    }
 
     if (!cambios.isEmpty()) {
       updatedAt = ahora;
@@ -316,6 +492,34 @@ public class Product {
    */
   private static String texto(String valor) {
     return valor == null ? "" : valor;
+  }
+
+  /**
+   * Dos importes que pueden ser nulos, comparados por <b>valor</b> y no por escala.
+   *
+   * <p><b>{@code compareTo} y no {@code equals}</b>, por lo mismo que en el precio del sistema:
+   * {@code 10.00} y {@code 10.0000} son el mismo importe con distinta escala, y {@code equals} los
+   * daría por distintos — el registro de auditoría se llenaría de cambios que no cambian nada.
+   *
+   * <p><b>Y el nulo entra en la comparación</b>, porque aquí sí es un valor: vaciar un precio
+   * público que no existía no es un cambio, y ponerle cero a uno vacío sí lo es.
+   */
+  private static boolean mismoImporte(BigDecimal uno, BigDecimal otro) {
+    if (uno == null || otro == null) {
+      return uno == otro;
+    }
+    return uno.compareTo(otro) == 0;
+  }
+
+  /**
+   * El importe en el registro de auditoría va como texto, y el nulo como cadena vacía.
+   *
+   * <p>Lo primero porque {@code BigDecimal} serializado a JSON puede perder la escala; lo segundo
+   * porque {@code Map.of} rechaza los nulos y, aunque los admitiera, una clave que desaparece haría
+   * indistinguible «se vació el precio de compra» de «no se tocó».
+   */
+  private static String importe(BigDecimal valor) {
+    return valor == null ? "" : valor.toPlainString();
   }
 
   private static Object numero(Integer valor) {
@@ -378,9 +582,21 @@ public class Product {
     estado.put(
         "source_membership_id", sourceMembershipId == null ? null : sourceMembershipId.toString());
     estado.put("price", price.toPlainString());
+    // ENTRA AUNQUE NO SE COBRE, y no por simetría: es el único sitio donde
+    // queda escrito CUÁNTO COSTÓ un producto cuyo costo después se corrige, y
+    // sin él una revisión de márgenes no tendría contra qué contrastarse. Nulo
+    // cuando no se conoce — `LinkedHashMap` sí lo admite, al revés que
+    // `Map.of`. Los eventos anteriores al 12-09-2026 llevan `public_price`.
+    estado.put("purchase_price", purchasePrice == null ? null : purchasePrice.toPlainString());
+    // Nulo cuando no hay video; los eventos anteriores al 14-09-2026 no lo llevan.
+    estado.put("video_url", videoUrl);
+    // Como las membresías: el identificador como texto, nulo cuando no hay portada.
+    estado.put("cover_image_id", coverImageId == null ? null : coverImageId.toString());
     estado.put("currency_id", currencyId.toString());
     estado.put("validity_days", validityDays);
     estado.put("status", status.name());
+    estado.put("scope", scope.name());
+    estado.put("implementation", implementation.name());
     return estado;
   }
 
@@ -440,15 +656,15 @@ public class Product {
         throw new ValidationException(
             "VAL-007", mensaje, List.of(new FieldError("targetMembershipId", "VAL-007", mensaje)));
       }
-      // `RN-PM-017`, la mitad que el esquema TAMBIÉN sostiene. La otra —que el
-      // origen esté por debajo— necesita el `level` de las dos membresías y no
-      // cabe aquí: el agregado no conoce `memberships`. Vive en el caso de uso.
-      if (origen.equals(destino)) {
-        String mensaje =
-            "Un upgrade debe subir de nivel: el origen no puede ser la membresía destino.";
-        throw new ValidationException(
-            "VAL-014", mensaje, List.of(new FieldError("sourceMembershipId", "VAL-014", mensaje)));
-      }
+      // `RN-PM-017` NO SE COMPRUEBA AQUÍ, y desde el 07-09-2026 no queda de ella
+      // ni una mitad en este agregado. Decía «el origen no puede ser el
+      // destino», y eso es exactamente lo que la RENOVACIÓN admite: un
+      // `ORO → ORO` vende TIEMPO y no nivel (`requirements/pm.md` §5.2.3).
+      //
+      // Lo que queda de la regla —«el origen no está por encima»— necesita el
+      // `level` de dos filas de `memberships`, que este agregado no conoce ni
+      // debe. Vive entera en `RegisterProductService.verificarOrigen`, y desde
+      // `V61` TAMPOCO tiene una restricción detrás: es el único sitio.
       return;
     }
 
@@ -463,6 +679,78 @@ public class Product {
       String mensaje = "Un producto de tipo bot no puede declarar membresía de origen.";
       throw new ValidationException(
           "VAL-008", mensaje, List.of(new FieldError("sourceMembershipId", "VAL-008", mensaje)));
+    }
+  }
+
+  /**
+   * Pone o reemplaza la portada (`RF-PM-014`).
+   *
+   * <p><b>Sin condición de tipo ni de estado</b>: subir una portada nunca deja al producto peor de
+   * lo que estaba, y por eso esta es la única de las tres operaciones de la portada que {@code
+   * RN-PM-034} no mira. Siempre hay cambio, porque cada subida estrena identificador.
+   */
+  public CambioDePortada asignarPortada(UUID nueva, OffsetDateTime ahora) {
+    UUID anterior = coverImageId;
+    coverImageId = nueva;
+    updatedAt = ahora;
+    return CambioDePortada.de(anterior, nueva);
+  }
+
+  /**
+   * Quita la portada (`RF-PM-015`).
+   *
+   * <p><b>Primero «¿hay portada?» y después la regla</b>, y el orden no es un detalle: un upgrade
+   * anterior al 14-09-2026 sin icono ni portada tiene que recibir «no hay nada que quitar» y no un
+   * rechazo por algo que esta operación no puede arreglar (`spec.md` §8). Sin portada, devuelve un
+   * diff vacío y no toca {@code updatedAt}: «quítala» sobre un producto sin portada ya ha
+   * conseguido lo que quería.
+   *
+   * <p>Con portada, `RN-PM-034`: un upgrade sin icono no se queda sin nada que pintar (`VAL-002`,
+   * que nombra {@code icon} —lo que falta— y no la portada —lo que se pide—). El bot se la quita
+   * siempre.
+   */
+  public CambioDePortada quitarPortada(OffsetDateTime ahora) {
+    if (coverImageId == null) {
+      return CambioDePortada.ninguno();
+    }
+    verificarQuePuedePintarse(type, icon, null, "VAL-002");
+    UUID anterior = coverImageId;
+    coverImageId = null;
+    updatedAt = ahora;
+    return CambioDePortada.de(anterior, null);
+  }
+
+  /**
+   * `RN-PM-034`: un upgrade siempre tiene con qué pintarse — portada o icono.
+   *
+   * <p><b>Una regla, tres caras, un solo método</b>: el alta (`VAL-018`, sin portada posible), la
+   * corrección del icono (`VAL-010`) y el retiro de la portada (`VAL-002` de `RF-PM-015`). Las tres
+   * miran <b>el estado que quedaría</b> —el icono y la portada que habrá después de la operación— y
+   * viven aquí porque el agregado es el único que ve las dos columnas a la vez.
+   *
+   * <p><b>El bot no entra, y no es una excepción sino una consecuencia</b>: no declara icono
+   * (`RN-PM-016`) y el frontend le pinta el suyo por omisión, de modo que la portada le es opcional
+   * sin condición (`requirements/pm.md` §5.2.9).
+   *
+   * <p>El campo que se nombra es siempre {@code icon}: es lo que falta, aunque lo que se pida sea
+   * quitar la portada.
+   */
+  private static void verificarQuePuedePintarse(
+      ProductType tipo, String icono, UUID portada, String codigo) {
+    if (tipo.admiteIcono() && icono == null && portada == null) {
+      String mensaje =
+          switch (codigo) {
+            case "VAL-018" ->
+                "Un producto de upgrade debe declarar su icono mientras no tenga" + " portada.";
+            case "VAL-010" ->
+                "Un upgrade sin portada no puede quedarse sin icono: suba primero una"
+                    + " portada.";
+            default ->
+                "Un upgrade sin icono no puede quedarse sin portada: declare primero el"
+                    + " icono.";
+          };
+      throw new ValidationException(
+          codigo, mensaje, List.of(new FieldError("icon", codigo, mensaje)));
     }
   }
 
@@ -521,6 +809,40 @@ public class Product {
   }
 
   /**
+   * Recorta y comprueba la forma del enlace del video (`RN-PM-032`), <b>y no normaliza nada
+   * más</b>.
+   *
+   * <p>Ni mayúsculas, ni barra final, ni parámetros: lo que se guarda es lo que se escribió, porque
+   * un enlace que el sistema «arregla» puede dejar de resolver — un identificador de video
+   * distingue mayúsculas. En eso se aparta del icono, que sí se pasa a minúsculas.
+   *
+   * <p><b>El vacío se convierte en nulo y no se rechaza</b>, como en el icono: quien envía {@code
+   * ""} está vaciando el enlace, no enviando uno con forma inválida.
+   *
+   * <p><b>Nada sigue el enlace.</b> Comprobar que resuelve obligaría a salir a Internet en cada
+   * alta y cada corrección (`pm.md` §5.2.8).
+   *
+   * @param codigo el código de validación de la operación que llama: `VAL-017` en el alta
+   *     (`RF-PM-001` §11) y `VAL-009` en la corrección (`RF-PM-004` §11). Es la misma comprobación
+   *     con el número que cada especificación le dio
+   */
+  private static String normalizarEnlaceDeVideo(String valor, String codigo) {
+    String recortado = recortar(valor);
+    if (recortado == null) {
+      return null;
+    }
+    if (recortado.length() > LARGO_MAXIMO_ENLACE_DE_VIDEO
+        || !PATRON_ENLACE_DE_VIDEO.matcher(recortado).matches()) {
+      String mensaje =
+          "El enlace del video debe ser una dirección absoluta http o https, sin espacios y de"
+              + " hasta 500 caracteres.";
+      throw new ValidationException(
+          codigo, mensaje, List.of(new FieldError("videoUrl", codigo, mensaje)));
+    }
+    return recortado;
+  }
+
+  /**
    * Recorta espacios al inicio y al final.
    *
    * <p>Sin este recorte, {@code "Plan Oro "} y {@code "Plan Oro"} serían dos nombres distintos para
@@ -558,6 +880,16 @@ public class Product {
     return icon;
   }
 
+  /** La dirección del video que presenta el producto. Nulo: no tiene (`RN-PM-032`). */
+  public String getVideoUrl() {
+    return videoUrl;
+  }
+
+  /** La imagen de portada. Nulo: no tiene (`RN-PM-033`). */
+  public UUID getCoverImageId() {
+    return coverImageId;
+  }
+
   public UUID getTargetMembershipId() {
     return targetMembershipId;
   }
@@ -571,6 +903,14 @@ public class Product {
     return price;
   }
 
+  /**
+   * Lo que NEXUS pagó por el producto. Nulo: no se conoce (`RN-PM-023`). <b>No sale de
+   * administración</b> (`RN-PM-024`): ninguna lectura pública debe leerlo.
+   */
+  public BigDecimal getPurchasePrice() {
+    return purchasePrice;
+  }
+
   public UUID getCurrencyId() {
     return currencyId;
   }
@@ -581,6 +921,16 @@ public class Product {
 
   public ProductStatus getStatus() {
     return status;
+  }
+
+  /** Hasta dónde se muestra el producto (`RN-PM-019`). */
+  public ProductScope getScope() {
+    return scope;
+  }
+
+  /** Si lo comprado se aplica solo o espera autorización (`RN-PM-020`). */
+  public ProductImplementation getImplementation() {
+    return implementation;
   }
 
   public OffsetDateTime getCreatedAt() {

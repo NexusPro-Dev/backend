@@ -30,6 +30,20 @@ Sin migración y sin componentes de dominio: es una consulta (`plan.md` §3). La
 | `T-09` | Documentación OpenAPI del endpoint: respuesta `200` y estados `401` y `500`, con `lastLoginAt` descrito como **dato informativo de la sesión en curso**, no señal de acceso ajeno | `T-07` | El contrato publicado coincide con el comportamiento real (Art. VIII.6), y la descripción evita la lectura equivocada del último acceso | **Hecha** |
 | `T-10` | Actualizar la matriz de trazabilidad de `docs/requirements.md` | `T-07` | La fila de `RF-SP-039` refleja el estado y enlaza esta tripleta | **Hecha** |
 
+### 1.1 `id` en la respuesta — 04-09-2026
+
+Enmienda del Art. I.7 sobre un requerimiento ya implementado. La pidió el frontend como `R-28`, y lo que destapó es que el motivo por el que este campo faltaba —«quien pregunta ya sabe quién es»— **era falso**: el identificador viaja dentro del token y leerlo obligaría al navegador a descomponer un JWT.
+
+| ID | Tarea | Depende de | Verificación | Estado |
+|---|---|---|---|---|
+| `T-11` | `OwnProfileResponse` abre con `id`, y su Javadoc **deja de afirmar que no lo lleva** | — | La respuesta trae el `uuid` del actor | **Hecha** — 04-09-2026 |
+| `T-12` | Prueba de `CA-SP-473`: el identificador es **el mismo** con el que `RF-SP-026` consulta a esa persona | `T-11` | No basta con que venga un `uuid`: tiene que ser **ese**. Un identificador plausible y equivocado dejaría comprar a nombre de otro sin que nada fallara | **Hecha** — 04-09-2026 |
+| `T-13` | OpenAPI: el campo entra en el contrato publicado | `T-11` | `mvn verify` regenera `docs/api/` y CI compara | **Hecha** — 04-09-2026 |
+
+**`T-12` es la que importa, y no es una formalidad.** Este campo existe para poner el identificador en el cuerpo de una compra: si devolviera un `uuid` cualquiera —el de la sesión, el de otra tabla— la prueba de que «viene un identificador» pasaría igual, y el defecto aparecería como una venta a nombre de otro. Se contrasta contra la tabla, no contra sí mismo.
+
+**Lo que esta enmienda NO desbloquea, y conviene que quede escrito aquí también:** `POST /api/v1/movements` exige `movements:create`, hoy reservado a `SUPERADMIN` (`requirements/mv.md` §6.1). Un cliente sigue sin poder llamarlo. La compra propia es `RF-MV-002` —`POST /api/v1/movements/mine`, sin permiso—, aprobada el 02-09-2026 y **sin construir**.
+
 **Estados:** `Pendiente` · `En curso` · `Hecha` · `Bloqueada`.
 
 ## 2. Orden de ejecución
@@ -96,6 +110,24 @@ Casi todo lo que define este endpoint es **qué no devuelve** y **a quién**:
 - **No exige permiso alguno**, solo estar autenticado: no hay recurso ajeno que proteger.
 
 Y el <b>recorrido completo</b>, que ninguno de los tres requerimientos verifica por su cuenta: restablecer, entrar con la credencial provisional, ver en el perfil que toca cambiarla, cambiarla, y comprobar que el perfil deja de pedirlo.
+
+## 4.ter El perfil publica el país del actor — enmienda del 07-09-2026
+
+`RN-SP-034` obliga a que toda persona declare un país (`requirements/sp.md` v1.38.0), y este perfil lo publica resuelto (`spec.md` §6.2, `CA-SP-581`).
+
+**La tarea no se duplica aquí.** Es `T-48` de [`../024-registrar-usuario/tasks.md`](../024-registrar-usuario/tasks.md) §4.quinquies, donde vive la enmienda entera.
+
+**Es el segundo campo que esta consulta añade por una necesidad del frontend**, y la simetría con el primero conviene verla: el `id` entró el 04-09-2026 porque `POST /api/v1/movements` exige `clientId` y el cliente no podía decir quién era; el país entra hoy porque `RN-MV-019` decide **qué medios de pago se le ofrecen** según dónde esté. Los dos son datos **del propio actor**, resueltos del token, y ninguno abre alcance: la operación sigue sin admitir parámetros y `CA-SP-434` sigue intacto.
+
+**Lo que esta enmienda no hace:** el perfil publica el país y **no lo deja cambiar**. `RF-SP-044` tampoco lo admite; lo corrige un administrador por `RF-SP-027`.
+
+## 4.quater El perfil publica el documento y el contacto del actor — enmienda del 08-09-2026
+
+**La tarea no se duplica aquí.** Es `T-57` de [`../024-registrar-usuario/tasks.md`](../024-registrar-usuario/tasks.md) §4.sexies.
+
+**Lo que sí es de este requerimiento**: el contacto se publica aquí **para que `RF-SP-044` pueda precargarse**. Sin él, quien quisiera cambiar solo su ciudad tendría que reescribir de memoria el resto del formulario.
+
+Y la simetría con lo de ayer conviene verla: `country` **no puede** llegar nulo y `document` **sí**. Los dos viajan en la misma respuesta con inclusión `NON_NULL`, y en el primero un nulo sería una violación de integridad mientras que en el segundo es la verdad sobre una persona anterior a `V71`.
 
 ## 5. Definición de terminado
 

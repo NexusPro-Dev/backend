@@ -46,13 +46,16 @@ class ProductsIT extends IntegrationTestBase {
   void prepararCatalogo() {
     jdbc.update("DELETE FROM currencies WHERE is_default = false");
     jdbc.update("DELETE FROM products");
+    // Antes que las membresías: `user_memberships` las referencia (`V57`), y
+    // sin esto la suite solo pasaba cuando otra las había vaciado antes.
+    jdbc.update("DELETE FROM user_memberships");
     jdbc.update("DELETE FROM memberships");
     // LA CADENA ENTERA, y no solo la cima: `RN-PM-018` dice que un upgrade
     // puede saltar niveles, y eso no se puede probar sin niveles que saltar.
     oro = crearMembresia("ORO", "Oro", 1, null);
     platino = crearMembresia("PLATINO", "Platino", 2, oro);
     vip = crearMembresia("VIP", "Vip", 3, platino);
-    free = crearMembresia("FREE", "Free", 4, vip);
+    free = crearMembresia("BECA", "Beca", 4, vip);
   }
 
   @Test
@@ -61,7 +64,7 @@ class ProductsIT extends IntegrationTestBase {
     mvc.perform(
             alta(
                 """
-                {"code":"UPGRADE_ORO","type":"UPGRADE_MEMBRESIA","name":"Ascenso a Oro",
+                {"scope":"TIENDA","implementation":"AUTOMATICA","code":"UPGRADE_ORO","type":"UPGRADE_MEMBRESIA","icon":"crown","name":"Ascenso a Oro",
                  "description":"Acceso al nivel oro.","sourceMembershipId":"%s",
                  "targetMembershipId":"%s","price":49.99,"currencyId":"%s",
                  "validityDays":30}
@@ -71,7 +74,7 @@ class ProductsIT extends IntegrationTestBase {
         .andExpect(
             header().string("Location", org.hamcrest.Matchers.startsWith("/api/v1/products/")))
         .andExpect(jsonPath("$.code").value("UPGRADE_ORO"))
-        .andExpect(jsonPath("$.sourceMembership.code").value("FREE"))
+        .andExpect(jsonPath("$.sourceMembership.code").value("BECA"))
         .andExpect(jsonPath("$.sourceMembership.level").value(4))
         .andExpect(jsonPath("$.targetMembership.code").value("ORO"))
         .andExpect(jsonPath("$.targetMembership.level").value(1))
@@ -85,7 +88,7 @@ class ProductsIT extends IntegrationTestBase {
     mvc.perform(
             alta(
                 """
-                {"code":"ASESORIA","type":"BOT","name":"Asesoría",
+                {"scope":"TIENDA","implementation":"AUTOMATICA","code":"ASESORIA","type":"BOT","name":"Asesoría",
                  "price":10.00,"currencyId":"%s"}
                 """
                     .formatted(USD)))
@@ -102,7 +105,7 @@ class ProductsIT extends IntegrationTestBase {
     mvc.perform(
             alta(
                 """
-                {"code":"UPGRADE_ORO","type":"UPGRADE_MEMBRESIA","name":"Ascenso a Oro",
+                {"scope":"TIENDA","implementation":"AUTOMATICA","code":"UPGRADE_ORO","type":"UPGRADE_MEMBRESIA","name":"Ascenso a Oro",
                  "icon":"  CROWN  ","sourceMembershipId":"%s","targetMembershipId":"%s",
                  "price":49.99,"currencyId":"%s"}
                 """
@@ -117,7 +120,7 @@ class ProductsIT extends IntegrationTestBase {
     mvc.perform(
             alta(
                 """
-                {"code":"ASESORIA","type":"BOT","name":"Asesoría","icon":"crown",
+                {"scope":"TIENDA","implementation":"AUTOMATICA","code":"ASESORIA","type":"BOT","name":"Asesoría","icon":"crown",
                  "price":10.00,"currencyId":"%s"}
                 """
                     .formatted(USD)))
@@ -127,18 +130,86 @@ class ProductsIT extends IntegrationTestBase {
   }
 
   @Test
-  @DisplayName("`CA-PM-098` — el icono es opcional: un upgrade sin él llega null y presente")
-  void elIconoEsOpcional() throws Exception {
+  @DisplayName("`CA-PM-348` — el alta admite los cuatro alcances y rechaza HOTLINKS con VAL-015")
+  void losCuatroAlcances() throws Exception {
+    String[] alcances = {"TIENDA", "HOTLINK", "AMBOS", "NINGUNO"};
+    for (int i = 0; i < alcances.length; i++) {
+      mvc.perform(
+              alta(
+                  """
+                  {"scope":"%s","implementation":"AUTOMATICA","code":"BOT_%d","type":"BOT","name":"Bot %d",
+                   "price":9.99,"currencyId":"%s"}
+                  """
+                      .formatted(alcances[i], i, i, USD)))
+          .andExpect(status().isCreated())
+          .andExpect(jsonPath("$.scope").value(alcances[i]));
+    }
     mvc.perform(
             alta(
                 """
-                {"code":"UPGRADE_ORO","type":"UPGRADE_MEMBRESIA","name":"Ascenso a Oro",
-                 "sourceMembershipId":"%s","targetMembershipId":"%s","price":49.99,
-                 "currencyId":"%s"}
+                {"scope":"HOTLINKS","implementation":"AUTOMATICA","code":"BOT_X","type":"BOT","name":"Bot X",
+                 "price":9.99,"currencyId":"%s"}
                 """
-                    .formatted(free, oro, USD)))
-        .andExpect(status().isCreated())
-        .andExpect(jsonPath("$.icon").value(org.hamcrest.Matchers.nullValue()));
+                    .formatted(USD)))
+        // Como cualquier valor fuera del dominio del enumerado (`CA-PM-112`):
+        // el cuerpo no es válido, y no se toma por ausente.
+        .andExpect(status().isBadRequest());
+    assertThat(cuantosProductos()).isEqualTo(4);
+  }
+
+  @Test
+  @DisplayName(
+      "`CA-PM-230` — `RN-PM-034`: un upgrade SIN icono se rechaza con VAL-018 y no registra")
+  void elIconoEsObligatorioEnElUpgrade() throws Exception {
+    // Era `CA-PM-098` —«el icono es opcional»— hasta el 14-09-2026. Desde la
+    // portada, en el alta el icono es lo único que puede pintar un upgrade:
+    // la portada llega después (`RF-PM-014`). Ausente, nulo y vacío, los tres.
+    for (String icono : new String[] {"", ",\"icon\":null", ",\"icon\":\"   \""}) {
+      mvc.perform(
+              alta(
+                  """
+                  {"scope":"TIENDA","implementation":"AUTOMATICA","code":"UPGRADE_ORO","type":"UPGRADE_MEMBRESIA","name":"Ascenso a Oro",
+                   "sourceMembershipId":"%s","targetMembershipId":"%s","price":49.99,
+                   "currencyId":"%s"%s}
+                  """
+                      .formatted(free, oro, USD, icono)))
+          .andExpect(status().isBadRequest())
+          .andExpect(jsonPath("$.errors[0].code").value("VAL-018"))
+          .andExpect(jsonPath("$.errors[0].field").value("icon"));
+    }
+    assertThat(cuantosProductos()).isZero();
+  }
+
+  @Test
+  @DisplayName(
+      "`CA-PM-231` — el bot sigue sin icono, y el alta trae `coverImageUrl` nulo y presente")
+  void elBotSinIconoYLaPortadaNula() throws Exception {
+    // La forma «nulo y presente» del icono sigue viva en el bot; y la portada
+    // no entra por aquí: el alta la devuelve siempre presente y nula, para que
+    // tenga la misma forma que el detalle.
+    String cuerpo =
+        mvc.perform(
+                alta(
+                    """
+                    {"scope":"TIENDA","implementation":"AUTOMATICA","code":"ASESORIA","type":"BOT","name":"Asesoría",
+                     "price":49.99,"currencyId":"%s"}
+                    """
+                        .formatted(USD)))
+            .andExpect(status().isCreated())
+            .andExpect(jsonPath("$.icon").value(org.hamcrest.Matchers.nullValue()))
+            .andExpect(jsonPath("$.coverImageUrl").value(org.hamcrest.Matchers.nullValue()))
+            .andReturn()
+            .getResponse()
+            .getContentAsString();
+    assertThat(cuerpo).contains("\"icon\":null").contains("\"coverImageUrl\":null");
+
+    // Y la instantánea del alta lleva `cover_image_id`, nulo.
+    String instantanea =
+        jdbc.queryForObject(
+            "SELECT changes::text FROM audit_change_log WHERE module = 'PM' AND action = 'CREATE'"
+                + " ORDER BY occurred_at DESC LIMIT 1",
+            String.class);
+    assertThat(instantanea).contains("\"cover_image_id\": null");
   }
 
   @Test
@@ -147,7 +218,7 @@ class ProductsIT extends IntegrationTestBase {
     mvc.perform(
             alta(
                 """
-                {"code":"UPGRADE_ORO","type":"UPGRADE_MEMBRESIA","name":"Ascenso a Oro",
+                {"scope":"TIENDA","implementation":"AUTOMATICA","code":"UPGRADE_ORO","type":"UPGRADE_MEMBRESIA","name":"Ascenso a Oro",
                  "icon":"Crown Oro","sourceMembershipId":"%s","targetMembershipId":"%s",
                  "price":49.99,"currencyId":"%s"}
                 """
@@ -162,7 +233,7 @@ class ProductsIT extends IntegrationTestBase {
     mvc.perform(
             alta(
                 """
-                {"code":"ASESORIA","type":"BOT","name":"Asesoría","price":10.00,
+                {"scope":"TIENDA","implementation":"AUTOMATICA","code":"ASESORIA","type":"BOT","name":"Asesoría","price":10.00,
                  "currencyId":"%s"}
                 """
                     .formatted(USD)))
@@ -174,7 +245,7 @@ class ProductsIT extends IntegrationTestBase {
     mvc.perform(
             alta(
                 """
-                {"code":"OTRO","type":"BOT","name":"Otro","price":10.00,
+                {"scope":"TIENDA","implementation":"AUTOMATICA","code":"OTRO","type":"BOT","name":"Otro","price":10.00,
                  "currencyId":"%s","status":"ACTIVO"}
                 """
                     .formatted(USD)))
@@ -187,7 +258,7 @@ class ProductsIT extends IntegrationTestBase {
     mvc.perform(
             alta(
                 """
-                {"code":"UPGRADE_ORO","type":"UPGRADE_MEMBRESIA","name":"Ascenso",
+                {"scope":"TIENDA","implementation":"AUTOMATICA","code":"UPGRADE_ORO","type":"UPGRADE_MEMBRESIA","icon":"crown","name":"Ascenso",
                  "price":49.99,"currencyId":"%s"}
                 """
                     .formatted(USD)))
@@ -198,7 +269,7 @@ class ProductsIT extends IntegrationTestBase {
     mvc.perform(
             alta(
                 """
-                {"code":"ASESORIA","type":"BOT","name":"Asesoría","targetMembershipId":"%s",
+                {"scope":"TIENDA","implementation":"AUTOMATICA","code":"ASESORIA","type":"BOT","name":"Asesoría","targetMembershipId":"%s",
                  "price":10.00,"currencyId":"%s"}
                 """
                     .formatted(oro, USD)))
@@ -212,7 +283,7 @@ class ProductsIT extends IntegrationTestBase {
     mvc.perform(
             alta(
                 """
-                {"code":"ASESORIA","type":"BOT","name":"Asesoría","sourceMembershipId":"%s",
+                {"scope":"TIENDA","implementation":"AUTOMATICA","code":"ASESORIA","type":"BOT","name":"Asesoría","sourceMembershipId":"%s",
                  "price":10.00,"currencyId":"%s"}
                 """
                     .formatted(free, USD)))
@@ -227,13 +298,13 @@ class ProductsIT extends IntegrationTestBase {
   @DisplayName("`CA-PM-102` — `RN-PM-018`: el upgrade puede SALTAR niveles, y no solo el contiguo")
   void saltarNivelesEsLegitimo() throws Exception {
     // La premisa que hace valer la prueba: entre el origen y el destino hay dos
-    // eslabones. Sin comprobarla, `FREE -> ORO` sería un salto de nombre.
+    // eslabones. Sin comprobarla, `BECA -> ORO` sería un salto de nombre.
     assertThat(cuantasMembresias()).isEqualTo(4);
 
     mvc.perform(
             alta(
                 """
-                {"code":"SALTO_ORO","type":"UPGRADE_MEMBRESIA","name":"De Free a Oro",
+                {"scope":"TIENDA","implementation":"AUTOMATICA","code":"SALTO_ORO","type":"UPGRADE_MEMBRESIA","icon":"crown","name":"De Free a Oro",
                  "sourceMembershipId":"%s","targetMembershipId":"%s","price":99.99,
                  "currencyId":"%s"}
                 """
@@ -249,7 +320,7 @@ class ProductsIT extends IntegrationTestBase {
     mvc.perform(
             alta(
                 """
-                {"code":"SIN_ORIGEN","type":"UPGRADE_MEMBRESIA","name":"Sin origen",
+                {"scope":"TIENDA","implementation":"AUTOMATICA","code":"SIN_ORIGEN","type":"UPGRADE_MEMBRESIA","icon":"crown","name":"Sin origen",
                  "targetMembershipId":"%s","price":49.99,"currencyId":"%s"}
                 """
                     .formatted(oro, USD)))
@@ -260,7 +331,7 @@ class ProductsIT extends IntegrationTestBase {
     mvc.perform(
             alta(
                 """
-                {"code":"SIN_DESTINO","type":"UPGRADE_MEMBRESIA","name":"Sin destino",
+                {"scope":"TIENDA","implementation":"AUTOMATICA","code":"SIN_DESTINO","type":"UPGRADE_MEMBRESIA","icon":"crown","name":"Sin destino",
                  "sourceMembershipId":"%s","price":49.99,"currencyId":"%s"}
                 """
                     .formatted(free, USD)))
@@ -272,30 +343,19 @@ class ProductsIT extends IntegrationTestBase {
   }
 
   @Test
-  @DisplayName("`CA-PM-104` — `RN-PM-017`: ni el mismo nivel ni un descenso vendido como upgrade")
-  void elOrigenDebeEstarPorDebajoDelDestino() throws Exception {
-    // Origen IGUAL al destino. Lo ve el agregado —le basta comparar dos
-    // identificadores—, y por eso es 400 y no 422.
+  @DisplayName("`CA-PM-104` — `RN-PM-017`: un descenso vendido como upgrade se rechaza")
+  void elOrigenNoPuedeEstarPorEncimaDelDestino() throws Exception {
+    // Origen POR ENCIMA del destino: `ORO` es el nivel 1 y `BECA` el 4. Un
+    // descenso con la etiqueta de ascenso. Hace falta leer el `level` de las
+    // dos filas, y es 422 porque el dato existe: lo que no vale es la relación
+    // entre los dos.
+    //
+    // Y desde `V61` esta comprobación es LO ÚNICO que sostiene la regla:
+    // `ck_products_origen_distinto` se retiró con la renovación.
     mvc.perform(
             alta(
                 """
-                {"code":"MISMO","type":"UPGRADE_MEMBRESIA","name":"A donde ya estoy",
-                 "sourceMembershipId":"%s","targetMembershipId":"%s","price":49.99,
-                 "currencyId":"%s"}
-                """
-                    .formatted(oro, oro, USD)))
-        .andExpect(status().isBadRequest())
-        .andExpect(jsonPath("$.errors[0].code").value("VAL-014"))
-        .andExpect(jsonPath("$.errors[0].field").value("sourceMembershipId"));
-
-    // Origen POR ENCIMA del destino: `ORO` es el nivel 1 y `FREE` el 4. Un
-    // descenso con la etiqueta de ascenso. Aquí sí hace falta leer el `level`
-    // de las dos filas, y es 422 porque el dato existe: lo que no vale es la
-    // relación entre los dos.
-    mvc.perform(
-            alta(
-                """
-                {"code":"DESCENSO","type":"UPGRADE_MEMBRESIA","name":"Bajada disfrazada",
+                {"scope":"TIENDA","implementation":"AUTOMATICA","code":"DESCENSO","type":"UPGRADE_MEMBRESIA","icon":"crown","name":"Bajada disfrazada",
                  "sourceMembershipId":"%s","targetMembershipId":"%s","price":49.99,
                  "currencyId":"%s"}
                 """
@@ -304,23 +364,297 @@ class ProductsIT extends IntegrationTestBase {
         .andExpect(jsonPath("$.errors[0].code").value("VAL-014"))
         .andExpect(jsonPath("$.errors[0].field").value("sourceMembershipId"));
 
-    assertThat(cuantosProductos()).isZero();
+    assertThat(cuantosProductos()).as("el rechazo no registró nada").isZero();
   }
 
   @Test
-  @DisplayName("`CA-PM-005` — un precio de cero o negativo se rechaza")
-  void precioNoPositivo() throws Exception {
-    for (String precio : new String[] {"0", "0.00", "-1.50"}) {
+  @DisplayName("`CA-PM-125` — el origen PUEDE ser el destino: es una renovación")
+  void elOrigenPuedeSerElDestino() throws Exception {
+    // Lo rechazaba `VAL-014` hasta el 07-09-2026. Un `ORO → ORO` no vende un
+    // cambio de nivel: vende TIEMPO, la vigencia que declara, y eso es un
+    // producto legítimo (`requirements/pm.md` §5.2.3).
+    mvc.perform(
+            alta(
+                """
+                {"scope":"TIENDA","implementation":"AUTOMATICA","code":"RENOVAR_ORO","type":"UPGRADE_MEMBRESIA","icon":"crown","name":"Renovar Oro",
+                 "sourceMembershipId":"%s","targetMembershipId":"%s","price":49.99,
+                 "currencyId":"%s","validityDays":30}
+                """
+                    .formatted(oro, oro, USD)))
+        .andExpect(status().isCreated())
+        .andExpect(jsonPath("$.sourceMembership.code").value("ORO"))
+        .andExpect(jsonPath("$.targetMembership.code").value("ORO"))
+        .andExpect(jsonPath("$.validityDays").value(30));
+  }
+
+  @Test
+  @DisplayName("`CA-PM-005` — un precio NEGATIVO se rechaza. El cero ya no: es la renovación")
+  void precioNegativo() throws Exception {
+    for (String precio : new String[] {"-1.50", "-0.01"}) {
       mvc.perform(
               alta(
                   """
-                  {"code":"ASESORIA","type":"BOT","name":"Asesoría","price":%s,
+                  {"scope":"TIENDA","implementation":"AUTOMATICA","code":"ASESORIA","type":"BOT","name":"Asesoría","price":%s,
                    "currencyId":"%s"}
                   """
                       .formatted(precio, USD)))
           .andExpect(status().isBadRequest());
     }
     assertThat(cuantosProductos()).isZero();
+  }
+
+  @Test
+  @DisplayName("`CA-PM-149` — el precio de CERO se admite en los dos importes")
+  void precioCero() throws Exception {
+    // Hasta el 08-09-2026 esto era un 400, y lo que lo cambió no fue el precio
+    // público sino la RENOVACIÓN: un `BECA → BECA` es un producto legítimo que
+    // vale cero, y prohibirlo obligaba a inventarle un céntimo (`RN-PM-006`).
+    mvc.perform(
+            alta(
+                """
+                {"scope":"TIENDA","implementation":"AUTOMATICA","code":"ASESORIA","type":"BOT","name":"Asesoría",
+                 "price":0,"purchasePrice":0,"currencyId":"%s"}
+                """
+                    .formatted(USD)))
+        .andExpect(status().isCreated())
+        .andExpect(jsonPath("$.price").value(0))
+        .andExpect(jsonPath("$.purchasePrice").value(0));
+  }
+
+  @Test
+  @DisplayName("`CA-PM-145` — el alta admite los DOS precios y la respuesta devuelve los dos")
+  void losDosPrecios() throws Exception {
+    mvc.perform(
+            alta(
+                """
+                {"scope":"TIENDA","implementation":"AUTOMATICA","code":"ASESORIA","type":"BOT","name":"Asesoría",
+                 "price":49.99,"purchasePrice":59.99,"currencyId":"%s"}
+                """
+                    .formatted(USD)))
+        .andExpect(status().isCreated())
+        // Los dos con los decimales de SU moneda, no con la escala de la
+        // columna: `59.99`, no `59.9900`.
+        .andExpect(jsonPath("$.price").value(49.99))
+        .andExpect(jsonPath("$.purchasePrice").value(59.99));
+  }
+
+  @Test
+  @DisplayName("`CA-PM-146` — sin precio de compra el campo llega PRESENTE y nulo, no ausente")
+  void sinPrecioDeCompra() throws Exception {
+    // Su nulo SIGNIFICA «no se conoce el costo», y un campo que desaparece del
+    // JSON no puede decir eso — sería indistinguible de uno que el cliente no
+    // conoce.
+    mvc.perform(
+            alta(
+                """
+                {"scope":"TIENDA","implementation":"AUTOMATICA","code":"ASESORIA","type":"BOT","name":"Asesoría",
+                 "price":49.99,"currencyId":"%s"}
+                """
+                    .formatted(USD)))
+        .andExpect(status().isCreated())
+        .andExpect(jsonPath("$.purchasePrice").doesNotExist())
+        .andExpect(jsonPath("$").value(org.hamcrest.Matchers.hasKey("purchasePrice")));
+  }
+
+  @Test
+  @DisplayName("`CA-PM-147` — un precio de compra negativo se rechaza, y el error nombra SU campo")
+  void precioDeCompraNegativo() throws Exception {
+    mvc.perform(
+            alta(
+                """
+                {"scope":"TIENDA","implementation":"AUTOMATICA","code":"ASESORIA","type":"BOT","name":"Asesoría",
+                 "price":49.99,"purchasePrice":-1,"currencyId":"%s"}
+                """
+                    .formatted(USD)))
+        .andExpect(status().isBadRequest())
+        // Con dos importes, un mensaje que no distingue obliga a probar los dos.
+        .andExpect(jsonPath("$.errors[0].field").value("purchasePrice"));
+
+    assertThat(cuantosProductos()).isZero();
+  }
+
+  @Test
+  @DisplayName(
+      "`CA-PM-148` — el precio de compra con decimales de más se rechaza aunque el otro quepa")
+  void decimalesDelPrecioDeCompra() throws Exception {
+    mvc.perform(
+            alta(
+                """
+                {"scope":"TIENDA","implementation":"AUTOMATICA","code":"ASESORIA","type":"BOT","name":"Asesoría",
+                 "price":10.00,"purchasePrice":10.005,"currencyId":"%s"}
+                """
+                    .formatted(USD)))
+        .andExpect(status().isBadRequest())
+        .andExpect(jsonPath("$.errors[0].code").value("VAL-005"))
+        // El del sistema SÍ cabe: sin el campo en el error, quien lo recibe
+        // tendría que probar los dos para saber cuál corregir.
+        .andExpect(jsonPath("$.errors[0].field").value("purchasePrice"));
+
+    assertThat(cuantosProductos()).isZero();
+  }
+
+  @Test
+  @DisplayName("`CA-PM-150` — la instantánea del evento de creación incluye el precio de compra")
+  void laInstantaneaLlevaElPrecioDeCompra() throws Exception {
+    mvc.perform(
+            alta(
+                """
+                {"scope":"TIENDA","implementation":"AUTOMATICA","code":"ASESORIA","type":"BOT","name":"Asesoría",
+                 "price":49.99,"purchasePrice":59.99,"currencyId":"%s"}
+                """
+                    .formatted(USD)))
+        .andExpect(status().isCreated());
+
+    // Es el único sitio donde queda escrito CUÁNTO COSTÓ un producto cuyo costo
+    // después se corrige.
+    String cambios =
+        jdbc.queryForObject(
+            """
+            SELECT changes::text FROM audit_change_log
+             WHERE module = 'PM' AND entity = 'products' AND action = 'CREATE'
+             ORDER BY occurred_at DESC LIMIT 1
+            """,
+            String.class);
+    assertThat(cambios).contains("purchase_price").contains("59.99");
+    // La clave vieja no vuelve: los eventos anteriores al 12-09-2026 la llevan.
+    assertThat(cambios).doesNotContain("public_price");
+  }
+
+  @Test
+  @DisplayName("`publicPrice` dejó de existir el 12-09-2026: es una propiedad desconocida y es 400")
+  void elNombreViejoDelSegundoPrecioSeRechaza() throws Exception {
+    // El segundo precio pasó de «lo que se anuncia» a «lo que NEXUS paga», y con
+    // el significado cambió el nombre. Ignorar el viejo en silencio dejaría a un
+    // cliente creyendo que declaró un precio público que ya no existe.
+    mvc.perform(
+            alta(
+                """
+                {"scope":"TIENDA","implementation":"AUTOMATICA","code":"ASESORIA","type":"BOT","name":"Asesoría",
+                 "price":49.99,"publicPrice":59.99,"currencyId":"%s"}
+                """
+                    .formatted(USD)))
+        .andExpect(status().isBadRequest());
+  }
+
+  @Test
+  @DisplayName(
+      "`CA-PM-219` — el alta admite el enlace de un video, también en un BOT, y lo devuelve TAL"
+          + " CUAL")
+  void conVideo() throws Exception {
+    // En un bot, a propósito: es donde el icono NO cabe (`RN-PM-016`) y el
+    // video SÍ (`RN-PM-032`), y una prueba sobre un upgrade no distinguiría las
+    // dos reglas. Con mayúsculas en el identificador y espacios alrededor: lo
+    // que se guarda es lo recortado y NADA MÁS — un enlace «arreglado» puede
+    // dejar de resolver.
+    mvc.perform(
+            alta(
+                """
+                {"scope":"TIENDA","implementation":"AUTOMATICA","code":"ASESORIA","type":"BOT","name":"Asesoría",
+                 "price":49.99,"currencyId":"%s",
+                 "videoUrl":"  https://www.youtube.com/watch?v=dQw4w9WgXcQ  "}
+                """
+                    .formatted(USD)))
+        .andExpect(status().isCreated())
+        .andExpect(jsonPath("$.videoUrl").value("https://www.youtube.com/watch?v=dQw4w9WgXcQ"));
+
+    assertThat(
+            jdbc.queryForObject(
+                "SELECT video_url FROM products WHERE code = 'ASESORIA'", String.class))
+        .isEqualTo("https://www.youtube.com/watch?v=dQw4w9WgXcQ");
+  }
+
+  @Test
+  @DisplayName("`CA-PM-220` — sin video el campo llega PRESENTE y nulo, no ausente ni vacío")
+  void sinVideo() throws Exception {
+    // Como el precio de compra: un campo que desaparece del JSON no puede decir
+    // «no tiene video». Y `""` tampoco es un estado: el esquema no lo admite.
+    mvc.perform(
+            alta(
+                """
+                {"scope":"TIENDA","implementation":"AUTOMATICA","code":"ASESORIA","type":"BOT","name":"Asesoría",
+                 "price":49.99,"currencyId":"%s"}
+                """
+                    .formatted(USD)))
+        .andExpect(status().isCreated())
+        .andExpect(jsonPath("$.videoUrl").doesNotExist())
+        .andExpect(jsonPath("$").value(org.hamcrest.Matchers.hasKey("videoUrl")));
+
+    // Y el nulo explícito significa exactamente lo mismo que el ausente.
+    mvc.perform(
+            alta(
+                """
+                {"scope":"TIENDA","implementation":"AUTOMATICA","code":"ASESORIA2","type":"BOT","name":"Asesoría 2",
+                 "price":49.99,"currencyId":"%s","videoUrl":null}
+                """
+                    .formatted(USD)))
+        .andExpect(status().isCreated())
+        .andExpect(jsonPath("$").value(org.hamcrest.Matchers.hasKey("videoUrl")));
+  }
+
+  @Test
+  @DisplayName(
+      "`CA-PM-221` — un enlace sin forma de URL absoluta http(s) se rechaza con VAL-017, nombrando"
+          + " `videoUrl`")
+  void videoConFormaInvalida() throws Exception {
+    // Las cinco variantes que la estrategia de prueba enumera: relativo, sin
+    // esquema, con otro esquema, con un espacio dentro, y de 501 caracteres.
+    // Se comprueba SOLO la forma: un enlace con forma y sin destino se admite
+    // (`CA-PM-219` no resuelve a nada en esta suite), y eso es la decisión de
+    // `pm.md` §5.2.8, no un descuido.
+    String[] invalidos = {
+      "/videos/asesoria.mp4",
+      "www.youtube.com/watch?v=x",
+      "ftp://videos.example.com/asesoria.mp4",
+      "https://www.youtube.com/watch?v=dQw4 w9WgXcQ",
+      "https://example.com/" + "a".repeat(481)
+    };
+    for (String invalido : invalidos) {
+      mvc.perform(
+              alta(
+                  """
+                  {"scope":"TIENDA","implementation":"AUTOMATICA","code":"ASESORIA","type":"BOT","name":"Asesoría",
+                   "price":49.99,"currencyId":"%s","videoUrl":"%s"}
+                  """
+                      .formatted(USD, invalido)))
+          .andExpect(status().isBadRequest())
+          .andExpect(jsonPath("$.errors[0].code").value("VAL-017"))
+          .andExpect(jsonPath("$.errors[0].field").value("videoUrl"));
+    }
+    assertThat(cuantosProductos()).isZero();
+
+    // El límite exacto —500— SÍ cabe: la prueba anterior no demuestra nada si
+    // el tope se hubiera puesto un carácter por debajo.
+    mvc.perform(
+            alta(
+                """
+                {"scope":"TIENDA","implementation":"AUTOMATICA","code":"ASESORIA","type":"BOT","name":"Asesoría",
+                 "price":49.99,"currencyId":"%s","videoUrl":"%s"}
+                """
+                    .formatted(USD, "https://example.com/" + "a".repeat(480))))
+        .andExpect(status().isCreated());
+  }
+
+  @Test
+  @DisplayName("`CA-PM-222` — la instantánea del evento de creación incluye `video_url`")
+  void laInstantaneaLlevaElVideo() throws Exception {
+    mvc.perform(
+            alta(
+                """
+                {"scope":"TIENDA","implementation":"AUTOMATICA","code":"ASESORIA","type":"BOT","name":"Asesoría",
+                 "price":49.99,"currencyId":"%s","videoUrl":"https://vimeo.com/123456"}
+                """
+                    .formatted(USD)))
+        .andExpect(status().isCreated());
+
+    String cambios =
+        jdbc.queryForObject(
+            """
+            SELECT changes::text FROM audit_change_log
+             WHERE module = 'PM' AND entity = 'products' AND action = 'CREATE'
+             ORDER BY occurred_at DESC LIMIT 1
+            """,
+            String.class);
+    assertThat(cambios).contains("video_url").contains("https://vimeo.com/123456");
   }
 
   @Test
@@ -331,7 +665,7 @@ class ProductsIT extends IntegrationTestBase {
     mvc.perform(
             alta(
                 """
-                {"code":"ASESORIA","type":"BOT","name":"Asesoría","price":10.005,
+                {"scope":"TIENDA","implementation":"AUTOMATICA","code":"ASESORIA","type":"BOT","name":"Asesoría","price":10.005,
                  "currencyId":"%s"}
                 """
                     .formatted(USD)))
@@ -341,7 +675,7 @@ class ProductsIT extends IntegrationTestBase {
     mvc.perform(
             alta(
                 """
-                {"code":"ASESORIA","type":"BOT","name":"Asesoría","price":10.00,
+                {"scope":"TIENDA","implementation":"AUTOMATICA","code":"ASESORIA","type":"BOT","name":"Asesoría","price":10.00,
                  "currencyId":"%s"}
                 """
                     .formatted(USD)))
@@ -356,7 +690,7 @@ class ProductsIT extends IntegrationTestBase {
     mvc.perform(
             alta(
                 """
-                {"code":"UPGRADE_X","type":"UPGRADE_MEMBRESIA","name":"Ascenso",
+                {"scope":"TIENDA","implementation":"AUTOMATICA","code":"UPGRADE_X","type":"UPGRADE_MEMBRESIA","icon":"crown","name":"Ascenso",
                  "sourceMembershipId":"%s","targetMembershipId":"%s","price":49.99,
                  "currencyId":"%s"}
                 """
@@ -371,7 +705,7 @@ class ProductsIT extends IntegrationTestBase {
     mvc.perform(
             alta(
                 """
-                {"code":"ASESORIA","type":"BOT","name":"Asesoría","price":10.00,
+                {"scope":"TIENDA","implementation":"AUTOMATICA","code":"ASESORIA","type":"BOT","name":"Asesoría","price":10.00,
                  "currencyId":"%s"}
                 """
                     .formatted(UUID.randomUUID())))
@@ -385,7 +719,7 @@ class ProductsIT extends IntegrationTestBase {
     mvc.perform(
             alta(
                 """
-                {"code":"ASESORIA","type":"BOT","name":"Asesoría","price":10.00,
+                {"scope":"TIENDA","implementation":"AUTOMATICA","code":"ASESORIA","type":"BOT","name":"Asesoría","price":10.00,
                  "currencyId":"%s"}
                 """
                     .formatted(euro)))
@@ -399,7 +733,7 @@ class ProductsIT extends IntegrationTestBase {
     mvc.perform(
             alta(
                 """
-                {"code":"ASESORIA","type":"BOT","name":"Asesoría","price":10.00,
+                {"scope":"TIENDA","implementation":"AUTOMATICA","code":"ASESORIA","type":"BOT","name":"Asesoría","price":10.00,
                  "currencyId":"%s"}
                 """
                     .formatted(USD)))
@@ -408,7 +742,7 @@ class ProductsIT extends IntegrationTestBase {
     mvc.perform(
             alta(
                 """
-                {"code":"OTRO","type":"BOT","name":"asesoria","price":10.00,
+                {"scope":"TIENDA","implementation":"AUTOMATICA","code":"OTRO","type":"BOT","name":"asesoria","price":10.00,
                  "currencyId":"%s"}
                 """
                     .formatted(USD)))
@@ -422,7 +756,7 @@ class ProductsIT extends IntegrationTestBase {
     mvc.perform(
             alta(
                 """
-                {"code":"ASESORIA","type":"BOT","name":"Asesoría","price":10.00,
+                {"scope":"TIENDA","implementation":"AUTOMATICA","code":"ASESORIA","type":"BOT","name":"Asesoría","price":10.00,
                  "currencyId":"%s"}
                 """
                     .formatted(USD)))
@@ -431,7 +765,7 @@ class ProductsIT extends IntegrationTestBase {
     mvc.perform(
             alta(
                 """
-                {"code":"asesoria","type":"BOT","name":"Otro nombre","price":10.00,
+                {"scope":"TIENDA","implementation":"AUTOMATICA","code":"asesoria","type":"BOT","name":"Otro nombre","price":10.00,
                  "currencyId":"%s"}
                 """
                     .formatted(USD)))
@@ -445,7 +779,7 @@ class ProductsIT extends IntegrationTestBase {
     mvc.perform(
             alta(
                 """
-                {"code":"PERMANENTE","type":"BOT","name":"Permanente","price":10.00,
+                {"scope":"TIENDA","implementation":"AUTOMATICA","code":"PERMANENTE","type":"BOT","name":"Permanente","price":10.00,
                  "currencyId":"%s"}
                 """
                     .formatted(USD)))
@@ -456,7 +790,7 @@ class ProductsIT extends IntegrationTestBase {
       mvc.perform(
               alta(
                   """
-                  {"code":"OTRO","type":"BOT","name":"Otro","price":10.00,
+                  {"scope":"TIENDA","implementation":"AUTOMATICA","code":"OTRO","type":"BOT","name":"Otro","price":10.00,
                    "currencyId":"%s","validityDays":%s}
                   """
                       .formatted(USD, vigencia)))
@@ -477,7 +811,7 @@ class ProductsIT extends IntegrationTestBase {
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(
                     """
-                    {"code":"UPGRADE_ORO","type":"UPGRADE_MEMBRESIA","name":"Ascenso a Oro",
+                    {"scope":"TIENDA","implementation":"AUTOMATICA","code":"UPGRADE_ORO","type":"UPGRADE_MEMBRESIA","icon":"crown","name":"Ascenso a Oro",
                      "sourceMembershipId":"%s","targetMembershipId":"%s","price":49.99,
                      "currencyId":"%s","validityDays":30}
                     """
@@ -512,7 +846,7 @@ class ProductsIT extends IntegrationTestBase {
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(
                     """
-                    {"code":"ASESORIA","type":"BOT","name":"Asesoría","price":10.00,
+                    {"scope":"TIENDA","implementation":"AUTOMATICA","code":"ASESORIA","type":"BOT","name":"Asesoría","price":10.00,
                      "currencyId":"%s"}
                     """
                         .formatted(USD)))
@@ -536,7 +870,7 @@ class ProductsIT extends IntegrationTestBase {
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(
                     """
-                    {"code":"ASESORIA","type":"BOT","name":"Asesoría","price":10.00,
+                    {"scope":"TIENDA","implementation":"AUTOMATICA","code":"ASESORIA","type":"BOT","name":"Asesoría","price":10.00,
                      "currencyId":"%s"}
                     """
                         .formatted(USD)))
@@ -546,6 +880,129 @@ class ProductsIT extends IntegrationTestBase {
   }
 
   // ---------------------------------------------------------------------------
+
+  @Test
+  @DisplayName("`CA-PM-110` y `CA-PM-111` — el alta sin alcance o sin implementación se rechaza")
+  void alcanceEImplementacionSonObligatorios() throws Exception {
+    mvc.perform(
+            alta(
+                """
+                {"implementation":"AUTOMATICA","code":"ASESORIA","type":"BOT","name":"Asesoría",
+                 "price":10.00,"currencyId":"%s"}
+                """
+                    .formatted(USD)))
+        .andExpect(status().isBadRequest())
+        .andExpect(jsonPath("$.errors[0].field").value("scope"));
+
+    mvc.perform(
+            alta(
+                """
+                {"scope":"TIENDA","code":"ASESORIA","type":"BOT","name":"Asesoría",
+                 "price":10.00,"currencyId":"%s"}
+                """
+                    .formatted(USD)))
+        .andExpect(status().isBadRequest())
+        .andExpect(jsonPath("$.errors[0].field").value("implementation"));
+
+    assertThat(cuantosProductos()).as("ningún rechazo registró nada").isZero();
+  }
+
+  @Test
+  @DisplayName("`CA-PM-112` — un valor fuera del dominio se rechaza, y no se toma por ausente")
+  void alcanceEImplementacionFueraDeDominio() throws Exception {
+    mvc.perform(
+            alta(
+                """
+                {"scope":"TIENDAS","implementation":"AUTOMATICA","code":"ASESORIA","type":"BOT",
+                 "name":"Asesoría","price":10.00,"currencyId":"%s"}
+                """
+                    .formatted(USD)))
+        .andExpect(status().isBadRequest());
+
+    mvc.perform(
+            alta(
+                """
+                {"scope":"TIENDA","implementation":"SEMIAUTOMATICA","code":"ASESORIA","type":"BOT",
+                 "name":"Asesoría","price":10.00,"currencyId":"%s"}
+                """
+                    .formatted(USD)))
+        .andExpect(status().isBadRequest());
+
+    assertThat(cuantosProductos()).isZero();
+  }
+
+  @Test
+  @DisplayName("`CA-PM-113` — un BOT admite `AMBOS` y `MANUAL`: ninguna depende del tipo")
+  void ningunaDependeDelTipo() throws Exception {
+    // Es la prueba que separa estas dos reglas de `RN-PM-002` y `RN-PM-016`,
+    // que SÍ dependen del tipo. Un bot también se muestra en algún sitio y
+    // también se entrega de alguna forma.
+    mvc.perform(
+            alta(
+                """
+                {"scope":"AMBOS","implementation":"MANUAL","code":"ASESORIA","type":"BOT",
+                 "name":"Asesoría","price":10.00,"currencyId":"%s"}
+                """
+                    .formatted(USD)))
+        .andExpect(status().isCreated())
+        .andExpect(jsonPath("$.scope").value("AMBOS"))
+        .andExpect(jsonPath("$.implementation").value("MANUAL"));
+  }
+
+  @Test
+  @DisplayName("`CA-PM-114` — la respuesta las devuelve, y la instantánea del alta las guarda")
+  void alcanceEImplementacionEnLaRespuestaYEnLaAuditoria() throws Exception {
+    UUID correlacion = UUID.randomUUID();
+
+    mvc.perform(
+            post("/api/v1/products")
+                .with(admin())
+                .header("X-Correlation-Id", correlacion.toString())
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(
+                    """
+                    {"scope":"AMBOS","implementation":"MANUAL","code":"UPGRADE_ORO",
+                     "type":"UPGRADE_MEMBRESIA","icon":"crown","name":"Ascenso a Oro","sourceMembershipId":"%s",
+                     "targetMembershipId":"%s","price":49.99,"currencyId":"%s"}
+                    """
+                        .formatted(free, oro, USD)))
+        .andExpect(status().isCreated())
+        .andExpect(jsonPath("$.scope").value("AMBOS"))
+        .andExpect(jsonPath("$.implementation").value("MANUAL"));
+
+    String cambios =
+        jdbc.queryForObject(
+            """
+            SELECT changes::text FROM audit_change_log
+             WHERE correlation_id = ? AND module = 'PM' AND action = 'CREATE'
+            """,
+            String.class,
+            correlacion);
+
+    // La instantánea es el ÚNICO sitio donde queda escrito con qué
+    // configuración nació un producto que después `RF-PM-004` puede corregir.
+    assertThat(cambios).contains("AMBOS").contains("MANUAL").contains("implementation");
+  }
+
+  @Test
+  @DisplayName("`CA-PM-141` — la membresía resuelta trae su COLOR, junto al código, nombre y nivel")
+  void laMembresiaResueltaTraeSuColor() throws Exception {
+    // `oro` se siembra con nivel 1, y el color de la semilla es
+    // `upper(lpad(to_hex(nivel * 4919), 6, '0'))` — para el nivel 1, `001337`.
+    // Se afirma el valor EXACTO y no solo el formato: así la prueba demuestra
+    // que viaja el color de ESA membresía y no el de cualquiera.
+    mvc.perform(
+            alta(
+                """
+                {"scope":"TIENDA","implementation":"AUTOMATICA","code":"UPGRADE_ORO","type":"UPGRADE_MEMBRESIA","icon":"crown","name":"Ascenso a Oro",
+                 "sourceMembershipId":"%s","targetMembershipId":"%s","price":49.99,
+                 "currencyId":"%s"}
+                """
+                    .formatted(free, oro, USD)))
+        .andExpect(status().isCreated())
+        .andExpect(jsonPath("$.targetMembership.color").value("001337"))
+        .andExpect(jsonPath("$.sourceMembership.color").value("004CDC"));
+  }
 
   private RequestPostProcessor admin() {
     return user(UUID.randomUUID().toString()).authorities(() -> "products:create");

@@ -74,8 +74,8 @@ class RevokeUserRolesSessionFailureIT extends IntegrationTestBase {
     jdbc.update(
         """
         INSERT INTO users (id, username, email, first_name, last_name, password_hash,
-                           must_change_password, status)
-        VALUES (?, 'MRevoca', 'mrevoca@factech.co', 'Marta', 'Revoca', 'x', false, 'ACTIVO')
+                           must_change_password, status, country_id)
+        VALUES (?, 'MRevoca', 'mrevoca@factech.co', 'Marta', 'Revoca', 'x', false, 'ACTIVO', (SELECT id FROM countries WHERE code = 'COL'))
         """,
         persona);
     jdbc.update(

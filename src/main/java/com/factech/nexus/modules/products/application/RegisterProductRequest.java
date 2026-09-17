@@ -1,5 +1,7 @@
 package com.factech.nexus.modules.products.application;
 
+import com.factech.nexus.modules.products.domain.models.ProductImplementation;
+import com.factech.nexus.modules.products.domain.models.ProductScope;
 import com.factech.nexus.modules.products.domain.models.ProductType;
 import jakarta.validation.constraints.DecimalMin;
 import jakarta.validation.constraints.Digits;
@@ -30,7 +32,10 @@ import java.util.UUID;
  *
  * <p><b>La escala del precio tampoco.</b> No la fija este DTO sino la moneda (`RN-PM-007`), de modo
  * que aquí solo se acota lo que es cierto para cualquiera: hasta cuatro decimales, que es lo que la
- * columna admite. Los de verdad los decide el caso de uso.
+ * columna admite. Los de verdad los decide el caso de uso, <b>para los dos importes</b>.
+ *
+ * <p><b>El cero se admite en los dos precios</b> desde el 08-09-2026 (`RN-PM-006`): lo que tumbó el
+ * «mayor que cero» no fue el segundo precio sino la <b>renovación</b> de una membresía gratuita.
  *
  * @param validityDays días que dura lo adquirido. Ausente o nulo significan lo mismo: no caduca
  */
@@ -50,6 +55,12 @@ public record RegisterProductRequest(
     @Size(max = 1000, message = "VAL-003: La descripción no puede exceder 1000 caracteres.")
         String description,
     @Size(max = 50, message = "VAL-012: El icono no puede exceder 50 caracteres.") String icon,
+    // SIN anotación de forma, y es deliberado: `@URL` admite cualquier esquema y
+    // no distingue una relativa, y `@Pattern` no puede decir «hasta 500» sin
+    // repetir el tope. La forma la comprueba el dominio, en un sitio y con un
+    // mensaje (`VAL-017`), como hace con el icono. Opcional en los DOS tipos;
+    // ausente y nulo significan lo mismo: no tiene video (`RN-PM-032`).
+    String videoUrl,
     // NINGUNA DE LAS DOS LLEVA `@NotNull`, y es deliberado: su obligatoriedad
     // depende del TIPO (`RN-PM-002`), que Bean Validation no puede mirar sin una
     // restricción de clase. La comprueba el dominio, que es donde vive la regla
@@ -57,18 +68,34 @@ public record RegisterProductRequest(
     UUID sourceMembershipId,
     UUID targetMembershipId,
     @NotNull(message = "VAL-004: El precio es obligatorio.")
-        @DecimalMin(
-            value = "0.0",
-            inclusive = false,
-            message = "VAL-004: El precio debe ser mayor que cero.")
+        @DecimalMin(value = "0.0", message = "VAL-004: El precio no puede ser negativo.")
         @Digits(
             integer = 10,
             fraction = 4,
             message = "VAL-005: El precio admite como mucho cuatro decimales.")
         BigDecimal price,
+    // SIN `@NotNull`, y ahí se aparta de `scope` e `implementation`: es
+    // OPCIONAL, y ausente o nulo significan lo mismo — no se conoce el costo
+    // (`RN-PM-023`). Omitirlo no deja ninguna decisión sin tomar, porque un
+    // producto se registra antes de comprarse. Se llamó `publicPrice` hasta el
+    // 12-09-2026; el nombre viejo es una propiedad desconocida y devuelve 400.
+    @DecimalMin(value = "0.0", message = "VAL-004: El precio de compra no puede ser negativo.")
+        @Digits(
+            integer = 10,
+            fraction = 4,
+            message = "VAL-005: El precio de compra admite como mucho cuatro decimales.")
+        BigDecimal purchasePrice,
     @NotNull(message = "VAL-006: La moneda es obligatoria.") UUID currencyId,
     @Min(value = 1, message = "VAL-011: La vigencia debe ser un número de días mayor que cero.")
-        Integer validityDays) {
+        Integer validityDays,
+    // LAS DOS CON `@NotNull`, y aquí SÍ con validación declarativa, al revés
+    // que las membresías: su obligatoriedad NO DEPENDE DE NINGÚN OTRO CAMPO, de
+    // modo que no hay nada que un validador de clase pudiera decir que la
+    // anotación no diga. El valor fuera de dominio lo rechaza Jackson al
+    // deserializar el enumerado, también con `400`.
+    @NotNull(message = "VAL-015: El alcance del producto es obligatorio.") ProductScope scope,
+    @NotNull(message = "VAL-016: La implementación del producto es obligatoria.")
+        ProductImplementation implementation) {
 
   /**
    * Recorta antes de que corran las validaciones.
@@ -82,6 +109,7 @@ public record RegisterProductRequest(
     name = name == null ? null : name.trim();
     description = description == null ? null : description.trim();
     icon = icon == null ? null : icon.trim();
+    videoUrl = videoUrl == null ? null : videoUrl.trim();
   }
 
   public RegisterProductCommand toCommand() {
@@ -91,10 +119,14 @@ public record RegisterProductRequest(
         name,
         description,
         icon,
+        videoUrl,
         sourceMembershipId,
         targetMembershipId,
         price,
+        purchasePrice,
         currencyId,
-        validityDays);
+        validityDays,
+        scope,
+        implementation);
   }
 }

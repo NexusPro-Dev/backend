@@ -54,4 +54,19 @@ public final class Patchable<T> {
   public T valor() {
     return valor;
   }
+
+  /**
+   * El valor que debe quedar, partiendo del actual.
+   *
+   * <p>Resuelve los tres estados en uno solo para quien <b>sí</b> admite el vaciado: ausente deja
+   * el actual, presente-con-valor lo sustituye, y presente-y-nulo lo <b>borra</b>.
+   *
+   * <p><b>No sirve donde el nulo explícito es un error</b> —la mayoría de los campos del sistema—:
+   * ahí hay que mirar {@link #presente()} y rechazar antes de llegar al dominio. Este atajo existe
+   * para los campos opcionales de contacto de `RN-SP-037`, donde «ya no vive ahí» es un hecho que
+   * hay que poder registrar.
+   */
+  public T resuelto(T actual) {
+    return presente ? valor : actual;
+  }
 }

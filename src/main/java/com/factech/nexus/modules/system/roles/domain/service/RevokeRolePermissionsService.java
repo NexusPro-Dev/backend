@@ -81,7 +81,7 @@ public class RevokeRolePermissionsService {
 
   @Transactional
   public RoleResponse revoke(UUID roleId, RolePermissionsRequest peticion) {
-    Role rol = acceso.cargarModificable(roleId, "EX-004");
+    Role rol = acceso.cargarConPermisosModificables(roleId, "EX-004");
 
     // No se exige que los permisos existan en el catálogo: retirar algo que no
     // está es idempotente, y un identificador inventado simplemente no coincide

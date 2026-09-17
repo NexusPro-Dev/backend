@@ -27,6 +27,11 @@ import org.springframework.transaction.annotation.Transactional;
  *
  * <p><b>Los días que ocupaba quedan libres</b>, porque la restricción del motor es parcial sobre
  * las vivas: puede declararse otra tasa que los cubra.
+ *
+ * <p><b>Sin condición desde el 16-09-2026.</b> Del 11-09-2026 al 16-09-2026 una tasa asociada no se
+ * retiraba (`RN-CM-015`): la asociación habría sobrevivido apuntando a una fila que la resolución
+ * ya no mira. Sin asociación (`RN-CM-021`) no hay nada que sobreviva, y retirar es exactamente la
+ * forma de que esa persona deje de cobrar por ese producto — a la vista, con motivo.
  */
 @Service
 public class DeleteUserCommissionRateService {

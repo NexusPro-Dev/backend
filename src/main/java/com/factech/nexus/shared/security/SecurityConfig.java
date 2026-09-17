@@ -4,6 +4,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.http.HttpMethod;
 import org.springframework.http.HttpStatus;
 import org.springframework.security.config.Customizer;
 import org.springframework.security.config.annotation.method.configuration.EnableMethodSecurity;
@@ -65,8 +66,123 @@ public class SecurityConfig {
     // su contraseña no puede autenticarse para pedir recuperarla. La segunda la
     // autoriza el permiso temporal que la primera envía, no un token.
     "/api/v1/auth/password-recovery",
-    "/api/v1/auth/password-recovery/confirmation"
+    "/api/v1/auth/password-recovery/confirmation",
+    // EL REGISTRO POR ENLACE (`RF-SP-045`, 09-09-2026), Y ES EL PRIMERO PÚBLICO
+    // QUE ESCRIBE. Las demás de esta lista o leen, o consumen una credencial
+    // que alguien emitió; esta CREA CUENTAS.
+    //
+    // Es público por definición y no por decisión: quien se registra no tiene
+    // cuenta con la que autenticarse. Lo que sostiene que eso no sea un agujero
+    // son dos cosas y ninguna es el token — la cuenta nace en `FTD_PENDIENTE`,
+    // que autentica y NO OPERA, y `RateLimitFilter` acota el origen.
+    "/api/v1/auth/registration",
+    // EL HOTLINK (`RF-PM-008`), Y ES LA PRIMERA RUTA PÚBLICA POR DECISIÓN Y NO
+    // POR DEFINICIÓN. Las cinco de arriba lo son porque quien las llama no
+    // puede portar todavía un token; esta lo es porque UN ENLACE SE ABRE ANTES
+    // DE REGISTRARSE.
+    //
+    // Es también la primera que publica el nombre de una persona, y por eso su
+    // alcance está acotado dos veces: solo productos activos de alcance
+    // `HOTLINKS` (`RN-PM-021`) y solo el nombre de quien es fuerza comercial
+    // (`RN-PM-022`). Lo que no procede responde el MISMO `404` en los seis
+    // casos — distinguirlos convertiría el enlace en un oráculo de existencia.
+    //
+    // El recorrido a ciegas lo acota `RateLimitFilter` POR ORIGEN, y queda
+    // escrito que acotar no es impedir (`spec.md` §10).
+    "/api/v1/hotlinks/*/*",
+    // EL HOTLINK DEL PAQUETE (`RF-PM-026`, 15-09-2026): `/{username}/packages/{code}`.
+    // Cuelga de la misma familia y hereda su COTA —`RateLimitFilter` decide por
+    // prefijo—, pero NO la declaración de arriba: un `*` de Ant es UN segmento,
+    // el patrón del producto tiene dos y esta ruta tiene tres. Sin esta línea
+    // respondería `401` a todo el mundo. Se añade el patrón de tres AL LADO del
+    // de dos y no se sustituye por `/**`: un `/**` bajo `hotlinks/` dejaría
+    // pública cualquier ruta futura de la familia sin que nadie la declarara.
+    //
+    // Mismo alcance acotado dos veces —paquete activo, vivo y de alcance
+    // `HOTLINK` o `AMBOS`, y solo el nombre de quien es fuerza comercial— y el
+    // mismo `404` uniforme, también para el paquete que hoy no se puede ofrecer.
+    "/api/v1/hotlinks/*/packages/*"
   };
+
+  /**
+   * Los <b>cuatro</b> catálogos que el formulario de registro necesita <b>antes</b> de que exista
+   * la cuenta.
+   *
+   * <p><b>Van aparte de {@link #RUTAS_PUBLICAS} porque aquí el MÉTODO importa</b>, y esa es toda la
+   * razón de que exista esta segunda lista. {@code /api/v1/countries} responde a tres verbos: el
+   * {@code GET} que se abre y un {@code POST} y un {@code PATCH} que <b>no</b>. Metida en la lista
+   * de arriba, la ruta entera quedaría en {@code permitAll} a nivel de filtro: las escrituras
+   * seguirían protegidas —lo hace {@code @PreAuthorize}—, pero un anónimo pasaría de recibir {@code
+   * 401} a recibir {@code 403}, y eso es decirle «existe y no puedes» en lugar de «identifícate».
+   *
+   * <p><b>Se abren el 08-09-2026 por decisión del responsable del proyecto</b>, y lo que resuelven
+   * es un hueco que este documento llevaba tres migraciones declarando: el registro público de
+   * `RF-SP-045` necesita elegir país, tipo de documento y broker, y ninguno de los tres se podía
+   * leer sin haber iniciado sesión — que es justo lo que todavía no se ha hecho.
+   *
+   * <p><b>Lo que publican no identifica a nadie</b>: son listas de opciones. Es la diferencia con
+   * el hotlink, que publica el nombre de una persona; aquí no hay oráculo posible porque no hay
+   * nada que sondear.
+   *
+   * <p><b>Y su consecuencia se declara en lugar de disimularse</b>: {@code countries:read}, {@code
+   * document-types:read} y {@code brokers:read} <b>dejan de gobernar estas lecturas</b>. Los
+   * permisos siguen sembrados —retirarlos rompería los roles que ya los tengan—, y quedan como los
+   * cuatro de `movements:` y `products:hotlink`: sembrados y sin endpoint que los exija.
+   *
+   * <p><b>EL CUARTO ENTRA EL 09-09-2026 Y ES EL DE MÉTODOS DE PAGO</b> (`RF-MV-009`, `RN-MV-024`),
+   * por lo mismo que los otros tres: el mismo formulario elige <b>con qué se paga</b> antes de que
+   * exista la cuenta. Se aparta de ellos en dos cosas, y las dos conviene tenerlas escritas:
+   *
+   * <ul>
+   *   <li><b>No deja ningún permiso huérfano</b>, porque <b>nunca exigió uno</b>: no hubo
+   *       {@code @PreAuthorize} que retirar. Los cuatro permisos de {@code movements:} gobiernan
+   *       ventas, y ninguno gobernaba esta lectura.
+   *   <li><b>Hoy esa ruta solo responde a un {@code GET}</b>, de modo que las dos listas se
+   *       comportarían igual y la elección parece indiferente. No lo es: el catálogo de métodos de
+   *       pago <b>está aplazado, no descartado</b> como recurso administrable (`requirements/mv.md`
+   *       §5.3), y el día que tenga alta, esa escritura respondería {@code 403} en lugar de {@code
+   *       401} si la ruta estuviera abierta entera. Se ata ahora, que cuesta una línea.
+   * </ul>
+   *
+   * <p><b>Y lo que hace que abrirlo no publique nada no está aquí</b>, sino en la consulta: la
+   * respuesta lleva <b>dos ejes</b> —{@code is_active} y {@code visibility = 'PUBLICO'}
+   * (`RN-MV-023`)—, de modo que el anónimo recibe exactamente lo que recibía el autenticado. Con un
+   * solo eje, esta línea habría puesto el método {@code GRATIS} delante de cualquiera.
+   */
+  private static final String[] CATALOGOS_PUBLICOS = {
+    "/api/v1/countries", "/api/v1/document-types", "/api/v1/brokers", "/api/v1/payment-methods"
+  };
+
+  /**
+   * Las reseñas de un producto (`RF-PM-012`, 14-09-2026): la <b>segunda ruta pública que publica el
+   * nombre de una persona</b>, después del hotlink, y por eso hereda sus dos decisiones — del autor
+   * solo nombre y apellido (`RN-PM-030`), y {@code 404} uniforme (`RN-PM-028`).
+   *
+   * <p><b>Va en la lista por método y solo en {@code GET}</b>, por lo mismo que los catálogos: la
+   * misma ruta responde a un {@code POST} que exige {@code products:comment}, y abrirla entera
+   * dejaría al anónimo recibiendo {@code 403} donde debe recibir {@code 401}. <b>El patrón es de UN
+   * segmento</b> y termina en {@code /comments}: no alcanza a {@code /comments/mine} ni a {@code
+   * /comments/{commentId}}, y {@code EndpointPermissionsIT} lo comprueba con los tres.
+   *
+   * <p>Es pública por <b>decisión</b> —la pantalla del hotlink las necesita y no tiene con qué
+   * autenticarse— y no deja ningún permiso huérfano: nunca exigió uno.
+   */
+  private static final String RESENAS_PUBLICAS = "/api/v1/products/*/comments";
+
+  /**
+   * La imagen de portada de un producto (`RF-PM-016`, 14-09-2026): la única ruta del sistema que
+   * sirve bytes y no JSON, y la tercera pública de `PM`.
+   *
+   * <p>Es pública por lo mismo que las reseñas: una de las cuatro lecturas que devuelven su
+   * dirección es el hotlink, que no tiene con qué autenticarse, y un {@code <img>} no lleva
+   * cabecera {@code Authorization}. <b>Solo en {@code GET}</b> y en la lista por método, no en
+   * {@code RUTAS_PUBLICAS}: {@code /product-images/} no tiene hoy ninguna escritura —subir y quitar
+   * la portada viven en {@code /products/{id}/cover} bajo {@code products:update}—, y el día que la
+   * tenga no debe nacer abierta por un patrón demasiado ancho. Lo que la protege está en {@code
+   * security.md} §6: solo tres tipos —{@code SVG} fuera—, {@code nosniff}, y la cota de tasa por la
+   * familia. <b>No se solapa con {@code RESENAS_PUBLICAS}</b>: otro recurso.
+   */
+  private static final String PORTADAS_PUBLICAS = "/api/v1/product-images/*";
 
   /**
    * Documentación de la API: pública solo donde se habilite de forma explícita.
@@ -128,6 +244,14 @@ public class SecurityConfig {
         .authorizeHttpRequests(
             auth -> {
               auth.requestMatchers(RUTAS_PUBLICAS).permitAll();
+              // Solo el GET: ver `CATALOGOS_PUBLICOS`. El `POST` y el `PATCH`
+              // de países siguen exigiendo token, y siguen respondiendo `401`
+              // sin él en lugar de `403`.
+              auth.requestMatchers(HttpMethod.GET, CATALOGOS_PUBLICOS).permitAll();
+              // Solo el GET y solo esa ruta: ver `RESENAS_PUBLICAS`.
+              auth.requestMatchers(HttpMethod.GET, RESENAS_PUBLICAS).permitAll();
+              // Solo el GET: ver `PORTADAS_PUBLICAS`. Sirve bytes, no JSON.
+              auth.requestMatchers(HttpMethod.GET, PORTADAS_PUBLICAS).permitAll();
               if (documentacionPublica) {
                 auth.requestMatchers(RUTAS_DOCUMENTACION).permitAll();
               }

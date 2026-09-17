@@ -4,6 +4,8 @@ import com.factech.nexus.modules.products.application.ListProductsRequest;
 import com.factech.nexus.modules.products.application.ProductItem;
 import com.factech.nexus.modules.products.application.ProductPageResponse;
 import com.factech.nexus.modules.products.application.ProductSortField;
+import com.factech.nexus.modules.products.domain.models.ProductImplementation;
+import com.factech.nexus.modules.products.domain.models.ProductScope;
 import com.factech.nexus.modules.products.domain.models.ProductStatus;
 import com.factech.nexus.modules.products.domain.models.ProductType;
 import com.factech.nexus.modules.products.domain.repository.ProductQueryRepository;
@@ -38,9 +40,15 @@ public class ListProductsService {
   private final ProductQueryRepository consultas;
   private final Pagination paginacion;
 
-  public ListProductsService(ProductQueryRepository consultas, Pagination paginacion) {
+  private final ProductExchangeResolver conversiones;
+
+  public ListProductsService(
+      ProductQueryRepository consultas,
+      Pagination paginacion,
+      ProductExchangeResolver conversiones) {
     this.consultas = consultas;
     this.paginacion = paginacion;
+    this.conversiones = conversiones;
   }
 
   @Transactional(readOnly = true)
@@ -52,6 +60,20 @@ public class ListProductsService {
     String tipo = canonico(filtros.type(), ProductType.values(), "type", "VAL-002", problemas);
     String estado =
         canonico(filtros.status(), ProductStatus.values(), "status", "VAL-003", problemas);
+    // Los dos nuevos reutilizan EL MISMO ayudante que el tipo y el estado, y
+    // eso es media decisión: se admiten en cualquier caja y se NORMALIZAN a su
+    // forma canónica. Validar sin normalizar dejaría pasar `scope=tienda`, que
+    // después no coincide con ninguna fila — y el actor recibiría `200` con la
+    // colección vacía en vez de sus productos.
+    String alcance =
+        canonico(filtros.scope(), ProductScope.values(), "scope", "VAL-006", problemas);
+    String implementacion =
+        canonico(
+            filtros.implementation(),
+            ProductImplementation.values(),
+            "implementation",
+            "VAL-007",
+            problemas);
 
     // Los cuatro `400` se devuelven JUNTOS (`CA-PM-020`): quien se equivocó en
     // cuatro parámetros no tiene que corregir la dirección cuatro veces.
@@ -71,6 +93,8 @@ public class ListProductsService {
             filtros.sort(),
             tipo,
             estado,
+            alcance,
+            implementacion,
             filtros.sourceMembershipId(),
             filtros.targetMembershipId(),
             filtros.search(),
@@ -79,9 +103,19 @@ public class ListProductsService {
     List<ProductQueryRepository.ProductRow> filas =
         consultas.search(canonicos, orden.sql(), trozo.offset(), trozo.size());
 
+    // La conversión de TODA la página en dos consultas —la moneda de casa y
+    // las tasas de las monedas presentes—, y no dos por fila. El cuerpo sería
+    // idéntico con cuarenta, de modo que esto solo se ve contando sentencias
+    // (`CA-PM-165`).
+    ProductExchangeResolver.Conversor conversor =
+        conversiones.para(
+            filas.stream().map(ProductQueryRepository.ProductRow::currencyId).toList());
+
     return ProductPageResponse.de(
         PageResponse.de(
-            filas.stream().map(ProductItem::from).toList(),
+            filas.stream()
+                .map(fila -> ProductItem.from(fila, conversor.de(fila.currencyId(), fila.price())))
+                .toList(),
             consultas.count(canonicos),
             trozo.page(),
             trozo.size()),

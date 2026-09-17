@@ -4,12 +4,12 @@ import com.factech.nexus.modules.system.roles.application.AuthenticatedActor;
 import com.factech.nexus.modules.system.users.application.AssignRolesRequest;
 import com.factech.nexus.modules.system.users.application.UserResponse;
 import com.factech.nexus.modules.system.users.domain.models.User;
+import com.factech.nexus.modules.system.users.domain.repository.AssignableCountry;
+import com.factech.nexus.modules.system.users.domain.repository.AssignableDocumentType;
 import com.factech.nexus.modules.system.users.domain.repository.AssignableRole;
-import com.factech.nexus.modules.system.users.domain.repository.MembershipCatalog;
 import com.factech.nexus.modules.system.users.domain.repository.RoleCatalog;
 import com.factech.nexus.modules.system.users.domain.repository.UserRepository;
 import com.factech.nexus.modules.system.users.domain.security.CommercialStructure;
-import com.factech.nexus.modules.system.users.domain.security.ConsumerStatus;
 import com.factech.nexus.modules.system.users.domain.security.PrivilegeContainment;
 import com.factech.nexus.modules.system.users.domain.security.RoleAssignment;
 import com.factech.nexus.shared.audit.AuditEnums.ChangeAction;
@@ -74,7 +74,9 @@ public class AssignUserRolesService {
 
   private final UserRepository usuarios;
   private final RoleCatalog roles;
-  private final MembershipCatalog membresias;
+  private final AssignableCountry paises;
+  private final AssignableDocumentType documentos;
+
   private final CommercialStructure estructura;
   private final AuthenticatedActor actor;
   private final AuditWriter auditoria;
@@ -85,26 +87,30 @@ public class AssignUserRolesService {
   public AssignUserRolesService(
       UserRepository usuarios,
       RoleCatalog roles,
-      MembershipCatalog membresias,
       CommercialStructure estructura,
       AuthenticatedActor actor,
       AuditWriter auditoria,
-      UuidV7Generator ids) {
-    this(usuarios, roles, membresias, estructura, actor, auditoria, ids, Clock.systemUTC());
+      UuidV7Generator ids,
+      AssignableCountry paises,
+      AssignableDocumentType documentos) {
+    this(usuarios, roles, estructura, actor, auditoria, ids, paises, documentos, Clock.systemUTC());
   }
 
   AssignUserRolesService(
       UserRepository usuarios,
       RoleCatalog roles,
-      MembershipCatalog membresias,
       CommercialStructure estructura,
       AuthenticatedActor actor,
       AuditWriter auditoria,
       UuidV7Generator ids,
+      AssignableCountry paises,
+      AssignableDocumentType documentos,
       Clock reloj) {
     this.usuarios = usuarios;
     this.roles = roles;
-    this.membresias = membresias;
+    this.paises = paises;
+    this.documentos = documentos;
+
     this.estructura = estructura;
     this.actor = actor;
     this.auditoria = auditoria;
@@ -152,11 +158,18 @@ public class AssignUserRolesService {
     resultantes.removeAll(vendedoresSalientes);
     List<AssignableRole> catalogoResultante = roles.findAllById(resultantes);
 
-    // 5. `RN-SP-018` — consumidor ⟺ membresía, condicional en los dos sentidos.
-    boolean membresiaNueva =
-        verificarMembresia(userId, catalogoPrevio, catalogoResultante, peticion);
+    // 5. ESTA OPERACIÓN YA NO TOCA LA MEMBRESÍA (05-09-2026). `RN-SP-018`
+    //    reescrita: cuando llega esta petición la persona YA TIENE NIVEL, desde
+    //    el alta. Los dos campos que lo permitían salieron del cuerpo, y con
+    //    ellos las comprobaciones de `RN-SP-018` y de `RN-SP-013`, retirada.
+    //
+    //    LA NUMERACIÓN DE LOS PASOS NO SE RECOLOCA: `spec.md` y `plan.md` los
+    //    citan por número, y correrlos haría mentir a dos documentos aprobados
+    //    para ganar un hueco.
 
-    // 6 y 7. `RN-SP-019` y `RN-SP-020`.
+    // 6 y 7. `RN-SP-019` y `RN-SP-020`. ESTE PAR SÍ SIGUE EN PIE: lo que se
+    //        soltó fue la atadura entre consumidor y nivel, no la de vendedor y
+    //        superior.
     UUID superiorNuevo =
         verificarSuperior(userId, catalogoPrevio, catalogoResultante, peticion.supervisorId());
 
@@ -171,26 +184,16 @@ public class AssignUserRolesService {
     if (!nuevos.isEmpty()) {
       usuarios.addRoles(userId, nuevos);
     }
-    if (membresiaNueva) {
-      usuarios.assignMembership(
-          userId, peticion.membershipId(), peticion.membershipEndsAt(), ahora);
-    }
     if (superiorNuevo != null) {
       usuarios.assignSupervisor(ids.next(), userId, superiorNuevo, ahora);
     }
 
-    if (!nuevos.isEmpty() || membresiaNueva || superiorNuevo != null) {
+    if (!nuevos.isEmpty() || superiorNuevo != null) {
       auditar(
-          usuario,
-          catalogoResultante,
-          catalogoPrevio,
-          nuevos,
-          vendedoresSalientes,
-          membresiaNueva ? peticion.membershipId() : null,
-          superiorNuevo);
+          usuario, catalogoResultante, catalogoPrevio, nuevos, vendedoresSalientes, superiorNuevo);
     }
 
-    return UserResponses.de(usuario, catalogoResultante, usuarios, userId);
+    return UserResponses.de(usuario, catalogoResultante, usuarios, paises, documentos, userId);
   }
 
   // ---------------------------------------------------------------------------
@@ -259,68 +262,6 @@ public class AssignUserRolesService {
       throw new BusinessRuleException(
           "RN-SEG-010", "No puede conceder roles que exceden sus propios permisos.", detalle);
     }
-  }
-
-  /**
-   * `RN-SP-018` → {@code 422}, evaluada sobre el <b>estado resultante</b>.
-   *
-   * <p>La pregunta no es «¿se está concediendo un rol de consumidor?» sino «¿termina siendo
-   * consumidor y sin membresía?». La diferencia se ve al conceder un segundo rol de consumidor a
-   * quien ya tiene membresía: exigirla otra vez sería absurdo, e ignorarlo sin más dejaría pasar el
-   * caso en que sí falta.
-   *
-   * @return si hay que escribir la membresía indicada
-   */
-  private boolean verificarMembresia(
-      UUID userId,
-      List<AssignableRole> antes,
-      List<AssignableRole> despues,
-      AssignRolesRequest peticion) {
-
-    boolean seraConsumidor = ConsumerStatus.esConsumidor(despues);
-    boolean yaTieneMembresia = usuarios.findMembership(userId).isPresent();
-    UUID indicada = peticion.membershipId();
-
-    if (peticion.membershipEndsAt() != null && indicada == null) {
-      throw noProcesable(
-          "EX-006", "membershipEndsAt", "La vigencia solo se admite acompañando a una membresía.");
-    }
-
-    if (!seraConsumidor) {
-      if (indicada != null) {
-        throw noProcesable(
-            "EX-006",
-            "membershipId",
-            "No se puede asignar una membresía a quien no portará ningún rol de consumidor.");
-      }
-      return false;
-    }
-
-    if (yaTieneMembresia) {
-      // Ya es consumidor con membresía. Cambiarla es `RF-SP-032`, no esta
-      // operación: admitirlo aquí sería una edición encubierta y sin su permiso.
-      if (indicada != null) {
-        throw noProcesable(
-            "EX-006",
-            "membershipId",
-            "La persona ya tiene membresía. Para cambiarla use la operación de membresía.");
-      }
-      return false;
-    }
-
-    boolean eraConsumidor = ConsumerStatus.esConsumidor(antes);
-    if (indicada == null) {
-      throw noProcesable(
-          "RN-SP-018",
-          "membershipId",
-          eraConsumidor
-              ? "La persona es consumidor y no tiene membresía: indíquela en esta misma operación."
-              : "Todo consumidor debe tener membresía: indíquela en esta misma operación.");
-    }
-    if (membresias.find(indicada).isEmpty()) {
-      throw noProcesable("EX-006", "membershipId", "La membresía indicada no existe.");
-    }
-    return true;
   }
 
   /**
@@ -483,7 +424,6 @@ public class AssignUserRolesService {
       List<AssignableRole> previos,
       Set<UUID> agregados,
       Set<UUID> retirados,
-      UUID membresia,
       UUID superior) {
 
     if (!agregados.isEmpty()) {
@@ -513,16 +453,6 @@ public class AssignUserRolesService {
       cambio.put("roles", codigos(resultantes));
       auditoria.recordChange(
           new ChangeEvent(MODULO, "user_roles", usuario.getId(), ChangeAction.UPDATE, cambio));
-    }
-
-    if (membresia != null) {
-      auditoria.recordChange(
-          new ChangeEvent(
-              MODULO,
-              "user_memberships",
-              usuario.getId(),
-              ChangeAction.CREATE,
-              Map.of("membership_id", membresia.toString())));
     }
 
     if (superior != null) {

@@ -5,8 +5,9 @@
 | Requerimiento | `RF-MV-002` |
 | Especificación | [`spec.md`](spec.md) |
 | `spec.md` aprobada el | 02-09-2026 |
-| Versión | 0.1.0 |
+| Versión | 0.2.0 |
 | Estado | **Aprobado** |
+| Enmendado el | 16-09-2026 — `clientId` pasa a llamarse `userId` en `RF-MV-001` y el vendedor vive en la línea; este plan no cambia de forma |
 | Autor | Responsable técnico |
 | Aprobado por | Responsable del proyecto |
 | Fecha de aprobación | 02-09-2026 |
@@ -67,7 +68,7 @@ Un campo opcional obligaría a cada consumidor a preguntarse **por qué** falta 
 | `409` | Las mismas ocho de `RF-MV-001`, con `EX-002` redactada en primera persona |
 | `422` | `EX-011` y el método inexistente. **`EX-001` no existe**: el actor existe por definición |
 
-!!! warning "Un cliente que envíe `clientId` no recibe un error: recibe una venta a su propio nombre"
+!!! warning "Un cliente que envíe `userId` no recibe un error: recibe una venta a su propio nombre"
 
     El campo no está en el contrato, de modo que llega y se ignora. **Es lo correcto y conviene que esté escrito**, porque la alternativa —rechazar la petición por traer un campo de más— convertiría un cliente desactualizado en un cliente roto.
 
@@ -81,7 +82,7 @@ Un campo opcional obligaría a cada consumidor a preguntarse **por qué** falta 
 
 ## 6. Auditoría
 
-La misma de `RF-MV-001`, **con el vendedor dentro**. El actor de la auditoría es el propio cliente, que aquí es también quien teclea: es el único caso del módulo en que las dos personas coinciden.
+La misma de `RF-MV-001`, **con el vendedor dentro de cada línea**. El actor de la auditoría es el propio cliente, que aquí es también quien teclea: es el único caso del módulo en que las dos personas coinciden.
 
 ## 7. Transaccionalidad
 
@@ -100,7 +101,7 @@ La de `RF-MV-001`. Sin cambios.
 | **Un solo endpoint** con el cliente opcional, que si falta es el actor | Un mismo camino con dos modelos de seguridad. Quien tenga `movements:create` podría comprar a nombre de otro **por el endpoint de comprar para uno mismo**, y quien no lo tenga vería el mismo recurso comportarse distinto |
 | **Duplicar el caso de uso** | Nueve verificaciones por duplicado, y la copia atrasada no falla: sigue vendiendo sin comprobar algo |
 | Devolver el vendedor **como campo nulo** | Deja abierta la pregunta de por qué falta. Ver §3.2 |
-| Rechazar la petición si trae `clientId` | Convierte un cliente desactualizado en un cliente roto, sin ganar nada: el campo ya se ignora |
+| Rechazar la petición si trae `userId` | Convierte un cliente desactualizado en un cliente roto, sin ganar nada: el campo ya se ignora |
 | Exigir el rol `CONSUMIDOR` | Comprobación redundante con la oferta y **más frágil**: el día que un funcionario tenga membresía, la comprobación de rol le impediría comprar lo que el catálogo le ofrece |
 | Admitir la fecha del hecho, como en `RF-MV-001` | Dejaría que quien compra elija el día de su venta — y con él, el periodo en que se comisiona (`spec.md` §4.2) |
 
@@ -108,7 +109,7 @@ La de `RF-MV-001`. Sin cambios.
 
 | # | Riesgo | Mitigación |
 |---|---|---|
-| 1 | **El cliente se lea del cuerpo en lugar del actor** | Es el fallo grave de este requerimiento: permitiría comprar a nombre de otro. Lo cubre `CA-MV-021`, que envía un `clientId` ajeno y comprueba que la venta queda **a nombre de quien pidió** |
+| 1 | **El cliente se lea del cuerpo en lugar del actor** | Es el fallo grave de este requerimiento: permitiría comprar a nombre de otro. Lo cubre `CA-MV-021`, que envía un `userId` ajeno y comprueba que la venta queda **a nombre de quien pidió** |
 | 2 | Que las dos puertas **diverjan** con el tiempo | `CA-MV-026` compara las dos ventas creadas y exige que sean indistinguibles. Es la prueba que fallaría el día que alguien añada una rama a una sola de las dos |
 | 3 | Una cuenta en `FTD_PENDIENTE` **pueda comprar** | Es el rechazo más frecuente de esta operación (`spec.md` §5). Lo cubre `CA-MV-023`, y el mensaje tiene que decirle qué le falta |
 
@@ -118,7 +119,7 @@ La de `RF-MV-001`. Sin cambios.
 |---|---|---|
 | Compra sin permisos | Integración | `CA-MV-019`: un actor **sin ningún permiso** obtiene `201` |
 | Atribución invisible | Integración | `CA-MV-020`: la auditoría lleva el vendedor y **la respuesta no** |
-| **`clientId` ajeno en el cuerpo** | Integración | `CA-MV-021`: la venta queda a nombre del actor — riesgo 1 |
+| **`userId` ajeno en el cuerpo** | Integración | `CA-MV-021`: la venta queda a nombre del actor — riesgo 1 |
 | Sin fecha del hecho | Integración | `CA-MV-022` |
 | Cuenta retenida | Integración | `CA-MV-023` |
 | Oferta y nivel | Integración | `CA-MV-024` |

@@ -68,6 +68,26 @@ class DevelopmentSeedIT extends IntegrationTestBase {
           "manager3");
 
   /** Cuántas de las diecinueve había ANTES de que esta clase tocara nada. */
+  /** Los dieciséis códigos de `semilla-productos.sql`, en el mismo orden que el guion. */
+  private static final List<String> PRODUCTOS =
+      List.of(
+          "UPGRADE_BECA_VIP",
+          "UPGRADE_BECA_PLATINO",
+          "UPGRADE_BECA_ORO",
+          "UPGRADE_VIP_PLATINO",
+          "UPGRADE_VIP_ORO",
+          "UPGRADE_PLATINO_ORO",
+          "RENOVAR_BECA",
+          "RENOVAR_VIP",
+          "RENOVAR_PLATINO",
+          "RENOVAR_ORO",
+          "UPGRADE_BECA_VIP_ANUAL",
+          "BOT_SENALES",
+          "BOT_COPY_TRADING",
+          "BOT_ALERTAS",
+          "BOT_PRO_ANUAL",
+          "BOT_LEGADO");
+
   private static int alArrancar = -1;
 
   @Autowired private JdbcTemplate jdbc;
@@ -83,11 +103,23 @@ class DevelopmentSeedIT extends IntegrationTestBase {
 
   @BeforeEach
   void reponerElCatalogoDeMembresias() {
-    // Otras clases de la suite hacen `DELETE FROM memberships WHERE level > 0`,
-    // y sin las membresías la parte de asignación de la semilla no tendría a
-    // qué apuntar. Se reponen por identificador literal —los de `V46`— para que
-    // esta clase no dependa del orden de ejecución. El orden de la cadena es el que
-    // dejó `V47`: ORO arriba y FREE abajo.
+    // Otras clases de la suite vacían `memberships`, y sin ellas la parte de
+    // asignación de la semilla no tendría a qué apuntar. Se reponen por
+    // identificador literal —los de `V46`— para que esta clase no dependa del
+    // orden de ejecución. El orden de la cadena es el que dejó `V47`: ORO arriba
+    // y BECA abajo.
+    //
+    // SE VACÍA PRIMERO, y desde el 05-09-2026 hace falta: quien haya corrido
+    // antes pudo dejar a BECA SOLA Y SIN PADRE —así la repone `reponerElSuelo`,
+    // porque `RN-SP-018` exige que exista—, y entonces el ORO de aquí abajo, que
+    // también va sin padre, chocaría con `uq_memberships_parent`. Un `ON CONFLICT
+    // (id)` no lo ve: el choque no es de identificador.
+    // Y ANTES QUE LAS MEMBRESÍAS, los productos sembrados: los upgrades las
+    // referencian por clave foránea, y sin esto el DELETE de abajo fallaría.
+    // Se vuelven a sembrar en la prueba que los mira, ya con la cadena entera.
+    borrarLosProductos(jdbc);
+    jdbc.update("DELETE FROM user_memberships");
+    jdbc.update("DELETE FROM memberships");
     jdbc.update(
         """
         INSERT INTO memberships (id, code, name, description, parent_membership_id, level, color)
@@ -98,7 +130,7 @@ class DevelopmentSeedIT extends IntegrationTestBase {
            '01a04ad0-e800-7004-9c4f-5e7ad7000004', 2, 'B0BEC5'),
           ('01a04ad0-e800-7002-9c4f-5e7ad7000002', 'VIP', 'VIP', 'Primer nivel de pago.',
            '01a04ad0-e800-7003-9c4f-5e7ad7000003', 3, '7E57C2'),
-          ('01a04ad0-e800-7001-9c4f-5e7ad7000001', 'FREE', 'Free', 'Nivel de entrada.',
+          ('01a04ad0-e800-7001-9c4f-5e7ad7000001', 'BECA', 'Free', 'Nivel de entrada.',
            '01a04ad0-e800-7002-9c4f-5e7ad7000002', 4, '9E9E9E')
         ON CONFLICT (id) DO NOTHING
         """);
@@ -106,6 +138,7 @@ class DevelopmentSeedIT extends IntegrationTestBase {
 
   @AfterAll
   static void devolverLaBaseASuSitio(@Autowired JdbcTemplate jdbc) {
+    borrarLosProductos(jdbc);
     borrarLasDiecinueve(jdbc);
   }
 
@@ -177,7 +210,7 @@ class DevelopmentSeedIT extends IntegrationTestBase {
 
     // Con los tres en el mismo nivel, la mitad de `RF-PM-007` —qué upgrades se
     // pueden ofrecer por encima del nivel vigente— quedaría sin ejercitar.
-    assertThat(niveles).containsExactly("FREE", "VIP", "PLATINO");
+    assertThat(niveles).containsExactly("BECA", "VIP", "PLATINO");
   }
 
   @Test
@@ -196,6 +229,86 @@ class DevelopmentSeedIT extends IntegrationTestBase {
     // No es un detalle de comodidad: es exactamente lo que hace que este guion
     // no pueda llegar a producción. Un alta real por la API nace retenida.
     assertThat(retenidas).isZero();
+  }
+
+  @Test
+  @DisplayName("el catálogo de prueba: once upgrades con sus dos membresías resueltas y cinco bots")
+  void elCatalogoDeProductos() {
+    // La cadena entera acaba de reponerse en `@BeforeEach`, de modo que los
+    // once upgrades encuentran sus dos membresías por CÓDIGO.
+    semilla.run(null);
+
+    assertThat(cuantosProductos(jdbc)).isEqualTo(16);
+
+    List<java.util.Map<String, Object>> upgrades =
+        jdbc.queryForList(
+            """
+            SELECT p.code, o.code AS origen, d.code AS destino, p.status, p.price
+              FROM products p
+              JOIN memberships o ON o.id = p.source_membership_id
+              JOIN memberships d ON d.id = p.target_membership_id
+             WHERE p.type = 'UPGRADE_MEMBRESIA' AND p.code = ANY (?)
+            """,
+            (Object) PRODUCTOS.toArray(String[]::new));
+    assertThat(upgrades).hasSize(11);
+
+    // Un upgrade declarado DESDE cada membresía: es lo que hace que los tres
+    // clientes escalonados vean ofertas distintas (`RN-PM-011`).
+    assertThat(upgrades.stream().map(u -> u.get("origen")).distinct())
+        .containsExactlyInAnyOrder("BECA", "VIP", "PLATINO", "ORO");
+
+    // Las cuatro renovaciones, y la de BECA es el producto GRATUITO.
+    assertThat(upgrades.stream().filter(u -> u.get("origen").equals(u.get("destino"))).count())
+        .isEqualTo(4);
+    assertThat(
+            jdbc.queryForObject(
+                "SELECT price FROM products WHERE code = 'RENOVAR_BECA'",
+                java.math.BigDecimal.class))
+        .isEqualByComparingTo("0");
+
+    // Los bots no llevan membresía (`RN-PM-002`), y uno declara su precio de compra.
+    assertThat(
+            jdbc.queryForObject(
+                "SELECT count(*) FROM products WHERE type = 'BOT' AND code = ANY (?)"
+                    + " AND source_membership_id IS NULL AND target_membership_id IS NULL",
+                Integer.class,
+                (Object) PRODUCTOS.toArray(String[]::new)))
+        .isEqualTo(5);
+    assertThat(
+            jdbc.queryForObject(
+                "SELECT purchase_price FROM products WHERE code = 'BOT_PRO_ANUAL'",
+                java.math.BigDecimal.class))
+        .isEqualByComparingTo("250");
+
+    // El inactivo comparte par con un activo —el índice único es parcial— y el
+    // retirado tiene su marca: son lo que el catálogo administrativo lista y la
+    // oferta no.
+    assertThat(
+            jdbc.queryForObject(
+                "SELECT status FROM products WHERE code = 'UPGRADE_BECA_VIP_ANUAL'", String.class))
+        .isEqualTo("INACTIVO");
+    assertThat(
+            jdbc.queryForObject(
+                "SELECT deleted_at IS NOT NULL FROM products WHERE code = 'BOT_LEGADO'",
+                Boolean.class))
+        .isTrue();
+
+    // Todos los activos llevan descripción, que es lo que `RN-PM-014` exige.
+    assertThat(
+            jdbc.queryForObject(
+                "SELECT count(*) FROM products WHERE status = 'ACTIVO' AND code = ANY (?)"
+                    + " AND (description IS NULL OR btrim(description) = '')",
+                Integer.class,
+                (Object) PRODUCTOS.toArray(String[]::new)))
+        .isZero();
+  }
+
+  @Test
+  @DisplayName("el catálogo también es IDEMPOTENTE: dos arranques, dieciséis productos")
+  void elCatalogoEsIdempotente() {
+    semilla.run(null);
+    semilla.run(null);
+    assertThat(cuantosProductos(jdbc)).isEqualTo(16);
   }
 
   @Test
@@ -221,7 +334,7 @@ class DevelopmentSeedIT extends IntegrationTestBase {
   }
 
   @Test
-  @DisplayName("cada director tiene TRES personas a cargo, y el manager es la cúspide")
+  @DisplayName("cada director tiene TRES a cargo, y el árbol llega hasta el superadministrador")
   void estructuraComercial() {
     borrarLasDiecinueve(jdbc);
     semilla.run(null);
@@ -243,13 +356,19 @@ class DevelopmentSeedIT extends IntegrationTestBase {
             """,
             Integer.class, (Object) usuarios);
 
-    // Tres directores, y TRES a cargo cada uno. Un equipo de uno no distingue
-    // «el equipo de alguien» de «alguien».
-    assertThat(aCargoPorDirector).hasSize(3).containsOnly(3);
+    // Tres directores. `director1` tiene CUATRO a cargo desde el 04-09-2026
+    // —sus tres agentes más `cliente2`— y los otros dos siguen con tres. Un
+    // equipo de uno no distingue «el equipo de alguien» de «alguien», y un
+    // equipo de un solo tipo no distingue «el equipo» de «la cartera».
+    assertThat(aCargoPorDirector).containsExactlyInAnyOrder(4, 3, 3);
 
-    // `RN-SP-020`: el superior porta el rol PADRE INMEDIATO del subordinado. Un
-    // agente colgado de un manager pasaría el recuento de arriba y sería
-    // igualmente inválido, así que se comprueba la forma y no solo el número.
+    // `RN-SP-020` TIENE DOS RAMAS, y esta comprobación las separa. Entre
+    // vendedores el superior porta el rol PADRE INMEDIATO —un agente colgado de
+    // un manager pasaría el recuento de arriba y sería igualmente inválido—;
+    // con un CONSUMIDOR basta que el superior porte ALGÚN rol `VENDEDOR`, sin
+    // parentesco, porque un cliente no tiene rol vendedor del que derivar un
+    // padre. Por eso las tres parejas de cliente son válidas y las de agente no
+    // lo serían.
     List<String> parejas =
         jdbc.queryForList(
             """
@@ -265,22 +384,70 @@ class DevelopmentSeedIT extends IntegrationTestBase {
             """,
             String.class);
 
-    assertThat(parejas).containsExactly("AGENTE -> DIRECTOR", "DIRECTOR -> MANAGER");
+    // En orden alfabético, que es el que la consulta pide.
+    assertThat(parejas)
+        .containsExactly(
+            // La rama de FUNCIONARIOS, desde el 10-09-2026. Ninguna regla la
+            // exige y `RF-SP-041` no sabría producirla: ver más abajo.
+            "ADMIN -> SUPERADMIN",
+            // La estructura entre vendedores, que sigue siendo estricta.
+            "AGENTE -> DIRECTOR",
+            // Y la cartera, a TRES PROFUNDIDADES distintas: es lo que hace
+            // observable en desarrollo el caso que obliga a decidir a qué
+            // tarifa cobra quien tiene al cliente cuando no es un agente.
+            "CLIENTE -> AGENTE",
+            "CLIENTE -> DIRECTOR",
+            "CLIENTE -> MANAGER",
+            "DIRECTOR -> MANAGER",
+            "MANAGER -> ADMIN");
 
-    // Y los MANAGER no declaran ninguno: su rol padre es `ADMIN`, que no es
-    // vendedor, de modo que `RN-SP-019` los exceptúa por ser la cúspide de la
-    // fuerza comercial. Darles superior habría poblado la tabla con filas que
-    // ninguna regla admite.
-    Integer managersConSuperior =
+    // LOS MANAGER YA NO SON LA CÚSPIDE de los datos de prueba, y hasta el
+    // 10-09-2026 esta prueba exigía justamente lo contrario: cero managers con
+    // superior. Se invirtió por decisión del responsable del proyecto, para que
+    // la semilla deje ver la estructura COMPLETA en local.
+    //
+    // LO QUE SE SIEMBRA AQUÍ `RF-SP-041` LO RECHAZARÍA: `409 VAL-004` para el
+    // manager —`RN-SP-019` lo exceptúa por ser la cúspide de la fuerza
+    // comercial, ya que su rol padre `ADMIN` no es `VENDEDOR`— y `409 VAL-003`
+    // para el administrador, que no pertenece a la fuerza comercial y no tiene
+    // superior que asignar. Es DEUDA DECLARADA en la cabecera del guion, y esta
+    // prueba es el sitio donde se ve: si algún día `RN-SP-019` y `RN-SP-020` se
+    // enmiendan para cubrir a los funcionarios, esto deja de ser deuda sin que
+    // haga falta cambiar ni una línea de aquí.
+    List<String> ramaDeFuncionarios =
+        jdbc.queryForList(
+            """
+            SELECT sub.username || ' -> ' || sup.username
+              FROM user_supervisors us
+              JOIN users sub ON sub.id = us.user_id
+              JOIN users sup ON sup.id = us.supervisor_id
+             WHERE us.ended_at IS NULL
+               AND (sub.username LIKE 'manager%' OR sub.username = 'admin1')
+             ORDER BY 1
+            """,
+            String.class);
+
+    assertThat(ramaDeFuncionarios)
+        .containsExactly(
+            "admin1 -> superadmin",
+            "manager1 -> admin1",
+            "manager2 -> admin1",
+            "manager3 -> admin1");
+
+    // Y LA CÚSPIDE PASA A SER UNA SOLA. Importa porque `RF-SP-042` publica ese
+    // hecho OMITIENDO `supervisor` (`CA-SP-445`), y la ausencia significa «no
+    // depende de nadie» y nada más: el caso sigue siendo observable en
+    // desarrollo, pero ahora hay una raíz y no cuatro.
+    Integer superadminConSuperior =
         jdbc.queryForObject(
             """
             SELECT count(*) FROM user_supervisors us
               JOIN users u ON u.id = us.user_id
-             WHERE us.ended_at IS NULL AND u.username LIKE 'manager%'
+             WHERE us.ended_at IS NULL AND u.username = 'superadmin'
             """,
             Integer.class);
 
-    assertThat(managersConSuperior).isZero();
+    assertThat(superadminConSuperior).isZero();
   }
 
   private static int cuantasDeLasDiecinueve(JdbcTemplate jdbc) {
@@ -290,6 +457,20 @@ class DevelopmentSeedIT extends IntegrationTestBase {
             Integer.class,
             (Object) USUARIOS.toArray(String[]::new));
     return total == null ? 0 : total;
+  }
+
+  private static int cuantosProductos(JdbcTemplate jdbc) {
+    Integer filas =
+        jdbc.queryForObject(
+            "SELECT count(*) FROM products WHERE code = ANY (?)",
+            Integer.class,
+            (Object) PRODUCTOS.toArray(String[]::new));
+    return filas == null ? 0 : filas;
+  }
+
+  private static void borrarLosProductos(JdbcTemplate jdbc) {
+    jdbc.update(
+        "DELETE FROM products WHERE code = ANY (?)", (Object) PRODUCTOS.toArray(String[]::new));
   }
 
   private static void borrarLasDiecinueve(JdbcTemplate jdbc) {

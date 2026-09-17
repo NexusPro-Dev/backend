@@ -61,7 +61,7 @@ class ProductDetailIT extends IntegrationTestBase {
     // El SUELO de la cadena: es el origen de todo upgrade que se siembre
     // aqui. Va encadenado bajo `oro` porque `uq_memberships_parent` es
     // UNIQUE NULLS NOT DISTINCT — dos raices revientan en el COMMIT.
-    free = membresia("FREE", "Free", 2, oro);
+    free = membresia("BECA", "Beca", 2, oro);
 
     upgrade = producto("UPGRADE_ORO", "UPGRADE_MEMBRESIA", "Ascenso a Oro", oro, "49.99", 30, USD);
     bot = producto("SOPORTE", "BOT", "Soporte prioritario", null, "99.50", null, USD);
@@ -74,6 +74,10 @@ class ProductDetailIT extends IntegrationTestBase {
     // en ellas y solo con cierto orden de ejecución.
     jdbc.update("DELETE FROM products");
     jdbc.update("DELETE FROM audit_deletion_log WHERE module = 'PM'");
+    // La conversión trajo `exchange_rates` a esta clase (08-09-2026), y va
+    // antes que las monedas: las tasas las referencian.
+    jdbc.update("DELETE FROM exchange_rates");
+    jdbc.update("DELETE FROM currencies WHERE is_default = false");
   }
 
   @Test
@@ -197,6 +201,86 @@ class ProductDetailIT extends IntegrationTestBase {
   }
 
   @Test
+  @DisplayName("`CA-PM-152` — el detalle devuelve los DOS precios, y el de compra nulo y presente")
+  void elDetalleTraeLosDosPrecios() throws Exception {
+    // Sin declararlo, el campo va PRESENTE con nulo: su nulo significa «no se
+    // conoce el costo», y un campo ausente no puede decirlo.
+    mvc.perform(detalle(upgrade))
+        .andExpect(jsonPath("$.price").value(49.99))
+        .andExpect(jsonPath("$.purchasePrice").doesNotExist())
+        .andExpect(content().string(Matchers.containsString("\"purchasePrice\":null")));
+
+    jdbc.update(
+        "UPDATE products SET purchase_price = CAST('59.99' AS numeric) WHERE id = CAST(? AS uuid)",
+        upgrade.toString());
+
+    // Y los dos salen con los decimales de SU moneda, con la misma función:
+    // escrita dos veces, el mismo producto enseñaría uno con dos decimales y
+    // el otro con cuatro.
+    mvc.perform(detalle(upgrade))
+        .andExpect(jsonPath("$.price").value(49.99))
+        .andExpect(jsonPath("$.purchasePrice").value(59.99))
+        .andExpect(content().string(Matchers.containsString("\"purchasePrice\":59.99")));
+  }
+
+  @Test
+  @DisplayName("`CA-PM-224` — el detalle devuelve `videoUrl`, nulo y presente sin él, y retirado")
+  void elDetalleTraeElVideo() throws Exception {
+    mvc.perform(detalle(bot))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.videoUrl").doesNotExist())
+        .andExpect(content().string(Matchers.containsString("\"videoUrl\":null")));
+
+    // Tal cual se guardó: ni minúsculas ni barra final.
+    jdbc.update(
+        "UPDATE products SET video_url = 'https://Vimeo.com/123456/' WHERE id = CAST(? AS uuid)",
+        bot.toString());
+    mvc.perform(detalle(bot))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.videoUrl").value("https://Vimeo.com/123456/"));
+
+    // Y en uno retirado sigue legible, como el resto de su configuración.
+    retirar(bot, "Se descontinúa el servicio.");
+    mvc.perform(detalle(bot))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.deletedAt").exists())
+        .andExpect(jsonPath("$.videoUrl").value("https://Vimeo.com/123456/"));
+  }
+
+  @Test
+  @DisplayName(
+      "`CA-PM-233` — el detalle devuelve `coverImageUrl`, nulo y presente sin ella, y retirado")
+  void elDetalleTraeLaPortada() throws Exception {
+    mvc.perform(detalle(bot))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.coverImageUrl").doesNotExist())
+        .andExpect(content().string(Matchers.containsString("\"coverImageUrl\":null")));
+
+    UUID imagen = UUID.randomUUID();
+    jdbc.update(
+        "INSERT INTO product_images (id, content_type, content) VALUES (CAST(? AS uuid),"
+            + " 'image/png', decode('89504E470D0A1A0A00', 'hex'))",
+        imagen.toString());
+    jdbc.update(
+        "UPDATE products SET cover_image_id = CAST(? AS uuid) WHERE id = CAST(? AS uuid)",
+        imagen.toString(),
+        bot.toString());
+    mvc.perform(detalle(bot))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.coverImageUrl").value("/api/v1/product-images/" + imagen));
+
+    // En uno retirado sigue: la portada es parte de lo que el producto era.
+    retirar(bot, "Se descontinúa el servicio.");
+    mvc.perform(detalle(bot))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.deletedAt").exists())
+        .andExpect(jsonPath("$.coverImageUrl").value("/api/v1/product-images/" + imagen));
+
+    jdbc.update("UPDATE products SET cover_image_id = NULL");
+    jdbc.update("DELETE FROM product_images");
+  }
+
+  @Test
   @DisplayName("el precio de una moneda de CERO decimales llega sin parte decimal")
   void precioEnMonedaSinDecimales() throws Exception {
     String pesos = monedaSinDecimales();
@@ -205,6 +289,38 @@ class ProductDetailIT extends IntegrationTestBase {
     mvc.perform(detalle(conPesos))
         .andExpect(jsonPath("$.currency.decimalPlaces").value(0))
         .andExpect(content().string(Matchers.containsString("\"price\":50")));
+  }
+
+  @Test
+  @DisplayName(
+      "`CA-PM-166` — el detalle trae la conversión, presente y nula si no hay que convertir")
+  void elDetalleTraeLaConversion() throws Exception {
+    // El producto está en la moneda de casa: no hay nada que convertir, y el
+    // campo llega PRESENTE con nulo. Ausente sería indistinguible de uno que el
+    // cliente no conoce.
+    mvc.perform(detalle(upgrade))
+        .andExpect(jsonPath("$.exchange").value(Matchers.nullValue()))
+        .andExpect(content().string(Matchers.containsString("\"exchange\":null")));
+
+    String pesos = monedaSinDecimales();
+    UUID enPesos = producto("BOT_CONV", "BOT", "Con conversión", null, "1000.0000", null, pesos);
+    jdbc.update(
+        "INSERT INTO exchange_rates (id, source_currency_id, target_currency_id, price,"
+            + " valid_from, valid_to, is_active)"
+            + " VALUES (CAST(? AS uuid), CAST(? AS uuid), CAST(? AS uuid), 0.00024096,"
+            + " CAST(? AS date), NULL, true)",
+        UUID.randomUUID().toString(),
+        pesos,
+        USD,
+        java.time.LocalDate.now().minusDays(1).toString());
+
+    mvc.perform(detalle(enPesos))
+        .andExpect(jsonPath("$.exchange.currency.code").value("USD"))
+        // La tasa como CADENA, con sus ocho decimales intactos.
+        .andExpect(jsonPath("$.exchange.rate").value("0.00024096"))
+        // 1000 × 0,00024096 = 0,24096 → 0,24 con los dos decimales de USD, que
+        // es la moneda de DESTINO: los cero decimales del origen no mandan aquí.
+        .andExpect(jsonPath("$.exchange.amount").value(0.24));
   }
 
   @Test
@@ -245,7 +361,46 @@ class ProductDetailIT extends IntegrationTestBase {
         .andExpect(status().isForbidden());
   }
 
+  @Test
+  @DisplayName(
+      "`CA-PM-118` — el detalle devuelve el alcance y la implementación, retirado incluido")
+  void alcanceEImplementacionEnElDetalle() throws Exception {
+    jdbc.update(
+        "UPDATE products SET scope = 'AMBOS', implementation = 'AUTOMATICA' WHERE id = ?", upgrade);
+
+    mvc.perform(detalle(upgrade))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.scope").value("AMBOS"))
+        .andExpect(jsonPath("$.implementation").value("AUTOMATICA"));
+
+    // En el bot también: ninguna de las dos depende del tipo.
+    mvc.perform(detalle(bot))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.scope").value("TIENDA"))
+        .andExpect(jsonPath("$.implementation").value("MANUAL"));
+
+    // Y en uno retirado: el detalle lo devuelve marcado, no como inexistente
+    // (`CA-PM-026`), de modo que su configuración sigue siendo legible.
+    retirar(bot, "Se descontinúa el servicio.");
+    mvc.perform(detalle(bot))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.deletedAt").exists())
+        .andExpect(jsonPath("$.scope").value("TIENDA"))
+        .andExpect(jsonPath("$.implementation").value("MANUAL"));
+  }
+
   // ---------------------------------------------------------------------------
+
+  @Test
+  @DisplayName("`CA-PM-143` — el detalle trae el COLOR de las dos membresías")
+  void elDetalleTraeElColorDeLasMembresias() throws Exception {
+    mvc.perform(detalle(upgrade))
+        .andExpect(status().isOk())
+        .andExpect(
+            jsonPath("$.targetMembership.color").value(Matchers.matchesPattern("^[0-9A-F]{6}$")))
+        .andExpect(
+            jsonPath("$.sourceMembership.color").value(Matchers.matchesPattern("^[0-9A-F]{6}$")));
+  }
 
   private MockHttpServletRequestBuilder detalle(UUID id) {
     return get("/api/v1/products/{id}", id)
@@ -319,10 +474,10 @@ class ProductDetailIT extends IntegrationTestBase {
     // deriva del destino en lugar de ser un parametro mas — nunca puede
     // quedar uno sin el otro, que es lo que `ck_products_type_target` mira.
     jdbc.update(
-        "INSERT INTO products (id, code, type, name, description, source_membership_id,"
+        "INSERT INTO products (scope, implementation, id, code, type, name, description, source_membership_id,"
             + " target_membership_id, price,"
             + " currency_id, validity_days, status, created_at, updated_at)"
-            + " VALUES (CAST(? AS uuid), ?, ?, ?, NULL,"
+            + " VALUES ('TIENDA', 'MANUAL', CAST(? AS uuid), ?, ?, ?, NULL,"
             + " CAST(? AS uuid), CAST(? AS uuid), CAST(? AS numeric),"
             + " CAST(? AS uuid), CAST(? AS integer), 'INACTIVO', ?, ?)",
         id.toString(),

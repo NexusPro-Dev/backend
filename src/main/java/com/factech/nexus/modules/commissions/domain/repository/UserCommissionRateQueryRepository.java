@@ -33,7 +33,12 @@ public interface UserCommissionRateQueryRepository {
    * <p><b>No hay interruptor «solo vigentes»</b>: eso es {@code onDate} con la fecha de hoy. Un
    * interruptor y una fecha podrían contradecirse, y esa contradicción no la detecta nada.
    */
-  record UserRateFilters(UUID userId, LocalDate onDate, boolean includeDeleted) {}
+  /**
+   * @param productId filtra las tasas <b>asociadas</b> a ese producto (12-09-2026). Nulo no filtra.
+   *     Se combina con los demás: persona y producto juntos responden «¿tiene esta persona
+   *     excepción en este producto?», con su historial
+   */
+  record UserRateFilters(UUID userId, UUID productId, LocalDate onDate, boolean includeDeleted) {}
 
   /** Una fila leída, con la persona resuelta en la misma sentencia. */
   record UserRateRow(
@@ -41,6 +46,13 @@ public interface UserCommissionRateQueryRepository {
       UUID userId,
       String username,
       String userFullName,
+      UUID productId,
+      String productCode,
+      String productName,
+      BigDecimal productPrice,
+      UUID currencyId,
+      String currencyCode,
+      int currencyDecimalPlaces,
       CommissionRateType rateType,
       BigDecimal percentage,
       BigDecimal fixedAmount,

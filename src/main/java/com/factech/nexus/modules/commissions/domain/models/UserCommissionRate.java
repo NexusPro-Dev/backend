@@ -21,8 +21,10 @@ import java.util.UUID;
  * La tasa de comisión <b>de una persona</b> (`RF-CM-006`).
  *
  * <p><b>Es una excepción, no un grado más.</b> Quien la tiene <b>gana siempre</b> sobre la de su
- * rol y <b>sin mirar el producto</b> (`RN-CM-004`): gana lo mismo venda lo que venda. Por eso no se
- * asocia a nada (`RN-CM-014`).
+ * rol, <b>sobre su producto</b> (`RN-CM-004`). <b>Desde el 16-09-2026 nace con ese producto</b>
+ * (`RN-CM-021`), como la de rol: una excepción que abarque varios productos son varias tasas. Hasta
+ * el 11-09-2026 no miraba el producto —ganaba lo mismo vendiera lo que vendiera— y del 11-09-2026
+ * al 16-09-2026 se asociaba a productos en una tabla aparte.
  *
  * <p><b>No lleva rol</b>, por decisión del responsable del proyecto: es de la persona y punto. El
  * modelo anterior sí lo exigía, y con ello impedía que una excepción sobreviviera a que su titular
@@ -34,8 +36,8 @@ import java.util.UUID;
  *
  * <p><b>`RN-CM-006` no se comprueba aquí</b>, y no es un olvido: el solapamiento mira a
  * <b>otras</b> filas y el agregado solo conoce la suya. Vive en {@code
- * uq_user_commission_rates_vigente}, en el motor, porque comprobarlo en el caso de uso sería una
- * carrera.
+ * uq_user_commission_rates_vigente}, en el motor —otra vez desde `V10`, sobre persona, producto y
+ * rango—, porque comprobarlo solo en el caso de uso sería una carrera.
  */
 @Entity
 @Table(name = "user_commission_rates")
@@ -55,11 +57,15 @@ public class UserCommissionRate {
    * de cuál de las dos tablas salió</b>. Dos objetos iguales obligarían a la resolución a elegir
    * uno o a inventar un tercero al que convertir los dos.
    *
-   * <p><b>Y aquí un importe fijo pesa más que en el catálogo</b>: esta tasa no se asocia a ningún
-   * producto (`RN-CM-014`), de modo que rige sobre todo lo que su titular venda y se interpreta en
-   * <b>tantas monedas como haya en el catálogo</b>.
+   * <p><b>Y un importe fijo es dinero en la moneda de su producto</b> (`RN-CM-017`): desde el
+   * 16-09-2026 la tasa lo conoce, y el caso de uso lo valida contra sus decimales. Hasta el
+   * 11-09-2026 esta tasa no se asociaba a nada y se interpretaba en tantas monedas como hubiera.
    */
   @Embedded private CommissionValue value;
+
+  /** Nace con la tasa y no se corrige (`RN-CM-021`, 16-09-2026). */
+  @Column(name = "product_id", nullable = false, updatable = false)
+  private UUID productId;
 
   /**
    * Inmutable. Cambiar desde cuándo rige no corrige la tasa: <b>reescribe a quién se le pagó
@@ -92,17 +98,24 @@ public class UserCommissionRate {
   public static UserCommissionRate create(
       UUID id,
       UUID userId,
+      UUID productId,
       CommissionValue value,
       LocalDate validFrom,
       LocalDate validTo,
       OffsetDateTime ahora) {
 
+    if (productId == null) {
+      String mensaje = "El producto de la tasa es obligatorio.";
+      throw new ValidationException(
+          "VAL-013", mensaje, List.of(new FieldError("productId", "VAL-013", mensaje)));
+    }
     verificarValor(value);
     verificarVigencia(validFrom, validTo);
 
     UserCommissionRate tasa = new UserCommissionRate();
     tasa.id = id;
     tasa.userId = userId;
+    tasa.productId = productId;
     tasa.value = value;
     tasa.validFrom = validFrom;
     tasa.validTo = validTo;
@@ -184,6 +197,7 @@ public class UserCommissionRate {
   public Map<String, Object> instantanea() {
     Map<String, Object> estado = new LinkedHashMap<>();
     estado.put("user_id", userId.toString());
+    estado.put("product_id", productId.toString());
     estado.put("rate_type", value.getRateType().name());
     estado.put("value", value.cifra().toPlainString());
     estado.put("valid_from", validFrom.toString());
@@ -209,7 +223,11 @@ public class UserCommissionRate {
    *
    * <p>Un fin <b>igual</b> al inicio se admite: una tasa que rigió un solo día es válida.
    */
-  private static void verificarVigencia(LocalDate desde, LocalDate hasta) {
+  /**
+   * `RN-CM-009`: el inicio es obligatorio y el fin no lo precede. Pública porque el caso de uso la
+   * necesita ANTES de consultar el solapamiento: un rango invertido no se puede ni preguntar.
+   */
+  public static void verificarVigencia(LocalDate desde, LocalDate hasta) {
     if (desde == null) {
       String mensaje = "El inicio de vigencia es obligatorio.";
       throw new ValidationException(
@@ -238,6 +256,10 @@ public class UserCommissionRate {
 
   public UUID getUserId() {
     return userId;
+  }
+
+  public UUID getProductId() {
+    return productId;
   }
 
   public CommissionValue getValue() {

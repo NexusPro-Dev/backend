@@ -4,8 +4,8 @@
 |---|---|
 | Requerimiento | `RF-CM-008` |
 | Plan | [`plan.md`](plan.md), aprobado el 02-09-2026 |
-| Versión | 0.1.0 |
-| Estado | **En revisión** |
+| Versión | 0.2.0 |
+| Estado | **Descartado el 15-09-2026** — las tareas quedan como historia |
 | Autor | Responsable técnico |
 | Aprobadas por | Pendiente |
 | Fecha de aprobación | Pendiente |
@@ -75,3 +75,4 @@ Ninguno.
 - Las catorce tareas `Hecha` con su verificación pasando.
 - `./mvnw clean verify` en verde. **Comprobado el 02-09-2026**: 278 unitarias y 876 de integración.
 - La matriz, `cm.md` y el contrato publicado al día.
+| 0.2.0 | 15-09-2026 | **Descartado** con el requerimiento (`RN-CM-021`); el código se retira en `RF-CM-001` `T-31`. | Responsable técnico |

@@ -1,5 +1,7 @@
 package com.factech.nexus.modules.products.application;
 
+import com.factech.nexus.modules.products.domain.models.ProductImplementation;
+import com.factech.nexus.modules.products.domain.models.ProductScope;
 import com.factech.nexus.shared.patch.Patchable;
 import com.factech.nexus.shared.patch.PatchableDeserializer;
 import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
@@ -14,10 +16,21 @@ import java.util.UUID;
  * dos comportamientos <b>opuestos</b> — la descripción, el icono y la vigencia <b>admiten
  * vaciarse</b>, y el nombre <b>no</b>.
  *
+ * <p><b>Y los dos precios se separan justo en esa distinción</b> (`RN-PM-023`): {@code
+ * purchasePrice} —lo que NEXUS pagó por el producto— <b>admite vaciarse</b> —su nulo es un estado
+ * legítimo de la columna, «no se conoce el costo»—, y {@code price} <b>no</b>, porque es {@code NOT
+ * NULL} y «bórralo» no tiene ningún estado al que llevar el producto. <b>Vaciar el de compra no es
+ * ponerlo a cero</b>: uno dice «no sé cuánto costó» y el otro «no costó nada». Esta operación es
+ * hoy donde se registra lo que costó.
+ *
  * <p><b>El icono se corrige aunque el tipo no</b>: es el aspecto del producto y no lo que otorga,
  * de modo que cambiarlo no reescribe lo comprado. En un producto de tipo bot, en cambio, cualquier
  * valor distinto de nulo se rechaza con `VAL-013` — `RN-PM-016` no admite excepción por venir en un
  * `PATCH`.
+ *
+ * <p><b>El enlace del video se corrige y SÍ admite vaciarse</b> (`RN-PM-032`, 14-09-2026), con nulo
+ * explícito o con cadena vacía, como el icono — y al revés que el icono, <b>en los dos tipos</b>:
+ * no hay condición cruzada que lo acompañe. La forma se comprueba en el dominio con `VAL-009`.
  *
  * <p><b>No se vuelve a intentar con {@code Optional}</b>: falló en `RF-SP-027` y falló en silencio,
  * porque Jackson entrega {@code Optional.empty()} tanto para el campo ausente como para el nulo
@@ -39,9 +52,14 @@ public record UpdateProductRequest(
     @JsonDeserialize(using = PatchableDeserializer.class) Patchable<String> name,
     @JsonDeserialize(using = PatchableDeserializer.class) Patchable<String> description,
     @JsonDeserialize(using = PatchableDeserializer.class) Patchable<String> icon,
+    @JsonDeserialize(using = PatchableDeserializer.class) Patchable<String> videoUrl,
     @JsonDeserialize(using = PatchableDeserializer.class) Patchable<BigDecimal> price,
+    @JsonDeserialize(using = PatchableDeserializer.class) Patchable<BigDecimal> purchasePrice,
     @JsonDeserialize(using = PatchableDeserializer.class) Patchable<UUID> currencyId,
     @JsonDeserialize(using = PatchableDeserializer.class) Patchable<Integer> validityDays,
+    @JsonDeserialize(using = PatchableDeserializer.class) Patchable<ProductScope> scope,
+    @JsonDeserialize(using = PatchableDeserializer.class)
+        Patchable<ProductImplementation> implementation,
     @JsonDeserialize(using = PatchableDeserializer.class) Patchable<Object> type,
     @JsonDeserialize(using = PatchableDeserializer.class) Patchable<Object> code,
     @JsonDeserialize(using = PatchableDeserializer.class) Patchable<Object> targetMembershipId,
@@ -57,9 +75,13 @@ public record UpdateProductRequest(
     name = name == null ? Patchable.ausente() : name;
     description = description == null ? Patchable.ausente() : description;
     icon = icon == null ? Patchable.ausente() : icon;
+    videoUrl = videoUrl == null ? Patchable.ausente() : videoUrl;
     price = price == null ? Patchable.ausente() : price;
+    purchasePrice = purchasePrice == null ? Patchable.ausente() : purchasePrice;
     currencyId = currencyId == null ? Patchable.ausente() : currencyId;
     validityDays = validityDays == null ? Patchable.ausente() : validityDays;
+    scope = scope == null ? Patchable.ausente() : scope;
+    implementation = implementation == null ? Patchable.ausente() : implementation;
     type = type == null ? Patchable.ausente() : type;
     code = code == null ? Patchable.ausente() : code;
     targetMembershipId = targetMembershipId == null ? Patchable.ausente() : targetMembershipId;
@@ -79,8 +101,12 @@ public record UpdateProductRequest(
     return name.presente()
         || description.presente()
         || icon.presente()
+        || videoUrl.presente()
         || price.presente()
+        || purchasePrice.presente()
         || currencyId.presente()
-        || validityDays.presente();
+        || validityDays.presente()
+        || scope.presente()
+        || implementation.presente();
   }
 }

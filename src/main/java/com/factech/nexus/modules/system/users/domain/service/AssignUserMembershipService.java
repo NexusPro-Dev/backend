@@ -4,18 +4,16 @@ import com.factech.nexus.modules.system.users.application.AssignMembershipReques
 import com.factech.nexus.modules.system.users.application.UserMembershipResponse;
 import com.factech.nexus.modules.system.users.domain.models.User;
 import com.factech.nexus.modules.system.users.domain.repository.MembershipCatalog;
-import com.factech.nexus.modules.system.users.domain.repository.RoleCatalog;
 import com.factech.nexus.modules.system.users.domain.repository.UserMembership;
 import com.factech.nexus.modules.system.users.domain.repository.UserRepository;
-import com.factech.nexus.modules.system.users.domain.security.ConsumerStatus;
 import com.factech.nexus.shared.audit.AuditEnums.ChangeAction;
 import com.factech.nexus.shared.audit.AuditEvents.ChangeEvent;
 import com.factech.nexus.shared.audit.AuditWriter;
-import com.factech.nexus.shared.error.BusinessRuleException;
 import com.factech.nexus.shared.error.FieldError;
 import com.factech.nexus.shared.error.ResourceNotFoundException;
 import com.factech.nexus.shared.error.UnprocessableEntityException;
 import com.factech.nexus.shared.error.ValidationException;
+import com.factech.nexus.shared.persistence.UuidV7Generator;
 import java.time.Clock;
 import java.time.OffsetDateTime;
 import java.util.HashMap;
@@ -58,31 +56,33 @@ public class AssignUserMembershipService {
   private static final String ENTIDAD = "user_memberships";
 
   private final UserRepository usuarios;
-  private final RoleCatalog roles;
+
   private final MembershipCatalog membresias;
   private final AuditWriter auditoria;
   private final Clock reloj;
+  private final UuidV7Generator ids;
 
   @Autowired
   public AssignUserMembershipService(
       UserRepository usuarios,
-      RoleCatalog roles,
       MembershipCatalog membresias,
-      AuditWriter auditoria) {
-    this(usuarios, roles, membresias, auditoria, Clock.systemUTC());
+      AuditWriter auditoria,
+      UuidV7Generator ids) {
+    this(usuarios, membresias, auditoria, Clock.systemUTC(), ids);
   }
 
   AssignUserMembershipService(
       UserRepository usuarios,
-      RoleCatalog roles,
       MembershipCatalog membresias,
       AuditWriter auditoria,
-      Clock reloj) {
+      Clock reloj,
+      UuidV7Generator ids) {
     this.usuarios = usuarios;
-    this.roles = roles;
+
     this.membresias = membresias;
     this.auditoria = auditoria;
     this.reloj = reloj;
+    this.ids = ids;
   }
 
   @Transactional
@@ -120,14 +120,11 @@ public class AssignUserMembershipService {
                       List.of(new FieldError("membershipId", "VAL-002", mensaje)));
                 });
 
-    // 4. `EX-001` — `RN-SP-013`.
-    if (!ConsumerStatus.esConsumidor(roles.findAllById(roles.roleIdsOf(userId)))) {
-      String mensaje =
-          "La persona no porta ningún rol de consumidor: asígnele uno primero con la operación de"
-              + " roles, que admite indicar la membresía en la misma petición.";
-      throw new BusinessRuleException(
-          "RN-SP-013", mensaje, List.of(new FieldError("membershipId", "RN-SP-013", mensaje)));
-    }
+    // 4. `EX-001` SE RETIRÓ EL 05-09-2026, con `RN-SP-013`. Exigía que la
+    //    persona portara algún rol de consumidor, y esa exigencia se contradice
+    //    con la regla que la sustituye: `RN-SP-018` reescrita da nivel a TODA
+    //    persona, y el superadministrador tiene `BECA` sin ser consumidor de
+    //    nada. La numeración de los pasos no se recoloca: `spec.md` los cita.
 
     Optional<UserMembership> anterior = usuarios.findMembership(userId);
 
@@ -139,7 +136,25 @@ public class AssignUserMembershipService {
         anterior.map(previa -> previa.coincideCon(membresia.id(), peticion.endsAt())).orElse(false);
 
     if (!sinCambio) {
-      usuarios.assignMembership(userId, membresia.id(), peticion.endsAt(), ahora);
+      // LOS DOS CAMINOS DE `V56`, y cuál se toma lo decide si CAMBIA EL NIVEL o
+      // solo la fecha.
+      //
+      // MISMA MEMBRESÍA CON OTRA FECHA: se corrige la fila abierta y NO SE GENERA
+      // HISTORIAL. Corregir hasta cuándo vale un nivel es una corrección
+      // administrativa, no un ascenso ni una bajada, y anotarla como un periodo
+      // nuevo llenaría el historial de filas que no describen ningún cambio de
+      // nivel — que es justo lo que ese historial existe para contar.
+      //
+      // OTRA MEMBRESÍA: se cierra la abierta y se abre una nueva. `assignMembership`
+      // hace las dos cosas juntas.
+      boolean mismoNivel =
+          anterior.map(previa -> previa.membershipId().equals(membresia.id())).orElse(false);
+
+      if (mismoNivel) {
+        usuarios.updateMembershipEnd(userId, peticion.endsAt(), ahora);
+      } else {
+        usuarios.assignMembership(ids.next(), userId, membresia.id(), peticion.endsAt(), ahora);
+      }
       auditar(usuario, anterior.orElse(null), membresia, peticion.endsAt());
     }
 

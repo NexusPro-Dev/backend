@@ -89,6 +89,11 @@ public class JpaProductRepository implements ProductRepository {
   }
 
   @Override
+  public Optional<Product> findById(UUID id) {
+    return id == null ? Optional.empty() : Optional.ofNullable(em.find(Product.class, id));
+  }
+
+  @Override
   public Optional<Product> findAliveByIdForUpdate(UUID id) {
     if (id == null) {
       return Optional.empty();

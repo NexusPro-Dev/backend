@@ -163,6 +163,155 @@ Exigirlo aquí sería exigir que no ocurra algo que el requerimiento de al lado 
 
 Las otras dos afirmaciones de `T-21` se conservan tal cual y sí se comprueban: la identidad duplicada produce una `201` y una `409`, y nadie queda a cargo de una cuenta sin acceso.
 
+## 4.ter `user_memberships` pasa a ser un historial — enmienda del 05-09-2026
+
+Decisión del responsable del proyecto: **conceder una membresía es una fila nueva** — se cierra la que había y se crea otra (`requirements/sp.md` v1.35.0, `RN-SP-014` reescrita). La migración se declara en `plan.md` §2.3.bis. Las tareas siguen la numeración del documento y arrancan en `T-25`: `T-22` a `T-24` ya estaban tomadas por §1 y **es de este requerimiento porque la tabla lo es**, aunque quienes cambian de comportamiento sean `RF-SP-032`, `RF-SP-033` y `RF-SP-029`.
+
+**Estados:** `Pendiente` · `En curso` · `Hecha` · `Bloqueada`.
+
+| ID | Tarea | Depende de | Verificación | Estado |
+|---|---|---|---|---|
+| `T-25` | **`V56`**: `id` y `closed_at`, la clave primaria a `id`, y las restricciones `uq_user_memberships_abierta`, `ex_user_memberships_sin_solape` y `ck_user_memberships_cierre`; `ix_user_memberships_membership_id` pasa a parcial | — | Un segundo `INSERT` abierto para el mismo usuario lo rechaza `uq_user_memberships_abierta`; dos periodos solapados los rechaza el `EXCLUDE`. **Sin que ningún código lo verifique** | **Hecha** — 05-09-2026 |
+| `T-26` | El relleno de `id` construye **UUID v7 desde `started_at`** dentro de la propia migración | `T-25` | Los identificadores de las filas existentes quedan **ordenados por fecha de concesión**, y ninguno es un v4 | **Hecha** — 05-09-2026 |
+| `T-27` | `findMembership` filtra por `closed_at IS NULL`, y `UserMembership` **no gana** `closedAt` | `T-25` | Integración: quien tiene historial devuelve **la abierta** y solo esa. **`UserMembership` se queda como está a propósito**: describe siempre la fila abierta porque la consulta ya lo garantiza, y un campo que siempre vale nulo no documenta nada — «abierta» lo decide el `WHERE`, «vigente» lo sigue decidiendo `isCurrentAt` | **Hecha** — 05-09-2026 |
+| `T-28` | `UserRepository`: `assignMembership` pasa a **cerrar e insertar** cuando cambia la membresía y a **actualizar** cuando solo cambia la fecha; `removeMembership` pasa a `closeMembership` | `T-27` | Integración: asignar dos veces deja **dos** filas, una cerrada y otra abierta; asignar la misma con otra fecha deja **una** | **Hecha** — 05-09-2026 |
+| `T-29` | Los dos `LEFT JOIN` de `JpaUserQueryRepository` se acotan con `um.closed_at IS NULL`, y el filtro por membresía también | `T-28` | **La prueba que importa**: una persona con tres membresías en su historial aparece **una sola vez** en el listado, y `totalElements` no la cuenta tres veces | **Hecha** — 05-09-2026 |
+| `T-30` | `RevokeUserMembershipService`, `RevokeUserRolesService` y `DeleteUserService` cierran en lugar de borrar | `T-28` | Tras retirar, la fila **sigue estando** con `closed_at` poblado y `ends_at` intacto; el detalle de la persona dice que no tiene membresía | **Hecha** — 05-09-2026 |
+| `T-31` | La semilla de desarrollo escribe `id` en sus filas de `user_memberships` | `T-25` | `DevelopmentSeedIT` en verde | **Hecha** — 05-09-2026 |
+| `T-32` | Prueba de concurrencia: dos asignaciones simultáneas a la misma persona | `T-28` | Ninguna devuelve `500` y **no quedan dos filas abiertas**. Lo serializa el bloqueo que la operación ya toma, no un `ON CONFLICT` — que era lo que lo absorbía y ha dejado de existir | **Hecha** — 05-09-2026 |
+
+**Lo que esta enmienda NO hace, y conviene que no se dé por hecho:**
+
+- **No expone el historial por ninguna API.** `RF-SP-026` sigue devolviendo la membresía abierta y nada más. Consultar el historial de niveles de una persona es un requerimiento que no existe, y esta enmienda solo hace que **el dato esté** para cuando exista.
+- **No decide qué pasa con los días pagados y no usados.** Cerrar una membresía de treinta días el día doce deja constancia de los dieciocho perdidos y **no los devuelve, ni los prorratea, ni los suma** a la nueva. Está declarado en `requirements/mv.md` §5.4 y sigue sin resolverse.
+- **No cambia el evento de auditoría de `RF-SP-033`.** Para quien lee la auditoría, el hecho sigue siendo que a esa persona le retiraron su membresía; que la fila sobreviva cerrada es un detalle de cómo se guarda.
+
+## 4.quater Toda persona tiene membresía — segunda enmienda del 05-09-2026
+
+El mismo día y sobre la anterior. `RN-SP-018` pasa de «todo consumidor» a **«todo usuario»**, y quien no recibe membresía al registrarse arranca en la de código `BECA`. `RN-SP-013` y `RN-SP-015` quedan **retiradas**. La migración es `V57` y se declara en `plan.md` §2.3.ter.
+
+**Estados:** `Pendiente` · `En curso` · `Hecha` · `Bloqueada`.
+
+| ID | Tarea | Depende de | Verificación | Estado |
+|---|---|---|---|---|
+| `T-33` | **`V57`**: una fila `BECA` para toda persona sin membresía abierta, **eliminadas incluidas** | `T-25` | Tras migrar, `SELECT count(*) FROM users u WHERE NOT EXISTS (…abierta…)` es **cero**. El superadministrador de `V22` queda con `BECA` | **Hecha** — 05-09-2026 |
+| `T-34` | `MembershipCatalog` gana la resolución del suelo **por código**, y falla ruidosamente si no existe | `T-33` | Prueba de integración: devuelve la sembrada por `V46`. **No se resuelve por `parent_membership_id IS NULL`** — `RN-SP-007` deja registrar una por debajo y eso movería el nivel de arranque sin que nadie lo pidiera | **Hecha** — 05-09-2026 |
+| `T-35` | `RF-SP-024`: `membershipId` pasa a **opcional**; sin él, `BECA`. Se retiran las dos comprobaciones de `RN-SP-018` | `T-34` | Registrar un funcionario **sin** `membershipId` devuelve `201` y la persona tiene `BECA`. Registrar un consumidor sin él **ya no es `409`** | **Hecha** — 05-09-2026 |
+| `T-36` | `RF-SP-030`: **deja de admitir membresía**; `membershipId` y `membershipEndsAt` salen de `AssignRolesRequest` y del contrato | `T-35` | La lógica que queda **no puede** escribir en `user_memberships`. Un campo que solo puede producir un `422` es peor que ningún campo | **Hecha** — 05-09-2026 |
+| `T-37` | `RF-SP-031`: **se retira la cascada** de `RN-SP-015` | `T-35` | Retirar el último rol consumidor deja los roles como corresponde y **no toca** la membresía: quien tenía `ORO` sigue con `ORO` | **Hecha** — 05-09-2026 |
+| `T-38` | `RF-SP-032`: se retira `EX-001` (`RN-SP-013`) | `T-35` | Asignar `VIP` a un **funcionario** devuelve `200`, no `409` | **Hecha** — 05-09-2026 |
+| `T-39` | `RF-SP-033`: pasa a **devolver al suelo** — cierra y abre una `BECA`, responde `200` con cuerpo y pierde su precondición de no ser consumidor | `T-34` | Tras la operación la persona tiene `BECA` **abierta**, y la anterior queda cerrada con su `ends_at` intacto | **Hecha** — 05-09-2026 |
+| `T-40` | La semilla de desarrollo concede `BECA` a quien no tenga otra | `T-33` | `DevelopmentSeedIT` comprueba que **ninguna** persona de la semilla se queda sin nivel | **Hecha** — 05-09-2026 |
+| `T-41` | Prueba del invariante, de punta a punta | `T-39` | **La que importa**: tras registrar, asignar roles, retirar roles y devolver al suelo, **en ningún momento** hay una persona viva sin membresía abierta | **Hecha** — 05-09-2026 |
+
+**Lo que esta enmienda NO hace:**
+
+- **No declara el invariante en el motor**, y no por descuido: es una comprobación entre `users` y `user_memberships` que ningún `CHECK` alcanza (`plan.md` §2.3.ter).
+- **No baja de nivel a quien deja de ser consumidor.** Conserva lo que tenía, incluido lo comprado. Es lo que sustituye a la cascada retirada, y es una decisión, no una omisión.
+- **No toca `RN-SP-019`**, el par equivalente del superior comercial. Vendedor ⟺ superior sigue tal cual: solo se soltó la atadura entre consumidor y nivel.
+
+## 4.quinquies Todo usuario pertenece a un país — enmienda del 07-09-2026
+
+Decisión del responsable del proyecto: **toda persona declara un país**, obligatorio para todos y no solo para los clientes (`requirements/sp.md` v1.38.0, `RN-SP-034`). La migración se declara en `plan.md` §2.6.
+
+**Las tareas son de este requerimiento porque la columna lo es**, aunque cambien de comportamiento otros cinco: `RF-SP-025`, `RF-SP-026`, `RF-SP-027`, `RF-SP-039` y `RF-SP-045`. Es el mismo reparto que §4.ter hizo con `user_memberships`. La numeración sigue la del documento y arranca en `T-42`.
+
+**Estados:** `Pendiente` · `En curso` · `Hecha` · `Bloqueada`.
+
+| ID | Tarea | Depende de | Verificación | Estado |
+|---|---|---|---|---|
+| `T-42` | **`V64__usuario_con_pais.sql`**: los cuatro pasos de `plan.md` §2.6 —siembra de Colombia con UUID v7 literal, columna nulable, relleno, y solo entonces `NOT NULL` + `fk_users_country` + `ix_users_country_id`—, **en una sola migración** | — | `mvn flyway:info` la lista aplicada. Prueba de integración: tras `V64` **ninguna** fila de `users` tiene `country_id` nulo, el superadministrador de `V22` incluido; y un `INSERT` directo con `country_id` nulo es rechazado por el motor | **Hecha** — 08-09-2026 |
+| `T-43` | Verificar que **`V64` sigue libre** justo antes de escribir `T-42`. Ya pasó una vez: esta migración se planificó como `V62` y las tripletas de tasas de cambio se llevaron `V62` y `V63` el mismo día | — | `ls src/main/resources/db/migration/` no contiene ningún `V64`, y ninguna tripleta aprobada lo nombra. Si lo estuviera, esta migración pasa al siguiente libre y se corrige `plan.md` §2.6 | **Hecha** — 08-09-2026. Y sirvió: la comprobación equivalente sobre `V62` es la que destapó que las tasas de cambio se lo habían llevado |
+| `T-44` | `domain`: el agregado `User` recibe el país en `create` y **no lo puede dejar nulo**; gana `changeCountry`, que devuelve si hubo cambio real —mismo contrato que `rename` y `changeEmail`— para que `RF-SP-027` no audite lo que no cambió | `T-42` | Prueba unitaria **sin Spring**: no existe forma de construir un `User` sin país; `changeCountry` con el mismo país devuelve `false` y no mueve `updatedAt` | **Hecha** — 08-09-2026 |
+| `T-45` | `application`: puerto `AssignableCountry`, que responde **existe** y **está activo** por separado, y su adaptador de infraestructura leyendo con **bloqueo compartido** | `T-42` | Integración: un país inexistente y uno inactivo producen **dos** respuestas distintas, y la traza muestra `SELECT … FOR SHARE` sobre `countries` | **Hecha** — 08-09-2026 |
+| `T-46` | `RF-SP-024`: `countryId` obligatorio en el DTO, verificación en el orden de `plan.md` §4 —paso 5.bis—, y `country` **resuelto** en la respuesta | `T-44`, `T-45` | Prueba de API: sin `countryId` es `400`/`VAL-014`; con uno inexistente es `422`; con uno inactivo es `409`/`RN-SP-034`; y la `201` trae `country` con `id`, `code` y `name` (`CA-SP-572` a `CA-SP-574`) | **Hecha** — 08-09-2026, en `RegisterUserIT` |
+| `T-47` | `RF-SP-045`: el registro por enlace exige país **por código ISO alfa-3**, no por identificador, y **sin ampliar lo que el formulario público revela**: país inexistente e inactivo comparten respuesta | `T-46` | Prueba de API: el alta pública sin país es `400`; con `col` en minúsculas **funciona**; y un país inexistente y uno inactivo devuelven **el mismo cuerpo** (`CA-SP-582`, `CA-SP-583`) | **Bloqueada** — ver el bloqueo 6 de [`../045-registro-de-clientes-por-enlace/tasks.md`](../045-registro-de-clientes-por-enlace/tasks.md) §4 |
+| `T-48` | `RF-SP-026`, `RF-SP-039` y `RF-SP-025`: el país entra en el detalle, en el perfil propio y en cada fila del listado, **resuelto y no como identificador** | `T-46` | Prueba de API sobre los tres: ninguno devuelve `countryId` suelto, los tres devuelven el objeto (`CA-SP-577`, `CA-SP-581`) | **Hecha** — 08-09-2026, en `UserQueryIT` y `OwnCredentialsIT` |
+| `T-49` | `RF-SP-025`: filtro `countryId`, apoyado en `ix_users_country_id`, componible con los filtros que ya existen | `T-48` | Integración: el filtro devuelve solo esas personas y **se combina** con el de rol y el de membresía; el plan de ejecución usa el índice y no recorre la tabla (`CA-SP-575`, `CA-SP-576`) | **Hecha a medias** — 08-09-2026. El filtro y la combinación están probados en `UserQueryIT`; **la prueba de `EXPLAIN` no**, igual que `RF-SP-025` `T-14`, que lleva pendiente desde el 24-08-2026 |
+| `T-50` | `RF-SP-027`: `countryId` **patchable**, con nulo explícito **rechazado** —la columna es `NOT NULL`, igual que los otros tres campos del `PATCH`—, su verificación de país activo y su evento de auditoría | `T-45`, `T-48` | Prueba de API: `{"countryId": null}` es `400` y no `500`; cambiar el país deja **un** evento en `audit_change_log` con el valor anterior y el nuevo; reenviar el mismo país **no** emite evento (`CA-SP-578` a `CA-SP-580`) | **Hecha** — 08-09-2026, en `UserLifecycleIT`, con una prueba más que no estaba pedida: el cambio de país **no** deja evento de seguridad |
+| `T-51` | La semilla de desarrollo declara el país de cada persona que crea | `T-42` | `DevelopmentSeedIT` en verde, y **ninguna** persona de la semilla queda con el país de relleno por descuido: se declaran explícitamente | **Hecha** — 08-09-2026 |
+| `T-52` | El contrato OpenAPI publicado se regenera con `country`, `countryId` y los dos códigos de error nuevos | `T-46` a `T-50` | `OpenApiContractIT` en verde. El contrato publicado **no** puede decir que `countryId` es opcional | **Hecha** — 08-09-2026 |
+
+!!! warning "Lo que la implementación destapó y las tareas no habían previsto (08-09-2026)"
+
+    **`fk_users_country` rompió las pruebas del catálogo de países**, y romperlas era lo correcto.
+    `CountriesIT`, `CountryConcurrencyIT` y `CountrySearchIndexIT` abrían cada caso con un `DELETE
+    FROM countries` apoyado en que el catálogo nacía vacío. Ya no nace vacío y la fila de Colombia
+    la referencia el superadministrador, de modo que ese borrado ahora lo rechaza el motor.
+
+    Se corrige borrando **solo lo que ninguna persona referencia**, y las tres clases quedan
+    contando con Colombia dentro: ninguna puede usar ya `COL` como país de prueba —sería un
+    duplicado— y **toda aserción sobre el tamaño o el orden del catálogo la incluye**. Donde se
+    usaba `COL` ahora va `URY`.
+
+    **No es un daño colateral, es la regla funcionando**: `RN-SP-034` dice que el catálogo no puede
+    quedar vacío mientras exista un usuario, y esas pruebas describían un estado que el sistema ya
+    no puede alcanzar.
+
+    **Y veintiocho ficheros de prueba insertaban personas con `SQL` directo** sin país. Todos
+    fallaban por `NOT NULL`, que es exactamente lo que la columna existe para hacer.
+
+**Lo que esta enmienda NO hace:**
+
+- **No declara «el país tiene que estar activo» en el motor**, y no por descuido: la clave foránea compuesta que lo expresaría haría fallar `RF-SP-022` sobre cualquier país con usuarios (`requirements/sp.md` §5.1). La comprobación es de entrada y vive en el caso de uso.
+- **No toca `RF-SP-044`.** El titular no cambia su propio país; solo lo corrige un administrador por `RF-SP-027`. Es deliberado: el país decide qué medios de pago se le ofrecen (`RN-MV-019`), y cambiárselo uno mismo sería cambiarse de mercado.
+- **No desasigna a nadie cuando su país se desactiva.** Quien lo tenía lo conserva, y a partir de ahí pueden convivir personas en un país que ya no se ofrece en el alta. Es lo que `RF-SP-022` prometía desde el principio; lo único nuevo es que ahora hay a quién afectar.
+- **No añade el documento de identidad ni el teléfono**, que `spec.md` §14 resolución 3 dejó fuera junto al país. Siguen fuera: nadie los ha pedido.
+
+## 4.sexies Identidad documental y datos de contacto — enmienda del 08-09-2026
+
+Decisión del responsable del proyecto: **toda persona se identifica con un documento y declara sus datos de contacto** (`requirements/sp.md` v1.41.0, `RN-SP-035` a `RN-SP-037`). Las migraciones se declaran en `plan.md` §2.7 y en [`../051-consultar-tipos-de-documento/plan.md`](../051-consultar-tipos-de-documento/plan.md) §2.
+
+**Las tareas son de este requerimiento porque las columnas lo son**, aunque cambien de comportamiento otros cinco. Mismo reparto que §4.ter y §4.quinquies. La numeración sigue la del documento y arranca en `T-53`.
+
+**Estados:** `Pendiente` · `En curso` · `Hecha` · `Bloqueada`.
+
+| ID | Tarea | Depende de | Verificación | Estado |
+|---|---|---|---|---|
+| `T-53` | **`V71__usuario_con_documento_y_contacto.sql`**: las seis columnas **nulables**, `fk_users_document_type`, los cuatro `CHECK` y `uq_users_document` parcial sobre el no nulo (`plan.md` §2.7) | `RF-SP-051 · T-01` | Integración: dos personas con el mismo par tipo+número son rechazadas **aunque una esté eliminada**; un tipo sin número y un número sin tipo los rechaza `ck_users_document_pair`; el superadministrador de `V22` sigue existiendo **con los seis campos nulos** | Pendiente |
+| `T-54` | `domain`: el agregado `User` recibe documento y contacto en `create` y gana `changeDocument` y `changeContact`, los dos con el contrato de `rename` —devuelven si hubo cambio real— | `T-53` | Prueba unitaria **sin Spring**: `changeDocument` con el mismo par devuelve `false` y no mueve `updatedAt`; **no existe forma de dejar el tipo sin el número** | Pendiente |
+| `T-55` | `application`: puerto `AssignableDocumentType` y su adaptador, con **bloqueo compartido**, distinguiendo «no existe» de «está inactivo» | `T-53` | Integración: los dos casos producen respuestas distintas, y la traza muestra `SELECT … FOR SHARE` sobre `document_types` | Pendiente |
+| `T-56` | `RF-SP-024`: los siete campos en el DTO —dos obligatorios de documento, teléfono obligatorio, tres de dirección opcionales—, la verificación en el orden de `plan.md` §4 —paso 5.ter— y `document` y `contact` **agrupados** en la respuesta | `T-54`, `T-55` | Prueba de API: sin documento o sin teléfono es `400`; tipo inexistente `422`; tipo inactivo `409`; par repetido `409` **incluso contra una persona eliminada** (`CA-SP-590` a `CA-SP-592`) | Pendiente |
+| `T-57` | `RF-SP-026` y `RF-SP-039`: el documento y el contacto entran en el detalle y en el perfil propio, con el tipo **resuelto** y **`LEFT JOIN`** | `T-56` | **La prueba que importa**: una persona **sin** documento —de las anteriores a `V71`— **sigue apareciendo** en el detalle, con `document` en nulo. Con un `JOIN` interno desaparecería sin fallar (`CA-SP-593`, `CA-SP-597`) | Pendiente |
+| `T-58` | `RF-SP-027`: los siete campos **patchables**, con las **dos familias** de nulo de `plan.md` §4 —rechazado en documento y teléfono, aceptado y vaciador en los tres de dirección— y su auditoría | `T-55`, `T-57` | Prueba de API: `{"phone":null}` es `400`; `{"addressLine2":null}` es `200` y **vacía**; `{"documentNumber":"…"}` sin tipo es `400`; el cambio de documento deja evento **de cambio y no de seguridad** (`CA-SP-594` a `CA-SP-596`) | Pendiente |
+| `T-59` | `RF-SP-044`: el titular corrige **solo el contacto**. El documento y el país devuelven `400` por propiedad desconocida | `T-58` | Prueba de API: cambiar el teléfono **no exige contraseña actual**; enviar `documentTypeId` o `countryId` es `400` y **ninguno cambia** (`CA-SP-598`, `CA-SP-599`) | Pendiente |
+| `T-60` | `RF-SP-045`: el registro público exige documento **por abreviación** y teléfono, con los tres casos de fallo **compartiendo respuesta** | `T-56` | Prueba de API: enviar `TI` se rechaza **igual** que una abreviación inventada, y el cuerpo no enumera el catálogo (`CA-SP-600`, `CA-SP-601`) | **Bloqueada** — ver el bloqueo 3 de [`../051-consultar-tipos-de-documento/tasks.md`](../051-consultar-tipos-de-documento/tasks.md) §4 |
+| `T-61` | La semilla de desarrollo declara documento y teléfono de cada persona que crea | `T-53` | `DevelopmentSeedIT` en verde. **Cada persona con un número distinto**: repetirlos violaría `uq_users_document` y la semilla fallaría a medias | Pendiente |
+| `T-62` | El contrato OpenAPI se regenera con los siete campos y los códigos de error nuevos | `T-56` a `T-59` | `OpenApiContractIT` en verde. El contrato **no** puede decir que el documento es opcional en el alta | Pendiente |
+
+**Lo que esta enmienda NO hace:**
+
+- **No declara las columnas `NOT NULL`**, aunque documento y teléfono sean obligatorios en la API. Inventarle un número de documento al superadministrador de `V22` sería escribir algo falso sobre la identidad de una persona — que es justo la diferencia con el país, cuyo relleno era neutro (`plan.md` §2.7). La condición para endurecerlo queda escrita: el día que ninguna fila lo tenga nulo.
+- **No comprueba la edad en ningún sitio.** No hay `if` que escribir: el catálogo de `RF-SP-051` no ofrece documentos de menor, y `fk_users_document_type` hace el resto.
+- **No añade la ciudad como catálogo.** Es texto libre; un catálogo de ciudades exigiría decidir su relación con el país y su unicidad, y ningún requerimiento lo respalda.
+- **No toca el listado de `RF-SP-025`.** Ni publica el documento en cada fila ni permite buscar por él. Es la decisión más discutible de la enmienda y se toma a conciencia: buscar a alguien por su documento es una necesidad administrativa real y **nadie la ha pedido**, y publicarlo en un listado paginado lo expone mucho más que devolverlo en un detalle. La condición para abrirlo queda escrita.
+
+## 4.septies El teléfono de la empresa — enmienda del 10-09-2026
+
+Decisión del responsable del proyecto: **toda persona puede declarar dos teléfonos**, el personal y el de la empresa (`requirements/sp.md` §10.16, `RN-SP-037` enmendada).
+
+**Es una ampliación y no una ruptura**, y esa es la diferencia con la enmienda anterior: `phone` conserva su nombre y su significado en las seis posiciones del contrato, de modo que ningún consumidor tiene que cambiar nada para seguir funcionando. Lo único que aparece es un campo más.
+
+**Las tareas vuelven a ser de este requerimiento porque la columna lo es**, aunque cambien de comportamiento otros cuatro. Mismo reparto que el 08-09-2026.
+
+**Estados:** `Pendiente` · `En curso` · `Hecha` · `Bloqueada`.
+
+| ID | Tarea | Depende de | Verificación | Estado |
+|---|---|---|---|---|
+| `T-63` | **`V83__usuario_con_telefono_de_empresa.sql`**: la columna `company_phone` **nulable** y `ck_users_company_phone_format`, con la misma expresión que la del personal | `T-53` | La migración aplica sobre una base con datos y **ninguna fila cambia**: nace nula para todos. El `CHECK` rechaza `abc` y admite `+576012345678` | Pendiente |
+| `T-64` | `domain`: `ContactDetails` gana `companyPhone` **como `Patchable` y no como `Optional`**, y `User` lo aplica en `create` y en `changeContact` | `T-63` | El tipo es lo que hace observable la regla: el personal **no se puede vaciar** y este **sí**. Con `Optional` el vaciado sería inexpresable y `RF-SP-027` no podría cumplir `CA-SP-679` | Pendiente |
+| `T-65` | `RF-SP-024` y `RF-SP-026`: el campo entra en el alta y en el detalle, **opcional** y **presente aunque vaya nulo** | `T-64` | `CA-SP-677` y `CA-SP-678`. El alta sin el campo devuelve `201` y el contacto lo trae en nulo, no ausente | Pendiente |
+| `T-66` | `RF-SP-027` y `RF-SP-044`: es **patchable con vaciado**, en la familia de la dirección y no en la del teléfono personal | `T-64` | `CA-SP-679` y `CA-SP-680`. El nulo explícito lo borra; el titular lo cambia **sin** contraseña actual, igual que el personal | Pendiente |
+| `T-67` | `RF-SP-045`: el registro público **NO lo admite**, y enviarlo es `400` por propiedad desconocida | `T-64` | `CA-SP-681`. No basta con no leerlo: ignorarlo en silencio haría creer a quien lo envía que quedó guardado | Pendiente |
+| `T-68` | El contrato OpenAPI se regenera y la prosa de las `@Operation` se reescribe a mano | `T-65` a `T-67` | `OpenApiContractIT` en verde. **El esquema se regenera solo y la prosa no**: hay que decir en ella cuál es cuál, o el contrato publicará dos teléfonos sin explicar la diferencia | Pendiente |
+
+**Lo que esta enmienda NO hace:**
+
+- **No declara `NOT NULL` nunca**, y no es una condición pendiente como la de `V71`: `RN-SP-037` deja este teléfono opcional **para siempre**. Confundir los dos nulos —el de la transición y el del hecho— llevaría a endurecer una columna que no debe endurecerse.
+- **No lo pide en `RF-SP-045`.** Quien se registra por un enlace es un cliente, y el formulario público no debe preguntar por el teléfono de una empresa que no tiene. Puede añadirlo después desde su perfil.
+- **No lo añade al listado de `RF-SP-025`** ni como columna ni como criterio de búsqueda, por lo mismo que el personal.
+- **No toca la semilla de desarrollo.** Las diecinueve personas de prueba nacen sin él, que es exactamente el caso que hay que poder ver: el campo en nulo.
+
 ## 5. Definición de terminado
 
 El requerimiento no está terminado hasta cumplir **todas** las condiciones de la constitución §16:

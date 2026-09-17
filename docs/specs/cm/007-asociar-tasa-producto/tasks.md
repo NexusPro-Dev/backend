@@ -4,8 +4,8 @@
 |---|---|
 | Requerimiento | `RF-CM-007` |
 | Plan | [`plan.md`](plan.md), aprobado el 03-09-2026 |
-| Versión | 0.2.0 |
-| Estado | **En revisión** |
+| Versión | 0.3.0 |
+| Estado | **Descartado el 15-09-2026** — las tareas quedan como historia |
 | Autor | Responsable técnico |
 | Aprobadas por | Pendiente |
 | Fecha de aprobación | Pendiente |
@@ -53,6 +53,7 @@
 | `T-23` | Pruebas de `RN-CM-019`: suma exacta, suma que se pasa, valor fijo convertido | `T-22` | `CA-CM-105` a `CA-CM-107`, `CA-CM-109` | **Hecha el 03-09-2026** |
 | `T-24` | **Prueba concurrente**: dos asociaciones simultáneas al mismo producto, individualmente dentro del tope y juntas fuera | `T-22` | `CA-CM-108`: una `201`, otra `409`, **ninguna `500`** | **Hecha el 03-09-2026** |
 | `T-25` | Actualizar `cm.md`, `modelo-datos.md` y la matriz de `docs/requirements.md` con `RN-CM-019` | — | Ya hecho en el bloque de documentación (03-09-2026) | **Hecha el 03-09-2026** |
+| `T-26` | **El producto de precio cero**: `ProductCommissionCapGuard` deja de dividir a ciegas —un valor fijo mayor que cero sobre precio cero ocupa **más de cien**, uno de cero ocupa **cero**— y su Javadoc deja de citar `ck_products_price_positive` como garantía, porque `V67` la retiró | `RF-PM-001 · T-33` | `CA-CM-115` y `CA-CM-116`: `409` con el mensaje del tope, **no `500`**. **La misma tarea aparece como `RF-CM-003 · T-30`**: la clase es una y se cita desde las dos listas para que ninguna la dé por hecha de la otra | **Hecha el 08-09-2026** |
 
 ## 2. Orden de ejecución
 
@@ -90,6 +91,7 @@
 | `CA-CM-107` | `T-19`, `T-20`, `T-23` |
 | `CA-CM-108` | `T-21`, `T-24` |
 | `CA-CM-109` | `T-20`, `T-23` |
+| `CA-CM-115`, `CA-CM-116` | `T-26` |
 
 ## 4. Bloqueos
 
@@ -104,3 +106,4 @@ Ninguno.
 - Las dieciocho tareas originales `Hecha`, más `T-19` a `T-25` `Hecha` con su verificación pasando.
 - `./mvnw clean verify` en verde, **incluidas las dos concurrentes: `T-16` y `T-24`**.
 - La matriz, `cm.md`, `modelo-datos.md` y el contrato publicado al día.
+| 0.3.0 | 15-09-2026 | **Descartado** con el requerimiento (`RN-CM-021`); el código construido se retira en `RF-CM-001` `T-31`. | Responsable técnico |

@@ -4,6 +4,7 @@ import com.factech.nexus.modules.products.application.ProductDetailResponse;
 import com.factech.nexus.modules.products.domain.repository.ProductQueryRepository;
 import com.factech.nexus.shared.audit.DeletionReasonReader;
 import com.factech.nexus.shared.error.ResourceNotFoundException;
+import java.util.List;
 import java.util.UUID;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -30,7 +31,13 @@ public class GetProductService {
   private final ProductQueryRepository consultas;
   private final DeletionReasonReader motivos;
 
-  public GetProductService(ProductQueryRepository consultas, DeletionReasonReader motivos) {
+  private final ProductExchangeResolver conversiones;
+
+  public GetProductService(
+      ProductQueryRepository consultas,
+      DeletionReasonReader motivos,
+      ProductExchangeResolver conversiones) {
+    this.conversiones = conversiones;
     this.consultas = consultas;
     this.motivos = motivos;
   }
@@ -53,6 +60,14 @@ public class GetProductService {
             ? null
             : motivos.reasonFor(MODULO, ENTIDAD, fila.id()).orElse(null);
 
-    return ProductDetailResponse.from(fila, motivo);
+    // Dos consultas más, y las mismas que paga el listado por página entera:
+    // el detalle es una sola fila y usa el mismo camino con una sola moneda,
+    // en lugar de una forma aparte que pueda divergir (`CA-PM-166`).
+    return ProductDetailResponse.from(
+        fila,
+        motivo,
+        // La conversión se calcula sobre `price`, nunca sobre el precio de
+        // compra (`RN-PM-024`, 12-09-2026).
+        conversiones.para(List.of(fila.currencyId())).de(fila.currencyId(), fila.price()));
   }
 }

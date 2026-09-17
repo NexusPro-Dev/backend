@@ -28,11 +28,28 @@ public interface CurrencyCatalog {
   Optional<CurrencyView> find(UUID id);
 
   /**
+   * La moneda <b>por omisión</b> del sistema — la de casa (`RF-PM-008` · `T-02`).
+   *
+   * <p><b>Hay exactamente una</b>, garantizada por un índice único parcial sobre {@code
+   * is_default}. Por eso el hotlink no admite elegir la moneda de conversión: no hay ambigüedad que
+   * resolver ni parámetro que validar.
+   *
+   * <p>Devuelve {@code Optional} y no la moneda directamente: en una base recién sembrada podría no
+   * haberla, y una lectura que reventara ahí convertiría un catálogo incompleto en un {@code 500}.
+   */
+  Optional<CurrencyView> findDefault();
+
+  /**
    * Lo que cruza la frontera: datos planos, sin comportamiento.
    *
    * <p>{@code decimalPlaces} viaja porque es lo que decide la escala admisible de un precio
    * (`RN-PM-007`), y <b>no siempre vale dos</b>: hay monedas sin fracción, donde cero es un valor
    * legítimo.
+   *
+   * <p>{@code name} viaja desde el 08-09-2026, por `CA-SP-530`: la respuesta de una tasa resuelve
+   * sus dos monedas, y quien administra tasas necesita <b>leer</b> cuáles son. <b>No lo usa el
+   * hotlink</b>, que declara su propia proyección con código y decimales: en una ruta pública, lo
+   * que no hace falta no se publica.
    */
-  record CurrencyView(UUID id, String code, int decimalPlaces, boolean active) {}
+  record CurrencyView(UUID id, String code, String name, int decimalPlaces, boolean active) {}
 }

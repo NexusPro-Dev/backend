@@ -43,7 +43,17 @@ class CountryConcurrencyIT extends IntegrationTestBase {
 
   @BeforeEach
   void vaciarElCatalogo() {
-    jdbc.update("DELETE FROM countries");
+    // NO SE VACÍA ENTERO desde `RN-SP-034` (07-09-2026): `fk_users_country`
+    // lo impide, y hace bien — el superadministrador de `V22` vive en
+    // Colombia. Se borra lo que NINGUNA persona referencia, que es todo lo
+    // que estas pruebas crean.
+    //
+    // Y no se borra la fila de Colombia «con cuidado» ni se desasigna a nadie
+    // para poder borrarla: el catálogo ya NO nace vacío, y una prueba que lo
+    // dejara así estaría probando un estado que el sistema no puede alcanzar.
+    jdbc.update(
+        "DELETE FROM countries c WHERE NOT EXISTS"
+            + " (SELECT 1 FROM users u WHERE u.country_id = c.id)");
   }
 
   @Test
@@ -72,8 +82,10 @@ class CountryConcurrencyIT extends IntegrationTestBase {
     assertThat(resultados).allMatch(Outcome::succeeded);
     assertThat(resultados).extracting(Outcome::value).containsExactlyInAnyOrder(201, 409);
 
+    // DOS: la que ganó la carrera y Colombia, que `V64` siembra y que
+    // `fk_users_country` impide borrar (`RN-SP-034`).
     Integer filas = jdbc.queryForObject("SELECT count(*) FROM countries", Integer.class);
-    assertThat(filas).isEqualTo(1);
+    assertThat(filas).isEqualTo(2);
   }
 
   @Test
@@ -83,13 +95,13 @@ class CountryConcurrencyIT extends IntegrationTestBase {
     // lea es frecuente y la restricción no llega a intervenir. Con seis, alguna
     // llega necesariamente al INSERT.
     List<Outcome<Integer>> resultados =
-        runTogether(6, indice -> estadoDe(alta("COL", "Colombia " + indice)));
+        runTogether(6, indice -> estadoDe(alta("URY", "Uruguay " + indice)));
 
     assertThat(resultados)
         .as("un alta concurrente produjo un fallo del sistema")
         .noneMatch(r -> r.succeeded() && r.value() >= 500);
     assertThat(resultados).filteredOn(r -> r.value() == 201).hasSize(1);
-    assertThat(cuantos("COL")).isEqualTo(1);
+    assertThat(cuantos("URY")).isEqualTo(1);
   }
 
   @Test
@@ -132,7 +144,7 @@ class CountryConcurrencyIT extends IntegrationTestBase {
     List<Outcome<Integer>> resultados =
         runTogether(
             List.of(
-                () -> estadoDe(alta("COL", "Colombia")),
+                () -> estadoDe(alta("URY", "Uruguay")),
                 () -> estadoDe(cambio(pa, false, UUID.randomUUID()))));
 
     assertThat(resultados).extracting(Outcome::value).containsExactly(201, 200);

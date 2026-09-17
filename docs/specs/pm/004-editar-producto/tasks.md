@@ -3,13 +3,13 @@
 | Campo | Valor |
 |---|---|
 | Requerimiento | `RF-PM-004` |
-| Enmendadas | 02-09-2026 — el origen entra en la lista de inmutables |
+| Enmendadas | 02-09-2026 — el origen entra en la lista de inmutables; 15-09-2026 — `T-25` por el **alcance de cuatro valores** |
 | Plan | [`plan.md`](plan.md), aprobado el 26-08-2026 |
 | Estado | **Aprobadas** |
 | Autor | Responsable técnico |
 | Aprobadas por | Responsable del proyecto |
 | Fecha de aprobación | 26-08-2026 |
-| Enmendadas | 28-08-2026 — `T-16` por el icono corregible |
+| Enmendadas | 28-08-2026 — `T-16` por el icono corregible; 07-09-2026 — `T-17` y `T-18` por el **alcance** y la **implementación**; 08-09-2026 — `T-19` a `T-21` por el **precio público**; 12-09-2026 — `T-22` porque el segundo precio es el **de compra**; 14-09-2026 — `T-23` por el **enlace del video**; 14-09-2026 — `T-24` por **el icono de un upgrade solo se vacía con portada** (`RN-PM-034`) |
 
 ---
 
@@ -33,6 +33,15 @@
 | `T-14` | Actualizar la matriz de trazabilidad | `T-10` | La fila refleja el estado | Hecha |
 | `T-15` | La **vigencia** se suma a lo corregible, con `Patchable` | `T-01`, `T-03` | Corregirla la cambia; **vaciarla** convierte el producto en uno que no caduca (`CA-PM-094`) | Hecha |
 | `T-16` | El icono, corregible y vaciable: `Patchable<String>` en el DTO, en `Product.update` y en el diff de auditoría. La comprobación de `RN-PM-016` se hace **antes** de asignar, para que el rechazo no deje el producto a medias | — | `CA-PM-099` y `CA-PM-100` en `ProductUpdateIT`, y el vaciado con nulo explícito en `ProductTest` | **Hecha el 28-08-2026** |
+| `T-17` | El alcance y la implementación **corregibles**: `Patchable<ProductScope>` y `Patchable<ProductImplementation>` en el DTO, en `Product.update` y en el diff de auditoría. **El nulo explícito se RECHAZA** en lugar de vaciar, que es lo contrario del icono y de la vigencia | `RF-PM-001 · T-28` | `CA-PM-119` a `CA-PM-122`: la corrección cambia el valor y lo audita con `before`/`after`; el nulo explícito da `400` con `VAL-007` o `VAL-008`; el mismo valor **no** produce evento | **Hecha el 07-09-2026** |
+| `T-18` | Pruebas de API de los cuatro criterios y documentación OpenAPI de los dos campos corregibles | `T-17` | La suite de `PM` en verde, y el contrato los lista **como corregibles** junto al nombre y el precio | **Hecha el 07-09-2026** |
+| `T-19` | El **precio público corregible y vaciable**: `Patchable<BigDecimal>` en el DTO, en `Product.update` y en el diff. **El nulo explícito lo VACÍA**, al revés que el alcance; y `price` se suma a los campos cuyo nulo se **rechaza** | `RF-PM-001 · T-34` | `CA-PM-153` a `CA-PM-156`. El vaciado y el cero son **dos pruebas distintas**: una deja la columna nula y la otra le escribe un cero | **Hecha el 08-09-2026** |
+| `T-20` | El paso 5 reescrito: **los dos importes finales** medidos contra la **moneda final**, con el `field` del que no cabe | `T-19` | `CA-PM-157`, y la prueba que lo destapa: cambiar **solo la moneda** con un precio público ya guardado que no cabe en la nueva. **Sin esta tarea el defecto no falla** — guarda un importe que `RN-PM-007` prohíbe | **Hecha el 08-09-2026** |
+| `T-21` | Documentación OpenAPI del campo corregible y **vaciable**, y de que `price` no lo es | `T-19`, `T-20` | El contrato distingue los dos: uno admite `null` y el otro lo rechaza | **Hecha el 08-09-2026** |
+| `T-22` | **El segundo precio es el de compra**: `purchasePrice` sustituye a `publicPrice` en `UpdateProductRequest`, en `UpdateProductService` —validación, paso 5 y `field` de los errores— y en el diff de `Product.update` (`purchase_price`); la prosa de la `@Operation` deja de decir «se anuncia» y dice que es donde se guarda lo que costó | `RF-PM-001 · T-38` | `CA-PM-153` a `CA-PM-157` con el nombre nuevo, en `ProductUpdateIT`. Enviar `publicPrice` es `400` por propiedad desconocida | **Hecha el 12-09-2026** |
+| `T-23` | **El enlace del video, corregible y vaciable** (`plan.md` §4): `Patchable<String> videoUrl` en `UpdateProductRequest` —contando en `informaAlgo`—, en `Product.update` con `normalizarEnlaceDeVideo` y `VAL-009`, y `video_url` en el diff de auditoría; la prosa de la `@Operation` lo suma a lo que se vacía | `T-22` | `CA-PM-225` a `CA-PM-227` en `ProductUpdateIT`. **El contrato regenerado declara `videoUrl` en el cuerpo del `PATCH`** | **Hecha el 14-09-2026** |
+| `T-24` | **El icono de un upgrade solo se vacía con portada** (`plan.md` §4, enmienda de `RF-PM-014`): en `Product.update`, tras normalizar el icono, upgrade + nulo + sin portada → `VAL-010` nombrando `icon`, sin aplicar nada; `ProductDetailResponse` gana `coverImageUrl`; la prosa de la `@Operation` dice que el icono de un upgrade solo se vacía con portada y que la portada tiene sus propios endpoints | `T-23`, `RF-PM-014 · T-05` | `CA-PM-234` a `CA-PM-236` en `ProductUpdateIT`; la unitaria en `ProductTest`: con portada vacía, sin portada lanza, el bot no lanza | **Hecha el 14-09-2026** |
+| `T-25` | **El alcance de cuatro valores en la corrección** (`RF-PM-001` `T-41` trae el enumerado): sin cambio de código propio —`Patchable<ProductScope>` ya deserializa el dominio entero—; la prosa de la `@Operation` nombra los cuatro y dice que `NINGUNO` no desactiva | `T-24` | `CA-PM-350` en `ProductUpdateIT` | **Hecha el 15-09-2026** |
 
 ## 2. Orden de ejecución
 
@@ -54,6 +63,12 @@
 | `CA-PM-039` | `T-09` |
 | `CA-PM-083` | `T-10` |
 | `CA-PM-084` | `T-10` |
+| `CA-PM-119` a `CA-PM-122` | `T-17`, `T-18` |
+| `CA-PM-153` a `CA-PM-156` | `T-19`, `T-22` |
+| `CA-PM-157` | `T-20`, `T-22` |
+| `CA-PM-225` a `CA-PM-227` | `T-23` |
+| `CA-PM-234` a `CA-PM-236` | `T-24` |
+| `CA-PM-350` | `T-25` |
 
 ## 4. Bloqueos
 

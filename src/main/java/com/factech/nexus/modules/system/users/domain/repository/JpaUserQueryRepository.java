@@ -37,17 +37,30 @@ public class JpaUserQueryRepository implements UserQueryRepository {
   @Transactional(readOnly = true)
   public List<UserRow> search(
       ListUsersRequest filtros, String ordenamiento, int offset, int limit) {
+    // `um.closed_at IS NULL` NO ES UN FILTRO DE NEGOCIO, ES LO QUE IMPIDE QUE
+    // ESTA CONSULTA REPITA PERSONAS. Desde `V56` la tabla es un historial, y sin
+    // ese predicado el LEFT JOIN devolvería una fila por cada membresía que la
+    // persona haya tenido — y `totalElements`, que sale de esta misma sentencia,
+    // contaría asignaciones en lugar de gente. Es el defecto que el filtro por
+    // rol evita con EXISTS unas líneas más abajo.
+    //
+    // Y NO FILTRA POR VIGENCIA, a propósito: una membresía vencida sigue abierta
+    // y tiene que viajar, con `m_current` en falso. Filtrarla aquí haría
+    // indistinguible «no tiene» de «la tiene vencida».
 
     String sql =
         """
         SELECT u.id AS id, u.username AS username, u.email AS email,
                u.first_name AS first_name, u.last_name AS last_name,
                u.status AS status, u.deleted_at AS deleted_at,
+               c.id AS c_id, c.code AS c_code, c.name AS c_name,
                m.id AS m_id, m.code AS m_code, m.name AS m_name, m.level AS m_level,
+               m.color AS m_color,
                um.ends_at AS m_ends_at,
                (um.user_id IS NOT NULL AND (um.ends_at IS NULL OR um.ends_at > now())) AS m_current
           FROM users u
-          LEFT JOIN user_memberships um ON um.user_id = u.id
+          JOIN countries c              ON c.id = u.country_id
+          LEFT JOIN user_memberships um ON um.user_id = u.id AND um.closed_at IS NULL
           LEFT JOIN memberships m       ON m.id = um.membership_id
          WHERE """
             // El espacio va aquí y no al final del bloque de texto: Java recorta
@@ -78,9 +91,28 @@ public class JpaUserQueryRepository implements UserQueryRepository {
               null,
               null,
               null,
+              (UUID) fila.get("c_id"),
+              ((String) fila.get("c_code")).trim(),
+              (String) fila.get("c_name"),
+              // EL LISTADO NO PUBLICA EL DOCUMENTO NI EL CONTACTO, y es una
+              // decisión: buscar a alguien por su documento es una necesidad
+              // administrativa real que NADIE HA PEDIDO, y publicarlo en un
+              // listado paginado lo expone mucho más que devolverlo en un
+              // detalle. La condición para abrirlo está en `tasks.md` §4.sexies. Los
+              // DOS teléfonos quedan fuera por lo mismo, desde el 10-09-2026.
+              null,
+              null,
+              null,
+              null,
+              null,
+              null,
+              null,
+              null,
+              null,
               (UUID) fila.get("m_id"),
               (String) fila.get("m_code"),
               (String) fila.get("m_name"),
+              (String) fila.get("m_color"),
               nivel(fila.get("m_level")),
               momento(fila.get("m_ends_at")),
               (Boolean) fila.get("m_current")));
@@ -146,12 +178,25 @@ public class JpaUserQueryRepository implements UserQueryRepository {
                        u.status AS status,
                        u.last_login_at AS last_login_at, u.locked_until AS locked_until,
                        u.created_at AS created_at, u.updated_at AS updated_at,
+                       c.id AS c_id, c.code AS c_code, c.name AS c_name,
+                       dt.id AS d_id, dt.abbreviation AS d_abbr, dt.name AS d_name,
+                       u.document_number AS d_number, u.phone AS phone,
+                       u.company_phone AS company_phone,
+                       u.address_line1 AS address1, u.address_line2 AS address2,
+                       u.city AS city,
                        m.id AS m_id, m.code AS m_code, m.name AS m_name, m.level AS m_level,
+               m.color AS m_color,
                        um.ends_at AS m_ends_at,
                        (um.user_id IS NOT NULL AND (um.ends_at IS NULL OR um.ends_at > now()))
                          AS m_current
                   FROM users u
-                  LEFT JOIN user_memberships um ON um.user_id = u.id
+                  JOIN countries c              ON c.id = u.country_id
+                  -- LEFT Y NO INTERNO: las personas anteriores a `V71` no tienen
+                  -- documento, y un JOIN interno las HARÍA DESAPARECER del
+                  -- detalle. No fallaría: ocultaría, que es el error más caro
+                  -- posible en la pantalla desde la que se administra.
+                  LEFT JOIN document_types dt   ON dt.id = u.document_type_id
+                  LEFT JOIN user_memberships um ON um.user_id = u.id AND um.closed_at IS NULL
                   LEFT JOIN memberships m       ON m.id = um.membership_id
                  WHERE u.id = :id AND u.deleted_at IS NULL
                 """,
@@ -174,9 +219,22 @@ public class JpaUserQueryRepository implements UserQueryRepository {
                     momento(fila.get("locked_until")),
                     momento(fila.get("created_at")),
                     momento(fila.get("updated_at")),
+                    (UUID) fila.get("c_id"),
+                    ((String) fila.get("c_code")).trim(),
+                    (String) fila.get("c_name"),
+                    (UUID) fila.get("d_id"),
+                    (String) fila.get("d_abbr"),
+                    (String) fila.get("d_name"),
+                    (String) fila.get("d_number"),
+                    (String) fila.get("phone"),
+                    (String) fila.get("company_phone"),
+                    (String) fila.get("address1"),
+                    (String) fila.get("address2"),
+                    (String) fila.get("city"),
                     (UUID) fila.get("m_id"),
                     (String) fila.get("m_code"),
                     (String) fila.get("m_name"),
+                    (String) fila.get("m_color"),
                     nivel(fila.get("m_level")),
                     momento(fila.get("m_ends_at")),
                     (Boolean) fila.get("m_current")))
@@ -210,10 +268,22 @@ public class JpaUserQueryRepository implements UserQueryRepository {
           " AND EXISTS (SELECT 1 FROM user_roles ur"
               + " WHERE ur.user_id = u.id AND ur.role_id = :rol)");
     }
+    // FILTRO POR PAÍS. Directo sobre la columna y NO con EXISTS: es una
+    // relación uno a uno, de modo que no hay filas que multiplicar — que es lo
+    // que obliga a EXISTS en el rol y en la membresía.
+    //
+    // Y SIN `AND c.is_active`, a propósito. Escribirlo convertiría desactivar un
+    // país en una forma de esconder a su gente, y este listado es justamente la
+    // herramienta con la que se busca a quien quedó dentro para moverlo
+    // (`RF-SP-027`). La condición de país activo es DE ENTRADA, no de lectura.
+    if (filtros.countryId() != null) {
+      donde.append(" AND u.country_id = :pais");
+    }
     if (filtros.membershipId() != null) {
       donde.append(
           " AND EXISTS (SELECT 1 FROM user_memberships umf"
               + " WHERE umf.user_id = u.id AND umf.membership_id = :membresia"
+              + " AND umf.closed_at IS NULL"
               + " AND (umf.ends_at IS NULL OR umf.ends_at > now()))");
     }
     if (filtros.search() != null) {
@@ -236,6 +306,9 @@ public class JpaUserQueryRepository implements UserQueryRepository {
     }
     if (filtros.roleId() != null) {
       consulta.setParameter("rol", filtros.roleId());
+    }
+    if (filtros.countryId() != null) {
+      consulta.setParameter("pais", filtros.countryId());
     }
     if (filtros.membershipId() != null) {
       consulta.setParameter("membresia", filtros.membershipId());

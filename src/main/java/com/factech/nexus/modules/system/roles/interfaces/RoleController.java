@@ -480,6 +480,12 @@ public class RoleController {
           **Es idempotente y nunca retira nada**: los permisos ya declarados se
           ignoran sin error, y si no queda ninguno por agregar no se registra
           evento. Hasta 100 por petición.
+
+          **Los roles de sistema también reciben permisos** por aquí: `RN-SEG-012`
+          protege su identidad y su posición, no lo que conceden. Los rangos de
+          la fuerza comercial y `CLIENTE` nacen sin ninguno, y esta es su única
+          vía. Para `AGENTE` hay que pasar antes por `MANAGER` y `DIRECTOR`,
+          porque la contención se valida contra el padre inmediato.
           """)
   @ApiResponses({
     @ApiResponse(
@@ -500,8 +506,8 @@ public class RoleController {
     @ApiResponse(
         responseCode = "409",
         description =
-            "Rol de sistema (`RN-SEG-012`), permiso fuera del rol padre (`RN-SEG-003`) o fuera del"
-                + " alcance del actor (`RN-SEG-010`)"),
+            "Permiso fuera del rol padre (`RN-SEG-003`) o fuera del alcance del actor"
+                + " (`RN-SEG-010`)"),
     @ApiResponse(
         responseCode = "422",
         description = "Uno o más permisos no existen en el catálogo (`EX-003`)"),
@@ -536,6 +542,9 @@ public class RoleController {
           **`POST` sobre un subrecurso y no `DELETE`**: la operación recibe una
           lista en el cuerpo, y RFC 9110 no define semántica para el cuerpo de un
           `DELETE`.
+
+          **Alcanza también a los roles de sistema**: lo que se les concede tiene
+          que poder corregirse por el mismo camino.
           """)
   @ApiResponses({
     @ApiResponse(
@@ -555,9 +564,7 @@ public class RoleController {
         description = "El rol no existe o está eliminado (`EX-004`)"),
     @ApiResponse(
         responseCode = "409",
-        description =
-            "Rol de sistema (`RN-SEG-012`), o un rol dependiente declara el permiso"
-                + " (`RN-SEG-005`)"),
+        description = "Un rol dependiente declara el permiso (`RN-SEG-005`)"),
     @ApiResponse(responseCode = "500", description = "Fallo no controlado (`ERR-500`)")
   })
   public RoleResponse retirarPermisos(

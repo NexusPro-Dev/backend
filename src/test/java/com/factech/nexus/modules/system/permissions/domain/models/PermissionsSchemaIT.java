@@ -12,7 +12,7 @@ import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.jdbc.core.JdbcTemplate;
 
 /**
- * Verificación de {@code V2__create_permissions.sql} (`RF-SP-010` · `T-02`).
+ * Verificación de {@code V4__sp_seguridad.sql} (`RF-SP-010` · `T-02`).
  *
  * <p>Cada prueba ejercita una restricción con un {@code INSERT} que debe fallar. Una restricción
  * que nadie intenta violar es una restricción que nadie sabe si funciona.

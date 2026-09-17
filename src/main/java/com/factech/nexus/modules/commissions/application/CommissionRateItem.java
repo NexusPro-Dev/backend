@@ -16,22 +16,22 @@ import java.util.UUID;
 @JsonInclude(JsonInclude.Include.ALWAYS)
 public record CommissionRateItem(
     UUID id,
+    CommissionRateResponse.ProductRef product,
     CommissionRateResponse.RoleRef role,
     CommissionRateType rateType,
     BigDecimal percentage,
     BigDecimal fixedAmount,
-    long associatedProducts,
     OffsetDateTime deletedAt) {
 
   public static CommissionRateItem from(RateRow fila) {
     CommissionRateResponse base = CommissionRateResponse.from(fila);
     return new CommissionRateItem(
         base.id(),
+        base.product(),
         base.role(),
         base.rateType(),
         base.percentage(),
         base.fixedAmount(),
-        base.associatedProducts(),
         fila.deletedAt());
   }
 }

@@ -231,6 +231,56 @@ public class GlobalExceptionHandler {
   }
 
   /**
+   * El archivo pasó del tope del contenedor antes de llegar al controlador: {@code 400} con el
+   * <b>mismo</b> {@code VAL-004} que el dominio usa para «más de 5 MB» (`RF-PM-014` §13).
+   *
+   * <p>{@code spring.servlet.multipart.max-file-size} va <b>por encima</b> del tope de negocio, de
+   * modo que lo normal es que el archivo llegue y lo rechace {@code ProductImage}. Esto atiende el
+   * caso del archivo enorme, y lo traduce a la misma respuesta para que el cliente reciba siempre
+   * lo mismo por «demasiado grande», venga de donde venga — y no un {@code 500} ni un {@code 413}
+   * sin cuerpo.
+   */
+  @ExceptionHandler(org.springframework.web.multipart.MaxUploadSizeExceededException.class)
+  public ProblemDetail deArchivoDemasiadoGrande(
+      org.springframework.web.multipart.MaxUploadSizeExceededException fallo,
+      HttpServletRequest peticion) {
+    LOG.debug("Archivo por encima del tope del contenedor", fallo);
+    String mensaje = "La portada no puede pesar más de 5 MB.";
+    ProblemDetail detalle = base(ProblemKind.VALIDACION, mensaje, peticion);
+    detalle.setProperty("errors", List.of(new FieldError("file", "VAL-004", mensaje)));
+    return detalle;
+  }
+
+  /**
+   * La petición no es {@code multipart/form-data} donde debía serlo, o el {@code multipart} está
+   * mal formado: {@code 400} con `EX-003` (`RF-PM-014` §10).
+   *
+   * <p>Spring respondería {@code 415} a un {@code PUT} con JSON sobre {@code /cover}, y el sistema
+   * no publica {@code 415} en ninguna otra ruta: un cliente equivocado de ruta tiene que poder leer
+   * el cuerpo del error. {@link org.springframework.web.multipart.MaxUploadSizeExceededException}
+   * hereda de {@code MultipartException} y tiene su manejador propio, más específico, arriba.
+   */
+  @ExceptionHandler({
+    org.springframework.web.multipart.MultipartException.class,
+    org.springframework.web.HttpMediaTypeNotSupportedException.class
+  })
+  public ProblemDetail deTipoDeContenidoNoAdmitido(Exception fallo, HttpServletRequest peticion) {
+    LOG.debug("Tipo de contenido no admitido", fallo);
+    // Antes del 14-09-2026 esto caía en el manejador genérico: un 500 por un
+    // Content-Type equivocado. La portada es la única ruta que exige multipart,
+    // y la única que nombra un campo; el resto recibe un 400 que dice lo que es.
+    boolean portada = peticion.getRequestURI().endsWith("/cover");
+    String mensaje =
+        portada
+            ? "La petición debe enviar el archivo como multipart/form-data."
+            : "El tipo de contenido de la petición no se admite en este recurso.";
+    ProblemDetail detalle = base(ProblemKind.VALIDACION, mensaje, peticion);
+    detalle.setProperty(
+        "errors", portada ? List.of(new FieldError("file", "EX-003", mensaje)) : List.of());
+    return detalle;
+  }
+
+  /**
    * {@code 403} de la <b>capa de seguridad</b>: el actor está autenticado pero no declara el
    * permiso que el método exige.
    *

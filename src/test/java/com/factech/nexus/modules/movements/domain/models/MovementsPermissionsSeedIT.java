@@ -11,7 +11,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.jdbc.core.JdbcTemplate;
 
 /**
- * Verificación de {@code V51__seed_movements_permissions.sql} (`RF-MV-001` · `T-04`).
+ * Verificación de {@code V8__semilla_permisos_y_roles.sql} (`RF-MV-001` · `T-04`).
  *
  * <p>Es la primera clase del módulo `MV` y por ahora la única: la siembra de los permisos se
  * adelantó al resto del módulo porque `T-04` no depende de nada. Las cuatro tablas de la venta

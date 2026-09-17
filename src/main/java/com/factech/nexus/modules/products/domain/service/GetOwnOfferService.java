@@ -1,19 +1,29 @@
 package com.factech.nexus.modules.products.domain.service;
 
 import com.factech.nexus.modules.products.application.OfferItem;
+import com.factech.nexus.modules.products.application.OfferPackageItem;
 import com.factech.nexus.modules.products.application.OfferResponse;
+import com.factech.nexus.modules.products.application.PackageDetailResponse;
+import com.factech.nexus.modules.products.application.ProductImageUrls;
 import com.factech.nexus.modules.products.application.ProductResponse;
+import com.factech.nexus.modules.products.domain.models.PackageOfferability;
+import com.factech.nexus.modules.products.domain.models.PackagePricing;
 import com.factech.nexus.modules.products.domain.models.ProductType;
+import com.factech.nexus.modules.products.domain.repository.ProductPackageQueryRepository;
+import com.factech.nexus.modules.products.domain.repository.ProductPackageQueryRepository.PublishedPackage;
 import com.factech.nexus.modules.products.domain.repository.ProductQueryRepository;
 import com.factech.nexus.modules.products.domain.repository.ProductQueryRepository.ProductRow;
 import com.factech.nexus.modules.system.users.application.CurrentMembershipLookup;
 import com.factech.nexus.modules.system.users.application.CurrentMembershipLookup.CurrentMembershipView;
 import com.factech.nexus.shared.error.UnauthorizedException;
 import com.factech.nexus.shared.security.CurrentActor;
+import java.time.Clock;
+import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -49,14 +59,36 @@ import org.springframework.transaction.annotation.Transactional;
 public class GetOwnOfferService {
 
   private final ProductQueryRepository consultas;
+  private final ProductPackageQueryRepository paquetes;
   private final CurrentMembershipLookup membresias;
   private final CurrentActor actor;
 
+  private final ProductExchangeResolver conversiones;
+  private final Clock reloj;
+
+  @Autowired
   public GetOwnOfferService(
-      ProductQueryRepository consultas, CurrentMembershipLookup membresias, CurrentActor actor) {
+      ProductQueryRepository consultas,
+      ProductPackageQueryRepository paquetes,
+      CurrentMembershipLookup membresias,
+      CurrentActor actor,
+      ProductExchangeResolver conversiones) {
+    this(consultas, paquetes, membresias, actor, conversiones, Clock.systemUTC());
+  }
+
+  GetOwnOfferService(
+      ProductQueryRepository consultas,
+      ProductPackageQueryRepository paquetes,
+      CurrentMembershipLookup membresias,
+      CurrentActor actor,
+      ProductExchangeResolver conversiones,
+      Clock reloj) {
     this.consultas = consultas;
+    this.paquetes = paquetes;
     this.membresias = membresias;
     this.actor = actor;
+    this.conversiones = conversiones;
+    this.reloj = reloj;
   }
 
   /**
@@ -75,11 +107,16 @@ public class GetOwnOfferService {
 
     Optional<CurrentMembershipView> actual = membresias.currentMembershipOf(quien);
 
-    // Nulo NO es «sin filtro»: es «no hay peldaño desde el que subir», y la
-    // consulta lo traduce en cero upgrades y todos los bots (`FA-001`,
-    // `FA-003`). Quien no tiene nivel no lo obtiene comprando un salto, sino
-    // recibiendo un rol de consumidor (`RN-SP-018`).
-    Integer nivel = actual.map(CurrentMembershipView::level).orElse(null);
+    // Nulo NO es «sin filtro»: es «ninguna coincidencia posible», y la consulta
+    // lo traduce en cero upgrades y todos los bots (`FA-001`, `FA-003`). Quien
+    // no tiene nivel no lo obtiene comprando un salto, sino recibiendo un rol de
+    // consumidor (`RN-SP-018`).
+    //
+    // ES EL IDENTIFICADOR Y NO EL NIVEL desde el 07-09-2026 (`T-20`): la oferta
+    // coincide por ORIGEN. El nivel no podía expresar la renovación —un
+    // `X → X` obliga a comparar «igual», y ahí entra el salto ajeno que acaba
+    // donde el actor ya está—.
+    UUID membresia = actual.map(CurrentMembershipView::id).orElse(null);
 
     List<OfferItem> upgrades = new ArrayList<>();
     List<OfferItem> bots = new ArrayList<>();
@@ -87,8 +124,30 @@ public class GetOwnOfferService {
     // Se separa por tipo SIN reordenar: la sentencia ya devolvió los upgrades
     // por nivel de destino y los bots por fecha de alta (`CA-PM-078`), y volver
     // a ordenar aquí sería una segunda copia de ese criterio.
-    for (ProductRow fila : consultas.findOffer(nivel)) {
-      OfferItem producto = OfferItem.from(fila);
+    List<ProductRow> filas = consultas.findOffer(membresia);
+
+    // LOS PAQUETES (`RF-PM-007` v0.13.0, `RN-PM-044`): una sentencia más, y el
+    // filtro en Java sobre lo que vino — ofrecible hoy, y con SU upgrade —uno
+    // como máximo, `RN-PM-046`— saliendo de la membresía del actor, o sin
+    // upgrade. Sin membresía solo pasan los paquetes de bots, igual que sin
+    // membresía solo se ven bots. Y DENTRO DE SU VIGENCIA (`RN-PM-047`): un
+    // paquete que empieza mañana o terminó ayer no aparece, y nada lo dice.
+    LocalDate hoy = LocalDate.now(reloj);
+    List<PublishedPackage> ofrecibles =
+        paquetes.findOfferable().stream()
+            .filter(p -> p.ofrecibilidad(hoy).offerable())
+            .filter(p -> saleDe(p, membresia))
+            .toList();
+
+    // La conversión de TODA la oferta —productos Y paquetes— en dos consultas,
+    // y no dos por fila. El cuerpo sería idéntico con cuarenta, de modo que esto
+    // solo se ve contando sentencias (`CA-PM-168`, `CA-PM-337`).
+    List<UUID> monedas = new ArrayList<>(filas.stream().map(ProductRow::currencyId).toList());
+    ofrecibles.forEach(p -> monedas.add(p.paquete().currencyId()));
+    ProductExchangeResolver.Conversor conversor = conversiones.para(monedas);
+
+    for (ProductRow fila : filas) {
+      OfferItem producto = OfferItem.from(fila, conversor.de(fila.currencyId(), fila.price()));
       if (producto.type() == ProductType.UPGRADE_MEMBRESIA) {
         upgrades.add(producto);
       } else {
@@ -97,7 +156,54 @@ public class GetOwnOfferService {
     }
 
     return OfferResponse.de(
-        actual.map(GetOwnOfferService::referencia).orElse(null), upgrades, bots);
+        actual.map(GetOwnOfferService::referencia).orElse(null),
+        upgrades,
+        bots,
+        ofrecibles.stream().map(p -> paquete(p, conversor)).toList());
+  }
+
+  /**
+   * `RN-PM-044`: el paquete se ofrece a quien tiene el origen de su upgrade; sin upgrade, a todos.
+   *
+   * <p>El predicado vive en {@link PackageOfferability#correspondeA} desde el 17-09-2026, porque la
+   * venta del paquete (`RF-MV-012`) responde la misma pregunta al registrar y las dos lecturas
+   * tienen que decir lo mismo: aquí vivía, y aquí solo se llama.
+   */
+  private static boolean saleDe(PublishedPackage paquete, UUID membresia) {
+    return PackageOfferability.correspondeA(paquete.origenesDeSusUpgrades(), membresia);
+  }
+
+  private static OfferPackageItem paquete(
+      PublishedPackage publicado, ProductExchangeResolver.Conversor conversor) {
+    PackagePricing cuenta = publicado.precio();
+    UUID moneda = publicado.paquete().currencyId();
+    int decimales = publicado.paquete().currencyDecimalPlaces();
+    return new OfferPackageItem(
+        publicado.paquete().code(),
+        publicado.paquete().name(),
+        publicado.paquete().description(),
+        ProductImageUrls.de(publicado.paquete().coverImageId()),
+        publicado.paquete().validFrom(),
+        publicado.paquete().validTo(),
+        new ProductResponse.CurrencyRef(moneda, publicado.paquete().currencyCode(), decimales),
+        publicado.items().stream()
+            .map(
+                linea ->
+                    new OfferPackageItem.Line(
+                        // La forma de la oferta, tal cual, con la conversión del
+                        // mismo conversor: todas las líneas están en la moneda
+                        // del paquete.
+                        OfferItem.from(
+                            linea.producto(), conversor.de(moneda, linea.producto().price())),
+                        new PackageDetailResponse.DiscountRef(
+                            linea.descuento().getType(),
+                            linea.descuento().valorEnEscala(decimales)),
+                        cuenta.precioDe(linea.producto().id())))
+            .toList(),
+        cuenta.listPrice(),
+        cuenta.price(),
+        cuenta.savings(),
+        conversor.de(moneda, cuenta.price()));
   }
 
   /**
@@ -109,6 +215,6 @@ public class GetOwnOfferService {
    */
   private static ProductResponse.MembershipRef referencia(CurrentMembershipView membresia) {
     return new ProductResponse.MembershipRef(
-        membresia.id(), membresia.code(), membresia.name(), membresia.level());
+        membresia.id(), membresia.code(), membresia.name(), membresia.level(), membresia.color());
   }
 }

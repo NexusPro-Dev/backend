@@ -21,6 +21,9 @@ public class JpaUserCommissionRateQueryRepository implements UserCommissionRateQ
       """
       t.id AS id, t.user_id AS user_id, u.username AS username,
       u.first_name AS user_nombre, u.last_name AS user_apellido,
+      t.product_id AS product_id, p.code AS product_code, p.name AS product_name,
+      p.price AS product_price,
+      p.currency_id AS currency_id, c.code AS currency_code, c.decimal_places AS decimal_places,
       t.rate_type AS rate_type, t.percentage AS percentage, t.fixed_amount AS fixed_amount,
       t.valid_from AS valid_from, t.valid_to AS valid_to,
       t.deleted_at AS deleted_at
@@ -29,7 +32,9 @@ public class JpaUserCommissionRateQueryRepository implements UserCommissionRateQ
   private static final String TABLAS =
       """
       user_commission_rates t
-      LEFT JOIN users u ON u.id = t.user_id
+      LEFT JOIN users      u ON u.id = t.user_id
+      LEFT JOIN products   p ON p.id = t.product_id
+      LEFT JOIN currencies c ON c.id = p.currency_id
       """;
 
   private final EntityManager em;
@@ -94,6 +99,8 @@ public class JpaUserCommissionRateQueryRepository implements UserCommissionRateQ
   private static Filtro predicado(UserRateFilters f) {
     Filtro filtro = new Filtro();
     filtro.igual("t.user_id", "persona", f.userId());
+    // Desde el 16-09-2026 el producto es una columna de la propia tasa.
+    filtro.igual("t.product_id", "producto", f.productId());
 
     if (!f.includeDeleted()) {
       filtro.crudo("t.deleted_at IS NULL");
@@ -116,6 +123,13 @@ public class JpaUserCommissionRateQueryRepository implements UserCommissionRateQ
         (String) fila.get("username"),
         CommissionRows.nombreCompleto(
             (String) fila.get("user_nombre"), (String) fila.get("user_apellido")),
+        (UUID) fila.get("product_id"),
+        (String) fila.get("product_code"),
+        (String) fila.get("product_name"),
+        (BigDecimal) fila.get("product_price"),
+        (UUID) fila.get("currency_id"),
+        (String) fila.get("currency_code"),
+        ((Number) fila.get("decimal_places")).intValue(),
         CommissionRows.forma(fila.get("rate_type")),
         (BigDecimal) fila.get("percentage"),
         (BigDecimal) fila.get("fixed_amount"),

@@ -3,7 +3,7 @@
 | Campo | Valor |
 |---|---|
 | Requerimiento | `RF-PM-002` |
-| Enmendadas | 02-09-2026 — el filtro por membresía de **origen** |
+| Enmendadas | 12-09-2026 — `T-23` porque el segundo precio es el **de compra**; 08-09-2026 — `T-19` por los **dos precios**; 02-09-2026 — el filtro por membresía de **origen**; 07-09-2026 — `T-16` y `T-17` por los filtros de **alcance** e **implementación**; 14-09-2026 — `T-24` por el **enlace del video**; 14-09-2026 — `T-25` por la **dirección de la portada** (`RN-PM-033`); 15-09-2026 — `T-26` por el **alcance de cuatro valores** |
 | Plan | [`plan.md`](plan.md), aprobado el 26-08-2026 |
 | Estado | **Aprobadas** |
 | Autor | Responsable técnico |
@@ -31,6 +31,17 @@
 | `T-13` | Documentación OpenAPI del endpoint con sus **ocho** parámetros | `T-10` | El contrato declara los filtros y los estados | Hecha |
 | `T-14` | Actualizar la matriz de trazabilidad | `T-10` | La fila refleja el estado | Hecha |
 | `T-15` | La **vigencia** viaja en cada fila del listado | `T-05` | Un producto sin vigencia llega con el campo **vacío y presente**, no ausente | Hecha |
+| `T-16` | Los dos filtros nuevos: `scope` e `implementation` en `ListProductsRequest`, su comprobación de dominio **con el ayudante que ya usan `type` y `status`**, el predicado y el enlace en el adaptador, y las dos columnas en `ProductItem` | `RF-PM-001 · T-28` | El filtro en minúsculas devuelve las filas correctas —no una colección vacía—, un valor fuera de dominio se acumula con los demás en un solo `400`, y el listado sigue costando **dos** sentencias con los ocho filtros puestos | **Hecha el 07-09-2026** |
+| `T-17` | Pruebas de API de `CA-PM-115` a `CA-PM-117`, y la documentación OpenAPI con los **diez** parámetros | `T-16` | La suite de `PM` en verde con los tres criterios nuevos, y el contrato declara los dos parámetros | **Hecha el 07-09-2026** |
+| `T-18` | El **color** de las dos membresías en la proyección y en el `LEFT JOIN` del listado | `RF-PM-001 · T-32` | `CA-PM-142`, y el listado sigue costando **dos** sentencias | **Hecha el 07-09-2026** |
+| `T-19` | El **precio público** en `ProductRow`, en el `SELECT` del listado y en `ProductItem`, con la escala de la misma moneda | `RF-PM-001 · T-34` | `CA-PM-151`: la fila trae los dos importes, y el público llega **nulo y presente** donde no se declaró. El listado sigue costando **dos** sentencias — la proyección crece, la consulta no | **Hecha el 08-09-2026** |
+| `T-23` | **El segundo precio es el de compra**: `purchasePrice` sustituye a `publicPrice` en `ProductRow`, en el `SELECT` del listado y en `ProductItem`; la conversión de cada fila se calcula **sobre `price`** y `ProductExchangeResolver.importeMostrado` desaparece; la prosa de la `@Operation` deja de decir «se anuncia» | `RF-PM-001 · T-38` | `CA-PM-151` y `CA-PM-164` con el nombre nuevo. `ProductListIT` comprueba `purchasePrice` presente y nulo, y el `exchange` de un producto con costo declarado sale de `price` y no del costo | **Hecha el 12-09-2026** |
+| `T-20` | **El puerto por lotes en `SP`**: `ExchangeRateLookup.ratesOn(monedas, destino, día)` devuelve un mapa en **una sola sentencia**. `rateOn` se conserva para las lecturas de una fila | `RF-SP-047` | Integración: pedir cinco monedas cuesta **una** consulta, y las que no tienen tasa vigente **faltan del mapa** en vez de venir nulas | **Hecha el 08-09-2026** |
+| `T-21` | **El resolutor de conversión de `PM`**: resuelve la moneda de casa una vez, pide las tasas por lotes y construye el `exchange` de cada fila sobre el importe **que se muestra** | `T-20` | `CA-PM-164`. Lo comparten las cuatro lecturas del módulo: escribirlo dos veces dejaría dos versiones que divergen | **Hecha el 08-09-2026** |
+| `T-22` | **La prueba de sentencias del listado** | `T-21` | `CA-PM-165`: una página de varios productos en monedas distintas cuesta **dos consultas más** y no dos por fila. Es la única forma de verlo — el cuerpo es idéntico con cuarenta | **Hecha el 08-09-2026** |
+| `T-24` | **El enlace del video en cada fila** (`RF-PM-001` `T-39` trae la columna): `videoUrl` en `ProductRow`, en el `SELECT` del listado y en `ProductItem`; y la prosa de la `@Operation` lo nombra | `T-23` | `CA-PM-223` en `ProductListIT`: una página con un producto con enlace y otro sin él. **El contrato regenerado declara `videoUrl` en `ProductItem`** | **Hecha el 14-09-2026** |
+| `T-25` | **La dirección de la portada en cada fila** (`RF-PM-014` `T-01` trae la columna, `T-09` y `T-10` la proyección y el conversor): `coverImageId` en `ProductRow`, `p.cover_image_id` en el `SELECT` del listado, `coverImageUrl` en `ProductItem`; y la prosa de la `@Operation` lo nombra y dice que no es un filtro | `T-24`, `RF-PM-014 · T-10` | `CA-PM-232` en `ProductListIT`: una página con un producto con portada y otro sin ella, y la prueba de sentencias sin subir. **El contrato regenerado declara `coverImageUrl` en `ProductItem`** | **Hecha el 14-09-2026** |
+| `T-26` | **El alcance de cuatro valores en el filtro** (`RF-PM-001` `T-41` trae el enumerado): el `canonico` del filtro admite los cuatro por el mismo `ProductScope.values()`; la prosa de la `@Operation` los nombra | `T-25` | `CA-PM-349` en `ProductListIT` | **Hecha el 15-09-2026** |
 
 ## 2. Orden de ejecución
 
@@ -39,6 +50,8 @@
 `T-11` y `T-12` se escriben al final pero **no son opcionales**: son las dos que fallan cuando alguien simplifica el orden o borra el índice.
 
 ## 3. Cobertura de los criterios de aceptación
+
+> `CA-PM-164` → `T-21` · `CA-PM-165` → `T-22` (añadidos el 08-09-2026 con la conversión).
 
 | Criterio | Tareas |
 |---|---|
@@ -52,6 +65,13 @@
 | `CA-PM-074`, `CA-PM-075` | `T-02`, `T-05` |
 | `CA-PM-076` | `T-11` |
 | `CA-PM-077` | `T-10` |
+| `CA-PM-115`, `CA-PM-116` | `T-16`, `T-17` |
+| `CA-PM-117` | `T-16`, `T-17` |
+| `CA-PM-142` | `T-18` |
+| `CA-PM-151` | `T-19`, `T-23` |
+| `CA-PM-223` | `T-24` |
+| `CA-PM-232` | `T-25` |
+| `CA-PM-349` | `T-26` |
 
 ## 4. Bloqueos
 

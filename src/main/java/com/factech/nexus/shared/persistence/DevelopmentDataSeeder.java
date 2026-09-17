@@ -21,11 +21,12 @@ import org.springframework.util.StreamUtils;
  *
  * <h2>Qué siembra, y por qué esto no puede llegar a producción</h2>
  *
- * <p>Quince personas de prueba con sus roles y tres membresías. Las quince <b>comparten el hash de
- * contraseña del superadministrador</b> y nacen <b>sin marca de cambio obligatorio</b>, al revés
- * que cualquier alta real por la API. En un entorno de desarrollo eso es exactamente lo que se
- * quiere; en el sistema real serían quince cuentas con una credencial que alguien más conoce y que
- * nadie está obligado a cambiar.
+ * <p>Diecinueve personas de prueba con sus roles y sus membresías, y —desde el 14-09-2026— un
+ * <b>catálogo de dieciséis productos</b> (once upgrades y cinco bots) que va en un segundo guion.
+ * Las quince <b>comparten el hash de contraseña del superadministrador</b> y nacen <b>sin marca de
+ * cambio obligatorio</b>, al revés que cualquier alta real por la API. En un entorno de desarrollo
+ * eso es exactamente lo que se quiere; en el sistema real serían quince cuentas con una credencial
+ * que alguien más conoce y que nadie está obligado a cambiar.
  *
  * <h2>El guardia es un dominio cerrado, no una comparación de cadenas</h2>
  *
@@ -68,7 +69,14 @@ public class DevelopmentDataSeeder implements ApplicationRunner {
   private static final Logger LOG = LoggerFactory.getLogger(DevelopmentDataSeeder.class);
 
   /** El guion vive en el classpath porque tiene que viajar dentro del artefacto que se ejecuta. */
-  private static final String GUION = "db/dev-seed/semilla-desarrollo.sql";
+  /**
+   * Los guiones, <b>en orden</b>: primero las personas y después el catálogo de productos. Son
+   * archivos separados porque responden a preguntas distintas —quién existe y qué se vende— y
+   * porque el segundo llegó dieciséis días después: mezclarlos habría hecho ilegible el primero.
+   * Cada uno es repetible por su cuenta, de modo que el orden importa solo por legibilidad del log.
+   */
+  private static final java.util.List<String> GUIONES =
+      java.util.List.of("db/dev-seed/semilla-desarrollo.sql", "db/dev-seed/semilla-productos.sql");
 
   private final RuntimeEnvironment entorno;
   private final JdbcTemplate jdbc;
@@ -100,26 +108,39 @@ public class DevelopmentDataSeeder implements ApplicationRunner {
       return;
     }
 
-    transacciones.executeWithoutResult(estado -> jdbc.execute(leerGuion()));
+    // UNA transacción para los dos guiones: un fallo en el catálogo deshace
+    // también a las personas, y el arranque siguiente vuelve a intentarlo entero.
+    transacciones.executeWithoutResult(
+        estado -> {
+          for (String guion : GUIONES) {
+            jdbc.execute(leerGuion(guion));
+          }
+        });
 
     LOG.warn(
         "SEMILLA DE DESARROLLO APLICADA en el entorno '{}': hay {} personas con la contraseña del"
-            + " superadministrador y sin cambio obligatorio. Esto no debe ocurrir en producción.",
+            + " superadministrador y sin cambio obligatorio, y {} productos de prueba en el catálogo."
+            + " Esto no debe ocurrir en producción.",
         entorno.valor().name().toLowerCase(),
-        cuantasPersonas());
+        cuantasPersonas(),
+        cuantosProductos());
   }
 
-  private String leerGuion() {
+  private String leerGuion(String guion) {
     try {
       return StreamUtils.copyToString(
-          new ClassPathResource(GUION).getInputStream(), StandardCharsets.UTF_8);
+          new ClassPathResource(guion).getInputStream(), StandardCharsets.UTF_8);
     } catch (IOException fallo) {
       // Tumba el arranque a propósito: el guion viaja dentro del artefacto, de
       // modo que no poder leerlo significa que el artefacto está mal construido
       // y no que falte un dato del entorno.
       throw new UncheckedIOException(
-          "No se pudo leer la semilla de desarrollo del classpath: " + GUION, fallo);
+          "No se pudo leer la semilla de desarrollo del classpath: " + guion, fallo);
     }
+  }
+
+  private Integer cuantosProductos() {
+    return jdbc.queryForObject("SELECT count(*) FROM products", Integer.class);
   }
 
   private Integer cuantasPersonas() {

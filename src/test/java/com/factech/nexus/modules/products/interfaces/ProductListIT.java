@@ -1,5 +1,6 @@
 package com.factech.nexus.modules.products.interfaces;
 
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.user;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
@@ -58,7 +59,7 @@ class ProductListIT extends IntegrationTestBase {
     oro = membresia("ORO", "Oro", 1, null);
     plata = membresia("PLATA", "Plata", 2, oro);
     // El SUELO de la cadena: el origen de todo upgrade que se siembre aqui.
-    free = membresia("FREE", "Free", 3, plata);
+    free = membresia("BECA", "Beca", 3, plata);
 
     // Cinco productos, cada uno una hora después del anterior: el orden de alta
     // queda determinado y las pruebas de orden pueden afirmar cuál va primero.
@@ -240,6 +241,52 @@ class ProductListIT extends IntegrationTestBase {
   }
 
   @Test
+  @DisplayName(
+      "`CA-PM-164` — cada fila trae su conversión, presente y nula si no hay nada que convertir")
+  void cadaFilaTraeSuConversion() throws Exception {
+    // Los productos sembrados están en USD, que es la moneda de casa: no hay
+    // nada que convertir. Lo que se comprueba es que el campo ESTÁ — ausente
+    // sería indistinguible de uno que el cliente no conoce.
+    String cuerpo =
+        mvc.perform(listado().param("search", "Ascenso a Oro"))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.content[0].exchange").value(org.hamcrest.Matchers.nullValue()))
+            .andReturn()
+            .getResponse()
+            .getContentAsString();
+
+    assertThat(cuerpo).contains("\"exchange\":null");
+  }
+
+  @Test
+  @DisplayName("`CA-PM-164` — con una moneda distinta y tasa vigente, la conversión llega resuelta")
+  void laConversionLlegaResuelta() throws Exception {
+    String cop = insertarMoneda("COP", "Peso colombiano");
+    jdbc.update(
+        "UPDATE products SET currency_id = CAST(? AS uuid), price = 1000.00"
+            + " WHERE code = 'UPGRADE_ORO'",
+        cop);
+    jdbc.update(
+        "INSERT INTO exchange_rates (id, source_currency_id, target_currency_id, price,"
+            + " valid_from, valid_to, is_active)"
+            + " VALUES (CAST(? AS uuid), CAST(? AS uuid), CAST(? AS uuid), 0.00024096,"
+            + " CAST(? AS date), NULL, true)",
+        UUID.randomUUID().toString(),
+        cop,
+        USD,
+        java.time.LocalDate.now().minusDays(1).toString());
+
+    mvc.perform(listado().param("search", "Ascenso a Oro"))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.content[0].currency.code").value("COP"))
+        .andExpect(jsonPath("$.content[0].exchange.currency.code").value("USD"))
+        // La tasa como CADENA, con sus ocho decimales intactos.
+        .andExpect(jsonPath("$.content[0].exchange.rate").value("0.00024096"))
+        // 1000,00 × 0,00024096 = 0,24096 → 0,24 con los dos decimales de USD.
+        .andExpect(jsonPath("$.content[0].exchange.amount").value(0.24));
+  }
+
+  @Test
   @DisplayName("un bot trae el destino NULO Y PRESENTE, no ausente")
   void botSinDestino() throws Exception {
     mvc.perform(listado().param("search", "Soporte"))
@@ -366,7 +413,169 @@ class ProductListIT extends IntegrationTestBase {
     mvc.perform(listado().param("sort", "name,arriba")).andExpect(status().isBadRequest());
   }
 
+  @Test
+  @DisplayName("`CA-PM-115` — filtra por alcance y devuelve solo los del valor pedido")
+  void filtraPorAlcance() throws Exception {
+    jdbc.update("UPDATE products SET scope = 'AMBOS' WHERE code IN ('ASESORIA', 'SOPORTE')");
+
+    mvc.perform(listado().param("scope", "AMBOS"))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.totalElements").value(2))
+        .andExpect(jsonPath("$.content[*].scope").value(Matchers.everyItem(Matchers.is("AMBOS"))));
+
+    mvc.perform(listado().param("scope", "TIENDA"))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.totalElements").value(3));
+  }
+
+  @Test
+  @DisplayName("`CA-PM-116` — filtra por implementación en cualquier caja, y acumula su rechazo")
+  void filtraPorImplementacion() throws Exception {
+    jdbc.update("UPDATE products SET implementation = 'AUTOMATICA' WHERE code = 'UPGRADE_ORO'");
+
+    // En minúsculas es la MISMA pregunta: sin normalizar, este filtro
+    // devolvería la colección vacía —un `200` que miente— en lugar de la fila.
+    mvc.perform(listado().param("implementation", "automatica"))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.totalElements").value(1))
+        .andExpect(jsonPath("$.content[0].code").value("UPGRADE_ORO"));
+
+    // Y el valor fuera de dominio se devuelve JUNTO a los demás parámetros
+    // inválidos (`CA-PM-020`), no en una vuelta aparte.
+    mvc.perform(listado().param("implementation", "MEDIO").param("scope", "TIENDAS"))
+        .andExpect(status().isBadRequest())
+        .andExpect(jsonPath("$.errors.length()").value(2));
+  }
+
+  @Test
+  @DisplayName("`CA-PM-117` — cada fila devuelve el alcance y la implementación, en los dos tipos")
+  void cadaFilaLosDevuelve() throws Exception {
+    mvc.perform(listado())
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.content[*].scope").value(Matchers.everyItem(Matchers.is("TIENDA"))))
+        .andExpect(
+            jsonPath("$.content[*].implementation")
+                .value(Matchers.everyItem(Matchers.is("MANUAL"))));
+  }
+
   // ---------------------------------------------------------------------------
+
+  @Test
+  @DisplayName("`CA-PM-142` — cada upgrade del listado trae el COLOR de sus dos membresías")
+  void elListadoTraeElColorDeLasMembresias() throws Exception {
+    mvc.perform(listado().param("type", "UPGRADE_MEMBRESIA"))
+        .andExpect(status().isOk())
+        .andExpect(
+            jsonPath(
+                "$.content[*].targetMembership.color",
+                Matchers.everyItem(Matchers.matchesPattern("^[0-9A-F]{6}$"))))
+        .andExpect(
+            jsonPath(
+                "$.content[*].sourceMembership.color",
+                Matchers.everyItem(Matchers.matchesPattern("^[0-9A-F]{6}$"))));
+  }
+
+  @Test
+  @DisplayName("`CA-PM-151` — cada fila trae los DOS precios, y el de compra nulo y presente")
+  void cadaFilaTraeLosDosPrecios() throws Exception {
+    jdbc.update(
+        "UPDATE products SET purchase_price = CAST('59.99' AS numeric) WHERE code = 'UPGRADE_ORO'");
+
+    // El listado y el detalle son los DOS ÚNICOS sitios donde los dos importes
+    // se ven juntos, y lo que los separa de la oferta es `products:read`.
+    mvc.perform(listado().param("targetMembershipId", oro.toString()))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.content[0].code").value("UPGRADE_ORO"))
+        .andExpect(jsonPath("$.content[0].price").exists())
+        .andExpect(jsonPath("$.content[0].purchasePrice").value(59.99));
+
+    // Y en un producto que no lo declara, el campo va PRESENTE con nulo: su
+    // nulo significa «no se conoce el costo».
+    mvc.perform(listado().param("targetMembershipId", plata.toString()))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.content[0].code").value("UPGRADE_PLATA"))
+        .andExpect(jsonPath("$.content[0].purchasePrice").doesNotExist())
+        .andExpect(jsonPath("$.content[0]").value(org.hamcrest.Matchers.hasKey("purchasePrice")));
+  }
+
+  @Test
+  @DisplayName("`CA-PM-223` — cada fila trae `videoUrl` tal cual, y nulo y presente en los que no")
+  void cadaFilaTraeElVideo() throws Exception {
+    jdbc.update(
+        "UPDATE products SET video_url = 'https://vimeo.com/123456' WHERE code = 'UPGRADE_ORO'");
+
+    mvc.perform(listado().param("targetMembershipId", oro.toString()))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.content[0].code").value("UPGRADE_ORO"))
+        .andExpect(jsonPath("$.content[0].videoUrl").value("https://vimeo.com/123456"));
+
+    // Sin video, el campo va PRESENTE con nulo: «no tiene video» es un estado,
+    // y un campo que falta no puede decirlo.
+    mvc.perform(listado().param("targetMembershipId", plata.toString()))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.content[0].code").value("UPGRADE_PLATA"))
+        .andExpect(jsonPath("$.content[0].videoUrl").doesNotExist())
+        .andExpect(jsonPath("$.content[0]").value(Matchers.hasKey("videoUrl")));
+  }
+
+  @Test
+  @DisplayName(
+      "`CA-PM-349` — el filtro admite los cuatro alcances, ve al NINGUNO, y rechaza HOTLINKS")
+  void elFiltroDeAlcanceAdmiteLosCuatro() throws Exception {
+    jdbc.update("UPDATE products SET scope = 'HOTLINK' WHERE code = 'ASESORIA'");
+    jdbc.update("UPDATE products SET scope = 'AMBOS' WHERE code = 'SOPORTE'");
+    jdbc.update(
+        "UPDATE products SET scope = 'NINGUNO', status = 'ACTIVO' WHERE code = 'UPGRADE_ORO'");
+
+    for (String alcance : new String[] {"TIENDA", "HOTLINK", "AMBOS", "NINGUNO"}) {
+      mvc.perform(listado().param("scope", alcance))
+          .andExpect(status().isOk())
+          .andExpect(jsonPath("$.content", Matchers.not(Matchers.empty())))
+          .andExpect(
+              jsonPath("$.content[*].scope").value(Matchers.everyItem(Matchers.is(alcance))));
+    }
+    // El `NINGUNO` activo se ve aquí, y solo aquí: ninguna vista de venta lo ofrece.
+    mvc.perform(listado().param("scope", "NINGUNO"))
+        .andExpect(jsonPath("$.content[0].code").value("UPGRADE_ORO"))
+        .andExpect(jsonPath("$.content[0].status").value("ACTIVO"));
+
+    mvc.perform(listado().param("scope", "HOTLINKS"))
+        .andExpect(status().isBadRequest())
+        .andExpect(jsonPath("$.errors[0].code").value("VAL-006"))
+        .andExpect(jsonPath("$.errors[0].field").value("scope"));
+
+    jdbc.update("UPDATE products SET scope = 'TIENDA'");
+  }
+
+  @Test
+  @DisplayName(
+      "`CA-PM-232` — cada fila trae `coverImageUrl` por imagen, y nulo y presente sin ella")
+  void cadaFilaTraeLaPortada() throws Exception {
+    UUID imagen = UUID.randomUUID();
+    jdbc.update(
+        "INSERT INTO product_images (id, content_type, content) VALUES (CAST(? AS uuid),"
+            + " 'image/png', decode('89504E470D0A1A0A00', 'hex'))",
+        imagen.toString());
+    jdbc.update(
+        "UPDATE products SET cover_image_id = CAST(? AS uuid) WHERE code = 'UPGRADE_ORO'",
+        imagen.toString());
+
+    mvc.perform(listado().param("targetMembershipId", oro.toString()))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.content[0].code").value("UPGRADE_ORO"))
+        .andExpect(
+            jsonPath("$.content[0].coverImageUrl").value("/api/v1/product-images/" + imagen));
+
+    // Sin portada, presente y nulo: «no tiene portada» es un estado.
+    mvc.perform(listado().param("targetMembershipId", plata.toString()))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.content[0].code").value("UPGRADE_PLATA"))
+        .andExpect(jsonPath("$.content[0].coverImageUrl").doesNotExist())
+        .andExpect(jsonPath("$.content[0]").value(Matchers.hasKey("coverImageUrl")));
+
+    jdbc.update("UPDATE products SET cover_image_id = NULL");
+    jdbc.update("DELETE FROM product_images");
+  }
 
   private MockHttpServletRequestBuilder listado() {
     return get("/api/v1/products")
@@ -434,10 +643,10 @@ class ProductListIT extends IntegrationTestBase {
     // deriva del destino en lugar de ser un parametro mas — nunca puede
     // quedar uno sin el otro, que es lo que `ck_products_type_target` mira.
     jdbc.update(
-        "INSERT INTO products (id, code, type, name, description, source_membership_id,"
+        "INSERT INTO products (scope, implementation, id, code, type, name, description, source_membership_id,"
             + " target_membership_id, price,"
             + " currency_id, validity_days, status, created_at, updated_at)"
-            + " VALUES (CAST(? AS uuid), ?, ?, ?, NULL,"
+            + " VALUES ('TIENDA', 'MANUAL', CAST(? AS uuid), ?, ?, ?, NULL,"
             + " CAST(? AS uuid), CAST(? AS uuid), CAST(? AS numeric),"
             + " CAST(? AS uuid), CAST(? AS integer), ?, ?, ?)",
         UUID.randomUUID().toString(),
@@ -466,5 +675,23 @@ class ProductListIT extends IntegrationTestBase {
   @AfterEach
   void vaciarCatalogo() {
     jdbc.update("DELETE FROM products");
+    // La conversión trajo dos tablas más a esta clase (08-09-2026). Se limpian
+    // aquí y en este orden: las tasas apuntan a las monedas.
+    jdbc.update("DELETE FROM exchange_rates");
+    jdbc.update("DELETE FROM currencies WHERE is_default = false");
+  }
+
+  /** Una moneda distinta de la de casa, que es lo que hace que haya algo que convertir. */
+  private String insertarMoneda(String codigo, String nombre) {
+    UUID id = UUID.randomUUID();
+    jdbc.update(
+        """
+        INSERT INTO currencies (id, code, name, symbol, decimal_places, is_default, is_active)
+        VALUES (?, ?, ?, '#', 2, false, true)
+        """,
+        id,
+        codigo,
+        nombre);
+    return id.toString();
   }
 }

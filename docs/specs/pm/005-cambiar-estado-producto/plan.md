@@ -15,7 +15,7 @@
 
 ## 1. Enfoque
 
-La operación más corta del módulo y la que concentra su invariante más caro. Cambiar una columna es trivial; lo que no lo es es que **`RN-PM-004` vive entera aquí**: desde que el producto nace inactivo (`RN-PM-012`), esta es la única puerta por la que un upgrade puede quedar activo, y por tanto el único sitio donde dos precios simultáneos para **el mismo salto** podrían entrar. Desde el 02-09-2026 el salto es una **pareja**: dos upgrades activos hacia `ORO`, uno desde `FREE` y otro desde `PLATINO`, no compiten — venden cosas distintas, y que cuesten distinto es lo normal. Lo que sigue prohibido es que dos vendan **el mismo salto**.
+La operación más corta del módulo y la que concentra su invariante más caro. Cambiar una columna es trivial; lo que no lo es es que **`RN-PM-004` vive entera aquí**: desde que el producto nace inactivo (`RN-PM-012`), esta es la única puerta por la que un upgrade puede quedar activo, y por tanto el único sitio donde dos precios simultáneos para **el mismo salto** podrían entrar. Desde el 02-09-2026 el salto es una **pareja**: dos upgrades activos hacia `ORO`, uno desde `BECA` y otro desde `PLATINO`, no compiten — venden cosas distintas, y que cuesten distinto es lo normal. Lo que sigue prohibido es que dos vendan **el mismo salto**.
 
 ## 2. Cambios de esquema
 

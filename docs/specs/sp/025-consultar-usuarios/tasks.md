@@ -120,6 +120,14 @@ graph LR
 - **Ninguna fila lleva nada derivado de la credencial**, ni permisos efectivos, ni el bloqueo.
 - Un filtro sin coincidencias y una página más allá de la última devuelven `200`, no un error.
 
+## 4.ter El país entra en la fila y nace su filtro — enmienda del 07-09-2026
+
+`RN-SP-034` obliga a que toda persona declare un país (`requirements/sp.md` v1.38.0), y este listado lo publica y permite filtrar por él (`spec.md` §6.1, §6.2, `CA-SP-575` y `CA-SP-576`).
+
+**Las tareas no se duplican aquí.** Son `T-48` y `T-49` de [`../024-registrar-usuario/tasks.md`](../024-registrar-usuario/tasks.md) §4.quinquies, donde vive la enmienda entera: la columna es de `users` y el índice que sostiene el filtro lo crea `V64`, que es de aquel requerimiento. Repartir las tareas entre seis documentos las dejaría avanzando por separado sobre una sola migración.
+
+**Lo que sí es decisión de este requerimiento** y queda en `plan.md` §2.bis: el filtro **no se acota a países activos**. Escribir `AND c.is_active` convertiría desactivar un país en una forma de esconder a su gente, justo cuando este listado es la herramienta con la que se va a buscar a quien hay que mover.
+
 ## 5. Definición de terminado
 
 El requerimiento no está terminado hasta cumplir **todas** las condiciones de la constitución §16:

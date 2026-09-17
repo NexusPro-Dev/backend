@@ -4,12 +4,12 @@
 |---|---|
 | Módulo | `SP` — Sistema Principal |
 | Paquete | `modules/system` |
-| Prefijos de permiso | `roles:`, `permissions:`, `audit:`, `memberships:`, `currencies:`, `countries:`, `users:` |
-| Versión | 1.32.0 |
+| Prefijos de permiso | `roles:`, `permissions:`, `audit:`, `memberships:`, `currencies:`, `countries:`, `users:`, `exchange-rates:`, `document-types:`, `brokers:`, `broker-accounts:` |
+| Versión | 1.58.0 |
 | Estado | **Aprobado** |
 | Responsable | Bonilla Diaz William Steven |
 | Fecha de creación | 20-08-2026 |
-| Última actualización | 01-09-2026 |
+| Última actualización | 17-09-2026 |
 | Fecha de aprobación | 20-08-2026 |
 
 !!! info "Qué va en este documento"
@@ -62,7 +62,10 @@ Según [`modules.md` §5.1](../modules.md).
 | Roles y permisos | Asociación y revocación de permisos sobre un rol | `RF-SP-005`, `RF-SP-006` |
 | Membresías | Nivel de acceso del consumidor a servicios y contenidos | `RF-SP-016` a `RF-SP-018` |
 | Monedas | Catálogo de monedas. Solo lectura por API | `RF-SP-019` |
+| **Tasas de cambio** | A cuánto se cambia una moneda por otra, y desde cuándo. **Se administra por API**, al revés que el catálogo de monedas | `RF-SP-047` a `RF-SP-050` |
 | Países | Catálogo de países | `RF-SP-020`, `RF-SP-021` |
+| **Tipos de documento** | Catálogo de los documentos de identidad admitidos. **Solo lectura por API**, como el de monedas — y con una diferencia que lo define: **solo contiene documentos de persona mayor de edad**, de modo que el catálogo *es* la validación | `RF-SP-051` |
+| **Brokers** | Catálogo de los brokers con los que opera la plataforma, y **la cuenta que cada persona tiene en cada uno**. El catálogo es **solo lectura por API** como el de monedas; el vínculo lo declara quien abre la cuenta, **lo consulta el superior comercial** y **lo completa un webhook del broker** | `RF-SP-052` a `RF-SP-056` |
 | **Usuarios** | Alta, consulta, edición, estado y baja de las personas que acceden al sistema, y consulta del propio perfil | `RF-SP-024` a `RF-SP-029`, `RF-SP-039` |
 | **Roles de usuario** | Asignación y retiro de roles sobre una persona | `RF-SP-030`, `RF-SP-031` |
 | **Membresía del usuario** | Asignación y retiro del nivel de acceso de un consumidor | `RF-SP-032`, `RF-SP-033` |
@@ -151,7 +154,7 @@ Las reglas de autorización están definidas en [`security.md` §4.3](../securit
 | `RN-SEG-008` | No se elimina un rol con hijos o con usuarios asignados | `RF-SP-009` |
 | `RN-SEG-010` | Nadie asigna permisos que no posee | `RF-SP-005` |
 | `RN-SEG-011` | Nadie modifica los permisos de un rol que tiene asignado | `RF-SP-004` a `RF-SP-009` |
-| `RN-SEG-012` | Los roles de sistema no se modifican ni eliminan por la API | `RF-SP-004` a `RF-SP-009` |
+| `RN-SEG-012` | Los roles de sistema no se editan, reubican, desactivan ni eliminan por la API; **sus permisos sí se administran** | `RF-SP-004`, `RF-SP-007` a `RF-SP-009` |
 | `RN-SEG-013` | Cambiar el rol padre revalida `RN-SEG-003` contra el nuevo padre | `RF-SP-008` |
 
 !!! note "Por qué estas reglas llevan `SEG` y no `SP`"
@@ -169,17 +172,17 @@ Reglas que no son transversales de seguridad y por tanto sí llevan el prefijo d
 | `RN-SP-001` | Superadministrador siempre presente | Al eliminar un usuario, al retirarle el acceso —desactivándolo o bloqueándolo— o al retirarle el rol | Debe existir siempre al menos un usuario **`ACTIVO`** con rol `SUPERADMIN`; la operación que dejaría al sistema sin ninguno se rechaza. **La condición se mide sobre usuarios activos**, no sobre usuarios existentes: un superadministrador inactivo, bloqueado o eliminado no puede administrar nada, y contarlo dejaría la garantía vacía. La comprobación debe serializarse sobre el conjunto de portadores activos del rol raíz, no sobre la fila del usuario afectado | **Crítica** |
 | `RN-SP-002` | Rol padre obligatorio | Al crear o editar un rol | Todo rol declara un rol padre, salvo `SUPERADMIN`, que es el único sin él | Alta |
 | `RN-SP-003` | Clasificación del rol | Al crear un rol | Todo rol se clasifica como `FUNCIONARIO` (personal interno), `VENDEDOR` (personal de la fuerza comercial) o `CONSUMIDOR` (cliente del sistema) | Alta |
-| `RN-SP-013` | Membresía solo para consumidores | Al asignar una membresía a un usuario | El usuario debe tener al menos un rol de clasificación `CONSUMIDOR`. Si no lo tiene, la asignación se rechaza. Junto con `RN-SP-018` —su recíproca— hace que el rol de consumidor y la membresía sean **inseparables**: ninguno de los dos puede existir sin el otro, y por eso el primero se concede indicando ambos y el último se retira arrastrando el otro | **Crítica** |
-| `RN-SP-014` | Una membresía por usuario | Al asignar una membresía | Un usuario tiene como mucho **una membresía asignada**. Asignar otra sustituye la anterior, y el cambio queda auditado. La asignación admite una **fecha de fin opcional**: sin ella es indefinida, y con ella deja de estar **vigente** al pasar. **La vigencia se evalúa al consultarla, no la retira ningún proceso** (`RF-SP-032`), de modo que una membresía vencida conserva su fila —y su plaza— hasta que se renueve o se retire, sin conceder nivel alguno | Alta |
-| `RN-SP-015` | Retiro del último rol consumidor | Al retirar roles de un usuario | Si el retiro deja al usuario sin ningún rol `CONSUMIDOR`, **su membresía se retira en la misma operación y transacción**, y ambos hechos quedan auditados bajo el mismo identificador de correlación. No se rechaza: es la única salida del estado de consumidor, y rechazarla produciría un bloqueo mutuo con `RN-SP-018`. Enmendada el 21-08-2026 al aprobar `RF-SP-033`; antes exigía retirar la membresía primero | Alta |
-| `RN-SP-018` | Todo consumidor tiene membresía | Siempre | Un usuario que porta al menos un rol de clasificación `CONSUMIDOR` **debe tener una membresía asignada**. El estado «consumidor sin nivel» no existe. En consecuencia: asignar el primer rol `CONSUMIDOR` a quien no tiene membresía **exige indicarla en la misma operación** (`RF-SP-024`, `RF-SP-030`), y retirar el último rol `CONSUMIDOR` **retira la membresía** (`RN-SP-015`). Se adquieren juntos y se sueltan juntos | **Crítica** |
+| `RN-SP-013` | ~~Membresía solo para consumidores~~ | — | **RETIRADA el 05-09-2026**, por decisión del responsable del proyecto. Decía que asignar una membresía exigía portar al menos un rol `CONSUMIDOR`, y que el rol y el nivel eran **inseparables**. Desde que **toda persona tiene membresía** (`RN-SP-018`, reescrita), esa exigencia se contradice con la regla que la sustituye: el superadministrador y los funcionarios tienen nivel y no son consumidores de nada. **La fila se conserva y no se borra**: el código estaba citado en dos respuestas de error, en cinco `plan.md` aprobados y en `flujos-del-modulo.md`, y borrarlo dejaría referencias colgando | — |
+| `RN-SP-014` | Una membresía vigente por usuario | Al asignar una membresía | Un usuario tiene como mucho **una membresía vigente**, y **conserva todas las que tuvo**: conceder otra **cierra la anterior e inserta una fila nueva**, no reescribe la que había. La asignación admite una **fecha de fin opcional**: sin ella es indefinida, y con ella deja de estar **vigente** al pasar. **La vigencia se evalúa al consultarla, no la retira ningún proceso** (`RF-SP-032`), de modo que una membresía vencida conserva su fila —y su plaza— hasta que se renueve o se retire, sin conceder nivel alguno. **Terminar por vencimiento y terminar por sustitución son dos hechos distintos y se guardan por separado**: `ends_at` dice hasta cuándo se pagó y `closed_at` cuándo se cerró de verdad, de modo que «pagó hasta el 30 y se la reemplazaron el 12» es una pregunta que el sistema sabe responder. Enmendada el 05-09-2026: hasta entonces la tabla llevaba **una sola fila por persona** y asignar sustituía con un `UPDATE`, sin dejar rastro del nivel anterior | Alta |
+| `RN-SP-015` | ~~Retiro del último rol consumidor~~ | — | **RETIRADA el 05-09-2026**, junto con `RN-SP-013` y por lo mismo. Decía que quedarse sin rol `CONSUMIDOR` **retiraba la membresía** en la misma transacción. Con `RN-SP-018` reescrita esa cascada no puede existir: dejaría sin nivel a alguien que debe tener uno. **Y lo que se hace en su lugar es no hacer nada** — quien deja de ser consumidor **conserva la membresía que tenía**, incluida una comprada. Bajarla al suelo sería quitarle algo que pagó, y ninguna regla pide eso | — |
+| `RN-SP-018` | Todo usuario tiene membresía | Siempre | **Toda persona tiene una membresía vigente**, y no solo los consumidores. Quien no recibe una al registrarse **arranca en la más baja**, que es la de código `BECA` — sembrada por `V46`, imposible de borrar (`RN-SP-008`) y única por `uq_memberships_code`. El estado «usuario sin nivel» **no existe para nadie**. En consecuencia: el alta **ya no exige indicar membresía** (`RF-SP-024`), asignar roles **ya no la admite** —cambiarla es `RF-SP-032` y tiene su propio permiso (`RF-SP-030`)—, y retirarla **devuelve al suelo en lugar de dejar sin nada** (`RF-SP-033`). **Reescrita el 05-09-2026**; hasta entonces decía «todo consumidor tiene membresía» y ataba el nivel al rol, con `RN-SP-013` y `RN-SP-015` sosteniendo las dos mitades de esa atadura | **Crítica** |
 | `RN-SP-016` | Identidad no reutilizable | Al registrar o editar un usuario | El nombre de usuario y el correo son únicos entre **todos** los usuarios, incluidos los eliminados. A diferencia del rol, **no se liberan al eliminar**: reutilizarlos permitiría que la actividad de dos personas distintas se confundiera en la auditoría. El **nombre de usuario** es además inmutable y no admite el carácter `@`; el correo sí puede corregirse (`RF-SP-027`), y ambos sirven para iniciar sesión. **La reserva permanente alcanza solo a la eliminación:** al corregir el correo de una persona, el anterior **queda liberado** y otro usuario puede tomarlo, porque la auditoría no referencia a nadie por su correo | **Crítica** |
 | `RN-SP-017` | Un usuario no se opera a sí mismo | Al eliminar un usuario, al cambiar su estado y **al cambiar su superior comercial** | El actor no puede aplicar la operación sobre su propia cuenta. Alcanza a las tres operaciones en que quien ejecuta tendría interés directo en el resultado: dejar de existir, recuperar su propio acceso y **reubicarse en la estructura comercial**, de la que cuelga la atribución de su producción. Ampliada el 22-08-2026 al aprobar `RF-SP-041`; antes solo alcanzaba a eliminar y desactivar | Alta |
 | `RN-SP-011` | Orden de mando comercial | Al crear o reubicar un rol `VENDEDOR` | El orden de mando de la fuerza comercial se expresa con `parent_role_id`: el rol superior es el rol padre. No existe un campo de rango aparte | Alta |
 | `RN-SP-019` | Superior comercial obligatorio | Al registrar un usuario, al asignarle roles y al retirárselos | Un usuario que porta al menos un rol de clasificación `VENDEDOR` **debe tener un superior comercial**, salvo quien porta el rol vendedor de mayor rango —aquel cuyo rol padre no es `VENDEDOR`—, que es la cúspide de la fuerza comercial y no declara ninguno. El estado «vendedor sin superior» no existe: toda operación que conceda el primer rol `VENDEDOR` de una persona **o que cambie cuál es su rol vendedor de mayor rango** —un ascenso— **exige indicar el superior en la misma operación** (`RF-SP-024`, `RF-SP-030`), y retirar el último rol `VENDEDOR` **retira su superior** en la misma transacción (`RF-SP-031`), auditando ambos hechos bajo el mismo identificador de correlación. Es la forma que `RN-SP-018` ya da al par consumidor-membresía, con una exigencia más: allí el nivel no depende de qué rol se conceda después, y aquí sí | **Crítica** |
 | `RN-SP-020` | El superior porta el rol padre, y el cliente cuelga de un vendedor | Al asignar o cambiar el superior comercial, al conceder un rol `VENDEDOR` y al registrar un cliente por enlace | **Si el subordinado es vendedor**, el superior debe portar el rol **padre inmediato** del **rol vendedor de mayor rango** que porta (`RN-SP-011`): quien es `AGENTE` reporta a quien porta `DIRECTOR`, nunca a otro `AGENTE` ni directamente a un `MANAGER`. La validación es contra el padre inmediato y **no recorre ancestros**, igual que `RN-SEG-004`. Se evalúa sobre el rol de mayor rango, y no sobre «el primero», porque **un ascenso cambia con quién debe cumplirse**. **Si el subordinado es `CONSUMIDOR`** —el caso que abre `RF-SP-045`— el superior debe portar **algún** rol `VENDEDOR`, sin exigencia de parentesco: un cliente no tiene rol vendedor del que derivar un padre, y cualquiera de la fuerza comercial puede traerlo. Su consecuencia útil no cambia: la cadena de personas hereda la aciclicidad de la de roles (`RN-SEG-006`) y no necesita una regla anti-ciclos propia | **Crítica** |
-| `RN-SP-021` | Un superior por vendedor | Al asignar el superior comercial | Un usuario tiene como mucho **un superior vigente**. Asignar otro cierra la asignación anterior —que conserva su fila con fecha de fin— y abre una nueva. El historial no se borra: determina a quién se atribuía cada resultado en cada momento, y las comisiones lo necesitarán | Alta |
-| `RN-SP-022` | Ningún equipo se queda sin superior, y ningún cliente sin vendedor | Al desactivar, bloquear o eliminar un usuario, y al retirarle el rol `VENDEDOR` | Si el usuario tiene personas a cargo, la operación **se rechaza** hasta que se reasignen. **No se reasignan solas** al superior del superior: la estructura comercial determinará atribución de negocio, y desplazarla sin decisión explícita cambiaría en silencio a quién pertenece un resultado. Es la misma postura que `RN-SEG-008` toma con un rol que tiene hijos. **Desde `RF-SP-045` «personas a cargo» incluye a los clientes**, y eso endurece la regla en la práctica: retirar a un agente exige reasignar también su cartera, no solo su equipo | Alta |
+| `RN-SP-021` | Un superior por vendedor, y un agente PRINCIPAL por cliente | Al asignar el superior comercial | Un usuario tiene como mucho **un superior vigente** en `user_supervisors`. **Para el consumidor esa fila es su agente principal** —el que lo trajo—, y desde el 16-09-2026 **no es el único vendedor que puede tener**: los demás son vínculos de venta (`RN-SP-049`), no superiores. Asignar otro cierra la asignación anterior —que conserva su fila con fecha de fin— y abre una nueva. El historial no se borra: determina a quién se atribuía cada resultado en cada momento, y las comisiones lo necesitarán | Alta |
+| `RN-SP-022` | Ningún equipo se queda sin superior, y ningún cliente sin vendedor | Al desactivar, bloquear o eliminar un usuario, y al retirarle el rol `VENDEDOR` | Si el usuario tiene personas a cargo **en `user_supervisors`** —sus vendedores y los clientes de los que es agente **principal**; los clientes solo **vinculados** por `RN-SP-049` no cuentan—, la operación **se rechaza** hasta que se reasignen. **No se reasignan solas** al superior del superior: la estructura comercial determinará atribución de negocio, y desplazarla sin decisión explícita cambiaría en silencio a quién pertenece un resultado. Es la misma postura que `RN-SEG-008` toma con un rol que tiene hijos. **Desde `RF-SP-045` «personas a cargo» incluye a los clientes**, y eso endurece la regla en la práctica: retirar a un agente exige reasignar también su cartera, no solo su equipo | Alta |
 | `RN-SP-023` | Todo usuario tiene al menos un rol | Al registrar un usuario y al retirarle roles | Un usuario **debe tener siempre al menos un rol asignado**. El alta lo exige —`roles` deja de ser opcional— y el retiro rechaza quitar el último. El estado «usuario sin ningún rol» deja de existir. **La regla mira la asignación, no el estado del rol**: un usuario cuyos roles estén todos inactivos la cumple, y que no conceda nada lo resuelve `RN-SEG-002`. Esa acotación es deliberada — exigir un rol *activo* haría que desactivar o eliminar un rol (`RF-SP-007`, `RF-SP-009`) pudiera violar la regla **a distancia**, sobre personas que nadie estaba tocando, y dejaría operaciones del catálogo bloqueadas por el estado de terceros. **No es expresable como restricción del esquema**: «al menos una fila en `user_roles`» exige un disparador o una restricción diferida, de modo que vive en el dominio y se verifica dentro de la transacción, igual que `RN-SP-001`. Añadida el 24-08-2026; enmienda `RF-SP-024` y `RF-SP-031`, ya aprobadas (Art. I.7) | **Crítica** |
 | `RN-SP-004` | Permisos inmutables por API | Siempre | Los permisos no se crean, editan ni eliminan por la API: se pueblan y modifican únicamente por migración | Alta |
 | `RN-SP-005` | Revocación sin motivo | Al retirar un permiso de un rol | La fila de asociación se elimina físicamente y se audita en `audit_deletion_log` sin motivo declarado (Art. V.13, excepción de asociaciones) | Alta |
@@ -191,8 +194,29 @@ Reglas que no son transversales de seguridad y por tanto sí llevan el prefijo d
 | `RN-SP-026` | El registro por enlace nace sin poder operar | Al registrarse un cliente desde un enlace | La cuenta se crea en estado **`FTD_PENDIENTE`**: **autentica y no opera**. Es el primer estado del sistema que separa esas dos cosas, porque hasta ahora todo lo que autenticaba estaba `ACTIVO`. La cuenta sale de ahí cuando se confirma el depósito por el valor del producto —el **FTD**—, que hoy hace un actor a mano por `RF-SP-028` y mañana hará el webhook del bróker | **Crítica** |
 | `RN-SP-027` | Ningún cliente se registra sin vendedor | Al registrarse un cliente desde un enlace | El enlace declara **quién lo generó**, y sin un vendedor válido el registro **se rechaza**. No se admite la atribución vacía: produciría clientes huérfanos que nadie descubre hasta el día de pagar una comisión. El vendedor debe existir, no estar eliminado y **portar un rol `VENDEDOR`** — un funcionario no comisiona | **Crítica** |
 | `RN-SP-028` | El cliente cuelga de su vendedor en la **misma** estructura | Siempre | La atribución **no tiene tabla propia**: es una fila de `user_supervisors` (§10.7) como cualquier otra, con el cliente en `user_id` y el vendedor en `supervisor_id`. De ahí hereda gratis lo que ya está resuelto —**un superior vigente** por `RN-SP-021`, el historial que determina a quién se atribuía cada resultado, y la protección de `RN-SP-022`—. **Y deja el árbol comercial completo en una sola tabla**, que es lo que permite subir de un cliente a su agente, su director y su manager con **un recorrido** en lugar de con un caso especial en la hoja: es la forma que una liquidación multinivel necesita. Lo que la regla **no** trae es con qué producto entró el cliente; ese dato pertenece al hecho comisionable —el depósito— y no a la relación | **Crítica** |
+| `RN-SP-029` | Una tasa cambia **de una moneda a OTRA**, y las dos existen y están **activas** al declararla | Al registrar y al corregir | Origen y destino son monedas del catálogo, y **no pueden ser la misma**: una tasa de `USD` a `USD` no expresa ningún cambio. Que **después** se desactive una moneda no invalida la tasa ya registrada, por el mismo criterio que `RN-PM-008` | **Crítica** |
+| `RN-SP-030` | El precio es **mayor que cero** | Al registrar y al corregir | Una tasa de cero o negativa no es un cambio, es una destrucción de valor. Se declara con **ocho decimales** (§10.14) | Alta |
+| `RN-SP-031` | La vigencia **empieza siempre y puede no terminar** | Al registrar y al corregir | `valid_from` es **obligatoria**; `valid_to` es **opcional** y nula significa **vitalicia**. Si se declara, no puede ser anterior al inicio | Alta |
+| `RN-SP-032` | **Dos tasas vigentes del mismo par no se solapan** | Al registrar, al corregir y al activar | No pueden coexistir dos tasas **activas y vivas** con el mismo **origen y destino** cuyas vigencias se toquen. **El mismo origen sí puede cambiarse a varias monedas a la vez** —`USD → COP` y `USD → EUR` conviven—: lo que la regla acota es el **par**, no el origen. Se declara en el motor con un `EXCLUDE` (§5.2) | **Crítica** |
+| `RN-SP-033` | La tasa no desaparece | Al retirar | La eliminación es **lógica y con motivo** (Art. V.13). La fila permanece porque una conversión hecha ayer tiene que poder decir con qué tasa se hizo | Alta |
+| `RN-SP-035` | Toda persona se identifica con un documento | Al registrar un usuario y al editarlo | Toda persona declara **tipo y número de documento**, y los dos juntos: no existe el número sin el tipo ni el tipo sin el número. El tipo sale del catálogo de `RF-SP-051`, que **solo contiene documentos de mayor de edad** — de modo que registrar a un menor **no se rechaza con una comprobación: es imposible de expresar**, porque el tipo que lo acreditaría no está en el catálogo y la clave foránea no admite otra cosa. **El par tipo+número es único entre todas las personas y no se libera al eliminar**, con el mismo criterio que `RN-SP-016` aplica al nombre de usuario y al correo: dos personas compartiendo documento harían indistinguible su actividad en la auditoría. **Se corrige solo por `RF-SP-027`**, con `users:update`; el titular **no** lo toca | **Crítica** |
+| `RN-SP-036` | El catálogo de tipos de documento no se administra por API | Siempre | El catálogo se **puebla por migración** y no se crea, ni se edita, ni se elimina desde ningún endpoint: `RF-SP-051` solo lo consulta. Es la misma decisión que `RN-SP-010` toma sobre las monedas, y aquí es **más fuerte todavía**, porque el contenido del catálogo **es una regla de negocio**: dar de alta por API un tipo de documento de menor de edad dejaría entrar menores sin que ninguna regla cambiara ni nadie lo notara. Lo que deja de admitirse se retira con `is_active`, también por migración | **Crítica** |
+| `RN-SP-037` | Toda persona tiene teléfono personal; el de la empresa y la dirección son opcionales | Al registrar un usuario y al editarlo | El **teléfono personal es obligatorio** —es la vía de contacto con la que se opera— y **el teléfono de la empresa, la dirección, el complemento y la ciudad son opcionales**: exigir una dirección postal a un funcionario interno bloquearía su alta sin que nadie la necesite, y exigir un teléfono de empresa **bloquearía el alta de todo el que no tenga una**. Los cinco son **datos de contacto y no de identidad**, y esa es la razón de que el titular sí los corrija desde `RF-SP-044`: una mudanza o un número nuevo no deberían costar un ticket administrativo. **El de la empresa se añadió el 10-09-2026** y **no se pide en `RF-SP-045`**: quien se registra por un enlace es un cliente, y el formulario público no debe preguntar por algo que no le aplica | Alta |
+| `RN-SP-038` | **Una cuenta de broker pertenece a UNA sola persona** | Al vincular una cuenta de broker | Dos personas **no pueden declarar la misma cuenta**: el par **broker + identificador** es único en todo el sistema, y el segundo intento se rechaza con `409`. **Una misma persona SÍ puede tener varias cuentas en el mismo broker** —es lo normal en el ramo—, de modo que lo que se acota no es cuántas cuentas tiene alguien sino **de quién es cada cuenta**. Se declara en el esquema y no en un caso de uso: quien la sostiene es un índice único, porque dos altas simultáneas de la misma cuenta pasan cualquier comprobación previa | **Crítica** |
+| `RN-SP-039` | El catálogo de brokers no se administra por API | Siempre | El catálogo se **puebla por migración** y no se crea, ni se edita, ni se elimina desde la API: solo se consulta. Es la misma decisión que `RN-SP-010` toma con las monedas y `RN-SP-036` con los tipos de documento, y por el mismo motivo — son pocos, cambian poco, y cada alta es una decisión de negocio que merece quedar en el historial del repositorio y no en una fila que alguien insertó un martes | Alta |
+| `RN-SP-040` | **El nombre de usuario en el broker llega DESPUÉS** | Al vincular una cuenta y al recibir la confirmación del broker | La cuenta se declara con **el broker y el identificador**, que es lo que la persona conoce; el **nombre de usuario en el broker lo rellena más tarde el webhook** del propio broker. Por eso la columna admite nulo, y **ese nulo significa «el broker todavía no lo ha confirmado»**, no «esta cuenta no tiene nombre». La distinción importa: una columna obligatoria obligaría a inventarse un valor en el alta, y el dato inventado sobreviviría a la confirmación | Alta |
+| `RN-SP-041` | **Los tres catálogos del registro se consultan sin iniciar sesión** | Al consultar países, tipos de documento o brokers | El `GET` de los tres es **público** (08-09-2026): quien rellena el formulario de registro (`RF-SP-045`) todavía no tiene cuenta, y sin esto el desplegable no tiene de dónde sacar las opciones. **Solo el `GET`** — el alta y el cambio de estado de países siguen exigiendo su permiso. **Lo que publican no identifica a nadie**: son listas de opciones, y por eso no hace falta aquí nada del diseño que el hotlink necesita. Consecuencia declarada: `countries:read`, `document-types:read` y `brokers:read` **dejan de gobernar esas lecturas** y quedan sembrados sin endpoint que los exija | Alta |
+| `RN-SP-042` | **Quien se registra por un enlace `BECA → BECA` declara su cuenta de broker** | Al registrarse por enlace (`RF-SP-045`) | El formulario exige **al menos una cuenta de broker** —broker e identificador— cuando el producto del enlace es una membresía **de gratuita a gratuita**, y **solo entonces**. **Se declaran UNA O MÁS**: una persona puede operar con varios brokers, y este formulario es hoy la única vía para declararlos. El motivo es el estado en el que nace la cuenta: `FTD_PENDIENTE` autentica y **no opera**, y quien la saca de ahí es el **depósito confirmado por el webhook del broker** (`RF-SP-054`) — sin la cuenta declarada, el sistema no puede saber de quién es un depósito cuando llegue, y la persona se queda encerrada. La cuenta se declara con lo que la persona conoce; el **nombre de usuario en el broker lo rellena después el webhook** (`RN-SP-040`). Se aplican `RN-SP-038` y su `409`: **una cuenta es de una sola persona** | **Crítica** |
+| `RN-SP-043` | **Todo registro por enlace anota su venta** | Al registrarse por enlace (`RF-SP-045`) | El formulario declara **el movimiento** que el alta produce —producto, método de pago, vendedor y tipo— y el registro **lo anota siempre**, también en el enlace gratuito (09-09-2026, por decisión del responsable del proyecto): todo alta deja rastro de qué se vendió. La venta **no se reimplementa**: la registra `RF-MV-001` con sus reglas enteras, de modo que hay **una sola definición de vender**. **Y el bloque del movimiento ES el enlace**: desde el 09-09-2026 el producto (`productId`) y quien lo compartió (`sellerUsername`) viajan **solo ahí**. Llevaban además un duplicado en el primer nivel —`product` y `referrer`— y se retiró: dos campos para un dato no son una redundancia inofensiva, son **dos valores que pueden discrepar**, y hacían falta dos comprobaciones cuya única razón de ser era vigilar esa discrepancia. Al quitar el duplicado **la divergencia dejó de poder expresarse**, y con ella murieron las dos comprobaciones. Dos consecuencias que sí quedan: **(1)** el vendedor del movimiento es el que el registro cuelga como superior, de donde `RN-MV-003` lo vuelve a sacar — una sola declaración gobierna las dos cosas; **(2)** el método de pago es **condicional al importe** (`RN-MV-022`) y no al producto: se omite si la venta vale cero —ahí lo pone `MV`, y el catálogo público ni siquiera lo devuelve— y es obligatorio si tiene importe. **Todo va en la misma transacción**: si la venta se rechaza, no queda ni la persona | **Crítica** |
+| `RN-SP-044` | **El camino de pago se admite, y lo que cambia es el estado y el nivel** | Al registrarse por enlace (`RF-SP-045`) | Un enlace hacia una membresía **de pago** ya **no se rechaza** (09-09-2026): lo que el producto decide es **cómo nace la cuenta**, no si se admite. **Enlace `BECA → BECA`**: la cuenta nace `FTD_PENDIENTE` —autentica y no opera— y recibe **la membresía del producto**, porque nadie pagó nada y no hay nada que confirmar; quien la saca de ahí es el depósito del broker (`RN-SP-042`). **Enlace de pago**: la cuenta nace **`ACTIVO`** —quien paga no tiene ningún depósito que esperar— y recibe **la membresía del suelo**, no la comprada. La comprada la concede **confirmar la venta** (`RN-MV-020`), y concederla en el alta duplicaría lo que hace la confirmación: dos concesiones para una sola compra, y la segunda **sin pago verificado**. Es la contraparte exacta de `RN-MV-004` —registrar una venta no concede nada— y de ahí sale que estar activo y tener el nivel comprado sean **dos cosas distintas** | **Crítica** |
+| `RN-SP-034` | Todo usuario pertenece a un país | Al registrar un usuario y al editarlo | Toda persona declara **exactamente un país** del catálogo, y el estado «usuario sin país» **no existe**: el alta lo exige —tanto la administrativa (`RF-SP-024`) como el registro por enlace (`RF-SP-045`)— y la columna es `NOT NULL`. **Solo se puede asignar un país activo**, pero **desactivarlo después no invalida a quien ya lo tenía**: `RF-SP-022` retira un país de los selectores y deja resolviendo a los datos que ya lo referencian, que es exactamente lo que aquí ocurre. **Se corrige solo por `RF-SP-027`**, con `users:update`; el titular **no** lo cambia desde `RF-SP-044` | **Crítica** |
 | `RN-SP-009` | Países inmutables salvo su estado | Al editar o eliminar un país | La operación se rechaza. Lo único modificable es el indicador de país activo (`RF-SP-022`), que permite retirar de la circulación un alta equivocada sin borrar el registro | Media |
 | `RN-SP-010` | Monedas inmutables por API salvo su estado | Siempre | Las monedas no se crean, editan ni eliminan por la API. Lo único modificable es el indicador de moneda activa (`RF-SP-023`), y la moneda por defecto no puede desactivarse | Media |
+| `RN-SP-045` | **Toda cuenta de broker declara en qué punto está** | Al declarar una cuenta y al confirmarse el primer depósito | Una cuenta vive en uno de **dos estados** (10-09-2026, por decisión del responsable del proyecto): **`REGISTER`** —la cuenta está declarada y el broker no ha confirmado ningún depósito— y **`FIRST_DEPOSIT`** —el primer depósito está confirmado—. **Nace siempre en `REGISTER`**, y hoy **nadie la mueve de ahí**: quien la mueve es el webhook del broker (`RF-SP-054`), que no está construido. Eso se declara por adelantado en lugar de disimularlo, porque es el defecto que `RF-SP-035` dejó escrito con la purga —un campo que nadie escribe parece funcionalidad que sí está—; la diferencia es que aquí la columna **sí se lee** desde el primer día (`RF-SP-055` y `RF-SP-056`), y quien la consulte verá `REGISTER` en todas las cuentas **porque es la verdad**: ninguna tiene depósito confirmado mientras el webhook no exista. **Los dos valores van en inglés**, contra la costumbre del resto de enumerados del sistema —`ACTIVO`, `FTD_PENDIENTE`, `CONFIRMADO`—, y es deliberado: son **el vocabulario del broker** y así se llaman en la integración que los va a escribir. **No es el estado de la persona**: `users.status` dice si la cuenta del sistema opera (`RN-SP-044`) y este dice qué ha pasado en el broker; una persona con varias cuentas puede tener unas en un estado y otras en otro, de modo que uno **no** se deriva del otro | Alta |
+| `RN-SP-048` | **Cómo suman los indicadores de la red comercial** | Al consultar los indicadores (`RF-SP-058`) | La regla es **una sola, aplicada en todos los niveles**: el indicador de una persona son **los suyos directos más la suma de los de quienes cuelgan de ella**. Un agente recibe los de sus clientes directos; un director, los suyos directos más los de sus agentes; un manager, los suyos más los de sus directores. Cuatro precisiones sin las cuales el número no significa nada: **(1) La unidad es LA CUENTA y no la persona** (10-09-2026): un cliente con dos cuentas depositadas suma **dos**, porque lo que se mide es el dinero que entró y ese es el número que cuadra con el broker. **(2) Solo cuentan las cuentas de CONSUMIDORES**, por decisión del responsable del proyecto — «solo los roles de tipo consumidores tienen ftds»—: la cuenta personal de un vendedor no es una captación, y contarla premiaría a quien deposita en la suya. Se resuelve por `user_roles.role_type` y no por la posición en el árbol. **(3) El total de una persona YA CONTIENE el de sus subordinados**, de modo que **sumar la columna de totales de una lista cuenta dos veces**: por eso la respuesta publica **los dos números por separado** —propios y red— y nunca uno solo. **(4) Los NODOS del árbol son la fuerza comercial y los consumidores no aparecen**: son las hojas que aportan el número, no filas del árbol — publicarlos convertiría el indicador en el listado de clientes de la empresa. Consecuencia declarada: lo que cuelga de quien **no** es fuerza comercial no entra en ningún nodo, y por eso la respuesta lleva además **lo no atribuido**, para que el árbol cuadre con `RF-SP-057` | **Crítica** |
+| `RN-SP-049` | **Un cliente tiene UN agente principal y tantos vendedores VINCULADOS como le hayan vendido por hotlink** | Al registrarse por enlace (`RF-SP-045`) y al comprar por el hotlink de un vendedor (`RF-MV-011`) | Decisión del responsable del proyecto, 16-09-2026. El vendedor sigue teniendo **un solo superior** (`RN-SP-021`); el consumidor tiene **un agente principal** —su fila vigente de `user_supervisors`, la de quien lo registró— y, además, **un vínculo con cada vendedor por cuyo hotlink haya comprado**, en una tabla propia, `client_sellers` (§10.19): una fila por pareja cliente-vendedor, con el origen (`REGISTRO` o `HOTLINK`) y la fecha en que nació, **sin fin**: es un hecho —ese vendedor le vendió— y los hechos no se cierran. El principal también tiene su fila, con origen `REGISTRO`, para que «los vendedores de un cliente» sea una sola consulta. **Comprar por otro hotlink NO cambia el principal**: la estructura comercial —equipo (`RF-SP-042`), cuentas de broker (`RN-SP-046`), indicadores (`RN-SP-048`), protección al retirar (`RN-SP-022`)— mira solo a `user_supervisors`. Lo que el vínculo decide es **la atribución de la venta**: la compra por hotlink se atribuye al dueño del enlace, sea o no el principal, y la compra desde la tienda al principal (`RN-MV-003`). Un vendedor solo vinculado ve a ese cliente **únicamente en sus propios movimientos** (`RF-MV-008`). | Alta |
+| `RN-SP-047` | **La red de un vendedor es TODO lo que cuelga de él** | Al consultar el listado de administración de cuentas de broker (`RF-SP-057`) | Filtrar por un vendedor devuelve las cuentas de **toda su red en profundidad** —sus subordinados, los subordinados de estos, y así hasta abajo—, y **no** solo las de su equipo directo. Es **la primera consulta recursiva del sistema** sobre `user_supervisors`, y **rompe a propósito la cota de un solo nivel** que `RF-SP-042`, `RF-SP-055` y `RF-SP-056` se imponen: aquellas la tienen porque las autoriza la **estructura** —y devolver la rama entera publicaría la empresa a quien solo lleva un equipo—; esta la autoriza **`broker-accounts:read`**, que ya ve las cuentas de cualquiera, de modo que **la profundidad no le concede nada que no tuviera**: le ahorra recorrer el árbol a mano. **La raíz NO se incluye**: preguntar por la red de una persona devuelve la de los suyos, no las cuentas de ella —que se piden por `userId`, y los dos filtros se pueden combinar—. **Solo la estructura vigente** (`ended_at` nulo): quien dejó la red ayer no cuenta hoy, aunque su resultado de ayer se le siga atribuyendo. **El ciclo no puede colgar la consulta** aunque los datos lo tuvieran: la recursión acumula con `UNION` y no con `UNION ALL`, de modo que una persona ya vista no vuelve a expandirse | Alta |
+| `RN-SP-046` | **Las cuentas de broker las ve el superior vigente, o quien traiga el permiso** | Al consultar cuentas de broker (`RF-SP-055`, `RF-SP-056`) | Las cuentas de una persona las consulta **su superior comercial vigente** —para un cliente, su agente **principal**; un vendedor solo **vinculado** (`RN-SP-049`) no las ve— —la fila de `user_supervisors` con `ended_at` nulo— y, sobre cualquiera, quien traiga **`broker-accounts:read`**. **La estructura comercial es la llave**, y es la primera lectura del sistema que la usa como tal: hasta hoy registrar la estructura **no concedía alcance de datos** —lo dice `V21` y lo deja abierto la **D-22**—, y esta regla **no la resuelve**: la acota a esta lectura y a ninguna otra. **Un solo nivel, como `RF-SP-042`**: el equipo directo, nunca el árbol descendente. **Quien no es el superior vigente ni trae el permiso recibe `404`**, el mismo que si la persona no existiera: quien puede probar identificadores ajenos no debe poder distinguir «no existe» de «no es tuyo», que es el mismo criterio con que el hotlink de `RF-PM-008` unifica su `404`. **Y el titular NO se ve a sí mismo** por esta vía (10-09-2026): la lectura se definió sobre el equipo, no sobre el perfil propio; el día que el cliente deba ver sus cuentas, la vía es `RF-SP-039` y su `GET /users/me` — no relajar esta | Alta |
 
 !!! danger "`RN-SP-025` vive en el motor, y hasta el 02-09-2026 no vivía en ninguna parte"
 
@@ -204,7 +228,7 @@ Reglas que no son transversales de seguridad y por tanto sí llevan el prefijo d
 
     **El motivo que decidió es un precedente, no una preferencia:** `RN-SP-018` se comprobaba en el caso de uso, **no se sostuvo bajo concurrencia** y hubo que corregirla el 26-08-2026. Es la misma tabla y la misma clase de comprobación.
 
-    **Y la columna abre más de lo que se le pidió.** `RN-SP-013` y `RN-SP-018` —solo los consumidores tienen membresía— están declaradas como no expresables en el esquema por depender de `user_roles` y `roles.role_type`; con el `role_type` ya copiado, **pasan a serlo**. No se hace hoy: es otro requerimiento y otra tripleta.
+    **Y la columna abría más de lo que se le pidió.** `RN-SP-013` y `RN-SP-018` —solo los consumidores tienen membresía— estaban declaradas como no expresables en el esquema por depender de `user_roles` y `roles.role_type`; con el `role_type` ya copiado, **pasan a serlo**. No se hace hoy: es otro requerimiento y otra tripleta. **Y ya no se hará nunca (05-09-2026)**: `RN-SP-013` está retirada y `RN-SP-018` dice ahora que **toda** persona tiene membresía, de modo que la restricción que se podía declarar —«solo los consumidores»— describe una regla que dejó de existir. Lo que queda por declarar es la contraria, y esa **no** es expresable: «toda fila de `users` tiene una fila abierta en `user_memberships`» es una comprobación entre tablas que ningún `CHECK` alcanza.
 
 !!! danger "`RN-SP-025` contradecía el ASCENSO, que estaba construido y probado desde el 24-08-2026"
 
@@ -233,11 +257,61 @@ Reglas que no son transversales de seguridad y por tanto sí llevan el prefijo d
 
     Desactivar **no es corregir**: el código y el nombre erróneos permanecen, y los datos que ya los referencian siguen resolviéndolos. Es lo que evita que el error se propague a partir de ese momento, no lo que lo repara.
 
+!!! important "`RN-SP-034` — por qué el país es una columna de `users` y no una tabla puente"
+
+    Las otras dos cosas que una persona «tiene» en este módulo viven en tablas propias, y conviene decir por qué esta no. `user_memberships` es un **historial** porque una membresía se concede por un periodo, vence y se sustituye (`RN-SP-014`); `user_supervisors` lo es porque el mando cambia y hay que poder responder quién estaba a cargo **entonces** (`RN-SP-021`).
+
+    **El país no tiene vigencia.** No se concede hasta una fecha, no vence y nadie pregunta en qué país estaba alguien el mes pasado: lo que el sistema necesita saber es dónde está **hoy**, que es lo que decide qué medios de pago se le ofrecen (`RN-MV-019`) y en qué moneda se le habla. Una tabla puente para un dato sin periodo añadiría un `join` a cada consulta de usuario a cambio de nada, y el rastro del cambio —quién lo movió y cuándo— ya lo guarda `audit_change_log` sin necesidad de una tabla más.
+
+!!! warning "«Solo países activos» **no** es declarable en el esquema, y la clave foránea compuesta que lo parecería está prohibida aquí"
+
+    La mitad de `RN-SP-034` que exige que el país asignado esté **activo** se comprueba en el caso de uso, no en el motor, y no por comodidad.
+
+    El patrón que `RN-SP-025` estrenó el 02-09-2026 —copiar el dato del que depende la regla y atarlo con una **clave foránea compuesta** (§10.8)— parece aplicable: bastaría copiar `is_active` a `users` y declarar `(country_id, is_active) → countries(id, is_active)`. **No vale, y falla en la condición que aquel mismo caso dejó escrita: el dato copiado tiene que ser inmutable en su origen.** `role_type` no se corrige nunca; `countries.is_active` es **lo único que `RN-SP-009` deja cambiar**, y es `RF-SP-022` quien lo cambia.
+
+    Lo que ocurriría es concreto: la clave foránea compuesta **haría fallar `RF-SP-022`** en cuanto un solo usuario tuviera ese país. Desactivar dejaría de ser «retirarlo de los selectores» —lo que `RF-SP-022` promete— y pasaría a ser una operación bloqueada por terceros, sobre gente a la que nadie estaba tocando. Es el mismo daño a distancia que `RN-SP-023` evita al mirar la asignación y no el estado del rol.
+
+    De modo que la comprobación es **de entrada, no permanente**: se exige país activo al asignarlo, y quien ya lo tenía lo conserva aunque se desactive después.
+
 !!! info "Sobre `RN-SP-005`"
 
     Retirar un permiso de un rol **elimina físicamente** la fila de `role_permissions`, y por tanto se audita en `audit_deletion_log`. No se exige motivo: una asociación rol-permiso no es una entidad de negocio y su «por qué» ya está en el propio evento —qué permiso, de qué rol, quién y cuándo—. Un motivo de texto libre aquí se rellenaría con ruido.
 
     Esto exigió enmendar el Art. V.13, que prohibía las eliminaciones sin motivo. La excepción quedó acotada a las asociaciones.
+
+### 5.2 `RN-SP-032` — por qué el no solapamiento vive en el motor
+
+**La regla en una frase:** en cualquier instante, un par origen→destino tiene **como mucho una** tasa activa.
+
+**Un `UNIQUE` no puede expresarlo**, y conviene entender por qué antes de intentarlo: la unicidad compara **valores iguales**, y aquí lo que no puede repetirse es un **solapamiento de rangos**. `USD → COP` del 1 de enero al 30 de junio y `USD → COP` del 1 de junio al 31 de diciembre tienen fechas **distintas** —pasarían cualquier `UNIQUE`— y en junio hay **dos tasas para el mismo cambio**.
+
+Se declara con la misma forma que `user_commission_rates` estrenó en `V44` y `V49` mantuvo:
+
+```sql
+EXCLUDE USING gist (
+    source_currency_id WITH =,
+    target_currency_id WITH =,
+    daterange(valid_from, valid_to, '[]') WITH &&
+) WHERE (is_active AND deleted_at IS NULL)
+```
+
+**Las tres piezas hacen falta y ninguna sobra:**
+
+| Pieza | Qué pasa si falta |
+|---|---|
+| Las dos monedas `WITH =` | La restricción compararía solo rangos y prohibiría que `USD → COP` y `USD → EUR` convivan, que es justo lo que esta regla **sí** admite |
+| `daterange(..., '[]')` | Con `'[)'` —el intervalo por omisión— una tasa que termina el 30 de junio y otra que empieza el 30 de junio **no se solaparían**, y ese día habría dos |
+| `WHERE (is_active AND deleted_at IS NULL)` | Una tasa retirada o desactivada seguiría **bloqueando sus días para siempre**, y nada más fallaría — el periodo quedaría inutilizable sin que nadie supiera por qué |
+
+!!! danger "La consecuencia del `WHERE`: activar puede violar la regla"
+
+    Si las inactivas no bloquean, **activar una tasa que se solapa con la vigente es la operación peligrosa**, no el alta. Es exactamente el reparto que `RN-PM-004` tiene en `PM`, donde la comprobación vive en `RF-PM-005` y no en el alta.
+
+    Aquí no hay un requerimiento de «cambiar el estado»: el estado se declara al registrar (`RF-SP-047`) y se corrige en `RF-SP-049`, de modo que **los dos** tienen que traducir la violación del `EXCLUDE` a un `409` legible. Si alguno la dejara subir, el actor recibiría un `500` sobre una regla de negocio.
+
+!!! important "Requiere `btree_gist`, y esa extensión ya está instalada"
+
+    Un `EXCLUDE` que mezcla igualdad sobre `uuid` con solapamiento sobre `daterange` necesita `btree_gist`. La instaló `V44` para la primera tabla de tasas de comisión; esta la reutiliza y **no la vuelve a declarar**.
 
 ## 6. Requerimientos funcionales
 
@@ -265,7 +339,7 @@ Reglas que no son transversales de seguridad y por tanto sí llevan el prefijo d
 | `RF-SP-018` | Consultar detalle de una membresía | Media | `memberships:read` | En desarrollo |
 | `RF-SP-019` | Consultar monedas | Media | `currencies:read` | En desarrollo |
 | `RF-SP-020` | Registrar país | Media | `countries:create` | En desarrollo |
-| `RF-SP-021` | Consultar países | Media | `countries:read` | En desarrollo |
+| `RF-SP-021` | Consultar países | Media | **Público** | En desarrollo |
 | `RF-SP-022` | Cambiar el estado de un país | Media | `countries:update` | En desarrollo |
 | `RF-SP-023` | Cambiar el estado de una moneda | Baja | `currencies:update` | En desarrollo |
 | `RF-SP-024` | Registrar usuario | **Crítica** | `users:create` | En desarrollo |
@@ -277,7 +351,7 @@ Reglas que no son transversales de seguridad y por tanto sí llevan el prefijo d
 | `RF-SP-030` | Asignar roles a un usuario | **Crítica** | `users:assign-roles` | En desarrollo |
 | `RF-SP-031` | Retirar roles de un usuario | Alta | `users:assign-roles` | En desarrollo |
 | `RF-SP-032` | Asignar membresía a un usuario | Alta | `users:assign-membership` | En desarrollo |
-| `RF-SP-033` | Retirar la membresía de un usuario | Media | `users:assign-membership` | En desarrollo |
+| `RF-SP-033` | Devolver la membresía de un usuario al suelo | Media | `users:assign-membership` | En desarrollo |
 | `RF-SP-034` | Iniciar sesión | **Crítica** | — (público) | En desarrollo |
 | `RF-SP-035` | Refrescar el token de acceso | **Crítica** | — (público) | En desarrollo |
 | `RF-SP-036` | Cerrar sesión | Alta | — (público) | En desarrollo |
@@ -288,7 +362,20 @@ Reglas que no son transversales de seguridad y por tanto sí llevan el prefijo d
 | `RF-SP-041` | Asignar o cambiar el superior comercial de un usuario | **Crítica** | `users:assign-supervisor` | En desarrollo |
 | `RF-SP-042` | Consultar el equipo a cargo de un usuario | Media | `users:read` | En desarrollo |
 | `RF-SP-044` | Editar el propio perfil | Alta | Autenticado | En desarrollo |
-| `RF-SP-045` | Registro de clientes por enlace | **Crítica** | Público | Tasks en revisión |
+| `RF-SP-045` | Registro de clientes por enlace | **Crítica** | **Público** | **En desarrollo** |
+| `RF-SP-047` | Registrar una tasa de cambio | Alta | `exchange-rates:create` | En desarrollo |
+| `RF-SP-048` | Consultar las tasas de cambio | Alta | `exchange-rates:read` | Tasks en revisión |
+| `RF-SP-049` | Corregir una tasa de cambio | Media | `exchange-rates:update` | Tasks en revisión |
+| `RF-SP-050` | Retirar una tasa de cambio | Media | `exchange-rates:delete` | Tasks en revisión |
+| `RF-SP-051` | Consultar tipos de documento | Alta | **Público** | Pendiente |
+| `RF-SP-052` | Consultar el catálogo de brokers | Alta | **Público** | **Tasks en revisión** |
+| `RF-SP-053` | Vincular una cuenta de broker a una persona | Alta | Por decidir | **Pendiente** |
+| `RF-SP-054` | Completar la cuenta de broker desde el webhook del broker | Media | **Ninguno: lo llama el broker** | **Pendiente** |
+| `RF-SP-055` | Consultar las cuentas de broker de una persona | Alta | **Superior vigente** o `broker-accounts:read` | **En desarrollo** |
+| `RF-SP-056` | Consultar las cuentas de broker del equipo | Alta | **Autenticado** (el equipo propio) | **En desarrollo** |
+| `RF-SP-057` | Consultar y filtrar todas las cuentas de broker | Alta | `broker-accounts:read` | **En desarrollo** |
+| `RF-SP-058` | Consultar los indicadores de la red comercial | **Crítica** | `broker-accounts:read` | **En desarrollo** |
+| `RF-SP-059` | Consultar los vendedores de un cliente | Media | **El propio cliente**, o `users:read` | Pendiente |
 
 !!! info "Dónde vive el estado de un requerimiento"
 
@@ -386,12 +473,12 @@ Modifica nombre y descripción. **No** modifica permisos, estado ni rol padre: c
 | Actor | Administrador |
 | Permiso requerido | `roles:update` |
 | Prioridad | Crítica |
-| Reglas aplicables | `RN-SEG-003`, `RN-SEG-004`, `RN-SEG-010`, `RN-SEG-011`, `RN-SEG-012` |
+| Reglas aplicables | `RN-SEG-003`, `RN-SEG-004`, `RN-SEG-010`, `RN-SEG-011` |
 | Depende de | `RF-SP-001`, `RF-SP-010` |
 | Tripleta | `docs/specs/sp/005-asignar-permisos/` |
 | Estado | Pendiente |
 
-Agrega permisos a un rol. La operación se rechaza si algún permiso no está contenido en el rol padre (`RN-SEG-003`) o en los permisos efectivos del actor (`RN-SEG-010`). Es el requerimiento donde se materializa el modelo de contención.
+Agrega permisos a un rol. La operación se rechaza si algún permiso no está contenido en el rol padre (`RN-SEG-003`) o en los permisos efectivos del actor (`RN-SEG-010`). Es el requerimiento donde se materializa el modelo de contención. **Alcanza también a los roles de sistema** (desde el 16-09-2026): `V8` los siembra sin permisos a la espera de esta operación, y `RN-SEG-012` protege su identidad y su posición, no lo que conceden.
 
 #### `RF-SP-006` — Revocar permisos de un rol
 
@@ -401,7 +488,7 @@ Agrega permisos a un rol. La operación se rechaza si algún permiso no está co
 | Actor | Administrador |
 | Permiso requerido | `roles:update` |
 | Prioridad | Alta |
-| Reglas aplicables | `RN-SEG-005`, `RN-SEG-011`, `RN-SEG-012` |
+| Reglas aplicables | `RN-SEG-005`, `RN-SEG-011` |
 | Depende de | `RF-SP-005` |
 | Tripleta | `docs/specs/sp/006-revocar-permisos/` |
 | Estado | Pendiente |
@@ -623,10 +710,10 @@ Crea un país. Una vez creado no puede editarse ni eliminarse, de modo que la va
 | Campo | Valor |
 |---|---|
 | Objetivo | Disponer del catálogo de países |
-| Actor | Cualquier rol autenticado con el permiso |
-| Permiso requerido | `countries:read` |
+| Actor | **Cualquiera, sin autenticar** |
+| Permiso requerido | **Ninguno: es público** (`RN-SP-041`, 08-09-2026) |
 | Prioridad | Media |
-| Reglas aplicables | — |
+| Reglas aplicables | `RN-SP-041` |
 | Depende de | `RF-SP-020` |
 | Tripleta | `docs/specs/sp/021-consultar-paises/` |
 | Estado | Pendiente |
@@ -677,6 +764,14 @@ Activa o desactiva una moneda. **La moneda por defecto no puede desactivarse**: 
 | Estado | Pendiente |
 
 Devuelve el perfil del **actor y solo del actor**, sin exigir `users:read`. Toda interfaz autenticada lo necesita para saber qué mostrar: sin él, quien no administra usuarios no puede ver ni sus propios permisos. No se resolvió dentro de `RF-SP-026` porque su alcance de datos y su autorización son distintos —siempre el actor, nunca otro—, y mezclarlos obligaría a aquella consulta a comportarse de dos maneras según a quién apuntara el identificador. Nace de la aprobación de `RF-SP-026` el 21-08-2026.
+
+!!! important "Enmendado el 04-09-2026 (Art. I.7): **publica el identificador**"
+
+    Esta consulta no devolvía el `uuid` de la persona, y el motivo escrito era «quien pregunta ya sabe quién es». **Es falso, y lo demostró el frontend al consumirlo**: quien pregunta sabe su nombre de usuario, no su identificador — el `uuid` viaja dentro del token y **no se puede leer desde el navegador sin descomponer un JWT**, que es justo lo que un cliente no debe hacer.
+
+    La consecuencia era concreta: `POST /api/v1/movements` exige `clientId`, de modo que **quien compraba para sí mismo no podía decir quién era**. El único rodeo disponible —buscarse en `GET /api/v1/users?search=…`— exige `users:read`, que un cliente no tiene, y derivaría en el navegador un dato que el contrato no publica.
+
+    **Se añade `id` y no se toca nada más.** No abre alcance: es el identificador **del propio actor**, que ya conoce el servidor y que esta consulta resuelve del token; no permite señalar a nadie más, porque la operación sigue sin admitir parámetros. Lo pidió el frontend como `R-28`.
 
 #### `RF-SP-040` — Restablecer la propia contraseña olvidada
 
@@ -740,6 +835,18 @@ Dos cosas quedan deliberadamente fuera, y ambas por el mismo motivo:
 
 La segunda es **alcance por persona**, que [`security.md` §6](../security.md) reserva hasta resolver **D-22**. La primera no lo es, pero carece de sentido sin ella: quien necesita ver su red descendente completa es el propio manager, no un administrador. Ambas se especificarán juntas cuando D-22 esté cerrada. Lo que este requerimiento sí garantiza mientras tanto es que **el dato ya está registrado** y que la consulta futura no tendrá que reconstruirlo.
 
+!!! important "Enmendado el 10-09-2026: filtra por roles, y publica los roles de cada persona"
+
+    Por decisión del responsable del proyecto. Son **dos cambios**, y el segundo es el que hace útil al primero.
+
+    **Cada persona de la respuesta —la consultada, su superior y cada miembro del equipo— lleva ahora `roles`: la lista completa de los que porta**, con identificador, código y nombre, ordenada por código y **presente aunque vaya vacía**. Sustituye a `roleCode`, que devolvía **uno solo** y además solo si era de clasificación `VENDEDOR`. Desde que `RF-SP-045` cuelga a los clientes de esta misma estructura (§10.7), la cartera llegaba con **el rol en nulo**: no había forma de distinguir a un cliente de un vendedor sin rol. Lo que §10.7 daba por hecho —«cada fila lleva ya los roles de la persona, que es lo que permite distinguirlos»— **no fue cierto hasta hoy**.
+
+    **El equipo directo admite un filtro por `roles`**, por códigos y varios a la vez, con semántica **O**: entra quien porte **alguno** de los pedidos. El total del equipo cuenta **lo filtrado**, no el equipo entero. Un código inexistente devuelve la página vacía y **no es un error**, mismo criterio que `RF-SP-025` con su filtro por rol.
+
+    **El filtro no toca al superior ni a la persona consultada.** No es una omisión: el superior es uno solo y **su ausencia ya significa otra cosa** —«no depende de nadie», la cúspide—. Filtrarlo haría indistinguibles «es la cúspide» y «lo tiene, y no casa con el filtro».
+
+    **Revierte la resolución 3 de la especificación**, que el 22-08-2026 descartó los filtros porque `RF-SP-025` ya filtra. El argumento dejó de valer el día que la cartera de clientes entró en esta estructura: `RF-SP-025` filtra **el listado general de usuarios**, y no sabe responder «de la gente que cuelga de este agente, enséñame solo los clientes».
+
 #### `RF-SP-044` — Editar el propio perfil
 
 | Campo | Valor |
@@ -766,19 +873,302 @@ Modifica el **propio** nombre, apellidos y correo. Es la contraparte de escritur
 | Actor | Persona sin cuenta |
 | Permiso requerido | — (**Público**) |
 | Prioridad | **Crítica** |
-| Reglas aplicables | `RN-SP-013`, `RN-SP-016`, `RN-SP-018`, `RN-SP-026`, `RN-SP-027`, `RN-SP-028` |
-| Depende de | `RF-SP-024`, `RF-SP-032`, `RF-PM-001` |
+| Reglas aplicables | `RN-SP-016`, `RN-SP-018`, `RN-SP-026`, `RN-SP-027`, `RN-SP-028`, `RN-SP-034` a `RN-SP-038`, `RN-SP-040` a `RN-SP-044` |
+| Depende de | `RF-SP-024`, `RF-SP-032`, `RF-SP-052`, `RF-PM-001`, `RF-MV-001` |
 | Tripleta | `docs/specs/sp/045-registro-de-clientes-por-enlace/` |
-| Estado | Pendiente |
+| Estado | **En desarrollo** (09-09-2026) |
 
 **Es el primer endpoint público del sistema que escribe.** Los seis que ya existen o leen, o consumen una credencial que el propio sistema emitió; este crea una persona, le concede un rol, le asigna una membresía y escribe una atribución a petición de alguien que todavía no es nadie.
 
-El enlace lleva dos datos: el **producto** —por código o identificador— y el **vendedor** que lo generó. El producto declara la membresía destino (`RN-PM-002`) y su vigencia en días (`RN-PM-015`), de modo que registrarse concede el rol de consumidor y el nivel en la misma operación, que es justo lo que `RN-SP-018` exige.
+El enlace lleva dos datos: el **producto** y el **vendedor** que lo generó, y desde el 09-09-2026 **los dos viajan dentro del bloque del movimiento** (`RN-SP-043`) — no en el primer nivel del cuerpo, donde estaban además duplicados. El producto declara la membresía destino (`RN-PM-002`) y su vigencia en días (`RN-PM-015`), de modo que registrarse concede el rol de consumidor y el nivel en la misma operación, que es justo lo que `RN-SP-018` exige.
 
-**Ninguno de los dos datos es un secreto, y no hace falta que lo sea.** El código de producto es legible por diseño, así que cualquiera puede componer un enlace que no le dieron — y no gana nada: los productos que llevan a una membresía **de pago** exigen pasarela, que es de Finanzas y no existe todavía, y el que lleva a la **gratuita** produce una cuenta en `FTD_PENDIENTE`, que autentica y no opera. Por eso el enlace **se compone y no se persiste**: una tabla de enlaces emitidos es la defensa que haría falta si el enlace concediera algo.
+**Ninguno de los dos datos es un secreto, y no hace falta que lo sea.** El código de producto es legible por diseño, así que cualquiera puede componer un enlace que no le dieron — y no gana nada. El enlace **gratuito** produce una cuenta en `FTD_PENDIENTE`, que autentica y no opera. Y el **de pago**, admitido desde el 09-09-2026, tampoco concede lo que se compra: la cuenta nace activa con la membresía **del suelo**, y la comprada llega cuando alguien confirma el pago (`RN-SP-044`). Por eso el enlace **se compone y no se persiste**: una tabla de enlaces emitidos es la defensa que haría falta si el enlace concediera algo.
+
+**Y desde el 09-09-2026 el alta anota su venta** (`RN-SP-043`), en la misma transacción y con las reglas de `RF-MV-001` — no con una venta «simplificada» escrita aquí, que sería una segunda definición de vender y se quedaría atrás sin que nada fallara. La venta nace **pendiente**, que es lo que sostiene que registrarse y pagar sigan siendo dos hechos distintos.
 
 Lo que sí queda abierto y declarado es que **la atribución es forjable**: quien componga el enlace elige a qué vendedor se apunta. No concede acceso, pero ensucia la base sobre la que `CM` comisionará, y la condición para cerrarlo está escrita — en cuanto se liquide una comisión sobre una atribución, el enlace tiene que dejar de ser componible. Nace el 01-09-2026, por decisión del responsable del proyecto.
 Hereda de `RF-SP-027` la pregunta abierta de la **verificación del correo**, que ya no tiene coartada: un correo mal tecleado deja a la persona sin vía de recuperación. No bloquea este requerimiento, porque hoy ese dato no se puede ni corregir. Nace el 31-08-2026, por decisión del responsable del proyecto.
+
+#### `RF-SP-051` — Consultar tipos de documento
+
+| Campo | Valor |
+|---|---|
+| Objetivo | Disponer del catálogo de documentos de identidad admitidos, para poder registrar a una persona |
+| Actor | **Cualquiera, sin autenticar** |
+| Permiso requerido | **Ninguno: es público** (`RN-SP-041`, 08-09-2026) |
+| Prioridad | Alta |
+| Reglas aplicables | `RN-SP-035`, `RN-SP-036`, `RN-SP-041` |
+| Depende de | — |
+| Tripleta | `docs/specs/sp/051-consultar-tipos-de-documento/` |
+| Estado | Pendiente |
+
+Listado de tipos de documento, con su **nombre** y su **abreviación**. Se puebla por migración y no se administra por API (`RN-SP-036`), igual que el catálogo de monedas.
+
+!!! important "Este catálogo no es una lista de opciones: **es la validación de mayoría de edad**"
+
+    Se pidió «validación de mayores de edad» y la forma que toma es la más barata y la más difícil de
+    saltarse: **el catálogo solo contiene documentos que acredita una persona mayor de edad**. No
+    lleva una columna que marque cuáles sí y cuáles no, y el alta no ejecuta ninguna comprobación de
+    edad.
+
+    **La diferencia importa.** Con una columna del tipo `acredita_mayoría`, registrar a un menor
+    sería *posible y rechazado* — y bastaría con que un caso de uso futuro olvidara mirarla para que
+    dejara de rechazarse. Sin ella, registrar a un menor es **inexpresable**: no hay identificador
+    que poner en `users.document_type_id` que signifique «Tarjeta de Identidad», y quien lo intente
+    choca contra `fk_users_document_type`. La regla vive en el **contenido** del catálogo y en el
+    motor, no en un `if`.
+
+    **Y de ahí sale `RN-SP-036`, que aquí no es simetría con las monedas sino una necesidad.** Si el
+    catálogo se pudiera administrar por API, cualquiera con el permiso de alta añadiría «Tarjeta de
+    Identidad» y **la validación desaparecería sin que ninguna regla cambiara, sin migración y sin
+    que nadie lo notara**. Por eso se puebla por migración: cambiar quién puede entrar exige un
+    cambio de esquema revisado, no una llamada.
+
+    **Lo que esto NO hace, y queda dicho:** el tipo de documento es un **indicio** de mayoría de
+    edad, no una prueba. Un pasaporte lo tiene un niño igual. La prueba de verdad exige **fecha de
+    nacimiento**, que no se pide hoy; la condición para abrirla queda escrita — en cuanto haya que
+    acreditar una edad concreta y no solo «es adulto», se registra el campo con su propia regla y
+    este catálogo pasa a ser lo que su nombre dice.
+
+---
+
+#### `RF-SP-052` — Consultar el catálogo de brokers
+
+| Campo | Valor |
+|---|---|
+| Objetivo | Disponer de la lista de brokers con los que opera la plataforma, para poder declarar en cuál se tiene cuenta |
+| Actor | **Cualquiera, sin autenticar** |
+| Permiso requerido | **Ninguno: es público** (`RN-SP-041`, 08-09-2026) |
+| Prioridad | Alta |
+| Reglas aplicables | `RN-SP-039`, `RN-SP-041` |
+| Depende de | — |
+| Tripleta | `docs/specs/sp/052-consultar-brokers/` |
+| Estado | **Tasks en revisión** (08-09-2026) |
+
+Listado de brokers **activos**, con su nombre. Se puebla por migración y no se administra por API (`RN-SP-039`), igual que los catálogos de monedas y de tipos de documento.
+
+**De momento guarda solo el nombre**, por decisión del responsable del proyecto. No lleva código ni abreviación, y eso tiene una consecuencia que conviene tener escrita: **la clave de negocio es el nombre**, de modo que es él quien va con índice único y quien no puede repetirse. El día que un broker haga falta identificarlo por algo estable frente a un cambio de nombre comercial, se añade una columna `code` — y hasta entonces renombrar un broker es una migración, no una corrección.
+
+#### `RF-SP-053` — Vincular una cuenta de broker a una persona
+
+| Campo | Valor |
+|---|---|
+| Objetivo | Que quede registrado qué cuenta tiene cada persona en cada broker |
+| Actor | **Por decidir** |
+| Permiso requerido | **Por decidir** |
+| Prioridad | Alta |
+| Reglas aplicables | `RN-SP-038`, `RN-SP-040` |
+| Depende de | `RF-SP-052` |
+| Tripleta | Pendiente de crear |
+| Estado | **Pendiente** — registrado y sin `spec.md` |
+
+**La tabla existe desde el 08-09-2026 y el endpoint no**, y eso es deliberado: el responsable del proyecto pidió el catálogo y la tabla, y **quién declara la cuenta no está decidido** — si la declara el titular sobre sí mismo, como el perfil propio, o un funcionario con permiso sobre cualquiera.
+
+Lo que sí está decidido y ya vive en el esquema: **la cuenta se declara con el broker y el identificador** —lo que la persona conoce— y **el nombre de usuario en el broker llega después** (`RN-SP-040`). Y **una cuenta es de una sola persona** (`RN-SP-038`), garantizado por índice único y no por una comprobación previa.
+
+#### `RF-SP-054` — Completar la cuenta de broker desde el webhook del broker
+
+| Campo | Valor |
+|---|---|
+| Objetivo | Que el propio broker confirme la cuenta y complete los datos que la persona no aportó |
+| Actor | **El broker**, por integración |
+| Permiso requerido | **Ninguno de los del sistema**: no lo llama una persona |
+| Prioridad | Media |
+| Reglas aplicables | `RN-SP-040` |
+| Depende de | `RF-SP-053` |
+| Tripleta | Pendiente de crear |
+| Estado | **Pendiente** — registrado y sin `spec.md` |
+
+**Es una ruta que llama alguien de fuera, y eso la convierte en la segunda superficie pública del sistema** —la primera es el hotlink de `RF-PM-008`—, con una diferencia que la hace más delicada: aquella **lee** y esta **escribe**. Todo lo que la gobierna está sin decidir y se registra aquí para que no se improvise el día que se construya:
+
+- **Cómo se autentica el broker.** Firma del cuerpo con un secreto compartido, contraseña de aplicación o lista de orígenes: sin esto, cualquiera puede reescribir la cuenta de cualquiera.
+- **Qué pasa si el webhook llega para una cuenta que nadie declaró.** Se ignora, se registra o se crea.
+- **Si puede cambiar el identificador**, o solo rellenar el nombre de usuario.
+- **La reentrega**: un webhook se repite, de modo que la operación tiene que ser **idempotente** o dejará dos rastros del mismo hecho.
+
+#### `RF-SP-055` — Consultar las cuentas de broker de una persona
+
+| Campo | Valor |
+|---|---|
+| Objetivo | Saber qué cuentas declaró una persona, en qué broker y **en qué punto está cada una** |
+| Actor | **Su superior comercial vigente**, o un administrador |
+| Permiso requerido | **Ninguno si se es el superior vigente**; `broker-accounts:read` sobre cualquiera (`RN-SP-046`) |
+| Prioridad | Alta |
+| Reglas aplicables | `RN-SP-040`, `RN-SP-045`, `RN-SP-046` |
+| Depende de | `RF-SP-041`, `RF-SP-045`, `RF-SP-052` |
+| Tripleta | `docs/specs/sp/055-consultar-cuentas-de-broker/` |
+| Estado | **En desarrollo** (10-09-2026) |
+
+Las cuentas de **una** persona: broker, identificador, nombre de usuario en el broker —**nulo mientras el broker no lo confirme** (`RN-SP-040`)— y **estado** (`RN-SP-045`).
+
+**La estructura comercial es la llave, y esto es lo nuevo.** Hasta hoy ninguna lectura del sistema se autorizaba por `user_supervisors`: la tabla decía a quién se atribuye cada resultado y nada más, y `V21` lo dejó escrito —«registrar la estructura no concede alcance de datos»—. **Aquí sí lo concede, y solo aquí**: la **D-22** sigue abierta y este requerimiento no la resuelve.
+
+**Quien no es el superior vigente ni trae el permiso recibe `404`**, no `403`: distinguir «esa persona no existe» de «esa persona no es tuya» convertiría el endpoint en un oráculo de identificadores para cualquier vendedor.
+
+**No lo usa el titular sobre sí mismo.** Se decidió el 10-09-2026 dejarlo fuera: la lectura se definió sobre el equipo, y abrirla al titular es una decisión distinta que tiene su propia vía —`RF-SP-039`—.
+
+#### `RF-SP-056` — Consultar las cuentas de broker del equipo
+
+| Campo | Valor |
+|---|---|
+| Objetivo | Ver de una sola vez **qué gente de mi equipo ya depositó y quién sigue esperando** |
+| Actor | **El superior comercial**, sobre su propio equipo |
+| Permiso requerido | **Ninguno más que estar autenticado**: el alcance lo pone la estructura, no un permiso (`RN-SP-046`) |
+| Prioridad | Alta |
+| Reglas aplicables | `RN-SP-040`, `RN-SP-045`, `RN-SP-046` |
+| Depende de | `RF-SP-041`, `RF-SP-055` |
+| Tripleta | `docs/specs/sp/056-consultar-cuentas-de-broker-del-equipo/` |
+| Estado | **En desarrollo** (10-09-2026) |
+
+El **listado plano y paginado** de las cuentas de todas las personas que dependen de mí, **cada fila con su titular**, y con filtro por **estado** y por **broker**.
+
+**Es la misma pregunta que `RF-SP-055`, hecha del otro lado**, y por eso son dos y no uno: recorrer el equipo cliente a cliente obligaría al frontend a `N + 1` llamadas para pintar una pantalla que es una sola lista, y ordenar «los que faltan por depositar» sería imposible sin traérselos todos antes.
+
+**Un solo nivel** (`RN-SP-046`), como `RF-SP-042`: quienes reportan **directamente**. El árbol descendente publicaría la estructura entera de la empresa por una lectura de cuentas de broker.
+
+**Quien no tiene equipo recibe `200` con la página vacía**, no `404` ni `403`. «No tengo a nadie a cargo» es una respuesta legítima y distinta de un error, con el mismo criterio que `RF-SP-042` aplica a quien no pertenece a la fuerza comercial.
+
+#### `RF-SP-057` — Consultar y filtrar todas las cuentas de broker
+
+| Campo | Valor |
+|---|---|
+| Objetivo | Ver **todas** las cuentas de broker del sistema y acotarlas: por **red de un vendedor**, por persona, por estado, por broker, por texto y por fecha de declaración |
+| Actor | Administrador |
+| Permiso requerido | `broker-accounts:read` |
+| Prioridad | Alta |
+| Reglas aplicables | `RN-SP-040`, `RN-SP-045`, `RN-SP-047` |
+| Depende de | `RF-SP-055`, `RF-SP-056` |
+| Tripleta | `docs/specs/sp/057-consultar-todas-las-cuentas-de-broker/` |
+| Estado | **En desarrollo** (10-09-2026) |
+
+**Nace de un hueco que `RF-SP-056` cerró a propósito y duró un día.** Aquel resolvió «¿cómo va **mi** equipo?» y dejó escrito que un administrador no podía pedir el de otro —«un `?supervisorId=` es otro requerimiento y nadie lo ha pedido»—. Se pidió el 10-09-2026: el superadministrador quiere **ver todas las cuentas y filtrar por el vendedor que le interese**, y sin esto tenía que recorrer el árbol persona a persona, una llamada por cada una.
+
+**Es un recurso propio y no un parámetro más en `/users/me/team/...`.** Colgarlo de `me` obligaría a que la ruta dejara de significar «lo mío» en cuanto llegara un `supervisorId`, y el mismo camino serviría a dos preguntas con dos autorizaciones distintas.
+
+**`supervisorId` devuelve la red ENTERA, en profundidad** (`RN-SP-047`), y no un nivel. Es la primera consulta recursiva del sistema, y rompe a propósito la cota que se imponen `RF-SP-042`, `RF-SP-055` y `RF-SP-056`: aquellas la tienen porque las autoriza la **estructura**; esta la autoriza el **permiso**, que ya alcanza a todo el mundo — la profundidad no concede nada nuevo, ahorra el recorrido.
+
+**Sin `supervisorId` devuelve el sistema entero**, paginado. Es lo que se pidió y es lo que el permiso significa.
+
+**No retira `RF-SP-055`.** Aquella existe para **el superior sin permiso**, y su `404` uniforme sigue siendo su razón de ser. Esta y aquella se parecen en la forma y no en quién puede llamarlas.
+
+**La respuesta lleva además un RESUMEN de lo filtrado** (10-09-2026, por decisión del responsable del proyecto): **cuántos registros hay** y **cuántos están en cada uno de los dos estados**, los tres con su **desglose por broker**. Va dentro del listado y no en un endpoint aparte — una sola llamada pinta la tabla y sus contadores, y así no pueden desincronizarse.
+
+**Van los DOS estados y no solo el depósito**: el embudo tiene dos lados, y obligar al cliente a restar —`accounts − firstDeposit`— es pedirle que rehaga una cuenta ya hecha. Con dos valores posibles la resta es trivial **hoy**; el día que `RN-SP-045` admita un tercero dejaría de serlo, y quien la escribió no se enteraría. **`accounts` es siempre `register` + `firstDeposit`.**
+
+**El resumen respeta TODOS los filtros, incluido `status`**, por decisión expresa del responsable del proyecto. Es la opción **coherente** —el resumen describe exactamente lo que la consulta devuelve, sin excepciones— y tiene una consecuencia que hay que conocer antes de pintarla: **con `?status=REGISTER` el total de `FIRST_DEPOSIT` vale siempre cero**, y con `?status=FIRST_DEPOSIT` vale siempre el total. Ese cero **no significa «nadie ha depositado»**: significa «no pediste ninguno». Se descartó la alternativa —que el conteo de FTD ignorase el filtro de estado— porque habría dado dos números calculados sobre conjuntos distintos dentro de la misma respuesta.
+
+**El desglose por broker trae TODOS los brokers del catálogo, con cero donde no hay.** Nació al revés el mismo día y se invirtió: un arreglo cuya longitud depende del filtro obliga a **rearmar las columnas en cada consulta**, y una columna que desaparece se lee como un dato que falta, no como un cero. Consecuencia declarada: **un broker desactivado sigue apareciendo** —apagarlo no borra lo declarado en él—, al precio de una columna muerta el día que se retire alguno.
+
+#### `RF-SP-058` — Consultar los indicadores de la red comercial
+
+| Campo | Valor |
+|---|---|
+| Objetivo | Saber **cuánto FTD lleva cada vendedor**, lo suyo y lo de toda su red, con el embudo y la conversión |
+| Actor | Administrador |
+| Permiso requerido | `broker-accounts:read` |
+| Prioridad | **Crítica** |
+| Reglas aplicables | `RN-SP-045`, `RN-SP-047`, `RN-SP-048` |
+| Depende de | `RF-SP-057` |
+| Tripleta | `docs/specs/sp/058-indicadores-de-la-red-comercial/` |
+| Estado | **En desarrollo** (10-09-2026) |
+
+**El árbol de la fuerza comercial, cada nodo con sus dos bloques de números**: `own` —lo que cuelga directamente de él— y `network` —él más todo lo de abajo—. Cada bloque lleva cuentas declaradas, con primer depósito, pendientes, conversión y cuántos consumidores.
+
+**Los dos bloques van SIEMPRE, y no es redundancia**: el total de un director ya contiene el de sus agentes, de modo que **sumar una columna de totales cuenta dos veces**. Publicar solo el total invita a ese error; publicar los dos hace que el que suma tenga que elegir cuál, y elegir es acordarse.
+
+**Los consumidores no son nodos.** Aportan el número y no aparecen: el árbol es de la fuerza comercial. Publicarlos convertiría un indicador de gestión en el listado de clientes de la empresa.
+
+**La conversión es nula cuando no hay cuentas, y no cero.** Cero se lee como «nadie convirtió» y la verdad es «no hay nada que convertir» — la misma distinción que `RN-SP-040` hace con el nulo del nombre de usuario.
+
+**Y la respuesta lleva lo NO ATRIBUIDO**, que es lo que hace que los números cuadren: las cuentas de consumidores que no cuelgan de ningún vendedor no entran en ningún nodo, y sin ese bloque el árbol sumaría menos que `RF-SP-057` sin que nadie supiera por qué.
+
+**Hoy todos los FTD serán cero.** Nadie mueve una cuenta a `FIRST_DEPOSIT` hasta que exista el webhook de `RF-SP-054`, de modo que el embudo se verá entero en `pending`. No es un fallo del indicador: es el estado real del sistema.
+
+#### `RF-SP-047` — Registrar una tasa de cambio
+
+| Campo | Valor |
+|---|---|
+| Objetivo | Declarar a cuánto se cambia una moneda por otra, y desde cuándo |
+| Actor | Administrador |
+| Permiso requerido | `exchange-rates:create` |
+| Prioridad | Alta |
+| Reglas aplicables | `RN-SP-029` a `RN-SP-032` |
+| Depende de | — |
+| Tripleta | `docs/specs/sp/047-registrar-tasa-de-cambio/` |
+| Estado | **Tasks en revisión** (07-09-2026) |
+
+Registra una tasa declarando **origen, destino, precio y desde cuándo rige**, con la fecha de fin opcional —sin ella la tasa es **vitalicia**— y su estado. Es el requerimiento que crea la tabla del módulo y **siembra sus cuatro permisos**, con la obligación de asociarlos a `SUPERADMIN` y `ADMIN` en la misma migración ([`security.md` §4.4](../security.md#44-catalogo-de-permisos)).
+
+**El rechazo que más importa es el solapamiento** (`RN-SP-032`): lo decide un `EXCLUDE` del motor y llega como `409`, no como `500`. Traducirlo es tarea de este requerimiento y de `RF-SP-049`.
+
+#### `RF-SP-048` — Consultar las tasas de cambio
+
+| Campo | Valor |
+|---|---|
+| Objetivo | Ver qué tasas hay, cuáles rigen hoy y cuáles rigieron |
+| Actor | Administrador · fuerza comercial |
+| Permiso requerido | `exchange-rates:read` |
+| Prioridad | Alta |
+| Reglas aplicables | — |
+| Depende de | `RF-SP-047` |
+| Tripleta | `docs/specs/sp/048-consultar-tasas-de-cambio/` |
+| Estado | **Tasks en revisión** (07-09-2026) |
+
+Devuelve las tasas **paginadas**, con las dos monedas resueltas —código y decimales— y filtros por origen, destino, estado y **vigencia a una fecha**. Ese último es el que responde la pregunta que se hace a diario: *¿a cuánto está el cambio hoy?*
+
+**Incluye las vencidas y excluye las retiradas salvo que se pidan**, por el mismo criterio que `RF-PM-002`: una tasa que dejó de regir explica por qué una conversión de hace un mes dio lo que dio.
+
+#### `RF-SP-049` — Corregir una tasa de cambio
+
+| Campo | Valor |
+|---|---|
+| Objetivo | Enmendar lo que se declaró mal, sin reescribir lo que ya se convirtió |
+| Actor | Administrador |
+| Permiso requerido | `exchange-rates:update` |
+| Prioridad | Media |
+| Reglas aplicables | `RN-SP-030` a `RN-SP-032` |
+| Depende de | `RF-SP-047` |
+| Tripleta | `docs/specs/sp/049-corregir-tasa-de-cambio/` |
+| Estado | **Tasks en revisión** (07-09-2026) |
+
+Permite corregir **el precio, la vigencia y el estado**. **No permite cambiar ninguna de las dos monedas**: son las que definen qué cambio expresa la tasa, y tocarlas la convertiría en otra — quien necesite otro par registra otra y retira esta. Es el mismo criterio que `RF-PM-004` aplica al tipo y a las membresías de un producto.
+
+**Es la operación que puede violar `RN-SP-032` sin que el alta lo haya hecho**: mover una vigencia o activar una tasa inactiva puede pisar a la que ya rige (§5.2).
+
+#### `RF-SP-050` — Retirar una tasa de cambio
+
+| Campo | Valor |
+|---|---|
+| Objetivo | Sacar de circulación una tasa que no debió existir |
+| Actor | Administrador |
+| Permiso requerido | `exchange-rates:delete` |
+| Prioridad | Media |
+| Reglas aplicables | `RN-SP-032`, `RN-SP-033` |
+| Depende de | `RF-SP-047` |
+| Tripleta | `docs/specs/sp/050-retirar-tasa-de-cambio/` |
+| Estado | **Tasks en revisión** (07-09-2026) |
+
+Retira lógicamente una tasa **exigiendo motivo** (Art. V.13), que viaja al registro de eliminación con la instantánea de lo retirado. **La fila permanece**: el día que algo se convierta con una tasa, esa conversión tendrá que poder decir cuál usó.
+
+**Retirar libera su periodo** (§5.2): el `EXCLUDE` es parcial sobre las vivas, de modo que después de retirar se puede declarar otra tasa que cubra esos mismos días.
+#### `RF-SP-059` — Consultar los vendedores de un cliente
+
+| Campo | Valor |
+|---|---|
+| Objetivo | Que un cliente sepa **quiénes le venden** —su agente principal y los vendedores por cuyo hotlink compró— y que administración pueda verlo |
+| Actor | El propio cliente; Administrador |
+| Permiso requerido | **El propio cliente** (`GET /users/me/sellers`), o `users:read` (`GET /users/{id}/sellers`) |
+| Prioridad | Media |
+| Reglas aplicables | `RN-SP-021`, `RN-SP-028`, `RN-SP-049` |
+| Depende de | `RF-SP-045`, `RF-MV-011` |
+| Tripleta | `docs/specs/sp/059-consultar-vendedores-de-un-cliente/` |
+| Estado | **Pendiente** — registrado el 16-09-2026 |
+
+**La lista sale de `client_sellers`** y trae, de cada vendedor, nombre y apellido, el origen del vínculo, la fecha en que nació y si es el **principal** —que es el que coincide con la fila vigente de `user_supervisors`—. Ordenada con el principal primero y después por fecha de vínculo.
+
+**No publica nada que el cliente no sepa ya**: cada vendedor de la lista es alguien a quien le compró o quien lo registró. Y no publica más que nombre y apellido, como el hotlink (`RN-PM-022`).
+
+**Lo que no hace**: no permite cambiar el principal —eso es `RF-SP-041`, con `users:assign-supervisor`— ni quitar un vínculo, porque un vínculo es un hecho.
 
 ## 7. Requerimientos no funcionales
 
@@ -799,6 +1189,8 @@ Ninguna con sistemas externos ni con otros módulos. Al absorber los usuarios, s
 **Publica dos lecturas hacia otros módulos desde el 27-08-2026** (**D-25**, `architecture.md` §15.2): el **catálogo de membresías** —si una existe y qué nivel tiene— y el **catálogo de monedas** —si existe, si está activa y cuántos decimales declara—. Las consume `PM`, y las escribió `RF-PM-001`: `SP` no gana ningún requerimiento por ello, porque ningún actor pide «publicar una interfaz» como comportamiento.
 
 **Sigue sin depender de nadie.** Publicar no es depender: la dirección de la dependencia es `PM` → `SP`, y una regla de ArchUnit impide que `modules/products` importe repositorios o entidades de `modules/system`.
+
+**Y desde el 17-09-2026 publica su primera ESCRITURA** (**D-26**, cerrada ese día por el responsable del proyecto; [`architecture.md` §15.2](../architecture.md)): **`MembershipGrant`**, «conceder el nivel comprado», que `MV` invoca al confirmar el pago de una venta con un upgrade (`RF-MV-003`, `RN-MV-020`). Lo que hace es exactamente lo que `RF-SP-032` hace a mano y con las mismas reglas: **cierra la vigente e inserta la nueva** (`RN-SP-014`), con la vigencia contada desde el instante que la orden indica y sin fecha de fin cuando lo comprado no caduca, deja el suelo intacto (`RN-SP-018`) y escribe su asiento en `audit_change_log` como `user_memberships`. **Lo que no hace es decidir si conceder**: eso lo decide `MV` antes de llamar (`RN-MV-029`), y por eso la operación no compara niveles. Corre **en la transacción de quien la llama**: si conceder falla, la venta no se confirma, y al revés. La escribe `RF-MV-003` en paquetes de `SP`, por lo mismo que las lecturas: ningún actor pide «publicar una escritura» como comportamiento.
 
 ## 9. API
 
@@ -824,7 +1216,7 @@ Ninguna con sistemas externos ni con otros módulos. Al absorber los usuarios, s
 | `GET` | `/api/v1/memberships/{id}` | `RF-SP-018` | `memberships:read` |
 | `GET` | `/api/v1/currencies` | `RF-SP-019` | `currencies:read` |
 | `POST` | `/api/v1/countries` | `RF-SP-020` | `countries:create` |
-| `GET` | `/api/v1/countries` | `RF-SP-021` | `countries:read` |
+| `GET` | `/api/v1/countries` | `RF-SP-021` | **Ninguno: público** |
 | `PATCH` | `/api/v1/countries/{id}/status` | `RF-SP-022` | `countries:update` |
 | `PATCH` | `/api/v1/currencies/{id}/status` | `RF-SP-023` | `currencies:update` |
 | `POST` | `/api/v1/users` | `RF-SP-024` | `users:create` |
@@ -849,6 +1241,16 @@ Ninguna con sistemas externos ni con otros módulos. Al absorber los usuarios, s
 | `GET` | `/api/v1/users/{id}/team` | `RF-SP-042` | `users:read` |
 | `PATCH` | `/api/v1/users/me` | `RF-SP-044` | Autenticado |
 | `POST` | `/api/v1/auth/registration` | `RF-SP-045` | **Público** |
+| `POST` | `/api/v1/exchange-rates` | `RF-SP-047` | `exchange-rates:create` |
+| `GET` | `/api/v1/exchange-rates` | `RF-SP-048` | `exchange-rates:read` |
+| `PATCH` | `/api/v1/exchange-rates/{id}` | `RF-SP-049` | `exchange-rates:update` |
+| `POST` | `/api/v1/exchange-rates/{id}/deletion` | `RF-SP-050` | `exchange-rates:delete` |
+| `GET` | `/api/v1/document-types` | `RF-SP-051` | **Ninguno: público** |
+| `GET` | `/api/v1/brokers` | `RF-SP-052` | **Ninguno: público** |
+| `GET` | `/api/v1/users/{id}/broker-accounts` | `RF-SP-055` | **Superior vigente** o `broker-accounts:read` |
+| `GET` | `/api/v1/users/me/team/broker-accounts` | `RF-SP-056` | Autenticado |
+| `GET` | `/api/v1/broker-accounts` | `RF-SP-057` | `broker-accounts:read` |
+| `GET` | `/api/v1/broker-accounts/indicators` | `RF-SP-058` | `broker-accounts:read` |
 
 Rutas propuestas. El contrato exacto de cada una se fija en el `plan.md` de su tripleta.
 
@@ -861,11 +1263,14 @@ Rutas propuestas. El contrato exacto de cada una se fija en el `plan.md` de su t
 | `role_permissions` | Permisos declarados por cada rol | `SP` |
 | `memberships` | Niveles de acceso del consumidor | `SP` |
 | `currencies` | Catálogo de monedas | `SP` |
+| `exchange_rates` | A cuánto se cambia una moneda por otra, con su vigencia | `SP` |
 | `countries` | Catálogo de países | `SP` |
+| `document_types` | Catálogo de documentos de identidad admitidos — **solo los de mayor de edad** | `SP` |
 | `users` | Personas que acceden al sistema, con su credencial y su estado | `SP` |
 | `user_roles` | Roles asignados a cada usuario | `SP` |
-| `user_memberships` | Membresía vigente de cada usuario consumidor | `SP` |
-| `user_supervisors` | Superior comercial de cada vendedor, con su historial | `SP` |
+| `user_memberships` | Historial de membresías de cada usuario — **de todos, no solo de los consumidores** (`RN-SP-018`); la abierta es la actual | `SP` |
+| `user_supervisors` | Superior comercial de cada vendedor y agente **principal** de cada cliente, con su historial | `SP` |
+| `client_sellers` | Los vendedores de cada cliente: el principal y los vinculados por hotlink (`RN-SP-049`, 16-09-2026) | `SP` |
 | `refresh_tokens` | Sesiones revocables | `SP` |
 | `password_reset_permits` | Permisos de un solo uso para recuperar la contraseña olvidada | `SP` |
 | `audit_change_log` | Auditoría de creación y edición | `SP` |
@@ -1005,6 +1410,16 @@ Se declara `varchar(6)` y no `char(6)` porque `char(n)` **rellena con espacios**
 
 `code` sigue ISO 3166-1 alfa-3 (`COL`, `USA`). No se edita ni elimina (`RN-SP-009`); lo único modificable es `is_active`, a través de `RF-SP-022`. El catálogo **no se siembra** con la lista internacional completa: los países se dan de alta por la API a medida que la plataforma llega a ellos.
 
+!!! important "El catálogo deja de nacer vacío: `RN-SP-034` obliga a sembrar **una** fila, Colombia"
+
+    Hasta el 07-09-2026 este catálogo arrancaba sin ninguna fila, y era coherente: nadie dependía de él para existir. `RN-SP-034` lo rompe — `users.country_id` es `NOT NULL`, y **`V22` siembra un superadministrador** que hay que rellenar con algo. Un catálogo vacío haría fallar la migración en toda base, incluidas las de las pruebas de integración.
+
+    Se siembra **Colombia** (`COL`), por decisión del responsable del proyecto, con identificador **UUID v7 literal** para que sea el mismo en todos los entornos (Art. V.11). Mismo criterio que `V15` con `USD`: **una sola fila, la del mercado desde el que se opera**, y ninguna otra «por si acaso» — un país que existe en el catálogo puede seleccionarse, y ofrecer uno en el que no se opera es peor que no tenerlo.
+
+    **Y la elección no tiene vuelta atrás**: `RN-SP-009` no admite editar ni borrar un país, de modo que un código o un nombre mal sembrados solo se pueden **desactivar**, nunca corregir. Es la misma irreversibilidad que obligó a `V42` a levantar excepción en lugar de adivinar equivalencias.
+
+`countries` recibe con `RN-SP-034` su **segunda clave foránea entrante**, y la primera que viene de una persona: hasta el 04-09-2026 era una isla, `payment_method_exclusions` la sacó de esa condición (`V55`) y ahora lo hace `users.country_id`. Con las dos juntas el sistema sabe **dónde no vale un medio de pago** y **dónde está quien va a pagar**, que es la asimetría que [`modelo-datos.md` §6](../modelo-datos.md) tenía anotada como pendiente.
+
 ### 10.7 Campos principales — `user_supervisors`
 
 | Campo | Tipo | PK | FK | Nullable | Default | Entidad relacional |
@@ -1023,13 +1438,23 @@ Es la única tabla del módulo que **relaciona dos usuarios entre sí**, y la pr
 
 !!! important "Desde `RF-SP-045` esta tabla contiene también a los clientes"
 
-    Hasta el 01-09-2026 relacionaba **vendedores entre sí** y nada más; la semilla de desarrollo lo deja escrito: «`ADMIN` y `CLIENTE` quedan fuera porque no son vendedores».
+    Hasta el 01-09-2026 relacionaba **vendedores entre sí** y nada más, y la semilla de desarrollo lo dejaba escrito: «`ADMIN` y `CLIENTE` quedan fuera porque no son vendedores». **La semilla se corrigió el 04-09-2026**, tres días después que el diseño: hasta entonces no había **ni una cartera** en desarrollo, de modo que la mitad comercial de una venta no se podía ver funcionando en local. Ahora cuelga a los tres clientes a **profundidad distinta** —de un agente, de un director y de un manager—, que es lo que hace observable la rama de consumidor de `RN-SP-020`. `ADMIN` siguió fuera hasta el 10-09-2026 — ver la nota siguiente.
 
     Ya no. El cliente que se registra por un enlace **cuelga de su vendedor en esta misma tabla**, con el cliente en `user_id` y el vendedor en `supervisor_id`. Lo que la fila significa cambia según quién sea el subordinado —**«reporta a»** entre vendedores, **«fue traído por»** cuando es un cliente— y `RN-SP-020` lo distingue con su rama de consumidor.
 
     **Lo que se gana es que el árbol comercial esté completo en un solo sitio.** Subir de un cliente hasta el manager que cobra por él es un recorrido de esta tabla, y no un join con una segunda estructura y un caso especial en la hoja — que es la forma que una liquidación multinivel necesita.
 
-    **Lo que cuesta está en `RN-SP-022`**, y no es menor: «tener personas a cargo» pasa a incluir la cartera de clientes, de modo que retirar a un agente exige reasignarla. Y `RF-SP-042` —consultar el equipo a cargo— empieza a devolver clientes junto al equipo; cada fila lleva ya los roles de la persona, que es lo que permite distinguirlos sin cambiar el contrato.
+    **Lo que cuesta está en `RN-SP-022`**, y no es menor: «tener personas a cargo» pasa a incluir la cartera de clientes, de modo que retirar a un agente exige reasignarla. Y `RF-SP-042` —consultar el equipo a cargo— empieza a devolver clientes junto al equipo. **Que se distinguieran «sin cambiar el contrato» fue una suposición, y era falsa**: aquella respuesta llevaba un solo rol y solo de clasificación `VENDEDOR`, de modo que la cartera llegaba con el rol **en nulo** y un cliente era indistinguible de un vendedor sin rol. Se corrigió el **10-09-2026**, cuando cada persona pasó a llevar **la lista completa de sus roles** y el equipo pasó a filtrarse por ellos.
+
+!!! warning "La semilla de desarrollo cuelga a los funcionarios, y `RF-SP-041` no sabría hacerlo"
+
+    Desde el **10-09-2026**, y por decisión del responsable del proyecto, la semilla de desarrollo cuelga también **`admin1` de `superadmin`** y **los tres managers de `admin1`**, de modo que el árbol de personas llega de punta a punta: `superadmin ← admin1 ← manager ← director ← agente`, con la cartera de clientes en las hojas. Se pidió para **poder ver la estructura completa** en local, que hasta entonces nacía partida en dos: la fuerza comercial colgaba de tres managers que no colgaban de nadie, y `admin1` quedaba suelto.
+
+    **Son cuatro filas que la API rechaza, y quedan declaradas como deuda.** `RF-SP-041` devolvería `409` en los dos casos: **`VAL-004`** para el manager —`RN-SP-019` lo exceptúa por ser la cúspide de la fuerza comercial, ya que su rol padre `ADMIN` no es `VENDEDOR`— y **`VAL-003`** para el administrador, que no pertenece a la fuerza comercial y por tanto no tiene superior que asignar. `RN-SP-020` tampoco las cubre: tiene rama de vendedor y rama de consumidor, y un `FUNCIONARIO` no cae en ninguna de las dos.
+
+    **Lo que no son es incoherentes**, y por eso la deuda es de alcance y no de diseño: `SUPERADMIN → ADMIN → MANAGER` es exactamente el parentesco que declara §4.1, el mismo que `RN-SP-020` exige entre vendedores. Lo que falta es **decidir si la estructura de personas deja de ser comercial para ser la jerarquía completa** — y entonces `RN-SP-019` y `RN-SP-020` se enmiendan, `SUPERADMIN` pasa a ser la única cúspide y `CommercialStructure` deja de filtrar por clasificación `VENDEDOR`.
+
+    **Mientras no se decida, esas filas viven solo en la semilla.** Ninguna regla, ningún requerimiento y ninguna prueba de otro caso de uso deben apoyarse en ellas. `RF-SP-042` las devolverá —lee la tabla sin preguntar por el tipo de rol—, y eso no las convierte en contrato. Lo que sí cambia en desarrollo es **quién es la cúspide**: la única persona sin superior pasa a ser `superadmin`, de modo que la omisión de `supervisor` que `CA-SP-445` define sigue siendo observable, pero en **una** persona y no en cuatro.
 
 !!! important "Por qué lleva clave sustituta y las otras asociaciones no"
 
@@ -1086,24 +1511,41 @@ Declaradas en la base de datos, no solo en Java (Art. V.6):
 | `ck_users_username_no_at` | `users(position('@' in username) = 0)` — `VAL-010`. **Es lo que sostiene el inicio de sesión con ambas identidades**: ningún nombre de usuario puede parecerse a un correo |
 | `ck_users_username_format` | `users(username ~ '^[A-Za-z0-9._-]{3,50}$')` — sin espacios ni acentos. Un nombre con espacio al final es indistinguible del mismo sin él, y es permanente |
 | `ck_users_names_not_blank` | `users(length(btrim(first_name)) > 0 AND length(btrim(last_name)) > 0)` |
+| `fk_users_country` | `users(country_id)` → `countries(id)` — `RN-SP-034`. **Simple y no compuesta**, y **sin `ON DELETE`**: la compuesta `(country_id, is_active)` haría fallar `RF-SP-022` sobre un país con usuarios (§5.1), y no hay borrado del que defenderse porque `RN-SP-009` no lo admite |
 | `ck_users_status` | `users(status)` en (`ACTIVO`, `INACTIVO`, `BLOQUEADO`, `FTD_PENDIENTE`) — `RN-SP-026`. **`FTD_PENDIENTE` sustituye a `PENDIENTE`**, que estaba declarado y sin usar desde `V18` justamente para que estrenarlo no costara alterar el `CHECK` de una tabla en uso. El cambio es de dominio y **no de datos**: ninguna fila llevaba el valor retirado |
 | `pk_user_roles` | **Clave primaria compuesta**: `user_roles(user_id, role_id)` |
 | `fk_user_roles_user` | `user_roles(user_id)` → `users(id)`, `ON DELETE RESTRICT` |
 | `fk_user_roles_role` | `user_roles(role_id, role_type)` → `roles(id, role_type)`, `ON DELETE RESTRICT` — red debajo de `RN-SEG-008`, y **compuesta desde el 02-09-2026** para que el `role_type` copiado no pueda divergir |
 | `uq_roles_id_role_type` | `roles(id, role_type)` — **redundante con la clave primaria**, y esa es toda su función: PostgreSQL exige que el destino de una clave foránea compuesta sea único sobre exactamente esas columnas |
 | `uq_user_roles_vendedor` | Único **parcial**: `user_roles(user_id) WHERE role_type = 'VENDEDOR'` — `RN-SP-025` |
-| `pk_user_memberships` | **Clave primaria**: `user_memberships(user_id)` — declara `RN-SP-014` en el esquema: una membresía por usuario |
+| `pk_user_memberships` | **Clave primaria**: `user_memberships(id)` — un identificador propio, porque la tabla guarda **todas** las membresías que alguien tuvo y `user_id` se repite. **Desde el 05-09-2026**; hasta entonces la clave iba sobre `user_id` y era ella quien declaraba `RN-SP-014` |
 | `fk_user_memberships_user` | `user_memberships(user_id)` → `users(id)`, `ON DELETE RESTRICT` |
 | `fk_user_memberships_membership` | `user_memberships(membership_id)` → `memberships(id)`, `ON DELETE RESTRICT` |
 | `ck_user_memberships_periodo` | `user_memberships(ends_at IS NULL OR ends_at > started_at)` |
+| `ck_user_memberships_cierre` | `user_memberships(closed_at IS NULL OR closed_at >= started_at)` — un cierre anterior al comienzo no es un caso de negocio. Va con `>=` y no con `>` a propósito: **conceder y cerrar en la misma transacción producen el mismo instante**, y prohibirlo haría fallar la operación normal de `RF-SP-032` |
+| `uq_user_memberships_abierta` | **Índice único parcial**: `user_memberships(user_id) WHERE closed_at IS NULL` — **una sola fila abierta por persona**, y es esta la que carga `RN-SP-014` en el día a día. Su otro trabajo es menos visible y no menor: `RF-SP-025` y `RF-SP-026` cruzan esta tabla con un `LEFT JOIN`, y **sin ella ese cruce multiplicaría filas** en cuanto alguien tuviera dos membresías — el listado de usuarios repetiría personas. Obliga a que conceder **cierre siempre** la anterior, incluso si ya estaba vencida |
+| `ex_user_memberships_sin_solape` | **`EXCLUDE USING gist`**: `user_id WITH =`, `tstzrange(started_at, COALESCE(LEAST(ends_at, closed_at), 'infinity')) WITH &&` — impide que **dos periodos se pisen**, que es lo que el índice de arriba **no** puede decir: aquel habla de filas abiertas, y dos membresías **cerradas** con fechas solapadas lo satisfarían sin problema. `LEAST` da el fin **real** —vence o la cierran, lo que ocurra antes— y devuelve la que no sea nula; el `COALESCE` cubre el caso en que las dos lo son, que es la membresía indefinida y viva. **Los dos hacen falta y ninguno sobra**: el único parcial no ve el historial y el `EXCLUDE` no ve dos filas abiertas que no se solapan —una vencida y otra nueva—. Mismo patrón y misma extensión que `ex_commission_rates_sin_solape` (`V44`), y por el mismo motivo que allí: comprobarlo con un `SELECT` previo es una carrera |
 | `fk_user_supervisors_user` | `user_supervisors(user_id)` → `users(id)` |
 | `fk_user_supervisors_supervisor` | `user_supervisors(supervisor_id)` → `users(id)`, con restricción de eliminación — `RN-SP-022` |
 | `uq_user_supervisors_vigente` | **Índice único parcial**: `user_supervisors(user_id) WHERE ended_at IS NULL` — `RN-SP-021`. Un solo superior vigente por persona; el historial cerrado no compite por esa unicidad |
 | `ck_user_supervisors_no_self` | `user_supervisors(user_id <> supervisor_id)` — nadie está a cargo de sí mismo |
 | `ck_user_supervisors_periodo` | `user_supervisors(ended_at IS NULL OR ended_at > started_at)` — un periodo cerrado no puede terminar antes de empezar |
 | `ix_users_busqueda` | Índice de trigramas sobre `users`, en **tres expresiones**: `f_unaccent(lower(username))`, `f_unaccent(lower(email))` y `f_unaccent(lower(first_name \|\| ' ' \|\| last_name))`. La tercera es el **nombre completo concatenado**, y sin ella teclear `juan perez` no encuentra a nadie: ese texto no está contenido en ninguna de las dos columnas por separado. Lo declara `RF-SP-025` |
-| `ix_user_memberships_membership_id` | `user_memberships(membership_id)` — filtro por membresía de `RF-SP-025`. La clave primaria va sobre `user_id` y no sirve a la consulta contraria |
+| `uq_document_types_abbreviation` | `document_types(abbreviation)` — la abreviación **es** el código, y por eso no hay una columna `code` además (§10.15) |
+| `uq_document_types_name` | **Índice único funcional**: `document_types (f_unaccent(lower(name)))` — mismo criterio que `uq_countries_name`. Dos entradas que solo difieran en acentos serían dos opciones indistinguibles en el selector del alta |
+| `uq_brokers_name` | **Índice único funcional**: `brokers (f_unaccent(lower(name)))` — mismo criterio que los países y los tipos de documento. Con el nombre como única columna de negocio, es él quien identifica: sin este índice, «Exness» y «exness» serían dos brokers |
+| `uq_user_brokers_cuenta` | `user_brokers(broker_id, external_id)` — **`RN-SP-038`**: una cuenta es de una sola persona. NO es `(user_id, broker_id)`, que prohibiría lo que sí se admite —varias cuentas de la misma persona en el mismo broker— y permitiría lo que no |
+| `ix_user_brokers_busqueda` | `user_brokers` **gin de trigramas** sobre `f_unaccent(lower(external_id))` — **`RF-SP-057`**. Las expresiones son **las del predicado**, como en `ix_users_busqueda`: si divergieran, el índice existiría y el planificador no lo usaría nunca, y el defecto no saldría como error sino como una consulta lenta que nadie relaciona con esta migración |
+| `ck_user_brokers_status` | `user_brokers(status)` en (`REGISTER`, `FIRST_DEPOSIT`) — **`RN-SP-045`**. Mismo recurso que `ck_users_status` y por el mismo motivo: el conjunto de valores es una regla de negocio, y una columna de texto libre deja entrar `register` en minúscula el día que alguien escriba la fila desde otro sitio |
+| `ck_document_types_abbreviation_format` | `document_types(abbreviation ~ '^[A-Z][A-Z0-9]{0,9} `users(country_id)` — filtro por país de `RF-SP-025`. **Total y no parcial**, al revés que los dos índices de abajo: aquellos existen para responder «hoy» sobre tablas con historial, y aquí no hay historial que excluir — el país es una columna del propio agregado (§10.10). Y hace **doble trabajo**: sin él, el `NO ACTION` de `fk_users_country` recorrería `users` entera en cada intento de borrar un país |
+| `ix_user_memberships_membership_id` | **Índice parcial**: `user_memberships(membership_id) WHERE closed_at IS NULL` — filtro por membresía de `RF-SP-025`. **Parcial desde el 05-09-2026**: esa consulta pregunta quiénes tienen **hoy** esa membresía, y el historial cerrado nunca forma parte de la respuesta y crecería indefinidamente dentro del índice. Es el mismo criterio con el que `ix_user_supervisors_supervisor_vigente` ya es parcial |
 | `ix_user_supervisors_supervisor_vigente` | **Índice parcial**: `user_supervisors(supervisor_id) WHERE ended_at IS NULL` — responde «¿quién está a cargo de esta persona **hoy**?», que es lo que preguntan `RN-SP-022` y `RF-SP-042`. Parcial y no total porque el historial cerrado nunca forma parte de esa respuesta y crecería indefinidamente dentro del índice. Lo declara `RF-SP-028`, y **sustituye al nombre `ix_user_supervisors_supervisor_id`** que el plan de `RF-SP-024` había anticipado: aquel describía un índice sobre una columna, y este lleva además una condición |
+| `fk_exchange_rates_source` | `exchange_rates.source_currency_id` → `currencies(id)` — `RN-SP-029` |
+| `fk_exchange_rates_target` | `exchange_rates.target_currency_id` → `currencies(id)` — `RN-SP-029` |
+| `ck_exchange_rates_monedas_distintas` | `source_currency_id <> target_currency_id` — `RN-SP-029`. Una tasa de una moneda a sí misma no expresa ningún cambio |
+| `ck_exchange_rates_price_positive` | `price > 0` — `RN-SP-030` |
+| `ck_exchange_rates_vigencia` | `valid_to IS NULL OR valid_to >= valid_from` — `RN-SP-031`. La rama `IS NULL` va **delante y explícita**: un `CHECK` que evalúa a `NULL` **acepta** la fila, y sin ella toda tasa vitalicia pasaría sin comprobarse |
+| `uq_exchange_rates_vigente` | **`EXCLUDE USING gist`** sobre las dos monedas `WITH =` y `daterange(valid_from, valid_to, '[]') WITH &&`, **parcial**: `WHERE (is_active AND deleted_at IS NULL)` — `RN-SP-032`. **Un `UNIQUE` no puede expresarlo**: lo que no puede repetirse no es un valor, es un **solapamiento** (§5.2) |
 
 !!! important "La unicidad de rol es parcial, no total"
 
@@ -1121,13 +1563,17 @@ Declaradas en la base de datos, no solo en Java (Art. V.6):
 
 Las tres últimas se apoyan además en datos de otras tablas —`user_roles` y `roles`—, de modo que ni siquiera un `CHECK` con subconsulta las sostendría: PostgreSQL no admite subconsultas en `CHECK`.
 
+**`RN-SP-035` se declara ENTERA en el motor, y es la única regla de identidad de la que se puede decir eso.** El par tipo+número lo sostiene `uq_users_document`, la inseparabilidad de los dos campos `ck_users_document_pair`, la normalización `ck_users_document_number_normalized`, y **la validación de mayoría de edad la sostiene `fk_users_document_type` junto con el contenido del catálogo** — que es la parte que no se ve en ninguna restricción y que sin embargo es la que decide. Ningún caso de uso ejecuta una comprobación de edad, porque no hay nada que comprobar: lo que el catálogo no ofrece no se puede escribir.
+
+**`RN-SP-034` está declarada a medias, y es el único caso así de la lista.** Su mitad estructural —todo usuario tiene un país del catálogo— sí vive en el motor, con `NOT NULL` y `fk_users_country`. Su mitad de estado —el país asignado tiene que estar **activo**— no, y no porque no se pueda escribir, sino porque **escribirla rompería `RF-SP-022`**: el detalle está en §5.1.
+
 !!! warning "«Depende de otra tabla» no siempre significa «no se puede declarar», y el 02-09-2026 se comprobó"
 
     `RN-SP-025` estaba en esta lista por ese motivo, y **salió de ella**: la columna que necesitaba no era una subconsulta sino **una copia atada por una clave foránea compuesta** (§10.11). El dato se trae a la tabla donde la restricción tiene que vivir, y la FK impide que la copia mienta.
 
     **La condición es que el dato copiado sea inmutable en su origen**, y aquí lo es: `role_type` no se corrige. Donde el origen cambia, el patrón no vale —la FK bloquearía la corrección legítima— y la regla vuelve al dominio.
 
-    Queda anotado que `RN-SP-013` y `RN-SP-018` cumplen esa condición y **podrían salir también**. No se hace hoy: son otro requerimiento.
+    Queda anotado que `RN-SP-013` y `RN-SP-018` cumplían esa condición y **podrían haber salido también**. **No se hará (05-09-2026)**: la primera está retirada y la segunda dice ahora que **toda** persona tiene membresía, con lo que la restricción declarable describía una regla que ya no existe.
 
 ### 10.9 Campos de los registros de auditoría
 
@@ -1144,6 +1590,7 @@ Añadida el 22-08-2026 al aprobar el `plan.md` de `RF-SP-024`, que es quien crea
 | `email` | `varchar(255)` | No | No | No | — | — |
 | `first_name` | `varchar(100)` | No | No | No | — | — |
 | `last_name` | `varchar(100)` | No | No | No | — | — |
+| `country_id` | `uuid` | No | **Sí** | **No** | — | `countries` |
 | `password_hash` | `varchar(255)` | No | No | No | — | — |
 | `must_change_password` | `boolean` | No | No | No | `false` | — |
 | `provisional_password_expires_at` | `timestamptz` | No | No | Sí | — | — |
@@ -1153,6 +1600,12 @@ Añadida el 22-08-2026 al aprobar el `plan.md` de `RF-SP-024`, que es quien crea
 | `deleted_at` | `timestamptz` | No | No | Sí | — | — |
 
 **`username` se persiste tal como se escribió y su unicidad ignora la caja** (§10.8). El correo, en cambio, se persiste ya normalizado —recortado y en minúsculas— y su unicidad es una restricción corriente. La asimetría es deliberada: el nombre de usuario es como la persona aparece en la auditoría durante años, y el correo es una dirección de buzón cuya forma canónica es la minúscula.
+
+**`country_id` es `NOT NULL`, y es la única columna de esta tabla que apunta a un catálogo** (`RN-SP-034`, 07-09-2026). Nace obligatoria y no nulable-hoy-obligatoria-mañana, y esa decisión tiene un precio que se paga una sola vez: la migración que la añade **tiene que rellenar las filas existentes**, y para poder hacerlo **siembra Colombia** en un catálogo que hasta ahora nacía vacío (§10.6). El precio de la alternativa era permanente — una columna nulable obliga a **todo** consumidor futuro a contemplar la ausencia, y `RN-SP-034` dice justamente que esa ausencia no significa nada.
+
+**No lleva `ON DELETE` de ningún tipo**, y no hace falta declararlo: `RN-SP-009` no admite borrar un país, ni lógica ni físicamente, de modo que la fila apuntada **no puede desaparecer**. El comportamiento por omisión —`NO ACTION`— es aquí una red que nadie llegará a tocar, y declarar `RESTRICT` sugeriría que existe un borrado del que defenderse.
+
+**El `deleted_at` de un usuario no libera nada aquí**, al contrario de lo que ocurre con las asignaciones de `RF-SP-029`: el país es una columna del propio agregado, viaja con la fila y sigue diciendo dónde estaba esa persona cuando se la eliminó. Es lo que hace que la instantánea de `audit_deletion_log` sea completa.
 
 !!! important "El esquema inicial no lleva todas las columnas del modelo lógico"
 
@@ -1189,19 +1642,30 @@ La crea `RF-SP-024` (`V19__create_user_roles.sql`), porque el alta ya escribe as
 
 | Campo | Tipo | PK | FK | Nullable | Default | Entidad relacional |
 |---|---|---|---|---|---|---|
-| `user_id` | `uuid` | Sí | Sí | No | — | `users` |
+| `id` | `uuid` | Sí | No | No | — | — |
+| `user_id` | `uuid` | No | Sí | No | — | `users` |
 | `membership_id` | `uuid` | No | Sí | No | — | `memberships` |
 | `started_at` | `timestamptz` | No | No | No | `now()` | — |
 | `ends_at` | `timestamptz` | No | No | Sí | — | — |
+| `closed_at` | `timestamptz` | No | No | Sí | — | — |
 | `created_at` | `timestamptz` | No | No | No | `now()` | — |
 | `updated_at` | `timestamptz` | No | No | No | `now()` | — |
 
-**`user_id` es la clave primaria, y eso declara `RN-SP-014` en el esquema**: una membresía por usuario deja de ser una regla que el dominio debe recordar y pasa a ser imposible por construcción. `RF-SP-032` sustituye con un `UPDATE`, no insertando una fila nueva.
+**Es un historial, no una foto.** Cada fila es **una membresía que alguien tuvo**, con su periodo. Conceder otra **cierra la que había e inserta una nueva**; nada se sobrescribe. Hasta el 05-09-2026 la tabla tenía `user_id` como clave primaria y `RF-SP-032` sustituía con un `UPDATE` — el nivel anterior no se podía reconstruir, y esa deuda estaba escrita y aceptada. Dejó de estarlo por decisión del responsable del proyecto.
 
-**`ends_at` nulo es una membresía indefinida.** Una fecha pasada no retira nada: `RN-SP-014` fija que la vigencia se evalúa al consultarla y que ningún proceso limpia la fila. Por eso no hay columna de estado ni marca de caducada — ese vacío es deliberado.
+**`ends_at` y `closed_at` responden preguntas distintas, y por eso son dos columnas.** `ends_at` es **hasta cuándo se pagó** —nula, indefinida—; `closed_at` es **cuándo dejó de ser la actual**. Una membresía de treinta días que se reemplaza el día doce termina con `ends_at` en el día treinta y `closed_at` en el doce, y las dos cosas son ciertas: se pagó un mes y se usó menos de medio. Con una sola columna esa diferencia se pierde, y con ella la respuesta a un reclamo.
 
-`RF-SP-024` la crea (`V20__create_user_memberships.sql`) y concede la membresía **indefinida**: el alta no admite fecha de fin, que se pone después con `RF-SP-032`.
+**La fila abierta es la que tiene `closed_at` nulo, y hay como mucho una** (`uq_user_memberships_abierta`). «Abierta» no es «vigente»: una membresía vencida **sigue abierta** hasta que se conceda otra o se retire, y por eso conserva su plaza sin conceder nivel. Vigente es lo otro, y se evalúa al consultarla:
 
+```sql
+closed_at IS NULL AND (ends_at IS NULL OR ends_at > now())
+```
+
+**Conceder cierra SIEMPRE, aunque la anterior ya estuviera vencida.** No es celo: si no se cerrara, quedarían dos filas abiertas, y el `LEFT JOIN` de `RF-SP-025` y `RF-SP-026` empezaría a devolver a la misma persona dos veces.
+
+**Retirar (`RF-SP-033`) cierra la que hay y abre una `BECA`.** Ese mismo día pasó por dos cambios y conviene leer los dos: primero dejó de **borrar** para **cerrar** —el `DELETE` llevaba escrito su motivo, que `RN-SP-015` decía que quien deja de ser consumidor **no tiene** membresía, y el historial lo invierte porque la fila cerrada dice justo que la tuvo y se la quitaron—; y después dejó de **dejar sin nada** para **devolver al suelo**, porque `RN-SP-018` reescrita no admite a nadie sin nivel. `RN-SP-015` quedó retirada por el camino. El cierre sigue sin tocar `ends_at`, y sigue siendo el criterio con el que `endSupervisor` nunca fue un `DELETE` (`V21`).
+
+`RF-SP-024` la creó (`V20__create_user_memberships.sql`) y `V56` la convierte en historial. El alta sigue concediendo la membresía **indefinida**: no admite fecha de fin, que se pone después con `RF-SP-032`.
 !!! note "Por qué estas tres secciones van al final y no en su sitio"
 
     Las subsecciones de §10 se numeran **por orden de incorporación**, no por dependencia. Insertarlas entre las existentes obligaría a renumerar `user_supervisors`, las restricciones y la auditoría, y ocho `plan.md` ya aprobados referencian esos números. La legibilidad del orden vale menos que la estabilidad de las referencias.
@@ -1229,6 +1693,156 @@ La crea `RF-SP-024` (`V19__create_user_roles.sql`), porque el alta ya escribe as
 **No es una tabla de negocio**: sin `updated_at` ni `deleted_at`. La caducidad se evalúa al consultarla y **ningún proceso la limpia**, igual que `refresh_tokens` antes de su purga — y con el mismo hueco declarado: la purga de permisos consumidos y caducados no tiene requerimiento que la cubra.
 
 `RF-SP-040` la crea (`V37__create_password_reset_permits.sql`). El plan la numeraba `V29`, número que quedó tomado al aplicarse `V13` a `V36` mientras la tripleta esperaba a **D-23**.
+
+### 10.14 Campos principales — `exchange_rates`
+
+| Campo | Tipo | PK | FK | Nullable | Default | Entidad relacional |
+|---|---|---|---|---|---|---|
+| `id` | `uuid` | Sí | No | No | — | — |
+| `source_currency_id` | `uuid` | No | Sí | No | — | `currencies` |
+| `target_currency_id` | `uuid` | No | Sí | No | — | `currencies` |
+| `price` | `numeric(18,8)` | No | No | No | — | — |
+| `valid_from` | `date` | No | No | No | — | — |
+| `valid_to` | `date` | No | No | **Sí** | — | — |
+| `is_active` | `boolean` | No | No | No | `true` | — |
+| `created_at` | `timestamptz` | No | No | No | `now()` | — |
+| `updated_at` | `timestamptz` | No | No | No | `now()` | — |
+| `deleted_at` | `timestamptz` | No | No | Sí | — | — |
+
+**`numeric(18,8)` y no `numeric(14,4)` como `products.price`**, y la diferencia no es de gusto: una tasa **no es un importe**. Con cuatro decimales, `COP → USD` —del orden de `0,00024`— se guardaría como `0,0002`, y una moneda más devaluada se guardaría como **cero**. Ocho decimales es lo que usan las tesorerías y las pasarelas, y los diez dígitos enteros cubren el otro extremo.
+
+**`valid_from` y `valid_to` son `date` y no `timestamptz`**, igual que en las dos tablas de tasas de comisión. Una tasa de cambio rige **por días**, no por instantes: declararla con hora obligaría a decidir en qué zona se corta el día, que es la decisión que [`architecture.md` §15.1.1](../architecture.md) resolvió para el código de una venta y que aquí no hace falta abrir.
+
+**`is_active` es booleano y no un `varchar` con `CHECK`**, al revés que `products.status`. Aquel se declaró así porque su dominio **es candidato a crecer** —un `BORRADOR` era previsible—; aquí no lo es: la única distinción que un tercer estado expresaría —«programada, aún no rige»— **ya la expresan las fechas**. Es la forma que `currencies` y `countries` usan en este mismo módulo.
+
+**`updated_at` sí, `deleted_at` sí**: es una tabla de negocio que se corrige (`RF-SP-049`) y se retira con motivo (`RN-SP-033`), al revés que `password_reset_permits`.
+
+**Sin columna de motivo y sin columnas de actor**: quién retiró la tasa y por qué residen en `audit_deletion_log`, con la instantánea de la fila (Art. V.7 y V.13).
+### 10.15 Campos principales — `document_types`
+
+| Campo | Tipo | PK | FK | Nullable | Default | Entidad relacional |
+|---|---|---|---|---|---|---|
+| `id` | `uuid` | Sí | No | No | — | — |
+| `abbreviation` | `varchar(10)` | No | No | No | — | — |
+| `name` | `varchar(100)` | No | No | No | — | — |
+| `is_active` | `boolean` | No | No | No | `true` | — |
+| `created_at` | `timestamptz` | No | No | No | `now()` | — |
+| `updated_at` | `timestamptz` | No | No | No | `now()` | — |
+
+**La abreviación es el identificador estable y el nombre es el que se muestra**, y no hay una tercera columna `code`: la abreviación **es** el código. Añadir las dos cosas daría tres identificadores para un mismo concepto y obligaría a decidir cuál manda. `uq_document_types_abbreviation` la hace única; el nombre lleva su propio índice funcional sobre `f_unaccent(lower(name))`, con el mismo criterio que `countries` (§10.6).
+
+**`is_active` existe y ninguna operación de la API lo escribe**, y conviene justificarlo porque contradice en apariencia el criterio de `RF-SP-024` §2 —«una columna disponible antes de que exista la regla que la gobierna acaba usándose por un camino que nadie diseñó»—. La diferencia es que **esta columna sí se lee desde el primer día**: `RF-SP-051` publica solo los activos. Y sin ella **no hay forma de retirar un tipo de documento**: `fk_users_document_type` impide borrar la fila en cuanto una sola persona la referencie, de modo que la alternativa a `is_active` no es «no tener la columna», es «no poder retirar nunca».
+
+**No lleva `deleted_at`.** Es la misma decisión que `countries` y `currencies` toman, y por el mismo motivo: un tipo de documento no se elimina, se retira de la circulación. Las personas que ya lo declararon lo siguen resolviendo.
+
+**Qué contiene el catálogo es una regla de negocio y no un dato de configuración** (`RN-SP-036`). La siembra lleva **solo documentos de persona mayor de edad**; los que acreditan minoría —tarjeta de identidad, registro civil— **no están y no se añaden**. Esa ausencia es la validación entera.
+
+### 10.16 Campos de contacto e identidad documental — `users`
+
+Añadidos el 08-09-2026 (`RN-SP-035`, `RN-SP-037`), y `company_phone` el 10-09-2026. Se listan aparte de §10.10 para no mezclarlos con las columnas que nacieron con la tabla.
+
+| Campo | Tipo | PK | FK | Nullable | Default | Entidad relacional |
+|---|---|---|---|---|---|---|
+| `document_type_id` | `uuid` | No | **Sí** | Sí | — | `document_types` |
+| `document_number` | `varchar(30)` | No | No | Sí | — | — |
+| `address_line1` | `varchar(150)` | No | No | Sí | — | — |
+| `address_line2` | `varchar(150)` | No | No | Sí | — | — |
+| `city` | `varchar(100)` | No | No | Sí | — | — |
+| `phone` | `varchar(20)` | No | No | Sí | — | — |
+| `company_phone` | `varchar(20)` | No | No | Sí | — | — |
+
+!!! warning "Las siete nacen **nulables en el esquema** y dos de ellas son **obligatorias en la API**, y la asimetría es deliberada"
+
+    `RN-SP-035` y `RN-SP-037` hacen obligatorios el **documento** y el **teléfono personal** al registrar. Aun
+    así la columna admite nulo, al revés que `country_id` (§10.10), y el motivo es la diferencia
+    entre los dos rellenos.
+
+    Un país de relleno es **una afirmación neutra**: poner «Colombia» al superadministrador no dice
+    nada falso sobre nadie. Un **número de documento** de relleno es otra cosa — es una afirmación
+    sobre la identidad de una persona, y **cualquier valor que se invente es falso**. Lo mismo el
+    teléfono. `V22` siembra un superadministrador que no tiene ni uno ni otro, y la semilla de
+    desarrollo crea decenas de personas que tampoco.
+
+    De modo que el esquema **admite la ausencia** —que es la verdad sobre esas filas— y **la API la
+    prohíbe** en toda alta nueva. La consecuencia hay que aceptarla entera: **existen y seguirán
+    existiendo personas sin documento**, y todo consumidor tiene que contemplarlo. Lo que no puede
+    ocurrir es que se creen más.
+
+    **La condición para endurecerlo queda escrita**: el día que ninguna fila tenga el documento nulo
+    —porque se completaron todas—, una migración puede poner `NOT NULL`. Antes no, y no por
+    prudencia: hacerlo obligaría a inventar los datos que faltan.
+
+**`document_number` se persiste normalizado** —recortado y en mayúsculas—, con el mismo criterio que el correo: los documentos con letra —pasaportes, cédulas de extranjería— se escriben en mayúscula por convención, y guardarlos tal cual haría que `abc123` y `ABC123` fueran dos personas distintas. La unicidad va sobre el **par** `(document_type_id, document_number)` y no sobre el número solo: dos catálogos distintos pueden numerar igual.
+
+**`phone` se persiste normalizado a dígitos con un `+` opcional**, sin espacios, guiones ni paréntesis. No se valida contra el país: eso exigiría un catálogo de prefijos que nadie ha pedido, y una validación a medias rechazaría números legítimos.
+
+**`company_phone` es el teléfono de la empresa**, añadido el **10-09-2026** por decisión del responsable del proyecto, y recibe **exactamente el mismo trato de forma** que el personal: misma normalización, misma restricción `~ '^\+?[0-9]{7,15}$'`, mismo largo. Lo que no comparte es la obligatoriedad — `RN-SP-037` lo deja **opcional**, de modo que aquí el nulo **no es una fila vieja pendiente de completar sino un hecho**: esa persona no tiene teléfono de empresa. Por eso es el único de los cinco campos de contacto que **se puede vaciar de vuelta** una vez informado, y `RF-SP-027` y `RF-SP-044` aceptan su nulo explícito como orden de borrado, igual que hacen con la dirección.
+
+**`RF-SP-045` no lo pide.** El formulario público de registro por enlace da de alta a un cliente, y preguntarle por el teléfono de su empresa sería preguntar por algo que no tiene. Puede añadirlo después desde su propio perfil (`RF-SP-044`), que es donde el dato deja de ser un obstáculo para el alta.
+
+**`address_line2` es el complemento** —apartamento, torre, referencia— y es opcional **por naturaleza y no por transición**, como `company_phone`: una dirección puede no tener complemento, y eso no es un dato que falte.
+
+
+### 10.17 Campos principales — `brokers`
+
+| Campo | Tipo | PK | FK | Nullable | Default | Entidad relacional |
+|---|---|---|---|---|---|---|
+| `id` | `uuid` | Sí | No | No | — | — |
+| `name` | `varchar(120)` | No | No | No | — | — |
+| `is_active` | `boolean` | No | No | No | `true` | — |
+| `created_at` | `timestamptz` | No | No | No | `now()` | — |
+| `updated_at` | `timestamptz` | No | No | No | `now()` | — |
+
+**Una sola columna de negocio, y por decisión explícita** (08-09-2026): «de momento el nombre». De ahí sale que **el nombre sea la clave de negocio** —único, con la misma intercalación `es-x-icu` que `countries.name` y `document_types.name`— y no un dato descriptivo. Es la diferencia con `currencies`, donde el nombre puede repetirse porque quien identifica es el `code`.
+
+**Lo que eso cuesta, dicho por adelantado**: renombrar un broker cambia su clave de negocio. Mientras nadie referencie brokers por nombre desde fuera —hoy nadie lo hace: `user_brokers` apunta por `id`— el coste es cero. El día que un integrador los pida por nombre, hace falta una columna `code` estable.
+
+**`is_active` existe y ninguna operación de la API lo escribe**, exactamente como en `document_types`: dejar de operar con un broker no puede borrar las cuentas que ya se declararon en él, de modo que la baja es un cambio de estado por migración y nunca un `DELETE`.
+
+### 10.18 Campos principales — `user_brokers`
+
+| Campo | Tipo | PK | FK | Nullable | Default | Entidad relacional |
+|---|---|---|---|---|---|---|
+| `id` | `uuid` | Sí | No | No | — | — |
+| `user_id` | `uuid` | No | Sí | No | — | `users` |
+| `broker_id` | `uuid` | No | Sí | No | — | `brokers` |
+| `external_id` | `varchar(80)` | No | No | No | — | — |
+| `broker_username` | `varchar(120)` | No | No | **Sí** | — | — |
+| `status` | `varchar(20)` | No | No | No | `'REGISTER'` | — |
+| `created_at` | `timestamptz` | No | No | No | `now()` | — |
+| `updated_at` | `timestamptz` | No | No | No | `now()` | — |
+
+**`status` dice en qué punto está la cuenta** (`RN-SP-045`, 10-09-2026): `REGISTER` o `FIRST_DEPOSIT`, con `CHECK` en el motor como `users.status`. **Nace en `REGISTER` y hoy nadie la mueve** —la mueve el webhook de `RF-SP-054`—, y **eso no la convierte en un campo por si acaso**: se lee desde el primer día en `RF-SP-055` y `RF-SP-056`, y el valor que devuelve es cierto. **Los dos valores van en inglés** y el resto de enumerados del sistema no: son el vocabulario del broker que los va a escribir.
+
+**No es el estado de la persona.** `users.status` dice si la cuenta del sistema opera y este dice qué ha pasado en el broker; una persona con dos cuentas puede tenerlas en estados distintos, de modo que **uno no se deriva del otro** — y de ahí que el `FTD_PENDIENTE` del titular no se pueda leer de aquí sin decidir antes qué significa tener una cuenta depositada y otra no.
+
+**`external_id` es el identificador de la persona EN EL BROKER** —el número de cuenta— y es lo único que la persona conoce al declararla.
+
+**`broker_username` admite nulo, y su nulo significa algo** (`RN-SP-040`): «el broker todavía no lo ha confirmado». Lo rellena el webhook de `RF-SP-054`, no el alta. Declararlo obligatorio obligaría a inventar un valor en el alta, y el valor inventado sobreviviría a la confirmación.
+
+**El único es `(broker_id, external_id)` y NO `(user_id, broker_id)`** (`RN-SP-038`). Esa elección es el requerimiento entero:
+
+- **Una persona SÍ puede tener varias cuentas en el mismo broker**, que es lo normal en el ramo.
+- **Una cuenta NO puede ser de dos personas.** El segundo que la declare recibe `409`, y quien lo garantiza es el índice —no una comprobación previa—, porque dos altas simultáneas de la misma cuenta pasan cualquier comprobación previa y solo chocan en el motor.
+
+**No lleva `deleted_at`.** Desvincular una cuenta no está decidido todavía (`RF-SP-053` no existe), y añadir la columna hoy sería declarar una operación que nadie implementa — el defecto que `RF-SP-035` dejó escrito con la purga: un campo puesto «por si acaso» que nadie escribe parece una funcionalidad que sí está.
+### 10.19 Campos principales — `client_sellers`
+
+| Campo | Tipo | PK | FK | Nullable | Default | Entidad relacional |
+|---|---|---|---|---|---|---|
+| `client_id` | `uuid` | Sí | Sí | No | — | `users` |
+| `seller_id` | `uuid` | Sí | Sí | No | — | `users` |
+| `origin` | `varchar(20)` | No | No | No | — | — |
+| `first_movement_id` | `uuid` | No | Sí | Sí | — | `movements` |
+| `created_at` | `timestamptz` | No | No | No | `now()` | — |
+
+Diseñada el 16-09-2026 (`RN-SP-049`); la creará la migración de `RF-MV-011`, que es la primera que la escribe por hotlink. **La pareja es la clave**: un vendedor se vincula a un cliente una vez, y la segunda compra por su hotlink no añade fila. **Sin `ended_at` ni `deleted_at`**: el vínculo es un hecho y no se cierra; lo que cambia con el tiempo —quién es el principal— vive en `user_supervisors`, no aquí.
+
+`origin` es `REGISTRO` para la fila que nace con `RF-SP-045` —el principal— y `HOTLINK` para las que nacen con `RF-MV-011`. `first_movement_id` apunta a **la venta que creó el vínculo** —la del registro por enlace (`RN-SP-043`) o la primera compra por ese hotlink— y es nula solo para los vínculos que se rellenen a mano al construir la tabla, si hubiera clientes anteriores.
+
+**Por qué no va en `user_supervisors`.** Aquella tabla significa **mando y atribución por defecto** —un superior vigente, historial con cierre, y las tres consecuencias de `RN-SP-022`, `RN-SP-046` y `RN-SP-048`—. Un vínculo de venta no manda nada, no se cierra y no debe disparar ninguna de esas tres. Meterlo en la misma tabla obligaría a que cada consulta del árbol distinguiera «fila de mando» de «fila de vínculo», y la que se olvidara contaría clientes dos veces.
+
+**Restricciones exigidas en el esquema**: clave primaria `(client_id, seller_id)`; `CHECK (client_id <> seller_id)`; `CHECK (origin IN ('REGISTRO', 'HOTLINK'))`; claves foráneas a `users` sin `ON DELETE` y a `movements` sin `ON DELETE`; índice por `seller_id` para «los clientes de un vendedor». Que el vendedor **porte un rol `VENDEDOR`** se comprueba en el caso de uso, como en `RN-SP-020`: un CHECK no consulta otra tabla.
 
 ## 11. Control de cambios
 
@@ -1275,3 +1889,30 @@ La crea `RF-SP-024` (`V19__create_user_roles.sql`), porque el alta ya escribe as
 | 1.30.0 | 31-08-2026 | **Nace `RF-SP-044`: editar el propio perfil**, por decisión del responsable del proyecto. Es la contraparte de escritura de `RF-SP-039`: `RF-SP-027` ya corrige nombre, apellidos y correo, pero exige `users:update` —un permiso de **administración**—, de modo que hoy **quien no administra usuarios no puede corregir un dato suyo mal escrito** y tiene que pedírselo a alguien; concederle ese permiso para que arregle su propio apellido le daría de paso la capacidad de editar el de cualquiera. La decisión que carga el requerimiento es el **correo**: desde `RF-SP-040` es la vía por la que se recupera una contraseña olvidada, de modo que cambiarlo es **cambiar quién puede recuperar la cuenta**, y por eso **exige la contraseña actual en la misma petición** mientras que el nombre y los apellidos no. Una sesión robada no lleva la contraseña, y exigirla convierte el robo de sesión en algo que **caduca** en lugar de en una apropiación permanente. Queda declarado lo que **no** resuelve —la **verificación del correo nuevo**, heredada de `RF-SP-027` y ya sin coartada, porque un correo mal tecleado deja a la persona sin vía de recuperación— y dos decisiones que no se ven en el camino feliz: el fallo de contraseña **no incrementa los intentos fallidos ni bloquea la cuenta**, porque eso permitiría a quien tenga una sesión ajena dejar fuera a la persona legítima; y el **correo repetido sigue exigiendo la contraseña**, porque hacer depender la exigencia de que el valor cambie daría una forma de averiguar el correo vigente probando valores. La ruta es `PATCH /api/v1/users/me` y **no** se añade a las alcanzables con la marca de cambio obligatorio: quien tiene una credencial provisional sin estrenar la estrena antes de tocar su correo, que es precisamente el dato que quien la emitió podría querer cambiarle. | Responsable del proyecto |
 | 1.31.0 | 01-09-2026 | **Nace `RF-SP-045`: el registro de clientes por enlace**, por decisión del responsable del proyecto, y con él **el primer endpoint público del sistema que escribe**. Los seis que ya existen o leen o consumen una credencial que el propio sistema emitió; este crea una persona, le concede un rol, le asigna una membresía y la cuelga de un vendedor a petición de alguien que todavía no es nadie. El enlace lleva **el producto y el vendedor que lo generó**: el producto declara la membresía destino (`RN-PM-002`) y su vigencia (`RN-PM-015`), de modo que el rol de consumidor y el nivel se conceden juntos, que es lo que `RN-SP-018` ya exigía. **Ninguno de los dos datos es secreto y no hace falta que lo sea**: el camino de pago exige pasarela —de Finanzas, inexistente— y el gratuito produce una cuenta que autentica y no opera, así que forjar el enlace no consigue nada; por eso el enlace **se compone y no se persiste**. Tres reglas nuevas: **`RN-SP-026`** —la cuenta nace en `FTD_PENDIENTE`—, **`RN-SP-027`** —ningún cliente sin vendedor, porque la atribución vacía produce huérfanos que nadie descubre hasta el día de pagar una comisión— y **`RN-SP-028`**. **La decisión de fondo la tomó el responsable el mismo día: el cliente cuelga de su vendedor en `user_supervisors`, la MISMA estructura de la fuerza comercial, y no en una tabla propia.** Se había propuesto una tabla aparte con el argumento de que `RN-SP-020` exige un rol padre que un `CONSUMIDOR` nunca porta; se descartó, y la regla se enmienda en su lugar — **`RN-SP-020` gana su rama de consumidor**: si el subordinado es cliente, basta con que el superior porte **algún** rol `VENDEDOR`, sin parentesco que comprobar. Lo que se gana es **un solo árbol comercial**: subir de un cliente a su agente, su director y su manager es **un recorrido** en lugar de un join con un caso especial en la hoja, que es exactamente la forma que una liquidación multinivel necesita. **Y `RN-SP-022` se endurece sin tocar su texto**: «personas a cargo» pasa a incluir clientes, de modo que retirar a un agente exige reasignar también su cartera — enmienda de hecho a `RF-SP-028`, `RF-SP-029` y `RF-SP-031`, y `RF-SP-042` empieza a devolver clientes en el equipo a cargo (Art. I.7). **El catálogo de estados cambia** (`ck_users_status`): `PENDIENTE` —declarado y sin usar desde `V18` justamente para esto— es sustituido por **`FTD_PENDIENTE`**, el **primer estado que autentica sin estar `ACTIVO`**, lo que obliga a tocar `puedeEntrar()`, es decir, el camino de acceso de todo el sistema. Queda **enmendado `RF-SP-028`** también en su dominio: debe admitir la salida de `FTD_PENDIENTE` hacia `ACTIVO`, única mientras el webhook del bróker no exista. Y queda declarado lo que **no** resuelve: el camino de pago, la confirmación del depósito y que **la atribución es forjable** — no concede acceso, pero ensucia la base de comisiones, con la condición de reapertura escrita: en cuanto se liquide una comisión sobre una atribución, el enlace tiene que dejar de ser componible. | Responsable del proyecto |
 | 1.32.0 | 02-09-2026 | **`RN-SP-025` pasa a vivir en el motor**, y con ello deja de estar solo declarada: nació el 28-08-2026 porque la pidió `CM` y **durante cinco días no la sostuvo nada** — una persona podía portar dos roles vendedores, y lo único que lo delataba era que `SellerRoleCatalog` reventara con `AmbiguousSellerRoleException` en lugar de elegir en silencio. Se decidió declararla **en el esquema y no en el caso de uso** (responsable del proyecto, 02-09-2026), **revirtiendo lo que `modules.md` §5.3 afirmaba**: que no se podía. Sí se puede, con el patrón que `V49` validó cuatro días después de escribir aquella frase — `user_roles` **copia el `role_type`**, una **clave foránea compuesta** `(role_id, role_type) → roles(id, role_type)` impide que la copia diverja, y un **índice único parcial** sobre `(user_id) WHERE role_type = 'VENDEDOR'` cierra la regla. Funciona **porque `role_type` no es editable**: `RF-SP-004` solo corrige nombre y descripción, de modo que la copia no puede quedarse atrás. **Lo que decidió no fue la elegancia sino un precedente**: `RN-SP-018` se comprobaba en el caso de uso, **no se sostuvo bajo concurrencia** y hubo que corregirla el 26-08-2026 — misma tabla, misma clase de comprobación. §10.8 gana la advertencia de que **«depende de otra tabla» no siempre significa «no se puede declarar»**, con la condición que lo permite —que el dato copiado sea inmutable en su origen— y la constancia de que **`RN-SP-013` y `RN-SP-018` la cumplen y podrían salir también** de la lista de reglas no expresables. Y al ir a construirla apareció un choque que nadie había cruzado: **`RF-SP-030` permite ascender asignando el rol nuevo, y la persona queda portando los dos** —está en su §13 y toda la mecánica de `CommercialStructure` lo supone—, de modo que la regla habría hecho fallar `CA-SP-399`, en verde desde el 24-08-2026. **Se resolvió haciendo que asignar SUSTITUYA** el rol vendedor que se porte, en la misma transacción, y no que rechace: retirar antes con `RF-SP-031` deja a la persona sin rol vendedor entre las dos llamadas, y si ese era su único rol **`RN-SP-023` rechaza el retiro** y el ascenso queda imposible. El precio queda escrito: **«asignar» pasa a poder retirar**, y la auditoría debe registrar el rol que entra **y el que sale**. | Responsable del proyecto |
+| 1.33.0 | 04-09-2026 | **`RF-SP-039` publica el identificador del actor** (Art. I.7, sobre un requerimiento ya implementado). Lo pidió el frontend como `R-28`, y el motivo por el que no estaba —«quien pregunta ya sabe quién es»— **resultó falso al consumirse**: quien pregunta sabe su nombre de usuario, no su `uuid`, porque ese dato viaja dentro del token y leerlo obligaría al navegador a descomponer un JWT. La consecuencia era concreta y bloqueaba una pantalla entera: `POST /api/v1/movements` exige `clientId`, de modo que **quien compraba para sí mismo no podía decir quién era**, y el único rodeo —buscarse en el listado de usuarios— exige `users:read`, que un cliente no tiene. **No abre alcance**: es el identificador del propio actor, la operación sigue sin admitir parámetros y no hay forma de señalar a nadie más. Nace `CA-SP-473`. **Y queda declarado lo que este campo NO desbloquea**: `POST /api/v1/movements` exige `movements:create`, hoy reservado a `SUPERADMIN` (`requirements/mv.md` §6.1), de modo que un cliente sigue sin poder llamarlo. La compra propia es `RF-MV-002` —`POST /api/v1/movements/mine`, sin permiso—, que está especificada y aprobada desde el 02-09-2026 y **sin construir**. | Responsable del proyecto |
+| 1.34.0 | 04-09-2026 | **La semilla de desarrollo cuelga por fin a los clientes de su vendedor**, tres días después de que `RN-SP-028` lo decidiera. Hasta hoy la semilla decía —y la nota de §10.7 lo citaba— que «`CLIENTE` queda fuera porque no son vendedores», y eso dejó de ser cierto el 01-09-2026: el cliente cuelga de su vendedor **en `user_supervisors`**, con el cliente en `user_id`. **La consecuencia de ese desfase no era cosmética: en desarrollo no había NI UNA CARTERA**, de modo que la mitad comercial de una venta —de quién es el cliente, a quién se le atribuye— no se podía ver funcionando en local. **Los tres clientes cuelgan a profundidad distinta**, y esa es la decisión: `cliente1` de un agente, `cliente2` de un director y `cliente3` de un manager. Lo permite la **rama de consumidor de `RN-SP-020`**, que solo exige que el superior porte **algún** rol `VENDEDOR` sin parentesco que comprobar — y colgarlos a los tres de un agente habría dejado sin existir en desarrollo el caso que el diseño admite y que obliga a decidir **a qué tarifa cobra quien está pegado al cliente cuando no es un agente**. `director1` pasa a tener cuatro a cargo —tres agentes y un cliente—, que es la mezcla que `RF-SP-042` tiene que saber devolver distinguiendo por rol. `ADMIN` sigue fuera: no es vendedor y no tiene cartera. | Responsable técnico |
+| 1.35.0 | 05-09-2026 | **`user_memberships` pasa a ser un historial**, por decisión del responsable del proyecto: conceder una membresía es **una fila nueva** —se cierra la que había y se crea otra—, y no un `UPDATE` sobre la única fila de la persona. **`RN-SP-014` se reescribe**: de «una membresía por usuario» a «una membresía **vigente** por usuario, y todas las que tuvo conservadas». La regla dejaba una deuda que estaba escrita, aceptada y **citada por otro módulo**: `RN-MV-020` —nacida el día anterior— declaraba que quien necesitara saber en qué nivel estaba alguien en una fecha «tendrá que leerlo de las ventas confirmadas, no de `SP`». Esa deuda desaparece, y con ella el párrafo que la justificaba. **La decisión que carga el cambio son DOS columnas de fin y no una**: `ends_at` sigue siendo la **planificada** —hasta cuándo se pagó, nula si es indefinida— y nace **`closed_at`**, el cierre **real**. Una membresía de treinta días reemplazada el día doce termina con las dos fechas puestas y distintas, y las dos son ciertas; con una sola columna se pierde la diferencia entre **vencer** y **que te la sustituyan**, que es justo la que responde un reclamo. **La unicidad deja de poder vivir en la clave primaria** —que pasa a un `id` propio, porque `user_id` se repite— y se reparte entre **dos** restricciones que no se solapan en su trabajo: `uq_user_memberships_abierta`, único parcial sobre `WHERE closed_at IS NULL`, que es lo que impide dos filas actuales **y** lo que evita que el `LEFT JOIN` de `RF-SP-025` y `RF-SP-026` empiece a repetir personas; y `ex_user_memberships_sin_solape`, un `EXCLUDE USING gist` sobre `tstzrange(started_at, COALESCE(LEAST(ends_at, closed_at), 'infinity'))`, que es lo que impide que dos **periodos** se pisen — algo que el índice parcial no ve, porque dos filas cerradas con fechas solapadas lo satisfacen. Ninguno de los dos sobra. Es el patrón y la extensión que `V44` ya estrenó con `ex_commission_rates_sin_solape`. **De ahí sale la obligación menos evidente: conceder cierra SIEMPRE**, aunque la anterior estuviera vencida; si no, quedan dos filas abiertas. **`RF-SP-033` cierra y ya no borra**, con `closed_at` y sin tocar `ends_at`: el `DELETE` llevaba escrito su motivo —`RN-SP-015` dice que quien deja de ser consumidor **no tiene** membresía, no que tuviera una que terminó— y el historial lo invierte, porque la fila cerrada dice exactamente que la tuvo y se la quitaron. Es el criterio con el que `endSupervisor` nunca fue un `DELETE`. **Y una decisión técnica queda declarada para que no se tome por omisión**: `RF-SP-032` con la **misma** membresía y otra fecha **actualiza** la fila abierta y no genera historial —es una corrección administrativa, no un cambio de nivel—, mientras que con **otra** membresía cierra e inserta; es lo que conserva la distinción entre `FA-002` y `FA-003` que el dominio ya codificaba. La migración es `V56`. | Responsable del proyecto |
+| 1.36.0 | 05-09-2026 | **Toda persona tiene membresía, y quien no recibe una arranca en `BECA`** — decisión del responsable del proyecto. Es un cambio de alcance, no un ajuste: la membresía deja de significar «esta persona es cliente» y pasa a ser **un atributo de todo usuario**, superadministrador y funcionarios incluidos. **`RN-SP-018` se reescribe** y **dos reglas críticas mueren con ella**: `RN-SP-013` —membresía solo para consumidores— y `RN-SP-015` —quedarse sin rol consumidor retira la membresía—. Las dos sostenían las mitades de una atadura entre el rol y el nivel que ya no existe; **sus filas se conservan tachadas y no se borran**, porque sus códigos estaban citados en respuestas de error, en cinco `plan.md` aprobados y en los flujos, y suprimirlos dejaría referencias colgando. **El suelo se resuelve por código y no por la forma de la cadena**, y esa es la decisión que más se piensa: `RN-SP-007` permite registrar una membresía **por debajo** de `BECA`, de modo que «la que no tiene padre» es un blanco móvil — con él, registrar un nivel nuevo cambiaría en silencio con qué arranca la gente. Se toma la de **código `BECA`**, sembrada por `V46`, única por `uq_memberships_code` e imposible de borrar por `RN-SP-008`. El precio queda escrito: si alguien registra una por debajo, **el suelo de la cadena y el nivel de arranque dejan de ser el mismo**. **Cuatro requerimientos cambian de comportamiento.** `RF-SP-024`: `membershipId` pasa a **opcional** y sin él la persona nace en `BECA`; deja de exigirse por portar un rol consumidor. `RF-SP-030`: **deja de admitir membresía**, y sus dos campos se retiran del cuerpo — quien ya tiene nivel no lo cambia por una puerta lateral, y cambiarlo es `RF-SP-032`, que tiene su propio permiso. `RF-SP-031`: **pierde la cascada** — quien deja de ser consumidor **conserva la membresía que tenía**, incluida una comprada; bajarla al suelo sería quitarle algo que pagó. `RF-SP-033`: **devuelve al suelo en lugar de dejar sin nada**, y con ello responde `200` con la membresía `BECA` en vez de `204` sin cuerpo. **Y lo que esto abre fuera de `SP` conviene tenerlo presente**: `RF-PM-007` y `RF-MV-002` deciden qué se ofrece y qué se puede comprar leyendo la membresía vigente, de modo que **funcionarios y vendedores pasan a tener oferta de upgrades**. Va en la misma dirección que la enmienda del 04-09-2026 que abrió la compra propia más allá de los clientes. La migración es `V57`, que **rellena y no altera el esquema**: no hay columna nueva, solo una fila `BECA` para toda persona que no tuviera ninguna abierta. **El invariante no se puede declarar en el motor** —«toda fila de `users` tiene una abierta en `user_memberships`» es una comprobación entre tablas que ningún `CHECK` alcanza—, y por eso lo sostienen el relleno y las tres operaciones que crean personas. | Responsable del proyecto |
+| 1.37.0 | 07-09-2026 | **Nace el submódulo TASAS DE CAMBIO**, por decisión del responsable del proyecto: a cuánto se cambia una moneda por otra, desde cuándo y hasta cuándo. Cuatro requerimientos —`RF-SP-047` a `RF-SP-050`—, cuatro permisos `exchange-rates:` y una tabla, `exchange_rates` (§10.14). **Se administra por API, al revés que el catálogo de monedas**: `RN-SP-010` deja las monedas fuera del alcance de la API porque son un catálogo estable que nadie edita, y una tasa es lo contrario — cambia, y cambia seguido. **La decisión que carga el diseño es `RN-SP-032`: dos tasas vigentes del mismo par no se solapan**, y §5.2 explica por qué **un `UNIQUE` no puede expresarlo** — lo que no puede repetirse no es un valor, es un **solapamiento de rangos**: dos tasas `USD → COP` con fechas distintas pasarían cualquier unicidad y en el día que comparten habría **dos precios para el mismo cambio**. Se declara con el `EXCLUDE USING gist` que `V44` estrenó para las tasas de comisión, con `daterange(..., '[]')` —el intervalo cerrado, o dos tasas que se tocan en un extremo no se verían— y **parcial sobre las vivas y activas**, o retirar dejaría el periodo bloqueado para siempre. **De ahí sale la consecuencia que hay que aceptar entera**: si las inactivas no bloquean, **activar es la operación peligrosa y no el alta**, de modo que `RF-SP-047` y `RF-SP-049` tienen los dos que traducir esa violación a un `409` — dejarla subir daría un `500` sobre una regla de negocio. **El precio se declara `numeric(18,8)` y no `numeric(14,4)` como `products.price`**, y el motivo hay que leerlo: una tasa **no es un importe**. Con cuatro decimales `COP → USD` —del orden de `0,00024`— se guardaría redondeada, y una moneda más devaluada se guardaría como **cero**. **El estado es booleano y no un `varchar` con `CHECK`**, al revés que `products.status`: aquel creció porque su dominio era candidato a hacerlo, y aquí la única distinción que un tercer estado expresaría —«programada, aún no rige»— **ya la expresan las fechas**. **Y queda declarado lo que esto NO hace**: `MV` sigue exigiendo una sola moneda por venta (`RN-MV-012`). Lo que cambia es el **motivo** de esa regla — decía «este sistema no tiene ninguna tasa de cambio», y ahora las tiene: sigue sin convertir **por decisión** y no por ausencia. | Responsable del proyecto |
+| 1.38.0 | 07-09-2026 | **Toda persona pertenece a un país**, por decisión del responsable del proyecto. Nace `RN-SP-034` y `users` gana `country_id`, `NOT NULL` y con clave foránea a `countries` (§10.10). Es la **primera columna de `users` que apunta a un catálogo**, y con ella `countries` recibe su segunda clave foránea entrante —la primera venía de `payment_method_exclusions` (`V55`)—: el sistema ya sabía **dónde no vale un medio de pago** y ahora sabe **dónde está quien va a pagar**, que es la asimetría que [`modelo-datos.md` §6](../modelo-datos.md) tenía anotada como pendiente 2. **El país es una columna y no una tabla puente**, al revés que la membresía y el superior comercial, y el criterio queda escrito: aquellas dos llevan tabla porque **tienen vigencia** —se conceden, vencen, se sustituyen— y el país no tiene ninguna; nadie pregunta en qué país estaba alguien el mes pasado, y el rastro del cambio ya lo guarda `audit_change_log`. **Se fija en el alta —administrativa (`RF-SP-024`) y por enlace (`RF-SP-045`)— y solo lo corrige un administrador con `users:update` (`RF-SP-027`); el titular no lo toca desde `RF-SP-044`**, porque el país decide qué medios de pago se le ofrecen (`RN-MV-019`) y cambiárselo uno mismo sería cambiarse de mercado. **La mitad de la regla que exige país activo NO se declara en el esquema**, y el motivo merece leerse porque parecía declarable: el patrón de clave foránea compuesta que `RN-SP-025` estrenó el 02-09-2026 exige que el dato copiado sea **inmutable en su origen**, y `countries.is_active` es justo **lo único que `RN-SP-009` deja cambiar** — declararlo haría que `RF-SP-022` fallara sobre cualquier país con usuarios, convirtiendo «retirarlo de los selectores» en una operación bloqueada por terceros. La comprobación es **de entrada y no permanente**: quien ya tenía el país lo conserva aunque se desactive. **Lo que cuesta queda escrito: el catálogo de países deja de nacer vacío.** `V22` siembra un superadministrador que hay que rellenar, de modo que la migración —**`V64`**, tras cederle `V65` y `V66` a las tasas de cambio el mismo día— **siembra Colombia** (`COL`) con identificador UUID v7 literal, igual que `V15` con `USD`. Y la elección **no tiene corrección posible** (`RN-SP-009`): un país mal sembrado solo se puede desactivar. Enmienda seis tripletas ya aprobadas (Art. I.7): `RF-SP-024`, `RF-SP-025` —el país aparece en el listado y se puede filtrar por él, con `ix_users_country_id`—, `RF-SP-026`, `RF-SP-027`, `RF-SP-039` y `RF-SP-045`. | Responsable técnico |
+| 1.39.0 | 07-09-2026 | **`SP` publica dos lecturas nuevas por la vía de D-25**, y las dos las pide `RF-PM-008` —el hotlink público de `PM`—: **`PublicSellerLookup`**, que devuelve **nombre y apellido** por nombre de usuario, y **`ExchangeRateLookup`**, que devuelve **la tasa vigente hoy** entre dos monedas. Con ellas, las lecturas que este módulo publica pasan de tres a **cinco**. **Las dos llevan la regla dentro, y eso es lo que las hace correctas**: la primera devuelve **vacío cuando la persona no es fuerza comercial**, en lugar de devolver a cualquiera y dejar que `PM` filtre — la definición de quién es publicable depende de los **roles**, que son de este módulo, y partirla dejaría dos definiciones de las que la segunda se quedaría atrás **sin que nada fallara**. La segunda devuelve la tasa **ya elegida** y no la lista del par, por el mismo motivo por el que `CurrentMembershipLookup` devuelve la membresía **ya evaluada**: reimplementar «vigente» fuera es el defecto que produce resultados plausibles durante meses. **Ninguna tabla cambia y ningún requerimiento de `SP` se toca**: son dos puertos de lectura, y las tareas que los escriben pertenecen a `RF-PM-008` aunque el código viva aquí — exactamente como ocurrió con las tres de `RF-PM-001` y `RF-PM-007`. **Se numera 1.39.0 y no 1.38.0**: ese número lo tomó el mismo día el cambio del país (`RN-SP-034`), escrito en paralelo. | Responsable técnico |
+| 1.40.0 | 07-09-2026 | **Los dos puertos de membresía que este módulo publica ganan el `color`** (`RN-SP-024`): `MembershipCatalog.MembershipView` y `CurrentMembershipLookup.CurrentMembershipView`. Lo pide `PM`, que lo publica en las cinco respuestas de su catálogo y en el hotlink. **Es un dato puramente estético y aun así cruza por el puerto**, y esa es la parte que merece quedar escrita: la tentación era resolverlo con un `JOIN` de conveniencia «porque solo es un color», y abrir esa excepción sería **la primera grieta en la única regla que sostiene D-25** — quien decide qué se sabe de una membresía es este módulo. **El cambio es aditivo y no rompe a ningún consumidor**: quien ya lee los cuatro campos sigue leyéndolos. **Ninguna tabla cambia**: `memberships.color` existe desde `V38`. | Responsable técnico |
+| 1.41.0 | 08-09-2026 | **Toda persona se identifica con un documento y declara sus datos de contacto**, por decisión del responsable del proyecto. `users` gana seis columnas —`document_type_id`, `document_number`, `address_line1`, `address_line2`, `city` y `phone` (§10.16)— y nace el catálogo **`document_types`** (§10.15) con su requerimiento de consulta, **`RF-SP-051`**, y su permiso `document-types:read`. Tres reglas nuevas: `RN-SP-035` —identidad documental, par único que no se libera al eliminar—, `RN-SP-036` —el catálogo no se administra por API— y `RN-SP-037` —teléfono obligatorio, dirección opcional—. **La decisión que define el diseño es cómo se valida la mayoría de edad**: se pidió esa validación y **no se implementa como comprobación, sino como contenido** — el catálogo **solo lleva documentos de persona mayor de edad**, sin columna que marque cuáles sí y cuáles no. Con una columna, registrar a un menor sería *posible y rechazado*, y bastaría con que un caso de uso futuro olvidara mirarla; sin ella es **inexpresable**, porque no hay identificador que poner que signifique «Tarjeta de Identidad» y `fk_users_document_type` no admite otra cosa. **De ahí que `RN-SP-036` no sea simetría con `RN-SP-010` sino una necesidad**: un catálogo administrable por API dejaría que cualquiera añadiera el tipo que falta y **la validación desaparecería sin cambiar ninguna regla, sin migración y sin que nadie lo notara**. **Lo que esto no hace queda dicho**: el tipo de documento es un **indicio** de mayoría de edad y no una prueba —un pasaporte lo tiene un niño igual—, y la condición para abrir el campo de fecha de nacimiento queda escrita en la ficha de `RF-SP-051`. **Y la asimetría que hay que aceptar entera**: las seis columnas nacen **nulables en el esquema** aunque documento y teléfono sean **obligatorios en la API**, porque un número de documento de relleno no es un valor neutro como «Colombia» — **es una afirmación falsa sobre la identidad de una persona**, y `V22` siembra un superadministrador que no tiene ninguno. Existen y seguirán existiendo personas sin documento; lo que no puede ocurrir es que se creen más. Enmienda cinco tripletas aprobadas (Art. I.7): `RF-SP-024`, `RF-SP-026`, `RF-SP-027`, `RF-SP-039` y `RF-SP-044` —que gana los cuatro campos de contacto y **no** el documento, porque el documento es identidad y lo corrige un administrador— más `RF-SP-045`. | Responsable técnico |
+| 1.42.0 | 08-09-2026 | **Nace el submódulo BROKERS**, por decisión del responsable del proyecto: el catálogo de los brokers con los que opera la plataforma y **la cuenta que cada persona tiene en cada uno**. El módulo pasa a **cincuenta y cuatro** requerimientos —`RF-SP-052` a `RF-SP-054`— y el modelo gana **dos tablas**, `brokers` y `user_brokers` (§10.17 y §10.18). **El catálogo se puebla por migración y solo se consulta** (`RN-SP-039`), como los de monedas y tipos de documento, y **de momento guarda solo el nombre** — de donde sale que **el nombre sea la clave de negocio**, con índice único funcional, y que renombrar un broker sea una migración. **La regla que carga el diseño es `RN-SP-038`**: el único va sobre **`(broker_id, external_id)`** y **no** sobre `(user_id, broker_id)`. La diferencia es el requerimiento entero — con el segundo se prohibiría lo que sí se admite (varias cuentas de la misma persona en el mismo broker, que es lo normal en el ramo) y se permitiría lo que no (que dos personas declaren la misma cuenta). Lo sostiene el índice y no una comprobación previa, porque dos altas simultáneas de la misma cuenta pasan cualquier comprobación previa. **`RN-SP-040` explica por qué `broker_username` admite nulo**: la cuenta se declara con el broker y el identificador —lo único que la persona conoce— y el nombre de usuario **lo rellena después el webhook del broker**; ese nulo significa «el broker todavía no lo ha confirmado» y no «no tiene». **Solo se construye `RF-SP-052`**: `RF-SP-053` —quién declara la cuenta— y `RF-SP-054` —el webhook— quedan **registrados y sin `spec.md`**, porque el actor del primero no está decidido y del segundo no está decidido **nada de lo que importa**: cómo se autentica el broker, qué pasa con un webhook de una cuenta que nadie declaró, si puede cambiar el identificador y cómo se hace idempotente ante la reentrega. Queda declarado que sería **la segunda ruta pública del sistema y la primera que ESCRIBE**. | Responsable del proyecto |
+| 1.43.0 | 08-09-2026 | **Los tres catálogos del registro se abren SIN INICIAR SESIÓN**, por decisión del responsable del proyecto, y **el catálogo de brokers se siembra**: `IQOPTION`, `EXNOVA` y `EXOPTION` (`V76`). Nace `RN-SP-041`: el `GET` de países (`RF-SP-021`), tipos de documento (`RF-SP-051`) y brokers (`RF-SP-052`) es **público**. Lo que resuelve es un hueco declarado tres veces —en `V16`, `V72` y `V75`—: el registro público de `RF-SP-045` necesita elegir los tres y ninguno se podía leer sin una sesión que todavía no existe. **Solo el `GET`**, y esa precisión es la mitad del cambio: el alta y el cambio de estado de países siguen exigiendo su permiso, y siguen respondiendo `401` sin token en lugar de `403`. **Lo que publican no identifica a nadie** —son listas de opciones—, de modo que no hace falta aquí nada del diseño que el hotlink necesitó: no hay oráculo posible porque no hay nada que sondear. **Consecuencia declarada y no disimulada**: `countries:read`, `document-types:read` y `brokers:read` **dejan de gobernar esas lecturas** y quedan sembrados sin endpoint que los exija, como `products:hotlink`; no se retiran porque eliminarlos rompería los roles que ya los tengan, y hacerlo es una decisión del responsable del proyecto y no una limpieza técnica ([`security.md`](../security.md) v0.46.0 §6). **Los tres brokers se escriben como se dieron**, en mayúsculas: el nombre es la clave de negocio, de modo que la caja con la que entran es la que el desplegable pinta y cambiarla después es una migración. La migración lleva **guarda**: si no quedan tres, aborta — un catálogo a medias no falla en ningún sitio y deja el registro con menos opciones de las que existen. | Responsable del proyecto |
+| 1.44.0 | 09-09-2026 | **`RF-SP-045` construido**, y con él nace `RN-SP-042`: **quien se registra por un enlace `BECA → BECA` declara su cuenta de broker**. La condición no es de forma sino **de encierro** — la cuenta nace en `FTD_PENDIENTE`, que autentica y no opera, y quien la saca de ahí es el depósito que confirma el webhook del broker; sin la cuenta declarada, nadie puede saber de quién es un depósito cuando llegue y la persona se queda encerrada. **Hoy la condición se cumple siempre** —todo producto admisible en el registro lleva a la membresía gratuita y `RN-PM-017` impide apuntar por debajo del origen—, y lo que compra es el día que se abra el camino de pago. **Con ella queda respondida la pregunta que `RF-SP-053` dejó abierta el 08-09-2026**: quien declara la cuenta es **el titular, al registrarse**. **`PENDIENTE` pasa a `FTD_PENDIENTE`** (`V77`), y es el primer estado distinto de `ACTIVO` que **autentica**. La ficha de `RF-SP-045` pasa a **En desarrollo** con `RN-SP-034` a `RN-SP-038`, `RN-SP-040` a `RN-SP-042` en sus reglas aplicables. | Responsable del proyecto |
+| 1.45.0 | 09-09-2026 | **`RN-SP-042` se precisa: las cuentas de broker son UNA O MÁS**, y no una. Una persona puede operar con varios brokers, y el registro por enlace es **hoy la única vía** para declararlos. La regla exige **al menos una** cuando el enlace es `BECA → BECA`, y admite **dos del mismo broker** — lo que `RN-SP-038` acota es el par broker + identificador, no cuántas cuentas tiene alguien. **La repetida dentro de la misma petición se rechaza como dato inválido** y no con el conflicto del índice: ese mensaje diría «ya está declarada por otra persona», y ahí la otra persona sería ella misma. Y **si una cuenta choca, no queda nada** — ni la persona, ni su membresía, ni las cuentas anteriores del mismo formulario. | Responsable del proyecto |
+| 1.46.0 | 09-09-2026 | **El registro por enlace anota su venta, y el camino de pago deja de estar cerrado.** Nacen `RN-SP-043` y `RN-SP-044`, por decisión del responsable del proyecto. **`RN-SP-043`**: el formulario declara el movimiento —producto, método de pago, vendedor y tipo— y el alta **lo anota siempre**, también en el enlace gratuito, porque todo alta deja rastro de qué se vendió. La venta **no se reimplementa**: la registra `RF-MV-001` con sus reglas enteras, de modo que sigue habiendo **una sola definición de vender** —una venta «simplificada» escrita en `SP` sería una segunda, y se quedaría atrás sin que nada fallara—. El producto del movimiento tiene que ser **el del enlace**, el vendedor **se verifica y no se impone** —`RN-MV-003` lo saca del superior que el registro acaba de asignar— y el método de pago es condicional **al importe** y no al producto (`RN-MV-022`). Todo en la **misma transacción**: si la venta se rechaza, no queda ni la persona. **`RN-SP-044`**: un enlace hacia una membresía de pago **ya no se rechaza** —muere `EX-004` de `RF-SP-045`— y lo que el producto decide pasa a ser **cómo nace la cuenta**: el gratuito la deja en `FTD_PENDIENTE` con la membresía **del producto**, y el de pago la deja **`ACTIVO`** con la membresía **del suelo**. La comprada **no se concede al registrarse**: la concede confirmar la venta (`RN-MV-020`), y darla aquí sería premiar un pago que nadie ha comprobado — es la contraparte exacta de `RN-MV-004`. De ahí sale que **estar activo y tener el nivel comprado sean dos cosas distintas**. Consecuencia declarada en `MV`: la venta del alta queda **exenta de `RN-MV-008`**, porque es la venta que **pone** a la cuenta en `FTD_PENDIENTE` y no una compra posterior desde ese estado; la exención es de paquete y solo la alcanza el adaptador del registro. | Responsable del proyecto |
+| 1.47.0 | 09-09-2026 | **`RN-SP-043` se precisa: el bloque del movimiento ES el enlace.** Por decisión del responsable del proyecto mueren `product` y `referrer` del primer nivel del cuerpo — decían lo mismo que `movement.productId` y `movement.sellerUsername`. **Dos campos para un dato son dos valores que pueden discrepar**, y hacían falta dos comprobaciones para vigilarlo: `VAL-016` y la mitad de `EX-010`. Al quitar el duplicado **la divergencia dejó de poder expresarse** y las dos se retiran. `VAL-001` y `VAL-002` conservan su código y cambian de sitio. **Una sola declaración de vendedor gobierna dos cosas**: el superior comercial que el registro cuelga y, por `RN-MV-003`, el vendedor de la venta — coincidir dejó de ser algo que comprobar. **El producto pasa a ir por identificador**, como `brokerId` y por el mismo argumento; el enlace sigue llevando el código. | Responsable del proyecto |
+| 1.48.0 | 10-09-2026 | **`RF-SP-042` filtra por roles y publica los roles de cada persona**, por decisión del responsable del proyecto, y son dos cambios que se sostienen el uno al otro. **Cada persona de la respuesta —la consultada, su superior y cada miembro del equipo— lleva ahora `roles`**: la lista completa de los que porta, con identificador, código y nombre, ordenada por código y presente aunque vaya vacía. **Sustituye a `roleCode`**, que devolvía uno solo y además solo si era de clasificación `VENDEDOR` — de modo que desde `RF-SP-045` la cartera de clientes llegaba con **el rol en nulo** y un cliente era indistinguible de un vendedor sin rol. §10.7 llevaba desde el 01-09-2026 afirmando que «cada fila lleva ya los roles de la persona, que es lo que permite distinguirlos»: **la afirmación era falsa y hoy pasa a ser cierta**, y el párrafo queda corregido para que no vuelva a leerse como una garantía que nunca existió. **El equipo directo admite un filtro `roles` por códigos, varios a la vez y con semántica O**; el total cuenta lo filtrado, un código inexistente devuelve la página vacía sin error —criterio de `RF-SP-025`— y **el filtro no toca al superior**, porque su ausencia ya significa «es la cúspide» y filtrarlo haría indistinguibles las dos cosas (`CA-SP-445`). **Enmienda de hecho a `RF-SP-041`** (Art. I.7): comparte `CommercialStructureResponse` y por tanto también pierde `roleCode` y gana `roles`. Se **invierte `CA-SP-455`** —que exigía la ausencia de filtros— en lugar de borrarlo, y se rehace la resolución 3 de su `spec.md` §14: el argumento de 22-08-2026 era que `RF-SP-025` ya filtra, y dejó de valer el día que la cartera de clientes entró en esta estructura, porque el listado general no sabe responder «de la gente que cuelga de este agente, enséñame solo los clientes». **`RF-SP-039` conserva su `roleCode`**: publica el superior del propio actor por otro DTO y no entra en este cambio. | Responsable del proyecto |
+| 1.49.0 | 10-09-2026 | **La cuenta de broker declara en qué punto está, y el superior comercial puede consultarla**, por decisión del responsable del proyecto. Nacen **`RN-SP-045`** —`user_brokers.status` en `REGISTER` o `FIRST_DEPOSIT`, con `CHECK` en el motor (§5.2)— y **`RN-SP-046`** —quién ve esas cuentas—, y con ellas **dos requerimientos**, `RF-SP-055` (las cuentas de una persona) y `RF-SP-056` (las del equipo, en un listado plano con filtro por estado y por broker). El módulo pasa a **cincuenta y seis** requerimientos y el submódulo de brokers a `RF-SP-052`–`RF-SP-056`. **Tres decisiones cargan el diseño y quedan escritas para que no se relean como descuidos**: **(1) los dos valores van en inglés** contra la costumbre del resto de enumerados —`ACTIVO`, `FTD_PENDIENTE`, `CONFIRMADO`—, porque son el vocabulario del broker que los va a escribir; **(2) hoy nadie mueve la cuenta de `REGISTER`**, y no es un olvido: quien la mueve es el webhook de `RF-SP-054`, que sigue sin construirse, de modo que la columna **se lee desde el primer día y no se escribe todavía** — se declara aquí para que nadie lo descubra leyendo el código, y lo que la salva del defecto que `RF-SP-035` dejó escrito con la purga es que **el valor que devuelve es cierto**: mientras no haya webhook, ninguna cuenta tiene depósito confirmado; **(3) la estructura comercial concede alcance de datos por primera vez.** `V21` declaró lo contrario —«registrar la estructura no concede alcance de datos»— y la **D-22** sigue abierta: `RN-SP-046` **no la resuelve**, la acota a esta lectura, un solo nivel como `RF-SP-042`, y deja fuera al titular sobre sus propias cuentas. El acceso indebido responde **`404` y no `403`**, con el criterio del hotlink de `RF-PM-008`: quien puede probar identificadores ajenos no debe poder distinguir «no existe» de «no es tuyo». **El catálogo de permisos gana `broker-accounts:read`** —el cuarenta y cinco— para ver las cuentas de cualquiera, y **el listado del equipo no exige ninguno**: el alcance lo pone la estructura. | Responsable del proyecto |
+| 1.50.0 | 10-09-2026 | **El administrador consulta TODAS las cuentas de broker y filtra por la red de un vendedor**, por decisión del responsable del proyecto. Nace `RF-SP-057` —`GET /api/v1/broker-accounts`, gobernado por `broker-accounts:read`, paginado, con `supervisorId`, `userId`, `status`, `brokerId`, `search` y el rango `from`/`to`— y con él `RN-SP-047`. El módulo pasa a **cincuenta y siete** requerimientos. **Cierra un hueco que `RF-SP-056` había declarado cerrado el día anterior**: su §14 decía «¿puede un administrador pedir el equipo de otro? **No por aquí** — un `?supervisorId=` es otro requerimiento y **nadie lo ha pedido**», y se pidió al día siguiente. Se registra así, con la frase entera, porque es la prueba de que aquella decisión estaba bien tomada: se dejó fuera **por no adivinar**, no por descuido. **Lo que carga la regla es la PROFUNDIDAD**: filtrar por un vendedor devuelve **toda su red** —sus subordinados, los de estos, hasta abajo—, y eso **rompe a propósito la cota de un solo nivel** que se imponen `RF-SP-042`, `RF-SP-055` y `RF-SP-056`. La asimetría no es un descuido y tiene una razón exacta: **aquellas las autoriza la estructura** —y devolver la rama entera publicaría la empresa a quien solo lleva un equipo—, **esta la autoriza el permiso**, que ya alcanza a todo el mundo, de modo que la profundidad **no concede nada que el actor no tuviera**: le ahorra recorrer el árbol a mano. Tres precisiones más quedan escritas: **la raíz no se incluye** —la red son los suyos, y sus propias cuentas se piden por `userId`, combinable—; **solo la estructura vigente** cuenta; y **el ciclo no puede colgar la consulta** aunque los datos lo tuvieran, porque la recursión acumula con `UNION` y no con `UNION ALL`. **Ningún permiso nuevo**: `broker-accounts:read` nació el mismo día y esto es exactamente lo que significa. §5.2 declara `ix_user_brokers_busqueda`, el índice de trigramas del filtro por texto, con las **expresiones del predicado** — la lección que `ix_users_busqueda` dejó escrita. | Responsable del proyecto |
+| 1.51.0 | 10-09-2026 | **La semilla de desarrollo cuelga a los funcionarios: el árbol de personas llega de punta a punta**, por decisión del responsable del proyecto — `admin1` de `superadmin` y los tres managers de `admin1`, de modo que en local se ve `superadmin ← admin1 ← manager ← director ← agente` con la cartera de clientes en las hojas. Hasta hoy nacía **partida en dos**: la fuerza comercial colgaba de tres managers que no colgaban de nadie, y `ADMIN` quedaba suelto. **Las cuatro filas nuevas son DEUDA DECLARADA y quedan escritas como tal** en §10.7 y en la cabecera del guion: `RF-SP-041` las rechazaría con `409` —**`VAL-004`** para el manager, porque `RN-SP-019` lo exceptúa por ser la cúspide de la fuerza comercial \(su rol padre `ADMIN` no es `VENDEDOR`\), y **`VAL-003`** para el administrador, que no pertenece a la fuerza comercial—, y `RN-SP-020` tampoco las cubre, porque tiene rama de vendedor y rama de consumidor y un `FUNCIONARIO` no cae en ninguna. **No se enmienda ninguna regla**, y es deliberado: la forma sembrada **coincide** con el parentesco que declara §4.1, de modo que lo que falta es decidir si la estructura de personas deja de ser comercial para ser la jerarquía completa — y eso es un cambio de `RN-SP-019`, `RN-SP-020` y `CommercialStructure` que nadie ha pedido todavía. Mientras tanto esas filas **viven solo en la semilla**: ningún requerimiento debe apoyarse en ellas. Cambia además **quién es la cúspide en desarrollo**: la única persona sin superior pasa a ser `superadmin`, con lo que la omisión de `supervisor` que define `CA-SP-445` sigue siendo observable en **una** persona y no en cuatro. `DevelopmentSeedIT` invierte la comprobación que exigía «cero managers con superior» y añade la rama de funcionarios y la unicidad de la raíz. | Responsable del proyecto |
+| 1.51.0 | 10-09-2026 | **Nacen los indicadores de la red comercial**, por decisión del responsable del proyecto: `RF-SP-058` —`GET /api/v1/broker-accounts/indicators`— devuelve **el árbol de la fuerza comercial con los números de cada nodo**, y `RN-SP-048` fija **cómo suman**. El módulo pasa a **cincuenta y ocho** requerimientos. **Ningún permiso nuevo y ningún cambio de esquema**: lo gobierna `broker-accounts:read` y todo sale de `user_brokers`, `user_supervisors` y `user_roles`. La regla es **una sola aplicada en todos los niveles** —los suyos directos más la suma de los de abajo—, y lo que la hace no trivial son **cuatro precisiones que el responsable del proyecto fijó o pidió cuidar**: **(1) la unidad es LA CUENTA y no la persona**, porque lo que se mide es el dinero que entró y un cliente puede tener dos cuentas depositadas (`RN-SP-038` lo admite); **(2) solo cuentan las cuentas de CONSUMIDORES** —«solo los roles de tipo consumidores tienen ftds»—, de modo que la cuenta personal de un vendedor no entra: se resuelve por `user_roles.role_type` y no por la posición en el árbol; **(3) el total de una persona YA CONTIENE el de sus subordinados**, y de ahí que la respuesta publique **los dos números por separado** —propios y red— y nunca uno solo: publicar solo el total invita a sumar la columna y contar dos veces, que es exactamente el cuidado que se pidió poner; **(4) los NODOS son la fuerza comercial y los consumidores no aparecen** —aportan el número y no son filas—, porque publicarlos convertiría un indicador de gestión en el listado de clientes de la empresa. De **(4)** sale la consecuencia que nadie habría notado hasta cuadrar cifras: lo que cuelga de quien **no** es fuerza comercial no entra en ningún nodo, y por eso la respuesta lleva además **lo no atribuido** — sin ese bloque el árbol sumaría menos que `RF-SP-057` y no habría forma de saber por qué. **La conversión es NULA y no cero cuando no hay cuentas**: cero se lee como «nadie convirtió» y la verdad es «no hay nada que convertir». **Y hoy el FTD será cero en todas partes**, porque el webhook de `RF-SP-054` no existe: el embudo se verá entero en pendientes, y eso es el estado real y no un fallo del indicador. | Responsable del proyecto |
+| 1.52.0 | 10-09-2026 | **`RF-SP-057` gana un RESUMEN de lo filtrado**, por decisión del responsable del proyecto: cuántos registros hay y cuántos están en `FIRST_DEPOSIT`, **cada uno con su desglose por broker**. Ningún requerimiento nuevo, ningún permiso nuevo y ningún cambio de esquema — es una **enmienda** a `RF-SP-057` (Art. I.7). **Va dentro de la respuesta del listado** y no en un endpoint aparte: una sola llamada pinta la tabla y sus contadores, y así no pueden desincronizarse. **La decisión que carga la enmienda es que el resumen respeta TODOS los filtros, incluido `status`**, y se tomó **contra la recomendación técnica**: se ofreció que el conteo de FTD ignorara el filtro de estado —para que los dos números informaran a la vez— y el responsable del proyecto eligió la **coherencia**, que el resumen describa exactamente lo devuelto. Queda escrita la consecuencia, que es lo que importa: **con `?status=REGISTER` el total de `FIRST_DEPOSIT` vale siempre cero**, y ese cero **no significa «nadie ha depositado» sino «no pediste ninguno»** — la prosa del contrato lo dice con esas palabras, porque es la lectura que un tablero haría mal. **El desglose trae solo los brokers con al menos una cuenta**: un broker ausente no tiene ninguna, y así no hay ceros que interpretar. Consecuencia de implementación que conviene tener escrita: **el total de la página y el del resumen salen ahora de UNA sola consulta agrupada**, de modo que no pueden discrepar — antes el conteo iba por su cuenta y era una segunda fuente de verdad sobre lo mismo. | Responsable del proyecto |
+| 1.53.0 | 10-09-2026 | **El resumen de `RF-SP-057` se corrige el mismo día en dos puntos**, por decisión del responsable del proyecto. **Uno: van los DOS estados.** Nace `summary.register` junto a `firstDeposit`, y `accounts` pasa a ser siempre su suma. El motivo no es la comodidad: obligar al cliente a restar —`accounts − firstDeposit`— le pide **rehacer una cuenta que el servidor ya tiene hecha**, y con dos valores posibles esa resta es trivial **hoy** — el día que `RN-SP-045` admita un tercer estado dejaría de serlo, **y quien la hubiera escrito no se enteraría**. **Dos: el desglose trae TODOS los brokers del catálogo, con cero donde no hay.** Nació al revés —solo los que tenían alguna— y se invierte por lo que cuesta en pantalla: **un arreglo cuya longitud depende del filtro obliga a rearmar las columnas en cada consulta**, y una columna que desaparece se lee como un dato que falta, no como un cero. **`CA-SP-671` se retira y su prueba se INVIERTE en `CA-SP-675`** en lugar de borrarse —criterio de `CA-SP-606` en `RF-SP-052`—, de modo que el día que alguien vuelva a acotar el desglose, falla ahí. Queda declarada la consecuencia: **un broker desactivado sigue apareciendo** con su cero o con lo que ya tuviera, que es lo correcto —apagarlo no borra lo declarado en él (`RF-SP-052` §13)— al precio de una columna muerta el día que se retire alguno; acotarlo a los activos sería otra decisión del responsable del proyecto. **Implementación**: el desglose se completa **reutilizando el catálogo de `RF-SP-052`** —`BrokerQueryRepository`— en vez de un `LEFT JOIN` contra la consulta filtrada, que habría obligado a repetir el predicado y la recursiva dentro de una unión externa. | Responsable del proyecto |
+| 1.54.0 | 10-09-2026 | **Toda persona puede declarar DOS teléfonos: el personal y el de la empresa**, por decisión del responsable del proyecto. Nace la columna `users.company_phone` \(§10.16, `V83`\) con la misma forma que `phone` —mismo largo, misma normalización a dígitos con `+` opcional, misma restricción `ck_users_company_phone_format`— y **`RN-SP-037` queda enmendada** \(Art. I.7\): el teléfono **personal** sigue siendo obligatorio y el de la empresa es **opcional**, porque exigirlo bloquearía el alta de todo el que no tenga una. **Es una ampliación y NO una ruptura**: `phone` conserva su nombre y su significado en las seis posiciones del contrato, de modo que el frontend sigue funcionando sin tocar nada. **`company_phone` es el único de los cinco campos de contacto que se puede vaciar de vuelta**: al ser opcional, su nulo explícito es una orden de borrado en `RF-SP-027` y `RF-SP-044`, el mismo trato que ya recibe la dirección — y por eso entra en el dominio como `Patchable` y no como el `Optional` del personal. **`RF-SP-045` NO lo pide**, y es deliberado: el formulario público de registro por enlace da de alta a un cliente, y preguntarle por el teléfono de su empresa sería preguntar por algo que no tiene; puede añadirlo después desde su perfil. Quedan enmendadas las tripletas de `RF-SP-024`, `RF-SP-026`, `RF-SP-027`, `RF-SP-039` y `RF-SP-044`, y la de `RF-SP-045` para dejar escrito **por qué no**. | Responsable del proyecto |
+| 1.55.0 | 14-09-2026 | **El perfil propio publica el nombre y el color de la membresía vigente** (`RF-SP-039` v0.4.0, `RN-SP-024`), por decisión del responsable del proyecto. Hasta hoy `membership` traía código, nivel y fin de vigencia, y la pantalla de «mi perfil» tenía que pedir la cadena de `RF-SP-017` para pintar el nivel. Son los dos campos que `PM` ya publica de una membresía en la oferta y el hotlink: la misma forma. Aditivo; sin consulta nueva —la sentencia del perfil ya traía el nombre y gana el color—. Nace `CA-SP-682`. | Responsable del proyecto |
+| 1.56.0 | 16-09-2026 | **Un cliente tiene un agente principal y varios vendedores vinculados**, por decisión del responsable del proyecto. El vendedor sigue con **un solo superior**; el consumidor conserva **un principal** —su fila vigente de `user_supervisors`, la de quien lo registró— y gana **un vínculo por cada vendedor por cuyo hotlink compre**, en la tabla nueva `client_sellers` (§10.19): una fila por pareja, con origen y fecha, sin fin, y el principal también con su fila. Nace **`RN-SP-049`** y se acotan tres reglas que ya existían para decir que **la estructura comercial mira solo a `user_supervisors`**: el equipo y la protección al retirar (`RN-SP-022`), las cuentas de broker (`RN-SP-046`) y el principal como único superior del cliente (`RN-SP-021`); los indicadores (`RN-SP-048`) no cambian. Lo que el vínculo decide es **la atribución de la venta**: hotlink → su dueño, tienda → el principal (`requirements/mv.md` v0.15.0, `RF-MV-011`, `RN-MV-003`). Un vendedor solo vinculado ve a ese cliente únicamente en sus propios movimientos. Nace **`RF-SP-059`** —consultar los vendedores de un cliente— como pendiente. **Y se repara el documento**: desde antes del 12-09-2026 arrastraba **cuatro copias** de §10.9 a §11 —las tres últimas con el control de cambios detenido en 1.40.0 y §10.16 sin `company_phone`—; se conserva la copia vigente de cada parte y el archivo pasa de 2.755 a 1.874 líneas sin perder una fila de historia. | Responsable del proyecto |
+| 1.57.0 | 16-09-2026 | **`RN-SEG-012` deja de alcanzar a los permisos de un rol de sistema**, por decisión del responsable del proyecto ([`security.md`](../security.md) v0.58.0). La regla y la semilla se contradecían desde el primer día: `V8` siembra a `MANAGER`, `DIRECTOR`, `AGENTE` y `CLIENTE` **sin permisos a propósito**, «a la espera de `RF-SP-005`», y `RF-SP-005` los rechazaba con `409` por ser de sistema. Ningún vendedor ni ningún cliente podía tener nunca un permiso, y nadie lo notó hasta intentar darle `products:sale` a `CLIENTE`. La regla queda acotada a **editar, reubicar, desactivar y eliminar** —lo que sostiene la jerarquía y lo que una migración necesita encontrar donde lo dejó— y sale de las reglas aplicables de `RF-SP-005` y `RF-SP-006`, que conservan sus tres cotas: `RN-SEG-003`, `RN-SEG-010` y `RN-SEG-011`. Consecuencia práctica que conviene tener escrita: **para que `AGENTE` tenga un permiso hay que dárselo antes a `MANAGER` y a `DIRECTOR`**, porque la contención se valida contra el padre inmediato (`RN-SEG-004`); `CLIENTE` cuelga de la raíz y no necesita escala. Quedan enmendadas las tripletas de `RF-SP-005` y `RF-SP-006`: `EX-004` y `EX-002` se retiran, `CA-SP-036` y `CA-SP-047` se invierten en `CA-SP-683` a `CA-SP-685`. Sin migración. | Responsable del proyecto |
+| 1.58.0 | 17-09-2026 | **`SP` publica su primera interfaz de ESCRITURA hacia otro módulo** (§8; **D-26** cerrada por el responsable del proyecto; `architecture.md` v0.31.0 §15.2): `MembershipGrant`, «conceder el nivel comprado», que `MV` invoca al confirmar una venta (`RF-MV-003`, `RN-MV-020`). Hace lo que `RF-SP-032` hace a mano y con sus reglas —cierra la vigente, inserta la nueva (`RN-SP-014`), respeta el suelo (`RN-SP-018`), audita— y **no decide si conceder**, que es de `MV` (`RN-MV-029`). Síncrona y en la transacción del que llama. Sin requerimiento nuevo de `SP` y sin migración: la escribe `RF-MV-003`. | Responsable del proyecto |

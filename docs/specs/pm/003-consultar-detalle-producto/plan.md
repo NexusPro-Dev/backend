@@ -8,7 +8,7 @@
 | Estado | **Aprobado** |
 | Autor | Responsable técnico |
 | Aprobado por | Responsable del proyecto |
-| Enmendado el | 27-08-2026 — `RN-PM-015`; 02-09-2026 — la membresía de **origen** (`RN-PM-017`, `RN-PM-018`) |
+| Enmendado el | 27-08-2026 — `RN-PM-015`; 02-09-2026 — la membresía de **origen** (`RN-PM-017`, `RN-PM-018`); 07-09-2026 — el **alcance** y la **implementación** en la respuesta (`RN-PM-019`, `RN-PM-020`); 08-09-2026 — **los dos precios** (`RN-PM-023`, `RN-PM-024`), §5; 12-09-2026 — **el segundo es el de COMPRA** (`purchasePrice`), §5; 14-09-2026 — **`videoUrl`** (`RN-PM-032`), §5; 14-09-2026 — **`coverImageUrl`** (`RN-PM-033`), §5 |
 | Fecha de aprobación | 26-08-2026 |
 
 ---
@@ -56,6 +56,9 @@ Si esta salida no se aprueba, la alternativa es **añadir `deletion_reason` a `p
 - **Las dos membresías y la moneda llegan resueltas** con `LEFT JOIN`, en la misma sentencia. Mismo criterio y misma justificación que `RF-PM-002` §8. **Aquí el origen sí viaja**, al revés que en `RF-PM-007`: el detalle es la vista de administración de un producto, y de qué salto se vende es media identidad del producto.
 - **`targetMembership` viaja como `null` presente** en los bots, no ausente.
 - **El precio va como número, con los decimales de su moneda** y no con la escala de la columna (`CA-PM-082`): `49.99`, no `49.9900`. La escala se aplica al serializar, leyendo `decimalPlaces` de la moneda que ya viene en la misma fila.
+- **Y desde ese mismo día viaja `coverImageUrl`** (`RN-PM-033`, enmienda de `RF-PM-014`): el `SELECT` del detalle gana `p.cover_image_id` y `ProductDetailResponse` la convierte con `ProductImageUrls.de(...)` en la ruta pública de `RF-PM-016`, **`null` presente** cuando no hay. **Nada de `product_images`**: el detalle no necesita ni el tipo ni los bytes, y la única lectura del sistema que carga `content` es la que sirve la imagen. En un retirado se devuelve igual.
+- **Desde el 14-09-2026 viaja `videoUrl`** (`RN-PM-032`): el `SELECT` del detalle gana la columna y `ProductDetailResponse` la copia tal cual, **`null` presente** cuando no hay video. Sin conversión, sin redondeo y sin consulta extra: es texto que se guarda como llegó.
+- **Desde el 08-09-2026 los precios son dos**, y el criterio anterior alcanza a los dos **con la misma función** (`ProductPrice`): escrita dos veces, el mismo producto acabaría enseñando su precio del sistema con dos decimales y el público con cuatro. `purchasePrice` viaja **`null` presente** cuando no se conoce, como `targetMembership` en los bots — su nulo significa «no se conoce el costo», y un campo ausente no puede decir eso. **Se llamó `publicPrice` y significaba lo que se anunciaba hasta el 12-09-2026**; desde entonces es lo que NEXUS paga, y el detalle lo devuelve porque exige `products:read` (`RN-PM-024`). La conversión se calcula **sobre `price`**, nunca sobre el costo.
 - **`deletedAt` y `deletionReason` solo aparecen si el producto está retirado**, y `deletionReason` se pide al puerto **solo entonces**: en un producto vivo esa consulta no se ejecuta.
 - **No devuelve autoría** (`CA-PM-081`), ni siquiera resuelta desde la auditoría.
 
@@ -101,4 +104,5 @@ Ninguna.
 | Sin autoría en la respuesta | API | Ni `createdBy` ni nada equivalente, ni resuelto |
 | Precio con los decimales de su moneda | API | Con una moneda de dos decimales y otra de cero |
 | Identificador no canónico | API | `400` con `VAL-001`, no `404` |
+| El enlace del video | API | Con enlace, tal cual; sin él, **presente y nulo**; y en un producto retirado, igual (`CA-PM-224`) |
 | El puerto no alcanza lo ajeno | Integración | Pedir el motivo de una entidad de otro módulo no devuelve nada |

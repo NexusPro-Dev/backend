@@ -1,11 +1,14 @@
-# PLAN — `RF-CM-006` Registrar la tasa personalizada de una persona
+# PLAN — `RF-CM-006` Registrar la tasa personalizada de una persona sobre un producto
 
 | Campo | Valor |
 |---|---|
 | Requerimiento | `RF-CM-006` |
 | Especificación | [`spec.md`](spec.md) |
 | `spec.md` aprobada el | 02-09-2026 |
-| Versión | 0.2.0 |
+| Versión | 0.5.0 |
+| Reabierto el | 11-09-2026 — `user_commission_rates` gana `product_id` `NOT NULL` (`V84`): la personalizada declara su producto, ver §2.bis (Art. I.7) |
+| Reabierto el | 11-09-2026 — **corrige la forma del mismo día**: la personalizada se ASOCIA a productos en lugar de declarar uno. `V85` deshace `V84`, ver §2.ter (Art. I.7) |
+| Reabierto el | 16-09-2026 — **la personalizada NACE con su producto** (`spec.md` v0.6.0): `V10` le devuelve `product_id` y el `EXCLUDE`, y retira la asociación. Ver §13 (Art. I.7) |
 | Estado | **Aprobado** |
 | Autor | Responsable técnico |
 | Aprobado por | Responsable del proyecto |
@@ -61,6 +64,93 @@ Tres detalles que parecen cosméticos y no lo son:
 ### 2.3 Sin `role_id`
 
 Por decisión del responsable del proyecto. **Lo que cuesta está en `spec.md` §13** y no se repite aquí, salvo la consecuencia técnica: **no hay ninguna restricción del esquema que pueda atar esta tasa al rol de su titular**, porque el rol vive en `user_roles` y una clave foránea no expresa «y que además siga teniéndolo».
+
+## 2.bis `V84__tasa_personalizada_por_producto.sql` — enmienda del 11-09-2026
+
+```sql
+-- 1. GUARDA PRIMERO: aborta si hay algo que no se pueda traducir.
+DO $guarda$
+DECLARE vivas int;
+BEGIN
+    SELECT count(*) INTO vivas FROM user_commission_rates WHERE deleted_at IS NULL;
+    IF vivas > 0 THEN
+        RAISE EXCEPTION
+            'Hay % tasas personalizadas vivas y ninguna declara producto. No se puede adivinar a cual pertenecian: retirelas o asigneles producto a mano antes de migrar.', vivas;
+    END IF;
+END
+$guarda$;
+
+-- 2. La columna, y la restriccion que la vuelve obligatoria.
+ALTER TABLE user_commission_rates
+    ADD COLUMN product_id uuid NOT NULL,
+    ADD CONSTRAINT fk_user_commission_rates_product
+        FOREIGN KEY (product_id) REFERENCES products (id);
+
+-- 3. El EXCLUDE se rehace CON el producto dentro.
+ALTER TABLE user_commission_rates
+    DROP CONSTRAINT uq_user_commission_rates_vigente;
+
+ALTER TABLE user_commission_rates
+    ADD CONSTRAINT uq_user_commission_rates_vigente
+    EXCLUDE USING gist (
+        user_id    WITH =,
+        product_id WITH =,
+        daterange(valid_from, valid_to, '[]') WITH &&
+    ) WHERE (deleted_at IS NULL);
+```
+
+**La guarda va PRIMERA y aborta el arranque, y es la decisión de esta migración.** `NOT NULL` sobre una tabla con filas exige un valor, y **aquí no hay ninguno que no sea mentira**: a qué producto se refería una tasa que valía para todos no se puede deducir de la fila, ni de la persona, ni de nada. Las tres salidas alternativas son peores y conviene decir por qué se descartan: rellenar con un producto cualquiera produce **filas plausibles y falsas** —exactamente lo que `V49` evitó vaciando en lugar de traducir—; retirarlas en silencio deja a alguien **sin cobrar su excepción** hasta la siguiente liquidación, que es cuando ya no se puede arreglar; y dejar la columna nulable conserva para siempre las dos formas y con ellas la precedencia de tres niveles que la decisión descartó.
+
+**Que aborte el arranque no es un efecto secundario, es el punto.** Un despliegue que no puede migrar sin inventar datos **debe pararse y decirlo**, con un mensaje que diga qué hacer. Es el mismo criterio de `V22` con la credencial del superadministrador y de `V7` con el rol raíz.
+
+**`NOT NULL` y no un `CHECK`.** La ausencia no significa nada aquí —no hay «excepción global» que expresar— y una columna nulable con un `CHECK` que exige valor es la misma restricción escrita dos veces.
+
+**El `EXCLUDE` se rehace y no se añade otro.** Con dos restricciones —la vieja por persona y una nueva por persona y producto— la vieja seguiría prohibiendo lo que la enmienda quiere permitir, y el motor rechazaría con un mensaje que habla de una regla que ya no existe. Rehacerlo deja **una sola** definición de «solapada».
+
+**La clave foránea es simple y no compuesta**, al revés que la de `product_commission_rates`. Allí es compuesta porque `role_id` viaja **copiado** de la tasa y podría divergir de ella; aquí no hay nada copiado que pueda mentir: la fila declara su producto y punto.
+
+**Sin índice propio sobre `product_id`.** El `EXCLUDE` crea uno GiST que ya lleva la columna, y la resolución busca por persona, producto y fecha a la vez.
+
+**Numeración: `V84`.** La reserva de números por requerimiento quedó muerta el 24-08-2026 (ver `V28`).
+
+## 2.ter `V85__tasa_personalizada_se_asocia_a_productos.sql` — corrección del 11-09-2026
+
+**Deshace §2.bis, que se aplicó ese mismo día**, y las dos migraciones existen en lugar de editar aquella porque **una migración aplicada no se edita nunca**: Flyway valida por suma de comprobación, y tocarla haría fallar el arranque de toda base que ya la ejecutó con un «validación fallida» que no dice quién la editó (ver la cabecera de `V30`). El historial conserva el paso en falso, que es lo correcto: se ve que hubo dos formas y cuál ganó.
+
+**El fondo no cambia.** `V84` quitó a la personalizada el regir sobre todo el catálogo, y eso se mantiene. Cambia **la forma**: aquella le dio una columna fijada al crearla; esta le da una **tabla de asociación**, gemela de `product_commission_rates`.
+
+```sql
+-- El EXCLUDE va PRIMERO: `V84` lo redefinió SOBRE `product_id`, de modo que
+-- soltar la columna se lo llevaría por delante en silencio.
+ALTER TABLE user_commission_rates DROP CONSTRAINT uq_user_commission_rates_vigente;
+ALTER TABLE user_commission_rates DROP CONSTRAINT fk_user_commission_rates_product;
+ALTER TABLE user_commission_rates DROP COLUMN product_id;
+
+CREATE TABLE user_commission_rate_products (
+    user_commission_rate_id  uuid         NOT NULL,
+    product_id               uuid         NOT NULL,
+    created_at               timestamptz  NOT NULL DEFAULT now(),
+    CONSTRAINT pk_user_commission_rate_products
+        PRIMARY KEY (user_commission_rate_id, product_id),
+    CONSTRAINT fk_user_commission_rate_products_rate
+        FOREIGN KEY (user_commission_rate_id) REFERENCES user_commission_rates (id),
+    CONSTRAINT fk_user_commission_rate_products_product
+        FOREIGN KEY (product_id) REFERENCES products (id)
+);
+
+CREATE INDEX ix_user_commission_rate_products_producto
+    ON user_commission_rate_products (product_id);
+```
+
+**El orden de los tres primeros `DROP` no es cosmético, y costó una ejecución roja:** `V84` había redefinido el `EXCLUDE` **sobre `product_id`**, de modo que soltar la columna se lo lleva por delante en cascada y el `DROP CONSTRAINT` posterior falla con «no existe». Retirarlo explícitamente y **antes** deja las dos decisiones separadas y visibles.
+
+**El `EXCLUDE` se retira SIN SUSTITUTO, y es lo que esta corrección cuesta.** `RN-CM-006` habla de persona, vigencia **y producto**; con el producto en otra tabla la regla **cruza dos**, y ningún índice hace eso. No se sustituye por uno sobre `(user_id, daterange)`, que es la tentación: eso prohibiría dos tasas simultáneas de la misma persona sobre productos **distintos**, que es justamente lo que esta corrección existe para permitir. La regla pasa a `AssociateUserProductService` con un **bloqueo consultivo por persona** — el mismo patrón que `ProductCommissionCapGuard` ya usaba por producto.
+
+**Sin guarda que aborte, al revés que `V84`.** Allí la guarda existía porque había que **inventar** un dato que no se podía deducir; aquí se quita una columna, y lo que se pierde —a qué producto se ató una tasa— se vuelve a declarar asociándola. Y hay una garantía extra: que `V84` naciera con esa guarda significa que **ninguna base pudo aplicarla teniendo personalizadas vivas**.
+
+**La tabla no copia el `role_id` de su gemela.** Allí esa columna viaja copiada para que `RN-CM-013` pueda declararse en el esquema, con una clave foránea compuesta que le impide divergir. Aquí **no hay nada equivalente que copiar**: la regla hermana habla de persona y **fechas**, y las fechas no caben en una clave primaria sin volver a necesitar el `EXCLUDE` que se acaba de retirar.
+
+**El índice por producto sí se crea**, y la clave primaria no lo da: la resolución de `RF-CM-005` entra por `(persona, producto)` y la comprobación de `RN-CM-006` pregunta «qué tasas vivas de esta persona tocan **este** producto». Los dos caminos empiezan por el producto, y la primaria empieza por la tasa.
 
 ## 3. Componentes afectados
 
@@ -216,3 +306,52 @@ Es el criterio con el que `RF-PM-006` no toca el estado de un producto al retira
 **`CA-CM-089` es la única prueba de este requerimiento que necesita productos de `PM`**, y no rompe la frontera de D-25: no consulta el catálogo, **resuelve** (`RF-CM-005`) contra dos productos que existen, que es lo que hace un vendedor. Comprobarlo sin productos sería comprobar que un número es igual a sí mismo.
 
 **`CA-CM-088` comprueba el evento y no solo el resultado**, y ahí está su valor. Que la tasa quede en valor fijo lo vería cualquier consulta; que **el registro de auditoría conserve que antes era un porcentaje** es lo único que permitirá entender, meses después, por qué un periodo ya liquidado dice una cosa y la tasa dice otra.
+
+## 13. La personalizada nace con su producto — enmienda del 16-09-2026
+
+**Deshace §2.ter y recupera casi todo §2.bis**, con una diferencia: `V84` conservaba el `EXCLUDE` sobre `(user_id, daterange)` sin el producto; `V10` lo declara sobre **los tres**.
+
+### 13.1 `V10__cm_personalizada_producto.sql`
+
+Es la **primera migración posterior a la consolidación** (`V1`–`V9`, 15-09-2026): un número no se reutiliza y una migración aplicada no se toca, de modo que va como `V10` y no como una reescritura de `V6`.
+
+```sql
+DELETE FROM user_commission_rate_products;
+DELETE FROM user_commission_rates;
+DROP TABLE user_commission_rate_products;
+
+ALTER TABLE user_commission_rates
+    ADD COLUMN product_id uuid NOT NULL,
+    ADD CONSTRAINT fk_user_commission_rates_product FOREIGN KEY (product_id) REFERENCES products (id),
+    ADD CONSTRAINT uq_user_commission_rates_vigente
+        EXCLUDE USING gist (
+            user_id    WITH =,
+            product_id WITH =,
+            daterange(valid_from, valid_to, '[]') WITH &&
+        ) WHERE (deleted_at IS NULL);
+
+CREATE INDEX ix_user_commission_rates_producto ON user_commission_rates (product_id);
+```
+
+**Se vacía antes de añadir la columna**, por lo mismo que `V94` con las de rol: ninguna personalizada existente tiene un producto honesto que ponerle —las que tenían asociaciones tenían varias—, y el `NOT NULL` sin valor por defecto lo exige. El esquema se reconstruye desde cero ese mismo día, de modo que en la práctica no se borra nada.
+
+**El `EXCLUDE` vuelve con `btree_gist`**, que `V1` ya declara. Es el mismo que existió de `V44` a `V85` más la columna del producto, y tiene los mismos dos modos de fallar bajo concurrencia que el adaptador ya traducía: `23P01` (la otra ya confirmó) y `40P01` (las dos inserciones se esperan y PostgreSQL mata a una). `JpaUserCommissionRateRepository` conservó esa traducción como código muerto durante cinco días; hoy vuelve a ejecutarse, y **gana el segundo estado**, que le faltaba.
+
+### 13.2 Componentes
+
+| Componente | Qué cambia |
+|---|---|
+| `UserCommissionRate` | `productId` obligatorio e inmutable (`VAL-013` en el agregado); la instantánea lo lleva |
+| `RegisterUserCommissionRateRequest` | `productId` `@NotNull` |
+| `RegisterUserCommissionRateService` | Persona (`EX-002`) → producto vivo (`EX-003`, `EX-004`) → decimales (`ProductCurrencyScale`, `VAL-014`) → solapamiento previo con mensaje (`findOverlapping` por persona **y producto**, `EX-006`) → tope individual y gratuito (`ProductCommissionCapGuard.verificarIndividual`, `EX-007`, `EX-008`) → `save`. **El bloqueo consultivo por persona se conserva**, pero cambia de papel: ya no es la garantía —lo es el `EXCLUDE`— sino lo que pone en fila a la misma persona para que la carrera no acabe en interbloqueo; el adaptador traduce los dos estados al mismo `409` |
+| `UpdateUserCommissionRateService` | Revalida contra **su** producto: solapamiento si cambia `validTo`, y tope, gratuito y decimales si cambia el valor. Deja de recorrer asociaciones |
+| `DeleteUserCommissionRateService` | Pierde la condición de `RN-CM-015` |
+| `UserCommissionRateRepository` | `findOverlapping(userId, productId, from, to, excluida)`; `lockUser` se conserva |
+| `UserCommissionRateQueryRepository` | `UserRateRow` gana producto, precio y moneda —`products` y `currencies` en el `JOIN`— y pierde `associatedProducts`; el filtro `productId` es un predicado sobre la columna |
+| `UserCommissionRateResponse` / `UserCommissionRateItem` | `product` con la forma de `CommissionRateResponse.ProductRef` (`CommissionRateProduct` en el contrato); sin `associatedProducts` |
+| `JpaCommissionResolutionRepository` | La rama de la persona lee `u.product_id = :producto` |
+| Retirados | `UserRateProduct`, `UserRateProductRepository`, su adaptador, `AssociateUserProductService`, `DissociateUserProductService`, `ListUserRateProductsService`, `AssociateUserProductRequest`, `DissociateProductRequest`, `UserRateProductsResponse`, y las tres rutas `/{id}/products…` |
+
+### 13.3 Pruebas
+
+`UserCommissionRateIT` se reescribe alrededor del alta con producto; `CommissionRateConcurrencyIT` cambia las dos asociaciones simultáneas por **dos altas simultáneas** sobre el mismo producto y periodo, y es la única prueba que verifica que la garantía vive en el motor —**se corre varias veces seguidas** antes de darla por buena, porque el interbloqueo aparece una de cada pocas—; `EffectiveCommissionIT` siembra la personalizada con su producto; `CommissionRateTest` prueba el agregado con producto.

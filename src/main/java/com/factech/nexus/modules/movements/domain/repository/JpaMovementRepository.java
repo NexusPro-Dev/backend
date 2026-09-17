@@ -1,0 +1,1027 @@
+package com.factech.nexus.modules.movements.domain.repository;
+
+import com.factech.nexus.modules.movements.domain.models.LineDiscount;
+import com.factech.nexus.modules.movements.domain.models.Movement;
+import com.factech.nexus.modules.movements.domain.models.MovementLine;
+import com.factech.nexus.shared.pagination.BoundedCount;
+import jakarta.persistence.EntityManager;
+import jakarta.persistence.Query;
+import jakarta.persistence.Tuple;
+import java.math.BigDecimal;
+import java.sql.Timestamp;
+import java.time.Instant;
+import java.time.OffsetDateTime;
+import java.time.ZoneOffset;
+import java.util.ArrayList;
+import java.util.Collection;
+import java.util.LinkedHashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.Optional;
+import java.util.UUID;
+import java.util.function.Supplier;
+import org.springframework.stereotype.Repository;
+import org.springframework.transaction.annotation.Transactional;
+
+/**
+ * Adaptador del libro de movimientos.
+ *
+ * <h2>Escribe con {@code INSERT} nativo y no con {@code persist}, y no es una preferencia</h2>
+ *
+ * <p>El reintento acotado del comprobante lo exige. Con {@code persist}, la violación de {@code
+ * uq_movements_code} llega como excepción y <b>marca la transacción para deshacerse</b>: el segundo
+ * intento ya no podría ocurrir dentro de ella, y «tres intentos y falla» pasaría a necesitar una
+ * transacción por intento —con la cabecera y sus líneas repartidas entre varias, que es justo lo
+ * que `plan.md` §7 prohíbe—.
+ *
+ * <p>Con {@code ON CONFLICT (code) DO NOTHING}, el rechazo es <b>una cuenta de filas afectadas</b>
+ * y no una excepción, de modo que el reintento es un bucle dentro de la misma transacción. Es el
+ * mismo recurso, y por el mismo motivo, que {@code UserRepository.addRoles}: declarar el conflicto
+ * como esperado en lugar de descubrirlo por excepción.
+ *
+ * <p><b>El conflicto se apunta a {@code (code)} y no se deja abierto.</b> Un {@code ON CONFLICT DO
+ * NOTHING} sin columna atraparía también la clave primaria, y una colisión de {@code UUID}
+ * —imposible en la práctica, pero no declarada imposible— se trataría como una colisión de
+ * comprobante: se reintentaría con otro código y el identificador repetido seguiría ahí.
+ */
+@Repository
+public class JpaMovementRepository implements MovementRepository {
+
+  /**
+   * Tres, y el número está aquí y no en el caso de uso porque es una propiedad de <b>cómo se
+   * escribe</b>. Si tres códigos aleatorios chocan seguidos, lo que ocurre no es mala suerte: es
+   * que el generador está roto o la tabla está llena de una forma que nadie previó. Seguir
+   * intentando lo escondería detrás de una latencia rara.
+   */
+  static final int INTENTOS = 3;
+
+  private final EntityManager em;
+
+  public JpaMovementRepository(EntityManager em) {
+    this.em = em;
+  }
+
+  @Override
+  public void save(Movement venta, Supplier<String> nuevoCodigo) {
+    for (int intento = 1; intento <= INTENTOS; intento++) {
+      if (insertarCabecera(venta) == 1) {
+        insertarLineas(venta);
+        return;
+      }
+      if (intento < INTENTOS) {
+        venta.reemplazarCodigo(nuevoCodigo.get());
+      }
+    }
+    // No es un error del cliente y no se traduce a un código de negocio: nada
+    // de lo que envió está mal. Sube como fallo del sistema, que es lo que es.
+    throw new IllegalStateException(
+        "No se pudo emitir un comprobante único en %d intentos para la venta %s."
+            .formatted(INTENTOS, venta.getId()));
+  }
+
+  /**
+   * @return {@code 1} si la fila entró, {@code 0} si el comprobante ya estaba tomado
+   */
+  private int insertarCabecera(Movement venta) {
+    return em.createNativeQuery(
+            """
+            INSERT INTO movements (id, movement_type_id, user_id, package_id,
+                                   payment_method_id, currency_id, code, status,
+                                   total_amount, discount_amount, payable_amount,
+                                   occurred_at, created_at)
+            VALUES (:id, :tipo, :sujeto, :paquete, :metodo, :moneda, :codigo, :estado,
+                    :total, :descuento, :aPagar, :ocurrio, :creado)
+            ON CONFLICT (code) DO NOTHING
+            """)
+        .setParameter("id", venta.getId())
+        .setParameter("tipo", venta.getMovementTypeId())
+        .setParameter("sujeto", venta.getUserId())
+        .setParameter("paquete", venta.getPackageId())
+        .setParameter("metodo", venta.getPaymentMethodId())
+        .setParameter("moneda", venta.getCurrencyId())
+        .setParameter("codigo", venta.getCode())
+        .setParameter("estado", venta.getStatus().name())
+        .setParameter("total", venta.getTotalAmount())
+        .setParameter("descuento", venta.getDiscountAmount())
+        .setParameter("aPagar", venta.getPayableAmount())
+        .setParameter("ocurrio", venta.getOccurredAt())
+        .setParameter("creado", venta.getCreatedAt())
+        // `confirmed_at` NO se escribe, y su ausencia es la que satisface
+        // `ck_movements_confirmed`: nula si y solo si el estado no es
+        // CONFIRMADA. Pasarla explícitamente como nula diría lo mismo y
+        // sugeriría que este INSERT podría escribir otra cosa.
+        .executeUpdate();
+  }
+
+  /**
+   * Las líneas, después de la cabecera y en la misma transacción.
+   *
+   * <p><b>Sin {@code ON CONFLICT}</b>, a diferencia de la cabecera: aquí un choque contra {@code
+   * uq_movement_details_producto} significa que la venta lleva el mismo producto dos veces, que es
+   * `RN-MV-011` y no una colisión de azar. Debe fallar, y no reintentarse.
+   */
+  private void insertarLineas(Movement venta) {
+    for (MovementLine linea : venta.getLines()) {
+      em.createNativeQuery(
+              """
+              INSERT INTO movement_details (id, movement_id, product_id, seller_id,
+                                            product_name, product_description,
+                                            quantity, unit_price, line_discount, line_amount,
+                                            validity_days, implementation)
+              VALUES (:id, :venta, :producto, :vendedor, :nombre, :descripcion, :cantidad,
+                      :precio, :descuento, :importe, :vigencia, :implementacion)
+              """)
+          .setParameter("id", linea.getId())
+          .setParameter("venta", venta.getId())
+          .setParameter("producto", linea.getProductId())
+          .setParameter("vendedor", linea.getSellerId())
+          .setParameter("nombre", linea.getProductName())
+          .setParameter("descripcion", linea.getProductDescription())
+          .setParameter("cantidad", linea.getQuantity())
+          .setParameter("precio", linea.getUnitPrice())
+          .setParameter("descuento", linea.getLineDiscount())
+          .setParameter("importe", linea.getLineAmount())
+          .setParameter("vigencia", linea.getValidityDays())
+          // La copia de cómo se entrega (`RN-MV-030`). La entrega misma no se
+          // escribe: `delivery_status` nace `PENDIENTE` por el DEFAULT de `V16`,
+          // y nada se entrega antes de confirmar.
+          .setParameter("implementacion", linea.getImplementation().name())
+          .executeUpdate();
+      insertarRebajas(linea);
+    }
+  }
+
+  // Hoy ninguna entrada produce rebajas y el bucle no gira; existe para que la
+  // compra de paquetes no tenga que tocar el repositorio (`RN-MV-027`).
+  private void insertarRebajas(MovementLine linea) {
+    for (LineDiscount rebaja : linea.getDiscounts()) {
+      em.createNativeQuery(
+              """
+              INSERT INTO movement_detail_discounts (id, movement_detail_id, type, value,
+                                                     discount_value)
+              VALUES (:id, :linea, :tipo, :valor, :dinero)
+              """)
+          .setParameter("id", rebaja.getId())
+          .setParameter("linea", linea.getId())
+          .setParameter("tipo", rebaja.getType().name())
+          .setParameter("valor", rebaja.getValue())
+          .setParameter("dinero", rebaja.getDiscountValue())
+          .executeUpdate();
+    }
+  }
+
+  @Override
+  public Optional<MovementTypeView> findTypeByCode(String code) {
+    if (code == null) {
+      return Optional.empty();
+    }
+    List<Tuple> filas =
+        em.createNativeQuery(
+                "SELECT id, code, prefix FROM movement_types WHERE code = :codigo", Tuple.class)
+            .setParameter("codigo", code)
+            .getResultList();
+
+    return filas.stream()
+        .findFirst()
+        .map(
+            fila ->
+                new MovementTypeView(
+                    (UUID) fila.get("id"), (String) fila.get("code"), (String) fila.get("prefix")));
+  }
+
+  /**
+   * El catálogo activo con sus exclusiones, en <b>una</b> sentencia.
+   *
+   * <p>La consulta devuelve una fila <b>por par método-país</b> y aquí se agrupan. Es la forma de
+   * traer una colección anidada sin la {@code N+1} que `plan.md` §3.2 descarta — la que con tres
+   * filas no se nota, y por eso se copia.
+   *
+   * <p><b>{@code LEFT JOIN} y no interno.</b> Hoy ningún método tiene exclusiones: con una unión
+   * interna esta consulta devolvería <b>cero métodos</b>, y el catálogo entero desaparecería sin
+   * error. Es el riesgo 2 del plan, y lo detecta la prueba de la lista vacía.
+   *
+   * <p><b>{@code LinkedHashMap} y no {@code HashMap}</b>: el orden que fija el {@code ORDER BY} es
+   * parte del contrato —un selector que cambia de posición entre recargas está roto— y agrupar en
+   * un mapa sin orden lo perdería después de haberlo pedido.
+   */
+  @Override
+  @Transactional(readOnly = true)
+  public List<PaymentMethodCatalogView> findActivePaymentMethods() {
+    List<Tuple> filas =
+        em.createNativeQuery(
+                """
+                SELECT m.id AS m_id, m.code AS m_code, m.name AS m_name,
+                       c.id AS c_id, c.code AS c_code
+                  FROM payment_methods m
+                  LEFT JOIN payment_method_exclusions e ON e.payment_method_id = m.id
+                  LEFT JOIN countries c ON c.id = e.country_id
+                 WHERE m.is_active = true
+                   -- `RN-MV-023`: lo INTERNO NO SE OFRECE NUNCA, y no hay parámetro
+                   -- que lo traiga. Es la asimetría deliberada con `is_active`
+                   -- —que se podría exponer bajo petición— y con `RN-MV-019`,
+                   -- donde la exclusión por país se publica y el cliente filtra.
+                   -- Aquí el cliente no filtra porque NO LO VE: lo elige el
+                   -- sistema, no una persona, y publicarlo solo daría ocasión de
+                   -- ofrecerlo por error en el selector de pago.
+                   AND m.visibility = 'PUBLICO'
+                 ORDER BY m.code ASC, c.code ASC
+                """,
+                Tuple.class)
+            .getResultList();
+
+    Map<UUID, PaymentMethodCatalogView> porMetodo = new LinkedHashMap<>();
+    for (Tuple fila : filas) {
+      UUID metodo = (UUID) fila.get("m_id");
+      PaymentMethodCatalogView vista =
+          porMetodo.computeIfAbsent(
+              metodo,
+              id ->
+                  new PaymentMethodCatalogView(
+                      id,
+                      (String) fila.get("m_code"),
+                      (String) fila.get("m_name"),
+                      new ArrayList<>()));
+
+      // Nulo en un método sin exclusiones, que es el estado de los tres de hoy:
+      // la fila existe por el LEFT JOIN y no trae país.
+      UUID pais = (UUID) fila.get("c_id");
+      if (pais != null) {
+        vista.excludedCountries().add(new ExcludedCountryView(pais, (String) fila.get("c_code")));
+      }
+    }
+    return List.copyOf(porMetodo.values());
+  }
+
+  /**
+   * El método por su <b>código</b>, para resolver el pago gratuito (`RN-MV-022`).
+   *
+   * <p>Por código y no por identificador porque <b>nadie puede aportar ese identificador</b>: el
+   * catálogo de `RF-MV-009` no publica lo `INTERNO` (`RN-MV-023`). Mismo criterio que {@code
+   * MembershipCatalog.floor()} con `BECA` — el literal vive en un solo sitio y `V78` lo siembra en
+   * todos los entornos.
+   */
+  @Override
+  public Optional<PaymentMethodView> findPaymentMethodByCode(String code) {
+    if (code == null || code.isBlank()) {
+      return Optional.empty();
+    }
+    List<Tuple> filas =
+        em.createNativeQuery(
+                "SELECT id, code, name, is_active, visibility FROM payment_methods"
+                    + " WHERE code = :code",
+                Tuple.class)
+            .setParameter("code", code.trim().toUpperCase())
+            .getResultList();
+
+    return filas.stream().findFirst().map(JpaMovementRepository::aVista);
+  }
+
+  private static PaymentMethodView aVista(Tuple fila) {
+    return new PaymentMethodView(
+        (UUID) fila.get("id"),
+        (String) fila.get("code"),
+        (String) fila.get("name"),
+        (Boolean) fila.get("is_active"),
+        (String) fila.get("visibility"));
+  }
+
+  @Override
+  public Optional<PaymentMethodView> findPaymentMethod(UUID id) {
+    if (id == null) {
+      return Optional.empty();
+    }
+    List<Tuple> filas =
+        em.createNativeQuery(
+                // SIN filtro de visibilidad, al contrario que el catálogo de
+                // arriba: esta lectura RESUELVE UN MÉTODO YA ELEGIDO —el que la
+                // venta declara o el que el sistema asigna— y no ofrece nada.
+                // Filtrarlo aquí haría irresoluble el pago gratuito, que es
+                // justo el que nadie puede elegir.
+                "SELECT id, code, name, is_active, visibility FROM payment_methods WHERE id = :id",
+                Tuple.class)
+            .setParameter("id", id)
+            .getResultList();
+
+    return filas.stream()
+        .findFirst()
+        .map(
+            fila ->
+                new PaymentMethodView(
+                    (UUID) fila.get("id"),
+                    (String) fila.get("code"),
+                    (String) fila.get("name"),
+                    (Boolean) fila.get("is_active"),
+                    (String) fila.get("visibility")));
+  }
+
+  // ---------------------------------------------------------------------------
+  // `RF-MV-008` — los movimientos propios
+  // ---------------------------------------------------------------------------
+
+  /**
+   * La selección, escrita una vez: la página y el conteo tienen que filtrar igual.
+   *
+   * <p><b>{@code OR} y no {@code UNION}</b>: un {@code UNION} duplicaría el movimiento en que
+   * alguien es comprador y vendedor a la vez, y `FA-002` exige que aparezca una sola vez. Evitarlo
+   * con un {@code UNION} sin {@code ALL} costaría un ordenamiento completo antes de paginar.
+   *
+   * <p><b>Y {@code EXISTS} sobre las líneas, no {@code JOIN}</b>: desde el 16-09-2026 el vendedor
+   * es de la línea (`RN-MV-003`, `V12`), y un {@code JOIN} multiplicaría la venta por sus líneas —
+   * que es lo que `CA-MV-040` prohíbe. El {@code EXISTS} deja una fila por movimiento y lo responde
+   * {@code ix_movement_details_seller} por su primera columna.
+   *
+   * <p>El {@code CAST} del estado no es adorno: sin él, PostgreSQL no sabe de qué tipo es el
+   * parámetro cuando llega nulo y rechaza la comparación.
+   */
+  private static final String SELECCION_PROPIA =
+      """
+      FROM movements m
+      JOIN users suj ON suj.id = m.user_id
+      JOIN currencies cur ON cur.id = m.currency_id
+      JOIN payment_methods pm ON pm.id = m.payment_method_id
+      WHERE (m.user_id = :actor OR EXISTS (SELECT 1 FROM movement_details d
+                                            WHERE d.movement_id = m.id
+                                              AND d.seller_id = :actor))
+        AND (CAST(:estado AS varchar) IS NULL OR m.status = CAST(:estado AS varchar))
+      """;
+
+  /**
+   * Las columnas de la cabecera, con el papel resuelto por el motor.
+   *
+   * <p><b>La rama de «ambos» va PRIMERO, y ahí está el defecto que se comete.</b> Escrita al final,
+   * las dos anteriores ya habrían capturado la fila y nadie lo vería hasta que alguien de la fuerza
+   * comercial se comprara algo a sí mismo — que es exactamente lo que `RF-MV-002` permite, y lo que
+   * desde el 16-09-2026 produce <b>toda</b> compra de quien no cuelga de nadie, porque esa persona
+   * es su propio vendedor (`RN-MV-003`).
+   *
+   * <p><b>Lo calcula SQL y no Java</b>: el identificador de quien pregunta ya está atado a la
+   * consulta, y resolverlo fuera obligaría a arrastrar los dos identificadores de las partes solo
+   * para compararlos y descartarlos.
+   */
+  private static final String CABECERA_PROPIA =
+      """
+      SELECT m.id AS id, m.code AS code, m.status AS status,
+             CASE
+               WHEN m.user_id = :actor AND EXISTS (SELECT 1 FROM movement_details d
+                                                    WHERE d.movement_id = m.id
+                                                      AND d.seller_id = :actor) THEN 'BOTH'
+               WHEN m.user_id = :actor                                          THEN 'BUYER'
+               ELSE                                                                  'SELLER'
+             END AS role,
+             suj.id AS suj_id, suj.username AS suj_username,
+             suj.first_name AS suj_first, suj.last_name AS suj_last,
+             m.package_id AS paquete,
+             cur.id AS cur_id, cur.code AS cur_code, pm.name AS pm_name,
+             m.total_amount AS total, m.discount_amount AS descuento,
+             m.payable_amount AS pagar,
+             m.occurred_at AS occurred_at, m.confirmed_at AS confirmed_at,
+             m.voided_at AS voided_at, m.void_reason AS void_reason,
+             m.created_at AS created_at
+      """;
+
+  @Override
+  @Transactional(readOnly = true)
+  public List<MyMovementRow> findMine(UUID actorId, String status, int offset, int limit) {
+    List<Tuple> filas =
+        em.createNativeQuery(
+                CABECERA_PROPIA
+                    + SELECCION_PROPIA
+                    // EL DESEMPATE POR `id` NO ES COSMÉTICO: sin él, dos
+                    // movimientos del mismo instante pueden repetirse en una
+                    // página y faltar en la siguiente sin que nada falle.
+                    + " ORDER BY m.occurred_at DESC, m.id DESC LIMIT :limite OFFSET :desde",
+                Tuple.class)
+            .setParameter("actor", actorId)
+            .setParameter("estado", status)
+            .setParameter("limite", limit)
+            .setParameter("desde", offset)
+            .getResultList();
+
+    List<MyMovementRow> resultado = new ArrayList<>(filas.size());
+    for (Tuple fila : filas) {
+      resultado.add(cabecera(fila));
+    }
+    return resultado;
+  }
+
+  @Override
+  @Transactional(readOnly = true)
+  public long countMine(UUID actorId, String status) {
+    Object total =
+        em.createNativeQuery("SELECT count(*) " + SELECCION_PROPIA)
+            .setParameter("actor", actorId)
+            .setParameter("estado", status)
+            .getSingleResult();
+    return ((Number) total).longValue();
+  }
+
+  /**
+   * <b>El alcance va en la sentencia, no en una comprobación posterior.</b> Un movimiento ajeno no
+   * se lee y luego se rechaza: no se lee. Por eso el vacío significa las dos cosas —no existe, o no
+   * es suyo— y quien llama no puede distinguirlas (`EX-002`).
+   */
+  @Override
+  @Transactional(readOnly = true)
+  public List<MovementSellerRow> findSellersOf(Collection<UUID> movementIds) {
+    if (movementIds == null || movementIds.isEmpty()) {
+      return List.of();
+    }
+    List<Tuple> filas =
+        em.createNativeQuery(
+                """
+                SELECT DISTINCT d.movement_id AS movement_id, u.id AS ven_id,
+                       u.username AS ven_username, u.first_name AS ven_first,
+                       u.last_name AS ven_last
+                  FROM movement_details d
+                  JOIN users u ON u.id = d.seller_id
+                 WHERE d.movement_id IN (:movimientos)
+                 ORDER BY d.movement_id, u.username
+                """,
+                Tuple.class)
+            .setParameter("movimientos", List.copyOf(movementIds))
+            .getResultList();
+    List<MovementSellerRow> resultado = new ArrayList<>(filas.size());
+    for (Tuple fila : filas) {
+      resultado.add(
+          new MovementSellerRow(
+              (UUID) fila.get("movement_id"),
+              (UUID) fila.get("ven_id"),
+              (String) fila.get("ven_username"),
+              (String) fila.get("ven_first"),
+              (String) fila.get("ven_last")));
+    }
+    return resultado;
+  }
+
+  @Override
+  @Transactional(readOnly = true)
+  public Optional<MovementDetailView> findMineById(UUID movementId, UUID actorId) {
+    if (movementId == null || actorId == null) {
+      return Optional.empty();
+    }
+    Query cabecera =
+        em.createNativeQuery(
+                CABECERA_PROPIA
+                    + """
+                    FROM movements m
+                    JOIN users suj ON suj.id = m.user_id
+                    JOIN currencies cur ON cur.id = m.currency_id
+                    JOIN payment_methods pm ON pm.id = m.payment_method_id
+                    WHERE m.id = :movimiento
+                      AND (m.user_id = :actor OR EXISTS (SELECT 1 FROM movement_details d
+                                                          WHERE d.movement_id = m.id
+                                                            AND d.seller_id = :actor))
+                    """,
+                Tuple.class)
+            .setParameter("movimiento", movementId)
+            .setParameter("actor", actorId);
+    return detalle(movementId, cabecera);
+  }
+
+  /**
+   * <b>Sin alcance</b>, para quien confirma (`RF-MV-003`): la misma proyección que el detalle
+   * propio sin el predicado del actor. El {@code CASE} del papel queda en la cabecera con el actor
+   * en nulo y resuelve {@code SELLER}, que aquí no significa nada y nadie lee: lo que importa es no
+   * tener dos proyecciones de la misma cabecera.
+   */
+  @Override
+  @Transactional(readOnly = true)
+  public Optional<MovementDetailView> findById(UUID movementId) {
+    if (movementId == null) {
+      return Optional.empty();
+    }
+    Query cabecera =
+        em.createNativeQuery(
+                CABECERA_PROPIA
+                    + """
+                    FROM movements m
+                    JOIN users suj ON suj.id = m.user_id
+                    JOIN currencies cur ON cur.id = m.currency_id
+                    JOIN payment_methods pm ON pm.id = m.payment_method_id
+                    WHERE m.id = :movimiento
+                    """,
+                Tuple.class)
+            .setParameter("movimiento", movementId)
+            .setParameter("actor", (UUID) null);
+    return detalle(movementId, cabecera);
+  }
+
+  /** La cabecera que la consulta dada devuelva, con sus líneas y rebajas. */
+  @SuppressWarnings("unchecked")
+  private Optional<MovementDetailView> detalle(UUID movementId, Query consultaDeCabecera) {
+    List<Tuple> cabecera = consultaDeCabecera.getResultList();
+    if (cabecera.isEmpty()) {
+      return Optional.empty();
+    }
+
+    // EL CÓDIGO Y EL NOMBRE DEL PRODUCTO SALEN DE `products`, no de la línea:
+    // `V54` NO LOS CONGELA en `movement_details`, que guarda el identificador, la
+    // cantidad, el precio y la vigencia y nada más. Queda declarado en el puerto
+    // y en `tasks.md` §3 — renombrar un producto cambia cómo se ve una venta ya
+    // registrada, y eso no se resuelve aquí.
+    List<Tuple> lineas =
+        em.createNativeQuery(
+                """
+                SELECT d.id AS linea_id, d.product_id AS product_id, p.code AS p_code,
+                       d.product_name AS p_name, d.product_description AS p_desc,
+                       d.quantity AS cantidad, d.unit_price AS precio,
+                       d.line_discount AS descuento, d.line_amount AS importe,
+                       d.validity_days AS vigencia,
+                       d.implementation AS impl, d.delivery_status AS entrega,
+                       d.delivered_at AS entregada_en, d.delivery_note AS motivo,
+                       v.id AS ven_id, v.username AS ven_username,
+                       v.first_name AS ven_first, v.last_name AS ven_last
+                  FROM movement_details d
+                  -- EL NOMBRE Y LA DESCRIPCION SALEN DE LA LINEA desde el
+                  -- 16-09-2026 (`RN-MV-002`): son copias. De `products` solo se
+                  -- lee el CODIGO, que `RN-PM-013` declara inmutable.
+                  JOIN products p ON p.id = d.product_id
+                  -- LEFT: la columna admite nulo por los tipos de movimiento que
+                  -- no venden nada; en una venta el vendedor siempre está.
+                  LEFT JOIN users v ON v.id = d.seller_id
+                 WHERE d.movement_id = :movimiento
+                 ORDER BY p.code ASC
+                """,
+                Tuple.class)
+            .setParameter("movimiento", movementId)
+            .getResultList();
+
+    Map<UUID, List<LineDiscountRow>> rebajas = rebajasDe(movementId);
+    List<MovementLineRow> detalle = new ArrayList<>(lineas.size());
+    for (Tuple linea : lineas) {
+      detalle.add(
+          new MovementLineRow(
+              (UUID) linea.get("product_id"),
+              (String) linea.get("p_code"),
+              (String) linea.get("p_name"),
+              (String) linea.get("p_desc"),
+              ((Number) linea.get("cantidad")).intValue(),
+              (BigDecimal) linea.get("precio"),
+              (BigDecimal) linea.get("descuento"),
+              (BigDecimal) linea.get("importe"),
+              linea.get("vigencia") == null ? null : ((Number) linea.get("vigencia")).intValue(),
+              (UUID) linea.get("ven_id"),
+              (String) linea.get("ven_username"),
+              (String) linea.get("ven_first"),
+              (String) linea.get("ven_last"),
+              rebajas.getOrDefault((UUID) linea.get("linea_id"), List.of()),
+              (String) linea.get("impl"),
+              (String) linea.get("entrega"),
+              instante(linea.get("entregada_en")),
+              (String) linea.get("motivo")));
+    }
+
+    return Optional.of(new MovementDetailView(cabecera(cabecera.get(0)), detalle));
+  }
+
+  // ---------------------------------------------------------------------------
+  // `RF-MV-003` — confirmar
+  // ---------------------------------------------------------------------------
+
+  @Override
+  @Transactional(readOnly = true)
+  public Optional<String> findStatus(UUID movementId) {
+    @SuppressWarnings("unchecked")
+    List<Object> filas =
+        em.createNativeQuery("SELECT status FROM movements WHERE id = :id")
+            .setParameter("id", movementId)
+            .getResultList();
+    return filas.isEmpty() ? Optional.empty() : Optional.of((String) filas.get(0));
+  }
+
+  /**
+   * <b>La cuenta de filas es la decisión.</b> Cero filas significa «no estaba pendiente» —o no
+   * existe—, y se responde sin haber leído nada antes: dos confirmaciones simultáneas no pueden
+   * leer las dos «pendiente», porque ninguna lee. La que llega segunda espera el bloqueo de fila
+   * que la primera tomó, y al despertar encuentra {@code CONFIRMADA} y afecta cero.
+   */
+  @Override
+  @Transactional
+  public boolean confirmIfPending(UUID movementId, OffsetDateTime at) {
+    int filas =
+        em.createNativeQuery(
+                """
+                UPDATE movements
+                   SET status = 'CONFIRMADA', confirmed_at = :ahora
+                 WHERE id = :id AND status = 'PENDIENTE'
+                """)
+            .setParameter("id", movementId)
+            .setParameter("ahora", at)
+            .executeUpdate();
+    return filas == 1;
+  }
+
+  @Override
+  @Transactional(readOnly = true)
+  public List<DeliveryLineRow> findLinesForDelivery(UUID movementId) {
+    @SuppressWarnings("unchecked")
+    List<Tuple> filas =
+        em.createNativeQuery(
+                """
+                SELECT d.id AS linea_id, p.code AS p_code, d.implementation AS impl,
+                       p.type AS p_type, p.target_membership_id AS m_id,
+                       m.code AS m_code, m.level AS m_level,
+                       d.validity_days AS vigencia
+                  FROM movement_details d
+                  JOIN products p ON p.id = d.product_id
+                  -- La membresía destino NO se copia (`RF-PM-004` rechaza cambiarla):
+                  -- se lee del producto, que `RN-PM-010` garantiza que sigue ahí.
+                  LEFT JOIN memberships m ON m.id = p.target_membership_id
+                 WHERE d.movement_id = :movimiento
+                 ORDER BY p.code ASC
+                """,
+                Tuple.class)
+            .setParameter("movimiento", movementId)
+            .getResultList();
+    List<DeliveryLineRow> resultado = new ArrayList<>(filas.size());
+    for (Tuple fila : filas) {
+      resultado.add(
+          new DeliveryLineRow(
+              (UUID) fila.get("linea_id"),
+              (String) fila.get("p_code"),
+              (String) fila.get("impl"),
+              "UPGRADE_MEMBRESIA".equals(fila.get("p_type")),
+              (UUID) fila.get("m_id"),
+              (String) fila.get("m_code"),
+              fila.get("m_level") == null ? null : ((Number) fila.get("m_level")).intValue(),
+              fila.get("vigencia") == null ? null : ((Number) fila.get("vigencia")).intValue()));
+    }
+    return resultado;
+  }
+
+  @Override
+  @Transactional
+  public boolean voidIfPending(UUID movementId, OffsetDateTime at, String reason) {
+    int filas =
+        em.createNativeQuery(
+                """
+                UPDATE movements
+                   SET status = 'ANULADA', voided_at = :ahora, void_reason = :motivo
+                 WHERE id = :id AND status = 'PENDIENTE'
+                """)
+            .setParameter("id", movementId)
+            .setParameter("ahora", at)
+            .setParameter("motivo", reason)
+            .executeUpdate();
+    return filas == 1;
+  }
+
+  @Override
+  @Transactional
+  public void markDelivered(UUID lineId, OffsetDateTime at) {
+    // CONDICIONADO a `PENDIENTE`: de `ENTREGADA` o `RETENIDA` no se sale, y una
+    // línea que ya no estuviera pendiente aquí es un fallo, no un caso.
+    int filas =
+        em.createNativeQuery(
+                """
+                UPDATE movement_details
+                   SET delivery_status = 'ENTREGADA', delivered_at = :ahora
+                 WHERE id = :id AND delivery_status = 'PENDIENTE'
+                """)
+            .setParameter("id", lineId)
+            .setParameter("ahora", at)
+            .executeUpdate();
+    if (filas != 1) {
+      throw new IllegalStateException("La línea " + lineId + " no estaba pendiente de entrega.");
+    }
+  }
+
+  @Override
+  @Transactional
+  public void markRetained(UUID lineId, String note) {
+    int filas =
+        em.createNativeQuery(
+                """
+                UPDATE movement_details
+                   SET delivery_status = 'RETENIDA', delivery_note = :motivo
+                 WHERE id = :id AND delivery_status = 'PENDIENTE'
+                """)
+            .setParameter("id", lineId)
+            .setParameter("motivo", note)
+            .executeUpdate();
+    if (filas != 1) {
+      throw new IllegalStateException("La línea " + lineId + " no estaba pendiente de entrega.");
+    }
+  }
+
+  // ---------------------------------------------------------------------------
+  // `RF-MV-014` — los productos comprados propios
+  // ---------------------------------------------------------------------------
+
+  /**
+   * El estado y el «hasta» en la MISMA expresión, para que no puedan discrepar: {@code VENCIDO} es
+   * exactamente «hay hasta y ya pasó», con el borde de `SP` — igual al instante ya venció.
+   *
+   * <p>El alcance es un solo papel, el sujeto (`spec.md` §3): un vendedor no «tiene» lo que colocó.
+   */
+  private static final String PRODUCTOS_PROPIOS =
+      """
+      FROM movement_details d
+      JOIN movements m ON m.id = d.movement_id
+      JOIN products p ON p.id = d.product_id
+      CROSS JOIN LATERAL (
+        SELECT CASE WHEN d.delivered_at IS NULL OR d.validity_days IS NULL THEN NULL
+                    ELSE d.delivered_at + make_interval(days => d.validity_days) END AS hasta
+      ) v
+      CROSS JOIN LATERAL (
+        SELECT CASE
+                 WHEN m.status = 'PENDIENTE'          THEN 'PENDIENTE_PAGO'
+                 WHEN m.status = 'RECHAZADA'          THEN 'RECHAZADO'
+                 WHEN m.status = 'ANULADA'            THEN 'ANULADO'
+                 WHEN d.delivery_status = 'RETENIDA'  THEN 'RETENIDO'
+                 WHEN d.delivery_status = 'PENDIENTE' THEN 'PENDIENTE_AUTORIZACION'
+                 WHEN v.hasta IS NOT NULL AND v.hasta <= CAST(:ahora AS timestamptz)
+                                                      THEN 'VENCIDO'
+                 ELSE                                      'ACTIVO'
+               END AS estado
+      ) e
+      WHERE m.user_id = :actor
+        AND (CAST(:estado AS varchar) IS NULL OR e.estado = CAST(:estado AS varchar))
+      """;
+
+  @Override
+  @Transactional(readOnly = true)
+  public List<MyProductRow> findMyProducts(
+      UUID actorId, String state, OffsetDateTime now, int offset, int limit) {
+    @SuppressWarnings("unchecked")
+    List<Tuple> filas =
+        em.createNativeQuery(
+                """
+                SELECT m.id AS mov_id, m.code AS mov_code, m.status AS mov_status,
+                       d.product_id AS product_id, p.code AS p_code, d.product_name AS p_name,
+                       d.quantity AS cantidad, d.implementation AS impl, e.estado AS estado,
+                       m.occurred_at AS comprado_en, d.delivered_at AS entregado_en,
+                       v.hasta AS hasta, d.delivery_note AS motivo
+                """
+                    + PRODUCTOS_PROPIOS
+                    // De la compra más reciente a la más antigua; el desempate por
+                    // venta y por código de producto es lo que lo hace estable.
+                    + " ORDER BY m.occurred_at DESC, m.id DESC, p.code ASC"
+                    + " LIMIT :limite OFFSET :desde",
+                Tuple.class)
+            .setParameter("actor", actorId)
+            .setParameter("estado", state)
+            .setParameter("ahora", now)
+            .setParameter("limite", limit)
+            .setParameter("desde", offset)
+            .getResultList();
+    List<MyProductRow> resultado = new ArrayList<>(filas.size());
+    for (Tuple fila : filas) {
+      resultado.add(
+          new MyProductRow(
+              (UUID) fila.get("mov_id"),
+              (String) fila.get("mov_code"),
+              (String) fila.get("mov_status"),
+              (UUID) fila.get("product_id"),
+              (String) fila.get("p_code"),
+              (String) fila.get("p_name"),
+              ((Number) fila.get("cantidad")).intValue(),
+              (String) fila.get("impl"),
+              (String) fila.get("estado"),
+              instante(fila.get("comprado_en")),
+              instante(fila.get("entregado_en")),
+              instante(fila.get("hasta")),
+              (String) fila.get("motivo")));
+    }
+    return resultado;
+  }
+
+  @Override
+  @Transactional(readOnly = true)
+  public long countMyProducts(UUID actorId, String state, OffsetDateTime now) {
+    Object total =
+        em.createNativeQuery("SELECT count(*) " + PRODUCTOS_PROPIOS)
+            .setParameter("actor", actorId)
+            .setParameter("estado", state)
+            .setParameter("ahora", now)
+            .getSingleResult();
+    return ((Number) total).longValue();
+  }
+
+  // ---------------------------------------------------------------------------
+  // `RF-MV-006` — todos los movimientos
+  // ---------------------------------------------------------------------------
+
+  /**
+   * Las tablas del listado global. <b>Sin alcance</b>: al revés que {@link #SELECCION_PROPIA}, aquí
+   * no hay actor —la puerta es el permiso en el controlador— y el predicado lo pone {@link
+   * #filtroGlobal}, escrito una vez para la página y el conteo.
+   */
+  private static final String TABLAS_GLOBALES =
+      """
+      FROM movements m
+      JOIN movement_types mt ON mt.id = m.movement_type_id
+      JOIN users suj ON suj.id = m.user_id
+      JOIN currencies cur ON cur.id = m.currency_id
+      JOIN payment_methods pm ON pm.id = m.payment_method_id
+      WHERE
+      """;
+
+  /**
+   * El predicado del listado global, <b>escrito una vez</b> para la página y el conteo.
+   *
+   * <p>Si se copiara en las dos sentencias acabaría distinto en una de ellas, y entonces el total
+   * no correspondería a lo devuelto — es la forma que `RF-SP-011` fijó para la auditoría, y también
+   * su mecánica: cada filtro se añade <b>solo cuando viene</b>, en lugar de apagarse con un {@code
+   * IS NULL} sobre el parámetro, porque un identificador nulo enlazado sin tipo es lo que
+   * PostgreSQL no sabe convertir.
+   *
+   * <p>El vendedor entra por el mismo {@code EXISTS} del listado propio —una fila por movimiento,
+   * tenga las líneas que tenga— y el código por igualdad, para que lo responda {@code
+   * uq_movements_code}. El rango es <b>semiabierto</b>: dos periodos consecutivos no devuelven dos
+   * veces el movimiento de la medianoche.
+   */
+  private static Filtro filtroGlobal(MovementFilter f) {
+    Filtro filtro = new Filtro();
+    filtro.igual("m.status", "estado", f.status());
+    filtro.igual("m.user_id", "sujeto", f.userId());
+    if (f.sellerId() != null) {
+      filtro.condicion(
+          "EXISTS (SELECT 1 FROM movement_details d"
+              + " WHERE d.movement_id = m.id AND d.seller_id = :vendedor)",
+          "vendedor",
+          f.sellerId());
+    }
+    filtro.igual("m.payment_method_id", "metodo", f.paymentMethodId());
+    filtro.igual("m.code", "codigo", f.code());
+    if (f.from() != null) {
+      filtro.condicion("m.occurred_at >= :desde", "desde", f.from());
+    }
+    if (f.to() != null) {
+      filtro.condicion("m.occurred_at < :hasta", "hasta", f.to());
+    }
+    return filtro;
+  }
+
+  @Override
+  @Transactional(readOnly = true)
+  public List<MovementRow> findAll(MovementFilter filtro, int offset, int limit) {
+    Filtro donde = filtroGlobal(filtro);
+    Query consulta =
+        em.createNativeQuery(
+            """
+            SELECT m.id AS id, m.code AS code, mt.code AS tipo, m.status AS status,
+                   suj.id AS suj_id, suj.username AS suj_username,
+                   suj.first_name AS suj_first, suj.last_name AS suj_last,
+                   cur.id AS cur_id, cur.code AS cur_code, pm.name AS pm_name,
+                   m.total_amount AS total, m.discount_amount AS descuento,
+                   m.payable_amount AS pagar,
+                   m.occurred_at AS occurred_at, m.confirmed_at AS confirmed_at
+            """
+                + TABLAS_GLOBALES
+                + donde.sql()
+                // El mismo desempate que el listado propio, y el que lleva
+                // `ix_movements_occurred_at` (`V15`): el motor lee el índice en
+                // orden y para en el LIMIT.
+                + " ORDER BY m.occurred_at DESC, m.id DESC LIMIT :limite OFFSET :desplazamiento",
+            Tuple.class);
+    donde.enlazar(consulta);
+    @SuppressWarnings("unchecked")
+    List<Tuple> filas =
+        consulta
+            .setParameter("limite", limit)
+            .setParameter("desplazamiento", offset)
+            .getResultList();
+
+    List<MovementRow> resultado = new ArrayList<>(filas.size());
+    for (Tuple fila : filas) {
+      resultado.add(
+          new MovementRow(
+              (UUID) fila.get("id"),
+              (String) fila.get("code"),
+              (String) fila.get("tipo"),
+              (String) fila.get("status"),
+              (UUID) fila.get("suj_id"),
+              (String) fila.get("suj_username"),
+              (String) fila.get("suj_first"),
+              (String) fila.get("suj_last"),
+              (UUID) fila.get("cur_id"),
+              (String) fila.get("cur_code"),
+              (String) fila.get("pm_name"),
+              (BigDecimal) fila.get("total"),
+              (BigDecimal) fila.get("descuento"),
+              (BigDecimal) fila.get("pagar"),
+              instante(fila.get("occurred_at")),
+              instante(fila.get("confirmed_at"))));
+    }
+    return resultado;
+  }
+
+  /**
+   * El conteo, acotado por construcción: la subconsulta lleva {@code LIMIT techo + 1}, de modo que
+   * nunca examina más de esas filas, tenga la tabla mil o cien millones. Es la misma forma de
+   * {@code JpaAuditQueryRepository}.
+   */
+  @Override
+  @Transactional(readOnly = true)
+  public BoundedCount countAll(MovementFilter filtro, int techo) {
+    Filtro donde = filtroGlobal(filtro);
+    Query consulta =
+        em.createNativeQuery(
+            "SELECT count(*) FROM (SELECT 1 " + TABLAS_GLOBALES + donde.sql() + " LIMIT :techo) t");
+    donde.enlazar(consulta);
+    Object contado = consulta.setParameter("techo", (long) techo + 1).getSingleResult();
+    return BoundedCount.de(((Number) contado).longValue(), techo);
+  }
+
+  /**
+   * Un predicado que crece solo con lo que viene, y sus parámetros. Misma forma que en auditoría.
+   */
+  private static final class Filtro {
+
+    private final StringBuilder donde = new StringBuilder("1 = 1");
+    private final Map<String, Object> parametros = new LinkedHashMap<>();
+
+    void condicion(String sql, String nombre, Object valor) {
+      donde.append(" AND ").append(sql);
+      parametros.put(nombre, valor);
+    }
+
+    /** Igualdad simple. Un valor nulo significa «sin filtro» y no añade nada. */
+    void igual(String columna, String nombre, Object valor) {
+      if (valor != null) {
+        condicion(columna + " = :" + nombre, nombre, valor);
+      }
+    }
+
+    String sql() {
+      return donde.toString();
+    }
+
+    void enlazar(Query consulta) {
+      parametros.forEach(consulta::setParameter);
+    }
+  }
+
+  /** Las rebajas de todas las líneas del movimiento, por línea. Una consulta y no una por línea. */
+  private Map<UUID, List<LineDiscountRow>> rebajasDe(UUID movementId) {
+    List<Tuple> filas =
+        em.createNativeQuery(
+                """
+                SELECT r.movement_detail_id AS linea_id, r.type AS tipo, r.value AS valor,
+                       r.discount_value AS dinero
+                  FROM movement_detail_discounts r
+                  JOIN movement_details d ON d.id = r.movement_detail_id
+                 WHERE d.movement_id = :movimiento
+                 ORDER BY r.created_at ASC, r.id ASC
+                """,
+                Tuple.class)
+            .setParameter("movimiento", movementId)
+            .getResultList();
+    Map<UUID, List<LineDiscountRow>> porLinea = new LinkedHashMap<>();
+    for (Tuple fila : filas) {
+      porLinea
+          .computeIfAbsent((UUID) fila.get("linea_id"), id -> new ArrayList<>())
+          .add(
+              new LineDiscountRow(
+                  (String) fila.get("tipo"),
+                  (BigDecimal) fila.get("valor"),
+                  (BigDecimal) fila.get("dinero")));
+    }
+    return porLinea;
+  }
+
+  private static MyMovementRow cabecera(Tuple fila) {
+    return new MyMovementRow(
+        (UUID) fila.get("id"),
+        (String) fila.get("code"),
+        (String) fila.get("status"),
+        (String) fila.get("role"),
+        (UUID) fila.get("suj_id"),
+        (String) fila.get("suj_username"),
+        (String) fila.get("suj_first"),
+        (String) fila.get("suj_last"),
+        (UUID) fila.get("paquete"),
+        (UUID) fila.get("cur_id"),
+        (String) fila.get("cur_code"),
+        (String) fila.get("pm_name"),
+        (BigDecimal) fila.get("total"),
+        (BigDecimal) fila.get("descuento"),
+        (BigDecimal) fila.get("pagar"),
+        instante(fila.get("occurred_at")),
+        instante(fila.get("confirmed_at")),
+        instante(fila.get("voided_at")),
+        (String) fila.get("void_reason"),
+        instante(fila.get("created_at")));
+  }
+
+  /**
+   * El instante, venga como venga del controlador JDBC.
+   *
+   * <p>Una proyección nativa no garantiza el tipo: el mismo {@code timestamptz} llega como {@code
+   * Timestamp} o como {@code OffsetDateTime} según el camino. Un {@code cast} directo funciona
+   * hasta que deja de hacerlo, y entonces falla en tiempo de ejecución y en una sola consulta. Es
+   * el mismo conversor que {@code JpaUserRepository} tiene por el mismo motivo.
+   */
+  private static OffsetDateTime instante(Object valor) {
+    return switch (valor) {
+      case null -> null;
+      case OffsetDateTime momento -> momento;
+      case Instant momento -> momento.atOffset(ZoneOffset.UTC);
+      case Timestamp marca -> marca.toInstant().atOffset(ZoneOffset.UTC);
+      default ->
+          throw new IllegalStateException(
+              "Tipo temporal inesperado en la proyección: " + valor.getClass());
+    };
+  }
+}

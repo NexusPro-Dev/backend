@@ -16,7 +16,7 @@ import org.springframework.transaction.annotation.Transactional;
  * <p>La prueba más valiosa de esta clase no está escrita: es que el contexto de Spring
  * **arranque**. Con {@code spring.jpa.hibernate.ddl-auto: validate}, Hibernate compara el mapeo con
  * el esquema real al iniciar y falla si discrepan. Que estas pruebas lleguen a ejecutarse ya
- * demuestra que {@code Permission} y {@code V2__create_permissions.sql} coinciden.
+ * demuestra que {@code Permission} y {@code V4__sp_seguridad.sql} coinciden.
  */
 @Transactional(readOnly = true)
 class PermissionIT extends IntegrationTestBase {
@@ -50,14 +50,14 @@ class PermissionIT extends IntegrationTestBase {
   }
 
   @Test
-  @DisplayName("el mapeo alcanza los treinta y siete permisos del catálogo")
+  @DisplayName("el mapeo alcanza los cincuenta permisos del catálogo")
   void alcanzaElCatalogoCompleto() {
     Long total =
         entityManager
             .createQuery("SELECT count(p) FROM Permission p", Long.class)
             .getSingleResult();
 
-    assertThat(total).isEqualTo(37L);
+    assertThat(total).isEqualTo(50L);
   }
 
   @Test

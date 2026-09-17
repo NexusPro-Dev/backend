@@ -201,6 +201,16 @@ class CountrySearchIndexIT extends IntegrationTestBase {
   private void limpiar() {
     // `countries` no la siembra ninguna migración: arranca vacía y se devuelve
     // vacía. Las monedas no se tocan: la referencia va en el otro sentido.
-    jdbc.update("DELETE FROM countries");
+    // NO SE VACÍA ENTERO desde `RN-SP-034` (07-09-2026): `fk_users_country`
+    // lo impide, y hace bien — el superadministrador de `V22` vive en
+    // Colombia. Se borra lo que NINGUNA persona referencia, que es todo lo
+    // que estas pruebas crean.
+    //
+    // Y no se borra la fila de Colombia «con cuidado» ni se desasigna a nadie
+    // para poder borrarla: el catálogo ya NO nace vacío, y una prueba que lo
+    // dejara así estaría probando un estado que el sistema no puede alcanzar.
+    jdbc.update(
+        "DELETE FROM countries c WHERE NOT EXISTS"
+            + " (SELECT 1 FROM users u WHERE u.country_id = c.id)");
   }
 }

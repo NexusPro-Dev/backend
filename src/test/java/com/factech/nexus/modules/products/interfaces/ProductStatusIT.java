@@ -52,7 +52,7 @@ class ProductStatusIT extends IntegrationTestBase {
     oro = membresia("ORO", "Oro", 1);
     plata = membresia("PLATA", "Plata", 2, oro);
     // El SUELO de la cadena: el origen de todo upgrade que se siembre aqui.
-    free = membresia("FREE", "Free", 3, plata);
+    free = membresia("BECA", "Beca", 3, plata);
   }
 
   @AfterEach
@@ -454,10 +454,10 @@ class ProductStatusIT extends IntegrationTestBase {
       String codigo, String tipo, String nombre, String descripcion, UUID origen, UUID destino) {
     UUID id = UUID.randomUUID();
     jdbc.update(
-        "INSERT INTO products (id, code, type, name, description, source_membership_id,"
+        "INSERT INTO products (scope, implementation, id, code, type, name, description, source_membership_id,"
             + " target_membership_id, price,"
             + " currency_id, validity_days, status, created_at, updated_at)"
-            + " VALUES (CAST(? AS uuid), ?, ?, ?, CAST(? AS text),"
+            + " VALUES ('TIENDA', 'MANUAL', CAST(? AS uuid), ?, ?, ?, CAST(? AS text),"
             + " CAST(? AS uuid), CAST(? AS uuid), 10.00,"
             + " CAST(? AS uuid), NULL, 'INACTIVO', ?, ?)",
         id.toString(),

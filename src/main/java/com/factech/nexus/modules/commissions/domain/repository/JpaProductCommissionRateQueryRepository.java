@@ -14,48 +14,31 @@ import org.springframework.transaction.annotation.Transactional;
 public class JpaProductCommissionRateQueryRepository
     implements ProductCommissionRateQueryRepository {
 
+  /**
+   * Desde el 15-09-2026 se lee {@code commission_rates} directamente (`RN-CM-021`): la tasa lleva
+   * su producto, y {@code created_at} —que antes era el de la asociación— es el de la propia tasa,
+   * que es cuando empezó a regir.
+   */
   private static final String COLUMNAS =
       """
-      a.product_id AS product_id, p.code AS product_code, p.name AS product_name,
-      a.role_id AS role_id, r.code AS role_code, r.name AS role_name,
-      a.commission_rate_id AS rate_id,
+      c.product_id AS product_id, p.code AS product_code, p.name AS product_name,
+      c.role_id AS role_id, r.code AS role_code, r.name AS role_name,
+      c.id AS rate_id,
       c.rate_type AS rate_type, c.percentage AS percentage, c.fixed_amount AS fixed_amount,
-      a.created_at AS created_at
+      c.created_at AS created_at
       """;
 
-  /**
-   * <b>{@code commission_rates} entra por su clave compuesta y no solo por el identificador.</b> Es
-   * la misma pareja de columnas que declara la clave foránea, y unirla así hace que la consulta
-   * <b>no pueda</b> leer el porcentaje de una tasa cuyo rol no sea el copiado — ni siquiera si
-   * algún día alguien lograra escribir esa fila.
-   */
   private static final String TABLAS =
       """
-      product_commission_rates a
-      LEFT JOIN products         p ON p.id = a.product_id
-      LEFT JOIN roles            r ON r.id = a.role_id
-      LEFT JOIN commission_rates c ON c.id = a.commission_rate_id AND c.role_id = a.role_id
+      commission_rates c
+      LEFT JOIN products p ON p.id = c.product_id
+      LEFT JOIN roles    r ON r.id = c.role_id
       """;
 
   private final EntityManager em;
 
   public JpaProductCommissionRateQueryRepository(EntityManager em) {
     this.em = em;
-  }
-
-  @Override
-  @Transactional(readOnly = true)
-  public List<AssociationRow> findByRate(UUID commissionRateId) {
-    if (commissionRateId == null) {
-      return List.of();
-    }
-    return leer(
-        "SELECT "
-            + COLUMNAS
-            + " FROM "
-            + TABLAS
-            + " WHERE a.commission_rate_id = :clave ORDER BY p.code ASC",
-        commissionRateId);
   }
 
   @Override
@@ -69,8 +52,7 @@ public class JpaProductCommissionRateQueryRepository
             + COLUMNAS
             + " FROM "
             + TABLAS
-            + " WHERE a.product_id = :clave ORDER BY r.code"
-            + " ASC",
+            + " WHERE c.product_id = :clave AND c.deleted_at IS NULL ORDER BY r.code ASC",
         productId);
   }
 

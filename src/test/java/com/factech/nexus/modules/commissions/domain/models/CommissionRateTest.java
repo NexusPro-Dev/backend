@@ -25,6 +25,7 @@ class CommissionRateTest {
 
   private static final OffsetDateTime AHORA = OffsetDateTime.parse("2026-09-01T10:00:00Z");
   private static final UUID ID = UUID.randomUUID();
+  private static final UUID PRODUCTO = UUID.randomUUID();
   private static final UUID ROL = UUID.randomUUID();
   private static final UUID PERSONA = UUID.randomUUID();
 
@@ -139,7 +140,8 @@ class CommissionRateTest {
     @DisplayName("el cero es un valor válido: significa «no comisiona»")
     void elCeroEsValido() {
       CommissionRate tasa =
-          CommissionRate.create(ID, ROL, CommissionValue.porcentaje(BigDecimal.ZERO), AHORA);
+          CommissionRate.create(
+              ID, PRODUCTO, ROL, CommissionValue.porcentaje(BigDecimal.ZERO), AHORA);
       assertThat(tasa.getPercentage()).isEqualByComparingTo("0");
       assertThat(tasa.getFixedAmount()).isNull();
     }
@@ -148,7 +150,8 @@ class CommissionRateTest {
     @DisplayName("una tasa en importe fijo deja el porcentaje NULO, y eso no es que falte")
     void enImporteFijo() {
       CommissionRate tasa =
-          CommissionRate.create(ID, ROL, CommissionValue.fijo(new BigDecimal("10000")), AHORA);
+          CommissionRate.create(
+              ID, PRODUCTO, ROL, CommissionValue.fijo(new BigDecimal("10000")), AHORA);
 
       assertThat(tasa.getValue().getRateType()).isEqualTo(CommissionRateType.FIJO);
       assertThat(tasa.getFixedAmount()).isEqualByComparingTo("10000");
@@ -156,20 +159,31 @@ class CommissionRateTest {
     }
 
     @Test
-    @DisplayName("la instantánea lleva la FORMA junto al valor")
+    @DisplayName("la instantánea lleva el PRODUCTO y la FORMA junto al valor")
     void laInstantaneaLlevaLaForma() {
       Map<String, Object> foto =
-          CommissionRate.create(ID, ROL, diezPorCiento(), AHORA).instantanea();
+          CommissionRate.create(ID, PRODUCTO, ROL, diezPorCiento(), AHORA).instantanea();
 
-      assertThat(foto).containsOnlyKeys("role_id", "rate_type", "value");
+      assertThat(foto).containsOnlyKeys("product_id", "role_id", "rate_type", "value");
+      assertThat(foto.get("product_id")).isEqualTo(PRODUCTO.toString());
       assertThat(foto.get("rate_type")).isEqualTo("PORCENTAJE");
       assertThat(foto.get("value")).isEqualTo("10.00");
     }
 
     @Test
+    @DisplayName("`RN-CM-021` · la tasa de rol NO nace sin producto")
+    void noNaceSinProducto() {
+      // Hasta el 15-09-2026 nacía sin él y no pagaba nada hasta asociarse. Hoy
+      // el producto es parte de su identidad: sin él no hay sobre qué regir.
+      assertThatThrownBy(() -> CommissionRate.create(ID, null, ROL, diezPorCiento(), AHORA))
+          .isInstanceOf(ValidationException.class)
+          .hasMessageContaining("producto");
+    }
+
+    @Test
     @DisplayName("corregir devuelve el antes y el después, que es la única copia del valor viejo")
     void corregirDevuelveElCambio() {
-      CommissionRate tasa = CommissionRate.create(ID, ROL, diezPorCiento(), AHORA);
+      CommissionRate tasa = CommissionRate.create(ID, PRODUCTO, ROL, diezPorCiento(), AHORA);
 
       Map<String, Object> cambios =
           tasa.update(
@@ -184,7 +198,7 @@ class CommissionRateTest {
     @Test
     @DisplayName("10.00 y 10.0000 son el mismo valor: no se registra un cambio que no cambia")
     void laEscalaNoEsUnCambio() {
-      CommissionRate tasa = CommissionRate.create(ID, ROL, diezPorCiento(), AHORA);
+      CommissionRate tasa = CommissionRate.create(ID, PRODUCTO, ROL, diezPorCiento(), AHORA);
 
       Map<String, Object> cambios =
           tasa.update(
@@ -203,7 +217,7 @@ class CommissionRateTest {
       // comparación mirara solo la cifra, esto devolvería un mapa vacío, no
       // escribiría auditoría, no movería la marca de modificación Y DEVOLVERÍA
       // ÉXITO — con la tasa todavía pagando el 10 %.
-      CommissionRate tasa = CommissionRate.create(ID, ROL, diezPorCiento(), AHORA);
+      CommissionRate tasa = CommissionRate.create(ID, PRODUCTO, ROL, diezPorCiento(), AHORA);
 
       Map<String, Object> cambios =
           tasa.update(
@@ -219,7 +233,7 @@ class CommissionRateTest {
     @Test
     @DisplayName("vaciar la forma se rechaza")
     void noSePuedeVaciar() {
-      CommissionRate tasa = CommissionRate.create(ID, ROL, diezPorCiento(), AHORA);
+      CommissionRate tasa = CommissionRate.create(ID, PRODUCTO, ROL, diezPorCiento(), AHORA);
 
       assertThatThrownBy(() -> tasa.update(Patchable.de(null), AHORA))
           .isInstanceOf(ValidationException.class);
@@ -228,7 +242,7 @@ class CommissionRateTest {
     @Test
     @DisplayName("retirar no es idempotente")
     void retirarNoEsIdempotente() {
-      CommissionRate tasa = CommissionRate.create(ID, ROL, diezPorCiento(), AHORA);
+      CommissionRate tasa = CommissionRate.create(ID, PRODUCTO, ROL, diezPorCiento(), AHORA);
 
       assertThat(tasa.delete(AHORA)).isTrue();
       assertThat(tasa.delete(AHORA)).isFalse();
@@ -245,7 +259,8 @@ class CommissionRateTest {
     @DisplayName("una que rigió un solo día es válida")
     void unSoloDia() {
       LocalDate dia = LocalDate.of(2026, 3, 1);
-      UserCommissionRate tasa = UserCommissionRate.create(ID, PERSONA, DOCE, dia, dia, AHORA);
+      UserCommissionRate tasa =
+          UserCommissionRate.create(ID, PERSONA, PRODUCTO, DOCE, dia, dia, AHORA);
 
       assertThat(tasa.getValidTo()).isEqualTo(dia);
     }
@@ -257,6 +272,7 @@ class CommissionRateTest {
           UserCommissionRate.create(
               ID,
               PERSONA,
+              PRODUCTO,
               CommissionValue.fijo(new BigDecimal("10000")),
               LocalDate.of(2026, 1, 1),
               null,
@@ -272,7 +288,13 @@ class CommissionRateTest {
       assertThatThrownBy(
               () ->
                   UserCommissionRate.create(
-                      ID, PERSONA, DOCE, LocalDate.of(2026, 6, 1), LocalDate.of(2026, 1, 1), AHORA))
+                      ID,
+                      PERSONA,
+                      PRODUCTO,
+                      DOCE,
+                      LocalDate.of(2026, 6, 1),
+                      LocalDate.of(2026, 1, 1),
+                      AHORA))
           .isInstanceOf(ValidationException.class);
     }
 
@@ -281,7 +303,13 @@ class CommissionRateTest {
     void losDosNulosSeTratanAlReves() {
       UserCommissionRate tasa =
           UserCommissionRate.create(
-              ID, PERSONA, DOCE, LocalDate.of(2026, 1, 1), LocalDate.of(2026, 6, 30), AHORA);
+              ID,
+              PERSONA,
+              PRODUCTO,
+              DOCE,
+              LocalDate.of(2026, 1, 1),
+              LocalDate.of(2026, 6, 30),
+              AHORA);
 
       Map<String, Object> cambios =
           tasa.update(Patchable.ausente(), Patchable.de(null), AHORA.plusDays(1));
@@ -298,7 +326,8 @@ class CommissionRateTest {
     @DisplayName("retirar NO toca la vigencia: el registro debe decir qué periodo cubría")
     void retirarNoCierraLaVigencia() {
       UserCommissionRate tasa =
-          UserCommissionRate.create(ID, PERSONA, DOCE, LocalDate.of(2026, 1, 1), null, AHORA);
+          UserCommissionRate.create(
+              ID, PERSONA, PRODUCTO, DOCE, LocalDate.of(2026, 1, 1), null, AHORA);
 
       tasa.delete(AHORA.plusDays(1));
 
@@ -310,30 +339,15 @@ class CommissionRateTest {
     @DisplayName("la instantánea lleva la forma y la vigencia, y el nulo viaja como nulo")
     void laInstantanea() {
       Map<String, Object> foto =
-          UserCommissionRate.create(ID, PERSONA, DOCE, LocalDate.of(2026, 1, 1), null, AHORA)
+          UserCommissionRate.create(
+                  ID, PERSONA, PRODUCTO, DOCE, LocalDate.of(2026, 1, 1), null, AHORA)
               .instantanea();
 
-      assertThat(foto).containsOnlyKeys("user_id", "rate_type", "value", "valid_from", "valid_to");
+      assertThat(foto)
+          .containsOnlyKeys(
+              "user_id", "product_id", "rate_type", "value", "valid_from", "valid_to");
       assertThat(foto.get("rate_type")).isEqualTo("PORCENTAJE");
       assertThat(foto.get("valid_to")).isNull();
-    }
-  }
-
-  @Nested
-  @DisplayName("La asociación")
-  class Asociacion {
-
-    @Test
-    @DisplayName("copia el rol DE LA TASA, no de quien la pide")
-    void copiaElRolDeLaTasa() {
-      CommissionRate tasa = CommissionRate.create(ID, ROL, diezPorCiento(), AHORA);
-      UUID producto = UUID.randomUUID();
-
-      ProductCommissionRate asociacion = ProductCommissionRate.create(producto, tasa, AHORA);
-
-      assertThat(asociacion.getRoleId()).isEqualTo(ROL);
-      assertThat(asociacion.getCommissionRateId()).isEqualTo(ID);
-      assertThat(asociacion.getProductId()).isEqualTo(producto);
     }
   }
 }

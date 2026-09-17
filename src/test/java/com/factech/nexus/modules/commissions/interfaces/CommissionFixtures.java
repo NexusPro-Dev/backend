@@ -29,8 +29,8 @@ final class CommissionFixtures {
   static UUID sembrarPersonaConRol(JdbcTemplate jdbc, String usuario, String rol) {
     UUID id = UUID.randomUUID();
     jdbc.update(
-        "INSERT INTO users (id, username, email, first_name, last_name, password_hash, status)"
-            + " VALUES (CAST(? AS uuid), ?, ?, 'Persona', 'De prueba', 'x', 'ACTIVO')",
+        "INSERT INTO users (id, username, email, first_name, last_name, password_hash, status, country_id)"
+            + " VALUES (CAST(? AS uuid), ?, ?, 'Persona', 'De prueba', 'x', 'ACTIVO', (SELECT id FROM countries WHERE code = 'COL'))",
         id.toString(),
         usuario,
         usuario + "@factech.co");
@@ -50,10 +50,10 @@ final class CommissionFixtures {
   /**
    * Un producto del catálogo.
    *
-   * <p><b>La moneda no se elige</b>, y es deliberado: <b>ninguna consulta de este módulo la
-   * mira</b>. La sentencia de resolución une las tres tablas de `CM` y no toca {@code products}, de
-   * modo que un importe fijo se devuelve igual sea cual sea la moneda del producto — no porque
-   * alguien lo compruebe, sino porque no hay por dónde enterarse (`RN-CM-017`).
+   * <p><b>La moneda es la primera que haya</b>, y desde el 15-09-2026 sí se mira: el alta y la
+   * corrección de una tasa de rol comprueban que un importe fijo quepa en los decimales de la
+   * moneda de su producto (`RN-CM-017`, cerrada con `RN-CM-021`). La resolución sigue sin tocarla:
+   * devuelve el importe tal cual se registró.
    */
   static UUID sembrarProducto(JdbcTemplate jdbc, String codigo, boolean retirado) {
     return sembrarProducto(jdbc, codigo, retirado, "10.00");
@@ -68,8 +68,8 @@ final class CommissionFixtures {
     String monedaId =
         jdbc.queryForObject("SELECT CAST(id AS text) FROM currencies LIMIT 1", String.class);
     jdbc.update(
-        "INSERT INTO products (id, code, type, name, price, currency_id, status, deleted_at)"
-            + " VALUES (CAST(? AS uuid), ?, 'BOT', ?, CAST(? AS numeric), CAST(? AS uuid),"
+        "INSERT INTO products (scope, implementation, id, code, type, name, price, currency_id, status, deleted_at)"
+            + " VALUES ('TIENDA', 'MANUAL', CAST(? AS uuid), ?, 'BOT', ?, CAST(? AS numeric), CAST(? AS uuid),"
             + " 'INACTIVO', CASE WHEN ? THEN now() ELSE NULL END)",
         id.toString(),
         codigo,
@@ -80,26 +80,35 @@ final class CommissionFixtures {
     return id;
   }
 
-  /** Una tasa de rol <b>en porcentaje</b>, escrita directamente: quien la usa no prueba el alta. */
-  static UUID sembrarTasaDeRol(JdbcTemplate jdbc, String rol, String porcentaje) {
-    return sembrarTasaDeRol(jdbc, rol, "PORCENTAJE", porcentaje);
+  /**
+   * Una tasa de rol <b>en porcentaje</b> sobre un producto, escrita directamente: quien la usa no
+   * prueba el alta.
+   */
+  static UUID sembrarTasaDeRol(JdbcTemplate jdbc, UUID producto, String rol, String porcentaje) {
+    return sembrarTasaDeRol(jdbc, producto, rol, "PORCENTAJE", porcentaje);
   }
 
   /**
-   * Una tasa de rol en la forma que se pida.
+   * Una tasa de rol sobre un producto, en la forma que se pida.
+   *
+   * <p><b>Desde el 15-09-2026 lleva el producto</b> (`RN-CM-021`, `V94`): la tasa nace con él y
+   * rige desde que existe. Hasta esa fecha se sembraba sin producto y hacía falta {@code asociar}
+   * para que pagara algo; esa fixture desapareció con la tabla.
    *
    * <p><b>La forma va explícita en el {@code INSERT}</b>, y tiene que ir: {@code V50} le quita el
    * valor por defecto a {@code rate_type} precisamente para que omitirla falle. Una fixture que la
    * omitiera dejaría de compilar contra el esquema — que es lo que se quiere.
    */
-  static UUID sembrarTasaDeRol(JdbcTemplate jdbc, String rol, String forma, String valor) {
+  static UUID sembrarTasaDeRol(
+      JdbcTemplate jdbc, UUID producto, String rol, String forma, String valor) {
     UUID id = UUID.randomUUID();
     boolean esPorcentaje = "PORCENTAJE".equals(forma);
     jdbc.update(
-        "INSERT INTO commission_rates (id, role_id, rate_type, percentage, fixed_amount)"
-            + " VALUES (CAST(? AS uuid), CAST(? AS uuid), ?,"
+        "INSERT INTO commission_rates (id, product_id, role_id, rate_type, percentage, fixed_amount)"
+            + " VALUES (CAST(? AS uuid), CAST(? AS uuid), CAST(? AS uuid), ?,"
             + " CAST(? AS numeric), CAST(? AS numeric))",
         id.toString(),
+        producto.toString(),
         rol,
         forma,
         esPorcentaje ? valor : null,
@@ -107,33 +116,43 @@ final class CommissionFixtures {
     return id;
   }
 
-  /** La asociación, que es lo único que pone una tasa en vigor. */
-  static void asociar(JdbcTemplate jdbc, UUID tasa, UUID producto, String rol) {
-    jdbc.update(
-        "INSERT INTO product_commission_rates (product_id, role_id, commission_rate_id)"
-            + " VALUES (CAST(? AS uuid), CAST(? AS uuid), CAST(? AS uuid))",
-        producto.toString(),
-        rol,
-        tasa.toString());
+  /** Una personalizada <b>en porcentaje</b> sobre un producto, escrita directamente. */
+  static UUID sembrarTasaPersonal(
+      JdbcTemplate jdbc,
+      UUID persona,
+      UUID producto,
+      String porcentaje,
+      String desde,
+      String hasta) {
+    return sembrarTasaPersonal(jdbc, persona, producto, "PORCENTAJE", porcentaje, desde, hasta);
   }
 
+  /**
+   * La personalizada sobre un producto, en la forma que se pida. Ver {@link #sembrarTasaDeRol}.
+   *
+   * <p><b>Desde el 16-09-2026 lleva el producto</b> (`RN-CM-021`, `V10`): nace con él y rige sobre
+   * él desde su inicio de vigencia. Del 11-09-2026 al 16-09-2026 hacía falta {@code
+   * asociarPersonal} para que pagara algo; esa fixture desapareció con la tabla.
+   */
   static UUID sembrarTasaPersonal(
-      JdbcTemplate jdbc, UUID persona, String porcentaje, String desde, String hasta) {
-    return sembrarTasaPersonal(jdbc, persona, "PORCENTAJE", porcentaje, desde, hasta);
-  }
-
-  /** La personalizada en la forma que se pida. Ver {@link #sembrarTasaDeRol}. */
-  static UUID sembrarTasaPersonal(
-      JdbcTemplate jdbc, UUID persona, String forma, String valor, String desde, String hasta) {
+      JdbcTemplate jdbc,
+      UUID persona,
+      UUID producto,
+      String forma,
+      String valor,
+      String desde,
+      String hasta) {
     UUID id = UUID.randomUUID();
     boolean esPorcentaje = "PORCENTAJE".equals(forma);
     jdbc.update(
         "INSERT INTO user_commission_rates"
-            + " (id, user_id, rate_type, percentage, fixed_amount, valid_from, valid_to)"
-            + " VALUES (CAST(? AS uuid), CAST(? AS uuid), ?, CAST(? AS numeric),"
+            + " (id, user_id, product_id, rate_type, percentage, fixed_amount, valid_from,"
+            + " valid_to)"
+            + " VALUES (CAST(? AS uuid), CAST(? AS uuid), CAST(? AS uuid), ?, CAST(? AS numeric),"
             + " CAST(? AS numeric), CAST(? AS date), CAST(? AS date))",
         id.toString(),
         persona.toString(),
+        producto.toString(),
         forma,
         esPorcentaje ? valor : null,
         esPorcentaje ? null : valor,
@@ -143,11 +162,10 @@ final class CommissionFixtures {
   }
 
   /**
-   * Deja las tres tablas del módulo vacías, <b>en el orden que las claves foráneas imponen</b>: la
-   * asociación apunta a la tasa y al producto, de modo que va la primera.
+   * Deja las tablas del módulo vacías, <b>en el orden que las claves foráneas imponen</b>: las dos
+   * tablas de tasas apuntan al producto, de modo que van antes que {@code products}.
    */
   static void limpiar(JdbcTemplate jdbc, UUID superadmin) {
-    jdbc.update("DELETE FROM product_commission_rates");
     jdbc.update("DELETE FROM user_commission_rates");
     jdbc.update("DELETE FROM commission_rates");
     jdbc.update("DELETE FROM products");

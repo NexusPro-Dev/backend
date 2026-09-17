@@ -5,11 +5,11 @@
 | Proyecto | NEXUS — Renovación de plataforma |
 | Empresa | FACTECH GROUP SAS |
 | Documento | `deployment.md` |
-| Versión | 0.6.0 |
+| Versión | 0.8.0 |
 | Estado | Borrador |
 | Responsable técnico | Bonilla Diaz William Steven |
 | Fecha de creación | 27-08-2026 |
-| Última actualización | 31-08-2026 |
+| Última actualización | 14-09-2026 |
 | Documento superior | `constitution.md` v0.7.0 |
 | Documentos relacionados | `architecture.md` v0.21.0 · `security.md` v0.35.0 · [`ADR-002`](architecture/ADR-002-plataforma-de-despliegue-railway.md) |
 | Documento derivado | [`manual-de-despliegue.md`](manual-de-despliegue.md) v0.2.0 — el paso a paso |
@@ -104,7 +104,7 @@ Rotarlo invalida todos los tokens de acceso vivos —quince minutos como mucho�
 
 ### 4.2 `SUPERADMIN_PASSWORD_HASH`
 
-La contraseña del superadministrador inicial, **ya cifrada con Argon2id**. La siembra `V22__seed_superadmin.sql` por marcador de posición de Flyway: la migración recibe el resumen, nunca la contraseña.
+La contraseña del superadministrador inicial, **ya cifrada con Argon2id**. La siembra `V9__semilla_catalogos_y_superadmin.sql` por marcador de posición de Flyway: la migración recibe el resumen, nunca la contraseña.
 
 `RN-SP-001` convierte al superadministrador en obligación permanente, y el primero **no puede crearse por la API** —haría falta un actor con `users:create`, que es exactamente lo que aún no existe—, de modo que este valor es el único camino de entrada a un sistema recién desplegado.
 
@@ -135,9 +135,9 @@ Borrar `cp.txt` al terminar, y **no dejar la contraseña en el historial de la t
 
     En una variable de Railway el valor llega al proceso sin interpolar nada: el hash va **exactamente como lo imprimió `jshell`**, empezando por `$argon2id$v=19$m=16384,t=2,p=1$`.
 
-    Duplicarlos aquí produce el fallo simétrico y silencioso: la migración termina con éxito y el superadministrador **no puede entrar nunca**, con un mensaje genérico de credenciales inválidas. La guarda de `V22` detecta el caso contrario —los `$` comidos—, no este.
+    Duplicarlos aquí produce el fallo simétrico y silencioso: la migración termina con éxito y el superadministrador **no puede entrar nunca**, con un mensaje genérico de credenciales inválidas. La guarda de `V9` detecta el caso contrario —los `$` comidos—, no este.
 
-**Comprobación inmediata:** el valor debe empezar por `$argon2id`. Si no, `V22` aborta la migración con un mensaje explícito y el despliegue no arranca — que es lo que debe pasar.
+**Comprobación inmediata:** el valor debe empezar por `$argon2id`. Si no, `V9` aborta la migración con un mensaje explícito y el despliegue no arranca — que es lo que debe pasar.
 
 ---
 
@@ -262,7 +262,7 @@ Hasta esa fecha esta sección decía que ninguna clase la consultaba y que cambi
 | Valor | Qué ocurre al arrancar |
 |---|---|
 | `production` | No se siembra nada. En el log queda la línea que lo dice |
-| `testing` · `development` | Se aplica la semilla de `db/dev-seed/`: **diecinueve personas de prueba** con sus roles, su estructura comercial —cada director con tres a cargo— y tres membresías |
+| `testing` · `development` | Se aplican las **dos** semillas de `db/dev-seed/`, en orden y en una sola transacción: `semilla-desarrollo.sql` —**diecinueve personas de prueba** con sus roles, su estructura comercial —cada director con tres a cargo— y sus membresías— y, desde el 14-09-2026, `semilla-productos.sql` —**un catálogo de dieciséis productos**: once upgrades (un salto desde cada membresía, las cuatro renovaciones con la de Beca a precio cero, y uno inactivo) y cinco bots (uno gratuito, uno con precio de compra declarado y uno retirado)—. Los activos nacen ya activos, con descripción, en USD y con alcances e implementaciones mezclados, para que la oferta, el hotlink, el catálogo administrativo y la entrega manual tengan algo que enseñar sin sembrar nada a mano |
 | Cualquier otra cosa, o ausente | **La aplicación NO ARRANCA**, nombrando el valor recibido y los tres admitidos |
 
 !!! danger "Un despliegue sin `ENVIRONMENT` declarada deja de arrancar"
@@ -336,7 +336,7 @@ El primer arranque **tarda**: aplica todas las migraciones antes de que el puert
 
 ### 8.2 El superadministrador
 
-`V22__seed_superadmin.sql` siembra la única fila de `users` con identificador conocido, con el correo y el resumen de §4. Después de eso:
+`V9__semilla_catalogos_y_superadmin.sql` siembra la única fila de `users` con identificador conocido, con el correo y el resumen de §4. Después de eso:
 
 - [ ] Iniciar sesión con esa credencial **una vez**, y **cambiar la contraseña de inmediato**. La de §4.2 pasó por una terminal y por el portapapeles.
 - [ ] Crear las cuentas reales desde la API. La del superadministrador es la llave del sistema, no una cuenta de trabajo.
@@ -473,3 +473,5 @@ Ninguno de estos puntos impide desplegar. Todos están declarados para que no se
 | 0.3.0 | 27-08-2026 | Este documento gana un **complemento y una frontera**: nace [`manual-de-despliegue.md`](manual-de-despliegue.md), que es **qué se teclea y en qué orden**, y esta pasa a ser la **referencia** —qué es cada cosa y por qué—. La separación no es de gusto: quien despliega por primera vez tenía que saltar entre §4, §5, §6, §7, §8 y §11 para reunir una secuencia que ninguna sección contenía entera, y quien viene a entender una decisión tropezaba con instrucciones. §1 declara cuál manda cuando se contradigan: **este**. | Responsable técnico |
 | 0.4.0 | 27-08-2026 | **Corrige un defecto de este documento que costó un despliegue caído.** §10 daba `develop` y `main` como las ramas de cada entorno sin decir que **hoy ninguna de las dos es desplegable**: todo el trabajo vive en `feature/esqueleto-del-proyecto` sin fusionar, y a `develop` y `main` les faltan **veintitrés commits**, entre ellos `railway.json` y el `server.port: ${PORT:8080}`. Desplegar una de ellas da «Application failed to respond» **con un arranque impecable en los logs** — el fallo que §7.1 describe y que este documento mandaba a reproducir. La portada de la documentación ya avisaba de que el trabajo estaba sin fusionar; lo que faltaba era leerlo desde el despliegue. §10 y el paso 4 del manual ganan el aviso y una comprobación de una línea: **una rama es desplegable si contiene `railway.json`**. | Responsable técnico |
 | 0.6.0 | 31-08-2026 | **`ENVIRONMENT` deja de ser decorativa, y §6.6 pasa de decir que nadie la lee a decir qué decide.** Fuera de `production` se aplica al arrancar la semilla de `db/dev-seed/`: diecinueve personas de prueba con sus roles y tres membresías, por decisión del responsable del proyecto. **Lo que cambia para quien despliega es que un servicio sin la variable declarada DEJA DE ARRANCAR** (Art. IX.5), y §6.2 lo dice en la propia tabla en lugar de remitir a una nota. No es celo: la condición «el entorno no es producción» sobre una cadena suelta **falla abierta justo del lado que importa** —`Production`, `prod`, el vacío y la variable ausente son todos «distintos de producción»—, y lo que se sembraría en el sistema real son diecinueve cuentas que **comparten el hash del superadministrador** y **no están obligadas a cambiar la contraseña**. El valor se traduce por eso a un dominio cerrado de tres y cualquier otra cosa tumba el arranque, con lo que no queda un cuarto estado. Queda escrito además que **el guion viaja dentro del artefacto de producción** —el classpath es el mismo— y que lo que lo separa de esas cuentas **no es la ausencia del archivo sino el guardia**, verificado por una prueba que enciende el interruptor a propósito. Se documenta `DEV_SEED_ENABLED`, que apaga la semilla sin tocar el entorno y **no puede reabrir producción**. `API_URL` sigue declarada y sin lector. | Responsable del proyecto |
+| 0.7.0 | 14-09-2026 | **La semilla de desarrollo gana un segundo guion: el catálogo de productos.** `semilla-productos.sql` siembra dieciséis productos —once upgrades y cinco bots— pensados para que cada regla de `PM` tenga algo que ejercitar sin tocar la API: un upgrade declarado **desde cada membresía** (`RN-PM-011`, los tres clientes escalonados ven ofertas distintas), el salto `BECA → ORO` junto al de un peldaño (`RN-PM-018`), las cuatro renovaciones con **`RENOVAR_BECA` a precio cero** (`RN-PM-017`, `RN-PM-006`, y el caso de `RN-CM-020`), productos `TIENDA` que el hotlink no resuelve (`RN-PM-021`), bots `MANUAL` (`RN-PM-020`), un inactivo sobre el mismo par que un activo y un retirado para el catálogo administrativo, y un bot con precio de compra declarado (`RN-PM-023`). `DevelopmentDataSeeder` corre los dos guiones **en una sola transacción** y el aviso del arranque dice cuántos productos hay. Es repetible por código (`RN-PM-013`), resuelve las membresías **por código** y no por identificador, y **deja fuera con un `NOTICE`** los upgrades cuya membresía no exista en lugar de tumbar el arranque. `DevelopmentSeedIT` lo cubre. | Responsable técnico |
+| 0.8.0 | 15-09-2026 | **Las migraciones se consolidaron en nueve** ([`modelo-datos.md`](modelo-datos.md) §5.4): la semilla del superadministrador y sus marcadores de posición viven ahora en `V9__semilla_catalogos_y_superadmin.sql`, con las mismas variables (`SUPERADMIN_EMAIL`, `SUPERADMIN_PASSWORD_HASH`) y las mismas guardas. **Toda base levantada antes del 15-09-2026 debe borrarse**: su historial de Flyway no coincide con el nuevo y `validate-on-migrate` la rechazará a propósito. | Responsable técnico |

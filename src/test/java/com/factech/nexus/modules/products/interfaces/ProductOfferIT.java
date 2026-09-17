@@ -1,5 +1,6 @@
 package com.factech.nexus.modules.products.interfaces;
 
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.user;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content;
@@ -38,7 +39,7 @@ import org.springframework.test.web.servlet.request.RequestPostProcessor;
  *
  * <h2>Y el orden de la cadena es el que fijó `V47`: 1 es la CIMA</h2>
  *
- * <p>{@code ORO(1) > PLATINO(2) > VIP(3) > FREE(4)}. Subir es ir a un número <b>menor</b>. Esa es
+ * <p>{@code ORO(1) > PLATINO(2) > VIP(3) > BECA(4)}. Subir es ir a un número <b>menor</b>. Esa es
  * la comparación que el riesgo 1 del plan advierte que puede escribirse al revés, y {@link
  * #losTresCasosDeNivel()} es la prueba que lo detecta: sin ella, ofrecer bajadas en lugar de
  * subidas pasaría todo lo demás.
@@ -54,6 +55,9 @@ class ProductOfferIT extends IntegrationTestBase {
 
   @Autowired private MockMvc mvc;
   @Autowired private JdbcTemplate jdbc;
+  @Autowired private org.hibernate.SessionFactory sessionFactory;
+
+  @Autowired private com.factech.nexus.modules.products.domain.service.GetOwnOfferService servicio;
 
   private UUID oro;
   private UUID platino;
@@ -63,6 +67,7 @@ class ProductOfferIT extends IntegrationTestBase {
   private UUID enOro;
   private UUID enVip;
   private UUID enFree;
+  private UUID otroEnFree;
   private UUID sinMembresia;
   private UUID conMembresiaVencida;
 
@@ -76,7 +81,7 @@ class ProductOfferIT extends IntegrationTestBase {
     oro = membresia("ORO", "Oro", 1, null);
     platino = membresia("PLATINO", "Platino", 2, oro);
     vip = membresia("VIP", "Vip", 3, platino);
-    free = membresia("FREE", "Free", 4, vip);
+    free = membresia("BECA", "Beca", 4, vip);
     // Solo para que `UP_FREE` tenga un origen por debajo del suyo (`RN-PM-002`
     // exige las dos membresías desde el 02-09-2026): nadie se asigna aquí, y la
     // comparación que decide esta prueba sigue siendo por NIVEL, no por origen
@@ -84,22 +89,51 @@ class ProductOfferIT extends IntegrationTestBase {
     // aserción.
     UUID sotano = membresia("SOTANO", "Sótano de prueba", 5, free);
 
-    // Un upgrade activo hacia cada nivel. El de FREE existe y está ACTIVO a
-    // propósito: es el único que hace verificable `CA-PM-061` —que no se
-    // ofrecen bajadas—. Con él inactivo, quedar fuera no probaría nada, porque
-    // ya lo excluiría `RN-PM-009`.
-    upgrade("UP_ORO", "Ascenso a Oro", platino, oro, "100.00", 365, "ACTIVO", BASE, false);
-    upgrade("UP_PLATINO", "Ascenso a Platino", vip, platino, "50.00", 30, "ACTIVO", BASE, false);
+    // TODA LA OFERTA DE `enFree` SE DECLARA DESDE `BECA`, y eso es lo que la
+    // coincidencia por origen exige de esta siembra (`T-20`, 07-09-2026): antes
+    // bastaba con que el DESTINO estuviera por encima, y ahora tiene que
+    // coincidir el ORIGEN. Cuatro productos desde `BECA`, del salto cero al más
+    // largo:
+    upgrade("UP_RENOVAR", "Renovar Free", free, free, "5.00", 30, "ACTIVO", BASE, false);
     upgrade("UP_VIP", "Ascenso a Vip", free, vip, "20.00", null, "ACTIVO", BASE, false);
+    upgrade("UP_PLATINO", "Ascenso a Platino", free, platino, "50.00", 30, "ACTIVO", BASE, false);
+    upgrade("UP_ORO", "Ascenso a Oro", free, oro, "100.00", 365, "ACTIVO", BASE, false);
+
+    // AJENOS: existen, están activos y NO son de `enFree` ni de `enOro`. Son los
+    // que hacen verificable que la oferta no se decide por nivel — `UP_AJENO`
+    // lleva a `ORO`, y a quien YA está en `ORO` no se le ofrece porque su origen
+    // no es suyo (`CA-PM-060`, `CA-PM-108`).
+    upgrade(
+        "UP_AJENO",
+        "Ascenso a Oro desde Platino",
+        platino,
+        oro,
+        "80.00",
+        365,
+        "ACTIVO",
+        BASE,
+        false);
+    upgrade(
+        "UP_DESDE_VIP",
+        "Ascenso a Platino desde Vip",
+        vip,
+        platino,
+        "60.00",
+        30,
+        "ACTIVO",
+        BASE,
+        false);
     upgrade("UP_FREE", "Ascenso a Free", sotano, free, "5.00", 7, "ACTIVO", BASE, false);
 
-    // Lo que NO debe salir nunca (`CA-PM-058`). Los dos apuntan a ORO, y no
-    // chocan con `UP_ORO` porque `uq_products_upgrade_target` es un índice
-    // PARCIAL: solo alcanza a los activos y no retirados.
+    // Lo que NO debe salir nunca (`CA-PM-058`). Se declaran DESDE `BECA` a
+    // propósito: con otro origen quedarían fuera por la coincidencia y la prueba
+    // no comprobaría nada. No chocan con `UP_ORO` porque
+    // `uq_products_upgrade_target` es un índice PARCIAL: solo alcanza a los
+    // activos y no retirados.
     upgrade(
         "UP_ORO_BORRADOR",
         "Ascenso a Oro (sin publicar)",
-        platino,
+        free,
         oro,
         "90.00",
         365,
@@ -109,7 +143,7 @@ class ProductOfferIT extends IntegrationTestBase {
     upgrade(
         "UP_ORO_RETIRADO",
         "Ascenso a Oro (retirado)",
-        platino,
+        free,
         oro,
         "80.00",
         365,
@@ -124,12 +158,16 @@ class ProductOfferIT extends IntegrationTestBase {
     enOro = persona("oferta-oro");
     enVip = persona("oferta-vip");
     enFree = persona("oferta-free");
+    // Un SEGUNDO actor en el mismo nivel: con la coincidencia por origen es la
+    // única forma de comprobar que el precio no depende de quién mira.
+    otroEnFree = persona("oferta-free-2");
     sinMembresia = persona("oferta-sin");
     conMembresiaVencida = persona("oferta-vencida");
 
     asignar(enOro, oro, null);
     asignar(enVip, vip, null);
     asignar(enFree, free, null);
+    asignar(otroEnFree, free, null);
     // Venció ayer. No se retira la fila: la vigencia se evalúa al consultarla.
     asignar(conMembresiaVencida, free, OffsetDateTime.now(ZoneOffset.UTC).minusDays(1));
   }
@@ -144,49 +182,85 @@ class ProductOfferIT extends IntegrationTestBase {
   // ---------------------------------------------------------------------------
 
   @Test
-  @DisplayName("`CA-PM-059`, `CA-PM-060`, `CA-PM-061` — los tres casos de nivel, en una sola vista")
-  void losTresCasosDeNivel() throws Exception {
-    // Quien está en VIP (3) tiene por encima a PLATINO (2) y ORO (1), en su
-    // mismo peldaño a VIP y por debajo a FREE (4).
+  @DisplayName(
+      "`CA-PM-059`, `CA-PM-060`, `CA-PM-061` — los tres casos de ORIGEN, en una sola vista")
+  void losTresCasosDeOrigen() throws Exception {
+    // Quien está en VIP ve EXACTAMENTE lo declarado desde VIP, y nada más.
     //
-    // Escrita al revés —`m.level > :nivel`— esta llamada devolvería `UP_FREE` y
-    // nada más: una bajada de nivel, cobrada. Ninguna prueba de camino feliz lo
-    // vería, y por eso los tres casos van juntos aquí.
+    // Antes del 07-09-2026 esta prueba miraba niveles y esperaba dos upgrades
+    // —los de destino superior—. Con la coincidencia por origen espera UNO, y
+    // la diferencia es justo lo que el cambio compra: `UP_AJENO` lleva a `ORO`
+    // igual que antes, y **no es suyo**.
     mvc.perform(oferta(enVip))
         .andExpect(status().isOk())
-        // Superiores: los dos, y solo los dos.
-        .andExpect(jsonPath("$.upgrades.content.length()").value(2))
+        .andExpect(jsonPath("$.upgrades.content.length()").value(1))
+        .andExpect(jsonPath("$.upgrades.content[0].code").value("UP_DESDE_VIP"))
+        // El declarado desde PLATINO no es suyo, aunque lleve más arriba.
         .andExpect(
-            jsonPath("$.upgrades.content[*].code", Matchers.contains("UP_PLATINO", "UP_ORO")))
-        // El de su propio nivel NO está: sería cobrarle por quedarse donde está.
+            jsonPath("$.upgrades.content[*].code", Matchers.not(Matchers.hasItem("UP_AJENO"))))
+        // Ni los declarados desde BECA, que llevan a donde él ya llegó.
         .andExpect(jsonPath("$.upgrades.content[*].code", Matchers.not(Matchers.hasItem("UP_VIP"))))
-        // Y el inferior tampoco.
+        // Y ninguna bajada: la sostiene `RN-PM-017` AL REGISTRAR, no este filtro.
         .andExpect(
             jsonPath("$.upgrades.content[*].code", Matchers.not(Matchers.hasItem("UP_FREE"))));
   }
 
   @Test
-  @DisplayName("`CA-PM-089` — quien está en el suelo ve TODOS los superiores, no solo el siguiente")
-  void todosLosSuperioresYNoSoloElInmediato() throws Exception {
-    // Es lo que la cadena de cuatro niveles existe para poder afirmar. Ofrecer
-    // solo el inmediato obligaría a comprar tres veces para recorrerla, que es
-    // una fuga de ventas disfrazada de simplicidad.
-    mvc.perform(oferta(enFree))
+  @DisplayName(
+      "`CA-PM-060` y `CA-PM-108` — a quien YA está en ORO no se le ofrece un `X → ORO` ajeno")
+  void elUpgradeAjenoHaciaMiNivelNoSeOfrece() throws Exception {
+    // `UP_AJENO` es `PLATINO → ORO`. Comparando niveles con `<=` —que es lo que
+    // haría falta para que cupiera la renovación— este producto SE LE
+    // OFRECERÍA a quien está en ORO: el salto de otro que acaba donde él está.
+    // Es el caso que obligó a construir la coincidencia por origen.
+    mvc.perform(oferta(enOro))
         .andExpect(status().isOk())
-        .andExpect(jsonPath("$.upgrades.content.length()").value(3))
-        .andExpect(
-            jsonPath(
-                "$.upgrades.content[*].code", Matchers.contains("UP_VIP", "UP_PLATINO", "UP_ORO")));
+        .andExpect(jsonPath("$.upgrades.content.length()").value(0));
   }
 
   @Test
-  @DisplayName("`CA-PM-062` — quien está en la cima recibe la lista vacía, y no un error")
+  @DisplayName(
+      "`CA-PM-089` y `CA-PM-107` — ve TODOS los declarados desde su membresía, no solo uno")
+  void todosLosDeclaradosDesdeSuMembresia() throws Exception {
+    // Ofrecer solo el inmediato obligaría a comprar tres veces para recorrer la
+    // cadena, que es una fuga de ventas disfrazada de simplicidad. Y con la
+    // renovación dentro son CUATRO, del salto cero al más largo.
+    mvc.perform(oferta(enFree))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.upgrades.content.length()").value(4))
+        .andExpect(
+            jsonPath(
+                "$.upgrades.content[*].code",
+                Matchers.contains("UP_RENOVAR", "UP_VIP", "UP_PLATINO", "UP_ORO")));
+  }
+
+  @Test
+  @DisplayName("`CA-PM-126` — la RENOVACIÓN se ofrece: es el `X → X` declarado desde su membresía")
+  void laRenovacionSeOfrece() throws Exception {
+    // Va PRIMERA porque el orden es por nivel de destino descendente —del salto
+    // más corto al más largo— y una renovación es el salto de longitud cero.
+    mvc.perform(oferta(enFree))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.upgrades.content[0].code").value("UP_RENOVAR"))
+        .andExpect(jsonPath("$.upgrades.content[0].targetMembership.code").value("BECA"))
+        .andExpect(jsonPath("$.upgrades.content[0].validityDays").value(30));
+
+    // Y no se la ve nadie más: su origen es `BECA`.
+    mvc.perform(oferta(enVip))
+        .andExpect(status().isOk())
+        .andExpect(
+            jsonPath("$.upgrades.content[*].code", Matchers.not(Matchers.hasItem("UP_RENOVAR"))));
+  }
+
+  @Test
+  @DisplayName("`CA-PM-062` — sin nada declarado desde su membresía, la lista llega vacía")
   void enLaCimaLaListaLlegaVacia() throws Exception {
     mvc.perform(oferta(enOro))
         .andExpect(status().isOk())
         .andExpect(jsonPath("$.upgrades.content").isArray())
         .andExpect(jsonPath("$.upgrades.content.length()").value(0))
-        // No es un mensaje especial: los bots siguen ahí.
+        // Nadie declaró un `ORO → X` ni una renovación de `ORO`, y el `X → ORO`
+        // ajeno no es suyo. No es un mensaje especial: los bots siguen ahí.
         .andExpect(jsonPath("$.services.content.length()").value(2))
         .andExpect(jsonPath("$.currentMembership.code").value("ORO"));
   }
@@ -216,7 +290,7 @@ class ProductOfferIT extends IntegrationTestBase {
     // Vencer no es lo mismo que no tener, pero para decidir «a dónde puede
     // subir» produce el mismo resultado. Esta prueba es la que se apoya en que
     // `PM` NO reimplementa la vigencia: si la copiara mal, esta persona
-    // aparecería en FREE y vería tres upgrades.
+    // aparecería en BECA y vería tres upgrades.
     mvc.perform(oferta(conMembresiaVencida))
         .andExpect(status().isOk())
         .andExpect(jsonPath("$.upgrades.content.length()").value(0))
@@ -275,10 +349,11 @@ class ProductOfferIT extends IntegrationTestBase {
     mvc.perform(oferta(enFree))
         .andExpect(status().isOk())
         // Los upgrades, del salto más corto al más largo: VIP(3), PLATINO(2),
-        // ORO(1). Es el único orden en el que «subir» significa algo — ni el
+        // ORO(1) — y con la RENOVACIÓN delante, que es el salto cero: BECA(4).
+        // Es el único orden en el que «subir» significa algo — ni el
         // precio ni el nombre lo expresan.
         .andExpect(
-            jsonPath("$.upgrades.content[*].targetMembership.level", Matchers.contains(3, 2, 1)))
+            jsonPath("$.upgrades.content[*].targetMembership.level", Matchers.contains(4, 3, 2, 1)))
         // Y ningún bot se coló entre ellos.
         .andExpect(
             jsonPath(
@@ -309,11 +384,13 @@ class ProductOfferIT extends IntegrationTestBase {
     // indistinguibles aunque uno dure un mes y el otro para siempre.
     mvc.perform(oferta(enFree))
         .andExpect(status().isOk())
-        // `UP_VIP` no caduca: la clave existe y vale nulo.
-        .andExpect(jsonPath("$.upgrades.content[0].code").value("UP_VIP"))
+        // `UP_VIP` no caduca: la clave existe y vale nulo. Va SEGUNDO, porque
+        // la renovación —salto cero— abre la lista.
+        .andExpect(jsonPath("$.upgrades.content[1].code").value("UP_VIP"))
         .andExpect(content().string(Matchers.containsString("\"validityDays\":null")))
-        .andExpect(jsonPath("$.upgrades.content[1].validityDays").value(30))
-        .andExpect(jsonPath("$.upgrades.content[2].validityDays").value(365));
+        .andExpect(jsonPath("$.upgrades.content[0].validityDays").value(30))
+        .andExpect(jsonPath("$.upgrades.content[2].validityDays").value(30))
+        .andExpect(jsonPath("$.upgrades.content[3].validityDays").value(365));
   }
 
   @Test
@@ -321,15 +398,193 @@ class ProductOfferIT extends IntegrationTestBase {
   void elPrecioNoSeAjustaPorNivel() throws Exception {
     // Un importe distinto según quién mira sería un descuento, y los descuentos
     // son promociones — fuera de alcance a propósito.
+    //
+    // DESDE EL 07-09-2026 SE COMPRUEBA CON DOS PERSONAS DEL MISMO NIVEL, y no
+    // con dos de niveles distintos: con la coincidencia por origen, dos actores
+    // de niveles distintos **no comparten ningún producto**, de modo que aquella
+    // comparación dejó de poder hacerse. La pregunta que el criterio protege
+    // sigue siendo la misma — el precio no depende de quién mira.
     mvc.perform(oferta(enFree))
         .andExpect(status().isOk())
-        .andExpect(jsonPath("$.upgrades.content[2].code").value("UP_ORO"))
-        .andExpect(jsonPath("$.upgrades.content[2].price").value(100.00));
+        .andExpect(jsonPath("$.upgrades.content[3].code").value("UP_ORO"))
+        .andExpect(jsonPath("$.upgrades.content[3].price").value(100.00));
 
-    mvc.perform(oferta(enVip))
+    mvc.perform(oferta(otroEnFree))
         .andExpect(status().isOk())
-        .andExpect(jsonPath("$.upgrades.content[1].code").value("UP_ORO"))
-        .andExpect(jsonPath("$.upgrades.content[1].price").value(100.00));
+        .andExpect(jsonPath("$.upgrades.content[3].code").value("UP_ORO"))
+        .andExpect(jsonPath("$.upgrades.content[3].price").value(100.00));
+  }
+
+  // ---------------------------------------------------------------------------
+  // El precio que se publica (`RN-PM-024`) — 08-09-2026; el de compra SALE de
+  // aquí desde el 12-09-2026
+  // ---------------------------------------------------------------------------
+
+  @Test
+  @DisplayName("`CA-PM-158` — se publica `price`, tenga o no el producto precio de compra")
+  void publicaElPrecioQueSeCobra() throws Exception {
+    declararPrecioDeCompra("UP_ORO", "60.00");
+
+    mvc.perform(oferta(enFree))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.upgrades.content[3].code").value("UP_ORO"))
+        // `price` es SIEMPRE el que se cobra, y el costo no lo altera.
+        .andExpect(jsonPath("$.upgrades.content[3].price").value(100.00));
+  }
+
+  @Test
+  @DisplayName(
+      "`CA-PM-160` — el precio de compra NO aparece en el cuerpo, aunque el producto lo declare")
+  void elPrecioDeCompraNoViaja() throws Exception {
+    // Se declara A PROPÓSITO antes de mirar: la ausencia solo prueba algo si
+    // había un valor que ocultar. Es el costo de NEXUS —el margen—, y lo único
+    // que sostiene que no salga es que `OfferItem` no tenga el campo y la
+    // consulta no lo seleccione. Un campo añadido «por simetría» con el listado
+    // haría fallar esta prueba, que es para lo que existe.
+    declararPrecioDeCompra("UP_ORO", "60.00");
+
+    String cuerpo =
+        mvc.perform(oferta(enFree))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.upgrades.content[3].code").value("UP_ORO"))
+            .andExpect(jsonPath("$.upgrades.content[3].price").value(100.00))
+            .andExpect(jsonPath("$.upgrades.content[3].purchasePrice").doesNotExist())
+            .andExpect(jsonPath("$.upgrades.content[3].publicPrice").doesNotExist())
+            .andReturn()
+            .getResponse()
+            .getContentAsString();
+
+    // Ni bajo el nombre nuevo, ni bajo el viejo, ni el importe suelto en
+    // ninguna otra clave.
+    assertThat(cuerpo).doesNotContain("purchasePrice").doesNotContain("publicPrice");
+    assertThat(cuerpo).doesNotContain("60.00").doesNotContain("60.0,");
+  }
+
+  @Test
+  @DisplayName(
+      "`CA-PM-228` — la oferta trae `videoUrl` tal cual, nulo y presente sin él, y sigue sin"
+          + " `purchasePrice`")
+  void laOfertaTraeElVideo() throws Exception {
+    // Las dos columnas opcionales juntas, a propósito: una SÍ viaja y la otra
+    // NO, y la línea entre las dos es la de `pm.md` §5.2.8 — el costo enseña el
+    // margen; el video existe para que lo vean.
+    declararPrecioDeCompra("UP_ORO", "60.00");
+    jdbc.update("UPDATE products SET video_url = 'https://vimeo.com/123456' WHERE code = 'UP_ORO'");
+
+    String cuerpo =
+        mvc.perform(oferta(enFree))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.upgrades.content[3].code").value("UP_ORO"))
+            .andExpect(jsonPath("$.upgrades.content[3].videoUrl").value("https://vimeo.com/123456"))
+            .andExpect(jsonPath("$.upgrades.content[3].purchasePrice").doesNotExist())
+            // `UP_VIP` no tiene video: la clave existe y vale nulo.
+            .andExpect(jsonPath("$.upgrades.content[1].code").value("UP_VIP"))
+            .andExpect(jsonPath("$.upgrades.content[1].videoUrl").doesNotExist())
+            .andExpect(jsonPath("$.upgrades.content[1]").value(Matchers.hasKey("videoUrl")))
+            .andReturn()
+            .getResponse()
+            .getContentAsString();
+
+    assertThat(cuerpo).doesNotContain("purchasePrice").doesNotContain("60.00");
+  }
+
+  @Test
+  @DisplayName("`CA-PM-237` — la oferta trae `coverImageUrl`, nulo y presente sin ella, sin costo")
+  void laOfertaTraeLaPortada() throws Exception {
+    UUID imagen = UUID.randomUUID();
+    jdbc.update(
+        "INSERT INTO product_images (id, content_type, content) VALUES (CAST(? AS uuid),"
+            + " 'image/png', decode('89504E470D0A1A0A00', 'hex'))",
+        imagen.toString());
+    jdbc.update(
+        "UPDATE products SET cover_image_id = CAST(? AS uuid) WHERE code = 'UP_ORO'",
+        imagen.toString());
+    declararPrecioDeCompra("UP_ORO", "60.00");
+
+    String cuerpo =
+        mvc.perform(oferta(enFree))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.upgrades.content[3].code").value("UP_ORO"))
+            .andExpect(
+                jsonPath("$.upgrades.content[3].coverImageUrl")
+                    .value("/api/v1/product-images/" + imagen))
+            .andExpect(jsonPath("$.upgrades.content[1].code").value("UP_VIP"))
+            .andExpect(jsonPath("$.upgrades.content[1].coverImageUrl").doesNotExist())
+            .andExpect(jsonPath("$.upgrades.content[1]").value(Matchers.hasKey("coverImageUrl")))
+            .andReturn()
+            .getResponse()
+            .getContentAsString();
+    assertThat(cuerpo).doesNotContain("purchasePrice").doesNotContain("60.00");
+
+    jdbc.update("UPDATE products SET cover_image_id = NULL");
+    jdbc.update("DELETE FROM product_images");
+  }
+
+  @Test
+  @DisplayName("declarar o vaciar el precio de compra NO cambia la respuesta de la oferta")
+  void elCostoNoSeNotaDesdeLaOferta() throws Exception {
+    String antes = mvc.perform(oferta(enFree)).andReturn().getResponse().getContentAsString();
+    declararPrecioDeCompra("UP_ORO", "60.00");
+    String despues = mvc.perform(oferta(enFree)).andReturn().getResponse().getContentAsString();
+
+    // Es la prueba de que la columna no se selecciona: un cambio en ella no
+    // puede notarse desde aquí, ni siquiera en la conversión, que se calcula
+    // sobre `price`.
+    assertThat(despues).isEqualTo(antes);
+  }
+
+  @Test
+  @DisplayName("`CA-PM-167` — cada producto trae su conversión, presente y nula si no procede")
+  void cadaProductoTraeSuConversion() throws Exception {
+    // Los productos sembrados están en la moneda de casa, de modo que no hay
+    // nada que convertir. Lo que se comprueba es que el campo ESTÁ: ausente
+    // sería indistinguible de uno que el cliente no conoce.
+    String cuerpo =
+        mvc.perform(oferta(enFree))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.upgrades.content[3].exchange").value(Matchers.nullValue()))
+            .andReturn()
+            .getResponse()
+            .getContentAsString();
+
+    assertThat(cuerpo).contains("\"exchange\":null");
+  }
+
+  @Test
+  @DisplayName("`CA-PM-168` — la conversión de la oferta cuesta DOS consultas, no dos por producto")
+  void laConversionNoSePagaPorProducto() {
+    // Se cuenta sobre el SERVICIO y no sobre la llamada HTTP: por el filtro
+    // pasan escrituras que no son de esta lectura, y contarlas mediría el
+    // arranque de la petición en lugar del coste del caso de uso.
+    var estadisticas = sessionFactory.getStatistics();
+    estadisticas.setStatisticsEnabled(true);
+    estadisticas.clear();
+
+    // El actor se pone a mano porque el servicio lo lee del contexto de
+    // seguridad y aquí no hay petición HTTP que lo traiga.
+    org.springframework.security.core.context.SecurityContextHolder.getContext()
+        .setAuthentication(
+            new org.springframework.security.authentication.UsernamePasswordAuthenticationToken(
+                enFree.toString(), null, java.util.List.of()));
+    try {
+      servicio.offer();
+    } finally {
+      org.springframework.security.core.context.SecurityContextHolder.clearContext();
+    }
+
+    // Cuatro upgrades y dos bots en la respuesta. Tres consultas: la oferta, la
+    // membresía vigente del actor y —desde el 08-09-2026— la moneda de casa y
+    // las tasas, que son dos más y NO dos por producto. Con la conversión
+    // resuelta fila a fila serían más de diez, y el cuerpo sería idéntico.
+    // Desde el 15-09-2026 UNA más, la de los paquetes (`RF-PM-007` v0.13.0), y
+    // no una por paquete: `PackageOfferIT` la cuenta con tres paquetes.
+    assertThat(estadisticas.getPrepareStatementCount()).isLessThanOrEqualTo(5);
+  }
+
+  /** Le pone precio de compra a un producto ya sembrado, que es lo que la siembra no hace. */
+  private void declararPrecioDeCompra(String codigo, String importe) {
+    jdbc.update(
+        "UPDATE products SET purchase_price = CAST(? AS numeric) WHERE code = ?", importe, codigo);
   }
 
   // ---------------------------------------------------------------------------
@@ -368,7 +623,7 @@ class ProductOfferIT extends IntegrationTestBase {
         .andExpect(status().isOk())
         // Sigue siendo la oferta de quien llama, no la de la persona indicada.
         .andExpect(jsonPath("$.currentMembership.code").value("VIP"))
-        .andExpect(jsonPath("$.upgrades.content.length()").value(2));
+        .andExpect(jsonPath("$.upgrades.content.length()").value(1));
   }
 
   @Test
@@ -385,9 +640,66 @@ class ProductOfferIT extends IntegrationTestBase {
         .andExpect(status().isForbidden());
   }
 
+  @Test
+  @DisplayName("`CA-PM-123` — la oferta devuelve el alcance y la implementación de cada producto")
+  void publicaAlcanceEImplementacion() throws Exception {
+    jdbc.update("UPDATE products SET implementation = 'AUTOMATICA' WHERE code = 'UP_DESDE_VIP'");
+
+    mvc.perform(oferta(enVip))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.upgrades.content[0].scope").value("TIENDA"))
+        // La implementación viaja para que quien compra sepa ANTES DE PAGAR si
+        // lo que se lleva se le entrega en el acto.
+        .andExpect(jsonPath("$.upgrades.content[0].implementation").exists())
+        .andExpect(jsonPath("$.services.content[0].scope").value("TIENDA"))
+        .andExpect(jsonPath("$.services.content[0].implementation").value("MANUAL"));
+  }
+
+  @Test
+  @DisplayName(
+      "`CA-PM-351` — la oferta filtra por alcance: solo TIENDA y AMBOS; HOTLINK y NINGUNO no")
+  void laOfertaFiltraPorAlcance() throws Exception {
+    // Era `CA-PM-124` —«la escala no filtra aquí»— hasta el 15-09-2026. Con
+    // cuatro valores explícitos ya no hay escala: `HOTLINK` y `NINGUNO` no son
+    // de la tienda, y esta lectura los deja fuera aunque estén activos y sean
+    // de la membresía de quien llama (`RN-PM-019`).
+    jdbc.update("UPDATE products SET scope = 'AMBOS' WHERE code = 'BOT_SENALES'");
+    jdbc.update("UPDATE products SET scope = 'HOTLINK' WHERE code = 'UP_VIP'");
+    jdbc.update("UPDATE products SET scope = 'NINGUNO' WHERE code = 'UP_PLATINO'");
+
+    mvc.perform(oferta(enFree))
+        .andExpect(status().isOk())
+        // `AMBOS` entra como `TIENDA`; los dos bots siguen ahí.
+        .andExpect(jsonPath("$.services.content.length()").value(2))
+        .andExpect(jsonPath("$.services.content[0].code").value("BOT_SENALES"))
+        .andExpect(jsonPath("$.services.content[0].scope").value("AMBOS"))
+        .andExpect(jsonPath("$.services.content[1].scope").value("TIENDA"))
+        // De los cuatro upgrades desde BECA, dos dejaron de ser de la tienda.
+        .andExpect(
+            jsonPath("$.upgrades.content[*].code", Matchers.contains("UP_RENOVAR", "UP_ORO")))
+        .andExpect(jsonPath("$.upgrades.content[*].code", Matchers.not(Matchers.hasItem("UP_VIP"))))
+        .andExpect(
+            jsonPath("$.upgrades.content[*].code", Matchers.not(Matchers.hasItem("UP_PLATINO"))));
+  }
+
   // ---------------------------------------------------------------------------
   // Preparación
   // ---------------------------------------------------------------------------
+
+  @Test
+  @DisplayName("`CA-PM-144` — la oferta trae el COLOR del destino y el de la membresía del actor")
+  void laOfertaTraeElColorDeLasMembresias() throws Exception {
+    // El de `currentMembership` es el que más se nota: la pantalla pinta
+    // «estás en X, sube a Y», y hasta hoy no tenía con qué colorear el «X».
+    mvc.perform(oferta(enFree))
+        .andExpect(status().isOk())
+        .andExpect(
+            jsonPath("$.currentMembership.color").value(Matchers.matchesPattern("^[0-9A-F]{6}$")))
+        .andExpect(
+            jsonPath(
+                "$.upgrades.content[*].targetMembership.color",
+                Matchers.everyItem(Matchers.matchesPattern("^[0-9A-F]{6}$"))));
+  }
 
   private MockHttpServletRequestBuilder oferta(UUID quien) {
     return get("/api/v1/products/available").with(comoActor(quien));
@@ -406,6 +718,8 @@ class ProductOfferIT extends IntegrationTestBase {
   }
 
   private void limpiar() {
+    // Antes que los productos: `product_package_items` los referencia (`V91`).
+    PackageTestSupport.limpiarPaquetes(jdbc);
     jdbc.update("DELETE FROM products");
     // Antes que las membresías: `user_memberships` las referencia.
     jdbc.update(
@@ -435,8 +749,8 @@ class ProductOfferIT extends IntegrationTestBase {
     jdbc.update(
         """
         INSERT INTO users (id, username, email, first_name, last_name, password_hash,
-                           must_change_password, status)
-        VALUES (CAST(? AS uuid), ?, ?, 'Ana', 'Ruiz', 'no-se-usa-en-esta-prueba', false, 'ACTIVO')
+                           must_change_password, status, country_id)
+        VALUES (CAST(? AS uuid), ?, ?, 'Ana', 'Ruiz', 'no-se-usa-en-esta-prueba', false, 'ACTIVO', (SELECT id FROM countries WHERE code = 'COL'))
         """,
         id.toString(),
         username,
@@ -456,9 +770,9 @@ class ProductOfferIT extends IntegrationTestBase {
   private void asignar(UUID quien, UUID membresia, OffsetDateTime fin) {
     jdbc.update(
         """
-        INSERT INTO user_memberships (user_id, membership_id, started_at, ends_at,
+        INSERT INTO user_memberships (id, user_id, membership_id, started_at, ends_at,
                                       created_at, updated_at)
-        VALUES (CAST(? AS uuid), CAST(? AS uuid), now() - interval '30 days',
+        VALUES (gen_random_uuid(), CAST(? AS uuid), CAST(? AS uuid), now() - interval '30 days',
                 CAST(? AS timestamptz), now(), now())
         """,
         quien.toString(),
@@ -519,10 +833,10 @@ class ProductOfferIT extends IntegrationTestBase {
       boolean retirado) {
 
     jdbc.update(
-        "INSERT INTO products (id, code, type, name, description, source_membership_id,"
+        "INSERT INTO products (scope, implementation, id, code, type, name, description, source_membership_id,"
             + " target_membership_id, price,"
             + " currency_id, validity_days, status, created_at, updated_at, deleted_at)"
-            + " VALUES (CAST(? AS uuid), ?, ?, ?, 'Descripción de prueba', CAST(? AS uuid),"
+            + " VALUES ('TIENDA', 'MANUAL', CAST(? AS uuid), ?, ?, ?, 'Descripción de prueba', CAST(? AS uuid),"
             + " CAST(? AS uuid), CAST(? AS numeric), CAST(? AS uuid), CAST(? AS integer), ?, ?,"
             + " ?, CAST(? AS timestamptz))",
         UUID.randomUUID().toString(),

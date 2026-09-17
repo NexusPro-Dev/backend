@@ -4,8 +4,8 @@ package com.factech.nexus.shared.audit;
  * Dominios cerrados de los cuatro registros de auditoría.
  *
  * <p>Se declaran como enumerados y no como cadenas sueltas porque **cada uno tiene su {@code CHECK}
- * en el esquema** (`V4__create_audit_logs.sql`). Un literal mal escrito desde Java no produciría un
- * dato raro que nadie nota: produciría una violación de integridad dentro de la transacción de
+ * en el esquema** (`V2__auditoria.sql`). Un literal mal escrito desde Java no produciría un dato
+ * raro que nadie nota: produciría una violación de integridad dentro de la transacción de
  * auditoría. Tenerlos aquí hace que ese error no llegue a compilar.
  *
  * <p>Los valores son <b>exactamente</b> los que se persisten, sin traducir: el ejemplo {@code

@@ -156,7 +156,7 @@ public class DeleteUserService {
 
     usuarios.markDeleted(userId, ahora);
     usuarios.removeAllRoles(userId);
-    membresia.ifPresent(sinUsar -> usuarios.removeMembership(userId));
+    membresia.ifPresent(sinUsar -> usuarios.closeMembership(userId, ahora));
 
     // La MISMA marca de tiempo que la eliminación, no una posterior: si
     // difirieran, el historial diría que la persona estuvo a cargo de alguien

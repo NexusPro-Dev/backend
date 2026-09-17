@@ -11,10 +11,10 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.jdbc.core.JdbcTemplate;
 
 /**
- * Verificación de {@code V3__seed_permissions.sql} (`RF-SP-010` · `T-03`).
+ * Verificación de {@code V8__semilla_permisos_y_roles.sql} (`RF-SP-010` · `T-03`).
  *
- * <p>El catálogo sembrado es el contrato del que dependen {@code V7__seed_system_roles.sql} y las
- * pruebas de `RF-SP-001` y `RF-SP-005`, que referencian permisos por identificador. Que esos
+ * <p>El catálogo sembrado es el contrato del que dependen {@code V8__semilla_permisos_y_roles.sql}
+ * y las pruebas de `RF-SP-001` y `RF-SP-005`, que referencian permisos por identificador. Que esos
  * identificadores sean estables entre entornos no es una comodidad: es lo que permite que una
  * migración posterior los asocie.
  */
@@ -24,11 +24,11 @@ class PermissionsSeedIT extends IntegrationTestBase {
 
   @Test
   @DisplayName(
-      "el catálogo tiene exactamente treinta y siete: veinticuatro de SP, cinco de PM, cuatro de"
+      "el catálogo tiene exactamente cincuenta: TREINTA Y UNO de SP, ONCE de PM, cuatro de"
           + " CM y cuatro de MV")
   void catalogoCompleto() {
     assertThat(jdbc.queryForObject("SELECT count(*) FROM permissions", Integer.class))
-        .isEqualTo(37);
+        .isEqualTo(50);
   }
 
   @Test
@@ -68,9 +68,29 @@ class PermissionsSeedIT extends IntegrationTestBase {
             "commissions:delete",
             "commissions:read",
             "commissions:update",
+            // El SEGUNDO recurso sin ninguna acción de escritura, por el mismo
+            // motivo estructural y no por el mismo motivo de negocio: `RN-SP-039`
+            // deja el catálogo de brokers fuera de la API porque son pocos y
+            // cambian poco, no porque su contenido sea una regla.
+            "brokers:read",
+            // El CUARTO recurso sin ninguna acción de escritura, y el PRIMERO
+            // cuyo recurso no es un catálogo: gobierna una LECTURA de datos
+            // ajenos (`RF-SP-055`). No hay `create` porque la cuenta la declara
+            // su titular al registrarse, sin sesión; no hay `update` porque
+            // quien la completa es el webhook del broker, que no porta roles.
+            "broker-accounts:read",
             "countries:create",
             "countries:read",
             "countries:update",
+            // El ÚNICO recurso del catálogo sin ninguna acción de escritura, y no
+            // es que falten: `RN-SP-036` las prohíbe, porque el contenido de
+            // `document_types` ES la validación de mayoría de edad. Un
+            // `document-types:create` la desactivaría sin cambiar ninguna regla.
+            "document-types:read",
+            "exchange-rates:create",
+            "exchange-rates:delete",
+            "exchange-rates:read",
+            "exchange-rates:update",
             "currencies:read",
             "currencies:update",
             "memberships:create",
@@ -79,9 +99,19 @@ class PermissionsSeedIT extends IntegrationTestBase {
             "movements:create",
             "movements:read",
             "movements:void",
+            // El SEGUNDO recurso de `PM` (`V93`, 15-09-2026), por decisión del
+            // responsable del proyecto: armar paquetes y tocar el catálogo son
+            // dos capacidades, y los `products:` no habilitan ni una operación
+            // de paquetes.
+            "packages:create",
+            "packages:delete",
+            "packages:read",
+            "packages:update",
             "permissions:read",
+            "products:comment",
             "products:create",
             "products:delete",
+            "products:hotlink",
             "products:read",
             "products:sale",
             "products:update",
@@ -104,7 +134,7 @@ class PermissionsSeedIT extends IntegrationTestBase {
   void identificadoresUuidV7() {
     List<UUID> ids = jdbc.queryForList("SELECT id FROM permissions", UUID.class);
 
-    assertThat(ids).hasSize(37).doesNotHaveDuplicates();
+    assertThat(ids).hasSize(50).doesNotHaveDuplicates();
     assertThat(ids).allSatisfy(id -> assertThat(id.version()).isEqualTo(7));
     // variant() == 2 es la variante RFC 9562 (bits 10xx).
     assertThat(ids).allSatisfy(id -> assertThat(id.variant()).isEqualTo(2));
@@ -115,7 +145,7 @@ class PermissionsSeedIT extends IntegrationTestBase {
   void identificadoresEstables() {
     // Si alguien sustituyera los literales por gen_random_uuid(), esta prueba
     // fallaría en el siguiente entorno: es lo que protege la asociación que
-    // V7__seed_system_roles.sql hará por identificador (Art. V.11).
+    // V8__semilla_permisos_y_roles.sql hará por identificador (Art. V.11).
     assertThat(
             jdbc.queryForObject(
                 "SELECT id::text FROM permissions WHERE code = 'roles:create'", String.class))
