@@ -709,6 +709,8 @@ class UserLifecycleIT extends IntegrationTestBase {
     // `RN-SP-037` lo deja opcional, de modo que cae en la familia de la
     // dirección y no en la del personal. Lo que decide de qué lado está un campo
     // no es qué dato es, sino si la regla lo exige.
+    int asientosDelTelefono = asientosQueNombran(juan, "companyPhone");
+
     mvc.perform(editar(juan, "{\"companyPhone\":null}")).andExpect(status().isOk());
 
     assertThat(
@@ -716,14 +718,11 @@ class UserLifecycleIT extends IntegrationTestBase {
         .isNull();
 
     // El vaciado se audita como cualquier cambio, con el después en nulo: es lo
-    // que distingue «se borró» de «nunca lo hubo».
-    String cambios =
-        jdbc.queryForObject(
-            "SELECT changes::text FROM audit_change_log WHERE entity_id = ?"
-                + " ORDER BY occurred_at DESC LIMIT 1",
-            String.class,
-            juan);
-    assertThat(cambios).contains("companyPhone");
+    // que distingue «se borró» de «nunca lo hubo». Se cuenta el asiento por su
+    // CONTENIDO y no por su posición: los dos asientos de una misma operación
+    // comparten `occurred_at`, y «el último» era un empate que el motor resolvía
+    // como quería — la prueba fallaba según el orden de la suite.
+    assertThat(asientosQueNombran(juan, "companyPhone")).isGreaterThan(asientosDelTelefono);
 
     // Y el personal sigue rechazándolo, que es la mitad que hace útil a la otra.
     mvc.perform(editar(juan, "{\"phone\":null}")).andExpect(status().isBadRequest());
@@ -803,6 +802,17 @@ class UserLifecycleIT extends IntegrationTestBase {
         nombre,
         apellido);
     return id;
+  }
+
+  private int asientosQueNombran(UUID usuario, String campo) {
+    Integer total =
+        jdbc.queryForObject(
+            "SELECT count(*) FROM audit_change_log WHERE entity_id = ?"
+                + " AND changes::text LIKE ?",
+            Integer.class,
+            usuario,
+            "%" + campo + "%");
+    return total == null ? 0 : total;
   }
 
   private int eventosDeCambio(UUID usuario) {

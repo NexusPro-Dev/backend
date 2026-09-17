@@ -2241,6 +2241,106 @@ paths:
         "500":
           description: Fallo no controlado (`ERR-500`)
   /api/v1/movements:
+    get:
+      tags:
+      - Movimientos
+      summary: Consultar todos los movimientos
+      description: |
+        Devuelve **todos los movimientos del libro**, de quien sean, paginados y del más
+        reciente al más antiguo. Es la lectura de administración: exige `movements:read`,
+        y con él se ve todo — quien no lo tiene recibe `403` aunque tenga movimientos
+        propios, que se consultan por `/mine`.
+
+        **Los filtros se combinan** y responden una pregunta de operación cada uno:
+        `status` (qué está pendiente de confirmar), `userId` (qué compró esta persona —el
+        SUJETO, a nombre de quién es—), `sellerId` (qué vendió esta persona, como vendedora
+        de **alguna de sus líneas**; una venta con varias líneas suyas aparece **una vez**),
+        `paymentMethodId` (qué entró por un medio de pago), `code` (un comprobante exacto,
+        sin distinguir mayúsculas) y `from`/`to` sobre **cuándo ocurrió**. `from` y `to` son
+        instantes con zona horaria y el rango es **semiabierto** —incluye `from`, excluye
+        `to`—. Un `userId`, `sellerId` o `paymentMethodId` que no exista da una página vacía;
+        un `status` que no exista es `400`.
+
+        **Cada fila lleva el tipo de movimiento** (`type`, hoy siempre `VENTA`), el sujeto
+        (`user`), los vendedores de sus líneas sin repetir (`sellers`, lista nunca nula y
+        vacía cuando no hay ninguno), y **cuándo se confirmó** (`confirmedAt`): presente en
+        las confirmadas y **nulo** en las demás. No lleva `role` —quien administra no
+        participa en lo que mira— ni las líneas, que son del detalle.
+
+        **El total puede no ser exacto.** El libro crece sin límite, y por encima del techo
+        de conteo `totalElements` vale el techo y `totalIsExact` es `false`: hay «más de N»
+        y conviene acotar. El orden es fijo y no se puede cambiar.
+      operationId: todos
+      parameters:
+      - name: page
+        in: query
+        required: false
+        schema:
+          type: integer
+          format: int32
+      - name: size
+        in: query
+        required: false
+        schema:
+          type: integer
+          format: int32
+      - name: status
+        in: query
+        required: false
+        schema:
+          type: string
+      - name: userId
+        in: query
+        required: false
+        schema:
+          type: string
+          format: uuid
+      - name: sellerId
+        in: query
+        required: false
+        schema:
+          type: string
+          format: uuid
+      - name: paymentMethodId
+        in: query
+        required: false
+        schema:
+          type: string
+          format: uuid
+      - name: code
+        in: query
+        required: false
+        schema:
+          type: string
+      - name: from
+        in: query
+        required: false
+        schema:
+          type: string
+          format: date-time
+      - name: to
+        in: query
+        required: false
+        schema:
+          type: string
+          format: date-time
+      responses:
+        "200":
+          description: La página de movimientos.
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/PageResponseMovementSummary"
+        "400":
+          description: "Paginación inválida, estado no admitido (`VAL-002`), identificador\
+            \ malformado (`VAL-001`) o `from` posterior a `to` (`VAL-004`). Los problemas\
+            \ se devuelven juntos."
+        "401":
+          description: Token ausente o inválido (`AUTH-001`)
+        "403":
+          description: "Sin el permiso `movements:read`, tenga o no movimientos propios."
+        "500":
+          description: Fallo no controlado (`ERR-500`)
     post:
       tags:
       - Movimientos
@@ -9263,6 +9363,91 @@ components:
           type: boolean
         sort:
           type: string
+    MovementCurrency:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        code:
+          type: string
+    MovementParty:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        username:
+          type: string
+        name:
+          type: string
+    MovementSummary:
+      type: object
+      description: "Un movimiento del libro, visto desde administración."
+      properties:
+        id:
+          type: string
+          format: uuid
+        code:
+          type: string
+        type:
+          type: string
+          description: "El código del tipo de movimiento. Hoy, siempre `VENTA`."
+        status:
+          type: string
+        user:
+          $ref: "#/components/schemas/MovementParty"
+          description: "El SUJETO del movimiento: a nombre de quién es. En una venta,\
+            \ quien compra."
+        sellers:
+          type: array
+          description: "Los vendedores de sus líneas, sin repetir. Hoy una venta lleva\
+            \ uno; la lista va VACÍA —nunca nula— en los movimientos que no tienen\
+            \ vendedor."
+          items:
+            $ref: "#/components/schemas/MovementParty"
+        currency:
+          $ref: "#/components/schemas/MovementCurrency"
+        paymentMethod:
+          type: string
+        totalAmount:
+          type: number
+        discountAmount:
+          type: number
+        payableAmount:
+          type: number
+        occurredAt:
+          type: string
+          format: date-time
+          description: Cuándo ocurrió el hecho.
+        confirmedAt:
+          type:
+          - string
+          - "null"
+          format: date-time
+          description: Cuándo entró el dinero. Presente solo en las confirmadas; NULO
+            en las demás.
+    PageResponseMovementSummary:
+      type: object
+      properties:
+        content:
+          type: array
+          items:
+            $ref: "#/components/schemas/MovementSummary"
+        totalElements:
+          type: integer
+          format: int64
+        totalPages:
+          type: integer
+          format: int32
+        page:
+          type: integer
+          format: int32
+        size:
+          type: integer
+          format: int32
+        totalIsExact:
+          type: boolean
     MyMovement:
       type: object
       description: Un movimiento en el que participa quien consulta.

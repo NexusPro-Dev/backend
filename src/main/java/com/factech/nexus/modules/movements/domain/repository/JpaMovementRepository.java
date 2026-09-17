@@ -3,7 +3,9 @@ package com.factech.nexus.modules.movements.domain.repository;
 import com.factech.nexus.modules.movements.domain.models.LineDiscount;
 import com.factech.nexus.modules.movements.domain.models.Movement;
 import com.factech.nexus.modules.movements.domain.models.MovementLine;
+import com.factech.nexus.shared.pagination.BoundedCount;
 import jakarta.persistence.EntityManager;
+import jakarta.persistence.Query;
 import jakarta.persistence.Tuple;
 import java.math.BigDecimal;
 import java.sql.Timestamp;
@@ -528,7 +530,161 @@ public class JpaMovementRepository implements MovementRepository {
     return Optional.of(new MovementDetailView(cabecera(cabecera.get(0)), detalle));
   }
 
-  /** El mapeo de la cabecera, escrito una vez: el listado y el detalle piden lo mismo. */
+  // ---------------------------------------------------------------------------
+  // `RF-MV-006` — todos los movimientos
+  // ---------------------------------------------------------------------------
+
+  /**
+   * Las tablas del listado global. <b>Sin alcance</b>: al revés que {@link #SELECCION_PROPIA}, aquí
+   * no hay actor —la puerta es el permiso en el controlador— y el predicado lo pone {@link
+   * #filtroGlobal}, escrito una vez para la página y el conteo.
+   */
+  private static final String TABLAS_GLOBALES =
+      """
+      FROM movements m
+      JOIN movement_types mt ON mt.id = m.movement_type_id
+      JOIN users suj ON suj.id = m.user_id
+      JOIN currencies cur ON cur.id = m.currency_id
+      JOIN payment_methods pm ON pm.id = m.payment_method_id
+      WHERE
+      """;
+
+  /**
+   * El predicado del listado global, <b>escrito una vez</b> para la página y el conteo.
+   *
+   * <p>Si se copiara en las dos sentencias acabaría distinto en una de ellas, y entonces el total
+   * no correspondería a lo devuelto — es la forma que `RF-SP-011` fijó para la auditoría, y también
+   * su mecánica: cada filtro se añade <b>solo cuando viene</b>, en lugar de apagarse con un {@code
+   * IS NULL} sobre el parámetro, porque un identificador nulo enlazado sin tipo es lo que
+   * PostgreSQL no sabe convertir.
+   *
+   * <p>El vendedor entra por el mismo {@code EXISTS} del listado propio —una fila por movimiento,
+   * tenga las líneas que tenga— y el código por igualdad, para que lo responda {@code
+   * uq_movements_code}. El rango es <b>semiabierto</b>: dos periodos consecutivos no devuelven dos
+   * veces el movimiento de la medianoche.
+   */
+  private static Filtro filtroGlobal(MovementFilter f) {
+    Filtro filtro = new Filtro();
+    filtro.igual("m.status", "estado", f.status());
+    filtro.igual("m.user_id", "sujeto", f.userId());
+    if (f.sellerId() != null) {
+      filtro.condicion(
+          "EXISTS (SELECT 1 FROM movement_details d"
+              + " WHERE d.movement_id = m.id AND d.seller_id = :vendedor)",
+          "vendedor",
+          f.sellerId());
+    }
+    filtro.igual("m.payment_method_id", "metodo", f.paymentMethodId());
+    filtro.igual("m.code", "codigo", f.code());
+    if (f.from() != null) {
+      filtro.condicion("m.occurred_at >= :desde", "desde", f.from());
+    }
+    if (f.to() != null) {
+      filtro.condicion("m.occurred_at < :hasta", "hasta", f.to());
+    }
+    return filtro;
+  }
+
+  @Override
+  @Transactional(readOnly = true)
+  public List<MovementRow> findAll(MovementFilter filtro, int offset, int limit) {
+    Filtro donde = filtroGlobal(filtro);
+    Query consulta =
+        em.createNativeQuery(
+            """
+            SELECT m.id AS id, m.code AS code, mt.code AS tipo, m.status AS status,
+                   suj.id AS suj_id, suj.username AS suj_username,
+                   suj.first_name AS suj_first, suj.last_name AS suj_last,
+                   cur.id AS cur_id, cur.code AS cur_code, pm.name AS pm_name,
+                   m.total_amount AS total, m.discount_amount AS descuento,
+                   m.payable_amount AS pagar,
+                   m.occurred_at AS occurred_at, m.confirmed_at AS confirmed_at
+            """
+                + TABLAS_GLOBALES
+                + donde.sql()
+                // El mismo desempate que el listado propio, y el que lleva
+                // `ix_movements_occurred_at` (`V15`): el motor lee el índice en
+                // orden y para en el LIMIT.
+                + " ORDER BY m.occurred_at DESC, m.id DESC LIMIT :limite OFFSET :desplazamiento",
+            Tuple.class);
+    donde.enlazar(consulta);
+    @SuppressWarnings("unchecked")
+    List<Tuple> filas =
+        consulta
+            .setParameter("limite", limit)
+            .setParameter("desplazamiento", offset)
+            .getResultList();
+
+    List<MovementRow> resultado = new ArrayList<>(filas.size());
+    for (Tuple fila : filas) {
+      resultado.add(
+          new MovementRow(
+              (UUID) fila.get("id"),
+              (String) fila.get("code"),
+              (String) fila.get("tipo"),
+              (String) fila.get("status"),
+              (UUID) fila.get("suj_id"),
+              (String) fila.get("suj_username"),
+              (String) fila.get("suj_first"),
+              (String) fila.get("suj_last"),
+              (UUID) fila.get("cur_id"),
+              (String) fila.get("cur_code"),
+              (String) fila.get("pm_name"),
+              (BigDecimal) fila.get("total"),
+              (BigDecimal) fila.get("descuento"),
+              (BigDecimal) fila.get("pagar"),
+              instante(fila.get("occurred_at")),
+              instante(fila.get("confirmed_at"))));
+    }
+    return resultado;
+  }
+
+  /**
+   * El conteo, acotado por construcción: la subconsulta lleva {@code LIMIT techo + 1}, de modo que
+   * nunca examina más de esas filas, tenga la tabla mil o cien millones. Es la misma forma de
+   * {@code JpaAuditQueryRepository}.
+   */
+  @Override
+  @Transactional(readOnly = true)
+  public BoundedCount countAll(MovementFilter filtro, int techo) {
+    Filtro donde = filtroGlobal(filtro);
+    Query consulta =
+        em.createNativeQuery(
+            "SELECT count(*) FROM (SELECT 1 " + TABLAS_GLOBALES + donde.sql() + " LIMIT :techo) t");
+    donde.enlazar(consulta);
+    Object contado = consulta.setParameter("techo", (long) techo + 1).getSingleResult();
+    return BoundedCount.de(((Number) contado).longValue(), techo);
+  }
+
+  /**
+   * Un predicado que crece solo con lo que viene, y sus parámetros. Misma forma que en auditoría.
+   */
+  private static final class Filtro {
+
+    private final StringBuilder donde = new StringBuilder("1 = 1");
+    private final Map<String, Object> parametros = new LinkedHashMap<>();
+
+    void condicion(String sql, String nombre, Object valor) {
+      donde.append(" AND ").append(sql);
+      parametros.put(nombre, valor);
+    }
+
+    /** Igualdad simple. Un valor nulo significa «sin filtro» y no añade nada. */
+    void igual(String columna, String nombre, Object valor) {
+      if (valor != null) {
+        condicion(columna + " = :" + nombre, nombre, valor);
+      }
+    }
+
+    String sql() {
+      return donde.toString();
+    }
+
+    void enlazar(Query consulta) {
+      parametros.forEach(consulta::setParameter);
+    }
+  }
+
   /** Las rebajas de todas las líneas del movimiento, por línea. Una consulta y no una por línea. */
   private Map<UUID, List<LineDiscountRow>> rebajasDe(UUID movementId) {
     List<Tuple> filas =

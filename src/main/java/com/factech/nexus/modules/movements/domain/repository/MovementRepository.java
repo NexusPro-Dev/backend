@@ -1,6 +1,7 @@
 package com.factech.nexus.modules.movements.domain.repository;
 
 import com.factech.nexus.modules.movements.domain.models.Movement;
+import com.factech.nexus.shared.pagination.BoundedCount;
 import java.math.BigDecimal;
 import java.time.OffsetDateTime;
 import java.util.Collection;
@@ -234,4 +235,77 @@ public interface MovementRepository {
 
   /** Una rebaja de una línea, tal como quedó. */
   record LineDiscountRow(String type, BigDecimal value, BigDecimal discountValue) {}
+
+  // ---------------------------------------------------------------------------
+  // `RF-MV-006` — todos los movimientos
+  // ---------------------------------------------------------------------------
+
+  /**
+   * La página de movimientos que cumplen el filtro, del más reciente al más antiguo.
+   *
+   * <p><b>Aquí no hay alcance dentro de la sentencia</b>, y esa es la diferencia con {@link
+   * #findMine}: la puerta es {@code movements:read} en el controlador, y esta consulta devuelve lo
+   * que el filtro deje. El sujeto y el vendedor son <b>filtros</b> y no el actor.
+   *
+   * <p><b>El vendedor se filtra con {@code EXISTS} sobre las líneas y no con {@code JOIN}</b>, por
+   * lo mismo que en el listado propio: un {@code JOIN} multiplicaría el movimiento por sus líneas,
+   * y una compra de paquete tiene varias con el mismo vendedor.
+   */
+  List<MovementRow> findAll(MovementFilter filter, int offset, int limit);
+
+  /**
+   * Cuántos cumplen el filtro, <b>acotado</b>.
+   *
+   * <p>Exacto hasta {@code techo} y «más de {@code techo}» por encima, como los cuatro registros de
+   * auditoría y al revés que {@link #countMine}: allí se cuenta el conjunto de una persona; aquí,
+   * la tabla entera, y un {@code COUNT(*)} exacto sin filtros es un recorrido completo por página.
+   * <b>El predicado es el mismo que el de {@link #findAll}</b>, escrito una vez.
+   */
+  BoundedCount countAll(MovementFilter filter, int techo);
+
+  /**
+   * Lo que acota el listado global. Todo opcional; nulo significa «sin acotar por esto».
+   *
+   * <p><b>Vive en el puerto y no en {@code application}</b>: es lo que el adaptador necesita para
+   * escribir el predicado, y la petición HTTP lo produce. Al revés, el adaptador tendría que
+   * conocer la forma de la petición.
+   *
+   * @param code ya en mayúsculas: la comparación es por igualdad, para que la responda {@code
+   *     uq_movements_code}
+   * @param from inclusive, sobre {@code occurred_at}
+   * @param to exclusive, sobre {@code occurred_at}
+   */
+  record MovementFilter(
+      String status,
+      UUID userId,
+      UUID sellerId,
+      UUID paymentMethodId,
+      String code,
+      OffsetDateTime from,
+      OffsetDateTime to) {}
+
+  /**
+   * Una fila del listado global: la cabecera con su tipo y su confirmación, <b>sin papel</b>.
+   *
+   * <p>Es un registro distinto de {@link MyMovementRow} porque son dos contratos que cambian por
+   * motivos distintos (`plan.md` §3). Los vendedores se piden aparte con {@link #findSellersOf},
+   * igual que allí.
+   */
+  record MovementRow(
+      UUID id,
+      String code,
+      String type,
+      String status,
+      UUID userId,
+      String userUsername,
+      String userFirstName,
+      String userLastName,
+      UUID currencyId,
+      String currencyCode,
+      String paymentMethod,
+      BigDecimal totalAmount,
+      BigDecimal discountAmount,
+      BigDecimal payableAmount,
+      OffsetDateTime occurredAt,
+      OffsetDateTime confirmedAt) {}
 }

@@ -1,0 +1,21 @@
+-- ---------------------------------------------------------------------------
+-- V15 — el índice del libro por fecha (RF-MV-006, 17-09-2026).
+--
+-- El listado global de movimientos ordena la tabla ENTERA por occurred_at
+-- descendente y se queda con una página. Sin índice, cada página es un
+-- recorrido completo con ordenamiento parcial en memoria, y crece con el
+-- libro: el síntoma no sería un fallo sino lentitud creciente, que es la
+-- clase de defecto que nadie descubre hasta que duele.
+--
+-- Los dos índices de RF-MV-008 (ix_movements_user, ix_movement_details_seller)
+-- no sirven porque los dos empiezan por una persona. Este empieza por la fecha
+-- y lleva el desempate por `id` que la sentencia usa: el motor lee el índice en
+-- orden y para en el LIMIT, sin ordenar nada.
+--
+-- El estado y el método de pago NO llevan índice, a propósito: cardinalidad
+-- baja y sin evidencia de que haga falta. El disparador de revisión está en
+-- plan.md §10 de RF-MV-006 — el día que «¿qué está pendiente?» tarde, el índice
+-- es (status, occurred_at DESC) parcial sobre PENDIENTE.
+-- ---------------------------------------------------------------------------
+
+CREATE INDEX ix_movements_occurred_at ON movements (occurred_at DESC, id DESC);

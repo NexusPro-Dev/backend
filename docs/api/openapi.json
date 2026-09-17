@@ -1338,6 +1338,89 @@
         },
         "type" : "object"
       },
+      "MovementCurrency" : {
+        "properties" : {
+          "code" : {
+            "type" : "string"
+          },
+          "id" : {
+            "format" : "uuid",
+            "type" : "string"
+          }
+        },
+        "type" : "object"
+      },
+      "MovementParty" : {
+        "properties" : {
+          "id" : {
+            "format" : "uuid",
+            "type" : "string"
+          },
+          "name" : {
+            "type" : "string"
+          },
+          "username" : {
+            "type" : "string"
+          }
+        },
+        "type" : "object"
+      },
+      "MovementSummary" : {
+        "description" : "Un movimiento del libro, visto desde administración.",
+        "properties" : {
+          "code" : {
+            "type" : "string"
+          },
+          "confirmedAt" : {
+            "description" : "Cuándo entró el dinero. Presente solo en las confirmadas; NULO en las demás.",
+            "format" : "date-time",
+            "type" : [ "string", "null" ]
+          },
+          "currency" : {
+            "$ref" : "#/components/schemas/MovementCurrency"
+          },
+          "discountAmount" : {
+            "type" : "number"
+          },
+          "id" : {
+            "format" : "uuid",
+            "type" : "string"
+          },
+          "occurredAt" : {
+            "description" : "Cuándo ocurrió el hecho.",
+            "format" : "date-time",
+            "type" : "string"
+          },
+          "payableAmount" : {
+            "type" : "number"
+          },
+          "paymentMethod" : {
+            "type" : "string"
+          },
+          "sellers" : {
+            "description" : "Los vendedores de sus líneas, sin repetir. Hoy una venta lleva uno; la lista va VACÍA —nunca nula— en los movimientos que no tienen vendedor.",
+            "items" : {
+              "$ref" : "#/components/schemas/MovementParty"
+            },
+            "type" : "array"
+          },
+          "status" : {
+            "type" : "string"
+          },
+          "totalAmount" : {
+            "type" : "number"
+          },
+          "type" : {
+            "description" : "El código del tipo de movimiento. Hoy, siempre `VENTA`.",
+            "type" : "string"
+          },
+          "user" : {
+            "$ref" : "#/components/schemas/MovementParty",
+            "description" : "El SUJETO del movimiento: a nombre de quién es. En una venta, quien compra."
+          }
+        },
+        "type" : "object"
+      },
       "MyMovement" : {
         "description" : "Un movimiento en el que participa quien consulta.",
         "properties" : {
@@ -2093,6 +2176,36 @@
           "content" : {
             "items" : {
               "$ref" : "#/components/schemas/ErrorAuditItem"
+            },
+            "type" : "array"
+          },
+          "page" : {
+            "format" : "int32",
+            "type" : "integer"
+          },
+          "size" : {
+            "format" : "int32",
+            "type" : "integer"
+          },
+          "totalElements" : {
+            "format" : "int64",
+            "type" : "integer"
+          },
+          "totalIsExact" : {
+            "type" : "boolean"
+          },
+          "totalPages" : {
+            "format" : "int32",
+            "type" : "integer"
+          }
+        },
+        "type" : "object"
+      },
+      "PageResponseMovementSummary" : {
+        "properties" : {
+          "content" : {
+            "items" : {
+              "$ref" : "#/components/schemas/MovementSummary"
             },
             "type" : "array"
           },
@@ -6360,6 +6473,107 @@
       }
     },
     "/api/v1/movements" : {
+      "get" : {
+        "description" : "Devuelve **todos los movimientos del libro**, de quien sean, paginados y del más\nreciente al más antiguo. Es la lectura de administración: exige `movements:read`,\ny con él se ve todo — quien no lo tiene recibe `403` aunque tenga movimientos\npropios, que se consultan por `/mine`.\n\n**Los filtros se combinan** y responden una pregunta de operación cada uno:\n`status` (qué está pendiente de confirmar), `userId` (qué compró esta persona —el\nSUJETO, a nombre de quién es—), `sellerId` (qué vendió esta persona, como vendedora\nde **alguna de sus líneas**; una venta con varias líneas suyas aparece **una vez**),\n`paymentMethodId` (qué entró por un medio de pago), `code` (un comprobante exacto,\nsin distinguir mayúsculas) y `from`/`to` sobre **cuándo ocurrió**. `from` y `to` son\ninstantes con zona horaria y el rango es **semiabierto** —incluye `from`, excluye\n`to`—. Un `userId`, `sellerId` o `paymentMethodId` que no exista da una página vacía;\nun `status` que no exista es `400`.\n\n**Cada fila lleva el tipo de movimiento** (`type`, hoy siempre `VENTA`), el sujeto\n(`user`), los vendedores de sus líneas sin repetir (`sellers`, lista nunca nula y\nvacía cuando no hay ninguno), y **cuándo se confirmó** (`confirmedAt`): presente en\nlas confirmadas y **nulo** en las demás. No lleva `role` —quien administra no\nparticipa en lo que mira— ni las líneas, que son del detalle.\n\n**El total puede no ser exacto.** El libro crece sin límite, y por encima del techo\nde conteo `totalElements` vale el techo y `totalIsExact` es `false`: hay «más de N»\ny conviene acotar. El orden es fijo y no se puede cambiar.\n",
+        "operationId" : "todos",
+        "parameters" : [ {
+          "in" : "query",
+          "name" : "page",
+          "required" : false,
+          "schema" : {
+            "format" : "int32",
+            "type" : "integer"
+          }
+        }, {
+          "in" : "query",
+          "name" : "size",
+          "required" : false,
+          "schema" : {
+            "format" : "int32",
+            "type" : "integer"
+          }
+        }, {
+          "in" : "query",
+          "name" : "status",
+          "required" : false,
+          "schema" : {
+            "type" : "string"
+          }
+        }, {
+          "in" : "query",
+          "name" : "userId",
+          "required" : false,
+          "schema" : {
+            "format" : "uuid",
+            "type" : "string"
+          }
+        }, {
+          "in" : "query",
+          "name" : "sellerId",
+          "required" : false,
+          "schema" : {
+            "format" : "uuid",
+            "type" : "string"
+          }
+        }, {
+          "in" : "query",
+          "name" : "paymentMethodId",
+          "required" : false,
+          "schema" : {
+            "format" : "uuid",
+            "type" : "string"
+          }
+        }, {
+          "in" : "query",
+          "name" : "code",
+          "required" : false,
+          "schema" : {
+            "type" : "string"
+          }
+        }, {
+          "in" : "query",
+          "name" : "from",
+          "required" : false,
+          "schema" : {
+            "format" : "date-time",
+            "type" : "string"
+          }
+        }, {
+          "in" : "query",
+          "name" : "to",
+          "required" : false,
+          "schema" : {
+            "format" : "date-time",
+            "type" : "string"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/PageResponseMovementSummary"
+                }
+              }
+            },
+            "description" : "La página de movimientos."
+          },
+          "400" : {
+            "description" : "Paginación inválida, estado no admitido (`VAL-002`), identificador malformado (`VAL-001`) o `from` posterior a `to` (`VAL-004`). Los problemas se devuelven juntos."
+          },
+          "401" : {
+            "description" : "Token ausente o inválido (`AUTH-001`)"
+          },
+          "403" : {
+            "description" : "Sin el permiso `movements:read`, tenga o no movimientos propios."
+          },
+          "500" : {
+            "description" : "Fallo no controlado (`ERR-500`)"
+          }
+        },
+        "summary" : "Consultar todos los movimientos",
+        "tags" : [ "Movimientos" ]
+      },
       "post" : {
         "description" : "Deja constancia de **qué le vendió la empresa a alguien**, como un hecho que\n**todavía no está pagado**. `userId` es **a nombre de quién** es la venta —quien\ncompra—, nunca quien la registra desde oficina.\n\n**La venta nace `PENDIENTE`, y eso significa que no concede nada.** No sube de\nnivel a nadie, no habilita ninguna cuenta y no comisiona: registrar una venta\n**no cambia absolutamente nada fuera de este módulo**. Confirmarla es otra\noperación.\n\n**El precio no se envía: se toma del catálogo.** Se indica qué productos y\ncuántos, nunca cuánto cuestan — un precio que llegara en la petición sería un\ndescuento sin autorización y sin rastro. Tampoco se envían la moneda, la\nvigencia ni el vendedor: la moneda y la vigencia salen del producto, y **el\nvendedor sale de quien compra** —su superior vigente, o **él mismo** si no cuelga\nde nadie— y se congela **en cada línea** (`lines[].seller`). En una venta ninguna\nlínea viene sin vendedor.\n\n**Lo copiado queda congelado.** Corregir mañana el precio de un producto, o\nreasignar al comprador a otro agente, no cambia lo que se vendió hoy.\n\n**Esta entrada no aplica descuentos.** Cada línea trae su descuento (`lineDiscount`,\nhoy cero), las rebajas que lo explican (`discounts`, hoy vacía) y el paquete del que\nsalió (`packageId`, hoy nulo); la cabecera es la suma de las líneas en las tres\ncifras. La primera entrada que rebaje será la compra de paquetes.\n\nReglas de composición: **como mucho un upgrade** por venta y con cantidad uno,\nsin productos repetidos y todas las líneas en la misma moneda.\n",
         "operationId" : "registrar_3",

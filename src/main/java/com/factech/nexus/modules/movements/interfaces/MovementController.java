@@ -1,10 +1,13 @@
 package com.factech.nexus.modules.movements.interfaces;
 
+import com.factech.nexus.modules.movements.application.ListMovementsRequest;
+import com.factech.nexus.modules.movements.application.MovementResponse;
 import com.factech.nexus.modules.movements.application.MyMovementResponse;
 import com.factech.nexus.modules.movements.application.MyMovementsRequest;
 import com.factech.nexus.modules.movements.application.RegisterSaleRequest;
 import com.factech.nexus.modules.movements.application.SaleResponse;
 import com.factech.nexus.modules.movements.domain.service.GetMyMovementService;
+import com.factech.nexus.modules.movements.domain.service.ListMovementsService;
 import com.factech.nexus.modules.movements.domain.service.ListMyMovementsService;
 import com.factech.nexus.modules.movements.domain.service.RegisterSaleService;
 import com.factech.nexus.shared.pagination.PageResponse;
@@ -15,6 +18,7 @@ import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import java.net.URI;
+import java.time.OffsetDateTime;
 import java.util.UUID;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
@@ -41,14 +45,94 @@ import org.springframework.web.bind.annotation.RestController;
 public class MovementController {
 
   private final RegisterSaleService alta;
+  private final ListMovementsService libro;
   private final ListMyMovementsService listado;
   private final GetMyMovementService detalle;
 
   public MovementController(
-      RegisterSaleService alta, ListMyMovementsService listado, GetMyMovementService detalle) {
+      RegisterSaleService alta,
+      ListMovementsService libro,
+      ListMyMovementsService listado,
+      GetMyMovementService detalle) {
     this.alta = alta;
+    this.libro = libro;
     this.listado = listado;
     this.detalle = detalle;
+  }
+
+  /**
+   * <b>La anotación de permiso es la única línea que separa esta operación de publicar el libro
+   * entero a cualquier autenticado</b> (`RF-MV-006` · `plan.md` §5). No hay alcance en la
+   * sentencia: aquí el sujeto y el vendedor son filtros, y lo que cierra la puerta es esto.
+   * `CA-MV-069` lo ejercita con un actor que sí tiene movimientos propios, y {@code
+   * EndpointPermissionsIT} es la segunda red.
+   */
+  @GetMapping
+  @PreAuthorize("hasAuthority('movements:read')")
+  @Operation(
+      summary = "Consultar todos los movimientos",
+      description =
+          """
+          Devuelve **todos los movimientos del libro**, de quien sean, paginados y del más
+          reciente al más antiguo. Es la lectura de administración: exige `movements:read`,
+          y con él se ve todo — quien no lo tiene recibe `403` aunque tenga movimientos
+          propios, que se consultan por `/mine`.
+
+          **Los filtros se combinan** y responden una pregunta de operación cada uno:
+          `status` (qué está pendiente de confirmar), `userId` (qué compró esta persona —el
+          SUJETO, a nombre de quién es—), `sellerId` (qué vendió esta persona, como vendedora
+          de **alguna de sus líneas**; una venta con varias líneas suyas aparece **una vez**),
+          `paymentMethodId` (qué entró por un medio de pago), `code` (un comprobante exacto,
+          sin distinguir mayúsculas) y `from`/`to` sobre **cuándo ocurrió**. `from` y `to` son
+          instantes con zona horaria y el rango es **semiabierto** —incluye `from`, excluye
+          `to`—. Un `userId`, `sellerId` o `paymentMethodId` que no exista da una página vacía;
+          un `status` que no exista es `400`.
+
+          **Cada fila lleva el tipo de movimiento** (`type`, hoy siempre `VENTA`), el sujeto
+          (`user`), los vendedores de sus líneas sin repetir (`sellers`, lista nunca nula y
+          vacía cuando no hay ninguno), y **cuándo se confirmó** (`confirmedAt`): presente en
+          las confirmadas y **nulo** en las demás. No lleva `role` —quien administra no
+          participa en lo que mira— ni las líneas, que son del detalle.
+
+          **El total puede no ser exacto.** El libro crece sin límite, y por encima del techo
+          de conteo `totalElements` vale el techo y `totalIsExact` es `false`: hay «más de N»
+          y conviene acotar. El orden es fijo y no se puede cambiar.
+          """)
+  @ApiResponses({
+    @ApiResponse(responseCode = "200", description = "La página de movimientos."),
+    @ApiResponse(
+        responseCode = "400",
+        description =
+            "Paginación inválida, estado no admitido (`VAL-002`), identificador malformado"
+                + " (`VAL-001`) o `from` posterior a `to` (`VAL-004`). Los problemas se"
+                + " devuelven juntos.",
+        content = @Content),
+    @ApiResponse(
+        responseCode = "401",
+        description = "Token ausente o inválido (`AUTH-001`)",
+        content = @Content),
+    @ApiResponse(
+        responseCode = "403",
+        description = "Sin el permiso `movements:read`, tenga o no movimientos propios.",
+        content = @Content),
+    @ApiResponse(
+        responseCode = "500",
+        description = "Fallo no controlado (`ERR-500`)",
+        content = @Content)
+  })
+  public PageResponse<MovementResponse> todos(
+      @RequestParam(required = false) Integer page,
+      @RequestParam(required = false) Integer size,
+      @RequestParam(required = false) String status,
+      @RequestParam(required = false) UUID userId,
+      @RequestParam(required = false) UUID sellerId,
+      @RequestParam(required = false) UUID paymentMethodId,
+      @RequestParam(required = false) String code,
+      @RequestParam(required = false) OffsetDateTime from,
+      @RequestParam(required = false) OffsetDateTime to) {
+    return libro.list(
+        new ListMovementsRequest(
+            page, size, status, userId, sellerId, paymentMethodId, code, from, to));
   }
 
   @Operation(
