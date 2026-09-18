@@ -5,7 +5,7 @@
 | Módulo | `AC` — Academia |
 | Paquete | `modules/academy` |
 | Prefijos de permiso | `course-categories:`, `courses:` |
-| Versión | 0.6.0 |
+| Versión | 0.7.0 |
 | Estado | **Borrador** |
 | Responsable | Bonilla Diaz William Steven |
 | Fecha de creación | 17-09-2026 |
@@ -240,16 +240,16 @@ Se descartó **HTML del editor** porque obliga a sanear en el backend con una bi
 | `RF-AC-003` | Consultar el detalle de una categoría | Categorías | Media | `course-categories:read` | **En desarrollo** (17-09-2026) |
 | `RF-AC-004` | Editar categoría | Categorías | Alta | `course-categories:update` | **En desarrollo** (17-09-2026) |
 | `RF-AC-005` | Eliminar categoría | Categorías | Media | `course-categories:delete` | **En desarrollo** (17-09-2026) |
-| `RF-AC-006` | Subir o reemplazar la portada de una categoría | Portadas | Media | `course-categories:update` | Propuesto |
-| `RF-AC-007` | Quitar la portada de una categoría | Portadas | Baja | `course-categories:update` | Propuesto |
+| `RF-AC-006` | Subir o reemplazar la portada de una categoría | Portadas | Media | `course-categories:update` | **Tasks en revisión** (18-09-2026) |
+| `RF-AC-007` | Quitar la portada de una categoría | Portadas | Baja | `course-categories:update` | **Tasks en revisión** (18-09-2026) |
 | `RF-AC-008` | Registrar curso | Cursos | Alta | `courses:create` | **Tasks en revisión** (18-09-2026) |
 | `RF-AC-009` | Consultar cursos | Cursos | Alta | `courses:read` | **Tasks en revisión** (18-09-2026) |
 | `RF-AC-010` | Consultar el detalle de un curso | Cursos | Alta | `courses:read` | **Tasks en revisión** (18-09-2026) |
 | `RF-AC-011` | Editar curso | Cursos | Alta | `courses:update` | **Tasks en revisión** (18-09-2026) |
 | `RF-AC-012` | Cambiar el estado de un curso | Cursos | Alta | `courses:update` | **Tasks en revisión** (18-09-2026) |
 | `RF-AC-013` | Eliminar curso | Cursos | Media | `courses:delete` | **Tasks en revisión** (18-09-2026) |
-| `RF-AC-014` | Subir o reemplazar la portada de un curso | Portadas | Media | `courses:update` | Propuesto |
-| `RF-AC-015` | Quitar la portada de un curso | Portadas | Baja | `courses:update` | Propuesto |
+| `RF-AC-014` | Subir o reemplazar la portada de un curso | Portadas | Media | `courses:update` | **Tasks en revisión** (18-09-2026) |
+| `RF-AC-015` | Quitar la portada de un curso | Portadas | Baja | `courses:update` | **Tasks en revisión** (18-09-2026) |
 | `RF-AC-016` | Clasificar un curso en una categoría | Cursos | Alta | `courses:update` | **Tasks en revisión** (18-09-2026) |
 | `RF-AC-017` | Desclasificar un curso de una categoría | Cursos | Media | `courses:update` | **Tasks en revisión** (18-09-2026) |
 | `RF-AC-018` | Recomendar un curso previo | Cursos | Media | `courses:update` | **Tasks en revisión** (18-09-2026) |
@@ -260,13 +260,13 @@ Se descartó **HTML del editor** porque obliga a sanear en el backend con una bi
 | `RF-AC-023` | Editar módulo | Módulos | Alta | `courses:update` | **Tasks en revisión** (18-09-2026) |
 | `RF-AC-024` | Cambiar el estado de un módulo | Módulos | Alta | `courses:update` | **Tasks en revisión** (18-09-2026) |
 | `RF-AC-025` | Eliminar módulo | Módulos | Media | `courses:update` | **Tasks en revisión** (18-09-2026) |
-| `RF-AC-026` | Subir o reemplazar la portada de un módulo | Portadas | Baja | `courses:update` | Propuesto |
-| `RF-AC-027` | Quitar la portada de un módulo | Portadas | Baja | `courses:update` | Propuesto |
+| `RF-AC-026` | Subir o reemplazar la portada de un módulo | Portadas | Baja | `courses:update` | **Tasks en revisión** (18-09-2026) |
+| `RF-AC-027` | Quitar la portada de un módulo | Portadas | Baja | `courses:update` | **Tasks en revisión** (18-09-2026) |
 | `RF-AC-028` | Registrar lección | Lecciones | Alta | `courses:update` | **Tasks en revisión** (18-09-2026) |
 | `RF-AC-029` | Editar lección | Lecciones | Alta | `courses:update` | **Tasks en revisión** (18-09-2026) |
 | `RF-AC-030` | Cambiar el estado de una lección | Lecciones | Alta | `courses:update` | **Tasks en revisión** (18-09-2026) |
 | `RF-AC-031` | Eliminar lección | Lecciones | Media | `courses:update` | **Tasks en revisión** (18-09-2026) |
-| `RF-AC-032` | Obtener la imagen de una portada de academia, sin autenticación | Portadas | Alta | **Público** | Propuesto |
+| `RF-AC-032` | Obtener la imagen de una portada de academia, sin autenticación | Portadas | Alta | **Público** | **Tasks en revisión** (18-09-2026) |
 | `RF-AC-033` | Consultar el catálogo de cursos como alumno | Aula | Alta | `courses:learn` | Propuesto |
 | `RF-AC-034` | Consultar el detalle de un curso como alumno | Aula | Alta | `courses:learn` | Propuesto |
 | `RF-AC-035` | Consultar el contenido de una lección | Aula | Alta | `courses:learn` | Propuesto |
@@ -372,7 +372,7 @@ Baja lógica **con motivo** y registro de eliminación (Art. V.13). **No arrastr
 | Reglas aplicables | `RN-AC-004` |
 | Depende de | `RF-AC-001` |
 | Tripleta | `docs/specs/ac/006-subir-portada-categoria/` |
-| Estado | Propuesto |
+| Estado | **Tasks en revisión** (18-09-2026) |
 
 `RF-PM-014` aplicado a la categoría: un archivo `multipart/form-data`, comprobado por sus primeros bytes y su tamaño, guardado tal cual; si ya había portada, la nueva estrena identificador y la vieja se borra en la misma transacción. **Es el requerimiento que crea `academy_images`** y **el que mueve el detector de firma de `PM` a `shared/`** (§5.2.3), con la suite de `PM` en verde como condición.
 
@@ -387,9 +387,9 @@ Baja lógica **con motivo** y registro de eliminación (Art. V.13). **No arrastr
 | Reglas aplicables | `RN-AC-004` |
 | Depende de | `RF-AC-006` |
 | Tripleta | `docs/specs/ac/007-quitar-portada-categoria/` |
-| Estado | Propuesto |
+| Estado | **Tasks en revisión** (18-09-2026) |
 
-Suelta la imagen y la borra. **Nunca se rechaza**: la categoría siempre tiene color e icono. Sin portada, `204`, como `RF-PM-029`.
+Suelta la imagen y la borra. **Nunca se rechaza**: la categoría siempre tiene color e icono. Responde `200` con la categoría, como `RF-PM-029` con el paquete; sin portada, `200` sin escribir nada (precisado el 18-09-2026: decía `204`).
 
 #### `RF-AC-008` — Registrar curso
 
@@ -492,7 +492,7 @@ Baja lógica con motivo, **y arrastra**: todos sus módulos y lecciones vivos se
 | Reglas aplicables | `RN-AC-004` |
 | Depende de | `RF-AC-008`, `RF-AC-006` |
 | Tripleta | `docs/specs/ac/014-subir-portada-curso/` |
-| Estado | Propuesto |
+| Estado | **Tasks en revisión** (18-09-2026) |
 
 `RF-AC-006` aplicado al curso, sobre la misma tabla y el mismo detector. Sin condición, en cualquier estado.
 
@@ -507,7 +507,7 @@ Baja lógica con motivo, **y arrastra**: todos sus módulos y lecciones vivos se
 | Reglas aplicables | `RN-AC-004` |
 | Depende de | `RF-AC-014` |
 | Tripleta | `docs/specs/ac/015-quitar-portada-curso/` |
-| Estado | Propuesto |
+| Estado | **Tasks en revisión** (18-09-2026) |
 
 Suelta la imagen y la borra. **Nunca se rechaza**: el curso se pinta con el icono por omisión del sistema.
 
@@ -672,7 +672,7 @@ Baja lógica con motivo, **y arrastra sus lecciones** con el mismo motivo y un r
 | Reglas aplicables | `RN-AC-004` |
 | Depende de | `RF-AC-022`, `RF-AC-006` |
 | Tripleta | `docs/specs/ac/026-subir-portada-modulo/` |
-| Estado | Propuesto |
+| Estado | **Tasks en revisión** (18-09-2026) |
 
 `RF-AC-006` aplicado al módulo.
 
@@ -687,7 +687,7 @@ Baja lógica con motivo, **y arrastra sus lecciones** con el mismo motivo y un r
 | Reglas aplicables | `RN-AC-004` |
 | Depende de | `RF-AC-026` |
 | Tripleta | `docs/specs/ac/027-quitar-portada-modulo/` |
-| Estado | Propuesto |
+| Estado | **Tasks en revisión** (18-09-2026) |
 
 Suelta la imagen y la borra. Nunca se rechaza.
 
@@ -762,7 +762,7 @@ Baja lógica con motivo y registro. No arrastra nada: no hay nada debajo.
 | Reglas aplicables | `RN-AC-004` |
 | Depende de | `RF-AC-006` |
 | Tripleta | `docs/specs/ac/032-imagen-de-portada-academia-publica/` |
-| Estado | Propuesto |
+| Estado | **Tasks en revisión** (18-09-2026) |
 
 `RF-PM-016` sobre `academy_images`: `GET /api/v1/academy-images/{id}`, los bytes con su `Content-Type` real, **caché inmutable** de un año —la dirección no cambia nunca porque cada subida estrena identificador—, `404` si no existe, y la misma cota de tasa y la misma entrada en la lista pública de `SecurityConfig` que su hermana de `PM`. **No dice de qué entidad es la portada**, y no hace falta.
 
@@ -1011,3 +1011,4 @@ Clave primaria compuesta. **La clave foránea a `memberships` se declara** hacia
 | 0.4.0 | 18-09-2026 | **Las seis tripletas de Cursos quedan redactadas** (`RF-AC-008` a `RF-AC-013`, bloque 2 de §6.1) y pasan a `Tasks en revisión`. Sin cambio de reglas, y **dos precisiones a §6.1 que este documento asume**: `CourseOfferability` —el objeto de `RN-AC-015`— **nace en el bloque 2** con su orden completo y no en el 3, porque ya puede decidir dos de sus cuatro motivos y la respuesta del alta necesita `offerableReason` desde el primer día; y **`RF-AC-012` se construye en el bloque 2** aunque ningún curso pueda activarse hasta que existan módulos, con su criterio bloqueado y declarado. **Una pregunta abierta para el responsable del proyecto**, escrita en `RF-AC-011` §14.1: `RN-AC-015` no lista las descripciones entre sus motivos, de modo que un curso activo que se queda sin descripción sigue ofreciéndose; si debe ocultarse, es un motivo más en la regla —como «sin descripción» en el paquete de `PM`— y no una desactivación. | Responsable del proyecto |
 | 0.5.0 | 18-09-2026 | **Las ocho tripletas de Módulos y lecciones quedan redactadas** (bloque 3 de §6.1) y pasan a `Tasks en revisión`. Sin cambio de reglas, y **tres precisiones que este documento asume**: las escrituras sobre módulos y lecciones **devuelven la pieza y no el curso** —§2 decía que no tienen listado propio, y siguen sin tenerlo: el detalle del curso trae el árbol, y cada pieza tiene su forma para sus propias escrituras—; **la auditoría de cambios de una lección lleva `content_length`** y solo la de eliminación el contenido entero; y `RF-AC-025` y `RF-AC-031` van con `courses:update` como §7 declara. **Dos huecos para el responsable del proyecto**, escritos en `RF-AC-029` §14: `RN-AC-015` no mira el contenido —una lección activa vacía se enseña vacía, como el curso sin descripción (v0.4.0)—, y **ningún requerimiento permite a administración leer el contenido de una lección sin editarla**: o el detalle del módulo lo trae, o nace un `GET` de lección con `courses:read`. | Responsable del proyecto |
 | 0.6.0 | 18-09-2026 | **Las seis tripletas de Relaciones quedan redactadas** (`RF-AC-016` a `RF-AC-021`, bloque 4 de §6.1) y pasan a `Tasks en revisión`. **Una precisión a `RN-AC-010`**: la auditoría de dar y quitar una relación es la de la fila —`CREATE` al dar, `ASSOCIATION` sin motivo al quitar, con el curso como entidad— y no un `UPDATE` del curso con la lista antes y después, que crecería con cada categoría y diría lo mismo peor; vale para las tres relaciones. Las tripletas fijan además que el otro lado de la pareja que no sirve —categoría retirada, membresía inexistente, curso recomendado retirado— es `422` y no `404`, porque viene en el cuerpo y no en la ruta; que el `409` de la pareja repetida **nombra** el otro lado; y que el recomendado **no se bloquea**. Con el bloque 4, `RN-AC-015` tiene sus cuatro motivos construibles. | Responsable del proyecto |
+| 0.7.0 | 18-09-2026 | **Las siete tripletas de Portadas quedan redactadas** (bloque 5 de §6.1) y pasan a `Tasks en revisión`. Sin cambio de reglas. **Dos precisiones**: quitar una portada responde `200` con la entidad —como `RF-PM-029`— y no `204` como decía la ficha de `RF-AC-007`; y **las seis restricciones de las tres columnas `cover_image_id`** que §8.9 declara llegan todas con la migración de `academy_images` (`RF-AC-006`), porque las columnas nacieron antes que la tabla. §5.2.3 se cumple tal como se escribió: tabla propia, detector compartido — `ImageSignature` y `CambioDePortada` pasan a `shared/images`, y `DeletionReason` se les adelantó el 17-09-2026. | Responsable del proyecto |
