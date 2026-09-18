@@ -9,6 +9,7 @@
 | Aprobada por | Responsable del proyecto |
 | Fecha de aprobación | 22-08-2026 |
 | Enmendada | 10-09-2026 — el equipo se **filtra por códigos de rol** y cada persona lleva **la lista completa de sus roles** en lugar de un `roleCode` único. `CA-SP-455` queda **invertido**; entran `CA-SP-624` a `CA-SP-628`; se rehace la resolución 3 de §14 |
+| Enmendada | 18-09-2026 — **la cartera sale del equipo**: el cliente deja de colgar de `user_supervisors` (`RN-SP-028` revertida) y el equipo vuelve a ser solo fuerza comercial. `CA-SP-625` queda **invertido** en `CA-SP-696`; `roles` y su filtro se conservan; «los clientes de un vendedor» pasa a `RF-SP-061` (renumerado el 21-09-2026; nació como `RF-SP-060`). Lo construye `RF-SP-059` |
 
 ---
 
@@ -161,7 +162,8 @@ Conviene dejarlo escrito de forma explícita, por el mismo motivo que lo hace `R
 | `CA-SP-454` | La respuesta **no** contiene ningún conteo de la rama indirecta, ni siquiera como número agregado |
 | `CA-SP-455` | **Invertido el 10-09-2026.** La consulta **sí** admite un filtro por códigos de rol sobre el equipo directo, y **sigue sin admitir** ningún otro: un `search` o un `status` no cambian el resultado |
 | `CA-SP-624` | Cada persona de la respuesta —la consultada, su superior y cada miembro del equipo— lleva **la lista completa de sus roles**, con identificador, código y nombre, ordenada por código y **presente aunque vaya vacía**. La respuesta **ya no publica un rol único** |
-| `CA-SP-625` | Un cliente de la cartera llega con **su rol a la vista** y no en nulo, que es lo que permite distinguirlo de un vendedor sin rol |
+| `CA-SP-625` | **Invertido el 18-09-2026** en `CA-SP-696`. Decía: «un cliente de la cartera llega con su rol a la vista y no en nulo, que es lo que permite distinguirlo de un vendedor sin rol» — y desde `V20` no hay cliente que llegue |
+| `CA-SP-696` | Consultar el equipo de un vendedor que registró clientes devuelve **solo** a sus vendedores directos: los clientes **no aparecen**, y `roles=CLIENTE` devuelve el equipo vacío con `200` |
 | `CA-SP-626` | El filtro por un solo código devuelve **solo** a quienes lo portan, y el total del equipo **cuenta lo filtrado** |
 | `CA-SP-627` | Varios códigos se combinan con **O**: entra quien porte alguno, y **quien porte dos no aparece dos veces** |
 | `CA-SP-628` | Un código de rol inexistente devuelve el equipo vacío con `200`, **no un error**; y ni el superior ni la persona consultada se ven afectados por el filtro |

@@ -25,6 +25,10 @@ Todo su diseño consiste en **mantenerse pequeña**. Las cuatro preguntas abiert
 
 **Una de las cuatro se rehízo el 10-09-2026: el equipo se filtra por rol** (§4, §8.bis). No se relajó por tener los datos a mano —que es justo lo que el párrafo anterior teme—, sino porque **cambió lo que la estructura contiene**: cuando se decidió que no habría filtros, `user_supervisors` relacionaba vendedores entre sí; desde `RF-SP-045` contiene también la cartera de clientes de cada agente. La pregunta «de la gente que cuelga de este, enséñame solo los clientes» no existía entonces y `RF-SP-025` **no sabe responderla**. Las otras tres siguen intactas, y el filtro se acota al rol precisamente para que la relajación no se extienda sola.
 
+!!! warning "Enmendado el 18-09-2026: la cartera sale del equipo, sin tocar este código"
+
+    Por decisión del responsable del proyecto (`RN-SP-028` revertida; `RF-SP-059`). El cliente deja de colgar de `user_supervisors`, y esta lectura —que lee la tabla sin preguntar por el tipo de rol— **deja de devolverlo sin cambiar una línea**: la migración `V20` mueve las filas y el equipo vuelve a ser fuerza comercial. El filtro por `roles` y la lista de roles **se quedan**: perdieron el motivo que los trajo, no su utilidad. `CA-SP-625` se invierte en `CA-SP-696`, y la prueba la rehace `RF-SP-059 · T-15`.
+
 Lo único que exige diseño real es la paginación del equipo directo junto a un **total que no depende de la página**, porque ese total es el que tiene que coincidir con el que informan los tres rechazos de `RN-SP-022`. Si divergen, quien intenta dar de baja a alguien lee un número aquí y otro en el error, y deja de fiarse de los dos.
 
 ## 2. Cambios de esquema
@@ -235,7 +239,7 @@ El filtro por rol y la lista de roles **no dejan ningún documento como estaba**
 | `CA-SP-454` | API | **No** contiene ningún conteo de la rama indirecta |
 | `CA-SP-455` | API | **Invertido.** El filtro por rol **sí** se aplica, y `search` o `status` **no** cambian el resultado |
 | `CA-SP-624` | API | Cada persona lleva **la lista completa de sus roles**, y la respuesta **ya no publica un rol único** |
-| `CA-SP-625` | Integración | Un cliente de la cartera llega **con su rol a la vista**. Es la prueba que habría fallado antes del 10-09-2026 |
+| `CA-SP-696` | Integración | **Sustituye a `CA-SP-625` desde el 18-09-2026.** El equipo de un vendedor con clientes registrados **no los contiene**, y `roles=CLIENTE` devuelve vacío. Es la prueba inversa de la que habría fallado antes del 10-09-2026 |
 | `CA-SP-626` | API | Un código: solo quienes lo portan, y **el total cuenta lo filtrado** |
 | `CA-SP-627` | Integración | Dos códigos: semántica **O**, y **quien porta los dos aparece una sola vez** — la prueba que distingue `EXISTS` de un `JOIN` |
 | `CA-SP-628` | API | Código inexistente: equipo vacío con `200`; **el superior y la persona consultada salen igual** |

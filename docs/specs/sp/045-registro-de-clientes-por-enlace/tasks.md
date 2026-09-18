@@ -6,7 +6,7 @@
 | Especificación | [`spec.md`](spec.md) |
 | Plan | [`plan.md`](plan.md) |
 | `plan.md` aprobado el | 01-09-2026 |
-| Estado | **Construido el 09-09-2026** — `T-01` a `T-24` **Hecha** salvo `T-02`, que no hizo falta. Suite completa en verde: **1136** |
+| Estado | **Construido el 09-09-2026** — `T-01` a `T-24` **Hecha** salvo `T-02`, que no hizo falta. Suite completa en verde: **1136**. **Enmendado el 18-09-2026**: `T-02` deja de existir y la atribución cambia de tabla — lo construye `RF-SP-059 · T-08` |
 | Issue | Pendiente de crear |
 | Rama | `feature/registro-de-clientes-por-enlace` |
 | Aprobadas por | **Hecha el 09-09-2026** |
@@ -18,7 +18,7 @@
 | ID | Tarea | Depende de | Verificación | Estado |
 |---|---|---|---|---|
 | `T-01` | `V77` —planificada como `V49`, y el número se lo llevaron veintiocho migraciones desde el 01-09-2026—: `ck_users_status` sustituye `PENDIENTE` por `FTD_PENDIENTE`, y `UserStatus` con él | — | Ninguna fila cambia: el valor retirado no lo usa nadie. Migración en verde sobre base con datos | **Hecha el 09-09-2026** |
-| `T-02` | **`RN-SP-020` gana su rama de consumidor** en `CommercialStructure`: si el subordinado no porta rol vendedor, basta con que el superior porte **alguno** | — | Un cliente cuelga de un `AGENTE`, de un `DIRECTOR` y de un `MANAGER` por igual (`CL-007`); un funcionario sigue siendo rechazado. **Sin migración**: `user_supervisors` ya tiene la forma | **Pendiente** — no hizo falta para ESTE requerimiento: el registro asigna el superior directamente y no valida la cadena de roles. La necesita `RF-SP-041` el día que alguien cambie de vendedor a un cliente |
+| `T-02` | ~~**`RN-SP-020` gana su rama de consumidor** en `CommercialStructure`~~ | — | — | **Ya no existe** (18-09-2026): la rama de consumidor desapareció con el cliente de `user_supervisors` (`RN-SP-028` revertida). Nunca se construyó, y el día que un cliente «cambie de vendedor» ya no será una operación de esta estructura, porque el principal no se cambia (`RN-SP-049`) |
 | `T-03` | **`AuthUser.puedeEntrar()`** admite `FTD_PENDIENTE`, escrito como **lista explícita** de los estados que autentican | `T-01` | Prueba de que `INACTIVO` y `BLOQUEADO` **siguen sin poder**. Es el riesgo 1 del plan y la tarea más delicada del requerimiento | **Hecha el 09-09-2026** |
 | `T-04` | Enmienda a `RF-SP-028`: `ChangeUserStatusService` admite la salida de `FTD_PENDIENTE` a `ACTIVO` | `T-01` | `CA-SP-524`. Es la única salida mientras no haya webhook | **Hecha el 09-09-2026** |
 | `T-05` | **`SP` declara `RegistrableProductLookup`** y **`PM` lo implementa** — producto por código o identificador, con destino, vigencia y estado. **La dependencia va invertida a propósito**: al revés abriría el ciclo `SP` → `PM` → `SP` | — | La regla de ArchUnit sigue en verde, y `ProductCatalog` **no se toca**: la suite de `CM`, que lo consume, no cambia | **Hecha el 09-09-2026** |
@@ -78,7 +78,7 @@
 |---|---|---|---|---|
 | 1 | **`T-03` toca el inicio de sesión de todo el sistema.** Una regresión ahí no afecta a este requerimiento: afecta a `RF-SP-034` y `RF-SP-035`, es decir, a que alguien pueda entrar | 01-09-2026 | Responsable técnico | Abierto |
 | 2 | **`T-05` invierte la dirección de una dependencia entre módulos**, que es la primera vez que ocurre. Si se escribe como las otras tres —`PM` publicando— el resultado compila y **abre un ciclo** que solo detecta la regla de ArchUnit | 01-09-2026 | Responsable técnico | Abierto |
-| 5 | **Meter clientes en `user_supervisors` cambia el comportamiento de cuatro requerimientos ya implementados** sin tocarlos: `RF-SP-028`, `RF-SP-029` y `RF-SP-031` pasan a rechazar más, y `RF-SP-042` empieza a devolver clientes. Es la consecuencia de la unificación y hay que revisarla entera antes de dar el requerimiento por terminado | 01-09-2026 | Responsable técnico | Abierto |
+| ~~5~~ | ~~**Meter clientes en `user_supervisors` cambia el comportamiento de cuatro requerimientos ya implementados** sin tocarlos: `RF-SP-028`, `RF-SP-029` y `RF-SP-031` pasan a rechazar más, y `RF-SP-042` a devolver más~~ | 01-09-2026 | Responsable del proyecto | **Cerrado el 18-09-2026** — se revirtió: el cliente sale de `user_supervisors` (`RN-SP-028`, `RF-SP-059`) y los cuatro requerimientos vuelven a comportarse como antes del 01-09-2026. `CA-SP-525` y `CA-SP-526` se invierten en `CA-SP-698` y `CA-SP-699` |
 | 3 | El camino de **pago** queda rechazado por `EX-004` hasta que exista el área de Finanzas. No bloquea este requerimiento: bloquea su otra mitad | 01-09-2026 | Responsable del proyecto | Abierto |
 | 4 | La **confirmación del depósito** por webhook del bróker se construye más adelante (`RF-SP-054`). **Desde el 09-09-2026 tiene la mitad resuelta**: ya se sabe A QUIÉN confirmar, porque la cuenta de broker se declara en el propio registro (`RN-SP-042`). Hasta que exista, la salida de `FTD_PENDIENTE` es manual por `RF-SP-028` | 01-09-2026 | Responsable del proyecto | **Abierto** |
 
