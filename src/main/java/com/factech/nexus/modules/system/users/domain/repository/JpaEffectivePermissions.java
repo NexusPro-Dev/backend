@@ -23,6 +23,26 @@ import org.springframework.transaction.annotation.Transactional;
 @Repository
 public class JpaEffectivePermissions implements EffectivePermissions {
 
+  /**
+   * <b>Los roles que conceden</b>: vivos y {@code ACTIVO}, de una persona no retirada. Es la única
+   * definición de «portar un permiso» del sistema, y por eso es una constante y no una frase dentro
+   * de una consulta: {@link JpaPermissionHolderLookup} la reutiliza para responder a otro módulo
+   * (`RF-AC-008` · `T-03`), y si las dos consultas la escribieran por su cuenta, un rol inactivo
+   * podría conceder en una y no en la otra sin que nada fallara.
+   */
+  static final String ROLES_QUE_CONCEDEN =
+      """
+        FROM user_roles ur
+        JOIN roles r       ON r.id = ur.role_id
+        JOIN role_permissions rp ON rp.role_id = r.id
+        JOIN permissions p ON p.id = rp.permission_id
+        JOIN users u       ON u.id = ur.user_id
+       WHERE ur.user_id = :usuario
+         AND u.deleted_at IS NULL
+         AND r.deleted_at IS NULL
+         AND r.status = 'ACTIVO'
+      """;
+
   private final EntityManager em;
 
   public JpaEffectivePermissions(EntityManager em) {
@@ -48,19 +68,7 @@ public class JpaEffectivePermissions implements EffectivePermissions {
       return Optional.empty();
     }
     List<?> filas =
-        em.createNativeQuery(
-                """
-                SELECT DISTINCT p.code
-                  FROM user_roles ur
-                  JOIN roles r       ON r.id = ur.role_id
-                  JOIN role_permissions rp ON rp.role_id = r.id
-                  JOIN permissions p ON p.id = rp.permission_id
-                  JOIN users u       ON u.id = ur.user_id
-                 WHERE ur.user_id = :usuario
-                   AND u.deleted_at IS NULL
-                   AND r.deleted_at IS NULL
-                   AND r.status = 'ACTIVO'
-                """)
+        em.createNativeQuery("SELECT DISTINCT p.code " + ROLES_QUE_CONCEDEN)
             .setParameter("usuario", userId)
             .getResultList();
 
