@@ -5,7 +5,7 @@
 | Módulo | `AC` — Academia |
 | Paquete | `modules/academy` |
 | Prefijos de permiso | `course-categories:`, `courses:` |
-| Versión | 0.5.0 |
+| Versión | 0.6.0 |
 | Estado | **Borrador** |
 | Responsable | Bonilla Diaz William Steven |
 | Fecha de creación | 17-09-2026 |
@@ -154,7 +154,7 @@ La dependencia es **acíclica** y **de un solo módulo**: `AC` → `SP`. De `PM`
 | `RN-AC-007` | **La dificultad es una de tres** | Al registrar y al corregir un curso | `PRINCIPIANTE`, `INTERMEDIO` o `AVANZADO`, obligatoria. No es un orden ni una cadena: no hay «superior a», y un curso no exige haber visto los de la dificultad anterior. Es una etiqueta para que el alumno elija | Baja |
 | `RN-AC-008` | **Curso, módulo y lección nacen inactivos** | Al registrar | Los tres se registran `INACTIVO` (`RN-PM-012` por extensión): existen, no se ofrecen, y se publican con su cambio de estado. Es lo que permite armar un curso entero —módulos, lecciones, portadas— antes de que ningún alumno lo vea a medias. **La categoría no tiene estado**: está viva o retirada, y una categoría sin cursos ofrecidos simplemente sale vacía | Alta |
 | `RN-AC-009` | **No se publica lo que está vacío** | Al activar | **Una lección** no se activa sin contenido (`RN-AC-016`). **Un módulo** no se activa sin **al menos una lección `ACTIVA`** no retirada. **Un curso** no se activa sin **descripción corta y larga** y sin **al menos un módulo `ACTIVO`** no retirado. Las tres son la misma regla de `RN-PM-014` —no se ofrece lo que no se explica— mirada desde tres entidades, y las tres se comprueban **al activar y solo al activar**: desactivar nunca se rechaza, y **lo que después se vacía no desactiva nada** —retirar la última lección activa de un módulo activo deja el módulo `ACTIVO` y **no ofrecible**, y es `RN-AC-015` quien lo enseña—. El estado es lo que alguien decidió (`requirements/pm.md` §5.2.10) | Alta |
-| `RN-AC-010` | **La clasificación es libre y no se repite** | Al clasificar y al desclasificar | Un curso pertenece a **cero o más** categorías; la pareja curso–categoría **no se repite**; no se clasifica en una categoría **retirada** ni un curso **retirado**. Desclasificar **borra la fila**: la clasificación no es una entidad sino el valor de una relación, y no cabe en el Art. V.13 — la auditoría de cambios del curso conserva antes y después. **Un curso sin categoría se ofrece igual** (`RN-AC-015`): la categoría es un filtro del catálogo, no una condición | Media |
+| `RN-AC-010` | **La clasificación es libre y no se repite** | Al clasificar y al desclasificar | Un curso pertenece a **cero o más** categorías; la pareja curso–categoría **no se repite**; no se clasifica en una categoría **retirada** ni un curso **retirado**. Desclasificar **borra la fila**: la clasificación no es una entidad sino el valor de una relación, y no cabe en el Art. V.13 como baja lógica — cabe como **`ASSOCIATION`**: dar la pareja se audita como `CREATE` de la fila y quitarla como eliminación de asociación sin motivo, con el curso como entidad, que es el precedente de `RF-PM-023` y `RF-PM-025` (precisado el 18-09-2026). **Un curso sin categoría se ofrece igual** (`RN-AC-015`): la categoría es un filtro del catálogo, no una condición | Media |
 | `RN-AC-011` | **La recomendación es una sugerencia, no un candado** | Al recomendar y en el aula | «Antes de este curso conviene ver aquel» **se enseña y no impide nada**: el alumno entra al curso con o sin haber visto el recomendado, y el sistema **no sabría** si lo vio, porque no lleva progreso (§1.3). Un curso **no se recomienda a sí mismo**; la pareja **no se repite**; no se recomienda un curso **retirado**. **No se exige que sea acíclico**: `A` recomienda `B` y `B` recomienda `A` es una sugerencia tonta, no un estado inválido, y comprobar ciclos costaría un recorrido por cada alta para prohibir algo que no rompe nada. En el aula **solo se enseñan las recomendaciones cuyo curso se ofrece** (`RN-AC-015`); las demás se conservan y no se ven. Retirar la recomendación **borra la fila**, como la clasificación | Media |
 | `RN-AC-012` | **La visibilidad es una lista explícita, y sin lista nadie abre el curso** | Al dar y quitar visibilidad, y en el aula | Un curso declara **qué membresías lo abren**: una lista de membresías de `SP`, cada una existente (`MembershipCatalog`), **sin repetir**. **Es una lista y no un nivel mínimo**, por decisión del responsable del proyecto: un curso de `ORO` **no** lo abre `PLATINO` salvo que `PLATINO` esté en su lista, y quien quiera «este nivel y todos los superiores» los añade uno a uno. **Un curso sin ninguna membresía no se ofrece** (`RN-AC-015`) — ni entero ni sus lecciones abiertas—: es un curso que existe y no se enseña, como un producto de alcance `NINGUNO`. Quitar una membresía **borra la fila** | Alta |
 | `RN-AC-013` | **El curso se ve con sesión, y se abre con membresía** | En el aula | **Todo curso que se ofrece aparece en el catálogo de todo alumno** con `courses:learn`, tenga o no una membresía que lo abra: portada, título, instructor, dificultad, descripciones, video de introducción, categorías, recomendaciones, y **la lista de módulos y lecciones** con su título, tipo y duración. **El contenido de una lección se abre a quien tiene VIGENTE una de las membresías del curso** (`CurrentMembershipLookup`) **o a cualquiera si la lección está abierta** (`RN-AC-014`); a los demás se les niega con `403` diciendo **qué membresías lo abren**, que es la invitación a subir. Cada lectura del aula marca `accessible` en el curso y en cada lección, para que el frontend pinte el candado sin volver a preguntar (§1.4) | Alta |
@@ -250,12 +250,12 @@ Se descartó **HTML del editor** porque obliga a sanear en el backend con una bi
 | `RF-AC-013` | Eliminar curso | Cursos | Media | `courses:delete` | **Tasks en revisión** (18-09-2026) |
 | `RF-AC-014` | Subir o reemplazar la portada de un curso | Portadas | Media | `courses:update` | Propuesto |
 | `RF-AC-015` | Quitar la portada de un curso | Portadas | Baja | `courses:update` | Propuesto |
-| `RF-AC-016` | Clasificar un curso en una categoría | Cursos | Alta | `courses:update` | Propuesto |
-| `RF-AC-017` | Desclasificar un curso de una categoría | Cursos | Media | `courses:update` | Propuesto |
-| `RF-AC-018` | Recomendar un curso previo | Cursos | Media | `courses:update` | Propuesto |
-| `RF-AC-019` | Retirar una recomendación | Cursos | Baja | `courses:update` | Propuesto |
-| `RF-AC-020` | Dar visibilidad de un curso a una membresía | Cursos | Alta | `courses:update` | Propuesto |
-| `RF-AC-021` | Quitar la visibilidad de un curso a una membresía | Cursos | Media | `courses:update` | Propuesto |
+| `RF-AC-016` | Clasificar un curso en una categoría | Cursos | Alta | `courses:update` | **Tasks en revisión** (18-09-2026) |
+| `RF-AC-017` | Desclasificar un curso de una categoría | Cursos | Media | `courses:update` | **Tasks en revisión** (18-09-2026) |
+| `RF-AC-018` | Recomendar un curso previo | Cursos | Media | `courses:update` | **Tasks en revisión** (18-09-2026) |
+| `RF-AC-019` | Retirar una recomendación | Cursos | Baja | `courses:update` | **Tasks en revisión** (18-09-2026) |
+| `RF-AC-020` | Dar visibilidad de un curso a una membresía | Cursos | Alta | `courses:update` | **Tasks en revisión** (18-09-2026) |
+| `RF-AC-021` | Quitar la visibilidad de un curso a una membresía | Cursos | Media | `courses:update` | **Tasks en revisión** (18-09-2026) |
 | `RF-AC-022` | Registrar módulo | Módulos | Alta | `courses:update` | **Tasks en revisión** (18-09-2026) |
 | `RF-AC-023` | Editar módulo | Módulos | Alta | `courses:update` | **Tasks en revisión** (18-09-2026) |
 | `RF-AC-024` | Cambiar el estado de un módulo | Módulos | Alta | `courses:update` | **Tasks en revisión** (18-09-2026) |
@@ -522,7 +522,7 @@ Suelta la imagen y la borra. **Nunca se rechaza**: el curso se pinta con el icon
 | Reglas aplicables | `RN-AC-010`, `RN-AC-018` |
 | Depende de | `RF-AC-001`, `RF-AC-008` |
 | Tripleta | `docs/specs/ac/016-clasificar-curso/` |
-| Estado | Propuesto |
+| Estado | **Tasks en revisión** (18-09-2026) |
 
 Añade la pareja curso–categoría. Rechaza la repetida (`409`, nombrando la categoría), la categoría retirada y el curso retirado. Responde con el curso, como toda escritura sobre él.
 
@@ -537,7 +537,7 @@ Añade la pareja curso–categoría. Rechaza la repetida (`409`, nombrando la ca
 | Reglas aplicables | `RN-AC-010`, `RN-AC-018` |
 | Depende de | `RF-AC-016` |
 | Tripleta | `docs/specs/ac/017-desclasificar-curso/` |
-| Estado | Propuesto |
+| Estado | **Tasks en revisión** (18-09-2026) |
 
 Borra la fila. La auditoría de cambios del curso conserva antes y después. Una pareja que no existe devuelve `404`.
 
@@ -552,7 +552,7 @@ Borra la fila. La auditoría de cambios del curso conserva antes y después. Una
 | Reglas aplicables | `RN-AC-011`, `RN-AC-018` |
 | Depende de | `RF-AC-008` |
 | Tripleta | `docs/specs/ac/018-recomendar-curso/` |
-| Estado | Propuesto |
+| Estado | **Tasks en revisión** (18-09-2026) |
 
 Añade «antes de **este** conviene ver **aquel**». Rechaza recomendarse a sí mismo, la pareja repetida y el recomendado retirado. **No comprueba ciclos.** El recomendado puede estar `INACTIVO` o sin membresías: se conserva y **el aula no lo enseña** hasta que se ofrezca.
 
@@ -567,7 +567,7 @@ Añade «antes de **este** conviene ver **aquel**». Rechaza recomendarse a sí 
 | Reglas aplicables | `RN-AC-011` |
 | Depende de | `RF-AC-018` |
 | Tripleta | `docs/specs/ac/019-retirar-recomendacion/` |
-| Estado | Propuesto |
+| Estado | **Tasks en revisión** (18-09-2026) |
 
 Borra la fila. Una pareja que no existe devuelve `404`.
 
@@ -582,7 +582,7 @@ Borra la fila. Una pareja que no existe devuelve `404`.
 | Reglas aplicables | `RN-AC-012`, `RN-AC-015`, `RN-AC-018` |
 | Depende de | `RF-AC-008` |
 | Tripleta | `docs/specs/ac/020-dar-visibilidad-curso/` |
-| Estado | Propuesto |
+| Estado | **Tasks en revisión** (18-09-2026) |
 
 Añade la pareja curso–membresía. La membresía se resuelve contra `MembershipCatalog` (`404` si no existe); la repetida, `409`. **No exige que el curso esté activo**: la lista se arma antes de publicar. Responde con el curso y su lista resuelta —código, nombre, color—.
 
@@ -597,7 +597,7 @@ Añade la pareja curso–membresía. La membresía se resuelve contra `Membershi
 | Reglas aplicables | `RN-AC-012`, `RN-AC-015` |
 | Depende de | `RF-AC-020` |
 | Tripleta | `docs/specs/ac/021-quitar-visibilidad-curso/` |
-| Estado | Propuesto |
+| Estado | **Tasks en revisión** (18-09-2026) |
 
 Borra la fila. **Quitar la última nunca se rechaza**: el curso deja de ofrecerse y el detalle lo dice (`RN-AC-015`). Es la forma de retirar un curso de la vista de todos sin desactivarlo.
 
@@ -1010,3 +1010,4 @@ Clave primaria compuesta. **La clave foránea a `memberships` se declara** hacia
 | 0.3.0 | 17-09-2026 | **Las categorías están construidas** (`RF-AC-001` a `RF-AC-005`, `En desarrollo`): `V18` crea `course_categories` tal como §8.1 la declara —con `cover_image_id` nulable y sin clave foránea hasta `RF-AC-006`— y `V19` siembra los cuatro `course-categories:` de §7. Sin cambio de reglas. Dos precisiones que las tripletas fijaron al construir y que este documento no necesita enmendar: la descripción se acota a 1000 caracteres, como la del producto, y el motivo de retiro reparte `VAL-002`/`VAL-003` como `PM`, porque `DeletionReason` es ahora de `shared/audit` (§5.2.3 anticipaba el detector de imágenes como primer código compartido; el motivo se le adelantó). | Responsable técnico |
 | 0.4.0 | 18-09-2026 | **Las seis tripletas de Cursos quedan redactadas** (`RF-AC-008` a `RF-AC-013`, bloque 2 de §6.1) y pasan a `Tasks en revisión`. Sin cambio de reglas, y **dos precisiones a §6.1 que este documento asume**: `CourseOfferability` —el objeto de `RN-AC-015`— **nace en el bloque 2** con su orden completo y no en el 3, porque ya puede decidir dos de sus cuatro motivos y la respuesta del alta necesita `offerableReason` desde el primer día; y **`RF-AC-012` se construye en el bloque 2** aunque ningún curso pueda activarse hasta que existan módulos, con su criterio bloqueado y declarado. **Una pregunta abierta para el responsable del proyecto**, escrita en `RF-AC-011` §14.1: `RN-AC-015` no lista las descripciones entre sus motivos, de modo que un curso activo que se queda sin descripción sigue ofreciéndose; si debe ocultarse, es un motivo más en la regla —como «sin descripción» en el paquete de `PM`— y no una desactivación. | Responsable del proyecto |
 | 0.5.0 | 18-09-2026 | **Las ocho tripletas de Módulos y lecciones quedan redactadas** (bloque 3 de §6.1) y pasan a `Tasks en revisión`. Sin cambio de reglas, y **tres precisiones que este documento asume**: las escrituras sobre módulos y lecciones **devuelven la pieza y no el curso** —§2 decía que no tienen listado propio, y siguen sin tenerlo: el detalle del curso trae el árbol, y cada pieza tiene su forma para sus propias escrituras—; **la auditoría de cambios de una lección lleva `content_length`** y solo la de eliminación el contenido entero; y `RF-AC-025` y `RF-AC-031` van con `courses:update` como §7 declara. **Dos huecos para el responsable del proyecto**, escritos en `RF-AC-029` §14: `RN-AC-015` no mira el contenido —una lección activa vacía se enseña vacía, como el curso sin descripción (v0.4.0)—, y **ningún requerimiento permite a administración leer el contenido de una lección sin editarla**: o el detalle del módulo lo trae, o nace un `GET` de lección con `courses:read`. | Responsable del proyecto |
+| 0.6.0 | 18-09-2026 | **Las seis tripletas de Relaciones quedan redactadas** (`RF-AC-016` a `RF-AC-021`, bloque 4 de §6.1) y pasan a `Tasks en revisión`. **Una precisión a `RN-AC-010`**: la auditoría de dar y quitar una relación es la de la fila —`CREATE` al dar, `ASSOCIATION` sin motivo al quitar, con el curso como entidad— y no un `UPDATE` del curso con la lista antes y después, que crecería con cada categoría y diría lo mismo peor; vale para las tres relaciones. Las tripletas fijan además que el otro lado de la pareja que no sirve —categoría retirada, membresía inexistente, curso recomendado retirado— es `422` y no `404`, porque viene en el cuerpo y no en la ruta; que el `409` de la pareja repetida **nombra** el otro lado; y que el recomendado **no se bloquea**. Con el bloque 4, `RN-AC-015` tiene sus cuatro motivos construibles. | Responsable del proyecto |
