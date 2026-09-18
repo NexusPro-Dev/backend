@@ -17,7 +17,7 @@ Que **un nivel abra el curso**: añadir una membresía a la lista de las que lo 
 
 ## 2. Contexto
 
-Es la relación que decide **quién estudia** (`RN-AC-012`), y la decisión que la define se tomó el 17-09-2026 (`ac.md` §5.2.2): **una lista explícita y no un nivel mínimo**. Un curso de `ORO` no lo abre `PLATINO` salvo que `PLATINO` esté en su lista, y quien quiera «este nivel y los superiores» los añade uno a uno. **Sin lista, el curso no se ofrece** —ni entero ni sus lecciones abiertas— (`RN-AC-015`): es el tercer motivo de la ofrecibilidad, y este requerimiento es el que lo cierra. Con una membresía, un curso `ACTIVO` con un módulo ofrecible **se ofrece por primera vez**.
+Es la relación que decide **quién estudia** (`RN-AC-012`), y la decisión que la define se tomó el 17-09-2026 (`ac.md` §5.2.2): **una lista explícita y no un nivel mínimo**. Un curso de `ORO` no lo abre `PLATINO` salvo que `PLATINO` esté en su lista, y quien quiera «este nivel y los superiores» los añade uno a uno. **Sin lista, el curso no se ofrece** —ni entero ni sus lecciones abiertas— (`RN-AC-015`): es el cuarto motivo de la ofrecibilidad desde el 18-09-2026 —el tercero es «sin descripción»—, y este requerimiento es el que lo cierra. Con una membresía, un curso `ACTIVO` con un módulo ofrecible **se ofrece por primera vez**.
 
 La membresía es de `SP`, y se comprueba por la interfaz que `SP` publica desde el 27-08-2026 (`MembershipCatalog`, D-25). **No exige que el curso esté activo**: la lista se arma antes de publicar, como las categorías. Es el requerimiento que **crea `course_memberships`** y construye las enmiendas que declararon la visibilidad: `memberships` del detalle (`RF-AC-010`), `membership_ids` de la instantánea (`RF-AC-013`) y la cuenta de membresías de `CourseOfferability` (`RF-AC-008`).
 
@@ -142,3 +142,4 @@ La membresía es de `SP`, y se comprueba por la interfaz que `SP` publica desde 
 | Versión | Fecha | Cambio | Responsable |
 |---|---|---|---|
 | 0.1.0 | 18-09-2026 | Redacción inicial. La lista explícita de `ac.md` §5.2.2: membresía por `MembershipCatalog`, `422` si no existe, `409` que la nombra. **Cierra `RN-AC-015`** —con una membresía, un curso armado se ofrece por primera vez— y construye las enmiendas de `RF-AC-008`, `RF-AC-010` y `RF-AC-013`. | Responsable técnico |
+| 0.2.0 | 18-09-2026 | **Enmienda de Art. I.7 (18-09-2026)**: `RN-AC-015` gana dos motivos por decisión del responsable del proyecto —«sin descripción» en el curso y «sin contenido» en la lección—. «Sin membresías» pasa de tercer a **cuarto** motivo; nada más cambia. | Responsable técnico |

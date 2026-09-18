@@ -93,7 +93,7 @@ Es `RF-AC-004` para cursos y hereda entera su mecánica: parcial, el nulo explí
 
 ### FA-001 — Vaciar una descripción de un curso `ACTIVO`
 
-**Comportamiento:** se admite. El curso sigue `ACTIVO` y el detalle lo devuelve `offerable: false` diciendo por qué —cuando el motivo de las descripciones exista en el orden—; hoy `RN-AC-015` no mira las descripciones, y el curso sigue ofreciéndose hasta que `RF-AC-012` lo desactive. Se decide así a conciencia (§14.1).
+**Comportamiento:** se admite. El curso sigue `ACTIVO` y **deja de ofrecerse**: el detalle lo devuelve `offerable: false` con «sin descripción» —el tercer motivo de `RN-AC-015` desde el 18-09-2026— y el aula no lo enseña hasta que alguien la reponga (§14.1).
 
 ### FA-002 — Reasignar al mismo instructor
 
@@ -147,6 +147,7 @@ Todas se devuelven **juntas**, antes de cualquier consulta.
 | `CA-AC-061` | Reasignar el instructor comprueba `RN-AC-006`: `422` el inexistente, el retirado y el que no porta `courses:teach`; el que sí, queda con antes y después en la auditoría |
 | `CA-AC-062` | Un cuerpo sin cambios de valor —incluido reasignar al mismo instructor— responde `200` sin avanzar `updatedAt` ni auditar; uno con cambios deja la fila `UPDATE` con **solo** los campos que cambiaron |
 | `CA-AC-063` | Un video mal formado responde `400` junto a los demás errores, y uno bien formado se guarda sin seguirlo |
+| `CA-AC-214` | **Enmienda del 18-09-2026**: vaciar cualquiera de las dos descripciones de un curso `ACTIVO` y ofrecido lo deja `ACTIVO` con `offerable: false` y `offerableReason` «sin descripción», y reponerla lo devuelve a `offerable: true` sin tocar el estado; el aula lo comprueba desde `RF-AC-033` |
 
 ## 13. Casos límite
 
@@ -160,10 +161,11 @@ Todas se devuelven **juntas**, antes de cualquier consulta.
 
 | # | Pregunta | Resolución |
 |---|---|---|
-| 1 | ¿Vaciar una descripción de un curso activo lo desactiva? | **No.** El estado es lo que alguien decidió; `RN-AC-009` rige al activar. Y **hoy no lo saca de la oferta**: `RN-AC-015` no lista las descripciones entre sus motivos —el módulo lo decidió así el 17-09-2026, y el aula enseña lo que está `ACTIVO` con módulo y membresía—. Queda escrito que un curso activo puede quedarse sin descripción y seguir ofreciéndose; si el responsable del proyecto quiere que la descripción vacía lo oculte, es un motivo más en `RN-AC-015`, no una desactivación |
+| 1 | ¿Vaciar una descripción de un curso activo lo desactiva? | **No.** El estado es lo que alguien decidió; `RN-AC-009` rige al activar. **Pero lo saca de la oferta** desde el 18-09-2026: el responsable del proyecto decidió que «sin descripción» sea **un motivo más en `RN-AC-015`** —no una desactivación—, y el detalle lo dice como tercer motivo. Hasta ese día esta spec dejaba escrito que el curso seguía ofreciéndose vacío |
 
 ## 15. Control de cambios
 
 | Versión | Fecha | Cambio | Responsable |
 |---|---|---|---|
 | 0.1.0 | 18-09-2026 | Redacción inicial. Hereda `RF-AC-004` entera y añade **la reasignación del instructor con la comprobación del alta** y **el vaciado de descripciones y video en cualquier estado**. Deja escrito en §14.1 que hoy un curso activo sin descripción sigue ofreciéndose, porque `RN-AC-015` no lo lista como motivo. | Responsable técnico |
+| 0.2.0 | 18-09-2026 | **Enmienda de Art. I.7 (18-09-2026)**: `RN-AC-015` gana dos motivos por decisión del responsable del proyecto —«sin descripción» en el curso y «sin contenido» en la lección—. Se cierra la pregunta de §14.1 en el sentido de **sí lo saca de la oferta**: `FA-001` reescrito y **`CA-AC-214`** añadido; el estado sigue sin tocarse. | Responsable técnico |

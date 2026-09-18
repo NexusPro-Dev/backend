@@ -17,7 +17,7 @@ Corregir lo que se declaró de una lección —**incluido el tipo y el contenido
 
 ## 2. Contexto
 
-Es `RF-AC-023` con lo que la lección tiene y el módulo no: **el tipo, el contenido, la duración y `open`**. Lo que este requerimiento decide está en `RN-AC-016`: **el tipo se corrige, y el contenido resultante tiene que casar con el tipo resultante**. Pasar a `VIDEO` con un Markdown guardado y sin URL en la petición **se rechaza sin aplicar nada**; pasar a `TEXTO` con una URL guardada se admite —una URL es un texto—, y es raro pero no es un error. **El contenido se vacía con nulo explícito aunque la lección esté activa**: `RN-AC-009` rige al activar, y una lección activa sin contenido sigue activa y se enseña vacía hasta que alguien la corrija o desactive — es el mismo trato que el curso da a sus descripciones, y se acepta por lo mismo (§14.1).
+Es `RF-AC-023` con lo que la lección tiene y el módulo no: **el tipo, el contenido, la duración y `open`**. Lo que este requerimiento decide está en `RN-AC-016`: **el tipo se corrige, y el contenido resultante tiene que casar con el tipo resultante**. Pasar a `VIDEO` con un Markdown guardado y sin URL en la petición **se rechaza sin aplicar nada**; pasar a `TEXTO` con una URL guardada se admite —una URL es un texto—, y es raro pero no es un error. **El contenido se vacía con nulo explícito aunque la lección esté activa**: `RN-AC-009` rige al activar, y una lección activa sin contenido sigue activa y **deja de ofrecerse** hasta que alguien la reponga o la desactive — es el mismo trato que el curso da a sus descripciones desde el 18-09-2026 (§14.1).
 
 ## 3. Actores
 
@@ -99,7 +99,7 @@ Es `RF-AC-023` con lo que la lección tiene y el módulo no: **el tipo, el conte
 
 ### FA-003 — Vaciar el contenido de una lección `ACTIVA`
 
-**Comportamiento:** se admite. Sigue `ACTIVA`, se enseña vacía en el aula hasta que se corrija o desactive (§14.1).
+**Comportamiento:** se admite. Sigue `ACTIVA` y **no se ofrece**: el aula no la enseña, el módulo que solo la tenía a ella deja de ofrecerse y su detalle dice «sin lección activa con contenido» (§14.1).
 
 ## 10. Excepciones
 
@@ -134,6 +134,7 @@ Es `RF-AC-023` con lo que la lección tiene y el módulo no: **el tipo, el conte
 | `CA-AC-102` | El sistema rechaza con `400` un cuerpo vacío y uno con `moduleId`, `courseId` o `status`; con `409` un título de **otra** viva del módulo; con `404` una lección retirada, inexistente o **de otro módulo o curso** |
 | `CA-AC-103` | Un cuerpo sin cambios responde `200` sin auditar; uno con cambios deja la fila `UPDATE` con solo lo que cambió, y **el contenido se audita como longitud y no como texto** |
 | `CA-AC-104` | Cambiar `open` en los dos sentidos se aplica y se audita; **cambiar la duración cambia la del módulo y la del curso** en su siguiente lectura si la lección está activa |
+| `CA-AC-215` | **Enmienda del 18-09-2026**: vaciar el contenido de la única lección activa de un módulo ofrecido deja la lección `ACTIVA`, el módulo `ACTIVO` con `offerable: false` «sin lección activa con contenido» y el curso `offerable: false` por su último motivo; reponerlo devuelve los dos a `offerable: true`; el aula lo comprueba desde `RF-AC-034` |
 
 ## 13. Casos límite
 
@@ -147,11 +148,12 @@ Es `RF-AC-023` con lo que la lección tiene y el módulo no: **el tipo, el conte
 
 | # | Pregunta | Resolución |
 |---|---|---|
-| 1 | ¿Vaciar el contenido de una lección activa la desactiva? | **No.** Por lo mismo que las descripciones del curso (`RF-AC-011` §14.1): `RN-AC-009` rige al activar. **Lo que cuesta**: una lección activa y vacía **se enseña vacía en el aula**, porque `RN-AC-015` no mira el contenido —el módulo cuenta lecciones activas, no lecciones con contenido—. Es el mismo hueco que el de la descripción del curso, y la misma salida si el responsable del proyecto lo quiere cerrar: un motivo más en `RN-AC-015`, no una desactivación |
-| 2 | ¿Cómo lee administración el contenido sin editar? | **Hoy no puede**: el detalle del curso y el del módulo no lo traen (`RF-AC-010` §14.1), y esta operación exige al menos un campo. Es un hueco del catálogo de requerimientos —no de esta spec— que queda anotado para el responsable del proyecto: o el detalle del módulo lo trae, o nace un `GET` de lección con `courses:read` |
+| 1 | ¿Vaciar el contenido de una lección activa la desactiva? | **No.** Por lo mismo que las descripciones del curso (`RF-AC-011` §14.1): `RN-AC-009` rige al activar. **Pero deja de ofrecerse** desde el 18-09-2026: el responsable del proyecto decidió que «sin contenido» sea **un motivo más en `RN-AC-015`** —una lección se ofrece si está activa, viva y con contenido, y el módulo cuenta esas—, no una desactivación. Hasta ese día esta spec dejaba escrito que se enseñaba vacía |
+| 2 | ¿Cómo lee administración el contenido sin editar? | **Por `RF-AC-036`**, nacido el 18-09-2026 por decisión del responsable del proyecto: un `GET` de lección con `courses:read`, en la misma forma que esta corrección devuelve. Hasta ese día no podía: el detalle del curso y el del módulo no lo traen (`RF-AC-010` §14.1), y esta operación exige al menos un campo |
 
 ## 15. Control de cambios
 
 | Versión | Fecha | Cambio | Responsable |
 |---|---|---|---|
 | 0.1.0 | 18-09-2026 | Redacción inicial. Hereda `RF-AC-023` y añade **la pareja `(tipo, contenido)` resultante**, validada antes de aplicar nada, y el vaciado del contenido en cualquier estado. Deja escritos dos huecos para el responsable del proyecto (§14): la lección activa y vacía se enseña vacía, y administración no tiene cómo leer el contenido sin editar. | Responsable técnico |
+| 0.2.0 | 18-09-2026 | **Enmienda de Art. I.7 (18-09-2026)**: `RN-AC-015` gana dos motivos por decisión del responsable del proyecto —«sin descripción» en el curso y «sin contenido» en la lección—, y **nace `RF-AC-036`**. Los dos huecos de §14 se cierran: la lección activa y vacía **deja de ofrecerse** (`FA-001` reescrito, **`CA-AC-215`** añadido) y administración lee el contenido por el `GET` nuevo. | Responsable técnico |

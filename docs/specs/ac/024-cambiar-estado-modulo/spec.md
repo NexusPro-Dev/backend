@@ -84,7 +84,7 @@ Es `RF-AC-012` un nivel más abajo, con una sola condición: `RN-AC-009` exige p
 
 ### FA-002 — Desactivar el último módulo activo de un curso activo y ofrecido
 
-**Comportamiento:** se desactiva. El curso sigue `ACTIVO`, sale del aula, y su detalle dice «sin módulo activo con lección activa».
+**Comportamiento:** se desactiva. El curso sigue `ACTIVO`, sale del aula, y su detalle dice «sin módulo activo con lección activa con contenido».
 
 ## 10. Excepciones
 
@@ -108,7 +108,7 @@ Es `RF-AC-012` un nivel más abajo, con una sola condición: `RN-AC-009` exige p
 | ID | Criterio |
 |---|---|
 | `CA-AC-105` | El sistema activa un módulo con una lección activa y devuelve el detalle `ACTIVO` con `offerable: true`; con lecciones **solo inactivas** o **solo retiradas**, `409` |
-| `CA-AC-106` | Desactivar no exige nada, no toca las lecciones, y desactivar el **último módulo activo de un curso activo** deja el curso `ACTIVO` con `offerable: false` por el cuarto motivo |
+| `CA-AC-106` | Desactivar no exige nada, no toca las lecciones, y desactivar el **último módulo activo de un curso activo** deja el curso `ACTIVO` con `offerable: false` por el último motivo |
 | `CA-AC-107` | Mismo estado: `200` sin avanzar `updatedAt` ni auditar; cambio real: fila `UPDATE` |
 | `CA-AC-108` | Un módulo retirado, inexistente o de otro curso responde `404`; un `status` fuera de dominio, `400` |
 | `CA-AC-109` | **Habilita `CA-AC-064` de `RF-AC-012`**: un curso con descripciones y un módulo activo **se activa** |
@@ -130,3 +130,4 @@ Es `RF-AC-012` un nivel más abajo, con una sola condición: `RN-AC-009` exige p
 | Versión | Fecha | Cambio | Responsable |
 |---|---|---|---|
 | 0.1.0 | 18-09-2026 | Redacción inicial. `RF-AC-012` con una sola condición —una lección activa—; desactivar el último módulo activo no toca el curso. **Habilita `CA-AC-064`.** El caso límite de la carrera con la lección se acepta y queda escrito. | Responsable técnico |
+| 0.2.0 | 18-09-2026 | **Enmienda de Art. I.7 (18-09-2026)**: `RN-AC-015` gana dos motivos por decisión del responsable del proyecto —«sin descripción» en el curso y «sin contenido» en la lección—. Activar no cambia —una lección activa tuvo contenido al activarse—; el motivo del curso pasa a nombrarse «con contenido» y a ser el último de cinco. | Responsable técnico |

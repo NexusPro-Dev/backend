@@ -69,7 +69,7 @@ Hereda de `RF-AC-003` que **se devuelve también un retirado**, con su motivo le
 
 `200` con: `id`, `title`, `instructor { id, username, fullName }`, `difficulty`, `shortDescription`, `longDescription`, `introVideoUrl` (presentes y nulos), `displayOrder`, `status`, `coverImageUrl` (presente y nula), `categories [{ id, name, color, icon }]`, `recommendedCourses [{ id, title, status, offerable }]`, `memberships [{ id, code, name, color }]`, `modules [{ id, title, shortDescription, displayOrder, status, deleted, coverImageUrl, offerable, durationMinutes, lessons [{ id, type, title, durationMinutes, displayOrder, status, open, deleted }] }]`, `totalDurationMinutes`, `lessonCount`, `offerable`, `offerableReason`, `createdAt`, `updatedAt`, y **solo si está retirado** `deletedAt` y `deletionReason`.
 
-**`offerableReason` en su orden** (`RN-AC-015`): «El curso está retirado.» → «El curso está inactivo.» → «El curso no tiene ninguna membresía que lo abra.» → «El curso no tiene ningún módulo activo con al menos una lección activa.» El primero que se cumple. **Hoy un curso `INACTIVO` dice lo segundo y uno `ACTIVO` lo tercero**, porque no hay membresías que darle; es la verdad, y lo seguirá siendo hasta `RF-AC-020`.
+**`offerableReason` en su orden** (`RN-AC-015`): «El curso está retirado.» → «El curso está inactivo.» → **«El curso no tiene descripción corta o larga.»** → «El curso no tiene ninguna membresía que lo abra.» → «El curso no tiene ningún módulo activo con al menos una lección activa con contenido.» El primero que se cumple. **Hoy un curso `INACTIVO` dice lo segundo y uno `ACTIVO` lo tercero**, porque no hay membresías que darle; es la verdad, y lo seguirá siendo hasta `RF-AC-020`.
 
 ## 7. Precondiciones y postcondiciones
 
@@ -137,3 +137,4 @@ Hereda de `RF-AC-003` que **se devuelve también un retirado**, con su motivo le
 | Versión | Fecha | Cambio | Responsable |
 |---|---|---|---|
 | 0.1.0 | 18-09-2026 | Redacción inicial. La vista con la que se arma el curso: relaciones, árbol con estados y marcas, duración sumada y **`offerableReason` en el orden fijo de `RN-AC-015`**, que nace hoy con los dos motivos que ya se pueden decidir. **Declara cinco enmiendas futuras** (Art. I.7): `RF-AC-016`, `RF-AC-018`, `RF-AC-020`, `RF-AC-022` y `RF-AC-028` llenan cada lista y declaran sus sentencias. | Responsable técnico |
+| 0.2.0 | 18-09-2026 | **Enmienda de Art. I.7 (18-09-2026)**: `RN-AC-015` gana dos motivos por decisión del responsable del proyecto —«sin descripción» en el curso y «sin contenido» en la lección—. §6.2 lista los **cinco** motivos en su orden; `CA-AC-052` no cambia —un `ACTIVO` tiene las dos descripciones al activarse— y el módulo del árbol pasa a decir «sin lección activa con contenido». | Responsable técnico |

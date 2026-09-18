@@ -89,7 +89,7 @@ Es `RF-PM-021` para cursos, y hereda su forma: `ACTIVO` ↔ `INACTIVO`, activar 
 
 ### FA-002 — Activar con un módulo activo cuyas lecciones están todas inactivas
 
-**Comportamiento:** **se activa**: la condición es un módulo `ACTIVO`, y un módulo activo tuvo al menos una lección activa al activarse (`RF-AC-024`). Si después se quedó sin ella, el detalle devuelve `offerable: false` por el cuarto motivo de `RN-AC-015`. Es el mismo trato que `PM` da a activar un paquete con un producto inactivo dentro.
+**Comportamiento:** **se activa**: la condición es un módulo `ACTIVO`, y un módulo activo tuvo al menos una lección activa al activarse (`RF-AC-024`). Si después se quedó sin ella, el detalle devuelve `offerable: false` por el último motivo de `RN-AC-015`. Es el mismo trato que `PM` da a activar un paquete con un producto inactivo dentro.
 
 ### FA-003 — Desactivar
 
@@ -152,3 +152,4 @@ Los tres van **juntos** en la misma respuesta cuando ocurren a la vez.
 | Versión | Fecha | Cambio | Responsable |
 |---|---|---|---|
 | 0.1.0 | 18-09-2026 | Redacción inicial. Hereda `RF-PM-021` —condiciones juntas al activar, nada al desactivar, mismo estado sin escribir— con las tres condiciones de `RN-AC-009`. **No exige membresías** y **no desactiva por hechos**. Declara que `CA-AC-064` queda bloqueado hasta `RF-AC-024`. | Responsable técnico |
+| 0.2.0 | 18-09-2026 | **Enmienda de Art. I.7 (18-09-2026)**: `RN-AC-015` gana dos motivos por decisión del responsable del proyecto —«sin descripción» en el curso y «sin contenido» en la lección—. Activar no cambia —`RN-AC-009` ya exigía las dos descripciones—; `FA-002` pasa a decir «el último motivo», que ahora es el quinto. | Responsable técnico |

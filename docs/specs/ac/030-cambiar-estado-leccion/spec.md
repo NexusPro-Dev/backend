@@ -115,16 +115,17 @@ Es `RF-AC-024` en la hoja del árbol: la única condición de `RN-AC-009` para l
 | Caso | Decisión |
 |---|---|
 | Activar una lección `open` en un curso que no se ofrece | Se activa; la demostración no se ve hasta que el curso se ofrezca (`RN-AC-014`) |
-| Vaciar el contenido después de activar | Se admite por `RF-AC-029`; la lección sigue activa y se enseña vacía (`RF-AC-029` §14.1) |
+| Vaciar el contenido después de activar | Se admite por `RF-AC-029`; la lección sigue activa y **deja de ofrecerse** (`RF-AC-029` §14.1, desde el 18-09-2026) |
 
 ## 14. Preguntas abiertas
 
 | # | Pregunta | Resolución |
 |---|---|---|
-| — | Ninguna propia; el hueco de la lección activa y vacía está en `RF-AC-029` §14.1 | |
+| — | Ninguna propia; la lección activa y vacía se resolvió en `RF-AC-029` §14.1 el 18-09-2026 | |
 
 ## 15. Control de cambios
 
 | Versión | Fecha | Cambio | Responsable |
 |---|---|---|---|
 | 0.1.0 | 18-09-2026 | Redacción inicial. `RF-AC-024` en la hoja: activar exige contenido; desactivar la última no toca el módulo, y es el primer cambio de estado que mueve la duración. | Responsable técnico |
+| 0.2.0 | 18-09-2026 | **Enmienda de Art. I.7 (18-09-2026)**: `RN-AC-015` gana dos motivos por decisión del responsable del proyecto —«sin descripción» en el curso y «sin contenido» en la lección—. El caso límite de vaciar después de activar pasa a decir «deja de ofrecerse». | Responsable técnico |

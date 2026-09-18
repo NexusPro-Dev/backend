@@ -17,7 +17,7 @@
 
 La entidad `CourseModule` hereda la forma de `Course` sin instructor ni dificultad; el caso de uso bloquea el curso vivo, comprueba el título dentro del curso y escribe. Lo que este plan añade de verdad son **las lecturas que el bloque 2 dejó vacías con nota**: la subconsulta de `moduleCount` en `RF-AC-009`, `findModulesOf` en el detalle de `RF-AC-010`, `countActiveModulesOf` en `RF-AC-012` y `findAliveModulesForUpdate` en el arrastre de `RF-AC-013` — cada una sustituye su literal por la sentencia que su nota anticipaba, y el criterio que estaba bloqueado se habilita.
 
-**`ModuleOfferability` nace aquí**, hermano pequeño de `CourseOfferability`: retirado → inactivo → sin lección activa. `CourseOfferability` pasa a recibir **cuántos módulos ofrecibles** hay, que es la cuenta que `ModuleOfferability` hace por módulo; hasta `RF-AC-028` ningún módulo tiene lecciones y ninguno es ofrecible, y el cuarto motivo del curso sigue diciendo la verdad.
+**`ModuleOfferability` nace aquí**, hermano pequeño de `CourseOfferability`: retirado → inactivo → sin lección activa **con contenido** (el tercer motivo dice «con contenido» desde el 18-09-2026, `ac.md` §5.2.7). `CourseOfferability` pasa a recibir **cuántos módulos ofrecibles** hay, que es la cuenta que `ModuleOfferability` hace por módulo; hasta `RF-AC-028` ningún módulo tiene lecciones y ninguno es ofrecible, y el último motivo del curso sigue diciendo la verdad.
 
 ## 2. Cambios de esquema
 

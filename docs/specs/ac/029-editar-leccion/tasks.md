@@ -36,12 +36,13 @@
 | `CA-AC-099`, `CA-AC-103`, `CA-AC-104` | `T-02`, `T-04`, `T-06` |
 | `CA-AC-100` | `T-02`, `T-04`, `T-06` |
 | `CA-AC-101`, `CA-AC-102` | `T-01`, `T-03`, `T-05`, `T-06` |
+| `CA-AC-215` | `T-04`, `T-06` — **con la cuenta de `ModuleOfferability` de `RF-AC-028` · `T-02` enmendada** |
 
 ## 4. Bloqueos
 
 | # | Bloqueo | Desde | Responsable | Estado |
 |---|---|---|---|---|
-| 1 | Dos huecos del catálogo anotados en `spec.md` §14 para el responsable del proyecto —la lección activa y vacía se enseña vacía; administración no lee el contenido sin editar—; no bloquean la construcción | 18-09-2026 | Responsable del proyecto | Abierto |
+| 1 | Dos huecos del catálogo anotados en `spec.md` §14 para el responsable del proyecto —la lección activa y vacía se enseña vacía; administración no lee el contenido sin editar—; no bloquean la construcción | 18-09-2026 | Responsable del proyecto | **Cerrado el 18-09-2026**: «sin contenido» es motivo de `RN-AC-015` y nace `RF-AC-036` |
 
 ## 5. Definición de terminado
 

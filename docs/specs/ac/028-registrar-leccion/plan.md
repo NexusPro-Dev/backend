@@ -15,7 +15,7 @@
 
 **El alta del módulo un nivel más abajo, con el contenido como objeto de valor y la última tanda de literales del bloque 2 convertida en sentencias.**
 
-`Lesson` hereda la forma de `CourseModule`; lo nuevo es **`LessonContent`**, el objeto de valor que sabe que un `VIDEO` lleva una URL y un `TEXTO` lleva texto, y que el alta y la corrección (`RF-AC-029`) comparten para que «el tipo manda» se decida en un solo sitio. Con `lessons` escrita, **`ModuleOfferability` recibe por fin lecciones activas** y `CourseOfferability` deja de ver siempre cero módulos ofrecibles: `RN-AC-015` queda cerrada.
+`Lesson` hereda la forma de `CourseModule`; lo nuevo es **`LessonContent`**, el objeto de valor que sabe que un `VIDEO` lleva una URL y un `TEXTO` lleva texto, y que el alta y la corrección (`RF-AC-029`) comparten para que «el tipo manda» se decida en un solo sitio. Con `lessons` escrita, **`ModuleOfferability` recibe por fin lecciones ofrecibles** —activas, vivas y **con contenido**, que es la cuenta que `RN-AC-015` pide desde el 18-09-2026— y `CourseOfferability` deja de ver siempre cero módulos ofrecibles: `RN-AC-015` queda cerrada.
 
 ## 2. Cambios de esquema
 
@@ -60,7 +60,7 @@ CREATE INDEX ix_lessons_module
 | Capa | Elemento | Módulo |
 |---|---|---|
 | `domain/models` | `Lesson` (entidad), `LessonType`; **`LessonContent`** —`de(tipo, texto)`: recorta, vacío → nulo, y si `VIDEO` valida por `VideoUrl`— | `AC` |
-| `domain/models` | `ModuleOfferability` recibe la cuenta de lecciones activas vivas; `CourseOfferability` deja de recibir cero | `AC` |
+| `domain/models` | `ModuleOfferability` recibe la cuenta de lecciones **ofrecibles** —activas, vivas, con contenido—; `CourseOfferability` deja de recibir cero | `AC` |
 | `domain/repository` | `LessonRepository` + `Jpa…`: `save` con traducción de `uq_lessons_title`, `existsAliveTitleInModule`, `existsAliveTitleInModuleForOther`, `findAliveByIdForUpdate`, `findByIdForUpdate`, `flush` | `AC` |
 | `domain/repository` | `LessonQueryRepository` + `Jpa…`: `findDetail(lessonId)` con su módulo y su curso | `AC` |
 | `domain/repository` | **`CourseModuleQueryRepository` y `CourseQueryRepository`, enmendados**: `findLessonsOf(moduleId)`, `findLessonsOfModules(moduleIds)` en una sentencia, la subconsulta de `lessonCount`, `countActiveLessonsOf`, y las lecciones en `findAliveModulesForUpdate` | `AC` |

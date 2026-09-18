@@ -79,7 +79,7 @@ Es el requerimiento que **crea `lessons`** y **cierra `RN-AC-015`**: con leccion
 
 ### 6.2 Salida
 
-`201` con la lección **entera**: identificador, `moduleId`, `courseId`, tipo, título, descripción y contenido —presentes y nulos si no vinieron—, duración, orden, `open`, estado `INACTIVO`, y las dos fechas. **Es la única forma de Academia que lleva el contenido hacia administración**: el detalle del curso y el del módulo no lo traen.
+`201` con la lección **entera**: identificador, `moduleId`, `courseId`, tipo, título, descripción y contenido —presentes y nulos si no vinieron—, duración, orden, `open`, estado `INACTIVO`, y las dos fechas. **Es la forma que lleva el contenido hacia administración**: el detalle del curso y el del módulo no lo traen, y la lee sin escribir `RF-AC-036`, que le añade `deletedAt` y `deletionReason` solo cuando la lección está retirada.
 
 ## 7. Precondiciones y postcondiciones
 
@@ -172,3 +172,4 @@ Todas **juntas**; `VAL-006` depende de `VAL-002` y solo se evalúa si el tipo es
 | Versión | Fecha | Cambio | Responsable |
 |---|---|---|---|
 | 0.1.0 | 18-09-2026 | Redacción inicial. La lección nace dentro del módulo —bloqueando el módulo, no el curso—, inactiva y con contenido opcional que se valida **contra el tipo**; `open` falsa por omisión. **La auditoría de cambios no lleva el Markdown, sino su longitud** (§14.1). Crea `lessons`, **cierra `RN-AC-015`** y construye las enmiendas que quedaban del bloque 2 y de `RF-AC-022`. | Responsable técnico |
+| 0.2.0 | 18-09-2026 | **Enmienda de Art. I.7 (18-09-2026)**: `RN-AC-015` gana dos motivos por decisión del responsable del proyecto —«sin descripción» en el curso y «sin contenido» en la lección—. `ModuleOfferability` cuenta **lecciones ofrecibles** —activas, vivas y con contenido— y no lecciones activas (`plan.md` §1 y §3, `tasks.md` `T-02`). Y `LessonResponse` es también la respuesta de **`RF-AC-036`**, nacido el mismo día, que le añade los dos campos del retiro con `NON_NULL`. | Responsable técnico |

@@ -64,7 +64,7 @@ Seis filas con identificador literal —la serie de `AC` continúa: `…000005` 
 | Capa | Elemento | Módulo |
 |---|---|---|
 | `domain/models` | `Course` (entidad), `CourseStatus`, `CourseDifficulty`; el constructor recorta título y descripciones, deja las descripciones nulas si quedan vacías y valida la forma del video con **`VideoUrl`**, objeto de valor que reutilizarán el módulo (`RF-AC-022`) y la lección (`RF-AC-028`) | `AC` |
-| `domain/models` | **`CourseOfferability`** — `RN-AC-015` en un solo sitio: recibe retiro, estado, cuántas membresías y cuántos módulos ofrecibles, y devuelve `(offerable, reason)` con el **primer** motivo en orden fijo: retirado → inactivo → sin membresías → sin módulo activo con lección activa. **Hoy los dos últimos reciben cero siempre**, porque las tablas no existen; los bloques 3 y 4 cambian lo que se le pasa, no el objeto | `AC` |
+| `domain/models` | **`CourseOfferability`** — `RN-AC-015` en un solo sitio: recibe retiro, estado, **si tiene las dos descripciones**, cuántas membresías y cuántos módulos ofrecibles, y devuelve `(offerable, reason)` con el **primer** motivo en orden fijo: retirado → inactivo → **sin descripción** → sin membresías → sin módulo activo con lección activa con contenido (**cinco motivos** desde el 18-09-2026, `ac.md` §5.2.7). **Hoy los dos últimos reciben cero siempre**, porque las tablas no existen; los bloques 3 y 4 cambian lo que se le pasa, no el objeto | `AC` |
 | `domain/repository` | `CourseRepository` + `JpaCourseRepository`: `save` con traducción de `uq_courses_title`, `existsAliveTitle`, `existsAliveTitleForOther`, `findAliveByIdForUpdate`, `findByIdForUpdate`, `flush` | `AC` |
 | `domain/repository` | `CourseQueryRepository` + `Jpa…`: `findDetail(id)` — el curso **con su instructor resuelto por `JOIN users`** (`username`, `first_name`, `last_name`; nada más), en una sentencia; y las lecturas de relaciones y módulos, que hoy devuelven vacío y las estrenan sus requerimientos | `AC` |
 | `domain/service` | `RegisterCourseService`; **`CourseDetailReader`** (`MODULO = "AC"`, `ENTIDAD = "courses"`): detalle → relaciones → módulos → ofrecibilidad → motivo de retiro, para las nueve operaciones que devuelven el curso | `AC` |
@@ -137,7 +137,7 @@ Seis filas con identificador literal —la serie de `AC` continúa: `…000005` 
 | **Reutilizar `EffectivePermissions.forUser` desde `AC`** | Es `domain/repository` de `SP`: no cruza. La implementación del puerto sí lo reutiliza por dentro |
 | **Un rol «Instructor» sembrado por `SP` y exigido por nombre** | `SP` no sabe de academia y un nombre fijo es una constante en dos módulos (`ac.md` §5.2.5) |
 | **Resolver el nombre del instructor por `UserCatalog` en cada lectura** | `N+1` en el listado; el `JOIN` de lectura tiene precedente en `RF-PM-012` |
-| **Nacer `CourseOfferability` en el bloque 3, «cuando tenga con qué»** | Ya tiene con qué decidir dos de los cuatro motivos, y la respuesta del alta necesita `offerableReason` desde hoy; nacer después obligaría a un literal que luego alguien olvidaría sustituir |
+| **Nacer `CourseOfferability` en el bloque 3, «cuando tenga con qué»** | Ya tiene con qué decidir tres de los cinco motivos, y la respuesta del alta necesita `offerableReason` desde hoy; nacer después obligaría a un literal que luego alguien olvidaría sustituir |
 | **Descripción larga sin tope** | `text` sin cota admite un cuerpo de un megabyte; 10 000 caracteres son unas veinte páginas |
 
 ## 10. Riesgos
@@ -151,7 +151,7 @@ Seis filas con identificador literal —la serie de `AC` continúa: `…000005` 
 
 ## 11. Estrategia de prueba
 
-- **Unitarias**: `Course` (recorte, descripciones vacías → nulas, dificultad, orden, video mal formado); `VideoUrl` (los casos de `RN-PM-032`); **`CourseOfferability`** (el orden de los cuatro motivos, con cero membresías y cero módulos hoy).
+- **Unitarias**: `Course` (recorte, descripciones vacías → nulas, dificultad, orden, video mal formado); `VideoUrl` (los casos de `RN-PM-032`); **`CourseOfferability`** (el orden de los cinco motivos, con cero membresías y cero módulos hoy).
 - **Integración de API** (`CoursesIT`): `CA-AC-034` a `CA-AC-041` y `CA-AC-043`; la carrera en `CourseConcurrencyIT` (`CA-AC-042`).
 - **Del puerto** (`PermissionHolderLookupIT`, en `SP`): porta por un rol activo → verdadero; por un rol inactivo o retirado → falso; persona retirada → falso; persona inexistente → falso; permiso inexistente → falso.
 - **Siembra** (`CoursesPermissionsSeedIT`): seis permisos, identificadores estables, doce asociaciones, ninguna a `CLIENTE`.

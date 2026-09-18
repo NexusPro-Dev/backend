@@ -17,7 +17,7 @@
 | ID | Tarea | Depende de | Verificación | Estado |
 |---|---|---|---|---|
 | `T-01` | Migración **`V24__ac_lecciones.sql`**: `lessons` con `fk_lessons_module`, los cinco `CHECK`, `uq_lessons_title` compuesto y parcial, `ix_lessons_module` | `RF-AC-022` · `T-01` | Integración: aplica; `VIDEO` con texto sin esquema se rechaza, `TEXTO` con cualquier texto no; duración cero se rechaza | Pendiente |
-| `T-02` | `domain/models/Lesson`, `LessonType`, **`LessonContent`**; `instantanea()` con `content_length`; `ModuleOfferability` y `CourseOfferability` con sus cuentas reales | `RF-AC-022` · `T-02` | Unitaria: los casos de `plan.md` §11 | Pendiente |
+| `T-02` | `domain/models/Lesson`, `LessonType`, **`LessonContent`**; `instantanea()` con `content_length`; `ModuleOfferability` y `CourseOfferability` con sus cuentas reales —**la de lecciones cuenta solo las que tienen contenido**— | `RF-AC-022` · `T-02` | Unitaria: los casos de `plan.md` §11 | Pendiente |
 | `T-03` | `LessonRepository` + `Jpa…` con traducción de `uq_lessons_title` | `T-01`, `T-02` | Integración: el `INSERT` duplicado llega como `BusinessRuleException` | Pendiente |
 | `T-04` | `LessonQueryRepository.findDetail(lessonId)` con módulo y curso | `T-01` | Integración: la lección vuelve con `module_id` y `course_id` | Pendiente |
 | `T-05` | **Enmienda de `CourseModuleQueryRepository` y `CourseQueryRepository`**: `findLessonsOf`, `findLessonsOfModules`, la subconsulta de `lessonCount`, `countActiveLessonsOf`, las lecciones en `findAliveModulesForUpdate` | `T-01` | Integración: un módulo con dos lecciones vivas y una retirada cuenta dos y las devuelve en orden; una sentencia para las lecciones de varios módulos | Pendiente |
