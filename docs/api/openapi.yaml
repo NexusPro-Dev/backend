@@ -2,8 +2,11 @@ openapi: 3.1.0
 info:
   title: NEXUS — API del Sistema Principal
   description: |
-    API del módulo `SP`. **Toda operación exige un token de acceso**
-    salvo el inicio, la renovación y el cierre de sesión.
+    API de NEXUS. **Toda operación exige un token de acceso** salvo
+    las que declaran `security` vacío (sesión, recuperación, registro,
+    hotlinks, catálogos del registro, reseñas y portadas). **Cada
+    operación dice en su primera línea qué permiso exige**, y lo
+    repite en la extensión `x-required-permission`.
 
     Para probar cualquier endpoint: obtenga el token con
     `POST /api/v1/auth/login`, pulse **Authorize** y pegue el valor de
@@ -78,6 +81,8 @@ paths:
       - Usuarios
       summary: Fijar la membresía de una persona
       description: |
+        **Permiso requerido:** `users:assign-membership`. Sin él, `403` (`AUTH-002`).
+
         **`PUT` y no `POST`**, al revés que la asignación de roles, y la
         diferencia no es de gusto: aquí el cuerpo **sí** representa el estado
         final. La persona tiene siempre exactamente una, de modo que enviar una
@@ -127,11 +132,14 @@ paths:
           description: La membresía indicada no existe en la cadena (`VAL-002`)
         "500":
           description: Fallo no controlado (`ERR-500`)
+      x-required-permission: users:assign-membership
     delete:
       tags:
       - Usuarios
       summary: Devolver la membresía de una persona al suelo
       description: |
+        **Permiso requerido:** `users:assign-membership`. Sin él, `403` (`AUTH-002`).
+
         **Devuelve al nivel de arranque, y no deja a nadie sin nivel.** Desde el
         05-09-2026 `RN-SP-018` exige que **toda** persona tenga membresía, de
         modo que esta operación cierra la que tenga y le abre una `BECA`.
@@ -181,12 +189,15 @@ paths:
           description: La persona no existe o está eliminada (`VAL-002`)
         "500":
           description: Fallo no controlado (`ERR-500`)
+      x-required-permission: users:assign-membership
   /api/v1/products/{id}/cover:
     put:
       tags:
       - Productos
       summary: Subir o reemplazar la portada de un producto
       description: |
+        **Permiso requerido:** `products:update`. Sin él, `403` (`AUTH-002`).
+
         Recibe **un archivo** —`multipart/form-data`, una sola parte llamada
         `file`— y lo convierte en la portada del producto. **Es el primer
         archivo que el sistema guarda** (`RN-PM-033`, `requirements/pm.md`
@@ -246,11 +257,14 @@ paths:
           description: No existe un producto vivo con ese identificador (`EX-001`)
         "500":
           description: Fallo no controlado (`ERR-500`)
+      x-required-permission: products:update
     delete:
       tags:
       - Productos
       summary: Quitar la portada de un producto
       description: |
+        **Permiso requerido:** `products:update`. Sin él, `403` (`AUTH-002`).
+
         Vacía la portada: el producto vuelve a pintarse con su icono —o con el
         que el frontend le pone por omisión, si es un bot— y **la imagen se
         borra**: su dirección deja de servir.
@@ -291,12 +305,15 @@ paths:
           description: No existe un producto vivo con ese identificador (`EX-001`)
         "500":
           description: Fallo no controlado (`ERR-500`)
+      x-required-permission: products:update
   /api/v1/packages/{id}/cover:
     put:
       tags:
       - Paquetes
       summary: Subir o reemplazar la portada de un paquete
       description: |
+        **Permiso requerido:** `packages:update`. Sin él, `403` (`AUTH-002`).
+
         **La misma imagen que la del producto, con las mismas condiciones y la
         misma ruta** (`RN-PM-045`, `requirements/pm.md` §5.2.12): recibe **un
         archivo** —`multipart/form-data`, una sola parte llamada `file`—,
@@ -354,11 +371,14 @@ paths:
           description: No existe un paquete vivo con ese identificador (`EX-001`)
         "500":
           description: Fallo no controlado (`ERR-500`)
+      x-required-permission: packages:update
     delete:
       tags:
       - Paquetes
       summary: Quitar la portada de un paquete
       description: |
+        **Permiso requerido:** `packages:update`. Sin él, `403` (`AUTH-002`).
+
         Vacía la portada y **la imagen se borra**: su dirección deja de servir.
         El paquete vuelve a pintarse con **el icono de promoción y el color por
         omisión** que el cliente le pone cuando `coverImageUrl` es nula.
@@ -397,12 +417,15 @@ paths:
           description: No existe un paquete vivo con ese identificador (`EX-001`)
         "500":
           description: Fallo no controlado (`ERR-500`)
+      x-required-permission: packages:update
   /api/v1/users:
     get:
       tags:
       - Usuarios
       summary: Consultar personas
       description: |
+        **Permiso requerido:** `users:read`. Sin él, `403` (`AUTH-002`).
+
         Listado paginado con filtros, búsqueda y ordenamiento.
 
         **El orden por defecto es `lastName,asc`** y no el nombre de usuario:
@@ -511,11 +534,14 @@ paths:
           description: Autenticado sin `users:read` (`AUTH-002`)
         "500":
           description: Fallo no controlado (`ERR-500`)
+      x-required-permission: users:read
     post:
       tags:
       - Usuarios
       summary: Registrar una persona
       description: |
+        **Permiso requerido:** `users:create`. Sin él, `403` (`AUTH-002`).
+
         Registra una persona con sus roles iniciales.
 
         La cuenta nace **activa** y **marcada para cambio obligatorio de
@@ -615,12 +641,15 @@ paths:
             \ que no resuelven, frente al `409` de las que resuelven y una regla rechaza"
         "500":
           description: Fallo no controlado (`ERR-500`)
+      x-required-permission: users:create
   /api/v1/users/{id}/roles:
     post:
       tags:
       - Usuarios
       summary: Asignar roles a una persona
       description: |
+        **Permiso requerido:** `users:assign-roles`. Sin él, `403` (`AUTH-002`).
+
         Agrega roles. **No reemplaza la lista**: por eso es un `POST` sobre un
         subrecurso y no un `PUT`. Un reemplazo haría retiros implícitos que se
         saltarían tres reglas cuyo incumplimiento nadie vería.
@@ -679,12 +708,15 @@ paths:
             \ sin superior (`RN-SP-019`), o superior inadmisible (`VAL-007`, `RN-SP-020`)"
         "500":
           description: Fallo no controlado (`ERR-500`)
+      x-required-permission: users:assign-roles
   /api/v1/users/{id}/roles/revocations:
     post:
       tags:
       - Usuarios
       summary: Retirar roles de una persona
       description: |
+        **Permiso requerido:** `users:assign-roles`. Sin él, `403` (`AUTH-002`).
+
         Retira roles y **arrastra UNA cascada**: quedarse sin ningún rol de
         vendedor cierra la asignación de superior comercial —cerrarla, nunca
         borrarla: esa fila dice a quién se atribuía cada resultado—.
@@ -742,12 +774,15 @@ paths:
             \ cuántas personas, nunca quiénes"
         "500":
           description: Fallo no controlado (`ERR-500`)
+      x-required-permission: users:assign-roles
   /api/v1/users/{id}/password-reset:
     post:
       tags:
       - Usuarios
       summary: Restablecer la contraseña de una persona
       description: |
+        **Permiso requerido:** `users:reset-password`. Sin él, `403` (`AUTH-002`).
+
         Fija una credencial **provisional** sobre la cuenta indicada. `POST`
         sobre un subrecurso y no `PATCH` sobre el usuario: cada petición **crea**
         un restablecimiento, que es un hecho con fecha y con caducidad propia.
@@ -801,12 +836,15 @@ paths:
             \ conocer la actual"
         "500":
           description: Fallo no controlado (`ERR-500`)
+      x-required-permission: users:reset-password
   /api/v1/users/{id}/deletion:
     post:
       tags:
       - Usuarios
       summary: Eliminar a una persona
       description: |
+        **Permiso requerido:** `users:delete`. Sin él, `403` (`AUTH-002`).
+
         Eliminación **lógica** y con motivo declarado. `POST` sobre un
         subrecurso y no `DELETE` con cuerpo: RFC 9110 no define semántica para
         el cuerpo de un `DELETE` y un intermediario puede descartarlo,
@@ -858,12 +896,15 @@ paths:
             \ personas a cargo (`RN-SP-022`)"
         "500":
           description: Fallo no controlado (`ERR-500`)
+      x-required-permission: users:delete
   /api/v1/user-commission-rates:
     get:
       tags:
       - Comisiones
       summary: Consultar las tasas personalizadas
       description: |
+        **Permiso requerido:** `commissions:read`. Sin él, `403` (`AUTH-002`).
+
         Devuelve las tasas **tal como se declararon**, cada una **con su
         producto** (`id`, `code`, `name`, `price` y `currency`), y no resuelve
         cuál se aplica: para eso está `GET /api/v1/commissions/effective`.
@@ -910,11 +951,14 @@ paths:
             '*/*':
               schema:
                 $ref: "#/components/schemas/UserCommissionRatePageResponse"
+      x-required-permission: commissions:read
     post:
       tags:
       - Comisiones
       summary: Registrar la tasa personalizada de una persona sobre un producto
       description: |
+        **Permiso requerido:** `commissions:create`. Sin él, `403` (`AUTH-002`).
+
         Declara que **esta persona** gana esto —un porcentaje o un importe—
         **por este producto**, desde una fecha y, opcionalmente, hasta otra.
         **`productId` es obligatorio** (`RN-CM-021`, 16-09-2026): la tasa nace
@@ -986,12 +1030,15 @@ paths:
             '*/*':
               schema:
                 $ref: "#/components/schemas/UserCommissionRateResponse"
+      x-required-permission: commissions:create
   /api/v1/user-commission-rates/{id}/deletion:
     post:
       tags:
       - Comisiones
       summary: Retirar una tasa personalizada
       description: |
+        **Permiso requerido:** `commissions:delete`. Sin él, `403` (`AUTH-002`).
+
         Retira una tasa que **no debió existir**, con **motivo obligatorio**, y
         desde ese instante **esa persona deja de cobrar por ese producto** por
         esta tasa.
@@ -1029,12 +1076,15 @@ paths:
           description: La tasa no existe
         "409":
           description: Ya estaba retirada
+      x-required-permission: commissions:delete
   /api/v1/roles:
     get:
       tags:
       - Roles
       summary: Consultar roles
       description: |
+        **Permiso requerido:** `roles:read`. Sin él, `403` (`AUTH-002`).
+
         Listado paginado con filtros, búsqueda y ordenamiento. Es la entrada
         natural a la administración de accesos: de aquí se navega al detalle de
         cada rol.
@@ -1123,11 +1173,14 @@ paths:
           description: Autenticado sin `roles:read` (`AUTH-002`)
         "500":
           description: Fallo no controlado (`ERR-500`)
+      x-required-permission: roles:read
     post:
       tags:
       - Roles
       summary: Registrar un rol
       description: |
+        **Permiso requerido:** `roles:create`. Sin él, `403` (`AUTH-002`).
+
         Registra un rol bajo un rol padre existente y activo, con los permisos que
         se declaren.
 
@@ -1167,12 +1220,15 @@ paths:
             n permiso no está en el catálogo (`EX-005`)"
         "500":
           description: Fallo no controlado (`ERR-500`)
+      x-required-permission: roles:create
   /api/v1/roles/{id}/permissions:
     post:
       tags:
       - Roles
       summary: Agregar permisos a un rol
       description: |
+        **Permiso requerido:** `roles:update`. Sin él, `403` (`AUTH-002`).
+
         Asocia permisos al rol. **La operación se aplica entera o no se
         aplica**: un solo permiso que incumpla la contención rechaza la
         petición completa, porque aplicar los válidos dejaría el rol en un
@@ -1256,12 +1312,15 @@ paths:
             '*/*':
               schema:
                 $ref: "#/components/schemas/RoleResponse"
+      x-required-permission: roles:update
   /api/v1/roles/{id}/permissions/revocations:
     post:
       tags:
       - Roles
       summary: Retirar permisos de un rol
       description: |
+        **Permiso requerido:** `roles:update`. Sin él, `403` (`AUTH-002`).
+
         Desasocia permisos del rol, con **eliminación física** de la asociación
         y **sin exigir motivo**: es una asociación y no una entidad de negocio.
 
@@ -1337,12 +1396,15 @@ paths:
             '*/*':
               schema:
                 $ref: "#/components/schemas/RoleResponse"
+      x-required-permission: roles:update
   /api/v1/roles/{id}/deletion:
     post:
       tags:
       - Roles
       summary: Eliminar un rol
       description: |
+        **Permiso requerido:** `roles:delete`. Sin él, `403` (`AUTH-002`).
+
         Elimina lógicamente el rol. **El motivo es obligatorio** y se verifica
         **antes de ejecutar nada** (Art. V.13); no se admite un valor generado
         por el sistema.
@@ -1392,12 +1454,15 @@ paths:
             \ el rol tiene hijos o personas asignadas (`RN-SEG-008`)"
         "500":
           description: Fallo no controlado (`ERR-500`)
+      x-required-permission: roles:delete
   /api/v1/products:
     get:
       tags:
       - Productos
       summary: Consultar el catálogo de productos
       description: |
+        **Permiso requerido:** `products:read`. Sin él, `403` (`AUTH-002`).
+
         Devuelve el catálogo **paginado**, con el destino de cada upgrade y la
         moneda de cada precio ya resueltos: no hace falta una segunda consulta.
 
@@ -1529,11 +1594,14 @@ paths:
           description: Autenticado sin el permiso `products:read` (`AUTH-002`)
         "500":
           description: Fallo no controlado (`ERR-500`)
+      x-required-permission: products:read
     post:
       tags:
       - Productos
       summary: Registrar un producto
       description: |
+        **Permiso requerido:** `products:create`. Sin él, `403` (`AUTH-002`).
+
         Registra un producto del catálogo, **siempre inactivo**: publicarlo es otra
         operación (`RF-PM-005`).
 
@@ -1639,12 +1707,15 @@ paths:
             '*/*':
               schema:
                 $ref: "#/components/schemas/ProductResponse"
+      x-required-permission: products:create
   /api/v1/products/{id}/deletion:
     post:
       tags:
       - Productos
       summary: Retirar un producto del catálogo
       description: |
+        **Permiso requerido:** `products:delete`. Sin él, `403` (`AUTH-002`).
+
         Retira el producto: **eliminación lógica y con motivo** (Art. V.13).
         La fila se conserva —lo vendido tiene que seguir resolviendo a lo que
         se vendió— y el producto deja de ofrecerse.
@@ -1703,12 +1774,15 @@ paths:
           description: El producto ya estaba retirado (`EX-002`)
         "500":
           description: Fallo no controlado (`ERR-500`)
+      x-required-permission: products:delete
   /api/v1/products/{id}/comments:
     get:
       tags:
       - Reseñas
       summary: Consultar las reseñas de un producto
       description: |
+        **Permiso requerido:** ninguno. Ruta pública: responde sin token.
+
         Devuelve, **sin token**, las reseñas vivas de un producto, paginadas y de la más
         reciente a la más antigua. **Es público por decisión** (`RF-PM-012`): la pantalla
         del hotlink las necesita y no tiene con qué autenticarse.
@@ -1770,6 +1844,8 @@ paths:
       - Reseñas
       summary: Reseñar un producto
       description: |
+        **Permiso requerido:** `products:comment`. Sin él, `403` (`AUTH-002`).
+
         Registra **la** reseña de quien llama sobre un producto: una puntuación entera de
         1 a 5 y un texto de 1 a 1000 caracteres, **las dos obligatorias** (`RN-PM-025`).
 
@@ -1830,12 +1906,15 @@ paths:
           description: "El producto no existe, está inactivo o está retirado (`EX-001`)"
         "409":
           description: Quien llama ya tiene una reseña viva sobre este producto (`EX-002`)
+      x-required-permission: products:comment
   /api/v1/packages:
     get:
       tags:
       - Paquetes
       summary: Consultar los paquetes
       description: |
+        **Permiso requerido:** `packages:read`. Sin él, `403` (`AUTH-002`).
+
         La lista de administración de los paquetes, paginada, **con la cuenta hecha
         por fila**: cada paquete con `itemCount`, `listPrice`, `price`, `savings`,
         `exchange` y `offerable`, y sin sus líneas — para eso está el detalle. Los
@@ -1931,11 +2010,14 @@ paths:
             '*/*':
               schema:
                 $ref: "#/components/schemas/PackagePageResponse"
+      x-required-permission: packages:read
     post:
       tags:
       - Paquetes
       summary: Registrar un paquete
       description: |
+        **Permiso requerido:** `packages:create`. Sin él, `403` (`AUTH-002`).
+
         Registra un paquete de productos, **vacío e inactivo**: los productos entran
         uno a uno después (`POST /packages/{id}/products`) y publicarlo es otra
         operación (`PATCH /packages/{id}/status`), que exige descripción y al menos
@@ -2015,12 +2097,15 @@ paths:
             '*/*':
               schema:
                 $ref: "#/components/schemas/PackageDetailResponse"
+      x-required-permission: packages:create
   /api/v1/packages/{id}/products:
     post:
       tags:
       - Paquetes
       summary: Asociar un producto al paquete
       description: |
+        **Permiso requerido:** `packages:update`. Sin él, `403` (`AUTH-002`).
+
         Mete un producto en el paquete con su descuento, y devuelve **el paquete
         entero** con el producto nuevo, su `priceInPackage` y los totales rehechos.
         Es la operación que define al paquete: siete verificaciones en fila, cada
@@ -2115,12 +2200,15 @@ paths:
             '*/*':
               schema:
                 $ref: "#/components/schemas/PackageDetailResponse"
+      x-required-permission: packages:update
   /api/v1/packages/{id}/deletion:
     post:
       tags:
       - Paquetes
       summary: Retirar un paquete
       description: |
+        **Permiso requerido:** `packages:delete`. Sin él, `403` (`AUTH-002`).
+
         Retira el paquete con **eliminación lógica y motivo obligatorio** (Art. V.13):
         la fila permanece con su `status` y **sus filas de asociación**, y el detalle
         sigue devolviéndolo con `deletedAt` y `deletionReason`. Sale de la oferta y
@@ -2161,12 +2249,15 @@ paths:
           description: El paquete no existe (`EX-001`)
         "409":
           description: El paquete ya está retirado (`EX-002`)
+      x-required-permission: packages:delete
   /api/v1/packages/{code}/purchases:
     post:
       tags:
       - Movimientos
       summary: Comprar un paquete para uno mismo
       description: |
+        **Permiso requerido:** ninguno más allá del token. El alcance lo acota el servicio —el propio actor, o la relación con la persona consultada— y la descripción dice cómo.
+
         **Usted se compra el paquete entero** que su oferta le muestra, pagando **lo que ese
         paquete vale** —la suma de sus productos rebajados, el mismo `price` que publica la
         oferta— y recibiendo **cada producto** con el descuento que el paquete le declara,
@@ -2250,6 +2341,8 @@ paths:
       - Movimientos
       summary: Consultar todos los movimientos
       description: |
+        **Permiso requerido:** `movements:read`. Sin él, `403` (`AUTH-002`).
+
         Devuelve **todos los movimientos del libro**, de quien sean, paginados y del más
         reciente al más antiguo. Es la lectura de administración: exige `movements:read`,
         y con él se ve todo — quien no lo tiene recibe `403` aunque tenga movimientos
@@ -2345,11 +2438,14 @@ paths:
           description: "Sin el permiso `movements:read`, tenga o no movimientos propios."
         "500":
           description: Fallo no controlado (`ERR-500`)
+      x-required-permission: movements:read
     post:
       tags:
       - Movimientos
       summary: Registrar una venta a nombre de un cliente
       description: |
+        **Permiso requerido:** `movements:create`. Sin él, `403` (`AUTH-002`).
+
         Deja constancia de **qué le vendió la empresa a alguien**, como un hecho que
         **todavía no está pagado**. `userId` es **a nombre de quién** es la venta —quien
         compra—, nunca quien la registra desde oficina.
@@ -2405,12 +2501,15 @@ paths:
         "422":
           description: "Un dato bien formado que no resuelve: el comprador, un producto\
             \ o el método de pago no existen."
+      x-required-permission: movements:create
   /api/v1/movements/{id}/voiding:
     post:
       tags:
       - Movimientos
       summary: Anular una venta pendiente
       description: |
+        **Permiso requerido:** `movements:void`. Sin él, `403` (`AUTH-002`).
+
         Saca del embudo una venta pendiente que **no debía existir** —se registró por error,
         al cliente equivocado, con el producto equivocado— dejando escrito **cuándo y por
         qué**. `reason` es **obligatorio** (hasta 500 caracteres) y se verifica antes de
@@ -2460,12 +2559,15 @@ paths:
             \ El mensaje dice en qué estado está, y nada cambió."
         "500":
           description: Fallo no controlado (`ERR-500`)
+      x-required-permission: movements:void
   /api/v1/movements/{id}/confirmation:
     post:
       tags:
       - Movimientos
       summary: Confirmar el pago de una venta pendiente
       description: |
+        **Permiso requerido:** `movements:confirm`. Sin él, `403` (`AUTH-002`).
+
         Da por **pagada** una venta pendiente y, en el mismo acto, **entrega lo que se
         pueda entregar**. Sin cuerpo: confirmar es un hecho, no un formulario — el importe
         es el de la venta, la fecha es ahora y el método ya está en ella.
@@ -2517,12 +2619,15 @@ paths:
             \ El mensaje dice en qué estado está, y nada cambió."
         "500":
           description: Conceder la membresía falló; nada quedó escrito (`ERR-500`)
+      x-required-permission: movements:confirm
   /api/v1/memberships:
     get:
       tags:
       - Membresías
       summary: Consultar la cadena de membresías
       description: |
+        **Permiso requerido:** `memberships:read`. Sin él, `403` (`AUTH-002`).
+
         Devuelve la cadena completa, de la superior al extremo inferior, sin paginar.
 
         `level` es la distancia hasta la cima: `1` es la superior. El orden de la
@@ -2550,11 +2655,14 @@ paths:
           description: Autenticado sin `memberships:read` (`AUTH-002`)
         "500":
           description: Fallo no controlado (`ERR-500`)
+      x-required-permission: memberships:read
     post:
       tags:
       - Membresías
       summary: Registrar una membresía
       description: |
+        **Permiso requerido:** `memberships:create`. Sin él, `403` (`AUTH-002`).
+
         Inserta una membresía en la cadena, por encima de la hija indicada.
 
         Si no se indica hija, la membresía queda en el extremo inferior y no se
@@ -2591,12 +2699,15 @@ paths:
           description: La membresía hija indicada no existe (`EX-002`)
         "500":
           description: Fallo no controlado (`ERR-500`)
+      x-required-permission: memberships:create
   /api/v1/exchange-rates:
     post:
       tags:
       - Tasas de cambio
       summary: Registrar una tasa de cambio
       description: |
+        **Permiso requerido:** `exchange-rates:create`. Sin él, `403` (`AUTH-002`).
+
         Declara **a cuánto se cambia una moneda por otra y desde cuándo**.
 
         `price` es **cuántas unidades de la moneda de destino da UNA de la de
@@ -2667,12 +2778,15 @@ paths:
             '*/*':
               schema:
                 $ref: "#/components/schemas/ExchangeRateResponse"
+      x-required-permission: exchange-rates:create
   /api/v1/courses:
     get:
       tags:
       - Cursos
       summary: Consultar los cursos
       description: |
+        **Permiso requerido:** `courses:read`. Sin él, `403` (`AUTH-002`).
+
         La lista de administración de los cursos, paginada, **en el orden en que se
         enseñan**: por `displayOrder` ascendente, con el más antiguo primero entre
         dos que compartan número. Cada fila trae el instructor resuelto —con su
@@ -2766,11 +2880,14 @@ paths:
             '*/*':
               schema:
                 $ref: "#/components/schemas/CoursePageResponse"
+      x-required-permission: courses:read
     post:
       tags:
       - Cursos
       summary: Registrar un curso
       description: |
+        **Permiso requerido:** `courses:create`. Sin él, `403` (`AUTH-002`).
+
         Registra un curso con **título, instructor, dificultad y orden**, obligatorios,
         y descripción corta, descripción larga y video de introducción, opcionales.
         **Nace `INACTIVO` y vacío**: sin categorías, sin recomendaciones, sin
@@ -2840,12 +2957,15 @@ paths:
             '*/*':
               schema:
                 $ref: "#/components/schemas/CourseDetailResponse"
+      x-required-permission: courses:create
   /api/v1/courses/{id}/deletion:
     post:
       tags:
       - Cursos
       summary: Retirar un curso
       description: |
+        **Permiso requerido:** `courses:delete`. Sin él, `403` (`AUTH-002`).
+
         Baja **lógica y con motivo**: la fila se queda con `deletedAt` puesto y nada
         más cambiado —ni el estado—, y el motivo y la instantánea —con los
         identificadores de sus categorías, membresías, recomendados y módulos— van a
@@ -2889,12 +3009,15 @@ paths:
           description: El curso no existe (`EX-001`)
         "409":
           description: El curso ya está retirado (`EX-002`)
+      x-required-permission: courses:delete
   /api/v1/course-categories:
     get:
       tags:
       - Categorías de cursos
       summary: Consultar las categorías
       description: |
+        **Permiso requerido:** `course-categories:read`. Sin él, `403` (`AUTH-002`).
+
         La lista de administración de las categorías, paginada, **en el orden en que
         se enseñan**: por `displayOrder` ascendente, con la más antigua primero
         entre dos que compartan número. Cada fila trae `coverImageUrl` —presente y
@@ -2964,11 +3087,14 @@ paths:
             '*/*':
               schema:
                 $ref: "#/components/schemas/CourseCategoryPageResponse"
+      x-required-permission: course-categories:read
     post:
       tags:
       - Categorías de cursos
       summary: Registrar una categoría
       description: |
+        **Permiso requerido:** `course-categories:create`. Sin él, `403` (`AUTH-002`).
+
         Registra un cajón del catálogo de cursos con **nombre, color, icono y orden**,
         obligatorios, y descripción opcional. **Nace viva, sin portada y sin cursos**:
         la categoría no tiene estado —está o está retirada—, la imagen se sube después
@@ -3027,12 +3153,15 @@ paths:
             '*/*':
               schema:
                 $ref: "#/components/schemas/CourseCategoryDetailResponse"
+      x-required-permission: course-categories:create
   /api/v1/course-categories/{id}/deletion:
     post:
       tags:
       - Categorías de cursos
       summary: Retirar una categoría
       description: |
+        **Permiso requerido:** `course-categories:delete`. Sin él, `403` (`AUTH-002`).
+
         Baja **lógica y con motivo**: la fila se queda, con `deletedAt` puesto y nada
         más cambiado, y el motivo y la instantánea —con los identificadores de los
         cursos que tenía— van a la auditoría de eliminación. **`POST` y no `DELETE`**
@@ -3076,12 +3205,15 @@ paths:
           description: La categoría no existe (`EX-001`)
         "409":
           description: La categoría ya está retirada (`EX-002`)
+      x-required-permission: course-categories:delete
   /api/v1/countries:
     get:
       tags:
       - Países
       summary: Consultar el catálogo de países
       description: |
+        **Permiso requerido:** ninguno. Ruta pública: responde sin token.
+
         Devuelve el catálogo completo, sin paginar, **ordenado alfabéticamente
         por nombre** según la intercalación del español — no por orden de bytes.
 
@@ -3106,17 +3238,16 @@ paths:
                 $ref: "#/components/schemas/CountryCatalogResponse"
         "400":
           description: El parámetro de inclusión no es booleano
-        "401":
-          description: Token ausente o inválido (`AUTH-001`)
-        "403":
-          description: Autenticado sin el permiso de lectura de países (`AUTH-002`)
         "500":
           description: Fallo no controlado (`ERR-500`)
+      security: []
     post:
       tags:
       - Países
       summary: Registrar un país
       description: |
+        **Permiso requerido:** `countries:create`. Sin él, `403` (`AUTH-002`).
+
         Registra un país en el catálogo. Queda **activo** siempre: el estado no
         se envía y enviarlo devuelve `400`.
 
@@ -3152,12 +3283,15 @@ paths:
           description: Código o nombre ya presentes en el catálogo (`EX-001`)
         "500":
           description: Fallo no controlado (`ERR-500`)
+      x-required-permission: countries:create
   /api/v1/commission-rates:
     get:
       tags:
       - Comisiones
       summary: Consultar las tasas de comisión por rol
       description: |
+        **Permiso requerido:** `commissions:read`. Sin él, `403` (`AUTH-002`).
+
         Devuelve **todas las tasas de rol que se han configurado**, cada una
         **con su producto** (`id`, `code`, `name`, su **`price`** y su
         **`currency`**: `id`, `code`, `decimalPlaces`) y su rol, paginadas. Es
@@ -3200,11 +3334,14 @@ paths:
             '*/*':
               schema:
                 $ref: "#/components/schemas/CommissionRatePageResponse"
+      x-required-permission: commissions:read
     post:
       tags:
       - Comisiones
       summary: Registrar la tasa de comisión de un rol sobre un producto
       description: |
+        **Permiso requerido:** `commissions:create`. Sin él, `403` (`AUTH-002`).
+
         Declara cuánto gana un rol de tipo **vendedor** por vender **este
         producto**. **`productId` es obligatorio** (`RN-CM-021`, 15-09-2026): la
         tasa nace con su producto, **rige sobre él desde este instante** y no
@@ -3268,12 +3405,15 @@ paths:
             '*/*':
               schema:
                 $ref: "#/components/schemas/CommissionRateResponse"
+      x-required-permission: commissions:create
   /api/v1/commission-rates/{id}/deletion:
     post:
       tags:
       - Comisiones
       summary: Retirar una tasa de comisión de rol
       description: |
+        **Permiso requerido:** `commissions:delete`. Sin él, `403` (`AUTH-002`).
+
         Retira una tasa con **motivo obligatorio** (`RN-CM-005`), y desde ese
         instante **el producto deja de pagar a ese rol**: es la única forma de
         dejar de pagar, a la vista y con instantánea.
@@ -3307,12 +3447,15 @@ paths:
           description: La tasa no existe
         "409":
           description: Ya estaba retirada
+      x-required-permission: commissions:delete
   /api/v1/auth/registration:
     post:
       tags:
       - Registro por enlace
       summary: Registrarse desde el enlace de un vendedor
       description: |
+        **Permiso requerido:** ninguno. Ruta pública: responde sin token.
+
         Crea una cuenta de cliente **sin autenticación**, a partir del enlace
         que un vendedor reparte. Es el **primer endpoint público del sistema
         que escribe**.
@@ -3423,12 +3566,15 @@ paths:
             '*/*':
               schema:
                 $ref: "#/components/schemas/SelfRegistrationResponse"
+      security: []
   /api/v1/auth/refresh:
     post:
       tags:
       - Sesión
       summary: Renovar la sesión
       description: |
+        **Permiso requerido:** ninguno. Ruta pública: responde sin token.
+
         Rota el refresh token y entrega credenciales nuevas.
 
         **La rotación es la defensa:** el token entregado deja de servir, de
@@ -3465,6 +3611,8 @@ paths:
       - Sesión
       summary: Cambiar la propia contraseña
       description: |
+        **Permiso requerido:** ninguno más allá del token. El alcance lo acota el servicio —el propio actor, o la relación con la persona consultada— y la descripción dice cómo.
+
         Sustituye la contraseña de **quien porta el token**.
 
         **No lleva identificador de usuario**, y esa ausencia es la
@@ -3517,6 +3665,8 @@ paths:
       - Sesión
       summary: Solicitar la recuperación de la propia contraseña
       description: |
+        **Permiso requerido:** ninguno. Ruta pública: responde sin token.
+
         Emite un permiso temporal de un solo uso y lo envía al correo de la
         cuenta. Público: quien olvidó su contraseña no puede autenticarse.
 
@@ -3563,6 +3713,8 @@ paths:
       - Sesión
       summary: Confirmar la recuperación con el permiso recibido
       description: |
+        **Permiso requerido:** ninguno. Ruta pública: responde sin token.
+
         Consume el permiso y fija la contraseña nueva. Público: lo que
         autoriza es el permiso, no un token.
 
@@ -3613,6 +3765,8 @@ paths:
       - Sesión
       summary: Cerrar sesión
       description: |
+        **Permiso requerido:** ninguno. Ruta pública: responde sin token.
+
         Revoca el refresh token de la sesión, o **todos** los de la persona si
         se pide.
 
@@ -3641,6 +3795,8 @@ paths:
       - Sesión
       summary: Iniciar sesión
       description: |
+        **Permiso requerido:** ninguno. Ruta pública: responde sin token.
+
         Autentica con **nombre de usuario o correo** —el mismo campo para los
         dos— y entrega las credenciales de sesión.
 
@@ -3699,6 +3855,8 @@ paths:
       - Usuarios
       summary: Consultar el detalle de una persona
       description: |
+        **Permiso requerido:** `users:read`. Sin él, `403` (`AUTH-002`).
+
         Sus roles **con el estado de cada uno**, sus permisos efectivos, su
         membresía y el contexto de su acceso.
 
@@ -3760,11 +3918,14 @@ paths:
           description: "No existe, o está eliminada (`EX-001`)"
         "500":
           description: Fallo no controlado (`ERR-500`)
+      x-required-permission: users:read
     patch:
       tags:
       - Usuarios
       summary: Editar los datos de una persona
       description: |
+        **Permiso requerido:** `users:update`. Sin él, `403` (`AUTH-002`).
+
         Modifica el nombre, los apellidos, el correo, el país, la **identidad
         documental** y los **datos de contacto**. `PATCH` y no `PUT`:
         `PUT` obligaría a enviar el recurso completo —incluidos el nombre de
@@ -3857,12 +4018,15 @@ paths:
             \ cuenta"
         "500":
           description: Fallo no controlado (`ERR-500`)
+      x-required-permission: users:update
   /api/v1/users/{id}/supervisor:
     patch:
       tags:
       - Usuarios
       summary: Establecer o cambiar el superior comercial
       description: |
+        **Permiso requerido:** `users:assign-supervisor`. Sin él, `403` (`AUTH-002`).
+
         `PATCH` sobre el subrecurso y no `PUT`: el cuerpo no representa el
         estado completo —falta el periodo, que lo fija el sistema— y `PUT`
         invitaría a pensar que se puede enviar.
@@ -3922,12 +4086,15 @@ paths:
             \ superior (`VAL-007`)"
         "500":
           description: Fallo no controlado (`ERR-500`)
+      x-required-permission: users:assign-supervisor
   /api/v1/users/{id}/status:
     patch:
       tags:
       - Usuarios
       summary: Retirar o devolver el acceso de una persona
       description: |
+        **Permiso requerido:** `users:update`. Sin él, `403` (`AUTH-002`).
+
         Subrecurso propio y no un campo de la edición: el estado tiene reglas de
         rechazo que la edición no tiene y exige un motivo que la edición no
         admite.
@@ -3991,12 +4158,15 @@ paths:
             \ quiénes"
         "500":
           description: Fallo no controlado (`ERR-500`)
+      x-required-permission: users:update
   /api/v1/users/me:
     get:
       tags:
       - Usuarios
       summary: Consultar el propio perfil
       description: |
+        **Permiso requerido:** ninguno más allá del token. El alcance lo acota el servicio —el propio actor, o la relación con la persona consultada— y la descripción dice cómo.
+
         Devuelve el perfil de **quien porta el token**, con sus **permisos
         efectivos**.
 
@@ -4064,6 +4234,8 @@ paths:
       - Usuarios
       summary: Editar el propio perfil
       description: |
+        **Permiso requerido:** ninguno más allá del token. El alcance lo acota el servicio —el propio actor, o la relación con la persona consultada— y la descripción dice cómo.
+
         Corrige el **propio** nombre, apellidos, correo y **datos de contacto**
         —los **dos teléfonos**, dirección, complemento y ciudad—. Autenticado y **sin
         ningún permiso**: `RF-SP-027` hace el mismo cambio pero exige
@@ -4152,6 +4324,8 @@ paths:
       - Comisiones
       summary: Corregir una tasa personalizada
       description: |
+        **Permiso requerido:** `commissions:update`. Sin él, `403` (`AUTH-002`).
+
         Corrige el **valor** —la forma y la cifra— y el **fin de vigencia**. Se
         aplica lo que llega y se deja intacto lo que no.
 
@@ -4221,12 +4395,15 @@ paths:
             '*/*':
               schema:
                 $ref: "#/components/schemas/UserCommissionRateResponse"
+      x-required-permission: commissions:update
   /api/v1/roles/{id}:
     get:
       tags:
       - Roles
       summary: Consultar el detalle de un rol
       description: |
+        **Permiso requerido:** `roles:read`. Sin él, `403` (`AUTH-002`).
+
         Devuelve el alcance exacto de un rol: **la lista completa de los
         permisos que declara**, su rol padre, **cuántos** roles cuelgan de él y
         **cuántas** personas lo tienen asignado.
@@ -4275,11 +4452,14 @@ paths:
           description: "No existe el rol, o está eliminado lógicamente (`EX-001`)"
         "500":
           description: Fallo no controlado (`ERR-500`)
+      x-required-permission: roles:read
     patch:
       tags:
       - Roles
       summary: Editar un rol
       description: |
+        **Permiso requerido:** `roles:update`. Sin él, `403` (`AUTH-002`).
+
         Modifica el **nombre** y la **descripción**. Nada más: el código es
         estable por diseño —cambiarlo rompería cualquier referencia externa— y
         la clasificación es **inmutable**, porque determina si el rol puede
@@ -4353,12 +4533,15 @@ paths:
             '*/*':
               schema:
                 $ref: "#/components/schemas/RoleResponse"
+      x-required-permission: roles:update
   /api/v1/roles/{id}/status:
     patch:
       tags:
       - Roles
       summary: Activar o desactivar un rol
       description: |
+        **Permiso requerido:** `roles:update`. Sin él, `403` (`AUTH-002`).
+
         **Desactivar no es retirar.** Las asignaciones a personas se conservan
         intactas; lo que cambia es que el rol **deja de conceder permisos de
         inmediato**, sin esperar a que ningún token expire.
@@ -4427,12 +4610,15 @@ paths:
             '*/*':
               schema:
                 $ref: "#/components/schemas/RoleResponse"
+      x-required-permission: roles:update
   /api/v1/roles/{id}/parent:
     patch:
       tags:
       - Roles
       summary: Cambiar el rol padre
       description: |
+        **Permiso requerido:** `roles:update`. Sin él, `403` (`AUTH-002`).
+
         Reubica el rol bajo otro padre y **revalida la contención contra el
         nuevo** (`RN-SEG-013`): si el rol declara permisos que el nuevo padre
         no posee, la operación se rechaza **entera** enumerándolos, para que
@@ -4510,12 +4696,15 @@ paths:
             '*/*':
               schema:
                 $ref: "#/components/schemas/RoleResponse"
+      x-required-permission: roles:update
   /api/v1/products/{id}:
     get:
       tags:
       - Productos
       summary: Consultar el detalle de un producto
       description: |
+        **Permiso requerido:** `products:read`. Sin él, `403` (`AUTH-002`).
+
         Devuelve el producto con su membresía destino y su moneda **resueltas**,
         sin exigir una segunda consulta.
 
@@ -4579,11 +4768,14 @@ paths:
           description: No existe un producto con ese identificador (`EX-001`)
         "500":
           description: Fallo no controlado (`ERR-500`)
+      x-required-permission: products:read
     patch:
       tags:
       - Productos
       summary: Corregir un producto
       description: |
+        **Permiso requerido:** `products:update`. Sin él, `403` (`AUTH-002`).
+
         Corrige el **nombre**, la **descripción**, el **icono**, el **enlace
         del video**, **los dos precios**, la **moneda**, la **vigencia**, el
         **alcance** y la **implementación**. Se aplica lo que llega y se deja
@@ -4685,12 +4877,15 @@ paths:
           description: La moneda no existe o está desactivada (`EX-003`)
         "500":
           description: Fallo no controlado (`ERR-500`)
+      x-required-permission: products:update
   /api/v1/products/{id}/status:
     patch:
       tags:
       - Productos
       summary: Publicar o retirar de la oferta un producto
       description: |
+        **Permiso requerido:** `products:update`. Sin él, `403` (`AUTH-002`).
+
         Cambia el estado del producto entre `ACTIVO` e `INACTIVO`. **Es un
         recurso propio y no un campo de la edición**: publicar y corregir son
         decisiones distintas, y mezclarlas haría que una corrección de texto
@@ -4749,12 +4944,15 @@ paths:
           description: Ya hay otro upgrade activo hacia esa membresía destino (`EX-002`)
         "500":
           description: Fallo no controlado (`ERR-500`)
+      x-required-permission: products:update
   /api/v1/products/{id}/comments/{commentId}:
     delete:
       tags:
       - Reseñas
       summary: Retirar la reseña propia
       description: |
+        **Permiso requerido:** `products:comment`. Sin él, `403` (`AUTH-002`).
+
         Retira lógicamente la reseña de quien llama, **sin motivo y sin cuerpo**. Es la
         primera baja de una entidad de negocio del sistema que no pide `reason`: el
         Art. V.13 admite desde el 14-09-2026 el **contenido propio** como excepción, porque
@@ -4799,11 +4997,14 @@ paths:
         "404":
           description: "La reseña no existe, ya está retirada o no es del producto\
             \ de la ruta (`EX-001`)"
+      x-required-permission: products:comment
     patch:
       tags:
       - Reseñas
       summary: Corregir la reseña propia
       description: |
+        **Permiso requerido:** `products:comment`. Sin él, `403` (`AUTH-002`).
+
         Corrige la puntuación, el texto o los dos. **Lo que no viene no cambia**, y
         **ningún campo admite el nulo explícito**: los dos son obligatorios. Un cuerpo sin
         ningún campo responde `400`, como en la edición del producto.
@@ -4858,12 +5059,15 @@ paths:
         "404":
           description: "La reseña no existe, está retirada o no es del producto de\
             \ la ruta (`EX-001`)"
+      x-required-permission: products:comment
   /api/v1/packages/{id}:
     get:
       tags:
       - Paquetes
       summary: Consultar el detalle de un paquete
       description: |
+        **Permiso requerido:** `packages:read`. Sin él, `403` (`AUTH-002`).
+
         El paquete con sus productos y **la cuenta hecha**: cada producto con su
         descuento y su `priceInPackage`, y `listPrice`, `price` y `savings` que
         cuadran con las líneas. **El precio se calcula en cada lectura** con el
@@ -4928,11 +5132,14 @@ paths:
             '*/*':
               schema:
                 $ref: "#/components/schemas/PackageDetailResponse"
+      x-required-permission: packages:read
     patch:
       tags:
       - Paquetes
       summary: Corregir un paquete
       description: |
+        **Permiso requerido:** `packages:update`. Sin él, `403` (`AUTH-002`).
+
         Corrige **nombre, descripción, alcance y las dos fechas de vigencia**
         (`validFrom`, `validTo`), por separado o juntos, y devuelve el detalle.
         Cada campo puede venir ausente —no se toca—, con valor, o **presente y
@@ -5010,12 +5217,15 @@ paths:
             '*/*':
               schema:
                 $ref: "#/components/schemas/PackageDetailResponse"
+      x-required-permission: packages:update
   /api/v1/packages/{id}/status:
     patch:
       tags:
       - Paquetes
       summary: Activar o desactivar un paquete
       description: |
+        **Permiso requerido:** `packages:update`. Sin él, `403` (`AUTH-002`).
+
         Cambia el estado del paquete y devuelve el detalle.
 
         **Activar exige descripción y al menos dos productos**, y los dos motivos
@@ -5082,12 +5292,15 @@ paths:
             '*/*':
               schema:
                 $ref: "#/components/schemas/PackageDetailResponse"
+      x-required-permission: packages:update
   /api/v1/packages/{id}/products/{productId}:
     delete:
       tags:
       - Paquetes
       summary: Quitar un producto del paquete
       description: |
+        **Permiso requerido:** `packages:update`. Sin él, `403` (`AUTH-002`).
+
         Quita el producto del paquete **sin cuerpo y sin motivo** —la fila es una
         asociación (Art. V.13): se borra físicamente y su baja queda en la
         auditoría de eliminación como `ASSOCIATION`, con el descuento y el precio
@@ -5149,11 +5362,14 @@ paths:
             '*/*':
               schema:
                 $ref: "#/components/schemas/PackageDetailResponse"
+      x-required-permission: packages:update
     patch:
       tags:
       - Paquetes
       summary: Corregir el descuento de un producto del paquete
       description: |
+        **Permiso requerido:** `packages:update`. Sin él, `403` (`AUTH-002`).
+
         Corrige **forma y valor juntos** —son un solo dato, y los dos son
         obligatorios: no es parcial— y devuelve el paquete entero con su
         `priceInPackage` y sus totales rehechos.
@@ -5231,12 +5447,15 @@ paths:
             '*/*':
               schema:
                 $ref: "#/components/schemas/PackageDetailResponse"
+      x-required-permission: packages:update
   /api/v1/currencies/{id}/status:
     patch:
       tags:
       - Monedas
       summary: Activar o desactivar una moneda
       description: |
+        **Permiso requerido:** `currencies:update`. Sin él, `403` (`AUTH-002`).
+
         Cambia el estado de una moneda del catálogo. Es lo **único** que la API
         puede modificar de una moneda.
 
@@ -5282,12 +5501,15 @@ paths:
           description: Se intenta desactivar la moneda por defecto (`RN-SP-010`)
         "500":
           description: Fallo no controlado (`ERR-500`)
+      x-required-permission: currencies:update
   /api/v1/courses/{id}:
     get:
       tags:
       - Cursos
       summary: Consultar el detalle de un curso
       description: |
+        **Permiso requerido:** `courses:read`. Sin él, `403` (`AUTH-002`).
+
         El curso entero: lo suyo, el instructor resuelto, `coverImageUrl`, sus
         **categorías** vivas, los **cursos que recomienda** —con su estado y si se
         ofrecen—, las **membresías que lo abren**, y **sus módulos en orden con sus
@@ -5343,11 +5565,14 @@ paths:
             '*/*':
               schema:
                 $ref: "#/components/schemas/CourseDetailResponse"
+      x-required-permission: courses:read
     patch:
       tags:
       - Cursos
       summary: Editar un curso
       description: |
+        **Permiso requerido:** `courses:update`. Sin él, `403` (`AUTH-002`).
+
         Corrección **parcial**: solo lo que viene cambia. Admite `title`,
         `instructorId`, `difficulty`, `shortDescription`, `longDescription`,
         `introVideoUrl` y `displayOrder`, por separado o juntos, y exige al menos
@@ -5426,12 +5651,15 @@ paths:
             '*/*':
               schema:
                 $ref: "#/components/schemas/CourseDetailResponse"
+      x-required-permission: courses:update
   /api/v1/courses/{id}/status:
     patch:
       tags:
       - Cursos
       summary: Cambiar el estado de un curso
       description: |
+        **Permiso requerido:** `courses:update`. Sin él, `403` (`AUTH-002`).
+
         `ACTIVO` publica; `INACTIVO` despublica. **Activar exige las dos
         descripciones y al menos un módulo activo**, comprobado **junto**: si faltan
         varias cosas, la respuesta trae todos los motivos. **No exige una
@@ -5495,12 +5723,15 @@ paths:
             '*/*':
               schema:
                 $ref: "#/components/schemas/CourseDetailResponse"
+      x-required-permission: courses:update
   /api/v1/course-categories/{id}:
     get:
       tags:
       - Categorías de cursos
       summary: Consultar el detalle de una categoría
       description: |
+        **Permiso requerido:** `course-categories:read`. Sin él, `403` (`AUTH-002`).
+
         La categoría entera: lo suyo, `coverImageUrl` —presente y nulo si no hay— y
         **sus cursos vivos en el orden en que se enseñan**, cada uno con su `status`
         y con `offerable`, que es del curso y no de la pareja. Un curso retirado que
@@ -5551,11 +5782,14 @@ paths:
             '*/*':
               schema:
                 $ref: "#/components/schemas/CourseCategoryDetailResponse"
+      x-required-permission: course-categories:read
     patch:
       tags:
       - Categorías de cursos
       summary: Editar una categoría
       description: |
+        **Permiso requerido:** `course-categories:update`. Sin él, `403` (`AUTH-002`).
+
         Corrección **parcial**: solo lo que viene cambia. Admite `name`,
         `description`, `color`, `icon` y `displayOrder`, por separado o juntos, y
         exige al menos uno. **Ausente y nulo no significan lo mismo**: ausente es «no
@@ -5628,12 +5862,15 @@ paths:
             '*/*':
               schema:
                 $ref: "#/components/schemas/CourseCategoryDetailResponse"
+      x-required-permission: course-categories:update
   /api/v1/countries/{id}/status:
     patch:
       tags:
       - Países
       summary: Activar o desactivar un país
       description: |
+        **Permiso requerido:** `countries:update`. Sin él, `403` (`AUTH-002`).
+
         Cambia el estado de un país. Es lo **único** que la API puede modificar
         de un país.
 
@@ -5676,12 +5913,15 @@ paths:
           description: No existe país con ese identificador (`EX-001`)
         "500":
           description: Fallo no controlado (`ERR-500`)
+      x-required-permission: countries:update
   /api/v1/commission-rates/{id}:
     patch:
       tags:
       - Comisiones
       summary: Corregir el valor de una tasa de rol
       description: |
+        **Permiso requerido:** `commissions:update`. Sin él, `403` (`AUTH-002`).
+
         Corrige el **valor** —la forma y la cifra—, que es lo único corregible.
 
         **Esta operación borra el pasado.** Las tasas de rol no tienen vigencia:
@@ -5749,12 +5989,15 @@ paths:
             '*/*':
               schema:
                 $ref: "#/components/schemas/CommissionRateResponse"
+      x-required-permission: commissions:update
   /api/v1/users/{id}/team:
     get:
       tags:
       - Usuarios
       summary: Consultar el superior y el equipo a cargo
       description: |
+        **Permiso requerido:** `users:read`. Sin él, `403` (`AUTH-002`).
+
         Devuelve el superior inmediato y el **equipo directo** de la persona,
         paginado.
 
@@ -5842,12 +6085,15 @@ paths:
           description: La persona no existe o está eliminada (`VAL-002`)
         "500":
           description: Fallo no controlado (`ERR-500`)
+      x-required-permission: users:read
   /api/v1/users/{id}/broker-accounts:
     get:
       tags:
       - Usuarios
       summary: Consultar las cuentas de broker de una persona
       description: |
+        **Permiso requerido:** ninguno más allá del token. El alcance lo acota el servicio —el propio actor, o la relación con la persona consultada— y la descripción dice cómo.
+
         Devuelve las cuentas de broker de esa persona: **broker, identificador
         de cuenta, nombre de usuario en el broker y estado**, ordenadas por
         nombre de broker e identificador de cuenta.
@@ -5913,6 +6159,8 @@ paths:
       - Usuarios
       summary: Consultar las cuentas de broker de mi equipo
       description: |
+        **Permiso requerido:** ninguno más allá del token. El alcance lo acota el servicio —el propio actor, o la relación con la persona consultada— y la descripción dice cómo.
+
         Devuelve, **paginadas**, las cuentas de broker de todas las personas
         que dependen **directamente** del actor, **cada fila con su titular**.
 
@@ -6001,6 +6249,8 @@ paths:
       - Reseñas
       summary: Consultar la reseña propia sobre un producto
       description: |
+        **Permiso requerido:** `products:comment`. Sin él, `403` (`AUTH-002`).
+
         Devuelve **la** reseña viva de quien llama sobre el producto, con su identificador —
         que es lo que la corrección y el retiro reciben en la ruta—. **No admite parámetro
         de persona**: responde sobre quien llama y sobre nadie más.
@@ -6032,12 +6282,15 @@ paths:
           description: Autenticado sin el permiso `products:comment` (`AUTH-002`)
         "404":
           description: Quien llama no tiene reseña viva sobre este producto (`EX-001`)
+      x-required-permission: products:comment
   /api/v1/products/hotlinks:
     get:
       tags:
       - Productos
       summary: Consultar el catálogo de hotlinks
       description: |
+        **Permiso requerido:** `products:hotlink`. Sin él, `403` (`AUTH-002`).
+
         **Lo que un vendedor puede repartir**: los productos **activos y de
         alcance `HOTLINK` o `AMBOS`**, de los dos tipos, en `upgrades` y `services`
         — exactamente el conjunto que `GET /api/v1/hotlinks/{username}/{code}`
@@ -6071,12 +6324,15 @@ paths:
           description: Autenticado sin el permiso `products:hotlink` (`AUTH-002`)
         "500":
           description: Fallo no controlado (`ERR-500`)
+      x-required-permission: products:hotlink
   /api/v1/products/available:
     get:
       tags:
       - Productos
       summary: Consultar la oferta disponible para uno mismo
       description: |
+        **Permiso requerido:** `products:sale`. Sin él, `403` (`AUTH-002`).
+
         Devuelve lo que **quien llama** puede comprar hoy, y no el catálogo.
 
         **No admite ningún parámetro**: ni de persona, ni de filtro, ni de
@@ -6178,12 +6434,15 @@ paths:
           description: Autenticado sin el permiso `products:sale` (`AUTH-002`)
         "500":
           description: Fallo no controlado (`ERR-500`)
+      x-required-permission: products:sale
   /api/v1/product-images/{imageId}:
     get:
       tags:
       - Productos
       summary: "Obtener la imagen de una portada, sin autenticación"
       description: |
+        **Permiso requerido:** ninguno. Ruta pública: responde sin token.
+
         Devuelve **los bytes** de la imagen de portada de un producto, con el
         `Content-Type` real —el detectado al subirla— y **sin token**: la
         dirección la dan las cuatro lecturas del producto en `coverImageUrl`,
@@ -6253,6 +6512,8 @@ paths:
       - Comisiones
       summary: "Consultar qué comisiona un producto, y a qué rol"
       description: |
+        **Permiso requerido:** `commissions:read`. Sin él, `403` (`AUTH-002`).
+
         Devuelve una entrada **por cada rol** que cobra comisión por ese producto,
         con el valor ya resuelto: las tasas de rol **vivas** de ese producto
         (`RN-CM-021`). Es lo mismo que `GET /api/v1/commission-rates?productId=`,
@@ -6294,12 +6555,15 @@ paths:
             '*/*':
               schema:
                 $ref: "#/components/schemas/ProductAssociationResponse"
+      x-required-permission: commissions:read
   /api/v1/permissions:
     get:
       tags:
       - Permisos
       summary: Consultar el catálogo de permisos
       description: |
+        **Permiso requerido:** `permissions:read`. Sin él, `403` (`AUTH-002`).
+
         Devuelve el catálogo completo, sin paginar, ordenado por recurso y acción.
 
         Los tres filtros son opcionales y ninguno se valida: un valor que no
@@ -6338,12 +6602,15 @@ paths:
             '*/*':
               schema:
                 $ref: "#/components/schemas/PermissionCatalogResponse"
+      x-required-permission: permissions:read
   /api/v1/permissions/{id}:
     get:
       tags:
       - Permisos
       summary: Consultar el detalle de un permiso
       description: |
+        **Permiso requerido:** `permissions:read`. Sin él, `403` (`AUTH-002`).
+
         Devuelve qué habilita un permiso concreto: código, recurso, acción,
         nombre y descripción. Es la consulta de apoyo a la asignación de
         permisos a un rol, y se llega a ella desde el catálogo.
@@ -6405,12 +6672,15 @@ paths:
             '*/*':
               schema:
                 $ref: "#/components/schemas/PermissionResponse"
+      x-required-permission: permissions:read
   /api/v1/payment-methods:
     get:
       tags:
       - Métodos de pago
       summary: Consultar los métodos de pago
       description: |
+        **Permiso requerido:** ninguno. Ruta pública: responde sin token.
+
         Devuelve los métodos de pago **activos y de visibilidad `PUBLICO`**, sin
         paginar y ordenados por código.
 
@@ -6458,12 +6728,15 @@ paths:
         "429":
           description: Se superó la cota de peticiones por origen (120 por minuto).
             La cabecera `Retry-After` dice cuánto esperar.
+      security: []
   /api/v1/movements/mine:
     get:
       tags:
       - Movimientos
       summary: Consultar los movimientos propios
       description: |
+        **Permiso requerido:** ninguno más allá del token. El alcance lo acota el servicio —el propio actor, o la relación con la persona consultada— y la descripción dice cómo.
+
         Devuelve **los movimientos en los que usted participó**, paginados y del más
         reciente al más antiguo.
 
@@ -6525,6 +6798,8 @@ paths:
       - Movimientos
       summary: Consultar el detalle de un movimiento propio
       description: |
+        **Permiso requerido:** ninguno más allá del token. El alcance lo acota el servicio —el propio actor, o la relación con la persona consultada— y la descripción dice cómo.
+
         Devuelve **lo mismo que devuelve registrar una venta**, con sus líneas: qué
         productos, cuántos, a qué precio y con qué vigencia. Quien registró una venta y
         quien la consulta después ven la misma forma.
@@ -6561,6 +6836,8 @@ paths:
       - Movimientos
       summary: Consultar los productos comprados propios
       description: |
+        **Permiso requerido:** ninguno más allá del token. El alcance lo acota el servicio —el propio actor, o la relación con la persona consultada— y la descripción dice cómo.
+
         Devuelve **los productos de las ventas a su nombre**, uno por línea de venta, del más
         reciente al más antiguo, y **en qué estado está cada uno**:
 
@@ -6616,6 +6893,8 @@ paths:
       - Membresías
       summary: Consultar el detalle de una membresía
       description: |
+        **Permiso requerido:** `memberships:read`. Sin él, `403` (`AUTH-002`).
+
         Devuelve la membresía con sus dos vecinos inmediatos, expandidos.
 
         Los vecinos llegan solo hasta el primer grado y no traen los suyos: la
@@ -6645,12 +6924,15 @@ paths:
           description: No existe membresía con ese identificador (`EX-001`)
         "500":
           description: Fallo no controlado (`ERR-500`)
+      x-required-permission: memberships:read
   /api/v1/hotlinks/{username}/{code}:
     get:
       tags:
       - Hotlinks
       summary: Consultar un hotlink
       description: |
+        **Permiso requerido:** ninguno. Ruta pública: responde sin token.
+
         Devuelve, **sin token**, el producto que el enlace señala y el **nombre
         y apellido** de quien lo reparte.
 
@@ -6733,12 +7015,15 @@ paths:
             '*/*':
               schema:
                 $ref: "#/components/schemas/HotlinkResponse"
+      security: []
   /api/v1/hotlinks/{username}/packages/{code}:
     get:
       tags:
       - Hotlinks
       summary: Consultar el hotlink de un paquete
       description: |
+        **Permiso requerido:** ninguno. Ruta pública: responde sin token.
+
         Devuelve, **sin token**, el paquete que el enlace señala —con sus productos,
         el descuento de cada uno y **la cuenta hecha**— y el nombre y apellido de
         quien lo reparte.
@@ -6799,12 +7084,15 @@ paths:
             '*/*':
               schema:
                 $ref: "#/components/schemas/PackageHotlinkResponse"
+      security: []
   /api/v1/document-types:
     get:
       tags:
       - Tipos de documento
       summary: Consultar el catálogo de tipos de documento
       description: |
+        **Permiso requerido:** ninguno. Ruta pública: responde sin token.
+
         Devuelve los documentos de identidad con los que una persona puede
         registrarse, con su **nombre** y su **abreviación**.
 
@@ -6835,18 +7123,17 @@ paths:
             '*/*':
               schema:
                 $ref: "#/components/schemas/DocumentTypeCatalogResponse"
-        "401":
-          description: Token ausente o inválido
-        "403":
-          description: El actor no posee `document-types:read`
         "500":
           description: Fallo no controlado (`ERR-500`)
+      security: []
   /api/v1/currencies:
     get:
       tags:
       - Monedas
       summary: Consultar el catálogo de monedas
       description: |
+        **Permiso requerido:** `currencies:read`. Sin él, `403` (`AUTH-002`).
+
         Devuelve el catálogo completo, sin paginar, ordenado por código.
 
         `decimalPlaces` es el campo del que depende el redondeo de todo cálculo
@@ -6878,12 +7165,15 @@ paths:
           description: Autenticado sin el permiso de lectura de monedas (`AUTH-002`)
         "500":
           description: Fallo no controlado (`ERR-500`)
+      x-required-permission: currencies:read
   /api/v1/commissions/effective:
     get:
       tags:
       - Comisiones
       summary: Consultar la comisión efectiva
       description: |
+        **Permiso requerido:** `commissions:read`. Sin él, `403` (`AUTH-002`).
+
         Responde **cuánto le corresponde a una persona por vender un producto un
         día concreto**, y **por qué**: devuelve la tasa que ganó y de cuál de las
         dos piezas salió.
@@ -6967,12 +7257,15 @@ paths:
             '*/*':
               schema:
                 $ref: "#/components/schemas/EffectiveCommissionResponse"
+      x-required-permission: commissions:read
   /api/v1/brokers:
     get:
       tags:
       - Brokers
       summary: Consultar el catálogo de brokers
       description: |
+        **Permiso requerido:** ninguno. Ruta pública: responde sin token.
+
         Devuelve los brokers con los que opera la plataforma, **ordenados por
         nombre**.
 
@@ -7006,18 +7299,17 @@ paths:
             '*/*':
               schema:
                 $ref: "#/components/schemas/BrokerCatalogResponse"
-        "401":
-          description: Token ausente o inválido
-        "403":
-          description: El actor no posee `brokers:read`
         "500":
           description: Fallo no controlado (`ERR-500`)
+      security: []
   /api/v1/broker-accounts:
     get:
       tags:
       - Cuentas de broker
       summary: Consultar y filtrar todas las cuentas de broker
       description: |
+        **Permiso requerido:** `broker-accounts:read`. Sin él, `403` (`AUTH-002`).
+
         Devuelve **todas** las cuentas de broker del sistema, paginadas y con
         su titular en cada fila. **Sin ningún filtro devuelve el sistema
         entero**: es lo que `broker-accounts:read` significa.
@@ -7194,12 +7486,15 @@ paths:
             '*/*':
               schema:
                 $ref: "#/components/schemas/BrokerAccountsPage"
+      x-required-permission: broker-accounts:read
   /api/v1/broker-accounts/indicators:
     get:
       tags:
       - Cuentas de broker
       summary: Consultar los indicadores de la red comercial
       description: |
+        **Permiso requerido:** `broker-accounts:read`. Sin él, `403` (`AUTH-002`).
+
         Devuelve **el árbol de la fuerza comercial**, cada nodo con dos
         bloques de números: `own` —lo que cuelga **directamente** de esa
         persona— y `network` —esa persona **y todo lo que cuelga de ella**, a
@@ -7293,12 +7588,15 @@ paths:
             '*/*':
               schema:
                 $ref: "#/components/schemas/NetworkIndicatorsResponse"
+      x-required-permission: broker-accounts:read
   /api/v1/audit/security:
     get:
       tags:
       - Auditoría
       summary: Consultar la auditoría de seguridad
       description: |
+        **Permiso requerido:** `audit:read-security`. Sin él, `403` (`AUTH-002`).
+
         Entradas, bloqueos, cambios de privilegio y denegaciones de
         autorización, del más reciente al más antiguo.
 
@@ -7404,12 +7702,15 @@ paths:
             '*/*':
               schema:
                 $ref: "#/components/schemas/PageResponseSecurityAuditItem"
+      x-required-permission: audit:read-security
   /api/v1/audit/errors:
     get:
       tags:
       - Auditoría
       summary: Consultar la auditoría de error
       description: |
+        **Permiso requerido:** `audit:read-errors`. Sin él, `403` (`AUTH-002`).
+
         Fallos no controlados y rechazos por regla de negocio, del más reciente
         al más antiguo.
 
@@ -7512,12 +7813,15 @@ paths:
             '*/*':
               schema:
                 $ref: "#/components/schemas/PageResponseErrorAuditItem"
+      x-required-permission: audit:read-errors
   /api/v1/audit/deletions:
     get:
       tags:
       - Auditoría
       summary: Consultar la auditoría de eliminación
       description: |
+        **Permiso requerido:** `audit:read-deletions`. Sin él, `403` (`AUTH-002`).
+
         Qué se eliminó, quién lo eliminó y **por qué**, del más reciente al más
         antiguo.
 
@@ -7625,12 +7929,15 @@ paths:
             '*/*':
               schema:
                 $ref: "#/components/schemas/PageResponseDeletionAuditItem"
+      x-required-permission: audit:read-deletions
   /api/v1/audit/changes:
     get:
       tags:
       - Auditoría
       summary: Consultar la auditoría de cambios
       description: |
+        **Permiso requerido:** `audit:read-changes`. Sin él, `403` (`AUTH-002`).
+
         Altas y ediciones de todo el sistema, **del más reciente al más
         antiguo**. El orden no se puede cambiar: es parte del significado de un
         registro cronológico.
@@ -7743,6 +8050,7 @@ paths:
             '*/*':
               schema:
                 $ref: "#/components/schemas/PageResponseChangeAuditItem"
+      x-required-permission: audit:read-changes
 components:
   schemas:
     AssignMembershipRequest:

@@ -1,6 +1,8 @@
 package com.factech.nexus.shared.security;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import java.util.Arrays;
+import java.util.stream.Stream;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -14,6 +16,7 @@ import org.springframework.security.config.http.SessionCreationPolicy;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.access.intercept.AuthorizationFilter;
 import org.springframework.security.web.authentication.HttpStatusEntryPoint;
+import org.springframework.util.AntPathMatcher;
 
 /**
  * Configuración base de seguridad.
@@ -197,6 +200,33 @@ public class SecurityConfig {
   private static final String[] RUTAS_DOCUMENTACION = {
     "/v3/api-docs", "/v3/api-docs.yaml", "/v3/api-docs/**", "/swagger-ui.html", "/swagger-ui/**"
   };
+
+  /**
+   * ¿Responde esta ruta <b>sin token</b>? La misma respuesta que da el filtro de arriba, calculada
+   * sobre las mismas listas.
+   *
+   * <p>Existe para que el contrato OpenAPI pueda decir de cada operación si es pública sin
+   * <b>copiar</b> las listas ({@code RequiredPermissionCustomizer}): una copia se desactualiza el
+   * día que alguien abre o cierra una ruta aquí y olvida el otro sitio, y el contrato pasaría a
+   * mentir sin que ninguna prueba lo note. Recibe la ruta <b>como la publica el contrato</b> —con
+   * sus variables entre llaves, {@code /api/v1/hotlinks/{username}/{code}}— y {@code *} casa con
+   * una variable igual que casa con un valor: es un segmento.
+   *
+   * <p>La documentación ({@link #RUTAS_DOCUMENTACION}) no entra: depende de una propiedad de
+   * entorno y no cuelga de {@code /api/v1}, de modo que el contrato no la describe.
+   */
+  static boolean esPublica(HttpMethod metodo, String ruta) {
+    AntPathMatcher ant = new AntPathMatcher();
+    if (Arrays.stream(RUTAS_PUBLICAS).anyMatch(patron -> ant.match(patron, ruta))) {
+      return true;
+    }
+    if (metodo != HttpMethod.GET) {
+      return false;
+    }
+    return Stream.concat(
+            Arrays.stream(CATALOGOS_PUBLICOS), Stream.of(RESENAS_PUBLICAS, PORTADAS_PUBLICAS))
+        .anyMatch(patron -> ant.match(patron, ruta));
+  }
 
   private final boolean documentacionPublica;
   private final JwtActorConverter actorDesdeElToken;

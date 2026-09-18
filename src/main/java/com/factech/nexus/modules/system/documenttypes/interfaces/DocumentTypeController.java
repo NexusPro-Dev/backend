@@ -81,14 +81,6 @@ public class DocumentTypeController {
         description = "Catálogo completo, ordenado por nombre",
         content = @Content(schema = @Schema(implementation = DocumentTypeCatalogResponse.class))),
     @ApiResponse(
-        responseCode = "401",
-        description = "Token ausente o inválido",
-        content = @Content),
-    @ApiResponse(
-        responseCode = "403",
-        description = "El actor no posee `document-types:read`",
-        content = @Content),
-    @ApiResponse(
         responseCode = "500",
         description = "Fallo no controlado (`ERR-500`)",
         content = @Content)

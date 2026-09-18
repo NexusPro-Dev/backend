@@ -154,14 +154,6 @@ public class CountryController {
         description = "El parámetro de inclusión no es booleano",
         content = @Content),
     @ApiResponse(
-        responseCode = "401",
-        description = "Token ausente o inválido (`AUTH-001`)",
-        content = @Content),
-    @ApiResponse(
-        responseCode = "403",
-        description = "Autenticado sin el permiso de lectura de países (`AUTH-002`)",
-        content = @Content),
-    @ApiResponse(
         responseCode = "500",
         description = "Fallo no controlado (`ERR-500`)",
         content = @Content)

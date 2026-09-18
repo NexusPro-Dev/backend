@@ -1,5 +1,8 @@
 package com.factech.nexus.shared.architecture;
 
+import static com.factech.nexus.shared.security.RequiredPermissionCustomizer.ENCABEZADO;
+import static com.factech.nexus.shared.security.RequiredPermissionCustomizer.EXTENSION;
+import static org.hamcrest.Matchers.startsWith;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.user;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
@@ -421,6 +424,93 @@ class OpenApiContractIT extends IntegrationTestBase {
             jsonPath("$.paths['/api/v1/products/available'].get.responses.404").doesNotExist())
         // Y sigue siendo una ruta distinta de la del detalle, que sí exige permiso.
         .andExpect(jsonPath("$.paths['/api/v1/products/{id}'].get").exists());
+  }
+
+  @Test
+  @DisplayName("cada operación dice QUÉ PERMISO exige, y lo dice desde la anotación que lo aplica")
+  void cadaOperacionDeclaraSuPermiso() throws Exception {
+    // Hasta el 18-09-2026 el permiso vivía en la prosa del 403, escrita a mano y
+    // de tres maneras distintas —nombrado, descrito sin nombre, o «Sin permiso»
+    // a secas—, y tres catálogos públicos seguían declarando un 403 imposible.
+    // `RequiredPermissionCustomizer` lo lee de la MISMA `@PreAuthorize` que
+    // Spring evalúa. Aquí se fijan las tres formas que puede tomar la respuesta.
+    mvc.perform(get("/v3/api-docs").with(user("doc")))
+        .andExpect(status().isOk())
+        // Con permiso: la extensión lleva el nombre exacto, y la descripción lo
+        // encabeza. Un mismo permiso puede gobernar varias rutas — el contrato
+        // lo dice en cada una, para que el frontend no tenga que deducirlo.
+        .andExpect(
+            jsonPath("$.paths['/api/v1/users'].get['" + EXTENSION + "']").value("users:read"))
+        .andExpect(
+            jsonPath("$.paths['/api/v1/users/{id}/team'].get['" + EXTENSION + "']")
+                .value("users:read"))
+        .andExpect(
+            jsonPath("$.paths['/api/v1/roles/{id}/permissions'].post['" + EXTENSION + "']")
+                .value("roles:update"))
+        .andExpect(
+            jsonPath("$.paths['/api/v1/users'].get.description")
+                .value(startsWith(ENCABEZADO + " `users:read`.")))
+        // Pública: sin extensión, `security` vacío —que es como OpenAPI dice
+        // «sin token» y lo que quita el candado en Swagger UI— y sin 401 ni
+        // 403, que no puede responder.
+        .andExpect(jsonPath("$.paths['/api/v1/countries'].get['" + EXTENSION + "']").doesNotExist())
+        .andExpect(jsonPath("$.paths['/api/v1/countries'].get.security").isEmpty())
+        .andExpect(jsonPath("$.paths['/api/v1/countries'].get.responses.401").doesNotExist())
+        .andExpect(jsonPath("$.paths['/api/v1/countries'].get.responses.403").doesNotExist())
+        .andExpect(
+            jsonPath("$.paths['/api/v1/countries'].get.description")
+                .value(startsWith(ENCABEZADO + " ninguno. Ruta pública")))
+        // …y solo el GET: el POST de países sigue exigiendo su permiso.
+        .andExpect(
+            jsonPath("$.paths['/api/v1/countries'].post['" + EXTENSION + "']")
+                .value("countries:create"))
+        .andExpect(jsonPath("$.paths['/api/v1/countries'].post.security").doesNotExist())
+        .andExpect(jsonPath("$.paths['/api/v1/hotlinks/{username}/{code}'].get.security").isEmpty())
+        // Solo token: el alcance lo decide el servicio, y el contrato remite a
+        // la descripción en vez de inventar un permiso que no existe.
+        .andExpect(jsonPath("$.paths['/api/v1/users/me'].get['" + EXTENSION + "']").doesNotExist())
+        .andExpect(jsonPath("$.paths['/api/v1/users/me'].get.security").doesNotExist())
+        .andExpect(
+            jsonPath("$.paths['/api/v1/users/me'].get.description")
+                .value(startsWith(ENCABEZADO + " ninguno más allá del token")))
+        .andExpect(
+            jsonPath("$.paths['/api/v1/users/{id}/broker-accounts'].get.description")
+                .value(startsWith(ENCABEZADO + " ninguno más allá del token")));
+  }
+
+  @Test
+  @DisplayName("NINGUNA operación de /api/v1 se queda sin decir su permiso")
+  void ningunaOperacionCallaSuPermiso() throws Exception {
+    // La prueba de arriba fija la forma sobre rutas conocidas; esta recorre
+    // todas. Es la que hace que un endpoint nuevo no pueda nacer sin la línea,
+    // que es el mismo modo de fallo que esta clase existe para evitar.
+    var cuerpo =
+        mvc.perform(get("/v3/api-docs").with(user("doc")))
+            .andExpect(status().isOk())
+            .andReturn()
+            .getResponse()
+            .getContentAsString(StandardCharsets.UTF_8);
+    var rutas = json.readTree(cuerpo).get("paths");
+    var sinLinea = new java.util.ArrayList<String>();
+    int operaciones = 0;
+    for (var ruta = rutas.fields(); ruta.hasNext(); ) {
+      var entrada = ruta.next();
+      if (!entrada.getKey().startsWith("/api/v1")) {
+        continue;
+      }
+      for (var metodo = entrada.getValue().fields(); metodo.hasNext(); ) {
+        var operacion = metodo.next();
+        operaciones++;
+        var descripcion = operacion.getValue().path("description").asText("");
+        if (!descripcion.startsWith(ENCABEZADO)) {
+          sinLinea.add(operacion.getKey().toUpperCase() + " " + entrada.getKey());
+        }
+      }
+    }
+    org.assertj.core.api.Assertions.assertThat(operaciones).isGreaterThan(100);
+    org.assertj.core.api.Assertions.assertThat(sinLinea)
+        .as("operaciones cuya descripción no empieza por «%s»", ENCABEZADO)
+        .isEmpty();
   }
 
   @Test
