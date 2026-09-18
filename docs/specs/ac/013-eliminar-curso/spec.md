@@ -139,3 +139,4 @@ Es `RF-AC-005` con la mitad que la categoría no tenía: **el arrastre**. `RN-AC
 | Versión | Fecha | Cambio | Responsable |
 |---|---|---|---|
 | 0.1.0 | 18-09-2026 | Redacción inicial. Hereda `RF-AC-005` y le añade **el arrastre de módulos y lecciones con un registro por fila**, que fija la forma y que el bloque 3 construye. Las relaciones se conservan; el recomendado retirado deja de enseñarse en el aula. | Responsable técnico |
+| 0.2.0 | 18-09-2026 | **Construida** (`CourseDeletionIT` (6), la carrera en `CourseConcurrencyIT`) **con `CA-AC-074` bloqueado**: `CourseTreeRetirement` existe y no recorre nada hasta `RF-AC-022`; la instantánea lleva las cuatro listas de identificadores, hoy vacías. La parte del aula de `CA-AC-075` queda para `RF-AC-034`. | Responsable técnico |

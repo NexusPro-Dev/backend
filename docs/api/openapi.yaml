@@ -51,6 +51,8 @@ tags:
   description: Alta y administración de las personas del sistema.
 - name: Permisos
   description: Catálogo de permisos del sistema. Solo lectura.
+- name: Cursos
+  description: "Lo que la membresía abre: los cursos de la academia."
 - name: Tasas de cambio
   description: A cuánto se cambia una moneda por otra
 - name: Hotlinks
@@ -2665,6 +2667,228 @@ paths:
             '*/*':
               schema:
                 $ref: "#/components/schemas/ExchangeRateResponse"
+  /api/v1/courses:
+    get:
+      tags:
+      - Cursos
+      summary: Consultar los cursos
+      description: |
+        La lista de administración de los cursos, paginada, **en el orden en que se
+        enseñan**: por `displayOrder` ascendente, con el más antiguo primero entre
+        dos que compartan número. Cada fila trae el instructor resuelto —con su
+        nombre **actual**—, `coverImageUrl`, sus categorías vivas, **`offerable`** y
+        cuántos módulos y lecciones **vivos** tiene — vivos y no ofrecidos—. Sin
+        descripción larga, video ni árbol: para eso está el detalle.
+
+        Filtra por `q` —título, sin distinguir mayúsculas ni acentos—, `categoryId`,
+        `instructorId`, `difficulty` y `status`, combinables. **Excluye los
+        retirados** salvo `includeDeleted=true`, y entonces los trae con `deletedAt`
+        y `offerable: false`. «Ofrecible» no es filtro: se publica por fila.
+
+        Orden: `displayOrder` (omisión, ascendente), `title` y `createdAt`
+        (descendente por omisión), con `,asc`/`,desc`. Los parámetros inválidos se
+        devuelven **juntos** con `400`. Exige `courses:read`;
+        `course-categories:read` no habilita.
+      operationId: listar_5
+      parameters:
+      - name: page
+        in: query
+        required: false
+        schema:
+          type: integer
+          format: int32
+      - name: size
+        in: query
+        required: false
+        schema:
+          type: integer
+          format: int32
+      - name: sort
+        in: query
+        required: false
+        schema:
+          type: string
+      - name: q
+        in: query
+        required: false
+        schema:
+          type: string
+      - name: categoryId
+        in: query
+        required: false
+        schema:
+          type: string
+          format: uuid
+      - name: instructorId
+        in: query
+        required: false
+        schema:
+          type: string
+          format: uuid
+      - name: difficulty
+        in: query
+        required: false
+        schema:
+          type: string
+      - name: status
+        in: query
+        required: false
+        schema:
+          type: string
+      - name: includeDeleted
+        in: query
+        required: false
+        schema:
+          type: boolean
+      responses:
+        "200":
+          description: La página de cursos.
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/CoursePageResponse"
+        "400":
+          description: "Orden, paginación o filtros inválidos, juntos (`VAL-001` a\
+            \ `VAL-003`)"
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/CoursePageResponse"
+        "401":
+          description: Token ausente o inválido (`AUTH-001`)
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/CoursePageResponse"
+        "403":
+          description: Autenticado sin el permiso `courses:read` (`AUTH-002`)
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/CoursePageResponse"
+    post:
+      tags:
+      - Cursos
+      summary: Registrar un curso
+      description: |
+        Registra un curso con **título, instructor, dificultad y orden**, obligatorios,
+        y descripción corta, descripción larga y video de introducción, opcionales.
+        **Nace `INACTIVO` y vacío**: sin categorías, sin recomendaciones, sin
+        membresías, sin módulos y sin portada — cada cosa entra por su operación—, y
+        **sin código**: un curso no se teclea en ninguna venta.
+
+        **El instructor es una persona del sistema que existe, no está retirada y
+        porta `courses:teach`**, comprobado **al asignar y solo al asignar**: que lo
+        pierda después no toca el curso. Un instructor inexistente o retirado y uno
+        sin el permiso son dos `422` distintos, porque se arreglan en sitios
+        distintos. **`instructor.fullName` es el nombre actual** de la persona, no
+        una copia.
+
+        El título es único entre los cursos **vivos**, sin distinguir mayúsculas ni
+        acentos; un retirado libera el suyo. Las descripciones de solo espacios se
+        guardan nulas; el video se comprueba en su forma y **no se sigue**. Enviar
+        `status`, `categories`, `memberships`, `modules`, `coverImageUrl` o `code`
+        responde `400`.
+
+        La respuesta es la forma del detalle: listas vacías, `coverImageUrl`
+        presente y nulo, cero minutos y cero lecciones, y `offerable: false` con
+        `offerableReason` «inactivo». Exige `courses:create`; **los
+        `course-categories:` no habilitan**.
+      operationId: register_2
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/RegisterCourseRequest"
+        required: true
+      responses:
+        "201":
+          description: "Curso registrado, inactivo y vacío."
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/CourseDetailResponse"
+        "400":
+          description: "Datos inválidos, juntos (`VAL-001` a `VAL-006`), o un campo\
+            \ no admitido (`VAL-007`)"
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/CourseDetailResponse"
+        "401":
+          description: Token ausente o inválido (`AUTH-001`)
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/CourseDetailResponse"
+        "403":
+          description: Autenticado sin el permiso `courses:create` (`AUTH-002`)
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/CourseDetailResponse"
+        "409":
+          description: Título ya en uso por un curso vivo (`EX-001`)
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/CourseDetailResponse"
+        "422":
+          description: "El instructor no existe o está retirado (`EX-002`), o no porta\
+            \ `courses:teach` (`EX-003`)"
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/CourseDetailResponse"
+  /api/v1/courses/{id}/deletion:
+    post:
+      tags:
+      - Cursos
+      summary: Retirar un curso
+      description: |
+        Baja **lógica y con motivo**: la fila se queda con `deletedAt` puesto y nada
+        más cambiado —ni el estado—, y el motivo y la instantánea —con los
+        identificadores de sus categorías, membresías, recomendados y módulos— van a
+        la auditoría de eliminación. **`POST` y no `DELETE`** porque el cuerpo lleva
+        el motivo, que es obligatorio.
+
+        **Retirar un curso arrastra sus módulos y lecciones vivos**, con el mismo
+        instante y el mismo motivo, y **una fila de auditoría por cada uno**. Sus
+        clasificaciones, recomendaciones y visibilidades **se conservan** y dejan de
+        verse; **deja de aparecer como recomendado** en el aula. Un curso que se
+        ofrece se retira igual y sale del aula en el acto.
+
+        El título del retirado **queda libre**. Sale del listado salvo
+        `includeDeleted=true`, y su detalle trae el motivo y el árbol marcado.
+        Retirar uno ya retirado responde `409`, distinto del `404` del inexistente.
+        Exige `courses:delete`.
+      operationId: retirar_3
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/DeleteCourseRequest"
+      responses:
+        "204":
+          description: "Curso retirado, con su árbol."
+        "400":
+          description: "Identificador inválido o motivo ausente, vacío o largo (`VAL-001`\
+            \ a `VAL-003`)"
+        "401":
+          description: Token ausente o inválido (`AUTH-001`)
+        "403":
+          description: Autenticado sin el permiso `courses:delete` (`AUTH-002`)
+        "404":
+          description: El curso no existe (`EX-001`)
+        "409":
+          description: El curso ya está retirado (`EX-002`)
   /api/v1/course-categories:
     get:
       tags:
@@ -2686,7 +2910,7 @@ paths:
         (descendente por omisión), con `,asc`/`,desc`. Los parámetros inválidos se
         devuelven **juntos** con `400`. Exige `course-categories:read`;
         `courses:read` no habilita.
-      operationId: listar_5
+      operationId: listar_6
       parameters:
       - name: page
         in: query
@@ -2764,7 +2988,7 @@ paths:
         La respuesta es la misma forma que el detalle: `courseCount` en cero,
         `courses` vacío y `coverImageUrl` presente y nulo. Exige
         `course-categories:create`; **los `courses:` no habilitan**.
-      operationId: register_2
+      operationId: register_3
       requestBody:
         content:
           application/json:
@@ -2825,7 +3049,7 @@ paths:
         `includeDeleted=true`, y su detalle trae el motivo. Retirar una ya retirada
         responde `409`, distinto del `404` de la inexistente: quien retira dos veces
         merece saber que la primera funcionó. Exige `course-categories:delete`.
-      operationId: retirar_3
+      operationId: retirar_4
       parameters:
       - name: id
         in: path
@@ -2950,7 +3174,7 @@ paths:
         Las tasas **personalizadas** no salen en este listado: están en
         `GET /api/v1/user-commission-rates`. **No hay filtro por fecha**, porque
         las tasas de rol no tienen vigencia.
-      operationId: listar_6
+      operationId: listar_7
       parameters:
       - name: filtros
         in: query
@@ -3059,7 +3283,7 @@ paths:
         sostenga, y esa condición queda solo para la personalizada.
 
         **No es idempotente**: retirar dos veces devuelve `409`.
-      operationId: retirar_4
+      operationId: retirar_5
       parameters:
       - name: id
         in: path
@@ -5058,6 +5282,219 @@ paths:
           description: Se intenta desactivar la moneda por defecto (`RN-SP-010`)
         "500":
           description: Fallo no controlado (`ERR-500`)
+  /api/v1/courses/{id}:
+    get:
+      tags:
+      - Cursos
+      summary: Consultar el detalle de un curso
+      description: |
+        El curso entero: lo suyo, el instructor resuelto, `coverImageUrl`, sus
+        **categorías** vivas, los **cursos que recomienda** —con su estado y si se
+        ofrecen—, las **membresías que lo abren**, y **sus módulos en orden con sus
+        lecciones en orden**, vivos y retirados marcados, cada módulo con `offerable`
+        y cada lección con tipo, duración, estado y `open` — **sin el contenido**, que
+        se pide por lección. La duración total y la cuenta de lecciones se suman sobre
+        lo vivo.
+
+        **`offerable` y `offerableReason` viajan siempre**, con el primer motivo que
+        falla en su orden: retirado, inactivo, sin descripción, sin membresías, sin
+        módulo activo con lección activa con contenido. Es la vista con la que se
+        arma el curso y se ve qué le falta para publicarse.
+
+        **Se devuelve también un retirado**, con `deletedAt` y `deletionReason`
+        —leído de la auditoría— y su árbol marcado: es la lectura de administración
+        y devuelve todo.
+      operationId: detalle_4
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      responses:
+        "200":
+          description: El curso con sus relaciones y su árbol.
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/CourseDetailResponse"
+        "400":
+          description: Identificador inválido (`VAL-001`)
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/CourseDetailResponse"
+        "401":
+          description: Token ausente o inválido (`AUTH-001`)
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/CourseDetailResponse"
+        "403":
+          description: Autenticado sin el permiso `courses:read` (`AUTH-002`)
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/CourseDetailResponse"
+        "404":
+          description: El curso no existe (`EX-001`)
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/CourseDetailResponse"
+    patch:
+      tags:
+      - Cursos
+      summary: Editar un curso
+      description: |
+        Corrección **parcial**: solo lo que viene cambia. Admite `title`,
+        `instructorId`, `difficulty`, `shortDescription`, `longDescription`,
+        `introVideoUrl` y `displayOrder`, por separado o juntos, y exige al menos
+        uno. **Ausente y nulo no significan lo mismo**: ausente es «no lo toques»,
+        nulo es «vacíalo» — y **solo las descripciones y el video admiten
+        vaciarse**; el nulo en los otros cuatro responde `400`, junto con los demás
+        errores de forma.
+
+        **Sin inmutables**. **Reasignar el instructor repite la comprobación del
+        alta** sobre el nuevo: existe, no está retirado y porta `courses:teach`; al
+        mismo no se comprueba nada y nada cambia. **Vaciar una descripción no
+        desactiva**: un curso activo sigue activo y **deja de ofrecerse** —el detalle
+        dice «sin descripción»— hasta que alguien la reponga. El estado, la portada,
+        las relaciones y los módulos tienen sus propios endpoints, y en el cuerpo
+        responden `400`.
+
+        El título nuevo no puede ser el de **otro** curso vivo. Un retirado no se
+        corrige (`404`). Un cuerpo sin cambios de valor responde `200` sin avanzar
+        `updatedAt` ni auditar. Exige `courses:update`.
+      operationId: corregir_3
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateCourseRequest"
+        required: true
+      responses:
+        "200":
+          description: "El curso corregido, en la forma del detalle."
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/CourseDetailResponse"
+        "400":
+          description: "Identificador inválido, campos que no admiten vaciarse, cuerpo\
+            \ vacío o campo no admitido (`VAL-001` a `VAL-008`)"
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/CourseDetailResponse"
+        "401":
+          description: Token ausente o inválido (`AUTH-001`)
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/CourseDetailResponse"
+        "403":
+          description: Autenticado sin el permiso `courses:update` (`AUTH-002`)
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/CourseDetailResponse"
+        "404":
+          description: El curso no existe o está retirado (`EX-002`)
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/CourseDetailResponse"
+        "409":
+          description: Título ya en uso por otro curso vivo (`EX-001`)
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/CourseDetailResponse"
+        "422":
+          description: "El instructor nuevo no existe o está retirado (`EX-003`),\
+            \ o no porta `courses:teach` (`EX-004`)"
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/CourseDetailResponse"
+  /api/v1/courses/{id}/status:
+    patch:
+      tags:
+      - Cursos
+      summary: Cambiar el estado de un curso
+      description: |
+        `ACTIVO` publica; `INACTIVO` despublica. **Activar exige las dos
+        descripciones y al menos un módulo activo**, comprobado **junto**: si faltan
+        varias cosas, la respuesta trae todos los motivos. **No exige una
+        membresía**: un curso activo sin lista existe y no se ofrece, y el detalle
+        lo dice. **Desactivar no exige nada** y no toca módulos ni relaciones.
+
+        El estado es lo que alguien decidió: **vaciar una descripción o retirar el
+        último módulo activo después no lo cambia** — el curso deja de ofrecerse, y
+        `offerableReason` dice por qué. Pedir el estado que ya tiene responde `200`
+        sin escribir ni auditar. Un retirado responde `404`. Exige `courses:update`.
+      operationId: cambiarEstado_5
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ChangeCourseStatusRequest"
+        required: true
+      responses:
+        "200":
+          description: "El curso con su estado, en la forma del detalle."
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/CourseDetailResponse"
+        "400":
+          description: "Identificador inválido o estado ausente o fuera de dominio\
+            \ (`VAL-001`, `VAL-002`)"
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/CourseDetailResponse"
+        "401":
+          description: Token ausente o inválido (`AUTH-001`)
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/CourseDetailResponse"
+        "403":
+          description: Autenticado sin el permiso `courses:update` (`AUTH-002`)
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/CourseDetailResponse"
+        "404":
+          description: El curso no existe o está retirado (`EX-001`)
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/CourseDetailResponse"
+        "409":
+          description: "No puede activarse: sin descripción corta (`EX-002`), sin\
+            \ descripción larga (`EX-003`) o sin módulo activo (`EX-004`), juntos"
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/CourseDetailResponse"
   /api/v1/course-categories/{id}:
     get:
       tags:
@@ -5075,7 +5512,7 @@ paths:
         clasificados en ella aunque el aula ya no los enseñe bajo ese cajón. Es la
         lectura de administración, y quien tiene `course-categories:read` ve el
         catálogo completo.
-      operationId: detalle_4
+      operationId: detalle_5
       parameters:
       - name: id
         in: path
@@ -5139,7 +5576,7 @@ paths:
 
         Un cuerpo sin cambios de valor responde `200` sin avanzar `updatedAt` ni
         auditar. La respuesta es la forma del detalle. Exige `course-categories:update`.
-      operationId: corregir_3
+      operationId: corregir_4
       parameters:
       - name: id
         in: path
@@ -5208,7 +5645,7 @@ paths:
         propague desde ese momento, no lo repara.
 
         El cuerpo no admite ningún otro campo ni motivo alguno.
-      operationId: cambiarEstado_5
+      operationId: cambiarEstado_6
       parameters:
       - name: id
         in: path
@@ -5266,7 +5703,7 @@ paths:
         producto de precio cero se rechaza con `409` (`EX-008`). Y un importe
         fijo tiene que **caber en los decimales de la moneda del producto**
         (`VAL-013`).
-      operationId: corregir_4
+      operationId: corregir_5
       parameters:
       - name: id
         in: path
@@ -6384,7 +6821,7 @@ paths:
 
         **No se pagina**: son unos pocos elementos, y partirlos obligaría a dos
         llamadas para pintar un desplegable.
-      operationId: listar_7
+      operationId: listar_8
       parameters:
       - name: includeInactive
         in: query
@@ -6555,7 +6992,7 @@ paths:
 
         **No se pagina**: son unos pocos elementos y partirlos obligaría a dos
         llamadas para pintar un desplegable.
-      operationId: listar_8
+      operationId: listar_9
       parameters:
       - name: includeInactive
         in: query
@@ -6668,7 +7105,7 @@ paths:
 
         **Esta ruta no sustituye a `GET /api/v1/users/{id}/broker-accounts`**,
         que existe para **el superior comercial sin permiso**.
-      operationId: listar_9
+      operationId: listar_10
       parameters:
       - name: page
         in: query
@@ -8633,6 +9070,206 @@ components:
           format: date
         isActive:
           type: boolean
+    RegisterCourseRequest:
+      type: object
+      properties:
+        title:
+          type: string
+          maxLength: 150
+          minLength: 0
+        instructorId:
+          type: string
+          format: uuid
+        difficulty:
+          type: string
+          enum:
+          - PRINCIPIANTE
+          - INTERMEDIO
+          - AVANZADO
+        shortDescription:
+          type: string
+          maxLength: 300
+          minLength: 0
+        longDescription:
+          type: string
+          maxLength: 10000
+          minLength: 0
+        introVideoUrl:
+          type: string
+          maxLength: 500
+          minLength: 0
+          pattern: ^https?://\S+$
+        displayOrder:
+          type: integer
+          format: int32
+      required:
+      - difficulty
+      - displayOrder
+      - instructorId
+      - title
+    CourseCategoryRef:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        name:
+          type: string
+        color:
+          type: string
+        icon:
+          type: string
+    CourseDetailResponse:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        title:
+          type: string
+        instructor:
+          $ref: "#/components/schemas/CourseInstructorRef"
+        difficulty:
+          type: string
+        shortDescription:
+          type: string
+        longDescription:
+          type: string
+        introVideoUrl:
+          type: string
+        displayOrder:
+          type: integer
+          format: int32
+        status:
+          type: string
+        coverImageUrl:
+          type: string
+        categories:
+          type: array
+          items:
+            $ref: "#/components/schemas/CourseCategoryRef"
+        recommendedCourses:
+          type: array
+          items:
+            $ref: "#/components/schemas/RecommendedCourseRef"
+        memberships:
+          type: array
+          items:
+            $ref: "#/components/schemas/CourseMembershipRef"
+        modules:
+          type: array
+          items:
+            $ref: "#/components/schemas/CourseModuleDetail"
+        totalDurationMinutes:
+          type: integer
+          format: int64
+        lessonCount:
+          type: integer
+          format: int64
+        offerable:
+          type: boolean
+        offerableReason:
+          type: string
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+        deletedAt:
+          type: string
+          format: date-time
+        deletionReason:
+          type: string
+    CourseInstructorRef:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        username:
+          type: string
+        fullName:
+          type: string
+    CourseLessonSummary:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        type:
+          type: string
+        title:
+          type: string
+        durationMinutes:
+          type: integer
+          format: int32
+        displayOrder:
+          type: integer
+          format: int32
+        status:
+          type: string
+        open:
+          type: boolean
+        deleted:
+          type: boolean
+    CourseMembershipRef:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        code:
+          type: string
+        name:
+          type: string
+        color:
+          type: string
+    CourseModuleDetail:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        title:
+          type: string
+        shortDescription:
+          type: string
+        displayOrder:
+          type: integer
+          format: int32
+        status:
+          type: string
+        deleted:
+          type: boolean
+        coverImageUrl:
+          type: string
+        offerable:
+          type: boolean
+        durationMinutes:
+          type: integer
+          format: int64
+        lessons:
+          type: array
+          items:
+            $ref: "#/components/schemas/CourseLessonSummary"
+    RecommendedCourseRef:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        title:
+          type: string
+        status:
+          type: string
+        offerable:
+          type: boolean
+    DeleteCourseRequest:
+      type: object
+      properties:
+        reason:
+          type: string
     RegisterCourseCategoryRequest:
       type: object
       properties:
@@ -9292,6 +9929,34 @@ components:
           type: boolean
         isActive:
           type: boolean
+    PatchableCourseDifficulty: {}
+    UpdateCourseRequest:
+      type: object
+      properties:
+        title:
+          $ref: "#/components/schemas/PatchableString"
+        instructorId:
+          $ref: "#/components/schemas/PatchableUUID"
+        difficulty:
+          $ref: "#/components/schemas/PatchableCourseDifficulty"
+        shortDescription:
+          $ref: "#/components/schemas/PatchableString"
+        longDescription:
+          $ref: "#/components/schemas/PatchableString"
+        introVideoUrl:
+          $ref: "#/components/schemas/PatchableString"
+        displayOrder:
+          $ref: "#/components/schemas/PatchableInteger"
+    ChangeCourseStatusRequest:
+      type: object
+      properties:
+        status:
+          type: string
+          enum:
+          - ACTIVO
+          - INACTIVO
+      required:
+      - status
     UpdateCourseCategoryRequest:
       type: object
       properties:
@@ -10426,6 +11091,68 @@ components:
           type: array
           items:
             $ref: "#/components/schemas/CurrencyResponse"
+    CourseItem:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        title:
+          type: string
+        instructor:
+          $ref: "#/components/schemas/CourseInstructorRef"
+        difficulty:
+          type: string
+        shortDescription:
+          type: string
+        displayOrder:
+          type: integer
+          format: int32
+        status:
+          type: string
+        coverImageUrl:
+          type: string
+        categories:
+          type: array
+          items:
+            $ref: "#/components/schemas/CourseCategoryRef"
+        offerable:
+          type: boolean
+        moduleCount:
+          type: integer
+          format: int64
+        lessonCount:
+          type: integer
+          format: int64
+        createdAt:
+          type: string
+          format: date-time
+        deletedAt:
+          type: string
+          format: date-time
+    CoursePageResponse:
+      type: object
+      properties:
+        content:
+          type: array
+          items:
+            $ref: "#/components/schemas/CourseItem"
+        totalElements:
+          type: integer
+          format: int64
+        totalPages:
+          type: integer
+          format: int32
+        page:
+          type: integer
+          format: int32
+        size:
+          type: integer
+          format: int32
+        totalIsExact:
+          type: boolean
+        sort:
+          type: string
     CourseCategoryItem:
       type: object
       properties:

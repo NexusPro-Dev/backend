@@ -143,3 +143,4 @@ La envoltura de página del sistema, y en `content` cada curso con: `id`, `title
 | Versión | Fecha | Cambio | Responsable |
 |---|---|---|---|
 | 0.1.0 | 18-09-2026 | Redacción inicial. Hereda `RF-AC-002` —orden por `displayOrder`— y `RF-PM-018` —`offerable` como columna, retirados si se piden—. El instructor se resuelve en la misma sentencia; las categorías, en una segunda fija por página desde `RF-AC-016`; las cuentas de módulos y lecciones, de los vivos. **Declara tres enmiendas futuras** (Art. I.7) para categorías, módulos y lecciones. | Responsable técnico |
+| 0.2.0 | 18-09-2026 | **Construida** (`CourseListIT` (7)). Dos sentencias fijas hoy; `categoryId` deja la lista vacía por un `1 = 0` con la nota de `RF-AC-016`; dificultad y estado fuera del dominio son `VAL-003` **junto** con paginación y orden. | Responsable técnico |
