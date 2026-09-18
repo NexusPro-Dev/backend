@@ -36,13 +36,18 @@ public interface RegistrationSaleRegistrar {
    * @param movementTypeCode el tipo de movimiento, <b>por código</b>. Hoy el catálogo solo tiene
    *     {@code VENTA} y un registro no puede producir otra cosa; llega en la petición porque el
    *     formulario lo declara, y se verifica en lugar de asumirse
-   * @return el código legible de la venta —{@code VTA-000123}—, para que la respuesta del registro
-   *     pueda decir qué quedó anotado
+   * @return el identificador y el código legible de la venta —{@code VTA-000123}—: el código para
+   *     que la respuesta del registro pueda decir qué quedó anotado, y el identificador para que el
+   *     vínculo cliente-vendedor de {@code client_sellers} cite la venta que lo creó (`RF-SP-059`,
+   *     18-09-2026)
    */
-  String registerSale(
+  RegisteredSale registerSale(
       UUID userId,
       UUID productId,
       UUID paymentMethodId,
       String movementTypeCode,
       String sellerUsername);
+
+  /** La venta recién anotada: su identificador y su código legible. */
+  record RegisteredSale(UUID id, String code) {}
 }

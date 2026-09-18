@@ -8,6 +8,7 @@ import com.factech.nexus.modules.system.users.application.AssignMembershipReques
 import com.factech.nexus.modules.system.users.application.AssignRolesRequest;
 import com.factech.nexus.modules.system.users.application.AssignSupervisorRequest;
 import com.factech.nexus.modules.system.users.application.ChangeUserStatusRequest;
+import com.factech.nexus.modules.system.users.application.ClientSellersResponse;
 import com.factech.nexus.modules.system.users.application.CommercialStructureResponse;
 import com.factech.nexus.modules.system.users.application.DeleteUserRequest;
 import com.factech.nexus.modules.system.users.application.ListUsersRequest;
@@ -27,6 +28,7 @@ import com.factech.nexus.modules.system.users.domain.service.AssignUserMembershi
 import com.factech.nexus.modules.system.users.domain.service.AssignUserRolesService;
 import com.factech.nexus.modules.system.users.domain.service.ChangeUserStatusService;
 import com.factech.nexus.modules.system.users.domain.service.DeleteUserService;
+import com.factech.nexus.modules.system.users.domain.service.GetClientSellersService;
 import com.factech.nexus.modules.system.users.domain.service.GetCommercialTeamService;
 import com.factech.nexus.modules.system.users.domain.service.GetOwnProfileService;
 import com.factech.nexus.modules.system.users.domain.service.GetUserService;
@@ -100,6 +102,7 @@ public class UserController {
   // (`RF-SP-055` · `plan.md` §3).
   private final GetBrokerAccountsService cuentasDeBroker;
   private final GetTeamBrokerAccountsService cuentasDelEquipo;
+  private final GetClientSellersService vendedoresDelCliente;
 
   public UserController(
       RegisterUserService alta,
@@ -118,9 +121,11 @@ public class UserController {
       UpdateOwnProfileService edicionPropia,
       ResetUserPasswordService restablecimiento,
       GetBrokerAccountsService cuentasDeBroker,
-      GetTeamBrokerAccountsService cuentasDelEquipo) {
+      GetTeamBrokerAccountsService cuentasDelEquipo,
+      GetClientSellersService vendedoresDelCliente) {
     this.cuentasDeBroker = cuentasDeBroker;
     this.cuentasDelEquipo = cuentasDelEquipo;
+    this.vendedoresDelCliente = vendedoresDelCliente;
     this.alta = alta;
     this.asignacion = asignacion;
     this.retiro = retiro;
@@ -402,6 +407,111 @@ public class UserController {
   })
   public OwnProfileResponse miPerfil() {
     return perfilPropio.profile();
+  }
+
+  // SIN `@PreAuthorize`, y es deliberado (`RF-SP-059` · `plan.md` §5): el
+  // cliente sale del token y no hay nada que autorizar más allá de estar
+  // autenticado. La ruta consta en `EndpointPermissionsIT` con este motivo.
+  @GetMapping("/me/sellers")
+  @Operation(
+      summary = "Consultar mis vendedores",
+      description =
+          """
+          Devuelve **los vendedores del actor**: quien lo registró —su **principal**,
+          origen `REGISTRO`— y los vendedores por cuyo enlace compró —origen
+          `HOTLINK`—. **El principal va primero**, después por fecha de vínculo.
+
+          Es la respuesta a «¿a qué agente estoy asignado?» (`RF-SP-059`,
+          `RN-SP-049`). **El principal es quien lo registró y no se cambia**:
+          no hay operación que lo reasigne ni historial que cerrar. Un vínculo
+          es un hecho, y por eso tampoco se quita: un vendedor desactivado o
+          eliminado **sigue saliendo**.
+
+          **Hoy la lista tiene un solo elemento**, y no es un defecto: las filas
+          `HOTLINK` las escribirá la compra por hotlink (`RF-MV-011`,
+          `RF-MV-013`), que no está construida. El contrato ya es el definitivo.
+
+          De cada vendedor se publica lo mismo que su hotlink (`RN-PM-022`):
+          **nombre y apellido**, más el nombre de usuario, que el cliente ya
+          conoce. **Ni identificador, ni correo, ni estado, ni roles.**
+
+          `linkedAt` es desde cuándo es su vendedor; en los vínculos anteriores al
+          18-09-2026 —traídos por `V20` desde `user_supervisors`— es desde cuándo
+          colgaba de él allí.
+
+          Quien no es cliente —un vendedor, un funcionario— recibe `200` con la
+          colección vacía: nadie lo registró por enlace. Un cliente dado de alta
+          por un funcionario, también.
+
+          **Desde el 18-09-2026 el cliente no cuelga de `user_supervisors`**, de
+          modo que `GET /api/v1/users/me` **no devuelve `supervisor`** a un
+          cliente: su vía es esta.
+          """)
+  @ApiResponses({
+    @ApiResponse(
+        responseCode = "200",
+        description = "Los vendedores del actor, principal primero; vacío si no tiene",
+        content = @Content(schema = @Schema(implementation = ClientSellersResponse.class))),
+    @ApiResponse(
+        responseCode = "401",
+        description = "Token ausente o inválido (`AUTH-001`)",
+        content = @Content),
+    @ApiResponse(
+        responseCode = "500",
+        description = "Fallo no controlado (`ERR-500`)",
+        content = @Content)
+  })
+  public ClientSellersResponse misVendedores() {
+    return vendedoresDelCliente.mine();
+  }
+
+  @GetMapping("/{id}/sellers")
+  @PreAuthorize("hasAuthority('users:read')")
+  @Operation(
+      summary = "Consultar los vendedores de un cliente",
+      description =
+          """
+          La misma lista que `GET /api/v1/users/me/sellers`, sobre **cualquier
+          persona** y con **`users:read`**: los vendedores de un cliente son un
+          dato de la persona, no de otra naturaleza, y por eso no tienen permiso
+          propio como sí lo tienen las cuentas de broker.
+
+          **`403` sin el permiso y `404` con el permiso y una persona que no
+          existe**, el modelo general de `security.md` §5. Aquí no hay actor
+          autorizado por estructura al que proteger de un oráculo de
+          identificadores —a diferencia de `GET /users/{id}/broker-accounts`—,
+          y quien trae `users:read` ya puede listar a todas las personas.
+
+          Una persona que no es cliente devuelve `200` con la colección vacía.
+          """)
+  @ApiResponses({
+    @ApiResponse(
+        responseCode = "200",
+        description = "Los vendedores de la persona, principal primero; vacío si no tiene",
+        content = @Content(schema = @Schema(implementation = ClientSellersResponse.class))),
+    @ApiResponse(
+        responseCode = "400",
+        description = "Identificador malformado (`VAL-001`)",
+        content = @Content),
+    @ApiResponse(
+        responseCode = "401",
+        description = "Token ausente o inválido (`AUTH-001`)",
+        content = @Content),
+    @ApiResponse(
+        responseCode = "403",
+        description = "Autenticado sin `users:read` (`AUTH-002`)",
+        content = @Content),
+    @ApiResponse(
+        responseCode = "404",
+        description = "La persona no existe o está eliminada (`VAL-002`)",
+        content = @Content),
+    @ApiResponse(
+        responseCode = "500",
+        description = "Fallo no controlado (`ERR-500`)",
+        content = @Content)
+  })
+  public ClientSellersResponse vendedoresDe(@PathVariable UUID id) {
+    return vendedoresDelCliente.of(id);
   }
 
   @PatchMapping("/me")

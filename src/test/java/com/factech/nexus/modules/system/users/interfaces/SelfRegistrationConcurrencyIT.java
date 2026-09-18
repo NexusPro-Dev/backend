@@ -182,6 +182,9 @@ class SelfRegistrationConcurrencyIT extends IntegrationTestBase {
 
   private void limpiar() {
     // Antes que los productos y las personas: sus claves foráneas son RESTRICT.
+    // `client_sellers` ANTES que los movimientos: la fila REGISTRO cita la venta
+    // del enlace (`first_movement_id`), y la clave foránea es RESTRICT.
+    jdbc.update("DELETE FROM client_sellers");
     jdbc.update("DELETE FROM movement_details");
     jdbc.update("DELETE FROM movements");
     jdbc.update("DELETE FROM audit_change_log WHERE module = 'MV'");

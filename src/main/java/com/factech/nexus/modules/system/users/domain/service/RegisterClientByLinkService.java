@@ -18,6 +18,7 @@ import com.factech.nexus.modules.system.users.domain.repository.AssignableDocume
 import com.factech.nexus.modules.system.users.domain.repository.AssignableRole;
 import com.factech.nexus.modules.system.users.domain.repository.BrokerAccountRegistrar;
 import com.factech.nexus.modules.system.users.domain.repository.BrokerAccountRegistrar.BrokerRef;
+import com.factech.nexus.modules.system.users.domain.repository.ClientSellerRepository;
 import com.factech.nexus.modules.system.users.domain.repository.MembershipCatalog;
 import com.factech.nexus.modules.system.users.domain.repository.RoleCatalog;
 import com.factech.nexus.modules.system.users.domain.repository.UserRepository;
@@ -93,6 +94,7 @@ public class RegisterClientByLinkService {
   private static final String ROL_CLIENTE = "CLIENTE";
 
   private final UserRepository usuarios;
+  private final ClientSellerRepository vinculos;
   private final RegistrableProductLookup productos;
   private final PublicSellerLookup vendedores;
   private final RoleCatalog roles;
@@ -110,6 +112,7 @@ public class RegisterClientByLinkService {
   @Autowired
   public RegisterClientByLinkService(
       UserRepository usuarios,
+      ClientSellerRepository vinculos,
       RegistrableProductLookup productos,
       PublicSellerLookup vendedores,
       RoleCatalog roles,
@@ -124,6 +127,7 @@ public class RegisterClientByLinkService {
       UuidV7Generator ids) {
     this(
         usuarios,
+        vinculos,
         productos,
         vendedores,
         roles,
@@ -141,6 +145,7 @@ public class RegisterClientByLinkService {
 
   RegisterClientByLinkService(
       UserRepository usuarios,
+      ClientSellerRepository vinculos,
       RegistrableProductLookup productos,
       PublicSellerLookup vendedores,
       RoleCatalog roles,
@@ -155,6 +160,7 @@ public class RegisterClientByLinkService {
       UuidV7Generator ids,
       Clock reloj) {
     this.usuarios = usuarios;
+    this.vinculos = vinculos;
     this.productos = productos;
     this.vendedores = vendedores;
     this.roles = roles;
@@ -233,7 +239,14 @@ public class RegisterClientByLinkService {
     // `RN-SP-027`: no se registra un cliente sin atribución. La alternativa
     // —admitirlo con la atribución vacía— produciría clientes huérfanos que
     // nadie comisiona y que nadie sabe reclamar.
-    usuarios.assignSupervisor(ids.next(), usuario.getId(), vendedor, ahora);
+    //
+    // Desde el 18-09-2026 (`RN-SP-028` revertida, `RF-SP-059`) la atribución
+    // es la fila REGISTRO de `client_sellers`, y NO una fila de
+    // `user_supervisors`: el cliente no cuelga de la estructura de mando, y ese
+    // vendedor es su principal para siempre. Se escribe ANTES de la venta
+    // porque la venta resuelve su vendedor con `ClientCatalog.sellerOf`, que
+    // mira aquí; y se completa DESPUÉS con el identificador de esa venta.
+    vinculos.registerPrincipal(usuario.getId(), vendedor, ahora);
 
     // Todas en la MISMA transacción que la persona: una cuenta rechazada por el
     // índice deshace el registro entero, en lugar de dejar a alguien dentro con
@@ -245,7 +258,7 @@ public class RegisterClientByLinkService {
     // LA VENTA, en la misma transacción y la última: si se rechaza, no queda ni
     // la persona. Registrar a alguien cuya venta no se pudo anotar y anotar una
     // venta de alguien que no existe son los dos estados que esto evita.
-    String venta =
+    RegistrationSaleRegistrar.RegisteredSale venta =
         ventas.registerSale(
             usuario.getId(),
             movimiento.productId(),
@@ -253,10 +266,14 @@ public class RegisterClientByLinkService {
             movimiento.movementTypeCode(),
             movimiento.sellerUsername());
 
-    auditar(usuario, producto, movimiento.sellerUsername(), cuentas.size(), venta);
+    // El vínculo cita la venta que lo creó (§10.19). Es lo único que no podía
+    // escribirse antes: la venta no existía.
+    vinculos.attachFirstMovement(usuario.getId(), vendedor, venta.id());
+
+    auditar(usuario, producto, movimiento.sellerUsername(), cuentas.size(), venta.code());
 
     return SelfRegistrationResponse.de(
-        usuario.getId(), usuario.getUsername(), usuario.getStatus().name(), venta);
+        usuario.getId(), usuario.getUsername(), usuario.getStatus().name(), venta.code());
   }
 
   // ---------------------------------------------------------------------------

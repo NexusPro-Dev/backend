@@ -26,12 +26,16 @@ import java.util.UUID;
  *
  * <p>`RN-MV-003` dice que el vendedor sale del cliente y se congela. Que `MV` no lo reciba por
  * parámetro es lo que impide atribuirse la venta de otro; que salga de <b>esta</b> interfaz y no de
- * una consulta propia es lo que impide que `MV` conozca {@code user_supervisors}, que es de `SP`.
+ * una consulta propia es lo que impide que `MV` conozca {@code client_sellers} ni {@code
+ * user_supervisors}, que son de `SP`.
  *
- * <p><b>Devuelve el superior comercial vigente, sea quien sea.</b> Que ese superior porte un rol
- * `VENDEDOR` lo exige `RN-SP-020` <b>al colgarlo</b>, y comprobarlo otra vez al vender convertiría
- * una estructura mal formada en una venta rechazada en lugar de en una estructura que hay que
- * arreglar. `MV` solo necesita saber si hay alguien a quien atribuir (`EX-003`).
+ * <p><b>Devuelve el vendedor PRINCIPAL del cliente, y si no lo hay, su superior comercial
+ * vigente.</b> Desde el 18-09-2026 (`RN-SP-028` revertida, `RF-SP-059`) el cliente no cuelga de la
+ * estructura de mando: su vendedor es la fila {@code REGISTRO} de {@code client_sellers}. La tabla de
+ * mando queda para un vendedor que compra. Que ese vendedor porte un rol `VENDEDOR` lo exige
+ * `RN-SP-027` <b>al registrarlo</b>, y comprobarlo otra vez al vender convertiría una estructura mal
+ * formada en una venta rechazada en lugar de en una estructura que hay que arreglar. `MV` solo
+ * necesita saber si hay alguien a quien atribuir (`EX-003`).
  *
  * <p>Ver `architecture.md` §15.2.
  */
@@ -51,7 +55,8 @@ public interface ClientCatalog {
   Optional<ClientView> findClient(UUID id);
 
   /**
-   * De qué vendedor cuelga hoy esa persona, si de alguno.
+   * Quién es hoy el vendedor de esa persona, si alguien: su principal en {@code client_sellers} y,
+   * si no tiene, su superior vigente en {@code user_supervisors}.
    *
    * <p>Vacío significa que <b>la venta no se puede atribuir</b> (`EX-003`). `RN-SP-027` promete que
    * esto no ocurre —ningún cliente se registra sin vendedor—, y esta lectura existe porque una

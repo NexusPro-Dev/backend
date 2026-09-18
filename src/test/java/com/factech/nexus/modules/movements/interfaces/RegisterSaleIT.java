@@ -581,6 +581,9 @@ class RegisterSaleIT extends IntegrationTestBase {
     // segunda raíz revienta en el COMMIT, lejos de aquí y sin decir por qué.
     jdbc.update("DELETE FROM products");
     jdbc.update(
+        "DELETE FROM client_sellers WHERE client_id IN"
+            + " (SELECT id FROM users WHERE username LIKE 'venta-%')");
+    jdbc.update(
         "DELETE FROM user_supervisors WHERE user_id IN"
             + " (SELECT id FROM users WHERE username LIKE 'venta-%')");
     jdbc.update("DELETE FROM user_memberships");
@@ -702,13 +705,18 @@ class RegisterSaleIT extends IntegrationTestBase {
         BASE);
   }
 
-  private void colgarDe(UUID persona, UUID superior) {
+  /**
+   * El cliente y su vendedor PRINCIPAL: la fila {@code REGISTRO} de {@code client_sellers}
+   * (`RN-SP-049`, `RF-SP-059`, 18-09-2026). Hasta esa fecha era una fila de {@code
+   * user_supervisors}, y el cliente ya no tiene fila allí (`RN-SP-028` revertida): es lo que hace
+   * de `CA-MV-002` la prueba de que la venta lee la tabla nueva (`CA-SP-695`).
+   */
+  private void colgarDe(UUID cliente, UUID vendedor) {
     jdbc.update(
-        "INSERT INTO user_supervisors (id, user_id, supervisor_id, started_at, ended_at)"
-            + " VALUES (CAST(? AS uuid), CAST(? AS uuid), CAST(? AS uuid), ?, NULL)",
-        UUID.randomUUID().toString(),
-        persona.toString(),
-        superior.toString(),
+        "INSERT INTO client_sellers (client_id, seller_id, origin, first_movement_id, created_at)"
+            + " VALUES (CAST(? AS uuid), CAST(? AS uuid), 'REGISTRO', NULL, ?)",
+        cliente.toString(),
+        vendedor.toString(),
         BASE);
   }
 

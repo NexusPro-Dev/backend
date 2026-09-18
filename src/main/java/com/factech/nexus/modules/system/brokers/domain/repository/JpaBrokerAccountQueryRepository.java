@@ -86,8 +86,9 @@ public class JpaBrokerAccountQueryRepository implements BrokerAccountQueryReposi
                    b.id AS broker_id, b.name AS broker_name,
                    u.id AS user_id, u.username AS username,
                    u.first_name AS first_name, u.last_name AS last_name
-              FROM user_supervisors us
-              JOIN users u ON u.id = us.user_id
+            """
+                + EQUIPO_DE
+                + """
               JOIN user_brokers ub ON ub.user_id = u.id
               JOIN brokers b ON b.id = ub.broker_id
             """
@@ -117,8 +118,9 @@ public class JpaBrokerAccountQueryRepository implements BrokerAccountQueryReposi
         em.createNativeQuery(
             """
             SELECT count(*)
-              FROM user_supervisors us
-              JOIN users u ON u.id = us.user_id
+            """
+                + EQUIPO_DE
+                + """
               JOIN user_brokers ub ON ub.user_id = u.id
               JOIN brokers b ON b.id = ub.broker_id
             """
@@ -256,15 +258,15 @@ public class JpaBrokerAccountQueryRepository implements BrokerAccountQueryReposi
   public List<DirectCountRow> countDirectAccountsBySupervisor() {
     return conteos(
         """
-        SELECT us.supervisor_id AS jefe, ub.status AS estado, count(*) AS total
+        SELECT cs.seller_id AS jefe, ub.status AS estado, count(*) AS total
           FROM user_brokers ub
           JOIN users u ON u.id = ub.user_id
-          JOIN user_supervisors us ON us.user_id = u.id AND us.ended_at IS NULL
+          JOIN client_sellers cs ON cs.client_id = u.id AND cs.origin = 'REGISTRO'
          WHERE u.deleted_at IS NULL
            AND """
             + " "
             + ES_CONSUMIDOR
-            + " GROUP BY us.supervisor_id, ub.status",
+            + " GROUP BY cs.seller_id, ub.status",
         true);
   }
 
@@ -275,15 +277,15 @@ public class JpaBrokerAccountQueryRepository implements BrokerAccountQueryReposi
     // persona, y repartirla entre los dos grupos la contaría dos veces.
     return conteos(
         """
-        SELECT us.supervisor_id AS jefe, count(DISTINCT u.id) AS total
+        SELECT cs.seller_id AS jefe, count(DISTINCT u.id) AS total
           FROM user_brokers ub
           JOIN users u ON u.id = ub.user_id
-          JOIN user_supervisors us ON us.user_id = u.id AND us.ended_at IS NULL
+          JOIN client_sellers cs ON cs.client_id = u.id AND cs.origin = 'REGISTRO'
          WHERE u.deleted_at IS NULL
            AND """
             + " "
             + ES_CONSUMIDOR
-            + " GROUP BY us.supervisor_id",
+            + " GROUP BY cs.seller_id",
         false);
   }
 
@@ -324,15 +326,19 @@ public class JpaBrokerAccountQueryRepository implements BrokerAccountQueryReposi
   /**
    * «No cuelga de ningún vendedor», que son <b>dos</b> casos y no uno.
    *
-   * <p>No tener superior vigente, <b>y</b> tenerlo pero que no sea fuerza comercial —un
-   * funcionario, por ejemplo—. El segundo se olvida con facilidad y su cuenta desaparecería de
-   * todos los números: no estaría en ningún nodo del árbol y tampoco en lo no atribuido.
+   * <p>No tener principal —nadie lo registró por enlace—, <b>y</b> tenerlo pero que no sea fuerza
+   * comercial —un funcionario, por ejemplo—. El segundo se olvida con facilidad y su cuenta
+   * desaparecería de todos los números: no estaría en ningún nodo del árbol y tampoco en lo no
+   * atribuido.
+   *
+   * <p>Desde el 18-09-2026 «cuelga de» es la fila {@code REGISTRO} de {@code client_sellers}
+   * (`RN-SP-048` (5)), no {@code user_supervisors}: el cliente ya no tiene fila allí.
    */
   private static final String SIN_VENDEDOR_ENCIMA =
-      " AND NOT EXISTS (SELECT 1 FROM user_supervisors us"
-          + " JOIN user_roles urj ON urj.user_id = us.supervisor_id"
+      " AND NOT EXISTS (SELECT 1 FROM client_sellers cs"
+          + " JOIN user_roles urj ON urj.user_id = cs.seller_id"
           + " AND urj.role_type = 'VENDEDOR'"
-          + " WHERE us.user_id = u.id AND us.ended_at IS NULL) ";
+          + " WHERE cs.client_id = u.id AND cs.origin = 'REGISTRO') ";
 
   private List<DirectCountRow> conteos(String sql, boolean conEstado) {
     @SuppressWarnings("unchecked")
@@ -368,6 +374,12 @@ public class JpaBrokerAccountQueryRepository implements BrokerAccountQueryReposi
    *   <li><b>{@code deleted_at} NO se filtra aquí</b>, sino fuera, al unir con {@code users}.
    *       Dentro <b>cortaría la rama</b>: una persona eliminada dejaría de expandirse y sus
    *       subordinados desaparecerían del resultado aunque sigan vivos y colgando de ella.
+   *   <li><b>Los clientes se unen EN LA HOJA, no dentro de la recursión</b> (18-09-2026,
+   *       `RN-SP-028` revertida). La recursiva recorre <b>solo fuerza comercial</b> —{@code
+   *       user_supervisors} ya no contiene clientes— y un segundo término, {@code alcance}, añade
+   *       los clientes {@code REGISTRO} de la raíz y de cada nodo desde {@code client_sellers}. Es
+   *       un join fijo después del recorrido y no un caso especial dentro de él; y como los
+   *       clientes no se expanden, meterlos en la recursión solo habría añadido una vuelta vacía.
    * </ul>
    */
   private static String recursivaSiHace(BrokerAccountFilters filtros) {
@@ -385,6 +397,14 @@ public class JpaBrokerAccountQueryRepository implements BrokerAccountQueryReposi
               FROM user_supervisors us
               JOIN red r ON us.supervisor_id = r.user_id
              WHERE us.ended_at IS NULL
+        ), alcance AS (
+            SELECT user_id FROM red
+            UNION
+            SELECT cs.client_id
+              FROM client_sellers cs
+             WHERE cs.origin = 'REGISTRO'
+               AND (cs.seller_id = CAST(:raiz AS uuid)
+                    OR cs.seller_id IN (SELECT user_id FROM red))
         )
         """;
   }
@@ -419,7 +439,7 @@ public class JpaBrokerAccountQueryRepository implements BrokerAccountQueryReposi
     filtro.condicion("u.deleted_at IS NULL");
 
     if (f.supervisorId() != null) {
-      filtro.condicion("ub.user_id IN (SELECT user_id FROM red)", "raiz", f.supervisorId());
+      filtro.condicion("ub.user_id IN (SELECT user_id FROM alcance)", "raiz", f.supervisorId());
     }
     filtro.igual("ub.user_id", "persona", f.userId());
     filtro.igual("ub.broker_id", "broker", f.brokerId());
@@ -538,11 +558,33 @@ public class JpaBrokerAccountQueryRepository implements BrokerAccountQueryReposi
    * catálogo entero, y aquí el filtro selectivo —el equipo vigente— va antes y ya lo aplica el
    * índice parcial de `V28`.
    */
+  /**
+   * «El equipo» de una persona, para `RN-SP-046`: <b>dos fuentes y una unión</b>.
+   *
+   * <p>Sus vendedores directos —la fila vigente de {@code user_supervisors}— <b>y</b> los clientes
+   * de los que es principal —la fila {@code REGISTRO} de {@code client_sellers}—. Hasta el
+   * 18-09-2026 las dos cosas eran filas de la misma tabla; desde `RN-SP-028` revertida el cliente
+   * no cuelga de la de mando, y una consulta que solo mirara aquella <b>dejaría a los agentes sin
+   * ver a su cartera</b> sin que nada fallara. {@code UNION} y no {@code UNION ALL}: nadie debería
+   * estar en las dos, y si estuviera —un cliente ascendido— no debe contarse dos veces.
+   */
+  private static final String EQUIPO_DE =
+      """
+              FROM (SELECT us.user_id AS user_id
+                      FROM user_supervisors us
+                     WHERE us.supervisor_id = CAST(:superior AS uuid)
+                       AND us.ended_at IS NULL
+                     UNION
+                    SELECT cs.client_id AS user_id
+                      FROM client_sellers cs
+                     WHERE cs.seller_id = CAST(:superior AS uuid)
+                       AND cs.origin = 'REGISTRO') eq
+              JOIN users u ON u.id = eq.user_id
+      """;
+
   private static final String DONDE =
       """
-       WHERE us.supervisor_id = CAST(:superior AS uuid)
-         AND us.ended_at IS NULL
-         AND u.deleted_at IS NULL
+       WHERE u.deleted_at IS NULL
          AND (CAST(:estado AS varchar) IS NULL OR ub.status = CAST(:estado AS varchar))
          AND (CAST(:broker AS uuid) IS NULL OR ub.broker_id = CAST(:broker AS uuid))
       """;

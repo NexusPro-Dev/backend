@@ -674,6 +674,9 @@ class BuyPackageIT extends IntegrationTestBase {
     jdbc.update("DELETE FROM product_packages");
     jdbc.update("DELETE FROM products");
     jdbc.update(
+        "DELETE FROM client_sellers WHERE client_id IN"
+            + " (SELECT id FROM users WHERE username LIKE 'paq-%')");
+    jdbc.update(
         "DELETE FROM user_supervisors WHERE user_id IN"
             + " (SELECT id FROM users WHERE username LIKE 'paq-%')");
     jdbc.update("DELETE FROM user_memberships");
@@ -793,13 +796,17 @@ class BuyPackageIT extends IntegrationTestBase {
     return id;
   }
 
-  private void colgarDe(UUID persona, UUID superior) {
+  /**
+   * El comprador es un cliente, y su vendedor es su PRINCIPAL: la fila {@code REGISTRO} de {@code
+   * client_sellers} (`RN-SP-049`, `RF-SP-059`, 18-09-2026), no una fila de {@code
+   * user_supervisors}.
+   */
+  private void colgarDe(UUID cliente, UUID vendedor) {
     jdbc.update(
-        "INSERT INTO user_supervisors (id, user_id, supervisor_id, started_at, ended_at)"
-            + " VALUES (?::uuid, ?::uuid, ?::uuid, ?, NULL)",
-        UUID.randomUUID(),
-        persona,
-        superior,
+        "INSERT INTO client_sellers (client_id, seller_id, origin, first_movement_id, created_at)"
+            + " VALUES (?::uuid, ?::uuid, 'REGISTRO', NULL, ?)",
+        cliente,
+        vendedor,
         BASE);
   }
 }

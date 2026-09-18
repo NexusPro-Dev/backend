@@ -2,6 +2,9 @@ package com.factech.nexus.modules.system.users.interfaces;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.hamcrest.Matchers.hasItem;
+import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.user;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
@@ -19,6 +22,7 @@ import org.springframework.http.MediaType;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.request.MockHttpServletRequestBuilder;
+import org.springframework.test.web.servlet.request.RequestPostProcessor;
 
 /**
  * Registro de clientes por enlace (`RF-SP-045`).
@@ -155,7 +159,7 @@ class SelfRegistrationIT extends IntegrationTestBase {
   }
 
   @Test
-  @DisplayName("`CA-SP-509`, `CA-SP-510` y `CA-SP-513` — rol, membresía con vigencia y atribución")
+  @DisplayName("`CA-SP-509`, `CA-SP-510` y `CA-SP-697` — rol, membresía con vigencia y atribución")
   void losCuatroHechos() throws Exception {
     mvc.perform(registro(cuerpo("ana.ruiz", "ana@ejemplo.com", "12345678")))
         .andExpect(status().isCreated());
@@ -178,11 +182,68 @@ class SelfRegistrationIT extends IntegrationTestBase {
                 free.toString()))
         .isOne();
 
+    // `CA-SP-697` (18-09-2026, invierte `CA-SP-513`): la atribución es la fila
+    // REGISTRO de `client_sellers`, cita la venta del enlace, y `user_supervisors`
+    // NO recibe nada — el cliente no cuelga de la estructura de mando.
+    assertThat(
+            jdbc.queryForObject(
+                "SELECT count(*) FROM client_sellers cs JOIN users u ON u.id = cs.client_id"
+                    + " JOIN users v ON v.id = cs.seller_id"
+                    + " JOIN movements m ON m.id = cs.first_movement_id"
+                    + " WHERE u.username = 'ana.ruiz' AND v.username = 'reg-agente'"
+                    + " AND cs.origin = 'REGISTRO' AND m.user_id = u.id",
+                Integer.class))
+        .isOne();
     assertThat(
             jdbc.queryForObject(
                 "SELECT count(*) FROM user_supervisors us JOIN users u ON u.id = us.user_id"
-                    + " JOIN users v ON v.id = us.supervisor_id"
+                    + " WHERE u.username = 'ana.ruiz'",
+                Integer.class))
+        .isZero();
+
+    // Y la línea de esa venta lleva al mismo vendedor: la venta leyó el vínculo
+    // que el registro acababa de escribir (`RN-MV-003`, `CA-SP-695`).
+    assertThat(
+            jdbc.queryForObject(
+                "SELECT count(*) FROM movement_details md JOIN movements m ON m.id = md.movement_id"
+                    + " JOIN users u ON u.id = m.user_id JOIN users v ON v.id = md.seller_id"
                     + " WHERE u.username = 'ana.ruiz' AND v.username = 'reg-agente'",
+                Integer.class))
+        .isOne();
+  }
+
+  @Test
+  @DisplayName(
+      "`CA-SP-698` y `CA-SP-699` — el vendedor con clientes se puede desactivar, y su equipo no los lista")
+  void laCarteraNoEsEquipo() throws Exception {
+    mvc.perform(registro(cuerpo("ana.ruiz", "ana@ejemplo.com", "12345678")))
+        .andExpect(status().isCreated());
+
+    String agente =
+        jdbc.queryForObject(
+            "SELECT id::text FROM users WHERE username = 'reg-agente'", String.class);
+
+    // `CA-SP-699` (invierte `CA-SP-526`): el equipo de `RF-SP-042` es solo fuerza
+    // comercial; la cliente no aparece, ni pidiendo el rol CLIENTE.
+    mvc.perform(get("/api/v1/users/" + agente + "/team").with(administrador()))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.team.totalElements").value(0));
+    mvc.perform(get("/api/v1/users/" + agente + "/team?roles=CLIENTE").with(administrador()))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.team.totalElements").value(0));
+
+    // `CA-SP-698` (invierte `CA-SP-525`): retirar al agente no exige reasignar
+    // a nadie — la cartera no cuenta para `RN-SP-022`— y el vínculo queda.
+    mvc.perform(
+            patch("/api/v1/users/" + agente + "/status")
+                .with(administrador())
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("{\"status\":\"INACTIVO\",\"reason\":\"Deja la empresa\"}"))
+        .andExpect(status().isOk());
+    assertThat(
+            jdbc.queryForObject(
+                "SELECT count(*) FROM client_sellers cs JOIN users v ON v.id = cs.seller_id"
+                    + " WHERE v.username = 'reg-agente' AND cs.origin = 'REGISTRO'",
                 Integer.class))
         .isOne();
   }
@@ -689,6 +750,14 @@ class SelfRegistrationIT extends IntegrationTestBase {
   // Preparación
   // ---------------------------------------------------------------------------
 
+  /**
+   * Un administrador con lo justo para mirar el equipo y cambiar un estado (`CA-SP-698`,
+   * `CA-SP-699`).
+   */
+  private static RequestPostProcessor administrador() {
+    return user(SUPERADMIN.toString()).authorities(() -> "users:read", () -> "users:update");
+  }
+
   private MockHttpServletRequestBuilder registro(String cuerpo) {
     return post("/api/v1/auth/registration")
         .contentType(MediaType.APPLICATION_JSON)
@@ -1002,6 +1071,9 @@ class SelfRegistrationIT extends IntegrationTestBase {
     // foráneas son RESTRICT a propósito, para que un borrado físico no se lleve
     // por delante la atribución de una venta. Desde el 09-09-2026 todo registro
     // deja uno, de modo que esta prueba ya los produce.
+    // `client_sellers` ANTES que los movimientos: la fila REGISTRO cita la venta
+    // del enlace (`first_movement_id`), y la clave foránea es RESTRICT.
+    jdbc.update("DELETE FROM client_sellers");
     jdbc.update("DELETE FROM movement_details");
     jdbc.update("DELETE FROM movements");
     jdbc.update("DELETE FROM audit_change_log WHERE module = 'MV'");
