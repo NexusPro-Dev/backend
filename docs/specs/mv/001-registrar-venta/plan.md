@@ -5,8 +5,9 @@
 | Requerimiento | `RF-MV-001` |
 | Especificación | [`spec.md`](spec.md) |
 | `spec.md` aprobada el | 02-09-2026 |
-| Versión | 0.4.0 |
+| Versión | 0.5.0 |
 | Estado | **Aprobado** |
+| Enmendado el | 19-09-2026 — `RN-MV-007` enmendada: `RegisterSaleService` recibe **el canal** (`SaleChannel`) desde la entrada —tienda para el funcionario y la compra propia, hotlink para el registro por enlace— y valida la oferta contra lo que ese canal publica: `ProductCatalog.offeredTo` o `ProductCatalog.publishedByHotlink`, la lectura nueva de `PM`. La petición **no** lo lleva |
 | Enmendado el | 16-09-2026 — `V12`: `user_id` en la cabecera, `seller_id` en cada línea (§2.4); `V14`: el descuento de la línea, sus rebajas y su paquete (§2.5) |
 | Autor | Responsable técnico |
 | Aprobado por | Responsable del proyecto |

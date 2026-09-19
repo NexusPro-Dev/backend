@@ -17,6 +17,12 @@ import java.util.UUID;
  */
 public interface ProductQueryRepository {
 
+  /**
+   * Cuáles de esos productos publica el hotlink (`RN-PM-021`): el MISMO predicado que la lectura
+   * del enlace público y el catálogo de hotlinks, sobre un lote y sin proyección.
+   */
+  java.util.List<java.util.UUID> findPublishedByHotlink(java.util.Collection<java.util.UUID> ids);
+
   /** Una página del catálogo, con su destino y su moneda resueltos en la misma sentencia. */
   List<ProductRow> search(ListProductsRequest filtros, String ordenamiento, int offset, int limit);
 

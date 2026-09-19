@@ -192,6 +192,15 @@ public class PublishedProductCatalog implements ProductCatalog, RegistrableProdu
         .collect(Collectors.toCollection(LinkedHashSet::new));
   }
 
+  @Override
+  @Transactional(readOnly = true)
+  public Set<UUID> publishedByHotlink(Collection<UUID> ids) {
+    if (ids == null || ids.isEmpty()) {
+      return Set.of();
+    }
+    return new LinkedHashSet<>(consultas.findPublishedByHotlink(new LinkedHashSet<>(ids)));
+  }
+
   /**
    * El producto de un enlace de registro (`RF-SP-045` · `T-05`).
    *

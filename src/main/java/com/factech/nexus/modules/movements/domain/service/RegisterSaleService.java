@@ -5,6 +5,7 @@ import com.factech.nexus.modules.movements.application.SaleResponse;
 import com.factech.nexus.modules.movements.domain.models.Movement;
 import com.factech.nexus.modules.movements.domain.models.MovementCode;
 import com.factech.nexus.modules.movements.domain.models.MovementLine;
+import com.factech.nexus.modules.movements.domain.models.SaleChannel;
 import com.factech.nexus.modules.movements.domain.repository.MovementRepository;
 import com.factech.nexus.modules.movements.domain.repository.MovementRepository.MovementTypeView;
 import com.factech.nexus.modules.movements.domain.repository.MovementRepository.PaymentMethodView;
@@ -156,12 +157,21 @@ public class RegisterSaleService {
    * moneda, método de pago, comprobante— es idéntico, de modo que sigue habiendo <b>una sola
    * definición de vender</b>.
    */
+  /**
+   * La venta que nace de un enlace de registro (`RF-SP-045`): por el canal <b>hotlink</b>, y sobre
+   * una cuenta que puede estar todavía en {@code FTD_PENDIENTE}.
+   */
   @Transactional
   SaleResponse registrarAltaDeCliente(RegisterSaleRequest peticion) {
-    return register(peticion, true);
+    return register(peticion, true, SaleChannel.HOTLINK);
   }
 
   private SaleResponse register(RegisterSaleRequest peticion, boolean altaDelCliente) {
+    return register(peticion, altaDelCliente, SaleChannel.TIENDA);
+  }
+
+  private SaleResponse register(
+      RegisterSaleRequest peticion, boolean altaDelCliente, SaleChannel canal) {
     OffsetDateTime ahora = OffsetDateTime.now(reloj);
     OffsetDateTime ocurrioEn = fechaDelHecho(peticion.occurredAt(), ahora);
 
@@ -173,7 +183,7 @@ public class RegisterSaleService {
     Map<UUID, SaleView> catalogo = resolverProductos(lineas);
     SaleView upgrade = verificarComposicion(lineas, catalogo);
 
-    verificarOferta(cliente, lineas, catalogo);
+    verificarOferta(cliente, lineas, catalogo, canal);
     if (upgrade != null) {
       reglas.verificarQueSube(cliente.id(), upgrade, "EX-005");
     }
@@ -402,9 +412,19 @@ public class RegisterSaleService {
    * obliga a probar de uno en uno cuando la venta lleva cinco líneas.
    */
   private void verificarOferta(
-      ClientView cliente, List<RegisterSaleRequest.Line> lineas, Map<UUID, SaleView> catalogo) {
+      ClientView cliente,
+      List<RegisterSaleRequest.Line> lineas,
+      Map<UUID, SaleView> catalogo,
+      SaleChannel canal) {
 
-    Set<UUID> ofrecidos = productos.offeredTo(cliente.id(), catalogo.keySet());
+    // `RN-MV-007` desde el 19-09-2026: la oferta es LA DEL CANAL por el que se
+    // compra. La tienda publica TIENDA y AMBOS; el hotlink, HOTLINK y AMBOS
+    // (`RN-PM-021`). Validar la venta del enlace contra la tienda rechazaba todo
+    // lo que es solo hotlink — justo lo que ese canal existe para vender.
+    Set<UUID> ofrecidos =
+        canal == SaleChannel.HOTLINK
+            ? productos.publishedByHotlink(catalogo.keySet())
+            : productos.offeredTo(cliente.id(), catalogo.keySet());
 
     for (RegisterSaleRequest.Line linea : lineas) {
       if (!ofrecidos.contains(linea.productId())) {

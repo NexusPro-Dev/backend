@@ -88,6 +88,24 @@ public interface ProductCatalog {
    */
   Set<UUID> offeredTo(UUID userId, Collection<UUID> ids);
 
+  /**
+   * Cuáles de esos productos <b>publica el canal de hotlinks</b> hoy (`RN-PM-021`): activos, no
+   * retirados y de alcance {@code HOTLINK} o {@code AMBOS}.
+   *
+   * <p>Es la otra mitad de {@link #offeredTo}, y existe desde el 19-09-2026 porque `RN-MV-007` pasó
+   * a validar la venta contra <b>el canal por el que se compra</b>: la oferta de la tienda publica
+   * {@code TIENDA} y {@code AMBOS}, el hotlink publica {@code HOTLINK} y {@code AMBOS}, y una venta
+   * que llega por un enlace y se validaba contra la tienda rechazaba todo lo que es <b>solo</b>
+   * hotlink — que es justo lo que ese canal existe para vender.
+   *
+   * <p><b>No recibe persona</b>: el hotlink es público y no depende del nivel de quien lo mira
+   * (`RF-PM-008`). Que el upgrade no baje de nivel a quien compra sigue siendo de `MV`
+   * (`RN-MV-006`), y se comprueba aparte.
+   *
+   * @return el subconjunto de {@code ids} que el hotlink publica hoy
+   */
+  Set<UUID> publishedByHotlink(Collection<UUID> ids);
+
   /** Lo que cruza la frontera: datos planos, sin comportamiento y sin entidad. */
   record ProductView(UUID id, String code, String name, boolean retired) {}
 

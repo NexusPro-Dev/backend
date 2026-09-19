@@ -87,6 +87,49 @@ class SelfRegistrationIT extends IntegrationTestBase {
   }
 
   // ---------------------------------------------------------------------------
+  // El canal: la venta del enlace se valida contra el hotlink (`RN-MV-007`)
+  // ---------------------------------------------------------------------------
+
+  @Test
+  @DisplayName("`CA-SP-686` — un producto SOLO de hotlink se compra por el enlace")
+  void productoSoloHotlink() throws Exception {
+    // Hasta el 19-09-2026 la venta del enlace se validaba contra la oferta de
+    // la TIENDA, que no publica HOTLINK: el enlace lo mostraba y la compra lo
+    // rechazaba con EX-004. Es lo que ese canal existe para vender.
+    // La pareja BECA → BECA es única por producto activo (RN-PM-004): el gratuito
+    // de siempre deja el sitio al que solo se vende por hotlink.
+    jdbc.update("DELETE FROM products WHERE code = 'REG_FREE'");
+    producto("REG_SOLO_HOTLINK", free, free, 30, "0.00", "HOTLINK");
+
+    mvc.perform(
+            registro(
+                cuerpoCon("REG_SOLO_HOTLINK", "ana.ruiz", "ana@ejemplo.com", "12345678", BROKER)))
+        .andExpect(status().isCreated())
+        .andExpect(jsonPath("$.username").value("ana.ruiz"));
+  }
+
+  @Test
+  @DisplayName(
+      "`CA-SP-687` — un producto SOLO de tienda NO se compra por el enlace, y no queda cuenta")
+  void productoSoloTienda() throws Exception {
+    // El hotlink no lo publica (`RN-PM-021`), así que tampoco lo vende: es la
+    // otra mitad de la misma regla, y lo que impide que un enlace armado a mano
+    // venda lo que el canal no muestra. La cuenta se deshace con la venta.
+    jdbc.update("DELETE FROM products WHERE code = 'REG_FREE'");
+    producto("REG_SOLO_TIENDA", free, free, 30, "0.00", "TIENDA");
+
+    mvc.perform(
+            registro(
+                cuerpoCon("REG_SOLO_TIENDA", "ana.ruiz", "ana@ejemplo.com", "12345678", BROKER)))
+        .andExpect(status().isConflict())
+        .andExpect(jsonPath("$.errors[0].code").value("EX-004"));
+    assertThat(
+            jdbc.queryForObject(
+                "SELECT count(*) FROM users WHERE username = 'ana.ruiz'", Integer.class))
+        .isZero();
+  }
+
+  // ---------------------------------------------------------------------------
   // El camino feliz
   // ---------------------------------------------------------------------------
 
@@ -903,12 +946,19 @@ class SelfRegistrationIT extends IntegrationTestBase {
   }
 
   private void producto(String codigo, UUID origen, UUID destino, Integer vigencia, String precio) {
+    // AMBOS: el enlace vende por el canal hotlink (`RN-MV-007` desde el
+    // 19-09-2026), y un producto solo de tienda no se vende por él.
+    producto(codigo, origen, destino, vigencia, precio, "AMBOS");
+  }
+
+  private void producto(
+      String codigo, UUID origen, UUID destino, Integer vigencia, String precio, String alcance) {
     jdbc.update(
         "INSERT INTO products (id, code, type, name, source_membership_id, target_membership_id,"
             + " price, currency_id, validity_days, status, scope, implementation)"
             + " VALUES (CAST(? AS uuid), ?, 'UPGRADE_MEMBRESIA', ?, CAST(? AS uuid),"
             + " CAST(? AS uuid), CAST(? AS numeric), CAST(? AS uuid), CAST(? AS integer), 'ACTIVO',"
-            + " 'TIENDA', 'AUTOMATICA')",
+            + " ?, 'AUTOMATICA')",
         UUID.randomUUID().toString(),
         codigo,
         "Producto " + codigo,
@@ -916,7 +966,8 @@ class SelfRegistrationIT extends IntegrationTestBase {
         destino.toString(),
         precio,
         USD,
-        vigencia);
+        vigencia,
+        alcance);
   }
 
   private void vendedor(String usuario) {

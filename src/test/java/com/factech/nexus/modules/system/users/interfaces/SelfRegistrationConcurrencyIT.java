@@ -155,7 +155,7 @@ class SelfRegistrationConcurrencyIT extends IntegrationTestBase {
         "INSERT INTO products (id, code, type, name, source_membership_id, target_membership_id,"
             + " price, currency_id, validity_days, status, scope, implementation)"
             + " VALUES (CAST(? AS uuid), 'REG_FREE', 'UPGRADE_MEMBRESIA', 'Renovación',"
-            + " CAST(? AS uuid), CAST(? AS uuid), 0.00, CAST(? AS uuid), 30, 'ACTIVO', 'TIENDA',"
+            + " CAST(? AS uuid), CAST(? AS uuid), 0.00, CAST(? AS uuid), 30, 'ACTIVO', 'AMBOS',"
             + " 'AUTOMATICA')",
         UUID.randomUUID().toString(),
         membresia.toString(),

@@ -10,6 +10,7 @@ import java.time.Instant;
 import java.time.OffsetDateTime;
 import java.time.ZoneOffset;
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
@@ -474,6 +475,29 @@ public class JpaProductQueryRepository implements ProductQueryRepository {
             .getResultList();
 
     return filas.stream().findFirst().map(JpaProductQueryRepository::fila);
+  }
+
+  @Override
+  @Transactional(readOnly = true)
+  @SuppressWarnings("unchecked")
+  public List<UUID> findPublishedByHotlink(Collection<UUID> ids) {
+    if (ids == null || ids.isEmpty()) {
+      return List.of();
+    }
+    // El predicado de `RN-PM-021`, el mismo del enlace público y del catálogo de
+    // hotlinks: activo, no retirado y de alcance HOTLINK o AMBOS.
+    return em.createNativeQuery(
+            """
+            SELECT p.id
+              FROM products p
+             WHERE p.id IN (:ids)
+               AND p.status = 'ACTIVO'
+               AND p.deleted_at IS NULL
+               AND p.scope IN ('HOTLINK', 'AMBOS')
+            """,
+            UUID.class)
+        .setParameter("ids", ids)
+        .getResultList();
   }
 
   /**
