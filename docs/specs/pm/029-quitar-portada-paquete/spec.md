@@ -11,6 +11,10 @@
 
 ---
 
+!!! note "Enmienda de Art. I.7 — 19-09-2026, `RF-SP-060`"
+
+    Esta operación exige **`packages:remove-cover`** y no `packages:update` desde el 19-09-2026, por `RF-SP-060` —**un permiso por operación**, `RN-SEG-014` ([`security.md` §4.4](../../../security.md#44-catalogo-de-permisos))—: `packages:update` gobernaba varias operaciones y se queda con una; esta recibe código propio, sembrado por `V28` y dado a todo rol que portara `packages:update`. Las menciones de `packages:update` que siguen abajo hablan de su siembra original y se conservan como historia.
+
 ## 1. Objetivo
 
 Que un paquete **vuelva a pintarse con el icono de promoción y el color por omisión** que el frontend le pone, sin dejar la imagen huérfana en la base ni una dirección que siga sirviéndola.
@@ -25,7 +29,7 @@ Que un paquete **vuelva a pintarse con el icono de promoción y el color por omi
 
 | Actor | Papel |
 |---|---|
-| Administrador, con `packages:update` | Quita la portada de un paquete |
+| Administrador, con `packages:remove-cover` | Quita la portada de un paquete |
 
 El mismo permiso y por lo mismo que en `RF-PM-028`: la portada es el valor de un campo del paquete.
 
@@ -73,7 +77,7 @@ El mismo permiso y por lo mismo que en `RF-PM-028`: la portada es el valor de un
 
 **Precondiciones:**
 
-- El actor está autenticado y porta `packages:update`.
+- El actor está autenticado y porta `packages:remove-cover`.
 - El paquete existe y está **vivo**.
 
 **Postcondiciones:**
@@ -135,7 +139,7 @@ El mismo permiso y por lo mismo que en `RF-PM-028`: la portada es el valor de un
 | `CA-PM-363` | El sistema registra en `audit_change_log` un `UPDATE` de `product_packages` con `cover_image_id` —antes el identificador, después vacío— y sin ningún otro campo |
 | `CA-PM-364` | Sobre un paquete **sin portada** responde `200` con el paquete **sin escribir nada**: `updated_at` no avanza y `audit_change_log` no crece |
 | `CA-PM-365` | Quitar la portada de un paquete **activo y ofrecible** lo deja **activo y ofrecible**: la oferta y el hotlink lo siguen devolviendo, con `coverImageUrl` nulo |
-| `CA-PM-366` | El sistema responde `404` sobre un paquete inexistente y sobre uno retirado; quita la portada de uno **inactivo**; y sin `packages:update` responde `403` |
+| `CA-PM-366` | El sistema responde `404` sobre un paquete inexistente y sobre uno retirado; quita la portada de uno **inactivo**; y sin `packages:remove-cover` responde `403` |
 
 ## 13. Casos límite
 
@@ -159,3 +163,4 @@ El mismo permiso y por lo mismo que en `RF-PM-028`: la portada es el valor de un
 | Versión | Fecha | Cambio | Responsable |
 |---|---|---|---|
 | 0.1.0 | 16-09-2026 | Redacción inicial. **Es `RF-PM-015` sin la regla**: el paquete no declara icono ni color (`RN-PM-045`), sin portada el frontend le pone los suyos por omisión, y por eso quitarla **nunca se rechaza** — la ausencia del paso de regla entre «¿hay portada?» y «suéltala» es el requerimiento. `DELETE` que responde `200` con el paquete; sin portada responde igual sin escribir; la imagen se borra. Una sola validación, la del identificador. Cinco criterios, `CA-PM-362` a `CA-PM-366`. | Responsable técnico |
+| 0.2.0 | 19-09-2026 | **Cambia el permiso: `packages:remove-cover` y no `packages:update`** (`RF-SP-060`, `RN-SEG-014`, un permiso por operación; [`security.md`](../../../security.md) v0.63.0). Enmienda de Art. I.7 sin cambio de comportamiento: la misma operación, el mismo actor, un código propio sembrado por `V28` y dado a todo rol que portara `packages:update`. | Responsable del proyecto |

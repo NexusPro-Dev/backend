@@ -11,6 +11,10 @@
 
 ---
 
+!!! note "Enmienda de Art. I.7 — 19-09-2026, `RF-SP-060`"
+
+    Esta operación exige **`packages:set-cover`** y no `packages:update` desde el 19-09-2026, por `RF-SP-060` —**un permiso por operación**, `RN-SEG-014` ([`security.md` §4.4](../../../security.md#44-catalogo-de-permisos))—: `packages:update` gobernaba varias operaciones y se queda con una; esta recibe código propio, sembrado por `V28` y dado a todo rol que portara `packages:update`. Las menciones de `packages:update` que siguen abajo hablan de su siembra original y se conservan como historia.
+
 ## 1. Enfoque
 
 **Una columna en `product_packages`, y todo lo demás ya existe.**
@@ -54,7 +58,7 @@ Que una imagen no sea a la vez portada de un producto y de un paquete no cabe en
 
 ## 4. Contrato de API
 
-`PUT /api/v1/packages/{id}/cover` — `packages:update`. `Content-Type: multipart/form-data`, una parte `file`. `200` con `PackageDetailResponse`.
+`PUT /api/v1/packages/{id}/cover` — `packages:set-cover`. `Content-Type: multipart/form-data`, una parte `file`. `200` con `PackageDetailResponse`.
 
 - **La misma forma que `PUT /products/{id}/cover`**, verbo a verbo: `consumes`, `@RequestPart` con `required = false` para que la ausencia sea `VAL-002` con el sobre del sistema, y los mismos códigos de respuesta.
 - **Cuatro `record` ganan `coverImageUrl`**, siempre presente y nulo cuando no hay (`@JsonInclude(ALWAYS)`), con la misma función `ProductImageUrls.de` que las cinco formas del producto: la ruta y no una URL absoluta.

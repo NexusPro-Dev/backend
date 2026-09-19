@@ -11,6 +11,10 @@
 
 ---
 
+!!! note "Enmienda de Art. I.7 — 19-09-2026, `RF-SP-060`"
+
+    Esta operación exige **`products:delete-comment`** y no `products:comment` desde el 19-09-2026, por `RF-SP-060` —**un permiso por operación**, `RN-SEG-014` ([`security.md` §4.4](../../../security.md#44-catalogo-de-permisos))—: `products:comment` gobernaba varias operaciones y se queda con una; esta recibe código propio, sembrado por `V28` y dado a todo rol que portara `products:comment`. Las menciones de `products:comment` que siguen abajo hablan de su siembra original y se conservan como historia.
+
 ## 1. Enfoque
 
 **El retiro del producto sin el motivo, con la comparación de propiedad delante, y un `DELETE` de verdad.**
@@ -32,7 +36,7 @@ Los cinco pasos son los de `DeleteProductService` —encontrar bloqueando, insta
 
 ## 4. Contrato de API
 
-`DELETE /api/v1/products/{id}/comments/{commentId}` — `products:comment` **y ser el autor**. Sin cuerpo. `204` sin cuerpo.
+`DELETE /api/v1/products/{id}/comments/{commentId}` — `products:delete-comment` **y ser el autor**. Sin cuerpo. `204` sin cuerpo.
 
 - **Es un `DELETE` y no un `POST /deletion`**, y el motivo está en [`requirements/pm.md` §9](../../../requirements/pm.md): el retiro del producto usa `POST` porque su cuerpo lleva el motivo y la RFC 9110 no garantiza que el cuerpo de un `DELETE` llegue; aquí no hay cuerpo, de modo que no hay nada que un intermediario pueda perder. El precedente es `DELETE /api/v1/users/{id}/membership`.
 - **Un cuerpo, si llega, se ignora.** El controlador no declara `@RequestBody`, y con eso Spring ni lo lee. `CA-PM-201` lo prueba enviando uno.

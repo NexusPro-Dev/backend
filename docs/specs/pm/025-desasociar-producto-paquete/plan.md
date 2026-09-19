@@ -11,6 +11,10 @@
 
 ---
 
+!!! note "Enmienda de Art. I.7 — 19-09-2026, `RF-SP-060`"
+
+    Esta operación exige **`packages:remove-product`** y no `packages:update` desde el 19-09-2026, por `RF-SP-060` —**un permiso por operación**, `RN-SEG-014` ([`security.md` §4.4](../../../security.md#44-catalogo-de-permisos))—: `packages:update` gobernaba varias operaciones y se queda con una; esta recibe código propio, sembrado por `V28` y dado a todo rol que portara `packages:update`. Las menciones de `packages:update` que siguen abajo hablan de su siembra original y se conservan como historia.
+
 ## 1. Enfoque
 
 **La desasociación de `RF-CM-008`, con el paquete bloqueado y el paquete devuelto.** Borrado físico, `DeletionEvent` `ASSOCIATION` sin motivo, instantánea con el descuento. Se bloquea el paquete para que la desasociación se ordene con las asociaciones y las activaciones simultáneas (`RF-PM-021` cuenta filas bajo el mismo bloqueo).
@@ -29,7 +33,7 @@
 
 ## 4. Contrato de API
 
-`DELETE /api/v1/packages/{id}/products/{productId}` — `packages:update`. Sin cuerpo. `200` con `PackageDetailResponse`.
+`DELETE /api/v1/packages/{id}/products/{productId}` — `packages:remove-product`. Sin cuerpo. `200` con `PackageDetailResponse`.
 
 **`DELETE` sin cuerpo** por lo mismo que el retiro de la reseña: no hay motivo que proteger. **`200` y no `204`** por lo que dice `spec.md` §14.1.
 

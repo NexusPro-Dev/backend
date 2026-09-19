@@ -12,6 +12,10 @@
 
 ---
 
+!!! note "Enmienda de Art. I.7 — 19-09-2026, `RF-SP-060`"
+
+    Esta operación exige **`memberships:list`** y no `memberships:read` desde el 19-09-2026, por `RF-SP-060` —**un permiso por operación**, `RN-SEG-014` ([`security.md` §4.4](../../../security.md#44-catalogo-de-permisos))—: `memberships:read` gobernaba varias operaciones y se queda con una; esta recibe código propio, sembrado por `V28` y dado a todo rol que portara `memberships:read`. Las menciones de `memberships:read` que siguen abajo hablan de su siembra original y se conservan como historia.
+
 ## 1. Objetivo
 
 Ver los niveles de membresía definidos y, sobre todo, en qué orden están.
@@ -131,3 +135,4 @@ Ninguna. Las dos se resolvieron el 21-08-2026, antes de aprobar la especificaci�
 |---|---|---|---|
 | 0.2.0 | 26-08-2026 | **El listado devuelve el `color` de cada membresía** (`RN-SP-024`), con `CA-SP-490`. Es el endpoint que hace útil al campo: con la cadena completa en una sola llamada, la interfaz pinta cualquier nivel sin volver a preguntar, y ninguna pantalla necesita inventarse un color de reserva. | Responsable técnico |
 | 0.1.0 | 21-08-2026 | Redacción inicial, aprobada en su compuerta. | Responsable técnico |
+| 0.2.0 | 19-09-2026 | **Cambia el permiso: `memberships:list` y no `memberships:read`** (`RF-SP-060`, `RN-SEG-014`, un permiso por operación; [`security.md`](../../../security.md) v0.63.0). Enmienda de Art. I.7 sin cambio de comportamiento: la misma operación, el mismo actor, un código propio sembrado por `V28` y dado a todo rol que portara `memberships:read`. | Responsable del proyecto |

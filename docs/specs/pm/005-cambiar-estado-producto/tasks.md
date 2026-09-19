@@ -22,7 +22,7 @@
 | `T-04` | Traducción de `uq_products_upgrade_target` **por nombre de restricción** a `EX-002`, con `flush` explícito | `RF-PM-001 · T-09` | Integración: la violación produce el mismo `409` que la comprobación previa. **La restricción decide, la comprobación redacta** | Hecha |
 | `T-05` | `domain/service/ChangeProductStatusService` con el orden de `plan.md` §5 | `T-02`, `T-03`, `T-04` | Desactivar **no ejecuta** la comprobación de las membresías | Hecha |
 | `T-06` | Auditoría: evento `UPDATE` con `status` y su valor anterior; **ninguno** si no hubo cambio | `T-05` | `audit_change_log` no crece con una petición que no cambia nada (`CA-PM-044`) | Hecha |
-| `T-07` | `interfaces`: `PATCH /api/v1/products/{id}/status` con `products:update` | `T-05`, `T-06` | Recurso propio, no un campo del `PATCH` general | Hecha |
+| `T-07` | `interfaces`: `PATCH /api/v1/products/{id}/status` con `products:change-status` | `T-05`, `T-06` | Recurso propio, no un campo del `PATCH` general | Hecha |
 | `T-08` | Pruebas de API de los criterios de `spec.md` §12 | `T-07` | Cubre `CA-PM-040` a `CA-PM-047`, `CA-PM-072`, `CA-PM-073` y `CA-PM-085` | Hecha |
 | `T-09` | Prueba de que en un **bot** la comprobación de las membresías **no se ejecuta** | `T-07` | Número de sentencias: se comprueba la ausencia, no solo que no falle | Hecha |
 | `T-10` | **Prueba concurrente: dos activaciones simultáneas de la misma pareja** | `T-07` | **Exactamente uno** queda activo y el otro recibe `409`. No basta con que hubiera un `409`: hay que contar cuántos quedaron activos | Hecha |

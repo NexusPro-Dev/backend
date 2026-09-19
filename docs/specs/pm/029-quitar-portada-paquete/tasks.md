@@ -22,7 +22,7 @@
 | `T-04` | **LA PRUEBA DE QUE SIEMPRE SE QUITA** (`PackageCoverIT`): `200`, `coverImageUrl` nulo y presente, `cover_image_id` nulo, la fila no existe, la dirección vieja responde `404`, auditoría con antes y después | `T-03` | `CA-PM-362`, `CA-PM-363`. **Es la prueba que define el requerimiento** | **Hecha el 16-09-2026** |
 | `T-05` | Prueba de «sin portada»: `200` sin escribir — `updated_at` igual y `audit_change_log` sin crecer | `T-03` | `CA-PM-364` | **Hecha el 16-09-2026** |
 | `T-06` | Prueba de efecto: un paquete activo y ofrecible sigue en la oferta y en el hotlink tras quitar, con `coverImageUrl` nulo | `T-03` | `CA-PM-365` | **Hecha el 16-09-2026** |
-| `T-07` | Prueba de paquete: inexistente y retirado → `404`; inactivo → `200`; sin `packages:update` → `403` | `T-03` | `CA-PM-366` | **Hecha el 16-09-2026** |
+| `T-07` | Prueba de paquete: inexistente y retirado → `404`; inactivo → `200`; sin `packages:remove-cover` → `403` | `T-03` | `CA-PM-366` | **Hecha el 16-09-2026** |
 | `T-08` | Documentación OpenAPI. **La prosa dice** que nunca responde `400` y por qué, que sin portada responde igual sin escribir, y que la imagen se borra | `T-03` | El contrato declara `200` con `PackageDetailResponse`, `400` solo por `VAL-001`, `403`, `404` y ningún cuerpo de petición | **Hecha el 16-09-2026** |
 | `T-09` | Actualizar la matriz de `docs/requirements.md` y `docs/api/index.md` | `T-07` | La fila de `RF-PM-029` refleja el estado | **Hecha el 16-09-2026** |
 

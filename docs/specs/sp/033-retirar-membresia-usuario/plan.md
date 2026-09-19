@@ -12,6 +12,10 @@
 
 ---
 
+!!! note "Enmienda de Art. I.7 — 19-09-2026, `RF-SP-060`"
+
+    Esta operación exige **`users:revoke-membership`** y no `users:assign-membership` desde el 19-09-2026, por `RF-SP-060` —**un permiso por operación**, `RN-SEG-014` ([`security.md` §4.4](../../../security.md#44-catalogo-de-permisos))—: `users:assign-membership` gobernaba varias operaciones y se queda con una; esta recibe código propio, sembrado por `V28` y dado a todo rol que portara `users:assign-membership`. Las menciones de `users:assign-membership` que siguen abajo hablan de su siembra original y se conservan como historia.
+
 !!! warning "Enmendado el 05-09-2026 — deja de retirar y pasa a DEVOLVER AL SUELO"
 
     Segunda enmienda del mismo día, y encima de la anterior. `RN-SP-018` pasa a exigir que **toda** persona tenga nivel, de modo que esta operación **ya no puede dejar a nadie sin membresía**.
@@ -94,7 +98,7 @@ Este requerimiento **no aporta un solo componente de dominio propio**. Es la se�
 |---|---|---|
 | `400` | Identificador malformado | `VAL-001` |
 | `401` | Token ausente o inválido | `AUTH-001` |
-| `403` | El actor no posee `users:assign-membership` | `AUTH-002` |
+| `403` | El actor no posee `users:revoke-membership` | `AUTH-002` |
 | `404` | El usuario no existe o está eliminado (`EX-002`) | `VAL-002` |
 | `409` | La persona porta al menos un rol `CONSUMIDOR` (`EX-001`) | `RN-SP-018` |
 | `500` | Fallo no controlado | `ERR-500` |
@@ -113,7 +117,7 @@ Este requerimiento **no aporta un solo componente de dominio propio**. Es la se�
 
 | Endpoint | Permiso requerido |
 |---|---|
-| `DELETE /api/v1/users/{id}/membership` | `users:assign-membership` |
+| `DELETE /api/v1/users/{id}/membership` | `users:revoke-membership` |
 
 Es el **mismo permiso** que la asignación, como declara `requirements/sp.md` §9. Separarlos no tendría sentido: quien puede fijar el nivel de alguien puede corregir una incoherencia de nivel, y esta operación no puede hacer nada que la otra no pueda deshacer.
 
@@ -184,7 +188,7 @@ Nada más. Es el requerimiento con la transaccionalidad más simple del módulo,
 | `CA-SP-285` | Integración | El `snapshot` de `audit_deletion_log` conserva la membresía y su vigencia |
 | `CA-SP-286` | API | El endpoint no admite motivo |
 | `CA-SP-287` | Integración | La membresía sigue en la cadena y puede volver a asignarse |
-| `CA-SP-288` | API | Un actor sin `users:assign-membership` recibe `403` |
+| `CA-SP-288` | API | Un actor sin `users:revoke-membership` recibe `403` |
 
 `CA-SP-283` está **retirado** por `spec.md` §12 y su número queda consumido. No se reutiliza.
 

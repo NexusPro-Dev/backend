@@ -27,7 +27,7 @@ La primera tarea es la que importa. `EX-001` rechaza a quien **sí** es consumid
 | `T-04` | `DELETE` de la fila de `user_memberships`, reutilizando la operación que aporta `RF-SP-031` | `T-01` | Prueba de integración: la fila desaparece y la membresía **sigue existiendo en la cadena** | **Hecha** |
 | `T-05` | Auditoría de éxito: `audit_deletion_log` con `deletion_type = 'ASSOCIATION'`, `snapshot` de **la membresía y su vigencia**, y **sin motivo**. Ningún evento de seguridad | `T-04` | Prueba de integración: el `snapshot` conserva ambos datos; `audit_security_log` queda **vacío** tras la operación | **Hecha** |
 | `T-06` | Auditoría del rechazo: `EX-001` en `audit_error_log` con severidad Media; `EX-002` (`404`) y el `400` de formato sin auditar | `T-01` | Prueba de integración: `EX-001` deja su fila con `RN-SP-018`; los otros dos no dejan ninguna | **En curso** |
-| `T-07` | `api/UserController`: `DELETE /api/v1/users/{id}/membership` con el permiso `users:assign-membership`, respondiendo `204` **sin cuerpo** y **sin DTO de entrada** | `T-05`, `T-06` | Prueba de API: `204` sin cuerpo; el `409` cita **las dos** salidas reales —`RF-SP-032` y `RF-SP-031`—; el endpoint no declara ningún cuerpo de petición | **Hecha** |
+| `T-07` | `api/UserController`: `DELETE /api/v1/users/{id}/membership` con el permiso `users:revoke-membership`, respondiendo `204` **sin cuerpo** y **sin DTO de entrada** | `T-05`, `T-06` | Prueba de API: `204` sin cuerpo; el `409` cita **las dos** salidas reales —`RF-SP-032` y `RF-SP-031`—; el endpoint no declara ningún cuerpo de petición | **Hecha** |
 | `T-08` | Pruebas de API e integración de los criterios de aceptación de `spec.md` §12 | `T-07` | La suite cubre `CA-SP-281`, `CA-SP-282`, `CA-SP-284` a `CA-SP-288` y `CA-SP-374` | **En curso** |
 | `T-09` | Prueba concurrente del par: retiro contra asignación de un rol de consumidor, **en los dos órdenes** | `T-07` | En un orden el retiro devuelve `409`; en el otro, la asignación exige indicar membresía. **Ningún orden deja una cuenta incoherente**. Ejecutar un solo orden no prueba nada (`plan.md` §11) | **Hecha** — 26-08-2026, en `UserConcurrencyIT`, con los dos órdenes |
 | `T-10` | Pruebas de los casos límite restantes de `spec.md` §13: membresía vencida, persona inactiva y membresía superior de la cadena | `T-07` | Los tres se retiran sin particularidad | **En curso** |
@@ -112,7 +112,7 @@ El requerimiento no está terminado hasta cumplir **todas** las condiciones de l
 - [ ] Todos los criterios de aceptación con prueba automatizada en verde. — falta la concurrencia del par en los dos órdenes.
 - [x] `mvn verify` en verde en local. — 99 unitarias y 326 de integración, 24-08-2026.
 - [x] Toda escritura emite su evento de auditoría, en la transacción que corresponde. — eliminación de asociación sin motivo y con la vigencia; **ningún** evento de seguridad.
-- [x] Los endpoints nuevos declaran su permiso. — `users:assign-membership`, el mismo que fijarla.
+- [x] Los endpoints nuevos declaran su permiso. — `users:revoke-membership`, el mismo que fijarla.
 - [x] El contrato OpenAPI coincide con el comportamiento real. — `OpenApiContractIT` fija el `DELETE` y la **ausencia** de cuerpo de petición, que es lo que le permite seguir siendo un `DELETE`.
 - [x] Documentación afectada actualizada en el mismo Pull Request. — `requirements.md` v0.39.0.
 - [x] Matriz de trazabilidad actualizada.

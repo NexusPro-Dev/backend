@@ -11,6 +11,10 @@
 
 ---
 
+!!! note "Enmienda de Art. I.7 — 19-09-2026, `RF-SP-060`"
+
+    Esta operación exige **`products:set-cover`** y no `products:update` desde el 19-09-2026, por `RF-SP-060` —**un permiso por operación**, `RN-SEG-014` ([`security.md` §4.4](../../../security.md#44-catalogo-de-permisos))—: `products:update` gobernaba varias operaciones y se queda con una; esta recibe código propio, sembrado por `V28` y dado a todo rol que portara `products:update`. Las menciones de `products:update` que siguen abajo hablan de su siembra original y se conservan como historia.
+
 ## 1. Objetivo
 
 Que un producto tenga **una foto con la que presentarse**, subida por administración, y que se pueda **cambiar** sin que quede rastro de la anterior ni una dirección vieja que enseñe otra cosa.
@@ -27,7 +31,7 @@ Que un producto tenga **una foto con la que presentarse**, subida por administra
 
 | Actor | Papel |
 |---|---|
-| Administrador, con `products:update` | Sube o reemplaza la portada de un producto |
+| Administrador, con `products:set-cover` | Sube o reemplaza la portada de un producto |
 
 **Es `products:update` y no un permiso propio**, porque la portada es **el valor de un campo del producto**, como la descripción o el icono: quien puede corregir el producto puede ponerle foto. Un permiso `products:cover` separaría una capacidad que nadie ha pedido separar, y el catálogo de permisos crece solo cuando alguien necesita conceder una cosa sin la otra.
 
@@ -87,7 +91,7 @@ El producto, en la misma forma que `RF-PM-004` devuelve (`ProductDetailResponse`
 
 **Precondiciones:**
 
-- El actor está autenticado y porta `products:update`.
+- El actor está autenticado y porta `products:set-cover`.
 - El producto existe y **está vivo** (no retirado). Su estado —activo o inactivo— **no importa**.
 - La petición trae una parte `file` con contenido.
 
@@ -142,7 +146,7 @@ El producto, en la misma forma que `RF-PM-004` devuelve (`ProductDetailResponse`
 
 ### EX-002 — Sin permiso
 
-**Respuesta del sistema:** `403`. Sin `products:update` la ruta no se alcanza.
+**Respuesta del sistema:** `403`. Sin `products:set-cover` la ruta no se alcanza.
 
 ### EX-003 — La petición no es `multipart/form-data`
 
@@ -194,7 +198,7 @@ El producto, en la misma forma que `RF-PM-004` devuelve (`ProductDetailResponse`
 | # | Pregunta | Resolución |
 |---|---|---|
 | 1 | ¿Por qué `PUT` y no `POST`? | **Porque la portada es un solo hueco por producto**, y subir es **poner** lo que hay en él: repetir la petición deja el mismo resultado —una portada, la última—, que es lo que `PUT` promete y `POST` no. `POST /cover` sugeriría que se puede añadir más de una |
-| 2 | ¿Se comprueba que el actor sea quien registró el producto? | **No.** `products:update` no distingue autores, como en `RF-PM-004`. La propiedad del dato es cosa de las reseñas (`RN-PM-027`), no del catálogo |
+| 2 | ¿Se comprueba que el actor sea quien registró el producto? | **No.** `products:set-cover` no distingue autores, como en `RF-PM-004`. La propiedad del dato es cosa de las reseñas (`RN-PM-027`), no del catálogo |
 | 3 | ¿Por qué se rechaza el archivo antes de comprobar que el producto existe? | **Porque rechazar antes de bloquear es gratis y el orden contrario no.** Un cliente que insiste con un archivo malo no debe bloquear filas del catálogo en cada intento. El precio es que un archivo malo sobre un producto inexistente recibe `400` y no `404`, y se acepta |
 | 4 | ¿Debería el sistema generar una miniatura para el listado? | **Hoy no** (`requirements/pm.md` §1.3). El listado devuelve la misma dirección que el detalle, y el navegador la cachea una vez. El día que el catálogo tenga cientos de productos por página se decidirá, y será otra columna y otra tabla, no una condición aquí |
 | 5 | ¿Y si el frontend sube una imagen de 20 000 × 20 000 píxeles que pesa 4 MB? | **Se admite.** El sistema no interpreta el contenido y no tiene forma de saber las dimensiones sin decodificar la imagen, que es exactamente lo que se decidió no hacer. Cinco megas acotan lo que se guarda y lo que se sirve; lo que el navegador haga al pintarlos es del frontend |
@@ -204,3 +208,4 @@ El producto, en la misma forma que `RF-PM-004` devuelve (`ProductDetailResponse`
 | Versión | Fecha | Cambio | Responsable |
 |---|---|---|---|
 | 0.1.0 | 14-09-2026 | Redacción inicial. **Es la primera vez que el sistema guarda un archivo**, y la spec dice hasta dónde: `JPEG`, `PNG` o `WebP` **por sus primeros bytes** —la cabecera y el nombre se ignoran—, hasta 5 MB, y **sin tratar**. `PUT` porque la portada es un solo hueco; **el archivo se comprueba antes de bloquear el producto**, y el tamaño antes que el tipo; y **la reemplazada se borra** después de que el producto deje de señalarla, en ese orden y por la clave foránea. Es la spec que **construye `RN-PM-034` en el alta y en la corrección** como enmienda a `RF-PM-001` y `RF-PM-004`, y la que crea `product_images` y `cover_image_id`. Doce criterios, `CA-PM-239` a `CA-PM-252`. | Responsable técnico |
+| 0.2.0 | 19-09-2026 | **Cambia el permiso: `products:set-cover` y no `products:update`** (`RF-SP-060`, `RN-SEG-014`, un permiso por operación; [`security.md`](../../../security.md) v0.63.0). Enmienda de Art. I.7 sin cambio de comportamiento: la misma operación, el mismo actor, un código propio sembrado por `V28` y dado a todo rol que portara `products:update`. | Responsable del proyecto |

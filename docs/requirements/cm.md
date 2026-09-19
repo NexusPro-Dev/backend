@@ -134,8 +134,8 @@ La dependencia es **acíclica**: `CM` → `PM` → `SP`. Es el **primer módulo 
 | `RF-CM-002` | Consultar las tasas de comisión | Tasas | `commissions:read` |
 | `RF-CM-003` | Corregir el valor de una tasa | Tasas | `commissions:update` |
 | `RF-CM-004` | Retirar una tasa de comisión | Tasas | `commissions:delete` |
-| `RF-CM-005` | Consultar la comisión efectiva de una persona sobre un producto en una fecha | Resolución | `commissions:read` |
-| `RF-CM-006` | Registrar la tasa personalizada de una persona **sobre un producto** | Tasas | `commissions:create` |
+| `RF-CM-005` | Consultar la comisión efectiva de una persona sobre un producto en una fecha | Resolución | `commissions:read-effective` |
+| `RF-CM-006` | Registrar la tasa personalizada de una persona **sobre un producto** | Tasas | `user-commission-rates:create` — y sus otras tres operaciones `user-commission-rates:read`, `update` y `delete` |
 | ~~`RF-CM-007`~~ | ~~Asociar una tasa de rol a un producto~~ **Descartado el 15-09-2026** (`RN-CM-021`): la tasa de rol nace con su producto. El número queda consumido | — | — |
 | ~~`RF-CM-008`~~ | ~~Retirar la asociación de una tasa con un producto~~ **Descartado el 15-09-2026** (`RN-CM-021`): sin asociación de rol no hay nada que desasociar; el producto deja de pagar a un rol retirando la tasa (`RF-CM-004`). El número queda consumido | — | — |
 
@@ -284,17 +284,28 @@ Con el valor fijo el agujero **cambió de tamaño y de forma** al volver en v0.7
 
 ## 6. Permisos
 
-| Código | Recurso | Acción | Para qué |
-|---|---|---|---|
-| `commissions:read` | `commissions` | `read` | Consultar tasas —de rol y personalizadas, cada una con su producto— y resolver la comisión efectiva |
-| `commissions:create` | `commissions` | `create` | Registrar una tasa, de rol o personalizada, para un producto |
-| `commissions:update` | `commissions` | `update` | Corregir un valor, o la vigencia de una personalizada |
-| `commissions:delete` | `commissions` | `delete` | Retirar una tasa |
+**Diez desde el 19-09-2026, uno por operación** (`RF-SP-060`, `RN-SEG-014`; [`security.md` §4.4](../security.md#44-catalogo-de-permisos)). Hasta entonces eran cuatro y cada uno gobernaba dos o más rutas: `commissions:read` **cuatro** —las tasas de rol, las personalizadas, la vista por producto y la resolución—.
 
-**Asociar reutilizaba `commissions:update` y no estrenó permiso propio** mientras existió (02-09-2026 a 16-09-2026), y la razón sigue valiendo para lo que queda: **registrar es poner en vigor** (`RN-CM-021`), y `commissions:create` cambia lo que se paga tanto como `commissions:update`. Separar «revisar tarifas» de «activarlas» tendría sentido el día que alguien deba poder lo uno sin lo otro.
+| Código | Operación | Para qué |
+|---|---|---|
+| `commissions:read` | `GET /commission-rates` | Consultar las tasas de rol, cada una con su producto |
+| `commissions:create` | `POST /commission-rates` | Registrar una tasa de rol para un producto |
+| `commissions:update` | `PATCH /commission-rates/{id}` | Corregir el valor de una tasa de rol |
+| `commissions:delete` | `POST /commission-rates/{id}/deletion` | Retirar una tasa de rol |
+| `commissions:read-effective` **nuevo** | `GET /commissions/effective` | Resolver la comisión efectiva de una persona sobre un producto en una fecha (`RF-CM-005`) |
+| `user-commission-rates:read` **nuevo** | `GET /user-commission-rates` | Consultar las tasas personalizadas |
+| `user-commission-rates:create` **nuevo** | `POST /user-commission-rates` | Registrar la tasa personalizada de una persona sobre un producto (`RF-CM-006`) |
+| `user-commission-rates:update` **nuevo** | `PATCH /user-commission-rates/{id}` | Corregir el valor o la vigencia de una personalizada |
+| `user-commission-rates:delete` **nuevo** | `POST /user-commission-rates/{id}/deletion` | Retirar una personalizada |
+| `product-commission-rates:read` **nuevo** | `GET /product-commission-rates` | Qué comisiona un producto, y a qué rol: la vista por producto de las tasas de rol |
+
+**`commissions:` se queda con las tasas de rol**, que son el recurso principal del módulo, y las personalizadas ganan recurso propio porque tienen identidad y tabla propias (`user_commission_rates`, §7.2). **Cuatro operaciones bajo `RF-CM-006` no contradicen la regla**: la regla cuenta operaciones, no requerimientos.
+
+**Asociar reutilizaba `commissions:update` y no estrenó permiso propio** mientras existió (02-09-2026 a 16-09-2026), con el argumento de que «registrar es poner en vigor» (`RN-CM-021`) y `commissions:create` cambiaba lo que se paga tanto como `commissions:update`. **Ese argumento es el que `RF-SP-060` deja de aceptar**: que dos operaciones pesen lo mismo no es motivo para que un rol no pueda recibir una sin la otra. Aquí no cambia nada por ello —cada `commissions:` ya gobernaba una sola operación de las tasas de rol— y queda escrito para que no se repita.
+
+`V28` siembra los seis y **los da a todo rol que portara el padre** —`commissions:read` reparte cuatro—, con lo que nadie pierde nada.
 
 ---
-
 ## 7. Modelo de datos
 
 ### 7.1 `commission_rates` — las tasas de rol de cada producto
@@ -411,3 +422,4 @@ Un importe fijo de comisión **es dinero en la misma moneda que el producto** (`
 | 0.14.0 | 15-09-2026 | **La tasa de rol nace con su producto, y solo rige sobre él: nace `RN-CM-021`** (§5.4), por decisión del responsable del proyecto —«las comisiones generales llevarán el id del producto: solo se podrán crear desde el producto y solo para ese producto»— con tres respuestas preguntadas antes de escribir: **la ruta de siempre** con `productId` obligatorio en el cuerpo, y el listado con **todas** las tasas y su producto; **vaciar y empezar de cero** (`V94`), como `V49`; y **la personalizada no cambia**. `commission_rates` gana `product_id` obligatorio e inmutable, `fk_commission_rates_product` y `uq_commission_rates_product_role` (parcial); **`product_commission_rates` se retira** con su clave foránea compuesta y `uq_commission_rates_id_role`. **`RF-CM-007` y `RF-CM-008` se descartan**, números consumidos; `GET /product-commission-rates?productId=` se conserva sobre la tabla nueva. Reglas: `RN-CM-012` deja de alcanzar a la de rol; `RN-CM-013` vive en la propia tabla; `RN-CM-014` invertida por segunda vez —solo la personalizada se asocia—; `RN-CM-015` y `RN-CM-018` quedan para la personalizada; `RN-CM-019` y `RN-CM-020` se comprueban **al registrar** la de rol; y `RN-CM-017` cierra para la de rol una de sus tres consecuencias: el importe fijo **se valida contra los decimales de la moneda de su producto**. Lo que ya no protege a nadie queda escrito: **registrar una tasa de rol es ponerla en vigor**. | Responsable del proyecto |
 | 0.14.1 | 15-09-2026 | **El producto de cada tasa de rol se lee con su precio y su moneda** (`RF-CM-002` v1.3.0), a petición del responsable del proyecto: quien mira «qué paga cada producto» necesita saber sobre qué precio y en qué moneda, porque un porcentaje es una parte del precio y un importe fijo es dinero en la moneda del producto. Sin cambio de reglas ni de esquema. | Responsable del proyecto |
 | 0.15.0 | 16-09-2026 | **La personalizada también nace con su producto: `RN-CM-021` alcanza a las dos clases** (§5.5), por decisión del responsable del proyecto —«modifica también las comisiones personalizadas para que también sea una sola comisión personalizada por usuario y producto»—, con una respuesta preguntada: **la vigencia se mantiene** (una vigente por persona, producto y día). `user_commission_rates` gana `product_id` obligatorio e inmutable y **`user_commission_rate_products` se retira** con las personalizadas que había (`V10` del esquema consolidado). **`RN-CM-006` vuelve al motor** como `EXCLUDE` sobre `(user_id, product_id, daterange)`; **`RN-CM-014`, `RN-CM-015` y `RN-CM-018` se retiran** —ninguna tasa se asocia, ningún retiro tiene condición, ninguna tasa desconoce un precio—; `RN-CM-002`, `RN-CM-004`, `RN-CM-010`, `RN-CM-012`, `RN-CM-017`, `RN-CM-019` y `RN-CM-020` se reescriben para las dos clases; el submódulo Asociación desaparece (§2). `RF-CM-006` pierde asociar y desasociar; `RF-CM-002` pierde «los productos de una personalizada» y gana el producto —con precio y moneda— en cada fila; `RF-CM-003` corrige contra el producto de la tasa; `RF-CM-004` retira sin condición; `RF-CM-005` resuelve por `user_commission_rates.product_id`. | Responsable del proyecto |
+| 0.16.0 | 19-09-2026 | **Un permiso por operación** (`RF-SP-060`, `RN-SEG-014`; [`security.md`](../security.md) v0.63.0), por decisión del responsable del proyecto: el módulo pasa de **cuatro permisos a diez**. `commissions:` se queda con las cuatro operaciones de las tasas de rol; nacen `commissions:read-effective` para la resolución (`RF-CM-005`), los cuatro `user-commission-rates:` para las personalizadas (`RF-CM-006`) y `product-commission-rates:read` para la vista por producto. §4 y §6 nombran cada uno; §6 anota además que el argumento de «asociar reutilizaba `commissions:update`» es exactamente el que la regla deja de aceptar. `V28` los siembra y los da a todo rol que portara el padre. Sin cambio de esquema ni de reglas. | Responsable del proyecto |

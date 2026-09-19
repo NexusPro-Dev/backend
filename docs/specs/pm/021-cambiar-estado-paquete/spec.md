@@ -11,6 +11,10 @@
 
 ---
 
+!!! note "Enmienda de Art. I.7 — 19-09-2026, `RF-SP-060`"
+
+    Esta operación exige **`packages:change-status`** y no `packages:update` desde el 19-09-2026, por `RF-SP-060` —**un permiso por operación**, `RN-SEG-014` ([`security.md` §4.4](../../../security.md#44-catalogo-de-permisos))—: `packages:update` gobernaba varias operaciones y se queda con una; esta recibe código propio, sembrado por `V28` y dado a todo rol que portara `packages:update`. Las menciones de `packages:update` que siguen abajo hablan de su siembra original y se conservan como historia.
+
 ## 1. Objetivo
 
 Decidir si el paquete **se ofrece**, sin borrarlo: activarlo cuando está listo y desactivarlo sin tocar nada de lo que contiene.
@@ -62,7 +66,7 @@ Es `RF-PM-005` para paquetes, con una condición más al activar: **al menos dos
 
 ## 7. Precondiciones y postcondiciones
 
-**Precondiciones:** actor con `packages:update`; paquete vivo; para activar, descripción no vacía y al menos dos filas de asociación.
+**Precondiciones:** actor con `packages:change-status`; paquete vivo; para activar, descripción no vacía y al menos dos filas de asociación.
 
 **Postcondiciones:** el estado nuevo, `updated_at` avanzado si cambió, fila `UPDATE` en la auditoría con antes y después.
 
@@ -138,3 +142,4 @@ Los dos van **juntos** en la misma respuesta cuando ocurren a la vez, como `RF-P
 |---|---|---|---|
 | 0.1.0 | 15-09-2026 | Redacción inicial. Hereda `RF-PM-005` con la condición de `RN-PM-040` —dos productos y descripción, y los dos motivos juntos—. **Activar no exige productos activos**: eso cambia con el tiempo, lo mira la oferta y lo dice el detalle. | Responsable técnico |
 | 0.2.0 | 15-09-2026 | **Construida** (`PackageStatusIT`). Sin enmiendas de comportamiento. Nota de construcción: la cuenta de productos para `EX-003` sale de la misma lectura de hermanas que usa la asociación (`findSiblings`), y los dos motivos viajan como dos `errors` en un solo `409` (`CA-PM-293`). | Responsable técnico |
+| 0.3.0 | 19-09-2026 | **Cambia el permiso: `packages:change-status` y no `packages:update`** (`RF-SP-060`, `RN-SEG-014`, un permiso por operación; [`security.md`](../../../security.md) v0.63.0). Enmienda de Art. I.7 sin cambio de comportamiento: la misma operación, el mismo actor, un código propio sembrado por `V28` y dado a todo rol que portara `packages:update`. | Responsable del proyecto |

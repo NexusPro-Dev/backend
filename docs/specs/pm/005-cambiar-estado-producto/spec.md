@@ -11,6 +11,10 @@
 
 ---
 
+!!! note "Enmienda de Art. I.7 — 19-09-2026, `RF-SP-060`"
+
+    Esta operación exige **`products:change-status`** y no `products:update` desde el 19-09-2026, por `RF-SP-060` —**un permiso por operación**, `RN-SEG-014` ([`security.md` §4.4](../../../security.md#44-catalogo-de-permisos))—: `products:update` gobernaba varias operaciones y se queda con una; esta recibe código propio, sembrado por `V28` y dado a todo rol que portara `products:update`. Las menciones de `products:update` que siguen abajo hablan de su siembra original y se conservan como historia.
+
 ## 1. Objetivo
 
 Decidir si un producto se ofrece, sin borrarlo.
@@ -170,3 +174,4 @@ Ninguna. Las tres quedaron cerradas el 26-08-2026: una por decisión, una por la
 | 0.2.0 | 26-08-2026 | **Aprobada.** No se exige motivo para activar ni desactivar, por coherencia con `RF-PM-004` y con los catálogos de `SP`. Recibió además dos cosas de fuera: la excepción del **upgrade activo hacia el mismo destino**, que llegó desde `RF-PM-001` al resolverse que el producto nace inactivo —y con ella la comprobación de `RN-PM-004` vive solo aquí—, y la regla `RN-PM-014`, que impide **publicar un producto sin descripción**. La pregunta del carrito se traslada a quien escriba la compra, con lo único que esta spec puede afirmar: aquí no se reserva nada. Criterios `CA-PM-072`, `CA-PM-073` y `CA-PM-085`. | Responsable del proyecto |
 | 0.1.0 | 26-08-2026 | Redacción inicial, con tres preguntas abiertas. | Responsable técnico |
 | 0.2.0 | 02-09-2026 | **`RN-PM-004` pasa de ser «un upgrade activo por destino» a «por pareja origen→destino»**, porque un upgrade declara ahora **de dónde sale** (`pm.md` §5.2.1). La versión anterior **prohibía exactamente lo que el origen existe para permitir**: `BECA → ORO` y `PLATINO → ORO` activos a la vez. Y el motivo por el que la regla existe **no se debilita** — dos productos activos **desde el mismo sitio y hacia el mismo sitio** siguen siendo dos precios simultáneos para lo mismo—; lo que cambia es qué cuenta como «lo mismo». Dos saltos distintos hacia el mismo destino **no lo son**, y que cuesten distinto es lo normal. | Responsable del proyecto |
+| 0.3.0 | 19-09-2026 | **Cambia el permiso: `products:change-status` y no `products:update`** (`RF-SP-060`, `RN-SEG-014`, un permiso por operación; [`security.md`](../../../security.md) v0.63.0). Enmienda de Art. I.7 sin cambio de comportamiento: la misma operación, el mismo actor, un código propio sembrado por `V28` y dado a todo rol que portara `products:update`. | Responsable del proyecto |

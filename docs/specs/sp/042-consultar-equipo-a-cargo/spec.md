@@ -12,6 +12,10 @@
 
 ---
 
+!!! note "Enmienda de Art. I.7 — 19-09-2026, `RF-SP-060`"
+
+    Esta operación exige **`users:read-team`** y no `users:read` desde el 19-09-2026, por `RF-SP-060` —**un permiso por operación**, `RN-SEG-014` ([`security.md` §4.4](../../../security.md#44-catalogo-de-permisos))—: `users:read` gobernaba varias operaciones y se queda con una; esta recibe código propio, sembrado por `V28` y dado a todo rol que portara `users:read`. Las menciones de `users:read` que siguen abajo hablan de su siembra original y se conservan como historia.
+
 ## 1. Objetivo
 
 Ver la posición de una persona dentro de la fuerza comercial: de quién depende y a quién tiene a cargo.
@@ -56,7 +60,7 @@ Mientras tanto esta consulta cubre lo que hoy hace falta de verdad: administrar 
 
 ## 5. Reglas de negocio aplicables
 
-Ninguna regla gobierna esta consulta. El alcance de los datos es **global**: cualquier actor con `users:read` ve la estructura de cualquiera.
+Ninguna regla gobierna esta consulta. El alcance de los datos es **global**: cualquier actor con `users:read-team` ve la estructura de cualquiera.
 
 Conviene dejarlo escrito de forma explícita, por el mismo motivo que lo hace `RF-SP-025` §5: **el día que exista alcance comercial dejará de ser cierto**, y esta consulta será de las primeras afectadas. Que un director pueda ver hoy el equipo de otro director es una consecuencia consciente de que D-22 no está resuelta, no un descuido.
 
@@ -152,7 +156,7 @@ Conviene dejarlo escrito de forma explícita, por el mismo motivo que lo hace `R
 | `CA-SP-449` | La respuesta **no** contiene el árbol descendente completo: solo un nivel |
 | `CA-SP-450` | La consulta **no** admite resolverse contra el actor en lugar de contra un identificador |
 | `CA-SP-451` | El sistema informa que la persona no existe cuando está eliminada lógicamente |
-| `CA-SP-452` | El sistema rechaza la consulta a un actor sin `users:read` |
+| `CA-SP-452` | El sistema rechaza la consulta a un actor sin `users:read-team` |
 | `CA-SP-453` | La respuesta **no** contiene superiores anteriores ni tramos cerrados: solo la asignación vigente |
 | `CA-SP-454` | La respuesta **no** contiene ningún conteo de la rama indirecta, ni siquiera como número agregado |
 | `CA-SP-455` | **Invertido el 10-09-2026.** La consulta **sí** admite un filtro por códigos de rol sobre el equipo directo, y **sigue sin admitir** ningún otro: un `search` o un `status` no cambian el resultado |

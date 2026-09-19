@@ -13,6 +13,10 @@
 
 ---
 
+!!! note "Enmienda de Art. I.7 — 19-09-2026, `RF-SP-060`"
+
+    Esta operación exige **`users:read-team`** y no `users:read` desde el 19-09-2026, por `RF-SP-060` —**un permiso por operación**, `RN-SEG-014` ([`security.md` §4.4](../../../security.md#44-catalogo-de-permisos))—: `users:read` gobernaba varias operaciones y se queda con una; esta recibe código propio, sembrado por `V28` y dado a todo rol que portara `users:read`. Las menciones de `users:read` que siguen abajo hablan de su siembra original y se conservan como historia.
+
 ## 1. Enfoque
 
 Es la lectura de lo que `RF-SP-041` escribe, y **la consulta que hace ejecutable** el rechazo de `RN-SP-022`. Cuando `RF-SP-028`, `RF-SP-029` o `RF-SP-031` responden «esta persona tiene tres personas a cargo» y deliberadamente no dicen quiénes son, es porque esa respuesta pertenece aquí, con su propio permiso.
@@ -110,7 +114,7 @@ Que la lectura más pesada del requerimiento se resuelva con un índice que otro
 |---|---|---|
 | `400` | Identificador malformado, o paginación fuera de límites | `VAL-001`, `VAL-003` |
 | `401` | Token ausente o inválido | `AUTH-001` |
-| `403` | El actor no posee `users:read` | `AUTH-002` |
+| `403` | El actor no posee `users:read-team` | `AUTH-002` |
 | `404` | La persona no existe o está eliminada (`EX-001`) | `VAL-002` |
 | `500` | Fallo no controlado | `ERR-500` |
 
@@ -122,7 +126,7 @@ Que la lectura más pesada del requerimiento se resuelva con un índice que otro
 
 | Endpoint | Permiso requerido |
 |---|---|
-| `GET /api/v1/users/{id}/team` | `users:read` |
+| `GET /api/v1/users/{id}/team` | `users:read-team` |
 
 **No se crea un permiso propio**, y `spec.md` §7 lo razona: quien puede ver la ficha de una persona puede ver de quién depende. Es el mismo permiso que `RF-SP-025` y `RF-SP-026`.
 
@@ -140,7 +144,7 @@ Que la lectura más pesada del requerimiento se resuelva con un índice que otro
 
 Es una consulta de lectura y no aparece en el catálogo cerrado de `security.md` §8.1. Mismo criterio que `RF-SP-039` §6 y que el resto de consultas del módulo.
 
-La única lectura que **sí** se audita es la de la auditoría de seguridad (`SECURITY_AUDIT_READ`, `RF-SP-014`), y la asimetría es deliberada: leer lo que hicieron otros no es lo mismo que leer una estructura organizativa que cualquiera con `users:read` puede ver.
+La única lectura que **sí** se audita es la de la auditoría de seguridad (`SECURITY_AUDIT_READ`, `RF-SP-014`), y la asimetría es deliberada: leer lo que hicieron otros no es lo mismo que leer una estructura organizativa que cualquiera con `users:read-team` puede ver.
 
 ## 7. Transaccionalidad
 
@@ -171,7 +175,7 @@ El filtro por rol y la lista de roles **no dejan ningún documento como estaba**
 **Lo que NO se enmienda, y conviene decir por qué:**
 
 - **`docs/modelo-datos.md`**: no hay cambio de esquema. Los roles se leen de `user_roles`, que existe desde `V6`, y el filtro es un predicado, no una columna.
-- **`docs/security.md`**: el permiso sigue siendo `users:read` y el alcance sigue siendo global. Filtrar por rol **no enseña a nadie nada que no viera ya** — es un subconjunto de lo que la misma consulta devolvía entero.
+- **`docs/security.md`**: el permiso sigue siendo `users:read-team` y el alcance sigue siendo global. Filtrar por rol **no enseña a nadie nada que no viera ya** — es un subconjunto de lo que la misma consulta devolvía entero.
 - **`RF-SP-039`** (perfil propio) **conserva su `roleCode`**: publica el superior del propio actor por `OwnProfileResponse.SupervisorRef`, que es otro DTO y otro contrato. Cambiarlo de paso sería tocar un requerimiento que nadie ha pedido tocar; queda anotado como asimetría consciente.
 ## 9. Alternativas consideradas
 
@@ -226,7 +230,7 @@ El filtro por rol y la lista de roles **no dejan ningún documento como estaba**
 | `CA-SP-449` | API | **No** hay árbol descendente: solo un nivel |
 | `CA-SP-450` | API | **No** admite resolverse contra el actor |
 | `CA-SP-451` | API | Persona eliminada: `404`, sin distinguir de nunca haber existido |
-| `CA-SP-452` | API | Sin `users:read`: `403` |
+| `CA-SP-452` | API | Sin `users:read-team`: `403` |
 | `CA-SP-453` | API | **No** contiene superiores anteriores ni tramos cerrados |
 | `CA-SP-454` | API | **No** contiene ningún conteo de la rama indirecta |
 | `CA-SP-455` | API | **Invertido.** El filtro por rol **sí** se aplica, y `search` o `status` **no** cambian el resultado |

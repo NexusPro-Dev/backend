@@ -21,6 +21,10 @@ El comportamiento es el de [`spec.md`](spec.md) y no se repite. La mecánica com
 
 ---
 
+!!! note "Enmienda de Art. I.7 — 19-09-2026, `RF-SP-060`"
+
+    `GET /api/v1/product-commission-rates` —la vista por producto de las tasas de rol, que este requerimiento acompaña desde `V94`— exige **`product-commission-rates:read`** y no `commissions:read` desde el 19-09-2026, por `RF-SP-060` —**un permiso por operación**, `RN-SEG-014` ([`security.md` §4.4](../../../security.md#44-catalogo-de-permisos))—. `GET /api/v1/commission-rates` sigue con `commissions:read`. Lo siembra `V28` y lo da a todo rol que portara `commissions:read`.
+
 ## 1. Enfoque
 
 Cuatro consultas de solo lectura, dos paginadas y dos no.

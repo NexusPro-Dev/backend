@@ -13,6 +13,10 @@
 
 ---
 
+!!! note "Enmienda de Art. I.7 — 19-09-2026, `RF-SP-060`"
+
+    Esta operación exige **`packages:list`** y no `packages:read` desde el 19-09-2026, por `RF-SP-060` —**un permiso por operación**, `RN-SEG-014` ([`security.md` §4.4](../../../security.md#44-catalogo-de-permisos))—: `packages:read` gobernaba varias operaciones y se queda con una; esta recibe código propio, sembrado por `V28` y dado a todo rol que portara `packages:read`. Las menciones de `packages:read` que siguen abajo hablan de su siembra original y se conservan como historia.
+
 ## 1. Enfoque
 
 **El listado del producto, con una segunda sentencia que trae las filas de toda la página.**
@@ -34,7 +38,7 @@
 
 ## 4. Contrato de API
 
-`GET /api/v1/packages?status=&scope=&currencyId=&q=&includeDeleted=&sort=&page=&size=` — `packages:read`.
+`GET /api/v1/packages?status=&scope=&currencyId=&q=&includeDeleted=&sort=&page=&size=` — `packages:list`.
 
 Envoltura del sistema; cada fila: `id`, `code`, `name`, `currency`, `scope`, `status`, `itemCount`, `listPrice`, `price`, `savings`, `exchange`, `offerable`, `coverImageUrl`, `validFrom`, `validTo` (16-09-2026: el fin presente y nulo), `createdAt`, `deletedAt` (`NON_NULL`).
 

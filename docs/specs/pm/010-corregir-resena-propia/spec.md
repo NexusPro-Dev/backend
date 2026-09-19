@@ -12,6 +12,10 @@
 
 ---
 
+!!! note "Enmienda de Art. I.7 — 19-09-2026, `RF-SP-060`"
+
+    Esta operación exige **`products:update-comment`** y no `products:comment` desde el 19-09-2026, por `RF-SP-060` —**un permiso por operación**, `RN-SEG-014` ([`security.md` §4.4](../../../security.md#44-catalogo-de-permisos))—: `products:comment` gobernaba varias operaciones y se queda con una; esta recibe código propio, sembrado por `V28` y dado a todo rol que portara `products:comment`. Las menciones de `products:comment` que siguen abajo hablan de su siembra original y se conservan como historia.
+
 ## 1. Objetivo
 
 Que quien escribió una reseña **cambie de opinión sin escribir dos veces**: corrige la puntuación, el texto o los dos, y la reseña sigue siendo la misma.
@@ -20,13 +24,13 @@ Que quien escribió una reseña **cambie de opinión sin escribir dos veces**: c
 
 `RN-PM-026` fija **una** reseña por persona y producto, y esa decisión es la que hace necesaria esta operación: sin corrección, cambiar de opinión obligaría a retirar y volver a escribir, y el promedio y la lista verían dos filas donde hubo una opinión.
 
-**Es la primera operación del módulo cuya autorización no la decide solo el permiso.** `products:comment` habilita corregir; **ser el autor** autoriza (`RN-PM-027`). Es la «verificación de propiedad del dato» que [`security.md` §6](../../../security.md) deja a la capa de aplicación, y `PM` la ejerce aquí por primera vez.
+**Es la primera operación del módulo cuya autorización no la decide solo el permiso.** `products:update-comment` habilita corregir; **ser el autor** autoriza (`RN-PM-027`). Es la «verificación de propiedad del dato» que [`security.md` §6](../../../security.md) deja a la capa de aplicación, y `PM` la ejerce aquí por primera vez.
 
 ## 3. Actores
 
 | Actor | Papel |
 |---|---|
-| El **autor** de la reseña, con `products:comment` | Corrige la suya |
+| El **autor** de la reseña, con `products:update-comment` | Corrige la suya |
 
 **Nadie más.** Ni otro cliente, ni la administración: un administrador con el permiso corrige **las suyas** y recibe `403` en las ajenas, exactamente como cualquiera. No existe moderación (`requirements/pm.md` §5.2.7).
 
@@ -76,7 +80,7 @@ Que quien escribió una reseña **cambie de opinión sin escribir dos veces**: c
 
 **Precondiciones:**
 
-- El actor está autenticado y porta `products:comment`.
+- El actor está autenticado y porta `products:update-comment`.
 - La reseña existe, está **viva**, es **de ese producto** y **su autor es el actor**.
 
 **Postcondiciones:**
@@ -134,7 +138,7 @@ Que quien escribió una reseña **cambie de opinión sin escribir dos veces**: c
 
 ### EX-003 — Sin permiso
 
-**Respuesta del sistema:** `403`. Sin `products:comment` no se llega al paso 4: la ruta lo exige antes de mirar la reseña.
+**Respuesta del sistema:** `403`. Sin `products:update-comment` no se llega al paso 4: la ruta lo exige antes de mirar la reseña.
 
 ## 11. Validaciones
 
@@ -151,8 +155,8 @@ Que quien escribió una reseña **cambie de opinión sin escribir dos veces**: c
 | ID | Criterio |
 |---|---|
 | `CA-PM-184` | El autor corrige la puntuación, el texto o los dos con `200`, y `updatedAt` **avanza** mientras `createdAt` no cambia |
-| `CA-PM-185` | El sistema responde `403` a otro cliente **con `products:comment`** que intenta corregir una reseña ajena, y la reseña no cambia |
-| `CA-PM-186` | El sistema responde `403` a un **administrador** con `products:comment` sobre una reseña ajena: el permiso habilita, no autoriza |
+| `CA-PM-185` | El sistema responde `403` a otro cliente **con `products:update-comment`** que intenta corregir una reseña ajena, y la reseña no cambia |
+| `CA-PM-186` | El sistema responde `403` a un **administrador** con `products:update-comment` sobre una reseña ajena: el permiso habilita, no autoriza |
 | `CA-PM-187` | El sistema responde `404` a una reseña inexistente, a una **retirada** —también a su autor— y a una que **no es del producto de la ruta**, con el mismo cuerpo |
 | `CA-PM-188` | El sistema rechaza con `400` el nulo explícito en `rating` y en `comment`: ninguno admite vaciarse |
 | `CA-PM-189` | Un cuerpo **vacío** responde `400`; uno **sin cambios de valor** responde `200` **sin** avanzar `updatedAt` y **sin** fila de auditoría |
@@ -184,3 +188,4 @@ Que quien escribió una reseña **cambie de opinión sin escribir dos veces**: c
 |---|---|---|---|
 | 0.1.0 | 14-09-2026 | Redacción inicial. **La excepción que define el requerimiento es `EX-002`**: el permiso habilita y ser el autor autoriza, y como `RN-PM-027` no cabe en el esquema lo único que la defiende es la prueba que intenta corregir una ajena con el permiso puesto — en particular con un administrador—. Primero «existe» (`404`) y después «es tuya» (`403`), y el `403` no revela nada porque la lista pública ya enseña la reseña con su identificador. **Ningún campo admite el nulo explícito**, al revés que en `RF-PM-004`, porque los dos son obligatorios en la columna; un cuerpo vacío es una corrección vacía y responde `200` sin escribir. **La retirada responde «no existe» también a su autor**: no se puede revivir, y distinguirlo no le daría nada que hacer. **Y se corrige aunque el producto ya no se venda**, que es la asimetría deliberada con el alta. | Responsable técnico |
 | 0.2.0 | 14-09-2026 | **El cuerpo vacío responde `400` y no `200`.** Al construir se vio que `RF-PM-004` rechaza la edición sin ningún campo con «Debe informar al menos uno de los campos corregibles», y esta spec decía lo contrario citándolo como precedente. Se alinea: el módulo entero corrige con «al menos uno». Lo que sigue respondiendo `200` sin escribir es el cuerpo **sin cambios de valor**, que es la corrección que no corrige nada. Nace `VAL-005`; `FA-003` y `CA-PM-189` se reescriben. | Responsable técnico |
+| 0.3.0 | 19-09-2026 | **Cambia el permiso: `products:update-comment` y no `products:comment`** (`RF-SP-060`, `RN-SEG-014`, un permiso por operación; [`security.md`](../../../security.md) v0.63.0). Enmienda de Art. I.7 sin cambio de comportamiento: la misma operación, el mismo actor, un código propio sembrado por `V28` y dado a todo rol que portara `products:comment`. | Responsable del proyecto |

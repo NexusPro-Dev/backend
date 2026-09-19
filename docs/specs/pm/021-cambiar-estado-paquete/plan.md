@@ -11,6 +11,10 @@
 
 ---
 
+!!! note "Enmienda de Art. I.7 — 19-09-2026, `RF-SP-060`"
+
+    Esta operación exige **`packages:change-status`** y no `packages:update` desde el 19-09-2026, por `RF-SP-060` —**un permiso por operación**, `RN-SEG-014` ([`security.md` §4.4](../../../security.md#44-catalogo-de-permisos))—: `packages:update` gobernaba varias operaciones y se queda con una; esta recibe código propio, sembrado por `V28` y dado a todo rol que portara `packages:update`. Las menciones de `packages:update` que siguen abajo hablan de su siembra original y se conservan como historia.
+
 ## 1. Enfoque
 
 **`RF-PM-005` sin la unicidad del upgrade y con una cuenta de filas.** El producto comprueba `RN-PM-004` al activar; el paquete comprueba `RN-PM-040`: descripción y **cuántas** filas de asociación tiene. Es una sentencia de conteo más, sobre la clave primaria de `product_package_items`, y nada de lo que la oferta decide después.
@@ -31,7 +35,7 @@
 
 ## 4. Contrato de API
 
-`PATCH /api/v1/packages/{id}/status` — `packages:update`. `{ "status": "ACTIVO" }` → `200` con `PackageDetailResponse`. Los `409` de activar llevan **todos** los motivos en `errors`, uno por `FieldError`.
+`PATCH /api/v1/packages/{id}/status` — `packages:change-status`. `{ "status": "ACTIVO" }` → `200` con `PackageDetailResponse`. Los `409` de activar llevan **todos** los motivos en `errors`, uno por `FieldError`.
 
 ## 5. Autorización
 

@@ -13,6 +13,10 @@
 
 ---
 
+!!! note "Enmienda de Art. I.7 — 19-09-2026, `RF-SP-060`"
+
+    Esta operación exige **`roles:assign-permissions`** y no `roles:update` desde el 19-09-2026, por `RF-SP-060` —**un permiso por operación**, `RN-SEG-014` ([`security.md` §4.4](../../../security.md#44-catalogo-de-permisos))—: `roles:update` gobernaba varias operaciones y se queda con una; esta recibe código propio, sembrado por `V28` y dado a todo rol que portara `roles:update`. Las menciones de `roles:update` que siguen abajo hablan de su siembra original y se conservan como historia.
+
 ## 1. Objetivo
 
 Ampliar lo que un rol puede hacer, sin que llegue a exceder ni a su rol padre ni a quien realiza la asignación.
@@ -207,3 +211,4 @@ La primera enmienda está resumida en la cabecera; desde la segunda se registran
 | Versión | Fecha | Cambio | Responsable |
 |---|---|---|---|
 | 0.3.0 | 16-09-2026 | **La operación admite roles de sistema**, por decisión del responsable del proyecto (`security.md` v0.58.0, `requirements/sp.md` v1.57.0). Esta especificación y la semilla se contradecían desde el primer día: `V8` siembra a `MANAGER`, `DIRECTOR`, `AGENTE` y `CLIENTE` **sin permisos a propósito**, «a la espera de `RF-SP-005`», y `EX-004` los rechazaba con `409`. Ningún vendedor ni ningún cliente podía tener nunca un permiso, y se descubrió al intentar darle `products:sale` a `CLIENTE`. `RN-SEG-012` queda acotada a lo que de verdad protege —editar, reubicar, desactivar y eliminar— y **sale de §5**; las tres cotas que quedan son las que hacen seguro conceder: contenido en el padre (`RN-SEG-003`), poseído por quien concede (`RN-SEG-010`) y nunca sobre un rol que el actor porta (`RN-SEG-011`). **`EX-004` se retira y `CA-SP-036` se invierte en `CA-SP-683`** —afirma lo contrario— en lugar de borrarse, con el criterio de `CA-SP-675` en `RF-SP-057`: el día que alguien vuelva a cerrar la puerta, falla aquí. Se descartó sembrar los permisos por migración —cada ajuste exigiría otra, que es lo que `V8` decía no querer— y colgar roles hijos no de sistema, que `RN-SEG-003` acota a un padre vacío. §13 gana el caso de la escala: para `AGENTE` hay que pasar antes por `MANAGER` y `DIRECTOR`. | Responsable del proyecto |
+| 0.4.0 | 19-09-2026 | **Cambia el permiso: `roles:assign-permissions` y no `roles:update`** (`RF-SP-060`, `RN-SEG-014`, un permiso por operación; [`security.md`](../../../security.md) v0.63.0). Enmienda de Art. I.7 sin cambio de comportamiento: la misma operación, el mismo actor, un código propio sembrado por `V28` y dado a todo rol que portara `roles:update`. | Responsable del proyecto |

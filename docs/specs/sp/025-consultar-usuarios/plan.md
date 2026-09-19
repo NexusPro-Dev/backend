@@ -21,6 +21,10 @@ El comportamiento —flujos, excepciones, validaciones y criterios de aceptació
 
 ---
 
+!!! note "Enmienda de Art. I.7 — 19-09-2026, `RF-SP-060`"
+
+    Esta operación exige **`users:list`** y no `users:read` desde el 19-09-2026, por `RF-SP-060` —**un permiso por operación**, `RN-SEG-014` ([`security.md` §4.4](../../../security.md#44-catalogo-de-permisos))—: `users:read` gobernaba varias operaciones y se queda con una; esta recibe código propio, sembrado por `V28` y dado a todo rol que portara `users:read`. Las menciones de `users:read` que siguen abajo hablan de su siembra original y se conservan como historia.
+
 ## 1. Enfoque
 
 Hereda entera la forma de [`RF-SP-002`](../002-consultar-roles/plan.md): proyección en lugar de agregado, envoltura `PageResponse<T>`, lista blanca de ordenamiento resuelta contra un enum, búsqueda por trigramas sobre `f_unaccent(lower(…))` y predicado construido solo con los filtros presentes. Lo que allí está argumentado —por qué GIN y no B-tree, por qué la normalización la hace la base de datos y no Java, por qué se descarta el patrón `(:filtro IS NULL OR …)`, por qué el ordenamiento lleva `id` como desempate— **no se repite**.
@@ -214,7 +218,7 @@ Decisiones del contrato:
 | `400` | `status` fuera de su dominio | `VAL-004` | `status` |
 | `400` | `roleId` o `membershipId` no son UUID canónicos | `VAL-004` | El parámetro |
 | `401` | Token ausente o inválido | `AUTH-001` | — |
-| `403` | Autenticado sin `users:read` | `AUTH-002` | — |
+| `403` | Autenticado sin `users:list` | `AUTH-002` | — |
 | `500` | Fallo no controlado | `ERR-500` | — |
 
 - **No hay `404` ni `422`.** Un filtro sin coincidencias devuelve `200` con la colección vacía (`FA-001`, `CA-SP-207`), y una página más allá de la última hace lo mismo.
@@ -264,7 +268,7 @@ WHERE (f_unaccent(lower(u.username)) LIKE f_unaccent(lower(:t)) ESCAPE '\'
 
 La normalización la hace **la base de datos con la misma función que alimenta el índice**, por el motivo de `RF-SP-002` §4: normalizar en Java produce un resultado parecido y no idéntico, y cualquier divergencia se manifiesta como una persona indexada que no aparece en su propia búsqueda.
 
-**La búsqueda por fragmento de correo es deliberada** (`CA-SP-344`) y convierte el listado en una forma de comprobar si una dirección está registrada. `spec.md` §14, resolución 2, lo asume: el endpoint exige `users:read`, que es un permiso de administración, y quien lo tiene puede ver la lista entera de todos modos. La prohibición de `security.md` §5.5 alcanza a los endpoints **públicos** de autenticación, no a este.
+**La búsqueda por fragmento de correo es deliberada** (`CA-SP-344`) y convierte el listado en una forma de comprobar si una dirección está registrada. `spec.md` §14, resolución 2, lo asume: el endpoint exige `users:list`, que es un permiso de administración, y quien lo tiene puede ver la lista entera de todos modos. La prohibición de `security.md` §5.5 alcanza a los endpoints **públicos** de autenticación, no a este.
 
 **Cuántas sentencias cuesta una página.** Tres como máximo, y ninguna depende del número de filas:
 
@@ -303,7 +307,7 @@ Cuatro puntos:
 
 | Endpoint | Permiso requerido |
 |---|---|
-| `GET /api/v1/users` | `users:read` |
+| `GET /api/v1/users` | `users:list` |
 
 - El permiso **ya existe** en el catálogo: lo siembra `V3__seed_permissions.sql` (`RF-SP-010`), y `V7__seed_system_roles.sql` lo asocia a `SUPERADMIN` y `ADMIN`.
 - Se declara sobre el método del controlador (`security.md` §6). Un endpoint sin declaración queda inaccesible, no público (Art. IV.1).
@@ -389,7 +393,7 @@ Bajo `READ COMMITTED` cada sentencia toma su propia instantánea, de modo que `t
 | El filtro por correo parcial convierte el listado en un verificador de direcciones registradas | Bajo | Consecuencia asumida en `spec.md` §14, resolución 2. Acotada por el permiso: quien puede preguntarlo puede ver la lista entera |
 | `totalElements` no corresponde exactamente a la página bajo escrituras concurrentes | Bajo | Aceptado, con el razonamiento de `RF-SP-002` §7. Más probable aquí que allí, y de síntoma benigno |
 | La búsqueda ignora los acentos pero el ordenamiento no: `Álvarez` y `Alvarez` se encuentran igual y se ordenan según la colación | Bajo | Se acepta, igual que en `RF-SP-002` §10. Aquí es **más visible**, porque el orden por defecto es por apellido y los apellidos llevan acentos. Si el negocio lo pide, es un cambio localizado en `UserSortField` |
-| Este endpoint expone en una sola respuesta el nombre, el correo y los roles de todas las personas del sistema, sin alcance por persona | Medio | Es el estado declarado por `spec.md` §5 mientras **D-22** siga abierta, no un descuido. Acotado por `users:read` y registrado en §5 y §8 como el primer endpoint a revisar |
+| Este endpoint expone en una sola respuesta el nombre, el correo y los roles de todas las personas del sistema, sin alcance por persona | Medio | Es el estado declarado por `spec.md` §5 mientras **D-22** siga abierta, no un descuido. Acotado por `users:list` y registrado en §5 y §8 como el primer endpoint a revisar |
 
 ## 11. Estrategia de prueba
 
@@ -408,7 +412,7 @@ Niveles: **Integración** (Testcontainers sobre PostgreSQL real, con `V18` a `V2
 | `CA-SP-344` | Integración + API | Buscando `perez@fac` se encuentra a `juan.perez@factech.co`. Es la prueba del fragmento de correo |
 | `CA-SP-345` | API | Ninguna fila contiene `lockedUntil`, ni siquiera nulo, sobre una persona bloqueada |
 | `CA-SP-210` | Unitaria + API | `PageRequestFactory` rechaza `size = 101`; el endpoint devuelve `400` con `VAL-002` y **no** una página de cien elementos, que es como se manifestaría el recorte silencioso |
-| `CA-SP-211` | API | Un actor autenticado sin `users:read` recibe `403`, no obtiene dato alguno y queda el evento de denegación en `audit_security_log` |
+| `CA-SP-211` | API | Un actor autenticado sin `users:list` recibe `403`, no obtiene dato alguno y queda el evento de denegación en `audit_security_log` |
 
 Casos límite de `spec.md` §13 y decisiones de este plan que exigen prueba propia (Art. VII.3):
 

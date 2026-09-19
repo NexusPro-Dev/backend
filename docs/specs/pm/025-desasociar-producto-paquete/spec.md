@@ -12,6 +12,10 @@
 
 ---
 
+!!! note "Enmienda de Art. I.7 — 19-09-2026, `RF-SP-060`"
+
+    Esta operación exige **`packages:remove-product`** y no `packages:update` desde el 19-09-2026, por `RF-SP-060` —**un permiso por operación**, `RN-SEG-014` ([`security.md` §4.4](../../../security.md#44-catalogo-de-permisos))—: `packages:update` gobernaba varias operaciones y se queda con una; esta recibe código propio, sembrado por `V28` y dado a todo rol que portara `packages:update`. Las menciones de `packages:update` que siguen abajo hablan de su siembra original y se conservan como historia.
+
 ## 1. Objetivo
 
 Sacar un producto del paquete, **sin motivo** y dejando escrito qué había.
@@ -66,7 +70,7 @@ Es `RF-CM-008` para paquetes. La fila `(paquete, producto, descuento)` es una **
 
 ## 7. Precondiciones y postcondiciones
 
-**Precondiciones:** actor con `packages:update`; paquete vivo; el producto está en él.
+**Precondiciones:** actor con `packages:remove-product`; paquete vivo; el producto está en él.
 
 **Postcondiciones:** la fila **no existe**; `audit_deletion_log` tiene la fila `ASSOCIATION` con la instantánea; el paquete vale la nueva suma; su estado no cambió.
 
@@ -134,3 +138,4 @@ Es `RF-CM-008` para paquetes. La fila `(paquete, producto, descuento)` es una **
 | 0.1.0 | 15-09-2026 | Redacción inicial. Hereda `RF-CM-008`: asociación, sin motivo, borrado físico, `ASSOCIATION` con instantánea —que aquí lleva el descuento—. Responde `200` con el paquete porque lo que cambió es su precio. Dejar el paquete con menos de dos no lo desactiva: lo saca de la oferta y el detalle lo dice. | Responsable técnico |
 | 0.2.0 | 15-09-2026 | **Construida** (`PackageDissociationIT`). Sin enmiendas de comportamiento. La fila `ASSOCIATION` lleva `reason` nulo y, en la instantánea, paquete, producto, forma, valor y el precio del producto en ese instante; su `entity_id` es el del paquete. | Responsable técnico |
 | 0.3.0 | 16-09-2026 | **Un paquete lleva UN upgrade como máximo** ([`requirements/pm.md`](../../../requirements/pm.md) v0.38.0 §5.2.10, `RN-PM-046`). Lo que cambia aquí es la letra, no el comportamiento: quitar el upgrade **libera el sitio** en lugar de «liberar el origen», y `CA-PM-325` se reescribe para que el `409` previo sea el del segundo upgrade y no el de otro origen. Sin tarea nueva: la prueba se reescribe desde `RF-PM-023 · T-14`. | Responsable del proyecto |
+| 0.4.0 | 19-09-2026 | **Cambia el permiso: `packages:remove-product` y no `packages:update`** (`RF-SP-060`, `RN-SEG-014`, un permiso por operación; [`security.md`](../../../security.md) v0.63.0). Enmienda de Art. I.7 sin cambio de comportamiento: la misma operación, el mismo actor, un código propio sembrado por `V28` y dado a todo rol que portara `packages:update`. | Responsable del proyecto |

@@ -11,6 +11,10 @@
 
 ---
 
+!!! note "Enmienda de Art. I.7 — 19-09-2026, `RF-SP-060`"
+
+    Esta operación exige **`products:update-comment`** y no `products:comment` desde el 19-09-2026, por `RF-SP-060` —**un permiso por operación**, `RN-SEG-014` ([`security.md` §4.4](../../../security.md#44-catalogo-de-permisos))—: `products:comment` gobernaba varias operaciones y se queda con una; esta recibe código propio, sembrado por `V28` y dado a todo rol que portara `products:comment`. Las menciones de `products:comment` que siguen abajo hablan de su siembra original y se conservan como historia.
+
 ## 1. Enfoque
 
 **Una corrección con `Patchable`, como `RF-PM-004`, y una comparación que el permiso no hace.**
@@ -33,7 +37,7 @@ La forma se hereda entera del `PATCH` del producto —los campos que no vienen n
 
 ## 4. Contrato de API
 
-`PATCH /api/v1/products/{id}/comments/{commentId}` — `products:comment` **y ser el autor**.
+`PATCH /api/v1/products/{id}/comments/{commentId}` — `products:update-comment` **y ser el autor**.
 
 ```json
 { "rating": 4 }
@@ -94,7 +98,7 @@ La forma se hereda entera del `PATCH` del producto —los campos que no vienen n
 ## 11. Estrategia de prueba
 
 - **Unitaria**: `ProductComment.corregir` — cambia uno, cambia los dos, no cambia nada; `esDe(actor)`.
-- **Integración de API** (`ProductCommentUpdateIT`): los nueve criterios de `spec.md` §12. **La que define el requerimiento es `CA-PM-186`**: un administrador con `products:comment` sobre una reseña ajena → `403`, fila intacta, evento de seguridad registrado.
+- **Integración de API** (`ProductCommentUpdateIT`): los nueve criterios de `spec.md` §12. **La que define el requerimiento es `CA-PM-186`**: un administrador con `products:update-comment` sobre una reseña ajena → `403`, fila intacta, evento de seguridad registrado.
 - **Del `404` uniforme**: inexistente, retirada —por su propio autor— y de otro producto, comparando el cuerpo.
 - **De auditoría**: `UPDATE` con `before`/`after` solo de lo tocado; ausencia de fila cuando no cambió nada.
 - **De `rating` del producto**: corregir la puntuación mueve `average` en el detalle en la misma transacción (`CA-PM-191`).

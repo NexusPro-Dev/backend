@@ -22,6 +22,10 @@
 
 ---
 
+!!! note "Enmienda de Art. I.7 — 19-09-2026, `RF-SP-060`"
+
+    `GET /api/v1/product-commission-rates` —la vista por producto de las tasas de rol, que este requerimiento acompaña desde `V94`— exige **`product-commission-rates:read`** y no `commissions:read` desde el 19-09-2026, por `RF-SP-060` —**un permiso por operación**, `RN-SEG-014` ([`security.md` §4.4](../../../security.md#44-catalogo-de-permisos))—. `GET /api/v1/commission-rates` sigue con `commissions:read`. Lo siembra `V28` y lo da a todo rol que portara `commissions:read`.
+
 ## 1. Objetivo
 
 Ver **qué comisiones hay declaradas** y, sobre todo, **cuáles de ellas rigen de verdad**.
@@ -279,3 +283,4 @@ Ninguna propia. Los parámetros mal formados los rechaza la validación de entra
 | 1.2.0 | 15-09-2026 | **La tasa de rol trae su producto** (`RN-CM-021`, [`requirements/cm.md`](../../../requirements/cm.md) v0.14.0 §5.4): el listado deja de contar «productos asociados» y pasa a **decir cuál es**, y gana el filtro `productId` — lo que el responsable del proyecto pidió leer es **todas las comisiones que se han configurado**, en una sola lista. La lectura «los productos de una tasa de rol» se retira con `RF-CM-007`; `GET /product-commission-rates?productId=` se conserva, y devuelve solo las **vivas**. **El orden gana el producto delante del rol** (`CA-CM-013`). `CA-CM-141`. | Responsable del proyecto |
 | 1.3.0 | 15-09-2026 | **El producto trae su precio y su moneda**, a petición del responsable del proyecto: un porcentaje es una parte del precio y un importe fijo es dinero en la moneda del producto, y sin los dos la cifra de la fila no dice cuánto es. Van dentro de `product` —`price`, y `currency` con `id`, `code` y `decimalPlaces`, la misma forma que `PM` publica en sus fichas—, **siempre**, sea cual sea la forma. El alta y la corrección devuelven lo mismo. Sin cambio de esquema; la lectura por producto (`GET /product-commission-rates`) **no cambia**. `CA-CM-145`. | Responsable del proyecto |
 | 1.4.0 | 16-09-2026 | **La personalizada nace con su producto** (`RN-CM-021`, [`requirements/cm.md`](../../../requirements/cm.md) v0.15.0 §5.5): el listado de personalizadas deja de contar asociados y **trae el producto** con precio y moneda, como el de rol; el filtro `productId` pasa a la columna; **la quinta lectura se retira** (`GET /user-commission-rates/{id}/products`, `404`). `CA-CM-127` a `CA-CM-129` superados; nace `CA-CM-150`. | Responsable del proyecto |
+| 1.5.0 | 19-09-2026 | **`GET /api/v1/product-commission-rates` cambia de permiso: `product-commission-rates:read` y no `commissions:read`** (`RF-SP-060`, `RN-SEG-014`, un permiso por operación; [`security.md`](../../../security.md) v0.63.0). Enmienda de Art. I.7 sin cambio de comportamiento; el listado de tasas de rol sigue con `commissions:read`. | Responsable del proyecto |

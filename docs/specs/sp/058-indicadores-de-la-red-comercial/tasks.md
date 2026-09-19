@@ -53,7 +53,7 @@
 
 | # | Bloqueo | Desde | Responsable | Estado |
 |---|---|---|---|---|
-| 1 | **¿Puede un vendedor consultar los indicadores de su propia red?** Hoy **no**: lo gobierna `broker-accounts:read` y nada más. Abrirlo obligaría a recortar el árbol a su rama. **No se adivina** — es la misma clase de decisión que `RF-SP-056` dejó abierta con el `supervisorId`, y que acabó pidiéndose al día siguiente | 10-09-2026 | Responsable del proyecto | **Abierto** |
+| 1 | **¿Puede un vendedor consultar los indicadores de su propia red?** Hoy **no**: lo gobierna `broker-accounts:read-indicators` y nada más. Abrirlo obligaría a recortar el árbol a su rama. **No se adivina** — es la misma clase de decisión que `RF-SP-056` dejó abierta con el `supervisorId`, y que acabó pidiéndose al día siguiente | 10-09-2026 | Responsable del proyecto | **Abierto** |
 | 2 | **Todos los FTD valen cero hasta que exista el webhook** (`RF-SP-054`). El embudo se verá entero en `pending`. No bloquea: el indicador es correcto y el estado es real | 10-09-2026 | Responsable del proyecto | **Abierto** |
 | 3 | **No hay serie temporal.** Es una foto de hoy; medir la evolución es otro requerimiento | 10-09-2026 | Responsable del proyecto | **Abierto** |
 

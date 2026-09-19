@@ -20,6 +20,10 @@
 
 ---
 
+!!! note "Enmienda de Art. I.7 — 19-09-2026, `RF-SP-060`"
+
+    Esta operación exige **`products:list`** y no `products:read` desde el 19-09-2026, por `RF-SP-060` —**un permiso por operación**, `RN-SEG-014` ([`security.md` §4.4](../../../security.md#44-catalogo-de-permisos))—: `products:read` gobernaba varias operaciones y se queda con una; esta recibe código propio, sembrado por `V28` y dado a todo rol que portara `products:read`. Las menciones de `products:read` que siguen abajo hablan de su siembra original y se conservan como historia.
+
 ## 1. Objetivo
 
 Ver y encontrar lo que hay en el catálogo, incluido lo que ya no se ofrece.
@@ -215,3 +219,4 @@ Ninguna. Las cuatro se resolvieron el 26-08-2026, antes de aprobar la especifica
 | 0.10.0 | 14-09-2026 | **Cada fila trae `videoUrl`, el enlace del video** (`RN-PM-032`, [`requirements/pm.md`](../../../requirements/pm.md) v0.27.0 §5.2.8), presente y nulo cuando no hay. **No es un filtro** y no cuesta ninguna consulta: se selecciona en la misma sentencia. Nace `CA-PM-223`. Enmienda de Art. I.7. | Responsable del proyecto |
 | 0.11.0 | 14-09-2026 | **Cada fila trae `coverImageUrl`, la dirección de la portada** (`RN-PM-033`, [`requirements/pm.md`](../../../requirements/pm.md) v0.29.0 §5.2.9), presente y nula cuando no hay. Es la dirección del `GET` público de `RF-PM-016`, construida sobre `cover_image_id` **sin consulta más y sin tocar `product_images`**: un listado que arrastrara los bytes de cada portada pesaría megas por página. **No es un filtro.** `CA-PM-232`. Enmienda que construye `RF-PM-014` (Art. I.7). | Responsable del proyecto |
 | 0.12.0 | 15-09-2026 | **El filtro `scope` admite los cuatro valores** (`RN-PM-019` reescrita, [`requirements/pm.md`](../../../requirements/pm.md) v0.35.0 §5.2.11): `TIENDA`, `HOTLINK`, `AMBOS`, `NINGUNO`; `HOTLINKS` se rechaza con `VAL-006`. Es **la única lectura donde se ve un producto `NINGUNO`**, porque ninguna vista de venta lo ofrece. `CA-PM-349`. | Responsable del proyecto |
+| 0.13.0 | 19-09-2026 | **Cambia el permiso: `products:list` y no `products:read`** (`RF-SP-060`, `RN-SEG-014`, un permiso por operación; [`security.md`](../../../security.md) v0.63.0). Enmienda de Art. I.7 sin cambio de comportamiento: la misma operación, el mismo actor, un código propio sembrado por `V28` y dado a todo rol que portara `products:read`. | Responsable del proyecto |

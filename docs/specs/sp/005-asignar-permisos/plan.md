@@ -16,6 +16,10 @@
 
 ---
 
+!!! note "Enmienda de Art. I.7 — 19-09-2026, `RF-SP-060`"
+
+    Esta operación exige **`roles:assign-permissions`** y no `roles:update` desde el 19-09-2026, por `RF-SP-060` —**un permiso por operación**, `RN-SEG-014` ([`security.md` §4.4](../../../security.md#44-catalogo-de-permisos))—: `roles:update` gobernaba varias operaciones y se queda con una; esta recibe código propio, sembrado por `V28` y dado a todo rol que portara `roles:update`. Las menciones de `roles:update` que siguen abajo hablan de su siembra original y se conservan como historia.
+
 ## 1. Enfoque
 
 Es el requerimiento donde el modelo de contención deja de ser un documento y pasa a ser código. Todo lo demás del módulo lo rodea.
@@ -95,7 +99,7 @@ Los permisos van por identificador y no por código, igual que en `RF-SP-001`, p
 |---|---|---|
 | `400` | Lista vacía, identificador malformado o más de 100 elementos | `VAL-001`, `VAL-002`, `VAL-006` |
 | `401` | Token ausente o inválido | `AUTH-001` |
-| `403` | El actor no posee `roles:update` | `AUTH-002` |
+| `403` | El actor no posee `roles:assign-permissions` | `AUTH-002` |
 | `403` | El rol está entre los del actor (`EX-005`) | `RN-SEG-011` |
 | `404` | El rol no existe o está eliminado (`EX-006`) | `EX-006` |
 | ~~`409`~~ | ~~El rol es de sistema (`EX-004`)~~ — **retirado el 16-09-2026**: un rol de sistema recibe permisos como cualquier otro | ~~`RN-SEG-012`~~ |
@@ -126,7 +130,7 @@ Los pasos 6 y 7 no son evaluables sin haber resuelto antes el catálogo: el orde
 
 | Endpoint | Permiso requerido |
 |---|---|
-| `POST /api/v1/roles/{id}/permissions` | `roles:update` |
+| `POST /api/v1/roles/{id}/permissions` | `roles:assign-permissions` |
 
 **`RN-SEG-010` se evalúa leyendo la base de datos, no la caché de resolución.**
 

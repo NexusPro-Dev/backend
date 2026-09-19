@@ -11,6 +11,10 @@
 
 ---
 
+!!! note "Enmienda de Art. I.7 — 19-09-2026, `RF-SP-060`"
+
+    Esta operación exige **`products:read-own-comments`** y no `products:comment` desde el 19-09-2026, por `RF-SP-060` —**un permiso por operación**, `RN-SEG-014` ([`security.md` §4.4](../../../security.md#44-catalogo-de-permisos))—: `products:comment` gobernaba varias operaciones y se queda con una; esta recibe código propio, sembrado por `V28` y dado a todo rol que portara `products:comment`. Las menciones de `products:comment` que siguen abajo hablan de su siembra original y se conservan como historia.
+
 ## 1. Enfoque
 
 **Una consulta por el índice único, y nada más.**
@@ -33,7 +37,7 @@
 
 ## 4. Contrato de API
 
-`GET /api/v1/products/{id}/comments/mine` — `products:comment`.
+`GET /api/v1/products/{id}/comments/mine` — `products:read-own-comments`.
 
 `200` con `ProductCommentResponse` —la forma del alta— o `404` con `EX-001`.
 

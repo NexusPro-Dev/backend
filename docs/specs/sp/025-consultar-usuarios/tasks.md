@@ -40,7 +40,7 @@ Una migración de dos índices y una consulta con tres sentencias. La forma la h
 | `T-07` | Vigencia de la membresía: `current` calculado con `now()` de la base de datos, tanto en el filtro como en la fila devuelta | `T-04` | Prueba de integración: una membresía vencida se devuelve con `current: false` y su `endsAt`, y **no** la trae el filtro por esa membresía. Distinguible de `membership: null` | **Hecha** |
 | `T-08` | Conteo con **la misma función de predicado** que los datos, omitido cuando la página no se llena y sin los `LEFT JOIN` de la membresía | `T-04` | Prueba de integración: el total coincide con las filas devueltas al recorrer todas las páginas, con y sin cada filtro | **Hecha** |
 | `T-09` | `application/ListUsersService` con `@Transactional(readOnly = true)`, que arma la página y agrupa los roles por persona | `T-06`, `T-07`, `T-08` | Prueba con dobles: una página sin resultados no invoca la lectura de roles | **Hecha** |
-| `T-10` | `api`: `ListUsersRequest` con Bean Validation, `UserListItemResponse`, `MembershipSummaryResponse`, y `GET /api/v1/users` en `UserController` con el permiso `users:read` | `T-09` | Prueba de API: `size = 101` devuelve `400` con `VAL-002` y **no** una página de cien | **Hecha** |
+| `T-10` | `api`: `ListUsersRequest` con Bean Validation, `UserListItemResponse`, `MembershipSummaryResponse`, y `GET /api/v1/users` en `UserController` con el permiso `users:list` | `T-09` | Prueba de API: `size = 101` devuelve `400` con `VAL-002` y **no** una página de cien | **Hecha** |
 | `T-11` | Ausencia verificable de lo que el listado **no** devuelve: credencial, permisos efectivos y `lockedUntil` | `T-10` | Prueba de API que busca **el literal del hash almacenado** en la respuesta completa, y traza de sentencias sin ninguna consulta a `role_permissions` | **Hecha** |
 | `T-12` | Pruebas de los criterios de aceptación de `spec.md` §12 | `T-10` | La suite cubre `CA-SP-203` a `CA-SP-211`, `CA-SP-343`, `CA-SP-344` y `CA-SP-345` | **En curso** |
 | `T-13` | Pruebas de los casos límite de `spec.md` §13 y de `plan.md` §11: página fuera de rango, búsqueda vacía, nombre completo, rol inexistente, membresía vencida, ordenamiento arbitrario y desempate por `id` | `T-10` | `juan perez` encuentra a `Juan Pérez` y `perez juan` no; `sort=password_hash,asc` devuelve `400` y no llega a la base de datos | **En curso** |
@@ -136,7 +136,7 @@ El requerimiento no está terminado hasta cumplir **todas** las condiciones de l
 - [ ] Todos los criterios de aceptación con prueba automatizada en verde. — falta demostrar el uso efectivo de los índices.
 - [x] `mvn verify` en verde en local. — 99 unitarias y 351 de integración, 24-08-2026.
 - [x] Toda escritura emite su evento de auditoría, en la transacción que corresponde. — no escribe: es una consulta.
-- [x] Los endpoints nuevos declaran su permiso. — `users:read`.
+- [x] Los endpoints nuevos declaran su permiso. — `users:list`.
 - [x] El contrato OpenAPI coincide con el comportamiento real. — `OpenApiContractIT` fija los parámetros publicados y la **ausencia** de los derivados de la credencial.
 - [ ] Documentación afectada actualizada en el mismo Pull Request. — falta enmendar `requirements/sp.md` §10.8 con los dos índices de `V29`.
 - [x] Matriz de trazabilidad actualizada.

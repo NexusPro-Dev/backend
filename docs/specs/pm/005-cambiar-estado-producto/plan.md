@@ -13,6 +13,10 @@
 
 ---
 
+!!! note "Enmienda de Art. I.7 — 19-09-2026, `RF-SP-060`"
+
+    Esta operación exige **`products:change-status`** y no `products:update` desde el 19-09-2026, por `RF-SP-060` —**un permiso por operación**, `RN-SEG-014` ([`security.md` §4.4](../../../security.md#44-catalogo-de-permisos))—: `products:update` gobernaba varias operaciones y se queda con una; esta recibe código propio, sembrado por `V28` y dado a todo rol que portara `products:update`. Las menciones de `products:update` que siguen abajo hablan de su siembra original y se conservan como historia.
+
 ## 1. Enfoque
 
 La operación más corta del módulo y la que concentra su invariante más caro. Cambiar una columna es trivial; lo que no lo es es que **`RN-PM-004` vive entera aquí**: desde que el producto nace inactivo (`RN-PM-012`), esta es la única puerta por la que un upgrade puede quedar activo, y por tanto el único sitio donde dos precios simultáneos para **el mismo salto** podrían entrar. Desde el 02-09-2026 el salto es una **pareja**: dos upgrades activos hacia `ORO`, uno desde `BECA` y otro desde `PLATINO`, no compiten — venden cosas distintas, y que cuesten distinto es lo normal. Lo que sigue prohibido es que dos vendan **el mismo salto**.

@@ -12,6 +12,10 @@
 
 ---
 
+!!! note "Enmienda de Art. I.7 — 19-09-2026, `RF-SP-060`"
+
+    Esta operación exige **`packages:add-product`** y no `packages:update` desde el 19-09-2026, por `RF-SP-060` —**un permiso por operación**, `RN-SEG-014` ([`security.md` §4.4](../../../security.md#44-catalogo-de-permisos))—: `packages:update` gobernaba varias operaciones y se queda con una; esta recibe código propio, sembrado por `V28` y dado a todo rol que portara `packages:update`. Las menciones de `packages:update` que siguen abajo hablan de su siembra original y se conservan como historia.
+
 ## 1. Enfoque
 
 **La asociación de `RF-CM-007` con datos dentro de la fila, y con el paquete bloqueado.**
@@ -38,7 +42,7 @@ Se hereda la forma de la asociación de tasas —producto por el puerto, `422` p
 
 ## 4. Contrato de API
 
-`POST /api/v1/packages/{id}/products` — `packages:update`.
+`POST /api/v1/packages/{id}/products` — `packages:add-product`.
 
 ```json
 { "productId": "…", "discountType": "PORCENTAJE", "discountValue": 15 }

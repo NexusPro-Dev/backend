@@ -11,6 +11,10 @@
 
 ---
 
+!!! note "Enmienda de Art. I.7 — 19-09-2026, `RF-SP-060`"
+
+    Esta operación exige **`products:set-cover`** y no `products:update` desde el 19-09-2026, por `RF-SP-060` —**un permiso por operación**, `RN-SEG-014` ([`security.md` §4.4](../../../security.md#44-catalogo-de-permisos))—: `products:update` gobernaba varias operaciones y se queda con una; esta recibe código propio, sembrado por `V28` y dado a todo rol que portara `products:update`. Las menciones de `products:update` que siguen abajo hablan de su siembra original y se conservan como historia.
+
 ## 1. Enfoque
 
 **Una tabla nueva para los bytes, una columna en `products` que la señala, y la corrección de siempre por debajo.**
@@ -72,7 +76,7 @@ Ver [`requirements/pm.md` §10.3](../../../requirements/pm.md): hay upgrades ant
 
 ## 4. Contrato de API
 
-`PUT /api/v1/products/{id}/cover` — `products:update`. `Content-Type: multipart/form-data`, una parte `file`. `200` con `ProductDetailResponse`.
+`PUT /api/v1/products/{id}/cover` — `products:set-cover`. `Content-Type: multipart/form-data`, una parte `file`. `200` con `ProductDetailResponse`.
 
 - **`consumes = MULTIPART_FORM_DATA_VALUE`**, de modo que un `PUT` con JSON responde `415` de Spring — y **se traduce a `400` `EX-003`** en el manejador, porque el sistema no publica `415` en ninguna otra ruta y un cliente tiene que poder leer el cuerpo del error.
 - **`@RequestPart("file")` con `required = false`**, para que la ausencia de la parte sea `VAL-002` **con el sobre de errores del sistema** y no el `400` genérico de Spring sin cuerpo útil.

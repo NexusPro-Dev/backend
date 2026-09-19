@@ -11,6 +11,10 @@
 
 ---
 
+!!! note "Enmienda de Art. I.7 — 19-09-2026, `RF-SP-060`"
+
+    Esta operación exige **`packages:set-cover`** y no `packages:update` desde el 19-09-2026, por `RF-SP-060` —**un permiso por operación**, `RN-SEG-014` ([`security.md` §4.4](../../../security.md#44-catalogo-de-permisos))—: `packages:update` gobernaba varias operaciones y se queda con una; esta recibe código propio, sembrado por `V28` y dado a todo rol que portara `packages:update`. Las menciones de `packages:update` que siguen abajo hablan de su siembra original y se conservan como historia.
+
 ## 1. Objetivo
 
 Que un paquete tenga **una foto con la que presentarse**, subida por administración, y que se pueda **cambiar** sin que quede rastro de la anterior ni una dirección vieja que enseñe otra cosa — exactamente lo que `RF-PM-014` le dio al producto.
@@ -27,7 +31,7 @@ Que un paquete tenga **una foto con la que presentarse**, subida por administrac
 
 | Actor | Papel |
 |---|---|
-| Administrador, con `packages:update` | Sube o reemplaza la portada de un paquete |
+| Administrador, con `packages:set-cover` | Sube o reemplaza la portada de un paquete |
 
 **Es `packages:update` y no un permiso propio**, por lo mismo que la del producto es `products:update` (`RF-PM-014` §3): la portada es **el valor de un campo del paquete**, como la descripción, y quien puede corregir el paquete puede ponerle foto.
 
@@ -82,7 +86,7 @@ El paquete, en la misma forma que todas sus escrituras devuelven (`PackageDetail
 
 **Precondiciones:**
 
-- El actor está autenticado y porta `packages:update`.
+- El actor está autenticado y porta `packages:set-cover`.
 - El paquete existe y **está vivo** (no retirado). Su estado, su descripción y cuántos productos tiene **no importan**.
 - La petición trae una parte `file` con contenido.
 
@@ -135,7 +139,7 @@ El paquete, en la misma forma que todas sus escrituras devuelven (`PackageDetail
 
 ### EX-002 — Sin permiso
 
-**Respuesta del sistema:** `403`. Sin `packages:update` la ruta no se alcanza — aunque el actor porte `products:update`.
+**Respuesta del sistema:** `403`. Sin `packages:set-cover` la ruta no se alcanza — aunque el actor porte `products:update`.
 
 ### EX-003 — La petición no es `multipart/form-data`
 
@@ -160,7 +164,7 @@ El paquete, en la misma forma que todas sus escrituras devuelven (`PackageDetail
 | `CA-PM-355` | El sistema **reemplaza** la portada: la respuesta trae **otra** dirección, la fila anterior **ya no existe** —su dirección responde `404` en `RF-PM-016` y la nueva `200`, sin token— y `product_images` tiene **una** fila para ese paquete |
 | `CA-PM-356` | El sistema registra en `audit_change_log` un `UPDATE` de `product_packages` con `cover_image_id` —antes nulo y después el nuevo; y en el reemplazo, los dos identificadores— y **sin ningún otro campo** |
 | `CA-PM-357` | El sistema rechaza con `VAL-003` nombrando `file` un `GIF` enviado como `image/png`, con `VAL-004` un archivo de 5 242 881 bytes, y con `VAL-002` la petición sin parte y la que la trae vacía; **nada queda escrito** tras un rechazo, y una petición que no es `multipart` responde `400` con `EX-003` |
-| `CA-PM-358` | El sistema responde `404` sobre un paquete inexistente y sobre uno **retirado**, con el mismo cuerpo; y sin `packages:update` responde `403` aunque el actor porte `products:update` |
+| `CA-PM-358` | El sistema responde `404` sobre un paquete inexistente y sobre uno **retirado**, con el mismo cuerpo; y sin `packages:set-cover` responde `403` aunque el actor porte `products:update` |
 | `CA-PM-359` | El sistema sube la portada a un paquete **inactivo**, a uno **vacío** y a uno **sin descripción**: ninguna condición de estado ni de contenido, y la activación (`RF-PM-021`) sigue sin mirarla |
 | `CA-PM-360` | Las cuatro lecturas del paquete —listado, detalle, oferta y hotlink— devuelven la dirección nueva tras subir, y **`coverImageUrl` presente y nula** en un paquete sin portada; la del paquete **no es** la de ninguno de sus productos |
 | `CA-PM-361` | El número de sentencias del listado, del detalle, de la oferta y del hotlink **no sube** por la portada del paquete: `cover_image_id` viaja en la sentencia que ya traía el paquete, y `product_images` no se une nunca |
@@ -192,3 +196,4 @@ El paquete, en la misma forma que todas sus escrituras devuelven (`PackageDetail
 | Versión | Fecha | Cambio | Responsable |
 |---|---|---|---|
 | 0.1.0 | 16-09-2026 | Redacción inicial. **Es `RF-PM-014` aplicado al paquete, con el mismo archivo, las mismas cuatro validaciones y la misma tabla y ruta**, y lo que la distingue es lo que no tiene: **el paquete no declara icono ni color** (`RN-PM-045`), sin portada el frontend pinta los suyos por omisión, y por eso esta operación no enmienda ninguna regla del alta ni de la corrección. Añade `product_packages.cover_image_id` (`V11`) y enmienda las cuatro lecturas del paquete y el alta con `coverImageUrl`. Ocho criterios, `CA-PM-354` a `CA-PM-361`. | Responsable técnico |
+| 0.2.0 | 19-09-2026 | **Cambia el permiso: `packages:set-cover` y no `packages:update`** (`RF-SP-060`, `RN-SEG-014`, un permiso por operación; [`security.md`](../../../security.md) v0.63.0). Enmienda de Art. I.7 sin cambio de comportamiento: la misma operación, el mismo actor, un código propio sembrado por `V28` y dado a todo rol que portara `packages:update`. | Responsable del proyecto |

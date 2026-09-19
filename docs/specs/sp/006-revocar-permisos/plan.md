@@ -16,6 +16,10 @@
 
 ---
 
+!!! note "Enmienda de Art. I.7 — 19-09-2026, `RF-SP-060`"
+
+    Esta operación exige **`roles:revoke-permissions`** y no `roles:update` desde el 19-09-2026, por `RF-SP-060` —**un permiso por operación**, `RN-SEG-014` ([`security.md` §4.4](../../../security.md#44-catalogo-de-permisos))—: `roles:update` gobernaba varias operaciones y se queda con una; esta recibe código propio, sembrado por `V28` y dado a todo rol que portara `roles:update`. Las menciones de `roles:update` que siguen abajo hablan de su siembra original y se conservan como historia.
+
 ## 1. Enfoque
 
 Es la operación simétrica de `RF-SP-005`, pero **no** es su imagen especular. Al conceder, el conjunto de permisos del rol crece y ningún descendiente puede quedar fuera de su cota. Al revocar, el conjunto **encoge**, y cualquier rol hijo que declarase ese permiso quedaría de pronto excediendo a su padre.
@@ -80,7 +84,7 @@ La verificación de descendencia consulta los hijos de un rol en cada revocació
 | `400` | Lista vacía o identificador malformado | `VAL-001`, `VAL-002` |
 | `400` | Más de 100 permisos en la petición | `VAL-004` |
 | `401` | Token ausente o inválido | `AUTH-001` |
-| `403` | El actor no posee `roles:update` | `AUTH-002` |
+| `403` | El actor no posee `roles:revoke-permissions` | `AUTH-002` |
 | `403` | El rol está entre los del actor (`EX-003`) | `RN-SEG-011` |
 | `404` | El rol no existe o está eliminado (`EX-004`) | `EX-004` |
 | ~~`409`~~ | ~~El rol es de sistema (`EX-002`)~~ — **retirado el 16-09-2026**: a un rol de sistema se le retiran permisos como a cualquier otro | ~~`RN-SEG-012`~~ |
@@ -97,7 +101,7 @@ El límite de 100 es el mismo que en `RF-SP-005`: dos operaciones sobre el mismo
 
 | Endpoint | Permiso requerido |
 |---|---|
-| `POST /api/v1/roles/{id}/permissions/revocations` | `roles:update` |
+| `POST /api/v1/roles/{id}/permissions/revocations` | `roles:revoke-permissions` |
 
 Retirar permisos exige el mismo permiso que concederlos. No se define uno propio: quien puede ampliar un rol puede reducirlo, y separarlos crearía un rol capaz de conceder pero no de corregirse.
 

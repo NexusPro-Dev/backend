@@ -11,6 +11,10 @@
 
 ---
 
+!!! note "Enmienda de Art. I.7 — 19-09-2026, `RF-SP-060`"
+
+    Esta operación exige **`packages:remove-cover`** y no `packages:update` desde el 19-09-2026, por `RF-SP-060` —**un permiso por operación**, `RN-SEG-014` ([`security.md` §4.4](../../../security.md#44-catalogo-de-permisos))—: `packages:update` gobernaba varias operaciones y se queda con una; esta recibe código propio, sembrado por `V28` y dado a todo rol que portara `packages:update`. Las menciones de `packages:update` que siguen abajo hablan de su siembra original y se conservan como historia.
+
 ## 1. Enfoque
 
 **`RemoveProductCoverService` con el paquete, y sin la regla.**
@@ -32,7 +36,7 @@ Los pasos son los de `RF-PM-015` `plan.md` §1: encontrar bloqueando, cambiar `c
 
 ## 4. Contrato de API
 
-`DELETE /api/v1/packages/{id}/cover` — `packages:update`. Sin cuerpo. `200` con `PackageDetailResponse`.
+`DELETE /api/v1/packages/{id}/cover` — `packages:remove-cover`. Sin cuerpo. `200` con `PackageDetailResponse`.
 
 - **Sin `@RequestBody`**: un cuerpo, si llega, ni se lee.
 - **`200` y no `204`**, con el paquete: `spec.md` §14.2.

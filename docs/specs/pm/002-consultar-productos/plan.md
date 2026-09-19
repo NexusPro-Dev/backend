@@ -13,6 +13,10 @@
 
 ---
 
+!!! note "Enmienda de Art. I.7 — 19-09-2026, `RF-SP-060`"
+
+    Esta operación exige **`products:list`** y no `products:read` desde el 19-09-2026, por `RF-SP-060` —**un permiso por operación**, `RN-SEG-014` ([`security.md` §4.4](../../../security.md#44-catalogo-de-permisos))—: `products:read` gobernaba varias operaciones y se queda con una; esta recibe código propio, sembrado por `V28` y dado a todo rol que portara `products:read`. Las menciones de `products:read` que siguen abajo hablan de su siembra original y se conservan como historia.
+
 ## 1. Enfoque
 
 Una consulta de lectura sobre `products`, **paginada, en una sola sentencia**, con cinco filtros y un orden configurable. No toca dominio: es un modelo de lectura que va del repositorio al controlador sin pasar por el agregado.
@@ -85,7 +89,7 @@ La respuesta es un `PageResponse<ProductItem>` con `totalIsExact` en `true`.
 
 ## 5. Autorización
 
-`products:read` sobre el método. **Ver los retirados no exige permiso propio** (`spec.md` §14, resolución 3): basta el de lectura.
+`products:list` sobre el método. **Ver los retirados no exige permiso propio** (`spec.md` §14, resolución 3): basta el de lectura.
 
 ## 6. Auditoría
 

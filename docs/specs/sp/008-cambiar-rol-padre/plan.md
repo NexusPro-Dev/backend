@@ -15,6 +15,10 @@
 
 ---
 
+!!! note "Enmienda de Art. I.7 — 19-09-2026, `RF-SP-060`"
+
+    Esta operación exige **`roles:assign-parent`** y no `roles:update` desde el 19-09-2026, por `RF-SP-060` —**un permiso por operación**, `RN-SEG-014` ([`security.md` §4.4](../../../security.md#44-catalogo-de-permisos))—: `roles:update` gobernaba varias operaciones y se queda con una; esta recibe código propio, sembrado por `V28` y dado a todo rol que portara `roles:update`. Las menciones de `roles:update` que siguen abajo hablan de su siembra original y se conservan como historia.
+
 ## 1. Enfoque
 
 Es la única operación del módulo capaz de dejar la estructura en un estado del que no se puede salir. Todas las demás pueden equivocarse y corregirse; un ciclo en la jerarquía no tiene raíz, y sin raíz la resolución de permisos no termina.
@@ -72,7 +76,7 @@ Subrecurso propio, como el estado en `RF-SP-007`, y por la misma razón: sus reg
 |---|---|---|
 | `400` | Identificador ausente o malformado | `VAL-001` |
 | `401` | Token ausente o inválido | `AUTH-001` |
-| `403` | El actor no posee `roles:update` | `AUTH-002` |
+| `403` | El actor no posee `roles:assign-parent` | `AUTH-002` |
 | `403` | El rol está entre los del actor (`EX-005`) | `RN-SEG-011` |
 | `404` | El rol que se mueve no existe o está eliminado (`EX-006`) | `EX-006` |
 | `409` | El rol es de sistema (`EX-005`) | `RN-SEG-012` |
@@ -105,7 +109,7 @@ El bloqueo se adquiere **antes** de las dos verificaciones estructurales y no an
 
 | Endpoint | Permiso requerido |
 |---|---|
-| `PATCH /api/v1/roles/{id}/parent` | `roles:update` |
+| `PATCH /api/v1/roles/{id}/parent` | `roles:assign-parent` |
 
 **El bloqueo de jerarquía** es lo característico de este plan. Se implementa como un bloqueo consultivo de PostgreSQL, tomado sobre una clave fija que representa «la jerarquía de roles», y liberado al terminar la transacción.
 

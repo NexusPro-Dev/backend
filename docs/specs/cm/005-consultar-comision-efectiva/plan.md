@@ -22,6 +22,10 @@ El comportamiento es el de [`spec.md`](spec.md) y no se repite. La mecánica com
 
 ---
 
+!!! note "Enmienda de Art. I.7 — 19-09-2026, `RF-SP-060`"
+
+    Esta operación exige **`commissions:read-effective`** y no `commissions:read` desde el 19-09-2026, por `RF-SP-060` —**un permiso por operación**, `RN-SEG-014` ([`security.md` §4.4](../../../security.md#44-catalogo-de-permisos))—: `commissions:read` gobernaba varias operaciones y se queda con una; esta recibe código propio, sembrado por `V28` y dado a todo rol que portara `commissions:read`. Las menciones de `commissions:read` que siguen abajo hablan de su siembra original y se conservan como historia.
+
 ## 1. Enfoque
 
 **Una sola sentencia que resuelve la precedencia**, y un caso de uso que no ordena nada.
@@ -92,7 +96,7 @@ Cada rama pasa a proyectar `rate_type` y las **dos** columnas del valor, y el `U
 | Estado | Cuándo |
 |---|---|
 | `400` | Parámetros inválidos |
-| `403` | Sin el permiso `commissions:read` |
+| `403` | Sin el permiso `commissions:read-effective` |
 | `422` | `EX-001`, `EX-002`: la persona o el producto no existen |
 
 **Los tres desenlaces son `200` y ninguno es un error.** Convertir «sin tarifa» en `404` obligaría a quien liquide a tratar como excepción el caso más común de un sistema recién configurado.
@@ -113,7 +117,7 @@ Cada rama pasa a proyectar `rate_type` y las **dos** columnas del valor, y el `U
 
 ## 7. Autorización
 
-Permiso `commissions:read`. **Solo administrativo**, por decisión del responsable del proyecto (`cm.md` v0.2.0): que un vendedor consulte la suya es otro actor y depende de **D-22**.
+Permiso `commissions:read-effective`. **Solo administrativo**, por decisión del responsable del proyecto (`cm.md` v0.2.0): que un vendedor consulte la suya es otro actor y depende de **D-22**.
 
 ## 8. Auditoría
 

@@ -11,6 +11,10 @@
 
 ---
 
+!!! note "Enmienda de Art. I.7 — 19-09-2026, `RF-SP-060`"
+
+    Esta operación exige **`broker-accounts:read-indicators`** y no `broker-accounts:read` desde el 19-09-2026, por `RF-SP-060` —**un permiso por operación**, `RN-SEG-014` ([`security.md` §4.4](../../../security.md#44-catalogo-de-permisos))—: `broker-accounts:read` gobernaba varias operaciones y se queda con una; esta recibe código propio, sembrado por `V28` y dado a todo rol que portara `broker-accounts:read`. Las menciones de `broker-accounts:read` que siguen abajo hablan de su siembra original y se conservan como historia.
+
 ## 1. Objetivo
 
 Saber **cuánto FTD lleva cada vendedor** —lo suyo y lo de toda su red—, con el embudo y la conversión.
@@ -27,7 +31,7 @@ Saber **cuánto FTD lleva cada vendedor** —lo suyo y lo de toda su red—, con
 
 | Actor | Papel |
 |---|---|
-| **Administrador** con `broker-accounts:read` | Consulta los indicadores de toda la fuerza comercial, o de una rama |
+| **Administrador** con `broker-accounts:read-indicators` | Consulta los indicadores de toda la fuerza comercial, o de una rama |
 
 ## 4. Alcance
 
@@ -84,7 +88,7 @@ Saber **cuánto FTD lleva cada vendedor** —lo suyo y lo de toda su red—, con
 
 ## 7. Precondiciones y postcondiciones
 
-**Precondiciones:** actor autenticado con `broker-accounts:read`.
+**Precondiciones:** actor autenticado con `broker-accounts:read-indicators`.
 
 **Postcondiciones:** ninguna. Es una lectura y **no audita**.
 
@@ -137,7 +141,7 @@ Saber **cuánto FTD lleva cada vendedor** —lo suyo y lo de toda su red—, con
 | `CA-SP-665` | `rootId` devuelve **esa rama con la persona como raíz**, y sus números son los mismos que tenía dentro del árbol completo |
 | `CA-SP-666` | Una persona **eliminada** no aporta números **y su rama no se corta** |
 | `CA-SP-667` | Quien **dejó** la estructura no aparece en el árbol ni aporta a nadie |
-| `CA-SP-668` | Sin `broker-accounts:read`, `403` |
+| `CA-SP-668` | Sin `broker-accounts:read-indicators`, `403` |
 
 **`CA-SP-664` es el criterio que sostiene el requerimiento entero.** Es el único que afirma que **los números cuadran**, y es la traducción exacta del «ponle cuidado como suma la cosa»: cualquier error de doble conteo o de omisión rompe esa igualdad y **ninguna otra prueba lo notaría**.
 
@@ -165,3 +169,4 @@ Saber **cuánto FTD lleva cada vendedor** —lo suyo y lo de toda su red—, con
 | Versión | Fecha | Cambio | Responsable |
 |---|---|---|---|
 | 0.1.0 | 10-09-2026 | Redacción inicial, a partir de la regla que dio el responsable del proyecto y de su advertencia —«ponle cuidado como suma la cosa»—. **Las tres frases que describió son una sola operación en tres niveles**; lo que la especificación añade son las cuatro cosas que esas frases no dicen y sin las cuales el número no significa nada: **qué es uno** —la cuenta, no la persona—, **de quién es** —solo de consumidores, por `role_type`—, **quién puede sumarlo dos veces** —de ahí `own` y `network` por separado— y **qué pasa con lo que no cuelga de nadie** —de ahí `unassigned`, y de ahí `CA-SP-664`, que es el único criterio que afirma que los números cuadran—. | Responsable del proyecto |
+| 0.2.0 | 19-09-2026 | **Cambia el permiso: `broker-accounts:read-indicators` y no `broker-accounts:read`** (`RF-SP-060`, `RN-SEG-014`, un permiso por operación; [`security.md`](../../../security.md) v0.63.0). Enmienda de Art. I.7 sin cambio de comportamiento: la misma operación, el mismo actor, un código propio sembrado por `V28` y dado a todo rol que portara `broker-accounts:read`. | Responsable del proyecto |

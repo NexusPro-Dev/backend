@@ -24,7 +24,7 @@
 | `T-06` | Búsqueda: recorte del término, **escape de `\`, `%` y `_`**, parámetro enlazado y `f_unaccent` aplicado **a los dos lados** | `T-05` | Buscar «membresia» encuentra «Membresía»; un término con `%` no devuelve el catálogo entero | Hecha |
 | `T-07` | Conteo **exacto**, sin el atajo de omitirlo cuando la página no se llena | `T-05` | La página vacía más allá de la última devuelve el **total real**, no uno deducido del desplazamiento (`FA-002`) | Hecha |
 | `T-08` | `domain/service/ListProductsService` con `@Transactional(readOnly = true)` | `T-05`, `T-07` | La transacción se declara de solo lectura | Hecha |
-| `T-09` | `interfaces`: `GET /api/v1/products` con `products:read` sobre el método | `T-08` | `403` sin el permiso | Hecha |
+| `T-09` | `interfaces`: `GET /api/v1/products` con `products:list` sobre el método | `T-08` | `403` sin el permiso | Hecha |
 | `T-10` | Pruebas de API de los criterios de `spec.md` §12 | `T-09` | La suite cubre `CA-PM-013` a `CA-PM-022` y `CA-PM-074`, `CA-PM-075`, `CA-PM-077` | Hecha |
 | `T-11` | **Prueba de paginación estable**: se recorren todas las páginas con varios productos del mismo instante de alta y no falta ni se repite ninguno | `T-05` | `CA-PM-076`. Sin el desempate por `id` esta prueba falla, y es la única que lo detecta | Hecha |
 | `T-12` | Prueba de `EXPLAIN`: con doscientos productos sembrados, la búsqueda usa `ix_products_busqueda` | `T-06` | La prueba **siembra volumen a propósito**: con pocas filas el planificador elige recorrido secuencial y la prueba no probaría nada | Hecha |

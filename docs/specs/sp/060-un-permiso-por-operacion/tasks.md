@@ -5,7 +5,7 @@
 | Requerimiento | `RF-SP-060` |
 | Especificación | [`spec.md`](spec.md) |
 | Plan | [`plan.md`](plan.md), aprobado el 19-09-2026 |
-| Estado | **En revisión** — `T-01` y `T-02` **Hecha** el 19-09-2026 |
+| Estado | **En revisión** — `T-01` a `T-04` **Hecha** el 19-09-2026 |
 | Issue | Pendiente de crear |
 | Rama | `feature/academia` |
 | Autor | Responsable técnico |
@@ -18,8 +18,8 @@
 |---|---|---|---|---|
 | `T-01` | **Tramo 1**: `security.md` (`RN-SEG-014`, §4.4, 0.63.0), `requirements/sp.md` (§6.1, §9, fichas de `060` y `059`, 1.62.0), `requirements.md` (fila, §5, 0.178.0) | — | Cada documento con su fila de control y su versión | **Hecha el 19-09-2026** |
 | `T-02` | Verificar `spec.md` §6.2 contra los controladores: cada operación existe con ese método y esa ruta, y cada número de requerimiento es el de la tabla §9 de su módulo | — | Noventa y siete operaciones con permiso hoy, más las seis del bloque 4 de `AC` | **Hecha el 19-09-2026** |
-| `T-03` | Enmiendas a `requirements/pm.md` (§6.1, §9, §5.2.10) y `requirements/cm.md` (§6), con fila de control | `T-02` | Los veinticinco permisos de `PM` y los diez de `CM` en su documento | Pendiente |
-| `T-04` | Enmiendas de Art. I.7 a las cuarenta y siete tripletas de `SP`, `PM` y `CM` de `spec.md` §6.2: la línea del permiso en `spec.md` y el § de autorización en `plan.md`, citando `RF-SP-060` | `T-03` | Ninguna tripleta de esos módulos nombra un permiso que su operación ya no exige | Pendiente |
+| `T-03` | Enmiendas a `requirements/pm.md` (§4, §6.1, §9 y catorce fichas) y `requirements/cm.md` (§4, §6), con fila de control | `T-02` | Los veinticinco permisos de `PM` y los diez de `CM` en su documento | **Hecha el 19-09-2026** |
+| `T-04` | Enmiendas de Art. I.7 a las **treinta** tripletas de `SP`, `PM` y `CM` cuya operación cambia de permiso (las diecisiete que conservan su código no cambian): nota fechada en `spec.md` y `plan.md`, fila de control donde la spec la tiene, y el código nuevo en las líneas normativas —actor, precondiciones, `403`, criterios—; las líneas que hablan de la siembra original se conservan como historia | `T-03` | Ninguna línea normativa de esas tripletas nombra un permiso que su operación ya no exige | **Hecha el 19-09-2026** |
 | `T-05` | Avisar a las sesiones de frontend con la tabla de `spec.md` §6.2 | `T-02` | Acuse en el hilo | Pendiente |
 | `T-06` | `V28__sp_un_permiso_por_operacion.sql`: los cincuenta y un permisos con literal (`plan.md` §2.1), el reparto (§2.2), las veintiuna descripciones (§2.3) y las cuatro guardas (§2.4) | `T-04` | `mvn verify` migra; las guardas cuentan 111 / 111 / 105 / 0 | Pendiente |
 | `T-07` | `PermissionsSeedIT`, `JpaPermissionQueryRepositoryIT`, `ListPermissionsServiceIT` y `PermissionIT` cuentan ciento once; `PermissionsSeedIT` afirma los literales de `V8`, `V19` y `V22` intactos y las descripciones de los veintiuno | `T-06` | `CA-SP-688`, `CA-SP-691`, `CA-SP-695` | Pendiente |

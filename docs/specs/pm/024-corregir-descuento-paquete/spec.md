@@ -11,6 +11,10 @@
 
 ---
 
+!!! note "Enmienda de Art. I.7 — 19-09-2026, `RF-SP-060`"
+
+    Esta operación exige **`packages:update-product`** y no `packages:update` desde el 19-09-2026, por `RF-SP-060` —**un permiso por operación**, `RN-SEG-014` ([`security.md` §4.4](../../../security.md#44-catalogo-de-permisos))—: `packages:update` gobernaba varias operaciones y se queda con una; esta recibe código propio, sembrado por `V28` y dado a todo rol que portara `packages:update`. Las menciones de `packages:update` que siguen abajo hablan de su siembra original y se conservan como historia.
+
 ## 1. Objetivo
 
 Cambiar la rebaja de un producto que ya está en el paquete **sin sacarlo y volverlo a meter**.
@@ -64,7 +68,7 @@ Cambiar la rebaja de un producto que ya está en el paquete **sin sacarlo y volv
 
 ## 7. Precondiciones y postcondiciones
 
-**Precondiciones:** actor con `packages:update`; paquete vivo; el producto está en el paquete; el descuento nuevo dentro de cota contra el precio de hoy.
+**Precondiciones:** actor con `packages:update-product`; paquete vivo; el producto está en el paquete; el descuento nuevo dentro de cota contra el precio de hoy.
 
 **Postcondiciones:** la fila tiene la forma y el valor nuevos y `updated_at` avanzado si algo cambió; `audit_change_log` tiene la fila `UPDATE` con antes y después; el paquete vale la nueva suma.
 
@@ -144,3 +148,4 @@ Cambiar la rebaja de un producto que ya está en el paquete **sin sacarlo y volv
 |---|---|---|---|
 | 0.1.0 | 15-09-2026 | Redacción inicial. **Forma y valor obligatorios**: son un solo dato, y corregir uno sin el otro invita al despiste. La cota se comprueba contra el precio **de hoy**, que es donde el hueco temporal de `RN-PM-037` se cierra solo. El producto inactivo dentro del paquete se corrige igual. | Responsable técnico |
 | 0.2.0 | 15-09-2026 | **Construida** (`PackageDiscountIT`). Sin enmiendas de comportamiento. El registro `UPDATE` lleva `product_id`, `type` y `value` con su antes y su después, y como `entity_id` el del paquete, igual que la asociación. | Responsable técnico |
+| 0.3.0 | 19-09-2026 | **Cambia el permiso: `packages:update-product` y no `packages:update`** (`RF-SP-060`, `RN-SEG-014`, un permiso por operación; [`security.md`](../../../security.md) v0.63.0). Enmienda de Art. I.7 sin cambio de comportamiento: la misma operación, el mismo actor, un código propio sembrado por `V28` y dado a todo rol que portara `packages:update`. | Responsable del proyecto |

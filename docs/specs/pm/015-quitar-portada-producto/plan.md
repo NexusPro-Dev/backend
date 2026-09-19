@@ -11,6 +11,10 @@
 
 ---
 
+!!! note "Enmienda de Art. I.7 — 19-09-2026, `RF-SP-060`"
+
+    Esta operación exige **`products:remove-cover`** y no `products:update` desde el 19-09-2026, por `RF-SP-060` —**un permiso por operación**, `RN-SEG-014` ([`security.md` §4.4](../../../security.md#44-catalogo-de-permisos))—: `products:update` gobernaba varias operaciones y se queda con una; esta recibe código propio, sembrado por `V28` y dado a todo rol que portara `products:update`. Las menciones de `products:update` que siguen abajo hablan de su siembra original y se conservan como historia.
+
 ## 1. Enfoque
 
 **La subida al revés, con la regla delante y un atajo antes de la regla.**
@@ -32,7 +36,7 @@ Los pasos son los de `UploadProductCoverService` sin el archivo: encontrar bloqu
 
 ## 4. Contrato de API
 
-`DELETE /api/v1/products/{id}/cover` — `products:update`. Sin cuerpo. `200` con `ProductDetailResponse`.
+`DELETE /api/v1/products/{id}/cover` — `products:remove-cover`. Sin cuerpo. `200` con `ProductDetailResponse`.
 
 - **Sin `@RequestBody`**: un cuerpo, si llega, ni se lee.
 - **`200` y no `204`**, con el producto: `spec.md` §14.1.

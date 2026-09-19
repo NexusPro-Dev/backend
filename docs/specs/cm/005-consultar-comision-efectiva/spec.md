@@ -32,6 +32,10 @@
 
 ---
 
+!!! note "Enmienda de Art. I.7 — 19-09-2026, `RF-SP-060`"
+
+    Esta operación exige **`commissions:read-effective`** y no `commissions:read` desde el 19-09-2026, por `RF-SP-060` —**un permiso por operación**, `RN-SEG-014` ([`security.md` §4.4](../../../security.md#44-catalogo-de-permisos))—: `commissions:read` gobernaba varias operaciones y se queda con una; esta recibe código propio, sembrado por `V28` y dado a todo rol que portara `commissions:read`. Las menciones de `commissions:read` que siguen abajo hablan de su siembra original y se conservan como historia.
+
 ## 1. Objetivo
 
 Responder **cuánto le corresponde a una persona por vender un producto un día concreto**, y **por qué**.
@@ -297,3 +301,4 @@ Si algún día se revierte, **lo que cambia es solo esta especificación**: un c
 | 0.5.0 | 11-09-2026 | **Corrige a v0.4.0 el mismo día**: la personalizada se resuelve **por asociación**, no por un producto declarado en la tasa. La rama de la persona entra por `user_commission_rate_products`, gemela de la tabla por la que ya entraba la del rol, de modo que **las dos ramas son ahora la misma forma con distinta tabla**. `RN-CM-012` deja de tener excepción y con ello aparece un desenlace que antes no existía: una personalizada **creada y sin asociar** devuelve **sin tarifa** — `CA-CM-124`. `CA-CM-123` cambia de significado: ya no es «dos tasas, una por producto» sino «**una misma** tasa rigiendo en varios», que es lo que la columna no permitía. | Responsable del proyecto |
 | 0.6.0 | 15-09-2026 | **La tasa de rol se resuelve en la propia tabla** (`RN-CM-021`, [`requirements/cm.md`](../../../requirements/cm.md) v0.14.0 §5.4): el predicado pasa de `product_commission_rates` a `commission_rates.product_id`, y nada más cambia — ni la precedencia, ni la personalizada, ni la forma de la respuesta. `CA-CM-144`. | Responsable del proyecto |
 | 0.7.0 | 16-09-2026 | **La personalizada se resuelve en su propia tabla** (`RN-CM-021`, [`requirements/cm.md`](../../../requirements/cm.md) v0.15.0 §5.5): la rama de la persona pasa de `user_commission_rate_products` a `user_commission_rates.product_id`, y nada más cambia — ni la precedencia, ni la fecha, ni la forma de la respuesta. `CA-CM-153`. | Responsable del proyecto |
+| 0.8.0 | 19-09-2026 | **Cambia el permiso: `commissions:read-effective` y no `commissions:read`** (`RF-SP-060`, `RN-SEG-014`, un permiso por operación; [`security.md`](../../../security.md) v0.63.0). Enmienda de Art. I.7 sin cambio de comportamiento: la misma operación, el mismo actor, un código propio sembrado por `V28` y dado a todo rol que portara `commissions:read`. | Responsable del proyecto |

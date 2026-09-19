@@ -20,6 +20,10 @@ El comportamiento es el de [`spec.md`](spec.md) y no se repite aquí. Este docum
 
 ---
 
+!!! note "Enmienda de Art. I.7 — 19-09-2026, `RF-SP-060`"
+
+    Esta operación exige **`memberships:list`** y no `memberships:read` desde el 19-09-2026, por `RF-SP-060` —**un permiso por operación**, `RN-SEG-014` ([`security.md` §4.4](../../../security.md#44-catalogo-de-permisos))—: `memberships:read` gobernaba varias operaciones y se queda con una; esta recibe código propio, sembrado por `V28` y dado a todo rol que portara `memberships:read`. Las menciones de `memberships:read` que siguen abajo hablan de su siembra original y se conservan como historia.
+
 ## 1. Enfoque
 
 Una sentencia de lectura sobre una proyección, sin `JOIN`, sin paginar y sin reglas de negocio. Estructuralmente es `RF-SP-010`: catálogo pequeño, colección completa envuelta en `content`, búsqueda opcional insensible a mayúsculas y acentos, y ninguna participación de `domain`.
@@ -123,7 +127,7 @@ GET /api/v1/memberships?search=plata
 | Código | Cuándo | `error_code` |
 |---|---|---|
 | `401` | Token ausente o inválido | `AUTH-001` |
-| `403` | Autenticado sin `memberships:read` | `AUTH-002` |
+| `403` | Autenticado sin `memberships:list` | `AUTH-002` |
 | `500` | Fallo no controlado | `ERR-500` |
 
 **No hay `400`, `404` ni `422`.** `spec.md` §10 y §11 no declaran ninguna excepción ni validación: el único parámetro es opcional y cualquier texto es admisible. Una búsqueda sin coincidencias devuelve `200` con `content` vacío, y una cadena todavía sin membresías también (`FA-001`, `CA-SP-122`). Los `type` que este endpoint usa ya los estrenó `RF-SP-001`.
@@ -158,7 +162,7 @@ SELECT m.id, m.code, m.name, m.description, m.level,
 
 | Endpoint | Permiso requerido |
 |---|---|
-| `GET /api/v1/memberships` | `memberships:read` |
+| `GET /api/v1/memberships` | `memberships:list` |
 
 - El permiso **ya existe**: lo crea `V3__seed_permissions.sql` (`RF-SP-010`).
 - Se declara sobre el método del controlador (`security.md` §6). Un endpoint sin declaración queda inaccesible, no público (Art. IV.1).
@@ -240,7 +244,7 @@ Niveles: **Integración** (Testcontainers sobre PostgreSQL real, con `V13` aplic
 | `CA-SP-121` | Integración + API | Cada elemento trae su `level`, y el primero de la colección es el que tiene `parentMembershipId` nulo |
 | `CA-SP-122` | API | Sobre una tabla vacía devuelve `200` con `content` vacío. Nunca `404` ni `204` |
 | `CA-SP-123` | Integración + API | Se lista, se inserta una membresía intermedia con `RF-SP-016` y se vuelve a listar: el orden y los niveles reflejan el reordenamiento, y la nueva aparece entre las dos correctas |
-| `CA-SP-124` | API | Un actor autenticado sin `memberships:read` recibe `403`, no obtiene dato alguno y queda el evento de denegación en `audit_security_log` |
+| `CA-SP-124` | API | Un actor autenticado sin `memberships:list` recibe `403`, no obtiene dato alguno y queda el evento de denegación en `audit_security_log` |
 
 Casos límite de `spec.md` §13 y decisiones de este plan que exigen prueba propia (Art. VII.3):
 

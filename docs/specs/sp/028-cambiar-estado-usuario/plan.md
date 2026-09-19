@@ -20,6 +20,10 @@ El comportamiento —flujos, excepciones, validaciones y criterios de aceptació
 
 ---
 
+!!! note "Enmienda de Art. I.7 — 19-09-2026, `RF-SP-060`"
+
+    Esta operación exige **`users:change-status`** y no `users:update` desde el 19-09-2026, por `RF-SP-060` —**un permiso por operación**, `RN-SEG-014` ([`security.md` §4.4](../../../security.md#44-catalogo-de-permisos))—: `users:update` gobernaba varias operaciones y se queda con una; esta recibe código propio, sembrado por `V28` y dado a todo rol que portara `users:update`. Las menciones de `users:update` que siguen abajo hablan de su siembra original y se conservan como historia.
+
 ## 1. Enfoque
 
 Una columna cambia de valor, y como en [`RF-SP-007`](../007-cambiar-estado-rol/plan.md) la dificultad no está ahí. Está en la palabra **inmediato**: `security.md` §4.5 declara que retirar el acceso a un usuario tiene efecto al instante, se revocan todos sus refresh tokens y su token de acceso deja de admitirse aunque siga siendo válido por firma. Es **la única situación** en que el sistema, que por diseño valida la mayoría de peticiones sin consultar nada, tiene que mirar el estado vigente.
@@ -155,7 +159,7 @@ Subrecurso propio y no un campo dentro de `PATCH /users/{id}`, por lo dicho en `
 | `400` | Cuerpo con campo desconocido | `VAL-001` | El campo sobrante |
 | `400` | El identificador no es un UUID en forma canónica | `VAL-001` | `id` |
 | `401` | Token ausente o inválido | `AUTH-001` | — |
-| `403` | Autenticado sin `users:update` | `AUTH-002` | — |
+| `403` | Autenticado sin `users:change-status` | `AUTH-002` | — |
 | `403` | El identificador es la cuenta del actor (`EX-002`) | `RN-SP-017` | — |
 | `404` | No existe usuario vigente con ese identificador (`EX-005`) | `EX-005` | — |
 | `409` | Es el último portador **activo** del rol raíz (`EX-003`) | `RN-SP-001` | — |
@@ -201,7 +205,7 @@ Subrecurso propio y no un campo dentro de `PATCH /users/{id}`, por lo dicho en `
 
 | Endpoint | Permiso requerido |
 |---|---|
-| `PATCH /api/v1/users/{id}/status` | `users:update` |
+| `PATCH /api/v1/users/{id}/status` | `users:change-status` |
 
 - El permiso **ya existe**: lo siembra `V3__seed_permissions.sql` (`RF-SP-010`).
 - Se declara sobre el método del controlador (`security.md` §6). Un endpoint sin declaración queda inaccesible, no público (Art. IV.1).

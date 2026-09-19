@@ -13,6 +13,10 @@
 
 ---
 
+!!! note "Enmienda de Art. I.7 — 19-09-2026, `RF-SP-060`"
+
+    Esta operación exige **`roles:revoke-permissions`** y no `roles:update` desde el 19-09-2026, por `RF-SP-060` —**un permiso por operación**, `RN-SEG-014` ([`security.md` §4.4](../../../security.md#44-catalogo-de-permisos))—: `roles:update` gobernaba varias operaciones y se queda con una; esta recibe código propio, sembrado por `V28` y dado a todo rol que portara `roles:update`. Las menciones de `roles:update` que siguen abajo hablan de su siembra original y se conservan como historia.
+
 ## 1. Objetivo
 
 Reducir el alcance de un rol retirándole permisos, sin romper la contención de los roles que dependen de él.
@@ -180,3 +184,4 @@ La primera enmienda está resumida en la cabecera; desde la segunda se registran
 | Versión | Fecha | Cambio | Responsable |
 |---|---|---|---|
 | 0.3.0 | 16-09-2026 | **La operación admite roles de sistema**, por decisión del responsable del proyecto (`security.md` v0.58.0, `requirements/sp.md` v1.57.0), en el mismo pase que `RF-SP-005` v0.3.0 y por el mismo motivo: `V8` siembra a los vendedores y a `CLIENTE` sin permisos a la espera de que alguien se los conceda, y las dos operaciones los rechazaban por ser de sistema. Aquí la razón añadida es de **simetría**: lo que `RF-SP-005` concede a `CLIENTE` tiene que poder corregirse, y sin esta enmienda un permiso mal concedido a un rol de sistema sería irreversible. `RN-SEG-012` **sale de §5**; `RN-SEG-005` y `RN-SEG-011` quedan y bastan. **`EX-002` se retira y `CA-SP-047` se parte**: cubría dos cosas —rol de sistema y rol propio— y solo una cambia, de modo que la que sobrevive gana número propio (`CA-SP-684`) y la otra se **invierte** en `CA-SP-685`, con el criterio de `CA-SP-675` en `RF-SP-057`. §13 gana el orden inverso de la escala. | Responsable del proyecto |
+| 0.4.0 | 19-09-2026 | **Cambia el permiso: `roles:revoke-permissions` y no `roles:update`** (`RF-SP-060`, `RN-SEG-014`, un permiso por operación; [`security.md`](../../../security.md) v0.63.0). Enmienda de Art. I.7 sin cambio de comportamiento: la misma operación, el mismo actor, un código propio sembrado por `V28` y dado a todo rol que portara `roles:update`. | Responsable del proyecto |

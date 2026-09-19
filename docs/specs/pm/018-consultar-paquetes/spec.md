@@ -13,6 +13,10 @@
 
 ---
 
+!!! note "Enmienda de Art. I.7 — 19-09-2026, `RF-SP-060`"
+
+    Esta operación exige **`packages:list`** y no `packages:read` desde el 19-09-2026, por `RF-SP-060` —**un permiso por operación**, `RN-SEG-014` ([`security.md` §4.4](../../../security.md#44-catalogo-de-permisos))—: `packages:read` gobernaba varias operaciones y se queda con una; esta recibe código propio, sembrado por `V28` y dado a todo rol que portara `packages:read`. Las menciones de `packages:read` que siguen abajo hablan de su siembra original y se conservan como historia.
+
 ## 1. Objetivo
 
 Ver y encontrar los paquetes, **incluidos los que no se ofrecen**, con su precio calculado y con la señal de si hoy se pueden ofrecer.
@@ -79,7 +83,7 @@ La envoltura de página del sistema, y en `content` cada paquete con: `id`, `cod
 
 ## 7. Precondiciones y postcondiciones
 
-**Precondiciones:** actor con `packages:read`. **Postcondiciones:** ninguna.
+**Precondiciones:** actor con `packages:list`. **Postcondiciones:** ninguna.
 
 ## 8. Flujo principal
 
@@ -128,7 +132,7 @@ Las cuatro primeras se devuelven **juntas**.
 | `CA-PM-273` | El orden por **precio** ordena por el precio **calculado**, y un paquete cuyo producto cambió de precio **cambia de posición** en la siguiente lectura |
 | `CA-PM-274` | El número de sentencias **no crece** con el tamaño de la página: página de uno y de veinte cuestan lo mismo |
 | `CA-PM-275` | `exchange` llega resuelto por fila, en una sentencia por página |
-| `CA-PM-276` | Los filtros inválidos se devuelven **juntos** con `400`, y sin `packages:read` responde `403` aunque el actor porte `products:read` |
+| `CA-PM-276` | Los filtros inválidos se devuelven **juntos** con `400`, y sin `packages:list` responde `403` aunque el actor porte `products:read` |
 | `CA-PM-376` | Cada fila devuelve **`validFrom` y `validTo`**, el fin presente y nulo cuando es indefinido; y un paquete activo con todo en regla cuya vigencia **terminó ayer** o **empieza mañana** sale con `offerable: false`, y **sigue listado como `ACTIVO`** (16-09-2026) |
 | `CA-PM-367` | Cada fila devuelve **`coverImageUrl`** con la forma `/api/v1/product-images/{uuid}` cuando el paquete tiene portada, y **presente y nula** cuando no, **sin que el número de sentencias suba** (16-09-2026) |
 
@@ -156,3 +160,4 @@ Las cuatro primeras se devuelven **juntas**.
 | 0.2.0 | 15-09-2026 | **Construida** (`PackageListIT`). Enmiendas de Art. I.7 al construir: **el alcance filtra por los cuatro valores** de [`requirements/pm.md`](../../../requirements/pm.md) v0.35.0; y **el orden por precio se resuelve en la sentencia de paquetes con una subconsulta** —la suma sin redondear, como el plan §4 ya decía— y no invirtiendo el orden de las dos sentencias como sugería `FA-002`: la página cuesta **cuatro** sentencias en cualquier orden (la página, sus filas, el total y la moneda de casa; la tasa solo si hay otra moneda), y `CA-PM-274` las cuenta con una y con veinte. | Responsable técnico |
 | 0.3.0 | 16-09-2026 | **Cada fila trae `coverImageUrl`, la dirección de la portada del paquete** (`RN-PM-045`, [`requirements/pm.md`](../../../requirements/pm.md) v0.37.0 §5.2.12): la misma ruta pública que la del producto, sobre `cover_image_id` y sin consulta más; presente y nula cuando no hay. `CA-PM-367`. Enmienda que construye `RF-PM-028` (Art. I.7). | Responsable del proyecto |
 | 0.4.0 | 16-09-2026 | **Cada fila trae `validFrom` y `validTo`, y la vigencia decide `offerable` por fila** (`RN-PM-047`, [`requirements/pm.md`](../../../requirements/pm.md) v0.39.0 §5.2.13): fuera de sus fechas el paquete sale `false` y sigue listado con el estado que alguien decidió, como con un producto inactivo. Sin filtro por vigencia, por lo mismo que sin filtro por `offerable`. `CA-PM-376`. | Responsable del proyecto |
+| 0.5.0 | 19-09-2026 | **Cambia el permiso: `packages:list` y no `packages:read`** (`RF-SP-060`, `RN-SEG-014`, un permiso por operación; [`security.md`](../../../security.md) v0.63.0). Enmienda de Art. I.7 sin cambio de comportamiento: la misma operación, el mismo actor, un código propio sembrado por `V28` y dado a todo rol que portara `packages:read`. | Responsable del proyecto |

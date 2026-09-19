@@ -137,9 +137,9 @@ La dependencia es **acíclica**: `PM` consume `SP` y `SP` no consume nada ([`mod
 
 | Actor | Rol en el módulo | Permisos típicos |
 |---|---|---|
-| Administrador | Define y gobierna el catálogo entero, **y los paquetes** | `products:create`, `products:read`, `products:update`, `products:delete`, `packages:create`, `packages:read`, `packages:update`, `packages:delete` |
-| Funcionario · fuerza comercial | Consulta el catálogo **y los paquetes** para vender o para atender a un cliente | `products:read`, `packages:read` |
-| Consumidor | Ve lo que puede comprar —productos **y paquetes**—, **y opina sobre ello** | `products:sale`, `products:comment` |
+| Administrador | Define y gobierna el catálogo entero, **y los paquetes** | Los veinticinco del módulo (`security.md` §4.4): desde el 19-09-2026 **uno por operación** — `products:list`, `products:read`, `products:create`, `products:update`, `products:change-status`, `products:set-cover`, `products:remove-cover`, `products:delete`, y sus pares `packages:` más `packages:add-product`, `packages:update-product`, `packages:remove-product` |
+| Funcionario · fuerza comercial | Consulta el catálogo **y los paquetes** para vender o para atender a un cliente | `products:list`, `products:read`, `packages:list`, `packages:read` |
+| Consumidor | Ve lo que puede comprar —productos **y paquetes**—, **y opina sobre ello** | `products:sale`, `products:comment`, `products:read-own-comments`, `products:update-comment`, `products:delete-comment` |
 
 **El consumidor no lleva `products:read`, y es a propósito.** Ese permiso abre el catálogo completo, con lo inactivo y lo retirado dentro. `RF-PM-007` responde con lo suyo y solo con lo suyo, de modo que concederlo obligaría a dar a cada cliente la lectura de todo el catálogo para que pudiera ver tres líneas. Es la misma decisión que `RF-SP-039` tomó con el perfil propio.
 
@@ -160,6 +160,8 @@ La dependencia es **acíclica**: `PM` consume `SP` y `SP` no consume nada ([`mod
 **Nace `products:comment` el 14-09-2026**, por decisión del responsable del proyecto, y es el **primer permiso de escritura del módulo que no es de administración**: gobierna las tres operaciones sobre la reseña propia —escribirla, corregirla, retirarla— y la lectura de la propia (`RF-PM-013`). Se preguntó antes de escribir si bastaba con `products:sale`, y la respuesta fue que no: ver qué se puede comprar y opinar sobre ello son dos capacidades, y quien administre roles tiene que poder conceder una sin la otra. **El permiso habilita; ser el autor autoriza** (`RN-PM-027`): un administrador con `products:comment` escribe las suyas y no toca las ajenas.
 
 **Se siembra asociado a `SUPERADMIN` y a `ADMIN`**, por la obligación de §4.4 y sin reserva, y **a `CLIENTE` no**, por lo mismo de siempre: quien administre roles se lo concede a los de tipo `CONSUMIDOR` por `RF-SP-006`.
+
+**El 19-09-2026 el módulo pasa de once permisos a veinticinco** (`RF-SP-060`, `RN-SEG-014`; [`security.md` §4.4](../security.md#44-catalogo-de-permisos)), por decisión del responsable del proyecto: **un permiso gobierna una operación y ninguna más**. `products:read` gobernaba el listado y el detalle; `products:update` la edición, el estado y las dos operaciones de portada; `products:comment` las cuatro de la reseña propia; `packages:read` dos y `packages:update` **siete** —edición, estado, portada y los tres movimientos de productos del paquete—. Cada código **se queda con una** —`read` con el detalle, `update` con la edición, `comment` con escribir la reseña— y las demás reciben el suyo: `products:list`, `products:change-status`, `products:set-cover`, `products:remove-cover`, `products:read-own-comments`, `products:update-comment`, `products:delete-comment`, `packages:list`, `packages:change-status`, `packages:set-cover`, `packages:remove-cover`, `packages:add-product`, `packages:update-product` y `packages:remove-product`. Los siembra `V28` y **los da a todo rol que portara el padre**, con lo que nadie pierde nada. **Lo que `security.md` §4.4 decía de `packages:update` el 14-09-2026 —que «gobierna también qué productos entran en el paquete y con qué descuento»— deja de valer**: quien arma el paquete y quien corrige su nombre pueden ser roles distintos, y desde hoy se puede conceder lo uno sin lo otro. `RN-PM-027` no cambia: `products:update-comment` y `products:delete-comment` **habilitan y no autorizan**, como `products:comment` antes. Las reseñas **se quedan bajo `products:`** y no estrenan recurso, porque `products:comment` se conserva y tres códigos de un recurso y uno de otro sería peor que cuatro del mismo.
 
 ---
 
@@ -691,34 +693,34 @@ No se copian: se referencian, porque dos copias de una regla acaban divergiendo.
 | ID | Requerimiento | Prioridad | Permiso | Estado |
 |---|---|---|---|---|
 | `RF-PM-001` | Registrar producto | **Crítica** | `products:create` | **En desarrollo** |
-| `RF-PM-002` | Consultar productos | **Crítica** | `products:read` | **En desarrollo** |
+| `RF-PM-002` | Consultar productos | **Crítica** | `products:list` | **En desarrollo** |
 | `RF-PM-003` | Consultar el detalle de un producto | Alta | `products:read` | **En desarrollo** |
 | `RF-PM-004` | Editar producto | Alta | `products:update` | **En desarrollo** |
-| `RF-PM-005` | Cambiar el estado de un producto | Alta | `products:update` | **En desarrollo** |
+| `RF-PM-005` | Cambiar el estado de un producto | Alta | `products:change-status` | **En desarrollo** |
 | `RF-PM-006` | Eliminar producto | Media | `products:delete` | **En desarrollo** |
 | `RF-PM-007` | Consultar la oferta disponible para uno mismo | Alta | `products:sale` | **En desarrollo** |
 | `RF-PM-008` | Consultar un hotlink: producto y vendedor, sin autenticación | Alta | **Público** | **En desarrollo** |
 | `RF-PM-009` | Reseñar un producto | Alta | `products:comment` | **En desarrollo** |
-| `RF-PM-010` | Corregir la reseña propia | Media | `products:comment` | **En desarrollo** |
-| `RF-PM-011` | Retirar la reseña propia | Media | `products:comment` | **En desarrollo** |
+| `RF-PM-010` | Corregir la reseña propia | Media | `products:update-comment` | **En desarrollo** |
+| `RF-PM-011` | Retirar la reseña propia | Media | `products:delete-comment` | **En desarrollo** |
 | `RF-PM-012` | Consultar las reseñas de un producto, sin autenticación | Alta | **Público** | **En desarrollo** |
-| `RF-PM-013` | Consultar la reseña propia sobre un producto | Media | `products:comment` | **En desarrollo** |
-| `RF-PM-014` | Subir o reemplazar la portada de un producto | Alta | `products:update` | **En desarrollo** |
-| `RF-PM-015` | Quitar la portada de un producto | Media | `products:update` | **En desarrollo** |
+| `RF-PM-013` | Consultar la reseña propia sobre un producto | Media | `products:read-own-comments` | **En desarrollo** |
+| `RF-PM-014` | Subir o reemplazar la portada de un producto | Alta | `products:set-cover` | **En desarrollo** |
+| `RF-PM-015` | Quitar la portada de un producto | Media | `products:remove-cover` | **En desarrollo** |
 | `RF-PM-016` | Obtener la imagen de una portada, sin autenticación | Alta | **Público** | **En desarrollo** |
 | `RF-PM-017` | Registrar paquete | **Crítica** | `packages:create` | **En desarrollo** |
-| `RF-PM-018` | Consultar paquetes | Alta | `packages:read` | **En desarrollo** |
+| `RF-PM-018` | Consultar paquetes | Alta | `packages:list` | **En desarrollo** |
 | `RF-PM-019` | Consultar el detalle de un paquete | Alta | `packages:read` | **En desarrollo** |
 | `RF-PM-020` | Editar paquete | Media | `packages:update` | **En desarrollo** |
-| `RF-PM-021` | Cambiar el estado de un paquete | Alta | `packages:update` | **En desarrollo** |
+| `RF-PM-021` | Cambiar el estado de un paquete | Alta | `packages:change-status` | **En desarrollo** |
 | `RF-PM-022` | Eliminar paquete | Media | `packages:delete` | **En desarrollo** |
-| `RF-PM-023` | Asociar un producto a un paquete, con su descuento | **Crítica** | `packages:update` | **En desarrollo** |
-| `RF-PM-024` | Corregir el descuento de un producto del paquete | Media | `packages:update` | **En desarrollo** |
-| `RF-PM-025` | Desasociar un producto de un paquete | Media | `packages:update` | **En desarrollo** |
+| `RF-PM-023` | Asociar un producto a un paquete, con su descuento | **Crítica** | `packages:add-product` | **En desarrollo** |
+| `RF-PM-024` | Corregir el descuento de un producto del paquete | Media | `packages:update-product` | **En desarrollo** |
+| `RF-PM-025` | Desasociar un producto de un paquete | Media | `packages:remove-product` | **En desarrollo** |
 | `RF-PM-026` | Consultar el hotlink de un paquete, sin autenticación | Alta | **Público** | **En desarrollo** |
 | `RF-PM-027` | Consultar el catálogo de hotlinks | Alta | `products:hotlink` | **En desarrollo** |
-| `RF-PM-028` | Subir o reemplazar la portada de un paquete | Media | `packages:update` | **En desarrollo** |
-| `RF-PM-029` | Quitar la portada de un paquete | Media | `packages:update` | **En desarrollo** |
+| `RF-PM-028` | Subir o reemplazar la portada de un paquete | Media | `packages:set-cover` | **En desarrollo** |
+| `RF-PM-029` | Quitar la portada de un paquete | Media | `packages:remove-cover` | **En desarrollo** |
 
 **Prioridades:** Crítica · Alta · Media · Baja.
 **Estados:** los de [`requirements.md` §4](../requirements.md#4-matriz-de-trazabilidad), que es su autoridad.
@@ -774,7 +776,7 @@ Registra un producto declarando su **tipo**, su nombre, su precio y su moneda; s
 |---|---|
 | Objetivo | Ver y encontrar lo que hay en el catálogo, incluido lo que no se ofrece |
 | Actor | Administrador · fuerza comercial |
-| Permiso requerido | `products:read` |
+| Permiso requerido | `products:list` |
 | Prioridad | **Crítica** |
 | Reglas aplicables | `RN-PM-024`, `RN-PM-032`, `RN-PM-033` |
 | Depende de | `RF-PM-001` |
@@ -847,7 +849,7 @@ Permite corregir **nombre, descripción, icono, el enlace del video, los dos pre
 |---|---|
 | Objetivo | Decidir si el producto se ofrece, sin borrarlo |
 | Actor | Administrador |
-| Permiso requerido | `products:update` |
+| Permiso requerido | `products:change-status` |
 | Prioridad | Alta |
 | Reglas aplicables | `RN-PM-004`, `RN-PM-009` |
 | Depende de | `RF-PM-001` |
@@ -935,7 +937,7 @@ Devuelve, en **una** llamada y **sin token**, el producto que el enlace señala 
 |---|---|
 | Objetivo | Que un producto tenga una foto con la que presentarse, y que se pueda cambiar sin dejar rastro de la anterior |
 | Actor | Administrador |
-| Permiso requerido | `products:update` |
+| Permiso requerido | `products:set-cover` |
 | Prioridad | Alta |
 | Reglas aplicables | `RN-PM-033`, `RN-PM-034` |
 | Depende de | `RF-PM-001` |
@@ -952,7 +954,7 @@ Recibe **un archivo** —`multipart/form-data`, una sola parte— y lo convierte
 |---|---|
 | Objetivo | Que un producto vuelva a pintarse con su icono, sin dejar la imagen huérfana |
 | Actor | Administrador |
-| Permiso requerido | `products:update` |
+| Permiso requerido | `products:remove-cover` |
 | Prioridad | Media |
 | Reglas aplicables | `RN-PM-033`, `RN-PM-034` |
 | Depende de | `RF-PM-014` |
@@ -999,7 +1001,7 @@ Registra **la** reseña del actor sobre un producto: puntuación entera de uno a
 |---|---|
 | Objetivo | Cambiar de opinión sin escribir dos veces |
 | Actor | El autor de la reseña |
-| Permiso requerido | `products:comment` |
+| Permiso requerido | `products:update-comment` |
 | Prioridad | Media |
 | Reglas aplicables | `RN-PM-025`, `RN-PM-027` |
 | Depende de | `RF-PM-009` |
@@ -1014,7 +1016,7 @@ Corrige la puntuación, el texto o los dos, **solo si quien llama es el autor** 
 |---|---|
 | Objetivo | Que el autor pueda quitar lo que escribió, sin explicárselo a nadie |
 | Actor | El autor de la reseña |
-| Permiso requerido | `products:comment` |
+| Permiso requerido | `products:delete-comment` |
 | Prioridad | Media |
 | Reglas aplicables | `RN-PM-027`, `RN-PM-029`, `RN-PM-031` |
 | Depende de | `RF-PM-009` |
@@ -1044,7 +1046,7 @@ Devuelve las reseñas **vivas** de un producto, **paginadas** y de la más recie
 |---|---|
 | Objetivo | Que el front sepa si el actor ya opinó, y qué escribió, para prellenar la corrección |
 | Actor | Cualquier persona con `products:comment` |
-| Permiso requerido | `products:comment` |
+| Permiso requerido | `products:read-own-comments` |
 | Prioridad | Media |
 | Reglas aplicables | `RN-PM-026`, `RN-PM-027` |
 | Depende de | `RF-PM-009` |
@@ -1073,7 +1075,7 @@ Registra un paquete con **código, nombre, moneda y alcance**, obligatorios, y d
 |---|---|
 | Objetivo | Ver y encontrar los paquetes, incluidos los que no se ofrecen |
 | Actor | Administrador · fuerza comercial |
-| Permiso requerido | `packages:read` |
+| Permiso requerido | `packages:list` |
 | Prioridad | Alta |
 | Reglas aplicables | `RN-PM-036`, `RN-PM-039`, `RN-PM-045`, `RN-PM-047` |
 | Depende de | `RF-PM-017` |
@@ -1118,7 +1120,7 @@ Corrige **nombre, descripción, alcance y, desde el 16-09-2026, las dos fechas d
 |---|---|
 | Objetivo | Decidir si el paquete se ofrece, sin borrarlo |
 | Actor | Administrador |
-| Permiso requerido | `packages:update` |
+| Permiso requerido | `packages:change-status` |
 | Prioridad | Alta |
 | Reglas aplicables | `RN-PM-039`, `RN-PM-040`, `RN-PM-041` |
 | Depende de | `RF-PM-017` |
@@ -1148,7 +1150,7 @@ Elimina lógicamente el paquete **con motivo** (Art. V.13), y **sus filas de aso
 |---|---|
 | Objetivo | Meter un producto en un paquete diciendo cuánto se rebaja |
 | Actor | Administrador |
-| Permiso requerido | `packages:update` |
+| Permiso requerido | `packages:add-product` |
 | Prioridad | **Crítica** |
 | Reglas aplicables | `RN-PM-035`, `RN-PM-037`, `RN-PM-038`, `RN-PM-039`, `RN-PM-046` |
 | Depende de | `RF-PM-017` |
@@ -1163,7 +1165,7 @@ Asocia un producto **activo, no retirado y en la moneda del paquete** a un paque
 |---|---|
 | Objetivo | Cambiar la rebaja de un producto sin sacarlo y volverlo a meter |
 | Actor | Administrador |
-| Permiso requerido | `packages:update` |
+| Permiso requerido | `packages:update-product` |
 | Prioridad | Media |
 | Reglas aplicables | `RN-PM-037`, `RN-PM-042` |
 | Depende de | `RF-PM-023` |
@@ -1178,7 +1180,7 @@ Corrige la forma o el valor del descuento de un producto que ya está en el paqu
 |---|---|
 | Objetivo | Sacar un producto del paquete |
 | Actor | Administrador |
-| Permiso requerido | `packages:update` |
+| Permiso requerido | `packages:remove-product` |
 | Prioridad | Media |
 | Reglas aplicables | `RN-PM-040`, `RN-PM-042` |
 | Depende de | `RF-PM-023` |
@@ -1224,7 +1226,7 @@ Devuelve **los productos activos de alcance `HOTLINK` o `AMBOS`** (`HOTLINKS` ha
 |---|---|
 | Objetivo | Que un paquete tenga una foto con la que presentarse, y que se pueda cambiar sin dejar rastro de la anterior |
 | Actor | Administrador |
-| Permiso requerido | `packages:update` |
+| Permiso requerido | `packages:set-cover` |
 | Prioridad | Media |
 | Reglas aplicables | `RN-PM-045`, `RN-PM-033` por extensión |
 | Depende de | `RF-PM-014`, `RF-PM-016`, `RF-PM-017` |
@@ -1239,7 +1241,7 @@ Es `RF-PM-014` aplicado al paquete, **con la misma forma y el mismo archivo**: r
 |---|---|
 | Objetivo | Que un paquete vuelva a pintarse con el icono de promoción y el color por omisión, sin dejar la imagen huérfana |
 | Actor | Administrador |
-| Permiso requerido | `packages:update` |
+| Permiso requerido | `packages:remove-cover` |
 | Prioridad | Media |
 | Reglas aplicables | `RN-PM-045` |
 | Depende de | `RF-PM-028` |
@@ -1276,34 +1278,34 @@ Ninguna con sistemas externos. La pasarela de pago, que sería la primera, perte
 | Método | Ruta | Requerimiento | Permiso |
 |---|---|---|---|
 | `POST` | `/api/v1/products` | `RF-PM-001` | `products:create` |
-| `GET` | `/api/v1/products` | `RF-PM-002` | `products:read` |
+| `GET` | `/api/v1/products` | `RF-PM-002` | `products:list` |
 | `GET` | `/api/v1/products/available` | `RF-PM-007` | `products:sale` |
 | `GET` | `/api/v1/products/{id}` | `RF-PM-003` | `products:read` |
 | `PATCH` | `/api/v1/products/{id}` | `RF-PM-004` | `products:update` |
-| `PATCH` | `/api/v1/products/{id}/status` | `RF-PM-005` | `products:update` |
+| `PATCH` | `/api/v1/products/{id}/status` | `RF-PM-005` | `products:change-status` |
 | `POST` | `/api/v1/products/{id}/deletion` | `RF-PM-006` | `products:delete` |
 | `GET` | `/api/v1/hotlinks/{username}/{code}` | `RF-PM-008` | **Público** |
 | `POST` | `/api/v1/products/{id}/comments` | `RF-PM-009` | `products:comment` |
 | `GET` | `/api/v1/products/{id}/comments` | `RF-PM-012` | **Público** |
-| `GET` | `/api/v1/products/{id}/comments/mine` | `RF-PM-013` | `products:comment` |
-| `PATCH` | `/api/v1/products/{id}/comments/{commentId}` | `RF-PM-010` | `products:comment` **y ser el autor** |
-| `DELETE` | `/api/v1/products/{id}/comments/{commentId}` | `RF-PM-011` | `products:comment` **y ser el autor** |
-| `PUT` | `/api/v1/products/{id}/cover` | `RF-PM-014` | `products:update` |
-| `DELETE` | `/api/v1/products/{id}/cover` | `RF-PM-015` | `products:update` |
+| `GET` | `/api/v1/products/{id}/comments/mine` | `RF-PM-013` | `products:read-own-comments` |
+| `PATCH` | `/api/v1/products/{id}/comments/{commentId}` | `RF-PM-010` | `products:update-comment` **y ser el autor** |
+| `DELETE` | `/api/v1/products/{id}/comments/{commentId}` | `RF-PM-011` | `products:delete-comment` **y ser el autor** |
+| `PUT` | `/api/v1/products/{id}/cover` | `RF-PM-014` | `products:set-cover` |
+| `DELETE` | `/api/v1/products/{id}/cover` | `RF-PM-015` | `products:remove-cover` |
 | `GET` | `/api/v1/product-images/{imageId}` | `RF-PM-016` | **Público** |
 | `POST` | `/api/v1/packages` | `RF-PM-017` | `packages:create` |
-| `GET` | `/api/v1/packages` | `RF-PM-018` | `packages:read` |
+| `GET` | `/api/v1/packages` | `RF-PM-018` | `packages:list` |
 | `GET` | `/api/v1/packages/{id}` | `RF-PM-019` | `packages:read` |
 | `PATCH` | `/api/v1/packages/{id}` | `RF-PM-020` | `packages:update` |
-| `PATCH` | `/api/v1/packages/{id}/status` | `RF-PM-021` | `packages:update` |
+| `PATCH` | `/api/v1/packages/{id}/status` | `RF-PM-021` | `packages:change-status` |
 | `POST` | `/api/v1/packages/{id}/deletion` | `RF-PM-022` | `packages:delete` |
-| `POST` | `/api/v1/packages/{id}/products` | `RF-PM-023` | `packages:update` |
-| `PATCH` | `/api/v1/packages/{id}/products/{productId}` | `RF-PM-024` | `packages:update` |
-| `DELETE` | `/api/v1/packages/{id}/products/{productId}` | `RF-PM-025` | `packages:update` |
+| `POST` | `/api/v1/packages/{id}/products` | `RF-PM-023` | `packages:add-product` |
+| `PATCH` | `/api/v1/packages/{id}/products/{productId}` | `RF-PM-024` | `packages:update-product` |
+| `DELETE` | `/api/v1/packages/{id}/products/{productId}` | `RF-PM-025` | `packages:remove-product` |
 | `GET` | `/api/v1/hotlinks/{username}/packages/{code}` | `RF-PM-026` | **Público** |
 | `GET` | `/api/v1/products/hotlinks` | `RF-PM-027` | `products:hotlink` |
-| `PUT` | `/api/v1/packages/{id}/cover` | `RF-PM-028` | `packages:update` |
-| `DELETE` | `/api/v1/packages/{id}/cover` | `RF-PM-029` | `packages:update` |
+| `PUT` | `/api/v1/packages/{id}/cover` | `RF-PM-028` | `packages:set-cover` |
+| `DELETE` | `/api/v1/packages/{id}/cover` | `RF-PM-029` | `packages:remove-cover` |
 
 !!! note "Los paquetes copian la forma del producto, verbo a verbo, y el hotlink del paquete es un segmento más"
 
@@ -1650,3 +1652,4 @@ Se declaran en la base de datos, no solo en Java (Art. V.6).
 | 0.38.0 | 16-09-2026 | **Un paquete lleva UN upgrade como máximo: nace `RN-PM-046`** (§5.2.10). Por decisión del responsable del proyecto, y con tres respuestas: se comprueba **al asociar** (`RF-PM-023`), como se comprobaba el origen; **`RN-PM-044` se reescribe** —el upgrade del paquete decide a quién se ofrece— y pierde la mitad que comparaba orígenes al asociar, porque con un solo upgrade no hay con qué compararlo; y **el sitio se libera** al desasociar el upgrade, sin columna que recuerde el origen. Cierra por el lado que no inventa nada la primera pregunta que `RF-PM-023` §14 le dejaba a la venta —dos membresías sucesivas en un paquete—: **no se vende dos veces la membresía en un solo paquete**, y la venta del paquete, cuando exista, será una línea de membresía como máximo y las demás de bots. `EX-007` de `RF-PM-023` **cambia de significado** —«el paquete ya tiene un upgrade», nombrado— y `CA-PM-313` y `CA-PM-325` se reescriben. Sin migración: la regla no toca el esquema (§10.6, «lo que no se declara»). Una regla compañera —el primer producto a valor completo— **se planteó y se retiró antes de redactarse**, y queda anotado en §5.2.10. Quedan enmendadas las tripletas de `RF-PM-023` y `RF-PM-025`, la de `RF-PM-007` en la letra de `RN-PM-044`, y `flujos/pm`. | Responsable del proyecto |
 | 0.39.0 | 16-09-2026 | **El paquete declara su vigencia: nace `RN-PM-047`** (§5.2.13). Por decisión del responsable del proyecto, con tres respuestas preguntadas antes de escribir: **fuera de la vigencia el paquete se oculta y no cambia de estado**, como con un producto inactivo (`RN-PM-039`), y ni la activación lo mira ni un proceso lo desactiva; **las dos fechas se corrigen** por `RF-PM-020` y el fin se vacía, al revés que el inicio inmutable de la tasa personalizada de `CM`, porque el paquete no paga nada; y **las cuatro lecturas publican `validFrom` y `validTo`**. `product_packages` gana `valid_from` obligatorio y `valid_to` nulo (§10.6, `V13`, con `ck_product_packages_validity`), los existentes reciben su fecha de alta como inicio, «hoy» es el día UTC de siempre y **el día de fin cuenta entero**. Quedan enmendadas `RF-PM-017`, `RF-PM-018`, `RF-PM-019`, `RF-PM-020`, `RF-PM-007` y `RF-PM-026`; `RF-PM-021` no cambia. | Responsable del proyecto |
 | 0.40.0 | 19-09-2026 | **`PM` publica una lectura más hacia `MV`: «¿cuáles de estos productos publica el hotlink?»** (`ProductCatalog.publishedByHotlink`, `architecture.md` §15.2), la pide `RN-MV-007` enmendada ([`requirements/mv.md`](mv.md) v0.27.0): la venta que nace de un enlace se valida contra **el canal hotlink** y no contra la oferta de la tienda. Es el **mismo predicado** de `RN-PM-021` —activo, no retirado, `HOTLINK` o `AMBOS`— sobre un lote y sin proyección, y **no recibe persona**: el hotlink es público y no mira el nivel de quien lo abre. Ninguna regla de `PM` cambia; lo que cambia es que `RN-PM-019` por fin se cumple **entero** en la venta: cada canal vende lo que publica. Sin requerimiento nuevo: la escribe `RF-SP-045`, que es quien la necesita. | Responsable del proyecto |
+| 0.41.0 | 19-09-2026 | **Un permiso por operación** (`RF-SP-060`, `RN-SEG-014`; [`security.md`](../security.md) v0.63.0), por decisión del responsable del proyecto: el módulo pasa de **once permisos a veinticinco**. Cada código se queda con una operación —`read` con el detalle, `update` con la edición, `comment` con escribir la reseña— y nacen catorce: `products:list`, `products:change-status`, `products:set-cover`, `products:remove-cover`, `products:read-own-comments`, `products:update-comment`, `products:delete-comment`, `packages:list`, `packages:change-status`, `packages:set-cover`, `packages:remove-cover`, `packages:add-product`, `packages:update-product`, `packages:remove-product`. §4, §6.1, §9 y las catorce fichas afectadas nombran el permiso nuevo, y §4 anota que `packages:update` ya no cubre los productos del paquete. `V28` los siembra y los da a todo rol que portara el padre: **nadie pierde nada**. Sin cambio de esquema ni de reglas. | Responsable del proyecto |

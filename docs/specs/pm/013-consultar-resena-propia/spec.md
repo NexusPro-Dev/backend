@@ -11,6 +11,10 @@
 
 ---
 
+!!! note "Enmienda de Art. I.7 — 19-09-2026, `RF-SP-060`"
+
+    Esta operación exige **`products:read-own-comments`** y no `products:comment` desde el 19-09-2026, por `RF-SP-060` —**un permiso por operación**, `RN-SEG-014` ([`security.md` §4.4](../../../security.md#44-catalogo-de-permisos))—: `products:comment` gobernaba varias operaciones y se queda con una; esta recibe código propio, sembrado por `V28` y dado a todo rol que portara `products:comment`. Las menciones de `products:comment` que siguen abajo hablan de su siembra original y se conservan como historia.
+
 ## 1. Objetivo
 
 Que el front sepa, antes de pintar la pantalla de un producto, **si quien mira ya opinó y qué escribió**: para ofrecerle corregir en lugar de escribir, y para prellenar el formulario.
@@ -25,7 +29,7 @@ Es la lectura más pequeña del módulo, y está separada a propósito: meter «
 
 | Actor | Papel |
 |---|---|
-| Cualquier persona con `products:comment` | Lee **su** reseña sobre un producto |
+| Cualquier persona con `products:read-own-comments` | Lee **su** reseña sobre un producto |
 
 **No admite parámetro de persona.** Responde sobre quien llama, como `RF-PM-007` y `RF-SP-039`: el actor sale del token y no existe por dónde preguntar por un tercero.
 
@@ -67,7 +71,7 @@ Es la lectura más pequeña del módulo, y está separada a propósito: meter «
 
 ## 7. Precondiciones y postcondiciones
 
-**Precondiciones:** el actor está autenticado y porta `products:comment`.
+**Precondiciones:** el actor está autenticado y porta `products:read-own-comments`.
 
 **Postcondiciones:** ninguna. Es una lectura y no audita.
 
@@ -119,7 +123,7 @@ Es la lectura más pequeña del módulo, y está separada a propósito: meter «
 | `CA-PM-213` | El sistema responde `404` cuando el actor **no ha reseñado** el producto, cuando **retiró** la suya y cuando el producto **no existe**, con el mismo cuerpo |
 | `CA-PM-214` | El sistema devuelve la reseña del actor sobre un producto **inactivo** y sobre uno **retirado** |
 | `CA-PM-215` | El sistema **nunca devuelve la de otra persona**: con dos autores sobre el mismo producto, cada uno recibe la suya |
-| `CA-PM-216` | El sistema responde `403` a quien no porta `products:comment` |
+| `CA-PM-216` | El sistema responde `403` a quien no porta `products:read-own-comments` |
 | `CA-PM-217` | `GET /comments/mine` responde `200` o `404` de negocio, **nunca `400` por identificador inválido ni `405`**: el segmento literal gana a `/comments/{commentId}` |
 | `CA-PM-218` | La lectura cuesta **una** sentencia |
 
@@ -145,3 +149,4 @@ Es la lectura más pequeña del módulo, y está separada a propósito: meter «
 | Versión | Fecha | Cambio | Responsable |
 |---|---|---|---|
 | 0.1.0 | 14-09-2026 | Redacción inicial. Existe porque la lista pública **no puede** marcar la del actor sin dejar de ser pública, y porque `RN-PM-026` hace que «la mía» sea una. **Una sola sentencia y sin consultar el producto**: la respuesta es la misma exista o no, y por eso el `404` no dice nada del producto y la lectura responde sobre productos inactivos y retirados — la única que le da al autor el camino a la suya cuando la lista ya no responde. **`VAL-001` responde `400` y no `404`**, al revés que en la lista: aquí hay token. Queda anotado el criterio de la ruta literal frente a `/{commentId}`, que es el mismo de `/products/available`. | Responsable técnico |
+| 0.2.0 | 19-09-2026 | **Cambia el permiso: `products:read-own-comments` y no `products:comment`** (`RF-SP-060`, `RN-SEG-014`, un permiso por operación; [`security.md`](../../../security.md) v0.63.0). Enmienda de Art. I.7 sin cambio de comportamiento: la misma operación, el mismo actor, un código propio sembrado por `V28` y dado a todo rol que portara `products:comment`. | Responsable del proyecto |

@@ -22,6 +22,10 @@ El comportamiento es el de [`spec.md`](spec.md) y no se repite. La mecánica com
 
 ---
 
+!!! note "Enmienda de Art. I.7 — 19-09-2026, `RF-SP-060`"
+
+    Esta operación exige **`user-commission-rates:create`** y no `commissions:create` desde el 19-09-2026, por `RF-SP-060` —**un permiso por operación**, `RN-SEG-014` ([`security.md` §4.4](../../../security.md#44-catalogo-de-permisos))—: `commissions:create` gobernaba varias operaciones y se queda con una; esta recibe código propio, sembrado por `V28` y dado a todo rol que portara `commissions:create`. Las menciones de `commissions:create` que siguen abajo hablan de su siembra original y se conservan como historia.
+
 ## 1. Enfoque
 
 Tabla propia con vigencia, y **la única restricción del módulo que dos peticiones simultáneas pueden burlar**.
@@ -222,7 +226,7 @@ De ahí que se mire el **`SQLState`**, que es igual de estructural y además est
 
 ## 6. Autorización
 
-`commissions:create`, `commissions:read`, `commissions:update` y `commissions:delete`, los mismos cuatro que las tasas de rol.
+`user-commission-rates:create`, `user-commission-rates:read`, `user-commission-rates:update` y `user-commission-rates:delete` — hasta el 19-09-2026, los mismos cuatro `commissions:` que las tasas de rol.
 
 **No se estrena ninguno**, y es deliberado: el grado de una tasa —de rol o de persona— es un **dato**, no una operación distinta. Distinguirlo en el permiso obligaría a mantener sincronizados el modelo de permisos y la forma de las tablas.
 

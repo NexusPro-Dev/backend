@@ -11,6 +11,10 @@
 
 ---
 
+!!! note "Enmienda de Art. I.7 — 19-09-2026, `RF-SP-060`"
+
+    Esta operación exige **`packages:update-product`** y no `packages:update` desde el 19-09-2026, por `RF-SP-060` —**un permiso por operación**, `RN-SEG-014` ([`security.md` §4.4](../../../security.md#44-catalogo-de-permisos))—: `packages:update` gobernaba varias operaciones y se queda con una; esta recibe código propio, sembrado por `V28` y dado a todo rol que portara `packages:update`. Las menciones de `packages:update` que siguen abajo hablan de su siembra original y se conservan como historia.
+
 ## 1. Enfoque
 
 **La cota de `RF-PM-023` sobre una fila que ya existe.** El mismo `DiscountValue`, la misma comprobación contra el precio de hoy, el mismo bloqueo del paquete; lo único nuevo es que la fila se busca por su clave compuesta y se **actualiza**, con la auditoría de antes y después de las dos columnas.
@@ -31,7 +35,7 @@
 
 ## 4. Contrato de API
 
-`PATCH /api/v1/packages/{id}/products/{productId}` — `packages:update`. `{ "discountType": "FIJO", "discountValue": 20.00 }` → `200` con `PackageDetailResponse`.
+`PATCH /api/v1/packages/{id}/products/{productId}` — `packages:update-product`. `{ "discountType": "FIJO", "discountValue": 20.00 }` → `200` con `PackageDetailResponse`.
 
 ## 5. Autorización
 

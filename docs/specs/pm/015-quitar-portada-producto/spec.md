@@ -11,6 +11,10 @@
 
 ---
 
+!!! note "Enmienda de Art. I.7 — 19-09-2026, `RF-SP-060`"
+
+    Esta operación exige **`products:remove-cover`** y no `products:update` desde el 19-09-2026, por `RF-SP-060` —**un permiso por operación**, `RN-SEG-014` ([`security.md` §4.4](../../../security.md#44-catalogo-de-permisos))—: `products:update` gobernaba varias operaciones y se queda con una; esta recibe código propio, sembrado por `V28` y dado a todo rol que portara `products:update`. Las menciones de `products:update` que siguen abajo hablan de su siembra original y se conservan como historia.
+
 ## 1. Objetivo
 
 Que un producto **vuelva a pintarse con su icono** —o con el que el frontend le pone por omisión, si es un bot— sin dejar la imagen huérfana en la base ni una dirección que siga sirviéndola.
@@ -25,7 +29,7 @@ Que un producto **vuelva a pintarse con su icono** —o con el que el frontend l
 
 | Actor | Papel |
 |---|---|
-| Administrador, con `products:update` | Quita la portada de un producto |
+| Administrador, con `products:remove-cover` | Quita la portada de un producto |
 
 El mismo permiso y por lo mismo que en `RF-PM-014`: la portada es el valor de un campo del producto.
 
@@ -73,7 +77,7 @@ El mismo permiso y por lo mismo que en `RF-PM-014`: la portada es el valor de un
 
 **Precondiciones:**
 
-- El actor está autenticado y porta `products:update`.
+- El actor está autenticado y porta `products:remove-cover`.
 - El producto existe y está **vivo**.
 - Si es un `UPGRADE_MEMBRESIA` **con portada**, tiene icono.
 
@@ -169,3 +173,4 @@ El mismo permiso y por lo mismo que en `RF-PM-014`: la portada es el valor de un
 | Versión | Fecha | Cambio | Responsable |
 |---|---|---|---|
 | 0.1.0 | 14-09-2026 | Redacción inicial. **Es la única de las tres operaciones de la portada con algo que rechazar**: un upgrade sin icono no se queda sin portada (`RN-PM-034`, `VAL-002`, `400` como `RF-PM-005` `VAL-003` y no `409`). **Sin portada responde `200` sin escribir nada**, y esa comprobación va **antes** que la regla, para que un upgrade viejo sin icono ni portada no reciba un rechazo por algo que esta operación no puede arreglar. **`DELETE` que responde `200` con el producto**: se vacía un campo, no se retira una entidad. La imagen quitada **se borra**. Seis criterios, `CA-PM-249` a `CA-PM-254`. | Responsable técnico |
+| 0.2.0 | 19-09-2026 | **Cambia el permiso: `products:remove-cover` y no `products:update`** (`RF-SP-060`, `RN-SEG-014`, un permiso por operación; [`security.md`](../../../security.md) v0.63.0). Enmienda de Art. I.7 sin cambio de comportamiento: la misma operación, el mismo actor, un código propio sembrado por `V28` y dado a todo rol que portara `products:update`. | Responsable del proyecto |

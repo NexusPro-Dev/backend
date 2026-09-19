@@ -12,6 +12,10 @@
 
 ---
 
+!!! note "Enmienda de Art. I.7 — 19-09-2026, `RF-SP-060`"
+
+    Esta operación exige **`packages:add-product`** y no `packages:update` desde el 19-09-2026, por `RF-SP-060` —**un permiso por operación**, `RN-SEG-014` ([`security.md` §4.4](../../../security.md#44-catalogo-de-permisos))—: `packages:update` gobernaba varias operaciones y se queda con una; esta recibe código propio, sembrado por `V28` y dado a todo rol que portara `packages:update`. Las menciones de `packages:update` que siguen abajo hablan de su siembra original y se conservan como historia.
+
 ## 1. Objetivo
 
 Meter un producto en un paquete **diciendo cuánto se rebaja** —un porcentaje o un importe fijo—, sin dejar al producto por debajo de cero y sin romper lo que el paquete promete a quien lo compre.
@@ -77,7 +81,7 @@ Meter un producto en un paquete **diciendo cuánto se rebaja** —un porcentaje 
 
 ## 7. Precondiciones y postcondiciones
 
-**Precondiciones:** actor con `packages:update`; paquete vivo; producto activo, no retirado, en la moneda del paquete y no asociado; descuento dentro de cota; si es upgrade, **ningún otro upgrade** dentro.
+**Precondiciones:** actor con `packages:add-product`; paquete vivo; producto activo, no retirado, en la moneda del paquete y no asociado; descuento dentro de cota; si es upgrade, **ningún otro upgrade** dentro.
 
 **Postcondiciones:** existe la fila `(paquete, producto)` con su descuento; `audit_change_log` tiene una fila `CREATE` de `product_package_items` con la instantánea de la asociación; el paquete —que **no cambia de estado**— vale la nueva suma en todas sus lecturas, en la misma transacción.
 
@@ -126,7 +130,7 @@ Meter un producto en un paquete **diciendo cuánto se rebaja** —un porcentaje 
 
 ### EX-003 — El producto está inactivo o retirado
 
-**Respuesta del sistema:** `409` — *«El producto no está a la venta: solo se asocia lo activo y no retirado.»* **Se distingue del inexistente**, al revés que en la lista pública y en las reseñas: quien llama es un administrador con `packages:update`, ve el catálogo entero y merece saber que el producto existe y por qué no entra.
+**Respuesta del sistema:** `409` — *«El producto no está a la venta: solo se asocia lo activo y no retirado.»* **Se distingue del inexistente**, al revés que en la lista pública y en las reseñas: quien llama es un administrador con `packages:add-product`, ve el catálogo entero y merece saber que el producto existe y por qué no entra.
 
 ### EX-004 — El producto está en otra moneda
 
@@ -207,3 +211,4 @@ Meter un producto en un paquete **diciendo cuánto se rebaja** —un porcentaje 
 | 0.1.0 | 15-09-2026 | Redacción inicial. **Es la operación que define al paquete** y concentra cinco reglas. Las decisiones propias: **forma y valor obligatorios incluso en cero**, porque «sin rebaja» es una declaración; **el paquete se bloquea y el producto no**, con la clave primaria como red de la unicidad; **el primer upgrade fija el origen** y el que no coincide se rechaza **aquí** y no en la oferta, porque un paquete que nadie puede comprar es un defecto que calla; **el inactivo se distingue del inexistente** —`409` y `422`— porque quien llama ve el catálogo entero; y se devuelve el paquete entero, porque lo que cambió es su precio. Queda anotada la primera pregunta que la venta tendrá que responder: dos upgrades con el mismo origen y destinos distintos se pueden asociar. | Responsable técnico |
 | 0.2.0 | 15-09-2026 | **Construida** (`PackageProductsIT`, `PackageConcurrencyIT`, `DiscountValueTest`). Enmienda de Art. I.7 al construir, sobre el plan §7: la operación cuesta **siete** sentencias y no seis, porque **la moneda del paquete se lee por el puerto de `SP`** antes de validar la forma del descuento —sus decimales son los que acotan el fijo (`VAL-004`) y su código el que nombra la cota (`EX-006`)—. El registro de auditoría de la fila lleva como `entity_id` **el del paquete**, porque la fila no tiene identificador propio, y `product_id` va dentro. | Responsable técnico |
 | 0.3.0 | 16-09-2026 | **Un paquete lleva UN upgrade como máximo** ([`requirements/pm.md`](../../../requirements/pm.md) v0.38.0 §5.2.10, `RN-PM-046`), por decisión del responsable del proyecto. **`EX-007` cambia de significado** —«el paquete ya tiene un upgrade», y nombra el código del que está— y conserva su número porque ocupa el mismo paso del flujo y protege lo mismo por un camino más corto. **`RN-PM-044` deja de comprobarse aquí**: con un solo upgrade no hay orígenes que comparar, y la regla queda como la lectura de la oferta. `FA-003` pasa de «fija el origen» a «ocupa el único sitio»; `CA-PM-313` se reescribe —el segundo upgrade del mismo origen y de otro, los bots antes y después, el sitio que se libera—; §13 gana dos casos —dos upgrades del mismo origen, y el upgrade inactivo que sigue ocupando el sitio—; y la **pregunta 1 de §14 queda resuelta por la negativa**, donde el 15-09-2026 se había dejado a la venta. El flujo sigue costando siete sentencias: las hermanas ya se leían. | Responsable del proyecto |
+| 0.4.0 | 19-09-2026 | **Cambia el permiso: `packages:add-product` y no `packages:update`** (`RF-SP-060`, `RN-SEG-014`, un permiso por operación; [`security.md`](../../../security.md) v0.63.0). Enmienda de Art. I.7 sin cambio de comportamiento: la misma operación, el mismo actor, un código propio sembrado por `V28` y dado a todo rol que portara `packages:update`. | Responsable del proyecto |

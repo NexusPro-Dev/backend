@@ -11,6 +11,10 @@
 
 ---
 
+!!! note "Enmienda de Art. I.7 — 19-09-2026, `RF-SP-060`"
+
+    Esta operación exige **`products:delete-comment`** y no `products:comment` desde el 19-09-2026, por `RF-SP-060` —**un permiso por operación**, `RN-SEG-014` ([`security.md` §4.4](../../../security.md#44-catalogo-de-permisos))—: `products:comment` gobernaba varias operaciones y se queda con una; esta recibe código propio, sembrado por `V28` y dado a todo rol que portara `products:comment`. Las menciones de `products:comment` que siguen abajo hablan de su siembra original y se conservan como historia.
+
 ## 1. Objetivo
 
 Que el autor de una reseña **la quite sin explicárselo a nadie**, y que el sistema conserve igualmente qué decía y quién la quitó.
@@ -25,7 +29,7 @@ Que el autor de una reseña **la quite sin explicárselo a nadie**, y que el sis
 
 | Actor | Papel |
 |---|---|
-| El **autor** de la reseña, con `products:comment` | Retira la suya |
+| El **autor** de la reseña, con `products:delete-comment` | Retira la suya |
 
 **Nadie más, y eso incluye a la administración.** `RN-PM-027` no tiene excepción; lo que eso cuesta está escrito en [`requirements/pm.md` §5.2.7](../../../requirements/pm.md) y la salida —una moderación con su propio permiso, que retiraría **con motivo** porque quien la ejerce no es el autor— es otro requerimiento.
 
@@ -75,7 +79,7 @@ Que el autor de una reseña **la quite sin explicárselo a nadie**, y que el sis
 
 **Precondiciones:**
 
-- El actor está autenticado y porta `products:comment`.
+- El actor está autenticado y porta `products:delete-comment`.
 - La reseña existe, está **viva**, es **de ese producto** y **su autor es el actor**.
 
 **Postcondiciones:**
@@ -128,7 +132,7 @@ Que el autor de una reseña **la quite sin explicárselo a nadie**, y que el sis
 
 ### EX-003 — Sin permiso
 
-**Respuesta del sistema:** `403`. Sin `products:comment` la ruta no se alcanza.
+**Respuesta del sistema:** `403`. Sin `products:delete-comment` la ruta no se alcanza.
 
 ## 11. Validaciones
 
@@ -144,7 +148,7 @@ Que el autor de una reseña **la quite sin explicárselo a nadie**, y que el sis
 |---|---|
 | `CA-PM-193` | El autor retira su reseña con `204` **sin enviar motivo ni cuerpo**, y la fila queda con `deleted_at` y el resto intacto |
 | `CA-PM-194` | El sistema registra en `audit_deletion_log` una fila `LOGICAL` con el actor, **la instantánea completa** de la reseña y `reason` igual a `Retirada por su autor` |
-| `CA-PM-195` | El sistema responde `403` a otro cliente **con `products:comment`** sobre una reseña ajena, y la reseña sigue viva |
+| `CA-PM-195` | El sistema responde `403` a otro cliente **con `products:delete-comment`** sobre una reseña ajena, y la reseña sigue viva |
 | `CA-PM-196` | El sistema responde `403` a un **superadministrador** sobre una reseña ajena: no existe moderación |
 | `CA-PM-197` | El sistema responde `404` a una reseña inexistente, a una **ya retirada** —también a su autor— y a una que no es del producto de la ruta, con el mismo cuerpo |
 | `CA-PM-198` | La reseña retirada **no aparece** en la lista pública ni en la propia, y **sale de `rating`** del producto en las cuatro lecturas: `count` baja y `average` se recalcula sin ella — **nulo** si era la única |
@@ -176,3 +180,4 @@ Que el autor de una reseña **la quite sin explicárselo a nadie**, y que el sis
 | Versión | Fecha | Cambio | Responsable |
 |---|---|---|---|
 | 0.1.0 | 14-09-2026 | Redacción inicial. **Es la primera baja de una entidad de negocio sin motivo declarado**, amparada en la tercera excepción del Art. V.13 —el contenido propio, `constitution.md` v0.8.0—, y **el primer `DELETE` del módulo**, por lo mismo que el retiro del producto es un `POST`: el verbo lo decide si hay cuerpo que proteger. El motivo se suple con **`Retirada por su autor`** y `ck_deletion_reason` no se toca. **Retirar dos veces responde `404` y no `409`**, al revés que en `RF-PM-006`: la reseña retirada no la devuelve nadie, de modo que «retirada» y «no existe» son lo mismo para el autor, y distinguirlo se lo confirmaría a un tercero. **El `403` al superadministrador es lo correcto y se prueba con él**, para que la moderación —si llega— se construya como otra operación con motivo y no aflojando esta comparación. | Responsable técnico |
+| 0.2.0 | 19-09-2026 | **Cambia el permiso: `products:delete-comment` y no `products:comment`** (`RF-SP-060`, `RN-SEG-014`, un permiso por operación; [`security.md`](../../../security.md) v0.63.0). Enmienda de Art. I.7 sin cambio de comportamiento: la misma operación, el mismo actor, un código propio sembrado por `V28` y dado a todo rol que portara `products:comment`. | Responsable del proyecto |
