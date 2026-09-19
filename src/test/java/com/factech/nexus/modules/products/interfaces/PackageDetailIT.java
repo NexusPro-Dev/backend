@@ -281,7 +281,9 @@ class PackageDetailIT extends IntegrationTestBase {
   void sinPermiso() throws Exception {
     mvc.perform(
             get("/api/v1/packages/" + paquete)
-                .with(user(UUID.randomUUID().toString()).authorities(() -> "products:read")))
+                .with(
+                    user(UUID.randomUUID().toString())
+                        .authorities(() -> "products:read", () -> "products:list")))
         .andExpect(status().isForbidden());
   }
 
@@ -344,6 +346,7 @@ class PackageDetailIT extends IntegrationTestBase {
   }
 
   private static org.springframework.test.web.servlet.request.RequestPostProcessor lector() {
-    return user(UUID.randomUUID().toString()).authorities(() -> "packages:read");
+    return user(UUID.randomUUID().toString())
+        .authorities(() -> "packages:read", () -> "packages:list");
   }
 }

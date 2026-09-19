@@ -180,7 +180,9 @@ class CurrenciesIT extends IntegrationTestBase {
   void sinPermisoDeLectura() throws Exception {
     mvc.perform(
             get("/api/v1/currencies")
-                .with(user(UUID.randomUUID().toString()).authorities(() -> "roles:read")))
+                .with(
+                    user(UUID.randomUUID().toString())
+                        .authorities(() -> "roles:read", () -> "roles:list")))
         .andExpect(status().isForbidden());
   }
 

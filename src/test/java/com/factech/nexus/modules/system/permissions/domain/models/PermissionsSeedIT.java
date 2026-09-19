@@ -4,6 +4,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 import com.factech.nexus.IntegrationTestBase;
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -24,31 +25,38 @@ class PermissionsSeedIT extends IntegrationTestBase {
 
   @Test
   @DisplayName(
-      "el catálogo tiene exactamente sesenta: TREINTA Y UNO de SP, ONCE de PM, cuatro"
-          + " de CM, cuatro de MV y DIEZ de AC")
+      "el catálogo tiene exactamente CIENTO ONCE: cuarenta y cuatro de SP, veinticinco de PM,"
+          + " diez de CM, cuatro de MV y veintiocho de AC (V28: un permiso por operación,"
+          + " CA-SP-688)")
   void catalogoCompleto() {
     assertThat(jdbc.queryForObject("SELECT count(*) FROM permissions", Integer.class))
-        .isEqualTo(60);
+        .isEqualTo(111);
   }
 
   @Test
-  @DisplayName("ocho de los permisos son de recurso users, incluido assign-supervisor")
-  void ochoPermisosDeUsuarios() {
+  @DisplayName(
+      "trece de los permisos son de recurso users: los ocho de V8 y los cinco que V28 separa")
+  void trecePermisosDeUsuarios() {
     List<String> acciones =
         jdbc.queryForList(
             "SELECT action FROM permissions WHERE resource = 'users' ORDER BY action",
             String.class);
 
     assertThat(acciones)
-        .hasSize(8)
+        .hasSize(13)
         .containsExactly(
             "assign-membership",
             "assign-roles",
             "assign-supervisor",
+            "change-status",
             "create",
             "delete",
+            "list",
             "read",
+            "read-team",
             "reset-password",
+            "revoke-membership",
+            "revoke-roles",
             "update");
   }
 
@@ -69,16 +77,43 @@ class PermissionsSeedIT extends IntegrationTestBase {
             "commissions:delete",
             "commissions:read",
             "commissions:update",
+            // Los seis de V28 (RF-SP-060): commissions: se queda con las tasas de rol.
+            "commissions:read-effective",
+            "user-commission-rates:create",
+            "user-commission-rates:delete",
+            "user-commission-rates:read",
+            "user-commission-rates:update",
+            "product-commission-rates:read",
             "course-categories:create",
             "course-categories:delete",
             "course-categories:read",
             "course-categories:update",
+            "course-categories:list",
             "courses:create",
             "courses:delete",
             "courses:learn",
             "courses:read",
             "courses:teach",
             "courses:update",
+            // Los diecisiete de V28 para cursos, módulos y lecciones: sembrados el
+            // 19-09-2026 y declarados en sus controladores en el tramo 3 de RF-SP-060.
+            "courses:list",
+            "courses:change-status",
+            "courses:assign-category",
+            "courses:revoke-category",
+            "courses:assign-recommendation",
+            "courses:revoke-recommendation",
+            "courses:assign-membership",
+            "courses:revoke-membership",
+            "course-modules:create",
+            "course-modules:update",
+            "course-modules:change-status",
+            "course-modules:delete",
+            "lessons:create",
+            "lessons:read",
+            "lessons:update",
+            "lessons:change-status",
+            "lessons:delete",
             // El SEGUNDO recurso sin ninguna acción de escritura, por el mismo
             // motivo estructural y no por el mismo motivo de negocio: `RN-SP-039`
             // deja el catálogo de brokers fuera de la API porque son pocos y
@@ -90,6 +125,7 @@ class PermissionsSeedIT extends IntegrationTestBase {
             // su titular al registrarse, sin sesión; no hay `update` porque
             // quien la completa es el webhook del broker, que no porta roles.
             "broker-accounts:read",
+            "broker-accounts:read-indicators",
             "countries:create",
             "countries:read",
             "countries:update",
@@ -106,6 +142,7 @@ class PermissionsSeedIT extends IntegrationTestBase {
             "currencies:update",
             "memberships:create",
             "memberships:read",
+            "memberships:list",
             "movements:confirm",
             "movements:create",
             "movements:read",
@@ -118,7 +155,16 @@ class PermissionsSeedIT extends IntegrationTestBase {
             "packages:delete",
             "packages:read",
             "packages:update",
+            // Los siete de V28: packages:update se queda con la edición.
+            "packages:list",
+            "packages:change-status",
+            "packages:set-cover",
+            "packages:remove-cover",
+            "packages:add-product",
+            "packages:update-product",
+            "packages:remove-product",
             "permissions:read",
+            "permissions:list",
             "products:comment",
             "products:create",
             "products:delete",
@@ -126,10 +172,25 @@ class PermissionsSeedIT extends IntegrationTestBase {
             "products:read",
             "products:sale",
             "products:update",
+            // Los siete de V28: products:update se queda con la edición y
+            // products:comment con escribir la reseña.
+            "products:list",
+            "products:change-status",
+            "products:set-cover",
+            "products:remove-cover",
+            "products:read-own-comments",
+            "products:update-comment",
+            "products:delete-comment",
             "roles:create",
             "roles:delete",
             "roles:read",
             "roles:update",
+            // Los cinco de V28: roles:update deja de ser la llave del reparto.
+            "roles:list",
+            "roles:change-status",
+            "roles:assign-parent",
+            "roles:assign-permissions",
+            "roles:revoke-permissions",
             "users:assign-membership",
             "users:assign-roles",
             "users:assign-supervisor",
@@ -137,7 +198,12 @@ class PermissionsSeedIT extends IntegrationTestBase {
             "users:delete",
             "users:read",
             "users:reset-password",
-            "users:update");
+            "users:update",
+            "users:list",
+            "users:change-status",
+            "users:read-team",
+            "users:revoke-roles",
+            "users:revoke-membership");
   }
 
   @Test
@@ -145,7 +211,7 @@ class PermissionsSeedIT extends IntegrationTestBase {
   void identificadoresUuidV7() {
     List<UUID> ids = jdbc.queryForList("SELECT id FROM permissions", UUID.class);
 
-    assertThat(ids).hasSize(60).doesNotHaveDuplicates();
+    assertThat(ids).hasSize(111).doesNotHaveDuplicates();
     assertThat(ids).allSatisfy(id -> assertThat(id.version()).isEqualTo(7));
     // variant() == 2 es la variante RFC 9562 (bits 10xx).
     assertThat(ids).allSatisfy(id -> assertThat(id.variant()).isEqualTo(2));
@@ -167,6 +233,129 @@ class PermissionsSeedIT extends IntegrationTestBase {
                 "SELECT id::text FROM permissions WHERE code = 'users:assign-supervisor'",
                 String.class))
         .isEqualTo("01a029fc-5d80-7018-9c4f-5e7ad0000018");
+
+    // V28 continúa cada serie donde quedó, sin renumerar ninguno (RF-SP-060 · plan §2.1).
+    assertThat(
+            jdbc.queryForObject(
+                "SELECT id::text FROM permissions WHERE code = 'roles:list'", String.class))
+        .isEqualTo("01a0b6f6-7400-7001-9c4f-5e7ad0000019");
+    assertThat(
+            jdbc.queryForObject(
+                "SELECT id::text FROM permissions WHERE code = 'lessons:delete'", String.class))
+        .isEqualTo("01a0b6f6-7400-7033-9c4f-5e7adc000028");
+  }
+
+  @Test
+  @DisplayName(
+      "V28 reparte: SUPERADMIN porta los ciento once y ADMIN ciento cinco, y los seis que le"
+          + " faltan son la reserva (CA-SP-691)")
+  void elRepartoLlegaALosRolesDeSistema() {
+    assertThat(
+            jdbc.queryForObject(
+                "SELECT count(*) FROM role_permissions WHERE role_id ="
+                    + " '01a02a33-4c00-7001-9c4f-5e7ad1000001'",
+                Integer.class))
+        .isEqualTo(111);
+    assertThat(
+            jdbc.queryForObject(
+                "SELECT count(*) FROM role_permissions WHERE role_id ="
+                    + " '01a02a33-4c00-7002-9c4f-5e7ad1000002'",
+                Integer.class))
+        .isEqualTo(105);
+    assertThat(
+            jdbc.queryForList(
+                """
+                SELECT p.code FROM permissions p
+                 WHERE NOT EXISTS (SELECT 1 FROM role_permissions rp
+                                    WHERE rp.role_id = '01a02a33-4c00-7002-9c4f-5e7ad1000002'
+                                      AND rp.permission_id = p.id)
+                 ORDER BY p.code
+                """,
+                String.class))
+        .containsExactly(
+            "audit:read-security",
+            "currencies:update",
+            "movements:confirm",
+            "movements:create",
+            "movements:read",
+            "movements:void");
+  }
+
+  @Test
+  @DisplayName(
+      "los veintiún códigos que V28 estrecha ya no describen las operaciones que perdieron"
+          + " (CA-SP-695)")
+  void losEstrechadosNoNombranLoQuePerdieron() {
+    // Cada pareja es (código, descripción ORIGINAL de V8, V19 o V22), la que nombraba
+    // operaciones que hoy tienen código propio. V28 la reescribe; si alguien la
+    // restaurara, la prueba lo diría. No se afirma un texto nuevo concreto: lo que
+    // importa es que ninguno de los veintiuno siga describiendo lo que perdió.
+    Map<String, String> original =
+        Map.ofEntries(
+            Map.entry(
+                "roles:read",
+                "Ver el listado de roles, el detalle de cada uno y los permisos que declara."),
+            Map.entry(
+                "roles:update",
+                "Editar nombre y descripción, cambiar el estado, reubicar el rol padre y asignar o retirar permisos."),
+            Map.entry(
+                "permissions:read",
+                "Ver el catálogo de permisos del sistema y el detalle de cada uno."),
+            Map.entry("memberships:read", "Ver el listado de membresías y el detalle de cada una."),
+            Map.entry(
+                "users:read",
+                "Ver el listado de usuarios, el detalle de cada uno y el equipo comercial a su cargo."),
+            Map.entry("users:update", "Editar los datos de un usuario y cambiar su estado."),
+            Map.entry(
+                "users:assign-roles",
+                "Asignar y retirar roles de un usuario, dentro de la cota de privilegios del propio actor."),
+            Map.entry("users:assign-membership", "Asignar y retirar la membresía de un usuario."),
+            Map.entry(
+                "broker-accounts:read",
+                "Consultar las cuentas de broker de cualquier persona (RF-SP-055). Sin él, cada quien ve solo las de su equipo directo (RN-SP-046)."),
+            Map.entry(
+                "products:read",
+                "Ver el catalogo completo, incluido lo inactivo y lo retirado, y el detalle de cada producto."),
+            Map.entry(
+                "products:update",
+                "Corregir nombre, descripcion, precio, moneda y vigencia, y publicar o retirar de la venta."),
+            Map.entry(
+                "products:comment",
+                "Escribir, corregir y retirar la reseña propia sobre un producto (RN-PM-025 a RN-PM-029)."),
+            Map.entry(
+                "packages:read",
+                "Ver todos los paquetes, incluidos los inactivos y los retirados, con su precio calculado y por que no se ofrecen."),
+            Map.entry(
+                "packages:update",
+                "Corregir nombre, descripcion y alcance, publicar o despublicar, y asociar, corregir el descuento o desasociar sus productos."),
+            Map.entry(
+                "commissions:read",
+                "Ver las tarifas declaradas, incluido el historial, y resolver la comision efectiva."),
+            Map.entry(
+                "commissions:create",
+                "Declarar cuanto gana un rol vendedor, por producto y por persona, y desde cuando rige."),
+            Map.entry(
+                "commissions:update",
+                "Corregir el porcentaje de una tarifa y cerrar o reabrir su fin de vigencia."),
+            Map.entry(
+                "commissions:delete",
+                "Retirar una tarifa con eliminacion logica y motivo obligatorio."),
+            Map.entry(
+                "course-categories:read",
+                "Ver el listado de categorías del catálogo de cursos y el detalle de cada una, incluidas las retiradas."),
+            Map.entry(
+                "courses:read",
+                "Ver el listado de cursos y el detalle completo de cada uno —con lo inactivo, lo retirado y lo que no se ofrece— y el contenido de sus lecciones."),
+            Map.entry(
+                "courses:update",
+                "Corregir un curso, cambiar su estado y su portada, clasificarlo, recomendarle cursos previos, darle visibilidad a membresías, y registrar, corregir, cambiar de estado, retirar y poner portada a sus módulos y lecciones."));
+    original.forEach(
+        (code, descripcionDeAntes) ->
+            assertThat(
+                    jdbc.queryForObject(
+                        "SELECT description FROM permissions WHERE code = ?", String.class, code))
+                .as(code)
+                .isNotEqualTo(descripcionDeAntes));
   }
 
   @Test

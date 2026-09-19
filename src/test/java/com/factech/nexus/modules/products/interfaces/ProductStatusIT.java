@@ -351,7 +351,9 @@ class ProductStatusIT extends IntegrationTestBase {
     // `products:read` no basta: leer y publicar son decisiones distintas.
     mvc.perform(
             patch("/api/v1/products/{id}/status", bot)
-                .with(user(UUID.randomUUID().toString()).authorities(() -> "products:read"))
+                .with(
+                    user(UUID.randomUUID().toString())
+                        .authorities(() -> "products:read", () -> "products:list"))
                 .contentType(MediaType.APPLICATION_JSON)
                 .content("{\"status\":\"ACTIVO\"}"))
         .andExpect(status().isForbidden());
@@ -380,7 +382,12 @@ class ProductStatusIT extends IntegrationTestBase {
   }
 
   private static org.springframework.test.web.servlet.request.RequestPostProcessor admin() {
-    return user(UUID.randomUUID().toString()).authorities(() -> "products:update");
+    return user(UUID.randomUUID().toString())
+        .authorities(
+            () -> "products:update",
+            () -> "products:change-status",
+            () -> "products:set-cover",
+            () -> "products:remove-cover");
   }
 
   private String estadoDe(UUID id) {

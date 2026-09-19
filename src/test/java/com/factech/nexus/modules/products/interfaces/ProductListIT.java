@@ -579,7 +579,9 @@ class ProductListIT extends IntegrationTestBase {
 
   private MockHttpServletRequestBuilder listado() {
     return get("/api/v1/products")
-        .with(user(UUID.randomUUID().toString()).authorities(() -> "products:read"));
+        .with(
+            user(UUID.randomUUID().toString())
+                .authorities(() -> "products:read", () -> "products:list"));
   }
 
   private void retirar(String codigo) {

@@ -173,7 +173,7 @@ public class PackageController {
   }
 
   @PostMapping("/{id}/products")
-  @PreAuthorize("hasAuthority('packages:update')")
+  @PreAuthorize("hasAuthority('packages:add-product')")
   @Operation(
       summary = "Asociar un producto al paquete",
       description =
@@ -211,7 +211,7 @@ public class PackageController {
           Se asocia **a un paquete inactivo** —es el estado en el que un paquete se
           arma— y no a uno retirado (`404`). El producto no cambia: la fila es del
           paquete, y el mismo producto puede estar en otros paquetes con otro
-          descuento. Exige `packages:update`.
+          descuento. Exige `packages:add-product`.
           """)
   @ApiResponses({
     @ApiResponse(
@@ -226,7 +226,7 @@ public class PackageController {
     @ApiResponse(responseCode = "401", description = "Token ausente o inválido (`AUTH-001`)"),
     @ApiResponse(
         responseCode = "403",
-        description = "Autenticado sin el permiso `packages:update` (`AUTH-002`)"),
+        description = "Autenticado sin el permiso `packages:add-product` (`AUTH-002`)"),
     @ApiResponse(
         responseCode = "404",
         description = "El paquete no existe o está retirado (`EX-001`)"),
@@ -292,7 +292,7 @@ public class PackageController {
   }
 
   @GetMapping
-  @PreAuthorize("hasAuthority('packages:read')")
+  @PreAuthorize("hasAuthority('packages:list')")
   @Operation(
       summary = "Consultar los paquetes",
       description =
@@ -320,7 +320,7 @@ public class PackageController {
           céntimo por producto y puede alterar el orden entre paquetes casi iguales.
 
           Los filtros inválidos se devuelven **juntos** con `400`. Exige
-          `packages:read`; `products:read` no habilita.
+          `packages:list`; `products:read` no habilita.
           """)
   @ApiResponses({
     @ApiResponse(
@@ -333,7 +333,7 @@ public class PackageController {
     @ApiResponse(responseCode = "401", description = "Token ausente o inválido (`AUTH-001`)"),
     @ApiResponse(
         responseCode = "403",
-        description = "Autenticado sin el permiso `packages:read` (`AUTH-002`)")
+        description = "Autenticado sin el permiso `packages:list` (`AUTH-002`)")
   })
   public PackagePageResponse listar(
       @org.springdoc.core.annotations.ParameterObject @ModelAttribute ListPackagesRequest filtros) {
@@ -398,7 +398,7 @@ public class PackageController {
   }
 
   @PatchMapping("/{id}/status")
-  @PreAuthorize("hasAuthority('packages:update')")
+  @PreAuthorize("hasAuthority('packages:change-status')")
   @Operation(
       summary = "Activar o desactivar un paquete",
       description =
@@ -415,7 +415,7 @@ public class PackageController {
           hotlink, y sus productos no cambian.
 
           Pedir el estado que ya tiene responde `200` sin escribir ni auditar. Exige
-          `packages:update`.
+          `packages:change-status`.
           """)
   @ApiResponses({
     @ApiResponse(
@@ -429,7 +429,7 @@ public class PackageController {
     @ApiResponse(responseCode = "401", description = "Token ausente o inválido (`AUTH-001`)"),
     @ApiResponse(
         responseCode = "403",
-        description = "Autenticado sin el permiso `packages:update` (`AUTH-002`)"),
+        description = "Autenticado sin el permiso `packages:change-status` (`AUTH-002`)"),
     @ApiResponse(
         responseCode = "404",
         description = "El paquete no existe o está retirado (`EX-001`)"),
@@ -483,7 +483,7 @@ public class PackageController {
   }
 
   @PatchMapping("/{id}/products/{productId}")
-  @PreAuthorize("hasAuthority('packages:update')")
+  @PreAuthorize("hasAuthority('packages:update-product')")
   @Operation(
       summary = "Corregir el descuento de un producto del paquete",
       description =
@@ -505,7 +505,7 @@ public class PackageController {
 
           El producto que no está en el paquete es `404`, sin distinguir «no existe»
           de «no está aquí»: lo que se corrige es la pareja. Sin cambio de valor
-          responde `200` sin auditar. Exige `packages:update`.
+          responde `200` sin auditar. Exige `packages:update-product`.
           """)
   @ApiResponses({
     @ApiResponse(
@@ -519,7 +519,7 @@ public class PackageController {
     @ApiResponse(responseCode = "401", description = "Token ausente o inválido (`AUTH-001`)"),
     @ApiResponse(
         responseCode = "403",
-        description = "Autenticado sin el permiso `packages:update` (`AUTH-002`)"),
+        description = "Autenticado sin el permiso `packages:update-product` (`AUTH-002`)"),
     @ApiResponse(
         responseCode = "404",
         description =
@@ -536,7 +536,7 @@ public class PackageController {
   }
 
   @DeleteMapping("/{id}/products/{productId}")
-  @PreAuthorize("hasAuthority('packages:update')")
+  @PreAuthorize("hasAuthority('packages:remove-product')")
   @Operation(
       summary = "Quitar un producto del paquete",
       description =
@@ -555,7 +555,7 @@ public class PackageController {
           activo en el catálogo y en los demás paquetes que lo contengan.
 
           El producto que no está —también el que ya se quitó— es `404`: con el
-          borrado físico no queda nada que los distinga. Exige `packages:update`.
+          borrado físico no queda nada que los distinga. Exige `packages:remove-product`.
           """)
   @ApiResponses({
     @ApiResponse(
@@ -566,7 +566,7 @@ public class PackageController {
     @ApiResponse(responseCode = "401", description = "Token ausente o inválido (`AUTH-001`)"),
     @ApiResponse(
         responseCode = "403",
-        description = "Autenticado sin el permiso `packages:update` (`AUTH-002`)"),
+        description = "Autenticado sin el permiso `packages:remove-product` (`AUTH-002`)"),
     @ApiResponse(
         responseCode = "404",
         description =
@@ -577,7 +577,7 @@ public class PackageController {
   }
 
   @PutMapping(value = "/{id}/cover", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
-  @PreAuthorize("hasAuthority('packages:update')")
+  @PreAuthorize("hasAuthority('packages:set-cover')")
   @Operation(
       summary = "Subir o reemplazar la portada de un paquete",
       description =
@@ -622,7 +622,7 @@ public class PackageController {
         content = @Content),
     @ApiResponse(
         responseCode = "403",
-        description = "Autenticado sin el permiso `packages:update` (`AUTH-002`)",
+        description = "Autenticado sin el permiso `packages:set-cover` (`AUTH-002`)",
         content = @Content),
     @ApiResponse(
         responseCode = "404",
@@ -641,7 +641,7 @@ public class PackageController {
   }
 
   @DeleteMapping("/{id}/cover")
-  @PreAuthorize("hasAuthority('packages:update')")
+  @PreAuthorize("hasAuthority('packages:remove-cover')")
   @Operation(
       summary = "Quitar la portada de un paquete",
       description =
@@ -675,7 +675,7 @@ public class PackageController {
         content = @Content),
     @ApiResponse(
         responseCode = "403",
-        description = "Autenticado sin el permiso `packages:update` (`AUTH-002`)",
+        description = "Autenticado sin el permiso `packages:remove-cover` (`AUTH-002`)",
         content = @Content),
     @ApiResponse(
         responseCode = "404",

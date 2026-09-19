@@ -256,7 +256,7 @@ public class UserController {
   }
 
   @GetMapping
-  @PreAuthorize("hasAuthority('users:read')")
+  @PreAuthorize("hasAuthority('users:list')")
   @Operation(
       summary = "Consultar personas",
       description =
@@ -318,7 +318,7 @@ public class UserController {
         content = @Content),
     @ApiResponse(
         responseCode = "403",
-        description = "Autenticado sin `users:read` (`AUTH-002`)",
+        description = "Autenticado sin `users:list` (`AUTH-002`)",
         content = @Content),
     @ApiResponse(
         responseCode = "500",
@@ -738,7 +738,7 @@ public class UserController {
   }
 
   @PatchMapping("/{id}/status")
-  @PreAuthorize("hasAuthority('users:update')")
+  @PreAuthorize("hasAuthority('users:change-status')")
   @Operation(
       summary = "Retirar o devolver el acceso de una persona",
       description =
@@ -786,7 +786,7 @@ public class UserController {
     @ApiResponse(
         responseCode = "403",
         description =
-            "Autenticado sin `users:update` (`AUTH-002`), o es la cuenta del propio actor"
+            "Autenticado sin `users:change-status` (`AUTH-002`), o es la cuenta del propio actor"
                 + " (`RN-SP-017`) — dos casos distintos con `error_code` distinto",
         content = @Content),
     @ApiResponse(
@@ -944,7 +944,7 @@ public class UserController {
   }
 
   @PostMapping("/{id}/roles/revocations")
-  @PreAuthorize("hasAuthority('users:assign-roles')")
+  @PreAuthorize("hasAuthority('users:revoke-roles')")
   @Operation(
       summary = "Retirar roles de una persona",
       description =
@@ -986,7 +986,7 @@ public class UserController {
         content = @Content),
     @ApiResponse(
         responseCode = "403",
-        description = "Autenticado sin `users:assign-roles` (`AUTH-002`)",
+        description = "Autenticado sin `users:revoke-roles` (`AUTH-002`)",
         content = @Content),
     @ApiResponse(
         responseCode = "404",
@@ -1069,7 +1069,7 @@ public class UserController {
   }
 
   @DeleteMapping("/{id}/membership")
-  @PreAuthorize("hasAuthority('users:assign-membership')")
+  @PreAuthorize("hasAuthority('users:revoke-membership')")
   @Operation(
       summary = "Devolver la membresía de una persona al suelo",
       description =
@@ -1113,7 +1113,7 @@ public class UserController {
         content = @Content),
     @ApiResponse(
         responseCode = "403",
-        description = "Autenticado sin `users:assign-membership` (`AUTH-002`)",
+        description = "Autenticado sin `users:revoke-membership` (`AUTH-002`)",
         content = @Content),
     @ApiResponse(
         responseCode = "404",
@@ -1196,7 +1196,7 @@ public class UserController {
   }
 
   @GetMapping("/{id}/team")
-  @PreAuthorize("hasAuthority('users:read')")
+  @PreAuthorize("hasAuthority('users:read-team')")
   @Operation(
       summary = "Consultar el superior y el equipo a cargo",
       description =
@@ -1259,7 +1259,7 @@ public class UserController {
         content = @Content),
     @ApiResponse(
         responseCode = "403",
-        description = "Autenticado sin `users:read` (`AUTH-002`)",
+        description = "Autenticado sin `users:read-team` (`AUTH-002`)",
         content = @Content),
     @ApiResponse(
         responseCode = "404",

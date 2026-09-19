@@ -437,19 +437,22 @@ class OpenApiContractIT extends IntegrationTestBase {
     mvc.perform(get("/v3/api-docs").with(user("doc")))
         .andExpect(status().isOk())
         // Con permiso: la extensión lleva el nombre exacto, y la descripción lo
-        // encabeza. Un mismo permiso puede gobernar varias rutas — el contrato
-        // lo dice en cada una, para que el frontend no tenga que deducirlo.
+        // encabeza. Desde RF-SP-060 (19-09-2026) cada permiso gobierna UNA
+        // operación (RN-SEG-014): el listado y el equipo, que compartían
+        // users:read, llevan cada uno el suyo, y asignar permisos ya no es
+        // roles:update. El contrato lo dice en cada operación, para que el
+        // frontend derive el código de ahí y no lo escriba a mano.
         .andExpect(
-            jsonPath("$.paths['/api/v1/users'].get['" + EXTENSION + "']").value("users:read"))
+            jsonPath("$.paths['/api/v1/users'].get['" + EXTENSION + "']").value("users:list"))
         .andExpect(
             jsonPath("$.paths['/api/v1/users/{id}/team'].get['" + EXTENSION + "']")
-                .value("users:read"))
+                .value("users:read-team"))
         .andExpect(
             jsonPath("$.paths['/api/v1/roles/{id}/permissions'].post['" + EXTENSION + "']")
-                .value("roles:update"))
+                .value("roles:assign-permissions"))
         .andExpect(
             jsonPath("$.paths['/api/v1/users'].get.description")
-                .value(startsWith(ENCABEZADO + " `users:read`.")))
+                .value(startsWith(ENCABEZADO + " `users:list`.")))
         // Pública: sin extensión, `security` vacío —que es como OpenAPI dice
         // «sin token» y lo que quita el candado en Swagger UI— y sin 401 ni
         // 403, que no puede responder.

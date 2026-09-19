@@ -46,7 +46,9 @@ class RequestLogIT extends IntegrationTestBase {
     // los parámetros quedan registrados como llegan en un contenedor real.
     mvc.perform(
             get("/api/v1/roles?size=5")
-                .with(user(SUPERADMIN.toString()).authorities(() -> "roles:read")))
+                .with(
+                    user(SUPERADMIN.toString())
+                        .authorities(() -> "roles:read", () -> "roles:list")))
         .andExpect(status().isOk());
 
     Map<String, Object> fila = ultima();
@@ -69,7 +71,9 @@ class RequestLogIT extends IntegrationTestBase {
   void elCuatrocientosCuatroSeRegistra() throws Exception {
     mvc.perform(
             get("/api/v1/roles/{id}", UUID.randomUUID())
-                .with(user(SUPERADMIN.toString()).authorities(() -> "roles:read")))
+                .with(
+                    user(SUPERADMIN.toString())
+                        .authorities(() -> "roles:read", () -> "roles:list")))
         .andExpect(status().isNotFound());
 
     assertThat(((Number) ultima().get("status")).intValue()).isEqualTo(404);
@@ -113,7 +117,9 @@ class RequestLogIT extends IntegrationTestBase {
     String devuelta =
         mvc.perform(
                 get("/api/v1/permissions")
-                    .with(user(SUPERADMIN.toString()).authorities(() -> "permissions:read")))
+                    .with(
+                        user(SUPERADMIN.toString())
+                            .authorities(() -> "permissions:read", () -> "permissions:list")))
             .andExpect(status().isOk())
             .andReturn()
             .getResponse()

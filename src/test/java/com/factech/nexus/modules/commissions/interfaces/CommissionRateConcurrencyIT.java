@@ -190,7 +190,9 @@ class CommissionRateConcurrencyIT extends IntegrationTestBase {
   private int altaPersonal(UUID producto, String porcentaje, String desde, String hasta) {
     return estadoDe(
         post("/api/v1/user-commission-rates")
-            .with(user(SUPERADMIN.toString()).authorities(() -> "commissions:create"))
+            .with(
+                user(SUPERADMIN.toString())
+                    .authorities(() -> "commissions:create", () -> "user-commission-rates:create"))
             .contentType(MediaType.APPLICATION_JSON)
             .content(
                 "{\"userId\":\""
@@ -218,7 +220,9 @@ class CommissionRateConcurrencyIT extends IntegrationTestBase {
   private int alta(UUID producto, String rol, String porcentaje) {
     return estadoDe(
         post("/api/v1/commission-rates")
-            .with(user(SUPERADMIN.toString()).authorities(() -> "commissions:create"))
+            .with(
+                user(SUPERADMIN.toString())
+                    .authorities(() -> "commissions:create", () -> "user-commission-rates:create"))
             .contentType(MediaType.APPLICATION_JSON)
             .content(
                 "{\"productId\":\""

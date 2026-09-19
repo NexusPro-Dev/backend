@@ -250,7 +250,16 @@ class PackageUpdateIT extends IntegrationTestBase {
 
   private MockHttpServletRequestBuilder corregir(String json) {
     return patch("/api/v1/packages/" + paquete)
-        .with(user(UUID.randomUUID().toString()).authorities(() -> "packages:update"))
+        .with(
+            user(UUID.randomUUID().toString())
+                .authorities(
+                    () -> "packages:update",
+                    () -> "packages:change-status",
+                    () -> "packages:set-cover",
+                    () -> "packages:remove-cover",
+                    () -> "packages:add-product",
+                    () -> "packages:update-product",
+                    () -> "packages:remove-product"))
         .contentType(MediaType.APPLICATION_JSON)
         .content(json);
   }

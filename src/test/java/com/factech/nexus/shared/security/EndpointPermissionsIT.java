@@ -7,7 +7,10 @@ import java.lang.reflect.Method;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.TreeMap;
 import java.util.TreeSet;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -203,6 +206,157 @@ class EndpointPermissionsIT extends IntegrationTestBase {
   // la reconoce sin necesitar la excepción.
 
   /**
+   * Permisos que TODAVÍA gobiernan más de una operación, con fecha y motivo (`RN-SEG-014`,
+   * `RF-SP-060` · plan §4).
+   *
+   * <p>Es la misma técnica que la lista blanca de arriba: una excepción con fecha es la diferencia
+   * entre un pendiente y un olvido. `V28` ya sembró los dieciocho permisos de `AC`; sus
+   * controladores los declaran en el tramo 3 de `RF-SP-060`, después del bloque 4 de `AC`, y ese
+   * tramo VACÍA este mapa. La prueba `elPendienteNoSePudre` exige que cada entrada siga
+   * repitiéndose de verdad, para que el tramo 3 no pueda olvidarse de quitarla.
+   */
+  private static final Map<String, String> REPARTO_PENDIENTE =
+      Map.ofEntries(
+          Map.entry(
+              "courses:update",
+              "AC se reparte entero en el tramo 3 de RF-SP-060, después de su bloque 4 (19-09-2026):"
+                  + " estado, módulos, lecciones y relaciones tienen ya código propio en V28"),
+          Map.entry(
+              "courses:read",
+              "Lo mismo: el listado es courses:list y la lección lessons:read desde V28"),
+          Map.entry(
+              "course-categories:read",
+              "Lo mismo: el listado es course-categories:list desde V28"));
+
+  /**
+   * La tabla operación → permiso de `RF-SP-060` · `spec.md` §6.2, completa: TODAS las operaciones
+   * que exigen permiso, con el código exacto que exigen (`CA-SP-690`, la mitad positiva; la
+   * negativa —con el padre y sin el hijo, 403— vive en la suite de cada módulo).
+   *
+   * <p>`AC` figura con los códigos de HOY —los padres— y no con los de `V28`, hasta el tramo 3.
+   */
+  private static final Map<String, String> PERMISO_DE_CADA_OPERACION =
+      Map.ofEntries(
+          // ---- SP · roles ----
+          Map.entry("POST /api/v1/roles", "roles:create"),
+          Map.entry("GET /api/v1/roles", "roles:list"),
+          Map.entry("GET /api/v1/roles/{id}", "roles:read"),
+          Map.entry("PATCH /api/v1/roles/{id}", "roles:update"),
+          Map.entry("PATCH /api/v1/roles/{id}/status", "roles:change-status"),
+          Map.entry("PATCH /api/v1/roles/{id}/parent", "roles:assign-parent"),
+          Map.entry("POST /api/v1/roles/{id}/permissions", "roles:assign-permissions"),
+          Map.entry("POST /api/v1/roles/{id}/permissions/revocations", "roles:revoke-permissions"),
+          Map.entry("POST /api/v1/roles/{id}/deletion", "roles:delete"),
+          // ---- SP · permisos, membresías, auditoría, catálogos ----
+          Map.entry("GET /api/v1/permissions", "permissions:list"),
+          Map.entry("GET /api/v1/permissions/{id}", "permissions:read"),
+          Map.entry("POST /api/v1/memberships", "memberships:create"),
+          Map.entry("GET /api/v1/memberships", "memberships:list"),
+          Map.entry("GET /api/v1/memberships/{id}", "memberships:read"),
+          Map.entry("GET /api/v1/audit/changes", "audit:read-changes"),
+          Map.entry("GET /api/v1/audit/deletions", "audit:read-deletions"),
+          Map.entry("GET /api/v1/audit/errors", "audit:read-errors"),
+          Map.entry("GET /api/v1/audit/security", "audit:read-security"),
+          Map.entry("POST /api/v1/countries", "countries:create"),
+          Map.entry("PATCH /api/v1/countries/{id}/status", "countries:update"),
+          Map.entry("GET /api/v1/currencies", "currencies:read"),
+          Map.entry("PATCH /api/v1/currencies/{id}/status", "currencies:update"),
+          Map.entry("POST /api/v1/exchange-rates", "exchange-rates:create"),
+          // ---- SP · usuarios ----
+          Map.entry("POST /api/v1/users", "users:create"),
+          Map.entry("GET /api/v1/users", "users:list"),
+          Map.entry("GET /api/v1/users/{id}", "users:read"),
+          Map.entry("GET /api/v1/users/{id}/team", "users:read-team"),
+          Map.entry("PATCH /api/v1/users/{id}", "users:update"),
+          Map.entry("PATCH /api/v1/users/{id}/status", "users:change-status"),
+          Map.entry("POST /api/v1/users/{id}/deletion", "users:delete"),
+          Map.entry("POST /api/v1/users/{id}/roles", "users:assign-roles"),
+          Map.entry("POST /api/v1/users/{id}/roles/revocations", "users:revoke-roles"),
+          Map.entry("PUT /api/v1/users/{id}/membership", "users:assign-membership"),
+          Map.entry("DELETE /api/v1/users/{id}/membership", "users:revoke-membership"),
+          Map.entry("PATCH /api/v1/users/{id}/supervisor", "users:assign-supervisor"),
+          Map.entry("POST /api/v1/users/{id}/password-reset", "users:reset-password"),
+          // ---- SP · cuentas de broker ----
+          Map.entry("GET /api/v1/broker-accounts", "broker-accounts:read"),
+          Map.entry("GET /api/v1/broker-accounts/indicators", "broker-accounts:read-indicators"),
+          // ---- PM · productos ----
+          Map.entry("POST /api/v1/products", "products:create"),
+          Map.entry("GET /api/v1/products", "products:list"),
+          Map.entry("GET /api/v1/products/{id}", "products:read"),
+          Map.entry("GET /api/v1/products/available", "products:sale"),
+          Map.entry("GET /api/v1/products/hotlinks", "products:hotlink"),
+          Map.entry("PATCH /api/v1/products/{id}", "products:update"),
+          Map.entry("PATCH /api/v1/products/{id}/status", "products:change-status"),
+          Map.entry("PUT /api/v1/products/{id}/cover", "products:set-cover"),
+          Map.entry("DELETE /api/v1/products/{id}/cover", "products:remove-cover"),
+          Map.entry("POST /api/v1/products/{id}/deletion", "products:delete"),
+          Map.entry("POST /api/v1/products/{id}/comments", "products:comment"),
+          Map.entry("GET /api/v1/products/{id}/comments/mine", "products:read-own-comments"),
+          Map.entry("PATCH /api/v1/products/{id}/comments/{commentId}", "products:update-comment"),
+          Map.entry("DELETE /api/v1/products/{id}/comments/{commentId}", "products:delete-comment"),
+          // ---- PM · paquetes ----
+          Map.entry("POST /api/v1/packages", "packages:create"),
+          Map.entry("GET /api/v1/packages", "packages:list"),
+          Map.entry("GET /api/v1/packages/{id}", "packages:read"),
+          Map.entry("PATCH /api/v1/packages/{id}", "packages:update"),
+          Map.entry("PATCH /api/v1/packages/{id}/status", "packages:change-status"),
+          Map.entry("PUT /api/v1/packages/{id}/cover", "packages:set-cover"),
+          Map.entry("DELETE /api/v1/packages/{id}/cover", "packages:remove-cover"),
+          Map.entry("POST /api/v1/packages/{id}/products", "packages:add-product"),
+          Map.entry("PATCH /api/v1/packages/{id}/products/{productId}", "packages:update-product"),
+          Map.entry("DELETE /api/v1/packages/{id}/products/{productId}", "packages:remove-product"),
+          Map.entry("POST /api/v1/packages/{id}/deletion", "packages:delete"),
+          // ---- CM ----
+          Map.entry("POST /api/v1/commission-rates", "commissions:create"),
+          Map.entry("GET /api/v1/commission-rates", "commissions:read"),
+          Map.entry("PATCH /api/v1/commission-rates/{id}", "commissions:update"),
+          Map.entry("POST /api/v1/commission-rates/{id}/deletion", "commissions:delete"),
+          Map.entry("GET /api/v1/commissions/effective", "commissions:read-effective"),
+          Map.entry("POST /api/v1/user-commission-rates", "user-commission-rates:create"),
+          Map.entry("GET /api/v1/user-commission-rates", "user-commission-rates:read"),
+          Map.entry("PATCH /api/v1/user-commission-rates/{id}", "user-commission-rates:update"),
+          Map.entry(
+              "POST /api/v1/user-commission-rates/{id}/deletion", "user-commission-rates:delete"),
+          Map.entry("GET /api/v1/product-commission-rates", "product-commission-rates:read"),
+          // ---- MV ----
+          Map.entry("POST /api/v1/movements", "movements:create"),
+          Map.entry("GET /api/v1/movements", "movements:read"),
+          Map.entry("POST /api/v1/movements/{id}/confirmation", "movements:confirm"),
+          Map.entry("POST /api/v1/movements/{id}/voiding", "movements:void"),
+          // ---- AC · con los PADRES hasta el tramo 3 de RF-SP-060 ----
+          Map.entry("POST /api/v1/course-categories", "course-categories:create"),
+          Map.entry("GET /api/v1/course-categories", "course-categories:read"),
+          Map.entry("GET /api/v1/course-categories/{id}", "course-categories:read"),
+          Map.entry("PATCH /api/v1/course-categories/{id}", "course-categories:update"),
+          Map.entry("POST /api/v1/course-categories/{id}/deletion", "course-categories:delete"),
+          Map.entry("POST /api/v1/courses", "courses:create"),
+          Map.entry("GET /api/v1/courses", "courses:read"),
+          Map.entry("GET /api/v1/courses/{id}", "courses:read"),
+          Map.entry("PATCH /api/v1/courses/{id}", "courses:update"),
+          Map.entry("PATCH /api/v1/courses/{id}/status", "courses:update"),
+          Map.entry("POST /api/v1/courses/{id}/deletion", "courses:delete"),
+          Map.entry("POST /api/v1/courses/{courseId}/modules", "courses:update"),
+          Map.entry("PATCH /api/v1/courses/{courseId}/modules/{moduleId}", "courses:update"),
+          Map.entry("PATCH /api/v1/courses/{courseId}/modules/{moduleId}/status", "courses:update"),
+          Map.entry(
+              "POST /api/v1/courses/{courseId}/modules/{moduleId}/deletion", "courses:update"),
+          Map.entry("POST /api/v1/courses/{courseId}/modules/{moduleId}/lessons", "courses:update"),
+          Map.entry(
+              "GET /api/v1/courses/{courseId}/modules/{moduleId}/lessons/{lessonId}",
+              "courses:read"),
+          Map.entry(
+              "PATCH /api/v1/courses/{courseId}/modules/{moduleId}/lessons/{lessonId}",
+              "courses:update"),
+          Map.entry(
+              "PATCH /api/v1/courses/{courseId}/modules/{moduleId}/lessons/{lessonId}/status",
+              "courses:update"),
+          Map.entry(
+              "POST /api/v1/courses/{courseId}/modules/{moduleId}/lessons/{lessonId}/deletion",
+              "courses:update"));
+
+  private static final Pattern HAS_AUTHORITY = Pattern.compile("hasAuthority\\('([^']+)'\\)");
+
+  /**
    * El mapeo de la aplicación, <b>por nombre</b>.
    *
    * <p>Actuator registra el suyo —{@code controllerEndpointHandlerMapping}— y sin cualificar hay
@@ -257,6 +411,71 @@ class EndpointPermissionsIT extends IntegrationTestBase {
   }
 
   @Test
+  @DisplayName(
+      "RN-SEG-014: ningún permiso gobierna dos operaciones, salvo los pendientes con fecha"
+          + " (CA-SP-689)")
+  void ningunPermisoGobiernaDosOperaciones() {
+    Map<String, Set<String>> operacionesPorPermiso = operacionesPorPermiso();
+
+    Map<String, Set<String>> repetidos = new TreeMap<>();
+    operacionesPorPermiso.forEach(
+        (permiso, operaciones) -> {
+          if (operaciones.size() > 1 && !REPARTO_PENDIENTE.containsKey(permiso)) {
+            repetidos.put(permiso, operaciones);
+          }
+        });
+
+    assertThat(repetidos)
+        .as(
+            "estos permisos gobiernan más de una operación: conceder uno concede varias cosas."
+                + " Un permiso, una operación (RN-SEG-014): separa las que sobran con su código"
+                + " propio y su siembra")
+        .isEmpty();
+  }
+
+  @Test
+  @DisplayName("el reparto pendiente no se pudre: cada entrada sigue repitiéndose de verdad")
+  void elPendienteNoSePudre() {
+    Map<String, Set<String>> operacionesPorPermiso = operacionesPorPermiso();
+
+    // Una excepción que sobrevive al reparto que la justificaba dejaría la
+    // puerta abierta a que ese permiso volviera a agrupar sin que nadie lo
+    // notara. El tramo 3 de RF-SP-060 tiene que vaciar el mapa.
+    REPARTO_PENDIENTE
+        .keySet()
+        .forEach(
+            permiso ->
+                assertThat(operacionesPorPermiso.getOrDefault(permiso, Set.of()))
+                    .as("REPARTO_PENDIENTE cita a %s, que ya gobierna una sola operación", permiso)
+                    .hasSizeGreaterThan(1));
+  }
+
+  @Test
+  @DisplayName(
+      "cada operación exige exactamente el permiso de RF-SP-060 · spec.md §6.2 (CA-SP-690)")
+  void cadaOperacionExigeElPermisoDeLaTabla() {
+    Map<String, String> reales = new TreeMap<>();
+    for (Map.Entry<RequestMappingInfo, HandlerMethod> entrada :
+        rutas.getHandlerMethods().entrySet()) {
+      String permiso = permisoDe(entrada.getValue());
+      if (permiso == null) {
+        continue;
+      }
+      for (String firma : firmasDe(entrada.getKey())) {
+        if (firma.contains("/api/v1")) {
+          reales.put(firma, permiso);
+        }
+      }
+    }
+
+    // Las dos direcciones: ninguna operación fuera de la tabla, y ninguna fila
+    // de la tabla sin operación. Con `containsExactlyInAnyOrderEntriesOf` un
+    // endpoint nuevo que nazca con permiso obliga a escribirlo aquí, que es
+    // donde se lee de un vistazo qué exige cada uno.
+    assertThat(reales).containsExactlyInAnyOrderEntriesOf(PERMISO_DE_CADA_OPERACION);
+  }
+
+  @Test
   @DisplayName("hay al menos cuarenta endpoints: la prueba no pasa por no encontrar ninguno")
   void laPruebaEstaMirandoAlgo() {
     long deLaApi =
@@ -269,6 +488,42 @@ class EndpointPermissionsIT extends IntegrationTestBase {
     // verde sin haber comprobado nada — que es la forma en que una prueba de
     // ausencia deja de servir sin avisar.
     assertThat(deLaApi).isGreaterThanOrEqualTo(40);
+  }
+
+  /** Todas las operaciones de `/api/v1` agrupadas por el permiso que exigen. */
+  private Map<String, Set<String>> operacionesPorPermiso() {
+    Map<String, Set<String>> porPermiso = new TreeMap<>();
+    for (Map.Entry<RequestMappingInfo, HandlerMethod> entrada :
+        rutas.getHandlerMethods().entrySet()) {
+      String permiso = permisoDe(entrada.getValue());
+      if (permiso == null) {
+        continue;
+      }
+      for (String firma : firmasDe(entrada.getKey())) {
+        if (firma.contains("/api/v1")) {
+          porPermiso.computeIfAbsent(permiso, p -> new TreeSet<>()).add(firma);
+        }
+      }
+    }
+    return porPermiso;
+  }
+
+  /**
+   * El permiso que exige el manejador, o {@code null} si no exige ninguno (solo token, o sin
+   * anotación). Lee la misma `@PreAuthorize` que Spring evalúa, como
+   * `RequiredPermissionCustomizer`.
+   */
+  private static String permisoDe(HandlerMethod manejador) {
+    Method metodo = manejador.getMethod();
+    PreAuthorize anotacion = metodo.getAnnotation(PreAuthorize.class);
+    if (anotacion == null) {
+      anotacion = metodo.getDeclaringClass().getAnnotation(PreAuthorize.class);
+    }
+    if (anotacion == null) {
+      return null;
+    }
+    Matcher m = HAS_AUTHORITY.matcher(anotacion.value());
+    return m.find() ? m.group(1) : null;
   }
 
   /**

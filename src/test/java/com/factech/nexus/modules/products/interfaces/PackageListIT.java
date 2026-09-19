@@ -226,7 +226,9 @@ class PackageListIT extends IntegrationTestBase {
     mvc.perform(listar("?currencyId=no-es-uuid")).andExpect(status().isBadRequest());
     mvc.perform(
             get("/api/v1/packages")
-                .with(user(UUID.randomUUID().toString()).authorities(() -> "products:read")))
+                .with(
+                    user(UUID.randomUUID().toString())
+                        .authorities(() -> "products:read", () -> "products:list")))
         .andExpect(status().isForbidden());
   }
 
@@ -268,6 +270,7 @@ class PackageListIT extends IntegrationTestBase {
   }
 
   private static org.springframework.test.web.servlet.request.RequestPostProcessor lector() {
-    return user(UUID.randomUUID().toString()).authorities(() -> "packages:read");
+    return user(UUID.randomUUID().toString())
+        .authorities(() -> "packages:read", () -> "packages:list");
   }
 }

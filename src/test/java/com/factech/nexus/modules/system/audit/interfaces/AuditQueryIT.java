@@ -603,7 +603,15 @@ class AuditQueryIT extends IntegrationTestBase {
   private RequestPostProcessor administrador() {
     return user(SUPERADMIN.toString())
         .authorities(
-            () -> "roles:create", () -> "roles:update", () -> "roles:delete", () -> "roles:read");
+            () -> "roles:create",
+            () -> "roles:update",
+            () -> "roles:change-status",
+            () -> "roles:assign-parent",
+            () -> "roles:assign-permissions",
+            () -> "roles:revoke-permissions",
+            () -> "roles:delete",
+            () -> "roles:read",
+            () -> "roles:list");
   }
 
   private UUID crearRolPorApi(String codigo, String nombre) throws Exception {

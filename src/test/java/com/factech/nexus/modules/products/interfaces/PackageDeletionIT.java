@@ -188,6 +188,7 @@ class PackageDeletionIT extends IntegrationTestBase {
   }
 
   private static org.springframework.test.web.servlet.request.RequestPostProcessor lector() {
-    return user(UUID.randomUUID().toString()).authorities(() -> "packages:read");
+    return user(UUID.randomUUID().toString())
+        .authorities(() -> "packages:read", () -> "packages:list");
   }
 }

@@ -277,7 +277,13 @@ class EffectiveCommissionIT extends IntegrationTestBase {
             get("/api/v1/commissions/effective")
                 .param("userId", vendedora.toString())
                 .param("productId", producto.toString())
-                .with(user(SUPERADMIN.toString()).authorities(() -> "commissions:read")))
+                .with(
+                    user(SUPERADMIN.toString())
+                        .authorities(
+                            () -> "commissions:read",
+                            () -> "commissions:read-effective",
+                            () -> "user-commission-rates:read",
+                            () -> "product-commission-rates:read")))
         .andExpect(status().isOk())
         .andExpect(jsonPath("$.outcome").value("RESUELTA"))
         .andExpect(jsonPath("$.onDate").exists());
@@ -302,7 +308,10 @@ class EffectiveCommissionIT extends IntegrationTestBase {
             get("/api/v1/commissions/effective")
                 .param("userId", vendedora.toString())
                 .param("productId", producto.toString())
-                .with(user(SUPERADMIN.toString()).authorities(() -> "commissions:create")))
+                .with(
+                    user(SUPERADMIN.toString())
+                        .authorities(
+                            () -> "commissions:create", () -> "user-commission-rates:create")))
         .andExpect(status().isForbidden());
   }
 
@@ -435,6 +444,12 @@ class EffectiveCommissionIT extends IntegrationTestBase {
         .param("userId", persona.toString())
         .param("productId", producto.toString())
         .param("onDate", fecha)
-        .with(user(SUPERADMIN.toString()).authorities(() -> "commissions:read"));
+        .with(
+            user(SUPERADMIN.toString())
+                .authorities(
+                    () -> "commissions:read",
+                    () -> "commissions:read-effective",
+                    () -> "user-commission-rates:read",
+                    () -> "product-commission-rates:read"));
   }
 }

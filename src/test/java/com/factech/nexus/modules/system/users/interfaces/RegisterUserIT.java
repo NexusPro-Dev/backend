@@ -457,7 +457,10 @@ class RegisterUserIT extends IntegrationTestBase {
   void sinPermiso() throws Exception {
     mvc.perform(
             post("/api/v1/users")
-                .with(user(SUPERADMIN.toString()).authorities(() -> "users:read"))
+                .with(
+                    user(SUPERADMIN.toString())
+                        .authorities(
+                            () -> "users:read", () -> "users:list", () -> "users:read-team"))
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(cuerpo("jperez", "jperez@factech.co", "\"" + rolAcotado + "\"")))
         .andExpect(status().isForbidden());

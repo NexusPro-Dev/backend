@@ -183,7 +183,12 @@ class ProductImageIT extends IntegrationTestBase {
   }
 
   private static RequestPostProcessor admin() {
-    return user(UUID.randomUUID().toString()).authorities(() -> "products:update");
+    return user(UUID.randomUUID().toString())
+        .authorities(
+            () -> "products:update",
+            () -> "products:change-status",
+            () -> "products:set-cover",
+            () -> "products:remove-cover");
   }
 
   private static RequestPostProcessor cualquiera() {

@@ -139,7 +139,13 @@ class ProductStatusConcurrencyIT extends IntegrationTestBase {
 
   private MockHttpServletRequestBuilder cambiar(UUID id, String estado) {
     return patch("/api/v1/products/{id}/status", id)
-        .with(user(UUID.randomUUID().toString()).authorities(() -> "products:update"))
+        .with(
+            user(UUID.randomUUID().toString())
+                .authorities(
+                    () -> "products:update",
+                    () -> "products:change-status",
+                    () -> "products:set-cover",
+                    () -> "products:remove-cover"))
         .contentType(MediaType.APPLICATION_JSON)
         .content("{\"status\":\"" + estado + "\"}");
   }

@@ -381,7 +381,9 @@ class CommercialStructureIT extends IntegrationTestBase {
     // Retirarle el rol comercial debe rechazarse citando ese mismo número.
     mvc.perform(
             post("/api/v1/users/{id}/roles/revocations", medio)
-                .with(user(SUPERADMIN.toString()).authorities(() -> "users:assign-roles"))
+                .with(
+                    user(SUPERADMIN.toString())
+                        .authorities(() -> "users:assign-roles", () -> "users:revoke-roles"))
                 .contentType(MediaType.APPLICATION_JSON)
                 .content("{\"roleIds\":[\"" + DIRECTOR + "\"]}"))
         .andExpect(status().isConflict())
@@ -562,7 +564,8 @@ class CommercialStructureIT extends IntegrationTestBase {
   }
 
   private RequestPostProcessor lector() {
-    return user(SUPERADMIN.toString()).authorities(() -> "users:read");
+    return user(SUPERADMIN.toString())
+        .authorities(() -> "users:read", () -> "users:list", () -> "users:read-team");
   }
 
   private UUID crearPersona(String username, String rol) {

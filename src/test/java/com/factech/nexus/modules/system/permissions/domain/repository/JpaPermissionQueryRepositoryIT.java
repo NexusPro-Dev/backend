@@ -35,7 +35,7 @@ class JpaPermissionQueryRepositoryIT extends IntegrationTestBase {
   @Test
   @DisplayName("sin filtros devuelve el catálogo completo")
   void sinFiltrosDevuelveTodo() {
-    assertThat(repository.find(ListPermissionsQuery.all())).hasSize(60);
+    assertThat(repository.find(ListPermissionsQuery.all())).hasSize(111);
   }
 
   @Test
@@ -54,7 +54,16 @@ class JpaPermissionQueryRepositoryIT extends IntegrationTestBase {
   @DisplayName("el filtro por recurso es de igualdad, no de contención")
   void filtroPorRecursoEsIgualdad() {
     assertThat(codesOf(ListPermissionsQuery.of("roles", null, null)))
-        .containsExactly("roles:create", "roles:delete", "roles:read", "roles:update");
+        .containsExactly(
+            "roles:assign-parent",
+            "roles:assign-permissions",
+            "roles:change-status",
+            "roles:create",
+            "roles:delete",
+            "roles:list",
+            "roles:read",
+            "roles:revoke-permissions",
+            "roles:update");
 
     // Si el filtro fuera por contención, «role» arrastraría los de «roles» y
     // el cliente no tendría forma de pedir solo uno de los dos.
@@ -145,7 +154,7 @@ class JpaPermissionQueryRepositoryIT extends IntegrationTestBase {
     assertThat(item.code()).isEqualTo("permissions:read");
     assertThat(item.resource()).isEqualTo("permissions");
     assertThat(item.action()).isEqualTo("read");
-    assertThat(item.name()).isEqualTo("Consultar permisos");
+    assertThat(item.name()).isEqualTo("Consultar el detalle de un permiso");
     assertThat(item.description()).isNotBlank();
   }
 }

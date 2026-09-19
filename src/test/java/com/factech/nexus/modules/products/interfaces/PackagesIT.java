@@ -236,7 +236,11 @@ class PackagesIT extends IntegrationTestBase {
                         .authorities(
                             () -> "products:create",
                             () -> "products:read",
+                            () -> "products:list",
                             () -> "products:update",
+                            () -> "products:change-status",
+                            () -> "products:set-cover",
+                            () -> "products:remove-cover",
                             () -> "products:delete"))
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(cuerpo("SIN_PERMISO", "Sin permiso", USD)))

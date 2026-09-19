@@ -65,7 +65,16 @@ class PackageDissociationIT extends IntegrationTestBase {
     UUID actor = UUID.randomUUID();
     mvc.perform(
             delete("/api/v1/packages/" + paquete + "/products/" + botA)
-                .with(user(actor.toString()).authorities(() -> "packages:update")))
+                .with(
+                    user(actor.toString())
+                        .authorities(
+                            () -> "packages:update",
+                            () -> "packages:change-status",
+                            () -> "packages:set-cover",
+                            () -> "packages:remove-cover",
+                            () -> "packages:add-product",
+                            () -> "packages:update-product",
+                            () -> "packages:remove-product")))
         .andExpect(status().isOk())
         .andExpect(jsonPath("$.items", hasSize(1)))
         .andExpect(jsonPath("$.items[0].product.code").value("BOT_B"))
@@ -152,18 +161,42 @@ class PackageDissociationIT extends IntegrationTestBase {
   void sinPermiso() throws Exception {
     mvc.perform(
             delete("/api/v1/packages/" + paquete + "/products/" + botA)
-                .with(user(UUID.randomUUID().toString()).authorities(() -> "products:update")))
+                .with(
+                    user(UUID.randomUUID().toString())
+                        .authorities(
+                            () -> "products:update",
+                            () -> "products:change-status",
+                            () -> "products:set-cover",
+                            () -> "products:remove-cover")))
         .andExpect(status().isForbidden());
   }
 
   private MockHttpServletRequestBuilder desasociar(UUID paquete, UUID producto) {
     return delete("/api/v1/packages/" + paquete + "/products/" + producto)
-        .with(user(UUID.randomUUID().toString()).authorities(() -> "packages:update"));
+        .with(
+            user(UUID.randomUUID().toString())
+                .authorities(
+                    () -> "packages:update",
+                    () -> "packages:change-status",
+                    () -> "packages:set-cover",
+                    () -> "packages:remove-cover",
+                    () -> "packages:add-product",
+                    () -> "packages:update-product",
+                    () -> "packages:remove-product"));
   }
 
   private MockHttpServletRequestBuilder asociar(UUID paquete, UUID producto) {
     return post("/api/v1/packages/" + paquete + "/products")
-        .with(user(UUID.randomUUID().toString()).authorities(() -> "packages:update"))
+        .with(
+            user(UUID.randomUUID().toString())
+                .authorities(
+                    () -> "packages:update",
+                    () -> "packages:change-status",
+                    () -> "packages:set-cover",
+                    () -> "packages:remove-cover",
+                    () -> "packages:add-product",
+                    () -> "packages:update-product",
+                    () -> "packages:remove-product"))
         .contentType(MediaType.APPLICATION_JSON)
         .content(PackageProductsIT.json(producto, "FIJO", "0"));
   }

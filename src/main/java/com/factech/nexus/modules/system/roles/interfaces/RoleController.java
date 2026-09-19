@@ -164,7 +164,7 @@ public class RoleController {
    * error, y tratarla como {@code 404} obligaría al cliente a distinguir «no hay» de «falló».
    */
   @GetMapping
-  @PreAuthorize("hasAuthority('roles:read')")
+  @PreAuthorize("hasAuthority('roles:list')")
   @Operation(
       summary = "Consultar roles",
       description =
@@ -214,7 +214,7 @@ public class RoleController {
         content = @Content),
     @ApiResponse(
         responseCode = "403",
-        description = "Autenticado sin `roles:read` (`AUTH-002`)",
+        description = "Autenticado sin `roles:list` (`AUTH-002`)",
         content = @Content),
     @ApiResponse(
         responseCode = "500",
@@ -343,7 +343,7 @@ public class RoleController {
     @ApiResponse(
         responseCode = "403",
         description =
-            "Sin `roles:update` (`AUTH-002`), o el rol está asignado al propio actor"
+            "Sin `roles:change-status` (`AUTH-002`), o el rol está asignado al propio actor"
                 + " (`RN-SEG-011`)"),
     @ApiResponse(
         responseCode = "404",
@@ -359,7 +359,7 @@ public class RoleController {
   }
 
   @PatchMapping("/{id}/status")
-  @PreAuthorize("hasAuthority('roles:update')")
+  @PreAuthorize("hasAuthority('roles:change-status')")
   @Operation(
       summary = "Activar o desactivar un rol",
       description =
@@ -391,7 +391,8 @@ public class RoleController {
     @ApiResponse(responseCode = "401", description = "Token ausente o inválido (`AUTH-001`)"),
     @ApiResponse(
         responseCode = "403",
-        description = "Sin `roles:update`, o el rol está asignado al propio actor (`RN-SEG-011`)"),
+        description =
+            "Sin `roles:change-status`, o el rol está asignado al propio actor (`RN-SEG-011`)"),
     @ApiResponse(
         responseCode = "404",
         description = "El rol no existe o está eliminado (`EX-003`)"),
@@ -406,7 +407,7 @@ public class RoleController {
   }
 
   @PatchMapping("/{id}/parent")
-  @PreAuthorize("hasAuthority('roles:update')")
+  @PreAuthorize("hasAuthority('roles:assign-parent')")
   @Operation(
       summary = "Cambiar el rol padre",
       description =
@@ -439,7 +440,8 @@ public class RoleController {
     @ApiResponse(responseCode = "401", description = "Token ausente o inválido (`AUTH-001`)"),
     @ApiResponse(
         responseCode = "403",
-        description = "Sin `roles:update`, o el rol está asignado al propio actor (`RN-SEG-011`)"),
+        description =
+            "Sin `roles:assign-parent`, o el rol está asignado al propio actor (`RN-SEG-011`)"),
     @ApiResponse(
         responseCode = "404",
         description = "El rol no existe o está eliminado (`EX-006`)"),
@@ -459,7 +461,7 @@ public class RoleController {
   }
 
   @PostMapping("/{id}/permissions")
-  @PreAuthorize("hasAuthority('roles:update')")
+  @PreAuthorize("hasAuthority('roles:assign-permissions')")
   @Operation(
       summary = "Agregar permisos a un rol",
       description =
@@ -471,7 +473,7 @@ public class RoleController {
 
           Cada permiso debe estar **contenido en los del rol padre**
           (`RN-SEG-003`) y **en los permisos efectivos de quien ejecuta la
-          operación** (`RN-SEG-010`). Lo segundo no lo concede `roles:update`:
+          operación** (`RN-SEG-010`). Lo segundo no lo concede `roles:assign-permissions`:
           ese permiso habilita a modificar roles, no a decidir con qué alcance.
 
           **El rol raíz omite la primera comprobación** —no tiene cota superior—
@@ -499,7 +501,8 @@ public class RoleController {
     @ApiResponse(responseCode = "401", description = "Token ausente o inválido (`AUTH-001`)"),
     @ApiResponse(
         responseCode = "403",
-        description = "Sin `roles:update`, o el rol está asignado al propio actor (`RN-SEG-011`)"),
+        description =
+            "Sin `roles:assign-permissions`, o el rol está asignado al propio actor (`RN-SEG-011`)"),
     @ApiResponse(
         responseCode = "404",
         description = "El rol no existe o está eliminado (`EX-006`)"),
@@ -519,7 +522,7 @@ public class RoleController {
   }
 
   @PostMapping("/{id}/permissions/revocations")
-  @PreAuthorize("hasAuthority('roles:update')")
+  @PreAuthorize("hasAuthority('roles:revoke-permissions')")
   @Operation(
       summary = "Retirar permisos de un rol",
       description =
@@ -558,7 +561,8 @@ public class RoleController {
     @ApiResponse(responseCode = "401", description = "Token ausente o inválido (`AUTH-001`)"),
     @ApiResponse(
         responseCode = "403",
-        description = "Sin `roles:update`, o el rol está asignado al propio actor (`RN-SEG-011`)"),
+        description =
+            "Sin `roles:revoke-permissions`, o el rol está asignado al propio actor (`RN-SEG-011`)"),
     @ApiResponse(
         responseCode = "404",
         description = "El rol no existe o está eliminado (`EX-004`)"),

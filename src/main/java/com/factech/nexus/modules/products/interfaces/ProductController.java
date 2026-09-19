@@ -194,7 +194,7 @@ public class ProductController {
   }
 
   @GetMapping
-  @PreAuthorize("hasAuthority('products:read')")
+  @PreAuthorize("hasAuthority('products:list')")
   @Operation(
       summary = "Consultar el catálogo de productos",
       description =
@@ -206,7 +206,7 @@ public class ProductController {
           Al pedirlos se indica **desde cuándo** lo están; el **motivo** no viaja
           en el listado —uno a uno lo devuelve el detalle (`RF-PM-003`), en
           bloque sería una exportación de decisiones comerciales—. Verlos **no
-          exige un permiso propio**: basta `products:read`.
+          exige un permiso propio**: basta `products:list`.
 
           Cada fila trae **los dos precios**: `price` —el que se cobra— y
           `purchasePrice` —el **precio de compra**, lo que NEXUS paga por el
@@ -270,7 +270,7 @@ public class ProductController {
         content = @Content),
     @ApiResponse(
         responseCode = "403",
-        description = "Autenticado sin el permiso `products:read` (`AUTH-002`)",
+        description = "Autenticado sin el permiso `products:list` (`AUTH-002`)",
         content = @Content),
     @ApiResponse(
         responseCode = "500",
@@ -644,7 +644,7 @@ public class ProductController {
   }
 
   @PatchMapping("/{id}/status")
-  @PreAuthorize("hasAuthority('products:update')")
+  @PreAuthorize("hasAuthority('products:change-status')")
   @Operation(
       summary = "Publicar o retirar de la oferta un producto",
       description =
@@ -690,7 +690,7 @@ public class ProductController {
         content = @Content),
     @ApiResponse(
         responseCode = "403",
-        description = "Autenticado sin el permiso `products:update` (`AUTH-002`)",
+        description = "Autenticado sin el permiso `products:change-status` (`AUTH-002`)",
         content = @Content),
     @ApiResponse(
         responseCode = "404",
@@ -711,7 +711,7 @@ public class ProductController {
   }
 
   @PutMapping(value = "/{id}/cover", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
-  @PreAuthorize("hasAuthority('products:update')")
+  @PreAuthorize("hasAuthority('products:set-cover')")
   @Operation(
       summary = "Subir o reemplazar la portada de un producto",
       description =
@@ -758,7 +758,7 @@ public class ProductController {
         content = @Content),
     @ApiResponse(
         responseCode = "403",
-        description = "Autenticado sin el permiso `products:update` (`AUTH-002`)",
+        description = "Autenticado sin el permiso `products:set-cover` (`AUTH-002`)",
         content = @Content),
     @ApiResponse(
         responseCode = "404",
@@ -779,7 +779,7 @@ public class ProductController {
   }
 
   @DeleteMapping("/{id}/cover")
-  @PreAuthorize("hasAuthority('products:update')")
+  @PreAuthorize("hasAuthority('products:remove-cover')")
   @Operation(
       summary = "Quitar la portada de un producto",
       description =
@@ -816,7 +816,7 @@ public class ProductController {
         content = @Content),
     @ApiResponse(
         responseCode = "403",
-        description = "Autenticado sin el permiso `products:update` (`AUTH-002`)",
+        description = "Autenticado sin el permiso `products:remove-cover` (`AUTH-002`)",
         content = @Content),
     @ApiResponse(
         responseCode = "404",

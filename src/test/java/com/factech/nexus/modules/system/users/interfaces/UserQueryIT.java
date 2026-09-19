@@ -567,7 +567,8 @@ class UserQueryIT extends IntegrationTestBase {
   }
 
   private RequestPostProcessor lector() {
-    return user(SUPERADMIN.toString()).authorities(() -> "users:read");
+    return user(SUPERADMIN.toString())
+        .authorities(() -> "users:read", () -> "users:list", () -> "users:read-team");
   }
 
   private UUID crearPersona(

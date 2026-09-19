@@ -89,7 +89,7 @@ public class CommissionResolutionController {
     @ApiResponse(responseCode = "422", description = "La persona o el producto no existen")
   })
   @GetMapping("/effective")
-  @PreAuthorize("hasAuthority('commissions:read')")
+  @PreAuthorize("hasAuthority('commissions:read-effective')")
   public EffectiveCommissionResponse efectiva(
       @RequestParam UUID userId,
       @RequestParam UUID productId,

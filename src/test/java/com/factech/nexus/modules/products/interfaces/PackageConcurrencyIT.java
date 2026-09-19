@@ -108,7 +108,16 @@ class PackageConcurrencyIT extends IntegrationTestBase {
   private MockHttpServletRequestBuilder asociar(
       UUID paquete, UUID producto, String forma, String valor) {
     return post("/api/v1/packages/" + paquete + "/products")
-        .with(user(UUID.randomUUID().toString()).authorities(() -> "packages:update"))
+        .with(
+            user(UUID.randomUUID().toString())
+                .authorities(
+                    () -> "packages:update",
+                    () -> "packages:change-status",
+                    () -> "packages:set-cover",
+                    () -> "packages:remove-cover",
+                    () -> "packages:add-product",
+                    () -> "packages:update-product",
+                    () -> "packages:remove-product"))
         .contentType(MediaType.APPLICATION_JSON)
         .content(PackageProductsIT.json(producto, forma, valor));
   }

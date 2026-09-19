@@ -170,7 +170,12 @@ class UserMembershipRejectionAuditIT extends IntegrationTestBase {
 
   private RequestPostProcessor administrador() {
     return user(SUPERADMIN.toString())
-        .authorities(() -> "users:assign-membership", () -> "users:read");
+        .authorities(
+            () -> "users:assign-membership",
+            () -> "users:revoke-membership",
+            () -> "users:read",
+            () -> "users:list",
+            () -> "users:read-team");
   }
 
   private long filasDeError() {

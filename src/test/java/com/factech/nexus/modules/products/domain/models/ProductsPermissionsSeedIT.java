@@ -43,13 +43,26 @@ class ProductsPermissionsSeedIT extends IntegrationTestBase {
   @Autowired private JdbcTemplate jdbc;
 
   @Test
-  @DisplayName("los siete permisos de pm.md §4 están sembrados, y no hay un octavo")
+  @DisplayName(
+      "los catorce permisos `products:` de pm.md §4 están sembrados: los siete de V8 y los siete de V28")
   void losSeisSembrados() {
     List<String> codigos =
         jdbc.queryForList(
             "SELECT code FROM permissions WHERE resource = 'products' ORDER BY code", String.class);
 
-    assertThat(codigos).containsExactlyInAnyOrderElementsOf(LOS_SIETE);
+    assertThat(codigos)
+        .containsAll(LOS_SIETE)
+        .hasSize(14)
+        // Los siete de V28 (RF-SP-060): products:update se queda con la edición y
+        // products:comment con escribir la reseña.
+        .contains(
+            "products:list",
+            "products:change-status",
+            "products:set-cover",
+            "products:remove-cover",
+            "products:read-own-comments",
+            "products:update-comment",
+            "products:delete-comment");
   }
 
   @Test

@@ -391,11 +391,17 @@ class ProductCoverIT extends IntegrationTestBase {
   }
 
   private static RequestPostProcessor admin() {
-    return user(UUID.randomUUID().toString()).authorities(() -> "products:update");
+    return user(UUID.randomUUID().toString())
+        .authorities(
+            () -> "products:update",
+            () -> "products:change-status",
+            () -> "products:set-cover",
+            () -> "products:remove-cover");
   }
 
   private static RequestPostProcessor lector() {
-    return user(UUID.randomUUID().toString()).authorities(() -> "products:read");
+    return user(UUID.randomUUID().toString())
+        .authorities(() -> "products:read", () -> "products:list");
   }
 
   private static String sinIdentidad(String cuerpo) {

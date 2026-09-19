@@ -35,12 +35,28 @@ class CoursesPermissionsSeedIT extends IntegrationTestBase {
   @Autowired private JdbcTemplate jdbc;
 
   @Test
-  @DisplayName("los seis permisos `courses:` de ac.md §7 están sembrados, y no hay un séptimo")
+  @DisplayName(
+      "los seis permisos `courses:` de ac.md §7 están sembrados, y V28 (RF-SP-060) añade los"
+          + " ocho del reparto de courses:read y courses:update")
   void losSeisSembrados() {
     List<String> codigos =
         jdbc.queryForList(
             "SELECT code FROM permissions WHERE resource = 'courses' ORDER BY code", String.class);
-    assertThat(codigos).containsExactlyInAnyOrderElementsOf(LOS_SEIS.keySet());
+    // V28 (RF-SP-060, 19-09-2026): el listado, el estado y las seis relaciones
+    // ganan código propio bajo `courses`; módulos y lecciones son recurso aparte.
+    // Los controladores los declaran en el tramo 3 de ese requerimiento.
+    assertThat(codigos)
+        .containsAll(LOS_SEIS.keySet())
+        .hasSize(14)
+        .contains(
+            "courses:list",
+            "courses:change-status",
+            "courses:assign-category",
+            "courses:revoke-category",
+            "courses:assign-recommendation",
+            "courses:revoke-recommendation",
+            "courses:assign-membership",
+            "courses:revoke-membership");
   }
 
   @Test
@@ -70,7 +86,8 @@ class CoursesPermissionsSeedIT extends IntegrationTestBase {
                  WHERE p.resource = 'courses'
                 """,
                 Integer.class))
-        .isEqualTo(12);
+        // Catorce por dos roles: V28 dio cada hijo a quien portaba el padre.
+        .isEqualTo(28);
   }
 
   private List<String> permisosDe(UUID rol) {

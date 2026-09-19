@@ -252,7 +252,7 @@ class PackageHotlinkIT extends IntegrationTestBase {
                     .with(
                         org.springframework.security.test.web.servlet.request
                             .SecurityMockMvcRequestPostProcessors.user(UUID.randomUUID().toString())
-                            .authorities(() -> "packages:read")))
+                            .authorities(() -> "packages:read", () -> "packages:list")))
             .andExpect(status().isOk())
             .andReturn()
             .getResponse()

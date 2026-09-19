@@ -167,7 +167,13 @@ class CommissionRatesIT extends IntegrationTestBase {
     mvc.perform(
             get("/api/v1/product-commission-rates")
                 .param("productId", producto.toString())
-                .with(user(SUPERADMIN.toString()).authorities(() -> "commissions:read")))
+                .with(
+                    user(SUPERADMIN.toString())
+                        .authorities(
+                            () -> "commissions:read",
+                            () -> "commissions:read-effective",
+                            () -> "user-commission-rates:read",
+                            () -> "product-commission-rates:read")))
         .andExpect(status().isOk())
         .andExpect(jsonPath("$.content.length()").value(2))
         .andExpect(jsonPath("$.content[0].role.code").value("DIRECTOR"))
@@ -226,7 +232,13 @@ class CommissionRatesIT extends IntegrationTestBase {
   void exigeElPermiso() throws Exception {
     mvc.perform(
             post("/api/v1/commission-rates")
-                .with(user(SUPERADMIN.toString()).authorities(() -> "commissions:read"))
+                .with(
+                    user(SUPERADMIN.toString())
+                        .authorities(
+                            () -> "commissions:read",
+                            () -> "commissions:read-effective",
+                            () -> "user-commission-rates:read",
+                            () -> "product-commission-rates:read"))
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(cuerpo(producto, MANAGER, "10.00")))
         .andExpect(status().isForbidden());
@@ -516,7 +528,9 @@ class CommissionRatesIT extends IntegrationTestBase {
 
   private MockHttpServletRequestBuilder alta(String json) {
     return post("/api/v1/commission-rates")
-        .with(user(SUPERADMIN.toString()).authorities(() -> "commissions:create"))
+        .with(
+            user(SUPERADMIN.toString())
+                .authorities(() -> "commissions:create", () -> "user-commission-rates:create"))
         .contentType(MediaType.APPLICATION_JSON)
         .content(json);
   }
@@ -536,7 +550,13 @@ class CommissionRatesIT extends IntegrationTestBase {
         .param("userId", persona.toString())
         .param("productId", producto.toString())
         .param("onDate", "2026-09-15")
-        .with(user(SUPERADMIN.toString()).authorities(() -> "commissions:read"));
+        .with(
+            user(SUPERADMIN.toString())
+                .authorities(
+                    () -> "commissions:read",
+                    () -> "commissions:read-effective",
+                    () -> "user-commission-rates:read",
+                    () -> "product-commission-rates:read"));
   }
 
   private int decimalesDeLaMonedaDe(UUID producto) {

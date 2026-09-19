@@ -56,7 +56,12 @@ abstract class ProductCommentTestSupport extends IntegrationTestBase {
 
   /** Con `products:comment`, y nada más: ni `products:read` ni ningún otro. */
   protected static RequestPostProcessor comoResenador(UUID quien) {
-    return user(quien.toString()).authorities(() -> "products:comment");
+    return user(quien.toString())
+        .authorities(
+            () -> "products:comment",
+            () -> "products:read-own-comments",
+            () -> "products:update-comment",
+            () -> "products:delete-comment");
   }
 
   /**
@@ -67,12 +72,19 @@ abstract class ProductCommentTestSupport extends IntegrationTestBase {
     return user(quien.toString())
         .authorities(
             () -> "products:read",
+            () -> "products:list",
             () -> "products:create",
             () -> "products:update",
+            () -> "products:change-status",
+            () -> "products:set-cover",
+            () -> "products:remove-cover",
             () -> "products:delete",
             () -> "products:sale",
             () -> "products:hotlink",
-            () -> "products:comment");
+            () -> "products:comment",
+            () -> "products:read-own-comments",
+            () -> "products:update-comment",
+            () -> "products:delete-comment");
   }
 
   /** Solo los de administración: `products:read` y compañía NO habilitan reseñar (`CA-PM-176`). */
@@ -80,8 +92,12 @@ abstract class ProductCommentTestSupport extends IntegrationTestBase {
     return user(quien.toString())
         .authorities(
             () -> "products:read",
+            () -> "products:list",
             () -> "products:create",
             () -> "products:update",
+            () -> "products:change-status",
+            () -> "products:set-cover",
+            () -> "products:remove-cover",
             () -> "products:delete");
   }
 

@@ -313,6 +313,7 @@ class MembershipConcurrencyIT extends IntegrationTestBase {
 
   private RequestPostProcessor admin() {
     return user(UUID.randomUUID().toString())
-        .authorities(() -> "memberships:create", () -> "memberships:read");
+        .authorities(
+            () -> "memberships:create", () -> "memberships:read", () -> "memberships:list");
   }
 }

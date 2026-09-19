@@ -236,7 +236,13 @@ class ProductDeletionIT extends IntegrationTestBase {
     // `products:update` no basta: retirar y corregir son decisiones distintas.
     mvc.perform(
             post("/api/v1/products/{id}/deletion", bot)
-                .with(user(UUID.randomUUID().toString()).authorities(() -> "products:update"))
+                .with(
+                    user(UUID.randomUUID().toString())
+                        .authorities(
+                            () -> "products:update",
+                            () -> "products:change-status",
+                            () -> "products:set-cover",
+                            () -> "products:remove-cover"))
                 .contentType(MediaType.APPLICATION_JSON)
                 .content("{\"reason\":\"Se descontinuó.\"}"))
         .andExpect(status().isForbidden());
@@ -258,7 +264,9 @@ class ProductDeletionIT extends IntegrationTestBase {
     // `shared/audit`.
     mvc.perform(
             get("/api/v1/products/{id}", bot)
-                .with(user(UUID.randomUUID().toString()).authorities(() -> "products:read")))
+                .with(
+                    user(UUID.randomUUID().toString())
+                        .authorities(() -> "products:read", () -> "products:list")))
         .andExpect(status().isOk())
         .andExpect(jsonPath("$.deletedAt").exists())
         .andExpect(jsonPath("$.deletionReason").value("Se descontinuó la línea de soporte."))
@@ -277,7 +285,13 @@ class ProductDeletionIT extends IntegrationTestBase {
 
   private MockHttpServletRequestBuilder activar(UUID id) {
     return patch("/api/v1/products/{id}/status", id)
-        .with(user(UUID.randomUUID().toString()).authorities(() -> "products:update"))
+        .with(
+            user(UUID.randomUUID().toString())
+                .authorities(
+                    () -> "products:update",
+                    () -> "products:change-status",
+                    () -> "products:set-cover",
+                    () -> "products:remove-cover"))
         .contentType(MediaType.APPLICATION_JSON)
         .content("{\"status\":\"ACTIVO\"}");
   }
@@ -295,7 +309,9 @@ class ProductDeletionIT extends IntegrationTestBase {
 
   private MockHttpServletRequestBuilder listado(String consulta) {
     return get("/api/v1/products" + consulta)
-        .with(user(UUID.randomUUID().toString()).authorities(() -> "products:read"));
+        .with(
+            user(UUID.randomUUID().toString())
+                .authorities(() -> "products:read", () -> "products:list"));
   }
 
   private static RequestPostProcessor admin() {

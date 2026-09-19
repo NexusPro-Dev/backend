@@ -6501,7 +6501,7 @@
     },
     "/api/v1/broker-accounts/indicators" : {
       "get" : {
-        "description" : "**Permiso requerido:** `broker-accounts:read`. Sin él, `403` (`AUTH-002`).\n\nDevuelve **el árbol de la fuerza comercial**, cada nodo con dos\nbloques de números: `own` —lo que cuelga **directamente** de esa\npersona— y `network` —esa persona **y todo lo que cuelga de ella**, a\ncualquier profundidad—.\n\n**La regla es una sola en todos los niveles**: el `network` de alguien\nes su `own` más la suma de los `network` de sus hijos. Un agente\nrecibe lo de sus clientes directos; un director, lo suyo más lo de sus\nagentes; un manager, lo suyo más lo de sus directores.\n\n**NO SUME LA COLUMNA `network` DE UNA LISTA.** El `network` de un\ndirector **ya contiene** el de sus agentes, de modo que sumar totales\nde distintos niveles cuenta dos veces. Para agregar, sume `own`; para\nleer el total de una rama, use su `network`.\n\n**Qué cuenta como uno:** `accounts` cuenta **cuentas** y `consumers`\ncuenta **personas**, y no tienen por qué coincidir — un cliente con\ndos cuentas es una persona y dos cuentas. **Solo cuentan las cuentas\nde consumidores**: la cuenta personal de un vendedor no entra en\nningún indicador.\n\n**Los consumidores no son nodos.** Aportan el número y no aparecen: el\nárbol es de la fuerza comercial.\n\n**`conversion` es `ftd / accounts`, un cociente entre 0 y 1 —no un\nporcentaje— y es NULA cuando no hay cuentas**, no cero: cero se lee\ncomo «nadie convirtió» y la verdad sería «no hay nada que convertir».\nSe recalcula en cada nodo sobre sus propios totales; **no es el\npromedio de las de sus hijos**.\n\n**`unassigned` es lo que hace que los números cuadren**: las cuentas\nde consumidores que no cuelgan de ningún vendedor no entran en ningún\nnodo. Se cumple que `totals` + `unassigned` es igual al\n`totalElements` de `GET /api/v1/broker-accounts` sin filtros. Se omite\ncuando se pide una rama con `rootId`, donde no significa nada.\n\n**`rootId` acota el árbol a esa rama e INCLUYE a la persona como\nraíz**, al revés que el `supervisorId` de `GET /api/v1/broker-accounts`:\nallí se piden las cuentas de su red —y las suyas no son de su red— y\naquí se pide el nodo que lleva sus números.\n\n**Hoy `ftd` será cero en todas partes** y el embudo se verá entero en\n`pending`: quien mueve una cuenta a `FIRST_DEPOSIT` es el webhook del\nbroker, que todavía no existe. Es el estado real, no un fallo del\nindicador.\n",
+        "description" : "**Permiso requerido:** `broker-accounts:read-indicators`. Sin él, `403` (`AUTH-002`).\n\nDevuelve **el árbol de la fuerza comercial**, cada nodo con dos\nbloques de números: `own` —lo que cuelga **directamente** de esa\npersona— y `network` —esa persona **y todo lo que cuelga de ella**, a\ncualquier profundidad—.\n\n**La regla es una sola en todos los niveles**: el `network` de alguien\nes su `own` más la suma de los `network` de sus hijos. Un agente\nrecibe lo de sus clientes directos; un director, lo suyo más lo de sus\nagentes; un manager, lo suyo más lo de sus directores.\n\n**NO SUME LA COLUMNA `network` DE UNA LISTA.** El `network` de un\ndirector **ya contiene** el de sus agentes, de modo que sumar totales\nde distintos niveles cuenta dos veces. Para agregar, sume `own`; para\nleer el total de una rama, use su `network`.\n\n**Qué cuenta como uno:** `accounts` cuenta **cuentas** y `consumers`\ncuenta **personas**, y no tienen por qué coincidir — un cliente con\ndos cuentas es una persona y dos cuentas. **Solo cuentan las cuentas\nde consumidores**: la cuenta personal de un vendedor no entra en\nningún indicador.\n\n**Los consumidores no son nodos.** Aportan el número y no aparecen: el\nárbol es de la fuerza comercial.\n\n**`conversion` es `ftd / accounts`, un cociente entre 0 y 1 —no un\nporcentaje— y es NULA cuando no hay cuentas**, no cero: cero se lee\ncomo «nadie convirtió» y la verdad sería «no hay nada que convertir».\nSe recalcula en cada nodo sobre sus propios totales; **no es el\npromedio de las de sus hijos**.\n\n**`unassigned` es lo que hace que los números cuadren**: las cuentas\nde consumidores que no cuelgan de ningún vendedor no entran en ningún\nnodo. Se cumple que `totals` + `unassigned` es igual al\n`totalElements` de `GET /api/v1/broker-accounts` sin filtros. Se omite\ncuando se pide una rama con `rootId`, donde no significa nada.\n\n**`rootId` acota el árbol a esa rama e INCLUYE a la persona como\nraíz**, al revés que el `supervisorId` de `GET /api/v1/broker-accounts`:\nallí se piden las cuentas de su red —y las suyas no son de su red— y\naquí se pide el nodo que lleva sus números.\n\n**Hoy `ftd` será cero en todas partes** y el embudo se verá entero en\n`pending`: quien mueve una cuenta a `FIRST_DEPOSIT` es el webhook del\nbroker, que todavía no existe. Es el estado real, no un fallo del\nindicador.\n",
         "operationId" : "indicadoresDeLaRed",
         "parameters" : [ {
           "description" : "Acota el árbol a la rama de esa persona, ella incluida.",
@@ -6552,7 +6552,7 @@
                 }
               }
             },
-            "description" : "Autenticado sin `broker-accounts:read` (`AUTH-002`)"
+            "description" : "Autenticado sin `broker-accounts:read-indicators` (`AUTH-002`)"
           },
           "404" : {
             "content" : {
@@ -6577,7 +6577,7 @@
         },
         "summary" : "Consultar los indicadores de la red comercial",
         "tags" : [ "Cuentas de broker" ],
-        "x-required-permission" : "broker-accounts:read"
+        "x-required-permission" : "broker-accounts:read-indicators"
       }
     },
     "/api/v1/brokers" : {
@@ -6856,7 +6856,7 @@
     },
     "/api/v1/commissions/effective" : {
       "get" : {
-        "description" : "**Permiso requerido:** `commissions:read`. Sin él, `403` (`AUTH-002`).\n\nResponde **cuánto le corresponde a una persona por vender un producto un\ndía concreto**, y **por qué**: devuelve la tasa que ganó y de cuál de las\ndos piezas salió.\n\n**La precedencia son dos niveles, y los dos exigen ASOCIACIÓN:** si la\npersona tiene una tasa **personalizada** vigente ese día **asociada a ese\nproducto**, es esa. Si no, la que su **rol vendedor** tenga **asociada a\nese producto**. Si ninguna, no hay tarifa.\n\n**Hasta el 11-09-2026 el primer nivel no miraba el producto**: una\nexcepción tapaba el catálogo entero de su titular y el segundo nivel no\nllegaba a consultarse nunca. Desde esa fecha las dos clases de tasa se\nasocian igual, y `RN-CM-012` —ninguna tasa rige hasta que se asocia—\ndeja de tener excepción.\n\n**Tres desenlaces, y ninguno es un error:**\n\n- `RESUELTA`: hay tasa. `source` dice si fue `PERSONALIZADA` o `ROL`. El\n  porcentaje puede ser **cero**, y eso significa «no comisiona» — es una\n  decisión declarada.\n- `SIN_TARIFA`: la persona vende y **no hay tasa aplicable**. La causa más\n  probable **no es que nadie la declarara**, sino que **nadie la asoció** a\n  ese producto: la tasa puede existir en el catálogo y no regir. El\n  porcentaje llega **nulo y presente**, nunca cero.\n- `NO_COMISIONA`: la persona **no porta rol vendedor** y **tampoco tiene\n  tasa personalizada**.\n\n**`roleId` puede llegar nulo con `outcome` igual a `RESUELTA`**, y no es\nincoherente: significa que ganó la tasa personalizada de alguien que ya no\nporta rol vendedor. Las personalizadas dejaron de llevar rol el\n01-09-2026, y **siguen rigiendo aunque su titular deje de vender**.\n\n**Nulo y cero no son lo mismo**, y quien consuma esto va a pagar con esa\ncifra.\n\nSin `onDate`, se resuelve con la fecha de hoy. Un producto **retirado** se\nresuelve con normalidad: preguntar qué se pagaba por algo que ya no se\nvende es legítimo.\n",
+        "description" : "**Permiso requerido:** `commissions:read-effective`. Sin él, `403` (`AUTH-002`).\n\nResponde **cuánto le corresponde a una persona por vender un producto un\ndía concreto**, y **por qué**: devuelve la tasa que ganó y de cuál de las\ndos piezas salió.\n\n**La precedencia son dos niveles, y los dos exigen ASOCIACIÓN:** si la\npersona tiene una tasa **personalizada** vigente ese día **asociada a ese\nproducto**, es esa. Si no, la que su **rol vendedor** tenga **asociada a\nese producto**. Si ninguna, no hay tarifa.\n\n**Hasta el 11-09-2026 el primer nivel no miraba el producto**: una\nexcepción tapaba el catálogo entero de su titular y el segundo nivel no\nllegaba a consultarse nunca. Desde esa fecha las dos clases de tasa se\nasocian igual, y `RN-CM-012` —ninguna tasa rige hasta que se asocia—\ndeja de tener excepción.\n\n**Tres desenlaces, y ninguno es un error:**\n\n- `RESUELTA`: hay tasa. `source` dice si fue `PERSONALIZADA` o `ROL`. El\n  porcentaje puede ser **cero**, y eso significa «no comisiona» — es una\n  decisión declarada.\n- `SIN_TARIFA`: la persona vende y **no hay tasa aplicable**. La causa más\n  probable **no es que nadie la declarara**, sino que **nadie la asoció** a\n  ese producto: la tasa puede existir en el catálogo y no regir. El\n  porcentaje llega **nulo y presente**, nunca cero.\n- `NO_COMISIONA`: la persona **no porta rol vendedor** y **tampoco tiene\n  tasa personalizada**.\n\n**`roleId` puede llegar nulo con `outcome` igual a `RESUELTA`**, y no es\nincoherente: significa que ganó la tasa personalizada de alguien que ya no\nporta rol vendedor. Las personalizadas dejaron de llevar rol el\n01-09-2026, y **siguen rigiendo aunque su titular deje de vender**.\n\n**Nulo y cero no son lo mismo**, y quien consuma esto va a pagar con esa\ncifra.\n\nSin `onDate`, se resuelve con la fecha de hoy. Un producto **retirado** se\nresuelve con normalidad: preguntar qué se pagaba por algo que ya no se\nvende es legítimo.\n",
         "operationId" : "efectiva",
         "parameters" : [ {
           "in" : "query",
@@ -6927,7 +6927,7 @@
         },
         "summary" : "Consultar la comisión efectiva",
         "tags" : [ "Comisiones" ],
-        "x-required-permission" : "commissions:read"
+        "x-required-permission" : "commissions:read-effective"
       }
     },
     "/api/v1/countries" : {
@@ -9054,7 +9054,7 @@
     },
     "/api/v1/memberships" : {
       "get" : {
-        "description" : "**Permiso requerido:** `memberships:read`. Sin él, `403` (`AUTH-002`).\n\nDevuelve la cadena completa, de la superior al extremo inferior, sin paginar.\n\n`level` es la distancia hasta la cima: `1` es la superior. El orden de la\ncolección lo refleja.\n\nNo se admite paginación ni ordenamiento: el orden **es** la información.\nLos parámetros de paginación se ignoran y devuelven la cadena entera.\n",
+        "description" : "**Permiso requerido:** `memberships:list`. Sin él, `403` (`AUTH-002`).\n\nDevuelve la cadena completa, de la superior al extremo inferior, sin paginar.\n\n`level` es la distancia hasta la cima: `1` es la superior. El orden de la\ncolección lo refleja.\n\nNo se admite paginación ni ordenamiento: el orden **es** la información.\nLos parámetros de paginación se ignoran y devuelven la cadena entera.\n",
         "operationId" : "consultar",
         "parameters" : [ {
           "in" : "query",
@@ -9079,7 +9079,7 @@
             "description" : "Token ausente o inválido (`AUTH-001`)"
           },
           "403" : {
-            "description" : "Autenticado sin `memberships:read` (`AUTH-002`)"
+            "description" : "Autenticado sin `memberships:list` (`AUTH-002`)"
           },
           "500" : {
             "description" : "Fallo no controlado (`ERR-500`)"
@@ -9087,7 +9087,7 @@
         },
         "summary" : "Consultar la cadena de membresías",
         "tags" : [ "Membresías" ],
-        "x-required-permission" : "memberships:read"
+        "x-required-permission" : "memberships:list"
       },
       "post" : {
         "description" : "**Permiso requerido:** `memberships:create`. Sin él, `403` (`AUTH-002`).\n\nInserta una membresía en la cadena, por encima de la hija indicada.\n\nSi no se indica hija, la membresía queda en el extremo inferior y no se\nreordena nada. Si se indica, la nueva ocupa su nivel, hereda su superior\ny todo lo que estaba en ese nivel o por debajo baja uno.\n\nEl nivel y la superior **no se envían**: los calcula el sistema. Enviar\n`level` o `parentMembershipId` devuelve `400`.\n",
@@ -9581,7 +9581,7 @@
     },
     "/api/v1/packages" : {
       "get" : {
-        "description" : "**Permiso requerido:** `packages:read`. Sin él, `403` (`AUTH-002`).\n\nLa lista de administración de los paquetes, paginada, **con la cuenta hecha\npor fila**: cada paquete con `itemCount`, `listPrice`, `price`, `savings`,\n`exchange` y `offerable`, y sin sus líneas — para eso está el detalle. Los\nimportes salen de la misma cuenta que el detalle y cuadran con él.\n\nFiltra por `status`, `scope`, `currencyId` y `q` —búsqueda por nombre, sin\ndistinguir mayúsculas ni acentos—, y se combinan. **Excluye los retirados**\nsalvo `includeDeleted=true`, y entonces los trae con `deletedAt`.\n**`offerable` no es filtro**: quien administra quiere ver precisamente los\nque no se ofrecen; se queda como columna, y el motivo lo da el detalle.\n**Tampoco lo es la vigencia**: cada fila trae `validFrom` y `validTo`\n(`RN-PM-047`), y un paquete que empieza mañana o terminó ayer sale con\n`offerable: false` y **sigue listado con su estado**, como uno con un\nproducto inactivo — no hay proceso que lo desactive al vencer.\n\nOrden: `createdAt` (omisión, descendente), `name` y `price`, con\n`,asc`/`,desc`. **El orden por `price` ordena por el precio calculado**: el\nprecio no está en ninguna columna, de modo que un paquete cuyo producto\ncambió de precio cambia de posición en la siguiente lectura. Se ordena con\nla suma sin redondear; la diferencia con el importe que viaja cabe en un\ncéntimo por producto y puede alterar el orden entre paquetes casi iguales.\n\nLos filtros inválidos se devuelven **juntos** con `400`. Exige\n`packages:read`; `products:read` no habilita.\n",
+        "description" : "**Permiso requerido:** `packages:list`. Sin él, `403` (`AUTH-002`).\n\nLa lista de administración de los paquetes, paginada, **con la cuenta hecha\npor fila**: cada paquete con `itemCount`, `listPrice`, `price`, `savings`,\n`exchange` y `offerable`, y sin sus líneas — para eso está el detalle. Los\nimportes salen de la misma cuenta que el detalle y cuadran con él.\n\nFiltra por `status`, `scope`, `currencyId` y `q` —búsqueda por nombre, sin\ndistinguir mayúsculas ni acentos—, y se combinan. **Excluye los retirados**\nsalvo `includeDeleted=true`, y entonces los trae con `deletedAt`.\n**`offerable` no es filtro**: quien administra quiere ver precisamente los\nque no se ofrecen; se queda como columna, y el motivo lo da el detalle.\n**Tampoco lo es la vigencia**: cada fila trae `validFrom` y `validTo`\n(`RN-PM-047`), y un paquete que empieza mañana o terminó ayer sale con\n`offerable: false` y **sigue listado con su estado**, como uno con un\nproducto inactivo — no hay proceso que lo desactive al vencer.\n\nOrden: `createdAt` (omisión, descendente), `name` y `price`, con\n`,asc`/`,desc`. **El orden por `price` ordena por el precio calculado**: el\nprecio no está en ninguna columna, de modo que un paquete cuyo producto\ncambió de precio cambia de posición en la siguiente lectura. Se ordena con\nla suma sin redondear; la diferencia con el importe que viaja cabe en un\ncéntimo por producto y puede alterar el orden entre paquetes casi iguales.\n\nLos filtros inválidos se devuelven **juntos** con `400`. Exige\n`packages:list`; `products:read` no habilita.\n",
         "operationId" : "listar_4",
         "parameters" : [ {
           "in" : "query",
@@ -9682,12 +9682,12 @@
                 }
               }
             },
-            "description" : "Autenticado sin el permiso `packages:read` (`AUTH-002`)"
+            "description" : "Autenticado sin el permiso `packages:list` (`AUTH-002`)"
           }
         },
         "summary" : "Consultar los paquetes",
         "tags" : [ "Paquetes" ],
-        "x-required-permission" : "packages:read"
+        "x-required-permission" : "packages:list"
       },
       "post" : {
         "description" : "**Permiso requerido:** `packages:create`. Sin él, `403` (`AUTH-002`).\n\nRegistra un paquete de productos, **vacío e inactivo**: los productos entran\nuno a uno después (`POST /packages/{id}/products`) y publicarlo es otra\noperación (`PATCH /packages/{id}/status`), que exige descripción y al menos\ndos productos.\n\n**El paquete no declara precio: se calcula.** Su `price` es la suma de sus\nproductos con su descuento, `listPrice` la suma sin descuentos y `savings` la\ndiferencia, todo con el precio de catálogo **de hoy** y redondeado por\nproducto a los decimales de la moneda. No se guarda en ninguna columna: si un\nproducto cambia de precio, el paquete cambia solo. Enviar `price` —o `products`,\no `status`— responde `400`.\n\n**La moneda es obligatoria e inmutable**, y solo se le asocian productos en\nesa moneda: un paquete recién creado no tiene productos y aun así sabe en qué\nse expresa. `scope` dice en qué vistas se publica —`TIENDA`, `HOTLINK`, `AMBOS`\no `NINGUNO`, que existe y se activa pero no se ofrece en ninguna— y es del\npaquete: el alcance de sus productos no filtra dentro de él.\n\n**Y declara su vigencia** (`RN-PM-047`, desde el 16-09-2026): `validFrom`,\n**obligatorio**, es el primer día en que se ofrece, y `validTo`, opcional, el\n**último** —nulo es indefinidamente; un fin anterior al inicio responde\n`400`—. **No hay regla contra el pasado**: un inicio futuro programa el\npaquete y un fin de ayer lo deja cerrado, que es raro pero no es un error.\nFuera de esas fechas el paquete **se oculta** de la oferta y del hotlink\ny **no cambia de estado**; el detalle lo dice en `offerableReason`.\n\nLa respuesta es la misma forma que el detalle: `items` vacío, los tres\nimportes en cero, `exchange` nulo, `validFrom` y `validTo` tal como se\ndeclararon, y `offerable: false` con su motivo — «menos de dos productos».\n`offerable` y `offerableReason` viajan **siempre**.\n\nExige `packages:create`. **Los `products:` no habilitan**: un actor con los\ncuatro permisos del catálogo y ninguno de paquetes recibe `403`.\n",
@@ -9981,7 +9981,7 @@
     },
     "/api/v1/packages/{id}/cover" : {
       "delete" : {
-        "description" : "**Permiso requerido:** `packages:update`. Sin él, `403` (`AUTH-002`).\n\nVacía la portada y **la imagen se borra**: su dirección deja de servir.\nEl paquete vuelve a pintarse con **el icono de promoción y el color por\nomisión** que el cliente le pone cuando `coverImageUrl` es nula.\n\n**Nunca responde `400` por el estado del paquete** — es la única\ndiferencia con `DELETE /api/v1/products/{id}/cover`: el paquete no\ndeclara icono ni color (`RN-PM-045`), de modo que no puede quedarse sin\nnada con qué pintarse. Un paquete activo y ofrecible sigue activo y\nofrecible sin portada.\n\n**Sin portada responde igual y no escribe nada**: ni auditoría ni\n`updatedAt`. Responde `200` con el paquete, y no `204`: se vacía un\ncampo, no se retira una entidad. Sin cuerpo; si llega uno, se ignora.\n",
+        "description" : "**Permiso requerido:** `packages:remove-cover`. Sin él, `403` (`AUTH-002`).\n\nVacía la portada y **la imagen se borra**: su dirección deja de servir.\nEl paquete vuelve a pintarse con **el icono de promoción y el color por\nomisión** que el cliente le pone cuando `coverImageUrl` es nula.\n\n**Nunca responde `400` por el estado del paquete** — es la única\ndiferencia con `DELETE /api/v1/products/{id}/cover`: el paquete no\ndeclara icono ni color (`RN-PM-045`), de modo que no puede quedarse sin\nnada con qué pintarse. Un paquete activo y ofrecible sigue activo y\nofrecible sin portada.\n\n**Sin portada responde igual y no escribe nada**: ni auditoría ni\n`updatedAt`. Responde `200` con el paquete, y no `204`: se vacía un\ncampo, no se retira una entidad. Sin cuerpo; si llega uno, se ignora.\n",
         "operationId" : "quitarPortada_1",
         "parameters" : [ {
           "in" : "path",
@@ -10010,7 +10010,7 @@
             "description" : "Token ausente o inválido (`AUTH-001`)"
           },
           "403" : {
-            "description" : "Autenticado sin el permiso `packages:update` (`AUTH-002`)"
+            "description" : "Autenticado sin el permiso `packages:remove-cover` (`AUTH-002`)"
           },
           "404" : {
             "description" : "No existe un paquete vivo con ese identificador (`EX-001`)"
@@ -10021,10 +10021,10 @@
         },
         "summary" : "Quitar la portada de un paquete",
         "tags" : [ "Paquetes" ],
-        "x-required-permission" : "packages:update"
+        "x-required-permission" : "packages:remove-cover"
       },
       "put" : {
-        "description" : "**Permiso requerido:** `packages:update`. Sin él, `403` (`AUTH-002`).\n\n**La misma imagen que la del producto, con las mismas condiciones y la\nmisma ruta** (`RN-PM-045`, `requirements/pm.md` §5.2.12): recibe **un\narchivo** —`multipart/form-data`, una sola parte llamada `file`—,\n`JPEG`, `PNG` o `WebP` **reconocidos por sus bytes** (la cabecera y el\nnombre se ignoran; `VAL-003`), **hasta 5 MB** (`VAL-004`), sin archivo\no vacío `VAL-002`, y lo guarda **tal cual**. La imagen se sirve sin token\nen `GET /api/v1/product-images/{imageId}`, que no sabe si lo que sirve es\nla portada de un producto o de un paquete.\n\n**Si el paquete ya tenía portada, la reemplaza**: la nueva estrena\nidentificador, **la anterior se borra** y **la dirección cambia**. **Sin\ncondición de estado ni de contenido**: un paquete inactivo, vacío o sin\ndescripción la admite igual, y la activación sigue sin mirarla.\n\n**El paquete no declara icono ni color.** Cuando `coverImageUrl` es\nnula, el cliente pinta **el icono de promoción y el color por omisión\ndel sistema**, los mismos para todos los paquetes — y por eso quitar la\nportada nunca se rechaza. El alta no admite la imagen: `POST\n/api/v1/packages` sigue siendo JSON. Responde con el paquete entero, con\nsu cuenta hecha, como todas sus escrituras; **un paquete retirado no\nadmite portada**.\n",
+        "description" : "**Permiso requerido:** `packages:set-cover`. Sin él, `403` (`AUTH-002`).\n\n**La misma imagen que la del producto, con las mismas condiciones y la\nmisma ruta** (`RN-PM-045`, `requirements/pm.md` §5.2.12): recibe **un\narchivo** —`multipart/form-data`, una sola parte llamada `file`—,\n`JPEG`, `PNG` o `WebP` **reconocidos por sus bytes** (la cabecera y el\nnombre se ignoran; `VAL-003`), **hasta 5 MB** (`VAL-004`), sin archivo\no vacío `VAL-002`, y lo guarda **tal cual**. La imagen se sirve sin token\nen `GET /api/v1/product-images/{imageId}`, que no sabe si lo que sirve es\nla portada de un producto o de un paquete.\n\n**Si el paquete ya tenía portada, la reemplaza**: la nueva estrena\nidentificador, **la anterior se borra** y **la dirección cambia**. **Sin\ncondición de estado ni de contenido**: un paquete inactivo, vacío o sin\ndescripción la admite igual, y la activación sigue sin mirarla.\n\n**El paquete no declara icono ni color.** Cuando `coverImageUrl` es\nnula, el cliente pinta **el icono de promoción y el color por omisión\ndel sistema**, los mismos para todos los paquetes — y por eso quitar la\nportada nunca se rechaza. El alta no admite la imagen: `POST\n/api/v1/packages` sigue siendo JSON. Responde con el paquete entero, con\nsu cuenta hecha, como todas sus escrituras; **un paquete retirado no\nadmite portada**.\n",
         "operationId" : "subirPortada_1",
         "parameters" : [ {
           "in" : "path",
@@ -10068,7 +10068,7 @@
             "description" : "Token ausente o inválido (`AUTH-001`)"
           },
           "403" : {
-            "description" : "Autenticado sin el permiso `packages:update` (`AUTH-002`)"
+            "description" : "Autenticado sin el permiso `packages:set-cover` (`AUTH-002`)"
           },
           "404" : {
             "description" : "No existe un paquete vivo con ese identificador (`EX-001`)"
@@ -10079,7 +10079,7 @@
         },
         "summary" : "Subir o reemplazar la portada de un paquete",
         "tags" : [ "Paquetes" ],
-        "x-required-permission" : "packages:update"
+        "x-required-permission" : "packages:set-cover"
       }
     },
     "/api/v1/packages/{id}/deletion" : {
@@ -10131,7 +10131,7 @@
     },
     "/api/v1/packages/{id}/products" : {
       "post" : {
-        "description" : "**Permiso requerido:** `packages:update`. Sin él, `403` (`AUTH-002`).\n\nMete un producto en el paquete con su descuento, y devuelve **el paquete\nentero** con el producto nuevo, su `priceInPackage` y los totales rehechos.\nEs la operación que define al paquete: siete verificaciones en fila, cada\nuna con su código.\n\n**Forma y valor van juntos y son obligatorios.** `PORCENTAJE` de `0` a\n`100` con hasta dos decimales; `FIJO` de `0` al precio del producto, con los\ndecimales de la moneda del paquete. **El cero se admite**: es un producto que\nentra al paquete a su precio.\n\n**La cota se comprueba contra el precio de hoy, y nadie la vuelve a\nmirar.** Un fijo mayor que el precio del producto responde `409` (`EX-006`,\nnombrando el precio); sobre un producto **gratuito** solo se admite cero. Si\ndespués el precio del producto baja por debajo de su fijo, el producto\ncuenta **cero** dentro del paquete — nunca negativo — y nada avisa.\n\n**Qué significa cada `409`**: `EX-003` el producto existe pero está inactivo\no retirado — se distingue del inexistente, que es `422` (`EX-002`), porque\nquien llama ve el catálogo entero—; `EX-004` el producto está en otra\nmoneda, y el mensaje nombra las dos; `EX-005` el producto ya está en el\npaquete — corrija su descuento en lugar de asociarlo de nuevo—; `EX-006` el\ndescuento deja al producto por debajo de cero; `EX-007` **el paquete ya\ntiene un upgrade** (`RN-PM-046`, desde el 16-09-2026): un paquete lleva **un\nsolo `UPGRADE_MEMBRESIA`** —del origen y el destino que sea, y aunque hoy esté\ninactivo: el sitio lo ocupa la fila— y cuantos bots se quiera. El mensaje\n**nombra el código** del upgrade que ya está, y el sitio se libera al\ndesasociarlo. Hasta el 16-09-2026 este código significaba «el upgrade no\ncomparte origen con los ya dentro»; con uno solo no hay orígenes que\ncomparar. Los bots entran sin mirar cuántos upgrades hay.\n\nSe asocia **a un paquete inactivo** —es el estado en el que un paquete se\narma— y no a uno retirado (`404`). El producto no cambia: la fila es del\npaquete, y el mismo producto puede estar en otros paquetes con otro\ndescuento. Exige `packages:update`.\n",
+        "description" : "**Permiso requerido:** `packages:add-product`. Sin él, `403` (`AUTH-002`).\n\nMete un producto en el paquete con su descuento, y devuelve **el paquete\nentero** con el producto nuevo, su `priceInPackage` y los totales rehechos.\nEs la operación que define al paquete: siete verificaciones en fila, cada\nuna con su código.\n\n**Forma y valor van juntos y son obligatorios.** `PORCENTAJE` de `0` a\n`100` con hasta dos decimales; `FIJO` de `0` al precio del producto, con los\ndecimales de la moneda del paquete. **El cero se admite**: es un producto que\nentra al paquete a su precio.\n\n**La cota se comprueba contra el precio de hoy, y nadie la vuelve a\nmirar.** Un fijo mayor que el precio del producto responde `409` (`EX-006`,\nnombrando el precio); sobre un producto **gratuito** solo se admite cero. Si\ndespués el precio del producto baja por debajo de su fijo, el producto\ncuenta **cero** dentro del paquete — nunca negativo — y nada avisa.\n\n**Qué significa cada `409`**: `EX-003` el producto existe pero está inactivo\no retirado — se distingue del inexistente, que es `422` (`EX-002`), porque\nquien llama ve el catálogo entero—; `EX-004` el producto está en otra\nmoneda, y el mensaje nombra las dos; `EX-005` el producto ya está en el\npaquete — corrija su descuento en lugar de asociarlo de nuevo—; `EX-006` el\ndescuento deja al producto por debajo de cero; `EX-007` **el paquete ya\ntiene un upgrade** (`RN-PM-046`, desde el 16-09-2026): un paquete lleva **un\nsolo `UPGRADE_MEMBRESIA`** —del origen y el destino que sea, y aunque hoy esté\ninactivo: el sitio lo ocupa la fila— y cuantos bots se quiera. El mensaje\n**nombra el código** del upgrade que ya está, y el sitio se libera al\ndesasociarlo. Hasta el 16-09-2026 este código significaba «el upgrade no\ncomparte origen con los ya dentro»; con uno solo no hay orígenes que\ncomparar. Los bots entran sin mirar cuántos upgrades hay.\n\nSe asocia **a un paquete inactivo** —es el estado en el que un paquete se\narma— y no a uno retirado (`404`). El producto no cambia: la fila es del\npaquete, y el mismo producto puede estar en otros paquetes con otro\ndescuento. Exige `packages:add-product`.\n",
         "operationId" : "associate",
         "parameters" : [ {
           "in" : "path",
@@ -10191,7 +10191,7 @@
                 }
               }
             },
-            "description" : "Autenticado sin el permiso `packages:update` (`AUTH-002`)"
+            "description" : "Autenticado sin el permiso `packages:add-product` (`AUTH-002`)"
           },
           "404" : {
             "content" : {
@@ -10226,12 +10226,12 @@
         },
         "summary" : "Asociar un producto al paquete",
         "tags" : [ "Paquetes" ],
-        "x-required-permission" : "packages:update"
+        "x-required-permission" : "packages:add-product"
       }
     },
     "/api/v1/packages/{id}/products/{productId}" : {
       "delete" : {
-        "description" : "**Permiso requerido:** `packages:update`. Sin él, `403` (`AUTH-002`).\n\nQuita el producto del paquete **sin cuerpo y sin motivo** —la fila es una\nasociación (Art. V.13): se borra físicamente y su baja queda en la\nauditoría de eliminación como `ASSOCIATION`, con el descuento y el precio\ndel producto en la instantánea— y responde **`200` con el paquete**, no\n`204`: lo que cambió es su precio.\n\nEl paquete **no cambia de estado** aunque quede con uno o con cero\nproductos: deja de ofrecerse por «menos de dos» y el detalle lo dice. Si se\nquita el upgrade, **el sitio queda libre** (`RN-PM-046`): el siguiente\nupgrade que entre puede ser de cualquier origen, y mientras no entre ninguno\nel paquete —solo bots— se ofrece a todo el mundo. **El producto no cambia**: sigue\nactivo en el catálogo y en los demás paquetes que lo contengan.\n\nEl producto que no está —también el que ya se quitó— es `404`: con el\nborrado físico no queda nada que los distinga. Exige `packages:update`.\n",
+        "description" : "**Permiso requerido:** `packages:remove-product`. Sin él, `403` (`AUTH-002`).\n\nQuita el producto del paquete **sin cuerpo y sin motivo** —la fila es una\nasociación (Art. V.13): se borra físicamente y su baja queda en la\nauditoría de eliminación como `ASSOCIATION`, con el descuento y el precio\ndel producto en la instantánea— y responde **`200` con el paquete**, no\n`204`: lo que cambió es su precio.\n\nEl paquete **no cambia de estado** aunque quede con uno o con cero\nproductos: deja de ofrecerse por «menos de dos» y el detalle lo dice. Si se\nquita el upgrade, **el sitio queda libre** (`RN-PM-046`): el siguiente\nupgrade que entre puede ser de cualquier origen, y mientras no entre ninguno\nel paquete —solo bots— se ofrece a todo el mundo. **El producto no cambia**: sigue\nactivo en el catálogo y en los demás paquetes que lo contengan.\n\nEl producto que no está —también el que ya se quitó— es `404`: con el\nborrado físico no queda nada que los distinga. Exige `packages:remove-product`.\n",
         "operationId" : "desasociar",
         "parameters" : [ {
           "in" : "path",
@@ -10289,7 +10289,7 @@
                 }
               }
             },
-            "description" : "Autenticado sin el permiso `packages:update` (`AUTH-002`)"
+            "description" : "Autenticado sin el permiso `packages:remove-product` (`AUTH-002`)"
           },
           "404" : {
             "content" : {
@@ -10304,10 +10304,10 @@
         },
         "summary" : "Quitar un producto del paquete",
         "tags" : [ "Paquetes" ],
-        "x-required-permission" : "packages:update"
+        "x-required-permission" : "packages:remove-product"
       },
       "patch" : {
-        "description" : "**Permiso requerido:** `packages:update`. Sin él, `403` (`AUTH-002`).\n\nCorrige **forma y valor juntos** —son un solo dato, y los dos son\nobligatorios: no es parcial— y devuelve el paquete entero con su\n`priceInPackage` y sus totales rehechos.\n\n**La cota se comprueba contra el precio de hoy del producto**, no contra el\nque tenía al asociarlo: un fijo que entró cuando el producto valía 100 y hoy\nvale 50 no se puede corregir a 60 — sí a 50 o menos. Es donde el hueco\ntemporal de `RN-PM-037` se cierra solo. Sobre un producto gratuito solo se\nadmite cero.\n\n**No mira el estado del producto**: un producto inactivo dentro del paquete\nse corrige igual — la fila existe y el descuento es del paquete—, y el\npaquete sigue sin ofrecerse por él. `productId` va en la ruta; en el cuerpo\nes un campo desconocido y responde `400`.\n\nEl producto que no está en el paquete es `404`, sin distinguir «no existe»\nde «no está aquí»: lo que se corrige es la pareja. Sin cambio de valor\nresponde `200` sin auditar. Exige `packages:update`.\n",
+        "description" : "**Permiso requerido:** `packages:update-product`. Sin él, `403` (`AUTH-002`).\n\nCorrige **forma y valor juntos** —son un solo dato, y los dos son\nobligatorios: no es parcial— y devuelve el paquete entero con su\n`priceInPackage` y sus totales rehechos.\n\n**La cota se comprueba contra el precio de hoy del producto**, no contra el\nque tenía al asociarlo: un fijo que entró cuando el producto valía 100 y hoy\nvale 50 no se puede corregir a 60 — sí a 50 o menos. Es donde el hueco\ntemporal de `RN-PM-037` se cierra solo. Sobre un producto gratuito solo se\nadmite cero.\n\n**No mira el estado del producto**: un producto inactivo dentro del paquete\nse corrige igual — la fila existe y el descuento es del paquete—, y el\npaquete sigue sin ofrecerse por él. `productId` va en la ruta; en el cuerpo\nes un campo desconocido y responde `400`.\n\nEl producto que no está en el paquete es `404`, sin distinguir «no existe»\nde «no está aquí»: lo que se corrige es la pareja. Sin cambio de valor\nresponde `200` sin auditar. Exige `packages:update-product`.\n",
         "operationId" : "corregirDescuento",
         "parameters" : [ {
           "in" : "path",
@@ -10375,7 +10375,7 @@
                 }
               }
             },
-            "description" : "Autenticado sin el permiso `packages:update` (`AUTH-002`)"
+            "description" : "Autenticado sin el permiso `packages:update-product` (`AUTH-002`)"
           },
           "404" : {
             "content" : {
@@ -10400,12 +10400,12 @@
         },
         "summary" : "Corregir el descuento de un producto del paquete",
         "tags" : [ "Paquetes" ],
-        "x-required-permission" : "packages:update"
+        "x-required-permission" : "packages:update-product"
       }
     },
     "/api/v1/packages/{id}/status" : {
       "patch" : {
-        "description" : "**Permiso requerido:** `packages:update`. Sin él, `403` (`AUTH-002`).\n\nCambia el estado del paquete y devuelve el detalle.\n\n**Activar exige descripción y al menos dos productos**, y los dos motivos\nvan **juntos** en el mismo `409` cuando faltan a la vez. **No exige que los\nproductos estén activos hoy**: eso lo mira la oferta cada vez, y un paquete\nactivo con un producto inactivo dentro es un estado legítimo — el detalle lo\ndevuelve `offerable: false` nombrando el producto.\n\n**Desactivar no tiene condiciones**: el paquete sale de la oferta y del\nhotlink, y sus productos no cambian.\n\nPedir el estado que ya tiene responde `200` sin escribir ni auditar. Exige\n`packages:update`.\n",
+        "description" : "**Permiso requerido:** `packages:change-status`. Sin él, `403` (`AUTH-002`).\n\nCambia el estado del paquete y devuelve el detalle.\n\n**Activar exige descripción y al menos dos productos**, y los dos motivos\nvan **juntos** en el mismo `409` cuando faltan a la vez. **No exige que los\nproductos estén activos hoy**: eso lo mira la oferta cada vez, y un paquete\nactivo con un producto inactivo dentro es un estado legítimo — el detalle lo\ndevuelve `offerable: false` nombrando el producto.\n\n**Desactivar no tiene condiciones**: el paquete sale de la oferta y del\nhotlink, y sus productos no cambian.\n\nPedir el estado que ya tiene responde `200` sin escribir ni auditar. Exige\n`packages:change-status`.\n",
         "operationId" : "cambiarEstado_3",
         "parameters" : [ {
           "in" : "path",
@@ -10465,7 +10465,7 @@
                 }
               }
             },
-            "description" : "Autenticado sin el permiso `packages:update` (`AUTH-002`)"
+            "description" : "Autenticado sin el permiso `packages:change-status` (`AUTH-002`)"
           },
           "404" : {
             "content" : {
@@ -10490,7 +10490,7 @@
         },
         "summary" : "Activar o desactivar un paquete",
         "tags" : [ "Paquetes" ],
-        "x-required-permission" : "packages:update"
+        "x-required-permission" : "packages:change-status"
       }
     },
     "/api/v1/payment-methods" : {
@@ -10519,7 +10519,7 @@
     },
     "/api/v1/permissions" : {
       "get" : {
-        "description" : "**Permiso requerido:** `permissions:read`. Sin él, `403` (`AUTH-002`).\n\nDevuelve el catálogo completo, sin paginar, ordenado por recurso y acción.\n\nLos tres filtros son opcionales y ninguno se valida: un valor que no\ncorresponda a ningún permiso produce una colección vacía, no un error.\nLos parámetros de paginación no se admiten y se ignoran.\n",
+        "description" : "**Permiso requerido:** `permissions:list`. Sin él, `403` (`AUTH-002`).\n\nDevuelve el catálogo completo, sin paginar, ordenado por recurso y acción.\n\nLos tres filtros son opcionales y ninguno se valida: un valor que no\ncorresponda a ningún permiso produce una colección vacía, no un error.\nLos parámetros de paginación no se admiten y se ignoran.\n",
         "operationId" : "list_1",
         "parameters" : [ {
           "description" : "Filtro por recurso. Coincidencia exacta.",
@@ -10559,7 +10559,7 @@
                 }
               }
             },
-            "description" : "Autenticado sin el permiso `permissions:read` (`AUTH-002`)"
+            "description" : "Autenticado sin el permiso `permissions:list` (`AUTH-002`)"
           },
           "500" : {
             "content" : {
@@ -10574,7 +10574,7 @@
         },
         "summary" : "Consultar el catálogo de permisos",
         "tags" : [ "Permisos" ],
-        "x-required-permission" : "permissions:read"
+        "x-required-permission" : "permissions:list"
       }
     },
     "/api/v1/permissions/{id}" : {
@@ -10659,7 +10659,7 @@
     },
     "/api/v1/product-commission-rates" : {
       "get" : {
-        "description" : "**Permiso requerido:** `commissions:read`. Sin él, `403` (`AUTH-002`).\n\nDevuelve una entrada **por cada rol** que cobra comisión por ese producto,\ncon el valor ya resuelto: las tasas de rol **vivas** de ese producto\n(`RN-CM-021`). Es lo mismo que `GET /api/v1/commission-rates?productId=`,\nsin paginar y con la forma de siempre.\n\n**Una lista vacía significa que ese producto no paga comisión a nadie**\n— nadie registró una tasa sobre él (`RN-CM-012`).\n\n**Esto no resuelve la comisión de una persona, y solo devuelve roles.** Las\ntasas personalizadas también se asocian a productos desde el 11-09-2026 y\nganan sobre estas, pero **no aparecen aquí**: qué personas tienen excepción\nen este producto lo responde `GET /api/v1/user-commission-rates?productId=`,\npaginado y con su historial. Para saber qué cobra alguien concreto, use\n`GET /api/v1/commissions/effective`.\n",
+        "description" : "**Permiso requerido:** `product-commission-rates:read`. Sin él, `403` (`AUTH-002`).\n\nDevuelve una entrada **por cada rol** que cobra comisión por ese producto,\ncon el valor ya resuelto: las tasas de rol **vivas** de ese producto\n(`RN-CM-021`). Es lo mismo que `GET /api/v1/commission-rates?productId=`,\nsin paginar y con la forma de siempre.\n\n**Una lista vacía significa que ese producto no paga comisión a nadie**\n— nadie registró una tasa sobre él (`RN-CM-012`).\n\n**Esto no resuelve la comisión de una persona, y solo devuelve roles.** Las\ntasas personalizadas también se asocian a productos desde el 11-09-2026 y\nganan sobre estas, pero **no aparecen aquí**: qué personas tienen excepción\nen este producto lo responde `GET /api/v1/user-commission-rates?productId=`,\npaginado y con su historial. Para saber qué cobra alguien concreto, use\n`GET /api/v1/commissions/effective`.\n",
         "operationId" : "porProducto",
         "parameters" : [ {
           "in" : "query",
@@ -10704,7 +10704,7 @@
         },
         "summary" : "Consultar qué comisiona un producto, y a qué rol",
         "tags" : [ "Comisiones" ],
-        "x-required-permission" : "commissions:read"
+        "x-required-permission" : "product-commission-rates:read"
       }
     },
     "/api/v1/product-images/{imageId}" : {
@@ -10776,7 +10776,7 @@
     },
     "/api/v1/products" : {
       "get" : {
-        "description" : "**Permiso requerido:** `products:read`. Sin él, `403` (`AUTH-002`).\n\nDevuelve el catálogo **paginado**, con el destino de cada upgrade y la\nmoneda de cada precio ya resueltos: no hace falta una segunda consulta.\n\n**Los retirados quedan fuera salvo que se pidan** con `includeDeleted`.\nAl pedirlos se indica **desde cuándo** lo están; el **motivo** no viaja\nen el listado —uno a uno lo devuelve el detalle (`RF-PM-003`), en\nbloque sería una exportación de decisiones comerciales—. Verlos **no\nexige un permiso propio**: basta `products:read`.\n\nCada fila trae **los dos precios**: `price` —el que se cobra— y\n`purchasePrice` —el **precio de compra**, lo que NEXUS paga por el\nproducto—, este **presente y nulo** en los productos cuyo costo no se\nconoce. Este listado y el detalle son **los dos únicos sitios** donde\nse ven juntos: la oferta y el hotlink no devuelven el de compra\n(`RN-PM-024`, 12-09-2026).\n\nY trae **`exchange`**, la conversión a la moneda por omisión con la\ntasa vigente hoy, calculada **sobre `price`** —el de compra nunca se\nconvierte—. Llega **presente y nula** cuando el producto ya está en\nesa moneda o cuando nadie declaró una tasa: eso **no es un error** y\nel producto se devuelve igual.\n\nCada fila trae también **`videoUrl`**, la dirección del video que\npresenta el producto, **tal cual se guardó** y **presente y nula**\ncuando no tiene (`RN-PM-032`). **No es un filtro.**\n\nSolo se puede ordenar por la lista blanca —`name`, `price`,\n`createdAt`—, con `,asc` o `,desc`. **`purchasePrice` no está en\nella**: ordenar por una columna que admite nulos obligaría a decidir\ndónde van los productos sin costo conocido, y nadie lo ha decidido.\n**Un campo fuera de la lista se rechaza y no se ignora**:\nignorarlo devolvería un orden distinto del pedido sin decirlo. Por omisión se ordena por **fecha de alta\ndescendente**, y el orden aplicado viaja en la respuesta.\n\n**`targetMembershipId` no se valida contra el catálogo de membresías.**\nFiltrar por un destino inexistente devuelve la colección vacía y no es\nun error; combinarlo con `type=BOT` también, porque ningún\nbot tiene destino.\n\nLa búsqueda va sobre el nombre, **sin distinguir acentos ni\nmayúsculas** y por fragmento. En blanco equivale a no filtrar.\n\n**`scope` e `implementation` filtran como `type` y `status`**: se\nadmiten en cualquier caja y un valor fuera de dominio se rechaza junto\nal resto de parámetros inválidos, no en una vuelta aparte. El de\nalcance admite los cuatro valores —`TIENDA`, `HOTLINK`, `AMBOS`,\n`NINGUNO`— y **es la única lectura donde se ve un producto\n`NINGUNO`**, porque ninguna vista de venta lo ofrece.\n\nUn filtro sin coincidencias devuelve `200` con la colección vacía, y\nuna página más allá de la última hace lo mismo **con el total real**.\nNo hay `404` ni `422`.\n",
+        "description" : "**Permiso requerido:** `products:list`. Sin él, `403` (`AUTH-002`).\n\nDevuelve el catálogo **paginado**, con el destino de cada upgrade y la\nmoneda de cada precio ya resueltos: no hace falta una segunda consulta.\n\n**Los retirados quedan fuera salvo que se pidan** con `includeDeleted`.\nAl pedirlos se indica **desde cuándo** lo están; el **motivo** no viaja\nen el listado —uno a uno lo devuelve el detalle (`RF-PM-003`), en\nbloque sería una exportación de decisiones comerciales—. Verlos **no\nexige un permiso propio**: basta `products:list`.\n\nCada fila trae **los dos precios**: `price` —el que se cobra— y\n`purchasePrice` —el **precio de compra**, lo que NEXUS paga por el\nproducto—, este **presente y nulo** en los productos cuyo costo no se\nconoce. Este listado y el detalle son **los dos únicos sitios** donde\nse ven juntos: la oferta y el hotlink no devuelven el de compra\n(`RN-PM-024`, 12-09-2026).\n\nY trae **`exchange`**, la conversión a la moneda por omisión con la\ntasa vigente hoy, calculada **sobre `price`** —el de compra nunca se\nconvierte—. Llega **presente y nula** cuando el producto ya está en\nesa moneda o cuando nadie declaró una tasa: eso **no es un error** y\nel producto se devuelve igual.\n\nCada fila trae también **`videoUrl`**, la dirección del video que\npresenta el producto, **tal cual se guardó** y **presente y nula**\ncuando no tiene (`RN-PM-032`). **No es un filtro.**\n\nSolo se puede ordenar por la lista blanca —`name`, `price`,\n`createdAt`—, con `,asc` o `,desc`. **`purchasePrice` no está en\nella**: ordenar por una columna que admite nulos obligaría a decidir\ndónde van los productos sin costo conocido, y nadie lo ha decidido.\n**Un campo fuera de la lista se rechaza y no se ignora**:\nignorarlo devolvería un orden distinto del pedido sin decirlo. Por omisión se ordena por **fecha de alta\ndescendente**, y el orden aplicado viaja en la respuesta.\n\n**`targetMembershipId` no se valida contra el catálogo de membresías.**\nFiltrar por un destino inexistente devuelve la colección vacía y no es\nun error; combinarlo con `type=BOT` también, porque ningún\nbot tiene destino.\n\nLa búsqueda va sobre el nombre, **sin distinguir acentos ni\nmayúsculas** y por fragmento. En blanco equivale a no filtrar.\n\n**`scope` e `implementation` filtran como `type` y `status`**: se\nadmiten en cualquier caja y un valor fuera de dominio se rechaza junto\nal resto de parámetros inválidos, no en una vuelta aparte. El de\nalcance admite los cuatro valores —`TIENDA`, `HOTLINK`, `AMBOS`,\n`NINGUNO`— y **es la única lectura donde se ve un producto\n`NINGUNO`**, porque ninguna vista de venta lo ofrece.\n\nUn filtro sin coincidencias devuelve `200` con la colección vacía, y\nuna página más allá de la última hace lo mismo **con el total real**.\nNo hay `404` ni `422`.\n",
         "operationId" : "listar_3",
         "parameters" : [ {
           "in" : "query",
@@ -10878,7 +10878,7 @@
             "description" : "Token ausente o inválido (`AUTH-001`)"
           },
           "403" : {
-            "description" : "Autenticado sin el permiso `products:read` (`AUTH-002`)"
+            "description" : "Autenticado sin el permiso `products:list` (`AUTH-002`)"
           },
           "500" : {
             "description" : "Fallo no controlado (`ERR-500`)"
@@ -10886,7 +10886,7 @@
         },
         "summary" : "Consultar el catálogo de productos",
         "tags" : [ "Productos" ],
-        "x-required-permission" : "products:read"
+        "x-required-permission" : "products:list"
       },
       "post" : {
         "description" : "**Permiso requerido:** `products:create`. Sin él, `403` (`AUTH-002`).\n\nRegistra un producto del catálogo, **siempre inactivo**: publicarlo es otra\noperación (`RF-PM-005`).\n\nEl tipo decide qué campos son obligatorios: un `UPGRADE_MEMBRESIA` debe\ndeclarar **las dos** membresías —de qué nivel sale y a cuál lleva— y un\n`BOT` no puede declarar ninguna.\n\n**El origen no puede estar por encima del destino**: eso sería vender un\ndescenso llamándolo upgrade, y se rechaza con `422` (`EX-006`). **Sí\npuede ser el MISMO**, y entonces el producto es una **renovación**: lo\nque vende es tiempo —su `validityDays`— y no un cambio de nivel.\n\n**Y no tiene por qué ser el inmediatamente inferior**: saltar niveles es\nlegítimo, y es la razón de que el origen se declare en lugar de\ndeducirse de la cadena.\n\n`icon` es el **nombre** del icono con el que el frontend pinta el producto\n—no una imagen—, en minúsculas y guion medio. Es **opcional**, y solo un\n`UPGRADE_MEMBRESIA` puede llevarlo: en un `BOT` se rechaza (`RN-PM-016`).\n\n`videoUrl` es **la dirección de un video** que presenta el producto —no\nel video—. Es **opcional y vale en los dos tipos**, sin la condición\ndel icono. Se comprueba **solo la forma**: una URL absoluta `http` o\n`https`, sin espacios y de hasta 500 caracteres; lo demás se rechaza\ncon `VAL-017`. **El sistema no sigue el enlace** —no comprueba que el\nvideo exista ni lo descarga—, y lo guarda **tal cual se escribió**,\nrecortado y sin normalizar nada más. Ausente o nulo significan lo\nmismo: no tiene video. **Al revés que el precio de compra, sale en las\ncuatro lecturas**, el hotlink sin token incluido (`RN-PM-032`).\n\nLa vigencia es opcional en los dos tipos: sin ella, lo adquirido no caduca.\n\n`scope` e `implementation` son **obligatorios y en los dos tipos**, y\n**no tienen valor por omisión**: `scope` dice **en qué vistas de venta**\nse ofrece el producto —`TIENDA` (solo la oferta), `HOTLINK` (solo el\ncanal de hotlinks), `AMBOS`, o `NINGUNO` (en ninguna: solo lo ve\nadministración, aunque esté activo)— e `implementation` dice si lo\ncomprado se aplica solo (`AUTOMATICA`) o espera a que un funcionario\nlo autorice (`MANUAL`). **`HOTLINKS` dejó de existir el 15-09-2026**\n—lo que significaba se llama `AMBOS`— y se rechaza con `400` como\ncualquier valor fuera del dominio.\n\n**Un producto lleva DOS precios y solo uno se cobra.** `price` es el\ndel sistema —el que copia la venta y sobre el que se comisiona— y\n`purchasePrice` es el **precio de compra**: lo que NEXUS paga por el\nproducto cuando tiene que comprarlo, y donde se guarda lo que costó.\nEs **opcional**, no interviene en ningún cálculo, se expresa en la\n**misma moneda** y **no sale de administración**: la oferta y el\nhotlink no lo devuelven. Ausente o nulo significan lo mismo —no se\nconoce todavía—, y **eso no es «costó cero»** (`RN-PM-023`). Se llamó\n`publicPrice` hasta el 12-09-2026; ese nombre es hoy una propiedad\ndesconocida y devuelve `400`.\n\nLos dos importes se validan igual: **no negativos** —el **cero se\nadmite** desde que existe la renovación de una membresía gratuita— y\ncon los decimales que declare su moneda. El rechazo **nombra el\ncampo** que incumple.\n\n**Los dos solo se ven desde administración** (`RN-PM-024`): la oferta\nde un cliente y el hotlink público devuelven **uno**.\n",
@@ -11242,7 +11242,7 @@
     },
     "/api/v1/products/{id}/comments/mine" : {
       "get" : {
-        "description" : "**Permiso requerido:** `products:comment`. Sin él, `403` (`AUTH-002`).\n\nDevuelve **la** reseña viva de quien llama sobre el producto, con su identificador —\nque es lo que la corrección y el retiro reciben en la ruta—. **No admite parámetro\nde persona**: responde sobre quien llama y sobre nadie más.\n\n**El `404` no dice nada del producto**: responde igual si quien llama no ha\nreseñado, si retiró la suya o si el producto no existe. Y **sí responde** sobre un\nproducto inactivo o retirado cuando la reseña existe: el autor tiene que poder\nllegar a la suya para corregirla o retirarla (`RN-PM-028`).\n",
+        "description" : "**Permiso requerido:** `products:read-own-comments`. Sin él, `403` (`AUTH-002`).\n\nDevuelve **la** reseña viva de quien llama sobre el producto, con su identificador —\nque es lo que la corrección y el retiro reciben en la ruta—. **No admite parámetro\nde persona**: responde sobre quien llama y sobre nadie más.\n\n**El `404` no dice nada del producto**: responde igual si quien llama no ha\nreseñado, si retiró la suya o si el producto no existe. Y **sí responde** sobre un\nproducto inactivo o retirado cuando la reseña existe: el autor tiene que poder\nllegar a la suya para corregirla o retirarla (`RN-PM-028`).\n",
         "operationId" : "mine",
         "parameters" : [ {
           "in" : "path",
@@ -11271,7 +11271,7 @@
             "description" : "Token ausente o inválido (`AUTH-001`)"
           },
           "403" : {
-            "description" : "Autenticado sin el permiso `products:comment` (`AUTH-002`)"
+            "description" : "Autenticado sin el permiso `products:read-own-comments` (`AUTH-002`)"
           },
           "404" : {
             "description" : "Quien llama no tiene reseña viva sobre este producto (`EX-001`)"
@@ -11279,12 +11279,12 @@
         },
         "summary" : "Consultar la reseña propia sobre un producto",
         "tags" : [ "Reseñas" ],
-        "x-required-permission" : "products:comment"
+        "x-required-permission" : "products:read-own-comments"
       }
     },
     "/api/v1/products/{id}/comments/{commentId}" : {
       "delete" : {
-        "description" : "**Permiso requerido:** `products:comment`. Sin él, `403` (`AUTH-002`).\n\nRetira lógicamente la reseña de quien llama, **sin motivo y sin cuerpo**. Es la\nprimera baja de una entidad de negocio del sistema que no pide `reason`: el\nArt. V.13 admite desde el 14-09-2026 el **contenido propio** como excepción, porque\nel único «por qué» posible —su autor ya no la quiere ahí— está en el propio evento.\nEl registro de eliminación se escribe igual, con la instantánea y un motivo fijo.\n\nPor eso es un `DELETE` y no un `POST /deletion`: el retiro del producto usa `POST`\nporque su cuerpo lleva el motivo, y aquí no hay cuerpo que proteger. Un cuerpo, si\nllega, se ignora.\n\n**Solo el autor** (`RN-PM-027`), sin excepción: el superadministrador recibe `403`\nsobre una ajena. **No existe moderación.**\n\n**Retirar dos veces responde `404`**, no `409`: la reseña retirada no la devuelve\nnadie, de modo que «retirada» y «no existe» son lo mismo. Retirada la suya, la\npersona puede escribir otra, y el promedio del producto la deja de contar en el\nacto.\n",
+        "description" : "**Permiso requerido:** `products:delete-comment`. Sin él, `403` (`AUTH-002`).\n\nRetira lógicamente la reseña de quien llama, **sin motivo y sin cuerpo**. Es la\nprimera baja de una entidad de negocio del sistema que no pide `reason`: el\nArt. V.13 admite desde el 14-09-2026 el **contenido propio** como excepción, porque\nel único «por qué» posible —su autor ya no la quiere ahí— está en el propio evento.\nEl registro de eliminación se escribe igual, con la instantánea y un motivo fijo.\n\nPor eso es un `DELETE` y no un `POST /deletion`: el retiro del producto usa `POST`\nporque su cuerpo lleva el motivo, y aquí no hay cuerpo que proteger. Un cuerpo, si\nllega, se ignora.\n\n**Solo el autor** (`RN-PM-027`), sin excepción: el superadministrador recibe `403`\nsobre una ajena. **No existe moderación.**\n\n**Retirar dos veces responde `404`**, no `409`: la reseña retirada no la devuelve\nnadie, de modo que «retirada» y «no existe» son lo mismo. Retirada la suya, la\npersona puede escribir otra, y el promedio del producto la deja de contar en el\nacto.\n",
         "operationId" : "delete",
         "parameters" : [ {
           "in" : "path",
@@ -11314,7 +11314,7 @@
             "description" : "Token ausente o inválido (`AUTH-001`)"
           },
           "403" : {
-            "description" : "Autenticado sin el permiso `products:comment` (`AUTH-002`), o **con él pero sin ser el autor** (`EX-002`)"
+            "description" : "Autenticado sin el permiso `products:delete-comment` (`AUTH-002`), o **con él pero sin ser el autor** (`EX-002`)"
           },
           "404" : {
             "description" : "La reseña no existe, ya está retirada o no es del producto de la ruta (`EX-001`)"
@@ -11322,10 +11322,10 @@
         },
         "summary" : "Retirar la reseña propia",
         "tags" : [ "Reseñas" ],
-        "x-required-permission" : "products:comment"
+        "x-required-permission" : "products:delete-comment"
       },
       "patch" : {
-        "description" : "**Permiso requerido:** `products:comment`. Sin él, `403` (`AUTH-002`).\n\nCorrige la puntuación, el texto o los dos. **Lo que no viene no cambia**, y\n**ningún campo admite el nulo explícito**: los dos son obligatorios. Un cuerpo sin\nningún campo responde `400`, como en la edición del producto.\n\n**Solo el autor** (`RN-PM-027`). El permiso `products:comment` habilita la operación;\nser el autor la autoriza, y son dos cosas distintas: un administrador con el\npermiso corrige las suyas y recibe `403` en las ajenas. **No existe moderación.**\n\nPrimero «existe» (`404`) y después «es tuya» (`403`). Una reseña **retirada**\nresponde `404` también a su autor: no se revive corrigiendo. La reseña debe ser\n**del producto de la ruta**; si no, `404`.\n\n**Se corrige aunque el producto ya no se venda.** Un cuerpo cuyos valores\ncoinciden con los guardados responde `200` sin escribir nada y sin avanzar\n`updatedAt`.\n",
+        "description" : "**Permiso requerido:** `products:update-comment`. Sin él, `403` (`AUTH-002`).\n\nCorrige la puntuación, el texto o los dos. **Lo que no viene no cambia**, y\n**ningún campo admite el nulo explícito**: los dos son obligatorios. Un cuerpo sin\nningún campo responde `400`, como en la edición del producto.\n\n**Solo el autor** (`RN-PM-027`). El permiso `products:update-comment` habilita la operación;\nser el autor la autoriza, y son dos cosas distintas: un administrador con el\npermiso corrige las suyas y recibe `403` en las ajenas. **No existe moderación.**\n\nPrimero «existe» (`404`) y después «es tuya» (`403`). Una reseña **retirada**\nresponde `404` también a su autor: no se revive corrigiendo. La reseña debe ser\n**del producto de la ruta**; si no, `404`.\n\n**Se corrige aunque el producto ya no se venda.** Un cuerpo cuyos valores\ncoinciden con los guardados responde `200` sin escribir nada y sin avanzar\n`updatedAt`.\n",
         "operationId" : "update",
         "parameters" : [ {
           "in" : "path",
@@ -11371,7 +11371,7 @@
             "description" : "Token ausente o inválido (`AUTH-001`)"
           },
           "403" : {
-            "description" : "Autenticado sin el permiso `products:comment` (`AUTH-002`), o **con él pero sin ser el autor** (`EX-002`)"
+            "description" : "Autenticado sin el permiso `products:update-comment` (`AUTH-002`), o **con él pero sin ser el autor** (`EX-002`)"
           },
           "404" : {
             "description" : "La reseña no existe, está retirada o no es del producto de la ruta (`EX-001`)"
@@ -11379,12 +11379,12 @@
         },
         "summary" : "Corregir la reseña propia",
         "tags" : [ "Reseñas" ],
-        "x-required-permission" : "products:comment"
+        "x-required-permission" : "products:update-comment"
       }
     },
     "/api/v1/products/{id}/cover" : {
       "delete" : {
-        "description" : "**Permiso requerido:** `products:update`. Sin él, `403` (`AUTH-002`).\n\nVacía la portada: el producto vuelve a pintarse con su icono —o con el\nque el frontend le pone por omisión, si es un bot— y **la imagen se\nborra**: su dirección deja de servir.\n\n**Es la única de las tres operaciones de la portada que puede decir\nque no**: un upgrade **sin icono** no puede quedarse sin portada\n(`RN-PM-034`), y se rechaza con `VAL-002` nombrando `icon` — lo que\nfalta. El orden para arreglarlo es declarar el icono con\n`PATCH /api/v1/products/{id}` y después quitar la portada. A un bot\nse le quita siempre.\n\n**Sin portada responde igual y no escribe nada**: ni auditoría ni\n`updatedAt`. Responde `200` con el producto, y no `204`: se vacía un\ncampo, no se retira una entidad. Sin cuerpo; si llega uno, se ignora.\n",
+        "description" : "**Permiso requerido:** `products:remove-cover`. Sin él, `403` (`AUTH-002`).\n\nVacía la portada: el producto vuelve a pintarse con su icono —o con el\nque el frontend le pone por omisión, si es un bot— y **la imagen se\nborra**: su dirección deja de servir.\n\n**Es la única de las tres operaciones de la portada que puede decir\nque no**: un upgrade **sin icono** no puede quedarse sin portada\n(`RN-PM-034`), y se rechaza con `VAL-002` nombrando `icon` — lo que\nfalta. El orden para arreglarlo es declarar el icono con\n`PATCH /api/v1/products/{id}` y después quitar la portada. A un bot\nse le quita siempre.\n\n**Sin portada responde igual y no escribe nada**: ni auditoría ni\n`updatedAt`. Responde `200` con el producto, y no `204`: se vacía un\ncampo, no se retira una entidad. Sin cuerpo; si llega uno, se ignora.\n",
         "operationId" : "quitarPortada",
         "parameters" : [ {
           "in" : "path",
@@ -11413,7 +11413,7 @@
             "description" : "Token ausente o inválido (`AUTH-001`)"
           },
           "403" : {
-            "description" : "Autenticado sin el permiso `products:update` (`AUTH-002`)"
+            "description" : "Autenticado sin el permiso `products:remove-cover` (`AUTH-002`)"
           },
           "404" : {
             "description" : "No existe un producto vivo con ese identificador (`EX-001`)"
@@ -11424,10 +11424,10 @@
         },
         "summary" : "Quitar la portada de un producto",
         "tags" : [ "Productos" ],
-        "x-required-permission" : "products:update"
+        "x-required-permission" : "products:remove-cover"
       },
       "put" : {
-        "description" : "**Permiso requerido:** `products:update`. Sin él, `403` (`AUTH-002`).\n\nRecibe **un archivo** —`multipart/form-data`, una sola parte llamada\n`file`— y lo convierte en la portada del producto. **Es el primer\narchivo que el sistema guarda** (`RN-PM-033`, `requirements/pm.md`\n§5.2.9), y lo guarda **tal cual**: ni recorte, ni redimensión, ni\nconversión.\n\n**El tipo lo deciden los bytes, no la cabecera**: `JPEG`, `PNG` o\n`WebP`, reconocidos por su firma; la cabecera `Content-Type` de la\nparte y el nombre del archivo se ignoran. Un `GIF`, un `SVG` o un\ntexto con extensión `.png` se rechazan con `VAL-003`. **Hasta 5 MB**\n(`VAL-004`); sin archivo o vacío, `VAL-002`. Los tres nombran `file`.\n\n**Si el producto ya tenía portada, la reemplaza**: la nueva estrena\nidentificador, **la anterior se borra** y **la dirección cambia** —\n`coverImageUrl` señala una imagen concreta, no «la portada del\nproducto», y por eso `GET /api/v1/product-images/{imageId}` se sirve\ncon caché inmutable. **En los dos tipos y sin condición**: subir una\nportada nunca deja al producto peor.\n\n**El alta no admite la imagen**: `POST /api/v1/products` sigue siendo\nJSON, y la portada se sube después con esta operación. Responde con\nel producto, como la corrección, y **un producto retirado no admite\nportada**.\n",
+        "description" : "**Permiso requerido:** `products:set-cover`. Sin él, `403` (`AUTH-002`).\n\nRecibe **un archivo** —`multipart/form-data`, una sola parte llamada\n`file`— y lo convierte en la portada del producto. **Es el primer\narchivo que el sistema guarda** (`RN-PM-033`, `requirements/pm.md`\n§5.2.9), y lo guarda **tal cual**: ni recorte, ni redimensión, ni\nconversión.\n\n**El tipo lo deciden los bytes, no la cabecera**: `JPEG`, `PNG` o\n`WebP`, reconocidos por su firma; la cabecera `Content-Type` de la\nparte y el nombre del archivo se ignoran. Un `GIF`, un `SVG` o un\ntexto con extensión `.png` se rechazan con `VAL-003`. **Hasta 5 MB**\n(`VAL-004`); sin archivo o vacío, `VAL-002`. Los tres nombran `file`.\n\n**Si el producto ya tenía portada, la reemplaza**: la nueva estrena\nidentificador, **la anterior se borra** y **la dirección cambia** —\n`coverImageUrl` señala una imagen concreta, no «la portada del\nproducto», y por eso `GET /api/v1/product-images/{imageId}` se sirve\ncon caché inmutable. **En los dos tipos y sin condición**: subir una\nportada nunca deja al producto peor.\n\n**El alta no admite la imagen**: `POST /api/v1/products` sigue siendo\nJSON, y la portada se sube después con esta operación. Responde con\nel producto, como la corrección, y **un producto retirado no admite\nportada**.\n",
         "operationId" : "subirPortada",
         "parameters" : [ {
           "in" : "path",
@@ -11471,7 +11471,7 @@
             "description" : "Token ausente o inválido (`AUTH-001`)"
           },
           "403" : {
-            "description" : "Autenticado sin el permiso `products:update` (`AUTH-002`)"
+            "description" : "Autenticado sin el permiso `products:set-cover` (`AUTH-002`)"
           },
           "404" : {
             "description" : "No existe un producto vivo con ese identificador (`EX-001`)"
@@ -11482,7 +11482,7 @@
         },
         "summary" : "Subir o reemplazar la portada de un producto",
         "tags" : [ "Productos" ],
-        "x-required-permission" : "products:update"
+        "x-required-permission" : "products:set-cover"
       }
     },
     "/api/v1/products/{id}/deletion" : {
@@ -11537,7 +11537,7 @@
     },
     "/api/v1/products/{id}/status" : {
       "patch" : {
-        "description" : "**Permiso requerido:** `products:update`. Sin él, `403` (`AUTH-002`).\n\nCambia el estado del producto entre `ACTIVO` e `INACTIVO`. **Es un\nrecurso propio y no un campo de la edición**: publicar y corregir son\ndecisiones distintas, y mezclarlas haría que una corrección de texto\npudiera poner algo a la venta.\n\n**Pedir el estado que el producto ya tiene devuelve `200` sin cambiar\nnada y sin registrar evento.** No es un error: quien pulsa dos veces el\nmismo botón no ha hecho nada malo.\n\n**No se publica un producto sin descripción** (`RN-PM-014`). Sí se\npermite **desactivarlo** sin ella: la regla acota lo que se ofrece, no\nlo que se retira.\n\n**Solo puede haber un upgrade activo hacia cada membresía destino**\n(`RN-PM-004`). Al activar uno cuyo destino ya está ocupado, el rechazo\n**nombra el producto que lo ocupa**, para que se sepa cuál desactivar.\nDesactivar no comprueba nada: liberar un destino nunca produce\nconflicto.\n\n**Un producto retirado no vuelve a la venta por aquí**: responde que no\nexiste.\n\nNo se exige motivo para activar ni para desactivar.\n",
+        "description" : "**Permiso requerido:** `products:change-status`. Sin él, `403` (`AUTH-002`).\n\nCambia el estado del producto entre `ACTIVO` e `INACTIVO`. **Es un\nrecurso propio y no un campo de la edición**: publicar y corregir son\ndecisiones distintas, y mezclarlas haría que una corrección de texto\npudiera poner algo a la venta.\n\n**Pedir el estado que el producto ya tiene devuelve `200` sin cambiar\nnada y sin registrar evento.** No es un error: quien pulsa dos veces el\nmismo botón no ha hecho nada malo.\n\n**No se publica un producto sin descripción** (`RN-PM-014`). Sí se\npermite **desactivarlo** sin ella: la regla acota lo que se ofrece, no\nlo que se retira.\n\n**Solo puede haber un upgrade activo hacia cada membresía destino**\n(`RN-PM-004`). Al activar uno cuyo destino ya está ocupado, el rechazo\n**nombra el producto que lo ocupa**, para que se sepa cuál desactivar.\nDesactivar no comprueba nada: liberar un destino nunca produce\nconflicto.\n\n**Un producto retirado no vuelve a la venta por aquí**: responde que no\nexiste.\n\nNo se exige motivo para activar ni para desactivar.\n",
         "operationId" : "cambiarEstado_2",
         "parameters" : [ {
           "in" : "path",
@@ -11576,7 +11576,7 @@
             "description" : "Token ausente o inválido (`AUTH-001`)"
           },
           "403" : {
-            "description" : "Autenticado sin el permiso `products:update` (`AUTH-002`)"
+            "description" : "Autenticado sin el permiso `products:change-status` (`AUTH-002`)"
           },
           "404" : {
             "description" : "No existe un producto vivo con ese identificador (`EX-001`)"
@@ -11590,12 +11590,12 @@
         },
         "summary" : "Publicar o retirar de la oferta un producto",
         "tags" : [ "Productos" ],
-        "x-required-permission" : "products:update"
+        "x-required-permission" : "products:change-status"
       }
     },
     "/api/v1/roles" : {
       "get" : {
-        "description" : "**Permiso requerido:** `roles:read`. Sin él, `403` (`AUTH-002`).\n\nListado paginado con filtros, búsqueda y ordenamiento. Es la entrada\nnatural a la administración de accesos: de aquí se navega al detalle de\ncada rol.\n\n**El orden por defecto es `code,asc`**: el código es el identificador\ncon el que se habla de un rol en la documentación y en la auditoría.\nSolo se puede ordenar por la lista blanca —`code`, `name`, `roleType`,\n`status`, `createdAt`, `updatedAt`—; cualquier otro campo devuelve\n`400` y **no llega a la base de datos**.\n\n**No incluye los permisos de cada rol** ni el número de usuarios\nasignados: la primera pregunta la responde el detalle\n(`GET /api/v1/roles/{id}`) y la segunda se hace sobre un rol concreto,\nno sobre la lista.\n\n**`parentRoleId` no se valida contra el catálogo.** Filtra por el padre\n**directo** —no por el subárbol— y uno inexistente devuelve la\ncolección vacía, que no es un error.\n\nLa búsqueda va sobre código y nombre, **sin distinguir acentos ni\nmayúsculas**, y por fragmento: `ministracion` encuentra\n`ADMINISTRACION`. Un término en blanco equivale a no filtrar.\n\n**Los eliminados quedan fuera salvo que se pidan** con\n`includeDeleted=true`; cuando se piden, `deletedAt` es lo que permite\ndistinguirlos.\n",
+        "description" : "**Permiso requerido:** `roles:list`. Sin él, `403` (`AUTH-002`).\n\nListado paginado con filtros, búsqueda y ordenamiento. Es la entrada\nnatural a la administración de accesos: de aquí se navega al detalle de\ncada rol.\n\n**El orden por defecto es `code,asc`**: el código es el identificador\ncon el que se habla de un rol en la documentación y en la auditoría.\nSolo se puede ordenar por la lista blanca —`code`, `name`, `roleType`,\n`status`, `createdAt`, `updatedAt`—; cualquier otro campo devuelve\n`400` y **no llega a la base de datos**.\n\n**No incluye los permisos de cada rol** ni el número de usuarios\nasignados: la primera pregunta la responde el detalle\n(`GET /api/v1/roles/{id}`) y la segunda se hace sobre un rol concreto,\nno sobre la lista.\n\n**`parentRoleId` no se valida contra el catálogo.** Filtra por el padre\n**directo** —no por el subárbol— y uno inexistente devuelve la\ncolección vacía, que no es un error.\n\nLa búsqueda va sobre código y nombre, **sin distinguir acentos ni\nmayúsculas**, y por fragmento: `ministracion` encuentra\n`ADMINISTRACION`. Un término en blanco equivale a no filtrar.\n\n**Los eliminados quedan fuera salvo que se pidan** con\n`includeDeleted=true`; cuando se piden, `deletedAt` es lo que permite\ndistinguirlos.\n",
         "operationId" : "listar_2",
         "parameters" : [ {
           "in" : "query",
@@ -11675,7 +11675,7 @@
             "description" : "Token ausente o inválido (`AUTH-001`)"
           },
           "403" : {
-            "description" : "Autenticado sin `roles:read` (`AUTH-002`)"
+            "description" : "Autenticado sin `roles:list` (`AUTH-002`)"
           },
           "500" : {
             "description" : "Fallo no controlado (`ERR-500`)"
@@ -11683,7 +11683,7 @@
         },
         "summary" : "Consultar roles",
         "tags" : [ "Roles" ],
-        "x-required-permission" : "roles:read"
+        "x-required-permission" : "roles:list"
       },
       "post" : {
         "description" : "**Permiso requerido:** `roles:create`. Sin él, `403` (`AUTH-002`).\n\nRegistra un rol bajo un rol padre existente y activo, con los permisos que\nse declaren.\n\nLos permisos deben estar contenidos en los del rol padre (`RN-SEG-003`) y en\nlos permisos efectivos de quien ejecuta el alta (`RN-SEG-010`). Declararlos es\nopcional: sin ellos el rol queda registrado y a la espera de `RF-SP-005`.\n\nEl rol nace siempre **activo** y nunca de sistema. Ni `status` ni `isSystem`\nse admiten en el cuerpo: enviarlos devuelve `400`.\n",
@@ -11831,7 +11831,7 @@
                 }
               }
             },
-            "description" : "Sin `roles:update` (`AUTH-002`), o el rol está asignado al propio actor (`RN-SEG-011`)"
+            "description" : "Sin `roles:change-status` (`AUTH-002`), o el rol está asignado al propio actor (`RN-SEG-011`)"
           },
           "404" : {
             "content" : {
@@ -11922,7 +11922,7 @@
     },
     "/api/v1/roles/{id}/parent" : {
       "patch" : {
-        "description" : "**Permiso requerido:** `roles:update`. Sin él, `403` (`AUTH-002`).\n\nReubica el rol bajo otro padre y **revalida la contención contra el\nnuevo** (`RN-SEG-013`): si el rol declara permisos que el nuevo padre\nno posee, la operación se rechaza **entera** enumerándolos, para que\nusted decida cuáles retirar. **Nunca se recorta nada en silencio.**\n\n**Los hijos acompañan al rol** y no hay que revisarlos: si este cabe en\nel nuevo padre, ellos caben en este por transitividad.\n\nEl nuevo padre debe existir y estar **activo**, y no puede ser el\npropio rol ni uno de sus descendientes —eso formaría un ciclo—. Su\nclasificación es indiferente: un rol comercial puede colgar de uno\nfuncionario, porque el padre acota privilegios, no clasifica.\n\n**El rol raíz no admite padre** y ningún rol puede quedarse sin él:\n`RN-SEG-007` exige exactamente una cima.\n",
+        "description" : "**Permiso requerido:** `roles:assign-parent`. Sin él, `403` (`AUTH-002`).\n\nReubica el rol bajo otro padre y **revalida la contención contra el\nnuevo** (`RN-SEG-013`): si el rol declara permisos que el nuevo padre\nno posee, la operación se rechaza **entera** enumerándolos, para que\nusted decida cuáles retirar. **Nunca se recorta nada en silencio.**\n\n**Los hijos acompañan al rol** y no hay que revisarlos: si este cabe en\nel nuevo padre, ellos caben en este por transitividad.\n\nEl nuevo padre debe existir y estar **activo**, y no puede ser el\npropio rol ni uno de sus descendientes —eso formaría un ciclo—. Su\nclasificación es indiferente: un rol comercial puede colgar de uno\nfuncionario, porque el padre acota privilegios, no clasifica.\n\n**El rol raíz no admite padre** y ningún rol puede quedarse sin él:\n`RN-SEG-007` exige exactamente una cima.\n",
         "operationId" : "cambiarPadre",
         "parameters" : [ {
           "in" : "path",
@@ -11975,7 +11975,7 @@
                 }
               }
             },
-            "description" : "Sin `roles:update`, o el rol está asignado al propio actor (`RN-SEG-011`)"
+            "description" : "Sin `roles:assign-parent`, o el rol está asignado al propio actor (`RN-SEG-011`)"
           },
           "404" : {
             "content" : {
@@ -12020,12 +12020,12 @@
         },
         "summary" : "Cambiar el rol padre",
         "tags" : [ "Roles" ],
-        "x-required-permission" : "roles:update"
+        "x-required-permission" : "roles:assign-parent"
       }
     },
     "/api/v1/roles/{id}/permissions" : {
       "post" : {
-        "description" : "**Permiso requerido:** `roles:update`. Sin él, `403` (`AUTH-002`).\n\nAsocia permisos al rol. **La operación se aplica entera o no se\naplica**: un solo permiso que incumpla la contención rechaza la\npetición completa, porque aplicar los válidos dejaría el rol en un\nestado que nadie pidió.\n\nCada permiso debe estar **contenido en los del rol padre**\n(`RN-SEG-003`) y **en los permisos efectivos de quien ejecuta la\noperación** (`RN-SEG-010`). Lo segundo no lo concede `roles:update`:\nese permiso habilita a modificar roles, no a decidir con qué alcance.\n\n**El rol raíz omite la primera comprobación** —no tiene cota superior—\ny conserva la segunda.\n\n**Es idempotente y nunca retira nada**: los permisos ya declarados se\nignoran sin error, y si no queda ninguno por agregar no se registra\nevento. Hasta 100 por petición.\n\n**Los roles de sistema también reciben permisos** por aquí: `RN-SEG-012`\nprotege su identidad y su posición, no lo que conceden. Los rangos de\nla fuerza comercial y `CLIENTE` nacen sin ninguno, y esta es su única\nvía. Para `AGENTE` hay que pasar antes por `MANAGER` y `DIRECTOR`,\nporque la contención se valida contra el padre inmediato.\n",
+        "description" : "**Permiso requerido:** `roles:assign-permissions`. Sin él, `403` (`AUTH-002`).\n\nAsocia permisos al rol. **La operación se aplica entera o no se\naplica**: un solo permiso que incumpla la contención rechaza la\npetición completa, porque aplicar los válidos dejaría el rol en un\nestado que nadie pidió.\n\nCada permiso debe estar **contenido en los del rol padre**\n(`RN-SEG-003`) y **en los permisos efectivos de quien ejecuta la\noperación** (`RN-SEG-010`). Lo segundo no lo concede `roles:assign-permissions`:\nese permiso habilita a modificar roles, no a decidir con qué alcance.\n\n**El rol raíz omite la primera comprobación** —no tiene cota superior—\ny conserva la segunda.\n\n**Es idempotente y nunca retira nada**: los permisos ya declarados se\nignoran sin error, y si no queda ninguno por agregar no se registra\nevento. Hasta 100 por petición.\n\n**Los roles de sistema también reciben permisos** por aquí: `RN-SEG-012`\nprotege su identidad y su posición, no lo que conceden. Los rangos de\nla fuerza comercial y `CLIENTE` nacen sin ninguno, y esta es su única\nvía. Para `AGENTE` hay que pasar antes por `MANAGER` y `DIRECTOR`,\nporque la contención se valida contra el padre inmediato.\n",
         "operationId" : "agregarPermisos",
         "parameters" : [ {
           "in" : "path",
@@ -12078,7 +12078,7 @@
                 }
               }
             },
-            "description" : "Sin `roles:update`, o el rol está asignado al propio actor (`RN-SEG-011`)"
+            "description" : "Sin `roles:assign-permissions`, o el rol está asignado al propio actor (`RN-SEG-011`)"
           },
           "404" : {
             "content" : {
@@ -12123,12 +12123,12 @@
         },
         "summary" : "Agregar permisos a un rol",
         "tags" : [ "Roles" ],
-        "x-required-permission" : "roles:update"
+        "x-required-permission" : "roles:assign-permissions"
       }
     },
     "/api/v1/roles/{id}/permissions/revocations" : {
       "post" : {
-        "description" : "**Permiso requerido:** `roles:update`. Sin él, `403` (`AUTH-002`).\n\nDesasocia permisos del rol, con **eliminación física** de la asociación\ny **sin exigir motivo**: es una asociación y no una entidad de negocio.\n\n**Se rechaza si un rol hijo directo declara alguno de los permisos que\nse retiran** (`RN-SEG-005`), y el error dice **qué rol** declara **qué\npermiso**: sin ese detalle no habría forma de saber qué corregir. Los\nhijos **inactivos cuentan igual** que los activos —el invariante vale\nsiempre—, y los eliminados no.\n\n**No hay cascada**: nunca se retiran permisos de los descendientes.\nUsted decide en qué orden hacerlo.\n\n**Es idempotente**: los permisos que el rol no declaraba se ignoran sin\nerror. Hasta 100 por petición, el mismo límite que al agregarlos.\n\n**`POST` sobre un subrecurso y no `DELETE`**: la operación recibe una\nlista en el cuerpo, y RFC 9110 no define semántica para el cuerpo de un\n`DELETE`.\n\n**Alcanza también a los roles de sistema**: lo que se les concede tiene\nque poder corregirse por el mismo camino.\n",
+        "description" : "**Permiso requerido:** `roles:revoke-permissions`. Sin él, `403` (`AUTH-002`).\n\nDesasocia permisos del rol, con **eliminación física** de la asociación\ny **sin exigir motivo**: es una asociación y no una entidad de negocio.\n\n**Se rechaza si un rol hijo directo declara alguno de los permisos que\nse retiran** (`RN-SEG-005`), y el error dice **qué rol** declara **qué\npermiso**: sin ese detalle no habría forma de saber qué corregir. Los\nhijos **inactivos cuentan igual** que los activos —el invariante vale\nsiempre—, y los eliminados no.\n\n**No hay cascada**: nunca se retiran permisos de los descendientes.\nUsted decide en qué orden hacerlo.\n\n**Es idempotente**: los permisos que el rol no declaraba se ignoran sin\nerror. Hasta 100 por petición, el mismo límite que al agregarlos.\n\n**`POST` sobre un subrecurso y no `DELETE`**: la operación recibe una\nlista en el cuerpo, y RFC 9110 no define semántica para el cuerpo de un\n`DELETE`.\n\n**Alcanza también a los roles de sistema**: lo que se les concede tiene\nque poder corregirse por el mismo camino.\n",
         "operationId" : "retirarPermisos",
         "parameters" : [ {
           "in" : "path",
@@ -12181,7 +12181,7 @@
                 }
               }
             },
-            "description" : "Sin `roles:update`, o el rol está asignado al propio actor (`RN-SEG-011`)"
+            "description" : "Sin `roles:revoke-permissions`, o el rol está asignado al propio actor (`RN-SEG-011`)"
           },
           "404" : {
             "content" : {
@@ -12216,12 +12216,12 @@
         },
         "summary" : "Retirar permisos de un rol",
         "tags" : [ "Roles" ],
-        "x-required-permission" : "roles:update"
+        "x-required-permission" : "roles:revoke-permissions"
       }
     },
     "/api/v1/roles/{id}/status" : {
       "patch" : {
-        "description" : "**Permiso requerido:** `roles:update`. Sin él, `403` (`AUTH-002`).\n\n**Desactivar no es retirar.** Las asignaciones a personas se conservan\nintactas; lo que cambia es que el rol **deja de conceder permisos de\ninmediato**, sin esperar a que ningún token expire.\n\nSe pide el **estado destino** —`ACTIVO` o `INACTIVO`— y no una acción,\nde modo que repetir la petición deja el mismo resultado y no registra\nevento.\n\n**El rol raíz no admite esta operación**, aparte de la prohibición\ngeneral sobre los roles de sistema: un rol raíz inactivo no concede\nnada, y eso dejaría al sistema sin su última vía de administración.\n\nEl cuerpo no admite motivo: el Art. V.13 lo exige solo en las\neliminaciones.\n",
+        "description" : "**Permiso requerido:** `roles:change-status`. Sin él, `403` (`AUTH-002`).\n\n**Desactivar no es retirar.** Las asignaciones a personas se conservan\nintactas; lo que cambia es que el rol **deja de conceder permisos de\ninmediato**, sin esperar a que ningún token expire.\n\nSe pide el **estado destino** —`ACTIVO` o `INACTIVO`— y no una acción,\nde modo que repetir la petición deja el mismo resultado y no registra\nevento.\n\n**El rol raíz no admite esta operación**, aparte de la prohibición\ngeneral sobre los roles de sistema: un rol raíz inactivo no concede\nnada, y eso dejaría al sistema sin su última vía de administración.\n\nEl cuerpo no admite motivo: el Art. V.13 lo exige solo en las\neliminaciones.\n",
         "operationId" : "cambiarEstado_1",
         "parameters" : [ {
           "in" : "path",
@@ -12274,7 +12274,7 @@
                 }
               }
             },
-            "description" : "Sin `roles:update`, o el rol está asignado al propio actor (`RN-SEG-011`)"
+            "description" : "Sin `roles:change-status`, o el rol está asignado al propio actor (`RN-SEG-011`)"
           },
           "404" : {
             "content" : {
@@ -12309,12 +12309,12 @@
         },
         "summary" : "Activar o desactivar un rol",
         "tags" : [ "Roles" ],
-        "x-required-permission" : "roles:update"
+        "x-required-permission" : "roles:change-status"
       }
     },
     "/api/v1/user-commission-rates" : {
       "get" : {
-        "description" : "**Permiso requerido:** `commissions:read`. Sin él, `403` (`AUTH-002`).\n\nDevuelve las tasas **tal como se declararon**, cada una **con su\nproducto** (`id`, `code`, `name`, `price` y `currency`), y no resuelve\ncuál se aplica: para eso está `GET /api/v1/commissions/effective`.\n\n**Incluye el historial**: las vencidas viajan junto a la vigente salvo que\nse filtre por fecha con `onDate`. Y es **el único historial que le queda al\nmódulo** — las tasas de rol perdieron la vigencia.\n\n**Filtrar por persona devuelve las declaradas PARA esa persona**, no la que\nle aplica hoy sobre un producto.\n\n**Filtrar por producto (`productId`) devuelve las de ese producto**, de\ncualquier persona: es la respuesta a «quién tiene excepción aquí». Se\ncombina con los demás filtros — persona y producto juntos responden\n«¿tiene esta persona excepción en este producto?», con su historial. Un\nproducto donde nadie tiene excepción devuelve la página vacía, y **no\nsignifica que no comisione**: significa que todos cobran por su rol.\n\nHasta el 16-09-2026 cada fila traía `associatedProducts`, cuántos\nproductos hacían regir la excepción; hoy trae **cuál**, porque es uno.\n",
+        "description" : "**Permiso requerido:** `user-commission-rates:read`. Sin él, `403` (`AUTH-002`).\n\nDevuelve las tasas **tal como se declararon**, cada una **con su\nproducto** (`id`, `code`, `name`, `price` y `currency`), y no resuelve\ncuál se aplica: para eso está `GET /api/v1/commissions/effective`.\n\n**Incluye el historial**: las vencidas viajan junto a la vigente salvo que\nse filtre por fecha con `onDate`. Y es **el único historial que le queda al\nmódulo** — las tasas de rol perdieron la vigencia.\n\n**Filtrar por persona devuelve las declaradas PARA esa persona**, no la que\nle aplica hoy sobre un producto.\n\n**Filtrar por producto (`productId`) devuelve las de ese producto**, de\ncualquier persona: es la respuesta a «quién tiene excepción aquí». Se\ncombina con los demás filtros — persona y producto juntos responden\n«¿tiene esta persona excepción en este producto?», con su historial. Un\nproducto donde nadie tiene excepción devuelve la página vacía, y **no\nsignifica que no comisione**: significa que todos cobran por su rol.\n\nHasta el 16-09-2026 cada fila traía `associatedProducts`, cuántos\nproductos hacían regir la excepción; hoy trae **cuál**, porque es uno.\n",
         "operationId" : "listar_1",
         "parameters" : [ {
           "in" : "query",
@@ -12358,10 +12358,10 @@
         },
         "summary" : "Consultar las tasas personalizadas",
         "tags" : [ "Comisiones" ],
-        "x-required-permission" : "commissions:read"
+        "x-required-permission" : "user-commission-rates:read"
       },
       "post" : {
-        "description" : "**Permiso requerido:** `commissions:create`. Sin él, `403` (`AUTH-002`).\n\nDeclara que **esta persona** gana esto —un porcentaje o un importe—\n**por este producto**, desde una fecha y, opcionalmente, hasta otra.\n**`productId` es obligatorio** (`RN-CM-021`, 16-09-2026): la tasa nace\ncon su producto, **rige sobre él desde su inicio de vigencia** y no\ncambia de producto — cambiar es retirarla y registrar otra. Una\nexcepción que abarque varios productos son varias tasas.\n\n**Registrar es poner en vigor.** No hay paso de asociación ni\nborrador. Del 11-09-2026 al 16-09-2026 la tasa se creaba sin producto y\nno pagaba nada hasta asociarse; las de aquel modelo se borraron (`V10`)\ny hay que registrarlas de nuevo, una por producto.\n\n**Una sola vigente por persona, producto y día** (`RN-CM-006`): un\nperiodo que pise a otra tasa viva de esa persona sobre ese producto\nresponde `409` — también cuando las dos llegan a la vez, porque la\nregla vive en el motor. Sobre **otro** producto no hay conflicto, y las\nconsecutivas son el historial.\n\nY todo lo que antes se comprobaba al asociar se comprueba aquí:\nproducto **vivo y no retirado**; el **tope individual** —un importe\nfijo no pasa del precio del producto, `RN-CM-019`—; la regla del\n**gratuito** —solo importe fijo, `RN-CM-020`—; y, para un importe\nfijo, **los decimales de la moneda del producto** (`RN-CM-017`).\n\n**No lleva rol, y eso tiene una consecuencia que conviene conocer**: la\ntasa sigue rigiendo aunque su titular pase a un rol que no comisiona.\nHasta el 01-09-2026 el rol era obligatorio precisamente para impedirlo.\n\n`validFrom` es obligatorio; sin `validTo`, rige indefinidamente.\n",
+        "description" : "**Permiso requerido:** `user-commission-rates:create`. Sin él, `403` (`AUTH-002`).\n\nDeclara que **esta persona** gana esto —un porcentaje o un importe—\n**por este producto**, desde una fecha y, opcionalmente, hasta otra.\n**`productId` es obligatorio** (`RN-CM-021`, 16-09-2026): la tasa nace\ncon su producto, **rige sobre él desde su inicio de vigencia** y no\ncambia de producto — cambiar es retirarla y registrar otra. Una\nexcepción que abarque varios productos son varias tasas.\n\n**Registrar es poner en vigor.** No hay paso de asociación ni\nborrador. Del 11-09-2026 al 16-09-2026 la tasa se creaba sin producto y\nno pagaba nada hasta asociarse; las de aquel modelo se borraron (`V10`)\ny hay que registrarlas de nuevo, una por producto.\n\n**Una sola vigente por persona, producto y día** (`RN-CM-006`): un\nperiodo que pise a otra tasa viva de esa persona sobre ese producto\nresponde `409` — también cuando las dos llegan a la vez, porque la\nregla vive en el motor. Sobre **otro** producto no hay conflicto, y las\nconsecutivas son el historial.\n\nY todo lo que antes se comprobaba al asociar se comprueba aquí:\nproducto **vivo y no retirado**; el **tope individual** —un importe\nfijo no pasa del precio del producto, `RN-CM-019`—; la regla del\n**gratuito** —solo importe fijo, `RN-CM-020`—; y, para un importe\nfijo, **los decimales de la moneda del producto** (`RN-CM-017`).\n\n**No lleva rol, y eso tiene una consecuencia que conviene conocer**: la\ntasa sigue rigiendo aunque su titular pase a un rol que no comisiona.\nHasta el 01-09-2026 el rol era obligatorio precisamente para impedirlo.\n\n`validFrom` es obligatorio; sin `validTo`, rige indefinidamente.\n",
         "operationId" : "registrar_1",
         "requestBody" : {
           "content" : {
@@ -12427,12 +12427,12 @@
         },
         "summary" : "Registrar la tasa personalizada de una persona sobre un producto",
         "tags" : [ "Comisiones" ],
-        "x-required-permission" : "commissions:create"
+        "x-required-permission" : "user-commission-rates:create"
       }
     },
     "/api/v1/user-commission-rates/{id}" : {
       "patch" : {
-        "description" : "**Permiso requerido:** `commissions:update`. Sin él, `403` (`AUTH-002`).\n\nCorrige el **valor** —la forma y la cifra— y el **fin de vigencia**. Se\naplica lo que llega y se deja intacto lo que no.\n\n**Corregir no es cambiar**, y aquí la distinción sigue viva: corregir\narregla un error y reescribe lo que esa tasa dice que rigió; cambiar lo que\ngana alguien a partir de una fecha es **cerrar la vigente y registrar\notra**.\n\n`validTo: null` **vacía** el fin de vigencia y la tasa vuelve a regir\nindefinidamente; `rateType: null` se **rechaza**.\n\n**La persona, el producto y el inicio de vigencia no se corrigen**:\n`userId` y `validFrom` devuelven `400` con `VAL-009`, y `productId` es un\ncampo desconocido que también responde `400`.\n\n**Todo se revisa contra el producto de la tasa** (`RN-CM-021`): alargar\n`validTo` no puede pisar a otra tasa viva de la misma persona sobre él\n(`409`, `EX-006`); un `fixedAmount` que supere su precio se rechaza con\n`409` (`EX-007`); sobre un producto **gratuito** solo cabe el importe\nfijo (`RN-CM-020`): dejarla de porcentaje se rechaza con `409`\n(`EX-008`), y el fijo entra del importe que sea; y un importe fijo tiene\nque **caber en los decimales de la moneda del producto** (`VAL-014`).\n",
+        "description" : "**Permiso requerido:** `user-commission-rates:update`. Sin él, `403` (`AUTH-002`).\n\nCorrige el **valor** —la forma y la cifra— y el **fin de vigencia**. Se\naplica lo que llega y se deja intacto lo que no.\n\n**Corregir no es cambiar**, y aquí la distinción sigue viva: corregir\narregla un error y reescribe lo que esa tasa dice que rigió; cambiar lo que\ngana alguien a partir de una fecha es **cerrar la vigente y registrar\notra**.\n\n`validTo: null` **vacía** el fin de vigencia y la tasa vuelve a regir\nindefinidamente; `rateType: null` se **rechaza**.\n\n**La persona, el producto y el inicio de vigencia no se corrigen**:\n`userId` y `validFrom` devuelven `400` con `VAL-009`, y `productId` es un\ncampo desconocido que también responde `400`.\n\n**Todo se revisa contra el producto de la tasa** (`RN-CM-021`): alargar\n`validTo` no puede pisar a otra tasa viva de la misma persona sobre él\n(`409`, `EX-006`); un `fixedAmount` que supere su precio se rechaza con\n`409` (`EX-007`); sobre un producto **gratuito** solo cabe el importe\nfijo (`RN-CM-020`): dejarla de porcentaje se rechaza con `409`\n(`EX-008`), y el fijo entra del importe que sea; y un importe fijo tiene\nque **caber en los decimales de la moneda del producto** (`VAL-014`).\n",
         "operationId" : "corregir",
         "parameters" : [ {
           "in" : "path",
@@ -12507,12 +12507,12 @@
         },
         "summary" : "Corregir una tasa personalizada",
         "tags" : [ "Comisiones" ],
-        "x-required-permission" : "commissions:update"
+        "x-required-permission" : "user-commission-rates:update"
       }
     },
     "/api/v1/user-commission-rates/{id}/deletion" : {
       "post" : {
-        "description" : "**Permiso requerido:** `commissions:delete`. Sin él, `403` (`AUTH-002`).\n\nRetira una tasa que **no debió existir**, con **motivo obligatorio**, y\ndesde ese instante **esa persona deja de cobrar por ese producto** por\nesta tasa.\n\n**Retirar no es cerrar la vigencia**: se cierra lo que dejó de regir, se\nretira lo que fue un error. Por eso el retiro **no toca la vigencia** — el\nregistro de eliminación debe poder decir qué periodo cubría lo retirado.\n\nLos días que ocupaba **quedan libres**, de modo que puede declararse otra\ntasa que los cubra. Del 11-09-2026 al 16-09-2026 una tasa asociada no\nse retiraba; sin asociación no hay condición.\n\n**No es idempotente**: retirar dos veces devuelve `409`.\n",
+        "description" : "**Permiso requerido:** `user-commission-rates:delete`. Sin él, `403` (`AUTH-002`).\n\nRetira una tasa que **no debió existir**, con **motivo obligatorio**, y\ndesde ese instante **esa persona deja de cobrar por ese producto** por\nesta tasa.\n\n**Retirar no es cerrar la vigencia**: se cierra lo que dejó de regir, se\nretira lo que fue un error. Por eso el retiro **no toca la vigencia** — el\nregistro de eliminación debe poder decir qué periodo cubría lo retirado.\n\nLos días que ocupaba **quedan libres**, de modo que puede declararse otra\ntasa que los cubra. Del 11-09-2026 al 16-09-2026 una tasa asociada no\nse retiraba; sin asociación no hay condición.\n\n**No es idempotente**: retirar dos veces devuelve `409`.\n",
         "operationId" : "retirar",
         "parameters" : [ {
           "in" : "path",
@@ -12551,12 +12551,12 @@
         },
         "summary" : "Retirar una tasa personalizada",
         "tags" : [ "Comisiones" ],
-        "x-required-permission" : "commissions:delete"
+        "x-required-permission" : "user-commission-rates:delete"
       }
     },
     "/api/v1/users" : {
       "get" : {
-        "description" : "**Permiso requerido:** `users:read`. Sin él, `403` (`AUTH-002`).\n\nListado paginado con filtros, búsqueda y ordenamiento.\n\n**El orden por defecto es `lastName,asc`** y no el nombre de usuario:\nesta es la lista desde la que se administra el acceso, y quien la mira\nbusca a alguien por su apellido.\n\nSolo se puede ordenar por la lista blanca —`username`, `email`,\n`firstName`, `lastName`, `status`, `createdAt`, `updatedAt`—. **No se\nadmite ordenar por ningún campo de la credencial**: ordenar por la marca\nde cambio obligatorio produciría la lista de quien no ha cambiado su\ncontraseña inicial.\n\n**`roleId`, `membershipId` y `countryId` no se validan contra su\ncatálogo.** Un filtro por algo inexistente devuelve la colección vacía y\nno es un error.\n\n**`countryId` NO se acota a países activos**, y va contra la intuición:\nfiltrar solo por los activos convertiría desactivar un país en una forma\nde **esconder a su gente**, y este listado es justamente la herramienta\ncon la que se busca a quien quedó dentro para moverlo. Quien esté en un\npaís retirado aparece con normalidad.\n\nCada fila trae su `country` **resuelto y nunca nulo** — es el único\nobjeto anidado de la fila del que se puede decir eso: `roles` puede venir\nvacía y `membership` y `deletedAt` pueden venir nulos.\n\n**El listado NO publica el documento ni los datos de contacto**, y no se\npuede buscar por ellos. Es deliberado: exponer un documento en un listado\npaginado alcanza a mucha más gente que devolverlo en un detalle. Quien\nnecesite el documento de una persona usa `GET /api/v1/users/{id}`.\n\nLa búsqueda va sobre nombre de usuario, correo y nombre completo,\n**sin distinguir acentos ni mayúsculas**, y por fragmento.\n\n`membership` **no es nula cuando está vencida**: vencer no es lo mismo\nque no tener. `current` dice cuál de los dos casos es.\n\nUn filtro sin coincidencias devuelve `200` con la colección vacía. No\nhay `404` ni `422`.\n",
+        "description" : "**Permiso requerido:** `users:list`. Sin él, `403` (`AUTH-002`).\n\nListado paginado con filtros, búsqueda y ordenamiento.\n\n**El orden por defecto es `lastName,asc`** y no el nombre de usuario:\nesta es la lista desde la que se administra el acceso, y quien la mira\nbusca a alguien por su apellido.\n\nSolo se puede ordenar por la lista blanca —`username`, `email`,\n`firstName`, `lastName`, `status`, `createdAt`, `updatedAt`—. **No se\nadmite ordenar por ningún campo de la credencial**: ordenar por la marca\nde cambio obligatorio produciría la lista de quien no ha cambiado su\ncontraseña inicial.\n\n**`roleId`, `membershipId` y `countryId` no se validan contra su\ncatálogo.** Un filtro por algo inexistente devuelve la colección vacía y\nno es un error.\n\n**`countryId` NO se acota a países activos**, y va contra la intuición:\nfiltrar solo por los activos convertiría desactivar un país en una forma\nde **esconder a su gente**, y este listado es justamente la herramienta\ncon la que se busca a quien quedó dentro para moverlo. Quien esté en un\npaís retirado aparece con normalidad.\n\nCada fila trae su `country` **resuelto y nunca nulo** — es el único\nobjeto anidado de la fila del que se puede decir eso: `roles` puede venir\nvacía y `membership` y `deletedAt` pueden venir nulos.\n\n**El listado NO publica el documento ni los datos de contacto**, y no se\npuede buscar por ellos. Es deliberado: exponer un documento en un listado\npaginado alcanza a mucha más gente que devolverlo en un detalle. Quien\nnecesite el documento de una persona usa `GET /api/v1/users/{id}`.\n\nLa búsqueda va sobre nombre de usuario, correo y nombre completo,\n**sin distinguir acentos ni mayúsculas**, y por fragmento.\n\n`membership` **no es nula cuando está vencida**: vencer no es lo mismo\nque no tener. `current` dice cuál de los dos casos es.\n\nUn filtro sin coincidencias devuelve `200` con la colección vacía. No\nhay `404` ni `422`.\n",
         "operationId" : "listar",
         "parameters" : [ {
           "in" : "query",
@@ -12645,7 +12645,7 @@
             "description" : "Token ausente o inválido (`AUTH-001`)"
           },
           "403" : {
-            "description" : "Autenticado sin `users:read` (`AUTH-002`)"
+            "description" : "Autenticado sin `users:list` (`AUTH-002`)"
           },
           "500" : {
             "description" : "Fallo no controlado (`ERR-500`)"
@@ -12653,7 +12653,7 @@
         },
         "summary" : "Consultar personas",
         "tags" : [ "Usuarios" ],
-        "x-required-permission" : "users:read"
+        "x-required-permission" : "users:list"
       },
       "post" : {
         "description" : "**Permiso requerido:** `users:create`. Sin él, `403` (`AUTH-002`).\n\nRegistra una persona con sus roles iniciales.\n\nLa cuenta nace **activa** y **marcada para cambio obligatorio de\ncontraseña**: quien prepara el alta conoce la credencial, y esa ventana\nse cierra en el primer inicio de sesión. Ni el estado ni la marca se\nenvían; enviarlos devuelve `400`.\n**`membershipId` es OPCIONAL, y el superior es condicional.** Desde el\n05-09-2026 toda persona nace con nivel: si no se indica ninguno, se le\nconcede el de arranque (`BECA`). Ya no hay rechazo por indicarlo sin rol\nde consumidor ni por omitirlo teniéndolo — esa exigencia murió con\n`RN-SP-013`.\n\nEl rol de vendedor y el superior comercial **sí siguen siendo\ncondicionales en los dos sentidos**: indicar uno sin el otro devuelve\n`409`, no se ignora.\n\nEl superior debe portar el **rol padre inmediato** del rol vendedor de\nmayor rango de la persona, y estar activo.\n\n## Identidad, contacto y país\n\n**`countryId`, `documentTypeId`, `documentNumber` y `phone` son\nobligatorios**, y a diferencia de la membresía y el superior **no\ndependen de qué roles se concedan**: su ausencia es `400`, nunca un\n`409` condicional.\n\n**`companyPhone`, `addressLine1`, `addressLine2` y `city` son\nopcionales.** Exigir una dirección postal a un funcionario interno\nbloquearía su alta sin que nadie la necesite. `city` es **texto\nlibre**: no hay catálogo de ciudades.\n\n**El tipo de documento sale de `GET /api/v1/document-types`, y ese\ncatálogo contiene SOLO documentos de persona mayor de edad.** Ahí está\nla validación de mayoría de edad del sistema entero: no hay ninguna\nmarca que diga cuáles acreditan y cuáles no, porque **los que no\nacreditan no están**. Registrar a un menor no se rechaza — no se puede\nexpresar, porque no hay identificador que enviar. Un desplegable\nalimentado por ese catálogo no puede ofrecer una opción que el alta vaya\na rechazar.\n\n**El par tipo + número es único entre TODAS las personas, incluidas las\neliminadas** (`RN-SP-035`), igual que el nombre de usuario y el correo.\nEl `409` que produce **no dice de quién es** el documento, ni si esa\npersona sigue vigente.\n\nEl número de documento se guarda **recortado y en mayúsculas**, y\nlos **dos teléfonos** —`phone`, el personal, y `companyPhone`, el de la\nempresa— **normalizados a dígitos con un `+` opcional**, fuera espacios,\nguiones y paréntesis. La dirección y la ciudad solo se recortan.\n\n**`companyPhone` es OPCIONAL y `phone` no** (`RN-SP-037`): exigir un\nteléfono de empresa bloquearía el alta de todo el que no tenga una. Sale\n**presente y en nulo** cuando no se declara, nunca ausente.\n\n**Ningún teléfono se valida contra el país**: eso exigiría un catálogo de\nprefijos que no existe.\n\nLa respuesta agrupa `country`, `document` y `contact` en tres objetos, y\ndevuelve el **tipo de documento resuelto** —abreviación y nombre— para\nque no haga falta una segunda llamada al catálogo, que además exige otro\npermiso.\n\nLa contraseña no se recorta: un espacio al principio o al final es parte\nde ella.\n",
@@ -13033,7 +13033,7 @@
     },
     "/api/v1/users/{id}/membership" : {
       "delete" : {
-        "description" : "**Permiso requerido:** `users:assign-membership`. Sin él, `403` (`AUTH-002`).\n\n**Devuelve al nivel de arranque, y no deja a nadie sin nivel.** Desde el\n05-09-2026 `RN-SP-018` exige que **toda** persona tenga membresía, de\nmodo que esta operación cierra la que tenga y le abre una `BECA`.\n\nExiste para **corregir un nivel concedido por error**. Bajar a alguien a\nun nivel intermedio es la operación de membresía, que admite indicar\ncuál.\n\n**Responde `200` con la membresía resultante**, no `204`: devolver un\ncuerpo vacío diría que no queda nada, y queda el nivel de arranque —\nquien llama necesita saber en qué quedó la persona sin volver a\npreguntar.\n\n**Es idempotente.** Aplicada sobre quien ya está en el suelo no escribe\nni audita, y devuelve lo mismo.\n\n**Ya no rechaza a los consumidores.** Hasta el 05-09-2026 exigía que la\npersona **no** portara ningún rol de consumidor, porque la regla de\nentonces no admitía consumidores sin nivel; retirada `RN-SP-013`, esa\nprecondición no protege nada.\n\n**Conserva el `DELETE`** y no le alcanza la enmienda del retiro de\nroles: esta operación no lleva cuerpo, de modo que el problema que\naquella evitaba no existe aquí.\n",
+        "description" : "**Permiso requerido:** `users:revoke-membership`. Sin él, `403` (`AUTH-002`).\n\n**Devuelve al nivel de arranque, y no deja a nadie sin nivel.** Desde el\n05-09-2026 `RN-SP-018` exige que **toda** persona tenga membresía, de\nmodo que esta operación cierra la que tenga y le abre una `BECA`.\n\nExiste para **corregir un nivel concedido por error**. Bajar a alguien a\nun nivel intermedio es la operación de membresía, que admite indicar\ncuál.\n\n**Responde `200` con la membresía resultante**, no `204`: devolver un\ncuerpo vacío diría que no queda nada, y queda el nivel de arranque —\nquien llama necesita saber en qué quedó la persona sin volver a\npreguntar.\n\n**Es idempotente.** Aplicada sobre quien ya está en el suelo no escribe\nni audita, y devuelve lo mismo.\n\n**Ya no rechaza a los consumidores.** Hasta el 05-09-2026 exigía que la\npersona **no** portara ningún rol de consumidor, porque la regla de\nentonces no admitía consumidores sin nivel; retirada `RN-SP-013`, esa\nprecondición no protege nada.\n\n**Conserva el `DELETE`** y no le alcanza la enmienda del retiro de\nroles: esta operación no lleva cuerpo, de modo que el problema que\naquella evitaba no existe aquí.\n",
         "operationId" : "devolverMembresiaAlSuelo",
         "parameters" : [ {
           "in" : "path",
@@ -13062,7 +13062,7 @@
             "description" : "Token ausente o inválido (`AUTH-001`)"
           },
           "403" : {
-            "description" : "Autenticado sin `users:assign-membership` (`AUTH-002`)"
+            "description" : "Autenticado sin `users:revoke-membership` (`AUTH-002`)"
           },
           "404" : {
             "description" : "La persona no existe o está eliminada (`VAL-002`)"
@@ -13073,7 +13073,7 @@
         },
         "summary" : "Devolver la membresía de una persona al suelo",
         "tags" : [ "Usuarios" ],
-        "x-required-permission" : "users:assign-membership"
+        "x-required-permission" : "users:revoke-membership"
       },
       "put" : {
         "description" : "**Permiso requerido:** `users:assign-membership`. Sin él, `403` (`AUTH-002`).\n\n**`PUT` y no `POST`**, al revés que la asignación de roles, y la\ndiferencia no es de gusto: aquí el cuerpo **sí** representa el estado\nfinal. La persona tiene siempre exactamente una, de modo que enviar una\nla deja como la única — y de ahí sale gratis la idempotencia.\n\n`endsAt` es opcional. **Ausente significa indefinida**: enviarlo ausente\nsobre una membresía que tenía fecha la convierte en indefinida, y es un\ncaso normal, no un olvido que haya que interpretar. Presente, la\nmembresía deja de estar vigente **al llegar** ese instante, no después.\n\nRepetir la petición idéntica no escribe ni deja auditoría. Cambiar solo\nla fecha sí es un cambio y sí se registra.\n\nDevuelve `200` incluso la primera vez: `PUT` sobre una ruta fija no crea\nun recurso direccionable nuevo.\n",
@@ -13246,7 +13246,7 @@
     },
     "/api/v1/users/{id}/roles/revocations" : {
       "post" : {
-        "description" : "**Permiso requerido:** `users:assign-roles`. Sin él, `403` (`AUTH-002`).\n\nRetira roles y **arrastra UNA cascada**: quedarse sin ningún rol de\nvendedor cierra la asignación de superior comercial —cerrarla, nunca\nborrarla: esa fila dice a quién se atribuía cada resultado—.\n\n**La membresía ya no se arrastra** (05-09-2026). Quien deja de ser\nconsumidor **conserva el nivel que tenía**, incluido uno comprado: toda\npersona debe tener membresía, y bajarla al suelo sería quitarle algo\nque pagó.\n\n**Revoca todas las sesiones de la persona.** Asignar no lo hace;\nretirar sí, porque el refresh token sobrevive al cambio de permisos y\ndejaría vivo hasta siete días el acceso que se acaba de quitar.\n\nEs un `POST` sobre un subrecurso y no un `DELETE`: la lista viaja en el\ncuerpo, y RFC 9110 no define semántica para el cuerpo de un `DELETE` —\nun intermediario puede descartarlo sin avisar, y el retiro llegaría sin\nroles.\n\n**No se pide motivo** y **no se comprueba que los roles existan**:\nretirar un rol eliminado del catálogo es legítimo, porque la asignación\nsigue ahí y debe poder soltarse.\n",
+        "description" : "**Permiso requerido:** `users:revoke-roles`. Sin él, `403` (`AUTH-002`).\n\nRetira roles y **arrastra UNA cascada**: quedarse sin ningún rol de\nvendedor cierra la asignación de superior comercial —cerrarla, nunca\nborrarla: esa fila dice a quién se atribuía cada resultado—.\n\n**La membresía ya no se arrastra** (05-09-2026). Quien deja de ser\nconsumidor **conserva el nivel que tenía**, incluido uno comprado: toda\npersona debe tener membresía, y bajarla al suelo sería quitarle algo\nque pagó.\n\n**Revoca todas las sesiones de la persona.** Asignar no lo hace;\nretirar sí, porque el refresh token sobrevive al cambio de permisos y\ndejaría vivo hasta siete días el acceso que se acaba de quitar.\n\nEs un `POST` sobre un subrecurso y no un `DELETE`: la lista viaja en el\ncuerpo, y RFC 9110 no define semántica para el cuerpo de un `DELETE` —\nun intermediario puede descartarlo sin avisar, y el retiro llegaría sin\nroles.\n\n**No se pide motivo** y **no se comprueba que los roles existan**:\nretirar un rol eliminado del catálogo es legítimo, porque la asignación\nsigue ahí y debe poder soltarse.\n",
         "operationId" : "retirarRoles",
         "parameters" : [ {
           "in" : "path",
@@ -13285,7 +13285,7 @@
             "description" : "Token ausente o inválido (`AUTH-001`)"
           },
           "403" : {
-            "description" : "Autenticado sin `users:assign-roles` (`AUTH-002`)"
+            "description" : "Autenticado sin `users:revoke-roles` (`AUTH-002`)"
           },
           "404" : {
             "description" : "La persona no existe o está eliminada (`VAL-006`)"
@@ -13299,12 +13299,12 @@
         },
         "summary" : "Retirar roles de una persona",
         "tags" : [ "Usuarios" ],
-        "x-required-permission" : "users:assign-roles"
+        "x-required-permission" : "users:revoke-roles"
       }
     },
     "/api/v1/users/{id}/status" : {
       "patch" : {
-        "description" : "**Permiso requerido:** `users:update`. Sin él, `403` (`AUTH-002`).\n\nSubrecurso propio y no un campo de la edición: el estado tiene reglas de\nrechazo que la edición no tiene y exige un motivo que la edición no\nadmite.\n\n**Se envía el estado destino y no una acción**, lo que hace la operación\nidempotente por construcción. Pedir el estado que ya se tiene no cambia\nnada y no deja evento.\n\n**Salvo en un caso, y es el que da sentido al requerimiento:** pasar de\nbloqueo **automático** a bloqueo **manual** sí es un cambio aunque el\nestado sea el mismo — `lockedUntil` pasa de informado a nulo, y con ello\nel bloqueo deja de levantarse solo.\n\n**El motivo es condicional en los dos sentidos:** obligatorio al retirar\nel acceso, **rechazado** al devolverlo.\n\n**`PENDIENTE` no se admite**, aunque el esquema lo acepte: ningún\nrequerimiento lo produce y sería el único camino hacia un estado del que\nnadie sabe salir.\n\n**Reactivar nunca falla por regla.** Devolver el acceso no puede dejar a\nnadie sin administración ni a ningún equipo huérfano.\n\nRetirar el acceso **revoca todas las sesiones** de la persona.\n",
+        "description" : "**Permiso requerido:** `users:change-status`. Sin él, `403` (`AUTH-002`).\n\nSubrecurso propio y no un campo de la edición: el estado tiene reglas de\nrechazo que la edición no tiene y exige un motivo que la edición no\nadmite.\n\n**Se envía el estado destino y no una acción**, lo que hace la operación\nidempotente por construcción. Pedir el estado que ya se tiene no cambia\nnada y no deja evento.\n\n**Salvo en un caso, y es el que da sentido al requerimiento:** pasar de\nbloqueo **automático** a bloqueo **manual** sí es un cambio aunque el\nestado sea el mismo — `lockedUntil` pasa de informado a nulo, y con ello\nel bloqueo deja de levantarse solo.\n\n**El motivo es condicional en los dos sentidos:** obligatorio al retirar\nel acceso, **rechazado** al devolverlo.\n\n**`PENDIENTE` no se admite**, aunque el esquema lo acepte: ningún\nrequerimiento lo produce y sería el único camino hacia un estado del que\nnadie sabe salir.\n\n**Reactivar nunca falla por regla.** Devolver el acceso no puede dejar a\nnadie sin administración ni a ningún equipo huérfano.\n\nRetirar el acceso **revoca todas las sesiones** de la persona.\n",
         "operationId" : "cambiarEstado",
         "parameters" : [ {
           "in" : "path",
@@ -13343,7 +13343,7 @@
             "description" : "Token ausente o inválido (`AUTH-001`)"
           },
           "403" : {
-            "description" : "Autenticado sin `users:update` (`AUTH-002`), o es la cuenta del propio actor (`RN-SP-017`) — dos casos distintos con `error_code` distinto"
+            "description" : "Autenticado sin `users:change-status` (`AUTH-002`), o es la cuenta del propio actor (`RN-SP-017`) — dos casos distintos con `error_code` distinto"
           },
           "404" : {
             "description" : "No existe, o está eliminada (`EX-005`)"
@@ -13357,7 +13357,7 @@
         },
         "summary" : "Retirar o devolver el acceso de una persona",
         "tags" : [ "Usuarios" ],
-        "x-required-permission" : "users:update"
+        "x-required-permission" : "users:change-status"
       }
     },
     "/api/v1/users/{id}/supervisor" : {
@@ -13420,7 +13420,7 @@
     },
     "/api/v1/users/{id}/team" : {
       "get" : {
-        "description" : "**Permiso requerido:** `users:read`. Sin él, `403` (`AUTH-002`).\n\nDevuelve el superior inmediato y el **equipo directo** de la persona,\npaginado.\n\n**Un solo nivel, nunca el árbol descendente**, y **sin conteo\nindirecto**: `totalElements` cuenta a quienes reportan directamente.\nDevolver la rama completa publicaría de una vez la estructura de la\nempresa por un permiso de lectura de usuarios.\n\n**Cada persona lleva `roles`: TODOS los que porta**, con `id`, `code`\ny `name`, ordenados por código y **presentes aunque la lista vaya\nvacía**. Es el mismo objeto que devuelve `GET /api/v1/users` en cada\nfila. **Sustituye a `roleCode`** (10-09-2026), que traía uno solo y\núnicamente si era de la fuerza comercial: la cartera de clientes\nllegaba con el rol en nulo y era indistinguible de un vendedor sin rol.\n\n**`roles` es además el único filtro**, y acota **el equipo**. Se pasan\n**códigos**, varios admitidos —`?roles=AGENTE,CLIENTE` o repitiendo el\nparámetro—, y entra quien porte **alguno** de ellos. `totalElements`\n**cuenta lo filtrado**. Un código que no existe devuelve el equipo\nvacío con `200`, **no un error**: es el mismo criterio que el filtro\npor rol de `GET /api/v1/users`.\n\n**El filtro NO toca al superior ni a la persona consultada.** Los dos\nse devuelven igual aunque no porten ninguno de los roles pedidos, y eso\nes contrato: `supervisor` va **ausente**, no en nulo, **solo** cuando\nla persona es la cúspide comercial, que es lo que distingue «no depende\nde nadie» de «no se pudo resolver».\n\n**Ningún otro filtro.** Ni búsqueda por nombre, ni estado, ni país: el\nlistado general de usuarios ya los tiene, y replicarlos aquí obligaría\na mantener dos semánticas sincronizadas.\n\n**Sin historial de superiores.**\n\nQuien no pertenece a la fuerza comercial recibe `200` con la estructura\nvacía, no `404` ni `409` — **con sus roles a la vista**: no tener\nestructura comercial no es no tener roles.\n\n**El alcance es global** mientras la decisión D-22 siga abierta: quien\nposea el permiso ve el equipo de cualquiera, no solo el suyo.\n",
+        "description" : "**Permiso requerido:** `users:read-team`. Sin él, `403` (`AUTH-002`).\n\nDevuelve el superior inmediato y el **equipo directo** de la persona,\npaginado.\n\n**Un solo nivel, nunca el árbol descendente**, y **sin conteo\nindirecto**: `totalElements` cuenta a quienes reportan directamente.\nDevolver la rama completa publicaría de una vez la estructura de la\nempresa por un permiso de lectura de usuarios.\n\n**Cada persona lleva `roles`: TODOS los que porta**, con `id`, `code`\ny `name`, ordenados por código y **presentes aunque la lista vaya\nvacía**. Es el mismo objeto que devuelve `GET /api/v1/users` en cada\nfila. **Sustituye a `roleCode`** (10-09-2026), que traía uno solo y\núnicamente si era de la fuerza comercial: la cartera de clientes\nllegaba con el rol en nulo y era indistinguible de un vendedor sin rol.\n\n**`roles` es además el único filtro**, y acota **el equipo**. Se pasan\n**códigos**, varios admitidos —`?roles=AGENTE,CLIENTE` o repitiendo el\nparámetro—, y entra quien porte **alguno** de ellos. `totalElements`\n**cuenta lo filtrado**. Un código que no existe devuelve el equipo\nvacío con `200`, **no un error**: es el mismo criterio que el filtro\npor rol de `GET /api/v1/users`.\n\n**El filtro NO toca al superior ni a la persona consultada.** Los dos\nse devuelven igual aunque no porten ninguno de los roles pedidos, y eso\nes contrato: `supervisor` va **ausente**, no en nulo, **solo** cuando\nla persona es la cúspide comercial, que es lo que distingue «no depende\nde nadie» de «no se pudo resolver».\n\n**Ningún otro filtro.** Ni búsqueda por nombre, ni estado, ni país: el\nlistado general de usuarios ya los tiene, y replicarlos aquí obligaría\na mantener dos semánticas sincronizadas.\n\n**Sin historial de superiores.**\n\nQuien no pertenece a la fuerza comercial recibe `200` con la estructura\nvacía, no `404` ni `409` — **con sus roles a la vista**: no tener\nestructura comercial no es no tener roles.\n\n**El alcance es global** mientras la decisión D-22 siga abierta: quien\nposea el permiso ve el equipo de cualquiera, no solo el suyo.\n",
         "operationId" : "equipo",
         "parameters" : [ {
           "in" : "path",
@@ -13476,7 +13476,7 @@
             "description" : "Token ausente o inválido (`AUTH-001`)"
           },
           "403" : {
-            "description" : "Autenticado sin `users:read` (`AUTH-002`)"
+            "description" : "Autenticado sin `users:read-team` (`AUTH-002`)"
           },
           "404" : {
             "description" : "La persona no existe o está eliminada (`VAL-002`)"
@@ -13487,7 +13487,7 @@
         },
         "summary" : "Consultar el superior y el equipo a cargo",
         "tags" : [ "Usuarios" ],
-        "x-required-permission" : "users:read"
+        "x-required-permission" : "users:read-team"
       }
     }
   },

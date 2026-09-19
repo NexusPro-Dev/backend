@@ -132,7 +132,15 @@ class RoleParentConcurrencyIT extends IntegrationTestBase {
   }
 
   private RequestPostProcessor administrador() {
-    return user(SUPERADMIN.toString()).authorities(() -> "roles:update", () -> "roles:read");
+    return user(SUPERADMIN.toString())
+        .authorities(
+            () -> "roles:update",
+            () -> "roles:change-status",
+            () -> "roles:assign-parent",
+            () -> "roles:assign-permissions",
+            () -> "roles:revoke-permissions",
+            () -> "roles:read",
+            () -> "roles:list");
   }
 
   private UUID padreDe(UUID roleId) {

@@ -654,7 +654,9 @@ class ProductUpdateIT extends IntegrationTestBase {
   void sinPermiso() throws Exception {
     mvc.perform(
             patch("/api/v1/products/{id}", producto)
-                .with(user(UUID.randomUUID().toString()).authorities(() -> "products:read"))
+                .with(
+                    user(UUID.randomUUID().toString())
+                        .authorities(() -> "products:read", () -> "products:list"))
                 .contentType(MediaType.APPLICATION_JSON)
                 .content("{\"name\":\"Otro nombre\"}"))
         .andExpect(status().isForbidden());
@@ -728,7 +730,12 @@ class ProductUpdateIT extends IntegrationTestBase {
   }
 
   private static RequestPostProcessor admin() {
-    return user(UUID.randomUUID().toString()).authorities(() -> "products:update");
+    return user(UUID.randomUUID().toString())
+        .authorities(
+            () -> "products:update",
+            () -> "products:change-status",
+            () -> "products:set-cover",
+            () -> "products:remove-cover");
   }
 
   private String nombreDe(UUID id) {

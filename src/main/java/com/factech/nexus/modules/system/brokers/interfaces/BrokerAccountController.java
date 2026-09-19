@@ -44,7 +44,7 @@ public class BrokerAccountController {
   }
 
   @GetMapping("/indicators")
-  @PreAuthorize("hasAuthority('broker-accounts:read')")
+  @PreAuthorize("hasAuthority('broker-accounts:read-indicators')")
   @Operation(
       summary = "Consultar los indicadores de la red comercial",
       description =
@@ -105,7 +105,7 @@ public class BrokerAccountController {
     @ApiResponse(responseCode = "401", description = "Token ausente o inválido (`AUTH-001`)"),
     @ApiResponse(
         responseCode = "403",
-        description = "Autenticado sin `broker-accounts:read` (`AUTH-002`)"),
+        description = "Autenticado sin `broker-accounts:read-indicators` (`AUTH-002`)"),
     @ApiResponse(
         responseCode = "404",
         description =

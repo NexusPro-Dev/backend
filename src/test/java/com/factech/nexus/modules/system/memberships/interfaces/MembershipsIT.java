@@ -234,7 +234,9 @@ class MembershipsIT extends IntegrationTestBase {
   void sinPermisoDeAlta() throws Exception {
     mvc.perform(
             post("/api/v1/memberships")
-                .with(user(UUID.randomUUID().toString()).authorities(() -> "memberships:read"))
+                .with(
+                    user(UUID.randomUUID().toString())
+                        .authorities(() -> "memberships:read", () -> "memberships:list"))
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(
                     """
@@ -451,7 +453,7 @@ class MembershipsIT extends IntegrationTestBase {
   void sinPermisoDeLectura() throws Exception {
     String sola = crear("UNICA", "Única", null);
     RequestPostProcessor sinPermiso =
-        user(UUID.randomUUID().toString()).authorities(() -> "roles:read");
+        user(UUID.randomUUID().toString()).authorities(() -> "roles:read", () -> "roles:list");
 
     mvc.perform(get("/api/v1/memberships").with(sinPermiso)).andExpect(status().isForbidden());
     mvc.perform(get("/api/v1/memberships/" + sola).with(sinPermiso))
@@ -740,11 +742,13 @@ class MembershipsIT extends IntegrationTestBase {
 
   private RequestPostProcessor admin() {
     return user(UUID.randomUUID().toString())
-        .authorities(() -> "memberships:create", () -> "memberships:read");
+        .authorities(
+            () -> "memberships:create", () -> "memberships:read", () -> "memberships:list");
   }
 
   private RequestPostProcessor lector() {
-    return user(UUID.randomUUID().toString()).authorities(() -> "memberships:read");
+    return user(UUID.randomUUID().toString())
+        .authorities(() -> "memberships:read", () -> "memberships:list");
   }
 
   private org.springframework.test.web.servlet.request.MockHttpServletRequestBuilder alta(

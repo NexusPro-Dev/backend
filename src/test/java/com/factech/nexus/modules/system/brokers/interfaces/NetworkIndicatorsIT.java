@@ -383,7 +383,8 @@ class NetworkIndicatorsIT extends IntegrationTestBase {
   }
 
   private static RequestPostProcessor administrador() {
-    return user(SUPERADMIN.toString()).authorities(() -> "broker-accounts:read");
+    return user(SUPERADMIN.toString())
+        .authorities(() -> "broker-accounts:read", () -> "broker-accounts:read-indicators");
   }
 
   private UUID persona(String username, String rol) {

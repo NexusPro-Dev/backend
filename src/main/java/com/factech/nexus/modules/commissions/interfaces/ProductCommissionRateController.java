@@ -62,7 +62,7 @@ public class ProductCommissionRateController {
     @ApiResponse(responseCode = "403", description = "Sin permiso")
   })
   @GetMapping
-  @PreAuthorize("hasAuthority('commissions:read')")
+  @PreAuthorize("hasAuthority('product-commission-rates:read')")
   public ProductAssociationResponse porProducto(@RequestParam UUID productId) {
     return asociaciones.byProduct(productId);
   }

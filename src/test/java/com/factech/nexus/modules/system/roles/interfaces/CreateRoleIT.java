@@ -237,7 +237,9 @@ class CreateRoleIT extends IntegrationTestBase {
   void sinPermisoDeCreacion() throws Exception {
     mvc.perform(
             post("/api/v1/roles")
-                .with(user(UUID.randomUUID().toString()).authorities(() -> "roles:read"))
+                .with(
+                    user(UUID.randomUUID().toString())
+                        .authorities(() -> "roles:read", () -> "roles:list"))
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(cuerpo("CA_008", "Criterio 008", ADMIN, "")))
         .andExpect(status().isForbidden())
@@ -252,7 +254,9 @@ class CreateRoleIT extends IntegrationTestBase {
   void denegacionAuditada() throws Exception {
     mvc.perform(
             post("/api/v1/roles")
-                .with(user(UUID.randomUUID().toString()).authorities(() -> "roles:read"))
+                .with(
+                    user(UUID.randomUUID().toString())
+                        .authorities(() -> "roles:read", () -> "roles:list"))
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(cuerpo("CA_008_AUD", "Criterio 008 auditado", ADMIN, "")))
         .andExpect(status().isForbidden());

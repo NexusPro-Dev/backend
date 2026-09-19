@@ -605,7 +605,8 @@ class ProductOfferIT extends IntegrationTestBase {
       "`CA-PM-101` — sin `products:sale` responde `403`, aunque el actor tenga otros"
           + " permisos de `products:`")
   void sinPermisoDeVentaEsForbidden() throws Exception {
-    RequestPostProcessor sinVenta = user(enFree.toString()).authorities(() -> "products:read");
+    RequestPostProcessor sinVenta =
+        user(enFree.toString()).authorities(() -> "products:read", () -> "products:list");
 
     mvc.perform(get("/api/v1/products/available").with(sinVenta)).andExpect(status().isForbidden());
   }

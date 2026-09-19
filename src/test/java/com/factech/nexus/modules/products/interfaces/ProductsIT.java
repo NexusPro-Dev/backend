@@ -866,7 +866,9 @@ class ProductsIT extends IntegrationTestBase {
   void sinPermiso() throws Exception {
     mvc.perform(
             post("/api/v1/products")
-                .with(user(UUID.randomUUID().toString()).authorities(() -> "products:read"))
+                .with(
+                    user(UUID.randomUUID().toString())
+                        .authorities(() -> "products:read", () -> "products:list"))
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(
                     """

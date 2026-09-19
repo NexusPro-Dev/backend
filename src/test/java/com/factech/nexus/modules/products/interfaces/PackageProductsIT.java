@@ -310,7 +310,13 @@ class PackageProductsIT extends IntegrationTestBase {
     UUID bot = PackageTestSupport.bot(jdbc, "BOT_A", "10.00");
     mvc.perform(
             post("/api/v1/packages/" + paquete + "/products")
-                .with(user(UUID.randomUUID().toString()).authorities(() -> "products:update"))
+                .with(
+                    user(UUID.randomUUID().toString())
+                        .authorities(
+                            () -> "products:update",
+                            () -> "products:change-status",
+                            () -> "products:set-cover",
+                            () -> "products:remove-cover"))
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(json(bot, "FIJO", "0")))
         .andExpect(status().isForbidden());
@@ -327,14 +333,32 @@ class PackageProductsIT extends IntegrationTestBase {
   private MockHttpServletRequestBuilder asociar(
       UUID paquete, UUID producto, String forma, String valor, UUID actor) {
     return post("/api/v1/packages/" + paquete + "/products")
-        .with(user(actor.toString()).authorities(() -> "packages:update"))
+        .with(
+            user(actor.toString())
+                .authorities(
+                    () -> "packages:update",
+                    () -> "packages:change-status",
+                    () -> "packages:set-cover",
+                    () -> "packages:remove-cover",
+                    () -> "packages:add-product",
+                    () -> "packages:update-product",
+                    () -> "packages:remove-product"))
         .contentType(MediaType.APPLICATION_JSON)
         .content(json(producto, forma, valor));
   }
 
   private MockHttpServletRequestBuilder cuerpo(UUID paquete, String json) {
     return post("/api/v1/packages/" + paquete + "/products")
-        .with(user(UUID.randomUUID().toString()).authorities(() -> "packages:update"))
+        .with(
+            user(UUID.randomUUID().toString())
+                .authorities(
+                    () -> "packages:update",
+                    () -> "packages:change-status",
+                    () -> "packages:set-cover",
+                    () -> "packages:remove-cover",
+                    () -> "packages:add-product",
+                    () -> "packages:update-product",
+                    () -> "packages:remove-product"))
         .contentType(MediaType.APPLICATION_JSON)
         .content(json);
   }

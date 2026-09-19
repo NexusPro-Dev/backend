@@ -192,7 +192,7 @@ public class ProductCommentController {
   }
 
   @GetMapping("/mine")
-  @PreAuthorize("hasAuthority('products:comment')")
+  @PreAuthorize("hasAuthority('products:read-own-comments')")
   @Operation(
       summary = "Consultar la reseña propia sobre un producto",
       description =
@@ -221,7 +221,7 @@ public class ProductCommentController {
         content = @Content),
     @ApiResponse(
         responseCode = "403",
-        description = "Autenticado sin el permiso `products:comment` (`AUTH-002`)",
+        description = "Autenticado sin el permiso `products:read-own-comments` (`AUTH-002`)",
         content = @Content),
     @ApiResponse(
         responseCode = "404",
@@ -233,7 +233,7 @@ public class ProductCommentController {
   }
 
   @PatchMapping("/{commentId}")
-  @PreAuthorize("hasAuthority('products:comment')")
+  @PreAuthorize("hasAuthority('products:update-comment')")
   @Operation(
       summary = "Corregir la reseña propia",
       description =
@@ -242,7 +242,7 @@ public class ProductCommentController {
           **ningún campo admite el nulo explícito**: los dos son obligatorios. Un cuerpo sin
           ningún campo responde `400`, como en la edición del producto.
 
-          **Solo el autor** (`RN-PM-027`). El permiso `products:comment` habilita la operación;
+          **Solo el autor** (`RN-PM-027`). El permiso `products:update-comment` habilita la operación;
           ser el autor la autoriza, y son dos cosas distintas: un administrador con el
           permiso corrige las suyas y recibe `403` en las ajenas. **No existe moderación.**
 
@@ -273,7 +273,7 @@ public class ProductCommentController {
     @ApiResponse(
         responseCode = "403",
         description =
-            "Autenticado sin el permiso `products:comment` (`AUTH-002`), o **con él pero sin"
+            "Autenticado sin el permiso `products:update-comment` (`AUTH-002`), o **con él pero sin"
                 + " ser el autor** (`EX-002`)",
         content = @Content),
     @ApiResponse(
@@ -290,7 +290,7 @@ public class ProductCommentController {
   }
 
   @DeleteMapping("/{commentId}")
-  @PreAuthorize("hasAuthority('products:comment')")
+  @PreAuthorize("hasAuthority('products:delete-comment')")
   @Operation(
       summary = "Retirar la reseña propia",
       description =
@@ -326,7 +326,7 @@ public class ProductCommentController {
     @ApiResponse(
         responseCode = "403",
         description =
-            "Autenticado sin el permiso `products:comment` (`AUTH-002`), o **con él pero sin"
+            "Autenticado sin el permiso `products:delete-comment` (`AUTH-002`), o **con él pero sin"
                 + " ser el autor** (`EX-002`)",
         content = @Content),
     @ApiResponse(

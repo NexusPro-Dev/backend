@@ -377,7 +377,7 @@ class HotlinkIT extends IntegrationTestBase {
                     .with(
                         org.springframework.security.test.web.servlet.request
                             .SecurityMockMvcRequestPostProcessors.user(UUID.randomUUID().toString())
-                            .authorities(() -> "products:read")))
+                            .authorities(() -> "products:read", () -> "products:list")))
             .andReturn()
             .getResponse()
             .getContentAsString();

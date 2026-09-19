@@ -472,14 +472,14 @@ class UserConcurrencyIT extends IntegrationTestBase {
   private MockHttpServletRequestBuilder cambiarEstadoUsuario(
       UUID id, String estado, String motivo) {
     return patch("/api/v1/users/{id}/status", id)
-        .with(actor("users:update"))
+        .with(actor("users:change-status"))
         .contentType(MediaType.APPLICATION_JSON)
         .content("{\"status\":\"%s\",\"reason\":\"%s\"}".formatted(estado, motivo));
   }
 
   private MockHttpServletRequestBuilder cambiarEstadoRol(String id, String estado) {
     return patch("/api/v1/roles/{id}/status", id)
-        .with(actor("roles:update"))
+        .with(actor("roles:change-status"))
         .contentType(MediaType.APPLICATION_JSON)
         .content("{\"status\":\"%s\"}".formatted(estado));
   }
@@ -492,7 +492,7 @@ class UserConcurrencyIT extends IntegrationTestBase {
   }
 
   private MockHttpServletRequestBuilder retirarMembresia(UUID id) {
-    return delete("/api/v1/users/{id}/membership", id).with(actor("users:assign-membership"));
+    return delete("/api/v1/users/{id}/membership", id).with(actor("users:revoke-membership"));
   }
 
   private MockHttpServletRequestBuilder asignarRol(UUID id, String rol) {

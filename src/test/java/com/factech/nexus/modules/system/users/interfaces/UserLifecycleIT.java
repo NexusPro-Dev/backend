@@ -474,7 +474,9 @@ class UserLifecycleIT extends IntegrationTestBase {
 
     mvc.perform(
             patch("/api/v1/users/{id}/status", SUPERADMIN)
-                .with(user(otroActor.toString()).authorities(() -> "users:update"))
+                .with(
+                    user(otroActor.toString())
+                        .authorities(() -> "users:update", () -> "users:change-status"))
                 .contentType(MediaType.APPLICATION_JSON)
                 .content("{\"status\":\"INACTIVO\",\"reason\":\"x\"}"))
         .andExpect(status().isConflict())
@@ -781,7 +783,8 @@ class UserLifecycleIT extends IntegrationTestBase {
   }
 
   private RequestPostProcessor editor() {
-    return user(SUPERADMIN.toString()).authorities(() -> "users:update");
+    return user(SUPERADMIN.toString())
+        .authorities(() -> "users:update", () -> "users:change-status");
   }
 
   private RequestPostProcessor borrador() {

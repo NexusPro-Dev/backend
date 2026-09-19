@@ -164,7 +164,11 @@ class RolesQueryIT extends IntegrationTestBase {
   @DisplayName("CA-SP-015 — sin `roles:read` no se obtiene dato alguno del catálogo")
   void sinPermiso() throws Exception {
     mvc.perform(
-            get("/api/v1/roles").with(user(SUPERADMIN.toString()).authorities(() -> "users:read")))
+            get("/api/v1/roles")
+                .with(
+                    user(SUPERADMIN.toString())
+                        .authorities(
+                            () -> "users:read", () -> "users:list", () -> "users:read-team")))
         .andExpect(status().isForbidden());
 
     mvc.perform(get("/api/v1/roles")).andExpect(status().isUnauthorized());
@@ -369,7 +373,7 @@ class RolesQueryIT extends IntegrationTestBase {
   }
 
   private RequestPostProcessor lector() {
-    return user(SUPERADMIN.toString()).authorities(() -> "roles:read");
+    return user(SUPERADMIN.toString()).authorities(() -> "roles:read", () -> "roles:list");
   }
 
   private void crearRol(

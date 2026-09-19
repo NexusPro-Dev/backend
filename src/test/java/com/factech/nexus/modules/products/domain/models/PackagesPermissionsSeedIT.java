@@ -34,12 +34,27 @@ class PackagesPermissionsSeedIT extends IntegrationTestBase {
   @Autowired private JdbcTemplate jdbc;
 
   @Test
-  @DisplayName("los cuatro permisos `packages:` de pm.md §4 están sembrados, y no hay un quinto")
+  @DisplayName(
+      "los once permisos `packages:` de pm.md §4 están sembrados: los cuatro de V93 y los siete de V28")
   void losCuatroSembrados() {
     List<String> codigos =
         jdbc.queryForList(
             "SELECT code FROM permissions WHERE resource = 'packages' ORDER BY code", String.class);
-    assertThat(codigos).containsExactlyInAnyOrderElementsOf(LOS_CUATRO.keySet());
+    assertThat(codigos)
+        .containsAll(LOS_CUATRO.keySet())
+        .containsExactlyInAnyOrder(
+            "packages:create",
+            "packages:read",
+            "packages:update",
+            "packages:delete",
+            // Los siete de V28 (RF-SP-060): packages:update se queda con la edición.
+            "packages:list",
+            "packages:change-status",
+            "packages:set-cover",
+            "packages:remove-cover",
+            "packages:add-product",
+            "packages:update-product",
+            "packages:remove-product");
   }
 
   @Test
@@ -55,7 +70,7 @@ class PackagesPermissionsSeedIT extends IntegrationTestBase {
   }
 
   @Test
-  @DisplayName("los cuatro están asociados a SUPERADMIN y a ADMIN, y a CLIENTE ninguno")
+  @DisplayName("los once están asociados a SUPERADMIN y a ADMIN, y a CLIENTE ninguno")
   void asociaciones() {
     assertThat(permisosDe(SUPERADMIN)).containsAll(LOS_CUATRO.keySet());
     assertThat(permisosDe(ADMIN)).containsAll(LOS_CUATRO.keySet());
@@ -68,7 +83,9 @@ class PackagesPermissionsSeedIT extends IntegrationTestBase {
                  WHERE p.resource = 'packages'
                 """,
                 Integer.class))
-        .isEqualTo(8);
+        // Once por dos roles: V28 dio los siete hijos a quien portaba packages:update y
+        // packages:read, que eran los dos de sistema.
+        .isEqualTo(22);
   }
 
   private List<String> permisosDe(UUID rol) {

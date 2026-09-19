@@ -294,17 +294,29 @@ class UserCommissionRateIT extends IntegrationTestBase {
 
     mvc.perform(
             post("/api/v1/user-commission-rates/" + tasa + "/products")
-                .with(user(SUPERADMIN.toString()).authorities(() -> "commissions:update"))
+                .with(
+                    user(SUPERADMIN.toString())
+                        .authorities(
+                            () -> "commissions:update", () -> "user-commission-rates:update"))
                 .contentType(MediaType.APPLICATION_JSON)
                 .content("{\"productId\":\"" + otro + "\"}"))
         .andExpect(status().isNotFound());
     mvc.perform(
             get("/api/v1/user-commission-rates/" + tasa + "/products")
-                .with(user(SUPERADMIN.toString()).authorities(() -> "commissions:read")))
+                .with(
+                    user(SUPERADMIN.toString())
+                        .authorities(
+                            () -> "commissions:read",
+                            () -> "commissions:read-effective",
+                            () -> "user-commission-rates:read",
+                            () -> "product-commission-rates:read")))
         .andExpect(status().isNotFound());
     mvc.perform(
             post("/api/v1/user-commission-rates/" + tasa + "/products/" + producto + "/deletion")
-                .with(user(SUPERADMIN.toString()).authorities(() -> "commissions:update"))
+                .with(
+                    user(SUPERADMIN.toString())
+                        .authorities(
+                            () -> "commissions:update", () -> "user-commission-rates:update"))
                 .contentType(MediaType.APPLICATION_JSON)
                 .content("{\"reason\":\"Ya no aplica\"}"))
         .andExpect(status().isNotFound());
@@ -567,7 +579,13 @@ class UserCommissionRateIT extends IntegrationTestBase {
   void exigeElPermiso() throws Exception {
     mvc.perform(
             post("/api/v1/user-commission-rates")
-                .with(user(SUPERADMIN.toString()).authorities(() -> "commissions:read"))
+                .with(
+                    user(SUPERADMIN.toString())
+                        .authorities(
+                            () -> "commissions:read",
+                            () -> "commissions:read-effective",
+                            () -> "user-commission-rates:read",
+                            () -> "product-commission-rates:read"))
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(cuerpo(vendedora, producto, "12.00", "2026-01-01", null)))
         .andExpect(status().isForbidden());
@@ -715,7 +733,9 @@ class UserCommissionRateIT extends IntegrationTestBase {
 
   private MockHttpServletRequestBuilder alta(String json) {
     return post("/api/v1/user-commission-rates")
-        .with(user(SUPERADMIN.toString()).authorities(() -> "commissions:create"))
+        .with(
+            user(SUPERADMIN.toString())
+                .authorities(() -> "commissions:create", () -> "user-commission-rates:create"))
         .contentType(MediaType.APPLICATION_JSON)
         .content(json);
   }
@@ -733,21 +753,31 @@ class UserCommissionRateIT extends IntegrationTestBase {
 
   private MockHttpServletRequestBuilder correccion(UUID id, String json) {
     return patch("/api/v1/user-commission-rates/" + id)
-        .with(user(SUPERADMIN.toString()).authorities(() -> "commissions:update"))
+        .with(
+            user(SUPERADMIN.toString())
+                .authorities(() -> "commissions:update", () -> "user-commission-rates:update"))
         .contentType(MediaType.APPLICATION_JSON)
         .content(json);
   }
 
   private MockHttpServletRequestBuilder retiro(UUID id, String motivo) {
     return post("/api/v1/user-commission-rates/" + id + "/deletion")
-        .with(user(SUPERADMIN.toString()).authorities(() -> "commissions:delete"))
+        .with(
+            user(SUPERADMIN.toString())
+                .authorities(() -> "commissions:delete", () -> "user-commission-rates:delete"))
         .contentType(MediaType.APPLICATION_JSON)
         .content("{\"reason\":\"" + motivo + "\"}");
   }
 
   private MockHttpServletRequestBuilder listado() {
     return get("/api/v1/user-commission-rates")
-        .with(user(SUPERADMIN.toString()).authorities(() -> "commissions:read"));
+        .with(
+            user(SUPERADMIN.toString())
+                .authorities(
+                    () -> "commissions:read",
+                    () -> "commissions:read-effective",
+                    () -> "user-commission-rates:read",
+                    () -> "product-commission-rates:read"));
   }
 
   private MockHttpServletRequestBuilder efectiva(UUID persona, UUID producto, String fecha) {
@@ -755,7 +785,13 @@ class UserCommissionRateIT extends IntegrationTestBase {
         .param("userId", persona.toString())
         .param("productId", producto.toString())
         .param("onDate", fecha)
-        .with(user(SUPERADMIN.toString()).authorities(() -> "commissions:read"));
+        .with(
+            user(SUPERADMIN.toString())
+                .authorities(
+                    () -> "commissions:read",
+                    () -> "commissions:read-effective",
+                    () -> "user-commission-rates:read",
+                    () -> "product-commission-rates:read"));
   }
 
   private long cuantas() {

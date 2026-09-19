@@ -131,7 +131,14 @@ class RevokeUserRolesSessionFailureIT extends IntegrationTestBase {
 
   private RequestPostProcessor administrador() {
     return user(SUPERADMIN.toString())
-        .authorities(() -> "users:assign-roles", () -> "users:read", () -> "roles:read");
+        .authorities(
+            () -> "users:assign-roles",
+            () -> "users:revoke-roles",
+            () -> "users:read",
+            () -> "users:list",
+            () -> "users:read-team",
+            () -> "roles:read",
+            () -> "roles:list");
   }
 
   private int rolesDe(UUID usuario) {

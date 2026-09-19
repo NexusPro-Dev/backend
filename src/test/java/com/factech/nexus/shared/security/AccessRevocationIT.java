@@ -117,7 +117,9 @@ class AccessRevocationIT extends IntegrationTestBase {
 
     mvc.perform(
             patch("/api/v1/users/{id}/status", persona)
-                .with(user(SUPERADMIN.toString()).authorities(() -> "users:update"))
+                .with(
+                    user(SUPERADMIN.toString())
+                        .authorities(() -> "users:update", () -> "users:change-status"))
                 .contentType(MediaType.APPLICATION_JSON)
                 .content("{\"status\":\"INACTIVO\",\"reason\":\"Baja temporal del contrato\"}"))
         .andExpect(status().isOk());

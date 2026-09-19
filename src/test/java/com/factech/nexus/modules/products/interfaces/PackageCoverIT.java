@@ -199,7 +199,13 @@ class PackageCoverIT extends IntegrationTestBase {
     mvc.perform(
             multipart(HttpMethod.PUT, "/api/v1/packages/{id}/cover", combo)
                 .file(new MockMultipartFile("file", "p.png", "image/png", ProductImageTest.PNG))
-                .with(user(UUID.randomUUID().toString()).authorities(() -> "products:update")))
+                .with(
+                    user(UUID.randomUUID().toString())
+                        .authorities(
+                            () -> "products:update",
+                            () -> "products:change-status",
+                            () -> "products:set-cover",
+                            () -> "products:remove-cover")))
         .andExpect(status().isForbidden());
     assertThat(portadaDe(combo)).isNull();
   }
@@ -343,7 +349,13 @@ class PackageCoverIT extends IntegrationTestBase {
     subirYLeer(vacio, ProductImageTest.PNG);
     mvc.perform(
             delete("/api/v1/packages/{id}/cover", vacio)
-                .with(user(UUID.randomUUID().toString()).authorities(() -> "products:update")))
+                .with(
+                    user(UUID.randomUUID().toString())
+                        .authorities(
+                            () -> "products:update",
+                            () -> "products:change-status",
+                            () -> "products:set-cover",
+                            () -> "products:remove-cover")))
         .andExpect(status().isForbidden());
     // Inactivo (`VACIO` nace así): se quita.
     mvc.perform(quitar(vacio))
@@ -388,11 +400,20 @@ class PackageCoverIT extends IntegrationTestBase {
   }
 
   private static RequestPostProcessor admin() {
-    return user(UUID.randomUUID().toString()).authorities(() -> "packages:update");
+    return user(UUID.randomUUID().toString())
+        .authorities(
+            () -> "packages:update",
+            () -> "packages:change-status",
+            () -> "packages:set-cover",
+            () -> "packages:remove-cover",
+            () -> "packages:add-product",
+            () -> "packages:update-product",
+            () -> "packages:remove-product");
   }
 
   private static RequestPostProcessor lector() {
-    return user(UUID.randomUUID().toString()).authorities(() -> "packages:read");
+    return user(UUID.randomUUID().toString())
+        .authorities(() -> "packages:read", () -> "packages:list");
   }
 
   private RequestPostProcessor comprador() {

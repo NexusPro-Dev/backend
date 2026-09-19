@@ -356,7 +356,9 @@ class CountriesIT extends IntegrationTestBase {
     // gobernar esta lectura.
     mvc.perform(
             get("/api/v1/countries")
-                .with(user(UUID.randomUUID().toString()).authorities(() -> "roles:read")))
+                .with(
+                    user(UUID.randomUUID().toString())
+                        .authorities(() -> "roles:read", () -> "roles:list")))
         .andExpect(status().isOk());
   }
 

@@ -120,7 +120,7 @@ public class UserCommissionRateController {
                 + " (`EX-004`)")
   })
   @PostMapping
-  @PreAuthorize("hasAuthority('commissions:create')")
+  @PreAuthorize("hasAuthority('user-commission-rates:create')")
   public ResponseEntity<UserCommissionRateResponse> registrar(
       @Valid @RequestBody RegisterUserCommissionRateRequest peticion) {
     UserCommissionRateResponse creada = alta.register(peticion);
@@ -159,7 +159,7 @@ public class UserCommissionRateController {
     @ApiResponse(responseCode = "403", description = "Sin permiso")
   })
   @GetMapping
-  @PreAuthorize("hasAuthority('commissions:read')")
+  @PreAuthorize("hasAuthority('user-commission-rates:read')")
   public UserCommissionRatePageResponse listar(
       @ModelAttribute ListUserCommissionRatesRequest filtros) {
     return listado.list(filtros);
@@ -204,7 +204,7 @@ public class UserCommissionRateController {
                 + " (`EX-007`), o dejaría de porcentaje la tasa de un producto gratuito (`EX-008`)")
   })
   @PatchMapping("/{id}")
-  @PreAuthorize("hasAuthority('commissions:update')")
+  @PreAuthorize("hasAuthority('user-commission-rates:update')")
   public UserCommissionRateResponse corregir(
       @PathVariable UUID id, @RequestBody UpdateUserCommissionRateRequest peticion) {
     return correccion.update(id, peticion);
@@ -237,7 +237,7 @@ public class UserCommissionRateController {
   })
   @PostMapping("/{id}/deletion")
   @ResponseStatus(HttpStatus.NO_CONTENT)
-  @PreAuthorize("hasAuthority('commissions:delete')")
+  @PreAuthorize("hasAuthority('user-commission-rates:delete')")
   public void retirar(
       @PathVariable UUID id, @RequestBody(required = false) DeleteCommissionRateRequest peticion) {
     retiro.delete(id, peticion);

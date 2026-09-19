@@ -113,7 +113,13 @@ class ProductUpdateConcurrencyIT extends IntegrationTestBase {
 
   private MockHttpServletRequestBuilder corregir(UUID id, String cuerpo) {
     return patch("/api/v1/products/{id}", id)
-        .with(user(UUID.randomUUID().toString()).authorities(() -> "products:update"))
+        .with(
+            user(UUID.randomUUID().toString())
+                .authorities(
+                    () -> "products:update",
+                    () -> "products:change-status",
+                    () -> "products:set-cover",
+                    () -> "products:remove-cover"))
         .contentType(MediaType.APPLICATION_JSON)
         .content(cuerpo);
   }

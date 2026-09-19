@@ -953,7 +953,8 @@ class UserRolesIT extends IntegrationTestBase {
 
   /** La autoridad del token solo abre `@PreAuthorize`; los permisos efectivos los da la base. */
   private RequestPostProcessor comoActor(UUID actor) {
-    return user(actor.toString()).authorities(() -> "users:assign-roles");
+    return user(actor.toString())
+        .authorities(() -> "users:assign-roles", () -> "users:revoke-roles");
   }
 
   private UUID crearPersona(String username) {

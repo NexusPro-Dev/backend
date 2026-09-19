@@ -342,13 +342,17 @@ class ProductDetailIT extends IntegrationTestBase {
     // tuvo abierto dos días; aquí se PRUEBA, no se escribe.
     mvc.perform(
             get("/api/v1/products/{id}", "1-1-1-1-1")
-                .with(user(UUID.randomUUID().toString()).authorities(() -> "products:read")))
+                .with(
+                    user(UUID.randomUUID().toString())
+                        .authorities(() -> "products:read", () -> "products:list")))
         .andExpect(status().isBadRequest())
         .andExpect(jsonPath("$.errors[0].code").value("VAL-001"));
 
     mvc.perform(
             get("/api/v1/products/{id}", "no-es-un-uuid")
-                .with(user(UUID.randomUUID().toString()).authorities(() -> "products:read")))
+                .with(
+                    user(UUID.randomUUID().toString())
+                        .authorities(() -> "products:read", () -> "products:list")))
         .andExpect(status().isBadRequest());
   }
 
@@ -404,7 +408,9 @@ class ProductDetailIT extends IntegrationTestBase {
 
   private MockHttpServletRequestBuilder detalle(UUID id) {
     return get("/api/v1/products/{id}", id)
-        .with(user(UUID.randomUUID().toString()).authorities(() -> "products:read"));
+        .with(
+            user(UUID.randomUUID().toString())
+                .authorities(() -> "products:read", () -> "products:list"));
   }
 
   /**

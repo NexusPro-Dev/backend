@@ -431,7 +431,8 @@ class RoleAdministrationIT extends IntegrationTestBase {
   void sinPermiso() throws Exception {
     mvc.perform(
             patch("/api/v1/roles/{id}", rol)
-                .with(user(SUPERADMIN.toString()).authorities(() -> "roles:read"))
+                .with(
+                    user(SUPERADMIN.toString()).authorities(() -> "roles:read", () -> "roles:list"))
                 .contentType(MediaType.APPLICATION_JSON)
                 .content("{\"name\":\"X\"}"))
         .andExpect(status().isForbidden());
@@ -439,7 +440,14 @@ class RoleAdministrationIT extends IntegrationTestBase {
     // Eliminar exige `roles:delete` y NO le basta `roles:update`.
     mvc.perform(
             post("/api/v1/roles/{id}/deletion", hijo)
-                .with(user(SUPERADMIN.toString()).authorities(() -> "roles:update"))
+                .with(
+                    user(SUPERADMIN.toString())
+                        .authorities(
+                            () -> "roles:update",
+                            () -> "roles:change-status",
+                            () -> "roles:assign-parent",
+                            () -> "roles:assign-permissions",
+                            () -> "roles:revoke-permissions"))
                 .contentType(MediaType.APPLICATION_JSON)
                 .content("{\"reason\":\"X.\"}"))
         .andExpect(status().isForbidden());
@@ -479,11 +487,19 @@ class RoleAdministrationIT extends IntegrationTestBase {
 
   private org.springframework.test.web.servlet.request.RequestPostProcessor administrador() {
     return user(SUPERADMIN.toString())
-        .authorities(() -> "roles:update", () -> "roles:delete", () -> "roles:read");
+        .authorities(
+            () -> "roles:update",
+            () -> "roles:change-status",
+            () -> "roles:assign-parent",
+            () -> "roles:assign-permissions",
+            () -> "roles:revoke-permissions",
+            () -> "roles:delete",
+            () -> "roles:read",
+            () -> "roles:list");
   }
 
   private org.springframework.test.web.servlet.request.RequestPostProcessor lector() {
-    return user(SUPERADMIN.toString()).authorities(() -> "roles:read");
+    return user(SUPERADMIN.toString()).authorities(() -> "roles:read", () -> "roles:list");
   }
 
   private long eventosDeCambio(UUID roleId) {

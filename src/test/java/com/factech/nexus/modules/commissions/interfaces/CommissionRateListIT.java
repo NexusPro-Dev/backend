@@ -132,7 +132,13 @@ class CommissionRateListIT extends IntegrationTestBase {
 
     mvc.perform(
             get("/api/v1/commission-rates/" + cualquiera + "/products")
-                .with(user(SUPERADMIN.toString()).authorities(() -> "commissions:read")))
+                .with(
+                    user(SUPERADMIN.toString())
+                        .authorities(
+                            () -> "commissions:read",
+                            () -> "commissions:read-effective",
+                            () -> "user-commission-rates:read",
+                            () -> "product-commission-rates:read")))
         .andExpect(status().isNotFound());
   }
 
@@ -237,7 +243,13 @@ class CommissionRateListIT extends IntegrationTestBase {
     mvc.perform(
             get("/api/v1/product-commission-rates")
                 .param("productId", producto.toString())
-                .with(user(SUPERADMIN.toString()).authorities(() -> "commissions:read")))
+                .with(
+                    user(SUPERADMIN.toString())
+                        .authorities(
+                            () -> "commissions:read",
+                            () -> "commissions:read-effective",
+                            () -> "user-commission-rates:read",
+                            () -> "product-commission-rates:read")))
         .andExpect(status().isOk())
         .andExpect(jsonPath("$.content.length()").value(1))
         .andExpect(jsonPath("$.content[0].product.code").value("BOT_C"))
@@ -258,7 +270,13 @@ class CommissionRateListIT extends IntegrationTestBase {
     mvc.perform(
             get("/api/v1/product-commission-rates")
                 .param("productId", productoB.toString())
-                .with(user(SUPERADMIN.toString()).authorities(() -> "commissions:read")))
+                .with(
+                    user(SUPERADMIN.toString())
+                        .authorities(
+                            () -> "commissions:read",
+                            () -> "commissions:read-effective",
+                            () -> "user-commission-rates:read",
+                            () -> "product-commission-rates:read")))
         .andExpect(status().isOk())
         .andExpect(jsonPath("$.content.length()").value(1))
         .andExpect(jsonPath("$.content[0].role.code").value("MANAGER"));
@@ -269,12 +287,21 @@ class CommissionRateListIT extends IntegrationTestBase {
   void exigeElPermiso() throws Exception {
     mvc.perform(
             get("/api/v1/commission-rates")
-                .with(user(SUPERADMIN.toString()).authorities(() -> "commissions:create")))
+                .with(
+                    user(SUPERADMIN.toString())
+                        .authorities(
+                            () -> "commissions:create", () -> "user-commission-rates:create")))
         .andExpect(status().isForbidden());
   }
 
   private MockHttpServletRequestBuilder listado() {
     return get("/api/v1/commission-rates")
-        .with(user(SUPERADMIN.toString()).authorities(() -> "commissions:read"));
+        .with(
+            user(SUPERADMIN.toString())
+                .authorities(
+                    () -> "commissions:read",
+                    () -> "commissions:read-effective",
+                    () -> "user-commission-rates:read",
+                    () -> "product-commission-rates:read"));
   }
 }

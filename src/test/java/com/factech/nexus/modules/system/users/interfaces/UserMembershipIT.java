@@ -505,11 +505,13 @@ class UserMembershipIT extends IntegrationTestBase {
   }
 
   private RequestPostProcessor actor() {
-    return user(SUPERADMIN.toString()).authorities(() -> "users:assign-membership");
+    return user(SUPERADMIN.toString())
+        .authorities(() -> "users:assign-membership", () -> "users:revoke-membership");
   }
 
   private RequestPostProcessor rolesActor() {
-    return user(SUPERADMIN.toString()).authorities(() -> "users:assign-roles");
+    return user(SUPERADMIN.toString())
+        .authorities(() -> "users:assign-roles", () -> "users:revoke-roles");
   }
 
   private void hacerConsumidor(UUID usuario) {

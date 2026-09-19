@@ -147,7 +147,10 @@ class RoleDetailIT extends IntegrationTestBase {
   void sinPermiso() throws Exception {
     mvc.perform(
             get("/api/v1/roles/{id}", ADMIN)
-                .with(user(SUPERADMIN.toString()).authorities(() -> "users:read")))
+                .with(
+                    user(SUPERADMIN.toString())
+                        .authorities(
+                            () -> "users:read", () -> "users:list", () -> "users:read-team")))
         .andExpect(status().isForbidden());
 
     mvc.perform(get("/api/v1/roles/{id}", ADMIN)).andExpect(status().isUnauthorized());
@@ -247,7 +250,7 @@ class RoleDetailIT extends IntegrationTestBase {
 
   private MockHttpServletRequestBuilder detalle(String id) {
     return get("/api/v1/roles/{id}", id)
-        .with(user(SUPERADMIN.toString()).authorities(() -> "roles:read"));
+        .with(user(SUPERADMIN.toString()).authorities(() -> "roles:read", () -> "roles:list"));
   }
 
   private UUID crearRol(String codigo, String nombre, String padre) {

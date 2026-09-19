@@ -189,7 +189,10 @@ class CommissionRateLifecycleIT extends IntegrationTestBase {
     // Y la ruta de desasociar YA NO EXISTE.
     mvc.perform(
             post("/api/v1/commission-rates/" + tasa + "/products/" + producto + "/deletion")
-                .with(user(SUPERADMIN.toString()).authorities(() -> "commissions:update"))
+                .with(
+                    user(SUPERADMIN.toString())
+                        .authorities(
+                            () -> "commissions:update", () -> "user-commission-rates:update"))
                 .contentType(MediaType.APPLICATION_JSON)
                 .content("{\"reason\":\"deja de comisionar\"}"))
         .andExpect(status().isNotFound());
@@ -455,14 +458,18 @@ class CommissionRateLifecycleIT extends IntegrationTestBase {
 
   private MockHttpServletRequestBuilder correccion(UUID id, String json) {
     return patch("/api/v1/commission-rates/" + id)
-        .with(user(SUPERADMIN.toString()).authorities(() -> "commissions:update"))
+        .with(
+            user(SUPERADMIN.toString())
+                .authorities(() -> "commissions:update", () -> "user-commission-rates:update"))
         .contentType(MediaType.APPLICATION_JSON)
         .content(json);
   }
 
   private MockHttpServletRequestBuilder retiro(UUID id, String motivo) {
     return post("/api/v1/commission-rates/" + id + "/deletion")
-        .with(user(SUPERADMIN.toString()).authorities(() -> "commissions:delete"))
+        .with(
+            user(SUPERADMIN.toString())
+                .authorities(() -> "commissions:delete", () -> "user-commission-rates:delete"))
         .contentType(MediaType.APPLICATION_JSON)
         .content("{\"reason\":\"" + motivo + "\"}");
   }
@@ -505,7 +512,13 @@ class CommissionRateLifecycleIT extends IntegrationTestBase {
         .param("userId", persona.toString())
         .param("productId", producto.toString())
         .param("onDate", "2026-09-15")
-        .with(user(SUPERADMIN.toString()).authorities(() -> "commissions:read"));
+        .with(
+            user(SUPERADMIN.toString())
+                .authorities(
+                    () -> "commissions:read",
+                    () -> "commissions:read-effective",
+                    () -> "user-commission-rates:read",
+                    () -> "product-commission-rates:read"));
   }
 
   private Object actualizadaEn() {

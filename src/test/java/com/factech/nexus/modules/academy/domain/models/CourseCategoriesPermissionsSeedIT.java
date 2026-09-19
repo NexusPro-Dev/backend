@@ -37,13 +37,19 @@ class CourseCategoriesPermissionsSeedIT extends IntegrationTestBase {
 
   @Test
   @DisplayName(
-      "los cuatro permisos `course-categories:` de ac.md §7 están sembrados, y no hay un quinto")
+      "los cuatro permisos `course-categories:` de ac.md §7 están sembrados, y el quinto es"
+          + " course-categories:list, de V28 (RF-SP-060)")
   void losCuatroSembrados() {
     List<String> codigos =
         jdbc.queryForList(
             "SELECT code FROM permissions WHERE resource = 'course-categories' ORDER BY code",
             String.class);
-    assertThat(codigos).containsExactlyInAnyOrderElementsOf(LOS_CUATRO.keySet());
+    // V28 (RF-SP-060, 19-09-2026) separa el listado del detalle: course-categories:list.
+    // El controlador lo declara en el tramo 3 de ese requerimiento.
+    assertThat(codigos)
+        .containsAll(LOS_CUATRO.keySet())
+        .hasSize(5)
+        .contains("course-categories:list");
   }
 
   @Test
@@ -72,7 +78,8 @@ class CourseCategoriesPermissionsSeedIT extends IntegrationTestBase {
                  WHERE p.resource = 'course-categories'
                 """,
                 Integer.class))
-        .isEqualTo(8);
+        // Cinco por dos roles: V28 dio course-categories:list a quien portaba :read.
+        .isEqualTo(10);
   }
 
   private List<String> permisosDe(UUID rol) {
